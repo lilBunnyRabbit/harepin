@@ -156,6 +156,17 @@ export class Car {
     this.shifting = this.spec.shift_time;
   }
 
+  // Each front points at the rear-axle turn centre, so at full lock inner and outer stop fighting each other.
+  private ackermann(w: Wheel): number {
+    const steer = this.steer;
+    if (Math.abs(steer) < 1e-4) return steer;
+    const { wheelbase } = this.spec;
+    const centre = wheelbase / Math.tan(Math.abs(steer));
+    const half = Math.abs(w.mount.x);
+    const inner = steer > 0 !== w.left;
+    return Math.sign(steer) * Math.atan(wheelbase / (centre + (inner ? -half : half)));
+  }
+
   private ratio(gear = this.gear): number {
     if (gear === -1) return -this.spec.reverse * this.spec.final;
     if (gear === 0) return 0;
@@ -263,7 +274,7 @@ export class Car {
         }
       }
       const compression = reach - t;
-      w.angle = w.front ? this.steer : 0;
+      w.angle = w.front ? this.ackermann(w) : 0;
       w.reach = t;
       w.load = 0;
       w.point.copy(mount).addScaledVector(down, t);
