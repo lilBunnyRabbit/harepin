@@ -151,104 +151,306 @@ export interface CarView {
 
 type Point = [number, number];
 
-interface Profile {
+/** A box mirrored to both sides: size, centre of the left one, and an optional [x, y, z] tilt in radians. */
+interface Part {
+  size: Triple;
+  at: Triple;
+  tilt?: Triple;
+}
+
+interface Cabin {
+  /** Greenhouse side outline [z, y], base front first, then over the roof; its base edge sits on the body top. */
   points: Point[];
   width: number;
+  tumble: number;
+  /** Pillar and frame thickness per outline edge, edge i running from point i to i + 1. */
+  frame: number[];
+  /** Outline edges that are glass seen end-on, with the painted pillar width beside each. */
+  screens: Point[];
+  split?: Point;
 }
 
-/** Side profiles are [z, y] from the ground at rest, +z forward; lamps are [x, y, z] for the left one. */
-interface Shape {
-  body: Profile;
-  trim: Profile;
-  glass: Profile;
-  roof: Profile;
-  head: Triple;
-  tail: Triple;
+interface Arches {
+  gap: number;
+  steps: number;
+  flare: number;
+  out: number;
+  /** How far the flare reaches in over the body top: a tall reach reads as a fender hump from the front. */
+  reach: number;
+  tone: "paint" | "trim";
+}
+
+interface Rim {
+  size: number;
+  spokes: number;
+  tone: "metal" | "light";
+}
+
+/** Profiles are [z, y] from the ground at rest, +z forward; parts are [x, y, z] for the left one. */
+interface Design {
+  /** Body outline from the front bottom corner over the top to the rear bottom corner; arches are cut from the wheel mounts. */
+  outline: Point[];
+  width: number;
+  sill: number;
+  cabin: Cabin;
+  arches: Arches;
+  heads: Part[];
+  tails: Part[];
+  paint: Part[];
+  trim: Part[];
+  markers: Part[];
+  chrome: Part[];
+  tyre: Point;
+  rim: Rim;
   /** Where a bolt-on wing sits: rear deck or roof edge, [z, y]. */
   deck: Point;
-  tyre: number;
-  extras(paint: THREE.Color, trim: THREE.Color): THREE.BufferGeometry[];
 }
 
-const mirrors = (x: number, y: number, z: number, paint: THREE.Color) => [-1, 1].map((side) => tint(box(0.16, 0.1, 0.2, side * x, y, z), paint));
+const MIRROR: Triple = [0.16, 0.1, 0.18];
 
-const SHAPES: Record<BodyStyle, Shape> = {
+const DESIGNS: Record<BodyStyle, Design> = {
   coupe: {
-    body: { points: [[-2.18, 0.3], [2.12, 0.3], [2.3, 0.4], [2.26, 0.56], [1.5, 0.7], [-1.75, 0.8], [-2.24, 0.74], [-2.3, 0.5]], width: 1.86 },
-    trim: { points: [[-2.1, 0.2], [2.2, 0.2], [2.36, 0.33], [-2.2, 0.33]], width: 1.9 },
-    glass: { points: [[1.42, 0.7], [0.42, 1.12], [-0.85, 1.15], [-1.7, 0.8]], width: 1.52 },
-    roof: { points: [[0.3, 1.12], [-0.82, 1.15], [-0.88, 1.2], [0.22, 1.18]], width: 1.44 },
-    head: [0.64, 0.55, 2.24],
-    tail: [0.6, 0.68, -2.27],
-    deck: [-2.0, 0.79],
-    tyre: 0.3,
-    extras: (paint, trim) => [...mirrors(0.98, 0.84, 0.86, paint), tint(box(1.0, 0.14, 0.04, 0, 0.42, 2.3), trim)],
+    outline: [[2.28, 0.3], [2.33, 0.6], [2.26, 0.68], [0.95, 0.82], [-1.3, 0.86], [-2.18, 0.88], [-2.33, 0.84], [-2.34, 0.5], [-2.27, 0.3]],
+    width: 1.88,
+    sill: 0.3,
+    cabin: { points: [[0.95, 0.82], [0.2, 1.2], [-0.75, 1.21], [-1.3, 0.86]], width: 1.56, tumble: 0.2, frame: [0.06, 0.05, 0.13, 0.04], screens: [[0, 0.08], [2, 0.14]], split: [-0.45, 0.1] },
+    arches: { gap: 0.05, steps: 7, flare: 0.05, out: 0.03, reach: 0.08, tone: "paint" },
+    heads: [{ size: [0.42, 0.11, 0.05], at: [0.6, 0.52, 2.325] }],
+    tails: [{ size: [0.56, 0.13, 0.05], at: [0.58, 0.72, -2.345] }],
+    paint: [{ size: MIRROR, at: [0.86, 0.9, 0.72] }],
+    trim: [
+      { size: [0.34, 0.11, 0.05], at: [0.17, 0.52, 2.325] },
+      { size: [0.94, 0.12, 0.08], at: [0.47, 0.36, 2.3] },
+      { size: [0.94, 0.12, 0.08], at: [0.47, 0.36, -2.3] },
+    ],
+    markers: [{ size: [0.05, 0.1, 0.04], at: [0.86, 0.52, 2.31] }],
+    chrome: [],
+    tyre: [0.28, 0.3],
+    rim: { size: 0.64, spokes: 6, tone: "metal" },
+    deck: [-2.02, 0.88],
   },
   hatch: {
-    body: { points: [[-1.88, 0.28], [1.8, 0.28], [1.95, 0.38], [1.92, 0.55], [1.3, 0.72], [-1.85, 0.82], [-1.95, 0.6]], width: 1.7 },
-    trim: { points: [[-1.85, 0.18], [1.85, 0.18], [1.98, 0.3], [-1.95, 0.3]], width: 1.74 },
-    glass: { points: [[1.25, 0.72], [0.45, 1.18], [-1.55, 1.22], [-1.88, 0.84]], width: 1.48 },
-    roof: { points: [[0.4, 1.18], [-1.5, 1.22], [-1.56, 1.27], [0.32, 1.24]], width: 1.4 },
-    head: [0.56, 0.56, 1.9],
-    tail: [0.6, 0.72, -1.94],
-    deck: [-1.5, 1.17],
-    tyre: 0.26,
-    extras: (paint, trim) => [...mirrors(0.9, 0.86, 1.0, paint), tint(box(0.8, 0.14, 0.04, 0, 0.42, 1.96), trim)],
+    outline: [[1.9, 0.3], [1.95, 0.62], [1.88, 0.72], [1.0, 0.86], [-1.82, 0.92], [-1.95, 0.92], [-1.97, 0.6], [-1.93, 0.3]],
+    width: 1.7,
+    sill: 0.3,
+    cabin: { points: [[1.0, 0.86], [0.25, 1.3], [-1.45, 1.33], [-1.84, 0.92]], width: 1.5, tumble: 0.14, frame: [0.06, 0.05, 0.14, 0.04], screens: [[0, 0.08], [2, 0.12]], split: [-0.25, 0.1] },
+    arches: { gap: 0.05, steps: 6, flare: 0.06, out: 0.03, reach: 0.04, tone: "trim" },
+    heads: [{ size: [0.34, 0.16, 0.05], at: [0.56, 0.62, 1.94] }],
+    tails: [{ size: [0.18, 0.3, 0.05], at: [0.72, 0.72, -1.975] }],
+    paint: [
+      { size: MIRROR, at: [0.82, 0.93, 0.8] },
+      { size: [0.66, 0.05, 0.24], at: [0.33, 1.355, -1.44] },
+    ],
+    trim: [
+      { size: [0.25, 0.12, 0.05], at: [0.125, 0.62, 1.94] },
+      { size: [0.88, 0.14, 0.1], at: [0.44, 0.38, 1.93] },
+      { size: [0.88, 0.14, 0.1], at: [0.44, 0.38, -1.95] },
+    ],
+    markers: [],
+    chrome: [],
+    tyre: [0.24, 0.24],
+    rim: { size: 0.6, spokes: 0, tone: "metal" },
+    deck: [-1.44, 1.37],
   },
   muscle: {
-    body: { points: [[-2.42, 0.32], [2.4, 0.32], [2.52, 0.42], [2.48, 0.7], [0.9, 0.8], [-1.6, 0.84], [-2.45, 0.82], [-2.52, 0.55]], width: 1.96 },
-    trim: { points: [[-2.4, 0.2], [2.45, 0.2], [2.56, 0.34], [-2.5, 0.34]], width: 2.0 },
-    glass: { points: [[0.85, 0.8], [-0.1, 1.17], [-1.0, 1.19], [-1.65, 0.84]], width: 1.6 },
-    roof: { points: [[-0.15, 1.17], [-0.95, 1.19], [-1.0, 1.24], [-0.2, 1.22]], width: 1.52 },
-    head: [0.7, 0.6, 2.48],
-    tail: [0.68, 0.72, -2.5],
-    deck: [-2.2, 0.83],
-    tyre: 0.36,
-    extras: (paint, trim) => [
-      ...mirrors(1.04, 0.9, 0.6, paint),
-      tint(box(0.5, 0.1, 0.8, 0, 0.82, 1.5), paint),
-      tint(box(0.36, 0.06, 0.04, 0, 0.84, 1.9), trim),
-      tint(box(1.3, 0.16, 0.04, 0, 0.45, 2.55), trim),
+    outline: [[2.46, 0.28], [2.53, 0.4], [2.53, 0.74], [2.4, 0.78], [0.45, 0.84], [-1.6, 0.86], [-2.42, 0.88], [-2.52, 0.84], [-2.52, 0.5], [-2.46, 0.28]],
+    width: 1.98,
+    sill: 0.28,
+    cabin: { points: [[0.45, 0.84], [-0.22, 1.22], [-0.95, 1.24], [-1.6, 0.86]], width: 1.5, tumble: 0.22, frame: [0.08, 0.05, 0.15, 0.05], screens: [[0, 0.08], [2, 0.16]], split: [-0.78, 0.06] },
+    arches: { gap: 0.05, steps: 7, flare: 0.1, out: 0.08, reach: 0.22, tone: "paint" },
+    heads: [
+      { size: [0.17, 0.15, 0.04], at: [0.74, 0.6, 2.545] },
+      { size: [0.17, 0.15, 0.04], at: [0.52, 0.6, 2.545] },
     ],
+    tails: [{ size: [0.82, 0.13, 0.04], at: [0.44, 0.73, -2.535] }],
+    paint: [
+      { size: MIRROR, at: [0.88, 0.9, 0.3] },
+      { size: [0.35, 0.08, 1.7], at: [0.175, 0.87, 1.45] },
+      { size: [0.24, 0.12, 0.42], at: [0.12, 0.95, 1.3] },
+    ],
+    trim: [
+      { size: [0.9, 0.26, 0.04], at: [0.45, 0.6, 2.535] },
+      { size: [0.19, 0.07, 0.02], at: [0.095, 0.97, 1.52] },
+      { size: [0.12, 0.012, 1.7], at: [0.12, 0.916, 1.45] },
+      { size: [0.12, 0.012, 0.75], at: [0.12, 1.247, -0.58] },
+      { size: [0.12, 0.012, 0.8], at: [0.12, 0.886, -2.0], tilt: [-0.025, 0, 0] },
+      { size: [0.06, 0.06, 0.16], at: [0.5, 0.24, -2.46] },
+    ],
+    markers: [],
+    chrome: [
+      { size: [1.0, 0.12, 0.12], at: [0.5, 0.36, 2.5] },
+      { size: [1.0, 0.12, 0.12], at: [0.5, 0.36, -2.5] },
+    ],
+    tyre: [0.3, 0.42],
+    rim: { size: 0.62, spokes: 5, tone: "metal" },
+    deck: [-2.15, 0.88],
   },
   rally: {
-    body: { points: [[-2.1, 0.36], [2.05, 0.36], [2.2, 0.46], [2.16, 0.62], [1.35, 0.78], [-1.95, 0.86], [-2.2, 0.66]], width: 1.84 },
-    trim: { points: [[-2.05, 0.22], [2.1, 0.22], [2.24, 0.38], [-2.15, 0.38]], width: 1.92 },
-    glass: { points: [[1.3, 0.78], [0.4, 1.24], [-1.45, 1.28], [-1.95, 0.9]], width: 1.52 },
-    roof: { points: [[0.35, 1.24], [-1.4, 1.28], [-1.46, 1.33], [0.27, 1.3]], width: 1.44 },
-    head: [0.62, 0.6, 2.17],
-    tail: [0.62, 0.76, -2.2],
-    deck: [-1.42, 1.23],
-    tyre: 0.3,
-    extras: (paint, trim) => [
-      ...mirrors(0.98, 0.9, 1.0, paint),
-      tint(box(0.34, 0.1, 0.42, 0, 1.37, 0.05), trim),
-      tint(box(1.2, 0.08, 0.08, 0, 1.38, 0.32), trim),
-      ...[-1, 1].map((side) => tint(box(0.3, 0.22, 0.03, side * 0.82, 0.3, -1.68), trim)),
-      tint(box(1.5, 0.08, 0.5, 0, 0.26, 1.9), trim),
+    outline: [[2.15, 0.38], [2.2, 0.5], [2.17, 0.66], [1.2, 0.8], [-1.6, 0.88], [-2.13, 0.9], [-2.2, 0.86], [-2.2, 0.56], [-2.14, 0.38]],
+    width: 1.8,
+    sill: 0.38,
+    cabin: { points: [[1.2, 0.8], [0.4, 1.3], [-1.0, 1.33], [-1.6, 0.88]], width: 1.5, tumble: 0.12, frame: [0.07, 0.05, 0.1, 0.05], screens: [[0, 0.08], [2, 0.12]], split: [-0.24, 0.1] },
+    arches: { gap: 0.1, steps: 3, flare: 0.1, out: 0.08, reach: 0.06, tone: "trim" },
+    heads: [
+      { size: [0.34, 0.1, 0.05], at: [0.62, 0.58, 2.2], tilt: [-0.2, 0, 0] },
+      { size: [0.15, 0.13, 0.03], at: [0.14, 0.76, 2.13] },
+      { size: [0.15, 0.13, 0.03], at: [0.38, 0.76, 2.13] },
     ],
+    tails: [{ size: [0.4, 0.15, 0.05], at: [0.62, 0.74, -2.21] }],
+    paint: [{ size: MIRROR, at: [0.85, 0.9, 0.95] }],
+    trim: [
+      { size: [0.55, 0.18, 0.08], at: [0.275, 0.76, 2.08] },
+      { size: [0.18, 0.08, 0.32], at: [0.09, 1.37, 0.1] },
+      { size: [0.75, 0.06, 0.4], at: [0.375, 0.36, 1.9] },
+      { size: [0.9, 0.12, 0.06], at: [0.45, 0.44, 2.18] },
+      { size: [0.9, 0.12, 0.06], at: [0.45, 0.44, -2.18] },
+      { size: [0.3, 0.3, 0.03], at: [0.78, 0.25, 0.75] },
+      { size: [0.3, 0.3, 0.03], at: [0.78, 0.25, -1.8] },
+    ],
+    markers: [],
+    chrome: [],
+    tyre: [0.3, 0.3],
+    rim: { size: 0.56, spokes: 0, tone: "light" },
+    deck: [-1.95, 0.9],
   },
   kaze: {
-    body: { points: [[-2.0, 0.3], [2.0, 0.3], [2.13, 0.4], [2.1, 0.53], [0.8, 0.7], [-1.82, 0.83], [-2.06, 0.81], [-2.12, 0.54]], width: 1.8 },
-    trim: { points: [[-1.98, 0.2], [2.04, 0.2], [2.17, 0.34], [-2.1, 0.34]], width: 1.86 },
-    glass: { points: [[0.78, 0.7], [-0.06, 1.19], [-0.72, 1.21], [-1.84, 0.83]], width: 1.44 },
-    roof: { points: [[-0.12, 1.19], [-0.68, 1.21], [-0.74, 1.25], [-0.18, 1.23]], width: 1.36 },
-    head: [0.64, 0.54, 2.08],
-    tail: [0.62, 0.72, -2.09],
-    deck: [-1.95, 0.82],
-    tyre: 0.32,
-    extras: (paint, trim) => [
-      ...mirrors(0.94, 0.85, 0.62, paint),
-      ...[-1, 1].map((side) => tint(box(0.12, 0.24, 1.1, side * 0.93, 0.6, -1.4), paint)),
-      tint(box(1.2, 0.12, 0.04, 0, 0.38, 2.16), trim),
+    outline: [[1.96, 0.28], [2.0, 0.56], [1.94, 0.65], [0.57, 0.93], [-1.9, 0.95], [-2.0, 0.94], [-2.12, 0.91], [-2.14, 0.6], [-2.08, 0.28]],
+    width: 1.9,
+    sill: 0.28,
+    cabin: { points: [[0.57, 0.93], [-0.05, 1.26], [-0.35, 1.3], [-0.78, 1.28], [-1.9, 0.95]], width: 1.66, tumble: 0.34, frame: [0.05, 0.035, 0.035, 0.05, 0.035], screens: [[0, 0.07], [3, 0.2]] },
+    arches: { gap: 0.07, steps: 8, flare: 0, out: 0, reach: 0, tone: "paint" },
+    heads: [{ size: [0.38, 0.05, 0.24], at: [0.64, 0.67, 1.88], tilt: [0.42, 0.22, 0] }],
+    tails: [{ size: [0.46, 0.14, 0.05], at: [0.63, 0.79, -2.155] }],
+    paint: [
+      { size: [0.18, 0.14, 0.18], at: [0.94, 1.0, 0.4] },
+      { size: [0.8, 0.05, 0.18], at: [0.4, 0.96, -2.04], tilt: [0.25, 0, 0] },
     ],
+    trim: [
+      { size: [0.88, 0.05, 0.22], at: [0.44, 0.26, 1.9] },
+      { size: [0.52, 0.12, 0.04], at: [0.25, 0.4, 1.985] },
+      { size: [0.03, 0.16, 0.05], at: [0.955, 0.8, -0.7] },
+      { size: [0.9, 0.14, 0.04], at: [0.45, 0.37, -2.11] },
+    ],
+    markers: [{ size: [0.05, 0.16, 0.04], at: [0.78, 0.42, 1.99] }],
+    chrome: [{ size: [0.12, 0.07, 0.1], at: [0.55, 0.3, -2.12] }],
+    tyre: [0.34, 0.36],
+    rim: { size: 0.58, spokes: 0, tone: "metal" },
+    deck: [-2.0, 0.97],
   },
 };
+
+function arc(z: number, y: number, radius: number, floor: number, steps: number): Point[] {
+  const low = Math.asin(Math.max(-1, Math.min(1, (floor - y) / radius)));
+  return Array.from({ length: steps + 1 }, (_, i): Point => {
+    const a = Math.PI - low - ((Math.PI - 2 * low) * i) / steps;
+    return [z + radius * Math.cos(a), y + radius * Math.sin(a)];
+  });
+}
+
+function signed_area(points: Point[]): number {
+  return points.reduce((sum, [z, y], i) => {
+    const [z2, y2] = points[(i + 1) % points.length];
+    return sum + z * y2 - z2 * y;
+  }, 0);
+}
+
+function inset(points: Point[], by: number[]): Point[] {
+  const n = points.length;
+  const turn = Math.sign(signed_area(points));
+  const lines = points.map(([z, y], i) => {
+    const [z2, y2] = points[(i + 1) % n];
+    const dz = z2 - z;
+    const dy = y2 - y;
+    const length = Math.hypot(dz, dy);
+    return { z: z - (dy / length) * turn * by[i], y: y + (dz / length) * turn * by[i], dz, dy };
+  });
+  return lines.map((b, i): Point => {
+    const a = lines[(i - 1 + n) % n];
+    const t = ((b.z - a.z) * b.dy - (b.y - a.y) * b.dz) / (a.dz * b.dy - a.dy * b.dz);
+    return [a.z + a.dz * t, a.y + a.dy * t];
+  });
+}
+
+function clip(points: Point[], at: number, keep: number): Point[] {
+  const out: Point[] = [];
+  points.forEach((p, i) => {
+    const q = points[(i + 1) % points.length];
+    const p_in = (p[0] - at) * keep >= 0;
+    if (p_in) out.push(p);
+    if (p_in !== (q[0] - at) * keep >= 0) out.push([at, p[1] + ((q[1] - p[1]) * (at - p[0])) / (q[0] - p[0])]);
+  });
+  return out;
+}
+
+function screen(points: Point[], edge: number, end: number): Point[] {
+  const turn = Math.sign(signed_area(points));
+  const a = points[edge];
+  const b = points[(edge + 1) % points.length];
+  const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+  const u: Point = [(b[0] - a[0]) / length, (b[1] - a[1]) / length];
+  const out: Point = [u[1] * turn, -u[0] * turn];
+  const at = (p: Point, along: number, by: number): Point => [p[0] + u[0] * along + out[0] * by, p[1] + u[1] * along + out[1] * by];
+  return [at(a, end, 0.012), at(b, -end, 0.012), at(b, -end, -0.03), at(a, end, -0.03)];
+}
+
+/** Narrows x linearly with height, so flat sides stay flat while leaning in. */
+function lean(geometry: THREE.BufferGeometry, from: number, to: number, share: number): THREE.BufferGeometry {
+  const position = geometry.getAttribute("position");
+  for (let i = 0; i < position.count; i++) position.setX(i, position.getX(i) * (1 - (share * (position.getY(i) - from)) / (to - from)));
+  return geometry;
+}
+
+function slab(points: Point[], from: number, to: number): THREE.BufferGeometry[] {
+  return [-1, 1].map((side) => extrude(points, to - from).translate((side * (from + to)) / 2, 0, 0));
+}
+
+function parts(list: Part[]): THREE.BufferGeometry[] {
+  return list.flatMap(({ size, at: [x, y, z], tilt: [rx, ry, rz] = [0, 0, 0] }) =>
+    [-1, 1].map((side) => new THREE.BoxGeometry(...size).rotateX(rx).rotateY(side * ry).rotateZ(side * rz).translate(side * x, y, z)),
+  );
+}
+
+function cabin_parts(c: Cabin, paint: THREE.Color, glass: THREE.Color): THREE.BufferGeometry[] {
+  const ys = c.points.map(([, y]) => y);
+  const base = Math.min(...ys);
+  const top = Math.max(...ys);
+  const window = inset(c.points, c.frame);
+  const windows = c.split ? [clip(window, c.split[0] + c.split[1] / 2, 1), clip(window, c.split[0] - c.split[1] / 2, -1)] : [window];
+  return [
+    tint(extrude(c.points, c.width), paint),
+    ...windows.map((w) => tint(extrude(w, c.width + 0.02), glass)),
+    ...c.screens.map(([edge, pillar]) => tint(extrude(screen(c.points, edge, Math.max(0.05, pillar * 0.6)), c.width - 2 * pillar), glass)),
+  ].map((g) => lean(g, base, top, c.tumble));
+}
+
+function body_outline(d: Design, spec: CarSpec): Point[] {
+  const radius = spec.wheel.radius + d.arches.gap;
+  const y = spec.wheel.radius;
+  return [...d.outline, ...arc(spec.wheel.mounts[2][2], y, radius, d.sill, d.arches.steps), ...arc(spec.wheel.mounts[0][2], y, radius, d.sill, d.arches.steps)];
+}
+
+function flares(d: Design, spec: CarSpec): THREE.BufferGeometry[] {
+  if (d.arches.flare <= 0) return [];
+  const inner = spec.wheel.radius + d.arches.gap;
+  const y = spec.wheel.radius;
+  const edge = d.width / 2;
+  return [spec.wheel.mounts[0][2], spec.wheel.mounts[2][2]].flatMap((z) => {
+    const ring = [...arc(z, y, inner + d.arches.flare, d.sill, d.arches.steps), ...arc(z, y, inner, d.sill, d.arches.steps).reverse()];
+    return slab(ring, edge - d.arches.reach, edge + d.arches.out);
+  });
+}
+
+function skirts(d: Design, spec: CarSpec): THREE.BufferGeometry[] {
+  const reach = spec.wheel.radius + d.arches.gap + d.arches.flare;
+  const front = spec.wheel.mounts[0][2] - reach;
+  const rear = spec.wheel.mounts[2][2] + reach;
+  return parts([{ size: [0.03, 0.09, front - rear], at: [d.width / 2 + 0.005, d.sill, (front + rear) / 2] }]);
+}
 
 function wing(level: Level, style: BodyStyle, width: number, [z, y]: Point, paint: THREE.Color, trim: THREE.Color): THREE.BufferGeometry[] {
   if (level === 0) {
     if (style !== "coupe") return [];
-    return [tint(box(1.82, 0.05, 0.42, 0, 1.04, -2.02), paint), ...[-1, 1].map((side) => tint(box(0.06, 0.22, 0.14, side * 0.62, 0.9, -1.98), trim))];
+    return [tint(box(1.6, 0.05, 0.3, 0, y + 0.13, z), paint), ...[-1, 1].map((side) => tint(box(0.06, 0.13, 0.12, side * 0.6, y + 0.065, z + 0.02), trim))];
   }
   const lift = level === 1 ? 0.24 : 0.4;
   const span = width * (level === 1 ? 0.92 : 1);
@@ -260,22 +462,39 @@ function wing(level: Level, style: BodyStyle, width: number, [z, y]: Point, pain
   return parts;
 }
 
+function wheel_geometry(radius: number, width: number, rim: Rim): THREE.BufferGeometry {
+  const metal = color(mix(brand.foreground, brand.background_lightest, 0.6));
+  const tone = rim.tone === "light" ? color(tones.check_light) : metal;
+  const disc = radius * rim.size;
+  const pieces = [
+    tint(new THREE.CylinderGeometry(radius, radius, width, 8).rotateZ(Math.PI / 2), color(tones.tyre)),
+    tint(new THREE.CylinderGeometry(disc, disc, width + 0.02, 8).rotateZ(Math.PI / 2), rim.spokes ? color(tones.trim) : tone),
+  ];
+  for (let i = 0; i < rim.spokes; i++) pieces.push(tint(new THREE.BoxGeometry(width + 0.04, disc * 1.9, 0.06).rotateX((i * Math.PI) / rim.spokes), tone));
+  if (rim.spokes) pieces.push(tint(new THREE.CylinderGeometry(disc * 0.3, disc * 0.3, width + 0.05, 6).rotateZ(Math.PI / 2), tone));
+  return merge(...pieces);
+}
+
 // Paint, trim and glass are baked into vertex colours so the whole shell is one draw; a repaint rebuilds the view.
 export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, spoiler: Level = 0): CarView {
   const style = spec.body.style;
-  const shape = SHAPES[style];
+  const d = DESIGNS[style];
   const root = new THREE.Group();
   const body = new THREE.Group();
   body.position.y = -(rest_reach(spec) - spec.wheel.mounts[0][1]);
   const trim = color(tones.trim);
+  const arch_tone = d.arches.tone === "paint" ? paint : trim;
 
   const shell = merge(
-    tint(extrude(shape.body.points, shape.body.width), paint),
-    tint(extrude(shape.trim.points, shape.trim.width), trim),
-    tint(extrude(shape.glass.points, shape.glass.width), color(tones.glass)),
-    tint(extrude(shape.roof.points, shape.roof.width), paint),
-    wing(spoiler, style, shape.body.width, shape.deck, paint, trim),
-    shape.extras(paint, trim),
+    tint(extrude(body_outline(d, spec), d.width), paint),
+    cabin_parts(d.cabin, paint, color(tones.glass)),
+    flares(d, spec).map((g) => tint(g, arch_tone)),
+    skirts(d, spec).map((g) => tint(g, trim)),
+    parts(d.paint).map((g) => tint(g, paint)),
+    parts(d.trim).map((g) => tint(g, trim)),
+    parts(d.markers).map((g) => tint(g, color(brand.warning))),
+    parts(d.chrome).map((g) => tint(g, color(mix(brand.foreground, brand.background_lightest, 0.6)))),
+    wing(spoiler, style, d.width, d.deck, paint, trim),
   );
   const hull = new THREE.Mesh(shell, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
   hull.castShadow = true;
@@ -284,24 +503,16 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, spoiler: Lev
   const head_material = new THREE.MeshLambertMaterial({ color: head, emissive: head, emissiveIntensity: 1.2 });
   const tail = color(brand.error);
   const brake = new THREE.MeshLambertMaterial({ color: tail, emissive: tail, emissiveIntensity: 0.5 });
-  const [hx, hy, hz] = shape.head;
-  const [tx, ty, tz] = shape.tail;
-  const heads = merge([-1, 1].map((side) => new THREE.BoxGeometry(0.46, 0.08, 0.1).rotateX(-0.25).translate(side * hx, hy, hz)));
-  const tails = merge([-1, 1].map((side) => box(0.5, 0.1, 0.06, side * tx, ty, tz)));
-  const head_mesh = new THREE.Mesh(heads, head_material);
-  body.add(hull, head_mesh, new THREE.Mesh(tails, brake));
+  const head_mesh = new THREE.Mesh(merge(parts(d.heads)), head_material);
+  body.add(hull, head_mesh, new THREE.Mesh(merge(parts(d.tails)), brake));
   root.add(body);
 
-  const radius = spec.wheel.radius;
-  const wheel = merge(
-    tint(new THREE.CylinderGeometry(radius, radius, shape.tyre, 12).rotateZ(Math.PI / 2), color(tones.tyre)),
-    tint(new THREE.CylinderGeometry(radius * 0.65, radius * 0.65, shape.tyre + 0.02, 6).rotateZ(Math.PI / 2), color(mix(brand.foreground, brand.background_lightest, 0.6))),
-  );
+  const axles = [wheel_geometry(spec.wheel.radius, d.tyre[0], d.rim), wheel_geometry(spec.wheel.radius, d.tyre[1], d.rim)];
   const wheel_material = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
-  const wheels = [0, 1, 2, 3].map(() => {
+  const wheels = [0, 1, 2, 3].map((i) => {
     const steer = new THREE.Group();
     const spin = new THREE.Group();
-    const mesh = new THREE.Mesh(wheel, wheel_material);
+    const mesh = new THREE.Mesh(axles[i < 2 ? 0 : 1], wheel_material);
     mesh.castShadow = true;
     spin.add(mesh);
     steer.add(spin);
