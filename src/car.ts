@@ -389,7 +389,8 @@ export class Car {
 
       const sx = (omega * radius - v_long) / denom / spec.peak_slip;
       const roll = ground.roll(w.point.x, w.point.z);
-      const fx = combined_x(sx, sy) * peak - v_long * spec.roll_resist * (roll - (roll - 1) * spec.offroad);
+      const rolling = v_long * spec.roll_resist;
+      const fx = combined_x(sx, sy) * peak - rolling;
       const fy = combined_y(sx, sy) * peak;
       w.slip = sx * spec.peak_slip;
       const locking = this.abs && brake > 0.1 && w.slip < -0.1 && Math.abs(v_long) > 2;
@@ -400,6 +401,9 @@ export class Car {
       force.copy(wheel_fwd).multiplyScalar(fx).addScaledVector(lat, fy);
       total_force.add(force);
       total_torque.add(tmp2.crossVectors(lever, force));
+      // Grass drag acts at the centre of mass: at the contact patch it pitched load off the rear, and at full throttle on grass
+      // the unloaded rear lost straight-line yaw stability, so the car circled while TCS cut the power.
+      total_force.addScaledVector(wheel_fwd, -rolling * (roll - 1) * (1 - spec.offroad));
     }
 
     for (const corner of this.corners) {

@@ -133,11 +133,11 @@ coupe, each on a few clear axes. Handling fields in `src/cars.ts` only: no body,
 
 | car | 0-100 s | top km/h | 100-0 m | dive ° | skidpad g | turn-in ms | roll ° | lift-off ° | power-on ° | flick slip ° | slide hold s | grass km/h @12 s | grass g |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| hatch | 9.22 | 191 | **38.7** | 2.4 | 0.97 | **50** | 2.2 | 7.1 | 0.6 | 25 | 0.3 | 84 | 0.65 |
-| coupe | 5.29 | 271 | 40.0 | 2.3 | 0.89 | 61 | 2.3 | 4.1 | 28.4 | 24 | 1.2 | 117 | 0.64 |
-| muscle | 6.05 | **281** | **49.7** | 2.9 | **0.81** | **69** | **3.9** | 4.6 | **37.8** | 24 | 1.3 | 109 | 0.57 |
+| hatch | 9.22 | 191 | **38.7** | 2.4 | 0.97 | **50** | 2.2 | 7.1 | 0.6 | 25 | 0.3 | 83 | 0.63 |
+| coupe | 5.29 | 271 | 40.0 | 2.3 | 0.89 | 61 | 2.3 | 4.1 | 28.4 | 24 | 1.2 | 120 | 0.63 |
+| muscle | 5.86 | **281** | **49.6** | 2.9 | **0.81** | **69** | **3.9** | 3.6 | **35.2** | 23 | 2.0 | 113 | 0.58 |
 | rally | **4.69** | 236 | 41.0 | **3.1** | 0.87 | 56 | 3.1 | **14.2** | 19.3 | 26 | 2.2 | **158** | **0.79** |
-| kaze | 5.92 | 257 | 40.9 | 2.2 | 0.90 | 56 | 1.9 | 4.8 | 29.5 | 26 | **3.2** | 110 | 0.63 |
+| kaze | 5.92 | 257 | 40.9 | 2.2 | 0.90 | 56 | 1.9 | 4.8 | 29.5 | 26 | **3.2** | 111 | 0.62 |
 
 Before (same script on HEAD 4d920e0 specs): hatch 9.28 s / 38.2 m / 56 ms / roll 2.3° / lift 2.1°; muscle 5.69 s /
 273 km/h / 42.2 m / 67 ms / roll 2.4° / power-on 30.9° / hold 4.1 s; rally 4.58 s / 251 km/h / 64 ms / roll 2.6° /
@@ -156,14 +156,26 @@ grip 0.72 / roll 12 ground.
 
 - **Handbrake flick** is the same for all cars (24-26°): 2000+ Nm already locks the rears, and locked-tyre grip is the
   same curve everywhere. Making the rally flick harder needs a per-car post-peak tyre shape (item 6 above).
-- **Muscle 0-100** is slower than the coupe (6.05 s) because it is traction-limited with TCS on; TCS off it is 7.4 s
+- **Muscle 0-100** is slower than the coupe (5.86 s) because it is traction-limited with TCS on; TCS off it is 7.4 s
   with long wheelspin. That reads as "too much torque", which is on brief, but it is not a quick car off the line.
 - **Hatch skidpad** is above the coupe (0.97 g): light car, low load sensitivity loss. It still understeers on power.
 - Full-lock steps at 100 km/h oscillate slowly (about 1.4 s period) in every car, the coupe included: the cruise throttle
   loop. Muscle and rally swing more (feel.ts overshoot 82% / 53%, coupe about 40%). Floaty is on brief for both.
 
-### Known issue found, not fixed
+### Grass "TCS loop" at 130+ km/h (fixed)
 
-On grass with TCS on, a road-tyre car at 130+ km/h loses speed to a stop-start loop: roll drag holds the driven
-wheels near 0.14 slip, TCS cuts to 0.25, the car slows. Coupe peaks at 136 km/h on grass after 16 s, then falls to
-49 km/h by 30 s. Hence the 12 s grass speed column instead of a grass top speed.
+Symptom: flat out on grass, TCS on, hands off, the coupe peaked at 136 km/h and then fell to 49 km/h, with TCS
+holding at 0.25. It looked like a TCS loop, but TCS was only the last link in the chain. The grass part of rolling
+drag (×12, linear in speed, about 0.2 g at 150 km/h) was applied at the contact patches, under the centre of mass,
+so it pitched load off the rear. Full throttle on grass is also traction-limited, so the unloaded rear had no lateral
+reserve left. Above about 125 km/h the car lost straight-line yaw stability and circled. The unloaded inner rear spun
+and TCS cut the power for good.
+
+Ruled out: lowering the TCS slip target (to peak slip, 0.8× peak, or a combined-slip target down to 0.5) fixed the
+coupe but not the muscle, and cost up to 0.6 s of 0-100. With grass grip and no grass drag, every car stays stable.
+
+Fix: the grass share of rolling drag now acts at the centre of mass (`car.ts`). Speed loss on grass is unchanged,
+and on road the sim is byte-identical (`feel.ts coupe` diff is empty). The muscle tune still sat at the edge, so its
+`rear_grip` goes from 1.04 to 1.08 (slide hold 1.3 to 2.0 s, still under the Kaze; power-on 37.8° to 35.2°; 0-100
+6.05 to 5.86 s). Test: `car.test.ts` "grass drag", all cars, a 0.03 rad/s yaw kick at 20 s. It fails on the old code
+(coupe heading 0.55 rad) and passes now. It probably helps item 7 (grass braking) too; not measured.

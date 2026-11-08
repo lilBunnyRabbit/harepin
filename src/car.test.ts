@@ -107,3 +107,23 @@ describe("garage swap", () => {
     }
   });
 });
+
+describe("grass drag", () => {
+  const grass: Ground = { ...flat, grip: () => 0.72, roll: () => 12 };
+
+  test("flat out in a straight line, no car yaws away or loses speed", () => {
+    for (const spec of Object.values(CARS)) {
+      const car = new Car(spec);
+      car.place(0, 0.6, 0, 0);
+      run(car, 1.5, () => idle);
+      let peak = 0;
+      for (let t = 0; t < 40; t += DT) {
+        if (Math.abs(t - 20) < DT / 2) car.ang.y += 0.03;
+        car.step(DT, { ...idle, throttle: 1, analog: true }, grass);
+        peak = Math.max(peak, kmh(car));
+      }
+      expect(Math.abs(car.heading)).toBeLessThan(0.05);
+      expect(kmh(car)).toBeGreaterThan(peak - 2);
+    }
+  });
+});

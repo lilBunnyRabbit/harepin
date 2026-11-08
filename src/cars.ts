@@ -187,7 +187,7 @@ export const MUSCLE: CarSpec = {
   arb_front: 8000,
   arb_rear: 2000,
   mu: 1.08,
-  rear_grip: 1.04,
+  rear_grip: 1.08,
   peak_angle: 0.13,
   idle: 750,
   redline: 6300,
