@@ -2,7 +2,7 @@ import type { Car } from "./car";
 import type { Lobby } from "./lobby";
 import type { Net } from "./net";
 import type { Race } from "./race";
-import { brand, rgba } from "./palette";
+import { brand, dark, rgba } from "./palette";
 import { SIZE, type World } from "./world";
 
 export function $<T extends HTMLElement>(id: string, type: { new (): T; prototype: T }): T;
@@ -37,6 +37,17 @@ function row(name: string, time: string, you: boolean, note = ""): HTMLLIElement
 }
 
 const MAP = 200;
+
+export const HudLayout = {
+  STRIP: "a",
+  CLUSTER: "b",
+  CORNERS: "c",
+} as const;
+export type HudLayout = (typeof HudLayout)[keyof typeof HudLayout];
+
+const LAYOUTS: readonly string[] = Object.values(HudLayout);
+const asked = new URLSearchParams(location.search).get("hud");
+export const hud_layout: HudLayout = asked && LAYOUTS.includes(asked) ? (asked as HudLayout) : HudLayout.STRIP;
 
 export class Hud {
   private el = {
@@ -75,6 +86,8 @@ export class Hud {
     private lobby: Lobby,
   ) {
     $("room").textContent = room;
+    document.body.dataset.hud = hud_layout;
+    document.documentElement.dataset.scheme = dark ? "dark" : "light";
     const canvas = $("minimap", HTMLCanvasElement);
     canvas.width = MAP * devicePixelRatio;
     canvas.height = MAP * devicePixelRatio;
