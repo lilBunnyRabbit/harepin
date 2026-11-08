@@ -223,7 +223,15 @@ export class Car {
       const braking_torque = wheel_rpm > spec.idle ? (1 - gas) * (20 + rpm * 0.009) : 0;
       engine = rpm >= spec.redline ? -braking_torque : gas * torque_at(spec.torque, rpm) - braking_torque;
     }
-    const drive = (engine * ratio * spec.driveline) / driven.length;
+    let drive_front = 0;
+    let drive_rear = 0;
+    if (spec.drive === "awd") {
+      const total = engine * ratio * spec.driveline;
+      const split = spec.awd_split ?? 0.5;
+      drive_front = (total * split) / 2;
+      drive_rear = (total * (1 - split)) / 2;
+    } else if (spec.drive === "fwd") drive_front = (engine * ratio * spec.driveline) / driven.length;
+    else drive_rear = (engine * ratio * spec.driveline) / driven.length;
     const driven_inertia = 1.4 + (spec.engine_inertia * ratio * ratio) / driven.length;
 
     total_force.set(0, -GRAVITY * spec.mass, 0);
@@ -263,7 +271,7 @@ export class Car {
       const prev = w.prev;
       const other = this.wheels[i ^ 1];
       const inertia = w.driven ? driven_inertia : 1.4;
-      const torque = w.driven ? drive : 0;
+      const torque = w.driven ? (w.front ? drive_front : drive_rear) : 0;
       const brake_torque = brake * (w.front ? spec.brake_front : spec.brake_rear) * w.abs_factor + (w.front ? 0 : input.handbrake * spec.handbrake) + (hold ? spec.hold : 0);
 
       if (!w.contact) {

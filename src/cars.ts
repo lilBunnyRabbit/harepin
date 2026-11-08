@@ -9,7 +9,7 @@ export interface CarSpec {
   mass: number;
   inertia: Triple;
   drive: Drive;
-  /** Share of drive torque sent to the rear axle, 0..1; only read for `awd`. */
+  /** Share of drive torque sent to the front axle, 0..1, default 0.5; only read for `awd`. */
   awd_split?: number;
   /** `mounts` order: front left, front right, rear left, rear right. */
   wheel: { radius: number; rest: number; mounts: Triple[] };
