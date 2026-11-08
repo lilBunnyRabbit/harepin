@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import type { Car } from "./car";
+import { rest_reach, type Car } from "./car";
 import { COUPE, type CarSpec } from "./cars";
 import { brand, color, dark, mix, tones } from "./palette";
 import { ribbon } from "./scene";
@@ -234,6 +234,22 @@ export function sync_car_view(view: CarView, car: Car) {
     g.children[0].rotation.x = w.spin;
   });
   view.brake.emissiveIntensity = car.braking > 0.05 ? 2.2 : 0.5;
+}
+
+export function rest_wheels(view: CarView, spec: CarSpec = COUPE) {
+  const drop = rest_reach(spec) - spec.wheel.radius;
+  view.wheels.forEach((wheel, i) => {
+    const [x, y, z] = spec.wheel.mounts[i];
+    wheel.position.set(x, y - drop, z);
+  });
+}
+
+export function dispose_car_view(view: CarView) {
+  view.root.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    object.geometry.dispose();
+    (object.material as THREE.Material).dispose();
+  });
 }
 
 let blob: THREE.CanvasTexture | null = null;

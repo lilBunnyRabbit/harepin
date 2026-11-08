@@ -23,6 +23,11 @@ const GRAVITY = 9.81;
 const MF_C = 1.55;
 const MF_B = Math.tan(Math.PI / (2 * MF_C));
 
+/** Suspension reach with the car parked on flat ground, for views that have no sim behind them. */
+export function rest_reach(spec: CarSpec): number {
+  return spec.wheel.rest + spec.wheel.radius - (spec.mass * GRAVITY) / (4 * spec.spring);
+}
+
 export class Wheel {
   omega = 0;
   spin = 0;
@@ -112,8 +117,6 @@ export class Car {
   tcs_factor = 1;
   braking = 0;
   throttle = 0;
-
-  static readonly RADIUS = COUPE.wheel.radius;
 
   constructor(readonly spec: CarSpec = COUPE) {
     this.wheels = spec.wheel.mounts.map(([x, y, z]) => new Wheel(new Vector3(x, y, z), z > 0, x > 0, spec));

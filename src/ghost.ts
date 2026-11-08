@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import type { Car } from "./car";
-import { car_view, type CarView } from "./models";
+import { car_view, rest_wheels, type CarView } from "./models";
 import { brand, color } from "./palette";
 
 const KEY = "harepin:ghost";
@@ -52,7 +52,7 @@ export class Ghost {
       object.material = (object.material as THREE.Material).clone();
       Object.assign(object.material, { transparent: true, opacity: 0.32, depthWrite: false });
     });
-    this.view.wheels.forEach((wheel, i) => wheel.position.set(i % 2 === 0 ? 0.84 : -0.84, -0.15, i < 2 ? 1.3 : -1.3));
+    rest_wheels(this.view);
     this.view.root.visible = false;
     scene.add(this.view.root);
   }

@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import { Car } from "./car";
-import { car_view, contact_shadow, place_contact_shadow, type CarView, type ContactShadow } from "./models";
+import { COUPE } from "./cars";
+import { car_view, contact_shadow, dispose_car_view, place_contact_shadow, rest_wheels, type CarView, type ContactShadow } from "./models";
 import type { World } from "./world";
 import type { Net, Remote } from "./net";
 import { car_paints, color } from "./palette";
@@ -35,6 +35,9 @@ export class Remotes {
     for (const [id, rv] of this.views)
       if (!this.net.remotes.has(id)) {
         this.scene.remove(rv.view.root, rv.shadow.mesh);
+        dispose_car_view(rv.view);
+        rv.shadow.mesh.geometry.dispose();
+        rv.shadow.material.dispose();
         rv.label.remove();
         this.views.delete(id);
       }
@@ -44,6 +47,7 @@ export class Remotes {
     let rv = this.views.get(remote.id);
     if (!rv) {
       const view = car_view(color(car_paints[remote.latest.paint % car_paints.length]));
+      rest_wheels(view);
       this.scene.add(view.root);
       const label = document.createElement("div");
       label.className = "label";
@@ -91,9 +95,8 @@ export class Remotes {
     this.forward.set(0, 0, 1).applyQuaternion(root.quaternion);
     place_contact_shadow(rv.shadow, root.position.x, root.position.y, root.position.z, Math.atan2(this.forward.x, this.forward.z), this.world);
     const s = b.state;
-    rv.spin += (Math.hypot(...s.v) / Car.RADIUS) * dt;
+    rv.spin += (Math.hypot(...s.v) / COUPE.wheel.radius) * dt;
     rv.view.wheels.forEach((w, i) => {
-      w.position.set(i % 2 === 0 ? 0.84 : -0.84, -0.15, i < 2 ? 1.3 : -1.3);
       w.rotation.y = i < 2 ? -s.steer : 0;
       w.children[0].rotation.x = rv.spin;
     });
