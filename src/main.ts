@@ -190,6 +190,31 @@ const app = $("app");
 let fitted = "";
 // CSS owns the canvas size; this only matches the drawing buffer to it. Polled every frame because a resize event can
 // be missed (tab opened in the background, snapped window, zoom while hidden) and would leave the buffer stale.
+let size_report = "";
+function check_size() {
+  const gl = renderer.getContext();
+  const canvas = renderer.domElement;
+  const rect = canvas.getBoundingClientRect();
+  const viewport = gl.getParameter(gl.VIEWPORT) as Int32Array;
+  const report = [
+    `window ${innerWidth}x${innerHeight} @${devicePixelRatio}`,
+    `canvas css ${rect.left},${rect.top} ${rect.width}x${rect.height}`,
+    `buffer ${canvas.width}x${canvas.height}`,
+    `drawing ${gl.drawingBufferWidth}x${gl.drawingBufferHeight}`,
+    `viewport ${[...viewport].join(",")}`,
+    `ratio ${renderer.getPixelRatio()} tier ${quality.level}`,
+  ].join(" | ");
+  const ok =
+    Math.abs(rect.width - innerWidth) < 1 &&
+    Math.abs(rect.height - innerHeight) < 1 &&
+    canvas.width === gl.drawingBufferWidth &&
+    canvas.height === gl.drawingBufferHeight &&
+    viewport[2] === canvas.width &&
+    viewport[3] === canvas.height;
+  if (!ok && report !== size_report) console.warn("canvas size mismatch:", report);
+  size_report = ok ? "" : report;
+}
+
 function fit() {
   const width = app.clientWidth;
   const height = app.clientHeight;
@@ -311,6 +336,7 @@ function frame(now: number) {
   hud.update(car, now, rewinding);
   if (quality.adapt(dt)) quality.apply(renderer, scene, sun);
   fit();
+  if (import.meta.env.DEV) check_size();
   if (quality.tier.bloom) composer.render();
   else renderer.render(scene, camera);
   requestAnimationFrame(frame);
@@ -336,6 +362,8 @@ if (import.meta.env.DEV)
       race,
       world,
       ghost,
+      renderer,
+      composer,
       step_quality: () => quality.step() && quality.apply(renderer, scene, sun),
     },
   });
