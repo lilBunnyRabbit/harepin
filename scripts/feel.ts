@@ -157,3 +157,40 @@ for (const tcs of [true, false]) {
   });
   note("rest jitter", `max dy/step ${(jitter * 1000).toFixed(4)} mm, speed ${car.vel.length().toFixed(4)}`);
 }
+
+{
+  const car = fresh();
+  const target = 2;
+  const creep = (): Controls => ({ ...idle, steer: 1, throttle: Math.max(0, Math.min(1, 0.08 + (target - kmh(car)) * 0.3)) });
+  run(car, 8, creep);
+  const axle = new Vector3();
+  const points: [number, number][] = [];
+  const speeds: number[] = [];
+  let slip = 0;
+  run(car, 20, creep, flat, () => {
+    axle.set(0, 0, car.spec.wheel.mounts[2][2]).applyQuaternion(car.quat).add(car.pos);
+    points.push([axle.x, axle.z]);
+    speeds.push(kmh(car));
+    const local = tmp.copy(car.ang).cross(axle.sub(car.pos)).add(car.vel).applyQuaternion(car.quat.clone().invert());
+    slip = Math.max(slip, Math.abs(local.x));
+  });
+  const n = points.length;
+  const cx0 = points.reduce((s, p) => s + p[0], 0) / n;
+  const cz0 = points.reduce((s, p) => s + p[1], 0) / n;
+  let suu = 0, svv = 0, suv = 0, suuu = 0, svvv = 0, suvv = 0, svuu = 0;
+  for (const [x, z] of points) {
+    const u = x - cx0, v = z - cz0;
+    suu += u * u; svv += v * v; suv += u * v;
+    suuu += u * u * u; svvv += v * v * v; suvv += u * v * v; svuu += v * u * u;
+  }
+  const det = suu * svv - suv * suv;
+  const uc = ((suuu + suvv) / 2 * svv - (svvv + svuu) / 2 * suv) / det;
+  const vc = ((svvv + svuu) / 2 * suu - (suuu + suvv) / 2 * suv) / det;
+  const radii = points.map(([x, z]) => Math.hypot(x - cx0 - uc, z - cz0 - vc));
+  const radius = radii.reduce((s, r) => s + r, 0) / n;
+  const spread = Math.sqrt(radii.reduce((s, r) => s + (r - radius) ** 2, 0) / n);
+  const mean = speeds.reduce((s, v) => s + v, 0) / n;
+  const jitter = Math.sqrt(speeds.reduce((s, v) => s + (v - mean) ** 2, 0) / n);
+  const kinematic = car.spec.wheelbase / Math.tan(car.spec.lock);
+  note("full lock 2 km/h, rear axle", `radius ${radius.toFixed(2)} m (kinematic ${kinematic.toFixed(2)}, ${((radius / kinematic - 1) * 100).toFixed(1)}%), ±${(spread * 100).toFixed(1)} cm, speed ${mean.toFixed(2)} ±${jitter.toFixed(2)} km/h, rear creep ${(slip * 100).toFixed(1)} cm/s`);
+}
