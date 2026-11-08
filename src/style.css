@@ -119,10 +119,85 @@ body {
   color: var(--primary);
 }
 
-.bottom-left {
+.dock-left {
+  position: fixed;
   bottom: 16px;
   left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   max-width: 560px;
+}
+
+.dock-left .hud {
+  position: static;
+}
+
+#chat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 420px;
+}
+
+#chat-log {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  pointer-events: none;
+}
+
+#chat-log li {
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 3px 10px;
+  border-radius: 10px;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+  background: color-mix(in oklch, var(--background-darkest) 78%, transparent);
+  animation: chat-fade 0.6s ease-in 12s forwards;
+}
+
+body.chatting #chat-log li {
+  animation-play-state: paused;
+}
+
+#chat-log b {
+  color: var(--secondary);
+  font-weight: 600;
+}
+
+#chat-log li[data-own="true"] b {
+  color: var(--primary);
+}
+
+@keyframes chat-fade {
+  to {
+    opacity: 0;
+  }
+}
+
+#chat-form[hidden] {
+  display: none;
+}
+
+#chat-input {
+  width: 100%;
+  font: inherit;
+  font-size: 14px;
+  color: var(--foreground);
+  background: color-mix(in oklch, var(--background-darkest) 88%, transparent);
+  border: 1px solid color-mix(in oklch, var(--foreground) 25%, transparent);
+  border-radius: 10px;
+  padding: 6px 10px;
+  outline: none;
+}
+
+#chat-input:focus {
+  border-color: var(--primary);
 }
 
 #assists {

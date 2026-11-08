@@ -22,6 +22,8 @@ const PAD_ACTIONS: [number, Action][] = [
   [4, "shift_down"],
 ];
 
+export const typing = (target: EventTarget | null) => target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement;
+
 export class Input {
   private keys = new Set<string>();
   private queued: Action[] = [];
@@ -30,7 +32,7 @@ export class Input {
 
   constructor() {
     addEventListener("keydown", (e) => {
-      if (e.repeat) return;
+      if (e.repeat || typing(e.target)) return;
       this.keys.add(e.code);
       const action = KEY_ACTIONS[e.code];
       if (action) this.queued.push(action);

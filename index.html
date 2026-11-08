@@ -43,12 +43,20 @@
     <div id="delta"></div>
     <div id="rewind">◂◂ REWIND</div>
 
-    <div class="hud bottom-left">
-      <div id="assists"></div>
-      <div class="hint dim"><kbd>H</kbd> help</div>
-      <div class="keys dim">
-        <kbd>W A S D</kbd> drive · <kbd>Space</kbd> handbrake · <kbd>R</kbd> reset · <kbd>⌫</kbd> rewind · <kbd>C</kbd> camera · <kbd>G</kbd> ghost · <kbd>H</kbd> hide help · <kbd>Q</kbd>/<kbd>E</kbd> shift · <kbd>M</kbd> auto
-        · <kbd>1</kbd> TCS <kbd>2</kbd> ABS <kbd>3</kbd> steer assist · gamepad: RT/LT, A handbrake, Y reset, X rewind, LB/RB shift
+    <div class="dock-left">
+      <div id="chat">
+        <ol id="chat-log" aria-live="polite"></ol>
+        <form id="chat-form" hidden>
+          <input id="chat-input" type="text" maxlength="140" autocomplete="off" enterkeyhint="send" placeholder="Say something, Enter to send" aria-label="Chat message" />
+        </form>
+      </div>
+      <div class="hud bottom-left">
+        <div id="assists"></div>
+        <div class="hint dim"><kbd>H</kbd> help</div>
+        <div class="keys dim">
+          <kbd>W A S D</kbd> drive · <kbd>Space</kbd> handbrake · <kbd>R</kbd> reset · <kbd>⌫</kbd> rewind · <kbd>C</kbd> camera · <kbd>G</kbd> ghost · <kbd>H</kbd> hide help · <kbd>Q</kbd>/<kbd>E</kbd> shift · <kbd>M</kbd> auto · <kbd>T</kbd> chat
+          · <kbd>1</kbd> TCS <kbd>2</kbd> ABS <kbd>3</kbd> steer assist · gamepad: RT/LT, A handbrake, Y reset, X rewind, LB/RB shift
+        </div>
       </div>
     </div>
 

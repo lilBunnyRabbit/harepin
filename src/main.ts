@@ -6,6 +6,7 @@ import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPa
 import { Audio } from "./audio";
 import { ChaseCamera } from "./camera";
 import { Car } from "./car";
+import { Chat } from "./chat";
 import { Skids, Smoke } from "./effects";
 import { Ghost } from "./ghost";
 import { $, Hud } from "./hud";
@@ -54,6 +55,8 @@ const gate_views = gates(world);
 for (const g of gate_views) scene.add(g.group);
 
 const net = new Net(room);
+const chat = new Chat(net, name);
+chat.start();
 const paint = Number(params.get("paint") ?? [...net.id].reduce((s, c) => s + c.charCodeAt(0), 0) % car_paints.length);
 const car = new Car();
 const view = car_view(color(car_paints[paint]));
