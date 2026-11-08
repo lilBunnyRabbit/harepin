@@ -15,13 +15,14 @@ import { Lobby, min_lap_ms } from "./lobby";
 import { car_view, contact_shadow, gates, place_contact_shadow, roadside, sync_car_view } from "./models";
 import { Net, clean_name, parse_seed, type CarState } from "./net";
 import { Quality } from "./quality";
-import { brand, car_paints, color, dark, rgba, theme_name, tones } from "./palette";
+import { brand, car_paints, color, rgba, theme_name, tones } from "./palette";
 import { THEMES, choose_theme } from "./theme";
 import { Race, type RaceSnapshot } from "./race";
 import { Remotes } from "./remotes";
 import { seed_of } from "./rng";
 import { road_meshes, terrain_mesh, tree_meshes, water_mesh } from "./scene";
-import { FOG, SUN_DIR, clouds, sky, sky_tones } from "./sky";
+import { clouds, sky } from "./sky";
+import { Lighting } from "./lighting";
 import { World } from "./world";
 import "./style.css";
 
@@ -42,18 +43,13 @@ renderer.shadowMap.type = THREE.PCFShadowMap;
 $("app").append(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(FOG, 180, 1300);
 const camera = new THREE.PerspectiveCamera(64, innerWidth / innerHeight, 0.1, 5000);
 
-scene.add(new THREE.HemisphereLight(color(sky_tones.skylight), color(brand.background_dark), dark ? 1.9 : 1.5));
-const sun = new THREE.DirectionalLight(color(sky_tones.sunlight), dark ? 3.3 : 2.6);
-Object.assign(sun.shadow.camera, { left: -36, right: 36, top: 36, bottom: -36, near: 1, far: 900 });
-sun.shadow.bias = -0.0002;
-sun.shadow.normalBias = 0.015;
-scene.add(sun, sun.target);
+const light = new Lighting(scene);
+const sun = light.sun;
 quality.apply(renderer, scene, sun);
 
-scene.add(sky(), clouds(world.seed), terrain_mesh(world), road_meshes(world), roadside(world), water_mesh(), tree_meshes(world));
+scene.add(...light.dress(sky(), clouds(world.seed)), terrain_mesh(world), road_meshes(world), roadside(world), water_mesh(), tree_meshes(world));
 const gate_views = gates(world);
 for (const g of gate_views) scene.add(g.group);
 
@@ -67,10 +63,7 @@ scene.add(view.root);
 const car_shadow = contact_shadow();
 scene.add(car_shadow.mesh);
 
-const headlight = new THREE.SpotLight(color(tones.head), dark ? 140 : 30, 90, 0.42, 0.55, 1.4);
-headlight.position.set(0, 0.1, 2.0);
-headlight.target.position.set(0, -1.2, 14);
-view.root.add(headlight, headlight.target);
+light.mount(view.root);
 
 const smoke = new Smoke();
 const skids = new Skids();
@@ -78,7 +71,7 @@ scene.add(smoke.mesh, skids.mesh);
 
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
-const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), dark ? 0.6 : 0.2, 0.45, dark ? 0.9 : 0.98);
+const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), light.bloom.strength, 0.45, light.bloom.threshold);
 composer.addPass(bloom);
 composer.addPass(new OutputPass());
 
@@ -315,8 +308,7 @@ function frame(now: number) {
   place_contact_shadow(car_shadow, car.pos.x, car.pos.y, car.pos.z, car.heading, world);
   const offroad = world.grip(car.pos.x, car.pos.z) < 1;
   chase.update(dt, car, world, offroad, now / 1000);
-  sun.position.copy(car.pos).addScaledVector(SUN_DIR, 400);
-  sun.target.position.copy(car.pos);
+  light.follow(car.pos);
 
   smoke.update(dt, car, world);
   skids.update(car, world);
