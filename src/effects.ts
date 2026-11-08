@@ -1,9 +1,18 @@
 import * as THREE from "three";
 import type { Car } from "./car";
 import { brand, color, dark, mix, tones } from "./palette";
+import { FOG } from "./sky";
 import type { World } from "./world";
 
 const PUFFS = 420;
+const SMOKE_LIFE = 0.7;
+const SMOKE_SIZE = 0.7;
+const DUST_LIFE = 0.5;
+const DUST_SIZE = 0.25;
+const GROWTH = 1;
+const SMOKE_RATE = 45;
+/** Metres of road a tyre-smoke trail covers before its puffs are gone. */
+const SMOKE_TRAIL = 3;
 
 interface Puff {
   pos: THREE.Vector3;
@@ -21,13 +30,14 @@ export class Smoke {
   private matrix = new THREE.Matrix4();
   private q = new THREE.Quaternion();
   private s = new THREE.Vector3();
-  private smoke = color(dark ? mix(brand.foreground, brand.background_lightest, 0.7) : mix(brand.background_lightest, brand.foreground, 0.85));
+  // Tinted halfway to the fog so tyre smoke sits in the atmosphere instead of reading as solid rock.
+  private smoke = FOG.clone().lerp(color(dark ? brand.foreground : brand.background_lightest), 0.5);
   private dust = color(mix(brand.warning, brand.background, 0.3));
   private grass = color(mix(brand.success, brand.background, 0.28));
   private carry = [0, 0, 0, 0];
 
   constructor() {
-    const material = new THREE.MeshLambertMaterial({ flatShading: true, transparent: true, opacity: 0.5, depthWrite: false });
+    const material = new THREE.MeshLambertMaterial({ flatShading: true, transparent: true, opacity: 0.35, depthWrite: false, emissive: this.smoke, emissiveIntensity: dark ? 0.3 : 0 });
     this.mesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), material, PUFFS);
     this.mesh.frustumCulled = false;
     for (let i = 0; i < PUFFS; i++) {
@@ -58,15 +68,16 @@ export class Smoke {
       const slide = Math.max(w.lateral - 1.1, Math.abs(w.slip) - 0.18);
       let rate = 0;
       let tint = this.smoke;
-      let size = 0.8;
-      let life = 1.6;
+      let size = SMOKE_SIZE;
+      // Puffs left behind stream toward the chase camera; capping trail length keeps them from filling the screen at speed.
+      let life = Math.min(SMOKE_LIFE, SMOKE_TRAIL / speed);
       if (on_road && slide > 0 && speed > 2) {
-        rate = Math.min(1, slide * 1.2) * 70;
+        rate = Math.min(1, slide * 1.2) * SMOKE_RATE;
       } else if (!on_road && speed > 4) {
         rate = Math.min(1, speed / 25) * 12 + Math.max(0, slide) * 20;
         tint = world.grip(w.point.x, w.point.z) < 0.8 ? this.grass : this.dust;
-        size = 0.35;
-        life = 0.8;
+        size = DUST_SIZE;
+        life = DUST_LIFE;
       }
       this.carry[i] += rate * dt;
       while (this.carry[i] >= 1) {
@@ -82,7 +93,7 @@ export class Smoke {
       p.vel.multiplyScalar(1 - dt * 1.8);
       p.vel.y += dt * 0.6;
       const t = p.age / p.life;
-      const scale = t >= 1 ? 0 : p.size * (0.4 + t * 2.6) * (1 - t * t);
+      const scale = t >= 1 ? 0 : p.size * (0.4 + t * GROWTH) * (1 - t * t);
       this.q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), p.spin + t * 2);
       this.mesh.setMatrixAt(i, this.matrix.compose(p.pos, this.q, this.s.setScalar(scale)));
     }
