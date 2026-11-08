@@ -397,7 +397,8 @@
   border-top: 1px solid var(--set-line);
 }
 
-.settings-touch {
+.settings-keys .settings-touch {
+  white-space: normal;
   color: var(--set-dim);
 }
 

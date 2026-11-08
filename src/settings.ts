@@ -170,7 +170,7 @@ const KEYS: [string, string, string, string][] = [
   ["Drive", "WASD / arrows", "RT / LT, stick", "Gas, Brake, drag to steer"],
   ["Handbrake", "Space", "A", "Handbrake"],
   ["Reset", "R", "Y", "Reset"],
-  ["Rewind (hold)", "Backspace", "X", "◂◂"],
+  ["Rewind (hold)", "Backspace", "X", "Rewind (hold)"],
   ["Shift up / down", "E / Q", "RB / LB", ""],
   ["Auto gearbox", "M", "", ""],
   ["Camera", "C", "View", "Cam"],

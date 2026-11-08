@@ -117,10 +117,10 @@
 
 @media (orientation: landscape) and (max-height: 500px) {
   .garage-panel {
-    width: min(720px, 100%);
-    grid-template-columns: 1fr 1fr;
+    width: min(840px, 100%);
+    grid-template-columns: 1fr 1fr 1fr;
     align-items: start;
-    gap: var(--space-3) var(--space-4);
+    gap: var(--space-2) var(--space-4);
     padding: var(--space-2) var(--space-4) var(--space-4);
   }
 
@@ -129,6 +129,10 @@
   }
 
   .garage-preview {
-    grid-row: span 5;
+    grid-column: 1;
+    grid-row: 2 / span 3;
+    align-self: stretch;
+    aspect-ratio: auto;
+    min-height: 0;
   }
 }

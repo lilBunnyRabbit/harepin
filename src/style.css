@@ -107,6 +107,7 @@ body {
 #loading {
   position: fixed;
   inset: 0;
+  z-index: 15;
   display: grid;
   place-content: center;
   justify-items: center;
@@ -161,6 +162,12 @@ button {
 
 button:hover {
   background: var(--background-lighter);
+}
+
+button:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 button svg {
@@ -991,6 +998,7 @@ body.help-hidden #assists {
   height: var(--control-h);
   place-items: center;
   padding: 0;
+  letter-spacing: 0.02em;
   border-radius: var(--radius-md);
 }
 
@@ -1225,6 +1233,10 @@ body:not([data-hud="c"]) #speed {
     padding: var(--space-2) var(--space-5);
   }
 
+  body[data-hud="a"] #strip b {
+    white-space: nowrap;
+  }
+
   body[data-hud="a"] #race-panel,
   body[data-hud="a"] #mode-status,
   body[data-hud="b"] #race-panel,
@@ -1348,6 +1360,19 @@ body:not([data-hud="c"]) #speed {
   body:not([data-hud="c"]) #gear {
     padding: 0 var(--space-2);
     font-size: var(--text-xl);
+  }
+}
+
+@media (pointer: fine) and (max-width: 1199px) {
+  body[data-hud="a"] #strip {
+    left: calc(anchor(--title-bar right) + var(--space-2));
+    translate: none;
+    gap: var(--space-4);
+    padding-inline: var(--space-4);
+  }
+
+  body[data-hud="a"] #strip > div:nth-child(2) {
+    display: none;
   }
 }
 
