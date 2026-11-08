@@ -10,7 +10,7 @@ const CAR_RADIUS = 1.05;
 const SHOULDER = 16;
 
 function hash(ix: number, iy: number, seed: number): number {
-  let h = (ix * 374761393 + iy * 668265263 + seed * 1442695041) | 0;
+  let h = (ix * 374761393 + iy * 668265263 + Math.imul(seed, 1442695041)) | 0;
   h = Math.imul(h ^ (h >>> 13), 1274126177);
   h ^= h >>> 16;
   return (h >>> 0) / 4294967296;
@@ -49,11 +49,11 @@ function smoothstep(a: number, b: number, x: number): number {
   return t * t * (3 - 2 * t);
 }
 
-function raw_height(x: number, z: number): number {
-  const r = Math.hypot(x, z) / 960 + (fbm(x / 380, z / 380, 3) - 0.5) * 0.3;
+function raw_height(x: number, z: number, seed: number): number {
+  const r = Math.hypot(x, z) / 960 + (fbm(x / 380, z / 380, seed + 3) - 0.5) * 0.3;
   const mask = 1 - smoothstep(0.8, 1.0, r);
-  const hills = fbm(x / 520, z / 520, 7);
-  const ridge = 1 - Math.abs(2 * fbm(x / 300, z / 300, 11) - 1);
+  const hills = fbm(x / 520, z / 520, seed + 7);
+  const ridge = 1 - Math.abs(2 * fbm(x / 300, z / 300, seed + 11) - 1);
   const peak = 150 * Math.exp(-(((x - 120) ** 2 + (z + 160) ** 2) / 230 ** 2));
   const land = 5 + hills ** 1.7 * 95 + ridge ** 3 * 22 + peak;
   return -9 + (land + 9) * mask;
@@ -136,16 +136,16 @@ export class World implements Ground {
   readonly solids: Solid[] = [];
   private readonly solid_grid = new Map<number, number[]>();
 
-  constructor() {
+  constructor(readonly seed = 0) {
     const { heights, road_dist } = this;
     for (let j = 0; j <= N; j++)
-      for (let i = 0; i <= N; i++) heights[j * (N + 1) + i] = raw_height(ORIGIN + i * CELL, ORIGIN + j * CELL);
+      for (let i = 0; i <= N; i++) heights[j * (N + 1) + i] = raw_height(ORIGIN + i * CELL, ORIGIN + j * CELL, seed);
 
     const controls: [number, number][] = [];
     const count = 16;
     for (let i = 0; i < count; i++) {
       const a = (i / count) * Math.PI * 2;
-      const r = 600 + (fbm(Math.cos(a) * 3, Math.sin(a) * 3, 41) - 0.5) * 420;
+      const r = 600 + (fbm(Math.cos(a) * 3, Math.sin(a) * 3, seed + 41) - 0.5) * 420;
       controls.push([Math.cos(a) * r, Math.sin(a) * r]);
     }
     const path = catmull(controls, 2);
@@ -211,16 +211,16 @@ export class World implements Ground {
     const spacing = 13;
     for (let z = ORIGIN + spacing; z < -ORIGIN - spacing; z += spacing)
       for (let x = ORIGIN + spacing; x < -ORIGIN - spacing; x += spacing) {
-        const px = x + (hash(x, z, 91) - 0.5) * spacing;
-        const pz = z + (hash(x, z, 92) - 0.5) * spacing;
-        const density = fbm(px / 180, pz / 180, 55, 3);
-        if (hash(x, z, 93) > (density - 0.38) * 2.6) continue;
+        const px = x + (hash(x, z, seed + 91) - 0.5) * spacing;
+        const pz = z + (hash(x, z, seed + 92) - 0.5) * spacing;
+        const density = fbm(px / 180, pz / 180, seed + 55, 3);
+        if (hash(x, z, seed + 93) > (density - 0.38) * 2.6) continue;
         const y = this.height(px, pz);
         if (y < 3 || y > 125) continue;
         if (this.distance_to_road(px, pz) < ROAD_HALF + 7) continue;
         const n = this.normal(px, pz, new Vector3());
         if (n.y < 0.82) continue;
-        this.add_tree({ x: px, y, z: pz, scale: 0.75 + hash(x, z, 94) * 0.9, kind: hash(x, z, 95) < 0.7 ? 0 : 1 });
+        this.add_tree({ x: px, y, z: pz, scale: 0.75 + hash(x, z, seed + 94) * 0.9, kind: hash(x, z, seed + 95) < 0.7 ? 0 : 1 });
       }
   }
 

@@ -4,11 +4,28 @@ const BEST_KEY = "harepin:best";
 const SPLITS_KEY = "harepin:splits";
 const GATE_RADIUS = 15;
 
-function load<T>(key: string, fallback: T): T {
+function is_time(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0;
+}
+
+function is_splits(value: unknown): value is number[] {
+  return Array.isArray(value) && value.every(is_time);
+}
+
+function load<T>(key: string, valid: (value: unknown) => value is T, fallback: T): T {
+  let raw: string | null;
   try {
-    const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
-  } catch {
+    raw = localStorage.getItem(key);
+  } catch (error) {
+    console.warn(`storage unavailable, ${key} not loaded`, error);
+    return fallback;
+  }
+  if (raw === null) return fallback;
+  try {
+    const value: unknown = JSON.parse(raw);
+    return valid(value) ? value : fallback;
+  } catch (error) {
+    console.warn(`corrupt ${key} ignored`, error);
     return fallback;
   }
 }
@@ -16,7 +33,9 @@ function load<T>(key: string, fallback: T): T {
 function save(key: string, value: unknown) {
   try {
     localStorage.setItem(key, JSON.stringify(value));
-  } catch {}
+  } catch (error) {
+    console.warn(`storage unavailable, ${key} not saved`, error);
+  }
 }
 
 export interface RaceSnapshot {
@@ -29,8 +48,8 @@ export class Race {
   next = 0;
   started = 0;
   last: number | null = null;
-  best: number | null = load<number | null>(BEST_KEY, null);
-  best_splits: number[] = load<number[]>(SPLITS_KEY, []);
+  best: number | null = load<number | null>(BEST_KEY, is_time, null);
+  best_splits: number[] = load(SPLITS_KEY, is_splits, []);
   splits: number[] = [];
   lap_flash = 0;
   delta: number | null = null;

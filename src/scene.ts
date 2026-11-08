@@ -2,9 +2,28 @@ import * as THREE from "three";
 import { color, lighten, linear, mix, tones } from "./palette";
 import { CELL, N, ROAD_HALF, SIZE, World, fbm } from "./world";
 
+const JITTER_LIGHTNESS = 0.035;
+const JITTER_LEVELS = 64;
+const ROCK_HALF = 3;
+const ROCK = 6;
+const SNOW = 7;
+
 function jitter(i: number, j: number): number {
   const h = Math.sin(i * 127.1 + j * 311.7) * 43758.5453;
   return h - Math.floor(h) - 0.5;
+}
+
+// Jitter is quantised so each tone converts OKLab to linear once per level, not per vertex; 64 levels is ~0.0003 L error.
+function terrain_lut(): Float32Array {
+  const dry = mix(tones.grass, tones.grass_dry, 0.55);
+  const surfaces = [tones.grass, dry, tones.sand];
+  const bases = [...surfaces, ...surfaces.map((t) => mix(tones.rock, t, 0.5)), tones.rock, tones.snow];
+  const lut = new Float32Array(bases.length * JITTER_LEVELS * 3);
+  bases.forEach((tone, b) => {
+    for (let l = 0; l < JITTER_LEVELS; l++)
+      lut.set(linear(lighten(tone, ((l + 0.5) / JITTER_LEVELS - 0.5) * JITTER_LIGHTNESS)), (b * JITTER_LEVELS + l) * 3);
+  });
+  return lut;
 }
 
 export function terrain_mesh(world: World): THREE.Mesh {
@@ -12,19 +31,25 @@ export function terrain_mesh(world: World): THREE.Mesh {
   const positions = new Float32Array(count * 3);
   const colors = new Float32Array(count * 3);
   const normal = new THREE.Vector3();
+  const lut = terrain_lut();
   for (let j = 0; j <= N; j++)
     for (let i = 0; i <= N; i++) {
       const k = j * (N + 1) + i;
       const x = -SIZE / 2 + i * CELL;
       const z = -SIZE / 2 + j * CELL;
       const y = world.heights[k];
-      positions.set([x, y, z], k * 3);
+      positions[k * 3] = x;
+      positions[k * 3 + 1] = y;
+      positions[k * 3 + 2] = z;
       world.normal(x, z, normal);
-      let tone = mix(tones.grass, tones.grass_dry, fbm(x / 140, z / 140, 21, 3) > 0.55 ? 0.55 : 1);
-      if (y < 2.2) tone = tones.sand;
-      if (normal.y < 0.8 || y > 120) tone = mix(tones.rock, tone, normal.y < 0.7 || y > 135 ? 1 : 0.5);
-      if (y > 165) tone = tones.snow;
-      colors.set(linear(lighten(tone, jitter(i, j) * 0.035)), k * 3);
+      let base = y < 2.2 ? 2 : fbm(x / 140, z / 140, world.seed + 21, 3) > 0.55 ? 1 : 0;
+      if (normal.y < 0.8 || y > 120) base = normal.y < 0.7 || y > 135 ? ROCK : base + ROCK_HALF;
+      if (y > 165) base = SNOW;
+      const level = Math.min(JITTER_LEVELS - 1, Math.floor((jitter(i, j) + 0.5) * JITTER_LEVELS));
+      const o = (base * JITTER_LEVELS + level) * 3;
+      colors[k * 3] = lut[o];
+      colors[k * 3 + 1] = lut[o + 1];
+      colors[k * 3 + 2] = lut[o + 2];
     }
   const index = new Uint32Array(N * N * 6);
   let o = 0;
