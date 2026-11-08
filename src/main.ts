@@ -205,19 +205,36 @@ let fitted = "";
 // CSS owns the canvas size; this only matches the drawing buffer to it. Polled every frame because a resize event can
 // be missed (tab opened in the background, snapped window, zoom while hidden) and would leave the buffer stale.
 let size_report = "";
-function check_size() {
+let render_report = "";
+const DEBUG_MS = 250;
+const debug_overlay = params.has("debug") ? document.body.appendChild(Object.assign(document.createElement("pre"), { id: "debug" })) : null;
+let debug_at = 0;
+// Runs after the frame is drawn, so viewport and scissor are what that frame actually left behind.
+function check_size(now: number) {
   const gl = renderer.getContext();
   const canvas = renderer.domElement;
   const rect = canvas.getBoundingClientRect();
   const viewport = gl.getParameter(gl.VIEWPORT) as Int32Array;
+  const scissor = gl.getParameter(gl.SCISSOR_BOX) as Int32Array;
   const report = [
     `window ${innerWidth}x${innerHeight} @${devicePixelRatio}`,
     `canvas css ${rect.left},${rect.top} ${rect.width}x${rect.height}`,
     `buffer ${canvas.width}x${canvas.height}`,
     `drawing ${gl.drawingBufferWidth}x${gl.drawingBufferHeight}`,
     `viewport ${[...viewport].join(",")}`,
+    `scissor ${gl.isEnabled(gl.SCISSOR_TEST) ? "on" : "off"} ${[...scissor].join(",")}`,
     `ratio ${renderer.getPixelRatio()} tier ${quality.level}`,
+    `target ${renderer.getRenderTarget() === null ? "screen" : "offscreen"}`,
+    `composer ${quality.tier.bloom ? "on" : "off"} bloom ${quality.tier.bloom && bloom.enabled ? "on" : "off"} shadows ${renderer.shadowMap.enabled ? "on" : "off"}`,
   ].join(" | ");
+  if (report !== render_report) {
+    render_report = report;
+    console.info("render:", report);
+  }
+  if (debug_overlay && now - debug_at > DEBUG_MS) {
+    debug_at = now;
+    debug_overlay.textContent = report.replaceAll(" | ", "\n");
+  }
   const ok =
     Math.abs(rect.width - innerWidth) < 1 &&
     Math.abs(rect.height - innerHeight) < 1 &&
@@ -351,9 +368,9 @@ function frame(now: number) {
   hud.update(car, now, rewinding);
   if (quality.adapt(dt)) quality.apply(renderer, scene, sun);
   fit();
-  if (import.meta.env.DEV) check_size();
   if (quality.tier.bloom) composer.render();
   else renderer.render(scene, camera);
+  if (import.meta.env.DEV || debug_overlay) check_size(now);
   requestAnimationFrame(frame);
 }
 

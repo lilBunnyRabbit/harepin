@@ -1128,3 +1128,18 @@ body:not([data-hud="c"]) #speed {
     font-size: 16px;
   }
 }
+
+#debug {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  translate: -50% 0;
+  z-index: 50;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--surface-raised);
+  color: var(--foreground);
+  font: 11px/1.4 var(--font-mono);
+  pointer-events: none;
+}
