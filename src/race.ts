@@ -112,6 +112,15 @@ export class Race {
     return { next: this.next, started: this.started, splits: [...this.splits] };
   }
 
+  reset() {
+    this.next = 0;
+    this.started = 0;
+    this.splits = [];
+    this.delta = null;
+    this.delta_flash = 0;
+    this.lap_flash = 0;
+  }
+
   restore(snapshot: RaceSnapshot, rewound_ms: number) {
     this.next = snapshot.next;
     this.started = snapshot.started ? snapshot.started + rewound_ms : 0;
