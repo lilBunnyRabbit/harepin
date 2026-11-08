@@ -93,7 +93,7 @@ const remotes = new Remotes(scene, $("labels"), net, world);
 const lobby = new Lobby(net, name, min_lap_ms(world.checkpoints));
 lobby.start();
 const hud = new Hud(world, race, net, name, room, lobby);
-const ghost = new Ghost(scene);
+const ghost = new Ghost(scene, world.seed);
 race.on_lap = (improved) => {
   ghost.finish(improved);
   lobby.lap(performance.now());
