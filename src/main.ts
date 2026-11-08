@@ -89,7 +89,7 @@ for (const event of ["keydown", "pointerdown", "gamepadconnected"]) addEventList
 const race = new Race(world);
 const chase = new ChaseCamera(camera);
 const remotes = new Remotes(scene, $("labels"), net, world);
-const lobby = new Lobby(net, name, min_lap_ms(world.checkpoints));
+const lobby = new Lobby(net, name, min_lap_ms(world.checkpoints), seed);
 lobby.start();
 const hud = new Hud(world, race, net, name, room, lobby);
 const ghost = new Ghost(scene, world.seed);

@@ -173,7 +173,7 @@ export class Hud {
         ? `Race · ${laps} · get ready`
         : state.kind === "racing"
           ? `Race · lap ${state.lap + 1}/${state.laps} · ${format(now - state.go)}`
-          : `Finished · ${format(state.time)}`;
+          : `Finished P${state.place} · ${format(state.time)}${state.improved ? " · new best" : ` · best ${format(this.lobby.record.best[state.laps] ?? null)}`}`;
     const results_key = JSON.stringify(finishers);
     if (results_key === this.results_key) return;
     this.results_key = results_key;
