@@ -323,7 +323,12 @@ function fit() {
 }
 
 const DT = 1 / 360;
+// Farther than a step can move: the car was placed (reset, mode restart), so drawing it does not slide from the old spot.
+const TELEPORT_SQ = 1;
 let acc = 0;
+/** The car before its last physics step; the drawn car and the camera sit between this and `car`, `acc / DT` of the way. */
+const step_from = { pos: new THREE.Vector3(), quat: new THREE.Quaternion() };
+const drawn = { pos: new THREE.Vector3(), quat: new THREE.Quaternion(), vel: new THREE.Vector3() };
 let last = performance.now();
 let last_rumble = 0;
 
@@ -376,6 +381,7 @@ function frame(now: number) {
 
   lobby.update(now);
   let stepped = 0;
+  let simulated = false;
   if (input.rewind && history.length > 1 && !lobby.busy && !modes.active) {
     rewinding = true;
     rewind_step(now);
@@ -384,10 +390,13 @@ function frame(now: number) {
     rewinding = false;
     acc = 0;
   } else {
+    simulated = true;
     rewinding = false;
     acc += dt;
     let impact = 0;
     while (acc >= DT) {
+      step_from.pos.copy(car.pos);
+      step_from.quat.copy(car.quat);
       car.step(DT, controls, world);
       stepped += DT;
       impact = Math.max(impact, world.collide(car));
@@ -414,11 +423,20 @@ function frame(now: number) {
   update_gates(now / 1000);
   ghost.update(race.started ? now - race.started : null, camera.position);
   modes.update(stepped, car);
+  if (!simulated || step_from.pos.distanceToSquared(car.pos) > TELEPORT_SQ) {
+    step_from.pos.copy(car.pos);
+    step_from.quat.copy(car.quat);
+  }
+  drawn.pos.lerpVectors(step_from.pos, car.pos, acc / DT);
+  drawn.quat.slerpQuaternions(step_from.quat, car.quat, acc / DT);
+  drawn.vel.copy(car.vel);
   sync_car_view(view, car);
+  view.root.position.copy(drawn.pos);
+  view.root.quaternion.copy(drawn.quat);
   view.heads.visible = chase.mode !== 1;
-  place_contact_shadow(car_shadow, car.pos.x, car.pos.y, car.pos.z, car.heading, world);
+  place_contact_shadow(car_shadow, drawn.pos.x, drawn.pos.y, drawn.pos.z, car.heading, world);
   const offroad = world.grip(car.pos.x, car.pos.z) < 1;
-  chase.update(dt, car, world, offroad, now / 1000, input.look);
+  chase.update(dt, drawn, world, offroad, now / 1000, input.look);
   recenter.toggleAttribute("data-shown", chase.orbited);
   light.follow(car.pos);
 
