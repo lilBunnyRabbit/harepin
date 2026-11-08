@@ -228,6 +228,21 @@ const SHAPES: Record<BodyStyle, Shape> = {
       tint(box(1.5, 0.08, 0.5, 0, 0.26, 1.9), trim),
     ],
   },
+  kaze: {
+    body: { points: [[-2.0, 0.3], [2.0, 0.3], [2.13, 0.4], [2.1, 0.53], [0.8, 0.7], [-1.82, 0.83], [-2.06, 0.81], [-2.12, 0.54]], width: 1.8 },
+    trim: { points: [[-1.98, 0.2], [2.04, 0.2], [2.17, 0.34], [-2.1, 0.34]], width: 1.86 },
+    glass: { points: [[0.78, 0.7], [-0.06, 1.19], [-0.72, 1.21], [-1.84, 0.83]], width: 1.44 },
+    roof: { points: [[-0.12, 1.19], [-0.68, 1.21], [-0.74, 1.25], [-0.18, 1.23]], width: 1.36 },
+    head: [0.64, 0.54, 2.08],
+    tail: [0.62, 0.72, -2.09],
+    deck: [-1.95, 0.82],
+    tyre: 0.32,
+    extras: (paint, trim) => [
+      ...mirrors(0.94, 0.85, 0.62, paint),
+      ...[-1, 1].map((side) => tint(box(0.12, 0.24, 1.1, side * 0.93, 0.6, -1.4), paint)),
+      tint(box(1.2, 0.12, 0.04, 0, 0.38, 2.16), trim),
+    ],
+  },
 };
 
 function wing(level: Level, style: BodyStyle, width: number, [z, y]: Point, paint: THREE.Color, trim: THREE.Color): THREE.BufferGeometry[] {

@@ -1,5 +1,5 @@
 export type Drive = "rwd" | "fwd" | "awd";
-export type BodyStyle = "hatch" | "coupe" | "muscle" | "rally";
+export type BodyStyle = "hatch" | "coupe" | "muscle" | "rally" | "kaze";
 export type Triple = [number, number, number];
 
 /** Body-local axes: +x left, +y up, +z forward, metres from the centre of mass. */
@@ -255,7 +255,53 @@ export const RALLY: CarSpec = {
   body: { length: 4.4, width: 1.86, height: 1.38, style: "rally" },
 };
 
-export const CARS: Record<CarId, CarSpec> = { hatch: HATCH, coupe: COUPE, muscle: MUSCLE, rally: RALLY };
+// Front-mid V6 sports coupe: short wheelbase, 53/47 split, low CoG and a softer rear tyre, so the throttle holds an angle.
+export const KAZE: CarSpec = {
+  ...COUPE,
+  id: "kaze",
+  name: "Kaze",
+  mass: 1450,
+  inertia: [2450, 2500, 600],
+  wheel: { radius: 0.35, rest: 0.33, mounts: mounts(0.87, 0.1, 1.245, 1.405) },
+  wheelbase: 2.65,
+  lock: 0.64,
+  spring: 39000,
+  damper: 3000,
+  arb_front: 19000,
+  arb_rear: 9500,
+  mu: 1.12,
+  rear_grip: 1.05,
+  idle: 800,
+  redline: 7000,
+  upshift: 6700,
+  downshift: 2900,
+  gears: [3.79, 2.32, 1.62, 1.27, 1.0, 0.79],
+  reverse: 3.8,
+  final: 3.54,
+  engine_inertia: 0.15,
+  torque: [
+    [0, 250],
+    [1000, 310],
+    [2500, 365],
+    [3500, 380],
+    [4800, 380],
+    [6000, 360],
+    [7000, 320],
+    [8000, 255],
+  ],
+  brake_front: 2500,
+  brake_rear: 950,
+  handbrake: 2200,
+  hold: 1650,
+  drag: 0.42,
+  downforce: 0.85,
+  circles: [1.15, -1.15],
+  radius: 1.05,
+  corners: corners(0.97, -0.3, 0.72, 2.12),
+  body: { length: 4.26, width: 1.94, height: 1.26, style: "kaze" },
+};
+
+export const CARS: Record<CarId, CarSpec> = { hatch: HATCH, coupe: COUPE, muscle: MUSCLE, rally: RALLY, kaze: KAZE };
 
 export function is_car(id: string): id is CarId {
   return Object.hasOwn(CARS, id);

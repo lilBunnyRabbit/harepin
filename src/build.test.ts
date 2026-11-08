@@ -8,6 +8,7 @@ test("codes round-trip", () => {
   expect(build_code(build)).toBe("rally.12.3.2.0.1");
   expect(parse_build(build_code(build))).toEqual(build);
   expect(parse_build(build_code(DEFAULT_BUILD))).toEqual(DEFAULT_BUILD);
+  expect(parse_build("kaze.3.1.0.2.0")).toEqual({ car: "kaze", paint: 3, decal: 1, spoiler: 0, suspension: 2, engine: 0 });
 });
 
 test("off-grammar codes are rejected", () => {
