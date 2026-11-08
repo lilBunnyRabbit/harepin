@@ -8,6 +8,8 @@ import { car_paints, color } from "./palette";
 
 interface RemoteView {
   code: string;
+  /** `performance.now()` of the last view build. */
+  built: number;
   spec: CarSpec;
   view: CarView;
   materials: THREE.Material[];
@@ -17,6 +19,8 @@ interface RemoteView {
 }
 
 const ABOVE = new THREE.Vector3(0, 2.2, 0);
+// A peer flicking through the garage would otherwise rebuild geometry every packet; the latest code wins after the gap.
+const REBUILD_GAP_MS = 1000;
 
 // Peers that predate build codes only send a paint index; they show as a stock coupe in that paint.
 function build_of(state: CarState): Build {
@@ -76,11 +80,12 @@ export class Remotes {
     const build = build_of(remote.latest);
     const code = build_code(build);
     let rv = this.views.get(remote.id);
-    if (rv && rv.code !== code) {
+    const now = performance.now();
+    if (rv && rv.code !== code && now - rv.built >= REBUILD_GAP_MS) {
       this.scene.remove(rv.view.root);
       dispose_car_view(rv.view);
       const spec = build_spec(build);
-      Object.assign(rv, { code, spec }, translucent_view(build, spec));
+      Object.assign(rv, { code, spec, built: now }, translucent_view(build, spec));
       this.scene.add(rv.view.root);
     }
     if (!rv) {
@@ -92,7 +97,7 @@ export class Remotes {
       this.labels.append(label);
       const shadow = contact_shadow();
       this.scene.add(shadow.mesh);
-      rv = { code, spec, view, materials, shadow, label, spin: 0 };
+      rv = { code, built: now, spec, view, materials, shadow, label, spin: 0 };
       this.views.set(remote.id, rv);
     }
     const t = this.net.render_time(remote);
