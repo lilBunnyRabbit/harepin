@@ -1414,6 +1414,48 @@ body:not([data-hud="c"]) #speed {
   }
 }
 
+/* Narrow desktop window: the key list goes, the strip joins the dock and a smaller map sits under it. */
+@media (pointer: fine) and (max-width: 600px) {
+  .dock-left .hud {
+    display: none;
+  }
+
+  body[data-hud] #strip {
+    position: static;
+    translate: none;
+    height: auto;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+  }
+
+  body[data-hud] #strip > div:nth-child(2),
+  body[data-hud] #strip > div:nth-child(3) {
+    display: none;
+  }
+
+  .top-right {
+    position-anchor: --top-dock;
+    top: calc(anchor(bottom) + var(--space-2));
+  }
+
+  body[data-hud] .top-right {
+    width: auto;
+  }
+
+  body[data-hud] #minimap {
+    width: var(--map-size);
+    height: var(--map-size);
+  }
+
+  body[data-hud="b"] .bottom-right {
+    left: auto;
+    right: var(--inset-right);
+    width: 228px;
+    border-left: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+  }
+}
+
 #debug {
   position: fixed;
   left: 50%;
