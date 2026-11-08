@@ -1,7 +1,23 @@
+@font-face {
+  font-family: "Hack";
+  src: url("/fonts/hack-regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Hack";
+  src: url("/fonts/hack-bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   color-scheme: light dark;
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "Hack", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --font-mono: "Hack", ui-monospace, monospace;
   --surface: color-mix(in oklch, var(--background-darkest) 78%, transparent);
   --surface-raised: var(--background-lighter);
 }
@@ -114,6 +130,22 @@ body {
 .title .brand:hover {
   background: none;
   color: var(--primary);
+}
+
+#garage-btn {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-left: 12px;
+  padding: 0;
+  align-self: center;
+  border-radius: 8px;
+}
+
+#garage-btn svg {
+  width: 20px;
+  height: 20px;
 }
 
 .title .dim {
@@ -556,8 +588,11 @@ button:hover {
 }
 
 .touch-hint {
+  padding: 2px 10px;
+  border-radius: 999px;
   font-size: 12px;
-  color: color-mix(in oklch, var(--foreground) 45%, transparent);
+  color: color-mix(in oklch, var(--foreground) 80%, transparent);
+  background: var(--surface);
 }
 
 .touch-steer[data-held] .touch-hint {
@@ -700,7 +735,6 @@ button:hover {
 
   .title {
     font-size: 14px;
-    margin-bottom: 6px;
   }
 
   .theme {
@@ -1041,7 +1075,15 @@ body:not([data-hud="c"]) #speed {
   }
 
   body[data-hud="b"] .dock-left .hud {
-    display: none;
+    position: fixed;
+    top: 16px;
+    left: 50%;
+    translate: -50% 0;
+    max-width: 560px;
+  }
+
+  body[data-hud="b"] #race-panel {
+    top: 140px;
   }
 
   body[data-hud="b"] .top-right {
