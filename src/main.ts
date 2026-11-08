@@ -174,7 +174,7 @@ const modes = new Modes(scene, world, SPAWN_INDEX, () => lobby.record, (x, y, z,
   car.place(x, y, z, heading);
   chase.snap(car);
   history.length = 0;
-});
+}, () => lobby.busy);
 modes.start();
 
 garage.on_change = (next) => {
@@ -358,6 +358,7 @@ function frame(now: number) {
   }
 
   lobby.update(now);
+  let stepped = 0;
   if (input.rewind && history.length > 1 && !lobby.busy && !modes.active) {
     rewinding = true;
     rewind_step(now);
@@ -371,6 +372,7 @@ function frame(now: number) {
     let impact = 0;
     while (acc >= DT) {
       car.step(DT, controls, world);
+      stepped += DT;
       impact = Math.max(impact, world.collide(car));
       acc -= DT;
     }
@@ -394,7 +396,7 @@ function frame(now: number) {
   race.update(car.pos.x, car.pos.z, now);
   update_gates(now / 1000);
   ghost.update(race.started ? now - race.started : null);
-  modes.update(now, dt, car);
+  modes.update(stepped, car);
   sync_car_view(view, car);
   place_contact_shadow(car_shadow, car.pos.x, car.pos.y, car.pos.z, car.heading, world);
   const offroad = world.grip(car.pos.x, car.pos.z) < 1;

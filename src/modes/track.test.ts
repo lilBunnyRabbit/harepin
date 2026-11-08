@@ -1,6 +1,6 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import { Track, add_race, parse_race_record, parse_runs, record, stars_for, unlocked, type Store } from "./track";
+import { Track, add_race, placing, parse_race_record, parse_runs, record, stars_for, unlocked, type Store } from "./track";
 
 const IDS = ["g1", "g2", "g3"];
 
@@ -48,9 +48,19 @@ test("a track persists per mode and seed, and survives corrupt storage", () => {
   expect(new Track("gymkhana", 9, IDS, null).open).toBe(1);
 });
 
-test("race record keeps best per lap count and counts podiums", () => {
-  const first = add_race({ best: {}, podiums: 0 }, 3, 90_000, true);
-  expect(first).toEqual({ record: { best: { 3: 90_000 }, podiums: 1 }, improved: true });
-  expect(add_race(first.record, 3, 95_000, false)).toEqual({ record: { best: { 3: 90_000 }, podiums: 1 }, improved: false });
-  expect(parse_race_record({ best: { 3: 5, x: 1, 2: -4 }, podiums: 2.5 })).toEqual({ best: { 3: 5 }, podiums: 0 });
+test("race record keeps best per lap count and counts wins and podiums", () => {
+  const first = add_race({ best: {}, podiums: 0, wins: 0 }, 3, 90_000, { win: true, podium: true });
+  expect(first).toEqual({ record: { best: { 3: 90_000 }, podiums: 1, wins: 1 }, improved: true });
+  expect(add_race(first.record, 3, 95_000, { win: false, podium: false })).toEqual({ record: { best: { 3: 90_000 }, podiums: 1, wins: 1 }, improved: false });
+  expect(parse_race_record({ best: { 3: 5, x: 1, 2: -4 }, podiums: 2.5, wins: -1 })).toEqual({ best: { 3: 5 }, podiums: 0, wins: 0 });
+  expect(parse_race_record({ podiums: 2 })).toEqual({ best: {}, podiums: 2, wins: 0 });
+});
+
+test("podium needs four racers, a win needs one rival", () => {
+  expect(placing(1, 1)).toEqual({ win: false, podium: false });
+  expect(placing(1, 2)).toEqual({ win: true, podium: false });
+  expect(placing(3, 3)).toEqual({ win: false, podium: false });
+  expect(placing(3, 4)).toEqual({ win: false, podium: true });
+  expect(placing(4, 6)).toEqual({ win: false, podium: false });
+  expect(placing(1, 4)).toEqual({ win: true, podium: true });
 });

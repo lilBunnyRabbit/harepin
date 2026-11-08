@@ -138,23 +138,39 @@ export class Track {
 export interface RaceRecord {
   best: Record<string, number>;
   podiums: number;
+  wins: number;
+}
+
+const PODIUM = 3;
+// Below this many racers third place is automatic, so a podium needs a full field.
+const PODIUM_FIELD = 4;
+
+export interface Placing {
+  win: boolean;
+  podium: boolean;
+}
+
+/** `place` 1-based; `racers` includes you. A win needs at least one rival. */
+export function placing(place: number, racers: number): Placing {
+  return { win: place === 1 && racers >= 2, podium: place >= 1 && place <= PODIUM && racers >= PODIUM_FIELD };
 }
 
 export function parse_race_record(raw: unknown): RaceRecord {
-  const record: RaceRecord = { best: {}, podiums: 0 };
+  const record: RaceRecord = { best: {}, podiums: 0, wins: 0 };
   if (!raw || typeof raw !== "object") return record;
-  const { best, podiums } = raw as Record<string, unknown>;
+  const { best, podiums, wins } = raw as Record<string, unknown>;
   if (Number.isInteger(podiums) && (podiums as number) > 0) record.podiums = podiums as number;
+  if (Number.isInteger(wins) && (wins as number) > 0) record.wins = wins as number;
   if (best && typeof best === "object" && !Array.isArray(best))
     for (const [laps, ms] of Object.entries(best)) if (/^\d{1,2}$/.test(laps) && typeof ms === "number" && Number.isFinite(ms) && ms > 0) record.best[laps] = ms;
   return record;
 }
 
-export function add_race(record: RaceRecord, laps: number, ms: number, podium: boolean): { record: RaceRecord; improved: boolean } {
+export function add_race(record: RaceRecord, laps: number, ms: number, { win, podium }: Placing): { record: RaceRecord; improved: boolean } {
   const old = record.best[laps];
   const improved = old === undefined || ms < old;
   return {
-    record: { best: improved ? { ...record.best, [laps]: ms } : record.best, podiums: record.podiums + (podium ? 1 : 0) },
+    record: { best: improved ? { ...record.best, [laps]: ms } : record.best, podiums: record.podiums + (podium ? 1 : 0), wins: record.wins + (win ? 1 : 0) },
     improved,
   };
 }

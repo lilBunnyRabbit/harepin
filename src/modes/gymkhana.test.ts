@@ -16,7 +16,8 @@ function drive(run: GymRun, path: [number, number, number, number][], t0 = 0): n
   let t = t0;
   for (const [u, v, heading, speed] of path) {
     const { x, z } = to_world(run.course.site, u, v);
-    run.update((t += 100), { x, z, heading: heading + run.course.site.heading, speed }, BODY);
+    t += 100;
+    run.update(100, { x, z, heading: heading + run.course.site.heading, speed }, BODY);
   }
   return t;
 }
@@ -74,7 +75,9 @@ test("clean run: start line, slalom, spin, stop", () => {
   expect(run.step).toBe(Step.DONE);
   expect(run.hits).toBe(0);
   expect(run.misses).toBe(0);
-  expect(run.total(end)).toBe(run.ended - run.started);
+  expect(run.total()).toBe(run.ended - run.started);
+  expect(run.ended).toBe(run.clock);
+  expect(end).toBeGreaterThan(0);
   expect(run.stars()).toBe(3);
 });
 
@@ -98,4 +101,17 @@ test("no stop before the spin, and only facing home", () => {
   const wrong = clean_path(facing).map(([u, v, heading, speed]): [number, number, number, number] => [u, v, speed === 0.1 ? 0 : heading, speed]);
   drive(facing, wrong);
   expect(facing.status).toBe(RunStatus.RUNNING);
+});
+
+test("run clock counts only stepped sim time, not paused frames", () => {
+  const run = new GymRun(build_course(3, SITE, LEVELS[1]));
+  drive(run, [[0, -2, 0, 8], [0, 5, 0, 8]]);
+  expect(run.status).toBe(RunStatus.RUNNING);
+  const { x, z } = to_world(run.course.site, 0, 6);
+  const pose = { x, z, heading: run.course.site.heading, speed: 0 };
+  const before = run.elapsed();
+  for (let i = 0; i < 50; i++) run.update(0, pose, BODY);
+  expect(run.elapsed()).toBe(before);
+  run.update(16, pose, BODY);
+  expect(run.elapsed()).toBe(before + 16);
 });

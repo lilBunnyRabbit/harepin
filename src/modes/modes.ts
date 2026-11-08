@@ -7,6 +7,7 @@ import { GymkhanaView } from "./gymkhana-view";
 import { MAX_STARS, Track, local_store, type RaceRecord } from "./track";
 
 const SPAWN_LIFT = 0.75;
+const NOTICE_MS = 2500;
 
 export interface Driven {
   pos: THREE.Vector3;
@@ -59,6 +60,7 @@ export class Modes {
     private readonly start_index: number,
     private readonly race_record: () => RaceRecord,
     private readonly place: (x: number, y: number, z: number, heading: number) => void,
+    private readonly race_busy: () => boolean,
   ) {
     this.track = new Track("gymkhana", world.seed, LEVEL_IDS, local_store());
   }
@@ -107,6 +109,7 @@ export class Modes {
   play(id: string) {
     const level = LEVELS.find((l) => l.id === id);
     if (!level || !this.track.is_open(id)) return;
+    if (this.race_busy()) return this.notice("Leave the lobby race to play gymkhana");
     if (this.site === undefined) this.site = find_site(this.world, this.start_index);
     this.clear();
     this.level = level;
@@ -151,18 +154,19 @@ export class Modes {
     if (next) this.play(next);
   }
 
-  update(now: number, dt: number, car: Driven) {
+  /** `sim_dt`: seconds of physics stepped this frame, 0 while the sim is paused. */
+  update(sim_dt: number, car: Driven) {
     const { run, view, level } = this;
     if (!run || !view || !level) return;
     const was = run.status;
-    const hits = run.update(now, { x: car.pos.x, z: car.pos.z, heading: car.heading, speed: car.vel.length() }, {
+    const hits = run.update(sim_dt * 1000, { x: car.pos.x, z: car.pos.z, heading: car.heading, speed: car.vel.length() }, {
       circles: car.spec.circles,
       radius: car.spec.radius,
       length: car.spec.body.length,
       width: car.spec.body.width,
     });
     view.knock(hits);
-    view.update(dt);
+    view.update(sim_dt);
     const step = run.step;
     view.target(step === Step.SPIN ? "spin" : step === Step.STOP ? "stop" : null);
     if (was !== RunStatus.DONE && run.status === RunStatus.DONE) this.finish(run, level);
@@ -177,7 +181,14 @@ export class Modes {
               ? "stop in the box, facing back"
               : "done";
     const penalty = run.penalty_ms();
-    this.show_status(`${level.name} · ${format(run.total(now))}${penalty ? ` (+${penalty / 1000} s)` : ""} · ${doing}`);
+    this.show_status(`${level.name} · ${format(run.total())}${penalty ? ` (+${penalty / 1000} s)` : ""} · ${doing}`);
+  }
+
+  private notice(text: string) {
+    this.show_status(text);
+    setTimeout(() => {
+      if (this.status_key === text && !this.run) this.el.status.hidden = true;
+    }, NOTICE_MS);
   }
 
   private show_status(text: string) {
@@ -189,7 +200,7 @@ export class Modes {
 
   private finish(run: GymRun, level: GymLevel) {
     const stars = run.stars();
-    const ms = Math.round(run.total(run.ended));
+    const ms = Math.round(run.total());
     const { improved, first } = this.track.record(level.id, { stars, ms });
     const best = this.track.runs[level.id];
     const { el } = this;
@@ -197,7 +208,7 @@ export class Modes {
     el.result_stars.textContent = star_text(stars);
     el.result_stars.setAttribute("aria-label", `${stars} of ${MAX_STARS} stars`);
     el.lines.replaceChildren(
-      line("time", format(run.elapsed(run.ended))),
+      line("time", format(run.elapsed())),
       line(`cones ×${run.hits}`, `+${(run.hits * HIT_MS) / 1000} s`),
       line(`missed ×${run.misses}`, `+${(run.misses * MISS_MS) / 1000} s`),
       line("total", format(ms)),
@@ -237,6 +248,6 @@ export class Modes {
     const bests = Object.entries(record.best)
       .sort(([a], [b]) => Number(a) - Number(b))
       .map(([laps, ms]) => `${laps} lap${laps === "1" ? "" : "s"} ${format(ms)}`);
-    el.race.textContent = `${bests.length ? bests.join(" · ") : "no finishes yet"} · podiums ${record.podiums}`;
+    el.race.textContent = `${bests.length ? bests.join(" · ") : "no finishes yet"} · wins ${record.wins} · podiums ${record.podiums}`;
   }
 }

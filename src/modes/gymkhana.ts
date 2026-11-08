@@ -229,6 +229,8 @@ const inside = (box: Box, u: number, v: number) => Math.abs(u - box.u) <= box.hu
 
 export class GymRun {
   status: RunStatus = RunStatus.READY;
+  /** Run clock in ms: advances only by the sim time passed to `update`, so pauses (garage, settings, hidden tab) do not count. */
+  clock = 0;
   started = 0;
   ended = 0;
   hits = 0;
@@ -248,25 +250,27 @@ export class GymRun {
     return Math.abs(this.spun) >= SPIN_DONE ? Step.STOP : Step.SPIN;
   }
 
-  elapsed(now: number): number {
+  elapsed(): number {
     if (this.status === RunStatus.READY) return 0;
-    return (this.status === RunStatus.DONE ? this.ended : now) - this.started;
+    return (this.status === RunStatus.DONE ? this.ended : this.clock) - this.started;
   }
 
   penalty_ms(): number {
     return this.hits * HIT_MS + this.misses * MISS_MS;
   }
 
-  total(now: number): number {
-    return this.elapsed(now) + this.penalty_ms();
+  total(): number {
+    return this.elapsed() + this.penalty_ms();
   }
 
   stars(): number {
-    return stars_for(this.total(this.ended), this.course.par_ms);
+    return stars_for(this.total(), this.course.par_ms);
   }
 
-  update(now: number, pose: Pose, body: Body): Hit[] {
+  /** `dt_ms`: sim time stepped since the last call, 0 while the sim is paused. */
+  update(dt_ms: number, pose: Pose, body: Body): Hit[] {
     if (this.status === RunStatus.DONE) return [];
+    this.clock += dt_ms;
     const { course } = this;
     const { u, v } = to_local(course.site, pose.x, pose.z);
     const heading = wrap(pose.heading - course.site.heading);
@@ -278,7 +282,7 @@ export class GymRun {
     if (this.status === RunStatus.READY) {
       if (last_v !== null && last_v < course.start_line && v >= course.start_line) {
         this.status = RunStatus.RUNNING;
-        this.started = now;
+        this.started = this.clock;
       }
       return this.cone_hits(pose, body);
     }
@@ -294,7 +298,7 @@ export class GymRun {
       this.spun = inside(course.spin, u, v) ? this.spun + turn : 0;
     } else if (step === Step.STOP && pose.speed < STOP_SPEED && this.parked(pose, body, heading)) {
       this.status = RunStatus.DONE;
-      this.ended = now;
+      this.ended = this.clock;
     }
     return this.cone_hits(pose, body);
   }

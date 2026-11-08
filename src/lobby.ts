@@ -1,4 +1,4 @@
-import { add_race, local_store, parse_race_record, read_json, write_json, type RaceRecord, type Store } from "./modes/track";
+import { add_race, placing, local_store, parse_race_record, read_json, write_json, type RaceRecord, type Store } from "./modes/track";
 import type { Net, RaceEvent, Remote } from "./net";
 
 export const COUNTDOWN_MS = 3000;
@@ -7,7 +7,6 @@ const LATE_START_MS = 1000;
 const EARLY_START_MS = 10_000;
 const FINISH_SLACK_MS = 2000;
 const RESULTS_MS = 30_000;
-const PODIUM = 3;
 
 export interface Finisher {
   id: string;
@@ -21,7 +20,7 @@ interface Running {
   laps: number;
   /** Local `performance.now()` ms when the countdown ends. */
   go: number;
-  /** Peers in the room when the race began; a podium only counts against at least one. */
+  /** Peers in the room when the race began; wins and podiums count against them (see `placing`). */
   rivals: number;
 }
 
@@ -96,7 +95,7 @@ export class Lobby {
     const time = now - state.go;
     this.add({ id: this.net.id, name: this.net.name, time, you: true });
     const place = this.finishers.findIndex((f) => f.you) + 1;
-    const result = add_race(this.record, state.laps, time, state.rivals > 0 && place <= PODIUM);
+    const result = add_race(this.record, state.laps, time, placing(place, state.rivals + 1));
     this.record = result.record;
     write_json(this.store, this.record_key, this.record);
     this.state = { kind: "done", race: state.race, laps: state.laps, go: state.go, rivals: state.rivals, time, until: now + RESULTS_MS, place, improved: result.improved };
