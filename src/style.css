@@ -201,6 +201,7 @@ kbd {
 }
 
 .dock-top {
+  anchor-name: --top-dock;
   position: fixed;
   top: var(--inset-top);
   left: var(--inset-left);
@@ -798,6 +799,10 @@ body.help-hidden #assists {
   text-align: center;
 }
 
+body:has(#mode-result:not([hidden])) #mode-status {
+  display: none;
+}
+
 #mode-result-title {
   font-size: var(--text-xl);
   font-weight: 600;
@@ -912,6 +917,7 @@ body.help-hidden #assists {
   --map-panel: calc(var(--map-size) + 2 * var(--space-2) + 2px);
   --pedal-w: 84px;
   --pedals: calc(2 * var(--pedal-w) + var(--space-3));
+  --speedo-h: 64px;
 }
 
 .touch-buttons {
@@ -1068,6 +1074,7 @@ body.help-hidden #assists {
   .bottom-right {
     right: calc(var(--inset-right) + var(--pedals) + var(--space-3));
     width: 120px;
+    height: var(--speedo-h);
     padding: var(--space-2) var(--space-3);
     pointer-events: none;
   }
@@ -1103,6 +1110,31 @@ body.help-hidden #assists {
 
   #mode-status {
     top: calc(var(--inset-top) + var(--control-h) + var(--space-2));
+  }
+
+  /* Between the top dock and the speedo row; the score lines go two columns to fit a phone's height. */
+  #mode-result {
+    position-anchor: --top-dock;
+    top: calc(anchor(bottom) + var(--space-2));
+    bottom: calc(var(--inset-bottom) + var(--speedo-h) + var(--space-2));
+    translate: -50% 0;
+    height: fit-content;
+    max-height: stretch;
+    margin-block: auto;
+    overflow-y: auto;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+  }
+
+  #mode-result-stars {
+    font-size: var(--text-2xl);
+  }
+
+  #mode-result-lines {
+    grid-template-rows: repeat(3, auto);
+    grid-auto-flow: column;
+    gap: 0 var(--space-5);
+    padding: var(--space-1) var(--space-3);
   }
 
   #countdown {
