@@ -1,335 +1,159 @@
 import { Vector3 } from "three";
-import { CAR_BODY, type Ground } from "./car";
-import { mulberry32, sub } from "./rng";
+import type { Ground } from "./car";
+import { COUPE, type CarSpec } from "./cars";
+import { sample, slope_normal } from "./worldgen/field";
+import { generate } from "./worldgen/index";
+import { ROAD_HALF } from "./worldgen/types";
+import type {
+  Building,
+  Checkpoint,
+  Lot,
+  ParkingLot,
+  Prop,
+  RoadGraph,
+  RoadPoint,
+  Solid,
+  Town,
+  Tree,
+} from "./worldgen/types";
 
-export const SIZE = 2048;
-export const CELL = 4;
-export const N = SIZE / CELL;
-const ORIGIN = -SIZE / 2;
-export const ROAD_HALF = 6;
-const CAR_RADIUS = 1.05;
-const SHOULDER = 16;
-const PEAK_HEIGHT = 150;
-const PEAK_SPREAD = 230;
-const PEAK_REACH = 220;
-const SEED0_PEAK: Peak = { x: 120, z: -160 };
-const ROAD_CONTROLS = 16;
-const ROAD_MIN_RADIUS = 45;
-const ROAD_ATTEMPTS = 16;
-const RADIUS_SPAN = 5;
+export { fbm } from "./worldgen/noise";
+export { min_radius } from "./worldgen/path";
+export { CELL, N, ROAD_HALF, SIZE } from "./worldgen/types";
+export type { Building, Checkpoint, Lot, ParkingLot, Prop, RoadPoint, Solid, Town, Tree } from "./worldgen/types";
 
-function hash(ix: number, iy: number, seed: number): number {
-  let h = (ix * 374761393 + iy * 668265263 + Math.imul(seed, 1442695041)) | 0;
-  h = Math.imul(h ^ (h >>> 13), 1274126177);
-  h ^= h >>> 16;
-  return (h >>> 0) / 4294967296;
+const SOLID_CELL = 16;
+const ROAD_CELL = 32;
+const RESTITUTION = 1.25;
+
+export interface Collider {
+  pos: Vector3;
+  vel: Vector3;
+  ang: Vector3;
+  readonly heading: number;
+  readonly spec: Pick<CarSpec, "mass" | "inertia" | "circles" | "radius">;
 }
 
-function noise(x: number, y: number, seed: number): number {
-  const ix = Math.floor(x);
-  const iy = Math.floor(y);
-  const fx = x - ix;
-  const fy = y - iy;
-  const ux = fx * fx * fx * (fx * (fx * 6 - 15) + 10);
-  const uy = fy * fy * fy * (fy * (fy * 6 - 15) + 10);
-  const a = hash(ix, iy, seed);
-  const b = hash(ix + 1, iy, seed);
-  const c = hash(ix, iy + 1, seed);
-  const d = hash(ix + 1, iy + 1, seed);
-  return a + (b - a) * ux + (c - a) * uy + (a - b - c + d) * ux * uy;
+interface Contact {
+  nx: number;
+  nz: number;
+  depth: number;
 }
 
-export function fbm(x: number, y: number, seed: number, octaves = 5): number {
-  let sum = 0;
-  let amp = 0.5;
-  let norm = 0;
-  for (let i = 0; i < octaves; i++) {
-    sum += noise(x, y, seed + i * 17) * amp;
-    norm += amp;
-    amp *= 0.5;
-    x *= 2.03;
-    y *= 2.03;
+function grid_key(cx: number, cz: number) {
+  return (cx + 1000) * 4096 + (cz + 1000);
+}
+
+function circle_contact(solid: Solid, px: number, pz: number, radius: number): Contact | null {
+  const ox = px - solid.x;
+  const oz = pz - solid.z;
+  if (solid.kind === "circle") {
+    const d = Math.sqrt(ox * ox + oz * oz);
+    const min = radius + solid.radius;
+    if (d >= min || d < 1e-3) return null;
+    return { nx: ox / d, nz: oz / d, depth: min - d };
   }
-  return sum / norm;
-}
-
-function smoothstep(a: number, b: number, x: number): number {
-  const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
-  return t * t * (3 - 2 * t);
-}
-
-interface Peak {
-  x: number;
-  z: number;
-}
-
-function peak_of(seed: number): Peak {
-  if (seed === 0) return SEED0_PEAK;
-  const next = mulberry32(sub(seed, "peak"));
-  const angle = next() * Math.PI * 2;
-  const reach = Math.sqrt(next()) * PEAK_REACH;
-  return { x: Math.cos(angle) * reach, z: Math.sin(angle) * reach };
-}
-
-function raw_height(x: number, z: number, seed: number, peak: Peak): number {
-  const r = Math.hypot(x, z) / 960 + (fbm(x / 380, z / 380, seed + 3) - 0.5) * 0.3;
-  const mask = 1 - smoothstep(0.8, 1.0, r);
-  const hills = fbm(x / 520, z / 520, seed + 7);
-  const ridge = 1 - Math.abs(2 * fbm(x / 300, z / 300, seed + 11) - 1);
-  const top = PEAK_HEIGHT * Math.exp(-(((x - peak.x) ** 2 + (z - peak.z) ** 2) / PEAK_SPREAD ** 2));
-  const land = 5 + hills ** 1.7 * 95 + ridge ** 3 * 22 + top;
-  return -9 + (land + 9) * mask;
-}
-
-export interface RoadPoint {
-  x: number;
-  y: number;
-  z: number;
-  tx: number;
-  tz: number;
-}
-
-export interface Tree {
-  x: number;
-  y: number;
-  z: number;
-  scale: number;
-  kind: number;
-}
-
-export interface Solid {
-  x: number;
-  y: number;
-  z: number;
-  radius: number;
-  height: number;
-}
-
-export interface Checkpoint {
-  x: number;
-  y: number;
-  z: number;
-  heading: number;
-  index: number;
-}
-
-function catmull(points: [number, number][], step: number): [number, number][] {
-  const dense: [number, number][] = [];
-  const n = points.length;
-  for (let i = 0; i < n; i++) {
-    const p0 = points[(i - 1 + n) % n];
-    const p1 = points[i];
-    const p2 = points[(i + 1) % n];
-    const p3 = points[(i + 2) % n];
-    for (let s = 0; s < 80; s++) {
-      const t = s / 80;
-      const t2 = t * t;
-      const t3 = t2 * t;
-      const at = (a: number, b: number, c: number, d: number) =>
-        0.5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3);
-      dense.push([at(p0[0], p1[0], p2[0], p3[0]), at(p0[1], p1[1], p2[1], p3[1])]);
-    }
+  const { cos, sin, hw, hd } = solid;
+  const lx = ox * cos - oz * sin;
+  const lz = ox * sin + oz * cos;
+  const cx = Math.max(-hw, Math.min(hw, lx));
+  const cz = Math.max(-hd, Math.min(hd, lz));
+  let nlx: number;
+  let nlz: number;
+  let depth: number;
+  if (cx !== lx || cz !== lz) {
+    const dx = lx - cx;
+    const dz = lz - cz;
+    const d = Math.sqrt(dx * dx + dz * dz);
+    if (d >= radius) return null;
+    nlx = dx / d;
+    nlz = dz / d;
+    depth = radius - d;
+  } else if (hw - Math.abs(lx) < hd - Math.abs(lz)) {
+    nlx = Math.sign(lx) || 1;
+    nlz = 0;
+    depth = hw - Math.abs(lx) + radius;
+  } else {
+    nlx = 0;
+    nlz = Math.sign(lz) || 1;
+    depth = hd - Math.abs(lz) + radius;
   }
-  const out: [number, number][] = [dense[0]];
-  let carry = 0;
-  for (let i = 1; i <= dense.length; i++) {
-    const a = dense[i - 1];
-    const b = dense[i % dense.length];
-    const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
-    let from = 0;
-    while (carry + len - from >= step) {
-      from += step - carry;
-      carry = 0;
-      const t = from / len;
-      out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
-    }
-    carry += len - from;
-  }
-  if (Math.hypot(out[0][0] - out[out.length - 1][0], out[0][1] - out[out.length - 1][1]) < step * 0.5) out.pop();
-  return out;
-}
-
-function loop_controls(seed: number): [number, number][] {
-  const controls: [number, number][] = [];
-  for (let i = 0; i < ROAD_CONTROLS; i++) {
-    const a = (i / ROAD_CONTROLS) * Math.PI * 2;
-    const r = 600 + (fbm(Math.cos(a) * 3, Math.sin(a) * 3, seed) - 0.5) * 420;
-    controls.push([Math.cos(a) * r, Math.sin(a) * r]);
-  }
-  return controls;
-}
-
-// Circumradius of each 20 m arc. The maths here is IEEE-exact, but the path comes from Math.cos/sin/hypot, which may
-// differ in the last bit between engines; the closest any loop sat to ROAD_MIN_RADIUS over 3000 seeds was 0.0011 m.
-export function min_radius(path: [number, number][]): number {
-  const n = path.length;
-  let min = Infinity;
-  for (let i = 0; i < n; i++) {
-    const [ax, az] = path[(i - RADIUS_SPAN + n) % n];
-    const [bx, bz] = path[i];
-    const [cx, cz] = path[(i + RADIUS_SPAN) % n];
-    const cross = Math.abs((bx - ax) * (cz - az) - (bz - az) * (cx - ax));
-    const sides = Math.sqrt(((bx - ax) ** 2 + (bz - az) ** 2) * ((cx - bx) ** 2 + (cz - bz) ** 2) * ((cx - ax) ** 2 + (cz - az) ** 2));
-    min = Math.min(min, cross > 0 ? sides / (2 * cross) : Infinity);
-  }
-  return min;
-}
-
-function loop_path(seed: number): [number, number][] {
-  let best = catmull(loop_controls(seed + 41), 2);
-  let best_radius = min_radius(best);
-  for (let attempt = 1; attempt < ROAD_ATTEMPTS && best_radius < ROAD_MIN_RADIUS; attempt++) {
-    const path = catmull(loop_controls(sub(seed, "road") + attempt), 2);
-    const radius = min_radius(path);
-    if (radius > best_radius) {
-      best = path;
-      best_radius = radius;
-    }
-  }
-  return best;
+  return { nx: nlx * cos + nlz * sin, nz: -nlx * sin + nlz * cos, depth };
 }
 
 export class World implements Ground {
-  readonly heights = new Float32Array((N + 1) * (N + 1));
-  readonly road_dist = new Float32Array((N + 1) * (N + 1)).fill(1e9);
-  readonly road: RoadPoint[] = [];
-  readonly trees: Tree[] = [];
-  readonly checkpoints: Checkpoint[] = [];
-  readonly solids: Solid[] = [];
+  readonly heights: Float32Array;
+  readonly road_dist: Float32Array;
+  /** The race circuit, in driving order; gates and the ghost follow it. */
+  readonly road: RoadPoint[];
+  readonly graph: RoadGraph;
+  readonly towns: Town[];
+  readonly lots: Lot[];
+  readonly buildings: Building[];
+  readonly parking: ParkingLot[];
+  readonly props: Prop[];
+  readonly trees: Tree[];
+  readonly checkpoints: Checkpoint[];
+  readonly solids: Solid[];
+  readonly circuit: number[];
+  readonly timings: [string, number][];
   private readonly solid_grid = new Map<number, number[]>();
+  private readonly road_grid = new Map<number, number[]>();
+  private readonly seen: Uint32Array;
+  private query = 0;
 
   constructor(readonly seed = 0) {
-    const { heights, road_dist } = this;
-    const peak = peak_of(seed);
-    for (let j = 0; j <= N; j++)
-      for (let i = 0; i <= N; i++) heights[j * (N + 1) + i] = raw_height(ORIGIN + i * CELL, ORIGIN + j * CELL, seed, peak);
+    const data = generate(seed);
+    this.heights = data.terrain.heights;
+    this.road_dist = data.terrain.road_dist;
+    this.road = data.road;
+    this.graph = data.graph;
+    this.towns = data.towns;
+    this.lots = data.lots;
+    this.buildings = data.buildings;
+    this.parking = data.parking;
+    this.props = data.props;
+    this.trees = data.trees;
+    this.checkpoints = data.checkpoints;
+    this.solids = data.solids;
+    this.circuit = data.circuit;
+    this.timings = data.timings;
+    this.seen = new Uint32Array(this.solids.length);
+    this.solids.forEach((solid, index) => this.index_solid(solid, index));
+    this.road.forEach((p, index) => {
+      const key = grid_key(Math.floor(p.x / ROAD_CELL), Math.floor(p.z / ROAD_CELL));
+      const list = this.road_grid.get(key);
+      if (list) list.push(index);
+      else this.road_grid.set(key, [index]);
+    });
+  }
 
-    const path = loop_path(seed);
-    let ys = path.map(([x, z]) => Math.max(3, this.height(x, z)));
-    for (let pass = 0; pass < 4; pass++) {
-      const window = 24;
-      ys = ys.map((_, i) => {
-        let sum = 0;
-        for (let k = -window; k <= window; k++) sum += ys[(i + k + ys.length) % ys.length];
-        return sum / (window * 2 + 1);
-      });
-    }
-    for (let i = 0; i < path.length; i++) {
-      const [x, z] = path[i];
-      const [nx, nz] = path[(i + 1) % path.length];
-      const len = Math.hypot(nx - x, nz - z) || 1;
-      this.road.push({ x, y: ys[i], z, tx: (nx - x) / len, tz: (nz - z) / len });
-    }
-
-    const road_height = new Float32Array(heights.length);
-    const reach = ROAD_HALF + SHOULDER;
-    for (let s = 0; s < this.road.length; s++) {
-      const a = this.road[s];
-      const b = this.road[(s + 1) % this.road.length];
-      const i0 = Math.max(0, Math.floor((Math.min(a.x, b.x) - reach - ORIGIN) / CELL));
-      const i1 = Math.min(N, Math.ceil((Math.max(a.x, b.x) + reach - ORIGIN) / CELL));
-      const j0 = Math.max(0, Math.floor((Math.min(a.z, b.z) - reach - ORIGIN) / CELL));
-      const j1 = Math.min(N, Math.ceil((Math.max(a.z, b.z) + reach - ORIGIN) / CELL));
-      const dx = b.x - a.x;
-      const dz = b.z - a.z;
-      const len2 = dx * dx + dz * dz || 1;
-      for (let j = j0; j <= j1; j++)
-        for (let i = i0; i <= i1; i++) {
-          const px = ORIGIN + i * CELL;
-          const pz = ORIGIN + j * CELL;
-          const t = Math.max(0, Math.min(1, ((px - a.x) * dx + (pz - a.z) * dz) / len2));
-          const d = Math.hypot(px - (a.x + dx * t), pz - (a.z + dz * t));
-          const k = j * (N + 1) + i;
-          if (d < road_dist[k]) {
-            road_dist[k] = d;
-            road_height[k] = a.y + (b.y - a.y) * t;
-          }
-        }
-    }
-    for (let k = 0; k < heights.length; k++) {
-      if (road_dist[k] > reach) continue;
-      const w = 1 - smoothstep(ROAD_HALF + 1.5, reach, road_dist[k]);
-      heights[k] += (road_height[k] - 0.05 - heights[k]) * w;
-    }
-
-    const cps = 12;
-    for (let i = 0; i < cps; i++) {
-      const p = this.road[Math.floor((i / cps) * this.road.length)];
-      this.checkpoints.push({ x: p.x, y: p.y, z: p.z, heading: Math.atan2(p.tx, p.tz), index: i });
-      for (const side of [-1, 1]) {
-        const off = side * (ROAD_HALF + 1.7);
-        const x = p.x - p.tz * off;
-        const z = p.z + p.tx * off;
-        this.add_solid({ x, y: this.height(x, z), z, radius: 0.5, height: 7 });
+  private index_solid(solid: Solid, index: number) {
+    const reach = solid.kind === "circle" ? solid.radius : Math.abs(solid.hw * solid.cos) + Math.abs(solid.hd * solid.sin) + Math.abs(solid.hw * solid.sin) + Math.abs(solid.hd * solid.cos);
+    const x0 = Math.floor((solid.x - reach) / SOLID_CELL);
+    const x1 = Math.floor((solid.x + reach) / SOLID_CELL);
+    const z0 = Math.floor((solid.z - reach) / SOLID_CELL);
+    const z1 = Math.floor((solid.z + reach) / SOLID_CELL);
+    for (let cz = z0; cz <= z1; cz++)
+      for (let cx = x0; cx <= x1; cx++) {
+        const key = grid_key(cx, cz);
+        const list = this.solid_grid.get(key);
+        if (list) list.push(index);
+        else this.solid_grid.set(key, [index]);
       }
-    }
-
-    const spacing = 13;
-    for (let z = ORIGIN + spacing; z < -ORIGIN - spacing; z += spacing)
-      for (let x = ORIGIN + spacing; x < -ORIGIN - spacing; x += spacing) {
-        const px = x + (hash(x, z, seed + 91) - 0.5) * spacing;
-        const pz = z + (hash(x, z, seed + 92) - 0.5) * spacing;
-        const density = fbm(px / 180, pz / 180, seed + 55, 3);
-        if (hash(x, z, seed + 93) > (density - 0.38) * 2.6) continue;
-        const y = this.height(px, pz);
-        if (y < 3 || y > 125) continue;
-        if (this.distance_to_road(px, pz) < ROAD_HALF + 7) continue;
-        const n = this.normal(px, pz, new Vector3());
-        if (n.y < 0.82) continue;
-        this.add_tree({ x: px, y, z: pz, scale: 0.75 + hash(x, z, seed + 94) * 0.9, kind: hash(x, z, seed + 95) < 0.7 ? 0 : 1 });
-      }
-  }
-
-  private add_tree(tree: Tree) {
-    this.trees.push(tree);
-    this.add_solid({ x: tree.x, y: tree.y, z: tree.z, radius: 0.35 * tree.scale, height: 6 * tree.scale });
-  }
-
-  private add_solid(solid: Solid) {
-    const index = this.solids.push(solid) - 1;
-    const key = this.grid_key(Math.floor(solid.x / 16), Math.floor(solid.z / 16));
-    const list = this.solid_grid.get(key);
-    if (list) list.push(index);
-    else this.solid_grid.set(key, [index]);
-  }
-
-  private grid_key(cx: number, cz: number) {
-    return (cx + 1000) * 4096 + (cz + 1000);
-  }
-
-  private corner(x: number, z: number) {
-    const gx = Math.max(0, Math.min(N - 1e-4, (x - ORIGIN) / CELL));
-    const gz = Math.max(0, Math.min(N - 1e-4, (z - ORIGIN) / CELL));
-    const i = Math.floor(gx);
-    const j = Math.floor(gz);
-    return { i, j, fx: gx - i, fz: gz - j };
-  }
-
-  private lerp_field(field: Float32Array, x: number, z: number): number {
-    const { i, j, fx, fz } = this.corner(x, z);
-    const k = j * (N + 1) + i;
-    const h00 = field[k];
-    const h10 = field[k + 1];
-    const h01 = field[k + N + 1];
-    const h11 = field[k + N + 2];
-    if (fx + fz <= 1) return h00 + (h10 - h00) * fx + (h01 - h00) * fz;
-    return h11 + (h01 - h11) * (1 - fx) + (h10 - h11) * (1 - fz);
   }
 
   height(x: number, z: number): number {
-    return this.lerp_field(this.heights, x, z);
+    return sample(this.heights, x, z);
   }
 
   normal(x: number, z: number, out: Vector3): Vector3 {
-    const { i, j, fx, fz } = this.corner(x, z);
-    const h = this.heights;
-    const k = j * (N + 1) + i;
-    if (fx + fz <= 1) return out.set(h[k] - h[k + 1], CELL, h[k] - h[k + N + 1]).normalize();
-    return out.set(h[k + N + 1] - h[k + N + 2], CELL, h[k + 1] - h[k + N + 2]).normalize();
+    const [nx, ny, nz] = slope_normal(this.heights, x, z);
+    return out.set(nx, ny, nz).normalize();
   }
 
   distance_to_road(x: number, z: number): number {
-    return this.lerp_field(this.road_dist, x, z);
+    return sample(this.road_dist, x, z);
   }
 
   grip(x: number, z: number): number {
@@ -342,61 +166,85 @@ export class World implements Ground {
   }
 
   nearest_road(x: number, z: number): RoadPoint {
-    let best = this.road[0];
+    const cx = Math.floor(x / ROAD_CELL);
+    const cz = Math.floor(z / ROAD_CELL);
+    let best = -1;
     let dist = Infinity;
-    for (const p of this.road) {
-      const d = (p.x - x) ** 2 + (p.z - z) ** 2;
-      if (d < dist) {
-        dist = d;
-        best = p;
-      }
-    }
-    return best;
-  }
-
-  // The car is two circles (nose and tail) so a corner clip spins it instead of stopping it dead; the push and
-  // the yaw kick come from the same impulse applied at that circle's offset from the centre of mass.
-  collide(pos: Vector3, vel: Vector3, ang: Vector3, heading: number): number {
-    let impact = 0;
-    const fx = Math.sin(heading);
-    const fz = Math.cos(heading);
-    for (const offset of [1.25, -1.25]) {
-      const px = pos.x + fx * offset;
-      const pz = pos.z + fz * offset;
-      const cx = Math.floor(px / 16);
-      const cz = Math.floor(pz / 16);
-      for (let dz = -1; dz <= 1; dz++)
-        for (let dx = -1; dx <= 1; dx++) {
-          const list = this.solid_grid.get(this.grid_key(cx + dx, cz + dz));
+    for (let ring = 0; ring < 64; ring++) {
+      for (let dz = -ring; dz <= ring; dz++)
+        for (let dx = -ring; dx <= ring; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dz)) !== ring) continue;
+          const list = this.road_grid.get(grid_key(cx + dx, cz + dz));
           if (!list) continue;
           for (const index of list) {
+            const p = this.road[index];
+            const d = (p.x - x) ** 2 + (p.z - z) ** 2;
+            if (d < dist) {
+              dist = d;
+              best = index;
+            }
+          }
+        }
+      if (best >= 0 && Math.sqrt(dist) <= ring * ROAD_CELL) break;
+    }
+    return this.road[Math.max(0, best)];
+  }
+
+  collide(car: Collider): number;
+  /** Positional form for callers not yet passing the car; collides as a COUPE. */
+  collide(pos: Vector3, vel: Vector3, ang: Vector3, heading: number): number;
+  collide(first: Collider | Vector3, vel?: Vector3, ang?: Vector3, heading?: number): number {
+    if (!(first instanceof Vector3)) return this.collide_car(first);
+    if (!vel || !ang || heading === undefined) throw new Error("collide: positional form needs pos, vel, ang, heading");
+    return this.collide_car({ pos: first, vel, ang, heading, spec: COUPE });
+  }
+
+  // The car is circles along its heading (nose and tail) so a corner clip spins it instead of stopping it dead; the
+  // push and the yaw kick come from the same impulse applied at that circle's offset from the centre of mass.
+  private collide_car(car: Collider): number {
+    const { pos, spec } = car;
+    let impact = 0;
+    const fx = Math.sin(car.heading);
+    const fz = Math.cos(car.heading);
+    for (const offset of spec.circles) {
+      const px = pos.x + fx * offset;
+      const pz = pos.z + fz * offset;
+      const cx = Math.floor(px / SOLID_CELL);
+      const cz = Math.floor(pz / SOLID_CELL);
+      const stamp = ++this.query;
+      for (let dz = -1; dz <= 1; dz++)
+        for (let dx = -1; dx <= 1; dx++) {
+          const list = this.solid_grid.get(grid_key(cx + dx, cz + dz));
+          if (!list) continue;
+          for (const index of list) {
+            if (this.seen[index] === stamp) continue;
+            this.seen[index] = stamp;
             const solid = this.solids[index];
             if (pos.y > solid.y + solid.height) continue;
-            const ox = px - solid.x;
-            const oz = pz - solid.z;
-            const d = Math.hypot(ox, oz);
-            const min = CAR_RADIUS + solid.radius;
-            if (d >= min || d < 1e-3) continue;
-            const nx = ox / d;
-            const nz = oz / d;
-            pos.x += nx * (min - d);
-            pos.z += nz * (min - d);
-            const rx = fx * offset;
-            const rz = fz * offset;
-            const into = vel.x * nx + vel.z * nz + ang.y * (rz * nx - rx * nz);
-            if (into >= 0) continue;
-            impact = Math.max(impact, -into);
-            const arm = rz * nx - rx * nz;
-            const impulse = (-into * 1.25) / (1 / CAR_BODY.mass + (arm * arm) / CAR_BODY.yaw_inertia);
-            vel.x += (nx * impulse) / CAR_BODY.mass;
-            vel.z += (nz * impulse) / CAR_BODY.mass;
-            ang.y += (arm * impulse) / CAR_BODY.yaw_inertia;
-            vel.multiplyScalar(0.9);
-            ang.x *= 0.7;
-            ang.z *= 0.7;
+            const contact = circle_contact(solid, pos.x + fx * offset, pos.z + fz * offset, spec.radius);
+            if (contact) impact = Math.max(impact, this.resolve(car, contact, fx * offset, fz * offset));
           }
         }
     }
     return impact;
+  }
+
+  private resolve(car: Collider, { nx, nz, depth }: Contact, rx: number, rz: number): number {
+    const { pos, vel, ang, spec } = car;
+    const mass = spec.mass;
+    const yaw_inertia = spec.inertia[1];
+    pos.x += nx * depth;
+    pos.z += nz * depth;
+    const arm = rz * nx - rx * nz;
+    const into = vel.x * nx + vel.z * nz + ang.y * arm;
+    if (into >= 0) return 0;
+    const impulse = (-into * RESTITUTION) / (1 / mass + (arm * arm) / yaw_inertia);
+    vel.x += (nx * impulse) / mass;
+    vel.z += (nz * impulse) / mass;
+    ang.y += (arm * impulse) / yaw_inertia;
+    vel.multiplyScalar(0.9);
+    ang.x *= 0.7;
+    ang.z *= 0.7;
+    return -into;
   }
 }

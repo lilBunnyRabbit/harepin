@@ -50,7 +50,7 @@ function world_checksum(world: InstanceType<typeof World>): string {
     world.road_dist,
     world.road.flatMap((p) => [p.x, p.y, p.z, p.tx, p.tz]),
     world.trees.flatMap((t) => [t.x, t.y, t.z, t.scale, t.kind]),
-    world.solids.flatMap((s) => [s.x, s.y, s.z, s.radius, s.height]),
+    world.solids.flatMap((s) => (s.kind === "circle" ? [s.x, s.y, s.z, s.radius, s.height] : [s.x, s.y, s.z, s.hw, s.hd, s.cos, s.sin, s.height])),
   ]);
 }
 
@@ -76,5 +76,11 @@ for (const seed of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]) {
   const colors = mesh.geometry.getAttribute("color").array;
   console.log(
     `seed ${seed}: world ${(t1 - t0).toFixed(0)} ms, terrain_mesh ${(t2 - t1).toFixed(0)} ms, trees ${world.trees.length}, ${road_report(world)}, world ${world_checksum(world)}, colours ${checksum([colors])}`,
+  );
+  const stages = world.timings.map(([stage, ms]) => `${stage} ${ms.toFixed(0)}`).join(", ");
+  const streets = world.graph.edges.filter((e) => e.kind === "street").length;
+  const spurs = world.graph.edges.length - streets - 1;
+  console.log(
+    `  stages ms: ${stages} | towns ${world.towns.length}, streets ${streets}, spurs ${spurs}, lots ${world.lots.length}, buildings ${world.buildings.length}, parking ${world.parking.length}, lights ${world.props.length}, solids ${world.solids.length}`,
   );
 }
