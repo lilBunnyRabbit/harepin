@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { color, lighten, linear, mix, tones } from "./palette";
-import { CELL, N, ROAD_HALF, SIZE, World, fbm, type RoadPoint } from "./world";
+import { CELL, N, ROAD_HALF, SIDEWALK, SIZE, World, fbm, type RoadPoint } from "./world";
 
 const JITTER_LIGHTNESS = 0.035;
 const JITTER_LEVELS = 64;
@@ -8,6 +8,17 @@ const LANE_WIDTH = 3;
 const ROCK_HALF = 3;
 const ROCK = 6;
 const SNOW = 7;
+const SURFACE_LIFT = 0.07;
+// Spurs sit a hair above streets and sidewalks so their mouth covers the street's sidewalk at the town gate.
+const SPUR_LIFT = 0.09;
+const MARK_LIFT = 0.1;
+const MARK_HALF = 0.15;
+const EDGE_INSET = 0.3;
+const EDGE_WIDTH = 0.25;
+const DASH = 6;
+const DASH_ON = 3;
+const SPUR_MARK_CLEAR = 8;
+const SPUR_MOUTH = 30;
 
 function jitter(i: number, j: number): number {
   const h = Math.sin(i * 127.1 + j * 311.7) * 43758.5453;
@@ -73,7 +84,9 @@ export function terrain_mesh(world: World): THREE.Mesh {
   return mesh;
 }
 
-function strip(world: World, positions: number[], road: RoadPoint[], closed: boolean, from: number, to: number, lift: number, keep: (s: number) => boolean) {
+type Rgb = [number, number, number];
+
+function strip(world: World, positions: number[], road: RoadPoint[], closed: boolean, from: number, to: number, lift: number, keep: (s: number) => boolean, colors?: number[], rgb?: Rgb) {
   const segments = closed ? road.length : road.length - 1;
   const lanes = Math.ceil((to - from) / LANE_WIDTH);
   for (let s = 0; s < segments; s++) {
@@ -84,6 +97,7 @@ function strip(world: World, positions: number[], road: RoadPoint[], closed: boo
       const l0 = from + ((to - from) * lane) / lanes;
       const l1 = from + ((to - from) * (lane + 1)) / lanes;
       quad(world, positions, a, b, l0, l1, lift);
+      if (colors && rgb) for (let v = 0; v < 6; v++) colors.push(...rgb);
     }
   }
 }
@@ -101,11 +115,13 @@ function quad(world: World, positions: number[], a: RoadPoint, b: RoadPoint, fro
   positions.push(...a0, ...a1, ...b0, ...b0, ...a1, ...b1);
 }
 
-function strip_mesh(positions: number[], tone: THREE.Color, offset: number): THREE.Mesh {
+/** With `colors` the vertex colours are the tone and `tone` is ignored. */
+function strip_mesh(positions: number[], tone: THREE.Color | null, offset: number, colors?: number[]): THREE.Mesh {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  if (colors) geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
   geometry.computeVertexNormals();
-  const material = new THREE.MeshLambertMaterial({ color: tone, polygonOffset: true, polygonOffsetFactor: offset, polygonOffsetUnits: offset, side: THREE.DoubleSide });
+  const material = new THREE.MeshLambertMaterial({ ...(tone && !colors ? { color: tone } : {}), vertexColors: !!colors, polygonOffset: true, polygonOffsetFactor: offset, polygonOffsetUnits: offset, side: THREE.DoubleSide });
   const mesh = new THREE.Mesh(geometry, material);
   mesh.receiveShadow = true;
   return mesh;
@@ -133,16 +149,51 @@ export function road_meshes(world: World): THREE.Object3D {
   group.add(ribbon(world, -0.15, 0.15, 0.1, (s) => s % 6 < 3, color(tones.line), -4));
   group.add(ribbon(world, ROAD_HALF - 0.55, ROAD_HALF - 0.3, 0.1, clear_of_mouths, color(tones.edge_line), -4));
   group.add(ribbon(world, -ROAD_HALF + 0.3, -ROAD_HALF + 0.55, 0.1, clear_of_mouths, color(tones.edge_line), -4));
-  const asphalt: number[] = [];
-  const lines: number[] = [];
+  // Streets, sidewalks, spurs and all their markings: two vertex-coloured meshes, so towns add no draws.
+  const asphalt = linear(tones.asphalt);
+  const walk = linear(tones.sidewalk);
+  const centre = linear(tones.line);
+  const edge_line = linear(tones.edge_line);
+  const surface: number[] = [];
+  const surface_rgb: number[] = [];
+  const marks: number[] = [];
+  const marks_rgb: number[] = [];
+  // Spurs only come near streets where they leave their town's gate.
+  const gates = world.graph.edges.filter((e) => e.kind === "highway" && !e.closed).flatMap((e) => e.points.slice(0, SPUR_MOUTH));
+  const under_spur = (p: RoadPoint, reach: number) => gates.some((q) => (q.x - p.x) ** 2 + (q.z - p.z) ** 2 < reach * reach);
+  const edge_lines = (points: RoadPoint[], half: number, keep: (s: number) => boolean) => {
+    for (const side of [-1, 1]) {
+      const at = side * (half - EDGE_INSET - EDGE_WIDTH / 2);
+      strip(world, marks, points, false, at - EDGE_WIDTH / 2, at + EDGE_WIDTH / 2, MARK_LIFT, keep, marks_rgb, edge_line);
+    }
+  };
   for (const edge of world.graph.edges) {
     if (edge.closed) continue;
-    const points = edge.kind === "street" ? extended(edge.points, edge.half) : edge.points;
-    strip(world, asphalt, points, false, -edge.half, edge.half, 0.07, () => true);
-    if (edge.kind === "highway") strip(world, lines, edge.points, false, -0.15, 0.15, 0.09, (s) => s % 6 < 3 && s > 8 && s < edge.points.length - 8);
+    const { points, half } = edge;
+    const last = points.length - 1;
+    if (edge.kind === "highway") {
+      strip(world, surface, points, false, -half, half, SPUR_LIFT, () => true, surface_rgb, asphalt);
+      const open = (s: number) => s > SPUR_MARK_CLEAR && s < last - SPUR_MARK_CLEAR;
+      strip(world, marks, points, false, -MARK_HALF, MARK_HALF, MARK_LIFT, (s) => open(s) && s % DASH < DASH_ON, marks_rgb, centre);
+      edge_lines(points, half, open);
+      continue;
+    }
+    // Streets run node to node: stretching each end by the half width fills the crossing square, and sidewalks start
+    // at the crossing street's edge, so two sidewalks only ever overlap in the same colour at a block corner.
+    strip(world, surface, extended(points, half), false, -half, half, SURFACE_LIFT, () => true, surface_rgb, asphalt);
+    const step = Math.hypot(points[1].x - points[0].x, points[1].z - points[0].z) || 1;
+    const ends = Math.ceil(half / step);
+    const clear = Math.ceil((half + SIDEWALK) / step);
+    const near_spur = points.map((p) => under_spur(p, half + SIDEWALK + 6));
+    const walkway = (s: number) => s >= ends && s < last - ends;
+    const marked = (s: number) => s >= clear && s < last - clear && !near_spur[s] && !near_spur[s + 1];
+    strip(world, surface, points, false, -half - SIDEWALK, -half, SURFACE_LIFT, walkway, surface_rgb, walk);
+    strip(world, surface, points, false, half, half + SIDEWALK, SURFACE_LIFT, walkway, surface_rgb, walk);
+    edge_lines(points, half, marked);
+    strip(world, marks, points, false, -MARK_HALF, MARK_HALF, MARK_LIFT, (s) => marked(s) && s % DASH < DASH_ON, marks_rgb, centre);
   }
-  group.add(strip_mesh(asphalt, color(tones.asphalt), -2));
-  group.add(strip_mesh(lines, color(tones.line), -4));
+  group.add(strip_mesh(surface, null, -2, surface_rgb));
+  group.add(strip_mesh(marks, null, -4, marks_rgb));
   return group;
 }
 

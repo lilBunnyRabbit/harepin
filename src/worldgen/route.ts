@@ -1,7 +1,7 @@
 import { sample } from "./field";
-import { length, smoothstep } from "./noise";
+import { length } from "./noise";
 import { chaikin, resample, road_points, smooth, type Path } from "./path";
-import { ORIGIN, ROAD_HALF, SIZE, type RoadPoint, type Town } from "./types";
+import { ORIGIN, ROAD_HALF, SIZE, SPUR_GRADE, type RoadPoint, type Town } from "./types";
 
 const COARSE = 16;
 const G = SIZE / COARSE;
@@ -10,11 +10,20 @@ const MAX_GRADE = 0.2;
 const STEEP_COST = 30;
 const WATER = 2;
 const RING_BAND = 18;
-const GOAL_FREE = 40;
 const TOWN_MARGIN = 14;
+const OWN_TOWN_MARGIN = 8;
+const CORRIDOR = COARSE * 1.5;
 const SPUR_BAND = 2;
+/** Spur points held at the end heights, 2 m apart: the flat run where the spur meets the plateau or the ring. */
 const HOLD = 10;
-const PIN = 20;
+/** The last APPROACH metres of a spur run straight along the ring normal, so it meets the ring as a clean T. */
+export const APPROACH = 32;
+// Shaping aims under SPUR_GRADE so the smoothing after the clamp cannot push a 10 m window over it.
+export const SHAPE_GRADE = SPUR_GRADE - 0.015;
+const NEED_MARGIN = 12;
+const JOIN_TRIES = 8;
+/** Ring points between two join candidates, 2 m apart. */
+const JOIN_SPACING = 20;
 
 class Heap {
   private readonly keys: number[] = [];
@@ -98,21 +107,35 @@ export class Router {
       }
   }
 
-  route(from: { x: number; z: number }, to: { x: number; z: number }, town: Town): Path | null {
+  /** A* from the gate to the ring point `to`, arriving straight along the ring normal on the gate's side. */
+  route(from: { x: number; z: number }, to: RoadPoint, town: Town): Path | null {
+    const side = Math.sign((from.x - to.x) * -to.tz + (from.z - to.z) * to.tx) || 1;
+    const ax = to.x - to.tz * side * APPROACH;
+    const az = to.z + to.tx * side * APPROACH;
     const start = cell_of(from.z) * G + cell_of(from.x);
-    const goal = cell_of(to.z) * G + cell_of(to.x);
-    const gate_reach = length(from.x - town.x, from.z - town.z);
+    const goal = cell_of(az) * G + cell_of(ax);
+    const out_x = ax - from.x;
+    const out_z = az - from.z;
+    const out_len = length(out_x, out_z) || 1;
+    // Inside its own town the spur may only leave along the corridor from the gate toward the ring; the gate is the
+    // node nearest the ring, so no street lies in that corridor.
+    const corridor = (x: number, z: number) => {
+      const along = ((x - from.x) * out_x + (z - from.z) * out_z) / out_len;
+      const across = Math.abs((x - from.x) * out_z - (z - from.z) * out_x) / out_len;
+      return along > 0 && across < CORRIDOR;
+    };
     const free = (k: number) => {
+      if (k === goal) return this.height[k] >= WATER;
+      if (this.blocked[k]) return false;
       const x = centre(k % G);
       const z = centre(Math.floor(k / G));
-      if (length(x - to.x, z - to.z) < GOAL_FREE) return this.height[k] >= WATER;
-      if (this.blocked[k]) return false;
       for (const t of this.towns) {
         const d = length(x - t.x, z - t.z);
-        if (t === town ? d < gate_reach - 8 : d < t.radius + TOWN_MARGIN) return false;
+        if (t !== town ? d < t.radius + TOWN_MARGIN : d < t.core + OWN_TOWN_MARGIN && !corridor(x, z)) return false;
       }
       return true;
     };
+    if (!free(goal)) return null;
     const cost = new Float64Array(G * G).fill(Infinity);
     const came = new Int32Array(G * G).fill(-1);
     const heap = new Heap();
@@ -143,12 +166,17 @@ export class Router {
           heap.push(n, total + length(ni - gx, nj - gz) * COARSE);
         }
     }
-    if (came[goal] < 0) return null;
+    if (came[goal] < 0 && goal !== start) return null;
     const cells: Path = [];
     for (let k = came[goal]; k !== start && k >= 0; k = came[k]) cells.push([centre(k % G), centre(Math.floor(k / G))]);
     cells.reverse();
-    for (let k = 0; k < cells.length; k++) {
-      const [x, z] = cells[k];
+    const clear = (x: number, z: number) => length(x - from.x, z - from.z) > COARSE * 1.5 && length(x - ax, z - az) > COARSE * 1.5;
+    return [[from.x, from.z], ...cells.filter(([x, z]) => clear(x, z)), [ax, az], [to.x, to.z]];
+  }
+
+  /** Blocks the cells along an accepted spur so later spurs keep their distance. */
+  claim(path: Path) {
+    for (const [x, z] of path) {
       const c = cell_of(z) * G + cell_of(x);
       for (let dj = -SPUR_BAND; dj <= SPUR_BAND; dj++)
         for (let di = -SPUR_BAND; di <= SPUR_BAND; di++) {
@@ -156,23 +184,53 @@ export class Router {
           if (n >= 0 && n < G * G) this.blocked[n] = 1;
         }
     }
-    const clear = (x: number, z: number) => length(x - from.x, z - from.z) > COARSE * 1.5 && length(x - to.x, z - to.z) > COARSE * 1.5;
-    return [[from.x, from.z], ...cells.filter(([x, z]) => clear(x, z)), [to.x, to.z]];
   }
+}
+
+// Every point stays within `grade` of both pinned ends (the envelope) and of its neighbour, walked from the far end:
+// the envelope is itself grade-Lipschitz, so the walk never pushes a point out of it and both ends stay pinned.
+function limit_grade(ys: number[], run: number[], grade: number): number[] {
+  const n = ys.length;
+  const along = [0];
+  for (let i = 1; i < n; i++) along.push(along[i - 1] + run[i - 1]);
+  const total = along[n - 1];
+  const y0 = ys[0];
+  const y1 = ys[n - 1];
+  const out = ys.map((y, i) => {
+    const lo = Math.max(y0 - grade * along[i], y1 - grade * (total - along[i]));
+    const hi = Math.min(y0 + grade * along[i], y1 + grade * (total - along[i]));
+    return lo > hi ? (lo + hi) / 2 : Math.max(lo, Math.min(hi, y));
+  });
+  for (let i = n - 2; i >= 0; i--) out[i] = Math.max(out[i + 1] - grade * run[i], Math.min(out[i + 1] + grade * run[i], out[i]));
+  return out;
+}
+
+/** Ring indices to try as the spur's T, nearest first, at least JOIN_SPACING points apart. */
+export function join_candidates(road: RoadPoint[], from: { x: number; z: number }): number[] {
+  const n = road.length;
+  const order = road.map((p, i) => [length(p.x - from.x, p.z - from.z), i] as const).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const picked: number[] = [];
+  for (const [, i] of order) {
+    if (picked.length >= JOIN_TRIES) break;
+    if (picked.every((j) => Math.min((i - j + n) % n, (j - i + n) % n) >= JOIN_SPACING)) picked.push(i);
+  }
+  return picked;
+}
+
+/** Steepest rise over run the spur can reach between its pinned ends; above SPUR_GRADE the route is too short. */
+export function spur_need(path: Path, from_y: number, to_y: number): number {
+  let total = 0;
+  for (let i = 1; i < path.length; i++) total += length(path[i][0] - path[i - 1][0], path[i][1] - path[i - 1][1]);
+  return Math.abs(to_y - from_y) / Math.max(1, total - HOLD * 4 - NEED_MARGIN);
 }
 
 export function spur_points(cells: Path, heights: Float32Array, from_y: number, to_y: number): RoadPoint[] {
   const path = resample(chaikin(cells, 4), 2, false);
   const n = path.length;
-  const ys = smooth(
-    path.map(([x, z]) => Math.max(3, sample(heights, x, z))),
-    10,
-    3,
-    false,
-  ).map((y, i) => {
-    const head = 1 - smoothstep(HOLD, HOLD + PIN, i);
-    const tail = 1 - smoothstep(HOLD, HOLD + PIN, n - 1 - i);
-    return y + (from_y - y) * head + (to_y - y) * tail;
-  });
+  const run = path.slice(1).map(([x, z], i) => length(x - path[i][0], z - path[i][1]));
+  const pinned = (ys: number[]) => ys.map((y, i) => (i < HOLD ? from_y : i > n - 1 - HOLD ? to_y : y));
+  let ys = pinned(smooth(path.map(([x, z]) => Math.max(3, sample(heights, x, z))), 10, 3, false));
+  ys = limit_grade(ys, run, SHAPE_GRADE);
+  ys = limit_grade(pinned(smooth(ys, 4, 2, false)), run, SHAPE_GRADE);
   return road_points(path, ys, false);
 }

@@ -69,6 +69,9 @@ export const tones = {
   wall_cool: mix(brand.info, brand.foreground, 0.3),
   roof: mix(brand.error, brand.background_darkest, 0.5),
   roof_flat: dark ? brand.background_light : mix(brand.foreground, brand.background_darkest, 0.5),
+  roof_slate: mix(brand.info, brand.background_darkest, 0.35),
+  sidewalk: dark ? mix(brand.foreground, brand.background_lightest, 0.18) : mix(brand.foreground, brand.background_darkest, 0.35),
+  shopfront: dark ? brand.background_darkest : mix(brand.foreground, brand.info, 0.8),
 };
 
 export const car_paints = [brand.primary, brand.secondary, brand.accent, brand.tertiary, brand.info, brand.cottontail, brand.error];

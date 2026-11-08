@@ -13,7 +13,9 @@ const RING_REACH = 260;
 const TOWN_RELIEF = 18;
 const BLOCK_MIN = 45;
 const BLOCK_SPAN = 25;
-const STREET_GRADE = 0.14;
+const TOWN_GRADE = 0.05;
+const TOWN_FLOOR = 4;
+const CORE = 1.15;
 const STREET_RING_CLEAR = ROAD_HALF + STREET_HALF + 14;
 const STEP = 2;
 
@@ -60,14 +62,18 @@ export function place_towns(seed: number, heights: Float32Array, road: RoadPoint
     const len = Math.sqrt(ux * ux + uz * uz);
     ux /= len;
     uz /= len;
-    towns.push({ id: towns.length, x, z, radius, ux, uz, angle: Math.atan2(ux, uz), name: town_name(next) });
+    towns.push({ id: towns.length, x, z, radius, ux, uz, angle: Math.atan2(ux, uz), name: town_name(next), y: h, gx: 0, gz: 0, core: radius * CORE, block: BLOCK_MIN });
   }
   return towns;
 }
 
-// Streets sit on one least-squares plane so every crossing agrees on its height; per-node terrain heights would give
-// two crossing streets different slopes and tear the surface at the junction.
-function flatten_to_plane(nodes: RoadNode[], town: Town) {
+export function town_level(town: Town, x: number, z: number): number {
+  return town.y + town.gx * (x - town.x) + town.gz * (z - town.z);
+}
+
+// The whole town sits on one least-squares plane through its street nodes, tilted at most TOWN_GRADE: every crossing
+// agrees on its height and every lot on a block shares the ground, so pads never fight each other.
+function fit_plane(nodes: RoadNode[], town: Town) {
   let sxx = 0, sxz = 0, szz = 0, sx = 0, sz = 0, sy = 0, sxy = 0, szy = 0;
   for (const n of nodes) {
     const x = n.x - town.x;
@@ -82,16 +88,24 @@ function flatten_to_plane(nodes: RoadNode[], town: Town) {
     szy += z * n.y;
   }
   const count = nodes.length;
-  const mean_y = sy / count;
   const cxx = sxx - (sx * sx) / count;
   const cxz = sxz - (sx * sz) / count;
   const czz = szz - (sz * sz) / count;
   const cxy = sxy - (sx * sy) / count;
   const czy = szy - (sz * sy) / count;
   const det = cxx * czz - cxz * cxz;
-  const gx = det > 1e-6 ? (cxy * czz - czy * cxz) / det : 0;
-  const gz = det > 1e-6 ? (czy * cxx - cxy * cxz) / det : 0;
-  for (const n of nodes) n.y = mean_y + gx * (n.x - town.x - sx / count) + gz * (n.z - town.z - sz / count);
+  let gx = det > 1e-6 ? (cxy * czz - czy * cxz) / det : 0;
+  let gz = det > 1e-6 ? (czy * cxx - cxy * cxz) / det : 0;
+  const grade = length(gx, gz);
+  if (grade > TOWN_GRADE) {
+    gx *= TOWN_GRADE / grade;
+    gz *= TOWN_GRADE / grade;
+  }
+  const y = sy / count - gx * (sx / count) - gz * (sz / count);
+  town.gx = gx;
+  town.gz = gz;
+  town.y = Math.max(y, TOWN_FLOOR + length(gx, gz) * town.core);
+  for (const n of nodes) n.y = town_level(town, n.x, n.z);
 }
 
 export interface Streets {
@@ -104,6 +118,7 @@ export interface Streets {
 export function town_streets(seed: number, town: Town, heights: Float32Array, road: RoadPoint[], first_node: number, first_edge: number): Streets | null {
   const next = mulberry32(sub(seed, `streets:${town.id}`));
   const block = BLOCK_MIN + next() * BLOCK_SPAN;
+  town.block = block;
   const k = Math.ceil(town.radius / block);
   const vx = -town.uz;
   const vz = town.ux;
@@ -121,7 +136,7 @@ export function town_streets(seed: number, town: Town, heights: Float32Array, ro
       nodes.push({ id: 0, x, z, y, kind: "junction" });
     }
   if (nodes.length < 3) return null;
-  flatten_to_plane(nodes, town);
+  fit_plane(nodes, town);
   const links: [number, number][] = [];
   for (let i = -k; i <= k; i++)
     for (let j = -k; j <= k; j++) {
@@ -135,7 +150,6 @@ export function town_streets(seed: number, town: Town, heights: Float32Array, ro
         if (b === undefined) continue;
         const na = nodes[a];
         const nb = nodes[b];
-        if (Math.abs(na.y - nb.y) / block > STREET_GRADE) continue;
         if (ring_distance(road, (na.x + nb.x) / 2, (na.z + nb.z) / 2) < STREET_RING_CLEAR) continue;
         links.push([a, b]);
       }

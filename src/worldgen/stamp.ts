@@ -1,21 +1,46 @@
 import { cell_range, vertex } from "./field";
 import { smoothstep } from "./noise";
-import { CELL, ORIGIN, ROAD_HALF, SHOULDER, type RoadEdge, type Terrain } from "./types";
+import { town_level } from "./towns";
+import { CELL, ORIGIN, ROAD_HALF, SHOULDER, type RoadEdge, type Terrain, type Town } from "./types";
 
-const PAD_MARGIN = 5;
+// Past `core` plus two cells every vertex a lot corner can touch is fully on the plane; the plane then eases back to
+// terrain over PLATEAU_BLEND.
+const PLATEAU_EDGE = CELL * 2;
+const PLATEAU_BLEND = 40;
 // A terrain triangle touching a road or pad has vertices up to CELL * sqrt(2) outside it; flattening that far keeps it
 // under the surface mesh.
 const FLAT = 6;
 
 export class Stamp {
   private readonly road_height: Float32Array;
-  private readonly owner_dist: Float32Array;
+  readonly owner_dist: Float32Array;
   readonly edge_of: Int32Array;
+  /** 1 where the owning edge is a town street, whose height is the town plane. */
+  readonly street: Uint8Array;
 
   constructor(private readonly terrain: Terrain) {
     this.road_height = new Float32Array(terrain.heights.length);
     this.edge_of = new Int32Array(terrain.heights.length).fill(-1);
     this.owner_dist = new Float32Array(terrain.heights.length).fill(1e9);
+    this.street = new Uint8Array(terrain.heights.length);
+  }
+
+  plateau(town: Town) {
+    const { heights } = this.terrain;
+    const full = town.core + PLATEAU_EDGE;
+    const reach = full + PLATEAU_BLEND;
+    const [i0, i1] = cell_range(town.x - reach, town.x + reach);
+    const [j0, j1] = cell_range(town.z - reach, town.z + reach);
+    for (let j = j0; j <= j1; j++)
+      for (let i = i0; i <= i1; i++) {
+        const x = ORIGIN + i * CELL;
+        const z = ORIGIN + j * CELL;
+        const d = Math.sqrt((x - town.x) * (x - town.x) + (z - town.z) * (z - town.z));
+        if (d >= reach) continue;
+        const k = vertex(i, j);
+        const w = 1 - smoothstep(full, reach, d);
+        heights[k] += (town_level(town, x, z) - heights[k]) * w;
+      }
   }
 
   // Edges stamp in priority order (circuit, streets, spurs). A later edge never takes height over another edge's flat
@@ -48,6 +73,7 @@ export class Stamp {
             this.owner_dist[k] = d;
             this.road_height[k] = a.y + (b.y - a.y) * t;
             this.edge_of[k] = edge.id;
+            this.street[k] = edge.kind === "street" ? 1 : 0;
           }
         }
     }
@@ -56,29 +82,10 @@ export class Stamp {
   blend() {
     const { heights, road_dist } = this.terrain;
     for (let k = 0; k < heights.length; k++) {
-      if (this.owner_dist[k] > ROAD_HALF + SHOULDER) continue;
+      // Streets have a flat cross-section but the plateau under them tilts; the plateau is already the street surface.
+      if (this.owner_dist[k] > ROAD_HALF + SHOULDER || this.street[k]) continue;
       const w = 1 - smoothstep(ROAD_HALF + FLAT, ROAD_HALF + SHOULDER, this.owner_dist[k]);
       heights[k] += (this.road_height[k] - 0.05 - heights[k]) * w;
     }
-  }
-
-  /** Flattens a rotated w x d pad to `y`, easing out over PAD_MARGIN and never pulling a road surface. Roads other than `own` keep their whole flat band. */
-  pad(x: number, z: number, w: number, d: number, fx: number, fz: number, y: number, own: number) {
-    const { heights, road_dist } = this.terrain;
-    const reach = (w + d) / 2 + FLAT + PAD_MARGIN;
-    const [i0, i1] = cell_range(x - reach, x + reach);
-    const [j0, j1] = cell_range(z - reach, z + reach);
-    for (let j = j0; j <= j1; j++)
-      for (let i = i0; i <= i1; i++) {
-        const dx = ORIGIN + i * CELL - x;
-        const dz = ORIGIN + j * CELL - z;
-        const ox = Math.max(0, Math.abs(dx * fz - dz * fx) - w / 2);
-        const oz = Math.max(0, Math.abs(dx * fx + dz * fz) - d / 2);
-        const out = Math.sqrt(ox * ox + oz * oz);
-        if (out >= FLAT + PAD_MARGIN) continue;
-        const k = vertex(i, j);
-        const keep_road = this.edge_of[k] === own ? smoothstep(ROAD_HALF + 0.5, ROAD_HALF + 2.5, road_dist[k]) : smoothstep(ROAD_HALF + FLAT, ROAD_HALF + FLAT + 2, road_dist[k]);
-        heights[k] += (y - heights[k]) * (1 - smoothstep(FLAT, FLAT + PAD_MARGIN, out)) * keep_road;
-      }
   }
 }

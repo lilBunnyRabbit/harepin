@@ -4,8 +4,12 @@ export const N = SIZE / CELL;
 export const ORIGIN = -SIZE / 2;
 export const ROAD_HALF = 6;
 export const STREET_HALF = 4;
+/** Sidewalk strip beyond each street edge; part of the street surface for lot setbacks, not for grip. */
+export const SIDEWALK = 2;
 export const SPUR_HALF = 5;
 export const SHOULDER = 16;
+/** Steepest a spur may climb, rise over run. */
+export const SPUR_GRADE = 0.12;
 
 export interface RoadPoint {
   x: number;
@@ -78,9 +82,17 @@ export interface Town {
   uz: number;
   angle: number;
   name: string;
+  /** Town ground is the plane y + gx * (x - town.x) + gz * (z - town.z) out to `core`, easing back to terrain beyond. */
+  y: number;
+  gx: number;
+  gz: number;
+  /** Radius every lot corner stays inside. */
+  core: number;
+  /** Street spacing of the grid, centre to centre. */
+  block: number;
 }
 
-export type LotKind = "house" | "shop" | "parking" | "empty";
+export type LotKind = "house" | "shop" | "parking" | "garden" | "empty";
 
 /** Lot-local frame: +z faces the street (`fx`, `fz` in world), +x runs along it. */
 export interface Lot {
@@ -111,8 +123,12 @@ export interface Building {
   angle: number;
   height: number;
   style: number;
-  roof: number;
+  roof: Roof;
 }
+
+/** GABLE ridge runs along local x, CROSS along local z, HIP slopes on all four sides. */
+export const Roof = { FLAT: "flat", GABLE: "gable", CROSS: "cross", HIP: "hip" } as const;
+export type Roof = (typeof Roof)[keyof typeof Roof];
 
 export const PropKind = { STREET_LIGHT: "street_light" } as const;
 export type PropKind = (typeof PropKind)[keyof typeof PropKind];

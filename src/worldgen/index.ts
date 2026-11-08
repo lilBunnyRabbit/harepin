@@ -2,7 +2,8 @@ import { sample, up, vertex } from "./field";
 import { fbm, hash, length } from "./noise";
 import { Lots } from "./lots";
 import { loop_road } from "./path";
-import { Router, spur_points } from "./route";
+import { join_candidates, Router, SHAPE_GRADE, spur_need, spur_points } from "./route";
+import type { Path } from "./path";
 import { Stamp } from "./stamp";
 import { terrain } from "./terrain";
 import { place_towns, town_streets } from "./towns";
@@ -45,6 +46,7 @@ export function generate(seed: number): WorldData {
     nodes.push(...streets.nodes);
     edges.push(...streets.edges);
     gates.set(town.id, streets.gate);
+    stamp.plateau(town);
   }
   lap("towns");
 
@@ -53,15 +55,20 @@ export function generate(seed: number): WorldData {
     const gate_id = gates.get(town.id);
     if (gate_id === undefined) continue;
     const gate = nodes[gate_id];
-    let join = 0;
-    for (let i = 1; i < road.length; i++)
-      if (length(road[i].x - gate.x, road[i].z - gate.z) < length(road[join].x - gate.x, road[join].z - gate.z)) join = i;
-    const target = road[join];
-    const cells = router.route(gate, target, town);
-    if (!cells) continue;
+    let best: { path: Path; join: number; need: number } | null = null;
+    for (const join of join_candidates(road, gate)) {
+      const path = router.route(gate, road[join], town);
+      if (!path) continue;
+      const need = spur_need(path, gate.y, road[join].y);
+      if (!best || need < best.need) best = { path, join, need };
+      if (need <= SHAPE_GRADE) break;
+    }
+    if (!best) continue;
+    router.claim(best.path);
+    const target = road[best.join];
     const junction: RoadNode = { id: nodes.length, x: target.x, z: target.z, y: target.y, kind: "junction" };
     nodes.push(junction);
-    edges.push({ id: edges.length, a: gate.id, b: junction.id, kind: "highway", half: SPUR_HALF, closed: false, points: spur_points(cells, heights, gate.y, target.y) });
+    edges.push({ id: edges.length, a: gate.id, b: junction.id, kind: "highway", half: SPUR_HALF, closed: false, points: spur_points(best.path, heights, gate.y, target.y) });
   }
   lap("highways");
 
@@ -91,7 +98,7 @@ export function generate(seed: number): WorldData {
     }
   }
 
-  const trees: Tree[] = [];
+  const trees: Tree[] = [...lots.out.trees];
   const limit = -ORIGIN - TREE_SPACING;
   for (let z = ORIGIN + TREE_SPACING; z < limit; z += TREE_SPACING)
     for (let x = ORIGIN + TREE_SPACING; x < limit; x += TREE_SPACING) {

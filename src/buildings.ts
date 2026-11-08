@@ -2,9 +2,15 @@ import * as THREE from "three";
 import { car_paints, color, linear, tones } from "./palette";
 import type { World } from "./world";
 import { hash } from "./worldgen/noise";
-import { ROOF_PITCH } from "./worldgen/lots";
+import { roof_rise } from "./worldgen/lots";
+import { Roof } from "./worldgen/types";
 
 const WALLS = [tones.wall, tones.wall_warm, tones.wall_cool];
+const ROOFS = [tones.roof, tones.roof_slate];
+const SHOPFRONT_LOW = 0.5;
+const SHOPFRONT_HIGH = 2.8;
+const SHOPFRONT_INSET = 0.8;
+const FACADE_OUT = 0.03;
 const EAVE = 0.3;
 const PAD_LIFT = 0.06;
 const LINE_LIFT = 0.09;
@@ -24,7 +30,11 @@ class Builder {
   readonly positions: number[] = [];
   readonly colors: number[] = [];
 
-  constructor(private frame: Frame) {}
+  /** With `ground`, every vertex sits `ly` above the terrain under it instead of above the frame's y. */
+  constructor(
+    private frame: Frame,
+    private readonly ground?: (x: number, z: number) => number,
+  ) {}
 
   at(frame: Frame) {
     this.frame = frame;
@@ -33,7 +43,9 @@ class Builder {
 
   private push([lx, ly, lz]: V3, rgb: V3) {
     const { x, y, z, fx, fz } = this.frame;
-    this.positions.push(x + fz * lx + fx * lz, y + ly, z - fx * lx + fz * lz);
+    const px = x + fz * lx + fx * lz;
+    const pz = z - fx * lx + fz * lz;
+    this.positions.push(px, (this.ground ? this.ground(px, pz) : y) + ly, pz);
     this.colors.push(...rgb);
   }
 
@@ -68,6 +80,16 @@ class Builder {
     this.tri([-hw, y, -hd], [-hw, y, hd], [-hw, y + rise, 0], wall);
   }
 
+  hip(hw: number, hd: number, y: number, rise: number, roof: V3) {
+    const ew = hw + EAVE;
+    const ed = hd + EAVE;
+    const ridge = Math.max(0, hw - hd);
+    this.quad([-ew, y, ed], [ew, y, ed], [ridge, y + rise, 0], [-ridge, y + rise, 0], roof);
+    this.quad([ew, y, -ed], [-ew, y, -ed], [-ridge, y + rise, 0], [ridge, y + rise, 0], roof);
+    this.tri([ew, y, ed], [ew, y, -ed], [ridge, y + rise, 0], roof);
+    this.tri([-ew, y, -ed], [-ew, y, ed], [-ridge, y + rise, 0], roof);
+  }
+
   geometry(): THREE.BufferGeometry {
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(this.positions, 3));
@@ -81,16 +103,31 @@ class Builder {
   }
 }
 
+function turned(b: Frame): Frame {
+  return { x: b.x, y: b.y, z: b.z, fx: b.fz, fz: -b.fx };
+}
+
 function building_mesh(world: World): THREE.Mesh {
   const out = new Builder({ x: 0, y: 0, z: 0, fx: 0, fz: 1 });
-  const roof = linear(tones.roof);
   const flat = linear(tones.roof_flat);
+  const glass = linear(tones.shopfront);
   for (const b of world.buildings) {
     const wall = linear(WALLS[b.style % WALLS.length]);
+    const roof = linear(ROOFS[Math.floor(hash(b.lot, 0, world.seed + 81) * ROOFS.length)]);
+    const rise = roof_rise(b);
     out.at(b);
     out.walls(b.hw, b.hd, -1, b.height, wall);
-    if (b.roof) out.gable(b.hw, b.hd, b.height, b.hd * ROOF_PITCH, roof, wall);
-    else out.top(b.hw, b.hd, b.height, flat);
+    if (world.lots[b.lot].kind === "shop") {
+      const w = b.hw - SHOPFRONT_INSET;
+      const z = b.hd + FACADE_OUT;
+      out.quad([-w, SHOPFRONT_LOW, z], [w, SHOPFRONT_LOW, z], [w, SHOPFRONT_HIGH, z], [-w, SHOPFRONT_HIGH, z], glass);
+    }
+    if (b.roof === Roof.GABLE) out.gable(b.hw, b.hd, b.height, rise, roof, wall);
+    else if (b.roof === Roof.CROSS) out.at(turned(b)).gable(b.hd, b.hw, b.height, rise, roof, wall);
+    else if (b.roof === Roof.HIP) {
+      if (b.hw >= b.hd) out.hip(b.hw, b.hd, b.height, rise, roof);
+      else out.at(turned(b)).hip(b.hd, b.hw, b.height, rise, roof);
+    } else out.top(b.hw, b.hd, b.height, flat);
   }
   const mesh = out.mesh(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
   mesh.castShadow = true;
@@ -99,7 +136,7 @@ function building_mesh(world: World): THREE.Mesh {
 }
 
 function parking_mesh(world: World): THREE.Mesh {
-  const out = new Builder({ x: 0, y: 0, z: 0, fx: 0, fz: 1 });
+  const out = new Builder({ x: 0, y: 0, z: 0, fx: 0, fz: 1 }, (x, z) => world.height(x, z));
   const pad = linear(tones.asphalt);
   const line = linear(tones.line);
   for (const lot of world.parking) {
@@ -136,7 +173,9 @@ function parked_cars(world: World): THREE.InstancedMesh {
   const up = new THREE.Vector3(0, 1, 0);
   cars.forEach(({ lot, o }, i) => {
     const frame = world.lots[lot.lot];
-    p.set(frame.x + frame.fz * o.x + frame.fx * o.z, frame.y + PAD_LIFT, frame.z - frame.fx * o.x + frame.fz * o.z);
+    const x = frame.x + frame.fz * o.x + frame.fx * o.z;
+    const z = frame.z - frame.fx * o.x + frame.fz * o.z;
+    p.set(x, world.height(x, z) + PAD_LIFT, z);
     q.setFromAxisAngle(up, frame.angle + o.heading);
     mesh.setMatrixAt(i, m.compose(p, q, s));
     mesh.setColorAt(i, color(car_paints[Math.floor(hash(lot.lot, i, world.seed + 63) * car_paints.length)]));
