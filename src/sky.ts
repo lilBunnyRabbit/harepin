@@ -57,7 +57,9 @@ export function sky(): THREE.Object3D {
       varying vec3 v_dir;
       void main() {
         vec3 d = normalize(v_dir);
-        float toward = dot(normalize(d.xz), normalize(sun_dir.xz)) * 0.5 + 0.5;
+        // normalize(0) at the zenith and a dot of -1.0000001 straight away from the sun both give NaN on some GPUs.
+        float flat_len = length(d.xz);
+        float toward = flat_len > 1e-5 ? clamp(dot(d.xz / flat_len, normalize(sun_dir.xz)) * 0.5 + 0.5, 0.0, 1.0) : 0.5;
         vec3 horizon = mix(horizon_away, horizon_sun, pow(toward, 2.2));
         float h = max(d.y, 0.0);
         vec3 c = mix(horizon, upper, smoothstep(0.0, 0.22, h));

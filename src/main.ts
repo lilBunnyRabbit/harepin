@@ -26,6 +26,7 @@ import { seed_of } from "./rng";
 import { WorldView, load_world, water_mesh } from "./scene";
 import { clouds, sky } from "./sky";
 import { Lighting } from "./lighting";
+import { NanProbe, sanitise_bloom } from "./postfx";
 import { CameraView, Settings, load_settings, type SettingsState } from "./settings";
 import "./style.css";
 
@@ -85,6 +86,9 @@ if (bisect.has("bloomhalf")) {
   const set_size = bloom.setSize.bind(bloom);
   bloom.setSize = (width, height) => set_size(Math.round(width / 2), Math.round(height / 2));
 }
+sanitise_bloom(bloom);
+const nan_probe = params.has("debug") ? new NanProbe() : null;
+if (nan_probe) composer.addPass(nan_probe);
 if (!bisect.has("nobloom")) composer.addPass(bloom);
 composer.addPass(new OutputPass());
 
@@ -276,7 +280,7 @@ function check_size(now: number) {
   }
   if (debug_overlay && now - debug_at > DEBUG_MS) {
     debug_at = now;
-    debug_overlay.textContent = report.replaceAll(" | ", "\n");
+    debug_overlay.textContent = `${report.replaceAll(" | ", "\n")}\n${nan_probe?.status ?? ""}`;
   }
   const ok =
     Math.abs(rect.width - innerWidth) < 1 &&
