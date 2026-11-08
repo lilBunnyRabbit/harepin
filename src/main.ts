@@ -4,7 +4,6 @@ import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { Audio } from "./audio";
-import { town_meshes } from "./buildings";
 import { ChaseCamera } from "./camera";
 import { build_code, build_spec, type Build } from "./build";
 import { Car } from "./car";
@@ -24,11 +23,10 @@ import { THEMES, choose_theme } from "./theme";
 import { Race, type RaceSnapshot } from "./race";
 import { Remotes } from "./remotes";
 import { seed_of } from "./rng";
-import { road_meshes, terrain_mesh, tree_meshes, water_mesh } from "./scene";
+import { WorldView, load_world, water_mesh } from "./scene";
 import { clouds, sky } from "./sky";
 import { Lighting } from "./lighting";
 import { CameraView, Settings, load_settings, type SettingsState } from "./settings";
-import { World } from "./world";
 import "./style.css";
 
 const params = new URLSearchParams(location.search);
@@ -38,8 +36,7 @@ const ADJECTIVES = ["Swift", "Fuzzy", "Lucky", "Bouncy", "Sly", "Brave", "Zippy"
 const random_name = `${ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)]} Bunny`;
 const prefs = load_settings(params);
 
-await new Promise((r) => setTimeout(r, 30));
-const world = new World(seed);
+const { world, chunks } = await load_world(seed);
 
 const quality = new Quality(params, prefs.quality);
 // Canvas-bug bisect switches for ?debug, combined with ?quality=medium: each drops one piece of the bloom path.
@@ -59,7 +56,8 @@ const light = new Lighting(scene, prefs.light);
 const sun = light.sun;
 quality.apply(renderer, scene, sun);
 
-scene.add(...light.dress(sky(), clouds(world.seed)), terrain_mesh(world), road_meshes(world), roadside(world), water_mesh(), tree_meshes(world), town_meshes(world));
+const world_view = new WorldView(world, chunks, quality.mobile);
+scene.add(...light.dress(sky(), clouds(world.seed)), world_view.root, roadside(world), water_mesh());
 const gate_views = gates(world);
 for (const g of gate_views) scene.add(g.group);
 
@@ -421,6 +419,7 @@ function frame(now: number) {
   hud.update(car, now, rewinding);
   if (quality.adapt(dt)) quality.apply(renderer, scene, sun);
   fit();
+  world_view.update(camera, quality.tier.fog_far);
   if (quality.tier.bloom && !bisect.has("nocomposer")) composer.render();
   else renderer.render(scene, camera);
   if (import.meta.env.DEV || debug_overlay) check_size(now);

@@ -30,52 +30,39 @@ Object.assign(globalThis, {
   },
 });
 
-const { World } = await import("../src/world");
-const { terrain_mesh } = await import("../src/scene");
+const { mesh_tones } = await import("../src/scene");
+const { build_chunks, terrain_colors } = await import("../src/worldgen/chunks");
+const { checksum, world_checksum } = await import("../src/worldgen/checksum");
+const { sample } = await import("../src/worldgen/field");
+const { generate } = await import("../src/worldgen/index");
+type WorldData = import("../src/worldgen/types").WorldData;
 
 const WET_PROBE = 30;
 
-export function checksum(arrays: ArrayLike<number>[]): string {
-  let h = 0x811c9dc5;
-  for (const values of arrays) {
-    const bytes = new Uint8Array(Float64Array.from(values).buffer);
-    for (const byte of bytes) h = Math.imul(h ^ byte, 0x01000193);
-  }
-  return (h >>> 0).toString(16).padStart(8, "0");
-}
-
-function world_checksum(world: InstanceType<typeof World>): string {
-  return checksum([
-    world.heights,
-    world.road_dist,
-    world.road.flatMap((p) => [p.x, p.y, p.z, p.tx, p.tz]),
-    world.trees.flatMap((t) => [t.x, t.y, t.z, t.scale, t.kind]),
-    world.solids.flatMap((s) => (s.kind === "circle" ? [s.x, s.y, s.z, s.radius, s.height] : [s.x, s.y, s.z, s.hw, s.hd, s.cos, s.sin, s.height])),
-  ]);
-}
-
-function road_report(world: InstanceType<typeof World>): string {
+function road_report(world: WorldData): string {
   const ys = world.road.map((p) => p.y);
   const n = world.road.length;
+  const height = (x: number, z: number) => sample(world.terrain.heights, x, z);
   let grade = 0;
   let wet = 0;
   for (let i = 0; i < n; i++) {
     const p = world.road[i];
     grade = Math.max(grade, Math.abs(world.road[(i + 5) % n].y - p.y) / 10);
-    if ([-1, 1].some((side) => world.height(p.x - p.tz * side * WET_PROBE, p.z + p.tx * side * WET_PROBE) < 0)) wet++;
+    if ([-1, 1].some((side) => height(p.x - p.tz * side * WET_PROBE, p.z + p.tx * side * WET_PROBE) < 0)) wet++;
   }
   return `road ${((n * 2) / 1000).toFixed(2)} km, ${Math.min(...ys).toFixed(0)}..${Math.max(...ys).toFixed(0)} m, max grade ${(grade * 100).toFixed(0)}%, over water ${wet}`;
 }
 
+const tones = mesh_tones();
 for (const seed of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]) {
   const t0 = performance.now();
-  const world = new World(seed);
+  const world = generate(seed);
   const t1 = performance.now();
-  const mesh = terrain_mesh(world);
+  const chunks = build_chunks(world, tones);
   const t2 = performance.now();
-  const colors = mesh.geometry.getAttribute("color").array;
+  const triangles = chunks.reduce((sum, c) => sum + c.terrain.full / 3 + [c.road, c.buildings, c.parking].reduce((n, part) => n + (part ? part.positions.length / 9 : 0), 0), 0);
   console.log(
-    `seed ${seed}: world ${(t1 - t0).toFixed(0)} ms, terrain_mesh ${(t2 - t1).toFixed(0)} ms, trees ${world.trees.length}, ${road_report(world)}, world ${world_checksum(world)}, colours ${checksum([colors])}`,
+    `seed ${seed}: world ${(t1 - t0).toFixed(0)} ms, chunks ${(t2 - t1).toFixed(0)} ms (${(triangles / 1000).toFixed(0)}k tris), trees ${world.trees.length}, ${road_report(world)}, world ${world_checksum(world)}, colours ${checksum([terrain_colors(world, tones.terrain)])}`,
   );
   const stages = world.timings.map(([stage, ms]) => `${stage} ${ms.toFixed(0)}`).join(", ");
   const streets = world.graph.edges.filter((e) => e.kind === "street").length;

@@ -1,25 +1,15 @@
 import * as THREE from "three";
+import { by_chunk, soup_geometry, town_chunks, type TownChunk } from "./buildings";
 import { color, lighten, linear, mix, tones } from "./palette";
-import { CELL, N, ROAD_HALF, SIDEWALK, SIZE, World, fbm, type RoadPoint } from "./world";
+import { SIZE, World, type RoadPoint, type Tree } from "./world";
+import { CHUNK, JITTER_LEVELS, type ChunkBuffers, type MeshTones } from "./worldgen/chunks";
+import type { GenRequest, GenResult } from "./worldgen/worker";
 
 const JITTER_LIGHTNESS = 0.035;
-const JITTER_LEVELS = 64;
 const LANE_WIDTH = 3;
-const ROCK_HALF = 3;
-const ROCK = 6;
-const SNOW = 7;
-const SURFACE_LIFT = 0.07;
-// Spurs sit a hair above streets and sidewalks so their mouth covers the street's sidewalk at the town gate.
-const SPUR_LIFT = 0.09;
-const MARK_LIFT = 0.1;
-const MARK_HALF = 0.15;
-const EDGE_INSET = 0.3;
-const EDGE_WIDTH = 0.25;
-const DASH = 6;
-const DASH_ON = 3;
-const SPUR_MARK_CLEAR = 8;
-const SPUR_MOUTH = 30;
-
+const FAR = 600;
+const MOBILE_FAR = 300;
+const MOBILE_TREES = 300;
 function jitter(i: number, j: number): number {
   const h = Math.sin(i * 127.1 + j * 311.7) * 43758.5453;
   return h - Math.floor(h) - 0.5;
@@ -38,163 +28,190 @@ function terrain_lut(): Float32Array {
   return lut;
 }
 
-export function terrain_mesh(world: World): THREE.Mesh {
-  const count = (N + 1) * (N + 1);
-  const positions = new Float32Array(count * 3);
-  const colors = new Float32Array(count * 3);
-  const normal = new THREE.Vector3();
-  const lut = terrain_lut();
-  for (let j = 0; j <= N; j++)
-    for (let i = 0; i <= N; i++) {
-      const k = j * (N + 1) + i;
-      const x = -SIZE / 2 + i * CELL;
-      const z = -SIZE / 2 + j * CELL;
-      const y = world.heights[k];
-      positions[k * 3] = x;
-      positions[k * 3 + 1] = y;
-      positions[k * 3 + 2] = z;
-      world.normal(x, z, normal);
-      let base = y < 2.2 ? 2 : fbm(x / 140, z / 140, world.seed + 21, 3) > 0.55 ? 1 : 0;
-      if (normal.y < 0.8 || y > 120) base = normal.y < 0.7 || y > 135 ? ROCK : base + ROCK_HALF;
-      if (y > 165) base = SNOW;
-      const level = Math.min(JITTER_LEVELS - 1, Math.floor((jitter(i, j) + 0.5) * JITTER_LEVELS));
-      const o = (base * JITTER_LEVELS + level) * 3;
-      colors[k * 3] = lut[o];
-      colors[k * 3 + 1] = lut[o + 1];
-      colors[k * 3 + 2] = lut[o + 2];
-    }
-  const index = new Uint32Array(N * N * 6);
-  let o = 0;
-  for (let j = 0; j < N; j++)
-    for (let i = 0; i < N; i++) {
-      const a = j * (N + 1) + i;
-      const b = a + 1;
-      const c = a + N + 1;
-      const d = c + 1;
-      index.set([a, c, b, b, c, d], o);
-      o += 6;
-    }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-  geometry.setIndex(new THREE.BufferAttribute(index, 1));
-  geometry.computeBoundingSphere();
-  const mesh = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
-  mesh.receiveShadow = true;
-  return mesh;
+export function mesh_tones(): MeshTones {
+  return {
+    terrain: terrain_lut(),
+    asphalt: linear(tones.asphalt),
+    sidewalk: linear(tones.sidewalk),
+    line: linear(tones.line),
+    edge_line: linear(tones.edge_line),
+    walls: [tones.wall, tones.wall_warm, tones.wall_cool].map(linear),
+    roofs: [tones.roof, tones.roof_slate].map(linear),
+    roof_flat: linear(tones.roof_flat),
+  };
 }
 
-type Rgb = [number, number, number];
+export interface LoadedWorld {
+  world: World;
+  chunks: ChunkBuffers[];
+  gen_ms: number;
+  mesh_ms: number;
+}
 
-function strip(world: World, positions: number[], road: RoadPoint[], closed: boolean, from: number, to: number, lift: number, keep: (s: number) => boolean, colors?: number[], rgb?: Rgb) {
-  const segments = closed ? road.length : road.length - 1;
+export function load_world(seed: number): Promise<LoadedWorld> {
+  const worker = new Worker(new URL("./worldgen/worker.ts", import.meta.url), { type: "module" });
+  return new Promise((resolve, reject) => {
+    worker.addEventListener("message", (event: MessageEvent<GenResult>) => {
+      worker.terminate();
+      const { data, chunks, gen_ms, mesh_ms } = event.data;
+      resolve({ world: new World(seed, data), chunks, gen_ms, mesh_ms });
+    });
+    worker.addEventListener("error", (event) => {
+      worker.terminate();
+      reject(new Error(`world worker: ${event.message}`));
+    });
+    const request: GenRequest = { seed, tones: mesh_tones() };
+    worker.postMessage(request);
+  });
+}
+
+interface ChunkView {
+  x0: number;
+  z0: number;
+  group: THREE.Group;
+  terrain: THREE.BufferGeometry;
+  full: number;
+  trees: THREE.Object3D[];
+  town: TownChunk | undefined;
+  far: boolean | null;
+  trees_shown: boolean | null;
+}
+
+/** The island as CHUNK-sized pieces with real bounds, so frustum culling works, plus distance LOD driven by `update`. */
+export class WorldView {
+  readonly root = new THREE.Group();
+  private readonly views: ChunkView[];
+
+  constructor(world: World, chunks: ChunkBuffers[], private readonly mobile: boolean) {
+    const terrain = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+    const road = [-2, -4].map((offset) => new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, polygonOffset: true, polygonOffsetFactor: offset, polygonOffsetUnits: offset, side: THREE.DoubleSide }));
+    const trees = tree_chunks(world.trees);
+    const towns = town_chunks(world, chunks);
+    this.views = chunks.map((chunk) => {
+      const group = new THREE.Group();
+      const ground = soup_geometry(chunk.terrain);
+      ground.setIndex(new THREE.BufferAttribute(chunk.terrain.index, 1));
+      ground.setDrawRange(0, chunk.terrain.full);
+      const ground_mesh = new THREE.Mesh(ground, terrain);
+      ground_mesh.receiveShadow = true;
+      group.add(ground_mesh);
+      if (chunk.road) {
+        const geometry = soup_geometry(chunk.road);
+        geometry.addGroup(0, chunk.road.surface, 0);
+        geometry.addGroup(chunk.road.surface, Infinity, 1);
+        const mesh = new THREE.Mesh(geometry, road);
+        mesh.receiveShadow = true;
+        group.add(mesh);
+      }
+      const here = trees.get(chunk.index) ?? [];
+      const town = towns.get(chunk.index);
+      if (here.length) group.add(...here);
+      if (town) group.add(...town.objects);
+      this.root.add(group);
+      return { x0: chunk.x0, z0: chunk.z0, group, terrain: ground, full: chunk.terrain.full, trees: here, town, far: null, trees_shown: null };
+    });
+  }
+
+  /** `fog_far` is where linear fog ends: a chunk past it at every angle the camera sees is pure fog, so it is not drawn. */
+  update(camera: THREE.PerspectiveCamera, fog_far: number) {
+    const { x, z } = camera.position;
+    const tan = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+    // Fog runs on view depth, not distance; toward a frustum corner depth is distance divided by this.
+    const corner = Math.sqrt(1 + tan * tan * (1 + camera.aspect * camera.aspect));
+    const far_at = this.mobile ? MOBILE_FAR : FAR;
+    for (const view of this.views) {
+      const dx = Math.max(view.x0 - x, 0, x - view.x0 - CHUNK);
+      const dz = Math.max(view.z0 - z, 0, z - view.z0 - CHUNK);
+      const d = Math.sqrt(dx * dx + dz * dz);
+      view.group.visible = d < fog_far * corner;
+      const far = d > far_at;
+      if (far !== view.far) {
+        view.far = far;
+        if (far) view.terrain.setDrawRange(view.full, Infinity);
+        else view.terrain.setDrawRange(0, view.full);
+        view.town?.far(far);
+      }
+      const trees_shown = !this.mobile || d <= MOBILE_TREES;
+      if (trees_shown !== view.trees_shown) {
+        view.trees_shown = trees_shown;
+        for (const tree of view.trees) tree.visible = trees_shown;
+      }
+    }
+  }
+}
+
+function tree_chunks(trees: Tree[]): Map<number, THREE.InstancedMesh[]> {
+  const trunk = new THREE.CylinderGeometry(0.25, 0.35, 2.2, 5).translate(0, 1.1, 0);
+  const crowns = [new THREE.ConeGeometry(2.1, 6, 6).translate(0, 4.6, 0), new THREE.IcosahedronGeometry(2.4, 0).translate(0, 4.2, 0)];
+  const bark = new THREE.MeshLambertMaterial({ color: color(tones.trunk), flatShading: true });
+  const leaf = new THREE.MeshLambertMaterial({ flatShading: true });
+  const out = new Map<number, THREE.InstancedMesh[]>();
+  const m = new THREE.Matrix4();
+  const q = new THREE.Quaternion();
+  const s = new THREE.Vector3();
+  const p = new THREE.Vector3();
+  const axis = new THREE.Vector3(0, 1, 0);
+  const tint = new THREE.Color();
+  const order = new Map(trees.map((tree, i) => [tree, i]));
+  for (const [key, here] of by_chunk(trees)) {
+    const trunks = new THREE.InstancedMesh(trunk, bark, here.length);
+    const kinds = crowns.map((geometry, kind) => new THREE.InstancedMesh(geometry, leaf, Math.max(1, here.filter((t) => t.kind === kind).length)));
+    const filled = kinds.map(() => 0);
+    here.forEach((tree, i) => {
+      q.setFromAxisAngle(axis, (tree.x * 13.37) % (Math.PI * 2));
+      m.compose(p.set(tree.x, tree.y - 0.2, tree.z), q, s.setScalar(tree.scale));
+      trunks.setMatrixAt(i, m);
+      const slot = filled[tree.kind]++;
+      kinds[tree.kind].setMatrixAt(slot, m);
+      const [r, g, b] = linear(mix(tones.leaf, tones.leaf_dark, 0.5 + jitter(order.get(tree) ?? 0, tree.kind) * 1.6));
+      kinds[tree.kind].setColorAt(slot, tint.setRGB(r, g, b));
+    });
+    kinds.forEach((mesh, kind) => (mesh.count = filled[kind]));
+    const meshes = [trunks, ...kinds].filter((mesh) => mesh.count > 0);
+    for (const mesh of meshes) {
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.computeBoundingSphere();
+      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    }
+    out.set(key, meshes);
+  }
+  return out;
+}
+
+function strip(world: World, positions: number[], road: RoadPoint[], from: number, to: number, lift: number, keep: (s: number) => boolean) {
   const lanes = Math.ceil((to - from) / LANE_WIDTH);
-  for (let s = 0; s < segments; s++) {
+  const at = (p: RoadPoint, side: number) => {
+    const x = p.x - p.tz * side;
+    const z = p.z + p.tx * side;
+    return [x, world.height(x, z) + lift, z];
+  };
+  for (let s = 0; s < road.length; s++) {
     if (!keep(s)) continue;
     const a = road[s];
     const b = road[(s + 1) % road.length];
     for (let lane = 0; lane < lanes; lane++) {
       const l0 = from + ((to - from) * lane) / lanes;
       const l1 = from + ((to - from) * (lane + 1)) / lanes;
-      quad(world, positions, a, b, l0, l1, lift);
-      if (colors && rgb) for (let v = 0; v < 6; v++) colors.push(...rgb);
+      const a0 = at(a, l0);
+      const a1 = at(a, l1);
+      const b0 = at(b, l0);
+      const b1 = at(b, l1);
+      positions.push(...a0, ...a1, ...b0, ...b0, ...a1, ...b1);
     }
   }
 }
 
-function quad(world: World, positions: number[], a: RoadPoint, b: RoadPoint, from: number, to: number, lift: number) {
-  const at = (p: RoadPoint, side: number) => {
-    const x = p.x - p.tz * side;
-    const z = p.z + p.tx * side;
-    return [x, world.height(x, z) + lift, z];
-  };
-  const a0 = at(a, from);
-  const a1 = at(a, to);
-  const b0 = at(b, from);
-  const b1 = at(b, to);
-  positions.push(...a0, ...a1, ...b0, ...b0, ...a1, ...b1);
-}
-
-/** With `colors` the vertex colours are the tone and `tone` is ignored. */
-function strip_mesh(positions: number[], tone: THREE.Color | null, offset: number, colors?: number[]): THREE.Mesh {
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-  if (colors) geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-  geometry.computeVertexNormals();
-  const material = new THREE.MeshLambertMaterial({ ...(tone && !colors ? { color: tone } : {}), vertexColors: !!colors, polygonOffset: true, polygonOffsetFactor: offset, polygonOffsetUnits: offset, side: THREE.DoubleSide });
-  const mesh = new THREE.Mesh(geometry, material);
-  mesh.receiveShadow = true;
-  return mesh;
-}
-
+/** A strip along the race circuit, `from` to `to` metres across it. */
 export function ribbon(world: World, from: number, to: number, lift: number, keep: (s: number) => boolean, tone: THREE.Color, offset: number): THREE.Mesh {
   const positions: number[] = [];
-  strip(world, positions, world.road, true, from, to, lift, keep);
-  return strip_mesh(positions, tone, offset);
-}
-
-// Streets run node to node; stretching each end by its half width fills the crossing square.
-function extended(points: RoadPoint[], by: number): RoadPoint[] {
-  const a = points[0];
-  const b = points[points.length - 1];
-  return [{ ...a, x: a.x - a.tx * by, z: a.z - a.tz * by }, ...points, { ...b, x: b.x + b.tx * by, z: b.z + b.tz * by }];
-}
-
-export function road_meshes(world: World): THREE.Object3D {
-  const group = new THREE.Group();
-  const junctions = world.graph.nodes.filter((n) => n.kind === "junction" && world.graph.edges.some((e) => e.kind === "highway" && !e.closed && e.b === n.id));
-  const mouths = junctions.map((n) => world.road.indexOf(world.nearest_road(n.x, n.z)));
-  const clear_of_mouths = (s: number) => mouths.every((m) => Math.abs(((s - m + world.road.length * 1.5) % world.road.length) - world.road.length / 2) > 5);
-  group.add(ribbon(world, -ROAD_HALF, ROAD_HALF, 0.08, () => true, color(tones.asphalt), -2));
-  group.add(ribbon(world, -0.15, 0.15, 0.1, (s) => s % 6 < 3, color(tones.line), -4));
-  group.add(ribbon(world, ROAD_HALF - 0.55, ROAD_HALF - 0.3, 0.1, clear_of_mouths, color(tones.edge_line), -4));
-  group.add(ribbon(world, -ROAD_HALF + 0.3, -ROAD_HALF + 0.55, 0.1, clear_of_mouths, color(tones.edge_line), -4));
-  // Streets, sidewalks, spurs and all their markings: two vertex-coloured meshes, so towns add no draws.
-  const asphalt = linear(tones.asphalt);
-  const walk = linear(tones.sidewalk);
-  const centre = linear(tones.line);
-  const edge_line = linear(tones.edge_line);
-  const surface: number[] = [];
-  const surface_rgb: number[] = [];
-  const marks: number[] = [];
-  const marks_rgb: number[] = [];
-  // Spurs only come near streets where they leave their town's gate.
-  const gates = world.graph.edges.filter((e) => e.kind === "highway" && !e.closed).flatMap((e) => e.points.slice(0, SPUR_MOUTH));
-  const under_spur = (p: RoadPoint, reach: number) => gates.some((q) => (q.x - p.x) ** 2 + (q.z - p.z) ** 2 < reach * reach);
-  const edge_lines = (points: RoadPoint[], half: number, keep: (s: number) => boolean) => {
-    for (const side of [-1, 1]) {
-      const at = side * (half - EDGE_INSET - EDGE_WIDTH / 2);
-      strip(world, marks, points, false, at - EDGE_WIDTH / 2, at + EDGE_WIDTH / 2, MARK_LIFT, keep, marks_rgb, edge_line);
-    }
-  };
-  for (const edge of world.graph.edges) {
-    if (edge.closed) continue;
-    const { points, half } = edge;
-    const last = points.length - 1;
-    if (edge.kind === "highway") {
-      strip(world, surface, points, false, -half, half, SPUR_LIFT, () => true, surface_rgb, asphalt);
-      const open = (s: number) => s > SPUR_MARK_CLEAR && s < last - SPUR_MARK_CLEAR;
-      strip(world, marks, points, false, -MARK_HALF, MARK_HALF, MARK_LIFT, (s) => open(s) && s % DASH < DASH_ON, marks_rgb, centre);
-      edge_lines(points, half, open);
-      continue;
-    }
-    // Streets run node to node: stretching each end by the half width fills the crossing square, and sidewalks start
-    // at the crossing street's edge, so two sidewalks only ever overlap in the same colour at a block corner.
-    strip(world, surface, extended(points, half), false, -half, half, SURFACE_LIFT, () => true, surface_rgb, asphalt);
-    const step = Math.hypot(points[1].x - points[0].x, points[1].z - points[0].z) || 1;
-    const ends = Math.ceil(half / step);
-    const clear = Math.ceil((half + SIDEWALK) / step);
-    const near_spur = points.map((p) => under_spur(p, half + SIDEWALK + 6));
-    const walkway = (s: number) => s >= ends && s < last - ends;
-    const marked = (s: number) => s >= clear && s < last - clear && !near_spur[s] && !near_spur[s + 1];
-    strip(world, surface, points, false, -half - SIDEWALK, -half, SURFACE_LIFT, walkway, surface_rgb, walk);
-    strip(world, surface, points, false, half, half + SIDEWALK, SURFACE_LIFT, walkway, surface_rgb, walk);
-    edge_lines(points, half, marked);
-    strip(world, marks, points, false, -MARK_HALF, MARK_HALF, MARK_LIFT, (s) => marked(s) && s % DASH < DASH_ON, marks_rgb, centre);
-  }
-  group.add(strip_mesh(surface, null, -2, surface_rgb));
-  group.add(strip_mesh(marks, null, -4, marks_rgb));
-  return group;
+  strip(world, positions, world.road, from, to, lift, keep);
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.computeVertexNormals();
+  const mesh = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({ color: tone, polygonOffset: true, polygonOffsetFactor: offset, polygonOffsetUnits: offset, side: THREE.DoubleSide }));
+  mesh.receiveShadow = true;
+  return mesh;
 }
 
 export function water_mesh(): THREE.Mesh {
@@ -203,41 +220,4 @@ export function water_mesh(): THREE.Mesh {
   mesh.position.y = 0;
   mesh.receiveShadow = true;
   return mesh;
-}
-
-export function tree_meshes(world: World): THREE.Object3D {
-  const group = new THREE.Group();
-  const trunk = new THREE.CylinderGeometry(0.25, 0.35, 2.2, 5).translate(0, 1.1, 0);
-  const pine = new THREE.ConeGeometry(2.1, 6, 6).translate(0, 4.6, 0);
-  const round = new THREE.IcosahedronGeometry(2.4, 0).translate(0, 4.2, 0);
-  const crowns = [pine, round];
-  const trunks = new THREE.InstancedMesh(trunk, new THREE.MeshLambertMaterial({ color: color(tones.trunk), flatShading: true }), world.trees.length);
-  const leaf = new THREE.MeshLambertMaterial({ flatShading: true });
-  const crown_meshes = crowns.map((g, kind) => new THREE.InstancedMesh(g, leaf, world.trees.filter((t) => t.kind === kind).length));
-  const filled = [0, 0];
-  const m = new THREE.Matrix4();
-  const q = new THREE.Quaternion();
-  const s = new THREE.Vector3();
-  const p = new THREE.Vector3();
-  const tint = new THREE.Color();
-  world.trees.forEach((tree, i) => {
-    q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), (tree.x * 13.37) % (Math.PI * 2));
-    s.setScalar(tree.scale);
-    p.set(tree.x, tree.y - 0.2, tree.z);
-    m.compose(p, q, s);
-    trunks.setMatrixAt(i, m);
-    const mesh = crown_meshes[tree.kind];
-    const slot = filled[tree.kind]++;
-    mesh.setMatrixAt(slot, m);
-    const [r, g, b] = linear(mix(tones.leaf, tones.leaf_dark, 0.5 + jitter(i, tree.kind) * 1.6));
-    mesh.setColorAt(slot, tint.setRGB(r, g, b));
-  });
-  for (const mesh of [trunks, ...crown_meshes]) {
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-    group.add(mesh);
-  }
-  return group;
 }

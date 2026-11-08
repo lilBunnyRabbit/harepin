@@ -71,7 +71,8 @@ export const tones = {
   roof_flat: dark ? brand.background_light : mix(brand.foreground, brand.background_darkest, 0.5),
   roof_slate: mix(brand.info, brand.background_darkest, 0.35),
   sidewalk: dark ? mix(brand.foreground, brand.background_lightest, 0.18) : mix(brand.foreground, brand.background_darkest, 0.35),
-  shopfront: dark ? brand.background_darkest : mix(brand.foreground, brand.info, 0.8),
+  shopfront: dark ? mix(brand.info, brand.background, 0.35) : mix(brand.info, brand.background_lightest, 0.4),
+  shop_glow: dark ? mix(brand.warning, brand.cottontail, 0.6) : mix(brand.background_darker, brand.background_lightest, 0.5),
 };
 
 export const car_paints = [brand.primary, brand.secondary, brand.accent, brand.tertiary, brand.info, brand.cottontail, brand.error];
