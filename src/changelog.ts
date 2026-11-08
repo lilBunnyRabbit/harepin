@@ -18,10 +18,18 @@ export interface Release {
   changes: Change[];
 }
 
-const { NEW } = ChangeKind;
+const { NEW, IMPROVED } = ChangeKind;
 
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
+  {
+    version: "0.2.1",
+    date: "2026-11-08",
+    title: "Talk and look",
+    changes: [
+      { kind: IMPROVED, text: "Chat has its own button with an unread count, and opens a panel with the whole conversation and a Send button. Press T or Enter to type." },
+    ],
+  },
   {
     version: "0.2.0",
     date: "2026-11-08",

@@ -471,16 +471,14 @@ kbd {
   animation: chat-fade 0.6s ease-in 12s forwards;
 }
 
-body.chatting #chat-log li {
-  animation-play-state: paused;
-}
-
-#chat-log b {
+#chat-log b,
+#chat-history b {
   color: var(--secondary);
   font-weight: 600;
 }
 
-#chat-log li[data-own="true"] b {
+#chat-log li[data-own="true"] b,
+#chat-history li[data-own="true"] b {
   color: var(--primary);
 }
 
@@ -490,25 +488,199 @@ body.chatting #chat-log li {
   }
 }
 
-#chat-form[hidden] {
+.title #chat-btn {
+  position: relative;
+}
+
+.badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-full);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--background-darkest);
+  background: var(--primary);
+  pointer-events: none;
+}
+
+.badge[hidden] {
   display: none;
 }
 
+/* Docked where the bubbles already show, at a fixed size, so the road, map and speedo stay in view while you type and drive. */
+#chat-panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: min(380px, calc(100vw - var(--inset-left) - var(--inset-right)));
+  height: min(340px, calc(100dvh - var(--inset-top) - var(--inset-bottom) - 180px));
+  min-height: 220px;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: var(--panel-shadow);
+  color: var(--foreground);
+  font-size: var(--text-md);
+}
+
+#chat-panel[hidden] {
+  display: none;
+}
+
+.chat-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-4);
+  border-bottom: 1px solid var(--line);
+}
+
+.chat-head h2 {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.chat-head button {
+  background: none;
+  border: 0;
+}
+
+.chat-head button:hover {
+  background: var(--panel-well);
+}
+
+#chat-history,
+#chat-empty {
+  grid-area: 2 / 1;
+}
+
+#chat-history {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  list-style: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  user-select: text;
+}
+
+#chat-history li {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+#chat-history li[data-own="true"] {
+  align-items: flex-end;
+}
+
+.chat-meta {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: 0 var(--space-1);
+  font-size: var(--text-sm);
+}
+
+.chat-meta time {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--dim);
+}
+
+#chat-history p {
+  max-width: 88%;
+  margin: 0;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  background: var(--panel-well);
+}
+
+#chat-history li[data-own="true"] p {
+  background: var(--panel-raised);
+}
+
+#chat-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  text-align: center;
+  color: var(--dim);
+}
+
+#chat-empty[hidden],
+#chat-empty[data-alone="true"] .chat-quiet,
+#chat-empty[data-alone="false"] .chat-alone,
+#chat-empty[data-alone="false"] button {
+  display: none;
+}
+
+#chat-empty p {
+  margin: 0;
+  max-width: 32ch;
+  text-wrap: balance;
+}
+
+#chat-empty button {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: var(--panel-raised);
+  border-color: var(--line);
+}
+
+#chat-form {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-top: 1px solid var(--line);
+}
+
 #chat-input {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   height: var(--control-h);
   padding: 0 var(--space-3);
   font: inherit;
   font-size: var(--text-lg);
   color: var(--foreground);
-  background: color-mix(in oklch, var(--background-darkest) 88%, transparent);
-  border: 1px solid var(--line-strong);
+  background: var(--panel-well);
+  border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   outline: none;
+  user-select: text;
 }
 
 #chat-input:focus {
   border-color: var(--primary);
+}
+
+#chat-form button {
+  color: var(--background-darkest);
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+#chat-form button:hover {
+  background: color-mix(in oklch, var(--primary) 88%, var(--foreground));
 }
 
 #assists {
@@ -1069,7 +1241,15 @@ body:has(#mode-result:not([hidden])) #mode-status {
     display: none;
   }
 
-  #chat-form {
+  /* A full-height sheet on the left: with the keyboard up (interactive-widget=resizes-content) it shrinks and the input stays on screen. */
+  #chat-panel {
+    position: fixed;
+    top: var(--inset-top);
+    bottom: var(--inset-bottom);
+    left: var(--inset-left);
+    width: min(420px, 50vw);
+    height: auto;
+    min-height: 0;
     pointer-events: auto;
   }
 
@@ -1145,6 +1325,21 @@ body:has(#mode-result:not([hidden])) #mode-status {
 
   #countdown {
     font-size: 64px;
+  }
+}
+
+@media (pointer: coarse) and (max-height: 260px) {
+  .chat-head {
+    display: none;
+  }
+
+  #chat-panel {
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  #chat-history,
+  #chat-empty {
+    grid-area: 1 / 1;
   }
 }
 
@@ -1416,6 +1611,10 @@ body:not([data-hud="c"]) #speed {
 
 /* Narrow desktop window: the key list goes, the strip joins the dock and a smaller map sits under it. */
 @media (pointer: fine) and (max-width: 600px) {
+  .dock-left {
+    z-index: 1;
+  }
+
   .dock-left .hud {
     display: none;
   }

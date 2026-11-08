@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
     <title>Harepin</title>
     <meta name="description" content="Low-poly open-world driving in the browser. Forza-style handling, ghost laps, peer-to-peer multiplayer." />
     <link rel="icon" href="./logo.svg" type="image/svg+xml" />
@@ -25,6 +25,9 @@
       <symbol id="icon-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M10.3 3.6a1.7 1.7 0 0 1 3.4 0l.2 1.2a7.2 7.2 0 0 1 1.7 1l1.1-.5a1.7 1.7 0 0 1 2.2.7l.2.3a1.7 1.7 0 0 1-.5 2.2l-1 .7a7.2 7.2 0 0 1 0 2l1 .7a1.7 1.7 0 0 1 .5 2.2l-.2.3a1.7 1.7 0 0 1-2.2.7l-1.1-.5a7.2 7.2 0 0 1-1.7 1l-.2 1.2a1.7 1.7 0 0 1-3.4 0l-.2-1.2a7.2 7.2 0 0 1-1.7-1l-1.1.5a1.7 1.7 0 0 1-2.2-.7l-.2-.3a1.7 1.7 0 0 1 .5-2.2l1-.7a7.2 7.2 0 0 1 0-2l-1-.7a1.7 1.7 0 0 1-.5-2.2l.2-.3a1.7 1.7 0 0 1 2.2-.7l1.1.5a7.2 7.2 0 0 1 1.7-1z" />
         <circle cx="12" cy="12" r="2.6" />
+      </symbol>
+      <symbol id="icon-chat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M6 4.5h12a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3h-6l-4.5 3.5v-3.5H6a3 3 0 0 1-3-3v-6a3 3 0 0 1 3-3z" />
       </symbol>
       <symbol id="icon-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
         <path d="M6 6l12 12M18 6L6 18" />
@@ -74,7 +77,6 @@
         <button type="button" data-touch="rewind" aria-label="Rewind (hold)"><svg aria-hidden="true"><use href="#icon-rewind" /></svg></button>
         <button type="button" data-touch="reset" aria-label="Reset">Reset</button>
         <button type="button" data-touch="camera" aria-label="Camera">Cam</button>
-        <button type="button" id="chat-button" aria-label="Chat">Chat</button>
       </div>
       <div class="touch-pedals">
         <div class="touch-brake">
@@ -92,6 +94,7 @@
           <span class="dim">room <b id="room"></b></span>
           <button type="button" id="garage-btn" class="icon-button" aria-label="Garage" title="Garage"><svg aria-hidden="true"><use href="#icon-car" /></svg></button>
           <button type="button" id="settings-btn" class="icon-button" aria-label="Settings" title="Settings (Esc)"><svg aria-hidden="true"><use href="#icon-settings" /></svg></button>
+          <button type="button" id="chat-btn" class="icon-button" aria-label="Chat" title="Chat (T)" aria-expanded="false" aria-controls="chat-panel"><svg aria-hidden="true"><use href="#icon-chat" /></svg><span id="chat-unread" class="badge" hidden></span></button>
           <button type="button" id="modes-btn" popovertarget="modes">Modes</button>
         </div>
         <div id="modes" popover>
@@ -154,9 +157,22 @@
     <div class="dock-left">
       <div id="chat">
         <ol id="chat-log" aria-live="polite"></ol>
-        <form id="chat-form" hidden>
-          <input id="chat-input" type="text" maxlength="140" autocomplete="off" enterkeyhint="send" placeholder="Say something, Enter to send" aria-label="Chat message" />
-        </form>
+        <section id="chat-panel" aria-label="Chat" hidden>
+          <header class="chat-head">
+            <h2>Chat</h2>
+            <button type="button" id="chat-close" class="icon-button" aria-label="Close chat" title="Close (Esc)"><svg aria-hidden="true"><use href="#icon-close" /></svg></button>
+          </header>
+          <ol id="chat-history" role="log"></ol>
+          <div id="chat-empty">
+            <p class="chat-alone">No one else here yet — copy the invite link</p>
+            <p class="chat-quiet">No messages yet. Say hi.</p>
+            <button type="button" id="chat-invite">Copy invite link</button>
+          </div>
+          <form id="chat-form">
+            <input id="chat-input" type="text" maxlength="140" autocomplete="off" enterkeyhint="send" placeholder="Message" aria-label="Chat message" />
+            <button type="submit">Send</button>
+          </form>
+        </section>
       </div>
       <div class="hud bottom-left">
         <div id="assists"></div>

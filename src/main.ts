@@ -97,6 +97,7 @@ composer.addPass(new OutputPass());
 const garage = new Garage(document.body, build);
 const input = new Input($("touch"), renderer.domElement);
 input.blocked = () => garage.is_open || settings.is_open;
+chat.blocked = input.blocked;
 input.touch.start();
 input.mouse.start();
 const audio = new Audio();
@@ -478,18 +479,19 @@ if (import.meta.env.DEV)
 
 document.head.append(Object.assign(document.createElement("meta"), { name: "theme-color", content: rgba(brand.background_darker) }));
 
-const invite = $("invite", HTMLButtonElement);
-invite.addEventListener("click", async () => {
-  const link = `${location.origin}${location.pathname}?room=${encodeURIComponent(room)}&seed=${seed}`;
-  try {
-    await navigator.clipboard.writeText(link);
-    invite.textContent = "Copied!";
-  } catch {
-    invite.textContent = link;
-  }
-  setTimeout(() => (invite.textContent = "Copy invite link"), 2000);
-  invite.blur();
-});
+for (const invite of [$("invite", HTMLButtonElement), $("chat-invite", HTMLButtonElement)]) {
+  invite.addEventListener("click", async () => {
+    const link = `${location.origin}${location.pathname}?room=${encodeURIComponent(room)}&seed=${seed}`;
+    try {
+      await navigator.clipboard.writeText(link);
+      invite.textContent = "Copied!";
+    } catch {
+      invite.textContent = link;
+    }
+    setTimeout(() => (invite.textContent = "Copy invite link"), 2000);
+    invite.blur();
+  });
+}
 const laps = $("race-laps", HTMLSelectElement);
 $("race-call").addEventListener("click", () => (lobby.busy ? lobby.leave() : lobby.call(Number(laps.value))));
 laps.addEventListener("change", () => laps.blur());
