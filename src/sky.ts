@@ -93,7 +93,7 @@ export function sky(): THREE.Object3D {
   return group;
 }
 
-export function clouds(): THREE.Object3D {
+export function clouds(seed = 0): THREE.Object3D {
   const puff = new THREE.IcosahedronGeometry(1, 1);
   const material = new THREE.MeshLambertMaterial({ flatShading: true, fog: false, transparent: true, opacity: 0.85, emissive: color(sky_tones.cloud_lit), emissiveIntensity: dark ? 0.08 : 0.55 });
   const count = 30 * 5;
@@ -107,15 +107,15 @@ export function clouds(): THREE.Object3D {
   const shade = color(sky_tones.cloud);
   let k = 0;
   for (let c = 0; c < 30; c++) {
-    const a = (c / 30) * Math.PI * 2 + fbm(c, 0.5, 71) * 2;
-    const r = 1300 + fbm(c, 1.5, 72) * 900;
+    const a = (c / 30) * Math.PI * 2 + fbm(c, 0.5, seed + 71) * 2;
+    const r = 1300 + fbm(c, 1.5, seed + 72) * 900;
     const cx = Math.cos(a) * r;
     const cz = Math.sin(a) * r;
-    const cy = 380 + fbm(c, 2.5, 73) * 260;
+    const cy = 380 + fbm(c, 2.5, seed + 73) * 260;
     const toward = Math.max(0, (cx * SUN_DIR.x + cz * SUN_DIR.z) / r);
     for (let i = 0; i < 5; i++) {
-      const size = 40 + fbm(c, i + 3.5, 74) * 60;
-      p.set(cx + (i - 2) * 55 + fbm(c, i, 75) * 40, cy + fbm(c, i, 76) * 25, cz + fbm(c, i, 77) * 50);
+      const size = 40 + fbm(c, i + 3.5, seed + 74) * 60;
+      p.set(cx + (i - 2) * 55 + fbm(c, i, seed + 75) * 40, cy + fbm(c, i, seed + 76) * 25, cz + fbm(c, i, seed + 77) * 50);
       q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), a + i * 0.7);
       s.set(size * 2.2, size * 0.32, size * 1.3);
       mesh.setMatrixAt(k, m.compose(p, q, s));

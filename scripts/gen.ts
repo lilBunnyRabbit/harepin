@@ -33,6 +33,8 @@ Object.assign(globalThis, {
 const { World } = await import("../src/world");
 const { terrain_mesh } = await import("../src/scene");
 
+const WET_PROBE = 30;
+
 export function checksum(arrays: ArrayLike<number>[]): string {
   let h = 0x811c9dc5;
   for (const values of arrays) {
@@ -52,7 +54,20 @@ function world_checksum(world: InstanceType<typeof World>): string {
   ]);
 }
 
-for (const seed of [0, 1, 2]) {
+function road_report(world: InstanceType<typeof World>): string {
+  const ys = world.road.map((p) => p.y);
+  const n = world.road.length;
+  let grade = 0;
+  let wet = 0;
+  for (let i = 0; i < n; i++) {
+    const p = world.road[i];
+    grade = Math.max(grade, Math.abs(world.road[(i + 5) % n].y - p.y) / 10);
+    if ([-1, 1].some((side) => world.height(p.x - p.tz * side * WET_PROBE, p.z + p.tx * side * WET_PROBE) < 0)) wet++;
+  }
+  return `road ${((n * 2) / 1000).toFixed(2)} km, ${Math.min(...ys).toFixed(0)}..${Math.max(...ys).toFixed(0)} m, max grade ${(grade * 100).toFixed(0)}%, over water ${wet}`;
+}
+
+for (const seed of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]) {
   const t0 = performance.now();
   const world = new World(seed);
   const t1 = performance.now();
@@ -60,6 +75,6 @@ for (const seed of [0, 1, 2]) {
   const t2 = performance.now();
   const colors = mesh.geometry.getAttribute("color").array;
   console.log(
-    `seed ${seed}: world ${(t1 - t0).toFixed(0)} ms, terrain_mesh ${(t2 - t1).toFixed(0)} ms, trees ${world.trees.length}, road ${world.road.length}, world ${world_checksum(world)}, colours ${checksum([colors])}`,
+    `seed ${seed}: world ${(t1 - t0).toFixed(0)} ms, terrain_mesh ${(t2 - t1).toFixed(0)} ms, trees ${world.trees.length}, ${road_report(world)}, world ${world_checksum(world)}, colours ${checksum([colors])}`,
   );
 }

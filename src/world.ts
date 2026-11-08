@@ -1,5 +1,6 @@
 import { Vector3 } from "three";
 import { CAR_BODY, type Ground } from "./car";
+import { mulberry32, sub } from "./rng";
 
 export const SIZE = 2048;
 export const CELL = 4;
@@ -8,6 +9,10 @@ const ORIGIN = -SIZE / 2;
 export const ROAD_HALF = 6;
 const CAR_RADIUS = 1.05;
 const SHOULDER = 16;
+const PEAK_HEIGHT = 150;
+const PEAK_SPREAD = 230;
+const PEAK_REACH = 220;
+const SEED0_PEAK: Peak = { x: 120, z: -160 };
 
 function hash(ix: number, iy: number, seed: number): number {
   let h = (ix * 374761393 + iy * 668265263 + Math.imul(seed, 1442695041)) | 0;
@@ -49,13 +54,26 @@ function smoothstep(a: number, b: number, x: number): number {
   return t * t * (3 - 2 * t);
 }
 
-function raw_height(x: number, z: number, seed: number): number {
+interface Peak {
+  x: number;
+  z: number;
+}
+
+function peak_of(seed: number): Peak {
+  if (seed === 0) return SEED0_PEAK;
+  const next = mulberry32(sub(seed, "peak"));
+  const angle = next() * Math.PI * 2;
+  const reach = Math.sqrt(next()) * PEAK_REACH;
+  return { x: Math.cos(angle) * reach, z: Math.sin(angle) * reach };
+}
+
+function raw_height(x: number, z: number, seed: number, peak: Peak): number {
   const r = Math.hypot(x, z) / 960 + (fbm(x / 380, z / 380, seed + 3) - 0.5) * 0.3;
   const mask = 1 - smoothstep(0.8, 1.0, r);
   const hills = fbm(x / 520, z / 520, seed + 7);
   const ridge = 1 - Math.abs(2 * fbm(x / 300, z / 300, seed + 11) - 1);
-  const peak = 150 * Math.exp(-(((x - 120) ** 2 + (z + 160) ** 2) / 230 ** 2));
-  const land = 5 + hills ** 1.7 * 95 + ridge ** 3 * 22 + peak;
+  const top = PEAK_HEIGHT * Math.exp(-(((x - peak.x) ** 2 + (z - peak.z) ** 2) / PEAK_SPREAD ** 2));
+  const land = 5 + hills ** 1.7 * 95 + ridge ** 3 * 22 + top;
   return -9 + (land + 9) * mask;
 }
 
@@ -138,8 +156,9 @@ export class World implements Ground {
 
   constructor(readonly seed = 0) {
     const { heights, road_dist } = this;
+    const peak = peak_of(seed);
     for (let j = 0; j <= N; j++)
-      for (let i = 0; i <= N; i++) heights[j * (N + 1) + i] = raw_height(ORIGIN + i * CELL, ORIGIN + j * CELL, seed);
+      for (let i = 0; i <= N; i++) heights[j * (N + 1) + i] = raw_height(ORIGIN + i * CELL, ORIGIN + j * CELL, seed, peak);
 
     const controls: [number, number][] = [];
     const count = 16;
