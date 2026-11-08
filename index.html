@@ -29,6 +29,11 @@
       <symbol id="icon-chat" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M6 4.5h12a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3h-6l-4.5 3.5v-3.5H6a3 3 0 0 1-3-3v-6a3 3 0 0 1 3-3z" />
       </symbol>
+      <symbol id="icon-recenter" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="7" />
+        <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+        <path d="M12 2.5V5M12 19v2.5M2.5 12H5M19 12h2.5" />
+      </symbol>
       <symbol id="icon-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
         <path d="M6 6l12 12M18 6L6 18" />
       </symbol>
@@ -178,13 +183,14 @@
         <div id="assists"></div>
         <div class="hint dim"><kbd>H</kbd> help</div>
         <div class="keys dim">
-          <kbd>W A S D</kbd> drive · <kbd>Space</kbd> handbrake · <kbd>R</kbd> reset · <kbd>⌫</kbd> rewind · <kbd>C</kbd> camera · <kbd>G</kbd> ghost · <kbd>V</kbd> garage · <kbd>H</kbd> hide help · <kbd>Q</kbd>/<kbd>E</kbd> shift · <kbd>M</kbd> auto · <kbd>T</kbd> chat
-          · <kbd>1</kbd> TCS <kbd>2</kbd> ABS <kbd>3</kbd> steer assist · gamepad: RT/LT, A handbrake, Y reset, X rewind, LB/RB shift · drag/wheel camera · right stick look
+          <kbd>W A S D</kbd> drive · <kbd>Space</kbd> handbrake · <kbd>R</kbd> reset · <kbd>⌫</kbd> rewind · <kbd>C</kbd> camera · <kbd>F</kbd> recenter · <kbd>G</kbd> ghost · <kbd>V</kbd> garage · <kbd>H</kbd> hide help · <kbd>Q</kbd>/<kbd>E</kbd> shift · <kbd>M</kbd> auto · <kbd>T</kbd> chat
+          · <kbd>1</kbd> TCS <kbd>2</kbd> ABS <kbd>3</kbd> steer assist · gamepad: RT/LT, A handbrake, Y reset, X rewind, LB/RB shift · drag/wheel camera, double-click recenter · right stick look, R3 recenter
         </div>
       </div>
     </div>
 
     <div class="hud bottom-right">
+      <button type="button" id="recenter" class="icon-button" aria-label="Recenter camera" title="Recenter camera (F)"><svg aria-hidden="true"><use href="#icon-recenter" /></svg></button>
       <div class="speedo">
         <span id="speed">0</span><span class="unit">km/h</span>
         <span id="gear" data-mode="A">1</span>

@@ -28,6 +28,7 @@ export const CHANGELOG: Release[] = [
     title: "Talk and look",
     changes: [
       { kind: IMPROVED, text: "Chat has its own button with an unread count, and opens a panel with the whole conversation and a Send button. Press T or Enter to type." },
+      { kind: NEW, text: "Recenter the camera behind your car: the button that shows when you look away, F, double-click, or R3 on a gamepad." },
     ],
   },
   {

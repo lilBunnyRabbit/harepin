@@ -1,7 +1,7 @@
 import type { Controls } from "./car";
 import { Touch } from "./touch";
 
-export type Action = "reset" | "camera" | "shift_up" | "shift_down" | "auto" | "tcs" | "abs" | "assist" | "ghost" | "help" | "garage" | "settings";
+export type Action = "reset" | "camera" | "shift_up" | "shift_down" | "auto" | "tcs" | "abs" | "assist" | "ghost" | "help" | "garage" | "settings" | "recenter";
 
 const KEY_ACTIONS: Record<string, Action> = {
   KeyR: "reset",
@@ -15,6 +15,7 @@ const KEY_ACTIONS: Record<string, Action> = {
   KeyG: "ghost",
   KeyH: "help",
   KeyV: "garage",
+  KeyF: "recenter",
   Escape: "settings",
 };
 
@@ -102,6 +103,7 @@ const PAD_ACTIONS: [number, Action][] = [
   [8, "camera"],
   [5, "shift_up"],
   [4, "shift_down"],
+  [11, "recenter"],
 ];
 
 export const typing = (target: EventTarget | null) => target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement;

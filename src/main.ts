@@ -100,6 +100,9 @@ input.blocked = () => garage.is_open || settings.is_open;
 chat.blocked = input.blocked;
 input.touch.start();
 input.mouse.start();
+const recenter = $("recenter", HTMLButtonElement);
+recenter.addEventListener("click", () => chase.recenter());
+renderer.domElement.addEventListener("dblclick", () => chase.recenter());
 const audio = new Audio();
 for (const event of ["keydown", "pointerdown", "gamepadconnected"]) addEventListener(event, () => audio.start(), { once: true });
 
@@ -355,6 +358,7 @@ function frame(now: number) {
       else reset();
     }
     const state = settings.state;
+    if (action === "recenter") chase.recenter();
     if (action === "camera") settings.set("camera", state.camera === CameraView.CHASE ? CameraView.COCKPIT : CameraView.CHASE);
     if (action === "shift_up" || action === "shift_down") {
       settings.set("auto", false);
@@ -415,6 +419,7 @@ function frame(now: number) {
   place_contact_shadow(car_shadow, car.pos.x, car.pos.y, car.pos.z, car.heading, world);
   const offroad = world.grip(car.pos.x, car.pos.z) < 1;
   chase.update(dt, car, world, offroad, now / 1000, input.look);
+  recenter.toggleAttribute("data-shown", chase.orbited);
   light.follow(car.pos);
 
   smoke.update(dt, car, world);

@@ -19,6 +19,10 @@ const STICK_FOLLOW_RATE = 10;
 const STICK_RETURN_RATE = 8;
 const PIVOT_RISE = 1.05;
 const LOOK_LEAD = 4;
+const RECENTER_SECONDS = 0.25;
+const ORBITED_YAW = 12 * DEG;
+const ORBITED_PITCH = 8 * DEG;
+const ORBITED_ZOOM = 0.15;
 
 export class ChaseCamera {
   mode = 0;
@@ -42,6 +46,9 @@ export class ChaseCamera {
   private zoom = 1;
   private look_idle = 0;
   private stick_held = false;
+  /** Seconds into a recenter ease, Infinity when none runs. */
+  private recenter_t = Infinity;
+  private recenter_from = { yaw: 0, pitch: 0, zoom: 1 };
 
   constructor(readonly camera: THREE.PerspectiveCamera) {}
 
@@ -51,6 +58,16 @@ export class ChaseCamera {
     this.orbit_yaw = 0;
     this.orbit_pitch = 0;
     this.camera.position.set(car.pos.x - Math.sin(this.yaw) * 7, car.pos.y + 2.5, car.pos.z - Math.cos(this.yaw) * 7);
+  }
+
+  /** Whether the chase view is looked away from straight behind the car, by orbit or zoom. */
+  get orbited(): boolean {
+    return this.mode === 0 && (Math.abs(this.orbit_yaw) > ORBITED_YAW || Math.abs(this.orbit_pitch) > ORBITED_PITCH || Math.abs(Math.log(this.zoom)) > ORBITED_ZOOM);
+  }
+
+  recenter() {
+    this.recenter_t = 0;
+    this.recenter_from = { yaw: this.orbit_yaw, pitch: this.orbit_pitch, zoom: this.zoom };
   }
 
   bump(amount: number) {
@@ -82,6 +99,21 @@ export class ChaseCamera {
     }
     this.orbit_pitch = Math.max(PITCH_MIN - base_pitch, Math.min(PITCH_MAX - base_pitch, this.orbit_pitch));
     this.zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, this.zoom * Math.exp(look.zoom * ZOOM_PER_PX)));
+    if (this.recenter_t === Infinity) return;
+    if (stick || look.dragging || look.dx !== 0 || look.dy !== 0 || look.zoom !== 0) {
+      this.recenter_t = Infinity;
+      return;
+    }
+    this.recenter_t += dt;
+    const t = Math.min(1, this.recenter_t / RECENTER_SECONDS);
+    const k = 1 - t * t * (3 - 2 * t);
+    const from = this.recenter_from;
+    this.orbit_yaw = from.yaw * k;
+    this.orbit_pitch = from.pitch * k;
+    this.zoom = Math.exp(Math.log(from.zoom) * k);
+    if (t < 1) return;
+    this.recenter_t = Infinity;
+    this.look_idle = 0;
   }
 
   update(dt: number, car: Car, world: World, offroad: boolean, time: number, look: Look) {

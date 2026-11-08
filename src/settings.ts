@@ -193,6 +193,7 @@ const KEYS: [string, string, string, string][] = [
   ["Auto gearbox", "M", "", ""],
   ["Camera", "C", "View", "Cam"],
   ["Look around", "Drag / wheel", "Right stick", ""],
+  ["Recenter camera", "F / double-click", "R3", "Recenter"],
   ["Ghost", "G", "", ""],
   ["TCS / ABS / steer assist", "1 / 2 / 3", "", ""],
   ["Garage", "V", "", ""],
