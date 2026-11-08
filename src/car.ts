@@ -19,6 +19,11 @@ export interface Controls {
 export const CAR_BODY = { mass: COUPE.mass, yaw_inertia: COUPE.inertia[1] };
 const GRAVITY = 9.81;
 const SPIN_SLIP = 0.15;
+const STEER_RATE = 9;
+const KEY_RAMP = 0.2;
+const KEY_RAMP_MIN = 0.03;
+const KEY_RAMP_SPEED = 30;
+const KEY_RETURN = 2.5;
 
 // Normalised magic formula: peak at s = 1, sliding grip sin(C·π/2) ≈ 65% of peak.
 const MF_C = 1.55;
@@ -118,6 +123,8 @@ export class Car {
   tcs_factor = 1;
   braking = 0;
   throttle = 0;
+  /** Keyboard steer after the speed-scaled ramp, -1..1; follows the stick directly for analog input. */
+  key_steer = 0;
 
   constructor(readonly spec: CarSpec = COUPE) {
     this.wheels = spec.wheel.mounts.map(([x, y, z]) => new Wheel(new Vector3(x, y, z), z > 0, x > 0, spec));
@@ -133,6 +140,7 @@ export class Car {
     this.gear = 1;
     this.rpm = this.spec.idle;
     this.steer = 0;
+    this.key_steer = 0;
     this.shifting = 0;
     for (const w of this.wheels) {
       w.omega = 0;
@@ -200,14 +208,21 @@ export class Car {
     // because body slip already loads the fronts. Past it the fronts go over peak, lose yaw damping and the car wallows.
     const grip_lock = (spec.wheelbase * GRAVITY * 1.05) / Math.max(1, speed * speed) + spec.peak_angle * 0.45;
     const lock = this.assist ? Math.min(spec.lock, grip_lock) : spec.lock / (1 + speed / 45);
-    let target = input.steer * lock;
+    // A key is full stick at once, which at speed makes every tap a full-lock flick; ramp it like a thumb would.
+    if (input.analog) this.key_steer = input.steer;
+    else {
+      const full = KEY_RAMP * Math.min(1, speed / KEY_RAMP_SPEED) + KEY_RAMP_MIN;
+      const back = input.steer === 0 || input.steer * this.key_steer < 0;
+      const step = ((back ? KEY_RETURN : 1) / full) * dt;
+      this.key_steer += Math.max(-step, Math.min(step, input.steer - this.key_steer));
+    }
+    let target = this.key_steer * lock;
     if (this.assist && speed > 4 && local.z > 1) {
       const beta = Math.atan2(-local.x, local.z);
       target += Math.sign(beta) * Math.max(0, Math.abs(beta) - 0.1) * 0.8;
     }
     target = Math.max(-spec.lock, Math.min(spec.lock, target));
-    const rate = input.analog ? 9 : Math.max(1.6, lock * 6) * (input.steer === 0 ? 1.6 : 1);
-    this.steer += Math.max(-rate * dt, Math.min(rate * dt, target - this.steer));
+    this.steer += Math.max(-STEER_RATE * dt, Math.min(STEER_RATE * dt, target - this.steer));
 
     const driven = this.wheels.filter((w) => w.driven);
     const wheel_omega = driven.reduce((sum, w) => sum + w.omega, 0) / driven.length;

@@ -211,3 +211,11 @@ for (const tcs of [true, false]) {
   });
   note("launch TCS off, gear hunting", `0-100 in ${t100.toFixed(2)} s, ${shifts} shifts`);
 }
+
+{
+  const car = fresh();
+  get_to(car, 100);
+  let peak = 0;
+  run(car, 1, (t) => cruise(car, 100, { steer: t < 0.15 ? 1 : 0 }), flat, () => (peak = Math.max(peak, Math.abs(car.ang.y))));
+  note("150 ms key tap at 100 km/h", `peak yaw ${peak.toFixed(3)} rad/s`);
+}
