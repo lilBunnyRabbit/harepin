@@ -5,6 +5,8 @@ import { brand, color } from "./palette";
 
 const STRIDE = 8;
 const EVERY_MS = 100;
+const GHOST_OPACITY = 0.32;
+const GHOST_ORDER = 10;
 
 function is_lap(value: unknown): value is number[] {
   if (!Array.isArray(value) || value.length < STRIDE || value.length % STRIDE !== 0) return false;
@@ -48,12 +50,25 @@ export class Ghost {
     this.key = `harepin:ghost:${seed}`;
     this.best = load(this.key);
     this.view = car_view(color(brand.cottontail));
+    // Unlit and single-layer: a depth-only copy of every part draws first, so only the nearest face gets tinted.
+    // Lit, emissive or stacked faces pushed the pale paint past the bloom threshold.
+    const depth = new THREE.MeshBasicMaterial({ colorWrite: false, transparent: true });
+    const tint = new THREE.MeshBasicMaterial({ color: color(brand.cottontail), transparent: true, opacity: GHOST_OPACITY });
+    const meshes: THREE.Mesh[] = [];
     this.view.root.traverse((object) => {
-      if (!(object instanceof THREE.Mesh)) return;
-      object.castShadow = false;
-      object.material = (object.material as THREE.Material).clone();
-      Object.assign(object.material, { transparent: true, opacity: 0.32, depthWrite: false });
+      if (object instanceof THREE.Mesh) meshes.push(object);
     });
+    for (const mesh of meshes) {
+      mesh.castShadow = false;
+      mesh.material = tint;
+      mesh.renderOrder = GHOST_ORDER + 1;
+      const mask = new THREE.Mesh(mesh.geometry, depth);
+      mask.renderOrder = GHOST_ORDER;
+      mask.position.copy(mesh.position);
+      mask.quaternion.copy(mesh.quaternion);
+      mask.scale.copy(mesh.scale);
+      mesh.parent?.add(mask);
+    }
     rest_wheels(this.view);
     this.view.root.visible = false;
     scene.add(this.view.root);
