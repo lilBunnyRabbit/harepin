@@ -1,6 +1,9 @@
 import { Vector3 } from "three";
+import { car_spec } from "../src/cars";
 import { Car } from "../src/car";
 import { ROAD_HALF, World } from "../src/world";
+
+const SPEC = car_spec(process.argv[2] ?? "coupe");
 
 const world = new World();
 const index = Math.floor(world.road.length / 12) * 3;
@@ -12,7 +15,7 @@ for (const [label, lateral] of [
   ["head-on", 0],
   ["corner clip", -1.4],
 ] as const) {
-  const car = new Car();
+  const car = new Car(SPEC);
   const back = 45;
   const x = post.x - cp.tx * back - cp.tz * lateral;
   const z = post.z - cp.tz * back + cp.tx * lateral;

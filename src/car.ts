@@ -223,7 +223,9 @@ export class Car {
     this.rpm += (rpm - this.rpm) * Math.min(1, dt * 30);
     let engine = 0;
     if (this.shifting <= 0 && this.gear !== 0) {
-      const braking_torque = wheel_rpm > spec.idle ? (1 - gas) * (20 + rpm * 0.009) : 0;
+      // Engine braking resists the way the wheels turn; rolling back in a forward gear it must not push the car downhill.
+      const coast = wheel_omega * ratio < 0 ? -1 : 1;
+      const braking_torque = wheel_rpm > spec.idle ? (1 - gas) * (20 + rpm * 0.009) * coast : 0;
       engine = rpm >= spec.redline ? -braking_torque : gas * torque_at(spec.torque, rpm) - braking_torque;
     }
     let drive_front = 0;
@@ -311,7 +313,8 @@ export class Car {
       const v_long = point_vel.dot(wheel_fwd);
       const v_lat = point_vel.dot(lat);
       const denom = Math.max(Math.abs(v_long), 2);
-      const grip = ground.grip(w.point.x, w.point.z);
+      const surface = ground.grip(w.point.x, w.point.z);
+      const grip = surface + (1 - surface) * spec.offroad;
       const peak = spec.mu * (w.front ? 1 : spec.rear_grip) * grip * load * (1 - load / 32000);
       const sy = -Math.atan2(v_lat, denom) / spec.peak_angle;
 
@@ -328,7 +331,8 @@ export class Car {
       w.spin += omega * dt;
 
       const sx = (omega * radius - v_long) / denom / spec.peak_slip;
-      const fx = combined_x(sx, sy) * peak - v_long * spec.roll_resist * ground.roll(w.point.x, w.point.z);
+      const roll = ground.roll(w.point.x, w.point.z);
+      const fx = combined_x(sx, sy) * peak - v_long * spec.roll_resist * (roll - (roll - 1) * spec.offroad);
       const fy = combined_y(sx, sy) * peak;
       w.slip = sx * spec.peak_slip;
       const locking = this.abs && brake > 0.1 && w.slip < -0.1 && Math.abs(v_long) > 2;

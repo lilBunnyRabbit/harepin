@@ -1,5 +1,8 @@
 import { Vector3 } from "three";
+import { car_spec } from "../src/cars";
 import { Car, type Controls, type Ground } from "../src/car";
+
+const SPEC = car_spec(process.argv[2] ?? "coupe");
 
 const flat: Ground = { height: () => 0, normal: (_x, _z, out) => out.set(0, 1, 0), grip: () => 1, roll: () => 1 };
 const slope = (grade: number): Ground => ({
@@ -14,7 +17,7 @@ const idle: Controls = { steer: 0, throttle: 0, brake: 0, handbrake: 0, analog: 
 const tmp = new Vector3();
 
 function fresh(ground = flat, setup?: (car: Car) => void): Car {
-  const car = new Car();
+  const car = new Car(SPEC);
   setup?.(car);
   car.place(0, ground.height(0, 0) + 0.6, 0, 0);
   run(car, 1.5, () => idle, ground);

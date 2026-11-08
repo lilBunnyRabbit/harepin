@@ -1,6 +1,6 @@
 import { Vector3 } from "three";
 import { Car } from "../src/car";
-import { COUPE, type CarSpec } from "../src/cars";
+import { COUPE, car_spec, type CarSpec } from "../src/cars";
 import { World } from "../src/world";
 
 const DT = 1 / 360;
@@ -55,7 +55,7 @@ if (import.meta.main) {
   let grade = 0;
   for (let i = 0; i < world.road.length; i++) grade = Math.max(grade, Math.abs(world.road[(i + 5) % world.road.length].y - world.road[i].y) / 10);
   console.log(`world: ${(performance.now() - t0).toFixed(0)} ms, road ${(world.road.length * 2 / 1000).toFixed(2)} km, height ${Math.min(...ys).toFixed(0)}..${Math.max(...ys).toFixed(0)} m, max grade ${(grade * 100).toFixed(0)}%, trees ${world.trees.length}`);
-  const lap = autolap(world);
+  const lap = autolap(world, car_spec(process.argv[2] ?? "coupe"));
   if (lap.flipped) console.log(`flipped at t=${lap.t.toFixed(1)} index ${lap.index}`);
   console.log(`autolap: ${lap.t.toFixed(1)} s to index ${lap.index}/${world.road.length}, offroad ${lap.offroad.toFixed(1)} s, worst distance ${lap.worst.toFixed(1)} m, slowest ${(lap.slowest * 3.6).toFixed(0)} km/h`);
 }

@@ -1,5 +1,8 @@
 import { Vector3 } from "three";
+import { car_spec } from "../src/cars";
 import { Car, type Controls, type Ground } from "../src/car";
+
+const SPEC = car_spec(process.argv[2] ?? "coupe");
 
 const flat: Ground = {
   height: () => 0,
@@ -9,7 +12,7 @@ const flat: Ground = {
 };
 
 const DT = 1 / 360;
-const car = new Car();
+const car = new Car(SPEC);
 const idle: Controls = { steer: 0, throttle: 0, brake: 0, handbrake: 0, analog: true };
 
 function run(seconds: number, controls: (t: number) => Controls, until?: () => boolean): number {

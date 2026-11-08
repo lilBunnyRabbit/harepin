@@ -1,13 +1,15 @@
 import { World, min_radius } from "../src/world";
+import { car_spec } from "../src/cars";
 import { autolap } from "./autolap";
 
 const SEEDS = 20;
+const SPEC = car_spec(process.argv[2] ?? "coupe");
 
 let failed = 0;
 for (let seed = 0; seed < SEEDS; seed++) {
   const world = new World(seed);
   const radius = min_radius(world.road.map((p) => [p.x, p.z]));
-  const lap = autolap(world);
+  const lap = autolap(world, SPEC);
   const clean = lap.offroad === 0 && lap.index >= world.road.length - 10;
   if (!clean) failed++;
   console.log(`seed ${seed}: min radius ${radius.toFixed(0)} m, lap ${lap.t.toFixed(1)} s to ${lap.index}/${world.road.length}, offroad ${lap.offroad.toFixed(1)} s, worst ${lap.worst.toFixed(1)} m${clean ? "" : "  FAIL"}`);
