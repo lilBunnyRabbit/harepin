@@ -146,10 +146,7 @@ garage.on_change = (next) => {
   sync_car_view(view, car);
 };
 
-// Opened on click, not on the touch layer's pointerdown: a tap's click would otherwise land on the garage backdrop and close it.
-const touch_garage = Object.assign(document.createElement("button"), { type: "button", textContent: "Car", ariaLabel: "Garage" });
-$("chat-button").before(touch_garage);
-for (const button of [touch_garage, document.getElementById("garage-btn")]) button?.addEventListener("click", () => garage.open());
+$("garage-btn").addEventListener("click", () => garage.open());
 
 interface Frame {
   at: number;
