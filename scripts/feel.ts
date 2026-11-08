@@ -197,3 +197,17 @@ for (const tcs of [true, false]) {
   const kinematic = car.spec.wheelbase / Math.tan(car.spec.lock);
   note("full lock 2 km/h, rear axle", `radius ${radius.toFixed(2)} m (kinematic ${kinematic.toFixed(2)}, ${((radius / kinematic - 1) * 100).toFixed(1)}%), ±${(spread * 100).toFixed(1)} cm, speed ${mean.toFixed(2)} ±${jitter.toFixed(2)} km/h, rear creep ${(slip * 100).toFixed(1)} cm/s`);
 }
+
+{
+  const car = fresh(flat, (c) => (c.tcs = false));
+  let shifts = 0;
+  let gear = car.gear;
+  let t100 = -1;
+  run(car, 12, () => ({ ...idle, throttle: 1 }), flat, (t) => {
+    if (t100 < 0 && kmh(car) >= 100) t100 = t;
+    if (t100 >= 0) return;
+    if (car.gear !== gear) shifts++;
+    gear = car.gear;
+  });
+  note("launch TCS off, gear hunting", `0-100 in ${t100.toFixed(2)} s, ${shifts} shifts`);
+}

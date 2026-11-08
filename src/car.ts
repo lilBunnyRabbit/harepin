@@ -18,6 +18,7 @@ export interface Controls {
 
 export const CAR_BODY = { mass: COUPE.mass, yaw_inertia: COUPE.inertia[1] };
 const GRAVITY = 9.81;
+const SPIN_SLIP = 0.15;
 
 // Normalised magic formula: peak at s = 1, sliding grip sin(C·π/2) ≈ 65% of peak.
 const MF_C = 1.55;
@@ -215,11 +216,12 @@ export class Car {
 
     if (this.shifting > 0) this.shifting -= dt;
     if (this.auto && this.gear >= 1 && this.shifting <= 0) {
-      if (wheel_rpm > spec.upshift && this.gear < spec.gears.length) this.shift(1);
-      else {
-        const road_rpm = Math.abs((vf / radius) * ratio * 60) / (2 * Math.PI);
-        if (road_rpm < spec.downshift && this.gear > 1 && road_rpm * (spec.gears[this.gear - 2] / spec.gears[this.gear - 1]) < spec.upshift - 600) this.shift(-1);
-      }
+      const road_rpm = Math.abs((vf / radius) * ratio * 60) / (2 * Math.PI);
+      // Spinning wheels read as high rpm; upshifting on them, then downshifting on road speed, makes the box hunt.
+      const spinning = driven.some((w) => w.slip > SPIN_SLIP) && road_rpm < spec.redline - 200;
+      if (wheel_rpm > spec.upshift && this.gear < spec.gears.length) {
+        if (!spinning) this.shift(1);
+      } else if (road_rpm < spec.downshift && this.gear > 1 && road_rpm * (spec.gears[this.gear - 2] / spec.gears[this.gear - 1]) < spec.upshift - 600) this.shift(-1);
     }
 
     let max_slip = 0;
