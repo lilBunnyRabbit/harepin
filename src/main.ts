@@ -408,6 +408,7 @@ function frame(now: number) {
   ghost.update(race.started ? now - race.started : null);
   modes.update(stepped, car);
   sync_car_view(view, car);
+  view.heads.visible = chase.mode !== 1;
   place_contact_shadow(car_shadow, car.pos.x, car.pos.y, car.pos.z, car.heading, world);
   const offroad = world.grip(car.pos.x, car.pos.z) < 1;
   chase.update(dt, car, world, offroad, now / 1000, input.look);

@@ -145,6 +145,8 @@ export interface CarView {
   body: THREE.Group;
   wheels: THREE.Group[];
   brake: THREE.MeshLambertMaterial;
+  /** Headlamp lenses; hidden from the hood camera, which sits right behind them. */
+  heads: THREE.Mesh;
 }
 
 type Point = [number, number];
@@ -271,7 +273,8 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, spoiler: Lev
   const [tx, ty, tz] = shape.tail;
   const heads = merge([-1, 1].map((side) => new THREE.BoxGeometry(0.46, 0.08, 0.1).rotateX(-0.25).translate(side * hx, hy, hz)));
   const tails = merge([-1, 1].map((side) => box(0.5, 0.1, 0.06, side * tx, ty, tz)));
-  body.add(hull, new THREE.Mesh(heads, head_material), new THREE.Mesh(tails, brake));
+  const head_mesh = new THREE.Mesh(heads, head_material);
+  body.add(hull, head_mesh, new THREE.Mesh(tails, brake));
   root.add(body);
 
   const radius = spec.wheel.radius;
@@ -290,7 +293,7 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, spoiler: Lev
     root.add(steer);
     return steer;
   });
-  return { root, body, wheels, brake };
+  return { root, body, wheels, brake, heads: head_mesh };
 }
 
 export function sync_car_view(view: CarView, car: Car) {
