@@ -8,6 +8,7 @@ export class Chat {
   private log = $("chat-log", HTMLOListElement);
   private form = $("chat-form", HTMLFormElement);
   private field = $("chat-input", HTMLInputElement);
+  private button = $("chat-button", HTMLButtonElement);
   private abort: AbortController | null = null;
 
   constructor(
@@ -35,6 +36,7 @@ export class Chat {
       { signal },
     );
     this.field.addEventListener("blur", () => this.close(), { signal });
+    this.button.addEventListener("click", () => this.open(), { signal });
     this.form.addEventListener(
       "submit",
       (e) => {

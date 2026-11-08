@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Harepin</title>
     <meta name="description" content="Low-poly open-world driving in the browser. Forza-style handling, ghost laps, peer-to-peer multiplayer." />
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
@@ -13,9 +13,24 @@
     <div id="app"></div>
     <div id="labels"></div>
     <div id="loading">Building island…</div>
-    <div id="notice" hidden>
-      <p>Harepin is made for desktop: keyboard or gamepad.</p>
-      <button id="notice-close" type="button">Drive anyway</button>
+    <div id="rotate">Turn your device sideways to drive</div>
+
+    <div id="touch">
+      <div class="touch-steer" data-touch="steer"><span class="touch-hint">drag to steer</span></div>
+      <div id="steer-ring" hidden><div id="steer-knob"></div></div>
+      <div class="touch-buttons">
+        <button type="button" data-touch="rewind" aria-label="Rewind (hold)">◂◂</button>
+        <button type="button" data-touch="reset" aria-label="Reset">Reset</button>
+        <button type="button" data-touch="camera" aria-label="Camera">Cam</button>
+        <button type="button" id="chat-button" aria-label="Chat">Chat</button>
+      </div>
+      <div class="touch-pedals">
+        <div class="touch-brake">
+          <div class="touch-key" data-touch="handbrake">Handbrake</div>
+          <div class="pedal" data-touch="brake"><span>Brake</span></div>
+        </div>
+        <div class="pedal throttle" data-touch="throttle"><span>Gas</span></div>
+      </div>
     </div>
 
     <div class="hud top-left">

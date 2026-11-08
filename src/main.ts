@@ -79,7 +79,8 @@ const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), da
 composer.addPass(bloom);
 composer.addPass(new OutputPass());
 
-const input = new Input();
+const input = new Input($("touch"));
+input.touch.start();
 const audio = new Audio();
 for (const event of ["keydown", "pointerdown", "gamepadconnected"]) addEventListener(event, () => audio.start(), { once: true });
 
@@ -250,7 +251,7 @@ function frame(now: number) {
     if (impact > 2) {
       audio.impact(impact / 20);
       chase.bump(Math.min(1, impact / 15));
-      input.rumble(1, 1);
+      input.rumble(1, 1, true);
     }
     record(now);
     if (race.started) ghost.record(now - race.started, car);
@@ -312,6 +313,7 @@ if (import.meta.env.DEV)
   Object.assign(window, {
     open_road: {
       car,
+      input,
       race,
       world,
       ghost,
@@ -341,10 +343,6 @@ $("private").addEventListener("click", () => {
 document.addEventListener("click", (e) => {
   if (e.target instanceof HTMLButtonElement) e.target.blur();
 });
-
-const notice = $("notice");
-if (matchMedia("(pointer: coarse)").matches && !navigator.getGamepads?.().some(Boolean)) notice.hidden = false;
-$("notice-close").addEventListener("click", () => (notice.hidden = true));
 
 $("loading").remove();
 requestAnimationFrame(frame);

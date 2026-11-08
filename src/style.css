@@ -454,19 +454,251 @@ button:hover {
   background: var(--background-lighter);
 }
 
-#notice {
-  position: fixed;
-  inset: 0;
-  z-index: 10;
-  display: grid;
-  place-content: center;
-  gap: 12px;
-  text-align: center;
-  padding: 16px;
-  background: color-mix(in oklch, var(--background-darkest) 92%, transparent);
-  font-size: 16px;
+#touch,
+#rotate {
+  display: none;
 }
 
-#notice[hidden] {
+#touch {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  touch-action: none;
+  -webkit-touch-callout: none;
+}
+
+#touch [data-touch],
+#touch button {
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.touch-steer {
+  position: absolute;
+  inset: 0 55% 0 0;
+  display: grid;
+  place-items: end center;
+  padding-bottom: calc(18px + env(safe-area-inset-bottom));
+}
+
+.touch-hint {
+  font-size: 12px;
+  color: color-mix(in oklch, var(--foreground) 45%, transparent);
+}
+
+.touch-steer[data-held] .touch-hint {
+  visibility: hidden;
+}
+
+#steer-ring {
+  position: fixed;
+  left: -60px;
+  top: -60px;
+  width: 120px;
+  height: 120px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 2px solid color-mix(in oklch, var(--foreground) 35%, transparent);
+  background: color-mix(in oklch, var(--background-darkest) 30%, transparent);
+  pointer-events: none;
+}
+
+#steer-ring[hidden] {
   display: none;
+}
+
+#steer-knob {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--primary) 70%, transparent);
+}
+
+.touch-buttons {
+  position: absolute;
+  top: calc(10px + env(safe-area-inset-top));
+  right: calc(150px + env(safe-area-inset-right));
+  display: flex;
+  gap: 8px;
+}
+
+.touch-buttons button {
+  min-width: 52px;
+  height: 40px;
+  font-size: 13px;
+  border-radius: 12px;
+  background: color-mix(in oklch, var(--background-darkest) 78%, transparent);
+}
+
+.touch-buttons button[data-held] {
+  background: var(--accent);
+  color: var(--background-darkest);
+}
+
+.touch-pedals {
+  position: absolute;
+  right: calc(16px + env(safe-area-inset-right));
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.touch-brake {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pedal,
+.touch-key {
+  --level: 0;
+  position: relative;
+  display: grid;
+  place-items: end center;
+  padding-bottom: 10px;
+  overflow: hidden;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--foreground);
+  background: color-mix(in oklch, var(--background-darkest) 70%, transparent);
+  border: 1px solid color-mix(in oklch, var(--foreground) 22%, transparent);
+}
+
+.pedal {
+  width: 84px;
+  height: 140px;
+}
+
+.pedal.throttle {
+  height: 190px;
+}
+
+.pedal::before {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: calc(var(--level) * 100%);
+  background: color-mix(in oklch, var(--error) 55%, transparent);
+}
+
+.pedal.throttle::before {
+  background: color-mix(in oklch, var(--success) 55%, transparent);
+}
+
+.pedal span {
+  position: relative;
+}
+
+.touch-key {
+  width: 84px;
+  height: 40px;
+  place-items: center;
+  padding: 0;
+  font-size: 11px;
+}
+
+.touch-key[data-held] {
+  background: var(--accent);
+  color: var(--background-darkest);
+}
+
+
+@media (pointer: coarse) {
+  #touch {
+    display: block;
+  }
+
+  .hud {
+    padding: 8px 10px;
+    font-size: 11.5px;
+  }
+
+  .top-left {
+    top: calc(10px + env(safe-area-inset-top));
+    left: calc(10px + env(safe-area-inset-left));
+  }
+
+  .title {
+    font-size: 14px;
+    margin-bottom: 6px;
+  }
+
+  .theme {
+    display: none;
+  }
+
+  .top-right {
+    top: calc(10px + env(safe-area-inset-top));
+    right: calc(10px + env(safe-area-inset-right));
+    width: auto;
+  }
+
+  #minimap {
+    width: 110px;
+    height: 110px;
+  }
+
+  #players {
+    display: none;
+  }
+
+  .dock-left {
+    left: calc(10px + env(safe-area-inset-left));
+    bottom: calc(48px + env(safe-area-inset-bottom));
+    max-width: 40vw;
+  }
+
+  .dock-left {
+    pointer-events: none;
+  }
+
+  .dock-left .hud {
+    display: none;
+  }
+
+  #chat-form {
+    pointer-events: auto;
+  }
+
+  .bottom-right {
+    right: auto;
+    left: 50%;
+    bottom: calc(10px + env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    width: 170px;
+    pointer-events: none;
+  }
+
+  #speed {
+    font-size: 36px;
+  }
+
+  #gear {
+    font-size: 24px;
+  }
+
+  #banner {
+    font-size: 24px;
+  }
+}
+
+@media (orientation: portrait) and (pointer: coarse) {
+  #rotate {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    text-align: center;
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--cottontail);
+    background: var(--background-darkest);
+  }
 }

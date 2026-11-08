@@ -1,4 +1,5 @@
 import type { Controls } from "./car";
+import { Touch } from "./touch";
 
 export type Action = "reset" | "camera" | "shift_up" | "shift_down" | "auto" | "tcs" | "abs" | "assist" | "ghost" | "help";
 
@@ -15,6 +16,8 @@ const KEY_ACTIONS: Record<string, Action> = {
   KeyH: "help",
 };
 
+const IMPACT_VIBRATE_MS = 60;
+
 const PAD_ACTIONS: [number, Action][] = [
   [3, "reset"],
   [8, "camera"],
@@ -29,8 +32,10 @@ export class Input {
   private queued: Action[] = [];
   private pad_prev: boolean[] = [];
   pad: Gamepad | null = null;
+  readonly touch: Touch;
 
-  constructor() {
+  constructor(touch_root: HTMLElement) {
+    this.touch = new Touch(touch_root);
     addEventListener("keydown", (e) => {
       if (e.repeat || typing(e.target)) return;
       this.keys.add(e.code);
@@ -84,12 +89,26 @@ export class Input {
         this.pad_prev[button] = pressed;
       }
     }
+    const touch = this.touch;
+    if (touch.active) {
+      if (Math.abs(touch.steer) >= Math.abs(controls.steer)) controls.steer = touch.steer;
+      controls.analog = true;
+      controls.throttle = Math.max(controls.throttle, touch.throttle);
+      controls.brake = Math.max(controls.brake, touch.brake);
+      controls.handbrake = Math.max(controls.handbrake, touch.handbrake);
+      if (touch.rewind) this.rewind = true;
+    }
+    actions.push(...touch.take_actions());
     return { controls, actions };
   }
 
-  rumble(weak: number, strong: number) {
+  rumble(weak: number, strong: number, impact = false) {
     const actuator = (this.pad as (Gamepad & { vibrationActuator?: { playEffect?: (type: string, params: object) => Promise<unknown> } }) | null)?.vibrationActuator;
-    if (!actuator?.playEffect || (weak < 0.02 && strong < 0.02)) return;
+    if (!actuator?.playEffect) {
+      if (impact && this.touch.used) navigator.vibrate?.(IMPACT_VIBRATE_MS);
+      return;
+    }
+    if (weak < 0.02 && strong < 0.02) return;
     actuator.playEffect("dual-rumble", { duration: 120, weakMagnitude: Math.min(1, weak), strongMagnitude: Math.min(1, strong) }).catch(() => {});
   }
 }
