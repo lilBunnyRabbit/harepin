@@ -66,12 +66,14 @@ export class Garage {
     this.root.hidden = true;
     this.root.setAttribute("role", "dialog");
     this.root.setAttribute("aria-label", "Garage");
-    const panel = element("div", "garage-panel hud");
+    const panel = element("div", "garage-panel");
     const head = element("div", "garage-head");
-    head.append(element("div", "title", "Garage"), this.button("Done", "close", ""));
+    const done = this.button("Done", "close", "");
+    done.classList.add("garage-done");
+    head.append(element("h2", "garage-title", "Garage"), done);
     panel.append(head, this.canvas);
 
-    const cars = element("div", "garage-row");
+    const cars = element("div", "garage-row garage-choice");
     for (const spec of Object.values(CARS)) cars.append(this.button(spec.name, "car", spec.id));
     panel.append(this.group("Car", cars));
 
@@ -86,7 +88,7 @@ export class Garage {
     panel.append(this.group("Paint", paints));
 
     for (const option of OPTIONS) {
-      const row = element("div", "garage-row");
+      const row = element("div", "garage-row garage-choice");
       LEVELS[option].forEach((label, level) => row.append(this.button(label, option, String(level))));
       panel.append(this.group(option[0].toUpperCase() + option.slice(1), row));
     }
@@ -139,7 +141,7 @@ export class Garage {
 
   private group(label: string, row: HTMLElement): HTMLElement {
     const group = element("div", "garage-group");
-    group.append(element("div", "dim", label), row);
+    group.append(element("div", "garage-label", label), row);
     return group;
   }
 

@@ -142,6 +142,8 @@ export interface SettingsHost {
   quality_status(): QualityStatus;
   race_busy(): boolean;
   toggle_race(laps: Laps): void;
+  readonly version: string;
+  show_changelog(): void;
 }
 
 export const SettingsLayout = {
@@ -165,7 +167,7 @@ const STATUS_MS = 1000;
 const COPIED_MS = 2000;
 
 const KEYS: [string, string, string, string][] = [
-  ["Drive", "W A S D / arrows", "RT / LT, left stick", "Gas, Brake, drag to steer"],
+  ["Drive", "WASD / arrows", "RT / LT, stick", "Gas, Brake, drag to steer"],
   ["Handbrake", "Space", "A", "Handbrake"],
   ["Reset", "R", "Y", "Reset"],
   ["Rewind (hold)", "Backspace", "X", "◂◂"],
@@ -317,7 +319,12 @@ export class Settings {
       this.body.append(page);
       this.pages.set(section.id, page);
     }
-    this.panel.append(head, nav, this.body);
+    const foot = el("div", "settings-foot");
+    const changes = el("button", "settings-link", "What's new");
+    changes.type = "button";
+    changes.addEventListener("click", () => this.host.show_changelog());
+    foot.append(el("span", "", `Version v${this.host.version}`), changes);
+    this.panel.append(head, nav, this.body, foot);
     if (this.layout === SettingsLayout.CARD) this.body.addEventListener("scroll", this.follow_scroll, { passive: true });
   }
 
@@ -489,19 +496,22 @@ export class Settings {
   private controls(): HTMLElement[] {
     const table = el("table", "settings-keys");
     const head = el("tr");
-    for (const text of ["", "Keyboard", "Gamepad", "Touch"]) head.append(el("th", "", text));
+    head.append(el("th"), el("th", "", "Keyboard"), el("th", "settings-col-pad", "Gamepad"), el("th", "settings-col-touch", "Touch"));
     table.append(el("thead"), el("tbody"));
     table.tHead?.append(head);
     for (const [what, ...ways] of KEYS) {
       const tr = el("tr");
       tr.append(el("th", "", what));
       const [keyboard, pad, touch] = ways;
-      for (const way of [keyboard, pad]) {
-        const td = el("td");
+      for (const [way, column] of [
+        [keyboard, ""],
+        [pad, "settings-col-pad"],
+      ]) {
+        const td = el("td", column);
         if (way) td.append(el("kbd", "", way));
         tr.append(td);
       }
-      tr.append(el("td", "settings-touch", touch));
+      tr.append(el("td", "settings-touch settings-col-touch", touch));
       table.tBodies[0].append(tr);
     }
     const wrap = el("div", "settings-keys-wrap");

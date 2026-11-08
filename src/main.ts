@@ -28,7 +28,7 @@ import { clouds, sky } from "./sky";
 import { Lighting } from "./lighting";
 import { NanProbe, sanitise_bloom } from "./postfx";
 import { CameraView, Settings, load_settings, type SettingsState } from "./settings";
-import { Updater, show_version } from "./update";
+import { BUILD, Updater, show_version } from "./update";
 import "./style.css";
 
 const params = new URLSearchParams(location.search);
@@ -128,6 +128,7 @@ const settings = new Settings(document.body, {
   quality_status: () => ({ tier: quality.tier_name, ratio: quality.ratio, bloom: quality.tier.bloom, shadow_size: quality.tier.shadow_size }),
   race_busy: () => lobby.busy,
   toggle_race: (laps) => (lobby.busy ? lobby.leave() : lobby.call(laps)),
+  version: BUILD.version, show_changelog: () => updater.show_changelog(),
 }, prefs);
 
 function apply_car_settings(state: SettingsState) {

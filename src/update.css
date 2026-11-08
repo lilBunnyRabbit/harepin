@@ -1,43 +1,43 @@
 .version-tag {
-  margin-top: -8px;
-  font: 400 11px var(--font-mono);
-  color: color-mix(in oklch, var(--foreground) 50%, transparent);
+  margin-top: calc(-1 * var(--space-2));
+  font: 400 var(--text-xs) var(--font-mono);
+  color: var(--dim);
 }
 
 .update-card {
   position: fixed;
   z-index: 40;
-  top: max(12px, env(safe-area-inset-top));
+  top: var(--inset-top);
   left: 50%;
   translate: -50% 0;
   display: grid;
-  gap: 6px;
-  width: min(380px, calc(100vw - 32px));
-  max-height: calc(100dvh - 24px);
-  padding: 14px 16px;
-  border-radius: 14px;
-  border: 1px solid color-mix(in oklch, var(--foreground) 14%, transparent);
-  background: var(--background-light);
+  gap: var(--space-2);
+  width: min(380px, calc(100vw - var(--inset-left) - var(--inset-right)));
+  max-height: calc(100dvh - var(--inset-top) - var(--inset-bottom));
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line);
+  background: var(--panel);
   color: var(--foreground);
-  font-size: 13px;
-  box-shadow: 0 16px 48px color-mix(in oklch, var(--background-darkest) 50%, transparent);
+  font-size: var(--text-md);
+  box-shadow: var(--panel-shadow);
 }
 
 .update-title {
-  font-size: 15px;
-  font-weight: 800;
-  color: var(--primary);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  color: var(--foreground);
 }
 
 .update-status,
 .update-heading {
   margin: 0;
-  color: color-mix(in oklch, var(--foreground) 62%, transparent);
+  color: var(--dim);
 }
 
 .update-heading {
-  margin-top: 4px;
-  font-size: 11px;
+  margin-top: var(--space-1);
+  font-size: var(--text-xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -45,7 +45,7 @@
 
 .update-changes {
   display: grid;
-  gap: 6px;
+  gap: var(--space-2);
   min-height: 0;
   margin: 0;
   padding: 0;
@@ -58,14 +58,14 @@
   display: grid;
   grid-template-columns: 64px 1fr;
   align-items: baseline;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .update-kind {
   justify-self: start;
-  padding: 1px 6px;
-  border-radius: 6px;
-  font-size: 10.5px;
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-xs);
+  font-size: var(--text-xs);
   font-weight: 600;
   color: var(--kind);
   background: color-mix(in oklch, var(--kind) 16%, transparent);
@@ -86,13 +86,13 @@
 .update-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
-  margin-top: 6px;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
 }
 
 .update-actions button {
-  padding: 6px 12px;
-  font-size: 12.5px;
+  background: var(--panel-raised);
+  border-color: var(--line);
 }
 
 .update-card .update-now {
@@ -111,14 +111,15 @@
 }
 
 .changelog {
-  width: min(520px, calc(100vw - 32px));
-  max-height: calc(100dvh - 32px);
+  width: min(520px, calc(100vw - var(--inset-left) - var(--inset-right)));
+  max-height: calc(100dvh - var(--inset-top) - var(--inset-bottom));
   padding: 0;
-  border-radius: 16px;
-  border: 1px solid color-mix(in oklch, var(--foreground) 14%, transparent);
-  background: var(--background-light);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line);
+  background: var(--panel);
   color: var(--foreground);
-  font-size: 13px;
+  font-size: var(--text-md);
+  box-shadow: var(--panel-shadow);
 }
 
 .changelog[open] {
@@ -133,43 +134,50 @@
 .changelog-head {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
-  border-bottom: 1px solid color-mix(in oklch, var(--foreground) 12%, transparent);
-  font-size: 15px;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--line);
+  font-size: var(--text-xl);
+  font-weight: 600;
 }
 
 .changelog-version {
   flex: 1;
-  font: 400 11px var(--font-mono);
-  color: color-mix(in oklch, var(--foreground) 62%, transparent);
+  font: 400 var(--text-xs) var(--font-mono);
+  color: var(--dim);
 }
 
 .changelog-body {
   display: grid;
-  gap: 18px;
-  padding: 14px 16px 18px;
+  gap: var(--space-5);
+  padding: var(--space-4) var(--space-5) var(--space-5);
   overflow-y: auto;
 }
 
 .changelog-release {
   display: grid;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .changelog-line {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: var(--space-2);
   margin: 0;
 }
 
 .changelog-line b {
-  color: var(--primary);
+  font-family: var(--font-mono);
+  font-weight: 700;
 }
 
 .changelog-line time {
   margin-left: auto;
-  font: 400 11px var(--font-mono);
-  color: color-mix(in oklch, var(--foreground) 62%, transparent);
+  font: 400 var(--text-xs) var(--font-mono);
+  color: var(--dim);
+}
+
+.changelog-close {
+  background: var(--panel-raised);
+  border-color: var(--line);
 }
