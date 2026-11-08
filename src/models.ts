@@ -45,8 +45,26 @@ function curvature(world: World, s: number): number {
   return Math.atan2(a.tx * b.tz - a.tz * b.tx, a.tx * b.tx + a.tz * b.tz);
 }
 
+const MOUTH_MARGIN = 3;
+
+// Ring samples where a spur leaves the loop; curbs and posts there would wall off the side road.
+function mouths(world: World): Set<number> {
+  const clear = new Set<number>();
+  for (const node of world.graph.nodes) {
+    if (node.kind !== "junction") continue;
+    const spurs = world.graph.edges.filter((e) => !e.closed && (e.a === node.id || e.b === node.id));
+    if (!spurs.length) continue;
+    const reach = Math.max(...spurs.map((e) => e.half)) + MOUTH_MARGIN;
+    world.road.forEach((p, s) => {
+      if (Math.hypot(p.x - node.x, p.z - node.z) < reach + ROAD_HALF) clear.add(s);
+    });
+  }
+  return clear;
+}
+
 export function roadside(world: World): THREE.Object3D {
   const group = new THREE.Group();
+  const clear = mouths(world);
   const inside = new Map<number, number>();
   for (let s = 0; s < world.road.length; s++) {
     const k = curvature(world, s);
@@ -60,7 +78,7 @@ export function roadside(world: World): THREE.Object3D {
       const from = side > 0 ? ROAD_HALF - 0.1 : -ROAD_HALF - 0.9;
       const to = side > 0 ? ROAD_HALF + 0.9 : -ROAD_HALF + 0.1;
       // Positive curvature bends toward the +side offset, so matching signs put the curb on the inside of the bend.
-      group.add(ribbon(world, from, to, 0.12, (s) => inside.get(s) === side && s % 2 === parity, color(tone), -5));
+      group.add(ribbon(world, from, to, 0.12, (s) => inside.get(s) === side && s % 2 === parity && !clear.has(s), color(tone), -5));
     }
   }
 
@@ -80,6 +98,7 @@ export function roadside(world: World): THREE.Object3D {
   const m = new THREE.Matrix4();
   let n = 0;
   for (let s = 0; s < world.road.length; s += spacing) {
+    if (clear.has(s)) continue;
     const p = world.road[s];
     for (const side of [-1, 1]) {
       const off = side * (ROAD_HALF + 1.6);
