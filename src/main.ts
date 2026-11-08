@@ -405,7 +405,7 @@ function frame(now: number) {
 
   race.update(car.pos.x, car.pos.z, now);
   update_gates(now / 1000);
-  ghost.update(race.started ? now - race.started : null);
+  ghost.update(race.started ? now - race.started : null, camera.position);
   modes.update(stepped, car);
   sync_car_view(view, car);
   view.heads.visible = chase.mode !== 1;

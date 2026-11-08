@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { DEFAULT_BUILD, build_code, build_spec, parse_build, type Build } from "./build";
 import type { CarSpec } from "./cars";
-import { car_view, contact_shadow, dispose_car_view, place_contact_shadow, rest_wheels, type CarView, type ContactShadow } from "./models";
+import { camera_fade, car_view, contact_shadow, dispose_car_view, place_contact_shadow, rest_wheels, type CarView, type ContactShadow } from "./models";
 import type { World } from "./world";
 import type { CarState, Net, Remote } from "./net";
 import { car_paints, color } from "./palette";
@@ -131,7 +131,8 @@ export class Remotes {
     });
     rv.view.brake.emissiveIntensity = s.brake ? 2.2 : 0.5;
     // Remote cars are ghosts with no collision, so one sitting inside yours fades out instead of hiding your car.
-    const opacity = Math.max(0.22, Math.min(1, (root.position.distanceTo(me) - 3) / 9));
+    const opacity = Math.min(Math.max(0.22, Math.min(1, (root.position.distanceTo(me) - 3) / 9)), camera_fade(root.position, camera.position));
+    root.visible = opacity > 0;
     for (const material of rv.materials) {
       material.opacity = opacity;
       material.depthWrite = opacity > 0.99;

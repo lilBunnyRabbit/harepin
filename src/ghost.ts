@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import type { Car } from "./car";
-import { car_view, rest_wheels, type CarView } from "./models";
+import { camera_fade, car_view, rest_wheels, type CarView } from "./models";
 import { brand, color } from "./palette";
 
 const STRIDE = 8;
@@ -41,6 +41,7 @@ export class Ghost {
   private recording: number[] = [];
   private best: number[] | null = null;
   private view: CarView;
+  private readonly tint: THREE.MeshBasicMaterial;
   private a = new THREE.Quaternion();
   private b = new THREE.Quaternion();
 
@@ -54,6 +55,7 @@ export class Ghost {
     // Lit, emissive or stacked faces pushed the pale paint past the bloom threshold.
     const depth = new THREE.MeshBasicMaterial({ colorWrite: false, transparent: true });
     const tint = new THREE.MeshBasicMaterial({ color: color(brand.cottontail), transparent: true, opacity: GHOST_OPACITY });
+    this.tint = tint;
     const meshes: THREE.Mesh[] = [];
     this.view.root.traverse((object) => {
       if (object instanceof THREE.Mesh) meshes.push(object);
@@ -100,7 +102,7 @@ export class Ghost {
     }
   }
 
-  update(lap_ms: number | null) {
+  update(lap_ms: number | null, camera: THREE.Vector3) {
     const best = this.best;
     const root = this.view.root;
     if (!best || lap_ms === null || !this.visible || lap_ms > best[best.length - STRIDE]) {
@@ -125,6 +127,8 @@ export class Ghost {
     this.a.set(best[i + 4], best[i + 5], best[i + 6], best[i + 7]);
     this.b.set(best[j + 4], best[j + 5], best[j + 6], best[j + 7]);
     root.quaternion.copy(this.a.slerp(this.b, k));
-    root.visible = true;
+    const fade = camera_fade(root.position, camera);
+    this.tint.opacity = GHOST_OPACITY * fade;
+    root.visible = fade > 0;
   }
 }

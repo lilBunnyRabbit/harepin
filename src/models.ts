@@ -316,6 +316,17 @@ export function rest_wheels(view: CarView, spec: CarSpec = COUPE) {
   });
 }
 
+// Ghost and remote cars have no collision, so one can pass right through the camera and fill the view.
+const CAMERA_HIDE = 2.5;
+const CAMERA_CLEAR = 6;
+
+/** Opacity factor for a see-through car centred at `at`: 0 within `CAMERA_HIDE` metres of the camera, 1 from `CAMERA_CLEAR` out. */
+export function camera_fade(at: THREE.Vector3, camera: THREE.Vector3): number {
+  const k = Math.max(0, Math.min(1, (at.distanceTo(camera) - CAMERA_HIDE) / (CAMERA_CLEAR - CAMERA_HIDE)));
+  // Squared: a car a few metres off still fills most of the frame, so it stays faint until it is clear.
+  return k * k;
+}
+
 export function dispose_car_view(view: CarView) {
   view.root.traverse((object) => {
     if (!(object instanceof THREE.Mesh)) return;
