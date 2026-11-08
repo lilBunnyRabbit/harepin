@@ -7,6 +7,34 @@ const KEY = "harepin:ghost";
 const STRIDE = 8;
 const EVERY_MS = 100;
 
+function is_lap(value: unknown): value is number[] {
+  if (!Array.isArray(value) || value.length < STRIDE || value.length % STRIDE !== 0) return false;
+  if (!value.every((v) => typeof v === "number" && Number.isFinite(v))) return false;
+  for (let i = STRIDE; i < value.length; i += STRIDE) if (value[i] < value[i - STRIDE]) return false;
+  return true;
+}
+
+function load(): number[] | null {
+  let saved: string | null;
+  try {
+    saved = localStorage.getItem(KEY);
+  } catch (error) {
+    console.warn("ghost: saved lap unreadable", error);
+    return null;
+  }
+  if (!saved) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(saved);
+  } catch (error) {
+    console.warn("ghost: saved lap is not JSON, ignoring it", error);
+    return null;
+  }
+  if (is_lap(parsed)) return parsed;
+  console.warn("ghost: saved lap has the wrong shape, ignoring it");
+  return null;
+}
+
 export class Ghost {
   visible = true;
   private recording: number[] = [];
@@ -16,10 +44,7 @@ export class Ghost {
   private b = new THREE.Quaternion();
 
   constructor(scene: THREE.Scene) {
-    try {
-      const saved = localStorage.getItem(KEY);
-      if (saved) this.best = JSON.parse(saved);
-    } catch {}
+    this.best = load();
     this.view = car_view(color(brand.cottontail));
     this.view.root.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return;
@@ -53,7 +78,9 @@ export class Ghost {
     this.best = this.recording;
     try {
       localStorage.setItem(KEY, JSON.stringify(this.best.map((v) => Math.round(v * 1000) / 1000)));
-    } catch {}
+    } catch (error) {
+      console.warn("ghost: best lap not saved", error);
+    }
   }
 
   update(lap_ms: number | null) {
