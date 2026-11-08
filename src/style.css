@@ -741,6 +741,7 @@ body.help-hidden #assists {
 }
 
 #race-panel {
+  anchor-name: --race-panel;
   min-width: 220px;
 }
 
@@ -797,6 +798,11 @@ body.help-hidden #assists {
   box-shadow: var(--panel-shadow);
   backdrop-filter: none;
   text-align: center;
+}
+
+#race-panel:not([hidden]) ~ #mode-status {
+  position-anchor: --race-panel;
+  top: calc(anchor(bottom) + var(--space-2));
 }
 
 body:has(#mode-result:not([hidden])) #mode-status {
