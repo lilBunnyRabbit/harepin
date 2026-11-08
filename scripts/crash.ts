@@ -6,11 +6,13 @@ import { ROAD_HALF, World } from "../src/world";
 const SPEC = car_spec(process.argv[2] ?? "coupe");
 
 const world = new World();
-const index = Math.floor(world.road.length / 12) * 3;
-const cp = world.road[index];
+const gate = world.checkpoints[3];
+const cp = world.road[Math.floor((gate.index / world.checkpoints.length) * world.road.length)];
 const off = ROAD_HALF + 1.7;
 const post = { x: cp.x - cp.tz * off, z: cp.z + cp.tx * off };
+if (!world.solids.some((s) => s.kind === "circle" && Math.hypot(s.x - post.x, s.z - post.z) < 0.01)) throw new Error("no gate post where crash.ts aims");
 const HOLD_UNTIL = 8;
+let failed = 0;
 
 // Camber and crown push a car with the wheel straight sideways by up to 0.4 m over the run-up, which decides whether
 // a corner clip connects; hold the line until just before the post, then let go so the hit itself is unsteered.
@@ -43,7 +45,26 @@ for (const [label, lateral] of [
     if (!Number.isFinite(car.pos.x)) throw new Error("NaN");
   }
   const upright = new Vector3(0, 1, 0).applyQuaternion(car.quat).y;
+  const along = (car.pos.x - post.x) * cp.tx + (car.pos.z - post.z) * cp.tz;
+  const through = label === "head-on" && (along > 0 || closest < SPEC.radius);
+  if (through) failed++;
   console.log(
-    `${label}: impact ${impact.toFixed(1)} m/s, closest ${closest.toFixed(2)} m, yaw now ${car.ang.y.toFixed(2)} rad/s, heading change ${(((car.heading - Math.atan2(cp.tx, cp.tz)) * 180) / Math.PI).toFixed(0)}°, upright ${upright.toFixed(2)}`,
+    `${label}: impact ${impact.toFixed(1)} m/s, closest ${closest.toFixed(2)} m, yaw now ${car.ang.y.toFixed(2)} rad/s, heading change ${(((car.heading - Math.atan2(cp.tx, cp.tz)) * 180) / Math.PI).toFixed(0)}°, upright ${upright.toFixed(2)}${through ? "  FAIL: passed the post" : ""}`,
   );
 }
+
+// Nose circle dead on the post centre: the contact has no direction of its own and must still push the car back.
+{
+  const car = new Car(SPEC);
+  const heading = Math.atan2(cp.tx, cp.tz);
+  const x = post.x - cp.tx * SPEC.circles[0];
+  const z = post.z - cp.tz * SPEC.circles[0];
+  car.place(x, world.height(x, z) + 0.75, z, heading);
+  car.vel.set(cp.tx * 5, 0, cp.tz * 5);
+  world.collide(car);
+  const back = (x - car.pos.x) * cp.tx + (z - car.pos.z) * cp.tz;
+  const stopped = back > 0.5 && car.vel.x * cp.tx + car.vel.z * cp.tz <= 0;
+  if (!stopped) failed++;
+  console.log(`dead centre: pushed back ${back.toFixed(2)} m${stopped ? "" : "  FAIL"}`);
+}
+if (failed) throw new Error(`${failed} crash cases failed`);

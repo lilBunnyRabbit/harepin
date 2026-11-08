@@ -19,12 +19,13 @@ import type {
 
 export { fbm } from "./worldgen/noise";
 export { min_radius } from "./worldgen/path";
-export { CELL, N, ROAD_HALF, SIZE } from "./worldgen/types";
+export { CELL, N, ROAD_HALF, SIDEWALK, SIZE } from "./worldgen/types";
 export type { Building, Checkpoint, Lot, ParkingLot, Prop, RoadPoint, Solid, Town, Tree } from "./worldgen/types";
 
 const SOLID_CELL = 16;
 const ROAD_CELL = 32;
 const RESTITUTION = 1.25;
+const LANE_PACK = 1 << 16;
 
 export interface Collider {
   pos: Vector3;
@@ -32,6 +33,13 @@ export interface Collider {
   ang: Vector3;
   readonly heading: number;
   readonly spec: Pick<CarSpec, "mass" | "inertia" | "circles" | "radius">;
+}
+
+export interface Spawn {
+  x: number;
+  y: number;
+  z: number;
+  heading: number;
 }
 
 interface Contact {
@@ -44,13 +52,15 @@ function grid_key(cx: number, cz: number) {
   return (cx + 1000) * 4096 + (cz + 1000);
 }
 
-function circle_contact(solid: Solid, px: number, pz: number, radius: number): Contact | null {
+/** (bx, bz) is the way back out when the circle centre sits on the solid's own centre and has no direction to offer. */
+function circle_contact(solid: Solid, px: number, pz: number, radius: number, bx: number, bz: number): Contact | null {
   const ox = px - solid.x;
   const oz = pz - solid.z;
   if (solid.kind === "circle") {
     const d = Math.sqrt(ox * ox + oz * oz);
     const min = radius + solid.radius;
-    if (d >= min || d < 1e-3) return null;
+    if (d >= min) return null;
+    if (d < 1e-3) return { nx: bx, nz: bz, depth: min - d };
     return { nx: ox / d, nz: oz / d, depth: min - d };
   }
   const { cos, sin, hw, hd } = solid;
@@ -81,6 +91,31 @@ function circle_contact(solid: Solid, px: number, pz: number, radius: number): C
   return { nx: nlx * cos + nlz * sin, nz: -nlx * sin + nlz * cos, depth };
 }
 
+function nearest(grid: Map<number, number[]>, x: number, z: number, at: (item: number) => { x: number; z: number }): number {
+  const cx = Math.floor(x / ROAD_CELL);
+  const cz = Math.floor(z / ROAD_CELL);
+  let best = -1;
+  let dist = Infinity;
+  for (let ring = 0; ring < 64; ring++) {
+    for (let dz = -ring; dz <= ring; dz++)
+      for (let dx = -ring; dx <= ring; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dz)) !== ring) continue;
+        const list = grid.get(grid_key(cx + dx, cz + dz));
+        if (!list) continue;
+        for (const item of list) {
+          const p = at(item);
+          const d = (p.x - x) ** 2 + (p.z - z) ** 2;
+          if (d < dist) {
+            dist = d;
+            best = item;
+          }
+        }
+      }
+    if (best >= 0 && Math.sqrt(dist) <= ring * ROAD_CELL) break;
+  }
+  return best;
+}
+
 export class World implements Ground {
   readonly heights: Float32Array;
   readonly road_dist: Float32Array;
@@ -99,6 +134,8 @@ export class World implements Ground {
   readonly timings: [string, number][];
   private readonly solid_grid = new Map<number, number[]>();
   private readonly road_grid = new Map<number, number[]>();
+  /** Every edge's points, packed as edge * LANE_PACK + point index. */
+  private readonly lane_grid = new Map<number, number[]>();
   private readonly seen: Uint32Array;
   private query = 0;
 
@@ -126,6 +163,14 @@ export class World implements Ground {
       if (list) list.push(index);
       else this.road_grid.set(key, [index]);
     });
+    for (const edge of this.graph.edges)
+      edge.points.forEach((p, index) => {
+        const key = grid_key(Math.floor(p.x / ROAD_CELL), Math.floor(p.z / ROAD_CELL));
+        const list = this.lane_grid.get(key);
+        const packed = edge.id * LANE_PACK + index;
+        if (list) list.push(packed);
+        else this.lane_grid.set(key, [packed]);
+      });
   }
 
   private index_solid(solid: Solid, index: number) {
@@ -165,29 +210,18 @@ export class World implements Ground {
     return this.distance_to_road(x, z) < ROAD_HALF + 3 ? 1 : 12;
   }
 
+  /** Nearest point of the race circuit; its index in `road` places gates and the ghost. */
   nearest_road(x: number, z: number): RoadPoint {
-    const cx = Math.floor(x / ROAD_CELL);
-    const cz = Math.floor(z / ROAD_CELL);
-    let best = -1;
-    let dist = Infinity;
-    for (let ring = 0; ring < 64; ring++) {
-      for (let dz = -ring; dz <= ring; dz++)
-        for (let dx = -ring; dx <= ring; dx++) {
-          if (Math.max(Math.abs(dx), Math.abs(dz)) !== ring) continue;
-          const list = this.road_grid.get(grid_key(cx + dx, cz + dz));
-          if (!list) continue;
-          for (const index of list) {
-            const p = this.road[index];
-            const d = (p.x - x) ** 2 + (p.z - z) ** 2;
-            if (d < dist) {
-              dist = d;
-              best = index;
-            }
-          }
-        }
-      if (best >= 0 && Math.sqrt(dist) <= ring * ROAD_CELL) break;
-    }
-    return this.road[Math.max(0, best)];
+    return this.road[Math.max(0, nearest(this.road_grid, x, z, (index) => this.road[index]))];
+  }
+
+  /** Where a reset puts the car: the nearest point of any road (circuit, spur or street), facing along it the way `fx, fz` points. */
+  spawn_near(x: number, z: number, fx: number, fz: number): Spawn {
+    const point = (packed: number) => this.graph.edges[Math.floor(packed / LANE_PACK)].points[packed % LANE_PACK];
+    const packed = nearest(this.lane_grid, x, z, point);
+    const p = packed < 0 ? this.road[0] : point(packed);
+    const heading = Math.atan2(p.tx, p.tz) + (fx * p.tx + fz * p.tz < 0 ? Math.PI : 0);
+    return { x: p.x, y: this.height(p.x, p.z), z: p.z, heading };
   }
 
   collide(car: Collider): number;
@@ -221,7 +255,7 @@ export class World implements Ground {
             this.seen[index] = stamp;
             const solid = this.solids[index];
             if (pos.y > solid.y + solid.height) continue;
-            const contact = circle_contact(solid, pos.x + fx * offset, pos.z + fz * offset, spec.radius);
+            const contact = circle_contact(solid, pos.x + fx * offset, pos.z + fz * offset, spec.radius, -fx * Math.sign(offset || 1), -fz * Math.sign(offset || 1));
             if (contact) impact = Math.max(impact, this.resolve(car, contact, fx * offset, fz * offset));
           }
         }
