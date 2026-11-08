@@ -3,7 +3,6 @@ import type { Car } from "./car";
 import { car_view, rest_wheels, type CarView } from "./models";
 import { brand, color } from "./palette";
 
-const KEY = "harepin:ghost";
 const STRIDE = 8;
 const EVERY_MS = 100;
 
@@ -14,10 +13,10 @@ function is_lap(value: unknown): value is number[] {
   return true;
 }
 
-function load(): number[] | null {
+function load(key: string): number[] | null {
   let saved: string | null;
   try {
-    saved = localStorage.getItem(KEY);
+    saved = localStorage.getItem(key);
   } catch (error) {
     console.warn("ghost: saved lap unreadable", error);
     return null;
@@ -43,8 +42,11 @@ export class Ghost {
   private a = new THREE.Quaternion();
   private b = new THREE.Quaternion();
 
-  constructor(scene: THREE.Scene) {
-    this.best = load();
+  private readonly key: string;
+
+  constructor(scene: THREE.Scene, seed = 0) {
+    this.key = `harepin:ghost:${seed}`;
+    this.best = load(this.key);
     this.view = car_view(color(brand.cottontail));
     this.view.root.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return;
@@ -77,7 +79,7 @@ export class Ghost {
     if (!improved || !this.recording.length) return;
     this.best = this.recording;
     try {
-      localStorage.setItem(KEY, JSON.stringify(this.best.map((v) => Math.round(v * 1000) / 1000)));
+      localStorage.setItem(this.key, JSON.stringify(this.best.map((v) => Math.round(v * 1000) / 1000)));
     } catch (error) {
       console.warn("ghost: best lap not saved", error);
     }
