@@ -65,6 +65,35 @@ export function place_towns(seed: number, heights: Float32Array, road: RoadPoint
   return towns;
 }
 
+// Streets sit on one least-squares plane so every crossing agrees on its height; per-node terrain heights would give
+// two crossing streets different slopes and tear the surface at the junction.
+function flatten_to_plane(nodes: RoadNode[], town: Town) {
+  let sxx = 0, sxz = 0, szz = 0, sx = 0, sz = 0, sy = 0, sxy = 0, szy = 0;
+  for (const n of nodes) {
+    const x = n.x - town.x;
+    const z = n.z - town.z;
+    sxx += x * x;
+    sxz += x * z;
+    szz += z * z;
+    sx += x;
+    sz += z;
+    sy += n.y;
+    sxy += x * n.y;
+    szy += z * n.y;
+  }
+  const count = nodes.length;
+  const mean_y = sy / count;
+  const cxx = sxx - (sx * sx) / count;
+  const cxz = sxz - (sx * sz) / count;
+  const czz = szz - (sz * sz) / count;
+  const cxy = sxy - (sx * sy) / count;
+  const czy = szy - (sz * sy) / count;
+  const det = cxx * czz - cxz * cxz;
+  const gx = det > 1e-6 ? (cxy * czz - czy * cxz) / det : 0;
+  const gz = det > 1e-6 ? (czy * cxx - cxy * cxz) / det : 0;
+  for (const n of nodes) n.y = mean_y + gx * (n.x - town.x - sx / count) + gz * (n.z - town.z - sz / count);
+}
+
 export interface Streets {
   nodes: RoadNode[];
   edges: RoadEdge[];
@@ -91,6 +120,8 @@ export function town_streets(seed: number, town: Town, heights: Float32Array, ro
       slot.set(key(i, j), nodes.length);
       nodes.push({ id: 0, x, z, y, kind: "junction" });
     }
+  if (nodes.length < 3) return null;
+  flatten_to_plane(nodes, town);
   const links: [number, number][] = [];
   for (let i = -k; i <= k; i++)
     for (let j = -k; j <= k; j++) {

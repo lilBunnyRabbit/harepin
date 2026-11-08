@@ -20,6 +20,7 @@ import {
 } from "./types";
 
 const FRONT_GAP = 3;
+const OTHER_ROAD_CLEAR = ROAD_HALF + 8;
 const CORNER_CLEAR = 7;
 const LOT_RELIEF = 5;
 const BAY_W = 2.6;
@@ -29,6 +30,7 @@ const ENTRY_W = 6;
 const PARKED = { w: 1.9, l: 4.5, h: 1.4 };
 const LIGHT_EVERY = 30;
 const LIGHT_HEIGHT = 6;
+export const ROOF_PITCH = 0.6;
 
 export interface TownLots {
   lots: Lot[];
@@ -54,7 +56,7 @@ export class Lots {
     this.occupied = new Uint8Array(terrain.heights.length);
   }
 
-  private fits(x: number, z: number, w: number, d: number, fx: number, fz: number, town: Town): boolean {
+  private fits(x: number, z: number, w: number, d: number, fx: number, fz: number, town: Town, own: number): boolean {
     const { heights, road_dist } = this.terrain;
     let low = Infinity;
     let high = -Infinity;
@@ -71,7 +73,7 @@ export class Lots {
       high = Math.max(high, y);
     }
     if (low < 3 || high - low > LOT_RELIEF) return false;
-    return this.scan(x, z, w, d, fx, fz, (k) => !this.occupied[k] && road_dist[k] > ROAD_HALF + 1);
+    return this.scan(x, z, w, d, fx, fz, (k) => !this.occupied[k] && road_dist[k] > (this.stamp.edge_of[k] === own ? ROAD_HALF + 1 : OTHER_ROAD_CLEAR));
   }
 
   private scan(x: number, z: number, w: number, d: number, fx: number, fz: number, visit: (k: number) => boolean): boolean {
@@ -106,13 +108,13 @@ export class Lots {
         u += w + 1;
         const x = a.x + tx * along + ox * (edge.half + FRONT_GAP + d / 2);
         const z = a.z + tz * along + oz * (edge.half + FRONT_GAP + d / 2);
-        if (!this.fits(x, z, w, d, -ox, -oz, town)) continue;
+        if (!this.fits(x, z, w, d, -ox, -oz, town, edge.id)) continue;
         this.scan(x, z, w, d, -ox, -oz, (k) => {
           this.occupied[k] = 1;
           return true;
         });
         const y = a.y + (b.y - a.y) * (along / len);
-        this.stamp.pad(x, z, w, d, -ox, -oz, y);
+        this.stamp.pad(x, z, w, d, -ox, -oz, y, edge.id);
         const reach = length(x - town.x, z - town.z) / town.radius;
         const roll = r(3);
         const kind: LotKind = reach < 0.45 ? (roll < 0.55 ? "shop" : roll < 0.8 ? "parking" : "empty") : roll < 0.7 ? "house" : roll < 0.82 ? "parking" : "empty";
@@ -135,7 +137,7 @@ export class Lots {
     const [x, z] = local_to_world(lot, 0, -1);
     const building: Building = { lot: lot.id, x, y: lot.y, z, hw, hd, fx: lot.fx, fz: lot.fz, angle: lot.angle, height, style: Math.floor(r3 * 3), roof };
     this.out.buildings.push(building);
-    this.out.solids.push({ kind: "box", x, y: lot.y, z, hw, hd, cos: lot.fz, sin: lot.fx, height: height + (roof ? hw * 0.6 : 0) });
+    this.out.solids.push({ kind: "box", x, y: lot.y, z, hw, hd, cos: lot.fz, sin: lot.fx, height: height + (roof ? hd * ROOF_PITCH : 0) });
   }
 
   private parking(lot: Lot, index: number) {

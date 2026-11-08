@@ -13,6 +13,7 @@ const RING_BAND = 18;
 const GOAL_FREE = 40;
 const TOWN_MARGIN = 14;
 const SPUR_BAND = 2;
+const HOLD = 10;
 const PIN = 20;
 
 class Heap {
@@ -155,7 +156,8 @@ export class Router {
           if (n >= 0 && n < G * G) this.blocked[n] = 1;
         }
     }
-    return [[from.x, from.z], ...cells, [to.x, to.z]];
+    const clear = (x: number, z: number) => length(x - from.x, z - from.z) > COARSE * 1.5 && length(x - to.x, z - to.z) > COARSE * 1.5;
+    return [[from.x, from.z], ...cells.filter(([x, z]) => clear(x, z)), [to.x, to.z]];
   }
 }
 
@@ -168,8 +170,8 @@ export function spur_points(cells: Path, heights: Float32Array, from_y: number, 
     3,
     false,
   ).map((y, i) => {
-    const head = 1 - smoothstep(0, PIN, i);
-    const tail = 1 - smoothstep(0, PIN, n - 1 - i);
+    const head = 1 - smoothstep(HOLD, HOLD + PIN, i);
+    const tail = 1 - smoothstep(HOLD, HOLD + PIN, n - 1 - i);
     return y + (from_y - y) * head + (to_y - y) * tail;
   });
   return road_points(path, ys, false);

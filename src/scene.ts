@@ -1,9 +1,10 @@
 import * as THREE from "three";
 import { color, lighten, linear, mix, tones } from "./palette";
-import { CELL, N, ROAD_HALF, SIZE, World, fbm } from "./world";
+import { CELL, N, ROAD_HALF, SIZE, World, fbm, type RoadPoint } from "./world";
 
 const JITTER_LIGHTNESS = 0.035;
 const JITTER_LEVELS = 64;
+const LANE_WIDTH = 3;
 const ROCK_HALF = 3;
 const ROCK = 6;
 const SNOW = 7;
@@ -72,26 +73,35 @@ export function terrain_mesh(world: World): THREE.Mesh {
   return mesh;
 }
 
-export function ribbon(world: World, from: number, to: number, lift: number, keep: (s: number) => boolean, tone: THREE.Color, offset: number): THREE.Mesh {
-  const positions: number[] = [];
-  const road = world.road;
-  for (let s = 0; s < road.length; s++) {
+function strip(world: World, positions: number[], road: RoadPoint[], closed: boolean, from: number, to: number, lift: number, keep: (s: number) => boolean) {
+  const segments = closed ? road.length : road.length - 1;
+  const lanes = Math.ceil((to - from) / LANE_WIDTH);
+  for (let s = 0; s < segments; s++) {
     if (!keep(s)) continue;
     const a = road[s];
     const b = road[(s + 1) % road.length];
-    const quad = [
-      [a, from],
-      [a, to],
-      [b, from],
-      [b, to],
-    ].map(([p, side]) => {
-      const pt = p as (typeof road)[number];
-      const x = pt.x - pt.tz * (side as number);
-      const z = pt.z + pt.tx * (side as number);
-      return [x, world.height(x, z) + lift, z];
-    });
-    positions.push(...quad[0], ...quad[1], ...quad[2], ...quad[2], ...quad[1], ...quad[3]);
+    for (let lane = 0; lane < lanes; lane++) {
+      const l0 = from + ((to - from) * lane) / lanes;
+      const l1 = from + ((to - from) * (lane + 1)) / lanes;
+      quad(world, positions, a, b, l0, l1, lift);
+    }
   }
+}
+
+function quad(world: World, positions: number[], a: RoadPoint, b: RoadPoint, from: number, to: number, lift: number) {
+  const at = (p: RoadPoint, side: number) => {
+    const x = p.x - p.tz * side;
+    const z = p.z + p.tx * side;
+    return [x, world.height(x, z) + lift, z];
+  };
+  const a0 = at(a, from);
+  const a1 = at(a, to);
+  const b0 = at(b, from);
+  const b1 = at(b, to);
+  positions.push(...a0, ...a1, ...b0, ...b0, ...a1, ...b1);
+}
+
+function strip_mesh(positions: number[], tone: THREE.Color, offset: number): THREE.Mesh {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
   geometry.computeVertexNormals();
@@ -101,12 +111,38 @@ export function ribbon(world: World, from: number, to: number, lift: number, kee
   return mesh;
 }
 
+export function ribbon(world: World, from: number, to: number, lift: number, keep: (s: number) => boolean, tone: THREE.Color, offset: number): THREE.Mesh {
+  const positions: number[] = [];
+  strip(world, positions, world.road, true, from, to, lift, keep);
+  return strip_mesh(positions, tone, offset);
+}
+
+// Streets run node to node; stretching each end by its half width fills the crossing square.
+function extended(points: RoadPoint[], by: number): RoadPoint[] {
+  const a = points[0];
+  const b = points[points.length - 1];
+  return [{ ...a, x: a.x - a.tx * by, z: a.z - a.tz * by }, ...points, { ...b, x: b.x + b.tx * by, z: b.z + b.tz * by }];
+}
+
 export function road_meshes(world: World): THREE.Object3D {
   const group = new THREE.Group();
+  const junctions = world.graph.nodes.filter((n) => n.kind === "junction" && world.graph.edges.some((e) => e.kind === "highway" && !e.closed && e.b === n.id));
+  const mouths = junctions.map((n) => world.road.indexOf(world.nearest_road(n.x, n.z)));
+  const clear_of_mouths = (s: number) => mouths.every((m) => Math.abs(((s - m + world.road.length * 1.5) % world.road.length) - world.road.length / 2) > 5);
   group.add(ribbon(world, -ROAD_HALF, ROAD_HALF, 0.08, () => true, color(tones.asphalt), -2));
   group.add(ribbon(world, -0.15, 0.15, 0.1, (s) => s % 6 < 3, color(tones.line), -4));
-  group.add(ribbon(world, ROAD_HALF - 0.55, ROAD_HALF - 0.3, 0.1, () => true, color(tones.edge_line), -4));
-  group.add(ribbon(world, -ROAD_HALF + 0.3, -ROAD_HALF + 0.55, 0.1, () => true, color(tones.edge_line), -4));
+  group.add(ribbon(world, ROAD_HALF - 0.55, ROAD_HALF - 0.3, 0.1, clear_of_mouths, color(tones.edge_line), -4));
+  group.add(ribbon(world, -ROAD_HALF + 0.3, -ROAD_HALF + 0.55, 0.1, clear_of_mouths, color(tones.edge_line), -4));
+  const asphalt: number[] = [];
+  const lines: number[] = [];
+  for (const edge of world.graph.edges) {
+    if (edge.closed) continue;
+    const points = edge.kind === "street" ? extended(edge.points, edge.half) : edge.points;
+    strip(world, asphalt, points, false, -edge.half, edge.half, 0.07, () => true);
+    if (edge.kind === "highway") strip(world, lines, edge.points, false, -0.15, 0.15, 0.09, (s) => s % 6 < 3 && s > 8 && s < edge.points.length - 8);
+  }
+  group.add(strip_mesh(asphalt, color(tones.asphalt), -2));
+  group.add(strip_mesh(lines, color(tones.line), -4));
   return group;
 }
 

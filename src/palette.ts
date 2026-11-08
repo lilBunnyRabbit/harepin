@@ -64,6 +64,11 @@ export const tones = {
   check_dark: dark ? brand.background_darkest : brand.foreground,
   check_light: dark ? brand.foreground : brand.background_lightest,
   head: dark ? brand.cottontail : brand.background_lightest,
+  wall: mix(brand.foreground, ground, 0.6),
+  wall_warm: mix(brand.warning, brand.foreground, 0.35),
+  wall_cool: mix(brand.info, brand.foreground, 0.3),
+  roof: mix(brand.error, brand.background_darkest, 0.5),
+  roof_flat: dark ? brand.background_light : mix(brand.foreground, brand.background_darkest, 0.5),
 };
 
 export const car_paints = [brand.primary, brand.secondary, brand.accent, brand.tertiary, brand.info, brand.cottontail, brand.error];
