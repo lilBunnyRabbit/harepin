@@ -1,7 +1,8 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { rest_reach, type Car } from "./car";
-import { COUPE, type CarSpec } from "./cars";
+import type { Level } from "./build";
+import { COUPE, type BodyStyle, type CarSpec, type Triple } from "./cars";
 import { brand, color, dark, mix, tones } from "./palette";
 import { ribbon } from "./scene";
 import { ROAD_HALF, World } from "./world";
@@ -127,71 +128,118 @@ export interface CarView {
   brake: THREE.MeshLambertMaterial;
 }
 
-const GROUND_OFFSET = -0.49;
+type Point = [number, number];
+
+interface Profile {
+  points: Point[];
+  width: number;
+}
+
+/** Side profiles are [z, y] from the ground at rest, +z forward; lamps are [x, y, z] for the left one. */
+interface Shape {
+  body: Profile;
+  trim: Profile;
+  glass: Profile;
+  roof: Profile;
+  head: Triple;
+  tail: Triple;
+  /** Where a bolt-on wing sits: rear deck or roof edge, [z, y]. */
+  deck: Point;
+  tyre: number;
+  extras(paint: THREE.Color, trim: THREE.Color): THREE.BufferGeometry[];
+}
+
+const mirrors = (x: number, y: number, z: number, paint: THREE.Color) => [-1, 1].map((side) => tint(box(0.16, 0.1, 0.2, side * x, y, z), paint));
+
+const SHAPES: Record<BodyStyle, Shape> = {
+  coupe: {
+    body: { points: [[-2.18, 0.3], [2.12, 0.3], [2.3, 0.4], [2.26, 0.56], [1.5, 0.7], [-1.75, 0.8], [-2.24, 0.74], [-2.3, 0.5]], width: 1.86 },
+    trim: { points: [[-2.1, 0.2], [2.2, 0.2], [2.36, 0.33], [-2.2, 0.33]], width: 1.9 },
+    glass: { points: [[1.42, 0.7], [0.42, 1.12], [-0.85, 1.15], [-1.7, 0.8]], width: 1.52 },
+    roof: { points: [[0.3, 1.12], [-0.82, 1.15], [-0.88, 1.2], [0.22, 1.18]], width: 1.44 },
+    head: [0.64, 0.55, 2.24],
+    tail: [0.6, 0.68, -2.27],
+    deck: [-2.0, 0.79],
+    tyre: 0.3,
+    extras: (paint, trim) => [...mirrors(0.98, 0.84, 0.86, paint), tint(box(1.0, 0.14, 0.04, 0, 0.42, 2.3), trim)],
+  },
+  hatch: {
+    body: { points: [[-1.88, 0.28], [1.8, 0.28], [1.95, 0.38], [1.92, 0.55], [1.3, 0.72], [-1.85, 0.82], [-1.95, 0.6]], width: 1.7 },
+    trim: { points: [[-1.85, 0.18], [1.85, 0.18], [1.98, 0.3], [-1.95, 0.3]], width: 1.74 },
+    glass: { points: [[1.25, 0.72], [0.45, 1.18], [-1.55, 1.22], [-1.88, 0.84]], width: 1.48 },
+    roof: { points: [[0.4, 1.18], [-1.5, 1.22], [-1.56, 1.27], [0.32, 1.24]], width: 1.4 },
+    head: [0.56, 0.56, 1.9],
+    tail: [0.6, 0.72, -1.94],
+    deck: [-1.5, 1.17],
+    tyre: 0.26,
+    extras: (paint, trim) => [...mirrors(0.9, 0.86, 1.0, paint), tint(box(0.8, 0.14, 0.04, 0, 0.42, 1.96), trim)],
+  },
+  muscle: {
+    body: { points: [[-2.42, 0.32], [2.4, 0.32], [2.52, 0.42], [2.48, 0.7], [0.9, 0.8], [-1.6, 0.84], [-2.45, 0.82], [-2.52, 0.55]], width: 1.96 },
+    trim: { points: [[-2.4, 0.2], [2.45, 0.2], [2.56, 0.34], [-2.5, 0.34]], width: 2.0 },
+    glass: { points: [[0.85, 0.8], [-0.1, 1.17], [-1.0, 1.19], [-1.65, 0.84]], width: 1.6 },
+    roof: { points: [[-0.15, 1.17], [-0.95, 1.19], [-1.0, 1.24], [-0.2, 1.22]], width: 1.52 },
+    head: [0.7, 0.6, 2.48],
+    tail: [0.68, 0.72, -2.5],
+    deck: [-2.2, 0.83],
+    tyre: 0.36,
+    extras: (paint, trim) => [
+      ...mirrors(1.04, 0.9, 0.6, paint),
+      tint(box(0.5, 0.1, 0.8, 0, 0.82, 1.5), paint),
+      tint(box(0.36, 0.06, 0.04, 0, 0.84, 1.9), trim),
+      tint(box(1.3, 0.16, 0.04, 0, 0.45, 2.55), trim),
+    ],
+  },
+  rally: {
+    body: { points: [[-2.1, 0.36], [2.05, 0.36], [2.2, 0.46], [2.16, 0.62], [1.35, 0.78], [-1.95, 0.86], [-2.2, 0.66]], width: 1.84 },
+    trim: { points: [[-2.05, 0.22], [2.1, 0.22], [2.24, 0.38], [-2.15, 0.38]], width: 1.92 },
+    glass: { points: [[1.3, 0.78], [0.4, 1.24], [-1.45, 1.28], [-1.95, 0.9]], width: 1.52 },
+    roof: { points: [[0.35, 1.24], [-1.4, 1.28], [-1.46, 1.33], [0.27, 1.3]], width: 1.44 },
+    head: [0.62, 0.6, 2.17],
+    tail: [0.62, 0.76, -2.2],
+    deck: [-1.42, 1.23],
+    tyre: 0.3,
+    extras: (paint, trim) => [
+      ...mirrors(0.98, 0.9, 1.0, paint),
+      tint(box(0.34, 0.1, 0.42, 0, 1.37, 0.05), trim),
+      tint(box(1.2, 0.08, 0.08, 0, 1.38, 0.32), trim),
+      ...[-1, 1].map((side) => tint(box(0.3, 0.22, 0.03, side * 0.82, 0.3, -1.68), trim)),
+      tint(box(1.5, 0.08, 0.5, 0, 0.26, 1.9), trim),
+    ],
+  },
+};
+
+function wing(level: Level, style: BodyStyle, width: number, [z, y]: Point, paint: THREE.Color, trim: THREE.Color): THREE.BufferGeometry[] {
+  if (level === 0) {
+    if (style !== "coupe") return [];
+    return [tint(box(1.82, 0.05, 0.42, 0, 1.04, -2.02), paint), ...[-1, 1].map((side) => tint(box(0.06, 0.22, 0.14, side * 0.62, 0.9, -1.98), trim))];
+  }
+  const lift = level === 1 ? 0.24 : 0.4;
+  const span = width * (level === 1 ? 0.92 : 1);
+  const parts = [tint(box(span, level === 1 ? 0.05 : 0.07, level === 1 ? 0.36 : 0.44, 0, y + lift, z - 0.04), paint)];
+  for (const side of [-1, 1]) {
+    parts.push(tint(box(0.06, lift, 0.14, side * width * 0.32, y + lift / 2, z), trim));
+    if (level === 2) parts.push(tint(box(0.04, 0.2, 0.48, (side * span) / 2, y + lift, z - 0.04), trim));
+  }
+  return parts;
+}
 
 // Paint, trim and glass are baked into vertex colours so the whole shell is one draw; a repaint rebuilds the view.
-export function car_view(paint: THREE.Color, spec: CarSpec = COUPE): CarView {
+export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, spoiler: Level = 0): CarView {
+  const style = spec.body.style;
+  const shape = SHAPES[style];
   const root = new THREE.Group();
   const body = new THREE.Group();
-  body.position.y = GROUND_OFFSET;
+  body.position.y = -(rest_reach(spec) - spec.wheel.mounts[0][1]);
   const trim = color(tones.trim);
 
   const shell = merge(
-    tint(
-      extrude(
-        [
-          [-2.18, 0.3],
-          [2.12, 0.3],
-          [2.3, 0.4],
-          [2.26, 0.56],
-          [1.5, 0.7],
-          [-1.75, 0.8],
-          [-2.24, 0.74],
-          [-2.3, 0.5],
-        ],
-        1.86,
-      ),
-      paint,
-    ),
-    tint(
-      extrude(
-        [
-          [-2.1, 0.2],
-          [2.2, 0.2],
-          [2.36, 0.33],
-          [-2.2, 0.33],
-        ],
-        1.9,
-      ),
-      trim,
-    ),
-    tint(
-      extrude(
-        [
-          [1.42, 0.7],
-          [0.42, 1.12],
-          [-0.85, 1.15],
-          [-1.7, 0.8],
-        ],
-        1.52,
-      ),
-      color(tones.glass),
-    ),
-    tint(
-      extrude(
-        [
-          [0.3, 1.12],
-          [-0.82, 1.15],
-          [-0.88, 1.2],
-          [0.22, 1.18],
-        ],
-        1.44,
-      ),
-      paint,
-    ),
-    tint(box(1.82, 0.05, 0.42, 0, 1.04, -2.02), paint),
-    [-1, 1].flatMap((side) => [tint(box(0.06, 0.22, 0.14, side * 0.62, 0.9, -1.98), trim), tint(box(0.16, 0.1, 0.2, side * 0.98, 0.84, 0.86), paint)]),
-    tint(box(1.0, 0.14, 0.04, 0, 0.42, 2.3), trim),
+    tint(extrude(shape.body.points, shape.body.width), paint),
+    tint(extrude(shape.trim.points, shape.trim.width), trim),
+    tint(extrude(shape.glass.points, shape.glass.width), color(tones.glass)),
+    tint(extrude(shape.roof.points, shape.roof.width), paint),
+    wing(spoiler, style, shape.body.width, shape.deck, paint, trim),
+    shape.extras(paint, trim),
   );
   const hull = new THREE.Mesh(shell, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
   hull.castShadow = true;
@@ -200,15 +248,17 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE): CarView {
   const head_material = new THREE.MeshLambertMaterial({ color: head, emissive: head, emissiveIntensity: 1.2 });
   const tail = color(brand.error);
   const brake = new THREE.MeshLambertMaterial({ color: tail, emissive: tail, emissiveIntensity: 0.5 });
-  const heads = merge([-1, 1].map((side) => new THREE.BoxGeometry(0.46, 0.08, 0.1).rotateX(-0.25).translate(side * 0.64, 0.55, 2.24)));
-  const tails = merge([-1, 1].map((side) => box(0.5, 0.1, 0.06, side * 0.6, 0.68, -2.27)));
+  const [hx, hy, hz] = shape.head;
+  const [tx, ty, tz] = shape.tail;
+  const heads = merge([-1, 1].map((side) => new THREE.BoxGeometry(0.46, 0.08, 0.1).rotateX(-0.25).translate(side * hx, hy, hz)));
+  const tails = merge([-1, 1].map((side) => box(0.5, 0.1, 0.06, side * tx, ty, tz)));
   body.add(hull, new THREE.Mesh(heads, head_material), new THREE.Mesh(tails, brake));
   root.add(body);
 
   const radius = spec.wheel.radius;
   const wheel = merge(
-    tint(new THREE.CylinderGeometry(radius, radius, 0.3, 12).rotateZ(Math.PI / 2), color(tones.tyre)),
-    tint(new THREE.CylinderGeometry(0.22, 0.22, 0.32, 6).rotateZ(Math.PI / 2), color(mix(brand.foreground, brand.background_lightest, 0.6))),
+    tint(new THREE.CylinderGeometry(radius, radius, shape.tyre, 12).rotateZ(Math.PI / 2), color(tones.tyre)),
+    tint(new THREE.CylinderGeometry(radius * 0.65, radius * 0.65, shape.tyre + 0.02, 6).rotateZ(Math.PI / 2), color(mix(brand.foreground, brand.background_lightest, 0.6))),
   );
   const wheel_material = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
   const wheels = [0, 1, 2, 3].map(() => {
