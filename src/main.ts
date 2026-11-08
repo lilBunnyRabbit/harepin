@@ -95,9 +95,10 @@ if (!bisect.has("nobloom")) composer.addPass(bloom);
 composer.addPass(new OutputPass());
 
 const garage = new Garage(document.body, build);
-const input = new Input($("touch"));
+const input = new Input($("touch"), renderer.domElement);
 input.blocked = () => garage.is_open || settings.is_open;
 input.touch.start();
+input.mouse.start();
 const audio = new Audio();
 for (const event of ["keydown", "pointerdown", "gamepadconnected"]) addEventListener(event, () => audio.start(), { once: true });
 
@@ -407,7 +408,7 @@ function frame(now: number) {
   sync_car_view(view, car);
   place_contact_shadow(car_shadow, car.pos.x, car.pos.y, car.pos.z, car.heading, world);
   const offroad = world.grip(car.pos.x, car.pos.z) < 1;
-  chase.update(dt, car, world, offroad, now / 1000);
+  chase.update(dt, car, world, offroad, now / 1000, input.look);
   light.follow(car.pos);
 
   smoke.update(dt, car, world);

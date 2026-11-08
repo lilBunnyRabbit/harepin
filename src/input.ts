@@ -19,6 +19,83 @@ const KEY_ACTIONS: Record<string, Action> = {
 };
 
 const IMPACT_VIBRATE_MS = 60;
+const STICK_DEAD = 0.12;
+
+/** Camera look input gathered since the last read. */
+export interface Look {
+  /** Mouse drag in CSS px, +x right, +y down. */
+  dx: number;
+  dy: number;
+  /** Wheel `deltaY` in px, positive pulls the camera out. */
+  zoom: number;
+  /** A mouse button is held on the canvas. */
+  dragging: boolean;
+  /** Right stick after the dead zone, -1..1, +x right, +y down; 0 when centred. */
+  stick_x: number;
+  stick_y: number;
+}
+
+const no_look = (): Look => ({ dx: 0, dy: 0, zoom: 0, dragging: false, stick_x: 0, stick_y: 0 });
+
+/** Left or right drag and the wheel on the game canvas; HUD and panels sit above it and keep their own clicks. */
+export class MouseLook {
+  private dx = 0;
+  private dy = 0;
+  private zoom = 0;
+  private pointer: number | null = null;
+  private last_x = 0;
+  private last_y = 0;
+  private abort: AbortController | null = null;
+
+  constructor(private readonly canvas: HTMLElement) {}
+
+  start() {
+    this.abort = new AbortController();
+    const { signal } = this.abort;
+    const { canvas } = this;
+    canvas.addEventListener("pointerdown", (e) => this.down(e), { signal });
+    canvas.addEventListener("pointermove", (e) => this.move(e), { signal });
+    canvas.addEventListener("lostpointercapture", () => (this.pointer = null), { signal });
+    canvas.addEventListener("contextmenu", (e) => e.preventDefault(), { signal });
+    canvas.addEventListener(
+      "wheel",
+      (e) => {
+        e.preventDefault();
+        this.zoom += e.deltaMode === WheelEvent.DOM_DELTA_LINE ? e.deltaY * 16 : e.deltaY;
+      },
+      { signal, passive: false },
+    );
+  }
+
+  stop() {
+    this.abort?.abort();
+    this.abort = null;
+    this.pointer = null;
+  }
+
+  take(): Pick<Look, "dx" | "dy" | "zoom" | "dragging"> {
+    const look = { dx: this.dx, dy: this.dy, zoom: this.zoom, dragging: this.pointer !== null };
+    this.dx = this.dy = this.zoom = 0;
+    return look;
+  }
+
+  private down(e: PointerEvent) {
+    // Touch steering lives on its own pad; a finger on the bare canvas does nothing for now.
+    if (e.pointerType === "touch" || (e.button !== 0 && e.button !== 2) || this.pointer !== null) return;
+    this.pointer = e.pointerId;
+    this.last_x = e.clientX;
+    this.last_y = e.clientY;
+    this.canvas.setPointerCapture(e.pointerId);
+  }
+
+  private move(e: PointerEvent) {
+    if (e.pointerId !== this.pointer) return;
+    this.dx += e.clientX - this.last_x;
+    this.dy += e.clientY - this.last_y;
+    this.last_x = e.clientX;
+    this.last_y = e.clientY;
+  }
+}
 
 const PAD_ACTIONS: [number, Action][] = [
   [3, "reset"],
@@ -35,11 +112,14 @@ export class Input {
   private pad_prev: boolean[] = [];
   pad: Gamepad | null = null;
   readonly touch: Touch;
+  readonly mouse: MouseLook;
+  look: Look = no_look();
   /** While true (garage or settings open), only the garage key gets through and the car gets no input; those panels close themselves on Escape. */
   blocked: () => boolean = () => false;
 
-  constructor(touch_root: HTMLElement) {
+  constructor(touch_root: HTMLElement, canvas: HTMLElement) {
     this.touch = new Touch(touch_root);
+    this.mouse = new MouseLook(canvas);
     window.addEventListener("keydown", (e) => {
       if (e.repeat || typing(e.target)) return;
       const action = KEY_ACTIONS[e.code];
@@ -77,7 +157,15 @@ export class Input {
     };
     this.rewind = this.down("Backspace");
     const pad = this.pad;
+    this.look = { ...no_look(), ...this.mouse.take() };
     if (pad) {
+      const [x, y] = [pad.axes[2] ?? 0, pad.axes[3] ?? 0];
+      const tilt = Math.hypot(x, y);
+      if (tilt > STICK_DEAD) {
+        const scale = Math.min(1, (tilt - STICK_DEAD) / (1 - STICK_DEAD)) / tilt;
+        this.look.stick_x = x * scale;
+        this.look.stick_y = y * scale;
+      }
       const raw = pad.axes[0] ?? 0;
       const dead = Math.max(0, Math.abs(raw) - 0.08) / 0.92;
       const stick = Math.sign(raw) * dead ** 1.4;
@@ -111,6 +199,7 @@ export class Input {
     actions.push(...touch.take_actions());
     if (this.blocked()) {
       this.rewind = false;
+      this.look = no_look();
       return { controls: { steer: 0, throttle: 0, brake: 0, handbrake: 0, analog: false }, actions: actions.filter((a) => a === "garage") };
     }
     return { controls, actions };
