@@ -116,7 +116,7 @@ export class Input {
   readonly touch: Touch;
   readonly mouse: MouseLook;
   look: Look = no_look();
-  /** While true (garage or settings open), only the garage key gets through and the car gets no input; those panels close themselves on Escape. */
+  /** While true (garage or settings open), only the garage and help keys get through and the car gets no input; those panels close themselves on Escape. */
   blocked: () => boolean = () => false;
 
   constructor(touch_root: HTMLElement, canvas: HTMLElement) {
@@ -126,7 +126,7 @@ export class Input {
       if (e.repeat || typing(e.target)) return;
       const action = KEY_ACTIONS[e.code];
       if (this.blocked()) {
-        if (action === "garage") this.queued.push(action);
+        if (action === "garage" || action === "help") this.queued.push(action);
         return;
       }
       // Escape that closes a popover (menu, modes) is consumed by it, not a request for settings.
@@ -202,7 +202,7 @@ export class Input {
     if (this.blocked()) {
       this.rewind = false;
       this.look = no_look();
-      return { controls: { steer: 0, throttle: 0, brake: 0, handbrake: 0, analog: false }, actions: actions.filter((a) => a === "garage") };
+      return { controls: { steer: 0, throttle: 0, brake: 0, handbrake: 0, analog: false }, actions: actions.filter((a) => a === "garage" || a === "help") };
     }
     return { controls, actions };
   }

@@ -146,7 +146,6 @@ function apply_settings(state: SettingsState) {
   chase.return_delay = CAMERA_RETURN_SECONDS[state.camera_return];
   chase.invert_y = state.invert_y;
   ghost.visible = state.ghost;
-  document.body.classList.toggle("help-hidden", !state.help);
   audio.set_volume(state.volume);
   audio.set_muted(state.muted);
 }
@@ -322,6 +321,8 @@ function fit() {
   camera.updateProjectionMatrix();
 }
 
+const TOGGLE_LABEL = { tcs: "TCS", abs: "ABS", assist: "Steer assist", ghost: "Ghost" } as const;
+
 const DT = 1 / 360;
 // Farther than a step can move: the car was placed (reset, mode restart), so drawing it does not slide from the old spot.
 const TELEPORT_SQ = 1;
@@ -366,15 +367,19 @@ function frame(now: number) {
     if (action === "recenter") chase.recenter();
     if (action === "camera") settings.set("camera", state.camera === CameraView.CHASE ? CameraView.COCKPIT : CameraView.CHASE);
     if (action === "shift_up" || action === "shift_down") {
+      if (state.auto) hud.toast("Manual gearbox");
       settings.set("auto", false);
       car.shift(action === "shift_up" ? 1 : -1);
     }
-    if (action === "auto") settings.set("auto", !state.auto);
-    if (action === "tcs") settings.set("tcs", !state.tcs);
-    if (action === "abs") settings.set("abs", !state.abs);
-    if (action === "assist") settings.set("assist", !state.assist);
-    if (action === "ghost") settings.set("ghost", !state.ghost);
-    if (action === "help") settings.set("help", !state.help);
+    if (action === "auto") {
+      settings.set("auto", !state.auto);
+      hud.toast(state.auto ? "Manual gearbox" : "Auto gearbox");
+    }
+    if (action === "tcs" || action === "abs" || action === "assist" || action === "ghost") {
+      settings.set(action, !state[action]);
+      hud.toast(`${TOGGLE_LABEL[action]} ${state[action] ? "off" : "on"}`);
+    }
+    if (action === "help" && !garage.is_open) settings.is_open ? settings.close() : settings.open_keys();
     if (action === "garage" && !settings.is_open) garage.is_open ? garage.close() : garage.open();
     if (action === "settings" && !garage.is_open) settings.open();
   }

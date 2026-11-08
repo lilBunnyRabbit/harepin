@@ -37,6 +37,7 @@ function row(name: string, time: string, you: boolean, note = ""): HTMLLIElement
 }
 
 const MAP = 200;
+const TOAST_MS = 1200;
 
 export const HudLayout = {
   STRIP: "a",
@@ -55,7 +56,7 @@ export class Hud {
     best: $("best"),
     last: $("last"),
     cp: $("cp"),
-    assists: $("assists"),
+    toast: $("toast"),
     players: $("players"),
     net: $("net"),
     banner: $("banner"),
@@ -69,7 +70,7 @@ export class Hud {
   };
   private map: CanvasRenderingContext2D;
   private road = new Path2D();
-  private assist_key = "";
+  private toast_timer = 0;
   private players_key = "";
   private results_key = "";
 
@@ -99,6 +100,15 @@ export class Hud {
     return [MAP / 2 + (x / SIZE) * MAP * 1.05, MAP / 2 + (z / SIZE) * MAP * 1.05];
   }
 
+  /** A short note in the middle of the screen that fades on its own, for a setting changed by key. */
+  toast(text: string) {
+    const { toast } = this.el;
+    toast.textContent = text;
+    toast.dataset.shown = "";
+    clearTimeout(this.toast_timer);
+    this.toast_timer = window.setTimeout(() => delete toast.dataset.shown, TOAST_MS);
+  }
+
   update(car: Car, now: number, rewinding: boolean) {
     const { el, race } = this;
     el.speed.textContent = String(Math.round(Math.abs(car.forward_speed) * 3.6));
@@ -111,21 +121,6 @@ export class Hud {
     el.best.textContent = format(race.best);
     el.last.textContent = format(race.last);
     el.cp.textContent = race.started ? `${race.next === 0 ? race.gates : race.next} / ${race.gates}` : "drive through the lit gate";
-
-    const assist_key = `${car.tcs}${car.abs}${car.assist}${car.auto}${car.tcs_factor < 0.95}${car.wheels.some((w) => w.abs)}`;
-    if (assist_key !== this.assist_key) {
-      this.assist_key = assist_key;
-      el.assists.innerHTML = (
-        [
-          ["TCS", car.tcs, car.tcs_factor < 0.95],
-          ["ABS", car.abs, car.wheels.some((w) => w.abs)],
-          ["ASSIST", car.assist, false],
-          [car.auto ? "AUTO" : "MANUAL", true, false],
-        ] as const
-      )
-        .map(([label, on, active]) => `<span class="chip" data-on="${on}" data-active="${active}">${label}</span>`)
-        .join("");
-    }
 
     const rows = [
       { name: `${this.net.name} (you)`, best: race.best, you: true },

@@ -53,7 +53,6 @@ export interface SettingsState {
   ghost: boolean;
   hud: HudLayout;
   light: Mood;
-  help: boolean;
   /** Master volume, 0..1. */
   volume: number;
   muted: boolean;
@@ -75,7 +74,6 @@ export const DEFAULT_SETTINGS: SettingsState = {
   ghost: true,
   hud: HudLayout.STRIP,
   light: Mood.GOLDEN,
-  help: true,
   volume: 0.8,
   muted: false,
 };
@@ -106,7 +104,6 @@ export function parse_settings(raw: unknown): SettingsState {
     ghost: bool(s.ghost, d.ghost),
     hud: one_of(Object.values(HudLayout), s.hud, d.hud),
     light: one_of(Object.values(Mood), s.light, d.light),
-    help: bool(s.help, d.help),
     volume,
     muted: bool(s.muted, d.muted),
   };
@@ -197,7 +194,7 @@ const KEYS: [string, string, string, string][] = [
   ["Ghost", "G", "", ""],
   ["TCS / ABS / steer assist", "1 / 2 / 3", "", ""],
   ["Garage", "V", "", ""],
-  ["Help", "H", "", ""],
+  ["This key list", "H", "", ""],
   ["Chat", "T", "", "Chat"],
   ["Settings", "Esc", "", ""],
 ];
@@ -233,6 +230,7 @@ export class Settings {
   private saved: SettingsState;
   private timer = 0;
   private section = "graphics";
+  private keys: HTMLElement | null = null;
 
   constructor(
     private readonly parent: HTMLElement,
@@ -270,6 +268,12 @@ export class Settings {
     this.refresh();
     this.show(this.section, true);
     this.panel.focus();
+  }
+
+  /** Controls, scrolled to the key list: the help key lands here. */
+  open_keys() {
+    this.open("controls");
+    this.keys?.scrollIntoView({ block: "end" });
   }
 
   close() {
@@ -393,7 +397,7 @@ export class Settings {
     return this.row(label, group, hint);
   }
 
-  private toggle_row(key: "tcs" | "abs" | "assist" | "auto" | "invert_y" | "ghost" | "help" | "muted", label: string, hint = ""): HTMLElement {
+  private toggle_row(key: "tcs" | "abs" | "assist" | "auto" | "invert_y" | "ghost" | "muted", label: string, hint = ""): HTMLElement {
     const button = el("button", "settings-switch");
     button.type = "button";
     button.setAttribute("role", "switch");
@@ -536,6 +540,7 @@ export class Settings {
     }
     const wrap = el("div", "settings-keys-wrap");
     wrap.append(table);
+    this.keys = wrap;
     return [
       this.toggle_row("tcs", "Traction control", "Cuts power when the rear wheels spin"),
       this.toggle_row("abs", "Anti-lock brakes", "Keeps steering under hard braking"),
@@ -606,7 +611,6 @@ export class Settings {
         "Lighting",
         "Reloads the page",
       ),
-      this.toggle_row("help", "Key hints", "The key list in the bottom corner"),
     ];
   }
 
