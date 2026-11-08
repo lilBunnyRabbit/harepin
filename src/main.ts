@@ -27,7 +27,7 @@ import { WorldView, load_world, water_mesh } from "./scene";
 import { clouds, sky } from "./sky";
 import { Lighting } from "./lighting";
 import { NanProbe, sanitise_bloom } from "./postfx";
-import { CameraView, Settings, load_settings, type SettingsState } from "./settings";
+import { CAMERA_RETURN_SECONDS, CameraView, Settings, load_settings, type SettingsState } from "./settings";
 import { BUILD, Updater, show_version } from "./update";
 import "./style.css";
 
@@ -139,6 +139,8 @@ function apply_car_settings(state: SettingsState) {
 function apply_settings(state: SettingsState) {
   apply_car_settings(state);
   chase.mode = state.camera === CameraView.COCKPIT ? 1 : 0;
+  chase.return_delay = CAMERA_RETURN_SECONDS[state.camera_return];
+  chase.invert_y = state.invert_y;
   ghost.visible = state.ghost;
   document.body.classList.toggle("help-hidden", !state.help);
   audio.set_volume(state.volume);

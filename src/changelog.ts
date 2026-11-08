@@ -32,6 +32,8 @@ export const CHANGELOG: Release[] = [
       { kind: NEW, text: "Drive with friends in the same room, chat with them, and race them round the lobby circuit." },
       { kind: NEW, text: "Gymkhana: levels of gates and slaloms against the clock, with stars to earn." },
       { kind: NEW, text: "Ghost laps, rewind, assists, themes and settings for graphics, controls, display and sound." },
+      { kind: NEW, text: "Look around your car: drag with the mouse to orbit, scroll to zoom, or use the right stick." },
+      { kind: NEW, text: "Keyboard steering can hold the wheel where you leave it and let it self-centre as you roll." },
       { kind: NEW, text: "Touch controls for phones, held sideways." },
       { kind: NEW, text: "Install Harepin as an app and drive offline; it tells you when a new version is ready." },
     ],

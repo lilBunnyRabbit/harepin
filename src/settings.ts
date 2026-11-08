@@ -22,6 +22,18 @@ export const CameraView = {
 } as const;
 export type CameraView = (typeof CameraView)[keyof typeof CameraView];
 
+/** When a mouse look moved off the chase angle eases back behind the car, once the car drives. */
+export const CameraReturn = {
+  OFF: "off",
+  SHORT: "short",
+  LONG: "long",
+  NEVER: "never",
+} as const;
+export type CameraReturn = (typeof CameraReturn)[keyof typeof CameraReturn];
+
+/** Seconds of driving before the camera eases back; `off` returns at once. */
+export const CAMERA_RETURN_SECONDS: Record<CameraReturn, number> = { off: 0, short: 1.5, long: 3, never: Infinity };
+
 export const LAPS = [1, 2, 3, 5] as const;
 export type Laps = (typeof LAPS)[number];
 
@@ -36,6 +48,8 @@ export interface SettingsState {
   auto: boolean;
   steer_mode: SteerMode;
   camera: CameraView;
+  camera_return: CameraReturn;
+  invert_y: boolean;
   ghost: boolean;
   hud: HudLayout;
   light: Mood;
@@ -56,6 +70,8 @@ export const DEFAULT_SETTINGS: SettingsState = {
   auto: true,
   steer_mode: SteerMode.SNAP,
   camera: CameraView.CHASE,
+  camera_return: CameraReturn.SHORT,
+  invert_y: false,
   ghost: true,
   hud: HudLayout.STRIP,
   light: Mood.GOLDEN,
@@ -85,6 +101,8 @@ export function parse_settings(raw: unknown): SettingsState {
     auto: bool(s.auto, d.auto),
     steer_mode: one_of(Object.values(SteerMode), s.steer_mode, d.steer_mode),
     camera: one_of(Object.values(CameraView), s.camera, d.camera),
+    camera_return: one_of(Object.values(CameraReturn), s.camera_return, d.camera_return),
+    invert_y: bool(s.invert_y, d.invert_y),
     ghost: bool(s.ghost, d.ghost),
     hud: one_of(Object.values(HudLayout), s.hud, d.hud),
     light: one_of(Object.values(Mood), s.light, d.light),
@@ -174,6 +192,7 @@ const KEYS: [string, string, string, string][] = [
   ["Shift up / down", "E / Q", "RB / LB", ""],
   ["Auto gearbox", "M", "", ""],
   ["Camera", "C", "View", "Cam"],
+  ["Look around", "Drag / wheel", "Right stick", ""],
   ["Ghost", "G", "", ""],
   ["TCS / ABS / steer assist", "1 / 2 / 3", "", ""],
   ["Garage", "V", "", ""],
@@ -373,7 +392,7 @@ export class Settings {
     return this.row(label, group, hint);
   }
 
-  private toggle_row(key: "tcs" | "abs" | "assist" | "auto" | "ghost" | "help" | "muted", label: string, hint = ""): HTMLElement {
+  private toggle_row(key: "tcs" | "abs" | "assist" | "auto" | "invert_y" | "ghost" | "help" | "muted", label: string, hint = ""): HTMLElement {
     const button = el("button", "settings-switch");
     button.type = "button";
     button.setAttribute("role", "switch");
@@ -537,6 +556,18 @@ export class Settings {
         ],
         "Camera",
       ),
+      this.choice(
+        "camera_return",
+        [
+          [CameraReturn.OFF, "Off"],
+          [CameraReturn.SHORT, "1.5 s"],
+          [CameraReturn.LONG, "3 s"],
+          [CameraReturn.NEVER, "Never"],
+        ],
+        "Camera returns after",
+        "After a mouse look, once the car drives",
+      ),
+      this.toggle_row("invert_y", "Invert camera Y", "Mouse drag and right stick"),
       this.toggle_row("ghost", "Ghost car", "Your best lap drives beside you"),
       el("h4", "settings-sub", "Keys"),
       wrap,
