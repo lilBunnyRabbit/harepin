@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Harepin</title>
+    <meta name="description" content="Low-poly open-world driving in the browser. Forza-style handling, ghost laps, peer-to-peer multiplayer." />
+    <meta name="theme-color" content="#1a2329" />
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="app"></div>
+    <div id="labels"></div>
+    <div id="loading">Building island…</div>
+    <div id="notice" hidden>
+      <p>Harepin is made for desktop: keyboard or gamepad.</p>
+      <button id="notice-close" type="button">Drive anyway</button>
+    </div>
+
+    <div class="hud top-left">
+      <div class="title">Harepin <span class="dim">room <b id="room"></b></span></div>
+      <div class="room-actions">
+        <button id="invite" type="button">Copy invite link</button>
+        <button id="private" type="button">New private room</button>
+      </div>
+      <label class="theme dim">theme <select id="theme"></select></label>
+      <div class="times">
+        <div><span class="dim">lap</span><b id="lap"></b></div>
+        <div><span class="dim">last</span><b id="last"></b></div>
+        <div><span class="dim">best</span><b id="best"></b></div>
+        <div><span class="dim">gate</span><b id="cp"></b></div>
+      </div>
+    </div>
+
+    <div class="hud top-right">
+      <canvas id="minimap"></canvas>
+      <div class="dim" id="net"></div>
+      <ol id="players"></ol>
+    </div>
+
+    <div id="banner"></div>
+    <div id="delta"></div>
+    <div id="rewind">◂◂ REWIND</div>
+
+    <div class="hud bottom-left">
+      <div id="assists"></div>
+      <div class="hint dim"><kbd>H</kbd> help</div>
+      <div class="keys dim">
+        <kbd>W A S D</kbd> drive · <kbd>Space</kbd> handbrake · <kbd>R</kbd> reset · <kbd>⌫</kbd> rewind · <kbd>C</kbd> camera · <kbd>G</kbd> ghost · <kbd>H</kbd> hide help · <kbd>Q</kbd>/<kbd>E</kbd> shift · <kbd>M</kbd> auto
+        · <kbd>1</kbd> TCS <kbd>2</kbd> ABS <kbd>3</kbd> steer assist · gamepad: RT/LT, A handbrake, Y reset, X rewind, LB/RB shift
+      </div>
+    </div>
+
+    <div class="hud bottom-right">
+      <div class="speedo">
+        <span id="speed">0</span><span class="unit">km/h</span>
+        <span id="gear" data-mode="A">1</span>
+      </div>
+      <div class="rpm"><div id="rpm-fill"></div><div id="shift"></div></div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
