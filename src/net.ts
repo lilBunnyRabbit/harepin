@@ -5,6 +5,7 @@ export type CarState = {
   id: string;
   name: string;
   paint: number;
+  seed: number;
   t: number;
   p: [number, number, number];
   q: [number, number, number, number];
@@ -42,6 +43,8 @@ const CHAT_GAP_MS = 800;
 const CHAT_BURST = 5;
 const CHAT_WINDOW_MS = 10_000;
 
+const MAX_SEED = 0xffffffff;
+
 const finite = (v: unknown, limit: number): v is number => typeof v === "number" && Number.isFinite(v) && Math.abs(v) <= limit;
 const triple = (v: unknown, limit: number): v is [number, number, number] => Array.isArray(v) && v.length === 3 && v.every((x) => finite(x, limit));
 
@@ -51,6 +54,7 @@ function sanitize(raw: unknown, id: string): CarState | null {
   if (!raw || typeof raw !== "object") return null;
   const s = raw as Record<string, unknown>;
   if (!finite(s.t, 1e12) || !triple(s.p, WORLD_LIMIT) || !triple(s.v, 500)) return null;
+  if (!finite(s.seed, MAX_SEED) || !Number.isInteger(s.seed) || s.seed < 0) return null;
   const q = s.q;
   if (!Array.isArray(q) || q.length !== 4 || !q.every((x) => finite(x, 1.01))) return null;
   const length = Math.hypot(...(q as number[]));
@@ -59,6 +63,7 @@ function sanitize(raw: unknown, id: string): CarState | null {
     id,
     name: typeof s.name === "string" ? s.name.slice(0, NAME_LENGTH) : "Player",
     paint: finite(s.paint, 1e3) ? Math.abs(Math.round(s.paint)) : 0,
+    seed: s.seed,
     t: s.t,
     p: s.p,
     q: (q as number[]).map((x) => x / length) as CarState["q"],
@@ -67,6 +72,12 @@ function sanitize(raw: unknown, id: string): CarState | null {
     brake: s.brake === true,
     best: finite(s.best, 1e7) && s.best > 0 ? s.best : null,
   };
+}
+
+export function parse_seed(raw: string | null): number | null {
+  if (raw === null || !/^\d{1,10}$/.test(raw)) return null;
+  const seed = Number(raw);
+  return seed <= MAX_SEED ? seed : null;
 }
 
 export function sanitize_chat(raw: unknown): ChatMsg | null {
@@ -93,6 +104,8 @@ export class RateLimit {
 export class Net {
   readonly id = selfId;
   readonly remotes = new Map<string, Remote>();
+  /** Peers in this room on another seed, by id, with when they were last heard (performance.now ms). */
+  readonly foreign = new Map<string, number>();
   peers = 0;
   status = "connecting";
   on_chat: ((name: string, text: string) => void) | null = null;
@@ -102,7 +115,10 @@ export class Net {
   private chat_limits = new Map<string, RateLimit>();
   private own_chat_limit = new RateLimit();
 
-  constructor(readonly room: string) {
+  constructor(
+    readonly room: string,
+    readonly seed: number,
+  ) {
     this.channel = new BroadcastChannel(`harepin:${room}`);
     this.channel.onmessage = (event: MessageEvent<unknown>) => this.receive_local(event.data);
     try {
@@ -171,6 +187,12 @@ export class Net {
     const state = sanitize(raw, sender);
     if (!state) return;
     const now = performance.now();
+    if (state.seed !== this.seed) {
+      this.foreign.set(state.id, now);
+      this.remotes.delete(state.id);
+      return;
+    }
+    this.foreign.delete(state.id);
     let remote = this.remotes.get(state.id);
     if (remote && state.t - remote.latest.t < MIN_GAP_MS && remote.snapshots.length) return;
     if (!remote) {
@@ -190,6 +212,7 @@ export class Net {
   prune() {
     const now = performance.now();
     for (const [id, remote] of this.remotes) if (now - remote.seen > TIMEOUT) this.remotes.delete(id);
+    for (const [id, seen] of this.foreign) if (now - seen > TIMEOUT) this.foreign.delete(id);
   }
 
   render_time(remote: Remote): number {

@@ -12,12 +12,13 @@ import { Ghost } from "./ghost";
 import { $, Hud } from "./hud";
 import { Input } from "./input";
 import { car_view, contact_shadow, gates, place_contact_shadow, roadside, sync_car_view } from "./models";
-import { Net, type CarState } from "./net";
+import { Net, parse_seed, type CarState } from "./net";
 import { Quality } from "./quality";
 import { brand, car_paints, color, dark, rgba, theme_name, tones } from "./palette";
 import { THEMES, choose_theme } from "./theme";
 import { Race, type RaceSnapshot } from "./race";
 import { Remotes } from "./remotes";
+import { seed_of } from "./rng";
 import { road_meshes, terrain_mesh, tree_meshes, water_mesh } from "./scene";
 import { FOG, SUN_DIR, clouds, sky, sky_tones } from "./sky";
 import { World } from "./world";
@@ -25,11 +26,12 @@ import "./style.css";
 
 const params = new URLSearchParams(location.search);
 const room = params.get("room") ?? "lobby";
+const seed = parse_seed(params.get("seed")) ?? seed_of(room);
 const ADJECTIVES = ["Swift", "Fuzzy", "Lucky", "Bouncy", "Sly", "Brave", "Zippy", "Mellow"];
 const name = params.get("name") ?? `${ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)]} Bunny`;
 
 await new Promise((r) => setTimeout(r, 30));
-const world = new World();
+const world = new World(seed);
 
 const quality = new Quality(params);
 const renderer = new THREE.WebGLRenderer({ antialias: quality.antialias, powerPreference: "high-performance" });
@@ -54,7 +56,7 @@ scene.add(sky(), clouds(), terrain_mesh(world), road_meshes(world), roadside(wor
 const gate_views = gates(world);
 for (const g of gate_views) scene.add(g.group);
 
-const net = new Net(room);
+const net = new Net(room, seed);
 const chat = new Chat(net, name);
 chat.start();
 const paint = Number(params.get("paint") ?? [...net.id].reduce((s, c) => s + c.charCodeAt(0), 0) % car_paints.length);
@@ -203,6 +205,7 @@ setInterval(() => {
     id: net.id,
     name,
     paint,
+    seed,
     t: performance.now(),
     p: car.pos.toArray() as CarState["p"],
     q: car.quat.toArray() as CarState["q"],
@@ -325,7 +328,7 @@ document.head.append(Object.assign(document.createElement("meta"), { name: "them
 
 const invite = $("invite", HTMLButtonElement);
 invite.addEventListener("click", async () => {
-  const link = `${location.origin}${location.pathname}?room=${encodeURIComponent(room)}`;
+  const link = `${location.origin}${location.pathname}?room=${encodeURIComponent(room)}&seed=${seed}`;
   try {
     await navigator.clipboard.writeText(link);
     invite.textContent = "Copied!";

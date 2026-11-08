@@ -103,7 +103,8 @@ export class Hud {
       this.players_key = players_key;
       el.players.innerHTML = rows.map((r) => `<li><span>${escape_html(r.name)}</span><span>${format(r.best)}</span></li>`).join("");
     }
-    el.net.textContent = `${this.net.status} · ${this.net.remotes.size} other${this.net.remotes.size === 1 ? "" : "s"}`;
+    const foreign = this.net.foreign.size;
+    el.net.textContent = `${this.net.status} · ${this.net.remotes.size} other${this.net.remotes.size === 1 ? "" : "s"}${foreign ? ` · ${foreign} peer${foreign === 1 ? "" : "s"} on a different map` : ""}`;
 
     const lap_flashing = race.lap_flash && now - race.lap_flash < 2600;
     el.banner.style.opacity = lap_flashing ? "1" : "0";
