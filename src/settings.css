@@ -1,0 +1,578 @@
+.settings {
+  --set-panel: var(--background-light);
+  --set-well: var(--background-darker);
+  --set-raised: var(--background-lightest);
+  --set-soft: color-mix(in oklch, var(--set-well) 60%, var(--set-panel));
+  --set-line: color-mix(in oklch, var(--foreground) 12%, transparent);
+  --set-dim: color-mix(in oklch, var(--foreground) 62%, transparent);
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: color-mix(in oklch, var(--background-darkest) 40%, transparent);
+  color: var(--foreground);
+  font-size: 13px;
+  user-select: none;
+}
+
+:root[data-scheme="light"] .settings {
+  --set-panel: var(--background-light);
+  --set-well: var(--background-dark);
+  --set-raised: var(--background);
+  --set-line: color-mix(in oklch, var(--foreground) 16%, transparent);
+  --set-dim: color-mix(in oklch, var(--foreground) 72%, transparent);
+}
+
+.settings[hidden] {
+  display: none;
+}
+
+.settings-panel {
+  position: fixed;
+  display: grid;
+  overflow: hidden;
+  border-radius: 16px;
+  border: 1px solid var(--set-line);
+  background: var(--set-panel);
+  box-shadow: 0 24px 64px color-mix(in oklch, var(--background-darkest) 50%, transparent);
+}
+
+.settings-head {
+  grid-area: head;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 14px 12px 20px;
+  border-bottom: 1px solid var(--set-line);
+}
+
+.settings-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.011em;
+}
+
+.settings button {
+  font: inherit;
+  color: var(--foreground);
+  cursor: pointer;
+}
+
+.settings button:focus-visible,
+.settings input:focus-visible,
+.settings select:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.settings-close {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+}
+
+.settings-close:hover {
+  background: var(--set-well);
+}
+
+.settings-close svg,
+.settings-tab svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.settings-tabs {
+  grid-area: tabs;
+  display: flex;
+  gap: 2px;
+}
+
+.settings-tab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--set-dim);
+  white-space: nowrap;
+}
+
+.settings-tab:hover {
+  color: var(--foreground);
+  background: color-mix(in oklch, var(--set-well) 60%, transparent);
+}
+
+.settings-tab[aria-current="true"] {
+  color: var(--foreground);
+  background: var(--set-well);
+}
+
+.settings-tab[aria-current="true"] svg {
+  color: var(--primary);
+}
+
+.settings-body {
+  grid-area: body;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.settings-page {
+  display: grid;
+}
+
+.settings-page[hidden] {
+  display: none;
+}
+
+.settings-page-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--set-dim);
+}
+
+.settings-sub {
+  margin: 8px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--set-dim);
+}
+
+.settings-row {
+  display: grid;
+  gap: 8px;
+  align-items: center;
+}
+
+.settings-row-inline {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+}
+
+.settings-panel:focus {
+  outline: none;
+}
+
+.settings-label {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-label span {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.settings-label small {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--set-dim);
+}
+
+.settings-choice {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--set-well);
+}
+
+.settings-choice button {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--set-dim);
+  white-space: nowrap;
+}
+
+.settings-choice button:hover {
+  color: var(--foreground);
+}
+
+.settings-choice button[aria-checked="true"] {
+  color: var(--foreground);
+  background: var(--set-raised);
+  box-shadow: 0 1px 2px color-mix(in oklch, var(--background-darkest) 30%, transparent);
+}
+
+.settings-switch {
+  justify-self: start;
+  position: relative;
+  width: 44px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--set-line);
+  border-radius: 999px;
+  background: var(--set-well);
+}
+
+.settings-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--set-dim);
+  transition: translate 140ms ease-out, background-color 140ms ease-out;
+}
+
+.settings-switch[aria-checked="true"] {
+  border-color: color-mix(in oklch, var(--primary) 45%, transparent);
+}
+
+.settings-switch[aria-checked="true"] .settings-knob {
+  translate: 18px 0;
+  background: var(--primary);
+}
+
+.settings-action {
+  justify-self: start;
+  padding: 7px 12px;
+  border: 1px solid var(--set-line);
+  border-radius: 8px;
+  background: var(--set-raised);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.settings-action:hover {
+  border-color: color-mix(in oklch, var(--foreground) 30%, transparent);
+}
+
+.settings-inline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.settings-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.settings-number {
+  font-variant-numeric: tabular-nums;
+}
+
+.settings-input,
+.settings-select {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 10px;
+  border: 1px solid var(--set-line);
+  border-radius: 8px;
+  background: var(--set-soft);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 14px;
+  user-select: text;
+}
+
+.settings-input::placeholder {
+  color: var(--set-dim);
+}
+
+.settings-select option {
+  background: var(--set-panel);
+  color: var(--foreground);
+}
+
+.settings-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 16px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--set-soft);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.settings-status > span:first-child {
+  flex-basis: 100%;
+}
+
+.settings-stat {
+  display: inline-flex;
+  gap: 6px;
+  font-weight: 400;
+  color: var(--set-dim);
+}
+
+.settings-stat b {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.settings-volume {
+  width: 100%;
+}
+
+.settings-volume .settings-value {
+  min-width: 4ch;
+  text-align: right;
+}
+
+.settings-range {
+  --fill: 0%;
+  flex: 1;
+  min-width: 0;
+  height: 6px;
+  margin: 0;
+  appearance: none;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--primary) var(--fill), var(--set-well) var(--fill));
+  cursor: pointer;
+}
+
+.settings-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--primary);
+  background: var(--set-raised);
+}
+
+.settings-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--primary);
+  background: var(--set-raised);
+}
+
+.settings-range:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.settings-keys-wrap {
+  overflow-x: auto;
+  border-radius: 10px;
+  background: var(--set-soft);
+}
+
+.settings-keys {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.settings-keys th,
+.settings-keys td {
+  padding: 6px 10px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.settings-keys thead th {
+  font-weight: 600;
+  color: var(--set-dim);
+}
+
+.settings-keys tbody th {
+  font-weight: 400;
+}
+
+.settings-keys tbody tr + tr > * {
+  border-top: 1px solid var(--set-line);
+}
+
+.settings-touch {
+  color: var(--set-dim);
+}
+
+.settings-keys kbd {
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: var(--set-raised);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+/* A: side sheet. The world stays visible on the left, so quality and lighting changes show while the sheet is open. */
+.settings[data-layout="a"] {
+  background: color-mix(in oklch, var(--background-darkest) 20%, transparent);
+}
+
+.settings[data-layout="a"] .settings-panel {
+  top: 12px;
+  right: 12px;
+  bottom: 12px;
+  width: min(560px, calc(100% - 24px));
+  grid-template: "head head" auto "tabs body" 1fr / 148px 1fr;
+}
+
+.settings[data-layout="a"] .settings-tabs {
+  flex-direction: column;
+  padding: 12px 8px;
+  border-right: 1px solid var(--set-line);
+}
+
+.settings[data-layout="a"] .settings-page {
+  gap: 20px;
+  padding: 20px 20px 24px;
+}
+
+.settings[data-layout="a"] .settings-page-title {
+  display: none;
+}
+
+.settings[data-layout="b"] .settings-panel {
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  width: min(760px, calc(100% - 32px));
+  max-height: calc(100dvh - 32px);
+  grid-template: "head" auto "tabs" auto "body" 1fr / 1fr;
+}
+
+.settings[data-layout="b"] .settings-tabs {
+  overflow-x: auto;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--set-line);
+  scrollbar-width: none;
+}
+
+.settings[data-layout="b"] .settings-tab {
+  gap: 8px;
+  padding: 6px 12px;
+}
+
+.settings[data-layout="b"] .settings-page {
+  gap: 4px;
+  padding: 20px 20px 12px;
+}
+
+.settings[data-layout="b"] .settings-page + .settings-page {
+  border-top: 1px solid var(--set-line);
+}
+
+.settings[data-layout="b"] .settings-page-title {
+  margin-bottom: 8px;
+}
+
+.settings[data-layout="b"] .settings-row:not(.settings-row-inline) {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 300px);
+}
+
+.settings[data-layout="b"] .settings-row {
+  gap: 24px;
+  padding: 10px 0;
+}
+
+.settings[data-layout="b"] .settings-switch,
+.settings[data-layout="b"] .settings-action {
+  justify-self: end;
+}
+
+.settings[data-layout="b"] .settings-inline {
+  justify-content: flex-end;
+}
+
+.settings[data-layout="b"] .settings-status {
+  margin: 4px 0 8px;
+}
+
+@media (max-height: 500px) {
+  .settings-head {
+    padding: 8px 10px 8px 16px;
+  }
+
+  .settings-title {
+    font-size: 15px;
+  }
+
+  .settings[data-layout="a"] .settings-panel {
+    top: calc(8px + env(safe-area-inset-top));
+    right: calc(8px + env(safe-area-inset-right));
+    bottom: calc(8px + env(safe-area-inset-bottom));
+    width: min(560px, calc(100% - 16px - env(safe-area-inset-right)));
+    grid-template-columns: 72px 1fr;
+  }
+
+  .settings[data-layout="a"] .settings-tabs {
+    padding: 6px;
+  }
+
+  .settings[data-layout="a"] .settings-tab {
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 4px;
+    font-size: 11px;
+  }
+
+  .settings[data-layout="a"] .settings-page {
+    gap: 16px;
+    padding: 14px 16px 18px;
+  }
+
+  .settings[data-layout="b"] .settings-panel {
+    width: calc(100% - 16px - env(safe-area-inset-left) - env(safe-area-inset-right));
+    max-height: calc(100dvh - 16px);
+  }
+
+  .settings[data-layout="b"] .settings-tabs {
+    padding: 4px 10px;
+  }
+
+  .settings[data-layout="b"] .settings-page {
+    padding: 14px 16px 8px;
+  }
+
+  .settings[data-layout="b"] .settings-row {
+    padding: 6px 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-knob {
+    transition: none;
+  }
+}
+
+#settings-btn {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-left: 6px;
+  padding: 0;
+  align-self: center;
+  border-radius: 8px;
+}
+
+#settings-btn svg {
+  width: 20px;
+  height: 20px;
+}
