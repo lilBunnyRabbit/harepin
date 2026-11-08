@@ -53,6 +53,8 @@ export class Touch {
       "pointerdown",
       (e) => {
         if (e.pointerType !== "touch") return;
+        // Entering fullscreen closes any open popover, so a first tap on a menu button would open and lose it at once.
+        if (e.target instanceof Element && e.target.closest("button, [popover]")) return;
         first_touch.abort();
         void this.fullscreen();
       },

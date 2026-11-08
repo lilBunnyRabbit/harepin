@@ -85,6 +85,13 @@
           <span class="dim">room <b id="room"></b></span>
           <button type="button" id="garage-btn" aria-label="Garage" title="Garage"><svg aria-hidden="true"><use href="#icon-car" /></svg></button>
           <button type="button" id="settings-btn" aria-label="Settings" title="Settings (Esc)"><svg aria-hidden="true"><use href="#icon-settings" /></svg></button>
+          <button type="button" id="modes-btn" popovertarget="modes">Modes</button>
+        </div>
+        <div id="modes" popover>
+          <div class="modes-head"><b>Gymkhana</b><span class="dim" id="gym-stars"></span></div>
+          <ol id="gym-levels"></ol>
+          <div class="modes-head"><b>Lobby race</b><span class="dim" id="race-record"></span></div>
+          <button type="button" id="free-drive">Free drive</button>
         </div>
         <div id="menu" popover>
           <div class="room-actions">
@@ -123,6 +130,17 @@
     <div id="race-panel" class="hud" hidden>
       <div id="race-status"></div>
       <ol id="race-results"></ol>
+    </div>
+    <div id="mode-status" class="hud" hidden></div>
+    <div id="mode-result" class="hud" hidden>
+      <div id="mode-result-title" class="title"></div>
+      <div id="mode-result-stars"></div>
+      <div id="mode-result-lines"></div>
+      <div class="room-actions">
+        <button type="button" id="mode-retry">Retry</button>
+        <button type="button" id="mode-next">Next level</button>
+        <button type="button" id="mode-exit">Free drive</button>
+      </div>
     </div>
     <div id="rewind">◂◂ REWIND</div>
 

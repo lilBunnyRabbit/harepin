@@ -1143,3 +1143,106 @@ body:not([data-hud="c"]) #speed {
   font: 11px/1.4 var(--font-mono);
   pointer-events: none;
 }
+
+#modes-btn {
+  align-self: center;
+  margin-left: 6px;
+}
+
+#modes {
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  width: min(320px, calc(100vw - 32px));
+  max-height: calc(100vh - 96px);
+  overflow: auto;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in oklch, var(--foreground) 12%, transparent);
+  background: var(--surface-raised);
+  color: var(--foreground);
+  font-size: 13px;
+}
+
+#modes:popover-open {
+  display: flex;
+  position: fixed;
+  inset: 64px auto auto 16px;
+}
+
+.modes-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+#gym-levels {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+#gym-levels button {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  text-align: left;
+}
+
+#gym-levels button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+#mode-status {
+  top: 64px;
+  left: 50%;
+  translate: -50% 0;
+  white-space: nowrap;
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+
+#mode-status[hidden],
+#mode-result[hidden] {
+  display: none;
+}
+
+#mode-result {
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  display: grid;
+  gap: 8px;
+  min-width: 240px;
+  text-align: center;
+}
+
+#mode-result-stars {
+  font-size: 32px;
+  letter-spacing: 4px;
+  color: var(--primary);
+}
+
+#mode-result-lines div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+#mode-result .room-actions {
+  justify-content: center;
+  margin: 0;
+}
+
+@media (pointer: coarse) {
+  #mode-status {
+    top: calc(64px + env(safe-area-inset-top));
+  }
+}

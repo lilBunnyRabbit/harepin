@@ -15,6 +15,7 @@ import { Ghost } from "./ghost";
 import { $, Hud } from "./hud";
 import { Input } from "./input";
 import { Lobby, min_lap_ms } from "./lobby";
+import { Modes } from "./modes/modes";
 import { car_view, contact_shadow, dispose_car_view, gates, place_contact_shadow, roadside, sync_car_view } from "./models";
 import { Net, clean_name, parse_seed, type CarState } from "./net";
 import { Quality } from "./quality";
@@ -97,8 +98,10 @@ race.on_lap = (improved) => {
   ghost.finish(improved);
   lobby.lap(performance.now());
 };
+const SPAWN_INDEX = -40;
 lobby.on_start = () => {
-  spawn_at(-40);
+  modes.exit();
+  spawn_at(SPAWN_INDEX);
   race.reset();
   history.length = 0;
 };
@@ -125,13 +128,27 @@ function spawn_at(index: number, reverse = false) {
   chase.snap(car);
 }
 
+// In a lobby race a reset stays on the circuit; free driving drops the car on the nearest street.
 function reset() {
-  const near = world.nearest_road(car.pos.x, car.pos.z);
   const f = new THREE.Vector3(0, 0, 1).applyQuaternion(car.quat);
-  spawn_at(world.road.indexOf(near), f.x * near.tx + f.z * near.tz < 0);
+  if (lobby.busy) {
+    const near = world.nearest_road(car.pos.x, car.pos.z);
+    spawn_at(world.road.indexOf(near), f.x * near.tx + f.z * near.tz < 0);
+    return;
+  }
+  const spot = world.spawn_near(car.pos.x, car.pos.z, f.x, f.z);
+  car.place(spot.x, spot.y + 0.75, spot.z, spot.heading);
+  chase.snap(car);
 }
 
-spawn_at(-40);
+spawn_at(SPAWN_INDEX);
+
+const modes = new Modes(scene, world, SPAWN_INDEX, () => lobby.record, (x, y, z, heading) => {
+  car.place(x, y, z, heading);
+  chase.snap(car);
+  history.length = 0;
+});
+modes.start();
 
 garage.on_change = (next) => {
   const { pos, heading, auto, tcs, abs, assist } = car;
@@ -292,7 +309,10 @@ function frame(now: number) {
   last = now;
   const { controls, actions } = input.read();
   for (const action of actions) {
-    if (action === "reset") reset();
+    if (action === "reset") {
+      if (modes.active) modes.restart();
+      else reset();
+    }
     if (action === "camera") chase.mode = (chase.mode + 1) % 2;
     if (action === "shift_up" || action === "shift_down") {
       car.auto = false;
@@ -308,7 +328,7 @@ function frame(now: number) {
   }
 
   lobby.update(now);
-  if (input.rewind && history.length > 1 && !lobby.busy) {
+  if (input.rewind && history.length > 1 && !lobby.busy && !modes.active) {
     rewinding = true;
     rewind_step(now);
     acc = 0;
@@ -344,6 +364,7 @@ function frame(now: number) {
   race.update(car.pos.x, car.pos.z, now);
   update_gates(now / 1000);
   ghost.update(race.started ? now - race.started : null);
+  modes.update(now, dt, car);
   sync_car_view(view, car);
   place_contact_shadow(car_shadow, car.pos.x, car.pos.y, car.pos.z, car.heading, world);
   const offroad = world.grip(car.pos.x, car.pos.z) < 1;
@@ -392,6 +413,7 @@ if (import.meta.env.DEV)
         return car;
       },
       garage,
+      modes,
       net,
       input,
       lobby,
