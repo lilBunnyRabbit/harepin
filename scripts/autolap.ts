@@ -33,7 +33,7 @@ export function autolap(world: World, spec: CarSpec = COUPE): Lap {
     const curve = Math.abs(Math.atan2(Math.sin(Math.atan2(far.tx, far.tz) - Math.atan2(here.tx, here.tz)), 1));
     const target = curve > 0.5 ? 20 : curve > 0.25 ? 30 : 42;
     car.step(DT, { steer: Math.max(-1, Math.min(1, -err * 3)), throttle: speed < target ? 1 : 0, brake: speed > target + 4 ? 0.7 : 0, handbrake: 0, analog: true }, world);
-    world.collide(car.pos, car.vel, car.ang, car.heading);
+    world.collide(car);
     t += DT;
     const d = world.distance_to_road(car.pos.x, car.pos.z);
     worst = Math.max(worst, d);

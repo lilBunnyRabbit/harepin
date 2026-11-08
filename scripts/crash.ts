@@ -10,10 +10,24 @@ const index = Math.floor(world.road.length / 12) * 3;
 const cp = world.road[index];
 const off = ROAD_HALF + 1.7;
 const post = { x: cp.x - cp.tz * off, z: cp.z + cp.tx * off };
+const HOLD_UNTIL = 8;
+
+// Camber and crown push a car with the wheel straight sideways by up to 0.4 m over the run-up, which decides whether
+// a corner clip connects; hold the line until just before the post, then let go so the hit itself is unsteered.
+function hold_line(car: Car, lateral: number): number {
+  const along = (car.pos.x - post.x) * cp.tx + (car.pos.z - post.z) * cp.tz;
+  if (along > -HOLD_UNTIL) return 0;
+  const aim = Math.min(-HOLD_UNTIL / 2, along + 15);
+  const ax = post.x + cp.tx * aim - cp.tz * lateral;
+  const az = post.z + cp.tz * aim + cp.tx * lateral;
+  const want = Math.atan2(ax - car.pos.x, az - car.pos.z);
+  const err = Math.atan2(Math.sin(want - car.heading), Math.cos(want - car.heading));
+  return Math.max(-1, Math.min(1, -err * 3));
+}
 
 for (const [label, lateral] of [
   ["head-on", 0],
-  ["corner clip", -1.4],
+  ["corner clip", -(SPEC.radius + 0.35)],
 ] as const) {
   const car = new Car(SPEC);
   const back = 45;
@@ -23,8 +37,8 @@ for (const [label, lateral] of [
   let impact = 0;
   let closest = Infinity;
   for (let t = 0; t < 5; t += 1 / 360) {
-    car.step(1 / 360, { steer: 0, throttle: 1, brake: 0, handbrake: 0, analog: true }, world);
-    impact = Math.max(impact, world.collide(car.pos, car.vel, car.ang, car.heading));
+    car.step(1 / 360, { steer: hold_line(car, lateral), throttle: 1, brake: 0, handbrake: 0, analog: true }, world);
+    impact = Math.max(impact, world.collide(car));
     closest = Math.min(closest, Math.hypot(car.pos.x - post.x, car.pos.z - post.z));
     if (!Number.isFinite(car.pos.x)) throw new Error("NaN");
   }
