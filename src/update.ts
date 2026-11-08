@@ -7,7 +7,7 @@ import "./update.css";
 declare const __HAREPIN_VERSION__: VersionInfo;
 export const BUILD: VersionInfo = __HAREPIN_VERSION__;
 
-const CHECK_EVERY_MS = 60 * 60 * 1000;
+const CHECK_EVERY_MS = 30 * 60 * 1000;
 const VISIBLE_CHECK_GAP_MS = 60 * 1000;
 const BUSY_POLL_MS = 1500;
 // updateSW(true) reloads once the new worker takes control; past this, clear this app's worker and caches instead.
@@ -74,7 +74,11 @@ export class Updater {
     this.update_sw = registerSW({
       immediate: true,
       onNeedRefresh: () => void this.offer(),
-      onRegisteredSW: (_url, registration) => (this.registration = registration ?? null),
+      // The browser's own check runs about a minute after load; asking now shows a waiting update on reload.
+      onRegisteredSW: (_url, registration) => {
+        this.registration = registration ?? null;
+        this.check();
+      },
     });
     this.check_timer = window.setInterval(this.check, CHECK_EVERY_MS);
     document.addEventListener("visibilitychange", this.on_visible);

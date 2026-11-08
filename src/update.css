@@ -4,16 +4,20 @@
   color: var(--dim);
 }
 
+/* Under whatever holds the top: the dock (title and, in C and on phones, the strip) or the top-centre strip / key list. */
 .update-card {
   position: fixed;
   z-index: 40;
-  top: var(--inset-top);
+  position-anchor: --top-dock;
+  top: calc(anchor(bottom) + var(--space-2));
+  bottom: var(--inset-bottom);
   left: 50%;
   translate: -50% 0;
   display: grid;
   gap: var(--space-2);
   width: min(380px, calc(100vw - var(--inset-left) - var(--inset-right)));
-  max-height: calc(100dvh - var(--inset-top) - var(--inset-bottom));
+  height: fit-content;
+  max-height: stretch;
   padding: var(--space-4);
   border-radius: var(--radius-lg);
   border: 1px solid var(--line);
@@ -21,6 +25,13 @@
   color: var(--foreground);
   font-size: var(--text-md);
   box-shadow: var(--panel-shadow);
+}
+
+@media (pointer: fine) {
+  body[data-hud="a"] .update-card,
+  body[data-hud="b"] .update-card {
+    position-anchor: --top-centre;
+  }
 }
 
 .update-title {
