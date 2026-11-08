@@ -135,7 +135,7 @@ export class Remotes {
     const visible = this.screen.z < 1 && root.position.distanceTo(camera.position) < 400;
     rv.label.style.display = visible ? "block" : "none";
     if (visible) {
-      rv.label.textContent = s.name;
+      rv.label.textContent = this.net.display_name(remote);
       rv.label.style.transform = `translate(${((this.screen.x + 1) / 2) * innerWidth}px, ${((1 - this.screen.y) / 2) * innerHeight}px) translate(-50%, -100%)`;
     }
   }
