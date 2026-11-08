@@ -16,6 +16,10 @@ export interface Controls {
   analog: boolean;
 }
 
+/** How keyboard steering behaves on release: `snap` springs back to centre, `hold` leaves the wheel where it is and lets it self-centre as the car rolls. */
+export const SteerMode = { SNAP: "snap", HOLD: "hold" } as const;
+export type SteerMode = (typeof SteerMode)[keyof typeof SteerMode];
+
 export const CAR_BODY = { mass: COUPE.mass, yaw_inertia: COUPE.inertia[1] };
 const GRAVITY = 9.81;
 const SPIN_SLIP = 0.15;
@@ -24,6 +28,9 @@ const KEY_RAMP = 0.2;
 const KEY_RAMP_MIN = 0.03;
 const KEY_RAMP_SPEED = 30;
 const KEY_RETURN = 2.5;
+const HOLD_TIME = 0.4;
+// Released, a held wheel centres over this many metres rolled: 0.5 s at 100 km/h, about 25 s of creeping at 2 km/h.
+const HOLD_CENTRE_DISTANCE = 14;
 
 // Normalised magic formula: peak at s = 1, sliding grip sin(C·π/2) ≈ 65% of peak.
 const MF_C = 1.55;
@@ -125,6 +132,7 @@ export class Car {
   throttle = 0;
   /** Keyboard steer after the speed-scaled ramp, -1..1; follows the stick directly for analog input. */
   key_steer = 0;
+  steer_mode: SteerMode = SteerMode.SNAP;
 
   constructor(readonly spec: CarSpec = COUPE) {
     this.wheels = spec.wheel.mounts.map(([x, y, z]) => new Wheel(new Vector3(x, y, z), z > 0, x > 0, spec));
@@ -210,7 +218,16 @@ export class Car {
     const lock = this.assist ? Math.min(spec.lock, grip_lock) : spec.lock / (1 + speed / 45);
     // A key is full stick at once, which at speed makes every tap a full-lock flick; ramp it like a thumb would.
     if (input.analog) this.key_steer = input.steer;
-    else {
+    else if (this.steer_mode === SteerMode.HOLD) {
+      // Hands off, the caster turns the wheel back only as the car rolls: parked it stays put, at speed it centres fast.
+      if (input.steer === 0) {
+        const step = (speed * dt) / HOLD_CENTRE_DISTANCE;
+        this.key_steer -= Math.sign(this.key_steer) * Math.min(Math.abs(this.key_steer), step);
+      } else {
+        const step = ((input.steer * this.key_steer < 0 ? KEY_RETURN : 1) / HOLD_TIME) * dt;
+        this.key_steer += Math.max(-step, Math.min(step, input.steer - this.key_steer));
+      }
+    } else {
       const full = KEY_RAMP * Math.min(1, speed / KEY_RAMP_SPEED) + KEY_RAMP_MIN;
       const back = input.steer === 0 || input.steer * this.key_steer < 0;
       const step = ((back ? KEY_RETURN : 1) / full) * dt;

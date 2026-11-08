@@ -1,6 +1,6 @@
 import { Vector3 } from "three";
 import { car_spec } from "../src/cars";
-import { Car, type Controls, type Ground } from "../src/car";
+import { Car, SteerMode, type Controls, type Ground } from "../src/car";
 
 const SPEC = car_spec(process.argv[2] ?? "coupe");
 
@@ -218,4 +218,36 @@ for (const tcs of [true, false]) {
   let peak = 0;
   run(car, 1, (t) => cruise(car, 100, { steer: t < 0.15 ? 1 : 0 }), flat, () => (peak = Math.max(peak, Math.abs(car.ang.y))));
   note("150 ms key tap at 100 km/h", `peak yaw ${peak.toFixed(3)} rad/s`);
+}
+
+{
+  const car = fresh(flat, (c) => (c.steer_mode = SteerMode.HOLD));
+  run(car, 2, () => ({ ...idle, steer: 1 }));
+  const full = car.steer;
+  run(car, 2, () => idle);
+  const parked = car.steer;
+  const target = 2;
+  run(car, 1, () => ({ ...idle, throttle: Math.max(0, Math.min(1, 0.08 + (target - kmh(car)) * 0.3)) }));
+  note("hold: parked, steer then release", `wheel ${full.toFixed(3)} -> ${parked.toFixed(3)} rad after 2 s at 0 km/h, ${car.steer.toFixed(3)} after 1 s at ${kmh(car).toFixed(1)} km/h`);
+}
+
+{
+  const car = fresh(flat, (c) => (c.steer_mode = SteerMode.HOLD));
+  let reach = -1;
+  run(car, 2, () => ({ ...idle, steer: 1 }), flat, (t) => {
+    if (reach < 0 && car.steer >= car.spec.lock * 0.99) reach = t;
+  });
+  note("hold: parked, key to full lock", `${reach.toFixed(2)} s`);
+}
+
+{
+  const car = fresh(flat, (c) => (c.steer_mode = SteerMode.HOLD));
+  get_to(car, 100);
+  run(car, 0.5, () => cruise(car, 100, { steer: 1 }));
+  const held = car.steer;
+  let centred = -1;
+  run(car, 2, () => cruise(car, 100), flat, (t) => {
+    if (centred < 0 && Math.abs(car.steer) < Math.abs(held) * 0.1) centred = t;
+  });
+  note("hold: release at 100 km/h", `wheel ${held.toFixed(3)} rad -> 10% in ${centred.toFixed(2)} s, yaw after 2 s ${car.ang.y.toFixed(3)} rad/s`);
 }
