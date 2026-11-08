@@ -34,6 +34,14 @@ Run `typecheck` and `build` before every commit. A change to `car.ts`, `world.ts
 - Architecture is the owner's call: a new state layer, manager, event system, persistence format or dependency gets asked before the first edit, with options lightest first.
 - Conventional commits (`feat:`, `fix:`, `refactor:`, `docs:`, `chore:`), short bullet body. Renames go in their own `refactor:` commit.
 
+## Versioning
+
+Semver, and `package.json` `version` is the only source. The build stamps it into the bundle (`__HAREPIN_VERSION__`) and into `dist/version.json` with the newest releases from `src/changelog.ts`; `src/update.ts` shows them when a new service worker is waiting.
+
+- A release is one `feat:`/`fix:` commit (or a run of them) plus a bump: `fix:` → patch, `feat:` → minor, a save or room format that old builds can't read → major. `refactor:`/`chore:`/`docs:` alone don't bump.
+- Bump `package.json` and add an entry at the top of `CHANGELOG` in `src/changelog.ts` in the same commit: version, date, a short title, one line per change the player would notice, written for the player (`NEW`, `IMPROVED`, `FIXED`). `src/version.test.ts` fails when the two disagree.
+- The update card never reloads during a lobby race or a gymkhana run; keep whatever counts as a run behind the `Updater` busy callback in `main.ts`.
+
 ## Tests
 
 webos uses Vitest (unit in Node, browser tests in Chromium via Playwright), tests beside their source as `*.test.ts`. Here: `bun test` for pure logic, `src/{module}.test.ts` beside the module, no fakes for what can run for real. Sim behaviour is checked by asserting on the `scripts/*.ts` numbers. Rendering is checked by eye in the browser.

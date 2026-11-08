@@ -28,6 +28,7 @@ import { clouds, sky } from "./sky";
 import { Lighting } from "./lighting";
 import { NanProbe, sanitise_bloom } from "./postfx";
 import { CameraView, Settings, load_settings, type SettingsState } from "./settings";
+import { Updater, show_version } from "./update";
 import "./style.css";
 
 const params = new URLSearchParams(location.search);
@@ -37,6 +38,7 @@ const ADJECTIVES = ["Swift", "Fuzzy", "Lucky", "Bouncy", "Sly", "Brave", "Zippy"
 const random_name = `${ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)]} Bunny`;
 const prefs = load_settings(params);
 
+show_version($("loading"));
 const { world, chunks } = await load_world(seed);
 
 const quality = new Quality(params, prefs.quality);
@@ -178,6 +180,8 @@ const modes = new Modes(scene, world, SPAWN_INDEX, () => lobby.record, (x, y, z,
   history.length = 0;
 }, () => lobby.busy);
 modes.start();
+const updater = new Updater(() => lobby.busy || modes.active);
+updater.start();
 
 garage.on_change = (next) => {
   const { pos, heading } = car;
