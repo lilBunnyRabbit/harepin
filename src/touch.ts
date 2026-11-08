@@ -42,7 +42,7 @@ export class Touch {
     this.root.addEventListener("pointermove", (e) => this.move(e), { signal });
     this.root.addEventListener("lostpointercapture", (e) => this.release(e.pointerId), { signal });
     this.root.addEventListener("contextmenu", (e) => e.preventDefault(), { signal });
-    addEventListener("pointerdown", (e) => e.pointerType === "touch" && void this.fullscreen(), { once: true, signal });
+    document.addEventListener("pointerdown", (e) => e.pointerType === "touch" && void this.fullscreen(), { once: true, signal });
   }
 
   stop() {

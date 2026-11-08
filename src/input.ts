@@ -36,15 +36,15 @@ export class Input {
 
   constructor(touch_root: HTMLElement) {
     this.touch = new Touch(touch_root);
-    addEventListener("keydown", (e) => {
+    window.addEventListener("keydown", (e) => {
       if (e.repeat || typing(e.target)) return;
       this.keys.add(e.code);
       const action = KEY_ACTIONS[e.code];
       if (action) this.queued.push(action);
       if (e.code.startsWith("Arrow") || e.code === "Space" || e.code === "Backspace") e.preventDefault();
     });
-    addEventListener("keyup", (e) => this.keys.delete(e.code));
-    addEventListener("blur", () => this.keys.clear());
+    window.addEventListener("keyup", (e) => this.keys.delete(e.code));
+    window.addEventListener("blur", () => this.keys.clear());
   }
 
   private down(...codes: string[]) {

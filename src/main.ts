@@ -52,7 +52,7 @@ sun.shadow.normalBias = 0.015;
 scene.add(sun, sun.target);
 quality.apply(renderer, scene, sun);
 
-scene.add(sky(), clouds(), terrain_mesh(world), road_meshes(world), roadside(world), water_mesh(), tree_meshes(world));
+scene.add(sky(), clouds(world.seed), terrain_mesh(world), road_meshes(world), roadside(world), water_mesh(), tree_meshes(world));
 const gate_views = gates(world);
 for (const g of gate_views) scene.add(g.group);
 

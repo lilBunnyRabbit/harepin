@@ -19,7 +19,7 @@ export class Chat {
   start() {
     this.abort = new AbortController();
     const { signal } = this.abort;
-    addEventListener(
+    window.addEventListener(
       "keydown",
       (e) => {
         if (e.repeat || typing(e.target) || (e.code !== "Enter" && e.code !== "KeyT")) return;
