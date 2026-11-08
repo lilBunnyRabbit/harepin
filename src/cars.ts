@@ -175,6 +175,8 @@ export const MUSCLE: CarSpec = {
   id: "muscle",
   name: "Muscle",
   mass: 1650,
+  // Pitch is low for the mass on purpose: at ~3300 the car lands rocking when dropped on a 20% slope and rolls away,
+  // because the parking hold is divided by the tyre solve's stiffness. Revisit when the P2 parking task fixes that.
   inertia: [2600, 3500, 720],
   wheel: { radius: 0.36, rest: 0.37, mounts: mounts(0.88, 0.1, 1.4, 1.4) },
   wheelbase: 2.8,
