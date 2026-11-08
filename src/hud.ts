@@ -45,10 +45,6 @@ export const HudLayout = {
 } as const;
 export type HudLayout = (typeof HudLayout)[keyof typeof HudLayout];
 
-const LAYOUTS: readonly string[] = Object.values(HudLayout);
-const asked = new URLSearchParams(location.search).get("hud");
-export const hud_layout: HudLayout = asked && LAYOUTS.includes(asked) ? (asked as HudLayout) : HudLayout.STRIP;
-
 export class Hud {
   private el = {
     speed: $("speed"),
@@ -81,12 +77,12 @@ export class Hud {
     private world: World,
     private race: Race,
     private net: Net,
-    private name: string,
     room: string,
     private lobby: Lobby,
+    layout: HudLayout,
   ) {
     $("room").textContent = room;
-    document.body.dataset.hud = hud_layout;
+    document.body.dataset.hud = layout;
     document.documentElement.dataset.scheme = dark ? "dark" : "light";
     const canvas = $("minimap", HTMLCanvasElement);
     canvas.width = MAP * devicePixelRatio;
@@ -132,7 +128,7 @@ export class Hud {
     }
 
     const rows = [
-      { name: `${this.name} (you)`, best: race.best, you: true },
+      { name: `${this.net.name} (you)`, best: race.best, you: true },
       ...[...this.net.remotes.values()].map((r) => ({ name: this.net.display_name(r), best: r.latest.best, you: false })),
     ];
     rows.sort((a, b) => (a.best ?? Infinity) - (b.best ?? Infinity));

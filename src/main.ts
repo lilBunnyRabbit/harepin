@@ -17,7 +17,7 @@ import { Input } from "./input";
 import { Lobby, min_lap_ms } from "./lobby";
 import { Modes } from "./modes/modes";
 import { car_view, contact_shadow, dispose_car_view, gates, place_contact_shadow, roadside, sync_car_view } from "./models";
-import { Net, clean_name, parse_seed, type CarState } from "./net";
+import { Net, parse_seed, type CarState } from "./net";
 import { Quality } from "./quality";
 import { brand, car_paints, color, rgba, theme_name, tones } from "./palette";
 import { THEMES, choose_theme } from "./theme";
@@ -27,6 +27,7 @@ import { seed_of } from "./rng";
 import { road_meshes, terrain_mesh, tree_meshes, water_mesh } from "./scene";
 import { clouds, sky } from "./sky";
 import { Lighting } from "./lighting";
+import { CameraView, Settings, load_settings, type SettingsState } from "./settings";
 import { World } from "./world";
 import "./style.css";
 
@@ -34,12 +35,13 @@ const params = new URLSearchParams(location.search);
 const room = params.get("room") ?? "lobby";
 const seed = parse_seed(params.get("seed")) ?? seed_of(room);
 const ADJECTIVES = ["Swift", "Fuzzy", "Lucky", "Bouncy", "Sly", "Brave", "Zippy", "Mellow"];
-const name = clean_name(params.get("name") ?? `${ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)]} Bunny`);
+const random_name = `${ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)]} Bunny`;
+const prefs = load_settings(params);
 
 await new Promise((r) => setTimeout(r, 30));
 const world = new World(seed);
 
-const quality = new Quality(params);
+const quality = new Quality(params, prefs.quality);
 const renderer = new THREE.WebGLRenderer({ antialias: quality.antialias, powerPreference: "high-performance" });
 renderer.setPixelRatio(quality.ratio);
 renderer.setSize(innerWidth, innerHeight, false);
@@ -49,7 +51,7 @@ $("app").append(renderer.domElement);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(64, innerWidth / innerHeight, 0.1, 5000);
 
-const light = new Lighting(scene);
+const light = new Lighting(scene, prefs.light);
 const sun = light.sun;
 quality.apply(renderer, scene, sun);
 
@@ -57,8 +59,8 @@ scene.add(...light.dress(sky(), clouds(world.seed)), terrain_mesh(world), road_m
 const gate_views = gates(world);
 for (const g of gate_views) scene.add(g.group);
 
-const net = new Net(room, seed, name);
-const chat = new Chat(net, name);
+const net = new Net(room, seed, prefs.name ?? random_name);
+const chat = new Chat(net);
 chat.start();
 const build = load_build(params.get("car"));
 const build_view = (b: Build, spec = build_spec(b)) => car_view(color(car_paints[b.paint % car_paints.length]), spec, b.spoiler);
@@ -82,7 +84,7 @@ composer.addPass(new OutputPass());
 
 const garage = new Garage(document.body, build);
 const input = new Input($("touch"));
-input.blocked = () => garage.is_open;
+input.blocked = () => garage.is_open || settings.is_open;
 input.touch.start();
 const audio = new Audio();
 for (const event of ["keydown", "pointerdown", "gamepadconnected"]) addEventListener(event, () => audio.start(), { once: true });
@@ -90,9 +92,9 @@ for (const event of ["keydown", "pointerdown", "gamepadconnected"]) addEventList
 const race = new Race(world);
 const chase = new ChaseCamera(camera);
 const remotes = new Remotes(scene, $("labels"), net, world);
-const lobby = new Lobby(net, name, min_lap_ms(world.checkpoints), seed);
+const lobby = new Lobby(net, min_lap_ms(world.checkpoints), seed);
 lobby.start();
-const hud = new Hud(world, race, net, name, room, lobby);
+const hud = new Hud(world, race, net, room, lobby, prefs.hud);
 const ghost = new Ghost(scene, world.seed);
 race.on_lap = (improved) => {
   ghost.finish(improved);
@@ -107,20 +109,37 @@ lobby.on_start = () => {
 };
 race.on_start = () => ghost.start();
 
-const HELP_KEY = "harepin:help";
-const set_help = (shown: boolean) => {
-  document.body.classList.toggle("help-hidden", !shown);
-  try {
-    localStorage.setItem(HELP_KEY, String(shown));
-  } catch {}
+const settings = new Settings(document.body, {
+  room,
+  seed,
+  name: () => net.name,
+  quality_status: () => ({ tier: quality.tier_name, ratio: quality.ratio, bloom: quality.tier.bloom, shadow_size: quality.tier.shadow_size }),
+  race_busy: () => lobby.busy,
+  toggle_race: (laps) => (lobby.busy ? lobby.leave() : lobby.call(laps)),
+}, prefs);
+
+function apply_car_settings(state: SettingsState) {
+  Object.assign(car, { tcs: state.tcs, abs: state.abs, assist: state.assist, auto: state.auto });
+}
+
+function apply_settings(state: SettingsState) {
+  apply_car_settings(state);
+  chase.mode = state.camera === CameraView.COCKPIT ? 1 : 0;
+  ghost.visible = state.ghost;
+  document.body.classList.toggle("help-hidden", !state.help);
+  audio.set_volume(state.volume);
+  audio.set_muted(state.muted);
+}
+
+settings.on_change = (state, key) => {
+  if (key === "quality") {
+    quality.set_mode(state.quality);
+    quality.apply(renderer, scene, sun);
+  } else if (key === "name") net.set_name(state.name ?? random_name);
+  else apply_settings(state);
 };
-set_help((() => {
-  try {
-    return localStorage.getItem(HELP_KEY) !== "false";
-  } catch {
-    return true;
-  }
-})());
+apply_settings(prefs);
+$("settings-btn").addEventListener("click", () => settings.open());
 
 function spawn_at(index: number, reverse = false) {
   const p = world.road[(index + world.road.length) % world.road.length];
@@ -151,10 +170,10 @@ const modes = new Modes(scene, world, SPAWN_INDEX, () => lobby.record, (x, y, z,
 modes.start();
 
 garage.on_change = (next) => {
-  const { pos, heading, auto, tcs, abs, assist } = car;
+  const { pos, heading } = car;
   car = new Car(build_spec(next));
   car.place(pos.x, Math.max(pos.y, world.height(pos.x, pos.z)) + 0.25, pos.z, heading);
-  Object.assign(car, { auto, tcs, abs, assist });
+  apply_car_settings(settings.state);
   scene.remove(view.root);
   dispose_car_view(view);
   view = build_view(next, car.spec);
@@ -287,7 +306,7 @@ let last_rumble = 0;
 setInterval(() => {
   const state: CarState = {
     id: net.id,
-    name,
+    name: net.name,
     paint: garage.build.paint,
     b: build_code(garage.build),
     seed,
@@ -313,18 +332,20 @@ function frame(now: number) {
       if (modes.active) modes.restart();
       else reset();
     }
-    if (action === "camera") chase.mode = (chase.mode + 1) % 2;
+    const state = settings.state;
+    if (action === "camera") settings.set("camera", state.camera === CameraView.CHASE ? CameraView.COCKPIT : CameraView.CHASE);
     if (action === "shift_up" || action === "shift_down") {
-      car.auto = false;
+      settings.set("auto", false);
       car.shift(action === "shift_up" ? 1 : -1);
     }
-    if (action === "auto") car.auto = !car.auto;
-    if (action === "tcs") car.tcs = !car.tcs;
-    if (action === "abs") car.abs = !car.abs;
-    if (action === "assist") car.assist = !car.assist;
-    if (action === "ghost") ghost.visible = !ghost.visible;
-    if (action === "help") set_help(document.body.classList.contains("help-hidden"));
-    if (action === "garage") garage.is_open ? garage.close() : garage.open();
+    if (action === "auto") settings.set("auto", !state.auto);
+    if (action === "tcs") settings.set("tcs", !state.tcs);
+    if (action === "abs") settings.set("abs", !state.abs);
+    if (action === "assist") settings.set("assist", !state.assist);
+    if (action === "ghost") settings.set("ghost", !state.ghost);
+    if (action === "help") settings.set("help", !state.help);
+    if (action === "garage" && !settings.is_open) garage.is_open ? garage.close() : garage.open();
+    if (action === "settings" && !garage.is_open) settings.open();
   }
 
   lobby.update(now);
@@ -332,7 +353,7 @@ function frame(now: number) {
     rewinding = true;
     rewind_step(now);
     acc = 0;
-  } else if (lobby.state.kind === "countdown" || garage.is_open) {
+  } else if (lobby.state.kind === "countdown" || garage.is_open || (settings.is_open && net.remotes.size === 0)) {
     rewinding = false;
     acc = 0;
   } else {
@@ -414,6 +435,10 @@ if (import.meta.env.DEV)
       },
       garage,
       modes,
+      settings,
+      quality,
+      audio,
+      chase,
       net,
       input,
       lobby,

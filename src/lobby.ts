@@ -50,7 +50,6 @@ export class Lobby {
 
   constructor(
     private net: Net,
-    private name: string,
     private min_lap: number,
     seed: number,
     private readonly store: Store | null = local_store(),
@@ -95,7 +94,7 @@ export class Lobby {
       return;
     }
     const time = now - state.go;
-    this.add({ id: this.net.id, name: this.name, time, you: true });
+    this.add({ id: this.net.id, name: this.net.name, time, you: true });
     const place = this.finishers.findIndex((f) => f.you) + 1;
     const result = add_race(this.record, state.laps, time, state.rivals > 0 && place <= PODIUM);
     this.record = result.record;

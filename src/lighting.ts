@@ -10,10 +10,6 @@ export const Mood = {
 } as const;
 export type Mood = (typeof Mood)[keyof typeof Mood];
 
-const MOODS: readonly string[] = Object.values(Mood);
-const asked = new URLSearchParams(location.search).get("light");
-export const mood: Mood = asked && MOODS.includes(asked) ? (asked as Mood) : Mood.GOLDEN;
-
 type SkyKey = "zenith" | "upper" | "horizon_sun" | "horizon_away";
 
 interface MoodSpec {
@@ -158,14 +154,15 @@ const DAY: Record<Mood, MoodSpec> = {
   },
 };
 
-export const spec = (dark ? DUSK : DAY)[mood];
-
 export class Lighting {
   readonly sun: THREE.DirectionalLight;
-  readonly bloom = { strength: spec.bloom, threshold: spec.bloom_threshold };
+  readonly bloom: { strength: number; threshold: number };
+  private readonly spec: MoodSpec;
   private key_dir: THREE.Vector3;
 
-  constructor(scene: THREE.Scene) {
+  constructor(scene: THREE.Scene, mood: Mood) {
+    const spec = (this.spec = (dark ? DUSK : DAY)[mood]);
+    this.bloom = { strength: spec.bloom, threshold: spec.bloom_threshold };
     // The sky shader and clouds read SUN_DIR when built, so it is set before `sky()` and `clouds()` run.
     const flat = Math.hypot(SUN_DIR.x, SUN_DIR.z);
     const horizontal = Math.sqrt(1 - spec.sun_y * spec.sun_y);
@@ -185,16 +182,16 @@ export class Lighting {
     sky.traverse((o) => {
       if (!(o instanceof THREE.Mesh) || !(o.material instanceof THREE.ShaderMaterial)) return;
       const uniforms = o.material.uniforms;
-      for (const [key, tone] of Object.entries(spec.sky ?? {})) uniforms[key]?.value.copy(color(tone));
+      for (const [key, tone] of Object.entries(this.spec.sky ?? {})) uniforms[key]?.value.copy(color(tone));
     });
     clouds.traverse((o) => {
-      if (o instanceof THREE.Mesh && o.material instanceof THREE.MeshLambertMaterial) o.material.emissiveIntensity = spec.cloud_glow;
+      if (o instanceof THREE.Mesh && o.material instanceof THREE.MeshLambertMaterial) o.material.emissiveIntensity = this.spec.cloud_glow;
     });
     return [sky, clouds];
   }
 
   mount(car_root: THREE.Object3D) {
-    const headlight = new THREE.SpotLight(color(tones.head), spec.head_intensity, spec.head_range, 0.42, 0.55, 1.4);
+    const headlight = new THREE.SpotLight(color(tones.head), this.spec.head_intensity, this.spec.head_range, 0.42, 0.55, 1.4);
     headlight.position.set(0, 0.1, 2.0);
     headlight.target.position.set(0, -1.2, 14);
     car_root.add(headlight, headlight.target);

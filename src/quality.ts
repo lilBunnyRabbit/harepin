@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import type { QualityMode, QualityTier } from "./settings";
 
 export interface Tier {
   max_ratio: number;
@@ -20,6 +21,10 @@ const MOBILE: Tier[] = [
   { max_ratio: 0.85, bloom: false, shadow_size: 0, fog_far: 700 },
 ];
 
+const DESKTOP_LEVELS: Record<QualityTier, number> = { high: 0, medium: 1, low: 2 };
+// Phones have two tiers: high and medium share the first.
+const MOBILE_LEVELS: Record<QualityTier, number> = { high: 0, medium: 0, low: 1 };
+
 const SLOW_FRAME = 1 / 45;
 const WINDOW_SECONDS = 3;
 const SLOW_SHARE = 0.6;
@@ -32,10 +37,25 @@ export class Quality {
   private tiers: Tier[];
   private sampled = -WARMUP_SECONDS;
   private slow_time = 0;
+  private mode: QualityMode = "auto";
 
-  constructor(params: URLSearchParams) {
+  constructor(params: URLSearchParams, mode: QualityMode) {
     this.mobile = params.get("quality") === "low" || matchMedia("(pointer: coarse)").matches;
     this.tiers = this.mobile ? MOBILE : DESKTOP;
+    this.set_mode(mode);
+  }
+
+  /** A fixed tier stops adapting; auto starts again from the top and steps down when frames run slow. */
+  set_mode(mode: QualityMode) {
+    this.mode = mode;
+    this.level = mode === "auto" ? 0 : (this.mobile ? MOBILE_LEVELS : DESKTOP_LEVELS)[mode];
+    this.sampled = -WARMUP_SECONDS;
+    this.slow_time = 0;
+  }
+
+  get tier_name(): QualityTier {
+    if (this.mobile) return this.level === 0 ? "high" : "low";
+    return this.level === 0 ? "high" : this.level === 1 ? "medium" : "low";
   }
 
   get tier(): Tier {
@@ -57,7 +77,7 @@ export class Quality {
   }
 
   adapt(dt: number): boolean {
-    if (this.level >= this.tiers.length - 1) return false;
+    if (this.mode !== "auto" || this.level >= this.tiers.length - 1) return false;
     this.sampled += dt;
     if (this.sampled < 0) return false;
     if (dt > SLOW_FRAME) this.slow_time += dt;

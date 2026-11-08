@@ -30,7 +30,11 @@ function drive_curve(amount: number): Float32Array<ArrayBuffer> {
   return curve;
 }
 
+const MASTER_GAIN = 0.55;
+
 export class Audio {
+  private volume = 1;
+  private muted = false;
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
   private noise: AudioBuffer | null = null;
@@ -46,13 +50,28 @@ export class Audio {
   private gravel: GainNode | null = null;
   private last_rpm = 0;
 
+  private gain(): number {
+    return this.muted ? 0 : MASTER_GAIN * this.volume;
+  }
+
+  /** 0..1; kept until `start()` when the context doesn't exist yet. */
+  set_volume(volume: number) {
+    this.volume = Math.min(1, Math.max(0, volume));
+    this.master?.gain.setTargetAtTime(this.gain(), this.master.context.currentTime, 0.02);
+  }
+
+  set_muted(muted: boolean) {
+    this.muted = muted;
+    this.master?.gain.setTargetAtTime(this.gain(), this.master.context.currentTime, 0.02);
+  }
+
   start() {
     if (this.ctx) return;
     const ctx = new AudioContext();
     this.ctx = ctx;
     this.noise = noise_buffer(ctx);
     const master = ctx.createGain();
-    master.gain.value = 0.55;
+    master.gain.value = this.gain();
     const limiter = ctx.createDynamicsCompressor();
     master.connect(limiter).connect(ctx.destination);
     this.master = master;

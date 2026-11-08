@@ -164,11 +164,14 @@ export class Net {
   private chat_limits = new Map<string, RateLimit>();
   private own_chat_limit = new RateLimit(OWN_CHAT_GAP_MS, OWN_CHAT_BURST);
 
+  private name_: string;
+
   constructor(
     readonly room: string,
     readonly seed: number,
-    readonly name: string,
+    name: string,
   ) {
+    this.name_ = clean_name(name);
     this.channel = new BroadcastChannel(`harepin:${room}`);
     this.channel.onmessage = (event: MessageEvent<unknown>) => this.receive_local(event.data);
     try {
@@ -198,6 +201,14 @@ export class Net {
       console.warn("p2p unavailable, same-browser tabs only", error);
       this.status = "local only";
     }
+  }
+
+  get name(): string {
+    return this.name_;
+  }
+
+  set_name(name: string) {
+    this.name_ = clean_name(name);
   }
 
   send(state: CarState) {

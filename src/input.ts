@@ -1,7 +1,7 @@
 import type { Controls } from "./car";
 import { Touch } from "./touch";
 
-export type Action = "reset" | "camera" | "shift_up" | "shift_down" | "auto" | "tcs" | "abs" | "assist" | "ghost" | "help" | "garage";
+export type Action = "reset" | "camera" | "shift_up" | "shift_down" | "auto" | "tcs" | "abs" | "assist" | "ghost" | "help" | "garage" | "settings";
 
 const KEY_ACTIONS: Record<string, Action> = {
   KeyR: "reset",
@@ -15,6 +15,7 @@ const KEY_ACTIONS: Record<string, Action> = {
   KeyG: "ghost",
   KeyH: "help",
   KeyV: "garage",
+  Escape: "settings",
 };
 
 const IMPACT_VIBRATE_MS = 60;
@@ -34,7 +35,7 @@ export class Input {
   private pad_prev: boolean[] = [];
   pad: Gamepad | null = null;
   readonly touch: Touch;
-  /** While true (an open garage), only the garage action gets through and the car gets no input. */
+  /** While true (garage or settings open), only the garage key gets through and the car gets no input; those panels close themselves on Escape. */
   blocked: () => boolean = () => false;
 
   constructor(touch_root: HTMLElement) {
@@ -46,6 +47,8 @@ export class Input {
         if (action === "garage") this.queued.push(action);
         return;
       }
+      // Escape that closes a popover (menu, modes) is consumed by it, not a request for settings.
+      if (action === "settings" && document.querySelector(":popover-open")) return;
       this.keys.add(e.code);
       if (action) this.queued.push(action);
       if (e.code.startsWith("Arrow") || e.code === "Space" || e.code === "Backspace") e.preventDefault();

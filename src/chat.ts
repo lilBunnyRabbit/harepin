@@ -13,7 +13,6 @@ export class Chat {
 
   constructor(
     private net: Net,
-    private name: string,
   ) {}
 
   start() {
@@ -43,7 +42,7 @@ export class Chat {
         e.preventDefault();
         const sent = this.net.send_chat(this.field.value);
         if (!sent && this.field.value.trim()) return;
-        if (sent) this.add(this.name, sent, true);
+        if (sent) this.add(this.net.name, sent, true);
         this.close();
       },
       { signal },
