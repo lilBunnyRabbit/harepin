@@ -222,7 +222,9 @@ export class Car {
       target += Math.sign(beta) * Math.max(0, Math.abs(beta) - 0.1) * 0.8;
     }
     target = Math.max(-spec.lock, Math.min(spec.lock, target));
-    this.steer += Math.max(-STEER_RATE * dt, Math.min(STEER_RATE * dt, target - this.steer));
+    // At speed the ramped key input moves slower than either limit; at parking speed this keeps the old keyboard feel.
+    const rate = input.analog ? STEER_RATE : Math.max(1.6, lock * 6) * (input.steer === 0 ? 1.6 : 1);
+    this.steer += Math.max(-rate * dt, Math.min(rate * dt, target - this.steer));
 
     const driven = this.wheels.filter((w) => w.driven);
     const wheel_omega = driven.reduce((sum, w) => sum + w.omega, 0) / driven.length;
