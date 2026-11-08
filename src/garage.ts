@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { DEFAULT_BUILD, build_code, build_spec, parse_build, type Build } from "./build";
-import { CARS } from "./cars";
+import { CARS, is_car } from "./cars";
 import { car_view, dispose_car_view, rest_wheels, type CarView } from "./models";
 import { brand, car_paints, color, rgba } from "./palette";
 import "./garage.css";
@@ -27,7 +27,8 @@ export function load_build(query: string | null): Build {
   } catch (error) {
     console.warn("garage: saved build unreadable", error);
   }
-  return parse_build(saved) ?? DEFAULT_BUILD;
+  const base = parse_build(saved) ?? DEFAULT_BUILD;
+  return query !== null && is_car(query) ? { ...base, car: query } : base;
 }
 
 function save_build(build: Build) {
