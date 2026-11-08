@@ -1,11 +1,14 @@
 import * as THREE from "three";
-import { COUPE } from "./cars";
+import { DEFAULT_BUILD, build_code, build_spec, parse_build, type Build } from "./build";
+import type { CarSpec } from "./cars";
 import { car_view, contact_shadow, dispose_car_view, place_contact_shadow, rest_wheels, type CarView, type ContactShadow } from "./models";
 import type { World } from "./world";
-import type { Net, Remote } from "./net";
+import type { CarState, Net, Remote } from "./net";
 import { car_paints, color } from "./palette";
 
 interface RemoteView {
+  code: string;
+  spec: CarSpec;
   view: CarView;
   materials: THREE.Material[];
   shadow: ContactShadow;
@@ -14,6 +17,32 @@ interface RemoteView {
 }
 
 const ABOVE = new THREE.Vector3(0, 2.2, 0);
+
+// Peers that predate build codes only send a paint index; they show as a stock coupe in that paint.
+function build_of(state: CarState): Build {
+  const code = "b" in state ? state.b : undefined;
+  return parse_build(code) ?? { ...DEFAULT_BUILD, paint: state.paint };
+}
+
+// Each remote gets its own material copies so its fade never touches another car.
+function translucent_view(build: Build, spec: CarSpec): { view: CarView; materials: THREE.Material[] } {
+  const view = car_view(color(car_paints[build.paint % car_paints.length]), spec, build.spoiler);
+  rest_wheels(view, spec);
+  const copies = new Map<THREE.Material, THREE.Material>();
+  view.root.traverse((object) => {
+    if (!(object instanceof THREE.Mesh)) return;
+    const original = object.material as THREE.Material;
+    let copy = copies.get(original);
+    if (!copy) {
+      copy = original.clone();
+      copy.transparent = true;
+      copies.set(original, copy);
+    }
+    object.material = copy;
+  });
+  view.brake = (copies.get(view.brake) ?? view.brake) as THREE.MeshLambertMaterial;
+  return { view, materials: [...copies.values()] };
+}
 
 export class Remotes {
   private views = new Map<string, RemoteView>();
@@ -44,31 +73,26 @@ export class Remotes {
   }
 
   private draw(remote: Remote, dt: number, camera: THREE.Camera, me: THREE.Vector3) {
+    const build = build_of(remote.latest);
+    const code = build_code(build);
     let rv = this.views.get(remote.id);
+    if (rv && rv.code !== code) {
+      this.scene.remove(rv.view.root);
+      dispose_car_view(rv.view);
+      const spec = build_spec(build);
+      Object.assign(rv, { code, spec }, translucent_view(build, spec));
+      this.scene.add(rv.view.root);
+    }
     if (!rv) {
-      const view = car_view(color(car_paints[remote.latest.paint % car_paints.length]));
-      rest_wheels(view);
+      const spec = build_spec(build);
+      const { view, materials } = translucent_view(build, spec);
       this.scene.add(view.root);
       const label = document.createElement("div");
       label.className = "label";
       this.labels.append(label);
-      const copies = new Map<THREE.Material, THREE.Material>();
-      view.root.traverse((object) => {
-        if (!(object instanceof THREE.Mesh)) return;
-        const original = object.material as THREE.Material;
-        let copy = copies.get(original);
-        if (!copy) {
-          copy = original.clone();
-          copy.transparent = true;
-          copies.set(original, copy);
-        }
-        object.material = copy;
-      });
-      view.brake = (copies.get(view.brake) ?? view.brake) as THREE.MeshLambertMaterial;
-      const materials = [...copies.values()];
       const shadow = contact_shadow();
       this.scene.add(shadow.mesh);
-      rv = { view, materials, shadow, label, spin: 0 };
+      rv = { code, spec, view, materials, shadow, label, spin: 0 };
       this.views.set(remote.id, rv);
     }
     const t = this.net.render_time(remote);
@@ -95,7 +119,7 @@ export class Remotes {
     this.forward.set(0, 0, 1).applyQuaternion(root.quaternion);
     place_contact_shadow(rv.shadow, root.position.x, root.position.y, root.position.z, Math.atan2(this.forward.x, this.forward.z), this.world);
     const s = b.state;
-    rv.spin += (Math.hypot(...s.v) / COUPE.wheel.radius) * dt;
+    rv.spin += (Math.hypot(...s.v) / rv.spec.wheel.radius) * dt;
     rv.view.wheels.forEach((w, i) => {
       w.rotation.y = i < 2 ? -s.steer : 0;
       w.children[0].rotation.x = rv.spin;
