@@ -98,3 +98,72 @@ a softer post-peak tyre curve on loose surfaces, and an auto box that holds gear
 - `scripts/offroad.ts` "road" run drives straight off the road (prints `grip 0.72` for both), so its road baseline
   (1.68 m/s² vertical rms) is really grass. It should steer along `world.road`.
 - No script covers a held drift, a 150 ms tap, gear hunting or reverse radius; the probes could join `scripts/feel.ts`.
+
+## Per-car character (2026-11-09)
+
+Owner: "all cars kinda look the same now... all should have their special characteristics". The coupe is the
+baseline and keeps the liked feel unchanged; the Kaze stays as tuned. Hatch, muscle and rally move away from the
+coupe, each on a few clear axes. Handling fields in `src/cars.ts` only: no body, wheel mount or collision changes.
+
+### Feel spec
+
+| car | one line | targets |
+|---|---|---|
+| hatch | FWD, light, nimble, safe | 0-100 9-10 s, top ~190, **shortest stop** (< coupe), **sharpest turn-in**, lift-off tuck 5-9° and never spins, power-on ~0° (understeer), no drift |
+| coupe | baseline balanced RWD | unchanged: 5.3 s, 271 km/h, 40.0 m |
+| muscle | heavy, torquey, soft, lazy | **highest top** (≥ 280), **longest stop** (46-50 m), **laziest turn-in**, **most body roll and dive**, lowest skidpad, most power-on oversteer (TCS off, > 35°), slides wilder than the Kaze (hold < Kaze) |
+| rally | AWD, gravel car | **quickest 0-100** (< 4.8 s), short gears (top ~235), soft (roll and dive > coupe), **rotates on lift** (10-15°), throttle rotation from a rear-biased split, **best on grass** by far |
+| kaze | easiest drifter | unchanged: 5.92 s, 251 km/h (telemetry), **longest slide hold** |
+
+### Levers used
+
+- **Turn-in:** `peak_angle` (tyre slip angle at peak). Lower is a stiffer tyre and a quicker yaw build. Hatch 0.08,
+  coupe/Kaze 0.10, rally 0.12, muscle 0.13. Lower yaw inertia (hatch 1600, rally 2100) adds to it.
+- **Lift-off tuck:** `rear_grip` plus roll stiffness shifted rearward. It is a cliff: hatch `rear_grip` 1.02 gives 10.5°,
+  1.03 gives 6-7°, 1.00 gives 18°. Hatch ARB 8000 front / 15000 rear (was 11000 / 9000), `rear_grip` 1.14 to 1.03.
+- **Soft/floaty:** springs, low damping ratio, low ARBs. Muscle 24000 N/m, damper 2000 (ζ ≈ 0.32, coupe 0.40),
+  ARB 8000 / 2000. Rally 25000 / 2300, ARB 9000 / 10000 (rear-biased, so it still rotates).
+- **Brakes:** muscle brake torque cut to 1900 / 700 Nm, so it is torque-limited, not grip-limited: long stop, ABS rarely
+  triggers. Everyone else stays grip-limited.
+- **Top speed / gearing:** muscle `drag` 0.5 to 0.44 and `final` 3.45 to 3.2; rally `final` 3.9 to 4.5.
+- **AWD rotation:** rally `awd_split` 0.4 to 0.3 (70% rear), so throttle pushes the tail out (power-on 2° to 19°).
+- **Grass:** rally `offroad` 0.55 to 0.7.
+
+### Measured (`bun scripts/handling.ts`, flat ground, 360 Hz, stock build)
+
+| car | 0-100 s | top km/h | 100-0 m | dive ° | skidpad g | turn-in ms | roll ° | lift-off ° | power-on ° | flick slip ° | slide hold s | grass km/h @12 s | grass g |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| hatch | 9.22 | 191 | **38.7** | 2.4 | 0.97 | **50** | 2.2 | 7.1 | 0.6 | 25 | 0.3 | 84 | 0.65 |
+| coupe | 5.29 | 271 | 40.0 | 2.3 | 0.89 | 61 | 2.3 | 4.1 | 28.4 | 24 | 1.2 | 117 | 0.64 |
+| muscle | 6.05 | **281** | **49.7** | 2.9 | **0.81** | **69** | **3.9** | 4.6 | **37.8** | 24 | 1.3 | 109 | 0.57 |
+| rally | **4.69** | 236 | 41.0 | **3.1** | 0.87 | 56 | 3.1 | **14.2** | 19.3 | 26 | 2.2 | **158** | **0.79** |
+| kaze | 5.92 | 257 | 40.9 | 2.2 | 0.90 | 56 | 1.9 | 4.8 | 29.5 | 26 | **3.2** | 110 | 0.63 |
+
+Before (same script on HEAD 4d920e0 specs): hatch 9.28 s / 38.2 m / 56 ms / roll 2.3° / lift 2.1°; muscle 5.69 s /
+273 km/h / 42.2 m / 67 ms / roll 2.4° / power-on 30.9° / hold 4.1 s; rally 4.58 s / 251 km/h / 64 ms / roll 2.6° /
+lift 10.5° / power-on 2.0° / hold 0 s / grass 156 km/h, 0.75 g. Top speed, stop and roll sat within a few percent of
+the coupe on every car, and the muscle out-held the Kaze in a slide.
+
+Columns: 0-100 with TCS on; top after 60 s full throttle; 100-0 with ABS; dive is peak nose-down pitch braking from
+100; skidpad is the best steady g at 70 km/h, assist off; turn-in is ms from an analog full-lock step at 100 km/h to
+0.2 rad/s yaw (assist on); roll is peak body roll in that step; lift-off is peak slip lifting mid-corner at 90 km/h,
+assist on (feel.ts test); power-on is peak slip with full throttle mid-corner in 2nd, TCS off; flick slip is peak slip
+after a 0.45 s handbrake flick at 70 km/h; slide hold is seconds within 15-45° in a 6 s window, TCS and assist off,
+mean of 9 driver gains of one countersteer-and-throttle controller (the best gain holds the Kaze for 6.0 s); grass is
+grip 0.72 / roll 12 ground.
+
+### Not distinct, and why
+
+- **Handbrake flick** is the same for all cars (24-26°): 2000+ Nm already locks the rears, and locked-tyre grip is the
+  same curve everywhere. Making the rally flick harder needs a per-car post-peak tyre shape (item 6 above).
+- **Muscle 0-100** is slower than the coupe (6.05 s) because it is traction-limited with TCS on; TCS off it is 7.4 s
+  with long wheelspin. That reads as "too much torque", which is on brief, but it is not a quick car off the line.
+- **Hatch skidpad** is above the coupe (0.97 g): light car, low load sensitivity loss. It still understeers on power.
+- Full-lock steps at 100 km/h oscillate slowly (about 1.4 s period) in every car, the coupe included: the cruise throttle
+  loop. Muscle and rally swing more (feel.ts overshoot 82% / 53%, coupe about 40%). Floaty is on brief for both.
+
+### Known issue found, not fixed
+
+On grass with TCS on, a road-tyre car at 130+ km/h loses speed to a stop-start loop: roll drag holds the driven
+wheels near 0.14 slip, TCS cuts to 0.25, the car slows. Coupe peaks at 136 km/h on grass after 16 s, then falls to
+49 km/h by 30 s. Hence the 12 s grass speed column instead of a grass top speed.
