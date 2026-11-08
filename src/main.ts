@@ -4,15 +4,18 @@ import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { Audio } from "./audio";
+import { town_meshes } from "./buildings";
 import { ChaseCamera } from "./camera";
+import { build_code, build_spec, type Build } from "./build";
 import { Car } from "./car";
 import { Chat } from "./chat";
 import { Skids, Smoke } from "./effects";
+import { Garage, load_build } from "./garage";
 import { Ghost } from "./ghost";
 import { $, Hud } from "./hud";
 import { Input } from "./input";
 import { Lobby, min_lap_ms } from "./lobby";
-import { car_view, contact_shadow, gates, place_contact_shadow, roadside, sync_car_view } from "./models";
+import { car_view, contact_shadow, dispose_car_view, gates, place_contact_shadow, roadside, sync_car_view } from "./models";
 import { Net, clean_name, parse_seed, type CarState } from "./net";
 import { Quality } from "./quality";
 import { brand, car_paints, color, rgba, theme_name, tones } from "./palette";
@@ -49,16 +52,17 @@ const light = new Lighting(scene);
 const sun = light.sun;
 quality.apply(renderer, scene, sun);
 
-scene.add(...light.dress(sky(), clouds(world.seed)), terrain_mesh(world), road_meshes(world), roadside(world), water_mesh(), tree_meshes(world));
+scene.add(...light.dress(sky(), clouds(world.seed)), terrain_mesh(world), road_meshes(world), roadside(world), water_mesh(), tree_meshes(world), town_meshes(world));
 const gate_views = gates(world);
 for (const g of gate_views) scene.add(g.group);
 
 const net = new Net(room, seed, name);
 const chat = new Chat(net, name);
 chat.start();
-const paint = Number(params.get("paint") ?? [...net.id].reduce((s, c) => s + c.charCodeAt(0), 0) % car_paints.length);
-const car = new Car();
-const view = car_view(color(car_paints[paint]));
+const build = load_build(params.get("car"));
+const build_view = (b: Build, spec = build_spec(b)) => car_view(color(car_paints[b.paint % car_paints.length]), spec, b.spoiler);
+let car = new Car(build_spec(build));
+let view = build_view(build, car.spec);
 scene.add(view.root);
 const car_shadow = contact_shadow();
 scene.add(car_shadow.mesh);
@@ -75,7 +79,9 @@ const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), li
 composer.addPass(bloom);
 composer.addPass(new OutputPass());
 
+const garage = new Garage(document.body, build);
 const input = new Input($("touch"));
+input.blocked = () => garage.is_open;
 input.touch.start();
 const audio = new Audio();
 for (const event of ["keydown", "pointerdown", "gamepadconnected"]) addEventListener(event, () => audio.start(), { once: true });
@@ -126,6 +132,24 @@ function reset() {
 }
 
 spawn_at(-40);
+
+garage.on_change = (next) => {
+  const { pos, heading, auto, tcs, abs, assist } = car;
+  car = new Car(build_spec(next));
+  car.place(pos.x, Math.max(pos.y, world.height(pos.x, pos.z)) + 0.25, pos.z, heading);
+  Object.assign(car, { auto, tcs, abs, assist });
+  scene.remove(view.root);
+  dispose_car_view(view);
+  view = build_view(next, car.spec);
+  scene.add(view.root);
+  light.mount(view.root);
+  sync_car_view(view, car);
+};
+
+// Opened on click, not on the touch layer's pointerdown: a tap's click would otherwise land on the garage backdrop and close it.
+const touch_garage = Object.assign(document.createElement("button"), { type: "button", textContent: "Car", ariaLabel: "Garage" });
+$("chat-button").before(touch_garage);
+for (const button of [touch_garage, document.getElementById("garage-btn")]) button?.addEventListener("click", () => garage.open());
 
 interface Frame {
   at: number;
@@ -233,7 +257,8 @@ setInterval(() => {
   const state: CarState = {
     id: net.id,
     name,
-    paint,
+    paint: garage.build.paint,
+    b: build_code(garage.build),
     seed,
     t: performance.now(),
     p: car.pos.toArray() as CarState["p"],
@@ -265,6 +290,7 @@ function frame(now: number) {
     if (action === "assist") car.assist = !car.assist;
     if (action === "ghost") ghost.visible = !ghost.visible;
     if (action === "help") set_help(document.body.classList.contains("help-hidden"));
+    if (action === "garage") garage.is_open ? garage.close() : garage.open();
   }
 
   lobby.update(now);
@@ -272,7 +298,7 @@ function frame(now: number) {
     rewinding = true;
     rewind_step(now);
     acc = 0;
-  } else if (lobby.state.kind === "countdown") {
+  } else if (lobby.state.kind === "countdown" || garage.is_open) {
     rewinding = false;
     acc = 0;
   } else {
@@ -281,7 +307,7 @@ function frame(now: number) {
     let impact = 0;
     while (acc >= DT) {
       car.step(DT, controls, world);
-      impact = Math.max(impact, world.collide(car.pos, car.vel, car.ang, car.heading));
+      impact = Math.max(impact, world.collide(car));
       acc -= DT;
     }
     if (impact > 2) {
@@ -348,7 +374,11 @@ picker.addEventListener("keydown", (e) => {
 if (import.meta.env.DEV)
   Object.assign(window, {
     open_road: {
-      car,
+      get car() {
+        return car;
+      },
+      garage,
+      net,
       input,
       lobby,
       race,

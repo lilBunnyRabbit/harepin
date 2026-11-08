@@ -1,10 +1,13 @@
 import { joinRoom, selfId } from "trystero";
+import { build_code, parse_build } from "./build";
 
 // A type alias, not an interface: trystero's DataPayload needs the implicit index signature only aliases get.
 export type CarState = {
   id: string;
   name: string;
   paint: number;
+  /** Build code (`build_code`), e.g. `"coupe.3.1.2.1.0"`; absent from peers that sent none or a bad one. */
+  b?: string;
   seed: number;
   t: number;
   p: [number, number, number];
@@ -66,7 +69,7 @@ const triple = (v: unknown, limit: number): v is [number, number, number] => Arr
 
 // Peers are untrusted: anything that reaches the scene (positions, quaternions, names) is shape-checked and clamped
 // here, so one bad or hostile client can't put NaN into another player's renderer or flood it with cars.
-function sanitize(raw: unknown, id: string): CarState | null {
+export function sanitize(raw: unknown, id: string): CarState | null {
   if (!raw || typeof raw !== "object") return null;
   const s = raw as Record<string, unknown>;
   if (!finite(s.t, 1e12) || !triple(s.p, WORLD_LIMIT) || !triple(s.v, 500)) return null;
@@ -75,10 +78,12 @@ function sanitize(raw: unknown, id: string): CarState | null {
   if (!Array.isArray(q) || q.length !== 4 || !q.every((x) => finite(x, 1.01))) return null;
   const length = Math.hypot(...(q as number[]));
   if (length < 0.5) return null;
+  const build = parse_build(s.b);
   return {
     id,
     name: clean_name(s.name),
     paint: finite(s.paint, 1e3) ? Math.abs(Math.round(s.paint)) : 0,
+    b: build ? build_code(build) : undefined,
     seed: s.seed,
     t: s.t,
     p: s.p,

@@ -1,7 +1,7 @@
 import type { Controls } from "./car";
 import { Touch } from "./touch";
 
-export type Action = "reset" | "camera" | "shift_up" | "shift_down" | "auto" | "tcs" | "abs" | "assist" | "ghost" | "help";
+export type Action = "reset" | "camera" | "shift_up" | "shift_down" | "auto" | "tcs" | "abs" | "assist" | "ghost" | "help" | "garage";
 
 const KEY_ACTIONS: Record<string, Action> = {
   KeyR: "reset",
@@ -14,6 +14,7 @@ const KEY_ACTIONS: Record<string, Action> = {
   Digit3: "assist",
   KeyG: "ghost",
   KeyH: "help",
+  KeyV: "garage",
 };
 
 const IMPACT_VIBRATE_MS = 60;
@@ -33,13 +34,19 @@ export class Input {
   private pad_prev: boolean[] = [];
   pad: Gamepad | null = null;
   readonly touch: Touch;
+  /** While true (an open garage), only the garage action gets through and the car gets no input. */
+  blocked: () => boolean = () => false;
 
   constructor(touch_root: HTMLElement) {
     this.touch = new Touch(touch_root);
     window.addEventListener("keydown", (e) => {
       if (e.repeat || typing(e.target)) return;
-      this.keys.add(e.code);
       const action = KEY_ACTIONS[e.code];
+      if (this.blocked()) {
+        if (action === "garage") this.queued.push(action);
+        return;
+      }
+      this.keys.add(e.code);
       if (action) this.queued.push(action);
       if (e.code.startsWith("Arrow") || e.code === "Space" || e.code === "Backspace") e.preventDefault();
     });
@@ -99,6 +106,10 @@ export class Input {
       if (touch.rewind) this.rewind = true;
     }
     actions.push(...touch.take_actions());
+    if (this.blocked()) {
+      this.rewind = false;
+      return { controls: { steer: 0, throttle: 0, brake: 0, handbrake: 0, analog: false }, actions: actions.filter((a) => a === "garage") };
+    }
     return { controls, actions };
   }
 
