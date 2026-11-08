@@ -127,7 +127,7 @@ const settings = new Settings(document.body, {
 }, prefs);
 
 function apply_car_settings(state: SettingsState) {
-  Object.assign(car, { tcs: state.tcs, abs: state.abs, assist: state.assist, auto: state.auto });
+  Object.assign(car, { tcs: state.tcs, abs: state.abs, assist: state.assist, auto: state.auto, steer_mode: state.steer_mode });
 }
 
 function apply_settings(state: SettingsState) {

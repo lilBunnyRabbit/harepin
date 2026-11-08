@@ -1,3 +1,4 @@
+import { SteerMode } from "./car";
 import { HudLayout } from "./hud";
 import { Mood } from "./lighting";
 import { clean_name } from "./net";
@@ -33,6 +34,7 @@ export interface SettingsState {
   abs: boolean;
   assist: boolean;
   auto: boolean;
+  steer_mode: SteerMode;
   camera: CameraView;
   ghost: boolean;
   hud: HudLayout;
@@ -52,6 +54,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
   abs: true,
   assist: true,
   auto: true,
+  steer_mode: SteerMode.SNAP,
   camera: CameraView.CHASE,
   ghost: true,
   hud: HudLayout.STRIP,
@@ -80,6 +83,7 @@ export function parse_settings(raw: unknown): SettingsState {
     abs: bool(s.abs, d.abs),
     assist: bool(s.assist, d.assist),
     auto: bool(s.auto, d.auto),
+    steer_mode: one_of(Object.values(SteerMode), s.steer_mode, d.steer_mode),
     camera: one_of(Object.values(CameraView), s.camera, d.camera),
     ghost: bool(s.ghost, d.ghost),
     hud: one_of(Object.values(HudLayout), s.hud, d.hud),
@@ -507,6 +511,14 @@ export class Settings {
       this.toggle_row("abs", "Anti-lock brakes", "Keeps steering under hard braking"),
       this.toggle_row("assist", "Steering assist", "Counter-steers a slide"),
       this.toggle_row("auto", "Automatic gearbox"),
+      this.choice(
+        "steer_mode",
+        [
+          [SteerMode.SNAP, "Snap back"],
+          [SteerMode.HOLD, "Hold & self-centre"],
+        ],
+        "Keyboard steering",
+      ),
       this.choice(
         "camera",
         [
