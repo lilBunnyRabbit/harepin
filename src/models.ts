@@ -1,5 +1,7 @@
 import * as THREE from "three";
-import { Car } from "./car";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import type { Car } from "./car";
+import { COUPE, type CarSpec } from "./cars";
 import { brand, color, dark, mix, tones } from "./palette";
 import { ribbon } from "./scene";
 import { ROAD_HALF, World } from "./world";
@@ -10,32 +12,25 @@ export interface Gate {
 }
 
 export function gates(world: World): Gate[] {
-  const post = new THREE.BoxGeometry(0.7, 6.4, 0.7).translate(0, 3.2, 0);
-  const beam = new THREE.BoxGeometry(ROAD_HALF * 2 + 3.4, 0.5, 0.5).translate(0, 6.2, 0);
-  const check = new THREE.BoxGeometry(1, 0.55, 0.3);
-  const dark = new THREE.MeshLambertMaterial({ color: color(tones.check_dark) });
-  const light = new THREE.MeshLambertMaterial({ color: color(tones.check_light) });
+  const frame = merge(
+    [-1, 1].map((side) => new THREE.BoxGeometry(0.7, 6.4, 0.7).translate(side * (ROAD_HALF + 1.7), 3.2, 0)),
+    new THREE.BoxGeometry(ROAD_HALF * 2 + 3.4, 0.5, 0.5).translate(0, 6.2, 0),
+  );
+  const columns = 14;
+  const tiles: THREE.BufferGeometry[] = [];
+  for (let row = 0; row < 2; row++)
+    for (let col = 0; col < columns; col++) {
+      const tile = new THREE.BoxGeometry(1, 0.55, 0.3).translate((col - (columns - 1) / 2) * 1, 6.9 + row * 0.55, 0);
+      tiles.push(tint(tile, color((row + col) % 2 ? tones.check_dark : tones.check_light)));
+    }
+  const checker = new THREE.Mesh(merge(...tiles), new THREE.MeshLambertMaterial({ vertexColors: true }));
   return world.checkpoints.map((cp, index) => {
     const group = new THREE.Group();
     const material = new THREE.MeshLambertMaterial({ color: color(tones.gate), emissive: new THREE.Color(0, 0, 0) });
-    for (const side of [-1, 1]) {
-      const mesh = new THREE.Mesh(post, material);
-      mesh.position.x = side * (ROAD_HALF + 1.7);
-      mesh.castShadow = true;
-      group.add(mesh);
-    }
-    const top = new THREE.Mesh(beam, material);
-    top.castShadow = true;
-    group.add(top);
-    if (index === 0) {
-      const columns = 14;
-      for (let row = 0; row < 2; row++)
-        for (let col = 0; col < columns; col++) {
-          const tile = new THREE.Mesh(check, (row + col) % 2 ? dark : light);
-          tile.position.set((col - (columns - 1) / 2) * 1, 6.9 + row * 0.55, 0);
-          group.add(tile);
-        }
-    }
+    const mesh = new THREE.Mesh(frame, material);
+    mesh.castShadow = true;
+    group.add(mesh);
+    if (index === 0) group.add(checker);
     group.position.set(cp.x, world.height(cp.x, cp.z), cp.z);
     group.rotation.y = cp.heading;
     return { group, material };
@@ -101,20 +96,28 @@ export function roadside(world: World): THREE.Object3D {
   return group;
 }
 
-function extrude(profile: [number, number][], width: number, tone: THREE.Color): THREE.Mesh {
-  const shape = new THREE.Shape(profile.map(([z, y]) => new THREE.Vector2(z, y)));
-  const geometry = new THREE.ExtrudeGeometry(shape, { depth: width, bevelEnabled: false });
-  geometry.translate(0, 0, -width / 2).rotateY(-Math.PI / 2);
-  const mesh = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({ color: tone, flatShading: true }));
-  mesh.castShadow = true;
-  return mesh;
+function merge(...parts: (THREE.BufferGeometry | THREE.BufferGeometry[])[]): THREE.BufferGeometry {
+  const geometry = mergeGeometries(parts.flat().map((part) => (part.index ? part.toNonIndexed() : part)));
+  if (!geometry) throw new Error("mergeGeometries: parts have mismatched attributes");
+  return geometry;
 }
 
-function box(w: number, h: number, d: number, material: THREE.Material, x: number, y: number, z: number, shadow = true): THREE.Mesh {
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
-  mesh.position.set(x, y, z);
-  mesh.castShadow = shadow;
-  return mesh;
+function tint(geometry: THREE.BufferGeometry, tone: THREE.Color): THREE.BufferGeometry {
+  const flat = geometry.index ? geometry.toNonIndexed() : geometry;
+  const colors = new Float32Array(flat.getAttribute("position").count * 3);
+  for (let i = 0; i < colors.length; i += 3) tone.toArray(colors, i);
+  flat.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+  return flat;
+}
+
+function extrude(profile: [number, number][], width: number): THREE.BufferGeometry {
+  const shape = new THREE.Shape(profile.map(([z, y]) => new THREE.Vector2(z, y)));
+  const geometry = new THREE.ExtrudeGeometry(shape, { depth: width, bevelEnabled: false });
+  return geometry.translate(0, 0, -width / 2).rotateY(-Math.PI / 2);
+}
+
+function box(w: number, h: number, d: number, x: number, y: number, z: number): THREE.BufferGeometry {
+  return new THREE.BoxGeometry(w, h, d).translate(x, y, z);
 }
 
 export interface CarView {
@@ -126,88 +129,94 @@ export interface CarView {
 
 const GROUND_OFFSET = -0.49;
 
-export function car_view(paint: THREE.Color): CarView {
+// Paint, trim and glass are baked into vertex colours so the whole shell is one draw; a repaint rebuilds the view.
+export function car_view(paint: THREE.Color, spec: CarSpec = COUPE): CarView {
   const root = new THREE.Group();
   const body = new THREE.Group();
   body.position.y = GROUND_OFFSET;
   const trim = color(tones.trim);
-  const trim_material = new THREE.MeshLambertMaterial({ color: trim, flatShading: true });
-  const paint_material = new THREE.MeshLambertMaterial({ color: paint, flatShading: true });
 
-  body.add(
-    extrude(
-      [
-        [-2.18, 0.3],
-        [2.12, 0.3],
-        [2.3, 0.4],
-        [2.26, 0.56],
-        [1.5, 0.7],
-        [-1.75, 0.8],
-        [-2.24, 0.74],
-        [-2.3, 0.5],
-      ],
-      1.86,
+  const shell = merge(
+    tint(
+      extrude(
+        [
+          [-2.18, 0.3],
+          [2.12, 0.3],
+          [2.3, 0.4],
+          [2.26, 0.56],
+          [1.5, 0.7],
+          [-1.75, 0.8],
+          [-2.24, 0.74],
+          [-2.3, 0.5],
+        ],
+        1.86,
+      ),
       paint,
     ),
-    extrude(
-      [
-        [-2.1, 0.2],
-        [2.2, 0.2],
-        [2.36, 0.33],
-        [-2.2, 0.33],
-      ],
-      1.9,
+    tint(
+      extrude(
+        [
+          [-2.1, 0.2],
+          [2.2, 0.2],
+          [2.36, 0.33],
+          [-2.2, 0.33],
+        ],
+        1.9,
+      ),
       trim,
     ),
-    extrude(
-      [
-        [1.42, 0.7],
-        [0.42, 1.12],
-        [-0.85, 1.15],
-        [-1.7, 0.8],
-      ],
-      1.52,
+    tint(
+      extrude(
+        [
+          [1.42, 0.7],
+          [0.42, 1.12],
+          [-0.85, 1.15],
+          [-1.7, 0.8],
+        ],
+        1.52,
+      ),
       color(tones.glass),
     ),
-    extrude(
-      [
-        [0.3, 1.12],
-        [-0.82, 1.15],
-        [-0.88, 1.2],
-        [0.22, 1.18],
-      ],
-      1.44,
+    tint(
+      extrude(
+        [
+          [0.3, 1.12],
+          [-0.82, 1.15],
+          [-0.88, 1.2],
+          [0.22, 1.18],
+        ],
+        1.44,
+      ),
       paint,
     ),
+    tint(box(1.82, 0.05, 0.42, 0, 1.04, -2.02), paint),
+    [-1, 1].flatMap((side) => [tint(box(0.06, 0.22, 0.14, side * 0.62, 0.9, -1.98), trim), tint(box(0.16, 0.1, 0.2, side * 0.98, 0.84, 0.86), paint)]),
+    tint(box(1.0, 0.14, 0.04, 0, 0.42, 2.3), trim),
   );
-  body.add(box(1.82, 0.05, 0.42, paint_material, 0, 1.04, -2.02));
-  for (const side of [-1, 1]) {
-    body.add(box(0.06, 0.22, 0.14, trim_material, side * 0.62, 0.9, -1.98));
-    body.add(box(0.16, 0.1, 0.2, paint_material, side * 0.98, 0.84, 0.86));
-  }
-  body.add(box(1.0, 0.14, 0.04, trim_material, 0, 0.42, 2.3));
+  const hull = new THREE.Mesh(shell, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
+  hull.castShadow = true;
 
   const head = color(tones.head);
   const head_material = new THREE.MeshLambertMaterial({ color: head, emissive: head, emissiveIntensity: 1.2 });
   const tail = color(brand.error);
   const brake = new THREE.MeshLambertMaterial({ color: tail, emissive: tail, emissiveIntensity: 0.5 });
-  for (const side of [-1, 1]) {
-    const lamp = box(0.46, 0.08, 0.1, head_material, side * 0.64, 0.55, 2.24, false);
-    lamp.rotation.x = -0.25;
-    body.add(lamp, box(0.5, 0.1, 0.06, brake, side * 0.6, 0.68, -2.27, false));
-  }
+  const heads = merge([-1, 1].map((side) => new THREE.BoxGeometry(0.46, 0.08, 0.1).rotateX(-0.25).translate(side * 0.64, 0.55, 2.24)));
+  const tails = merge([-1, 1].map((side) => box(0.5, 0.1, 0.06, side * 0.6, 0.68, -2.27)));
+  body.add(hull, new THREE.Mesh(heads, head_material), new THREE.Mesh(tails, brake));
   root.add(body);
 
-  const tyre = new THREE.CylinderGeometry(Car.RADIUS, Car.RADIUS, 0.3, 12).rotateZ(Math.PI / 2);
-  const rim = new THREE.CylinderGeometry(0.22, 0.22, 0.32, 6).rotateZ(Math.PI / 2);
-  const tyre_material = new THREE.MeshLambertMaterial({ color: color(tones.tyre), flatShading: true });
-  const rim_material = new THREE.MeshLambertMaterial({ color: color(mix(brand.foreground, brand.background_lightest, 0.6)), flatShading: true });
+  const radius = spec.wheel.radius;
+  const wheel = merge(
+    tint(new THREE.CylinderGeometry(radius, radius, 0.3, 12).rotateZ(Math.PI / 2), color(tones.tyre)),
+    tint(new THREE.CylinderGeometry(0.22, 0.22, 0.32, 6).rotateZ(Math.PI / 2), color(mix(brand.foreground, brand.background_lightest, 0.6))),
+  );
+  const wheel_material = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
   const wheels = [0, 1, 2, 3].map(() => {
     const steer = new THREE.Group();
     const spin = new THREE.Group();
-    const t = new THREE.Mesh(tyre, tyre_material);
-    t.castShadow = true;
-    spin.add(t, new THREE.Mesh(rim, rim_material));
+    const mesh = new THREE.Mesh(wheel, wheel_material);
+    mesh.castShadow = true;
+    spin.add(mesh);
     steer.add(spin);
     root.add(steer);
     return steer;
@@ -220,7 +229,7 @@ export function sync_car_view(view: CarView, car: Car) {
   view.root.quaternion.copy(car.quat);
   car.wheels.forEach((w, i) => {
     const g = view.wheels[i];
-    g.position.set(w.mount.x, w.mount.y - (w.reach - Car.RADIUS), w.mount.z);
+    g.position.set(w.mount.x, w.mount.y - (w.reach - car.spec.wheel.radius), w.mount.z);
     g.rotation.y = -w.angle;
     g.children[0].rotation.x = w.spin;
   });
