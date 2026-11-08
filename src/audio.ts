@@ -1,9 +1,13 @@
+import type { EngineSound } from "./cars";
+
 export interface SoundFrame {
   rpm: number;
   throttle: number;
   scrub: number;
   speed: number;
   offroad: boolean;
+  sound: EngineSound;
+  redline: number;
 }
 
 function noise_buffer(ctx: AudioContext): AudioBuffer {
@@ -39,6 +43,12 @@ export class Audio {
   private master: GainNode | null = null;
   private noise: AudioBuffer | null = null;
   private oscillators: OscillatorNode[] = [];
+  private mix: GainNode[] = [];
+  private shaper: WaveShaperNode | null = null;
+  private whistle: OscillatorNode | null = null;
+  private whistle_gain: GainNode | null = null;
+  private sound: EngineSound | null = null;
+  private boost = 0;
   private body: BiquadFilterNode | null = null;
   private engine: GainNode | null = null;
   private intake: GainNode | null = null;
@@ -77,27 +87,29 @@ export class Audio {
     this.master = master;
 
     const shaper = ctx.createWaveShaper();
-    shaper.curve = drive_curve(2.5);
+    this.shaper = shaper;
     this.body = ctx.createBiquadFilter();
     this.body.type = "lowpass";
     this.body.Q.value = 2;
     this.engine = ctx.createGain();
     this.engine.gain.value = 0;
     shaper.connect(this.body).connect(this.engine).connect(master);
-    for (const [type, level] of [
-      ["sawtooth", 0.45],
-      ["square", 0.3],
-      ["sawtooth", 0.18],
-      ["triangle", 0.35],
-    ] as const) {
+    for (const type of ["sawtooth", "square", "sawtooth", "triangle"] as const) {
       const osc = ctx.createOscillator();
       osc.type = type;
       const g = ctx.createGain();
-      g.gain.value = level;
       osc.connect(g).connect(shaper);
       osc.start();
       this.oscillators.push(osc);
+      this.mix.push(g);
     }
+
+    this.whistle = ctx.createOscillator();
+    this.whistle.type = "sine";
+    this.whistle_gain = ctx.createGain();
+    this.whistle_gain.gain.value = 0;
+    this.whistle.connect(this.whistle_gain).connect(master);
+    this.whistle.start();
 
     this.intake_filter = ctx.createBiquadFilter();
     this.intake_filter.type = "bandpass";
@@ -130,21 +142,32 @@ export class Audio {
 
   update(frame: SoundFrame) {
     const { ctx } = this;
-    if (!ctx || !this.body || !this.engine || !this.intake || !this.intake_filter || !this.squeal || !this.squeal_filter || !this.wind || !this.wind_filter || !this.gravel) return;
+    if (!ctx || !this.shaper || !this.whistle || !this.whistle_gain || !this.body || !this.engine || !this.intake || !this.intake_filter || !this.squeal || !this.squeal_filter || !this.wind || !this.wind_filter || !this.gravel) return;
     const t = ctx.currentTime;
-    const { rpm, throttle, scrub, speed, offroad } = frame;
-    const firing = (rpm / 60) * 2;
+    const { rpm, throttle, scrub, speed, offroad, sound, redline } = frame;
+    if (sound !== this.sound) {
+      this.sound = sound;
+      this.shaper.curve = drive_curve(sound.drive);
+      sound.mix.forEach((level, i) => this.mix[i].gain.setValueAtTime(level, t));
+    }
+    const firing = (rpm / 60) * (sound.cylinders / 2);
     const [a, b, c, d] = this.oscillators;
     a.frequency.setTargetAtTime(firing, t, 0.015);
     b.frequency.setTargetAtTime(firing / 2, t, 0.015);
     c.frequency.setTargetAtTime(firing * 1.5, t, 0.015);
     d.frequency.setTargetAtTime(firing / 4, t, 0.015);
     const load = Math.max(throttle, 0.15);
-    this.body.frequency.setTargetAtTime(220 + load * 2400 + rpm * 0.18, t, 0.04);
-    const limiter = rpm > 7150 && throttle > 0.5 ? 0.55 + Math.random() * 0.45 : 1;
-    this.engine.gain.setTargetAtTime((0.05 + load * 0.11) * limiter, t, 0.03);
+    this.body.frequency.setTargetAtTime((220 + load * 2400 + rpm * 0.18) * sound.bright, t, 0.04);
+    const limiter = rpm > redline - 150 && throttle > 0.5 ? 0.55 + Math.random() * 0.45 : 1;
+    const lope = 1 - sound.lope * Math.random() * Math.max(0, 1 - rpm / 3500);
+    this.engine.gain.setTargetAtTime((0.05 + load * 0.11) * limiter * lope, t, 0.03);
     this.intake_filter.frequency.setTargetAtTime(400 + rpm * 0.35, t, 0.05);
-    this.intake.gain.setTargetAtTime(throttle * (rpm / 7300) * 0.12, t, 0.05);
+    this.intake.gain.setTargetAtTime(throttle * (rpm / redline) * 0.12 * sound.rasp, t, 0.05);
+    const boost = throttle * Math.min(1, rpm / redline) ** 2;
+    if (sound.turbo > 0 && this.boost > 0.4 && boost < 0.1) this.blip(sound.turbo * 1.5, 3800);
+    this.boost = boost;
+    this.whistle.frequency.setTargetAtTime(1800 + boost * 4200, t, 0.35);
+    this.whistle_gain.gain.setTargetAtTime(sound.turbo * boost, t, 0.35);
     this.squeal_filter.frequency.setTargetAtTime(950 + scrub * 450, t, 0.05);
     this.squeal.gain.setTargetAtTime(scrub * 0.5, t, 0.04);
     this.wind_filter.frequency.setTargetAtTime(300 + speed * 18, t, 0.1);
@@ -154,14 +177,14 @@ export class Audio {
     this.last_rpm = rpm;
   }
 
-  private blip(level: number) {
+  private blip(level: number, frequency = 2200) {
     const { ctx, master, noise } = this;
     if (!ctx || !master || !noise) return;
     const source = ctx.createBufferSource();
     source.buffer = noise;
     const filter = ctx.createBiquadFilter();
     filter.type = "bandpass";
-    filter.frequency.value = 2200;
+    filter.frequency.value = frequency;
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(level, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.08);
