@@ -8,7 +8,7 @@ import { ChaseCamera } from "./camera";
 import { Car } from "./car";
 import { Skids, Smoke } from "./effects";
 import { Ghost } from "./ghost";
-import { Hud } from "./hud";
+import { $, Hud } from "./hud";
 import { Input } from "./input";
 import { car_view, contact_shadow, gates, place_contact_shadow, roadside, sync_car_view } from "./models";
 import { Net, type CarState } from "./net";
@@ -25,7 +25,6 @@ const params = new URLSearchParams(location.search);
 const room = params.get("room") ?? "lobby";
 const ADJECTIVES = ["Swift", "Fuzzy", "Lucky", "Bouncy", "Sly", "Brave", "Zippy", "Mellow"];
 const name = params.get("name") ?? `${ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)]} Bunny`;
-const $ = (id: string) => document.getElementById(id)!;
 
 await new Promise((r) => setTimeout(r, 30));
 const world = new World();
@@ -315,7 +314,7 @@ function frame(now: number) {
   requestAnimationFrame(frame);
 }
 
-const picker = $("theme") as HTMLSelectElement;
+const picker = $("theme", HTMLSelectElement);
 for (const theme of Object.keys(THEMES)) picker.add(new Option(theme, theme, false, theme === theme_name));
 picker.addEventListener("change", () => {
   choose_theme(picker.value);
@@ -340,9 +339,9 @@ if (import.meta.env.DEV)
     },
   });
 
-document.querySelector('meta[name="theme-color"]')?.setAttribute("content", rgba(brand.background_darker));
+document.head.append(Object.assign(document.createElement("meta"), { name: "theme-color", content: rgba(brand.background_darker) }));
 
-const invite = $("invite") as HTMLButtonElement;
+const invite = $("invite", HTMLButtonElement);
 invite.addEventListener("click", async () => {
   const link = `${location.origin}${location.pathname}?room=${encodeURIComponent(room)}`;
   try {

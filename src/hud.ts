@@ -4,7 +4,13 @@ import type { Race } from "./race";
 import { brand, rgba } from "./palette";
 import { SIZE, type World } from "./world";
 
-const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+export function $<T extends HTMLElement>(id: string, type: { new (): T; prototype: T }): T;
+export function $(id: string): HTMLElement;
+export function $(id: string, type: { new (): HTMLElement; prototype: HTMLElement } = HTMLElement): HTMLElement {
+  const el = document.getElementById(id);
+  if (!(el instanceof type)) throw new Error(`#${id} is missing or not a ${type.name}`);
+  return el;
+}
 
 export const format = (ms: number | null) => {
   if (ms === null) return "--:--.---";
@@ -47,10 +53,12 @@ export class Hud {
     room: string,
   ) {
     $("room").textContent = room;
-    const canvas = $<HTMLCanvasElement>("minimap");
+    const canvas = $("minimap", HTMLCanvasElement);
     canvas.width = MAP * devicePixelRatio;
     canvas.height = MAP * devicePixelRatio;
-    this.map = canvas.getContext("2d")!;
+    const map = canvas.getContext("2d");
+    if (!map) throw new Error("minimap has no 2d context");
+    this.map = map;
     this.map.scale(devicePixelRatio, devicePixelRatio);
     world.road.forEach((p, i) => (i ? this.road.lineTo(...this.to_map(p.x, p.z)) : this.road.moveTo(...this.to_map(p.x, p.z))));
     this.road.closePath();

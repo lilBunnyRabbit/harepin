@@ -1,17 +1,5 @@
 :root {
-  --background-lightest: oklch(0.357 0.0326 230.47);
-  --background-lighter: oklch(0.323 0.0295 230.47);
-  --background-light: oklch(0.289 0.0264 230.47);
-  --background: oklch(0.255 0.0233 230.47);
-  --background-darker: oklch(0.187 0.0171 230.47);
-  --background-darkest: oklch(0.153 0.014 230.47);
-  --foreground: oklch(0.745 0.0078 50.47);
-  --primary: oklch(0.745 0.0699 122.47);
-  --secondary: oklch(0.745 0.0466 302.47);
-  --accent: oklch(0.745 0.0932 50.47);
-  --cottontail: oklch(0.949 0.0939 122.47);
-  --error: oklch(0.745 0.1398 30);
-  --success: oklch(0.745 0.1398 140);
+  color-scheme: light dark;
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
@@ -24,8 +12,8 @@ body {
   margin: 0;
   height: 100%;
   overflow: hidden;
-  background: var(--background-darker);
-  color: var(--foreground);
+  background: var(--background-darker, Canvas);
+  color: var(--foreground, CanvasText);
   font-family: var(--font-sans);
   user-select: none;
 }
