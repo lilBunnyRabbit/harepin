@@ -13,6 +13,7 @@ import { $, Hud } from "./hud";
 import { Input } from "./input";
 import { car_view, contact_shadow, gates, place_contact_shadow, roadside, sync_car_view } from "./models";
 import { Net, type CarState } from "./net";
+import { Quality } from "./quality";
 import { brand, car_paints, color, dark, rgba, theme_name, tones } from "./palette";
 import { THEMES, choose_theme } from "./theme";
 import { Race, type RaceSnapshot } from "./race";
@@ -30,10 +31,10 @@ const name = params.get("name") ?? `${ADJECTIVES[Math.floor(Math.random() * ADJE
 await new Promise((r) => setTimeout(r, 30));
 const world = new World();
 
-const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
+const quality = new Quality(params);
+const renderer = new THREE.WebGLRenderer({ antialias: quality.antialias, powerPreference: "high-performance" });
+renderer.setPixelRatio(quality.ratio);
 renderer.setSize(innerWidth, innerHeight, false);
-renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
 $("app").append(renderer.domElement);
 
@@ -43,12 +44,11 @@ const camera = new THREE.PerspectiveCamera(64, innerWidth / innerHeight, 0.1, 50
 
 scene.add(new THREE.HemisphereLight(color(sky_tones.skylight), color(brand.background_dark), dark ? 1.9 : 1.5));
 const sun = new THREE.DirectionalLight(color(sky_tones.sunlight), dark ? 3.3 : 2.6);
-sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
 Object.assign(sun.shadow.camera, { left: -36, right: 36, top: 36, bottom: -36, near: 1, far: 900 });
 sun.shadow.bias = -0.0002;
 sun.shadow.normalBias = 0.015;
 scene.add(sun, sun.target);
+quality.apply(renderer, scene, sun);
 
 scene.add(sky(), clouds(), terrain_mesh(world), road_meshes(world), roadside(world), water_mesh(), tree_meshes(world));
 const gate_views = gates(world);
@@ -172,9 +172,6 @@ function update_gates(t: number) {
   });
 }
 
-let quality = params.get("quality") === "low" ? 2 : 0;
-let slow_time = 0;
-let sampled = -4;
 const app = $("app");
 let fitted = "";
 // CSS owns the canvas size; this only matches the drawing buffer to it. Polled every frame because a resize event can
@@ -182,7 +179,7 @@ let fitted = "";
 function fit() {
   const width = app.clientWidth;
   const height = app.clientHeight;
-  const ratio = quality >= 1 ? 1 : Math.min(devicePixelRatio, 1.75);
+  const ratio = quality.ratio;
   const key = `${width}x${height}@${ratio}`;
   if (key === fitted || !width || !height) return;
   fitted = key;
@@ -193,23 +190,6 @@ function fit() {
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
 }
-function apply_quality() {
-  fit();
-}
-function adapt_quality(dt: number) {
-  if (quality >= 2) return;
-  sampled += dt;
-  if (sampled < 0) return;
-  if (dt > 1 / 45) slow_time += dt;
-  if (sampled < 3) return;
-  // Step down only when most of a 3 s window ran under 45 fps, so one hitch (tab switch, GC) doesn't degrade it.
-  if (slow_time / sampled > 0.6) {
-    quality++;
-    apply_quality();
-  }
-  sampled = slow_time = 0;
-}
-if (quality) apply_quality();
 
 const DT = 1 / 360;
 let acc = 0;
@@ -310,10 +290,10 @@ function frame(now: number) {
   }
 
   hud.update(car, now, rewinding);
-  adapt_quality(dt);
+  if (quality.adapt(dt)) quality.apply(renderer, scene, sun);
   fit();
-  if (quality >= 2) renderer.render(scene, camera);
-  else composer.render();
+  if (quality.tier.bloom) composer.render();
+  else renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
 
@@ -335,10 +315,7 @@ if (import.meta.env.DEV)
       race,
       world,
       ghost,
-      step_quality: () => {
-        quality++;
-        apply_quality();
-      },
+      step_quality: () => quality.step() && quality.apply(renderer, scene, sun),
     },
   });
 
