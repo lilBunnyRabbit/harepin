@@ -20,7 +20,21 @@ export const format = (ms: number | null) => {
   return `${m}:${s.toFixed(3).padStart(6, "0")}`;
 };
 
-const escape_html = (text: string) => text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+function row(name: string, time: string, you: boolean, note = ""): HTMLLIElement {
+  const li = document.createElement("li");
+  li.dataset.you = String(you);
+  const left = document.createElement("span");
+  left.textContent = name;
+  const right = document.createElement("span");
+  right.textContent = time;
+  if (note) {
+    const tag = document.createElement("i");
+    tag.textContent = ` ${note}`;
+    right.append(tag);
+  }
+  li.append(left, right);
+  return li;
+}
 
 const MAP = 200;
 
@@ -104,12 +118,15 @@ export class Hud {
         .join("");
     }
 
-    const rows = [{ name: `${this.name} (you)`, best: race.best }, ...[...this.net.remotes.values()].map((r) => ({ name: r.latest.name, best: r.latest.best }))];
+    const rows = [
+      { name: `${this.name} (you)`, best: race.best, you: true },
+      ...[...this.net.remotes.values()].map((r) => ({ name: this.net.display_name(r), best: r.latest.best, you: false })),
+    ];
     rows.sort((a, b) => (a.best ?? Infinity) - (b.best ?? Infinity));
     const players_key = JSON.stringify(rows);
     if (players_key !== this.players_key) {
       this.players_key = players_key;
-      el.players.innerHTML = rows.map((r) => `<li><span>${escape_html(r.name)}</span><span>${format(r.best)}</span></li>`).join("");
+      el.players.replaceChildren(...rows.map((r) => row(r.name, format(r.best), r.you)));
     }
     const foreign = this.net.foreign.size;
     el.net.textContent = `${this.net.status} · ${this.net.remotes.size} other${this.net.remotes.size === 1 ? "" : "s"}${foreign ? ` · ${foreign} peer${foreign === 1 ? "" : "s"} on a different map` : ""}`;
@@ -147,9 +164,7 @@ export class Hud {
     const results_key = JSON.stringify(finishers);
     if (results_key === this.results_key) return;
     this.results_key = results_key;
-    el.race_results.innerHTML = finishers
-      .map((f, i) => `<li data-you="${f.you}"><span>${i + 1}. ${escape_html(f.name)}${f.you ? " (you)" : ""}</span><span>${format(f.time)}${f.you ? "" : " <i>claimed</i>"}</span></li>`)
-      .join("");
+    el.race_results.replaceChildren(...finishers.map((f, i) => row(`${i + 1}. ${f.name}${f.you ? " (you)" : ""}`, format(f.time), f.you, f.you ? "" : "claimed")));
   }
 
   private draw_map(car: Car) {

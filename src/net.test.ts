@@ -1,6 +1,6 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import { RateLimit, parse_seed, sanitize_chat, sanitize_event } from "./net";
+import { RateLimit, clean_name, parse_seed, sanitize_chat, sanitize_event } from "./net";
 
 test("chat text is stripped of control characters, trimmed and capped", () => {
   expect(sanitize_chat({ text: "  hi\u0000​ there\n ", t: 1 })).toEqual({ text: "hi there", t: 1 });
@@ -39,4 +39,17 @@ test("race events are shape-checked", () => {
   expect(sanitize_event({ kind: "request", laps: 11 })).toBeNull();
   expect(sanitize_event({ kind: "finish", race: 7, time: -5 })).toBeNull();
   expect(sanitize_event({ kind: "boom" })).toBeNull();
+});
+
+test("names: control/bidi/zero-width stripped, spaces collapsed, no (you), fallback", () => {
+  expect(clean_name("  Bad‮​Bunny   two ")).toBe("BadBunny two");
+  expect(clean_name("Alice (you) (YOU)")).toBe("Alice");
+  expect(clean_name("​ ")).toBe("Player");
+  expect(clean_name(42)).toBe("Player");
+  expect([...clean_name("🐰".repeat(40))].length).toBe(24);
+});
+
+test("own chat limit is stricter than what peers accept", () => {
+  const own = new RateLimit(900, 4);
+  expect([0, 900, 1800, 2700, 3600].map((t) => own.allow(t))).toEqual([true, true, true, true, false]);
 });

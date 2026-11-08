@@ -13,7 +13,7 @@ import { $, Hud } from "./hud";
 import { Input } from "./input";
 import { Lobby, min_lap_ms } from "./lobby";
 import { car_view, contact_shadow, gates, place_contact_shadow, roadside, sync_car_view } from "./models";
-import { Net, parse_seed, type CarState } from "./net";
+import { Net, clean_name, parse_seed, type CarState } from "./net";
 import { Quality } from "./quality";
 import { brand, car_paints, color, dark, rgba, theme_name, tones } from "./palette";
 import { THEMES, choose_theme } from "./theme";
@@ -29,7 +29,7 @@ const params = new URLSearchParams(location.search);
 const room = params.get("room") ?? "lobby";
 const seed = parse_seed(params.get("seed")) ?? seed_of(room);
 const ADJECTIVES = ["Swift", "Fuzzy", "Lucky", "Bouncy", "Sly", "Brave", "Zippy", "Mellow"];
-const name = params.get("name") ?? `${ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)]} Bunny`;
+const name = clean_name(params.get("name") ?? `${ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)]} Bunny`);
 
 await new Promise((r) => setTimeout(r, 30));
 const world = new World(seed);
@@ -57,7 +57,7 @@ scene.add(sky(), clouds(world.seed), terrain_mesh(world), road_meshes(world), ro
 const gate_views = gates(world);
 for (const g of gate_views) scene.add(g.group);
 
-const net = new Net(room, seed);
+const net = new Net(room, seed, name);
 const chat = new Chat(net, name);
 chat.start();
 const paint = Number(params.get("paint") ?? [...net.id].reduce((s, c) => s + c.charCodeAt(0), 0) % car_paints.length);
@@ -100,7 +100,7 @@ race.on_lap = (improved) => {
 };
 lobby.on_start = () => {
   spawn_at(-40);
-  race.restore({ next: 0, started: 0, splits: [] }, 0);
+  race.reset();
   history.length = 0;
 };
 race.on_start = () => ghost.start();

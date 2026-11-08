@@ -12,6 +12,10 @@ interface Finger {
   control: Control;
   el: HTMLElement;
   origin: number;
+  /** Steer -1..1 or pedal 0..1; held buttons use 1. */
+  value: number;
+  /** Order of the last update, so the most recent steer finger wins. */
+  touched: number;
 }
 
 const control_of = (el: HTMLElement): Control | null => CONTROLS.find((c) => c === el.dataset.touch) ?? null;
@@ -28,6 +32,7 @@ export class Touch {
   private ring = $("steer-ring");
   private knob = $("steer-knob");
   private abort: AbortController | null = null;
+  private tick = 0;
 
   constructor(private root: HTMLElement) {}
 
@@ -42,7 +47,17 @@ export class Touch {
     this.root.addEventListener("pointermove", (e) => this.move(e), { signal });
     this.root.addEventListener("lostpointercapture", (e) => this.release(e.pointerId), { signal });
     this.root.addEventListener("contextmenu", (e) => e.preventDefault(), { signal });
-    document.addEventListener("pointerdown", (e) => e.pointerType === "touch" && void this.fullscreen(), { once: true, signal });
+    const first_touch = new AbortController();
+    signal.addEventListener("abort", () => first_touch.abort());
+    document.addEventListener(
+      "pointerdown",
+      (e) => {
+        if (e.pointerType !== "touch") return;
+        first_touch.abort();
+        void this.fullscreen();
+      },
+      { signal: first_touch.signal },
+    );
   }
 
   stop() {
@@ -68,68 +83,56 @@ export class Touch {
       return;
     }
     el.setPointerCapture(e.pointerId);
-    el.dataset.held = "true";
-    this.fingers.set(e.pointerId, { control, el, origin: e.clientX });
+    const finger: Finger = { control, el, origin: e.clientX, value: 0, touched: 0 };
+    this.fingers.set(e.pointerId, finger);
     if (control === "steer") {
       this.ring.hidden = false;
       this.ring.style.translate = `${e.clientX}px ${e.clientY}px`;
     }
-    this.update(this.fingers.get(e.pointerId), e);
+    this.update(finger, e);
   }
 
   private move(e: PointerEvent) {
-    this.update(this.fingers.get(e.pointerId), e);
+    const finger = this.fingers.get(e.pointerId);
+    if (finger) this.update(finger, e);
   }
 
-  private update(finger: Finger | undefined, e: PointerEvent) {
-    if (!finger) return;
-    switch (finger.control) {
-      case "steer": {
-        const dx = Math.max(-STEER_RANGE, Math.min(STEER_RANGE, e.clientX - finger.origin));
-        const dead = Math.max(0, Math.abs(dx) - STEER_DEADZONE) / (STEER_RANGE - STEER_DEADZONE);
-        this.steer = Math.sign(dx) * dead ** STEER_CURVE;
-        this.knob.style.translate = `${dx}px 0`;
-        break;
-      }
-      case "throttle":
-      case "brake": {
-        const rect = finger.el.getBoundingClientRect();
-        const value = Math.max(0, Math.min(1, (rect.bottom - e.clientY) / rect.height));
-        this[finger.control] = value;
-        finger.el.style.setProperty("--level", String(value));
-        break;
-      }
-      case "handbrake":
-        this.handbrake = 1;
-        break;
-      case "rewind":
-        this.rewind = true;
-        break;
-    }
+  private update(finger: Finger, e: PointerEvent) {
+    finger.touched = ++this.tick;
+    if (finger.control === "steer") {
+      const dx = Math.max(-STEER_RANGE, Math.min(STEER_RANGE, e.clientX - finger.origin));
+      const dead = Math.max(0, Math.abs(dx) - STEER_DEADZONE) / (STEER_RANGE - STEER_DEADZONE);
+      finger.value = Math.sign(dx) * dead ** STEER_CURVE;
+      this.knob.style.translate = `${dx}px 0`;
+    } else if (finger.control === "throttle" || finger.control === "brake") {
+      const rect = finger.el.getBoundingClientRect();
+      finger.value = Math.max(0, Math.min(1, (rect.bottom - e.clientY) / rect.height));
+    } else finger.value = 1;
+    this.sync();
   }
 
   private release(id: number) {
-    const finger = this.fingers.get(id);
-    if (!finger) return;
-    this.fingers.delete(id);
-    delete finger.el.dataset.held;
-    switch (finger.control) {
-      case "steer":
-        this.steer = 0;
-        this.ring.hidden = true;
-        this.knob.style.translate = "";
-        break;
-      case "throttle":
-      case "brake":
-        this[finger.control] = 0;
-        finger.el.style.setProperty("--level", "0");
-        break;
-      case "handbrake":
-        this.handbrake = 0;
-        break;
-      case "rewind":
-        this.rewind = false;
-        break;
+    if (!this.fingers.delete(id)) return;
+    this.sync();
+  }
+
+  // Every control is derived from the fingers still down, so lifting one of two fingers on a pedal keeps it held.
+  private sync() {
+    const all = [...this.fingers.values()];
+    const max = (control: Control) => Math.max(0, ...all.filter((f) => f.control === control).map((f) => f.value));
+    const steer = all.filter((f) => f.control === "steer").sort((a, b) => b.touched - a.touched)[0];
+    this.steer = steer?.value ?? 0;
+    this.throttle = max("throttle");
+    this.brake = max("brake");
+    this.handbrake = max("handbrake");
+    this.rewind = max("rewind") > 0;
+    this.ring.hidden = !steer;
+    if (!steer) this.knob.style.translate = "";
+    for (const el of this.root.querySelectorAll<HTMLElement>("[data-touch]")) {
+      const held = all.filter((f) => f.el === el);
+      if (held.length) el.dataset.held = "true";
+      else delete el.dataset.held;
+      if (el.classList.contains("pedal")) el.style.setProperty("--level", String(Math.max(0, ...held.map((f) => f.value))));
     }
   }
 

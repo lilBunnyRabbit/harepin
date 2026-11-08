@@ -33,7 +33,9 @@ body {
   position: fixed;
   inset: 0;
   display: grid;
-  place-items: center;
+  place-content: center;
+  justify-items: center;
+  gap: 16px;
   font-weight: 800;
   font-size: 20px;
   color: var(--primary);
@@ -57,6 +59,23 @@ body {
 .top-left {
   top: 16px;
   left: 16px;
+}
+
+.logo {
+  fill: currentColor;
+}
+
+#loading .logo {
+  width: 96px;
+  height: 88px;
+}
+
+.title .logo {
+  width: 20px;
+  height: 18px;
+  margin-right: 6px;
+  vertical-align: -2px;
+  color: var(--primary);
 }
 
 .title {
@@ -115,7 +134,7 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-#players li:first-child {
+#players li[data-you="true"] {
   color: var(--primary);
 }
 
@@ -783,4 +802,10 @@ button:hover {
   #countdown {
     font-size: 64px;
   }
+}
+
+.sprite {
+  position: absolute;
+  width: 0;
+  height: 0;
 }

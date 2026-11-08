@@ -79,7 +79,10 @@ export class Quality {
       });
     }
     sun.castShadow = shadows;
-    if (shadows && sun.shadow.mapSize.x !== tier.shadow_size) {
+    if (!shadows) {
+      sun.shadow.map?.dispose();
+      sun.shadow.map = null;
+    } else if (sun.shadow.mapSize.x !== tier.shadow_size) {
       sun.shadow.mapSize.set(tier.shadow_size, tier.shadow_size);
       sun.shadow.map?.dispose();
       sun.shadow.map = null;

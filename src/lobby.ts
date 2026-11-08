@@ -3,6 +3,7 @@ import type { Net, RaceEvent, Remote } from "./net";
 export const COUNTDOWN_MS = 3000;
 const MAX_SPEED = 90;
 const LATE_START_MS = 1000;
+const EARLY_START_MS = 10_000;
 const FINISH_SLACK_MS = 2000;
 const RESULTS_MS = 30_000;
 
@@ -117,14 +118,14 @@ export class Lobby {
       case "start": {
         if (this.busy || from.id !== this.leader) return;
         const go = event.start_at + from.offset;
-        if (go < now - LATE_START_MS) return;
+        if (go < now - LATE_START_MS || go > now + EARLY_START_MS) return;
         this.enter(event.race, event.laps, go);
         break;
       }
       case "finish": {
         if (state.kind === "idle" || event.race !== state.race) return;
         if (event.time < state.laps * this.min_lap || event.time > now - state.go + FINISH_SLACK_MS) return;
-        this.add({ id: from.id, name: from.latest.name, time: event.time, you: false });
+        this.add({ id: from.id, name: this.net.display_name(from), time: event.time, you: false });
         if (state.kind === "done") state.until = Math.max(state.until, now + RESULTS_MS);
         break;
       }

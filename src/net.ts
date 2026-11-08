@@ -51,6 +51,11 @@ const CHAT_LENGTH = 140;
 const CHAT_GAP_MS = 800;
 const CHAT_BURST = 5;
 const CHAT_WINDOW_MS = 10_000;
+// Stricter than what peers accept, so network jitter bunching two sends together never gets a legit message dropped.
+const OWN_CHAT_GAP_MS = 900;
+const OWN_CHAT_BURST = 4;
+const FALLBACK_NAME = "Player";
+const ID_SUFFIX = 4;
 
 const MAX_SEED = 0xffffffff;
 export const MAX_LAPS = 10;
@@ -72,7 +77,7 @@ function sanitize(raw: unknown, id: string): CarState | null {
   if (length < 0.5) return null;
   return {
     id,
-    name: typeof s.name === "string" ? s.name.slice(0, NAME_LENGTH) : "Player",
+    name: clean_name(s.name),
     paint: finite(s.paint, 1e3) ? Math.abs(Math.round(s.paint)) : 0,
     seed: s.seed,
     t: s.t,
@@ -111,14 +116,27 @@ export function sanitize_chat(raw: unknown): ChatMsg | null {
   return text ? { text, t: m.t } : null;
 }
 
+export function clean_name(raw: unknown): string {
+  if (typeof raw !== "string") return FALLBACK_NAME;
+  let name = raw.replace(/\p{C}/gu, "").replace(/\s+/gu, " ").trim();
+  while (/\(you\)$/iu.test(name)) name = name.replace(/\(you\)$/iu, "").trim();
+  name = [...name].slice(0, NAME_LENGTH).join("").trim();
+  return name || FALLBACK_NAME;
+}
+
 export class RateLimit {
   private times: number[] = [];
+
+  constructor(
+    private gap = CHAT_GAP_MS,
+    private burst = CHAT_BURST,
+  ) {}
 
   allow(now: number): boolean {
     while (this.times.length && now - this.times[0] >= CHAT_WINDOW_MS) this.times.shift();
     const last = this.times[this.times.length - 1];
-    if (last !== undefined && now - last < CHAT_GAP_MS) return false;
-    if (this.times.length >= CHAT_BURST) return false;
+    if (last !== undefined && now - last < this.gap) return false;
+    if (this.times.length >= this.burst) return false;
     this.times.push(now);
     return true;
   }
@@ -139,11 +157,12 @@ export class Net {
   private event_limits = new Map<string, RateLimit>();
   private channel: BroadcastChannel;
   private chat_limits = new Map<string, RateLimit>();
-  private own_chat_limit = new RateLimit();
+  private own_chat_limit = new RateLimit(OWN_CHAT_GAP_MS, OWN_CHAT_BURST);
 
   constructor(
     readonly room: string,
     readonly seed: number,
+    readonly name: string,
   ) {
     this.channel = new BroadcastChannel(`harepin:${room}`);
     this.channel.onmessage = (event: MessageEvent<unknown>) => this.receive_local(event.data);
@@ -189,6 +208,13 @@ export class Net {
     return msg.text;
   }
 
+  /** A peer's name, with a short id suffix when someone else in the room (you included) uses the same one. */
+  display_name(remote: Remote): string {
+    const name = remote.latest.name;
+    const taken = name === this.name || [...this.remotes.values()].some((r) => r !== remote && r.latest.name === name);
+    return taken ? `${name} #${remote.id.slice(0, ID_SUFFIX)}` : name;
+  }
+
   send_event(event: RaceEvent) {
     this.post({ kind: "event", id: this.id, data: event });
     this.send_event_p2p?.(event);
@@ -210,7 +236,7 @@ export class Net {
     const remote = this.known(sender);
     const msg = sanitize_chat(raw);
     if (!remote || !msg || !this.allow(this.chat_limits, remote.id)) return;
-    this.on_chat?.(remote.latest.name, msg.text);
+    this.on_chat?.(this.display_name(remote), msg.text);
   }
 
   private receive_event(raw: unknown, sender: unknown) {
