@@ -1246,3 +1246,9 @@ body:not([data-hud="c"]) #speed {
     top: calc(64px + env(safe-area-inset-top));
   }
 }
+
+/* ?noblur canvas-bug bisect switch: drops every compositor filter over the canvas. */
+body.no-blur * {
+  backdrop-filter: none !important;
+  filter: none !important;
+}

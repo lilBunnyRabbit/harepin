@@ -42,7 +42,11 @@ await new Promise((r) => setTimeout(r, 30));
 const world = new World(seed);
 
 const quality = new Quality(params, prefs.quality);
-const renderer = new THREE.WebGLRenderer({ antialias: quality.antialias, powerPreference: "high-performance" });
+// Canvas-bug bisect switches for ?debug, combined with ?quality=medium: each drops one piece of the bloom path.
+const BISECT = ["nobloom", "nocomposer", "noblur", "alpha", "bloomhalf"] as const;
+const bisect = new Set(BISECT.filter((flag) => params.has(flag)));
+document.body.classList.toggle("no-blur", bisect.has("noblur"));
+const renderer = new THREE.WebGLRenderer({ antialias: quality.antialias, powerPreference: "high-performance", alpha: bisect.has("alpha"), premultipliedAlpha: true });
 renderer.setPixelRatio(quality.ratio);
 renderer.setSize(innerWidth, innerHeight, false);
 renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -79,7 +83,11 @@ scene.add(smoke.mesh, skids.mesh);
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
 const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), light.bloom.strength, 0.45, light.bloom.threshold);
-composer.addPass(bloom);
+if (bisect.has("bloomhalf")) {
+  const set_size = bloom.setSize.bind(bloom);
+  bloom.setSize = (width, height) => set_size(Math.round(width / 2), Math.round(height / 2));
+}
+if (!bisect.has("nobloom")) composer.addPass(bloom);
 composer.addPass(new OutputPass());
 
 const garage = new Garage(document.body, build);
@@ -261,7 +269,8 @@ function check_size(now: number) {
     `scissor ${gl.isEnabled(gl.SCISSOR_TEST) ? "on" : "off"} ${[...scissor].join(",")}`,
     `ratio ${renderer.getPixelRatio()} tier ${quality.level}`,
     `target ${renderer.getRenderTarget() === null ? "screen" : "offscreen"}`,
-    `composer ${quality.tier.bloom ? "on" : "off"} bloom ${quality.tier.bloom && bloom.enabled ? "on" : "off"} shadows ${renderer.shadowMap.enabled ? "on" : "off"}`,
+    `composer ${quality.tier.bloom && !bisect.has("nocomposer") ? "on" : "off"} bloom ${quality.tier.bloom && !bisect.has("nocomposer") && !bisect.has("nobloom") && bloom.enabled ? "on" : "off"} shadows ${renderer.shadowMap.enabled ? "on" : "off"}`,
+    `bisect ${[...bisect].join(" ") || "none"}`,
   ].join(" | ");
   if (report !== render_report) {
     render_report = report;
@@ -410,7 +419,7 @@ function frame(now: number) {
   hud.update(car, now, rewinding);
   if (quality.adapt(dt)) quality.apply(renderer, scene, sun);
   fit();
-  if (quality.tier.bloom) composer.render();
+  if (quality.tier.bloom && !bisect.has("nocomposer")) composer.render();
   else renderer.render(scene, camera);
   if (import.meta.env.DEV || debug_overlay) check_size(now);
   requestAnimationFrame(frame);
