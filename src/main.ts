@@ -263,6 +263,7 @@ let render_report = "";
 const DEBUG_MS = 250;
 const debug_overlay = params.has("debug") ? document.body.appendChild(Object.assign(document.createElement("pre"), { id: "debug" })) : null;
 let debug_at = 0;
+const composer_on = () => quality.tier.bloom && !bisect.has("nocomposer");
 // Runs after the frame is drawn, so viewport and scissor are what that frame actually left behind.
 function check_size(now: number) {
   const gl = renderer.getContext();
@@ -279,7 +280,7 @@ function check_size(now: number) {
     `scissor ${gl.isEnabled(gl.SCISSOR_TEST) ? "on" : "off"} ${[...scissor].join(",")}`,
     `ratio ${renderer.getPixelRatio()} tier ${quality.level}`,
     `target ${renderer.getRenderTarget() === null ? "screen" : "offscreen"}`,
-    `composer ${quality.tier.bloom && !bisect.has("nocomposer") ? "on" : "off"} bloom ${quality.tier.bloom && !bisect.has("nocomposer") && !bisect.has("nobloom") && bloom.enabled ? "on" : "off"} shadows ${renderer.shadowMap.enabled ? "on" : "off"}`,
+    `composer ${composer_on() ? "on" : "off"} bloom ${composer_on() && !bisect.has("nobloom") && bloom.enabled ? "on" : "off"} shadows ${renderer.shadowMap.enabled ? "on" : "off"}`,
     `bisect ${[...bisect].join(" ") || "none"}`,
   ].join(" | ");
   if (report !== render_report) {
@@ -288,7 +289,8 @@ function check_size(now: number) {
   }
   if (debug_overlay && now - debug_at > DEBUG_MS) {
     debug_at = now;
-    debug_overlay.textContent = `${report.replaceAll(" | ", "\n")}\n${nan_probe?.status ?? ""}`;
+    const probe = composer_on() ? (nan_probe?.status ?? "") : "scene n/a (no composer)";
+    debug_overlay.textContent = `${report.replaceAll(" | ", "\n")}\n${probe}`;
   }
   const ok =
     Math.abs(rect.width - innerWidth) < 1 &&
@@ -433,7 +435,7 @@ function frame(now: number) {
   if (quality.adapt(dt)) quality.apply(renderer, scene, sun);
   fit();
   world_view.update(camera, quality.tier.fog_far);
-  if (quality.tier.bloom && !bisect.has("nocomposer")) composer.render();
+  if (composer_on()) composer.render();
   else renderer.render(scene, camera);
   if (import.meta.env.DEV || debug_overlay) check_size(now);
   requestAnimationFrame(frame);
