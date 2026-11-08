@@ -17,7 +17,16 @@ export type CarState = {
 
 export type ChatMsg = { text: string; t: number };
 
-type Packet = { kind: "car"; id: string; data: CarState } | { kind: "chat"; id: string; data: ChatMsg };
+/** `start_at` is in the sender's `performance.now()` clock; receivers shift it by their `Remote.offset`. */
+export type RaceEvent =
+  | { kind: "request"; laps: number }
+  | { kind: "start"; race: number; laps: number; start_at: number }
+  | { kind: "finish"; race: number; time: number };
+
+type Packet =
+  | { kind: "car"; id: string; data: CarState }
+  | { kind: "chat"; id: string; data: ChatMsg }
+  | { kind: "event"; id: string; data: RaceEvent };
 
 interface Snapshot {
   at: number;
@@ -44,6 +53,8 @@ const CHAT_BURST = 5;
 const CHAT_WINDOW_MS = 10_000;
 
 const MAX_SEED = 0xffffffff;
+export const MAX_LAPS = 10;
+const MAX_RACE_MS = 1e7;
 
 const finite = (v: unknown, limit: number): v is number => typeof v === "number" && Number.isFinite(v) && Math.abs(v) <= limit;
 const triple = (v: unknown, limit: number): v is [number, number, number] => Array.isArray(v) && v.length === 3 && v.every((x) => finite(x, limit));
@@ -80,6 +91,18 @@ export function parse_seed(raw: string | null): number | null {
   return seed <= MAX_SEED ? seed : null;
 }
 
+const laps_ok = (v: unknown): v is number => finite(v, MAX_LAPS) && Number.isInteger(v) && v >= 1;
+const race_ok = (v: unknown): v is number => finite(v, MAX_SEED) && Number.isInteger(v) && v >= 0;
+
+export function sanitize_event(raw: unknown): RaceEvent | null {
+  if (!raw || typeof raw !== "object") return null;
+  const e = raw as Record<string, unknown>;
+  if (e.kind === "request" && laps_ok(e.laps)) return { kind: "request", laps: e.laps };
+  if (e.kind === "start" && race_ok(e.race) && laps_ok(e.laps) && finite(e.start_at, 1e12)) return { kind: "start", race: e.race, laps: e.laps, start_at: e.start_at };
+  if (e.kind === "finish" && race_ok(e.race) && finite(e.time, MAX_RACE_MS) && e.time > 0) return { kind: "finish", race: e.race, time: e.time };
+  return null;
+}
+
 export function sanitize_chat(raw: unknown): ChatMsg | null {
   if (!raw || typeof raw !== "object") return null;
   const m = raw as Record<string, unknown>;
@@ -110,7 +133,10 @@ export class Net {
   status = "connecting";
   on_chat: ((name: string, text: string) => void) | null = null;
   private send_p2p: ((state: CarState) => void) | null = null;
+  on_event: ((event: RaceEvent, from: Remote) => void) | null = null;
   private send_chat_p2p: ((msg: ChatMsg) => void) | null = null;
+  private send_event_p2p: ((event: RaceEvent) => void) | null = null;
+  private event_limits = new Map<string, RateLimit>();
   private channel: BroadcastChannel;
   private chat_limits = new Map<string, RateLimit>();
   private own_chat_limit = new RateLimit();
@@ -129,6 +155,9 @@ export class Net {
       const chat = p2p.makeAction<ChatMsg>("chat");
       this.send_chat_p2p = (msg) => void chat.send(msg);
       chat.onMessage = (msg, { peerId }) => this.receive_chat(msg, peerId);
+      const events = p2p.makeAction<RaceEvent>("event");
+      this.send_event_p2p = (event) => void events.send(event);
+      events.onMessage = (event, { peerId }) => this.receive_event(event, peerId);
       p2p.onPeerJoin = () => {
         this.peers++;
         this.status = "online";
@@ -138,6 +167,7 @@ export class Net {
         if (this.peers === 0) this.status = "searching";
         this.remotes.delete(peer);
         this.chat_limits.delete(peer);
+        this.event_limits.delete(peer);
       };
       this.status = "searching";
     } catch (error) {
@@ -159,6 +189,11 @@ export class Net {
     return msg.text;
   }
 
+  send_event(event: RaceEvent) {
+    this.post({ kind: "event", id: this.id, data: event });
+    this.send_event_p2p?.(event);
+  }
+
   private post(packet: Packet) {
     this.channel.postMessage(packet);
   }
@@ -168,18 +203,31 @@ export class Net {
     const packet = raw as Record<string, unknown>;
     if (packet.kind === "car") this.receive(packet.data, packet.id);
     else if (packet.kind === "chat") this.receive_chat(packet.data, packet.id);
+    else if (packet.kind === "event") this.receive_event(packet.data, packet.id);
   }
 
   private receive_chat(raw: unknown, sender: unknown) {
-    if (typeof sender !== "string" || sender === this.id) return;
-    const remote = this.remotes.get(sender);
-    if (!remote) return;
+    const remote = this.known(sender);
     const msg = sanitize_chat(raw);
-    if (!msg) return;
-    let limit = this.chat_limits.get(sender);
-    if (!limit) this.chat_limits.set(sender, (limit = new RateLimit()));
-    if (!limit.allow(performance.now())) return;
+    if (!remote || !msg || !this.allow(this.chat_limits, remote.id)) return;
     this.on_chat?.(remote.latest.name, msg.text);
+  }
+
+  private receive_event(raw: unknown, sender: unknown) {
+    const remote = this.known(sender);
+    const event = sanitize_event(raw);
+    if (!remote || !event || !this.allow(this.event_limits, remote.id)) return;
+    this.on_event?.(event, remote);
+  }
+
+  private known(sender: unknown): Remote | null {
+    return typeof sender === "string" && sender !== this.id ? (this.remotes.get(sender) ?? null) : null;
+  }
+
+  private allow(limits: Map<string, RateLimit>, id: string): boolean {
+    let limit = limits.get(id);
+    if (!limit) limits.set(id, (limit = new RateLimit()));
+    return limit.allow(performance.now());
   }
 
   private receive(raw: unknown, sender: unknown) {

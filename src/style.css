@@ -702,3 +702,85 @@ button:hover {
     background: var(--background-darkest);
   }
 }
+
+#countdown {
+  position: fixed;
+  top: 32%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 96px;
+  font-weight: 800;
+  color: var(--cottontail);
+  text-shadow: 0 2px 24px var(--background-darkest);
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+
+#race-panel {
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 220px;
+  pointer-events: none;
+}
+
+#race-panel[hidden] {
+  display: none;
+}
+
+#race-status {
+  font-weight: 800;
+  color: var(--cottontail);
+  font-variant-numeric: tabular-nums;
+}
+
+#race-results {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+#race-results:empty {
+  display: none;
+}
+
+#race-results li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+#race-results li[data-you="true"] {
+  color: var(--primary);
+}
+
+#race-results i {
+  font-style: normal;
+  color: color-mix(in oklch, var(--foreground) 62%, transparent);
+}
+
+.room-actions select {
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--foreground);
+  background: var(--background-light);
+  border: 1px solid color-mix(in oklch, var(--foreground) 18%, transparent);
+  border-radius: 8px;
+  padding: 2px 6px;
+}
+
+@media (pointer: coarse) {
+  #race-panel {
+    top: calc(64px + env(safe-area-inset-top));
+    left: auto;
+    right: calc(150px + env(safe-area-inset-right));
+    transform: none;
+    min-width: 200px;
+  }
+
+  #countdown {
+    font-size: 64px;
+  }
+}

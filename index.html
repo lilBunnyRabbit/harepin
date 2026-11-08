@@ -39,6 +39,15 @@
         <button id="invite" type="button">Copy invite link</button>
         <button id="private" type="button">New private room</button>
       </div>
+      <div class="room-actions">
+        <button id="race-call" type="button">Start race</button>
+        <select id="race-laps" aria-label="Laps">
+          <option value="1">1 lap</option>
+          <option value="2">2 laps</option>
+          <option value="3" selected>3 laps</option>
+          <option value="5">5 laps</option>
+        </select>
+      </div>
       <label class="theme dim">theme <select id="theme"></select></label>
       <div class="times">
         <div><span class="dim">lap</span><b id="lap"></b></div>
@@ -56,6 +65,11 @@
 
     <div id="banner"></div>
     <div id="delta"></div>
+    <div id="countdown"></div>
+    <div id="race-panel" class="hud" hidden>
+      <div id="race-status"></div>
+      <ol id="race-results"></ol>
+    </div>
     <div id="rewind">◂◂ REWIND</div>
 
     <div class="dock-left">

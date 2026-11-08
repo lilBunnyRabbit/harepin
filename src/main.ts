@@ -11,6 +11,7 @@ import { Skids, Smoke } from "./effects";
 import { Ghost } from "./ghost";
 import { $, Hud } from "./hud";
 import { Input } from "./input";
+import { Lobby, min_lap_ms } from "./lobby";
 import { car_view, contact_shadow, gates, place_contact_shadow, roadside, sync_car_view } from "./models";
 import { Net, parse_seed, type CarState } from "./net";
 import { Quality } from "./quality";
@@ -89,9 +90,19 @@ for (const event of ["keydown", "pointerdown", "gamepadconnected"]) addEventList
 const race = new Race(world);
 const chase = new ChaseCamera(camera);
 const remotes = new Remotes(scene, $("labels"), net, world);
-const hud = new Hud(world, race, net, name, room);
+const lobby = new Lobby(net, name, min_lap_ms(world.checkpoints));
+lobby.start();
+const hud = new Hud(world, race, net, name, room, lobby);
 const ghost = new Ghost(scene);
-race.on_lap = (improved) => ghost.finish(improved);
+race.on_lap = (improved) => {
+  ghost.finish(improved);
+  lobby.lap(performance.now());
+};
+lobby.on_start = () => {
+  spawn_at(-40);
+  race.restore({ next: 0, started: 0, splits: [] }, 0);
+  history.length = 0;
+};
 race.on_start = () => ghost.start();
 
 const HELP_KEY = "harepin:help";
@@ -238,9 +249,13 @@ function frame(now: number) {
     if (action === "help") set_help(document.body.classList.contains("help-hidden"));
   }
 
-  if (input.rewind && history.length > 1) {
+  lobby.update(now);
+  if (input.rewind && history.length > 1 && !lobby.busy) {
     rewinding = true;
     rewind_step(now);
+    acc = 0;
+  } else if (lobby.state.kind === "countdown") {
+    rewinding = false;
     acc = 0;
   } else {
     rewinding = false;
@@ -317,6 +332,7 @@ if (import.meta.env.DEV)
     open_road: {
       car,
       input,
+      lobby,
       race,
       world,
       ghost,
@@ -338,6 +354,10 @@ invite.addEventListener("click", async () => {
   setTimeout(() => (invite.textContent = "Copy invite link"), 2000);
   invite.blur();
 });
+const laps = $("race-laps", HTMLSelectElement);
+$("race-call").addEventListener("click", () => (lobby.busy ? lobby.leave() : lobby.call(Number(laps.value))));
+laps.addEventListener("change", () => laps.blur());
+
 $("private").addEventListener("click", () => {
   const code = Math.random().toString(36).slice(2, 8);
   location.search = `?room=${code}`;

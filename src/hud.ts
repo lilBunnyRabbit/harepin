@@ -1,4 +1,5 @@
 import type { Car } from "./car";
+import type { Lobby } from "./lobby";
 import type { Net } from "./net";
 import type { Race } from "./race";
 import { brand, rgba } from "./palette";
@@ -39,11 +40,17 @@ export class Hud {
     banner: $("banner"),
     delta: $("delta"),
     rewind: $("rewind"),
+    countdown: $("countdown"),
+    race_panel: $("race-panel"),
+    race_status: $("race-status"),
+    race_results: $("race-results"),
+    race_call: $("race-call", HTMLButtonElement),
   };
   private map: CanvasRenderingContext2D;
   private road = new Path2D();
   private assist_key = "";
   private players_key = "";
+  private results_key = "";
 
   constructor(
     private world: World,
@@ -51,6 +58,7 @@ export class Hud {
     private net: Net,
     private name: string,
     room: string,
+    private lobby: Lobby,
   ) {
     $("room").textContent = room;
     const canvas = $("minimap", HTMLCanvasElement);
@@ -116,7 +124,32 @@ export class Hud {
       el.delta.dataset.ahead = String(race.delta < 0);
     }
     el.rewind.style.opacity = rewinding ? "1" : "0";
+    this.draw_lobby(now);
     this.draw_map(car);
+  }
+
+  private draw_lobby(now: number) {
+    const { el } = this;
+    const { state, finishers } = this.lobby;
+    const count = state.kind === "countdown" ? String(Math.ceil((state.go - now) / 1000)) : state.kind === "racing" && now - state.go < 1000 ? "GO" : "";
+    el.countdown.textContent = count;
+    el.countdown.style.opacity = count ? "1" : "0";
+    el.race_call.textContent = this.lobby.busy ? "Leave race" : "Start race";
+    el.race_panel.hidden = state.kind === "idle";
+    if (state.kind === "idle") return;
+    const laps = `${state.laps} lap${state.laps === 1 ? "" : "s"}`;
+    el.race_status.textContent =
+      state.kind === "countdown"
+        ? `Race · ${laps} · get ready`
+        : state.kind === "racing"
+          ? `Race · lap ${state.lap + 1}/${state.laps} · ${format(now - state.go)}`
+          : `Finished · ${format(state.time)}`;
+    const results_key = JSON.stringify(finishers);
+    if (results_key === this.results_key) return;
+    this.results_key = results_key;
+    el.race_results.innerHTML = finishers
+      .map((f, i) => `<li data-you="${f.you}"><span>${i + 1}. ${escape_html(f.name)}${f.you ? " (you)" : ""}</span><span>${format(f.time)}${f.you ? "" : " <i>claimed</i>"}</span></li>`)
+      .join("");
   }
 
   private draw_map(car: Car) {
