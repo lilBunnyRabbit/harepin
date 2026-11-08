@@ -41,9 +41,9 @@ export interface Terrain {
   size: number;
   cell: number;
   n: number;
-  heights: Float32Array;
+  heights: Float32Array<ArrayBuffer>;
   /** Distance to the nearest road surface edge plus ROAD_HALF, so every road reads as ROAD_HALF wide to grip(). */
-  road_dist: Float32Array;
+  road_dist: Float32Array<ArrayBuffer>;
 }
 
 export type NodeKind = "junction" | "end" | "town";

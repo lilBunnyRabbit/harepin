@@ -15,6 +15,7 @@ import type {
   Solid,
   Town,
   Tree,
+  WorldData,
 } from "./worldgen/types";
 
 export { fbm } from "./worldgen/noise";
@@ -139,8 +140,11 @@ export class World implements Ground {
   private readonly seen: Uint32Array;
   private query = 0;
 
-  constructor(readonly seed = 0) {
-    const data = generate(seed);
+  /** `data` is `generate(seed)`, passed in when a worker already ran it. */
+  constructor(
+    readonly seed = 0,
+    data: WorldData = generate(seed),
+  ) {
     this.heights = data.terrain.heights;
     this.road_dist = data.terrain.road_dist;
     this.road = data.road;
