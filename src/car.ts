@@ -41,6 +41,11 @@ export function rest_reach(spec: CarSpec): number {
   return spec.wheel.rest + spec.wheel.radius - (spec.mass * GRAVITY) / (4 * spec.spring);
 }
 
+/** Height of the car origin above flat ground with the car parked at rest. */
+export function ride_height(spec: CarSpec): number {
+  return rest_reach(spec) - spec.wheel.mounts[0][1];
+}
+
 export class Wheel {
   omega = 0;
   spin = 0;
@@ -154,6 +159,11 @@ export class Car {
       w.omega = 0;
       w.compression = 0;
     }
+  }
+
+  /** Sets the car at rest on the ground under (x, z) at its own ride height, so a swap or respawn neither drops nor stacks. */
+  park(x: number, z: number, heading: number, ground: Ground) {
+    this.place(x, ground.height(x, z) + ride_height(this.spec), z, heading);
   }
 
   get forward_speed(): number {

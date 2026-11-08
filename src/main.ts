@@ -187,7 +187,7 @@ updater.start();
 garage.on_change = (next) => {
   const { pos, heading } = car;
   car = new Car(build_spec(next));
-  car.place(pos.x, Math.max(pos.y, world.height(pos.x, pos.z)) + 0.25, pos.z, heading);
+  car.park(pos.x, pos.z, heading, world);
   apply_car_settings(settings.state);
   scene.remove(view.root);
   dispose_car_view(view);

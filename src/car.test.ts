@@ -1,6 +1,7 @@
 /// <reference types="bun" />
 import { describe, expect, test } from "bun:test";
-import { Car, SteerMode, type Controls, type Ground } from "./car";
+import { Car, SteerMode, ride_height, type Controls, type Ground } from "./car";
+import { CARS } from "./cars";
 
 const flat: Ground = { height: () => 0, normal: (_x, _z, out) => out.set(0, 1, 0), grip: () => 1, roll: () => 1 };
 const DT = 1 / 360;
@@ -71,5 +72,38 @@ describe("keyboard steer mode", () => {
     run(hold, 8, () => pad(hold));
     expect(hold.steer).toBe(snap.steer);
     expect(hold.pos.toArray()).toEqual(snap.pos.toArray());
+  });
+});
+
+describe("garage swap", () => {
+  const hill: Ground = { ...flat, height: (x, z) => 3 + 0.1 * x - 0.05 * z };
+
+  test("20 swaps leave each car on the ground at its ride height, not stacked", () => {
+    const specs = Object.values(CARS);
+    let car = new Car(specs[0]);
+    car.place(4, 10, -6, 0.7);
+    const first = new Map<number, number>();
+    for (let i = 0; i < 20; i++) {
+      const prev = car;
+      const index = (i + 1) % specs.length;
+      car = new Car(specs[index]);
+      car.park(prev.pos.x, prev.pos.z, prev.heading, hill);
+      expect(car.pos.y).toBeCloseTo(hill.height(car.pos.x, car.pos.z) + ride_height(car.spec), 6);
+      expect(car.heading).toBeCloseTo(0.7, 6);
+      expect(car.vel.length()).toBe(0);
+      const y = first.get(index) ?? car.pos.y;
+      first.set(index, y);
+      expect(Math.abs(car.pos.y - y)).toBeLessThan(0.02);
+    }
+  });
+
+  test("a parked car neither drops nor lifts once the sim runs", () => {
+    for (const spec of Object.values(CARS)) {
+      const car = new Car(spec);
+      car.park(0, 0, 0, flat);
+      const parked = car.pos.y;
+      run(car, 2, () => idle);
+      expect(Math.abs(car.pos.y - parked)).toBeLessThan(0.02);
+    }
   });
 });
