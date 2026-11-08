@@ -13,6 +13,10 @@ const PEAK_HEIGHT = 150;
 const PEAK_SPREAD = 230;
 const PEAK_REACH = 220;
 const SEED0_PEAK: Peak = { x: 120, z: -160 };
+const ROAD_CONTROLS = 16;
+const ROAD_MIN_RADIUS = 45;
+const ROAD_ATTEMPTS = 16;
+const RADIUS_SPAN = 5;
 
 function hash(ix: number, iy: number, seed: number): number {
   let h = (ix * 374761393 + iy * 668265263 + Math.imul(seed, 1442695041)) | 0;
@@ -145,6 +149,46 @@ function catmull(points: [number, number][], step: number): [number, number][] {
   return out;
 }
 
+function loop_controls(seed: number): [number, number][] {
+  const controls: [number, number][] = [];
+  for (let i = 0; i < ROAD_CONTROLS; i++) {
+    const a = (i / ROAD_CONTROLS) * Math.PI * 2;
+    const r = 600 + (fbm(Math.cos(a) * 3, Math.sin(a) * 3, seed) - 0.5) * 420;
+    controls.push([Math.cos(a) * r, Math.sin(a) * r]);
+  }
+  return controls;
+}
+
+// Circumradius of each 20 m arc. Built from + - * / and sqrt only, which are IEEE-exact everywhere, because it picks
+// which road every client gets.
+export function min_radius(path: [number, number][]): number {
+  const n = path.length;
+  let min = Infinity;
+  for (let i = 0; i < n; i++) {
+    const [ax, az] = path[(i - RADIUS_SPAN + n) % n];
+    const [bx, bz] = path[i];
+    const [cx, cz] = path[(i + RADIUS_SPAN) % n];
+    const cross = Math.abs((bx - ax) * (cz - az) - (bz - az) * (cx - ax));
+    const sides = Math.sqrt(((bx - ax) ** 2 + (bz - az) ** 2) * ((cx - bx) ** 2 + (cz - bz) ** 2) * ((cx - ax) ** 2 + (cz - az) ** 2));
+    min = Math.min(min, cross > 0 ? sides / (2 * cross) : Infinity);
+  }
+  return min;
+}
+
+function loop_path(seed: number): [number, number][] {
+  let best = catmull(loop_controls(seed + 41), 2);
+  let best_radius = min_radius(best);
+  for (let attempt = 1; attempt < ROAD_ATTEMPTS && best_radius < ROAD_MIN_RADIUS; attempt++) {
+    const path = catmull(loop_controls(sub(seed, "road") + attempt), 2);
+    const radius = min_radius(path);
+    if (radius > best_radius) {
+      best = path;
+      best_radius = radius;
+    }
+  }
+  return best;
+}
+
 export class World implements Ground {
   readonly heights = new Float32Array((N + 1) * (N + 1));
   readonly road_dist = new Float32Array((N + 1) * (N + 1)).fill(1e9);
@@ -160,14 +204,7 @@ export class World implements Ground {
     for (let j = 0; j <= N; j++)
       for (let i = 0; i <= N; i++) heights[j * (N + 1) + i] = raw_height(ORIGIN + i * CELL, ORIGIN + j * CELL, seed, peak);
 
-    const controls: [number, number][] = [];
-    const count = 16;
-    for (let i = 0; i < count; i++) {
-      const a = (i / count) * Math.PI * 2;
-      const r = 600 + (fbm(Math.cos(a) * 3, Math.sin(a) * 3, seed + 41) - 0.5) * 420;
-      controls.push([Math.cos(a) * r, Math.sin(a) * r]);
-    }
-    const path = catmull(controls, 2);
+    const path = loop_path(seed);
     let ys = path.map(([x, z]) => Math.max(3, this.height(x, z)));
     for (let pass = 0; pass < 4; pass++) {
       const window = 24;
