@@ -159,8 +159,8 @@ function loop_controls(seed: number): [number, number][] {
   return controls;
 }
 
-// Circumradius of each 20 m arc. Built from + - * / and sqrt only, which are IEEE-exact everywhere, because it picks
-// which road every client gets.
+// Circumradius of each 20 m arc. The maths here is IEEE-exact, but the path comes from Math.cos/sin/hypot, which may
+// differ in the last bit between engines; the closest any loop sat to ROAD_MIN_RADIUS over 3000 seeds was 0.0011 m.
 export function min_radius(path: [number, number][]): number {
   const n = path.length;
   let min = Infinity;

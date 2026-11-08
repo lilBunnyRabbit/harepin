@@ -48,8 +48,8 @@ export class Race {
   next = 0;
   started = 0;
   last: number | null = null;
-  best: number | null = load<number | null>(BEST_KEY, is_time, null);
-  best_splits: number[] = load(SPLITS_KEY, is_splits, []);
+  best: number | null;
+  best_splits: number[];
   splits: number[] = [];
   lap_flash = 0;
   delta: number | null = null;
@@ -57,7 +57,15 @@ export class Race {
   on_lap: ((improved: boolean) => void) | null = null;
   on_start: (() => void) | null = null;
 
-  constructor(private world: World) {}
+  private readonly best_key: string;
+  private readonly splits_key: string;
+
+  constructor(private world: World) {
+    this.best_key = `${BEST_KEY}:${world.seed}`;
+    this.splits_key = `${SPLITS_KEY}:${world.seed}`;
+    this.best = load<number | null>(this.best_key, is_time, null);
+    this.best_splits = load(this.splits_key, is_splits, []);
+  }
 
   get gates() {
     return this.world.checkpoints.length;
@@ -76,8 +84,8 @@ export class Race {
         if (improved) {
           this.best = lap;
           this.best_splits = [...this.splits];
-          save(BEST_KEY, lap);
-          save(SPLITS_KEY, this.best_splits);
+          save(this.best_key, lap);
+          save(this.splits_key, this.best_splits);
         }
         this.on_lap?.(improved);
         this.lap_flash = now;
