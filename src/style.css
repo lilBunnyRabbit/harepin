@@ -1625,3 +1625,21 @@ body.no-blur * {
   backdrop-filter: none !important;
   filter: none !important;
 }
+}
+
+.title #room {
+  display: inline-block;
+  max-width: 12ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+/* Centred, the strip runs into the title bar below about 1440px, so it docks beside it instead. */
+@media (pointer: fine) and (max-width: 1439px) {
+  #strip {
+    left: calc(anchor(--title-bar right) + var(--space-2));
+    translate: none;
+  }
+}

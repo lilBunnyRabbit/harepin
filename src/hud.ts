@@ -75,6 +75,7 @@ export class Hud {
     private lobby: Lobby,
   ) {
     $("room").textContent = room;
+    $("room").title = room;
     this.el.join_map.addEventListener("click", () => {
       const seed = this.net.foreign_seed();
       if (seed !== null) location.search = `?${new URLSearchParams({ room, seed: String(seed) })}`;
