@@ -190,7 +190,6 @@ function apply_settings(state: SettingsState) {
   apply_car_settings(state);
   document.documentElement.dataset.hud = state.hud;
   for (const chip of document.querySelectorAll<HTMLElement>("[data-aid]")) chip.setAttribute("aria-pressed", String(state[chip.dataset.aid as Aid]));
-  for (const lamp of document.querySelectorAll<HTMLElement>("[data-lamp]")) lamp.hidden = state[lamp.dataset.lamp as Aid];
   input.touch.set_steer_mode(state.touch_steer);
   chase.mode = state.camera === CameraView.COCKPIT ? 1 : 0;
   audio.set_view(state.camera === CameraView.COCKPIT);

@@ -701,7 +701,7 @@ select {
 .bottom-right {
   bottom: var(--inset-bottom);
   right: var(--inset-right);
-  width: 228px;
+  width: 264px;
 }
 
 /* Out of flow above the speedo, so it reserves nothing while hidden; it only shows when the view is orbited away. */
@@ -1159,7 +1159,7 @@ body:has(#mode-result:not([hidden])) #mode-status {
   --map-panel: calc(var(--map-size) + 2 * var(--space-2) + 2px);
   --pedal-w: 84px;
   --pedals: calc(2 * var(--pedal-w) + var(--space-3));
-  --speedo-h: 64px;
+  --speedo-h: 80px;
   --steer-key-w: 96px;
   --steer-key-h: 140px;
 }
@@ -1794,40 +1794,44 @@ body.no-blur * {
   align-self: center;
 }
 
-/* Dash switches: each aid is a hard key with a lamp that is lit while the aid works; switched off, the lamp goes dark and
-   the key goes flat and dim. The warning for an aid that's off is a separate amber "OFF" badge on the speedo. */
+/* Dash switches along the foot of the speedo: the lamp is lit while the aid works; switched off, it goes dark and the
+   label dims. */
 .assists {
-  position: fixed;
   display: flex;
   gap: var(--space-1);
+  margin-top: var(--space-3);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--line);
+  pointer-events: auto;
 }
 
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
+.aid-key {
+  flex: 1 1 auto;
+  gap: 6px;
   height: 28px;
-  padding: 0 var(--space-2) 0 var(--space-2);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--line);
-  background: var(--surface);
-  box-shadow: inset 0 -2px 0 color-mix(in oklch, var(--background-darkest) 60%, transparent);
+  padding: 0 var(--space-2);
+  border: 0;
+  background: none;
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--dim);
-  backdrop-filter: blur(6px);
 }
 
-.chip[aria-pressed="true"] {
+.aid-key[aria-pressed="true"],
+.aid-key:hover {
   color: var(--foreground);
-  border-color: var(--line-strong);
 }
 
-.chip::before {
+.aid-key:hover {
+  background: var(--background-light);
+}
+
+.aid-key::before {
   content: "";
+  flex: none;
   width: 7px;
   height: 7px;
   border-radius: 50%;
@@ -1835,67 +1839,36 @@ body.no-blur * {
   box-shadow: 0 0 6px var(--success);
 }
 
-.chip[aria-pressed="false"] {
-  box-shadow: none;
-  background: color-mix(in oklch, var(--surface) 60%, transparent);
+.aid-key[aria-pressed="false"]::before {
+  background: none;
+  box-shadow: inset 0 0 0 1px var(--dim);
 }
 
-.chip[aria-pressed="false"]::before {
-  background: color-mix(in oklch, var(--foreground) 18%, transparent);
-  box-shadow: none;
-}
-
-@media (pointer: fine) {
-  .assists {
-    left: var(--inset-left);
-    bottom: var(--inset-bottom);
-  }
-
-  .dock-left {
-    bottom: calc(var(--inset-bottom) + var(--control-h) + var(--space-2));
-  }
-}
-
-/* Touch has no free spot for a row of switches: bottom left steers, the right thumb works the pedals, and the top band
-   changes with the layout. There they sit behind the bar's aids button, and an aid switched off lights a lamp on the
-   speedo, which every layout keeps on screen. */
+/* On touch the speedo sits over the pedals' hit area and is too small for thumb-sized keys, so its row is lamps only and
+   the switches sit behind the bar's aids button. */
 #aids-btn,
 #aids {
   display: none;
 }
 
-/* Off badges ride on the speedo, which every layout keeps on screen; they show only for an aid that's off. */
-.aid-lamps {
-  display: flex;
-  flex-basis: 100%;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-  margin-bottom: var(--space-1);
-}
-
-.aid-lamps:not(:has(> :not([hidden]))) {
-  display: none;
-}
-
-.aid-lamps i {
-  padding: 0 5px;
-  border-radius: var(--radius-xs);
-  border: 1px solid var(--warning);
-  color: var(--warning);
-  font: 700 var(--text-2xs) / 14px var(--font-mono);
-  font-style: normal;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.aid-lamps i[hidden] {
-  display: none;
-}
-
 @media (pointer: coarse) {
   .assists {
-    display: none;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+    padding-top: var(--space-1);
+    pointer-events: none;
+  }
+
+  .aid-key {
+    gap: var(--space-1);
+    height: 14px;
+    padding: 0;
+    font-size: var(--text-2xs);
+  }
+
+  .aid-key::before {
+    width: 5px;
+    height: 5px;
   }
 
   #aids-btn {
@@ -1970,8 +1943,7 @@ body.no-blur * {
 
 }
 
-button,
-.chip {
+button {
   transition:
     background-color 0.15s,
     border-color 0.15s,
@@ -1984,17 +1956,8 @@ button:active:not(:disabled) {
   translate: 0 1px;
 }
 
-.chip:hover {
-  color: var(--foreground);
-  border-color: var(--line-strong);
-}
-
 #modes-btn {
   padding-inline: var(--space-2) var(--space-3);
-}
-
-.chip {
-  height: var(--control-h);
 }
 
 #strip[data-idle] > div:nth-child(2) {
@@ -2250,7 +2213,7 @@ button:active:not(:disabled) {
 }
 
 :root {
-  --racing-speedo: 200px;
+  --racing-speedo: 264px;
 }
 
 /* Centred, the strip meets the button bar below 1440px; there it keeps the Classic spot. */
@@ -2288,6 +2251,11 @@ button:active:not(:disabled) {
   height: 4px;
 }
 
+:root[data-hud="racing"] .assists,
+:root[data-hud="compact"] .assists {
+  flex-basis: 100%;
+}
+
 :root[data-hud="minimal"] .dock-top .top-left,
 :root[data-hud="minimal"] #strip[data-idle],
 :root[data-hud="minimal"] #strip > div:nth-child(2),
@@ -2317,25 +2285,13 @@ button:active:not(:disabled) {
   bottom: var(--inset-bottom);
 }
 
-@media (pointer: fine) {
-  :root[data-hud="minimal"] .dock-left {
-    bottom: calc(var(--inset-bottom) + var(--control-h) + var(--space-2));
-  }
-}
-
 :root[data-hud="compact"] .dock-top {
   anchor-name: --top-dock;
 }
 
-:root[data-hud="compact"] .assists {
-  position-anchor: --actions;
-  inset: auto;
-  top: calc(anchor(bottom) + var(--space-2));
-  left: anchor(left);
-}
-
 :root[data-hud="compact"] .bottom-right {
   inset: var(--inset-top) calc(var(--inset-right) + var(--compact-map) + var(--space-2)) auto auto;
+  width: var(--racing-speedo);
 }
 
 :root[data-hud="compact"] #speed {
@@ -2352,12 +2308,6 @@ button:active:not(:disabled) {
 }
 
 @media (pointer: fine) {
-  :root[data-hud="racing"] .assists {
-    left: auto;
-    right: calc(50% + var(--racing-speedo) / 2 + var(--space-3));
-    bottom: calc(var(--inset-bottom) + (var(--bar-h) - var(--control-h)) / 2);
-  }
-
   :root[data-hud="minimal"] #minimap,
   :root[data-hud="compact"] #minimap {
     width: var(--compact-map);
@@ -2376,7 +2326,7 @@ button:active:not(:disabled) {
 @media (pointer: coarse) {
   :root {
     --compact-map: 80px;
-    --racing-speedo: 150px;
+    --racing-speedo: 190px;
   }
 
   :root[data-hud="racing"] .bottom-right {
