@@ -12,10 +12,20 @@ const JUMP_PACE = 32;
 /** Cornering grip and braking the autopilot plans on, well inside every car's limit (m/s²). */
 const CORNER_GRIP = 4.5;
 const CORNER_BRAKE = 2.5;
+const GRAVITY = 9.81;
 /** Road points ahead the autopilot reads for bends; past it any car stops from top speed for a hairpin. */
 const CORNER_LOOK = 90;
 const CORNER_SPAN = 5;
 const HAIRPIN_PACE = 15;
+
+/** Square of the fastest steady speed round `radius` at `p`: a sky-track bank adds its share of gravity to the grip. */
+function corner_speed2(world: World, p: { x: number; z: number }, radius: number): number {
+  const bank = world.deck ? Math.abs(world.deck.at(world.deck.nearest(p.x, p.z), 5)) : 0;
+  if (bank === 0) return CORNER_GRIP * radius;
+  const mu = CORNER_GRIP / GRAVITY;
+  const tan = Math.tan(bank);
+  return (GRAVITY * radius * (mu + tan)) / (1 - mu * tan);
+}
 
 /** Fastest the car may go now and still slow to every bend's v = sqrt(grip * radius) within the look-ahead. */
 function corner_pace(world: World, index: number): number {
@@ -29,7 +39,7 @@ function corner_pace(world: World, index: number): number {
     const cross = Math.abs((b.x - a.x) * (c.z - a.z) - (b.z - a.z) * (c.x - a.x));
     if (cross === 0) continue;
     const radius = (Math.hypot(b.x - a.x, b.z - a.z) * Math.hypot(c.x - b.x, c.z - b.z) * Math.hypot(c.x - a.x, c.z - a.z)) / (2 * cross);
-    pace = Math.min(pace, Math.sqrt(CORNER_GRIP * radius + 2 * CORNER_BRAKE * k * 2));
+    pace = Math.min(pace, Math.sqrt(corner_speed2(world, b, radius) + 2 * CORNER_BRAKE * k * 2));
   }
   return pace;
 }
