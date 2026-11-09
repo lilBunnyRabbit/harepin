@@ -34,6 +34,10 @@ const TCS_LATERAL = 1.4;
 const USEFUL_SLIP = 1.1;
 /** Speeds (m/s) where the useful-slip cap fades in and back out: below, parking keeps full lock; above, `grip_lock` rules. */
 const USEFUL_SPEEDS = [3, 6, 12, 16] as const;
+/** Body slip (rad) with the tail out against the held steer at which a power slide counts in full. */
+const SLIDE_OUT = 0.1;
+/** Speeds (m/s) over which a power slide stops counting: the slide assists keep catching the car above them. */
+const SLIDE_SPEEDS = [12, 16] as const;
 const STEER_RATE = 9;
 const KEY_RAMP = 0.2;
 const KEY_RAMP_MIN = 0.03;
@@ -266,7 +270,6 @@ export class Car {
     // Assisted lock is the steer a grip-limited corner needs: kinematic L/R plus front-minus-rear slip, which is small
     // because body slip already loads the fronts. Past it the fronts go over peak, lose yaw damping and the car wallows.
     const grip_lock = (spec.wheelbase * GRAVITY * 1.05) / Math.max(1, speed * speed) + spec.peak_angle * 0.45;
-    const lock = this.assist ? Math.min(spec.lock, grip_lock) : spec.lock / (1 + speed / 45);
     // A key is full stick at once, which at speed makes every tap a full-lock flick; ramp it like a thumb would.
     if (input.analog) this.key_steer = input.steer;
     else if (this.steer_mode === SteerMode.HOLD) {
@@ -284,11 +287,16 @@ export class Car {
       const step = ((back ? KEY_RETURN : 1) / full) * dt;
       this.key_steer += Math.max(-step, Math.min(step, input.steer - this.key_steer));
     }
+    const beta = Math.atan2(-local.x, Math.abs(local.z));
+    const [slow, fast] = SLIDE_SPEEDS;
+    const walking = Math.max(0, Math.min(1, (fast - speed) / (fast - slow)));
+    // Steer held into the turn on the gas with the tail out, at walking pace: a deliberate power slide or a donut. The assists
+    // that catch a slide at speed (grip lock, countersteer, yaw damping) would straighten the wheels and stop it.
+    const tail_out = Math.max(0, Math.min(1, (-Math.sign(this.key_steer) * beta) / SLIDE_OUT));
+    const power_slide = (spec.drive === "fwd" ? 0 : 1) * walking * Math.min(1, pedal) * Math.abs(this.key_steer) * tail_out;
+    const lock = this.assist ? Math.min(spec.lock, grip_lock + (spec.lock - grip_lock) * power_slide) : spec.lock / (1 + speed / 45);
     let target = this.key_steer * lock;
-    if (this.assist && speed > 4 && local.z > 1) {
-      const beta = Math.atan2(-local.x, local.z);
-      target += Math.sign(beta) * Math.max(0, Math.abs(beta) - 0.1) * 0.8;
-    }
+    if (this.assist && speed > 4 && local.z > 1) target += Math.sign(beta) * Math.max(0, Math.abs(beta) - 0.1) * 0.8 * (1 - power_slide);
     if (this.assist && local.z > 1) {
       // Full lock at hairpin speed put the fronts at 20-27 degrees of slip, three times peak, and their scrub held the car
       // at walking pace under full throttle. Keep them within reach of peak around the way the front axle is moving.
@@ -297,7 +305,9 @@ export class Car {
       const fade = Math.max((on_to - speed) / (on_to - on_from), (speed - off_from) / (off_to - off_from));
       const free = spec.lock * Math.max(0, Math.min(1, fade));
       const reach = USEFUL_SLIP * spec.peak_angle + free;
-      target = Math.max(course - reach, Math.min(course + reach, target));
+      // In a power slide the front axle's course swings with the tail, and pulling the fronts after it straightened them
+      // under a player holding full lock.
+      target += (Math.max(course - reach, Math.min(course + reach, target)) - target) * (1 - power_slide);
     }
     target = Math.max(-spec.lock, Math.min(spec.lock, target));
     // At speed the ramped key input moves slower than either limit; at parking speed this keeps the old keyboard feel.
@@ -527,7 +537,7 @@ export class Car {
     // handbrake bypasses it so slides can still be started on purpose.
     const excess = Math.abs(slide) - 0.2;
     if (this.assist && excess > 0 && input.handbrake < 0.1 && Math.sign(ang.y) === Math.sign(slide)) {
-      total_torque.y -= ang.y * spec.inertia[1] * Math.min(1, excess * 6) * 3.5 * spec.assist_yaw;
+      total_torque.y -= ang.y * spec.inertia[1] * Math.min(1, excess * 6) * 3.5 * spec.assist_yaw * (1 - power_slide);
     }
     if (airborne && spec.air_settle > 0) {
       // Crests launch the car off whichever wheel leaves last, so it takes off spinning; bleed pitch and roll and level it

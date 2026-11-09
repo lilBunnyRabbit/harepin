@@ -42,6 +42,7 @@ export const CHANGELOG: Release[] = [
       { kind: IMPROVED, text: "The coupe has a rounder nose and a fastback roof." },
       { kind: IMPROVED, text: "Pinch to zoom the camera on phones. On desktop the garage, settings, chat and modes buttons sit at the bottom left." },
       { kind: FIXED, text: "Cars pull out of tight uphill hairpins at full lock instead of bogging down." },
+      { kind: FIXED, text: "With traction control off, holding full lock and full throttle keeps the wheels turned, so rear-drive cars and the rally car can do donuts again." },
       { kind: FIXED, text: "Skid marks show on the road again." },
       { kind: FIXED, text: "A car in neutral no longer rolls on flat ground, and cars no longer look sunk into the road." },
       { kind: FIXED, text: "Long room names no longer push into the lap strip." },

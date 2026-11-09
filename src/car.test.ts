@@ -4,6 +4,7 @@ import { Vector3 } from "three";
 import { DEFAULT_BUILD, DEFAULT_PARTS, apply_build } from "./build";
 import { Car, SteerMode, ride_height, type Controls, type Ground } from "./car";
 import { CARS, type CarId, type CarSpec } from "./cars";
+import { donut } from "../scripts/donut";
 import { hairpin_pull } from "../scripts/hairpin";
 
 const flat: Ground = { height: () => 0, normal: (_x, _z, out) => out.set(0, 1, 0), grip: () => 1, roll: () => 1 };
@@ -429,4 +430,16 @@ describe("hairpin pull", () => {
   test("full lock and full throttle up a 6% hairpin, TCS and assist on, every car reaches 30 km/h from 10 within 4 s", () => {
     for (const spec of Object.values(CARS)) expect(hairpin_pull(spec, 0.06, true, true).t30).toBeLessThan(4);
   });
+});
+
+describe("donut", () => {
+  for (const id of ["coupe", "muscle", "kaze", "formula", "sturm", "rally"] as const) {
+    test(`${id}: full steer and full gas from 5 m/s, TCS off, assist on, holds full lock and keeps rotating on the spot`, () => {
+      const d = donut(CARS[id], false, true);
+      expect(d.steer_min).toBeGreaterThan(0.99);
+      expect(d.yaw).toBeGreaterThan(0.6);
+      expect(d.yaw_min).toBeGreaterThan(0);
+      expect(d.kmh).toBeLessThan(30);
+    });
+  }
 });
