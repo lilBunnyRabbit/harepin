@@ -7,8 +7,14 @@ const AIR_SPEED = 8;
 const AIR_RATE = 0.6;
 const NEAR_SPEED = 15;
 const NEAR_BONUS = 0.6;
+// A row of lamp posts or trees is many close passes in a row; these keep it from filling the tank.
+const NEAR_COOLDOWN = 1.5;
+const NEAR_REPEAT = 4;
 // An emptied tank waits for this much before it lights again; without it the trickle relit it every other step.
 const RELIGHT = 0.3;
+
+/** What a close pass is close to: a solid, or a peer's id; null when nothing is near. */
+export type Near = object | string | null;
 
 export interface NitroSense {
   slide: number;
@@ -22,6 +28,10 @@ export class Nitro {
   boosting = false;
   private close = false;
   private scraped = false;
+  private target: Near = null;
+  private clock = 0;
+  private paid_at = -Infinity;
+  private readonly paid = new Map<object | string, number>();
 
   /** `capacity` is the tank's boost seconds; 0 means no tank fitted. */
   constructor(readonly capacity: number) {
@@ -39,10 +49,14 @@ export class Nitro {
   refill() {
     this.fill = this.capacity;
     this.close = this.scraped = false;
+    this.target = null;
+    this.paid_at = -Infinity;
+    this.paid.clear();
   }
 
   step(dt: number, want: boolean, sense: NitroSense): boolean {
     if (!this.fitted) return (this.boosting = false);
+    this.clock += dt;
     let earn = TRICKLE;
     if (Math.abs(sense.slide) > DRIFT_ANGLE && sense.speed > DRIFT_SPEED) earn += DRIFT_RATE;
     if (sense.airborne && sense.speed > AIR_SPEED) earn += AIR_RATE;
@@ -52,16 +66,24 @@ export class Nitro {
   }
 
   // Paid when the pass ends, so brushing along a wall pays once, and a pass that touched pays nothing.
-  pass(close: boolean, hit: boolean, speed: number) {
+  pass(near: Near, hit: boolean, speed: number) {
     if (!this.fitted) return;
-    const fast = speed > NEAR_SPEED;
-    if (close && fast) {
-      if (!this.close) this.scraped = false;
+    if (near !== null && speed > NEAR_SPEED) {
+      if (!this.close) {
+        this.scraped = false;
+        this.target = near;
+      }
       this.close = true;
       this.scraped ||= hit;
       return;
     }
-    if (this.close && !this.scraped && !close) this.fill = Math.min(this.capacity, this.fill + NEAR_BONUS);
+    const { target, clock } = this;
+    if (this.close && !this.scraped && near === null && target !== null && clock - this.paid_at >= NEAR_COOLDOWN && clock - (this.paid.get(target) ?? -Infinity) >= NEAR_REPEAT) {
+      this.fill = Math.min(this.capacity, this.fill + NEAR_BONUS);
+      this.paid_at = clock;
+      this.paid.set(target, clock);
+      for (const [key, at] of this.paid) if (clock - at >= NEAR_REPEAT) this.paid.delete(key);
+    }
     this.close = false;
   }
 }

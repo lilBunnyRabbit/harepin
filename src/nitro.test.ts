@@ -42,20 +42,50 @@ test("drifting and airtime refill far faster than the trickle, and the tank caps
   expect(drift.fill).toBe(4);
 });
 
+const POST_A = {};
+const POST_B = {};
+
 test("a near miss pays once when the pass ends clean, never when it touched or was slow", () => {
   const nitro = Object.assign(new Nitro(4), { fill: 0 });
-  for (let i = 0; i < 20; i++) nitro.pass(true, false, 30);
+  for (let i = 0; i < 20; i++) nitro.pass(POST_A, false, 30);
   expect(nitro.fill).toBe(0);
-  nitro.pass(false, false, 30);
+  nitro.pass(null, false, 30);
   const paid = nitro.fill;
   expect(paid).toBeGreaterThan(0);
-  nitro.pass(false, false, 30);
+  nitro.pass(null, false, 30);
   expect(nitro.fill).toBe(paid);
-  nitro.pass(true, false, 30);
-  nitro.pass(true, true, 30);
-  nitro.pass(false, false, 30);
-  expect(nitro.fill).toBe(paid);
-  nitro.pass(true, false, 5);
-  nitro.pass(false, false, 5);
-  expect(nitro.fill).toBe(paid);
+  run(nitro, 2, false, { ...cruise, speed: 0 });
+  const later = nitro.fill;
+  nitro.pass(POST_B, false, 30);
+  nitro.pass(POST_B, true, 30);
+  nitro.pass(null, false, 30);
+  expect(nitro.fill).toBe(later);
+  nitro.pass(POST_B, false, 5);
+  nitro.pass(null, false, 5);
+  expect(nitro.fill).toBe(later);
+});
+
+test("a row of close passes pays at most once per cooldown and never twice for the same solid soon after", () => {
+  const nitro = Object.assign(new Nitro(10), { fill: 0 });
+  const tick = (seconds: number) => run(nitro, seconds, false, { ...cruise, speed: 0 });
+  const graze = (near: object) => {
+    nitro.pass(near, false, 30);
+    nitro.pass(null, false, 30);
+  };
+  graze(POST_A);
+  const one = nitro.fill;
+  tick(0.5);
+  const base = nitro.fill;
+  graze(POST_B);
+  expect(nitro.fill).toBe(base);
+  tick(1.2);
+  const before = nitro.fill;
+  graze(POST_A);
+  expect(nitro.fill).toBe(before);
+  graze(POST_B);
+  expect(nitro.fill - before).toBeCloseTo(one);
+  tick(3);
+  const again = nitro.fill;
+  graze(POST_A);
+  expect(nitro.fill - again).toBeCloseTo(one);
 });

@@ -294,17 +294,17 @@ export class World implements Ground {
     return impact;
   }
 
-  /** Whether any solid the car could hit comes within `gap` metres of its body, without pushing it. */
-  grazes(car: Collider, gap: number): boolean {
+  /** A solid the car could hit within `gap` metres of its body, without pushing it; null when none is. */
+  grazes(car: Collider, gap: number): Solid | null {
     const { pos, spec } = car;
     const fx = Math.sin(car.heading);
     const fz = Math.cos(car.heading);
-    let close = false;
+    let close: Solid | null = null;
     for (const offset of spec.circles) {
       const px = pos.x + fx * offset;
       const pz = pos.z + fz * offset;
       this.near(px, pz, (solid) => {
-        if (pos.y <= solid.y + solid.height && circle_contact(solid, px, pz, spec.radius + gap, fx, fz)) close = true;
+        if (pos.y <= solid.y + solid.height && circle_contact(solid, px, pz, spec.radius + gap, fx, fz)) close = solid;
       });
     }
     return close;

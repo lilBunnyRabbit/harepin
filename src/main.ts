@@ -18,6 +18,7 @@ import { Lobby, min_lap_ms } from "./lobby";
 import { Modes } from "./modes/modes";
 import { build_view, contact_shadow, dispose_car_view, gates, place_contact_shadow, roadside, show_flame, sync_car_view } from "./models";
 import { Net, WRONG_PASSWORD, parse_seed, type CarState } from "./net";
+import type { Near } from "./nitro";
 import { Quality } from "./quality";
 import { brand, color, rgba, tones } from "./palette";
 import { Race, type RaceSnapshot } from "./race";
@@ -382,14 +383,15 @@ let rewinding = false;
 const NEAR_GAP = 1.2;
 const NEAR_PEER = 4;
 const peer = new THREE.Vector3();
-function near_miss(): boolean {
-  if (!car.nitro.fitted) return false;
-  if (world.grazes(car, NEAR_GAP)) return true;
+function near_miss(): Near {
+  if (!car.nitro.fitted) return null;
+  const solid = world.grazes(car, NEAR_GAP);
+  if (solid) return solid;
   for (const remote of net.remotes.values()) {
     const [x, y, z] = remote.latest.p;
-    if (car.pos.distanceToSquared(peer.set(x, y, z)) < NEAR_PEER * NEAR_PEER) return true;
+    if (car.pos.distanceToSquared(peer.set(x, y, z)) < NEAR_PEER * NEAR_PEER) return remote.id;
   }
-  return false;
+  return null;
 }
 
 function frame(now: number) {
