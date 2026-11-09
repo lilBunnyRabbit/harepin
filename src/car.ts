@@ -1,5 +1,6 @@
 import { Quaternion, Vector3 } from "three";
 import { COUPE, type CarSpec } from "./cars";
+import { NITRO_TORQUE, Nitro } from "./nitro";
 
 export interface Ground {
   height(x: number, z: number): number;
@@ -14,6 +15,7 @@ export interface Controls {
   brake: number;
   handbrake: number;
   analog: boolean;
+  nitro?: boolean;
 }
 
 /** How keyboard steering behaves on release: `snap` springs back to centre, `hold` leaves the wheel where it is and lets it self-centre as the car rolls. */
@@ -153,8 +155,10 @@ export class Car {
   steer_mode: SteerMode = SteerMode.SNAP;
   /** Idle hold latched on: it keeps braking at any speed until a pedal or the wheel is touched. */
   parked = false;
+  readonly nitro: Nitro;
 
   constructor(readonly spec: CarSpec = COUPE) {
+    this.nitro = new Nitro(spec.nitro ?? 0);
     this.wheels = spec.wheel.mounts.map(([x, y, z]) => new Wheel(new Vector3(x, y, z), z > 0, x > 0, spec));
     this.corners = spec.corners.map(([x, y, z]) => new Vector3(x, y, z));
     this.rpm = spec.idle;
@@ -307,6 +311,9 @@ export class Car {
     const gas = pedal * (this.tcs ? this.tcs_factor : 1);
     this.throttle = gas;
 
+    const grounded = this.wheels.some((w) => w.contact);
+    // First gear is grip-bound: boost there only spins the wheels, and spinning wheels hold the auto box off its upshift.
+    const boost = this.nitro.step(dt, !!input.nitro && this.gear >= 2 && pedal > 0.1 && grounded, { slide, speed, airborne: !grounded });
     const launch = this.gear !== 0 ? spec.idle + gas * 2600 : spec.idle + gas * (spec.redline - spec.idle);
     const rpm = Math.max(wheel_rpm, launch);
     this.rpm += (rpm - this.rpm) * Math.min(1, dt * 30);
@@ -318,7 +325,7 @@ export class Car {
       // braking would drag them down towards idle so the car lands on them half locked.
       const dragging = max_drag > 0;
       const braking_torque = wheel_rpm > spec.idle && !dragging ? (1 - gas) * (20 + rpm * 0.009) * coast : 0;
-      engine = rpm >= spec.redline ? -braking_torque : gas * torque_at(spec.torque, rpm) - braking_torque;
+      engine = rpm >= spec.redline ? -braking_torque : gas * torque_at(spec.torque, rpm) * (boost ? NITRO_TORQUE : 1) - braking_torque;
     }
     let drive_front = 0;
     let drive_rear = 0;

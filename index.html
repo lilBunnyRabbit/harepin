@@ -119,7 +119,10 @@
           <div class="touch-key" data-touch="handbrake">Handbrake</div>
           <div class="pedal" data-touch="brake"><span>Brake</span></div>
         </div>
-        <div class="pedal throttle" data-touch="throttle"><span>Gas</span></div>
+        <div class="touch-gas">
+          <div class="touch-key" data-touch="nitro" hidden>Nitro</div>
+          <div class="pedal throttle" data-touch="throttle"><span>Gas</span></div>
+        </div>
       </div>
     </div>
 
@@ -214,6 +217,7 @@
         <span id="gear" data-mode="A">1</span>
       </div>
       <div class="rpm"><div id="rpm-fill"></div><div id="shift"></div></div>
+      <div class="nitro" id="nitro" hidden><span class="unit">nitro</span><div class="nitro-tank"><div id="nitro-fill"></div></div></div>
     </div>
 
     <script type="module" src="/src/main.ts"></script>

@@ -15,6 +15,8 @@ export type CarState = {
   v: [number, number, number];
   steer: number;
   brake: boolean;
+  /** Nitro firing; absent from peers that predate it. */
+  boost?: boolean;
   best: number | null;
 };
 
@@ -108,6 +110,7 @@ export function sanitize(raw: unknown, id: string): CarState | null {
     v: s.v,
     steer: finite(s.steer, 1) ? s.steer : 0,
     brake: s.brake === true,
+    boost: s.boost === true,
     best: finite(s.best, 1e7) && s.best > 0 ? s.best : null,
   };
 }

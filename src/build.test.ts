@@ -27,10 +27,14 @@ test("new slots ride a tail that is left off at their defaults", () => {
   const weight = with_parts({ weight: 2, engine: 2 }, { ink: 3, number: 11 });
   expect(build_code(weight)).toBe("coupe.0.0.0.1.2.3.11.0.0.2");
   expect(parse_build(build_code(weight))).toEqual(weight);
-  const all = with_parts({ tyres: 1, brakes: 2, weight: 1, bias: 2, spoiler: 2, suspension: 3, engine: 2 }, { car: "muscle", paint: 15, decal: 8, ink: 8, number: 99 });
-  expect(build_code(all).length).toBeLessThanOrEqual(32);
+  const all = with_parts({ tyres: 1, brakes: 2, weight: 1, bias: 2, nitro: 2, spoiler: 2, suspension: 3, engine: 2 }, { car: "muscle", paint: 15, decal: 8, ink: 8, number: 99 });
+  expect(build_code(all).length).toBeLessThanOrEqual(40);
   expect(parse_build(build_code(all))).toEqual(all);
   expect(build_code(with_parts({}, { ink: 1 }))).toBe("coupe.0.0.0.1.0.1.7");
+  const nitro = with_parts({ nitro: 2 }, { car: "kaze" });
+  expect(build_code(nitro)).toBe("kaze.0.0.0.1.0.0.7.0.0.0.1.2");
+  expect(parse_build(build_code(nitro))).toEqual(nitro);
+  expect(build_code(with_parts({ bias: 2 }))).toBe("coupe.0.0.0.1.0.0.7.0.0.0.2");
 });
 
 test("codes from before decal ink, number and the new slots still parse", () => {
@@ -54,7 +58,8 @@ test("off-grammar codes are rejected", () => {
     "coupe.0.1.0.1.0.0",
     "coupe.0.1.0.1.0.0.7.4",
     "coupe.0.1.0.1.0.0.7.0.0.3",
-    "coupe.0.1.0.1.0.0.7.0.0.0.0.0",
+    "coupe.0.1.0.1.0.0.7.0.0.0.0.0.0",
+    "coupe.0.1.0.1.0.0.7.0.0.0.1.3",
     "coupe.0.1.0.1.0.0.7.0.0.0.3",
     "coupe.0.1.0.1.0.0.7.",
     "coupe.0.1.0.1.0..7",
@@ -176,6 +181,15 @@ test("brakes and weight move the spec the documented way", () => {
   expect(stripped.inertia[1]).toBeCloseTo(COUPE.inertia[1] * 0.9);
   expect(stripped.wheel.mounts[0][1]).toBeCloseTo(COUPE.wheel.mounts[0][1] + 0.025);
   expect(stripped.corners[0][1]).toBeCloseTo(COUPE.corners[0][1] + 0.025);
+});
+
+test("a bigger nitro tank holds more boost and weighs more", () => {
+  const [none, small, big] = [0, 1, 2].map((nitro) => build_spec(with_parts({ nitro })));
+  expect(none.nitro).toBeUndefined();
+  expect(small.nitro).toBeGreaterThan(0);
+  expect(big.nitro).toBeGreaterThan(small.nitro ?? 0);
+  expect(small.mass).toBeGreaterThan(none.mass);
+  expect(big.mass).toBeGreaterThan(small.mass);
 });
 
 test("stats rise with the parts that should raise them and stay inside the range", () => {

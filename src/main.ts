@@ -16,7 +16,7 @@ import { $, Hud } from "./hud";
 import { Input } from "./input";
 import { Lobby, min_lap_ms } from "./lobby";
 import { Modes } from "./modes/modes";
-import { build_view, contact_shadow, dispose_car_view, gates, place_contact_shadow, roadside, sync_car_view } from "./models";
+import { build_view, contact_shadow, dispose_car_view, gates, place_contact_shadow, roadside, show_flame, sync_car_view } from "./models";
 import { Net, WRONG_PASSWORD, parse_seed, type CarState } from "./net";
 import { Quality } from "./quality";
 import { brand, color, rgba, tones } from "./palette";
@@ -111,6 +111,7 @@ const input = new Input($("touch"), renderer.domElement);
 input.blocked = () => garage.is_open || settings.is_open;
 chat.blocked = input.blocked;
 input.touch.start();
+input.touch.show_nitro(car.nitro.fitted);
 input.mouse.start();
 const recenter = $("recenter", HTMLButtonElement);
 recenter.addEventListener("click", () => chase.recenter());
@@ -132,6 +133,7 @@ race.on_lap = (improved) => {
 lobby.on_start = () => {
   modes.exit();
   spawn_at(SPAWN_INDEX);
+  car.nitro.refill();
   race.reset();
   history.length = 0;
 };
@@ -200,6 +202,7 @@ spawn_at(SPAWN_INDEX);
 
 const modes = new Modes(scene, world, SPAWN_INDEX, () => lobby.record, (x, y, z, heading) => {
   car.place(x, y, z, heading);
+  car.nitro.refill();
   chase.snap(car);
   history.length = 0;
 }, () => lobby.busy, () => audio.chime(), camera);
@@ -212,6 +215,7 @@ garage.on_change = (next) => {
   car = new Car(build_spec(next));
   car.park(pos.x, pos.z, heading, world);
   apply_car_settings(settings.state);
+  input.touch.show_nitro(car.nitro.fitted);
   scene.remove(view.root);
   dispose_car_view(view);
   view = build_view(next, car.spec);
@@ -357,8 +361,9 @@ setInterval(() => {
     id: net.id,
     name: net.name,
     paint: garage.build.paint,
-    // Builds before 0.5.0 reject suspension 3 and would show the whole car as a stock coupe; peers never see suspension.
-    b: build_code({ ...garage.build, parts: { ...garage.build.parts, suspension: Math.min(garage.build.parts.suspension, 2) } }),
+    // Builds before 0.5.0 reject suspension 3 and builds before nitro reject its tail digit, either showing the whole car
+    // as a stock coupe; peers never see suspension, and see nitro by the `boost` flame flag.
+    b: build_code({ ...garage.build, parts: { ...garage.build.parts, suspension: Math.min(garage.build.parts.suspension, 2), nitro: 0 } }),
     seed,
     t: performance.now(),
     p: car.pos.toArray() as CarState["p"],
@@ -366,12 +371,26 @@ setInterval(() => {
     v: car.vel.toArray() as CarState["v"],
     steer: car.steer,
     brake: car.braking > 0.05,
+    boost: car.nitro.boosting,
     best: race.best,
   };
   net.send(state);
 }, 50);
 let stuck = 0;
 let rewinding = false;
+
+const NEAR_GAP = 1.2;
+const NEAR_PEER = 4;
+const peer = new THREE.Vector3();
+function near_miss(): boolean {
+  if (!car.nitro.fitted) return false;
+  if (world.grazes(car, NEAR_GAP)) return true;
+  for (const remote of net.remotes.values()) {
+    const [x, y, z] = remote.latest.p;
+    if (car.pos.distanceToSquared(peer.set(x, y, z)) < NEAR_PEER * NEAR_PEER) return true;
+  }
+  return false;
+}
 
 function frame(now: number) {
   const dt = Math.min(0.1, (now - last) / 1000);
@@ -429,6 +448,7 @@ function frame(now: number) {
       impact = Math.max(impact, world.collide(car));
       acc -= DT;
     }
+    car.nitro.pass(near_miss(), impact > 0, car.vel.length());
     if (impact > 2) {
       if (world_view.jumps.bonked(car.pos.x, car.pos.z)) audio.bonk(impact);
       else audio.impact(impact / 20);
@@ -463,9 +483,11 @@ function frame(now: number) {
   drawn.quat.slerpQuaternions(step_from.quat, car.quat, acc / DT);
   drawn.vel.copy(car.vel);
   sync_car_view(view, car);
+  show_flame(view, car.nitro.boosting, now / 1000);
   view.root.position.copy(drawn.pos);
   view.root.quaternion.copy(drawn.quat);
   chase.top = modes.high_view;
+  chase.boost = car.nitro.boosting;
   view.heads.visible = chase.mode !== 1 || chase.top;
   place_contact_shadow(car_shadow, drawn.pos.x, drawn.pos.y, drawn.pos.z, car.heading, world);
   const offroad = world.grip(car.pos.x, car.pos.z) < 1;
@@ -481,7 +503,7 @@ function frame(now: number) {
 
   const speed = car.vel.length();
   const scrub = car.scrub * Math.min(1, speed / 6) * (offroad ? 0.3 : 1);
-  audio.update({ rpm: car.rpm, throttle: car.throttle, scrub, speed, offroad, sound: car.spec.sound, redline: car.spec.redline });
+  audio.update({ rpm: car.rpm, throttle: car.throttle, scrub, speed, offroad, sound: car.spec.sound, redline: car.spec.redline, boost: car.nitro.boosting });
   if (now - last_rumble > 100) {
     last_rumble = now;
     const spin = Math.max(0, ...car.wheels.filter((w) => w.driven && w.contact).map((w) => w.slip - 0.15));

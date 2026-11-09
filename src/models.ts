@@ -152,6 +152,8 @@ export interface CarView {
   brake: THREE.MeshLambertMaterial;
   /** Headlamp lenses; hidden from the hood camera, which sits right behind them. */
   heads: THREE.Mesh;
+  /** Nitro exhaust flame, hidden until `show_flame`. */
+  flame: THREE.Mesh;
 }
 
 type Point = [number, number];
@@ -557,7 +559,46 @@ function kit_parts(d: Design, kit: Record<Slot, number>, paint: THREE.Color, tri
         out.push(tint(new THREE.CylinderGeometry(r * 0.65, r * 0.65, 0.22, 8).rotateX(Math.PI / 2).translate(side * at, py, pz - 0.056), trim));
       }
   }
+  const bottle = part_of("nitro", kit.nitro).look?.bottle;
+  if (bottle) {
+    const rear = d.cabin.points[d.cabin.points.length - 1][0];
+    const tail = d.outline[d.outline.length - 1][0];
+    const r = 0.065 * bottle.size;
+    const z = (rear + tail) / 2;
+    const y = top_at(d.outline, z) + r;
+    const length = 0.46 * bottle.size;
+    const tank = color(brand.info);
+    const chrome = chrome_tone();
+    for (const dz of bottle.twin ? [-r * 1.1, r * 1.1] : [0]) {
+      out.push(tint(new THREE.CylinderGeometry(r, r, length, 10).rotateZ(Math.PI / 2).translate(0, y, z + dz), tank));
+      out.push(tint(new THREE.CylinderGeometry(r * 0.45, r * 0.6, 0.08, 8).rotateZ(Math.PI / 2).translate(length / 2 + 0.04, y, z + dz), chrome));
+    }
+  }
   return out;
+}
+
+const FLAME_LENGTH = 1;
+
+function flame_mesh(d: Design): THREE.Mesh {
+  const [x, y, z] = d.exhaust;
+  const outer = color(brand.info);
+  const core = color(brand.cottontail);
+  const cone = (r: number, length: number, side: number, tone: THREE.Color) =>
+    tint(new THREE.ConeGeometry(r, length, 8).rotateX(-Math.PI / 2).translate(side * x, y, -length / 2), tone);
+  const geometry = merge([-1, 1].flatMap((side) => [cone(0.15, FLAME_LENGTH, side, outer), cone(0.07, FLAME_LENGTH * 0.6, side, core)]));
+  const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false }));
+  mesh.position.z = z - 0.16;
+  mesh.visible = false;
+  return mesh;
+}
+
+/** Shows or hides the nitro flame; `time` in seconds drives its flicker. */
+export function show_flame(view: CarView, on: boolean, time: number) {
+  const { flame } = view;
+  flame.visible = on;
+  if (!on) return;
+  const flicker = Math.sin(time * 61) * Math.sin(time * 23 + 1);
+  flame.scale.set(1 + 0.15 * flicker, 1 + 0.15 * flicker, 0.75 + 0.25 * flicker);
 }
 
 const PANEL_MARGIN = 0.06;
@@ -647,7 +688,8 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
   const head_material = new THREE.MeshLambertMaterial({ color: color(tones.head), emissive: glow(tones.head), emissiveIntensity: 1.2 });
   const brake = new THREE.MeshLambertMaterial({ color: color(brand.error), emissive: glow(brand.error, BRAKE_GLOW), emissiveIntensity: 0.5 });
   const head_mesh = new THREE.Mesh(merge(parts(d.heads)), head_material);
-  body.add(hull, head_mesh, new THREE.Mesh(merge(parts(d.tails)), brake));
+  const flame = flame_mesh(d);
+  body.add(hull, head_mesh, new THREE.Mesh(merge(parts(d.tails)), brake), flame);
   root.add(body);
 
   const tyre = part_of("tyres", kit.tyres).look?.tyre ?? STOCK_TYRE;
@@ -665,7 +707,7 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
     root.add(steer);
     return steer;
   });
-  return { root, body, wheels, brake, heads: head_mesh };
+  return { root, body, wheels, brake, heads: head_mesh, flame };
 }
 
 export function sync_car_view(view: CarView, car: Car) {

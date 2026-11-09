@@ -10,6 +10,7 @@ interface Derived {
   rest: number;
   /** Metres the centre of mass sits lower in the body, from 0: wheel mounts and collision corners move up by it. */
   cog: number;
+  nitro: number;
 }
 
 export type Field = NumericField | keyof Derived;
@@ -26,6 +27,8 @@ export interface Look {
   tyre?: { width: number; rim: number; tread?: boolean; band?: Token };
   /** Brake caliper size; a theme colour sets it proud of the spokes, without one it is trim and hides behind them. */
   caliper?: { size: number; tone?: Token };
+  /** Nitrous bottle length against the small tank's, and a second bottle beside it. */
+  bottle?: { size: number; twin?: boolean };
 }
 
 export interface Part {
@@ -103,6 +106,14 @@ export const SLOTS = {
       { name: "Rear", mod: { scale: { brake_front: 0.7, brake_rear: 1.6 } } },
     ],
   },
+  nitro: {
+    label: "Nitro",
+    parts: [
+      { name: "None", mod: {} },
+      { name: "Small tank", mod: { add: { nitro: 4, mass: 8 } }, look: { bottle: { size: 1 } } },
+      { name: "Big tank", mod: { add: { nitro: 7, mass: 18 } }, look: { bottle: { size: 1.25, twin: true } } },
+    ],
+  },
 } satisfies Record<string, SlotSpec>;
 
 export type Slot = keyof typeof SLOTS;
@@ -135,7 +146,7 @@ export type Decal = (typeof DECALS)[number];
 export const MAX_DECAL = DECALS.length - 1;
 export const MAX_INK = 8;
 export const MAX_NUMBER = 99;
-export const DEFAULT_PARTS: Record<Slot, number> = { engine: 0, tyres: 0, spoiler: 0, suspension: 1, brakes: 0, weight: 0, bias: 1 };
+export const DEFAULT_PARTS: Record<Slot, number> = { engine: 0, tyres: 0, spoiler: 0, suspension: 1, brakes: 0, weight: 0, bias: 1, nitro: 0 };
 export const DEFAULT_BUILD: Build = { car: "coupe", paint: 0, decal: 0, ink: 0, number: 7, parts: DEFAULT_PARTS };
 
 const HEAD: readonly Slot[] = ["spoiler", "suspension", "engine"];
@@ -154,7 +165,7 @@ export function build_code(build: Build): string {
 }
 
 export function parse_build(code: unknown): Build | null {
-  if (typeof code !== "string" || code.length > 32) return null;
+  if (typeof code !== "string" || code.length > 40) return null;
   const m = CODE.exec(code);
   if (!m || !is_car(m[1])) return null;
   const paint = Number(m[2]);
@@ -193,6 +204,7 @@ export function apply_build(base: CarSpec, build: Build): CarSpec {
     torque: base.torque.map(([rpm, nm]) => [rpm, at("torque", nm)]),
     wheel: { ...base.wheel, rest: at("rest", base.wheel.rest), mounts: base.wheel.mounts.map(([x, y, z]): Triple => [x, y + cog, z]) },
     corners: base.corners.map(([x, y, z]): Triple => [x, y + cog, z]),
+    nitro: at("nitro", base.nitro ?? 0) || undefined,
   };
 }
 

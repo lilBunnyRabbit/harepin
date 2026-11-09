@@ -9,6 +9,7 @@ export interface SoundFrame {
   offroad: boolean;
   sound: EngineSound;
   redline: number;
+  boost: boolean;
 }
 
 function noise_buffer(ctx: AudioContext): AudioBuffer {
@@ -49,6 +50,8 @@ export class Audio {
   private wind: GainNode | null = null;
   private wind_filter: BiquadFilterNode | null = null;
   private gravel: GainNode | null = null;
+  private hiss: GainNode | null = null;
+  private boosting = false;
   private last_rpm = 0;
 
   private gain(): number {
@@ -134,6 +137,13 @@ export class Audio {
     this.gravel = ctx.createGain();
     this.gravel.gain.value = 0;
     looped(ctx, this.noise).connect(rumble).connect(this.gravel).connect(master);
+
+    const hiss_tone = ctx.createBiquadFilter();
+    hiss_tone.type = "highpass";
+    hiss_tone.frequency.value = 2400;
+    this.hiss = ctx.createGain();
+    this.hiss.gain.value = 0;
+    looped(ctx, this.noise).connect(hiss_tone).connect(this.hiss).connect(master);
   }
 
   private build_engine(ctx: AudioContext, master: GainNode) {
@@ -157,7 +167,7 @@ export class Audio {
     const { ctx } = this;
     if (!ctx || !this.squeal || !this.squeal_filter || !this.wind || !this.wind_filter || !this.gravel) return;
     const t = ctx.currentTime;
-    const { rpm, throttle, scrub, speed, offroad, sound, redline } = frame;
+    const { rpm, throttle, scrub, speed, offroad, sound, redline, boost } = frame;
     const { engine } = this;
     if (engine) {
       if (sound !== this.sound) {
@@ -174,6 +184,10 @@ export class Audio {
     this.wind_filter.frequency.setTargetAtTime(150 + speed * 9, t, 0.1);
     this.wind.gain.setTargetAtTime(Math.min(0.22, (speed / 70) ** 2 * 0.22), t, 0.1);
     this.gravel.gain.setTargetAtTime(offroad ? Math.min(0.5, speed / 25) * 0.5 : 0, t, 0.08);
+    // Fast attack and a slower tail: the whoosh lands with the button and trails off after it.
+    this.hiss?.gain.setTargetAtTime(boost ? 0.16 : 0, t, boost ? 0.03 : 0.18);
+    if (boost && !this.boosting) this.whoosh();
+    this.boosting = boost;
     if (this.last_rpm - rpm > 1200 && throttle > 0.3) this.blip(0.05);
     this.last_rpm = rpm;
   }
@@ -192,6 +206,26 @@ export class Audio {
     source.connect(filter).connect(gain).connect(master);
     source.start();
     source.stop(ctx.currentTime + 0.1);
+  }
+
+  private whoosh() {
+    const { ctx, master, noise } = this;
+    if (!ctx || !master || !noise) return;
+    const now = ctx.currentTime;
+    const source = ctx.createBufferSource();
+    source.buffer = noise;
+    const filter = ctx.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.Q.value = 1.5;
+    filter.frequency.setValueAtTime(350, now);
+    filter.frequency.exponentialRampToValueAtTime(2600, now + 0.35);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.35, now + 0.06);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
+    source.connect(filter).connect(gain).connect(master);
+    source.start();
+    source.stop(now + 0.5);
   }
 
   impact(strength: number) {

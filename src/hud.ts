@@ -45,6 +45,8 @@ export class Hud {
     gear: $("gear"),
     rpm: $("rpm-fill"),
     shift: $("shift"),
+    nitro: $("nitro"),
+    nitro_fill: $("nitro-fill"),
     lap: $("lap"),
     best: $("best"),
     last: $("last"),
@@ -113,6 +115,9 @@ export class Hud {
     el.rpm.style.width = `${Math.min(100, (car.rpm / 7300) * 100)}%`;
     el.rpm.dataset.hot = String(car.rpm > 6600);
     el.shift.dataset.on = String(!car.auto && car.rpm > 6700);
+    el.nitro.hidden = !car.nitro.fitted;
+    el.nitro_fill.style.width = `${car.nitro.level * 100}%`;
+    el.nitro.toggleAttribute("data-boost", car.nitro.boosting);
     el.lap.textContent = format(race.started ? now - race.started : null);
     el.best.textContent = format(race.best);
     el.last.textContent = format(race.last);

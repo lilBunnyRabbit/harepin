@@ -8,7 +8,7 @@ const STEER_CURVE = 1.4;
 export const TouchSteer = { DRAG: "drag", BUTTONS: "buttons" } as const;
 export type TouchSteer = (typeof TouchSteer)[keyof typeof TouchSteer];
 
-const CONTROLS = ["steer", "left", "right", "throttle", "brake", "handbrake", "rewind", "reset", "camera"] as const;
+const CONTROLS = ["steer", "left", "right", "throttle", "brake", "handbrake", "nitro", "rewind", "reset", "camera"] as const;
 type Control = (typeof CONTROLS)[number];
 
 interface Finger {
@@ -29,6 +29,7 @@ export class Touch {
   brake = 0;
   handbrake = 0;
   rewind = false;
+  nitro = false;
   used = false;
   private fingers = new Map<number, Finger>();
   private queued: Action[] = [];
@@ -47,6 +48,12 @@ export class Touch {
   /** Buttons give -1, 0 or 1 like keys, so the car ramps them the way it ramps the keyboard. */
   get buttons() {
     return this.steer_mode === TouchSteer.BUTTONS;
+  }
+
+  /** The nitro button shows only with a tank fitted. */
+  show_nitro(fitted: boolean) {
+    const button = this.root.querySelector<HTMLElement>('[data-touch="nitro"]');
+    if (button) button.hidden = !fitted;
   }
 
   set_steer_mode(mode: TouchSteer) {
@@ -143,6 +150,7 @@ export class Touch {
     this.brake = max("brake");
     this.handbrake = max("handbrake");
     this.rewind = max("rewind") > 0;
+    this.nitro = max("nitro") > 0;
     this.ring.hidden = !steer;
     if (!steer) this.knob.style.translate = "";
     for (const el of this.root.querySelectorAll<HTMLElement>("[data-touch]")) {

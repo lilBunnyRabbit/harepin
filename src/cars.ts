@@ -78,6 +78,8 @@ export interface CarSpec {
   corners: Triple[];
   body: { length: number; width: number; height: number; style: BodyStyle };
   sound: EngineSound;
+  /** Boost seconds a full nitro tank holds; absent or 0 without one. */
+  nitro?: number;
 }
 
 export type CarId = BodyStyle;

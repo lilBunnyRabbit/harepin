@@ -177,6 +177,7 @@ const COPIED_MS = 2000;
 const KEYS: [string, string, string, string][] = [
   ["Drive", "WASD / arrows", "RT / LT, stick", "Gas, Brake, drag or arrow buttons to steer (Touch steering)"],
   ["Handbrake", "Space", "A", "Handbrake"],
+  ["Nitro (hold, when fitted)", "Shift / N", "B", "Nitro"],
   ["Reset", "R", "Y", "Reset"],
   ["Rewind (hold)", "Backspace", "X", "Rewind (hold)"],
   ["Shift up / down", "E / Q", "RB / LB", ""],

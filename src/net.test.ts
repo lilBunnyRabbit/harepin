@@ -64,6 +64,12 @@ test("build code: valid kept, invalid or missing left out", () => {
   expect(sanitize(car, "x")?.b).toBeUndefined();
 });
 
+test("nitro flag: only a literal true lights it", () => {
+  expect(sanitize({ ...car, boost: true }, "x")?.boost).toBe(true);
+  expect(sanitize({ ...car, boost: "yes" }, "x")?.boost).toBe(false);
+  expect(sanitize(car, "x")?.boost).toBe(false);
+});
+
 test("quick join follows the most common foreign seed, ties to the lower one", () => {
   expect(most_common([])).toBeNull();
   expect(most_common([7, 3, 7])).toBe(7);

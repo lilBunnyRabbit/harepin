@@ -221,6 +221,7 @@ export class Input {
       brake: this.down("KeyS", "ArrowDown") ? 1 : 0,
       handbrake: this.down("Space") ? 1 : 0,
       analog: false,
+      nitro: this.down("ShiftLeft", "ShiftRight", "KeyN"),
     };
     this.rewind = this.down("Backspace");
     const pad = this.pad;
@@ -248,6 +249,7 @@ export class Input {
         controls.handbrake = Math.max(controls.handbrake, pad.buttons[0]?.pressed ? 1 : 0);
       }
       if (pad.buttons[2]?.pressed) this.rewind = true;
+      if (pad.buttons[1]?.pressed) controls.nitro = true;
       for (const [button, action] of PAD_ACTIONS) {
         const pressed = !!pad.buttons[button]?.pressed;
         if (pressed && !this.pad_prev[button]) actions.push(action);
@@ -266,6 +268,7 @@ export class Input {
       controls.brake = Math.max(controls.brake, touch.brake);
       controls.handbrake = Math.max(controls.handbrake, touch.handbrake);
       if (touch.rewind) this.rewind = true;
+      if (touch.nitro) controls.nitro = true;
     }
     actions.push(...touch.take_actions(), ...this.mouse.take_actions());
     if (this.blocked()) {

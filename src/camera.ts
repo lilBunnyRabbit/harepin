@@ -28,6 +28,7 @@ const ORBITED_ZOOM = 0.15;
 const TOP_BACK = 9;
 const TOP_RISE = 15;
 const TOP_LEAD = 5;
+const BOOST_FOV = 6;
 
 /** The car as drawn this frame: interpolated between physics steps, so the camera never follows the step rhythm. */
 export interface CarPose {
@@ -45,6 +46,7 @@ export class ChaseCamera {
   mode = 0;
   /** High view over the car for parking; overrides `mode` while set. */
   top = false;
+  boost = false;
   private yaw = 0;
   private height = 0;
   private pull = 0;
@@ -208,7 +210,7 @@ export class ChaseCamera {
       camera.position.y += Math.sin(time * 17 + 1.3) * rumble;
       camera.rotation.z += Math.sin(time * 13) * rumble * 0.02;
     }
-    camera.fov += (64 + Math.min(24, speed * 0.3) - camera.fov) * Math.min(1, dt * 3);
+    camera.fov += (64 + Math.min(24, speed * 0.3) + (this.boost ? BOOST_FOV : 0) - camera.fov) * Math.min(1, dt * 3);
     camera.updateProjectionMatrix();
   }
 

@@ -290,25 +290,41 @@ export class World implements Ground {
     let impact = 0;
     const fx = Math.sin(car.heading);
     const fz = Math.cos(car.heading);
+    for (const offset of spec.circles) this.near(pos.x + fx * offset, pos.z + fz * offset, (solid) => (impact = Math.max(impact, this.hit(car, solid, offset, fx, fz))));
+    return impact;
+  }
+
+  /** Whether any solid the car could hit comes within `gap` metres of its body, without pushing it. */
+  grazes(car: Collider, gap: number): boolean {
+    const { pos, spec } = car;
+    const fx = Math.sin(car.heading);
+    const fz = Math.cos(car.heading);
+    let close = false;
     for (const offset of spec.circles) {
       const px = pos.x + fx * offset;
       const pz = pos.z + fz * offset;
-      const cx = Math.floor(px / SOLID_CELL);
-      const cz = Math.floor(pz / SOLID_CELL);
-      const stamp = ++this.query;
-      for (let dz = -1; dz <= 1; dz++)
-        for (let dx = -1; dx <= 1; dx++) {
-          const list = this.solid_grid.get(grid_key(cx + dx, cz + dz));
-          if (!list) continue;
-          for (const index of list) {
-            if (this.seen[index] === stamp) continue;
-            this.seen[index] = stamp;
-            impact = Math.max(impact, this.hit(car, this.solids[index], offset, fx, fz));
-          }
-        }
-      for (const solid of this.placed) impact = Math.max(impact, this.hit(car, solid, offset, fx, fz));
+      this.near(px, pz, (solid) => {
+        if (pos.y <= solid.y + solid.height && circle_contact(solid, px, pz, spec.radius + gap, fx, fz)) close = true;
+      });
     }
-    return impact;
+    return close;
+  }
+
+  private near(px: number, pz: number, visit: (solid: Solid) => void) {
+    const cx = Math.floor(px / SOLID_CELL);
+    const cz = Math.floor(pz / SOLID_CELL);
+    const stamp = ++this.query;
+    for (let dz = -1; dz <= 1; dz++)
+      for (let dx = -1; dx <= 1; dx++) {
+        const list = this.solid_grid.get(grid_key(cx + dx, cz + dz));
+        if (!list) continue;
+        for (const index of list) {
+          if (this.seen[index] === stamp) continue;
+          this.seen[index] = stamp;
+          visit(this.solids[index]);
+        }
+      }
+    for (const solid of this.placed) visit(solid);
   }
 
   private hit(car: Collider, solid: Solid, offset: number, fx: number, fz: number): number {
