@@ -2,7 +2,6 @@ import { Vector3 } from "three";
 import { Car } from "../src/car";
 import { COUPE, car_spec, type CarSpec } from "../src/cars";
 import { World } from "../src/world";
-import { ramp_local } from "../src/worldgen/jumps";
 
 const DT = 1 / 360;
 const RAMP_LOOK = 120;
@@ -24,6 +23,15 @@ export function autolap(world: World, spec: CarSpec = COUPE): Lap {
   const p = world.road[0];
   car.place(p.x, world.height(p.x, p.z) + 0.75, p.z, Math.atan2(p.tx, p.tz));
   let t = 0, index = 0, offroad = 0, worst = 0, slowest = Infinity, flipped = false;
+  const n = world.road.length;
+  const step = world.road.reduce((sum, p, i) => sum + Math.hypot(world.road[(i + 1) % n].x - p.x, world.road[(i + 1) % n].z - p.z), 0) / n;
+  // Each circuit kicker by its spot along the road: a box around the ramp axis only catches a car that is already lined up
+  // with it, which on a bent run-up is too late to brake without turning, and the car took off still yawing.
+  const kickers = world.ramps.filter((r) => r.road).map((r) => {
+    let at = 0;
+    for (let i = 1; i < n; i++) if ((world.road[i].x - r.x) ** 2 + (world.road[i].z - r.z) ** 2 < (world.road[at].x - r.x) ** 2 + (world.road[at].z - r.z) ** 2) at = i;
+    return { ramp: r, at };
+  });
   while (t < 400 && index < world.road.length - 10) {
     for (let k = index; k < index + 60; k++) {
       const q = world.road[k % world.road.length];
@@ -37,13 +45,12 @@ export function autolap(world: World, spec: CarSpec = COUPE): Lap {
     const here = world.road[index];
     const curve = Math.abs(Math.atan2(Math.sin(Math.atan2(far.tx, far.tz) - Math.atan2(here.tx, here.tz)), 1));
     // Takes a kicker on the circuit at JUMP_PACE and holds the wheel straight in the air, as a driver would.
-    const jump = world.ramps.find((r) => {
-      if (!r.road) return false;
-      const [u, v] = ramp_local(r, car.pos.x, car.pos.z);
-      return Math.abs(u) < r.hw && v > -RAMP_LOOK && v < r.length + r.landing;
+    const jump = kickers.find(({ ramp, at }) => {
+      const along = ((((at - index) % n) + n + n / 2) % n) - n / 2;
+      return along * step < RAMP_LOOK && -along * step < ramp.length + ramp.landing;
     });
     const airborne = car.wheels.every((w) => !w.contact);
-    const target = jump ? JUMP_PACE : curve > 0.5 ? 20 : curve > 0.25 ? 30 : 42;
+    const target = Math.min(jump ? JUMP_PACE : Infinity, curve > 0.5 ? 20 : curve > 0.25 ? 30 : 42);
     car.step(DT, { steer: airborne ? 0 : Math.max(-1, Math.min(1, -err * 3)), throttle: speed < target ? 1 : 0, brake: speed > target + 4 ? 0.7 : 0, handbrake: 0, analog: true }, world);
     world.collide(car);
     t += DT;
