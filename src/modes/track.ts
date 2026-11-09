@@ -5,6 +5,8 @@ export interface StarRun {
   stars: number;
   /** Run time in ms, penalties included. */
   ms: number;
+  /** Points, for modes that rank by score instead of time; higher wins. */
+  score?: number;
 }
 
 export type Runs = Record<string, StarRun>;
@@ -27,7 +29,9 @@ export function stars_for(ms: number, par: number): number {
 
 export function better(a: StarRun | undefined, b: StarRun): boolean {
   if (!a) return true;
-  return b.stars !== a.stars ? b.stars > a.stars : b.ms < a.ms;
+  if (b.stars !== a.stars) return b.stars > a.stars;
+  if (a.score !== undefined && b.score !== undefined && a.score !== b.score) return b.score > a.score;
+  return b.ms < a.ms;
 }
 
 export function unlocked(runs: Readonly<Runs>, ids: readonly string[]): number {
@@ -48,7 +52,8 @@ export function record(runs: Readonly<Runs>, id: string, run: StarRun): Recorded
 
 const is_run = (value: unknown): value is StarRun => {
   if (!value || typeof value !== "object") return false;
-  const { stars, ms } = value as Record<string, unknown>;
+  const { stars, ms, score } = value as Record<string, unknown>;
+  if (score !== undefined && !(typeof score === "number" && Number.isFinite(score) && score >= 0)) return false;
   return Number.isInteger(stars) && (stars as number) >= 1 && (stars as number) <= MAX_STARS && typeof ms === "number" && Number.isFinite(ms) && ms > 0;
 };
 
@@ -56,7 +61,7 @@ const is_run = (value: unknown): value is StarRun => {
 export function parse_runs(raw: unknown): Runs {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
   const runs: Runs = {};
-  for (const [id, run] of Object.entries(raw)) if (is_run(run)) runs[id] = { stars: run.stars, ms: run.ms };
+  for (const [id, run] of Object.entries(raw)) if (is_run(run)) runs[id] = run.score === undefined ? { stars: run.stars, ms: run.ms } : { stars: run.stars, ms: run.ms, score: run.score };
   return runs;
 }
 

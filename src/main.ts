@@ -190,7 +190,7 @@ const modes = new Modes(scene, world, SPAWN_INDEX, () => lobby.record, (x, y, z,
   car.place(x, y, z, heading);
   chase.snap(car);
   history.length = 0;
-}, () => lobby.busy);
+}, () => lobby.busy, () => audio.chime());
 modes.start();
 const updater = new Updater(() => lobby.busy || modes.active);
 updater.start();

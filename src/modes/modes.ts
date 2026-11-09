@@ -1,16 +1,19 @@
 import type * as THREE from "three";
 import type { CarSpec } from "../cars";
 import { $, format } from "../hud";
-import type { World } from "../world";
+import { ROAD_HALF, type World } from "../world";
+import { ComboEnd, DRIFT_IDS, DRIFT_LEVELS, DriftRun, DriftStatus, LEAD, build_zone, type DriftLevel } from "./drift";
+import { DriftView } from "./drift-view";
 import { GymRun, HIT_MS, LEVELS, LEVEL_IDS, MISS_MS, RunStatus, Step, build_course, find_site, to_world, type Course, type GymLevel, type Site } from "./gymkhana";
 import { GymkhanaView } from "./gymkhana-view";
 import { PARK_IDS, PARK_LEVELS, ParkRun, ParkStatus, Verdict, park_footprint, park_solids, type ParkLevel } from "./parking";
 import { ParkingView } from "./parking-view";
-import { MAX_STARS, Track, local_store, type RaceRecord } from "./track";
+import { MAX_STARS, Track, local_store, type RaceRecord, type StarRun } from "./track";
 
 const SPAWN_LIFT = 0.75;
 const NOTICE_MS = 2500;
 const DEG = 180 / Math.PI;
+const LOST_MS = 1500;
 
 export interface Driven {
   pos: THREE.Vector3;
@@ -26,6 +29,8 @@ interface Listed {
 }
 
 const star_text = (stars: number) => "★".repeat(stars) + "☆".repeat(MAX_STARS - stars);
+const points = (score: number) => Math.round(score).toLocaleString("en-US");
+const run_text = (run: StarRun) => (run.score === undefined ? format(run.ms) : `${points(run.score)} pts`);
 
 function line(label: string, value: string): HTMLElement {
   const row = document.createElement("div");
@@ -41,6 +46,7 @@ function line(label: string, value: string): HTMLElement {
 export class Modes {
   private readonly track: Track;
   private readonly park_track: Track;
+  private readonly drift_track: Track;
   private site: Site | null | undefined;
   private park_site: Site | null | undefined;
   private level: GymLevel | null = null;
@@ -48,19 +54,25 @@ export class Modes {
   private run: GymRun | null = null;
   private view: GymkhanaView | null = null;
   private park_level: ParkLevel | null = null;
+  private drift_level: DriftLevel | null = null;
   private park: ParkRun | null = null;
   private park_view: ParkingView | null = null;
+  private drift: DriftRun | null = null;
+  private drift_view: DriftView | null = null;
   private unplace: (() => void) | null = null;
   private high = true;
   private readonly park_area = park_footprint();
   private abort: AbortController | null = null;
   private status_key = "";
+  private lost_at = -Infinity;
   private readonly el = {
     menu: $("modes"),
     levels: $("gym-levels", HTMLOListElement),
     stars: $("gym-stars"),
     park_levels: $("park-levels", HTMLOListElement),
     park_stars: $("park-stars"),
+    drift_levels: $("drift-levels", HTMLOListElement),
+    drift_stars: $("drift-stars"),
     race: $("race-record"),
     status: $("mode-status"),
     result: $("mode-result"),
@@ -80,13 +92,15 @@ export class Modes {
     private readonly race_record: () => RaceRecord,
     private readonly place: (x: number, y: number, z: number, heading: number) => void,
     private readonly race_busy: () => boolean,
+    private readonly chime: () => void,
   ) {
     this.track = new Track("gymkhana", world.seed, LEVEL_IDS, local_store());
     this.park_track = new Track("parking", world.seed, PARK_IDS, local_store());
+    this.drift_track = new Track("drift", world.seed, DRIFT_IDS, local_store());
   }
 
   get active(): boolean {
-    return this.run !== null || this.park !== null;
+    return this.run !== null || this.park !== null || this.drift !== null;
   }
 
   get current(): GymRun | null {
@@ -117,6 +131,7 @@ export class Modes {
     };
     this.el.levels.addEventListener("click", pick, { signal });
     this.el.park_levels.addEventListener("click", pick, { signal });
+    this.el.drift_levels.addEventListener("click", pick, { signal });
     this.el.retry.addEventListener("click", () => this.restart(), { signal });
     this.el.next.addEventListener("click", () => this.play_next(), { signal });
     this.el.exit.addEventListener("click", () => this.exit(), { signal });
@@ -138,6 +153,7 @@ export class Modes {
 
   play(id: string) {
     if (PARK_IDS.includes(id)) return this.play_park(id);
+    if (DRIFT_IDS.includes(id)) return this.play_drift(id);
     const level = LEVELS.find((l) => l.id === id);
     if (!level || !this.track.is_open(id)) return;
     if (this.race_busy()) return this.notice("Leave the lobby race to play gymkhana");
@@ -167,8 +183,34 @@ export class Modes {
     this.restart();
   }
 
+  private play_drift(id: string) {
+    const level = DRIFT_LEVELS.find((l) => l.id === id);
+    if (!level || !this.drift_track.is_open(id)) return;
+    if (this.race_busy()) return this.notice("Leave the lobby race to drift");
+    this.clear();
+    this.level = null;
+    this.drift_level = level;
+    this.restart();
+  }
+
+  private restart_drift(level: DriftLevel) {
+    const zone = build_zone(this.world.seed, this.world.road, level);
+    this.drift_view?.dispose();
+    this.drift_view = new DriftView(zone, this.world);
+    this.scene.add(this.drift_view.root);
+    this.drift = new DriftRun(zone, this.world.solids);
+    this.lost_at = -Infinity;
+    this.el.result.hidden = true;
+    this.place_on(zone.points[0]);
+  }
+
+  private place_on(p: { x: number; z: number; tx: number; tz: number }) {
+    this.place(p.x, this.world.height(p.x, p.z) + SPAWN_LIFT, p.z, Math.atan2(p.tx, p.tz));
+  }
+
   restart() {
     if (this.park_level) return this.restart_park(this.park_level);
+    if (this.drift_level) return this.restart_drift(this.drift_level);
     const { course } = this;
     if (!course) return;
     this.view?.dispose();
@@ -212,19 +254,24 @@ export class Modes {
     this.unplace = null;
     this.park = null;
     this.park_level = null;
+    this.drift_view?.dispose();
+    this.drift_view = null;
+    this.drift = null;
+    this.drift_level = null;
     this.el.result.hidden = true;
     this.status_key = "";
   }
 
   private play_next() {
-    const ids = this.park_level ? PARK_IDS : LEVEL_IDS;
-    const next = ids[ids.indexOf(this.park_level?.id ?? this.level?.id ?? "") + 1];
+    const ids = this.park_level ? PARK_IDS : this.drift_level ? DRIFT_IDS : LEVEL_IDS;
+    const next = ids[ids.indexOf(this.park_level?.id ?? this.drift_level?.id ?? this.level?.id ?? "") + 1];
     if (next) this.play(next);
   }
 
   /** `sim_dt`: seconds of physics stepped this frame, 0 while the sim is paused. */
   update(sim_dt: number, car: Driven) {
     if (this.park) return this.update_park(sim_dt, car, this.park);
+    if (this.drift) return this.update_drift(sim_dt, car, this.drift);
     const { run, view, level } = this;
     if (!run || !view || !level) return;
     const was = run.status;
@@ -282,6 +329,26 @@ export class Modes {
     this.show_status(`${run.level.name} · ${format(run.elapsed())}${touches} · ${doing}`);
   }
 
+  private update_drift(sim_dt: number, car: Driven, run: DriftRun) {
+    const was = run.status;
+    const end = run.update(
+      sim_dt * 1000,
+      { x: car.pos.x, z: car.pos.z, heading: car.heading, vx: car.vel.x, vz: car.vel.z },
+      { circles: car.spec.circles, radius: car.spec.radius, length: car.spec.body.length, width: car.spec.body.width },
+      ROAD_HALF,
+    );
+    if (end === ComboEnd.LOST) this.lost_at = run.clock;
+    if (was !== DriftStatus.DONE && run.status === DriftStatus.DONE) this.finish_drift(run);
+    const { level } = run.zone;
+    const { combo } = run;
+    if (run.status === DriftStatus.READY) {
+      this.show_status(`${level.name} · zone in ${Math.round((LEAD - Math.max(0, run.tracker.index)) * 2)} m`);
+      return;
+    }
+    const live = combo.chain > 0 ? ` · ×${combo.mult} +${points(combo.chain)}` : run.clock - this.lost_at < LOST_MS ? " · wall, combo lost" : "";
+    this.show_status(`${level.name} · ${points(combo.score)} pts${live}`);
+  }
+
   private notice(text: string) {
     this.show_status(text);
     setTimeout(() => {
@@ -294,6 +361,43 @@ export class Modes {
     this.status_key = text;
     this.el.status.hidden = false;
     this.el.status.textContent = text;
+  }
+
+  private show_result(title: string, stars: number, lines: HTMLElement[], ids: readonly string[], id: string, track: Track) {
+    const { el } = this;
+    el.title.textContent = title;
+    el.result_stars.textContent = star_text(stars);
+    el.result_stars.setAttribute("aria-label", `${stars} of ${MAX_STARS} stars`);
+    el.lines.replaceChildren(...lines);
+    const index = ids.indexOf(id);
+    el.next.hidden = index + 1 >= ids.length;
+    el.next.disabled = !track.is_open(ids[index + 1] ?? "");
+    el.result.hidden = false;
+    this.chime();
+  }
+
+  private finish_drift(run: DriftRun) {
+    const { zone, combo } = run;
+    const { level } = zone;
+    const stars = run.stars();
+    const score = Math.round(combo.score);
+    const { improved, first } = this.drift_track.record(level.id, { stars, ms: Math.max(1, Math.round(run.elapsed())), score });
+    const best = this.drift_track.runs[level.id];
+    this.show_result(
+      `${level.name}${run.timed_out ? " · time up" : improved && !first ? " · new best" : ""}`,
+      stars,
+      [
+        line("score", points(score)),
+        line("best chain", points(combo.best_chain)),
+        line("walls", String(combo.lost)),
+        line("time", format(run.elapsed())),
+        line("★★ / ★★★", `${points(zone.silver)} / ${points(zone.gold)}`),
+        line("best", best ? `${run_text(best)} ${star_text(best.stars)}` : "--"),
+      ],
+      DRIFT_IDS,
+      level.id,
+      this.drift_track,
+    );
   }
 
   private finish(run: GymRun, level: GymLevel) {
@@ -359,7 +463,7 @@ export class Modes {
         name.textContent = `${i + 1}. ${level.name}`;
         const score = document.createElement("span");
         score.className = "dim";
-        score.textContent = !open ? "locked" : run ? `${star_text(run.stars)} ${format(run.ms)}` : "new";
+        score.textContent = !open ? "locked" : run ? `${star_text(run.stars)} ${run_text(run)}` : "new";
         button.title = level.brings;
         button.append(name, score);
         item.append(button);
@@ -372,6 +476,7 @@ export class Modes {
     const { el } = this;
     this.render_levels(el.levels, el.stars, LEVELS, this.track);
     this.render_levels(el.park_levels, el.park_stars, PARK_LEVELS, this.park_track);
+    this.render_levels(el.drift_levels, el.drift_stars, DRIFT_LEVELS, this.drift_track);
     const record = this.race_record();
     const bests = Object.entries(record.best)
       .sort(([a], [b]) => Number(a) - Number(b))
