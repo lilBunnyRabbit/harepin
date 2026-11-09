@@ -398,6 +398,7 @@ function frame(now: number) {
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
   const { controls, actions } = input.read();
+  if (garage.is_open) garage.navigate(input.nav);
   for (const action of actions) {
     if (action === "reset") {
       if (modes.active) modes.restart();

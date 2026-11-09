@@ -33,67 +33,88 @@ export interface Look {
 
 export interface Part {
   name: string;
+  /** One line for the garage card: what the part does to the car. */
+  blurb?: string;
   mod: Mod;
   look?: Look;
+}
+
+/** Where the garage camera goes for a slot. */
+export interface SlotView {
+  /** The point it centres, in the car's half extents: +x left flank, +y up, +z nose. */
+  at: Triple;
+  /** The car's turn on its stand, radians: 0.7 points the nose at the camera, -0.87 shows the left flank side on. */
+  yaw: number;
+  /** Camera distance as a share of the distance that frames the whole car. */
+  distance: number;
 }
 
 export interface SlotSpec {
   label: string;
   parts: Part[];
+  view?: SlotView;
 }
+
+export const WHOLE_CAR: SlotView = { at: [0, 0, 0], yaw: -0.5, distance: 1 };
 
 // Spoiler, suspension and engine sit at fixed spots in the build code; every other slot rides in its tail in table order,
 // so a new slot goes last here or old codes would read its digits as another slot's.
 export const SLOTS = {
   engine: {
     label: "Engine",
+    view: { at: [0, 0.7, 0.55], yaw: 0.4, distance: 0.55 },
     parts: [
-      { name: "Stock", mod: {} },
-      { name: "Tuned", mod: { scale: { torque: 1.15 }, add: { redline: 300, upshift: 300, mass: 15 } } },
-      { name: "Race", mod: { scale: { torque: 1.3 }, add: { redline: 600, upshift: 600, mass: 30 } } },
+      { name: "Stock", blurb: "Factory tune", mod: {} },
+      { name: "Tuned", blurb: "+15% torque, revs higher, +15 kg", mod: { scale: { torque: 1.15 }, add: { redline: 300, upshift: 300, mass: 15 } } },
+      { name: "Race", blurb: "+30% torque, revs much higher, +30 kg", mod: { scale: { torque: 1.3 }, add: { redline: 600, upshift: 600, mass: 30 } } },
     ],
   },
   tyres: {
     label: "Tyres",
+    view: { at: [1, -0.45, 0.6], yaw: -0.6, distance: 0.55 },
     parts: [
-      { name: "Street", mod: {} },
-      { name: "Sport", mod: { scale: { mu: 1.06 }, add: { offroad: -0.15 } }, look: { tyre: { width: 1.15, rim: 1.06 } } },
-      { name: "Semi-slick", mod: { scale: { mu: 1.12 }, add: { offroad: -0.6 } }, look: { tyre: { width: 1.32, rim: 1.12, band: "warning" } } },
-      { name: "Rally", mod: { scale: { mu: 0.96 }, add: { offroad: 0.5 } }, look: { tyre: { width: 1.1, rim: 0.88, tread: true } } },
+      { name: "Street", blurb: "All-round, fine on dirt", mod: {} },
+      { name: "Sport", blurb: "More grip, a bit worse on dirt", mod: { scale: { mu: 1.06 }, add: { offroad: -0.15 } }, look: { tyre: { width: 1.15, rim: 1.06 } } },
+      { name: "Semi-slick", blurb: "Most grip, slides on dirt", mod: { scale: { mu: 1.12 }, add: { offroad: -0.6 } }, look: { tyre: { width: 1.32, rim: 1.12, band: "warning" } } },
+      { name: "Rally", blurb: "Less grip, strong on dirt", mod: { scale: { mu: 0.96 }, add: { offroad: 0.5 } }, look: { tyre: { width: 1.1, rim: 0.88, tread: true } } },
     ],
   },
   spoiler: {
     label: "Spoiler",
+    view: { at: [0, 0.75, -0.85], yaw: -1.7, distance: 0.78 },
     parts: [
-      { name: "None", mod: {} },
-      { name: "Lip", mod: { scale: { downforce: 1.8 }, add: { drag: 0.04, rear_grip: 0.02 } } },
-      { name: "Wing", mod: { scale: { downforce: 2.6 }, add: { drag: 0.09, rear_grip: 0.04 } } },
+      { name: "None", blurb: "Clean, lowest drag", mod: {} },
+      { name: "Lip", blurb: "More downforce, a little drag", mod: { scale: { downforce: 1.8 }, add: { drag: 0.04, rear_grip: 0.02 } } },
+      { name: "Wing", blurb: "Most downforce, more drag", mod: { scale: { downforce: 2.6 }, add: { drag: 0.09, rear_grip: 0.04 } } },
     ],
   },
   suspension: {
     label: "Suspension",
+    view: { at: [1, -0.35, -0.6], yaw: -1, distance: 0.62 },
     parts: [
-      { name: "Soft", mod: { scale: { spring: 0.8, damper: 0.8, arb_front: 0.7, arb_rear: 0.7 }, add: { rest: 0.04 } } },
-      { name: "Sport", mod: {} },
-      { name: "Race", mod: { scale: { spring: 1.3, damper: 1.3, arb_front: 1.4, arb_rear: 1.4 }, add: { rest: -0.03 } } },
+      { name: "Soft", blurb: "Soft and tall, soaks up bumps", mod: { scale: { spring: 0.8, damper: 0.8, arb_front: 0.7, arb_rear: 0.7 }, add: { rest: 0.04 } } },
+      { name: "Sport", blurb: "Balanced street setup", mod: {} },
+      { name: "Race", blurb: "Stiff and low, sharp turn-in", mod: { scale: { spring: 1.3, damper: 1.3, arb_front: 1.4, arb_rear: 1.4 }, add: { rest: -0.03 } } },
       // Drift's extra lock is the countersteer room that turns a power slide from a spin into a held angle.
-      { name: "Drift", mod: { scale: { spring: 1.25, damper: 1.25, arb_front: 0.6, arb_rear: 3, lock: 1.15, assist_yaw: 0.6 }, add: { rest: -0.02, rear_grip: -0.02 } } },
+      { name: "Drift", blurb: "Loose rear, extra steering lock", mod: { scale: { spring: 1.25, damper: 1.25, arb_front: 0.6, arb_rear: 3, lock: 1.15, assist_yaw: 0.6 }, add: { rest: -0.02, rear_grip: -0.02 } } },
     ],
   },
   brakes: {
     label: "Brakes",
+    view: { at: [1, -0.45, 0.6], yaw: -0.6, distance: 0.48 },
     parts: [
-      { name: "Stock", mod: {} },
-      { name: "Sport", mod: { scale: { brake_front: 1.15, brake_rear: 1.15 }, add: { brake_grip: 0.14 } }, look: { caliper: { size: 1.15, tone: "error" } } },
-      { name: "Race", mod: { scale: { brake_front: 1.3, brake_rear: 1.3 }, add: { brake_grip: 0.3 } }, look: { caliper: { size: 1.3, tone: "warning" } } },
+      { name: "Stock", blurb: "Factory brakes", mod: {} },
+      { name: "Sport", blurb: "+15% brake force", mod: { scale: { brake_front: 1.15, brake_rear: 1.15 }, add: { brake_grip: 0.14 } }, look: { caliper: { size: 1.15, tone: "error" } } },
+      { name: "Race", blurb: "+30% brake force", mod: { scale: { brake_front: 1.3, brake_rear: 1.3 }, add: { brake_grip: 0.3 } }, look: { caliper: { size: 1.3, tone: "warning" } } },
     ],
   },
   weight: {
     label: "Weight",
+    view: { at: [0, 0, 0], yaw: -0.87, distance: 0.95 },
     parts: [
-      { name: "Stock", mod: {} },
-      { name: "Light", mod: { scale: { mass: 0.95, inertia: 0.95 }, add: { cog: 0.01 } } },
-      { name: "Stripped", mod: { scale: { mass: 0.9, inertia: 0.9 }, add: { cog: 0.025 } } },
+      { name: "Stock", blurb: "Full interior", mod: {} },
+      { name: "Light", blurb: "-5% mass, sits a little lower", mod: { scale: { mass: 0.95, inertia: 0.95 }, add: { cog: 0.01 } } },
+      { name: "Stripped", blurb: "-10% mass, no trim, lower still", mod: { scale: { mass: 0.9, inertia: 0.9 }, add: { cog: 0.025 } } },
     ],
   },
   // Balanced keeps both axles at their grip limit for the shortest straight stop; moving torque either way starves one.
@@ -101,17 +122,18 @@ export const SLOTS = {
   bias: {
     label: "Brake bias",
     parts: [
-      { name: "Front", mod: { scale: { brake_front: 1.1, brake_rear: 0.55 } } },
-      { name: "Balanced", mod: {} },
-      { name: "Rear", mod: { scale: { brake_front: 0.7, brake_rear: 1.6 } } },
+      { name: "Front", blurb: "Stable, stops straight", mod: { scale: { brake_front: 1.1, brake_rear: 0.55 } } },
+      { name: "Balanced", blurb: "Shortest straight stop", mod: {} },
+      { name: "Rear", blurb: "Rotates into braked turns", mod: { scale: { brake_front: 0.7, brake_rear: 1.6 } } },
     ],
   },
   nitro: {
     label: "Nitro",
+    view: { at: [0, 0.6, -0.65], yaw: -1.9, distance: 0.72 },
     parts: [
-      { name: "None", mod: {} },
-      { name: "Small tank", mod: { add: { nitro: 4, mass: 8 } }, look: { bottle: { size: 1 } } },
-      { name: "Big tank", mod: { add: { nitro: 7, mass: 18 } }, look: { bottle: { size: 1.25, twin: true } } },
+      { name: "None", blurb: "No boost", mod: {} },
+      { name: "Small tank", blurb: "4 s boost, +8 kg", mod: { add: { nitro: 4, mass: 8 } }, look: { bottle: { size: 1 } } },
+      { name: "Big tank", blurb: "7 s boost, +18 kg", mod: { add: { nitro: 7, mass: 18 } }, look: { bottle: { size: 1.25, twin: true } } },
     ],
   },
 } satisfies Record<string, SlotSpec>;
@@ -122,6 +144,11 @@ export const SLOT_NAMES = Object.keys(SLOTS) as Slot[];
 export function part_of(slot: Slot, index: number): Part {
   const parts: Part[] = SLOTS[slot].parts;
   return parts[index];
+}
+
+export function slot_view(slot: Slot): SlotView {
+  const spec: SlotSpec = SLOTS[slot];
+  return spec.view ?? WHOLE_CAR;
 }
 
 const LIMITS: Partial<Record<Field, [number, number]>> = { offroad: [-1, 1] };

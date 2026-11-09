@@ -187,7 +187,7 @@ const KEYS: [string, string, string, string][] = [
   ["Recenter camera", "F / double-click", "R3", "Recenter"],
   ["Ghost", "G", "", ""],
   ["TCS / ABS / steer assist", "1 / 2 / 3", "", ""],
-  ["Garage", "V", "", ""],
+  ["Garage", "V", "Menu", ""],
   ["This key list", "H", "", ""],
   ["Chat", "T", "", "Chat"],
   ["Settings", "Esc", "", ""],

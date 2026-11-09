@@ -1,8 +1,30 @@
 import * as THREE from "three";
-import { DECALS, DEFAULT_BUILD, DEFAULT_PARTS, MAX_NUMBER, SLOTS, SLOT_NAMES, STATS, build_code, build_spec, parse_build, part_of, stat_range, stats, type Build, type Decal, type Slot, type Stats } from "./build";
-import { CARS, is_car, type CarSpec } from "./cars";
+import {
+  DECALS,
+  DEFAULT_BUILD,
+  DEFAULT_PARTS,
+  MAX_NUMBER,
+  SLOTS,
+  SLOT_NAMES,
+  STATS,
+  WHOLE_CAR,
+  build_code,
+  build_spec,
+  parse_build,
+  part_of,
+  slot_view,
+  stat_range,
+  stats,
+  type Build,
+  type Decal,
+  type Slot,
+  type SlotView,
+  type Stats,
+} from "./build";
+import { CARS, is_car } from "./cars";
+import { typing, type Nav } from "./input";
 import { FLAME, SIDE_BAND, SLASH } from "./livery";
-import { build_view, dispose_car_view, livery_of, rest_wheels, type CarView } from "./models";
+import { build_view, contact_shadow, dispose_car_view, livery_of, rest_wheels, type CarView } from "./models";
 import { NEUTRAL_INKS, brand, car_paints, color, dark, decal_inks, rgba } from "./palette";
 import "./garage.css";
 
@@ -11,8 +33,6 @@ export const BUILD_KEY = "harepin:build";
 const STAT_NAMES: Record<keyof Stats, string> = { power: "Power", grip: "Grip", braking: "Braking", top_speed: "Top speed" };
 // An empty bar reads as broken, so the weakest car in the game still shows a sliver.
 const BAR_FLOOR = 0.08;
-
-const is_slot = (value: string): value is Slot => Object.hasOwn(SLOTS, value);
 
 const DECAL_NAMES: Record<Decal, string> = {
   none: "None",
@@ -25,15 +45,17 @@ const DECAL_NAMES: Record<Decal, string> = {
   checker: "Checker",
   rabbit: "Rabbit",
 };
-const NUMERIC = ["paint", "decal", "ink"] as const;
-type Numeric = (typeof NUMERIC)[number];
-const is_numeric = (kind: string): kind is Numeric => (NUMERIC as readonly string[]).includes(kind);
 
-const PREVIEW_SPIN = 0.5;
-const PREVIEW_EYE = new THREE.Vector3(4.6, 2.8, 5.4).normalize();
-const PREVIEW_MARGIN = 1.08;
-// Front three-quarter with the left flank toward the camera, so a fresh decal shows before the spin carries it away.
-const SIDE_YAW = -0.5;
+const EYE = new THREE.Vector3(4.6, 2.8, 5.4).normalize();
+const FRAME_MARGIN = 1.08;
+const EASE_MS = 600;
+const COUNT_MS = 450;
+/** Breathing room between the car and the panels around it, CSS px. */
+const FREE_PAD = 12;
+const SIDE_VIEW: SlotView = { at: [0, 0, 0], yaw: -0.87, distance: 0.9 };
+const DOOR_VIEW: SlotView = { at: [0.6, 0, 0], yaw: -0.87, distance: 0.6 };
+/** Slots shown under Body: the parts you see first on the car. Every other slot lands under Performance. */
+const BODY_SLOTS: readonly Slot[] = ["spoiler"];
 const SVG = "http://www.w3.org/2000/svg";
 
 type Point = [number, number];
@@ -46,6 +68,150 @@ const WHEELS = [13, 51];
 const DOOR_X: Point = [18, 46];
 const DOOR_Y: Point = [20.6, 12];
 const TOP_LINE = "M2 13.6 L15 12.1 M21 5.1 L41 5.1 M48 12.1 L62 13.6";
+
+const ICONS: Record<string, string> = {
+  car: "M3 14l2-5h11l3 5v3H3zM7 17a1.6 1.6 0 1 0 0 .1M16 17a1.6 1.6 0 1 0 0 .1",
+  engine: "M4 8h12v9H4zM8 8V5h4v3M16 11h3v4h-3M4 12H2",
+  tyres: "M12 4a8 8 0 1 0 0 16a8 8 0 1 0 0-16M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6",
+  spoiler: "M3 8h18l-2 3H5zM8 11v6M16 11v6",
+  suspension: "M12 3v3l-5 2 10 2-10 2 10 2-10 2 5 2v3",
+  brakes: "M11 6a7 7 0 1 0 0 14a7 7 0 1 0 0-14M11 11a2 2 0 1 0 0 4a2 2 0 1 0 0-4M16 5a8 8 0 0 1 4 6",
+  weight: "M8 8a4 4 0 1 1 8 0M6 8h12l2 12H4z",
+  bias: "M12 4v16M5 20h14M4 9l3-4 3 4M14 9l3-4 3 4M4 9a3 3 0 0 0 6 0M14 9a3 3 0 0 0 6 0",
+  nitro: "M9 3h6M10 3v3M14 3v3M8 6h8v14H8zM8 11h8",
+  decal: "M4 16l5-8h5l-5 8zM12 16l5-8h3l-5 8z",
+  number: "M12 4a8 8 0 1 0 0 16a8 8 0 1 0 0-16M10 9l2-1v8",
+  paint: "M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11z",
+  ink: "M4 20l4-1 11-11-3-3L5 16zM14 7l3 3",
+  part: "M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2",
+};
+
+type Kind = "part" | "car" | "paint" | "ink" | "decal" | "number";
+
+interface Item {
+  id: string;
+  label: string;
+  kind: Kind;
+  view: SlotView;
+  count: number;
+  /** The fitted option in `build`. */
+  at(build: Build): number;
+  with(build: Build, option: number): Build;
+  name(option: number): string;
+  blurb(option: number): string;
+}
+
+const CAR_IDS = Object.keys(CARS).filter(is_car);
+
+const part_item = (slot: Slot): Item => ({
+  id: slot,
+  label: SLOTS[slot].label,
+  kind: "part",
+  view: slot_view(slot),
+  count: SLOTS[slot].parts.length,
+  at: (b) => b.parts[slot],
+  with: (b, i) => ({ ...b, parts: { ...b.parts, [slot]: i } }),
+  name: (i) => part_of(slot, i).name,
+  blurb: (i) => part_of(slot, i).blurb ?? "",
+});
+
+const PART_ITEMS = new Map(SLOT_NAMES.map((slot) => [slot, part_item(slot)]));
+const part_items = (slots: readonly Slot[]) => slots.flatMap((slot) => PART_ITEMS.get(slot) ?? []);
+
+const CAR_ITEM: Item = {
+  id: "car",
+  label: "Car",
+  kind: "car",
+  view: WHOLE_CAR,
+  count: CAR_IDS.length,
+  at: (b) => CAR_IDS.indexOf(b.car),
+  with: (b, i) => ({ ...b, car: CAR_IDS[i] }),
+  name: (i) => CARS[CAR_IDS[i]].name,
+  blurb: (i) => {
+    const spec = CARS[CAR_IDS[i]];
+    return `${spec.drive.toUpperCase()} · ${Math.round(spec.mass)} kg`;
+  },
+};
+
+const DECAL_ITEM: Item = {
+  id: "decal",
+  label: "Decal",
+  kind: "decal",
+  view: SIDE_VIEW,
+  count: DECALS.length,
+  at: (b) => b.decal,
+  with: (b, i) => ({ ...b, decal: i }),
+  name: (i) => DECAL_NAMES[DECALS[i]],
+  blurb: () => "",
+};
+
+const NUMBER_ITEM: Item = {
+  id: "number",
+  label: "Number",
+  kind: "number",
+  view: DOOR_VIEW,
+  count: MAX_NUMBER + 1,
+  at: (b) => b.number,
+  with: (b, i) => ({ ...b, number: i }),
+  name: (i) => String(i).padStart(2, "0"),
+  blurb: () => "",
+};
+
+const PAINT_ITEM: Item = {
+  id: "paint",
+  label: "Paint",
+  kind: "paint",
+  view: WHOLE_CAR,
+  count: car_paints.length,
+  at: (b) => b.paint % car_paints.length,
+  with: (b, i) => ({ ...b, paint: i }),
+  name: (i) => `Paint ${i + 1}`,
+  blurb: () => "",
+};
+
+const INK_ITEM: Item = {
+  id: "ink",
+  label: "Decal colour",
+  kind: "ink",
+  view: SIDE_VIEW,
+  count: decal_inks.length,
+  at: (b) => b.ink % decal_inks.length,
+  with: (b, i) => ({ ...b, ink: i }),
+  name: (i) => (i < NEUTRAL_INKS ? ["Light", "Dark"][i] : `Paint ${i - NEUTRAL_INKS + 1}`),
+  blurb: () => "",
+};
+
+interface Tab {
+  label: string;
+  items(build: Build): Item[];
+}
+
+const TABS: Tab[] = [
+  { label: "Body", items: (b) => [CAR_ITEM, ...part_items(BODY_SLOTS), DECAL_ITEM, ...(DECALS[b.decal] === "number" ? [NUMBER_ITEM] : [])] },
+  { label: "Performance", items: () => part_items(SLOT_NAMES.filter((slot) => !BODY_SLOTS.includes(slot))) },
+  { label: "Paint", items: (b) => [PAINT_ITEM, ...(DECALS[b.decal] === "none" ? [] : [INK_ITEM])] },
+];
+
+/** Glyphs per input: the pad's, then the keyboard's. */
+const GLYPHS: Record<"move" | "accept" | "back" | "prev" | "next", [string, string]> = {
+  move: ["✥", "Arrows"],
+  accept: ["A", "Enter"],
+  back: ["B", "Esc"],
+  prev: ["LB", "Q"],
+  next: ["RB", "E"],
+};
+
+const KEY_NAV: Record<string, Nav> = {
+  ArrowUp: "up",
+  ArrowDown: "down",
+  ArrowLeft: "left",
+  ArrowRight: "right",
+  Enter: "accept",
+  NumpadEnter: "accept",
+  Escape: "back",
+  KeyQ: "prev",
+  KeyE: "next",
+};
 
 export function load_build(query: string | null): Build {
   const asked = parse_build(query);
@@ -78,6 +244,25 @@ function element<K extends keyof HTMLElementTagNameMap>(tag: K, class_name: stri
 function svg<K extends keyof SVGElementTagNameMap>(tag: K, attributes: Record<string, string | number>): SVGElementTagNameMap[K] {
   const node = document.createElementNS(SVG, tag);
   for (const [name, value] of Object.entries(attributes)) node.setAttribute(name, String(value));
+  return node;
+}
+
+function icon(id: string): SVGSVGElement {
+  const node = svg("svg", { viewBox: "0 0 24 24", "aria-hidden": "true", class: "garage-icon" });
+  node.append(svg("path", { d: ICONS[id] ?? ICONS.part }));
+  return node;
+}
+
+function glyph(which: keyof typeof GLYPHS): HTMLElement {
+  const [pad, keys] = GLYPHS[which];
+  const node = element("span", "garage-glyph");
+  node.append(element("kbd", "garage-key garage-key-pad", pad), element("kbd", "garage-key garage-key-keys", keys));
+  return node;
+}
+
+function hint(label: string, ...keys: (keyof typeof GLYPHS)[]): HTMLElement {
+  const node = element("span", "garage-hint");
+  node.append(...keys.map(glyph), label);
   return node;
 }
 
@@ -127,26 +312,67 @@ function decal_tile(decal: Decal): SVGSVGElement {
   return tile;
 }
 
+const bar_of = (key: keyof Stats, value: number) => {
+  const { low, high } = stat_range();
+  return BAR_FLOOR + (1 - BAR_FLOOR) * Math.max(0, Math.min(1, (value - low[key]) / (high[key] - low[key])));
+};
+const rating = (key: keyof Stats, value: number) => Math.round(bar_of(key, value) * 100);
+const signed = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : "0");
+const trend = (n: number) => (n > 0 ? "up" : n < 0 ? "down" : "flat");
+const ease = (u: number) => 1 - (1 - u) ** 3;
+const turn = (from: number, to: number) => ((((to - from + Math.PI) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) - Math.PI;
+
+interface Pose {
+  at: THREE.Vector3;
+  yaw: number;
+  distance: number;
+}
+
+const pose_of = (view: SlotView): Pose => ({ at: new THREE.Vector3(...view.at), yaw: view.yaw, distance: view.distance });
+
+interface Meter {
+  value: HTMLElement;
+  change: HTMLElement;
+  fill: HTMLElement;
+  ghost: HTMLElement;
+  stock: HTMLElement;
+  shown: number;
+  count: number;
+}
+
 export class Garage {
   on_change: ((build: Build) => void) | null = null;
   private readonly root = element("div", "garage");
-  private readonly canvas = element("canvas", "garage-preview");
-  private readonly buttons: HTMLButtonElement[] = [];
-  private readonly decals = element("div", "garage-row garage-decals");
-  private readonly decal_label = element("div", "garage-label");
-  private readonly stepper = element("div", "garage-choice garage-stepper");
+  private readonly canvas = element("canvas", "garage-canvas");
+  private readonly top = element("header", "garage-top");
+  private readonly car_name = element("span", "garage-sub");
+  private readonly tabs = element("nav", "garage-tabs");
+  private readonly rail = element("nav", "garage-panel garage-rail");
+  private readonly panel = element("section", "garage-panel garage-stats");
+  private readonly bottom = element("section", "garage-bottom");
+  private readonly strip_head = element("div", "garage-strip-head");
+  private readonly strip = element("div", "garage-strip");
   private readonly number_input = element("input", "garage-number");
-  private readonly part_names = new Map<Slot, HTMLElement>();
-  private readonly bars = new Map<keyof Stats, { fill: HTMLElement; delta: HTMLElement; text: HTMLElement }>();
+  private readonly meters = new Map<keyof Stats, Meter>();
   private readonly scene = new THREE.Scene();
-  private readonly camera = new THREE.PerspectiveCamera(32, 1, 0.1, 50);
+  private readonly camera = new THREE.PerspectiveCamera(32, 1, 0.1, 80);
+  private readonly shadow = contact_shadow();
   private renderer: THREE.WebGLRenderer | null = null;
   private view: CarView | null = null;
+  private shown_code = "";
+  private strip_key = "";
+  private tab = 1;
+  private item: Item = TABS[1].items(DEFAULT_BUILD)[0];
+  private cursor = 0;
   private frame = 0;
-  private last = 0;
-  private spin = SIDE_YAW;
-  /** Car centre, its reach from the spin axis, and its half height: the bounds the turning car stays inside. */
-  private readonly fit = { center: new THREE.Vector3(), reach: 1, half_height: 1 };
+  /** The car's centre and half extents with no turn, and the radius it sweeps when it turns. */
+  private readonly box = { center: new THREE.Vector3(), half: new THREE.Vector3(1, 1, 1), reach: 1 };
+  private readonly free = { x: 0, y: 0, width: 1, height: 1 };
+  private pose: Pose = pose_of(WHOLE_CAR);
+  private from: Pose = pose_of(WHOLE_CAR);
+  private to: Pose = pose_of(WHOLE_CAR);
+  private moved = 0;
+  private readonly calm = matchMedia("(prefers-reduced-motion: reduce)");
 
   constructor(
     private readonly parent: HTMLElement,
@@ -155,88 +381,43 @@ export class Garage {
     this.root.hidden = true;
     this.root.setAttribute("role", "dialog");
     this.root.setAttribute("aria-label", "Garage");
-    const panel = element("div", "garage-panel");
-    const head = element("div", "garage-head");
-    const done = this.button("Done", "close", "");
-    done.classList.add("garage-done");
-    head.append(element("h2", "garage-title", "Garage"), done);
-    panel.append(head, this.canvas);
+    this.root.dataset.input = "keys";
 
-    const cars = element("div", "garage-row garage-choice");
-    for (const spec of Object.values(CARS)) cars.append(this.button(spec.name, "car", spec.id));
-    panel.append(this.group("car", element("div", "garage-label", "Car"), cars));
+    const title = element("div", "garage-title");
+    title.append(element("h2", "garage-heading", "Garage"), this.car_name);
+    const done = element("button", "garage-done");
+    done.type = "button";
+    done.dataset.action = "close";
+    done.append(glyph("back"), "Done");
+    this.top.append(title, this.tabs, done);
 
-    const paints = element("div", "garage-row");
-    car_paints.forEach((paint, i) => {
-      const swatch = this.button("", "paint", String(i));
-      swatch.classList.add("garage-swatch");
-      swatch.style.background = rgba(paint);
-      swatch.setAttribute("aria-label", `Paint ${i + 1}`);
-      paints.append(swatch);
-    });
-    panel.append(this.group("paint", element("div", "garage-label", "Paint"), paints));
-
-    const slots = element("div", "garage-parts");
-    for (const slot of SLOT_NAMES) {
-      const cycler = element("div", "garage-choice garage-cycler");
-      const name = element("span", "garage-part");
-      this.part_names.set(slot, name);
-      const prev = this.button("‹", "part", `${slot}:-1`);
-      const next = this.button("›", "part", `${slot}:1`);
-      prev.setAttribute("aria-label", `Previous ${slot}`);
-      next.setAttribute("aria-label", `Next ${slot}`);
-      cycler.append(prev, name, next);
-      const cell = element("div", "garage-slot");
-      cell.append(element("div", "garage-label garage-slot-label", SLOTS[slot].label), cycler);
-      slots.append(cell);
-    }
-    panel.append(this.group("parts", element("div", "garage-label", "Parts"), slots));
-
-    const meters = element("div", "garage-stats");
+    this.panel.append(element("h3", "garage-panel-title", "Against stock"));
+    const rows = element("div", "garage-meters");
     for (const key of STATS) {
-      const track = element("div", "garage-bar");
-      const fill = element("div", "garage-bar-fill");
-      const delta = element("div", "garage-bar-delta");
-      track.append(fill, delta);
-      const text = element("span", "garage-bar-text");
-      meters.append(element("span", "garage-bar-label", STAT_NAMES[key]), track, text);
-      this.bars.set(key, { fill, delta, text });
+      const value = element("span", "garage-meter-value");
+      const change = element("span", "garage-meter-change");
+      const track = element("div", "garage-meter");
+      const fill = element("div", "garage-meter-fill");
+      const ghost = element("div", "garage-meter-ghost");
+      const stock = element("i", "garage-meter-stock");
+      track.append(fill, ghost, stock);
+      rows.append(element("span", "garage-meter-label", STAT_NAMES[key]), value, change, track);
+      this.meters.set(key, { value, change, fill, ghost, stock, shown: Number.NaN, count: 0 });
     }
-    panel.append(this.group("stats", element("div", "garage-label", "Stats vs stock"), meters));
+    this.panel.append(rows);
 
-    DECALS.forEach((decal, i) => {
-      const tile = this.button("", "decal", String(i));
-      tile.classList.add("garage-decal");
-      tile.setAttribute("aria-label", DECAL_NAMES[decal]);
-      tile.title = DECAL_NAMES[decal];
-      tile.append(decal_tile(decal));
-      this.decals.append(tile);
-    });
-    const inks = element("div", "garage-row garage-inks");
-    inks.setAttribute("aria-label", "Decal colour");
-    decal_inks.forEach((ink, i) => {
-      const swatch = this.button("", "ink", String(i));
-      swatch.classList.add("garage-swatch", "garage-ink");
-      swatch.style.background = rgba(ink);
-      swatch.setAttribute("aria-label", i < NEUTRAL_INKS ? ["Light", "Dark"][i] : `Paint ${i - NEUTRAL_INKS + 1}`);
-      inks.append(swatch);
-    });
+    const hints = element("div", "garage-hints");
+    hints.append(hint("Slot / part", "move"), hint("Fit", "accept"), hint("Tabs", "prev", "next"), hint("Back", "back"));
+    this.bottom.append(this.strip_head, this.strip, hints);
+
     this.number_input.type = "text";
     this.number_input.inputMode = "numeric";
     this.number_input.maxLength = 2;
     this.number_input.size = 2;
     this.number_input.setAttribute("aria-label", "Number");
     this.number_input.addEventListener("input", this.typed);
-    const down = this.button("−", "number", "-1");
-    const up = this.button("+", "number", "1");
-    down.setAttribute("aria-label", "Number down");
-    up.setAttribute("aria-label", "Number up");
-    this.stepper.append(down, this.number_input, up);
-    inks.append(this.stepper);
-    const decal_group = this.group("decal", this.decal_label, this.decals);
-    decal_group.append(inks);
-    panel.append(decal_group);
-    this.root.append(panel);
+
+    this.root.append(this.canvas, this.top, this.rail, this.panel, this.bottom);
 
     // Light themes have a dark foreground, which would light the car like dusk; their light comes from the page white.
     const light = dark ? brand.foreground : brand.background_lightest;
@@ -244,6 +425,13 @@ export class Garage {
     const sun = new THREE.DirectionalLight(color(light), 2.4);
     sun.position.set(4, 6, 3);
     this.scene.add(sun);
+    // The game's patch multiplies the ground under it; here there is no ground, only the page behind a clear canvas. As an
+    // alpha map the blob reads its green channel, which is solid out to the rim; as a map its alpha fades it out.
+    this.shadow.material.blending = THREE.NormalBlending;
+    this.shadow.material.premultipliedAlpha = false;
+    this.shadow.material.map = this.shadow.material.alphaMap;
+    this.shadow.material.alphaMap = null;
+    this.scene.add(this.shadow.mesh);
   }
 
   get build(): Build {
@@ -259,173 +447,380 @@ export class Garage {
     if (!this.root.isConnected) this.parent.append(this.root);
     this.renderer ??= new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: true });
     this.root.hidden = false;
+    this.root.dataset.input = navigator.getGamepads?.().some((pad) => pad?.connected) ? "pad" : "keys";
     this.root.addEventListener("click", this.click);
+    this.root.addEventListener("pointerover", this.hover);
+    this.strip.addEventListener("pointerleave", this.unhover);
     addEventListener("keydown", this.key);
-    this.spin = SIDE_YAW;
+    addEventListener("resize", this.resized);
+    const items = TABS[this.tab].items(this.current);
+    this.item = items.find((item) => item.id === this.item.id) ?? items[0];
+    this.cursor = this.item.at(this.current);
+    this.pose = pose_of(this.item.view);
+    this.to = this.pose;
+    this.shown_code = "";
     this.refresh();
-    this.last = performance.now();
-    this.frame = requestAnimationFrame(this.tick);
+    this.resized();
   }
 
   close() {
     if (!this.is_open) return;
     this.root.hidden = true;
     this.root.removeEventListener("click", this.click);
+    this.root.removeEventListener("pointerover", this.hover);
+    this.strip.removeEventListener("pointerleave", this.unhover);
     removeEventListener("keydown", this.key);
+    removeEventListener("resize", this.resized);
     cancelAnimationFrame(this.frame);
+    this.frame = 0;
+    for (const meter of this.meters.values()) cancelAnimationFrame(meter.count);
   }
 
-  private button(label: string, kind: string, value: string): HTMLButtonElement {
-    const button = element("button", "garage-option", label);
-    button.type = "button";
-    button.dataset.kind = kind;
-    button.dataset.value = value;
-    this.buttons.push(button);
-    return button;
+  /** Pad menu presses from `Input.nav`, once per game frame while open. */
+  navigate(presses: readonly Nav[]) {
+    if (!presses.length) return;
+    this.root.dataset.input = "pad";
+    for (const nav of presses) this.act(nav);
   }
 
-  private group(area: string, label: HTMLElement, row: HTMLElement): HTMLElement {
-    const group = element("div", "garage-group");
-    group.dataset.area = area;
-    group.append(label, row);
-    return group;
+  private act(nav: Nav) {
+    if (!this.is_open) return;
+    const items = TABS[this.tab].items(this.current);
+    const index = Math.max(0, items.findIndex((item) => item.id === this.item.id));
+    if (nav === "up" || nav === "down") this.select(items[(index + (nav === "up" ? -1 : 1) + items.length) % items.length]);
+    else if (nav === "left" || nav === "right") {
+      const step = nav === "left" ? -1 : 1;
+      const count = this.item.count;
+      this.preview(this.item.kind === "number" ? (this.cursor + step + count) % count : Math.max(0, Math.min(count - 1, this.cursor + step)));
+    } else if (nav === "accept") this.fit(this.cursor);
+    else if (nav === "back") this.close();
+    else this.switch_tab(this.tab + (nav === "prev" ? -1 : 1));
+  }
+
+  private switch_tab(tab: number) {
+    this.tab = (tab + TABS.length) % TABS.length;
+    this.select(TABS[this.tab].items(this.current)[0]);
+  }
+
+  private select(item: Item) {
+    this.item = item;
+    this.cursor = item.at(this.current);
+    this.aim(item.view);
+    this.refresh();
+  }
+
+  private preview(option: number) {
+    if (option === this.cursor) return;
+    this.cursor = option;
+    this.refresh();
+  }
+
+  private fit(option: number) {
+    this.cursor = option;
+    this.apply(this.item.with(this.current, option));
+    this.refresh();
   }
 
   private readonly click = (event: MouseEvent) => {
     if (!(event.target instanceof Element)) return;
-    const button = event.target.closest<HTMLButtonElement>(".garage-option");
-    if (!button) {
-      if (event.target === this.root) this.close();
-      return;
-    }
-    const { kind, value } = button.dataset;
-    if (kind === "close") return this.close();
-    if (kind === undefined || value === undefined) return;
-    const b = this.current;
-    if (kind === "car" && is_car(value)) this.apply({ ...b, car: value });
-    else if (kind === "number") this.apply({ ...b, number: (b.number + Number(value) + MAX_NUMBER + 1) % (MAX_NUMBER + 1) });
-    else if (kind === "part") {
-      const [slot, step] = value.split(":");
-      if (!is_slot(slot)) return;
-      const count = SLOTS[slot].parts.length;
-      this.apply({ ...b, parts: { ...b.parts, [slot]: (b.parts[slot] + Number(step) + count) % count } });
-    }
-    else if (is_numeric(kind)) this.apply({ ...b, [kind]: Number(value) });
+    const target = event.target.closest<HTMLElement>("[data-action]");
+    if (!target) return;
+    const { action, value } = target.dataset;
+    const n = Number(value);
+    if (action === "close") this.close();
+    else if (action === "tab") this.switch_tab(n);
+    else if (action === "item") {
+      const item = TABS[this.tab].items(this.current).find((it) => it.id === value);
+      if (item) this.select(item);
+    } else if (action === "option") this.fit(n);
+    else if (action === "step") this.fit((this.cursor + n + MAX_NUMBER + 1) % (MAX_NUMBER + 1));
+  };
+
+  // Hover previews like the pad cursor does; a tap fits straight away through `click`, so touch never sees a preview.
+  private readonly hover = (event: PointerEvent) => {
+    if (event.pointerType !== "mouse" || !(event.target instanceof Element)) return;
+    const card = event.target.closest<HTMLElement>("[data-action='option']");
+    if (card) this.preview(Number(card.dataset.value));
+  };
+
+  private readonly unhover = (event: PointerEvent) => {
+    if (event.pointerType === "mouse") this.preview(this.item.at(this.current));
   };
 
   private readonly typed = () => {
     const digits = this.number_input.value.replace(/\D/g, "");
     if (digits !== this.number_input.value) this.number_input.value = digits;
-    if (digits) this.apply({ ...this.current, number: Number(digits) });
+    if (digits) this.fit(Number(digits));
   };
 
   private readonly key = (event: KeyboardEvent) => {
-    if (event.key === "Escape") this.close();
+    const nav = KEY_NAV[event.code];
+    if (!nav || event.repeat || event.altKey || event.ctrlKey || event.metaKey) return;
+    if (typing(event.target) && nav !== "back" && nav !== "accept") return;
+    event.preventDefault();
+    this.root.dataset.input = "keys";
+    this.act(nav);
   };
 
   private apply(next: Build) {
     const checked = parse_build(build_code(next));
     if (!checked || build_code(checked) === build_code(this.current)) return;
-    const was = this.current;
-    if (checked.car !== was.car || checked.decal !== was.decal || checked.ink !== was.ink || checked.number !== was.number) this.spin = SIDE_YAW;
     this.current = checked;
     save_build(checked);
-    this.refresh();
     this.on_change?.(checked);
   }
 
-  private refresh() {
-    const b = this.current;
-    for (const button of this.buttons) {
-      const { kind, value } = button.dataset;
-      if (kind === "number" || kind === "close" || kind === "part") continue;
-      const on =
-        (kind === "car" && value === b.car) ||
-        (kind === "paint" && Number(value) === b.paint % car_paints.length) ||
-        ((kind === "decal" || kind === "ink") && Number(value) === b[kind]);
-      button.setAttribute("aria-pressed", String(on));
-    }
-    const decal = DECALS[b.decal];
-    const livery = livery_of(b);
-    const swapped = decal !== "none" && !livery.ink.equals(color(decal_inks[b.ink % decal_inks.length]));
-    this.decal_label.textContent = `Decal · ${DECAL_NAMES[decal]}${swapped ? " · auto-contrast" : ""}`;
-    this.decals.style.setProperty("--decal-paint", rgba(car_paints[b.paint % car_paints.length]));
-    this.decals.style.setProperty("--decal-ink", livery.ink.getStyle());
-    this.decals.style.setProperty("--decal-mark", livery.mark.getStyle());
-    this.decals.style.setProperty("--decal-key", livery.key ? livery.key.getStyle() : "transparent");
-    for (const text of this.decals.querySelectorAll(".decal-number")) text.textContent = String(b.number);
-    this.stepper.hidden = decal !== "number";
-    if (document.activeElement !== this.number_input) this.number_input.value = String(b.number).padStart(2, "0");
+  /** The build the screen shows: the fitted one with the cursor's option tried on. */
+  private get shown(): Build {
+    return this.cursor === this.item.at(this.current) ? this.current : this.item.with(this.current, this.cursor);
+  }
 
+  private refresh() {
+    const shown = this.shown;
+    this.car_name.textContent = CARS[shown.car].name;
+    this.render_tabs();
+    this.render_rail();
+    this.render_strip(shown);
+    this.render_meters(shown);
+    this.show_car(shown);
+  }
+
+  private render_tabs() {
+    this.tabs.replaceChildren(
+      glyph("prev"),
+      ...TABS.map((tab, i) => {
+        const button = element("button", "garage-tab", tab.label);
+        button.type = "button";
+        button.setAttribute("role", "tab");
+        button.setAttribute("aria-selected", String(i === this.tab));
+        button.dataset.action = "tab";
+        button.dataset.value = String(i);
+        return button;
+      }),
+      glyph("next"),
+    );
+  }
+
+  private render_rail() {
+    this.rail.replaceChildren(
+      ...TABS[this.tab].items(this.current).map((item) => {
+        const button = element("button", "garage-slot");
+        button.type = "button";
+        button.dataset.action = "item";
+        button.dataset.value = item.id;
+        button.setAttribute("aria-label", item.label);
+        if (item.id === this.item.id) button.setAttribute("aria-current", "true");
+        button.append(icon(item.id), element("small", "garage-slot-label", item.label), element("b", "garage-slot-part", item.name(item.at(this.current))));
+        return button;
+      }),
+    );
+  }
+
+  private render_strip(shown: Build) {
+    const item = this.item;
+    const fitted = item.at(this.current);
+    const livery = livery_of(shown);
+    this.strip.style.setProperty("--decal-paint", rgba(car_paints[shown.paint % car_paints.length]));
+    this.strip.style.setProperty("--decal-ink", livery.ink.getStyle());
+    this.strip.style.setProperty("--decal-mark", livery.mark.getStyle());
+    this.strip.style.setProperty("--decal-key", livery.key ? livery.key.getStyle() : "transparent");
+
+    const swapped = DECALS[shown.decal] !== "none" && !livery.ink.equals(color(decal_inks[shown.ink % decal_inks.length]));
+    const head: (Node | string)[] = [icon(item.id), element("b", "", item.label)];
+    if (item.kind !== "number") head.push(` · ${this.cursor + 1} of ${item.count}`);
+    if ((item.kind === "decal" || item.kind === "ink") && swapped) head.push(" · auto-contrast");
+    if (this.cursor !== fitted) head.push(hint("Fit", "accept"));
+    this.strip_head.replaceChildren(...head);
+
+    const key = `${item.id}:${item.count}:${this.tab}`;
+    if (key !== this.strip_key) {
+      this.strip_key = key;
+      this.strip.dataset.kind = item.kind;
+      if (item.kind === "number") {
+        const card = element("div", "garage-card garage-stepper");
+        const step = (label: string, value: string, aria: string) => {
+          const button = element("button", "garage-step", label);
+          button.type = "button";
+          button.dataset.action = "step";
+          button.dataset.value = value;
+          button.setAttribute("aria-label", aria);
+          return button;
+        };
+        card.append(step("−", "-1", "Number down"), this.number_input, step("+", "1", "Number up"));
+        this.strip.replaceChildren(card);
+      } else
+        this.strip.replaceChildren(
+          ...Array.from({ length: item.count }, (_, i) => {
+            const card = element("button", "garage-card");
+            card.type = "button";
+            card.dataset.action = "option";
+            card.dataset.value = String(i);
+            if (item.kind === "paint" || item.kind === "ink") {
+              const swatch = element("i", "garage-swatch");
+              swatch.style.background = rgba((item.kind === "paint" ? car_paints : decal_inks)[i]);
+              card.append(swatch);
+            }
+            if (item.kind === "decal") card.append(decal_tile(DECALS[i]));
+            card.append(element("b", "garage-card-name", item.name(i)));
+            const blurb = item.blurb(i);
+            if (blurb) card.append(element("span", "garage-card-blurb", blurb));
+            return card;
+          }),
+        );
+    }
+    for (const text of this.strip.querySelectorAll(".decal-number")) text.textContent = String(shown.number);
+    if (item.kind === "number") {
+      if (document.activeElement !== this.number_input) this.number_input.value = item.name(this.cursor);
+      this.strip.firstElementChild?.classList.toggle("is-cursor", this.cursor !== fitted);
+      return;
+    }
+    for (const card of this.strip.children) {
+      if (!(card instanceof HTMLElement)) continue;
+      const i = Number(card.dataset.value);
+      card.setAttribute("aria-pressed", String(i === fitted));
+      card.classList.toggle("is-cursor", i === this.cursor);
+      if (i === this.cursor) card.scrollIntoView({ block: "nearest", inline: "nearest", behavior: this.calm.matches ? "instant" : "smooth" });
+    }
+  }
+
+  private render_meters(shown: Build) {
+    const now = stats(build_spec(this.current));
+    const next = stats(build_spec(shown));
+    const stock = stats(build_spec({ ...shown, parts: DEFAULT_PARTS }));
+    for (const [key, meter] of this.meters) {
+      const a = bar_of(key, now[key]);
+      const b = bar_of(key, next[key]);
+      const lo = Math.min(a, b);
+      meter.fill.style.width = `${lo * 100}%`;
+      meter.ghost.style.left = `${lo * 100}%`;
+      meter.ghost.style.width = `${Math.abs(b - a) * 100}%`;
+      meter.stock.style.left = `${bar_of(key, stock[key]) * 100}%`;
+      const fitted = rating(key, now[key]);
+      const tried = rating(key, next[key]);
+      meter.ghost.dataset.trend = trend(tried - fitted);
+      if (tried !== fitted) {
+        meter.change.textContent = `→ ${tried}`;
+        meter.change.dataset.trend = trend(tried - fitted);
+      } else {
+        const against = fitted - rating(key, stock[key]);
+        meter.change.textContent = against ? signed(against) : "";
+        meter.change.dataset.trend = trend(against);
+      }
+      this.count(meter, fitted);
+    }
+  }
+
+  private count(meter: Meter, to: number) {
+    const from = meter.shown;
+    meter.shown = to;
+    cancelAnimationFrame(meter.count);
+    if (Number.isNaN(from) || from === to || this.calm.matches) {
+      meter.value.textContent = String(to);
+      return;
+    }
+    const start = performance.now();
+    const step = (now: number) => {
+      const u = Math.min(1, (now - start) / COUNT_MS);
+      meter.value.textContent = String(Math.round(from + (to - from) * ease(u)));
+      if (u < 1) meter.count = requestAnimationFrame(step);
+    };
+    meter.count = requestAnimationFrame(step);
+  }
+
+  private show_car(build: Build) {
+    const code = build_code(build);
+    if (code === this.shown_code) return;
+    this.shown_code = code;
     if (this.view) {
       this.scene.remove(this.view.root);
       dispose_car_view(this.view);
     }
-    const spec = build_spec(b);
-    this.show_parts(spec);
-    this.view = build_view(b, spec);
+    const spec = build_spec(build);
+    this.view = build_view(build, spec);
     rest_wheels(this.view, spec);
     this.view.root.position.y = -this.view.body.position.y - 0.6;
     this.view.root.rotation.y = 0;
     this.view.root.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(this.view.root);
-    const size = box.getSize(new THREE.Vector3());
-    this.fit.center.set(0, (box.min.y + box.max.y) / 2, 0);
-    this.fit.reach = Math.hypot(Math.max(-box.min.x, box.max.x), Math.max(-box.min.z, box.max.z));
-    this.fit.half_height = size.y / 2;
-    this.view.root.rotation.y = this.spin;
+    box.getCenter(this.box.center);
+    box.getSize(this.box.half).multiplyScalar(0.5);
+    this.box.reach = Math.hypot(Math.max(-box.min.x, box.max.x), Math.max(-box.min.z, box.max.z));
+    this.shadow.mesh.position.set(this.box.center.x, box.min.y + 0.02, this.box.center.z);
+    this.shadow.mesh.scale.set(this.box.half.x / 1.0, 1, this.box.half.z / 2.0);
     this.scene.add(this.view.root);
-    this.frame_car();
+    this.draw();
   }
 
-  private show_parts(spec: CarSpec) {
-    const b = this.current;
-    for (const [slot, name] of this.part_names) name.textContent = part_of(slot, b.parts[slot]).name;
-    const now = stats(spec);
-    const stock = stats(build_spec({ ...b, parts: DEFAULT_PARTS }));
-    const { low, high } = stat_range();
-    const at = (key: keyof Stats, value: number) => BAR_FLOOR + (1 - BAR_FLOOR) * Math.max(0, Math.min(1, (value - low[key]) / (high[key] - low[key])));
-    for (const [key, bar] of this.bars) {
-      const was = at(key, stock[key]);
-      const is = at(key, now[key]);
-      bar.fill.style.width = `${Math.min(was, is) * 100}%`;
-      bar.delta.style.left = `${Math.min(was, is) * 100}%`;
-      bar.delta.style.width = `${Math.abs(is - was) * 100}%`;
-      const change = Math.round((now[key] / stock[key] - 1) * 100);
-      bar.delta.dataset.trend = change > 0 ? "up" : change < 0 ? "down" : "flat";
-      bar.text.dataset.trend = bar.delta.dataset.trend;
-      bar.text.textContent = change === 0 ? "" : `${change > 0 ? "+" : "−"}${Math.abs(change)}%`;
-    }
-  }
-
-  private frame_car() {
-    const half_v = THREE.MathUtils.degToRad(this.camera.fov / 2);
-    const half_h = Math.atan(Math.tan(half_v) * this.camera.aspect);
-    const { reach, half_height } = this.fit;
-    const elevation = Math.asin(PREVIEW_EYE.y);
-    const tall = reach * Math.sin(elevation) + half_height * Math.cos(elevation);
-    // The near end of the car sits up to `reach` closer than the centre and looks larger; half of that covers it in practice.
-    const distance = Math.max(reach / Math.tan(half_h), tall / Math.tan(half_v)) * PREVIEW_MARGIN + reach * 0.5;
-    this.camera.position.copy(PREVIEW_EYE).multiplyScalar(distance).add(this.fit.center);
-    this.camera.lookAt(this.fit.center);
+  private aim(view: SlotView) {
+    this.from = { at: this.pose.at.clone(), yaw: this.pose.yaw, distance: this.pose.distance };
+    this.to = pose_of(view);
+    this.moved = performance.now();
+    if (this.calm.matches) {
+      this.pose = this.to;
+      this.draw();
+    } else if (!this.frame) this.frame = requestAnimationFrame(this.tick);
   }
 
   private readonly tick = (now: number) => {
-    this.frame = requestAnimationFrame(this.tick);
+    const u = Math.min(1, (now - this.moved) / EASE_MS);
+    const e = ease(u);
+    this.pose = {
+      at: this.from.at.clone().lerp(this.to.at, e),
+      yaw: this.from.yaw + turn(this.from.yaw, this.to.yaw) * e,
+      distance: THREE.MathUtils.lerp(this.from.distance, this.to.distance, e),
+    };
+    this.draw();
+    this.frame = u < 1 ? requestAnimationFrame(this.tick) : 0;
+  };
+
+  /** Frames the car in the part of the screen the panels leave clear. */
+  private readonly resized = () => {
     const renderer = this.renderer;
-    if (!renderer || !this.view) return;
-    this.spin += ((now - this.last) / 1000) * PREVIEW_SPIN;
-    this.last = now;
-    this.view.root.rotation.y = this.spin;
+    if (!renderer || !this.is_open) return;
     const width = this.canvas.clientWidth;
     const height = this.canvas.clientHeight;
-    if (this.canvas.width !== Math.round(width * devicePixelRatio) || this.canvas.height !== Math.round(height * devicePixelRatio)) {
-      renderer.setPixelRatio(devicePixelRatio);
-      renderer.setSize(width, height, false);
-      this.camera.aspect = width / Math.max(1, height);
-      this.camera.updateProjectionMatrix();
-      this.frame_car();
+    renderer.setPixelRatio(Math.min(2, devicePixelRatio));
+    renderer.setSize(width, height, false);
+    const area = { left: 0, top: 0, right: width, bottom: height };
+    for (const panel of [this.top, this.rail, this.panel, this.bottom]) {
+      const r = panel.getBoundingClientRect();
+      if (!r.width || !r.height) continue;
+      const cx = (r.left + r.right) / 2;
+      const cy = (r.top + r.bottom) / 2;
+      if (cy > height * 0.6) area.bottom = Math.min(area.bottom, r.top - FREE_PAD);
+      else if (cy < height * 0.25 && r.width > width * 0.4) area.top = Math.max(area.top, r.bottom + FREE_PAD);
+      else if (cx < width / 2) area.left = Math.max(area.left, r.right + FREE_PAD);
+      else area.right = Math.min(area.right, r.left - FREE_PAD);
     }
-    renderer.render(this.scene, this.camera);
+    this.free.x = (area.left + area.right) / 2;
+    this.free.y = (area.top + area.bottom) / 2;
+    this.free.width = Math.max(80, area.right - area.left);
+    this.free.height = Math.max(80, area.bottom - area.top);
+    this.camera.aspect = width / Math.max(1, height);
+    this.camera.setViewOffset(width, height, width / 2 - this.free.x, height / 2 - this.free.y, width, height);
+    this.draw();
   };
+
+  private draw() {
+    const renderer = this.renderer;
+    if (!renderer || !this.view) return;
+    const { center, half, reach } = this.box;
+    const { yaw, at, distance } = this.pose;
+    this.view.root.rotation.y = yaw;
+    this.shadow.mesh.rotation.y = yaw;
+    const target = new THREE.Vector3(center.x + at.x * half.x, center.y + at.y * half.y, center.z + at.z * half.z).applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw);
+    const view = this.camera.view;
+    const width = view?.fullWidth ?? 1;
+    const height = view?.fullHeight ?? 1;
+    const tan_v = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)) * (this.free.height / height);
+    const tan_h = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)) * this.camera.aspect * (this.free.width / width);
+    const elevation = Math.asin(EYE.y);
+    const tall = reach * Math.sin(elevation) + half.y * Math.cos(elevation);
+    // The near end of the car sits up to `reach` closer than the centre and looks larger; half of that covers it in practice.
+    const whole = Math.max(reach / tan_h, tall / tan_v) * FRAME_MARGIN + reach * 0.5;
+    this.camera.position.copy(EYE).multiplyScalar(whole * distance).add(target);
+    this.camera.lookAt(target);
+    this.camera.updateProjectionMatrix();
+    renderer.render(this.scene, this.camera);
+  }
 }

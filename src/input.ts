@@ -169,6 +169,21 @@ const PAD_ACTIONS: [number, Action][] = [
   [5, "shift_up"],
   [4, "shift_down"],
   [11, "recenter"],
+  [9, "garage"],
+];
+
+/** A menu press: the d-pad, A and B, and the bumpers as tab switches. */
+export type Nav = "up" | "down" | "left" | "right" | "accept" | "back" | "prev" | "next";
+
+const PAD_NAV: [number, Nav][] = [
+  [12, "up"],
+  [13, "down"],
+  [14, "left"],
+  [15, "right"],
+  [0, "accept"],
+  [1, "back"],
+  [4, "prev"],
+  [5, "next"],
 ];
 
 export const typing = (target: EventTarget | null) => target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement;
@@ -177,7 +192,10 @@ export class Input {
   private keys = new Set<string>();
   private queued: Action[] = [];
   private pad_prev: boolean[] = [];
+  private nav_prev: boolean[] = [];
   pad: Gamepad | null = null;
+  /** Menu presses on the pad since the last `read`, for a panel open over the game. */
+  nav: Nav[] = [];
   readonly touch: Touch;
   readonly mouse: MouseLook;
   look: Look = no_look();
@@ -214,6 +232,7 @@ export class Input {
     this.pad = navigator.getGamepads?.().find((p) => p && p.connected) ?? null;
     const actions = this.queued;
     this.queued = [];
+    this.nav = [];
     const key_steer = (this.down("KeyD", "ArrowRight") ? 1 : 0) - (this.down("KeyA", "ArrowLeft") ? 1 : 0);
     const controls: Controls = {
       steer: key_steer,
@@ -250,6 +269,11 @@ export class Input {
       }
       if (pad.buttons[2]?.pressed) this.rewind = true;
       if (pad.buttons[1]?.pressed) controls.nitro = true;
+      for (const [button, nav] of PAD_NAV) {
+        const pressed = !!pad.buttons[button]?.pressed;
+        if (pressed && !this.nav_prev[button]) this.nav.push(nav);
+        this.nav_prev[button] = pressed;
+      }
       for (const [button, action] of PAD_ACTIONS) {
         const pressed = !!pad.buttons[button]?.pressed;
         if (pressed && !this.pad_prev[button]) actions.push(action);
