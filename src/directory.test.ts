@@ -38,21 +38,26 @@ test("announces are shape-checked, names cleaned, players capped, extras dropped
   expect(sanitize_announce("lobby")).toBeNull();
 });
 
-test("one row per game, most players, lowest id hosts, this game first", () => {
+test("one row per game: the lowest id's announce wins whole, this game always listed and first", () => {
+  const own = { ...announce, room: "mine", seed: 1, host: "Me", players: 1 };
   const servers = group_servers(
     [
       ["c", { ...announce, host: "Cleo", players: 3 }],
       ["b", { ...announce, host: "Bob", players: 2 }],
       ["z", { ...announce, room: "other", host: "Zed", players: 5 }],
-      ["me", { ...announce, room: "mine", seed: 1, host: "Me", players: 1 }],
       ["d", { ...announce, locked: true, host: "Dan" }],
     ],
-    "me",
+    own,
   );
   expect(servers.map((s) => [s.room, s.host, s.players, s.here, s.locked])).toEqual([
     ["mine", "Me", 1, true, false],
     ["other", "Zed", 5, false, false],
-    ["lobby", "Bob", 3, false, false],
+    ["lobby", "Bob", 2, false, false],
     ["lobby", "Dan", 2, false, true],
   ]);
+});
+
+test("this game's row comes from its elected announcer when one is heard", () => {
+  const servers = group_servers([["a", { ...announce, host: "Leader", players: 3 }]], { ...announce, host: "Me", players: 3 });
+  expect(servers.map((s) => [s.host, s.here])).toEqual([["Leader", true]]);
 });

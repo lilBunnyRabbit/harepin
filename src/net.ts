@@ -41,6 +41,12 @@ interface Foreign {
   seen: number;
 }
 
+export interface RoomLock {
+  password: string;
+  /** Typed into the unlock form to get in, so a handshake failure is this player's wrong guess, not an intruder's. */
+  asked: boolean;
+}
+
 export interface Remote {
   id: string;
   latest: CarState;
@@ -50,6 +56,10 @@ export interface Remote {
 }
 
 const DELAY = 110;
+// Long enough for the room's players to show up, so a newcomer doesn't briefly announce a game it isn't hosting.
+const ELECT_MS = 5000;
+export const WRONG_PASSWORD = "wrong password";
+const TURNED_AWAY = "searching · turned away a wrong password";
 const TIMEOUT = 4000;
 const MAX_REMOTES = 16;
 const MIN_GAP_MS = 25;
@@ -183,21 +193,25 @@ export class Net {
 
   private name_: string;
 
-  /** `password` locks the room: peers without the same one fail the trystero handshake and never connect. */
+  private readonly joined = performance.now();
+
+  /** `lock` locks the room: peers without the same password fail the trystero handshake and never connect. */
   constructor(
     readonly room: string,
     readonly seed: number,
     name: string,
-    password: string | null = null,
+    lock: RoomLock | null = null,
   ) {
     this.name_ = clean_name(name);
+    const password = lock?.password ?? null;
     // Same-browser tabs skip WebRTC, so a locked room keys its channel by the password too.
     this.channel = new BroadcastChannel(password === null ? `harepin:${room}` : `harepin-locked:${JSON.stringify([room, password])}`);
     this.channel.onmessage = (event: MessageEvent<unknown>) => this.receive_local(event.data);
     try {
       const p2p = joinRoom({ appId: APP_ID, ...(password === null ? {} : { password }) }, room, {
         onJoinError: ({ error }) => {
-          if (this.peers === 0 && error.includes("password")) this.status = "password mismatch";
+          // Over a connection the two peers already share (another room), the side with the wrong password only sees its handshake time out.
+          if (this.peers === 0 && lock && /password|handshake/.test(error)) this.status = lock.asked ? WRONG_PASSWORD : TURNED_AWAY;
         },
       });
       const action = p2p.makeAction<CarState>("car");
@@ -329,9 +343,18 @@ export class Net {
     for (const [id, { seen }] of this.foreign) if (now - seen > TIMEOUT) this.foreign.delete(id);
   }
 
-  /** The seed most peers on another map are on, so one tap follows the crowd. */
+  /** The map most of the room is on, counting this one; null when that is already this one, so two players never swap. */
   foreign_seed(): number | null {
-    return most_common([...this.foreign.values()].map((f) => f.seed));
+    if (!this.foreign.size) return null;
+    const seeds = [...this.foreign.values()].map((f) => f.seed);
+    for (let i = 0; i <= this.remotes.size; i++) seeds.push(this.seed);
+    const seed = most_common(seeds);
+    return seed === this.seed ? null : seed;
+  }
+
+  /** The lowest id among this map's players speaks for the game in the directory. */
+  get leader(): boolean {
+    return performance.now() - this.joined > ELECT_MS && [...this.remotes.keys()].every((id) => id > this.id);
   }
 
   render_time(remote: Remote): number {

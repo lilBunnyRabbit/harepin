@@ -1,5 +1,5 @@
 import { SteerMode } from "./car";
-import { DirectoryStatus, PASSWORD_LENGTH, ROOM_LENGTH, clean_password, clean_room, save_password, type Server } from "./directory";
+import { DirectoryStatus, PASSWORD_LENGTH, ROOM_LENGTH, clean_password, clean_room, save_lock, type Server } from "./directory";
 import { clean_name, parse_seed } from "./net";
 import { THEMES, choose_theme, current_theme } from "./theme";
 import { TouchSteer } from "./touch";
@@ -160,6 +160,7 @@ export interface SettingsHost {
   servers_status(): DirectoryStatus;
   /** This room's handshake failed on the password, so its row offers another try. */
   password_failed(): boolean;
+  browse_servers(on: boolean): void;
 }
 
 interface Section {
@@ -222,7 +223,7 @@ export function invite_link(room: string, seed: number): string {
 const DIRECTORY_NOTE: Record<DirectoryStatus, string> = {
   connecting: "Looking for other games…",
   online: "Games running right now",
-  offline: "Server list unavailable. Invite links still work.",
+  offline: "No other games found. Invite links still work.",
 };
 
 export class Settings {
@@ -290,6 +291,7 @@ export class Settings {
     removeEventListener("keydown", this.key);
     clearInterval(this.timer);
     this.world_map.stop();
+    this.host.browse_servers(false);
   }
 
   toggle() {
@@ -367,6 +369,7 @@ export class Settings {
     this.body.scrollTop = 0;
     if (section === "world") this.world_map.show(this.chosen, true);
     else this.world_map.stop();
+    this.host.browse_servers(section === "servers");
   }
 
   private row(label: string, control: HTMLElement, hint = "", inline = false): HTMLElement {
@@ -592,7 +595,7 @@ export class Settings {
   }
 
   private join(server: Server, password: string | null) {
-    save_password(server.room, password);
+    save_lock(server.room, password === null ? null : { password, asked: true });
     this.go({ room: server.room, seed: String(server.seed) });
   }
 
@@ -662,12 +665,14 @@ export class Settings {
       if (password.value && lock === null) return this.invalid(password, `Up to ${PASSWORD_LENGTH} characters`);
       const map = seed.value.trim() ? parse_seed(seed.value.trim()) : random_seed();
       if (map === null) return this.invalid(seed, "A whole number from 0 to 4294967295");
-      save_password(room, lock);
-      this.go({ room, seed: String(map) });
+      // A locked room gets a code on its name, so a plain room of the same name never meets its handshake.
+      const named = lock === null ? room : `${[...room].slice(0, ROOM_LENGTH - 5).join("").trim()}-${random_code().slice(0, 4)}`;
+      save_lock(named, lock === null ? null : { password: lock, asked: false });
+      this.go({ room: named, seed: String(map) });
     });
     create.append(
       this.row("Room name", name),
-      this.row("Password", password, "Locked rooms show a lock; only players with the password can connect"),
+      this.row("Password", password, "Locked rooms show a lock and get a short code on their name; only players with the password can connect"),
       this.row("Map seed", seed),
       submit,
     );

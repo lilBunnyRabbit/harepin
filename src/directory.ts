@@ -1,19 +1,22 @@
-import { joinRoom, selfId, type Room } from "trystero";
-import { APP_ID, MAX_SEED, RateLimit, clean_name } from "./net";
+import { joinRoom, type Room } from "trystero";
+import { APP_ID, MAX_SEED, RateLimit, clean_name, type RoomLock } from "./net";
 
 export const DIRECTORY_ROOM = "harepin-directory";
 const ANNOUNCE_MS = 3000;
 // About three missed announces, plus slack for a late timer in a background tab.
 const EXPIRE_MS = ANNOUNCE_MS * 3 + 1000;
+// Long enough for a relay round trip and a WebRTC handshake on a slow phone.
+const EMPTY_AFTER_MS = 12_000;
+// Past this many directory links a peer turns new ones away, so a busy directory can't swamp a phone.
+const MAX_PEERS = 24;
 export const ROOM_LENGTH = 32;
 export const PASSWORD_LENGTH = 64;
 const MAX_PLAYERS = 64;
-const MAX_ENTRIES = 256;
 const VERSION = /^[0-9A-Za-z.+-]{1,24}$/;
 const ANNOUNCE_GAP_MS = 1000;
 const ANNOUNCE_BURST = 6;
 const MAX_RECEIVE_BYTES = 16 * 1024;
-const PASSWORD_KEY = "harepin:room-password";
+const LOCK_KEY = "harepin:room-password";
 
 // A type alias, not an interface: trystero's DataPayload needs the implicit index signature only aliases get.
 export type Announce = {
@@ -34,6 +37,8 @@ interface Entry {
   announce: Announce;
   seen: number;
 }
+
+type Mode = "off" | "announce" | "browse";
 
 export const DirectoryStatus = {
   CONNECTING: "connecting",
@@ -66,46 +71,45 @@ export function sanitize_announce(raw: unknown): Announce | null {
   return { room, seed: a.seed, host: clean_name(a.host), players: Math.min(a.players, MAX_PLAYERS), locked: a.locked, version: a.version };
 }
 
-// One row per game however many of its players announce; the lowest peer id names the host, so all viewers agree.
-export function group_servers(entries: Iterable<readonly [string, Announce]>, self: string): Server[] {
-  const servers = new Map<string, Server & { host_id: string }>();
-  for (const [id, a] of entries) {
-    const key = JSON.stringify([a.room, a.seed, a.locked, a.version]);
-    const known = servers.get(key);
-    if (!known) {
-      servers.set(key, { ...a, key, here: id === self, host_id: id });
-      continue;
-    }
-    known.players = Math.max(known.players, a.players);
-    known.here ||= id === self;
-    if (id < known.host_id) [known.host, known.host_id] = [a.host, id];
+const key_of = (a: Announce) => JSON.stringify([a.room, a.seed, a.locked, a.version]);
+
+// One game has one elected announcer; if two claim the same game (a hand-over, or a spoof), the lowest peer id wins
+// whole, so host and player count always come from a single announce and every viewer shows the same row.
+export function group_servers(entries: Iterable<readonly [string, Announce]>, own: Announce | null): Server[] {
+  const best = new Map<string, readonly [string, Announce]>();
+  for (const entry of entries) {
+    const key = key_of(entry[1]);
+    const known = best.get(key);
+    if (!known || entry[0] < known[0]) best.set(key, entry);
   }
-  return [...servers.values()]
-    .map(({ host_id: _, ...server }) => server)
+  const own_key = own ? key_of(own) : null;
+  if (own && own_key && !best.has(own_key)) best.set(own_key, ["", own]);
+  return [...best]
+    .map(([key, [, a]]) => ({ ...a, key, here: key === own_key }))
     .sort((a, b) => Number(b.here) - Number(a.here) || b.players - a.players || a.room.localeCompare(b.room) || a.seed - b.seed);
 }
 
 // A saved password only ever applies to the room it was entered for; landing anywhere else forgets it.
-export function load_password(room: string): string | null {
+export function load_lock(room: string): RoomLock | null {
   try {
-    const text = sessionStorage.getItem(PASSWORD_KEY);
+    const text = sessionStorage.getItem(LOCK_KEY);
     if (text === null) return null;
     const saved: unknown = JSON.parse(text);
     if (saved && typeof saved === "object" && "room" in saved && saved.room === room && "password" in saved) {
       const password = clean_password(saved.password);
-      if (password !== null) return password;
+      if (password !== null) return { password, asked: "asked" in saved && saved.asked === true };
     }
-    sessionStorage.removeItem(PASSWORD_KEY);
+    sessionStorage.removeItem(LOCK_KEY);
   } catch (error) {
     console.warn("directory: saved room password unreadable", error);
   }
   return null;
 }
 
-export function save_password(room: string, password: string | null) {
+export function save_lock(room: string, lock: RoomLock | null) {
   try {
-    if (password === null) sessionStorage.removeItem(PASSWORD_KEY);
-    else sessionStorage.setItem(PASSWORD_KEY, JSON.stringify({ room, password }));
+    if (lock === null) sessionStorage.removeItem(LOCK_KEY);
+    else sessionStorage.setItem(LOCK_KEY, JSON.stringify({ room, ...lock }));
   } catch (error) {
     console.warn("directory: room password not kept", error);
   }
@@ -117,62 +121,109 @@ export class Directory {
   status: DirectoryStatus = DirectoryStatus.CONNECTING;
   private readonly entries = new Map<string, Entry>();
   private readonly limits = new Map<string, RateLimit>();
+  private readonly peers = new Set<string>();
   private room: Room | null = null;
   private send: ((announce: Announce, target?: string) => void) | null = null;
+  private mode: Mode = "off";
+  private browsing = false;
   private timer = 0;
+  private empty_timer = 0;
 
-  constructor(private readonly own: () => Announce) {}
+  constructor(
+    private readonly own: () => Announce,
+    private readonly leader: () => boolean,
+  ) {}
 
   start() {
-    try {
-      const room = joinRoom({ appId: APP_ID, maxReceiveBytes: MAX_RECEIVE_BYTES }, DIRECTORY_ROOM);
-      const action = room.makeAction<Announce>("announce");
-      this.send = (announce, target) => void action.send(announce, target ? { target } : undefined).catch(dropped);
-      action.onMessage = (raw, { peerId }) => this.receive(raw, peerId);
-      room.onPeerJoin = (peer) => {
-        this.status = DirectoryStatus.ONLINE;
-        this.announce(peer);
-      };
-      room.onPeerLeave = (peer) => {
-        this.entries.delete(peer);
-        this.limits.delete(peer);
-      };
-      this.room = room;
-    } catch (error) {
-      console.warn("directory unavailable, the server list shows this game only", error);
-      this.status = DirectoryStatus.OFFLINE;
-    }
-    this.timer = window.setInterval(() => this.announce(), ANNOUNCE_MS);
+    this.timer = window.setInterval(() => this.tick(), ANNOUNCE_MS);
+    this.tick();
   }
 
   stop() {
     clearInterval(this.timer);
-    this.room?.leave().catch((error: unknown) => console.debug("directory: leave failed", error));
-    this.room = null;
-    this.send = null;
+    this.switch_to("off");
+  }
+
+  /** Only a player looking at the list connects to announcers; everyone else stays out of the directory. */
+  browse(on: boolean) {
+    if (on === this.browsing) return;
+    this.browsing = on;
+    this.tick();
   }
 
   list(): Server[] {
     const now = performance.now();
     for (const [id, entry] of this.entries) if (now - entry.seen > EXPIRE_MS) this.entries.delete(id);
-    const own = sanitize_announce(this.own());
-    const entries: [string, Announce][] = [...this.entries].map(([id, entry]) => [id, entry.announce]);
-    if (own) entries.push([selfId, own]);
-    return group_servers(entries, selfId);
+    return group_servers(
+      [...this.entries].map(([id, entry]) => [id, entry.announce] as const),
+      sanitize_announce(this.own()),
+    );
   }
 
-  private announce(target?: string) {
-    const own = sanitize_announce(this.own());
-    if (own) this.send?.(own, target);
+  private announcement(): Announce | null {
+    return this.leader() ? sanitize_announce(this.own()) : null;
+  }
+
+  private tick() {
+    const own = this.announcement();
+    const mode: Mode = this.browsing ? "browse" : own ? "announce" : "off";
+    if (mode !== this.mode) this.switch_to(mode);
+    if (own) this.send?.(own);
+  }
+
+  private switch_to(mode: Mode) {
+    this.leave();
+    this.mode = mode;
+    if (mode === "off") return;
+    this.status = DirectoryStatus.CONNECTING;
+    try {
+      // Announcers join passive: trystero never pairs two passive peers, so a game only links to players browsing the list.
+      const room = joinRoom({ appId: APP_ID, maxReceiveBytes: MAX_RECEIVE_BYTES, passive: mode === "announce" }, DIRECTORY_ROOM, {
+        onPeerHandshake: async () => {
+          if (this.peers.size >= MAX_PEERS) throw new Error("directory: peer cap reached");
+        },
+      });
+      const action = room.makeAction<Announce>("announce");
+      this.send = (announce, target) => void action.send(announce, target ? { target } : undefined).catch(dropped);
+      action.onMessage = (raw, { peerId }) => this.receive(raw, peerId);
+      room.onPeerJoin = (peer) => {
+        this.peers.add(peer);
+        this.status = DirectoryStatus.ONLINE;
+        const own = this.announcement();
+        if (own) this.send?.(own, peer);
+      };
+      room.onPeerLeave = (peer) => {
+        this.peers.delete(peer);
+        this.entries.delete(peer);
+        this.limits.delete(peer);
+      };
+      this.room = room;
+      if (mode === "browse")
+        this.empty_timer = window.setTimeout(() => {
+          if (this.status === DirectoryStatus.CONNECTING) this.status = DirectoryStatus.OFFLINE;
+        }, EMPTY_AFTER_MS);
+    } catch (error) {
+      console.warn("directory unavailable, the server list shows this game only", error);
+      this.status = DirectoryStatus.OFFLINE;
+    }
+  }
+
+  private leave() {
+    clearTimeout(this.empty_timer);
+    this.room?.leave().catch((error: unknown) => console.debug("directory: leave failed", error));
+    this.room = null;
+    this.send = null;
+    this.entries.clear();
+    this.limits.clear();
+    this.peers.clear();
   }
 
   private receive(raw: unknown, peer: string) {
-    if (peer === selfId) return;
+    if (!this.peers.has(peer)) return;
     let limit = this.limits.get(peer);
     if (!limit) this.limits.set(peer, (limit = new RateLimit(ANNOUNCE_GAP_MS, ANNOUNCE_BURST)));
     if (!limit.allow(performance.now())) return;
     const announce = sanitize_announce(raw);
-    if (!announce || (!this.entries.has(peer) && this.entries.size >= MAX_ENTRIES)) return;
-    this.entries.set(peer, { announce, seen: performance.now() });
+    if (announce) this.entries.set(peer, { announce, seen: performance.now() });
   }
 }

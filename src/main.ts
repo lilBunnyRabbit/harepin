@@ -5,7 +5,7 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { Audio } from "./audio";
 import { ChaseCamera } from "./camera";
-import { Directory, load_password } from "./directory";
+import { Directory, clean_room, load_lock } from "./directory";
 import { build_code, build_spec } from "./build";
 import { Car } from "./car";
 import { Chat } from "./chat";
@@ -17,7 +17,7 @@ import { Input } from "./input";
 import { Lobby, min_lap_ms } from "./lobby";
 import { Modes } from "./modes/modes";
 import { build_view, contact_shadow, dispose_car_view, gates, place_contact_shadow, roadside, sync_car_view } from "./models";
-import { Net, parse_seed, type CarState } from "./net";
+import { Net, WRONG_PASSWORD, parse_seed, type CarState } from "./net";
 import { Quality } from "./quality";
 import { brand, color, rgba, tones } from "./palette";
 import { Race, type RaceSnapshot } from "./race";
@@ -34,7 +34,7 @@ import { SPAWN_INDEX } from "./world";
 import "./style.css";
 
 const params = new URLSearchParams(location.search);
-const room = params.get("room") ?? "lobby";
+const room = clean_room(params.get("room")) ?? "lobby";
 const seed = parse_seed(params.get("seed")) ?? seed_of(room);
 const ADJECTIVES = ["Swift", "Fuzzy", "Lucky", "Bouncy", "Sly", "Brave", "Zippy", "Mellow"];
 const random_name = `${ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)]} Bunny`;
@@ -71,9 +71,12 @@ if (asked_name) {
   prefs.name = await asked_name;
   save_setting("name", prefs.name);
 }
-const password = load_password(room);
-const net = new Net(room, seed, prefs.name ?? random_name, password);
-const directory = new Directory(() => ({ room, seed, host: net.name, players: 1 + net.remotes.size, locked: password !== null, version: BUILD.version }));
+const lock = load_lock(room);
+const net = new Net(room, seed, prefs.name ?? random_name, lock);
+const directory = new Directory(
+  () => ({ room, seed, host: net.name, players: 1 + net.remotes.size, locked: lock !== null, version: BUILD.version }),
+  () => net.leader,
+);
 directory.start();
 const chat = new Chat(net);
 chat.start();
@@ -144,7 +147,8 @@ const settings = new Settings(document.body, {
   version: BUILD.version, show_changelog: () => updater.show_changelog(),
   servers: () => directory.list(),
   servers_status: () => directory.status,
-  password_failed: () => net.status === "password mismatch",
+  password_failed: () => net.status === WRONG_PASSWORD,
+  browse_servers: (on) => directory.browse(on),
 }, prefs);
 
 function apply_car_settings(state: SettingsState) {

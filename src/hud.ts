@@ -130,7 +130,7 @@ export class Hud {
     }
     const foreign = this.net.foreign.size;
     el.net.textContent = `${this.net.status} · ${this.net.remotes.size} other${this.net.remotes.size === 1 ? "" : "s"}${foreign ? ` · ${foreign} peer${foreign === 1 ? "" : "s"} on a different map` : ""}`;
-    el.join_map.hidden = foreign === 0;
+    el.join_map.hidden = this.net.foreign_seed() === null;
 
     const lap_flashing = race.lap_flash && now - race.lap_flash < 2600;
     el.banner.style.opacity = lap_flashing ? "1" : "0";
