@@ -37,6 +37,31 @@ interface Listed {
   brings: string;
 }
 
+export interface LevelEntry {
+  id: string;
+  name: string;
+  brings: string;
+  stars: number;
+  /** The best run as shown: a time or points; null before the first finish. */
+  best: string | null;
+  open: boolean;
+  /** Race routes only: metres, and the par time in ms. */
+  length: number | null;
+  par_ms: number | null;
+}
+
+export interface ModeEntry {
+  id: string;
+  name: string;
+  stars: number;
+  max: number;
+  /** Why the mode can't run on this world, or null. */
+  blocked: string | null;
+  levels: LevelEntry[];
+}
+
+const OPEN_GROUND = "Needs open ground: drive the island for it";
+
 function star_row(stars: number): HTMLSpanElement {
   const row = document.createElement("span");
   row.className = "stars";
@@ -102,21 +127,7 @@ export class Modes {
   private status_key = "";
   private lost_at = -Infinity;
   private readonly el = {
-    menu: $("modes"),
-    levels: $("gym-levels", HTMLOListElement),
-    stars: $("gym-stars"),
-    park_levels: $("park-levels", HTMLOListElement),
-    park_stars: $("park-stars"),
-    drift_levels: $("drift-levels", HTMLOListElement),
-    drift_stars: $("drift-stars"),
-    hunt_levels: $("hunt-levels", HTMLOListElement),
-    hunt_stars: $("hunt-stars"),
-    duel_levels: $("duel-levels", HTMLOListElement),
-    duel_stars: $("duel-stars"),
-    race_levels: document.createElement("ol"),
-    race_stars: document.createElement("span"),
     hint: $("mode-hint"),
-    race: $("race-record"),
     status: $("mode-status"),
     result: $("mode-result"),
     title: $("mode-result-title"),
@@ -125,7 +136,6 @@ export class Modes {
     retry: $("mode-retry", HTMLButtonElement),
     next: $("mode-next", HTMLButtonElement),
     exit: $("mode-exit", HTMLButtonElement),
-    free: $("free-drive", HTMLButtonElement),
   };
 
   constructor(
@@ -145,15 +155,6 @@ export class Modes {
     this.duel_track = new Track("duel", world.seed, DUEL_IDS, local_store(), world.kind);
     this.races = race_levels(world.routes);
     this.race_track = new Track("race", world.seed, this.races.map((level) => level.id), local_store(), world.kind);
-    const head = document.createElement("div");
-    head.className = "modes-head";
-    const title = document.createElement("b");
-    title.textContent = "Race";
-    this.el.race_levels.id = "race-levels";
-    this.el.race_stars.id = "race-stars";
-    this.el.race_stars.className = "dim";
-    head.append(title, this.el.race_stars);
-    this.el.race.parentElement?.before(head, this.el.race_levels);
   }
 
   get active(): boolean {
@@ -195,30 +196,9 @@ export class Modes {
   start() {
     this.abort = new AbortController();
     const { signal } = this.abort;
-    this.el.menu.addEventListener("toggle", () => this.render_menu(), { signal });
-    const pick = (e: Event) => {
-      const button = e.target instanceof Element ? e.target.closest<HTMLButtonElement>("button[data-level]") : null;
-      if (!button?.dataset.level) return;
-      this.el.menu.hidePopover();
-      this.play(button.dataset.level);
-    };
-    this.el.levels.addEventListener("click", pick, { signal });
-    this.el.park_levels.addEventListener("click", pick, { signal });
-    this.el.drift_levels.addEventListener("click", pick, { signal });
-    this.el.hunt_levels.addEventListener("click", pick, { signal });
-    this.el.duel_levels.addEventListener("click", pick, { signal });
-    this.el.race_levels.addEventListener("click", pick, { signal });
     this.el.retry.addEventListener("click", () => this.restart(), { signal });
     this.el.next.addEventListener("click", () => this.play_next(), { signal });
     this.el.exit.addEventListener("click", () => this.exit(), { signal });
-    this.el.free.addEventListener(
-      "click",
-      () => {
-        this.el.menu.hidePopover();
-        this.exit();
-      },
-      { signal },
-    );
   }
 
   stop() {
@@ -756,43 +736,44 @@ export class Modes {
     el.result.hidden = false;
   }
 
-  private render_levels(list: HTMLOListElement, total: HTMLElement, levels: readonly Listed[], track: Track) {
-    total.textContent = `${track.stars} / ${levels.length * MAX_STARS} ★`;
-    list.replaceChildren(
-      ...levels.map((level, i) => {
-        const item = document.createElement("li");
-        const button = document.createElement("button");
-        button.type = "button";
-        button.dataset.level = level.id;
-        const open = track.is_open(level.id);
-        button.disabled = !open;
+  mode_list(): ModeEntry[] {
+    const sky = this.world.kind === "sky";
+    const entry = (id: string, name: string, levels: readonly Listed[], track: Track, ground: boolean): ModeEntry => ({
+      id,
+      name,
+      stars: track.stars,
+      max: levels.length * MAX_STARS,
+      blocked: ground && sky ? OPEN_GROUND : null,
+      levels: levels.map((level) => {
         const run = track.runs[level.id];
-        const name = document.createElement("span");
-        name.textContent = `${i + 1}. ${level.name}`;
-        const score = document.createElement("span");
-        score.className = "dim";
-        if (run && open) score.append(star_row(run.stars), ` ${run_text(run)}`);
-        else score.textContent = open ? "new" : "locked";
-        button.title = level.brings;
-        button.append(name, score);
-        item.append(button);
-        return item;
+        const route = this.world.routes.find((r) => r.id === level.id);
+        return {
+          id: level.id,
+          name: level.name,
+          brings: level.brings,
+          stars: run?.stars ?? 0,
+          best: run ? run_text(run) : null,
+          open: track.is_open(level.id),
+          length: route?.length ?? null,
+          par_ms: route?.par_ms ?? null,
+        };
       }),
-    );
+    });
+    return [
+      ...(this.races.length ? [entry("race", "Race", this.races, this.race_track, false)] : []),
+      entry("gymkhana", "Gymkhana", LEVELS, this.track, true),
+      entry("parking", "Parking", PARK_LEVELS, this.park_track, true),
+      entry("drift", "Drift zones", DRIFT_LEVELS, this.drift_track, false),
+      entry("hunt", "Gate hunt", HUNT_LEVELS, this.hunt_track, true),
+      entry("duel", "Ghost duel", DUEL_LEVELS, this.duel_track, false),
+    ];
   }
 
-  private render_menu() {
-    const { el } = this;
-    this.render_levels(el.levels, el.stars, LEVELS, this.track);
-    this.render_levels(el.park_levels, el.park_stars, PARK_LEVELS, this.park_track);
-    this.render_levels(el.drift_levels, el.drift_stars, DRIFT_LEVELS, this.drift_track);
-    this.render_levels(el.hunt_levels, el.hunt_stars, HUNT_LEVELS, this.hunt_track);
-    this.render_levels(el.duel_levels, el.duel_stars, DUEL_LEVELS, this.duel_track);
-    this.render_levels(el.race_levels, el.race_stars, this.races, this.race_track);
+  lobby_record(): string {
     const record = this.race_record();
     const bests = Object.entries(record.best)
       .sort(([a], [b]) => Number(a) - Number(b))
       .map(([laps, ms]) => `${laps} lap${laps === "1" ? "" : "s"} ${format(ms)}`);
-    el.race.textContent = `${bests.length ? bests.join(" · ") : "no finishes yet"} · wins ${record.wins} · podiums ${record.podiums}`;
+    return `${bests.length ? bests.join(" · ") : "No finishes yet"} · wins ${record.wins} · podiums ${record.podiums}`;
   }
 }

@@ -1,5 +1,8 @@
 import { SteerMode } from "./car";
 import { typing, type Nav } from "./input";
+import type { ModeEntry } from "./modes/modes";
+import type { RaceChoice } from "./modes/races";
+import { MAX_STARS } from "./modes/track";
 import { DirectoryStatus, PASSWORD_LENGTH, ROOM_LENGTH, clean_password, clean_room, locked_name, save_lock, type Server } from "./directory";
 import { clean_name, parse_seed } from "./net";
 import { HARMONIES as HARMONY_HUES, Harmony, generate_theme, is_dark, type ThemeMode } from "./random-theme";
@@ -224,7 +227,7 @@ export interface SettingsHost {
   name(): string;
   quality_status(): QualityStatus;
   race_busy(): boolean;
-  toggle_race(laps: Laps): void;
+  toggle_race(laps: Laps, route: string): void;
   readonly version: string;
   show_changelog(): void;
   servers(): Server[];
@@ -235,8 +238,12 @@ export interface SettingsHost {
   /** The garage's own element: the Garage tab shows it, and `show_garage` starts and stops it with the tab. */
   readonly garage_stage: HTMLElement;
   show_garage(on: boolean): void;
-  /** The modes level list, the popover the Modes tile opens. */
-  readonly modes: HTMLElement;
+  mode_list(): ModeEntry[];
+  play_level(id: string): void;
+  mode_active(): boolean;
+  free_drive(): void;
+  lobby_record(): string;
+  readonly race_routes: readonly RaceChoice[];
   players(): number;
   restart_lap(): void;
 }
@@ -296,11 +303,12 @@ const View = {
 type View = (typeof View)[keyof typeof View];
 
 /** Full-screen pages under a menu tab, by title. */
-const PAGE_TITLE: Record<string, string> = { world: "New map", room: "New room" };
+const PAGE_TITLE: Record<string, string> = { world: "New map", modes: "Modes", room: "New room" };
 
 /** Where Back goes from a page. */
 const PARENT: Record<string, MenuTab> = {
   world: MenuTab.PLAY,
+  modes: MenuTab.PLAY,
   room: MenuTab.ONLINE,
 };
 
@@ -445,6 +453,11 @@ export function invite_link(room: string, seed: number, kind: WorldKind = WorldK
   return `${location.origin}${location.pathname}?room=${encodeURIComponent(room)}&seed=${seed}${kind === WorldKind.SKY ? `&world=${kind}` : ""}`;
 }
 
+const minutes = (ms: number) => {
+  const s = Math.round(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+};
+
 const hud_name = (value: HudLayout) => HUD_LAYOUTS.find((layout) => layout.value === value)?.name ?? value;
 
 const DIRECTORY_NOTE: Record<DirectoryStatus, string> = {
@@ -476,6 +489,9 @@ export class Settings {
   private readonly help_text = el("p", "set-help-text");
   private readonly help_visual = el("div", "set-help-visual");
   private readonly world_map = new WorldMap();
+  private readonly modes_root = el("div", "modes-page");
+  private mode_id = "";
+  private race_route = "circuit";
   private chosen: number;
   private chosen_kind: WorldKind;
 
@@ -633,6 +649,7 @@ export class Settings {
       { id: MenuTab.ONLINE, label: "Online", build: () => this.online() },
       { id: MenuTab.SETTINGS, label: "Settings", build: () => this.settings_page() },
       { id: "world", label: PAGE_TITLE.world, build: () => this.world() },
+      { id: "modes", label: PAGE_TITLE.modes, build: () => [this.modes_root] },
       { id: "room", label: PAGE_TITLE.room, build: () => this.create_room() },
     ];
     for (const section of pages) {
@@ -677,6 +694,7 @@ export class Settings {
     for (const [id, page] of this.pages) page.hidden = id !== section;
     this.title.textContent = PAGE_TITLE[section] ?? "Settings";
     this.body.scrollTop = 0;
+    if (section === "modes") this.render_modes();
     if (section === "world") this.world_map.show(this.chosen, this.chosen_kind, true);
     else this.world_map.stop();
     this.host.browse_servers(section === MenuTab.ONLINE);
@@ -759,8 +777,7 @@ export class Settings {
       return tile;
     };
     const map = this.tile("map", "New map", "Pick a world and a map, or type a friend's map code", this.picture(`${kind}-map`, true), () => this.show("world"));
-    const modes = this.tile("modes", "Modes", "Gymkhana, parking, drift zones, gate hunt, ghost duel", icon("icon-modes"), () => this.close());
-    modes.popoverTargetElement = this.host.modes;
+    const modes = this.tile("modes", "Modes", "Races, gymkhana, parking, drift zones, gate hunt, ghost duel", icon("icon-modes"), () => this.show("modes"));
     return this.mosaic(MenuTab.PLAY, hero, world(WorldKind.ISLAND), world(WorldKind.SKY), map, modes);
   }
 
@@ -787,19 +804,58 @@ export class Settings {
     scroll.append(...this.games());
     const games = this.info("games", "Games running", scroll);
 
+    const routes = this.host.race_routes;
+    const route_of = () => routes.find((r) => r.id === this.race_route) ?? routes[0];
+    const picker = el("div", "race-routes");
+    picker.setAttribute("role", "radiogroup");
+    picker.setAttribute("aria-label", "Route");
+    const route_buttons = routes.map((choice) => {
+      const button = el("button", "race-route");
+      button.type = "button";
+      button.setAttribute("role", "radio");
+      button.append(el("b", "", choice.name), el("small", "", `${(choice.length / 1000).toFixed(1)} km · ${choice.closed ? "loop" : "A to B"}`));
+      button.addEventListener("click", () => {
+        this.race_route = choice.id;
+        this.refresh();
+      });
+      picker.append(button);
+      return [choice.id, button] as const;
+    });
+    const laps = el("div", "settings-choice race-laps");
+    laps.setAttribute("role", "radiogroup");
+    laps.setAttribute("aria-label", "Laps");
+    const lap_buttons = LAPS.map((count) => {
+      const button = el("button", "", String(count));
+      button.type = "button";
+      button.setAttribute("role", "radio");
+      button.addEventListener("click", () => this.set("laps", count));
+      laps.append(button);
+      return [count, button] as const;
+    });
+    const lap_row = el("div", "race-lap-row");
+    lap_row.append(el("span", "", "Laps"), laps);
+    const note = el("small", "menu-caption");
     const race = el("button", "settings-action", "Start race");
     race.type = "button";
     race.addEventListener("click", () => {
-      this.host.toggle_race(this.current.laps);
+      const route = route_of();
+      this.host.toggle_race(route?.closed === false ? 1 : this.current.laps, route?.id ?? "circuit");
       this.refresh();
     });
-    this.syncs.push(() => (race.textContent = this.host.race_busy() ? "Leave race" : "Start race"));
-    const laps = this.choice(
-      "laps",
-      LAPS.map((laps) => [laps, String(laps)] as const),
-      "Laps",
-    );
-    const race_tile = this.info("race", "Lobby race", laps, race, el("small", "menu-caption", "Everyone in the room starts together"));
+    const record = el("small", "menu-caption");
+    this.syncs.push(() => {
+      const route = route_of();
+      const loop = route?.closed !== false;
+      for (const [id, button] of route_buttons) button.setAttribute("aria-checked", String(id === route?.id));
+      for (const [count, button] of lap_buttons) {
+        button.setAttribute("aria-checked", String(loop ? this.current.laps === count : count === 1));
+        button.disabled = !loop && count !== 1;
+      }
+      note.textContent = loop ? "Everyone in the room starts together." : "A to B routes are one run, start to finish.";
+      race.textContent = this.host.race_busy() ? "Leave race" : "Start race";
+      record.textContent = this.host.lobby_record();
+    });
+    const race_tile = this.info("race", "Lobby race", picker, lap_row, note, race, record);
 
     const fresh = this.tile("new", "New room", "A fresh code, a map, an optional password", icon("icon-dice"), () => this.show("room"));
     return this.mosaic(MenuTab.ONLINE, room_tile, games, race_tile, fresh);
@@ -994,6 +1050,83 @@ export class Settings {
     const page = el("div", "map-page");
     page.append(picks, preview, about);
     return [page];
+  }
+
+  private render_modes() {
+    const modes = this.host.mode_list();
+    const mode = modes.find((m) => m.id === this.mode_id) ?? modes[0];
+    if (!mode) return this.modes_root.replaceChildren();
+    this.mode_id = mode.id;
+    const focused = document.activeElement instanceof HTMLElement && this.modes_root.contains(document.activeElement) ? document.activeElement.dataset.mode : undefined;
+
+    const nav = el("nav", "modes-nav");
+    nav.setAttribute("aria-label", "Modes");
+    const total = modes.reduce((sum, m) => sum + m.stars, 0);
+    const max = modes.reduce((sum, m) => sum + m.max, 0);
+    nav.append(el("span", "modes-total", `★ ${total} / ${max}`));
+    for (const m of modes) {
+      const button = el("button", "modes-tab");
+      button.type = "button";
+      button.dataset.mode = m.id;
+      button.setAttribute("aria-current", String(m.id === mode.id));
+      button.append(el("b", "", m.name), el("small", "", `${m.stars} / ${m.max} ★`));
+      button.addEventListener("click", () => {
+        this.mode_id = m.id;
+        this.render_modes();
+      });
+      nav.append(button);
+    }
+
+    const title = el("b");
+    const text = el("span");
+    const describe = (level: { name: string; brings: string } | null, locked = "") => {
+      title.textContent = level?.name ?? mode.name;
+      text.textContent = locked || (level ? level.brings : (mode.blocked ?? ""));
+    };
+    const grid = el("section", "modes-levels");
+    grid.setAttribute("aria-label", mode.name);
+    mode.levels.forEach((level, i) => {
+      const tile = el("button", "modes-level");
+      tile.type = "button";
+      const locked = level.open ? "" : `Finish ${mode.levels[i - 1]?.name ?? "the level before"} to open it.`;
+      tile.disabled = !level.open || mode.blocked !== null;
+      tile.append(el("small", "modes-n", `Level ${i + 1}`), el("b", "", level.name));
+      if (level.length !== null && level.par_ms !== null) tile.append(el("small", "modes-meta", `${(level.length / 1000).toFixed(1)} km · par ${minutes(level.par_ms)}`));
+      const foot = el("span", "modes-foot");
+      if (level.open) {
+        const stars = el("span", "modes-stars");
+        stars.append("★".repeat(level.stars), el("i", "", "★".repeat(Math.max(0, MAX_STARS - level.stars))));
+        foot.append(stars, el("small", level.best ? "" : "modes-new", level.best ?? "New"));
+      } else {
+        foot.append(icon("icon-lock"), el("small", "", `Finish ${mode.levels[i - 1]?.name}`));
+      }
+      tile.append(foot);
+      const show = () => describe(level, locked);
+      tile.addEventListener("focus", show);
+      tile.addEventListener("pointerenter", show);
+      tile.addEventListener("click", () => {
+        this.close();
+        this.host.play_level(level.id);
+      });
+      grid.append(tile);
+    });
+
+    const bar = el("div", "modes-bar");
+    const about = el("p", "modes-about");
+    about.append(title, text);
+    bar.append(about);
+    if (this.host.mode_active()) {
+      const free = this.action("Back to free drive", () => {
+        this.close();
+        this.host.free_drive();
+      });
+      bar.append(free);
+    }
+    const first = mode.levels.find((level) => level.open) ?? null;
+    describe(mode.blocked ? null : first);
+    if (mode.blocked) grid.append(el("p", "servers-note", mode.blocked));
+    this.modes_root.replaceChildren(nav, grid, bar);
+    if (focused) this.modes_root.querySelector<HTMLElement>(`[data-mode="${focused}"]`)?.focus({ focusVisible: true });
   }
 
   /** A world the player picked: remembered for the next bare load, then driven in this room. */
@@ -1646,7 +1779,8 @@ export class Settings {
       save.disabled = !rolled;
       name.disabled = !rolled;
       name.placeholder = free_name();
-      this.refresh();
+      this.rows.refresh();
+      this.render_help();
     };
     render();
 

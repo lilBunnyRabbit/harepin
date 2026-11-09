@@ -16,6 +16,7 @@ import { $, Hud } from "./hud";
 import { Input } from "./input";
 import { Lobby, lobby_routes } from "./lobby";
 import { Modes } from "./modes/modes";
+import { race_choices } from "./modes/races";
 import { build_view, contact_shadow, dispose_car_view, gates, place_contact_shadow, roadside, show_flame, sync_car_view } from "./models";
 import { PadMenu } from "./pad-menu";
 import { Net, WRONG_PASSWORD, type CarState } from "./net";
@@ -172,7 +173,7 @@ const settings = new Settings(document.body, {
   name: () => net.name,
   quality_status: () => ({ tier: quality.tier_name, ratio: quality.ratio, bloom: quality.tier.bloom, shadow_size: quality.tier.shadow_size }),
   race_busy: () => lobby.busy,
-  toggle_race: (laps) => (lobby.busy ? lobby.leave() : lobby.call(laps)),
+  toggle_race: (laps, route) => (lobby.busy ? lobby.leave() : lobby.call(laps, route)),
   version: BUILD.version, show_changelog: () => updater.show_changelog(),
   servers: () => directory.list(),
   servers_status: () => directory.status,
@@ -180,7 +181,12 @@ const settings = new Settings(document.body, {
   browse_servers: (on) => directory.browse(on),
   garage_stage,
   show_garage: (on) => (on ? garage.open() : garage.close()),
-  modes: $("modes"),
+  mode_list: () => modes.mode_list(),
+  play_level: (id) => modes.play(id),
+  mode_active: () => modes.active,
+  free_drive: () => modes.exit(),
+  lobby_record: () => modes.lobby_record(),
+  race_routes: race_choices(world.routes),
   players: () => 1 + net.remotes.size,
   restart_lap: () => restart_action(),
 }, prefs);
@@ -304,6 +310,7 @@ garage.on_change = (next) => {
 };
 
 $("garage-btn").addEventListener("click", () => settings.open(MenuTab.GARAGE));
+$("modes-btn").addEventListener("click", () => settings.open("modes"));
 
 interface Frame {
   at: number;

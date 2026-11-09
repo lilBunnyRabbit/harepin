@@ -99,8 +99,6 @@ export class PadMenu {
   private hud_open = false;
   private last: HTMLElement | null = null;
   private readonly rotate = $("rotate");
-  private readonly modes = $("modes");
-  private readonly modes_button = $("modes-btn");
   private readonly chat_panel = $("chat-panel");
 
   constructor(private readonly host: PadMenuHost) {}
@@ -166,10 +164,10 @@ export class PadMenu {
       return;
     }
     if (target instanceof HTMLInputElement && target.type !== "submit" && target.type !== "button") return;
-    const play = layer.roots[0] === this.modes || !this.overlay();
+    const play = layer.roots[0] === this.host.settings.panel || !this.overlay();
     target.click();
     const opened = target instanceof HTMLButtonElement ? (target.popoverTargetElement ?? document.getElementById(target.getAttribute("aria-controls") ?? "")) : null;
-    // The modes popover rebuilds its level lists on its own `toggle` event, after this; focus waits for that.
+    // A popover can rebuild its contents on its own `toggle` event, after this; focus waits for that.
     if (opened?.matches(":popover-open")) opened.addEventListener("toggle", () => focus(first_of(opened)), { once: true });
     else if (opened?.checkVisibility() && !opened.contains(document.activeElement)) focus(first_of(opened));
     if (this.host.garage_open()) return;
@@ -212,16 +210,6 @@ export class PadMenu {
         alt: () => settings.alt(),
         first: () => first_of(settings.page()) ?? first_of(settings.panel),
       };
-    const modes = this.modes;
-    if (modes.matches(":popover-open"))
-      return {
-        roots: [modes],
-        back: () => {
-          modes.hidePopover();
-          if (this.hud_open) focus(this.modes_button);
-        },
-        first: () => first_of(modes),
-      };
     if (chat.is_open && this.chat_panel.contains(document.activeElement)) return { roots: [this.chat_panel], back: () => chat.close(), first: () => first_of(this.chat_panel) };
     return null;
   }
@@ -255,7 +243,6 @@ export class PadMenu {
   private close_all() {
     document.querySelector<HTMLDialogElement>("dialog.changelog[open]")?.close();
     this.host.settings.close();
-    if (this.modes.matches(":popover-open")) this.modes.hidePopover();
     if (this.host.chat.is_open && this.chat_panel.contains(document.activeElement)) this.host.chat.close();
     this.close_hud();
   }

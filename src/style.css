@@ -270,112 +270,6 @@ select {
   font-weight: 600;
 }
 
-#modes {
-  display: none;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin: 0;
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--line);
-  background: var(--panel);
-  box-shadow: var(--panel-shadow);
-  color: var(--foreground);
-  font-size: var(--text-md);
-}
-
-#modes:popover-open {
-  display: flex;
-  position: fixed;
-  position-anchor: --title-bar;
-  inset: auto;
-  top: calc(anchor(bottom) + var(--space-2));
-  left: anchor(left);
-}
-
-#modes button {
-  background: var(--panel-raised);
-  border-color: var(--line);
-}
-
-#modes button:hover:not(:disabled) {
-  border-color: var(--line-strong);
-}
-
-#modes {
-  width: min(320px, calc(100vw - 2 * var(--inset)));
-  max-height: calc(100dvh - 120px);
-  overflow: auto;
-}
-
-.modes-head {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 0 var(--space-2);
-  font-weight: 600;
-}
-
-.modes-head .dim {
-  font-weight: 400;
-}
-
-#modes .modes-head:not(:first-child) {
-  margin-top: var(--space-2);
-}
-
-#modes > * {
-  flex-shrink: 0;
-}
-
-#gym-levels,
-#park-levels,
-#drift-levels,
-#hunt-levels,
-#duel-levels,
-#race-levels {
-  display: grid;
-  gap: var(--space-1);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-#gym-levels button,
-#park-levels button,
-#drift-levels button,
-#hunt-levels button,
-#duel-levels button,
-#race-levels button {
-  justify-content: space-between;
-  width: 100%;
-  font-weight: 400;
-}
-
-#gym-levels button > span:first-child,
-#park-levels button > span:first-child,
-#drift-levels button > span:first-child,
-#hunt-levels button > span:first-child,
-#duel-levels button > span:first-child,
-#race-levels button > span:first-child {
-  font-weight: 600;
-}
-
-#gym-levels button:disabled,
-#park-levels button:disabled,
-#drift-levels button:disabled,
-#hunt-levels button:disabled,
-#duel-levels button:disabled,
-#race-levels button:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-#free-drive {
-  width: 100%;
-}
-
 .room-actions {
   display: flex;
   gap: var(--space-2);
@@ -1775,10 +1669,6 @@ body.no-blur * {
   gap: var(--space-2);
   min-height: var(--bar-h);
   padding: 0 var(--space-3);
-}
-
-#modes:popover-open {
-  position-anchor: --actions;
 }
 
 @media (pointer: fine) {

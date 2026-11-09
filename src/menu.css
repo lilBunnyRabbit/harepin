@@ -245,7 +245,7 @@
 }
 
 .menu-mosaic[data-tab="online"] {
-  grid-template: "room room games" 1fr "race new games" 1fr / 1fr 1fr 1.15fr;
+  grid-template: "room race games" 1fr "new race games" 1fr / 1fr 1fr 1.15fr;
 }
 
 .settings .menu-tile {
@@ -470,6 +470,8 @@
   flex-direction: column;
   gap: var(--space-3);
   padding: var(--space-4) var(--space-5);
+  overflow-y: auto;
+  scrollbar-width: thin;
   background: var(--set-panel);
 }
 
@@ -555,7 +557,7 @@
   }
 
   .menu-mosaic[data-tab="online"] {
-    grid-template: "room games" minmax(var(--first-rows), auto) "race games" minmax(var(--first-rows), auto) "new games" 140px / 1fr 1fr;
+    grid-template: "race room" auto "race games" minmax(var(--first-rows), auto) "new games" 140px / 1fr 1fr;
   }
 
   .settings .menu-tab {
@@ -578,6 +580,11 @@
     padding: var(--space-3) var(--space-4);
   }
 
+  .menu-mosaic > .menu-info {
+    min-height: auto;
+    overflow: visible;
+  }
+
   .settings[data-view="page"] .settings-page {
     padding: var(--space-4);
   }
@@ -589,7 +596,7 @@
   }
 
   .menu-mosaic[data-tab="online"] {
-    grid-template: "room room" minmax(168px, auto) "games games" minmax(220px, auto) "race new" minmax(168px, auto) / 1fr 1fr;
+    grid-template: "room room" minmax(168px, auto) "race race" auto "games games" minmax(220px, auto) "new new" minmax(140px, auto) / 1fr 1fr;
   }
 
   .menu-mosaic {
@@ -628,4 +635,266 @@
   overflow: hidden;
   border-radius: var(--radius-lg);
   border: 1px solid var(--set-line);
+}
+
+.settings[data-view="page"] .settings-page[data-section="modes"] {
+  max-width: none;
+  height: 100%;
+  padding: 0;
+  overflow: hidden;
+}
+
+.modes-page {
+  display: grid;
+  grid-template: "nav levels" minmax(0, 1fr) "nav bar" auto / 240px minmax(0, 1fr);
+  height: 100%;
+}
+
+.modes-nav {
+  grid-area: nav;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-height: 0;
+  padding: var(--space-4) var(--space-3);
+  overflow-y: auto;
+  scrollbar-width: none;
+  background: var(--set-well);
+}
+
+.modes-total {
+  padding: 0 var(--space-3) var(--space-2);
+  font-size: var(--text-md);
+  font-weight: 700;
+  color: var(--set-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.settings .modes-tab {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  text-align: left;
+  color: var(--set-dim);
+}
+
+.modes-tab b {
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.modes-tab small {
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.settings .modes-tab:hover {
+  background: color-mix(in oklch, var(--set-raised) 50%, transparent);
+}
+
+.settings .modes-tab[aria-current="true"] {
+  background: var(--set-raised);
+  color: var(--foreground);
+}
+
+.modes-levels {
+  grid-area: levels;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  align-content: start;
+  gap: var(--space-3);
+  min-height: 0;
+  padding: var(--space-5);
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.settings .modes-level {
+  display: grid;
+  align-content: start;
+  gap: var(--space-1);
+  min-height: 112px;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--set-line);
+  border-radius: var(--radius-md);
+  background: var(--set-well);
+  text-align: left;
+}
+
+.settings .modes-level:hover:not(:disabled) {
+  border-color: var(--line-strong);
+}
+
+.settings .modes-level:disabled {
+  border-style: dashed;
+  background: none;
+  color: var(--set-dim);
+  cursor: default;
+}
+
+.modes-level b {
+  font-size: var(--text-lg);
+  line-height: 1.25;
+}
+
+.modes-n,
+.modes-meta {
+  font-size: var(--text-sm);
+  color: var(--set-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.modes-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-top: auto;
+  padding-top: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--set-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.modes-foot svg {
+  width: 14px;
+  height: 14px;
+}
+
+.modes-foot:has(> svg) {
+  justify-content: flex-start;
+}
+
+.modes-stars {
+  color: var(--accent);
+  letter-spacing: 2px;
+}
+
+.modes-stars i {
+  font-style: normal;
+  color: var(--line-strong);
+}
+
+.modes-new {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.modes-levels .servers-note {
+  grid-column: 1 / -1;
+}
+
+.modes-bar {
+  grid-area: bar;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: 60px;
+  padding: var(--space-3) var(--space-5);
+  border-top: 1px solid var(--set-line);
+}
+
+.modes-about {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--set-dim);
+}
+
+.modes-about b {
+  margin-right: var(--space-2);
+  color: var(--foreground);
+}
+
+.race-routes {
+  display: grid;
+  gap: 2px;
+}
+
+.settings .race-route {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  text-align: left;
+  color: var(--set-dim);
+}
+
+.race-route b {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.race-route small {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.settings .race-route[aria-checked="true"] {
+  background: var(--set-raised);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.race-lap-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-weight: 600;
+}
+
+.menu-info .race-laps {
+  flex: 0 1 220px;
+}
+
+.settings .race-laps button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+@media (orientation: landscape) and (max-height: 500px), (max-width: 700px) {
+  .modes-page {
+    grid-template-columns: 180px minmax(0, 1fr);
+  }
+
+  .modes-nav {
+    padding: var(--space-2);
+  }
+
+  .modes-total {
+    padding: var(--space-1) var(--space-2);
+  }
+
+  .settings .modes-tab {
+    padding: var(--space-2);
+  }
+
+  .modes-tab b {
+    font-size: var(--text-md);
+  }
+
+  .modes-levels {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: var(--space-2);
+    padding: var(--space-3);
+  }
+
+  .settings .modes-level {
+    min-height: 96px;
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .modes-bar {
+    min-height: 0;
+    padding: var(--space-2) var(--space-3);
+  }
 }
