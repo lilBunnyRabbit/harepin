@@ -109,9 +109,9 @@ coupe, each on a few clear axes. Handling fields in `src/cars.ts` only: no body,
 
 | car | one line | targets |
 |---|---|---|
-| hatch | FWD, light, nimble, safe | 0-100 9-10 s, top ~190, **shortest stop** (< coupe), **sharpest turn-in**, lift-off tuck 5-9° and never spins, power-on ~0° (understeer), no drift |
+| hatch | FWD, light, nimble, safe | 0-100 9-10 s, top ~190, strong stop (about 37 m), **sharpest turn-in**, lift-off tuck 5-9° and never spins, power-on ~0° (understeer), no drift |
 | coupe | baseline balanced RWD | unchanged: 5.3 s, 271 km/h, 40.0 m |
-| muscle | heavy, torquey, soft, lazy | **highest top** (≥ 280), **longest stop** (46-50 m), **laziest turn-in**, **most body roll and dive**, lowest skidpad, most power-on oversteer (TCS off, > 35°), slides wilder than the Kaze (hold < Kaze) |
+| muscle | heavy, torquey, soft, lazy | **highest top** (≥ 280), **longest stop** (about 40 m), **laziest turn-in**, **most body roll and dive**, lowest skidpad, most power-on oversteer (TCS off, > 35°), slides wilder than the Kaze (hold < Kaze) |
 | rally | AWD, gravel car | **quickest 0-100** (< 4.8 s), short gears (top ~235), soft (roll and dive > coupe), **rotates on lift** (10-15°), throttle rotation from a rear-biased split, **best on grass** by far |
 | kaze | easiest drifter | unchanged: 5.92 s, 251 km/h (telemetry), **longest slide hold** |
 
@@ -123,8 +123,13 @@ coupe, each on a few clear axes. Handling fields in `src/cars.ts` only: no body,
   1.03 gives 6-7°, 1.00 gives 18°. Hatch ARB 8000 front / 15000 rear (was 11000 / 9000), `rear_grip` 1.14 to 1.03.
 - **Soft/floaty:** springs, low damping ratio, low ARBs. Muscle 24000 N/m, damper 2000 (ζ ≈ 0.32, coupe 0.40),
   ARB 8000 / 2000. Rally 25000 / 2300, ARB 9000 / 10000 (rear-biased, so it still rotates).
-- **Brakes:** muscle brake torque cut to 1900 / 700 Nm, so it is torque-limited, not grip-limited: long stop, ABS rarely
-  triggers. Everyone else stays grip-limited.
+- **Brakes (2026-11-09 revision):** owner found braking weak. `brake_grip` scales tyre longitudinal grip only while
+  the brake pedal is down (engine braking, lift-off and the handbrake are untouched), so stops get decisive without
+  more cornering grip. Targets and results, 100-0: hatch 1.05 (37.0 m), coupe 1.18 (35.0), Kaze 1.24 (34.0), rally
+  1.15 (36.1), muscle 1.17 plus torque 2600 / 950 Nm (40.4, still the longest). No fade: coupe 150-0 74 m, 200-0
+  125 m (downforce helps). Trail braking peak slip is unchanged (120 km/h, steer 0.4: 7.2° coupe, 7.6° rally); the cars
+  just stop sooner. Handbrake flick unchanged. Autolap +0.05 s, muscle +0.9 s (its braking now undershoots the target
+  speed).
 - **Top speed / gearing:** muscle `drag` 0.5 to 0.44 and `final` 3.45 to 3.2; rally `final` 3.9 to 4.5.
 - **AWD rotation:** rally `awd_split` 0.4 to 0.3 (70% rear), so throttle pushes the tail out (power-on 2° to 19°).
 - **Grass:** rally `offroad` 0.55 to 0.7.
@@ -133,11 +138,11 @@ coupe, each on a few clear axes. Handling fields in `src/cars.ts` only: no body,
 
 | car | 0-100 s | top km/h | 100-0 m | dive ° | skidpad g | turn-in ms | roll ° | lift-off ° | power-on ° | flick slip ° | slide hold s | grass km/h @12 s | grass g |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| hatch | 9.22 | 191 | **38.7** | 2.4 | 0.97 | **50** | 2.2 | 7.1 | 0.6 | 25 | 0.3 | 83 | 0.63 |
-| coupe | 5.29 | 271 | 40.0 | 2.3 | 0.89 | 61 | 2.3 | 4.1 | 28.4 | 24 | 1.2 | 120 | 0.63 |
-| muscle | 5.86 | **281** | **49.6** | 2.9 | **0.81** | **69** | **3.9** | 3.6 | **35.2** | 23 | 2.0 | 113 | 0.58 |
-| rally | **4.69** | 236 | 41.0 | **3.1** | 0.87 | 56 | 3.1 | **14.2** | 19.3 | 26 | 2.2 | **158** | **0.79** |
-| kaze | 5.92 | 257 | 40.9 | 2.2 | 0.90 | 56 | 1.9 | 4.8 | 29.5 | 26 | **3.2** | 111 | 0.62 |
+| hatch | 9.22 | 191 | 37.0 | 2.4 | 0.97 | **50** | 2.2 | 7.1 | 0.6 | 25 | 0.3 | 83 | 0.63 |
+| coupe | 5.29 | 271 | 35.0 | 2.6 | 0.89 | 61 | 2.3 | 4.1 | 28.4 | 24 | 1.2 | 120 | 0.63 |
+| muscle | 5.86 | **281** | **40.4** | 3.4 | **0.81** | **69** | **3.9** | 3.6 | **35.2** | 23 | 2.0 | 113 | 0.58 |
+| rally | **4.69** | 236 | 36.1 | **3.5** | 0.87 | 56 | 3.1 | **14.2** | 19.3 | 26 | 2.2 | **158** | **0.79** |
+| kaze | 5.92 | 257 | **34.0** | 2.5 | 0.90 | 56 | 1.9 | 4.8 | 29.5 | 26 | **3.2** | 111 | 0.62 |
 
 Before (same script on HEAD 4d920e0 specs): hatch 9.28 s / 38.2 m / 56 ms / roll 2.3° / lift 2.1°; muscle 5.69 s /
 273 km/h / 42.2 m / 67 ms / roll 2.4° / power-on 30.9° / hold 4.1 s; rally 4.58 s / 251 km/h / 64 ms / roll 2.6° /

@@ -383,13 +383,14 @@ export class Car {
       const surface = ground.grip(w.point.x, w.point.z);
       const grip = surface + (1 - surface) * spec.offroad;
       const peak = spec.mu * (w.front ? 1 : spec.rear_grip) * grip * load * (1 - load / 32000);
+      const peak_x = brake > 0.05 ? peak * spec.brake_grip : peak;
       const sy = -Math.atan2(v_lat, denom) / spec.peak_angle;
 
       // Semi-implicit wheel spin: linearise the tyre's longitudinal force around the current slip so a stiff tyre
       // can't overshoot within one step; past the peak the slope clamps to 0 and wheelspin runs free.
       const sx0 = (w.omega * radius - v_long) / denom / spec.peak_slip;
-      const fx0 = combined_x(sx0, sy) * peak;
-      const k = Math.max(0, ((combined_x(sx0 + 1e-3, sy) * peak - fx0) / 1e-3) * (radius / (denom * spec.peak_slip)));
+      const fx0 = combined_x(sx0, sy) * peak_x;
+      const k = Math.max(0, ((combined_x(sx0 + 1e-3, sy) * peak_x - fx0) / 1e-3) * (radius / (denom * spec.peak_slip)));
       const stiff = 1 + (dt * radius * k) / inertia;
       let omega = (w.omega + (dt / inertia) * (torque - radius * fx0 + radius * k * w.omega)) / stiff;
       const cut = (dt * brake_torque) / inertia / stiff;
@@ -400,7 +401,7 @@ export class Car {
       const sx = (omega * radius - v_long) / denom / spec.peak_slip;
       const roll = ground.roll(w.point.x, w.point.z);
       const rolling = v_long * spec.roll_resist;
-      const fx = combined_x(sx, sy) * peak - rolling;
+      const fx = combined_x(sx, sy) * peak_x - rolling;
       const fy = combined_y(sx, sy) * peak;
       w.slip = sx * spec.peak_slip;
       const locking = this.abs && brake > 0.1 && w.slip < -0.1 && Math.abs(v_long) > 2;

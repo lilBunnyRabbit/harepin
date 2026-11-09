@@ -50,6 +50,8 @@ export interface CarSpec {
   torque: [number, number][];
   brake_front: number;
   brake_rear: number;
+  /** Longitudinal tyre grip multiplier while the brake pedal is down: arcade stopping power that leaves cornering alone. */
+  brake_grip: number;
   handbrake: number;
   hold: number;
   drag: number;
@@ -128,6 +130,7 @@ export const COUPE: CarSpec = {
   ],
   brake_front: 2300,
   brake_rear: 850,
+  brake_grip: 1.18,
   handbrake: 2000,
   hold: 1500,
   drag: 0.42,
@@ -176,6 +179,7 @@ export const HATCH: CarSpec = {
   ],
   brake_front: 1900,
   brake_rear: 650,
+  brake_grip: 1.05,
   handbrake: 1600,
   hold: 1200,
   drag: 0.38,
@@ -221,8 +225,9 @@ export const MUSCLE: CarSpec = {
     [6000, 500],
     [7000, 420],
   ],
-  brake_front: 1900,
-  brake_rear: 700,
+  brake_front: 2600,
+  brake_rear: 950,
+  brake_grip: 1.17,
   handbrake: 2300,
   hold: 1900,
   drag: 0.44,
@@ -267,6 +272,7 @@ export const RALLY: CarSpec = {
   ],
   brake_front: 2200,
   brake_rear: 1000,
+  brake_grip: 1.15,
   handbrake: 2400,
   drag: 0.5,
   downforce: 0.8,
@@ -312,6 +318,7 @@ export const KAZE: CarSpec = {
   ],
   brake_front: 2500,
   brake_rear: 950,
+  brake_grip: 1.24,
   handbrake: 2200,
   hold: 1650,
   drag: 0.42,
