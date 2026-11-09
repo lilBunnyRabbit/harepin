@@ -247,6 +247,7 @@ function rewind_step(now: number) {
   car.vel.copy(f.vel);
   car.ang.copy(f.ang);
   car.gear = f.gear;
+  car.parked = false;
   car.wheels.forEach((w, i) => (w.omega = f.omega[i]));
   race.restore(f.race, now - f.at);
   if (race.started) ghost.rewind_to(now - race.started);
