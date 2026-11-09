@@ -16,11 +16,11 @@ const SKIRT = 6;
 export const SMALL_BUILDING = 6;
 
 const LANE_WIDTH = 3;
-const SURFACE_LIFT = 0.07;
+const SURFACE_LIFT = 0.025;
 // Spurs sit a hair above streets and sidewalks so their mouth covers the street's sidewalk at the town gate.
-const SPUR_LIFT = 0.09;
-const RING_LIFT = 0.08;
-const MARK_LIFT = 0.1;
+const SPUR_LIFT = 0.035;
+const RING_LIFT = 0.03;
+const MARK_LIFT = 0.045;
 const MARK_HALF = 0.15;
 const EDGE_INSET = 0.3;
 const EDGE_WIDTH = 0.25;
