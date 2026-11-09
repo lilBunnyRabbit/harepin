@@ -300,7 +300,7 @@ A pure `twistiness(samples)` in `worldgen/sky.ts`, run on every accepted layout 
 | **Constant stretch** | longest run whose curvature stays within ±0.002 m⁻¹ of its start, straights included, as a share of the lap | ≤ 14% |
 | **Roundness** | 4π·\|area\| / length², 1 for a circle | ≤ 0.45 |
 
-A layout that misses any of them is rerolled like any other reject. The thresholds are set from a 200-seed run of the new generator, with the old one as the reference that must fail them.
+A layout that misses any of them is rerolled like any other reject. `sky.test.ts` checks that a circle and a rounded rectangle fail and a lap of esses passes. Seeds 0-19 measure 4.5-9.0 rad/km and 12-26 corners.
 
 ### Rail glide
 
@@ -315,6 +315,16 @@ On a sky world a box solid is always a rail, so `World.resolve` branches on `kin
 5. Return the into-rail speed as the impact, as before, for sounds, shake and the `sky-seeds.ts` crash count.
 
 Deterministic, a few multiplies per contact, no new state.
+
+### Rail look
+
+Owner, on a crest: "you can see the top of the rail for some reason even tho it should be a simple ramp". The rail had a flat top and a lip folded over the deck; each caught the light as its own strip and stepped where grade or bank changed. Now the rail is one face leaning out from the deck edge to its top outer edge, plus the outer face, in the deck tone. Joint seams follow the leaning face.
+
+### As built
+
+- Closing the position: two straights alone missed most twisty draws, so every stretchy straight first takes a share of the error (bounded coordinate descent within its 44-420 m limits), and one pair closes the last centimetres exactly. A seed needs 3-200 of its 400 attempts; one whose every attempt fails takes `FALLBACK_SEED`'s track.
+- Laps run 2.7-5.2 km and take the coupe autolap 117-220 s; autopilot rail hits stay under 8 m/s.
+- The normal-continuity test keeps 0.5° on the centreline. 4 m off it, on a banked hairpin, the lookup steps up to 0.8° per sample, so the offset check allows that.
 
 ### Changes and checks
 
