@@ -31,8 +31,6 @@ const SPUR_MARK_CLEAR = 8;
 const SPUR_MOUTH = 30;
 const MOUTH_CLEAR = 5;
 const REACH_MARGIN = 0.8;
-/** How far terrain may stray from a road triangle's plane before the triangle is cut along the terrain's creases. */
-const DRAPE_TOLERANCE = 0.02;
 
 const SHOPFRONT_LOW = 0.5;
 const SHOPFRONT_HIGH = 2.8;
@@ -164,7 +162,7 @@ function terrain_chunk(data: WorldData, all_colors: Float32Array, ci: number, cj
   return { positions, colors, index: Uint16Array.from(index), full, sphere: bounding_sphere(positions.subarray(0, skirt_start * 3)) };
 }
 
-class Roads {
+export class Roads {
   readonly surface: Layer[] = Array.from({ length: CHUNKS * CHUNKS }, () => ({ positions: [], colors: [] }));
   readonly marks: Layer[] = Array.from({ length: CHUNKS * CHUNKS }, () => ({ positions: [], colors: [] }));
 
@@ -204,24 +202,13 @@ class Roads {
 
   // Terrain is linear only inside each half cell, so a road triangle spanning a crease would cut under a ridge or float
   // over a dip. Cutting it along every cell edge and diagonal it crosses lays it exactly on the ground the car drives on.
+  // Every triangle is cut, however flat: one left whole beside a cut neighbour leaves a T-junction crack along their
+  // shared edge, and its sag, deeper than the gap between asphalt and marks, sank lane marks under the asphalt.
   private draped(layer: Layer, triangle: Point[], lift: number, rgb: Rgb) {
     let pieces = [triangle];
     for (const [ux, uz, offset] of CREASES) {
       const along = triangle.map(([x, z]) => (ux * x + uz * z - offset) / CELL);
       for (let k = Math.floor(Math.min(...along)) + 1; k < Math.max(...along); k++) pieces = pieces.flatMap((piece) => split(piece, ux, uz, offset + k * CELL));
-    }
-    const ground = ([x, z]: Point) => sample(this.heights, x, z);
-    if (pieces.length > 1) {
-      const [p0, p1, p2] = triangle;
-      const [y0, y1, y2] = triangle.map(ground);
-      const det = (p1[0] - p0[0]) * (p2[1] - p0[1]) - (p2[0] - p0[0]) * (p1[1] - p0[1]);
-      const plane = ([x, z]: Point) => {
-        if (Math.abs(det) < 1e-9) return Infinity;
-        const u = ((x - p0[0]) * (p2[1] - p0[1]) - (p2[0] - p0[0]) * (z - p0[1])) / det;
-        const v = ((p1[0] - p0[0]) * (z - p0[1]) - (x - p0[0]) * (p1[1] - p0[1])) / det;
-        return y0 + (y1 - y0) * u + (y2 - y0) * v;
-      };
-      if (pieces.every((piece) => piece.every((p) => Math.abs(ground(p) - plane(p)) <= DRAPE_TOLERANCE))) pieces = [triangle];
     }
     for (const piece of pieces)
       for (let i = 1; i < piece.length - 1; i++)
@@ -252,13 +239,20 @@ function split(piece: Point[], ux: number, uz: number, line: number): Point[][] 
     if (side[i] <= 0) below.push(p);
     if (side[i] >= 0) above.push(p);
     if ((side[i] < 0 && side[j] > 0) || (side[i] > 0 && side[j] < 0)) {
-      const t = side[i] / (side[i] - side[j]);
-      const cut: Point = [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t];
+      const cut = crossing(p, q, side[i], side[j]);
       below.push(cut);
       above.push(cut);
     }
   });
   return [below, above].filter((part) => part.length >= 3);
+}
+
+// Both triangles on a shared edge walk it in opposite directions; interpolating from the same end gives them the
+// bit-identical vertex, so the cut leaves no hairline gap.
+function crossing(p: Point, q: Point, sp: number, sq: number): Point {
+  if (p[0] > q[0] || (p[0] === q[0] && p[1] > q[1])) return crossing(q, p, sq, sp);
+  const t = sp / (sp - sq);
+  return [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t];
 }
 
 /** Lowest and highest side offset a point's ribbon vertices may take. */
