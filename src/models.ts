@@ -731,7 +731,8 @@ export interface ContactShadow {
 }
 
 // The sun's shadow lands metres away at a low sun and blurs out, so without a dark patch right under the body the car
-// reads as hovering; this is that patch, tinted from the theme rather than black.
+// reads as hovering; this is that patch, tinted from the theme rather than black. It multiplies what is under it: a plain
+// blend toward the darkest token comes out lighter than lit asphalt of that same token.
 export function contact_shadow(): ContactShadow {
   const strength = dark ? 0.7 : 0.4;
   const material = new THREE.MeshBasicMaterial({
@@ -739,6 +740,10 @@ export function contact_shadow(): ContactShadow {
     alphaMap: blob_texture(),
     transparent: true,
     opacity: strength,
+    premultipliedAlpha: true,
+    blending: THREE.CustomBlending,
+    blendSrc: THREE.DstColorFactor,
+    blendDst: THREE.OneMinusSrcAlphaFactor,
     depthWrite: false,
     polygonOffset: true,
     polygonOffsetFactor: -8,

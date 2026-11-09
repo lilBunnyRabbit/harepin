@@ -103,28 +103,55 @@ export class Smoke {
 }
 
 const SKID_QUADS = 3000;
+/** Share of the ring buffer, oldest first, that fades out before it is overwritten. */
+const SKID_FADE = 0.2;
+// Dark asphalt is the darkest token, so a mark can only read by sitting a step above it.
+const SKID_TONE = dark ? mix(brand.error, brand.background_darkest, 0.1) : tones.skid;
 
 export class Skids {
   readonly mesh: THREE.Mesh;
   private positions = new Float32Array(SKID_QUADS * 6 * 3);
+  /** Write count when each vertex was laid, so the shader can fade by age without rewriting the buffer. */
+  private laid = new Float32Array(SKID_QUADS * 6).fill(-SKID_QUADS);
   private last: (THREE.Vector3 | null)[] = [null, null, null, null];
   private next = 0;
+  private written = 0;
   private attribute: THREE.BufferAttribute;
+  private laid_attribute: THREE.BufferAttribute;
+  private readonly head = { value: 0 };
 
   constructor() {
     const geometry = new THREE.BufferGeometry();
     this.attribute = new THREE.BufferAttribute(this.positions, 3);
     this.attribute.setUsage(THREE.DynamicDrawUsage);
     geometry.setAttribute("position", this.attribute);
+    this.laid_attribute = new THREE.BufferAttribute(this.laid, 1);
+    this.laid_attribute.setUsage(THREE.DynamicDrawUsage);
+    geometry.setAttribute("laid", this.laid_attribute);
     const material = new THREE.MeshBasicMaterial({
-      color: color(tones.skid),
+      color: color(SKID_TONE),
       transparent: true,
-      opacity: dark ? 0.78 : 0.4,
+      opacity: dark ? 0.6 : 0.4,
       depthWrite: false,
       polygonOffset: true,
       polygonOffsetFactor: -6,
       polygonOffsetUnits: -6,
     });
+    material.onBeforeCompile = (shader) => {
+      shader.uniforms.head = this.head;
+      shader.vertexShader = shader.vertexShader
+        .replace(
+          "void main() {",
+          `attribute float laid;
+          uniform float head;
+          varying float v_fade;
+          void main() {
+            v_fade = clamp((${SKID_QUADS.toFixed(1)} - (head - laid)) / ${(SKID_QUADS * SKID_FADE).toFixed(1)}, 0.0, 1.0);`,
+        );
+      shader.fragmentShader = shader.fragmentShader
+        .replace("void main() {", "varying float v_fade;\nvoid main() {")
+        .replace("#include <color_fragment>", "#include <color_fragment>\n  diffuseColor.a *= v_fade;");
+    };
     this.mesh = new THREE.Mesh(geometry, material);
     this.mesh.frustumCulled = false;
   }
@@ -151,9 +178,12 @@ export class Skids {
       const b0 = here.clone().add(side);
       const b1 = here.clone().sub(side);
       const o = this.next * 18;
-      [a0, a1, b0, b0, a1, b1].forEach((v, k) => this.positions.set([v.x, v.y, v.z], o + k * 3));
+      [a0, b0, a1, a1, b0, b1].forEach((v, k) => this.positions.set([v.x, v.y, v.z], o + k * 3));
+      this.laid.fill(this.written, this.next * 6, this.next * 6 + 6);
+      this.head.value = ++this.written;
       this.next = (this.next + 1) % SKID_QUADS;
       this.attribute.needsUpdate = true;
+      this.laid_attribute.needsUpdate = true;
       this.last[i] = here;
     });
   }
