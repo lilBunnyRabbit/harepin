@@ -29,7 +29,7 @@ import { cloud_floor, clouds, sky } from "./sky";
 import { PadTimer, type PadSnapshot } from "./sky-pads";
 import { Lighting } from "./lighting";
 import { NanProbe, sanitise_bloom } from "./postfx";
-import { CAMERA_RETURN_SECONDS, CameraView, Settings, invite_link, load_settings, take_drive, type SettingsState } from "./settings";
+import { CAMERA_RETURN_SECONDS, CameraView, MenuTab, Settings, invite_link, load_settings, take_drive, type SettingsState } from "./settings";
 import { BUILD, Updater, show_version } from "./update";
 import { pick_world } from "./world-pick";
 import { GUARD_STATE, SystemBack, type Watcher } from "./system-back";
@@ -115,7 +115,9 @@ if (nan_probe) composer.addPass(nan_probe);
 if (!bisect.has("nobloom")) composer.addPass(bloom);
 composer.addPass(new OutputPass());
 
-const garage = new Garage(document.body, build);
+const garage_stage = document.createElement("div");
+garage_stage.className = "menu-garage";
+const garage = new Garage(garage_stage, build);
 const input = new Input($("touch"), renderer.domElement);
 input.blocked = () => garage.is_open || settings.is_open || pad_menu.is_open;
 chat.blocked = () => garage.is_open || settings.is_open;
@@ -176,11 +178,8 @@ const settings = new Settings(document.body, {
   servers_status: () => directory.status,
   password_failed: () => net.status === WRONG_PASSWORD,
   browse_servers: (on) => directory.browse(on),
-  car_name: () => car.spec.name,
-  open_garage: (section) => {
-    settings.close();
-    garage.open(section);
-  },
+  garage_stage,
+  show_garage: (on) => (on ? garage.open() : garage.close()),
   modes: $("modes"),
   players: () => 1 + net.remotes.size,
   restart_lap: () => restart_action(),
@@ -223,6 +222,8 @@ addEventListener("pointerdown", (event: PointerEvent) => {
 const pads = new PadTimer();
 const pad_menu = new PadMenu({ settings, chat, garage_open: () => garage.is_open });
 settings.on_nav = (nav) => pad_menu.navigate([nav]);
+garage.on_tab = (step) => settings.step_tab(step);
+garage.on_back = () => settings.back();
 
 function spawn_at(index: number, reverse = false) {
   const p = world.road[world.clear_spawn(index, reverse ? -1 : 1)];
@@ -274,7 +275,6 @@ const system_back = new SystemBack(
     const changelog = document.querySelector<HTMLDialogElement>("dialog.changelog[open]");
     const popover = document.querySelector<HTMLElement>(":popover-open");
     if (changelog) changelog.close();
-    else if (garage.is_open) garage.close();
     else if (settings.is_open) settings.back();
     else if (popover) popover.hidePopover();
     else if (chat.is_open) chat.close();
@@ -303,7 +303,7 @@ garage.on_change = (next) => {
   sync_car_view(view, car);
 };
 
-$("garage-btn").addEventListener("click", () => garage.open());
+$("garage-btn").addEventListener("click", () => settings.open(MenuTab.GARAGE));
 
 interface Frame {
   at: number;
@@ -513,10 +513,10 @@ function frame(now: number) {
       car.shift(action === "shift_up" ? 1 : -1);
     }
     if (action === "auto" || action === "tcs" || action === "abs" || action === "assist" || action === "ghost") toggle_aid(action);
-    if (action === "help" && !garage.is_open) settings.is_open ? settings.close() : settings.open_keys();
-    if (action === "garage" && !settings.is_open) garage.is_open ? garage.close() : garage.open();
-    if (action === "settings" && !garage.is_open) settings.open();
-    if (action === "menu") garage.is_open ? garage.close() : pad_menu.toggle();
+    if (action === "help") settings.is_open ? settings.close() : settings.open_keys();
+    if (action === "garage") garage.is_open ? settings.close() : settings.open(MenuTab.GARAGE);
+    if (action === "settings") settings.open();
+    if (action === "menu") pad_menu.toggle();
   }
 
   lobby.update(now);

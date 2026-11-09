@@ -44,7 +44,7 @@
   letter-spacing: -0.011em;
 }
 
-.settings button {
+.settings button:not(:where(.garage button)) {
   height: auto;
   padding: 0;
   font: inherit;

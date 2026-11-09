@@ -3,9 +3,12 @@
   --garage-floor: var(--background-darkest);
   --garage-rail-w: 232px;
   --garage-stats-w: 300px;
-  position: fixed;
+  --inset-top: var(--space-4);
+  --inset-right: var(--space-4);
+  --inset-bottom: var(--space-4);
+  --inset-left: var(--space-4);
+  position: absolute;
   inset: 0;
-  z-index: 20;
   overflow: hidden;
   background: radial-gradient(ellipse 60% 70% at 50% 55%, var(--garage-glow), var(--garage-floor) 78%);
   color: var(--foreground);
@@ -51,23 +54,10 @@
   gap: var(--space-3);
 }
 
-.garage-title {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-3);
-  min-width: 0;
-}
-
-.garage-heading {
-  margin: 0;
-  font-size: var(--text-2xl);
-  font-weight: 600;
-  letter-spacing: -0.011em;
-}
-
 .garage-sub {
-  color: var(--dim);
-  font-weight: 600;
+  min-width: 0;
+  font-size: var(--text-xl);
+  font-weight: 700;
 }
 
 .garage-tabs {
@@ -98,15 +88,6 @@
 .garage-tab[aria-selected="true"] {
   background: var(--panel-raised);
   color: var(--foreground);
-}
-
-.garage-done {
-  justify-self: end;
-  padding: 0 var(--space-4) 0 var(--space-2);
-  border-radius: var(--radius-full);
-  border-color: var(--line);
-  background: var(--surface);
-  font-size: var(--text-md);
 }
 
 .garage-panel {
@@ -532,14 +513,10 @@
   .garage-strip-head .garage-hint {
     display: none;
   }
-
-  .garage-done {
-    padding: 0 var(--space-4);
-  }
 }
 
-/* Phone landscape: the right thumb's side is one column of everything you touch (tabs and Done on top, slots, then the
-   part cards to swipe); the left keeps the car and the read-only meters under it. */
+/* Phone landscape: the right thumb's side is one column of everything you touch (tabs on top, slots, then the part
+   cards to swipe); the left keeps the car and the read-only meters under it. */
 @media (orientation: landscape) and (max-height: 500px), (max-width: 700px) {
   .garage {
     --garage-sheet-w: clamp(288px, 42vw, 360px);
@@ -548,7 +525,7 @@
   }
 
   .garage-top {
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: var(--space-2);
   }
 
@@ -560,11 +537,8 @@
     display: none;
   }
 
-  .garage-heading {
-    font-size: var(--text-xl);
-  }
-
   .garage-sub {
+    font-size: var(--text-lg);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -578,20 +552,6 @@
   .garage-tab {
     padding: 0 var(--space-3);
     font-size: var(--text-lg);
-  }
-
-  .garage-done {
-    height: var(--garage-top-h);
-    padding: 0 var(--space-5);
-    border-color: var(--primary);
-    background: var(--primary);
-    color: var(--background-darkest);
-    font-size: var(--text-lg);
-    font-weight: 700;
-  }
-
-  .garage-done:hover {
-    background: color-mix(in oklch, var(--primary) 88%, var(--foreground));
   }
 
   .garage-rail {
@@ -778,4 +738,165 @@
   .garage-meter-stock {
     transition: none;
   }
+}
+
+.garage-key:empty {
+  display: none;
+}
+
+.garage[data-tab="builds"] .garage-rail {
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: var(--space-2);
+  width: 360px;
+  padding: var(--space-4);
+}
+
+.garage-build-head {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.garage-build-head:first-child {
+  margin-top: 0;
+}
+
+.garage-build-form,
+.garage-build-own {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.garage-field {
+  flex: 1;
+  min-width: 0;
+  height: var(--control-h);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel-well);
+  color: var(--foreground);
+  font: inherit;
+  user-select: text;
+}
+
+.garage-field::placeholder {
+  color: var(--dim);
+}
+
+.garage-field[name="build-code"] {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+.garage-code {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--dim);
+  user-select: text;
+}
+
+.garage .garage-action {
+  flex: none;
+  height: var(--control-h);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel-raised);
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+
+.garage .garage-action:hover,
+.garage .garage-mini:hover {
+  border-color: var(--line-strong);
+}
+
+.garage-builds {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.garage-build {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0 var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--panel-well);
+}
+
+.garage-build:has(.garage-rename) {
+  grid-template-columns: minmax(0, 1fr);
+  padding-right: var(--space-2);
+}
+
+.garage-build-name {
+  display: grid;
+  min-width: 0;
+}
+
+.garage-build-name b,
+.garage-build-name small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.garage-build-name b {
+  font-size: var(--text-lg);
+}
+
+.garage-build-name small {
+  font-size: var(--text-sm);
+  color: var(--dim);
+}
+
+.garage-tag {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--dim);
+}
+
+.garage .garage-mini {
+  display: grid;
+  place-items: center;
+  width: var(--control-h);
+  height: var(--control-h);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--dim);
+}
+
+.garage-mini .garage-icon {
+  width: 16px;
+  height: 16px;
+}
+
+@media (orientation: landscape) and (max-height: 500px), (max-width: 700px) {
+  .garage[data-tab="builds"] .garage-rail {
+    width: var(--garage-sheet-w);
+    max-height: calc(100% - var(--inset-top) - var(--garage-top-h) - var(--space-2) - var(--inset-bottom));
+    padding: var(--space-3);
+  }
+}
+
+.garage-bottom[hidden] {
+  display: none;
 }

@@ -269,10 +269,6 @@
   grid-template: "hero island sky" 1fr "hero map modes" 1fr / 1.6fr 1fr 1fr;
 }
 
-.menu-mosaic[data-tab="garage"] {
-  grid-template: "car body perf" 1fr "car paint paint" 1fr / 1.6fr 1fr 1fr;
-}
-
 .menu-mosaic[data-tab="online"] {
   grid-template: "room room games" 1fr "race new games" 1fr / 1fr 1fr 1.15fr;
 }
@@ -428,27 +424,19 @@
   pointer-events: none;
 }
 
-[data-area="hero"],
-[data-area="car"] {
+[data-area="hero"] {
   grid-area: hero;
 }
 
-[data-area="car"] {
-  grid-area: car;
-}
-
-[data-area="hero"] .menu-text,
-[data-area="car"] .menu-text {
+[data-area="hero"] .menu-text {
   padding: var(--space-6);
 }
 
-[data-area="hero"] .menu-text b,
-[data-area="car"] .menu-text b {
+[data-area="hero"] .menu-text b {
   font-size: 28px;
 }
 
-[data-area="hero"] .menu-text > span,
-[data-area="car"] .menu-text > span {
+[data-area="hero"] .menu-text > span {
   max-width: 48ch;
   white-space: normal;
 }
@@ -497,9 +485,6 @@
 [data-area="sky"] { grid-area: sky; }
 [data-area="map"] { grid-area: map; }
 [data-area="modes"] { grid-area: modes; }
-[data-area="body"] { grid-area: body; }
-[data-area="perf"] { grid-area: perf; }
-[data-area="paint"] { grid-area: paint; }
 [data-area="room"] { grid-area: room; }
 [data-area="games"] { grid-area: games; }
 [data-area="race"] { grid-area: race; }
@@ -594,10 +579,6 @@
     grid-template: "hero island" var(--first-rows) "hero sky" var(--first-rows) "map modes" 168px / 1.25fr 1fr;
   }
 
-  .menu-mosaic[data-tab="garage"] {
-    grid-template: "car body" var(--first-rows) "car perf" var(--first-rows) "paint paint" 140px / 1.25fr 1fr;
-  }
-
   .menu-mosaic[data-tab="online"] {
     grid-template: "room games" minmax(var(--first-rows), auto) "race games" minmax(var(--first-rows), auto) "new games" 140px / 1fr 1fr;
   }
@@ -610,13 +591,11 @@
     padding: var(--space-3) var(--space-4);
   }
 
-  [data-area="hero"] .menu-text,
-  [data-area="car"] .menu-text {
+  [data-area="hero"] .menu-text {
     padding: var(--space-4);
   }
 
-  [data-area="hero"] .menu-text b,
-  [data-area="car"] .menu-text b {
+  [data-area="hero"] .menu-text b {
     font-size: var(--text-2xl);
   }
 
@@ -632,10 +611,6 @@
 @media (max-width: 600px) {
   .menu-mosaic[data-tab="play"] {
     grid-template: "hero hero" 220px "island sky" 160px "map modes" 160px / 1fr 1fr;
-  }
-
-  .menu-mosaic[data-tab="garage"] {
-    grid-template: "car car" 220px "body perf" 160px "paint paint" 140px / 1fr 1fr;
   }
 
   .menu-mosaic[data-tab="online"] {
@@ -669,4 +644,13 @@
 .settings[data-view="menu"] .settings-page {
   height: 100%;
   padding: 0;
+}
+
+.menu-garage {
+  position: relative;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--set-line);
 }

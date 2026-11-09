@@ -1,5 +1,4 @@
 import { SteerMode } from "./car";
-import type { GarageSection } from "./garage";
 import { typing, type Nav } from "./input";
 import { DirectoryStatus, PASSWORD_LENGTH, ROOM_LENGTH, clean_password, clean_room, locked_name, save_lock, type Server } from "./directory";
 import { clean_name, parse_seed } from "./net";
@@ -232,10 +231,9 @@ export interface SettingsHost {
   /** This room's handshake failed on the password, so its row offers another try. */
   password_failed(): boolean;
   browse_servers(on: boolean): void;
-  /** The car in the garage, for its menu tile. */
-  car_name(): string;
-  /** Closes the menu first; null keeps the garage on the section it was last on. */
-  open_garage(section: GarageSection | null): void;
+  /** The garage's own element: the Garage tab shows it, and `show_garage` starts and stops it with the tab. */
+  readonly garage_stage: HTMLElement;
+  show_garage(on: boolean): void;
   /** The modes level list, the popover the Modes tile opens. */
   readonly modes: HTMLElement;
   players(): number;
@@ -532,6 +530,7 @@ export class Settings {
     this.root.removeEventListener("click", this.click);
     removeEventListener("keydown", this.key);
     clearInterval(this.timer);
+    this.host.show_garage(false);
     this.world_map.stop();
     this.host.browse_servers(false);
   }
@@ -684,6 +683,7 @@ export class Settings {
     if (section === "world") this.world_map.show(this.chosen, this.chosen_kind, true);
     else this.world_map.stop();
     this.host.browse_servers(section === MenuTab.ONLINE);
+    this.host.show_garage(section === MenuTab.GARAGE);
     if (section === MenuTab.SETTINGS) this.show_sub(this.sub);
     this.refresh();
   }
@@ -768,22 +768,7 @@ export class Settings {
   }
 
   private garage(): HTMLElement[] {
-    const car = el("div", "menu-tile");
-    car.dataset.area = "car";
-    const text = this.dress(car, () => this.host.car_name(), "Change car, fit parts, paint it", this.picture("garage"), "Your car");
-    text.append(el("span", "menu-go", "Open garage"));
-    const open = el("button", "menu-hit");
-    open.type = "button";
-    open.setAttribute("aria-label", "Open the garage");
-    open.addEventListener("click", () => this.host.open_garage(null));
-    car.append(open);
-    return this.mosaic(
-      MenuTab.GARAGE,
-      car,
-      this.tile("body", "Body", "Car, wing, decal, number", icon("icon-car"), () => this.host.open_garage("body")),
-      this.tile("perf", "Performance", "Engine, tyres, brakes, nitro", icon("icon-gauge"), () => this.host.open_garage("performance")),
-      this.tile("paint", "Paint", "Colour and decal ink", icon("icon-paint"), () => this.host.open_garage("paint")),
-    );
+    return [this.host.garage_stage];
   }
 
   private info(area: string, eyebrow: string, ...content: HTMLElement[]): HTMLElement {
@@ -1699,12 +1684,12 @@ export class Settings {
     }
     if (typing(event.target)) return;
     const arrow = ARROW_NAV[event.key];
-    if (arrow) {
+    // The garage drives its own arrows and Enter: left / right try parts on the car.
+    if (arrow && this.section !== MenuTab.GARAGE) {
       event.preventDefault();
       return this.on_nav?.(arrow);
     }
-    if (event.repeat) return;
-    if (event.code === "KeyQ" || event.code === "KeyE") this.step_tab(event.code === "KeyQ" ? -1 : 1);
+    if (!event.repeat && (event.code === "KeyQ" || event.code === "KeyE")) this.step_tab(event.code === "KeyQ" ? -1 : 1);
   };
 }
 

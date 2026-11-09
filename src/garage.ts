@@ -22,6 +22,7 @@ import {
   type SlotView,
   type Stats,
 } from "./build";
+import { BUILD_NAME_LENGTH, free_build_name, load_builds, renamed, store_builds, with_build, without_build, type SavedBuild } from "./builds";
 import { CARS, is_car } from "./cars";
 import { typing, type Nav } from "./input";
 import { FLAME, SIDE_BAND, SLASH } from "./livery";
@@ -100,6 +101,8 @@ const ICONS: Record<string, string> = {
   paint: "M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11z",
   ink: "M4 20l4-1 11-11-3-3L5 16zM14 7l3 3",
   part: "M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2",
+  rename: "M4 20h4L19 9l-4-4L4 16z",
+  delete: "M6 6l12 12M18 6L6 18",
 };
 
 type Kind = "part" | "car" | "paint" | "ink" | "decal" | "number";
@@ -202,6 +205,7 @@ export const GarageSection = {
   BODY: "body",
   PERFORMANCE: "performance",
   PAINT: "paint",
+  BUILDS: "builds",
 } as const;
 export type GarageSection = (typeof GarageSection)[keyof typeof GarageSection];
 
@@ -215,15 +219,19 @@ const TABS: Tab[] = [
   { section: GarageSection.BODY, label: "Body", items: (b) => [CAR_ITEM, ...part_items(BODY_SLOTS), DECAL_ITEM, ...(DECALS[b.decal] === "number" ? [NUMBER_ITEM] : [])] },
   { section: GarageSection.PERFORMANCE, label: "Performance", items: () => part_items(SLOT_NAMES.filter((slot) => !BODY_SLOTS.includes(slot))) },
   { section: GarageSection.PAINT, label: "Paint", items: (b) => [PAINT_ITEM, ...(DECALS[b.decal] === "none" ? [] : [INK_ITEM])] },
+  { section: GarageSection.BUILDS, label: "My builds", items: () => [] },
 ];
+
+const BUILDS_TAB = TABS.findIndex((tab) => tab.section === GarageSection.BUILDS);
+const COPIED_MS = 2000;
 
 /** Glyphs per input: the pad's, then the keyboard's. */
 const GLYPHS: Record<"move" | "accept" | "back" | "prev" | "next", [string, string]> = {
   move: ["✥", "Arrows"],
   accept: ["A", "Enter"],
   back: ["B", "Esc"],
-  prev: ["LB", "Q"],
-  next: ["RB", "E"],
+  prev: ["LT", ""],
+  next: ["RT", ""],
 };
 
 const KEY_NAV: Record<string, Nav> = {
@@ -233,9 +241,6 @@ const KEY_NAV: Record<string, Nav> = {
   ArrowRight: "right",
   Enter: "accept",
   NumpadEnter: "accept",
-  Escape: "back",
-  KeyQ: "prev",
-  KeyE: "next",
 };
 
 export function load_build(query: string | null): Build {
@@ -368,6 +373,11 @@ interface Meter {
 
 export class Garage {
   on_change: ((build: Build) => void) | null = null;
+  /** The garage is the menu's Garage tab: LB / RB and Back belong to the menu. */
+  on_tab: ((step: number) => void) | null = null;
+  on_back: (() => void) | null = null;
+  private builds: SavedBuild[] = load_builds();
+  private renaming: string | null = null;
   private readonly root = element("div", "garage");
   private readonly canvas = element("canvas", "garage-canvas");
   private readonly top = element("header", "garage-top");
@@ -413,17 +423,10 @@ export class Garage {
     private current: Build,
   ) {
     this.root.hidden = true;
-    this.root.setAttribute("role", "dialog");
+    this.root.setAttribute("role", "region");
     this.root.setAttribute("aria-label", "Garage");
     this.root.dataset.input = "keys";
-
-    const title = element("div", "garage-title");
-    title.append(element("h2", "garage-heading", "Garage"), this.car_name);
-    const done = element("button", "garage-done");
-    done.type = "button";
-    done.dataset.action = "close";
-    done.append(glyph("back"), "Done");
-    this.top.append(title, this.tabs, done);
+    this.top.append(this.car_name, this.tabs);
 
     this.panel.append(element("h3", "garage-panel-title", "Against stock"));
     const rows = element("div", "garage-meters");
@@ -443,7 +446,7 @@ export class Garage {
     this.panel.append(rows);
 
     const hints = element("div", "garage-hints");
-    hints.append(hint("Slot / part", "move"), hint("Fit", "accept"), hint("Tabs", "prev", "next"), hint("Back", "back"));
+    hints.append(hint("Slot / part", "move"), hint("Fit", "accept"), hint("Sections", "prev", "next"));
     this.bottom.append(this.strip_head, this.strip, hints);
 
     this.number_input.type = "text";
@@ -496,7 +499,8 @@ export class Garage {
     addEventListener("keydown", this.key);
     addEventListener("resize", this.resized);
     const items = TABS[this.tab].items(this.current);
-    this.item = items.find((item) => item.id === this.item.id) ?? items[0];
+    this.item = items.find((item) => item.id === this.item.id) ?? items[0] ?? this.item;
+    this.builds = load_builds();
     this.cursor = this.item.at(this.current);
     this.pose = pose_of(this.item.view);
     this.to = this.pose;
@@ -532,6 +536,11 @@ export class Garage {
 
   private act(nav: Nav) {
     if (!this.is_open) return;
+    if (nav === "back") return this.on_back?.();
+    if (nav === "prev" || nav === "next") return this.on_tab?.(nav === "prev" ? -1 : 1);
+    if (nav === "sub_prev" || nav === "sub_next") return this.switch_tab(this.tab + (nav === "sub_prev" ? -1 : 1));
+    if (nav === "alt") return this.save_build("");
+    if (this.tab === BUILDS_TAB) return this.builds_focus(nav);
     const items = TABS[this.tab].items(this.current);
     const index = Math.max(0, items.findIndex((item) => item.id === this.item.id));
     if (nav === "up" || nav === "down") this.select(items[(index + (nav === "up" ? -1 : 1) + items.length) % items.length]);
@@ -540,13 +549,60 @@ export class Garage {
       const count = this.item.count;
       this.preview(this.item.kind === "number" ? (this.cursor + step + count) % count : Math.max(0, Math.min(count - 1, this.cursor + step)));
     } else if (nav === "accept") this.fit(this.cursor);
-    else if (nav === "back") this.close();
-    else if (nav === "prev" || nav === "next") this.switch_tab(this.tab + (nav === "prev" ? -1 : 1));
   }
 
   private switch_tab(tab: number) {
     this.tab = (tab + TABS.length) % TABS.length;
-    this.select(TABS[this.tab].items(this.current)[0]);
+    this.renaming = null;
+    const first = TABS[this.tab].items(this.current)[0];
+    if (first) this.select(first);
+    else this.refresh();
+    this.resized();
+  }
+
+  // My builds is a short list of fields and buttons, so the pad walks it in reading order on real focus.
+  private builds_focus(nav: Nav) {
+    const items = [...this.rail.querySelectorAll<HTMLElement>("button, input")].filter((el) => el.checkVisibility());
+    const active = document.activeElement;
+    const at = items.findIndex((el) => el === active);
+    if (nav === "accept") {
+      if (at >= 0) items[at].click();
+      else items[0]?.focus({ focusVisible: true });
+      return;
+    }
+    const step = nav === "up" || nav === "left" ? -1 : 1;
+    items[at < 0 ? 0 : Math.max(0, Math.min(items.length - 1, at + step))]?.focus({ focusVisible: true });
+  }
+
+  private save_build(typed: string) {
+    const name = typed.trim() || free_build_name(this.builds, CARS[this.current.car].name);
+    const next = with_build(this.builds, name, build_code(this.current));
+    if (!next || !store_builds(next)) return;
+    this.builds = next;
+    this.tab = BUILDS_TAB;
+    this.refresh();
+    this.resized();
+  }
+
+  private load_code(field: HTMLInputElement) {
+    const build = parse_build(field.value.trim());
+    if (!build) {
+      field.setCustomValidity("That isn't a build code");
+      field.reportValidity();
+      return;
+    }
+    this.apply(build);
+    this.refresh();
+  }
+
+  private store(next: SavedBuild[] | null, field: HTMLInputElement | null = null) {
+    if (next && store_builds(next)) {
+      this.builds = next;
+      this.renaming = null;
+      return this.refresh();
+    }
+    field?.setCustomValidity(next ? "This browser refused to store it" : "Another build has that name");
+    field?.reportValidity();
   }
 
   private select(item: Item) {
@@ -574,8 +630,20 @@ export class Garage {
     if (!target) return;
     const { action, value } = target.dataset;
     const n = Number(value);
-    if (action === "close") this.close();
-    else if (action === "tab") this.switch_tab(n);
+    if (action === "tab") this.switch_tab(n);
+    else if (action === "load-build") {
+      const build = parse_build(this.builds.find((b) => b.name === value)?.code);
+      if (build) this.apply(build);
+      this.refresh();
+    } else if (action === "rename-build") {
+      this.renaming = value ?? null;
+      this.refresh();
+      this.rail.querySelector<HTMLInputElement>(".garage-rename input")?.focus();
+    } else if (action === "cancel-rename") {
+      this.renaming = null;
+      this.refresh();
+    } else if (action === "delete-build" && value) this.store(without_build(this.builds, value));
+    else if (action === "copy-code") this.copy_code(target);
     else if (action === "item") {
       const item = TABS[this.tab].items(this.current).find((it) => it.id === value);
       if (item) this.select(item);
@@ -600,10 +668,22 @@ export class Garage {
     if (digits) this.fit(Number(digits));
   };
 
+  private async copy_code(button: HTMLElement) {
+    const code = build_code(this.current);
+    try {
+      await navigator.clipboard.writeText(code);
+      button.textContent = "Copied";
+    } catch (error) {
+      console.warn("garage: clipboard refused", error);
+      button.textContent = "Copy failed";
+    }
+    setTimeout(() => (button.textContent = "Copy"), COPIED_MS);
+  }
+
   private readonly key = (event: KeyboardEvent) => {
     const nav = KEY_NAV[event.code];
     if (!nav || event.repeat || event.altKey || event.ctrlKey || event.metaKey) return;
-    if (typing(event.target) && nav !== "back" && nav !== "accept") return;
+    if (typing(event.target) && (nav !== "accept" || this.tab === BUILDS_TAB)) return;
     event.preventDefault();
     this.root.dataset.input = "keys";
     this.act(nav);
@@ -624,10 +704,14 @@ export class Garage {
 
   private refresh() {
     const shown = this.shown;
+    const builds = this.tab === BUILDS_TAB;
+    this.root.dataset.tab = TABS[this.tab].section;
     this.car_name.textContent = CARS[shown.car].name;
     this.render_tabs();
-    this.render_rail();
-    this.render_strip(shown);
+    if (builds) this.render_builds();
+    else this.render_rail();
+    this.bottom.hidden = builds;
+    if (!builds) this.render_strip(shown);
     this.render_meters(shown);
     this.show_car(shown);
   }
@@ -661,6 +745,93 @@ export class Garage {
         return button;
       }),
     );
+  }
+
+  private render_builds() {
+    const active = document.activeElement;
+    const kept = active instanceof HTMLElement && this.rail.contains(active) ? (active.dataset.action ?? active.getAttribute("name")) + (active.dataset.value ?? "") : null;
+
+    const field = (name: string, label: string, placeholder: string) => {
+      const input = element("input", "garage-field");
+      input.type = "text";
+      input.name = name;
+      input.autocomplete = "off";
+      input.spellcheck = false;
+      input.placeholder = placeholder;
+      input.setAttribute("aria-label", label);
+      input.addEventListener("input", () => input.setCustomValidity(""));
+      return input;
+    };
+    const button = (label: string, action: string, value = "", class_name = "garage-action") => {
+      const node = element("button", class_name, label);
+      node.type = "button";
+      node.dataset.action = action;
+      node.dataset.value = value;
+      return node;
+    };
+    const form = (input: HTMLInputElement, label: string, submit: () => void) => {
+      const node = element("form", "garage-build-form");
+      const go = element("button", "garage-action", label);
+      go.type = "submit";
+      go.name = `${input.name}-go`;
+      node.append(input, go);
+      node.addEventListener("submit", (event) => {
+        event.preventDefault();
+        submit();
+      });
+      return node;
+    };
+
+    const car = CARS[this.current.car].name;
+    const name = field("build-name", "Build name", free_build_name(this.builds, car));
+    name.maxLength = BUILD_NAME_LENGTH;
+    const save = form(name, "Save", () => this.save_build(name.value));
+    const code = field("build-code", "A friend's build code", "Paste a friend's code");
+    const paste = form(code, "Load", () => this.load_code(code));
+    const own = element("div", "garage-build-own");
+    own.append(element("code", "garage-code", build_code(this.current)), button("Copy", "copy-code"));
+
+    const fitted = build_code(this.current);
+    const list = element("ol", "garage-builds");
+    for (const saved of this.builds) {
+      const li = element("li", "garage-build");
+      if (saved.name === this.renaming) {
+        const input = field("rename", `New name for ${saved.name}`, saved.name);
+        input.value = saved.name;
+        input.maxLength = BUILD_NAME_LENGTH;
+        const rename = form(input, "Save", () => this.store(renamed(this.builds, saved.name, input.value), input));
+        rename.classList.add("garage-rename");
+        rename.append(button("Cancel", "cancel-rename"));
+        li.append(rename);
+      } else {
+        const build = parse_build(saved.code);
+        const text = element("div", "garage-build-name");
+        text.append(element("b", "", saved.name), element("small", "", build ? CARS[build.car].name : ""));
+        const load = saved.code === fitted ? element("span", "garage-tag", "On your car") : button("Load", "load-build", saved.name);
+        const edit = button("", "rename-build", saved.name, "garage-mini");
+        edit.setAttribute("aria-label", `Rename ${saved.name}`);
+        edit.append(icon("rename"));
+        const drop = button("", "delete-build", saved.name, "garage-mini");
+        drop.setAttribute("aria-label", `Delete ${saved.name}`);
+        drop.append(icon("delete"));
+        li.append(text, load, edit, drop);
+      }
+      list.append(li);
+    }
+    const head = (text: string) => element("h3", "garage-build-head", text);
+    this.rail.replaceChildren(
+      head("Save this car"),
+      save,
+      head("Your car's code"),
+      own,
+      head("A friend's code"),
+      paste,
+      head(this.builds.length ? "My builds" : "No builds saved yet"),
+      list,
+    );
+    if (!kept) return;
+    for (const node of this.rail.querySelectorAll<HTMLElement>("button, input"))
+      if ((node.dataset.action ?? node.getAttribute("name")) + (node.dataset.value ?? "") === kept) return node.focus({ focusVisible: true });
   }
 
   private render_strip(shown: Build) {
@@ -906,10 +1077,13 @@ export class Garage {
     renderer.setPixelRatio(Math.min(2, devicePixelRatio));
     renderer.setSize(width, height, false);
     const area = { left: 0, top: 0, right: width, bottom: height };
+    // The stage sits inside the menu, so panel rects are taken relative to the canvas, not the window.
+    const stage = this.canvas.getBoundingClientRect();
     // Each panel names the side of the stage it takes in `--garage-side`: the layouts move panels between sides.
     for (const panel of [this.top, this.rail, this.panel, this.bottom]) {
-      const r = panel.getBoundingClientRect();
-      if (!r.width || !r.height) continue;
+      const box = panel.getBoundingClientRect();
+      if (!box.width || !box.height) continue;
+      const r = { left: box.left - stage.left, right: box.right - stage.left, top: box.top - stage.top, bottom: box.bottom - stage.top };
       const side = getComputedStyle(panel).getPropertyValue("--garage-side").trim();
       if (side === "top") area.top = Math.max(area.top, r.bottom + FREE_PAD);
       else if (side === "left") area.left = Math.max(area.left, r.right + FREE_PAD);
