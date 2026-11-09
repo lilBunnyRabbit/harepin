@@ -210,7 +210,7 @@ const COPIED_MS = 2000;
 const KEYS: [string, string, string, string][] = [
   ["Drive", "WASD / arrows", "RT / LT, L stick", "Gas, Brake, drag or arrow buttons to steer (Touch steering)"],
   ["Handbrake", "Space", "A", "Handbrake"],
-  ["Nitro (hold, when fitted)", "Shift / N", "B", "Nitro"],
+  ["Nitro (hold, when fitted)", "Shift / N", "B", "Nitro key: tap on, tap off or burn the tank"],
   ["Reset", "R", "Y", "Reset"],
   ["Restart lap", "L / lap strip button", "", "Lap strip button"],
   ["Rewind (hold)", "Backspace", "X", "Rewind (hold)"],

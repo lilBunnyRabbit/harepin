@@ -52,6 +52,7 @@ export class Hud {
     shift: $("shift"),
     nitro: $("nitro"),
     nitro_fill: $("nitro-fill"),
+    nitro_key: $("nitro-key"),
     lap: $("lap"),
     best: $("best"),
     last: $("last"),
@@ -136,6 +137,8 @@ export class Hud {
     el.nitro_fill.style.width = `${car.nitro.level * 100}%`;
     el.nitro.toggleAttribute("data-boost", car.nitro.boosting);
     el.nitro.toggleAttribute("data-idle", car.gear < 2);
+    el.nitro_key.style.setProperty("--tank", String(car.nitro.level));
+    el.nitro_key.toggleAttribute("data-boost", car.nitro.boosting);
     el.lap.textContent = format(race.started ? now - race.started : null);
     el.best.textContent = format(race.best);
     el.last.textContent = format(race.last);

@@ -575,6 +575,7 @@ function frame(now: number) {
     input.rumble(scrub * 0.6 + (offroad ? Math.min(0.4, speed / 50) : 0), Math.min(1, spin * 2));
   }
 
+  if (input.touch.nitro && car.nitro.fill <= 0) input.touch.tank_empty();
   hud.update(car, now, rewinding);
   if (quality.adapt(dt)) quality.apply(renderer, scene, sun);
   fit();
