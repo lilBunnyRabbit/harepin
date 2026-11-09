@@ -7,6 +7,7 @@ import { seed_of } from "../rng";
 import { generate } from "./index";
 import { DECK_UNDER } from "./deck";
 import { gap_ramp, GAP_FAST, GAP_SLOW, LANDING_GRADE, LANDING_HALF, size_gap } from "./sky";
+import { GAP_V_MAX, GAP_V_MIN, gap_jump, type GapJump } from "./gap";
 import { apex, face_end, flight, GATE_CLEAR, GATE_RUNOUT, ramp_local, ramp_surface, ROAD_KICKER, RUN_DRIFT } from "./jumps";
 import { SPAWN_INDEX, type Ramp } from "./types";
 
@@ -149,6 +150,58 @@ describe("sky gap jump at 360 Hz", () => {
             expect(Math.abs(run.drift), where).toBeLessThan(LANDING_HALF - 1);
             expect(car.pos.y - ground.height(car.pos.x, car.pos.z, car.pos.y), where).toBeGreaterThan(0);
             expect(car.pos.y - ground.height(car.pos.x, car.pos.z, car.pos.y), where).toBeLessThan(1.5);
+            expect(run.upright, where).toBeGreaterThan(0.75);
+            expect(run.sink, where).toBeLessThan(0.05);
+            expect(run.yaw, where).toBeLessThan(0.35);
+            expect(Math.abs(run.heading), where).toBeLessThan(0.15);
+          }
+    });
+});
+
+const CANYON_FLOOR = -10;
+
+/** A canyon gap along +z: the kicker on the near rim at 0, the canyon floor under the gap, the deck on the far rim. */
+function ground_canyon(g: GapJump): Ground {
+  const lip = g.takeoff.length;
+  const start = lip + g.gap;
+  const tail = g.deck.y + g.deck.grade * g.deck.length;
+  const base = (z: number) => (z <= lip ? 0 : z < start ? CANYON_FLOOR : tail);
+  const top = (x: number, z: number) => {
+    let best: { y: number; gx: number; gz: number } = { y: base(z), gx: 0, gz: 0 };
+    for (const r of [g.takeoff, g.deck]) {
+      const s = ramp_surface(r, x, z);
+      if (s && s.y > best.y) best = s;
+    }
+    return best;
+  };
+  return {
+    height: (x, z) => top(x, z).y,
+    normal: (x, z, out) => {
+      const s = top(x, z);
+      return out.set(-s.gx, 1, -s.gz).normalize();
+    },
+    grip: () => 1,
+    roll: () => 1,
+  };
+}
+
+describe("canyon gap jump at 360 Hz", () => {
+  const g = gap_jump(0, 0, 0, 0, 0, 1);
+  const ground = ground_canyon(g);
+  const start = g.takeoff.length + g.gap;
+  test("the gap is a real one and the deck a long one", () => {
+    expect(g.gap).toBeGreaterThan(12);
+    expect(g.deck.length).toBeGreaterThan(60);
+  });
+  for (const [id, spec] of Object.entries(CARS))
+    test(`${id}: clears the gap and lands straight on the deck from ${GAP_V_MIN} to ${GAP_V_MAX} m/s`, () => {
+      for (const speed of [GAP_V_MIN, 26, 30, 35, 40, GAP_V_MAX])
+        for (const gas of [0, 1])
+          for (const slip of [0, 1.5]) {
+            const run = jump(g.takeoff, new Car(spec), speed, slip, gas, ground);
+            const where = `${speed} m/s (toe ${run.toe.toFixed(1)}), gas ${gas}, slip ${slip}`;
+            expect(run.touch, where).toBeGreaterThan(start);
+            expect(run.touch, where).toBeLessThan(start + g.deck.length);
             expect(run.upright, where).toBeGreaterThan(0.75);
             expect(run.sink, where).toBeLessThan(0.05);
             expect(run.yaw, where).toBeLessThan(0.35);

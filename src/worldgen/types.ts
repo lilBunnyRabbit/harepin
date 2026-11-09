@@ -288,7 +288,8 @@ export type Solid =
   | { kind: "circle"; x: number; y: number; z: number; radius: number; height: number }
   | { kind: "box"; x: number; y: number; z: number; hw: number; hd: number; cos: number; sin: number; height: number; bottom?: number };
 
-export const RampKind = { KICKER: "kicker", BIG: "big" } as const;
+/** LANDING is a planar deck with no lip: `rise` 0, falling at `grade` for `length` metres along (fx, fz). */
+export const RampKind = { KICKER: "kicker", BIG: "big", LANDING: "landing" } as const;
 export type RampKind = (typeof RampKind)[keyof typeof RampKind];
 
 /**

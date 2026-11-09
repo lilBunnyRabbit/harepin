@@ -71,6 +71,7 @@ export function ramp_world(r: Ramp, u: number, v: number): [number, number] {
 }
 
 export function ramp_extent(r: Ramp): { reach: number; from: number; to: number } {
+  if (r.kind === "landing") return { reach: r.hw + BURY / SIDE, from: 0, to: r.length };
   return { reach: r.hw + (r.rise + BURY) / SIDE, from: (-BURY * r.length) / r.rise, to: r.length + (r.rise + BURY) / (r.back ?? BACK) };
 }
 
