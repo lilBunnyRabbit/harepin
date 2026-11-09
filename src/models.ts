@@ -94,7 +94,7 @@ export function roadside(world: World): THREE.Object3D {
     new THREE.MeshLambertMaterial({ color: color(tones.post) }),
     count,
   );
-  const reflector = color(tones.head);
+  const reflector = color(tones.reflector);
   const caps = new THREE.InstancedMesh(
     new THREE.BoxGeometry(0.16, 0.16, 0.16).translate(0, 1.05, 0),
     new THREE.MeshLambertMaterial({ color: reflector, emissive: reflector, emissiveIntensity: 0.9 }),

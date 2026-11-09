@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { brand, color, dark, mix, tones } from "./palette";
+import { brand, color, dark, glow, mix, tones } from "./palette";
 import { FOG, SUN_DIR, sky_tones } from "./sky";
 import type { Lab } from "./theme";
 
@@ -83,7 +83,7 @@ export class Lighting {
   }
 
   mount(car_root: THREE.Object3D) {
-    const headlight = new THREE.SpotLight(color(tones.head), this.spec.head_intensity, this.spec.head_range, 0.42, 0.55, HEAD_DECAY);
+    const headlight = new THREE.SpotLight(glow(tones.head), this.spec.head_intensity, this.spec.head_range, 0.42, 0.55, HEAD_DECAY);
     headlight.position.set(0, 0.1, 2.0);
     headlight.target.position.set(0, -1.2, 14);
     car_root.add(headlight, headlight.target);
