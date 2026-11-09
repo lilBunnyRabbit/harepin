@@ -252,3 +252,72 @@ Sizes: S ≈ a day, M ≈ 2-4 days, L ≈ a week, for one coder.
 - Whether the slate-blue deck reads on every saved and generated theme. `random-theme.ts` can produce a theme where `info` sits close to the sky tones. Check by eye on 3 random themes and fall back to `tertiary` if needed.
 - The rail height (0.7 m visual, 1.2 m collision) from the chase camera.
 - Whether 22 m/s is the right slow end for the heaviest car on a sky gap (the same open question as `world.md`).
+
+## Phase 3: twisty tracks and rail glide
+
+Round 2, 2026-11-09, after phases 1-2 shipped. Owner feedback: "if i hit the wall i get stopped - this is not how hotwheels work you just slightly get slower but still glide with it", "the maps are plain and boring just one big circle - hotwheels maps have many turns and twists", "no real challenge". This round reworks how layouts are drawn and how a rail hit resolves. Medal lap times are a later round.
+
+### Why phase 2 reads as one big circle
+
+`draw_layout` draws 5-8 left turns that share exactly 2π, 0-2 small rights and at most one chicane, with 110-410 m of straight between turns. That is about 9 rad of heading change on 3-4 km, or 2.3 rad/km; a circle of the same length is 1.6 rad/km. The 44 m separation rule, applied at every height, also forbids any crossing, so the generator can only draw convex-ish rings.
+
+### Layout: a skeleton plus macros
+
+The lap is still a closed list of `straight` and `arc` pieces with eased curvature, and position still closes with the exact two-straight solve. What changes is what goes between the straights:
+
+| Macro | Shape | Net heading |
+|---|---|---|
+| **Sweeper** | one arc 40-120°, R 70-180 m, banked past 60° most of the time | its angle |
+| **Hairpin** | one arc 150-200°, R 26-40 m; half are banked 20-28° as a toy berm | its angle |
+| **S-bend** | arc ±45-90°, 10-40 m straight, arc ∓ the same, R 45-90 m | 0 |
+| **Esses** | 3-4 arcs alternating ±30-60°, R 50-90 m, 0-12 m between | small, kept |
+| **Chicane** | the phase 1 ±25-40° pair | 0 |
+| **Switchback** | hairpin, 60-140 m straight, hairpin the other way | 0 |
+| **Helix** | one arc of 360° + 45-180°, R 45-70 m, banked, on a constant grade | 2π + its extra |
+
+The skeleton is 3-6 sweepers or hairpins in one direction; macros go between them. The turning target is 2π for a ring (70%) or 0 for a figure-eight (30%), plus ±2π when the lap carries a helix. The last skeleton turn takes the remainder and must land in 20-200°, otherwise the draw is redone. A closed curve with turning number 0 must cross itself, so every figure-eight lap has at least one crossover; rings get them when a switchback or helix folds back over the track.
+
+At least one straight is drawn 260-400 m long, so every lap still has room for a gap jump (`JUMP_BEFORE` 70 + span 125 + `JUMP_AFTER` 50). No loops: nothing leaves the heightfield contract (`Ground.height` is still a function of x and z per deck).
+
+### Crossovers with real clearance
+
+The 44 m rule changes meaning: two sections that aren't neighbours (more than 120 m apart along the lap) and come within 44 m of each other in xz must be at least `CLEARANCE` 10 m apart in y over that whole stretch. Same-level sections still keep 44 m, so gates, `GATE_RADIUS` and the deck lookup work as before.
+
+- **Zones.** After the xz layout, every such close pair is grouped into a zone: the later pass's s-range and the earlier pass's s-range. A zone longer than 160 m (a shallow overlap rather than a crossing), more than 4 zones, a zone touching the start straights, or a zone overlapping a jump span rerolls the layout.
+- **Profile, built in lap order.** The grade profile is still drawn front to back as rises and drops between fixed events (gap jumps, helix). A zone is a new event: when the cursor reaches the later pass, the earlier pass's heights there are already known, so the generator picks over (earlier max + 11 m) or under (earlier min − 11 m), whichever is reachable within the grade limits and the 140-400 m height band, solves one rise or drop that lands on that height before the zone, and holds it flat through the zone. If neither fits, the profile is redrawn, then the layout.
+- **Helix.** The helix arc is one constant grade `g` with `|g| · 2πR ≥ CLEARANCE + 3`, ramped in on the straight before and out on the straight after. Its own coil overlap is covered by that grade; the final clearance check still verifies it.
+- **What a zone keeps clear of:** checkpoints (and gate posts, which are circle solids with no underside), the start straights, open sections (the rails stay on both levels) and gap jumps.
+- **Deck lookup.** `DeckIndex` marks the grid cells around every stacked pair at build time. Outside them nothing changes: the walk plus the grid fallback. In a marked cell `surface(x, z, y)` checks every section near the point and answers the highest deck the query is above the underside of; with no `y`, the highest. `Ground.normal` gains the same optional `y`, so a car under a crossover tilts with its own deck. Fall detection moves from the nearest road point to `World.fallen(pos)`, which compares against the lowest deck near the car. Camera floor, skid marks and the contact shadow pass their own y.
+
+### Twistiness: the acceptance check
+
+A pure `twistiness(samples)` in `worldgen/sky.ts`, run on every accepted layout and in `sky.test.ts`:
+
+| Measure | Definition | Accept |
+|---|---|---|
+| **Turn density** | total absolute heading change over the lap, per km | ≥ 4.5 rad/km (a circle of the same length is 1.6) |
+| **Corners** | runs where \|curvature\| ≥ 1/300 m⁻¹ that turn at least 20°; a sign change starts a new corner | ≥ 12 |
+| **Constant stretch** | longest run whose curvature stays within ±0.002 m⁻¹ of its start, straights included, as a share of the lap | ≤ 14% |
+| **Roundness** | 4π·\|area\| / length², 1 for a circle | ≤ 0.45 |
+
+A layout that misses any of them is rerolled like any other reject. The thresholds are set from a 200-seed run of the new generator, with the old one as the reference that must fail them.
+
+### Rail glide
+
+Today a rail hit is the island wall response: an impulse with restitution 1.25 at the contact circle, `vel × 0.9`, and a yaw kick from the arm. On a toy track that bounces the car off and spins it.
+
+On a sky world a box solid is always a rail, so `World.resolve` branches on `kind === "sky"` for boxes; the island keeps its walls as they are. The glide:
+
+1. Push the car out of the rail as before.
+2. Drop the velocity component into the rail, and send the rest along the rail tangent in the direction the car was travelling (the heading decides when the hit is near head-on).
+3. Keep `1 − GLIDE_LOSS · sin θ` of the planar speed, θ the angle into the rail, `GLIDE_LOSS` 0.12: a head-on hit keeps 88%, 45° keeps 91.5%, a 10° graze keeps 98%. Never a dead stop.
+4. Ease the yaw rate toward turning the nose onto the rail direction; no impulse yaw, so no spin back.
+5. Return the into-rail speed as the impact, as before, for sounds, shake and the `sky-seeds.ts` crash count.
+
+Deterministic, a few multiplies per contact, no new state.
+
+### Changes and checks
+
+- `SKY_VERSION` 2 → 3: every sky seed is a new track, so sky records, ghosts and the net map id reset. Island output is untouched (`world_key` and `world_id` for island byte-identical).
+- Internal API: `Ground.normal(x, z, out, y?)`, `World.fallen(pos)`. No schema, net or storage format change beyond the version.
+- `scripts/sky-seeds.ts` 20/20 on all 8 cars, gap toes inside 22-40 m/s, each seed passing `twistiness`; `bun test` for the metric and for glide speed retention; World screen previews of 3 seeds and one in-game shot.
