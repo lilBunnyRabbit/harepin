@@ -137,6 +137,8 @@ export class World implements Ground {
   private readonly road_grid = new Map<number, number[]>();
   /** Every edge's points, packed as edge * LANE_PACK + point index. */
   private readonly lane_grid = new Map<number, number[]>();
+  /** Solids a mode puts down for a while; few enough to check every one, so they stay out of the grid. */
+  private placed: readonly Solid[] = [];
   private readonly seen: Uint32Array;
   private query = 0;
 
@@ -228,6 +230,14 @@ export class World implements Ground {
     return { x: p.x, y: this.height(p.x, p.z), z: p.z, heading };
   }
 
+  /** Returns the function that takes them away again. */
+  place(solids: readonly Solid[]): () => void {
+    this.placed = [...this.placed, ...solids];
+    return () => {
+      this.placed = this.placed.filter((solid) => !solids.includes(solid));
+    };
+  }
+
   collide(car: Collider): number;
   /** Positional form for callers not yet passing the car; collides as a COUPE. */
   collide(pos: Vector3, vel: Vector3, ang: Vector3, heading: number): number;
@@ -257,14 +267,19 @@ export class World implements Ground {
           for (const index of list) {
             if (this.seen[index] === stamp) continue;
             this.seen[index] = stamp;
-            const solid = this.solids[index];
-            if (pos.y > solid.y + solid.height) continue;
-            const contact = circle_contact(solid, pos.x + fx * offset, pos.z + fz * offset, spec.radius, -fx * Math.sign(offset || 1), -fz * Math.sign(offset || 1));
-            if (contact) impact = Math.max(impact, this.resolve(car, contact, fx * offset, fz * offset));
+            impact = Math.max(impact, this.hit(car, this.solids[index], offset, fx, fz));
           }
         }
+      for (const solid of this.placed) impact = Math.max(impact, this.hit(car, solid, offset, fx, fz));
     }
     return impact;
+  }
+
+  private hit(car: Collider, solid: Solid, offset: number, fx: number, fz: number): number {
+    const { pos, spec } = car;
+    if (pos.y > solid.y + solid.height) return 0;
+    const contact = circle_contact(solid, pos.x + fx * offset, pos.z + fz * offset, spec.radius, -fx * Math.sign(offset || 1), -fz * Math.sign(offset || 1));
+    return contact ? this.resolve(car, contact, fx * offset, fz * offset) : 0;
   }
 
   private resolve(car: Collider, { nx, nz, depth }: Contact, rx: number, rz: number): number {

@@ -327,7 +327,8 @@ select {
   flex-shrink: 0;
 }
 
-#gym-levels {
+#gym-levels,
+#park-levels {
   display: grid;
   gap: var(--space-1);
   margin: 0;
@@ -335,17 +336,20 @@ select {
   list-style: none;
 }
 
-#gym-levels button {
+#gym-levels button,
+#park-levels button {
   justify-content: space-between;
   width: 100%;
   font-weight: 400;
 }
 
-#gym-levels button > span:first-child {
+#gym-levels button > span:first-child,
+#park-levels button > span:first-child {
   font-weight: 600;
 }
 
-#gym-levels button:disabled {
+#gym-levels button:disabled,
+#park-levels button:disabled {
   opacity: 0.5;
   cursor: default;
 }
@@ -988,6 +992,10 @@ body:has(#mode-result:not([hidden])) #mode-status {
 #mode-result button {
   background: var(--panel-raised);
   border-color: var(--line);
+}
+
+#mode-result button[hidden] {
+  display: none;
 }
 
 #touch,

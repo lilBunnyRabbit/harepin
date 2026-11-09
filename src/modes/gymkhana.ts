@@ -142,8 +142,7 @@ function site_score(ground: Ground, site: Site, area: ReturnType<typeof footprin
 }
 
 /** The flattest clear patch beside the road near `start`, laid out parallel to it; null when nothing nearby is clear. */
-export function find_site(ground: Ground, start: number): Site | null {
-  const area = footprint();
+export function find_site(ground: Ground, start: number, area = footprint()): Site | null {
   const reach = Math.hypot(area.u1 - area.u0, area.v1 - area.v0) + Math.max(...SEARCH_OFFSETS);
   const from = ground.road[(start + ground.road.length) % ground.road.length];
   const span = SEARCH_POINTS * SEARCH_STRIDE * 6 + reach;

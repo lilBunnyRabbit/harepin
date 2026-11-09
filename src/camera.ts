@@ -25,6 +25,9 @@ const RECENTER_SECONDS = 0.25;
 const ORBITED_YAW = 12 * DEG;
 const ORBITED_PITCH = 8 * DEG;
 const ORBITED_ZOOM = 0.15;
+const TOP_BACK = 9;
+const TOP_RISE = 15;
+const TOP_LEAD = 5;
 
 /** The car as drawn this frame: interpolated between physics steps, so the camera never follows the step rhythm. */
 export interface CarPose {
@@ -40,6 +43,8 @@ const heading_of = (quat: THREE.Quaternion, out: THREE.Vector3) => {
 
 export class ChaseCamera {
   mode = 0;
+  /** High view over the car for parking; overrides `mode` while set. */
+  top = false;
   private yaw = 0;
   private height = 0;
   private pull = 0;
@@ -85,7 +90,7 @@ export class ChaseCamera {
 
   /** Whether the chase view is looked away from straight behind the car, by orbit or zoom. */
   get orbited(): boolean {
-    return this.mode === 0 && (Math.abs(this.orbit_yaw) > ORBITED_YAW || Math.abs(this.orbit_pitch) > ORBITED_PITCH || Math.abs(Math.log(this.zoom)) > ORBITED_ZOOM);
+    return (this.mode === 0 || this.top) && (Math.abs(this.orbit_yaw) > ORBITED_YAW || Math.abs(this.orbit_pitch) > ORBITED_PITCH || Math.abs(Math.log(this.zoom)) > ORBITED_ZOOM);
   }
 
   recenter() {
@@ -155,7 +160,7 @@ export class ChaseCamera {
     this.shake = Math.max(0, this.shake - dt * 2.5);
     const rumble = (offroad ? Math.min(1, speed / 20) * 0.008 : 0) + Math.max(0, speed - 50) * 0.0004 + this.shake * 0.2;
 
-    if (this.mode === 1) {
+    if (this.mode === 1 && !this.top) {
       camera.position.copy(new THREE.Vector3(0, 0.78, 0.9).applyQuaternion(car.quat).add(car.pos));
       camera.up.set(0, 1, 0).applyQuaternion(car.quat);
       camera.lookAt(this.look.copy(camera.position).addScaledVector(this.fwd, 10));
@@ -164,13 +169,14 @@ export class ChaseCamera {
       this.local.copy(car.vel).applyQuaternion(this.inverse.copy(car.quat).invert());
       // Lead the yaw toward the direction of travel in a slide, so a drift shows the car's angle instead of hiding it.
       const slide = speed > 6 && this.local.z > 0 ? Math.max(-0.6, Math.min(0.6, Math.atan2(this.local.x, this.local.z))) : 0;
-      const reversing = this.local.z < -2;
+      // Up high the view stays nose-up when reversing, so the bay does not swing round under a parking car.
+      const reversing = !this.top && this.local.z < -2;
       const desired = (reversing ? heading + Math.PI : heading) + slide * 0.55;
       this.yaw += angle_diff(desired, this.yaw) * Math.min(1, dt * 5);
       this.height += (car.pos.y - this.height) * Math.min(1, dt * 6);
       this.pull += (Math.max(-1, Math.min(1, accel / 9)) - this.pull) * Math.min(1, dt * 3);
-      const back = 6.2 + speed * 0.022 + this.pull * 0.7;
-      const rise = 2.15 + speed * 0.006 - PIVOT_RISE;
+      const back = this.top ? TOP_BACK : 6.2 + speed * 0.022 + this.pull * 0.7;
+      const rise = this.top ? TOP_RISE : 2.15 + speed * 0.006 - PIVOT_RISE;
       const base_pitch = Math.atan2(rise, back);
       this.orbit(dt, look, speed, base_pitch);
       const reach = Math.hypot(back, rise);
@@ -193,7 +199,8 @@ export class ChaseCamera {
       camera.position.y = Math.max(camera.position.y, this.orbit_floor);
       camera.up.set(0, 1, 0);
       const yaw = this.yaw + this.orbit_yaw;
-      this.look.set(car.pos.x + Math.sin(yaw) * LOOK_LEAD, pivot_y, car.pos.z + Math.cos(yaw) * LOOK_LEAD);
+      const lead = this.top ? TOP_LEAD : LOOK_LEAD;
+      this.look.set(car.pos.x + Math.sin(yaw) * lead, pivot_y, car.pos.z + Math.cos(yaw) * lead);
       camera.lookAt(this.look);
     }
     if (rumble > 0) {

@@ -371,7 +371,10 @@ function frame(now: number) {
     }
     const state = settings.state;
     if (action === "recenter") chase.recenter();
-    if (action === "camera") settings.set("camera", state.camera === CameraView.CHASE ? CameraView.COCKPIT : CameraView.CHASE);
+    if (action === "camera") {
+      if (modes.parking) modes.toggle_view();
+      else settings.set("camera", state.camera === CameraView.CHASE ? CameraView.COCKPIT : CameraView.CHASE);
+    }
     if (action === "shift_up" || action === "shift_down") {
       if (state.auto) hud.toast("Manual gearbox");
       settings.set("auto", false);
@@ -444,7 +447,8 @@ function frame(now: number) {
   sync_car_view(view, car);
   view.root.position.copy(drawn.pos);
   view.root.quaternion.copy(drawn.quat);
-  view.heads.visible = chase.mode !== 1;
+  chase.top = modes.high_view;
+  view.heads.visible = chase.mode !== 1 || chase.top;
   place_contact_shadow(car_shadow, drawn.pos.x, drawn.pos.y, drawn.pos.z, car.heading, world);
   const offroad = world.grip(car.pos.x, car.pos.z) < 1;
   chase.update(dt, drawn, world, offroad, now / 1000, input.look);

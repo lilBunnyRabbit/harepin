@@ -31,7 +31,7 @@ function sphere_of([x, y, z, r]: Sphere): THREE.Sphere {
   return new THREE.Sphere(new THREE.Vector3(x, y, z), r);
 }
 
-interface ParkedCar {
+export interface ParkedCar {
   x: number;
   y: number;
   z: number;
@@ -50,7 +50,7 @@ function parked_car_list(world: World): ParkedCar[] {
     });
 }
 
-function parked_car_geometry(): THREE.BufferGeometry {
+export function parked_car_geometry(): THREE.BufferGeometry {
   const shape = new Builder();
   const white: Rgb = [1, 1, 1];
   shape.walls(0.95, 2.25, 0.25, 0.95, white);
@@ -60,7 +60,7 @@ function parked_car_geometry(): THREE.BufferGeometry {
   return geometry(shape);
 }
 
-function parked_cars(cars: ParkedCar[], shape: THREE.BufferGeometry, material: THREE.Material): THREE.InstancedMesh {
+export function parked_cars(cars: ParkedCar[], shape: THREE.BufferGeometry, material: THREE.Material): THREE.InstancedMesh {
   const mesh = new THREE.InstancedMesh(shape, material, Math.max(1, cars.length));
   mesh.count = cars.length;
   const m = new THREE.Matrix4();
