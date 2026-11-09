@@ -18,17 +18,27 @@ export interface Release {
   changes: Change[];
 }
 
-const { NEW, IMPROVED } = ChangeKind;
+const { NEW, IMPROVED, FIXED } = ChangeKind;
 
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
     version: "0.4.0",
     date: "2026-11-09",
-    title: "Decals",
+    title: "Jumps, parking and personality",
     changes: [
+      { kind: NEW, text: "Parking: eight levels from a wide bay to a tight reverse-in garage, with a high camera and up to three stars." },
+      { kind: NEW, text: "Drift zones, gate hunt and ghost duel: three new modes with five levels each." },
+      { kind: NEW, text: "Jumps across the island, some with a wall, hoop or bar to fly through. Miss and you bonk." },
+      { kind: NEW, text: "Cones, barrels and hay bales to knock over, plus rocks and barriers that don't move." },
       { kind: NEW, text: "Decals in the garage: stripes, a number roundel, flames, a slash, a checker band and a rabbit, in any paint colour. Other players see yours." },
-      { kind: NEW, text: "Pick your roundel number, 0 to 99." },
+      { kind: NEW, text: "Pick a name the first time you play. Change it any time in Settings, Lobby." },
+      { kind: IMPROVED, text: "Every car has its own body, handling and engine sound: a nimble hatch, a heavy V8 muscle car, a turbo rally car, a V6 Kaze and a straight-six coupe." },
+      { kind: IMPROVED, text: "Stronger brakes on every car." },
+      { kind: IMPROVED, text: "On touch screens, drag on empty screen to look around and double-tap to recenter." },
+      { kind: FIXED, text: "Cars no longer roll away or creep when stopped, even on steep slopes." },
+      { kind: FIXED, text: "Cars no longer spin out flat out on grass." },
+      { kind: FIXED, text: "Roads no longer fold over themselves at sharp corners." },
     ],
   },
   {
