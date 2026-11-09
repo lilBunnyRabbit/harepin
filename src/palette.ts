@@ -31,6 +31,15 @@ export function color(lab: Lab): Color {
   return new Color().setRGB(r, g, b);
 }
 
+/**
+ * `color(lab)` scaled to `luma` (the bloom high-pass weights), so a lamp's emissive lands at the same brightness against
+ * the bloom threshold in every theme.
+ */
+export function glow(lab: Lab, luma = 1): Color {
+  const c = color(lab);
+  return c.multiplyScalar(luma / Math.max(0.01, 0.299 * c.r + 0.587 * c.g + 0.114 * c.b));
+}
+
 export function rgba(lab: Lab, alpha = 1): string {
   const encode = (c: number) => Math.round(255 * (c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055));
   const [r, g, b] = linear(lab).map(encode);

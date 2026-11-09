@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { car_paints, color, dark, tones } from "./palette";
+import { car_paints, color, dark, glow, tones } from "./palette";
 import type { World } from "./world";
 import { chunk_of, type ChunkBuffers, type Soup } from "./worldgen/chunks";
 import { Builder, type Rgb, type Sphere } from "./worldgen/mesh";
@@ -85,7 +85,7 @@ function light_parts(): [THREE.BufferGeometry, THREE.Material][] {
   const head = new THREE.BoxGeometry(0.3, 0.12, 0.5).translate(0, 5.82, 1.3);
   return [
     [mergeGeometries([pole, arm]), new THREE.MeshLambertMaterial({ color: color(tones.post), flatShading: true })],
-    [head, new THREE.MeshLambertMaterial({ color: color(tones.head), emissive: color(tones.head), emissiveIntensity: 0.6 })],
+    [head, new THREE.MeshLambertMaterial({ color: color(tones.head), emissive: glow(tones.head), emissiveIntensity: 1.2 })],
   ];
 }
 

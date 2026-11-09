@@ -4,10 +4,13 @@ import { rest_reach, type Car } from "./car";
 import { DECALS, build_spec, type Build, type Level } from "./build";
 import { COUPE, type BodyStyle, type CarSpec, type Triple } from "./cars";
 import { livery_parts, roof, type Livery, type Panel } from "./livery";
-import { NEUTRAL_INKS, brand, car_paints, color, dark, decal_inks, mix, tones } from "./palette";
+import { NEUTRAL_INKS, brand, car_paints, color, dark, decal_inks, glow, mix, tones } from "./palette";
 import type { Lab } from "./theme";
 import { ribbon } from "./scene";
 import { ROAD_HALF, World } from "./world";
+
+// Brake emissive runs 0.5 at rest and 2.2 braking (`sync_car_view`, remotes): only the braking glow clears bloom.
+const BRAKE_GLOW = 0.5;
 
 export interface Gate {
   group: THREE.Group;
@@ -564,10 +567,8 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, spoiler: Lev
   const hull = new THREE.Mesh(shell, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
   hull.castShadow = true;
 
-  const head = color(tones.head);
-  const head_material = new THREE.MeshLambertMaterial({ color: head, emissive: head, emissiveIntensity: 1.2 });
-  const lamp = color(brand.error);
-  const brake = new THREE.MeshLambertMaterial({ color: lamp, emissive: lamp, emissiveIntensity: 0.5 });
+  const head_material = new THREE.MeshLambertMaterial({ color: color(tones.head), emissive: glow(tones.head), emissiveIntensity: 1.2 });
+  const brake = new THREE.MeshLambertMaterial({ color: color(brand.error), emissive: glow(brand.error, BRAKE_GLOW), emissiveIntensity: 0.5 });
   const head_mesh = new THREE.Mesh(merge(parts(d.heads)), head_material);
   body.add(hull, head_mesh, new THREE.Mesh(merge(parts(d.tails)), brake));
   root.add(body);

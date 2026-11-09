@@ -19,6 +19,10 @@ interface MoodSpec {
   bloom_threshold: number;
 }
 
+// Near-flat falloff: an inverse-power light at the bumper outshines the sun by 10x on anything a few metres ahead and
+// clips it white with no tone mapping; the range cutoff and grazing angle on the road give the far fade instead.
+const HEAD_DECAY = 0.3;
+
 const DUSK: MoodSpec = {
   sun_y: 0.26,
   key: sky_tones.sunlight,
@@ -27,8 +31,8 @@ const DUSK: MoodSpec = {
   hemi_ground: brand.background_darkest,
   hemi_intensity: 1.3,
   fog_near: 120,
-  head_intensity: 140,
-  head_range: 90,
+  head_intensity: 5,
+  head_range: 70,
   cloud_glow: 0.35,
   bloom: 0.6,
   bloom_threshold: 0.9,
@@ -42,8 +46,8 @@ const DAY: MoodSpec = {
   hemi_ground: mix(brand.foreground, brand.background_darkest, 0.4),
   hemi_intensity: 1.1,
   fog_near: 150,
-  head_intensity: 30,
-  head_range: 90,
+  head_intensity: 1.5,
+  head_range: 70,
   cloud_glow: 0.55,
   bloom: 0.2,
   bloom_threshold: 0.98,
@@ -79,7 +83,7 @@ export class Lighting {
   }
 
   mount(car_root: THREE.Object3D) {
-    const headlight = new THREE.SpotLight(color(tones.head), this.spec.head_intensity, this.spec.head_range, 0.42, 0.55, 1.4);
+    const headlight = new THREE.SpotLight(color(tones.head), this.spec.head_intensity, this.spec.head_range, 0.42, 0.55, HEAD_DECAY);
     headlight.position.set(0, 0.1, 2.0);
     headlight.target.position.set(0, -1.2, 14);
     car_root.add(headlight, headlight.target);
