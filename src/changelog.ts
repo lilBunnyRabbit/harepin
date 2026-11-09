@@ -41,6 +41,7 @@ export const CHANGELOG: Release[] = [
       { kind: IMPROVED, text: "The muscle car grips better and every car stops shorter." },
       { kind: IMPROVED, text: "The coupe has a rounder nose and a fastback roof." },
       { kind: IMPROVED, text: "Pinch to zoom the camera on phones. On desktop the garage, settings, chat and modes buttons sit at the bottom left." },
+      { kind: FIXED, text: "Cars pull out of tight uphill hairpins at full lock instead of bogging down." },
       { kind: FIXED, text: "Skid marks show on the road again." },
       { kind: FIXED, text: "A car in neutral no longer rolls on flat ground, and cars no longer look sunk into the road." },
       { kind: FIXED, text: "Long room names no longer push into the lap strip." },
