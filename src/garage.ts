@@ -56,8 +56,8 @@ const ZOOM_MAX = 2.6;
 const DRAG_YAW = 0.01;
 const DRAG_PITCH = 0.006;
 const WHEEL_ZOOM = 0.0015;
-/** Camera distance over the tightest fit, so a slot's point can pull the car off centre without it leaving the clear area. */
-const FIT_SLACK = 1.06;
+/** Camera distance over the tightest fit: room around the car so it reads as a car on a stand, not a crop, and so a slot's point can pull it off centre without it leaving the clear area. */
+const FIT_SLACK = 1.8;
 const EASE_MS = 600;
 const COUNT_MS = 450;
 /** Breathing room between the car and the panels around it, CSS px. */
