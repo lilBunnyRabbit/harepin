@@ -148,6 +148,7 @@ function apply_car_settings(state: SettingsState) {
 function apply_settings(state: SettingsState) {
   apply_car_settings(state);
   chase.mode = state.camera === CameraView.COCKPIT ? 1 : 0;
+  audio.set_view(state.camera === CameraView.COCKPIT);
   chase.return_delay = CAMERA_RETURN_SECONDS[state.camera_return];
   chase.invert_y = state.invert_y;
   ghost.visible = state.ghost;

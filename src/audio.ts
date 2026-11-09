@@ -1,4 +1,5 @@
 import type { EngineSound } from "./cars";
+import engine_worklet from "./engine.worklet.ts?worker&url";
 
 export interface SoundFrame {
   rpm: number;
@@ -25,16 +26,13 @@ function looped(ctx: AudioContext, buffer: AudioBuffer): AudioBufferSourceNode {
   return source;
 }
 
-function drive_curve(amount: number): Float32Array<ArrayBuffer> {
-  const curve = new Float32Array(1024);
-  for (let i = 0; i < curve.length; i++) {
-    const x = (i / (curve.length - 1)) * 2 - 1;
-    curve[i] = Math.tanh(x * amount) / Math.tanh(amount);
-  }
-  return curve;
-}
-
 const MASTER_GAIN = 0.55;
+const ENGINE_GAIN = 0.6;
+// Intake sits ahead of the cabin and the exhaust behind it: the near one is louder and brighter, the far one dull.
+const VIEW_MIX = {
+  chase: { intake: [0.45, 2500], exhaust: [1, 14000] },
+  hood: { intake: [1, 9000], exhaust: [0.55, 1800] },
+} as const;
 
 export class Audio {
   private volume = 1;
@@ -42,17 +40,10 @@ export class Audio {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
   private noise: AudioBuffer | null = null;
-  private oscillators: OscillatorNode[] = [];
-  private mix: GainNode[] = [];
-  private shaper: WaveShaperNode | null = null;
-  private whistle: OscillatorNode | null = null;
-  private whistle_gain: GainNode | null = null;
+  private engine: AudioWorkletNode | null = null;
+  private layers: { gain: GainNode; tone: BiquadFilterNode }[] = [];
   private sound: EngineSound | null = null;
-  private boost = 0;
-  private body: BiquadFilterNode | null = null;
-  private engine: GainNode | null = null;
-  private intake: GainNode | null = null;
-  private intake_filter: BiquadFilterNode | null = null;
+  private cockpit = false;
   private squeal: GainNode | null = null;
   private squeal_filter: BiquadFilterNode | null = null;
   private wind: GainNode | null = null;
@@ -75,6 +66,25 @@ export class Audio {
     this.master?.gain.setTargetAtTime(this.gain(), this.master.context.currentTime, 0.02);
   }
 
+  /** Hood view puts the listener at the intake, chase view behind the exhaust. */
+  set_view(cockpit: boolean) {
+    this.cockpit = cockpit;
+    this.mix_layers();
+  }
+
+  private mix_layers() {
+    const { ctx } = this;
+    if (!ctx || this.layers.length < 2) return;
+    const view = this.cockpit ? VIEW_MIX.hood : VIEW_MIX.chase;
+    for (const [layer, [level, cutoff]] of [
+      [this.layers[0], view.intake],
+      [this.layers[1], view.exhaust],
+    ] as const) {
+      layer.gain.gain.setTargetAtTime(level * ENGINE_GAIN, ctx.currentTime, 0.1);
+      layer.tone.frequency.setTargetAtTime(cutoff, ctx.currentTime, 0.1);
+    }
+  }
+
   start() {
     if (this.ctx) return;
     const ctx = new AudioContext();
@@ -86,37 +96,10 @@ export class Audio {
     master.connect(limiter).connect(ctx.destination);
     this.master = master;
 
-    const shaper = ctx.createWaveShaper();
-    this.shaper = shaper;
-    this.body = ctx.createBiquadFilter();
-    this.body.type = "lowpass";
-    this.body.Q.value = 2;
-    this.engine = ctx.createGain();
-    this.engine.gain.value = 0;
-    shaper.connect(this.body).connect(this.engine).connect(master);
-    for (const type of ["sawtooth", "square", "sawtooth", "triangle"] as const) {
-      const osc = ctx.createOscillator();
-      osc.type = type;
-      const g = ctx.createGain();
-      osc.connect(g).connect(shaper);
-      osc.start();
-      this.oscillators.push(osc);
-      this.mix.push(g);
-    }
-
-    this.whistle = ctx.createOscillator();
-    this.whistle.type = "sine";
-    this.whistle_gain = ctx.createGain();
-    this.whistle_gain.gain.value = 0;
-    this.whistle.connect(this.whistle_gain).connect(master);
-    this.whistle.start();
-
-    this.intake_filter = ctx.createBiquadFilter();
-    this.intake_filter.type = "bandpass";
-    this.intake_filter.Q.value = 1.2;
-    this.intake = ctx.createGain();
-    this.intake.gain.value = 0;
-    looped(ctx, this.noise).connect(this.intake_filter).connect(this.intake).connect(master);
+    ctx.audioWorklet
+      .addModule(engine_worklet)
+      .then(() => this.build_engine(ctx, master))
+      .catch((error: unknown) => console.warn("engine sound unavailable", error));
 
     this.squeal_filter = ctx.createBiquadFilter();
     this.squeal_filter.type = "bandpass";
@@ -140,34 +123,39 @@ export class Audio {
     looped(ctx, this.noise).connect(rumble).connect(this.gravel).connect(master);
   }
 
+  private build_engine(ctx: AudioContext, master: GainNode) {
+    const engine = new AudioWorkletNode(ctx, "engine", { numberOfInputs: 0, outputChannelCount: [2] });
+    const split = ctx.createChannelSplitter(2);
+    engine.connect(split);
+    this.layers = [0, 1].map((channel) => {
+      const tone = ctx.createBiquadFilter();
+      tone.type = "lowpass";
+      const gain = ctx.createGain();
+      gain.gain.value = 0;
+      split.connect(tone, channel).connect(gain).connect(master);
+      return { gain, tone };
+    });
+    this.engine = engine;
+    this.sound = null;
+    this.mix_layers();
+  }
+
   update(frame: SoundFrame) {
     const { ctx } = this;
-    if (!ctx || !this.shaper || !this.whistle || !this.whistle_gain || !this.body || !this.engine || !this.intake || !this.intake_filter || !this.squeal || !this.squeal_filter || !this.wind || !this.wind_filter || !this.gravel) return;
+    if (!ctx || !this.squeal || !this.squeal_filter || !this.wind || !this.wind_filter || !this.gravel) return;
     const t = ctx.currentTime;
     const { rpm, throttle, scrub, speed, offroad, sound, redline } = frame;
-    if (sound !== this.sound) {
-      this.sound = sound;
-      this.shaper.curve = drive_curve(sound.drive);
-      sound.mix.forEach((level, i) => this.mix[i].gain.setValueAtTime(level, t));
+    const { engine } = this;
+    if (engine) {
+      if (sound !== this.sound) {
+        this.sound = sound;
+        engine.port.postMessage(sound);
+      }
+      const params = engine.parameters;
+      params.get("rpm")?.setTargetAtTime(rpm, t, 0.012);
+      params.get("throttle")?.setTargetAtTime(throttle, t, 0.02);
+      params.get("limit")?.setValueAtTime(rpm > redline - 150 && throttle > 0.5 ? 1 : 0, t);
     }
-    const firing = (rpm / 60) * (sound.cylinders / 2);
-    const [a, b, c, d] = this.oscillators;
-    a.frequency.setTargetAtTime(firing, t, 0.015);
-    b.frequency.setTargetAtTime(firing / 2, t, 0.015);
-    c.frequency.setTargetAtTime(firing * 1.5, t, 0.015);
-    d.frequency.setTargetAtTime(firing / 4, t, 0.015);
-    const load = Math.max(throttle, 0.15);
-    this.body.frequency.setTargetAtTime((220 + load * 2400 + rpm * 0.18) * sound.bright, t, 0.04);
-    const limiter = rpm > redline - 150 && throttle > 0.5 ? 0.55 + Math.random() * 0.45 : 1;
-    const lope = 1 - sound.lope * Math.random() * Math.max(0, 1 - rpm / 3500);
-    this.engine.gain.setTargetAtTime((0.05 + load * 0.11) * limiter * lope, t, 0.03);
-    this.intake_filter.frequency.setTargetAtTime(400 + rpm * 0.35, t, 0.05);
-    this.intake.gain.setTargetAtTime(throttle * (rpm / redline) * 0.12 * sound.rasp, t, 0.05);
-    const boost = throttle * Math.min(1, rpm / redline) ** 2;
-    if (sound.turbo > 0 && this.boost > 0.4 && boost < 0.1) this.blip(sound.turbo * 1.5, 3800);
-    this.boost = boost;
-    this.whistle.frequency.setTargetAtTime(1800 + boost * 4200, t, 0.35);
-    this.whistle_gain.gain.setTargetAtTime(sound.turbo * boost, t, 0.35);
     this.squeal_filter.frequency.setTargetAtTime(950 + scrub * 450, t, 0.05);
     this.squeal.gain.setTargetAtTime(scrub * 0.5, t, 0.04);
     this.wind_filter.frequency.setTargetAtTime(300 + speed * 18, t, 0.1);
@@ -177,14 +165,14 @@ export class Audio {
     this.last_rpm = rpm;
   }
 
-  private blip(level: number, frequency = 2200) {
+  private blip(level: number) {
     const { ctx, master, noise } = this;
     if (!ctx || !master || !noise) return;
     const source = ctx.createBufferSource();
     source.buffer = noise;
     const filter = ctx.createBiquadFilter();
     filter.type = "bandpass";
-    filter.frequency.value = frequency;
+    filter.frequency.value = 2200;
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(level, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.08);

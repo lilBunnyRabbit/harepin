@@ -5,13 +5,22 @@ export type Triple = [number, number, number];
 /** Engine voice; the limiter cuts in just under `redline`. */
 export interface EngineSound {
   cylinders: number;
-  /** Oscillator levels at 1, 1/2, 3/2 and 1/4 of the firing frequency. */
-  mix: [number, number, number, number];
+  /** Pulse level per cylinder in firing order; uneven levels make the lope (a crossplane V8's burble). */
+  pulses: number[];
+  /** Random per-firing level spread, 0..1; strongest near idle. */
+  jitter: number;
+  /** Combustion pulse decay; shorter is brighter and harder. */
+  pulse_ms: number;
+  /** Exhaust resonances, Hz; they rise with rpm and load by `shift`. */
+  formants: [number, number, number];
+  shift: number;
+  /** Muffler low-pass cutoff closed and wide open, Hz. */
+  muffler: [number, number];
   drive: number;
-  bright: number;
   rasp: number;
-  /** Uneven-firing wobble on the engine level, 0..1, strongest near idle. */
-  lope: number;
+  intake: number;
+  /** Overrun pops and burble, 0..1. */
+  crackle: number;
   turbo: number;
 }
 
@@ -141,7 +150,7 @@ export const COUPE: CarSpec = {
   radius: 1.05,
   corners: corners(0.95, -0.3, 0.72, 2.25),
   body: { length: 4.66, width: 1.9, height: 1.2, style: "coupe" },
-  sound: { cylinders: 4, mix: [0.45, 0.3, 0.18, 0.35], drive: 2.5, bright: 1, rasp: 1, lope: 0, turbo: 0 },
+  sound: { cylinders: 6, pulses: [1, 0.97, 1, 0.98, 1, 0.96], jitter: 0.05, pulse_ms: 1.1, formants: [170, 540, 1500], shift: 0.3, muffler: [900, 3400], drive: 1.8, rasp: 0.35, intake: 0.6, crackle: 0.25, turbo: 0 },
 };
 
 export const HATCH: CarSpec = {
@@ -188,7 +197,7 @@ export const HATCH: CarSpec = {
   radius: 0.95,
   corners: corners(0.85, -0.3, 0.75, 1.95),
   body: { length: 3.9, width: 1.72, height: 1.3, style: "hatch" },
-  sound: { cylinders: 4, mix: [0.5, 0.35, 0.3, 0.12], drive: 4.5, bright: 1.35, rasp: 0.8, lope: 0, turbo: 0 },
+  sound: { cylinders: 4, pulses: [1, 0.96, 1, 0.97], jitter: 0.06, pulse_ms: 0.75, formants: [230, 680, 2000], shift: 0.4, muffler: [1100, 5000], drive: 2.4, rasp: 0.55, intake: 0.85, crackle: 0.2, turbo: 0 },
 };
 
 export const MUSCLE: CarSpec = {
@@ -236,7 +245,7 @@ export const MUSCLE: CarSpec = {
   radius: 1.1,
   corners: corners(1.0, -0.3, 0.7, 2.45),
   body: { length: 5.0, width: 2.0, height: 1.25, style: "muscle" },
-  sound: { cylinders: 8, mix: [0.3, 0.5, 0.08, 0.6], drive: 3, bright: 0.55, rasp: 0.7, lope: 0.6, turbo: 0 },
+  sound: { cylinders: 8, pulses: [1, 0.7, 1.15, 0.82, 0.68, 1.1, 0.78, 1.05], jitter: 0.3, pulse_ms: 2, formants: [90, 250, 700], shift: 0.2, muffler: [450, 1900], drive: 2.6, rasp: 0.4, intake: 0.35, crackle: 0.9, turbo: 0 },
 };
 
 export const RALLY: CarSpec = {
@@ -279,7 +288,7 @@ export const RALLY: CarSpec = {
   offroad: 0.7,
   corners: corners(0.93, -0.34, 0.8, 2.15),
   body: { length: 4.4, width: 1.86, height: 1.38, style: "rally" },
-  sound: { cylinders: 4, mix: [0.5, 0.25, 0.22, 0.3], drive: 3.5, bright: 1.1, rasp: 2.2, lope: 0.1, turbo: 0.06 },
+  sound: { cylinders: 4, pulses: [1, 0.9, 1.02, 0.88], jitter: 0.14, pulse_ms: 0.9, formants: [150, 470, 1700], shift: 0.3, muffler: [800, 3800], drive: 3, rasp: 0.9, intake: 0.65, crackle: 0.75, turbo: 1 },
 };
 
 // Front-mid V6 sports coupe: short wheelbase, 53/47 split, low CoG and a softer rear tyre, so the throttle holds an angle.
@@ -327,7 +336,7 @@ export const KAZE: CarSpec = {
   radius: 1.05,
   corners: corners(0.97, -0.3, 0.72, 2.12),
   body: { length: 4.26, width: 1.94, height: 1.26, style: "kaze" },
-  sound: { cylinders: 6, mix: [0.55, 0.15, 0.35, 0.15], drive: 1.6, bright: 1.25, rasp: 0.9, lope: 0, turbo: 0 },
+  sound: { cylinders: 6, pulses: [1, 0.93, 1, 0.95, 1, 0.92], jitter: 0.04, pulse_ms: 0.65, formants: [260, 760, 2300], shift: 0.5, muffler: [1300, 6000], drive: 1.4, rasp: 0.2, intake: 0.75, crackle: 0.15, turbo: 0 },
 };
 
 export const CARS: Record<CarId, CarSpec> = { hatch: HATCH, coupe: COUPE, muscle: MUSCLE, rally: RALLY, kaze: KAZE };
