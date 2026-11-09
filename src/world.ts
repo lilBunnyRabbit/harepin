@@ -17,6 +17,7 @@ import type {
   Ramp,
   RoadGraph,
   RoadPoint,
+  Route,
   Solid,
   Town,
   Tree,
@@ -26,7 +27,7 @@ import type {
 export { fbm } from "./worldgen/noise";
 export { min_radius } from "./worldgen/path";
 export { CELL, N, ROAD_HALF, SIDEWALK, SIZE, SPAWN_INDEX } from "./worldgen/types";
-export type { Building, Checkpoint, Lot, ParkingLot, Prop, RoadPoint, Solid, Town, Tree } from "./worldgen/types";
+export type { Building, Checkpoint, Lot, ParkingLot, Prop, RoadPoint, Route, Solid, Town, Tree } from "./worldgen/types";
 
 const SOLID_CELL = 16;
 const ROAD_CELL = 32;
@@ -142,6 +143,7 @@ export class World implements Ground {
   readonly items: Item[];
   readonly challenges: Challenge[];
   readonly circuit: number[];
+  readonly routes: Route[];
   readonly timings: [string, number][];
   private readonly solid_grid = new Map<number, number[]>();
   private readonly nearby: Solid[] = [];
@@ -178,6 +180,7 @@ export class World implements Ground {
     this.items = data.items;
     this.challenges = data.challenges;
     this.circuit = data.circuit;
+    this.routes = data.routes;
     this.timings = data.timings;
     this.seen = new Uint32Array(this.solids.length);
     this.no_spawn = spawn_blocks(this.road, this.ramps, this.challenges);

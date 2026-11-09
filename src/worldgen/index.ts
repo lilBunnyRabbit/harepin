@@ -3,6 +3,7 @@ import { ITEMS, JumpPlanner } from "./jumps";
 import { fbm, hash, length } from "./noise";
 import { Lots } from "./lots";
 import { loop_road } from "./path";
+import { circuit_route, street_routes } from "./routes";
 import { join_candidates, Router, SHAPE_GRADE, spur_need, spur_points } from "./route";
 import type { Path } from "./path";
 import { Stamp } from "./stamp";
@@ -136,6 +137,12 @@ export function generate(seed: number): WorldData {
   }
   lap("jumps");
 
+  const circuit = circuit_route(road, checkpoints);
+  const streets = street_routes({ nodes, edges }, towns, heights);
+  jumps.items.push(...streets.items);
+  const routes = [circuit, ...streets.routes];
+  lap("routes");
+
   const trees: Tree[] = [...lots.out.trees];
   const limit = -ORIGIN - TREE_SPACING;
   for (let z = ORIGIN + TREE_SPACING; z < limit; z += TREE_SPACING)
@@ -157,7 +164,7 @@ export function generate(seed: number): WorldData {
     }
   lap("props");
 
-  return { kind: "island", deck: null, terrain: land, graph: { nodes, edges }, towns, lots: lot_list, buildings, props, parking, trees, solids, ramps: jumps.ramps, items: jumps.items, challenges: jumps.challenges, checkpoints, circuit: [ring.id], road, timings };
+  return { kind: "island", deck: null, terrain: land, graph: { nodes, edges }, towns, lots: lot_list, buildings, props, parking, trees, solids, ramps: jumps.ramps, items: jumps.items, challenges: jumps.challenges, checkpoints, circuit: [ring.id], road, routes, timings };
 }
 
 export function generate_world(seed: number, kind: WorldKind): WorldData {

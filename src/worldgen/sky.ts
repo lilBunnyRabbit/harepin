@@ -1,5 +1,6 @@
 import { mulberry32, sub } from "../rng";
 import { flight, RIDE, ROAD_KICKER } from "./jumps";
+import { circuit_route } from "./routes";
 import { CELL, DECK_STRIDE, N, ROAD_HALF, SIZE, type Checkpoint, type DeckPiece, type OpenSection, type Ramp, type RoadPoint, type Solid, type WorldData } from "./types";
 
 export const ABYSS = -2000;
@@ -617,6 +618,7 @@ export function generate_sky(seed: number): WorldData {
     checkpoints,
     circuit: [0],
     road,
+    routes: [circuit_route(road, checkpoints)],
     timings: [["sky", performance.now() - t0]],
   };
 }

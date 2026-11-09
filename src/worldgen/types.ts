@@ -258,7 +258,25 @@ export interface WorldData {
   /** Edge ids of the race loop, in driving order. */
   circuit: number[];
   road: RoadPoint[];
+  routes: Route[];
   timings: [string, number][];
+}
+
+export const RouteKind = { CIRCUIT: "circuit", STREET: "street", OFFROAD: "offroad" } as const;
+export type RouteKind = (typeof RouteKind)[keyof typeof RouteKind];
+
+/** A closed route's lap ends back on `points[0]`. */
+export interface Route {
+  id: string;
+  kind: RouteKind;
+  closed: boolean;
+  points: RoadPoint[];
+  /** Gates in driving order; the last one is the finish line. */
+  checkpoints: Checkpoint[];
+  gate_hw: number;
+  /** Metres, one lap for a closed route. */
+  length: number;
+  par_ms: number;
 }
 
 /**
