@@ -29,6 +29,9 @@ const DASH_ON = 3;
 const SPUR_MARK_CLEAR = 8;
 const SPUR_MOUTH = 30;
 const MOUTH_CLEAR = 5;
+const REACH_MARGIN = 0.8;
+/** How far terrain may stray from a road triangle's plane before the triangle is cut along the terrain's creases. */
+const DRAPE_TOLERANCE = 0.02;
 
 const SHOPFRONT_LOW = 0.5;
 const SHOPFRONT_HIGH = 2.8;
@@ -168,34 +171,120 @@ class Roads {
   strip(layers: Layer[], road: RoadPoint[], closed: boolean, from: number, to: number, lift: number, keep: (s: number) => boolean, rgb: Rgb) {
     const segments = closed ? road.length : road.length - 1;
     const lanes = Math.ceil((to - from) / LANE_WIDTH);
+    const reach = offset_reach(road, closed);
     for (let s = 0; s < segments; s++) {
       if (!keep(s)) continue;
       const a = road[s];
       const b = road[(s + 1) % road.length];
+      const ra = reach[s];
+      const rb = reach[(s + 1) % road.length];
       const layer = layers[chunk_of(a.x, a.z)];
       for (let lane = 0; lane < lanes; lane++) {
         const l0 = from + ((to - from) * lane) / lanes;
         const l1 = from + ((to - from) * (lane + 1)) / lanes;
-        this.quad(layer, a, b, l0, l1, lift, rgb);
+        this.quad(layer, a, b, ra, rb, l0, l1, lift, rgb);
       }
     }
   }
 
-  private quad(layer: Layer, a: RoadPoint, b: RoadPoint, from: number, to: number, lift: number, rgb: Rgb) {
-    for (const [p, side] of [
-      [a, from],
-      [a, to],
-      [b, from],
-      [b, from],
-      [a, to],
-      [b, to],
-    ] as const) {
-      const x = p.x - p.tz * side;
-      const z = p.z + p.tx * side;
-      layer.positions.push(x, sample(this.heights, x, z) + lift, z);
-      layer.colors.push(rgb[0], rgb[1], rgb[2]);
-    }
+  private quad(layer: Layer, a: RoadPoint, b: RoadPoint, ra: Reach, rb: Reach, from: number, to: number, lift: number, rgb: Rgb) {
+    const at = (p: RoadPoint, r: Reach, side: number): Point => {
+      const d = Math.max(r[0], Math.min(r[1], side));
+      return [p.x - p.tz * d, p.z + p.tx * d];
+    };
+    const a0 = at(a, ra, from);
+    const a1 = at(a, ra, to);
+    const b0 = at(b, rb, from);
+    const b1 = at(b, rb, to);
+    this.draped(layer, [a0, a1, b0], lift, rgb);
+    this.draped(layer, [b0, a1, b1], lift, rgb);
   }
+
+  // Terrain is linear only inside each half cell, so a road triangle spanning a crease would cut under a ridge or float
+  // over a dip. Cutting it along every cell edge and diagonal it crosses lays it exactly on the ground the car drives on.
+  private draped(layer: Layer, triangle: Point[], lift: number, rgb: Rgb) {
+    let pieces = [triangle];
+    for (const [ux, uz, offset] of CREASES) {
+      const along = triangle.map(([x, z]) => (ux * x + uz * z - offset) / CELL);
+      for (let k = Math.floor(Math.min(...along)) + 1; k < Math.max(...along); k++) pieces = pieces.flatMap((piece) => split(piece, ux, uz, offset + k * CELL));
+    }
+    const ground = ([x, z]: Point) => sample(this.heights, x, z);
+    if (pieces.length > 1) {
+      const [p0, p1, p2] = triangle;
+      const [y0, y1, y2] = triangle.map(ground);
+      const det = (p1[0] - p0[0]) * (p2[1] - p0[1]) - (p2[0] - p0[0]) * (p1[1] - p0[1]);
+      const plane = ([x, z]: Point) => {
+        if (Math.abs(det) < 1e-9) return Infinity;
+        const u = ((x - p0[0]) * (p2[1] - p0[1]) - (p2[0] - p0[0]) * (z - p0[1])) / det;
+        const v = ((p1[0] - p0[0]) * (z - p0[1]) - (x - p0[0]) * (p1[1] - p0[1])) / det;
+        return y0 + (y1 - y0) * u + (y2 - y0) * v;
+      };
+      if (pieces.every((piece) => piece.every((p) => Math.abs(ground(p) - plane(p)) <= DRAPE_TOLERANCE))) pieces = [triangle];
+    }
+    for (const piece of pieces)
+      for (let i = 1; i < piece.length - 1; i++)
+        for (const [x, z] of [piece[0], piece[i], piece[i + 1]]) {
+          layer.positions.push(x, sample(this.heights, x, z) + lift, z);
+          layer.colors.push(rgb[0], rgb[1], rgb[2]);
+        }
+  }
+}
+
+type Point = [number, number];
+
+/** Terrain crease lines ux * x + uz * z = offset + k * CELL: cell columns, cell rows and the diagonal of every cell. */
+const CREASES: [number, number, number][] = [
+  [1, 0, ORIGIN],
+  [0, 1, ORIGIN],
+  [1, 1, 2 * ORIGIN],
+];
+
+function split(piece: Point[], ux: number, uz: number, line: number): Point[][] {
+  const side = piece.map(([x, z]) => ux * x + uz * z - line);
+  if (side.every((v) => v >= 0) || side.every((v) => v <= 0)) return [piece];
+  const below: Point[] = [];
+  const above: Point[] = [];
+  piece.forEach((p, i) => {
+    const j = (i + 1) % piece.length;
+    const q = piece[j];
+    if (side[i] <= 0) below.push(p);
+    if (side[i] >= 0) above.push(p);
+    if ((side[i] < 0 && side[j] > 0) || (side[i] > 0 && side[j] < 0)) {
+      const t = side[i] / (side[i] - side[j]);
+      const cut: Point = [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t];
+      below.push(cut);
+      above.push(cut);
+    }
+  });
+  return [below, above].filter((part) => part.length >= 3);
+}
+
+/** Lowest and highest side offset a point's ribbon vertices may take. */
+type Reach = [number, number];
+
+// On a bend tighter than the ribbon's half width the inner offsets of two neighbouring points cross and the strip folds
+// into bow-ties. A quad keeps its winding while each end's offset stays ahead of the other end's offset line:
+// t_a . (b + d_b n_b - a) > 0 and t_b . (a + d_a n_a - b) < 0. Each point takes the tighter bound, with a margin.
+function offset_reach(road: RoadPoint[], closed: boolean): Reach[] {
+  const n = road.length;
+  const reach: Reach[] = road.map(() => [-Infinity, Infinity]);
+  // Keeps d * k > -REACH_MARGIN * c.
+  const bound = (r: Reach, k: number, c: number) => {
+    if (Math.abs(k) < 1e-9) return;
+    const limit = Math.max(0, REACH_MARGIN * c) / k;
+    if (k > 0) r[0] = Math.min(0, Math.max(r[0], -limit));
+    else r[1] = Math.max(0, Math.min(r[1], -limit));
+  };
+  const segments = closed ? n : n - 1;
+  for (let s = 0; s < segments; s++) {
+    const a = road[s];
+    const b = road[(s + 1) % n];
+    const dx = b.x - a.x;
+    const dz = b.z - a.z;
+    bound(reach[(s + 1) % n], a.tx * -b.tz + a.tz * b.tx, a.tx * dx + a.tz * dz);
+    bound(reach[s], -(b.tx * -a.tz + b.tz * a.tx), b.tx * dx + b.tz * dz);
+  }
+  return reach;
 }
 
 // Streets run node to node; stretching each end by its half width fills the crossing square.

@@ -21,9 +21,11 @@ export const APPROACH = 32;
 // Shaping aims under SPUR_GRADE so the smoothing after the clamp cannot push a 10 m window over it.
 export const SHAPE_GRADE = SPUR_GRADE - 0.015;
 const NEED_MARGIN = 12;
-const JOIN_TRIES = 8;
+const JOIN_TRIES = 16;
 /** Ring points between two join candidates, 2 m apart. */
 const JOIN_SPACING = 20;
+/** cos² of the sharpest control-polygon turn a spur keeps (60°); a 90° turn on 16 m cells smooths to about ROAD_HALF. */
+const TURN_COS2 = 0.25;
 
 class Heap {
   private readonly keys: number[] = [];
@@ -108,7 +110,7 @@ export class Router {
   }
 
   /** A* from the gate to the ring point `to`, arriving straight along the ring normal on the gate's side. */
-  route(from: { x: number; z: number }, to: RoadPoint, town: Town): Path | null {
+  route(from: { x: number; y: number; z: number }, to: RoadPoint, town: Town): Path | null {
     const side = Math.sign((from.x - to.x) * -to.tz + (from.z - to.z) * to.tx) || 1;
     const ax = to.x - to.tz * side * APPROACH;
     const az = to.z + to.tx * side * APPROACH;
@@ -171,7 +173,7 @@ export class Router {
     for (let k = came[goal]; k !== start && k >= 0; k = came[k]) cells.push([centre(k % G), centre(Math.floor(k / G))]);
     cells.reverse();
     const clear = (x: number, z: number) => length(x - from.x, z - from.z) > COARSE * 1.5 && length(x - ax, z - az) > COARSE * 1.5;
-    return [[from.x, from.z], ...cells.filter(([x, z]) => clear(x, z)), [ax, az], [to.x, to.z]];
+    return unkink([[from.x, from.z], ...cells.filter(([x, z]) => clear(x, z)), [ax, az], [to.x, to.z]], from.y, to.y);
   }
 
   /** Blocks the cells along an accepted spur so later spurs keep their distance. */
@@ -222,6 +224,42 @@ export function spur_need(path: Path, from_y: number, to_y: number): number {
   let total = 0;
   for (let i = 1; i < path.length; i++) total += length(path[i][0] - path[i - 1][0], path[i][1] - path[i - 1][1]);
   return Math.abs(to_y - from_y) / Math.max(1, total - HOLD * 4 - NEED_MARGIN);
+}
+
+function reverses(a: [number, number], b: [number, number], c: [number, number]): boolean {
+  return (b[0] - a[0]) * (c[0] - b[0]) + (b[1] - a[1]) * (c[1] - b[1]) <= 0;
+}
+
+function turn_too_sharp(a: [number, number], b: [number, number], c: [number, number]): boolean {
+  const ux = b[0] - a[0];
+  const uz = b[1] - a[1];
+  const vx = c[0] - b[0];
+  const vz = c[1] - b[1];
+  const dot = ux * vx + uz * vz;
+  return dot <= 0 || dot * dot < TURN_COS2 * (ux * ux + uz * uz) * (vx * vx + vz * vz);
+}
+
+// A* on the coarse grid zig-zags between cells; chaikin turns a reversal into a bend tighter than the spur's half width,
+// whose inner edge folds over itself. Drops the cell at each sharp corner, keeping the gate, the approach point and the
+// junction. A corner short of a reversal stays when the shorter spur could no longer hold SHAPE_GRADE (some zig-zags are
+// the switchbacks of a climb); the mesh pulls in the inner edge there. A reversal always goes: no ribbon survives one.
+function unkink(cells: Path, from_y: number, to_y: number): Path {
+  let out = cells;
+  for (let i = 1; i < out.length - 1; ) {
+    if (!turn_too_sharp(out[i - 1], out[i], out[i + 1])) {
+      i++;
+      continue;
+    }
+    const drop = i < out.length - 2 ? i : i - 1;
+    const next = out.filter((_, k) => k !== drop);
+    if (drop < 1 || (!reverses(out[i - 1], out[i], out[i + 1]) && spur_need(next, from_y, to_y) > SHAPE_GRADE)) {
+      i++;
+      continue;
+    }
+    out = next;
+    i = Math.max(1, drop - 1);
+  }
+  return out;
 }
 
 export function spur_points(cells: Path, heights: Float32Array, from_y: number, to_y: number): RoadPoint[] {

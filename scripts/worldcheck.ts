@@ -1,14 +1,34 @@
+import { build_chunks, JITTER_LEVELS, type MeshTones } from "../src/worldgen/chunks";
 import { sample } from "../src/worldgen/field";
+import { seed_of } from "../src/rng";
 import { generate } from "../src/worldgen/index";
 import { APPROACH } from "../src/worldgen/route";
 import { SPUR_GRADE, type RoadEdge, type RoadPoint, type WorldData } from "../src/worldgen/types";
 
-const SEEDS = Number(process.argv[2] ?? 100);
+const SEEDS = [...Array(Number(process.argv[2] ?? 100)).keys(), seed_of("lobby")];
 const GROUND = 0.3;
 const GRADE_RUN = 5;
 const SMALL = 2;
 const T_ANGLE = 0.5;
 const PAD_STEP = 2;
+/** Terrain may rise this far above the road mesh before it shows through; the surface rides 0.07-0.09 m up. */
+const POKE = 0.05;
+const POKE_STEPS = 6;
+/** Float32 positions leave slivers this big (m^2) with either winding. */
+const FOLD_AREA = 1e-4;
+// Each tone is a tag: the check reads the layer of every triangle back from its red channel.
+const ASPHALT = 1;
+const TAGS: MeshTones = {
+  terrain: new Float32Array(8 * JITTER_LEVELS * 3),
+  asphalt: [ASPHALT, 0, 0],
+  sidewalk: [2, 0, 0],
+  line: [3, 0, 0],
+  edge_line: [4, 0, 0],
+  walls: [[0, 0, 0]],
+  roofs: [[0, 0, 0]],
+  roof_flat: [0, 0, 0],
+};
+const LAYER = ["", "asphalt", "sidewalk", "centre line", "edge line"];
 
 interface Failure {
   seed: number;
@@ -93,6 +113,37 @@ function check(seed: number, data: WorldData, fail: (what: string) => void) {
       }
     if (worst > GROUND) fail(`parking pad of lot ${lot.lot} buried ${worst.toFixed(2)} m`);
   }
+
+  check_road_mesh(data, fail);
+}
+
+// Every road triangle is wound the same way seen from above; one wound the other way is a ribbon folded over itself.
+// Terrain is sampled across each asphalt triangle to catch it showing through the surface.
+function check_road_mesh(data: WorldData, fail: (what: string) => void) {
+  const h = data.terrain.heights;
+  const folds = new Map<number, [number, number]>();
+  let poke = { by: POKE, x: 0, z: 0 };
+  for (const chunk of build_chunks(data, TAGS)) {
+    if (!chunk.road) continue;
+    const { positions: p, colors } = chunk.road;
+    for (let o = 0; o < p.length; o += 9) {
+      const area = (p[o + 3] - p[o]) * (p[o + 8] - p[o + 2]) - (p[o + 5] - p[o + 2]) * (p[o + 6] - p[o]);
+      if (area > FOLD_AREA && !folds.has(colors[o])) folds.set(colors[o], [p[o], p[o + 2]]);
+      if (colors[o] !== ASPHALT || area > -FOLD_AREA) continue;
+      for (let s = 0; s <= POKE_STEPS; s++)
+        for (let t = 0; s + t <= POKE_STEPS; t++) {
+          const u = s / POKE_STEPS;
+          const v = t / POKE_STEPS;
+          const w = 1 - u - v;
+          const x = p[o] * u + p[o + 3] * v + p[o + 6] * w;
+          const z = p[o + 2] * u + p[o + 5] * v + p[o + 8] * w;
+          const by = sample(h, x, z) - (p[o + 1] * u + p[o + 4] * v + p[o + 7] * w);
+          if (by > poke.by) poke = { by, x, z };
+        }
+    }
+  }
+  for (const [tag, [x, z]] of folds) fail(`${LAYER[tag]} ribbon folds over itself at ${x.toFixed(0)},${z.toFixed(0)}`);
+  if (poke.by > POKE) fail(`terrain pokes ${poke.by.toFixed(2)} m through the road at ${poke.x.toFixed(0)},${poke.z.toFixed(0)}`);
 }
 
 function crossing(spur: RoadEdge, other: RoadEdge): boolean {
@@ -114,7 +165,7 @@ let lots = 0;
 let buildings = 0;
 const stages = new Map<string, number>();
 const t0 = performance.now();
-for (let seed = 0; seed < SEEDS; seed++) {
+for (const seed of SEEDS) {
   const t = performance.now();
   const data = generate(seed);
   const ms = performance.now() - t;
@@ -131,7 +182,7 @@ for (let seed = 0; seed < SEEDS; seed++) {
   check(seed, data, (what) => failures.push({ seed, what }));
 }
 console.log(
-  `${SEEDS} seeds in ${((performance.now() - t0) / 1000).toFixed(1)} s, gen mean ${(total / SEEDS).toFixed(0)} ms, slowest ${slowest.toFixed(0)} ms (seed ${slowest_seed}); stage max ms: ${[...stages].map(([s, ms]) => `${s} ${ms.toFixed(0)}`).join(", ")}`,
+  `${SEEDS.length} seeds in ${((performance.now() - t0) / 1000).toFixed(1)} s, gen mean ${(total / SEEDS.length).toFixed(0)} ms, slowest ${slowest.toFixed(0)} ms (seed ${slowest_seed}); stage max ms: ${[...stages].map(([s, ms]) => `${s} ${ms.toFixed(0)}`).join(", ")}`,
 );
 console.log(`towns ${towns}, with spur ${linked}, lots ${lots}, buildings ${buildings}`);
 const kinds = new Map<string, number>();
@@ -140,5 +191,7 @@ for (const f of failures) {
   kinds.set(kind, (kinds.get(kind) ?? 0) + 1);
 }
 for (const [kind, count] of kinds) console.log(`  ${count} x ${kind}  e.g. seed ${failures.find((f) => f.what.replace(/[-\d.,]+/g, "#") === kind)?.seed}: ${failures.find((f) => f.what.replace(/[-\d.,]+/g, "#") === kind)?.what}`);
+if (failures.length) console.log(`failing seeds: ${[...new Set(failures.map((f) => f.seed))].join(", ")}`);
+if (process.argv.includes("--all")) for (const f of failures) console.log(`  seed ${f.seed}: ${f.what}`);
 if (failures.length) throw new Error(`${failures.length} world checks failed`);
 console.log("all world checks pass");
