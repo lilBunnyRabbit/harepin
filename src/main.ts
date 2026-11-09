@@ -417,11 +417,16 @@ function frame(now: number) {
       acc -= DT;
     }
     if (impact > 2) {
-      audio.impact(impact / 20);
+      if (world_view.jumps.bonked(car.pos.x, car.pos.z)) audio.bonk(impact);
+      else audio.impact(impact / 20);
       chase.bump(Math.min(1, impact / 15));
       input.rumble(1, 1, true);
     }
     record(now);
+    if (world_view.jumps.update(dt, car).clean) {
+      hud.toast("Clean!");
+      audio.chime();
+    }
     if (race.started) ghost.record(now - race.started, car);
   }
 
