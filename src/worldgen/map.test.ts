@@ -41,16 +41,18 @@ test("the map covers the island and draws the circuit through the start", () => 
   expect(map.lines.filter((l) => l.kind === MapLineKind.STREET).length).toBeGreaterThan(0);
   expect(map.checkpoints).toHaveLength(world.checkpoints.length);
   expect(map.jumps).toHaveLength(world.ramps.length);
+  expect(map.pads).toEqual([]);
   for (const l of map.lines) for (const v of l.points) expect(Math.abs(v)).toBeLessThanOrEqual(-ORIGIN);
   expect(map.size).toBe(SIZE);
 });
 
-test("the sky track preview is a cloud backdrop with the circuit, its gaps and checkpoints", async () => {
+test("the sky track preview is a cloud backdrop with the circuit, its gaps, boost pads and checkpoints", async () => {
   const map = await from_worker({ seed: SEED, kind: "sky", tones: TONES });
   expect(map.kind).toBe("sky");
   expect(map.towns).toEqual([]);
   expect(map.lines.map((l) => l.kind)).toEqual(["circuit"]);
   expect(map.jumps.length).toBeGreaterThan(0);
+  expect(map.pads.length).toBeGreaterThan(0);
   const centre = (MAP_SIDE - 1) / 2;
   const mid = (centre * MAP_SIDE + centre) * 4;
   expect(map.pixels[mid]).toBeGreaterThan(map.pixels[0]);

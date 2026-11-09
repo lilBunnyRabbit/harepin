@@ -51,8 +51,8 @@ const PAD_LEAD = 15;
 const PAD_EXIT = 20;
 /** Straight deck left past a pad, so the kick is spent before the next bend. */
 const PAD_RUNOUT = 80;
-// Off the throttle every car coasts from PAD_MAX back under GAP_FAST within 480 m: a pad that far from a toe can't
-// launch a car past the speeds the gap is sized for.
+// Off the throttle, even in neutral, every car rolls from PAD_MAX back under GAP_FAST inside this (sky-pads.test.ts), so a pad
+// adds nothing at the toe. On the throttle every car tops GAP_FAST on its own: holding the gap's speed is the driver's job.
 export const PAD_GAP_CLEAR = 500;
 const PAD_APART = 300;
 export const MAX_PADS = 4;

@@ -27,7 +27,7 @@ import { Remotes } from "./remotes";
 import { seed_of } from "./rng";
 import { WorldView, load_world, water_mesh } from "./scene";
 import { cloud_floor, clouds, sky } from "./sky";
-import { PadTimer } from "./sky-pads";
+import { PadTimer, type PadSnapshot } from "./sky-pads";
 import { Lighting } from "./lighting";
 import { NanProbe, sanitise_bloom } from "./postfx";
 import { CAMERA_RETURN_SECONDS, CameraView, Settings, invite_link, load_settings, save_setting, type SettingsState } from "./settings";
@@ -232,6 +232,7 @@ function fall_back() {
 
 // In a lobby race a reset stays on the circuit; free driving drops the car on the nearest street.
 function reset() {
+  pads.clear();
   const f = new THREE.Vector3(0, 0, 1).applyQuaternion(car.quat);
   if (lobby.busy) {
     const near = world.nearest_road(car.pos.x, car.pos.z);
@@ -249,6 +250,7 @@ spawn_at((params.has("debug") && Number(params.get("at"))) || SPAWN_INDEX);
 const modes = new Modes(scene, world, SPAWN_INDEX, () => lobby.record, (x, y, z, heading) => {
   car.place(x, y, z, heading);
   car.nitro.refill();
+  pads.clear();
   chase.snap(car);
   history.length = 0;
 }, () => lobby.busy, () => audio.chime(), camera);
@@ -261,6 +263,7 @@ garage.on_change = (next) => {
   const tank = car.nitro;
   car = new Car(build_spec(next));
   car.nitro.carry(tank, lobby.busy || modes.active);
+  pads.clear();
   car.park(pos.x, pos.z, heading, world);
   apply_car_settings(settings.state);
   input.touch.show_nitro(car.nitro.fitted);
@@ -284,6 +287,7 @@ interface Frame {
   omega: number[];
   race: RaceSnapshot;
   nitro: NitroSnapshot;
+  pads: PadSnapshot;
 }
 const REWIND_SECONDS = 10;
 const history: Frame[] = [];
@@ -299,6 +303,7 @@ function record(now: number) {
     omega: car.wheels.map((w) => w.omega),
     race: race.snapshot(),
     nitro: car.nitro.snapshot(),
+    pads: pads.snapshot(),
   });
   while (history.length && now - history[0].at > REWIND_SECONDS * 1000) history.shift();
 }
@@ -316,7 +321,7 @@ function rewind_step(now: number) {
   car.wheels.forEach((w, i) => (w.omega = f.omega[i]));
   race.restore(f.race, now - f.at);
   car.nitro.restore(f.nitro);
-  pads.clear();
+  pads.restore(f.pads);
   if (race.started) ghost.rewind_to(now - race.started);
 }
 

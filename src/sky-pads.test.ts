@@ -56,11 +56,12 @@ test("a pad adds nothing past PAD_MAX, and nothing to a car in the air", () => {
   expect(car.vel.length()).toBe(0);
 });
 
-test(`every car kicked to PAD_MAX coasts back under GAP_FAST within ${PAD_GAP_CLEAR} m`, () => {
+test(`every car kicked to PAD_MAX coasts back under GAP_FAST within ${PAD_GAP_CLEAR} m, even rolling in neutral`, () => {
   for (const [id, spec] of Object.entries(CARS)) {
     const car = new Car(spec);
     car.place(0, 0.75, 0, 0);
     car.vel.set(0, 0, PAD_MAX);
+    car.gear = 0;
     for (let t = 0; t < 30 && car.vel.length() >= GAP_FAST; t += DT) car.step(DT, coast, flat);
     expect(car.pos.z, id).toBeLessThan(PAD_GAP_CLEAR);
   }

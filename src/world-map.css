@@ -98,6 +98,10 @@
   gap: var(--space-1);
 }
 
+.world-legend li[hidden] {
+  display: none;
+}
+
 .world-legend li::before {
   content: "";
   width: 10px;

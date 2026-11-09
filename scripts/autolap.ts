@@ -55,6 +55,8 @@ export interface Lap {
   /** Dropped off a sky deck, and the hardest rail or wall hit (m/s into it). */
   fell: boolean;
   impact: number;
+  /** Speed (m/s) at each circuit kicker's toe, in the order the car reached them. */
+  toes: number[];
 }
 
 export function autolap(world: World, spec: CarSpec = COUPE): Lap {
@@ -72,6 +74,8 @@ export function autolap(world: World, spec: CarSpec = COUPE): Lap {
     for (let i = 1; i < n; i++) if ((world.road[i].x - r.x) ** 2 + (world.road[i].z - r.z) ** 2 < (world.road[at].x - r.x) ** 2 + (world.road[at].z - r.z) ** 2) at = i;
     return { ramp: r, at };
   });
+  const toes: number[] = [];
+  const behind = kickers.map(() => true);
   while (t < 400 && index < world.road.length - 10) {
     for (let k = index; k < index + 60; k++) {
       const q = world.road[k % world.road.length];
@@ -96,6 +100,12 @@ export function autolap(world: World, spec: CarSpec = COUPE): Lap {
     car.step(DT, { steer: airborne ? 0 : Math.max(-1, Math.min(1, -err * 3)), throttle: speed < target ? 1 : 0, brake: speed > target + (pace <= target ? 1 : 4) ? Math.min(0.5, (speed - target) / 10) * Math.max(0.2, 1 - Math.abs(err) * 4) : 0, handbrake: 0, analog: true }, world);
     pads.step(DT, car, world);
     impact = Math.max(impact, world.collide(car));
+    kickers.forEach(({ ramp }, k) => {
+      const along = (car.pos.x - ramp.x) * ramp.fx + (car.pos.z - ramp.z) * ramp.fz;
+      const across = Math.abs((car.pos.x - ramp.x) * ramp.fz - (car.pos.z - ramp.z) * ramp.fx);
+      if (behind[k] && along >= 0 && along < 5 && across < ramp.hw + 2) toes.push(car.vel.length());
+      behind[k] = along < 0;
+    });
     t += DT;
     const d = world.distance_to_road(car.pos.x, car.pos.z);
     worst = Math.max(worst, d);
@@ -111,7 +121,7 @@ export function autolap(world: World, spec: CarSpec = COUPE): Lap {
       break;
     }
   }
-  return { t, index, offroad, worst, slowest, flipped, fell, impact };
+  return { t, index, offroad, worst, slowest, flipped, fell, impact, toes };
 }
 
 if (import.meta.main) {

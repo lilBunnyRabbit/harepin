@@ -23,8 +23,9 @@ const CHEVRON_PITCH = 3;
 const CHEVRON_BAR = 0.6;
 const CHEVRON_DEPTH = 2.2;
 const CHEVRON_HALF = PAD_HALF - 1;
-const PAD_LIFT = 0.01;
-const CHEVRON_LIFT = 0.03;
+/** Above the joint seams at SEAM_HIGH: every pad crosses one, and the two share the marks layer's polygon offset. */
+const PAD_LIFT = 0.02;
+const CHEVRON_LIFT = 0.04;
 
 export interface DeckTones {
   deck: Rgb;

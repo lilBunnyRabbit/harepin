@@ -717,6 +717,7 @@ export class Settings {
       drive.disabled = next === seed && this.chosen_kind === this.host.kind;
       drive.title = drive.disabled ? `You're on this ${name}` : `Reloads room ${room} on ${name} ${next}`;
       this.world_map.show(next, this.chosen_kind, now);
+      boost.hidden = this.chosen_kind !== WorldKind.SKY;
     };
     const kinds = el("div", "settings-choice");
     kinds.setAttribute("role", "radiogroup");
@@ -763,6 +764,11 @@ export class Settings {
       item.style.setProperty("--swatch", `var(--${token})`);
       legend.append(item);
     }
+    const boost = el("li", "", "Boost");
+    // The map's pad tone, tones.pad: the accent a step lighter, never mixed with another brand colour.
+    boost.style.setProperty("--swatch", "oklch(from var(--accent) calc(l + 0.14) c h)");
+    boost.hidden = this.chosen_kind !== WorldKind.SKY;
+    legend.append(boost);
 
     const current = el("div", "settings-inline");
     current.append(el("b", "settings-value settings-number", String(seed)), this.copy_action("Copy link", invite_link(room, seed, this.host.kind)));

@@ -22,6 +22,7 @@ const LINE_STYLE: Record<MapLineKind, Stroke> = {
 const LINE_ORDER: MapLineKind[] = [MapLineKind.STREET, MapLineKind.HIGHWAY, MapLineKind.CIRCUIT];
 const CASING = rgba(brand.background_darkest, 0.7);
 const JUMP = rgba(brand.secondary);
+const PAD = rgba(tones.pad);
 const CHECKPOINT = rgba(brand.foreground);
 const START = rgba(brand.primary);
 const LABEL = rgba(brand.foreground);
@@ -130,6 +131,7 @@ export class WorldMap {
     }
 
     for (const jump of map.jumps) arrow(ctx, at(jump.x, jump.z), jump, 7 * ratio, JUMP);
+    for (const pad of map.pads) arrow(ctx, at(pad.x, pad.z), pad, 6 * ratio, PAD);
     for (const checkpoint of map.checkpoints.slice(1)) {
       ctx.beginPath();
       ctx.arc(...at(checkpoint.x, checkpoint.z), 3 * ratio, 0, Math.PI * 2);

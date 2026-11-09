@@ -1,5 +1,5 @@
 import { terrain_colors } from "./chunks";
-import { CELL, N, SIZE, type WorldData, type WorldKind } from "./types";
+import { CELL, DECK_STRIDE, N, SIZE, type WorldData, type WorldKind } from "./types";
 
 export const MAP_SIDE = N + 1;
 const SUN = normalise([-1, 1.4, -1]);
@@ -45,6 +45,8 @@ export interface MapData {
   lines: MapLine[];
   towns: MapTown[];
   jumps: MapMark[];
+  /** Sky track boost pads; none on the island. */
+  pads: MapMark[];
   checkpoints: MapMark[];
   start: MapMark;
 }
@@ -108,6 +110,16 @@ function line(kind: MapLineKind, closed: boolean, points: { x: number; z: number
   return { kind, closed, points: Float32Array.from(points.flatMap((p) => [p.x, p.z])) };
 }
 
+function pad_marks(data: WorldData): MapMark[] {
+  const deck = data.deck;
+  if (!deck) return [];
+  return deck.pads.map((pad) => {
+    const i = data.road.findIndex((_, k) => deck.line[k * DECK_STRIDE + 8] >= pad.s0);
+    const p = data.road[i];
+    return { x: p.x, z: p.z, fx: p.tx, fz: p.tz, length: pad.s1 - pad.s0 };
+  });
+}
+
 export function map_data(data: WorldData, tones: MapTones): MapData {
   const circuit = new Set(data.circuit);
   const roads = data.graph.edges.filter((e) => !circuit.has(e.id)).map((e) => line(e.kind === "street" ? MapLineKind.STREET : MapLineKind.HIGHWAY, e.closed, e.points));
@@ -120,6 +132,7 @@ export function map_data(data: WorldData, tones: MapTones): MapData {
     lines: [...roads, line(MapLineKind.CIRCUIT, true, data.road)],
     towns: data.towns.map(({ x, z, radius, name }) => ({ x, z, radius, name })),
     jumps: data.ramps.map((r) => ({ x: r.x, z: r.z, fx: r.fx, fz: r.fz, length: r.length })),
+    pads: pad_marks(data),
     checkpoints: data.checkpoints.map((c) => ({ x: c.x, z: c.z, fx: Math.sin(c.heading), fz: Math.cos(c.heading), length: 0 })),
     start: { x: start.x, z: start.z, fx: start.tx, fz: start.tz, length: 0 },
   };
