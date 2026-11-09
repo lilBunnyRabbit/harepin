@@ -174,9 +174,9 @@ export function parse_race_record(raw: unknown): RaceRecord {
   return record;
 }
 
-export function add_race(record: RaceRecord, laps: number, ms: number, { win, podium }: Placing): { record: RaceRecord; improved: boolean } {
-  const old = record.best[laps];
-  const improved = old === undefined || ms < old;
+/** `laps` null counts the placing only: bests are kept per lap count of the circuit, not per route. */
+export function add_race(record: RaceRecord, laps: number | null, ms: number, { win, podium }: Placing): { record: RaceRecord; improved: boolean } {
+  const improved = laps !== null && (record.best[laps] === undefined || ms < record.best[laps]);
   return {
     record: { best: improved ? { ...record.best, [laps]: ms } : record.best, podiums: record.podiums + (podium ? 1 : 0), wins: record.wins + (win ? 1 : 0) },
     improved,

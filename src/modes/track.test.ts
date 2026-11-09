@@ -65,3 +65,8 @@ test("podium needs four racers, a win needs one rival", () => {
   expect(placing(4, 6)).toEqual({ win: false, podium: false });
   expect(placing(1, 4)).toEqual({ win: true, podium: true });
 });
+
+test("a race on another route counts its placing but sets no best", () => {
+  const run = add_race({ best: { 1: 80_000 }, podiums: 0, wins: 0 }, null, 60_000, { win: true, podium: true });
+  expect(run).toEqual({ record: { best: { 1: 80_000 }, podiums: 1, wins: 1 }, improved: false });
+});

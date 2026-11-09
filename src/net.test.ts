@@ -34,7 +34,11 @@ test("seed param: uint32 digits only", () => {
 });
 
 test("race events are shape-checked", () => {
-  expect(sanitize_event({ kind: "start", race: 7, laps: 3, start_at: 1000, extra: "x" })).toEqual({ kind: "start", race: 7, laps: 3, start_at: 1000 });
+  expect(sanitize_event({ kind: "start", race: 7, laps: 3, start_at: 1000, extra: "x" })).toEqual({ kind: "start", race: 7, laps: 3, start_at: 1000, route: "circuit" });
+  expect(sanitize_event({ kind: "start", race: 7, laps: 1, start_at: 1000, route: "street-1" })).toEqual({ kind: "start", race: 7, laps: 1, start_at: 1000, route: "street-1" });
+  expect(sanitize_event({ kind: "request", laps: 1 })).toEqual({ kind: "request", laps: 1, route: "circuit" });
+  expect(sanitize_event({ kind: "request", laps: 1, route: "<b>" })).toBeNull();
+  expect(sanitize_event({ kind: "request", laps: 1, route: 3 })).toBeNull();
   expect(sanitize_event({ kind: "request", laps: 0 })).toBeNull();
   expect(sanitize_event({ kind: "request", laps: 11 })).toBeNull();
   expect(sanitize_event({ kind: "finish", race: 7, time: -5 })).toBeNull();

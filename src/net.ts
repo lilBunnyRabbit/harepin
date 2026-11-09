@@ -25,10 +25,13 @@ export type CarState = {
 
 export type ChatMsg = { text: string; t: number };
 
-/** `start_at` is in the sender's `performance.now()` clock; receivers shift it by their `Remote.offset`. */
+/**
+ * `start_at` is in the sender's `performance.now()` clock; receivers shift it by their `Remote.offset`. `route` is a
+ * `Route.id`; peers that predate it send none and mean the circuit.
+ */
 export type RaceEvent =
-  | { kind: "request"; laps: number }
-  | { kind: "start"; race: number; laps: number; start_at: number }
+  | { kind: "request"; laps: number; route: string }
+  | { kind: "start"; race: number; laps: number; start_at: number; route: string }
   | { kind: "finish"; race: number; time: number };
 
 type Packet =
@@ -155,12 +158,14 @@ export function parse_seed(raw: string | null): number | null {
 
 const laps_ok = (v: unknown): v is number => finite(v, MAX_LAPS) && Number.isInteger(v) && v >= 1;
 const race_ok = (v: unknown): v is number => finite(v, MAX_SEED) && Number.isInteger(v) && v >= 0;
+const route_of = (v: unknown): string | null => (v === undefined ? "circuit" : typeof v === "string" && /^[a-z][a-z0-9-]{0,23}$/.test(v) ? v : null);
 
 export function sanitize_event(raw: unknown): RaceEvent | null {
   if (!raw || typeof raw !== "object") return null;
   const e = raw as Record<string, unknown>;
-  if (e.kind === "request" && laps_ok(e.laps)) return { kind: "request", laps: e.laps };
-  if (e.kind === "start" && race_ok(e.race) && laps_ok(e.laps) && finite(e.start_at, 1e12)) return { kind: "start", race: e.race, laps: e.laps, start_at: e.start_at };
+  const route = route_of(e.route);
+  if (e.kind === "request" && laps_ok(e.laps) && route) return { kind: "request", laps: e.laps, route };
+  if (e.kind === "start" && race_ok(e.race) && laps_ok(e.laps) && finite(e.start_at, 1e12) && route) return { kind: "start", race: e.race, laps: e.laps, start_at: e.start_at, route };
   if (e.kind === "finish" && race_ok(e.race) && finite(e.time, MAX_RACE_MS) && e.time > 0) return { kind: "finish", race: e.race, time: e.time };
   return null;
 }
