@@ -22,6 +22,8 @@ interface MoodSpec {
 // Near-flat falloff: an inverse-power light at the bumper outshines the sun by 10x on anything a few metres ahead and
 // clips it white with no tone mapping; the range cutoff and grazing angle on the road give the far fade instead.
 const HEAD_DECAY = 0.3;
+/** Brightest the sky may get around the sun, as a share of the bloom threshold. */
+const SKY_CEILING = 0.9;
 
 const DUSK: MoodSpec = {
   sun_y: 0.26,
@@ -76,6 +78,9 @@ export class Lighting {
   }
 
   dress(sky: THREE.Object3D, clouds: THREE.Object3D): THREE.Object3D[] {
+    sky.traverse((o) => {
+      if (o instanceof THREE.Mesh && o.material instanceof THREE.ShaderMaterial && o.material.uniforms.ceiling) o.material.uniforms.ceiling.value = this.spec.bloom_threshold * SKY_CEILING;
+    });
     clouds.traverse((o) => {
       if (o instanceof THREE.Mesh && o.material instanceof THREE.MeshLambertMaterial) o.material.emissiveIntensity = this.spec.cloud_glow;
     });

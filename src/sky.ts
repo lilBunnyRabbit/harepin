@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { brand, color, dark, mix } from "./palette";
+import { brand, color, dark, glow, mix } from "./palette";
 import { fbm } from "./world";
 
 export const SUN_DIR = new THREE.Vector3(-0.42, dark ? 0.17 : 0.55, 0.89).normalize();
@@ -30,6 +30,11 @@ export const sky_tones = dark
 
 export const FOG = color(mix(sky_tones.horizon_sun, sky_tones.horizon_away, 0.45));
 
+/** Luma of the sun disc: the one part of the sky that blooms. */
+const SUN_DISC = 1.6;
+/** Angular radius of the sun disc, radians; a hard edge keeps the area over the bloom threshold the same in every theme. */
+const SUN_RADIUS = 0.018;
+
 export function sky(): THREE.Object3D {
   const group = new THREE.Group();
   const material = new THREE.ShaderMaterial({
@@ -41,8 +46,9 @@ export function sky(): THREE.Object3D {
       upper: { value: color(sky_tones.upper) },
       horizon_sun: { value: color(sky_tones.horizon_sun) },
       horizon_away: { value: color(sky_tones.horizon_away) },
-      sun_color: { value: color(sky_tones.sun) },
+      sun_color: { value: glow(sky_tones.sun) },
       sun_dir: { value: SUN_DIR },
+      ceiling: { value: 1 },
     },
     vertexShader: `
       varying vec3 v_dir;
@@ -54,6 +60,7 @@ export function sky(): THREE.Object3D {
     `,
     fragmentShader: `
       uniform vec3 zenith, upper, horizon_sun, horizon_away, sun_color, sun_dir;
+      uniform float ceiling;
       varying vec3 v_dir;
       void main() {
         vec3 d = normalize(v_dir);
@@ -66,7 +73,10 @@ export function sky(): THREE.Object3D {
         c = mix(c, zenith, smoothstep(0.18, 0.75, h));
         if (d.y < 0.0) c = horizon;
         float s = max(dot(d, sun_dir), 0.0);
-        c += sun_color * (pow(s, 900.0) * 1.6 + pow(s, 24.0) * 0.28 + pow(s, 5.0) * 0.08);
+        c += sun_color * (pow(s, 24.0) * 0.2 + pow(s, 5.0) * 0.06);
+        // The halo stays under the bloom threshold, or a bright sky blooms into a screen-wide wash.
+        c *= min(1.0, ceiling / max(dot(c, vec3(0.299, 0.587, 0.114)), 1e-4));
+        c = mix(c, sun_color * ${SUN_DISC.toFixed(2)}, smoothstep(${Math.cos(SUN_RADIUS * 1.25).toFixed(7)}, ${Math.cos(SUN_RADIUS).toFixed(7)}, s));
         gl_FragColor = vec4(c, 1.0);
         #include <colorspace_fragment>
       }
