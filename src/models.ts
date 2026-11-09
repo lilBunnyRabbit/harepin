@@ -196,6 +196,12 @@ interface Rim {
   tone: "metal" | "light";
 }
 
+/** Endplates in paint, planes in trim. */
+interface Wing {
+  paint: Part[];
+  trim: Part[];
+}
+
 /** Profiles are [z, y] from the ground at rest, +z forward; parts are [x, y, z] for the left one. */
 interface Design {
   /** Body outline from the front bottom corner over the top to the rear bottom corner; arches are cut from the wheel mounts. */
@@ -216,6 +222,10 @@ interface Design {
   rim: Rim;
   /** Where a bolt-on wing sits: rear deck or roof edge, [z, y]. */
   deck: Point;
+  /** A built-in rear wing per `SLOTS.spoiler` part from None up, set steeper and bigger in place of a bolt-on one on `deck`. */
+  wings?: Wing[];
+  /** Side decal area when the body side between the arches is hidden, as behind sidepods. */
+  panel?: Panel;
   /** Where an engine bulge or scoop sits on the hood, [z, y]. */
   hood: Point;
   /** Hood camera of an open cockpit, at the driver's eyes, [z, y]; closed bodies use the camera's own hood point. */
@@ -381,15 +391,12 @@ const DESIGNS: Record<BodyStyle, Design> = {
       { size: [0.12, 0.3, 0.32], at: [0.06, 0.84, 0.26] },
       { size: [0.02, 0.14, 1.0], at: [0.01, 0.64, -0.75], tilt: [0.14, 0, 0] },
       { size: [0.03, 0.16, 0.52], at: [0.95, 0.17, 2.12] },
-      { size: [0.03, 0.44, 0.6], at: [0.5, 0.74, -2.02] },
       { size: [0.12, 0.06, 0.09], at: [0.38, 0.7, 0.98] },
     ],
     trim: [
       { size: [0.62, 0.04, 2.5], at: [0.31, 0.115, -0.25] },
       { size: [0.9, 0.035, 0.42], at: [0.45, 0.13, 2.12] },
       { size: [0.62, 0.03, 0.22], at: [0.56, 0.2, 2.0], tilt: [-0.35, 0, 0] },
-      { size: [0.5, 0.04, 0.3], at: [0.25, 0.88, -2.0], tilt: [0.18, 0, 0] },
-      { size: [0.5, 0.03, 0.18], at: [0.25, 0.96, -2.2], tilt: [0.5, 0, 0] },
       { size: [0.03, 0.34, 0.12], at: [0.03, 0.64, -1.98] },
       { size: [0.3, 0.2, 0.03], at: [0.43, 0.27, -0.11] },
       { size: [0.1, 0.11, 0.02], at: [0.05, 0.92, 0.42] },
@@ -406,7 +413,33 @@ const DESIGNS: Record<BodyStyle, Design> = {
     rim: { size: 0.6, spokes: 0, tone: "metal" },
     deck: [-2.0, 0.6],
     hood: [-0.75, 0.6],
-    exhaust: [0.06, 0.4, -2.0],
+    exhaust: [0.13, 0.4, -2.0],
+    wings: [
+      {
+        paint: [{ size: [0.03, 0.44, 0.6], at: [0.5, 0.74, -2.02] }],
+        trim: [
+          { size: [0.5, 0.04, 0.3], at: [0.25, 0.88, -2.0], tilt: [0.12, 0, 0] },
+          { size: [0.5, 0.03, 0.16], at: [0.25, 0.95, -2.2], tilt: [0.35, 0, 0] },
+        ],
+      },
+      {
+        paint: [{ size: [0.03, 0.48, 0.62], at: [0.5, 0.76, -2.03] }],
+        trim: [
+          { size: [0.5, 0.045, 0.32], at: [0.25, 0.88, -2.0], tilt: [0.22, 0, 0] },
+          { size: [0.5, 0.03, 0.24], at: [0.25, 0.98, -2.21], tilt: [0.7, 0, 0] },
+        ],
+      },
+      {
+        paint: [{ size: [0.03, 0.6, 0.7], at: [0.5, 0.8, -2.04] }],
+        trim: [
+          { size: [0.5, 0.05, 0.34], at: [0.25, 0.88, -2.0], tilt: [0.3, 0, 0] },
+          { size: [0.5, 0.035, 0.26], at: [0.25, 1.0, -2.22], tilt: [0.85, 0, 0] },
+          { size: [0.5, 0.03, 0.18], at: [0.25, 1.08, -2.32], tilt: [1.1, 0, 0] },
+          { size: [0.42, 0.03, 0.22], at: [0.21, 0.5, -2.12], tilt: [0.3, 0, 0] },
+        ],
+      },
+    ],
+    panel: { rear: -1.08, front: -0.16, low: 0.14, high: 0.4, side: 0.64 },
     eye: [0.7, 0.84],
   },
 };
@@ -665,6 +698,7 @@ function top_at(outline: Point[], z: number): number {
 }
 
 function side_panel(d: Design, spec: CarSpec): Panel {
+  if (d.panel) return d.panel;
   const reach = spec.wheel.radius + d.arches.gap + d.arches.flare + PANEL_MARGIN;
   const front = spec.wheel.mounts[0][2] - reach;
   const rear = spec.wheel.mounts[2][2] + reach;
@@ -729,7 +763,10 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
   const nose = d.outline[0][0];
   const tail = d.outline[d.outline.length - 1][0];
   const decals = livery && livery.decal !== "none" ? livery_parts(livery, side_panel(d, spec), roof(base, glass), nose, tail) : [];
-  const shell = merge(base, wing(kit.spoiler, style, d.width, d.deck, paint, trim), kit_parts(d, kit, paint, trim), decals);
+  // A level past the design's list keeps its biggest wing, so new spoiler parts never bolt a second one on.
+  const own = d.wings ? d.wings[Math.min(kit.spoiler, d.wings.length - 1)] : null;
+  const rear_wing = own ? [...parts(own.paint).map((g) => tint(g, paint)), ...parts(own.trim).map((g) => tint(g, trim))] : wing(kit.spoiler, style, d.width, d.deck, paint, trim);
+  const shell = merge(base, rear_wing, kit_parts(d, kit, paint, trim), decals);
   const hull = new THREE.Mesh(shell, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
   hull.castShadow = true;
 

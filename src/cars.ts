@@ -74,6 +74,8 @@ export interface CarSpec {
   offroad: number;
   /** Pitch and roll rate damping with no wheel or corner touching, 1/s; it also levels the body so a crest launch lands on its wheels. 0 flies ballistic. */
   air_settle: number;
+  /** How far the body reaches below and above the centre of mass, metres: what a bar or a raised solid has to clear. */
+  band: [number, number];
   /** Collision circle offsets along the heading (nose, tail), metres. */
   circles: [number, number];
   radius: number;
@@ -85,6 +87,10 @@ export interface CarSpec {
 }
 
 export type CarId = BodyStyle;
+
+// Floor and roll hoop of the formula car against its centre of mass: its collision corners and its bar band.
+const FORMULA_FLOOR = 0.34;
+const FORMULA_TOP = 0.55;
 
 function corners(half_width: number, low: number, high: number, half_length: number): Triple[] {
   return [-half_width, half_width].flatMap((x) => [low, high].flatMap((y) => [-half_length, half_length].map((z): Triple => [x, y, z])));
@@ -157,6 +163,7 @@ export const COUPE: CarSpec = {
   roll_resist: 1.6,
   offroad: 0,
   air_settle: 0,
+  band: [0.25, 0.9],
   circles: [1.25, -1.25],
   radius: 1.05,
   corners: corners(0.95, -0.3, 0.72, 2.25),
@@ -406,7 +413,8 @@ export const FORMULA: CarSpec = {
   air_settle: 4,
   circles: [1.3, -1.3],
   radius: 1.0,
-  corners: corners(0.75, -0.34, 0.5, 2.3),
+  band: [FORMULA_FLOOR, FORMULA_TOP],
+  corners: corners(0.75, -FORMULA_FLOOR, FORMULA_TOP, 2.3),
   body: { length: 4.8, width: 1.95, height: 1.0, style: "formula" },
   sound: { cylinders: 10, pulses: [1, 0.97, 1, 0.96, 1, 0.98, 1, 0.97, 1, 0.96], jitter: 0.03, pulse_ms: 0.4, formants: [380, 1100, 3000], shift: 0.6, muffler: [2200, 9000], drive: 1.6, rasp: 0.3, intake: 0.9, crackle: 0.1, turbo: 0 },
 };

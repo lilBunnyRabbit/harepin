@@ -9,9 +9,6 @@ const SIDE = 1;
 // Ramp mesh and surface reach this far below the base line, so uneven ground never shows a gap under one.
 const BURY = 3;
 export const RIDE = 0.5;
-/** Car body reach below and above its centre of mass, covering every car's sill and roof. */
-export const BODY_LOW = 0.25;
-export const BODY_HIGH = 0.9;
 // Share of the lip's vertical speed the car keeps: the suspension soaks up the rest. Fitted on every car at 360 Hz.
 const LAUNCH_KEEP = 0.91;
 

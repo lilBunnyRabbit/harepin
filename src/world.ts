@@ -3,7 +3,7 @@ import type { Ground } from "./car";
 import { COUPE, type CarSpec } from "./cars";
 import { sample, slope_normal } from "./worldgen/field";
 import { generate } from "./worldgen/index";
-import { BODY_HIGH, BODY_LOW, ramp_surface, spawn_blocks, type Surface } from "./worldgen/jumps";
+import { ramp_surface, spawn_blocks, type Surface } from "./worldgen/jumps";
 import { ROAD_HALF } from "./worldgen/types";
 import type {
   Building,
@@ -37,7 +37,7 @@ export interface Collider {
   vel: Vector3;
   ang: Vector3;
   readonly heading: number;
-  readonly spec: Pick<CarSpec, "mass" | "inertia" | "circles" | "radius">;
+  readonly spec: Pick<CarSpec, "mass" | "inertia" | "circles" | "radius" | "band">;
 }
 
 export interface Spawn {
@@ -332,7 +332,7 @@ export class World implements Ground {
   private hit(car: Collider, solid: Solid, offset: number, fx: number, fz: number): number {
     const { pos, spec } = car;
     if (solid.kind === "box" && solid.bottom !== undefined) {
-      if (pos.y - BODY_LOW > solid.y + solid.height || pos.y + BODY_HIGH < solid.y + solid.bottom) return 0;
+      if (pos.y - spec.band[0] > solid.y + solid.height || pos.y + spec.band[1] < solid.y + solid.bottom) return 0;
     } else if (pos.y > solid.y + solid.height) return 0;
     const contact = circle_contact(solid, pos.x + fx * offset, pos.z + fz * offset, spec.radius, -fx * Math.sign(offset || 1), -fz * Math.sign(offset || 1));
     return contact ? this.resolve(car, contact, fx * offset, fz * offset) : 0;

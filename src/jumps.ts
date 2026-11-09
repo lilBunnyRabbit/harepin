@@ -2,7 +2,7 @@ import * as THREE from "three";
 import type { Car } from "./car";
 import { brand, dark, linear, mix, tones } from "./palette";
 import { CHUNK, chunk_of } from "./worldgen/chunks";
-import { BODY_HIGH, BODY_LOW, challenge_outer, challenge_pieces, GRAVITY, ITEMS, PIECE_DEPTH, ramp_extent, ramp_lift } from "./worldgen/jumps";
+import { challenge_outer, challenge_pieces, GRAVITY, ITEMS, PIECE_DEPTH, ramp_extent, ramp_lift } from "./worldgen/jumps";
 import { Builder, bounding_sphere, type Rgb } from "./worldgen/mesh";
 import type { Challenge, Item, ItemKind, Ramp } from "./worldgen/types";
 
@@ -247,7 +247,7 @@ export class JumpsView {
       const lateral = Math.abs(dx * c.fz - dz * c.fx);
       const y = car.pos.y - c.y;
       const airborne = car.wheels.every((w) => !w.contact);
-      if (airborne && lateral + BODY_HW < c.gap_hw && y - BODY_LOW > c.gap_bottom && y + BODY_HIGH < c.gap_top) clean = c;
+      if (airborne && lateral + BODY_HW < c.gap_hw && y - car.spec.band[0] > c.gap_bottom && y + car.spec.band[1] < c.gap_top) clean = c;
     }
     return clean;
   }

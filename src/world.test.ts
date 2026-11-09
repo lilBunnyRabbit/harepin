@@ -1,7 +1,7 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
 import { Vector3 } from "three";
-import { COUPE } from "./cars";
+import { CARS, COUPE, FORMULA } from "./cars";
 import { World, type Collider } from "./world";
 import { generate } from "./worldgen/index";
 import { ramp_surface } from "./worldgen/jumps";
@@ -24,6 +24,19 @@ function bar(bottom: number, top: number): Solid {
 function car_at(y: number): Collider {
   return { pos: new Vector3(X, y, Z - 1.4), vel: new Vector3(0, 0, 20), ang: new Vector3(), heading: 0, spec: COUPE };
 }
+
+test("bars meet each car at its own body: the closed bodies keep the shared band, the formula its floor and roll hoop", () => {
+  for (const spec of Object.values(CARS)) if (spec !== FORMULA) expect(spec.band).toEqual([0.25, 0.9]);
+  const ys = FORMULA.corners.map(([, y]) => y);
+  expect(FORMULA.band).toEqual([-Math.min(...ys), Math.max(...ys)]);
+  // Clears a bar the shared band would hit, and hits one low under its floor that the shared band would clear.
+  const over = world_with(bar(0.85, 2));
+  const under = world_with(bar(-1, 0.18));
+  const car = (y: number): Collider => ({ ...car_at(y), spec: FORMULA });
+  expect(over.collide(car(GROUND))).toBe(0);
+  expect(under.collide(car(GROUND + 0.55))).toBe(0);
+  expect(under.collide(car(GROUND + 0.45))).toBeGreaterThan(0);
+});
 
 test("a raised bar stops a car at its height and lets one pass beneath or above", () => {
   const world = world_with(bar(3, 3.35));
