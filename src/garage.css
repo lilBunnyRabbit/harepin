@@ -1,8 +1,12 @@
 .garage {
   --garage-glow: var(--background);
   --garage-floor: var(--background-darkest);
-  --garage-rail-w: 232px;
+  --garage-rail-w: 300px;
   --garage-stats-w: 300px;
+  --garage-head: calc(var(--control-h) + 10px);
+  --garage-bottom-h: 156px;
+  --garage-side-top: calc(var(--inset-top) + var(--garage-head) + var(--space-4));
+  --garage-side-h: calc(100% - var(--garage-side-top) - var(--space-4) - var(--garage-bottom-h) - var(--inset-bottom));
   --inset-top: var(--space-4);
   --inset-right: var(--space-4);
   --inset-bottom: var(--space-4);
@@ -100,12 +104,11 @@
 .garage-rail {
   --garage-side: left;
   left: var(--inset-left);
-  top: 50%;
-  translate: 0 -50%;
+  top: var(--garage-side-top);
   display: grid;
   gap: 2px;
   width: var(--garage-rail-w);
-  max-height: calc(100% - 2 * (var(--inset-top) + var(--control-h) + 18px));
+  max-height: var(--garage-side-h);
   overflow-y: auto;
   scrollbar-width: none;
   padding: var(--space-2);
@@ -156,8 +159,10 @@
 .garage-stats {
   --garage-side: right;
   right: var(--inset-right);
-  top: 50%;
-  translate: 0 -50%;
+  top: var(--garage-side-top);
+  max-height: var(--garage-side-h);
+  overflow-y: auto;
+  scrollbar-width: none;
   display: grid;
   gap: var(--space-3);
   width: var(--garage-stats-w);
@@ -263,17 +268,22 @@
   transition: left 0.45s;
 }
 
+/* A fixed band across the whole stage: the car is framed once into what the panels leave, so nothing here may change size between slots or sections. */
 .garage-bottom {
   --garage-side: bottom;
   position: absolute;
-  left: 50%;
+  left: var(--inset-left);
+  right: var(--inset-right);
   bottom: var(--inset-bottom);
-  translate: -50% 0;
   display: grid;
+  align-content: end;
   justify-items: center;
   gap: var(--space-2);
-  width: min(900px, 100% - var(--inset-left) - var(--inset-right) - 2 * var(--garage-rail-w));
-  min-width: min(600px, 100% - var(--inset-left) - var(--inset-right));
+  height: var(--garage-bottom-h);
+}
+
+.garage[data-tab="builds"] .garage-bottom {
+  visibility: hidden;
 }
 
 .garage-strip-head {
@@ -294,17 +304,18 @@
 
 .garage-strip {
   display: flex;
+  justify-content: safe center;
   gap: var(--space-2);
-  max-width: 100%;
+  width: 100%;
   padding: 6px;
   overflow-x: auto;
-  scrollbar-width: thin;
+  scrollbar-width: none;
   touch-action: pan-x;
 }
 
 .garage-card {
   flex: 1 1 0;
-  min-width: 140px;
+  min-width: 104px;
   max-width: 188px;
   position: relative;
   display: grid;
@@ -598,6 +609,7 @@
     right: calc(var(--inset-right) + var(--garage-sheet-w) + var(--space-3));
     translate: none;
     width: auto;
+    max-height: none;
     padding: var(--space-2) var(--space-3);
   }
 
@@ -645,6 +657,7 @@
     translate: none;
     justify-items: stretch;
     gap: 0;
+    height: auto;
   }
 
   /* The strip bleeds to the sheet's edges so a card cut off at the side says "swipe for more". */
@@ -748,7 +761,6 @@
   grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: var(--space-2);
-  width: 360px;
   padding: var(--space-4);
 }
 
@@ -895,8 +907,4 @@
     max-height: calc(100% - var(--inset-top) - var(--garage-top-h) - var(--space-2) - var(--inset-bottom));
     padding: var(--space-3);
   }
-}
-
-.garage-bottom[hidden] {
-  display: none;
 }

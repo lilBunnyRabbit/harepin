@@ -710,7 +710,6 @@ export class Garage {
     this.render_tabs();
     if (builds) this.render_builds();
     else this.render_rail();
-    this.bottom.hidden = builds;
     if (!builds) this.render_strip(shown);
     this.render_meters(shown);
     this.show_car(shown);
