@@ -327,6 +327,10 @@
   transform: scale(1.03);
 }
 
+.menu-art:has(> svg) {
+  padding-bottom: 64px;
+}
+
 .menu-art > svg {
   width: clamp(28px, 28%, 56px);
   height: auto;
