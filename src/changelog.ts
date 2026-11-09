@@ -23,6 +23,20 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.5.0",
+    date: "2026-11-09",
+    title: "Air time",
+    changes: [
+      { kind: NEW, text: "Jumps on the race track, some with a wall, hoop or bar to fly through, plus cone and barrel chicanes." },
+      { kind: NEW, text: "Drift suspension in the garage: a stiff rear that steps out easily, with extra steering lock to catch it." },
+      { kind: NEW, text: "Button steering on touch screens: Settings, Controls, Touch steering." },
+      { kind: IMPROVED, text: "The rally car is at home off-road: nearly tarmac pace on grass, and it lands jumps upright." },
+      { kind: IMPROVED, text: "Sharper graphics on phones." },
+      { kind: FIXED, text: "Cars no longer spin out when landing a jump at speed." },
+      { kind: FIXED, text: "The update card's buttons stay on screen on phones." },
+    ],
+  },
+  {
     version: "0.4.0",
     date: "2026-11-09",
     title: "Jumps, parking and personality",
