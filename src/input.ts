@@ -20,6 +20,8 @@ const KEY_ACTIONS: Record<string, Action> = {
 };
 
 const IMPACT_VIBRATE_MS = 60;
+const DOUBLE_TAP_MS = 300;
+const DOUBLE_TAP_PX = 32;
 const STICK_DEAD = 0.12;
 
 /** Camera look input gathered since the last read. */
@@ -38,7 +40,7 @@ export interface Look {
 
 const no_look = (): Look => ({ dx: 0, dy: 0, zoom: 0, dragging: false, stick_x: 0, stick_y: 0 });
 
-/** Left or right drag and the wheel on the game canvas; HUD and panels sit above it and keep their own clicks. */
+/** Left or right mouse drag, a one-finger drag and the wheel on the game canvas; HUD, panels and touch controls sit above it and keep their own pointers. */
 export class MouseLook {
   private dx = 0;
   private dy = 0;
@@ -47,6 +49,8 @@ export class MouseLook {
   private last_x = 0;
   private last_y = 0;
   private abort: AbortController | null = null;
+  private queued: Action[] = [];
+  private tap = { time: -Infinity, x: 0, y: 0 };
 
   constructor(private readonly canvas: HTMLElement) {}
 
@@ -80,9 +84,16 @@ export class MouseLook {
     return look;
   }
 
+  take_actions(): Action[] {
+    const actions = this.queued;
+    this.queued = [];
+    return actions;
+  }
+
   private down(e: PointerEvent) {
-    // Touch steering lives on its own pad; a finger on the bare canvas does nothing for now.
-    if (e.pointerType === "touch" || (e.button !== 0 && e.button !== 2) || this.pointer !== null) return;
+    if ((e.button !== 0 && e.button !== 2) || this.pointer !== null) return;
+    // The second tap starts no drag: a held finger counts as looking and would cancel the recenter it asked for.
+    if (e.pointerType === "touch" && this.double_tapped(e)) return;
     this.pointer = e.pointerId;
     this.last_x = e.clientX;
     this.last_y = e.clientY;
@@ -95,6 +106,18 @@ export class MouseLook {
     this.dy += e.clientY - this.last_y;
     this.last_x = e.clientX;
     this.last_y = e.clientY;
+  }
+
+  // Mobile browsers do not fire dblclick reliably for a double tap.
+  private double_tapped(e: PointerEvent): boolean {
+    const { tap } = this;
+    if (e.timeStamp - tap.time < DOUBLE_TAP_MS && Math.hypot(e.clientX - tap.x, e.clientY - tap.y) < DOUBLE_TAP_PX) {
+      this.queued.push("recenter");
+      tap.time = -Infinity;
+      return true;
+    }
+    this.tap = { time: e.timeStamp, x: e.clientX, y: e.clientY };
+    return false;
   }
 }
 
@@ -198,7 +221,7 @@ export class Input {
       controls.handbrake = Math.max(controls.handbrake, touch.handbrake);
       if (touch.rewind) this.rewind = true;
     }
-    actions.push(...touch.take_actions());
+    actions.push(...touch.take_actions(), ...this.mouse.take_actions());
     if (this.blocked()) {
       this.rewind = false;
       this.look = no_look();
