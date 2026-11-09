@@ -5,8 +5,8 @@ import { Car, type Ground } from "../car";
 import { CARS } from "../cars";
 import { seed_of } from "../rng";
 import { generate } from "./index";
-import { apex, flight, ramp_surface, ROAD_KICKER } from "./jumps";
-import type { Ramp } from "./types";
+import { apex, face_end, flight, GATE_CLEAR, GATE_RUNOUT, ramp_local, ramp_surface, ROAD_KICKER, RUN_DRIFT } from "./jumps";
+import { SPAWN_INDEX, type Ramp } from "./types";
 
 const DT = 1 / 360;
 const KICKER: Ramp = { id: 0, kind: "kicker", x: 0, y: 0, z: 0, fx: 0, fz: 1, hw: 2.6, length: 8, rise: 2, grade: 0, landing: 45, speed: 21 };
@@ -111,3 +111,18 @@ test("jumps come out the same for a seed and every world gets some", () => {
 test("the lobby circuit gets as many road kickers as a typical seed", () => {
   expect(generate(seed_of("lobby")).ramps.filter((r) => r.road).length).toBeGreaterThanOrEqual(3);
 }, 30_000);
+
+test("no checkpoint, junction or spawn sits in a road kicker's run-out", () => {
+  for (let seed = 0; seed < 100; seed++) {
+    const world = generate(seed);
+    const { road } = world;
+    const gates = [...world.checkpoints, ...world.graph.nodes.filter((n) => n.kind === "junction"), road[(SPAWN_INDEX + road.length) % road.length]];
+    for (const r of world.ramps.filter((r) => r.road)) {
+      const end = face_end(r) + r.landing;
+      for (const g of gates) {
+        const [u, v] = ramp_local(r, g.x, g.z);
+        if (Math.abs(u) < RUN_DRIFT + GATE_CLEAR && v > end) expect(v - end).toBeGreaterThan(GATE_RUNOUT + GATE_CLEAR / 2);
+      }
+    }
+  }
+}, 120_000);

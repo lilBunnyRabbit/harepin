@@ -1,0 +1,123 @@
+.world {
+  display: grid;
+  grid-template-areas: "seed" "map" "legend" "drive" "current";
+  gap: var(--space-4);
+}
+
+.world-seed {
+  grid-area: seed;
+}
+
+.world .world-map {
+  grid-area: map;
+}
+
+.world-legend {
+  grid-area: legend;
+}
+
+.world-drive {
+  grid-area: drive;
+}
+
+.world-current {
+  grid-area: current;
+}
+
+.world-seed-field {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.settings .world-dice {
+  flex: none;
+  width: var(--control-h);
+  height: var(--control-h);
+  border: 1px solid var(--set-line);
+  border-radius: var(--radius-sm);
+  background: var(--set-raised);
+}
+
+.settings .world-dice:hover {
+  border-color: var(--line-strong);
+}
+
+.world-dice svg {
+  width: var(--icon-size);
+  height: var(--icon-size);
+}
+
+.settings .world-drive:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.world-map {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: var(--set-well);
+  font-family: var(--font-sans);
+}
+
+.world-map canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transition: opacity 160ms ease-out;
+}
+
+.world-map[data-status="drawing"] canvas,
+.world-map[data-status="failed"] canvas {
+  opacity: 0.4;
+}
+
+.world-map-note {
+  position: absolute;
+  inset: auto var(--space-3) var(--space-3);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-align: center;
+}
+
+.world-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+  color: var(--set-dim);
+}
+
+.world-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.world-legend li::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--swatch);
+}
+
+@media (max-height: 500px) and (min-width: 601px) {
+  .world {
+    grid-template-columns: min(52%, calc(100dvh - 140px)) minmax(0, 1fr);
+    grid-template-areas: "map seed" "map drive" "map current" "map legend";
+    grid-template-rows: auto auto auto 1fr;
+    align-items: start;
+    gap: var(--space-3) var(--space-4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .world-map canvas {
+    transition: none;
+  }
+}

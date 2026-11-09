@@ -3,6 +3,7 @@ import { DirectoryStatus, PASSWORD_LENGTH, ROOM_LENGTH, clean_password, clean_ro
 import { clean_name, parse_seed } from "./net";
 import { THEMES, choose_theme, current_theme } from "./theme";
 import { TouchSteer } from "./touch";
+import { WorldMap } from "./world-map";
 import "./settings.css";
 
 export const SETTINGS_KEY = "harepin:settings";
@@ -236,6 +237,8 @@ export class Settings {
   private timer = 0;
   private section = "graphics";
   private keys: HTMLElement | null = null;
+  private readonly world_map = new WorldMap();
+  private chosen: number;
 
   constructor(
     private readonly parent: HTMLElement,
@@ -243,6 +246,7 @@ export class Settings {
     private current: SettingsState,
   ) {
     this.saved = read_saved();
+    this.chosen = host.seed;
     this.root.hidden = true;
     this.panel.setAttribute("role", "dialog");
     this.panel.setAttribute("aria-modal", "true");
@@ -285,6 +289,7 @@ export class Settings {
     this.root.removeEventListener("click", this.click);
     removeEventListener("keydown", this.key);
     clearInterval(this.timer);
+    this.world_map.stop();
   }
 
   toggle() {
@@ -323,6 +328,7 @@ export class Settings {
     const sections: Section[] = [
       { id: "graphics", label: "Graphics", icon: "icon-graphics", build: () => this.graphics() },
       { id: "lobby", label: "Lobby", icon: "icon-lobby", build: () => this.lobby() },
+      { id: "world", label: "World", icon: "icon-world", build: () => this.world() },
       { id: "servers", label: "Servers", icon: "icon-servers", build: () => this.servers() },
       { id: "controls", label: "Controls", icon: "icon-controls", build: () => this.controls() },
       { id: "display", label: "Display", icon: "icon-display", build: () => this.display() },
@@ -359,6 +365,8 @@ export class Settings {
     for (const [id, tab] of this.tabs) tab.setAttribute("aria-current", String(id === section));
     for (const [id, page] of this.pages) page.hidden = id !== section;
     this.body.scrollTop = 0;
+    if (section === "world") this.world_map.show(this.chosen, true);
+    else this.world_map.stop();
   }
 
   private row(label: string, control: HTMLElement, hint = "", inline = false): HTMLElement {
@@ -450,17 +458,7 @@ export class Settings {
     const room_value = el("div", "settings-inline");
     room_value.append(
       el("b", "settings-value", room),
-      this.action("Copy invite", async (button) => {
-        const link = `${location.origin}${location.pathname}?room=${encodeURIComponent(room)}&seed=${seed}`;
-        try {
-          await navigator.clipboard.writeText(link);
-          button.textContent = "Copied";
-        } catch (error) {
-          console.warn("settings: clipboard refused", error);
-          button.textContent = "Copy failed";
-        }
-        setTimeout(() => (button.textContent = "Copy invite"), COPIED_MS);
-      }),
+      this.copy_action("Copy invite", invite_link(room, seed)),
     );
 
     const map_value = el("div", "settings-inline");
@@ -507,6 +505,86 @@ export class Settings {
       ),
       this.row("Lobby race", race, "Everyone in the room starts together"),
     ];
+  }
+
+  private copy_action(label: string, link: string): HTMLButtonElement {
+    return this.action(label, async (button) => {
+      try {
+        await navigator.clipboard.writeText(link);
+        button.textContent = "Copied";
+      } catch (error) {
+        console.warn("settings: clipboard refused", error);
+        button.textContent = "Copy failed";
+      }
+      setTimeout(() => (button.textContent = label), COPIED_MS);
+    });
+  }
+
+  private world(): HTMLElement[] {
+    const { room, seed } = this.host;
+    const field = el("input", "settings-input settings-number");
+    field.type = "text";
+    field.inputMode = "numeric";
+    field.maxLength = 10;
+    field.autocomplete = "off";
+    field.enterKeyHint = "go";
+    field.value = String(seed);
+    field.setAttribute("aria-label", "Island seed");
+    const dice = el("button", "world-dice");
+    dice.type = "button";
+    dice.title = "Random seed";
+    dice.setAttribute("aria-label", "Random seed");
+    dice.append(icon("icon-dice"));
+    const seed_field = el("div", "world-seed-field");
+    seed_field.append(field, dice);
+    const seed_row = this.row("Seed", seed_field, "Same seed, same island, for everyone");
+    seed_row.classList.add("world-seed");
+
+    const drive = this.action("Drive this island", () => this.go({ room, seed: String(this.chosen) }));
+    drive.classList.add("world-drive");
+    const choose = (next: number, now: boolean) => {
+      this.chosen = next;
+      drive.disabled = next === seed;
+      drive.title = drive.disabled ? "You're on this island" : `Reloads room ${room} on island ${next}`;
+      this.world_map.show(next, now);
+    };
+    field.addEventListener("input", () => {
+      const next = parse_seed(field.value.trim());
+      field.setCustomValidity(next === null ? "A whole number from 0 to 4294967295" : "");
+      if (next === null) drive.disabled = true;
+      else choose(next, false);
+    });
+    field.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && !drive.disabled) drive.click();
+    });
+    dice.addEventListener("click", () => {
+      const next = random_seed();
+      field.value = String(next);
+      field.setCustomValidity("");
+      choose(next, true);
+    });
+    drive.disabled = true;
+
+    const legend = el("ul", "world-legend");
+    for (const [label, token] of [
+      ["Circuit", "accent"],
+      ["Start", "primary"],
+      ["Checkpoints", "foreground"],
+      ["Jumps", "secondary"],
+    ]) {
+      const item = el("li", "", label);
+      item.style.setProperty("--swatch", `var(--${token})`);
+      legend.append(item);
+    }
+
+    const current = el("div", "settings-inline");
+    current.append(el("b", "settings-value settings-number", String(seed)), this.copy_action("Copy link", invite_link(room, seed)));
+    const current_row = this.row("This island", current, `Room ${room} is driving it`);
+    current_row.classList.add("world-current");
+
+    const world = el("div", "world");
+    world.append(seed_row, this.world_map.root, legend, drive, current_row);
+    return [world];
   }
 
   private go(query: Record<string, string>) {

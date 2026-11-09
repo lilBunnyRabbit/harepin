@@ -27,7 +27,7 @@ import { WorldView, load_world, water_mesh } from "./scene";
 import { clouds, sky } from "./sky";
 import { Lighting } from "./lighting";
 import { NanProbe, sanitise_bloom } from "./postfx";
-import { CAMERA_RETURN_SECONDS, CameraView, Settings, load_settings, save_setting, type SettingsState } from "./settings";
+import { CAMERA_RETURN_SECONDS, CameraView, Settings, invite_link, load_settings, save_setting, type SettingsState } from "./settings";
 import { ask_name } from "./name-prompt";
 import { BUILD, Updater, show_version } from "./update";
 import { SPAWN_INDEX } from "./world";
@@ -522,7 +522,7 @@ document.head.append(Object.assign(document.createElement("meta"), { name: "them
 
 const invite = $("chat-invite", HTMLButtonElement);
 invite.addEventListener("click", async () => {
-  const link = `${location.origin}${location.pathname}?room=${encodeURIComponent(room)}&seed=${seed}`;
+  const link = invite_link(room, seed);
   try {
     await navigator.clipboard.writeText(link);
     invite.textContent = "Copied!";
