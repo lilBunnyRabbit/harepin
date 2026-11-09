@@ -186,7 +186,8 @@ function apply_car_settings(state: SettingsState) {
 function apply_settings(state: SettingsState) {
   apply_car_settings(state);
   document.documentElement.dataset.hud = state.hud;
-  for (const chip of document.querySelectorAll<HTMLElement>(".assists [data-aid]")) chip.setAttribute("aria-pressed", String(state[chip.dataset.aid as "tcs" | "abs" | "assist" | "auto"]));
+  for (const chip of document.querySelectorAll<HTMLElement>("[data-aid]")) chip.setAttribute("aria-pressed", String(state[chip.dataset.aid as Aid]));
+  for (const lamp of document.querySelectorAll<HTMLElement>("[data-lamp]")) lamp.hidden = state[lamp.dataset.lamp as Aid];
   input.touch.set_steer_mode(state.touch_steer);
   chase.mode = state.camera === CameraView.COCKPIT ? 1 : 0;
   audio.set_view(state.camera === CameraView.COCKPIT);
@@ -398,7 +399,7 @@ function toggle_aid(aid: Aid) {
   if (aid === "auto") hud.toast(state.auto ? "Manual gearbox" : "Auto gearbox");
   else hud.toast(`${TOGGLE_LABEL[aid]} ${state[aid] ? "off" : "on"}`);
 }
-for (const chip of document.querySelectorAll<HTMLButtonElement>(".assists [data-aid]"))
+for (const chip of document.querySelectorAll<HTMLButtonElement>("button[data-aid]"))
   chip.addEventListener("click", () => {
     chip.blur();
     toggle_aid(chip.dataset.aid as Aid);
