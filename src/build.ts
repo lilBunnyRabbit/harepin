@@ -29,14 +29,8 @@ export interface Look {
   caliper?: { size: number; tone?: Token };
   /** Nitrous bottle length against the small tank's, and a second bottle beside it. */
   bottle?: { size: number; twin?: boolean };
-}
-
-export interface Part {
-  name: string;
-  /** One line for the garage card: what the part does to the car. */
-  blurb?: string;
-  mod: Mod;
-  look?: Look;
+  /** Rear wing level (1 lip, 2 wing, 3 the biggest; a design's own wing list keeps its top wing past its end), a front lip or deeper splitter, side skirts and a rear diffuser. */
+  aero?: { wing: number; front?: "lip" | "splitter"; skirts?: boolean; diffuser?: boolean };
 }
 
 /** How the garage shows a slot: the whole car always fits the clear screen, turned to the part and shifted toward it. */
@@ -45,6 +39,16 @@ export interface SlotView {
   at: Triple;
   /** The car's turn on its stand, radians: 0.7 points the nose at the camera, -0.87 shows the left flank side on. */
   yaw: number;
+}
+
+export interface Part {
+  name: string;
+  /** One line for the garage card: what the part does to the car. */
+  blurb?: string;
+  mod: Mod;
+  look?: Look;
+  /** Where the garage turns while this part is picked, when its pieces sit away from the slot's view. */
+  view?: SlotView;
 }
 
 export interface SlotSpec {
@@ -77,13 +81,29 @@ export const SLOTS = {
       { name: "Rally", blurb: "Less grip, strong on dirt", mod: { scale: { mu: 0.96 }, add: { offroad: 0.5 } }, look: { tyre: { width: 1.1, rim: 0.88, tread: true } } },
     ],
   },
+  // The kits move the downforce forward of the centre of mass: the street kit's lip and short wing make a pointy car at
+  // speed, the race kit's splitter, diffuser and big wing press harder for the most drag and weight.
   aero: {
-    label: "Spoiler",
+    label: "Aero kit",
     view: { at: [0, 0.75, -0.85], yaw: -1.7 },
     parts: [
       { name: "None", blurb: "Clean, lowest drag", mod: {} },
-      { name: "Lip", blurb: "More downforce, a little drag", mod: { scale: { downforce: 1.8 }, add: { drag: 0.04, rear_grip: 0.02 } } },
-      { name: "Wing", blurb: "Most downforce, more drag", mod: { scale: { downforce: 2.6 }, add: { drag: 0.09, rear_grip: 0.04 } } },
+      { name: "Lip", blurb: "More downforce, a little drag", mod: { scale: { downforce: 1.8 }, add: { drag: 0.04, rear_grip: 0.02 } }, look: { aero: { wing: 1 } } },
+      { name: "Wing", blurb: "Big rear downforce, more drag", mod: { scale: { downforce: 2.6 }, add: { drag: 0.09, rear_grip: 0.04 } }, look: { aero: { wing: 2 } } },
+      {
+        name: "Street kit",
+        blurb: "Lip, skirts, wing: sharper at speed",
+        mod: { scale: { downforce: 3 }, add: { drag: 0.12, rear_grip: 0.03, aero_front: 0.08, mass: 6 } },
+        look: { aero: { wing: 2, front: "lip", skirts: true } },
+        view: { at: [0.6, -0.2, 0.55], yaw: 0.25 },
+      },
+      {
+        name: "Race kit",
+        blurb: "Most downforce and drag, +12 kg",
+        mod: { scale: { downforce: 3.6 }, add: { drag: 0.17, rear_grip: 0.05, aero_front: 0.04, mass: 12 } },
+        look: { aero: { wing: 3, front: "splitter", skirts: true, diffuser: true } },
+        view: { at: [0.5, 0.1, -0.5], yaw: -2.1 },
+      },
     ],
   },
   suspension: {
@@ -144,9 +164,9 @@ export function part_of(slot: Slot, index: number): Part {
   return parts[index];
 }
 
-export function slot_view(slot: Slot): SlotView {
+export function slot_view(slot: Slot, index?: number): SlotView {
   const spec: SlotSpec = SLOTS[slot];
-  return spec.view ?? WHOLE_CAR;
+  return (index === undefined ? undefined : part_of(slot, index).view) ?? spec.view ?? WHOLE_CAR;
 }
 
 const LIMITS: Partial<Record<Field, [number, number]>> = { offroad: [-1, 1] };

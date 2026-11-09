@@ -426,6 +426,24 @@ describe("nitro", () => {
   });
 });
 
+describe("aero kit", () => {
+  const front_share = (aero: number): number => {
+    const car = new Car(apply_build(CARS.coupe, { ...DEFAULT_BUILD, parts: { ...DEFAULT_PARTS, aero } }));
+    car.place(0, 0.6, 0, 0);
+    run(car, 1.5, () => idle);
+    run(car, 14, () => cruise(car, 160));
+    const [fl, fr, rl, rr] = car.wheels.map((w) => w.load);
+    return (fl + fr) / (fl + fr + rl + rr);
+  };
+
+  test("the kits load the front tyres more at speed than the wing alone", () => {
+    const wing = front_share(2);
+    const street = front_share(3);
+    expect(street).toBeGreaterThan(wing + 0.015);
+    expect(front_share(4)).toBeGreaterThan(wing);
+  });
+});
+
 describe("hairpin pull", () => {
   test("full lock and full throttle up a 6% hairpin, TCS and assist on, every car reaches 30 km/h from 10 within 4 s", () => {
     for (const spec of Object.values(CARS)) expect(hairpin_pull(spec, 0.06, true, true).t30).toBeLessThan(4);

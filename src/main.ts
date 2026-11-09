@@ -381,9 +381,10 @@ setInterval(() => {
     id: net.id,
     name: net.name,
     paint: garage.build.paint,
-    // Builds before 0.5.0 reject suspension 3 and builds before nitro reject its tail digit, either showing the whole car
-    // as a stock coupe; peers never see suspension, and see nitro by the `boost` flame flag.
-    b: build_code({ ...garage.build, parts: { ...garage.build.parts, suspension: Math.min(garage.build.parts.suspension, 2), nitro: 0 } }),
+    // Builds before 0.5.0 reject suspension 3, builds before nitro reject its tail digit and builds before the aero kits
+    // reject aero 3 and 4, each showing the whole car as a stock coupe; peers never see suspension, see a kit as its wing,
+    // and see nitro by the `boost` flame flag.
+    b: build_code({ ...garage.build, parts: { ...garage.build.parts, suspension: Math.min(garage.build.parts.suspension, 2), aero: Math.min(garage.build.parts.aero, 2), nitro: 0 } }),
     seed,
     t: performance.now(),
     p: car.pos.toArray() as CarState["p"],

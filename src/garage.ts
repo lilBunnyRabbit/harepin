@@ -102,7 +102,7 @@ interface Item {
   id: string;
   label: string;
   kind: Kind;
-  view: SlotView;
+  view(option: number): SlotView;
   count: number;
   /** The fitted option in `build`. */
   at(build: Build): number;
@@ -117,7 +117,7 @@ const part_item = (slot: Slot): Item => ({
   id: slot,
   label: SLOTS[slot].label,
   kind: "part",
-  view: slot_view(slot),
+  view: (i) => slot_view(slot, i),
   count: SLOTS[slot].parts.length,
   at: (b) => b.parts[slot],
   with: (b, i) => ({ ...b, parts: { ...b.parts, [slot]: i } }),
@@ -132,7 +132,7 @@ const CAR_ITEM: Item = {
   id: "car",
   label: "Car",
   kind: "car",
-  view: WHOLE_CAR,
+  view: () => WHOLE_CAR,
   count: CAR_IDS.length,
   at: (b) => CAR_IDS.indexOf(b.car),
   with: (b, i) => ({ ...b, car: CAR_IDS[i] }),
@@ -147,7 +147,7 @@ const DECAL_ITEM: Item = {
   id: "decal",
   label: "Decal",
   kind: "decal",
-  view: SIDE_VIEW,
+  view: () => SIDE_VIEW,
   count: DECALS.length,
   at: (b) => b.decal,
   with: (b, i) => ({ ...b, decal: i }),
@@ -159,7 +159,7 @@ const NUMBER_ITEM: Item = {
   id: "number",
   label: "Number",
   kind: "number",
-  view: DOOR_VIEW,
+  view: () => DOOR_VIEW,
   count: MAX_NUMBER + 1,
   at: (b) => b.number,
   with: (b, i) => ({ ...b, number: i }),
@@ -171,7 +171,7 @@ const PAINT_ITEM: Item = {
   id: "paint",
   label: "Paint",
   kind: "paint",
-  view: WHOLE_CAR,
+  view: () => WHOLE_CAR,
   count: car_paints.length,
   at: (b) => b.paint % car_paints.length,
   with: (b, i) => ({ ...b, paint: i }),
@@ -183,7 +183,7 @@ const INK_ITEM: Item = {
   id: "ink",
   label: "Decal colour",
   kind: "ink",
-  view: SIDE_VIEW,
+  view: () => SIDE_VIEW,
   count: decal_inks.length,
   at: (b) => b.ink % decal_inks.length,
   with: (b, i) => ({ ...b, ink: i }),
@@ -477,7 +477,7 @@ export class Garage {
     const items = TABS[this.tab].items(this.current);
     this.item = items.find((item) => item.id === this.item.id) ?? items[0];
     this.cursor = this.item.at(this.current);
-    this.pose = pose_of(this.item.view);
+    this.pose = pose_of(this.item.view(this.cursor));
     this.to = this.pose;
     this.shown_code = "";
     this.refresh();
@@ -531,18 +531,18 @@ export class Garage {
   private select(item: Item) {
     this.item = item;
     this.cursor = item.at(this.current);
-    this.aim(item.view);
+    this.aim(item.view(this.cursor));
     this.refresh();
   }
 
   private preview(option: number) {
     if (option === this.cursor) return;
-    this.cursor = option;
+    this.point(option);
     this.refresh();
   }
 
   private fit(option: number) {
-    this.cursor = option;
+    this.point(option);
     this.apply(this.item.with(this.current, option));
     this.refresh();
   }
@@ -790,6 +790,13 @@ export class Garage {
     this.shadow.mesh.scale.set(this.box.half.x / 1.0, 1, this.box.half.z / 2.0);
     this.scene.add(this.view.root);
     this.draw();
+  }
+
+  /** Moves the cursor, turning to the option's view when its pieces sit elsewhere on the car. */
+  private point(option: number) {
+    const view = this.item.view(option);
+    if (view !== this.item.view(this.cursor)) this.aim(view);
+    this.cursor = option;
   }
 
   private aim(view: SlotView) {

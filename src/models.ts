@@ -239,8 +239,10 @@ interface Design {
   rim: Rim;
   /** Where a bolt-on wing sits: rear deck or roof edge, [z, y]. */
   deck: Point;
-  /** A built-in rear wing per `SLOTS.aero` part from None up, set steeper and bigger in place of a bolt-on one on `deck`. */
+  /** A built-in rear wing per aero wing level from none up, set steeper and bigger in place of a bolt-on one on `deck`. */
   wings?: Wing[];
+  /** A built-in front wing per aero front piece (none, lip, splitter), grown in place of a bolt-on lip or splitter. */
+  fronts?: Wing[];
   /** Side decal area when the body side between the arches is hidden, as behind sidepods. */
   panel?: Panel;
   /** Where an engine bulge or scoop sits on the hood, [z, y]. */
@@ -617,6 +619,17 @@ const DESIGNS: Record<BodyStyle, Design> = {
         ],
       },
     ],
+    fronts: [
+      { paint: [], trim: [] },
+      { paint: [], trim: [{ size: [0.56, 0.025, 0.18], at: [0.6, 0.27, 1.88], tilt: [-0.5, 0, 0] }] },
+      {
+        paint: [{ size: [0.03, 0.26, 0.58], at: [0.96, 0.2, 2.1] }],
+        trim: [
+          { size: [0.58, 0.028, 0.2], at: [0.59, 0.27, 1.88], tilt: [-0.55, 0, 0] },
+          { size: [0.5, 0.025, 0.16], at: [0.65, 0.33, 1.76], tilt: [-0.8, 0, 0] },
+        ],
+      },
+    ],
     panel: { rear: -1.08, front: -0.16, low: 0.14, high: 0.4, side: 0.64 },
     eye: [0.7, 0.84],
   },
@@ -739,26 +752,76 @@ function flares(d: Design, spec: CarSpec): THREE.BufferGeometry[] {
   });
 }
 
-function skirts(d: Design, spec: CarSpec): THREE.BufferGeometry[] {
+function skirts(d: Design, spec: CarSpec, thick: number, deep: number): THREE.BufferGeometry[] {
   const reach = spec.wheel.radius + d.arches.gap + d.arches.flare;
   const front = spec.wheel.mounts[0][2] - reach;
   const rear = spec.wheel.mounts[2][2] + reach;
-  return parts([{ size: [0.03, 0.09, front - rear], at: [d.width / 2 + 0.005, d.sill, (front + rear) / 2] }]);
+  return parts([{ size: [thick, deep, front - rear], at: [d.width / 2 - 0.01 + thick / 2, d.sill + 0.045 - deep / 2, (front + rear) / 2] }]);
 }
+
+const WINGS = [
+  { lift: 0.24, span: 0.92, thick: 0.05, chord: 0.36 },
+  { lift: 0.4, span: 1, thick: 0.07, chord: 0.44 },
+  { lift: 0.42, span: 1.04, thick: 0.08, chord: 0.52 },
+];
 
 function wing(level: number, style: BodyStyle, width: number, [z, y]: Point, paint: THREE.Color, trim: THREE.Color): THREE.BufferGeometry[] {
   if (level === 0) {
     if (style !== "coupe") return [];
     return [tint(box(1.6, 0.05, 0.3, 0, y + 0.13, z), paint), ...[-1, 1].map((side) => tint(box(0.06, 0.13, 0.12, side * 0.6, y + 0.065, z + 0.02), trim))];
   }
-  const lift = level === 1 ? 0.24 : 0.4;
-  const span = width * (level === 1 ? 0.92 : 1);
-  const parts = [tint(box(span, level === 1 ? 0.05 : 0.07, level === 1 ? 0.36 : 0.44, 0, y + lift, z - 0.04), paint)];
+  const { lift, span: share, thick, chord } = WINGS[Math.min(level, WINGS.length) - 1];
+  const span = width * share;
+  const parts = [tint(box(span, thick, chord, 0, y + lift, z - 0.04), paint)];
+  if (level > 2) parts.push(tint(new THREE.BoxGeometry(span, 0.035, 0.2).rotateX(0.55).translate(0, y + lift + 0.09, z - 0.04 - chord / 2), paint));
   for (const side of [-1, 1]) {
     parts.push(tint(box(0.06, lift, 0.14, side * width * 0.32, y + lift / 2, z), trim));
     if (level === 2) parts.push(tint(box(0.04, 0.2, 0.48, (side * span) / 2, y + lift, z - 0.04), trim));
+    if (level > 2) parts.push(tint(box(0.03, 0.24, chord + 0.1, (side * span) / 2, y + lift + 0.05, z - 0.09), trim));
   }
   return parts;
+}
+
+function face_at(outline: Point[], y: number): number {
+  let face = -Infinity;
+  for (let i = 0; i + 1 < outline.length; i++) {
+    const [z0, y0] = outline[i];
+    const [z1, y1] = outline[i + 1];
+    if (y < Math.min(y0, y1) || y > Math.max(y0, y1) || y0 === y1) continue;
+    face = Math.max(face, z0 + ((z1 - z0) * (y - y0)) / (y1 - y0));
+  }
+  return face;
+}
+
+const NO_AERO: Required<Look>["aero"] = { wing: 0 };
+const FRONT_LEVEL = { lip: 1, splitter: 2 } as const;
+
+function aero_parts(d: Design, spec: CarSpec, aero: Required<Look>["aero"], paint: THREE.Color, trim: THREE.Color): THREE.BufferGeometry[] {
+  const out: THREE.BufferGeometry[] = [];
+  const [nose, low] = d.outline[0];
+  const front = aero.front ? FRONT_LEVEL[aero.front] : 0;
+  if (d.fronts) {
+    const own = d.fronts[Math.min(front, d.fronts.length - 1)];
+    out.push(...parts(own.paint).map((g) => tint(g, paint)), ...parts(own.trim).map((g) => tint(g, trim)));
+  } else if (front > 0) {
+    const splitter = front > 1;
+    const reach = splitter ? 0.16 : 0.08;
+    out.push(tint(box(d.width * (splitter ? 0.98 : 0.88), splitter ? 0.035 : 0.03, 0.2 + reach, 0, low - 0.01, nose - 0.1 + reach / 2), splitter ? trim : paint));
+    if (splitter) {
+      const y = low + 0.17;
+      const z = face_at(d.outline, y);
+      for (const side of [-1, 1]) out.push(tint(new THREE.BoxGeometry(0.18, 0.016, 0.14).rotateZ(side * 0.3).translate(side * (d.width / 2 - 0.12), y, z + 0.03), trim));
+    }
+  }
+  if (aero.skirts && d.arches.steps > 0) out.push(...skirts(d, spec, 0.07, 0.16).map((g) => tint(g, paint)));
+  if (aero.diffuser) {
+    const [tail, bottom] = d.outline[d.outline.length - 1];
+    const span = d.width * 0.82;
+    const kick = (g: THREE.BufferGeometry) => tint(g.rotateX(0.2).translate(0, bottom + 0.03, tail + 0.1), trim);
+    out.push(kick(new THREE.BoxGeometry(span, 0.025, 0.46)));
+    for (const x of [-0.42, -0.16, 0.16, 0.42]) out.push(kick(new THREE.BoxGeometry(0.02, 0.1, 0.42).translate(x * span, -0.05, 0)));
+  }
+  return out;
 }
 
 // Engine bulges are sized for a saloon hood; a narrower body (the formula's engine cover) scales them down to fit.
@@ -966,7 +1029,7 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
     cabin_parts(d.cabin, paint, glass),
     flares(d, spec).map((g) => tint(g, arch_tone)),
     (d.slabs ?? []).flatMap((slab_part) => slab(slab_part.points, slab_part.from, slab_part.to)).map((g) => tint(g, paint)),
-    skirts(d, spec).map((g) => tint(g, trim)),
+    skirts(d, spec, 0.03, 0.09).map((g) => tint(g, trim)),
     parts(d.paint).map((g) => tint(g, paint)),
     parts(d.trim).map((g) => tint(g, trim)),
     parts(livery && livery.decal !== "none" ? [] : (d.stripes ?? [])).map((g) => tint(g, trim)),
@@ -975,9 +1038,10 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
   );
   const decals = livery && livery.decal !== "none" ? livery_parts(livery, side_panel(d, spec), roof(base, glass), nose, tail) : [];
   // A level past the design's list keeps its biggest wing, so new aero parts never bolt a second one on.
-  const own = d.wings ? d.wings[Math.min(kit.aero, d.wings.length - 1)] : null;
-  const rear_wing = own ? [...parts(own.paint).map((g) => tint(g, paint)), ...parts(own.trim).map((g) => tint(g, trim))] : wing(kit.aero, style, d.width, d.deck, paint, trim);
-  const shell = merge(base, rear_wing, kit_parts(d, kit, paint, trim), decals);
+  const aero = part_of("aero", kit.aero).look?.aero ?? NO_AERO;
+  const own = d.wings ? d.wings[Math.min(aero.wing, d.wings.length - 1)] : null;
+  const rear_wing = own ? [...parts(own.paint).map((g) => tint(g, paint)), ...parts(own.trim).map((g) => tint(g, trim))] : wing(aero.wing, style, d.width, d.deck, paint, trim);
+  const shell = merge(base, rear_wing, aero_parts(d, spec, aero, paint, trim), kit_parts(d, kit, paint, trim), decals);
   const hull = new THREE.Mesh(shell, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
   hull.castShadow = true;
   const halo = d.halo ? new THREE.Mesh(merge(parts(d.halo).map((g) => tint(g, trim))), hull.material) : null;

@@ -67,6 +67,8 @@ export interface CarSpec {
   hold: number;
   drag: number;
   downforce: number;
+  /** Where downforce acts ahead of the centre of mass, as a share of the wheelbase: 0 presses each axle by its weight share, above 0 loads the front tyres more at speed. */
+  aero_front: number;
   /** Share of `downforce` the floor makes, lost with every wheel off the ground, 0..1: jump lines are planned ballistic. */
   ground_effect: number;
   roll_resist: number;
@@ -159,6 +161,7 @@ export const COUPE: CarSpec = {
   hold: 1500,
   drag: 0.42,
   downforce: 0.9,
+  aero_front: 0,
   ground_effect: 0,
   roll_resist: 1.6,
   offroad: 0,

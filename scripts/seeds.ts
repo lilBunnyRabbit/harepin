@@ -1,9 +1,12 @@
 import { World, min_radius } from "../src/world";
 import { car_spec } from "../src/cars";
+import { build_spec, parse_build } from "../src/build";
 import { autolap } from "./autolap";
 
 const SEEDS = 20;
-const SPEC = car_spec(process.argv[2] ?? "coupe");
+const ARG = process.argv[2] ?? "coupe";
+const BUILD = parse_build(ARG);
+const SPEC = BUILD ? build_spec(BUILD) : car_spec(ARG);
 
 let failed = 0;
 for (let seed = 0; seed < SEEDS; seed++) {

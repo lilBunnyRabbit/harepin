@@ -549,7 +549,10 @@ export class Car {
     }
     total_force.addScaledVector(vel, -spec.drag * speed);
     const lift = this.wheels.some((w) => w.contact) ? 1 : 1 - spec.ground_effect;
-    total_force.addScaledVector(up, -spec.downforce * lift * vf * vf);
+    const press = spec.downforce * lift * vf * vf;
+    total_force.addScaledVector(up, -press);
+    // Downforce ahead of the centre of mass pitches the nose onto its springs, so the front tyres carry more of it.
+    if (spec.aero_front) total_torque.add(tmp2.crossVectors(lever.copy(forward).multiplyScalar(spec.aero_front * spec.wheelbase), tmp.copy(up).multiplyScalar(-press)));
 
     vel.addScaledVector(total_force, dt / spec.mass);
     const body_torque = total_torque.applyQuaternion(inv);

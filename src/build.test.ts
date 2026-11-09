@@ -43,6 +43,19 @@ test("codes from before decal ink, number and the new slots still parse", () => 
   expect(parse_build("coupe.3.1.2.1.0")).toEqual(with_parts({ aero: 2 }, { paint: 3, decal: 1 }));
   expect(parse_build("coupe.3.1.2.1.0.4.12")).toEqual(with_parts({ aero: 2 }, { paint: 3, decal: 1, ink: 4, number: 12 }));
   for (const suspension of [0, 1, 2] as const) expect(parse_build(`hatch.0.0.0.${suspension}.0`)?.parts.suspension).toBe(suspension);
+  for (const aero of [0, 1, 2]) {
+    const build = with_parts({ aero }, { car: "sturm", paint: 4 });
+    expect(build_code(build)).toBe(`sturm.4.0.${aero}.1.0`);
+    expect(parse_build(`sturm.4.0.${aero}.1.0`)).toEqual(build);
+  }
+});
+
+test("the aero kits take digits 3 and 4 in the aero spot", () => {
+  for (const aero of [3, 4]) {
+    const build = with_parts({ aero, tyres: 2 }, { car: "raijin" });
+    expect(build_code(build)).toBe(`raijin.0.0.${aero}.1.0.0.7.2`);
+    expect(parse_build(build_code(build))).toEqual(build);
+  }
 });
 
 test("off-grammar codes are rejected", () => {
@@ -63,7 +76,7 @@ test("off-grammar codes are rejected", () => {
     "coupe.0.1.0.1.0.0.7.0.0.0.3",
     "coupe.0.1.0.1.0.0.7.",
     "coupe.0.1.0.1.0..7",
-    "coupe.0.0.3.1.0",
+    "coupe.0.0.5.1.0",
     "coupe.0.0.0.4.0",
     "coupe.0.0.0.1.3",
     "coupe.-1.0.0.1.0",
@@ -181,6 +194,25 @@ test("brakes and weight move the spec the documented way", () => {
   expect(stripped.inertia[1]).toBeCloseTo(COUPE.inertia[1] * 0.9);
   expect(stripped.wheel.mounts[0][1]).toBeCloseTo(COUPE.wheel.mounts[0][1] + 0.025);
   expect(stripped.corners[0][1]).toBeCloseTo(COUPE.corners[0][1] + 0.025);
+});
+
+test("aero parts trade top speed for downforce in table order, and the kits move it forward", () => {
+  for (const car of Object.keys(CARS) as CarId[]) {
+    const specs = SLOTS.aero.parts.map((_, aero) => build_spec(with_parts({ aero }, { car })));
+    for (let i = 1; i < specs.length; i++) {
+      expect(specs[i].downforce).toBeGreaterThan(specs[i - 1].downforce);
+      expect(specs[i].drag).toBeGreaterThan(specs[i - 1].drag);
+      expect(stats(specs[i]).top_speed).toBeLessThanOrEqual(stats(specs[i - 1]).top_speed);
+    }
+    const [none, lip, wing, street, race] = specs;
+    for (const spec of [none, lip, wing]) expect(spec.aero_front).toBe(CARS[car].aero_front);
+    expect(street.aero_front).toBeGreaterThan(race.aero_front);
+    expect(race.aero_front).toBeGreaterThan(wing.aero_front);
+    expect(street.rear_grip).toBeLessThan(wing.rear_grip);
+    expect(race.rear_grip).toBeGreaterThan(wing.rear_grip);
+    expect(race.mass).toBeGreaterThan(street.mass);
+    expect(street.mass).toBeGreaterThan(wing.mass);
+  }
 });
 
 test("a bigger nitro tank holds more boost and weighs more", () => {
