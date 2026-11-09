@@ -217,10 +217,10 @@ describe("drift suspension", () => {
   const slip = (car: Car) => Math.abs(beta(car)) * (180 / Math.PI);
   const power_on: Controls = { ...idle, steer: 0.3, throttle: 1, analog: true };
 
-  // Aids off and held in third at 70 km/h, so the only thing between the two runs is the setup.
-  function rolling(id: CarId, suspension: SuspensionLevel): Car {
+  // TCS off and held in third at 70 km/h, so the only thing between the two runs is the setup.
+  function rolling(id: CarId, suspension: SuspensionLevel, assist = false): Car {
     const car = new Car(apply_build(CARS[id], { ...DEFAULT_BUILD, car: id, suspension }));
-    Object.assign(car, { tcs: false, assist: false, auto: false });
+    Object.assign(car, { tcs: false, assist, auto: false });
     car.place(0, 0.6, 0, 0);
     run(car, 1.5, () => idle);
     car.gear = 3;
@@ -254,7 +254,35 @@ describe("drift suspension", () => {
     return { held, most };
   }
 
+  function peak_slip(car: Car, seconds: number, controls: Controls): number {
+    let most = 0;
+    for (let t = 0; t < seconds; t += DT) {
+      car.step(DT, controls, flat);
+      most = Math.max(most, slip(car));
+    }
+    return most;
+  }
+
   for (const id of ["coupe", "kaze"] as const) {
+    test(`${id}: with steer assist on, drift still rotates under power where race stays planted`, () => {
+      const race = peak_slip(rolling(id, 2, true), 3, power_on);
+      const drift = peak_slip(rolling(id, 3, true), 3, power_on);
+      expect(race).toBeLessThan(5);
+      expect(drift).toBeGreaterThan(25);
+      expect(drift).toBeLessThan(50);
+    });
+
+    test(`${id}: with steer assist on, floored full lock rotates drift further but the assist still catches it`, () => {
+      const floored: Controls = { ...idle, steer: 1, throttle: 1 };
+      const race_car = rolling(id, 2, true);
+      const drift_car = rolling(id, 3, true);
+      const race = peak_slip(race_car, 4, floored);
+      const drift = peak_slip(drift_car, 4, floored);
+      expect(drift).toBeGreaterThan(race + 10);
+      expect(drift).toBeLessThan(75);
+      expect(kmh(drift_car)).toBeGreaterThan(20);
+    });
+
     test(`${id}: under power, drift steps the rear out well past race without spinning on the spot`, () => {
       const race = step_steer(id, 2);
       const drift = step_steer(id, 3);

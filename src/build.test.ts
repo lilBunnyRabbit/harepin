@@ -81,4 +81,5 @@ test("drift stiffens the rear bar past the front and sits low", () => {
   expect(spec.wheel.rest).toBeLessThan(COUPE.wheel.rest);
   expect(spec.rear_grip).toBeLessThan(COUPE.rear_grip);
   expect(spec.lock).toBeGreaterThan(COUPE.lock);
+  expect(spec.assist_yaw).toBeLessThan(COUPE.assist_yaw);
 });

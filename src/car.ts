@@ -484,7 +484,7 @@ export class Car {
     // handbrake bypasses it so slides can still be started on purpose.
     const excess = Math.abs(slide) - 0.2;
     if (this.assist && excess > 0 && input.handbrake < 0.1 && Math.sign(ang.y) === Math.sign(slide)) {
-      total_torque.y -= ang.y * spec.inertia[1] * Math.min(1, excess * 6) * 3.5;
+      total_torque.y -= ang.y * spec.inertia[1] * Math.min(1, excess * 6) * 3.5 * spec.assist_yaw;
     }
     if (airborne && spec.air_settle > 0) {
       // Crests launch the car off whichever wheel leaves last, so it takes off spinning; bleed pitch and roll and level it

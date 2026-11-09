@@ -37,6 +37,7 @@ const SUSPENSION_REST = [0.04, 0, -0.03, -0.02];
 const SUSPENSION_REAR_GRIP = [0, 0, 0, -0.02];
 // Drift's extra lock is the countersteer room that turns a power slide from a spin into a held angle.
 const SUSPENSION_LOCK = [1, 1, 1, 1.15];
+const SUSPENSION_ASSIST_YAW = [1, 1, 1, 0.6];
 const ENGINE_TORQUE = [1, 1.15, 1.3];
 const ENGINE_REVS = [0, 300, 600];
 const ENGINE_MASS = [0, 15, 30];
@@ -81,6 +82,7 @@ export function apply_build(base: CarSpec, build: Build): CarSpec {
     ...base,
     mass: base.mass + ENGINE_MASS[engine],
     lock: base.lock * SUSPENSION_LOCK[suspension],
+    assist_yaw: base.assist_yaw * SUSPENSION_ASSIST_YAW[suspension],
     wheel: { ...base.wheel, rest: base.wheel.rest + SUSPENSION_REST[suspension] },
     spring: base.spring * spring,
     damper: base.damper * spring,
