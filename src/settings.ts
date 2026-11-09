@@ -67,6 +67,13 @@ export const HudLayout = {
 } as const;
 export type HudLayout = (typeof HudLayout)[keyof typeof HudLayout];
 
+/** Where the dash (speed, gear, revs, aid switches) sits in Classic and Minimal; Racing always centres it, Compact keeps it up top. */
+export const DashPlace = {
+  RIGHT: "right",
+  CENTER: "center",
+} as const;
+export type DashPlace = (typeof DashPlace)[keyof typeof DashPlace];
+
 export const LAPS = [1, 2, 3, 5] as const;
 export type Laps = (typeof LAPS)[number];
 
@@ -89,6 +96,7 @@ export interface SettingsState {
   volume: number;
   muted: boolean;
   hud: HudLayout;
+  dash: DashPlace;
   /** The world the player last picked in the menu; a bare URL drives it again. Never set by an invite or a join. */
   last_world: WorldKind | null;
   last_seed: number | null;
@@ -112,6 +120,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
   volume: 0.8,
   muted: false,
   hud: HudLayout.CLASSIC,
+  dash: DashPlace.RIGHT,
   last_world: null,
   last_seed: null,
 };
@@ -141,6 +150,7 @@ export function parse_settings(raw: unknown): SettingsState {
     volume,
     muted: bool(s.muted, d.muted),
     hud: one_of(Object.values(HudLayout), s.hud, d.hud),
+    dash: one_of(Object.values(DashPlace), s.dash, d.dash),
     last_world: s.last_world === WorldKind.ISLAND || s.last_world === WorldKind.SKY ? s.last_world : null,
     last_seed: typeof s.last_seed === "number" ? parse_seed(String(s.last_seed)) : null,
   };
@@ -888,7 +898,16 @@ export class Settings {
     this.syncs.push(() => {
       for (const [value, button] of buttons) button.setAttribute("aria-checked", String(this.current.hud === value));
     });
-    return [this.row("HUD layout", group, "Where speed, laps, map and buttons sit")];
+    const dash = this.choice(
+      "dash",
+      [
+        [DashPlace.RIGHT, "Right"],
+        [DashPlace.CENTER, "Centre"],
+      ],
+      "Dash",
+      "Speed, gear and aids. Racing always centres it, Compact keeps it up top",
+    );
+    return [this.row("HUD layout", group, "Where speed, laps, map and buttons sit"), dash];
   }
 
   private toggle_row(key: "tcs" | "abs" | "assist" | "auto" | "invert_y" | "ghost" | "muted", label: string, hint = ""): HTMLElement {
