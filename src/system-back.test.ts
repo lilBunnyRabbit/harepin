@@ -26,10 +26,19 @@ function with_history() {
   return { back, pushes: () => pushes, backs: () => backs };
 }
 
-test("nothing is armed before the first gesture", () => {
-  const { back, watchers } = with_watcher();
+test("a watcher arms on start, before any tap", () => {
+  const { back, watchers, backs } = with_watcher();
+  back.begin(null);
+  expect(watchers.length).toBe(1);
+  watchers[0].listener?.();
+  expect(backs()).toBe(1);
+});
+
+test("the history fallback waits for a gesture to arm", () => {
+  const { back, pushes } = with_history();
+  back.begin(null);
   expect(back.armed).toBe(false);
-  expect(watchers.length).toBe(0);
+  expect(pushes()).toBe(0);
 });
 
 test("a system back on the watcher is one game back, and the watcher re-arms", () => {
@@ -70,15 +79,32 @@ test("an Esc the game swallowed does not mute the next system back", () => {
 });
 
 test("without a watcher, one history entry stands in and is never stacked", () => {
-  const { back, pushes, backs } = with_history();
+  const { back, pushes } = with_history();
   back.gesture();
   back.gesture();
   expect(pushes()).toBe(1);
+});
+
+test("each Back on the history fallback is a game back and re-pushes at once, without a tap", () => {
+  const { back, pushes, backs } = with_history();
+  back.gesture();
+  back.popped(null);
+  back.popped(null);
+  expect(backs()).toBe(2);
+  expect(pushes()).toBe(3);
+  expect(back.armed).toBe(true);
+  back.gesture();
+  expect(pushes()).toBe(3);
+});
+
+test("a reload that lands on the guard entry does not push a second one", () => {
+  const { back, pushes, backs } = with_history();
+  back.begin(GUARD_STATE);
+  expect(back.armed).toBe(true);
+  back.gesture();
+  expect(pushes()).toBe(0);
   back.popped(null);
   expect(backs()).toBe(1);
-  expect(back.armed).toBe(false);
-  back.gesture();
-  expect(pushes()).toBe(2);
 });
 
 test("popping onto the guard itself, or with no guard armed, is not a back", () => {

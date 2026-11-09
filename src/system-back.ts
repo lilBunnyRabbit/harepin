@@ -13,8 +13,8 @@ export const GUARD_STATE = "harepin-back";
 
 /**
  * Turns the phone's system Back into the game's own back (B / Esc), so it never closes the installed app. A
- * CloseWatcher hears it where the browser has one; elsewhere a single history entry is popped instead. Browsers only let
- * a page arm either during a user gesture, so arming waits for one and never stacks more than one entry.
+ * CloseWatcher hears it where the browser has one; elsewhere a single history entry is popped and pushed again. Never
+ * more than one watcher or entry at a time.
  */
 export class SystemBack {
   private watcher: Watcher | null = null;
@@ -41,6 +41,16 @@ export class SystemBack {
     window.addEventListener("keydown", (event) => this.gesture(event.key), { capture: true, signal });
     window.addEventListener("keyup", (event) => this.key_up(event.key), { capture: true, signal });
     window.addEventListener("popstate", (event) => this.popped(event.state), { signal });
+    this.begin(window.history.state);
+  }
+
+  /**
+   * A reload keeps the history entry, so a page that opens on its own guard is already guarded. A CloseWatcher arms
+   * at once: the spec grants one without a gesture, and Back before the first tap must not close the app either.
+   */
+  begin(state: unknown) {
+    if (!this.host.create_watcher && state === GUARD_STATE) this.guarded = true;
+    if (this.host.create_watcher) this.arm();
   }
 
   stop() {
@@ -67,10 +77,11 @@ export class SystemBack {
     this.arm();
   }
 
+  /** Browsers on this path don't drop entries pushed without a gesture (only Chrome does, and it has CloseWatcher). */
   popped(state: unknown) {
     if (state === GUARD_STATE || !this.guarded) return;
-    this.guarded = false;
     this.on_back();
+    this.host.push_guard();
   }
 
   private arm() {
