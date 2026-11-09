@@ -1,6 +1,6 @@
 import { sample } from "./field";
 import { length } from "./noise";
-import { ROAD_HALF, RouteKind, SIDEWALK, STREET_HALF, type Checkpoint, type Item, type RoadGraph, type RoadPoint, type Route, type Town } from "./types";
+import { ROAD_HALF, RouteKind, SIDEWALK, STREET_HALF, type Checkpoint, type Item, type Ramp, type RoadGraph, type RoadPoint, type Route, type Town } from "./types";
 
 const STREET_COST = 0.6;
 const SPUR_COST = 1;
@@ -70,6 +70,7 @@ class Atlas {
   constructor(
     readonly graph: RoadGraph,
     towns: readonly Town[],
+    private readonly ramps: readonly Ramp[] = [],
   ) {
     const ring = graph.edges.find((e) => e.closed);
     const town_of = (x: number, z: number) => towns.find((t) => length(t.x - x, t.z - z) <= t.radius + 1);
@@ -105,17 +106,21 @@ class Atlas {
       const next = junctions[(k + 1) % junctions.length];
       const span = (next.at - j.at + n) % n;
       const points = Array.from({ length: span + 1 }, (_, i) => ring.points[(j.at + i) % n]);
-      this.add(j.node, next.node, "ring", points);
+      this.add(j.node, next.node, "ring", points, this.kicked(points));
     });
   }
 
-  private add(a: number, b: number, kind: LegKind, points: RoadPoint[]) {
+  // A road kicker is a wall from behind: the circuit past one is one way.
+  private kicked(points: readonly RoadPoint[]): boolean {
+    return this.ramps.some((r) => r.road && points.some((p) => length(p.x - r.x, p.z - r.z) < r.length + ROAD_HALF));
+  }
+
+  private add(a: number, b: number, kind: LegKind, points: RoadPoint[], one_way = false) {
     const piece = this.pieces++;
     const metres = run(points);
-    for (const leg of [
-      { from: a, to: b, kind, piece, points, length: metres },
-      { from: b, to: a, kind, piece, points: flip(points), length: metres },
-    ]) {
+    const ways = [{ from: a, to: b, kind, piece, points, length: metres }];
+    if (!one_way) ways.push({ from: b, to: a, kind, piece, points: flip(points), length: metres });
+    for (const leg of ways) {
       const list = this.out.get(leg.from) ?? [];
       list.push(this.legs.length);
       this.out.set(leg.from, list);
@@ -223,8 +228,8 @@ function cone(heights: Float32Array, x: number, z: number, fx: number, fz: numbe
  * Point to point through two towns: from the far side of town A out along its spur, round the circuit, and in to the far
  * side of town B. Side streets the routes pass get a cone row and every corner an apex cone.
  */
-export function street_routes(graph: RoadGraph, towns: readonly Town[], heights: Float32Array): { routes: Route[]; items: Item[] } {
-  const atlas = new Atlas(graph, towns);
+export function street_routes(graph: RoadGraph, towns: readonly Town[], heights: Float32Array, ramps: readonly Ramp[] = []): { routes: Route[]; items: Item[] } {
+  const atlas = new Atlas(graph, towns, ramps);
   const candidates: Candidate[] = [];
   const linked = towns.filter((t) => atlas.gates.has(t.id) && (atlas.town_nodes.get(t.id)?.length ?? 0) > 1);
   for (const a of linked)

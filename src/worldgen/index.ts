@@ -138,7 +138,7 @@ export function generate(seed: number): WorldData {
   lap("jumps");
 
   const circuit = circuit_route(road, checkpoints);
-  const streets = street_routes({ nodes, edges }, towns, heights);
+  const streets = street_routes({ nodes, edges }, towns, heights, jumps.ramps);
   jumps.items.push(...streets.items);
   const routes = [circuit, ...streets.routes];
   lap("routes");

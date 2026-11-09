@@ -39,7 +39,7 @@ test.each(SEEDS)("seed %i: every route is whole, on the road, and gated to its f
   expect(circuit.checkpoints.length).toBe(world.checkpoints.length);
   const street = world.routes.filter((r) => r.kind === RouteKind.STREET);
   if (street.length) streets++;
-  const { items } = street_routes(world.graph, world.towns, world.terrain.heights);
+  const { items } = street_routes(world.graph, world.towns, world.terrain.heights, world.ramps);
   for (const route of street) {
     expect(route.closed).toBe(false);
     const from = town_at(world, route.points[0]);
