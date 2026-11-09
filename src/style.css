@@ -740,7 +740,10 @@ select {
   font-family: var(--font-mono);
 }
 
+/* Room for three digits, so the box keeps one width from 0 to 300 km/h. */
 #speed {
+  min-width: 3ch;
+  text-align: right;
   font-size: 52px;
   font-weight: 700;
   line-height: 1;
@@ -1424,9 +1427,7 @@ body:has(#mode-result:not([hidden])) #mode-status {
     pointer-events: none;
   }
 
-  /* Room for three digits, so the box doesn't grow or push the gear out at 100 km/h. */
   #speed {
-    min-width: 3ch;
     font-size: 28px;
   }
 
