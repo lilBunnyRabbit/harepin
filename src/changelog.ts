@@ -23,6 +23,15 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.9.2",
+    date: "2026-11-09",
+    title: "Keyboard steering",
+    changes: [
+      { kind: NEW, text: "Pick how the keyboard steers in Settings, Controls: Classic, Hold, or the new Smooth, which turns as far as the tyres can grip, nudges on a tap and unwinds gently when you let go." },
+      { kind: NEW, text: "Precision steer key: switch it on in Settings, then hold X to halve your steering for fine lines." },
+    ],
+  },
+  {
     version: "0.9.1",
     date: "2026-11-09",
     title: "Cleaner road, dash switches",
