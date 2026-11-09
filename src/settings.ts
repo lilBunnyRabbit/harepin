@@ -89,6 +89,9 @@ export interface SettingsState {
   volume: number;
   muted: boolean;
   hud: HudLayout;
+  /** The world the player last picked in the menu; a bare URL drives it again. Never set by an invite or a join. */
+  last_world: WorldKind | null;
+  last_seed: number | null;
 }
 export type SettingKey = keyof SettingsState;
 
@@ -109,6 +112,8 @@ export const DEFAULT_SETTINGS: SettingsState = {
   volume: 0.8,
   muted: false,
   hud: HudLayout.CLASSIC,
+  last_world: null,
+  last_seed: null,
 };
 
 const one_of = <T extends string | number>(values: readonly T[], raw: unknown, fallback: T): T => (values.includes(raw as T) ? (raw as T) : fallback);
@@ -136,6 +141,8 @@ export function parse_settings(raw: unknown): SettingsState {
     volume,
     muted: bool(s.muted, d.muted),
     hud: one_of(Object.values(HudLayout), s.hud, d.hud),
+    last_world: s.last_world === WorldKind.ISLAND || s.last_world === WorldKind.SKY ? s.last_world : null,
+    last_seed: typeof s.last_seed === "number" ? parse_seed(String(s.last_seed)) : null,
   };
 }
 
@@ -721,7 +728,7 @@ export class Settings {
     hero.append(drive, restart);
 
     const world = (other: WorldKind) => {
-      const tile = this.tile(other, WORLD_NAME[other], WORLD_NOTE[other], this.picture(other), () => (other === kind ? this.close() : this.go(world_query(room, seed, other))));
+      const tile = this.tile(other, WORLD_NAME[other], WORLD_NOTE[other], this.picture(other), () => this.drive(seed, other));
       tile.title = other === kind ? "Keep driving here" : `Reloads room ${room} on ${WORLD_NAME[other]} ${seed}`;
       if (other === kind) tile.append(el("span", "menu-tag", "You're here"));
       return tile;
@@ -954,7 +961,7 @@ export class Settings {
     const seed_row = this.row("Seed", seed_field, "Same seed, same island, for everyone");
     seed_row.classList.add("world-seed");
 
-    const drive = this.action("Drive this island", () => this.go({ room, seed: String(this.chosen), ...(this.chosen_kind === WorldKind.SKY ? { world: this.chosen_kind } : {}) }));
+    const drive = this.action("Drive this island", () => this.drive(this.chosen, this.chosen_kind));
     drive.classList.add("world-drive");
     const choose = (next: number, now: boolean) => {
       this.chosen = next;
@@ -1024,6 +1031,14 @@ export class Settings {
     const world = el("div", "world");
     world.append(kind_row, seed_row, this.world_map.root, legend, drive, current_row);
     return [world];
+  }
+
+  /** A world the player picked: remembered for the next bare load, then driven in this room. */
+  private drive(seed: number, kind: WorldKind) {
+    this.set("last_world", kind);
+    this.set("last_seed", seed);
+    if (seed === this.host.seed && kind === this.host.kind) return this.close();
+    this.go(world_query(this.host.room, seed, kind));
   }
 
   private go(query: Record<string, string>) {
