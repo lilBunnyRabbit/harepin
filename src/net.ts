@@ -65,6 +65,7 @@ export const MAX_LAPS = 10;
 const MAX_RACE_MS = 1e7;
 
 const finite = (v: unknown, limit: number): v is number => typeof v === "number" && Number.isFinite(v) && Math.abs(v) <= limit;
+const dropped = (error: unknown) => console.debug("net: send dropped", error);
 const triple = (v: unknown, limit: number): v is [number, number, number] => Array.isArray(v) && v.length === 3 && v.every((x) => finite(x, limit));
 
 // Peers are untrusted: anything that reaches the scene (positions, quaternions, names) is shape-checked and clamped
@@ -177,13 +178,13 @@ export class Net {
     try {
       const p2p = joinRoom({ appId: "lilbunnyrabbit-harepin" }, room);
       const action = p2p.makeAction<CarState>("car");
-      this.send_p2p = (state) => void action.send(state);
+      this.send_p2p = (state) => void action.send(state).catch(dropped);
       action.onMessage = (state, { peerId }) => this.receive(state, peerId);
       const chat = p2p.makeAction<ChatMsg>("chat");
-      this.send_chat_p2p = (msg) => void chat.send(msg);
+      this.send_chat_p2p = (msg) => void chat.send(msg).catch(dropped);
       chat.onMessage = (msg, { peerId }) => this.receive_chat(msg, peerId);
       const events = p2p.makeAction<RaceEvent>("event");
-      this.send_event_p2p = (event) => void events.send(event);
+      this.send_event_p2p = (event) => void events.send(event).catch(dropped);
       events.onMessage = (event, { peerId }) => this.receive_event(event, peerId);
       p2p.onPeerJoin = () => {
         this.peers++;
