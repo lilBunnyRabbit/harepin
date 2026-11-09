@@ -62,6 +62,31 @@
   font-weight: 600;
 }
 
+.settings:not([data-section="world"]) .settings-random {
+  display: none;
+}
+
+.settings .settings-random {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--control-h);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--set-line);
+  background: var(--set-panel);
+  font-weight: 600;
+}
+
+.settings .settings-random:hover {
+  border-color: var(--line-strong);
+}
+
+.settings-random svg {
+  width: var(--icon-size);
+  height: var(--icon-size);
+}
+
 .settings .settings-back:hover {
   background: var(--set-well);
 }
@@ -541,13 +566,27 @@
     gap: var(--space-3);
   }
 
-  .menu-brand span,
+  /* Tabs and the name / close bar share one row, so the first screen keeps the height for the hero and its Drive. */
+  .settings[data-view="menu"] .settings-panel {
+    grid-template: "tabs top" auto "body body" minmax(0, 1fr) / auto minmax(0, 1fr);
+    column-gap: var(--space-3);
+  }
+
+  .menu-brand,
   .menu-room {
     display: none;
   }
 
-  /* A phone in landscape fits one row of tiles at a readable size; the rest scrolls instead of shrinking. */
+  .menu-top {
+    justify-content: flex-end;
+  }
+
+  /*
+   * The first two rows split what is left of the screen, minus a strip of the next row as a hint that more scrolls in;
+   * the rest scrolls instead of shrinking.
+   */
   .menu-mosaic {
+    --first-rows: max(120px, calc((100dvh - var(--inset-top) - var(--inset-bottom) - 136px) / 2));
     gap: var(--space-3);
     height: auto;
     min-height: 0;
@@ -555,19 +594,19 @@
   }
 
   .menu-mosaic[data-tab="play"] {
-    grid-template: "hero island" 168px "hero sky" 168px "map modes" 168px / 1.25fr 1fr;
+    grid-template: "hero island" var(--first-rows) "hero sky" var(--first-rows) "map modes" 168px / 1.25fr 1fr;
   }
 
   .menu-mosaic[data-tab="garage"] {
-    grid-template: "car body" 168px "car perf" 168px "paint paint" 140px / 1.25fr 1fr;
+    grid-template: "car body" var(--first-rows) "car perf" var(--first-rows) "paint paint" 140px / 1.25fr 1fr;
   }
 
   .menu-mosaic[data-tab="online"] {
-    grid-template: "room games" minmax(168px, auto) "race games" minmax(168px, auto) "new games" 140px / 1fr 1fr;
+    grid-template: "room games" minmax(var(--first-rows), auto) "race games" minmax(var(--first-rows), auto) "new games" 140px / 1fr 1fr;
   }
 
   .menu-mosaic[data-tab="settings"] {
-    grid-template: "graphics display" 140px "controls audio" 140px / 1fr 1fr;
+    grid-template: "graphics display" var(--first-rows) "controls audio" var(--first-rows) / 1fr 1fr;
   }
 
   .settings .menu-tab {

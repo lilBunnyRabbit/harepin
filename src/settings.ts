@@ -580,7 +580,12 @@ export class Settings {
     close.setAttribute("aria-label", "Back to driving");
     close.title = "Back to driving";
     close.append(icon("icon-close"));
-    head.append(back, this.title, close);
+    const random = el("button", "settings-random");
+    random.type = "button";
+    random.dataset.action = "random";
+    random.title = "Drive a random map of this world";
+    random.append(icon("icon-dice"), el("span", "", "Random"));
+    head.append(back, this.title, random, close);
 
     const pages: Section[] = [
       { id: MenuTab.PLAY, label: "Play", build: () => this.play() },
@@ -649,6 +654,7 @@ export class Settings {
   private show(section: string) {
     this.section = section;
     this.root.dataset.view = view_of(section);
+    this.root.dataset.section = section;
     for (const [id, tab] of this.sheet_tabs) tab.setAttribute("aria-current", String(id === section));
     for (const [id, tab] of this.menu_tabs) tab.setAttribute("aria-current", String(id === section));
     for (const [id, page] of this.pages) page.hidden = id !== section;
@@ -1502,6 +1508,7 @@ export class Settings {
     if (!button) return;
     if (button.dataset.action === "close") return this.close();
     if (button.dataset.action === "back") return this.back();
+    if (button.dataset.action === "random") return this.drive(random_seed(), this.chosen_kind);
     const section = button.dataset.section;
     if (!section) return;
     this.show(section);
