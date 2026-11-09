@@ -779,6 +779,11 @@
   color: var(--foreground);
 }
 
+.set-foot .set-changes[aria-current="true"] {
+  text-decoration: underline 2px;
+  text-underline-offset: 4px;
+}
+
 .set-main {
   grid-area: main;
   display: flex;

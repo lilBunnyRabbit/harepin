@@ -43,6 +43,22 @@ export function show_version(parent: HTMLElement): void {
   parent.append(el("span", "version-tag", `v${BUILD.version}`));
 }
 
+/** Every release, newest first: the What's new page in Settings. */
+export function changelog_view(): HTMLElement {
+  const body = el("div", "changelog");
+  // Focusable so the pad can scroll a list taller than the screen.
+  body.tabIndex = 0;
+  body.append(el("p", "changelog-build", `You have v${BUILD.version} · ${BUILD.commit}`));
+  for (const release of CHANGELOG) {
+    const section = el("section", "changelog-release");
+    const line = el("p", "changelog-line");
+    line.append(el("b", "", `v${release.version}`), el("span", "", release.title), el("time", "", release.date));
+    section.append(line, change_list([release]));
+    body.append(section);
+  }
+  return body;
+}
+
 async function fetch_remote(): Promise<RemoteVersion | null> {
   try {
     const res = await fetch(`${import.meta.env.BASE_URL}version.json`, { cache: "no-store" });
@@ -58,7 +74,6 @@ export class Updater {
   private update_sw: ((reload?: boolean) => Promise<void>) | null = null;
   private registration: ServiceWorkerRegistration | null = null;
   private card: HTMLElement | null = null;
-  private changelog: HTMLDialogElement | null = null;
   private check_timer = 0;
   private busy_timer = 0;
   private last_check = 0;
@@ -90,11 +105,6 @@ export class Updater {
     document.removeEventListener("visibilitychange", this.on_visible);
     this.card?.remove();
     this.card = null;
-  }
-
-  show_changelog(): void {
-    this.changelog ??= this.build_changelog();
-    this.changelog.showModal();
   }
 
   private readonly check = (): void => {
@@ -175,29 +185,5 @@ export class Updater {
     const url = new URL(location.href);
     url.searchParams.set(UPDATE_PARAM, String(Date.now()));
     location.replace(url);
-  }
-
-  private build_changelog(): HTMLDialogElement {
-    const dialog = el("dialog", "changelog");
-    dialog.setAttribute("aria-labelledby", "changelog-title");
-    const head = el("header", "changelog-head");
-    const title = el("b", "", "What's new");
-    title.id = "changelog-title";
-    const close = el("button", "changelog-close", "Close");
-    close.type = "button";
-    close.addEventListener("click", () => dialog.close());
-    head.append(title, el("span", "changelog-version", `v${BUILD.version} · ${BUILD.commit}`), close);
-    const body = el("div", "changelog-body");
-    for (const release of CHANGELOG) {
-      const section = el("section", "changelog-release");
-      const line = el("p", "changelog-line");
-      line.append(el("b", "", `v${release.version}`), el("span", "", release.title), el("time", "", release.date));
-      section.append(line, change_list([release]));
-      body.append(section);
-    }
-    dialog.append(head, body);
-    dialog.addEventListener("click", (e) => e.target === dialog && dialog.close());
-    document.body.append(dialog);
-    return dialog;
   }
 }

@@ -189,8 +189,6 @@ export class PadMenu {
   }
 
   private overlay(): Layer | null {
-    const changelog = document.querySelector<HTMLDialogElement>("dialog.changelog[open]");
-    if (changelog) return { roots: [changelog], back: () => changelog.close(), first: () => first_of(changelog) };
     const { settings, chat } = this.host;
     if (settings.is_open)
       return {
@@ -241,7 +239,6 @@ export class PadMenu {
   }
 
   private close_all() {
-    document.querySelector<HTMLDialogElement>("dialog.changelog[open]")?.close();
     this.host.settings.close();
     if (this.host.chat.is_open && this.chat_panel.contains(document.activeElement)) this.host.chat.close();
     this.close_hud();

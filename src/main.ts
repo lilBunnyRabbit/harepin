@@ -31,7 +31,7 @@ import { PadTimer, type PadSnapshot } from "./sky-pads";
 import { Lighting } from "./lighting";
 import { NanProbe, sanitise_bloom } from "./postfx";
 import { CAMERA_RETURN_SECONDS, CameraView, MenuTab, Settings, invite_link, load_settings, take_drive, type SettingsState } from "./settings";
-import { BUILD, Updater, show_version } from "./update";
+import { BUILD, Updater, changelog_view, show_version } from "./update";
 import { pick_world } from "./world-pick";
 import { GUARD_STATE, SystemBack, type Watcher } from "./system-back";
 import { SPAWN_INDEX } from "./world";
@@ -174,7 +174,7 @@ const settings = new Settings(document.body, {
   quality_status: () => ({ tier: quality.tier_name, ratio: quality.ratio, bloom: quality.tier.bloom, shadow_size: quality.tier.shadow_size }),
   race_busy: () => lobby.busy,
   toggle_race: (laps, route) => (lobby.busy ? lobby.leave() : lobby.call(laps, route)),
-  version: BUILD.version, show_changelog: () => updater.show_changelog(),
+  version: BUILD.version, changelog: changelog_view,
   servers: () => directory.list(),
   servers_status: () => directory.status,
   password_failed: () => net.status === WRONG_PASSWORD,
@@ -278,10 +278,8 @@ const system_back = new SystemBack(
     push_guard: () => window.history.pushState(GUARD_STATE, ""),
   },
   () => {
-    const changelog = document.querySelector<HTMLDialogElement>("dialog.changelog[open]");
     const popover = document.querySelector<HTMLElement>(":popover-open");
-    if (changelog) changelog.close();
-    else if (settings.is_open) settings.back();
+    if (settings.is_open) settings.back();
     else if (popover) popover.hidePopover();
     else if (chat.is_open) chat.close();
     else settings.open();

@@ -125,47 +125,23 @@
 }
 
 .changelog {
-  width: min(520px, calc(100vw - var(--inset-left) - var(--inset-right)));
-  max-height: calc(100dvh - var(--inset-top) - var(--inset-bottom));
-  padding: 0;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--line);
-  background: var(--panel);
-  color: var(--foreground);
-  font-size: var(--text-md);
-  box-shadow: var(--panel-shadow);
-}
-
-.changelog[open] {
-  display: grid;
-  grid-template-rows: auto 1fr;
-}
-
-.changelog::backdrop {
-  background: color-mix(in oklch, var(--background-darkest) 50%, transparent);
-}
-
-.changelog-head {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-5);
-  border-bottom: 1px solid var(--line);
-  font-size: var(--text-xl);
-  font-weight: 600;
-}
-
-.changelog-version {
-  flex: 1;
-  font: 400 var(--text-xs) var(--font-mono);
-  color: var(--dim);
-}
-
-.changelog-body {
   display: grid;
   gap: var(--space-5);
-  padding: var(--space-4) var(--space-5) var(--space-5);
-  overflow-y: auto;
+  margin: 0 var(--space-2);
+  padding: var(--space-2) var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: var(--text-md);
+  outline: none;
+}
+
+.changelog:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--primary);
+}
+
+.changelog-build {
+  margin: 0;
+  font: 400 var(--text-xs) var(--font-mono);
+  color: var(--dim);
 }
 
 .changelog-release {
@@ -189,9 +165,4 @@
   margin-left: auto;
   font: 400 var(--text-xs) var(--font-mono);
   color: var(--dim);
-}
-
-.changelog-close {
-  background: var(--panel-raised);
-  border-color: var(--line);
 }

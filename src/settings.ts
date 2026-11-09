@@ -229,7 +229,8 @@ export interface SettingsHost {
   race_busy(): boolean;
   toggle_race(laps: Laps, route: string): void;
   readonly version: string;
-  show_changelog(): void;
+  /** Every release, newest first: the What's new page. */
+  changelog(): HTMLElement;
   servers(): Server[];
   servers_status(): DirectoryStatus;
   /** This room's handshake failed on the password, so its row offers another try. */
@@ -301,6 +302,9 @@ const View = {
   PAGE: "page",
 } as const;
 type View = (typeof View)[keyof typeof View];
+
+/** The What's new page: a settings page with no section tab, opened from the version line. */
+const CHANGES = "changes";
 
 /** Full-screen pages under a menu tab, by title. */
 const PAGE_TITLE: Record<string, string> = { world: "New map", modes: "Modes", room: "New room" };
@@ -1335,10 +1339,11 @@ export class Settings {
     const changes = () => {
       const button = el("button", "set-changes", "What's new");
       button.type = "button";
-      button.addEventListener("click", () => this.host.show_changelog());
+      button.dataset.sub = CHANGES;
       return button;
     };
-    foot.append(el("span", "", `v${this.host.version}`), changes());
+    const foot_changes = changes();
+    foot.append(el("span", "", `v${this.host.version}`), foot_changes);
 
     const back = el("button", "set-crumb");
     back.type = "button";
@@ -1372,6 +1377,9 @@ export class Settings {
       main.append(list);
       this.subs.set(page.id, { label: page.label, parent: page.parent, keys: [], tab: null, list, help: page.help });
     }
+    const changes_list = this.sub_list(CHANGES, "What's new", [this.host.changelog()]);
+    main.append(changes_list);
+    this.subs.set(CHANGES, { label: "What's new", parent: null, keys: [], tab: foot_changes, list: changes_list, help: "Every release, newest first." });
     nav.append(foot);
 
     const help = el("aside", "set-help");
@@ -1435,7 +1443,7 @@ export class Settings {
 
   step_sub(step: number) {
     if (this.section !== MenuTab.SETTINGS) return;
-    const tops = [...this.subs].filter(([, sub]) => sub.parent === null).map(([id]) => id);
+    const tops = [...this.subs].filter(([id, sub]) => sub.parent === null && id !== CHANGES).map(([id]) => id);
     const from = this.subs.get(this.sub)?.parent ?? this.sub;
     this.show_sub(tops[(tops.indexOf(from) + step + tops.length) % tops.length]);
   }
