@@ -64,7 +64,7 @@ export default defineConfig({
       // Relative, so the worker controls /harepin/ only: WebOS and Series Tracker share the origin.
       scope: "./",
       workbox: {
-        globPatterns: ["**/*.{js,css,html,woff2,svg,png,ico}"],
+        globPatterns: ["**/*.{js,css,html,woff2,svg,png,ico,webp}"],
       },
       manifest: {
         id: "harepin",

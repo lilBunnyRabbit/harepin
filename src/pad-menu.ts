@@ -84,7 +84,8 @@ function settle(el: Element | null) {
 
 /**
  * The pad through every menu outside the garage, on real focus: d-pad and left stick move, A clicks, B backs out, LB / RB
- * switch tabs. Menu opens the HUD bar (garage, settings, chat, modes, update card, mode result) or shuts whatever is open.
+ * switch tabs. Start opens the main menu, or the HUD bar while a card there waits for an answer (mode result, update,
+ * join their map), and shuts whatever is open.
  */
 export class PadMenu {
   private hud_open = false;
@@ -102,7 +103,12 @@ export class PadMenu {
 
   toggle() {
     if (this.rotated()) return;
-    if (this.is_open || this.host.settings.is_open) return this.close_all();
+    const { settings } = this.host;
+    if (this.is_open || settings.is_open) return this.close_all();
+    if (!this.card_waiting()) {
+      settings.open();
+      return focus(first_of(settings.page()));
+    }
     this.hud_open = true;
     const layer = this.hud();
     const held = document.activeElement;
@@ -175,7 +181,10 @@ export class PadMenu {
     if (settings.is_open)
       return {
         roots: [settings.panel],
-        back: () => settings.close(),
+        back: () => {
+          settings.back();
+          if (settings.is_open) focus(first_of(settings.page()));
+        },
         tab: (step) => {
           settings.step_section(step);
           return first_of(settings.page());
@@ -228,6 +237,10 @@ export class PadMenu {
     if (this.modes.matches(":popover-open")) this.modes.hidePopover();
     if (this.host.chat.is_open && this.chat_panel.contains(document.activeElement)) this.host.chat.close();
     this.close_hud();
+  }
+
+  private card_waiting(): boolean {
+    return [$("mode-result"), $("join-map"), document.querySelector(".update-card")].some((card) => card instanceof HTMLElement && card.checkVisibility());
   }
 
   private rotated(): boolean {

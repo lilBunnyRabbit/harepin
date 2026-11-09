@@ -1,0 +1,636 @@
+.settings[data-view="menu"],
+.settings[data-view="page"] {
+  background: color-mix(in oklch, var(--background-darkest) 72%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+:root[data-scheme="light"] .settings[data-view="menu"],
+:root[data-scheme="light"] .settings[data-view="page"] {
+  background: color-mix(in oklch, var(--background-lighter) 78%, transparent);
+}
+
+.settings[data-view="menu"] .settings-panel,
+.settings[data-view="page"] .settings-panel {
+  inset: var(--inset-top) var(--inset-right) var(--inset-bottom) var(--inset-left);
+  width: auto;
+  max-width: 1280px;
+  margin: 0 auto;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  overflow: visible;
+}
+
+.settings[data-view="menu"] .settings-panel {
+  grid-template: "top" auto "tabs" auto "body" minmax(0, 1fr) / minmax(0, 1fr);
+  gap: var(--space-5);
+}
+
+.settings[data-view="page"] .settings-panel {
+  grid-template: "head" auto "body" minmax(0, 1fr) / minmax(0, 1fr);
+  gap: var(--space-5);
+}
+
+.settings:not([data-view="menu"]) .menu-top,
+.settings:not([data-view="menu"]) .menu-tabs,
+.settings:not([data-view="sheet"]) .settings-tabs,
+.settings:not([data-view="sheet"]) .settings-foot,
+.settings[data-view="menu"] .settings-head {
+  display: none;
+}
+
+.settings[data-view="page"] .settings-head {
+  padding: 0;
+  border: 0;
+}
+
+.settings-head {
+  gap: var(--space-2);
+}
+
+.settings-head .settings-title {
+  margin-right: auto;
+}
+
+.settings .settings-back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: var(--control-h);
+  padding: 0 var(--space-3) 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+}
+
+.settings .settings-back:hover {
+  background: var(--set-well);
+}
+
+.settings-back svg,
+.settings-close svg {
+  width: var(--icon-size);
+  height: var(--icon-size);
+}
+
+.settings[data-view="page"] .settings-body,
+.settings[data-view="menu"] .settings-body {
+  overflow-y: auto;
+  border-radius: var(--radius-lg);
+  /* Room for the focus ring of the outer tiles, which the scroller would otherwise cut. */
+  padding: 6px;
+  margin: -6px -6px 0;
+}
+
+.settings[data-view="page"] .settings-page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--set-line);
+  background: var(--set-panel);
+}
+
+.menu-top {
+  grid-area: top;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.menu-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-right: auto;
+  font-size: var(--text-xl);
+  font-weight: 700;
+  letter-spacing: -0.011em;
+}
+
+.menu-brand svg {
+  width: 26px;
+  height: 24px;
+  fill: var(--primary);
+}
+
+.menu-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--control-h);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--set-line);
+  background: var(--set-panel);
+  font-weight: 600;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.menu-chip small {
+  color: var(--set-dim);
+  font-weight: 500;
+}
+
+.menu-chip svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--set-dim);
+}
+
+.menu-name:focus-within {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.menu-name input {
+  width: 13ch;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--foreground);
+  font: inherit;
+  outline: none;
+}
+
+.menu-name input::placeholder {
+  color: var(--foreground);
+}
+
+.menu-room .menu-live {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--primary);
+}
+
+.settings .menu-close {
+  width: var(--control-h);
+  height: var(--control-h);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--set-line);
+  background: var(--set-panel);
+}
+
+.settings .menu-close:hover {
+  border-color: var(--line-strong);
+}
+
+.menu-close svg {
+  width: var(--icon-size);
+  height: var(--icon-size);
+}
+
+.menu-tabs {
+  grid-area: tabs;
+  justify-self: start;
+  display: flex;
+  gap: var(--space-1);
+  max-width: 100%;
+  padding: var(--space-1);
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--set-line);
+  background: var(--set-well);
+}
+
+.settings .menu-tab {
+  height: calc(var(--control-h) + var(--space-2));
+  border: 1px solid transparent;
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-full);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--set-dim);
+  white-space: nowrap;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+
+.settings .menu-tab:hover {
+  color: var(--foreground);
+  background: color-mix(in oklch, var(--set-raised) 45%, transparent);
+}
+
+.settings .menu-tab[aria-current="true"] {
+  color: var(--foreground);
+  background: var(--set-raised);
+  border-color: var(--line-strong);
+  box-shadow: 0 1px 2px color-mix(in oklch, var(--background-darkest) 40%, transparent);
+}
+
+.settings .menu-tab:active {
+  background: var(--set-panel);
+}
+
+.settings .menu-tab:focus-visible {
+  outline-offset: -2px;
+}
+
+.menu-mosaic {
+  display: grid;
+  gap: var(--space-4);
+  height: 100%;
+  min-height: 420px;
+}
+
+.menu-mosaic > * {
+  min-width: 0;
+  min-height: 0;
+}
+
+.menu-mosaic[data-tab="play"] {
+  grid-template: "hero island sky" 1fr "hero map modes" 1fr / 1.6fr 1fr 1fr;
+}
+
+.menu-mosaic[data-tab="garage"] {
+  grid-template: "car body perf" 1fr "car paint paint" 1fr / 1.6fr 1fr 1fr;
+}
+
+.menu-mosaic[data-tab="online"] {
+  grid-template: "room room games" 1fr "race new games" 1fr / 1fr 1fr 1.15fr;
+}
+
+.menu-mosaic[data-tab="settings"] {
+  grid-template: "graphics display" 1fr "controls audio" 1fr / 1fr 1fr;
+}
+
+.settings .menu-tile {
+  --tile-scrim: var(--background-darkest);
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--set-line);
+  background: var(--set-well);
+  color: var(--foreground);
+  text-align: left;
+  transition: border-color 120ms ease-out, transform 120ms ease-out;
+}
+
+:root[data-scheme="light"] .settings .menu-tile {
+  --tile-scrim: var(--background-lighter);
+}
+
+.settings button.menu-tile:hover,
+.menu-tile:has(> .menu-hit:hover) {
+  border-color: var(--line-strong);
+}
+
+.settings button.menu-tile:active,
+.menu-tile:has(> .menu-hit:active) {
+  transform: scale(0.985);
+}
+
+.settings button.menu-tile:focus-visible,
+.settings .menu-hit:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.settings .menu-hit {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.menu-hit:focus-visible {
+  outline-offset: -3px;
+}
+
+.menu-art {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--set-dim);
+  pointer-events: none;
+}
+
+.menu-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 240ms ease-out;
+}
+
+.menu-art img[data-fit="contain"] {
+  object-fit: contain;
+}
+
+.menu-tile:hover .menu-art img {
+  transform: scale(1.03);
+}
+
+.menu-art > svg {
+  width: clamp(28px, 28%, 56px);
+  height: auto;
+  aspect-ratio: 1;
+}
+
+.menu-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+}
+
+.menu-tile:has(img)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(to top, var(--tile-scrim) 0%, color-mix(in oklch, var(--tile-scrim) 78%, transparent) 30%, transparent 64%);
+}
+
+.menu-text {
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 1;
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-4) var(--space-5);
+  pointer-events: none;
+}
+
+.menu-text b {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  letter-spacing: -0.011em;
+  line-height: 1.2;
+}
+
+.menu-text > span {
+  color: var(--set-dim);
+  font-size: var(--text-sm);
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menu-eyebrow,
+.menu-text .menu-eyebrow {
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--set-dim);
+}
+
+.menu-tag {
+  position: absolute;
+  top: var(--space-3);
+  left: var(--space-3);
+  z-index: 1;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--primary);
+  color: var(--background-darkest);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+[data-area="hero"],
+[data-area="car"] {
+  grid-area: hero;
+}
+
+[data-area="car"] {
+  grid-area: car;
+}
+
+[data-area="hero"] .menu-text,
+[data-area="car"] .menu-text {
+  padding: var(--space-6);
+}
+
+[data-area="hero"] .menu-text b,
+[data-area="car"] .menu-text b {
+  font-size: 28px;
+}
+
+[data-area="hero"] .menu-text > span,
+[data-area="car"] .menu-text > span {
+  max-width: 48ch;
+  white-space: normal;
+}
+
+.menu-text .menu-go {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  height: 40px;
+  margin-top: var(--space-3);
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-md);
+  background: var(--primary);
+  color: var(--background-darkest);
+  font-size: var(--text-xl);
+  font-weight: 700;
+}
+
+.settings .menu-corner {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: var(--control-h);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--set-line);
+  background: var(--set-panel);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.menu-corner svg {
+  width: 14px;
+  height: 14px;
+}
+
+.settings .menu-corner:hover {
+  border-color: var(--line-strong);
+}
+
+[data-area="island"] { grid-area: island; }
+[data-area="sky"] { grid-area: sky; }
+[data-area="map"] { grid-area: map; }
+[data-area="modes"] { grid-area: modes; }
+[data-area="body"] { grid-area: body; }
+[data-area="perf"] { grid-area: perf; }
+[data-area="paint"] { grid-area: paint; }
+[data-area="room"] { grid-area: room; }
+[data-area="games"] { grid-area: games; }
+[data-area="race"] { grid-area: race; }
+[data-area="new"] { grid-area: new; }
+[data-area="graphics"] { grid-area: graphics; }
+[data-area="display"] { grid-area: display; }
+[data-area="controls"] { grid-area: controls; }
+[data-area="audio"] { grid-area: audio; }
+
+.settings .menu-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  background: var(--set-panel);
+}
+
+.menu-info > * {
+  flex: none;
+}
+
+.menu-info > .menu-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  display: grid;
+  align-content: start;
+  gap: var(--space-2);
+}
+
+.menu-code {
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menu-info .settings-choice {
+  max-width: 320px;
+}
+
+.menu-info .settings-action {
+  align-self: start;
+}
+
+.menu-caption {
+  color: var(--set-dim);
+  font-size: var(--text-sm);
+}
+
+.menu-info > .menu-caption:last-child {
+  margin-top: auto;
+}
+
+.menu-info .servers-list {
+  gap: var(--space-1);
+}
+
+@media (max-height: 500px) {
+  .settings[data-view="menu"] .settings-panel,
+  .settings[data-view="page"] .settings-panel {
+    gap: var(--space-3);
+  }
+
+  .menu-brand span,
+  .menu-room {
+    display: none;
+  }
+
+  /* A phone in landscape fits one row of tiles at a readable size; the rest scrolls instead of shrinking. */
+  .menu-mosaic {
+    gap: var(--space-3);
+    height: auto;
+    min-height: 0;
+    grid-auto-rows: 168px;
+  }
+
+  .menu-mosaic[data-tab="play"] {
+    grid-template: "hero island" 168px "hero sky" 168px "map modes" 168px / 1.25fr 1fr;
+  }
+
+  .menu-mosaic[data-tab="garage"] {
+    grid-template: "car body" 168px "car perf" 168px "paint paint" 140px / 1.25fr 1fr;
+  }
+
+  .menu-mosaic[data-tab="online"] {
+    grid-template: "room games" minmax(168px, auto) "race games" minmax(168px, auto) "new games" 140px / 1fr 1fr;
+  }
+
+  .menu-mosaic[data-tab="settings"] {
+    grid-template: "graphics display" 140px "controls audio" 140px / 1fr 1fr;
+  }
+
+  .settings .menu-tab {
+    padding: 0 var(--space-4);
+  }
+
+  .menu-text {
+    padding: var(--space-3) var(--space-4);
+  }
+
+  [data-area="hero"] .menu-text,
+  [data-area="car"] .menu-text {
+    padding: var(--space-4);
+  }
+
+  [data-area="hero"] .menu-text b,
+  [data-area="car"] .menu-text b {
+    font-size: var(--text-2xl);
+  }
+
+  .settings .menu-info {
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .settings[data-view="page"] .settings-page {
+    padding: var(--space-4);
+  }
+}
+
+@media (max-width: 600px) {
+  .menu-mosaic[data-tab="play"] {
+    grid-template: "hero hero" 220px "island sky" 160px "map modes" 160px / 1fr 1fr;
+  }
+
+  .menu-mosaic[data-tab="garage"] {
+    grid-template: "car car" 220px "body perf" 160px "paint paint" 140px / 1fr 1fr;
+  }
+
+  .menu-mosaic[data-tab="online"] {
+    grid-template: "room room" minmax(168px, auto) "games games" minmax(220px, auto) "race new" minmax(168px, auto) / 1fr 1fr;
+  }
+
+  .menu-mosaic {
+    height: auto;
+    min-height: 0;
+    grid-auto-rows: 160px;
+  }
+
+  .menu-room {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-tile,
+  .menu-art img {
+    transition: none;
+  }
+
+  .settings button.menu-tile:active,
+  .menu-tile:has(> .menu-hit:active),
+  .menu-tile:hover .menu-art img {
+    transform: none;
+  }
+}
+
+.settings[data-view="menu"] .settings-page {
+  height: 100%;
+  padding: 0;
+}

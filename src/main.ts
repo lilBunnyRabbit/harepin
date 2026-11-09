@@ -30,8 +30,7 @@ import { cloud_floor, clouds, sky } from "./sky";
 import { PadTimer, type PadSnapshot } from "./sky-pads";
 import { Lighting } from "./lighting";
 import { NanProbe, sanitise_bloom } from "./postfx";
-import { CAMERA_RETURN_SECONDS, CameraView, Settings, invite_link, load_settings, save_setting, type SettingsState } from "./settings";
-import { ask_name } from "./name-prompt";
+import { CAMERA_RETURN_SECONDS, CameraView, Settings, invite_link, load_settings, type SettingsState } from "./settings";
 import { BUILD, Updater, show_version } from "./update";
 import { SPAWN_INDEX } from "./world";
 import { FALL_DEPTH } from "./worldgen/sky";
@@ -45,11 +44,10 @@ const kind = parse_kind(params.get("world"));
 const ADJECTIVES = ["Swift", "Fuzzy", "Lucky", "Bouncy", "Sly", "Brave", "Zippy", "Mellow"];
 const random_name = `${ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)]} Bunny`;
 const prefs = load_settings(params);
-const asked_name = prefs.name === null ? ask_name(document.body, random_name) : null;
 
 show_version($("loading"));
 const audio = new Audio();
-// Built and unlocked before the island loads: the first taps (the name prompt) land while it builds.
+// Built and unlocked before the island loads, so the first taps on the loading screen already count.
 audio.prepare();
 // A touch only counts as a user gesture on release, so pointerdown alone never unlocked sound on phones.
 const UNLOCK_EVENTS = ["keydown", "pointerup", "touchend", "click", "gamepadconnected"];
@@ -83,10 +81,6 @@ scene.add(...light.dress(sky(), clouds(world.seed)), world_view.root, ...(world.
 const gate_views = gates(world);
 for (const g of gate_views) scene.add(g.group);
 
-if (asked_name) {
-  prefs.name = await asked_name;
-  save_setting("name", prefs.name);
-}
 const lock = load_lock(room);
 const net = new Net(room, seed, prefs.name ?? random_name, lock, world_id(kind));
 const directory = new Directory(
@@ -178,6 +172,14 @@ const settings = new Settings(document.body, {
   servers_status: () => directory.status,
   password_failed: () => net.status === WRONG_PASSWORD,
   browse_servers: (on) => directory.browse(on),
+  car_name: () => car.spec.name,
+  open_garage: (section) => {
+    settings.close();
+    garage.open(section);
+  },
+  modes: $("modes"),
+  players: () => 1 + net.remotes.size,
+  restart_lap: () => restart_action(),
 }, prefs);
 
 function apply_car_settings(state: SettingsState) {
@@ -207,7 +209,7 @@ settings.on_change = (state, key) => {
   else apply_settings(state);
 };
 apply_settings(prefs);
-$("settings-btn").addEventListener("click", () => settings.open());
+$("menu-btn").addEventListener("click", () => settings.open());
 // The faded touch HUD comes back on any touch along the top, where its buttons sit.
 const WAKE_ZONE = 0.4;
 addEventListener("pointerdown", (event: PointerEvent) => {
@@ -257,6 +259,9 @@ const modes = new Modes(scene, world, SPAWN_INDEX, () => lobby.record, (x, y, z,
 modes.start();
 const updater = new Updater(() => lobby.busy || modes.active);
 updater.start();
+settings.open();
+// Typing a name on a phone would raise the keyboard over the menu, so only a mouse and keyboard get the cursor.
+if (prefs.name === null && matchMedia("(pointer: fine)").matches) settings.focus_name();
 
 garage.on_change = (next) => {
   const { pos, heading } = car;

@@ -1,4 +1,6 @@
 import { SteerMode } from "./car";
+import type { GarageSection } from "./garage";
+import { typing } from "./input";
 import { DirectoryStatus, PASSWORD_LENGTH, ROOM_LENGTH, clean_password, clean_room, locked_name, save_lock, type Server } from "./directory";
 import { clean_name, parse_seed } from "./net";
 import { HARMONIES as HARMONY_HUES, Harmony, generate_theme, is_dark, type ThemeMode } from "./random-theme";
@@ -25,6 +27,7 @@ import {
 import { TouchSteer } from "./touch";
 import { WorldMap } from "./world-map";
 import "./settings.css";
+import "./menu.css";
 
 export const SETTINGS_KEY = "harepin:settings";
 
@@ -194,13 +197,74 @@ export interface SettingsHost {
   /** This room's handshake failed on the password, so its row offers another try. */
   password_failed(): boolean;
   browse_servers(on: boolean): void;
+  /** The car in the garage, for its menu tile. */
+  car_name(): string;
+  /** Closes the menu first; null keeps the garage on the section it was last on. */
+  open_garage(section: GarageSection | null): void;
+  /** The modes level list, the popover the Modes tile opens. */
+  readonly modes: HTMLElement;
+  players(): number;
+  restart_lap(): void;
 }
 
 interface Section {
   id: string;
   label: string;
-  icon: string;
   build: () => HTMLElement[];
+}
+
+interface SheetSection extends Section {
+  icon: string;
+}
+
+export const MenuTab = {
+  PLAY: "play",
+  GARAGE: "garage",
+  ONLINE: "online",
+  SETTINGS: "settings",
+} as const;
+export type MenuTab = (typeof MenuTab)[keyof typeof MenuTab];
+
+const MENU_TABS: [MenuTab, string][] = [
+  [MenuTab.PLAY, "Play"],
+  [MenuTab.GARAGE, "Garage"],
+  [MenuTab.ONLINE, "Online"],
+  [MenuTab.SETTINGS, "Settings"],
+];
+
+const View = {
+  MENU: "menu",
+  PAGE: "page",
+  SHEET: "sheet",
+} as const;
+type View = (typeof View)[keyof typeof View];
+
+/** Full-screen pages under a menu tab, by title. */
+const PAGE_TITLE: Record<string, string> = { world: "New map", room: "New room" };
+
+/** Where Back goes from a page or a settings section. */
+const PARENT: Record<string, MenuTab> = {
+  world: MenuTab.PLAY,
+  room: MenuTab.ONLINE,
+  graphics: MenuTab.SETTINGS,
+  controls: MenuTab.SETTINGS,
+  display: MenuTab.SETTINGS,
+  audio: MenuTab.SETTINGS,
+};
+
+const WORLD_NAME: Record<WorldKind, string> = { island: "Island", sky: "Sky Track" };
+const WORLD_NOTE: Record<WorldKind, string> = { island: "Towns, hills and every challenge", sky: "Drops, rails, jumps, boost pads" };
+const HERO_NOTE: Record<WorldKind, string> = {
+  island: "Free roam. Flags on the orange circuit start the challenges.",
+  sky: "A toy circuit in the clouds: drops, rails, jumps and boost pads.",
+};
+
+type Text = string | (() => string);
+
+const preview = (name: string) => `${import.meta.env.BASE_URL}menu/${name}.webp`;
+
+function world_query(room: string, seed: number, kind: WorldKind): Record<string, string> {
+  return { room, seed: String(seed), ...(kind === WorldKind.SKY ? { world: kind } : {}) };
 }
 
 const TIER_LABEL: Record<QualityTier, string> = { high: "High", medium: "Medium", low: "Low" };
@@ -221,12 +285,11 @@ const KEYS: [string, string, string, string][] = [
   ["Recenter camera", "F / double-click", "R3", "Recenter"],
   ["Ghost", "G", "", ""],
   ["TCS / ABS / steer assist", "1 / 2 / 3", "", ""],
-  ["Garage", "V", "Menu, A", ""],
+  ["Garage", "V", "Start, Garage", ""],
   ["This key list", "H", "", ""],
   ["Chat", "T", "", "Chat"],
-  ["Settings", "Esc", "", ""],
-  ["Menus", "", "Menu", ""],
-  ["In menus: move, pick, back, tabs", "Tab, Enter, Esc", "D-pad, A, B, LB / RB", ""],
+  ["Menu", "Esc", "Start", "Menu button"],
+  ["In menus: move, pick, back, tabs", "Arrows, Enter, Esc, Q / E", "D-pad, A, B, LB / RB", ""],
 ];
 
 const PAD_SEPARATOR = /(, | \/ )/;
@@ -355,12 +418,15 @@ export class Settings {
   private readonly root = el("div", "settings");
   readonly panel = el("div", "settings-panel");
   private readonly body = el("div", "settings-body");
-  private readonly tabs = new Map<string, HTMLButtonElement>();
+  private readonly sheet_tabs = new Map<string, HTMLButtonElement>();
+  private readonly menu_tabs = new Map<string, HTMLButtonElement>();
   private readonly pages = new Map<string, HTMLElement>();
   private readonly syncs: (() => void)[] = [];
+  private readonly title = el("h2", "settings-title", "Settings");
+  private readonly name_input = el("input");
   private saved: SettingsState;
   private timer = 0;
-  private section = "graphics";
+  private section: string = MenuTab.PLAY;
   private keys: HTMLElement | null = null;
   private readonly world_map = new WorldMap();
   private chosen: number;
@@ -377,7 +443,7 @@ export class Settings {
     this.root.hidden = true;
     this.panel.setAttribute("role", "dialog");
     this.panel.setAttribute("aria-modal", "true");
-    this.panel.setAttribute("aria-labelledby", "settings-title");
+    this.panel.setAttribute("aria-label", "Menu");
     this.panel.tabIndex = -1;
     this.build();
     this.root.append(this.panel);
@@ -391,8 +457,9 @@ export class Settings {
     return !this.root.hidden;
   }
 
-  open(section?: string) {
-    if (section && this.pages.has(section)) this.section = section;
+  /** The menu, on Play unless a section is named. */
+  open(section: string = MenuTab.PLAY) {
+    if (this.pages.has(section)) this.section = section;
     if (this.is_open) return this.show(this.section);
     if (!this.root.isConnected) this.parent.append(this.root);
     this.root.hidden = false;
@@ -425,13 +492,26 @@ export class Settings {
     else this.open();
   }
 
+  focus_name() {
+    this.name_input.focus();
+  }
+
   /** The open tab's page. */
   page(): HTMLElement {
     return this.pages.get(this.section) ?? this.body;
   }
 
+  /** One level up: a page or a settings section returns to its tab, a tab closes the menu. */
+  back() {
+    const parent = PARENT[this.section];
+    if (parent) this.show(parent);
+    else this.close();
+  }
+
   step_section(step: number) {
-    const ids = [...this.tabs.keys()];
+    const view = view_of(this.section);
+    if (view === View.PAGE) return;
+    const ids = [...(view === View.MENU ? this.menu_tabs : this.sheet_tabs).keys()];
     this.show(ids[(ids.indexOf(this.section) + step + ids.length) % ids.length]);
   }
 
@@ -452,22 +532,59 @@ export class Settings {
   }
 
   private build() {
+    const top = el("div", "menu-top");
+    const brand = el("span", "menu-brand");
+    brand.append(icon("logo-mark"), el("span", "", "Harepin"));
+    const name_chip = el("label", "menu-chip menu-name");
+    name_chip.title = "Your name: everyone in the room sees it";
+    name_chip.append(this.name_field(), icon("icon-edit"));
+    const room = el("span", "menu-chip menu-room");
+    const here = el("small");
+    room.append(el("span", "menu-live"), el("span", "", `Room ${this.host.room}`), here);
+    this.syncs.push(() => (here.textContent = `· ${this.host.players()} here`));
+    const leave = el("button", "menu-close");
+    leave.type = "button";
+    leave.dataset.action = "close";
+    leave.setAttribute("aria-label", "Back to driving");
+    leave.title = "Back to driving (Esc)";
+    leave.append(icon("icon-close"));
+    top.append(brand, name_chip, room, leave);
+
+    const menu_nav = el("nav", "menu-tabs");
+    menu_nav.setAttribute("aria-label", "Menu");
+    for (const [id, label] of MENU_TABS) {
+      const tab = el("button", "menu-tab", label);
+      tab.type = "button";
+      tab.dataset.section = id;
+      menu_nav.append(tab);
+      this.menu_tabs.set(id, tab);
+    }
+
     const head = el("div", "settings-head");
-    const title = el("h2", "settings-title", "Settings");
-    title.id = "settings-title";
+    this.title.id = "settings-title";
+    const back = el("button", "settings-back");
+    back.type = "button";
+    back.dataset.action = "back";
+    back.title = "Back (Esc)";
+    back.append(icon("icon-back"), el("span", "", "Back"));
     const close = el("button", "settings-close");
     close.type = "button";
     close.dataset.action = "close";
-    close.setAttribute("aria-label", "Close settings");
-    close.title = "Close (Esc)";
+    close.setAttribute("aria-label", "Back to driving");
+    close.title = "Back to driving";
     close.append(icon("icon-close"));
-    head.append(title, close);
+    head.append(back, this.title, close);
 
-    const sections: Section[] = [
+    const pages: Section[] = [
+      { id: MenuTab.PLAY, label: "Play", build: () => this.play() },
+      { id: MenuTab.GARAGE, label: "Garage", build: () => this.garage() },
+      { id: MenuTab.ONLINE, label: "Online", build: () => this.online() },
+      { id: MenuTab.SETTINGS, label: "Settings", build: () => this.settings_tiles() },
+      { id: "world", label: PAGE_TITLE.world, build: () => this.world() },
+      { id: "room", label: PAGE_TITLE.room, build: () => this.create_room() },
+    ];
+    const sheet: SheetSection[] = [
       { id: "graphics", label: "Graphics", icon: "icon-graphics", build: () => this.graphics() },
-      { id: "lobby", label: "Lobby", icon: "icon-lobby", build: () => this.lobby() },
-      { id: "world", label: "World", icon: "icon-world", build: () => this.world() },
-      { id: "servers", label: "Servers", icon: "icon-servers", build: () => this.servers() },
       { id: "controls", label: "Controls", icon: "icon-controls", build: () => this.controls() },
       { id: "display", label: "Display", icon: "icon-display", build: () => [...this.hud_layout(), ...this.display()] },
       { id: "audio", label: "Audio", icon: "icon-audio", build: () => this.audio() },
@@ -475,14 +592,15 @@ export class Settings {
 
     const nav = el("nav", "settings-tabs");
     nav.setAttribute("aria-label", "Settings sections");
-    for (const section of sections) {
+    for (const section of sheet) {
       const tab = el("button", "settings-tab");
       tab.type = "button";
       tab.dataset.section = section.id;
       tab.append(icon(section.icon), el("span", "", section.label));
       nav.append(tab);
-      this.tabs.set(section.id, tab);
-
+      this.sheet_tabs.set(section.id, tab);
+    }
+    for (const section of [...pages, ...sheet]) {
       const page = el("section", "settings-page");
       page.dataset.section = section.id;
       page.setAttribute("aria-label", section.label);
@@ -495,17 +613,199 @@ export class Settings {
     changes.type = "button";
     changes.addEventListener("click", () => this.host.show_changelog());
     foot.append(el("span", "", `Version v${this.host.version}`), changes);
-    this.panel.append(head, nav, this.body, foot);
+    this.panel.append(top, menu_nav, head, nav, this.body, foot);
+  }
+
+  private name_field(): HTMLInputElement {
+    const name = this.name_input;
+    name.type = "text";
+    name.maxLength = 24;
+    name.autocomplete = "off";
+    name.enterKeyHint = "done";
+    name.setAttribute("aria-label", "Your name");
+    const commit = () => {
+      const next = name.value.trim() ? clean_name(name.value) : null;
+      name.value = next ?? "";
+      this.set("name", next);
+    };
+    name.addEventListener("change", commit);
+    name.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") name.blur();
+    });
+    this.syncs.push(() => {
+      if (document.activeElement !== name) name.value = this.current.name ?? "";
+      name.placeholder = this.host.name();
+    });
+    return name;
   }
 
   private show(section: string) {
     this.section = section;
-    for (const [id, tab] of this.tabs) tab.setAttribute("aria-current", String(id === section));
+    this.root.dataset.view = view_of(section);
+    for (const [id, tab] of this.sheet_tabs) tab.setAttribute("aria-current", String(id === section));
+    for (const [id, tab] of this.menu_tabs) tab.setAttribute("aria-current", String(id === section));
     for (const [id, page] of this.pages) page.hidden = id !== section;
+    this.title.textContent = PAGE_TITLE[section] ?? "Settings";
     this.body.scrollTop = 0;
     if (section === "world") this.world_map.show(this.chosen, this.chosen_kind, true);
     else this.world_map.stop();
-    this.host.browse_servers(section === "servers");
+    this.host.browse_servers(section === MenuTab.ONLINE);
+    this.refresh();
+  }
+
+  private bind(node: HTMLElement, text: Text) {
+    if (typeof text === "string") node.textContent = text;
+    else this.syncs.push(() => (node.textContent = text()));
+  }
+
+  /** Picture or icon behind, title and a line over a scrim at the bottom. */
+  private dress(tile: HTMLElement, title: Text, note: Text, art: Node | null, eyebrow = ""): HTMLElement {
+    if (art) {
+      const wrap = el("span", "menu-art");
+      wrap.append(art);
+      tile.append(wrap);
+    }
+    const text = el("span", "menu-text");
+    if (eyebrow) text.append(el("span", "menu-eyebrow", eyebrow));
+    const name = el("b");
+    const line = el("span");
+    this.bind(name, title);
+    this.bind(line, note);
+    text.append(name, line);
+    tile.append(text);
+    return text;
+  }
+
+  private tile(area: string, title: Text, note: Text, art: Node | null, run: () => void): HTMLButtonElement {
+    const tile = el("button", "menu-tile");
+    tile.type = "button";
+    tile.dataset.area = area;
+    this.dress(tile, title, note, art);
+    tile.addEventListener("click", run);
+    return tile;
+  }
+
+  private picture(name: string, contain = false): HTMLImageElement {
+    const img = el("img");
+    img.src = preview(name);
+    img.alt = "";
+    img.decoding = "async";
+    if (contain) img.dataset.fit = "contain";
+    return img;
+  }
+
+  private mosaic(tab: MenuTab, ...tiles: HTMLElement[]): HTMLElement[] {
+    const grid = el("div", "menu-mosaic");
+    grid.dataset.tab = tab;
+    grid.append(...tiles);
+    return [grid];
+  }
+
+  private play(): HTMLElement[] {
+    const { room, seed, kind } = this.host;
+    const hero = el("div", "menu-tile");
+    hero.dataset.area = "hero";
+    const text = this.dress(hero, `${WORLD_NAME[kind]} ${seed}`, HERO_NOTE[kind], this.picture(kind), "Keep driving");
+    text.append(el("span", "menu-go", "Drive"));
+    const drive = el("button", "menu-hit");
+    drive.type = "button";
+    drive.dataset.action = "close";
+    drive.setAttribute("aria-label", `Keep driving ${WORLD_NAME[kind]} ${seed}`);
+    const restart = el("button", "menu-corner");
+    restart.type = "button";
+    restart.append(icon("icon-restart"), el("span", "", "Restart lap"));
+    restart.addEventListener("click", () => {
+      this.close();
+      this.host.restart_lap();
+    });
+    hero.append(drive, restart);
+
+    const world = (other: WorldKind) => {
+      const tile = this.tile(other, WORLD_NAME[other], WORLD_NOTE[other], this.picture(other), () => (other === kind ? this.close() : this.go(world_query(room, seed, other))));
+      tile.title = other === kind ? "Keep driving here" : `Reloads room ${room} on ${WORLD_NAME[other]} ${seed}`;
+      if (other === kind) tile.append(el("span", "menu-tag", "You're here"));
+      return tile;
+    };
+    const map = this.tile("map", "New map", "Preview a map, roll the dice or type a seed", this.picture(`${kind}-map`, true), () => this.show("world"));
+    const modes = this.tile("modes", "Modes", "Gymkhana, parking, drift zones, gate hunt, ghost duel", icon("icon-modes"), () => this.close());
+    modes.popoverTargetElement = this.host.modes;
+    return this.mosaic(MenuTab.PLAY, hero, world(WorldKind.ISLAND), world(WorldKind.SKY), map, modes);
+  }
+
+  private garage(): HTMLElement[] {
+    const car = el("div", "menu-tile");
+    car.dataset.area = "car";
+    const text = this.dress(car, () => this.host.car_name(), "Change car, fit parts, paint it", this.picture("garage"), "Your car");
+    text.append(el("span", "menu-go", "Open garage"));
+    const open = el("button", "menu-hit");
+    open.type = "button";
+    open.setAttribute("aria-label", "Open the garage");
+    open.addEventListener("click", () => this.host.open_garage(null));
+    car.append(open);
+    return this.mosaic(
+      MenuTab.GARAGE,
+      car,
+      this.tile("body", "Body", "Car, wing, decal, number", icon("icon-car"), () => this.host.open_garage("body")),
+      this.tile("perf", "Performance", "Engine, tyres, brakes, nitro", icon("icon-gauge"), () => this.host.open_garage("performance")),
+      this.tile("paint", "Paint", "Colour and decal ink", icon("icon-paint"), () => this.host.open_garage("paint")),
+    );
+  }
+
+  private info(area: string, eyebrow: string, ...content: HTMLElement[]): HTMLElement {
+    const tile = el("div", "menu-tile menu-info");
+    tile.dataset.area = area;
+    tile.append(el("span", "menu-eyebrow", eyebrow), ...content);
+    return tile;
+  }
+
+  private online(): HTMLElement[] {
+    const { room, seed, kind } = this.host;
+    const players = el("span", "menu-caption");
+    this.syncs.push(() => (players.textContent = `${this.host.players()} here · ${WORLD_NAME[kind]} ${seed}`));
+    const invite = el("div", "settings-inline");
+    invite.append(this.copy_action("Copy invite link", invite_link(room, seed, kind)));
+    const room_tile = this.info("room", "Your room", el("b", "menu-code", room), players, invite, el("small", "menu-caption", "Friends who open the link join this room on this map"));
+
+    const scroll = el("div", "menu-scroll");
+    scroll.append(...this.games());
+    const games = this.info("games", "Games running", scroll);
+
+    const race = el("button", "settings-action", "Start race");
+    race.type = "button";
+    race.addEventListener("click", () => {
+      this.host.toggle_race(this.current.laps);
+      this.refresh();
+    });
+    this.syncs.push(() => (race.textContent = this.host.race_busy() ? "Leave race" : "Start race"));
+    const laps = this.choice(
+      "laps",
+      LAPS.map((laps) => [laps, String(laps)] as const),
+      "Laps",
+    );
+    const race_tile = this.info("race", "Lobby race", laps, race, el("small", "menu-caption", "Everyone in the room starts together"));
+
+    const fresh = this.tile("new", "New room", "A fresh code, a map, an optional password", icon("icon-dice"), () => this.show("room"));
+    return this.mosaic(MenuTab.ONLINE, room_tile, games, race_tile, fresh);
+  }
+
+  private settings_tiles(): HTMLElement[] {
+    const hud = (value: HudLayout) => HUD_LAYOUTS.find((layout) => layout.value === value)?.name ?? value;
+    const quality = () => {
+      const tier = TIER_LABEL[this.host.quality_status().tier];
+      return this.current.quality === QualityMode.AUTO ? `Auto, running ${tier}` : `Fixed at ${tier}`;
+    };
+    const aids = () => {
+      const on = (["tcs", "abs", "assist"] as const).filter((aid) => this.current[aid]).length;
+      return `${on} of 3 aids on · ${this.current.auto ? "auto" : "manual"} gears · key list`;
+    };
+    const sound = () => (this.current.muted ? "Muted" : `Volume ${Math.round(this.current.volume * 100)}%`);
+    return this.mosaic(
+      MenuTab.SETTINGS,
+      this.tile("graphics", "Graphics", quality, icon("icon-graphics"), () => this.show("graphics")),
+      this.tile("display", "Display", () => `HUD ${hud(this.current.hud)} · ${current_theme()}`, icon("icon-display"), () => this.show("display")),
+      this.tile("controls", "Controls", aids, icon("icon-controls"), () => this.show("controls")),
+      this.tile("audio", "Audio", sound, icon("icon-audio"), () => this.show("audio")),
+    );
   }
 
   private row(label: string, control: HTMLElement, hint = "", inline = false): HTMLElement {
@@ -619,60 +919,6 @@ export class Settings {
     const node = el("span", "settings-stat");
     node.append(el("span", "", label), el("b", "", value));
     return node;
-  }
-
-  private lobby(): HTMLElement[] {
-    const { room, seed } = this.host;
-    const room_value = el("div", "settings-inline");
-    room_value.append(
-      el("b", "settings-value", room),
-      this.copy_action("Copy invite", invite_link(room, seed, this.host.kind)),
-    );
-
-    const map_value = el("div", "settings-inline");
-    map_value.append(
-      el("b", "settings-value settings-number", String(seed)),
-      this.action("New map", () => this.go({ room, seed: String(random_seed()), ...(this.host.kind === WorldKind.SKY ? { world: this.host.kind } : {}) })),
-    );
-
-    const name = el("input", "settings-input");
-    name.type = "text";
-    name.maxLength = 24;
-    name.autocomplete = "off";
-    name.enterKeyHint = "done";
-    name.setAttribute("aria-label", "Your name");
-    const commit = () => {
-      const next = name.value.trim() ? clean_name(name.value) : null;
-      name.value = next ?? "";
-      this.set("name", next);
-    };
-    name.addEventListener("change", commit);
-    name.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") name.blur();
-    });
-    this.syncs.push(() => {
-      if (document.activeElement !== name) name.value = this.current.name ?? "";
-      name.placeholder = this.host.name();
-    });
-
-    const race = this.action("Start race", () => {
-      this.host.toggle_race(this.current.laps);
-      this.refresh();
-    });
-    this.syncs.push(() => (race.textContent = this.host.race_busy() ? "Leave race" : "Start race"));
-
-    return [
-      this.row("Your name", name, "Everyone in the room sees it; leave empty for a random bunny"),
-      this.row("Room", room_value, "Friends join with the invite link"),
-      this.row("New room", this.action("New room", () => this.go({ room: random_code() })), "Starts an empty room with a fresh code; lock one with a password in Servers"),
-      this.row("Map", map_value, "Others keep their map until they open your invite"),
-      this.choice(
-        "laps",
-        LAPS.map((laps) => [laps, String(laps)] as const),
-        "Race laps",
-      ),
-      this.row("Lobby race", race, "Everyone in the room starts together"),
-    ];
   }
 
   private copy_action(label: string, link: string): HTMLButtonElement {
@@ -789,7 +1035,7 @@ export class Settings {
     this.go({ room: server.room, seed: String(server.seed) });
   }
 
-  private servers(): HTMLElement[] {
+  private games(): HTMLElement[] {
     const note = el("p", "servers-note");
     const list = el("ol", "servers-list");
     let list_key = "";
@@ -827,7 +1073,10 @@ export class Settings {
       list_key = key;
       list.replaceChildren(...servers.map((server) => this.server_row(server, ask)));
     });
+    return [note, list, unlock];
+  }
 
+  private create_room(): HTMLElement[] {
     const create = el("form", "servers-create");
     const name = el("input", "settings-input");
     name.type = "text";
@@ -866,7 +1115,7 @@ export class Settings {
       submit,
     );
 
-    return [note, list, unlock, el("h4", "settings-sub", "New room"), create];
+    return [el("p", "servers-note", "Everything is optional: leave it empty for a random code and map."), create];
   }
 
   private server_row(server: Server, ask: (server: Server) => void): HTMLLIElement {
@@ -1237,14 +1486,23 @@ export class Settings {
     const button = event.target.closest<HTMLButtonElement>("button");
     if (!button) return;
     if (button.dataset.action === "close") return this.close();
+    if (button.dataset.action === "back") return this.back();
     const section = button.dataset.section;
     if (!section) return;
     this.show(section);
   };
 
   private readonly key = (event: KeyboardEvent) => {
-    if (event.key !== "Escape") return;
-    event.preventDefault();
-    this.close();
+    if (event.key === "Escape") {
+      event.preventDefault();
+      return this.back();
+    }
+    if (typing(event.target) || event.repeat) return;
+    if (event.code === "KeyQ" || event.code === "KeyE") this.step_section(event.code === "KeyQ" ? -1 : 1);
   };
+}
+
+function view_of(section: string): View {
+  if (!(section in PARENT)) return View.MENU;
+  return section in PAGE_TITLE ? View.PAGE : View.SHEET;
 }

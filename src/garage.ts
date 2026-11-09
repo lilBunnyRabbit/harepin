@@ -197,15 +197,24 @@ const INK_ITEM: Item = {
   blurb: () => "",
 };
 
+/** Garage tabs other screens open straight into. */
+export const GarageSection = {
+  BODY: "body",
+  PERFORMANCE: "performance",
+  PAINT: "paint",
+} as const;
+export type GarageSection = (typeof GarageSection)[keyof typeof GarageSection];
+
 interface Tab {
+  section: GarageSection;
   label: string;
   items(build: Build): Item[];
 }
 
 const TABS: Tab[] = [
-  { label: "Body", items: (b) => [CAR_ITEM, ...part_items(BODY_SLOTS), DECAL_ITEM, ...(DECALS[b.decal] === "number" ? [NUMBER_ITEM] : [])] },
-  { label: "Performance", items: () => part_items(SLOT_NAMES.filter((slot) => !BODY_SLOTS.includes(slot))) },
-  { label: "Paint", items: (b) => [PAINT_ITEM, ...(DECALS[b.decal] === "none" ? [] : [INK_ITEM])] },
+  { section: GarageSection.BODY, label: "Body", items: (b) => [CAR_ITEM, ...part_items(BODY_SLOTS), DECAL_ITEM, ...(DECALS[b.decal] === "number" ? [NUMBER_ITEM] : [])] },
+  { section: GarageSection.PERFORMANCE, label: "Performance", items: () => part_items(SLOT_NAMES.filter((slot) => !BODY_SLOTS.includes(slot))) },
+  { section: GarageSection.PAINT, label: "Paint", items: (b) => [PAINT_ITEM, ...(DECALS[b.decal] === "none" ? [] : [INK_ITEM])] },
 ];
 
 /** Glyphs per input: the pad's, then the keyboard's. */
@@ -469,8 +478,10 @@ export class Garage {
     return !this.root.hidden;
   }
 
-  open() {
+  /** On `section`, or the tab it was last left on. */
+  open(section: GarageSection | null = null) {
     if (this.is_open) return;
+    if (section) this.tab = Math.max(0, TABS.findIndex((tab) => tab.section === section));
     if (!this.root.isConnected) this.parent.append(this.root);
     this.renderer ??= new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: true });
     this.root.hidden = false;
