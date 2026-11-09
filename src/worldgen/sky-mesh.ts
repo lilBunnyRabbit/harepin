@@ -4,8 +4,13 @@ import { DECK_STRIDE, type Deck } from "./types";
 const THICK = 0.4;
 const RAIL_HIGH = 0.7;
 const RAIL_WIDE = 0.3;
-const JOINT = 0.6;
-const JOINT_LIFT = 0.02;
+/** Track joints every SEGMENT metres: a raised seam SEAM long and SEAM_HIGH proud, read by light not colour. */
+const SEGMENT = 9;
+const SEAM = 0.25;
+const SEAM_HIGH = 0.025;
+/** The rail's top folds inward over the deck by LIP, LIP_DROP deep. */
+const LIP = 0.1;
+const LIP_DROP = 0.12;
 
 export interface DeckTones {
   deck: Rgb;
@@ -42,7 +47,6 @@ export function deck_layers(deck: Deck, tones: DeckTones, chunk_of: (x: number, 
     const slope = Math.tan(f(i, 5));
     return [f(i, 0) + tz * u, f(i, 1) + u * slope + lift, f(i, 2) - tx * u];
   };
-  const joints = new Set(deck.pieces.map((p) => p.s0));
   for (let i = 0; i < n; i++) {
     const j = i + 1;
     if (!f(i, 7) || !f(j, 7)) continue;
@@ -50,31 +54,38 @@ export function deck_layers(deck: Deck, tones: DeckTones, chunk_of: (x: number, 
     const h = f(i, 6);
     const hj = f(j, 6);
     quad(layer, tones.deck, at(i, -h, 0), at(i, h, 0), at(j, hj, 0), at(j, -hj, 0));
-    quad(layer, tones.side, at(i, -h, -THICK), at(j, -hj, -THICK), at(j, hj, -THICK), at(i, h, -THICK));
+    quad(layer, tones.side, at(i, -h - RAIL_WIDE, -THICK), at(j, -hj - RAIL_WIDE, -THICK), at(j, hj + RAIL_WIDE, -THICK), at(i, h + RAIL_WIDE, -THICK));
     for (const side of [-1, 1]) {
       const inner_i = side * h;
       const inner_j = side * hj;
+      const lip_i = side * (h - LIP);
+      const lip_j = side * (hj - LIP);
       const outer_i = side * (h + RAIL_WIDE);
       const outer_j = side * (hj + RAIL_WIDE);
-      quad(layer, tones.rail, at(i, inner_i, 0), at(j, inner_j, 0), at(j, inner_j, RAIL_HIGH), at(i, inner_i, RAIL_HIGH));
-      quad(layer, tones.rail, at(i, inner_i, RAIL_HIGH), at(j, inner_j, RAIL_HIGH), at(j, outer_j, RAIL_HIGH), at(i, outer_i, RAIL_HIGH));
+      quad(layer, tones.rail, at(i, inner_i, 0), at(j, inner_j, 0), at(j, inner_j, RAIL_HIGH - LIP_DROP), at(i, inner_i, RAIL_HIGH - LIP_DROP));
+      quad(layer, tones.rail, at(i, lip_i, RAIL_HIGH - LIP_DROP), at(j, lip_j, RAIL_HIGH - LIP_DROP), at(j, inner_j, RAIL_HIGH - LIP_DROP), at(i, inner_i, RAIL_HIGH - LIP_DROP));
+      quad(layer, tones.rail, at(i, lip_i, RAIL_HIGH - LIP_DROP), at(j, lip_j, RAIL_HIGH - LIP_DROP), at(j, lip_j, RAIL_HIGH), at(i, lip_i, RAIL_HIGH));
+      quad(layer, tones.rail, at(i, lip_i, RAIL_HIGH), at(j, lip_j, RAIL_HIGH), at(j, outer_j, RAIL_HIGH), at(i, outer_i, RAIL_HIGH));
       quad(layer, tones.side, at(i, outer_i, RAIL_HIGH), at(j, outer_j, RAIL_HIGH), at(j, outer_j, -THICK), at(i, outer_i, -THICK));
     }
   }
   for (let i = 0; i < n; i++) {
     const s = f(i, 8);
-    if (![...joints].some((js) => js >= s && js < s + 2) || !f(i, 7) || !f(i + 1, 7)) continue;
+    const next = f(i + 1, 8);
+    if (next < s || Math.floor(s / SEGMENT) === Math.floor(next / SEGMENT) || !f(i, 7) || !f(i + 1, 7)) continue;
     const layer = marks[chunk_of(f(i, 0), f(i, 2))];
-    const h = f(i, 6);
-    const tx = f(i, 3) * JOINT;
-    const tz = f(i, 4) * JOINT;
-    const a = at(i, -h, JOINT_LIFT);
-    const b = at(i, h, JOINT_LIFT);
-    quad(layer, tones.joint, a, b, [b[0] + tx, b[1], b[2] + tz], [a[0] + tx, a[1], a[2] + tz]);
-    for (const side of [-1, 1]) {
-      const c = at(i, side * (h + RAIL_WIDE / 2), RAIL_HIGH + JOINT_LIFT);
-      const w = RAIL_WIDE;
-      quad(layer, tones.joint, [c[0] - f(i, 4) * w, c[1], c[2] + f(i, 3) * w], [c[0] + f(i, 4) * w, c[1], c[2] - f(i, 3) * w], [c[0] + f(i, 4) * w + tx, c[1], c[2] - f(i, 3) * w + tz], [c[0] - f(i, 4) * w + tx, c[1], c[2] + f(i, 3) * w + tz]);
+    const h = f(i, 6) + RAIL_WIDE;
+    const tx = f(i, 3) * SEAM;
+    const tz = f(i, 4) * SEAM;
+    const shift = (p: V, lift: number): V => [p[0] + tx, p[1] + lift, p[2] + tz];
+    for (const [u0, u1, base] of [[-h + RAIL_WIDE, h - RAIL_WIDE, 0], [-h, -h + RAIL_WIDE + 0.001, RAIL_HIGH], [h - RAIL_WIDE - 0.001, h, RAIL_HIGH]]) {
+      const a = at(i, u0, base);
+      const b = at(i, u1, base);
+      const a1 = at(i, u0, base + SEAM_HIGH);
+      const b1 = at(i, u1, base + SEAM_HIGH);
+      quad(layer, tones.joint, a1, b1, shift(b1, 0), shift(a1, 0));
+      quad(layer, tones.joint, a, b, b1, a1);
+      quad(layer, tones.joint, shift(a, 0), shift(a1, 0), shift(b1, 0), shift(b, 0));
     }
   }
 }

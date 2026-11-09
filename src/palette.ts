@@ -69,17 +69,11 @@ const DUSK_TYRE_STEP = 0.3;
 const DUSK_TRIM_STEP = 0.38;
 const above_asphalt = (share: number) => lighten(asphalt, (brand.foreground[0] - asphalt[0]) * share);
 
-// The toy deck takes the theme's bright accent, unless its hue sits in the orange band a rival toy track owns.
-const toy = ((lab: Lab) => {
-  const hue = (Math.atan2(lab[2], lab[1]) * 180) / Math.PI;
-  return hue > 30 && hue < 85 ? brand.primary : brand.accent;
-})(brand.accent);
-
 export const tones = {
-  deck: toy,
-  deck_side: mix(toy, brand.background_darkest, 0.45),
-  rail: dark ? brand.foreground : brand.background_lightest,
-  joint: brand.background_darkest,
+  // A toy track is one colour: the accent straight on deck and rails, shaded only down the background ladder underneath.
+  deck: brand.accent,
+  deck_side: mix(brand.accent, brand.background_darkest, 0.4),
+  joint: mix(brand.accent, brand.background_darkest, 0.12),
   grass,
   grass_dry: mix(brand.warning, ground, dark ? 0.26 : 0.36),
   sand: mix(brand.warning, brand.foreground, 0.35),
