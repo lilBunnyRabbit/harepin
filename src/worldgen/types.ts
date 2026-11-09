@@ -13,7 +13,7 @@ export const SPUR_GRADE = 0.12;
 /** Road index of the race start grid, counted back from the start line. */
 export const SPAWN_INDEX = -40;
 /** Bump whenever `generate` makes a different island for the same seed: peers and saved records are matched on it. */
-export const WORLD_VERSION = 2;
+export const WORLD_VERSION = 3;
 
 /** Bump whenever `generate_sky` makes a different track for the same seed. */
 export const SKY_VERSION = 3;
@@ -154,7 +154,7 @@ export interface Building {
 export const Roof = { FLAT: "flat", GABLE: "gable", CROSS: "cross", HIP: "hip" } as const;
 export type Roof = (typeof Roof)[keyof typeof Roof];
 
-export const PropKind = { STREET_LIGHT: "street_light" } as const;
+export const PropKind = { STREET_LIGHT: "street_light", MAST: "mast", LIGHTHOUSE: "lighthouse", TURBINE: "turbine", ARCH: "arch" } as const;
 export type PropKind = (typeof PropKind)[keyof typeof PropKind];
 
 export interface Prop {
@@ -163,6 +163,7 @@ export interface Prop {
   z: number;
   angle: number;
   kind: PropKind;
+  /** Street lights and towers 1; the arch spans the road with this half distance between its leg centres, at `y` its road height. */
   scale: number;
 }
 

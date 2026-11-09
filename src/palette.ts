@@ -57,6 +57,7 @@ const ground = dark ? brand.background_light : mix(brand.background_darker, bran
 // band, so each sits a fixed step apart in L.
 const DUSK_GRASS_LIFT = 0.04;
 const DUSK_CROWN_DROP = 0.06;
+const FOREST_FLOOR_DROP = 0.035;
 const grass = dark ? lighten(mix(brand.success, ground, 0.32), DUSK_GRASS_LIFT) : mix(brand.success, ground, 0.42);
 const leaf_dark = mix(brand.success, dark ? brand.background : brand.foreground, 0.28);
 // Brand Dark's road; on a darker ladder (generated or near-black themes) the dusk road rendered flat black, losing the
@@ -78,6 +79,8 @@ export const tones = {
   chevron: lighten(brand.accent, -0.16),
   grass,
   grass_dry: mix(brand.warning, ground, dark ? 0.26 : 0.36),
+  // Forest floor sits a step under grass, not at crown value, so pines still read against the ground they stand on.
+  forest_floor: lighten(grass, -FOREST_FLOOR_DROP),
   sand: mix(brand.warning, brand.foreground, 0.35),
   rock: dark ? brand.background_lightest : mix(brand.foreground, brand.background_darkest, 0.35),
   snow: dark ? brand.foreground : brand.background_lightest,
@@ -99,6 +102,7 @@ export const tones = {
   check_light: dark ? brand.foreground : brand.background_lightest,
   head: dark ? mix(brand.foreground, brand.warning, 0.85) : brand.background_lightest,
   reflector: dark ? brand.cottontail : brand.background_lightest,
+  beacon: brand.cottontail,
   wall: mix(brand.foreground, ground, 0.6),
   wall_warm: mix(brand.warning, brand.foreground, 0.35),
   wall_cool: mix(brand.info, brand.foreground, 0.3),

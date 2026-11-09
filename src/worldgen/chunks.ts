@@ -1,17 +1,24 @@
+import { biome_at, biome_cuts, Biome } from "./biomes";
 import { sample, up } from "./field";
+import { landmark_mesh, type LandmarkTones } from "./landmark-mesh";
 import { roof_rise } from "./lots";
 import { Builder, bounding_sphere, turned, type Rgb, type Sphere } from "./mesh";
 import { deck_layers, type DeckTones } from "./sky-mesh";
 import { fbm, hash } from "./noise";
-import { CELL, N, ORIGIN, ROAD_HALF, Roof, SIDEWALK, SIZE, type RoadPoint, type WorldData } from "./types";
+import { CELL, N, ORIGIN, PropKind, ROAD_HALF, Roof, SIDEWALK, SIZE, type RoadPoint, type WorldData } from "./types";
 
 export const CHUNK = 256;
 export const CHUNKS = SIZE / CHUNK;
 const CHUNK_CELLS = CHUNK / CELL;
 export const JITTER_LEVELS = 64;
-const ROCK_HALF = 3;
-const ROCK = 6;
-const SNOW = 7;
+/** Ground surfaces, each with a LUT row of its own and one half-way to rock. */
+export const Ground = { GRASS: 0, DRY: 1, SAND: 2, FOREST: 3, UPLAND: 4, DUNE: 5 } as const;
+export type Ground = (typeof Ground)[keyof typeof Ground];
+const SURFACES = Object.keys(Ground).length;
+const ROCK_HALF = SURFACES;
+const ROCK = 2 * SURFACES;
+const SNOW = ROCK + 1;
+export const TERRAIN_BASES = SNOW + 1;
 // Deep enough to hide the crack where a half-res chunk edge skips the odd vertices of its full-res neighbour.
 const SKIRT = 6;
 export const SMALL_BUILDING = 6;
@@ -45,7 +52,7 @@ const LINE_HALF = 0.06;
 
 /** Linear RGB, resolved from the palette on the main thread: the palette reads theme tokens from the DOM. */
 export interface MeshTones {
-  /** Base-major, JITTER_LEVELS lightness steps per base: grass, dry, sand, those three half-way to rock, rock, snow. */
+  /** Base-major, JITTER_LEVELS lightness steps per base: the Ground surfaces in order, each half-way to rock, rock, snow. */
   terrain: Float32Array;
   asphalt: Rgb;
   sidewalk: Rgb;
@@ -54,6 +61,7 @@ export interface MeshTones {
   walls: Rgb[];
   roofs: Rgb[];
   roof_flat: Rgb;
+  landmark: LandmarkTones;
   deck: DeckTones;
 }
 
@@ -93,8 +101,16 @@ function jitter(i: number, j: number): number {
   return h - Math.floor(h) - 0.5;
 }
 
+function surface(biome: Biome, patch: number): Ground {
+  if (biome === Biome.COAST) return patch > 0.55 ? Ground.SAND : Ground.DUNE;
+  if (biome === Biome.FOREST) return patch > 0.6 ? Ground.GRASS : Ground.FOREST;
+  if (biome === Biome.UPLAND) return patch > 0.5 ? Ground.DRY : Ground.UPLAND;
+  return patch > 0.55 ? Ground.DRY : Ground.GRASS;
+}
+
 export function terrain_colors(data: WorldData, lut: Float32Array): Float32Array {
   const { heights, seed } = data.terrain;
+  const cuts = biome_cuts(seed, heights);
   const colors = new Float32Array((N + 1) * (N + 1) * 3);
   for (let j = 0; j <= N; j++)
     for (let i = 0; i <= N; i++) {
@@ -103,7 +119,7 @@ export function terrain_colors(data: WorldData, lut: Float32Array): Float32Array
       const z = ORIGIN + j * CELL;
       const y = heights[k];
       const ny = up(heights, x, z);
-      let base = y < 2.2 ? 2 : fbm(x / 140, z / 140, seed + 21, 3) > 0.55 ? 1 : 0;
+      let base: number = y < 2.2 ? Ground.SAND : surface(biome_at(cuts, x, z, y), fbm(x / 140, z / 140, seed + 21, 3));
       if (ny < 0.8 || y > 120) base = ny < 0.7 || y > 135 ? ROCK : base + ROCK_HALF;
       if (y > 165) base = SNOW;
       const level = Math.min(JITTER_LEVELS - 1, Math.floor((jitter(i, j) + 0.5) * JITTER_LEVELS));
@@ -413,6 +429,7 @@ function town_builders(data: WorldData, tones: MeshTones): Map<number, Town> {
       else out.at(turned(b)).hip(b.hd, b.hw, b.height, rise, roof);
     } else out.top(b.hw, b.hd, b.height, tones.roof_flat);
   }
+  for (const prop of data.props) if (prop.kind !== PropKind.STREET_LIGHT) landmark_mesh(of(prop.x, prop.z).big, prop, data.terrain.heights, tones.landmark);
   for (const lot of data.parking) {
     const frame = data.lots[lot.lot];
     const out = of(frame.x, frame.z).parking.at(frame);

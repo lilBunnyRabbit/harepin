@@ -1,6 +1,8 @@
-import { sample, up, vertex } from "./field";
+import { biome_cuts, item_kind, plant } from "./biomes";
+import { sample, vertex } from "./field";
 import { ITEMS, JumpPlanner } from "./jumps";
-import { fbm, hash, length } from "./noise";
+import { LandmarkPlanner } from "./landmarks";
+import { length } from "./noise";
 import { Lots } from "./lots";
 import { carve, plan_canyon } from "./canyon";
 import { loop_road } from "./path";
@@ -15,7 +17,6 @@ import { place_towns, town_streets } from "./towns";
 import { CELL, ORIGIN, ROAD_HALF, SPAWN_INDEX, SPUR_HALF, type Checkpoint, type RoadEdge, type RoadNode, type Solid, type Tree, type WorldData, type WorldKind } from "./types";
 
 const CHECKPOINTS = 12;
-const TREE_SPACING = 13;
 const STACK_GATE = 5;
 /** Spurs try joins at least this far outside the switchback first; one on its legs only when nothing else fits the grade. */
 const STACK_JOIN = 20;
@@ -119,6 +120,15 @@ export function generate(seed: number): WorldData {
     }
   }
 
+  const marks = new LandmarkPlanner(seed, land, road, towns);
+  marks.mast();
+  marks.lighthouse();
+  marks.turbines();
+  marks.arch(edges);
+  props.push(...marks.out.props);
+  solids.push(...marks.out.solids);
+  lap("landmarks");
+
   lap("checkpoints");
 
   const planner = new JumpPlanner(seed, land, towns, lots.occupied, solids);
@@ -130,7 +140,8 @@ export function generate(seed: number): WorldData {
   planner.open();
   planner.roadside_items(road);
   planner.lot_items(lot_list);
-  planner.open_items();
+  const cuts = biome_cuts(seed, heights);
+  planner.open_items((x, z) => item_kind(cuts, x, z, sample(heights, x, z)));
   const jumps = planner.out;
   solids.push(...jumps.solids);
   for (const rail of stack ? guard_rails(stack, heights, road_dist) : []) {
@@ -147,25 +158,9 @@ export function generate(seed: number): WorldData {
   const routes = reverse ? [circuit, ...streets.routes, reverse] : [circuit, ...streets.routes];
   lap("routes");
 
-  const trees: Tree[] = [...lots.out.trees];
-  const limit = -ORIGIN - TREE_SPACING;
-  for (let z = ORIGIN + TREE_SPACING; z < limit; z += TREE_SPACING)
-    for (let x = ORIGIN + TREE_SPACING; x < limit; x += TREE_SPACING) {
-      const px = x + (hash(x, z, seed + 91) - 0.5) * TREE_SPACING;
-      const pz = z + (hash(x, z, seed + 92) - 0.5) * TREE_SPACING;
-      const density = fbm(px / 180, pz / 180, seed + 55, 3);
-      if (hash(x, z, seed + 93) > (density - 0.38) * 2.6) continue;
-      const y = sample(heights, px, pz);
-      if (y < 3 || y > 125) continue;
-      if (sample(road_dist, px, pz) < ROAD_HALF + 7) continue;
-      if (lots.occupied[vertex(Math.round((px - ORIGIN) / CELL), Math.round((pz - ORIGIN) / CELL))]) continue;
-      if (towns.some((t) => length(t.x - px, t.z - pz) < t.radius)) continue;
-      if (up(heights, px, pz) < 0.82) continue;
-      if (jumps.blocks(px, pz, 2)) continue;
-      const scale = 0.75 + hash(x, z, seed + 94) * 0.9;
-      trees.push({ x: px, y, z: pz, scale, kind: hash(x, z, seed + 95) < 0.7 ? 0 : 1 });
-      solids.push({ kind: "circle", x: px, y, z: pz, radius: 0.35 * scale, height: 6 * scale });
-    }
+  const planted = plant(cuts, land, (x, z) => !lots.occupied[vertex(Math.round((x - ORIGIN) / CELL), Math.round((z - ORIGIN) / CELL))] && !towns.some((t) => length(t.x - x, t.z - z) < t.radius) && !jumps.blocks(x, z, 2) && !marks.blocks(x, z, 2));
+  const trees: Tree[] = [...lots.out.trees, ...planted.trees];
+  solids.push(...planted.solids);
   lap("props");
 
   return { kind: "island", deck: null, terrain: land, graph: { nodes, edges }, towns, lots: lot_list, buildings, props, parking, trees, solids, ramps: jumps.ramps, items: jumps.items, challenges: jumps.challenges, checkpoints, circuit: [ring.id], road, routes, canyon, timings };

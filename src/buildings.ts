@@ -5,7 +5,7 @@ import type { World } from "./world";
 import { chunk_of, type ChunkBuffers, type Soup } from "./worldgen/chunks";
 import { Builder, type Rgb, type Sphere } from "./worldgen/mesh";
 import { hash } from "./worldgen/noise";
-import type { Prop } from "./worldgen/types";
+import { PropKind, type Prop } from "./worldgen/types";
 
 const PAD_LIFT = 0.06;
 // Lit from inside: a dusk street reads by its shop windows, a day street by glass that stays bright in shade.
@@ -130,7 +130,7 @@ export function town_chunks(world: World, chunks: ChunkBuffers[]): Map<number, T
   const car_shape = parked_car_geometry();
   const parts = light_parts();
   const cars = by_chunk(parked_car_list(world));
-  const lights = by_chunk(world.props);
+  const lights = by_chunk(world.props.filter((p) => p.kind === PropKind.STREET_LIGHT));
   const out = new Map<number, TownChunk>();
   for (const chunk of chunks) {
     const here_cars = cars.get(chunk.index) ?? [];

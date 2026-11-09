@@ -616,15 +616,17 @@ export class JumpPlanner {
     }
   }
 
-  open_items() {
+  /** `kind_at` picks what suits the ground: rocks on dry upland, logs in the forest and on the shore, hay in meadows. */
+  open_items(kind_at: (x: number, z: number) => ItemKind | null) {
     for (let i = 0; i < OPEN_ITEMS; i++) {
       const x = (this.next() - 0.5) * (SIZE - 200);
       const z = (this.next() - 0.5) * (SIZE - 200);
       const [fx, fz] = this.dirs[Math.floor(this.next() * 16)];
       const roll = this.next();
-      if (roll < 0.55) this.item("rock", x, z, fx, fz, 0.7 + this.next() * 0.9);
-      else if (roll < 0.85) this.item("log", x, z, fx, fz, 0.8 + this.next() * 0.4);
-      else for (let k = 0; k < 3; k++) this.item("hay", x + fx * k * 1.9, z + fz * k * 1.9, fz, -fx, 1);
+      const kind = kind_at(x, z);
+      if (kind === "rock") for (let k = 0; k < 1 + Math.floor(roll * 3); k++) this.item("rock", x + fx * k * 2.6 - fz * (k % 2) * 1.8, z + fz * k * 2.6 + fx * (k % 2) * 1.8, fx, fz, 0.7 + this.next() * 0.9);
+      else if (kind === "log") this.item("log", x, z, fx, fz, 0.8 + roll * 0.4);
+      else if (kind === "hay") for (let k = 0; k < 3; k++) this.item("hay", x + fx * k * 1.9, z + fz * k * 1.9, fz, -fx, 1);
     }
   }
 }

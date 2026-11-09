@@ -1,13 +1,13 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import { JITTER_LEVELS } from "./chunks";
+import { JITTER_LEVELS, TERRAIN_BASES } from "./chunks";
 import { generate } from "./index";
 import { MAP_SIDE, MapLineKind, map_data, type MapData, type MapTones } from "./map";
 import type { MapRequest } from "./map-worker";
 import { ORIGIN, SIZE } from "./types";
 
 const SEED = 7;
-const TONES: MapTones = { terrain: Float32Array.from({ length: 8 * JITTER_LEVELS * 3 }, (_, i) => (i % 97) / 97), water: [0.1, 0.2, 0.4], cloud: [0.7, 0.7, 0.75] };
+const TONES: MapTones = { terrain: Float32Array.from({ length: TERRAIN_BASES * JITTER_LEVELS * 3 }, (_, i) => (i % 97) / 97), water: [0.1, 0.2, 0.4], cloud: [0.7, 0.7, 0.75] };
 
 function from_worker(request: MapRequest): Promise<MapData> {
   const worker = new Worker(new URL("./map-worker.ts", import.meta.url), { type: "module" });

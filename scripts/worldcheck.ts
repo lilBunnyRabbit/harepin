@@ -1,4 +1,4 @@
-import { build_chunks, JITTER_LEVELS, type MeshTones } from "../src/worldgen/chunks";
+import { build_chunks, JITTER_LEVELS, TERRAIN_BASES, type MeshTones } from "../src/worldgen/chunks";
 import { sample } from "../src/worldgen/field";
 import { BYPASS, challenge_outer, challenge_pieces, DECK_DRIFT, face_end, flight, GATE_CLEAR, ITEMS, ramp_local, ramp_world, RUN_DRIFT } from "../src/worldgen/jumps";
 import { seed_of } from "../src/rng";
@@ -20,7 +20,7 @@ const FOLD_AREA = 1e-4;
 // Each tone is a tag: the check reads the layer of every triangle back from its red channel.
 const ASPHALT = 1;
 const TAGS: MeshTones = {
-  terrain: new Float32Array(8 * JITTER_LEVELS * 3),
+  terrain: new Float32Array(TERRAIN_BASES * JITTER_LEVELS * 3),
   asphalt: [ASPHALT, 0, 0],
   sidewalk: [2, 0, 0],
   line: [3, 0, 0],
@@ -28,6 +28,7 @@ const TAGS: MeshTones = {
   walls: [[0, 0, 0]],
   roofs: [[0, 0, 0]],
   roof_flat: [0, 0, 0],
+  landmark: { pale: [0, 0, 0], band: [0, 0, 0], cap: [0, 0, 0], stone: [0, 0, 0], stone_shade: [0, 0, 0] },
   deck: { deck: [0, 0, 0], side: [0, 0, 0], rail: [0, 0, 0], joint: [0, 0, 0], pad: [0, 0, 0], chevron: [0, 0, 0] },
 };
 const LAYER = ["", "asphalt", "sidewalk", "centre line", "edge line"];

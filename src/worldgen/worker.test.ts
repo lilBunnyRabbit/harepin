@@ -1,13 +1,13 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import { build_chunks, type MeshTones } from "./chunks";
+import { build_chunks, JITTER_LEVELS, TERRAIN_BASES, type MeshTones } from "./chunks";
 import { checksum, world_checksum } from "./checksum";
 import { generate, generate_world } from "./index";
 import type { GenRequest, GenResult } from "./worker";
 
 const SEED = 7;
 const TONES: MeshTones = {
-  terrain: Float32Array.from({ length: 8 * 64 * 3 }, (_, i) => (i % 97) / 97),
+  terrain: Float32Array.from({ length: TERRAIN_BASES * JITTER_LEVELS * 3 }, (_, i) => (i % 97) / 97),
   asphalt: [0.1, 0.1, 0.12],
   sidewalk: [0.4, 0.4, 0.38],
   line: [0.9, 0.9, 0.9],
@@ -22,6 +22,7 @@ const TONES: MeshTones = {
     [0.2, 0.3, 0.4],
   ],
   roof_flat: [0.3, 0.3, 0.3],
+  landmark: { pale: [0.85, 0.85, 0.8], band: [0.6, 0.2, 0.2], cap: [0.2, 0.2, 0.25], stone: [0.5, 0.45, 0.4], stone_shade: [0.4, 0.36, 0.32] },
   deck: { deck: [0.2, 0.5, 0.8], side: [0.1, 0.2, 0.3], rail: [0.9, 0.9, 0.9], joint: [0.05, 0.05, 0.05], pad: [0.4, 0.6, 0.9], chevron: [0.1, 0.3, 0.6] },
 };
 

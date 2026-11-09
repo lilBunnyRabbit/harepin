@@ -1,13 +1,20 @@
 import * as THREE from "three";
 import { by_chunk, soup_geometry, town_chunks, type TownChunk } from "./buildings";
 import { JumpsView } from "./jumps";
+import { LandmarksView } from "./landmarks";
 import { color, lighten, linear, mix, tones } from "./palette";
 import { SIZE, World, type RoadPoint, type Tree } from "./world";
-import { CHUNK, JITTER_LEVELS, type ChunkBuffers, type MeshTones } from "./worldgen/chunks";
+import { CHUNK, Ground, JITTER_LEVELS, type ChunkBuffers, type MeshTones } from "./worldgen/chunks";
+import { TreeKind } from "./worldgen/biomes";
+import type { Lab } from "./theme";
 import type { WorldKind } from "./worldgen/types";
 import type { GenRequest, GenResult } from "./worldgen/worker";
 
 const JITTER_LIGHTNESS = 0.035;
+const STONE_SHADE = 0.06;
+// Scrub is a broadleaf crown squashed to a bush and sunk to the ground, so it costs no draw of its own.
+const SCRUB_SQUASH = 0.35;
+const SCRUB_SINK = 0.5;
 const LANE_WIDTH = 3;
 const FAR = 600;
 const MOBILE_FAR = 300;
@@ -19,8 +26,15 @@ function jitter(i: number, j: number): number {
 
 // Jitter is quantised so each tone converts OKLab to linear once per level, not per vertex; 64 levels is ~0.0003 L error.
 function terrain_lut(): Float32Array {
-  const dry = mix(tones.grass, tones.grass_dry, 0.55);
-  const surfaces = [tones.grass, dry, tones.sand];
+  const surface: Record<Ground, Lab> = {
+    [Ground.GRASS]: tones.grass,
+    [Ground.DRY]: mix(tones.grass, tones.grass_dry, 0.55),
+    [Ground.SAND]: tones.sand,
+    [Ground.FOREST]: tones.forest_floor,
+    [Ground.UPLAND]: tones.grass_dry,
+    [Ground.DUNE]: mix(tones.sand, tones.grass_dry, 0.5),
+  };
+  const surfaces = Object.values(Ground).map((g) => surface[g]);
   const bases = [...surfaces, ...surfaces.map((t) => mix(tones.rock, t, 0.5)), tones.rock, tones.snow];
   const lut = new Float32Array(bases.length * JITTER_LEVELS * 3);
   bases.forEach((tone, b) => {
@@ -40,6 +54,7 @@ export function mesh_tones(): MeshTones {
     walls: [tones.wall, tones.wall_warm, tones.wall_cool].map(linear),
     roofs: [tones.roof, tones.roof_slate].map(linear),
     roof_flat: linear(tones.roof_flat),
+    landmark: { pale: linear(tones.post), band: linear(tones.roof), cap: linear(tones.trim), stone: linear(tones.rock), stone_shade: linear(lighten(tones.rock, -STONE_SHADE)) },
     deck: { deck: linear(tones.deck), side: linear(tones.deck_side), rail: linear(tones.deck), joint: linear(tones.joint), pad: linear(tones.pad), chevron: linear(tones.chevron) },
   };
 }
@@ -84,6 +99,7 @@ interface ChunkView {
 export class WorldView {
   readonly root = new THREE.Group();
   readonly jumps: JumpsView;
+  private readonly landmarks: LandmarksView;
   private readonly views: ChunkView[];
 
   constructor(world: World, chunks: ChunkBuffers[], private readonly mobile: boolean) {
@@ -119,6 +135,8 @@ export class WorldView {
     });
     this.jumps = new JumpsView(world, (x, z) => world.height(x, z));
     this.root.add(this.jumps.root);
+    this.landmarks = new LandmarksView(world.props);
+    this.root.add(this.landmarks.root);
   }
 
   /** `fog_far` is where linear fog ends: a chunk past it at every angle the camera sees is pure fog, so it is not drawn. */
@@ -129,6 +147,7 @@ export class WorldView {
     const corner = Math.sqrt(1 + tan * tan * (1 + camera.aspect * camera.aspect));
     const far_at = this.mobile ? MOBILE_FAR : FAR;
     this.jumps.cull(camera, fog_far);
+    this.landmarks.update(performance.now() / 1000);
     for (const view of this.views) {
       const dx = Math.max(view.x0 - x, 0, x - view.x0 - CHUNK);
       const dz = Math.max(view.z0 - z, 0, z - view.z0 - CHUNK);
@@ -163,19 +182,28 @@ function tree_chunks(trees: Tree[]): Map<number, THREE.InstancedMesh[]> {
   const axis = new THREE.Vector3(0, 1, 0);
   const tint = new THREE.Color();
   const order = new Map(trees.map((tree, i) => [tree, i]));
+  const crown_of = (kind: number) => (kind === TreeKind.SCRUB ? TreeKind.BROADLEAF : kind);
   for (const [key, here] of by_chunk(trees)) {
-    const trunks = new THREE.InstancedMesh(trunk, bark, here.length);
-    const kinds = crowns.map((geometry, kind) => new THREE.InstancedMesh(geometry, leaf, Math.max(1, here.filter((t) => t.kind === kind).length)));
+    const trunks = new THREE.InstancedMesh(trunk, bark, Math.max(1, here.filter((t) => t.kind !== TreeKind.SCRUB).length));
+    let trunk_count = 0;
+    const kinds = crowns.map((geometry, kind) => new THREE.InstancedMesh(geometry, leaf, Math.max(1, here.filter((t) => crown_of(t.kind) === kind).length)));
     const filled = kinds.map(() => 0);
-    here.forEach((tree, i) => {
+    here.forEach((tree) => {
       q.setFromAxisAngle(axis, (tree.x * 13.37) % (Math.PI * 2));
-      m.compose(p.set(tree.x, tree.y - 0.2, tree.z), q, s.setScalar(tree.scale));
-      trunks.setMatrixAt(i, m);
-      const slot = filled[tree.kind]++;
-      kinds[tree.kind].setMatrixAt(slot, m);
-      const [r, g, b] = linear(mix(tones.leaf, tones.leaf_dark, 0.5 + jitter(order.get(tree) ?? 0, tree.kind) * 1.6));
-      kinds[tree.kind].setColorAt(slot, tint.setRGB(r, g, b));
+      const shade = jitter(order.get(tree) ?? 0, tree.kind);
+      const scrub = tree.kind === TreeKind.SCRUB;
+      if (scrub) m.compose(p.set(tree.x, tree.y - SCRUB_SINK, tree.z), q, s.set(tree.scale, tree.scale * SCRUB_SQUASH, tree.scale));
+      else {
+        m.compose(p.set(tree.x, tree.y - 0.2, tree.z), q, s.setScalar(tree.scale));
+        trunks.setMatrixAt(trunk_count++, m);
+      }
+      const crown = kinds[crown_of(tree.kind)];
+      const slot = filled[crown_of(tree.kind)]++;
+      crown.setMatrixAt(slot, m);
+      const [r, g, b] = linear(scrub ? mix(tones.leaf, tones.grass_dry, 0.45 + shade * 0.5) : mix(tones.leaf, tones.leaf_dark, 0.5 + shade * 1.6));
+      crown.setColorAt(slot, tint.setRGB(r, g, b));
     });
+    trunks.count = trunk_count;
     kinds.forEach((mesh, kind) => (mesh.count = filled[kind]));
     const meshes = [trunks, ...kinds].filter((mesh) => mesh.count > 0);
     for (const mesh of meshes) {
