@@ -152,6 +152,8 @@ export interface CarView {
   brake: THREE.MeshLambertMaterial;
   /** Headlamp lenses; hidden from the hood camera, which sits right behind them. */
   heads: THREE.Mesh;
+  /** Hood camera point in car space, or null for the camera's default. */
+  eye: THREE.Vector3 | null;
   /** Nitro exhaust flame, hidden until `show_flame`. */
   flame: THREE.Mesh;
 }
@@ -179,6 +181,7 @@ interface Cabin {
 
 interface Arches {
   gap: number;
+  /** Segments per arch; 0 cuts none, for wheels that stand clear of the body. */
   steps: number;
   flare: number;
   out: number;
@@ -215,6 +218,8 @@ interface Design {
   deck: Point;
   /** Where an engine bulge or scoop sits on the hood, [z, y]. */
   hood: Point;
+  /** Hood camera of an open cockpit, at the driver's eyes, [z, y]; closed bodies use the camera's own hood point. */
+  eye?: Point;
   /** Left tailpipe outlet for engine upgrades, at the rear face. */
   exhaust: Triple;
 }
@@ -362,9 +367,52 @@ const DESIGNS: Record<BodyStyle, Design> = {
     hood: [1.2, 0.8],
     exhaust: [0.55, 0.3, -2.08],
   },
+  formula: {
+    outline: [[2.3, 0.2], [2.32, 0.27], [2.1, 0.34], [1.3, 0.5], [0.98, 0.6], [0.9, 0.56], [0.42, 0.56], [0.3, 0.68], [-0.2, 0.7], [-1.3, 0.5], [-1.95, 0.38], [-2.05, 0.34], [-2.05, 0.1]],
+    width: 0.56,
+    sill: 0.1,
+    cabin: { points: [[0.84, 0.6], [0.84, 0.78], [0.72, 0.9], [0.52, 0.88], [0.5, 0.6]], width: 0.24, tumble: 0.25, frame: [0.025, 0.03, 0.05, 0.2, 0.22], screens: [[1, 0.04]] },
+    arches: { gap: 0, steps: 0, flare: 0, out: 0, reach: 0, tone: "trim" },
+    heads: [{ size: [0.05, 0.035, 0.14], at: [0.27, 0.38, 1.75], tilt: [0.18, 0, 0] }],
+    tails: [{ size: [0.07, 0.06, 0.03], at: [0.035, 0.3, -2.07] }],
+    paint: [
+      { size: [0.36, 0.32, 1.0], at: [0.46, 0.26, -0.62] },
+      { size: [0.26, 0.2, 0.6], at: [0.42, 0.2, -1.32], tilt: [0.2, 0.12, 0] },
+      { size: [0.12, 0.3, 0.32], at: [0.06, 0.84, 0.26] },
+      { size: [0.02, 0.14, 1.0], at: [0.01, 0.64, -0.75], tilt: [0.14, 0, 0] },
+      { size: [0.03, 0.16, 0.52], at: [0.95, 0.17, 2.12] },
+      { size: [0.03, 0.44, 0.6], at: [0.5, 0.74, -2.02] },
+      { size: [0.12, 0.06, 0.09], at: [0.38, 0.7, 0.98] },
+    ],
+    trim: [
+      { size: [0.62, 0.04, 2.5], at: [0.31, 0.115, -0.25] },
+      { size: [0.9, 0.035, 0.42], at: [0.45, 0.13, 2.12] },
+      { size: [0.62, 0.03, 0.22], at: [0.56, 0.2, 2.0], tilt: [-0.35, 0, 0] },
+      { size: [0.5, 0.04, 0.3], at: [0.25, 0.88, -2.0], tilt: [0.18, 0, 0] },
+      { size: [0.5, 0.03, 0.18], at: [0.25, 0.96, -2.2], tilt: [0.5, 0, 0] },
+      { size: [0.03, 0.34, 0.12], at: [0.03, 0.64, -1.98] },
+      { size: [0.3, 0.2, 0.03], at: [0.43, 0.27, -0.11] },
+      { size: [0.1, 0.11, 0.02], at: [0.05, 0.92, 0.42] },
+      { size: [0.42, 0.025, 0.07], at: [0.47, 0.42, 1.6], tilt: [0, 0, -0.2] },
+      { size: [0.42, 0.025, 0.07], at: [0.47, 0.24, 1.6], tilt: [0, 0, 0.12] },
+      { size: [0.42, 0.025, 0.07], at: [0.47, 0.42, -1.45], tilt: [0, 0, -0.2] },
+      { size: [0.42, 0.025, 0.07], at: [0.47, 0.22, -1.45], tilt: [0, 0, 0.12] },
+      { size: [0.06, 0.02, 0.03], at: [0.3, 0.66, 0.98] },
+      { size: [0.3, 0.12, 0.2], at: [0.15, 0.2, -2.05], tilt: [-0.4, 0, 0] },
+    ],
+    markers: [],
+    chrome: [],
+    tyre: [0.32, 0.42],
+    rim: { size: 0.6, spokes: 0, tone: "metal" },
+    deck: [-2.0, 0.6],
+    hood: [-0.75, 0.6],
+    exhaust: [0.06, 0.4, -2.0],
+    eye: [0.7, 0.84],
+  },
 };
 
 function arc(z: number, y: number, radius: number, floor: number, steps: number): Point[] {
+  if (steps === 0) return [];
   const low = Math.asin(Math.max(-1, Math.min(1, (floor - y) / radius)));
   return Array.from({ length: steps + 1 }, (_, i): Point => {
     const a = Math.PI - low - ((Math.PI - 2 * low) * i) / steps;
@@ -707,7 +755,7 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
     root.add(steer);
     return steer;
   });
-  return { root, body, wheels, brake, heads: head_mesh, flame };
+  return { root, body, wheels, brake, heads: head_mesh, eye: d.eye ? new THREE.Vector3(0, body.position.y + d.eye[1], d.eye[0]) : null, flame };
 }
 
 export function sync_car_view(view: CarView, car: Car) {

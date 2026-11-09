@@ -4,6 +4,7 @@ import type { World } from "./world";
 
 const angle_diff = (a: number, b: number) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
 const DEG = Math.PI / 180;
+const HOOD = new THREE.Vector3(0, 0.78, 0.9);
 const LOOK_YAW_PER_PX = 0.006;
 const LOOK_PITCH_PER_PX = 0.004;
 const PITCH_MIN = -5 * DEG;
@@ -46,6 +47,8 @@ export class ChaseCamera {
   mode = 0;
   /** High view over the car for parking; overrides `mode` while set. */
   top = false;
+  /** Hood camera point in car space; null uses HOOD. */
+  eye: THREE.Vector3 | null = null;
   boost = false;
   private yaw = 0;
   private height = 0;
@@ -163,7 +166,7 @@ export class ChaseCamera {
     const rumble = (offroad ? Math.min(1, speed / 20) * 0.008 : 0) + Math.max(0, speed - 50) * 0.0004 + this.shake * 0.2;
 
     if (this.mode === 1 && !this.top) {
-      camera.position.copy(new THREE.Vector3(0, 0.78, 0.9).applyQuaternion(car.quat).add(car.pos));
+      camera.position.copy(this.eye ?? HOOD).applyQuaternion(car.quat).add(car.pos);
       camera.up.set(0, 1, 0).applyQuaternion(car.quat);
       camera.lookAt(this.look.copy(camera.position).addScaledVector(this.fwd, 10));
       this.chase.copy(camera.position);

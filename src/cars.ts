@@ -1,5 +1,5 @@
 export type Drive = "rwd" | "fwd" | "awd";
-export type BodyStyle = "hatch" | "coupe" | "muscle" | "rally" | "kaze";
+export type BodyStyle = "hatch" | "coupe" | "muscle" | "rally" | "kaze" | "formula";
 export type Triple = [number, number, number];
 
 /** Engine voice; the limiter cuts in just under `redline`. */
@@ -67,6 +67,8 @@ export interface CarSpec {
   hold: number;
   drag: number;
   downforce: number;
+  /** Share of `downforce` the floor makes, lost with every wheel off the ground, 0..1: jump lines are planned ballistic. */
+  ground_effect: number;
   roll_resist: number;
   /** Share of the off-road grip loss and rolling drag the tyres shrug off: 0 road tyres, 1 none at all, below 0 slicks that lose more. */
   offroad: number;
@@ -151,6 +153,7 @@ export const COUPE: CarSpec = {
   hold: 1500,
   drag: 0.42,
   downforce: 0.9,
+  ground_effect: 0,
   roll_resist: 1.6,
   offroad: 0,
   air_settle: 0,
@@ -348,7 +351,67 @@ export const KAZE: CarSpec = {
   sound: { cylinders: 6, pulses: [1, 0.93, 1, 0.95, 1, 0.92], jitter: 0.04, pulse_ms: 0.65, formants: [260, 760, 2300], shift: 0.5, muffler: [1300, 6000], drive: 1.4, rasp: 0.2, intake: 0.75, crackle: 0.15, turbo: 0 },
 };
 
-export const CARS: Record<CarId, CarSpec> = { hatch: HATCH, coupe: COUPE, muscle: MUSCLE, rally: RALLY, kaze: KAZE };
+// Open-wheel formula car: light, stiff and short-geared, with wings whose grip grows with speed and slicks that hate grass.
+export const FORMULA: CarSpec = {
+  ...COUPE,
+  id: "formula",
+  name: "Formula",
+  mass: 750,
+  inertia: [1250, 1450, 300],
+  // The origin rides near the other cars' height because jump lines are planned for it; the floor hangs low below it.
+  wheel: { radius: 0.33, rest: 0.18, mounts: mounts(0.8, 0.05, 1.6, 1.45) },
+  wheelbase: 3.05,
+  lock: 0.55,
+  // Springs stiff enough to keep the floor off the road under full downforce; soft bump stops and heavy damping soak up
+  // a landing on the short travel instead of bouncing the car back into the air.
+  spring: 150000,
+  damper: 12000,
+  bump: 60000,
+  arb_front: 22000,
+  arb_rear: 15000,
+  mu: 1.2,
+  rear_grip: 1.15,
+  // Above traction control's 0.14 cut-in: on grass this much power always finds the limit, and rears spun past their
+  // peak wandered off line.
+  peak_slip: 0.16,
+  peak_angle: 0.09,
+  idle: 2400,
+  redline: 12500,
+  upshift: 12000,
+  downshift: 7600,
+  gears: [2.5, 2.15, 1.9, 1.7, 1.54, 1.43, 1.34],
+  reverse: 3.2,
+  final: 3.8,
+  driveline: 0.92,
+  engine_inertia: 0.05,
+  shift_time: 0.06,
+  torque: [
+    [0, 110],
+    [2500, 150],
+    [5000, 215],
+    [8000, 270],
+    [10500, 300],
+    [12000, 285],
+    [13000, 250],
+  ],
+  brake_front: 1900,
+  brake_rear: 1100,
+  brake_grip: 1.35,
+  handbrake: 1300,
+  hold: 1000,
+  drag: 0.38,
+  downforce: 2.4,
+  ground_effect: 1,
+  offroad: -0.5,
+  air_settle: 4,
+  circles: [1.3, -1.3],
+  radius: 1.0,
+  corners: corners(0.75, -0.34, 0.5, 2.3),
+  body: { length: 4.8, width: 1.95, height: 1.0, style: "formula" },
+  sound: { cylinders: 10, pulses: [1, 0.97, 1, 0.96, 1, 0.98, 1, 0.97, 1, 0.96], jitter: 0.03, pulse_ms: 0.4, formants: [380, 1100, 3000], shift: 0.6, muffler: [2200, 9000], drive: 1.6, rasp: 0.3, intake: 0.9, crackle: 0.1, turbo: 0 },
+};
+
+export const CARS: Record<CarId, CarSpec> = { hatch: HATCH, coupe: COUPE, muscle: MUSCLE, rally: RALLY, kaze: KAZE, formula: FORMULA };
 
 export function is_car(id: string): id is CarId {
   return Object.hasOwn(CARS, id);

@@ -502,7 +502,8 @@ export class Car {
       ang.addScaledVector(tmp, -Math.min(1, spec.air_settle * dt)).addScaledVector(level, dt);
     }
     total_force.addScaledVector(vel, -spec.drag * speed);
-    total_force.addScaledVector(up, -spec.downforce * vf * vf);
+    const lift = this.wheels.some((w) => w.contact) ? 1 : 1 - spec.ground_effect;
+    total_force.addScaledVector(up, -spec.downforce * lift * vf * vf);
 
     vel.addScaledVector(total_force, dt / spec.mass);
     const body_torque = total_torque.applyQuaternion(inv);
