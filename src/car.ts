@@ -31,6 +31,11 @@ const KEY_RETURN = 2.5;
 const HOLD_TIME = 0.4;
 // Released, a held wheel centres over this many metres rolled: 0.5 s at 100 km/h, about 25 s of creeping at 2 km/h.
 const HOLD_CENTRE_DISTANCE = 14;
+// The slip model is viscous below its 2 m/s floor, so a locked wheel still creeps under any steady force (a slope);
+// a pinned contact patch with a load-scaled spring and damper gives it real static friction.
+const STICK_SPEED = 0.2;
+const STICK_SPRING = 25;
+const STICK_DAMPER = 2.2;
 
 // Normalised magic formula: peak at s = 1, sliding grip sin(C·π/2) ≈ 65% of peak.
 const MF_C = 1.55;
@@ -59,6 +64,9 @@ export class Wheel {
   load = 0;
   abs = false;
   abs_factor = 1;
+  /** Where a braked, stopped wheel's contact patch is pinned; static friction holds it there until it breaks away. */
+  readonly anchor = new Vector3();
+  anchored = false;
   readonly point = new Vector3();
   readonly normal = new Vector3();
   readonly driven: boolean;
@@ -158,6 +166,7 @@ export class Car {
     for (const w of this.wheels) {
       w.omega = 0;
       w.compression = 0;
+      w.anchored = false;
     }
   }
 
@@ -345,6 +354,7 @@ export class Car {
         w.slip = 0;
         w.abs = false;
         w.abs_factor = 1;
+        w.anchored = false;
         continue;
       }
 
@@ -399,6 +409,19 @@ export class Car {
       w.lateral = Math.abs(sy);
 
       force.copy(wheel_fwd).multiplyScalar(fx).addScaledVector(lat, fy);
+      const held = brake_torque > 0 && omega === 0;
+      if (!held) w.anchored = false;
+      else if (!w.anchored && Math.hypot(v_long, v_lat) < STICK_SPEED) {
+        w.anchored = true;
+        w.anchor.copy(w.point);
+      }
+      if (w.anchored) {
+        tmp2.copy(w.point).sub(w.anchor);
+        tmp2.addScaledVector(w.normal, -tmp2.dot(w.normal)).multiplyScalar(-STICK_SPRING * load);
+        tmp2.addScaledVector(wheel_fwd, -v_long * STICK_DAMPER * load).addScaledVector(lat, -v_lat * STICK_DAMPER * load);
+        if (tmp2.length() > peak) w.anchored = false;
+        else force.copy(tmp2);
+      }
       total_force.add(force);
       total_torque.add(tmp2.crossVectors(lever, force));
       // Grass drag acts at the centre of mass: at the contact patch it pitched load off the rear, and at full throttle on grass

@@ -127,3 +127,41 @@ describe("grass drag", () => {
     }
   });
 });
+
+describe("parking", () => {
+  const slope = (grade: number): Ground => ({ ...flat, height: (_x, z) => z * grade, normal: (_x, _z, out) => out.set(0, 1, -grade).normalize() });
+
+  for (const [label, controls, grade] of [
+    ["idle hold on 20%", idle, 0.2],
+    ["handbrake on 20%", { ...idle, handbrake: 1 }, 0.2],
+    ["handbrake on 30%", { ...idle, handbrake: 1 }, 0.3],
+  ] as const) {
+    test(`${label}: every car stays put within 2 mm over 10 s`, () => {
+      const ground = slope(grade);
+      for (const spec of Object.values(CARS)) {
+        const car = new Car(spec);
+        car.park(0, 0, 0, ground);
+        for (let t = 0; t < 3; t += DT) car.step(DT, controls, ground);
+        const start = car.pos.clone();
+        for (let t = 0; t < 10; t += DT) car.step(DT, controls, ground);
+        expect(car.pos.distanceTo(start)).toBeLessThan(0.002);
+      }
+    });
+  }
+
+  test("braking from walking pace stops dead and stays stopped", () => {
+    for (const spec of Object.values(CARS)) {
+      const car = new Car(spec);
+      car.auto = false;
+      car.park(0, 0, 0, flat);
+      run(car, 6, () => ({ ...idle, throttle: Math.max(0, Math.min(1, 0.08 + (5 - kmh(car)) * 0.3)) }));
+      let t = 0;
+      for (; t < 3 && car.vel.length() > 0.01; t += DT) car.step(DT, { ...idle, brake: 1 }, flat);
+      expect(t).toBeLessThan(1);
+      run(car, 2, () => ({ ...idle, brake: 1 }));
+      const stopped = car.pos.clone();
+      run(car, 3, () => ({ ...idle, brake: 1 }));
+      expect(car.pos.distanceTo(stopped)).toBeLessThan(0.001);
+    }
+  });
+});
