@@ -173,6 +173,7 @@ function apply_car_settings(state: SettingsState) {
 
 function apply_settings(state: SettingsState) {
   apply_car_settings(state);
+  document.documentElement.dataset.hud = state.hud;
   for (const chip of document.querySelectorAll<HTMLElement>(".assists [data-aid]")) chip.setAttribute("aria-pressed", String(state[chip.dataset.aid as "tcs" | "abs" | "assist" | "auto"]));
   input.touch.set_steer_mode(state.touch_steer);
   chase.mode = state.camera === CameraView.COCKPIT ? 1 : 0;

@@ -53,6 +53,15 @@ export type CameraReturn = (typeof CameraReturn)[keyof typeof CameraReturn];
 /** Seconds of driving before the camera eases back; `off` returns at once. */
 export const CAMERA_RETURN_SECONDS: Record<CameraReturn, number> = { off: 0, short: 1.5, long: 3, never: Infinity };
 
+/** Where the HUD pieces sit; each is a CSS layout keyed on `data-hud` on the root. */
+export const HudLayout = {
+  MINIMAL: "minimal",
+  CLASSIC: "classic",
+  RACING: "racing",
+  COMPACT: "compact",
+} as const;
+export type HudLayout = (typeof HudLayout)[keyof typeof HudLayout];
+
 export const LAPS = [1, 2, 3, 5] as const;
 export type Laps = (typeof LAPS)[number];
 
@@ -74,6 +83,7 @@ export interface SettingsState {
   /** Master volume, 0..1. */
   volume: number;
   muted: boolean;
+  hud: HudLayout;
 }
 export type SettingKey = keyof SettingsState;
 
@@ -93,6 +103,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
   ghost: true,
   volume: 0.8,
   muted: false,
+  hud: HudLayout.MINIMAL,
 };
 
 const one_of = <T extends string | number>(values: readonly T[], raw: unknown, fallback: T): T => (values.includes(raw as T) ? (raw as T) : fallback);
@@ -119,6 +130,7 @@ export function parse_settings(raw: unknown): SettingsState {
     ghost: bool(s.ghost, d.ghost),
     volume,
     muted: bool(s.muted, d.muted),
+    hud: one_of(Object.values(HudLayout), s.hud, d.hud),
   };
 }
 
@@ -240,6 +252,67 @@ const HARMONIES: [Harmony | "any", string][] = [
 
 const PREVIEW_LADDER = ["darkest", "darker", "dark", "", "light", "lighter", "lightest"];
 const PREVIEW_CHIPS = ["primary", "secondary", "accent", "tertiary", "cottontail"] as const;
+
+type WirePart = "bar" | "title" | "strip" | "map" | "speed" | "dash";
+
+interface HudLayoutOption {
+  value: HudLayout;
+  name: string;
+  note: string;
+  /** Mini wireframe for the picker: part, then x, y, width, height in percent of a 16:9 frame. */
+  wire: [WirePart, number, number, number, number][];
+}
+
+const HUD_LAYOUTS: HudLayoutOption[] = [
+  {
+    value: HudLayout.MINIMAL,
+    name: "Minimal",
+    note: "Speed and gear; the rest when it matters",
+    wire: [
+      ["bar", 4, 6, 15, 11],
+      ["map", 86, 6, 10, 18],
+      ["speed", 78, 76, 18, 18],
+    ],
+  },
+  {
+    value: HudLayout.CLASSIC,
+    name: "Classic",
+    note: "Everything in the corners",
+    wire: [
+      ["title", 4, 6, 17, 11],
+      ["bar", 23, 6, 15, 11],
+      ["strip", 40, 6, 24, 11],
+      ["map", 82, 6, 14, 25],
+      ["dash", 4, 85, 24, 9],
+      ["speed", 74, 70, 22, 24],
+    ],
+  },
+  {
+    value: HudLayout.RACING,
+    name: "Racing",
+    note: "Lap timer on top, dash in the middle",
+    wire: [
+      ["title", 4, 6, 13, 11],
+      ["bar", 19, 6, 12, 11],
+      ["strip", 36, 6, 28, 13],
+      ["map", 82, 6, 14, 25],
+      ["speed", 38, 64, 24, 20],
+      ["dash", 38, 86, 24, 8],
+    ],
+  },
+  {
+    value: HudLayout.COMPACT,
+    name: "Compact",
+    note: "One slim top row, bottom left free",
+    wire: [
+      ["bar", 4, 6, 15, 10],
+      ["strip", 21, 6, 15, 10],
+      ["dash", 38, 6, 20, 10],
+      ["speed", 64, 6, 16, 10],
+      ["map", 84, 6, 12, 22],
+    ],
+  },
+];
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, class_name = "", text = ""): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
@@ -392,7 +465,7 @@ export class Settings {
       { id: "world", label: "World", icon: "icon-world", build: () => this.world() },
       { id: "servers", label: "Servers", icon: "icon-servers", build: () => this.servers() },
       { id: "controls", label: "Controls", icon: "icon-controls", build: () => this.controls() },
-      { id: "display", label: "Display", icon: "icon-display", build: () => this.display() },
+      { id: "display", label: "Display", icon: "icon-display", build: () => [...this.hud_layout(), ...this.display()] },
       { id: "audio", label: "Audio", icon: "icon-audio", build: () => this.audio() },
     ];
 
@@ -456,6 +529,35 @@ export class Settings {
       for (const [value, button] of buttons) button.setAttribute("aria-checked", String(this.current[key] === value));
     });
     return this.row(label, group, hint);
+  }
+
+  private hud_layout(): HTMLElement[] {
+    const group = el("div", "hud-layouts");
+    group.setAttribute("role", "radiogroup");
+    group.setAttribute("aria-label", "HUD layout");
+    const buttons = HUD_LAYOUTS.map(({ value, name, note, wire }) => {
+      const button = el("button", "hud-layout");
+      button.type = "button";
+      button.setAttribute("role", "radio");
+      button.dataset.layout = value;
+      const frame = el("span", "hud-wire");
+      frame.setAttribute("aria-hidden", "true");
+      for (const [part, x, y, w, h] of wire) {
+        const box = el("span", `hud-wire-${part}`);
+        box.style.inset = `${y}% ${100 - x - w}% ${100 - y - h}% ${x}%`;
+        frame.append(box);
+      }
+      const text = el("span", "hud-layout-text");
+      text.append(el("b", "", name), el("small", "", note));
+      button.append(frame, text);
+      button.addEventListener("click", () => this.set("hud", value));
+      group.append(button);
+      return [value, button] as const;
+    });
+    this.syncs.push(() => {
+      for (const [value, button] of buttons) button.setAttribute("aria-checked", String(this.current.hud === value));
+    });
+    return [this.row("HUD layout", group, "Where speed, laps, map and buttons sit")];
   }
 
   private toggle_row(key: "tcs" | "abs" | "assist" | "auto" | "invert_y" | "ghost" | "muted", label: string, hint = ""): HTMLElement {

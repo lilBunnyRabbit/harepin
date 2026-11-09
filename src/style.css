@@ -2049,3 +2049,198 @@ button:active:not(:disabled) {
     display: none;
   }
 }
+
+/* HUD layouts (Settings, Display). Classic is the base above; the others only move and trim it, so the pad's spatial
+   focus order follows whatever lands where. */
+:root[data-hud="racing"] #strip .lap b {
+  font-size: 24px;
+}
+
+:root[data-hud="racing"] .bottom-right,
+:root[data-hud="compact"] .bottom-right {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: var(--space-3);
+  width: auto;
+  min-height: var(--bar-h);
+  padding: var(--space-2) var(--space-3);
+}
+
+:root[data-hud="racing"] .bottom-right {
+  right: auto;
+  left: 50%;
+  translate: -50% 0;
+  width: var(--racing-speedo);
+}
+
+:root {
+  --racing-speedo: 200px;
+}
+
+/* Centred, the strip meets the button bar below 1440px; there it keeps the Classic spot. */
+@media (pointer: fine) and (min-width: 1440px) {
+  :root[data-hud="racing"] #strip {
+    left: 50%;
+    translate: -50% 0;
+  }
+}
+
+:root[data-hud="racing"] .speedo,
+:root[data-hud="compact"] .speedo {
+  align-items: center;
+}
+
+:root[data-hud="racing"] #speed {
+  font-size: 36px;
+}
+
+:root[data-hud="racing"] .speedo {
+  flex: 1;
+  justify-content: center;
+}
+
+:root[data-hud="racing"] .rpm,
+:root[data-hud="racing"] .nitro,
+:root[data-hud="compact"] .rpm,
+:root[data-hud="compact"] .nitro {
+  flex-basis: 100%;
+  margin-top: var(--space-1);
+}
+
+:root[data-hud="racing"] .rpm,
+:root[data-hud="compact"] .rpm {
+  height: 4px;
+}
+
+:root[data-hud="minimal"] .dock-top .top-left,
+:root[data-hud="minimal"] #strip[data-idle],
+:root[data-hud="minimal"] #strip > div:nth-child(2),
+:root[data-hud="minimal"] #strip > div:nth-child(3),
+:root[data-hud="minimal"] #players,
+:root[data-hud="minimal"] .top-right[data-alone] #net,
+:root[data-hud="compact"] .dock-top .top-left,
+:root[data-hud="compact"] #strip > div:nth-child(2),
+:root[data-hud="compact"] #strip > div:nth-child(3),
+:root[data-hud="compact"] #players {
+  display: none;
+}
+
+/* Only the lit lamps (an aid switched off) stay; the full row comes back while the bar is in use. Touch has no hover,
+   so there the row shows while stopped instead (the calm rule). */
+@media (pointer: fine) {
+  :root[data-hud="minimal"]:not(:has(.dock-top:hover, .dock-top :focus-visible, .assists:hover, .assists :focus-visible)) .assists .chip[aria-pressed="true"] {
+    display: none;
+  }
+}
+
+:root[data-hud="minimal"][data-calm] .actions {
+  opacity: 0.3;
+}
+
+:root[data-hud="minimal"] .bottom-right {
+  width: auto;
+  padding: var(--space-2) var(--space-3);
+}
+
+:root[data-hud="minimal"] .dock-left,
+:root[data-hud="compact"] .dock-left {
+  bottom: var(--inset-bottom);
+}
+
+:root[data-hud="minimal"]:has(.assists .chip[aria-pressed="false"]) .dock-left {
+  bottom: calc(var(--inset-bottom) + var(--control-h) + var(--space-2));
+}
+
+:root[data-hud="compact"] .dock-top {
+  anchor-name: --top-dock;
+}
+
+:root[data-hud="compact"] .assists {
+  position-anchor: --actions;
+  inset: auto;
+  top: calc(anchor(bottom) + var(--space-2));
+  left: anchor(left);
+}
+
+:root[data-hud="compact"] .bottom-right {
+  inset: var(--inset-top) calc(var(--inset-right) + var(--compact-map) + var(--space-2)) auto auto;
+}
+
+:root[data-hud="compact"] #speed {
+  font-size: 32px;
+}
+
+:root[data-hud="compact"] #recenter {
+  top: calc(100% + var(--space-2));
+  bottom: auto;
+}
+
+:root {
+  --compact-map: 120px;
+}
+
+@media (pointer: fine) {
+  :root[data-hud="racing"] .assists {
+    left: auto;
+    right: calc(50% + var(--racing-speedo) / 2 + var(--space-3));
+    bottom: calc(var(--inset-bottom) + (var(--bar-h) - var(--control-h)) / 2);
+  }
+
+  :root[data-hud="minimal"] #minimap,
+  :root[data-hud="compact"] #minimap {
+    width: var(--compact-map);
+    height: var(--compact-map);
+  }
+
+  :root[data-hud="compact"] .top-right {
+    min-width: 0;
+  }
+
+  :root[data-hud="compact"] .dock-top .actions {
+    min-height: var(--bar-h);
+  }
+}
+
+@media (pointer: coarse) {
+  :root {
+    --compact-map: 80px;
+    --racing-speedo: 150px;
+  }
+
+  :root[data-hud="racing"] .bottom-right {
+    min-height: 0;
+    min-width: 0;
+    padding: var(--space-1) var(--space-3);
+  }
+
+  :root[data-hud="racing"] #speed {
+    font-size: 26px;
+  }
+
+  :root[data-hud="compact"] .dock-break {
+    display: none;
+  }
+
+  :root[data-hud="minimal"] #minimap,
+  :root[data-hud="compact"] #minimap {
+    width: var(--compact-map);
+    height: var(--compact-map);
+  }
+
+  :root[data-hud="minimal"] .assists {
+    position-anchor: --actions;
+    top: calc(anchor(bottom) + var(--space-2));
+    left: anchor(left);
+  }
+
+  :root[data-hud="compact"] .bottom-right {
+    min-height: 0;
+    padding: var(--space-1) var(--space-3);
+  }
+
+  :root[data-hud="compact"] .touch-buttons {
+    top: calc(var(--inset-top) + 52px + var(--space-2));
+    right: calc(var(--inset-right) + var(--compact-map) + var(--space-2));
+  }
+}
