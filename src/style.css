@@ -1676,7 +1676,6 @@ body.no-blur * {
   backdrop-filter: none !important;
   filter: none !important;
 }
-}
 
 .title #room {
   display: inline-block;
