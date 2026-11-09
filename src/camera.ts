@@ -188,7 +188,7 @@ export class ChaseCamera {
       const pivot_y = this.height + PIVOT_RISE;
       this.target.set(car.pos.x - Math.sin(this.yaw) * Math.cos(base_pitch) * reach, pivot_y + Math.sin(base_pitch) * reach, car.pos.z - Math.cos(this.yaw) * Math.cos(base_pitch) * reach);
       this.chase.lerp(this.target, 1 - Math.exp(-dt * FOLLOW_RATE));
-      this.floor = this.ground(world, this.chase, this.floor, dt);
+      this.floor = this.ground(world, this.chase, pivot_y, this.floor, dt);
       this.chase.y = Math.max(this.chase.y, this.floor);
 
       // The orbit turns the eased chase offset about the pivot, so a drag moves the view at once instead of being chased by the follow lag.
@@ -200,7 +200,7 @@ export class ChaseCamera {
       const azimuth = Math.atan2(ox, oz) + this.orbit_yaw;
       const elevation = Math.atan2(oy, flat) + this.orbit_pitch;
       camera.position.set(car.pos.x + Math.sin(azimuth) * Math.cos(elevation) * dist, pivot_y + Math.sin(elevation) * dist, car.pos.z + Math.cos(azimuth) * Math.cos(elevation) * dist);
-      this.orbit_floor = this.ground(world, camera.position, this.orbit_floor, dt);
+      this.orbit_floor = this.ground(world, camera.position, pivot_y, this.orbit_floor, dt);
       camera.position.y = Math.max(camera.position.y, this.orbit_floor);
       camera.up.set(0, 1, 0);
       const yaw = this.yaw + this.orbit_yaw;
@@ -217,8 +217,9 @@ export class ChaseCamera {
     camera.updateProjectionMatrix();
   }
 
-  private ground(world: World, at: THREE.Vector3, last: number, dt: number): number {
-    const floor = world.height(at.x, at.z) + 0.9;
+  /** `from` is the car's pivot height: under a crossover the camera keeps to the car's deck, not the one overhead. */
+  private ground(world: World, at: THREE.Vector3, from: number, last: number, dt: number): number {
+    const floor = world.height(at.x, at.z, from) + 0.9;
     return Number.isFinite(last) ? last + (floor - last) * Math.min(1, dt * 6) : floor;
   }
 }

@@ -5,7 +5,7 @@ import { NITRO_TORQUE, Nitro } from "./nitro";
 export interface Ground {
   /** `y`, when given, is the height the query comes from; a ground with stacked surfaces answers the one below it. */
   height(x: number, z: number, y?: number): number;
-  normal(x: number, z: number, out: Vector3): Vector3;
+  normal(x: number, z: number, out: Vector3, y?: number): Vector3;
   grip(x: number, z: number): number;
   roll(x: number, z: number): number;
 }
@@ -470,7 +470,7 @@ export class Car {
       if (w.compression > rest) suspension += spec.bump * (w.compression - rest);
       suspension = Math.max(0, Math.min(40000, suspension));
       lever.copy(w.point).sub(pos);
-      ground.normal(w.point.x, w.point.z, w.normal);
+      ground.normal(w.point.x, w.point.z, w.normal, w.point.y);
       const load = suspension * Math.max(0, up.dot(w.normal));
       w.load = load;
       // Along body up, a pitched body pushed itself sideways and a car in neutral rolled off on the flat.
@@ -546,7 +546,7 @@ export class Car {
       const depth = ground.height(p.x, p.z, p.y) - p.y;
       if (depth <= 0) continue;
       airborne = false;
-      ground.normal(p.x, p.z, tmp);
+      ground.normal(p.x, p.z, tmp, p.y);
       lever.copy(p).sub(pos);
       point_vel.crossVectors(ang, lever).add(vel);
       const vn = point_vel.dot(tmp);

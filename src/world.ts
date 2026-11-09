@@ -5,6 +5,7 @@ import { DeckIndex } from "./worldgen/deck";
 import { sample, slope_normal } from "./worldgen/field";
 import { generate } from "./worldgen/index";
 import { ramp_surface, spawn_blocks, type Surface } from "./worldgen/jumps";
+import { FALL_DEPTH } from "./worldgen/sky";
 import { ROAD_HALF, type WorldKind } from "./worldgen/types";
 import type {
   Building,
@@ -225,8 +226,8 @@ export class World implements Ground {
     return deck && deck.y > top ? deck.y : top;
   }
 
-  normal(x: number, z: number, out: Vector3): Vector3 {
-    const deck = this.deck?.surface(x, z);
+  normal(x: number, z: number, out: Vector3, y?: number): Vector3 {
+    const deck = this.deck?.surface(x, z, y);
     if (deck && deck.y > sample(this.heights, x, z)) return out.set(-deck.gx, 1, -deck.gz).normalize();
     const ramp = this.ramp_at(x, z);
     if (ramp && ramp.y > sample(this.heights, x, z)) return out.set(-ramp.gx, 1, -ramp.gz).normalize();
@@ -242,6 +243,11 @@ export class World implements Ground {
       if (s && (!top || s.y > top.y)) top = s;
     }
     return top;
+  }
+
+  /** Sky only: further under every deck near the car than FALL_DEPTH. */
+  fallen(pos: Vector3): boolean {
+    return this.deck !== null && pos.y < this.deck.floor(pos.x, pos.z) - FALL_DEPTH;
   }
 
   distance_to_road(x: number, z: number): number {

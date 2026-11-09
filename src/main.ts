@@ -34,7 +34,6 @@ import { BUILD, Updater, show_version } from "./update";
 import { pick_world } from "./world-pick";
 import { GUARD_STATE, SystemBack, type Watcher } from "./system-back";
 import { SPAWN_INDEX } from "./world";
-import { FALL_DEPTH } from "./worldgen/sky";
 import { WorldKind, world_id, world_key } from "./worldgen/types";
 import "./style.css";
 
@@ -555,7 +554,7 @@ function frame(now: number) {
   }
 
   const upright = new THREE.Vector3(0, 1, 0).applyQuaternion(car.quat).y;
-  if (world.kind === WorldKind.SKY && car.pos.y < world.nearest_road(car.pos.x, car.pos.z).y - FALL_DEPTH) {
+  if (world.fallen(car.pos)) {
     fall_back();
     stuck = 0;
   }

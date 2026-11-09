@@ -16,7 +16,7 @@ export const SPAWN_INDEX = -40;
 export const WORLD_VERSION = 2;
 
 /** Bump whenever `generate_sky` makes a different track for the same seed. */
-export const SKY_VERSION = 2;
+export const SKY_VERSION = 3;
 
 export const WorldKind = { ISLAND: "island", SKY: "sky" } as const;
 export type WorldKind = (typeof WorldKind)[keyof typeof WorldKind];

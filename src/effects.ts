@@ -165,7 +165,7 @@ export class Skids {
         return;
       }
       const here = w.point.clone();
-      here.y = world.height(here.x, here.z) + 0.1;
+      here.y = world.height(here.x, here.z, here.y) + 0.1;
       const prev = this.last[i];
       if (!prev) {
         this.last[i] = here;

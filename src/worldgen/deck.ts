@@ -4,6 +4,12 @@ import { DECK_STRIDE, type Deck } from "./types";
 export const DECK_UNDER = 1.2;
 const CELL = 16;
 const WALK_REACH = 24;
+/** Two sections closer than this in xz can be stacked (a crossover); cells around them check every section. */
+const STACK_REACH = 48;
+/** Samples closer than this along the lap are one section. */
+const SECTION_ALONG = 60;
+/** A section answers a stacked query only when one of its samples is this close: wider than the widest deck. */
+const LEVEL_REACH = 10;
 
 export interface DeckHit {
   y: number;
@@ -21,8 +27,12 @@ function key(cx: number, cz: number) {
 export class DeckIndex {
   readonly count: number;
   private readonly grid = new Map<number, number[]>();
+  /** Cells where the track passes over itself. */
+  private readonly stacked = new Set<number>();
+  private readonly length: number;
   private last = 0;
   private readonly hit: DeckHit = { y: 0, gx: 0, gz: 0, index: 0, u: 0 };
+  private readonly picks: number[] = [];
 
   constructor(readonly deck: Deck) {
     this.count = deck.line.length / DECK_STRIDE;
@@ -32,6 +42,23 @@ export class DeckIndex {
       if (list) list.push(i);
       else this.grid.set(k, [i]);
     }
+    const n = this.count;
+    this.length = n ? this.at(n - 1, 8) + Math.hypot(this.at(0, 0) - this.at(n - 1, 0), this.at(0, 2) - this.at(n - 1, 2)) : 0;
+    const reach = Math.ceil(STACK_REACH / CELL);
+    for (let i = 0; i < n; i++) {
+      const cx = Math.floor(this.at(i, 0) / CELL);
+      const cz = Math.floor(this.at(i, 2) / CELL);
+      let stacked = false;
+      for (let dz = -reach; dz <= reach && !stacked; dz++)
+        for (let dx = -reach; dx <= reach && !stacked; dx++)
+          for (const j of this.grid.get(key(cx + dx, cz + dz)) ?? [])
+            if (!this.same_section(i, j) && this.dist(j, this.at(i, 0), this.at(i, 2)) < STACK_REACH * STACK_REACH) {
+              stacked = true;
+              break;
+            }
+      if (!stacked) continue;
+      for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) this.stacked.add(key(cx + dx, cz + dz));
+    }
   }
 
   at(i: number, field: number): number {
@@ -40,6 +67,11 @@ export class DeckIndex {
 
   private dist(i: number, x: number, z: number): number {
     return (this.at(i, 0) - x) ** 2 + (this.at(i, 2) - z) ** 2;
+  }
+
+  private same_section(i: number, j: number): boolean {
+    const along = Math.abs(this.at(i, 8) - this.at(j, 8));
+    return Math.min(along, this.length - along) < SECTION_ALONG;
   }
 
   nearest(x: number, z: number): number {
@@ -74,10 +106,52 @@ export class DeckIndex {
     return i;
   }
 
-  /** The returned object is reused across calls. */
+  /** Nearest sample of every section within LEVEL_REACH of a point in a stacked cell; null outside one. */
+  private levels(x: number, z: number): readonly number[] | null {
+    const cx = Math.floor(x / CELL);
+    const cz = Math.floor(z / CELL);
+    if (!this.stacked.has(key(cx, cz))) return null;
+    const picks = this.picks;
+    picks.length = 0;
+    for (let dz = -1; dz <= 1; dz++)
+      for (let dx = -1; dx <= 1; dx++)
+        for (const j of this.grid.get(key(cx + dx, cz + dz)) ?? []) {
+          const d = this.dist(j, x, z);
+          if (d > LEVEL_REACH * LEVEL_REACH) continue;
+          const k = picks.findIndex((p) => this.same_section(p, j));
+          if (k < 0) picks.push(j);
+          else if (d < this.dist(picks[k], x, z)) picks[k] = j;
+        }
+    return picks;
+  }
+
+  /**
+   * Where a crossover stacks two decks, the highest one the query is above the underside of (the highest of all with no
+   * `y`). The returned object is reused across calls.
+   */
   surface(x: number, z: number, y?: number): DeckHit | null {
+    const picks = this.levels(x, z);
+    if (!picks) return this.probe(this.nearest(x, z), x, z, y);
+    let best = -1;
+    let top = -Infinity;
+    for (const i of picks) {
+      const hit = this.probe(i, x, z, y);
+      if (hit && hit.y > top) [best, top] = [i, hit.y];
+    }
+    if (best < 0) return null;
+    this.last = best;
+    return this.probe(best, x, z, y);
+  }
+
+  /** Centreline height of the lowest deck near the point: a car this far under every deck has fallen. */
+  floor(x: number, z: number): number {
+    let y = this.at(this.nearest(x, z), 1);
+    for (const i of this.levels(x, z) ?? []) y = Math.min(y, this.at(i, 1));
+    return y;
+  }
+
+  private probe(i: number, x: number, z: number, y: number | undefined): DeckHit | null {
     const n = this.count;
-    const i = this.nearest(x, z);
     const next = (i + 1) % n;
     const prev = (i - 1 + n) % n;
     let a = i;

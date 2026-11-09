@@ -72,3 +72,53 @@ test("the index walks to the nearest sample from anywhere and reuses its last an
   expect(index.nearest(1, -149)).toBe(25);
   expect(DECK_STRIDE).toBe(9);
 });
+
+/** A lap whose first leg runs along z at Y and whose third leg crosses it along x, CLEAR higher. */
+function crossover(clear: number): Deck {
+  const points: number[] = [];
+  let s = 0;
+  const leg = (x0: number, z0: number, tx: number, tz: number, y: number) => {
+    for (let k = 0; k <= 200; k++) {
+      points.push(x0 + tx * k * 2, y, z0 + tz * k * 2, tx, tz, 0, 6, 1, s);
+      s += 2;
+    }
+    s += 400;
+  };
+  leg(0, -200, 0, 1, Y);
+  leg(-200, 600, 1, 0, Y + clear / 2);
+  leg(-200, 0, 1, 0, Y + clear);
+  return { half: 6, pieces: [], line: new Float64Array(points), pads: [], open: [] };
+}
+
+test("under a crossover a query answers the deck it is above the underside of, and the falling check the lowest", () => {
+  const index = new DeckIndex(crossover(12));
+  expect(index.surface(0, 0, Y + 0.5)?.y).toBeCloseTo(Y, 9);
+  expect(index.surface(1, 2, Y + 0.5)?.y).toBeCloseTo(Y, 9);
+  expect(index.surface(0, 0, Y + 12.5)?.y).toBeCloseTo(Y + 12, 9);
+  expect(index.surface(0, 0)?.y).toBeCloseTo(Y + 12, 9);
+  expect(index.floor(0, 0)).toBeCloseTo(Y, 9);
+  expect(index.surface(0, 50, Y + 0.5)?.y).toBeCloseTo(Y, 9);
+  expect(index.surface(50, 0, Y + 12.5)?.y).toBeCloseTo(Y + 12, 9);
+});
+
+test("a car drives under a crossover on its own deck without being lifted onto the one above", () => {
+  const index = new DeckIndex(crossover(12));
+  const ground: Ground = {
+    height: (x, z, y) => index.surface(x, z, y)?.y ?? ABYSS,
+    normal: (x, z, out, y) => {
+      const s = index.surface(x, z, y);
+      return s ? out.set(-s.gx, 1, -s.gz).normalize() : out.set(0, 1, 0);
+    },
+    grip: () => 1,
+    roll: () => 1,
+  };
+  const car = new Car(COUPE);
+  car.place(0, Y + 0.75, -60, 0);
+  car.vel.set(0, 0, 25);
+  for (let i = 0; i < 360 * 4; i++) {
+    car.step(1 / 360, { steer: 0, throttle: 0.4, brake: 0, handbrake: 0, analog: false }, ground);
+    expect(car.pos.y).toBeLessThan(Y + 2);
+    expect(car.pos.y).toBeGreaterThan(Y);
+  }
+  expect(car.pos.z).toBeGreaterThan(20);
+});

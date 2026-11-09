@@ -3,7 +3,6 @@ import { Car } from "../src/car";
 import { COUPE, car_spec, type CarSpec } from "../src/cars";
 import { PadTimer } from "../src/sky-pads";
 import { World, type RoadPoint } from "../src/world";
-import { FALL_DEPTH } from "../src/worldgen/sky";
 
 const DT = 1 / 360;
 const RAMP_LOOK = 120;
@@ -20,8 +19,9 @@ const CORNER_SPAN = 5;
 const HAIRPIN_PACE = 15;
 
 /** Square of the fastest steady speed round `radius` at `p`: a sky-track bank adds its share of gravity to the grip. */
-function corner_speed2(world: World, p: { x: number; z: number }, radius: number): number {
-  const bank = world.deck ? Math.abs(world.deck.at(world.deck.nearest(p.x, p.z), 5)) : 0;
+function corner_speed2(world: World, p: { x: number; y: number; z: number }, radius: number): number {
+  const hit = world.deck?.surface(p.x, p.z, p.y + 1);
+  const bank = world.deck && hit ? Math.abs(world.deck.at(hit.index, 5)) : 0;
   if (bank === 0) return CORNER_GRIP * radius;
   const mu = CORNER_GRIP / GRAVITY;
   const tan = Math.tan(bank);
@@ -116,7 +116,7 @@ export function autolap(world: World, spec: CarSpec = COUPE, road: readonly Road
       flipped = true;
       break;
     }
-    if (world.kind === "sky" && car.pos.y < world.nearest_road(car.pos.x, car.pos.z).y - FALL_DEPTH) {
+    if (world.fallen(car.pos)) {
       fell = true;
       break;
     }
