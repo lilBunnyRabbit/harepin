@@ -23,6 +23,14 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.8.2",
+    date: "2026-11-09",
+    title: "Boost pads",
+    changes: [
+      { kind: NEW, text: "Boost pads on the Sky Track: drive over the arrows for a short burst of speed. The World map shows where they are." },
+    ],
+  },
+  {
     version: "0.8.1",
     date: "2026-11-09",
     title: "HUD fixes",
