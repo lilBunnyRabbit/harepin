@@ -58,6 +58,11 @@ const grass = dark ? lighten(mix(brand.success, ground, 0.32), DUSK_GRASS_LIFT) 
 const leaf_dark = mix(brand.success, dark ? brand.background : brand.foreground, 0.28);
 const asphalt = dark ? brand.background_darkest : mix(brand.foreground, brand.background_darkest, 0.62);
 
+// A share of the asphalt-to-foreground range, not a fixed L step: on near-black roads a fixed step still renders black.
+const DUSK_TYRE_STEP = 0.3;
+const DUSK_TRIM_STEP = 0.38;
+const above_asphalt = (share: number) => lighten(asphalt, (brand.foreground[0] - asphalt[0]) * share);
+
 export const tones = {
   grass,
   grass_dry: mix(brand.warning, ground, dark ? 0.26 : 0.36),
@@ -73,8 +78,8 @@ export const tones = {
   leaf_dark: dark ? lighten(leaf_dark, grass[0] - DUSK_CROWN_DROP - leaf_dark[0]) : leaf_dark,
   trunk: mix(brand.warning, brand.background_darkest, 0.25),
   glass: dark ? brand.background_darkest : brand.foreground,
-  tyre: dark ? brand.background_darkest : mix(brand.foreground, brand.background_darkest, 0.8),
-  trim: dark ? brand.background_darkest : brand.foreground,
+  tyre: dark ? above_asphalt(DUSK_TYRE_STEP) : mix(brand.foreground, brand.background_darkest, 0.8),
+  trim: dark ? above_asphalt(DUSK_TRIM_STEP) : brand.foreground,
   hub: brand.foreground,
   post: brand.background_lightest,
   gate: dark ? brand.background_lightest : brand.background_darkest,

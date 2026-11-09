@@ -152,6 +152,8 @@ export interface CarView {
   brake: THREE.MeshLambertMaterial;
   /** Headlamp lenses; hidden from the hood camera, which sits right behind them. */
   heads: THREE.Mesh;
+  /** Cockpit halo, hidden from the hood camera with `heads`; null on closed bodies. */
+  halo: THREE.Mesh | null;
   /** Hood camera point in car space, or null for the camera's default. */
   eye: THREE.Vector3 | null;
   /** Nitro exhaust flame, hidden until `show_flame`. */
@@ -230,8 +232,14 @@ interface Design {
   hood: Point;
   /** Hood camera of an open cockpit, at the driver's eyes, [z, y]; closed bodies use the camera's own hood point. */
   eye?: Point;
-  /** Left tailpipe outlet for engine upgrades, at the rear face. */
+  /** Left tailpipe outlet for engine upgrades, at the rear face; x 0 is one central pipe that widens instead of doubling. */
   exhaust: Triple;
+  /** Nitro bottles on the rear deck (default) or out of sight inside the bodywork. */
+  bottles?: "deck" | "inside";
+  /** Cockpit hoop in trim; hidden from the hood camera like the headlamps. */
+  halo?: Part[];
+  /** Narrows the body behind z `from` to `share` of its width at the tail. */
+  taper?: { from: number; share: number };
 }
 
 const MIRROR: Triple = [0.16, 0.1, 0.18];
@@ -378,18 +386,18 @@ const DESIGNS: Record<BodyStyle, Design> = {
     exhaust: [0.55, 0.3, -2.08],
   },
   formula: {
-    outline: [[2.3, 0.2], [2.32, 0.27], [2.1, 0.34], [1.3, 0.5], [0.98, 0.6], [0.9, 0.56], [0.42, 0.56], [0.3, 0.68], [-0.2, 0.7], [-1.3, 0.5], [-1.95, 0.38], [-2.05, 0.34], [-2.05, 0.1]],
+    outline: [[2.3, 0.2], [2.32, 0.27], [2.1, 0.34], [1.3, 0.5], [0.98, 0.6], [0.9, 0.56], [0.42, 0.56], [0.3, 0.68], [-0.2, 0.7], [-1.2, 0.5], [-1.85, 0.38], [-2.0, 0.36], [-2.0, 0.12]],
     width: 0.56,
     sill: 0.1,
     cabin: { points: [[0.84, 0.6], [0.84, 0.78], [0.72, 0.9], [0.52, 0.88], [0.5, 0.6]], width: 0.24, tumble: 0.25, frame: [0.025, 0.03, 0.05, 0.2, 0.22], screens: [[1, 0.04]] },
     arches: { gap: 0, steps: 0, flare: 0, out: 0, reach: 0, tone: "trim" },
     heads: [{ size: [0.05, 0.035, 0.14], at: [0.27, 0.38, 1.75], tilt: [0.18, 0, 0] }],
-    tails: [{ size: [0.07, 0.06, 0.03], at: [0.035, 0.3, -2.07] }],
+    tails: [{ size: [0.07, 0.08, 0.03], at: [0.035, 0.22, -2.135] }],
     paint: [
       { size: [0.36, 0.32, 1.0], at: [0.46, 0.26, -0.62] },
-      { size: [0.26, 0.2, 0.6], at: [0.42, 0.2, -1.32], tilt: [0.2, 0.12, 0] },
-      { size: [0.12, 0.3, 0.32], at: [0.06, 0.84, 0.26] },
-      { size: [0.02, 0.14, 1.0], at: [0.01, 0.64, -0.75], tilt: [0.14, 0, 0] },
+      { size: [0.22, 0.2, 0.6], at: [0.38, 0.2, -1.3], tilt: [0.2, 0.16, 0] },
+      { size: [0.08, 0.28, 0.3], at: [0.04, 0.84, 0.27] },
+      { size: [0.06, 0.1, 1.1], at: [0.03, 0.78, -0.3], tilt: [-0.3, 0, 0] },
       { size: [0.03, 0.16, 0.52], at: [0.95, 0.17, 2.12] },
       { size: [0.12, 0.06, 0.09], at: [0.38, 0.7, 0.98] },
     ],
@@ -397,45 +405,52 @@ const DESIGNS: Record<BodyStyle, Design> = {
       { size: [0.62, 0.04, 2.5], at: [0.31, 0.115, -0.25] },
       { size: [0.9, 0.035, 0.42], at: [0.45, 0.13, 2.12] },
       { size: [0.62, 0.03, 0.22], at: [0.56, 0.2, 2.0], tilt: [-0.35, 0, 0] },
-      { size: [0.03, 0.34, 0.12], at: [0.03, 0.64, -1.98] },
+      { size: [0.02, 0.44, 0.14], at: [0.01, 0.62, -1.96], tilt: [0.25, 0, 0] },
       { size: [0.3, 0.2, 0.03], at: [0.43, 0.27, -0.11] },
-      { size: [0.1, 0.11, 0.02], at: [0.05, 0.92, 0.42] },
+      { size: [0.07, 0.1, 0.02], at: [0.035, 0.92, 0.42] },
       { size: [0.42, 0.025, 0.07], at: [0.47, 0.42, 1.6], tilt: [0, 0, -0.2] },
       { size: [0.42, 0.025, 0.07], at: [0.47, 0.24, 1.6], tilt: [0, 0, 0.12] },
       { size: [0.42, 0.025, 0.07], at: [0.47, 0.42, -1.45], tilt: [0, 0, -0.2] },
       { size: [0.42, 0.025, 0.07], at: [0.47, 0.22, -1.45], tilt: [0, 0, 0.12] },
       { size: [0.06, 0.02, 0.03], at: [0.3, 0.66, 0.98] },
-      { size: [0.3, 0.12, 0.2], at: [0.15, 0.2, -2.05], tilt: [-0.4, 0, 0] },
+      { size: [0.08, 0.12, 0.24], at: [0.04, 0.22, -2.0] },
     ],
     markers: [],
     chrome: [],
     tyre: [0.32, 0.42],
     rim: { size: 0.6, spokes: 0, tone: "metal" },
     deck: [-2.0, 0.6],
-    hood: [-0.75, 0.6],
-    exhaust: [0.13, 0.4, -2.0],
+    hood: [-0.6, 0.62],
+    exhaust: [0, 0.34, -1.98],
+    halo: [
+      { size: [0.03, 0.035, 0.48], at: [0.105, 0.94, 0.67], tilt: [0, -0.24, 0] },
+      { size: [0.025, 0.36, 0.035], at: [0.0125, 0.78, 0.94], tilt: [-0.3, 0, 0] },
+      { size: [0.025, 0.3, 0.03], at: [0.16, 0.79, 0.44] },
+    ],
+    bottles: "inside",
+    taper: { from: -0.3, share: 0.42 },
     wings: [
       {
-        paint: [{ size: [0.03, 0.44, 0.6], at: [0.5, 0.74, -2.02] }],
+        paint: [{ size: [0.03, 0.34, 0.5], at: [0.5, 0.86, -2.08] }],
         trim: [
-          { size: [0.5, 0.04, 0.3], at: [0.25, 0.88, -2.0], tilt: [0.12, 0, 0] },
-          { size: [0.5, 0.03, 0.16], at: [0.25, 0.95, -2.2], tilt: [0.35, 0, 0] },
+          { size: [0.485, 0.04, 0.28], at: [0.2425, 0.82, -2.02], tilt: [0.1, 0, 0] },
+          { size: [0.485, 0.03, 0.16], at: [0.2425, 0.92, -2.2], tilt: [0.35, 0, 0] },
         ],
       },
       {
-        paint: [{ size: [0.03, 0.48, 0.62], at: [0.5, 0.76, -2.03] }],
+        paint: [{ size: [0.03, 0.38, 0.52], at: [0.5, 0.88, -2.08] }],
         trim: [
-          { size: [0.5, 0.045, 0.32], at: [0.25, 0.88, -2.0], tilt: [0.22, 0, 0] },
-          { size: [0.5, 0.03, 0.24], at: [0.25, 0.98, -2.21], tilt: [0.7, 0, 0] },
+          { size: [0.485, 0.045, 0.3], at: [0.2425, 0.82, -2.02], tilt: [0.2, 0, 0] },
+          { size: [0.485, 0.03, 0.22], at: [0.2425, 0.95, -2.21], tilt: [0.65, 0, 0] },
         ],
       },
       {
-        paint: [{ size: [0.03, 0.6, 0.7], at: [0.5, 0.8, -2.04] }],
+        paint: [{ size: [0.03, 0.62, 0.56], at: [0.5, 0.76, -2.08] }],
         trim: [
-          { size: [0.5, 0.05, 0.34], at: [0.25, 0.88, -2.0], tilt: [0.3, 0, 0] },
-          { size: [0.5, 0.035, 0.26], at: [0.25, 1.0, -2.22], tilt: [0.85, 0, 0] },
-          { size: [0.5, 0.03, 0.18], at: [0.25, 1.08, -2.32], tilt: [1.1, 0, 0] },
-          { size: [0.42, 0.03, 0.22], at: [0.21, 0.5, -2.12], tilt: [0.3, 0, 0] },
+          { size: [0.485, 0.05, 0.32], at: [0.2425, 0.82, -2.02], tilt: [0.28, 0, 0] },
+          { size: [0.485, 0.035, 0.24], at: [0.2425, 0.96, -2.22], tilt: [0.8, 0, 0] },
+          { size: [0.485, 0.03, 0.16], at: [0.2425, 1.04, -2.31], tilt: [1.05, 0, 0] },
+          { size: [0.485, 0.03, 0.2], at: [0.2425, 0.5, -2.1], tilt: [0.3, 0, 0] },
         ],
       },
     ],
@@ -506,6 +521,15 @@ function lean(geometry: THREE.BufferGeometry, from: number, to: number, share: n
   return geometry;
 }
 
+function taper(geometry: THREE.BufferGeometry, from: number, tail: number, share: number): THREE.BufferGeometry {
+  const position = geometry.getAttribute("position");
+  for (let i = 0; i < position.count; i++) {
+    const k = Math.max(0, Math.min(1, (from - position.getZ(i)) / (from - tail)));
+    position.setX(i, position.getX(i) * (1 - (1 - share) * k));
+  }
+  return geometry;
+}
+
 function slab(points: Point[], from: number, to: number): THREE.BufferGeometry[] {
   return [-1, 1].map((side) => extrude(points, to - from).translate((side * (from + to)) / 2, 0, 0));
 }
@@ -568,6 +592,8 @@ function wing(level: number, style: BodyStyle, width: number, [z, y]: Point, pai
   return parts;
 }
 
+// Engine bulges are sized for a saloon hood; a narrower body (the formula's engine cover) scales them down to fit.
+const BULGE_BODY = 1.7;
 const STOCK_TYRE: Required<Look>["tyre"] = { width: 1, rim: 1 };
 const STOCK_CALIPER: Required<Look>["caliper"] = { size: 1 };
 const TREAD_BLOCKS = 12;
@@ -627,21 +653,23 @@ function kit_parts(d: Design, kit: Record<Slot, number>, paint: THREE.Color, tri
   if (engine > 0) {
     const [z, y] = d.hood;
     const tilt = hood_tilt(d, z);
-    const [w, h, l] = engine === 1 ? [0.56, 0.045, 0.7] : [0.5, 0.11, 0.6];
+    const [stock_w, h, l] = engine === 1 ? [0.56, 0.045, 0.7] : [0.5, 0.11, 0.6];
+    const w = stock_w * Math.min(1, d.width / BULGE_BODY);
     out.push(tint(new THREE.BoxGeometry(w, h, l).translate(0, h / 2, 0).rotateX(tilt).translate(0, y, z), paint));
     if (engine > 1) out.push(tint(new THREE.BoxGeometry(w * 0.8, h * 0.6, 0.02).translate(0, h * 0.5, l / 2 + 0.005).rotateX(tilt).translate(0, y, z), trim));
     const [x, py, pz] = d.exhaust;
-    const r = engine === 1 ? 0.045 : 0.052;
-    const xs = engine === 1 ? [x] : [x - 0.065, x + 0.065];
+    const central = x === 0;
+    const r = (engine === 1 ? 0.045 : 0.052) * (central ? 1.4 : 1);
+    const xs = central || engine === 1 ? [x] : [x - 0.065, x + 0.065];
     const chrome = chrome_tone();
-    for (const side of [-1, 1])
+    for (const side of central ? [1] : [-1, 1])
       for (const at of xs) {
         out.push(tint(new THREE.CylinderGeometry(r, r, 0.22, 8).rotateX(Math.PI / 2).translate(side * at, py, pz - 0.05), chrome));
         out.push(tint(new THREE.CylinderGeometry(r * 0.65, r * 0.65, 0.22, 8).rotateX(Math.PI / 2).translate(side * at, py, pz - 0.056), trim));
       }
   }
   const bottle = part_of("nitro", kit.nitro).look?.bottle;
-  if (bottle) {
+  if (bottle && d.bottles !== "inside") {
     const rear = d.cabin.points[d.cabin.points.length - 1][0];
     const tail = d.outline[d.outline.length - 1][0];
     const r = 0.065 * bottle.size;
@@ -666,7 +694,7 @@ function flame_mesh(d: Design): THREE.Mesh {
   const core = color(brand.cottontail);
   const cone = (r: number, length: number, side: number, tone: THREE.Color) =>
     tint(new THREE.ConeGeometry(r, length, 8).rotateX(-Math.PI / 2).translate(side * x, y, -length / 2), tone);
-  const geometry = merge([-1, 1].flatMap((side) => [cone(0.15, FLAME_LENGTH, side, outer), cone(0.07, FLAME_LENGTH * 0.6, side, core)]));
+  const geometry = merge((x === 0 ? [1] : [-1, 1]).flatMap((side) => [cone(0.15, FLAME_LENGTH, side, outer), cone(0.07, FLAME_LENGTH * 0.6, side, core)]));
   const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false }));
   mesh.position.z = z - 0.16;
   mesh.visible = false;
@@ -749,8 +777,11 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
 
   const glass = color(tones.glass);
   const stripped = kit.weight > 1;
+  const nose = d.outline[0][0];
+  const tail = d.outline[d.outline.length - 1][0];
+  const shell_body = extrude(body_outline(d, spec), d.width);
   const base = merge(
-    tint(extrude(body_outline(d, spec), d.width), paint),
+    tint(d.taper ? taper(shell_body, d.taper.from, tail, d.taper.share) : shell_body, paint),
     cabin_parts(d.cabin, paint, glass),
     flares(d, spec).map((g) => tint(g, arch_tone)),
     skirts(d, spec).map((g) => tint(g, trim)),
@@ -760,8 +791,6 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
     parts(stripped ? [] : d.markers).map((g) => tint(g, color(brand.warning))),
     parts(stripped ? [] : d.chrome).map((g) => tint(g, chrome_tone())),
   );
-  const nose = d.outline[0][0];
-  const tail = d.outline[d.outline.length - 1][0];
   const decals = livery && livery.decal !== "none" ? livery_parts(livery, side_panel(d, spec), roof(base, glass), nose, tail) : [];
   // A level past the design's list keeps its biggest wing, so new spoiler parts never bolt a second one on.
   const own = d.wings ? d.wings[Math.min(kit.spoiler, d.wings.length - 1)] : null;
@@ -769,6 +798,11 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
   const shell = merge(base, rear_wing, kit_parts(d, kit, paint, trim), decals);
   const hull = new THREE.Mesh(shell, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
   hull.castShadow = true;
+  const halo = d.halo ? new THREE.Mesh(merge(parts(d.halo).map((g) => tint(g, trim))), hull.material) : null;
+  if (halo) {
+    halo.castShadow = true;
+    body.add(halo);
+  }
 
   const head_material = new THREE.MeshLambertMaterial({ color: color(tones.head), emissive: glow(tones.head), emissiveIntensity: 1.2 });
   const brake = new THREE.MeshLambertMaterial({ color: color(brand.error), emissive: glow(brand.error, BRAKE_GLOW), emissiveIntensity: 0.5 });
@@ -792,7 +826,7 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
     root.add(steer);
     return steer;
   });
-  return { root, body, wheels, brake, heads: head_mesh, eye: d.eye ? new THREE.Vector3(0, body.position.y + d.eye[1], d.eye[0]) : null, flame };
+  return { root, body, wheels, brake, heads: head_mesh, halo, eye: d.eye ? new THREE.Vector3(0, body.position.y + d.eye[1], d.eye[0]) : null, flame };
 }
 
 export function sync_car_view(view: CarView, car: Car) {

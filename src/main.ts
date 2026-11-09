@@ -515,6 +515,7 @@ function frame(now: number) {
   chase.top = modes.high_view;
   chase.boost = car.nitro.boosting;
   view.heads.visible = chase.mode !== 1 || chase.top;
+  if (view.halo) view.halo.visible = view.heads.visible;
   chase.eye = view.eye;
   place_contact_shadow(car_shadow, drawn.pos.x, drawn.pos.y, drawn.pos.z, car.heading, world);
   const offroad = world.grip(car.pos.x, car.pos.z) < 1;

@@ -23,6 +23,16 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.5.2",
+    date: "2026-11-09",
+    title: "Lights on the formula",
+    changes: [
+      { kind: FIXED, text: "Tyres, wings and dark trim on every car stand out from the road in dark themes." },
+      { kind: IMPROVED, text: "The formula car gets a slimmer engine cover, one central exhaust, a cleaner rear wing, a halo and a rain light that glows with the brakes." },
+      { kind: IMPROVED, text: "Nitro bottles on the formula sit inside the sidepods." },
+    ],
+  },
+  {
     version: "0.5.1",
     date: "2026-11-09",
     title: "Quiet pocket",
