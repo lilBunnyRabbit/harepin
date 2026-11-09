@@ -6,7 +6,12 @@ export interface Build {
   car: CarId;
   /** Index into theme `car_paints`, wrapped by the length there. */
   paint: number;
+  /** Index into `DECALS`. */
   decal: number;
+  /** Index into palette `decal_inks`; swapped for a neutral when it would vanish on the paint. */
+  ink: number;
+  /** Shown by the number roundel, 0-99. */
+  number: number;
   spoiler: Level;
   /** 0 soft, 1 sport (stock), 2 race. */
   suspension: Level;
@@ -14,8 +19,12 @@ export interface Build {
 }
 
 export const MAX_PAINT = 15;
-export const MAX_DECAL = 3;
-export const DEFAULT_BUILD: Build = { car: "coupe", paint: 0, decal: 0, spoiler: 0, suspension: 1, engine: 0 };
+export const DECALS = ["none", "centre", "twin", "side", "number", "flames", "slash", "checker", "rabbit"] as const;
+export type Decal = (typeof DECALS)[number];
+export const MAX_DECAL = DECALS.length - 1;
+export const MAX_INK = 8;
+export const MAX_NUMBER = 99;
+export const DEFAULT_BUILD: Build = { car: "coupe", paint: 0, decal: 0, ink: 0, number: 7, spoiler: 0, suspension: 1, engine: 0 };
 
 const SPOILER_DOWNFORCE = [1, 1.8, 2.6];
 const SPOILER_DRAG = [0, 0.04, 0.09];
@@ -27,10 +36,12 @@ const ENGINE_TORQUE = [1, 1.15, 1.3];
 const ENGINE_REVS = [0, 300, 600];
 const ENGINE_MASS = [0, 15, 30];
 
-const CODE = new RegExp(`^(${Object.keys(CARS).join("|")})\\.(\\d{1,2})\\.(\\d)\\.([012])\\.([012])\\.([012])$`);
+// Ink and number ride as an optional tail, so a build that keeps their defaults has the same code it had before them.
+const CODE = new RegExp(`^(${Object.keys(CARS).join("|")})\\.(\\d{1,2})\\.(\\d)\\.([012])\\.([012])\\.([012])(?:\\.(\\d)\\.(\\d{1,2}))?$`);
 
 export function build_code(build: Build): string {
-  return `${build.car}.${build.paint}.${build.decal}.${build.spoiler}.${build.suspension}.${build.engine}`;
+  const code = `${build.car}.${build.paint}.${build.decal}.${build.spoiler}.${build.suspension}.${build.engine}`;
+  return build.ink === DEFAULT_BUILD.ink && build.number === DEFAULT_BUILD.number ? code : `${code}.${build.ink}.${build.number}`;
 }
 
 function level(digit: string): Level {
@@ -45,8 +56,10 @@ export function parse_build(code: unknown): Build | null {
   if (!m || !is_car(m[1])) return null;
   const paint = Number(m[2]);
   const decal = Number(m[3]);
-  if (paint > MAX_PAINT || decal > MAX_DECAL) return null;
-  return { car: m[1], paint, decal, spoiler: level(m[4]), suspension: level(m[5]), engine: level(m[6]) };
+  const ink = m[7] === undefined ? DEFAULT_BUILD.ink : Number(m[7]);
+  const number = m[8] === undefined ? DEFAULT_BUILD.number : Number(m[8]);
+  if (paint > MAX_PAINT || decal > MAX_DECAL || ink > MAX_INK || number > MAX_NUMBER) return null;
+  return { car: m[1], paint, decal, ink, number, spoiler: level(m[4]), suspension: level(m[5]), engine: level(m[6]) };
 }
 
 export function apply_build(base: CarSpec, build: Build): CarSpec {

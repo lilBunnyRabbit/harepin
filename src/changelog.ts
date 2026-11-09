@@ -23,6 +23,15 @@ const { NEW, IMPROVED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.4.0",
+    date: "2026-11-09",
+    title: "Decals",
+    changes: [
+      { kind: NEW, text: "Decals in the garage: stripes, a number roundel, flames, a slash, a checker band and a rabbit, in any paint colour. Other players see yours." },
+      { kind: NEW, text: "Pick your roundel number, 0 to 99." },
+    ],
+  },
+  {
     version: "0.3.0",
     date: "2026-11-08",
     title: "Talk and look",

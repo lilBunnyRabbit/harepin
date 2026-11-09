@@ -1,0 +1,284 @@
+import * as THREE from "three";
+import type { Decal } from "./build";
+
+type Point = [number, number];
+
+/** The flat body side between the wheel arches, where side decals go: z from `rear` to `front`, y from `low` to `high`. */
+export interface Panel {
+  rear: number;
+  front: number;
+  low: number;
+  high: number;
+  side: number;
+}
+
+export interface Livery {
+  decal: Decal;
+  number: number;
+  ink: THREE.Color;
+  /** Outline under a paint-coloured ink, so two brand colours never touch; null for a neutral ink. */
+  key: THREE.Color | null;
+  mark: THREE.Color;
+}
+
+interface Hit {
+  y: number;
+  normal: THREE.Vector3;
+}
+
+/** Highest painted surface straight below (x, z), or null over glass or past the body. */
+export type Roof = (x: number, z: number) => Hit | null;
+
+const KEY_LIFT = 0.008;
+const INK_LIFT = 0.016;
+const MARK_LIFT = 0.024;
+const KEY_WIDTH = 0.022;
+const STEP = 0.05;
+// A larger rise between samples is a different surface (windscreen base, deck lip), not a slope to follow.
+const JUMP = 0.2;
+const FLAT_ENOUGH = 0.15;
+
+const SEGMENTS: Record<string, Point[]> = {
+  a: [[0, 1], [1, 1]],
+  b: [[1, 1], [1, 0.5]],
+  c: [[1, 0.5], [1, 0]],
+  d: [[0, 0], [1, 0]],
+  e: [[0, 0.5], [0, 0]],
+  f: [[0, 1], [0, 0.5]],
+  g: [[0, 0.5], [1, 0.5]],
+};
+const DIGITS = ["abcdef", "bc", "abged", "abgcd", "fgbc", "afgcd", "afgedc", "abc", "abcdefg", "abcdfg"];
+
+export const FLAME: Point[] = [[1, 0.1], [0.55, 0.1], [0.3, 0.22], [0.6, 0.3], [0.22, 0.48], [0.58, 0.52], [0.34, 0.72], [0.7, 0.7], [0.52, 0.9], [1, 0.9]];
+export const SIDE_BAND: Point[][] = [
+  [[0, 0.4], [0.9, 0.4], [1, 0.62], [0.1, 0.62]],
+  [[0, 0.24], [0.84, 0.24], [0.87, 0.31], [0.03, 0.31]],
+];
+export const SLASH: Point[][] = [
+  [[0.2, 0.06], [0.44, 0.06], [0.8, 0.94], [0.56, 0.94]],
+  [[0.06, 0.06], [0.14, 0.06], [0.5, 0.94], [0.42, 0.94]],
+];
+
+export function roof(shell: THREE.BufferGeometry, glass: THREE.Color): Roof {
+  if (shell.index) throw new Error("roof: shell must be non-indexed");
+  const position = shell.getAttribute("position");
+  const tone = shell.getAttribute("color");
+  const tris: { a: THREE.Vector3; b: THREE.Vector3; c: THREE.Vector3; normal: THREE.Vector3; glass: boolean }[] = [];
+  for (let i = 0; i < position.count; i += 3) {
+    const [a, b, c] = [i, i + 1, i + 2].map((k) => new THREE.Vector3().fromBufferAttribute(position, k));
+    const normal = new THREE.Vector3().crossVectors(b.clone().sub(a), c.clone().sub(a)).normalize();
+    if (Math.abs(normal.y) < FLAT_ENOUGH) continue;
+    if (normal.y < 0) normal.negate();
+    const is_glass = Math.abs(tone.getX(i) - glass.r) + Math.abs(tone.getY(i) - glass.g) + Math.abs(tone.getZ(i) - glass.b) < 1e-4;
+    tris.push({ a, b, c, normal, glass: is_glass });
+  }
+  return (x, z) => {
+    let best: (Hit & { glass: boolean }) | null = null;
+    for (const { a, b, c, normal, glass } of tris) {
+      const det = (b.z - c.z) * (a.x - c.x) + (c.x - b.x) * (a.z - c.z);
+      if (Math.abs(det) < 1e-9) continue;
+      const u = ((b.z - c.z) * (x - c.x) + (c.x - b.x) * (z - c.z)) / det;
+      const v = ((c.z - a.z) * (x - c.x) + (a.x - c.x) * (z - c.z)) / det;
+      if (u < -1e-6 || v < -1e-6 || u + v > 1 + 1e-6) continue;
+      const y = u * a.y + v * b.y + (1 - u - v) * c.y;
+      if (!best || y > best.y) best = { y, normal, glass };
+    }
+    return best && !best.glass ? best : null;
+  };
+}
+
+function paint(positions: number[], tone: THREE.Color): THREE.BufferGeometry {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.computeVertexNormals();
+  geometry.setAttribute("uv", new THREE.Float32BufferAttribute(new Float32Array((positions.length / 3) * 2), 2));
+  const colors = new Float32Array(positions.length);
+  for (let i = 0; i < colors.length; i += 3) tone.toArray(colors, i);
+  geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+  return geometry;
+}
+
+const ab = new THREE.Vector3();
+const ac = new THREE.Vector3();
+
+function face(out: number[], a: THREE.Vector3, b: THREE.Vector3, c: THREE.Vector3, facing: THREE.Vector3) {
+  const flip = ab.subVectors(b, a).cross(ac.subVectors(c, a)).dot(facing) < 0;
+  out.push(...a.toArray(), ...(flip ? c : b).toArray(), ...(flip ? b : c).toArray());
+}
+
+function signed_area(points: Point[]): number {
+  return points.reduce((sum, [x, y], i) => {
+    const [x2, y2] = points[(i + 1) % points.length];
+    return sum + x * y2 - x2 * y;
+  }, 0);
+}
+
+/** Offsets a simple polygon outward by `by`, with miters capped so sharp flame tips stay short. */
+function grow(points: Point[], by: number): Point[] {
+  const turn = Math.sign(signed_area(points));
+  const n = points.length;
+  return points.map(([x, y], i) => {
+    const [px, py] = points[(i - 1 + n) % n];
+    const [nx, ny] = points[(i + 1) % n];
+    const e1 = normalized(x - px, y - py);
+    const e2 = normalized(nx - x, ny - y);
+    const n1: Point = [e1[1] * turn, -e1[0] * turn];
+    const n2: Point = [e2[1] * turn, -e2[0] * turn];
+    const mid = normalized(n1[0] + n2[0], n1[1] + n2[1]);
+    const cos = Math.max(0.5, mid[0] * n1[0] + mid[1] * n1[1]);
+    return [x + (mid[0] * by) / cos, y + (mid[1] * by) / cos];
+  });
+}
+
+function normalized(x: number, y: number): Point {
+  const length = Math.hypot(x, y) || 1;
+  return [x / length, y / length];
+}
+
+function on_side(out: number[], polygons: Point[][], side: number, panel: Panel, lift: number) {
+  const x = side * (panel.side + lift);
+  const facing = new THREE.Vector3(side, 0, 0);
+  for (const points of polygons) {
+    const flat = points.map(([z, y]) => new THREE.Vector2(z, y));
+    const at = points.map(([z, y]) => new THREE.Vector3(x, y, z));
+    for (const [i, j, k] of THREE.ShapeUtils.triangulateShape(flat, [])) face(out, at[i], at[j], at[k], facing);
+  }
+}
+
+// Draped sample by sample so it follows hood, scoop, roof and deck on every body; glass breaks it, as real stripes stop at the screen.
+function strip(out: number[], roof: Roof, x0: number, x1: number, front: number, rear: number, lift: number) {
+  const up = new THREE.Vector3(0, 1, 0);
+  let last: [THREE.Vector3, THREE.Vector3] | null = null;
+  for (let z = front; z >= rear; z -= STEP) {
+    const a = roof(x0, z);
+    const b = roof(x1, z);
+    if (!a || !b) {
+      last = null;
+      continue;
+    }
+    const pa = new THREE.Vector3(x0, a.y, z).addScaledVector(a.normal, lift);
+    const pb = new THREE.Vector3(x1, b.y, z).addScaledVector(b.normal, lift);
+    if (last && Math.abs(pa.y - last[0].y) < JUMP && Math.abs(pb.y - last[1].y) < JUMP) {
+      face(out, last[0], last[1], pb, up);
+      face(out, last[0], pb, pa, up);
+    }
+    last = [pa, pb];
+  }
+}
+
+function ring(z: number, y: number, radius: number, steps: number): Point[] {
+  return Array.from({ length: steps }, (_, i): Point => [z + radius * Math.cos((i * 2 * Math.PI) / steps), y + radius * Math.sin((i * 2 * Math.PI) / steps)]);
+}
+
+function oval(z: number, y: number, rz: number, ry: number, tilt: number, steps: number): Point[] {
+  const cos = Math.cos(tilt);
+  const sin = Math.sin(tilt);
+  return Array.from({ length: steps }, (_, i): Point => {
+    const a = (i * 2 * Math.PI) / steps;
+    const dz = rz * Math.cos(a);
+    const dy = ry * Math.sin(a);
+    return [z + dz * cos - dy * sin, y + dz * sin + dy * cos];
+  });
+}
+
+function digits(value: number, z: number, y: number, height: number, side: number): Point[][] {
+  const text = String(value);
+  const width = height * 0.52;
+  const thick = height * 0.17;
+  const gap = height * 0.18;
+  const span = text.length * width + (text.length - 1) * gap;
+  return [...text].flatMap((char, n) =>
+    [...DIGITS[Number(char)]].map((segment): Point[] => {
+      const [[u0, v0], [u1, v1]] = SEGMENTS[segment];
+      const left = -span / 2 + n * (width + gap);
+      const ua = left + Math.min(u0, u1) * (width - thick);
+      const ub = left + Math.max(u0, u1) * (width - thick) + thick;
+      const va = -height / 2 + Math.min(v0, v1) * (height - thick);
+      const vb = -height / 2 + Math.max(v0, v1) * (height - thick) + thick;
+      // Seen from +x the car's front is on the viewer's left, so screen-right runs toward -z there.
+      return [[ua, va], [ub, va], [ub, vb], [ua, vb]].map(([u, v]): Point => [z - side * u, y + v]);
+    }),
+  );
+}
+
+interface Layers {
+  key: Point[][];
+  ink: Point[][];
+  mark: Point[][];
+}
+
+function side_layers(livery: Livery, panel: Panel, side: number): Layers {
+  const length = panel.front - panel.rear;
+  const height = panel.high - panel.low;
+  const at = (points: Point[]): Point[] => points.map(([u, v]) => [panel.rear + u * length, panel.low + v * height]);
+  const z = (panel.front + panel.rear) / 2;
+  const y = (panel.low + panel.high) / 2;
+  const keyed = (ink: Point[][]): Layers => ({ key: livery.key ? ink.map((p) => grow(p, KEY_WIDTH)) : [], ink, mark: [] });
+  switch (livery.decal) {
+    case "side":
+      return keyed(SIDE_BAND.map(at));
+    case "slash":
+      return keyed(SLASH.map(at));
+    case "flames":
+      return keyed([at(FLAME)]);
+    case "number": {
+      const radius = Math.min(height * 0.46, 0.3);
+      return { ...keyed([ring(z, y, radius, 14)]), mark: digits(livery.number, z, y, radius * 1.1, side) };
+    }
+    case "rabbit": {
+      const h = height * 1.05;
+      const base = panel.low - height * 0.06;
+      const head = ring(z, base + h * 0.34, h * 0.2, 10);
+      const ears = [-1, 1].map((s) => oval(z + s * h * 0.09, base + h * 0.7, h * 0.07, h * 0.24, -s * 0.22, 8));
+      return keyed([head, ...ears]);
+    }
+    case "checker": {
+      const band = height * 0.56;
+      const square = band / 2;
+      const count = Math.floor((length * 0.92) / square);
+      const start = z - (count * square) / 2;
+      const ink: Point[][] = [];
+      for (let col = 0; col < count; col++)
+        for (let row = 0; row < 2; row++) {
+          if ((col + row) % 2) continue;
+          const z0 = start + col * square;
+          const y0 = y - square + row * square;
+          ink.push([[z0, y0], [z0 + square, y0], [z0 + square, y0 + square], [z0, y0 + square]]);
+        }
+      const pad = KEY_WIDTH;
+      const back: Point[] = [[start - pad, y - square - pad], [start + count * square + pad, y - square - pad], [start + count * square + pad, y + square + pad], [start - pad, y + square + pad]];
+      return { key: [back], ink, mark: [] };
+    }
+    default:
+      return { key: [], ink: [], mark: [] };
+  }
+}
+
+export function livery_parts(livery: Livery, panel: Panel, over: Roof, front: number, rear: number): THREE.BufferGeometry[] {
+  const width = panel.side * 2;
+  const stripes: Point[] =
+    livery.decal === "centre"
+      ? [[-0.1 * width, 0.1 * width]]
+      : livery.decal === "twin"
+        ? [[-0.125 * width, -0.04 * width], [0.04 * width, 0.125 * width]]
+        : [];
+  const key: number[] = [];
+  const ink: number[] = [];
+  const mark: number[] = [];
+  for (const [x0, x1] of stripes) {
+    if (livery.key) strip(key, over, x0 - KEY_WIDTH, x1 + KEY_WIDTH, front, rear, KEY_LIFT);
+    strip(ink, over, x0, x1, front, rear, INK_LIFT);
+  }
+  for (const side of [-1, 1]) {
+    const layers = side_layers(livery, panel, side);
+    on_side(key, layers.key, side, panel, KEY_LIFT);
+    on_side(ink, layers.ink, side, panel, INK_LIFT);
+    on_side(mark, layers.mark, side, panel, MARK_LIFT);
+  }
+  const key_tone = livery.decal === "checker" ? livery.mark : livery.key;
+  return [
+    key.length && key_tone ? paint(key, key_tone) : null,
+    ink.length ? paint(ink, livery.ink) : null,
+    mark.length ? paint(mark, livery.mark) : null,
+  ].filter((g): g is THREE.BufferGeometry => g !== null);
+}

@@ -4,11 +4,20 @@ import { DEFAULT_BUILD, apply_build, build_code, build_spec, parse_build } from 
 import { COUPE, RALLY } from "./cars";
 
 test("codes round-trip", () => {
-  const build = { car: "rally", paint: 12, decal: 3, spoiler: 2, suspension: 0, engine: 1 } as const;
+  const build = { car: "rally", paint: 12, decal: 3, ink: 0, number: 7, spoiler: 2, suspension: 0, engine: 1 } as const;
   expect(build_code(build)).toBe("rally.12.3.2.0.1");
   expect(parse_build(build_code(build))).toEqual(build);
   expect(parse_build(build_code(DEFAULT_BUILD))).toEqual(DEFAULT_BUILD);
-  expect(parse_build("kaze.3.1.0.2.0")).toEqual({ car: "kaze", paint: 3, decal: 1, spoiler: 0, suspension: 2, engine: 0 });
+  const decal = { ...build, decal: 8, ink: 5, number: 42 };
+  expect(build_code(decal)).toBe("rally.12.8.2.0.1.5.42");
+  expect(parse_build(build_code(decal))).toEqual(decal);
+  expect(parse_build(build_code({ ...build, number: 0 }))).toEqual({ ...build, number: 0 });
+});
+
+test("codes from before decal ink and number still parse", () => {
+  expect(build_code(DEFAULT_BUILD)).toBe("coupe.0.0.0.1.0");
+  expect(parse_build("kaze.3.1.0.2.0")).toEqual({ car: "kaze", paint: 3, decal: 1, ink: 0, number: 7, spoiler: 0, suspension: 2, engine: 0 });
+  expect(parse_build("coupe.3.1.2.1.0")).toEqual({ car: "coupe", paint: 3, decal: 1, ink: 0, number: 7, spoiler: 2, suspension: 1, engine: 0 });
 });
 
 test("off-grammar codes are rejected", () => {
@@ -18,7 +27,12 @@ test("off-grammar codes are rejected", () => {
     "coupe.0.0.0.1",
     "coupe.0.0.0.1.0.0",
     "coupe.16.0.0.1.0",
-    "coupe.0.4.0.1.0",
+    "coupe.0.9.0.1.0",
+    "coupe.0.1.0.1.0.9.7",
+    "coupe.0.1.0.1.0.0.100",
+    "coupe.0.1.0.1.0.0",
+    "coupe.0.1.0.1.0.0.7.0",
+    "coupe.0.1.0.1.0..7",
     "coupe.0.0.3.1.0",
     "coupe.-1.0.0.1.0",
     "coupe.1e1.0.0.1.0",
@@ -39,7 +53,7 @@ test("the default build leaves the base spec unchanged", () => {
 });
 
 test("options move the spec the documented way", () => {
-  const spec = apply_build(RALLY, { car: "rally", paint: 0, decal: 0, spoiler: 2, suspension: 2, engine: 2 });
+  const spec = apply_build(RALLY, { ...DEFAULT_BUILD, car: "rally", spoiler: 2, suspension: 2, engine: 2 });
   expect(spec.downforce).toBeCloseTo(RALLY.downforce * 2.6);
   expect(spec.drag).toBeCloseTo(RALLY.drag + 0.09);
   expect(spec.rear_grip).toBeCloseTo(RALLY.rear_grip + 0.04);

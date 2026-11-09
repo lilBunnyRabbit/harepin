@@ -76,3 +76,8 @@ export const tones = {
 };
 
 export const car_paints = [brand.primary, brand.secondary, brand.accent, brand.tertiary, brand.info, brand.cottontail, brand.error];
+
+// Dark themes have no neutral lighter than the paints (foreground sits at their lightness), so the light ink is lifted.
+/** Build `ink` indices: the two neutrals first, then the paints. */
+export const decal_inks = [dark ? lighten(brand.foreground, 0.18) : brand.background_lightest, tones.check_dark, ...car_paints];
+export const NEUTRAL_INKS = 2;

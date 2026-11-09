@@ -1,9 +1,11 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { rest_reach, type Car } from "./car";
-import type { Level } from "./build";
+import { DECALS, build_spec, type Build, type Level } from "./build";
 import { COUPE, type BodyStyle, type CarSpec, type Triple } from "./cars";
-import { brand, color, dark, mix, tones } from "./palette";
+import { livery_parts, roof, type Livery, type Panel } from "./livery";
+import { NEUTRAL_INKS, brand, car_paints, color, dark, decal_inks, mix, tones } from "./palette";
+import type { Lab } from "./theme";
 import { ribbon } from "./scene";
 import { ROAD_HALF, World } from "./world";
 
@@ -475,8 +477,62 @@ function wheel_geometry(radius: number, width: number, rim: Rim): THREE.BufferGe
   return merge(...pieces);
 }
 
-// Paint, trim and glass are baked into vertex colours so the whole shell is one draw; a repaint rebuilds the view.
-export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, spoiler: Level = 0): CarView {
+const PANEL_MARGIN = 0.06;
+const PANEL_FLOOR = 0.08;
+const PANEL_ROOF = 0.05;
+
+function top_at(outline: Point[], z: number): number {
+  let top = -Infinity;
+  for (let i = 0; i + 1 < outline.length; i++) {
+    const [z0, y0] = outline[i];
+    const [z1, y1] = outline[i + 1];
+    if (z < Math.min(z0, z1) || z > Math.max(z0, z1) || z0 === z1) continue;
+    top = Math.max(top, y0 + ((y1 - y0) * (z - z0)) / (z1 - z0));
+  }
+  return top;
+}
+
+function side_panel(d: Design, spec: CarSpec): Panel {
+  const reach = spec.wheel.radius + d.arches.gap + d.arches.flare + PANEL_MARGIN;
+  const front = spec.wheel.mounts[0][2] - reach;
+  const rear = spec.wheel.mounts[2][2] + reach;
+  let belt = Infinity;
+  for (let i = 0; i <= 10; i++) belt = Math.min(belt, top_at(d.outline, rear + ((front - rear) * i) / 10));
+  return { rear, front, low: d.sill + PANEL_FLOOR, high: belt - PANEL_ROOF, side: d.width / 2 };
+}
+
+const INK_CLASH = 0.1;
+const NEUTRAL_CONTRAST = 0.15;
+
+const distance = (a: Lab, b: Lab) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+
+function far_neutral(from: Lab): Lab {
+  const [light, dark_ink] = decal_inks;
+  return Math.abs(light[0] - from[0]) >= Math.abs(dark_ink[0] - from[0]) ? light : dark_ink;
+}
+
+/** Decal colours for a build: the chosen ink unless it would vanish on the paint, then the neutral that stands out. */
+export function livery_of(build: Build): Livery {
+  const paint = car_paints[build.paint % car_paints.length];
+  const chosen = decal_inks[build.ink % decal_inks.length];
+  const neutral = build.ink % decal_inks.length < NEUTRAL_INKS;
+  const vanishes = neutral ? Math.abs(chosen[0] - paint[0]) < NEUTRAL_CONTRAST : distance(chosen, paint) < INK_CLASH;
+  const ink = vanishes ? far_neutral(paint) : chosen;
+  return {
+    decal: DECALS[build.decal] ?? "none",
+    number: build.number,
+    ink: color(ink),
+    key: neutral || vanishes ? null : color(far_neutral(paint)),
+    mark: color(far_neutral(ink)),
+  };
+}
+
+export function build_view(build: Build, spec: CarSpec = build_spec(build)): CarView {
+  return car_view(color(car_paints[build.paint % car_paints.length]), spec, build.spoiler, livery_of(build));
+}
+
+// Paint, trim, glass and decals are baked into vertex colours so the whole shell is one draw; a repaint rebuilds the view.
+export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, spoiler: Level = 0, livery: Livery | null = null): CarView {
   const style = spec.body.style;
   const d = DESIGNS[style];
   const root = new THREE.Group();
@@ -485,24 +541,28 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, spoiler: Lev
   const trim = color(tones.trim);
   const arch_tone = d.arches.tone === "paint" ? paint : trim;
 
-  const shell = merge(
+  const glass = color(tones.glass);
+  const base = merge(
     tint(extrude(body_outline(d, spec), d.width), paint),
-    cabin_parts(d.cabin, paint, color(tones.glass)),
+    cabin_parts(d.cabin, paint, glass),
     flares(d, spec).map((g) => tint(g, arch_tone)),
     skirts(d, spec).map((g) => tint(g, trim)),
     parts(d.paint).map((g) => tint(g, paint)),
     parts(d.trim).map((g) => tint(g, trim)),
     parts(d.markers).map((g) => tint(g, color(brand.warning))),
     parts(d.chrome).map((g) => tint(g, color(mix(brand.foreground, brand.background_lightest, 0.6)))),
-    wing(spoiler, style, d.width, d.deck, paint, trim),
   );
+  const nose = d.outline[0][0];
+  const tail = d.outline[d.outline.length - 1][0];
+  const decals = livery && livery.decal !== "none" ? livery_parts(livery, side_panel(d, spec), roof(base, glass), nose, tail) : [];
+  const shell = merge(base, wing(spoiler, style, d.width, d.deck, paint, trim), decals);
   const hull = new THREE.Mesh(shell, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
   hull.castShadow = true;
 
   const head = color(tones.head);
   const head_material = new THREE.MeshLambertMaterial({ color: head, emissive: head, emissiveIntensity: 1.2 });
-  const tail = color(brand.error);
-  const brake = new THREE.MeshLambertMaterial({ color: tail, emissive: tail, emissiveIntensity: 0.5 });
+  const lamp = color(brand.error);
+  const brake = new THREE.MeshLambertMaterial({ color: lamp, emissive: lamp, emissiveIntensity: 0.5 });
   const head_mesh = new THREE.Mesh(merge(parts(d.heads)), head_material);
   body.add(hull, head_mesh, new THREE.Mesh(merge(parts(d.tails)), brake));
   root.add(body);

@@ -1,10 +1,9 @@
 import * as THREE from "three";
 import { DEFAULT_BUILD, build_code, build_spec, parse_build, type Build } from "./build";
 import type { CarSpec } from "./cars";
-import { camera_fade, car_view, contact_shadow, dispose_car_view, place_contact_shadow, rest_wheels, type CarView, type ContactShadow } from "./models";
+import { build_view, camera_fade, contact_shadow, dispose_car_view, place_contact_shadow, rest_wheels, type CarView, type ContactShadow } from "./models";
 import type { World } from "./world";
 import type { CarState, Net, Remote } from "./net";
-import { car_paints, color } from "./palette";
 
 interface RemoteView {
   code: string;
@@ -30,7 +29,7 @@ function build_of(state: CarState): Build {
 
 // Each remote gets its own material copies so its fade never touches another car.
 function translucent_view(build: Build, spec: CarSpec): { view: CarView; materials: THREE.Material[] } {
-  const view = car_view(color(car_paints[build.paint % car_paints.length]), spec, build.spoiler);
+  const view = build_view(build, spec);
   rest_wheels(view, spec);
   const copies = new Map<THREE.Material, THREE.Material>();
   view.root.traverse((object) => {

@@ -115,22 +115,197 @@
   outline-offset: 2px;
 }
 
+.garage-decals {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--space-1);
+  --decal-glass: var(--background-darkest);
+}
+
+:root[data-scheme="light"] .garage-decals {
+  --decal-glass: var(--foreground);
+}
+
+.garage-decal {
+  height: auto;
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: var(--panel-well);
+}
+
+.garage-decal:hover {
+  background: var(--panel-well);
+  border-color: var(--line-strong);
+}
+
+.garage-decal[aria-pressed="true"] {
+  border-color: var(--foreground);
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.decal-tile {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 64 / 23;
+}
+
+.decal-body {
+  fill: var(--decal-paint);
+}
+
+.decal-glass,
+.decal-wheel {
+  fill: var(--decal-glass);
+}
+
+.decal-ink {
+  fill: var(--decal-ink);
+  stroke: var(--decal-key);
+  stroke-width: 0.7;
+  paint-order: stroke;
+}
+
+.decal-line {
+  fill: none;
+  stroke: var(--decal-ink);
+}
+
+.decal-gap {
+  fill: none;
+  stroke: var(--decal-paint);
+}
+
+.decal-back {
+  fill: var(--decal-mark);
+}
+
+.decal-check {
+  fill: var(--decal-ink);
+}
+
+.decal-number {
+  fill: var(--decal-mark);
+  font-size: 4.4px;
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+.garage-ink {
+  width: calc(var(--control-h) - 4px);
+  height: calc(var(--control-h) - 4px);
+}
+
+.garage-stepper {
+  display: flex;
+  width: calc(var(--control-h) * 4);
+}
+
+.garage-stepper .garage-option {
+  font-size: var(--text-xl);
+}
+
+.garage-number {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: var(--panel-raised);
+  color: var(--foreground);
+  font: inherit;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.garage-number:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.garage-stepper[hidden] {
+  display: none;
+}
+
 @media (orientation: landscape) and (max-height: 500px) {
   .garage-panel {
     width: min(840px, 100%);
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr) minmax(0, 1.2fr);
+    grid-template-areas:
+      "head head head"
+      "preview car paint"
+      "preview spoiler decal"
+      "preview suspension decal"
+      "preview engine decal";
     align-items: start;
     gap: var(--space-2) var(--space-4);
     padding: var(--space-2) var(--space-4) var(--space-4);
   }
 
   .garage-head {
-    grid-column: 1 / -1;
+    grid-area: head;
+  }
+
+  [data-area="car"] {
+    grid-area: car;
+  }
+
+  [data-area="paint"] {
+    grid-area: paint;
+  }
+
+  [data-area="spoiler"] {
+    grid-area: spoiler;
+  }
+
+  [data-area="suspension"] {
+    grid-area: suspension;
+  }
+
+  [data-area="engine"] {
+    grid-area: engine;
+  }
+
+  [data-area="decal"] {
+    grid-area: decal;
+  }
+
+  .garage-swatch {
+    width: 28px;
+    height: 28px;
+  }
+
+  .garage-choice .garage-option {
+    padding: 0;
+  }
+
+  .garage-decals {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .garage-inks {
+    gap: var(--space-1) 6px;
+  }
+
+  .garage-ink {
+    width: 30px;
+    height: 30px;
+  }
+
+  .garage-stepper {
+    width: auto;
+    flex: 1 1 0;
+    height: 30px;
+    padding: 2px;
   }
 
   .garage-preview {
-    grid-column: 1;
-    grid-row: 2 / span 3;
+    grid-area: preview;
     align-self: stretch;
     aspect-ratio: auto;
     min-height: 0;
