@@ -31,6 +31,8 @@ export interface Look {
   dy: number;
   /** Wheel `deltaY` in px, positive pulls the camera out. */
   zoom: number;
+  /** Two-finger pinch as the log of old over new finger spread: positive (fingers closing) pulls the camera out. */
+  pinch: number;
   /** A mouse button is held on the canvas. */
   dragging: boolean;
   /** Right stick after the dead zone, -1..1, +x right, +y down; 0 when centred. */
@@ -38,14 +40,26 @@ export interface Look {
   stick_y: number;
 }
 
-const no_look = (): Look => ({ dx: 0, dy: 0, zoom: 0, dragging: false, stick_x: 0, stick_y: 0 });
+const no_look = (): Look => ({ dx: 0, dy: 0, zoom: 0, pinch: 0, dragging: false, stick_x: 0, stick_y: 0 });
 
-/** Left or right mouse drag, a one-finger drag and the wheel on the game canvas; HUD, panels and touch controls sit above it and keep their own pointers. */
+interface Point {
+  x: number;
+  y: number;
+}
+
+const spread = (fingers: Map<number, Point>) => {
+  const [a, b] = [...fingers.values()];
+  return Math.hypot(a.x - b.x, a.y - b.y);
+};
+
+/** Left or right mouse drag, a one-finger drag, a two-finger pinch and the wheel on the game canvas; HUD, panels and touch controls sit above it and keep their own pointers. */
 export class MouseLook {
   private dx = 0;
   private dy = 0;
   private zoom = 0;
+  private pinch = 0;
   private pointer: number | null = null;
+  private readonly fingers = new Map<number, Point>();
   private last_x = 0;
   private last_y = 0;
   private abort: AbortController | null = null;
@@ -60,7 +74,14 @@ export class MouseLook {
     const { canvas } = this;
     canvas.addEventListener("pointerdown", (e) => this.down(e), { signal });
     canvas.addEventListener("pointermove", (e) => this.move(e), { signal });
-    canvas.addEventListener("lostpointercapture", () => (this.pointer = null), { signal });
+    canvas.addEventListener(
+      "lostpointercapture",
+      (e) => {
+        this.fingers.delete(e.pointerId);
+        if (e.pointerId === this.pointer) this.pointer = null;
+      },
+      { signal },
+    );
     canvas.addEventListener("contextmenu", (e) => e.preventDefault(), { signal });
     canvas.addEventListener(
       "wheel",
@@ -76,11 +97,12 @@ export class MouseLook {
     this.abort?.abort();
     this.abort = null;
     this.pointer = null;
+    this.fingers.clear();
   }
 
-  take(): Pick<Look, "dx" | "dy" | "zoom" | "dragging"> {
-    const look = { dx: this.dx, dy: this.dy, zoom: this.zoom, dragging: this.pointer !== null };
-    this.dx = this.dy = this.zoom = 0;
+  take(): Pick<Look, "dx" | "dy" | "zoom" | "pinch" | "dragging"> {
+    const look = { dx: this.dx, dy: this.dy, zoom: this.zoom, pinch: this.pinch, dragging: this.pointer !== null };
+    this.dx = this.dy = this.zoom = this.pinch = 0;
     return look;
   }
 
@@ -91,19 +113,39 @@ export class MouseLook {
   }
 
   private down(e: PointerEvent) {
+    if (e.pointerType === "touch" && this.fingers.size === 1) {
+      this.fingers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      this.canvas.setPointerCapture(e.pointerId);
+      return;
+    }
     if ((e.button !== 0 && e.button !== 2) || this.pointer !== null) return;
     // The second tap starts no drag: a held finger counts as looking and would cancel the recenter it asked for.
     if (e.pointerType === "touch" && this.double_tapped(e)) return;
     this.pointer = e.pointerId;
     this.last_x = e.clientX;
     this.last_y = e.clientY;
+    if (e.pointerType === "touch") this.fingers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     this.canvas.setPointerCapture(e.pointerId);
   }
 
   private move(e: PointerEvent) {
+    const finger = this.fingers.get(e.pointerId);
+    if (finger && this.fingers.size === 2) {
+      const before = spread(this.fingers);
+      finger.x = e.clientX;
+      finger.y = e.clientY;
+      const after = spread(this.fingers);
+      if (before > 0 && after > 0) this.pinch += Math.log(before / after);
+    } else if (finger) {
+      finger.x = e.clientX;
+      finger.y = e.clientY;
+    }
     if (e.pointerId !== this.pointer) return;
-    this.dx += e.clientX - this.last_x;
-    this.dy += e.clientY - this.last_y;
+    // Two fingers down only zoom; the drag finger's position still tracks so lifting the other does not jump the view.
+    if (this.fingers.size < 2) {
+      this.dx += e.clientX - this.last_x;
+      this.dy += e.clientY - this.last_y;
+    }
     this.last_x = e.clientX;
     this.last_y = e.clientY;
   }

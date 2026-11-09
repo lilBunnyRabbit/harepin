@@ -106,7 +106,7 @@ export class ChaseCamera {
     const flip = this.invert_y ? -1 : 1;
     const stick = look.stick_x !== 0 || look.stick_y !== 0;
     const ease = (rate: number) => 1 - Math.exp(-dt * rate);
-    const moved = stick || look.dragging || look.dx !== 0 || look.dy !== 0 || look.zoom !== 0;
+    const moved = stick || look.dragging || look.dx !== 0 || look.dy !== 0 || look.zoom !== 0 || look.pinch !== 0;
     if (moved) this.recenter_t = Infinity;
     if (stick) {
       const pitch = look.stick_y * flip > 0 ? PITCH_MAX - base_pitch : base_pitch - PITCH_MIN;
@@ -128,7 +128,7 @@ export class ChaseCamera {
       this.aim_pitch -= this.aim_pitch * rate;
     }
     this.aim_pitch = Math.max(PITCH_MIN - base_pitch, Math.min(PITCH_MAX - base_pitch, this.aim_pitch));
-    this.aim_zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, this.aim_zoom * Math.exp(look.zoom * ZOOM_PER_PX)));
+    this.aim_zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, this.aim_zoom * Math.exp(look.zoom * ZOOM_PER_PX + look.pinch)));
 
     if (this.recenter_t !== Infinity) {
       this.recenter_t += dt;
