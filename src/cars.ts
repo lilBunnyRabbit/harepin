@@ -1,5 +1,5 @@
 export type Drive = "rwd" | "fwd" | "awd";
-export type BodyStyle = "hatch" | "coupe" | "muscle" | "rally" | "kaze" | "formula";
+export type BodyStyle = "hatch" | "coupe" | "muscle" | "rally" | "kaze" | "formula" | "sturm" | "raijin";
 export type Triple = [number, number, number];
 
 /** Engine voice; the limiter cuts in just under `redline`. */
@@ -419,7 +419,126 @@ export const FORMULA: CarSpec = {
   sound: { cylinders: 10, pulses: [1, 0.97, 1, 0.96, 1, 0.98, 1, 0.97, 1, 0.96], jitter: 0.03, pulse_ms: 0.4, formants: [380, 1100, 3000], shift: 0.6, muffler: [2200, 9000], drive: 1.6, rasp: 0.3, intake: 0.9, crackle: 0.1, turbo: 0 },
 };
 
-export const CARS: Record<CarId, CarSpec> = { hatch: HATCH, coupe: COUPE, muscle: MUSCLE, rally: RALLY, kaze: KAZE, formula: FORMULA };
+function shifted(list: Triple[], dz: number): Triple[] {
+  return list.map(([x, y, z]): Triple => [x, y, z + dz]);
+}
+
+// Rear-engine widebody coupe: 40/60 on a short 2.27 m wheelbase, wide rear tyres for grip, a stiff front bar so lifting
+// mid-corner swings the heavy tail out. Torque stays soft below 3000 rpm and the boost lands hard above it.
+export const STURM: CarSpec = {
+  ...COUPE,
+  id: "sturm",
+  name: "Sturm",
+  mass: 1450,
+  inertia: [2300, 2900, 560],
+  wheel: {
+    radius: 0.34,
+    rest: 0.29,
+    mounts: [
+      [0.85, 0.1, 1.362],
+      [-0.85, 0.1, 1.362],
+      [0.82, 0.1, -0.908],
+      [-0.82, 0.1, -0.908],
+    ],
+  },
+  wheelbase: 2.27,
+  lock: 0.63,
+  spring: 36000,
+  damper: 3400,
+  arb_front: 18000,
+  arb_rear: 8500,
+  mu: 1.15,
+  rear_grip: 1.2,
+  peak_angle: 0.1,
+  idle: 950,
+  redline: 6800,
+  upshift: 6500,
+  downshift: 3400,
+  gears: [3.15, 1.79, 1.27, 0.97, 0.76],
+  reverse: 3.0,
+  final: 3.44,
+  engine_inertia: 0.16,
+  shift_time: 0.2,
+  torque: [
+    [0, 150],
+    [1000, 180],
+    [2500, 230],
+    [3100, 290],
+    [3800, 490],
+    [5000, 500],
+    [6000, 465],
+    [6800, 410],
+    [7500, 330],
+  ],
+  brake_front: 2400,
+  brake_rear: 1600,
+  brake_grip: 1.28,
+  handbrake: 2100,
+  hold: 1650,
+  drag: 0.42,
+  downforce: 0.95,
+  air_settle: 3,
+  circles: [1.3, -0.98],
+  radius: 1.0,
+  corners: shifted(corners(1.03, -0.26, 0.8, 2.14), 0.16),
+  body: { length: 4.24, width: 2.1, height: 1.3, style: "sturm" },
+  sound: { cylinders: 6, pulses: [1, 0.88, 0.97, 0.9, 1, 0.86], jitter: 0.1, pulse_ms: 1.0, formants: [140, 430, 1250], shift: 0.32, muffler: [800, 3600], drive: 2.2, rasp: 0.7, intake: 0.7, crackle: 0.45, turbo: 1 },
+};
+
+// Rally-bred turbo AWD sedan: 58/42 nose-heavy, a 40/60 split and a stiffer rear bar for turn-in, part-gravel tyres.
+export const RAIJIN: CarSpec = {
+  ...COUPE,
+  id: "raijin",
+  name: "Raijin",
+  mass: 1550,
+  inertia: [2700, 2800, 650],
+  drive: "awd",
+  awd_split: 0.4,
+  wheel: { radius: 0.345, rest: 0.31, mounts: mounts(0.82, 0.1, 1.113, 1.537) },
+  wheelbase: 2.65,
+  lock: 0.64,
+  spring: 30000,
+  damper: 3100,
+  arb_front: 11000,
+  arb_rear: 12500,
+  mu: 1.13,
+  rear_grip: 1.06,
+  peak_angle: 0.11,
+  idle: 850,
+  redline: 7200,
+  upshift: 6900,
+  downshift: 3200,
+  gears: [3.6, 2.37, 1.75, 1.32, 1.01, 0.78],
+  reverse: 3.4,
+  final: 4.06,
+  engine_inertia: 0.13,
+  shift_time: 0.15,
+  torque: [
+    [0, 170],
+    [1000, 200],
+    [2500, 330],
+    [3500, 440],
+    [5000, 440],
+    [6500, 385],
+    [7500, 300],
+  ],
+  brake_front: 2600,
+  brake_rear: 1250,
+  brake_grip: 1.27,
+  handbrake: 2400,
+  hold: 1800,
+  drag: 0.46,
+  downforce: 0.85,
+  offroad: 0.3,
+  air_settle: 3,
+  circles: [1.0, -1.32],
+  radius: 1.08,
+  corners: shifted(corners(0.97, -0.3, 0.85, 2.27), -0.155),
+  body: { length: 4.57, width: 1.98, height: 1.48, style: "raijin" },
+  sound: { cylinders: 4, pulses: [1, 0.95, 1.02, 0.94], jitter: 0.08, pulse_ms: 0.8, formants: [180, 560, 1800], shift: 0.35, muffler: [950, 4400], drive: 2.6, rasp: 0.6, intake: 0.8, crackle: 0.55, turbo: 1 },
+};
+
+export const CARS: Record<CarId, CarSpec> = { hatch: HATCH, coupe: COUPE, muscle: MUSCLE, rally: RALLY, kaze: KAZE, sturm: STURM, raijin: RAIJIN, formula: FORMULA };
 
 export function is_car(id: string): id is CarId {
   return Object.hasOwn(CARS, id);
