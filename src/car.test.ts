@@ -166,6 +166,34 @@ describe("parking", () => {
       expect(car.pos.distanceTo(stopped)).toBeLessThan(0.001);
     }
   });
+
+  test("manual neutral on the flat holds still, coasts on momentum and rolls down a slope", () => {
+    for (const spec of Object.values(CARS)) {
+      const parked = new Car(spec);
+      parked.auto = false;
+      parked.park(0, 0, 0.3, flat);
+      parked.gear = 0;
+      const start = parked.pos.clone();
+      run(parked, 20, () => idle);
+      expect(parked.pos.distanceTo(start)).toBeLessThan(0.01);
+
+      const coasting = new Car(spec);
+      coasting.auto = false;
+      coasting.park(0, 0, 0, flat);
+      coasting.gear = 0;
+      coasting.vel.set(0, 0, 10);
+      run(coasting, 2, () => idle);
+      expect(coasting.forward_speed).toBeGreaterThan(8);
+
+      const hill = slope(0.1);
+      const rolling = new Car(spec);
+      rolling.auto = false;
+      rolling.park(0, 0, 0, hill);
+      rolling.gear = 0;
+      for (let t = 0; t < 5; t += DT) rolling.step(DT, idle, hill);
+      expect(rolling.forward_speed).toBeLessThan(-2);
+    }
+  });
 });
 
 describe("park and idle hold", () => {

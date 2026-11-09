@@ -391,13 +391,13 @@ export class Car {
       if (w.compression > rest) suspension += spec.bump * (w.compression - rest);
       suspension = Math.max(0, Math.min(40000, suspension));
       lever.copy(w.point).sub(pos);
-      force.copy(up).multiplyScalar(suspension);
-      total_force.add(force);
-      total_torque.add(tmp2.crossVectors(lever, force));
-
       ground.normal(w.point.x, w.point.z, w.normal);
       const load = suspension * Math.max(0, up.dot(w.normal));
       w.load = load;
+      // Along body up, a pitched body pushed itself sideways and a car in neutral rolled off on the flat.
+      force.copy(w.normal).multiplyScalar(load);
+      total_force.add(force);
+      total_torque.add(tmp2.crossVectors(lever, force));
 
       steer_q.setFromAxisAngle(Y, -w.angle);
       wheel_fwd.set(0, 0, 1).applyQuaternion(steer_q).applyQuaternion(quat);
