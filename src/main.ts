@@ -193,6 +193,11 @@ settings.on_change = (state, key) => {
 };
 apply_settings(prefs);
 $("settings-btn").addEventListener("click", () => settings.open());
+// The faded touch HUD comes back on any touch along the top, where its buttons sit.
+const WAKE_ZONE = 0.4;
+addEventListener("pointerdown", (event: PointerEvent) => {
+  if (event.clientY < innerHeight * WAKE_ZONE) hud.wake();
+}, { capture: true });
 const pad_menu = new PadMenu({ settings, chat, garage_open: () => garage.is_open });
 
 function spawn_at(index: number, reverse = false) {

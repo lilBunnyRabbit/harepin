@@ -485,7 +485,7 @@ select {
   }
 }
 
-.title #chat-btn {
+#chat-btn {
   position: relative;
 }
 
@@ -1786,7 +1786,7 @@ body.no-blur * {
   }
 
   .dock-left {
-    bottom: calc(var(--inset-bottom) + 28px + var(--space-2));
+    bottom: calc(var(--inset-bottom) + var(--control-h) + var(--space-2));
   }
 }
 
@@ -1800,5 +1800,252 @@ body.no-blur * {
     position-anchor: --strip;
     top: anchor(top);
     left: calc(anchor(right) + var(--space-2));
+  }
+}
+
+button,
+.chip {
+  transition:
+    background-color 0.15s,
+    border-color 0.15s,
+    color 0.15s,
+    opacity 0.4s,
+    translate 0.08s;
+}
+
+button:active:not(:disabled) {
+  translate: 0 1px;
+}
+
+.chip:hover {
+  color: var(--foreground);
+  border-color: var(--line-strong);
+}
+
+.chip[aria-pressed="false"]:hover {
+  color: var(--warning);
+}
+
+#modes-btn {
+  padding-inline: var(--space-2) var(--space-3);
+}
+
+.chip {
+  height: var(--control-h);
+}
+
+#strip[data-idle] > div:nth-child(2) {
+  display: none;
+}
+
+#toast {
+  translate: -50% calc(-1 * var(--space-2));
+  transition:
+    opacity 0.3s,
+    translate 0.3s;
+}
+
+#toast[data-shown] {
+  translate: -50% 0;
+}
+
+#players:has(> li:only-child) {
+  display: none;
+}
+
+.dock-top,
+.dock-top .hud,
+.assists,
+.touch-buttons,
+.touch-hint,
+#net {
+  transition: opacity 0.4s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #toast,
+  #toast[data-shown] {
+    translate: -50% 0;
+  }
+}
+
+/* Touch: the halo is the surface colour, so ghost labels read on bright sky in light themes and on dark road in dark ones. */
+@media (pointer: coarse) {
+  :root {
+    --control-h: 44px;
+    --map-size: 96px;
+    --pedal-w: 76px;
+    --ghost-fill: color-mix(in oklch, var(--surface) 22%, transparent);
+    --ghost-line: color-mix(in oklch, var(--foreground) 42%, transparent);
+    --halo: 0 0 4px var(--surface), 0 0 10px var(--surface);
+  }
+
+  .hud {
+    background: color-mix(in oklch, var(--surface) 72%, transparent);
+  }
+
+  .dock-top .top-left {
+    display: none;
+  }
+
+  .actions {
+    gap: var(--space-1);
+    padding: var(--space-1);
+  }
+
+  .actions button {
+    border-color: transparent;
+    background: none;
+  }
+
+  #modes-btn {
+    width: var(--control-h);
+    padding: 0;
+  }
+
+  #modes-btn span {
+    display: none;
+  }
+
+  #strip[data-idle] .lap,
+  #strip[data-idle] .dim {
+    display: none;
+  }
+
+  #strip[data-idle] #cp {
+    font-size: var(--text-sm);
+    font-weight: 400;
+    color: var(--dim);
+  }
+
+  #strip {
+    align-items: center;
+    min-height: 0;
+  }
+
+  #strip:not([data-idle]) #cp {
+    font-family: var(--font-mono);
+  }
+
+  #strip[data-idle] {
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+  }
+
+  .chip {
+    height: var(--control-h);
+    padding: 0 var(--space-3);
+    background: var(--ghost-fill);
+    border: 1.5px solid var(--ghost-line);
+    box-shadow: none;
+    color: var(--foreground);
+    text-shadow: var(--halo);
+    backdrop-filter: none;
+  }
+
+  #speed {
+    text-align: right;
+  }
+
+  #restart-lap {
+    border-color: transparent;
+    background: none;
+  }
+
+  .pedal,
+  .touch-key,
+  .touch-buttons button {
+    background: var(--ghost-fill);
+    border: 1.5px solid var(--ghost-line);
+    color: var(--foreground);
+    text-shadow: var(--halo);
+    backdrop-filter: none;
+  }
+
+  .touch-key svg,
+  .touch-buttons svg {
+    filter: drop-shadow(0 0 3px var(--surface));
+  }
+
+  .pedal::before {
+    background: color-mix(in oklch, var(--error) 40%, transparent);
+  }
+
+  .pedal.throttle::before {
+    background: color-mix(in oklch, var(--success) 40%, transparent);
+  }
+
+  .touch-key[data-held],
+  .touch-buttons button[data-held] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--background-darkest);
+    text-shadow: none;
+  }
+
+  .touch-buttons button {
+    min-width: var(--control-h);
+    padding: 0 var(--space-3);
+  }
+
+  .touch-steer-buttons .touch-key {
+    --steer-key-w: 84px;
+    --steer-key-h: 120px;
+  }
+
+  .touch-hint {
+    background: var(--ghost-fill);
+    text-shadow: var(--halo);
+  }
+
+  .top-right {
+    padding: 0;
+    background: none;
+    border: 0;
+    backdrop-filter: none;
+  }
+
+  #minimap {
+    margin: 0;
+    border-radius: 50%;
+    background: color-mix(in oklch, var(--surface) 35%, transparent);
+  }
+
+  #net {
+    text-shadow: var(--halo);
+  }
+
+  .top-right[data-alone] #net {
+    display: none;
+  }
+
+  .bottom-right {
+    min-width: 0;
+    height: auto;
+    padding: var(--space-1) var(--space-3) var(--space-2);
+    background: color-mix(in oklch, var(--surface) 55%, transparent);
+  }
+
+  #speed {
+    font-size: 26px;
+  }
+
+  .rpm {
+    height: 3px;
+    margin-top: var(--space-1);
+  }
+
+  :root[data-calm] .actions,
+  :root[data-calm] .touch-buttons {
+    opacity: 0.3;
+  }
+
+  :root[data-calm] #strip[data-idle],
+  :root[data-calm] .touch-hint {
+    opacity: 0;
+  }
+
+  :root[data-calm] .assists .chip[aria-pressed="true"] {
+    display: none;
   }
 }

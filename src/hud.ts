@@ -38,6 +38,10 @@ function row(name: string, time: string, you: boolean, note = ""): HTMLLIElement
 
 const MAP = 200;
 const TOAST_MS = 1200;
+/** Driving this long above CALM_KMH lets the touch HUD (and the Minimal layout) fade back; stopping brings it back. */
+const CALM_MS = 3000;
+const CALM_KMH = 12;
+const STOP_KMH = 4;
 
 export class Hud {
   private el = {
@@ -62,12 +66,15 @@ export class Hud {
     race_panel: $("race-panel"),
     race_status: $("race-status"),
     race_results: $("race-results"),
+    strip: $("strip"),
+    top_right: document.querySelector<HTMLElement>(".top-right"),
   };
   private map: CanvasRenderingContext2D;
   private road = new Path2D();
   private toast_timer = 0;
   private players_key = "";
   private results_key = "";
+  private moving_since = 0;
 
   constructor(
     private world: World,
@@ -107,9 +114,18 @@ export class Hud {
     this.toast_timer = window.setTimeout(() => delete toast.dataset.shown, TOAST_MS);
   }
 
+  /** Brings the faded HUD back for another stretch, after a touch near the top of the screen. */
+  wake() {
+    this.moving_since = 0;
+  }
+
   update(car: Car, now: number, rewinding: boolean) {
     const { el, race } = this;
-    el.speed.textContent = String(Math.round(Math.abs(car.forward_speed) * 3.6));
+    const kmh = Math.round(Math.abs(car.forward_speed) * 3.6);
+    el.speed.textContent = String(kmh);
+    if (kmh < STOP_KMH || document.activeElement?.closest(".dock-top, .assists, #modes")) this.moving_since = 0;
+    else if (kmh > CALM_KMH && !this.moving_since) this.moving_since = now;
+    document.documentElement.toggleAttribute("data-calm", this.moving_since > 0 && now - this.moving_since > CALM_MS);
     el.gear.textContent = car.gear === -1 ? "R" : car.gear === 0 ? "N" : String(car.gear);
     el.gear.dataset.mode = car.auto ? "A" : "M";
     el.rpm.style.width = `${Math.min(100, (car.rpm / 7300) * 100)}%`;
@@ -123,6 +139,7 @@ export class Hud {
     el.best.textContent = format(race.best);
     el.last.textContent = format(race.last);
     el.cp.textContent = race.started ? `${race.next === 0 ? race.gates : race.next} / ${race.gates}` : "drive through the lit gate";
+    el.strip.toggleAttribute("data-idle", !race.started);
 
     const rows = [
       { name: `${this.net.name} (you)`, best: race.best, you: true },
@@ -137,6 +154,7 @@ export class Hud {
     const foreign = this.net.foreign.size;
     el.net.textContent = `${this.net.status} · ${this.net.remotes.size} other${this.net.remotes.size === 1 ? "" : "s"}${foreign ? ` · ${foreign} peer${foreign === 1 ? "" : "s"} on a different map` : ""}`;
     el.join_map.hidden = this.net.foreign_seed() === null;
+    el.top_right?.toggleAttribute("data-alone", this.net.remotes.size === 0 && foreign === 0);
 
     const lap_flashing = race.lap_flash && now - race.lap_flash < 2600;
     el.banner.style.opacity = lap_flashing ? "1" : "0";

@@ -34,6 +34,10 @@
         <circle cx="12" cy="12" r="1.5" fill="currentColor" />
         <path d="M12 2.5V5M12 19v2.5M2.5 12H5M19 12h2.5" />
       </symbol>
+      <symbol id="icon-modes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M6 21V4" />
+        <path d="M6 4.5h11.5l-2.5 4 2.5 4H6" />
+      </symbol>
       <symbol id="icon-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
         <path d="M6 6l12 12M18 6L6 18" />
       </symbol>
@@ -141,7 +145,7 @@
         <button type="button" id="garage-btn" class="icon-button" aria-label="Garage" title="Garage"><svg aria-hidden="true"><use href="#icon-car" /></svg></button>
         <button type="button" id="settings-btn" class="icon-button" aria-label="Settings" title="Settings (Esc)"><svg aria-hidden="true"><use href="#icon-settings" /></svg></button>
         <button type="button" id="chat-btn" class="icon-button" aria-label="Chat" title="Chat (T)" aria-expanded="false" aria-controls="chat-panel"><svg aria-hidden="true"><use href="#icon-chat" /></svg><span id="chat-unread" class="badge" hidden></span></button>
-        <button type="button" id="modes-btn" popovertarget="modes">Modes</button>
+        <button type="button" id="modes-btn" popovertarget="modes" aria-label="Modes" title="Modes"><svg aria-hidden="true"><use href="#icon-modes" /></svg><span>Modes</span></button>
         <div id="modes" popover>
           <div class="modes-head"><b>Gymkhana</b><span class="dim" id="gym-stars"></span></div>
           <ol id="gym-levels"></ol>
