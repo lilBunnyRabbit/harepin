@@ -2,7 +2,7 @@ import { Vector3 } from "three";
 import { Car } from "../src/car";
 import { COUPE, car_spec, type CarSpec } from "../src/cars";
 import { PadTimer } from "../src/sky-pads";
-import { World, type RoadPoint } from "../src/world";
+import { ROAD_HALF, World, type RoadPoint } from "../src/world";
 
 const DT = 1 / 360;
 const RAMP_LOOK = 120;
@@ -17,6 +17,8 @@ const GRAVITY = 9.81;
 const CORNER_LOOK = 90;
 const CORNER_SPAN = 5;
 const HAIRPIN_PACE = 15;
+/** Slip angle (rad) at which the autopilot is fully off the brake. */
+const SLIDE_LET_GO = 0.15;
 
 /** Square of the fastest steady speed round `radius` at `p`: a sky-track bank adds its share of gravity to the grip. */
 function corner_speed2(world: World, p: { x: number; y: number; z: number }, radius: number): number {
@@ -73,7 +75,7 @@ export function autolap(world: World, spec: CarSpec = COUPE, road: readonly Road
     let at = 0;
     for (let i = 1; i < n; i++) if ((road[i].x - r.x) ** 2 + (road[i].z - r.z) ** 2 < (road[at].x - r.x) ** 2 + (road[at].z - r.z) ** 2) at = i;
     return { ramp: r, at };
-  });
+  }).filter(({ ramp, at }) => Math.hypot(road[at].x - ramp.x, road[at].z - ramp.z) < ROAD_HALF);
   const toes: number[] = [];
   const behind = kickers.map(() => true);
   while (t < 400 && index < n - 10) {
@@ -96,8 +98,11 @@ export function autolap(world: World, spec: CarSpec = COUPE, road: readonly Road
       return along * step < RAMP_LOOK && -along * step < ramp.length + ramp.landing;
     });
     const airborne = car.wheels.every((w) => !w.contact);
+    // A driver comes off the brake once the tail steps out: braking on through a slide spins a light-tailed car downhill.
+    const slide = speed > 5 ? Math.abs(Math.atan2(Math.sin(Math.atan2(car.vel.x, car.vel.z) - car.heading), Math.cos(Math.atan2(car.vel.x, car.vel.z) - car.heading))) : 0;
+    const ease = Math.max(0, 1 - slide / SLIDE_LET_GO);
     const target = Math.min(jump ? JUMP_PACE : Infinity, curve > 0.5 ? 20 : curve > 0.25 ? 30 : 42, pace);
-    car.step(DT, { steer: airborne ? 0 : Math.max(-1, Math.min(1, -err * 3)), throttle: speed < target ? 1 : 0, brake: speed > target + (pace <= target ? 1 : 4) ? Math.min(0.5, (speed - target) / 10) * Math.max(0.2, 1 - Math.abs(err) * 4) : 0, handbrake: 0, analog: true }, world);
+    car.step(DT, { steer: airborne ? 0 : Math.max(-1, Math.min(1, -err * 3)), throttle: speed < target ? 1 : 0, brake: speed > target + (pace <= target ? 1 : 4) ? Math.min(0.5, (speed - target) / 10) * Math.max(0.2, 1 - Math.abs(err) * 4) * ease : 0, handbrake: 0, analog: true }, world);
     pads.step(DT, car, world);
     impact = Math.max(impact, world.collide(car));
     kickers.forEach(({ ramp }, k) => {
@@ -109,7 +114,7 @@ export function autolap(world: World, spec: CarSpec = COUPE, road: readonly Road
     t += DT;
     const d = world.distance_to_road(car.pos.x, car.pos.z);
     worst = Math.max(worst, d);
-    if (d > 7) offroad += DT;
+    if (d > 7 && !world.dirt(car.pos.x, car.pos.z)) offroad += DT;
     if (t > 5) slowest = Math.min(slowest, speed);
     if (!Number.isFinite(car.pos.x)) throw new Error("NaN");
     if (new Vector3(0, 1, 0).applyQuaternion(car.quat).y < 0.3) {
