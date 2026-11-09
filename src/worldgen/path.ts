@@ -64,8 +64,10 @@ const BEND_REACH = 40;
 const LOOP_CLEARANCE = 40;
 const CLEARANCE_ARC = 60;
 const CLEARANCE_STRIDE = 4;
-const RELAX = 0.25;
+const RELAX = 0.35;
 const RELAX_TRIES = 40;
+/** Nudges without a wider tightest bend before the attempt gives up: the pinch is not one a nudge can fix. */
+const RELAX_STALL = 4;
 
 export type Path = [number, number][];
 
@@ -99,10 +101,6 @@ function catmull(points: Path, step: number): Path {
   const dense: Path = [];
   const n = points.length;
   const knot = (a: [number, number], b: [number, number]) => Math.sqrt(Math.sqrt((b[0] - a[0]) * (b[0] - a[0]) + (b[1] - a[1]) * (b[1] - a[1]))) || 1e-6;
-  const lerp = (a: [number, number], b: [number, number], ta: number, tb: number, t: number): [number, number] => {
-    const w = (t - ta) / (tb - ta);
-    return [a[0] + (b[0] - a[0]) * w, a[1] + (b[1] - a[1]) * w];
-  };
   for (let i = 0; i < n; i++) {
     const p0 = points[(i - 1 + n) % n];
     const p1 = points[i];
@@ -114,10 +112,22 @@ function catmull(points: Path, step: number): Path {
     const steps = 4 + Math.ceil(length(p2[0] - p1[0], p2[1] - p1[1]) / 2);
     for (let s = 0; s < steps; s++) {
       const t = t1 + ((t2 - t1) * s) / steps;
-      const a1 = lerp(p0, p1, 0, t1, t);
-      const a2 = lerp(p1, p2, t1, t2, t);
-      const a3 = lerp(p2, p3, t2, t3, t);
-      dense.push(lerp(lerp(a1, a2, 0, t2, t), lerp(a2, a3, t1, t3, t), t1, t2, t));
+      const w1 = t / t1;
+      const w2 = (t - t1) / (t2 - t1);
+      const w3 = (t - t2) / (t3 - t2);
+      const a1x = p0[0] + (p1[0] - p0[0]) * w1;
+      const a1z = p0[1] + (p1[1] - p0[1]) * w1;
+      const a2x = p1[0] + (p2[0] - p1[0]) * w2;
+      const a2z = p1[1] + (p2[1] - p1[1]) * w2;
+      const a3x = p2[0] + (p3[0] - p2[0]) * w3;
+      const a3z = p2[1] + (p3[1] - p2[1]) * w3;
+      const b1 = t / t2;
+      const b2 = (t - t1) / (t3 - t1);
+      const b1x = a1x + (a2x - a1x) * b1;
+      const b1z = a1z + (a2z - a1z) * b1;
+      const b2x = a2x + (a3x - a2x) * b2;
+      const b2z = a2z + (a3z - a2z) * b2;
+      dense.push([b1x + (b2x - b1x) * w2, b1z + (b2z - b1z) * w2]);
     }
   }
   return resample(dense, step, true);
@@ -258,57 +268,74 @@ function crowded(path: Path, stack: Switchback | null): boolean {
 
 // Circumradius of each 20 m arc. Every op on the way here (the loop's control points included) is IEEE-exact, so all
 // engines agree on which retry wins.
-function tightest(path: Path, closed: boolean, skip?: (x: number, z: number) => boolean): { radius: number; at: number } {
+function radius_at(path: Path, i: number): number {
+  const n = path.length;
+  const [ax, az] = path[(i - RADIUS_SPAN + n) % n];
+  const [bx, bz] = path[i];
+  const [cx, cz] = path[(i + RADIUS_SPAN) % n];
+  const cross = Math.abs((bx - ax) * (cz - az) - (bz - az) * (cx - ax));
+  const ab = (bx - ax) * (bx - ax) + (bz - az) * (bz - az);
+  const bc = (cx - bx) * (cx - bx) + (cz - bz) * (cz - bz);
+  const ac = (cx - ax) * (cx - ax) + (cz - az) * (cz - az);
+  return cross > 0 ? Math.sqrt(ab * bc * ac) / (2 * cross) : Infinity;
+}
+
+/** Tightest bend, and every point under `limit`, skipping points `skip` claims. */
+function tightest(path: Path, closed: boolean, skip?: (x: number, z: number) => boolean, limit = 0): { radius: number; under: number[] } {
   const n = path.length;
   let radius = Infinity;
-  let at = 0;
+  const under: number[] = [];
   for (let i = 0; i < n; i++) {
     if (!closed && (i < RADIUS_SPAN || i >= n - RADIUS_SPAN)) continue;
     if (skip?.(path[i][0], path[i][1])) continue;
-    const [ax, az] = path[(i - RADIUS_SPAN + n) % n];
-    const [bx, bz] = path[i];
-    const [cx, cz] = path[(i + RADIUS_SPAN) % n];
-    const cross = Math.abs((bx - ax) * (cz - az) - (bz - az) * (cx - ax));
-    const ab = (bx - ax) * (bx - ax) + (bz - az) * (bz - az);
-    const bc = (cx - bx) * (cx - bx) + (cz - bz) * (cz - bz);
-    const ac = (cx - ax) * (cx - ax) + (cz - az) * (cz - az);
-    const r = cross > 0 ? Math.sqrt(ab * bc * ac) / (2 * cross) : Infinity;
-    if (r < radius) {
-      radius = r;
-      at = i;
-    }
+    const r = radius_at(path, i);
+    if (r < limit) under.push(i);
+    radius = Math.min(radius, r);
   }
-  return { radius, at };
+  return { radius, under };
 }
 
 export function min_radius(path: Path, closed = true): number {
   return tightest(path, closed).radius;
 }
 
-// A bend under ROAD_MIN_RADIUS eases its nearest control toward the midpoint of that control's neighbours, so one
+// Every bend under ROAD_MIN_RADIUS eases its nearest control toward the midpoint of that control's neighbours, so one
 // overshooting pinch costs a nudge, not a whole new loop. The stack's own hairpins are meant to be tight.
 function relaxed({ points: controls, fixed, fixed_count, stack }: Controls): { path: Path; radius: number } {
   const n = controls.length;
   const skip = stack ? (x: number, z: number) => inside(stack, x, z, 0) : undefined;
   let path = catmull(controls, STEP);
-  let { radius, at } = tightest(path, true, skip);
-  for (let fix = 0; fix < RELAX_TRIES && radius < ROAD_MIN_RADIUS; fix++) {
-    const [x, z] = path[at];
-    let c = -1;
-    let best = Infinity;
-    for (let i = 0; i < n; i++) {
-      const d = length(controls[i][0] - x, controls[i][1] - z);
-      if (d < best && (i < fixed || i >= fixed + fixed_count)) {
-        c = i;
-        best = d;
+  let { radius, under } = tightest(path, true, skip, ROAD_MIN_RADIUS);
+  let best_radius = radius;
+  let gained = 0;
+  for (let fix = 0; fix < RELAX_TRIES && radius < ROAD_MIN_RADIUS && fix - gained <= RELAX_STALL; fix++) {
+    const nudge = new Set<number>();
+    for (const at of under) {
+      const [x, z] = path[at];
+      let c = -1;
+      let best = Infinity;
+      for (let i = 0; i < n; i++) {
+        const d = length(controls[i][0] - x, controls[i][1] - z);
+        if (d < best && (i < fixed || i >= fixed + fixed_count)) {
+          c = i;
+          best = d;
+        }
       }
+      nudge.add(c);
     }
-    const prev = controls[(c - 1 + n) % n];
-    const next = controls[(c + 1) % n];
-    const [cx, cz] = controls[c];
-    controls[c] = [cx + ((prev[0] + next[0]) / 2 - cx) * RELAX, cz + ((prev[1] + next[1]) / 2 - cz) * RELAX];
+    const from = controls.slice();
+    for (const c of [...nudge].sort((a, b) => a - b)) {
+      const prev = from[(c - 1 + n) % n];
+      const next = from[(c + 1) % n];
+      const [cx, cz] = from[c];
+      controls[c] = [cx + ((prev[0] + next[0]) / 2 - cx) * RELAX, cz + ((prev[1] + next[1]) / 2 - cz) * RELAX];
+    }
     path = catmull(controls, STEP);
-    ({ radius, at } = tightest(path, true, skip));
+    ({ radius, under } = tightest(path, true, skip, ROAD_MIN_RADIUS));
+    if (radius > best_radius) {
+      best_radius = radius;
+      gained = fix;
+    }
   }
   return { path, radius };
 }

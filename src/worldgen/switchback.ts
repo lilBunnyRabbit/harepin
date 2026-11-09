@@ -25,6 +25,9 @@ const RAIL_OFFSET = ROAD_HALF + 3.5;
 /** Most the ground may fall across a rail's footprint: the world check's grounding limit, less a margin. */
 const RAIL_LEVEL = 0.2;
 const RAIL_HALF = 1.5;
+const RAIL_WIDTH = 0.3;
+/** Nearest any road's centre may come to a rail: the world check keeps solid items this far off the asphalt. */
+const RAIL_ROAD = ROAD_HALF + RAIL_HALF + 1.5;
 const RAIL_STEP = 3.2;
 
 export interface Bend {
@@ -180,7 +183,7 @@ export function switchback(heights: Float32Array, base: [number, number], summit
 }
 
 /** Barriers along the outside of every hairpin, where the fill falls away; spots on uneven ground are left open. */
-export function guard_rails(stack: Switchback, heights: Float32Array): Item[] {
+export function guard_rails(stack: Switchback, heights: Float32Array, road_dist: Float32Array): Item[] {
   const out: Item[] = [];
   for (const bend of stack.bends) {
     if (bend.radius !== HAIRPIN_RADIUS) continue;
@@ -196,7 +199,9 @@ export function guard_rails(stack: Switchback, heights: Float32Array): Item[] {
       const fx = -rz / rl;
       const fz = rx / rl;
       const y = sample(heights, x, z);
-      if (y < LAND / 2 || [-1, 1].some((k) => Math.abs(sample(heights, x + fx * k * RAIL_HALF, z + fz * k * RAIL_HALF) - y) > RAIL_LEVEL)) continue;
+      if (y < LAND / 2 || sample(road_dist, x, z) < RAIL_ROAD) continue;
+      const corners = [-1, 1].flatMap((a) => [-1, 1].map((b) => sample(heights, x + fx * a * RAIL_HALF - fz * b * RAIL_WIDTH, z + fz * a * RAIL_HALF + fx * b * RAIL_WIDTH)));
+      if (corners.some((h) => Math.abs(h - y) > RAIL_LEVEL)) continue;
       out.push({ kind: "barrier", x, y, z, fx, fz, scale: 1, light: false });
       last = [x, z];
     }

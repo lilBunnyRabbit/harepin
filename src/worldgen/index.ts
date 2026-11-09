@@ -14,6 +14,10 @@ import { CELL, ORIGIN, ROAD_HALF, SPAWN_INDEX, SPUR_HALF, type Checkpoint, type 
 const CHECKPOINTS = 12;
 const TREE_SPACING = 13;
 const STACK_GATE = 5;
+/** Spurs try joins at least this far outside the switchback first; one on its legs only when nothing else fits the grade. */
+const STACK_JOIN = 20;
+/** A spur end further than this from its gate or junction height failed to fit the grade. */
+const PIN = 0.01;
 
 // World generation uses only + - * / sqrt floor and integer ops, which IEEE 754 makes bit-exact on every engine, so
 // every discrete choice (towns, routes, lots, trees) comes out the same for every peer on the seed. Math.atan2 only
@@ -58,14 +62,23 @@ export function generate(seed: number): WorldData {
     const gate_id = gates.get(town.id);
     if (gate_id === undefined) continue;
     const gate = nodes[gate_id];
-    let best: { path: Path; join: number; need: number } | null = null;
-    for (const join of join_candidates(road, gate)) {
+    const on_stack = (j: number) => stack !== null && inside(stack, road[j].x, road[j].z, STACK_JOIN);
+    const tried: { path: Path; join: number; need: number; stacked: boolean }[] = [];
+    const candidates = join_candidates(road, gate);
+    for (const join of [...candidates.filter((j) => !on_stack(j)), ...candidates.filter(on_stack)]) {
       const path = router.route(gate, road[join], town);
       if (!path) continue;
       const need = spur_need(path, gate.y, road[join].y);
-      if (!best || need < best.need) best = { path, join, need };
+      tried.push({ path, join, need, stacked: on_stack(join) });
       if (need <= SHAPE_GRADE) break;
     }
+    tried.sort((a, b) => Number(a.stacked) - Number(b.stacked) || a.need - b.need);
+    // The need estimate is conservative both ways near the limit, so the first spur whose ends stay pinned wins.
+    const pinned = (t: (typeof tried)[number]) => {
+      const points = spur_points(t.path, heights, gate.y, road[t.join].y);
+      return Math.abs(points[0].y - gate.y) < PIN && Math.abs(points[points.length - 1].y - road[t.join].y) < PIN;
+    };
+    const best = tried.find((t) => t.need <= SHAPE_GRADE) ?? tried.find(pinned) ?? tried.reduce<(typeof tried)[number] | null>((b, t) => (!b || t.need < b.need ? t : b), null);
     if (!best) continue;
     router.claim(best.path);
     const target = road[best.join];
@@ -115,7 +128,7 @@ export function generate(seed: number): WorldData {
   planner.open_items();
   const jumps = planner.out;
   solids.push(...jumps.solids);
-  for (const rail of stack ? guard_rails(stack, heights) : []) {
+  for (const rail of stack ? guard_rails(stack, heights, road_dist) : []) {
     jumps.items.push(rail);
     const solid = ITEMS.barrier.solid?.(rail.x, rail.y, rail.z, rail.fx, rail.fz, rail.scale);
     if (solid) solids.push(solid);
