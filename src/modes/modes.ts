@@ -126,11 +126,11 @@ export class Modes {
     private readonly chime: () => void,
     private readonly camera: THREE.Camera,
   ) {
-    this.track = new Track("gymkhana", world.seed, LEVEL_IDS, local_store());
-    this.park_track = new Track("parking", world.seed, PARK_IDS, local_store());
-    this.drift_track = new Track("drift", world.seed, DRIFT_IDS, local_store());
-    this.hunt_track = new Track("hunt", world.seed, HUNT_IDS, local_store());
-    this.duel_track = new Track("duel", world.seed, DUEL_IDS, local_store());
+    this.track = new Track("gymkhana", world.seed, LEVEL_IDS, local_store(), world.kind);
+    this.park_track = new Track("parking", world.seed, PARK_IDS, local_store(), world.kind);
+    this.drift_track = new Track("drift", world.seed, DRIFT_IDS, local_store(), world.kind);
+    this.hunt_track = new Track("hunt", world.seed, HUNT_IDS, local_store(), world.kind);
+    this.duel_track = new Track("duel", world.seed, DUEL_IDS, local_store(), world.kind);
   }
 
   get active(): boolean {
@@ -188,6 +188,7 @@ export class Modes {
   }
 
   play(id: string) {
+    if (this.world.kind === "sky" && !DRIFT_IDS.includes(id) && !DUEL_IDS.includes(id)) return this.notice("Gymkhana, parking and gate hunts need open ground: drive the island for them");
     if (PARK_IDS.includes(id)) return this.play_park(id);
     if (DRIFT_IDS.includes(id)) return this.play_drift(id);
     if (HUNT_IDS.includes(id)) return this.play_hunt(id);
@@ -280,7 +281,7 @@ export class Modes {
     this.scene.add(this.duel_view.root);
     if (this.ghost_id !== level.id) {
       this.ghost?.dispose();
-      this.ghost = new Ghost(this.scene, this.world.seed, `harepin:ghost:duel:${level.id}:${world_key(this.world.seed)}`);
+      this.ghost = new Ghost(this.scene, this.world.seed, `harepin:ghost:duel:${level.id}:${world_key(this.world.seed, this.world.kind)}`);
       this.ghost_id = level.id;
     }
     this.ghost?.start();

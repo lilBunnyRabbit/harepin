@@ -79,7 +79,7 @@ export class WorldMap {
       console.warn("world map: generation failed", event.message);
       this.set_status(MapStatus.FAILED);
     });
-    const request: MapRequest = { seed, tones: { terrain: mesh_tones().terrain, water: linear(tones.water) } };
+    const request: MapRequest = { seed, kind: "island", tones: { terrain: mesh_tones().terrain, water: linear(tones.water) } };
     worker.postMessage(request);
   }
 

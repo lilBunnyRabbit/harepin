@@ -86,7 +86,7 @@ for (const seed of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]) {
   const t1 = performance.now();
   const chunks = build_chunks(world, tones);
   const t2 = performance.now();
-  const triangles = chunks.reduce((sum, c) => sum + c.terrain.full / 3 + [c.road, c.buildings, c.parking].reduce((n, part) => n + (part ? part.positions.length / 9 : 0), 0), 0);
+  const triangles = chunks.reduce((sum, c) => sum + (c.terrain?.full ?? 0) / 3 + [c.road, c.buildings, c.parking].reduce((n, part) => n + (part ? part.positions.length / 9 : 0), 0), 0);
   console.log(
     `seed ${seed}: world ${(t1 - t0).toFixed(0)} ms, chunks ${(t2 - t1).toFixed(0)} ms (${(triangles / 1000).toFixed(0)}k tris), trees ${world.trees.length}, ${road_report(world).text}, world ${world_checksum(world)}, colours ${checksum([terrain_colors(world, tones.terrain)])}`,
   );

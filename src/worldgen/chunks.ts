@@ -1,6 +1,7 @@
 import { sample, up } from "./field";
 import { roof_rise } from "./lots";
 import { Builder, bounding_sphere, turned, type Rgb, type Sphere } from "./mesh";
+import { deck_layers, type DeckTones } from "./sky-mesh";
 import { fbm, hash } from "./noise";
 import { CELL, N, ORIGIN, ROAD_HALF, Roof, SIDEWALK, SIZE, type RoadPoint, type WorldData } from "./types";
 
@@ -54,6 +55,7 @@ export interface MeshTones {
   walls: Rgb[];
   roofs: Rgb[];
   roof_flat: Rgb;
+  deck: DeckTones;
 }
 
 export interface Soup {
@@ -67,7 +69,7 @@ export interface ChunkBuffers {
   x0: number;
   z0: number;
   /** `index` holds the full-res triangles first, then the half-res ones; both include the edge skirt. */
-  terrain: Soup & { index: Uint16Array<ArrayBuffer>; full: number };
+  terrain: (Soup & { index: Uint16Array<ArrayBuffer>; full: number }) | null;
   /** Surface vertices first, then `marks`, which draw with a stronger polygon offset. */
   road: (Soup & { surface: number }) | null;
   /** Buildings of SMALL_BUILDING and up come first: a far chunk draws only the first `big` vertices. */
@@ -425,7 +427,23 @@ function soup(layers: Layer[]): Soup | null {
   return { positions, colors: Float32Array.from(layers.flatMap((l) => l.colors)), sphere: bounding_sphere(positions) };
 }
 
+function sky_chunks(data: WorldData, tones: MeshTones): ChunkBuffers[] {
+  const surface: Layer[] = Array.from({ length: CHUNKS * CHUNKS }, () => ({ positions: [], colors: [] }));
+  const marks: Layer[] = Array.from({ length: CHUNKS * CHUNKS }, () => ({ positions: [], colors: [] }));
+  if (data.deck) deck_layers(data.deck, tones.deck, chunk_of, surface, marks);
+  const chunks: ChunkBuffers[] = [];
+  for (let cj = 0; cj < CHUNKS; cj++)
+    for (let ci = 0; ci < CHUNKS; ci++) {
+      const index = cj * CHUNKS + ci;
+      const road = soup([surface[index], marks[index]]);
+      if (!road) continue;
+      chunks.push({ index, x0: ORIGIN + ci * CHUNK, z0: ORIGIN + cj * CHUNK, terrain: null, road: { ...road, surface: surface[index].positions.length / 3 }, buildings: null, glass: null, parking: null });
+    }
+  return chunks;
+}
+
 export function build_chunks(data: WorldData, tones: MeshTones): ChunkBuffers[] {
+  if (data.kind === "sky") return sky_chunks(data, tones);
   const colors = terrain_colors(data, tones.terrain);
   const roads = road_layers(data, tones);
   const towns = town_builders(data, tones);
@@ -455,7 +473,7 @@ export function build_chunks(data: WorldData, tones: MeshTones): ChunkBuffers[] 
 export function chunk_transfers(chunks: ChunkBuffers[]): ArrayBuffer[] {
   const out: ArrayBuffer[] = [];
   for (const c of chunks) {
-    out.push(c.terrain.positions.buffer, c.terrain.colors.buffer, c.terrain.index.buffer);
+    if (c.terrain) out.push(c.terrain.positions.buffer, c.terrain.colors.buffer, c.terrain.index.buffer);
     for (const part of [c.road, c.buildings, c.parking]) if (part) out.push(part.positions.buffer, part.colors.buffer);
     if (c.glass) out.push(c.glass.positions.buffer);
   }

@@ -4,6 +4,7 @@ import { JumpsView } from "./jumps";
 import { color, lighten, linear, mix, tones } from "./palette";
 import { SIZE, World, type RoadPoint, type Tree } from "./world";
 import { CHUNK, JITTER_LEVELS, type ChunkBuffers, type MeshTones } from "./worldgen/chunks";
+import type { WorldKind } from "./worldgen/types";
 import type { GenRequest, GenResult } from "./worldgen/worker";
 
 const JITTER_LIGHTNESS = 0.035;
@@ -39,6 +40,7 @@ export function mesh_tones(): MeshTones {
     walls: [tones.wall, tones.wall_warm, tones.wall_cool].map(linear),
     roofs: [tones.roof, tones.roof_slate].map(linear),
     roof_flat: linear(tones.roof_flat),
+    deck: { deck: linear(tones.deck), side: linear(tones.deck_side), rail: linear(tones.rail), joint: linear(tones.joint) },
   };
 }
 
@@ -49,7 +51,7 @@ export interface LoadedWorld {
   mesh_ms: number;
 }
 
-export function load_world(seed: number): Promise<LoadedWorld> {
+export function load_world(seed: number, kind: WorldKind): Promise<LoadedWorld> {
   const worker = new Worker(new URL("./worldgen/worker.ts", import.meta.url), { type: "module" });
   return new Promise((resolve, reject) => {
     worker.addEventListener("message", (event: MessageEvent<GenResult>) => {
@@ -61,7 +63,7 @@ export function load_world(seed: number): Promise<LoadedWorld> {
       worker.terminate();
       reject(new Error(`world worker: ${event.message}`));
     });
-    const request: GenRequest = { seed, tones: mesh_tones() };
+    const request: GenRequest = { seed, kind, tones: mesh_tones() };
     worker.postMessage(request);
   });
 }
@@ -70,7 +72,7 @@ interface ChunkView {
   x0: number;
   z0: number;
   group: THREE.Group;
-  terrain: THREE.BufferGeometry;
+  terrain: THREE.BufferGeometry | null;
   full: number;
   trees: THREE.Object3D[];
   town: TownChunk | undefined;
@@ -91,12 +93,15 @@ export class WorldView {
     const towns = town_chunks(world, chunks);
     this.views = chunks.map((chunk) => {
       const group = new THREE.Group();
-      const ground = soup_geometry(chunk.terrain);
-      ground.setIndex(new THREE.BufferAttribute(chunk.terrain.index, 1));
-      ground.setDrawRange(0, chunk.terrain.full);
-      const ground_mesh = new THREE.Mesh(ground, terrain);
-      ground_mesh.receiveShadow = true;
-      group.add(ground_mesh);
+      let ground: THREE.BufferGeometry | null = null;
+      if (chunk.terrain) {
+        ground = soup_geometry(chunk.terrain);
+        ground.setIndex(new THREE.BufferAttribute(chunk.terrain.index, 1));
+        ground.setDrawRange(0, chunk.terrain.full);
+        const ground_mesh = new THREE.Mesh(ground, terrain);
+        ground_mesh.receiveShadow = true;
+        group.add(ground_mesh);
+      }
       if (chunk.road) {
         const geometry = soup_geometry(chunk.road);
         geometry.addGroup(0, chunk.road.surface, 0);
@@ -110,7 +115,7 @@ export class WorldView {
       if (here.length) group.add(...here);
       if (town) group.add(...town.objects);
       this.root.add(group);
-      return { x0: chunk.x0, z0: chunk.z0, group, terrain: ground, full: chunk.terrain.full, trees: here, town, far: null, trees_shown: null };
+      return { x0: chunk.x0, z0: chunk.z0, group, terrain: ground, full: chunk.terrain?.full ?? 0, trees: here, town, far: null, trees_shown: null };
     });
     this.jumps = new JumpsView(world, (x, z) => world.height(x, z));
     this.root.add(this.jumps.root);
@@ -132,8 +137,8 @@ export class WorldView {
       const far = d > far_at;
       if (far !== view.far) {
         view.far = far;
-        if (far) view.terrain.setDrawRange(view.full, Infinity);
-        else view.terrain.setDrawRange(0, view.full);
+        if (far) view.terrain?.setDrawRange(view.full, Infinity);
+        else view.terrain?.setDrawRange(0, view.full);
         view.town?.far(far);
       }
       const trees_shown = !this.mobile || d <= MOBILE_TREES;

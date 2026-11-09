@@ -1,6 +1,6 @@
 import { joinRoom, selfId } from "trystero";
 import { build_code, parse_build } from "./build";
-import { WORLD_VERSION } from "./worldgen/types";
+import { WORLD_VERSION, WorldKind, world_id } from "./worldgen/types";
 
 // A type alias, not an interface: trystero's DataPayload needs the implicit index signature only aliases get.
 export type CarState = {
@@ -227,6 +227,8 @@ export class Net {
     readonly seed: number,
     name: string,
     private readonly lock: RoomLock | null = null,
+    /** Map identity stamped as `w`: `world_id` of the world kind. */
+    readonly world = WORLD_VERSION,
   ) {
     this.name_ = clean_name(name);
     const password = lock?.password ?? null;
@@ -280,7 +282,7 @@ export class Net {
   }
 
   send(state: CarState) {
-    const stamped = { ...state, w: WORLD_VERSION };
+    const stamped = { ...state, w: this.world };
     this.post({ kind: "car", id: this.id, data: stamped });
     this.send_p2p?.(stamped);
   }
@@ -347,7 +349,7 @@ export class Net {
     if (!state) return;
     const now = performance.now();
     // The same seed on another world version is another island: racing on it would mean racing on different roads.
-    if (state.seed !== this.seed || state.w !== WORLD_VERSION) {
+    if (state.seed !== this.seed || state.w !== this.world) {
       this.foreign.set(state.id, { seed: state.seed, world: state.w ?? 1, seen: now });
       this.remotes.delete(state.id);
       return;
@@ -376,12 +378,16 @@ export class Net {
   }
 
   /** The map most of the room is on, counting this one; null when that is already this one, so two players never swap. */
-  foreign_seed(): number | null {
+  foreign_seed(): { seed: number; kind: WorldKind } | null {
     if (!this.foreign.size) return null;
-    const seeds = [...this.foreign.values()].filter((f) => f.world === WORLD_VERSION).map((f) => f.seed);
-    for (let i = 0; i <= this.remotes.size; i++) seeds.push(this.seed);
-    const seed = most_common(seeds);
-    return seed === this.seed ? null : seed;
+    const kinds = new Map(Object.values(WorldKind).map((kind) => [world_id(kind), kind]));
+    const key = (world: number, seed: number) => world * 2 ** 32 + seed;
+    const maps = [...this.foreign.values()].filter((f) => kinds.has(f.world)).map((f) => key(f.world, f.seed));
+    const own = key(this.world, this.seed);
+    for (let i = 0; i <= this.remotes.size; i++) maps.push(own);
+    const map = most_common(maps);
+    if (map === null || map === own) return null;
+    return { seed: map % 2 ** 32, kind: kinds.get(Math.floor(map / 2 ** 32)) ?? WorldKind.ISLAND };
   }
 
   /**

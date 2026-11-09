@@ -4,6 +4,7 @@ import type { Net } from "./net";
 import type { Race } from "./race";
 import { brand, dark, rgba } from "./palette";
 import { SIZE, type World } from "./world";
+import { WorldKind } from "./worldgen/types";
 
 export function $<T extends HTMLElement>(id: string, type: { new (): T; prototype: T }): T;
 export function $(id: string): HTMLElement;
@@ -86,8 +87,8 @@ export class Hud {
     $("room").textContent = room;
     $("room").title = room;
     this.el.join_map.addEventListener("click", () => {
-      const seed = this.net.foreign_seed();
-      if (seed !== null) location.search = `?${new URLSearchParams({ room, seed: String(seed) })}`;
+      const map = this.net.foreign_seed();
+      if (map) location.search = `?${new URLSearchParams({ room, seed: String(map.seed), ...(map.kind === WorldKind.SKY ? { world: map.kind } : {}) })}`;
     });
     document.documentElement.dataset.scheme = dark ? "dark" : "light";
     const canvas = $("minimap", HTMLCanvasElement);

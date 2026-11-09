@@ -26,18 +26,21 @@ import { Race, type RaceSnapshot } from "./race";
 import { Remotes } from "./remotes";
 import { seed_of } from "./rng";
 import { WorldView, load_world, water_mesh } from "./scene";
-import { clouds, sky } from "./sky";
+import { cloud_floor, clouds, sky } from "./sky";
 import { Lighting } from "./lighting";
 import { NanProbe, sanitise_bloom } from "./postfx";
 import { CAMERA_RETURN_SECONDS, CameraView, Settings, invite_link, load_settings, save_setting, type SettingsState } from "./settings";
 import { ask_name } from "./name-prompt";
 import { BUILD, Updater, show_version } from "./update";
 import { SPAWN_INDEX } from "./world";
+import { FALL_DEPTH } from "./worldgen/sky";
+import { WorldKind, parse_kind, world_id, world_key } from "./worldgen/types";
 import "./style.css";
 
 const params = new URLSearchParams(location.search);
 const room = clean_room(params.get("room")) ?? "lobby";
 const seed = parse_seed(params.get("seed")) ?? seed_of(room);
+const kind = parse_kind(params.get("world"));
 const ADJECTIVES = ["Swift", "Fuzzy", "Lucky", "Bouncy", "Sly", "Brave", "Zippy", "Mellow"];
 const random_name = `${ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)]} Bunny`;
 const prefs = load_settings(params);
@@ -54,7 +57,7 @@ const unlock_audio = () => {
   if (audio.running) for (const event of UNLOCK_EVENTS) removeEventListener(event, unlock_audio);
 };
 for (const event of UNLOCK_EVENTS) addEventListener(event, unlock_audio);
-const { world, chunks } = await load_world(seed);
+const { world, chunks } = await load_world(seed, kind);
 
 const quality = new Quality(params, prefs.quality);
 // Canvas-bug bisect switches for ?debug, combined with ?quality=medium: each drops one piece of the bloom path.
@@ -75,7 +78,7 @@ const sun = light.sun;
 quality.apply(renderer, scene, sun);
 
 const world_view = new WorldView(world, chunks, quality.mobile);
-scene.add(...light.dress(sky(), clouds(world.seed)), world_view.root, roadside(world), water_mesh());
+scene.add(...light.dress(sky(), clouds(world.seed)), world_view.root, ...(world.kind === WorldKind.SKY ? [cloud_floor(world)] : [roadside(world), water_mesh()]));
 const gate_views = gates(world);
 for (const g of gate_views) scene.add(g.group);
 
@@ -84,7 +87,7 @@ if (asked_name) {
   save_setting("name", prefs.name);
 }
 const lock = load_lock(room);
-const net = new Net(room, seed, prefs.name ?? random_name, lock);
+const net = new Net(room, seed, prefs.name ?? random_name, lock, world_id(kind));
 const directory = new Directory(
   () => ({ room, seed, host: net.name, players: 1 + net.remotes.size, locked: lock !== null, version: BUILD.version }),
   () => net.leader,
@@ -132,10 +135,10 @@ renderer.domElement.addEventListener("dblclick", () => chase.recenter());
 const race = new Race(world);
 const chase = new ChaseCamera(camera);
 const remotes = new Remotes(scene, $("labels"), net, world);
-const lobby = new Lobby(net, min_lap_ms(world.checkpoints), seed);
+const lobby = new Lobby(net, min_lap_ms(world.checkpoints), world_key(seed, kind));
 lobby.start();
 const hud = new Hud(world, race, net, room, lobby);
-const ghost = new Ghost(scene, world.seed);
+const ghost = new Ghost(scene, world.seed, `harepin:ghost:${world_key(world.seed, kind)}`);
 race.on_lap = (improved) => {
   ghost.finish(improved);
   lobby.lap(performance.now());
@@ -164,6 +167,7 @@ race.on_start = () => ghost.start();
 const settings = new Settings(document.body, {
   room,
   seed,
+  kind,
   name: () => net.name,
   quality_status: () => ({ tier: quality.tier_name, ratio: quality.ratio, bloom: quality.tier.bloom, shadow_size: quality.tier.shadow_size }),
   race_busy: () => lobby.busy,
@@ -213,6 +217,13 @@ function spawn_at(index: number, reverse = false) {
   const p = world.road[world.clear_spawn(index, reverse ? -1 : 1)];
   car.place(p.x, world.height(p.x, p.z) + 0.75, p.z, Math.atan2(p.tx, p.tz) + (reverse ? Math.PI : 0));
   chase.snap(car);
+}
+
+// Back on the last checkpoint passed, not the nearest deck: that can be a later section, and a fall would be a shortcut.
+function fall_back() {
+  const n = world.checkpoints.length;
+  const cp = world.checkpoints[(race.next - 1 + n) % n];
+  spawn_at(race.started ? world.road.indexOf(world.nearest_road(cp.x, cp.z)) : SPAWN_INDEX);
 }
 
 // In a lobby race a reset stays on the circuit; free driving drops the car on the nearest street.
@@ -509,6 +520,10 @@ function frame(now: number) {
   }
 
   const upright = new THREE.Vector3(0, 1, 0).applyQuaternion(car.quat).y;
+  if (world.kind === WorldKind.SKY && car.pos.y < world.nearest_road(car.pos.x, car.pos.z).y - FALL_DEPTH) {
+    fall_back();
+    stuck = 0;
+  }
   const drowned = world.height(car.pos.x, car.pos.z) < -0.4 && car.pos.y < 0.4;
   stuck = !rewinding && (drowned || (upright < 0.3 && car.vel.length() < 2)) ? stuck + dt : 0;
   if (stuck > 1.5) {
@@ -600,7 +615,7 @@ document.head.append(Object.assign(document.createElement("meta"), { name: "them
 
 const invite = $("chat-invite", HTMLButtonElement);
 invite.addEventListener("click", async () => {
-  const link = invite_link(room, seed);
+  const link = invite_link(room, seed, kind);
   try {
     await navigator.clipboard.writeText(link);
     invite.textContent = "Copied!";

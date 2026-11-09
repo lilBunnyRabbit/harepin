@@ -3,6 +3,7 @@ import { DirectoryStatus, PASSWORD_LENGTH, ROOM_LENGTH, clean_password, clean_ro
 import { clean_name, parse_seed } from "./net";
 import { HARMONIES as HARMONY_HUES, Harmony, generate_theme, is_dark, type ThemeMode } from "./random-theme";
 import { mulberry32 } from "./rng";
+import { WorldKind } from "./worldgen/types";
 import {
   THEMES,
   THEME_NAME_LENGTH,
@@ -181,6 +182,7 @@ export interface QualityStatus {
 export interface SettingsHost {
   readonly room: string;
   readonly seed: number;
+  readonly kind: WorldKind;
   name(): string;
   quality_status(): QualityStatus;
   race_busy(): boolean;
@@ -338,8 +340,8 @@ function random_seed() {
   return Math.floor(Math.random() * 0x7fffffff);
 }
 
-export function invite_link(room: string, seed: number): string {
-  return `${location.origin}${location.pathname}?room=${encodeURIComponent(room)}&seed=${seed}`;
+export function invite_link(room: string, seed: number, kind: WorldKind = WorldKind.ISLAND): string {
+  return `${location.origin}${location.pathname}?room=${encodeURIComponent(room)}&seed=${seed}${kind === WorldKind.SKY ? `&world=${kind}` : ""}`;
 }
 
 const DIRECTORY_NOTE: Record<DirectoryStatus, string> = {
@@ -622,13 +624,13 @@ export class Settings {
     const room_value = el("div", "settings-inline");
     room_value.append(
       el("b", "settings-value", room),
-      this.copy_action("Copy invite", invite_link(room, seed)),
+      this.copy_action("Copy invite", invite_link(room, seed, this.host.kind)),
     );
 
     const map_value = el("div", "settings-inline");
     map_value.append(
       el("b", "settings-value settings-number", String(seed)),
-      this.action("New map", () => this.go({ room, seed: String(random_seed()) })),
+      this.action("New map", () => this.go({ room, seed: String(random_seed()), ...(this.host.kind === WorldKind.SKY ? { world: this.host.kind } : {}) })),
     );
 
     const name = el("input", "settings-input");
@@ -742,7 +744,7 @@ export class Settings {
     }
 
     const current = el("div", "settings-inline");
-    current.append(el("b", "settings-value settings-number", String(seed)), this.copy_action("Copy link", invite_link(room, seed)));
+    current.append(el("b", "settings-value settings-number", String(seed)), this.copy_action("Copy link", invite_link(room, seed, this.host.kind)));
     const current_row = this.row("This island", current, `Room ${room} is driving it`);
     current_row.classList.add("world-current");
 

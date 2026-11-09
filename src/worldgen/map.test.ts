@@ -26,7 +26,7 @@ function from_worker(request: MapRequest): Promise<MapData> {
 
 test("the map worker draws the same island as a direct call", async () => {
   const direct = map_data(generate(SEED), TONES);
-  expect(await from_worker({ seed: SEED, tones: TONES })).toEqual(direct);
+  expect(await from_worker({ seed: SEED, kind: "island", tones: TONES })).toEqual(direct);
 }, 30_000);
 
 test("the map covers the island and draws the circuit through the start", () => {

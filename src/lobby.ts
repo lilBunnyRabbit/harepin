@@ -1,6 +1,5 @@
 import { add_race, placing, local_store, parse_race_record, read_json, write_json, type RaceRecord, type Store } from "./modes/track";
 import type { Net, RaceEvent, Remote } from "./net";
-import { world_key } from "./worldgen/types";
 
 export const COUNTDOWN_MS = 3000;
 const MAX_SPEED = 90;
@@ -51,10 +50,11 @@ export class Lobby {
   constructor(
     private net: Net,
     private min_lap: number,
-    seed: number,
+    /** `world_key` of the map the race runs on. */
+    world: string,
     private readonly store: Store | null = local_store(),
   ) {
-    this.record_key = `harepin:lobby:${world_key(seed)}`;
+    this.record_key = `harepin:lobby:${world}`;
     this.record = parse_race_record(read_json(store, this.record_key));
   }
 

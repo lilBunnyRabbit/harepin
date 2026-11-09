@@ -1,6 +1,10 @@
 import * as THREE from "three";
 import { brand, color, dark, glow, mix } from "./palette";
-import { fbm } from "./world";
+import { fbm, type World } from "./world";
+
+const FLOOR_PUFFS = 120;
+const FLOOR_REACH = 1000;
+const FLOOR_BELOW = 80;
 
 export const SUN_DIR = new THREE.Vector3(-0.42, dark ? 0.17 : 0.55, 0.89).normalize();
 
@@ -134,6 +138,37 @@ export function clouds(seed = 0): THREE.Object3D {
       mesh.setColorAt(k, tint.copy(shade).lerp(lit, toward ** 2));
       k++;
     }
+  }
+  mesh.instanceMatrix.needsUpdate = true;
+  if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  return mesh;
+}
+
+/** A sea of puffs under the sky track, spread over its bounds; unlike the ring clouds it takes fog, so it fades out below. */
+export function cloud_floor(world: World): THREE.Object3D {
+  const { road } = world;
+  const low = Math.min(...road.map((p) => p.y));
+  const puff = new THREE.IcosahedronGeometry(1, 1);
+  const material = new THREE.MeshLambertMaterial({ flatShading: true, emissive: color(sky_tones.cloud_lit), emissiveIntensity: dark ? 0.08 : 0.55 });
+  const mesh = new THREE.InstancedMesh(puff, material, FLOOR_PUFFS);
+  const m = new THREE.Matrix4();
+  const q = new THREE.Quaternion();
+  const s = new THREE.Vector3();
+  const p = new THREE.Vector3();
+  const tint = new THREE.Color();
+  const lit = color(sky_tones.cloud_lit);
+  const shade = color(sky_tones.cloud);
+  const axis = new THREE.Vector3(0, 1, 0);
+  const seed = world.seed;
+  for (let i = 0; i < FLOOR_PUFFS; i++) {
+    const x = (fbm(i, 0.5, seed + 81) * 2 - 1) * FLOOR_REACH + (((i * 37) % 23) - 11) * 90;
+    const z = (fbm(i, 1.5, seed + 82) * 2 - 1) * FLOOR_REACH + (((i * 53) % 19) - 9) * 100;
+    const size = 50 + fbm(i, 2.5, seed + 83) * 70;
+    p.set(x, low - FLOOR_BELOW - fbm(i, 3.5, seed + 84) * 60, z);
+    q.setFromAxisAngle(axis, i * 1.7);
+    s.set(size * 2, size * 0.45, size * 1.4);
+    mesh.setMatrixAt(i, m.compose(p, q, s));
+    mesh.setColorAt(i, tint.copy(shade).lerp(lit, 0.35 + fbm(i, 4.5, seed + 85) * 0.5));
   }
   mesh.instanceMatrix.needsUpdate = true;
   if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
