@@ -36,6 +36,11 @@ const HOLD_CENTRE_DISTANCE = 14;
 const STICK_SPEED = 0.2;
 const STICK_SPRING = 25;
 const STICK_DAMPER = 2.2;
+// Bearing drag on a wheel in the air, per second. It was 0.1% a step, 30% a second at 360 Hz, so after a long jump every
+// wheel landed turning half the car's speed: past peak slip, with little lateral grip left.
+const AIR_SPIN_DRAG = 0.02;
+/** Load (N) at which the old load-sensitivity parabola fell to zero grip. */
+const LOAD_FADE = 32000;
 
 // Normalised magic formula: peak at s = 1, sliding grip sin(C·π/2) ≈ 65% of peak.
 const MF_C = 1.55;
@@ -290,8 +295,14 @@ export class Car {
     }
 
     let max_slip = 0;
-    for (const w of driven) max_slip = Math.max(max_slip, w.slip);
-    if (this.tcs && pedal > 0.1 && max_slip > 0.14 && speed > 1) this.tcs_factor = Math.max(0.15, this.tcs_factor - 9 * dt);
+    let max_drag = 0;
+    for (const w of driven) {
+      max_slip = Math.max(max_slip, w.slip);
+      if (!w.contact) max_drag = Math.max(max_drag, -w.slip);
+    }
+    // On the ground some torque always gets through so a stuck car can still crawl out; in the air there is no grip to save.
+    const floor = driven.every((w) => !w.contact) ? 0 : 0.15;
+    if (this.tcs && pedal > 0.1 && max_slip > 0.14 && speed > 1) this.tcs_factor = Math.max(floor, this.tcs_factor - 9 * dt);
     else this.tcs_factor = Math.min(1, this.tcs_factor + 2.5 * dt);
     const gas = pedal * (this.tcs ? this.tcs_factor : 1);
     this.throttle = gas;
@@ -303,7 +314,10 @@ export class Car {
     if (this.shifting <= 0 && this.gear !== 0) {
       // Engine braking resists the way the wheels turn; rolling back in a forward gear it must not push the car downhill.
       const coast = wheel_omega * ratio < 0 ? -1 : 1;
-      const braking_torque = wheel_rpm > spec.idle ? (1 - gas) * (20 + rpm * 0.009) * coast : 0;
+      // Drag control, traction control's mirror: in the air nothing holds the driven wheels to road speed, and engine
+      // braking would drag them down towards idle so the car lands on them half locked.
+      const dragging = this.tcs && max_drag > 0;
+      const braking_torque = wheel_rpm > spec.idle && !dragging ? (1 - gas) * (20 + rpm * 0.009) * coast : 0;
       engine = rpm >= spec.redline ? -braking_torque : gas * torque_at(spec.torque, rpm) - braking_torque;
     }
     let drive_front = 0;
@@ -361,9 +375,11 @@ export class Car {
         let omega = w.omega + (dt * torque) / inertia;
         const cut = (dt * brake_torque) / inertia;
         omega -= Math.sign(omega) * Math.min(Math.abs(omega), cut);
-        w.omega = omega * 0.999;
+        w.omega = omega * (1 - AIR_SPIN_DRAG * dt);
         w.spin += w.omega * dt;
-        w.slip = 0;
+        // Wheel speed against the car's, as on the ground, so traction control still sees a wheel revving free in the
+        // air; unchecked it lands spinning far past peak slip with no lateral grip left.
+        w.slip = (w.omega * radius - vf) / Math.max(Math.abs(vf), 2);
         w.abs = false;
         w.abs_factor = 1;
         w.anchored = false;
@@ -394,7 +410,10 @@ export class Car {
       const denom = Math.max(Math.abs(v_long), 2);
       const surface = ground.grip(w.point.x, w.point.z);
       const grip = surface + (1 - surface) * spec.offroad;
-      const peak = spec.mu * (w.front ? 1 : spec.rear_grip) * grip * load * (1 - load / 32000);
+      // Tyre force grows ever slower with load and tops out at half LOAD_FADE; past that it stays flat. Left as a
+      // parabola it fell to nothing at LOAD_FADE and reversed above it, which a hard landing reaches.
+      const bite = Math.min(load, LOAD_FADE / 2);
+      const peak = spec.mu * (w.front ? 1 : spec.rear_grip) * grip * bite * (1 - bite / LOAD_FADE);
       const sy = -Math.atan2(v_lat, denom) / spec.peak_angle;
 
       // Semi-implicit wheel spin: linearise the tyre's longitudinal force around the current slip so a stiff tyre

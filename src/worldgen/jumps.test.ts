@@ -31,20 +31,27 @@ interface Jump {
   upright: number;
   air: number;
   landed: number;
+  /** Peak yaw rate (rad/s) once back on the ground, and how far the heading turned from the toe on. */
+  yaw: number;
+  heading: number;
 }
 
-function jump(r: Ramp, car: Car, speed: number): Jump {
+function jump(r: Ramp, car: Car, speed: number, slip = 0, gas = 0): Jump {
   const ground = ground_with(r);
   const challenge = r.length + apex(r) * 0.85;
   const up = new Vector3();
-  const out: Jump = { toe: 0, at_challenge: NaN, sink: 0, upright: 1, air: 0, landed: 0 };
+  const out: Jump = { toe: 0, at_challenge: NaN, sink: 0, upright: 1, air: 0, landed: 0, yaw: 0, heading: 0 };
   car.place(0, 1, -60, 0);
   car.vel.set(0, 0, speed);
   let last = car.pos.z;
   for (let i = 0; i < 360 * 8; i++) {
-    const throttle = car.pos.z < 0 ? Math.max(0, Math.min(1, (speed - car.forward_speed) * 0.5 + 0.3)) : 0;
+    const throttle = car.pos.z < 0 ? Math.max(0, Math.min(1, (speed - car.forward_speed) * 0.5 + 0.3)) : gas;
     car.step(DT, { steer: 0, throttle, brake: 0, handbrake: 0, analog: false }, ground);
-    if (last < 0 && car.pos.z >= 0) out.toe = car.forward_speed;
+    if (last < 0 && car.pos.z >= 0) {
+      out.toe = car.forward_speed;
+      car.vel.x += slip;
+      out.heading = -car.heading;
+    }
     if (last < challenge && car.pos.z >= challenge) out.at_challenge = car.pos.y;
     if (car.pos.z > r.length && car.wheels.every((w) => !w.contact)) {
       out.air += DT;
@@ -52,8 +59,10 @@ function jump(r: Ramp, car: Car, speed: number): Jump {
     }
     out.sink = Math.max(out.sink, ground.height(car.pos.x, car.pos.z) - car.pos.y);
     out.upright = Math.min(out.upright, up.set(0, 1, 0).applyQuaternion(car.quat).y);
+    if (out.air > 0.2 && car.wheels.some((w) => w.contact)) out.yaw = Math.max(out.yaw, Math.abs(car.ang.y));
     last = car.pos.z;
   }
+  out.heading += car.heading;
   return out;
 }
 
@@ -74,6 +83,16 @@ describe("ramps at 360 Hz", () => {
       const run = jump(ROAD, new Car(spec), 40);
       expect(run.landed).toBeLessThan(ROAD.length + ROAD.landing);
       expect(run.upright).toBeGreaterThan(0.75);
+    });
+  for (const [id, spec] of Object.entries(CARS))
+    test(`road kicker, ${id}: a flat-out landing with a little sideways slip stays straight`, () => {
+      for (const speed of [35, 38, 42])
+        for (const gas of [0, 1]) {
+          const run = jump(ROAD, new Car(spec), speed, 1.5, gas);
+          expect(run.yaw).toBeLessThan(0.35);
+          expect(Math.abs(run.heading)).toBeLessThan(0.15);
+          expect(run.upright).toBeGreaterThan(0.75);
+        }
     });
 });
 
