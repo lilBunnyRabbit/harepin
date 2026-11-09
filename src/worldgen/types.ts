@@ -259,7 +259,17 @@ export interface WorldData {
   circuit: number[];
   road: RoadPoint[];
   routes: Route[];
+  canyon: Canyon | null;
   timings: [string, number][];
+}
+
+export interface Canyon {
+  /** Centreline from the summit flank down to the coast, 4 m apart. */
+  points: [number, number][];
+  depth: number;
+  /** Half-width of the flat floor, and the run of each wall beyond it. */
+  floor: number;
+  wall: number;
 }
 
 export const RouteKind = { CIRCUIT: "circuit", STREET: "street", OFFROAD: "offroad" } as const;

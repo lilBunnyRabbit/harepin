@@ -2,6 +2,7 @@ import { sample, up, vertex } from "./field";
 import { ITEMS, JumpPlanner } from "./jumps";
 import { fbm, hash, length } from "./noise";
 import { Lots } from "./lots";
+import { carve, plan_canyon } from "./canyon";
 import { loop_road } from "./path";
 import { circuit_route, reverse_circuit, street_routes } from "./routes";
 import { join_candidates, Router, SHAPE_GRADE, spur_need, spur_points } from "./route";
@@ -38,6 +39,8 @@ export function generate(seed: number): WorldData {
   lap("terrain");
 
   const { road, stack } = loop_road(seed, heights);
+  const canyon = plan_canyon(seed, heights, road);
+  if (canyon) carve(heights, canyon);
   const nodes: RoadNode[] = [];
   const edges: RoadEdge[] = [];
   const ring: RoadEdge = { id: 0, a: 0, b: 0, kind: "highway", half: ROAD_HALF, closed: true, points: road };
@@ -165,7 +168,7 @@ export function generate(seed: number): WorldData {
     }
   lap("props");
 
-  return { kind: "island", deck: null, terrain: land, graph: { nodes, edges }, towns, lots: lot_list, buildings, props, parking, trees, solids, ramps: jumps.ramps, items: jumps.items, challenges: jumps.challenges, checkpoints, circuit: [ring.id], road, routes, timings };
+  return { kind: "island", deck: null, terrain: land, graph: { nodes, edges }, towns, lots: lot_list, buildings, props, parking, trees, solids, ramps: jumps.ramps, items: jumps.items, challenges: jumps.challenges, checkpoints, circuit: [ring.id], road, routes, canyon, timings };
 }
 
 export function generate_world(seed: number, kind: WorldKind): WorldData {

@@ -968,6 +968,7 @@ export function generate_sky(seed: number): WorldData {
     circuit: [0],
     road,
     routes: [circuit_route(road, checkpoints)],
+    canyon: null,
     timings: [["sky", performance.now() - t0]],
   };
 }
