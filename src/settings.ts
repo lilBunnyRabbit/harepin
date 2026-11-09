@@ -177,6 +177,20 @@ export function save_setting<K extends SettingKey>(key: K, value: SettingsState[
   write_saved({ ...read_saved(), [key]: value });
 }
 
+// Picking a world reloads the page; this one-shot flag lets that load skip the menu and drive straight away.
+const DRIVE_KEY = "harepin:drive";
+
+/** True once after a menu pick reloaded the page. */
+export function take_drive(): boolean {
+  try {
+    const set = sessionStorage.getItem(DRIVE_KEY) !== null;
+    sessionStorage.removeItem(DRIVE_KEY);
+    return set;
+  } catch {
+    return false;
+  }
+}
+
 export function load_settings(params = new URLSearchParams(location.search)): SettingsState {
   return with_overrides(read_saved(), params);
 }
@@ -1048,6 +1062,9 @@ export class Settings {
   }
 
   private go(query: Record<string, string>) {
+    try {
+      sessionStorage.setItem(DRIVE_KEY, "1");
+    } catch {}
     location.search = `?${new URLSearchParams(query)}`;
   }
 

@@ -29,7 +29,7 @@ import { cloud_floor, clouds, sky } from "./sky";
 import { PadTimer, type PadSnapshot } from "./sky-pads";
 import { Lighting } from "./lighting";
 import { NanProbe, sanitise_bloom } from "./postfx";
-import { CAMERA_RETURN_SECONDS, CameraView, Settings, invite_link, load_settings, type SettingsState } from "./settings";
+import { CAMERA_RETURN_SECONDS, CameraView, Settings, invite_link, load_settings, take_drive, type SettingsState } from "./settings";
 import { BUILD, Updater, show_version } from "./update";
 import { pick_world } from "./world-pick";
 import { GUARD_STATE, SystemBack, type Watcher } from "./system-back";
@@ -276,7 +276,7 @@ const system_back = new SystemBack(
   },
 );
 system_back.start();
-settings.open();
+if (!take_drive()) settings.open();
 // Typing a name on a phone would raise the keyboard over the menu, so only a mouse and keyboard get the cursor.
 if (prefs.name === null && matchMedia("(pointer: fine)").matches) settings.focus_name();
 
