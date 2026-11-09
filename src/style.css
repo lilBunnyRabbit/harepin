@@ -2301,14 +2301,9 @@ button:active:not(:disabled) {
   display: none;
 }
 
-/* The switches show only while the bar is in use; an aid that's off keeps its badge on the speedo meanwhile. */
-@media (pointer: fine) {
-  :root[data-hud="minimal"]:not(:has(.dock-top:hover, .dock-top :focus-visible, .assists:hover, .assists :focus-visible)) .assists {
-    display: none;
-  }
-}
 
-:root[data-hud="minimal"][data-calm] .actions {
+:root[data-hud="minimal"][data-calm] .actions,
+:root[data-hud="minimal"][data-calm] .assists:not(:hover, :focus-within) {
   opacity: 0.3;
 }
 
@@ -2323,7 +2318,7 @@ button:active:not(:disabled) {
 }
 
 @media (pointer: fine) {
-  :root[data-hud="minimal"]:has(.dock-top:hover, .dock-top :focus-visible, .assists:hover, .assists :focus-visible) .dock-left {
+  :root[data-hud="minimal"] .dock-left {
     bottom: calc(var(--inset-bottom) + var(--control-h) + var(--space-2));
   }
 }
