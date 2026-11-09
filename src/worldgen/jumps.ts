@@ -385,7 +385,7 @@ export class JumpPlanner {
       if (v < -ROAD_RUNUP) continue;
       if (Math.abs(p.tx * r.fz - p.tz * r.fx) > RUN_TURN) return false;
       if (v <= end && Math.abs(u) > (v >= -1 && v <= face_end(r) ? DECK_DRIFT : RUN_DRIFT)) return false;
-      if (gates.some((g) => length(g.x - p.x, g.z - p.z) < GATE_CLEAR)) return false;
+      if (v <= end && gates.some((g) => length(g.x - p.x, g.z - p.z) < GATE_CLEAR)) return false;
     }
     for (let v = -ROAD_RUNUP; v <= end; v += 2)
       for (let u = -reach; u <= reach; u += 2) {

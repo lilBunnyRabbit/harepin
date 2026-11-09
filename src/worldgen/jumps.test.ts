@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { Vector3 } from "three";
 import { Car, type Ground } from "../car";
 import { CARS } from "../cars";
+import { seed_of } from "../rng";
 import { generate } from "./index";
 import { apex, flight, ramp_surface, ROAD_KICKER } from "./jumps";
 import type { Ramp } from "./types";
@@ -105,4 +106,8 @@ test("jumps come out the same for a seed and every world gets some", () => {
   expect(a.ramps.length).toBeGreaterThan(2);
   expect(a.ramps.some((r) => r.road)).toBe(true);
   expect(a.items.some((i) => i.light) && a.items.some((i) => !i.light)).toBe(true);
+}, 30_000);
+
+test("the lobby circuit gets as many road kickers as a typical seed", () => {
+  expect(generate(seed_of("lobby")).ramps.filter((r) => r.road).length).toBeGreaterThanOrEqual(3);
 }, 30_000);
