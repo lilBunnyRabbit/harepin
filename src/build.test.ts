@@ -12,12 +12,17 @@ test("codes round-trip", () => {
   expect(build_code(decal)).toBe("rally.12.8.2.0.1.5.42");
   expect(parse_build(build_code(decal))).toEqual(decal);
   expect(parse_build(build_code({ ...build, number: 0 }))).toEqual({ ...build, number: 0 });
+  const drift = { ...build, car: "kaze", suspension: 3 } as const;
+  expect(build_code(drift)).toBe("kaze.12.3.2.3.1");
+  expect(parse_build(build_code(drift))).toEqual(drift);
+  expect(parse_build(build_code({ ...drift, ink: 2, number: 9 }))).toEqual({ ...drift, ink: 2, number: 9 });
 });
 
 test("codes from before decal ink and number still parse", () => {
   expect(build_code(DEFAULT_BUILD)).toBe("coupe.0.0.0.1.0");
   expect(parse_build("kaze.3.1.0.2.0")).toEqual({ car: "kaze", paint: 3, decal: 1, ink: 0, number: 7, spoiler: 0, suspension: 2, engine: 0 });
   expect(parse_build("coupe.3.1.2.1.0")).toEqual({ car: "coupe", paint: 3, decal: 1, ink: 0, number: 7, spoiler: 2, suspension: 1, engine: 0 });
+  for (const suspension of [0, 1, 2] as const) expect(parse_build(`hatch.0.0.0.${suspension}.0`)?.suspension).toBe(suspension);
 });
 
 test("off-grammar codes are rejected", () => {
@@ -34,6 +39,8 @@ test("off-grammar codes are rejected", () => {
     "coupe.0.1.0.1.0.0.7.0",
     "coupe.0.1.0.1.0..7",
     "coupe.0.0.3.1.0",
+    "coupe.0.0.0.4.0",
+    "coupe.0.0.0.1.3",
     "coupe.-1.0.0.1.0",
     "coupe.1e1.0.0.1.0",
     " coupe.0.0.0.1.0",
@@ -64,4 +71,14 @@ test("options move the spec the documented way", () => {
   expect(spec.mass).toBe(RALLY.mass + 30);
   expect(spec.torque[3][1]).toBeCloseTo(RALLY.torque[3][1] * 1.3);
   expect(RALLY.wheel.rest).toBeCloseTo(COUPE.wheel.rest + 0.04);
+});
+
+test("drift stiffens the rear bar past the front and sits low", () => {
+  const spec = apply_build(COUPE, { ...DEFAULT_BUILD, suspension: 3 });
+  expect(spec.arb_rear).toBeGreaterThan(spec.arb_front * 2);
+  expect(spec.arb_front).toBeLessThan(COUPE.arb_front);
+  expect(spec.spring).toBeGreaterThan(COUPE.spring);
+  expect(spec.wheel.rest).toBeLessThan(COUPE.wheel.rest);
+  expect(spec.rear_grip).toBeLessThan(COUPE.rear_grip);
+  expect(spec.lock).toBeGreaterThan(COUPE.lock);
 });

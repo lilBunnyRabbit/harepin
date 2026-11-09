@@ -1,8 +1,9 @@
 /// <reference types="bun" />
 import { describe, expect, test } from "bun:test";
 import { Vector3 } from "three";
+import { DEFAULT_BUILD, apply_build, type SuspensionLevel } from "./build";
 import { Car, SteerMode, ride_height, type Controls, type Ground } from "./car";
-import { CARS, type CarSpec } from "./cars";
+import { CARS, type CarId, type CarSpec } from "./cars";
 
 const flat: Ground = { height: () => 0, normal: (_x, _z, out) => out.set(0, 1, 0), grip: () => 1, roll: () => 1 };
 const DT = 1 / 360;
@@ -205,6 +206,71 @@ describe("park and idle hold", () => {
       expect(kmh(car)).toBeGreaterThan(5);
     }
   });
+});
+
+describe("drift suspension", () => {
+  const local = new Vector3();
+  const beta = (car: Car) => {
+    local.copy(car.vel).applyQuaternion(car.quat.clone().invert());
+    return Math.atan2(-local.x, local.z);
+  };
+  const slip = (car: Car) => Math.abs(beta(car)) * (180 / Math.PI);
+  const power_on: Controls = { ...idle, steer: 0.3, throttle: 1, analog: true };
+
+  // Aids off and held in third at 70 km/h, so the only thing between the two runs is the setup.
+  function rolling(id: CarId, suspension: SuspensionLevel): Car {
+    const car = new Car(apply_build(CARS[id], { ...DEFAULT_BUILD, car: id, suspension }));
+    Object.assign(car, { tcs: false, assist: false, auto: false });
+    car.place(0, 0.6, 0, 0);
+    run(car, 1.5, () => idle);
+    car.gear = 3;
+    run(car, 30, () => ({ ...cruise(car, 70), analog: true }));
+    return car;
+  }
+
+  function step_steer(id: CarId, suspension: SuspensionLevel) {
+    const car = rolling(id, suspension);
+    run(car, 0.8, () => power_on);
+    const early = slip(car);
+    run(car, 0.4, () => power_on);
+    return { early, late: slip(car) };
+  }
+
+  // A plain countersteer-and-feather driver aiming for 26 degrees: time spent between 15 and 50 is a slide held.
+  function held_slide(id: CarId, suspension: SuspensionLevel) {
+    const car = rolling(id, suspension);
+    run(car, 1, () => power_on);
+    let held = 0;
+    let most = 0;
+    for (let t = 0; t < 4; t += DT) {
+      const b = beta(car);
+      const err = Math.abs(b) - 0.45;
+      const lock = car.spec.lock / (1 + car.vel.length() / 45);
+      car.step(DT, { ...idle, analog: true, steer: Math.max(-1, Math.min(1, (b * 1.2 + Math.sign(b) * err) / lock)), throttle: Math.max(0, Math.min(1, 0.5 - err)) }, flat);
+      const s = slip(car);
+      most = Math.max(most, s);
+      if (s >= 15 && s <= 50) held += DT;
+    }
+    return { held, most };
+  }
+
+  for (const id of ["coupe", "kaze"] as const) {
+    test(`${id}: under power, drift steps the rear out well past race without spinning on the spot`, () => {
+      const race = step_steer(id, 2);
+      const drift = step_steer(id, 3);
+      expect(drift.early).toBeGreaterThan(race.early * 1.5);
+      expect(drift.late).toBeGreaterThan(race.late * 1.4);
+      expect(drift.late).toBeLessThan(45);
+    });
+
+    test(`${id}: drift holds a caught slide that race straightens out of`, () => {
+      const race = held_slide(id, 2);
+      const drift = held_slide(id, 3);
+      expect(drift.held).toBeGreaterThan(1.4);
+      expect(drift.held).toBeGreaterThan(race.held + 0.8);
+      expect(drift.most).toBeLessThan(45);
+    });
+  }
 });
 
 describe("rally off-road", () => {

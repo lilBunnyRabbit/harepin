@@ -1,6 +1,7 @@
 import { CARS, is_car, type CarId, type CarSpec } from "./cars";
 
 export type Level = 0 | 1 | 2;
+export type SuspensionLevel = Level | 3;
 
 export interface Build {
   car: CarId;
@@ -13,8 +14,8 @@ export interface Build {
   /** Shown by the number roundel, 0-99. */
   number: number;
   spoiler: Level;
-  /** 0 soft, 1 sport (stock), 2 race. */
-  suspension: Level;
+  /** 0 soft, 1 sport (stock), 2 race, 3 drift. */
+  suspension: SuspensionLevel;
   engine: Level;
 }
 
@@ -29,15 +30,19 @@ export const DEFAULT_BUILD: Build = { car: "coupe", paint: 0, decal: 0, ink: 0, 
 const SPOILER_DOWNFORCE = [1, 1.8, 2.6];
 const SPOILER_DRAG = [0, 0.04, 0.09];
 const SPOILER_REAR_GRIP = [0, 0.02, 0.04];
-const SUSPENSION_SPRING = [0.8, 1, 1.3];
-const SUSPENSION_ARB = [0.7, 1, 1.4];
-const SUSPENSION_REST = [0.04, 0, -0.03];
+const SUSPENSION_SPRING = [0.8, 1, 1.3, 1.25];
+const SUSPENSION_ARB_FRONT = [0.7, 1, 1.4, 0.6];
+const SUSPENSION_ARB_REAR = [0.7, 1, 1.4, 3];
+const SUSPENSION_REST = [0.04, 0, -0.03, -0.02];
+const SUSPENSION_REAR_GRIP = [0, 0, 0, -0.02];
+// Drift's extra lock is the countersteer room that turns a power slide from a spin into a held angle.
+const SUSPENSION_LOCK = [1, 1, 1, 1.15];
 const ENGINE_TORQUE = [1, 1.15, 1.3];
 const ENGINE_REVS = [0, 300, 600];
 const ENGINE_MASS = [0, 15, 30];
 
 // Ink and number ride as an optional tail, so a build that keeps their defaults has the same code it had before them.
-const CODE = new RegExp(`^(${Object.keys(CARS).join("|")})\\.(\\d{1,2})\\.(\\d)\\.([012])\\.([012])\\.([012])(?:\\.(\\d)\\.(\\d{1,2}))?$`);
+const CODE = new RegExp(`^(${Object.keys(CARS).join("|")})\\.(\\d{1,2})\\.(\\d)\\.([012])\\.([0-3])\\.([012])(?:\\.(\\d)\\.(\\d{1,2}))?$`);
 
 export function build_code(build: Build): string {
   const code = `${build.car}.${build.paint}.${build.decal}.${build.spoiler}.${build.suspension}.${build.engine}`;
@@ -50,6 +55,11 @@ function level(digit: string): Level {
   return n;
 }
 
+function suspension_level(digit: string): SuspensionLevel {
+  const n = Number(digit);
+  return n === 3 ? n : level(digit);
+}
+
 export function parse_build(code: unknown): Build | null {
   if (typeof code !== "string" || code.length > 32) return null;
   const m = CODE.exec(code);
@@ -59,24 +69,24 @@ export function parse_build(code: unknown): Build | null {
   const ink = m[7] === undefined ? DEFAULT_BUILD.ink : Number(m[7]);
   const number = m[8] === undefined ? DEFAULT_BUILD.number : Number(m[8]);
   if (paint > MAX_PAINT || decal > MAX_DECAL || ink > MAX_INK || number > MAX_NUMBER) return null;
-  return { car: m[1], paint, decal, ink, number, spoiler: level(m[4]), suspension: level(m[5]), engine: level(m[6]) };
+  return { car: m[1], paint, decal, ink, number, spoiler: level(m[4]), suspension: suspension_level(m[5]), engine: level(m[6]) };
 }
 
 export function apply_build(base: CarSpec, build: Build): CarSpec {
   const { spoiler, suspension, engine } = build;
   const spring = SUSPENSION_SPRING[suspension];
-  const arb = SUSPENSION_ARB[suspension];
   const revs = ENGINE_REVS[engine];
   const torque = ENGINE_TORQUE[engine];
   return {
     ...base,
     mass: base.mass + ENGINE_MASS[engine],
+    lock: base.lock * SUSPENSION_LOCK[suspension],
     wheel: { ...base.wheel, rest: base.wheel.rest + SUSPENSION_REST[suspension] },
     spring: base.spring * spring,
     damper: base.damper * spring,
-    arb_front: base.arb_front * arb,
-    arb_rear: base.arb_rear * arb,
-    rear_grip: base.rear_grip + SPOILER_REAR_GRIP[spoiler],
+    arb_front: base.arb_front * SUSPENSION_ARB_FRONT[suspension],
+    arb_rear: base.arb_rear * SUSPENSION_ARB_REAR[suspension],
+    rear_grip: base.rear_grip + SPOILER_REAR_GRIP[spoiler] + SUSPENSION_REAR_GRIP[suspension],
     redline: base.redline + revs,
     upshift: base.upshift + revs,
     torque: base.torque.map(([rpm, nm]) => [rpm, nm * torque]),

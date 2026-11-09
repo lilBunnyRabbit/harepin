@@ -8,11 +8,11 @@ import "./garage.css";
 
 export const BUILD_KEY = "harepin:build";
 
-const LEVELS: Record<"spoiler" | "suspension" | "engine", [string, string, string]> = {
+const LEVELS = {
   spoiler: ["None", "Lip", "Wing"],
-  suspension: ["Soft", "Sport", "Race"],
+  suspension: ["Soft", "Sport", "Race", "Drift"],
   engine: ["Stock", "Tuned", "Race"],
-};
+} satisfies Record<"spoiler" | "suspension" | "engine", readonly string[]>;
 type Option = keyof typeof LEVELS;
 const OPTIONS = Object.keys(LEVELS) as Option[];
 
