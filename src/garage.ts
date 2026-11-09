@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { DECALS, DEFAULT_BUILD, DEFAULT_PARTS, MAX_NUMBER, SLOTS, SLOT_NAMES, STATS, build_code, build_spec, parse_build, stat_range, stats, type Build, type Decal, type Slot, type Stats } from "./build";
+import { DECALS, DEFAULT_BUILD, DEFAULT_PARTS, MAX_NUMBER, SLOTS, SLOT_NAMES, STATS, build_code, build_spec, parse_build, part_of, stat_range, stats, type Build, type Decal, type Slot, type Stats } from "./build";
 import { CARS, is_car, type CarSpec } from "./cars";
 import { FLAME, SIDE_BAND, SLASH } from "./livery";
 import { build_view, dispose_car_view, livery_of, rest_wheels, type CarView } from "./models";
@@ -13,8 +13,6 @@ const STAT_NAMES: Record<keyof Stats, string> = { power: "Power", grip: "Grip", 
 const BAR_FLOOR = 0.08;
 
 const is_slot = (value: string): value is Slot => Object.hasOwn(SLOTS, value);
-const SLOT_TITLES: Partial<Record<Slot, string>> = { bias: "Brake bias" };
-const title = (slot: Slot) => SLOT_TITLES[slot] ?? slot[0].toUpperCase() + slot.slice(1);
 
 const DECAL_NAMES: Record<Decal, string> = {
   none: "None",
@@ -189,7 +187,7 @@ export class Garage {
       next.setAttribute("aria-label", `Next ${slot}`);
       cycler.append(prev, name, next);
       const cell = element("div", "garage-slot");
-      cell.append(element("div", "garage-label garage-slot-label", title(slot)), cycler);
+      cell.append(element("div", "garage-label garage-slot-label", SLOTS[slot].label), cycler);
       slots.append(cell);
     }
     panel.append(this.group("parts", element("div", "garage-label", "Parts"), slots));
@@ -309,7 +307,7 @@ export class Garage {
     else if (kind === "part") {
       const [slot, step] = value.split(":");
       if (!is_slot(slot)) return;
-      const count = SLOTS[slot].length;
+      const count = SLOTS[slot].parts.length;
       this.apply({ ...b, parts: { ...b.parts, [slot]: (b.parts[slot] + Number(step) + count) % count } });
     }
     else if (is_numeric(kind)) this.apply({ ...b, [kind]: Number(value) });
@@ -382,7 +380,7 @@ export class Garage {
 
   private show_parts(spec: CarSpec) {
     const b = this.current;
-    for (const [slot, name] of this.part_names) name.textContent = SLOTS[slot][b.parts[slot]].name;
+    for (const [slot, name] of this.part_names) name.textContent = part_of(slot, b.parts[slot]).name;
     const now = stats(spec);
     const stock = stats(build_spec({ ...b, parts: DEFAULT_PARTS }));
     const { low, high } = stat_range();

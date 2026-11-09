@@ -1,4 +1,5 @@
 import { CARS, is_car, type CarId, type CarSpec, type Triple } from "./cars";
+import type { Token } from "./theme";
 
 type NumericField = Exclude<{ [K in keyof CarSpec]-?: CarSpec[K] extends number ? K : never }[keyof CarSpec], "awd_split">;
 
@@ -19,56 +20,96 @@ export interface Mod {
   add?: Partial<Record<Field, number>>;
 }
 
+/** How a part shows on the car model (`models.ts`); a part without one draws as the design's stock look. */
+export interface Look {
+  /** Tread width and rim size against the design's (a bigger rim is a lower sidewall), block tread, and a sidewall ring colour. */
+  tyre?: { width: number; rim: number; tread?: boolean; band?: Token };
+  /** Brake caliper size; a theme colour sets it proud of the spokes, without one it is trim and hides behind them. */
+  caliper?: { size: number; tone?: Token };
+}
+
 export interface Part {
   name: string;
   mod: Mod;
+  look?: Look;
+}
+
+export interface SlotSpec {
+  label: string;
+  parts: Part[];
 }
 
 // Spoiler, suspension and engine sit at fixed spots in the build code; every other slot rides in its tail in table order,
 // so a new slot goes last here or old codes would read its digits as another slot's.
 export const SLOTS = {
-  engine: [
-    { name: "Stock", mod: {} },
-    { name: "Tuned", mod: { scale: { torque: 1.15 }, add: { redline: 300, upshift: 300, mass: 15 } } },
-    { name: "Race", mod: { scale: { torque: 1.3 }, add: { redline: 600, upshift: 600, mass: 30 } } },
-  ],
-  tyres: [
-    { name: "Street", mod: {} },
-    { name: "Sport", mod: { scale: { mu: 1.06 }, add: { offroad: -0.15 } } },
-    { name: "Semi-slick", mod: { scale: { mu: 1.12 }, add: { offroad: -0.6 } } },
-    { name: "Rally", mod: { scale: { mu: 0.96 }, add: { offroad: 0.5 } } },
-  ],
-  spoiler: [
-    { name: "None", mod: {} },
-    { name: "Lip", mod: { scale: { downforce: 1.8 }, add: { drag: 0.04, rear_grip: 0.02 } } },
-    { name: "Wing", mod: { scale: { downforce: 2.6 }, add: { drag: 0.09, rear_grip: 0.04 } } },
-  ],
-  suspension: [
-    { name: "Soft", mod: { scale: { spring: 0.8, damper: 0.8, arb_front: 0.7, arb_rear: 0.7 }, add: { rest: 0.04 } } },
-    { name: "Sport", mod: {} },
-    { name: "Race", mod: { scale: { spring: 1.3, damper: 1.3, arb_front: 1.4, arb_rear: 1.4 }, add: { rest: -0.03 } } },
-    // Drift's extra lock is the countersteer room that turns a power slide from a spin into a held angle.
-    { name: "Drift", mod: { scale: { spring: 1.25, damper: 1.25, arb_front: 0.6, arb_rear: 3, lock: 1.15, assist_yaw: 0.6 }, add: { rest: -0.02, rear_grip: -0.02 } } },
-  ],
-  brakes: [
-    { name: "Stock", mod: {} },
-    { name: "Sport", mod: { scale: { brake_front: 1.15, brake_rear: 1.15 }, add: { brake_grip: 0.14 } } },
-    { name: "Race", mod: { scale: { brake_front: 1.3, brake_rear: 1.3 }, add: { brake_grip: 0.3 } } },
-  ],
-  weight: [
-    { name: "Stock", mod: {} },
-    { name: "Light", mod: { scale: { mass: 0.95, inertia: 0.95 }, add: { cog: 0.01 } } },
-    { name: "Stripped", mod: { scale: { mass: 0.9, inertia: 0.9 }, add: { cog: 0.025 } } },
-  ],
-  bias: [
-    { name: "Front", mod: { scale: { brake_front: 1.1, brake_rear: 0.75 } } },
-    { name: "Balanced", mod: {} },
-    { name: "Rear", mod: { scale: { brake_front: 0.92, brake_rear: 1.3 } } },
-  ],
-} satisfies Record<string, Part[]>;
+  engine: {
+    label: "Engine",
+    parts: [
+      { name: "Stock", mod: {} },
+      { name: "Tuned", mod: { scale: { torque: 1.15 }, add: { redline: 300, upshift: 300, mass: 15 } } },
+      { name: "Race", mod: { scale: { torque: 1.3 }, add: { redline: 600, upshift: 600, mass: 30 } } },
+    ],
+  },
+  tyres: {
+    label: "Tyres",
+    parts: [
+      { name: "Street", mod: {} },
+      { name: "Sport", mod: { scale: { mu: 1.06 }, add: { offroad: -0.15 } }, look: { tyre: { width: 1.15, rim: 1.06 } } },
+      { name: "Semi-slick", mod: { scale: { mu: 1.12 }, add: { offroad: -0.6 } }, look: { tyre: { width: 1.32, rim: 1.12, band: "warning" } } },
+      { name: "Rally", mod: { scale: { mu: 0.96 }, add: { offroad: 0.5 } }, look: { tyre: { width: 1.1, rim: 0.88, tread: true } } },
+    ],
+  },
+  spoiler: {
+    label: "Spoiler",
+    parts: [
+      { name: "None", mod: {} },
+      { name: "Lip", mod: { scale: { downforce: 1.8 }, add: { drag: 0.04, rear_grip: 0.02 } } },
+      { name: "Wing", mod: { scale: { downforce: 2.6 }, add: { drag: 0.09, rear_grip: 0.04 } } },
+    ],
+  },
+  suspension: {
+    label: "Suspension",
+    parts: [
+      { name: "Soft", mod: { scale: { spring: 0.8, damper: 0.8, arb_front: 0.7, arb_rear: 0.7 }, add: { rest: 0.04 } } },
+      { name: "Sport", mod: {} },
+      { name: "Race", mod: { scale: { spring: 1.3, damper: 1.3, arb_front: 1.4, arb_rear: 1.4 }, add: { rest: -0.03 } } },
+      // Drift's extra lock is the countersteer room that turns a power slide from a spin into a held angle.
+      { name: "Drift", mod: { scale: { spring: 1.25, damper: 1.25, arb_front: 0.6, arb_rear: 3, lock: 1.15, assist_yaw: 0.6 }, add: { rest: -0.02, rear_grip: -0.02 } } },
+    ],
+  },
+  brakes: {
+    label: "Brakes",
+    parts: [
+      { name: "Stock", mod: {} },
+      { name: "Sport", mod: { scale: { brake_front: 1.15, brake_rear: 1.15 }, add: { brake_grip: 0.14 } }, look: { caliper: { size: 1.15, tone: "error" } } },
+      { name: "Race", mod: { scale: { brake_front: 1.3, brake_rear: 1.3 }, add: { brake_grip: 0.3 } }, look: { caliper: { size: 1.3, tone: "warning" } } },
+    ],
+  },
+  weight: {
+    label: "Weight",
+    parts: [
+      { name: "Stock", mod: {} },
+      { name: "Light", mod: { scale: { mass: 0.95, inertia: 0.95 }, add: { cog: 0.01 } } },
+      { name: "Stripped", mod: { scale: { mass: 0.9, inertia: 0.9 }, add: { cog: 0.025 } } },
+    ],
+  },
+  bias: {
+    label: "Brake bias",
+    parts: [
+      { name: "Front", mod: { scale: { brake_front: 1.1, brake_rear: 0.75 } } },
+      { name: "Balanced", mod: {} },
+      { name: "Rear", mod: { scale: { brake_front: 0.92, brake_rear: 1.3 } } },
+    ],
+  },
+} satisfies Record<string, SlotSpec>;
 
 export type Slot = keyof typeof SLOTS;
 export const SLOT_NAMES = Object.keys(SLOTS) as Slot[];
+
+export function part_of(slot: Slot, index: number): Part {
+  const parts: Part[] = SLOTS[slot].parts;
+  return parts[index];
+}
 
 const LIMITS: Partial<Record<Field, [number, number]>> = { offroad: [-1, 1] };
 
@@ -82,7 +123,7 @@ export interface Build {
   ink: number;
   /** Shown by the number roundel, 0-99. */
   number: number;
-  /** Index into `SLOTS[slot]` per slot. */
+  /** Index into `SLOTS[slot].parts` per slot. */
   parts: Record<Slot, number>;
 }
 
@@ -123,7 +164,7 @@ export function parse_build(code: unknown): Build | null {
   const parts = { ...DEFAULT_PARTS };
   HEAD.forEach((slot, i) => (parts[slot] = Number(m[4 + i])));
   TAIL.forEach((slot, i) => (parts[slot] = tail[i] ?? DEFAULT_PARTS[slot]));
-  if (SLOT_NAMES.some((slot) => parts[slot] >= SLOTS[slot].length)) return null;
+  if (SLOT_NAMES.some((slot) => parts[slot] >= SLOTS[slot].parts.length)) return null;
   return { car: m[1], paint, decal, ink, number, parts };
 }
 
@@ -138,7 +179,7 @@ function fold(mods: Mod[], field: Field, base: number): number {
 const is_numeric = (spec: CarSpec, field: keyof CarSpec): field is NumericField => typeof spec[field] === "number" && field !== "awd_split";
 
 export function apply_build(base: CarSpec, build: Build): CarSpec {
-  const mods = SLOT_NAMES.map((slot) => SLOTS[slot][build.parts[slot]].mod);
+  const mods = SLOT_NAMES.map((slot) => part_of(slot, build.parts[slot]).mod);
   const at = (field: Field, value: number) => fold(mods, field, value);
   const spec = { ...base };
   for (const field of Object.keys(base) as (keyof CarSpec)[]) if (is_numeric(base, field)) spec[field] = at(field, base[field]);
@@ -201,7 +242,7 @@ export function stat_range(): { low: Stats; high: Stats } {
         const parts = { ...DEFAULT_PARTS };
         for (const slot of SLOT_NAMES) {
           const pick = (i: number) => score({ ...DEFAULT_PARTS, [slot]: i });
-          parts[slot] = SLOTS[slot].reduce((best, _, i) => (pick(i) > pick(best) ? i : best), DEFAULT_PARTS[slot]);
+          parts[slot] = SLOTS[slot].parts.reduce((best, _, i) => (pick(i) > pick(best) ? i : best), DEFAULT_PARTS[slot]);
         }
         const value = sign * score(parts);
         low[key] = Math.min(low[key], value);

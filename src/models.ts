@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { rest_reach, type Car } from "./car";
-import { DECALS, DEFAULT_PARTS, build_spec, type Build, type Slot } from "./build";
+import { DECALS, DEFAULT_PARTS, build_spec, part_of, type Build, type Look, type Slot } from "./build";
 import { COUPE, type BodyStyle, type CarSpec, type Triple } from "./cars";
 import { livery_parts, roof, type Livery, type Panel } from "./livery";
 import { NEUTRAL_INKS, brand, car_paints, color, dark, decal_inks, glow, mix, tones } from "./palette";
@@ -485,35 +485,13 @@ function wing(level: number, style: BodyStyle, width: number, [z, y]: Point, pai
   return parts;
 }
 
-interface TyreLook {
-  /** Tread width and rim size against the design's: a bigger rim is a lower sidewall. */
-  width: number;
-  rim: number;
-  tread: boolean;
-  /** Sidewall lettering ring. */
-  band?: Lab;
-}
-
-/** Per `SLOTS.tyres` part. */
-const TYRE_LOOKS: TyreLook[] = [
-  { width: 1, rim: 1, tread: false },
-  { width: 1.15, rim: 1.06, tread: false },
-  { width: 1.32, rim: 1.12, tread: false, band: brand.warning },
-  { width: 1.1, rim: 0.88, tread: true },
-];
+const STOCK_TYRE: Required<Look>["tyre"] = { width: 1, rim: 1 };
+const STOCK_CALIPER: Required<Look>["caliper"] = { size: 1 };
 const TREAD_BLOCKS = 12;
-
-/** Per `SLOTS.brakes` part: caliper colour and size. */
-const CALIPERS: { tone: Lab; size: number }[] = [
-  { tone: tones.trim, size: 1 },
-  { tone: brand.error, size: 1.15 },
-  { tone: brand.warning, size: 1.3 },
-];
 
 const chrome_tone = () => color(mix(brand.foreground, brand.background_lightest, 0.6));
 
-function wheel_geometry(radius: number, width: number, rim: Rim, tyres: number): THREE.BufferGeometry {
-  const look = TYRE_LOOKS[tyres];
+function wheel_geometry(radius: number, width: number, rim: Rim, look: Required<Look>["tyre"]): THREE.BufferGeometry {
   const tone = rim.tone === "light" ? color(tones.check_light) : chrome_tone();
   const wide = width * look.width;
   const disc = radius * rim.size * look.rim;
@@ -524,7 +502,7 @@ function wheel_geometry(radius: number, width: number, rim: Rim, tyres: number):
   ];
   for (let i = 0; i < rim.spokes; i++) pieces.push(tint(new THREE.BoxGeometry(wide + 0.04, disc * 1.9, 0.06).rotateX((i * Math.PI) / rim.spokes), tone));
   if (rim.spokes) pieces.push(tint(new THREE.CylinderGeometry(disc * 0.3, disc * 0.3, wide + 0.05, 6).rotateZ(Math.PI / 2), tone));
-  if (look.band) pieces.push(tint(new THREE.CylinderGeometry(disc + 0.022, disc + 0.022, wide + 0.01, 8).rotateZ(Math.PI / 2), color(look.band)));
+  if (look.band) pieces.push(tint(new THREE.CylinderGeometry(disc + 0.022, disc + 0.022, wide + 0.01, 8).rotateZ(Math.PI / 2), color(brand[look.band])));
   if (look.tread)
     for (let i = 0; i < TREAD_BLOCKS; i++)
       pieces.push(tint(new THREE.BoxGeometry(wide * 0.46, 0.05, 0.1).translate((i % 2 ? 1 : -1) * wide * 0.26, radius, 0).rotateX((i * 2 * Math.PI) / TREAD_BLOCKS), rubber));
@@ -533,12 +511,10 @@ function wheel_geometry(radius: number, width: number, rim: Rim, tyres: number):
 
 // Fixed to the steering knuckle, not the spinning wheel. Stock hides behind the spokes; an upgrade sits proud of them so
 // its colour reads at speed and on disc rims.
-function caliper_geometry(radius: number, width: number, rim: Rim, tyres: number, brakes: number): THREE.BufferGeometry {
-  const look = TYRE_LOOKS[tyres];
-  const { tone, size } = CALIPERS[brakes];
+function caliper_geometry(radius: number, width: number, rim: Rim, look: Required<Look>["tyre"], { size, tone }: Required<Look>["caliper"]): THREE.BufferGeometry {
   const disc = radius * rim.size * look.rim;
-  const proud = brakes > 0 ? 0.046 : 0.03;
-  return tint(new THREE.BoxGeometry(width * look.width + proud, disc * 0.3 * size, disc * 0.5 * size).translate(0, disc * 0.68, 0).rotateX(-0.8), color(tone));
+  const proud = tone ? 0.046 : 0.03;
+  return tint(new THREE.BoxGeometry(width * look.width + proud, disc * 0.3 * size, disc * 0.5 * size).translate(0, disc * 0.68, 0).rotateX(-0.8), color(tone ? brand[tone] : tones.trim));
 }
 
 function hood_tilt(d: Design, z: number): number {
@@ -674,8 +650,10 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
   body.add(hull, head_mesh, new THREE.Mesh(merge(parts(d.tails)), brake));
   root.add(body);
 
-  const axles = [0, 1].map((axle) => wheel_geometry(spec.wheel.radius, d.tyre[axle], d.rim, kit.tyres));
-  const calipers = [0, 1].map((axle) => caliper_geometry(spec.wheel.radius, d.tyre[axle], d.rim, kit.tyres, kit.brakes));
+  const tyre = part_of("tyres", kit.tyres).look?.tyre ?? STOCK_TYRE;
+  const caliper = part_of("brakes", kit.brakes).look?.caliper ?? STOCK_CALIPER;
+  const axles = [0, 1].map((axle) => wheel_geometry(spec.wheel.radius, d.tyre[axle], d.rim, tyre));
+  const calipers = [0, 1].map((axle) => caliper_geometry(spec.wheel.radius, d.tyre[axle], d.rim, tyre, caliper));
   const wheel_material = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
   const wheels = [0, 1, 2, 3].map((i) => {
     const steer = new THREE.Group();

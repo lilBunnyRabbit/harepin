@@ -122,7 +122,7 @@ test("every build from before the parts table drives exactly as it did", () => {
           expect(spec).toEqual(legacy_apply(CARS[car], spoiler, suspension, engine));
           checked++;
         }
-  expect(checked).toBe(5 * 3 * 4 * 3);
+  expect(checked).toBe(Object.keys(CARS).length * 3 * 4 * 3);
 });
 
 test("the default build leaves the base spec unchanged", () => {
@@ -132,8 +132,8 @@ test("the default build leaves the base spec unchanged", () => {
 
 test("the slot table and the default parts agree", () => {
   for (const slot of SLOT_NAMES) {
-    expect(DEFAULT_PARTS[slot]).toBeLessThan(SLOTS[slot].length);
-    expect(SLOTS[slot].length).toBeLessThanOrEqual(10);
+    expect(DEFAULT_PARTS[slot]).toBeLessThan(SLOTS[slot].parts.length);
+    expect(SLOTS[slot].parts.length).toBeLessThanOrEqual(10);
   }
 });
 
