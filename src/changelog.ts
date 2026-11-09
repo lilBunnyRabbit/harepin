@@ -23,6 +23,20 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.8.0",
+    date: "2026-11-09",
+    title: "Sky Track",
+    changes: [
+      { kind: NEW, text: "Sky Track: a toy-style track floating above the clouds, with banked curves, drops, gap jumps and open stretches without rails. Pick it on the World screen; fall off and you're back at the last gate." },
+      { kind: NEW, text: "On phones, the garage is a thumb-side sheet with labelled slots, a swipeable part strip and a big Done button." },
+      { kind: NEW, text: "On phones, nitro is a tap key on the left: tap to boost, tap again to stop, so your thumb can stay on the gas." },
+      { kind: IMPROVED, text: "On phones, steering and the pedals cover the whole lower corners, so you don't miss them, and you can slide between them without lifting." },
+      { kind: IMPROVED, text: "Driving aids: a lit lamp now means on, a TC OFF style badge shows on the speedo when one is off, and on phones they sit in their own menu." },
+      { kind: FIXED, text: "Sound starts on your first tap on phones, without leaving and reopening the app." },
+      { kind: FIXED, text: "Join their map no longer sits on top of the pedals." },
+    ],
+  },
+  {
     version: "0.7.0",
     date: "2026-11-09",
     title: "Dream garage",
