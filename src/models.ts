@@ -239,7 +239,7 @@ interface Design {
   rim: Rim;
   /** Where a bolt-on wing sits: rear deck or roof edge, [z, y]. */
   deck: Point;
-  /** A built-in rear wing per `SLOTS.spoiler` part from None up, set steeper and bigger in place of a bolt-on one on `deck`. */
+  /** A built-in rear wing per `SLOTS.aero` part from None up, set steeper and bigger in place of a bolt-on one on `deck`. */
   wings?: Wing[];
   /** Side decal area when the body side between the arches is hidden, as behind sidepods. */
   panel?: Panel;
@@ -974,9 +974,9 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
     parts(stripped ? [] : d.chrome).map((g) => tint(g, chrome_tone())),
   );
   const decals = livery && livery.decal !== "none" ? livery_parts(livery, side_panel(d, spec), roof(base, glass), nose, tail) : [];
-  // A level past the design's list keeps its biggest wing, so new spoiler parts never bolt a second one on.
-  const own = d.wings ? d.wings[Math.min(kit.spoiler, d.wings.length - 1)] : null;
-  const rear_wing = own ? [...parts(own.paint).map((g) => tint(g, paint)), ...parts(own.trim).map((g) => tint(g, trim))] : wing(kit.spoiler, style, d.width, d.deck, paint, trim);
+  // A level past the design's list keeps its biggest wing, so new aero parts never bolt a second one on.
+  const own = d.wings ? d.wings[Math.min(kit.aero, d.wings.length - 1)] : null;
+  const rear_wing = own ? [...parts(own.paint).map((g) => tint(g, paint)), ...parts(own.trim).map((g) => tint(g, trim))] : wing(kit.aero, style, d.width, d.deck, paint, trim);
   const shell = merge(base, rear_wing, kit_parts(d, kit, paint, trim), decals);
   const hull = new THREE.Mesh(shell, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
   hull.castShadow = true;

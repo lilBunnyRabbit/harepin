@@ -65,7 +65,7 @@ const FREE_PAD = 12;
 const SIDE_VIEW: SlotView = { at: [0, 0, 0], yaw: -0.87 };
 const DOOR_VIEW: SlotView = { at: [0.6, 0, 0], yaw: -0.87 };
 /** Slots shown under Body: the parts you see first on the car. Every other slot lands under Performance. */
-const BODY_SLOTS: readonly Slot[] = ["spoiler"];
+const BODY_SLOTS: readonly Slot[] = ["aero"];
 const SVG = "http://www.w3.org/2000/svg";
 
 type Point = [number, number];
@@ -83,7 +83,7 @@ const ICONS: Record<string, string> = {
   car: "M3 14l2-5h11l3 5v3H3zM7 17a1.6 1.6 0 1 0 0 .1M16 17a1.6 1.6 0 1 0 0 .1",
   engine: "M4 8h12v9H4zM8 8V5h4v3M16 11h3v4h-3M4 12H2",
   tyres: "M12 4a8 8 0 1 0 0 16a8 8 0 1 0 0-16M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6",
-  spoiler: "M3 8h18l-2 3H5zM8 11v6M16 11v6",
+  aero: "M3 8h18l-2 3H5zM8 11v6M16 11v6",
   suspension: "M12 3v3l-5 2 10 2-10 2 10 2-10 2 5 2v3",
   brakes: "M11 6a7 7 0 1 0 0 14a7 7 0 1 0 0-14M11 11a2 2 0 1 0 0 4a2 2 0 1 0 0-4M16 5a8 8 0 0 1 4 6",
   weight: "M8 8a4 4 0 1 1 8 0M6 8h12l2 12H4z",

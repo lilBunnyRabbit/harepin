@@ -55,7 +55,7 @@ export interface SlotSpec {
 
 export const WHOLE_CAR: SlotView = { at: [0, 0, 0], yaw: -0.5 };
 
-// Spoiler, suspension and engine sit at fixed spots in the build code; every other slot rides in its tail in table order,
+// Aero, suspension and engine sit at fixed spots in the build code; every other slot rides in its tail in table order,
 // so a new slot goes last here or old codes would read its digits as another slot's.
 export const SLOTS = {
   engine: {
@@ -77,7 +77,7 @@ export const SLOTS = {
       { name: "Rally", blurb: "Less grip, strong on dirt", mod: { scale: { mu: 0.96 }, add: { offroad: 0.5 } }, look: { tyre: { width: 1.1, rim: 0.88, tread: true } } },
     ],
   },
-  spoiler: {
+  aero: {
     label: "Spoiler",
     view: { at: [0, 0.75, -0.85], yaw: -1.7 },
     parts: [
@@ -171,10 +171,10 @@ export type Decal = (typeof DECALS)[number];
 export const MAX_DECAL = DECALS.length - 1;
 export const MAX_INK = 8;
 export const MAX_NUMBER = 99;
-export const DEFAULT_PARTS: Record<Slot, number> = { engine: 0, tyres: 0, spoiler: 0, suspension: 1, brakes: 0, weight: 0, bias: 1, nitro: 0 };
+export const DEFAULT_PARTS: Record<Slot, number> = { engine: 0, tyres: 0, aero: 0, suspension: 1, brakes: 0, weight: 0, bias: 1, nitro: 0 };
 export const DEFAULT_BUILD: Build = { car: "coupe", paint: 0, decal: 0, ink: 0, number: 7, parts: DEFAULT_PARTS };
 
-const HEAD: readonly Slot[] = ["spoiler", "suspension", "engine"];
+const HEAD: readonly Slot[] = ["aero", "suspension", "engine"];
 const TAIL = SLOT_NAMES.filter((slot) => !HEAD.includes(slot));
 
 // Ink and number, then the tail slots, ride as optional tails, so a build that keeps their defaults has the code it had

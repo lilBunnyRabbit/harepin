@@ -6,7 +6,7 @@ import { CARS, COUPE, RALLY, type CarId, type CarSpec } from "./cars";
 const with_parts = (parts: Partial<Build["parts"]>, rest: Partial<Omit<Build, "parts">> = {}): Build => ({ ...DEFAULT_BUILD, ...rest, parts: { ...DEFAULT_PARTS, ...parts } });
 
 test("codes round-trip", () => {
-  const build = with_parts({ spoiler: 2, suspension: 0, engine: 1 }, { car: "rally", paint: 12, decal: 3 });
+  const build = with_parts({ aero: 2, suspension: 0, engine: 1 }, { car: "rally", paint: 12, decal: 3 });
   expect(build_code(build)).toBe("rally.12.3.2.0.1");
   expect(parse_build(build_code(build))).toEqual(build);
   expect(parse_build(build_code(DEFAULT_BUILD))).toEqual(DEFAULT_BUILD);
@@ -14,7 +14,7 @@ test("codes round-trip", () => {
   expect(build_code(decal)).toBe("rally.12.8.2.0.1.5.42");
   expect(parse_build(build_code(decal))).toEqual(decal);
   expect(parse_build(build_code({ ...build, number: 0 }))).toEqual({ ...build, number: 0 });
-  const drift = with_parts({ spoiler: 2, suspension: 3, engine: 1 }, { car: "kaze", paint: 12, decal: 3 });
+  const drift = with_parts({ aero: 2, suspension: 3, engine: 1 }, { car: "kaze", paint: 12, decal: 3 });
   expect(build_code(drift)).toBe("kaze.12.3.2.3.1");
   expect(parse_build(build_code(drift))).toEqual(drift);
   expect(parse_build(build_code({ ...drift, ink: 2, number: 9 }))).toEqual({ ...drift, ink: 2, number: 9 });
@@ -27,7 +27,7 @@ test("new slots ride a tail that is left off at their defaults", () => {
   const weight = with_parts({ weight: 2, engine: 2 }, { ink: 3, number: 11 });
   expect(build_code(weight)).toBe("coupe.0.0.0.1.2.3.11.0.0.2");
   expect(parse_build(build_code(weight))).toEqual(weight);
-  const all = with_parts({ tyres: 1, brakes: 2, weight: 1, bias: 2, nitro: 2, spoiler: 2, suspension: 3, engine: 2 }, { car: "muscle", paint: 15, decal: 8, ink: 8, number: 99 });
+  const all = with_parts({ tyres: 1, brakes: 2, weight: 1, bias: 2, nitro: 2, aero: 2, suspension: 3, engine: 2 }, { car: "muscle", paint: 15, decal: 8, ink: 8, number: 99 });
   expect(build_code(all).length).toBeLessThanOrEqual(40);
   expect(parse_build(build_code(all))).toEqual(all);
   expect(build_code(with_parts({}, { ink: 1 }))).toBe("coupe.0.0.0.1.0.1.7");
@@ -40,8 +40,8 @@ test("new slots ride a tail that is left off at their defaults", () => {
 test("codes from before decal ink, number and the new slots still parse", () => {
   expect(build_code(DEFAULT_BUILD)).toBe("coupe.0.0.0.1.0");
   expect(parse_build("kaze.3.1.0.2.0")).toEqual(with_parts({ suspension: 2 }, { car: "kaze", paint: 3, decal: 1 }));
-  expect(parse_build("coupe.3.1.2.1.0")).toEqual(with_parts({ spoiler: 2 }, { paint: 3, decal: 1 }));
-  expect(parse_build("coupe.3.1.2.1.0.4.12")).toEqual(with_parts({ spoiler: 2 }, { paint: 3, decal: 1, ink: 4, number: 12 }));
+  expect(parse_build("coupe.3.1.2.1.0")).toEqual(with_parts({ aero: 2 }, { paint: 3, decal: 1 }));
+  expect(parse_build("coupe.3.1.2.1.0.4.12")).toEqual(with_parts({ aero: 2 }, { paint: 3, decal: 1, ink: 4, number: 12 }));
   for (const suspension of [0, 1, 2] as const) expect(parse_build(`hatch.0.0.0.${suspension}.0`)?.parts.suspension).toBe(suspension);
 });
 
@@ -123,7 +123,7 @@ test("every build from before the parts table drives exactly as it did", () => {
     for (let spoiler = 0; spoiler < 3; spoiler++)
       for (let suspension = 0; suspension < 4; suspension++)
         for (let engine = 0; engine < 3; engine++) {
-          const spec = apply_build(CARS[car], with_parts({ spoiler, suspension, engine }, { car }));
+          const spec = apply_build(CARS[car], with_parts({ aero: spoiler, suspension, engine }, { car }));
           expect(spec).toEqual(legacy_apply(CARS[car], spoiler, suspension, engine));
           checked++;
         }
@@ -200,7 +200,7 @@ test("stats rise with the parts that should raise them and stay inside the range
   expect(stats(build_spec(with_parts({ tyres: 1 }))).grip).toBeGreaterThan(stock.grip);
   expect(stats(build_spec(with_parts({ brakes: 2 }))).braking).toBeGreaterThan(stock.braking);
   for (const bias of [0, 2]) expect(stats(build_spec(with_parts({ bias }))).braking).toBeLessThan(stock.braking);
-  expect(stats(build_spec(with_parts({ spoiler: 2 }))).top_speed).toBeLessThan(stock.top_speed);
+  expect(stats(build_spec(with_parts({ aero: 2 }))).top_speed).toBeLessThan(stock.top_speed);
   for (const car of Object.keys(CARS) as CarId[]) {
     const s = stats(CARS[car]);
     expect(s.top_speed * 3.6).toBeGreaterThan(150);
