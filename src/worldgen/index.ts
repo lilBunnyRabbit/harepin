@@ -156,5 +156,5 @@ export function generate(seed: number): WorldData {
     }
   lap("props");
 
-  return { terrain: land, graph: { nodes, edges }, towns, lots: lot_list, buildings, props, parking, trees, solids, ramps: jumps.ramps, items: jumps.items, challenges: jumps.challenges, checkpoints, circuit: [ring.id], road, timings };
+  return { kind: "island", deck: null, terrain: land, graph: { nodes, edges }, towns, lots: lot_list, buildings, props, parking, trees, solids, ramps: jumps.ramps, items: jumps.items, challenges: jumps.challenges, checkpoints, circuit: [ring.id], road, timings };
 }

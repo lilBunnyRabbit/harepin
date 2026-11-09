@@ -1,10 +1,11 @@
 import { Vector3 } from "three";
 import type { Ground } from "./car";
 import { COUPE, type CarSpec } from "./cars";
+import { DeckIndex } from "./worldgen/deck";
 import { sample, slope_normal } from "./worldgen/field";
 import { generate } from "./worldgen/index";
 import { ramp_surface, spawn_blocks, type Surface } from "./worldgen/jumps";
-import { ROAD_HALF } from "./worldgen/types";
+import { ROAD_HALF, type WorldKind } from "./worldgen/types";
 import type {
   Building,
   Challenge,
@@ -122,6 +123,8 @@ function nearest(grid: Map<number, number[]>, x: number, z: number, at: (item: n
 }
 
 export class World implements Ground {
+  readonly kind: WorldKind;
+  readonly deck: DeckIndex | null;
   readonly heights: Float32Array;
   readonly road_dist: Float32Array;
   /** The race circuit, in driving order; gates and the ghost follow it. */
@@ -157,6 +160,8 @@ export class World implements Ground {
     readonly seed = 0,
     data: WorldData = generate(seed),
   ) {
+    this.kind = data.kind;
+    this.deck = data.deck && new DeckIndex(data.deck);
     this.heights = data.terrain.heights;
     this.road_dist = data.terrain.road_dist;
     this.road = data.road;
@@ -208,13 +213,18 @@ export class World implements Ground {
       }
   }
 
-  height(x: number, z: number): number {
+  /** `y` is the height the query comes from: a deck only counts from above its underside. */
+  height(x: number, z: number, y?: number): number {
     const ground = sample(this.heights, x, z);
     const ramp = this.ramp_at(x, z);
-    return ramp && ramp.y > ground ? ramp.y : ground;
+    const top = ramp && ramp.y > ground ? ramp.y : ground;
+    const deck = this.deck?.surface(x, z, y);
+    return deck && deck.y > top ? deck.y : top;
   }
 
   normal(x: number, z: number, out: Vector3): Vector3 {
+    const deck = this.deck?.surface(x, z);
+    if (deck && deck.y > sample(this.heights, x, z)) return out.set(-deck.gx, 1, -deck.gz).normalize();
     const ramp = this.ramp_at(x, z);
     if (ramp && ramp.y > sample(this.heights, x, z)) return out.set(-ramp.gx, 1, -ramp.gz).normalize();
     const [nx, ny, nz] = slope_normal(this.heights, x, z);
@@ -224,6 +234,7 @@ export class World implements Ground {
   private ramp_at(x: number, z: number): Surface | null {
     let top: Surface | null = null;
     for (const r of this.ramps) {
+      if (r.deck) continue;
       const s = ramp_surface(r, x, z);
       if (s && (!top || s.y > top.y)) top = s;
     }

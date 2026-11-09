@@ -3,7 +3,8 @@ import { COUPE, type CarSpec } from "./cars";
 import { NITRO_TORQUE, Nitro } from "./nitro";
 
 export interface Ground {
-  height(x: number, z: number): number;
+  /** `y`, when given, is the height the query comes from; a ground with stacked surfaces answers the one below it. */
+  height(x: number, z: number, y?: number): number;
   normal(x: number, z: number, out: Vector3): Vector3;
   grip(x: number, z: number): number;
   roll(x: number, z: number): number;
@@ -390,7 +391,10 @@ export class Car {
     const reach = rest + radius;
     for (const w of this.wheels) {
       mount.copy(w.mount).applyQuaternion(quat).add(pos);
-      const f = (t: number) => mount.y + down.y * t - ground.height(mount.x + down.x * t, mount.z + down.z * t);
+      const f = (t: number) => {
+        const y = mount.y + down.y * t;
+        return y - ground.height(mount.x + down.x * t, mount.z + down.z * t, y);
+      };
       let t = reach;
       w.contact = false;
       if (f(reach) <= 0) {
@@ -517,7 +521,7 @@ export class Car {
     let airborne = this.wheels.every((w) => !w.contact);
     for (const corner of this.corners) {
       const p = mount.copy(corner).applyQuaternion(quat).add(pos);
-      const depth = ground.height(p.x, p.z) - p.y;
+      const depth = ground.height(p.x, p.z, p.y) - p.y;
       if (depth <= 0) continue;
       airborne = false;
       ground.normal(p.x, p.z, tmp);

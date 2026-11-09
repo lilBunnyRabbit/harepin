@@ -15,9 +15,24 @@ export const SPAWN_INDEX = -40;
 /** Bump whenever `generate` makes a different island for the same seed: peers and saved records are matched on it. */
 export const WORLD_VERSION = 2;
 
-/** Storage key part for records set on `seed`'s island, so a new island starts with a clean sheet. */
-export function world_key(seed: number): string {
-  return `${seed}:w${WORLD_VERSION}`;
+/** Bump whenever `generate_sky` makes a different track for the same seed. */
+export const SKY_VERSION = 1;
+
+export const WorldKind = { ISLAND: "island", SKY: "sky" } as const;
+export type WorldKind = (typeof WorldKind)[keyof typeof WorldKind];
+
+/** Map identity peers compare: the island keeps WORLD_VERSION, so old builds see a sky peer as on a foreign map. */
+export function world_id(kind: WorldKind): number {
+  return kind === WorldKind.SKY ? 1000 + SKY_VERSION : WORLD_VERSION;
+}
+
+export function parse_kind(text: string | null | undefined): WorldKind {
+  return text === WorldKind.SKY ? WorldKind.SKY : WorldKind.ISLAND;
+}
+
+/** Storage key part for records set on `seed`'s world, so a new world starts with a clean sheet. */
+export function world_key(seed: number, kind: WorldKind = WorldKind.ISLAND): string {
+  return kind === WorldKind.SKY ? `${seed}:sky${SKY_VERSION}` : `${seed}:w${WORLD_VERSION}`;
 }
 
 export interface RoadPoint {
@@ -192,7 +207,33 @@ export interface ParkingLot {
   obstacles: Obstacle[];
 }
 
+export const PieceKind = { STRAIGHT: "straight", ARC: "arc", KICKER: "kicker", GAP: "gap", LANDING: "landing", PAD: "pad" } as const;
+export type PieceKind = (typeof PieceKind)[keyof typeof PieceKind];
+
+/** One run of deck between two joints; `s0` is its start along the centreline, in metres. */
+export interface DeckPiece {
+  kind: PieceKind;
+  s0: number;
+  length: number;
+  /** Signed curvature 1/R of the arc's middle, + = left; 0 on straights. */
+  curve: number;
+}
+
+/** Floats per centreline sample in `Deck.line`: x, y, z, tx, tz, bank (rad, + = left side up), half-width, solid (0 over a gap), s. */
+export const DECK_STRIDE = 9;
+
+/** A floating track: the deck surface is the centreline `line` swept across `half` with its bank. */
+export interface Deck {
+  half: number;
+  pieces: DeckPiece[];
+  line: Float64Array<ArrayBuffer>;
+  pads: { s0: number; s1: number }[];
+}
+
 export interface WorldData {
+  kind: WorldKind;
+  /** The sky track's surface; null on the island. */
+  deck: Deck | null;
   terrain: Terrain;
   graph: RoadGraph;
   towns: Town[];
@@ -247,6 +288,8 @@ export interface Ramp {
   road?: boolean;
   /** Drop per metre of the face past the lip; the steep kicker back when absent. */
   back?: number;
+  /** A sky-track lip built into the deck: listed for map marks, spawn blocks and autolap, never ridden as a wedge. */
+  deck?: true;
 }
 
 export const ItemKind = { CONE: "cone", BARREL: "barrel", HAY: "hay", LOG: "log", ROCK: "rock", BARRIER: "barrier" } as const;
