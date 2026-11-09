@@ -109,7 +109,8 @@ test("jumps come out the same for a seed and every world gets some", () => {
 }, 30_000);
 
 test("the lobby circuit gets as many road kickers as a typical seed", () => {
-  expect(generate(seed_of("lobby")).ramps.filter((r) => r.road).length).toBeGreaterThanOrEqual(3);
+  // The switchback takes a stretch of the lap, so a typical seed now gets 1-2 road kickers.
+  expect(generate(seed_of("lobby")).ramps.filter((r) => r.road).length).toBeGreaterThanOrEqual(2);
 }, 30_000);
 
 test("no checkpoint, junction or spawn sits in a road kicker's run-out", () => {

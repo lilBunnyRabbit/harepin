@@ -1,17 +1,19 @@
 import { sample, up, vertex } from "./field";
-import { JumpPlanner } from "./jumps";
+import { ITEMS, JumpPlanner } from "./jumps";
 import { fbm, hash, length } from "./noise";
 import { Lots } from "./lots";
 import { loop_road } from "./path";
 import { join_candidates, Router, SHAPE_GRADE, spur_need, spur_points } from "./route";
 import type { Path } from "./path";
 import { Stamp } from "./stamp";
+import { guard_rails, inside } from "./switchback";
 import { terrain } from "./terrain";
 import { place_towns, town_streets } from "./towns";
 import { CELL, ORIGIN, ROAD_HALF, SPAWN_INDEX, SPUR_HALF, type Checkpoint, type RoadEdge, type RoadNode, type Solid, type Tree, type WorldData } from "./types";
 
 const CHECKPOINTS = 12;
 const TREE_SPACING = 13;
+const STACK_GATE = 5;
 
 // World generation uses only + - * / sqrt floor and integer ops, which IEEE 754 makes bit-exact on every engine, so
 // every discrete choice (towns, routes, lots, trees) comes out the same for every peer on the seed. Math.atan2 only
@@ -29,7 +31,7 @@ export function generate(seed: number): WorldData {
   const { heights, road_dist } = land;
   lap("terrain");
 
-  const road = loop_road(seed, heights);
+  const { road, stack } = loop_road(seed, heights);
   const nodes: RoadNode[] = [];
   const edges: RoadEdge[] = [];
   const ring: RoadEdge = { id: 0, a: 0, b: 0, kind: "highway", half: ROAD_HALF, closed: true, points: road };
@@ -102,7 +104,9 @@ export function generate(seed: number): WorldData {
   lap("checkpoints");
 
   const planner = new JumpPlanner(seed, land, towns, lots.occupied, solids);
-  planner.circuit(road, [...checkpoints, ...nodes.filter((n) => n.kind === "junction"), road[(SPAWN_INDEX + road.length) % road.length]]);
+  // Points of the switchback count as gates, so no kicker or chicane lands inside it.
+  const climb = stack ? road.filter((p, i) => i % STACK_GATE === 0 && inside(stack, p.x, p.z, 0)) : [];
+  planner.circuit(road, [...checkpoints, ...nodes.filter((n) => n.kind === "junction"), road[(SPAWN_INDEX + road.length) % road.length], ...climb]);
   planner.hills();
   planner.roadside(road);
   planner.open();
@@ -111,6 +115,11 @@ export function generate(seed: number): WorldData {
   planner.open_items();
   const jumps = planner.out;
   solids.push(...jumps.solids);
+  for (const rail of stack ? guard_rails(stack, heights) : []) {
+    jumps.items.push(rail);
+    const solid = ITEMS.barrier.solid?.(rail.x, rail.y, rail.z, rail.fx, rail.fz, rail.scale);
+    if (solid) solids.push(solid);
+  }
   lap("jumps");
 
   const trees: Tree[] = [...lots.out.trees];

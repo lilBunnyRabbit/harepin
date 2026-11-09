@@ -47,15 +47,21 @@ export function length(x: number, z: number): number {
 }
 
 // Rotation by a sqrt-built step instead of Math.cos/sin, which may differ in the last bit between engines.
-export function circle16(): [number, number][] {
-  const c = Math.sqrt(2 + Math.SQRT2) / 2;
-  const s = Math.sqrt(2 - Math.SQRT2) / 2;
+function polygon(count: number, c: number, s: number): [number, number][] {
   const out: [number, number][] = [];
   let x = 1;
   let z = 0;
-  for (let i = 0; i < 16; i++) {
+  for (let i = 0; i < count; i++) {
     out.push([x, z]);
     [x, z] = [x * c - z * s, x * s + z * c];
   }
   return out;
+}
+
+export function circle16(): [number, number][] {
+  return polygon(16, Math.sqrt(2 + Math.SQRT2) / 2, Math.sqrt(2 - Math.SQRT2) / 2);
+}
+
+export function circle24(): [number, number][] {
+  return polygon(24, (Math.sqrt(6) + Math.SQRT2) / 4, (Math.sqrt(6) - Math.SQRT2) / 4);
 }

@@ -1,6 +1,6 @@
 import { sample } from "./field";
 import { length } from "./noise";
-import { chaikin, resample, road_points, smooth, type Path } from "./path";
+import { chaikin, limit_grade, resample, road_points, smooth, type Path } from "./path";
 import { ORIGIN, ROAD_HALF, SIZE, SPUR_GRADE, type RoadPoint, type Town } from "./types";
 
 const COARSE = 16;
@@ -187,24 +187,6 @@ export class Router {
         }
     }
   }
-}
-
-// Every point stays within `grade` of both pinned ends (the envelope) and of its neighbour, walked from the far end:
-// the envelope is itself grade-Lipschitz, so the walk never pushes a point out of it and both ends stay pinned.
-function limit_grade(ys: number[], run: number[], grade: number): number[] {
-  const n = ys.length;
-  const along = [0];
-  for (let i = 1; i < n; i++) along.push(along[i - 1] + run[i - 1]);
-  const total = along[n - 1];
-  const y0 = ys[0];
-  const y1 = ys[n - 1];
-  const out = ys.map((y, i) => {
-    const lo = Math.max(y0 - grade * along[i], y1 - grade * (total - along[i]));
-    const hi = Math.min(y0 + grade * along[i], y1 + grade * (total - along[i]));
-    return lo > hi ? (lo + hi) / 2 : Math.max(lo, Math.min(hi, y));
-  });
-  for (let i = n - 2; i >= 0; i--) out[i] = Math.max(out[i + 1] - grade * run[i], Math.min(out[i + 1] + grade * run[i], out[i]));
-  return out;
 }
 
 /** Ring indices to try as the spur's T, nearest first, at least JOIN_SPACING points apart. */
