@@ -3,7 +3,7 @@ import { ITEMS, JumpPlanner } from "./jumps";
 import { fbm, hash, length } from "./noise";
 import { Lots } from "./lots";
 import { loop_road } from "./path";
-import { circuit_route, street_routes } from "./routes";
+import { circuit_route, reverse_circuit, street_routes } from "./routes";
 import { join_candidates, Router, SHAPE_GRADE, spur_need, spur_points } from "./route";
 import type { Path } from "./path";
 import { Stamp } from "./stamp";
@@ -140,7 +140,8 @@ export function generate(seed: number): WorldData {
   const circuit = circuit_route(road, checkpoints);
   const streets = street_routes({ nodes, edges }, towns, heights, jumps.ramps);
   jumps.items.push(...streets.items);
-  const routes = [circuit, ...streets.routes];
+  const reverse = reverse_circuit(circuit, jumps.ramps);
+  const routes = reverse ? [circuit, ...streets.routes, reverse] : [circuit, ...streets.routes];
   lap("routes");
 
   const trees: Tree[] = [...lots.out.trees];

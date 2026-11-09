@@ -2,7 +2,7 @@ import { CARS } from "../src/cars";
 import { World } from "../src/world";
 import { autolap } from "./autolap";
 
-// Drives every race route of each seed with every car: a route is sound when all of them finish it on the road.
+// Drives every race route of each seed with every car: a route is sound when all of them finish it on the road, inside par.
 const SEEDS = (process.argv[2] ?? "0,1,2,3,4").split(",").map(Number);
 const KIND = process.argv[3];
 
@@ -15,8 +15,9 @@ for (const seed of SEEDS) {
     const rows = Object.values(CARS).map((spec) => {
       const lap = autolap(world, spec, line, false);
       const done = lap.index >= line.length - 10 && !lap.flipped;
-      if (!done || lap.offroad > 0) failed++;
-      return `${spec.id} ${lap.t.toFixed(0)}s${done ? "" : ` STOPPED ${lap.index}/${line.length}`}${lap.offroad > 0 ? ` off ${lap.offroad.toFixed(1)}s` : ""}`;
+      const over = lap.t * 1000 > route.par_ms;
+      if (!done || lap.offroad > 0 || over) failed++;
+      return `${spec.id} ${lap.t.toFixed(0)}s${done ? "" : ` STOPPED ${lap.index}/${line.length}`}${over ? " OVER PAR" : ""}${lap.offroad > 0 ? ` off ${lap.offroad.toFixed(1)}s` : ""}`;
     });
     console.log(`seed ${seed} ${route.id}: ${(route.length / 1000).toFixed(2)} km, par ${(route.par_ms / 1000).toFixed(1)} s | ${rows.join(", ")}`);
   }

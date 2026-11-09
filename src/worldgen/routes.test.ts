@@ -3,7 +3,7 @@ import { expect, test } from "bun:test";
 import { sample } from "./field";
 import { generate } from "./index";
 import { length } from "./noise";
-import { street_routes } from "./routes";
+import { drive_time, street_routes } from "./routes";
 import { ROAD_HALF, RouteKind, STREET_HALF, type Route, type WorldData } from "./types";
 
 const SEEDS = Array.from({ length: 20 }, (_, i) => i);
@@ -59,4 +59,17 @@ test("most seeds get a street race", () => {
 
 test("routes are deterministic", () => {
   expect(generate(4).routes).toEqual(generate(4).routes);
+}, 30_000);
+
+test("drive time: longer for a corner than a straight of the same length, par above it", () => {
+  const line = (bend: boolean) =>
+    Array.from({ length: 500 }, (_, i) => {
+      const s = i * 2;
+      const turned = bend && s > 500;
+      return { x: turned ? s - 500 : 0, y: 0, z: turned ? 500 : s, tx: turned ? 1 : 0, tz: turned ? 0 : 1 };
+    });
+  const straight = drive_time(line(false), false);
+  expect(straight).toBeGreaterThan(1000 / 36);
+  expect(drive_time(line(true), false)).toBeGreaterThan(straight + 3);
+  for (const route of generate(1).routes) expect(route.par_ms / 1000).toBeGreaterThan(drive_time(route.points, route.closed));
 }, 30_000);

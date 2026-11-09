@@ -19,8 +19,13 @@ const STREET_ROUTES = 2;
 const GATE_SPACING = 150;
 /** Gates closer than this to the one before are dropped: a corner right after a spur gate would be two posts at once. */
 const GATE_GAP = 25;
-export const PACE: Record<RouteKind, number> = { circuit: 23, street: 17, offroad: 19 };
-export const TURN_MS = 1500;
+/**
+ * The autopilot's driving, fitted to scripts/races.ts: corner speed sqrt(grip × radius), acceleration fading to nothing
+ * at TOP, braking BRAKE. Within 5% of the median car on every fitted route.
+ */
+const BOT = { grip: 6, accel: 6, top: 36, brake: 6, span: 5 } as const;
+/** Par over the estimated autopilot time: wide enough that the slowest car's autopilot still makes it. */
+const PAR_SHARE = 1.15;
 const CONE_GAP = 2;
 const CONE_SET = 3;
 
@@ -47,8 +52,33 @@ function flip(points: readonly RoadPoint[]): RoadPoint[] {
   return [...points].reverse().map((p) => ({ ...p, tx: -p.tx, tz: -p.tz }));
 }
 
-function par(kind: RouteKind, metres: number, turns: number): number {
-  return Math.round((metres / PACE[kind] + (turns * TURN_MS) / 1000) * 2) * 500;
+/** Seconds the autopilot takes over `points` from a standing start: corner caps, then an accelerate and a brake pass. */
+export function drive_time(points: readonly RoadPoint[], closed: boolean): number {
+  const n = points.length;
+  const at = (i: number) => (closed ? points[((i % n) + n) % n] : points[Math.max(0, Math.min(n - 1, i))]);
+  const cap: number[] = [];
+  const step: number[] = [];
+  for (let i = 0; i < n; i++) {
+    const a = at(i - BOT.span);
+    const b = at(i);
+    const c = at(i + BOT.span);
+    const cross = Math.abs((b.x - a.x) * (c.z - a.z) - (b.z - a.z) * (c.x - a.x));
+    const radius = cross === 0 ? Infinity : (length(b.x - a.x, b.z - a.z) * length(c.x - b.x, c.z - b.z) * length(c.x - a.x, c.z - a.z)) / (2 * cross);
+    cap.push(Math.min(BOT.top, Math.sqrt(BOT.grip * radius)));
+    const next = at(i + 1);
+    step.push(length(next.x - b.x, next.z - b.z));
+  }
+  const m = closed ? n + 1 : n;
+  const v = new Array<number>(m).fill(0);
+  for (let i = 1; i < m; i++) v[i] = Math.min(cap[i % n], Math.sqrt(v[i - 1] ** 2 + 2 * BOT.accel * (1 - v[i - 1] / BOT.top) * step[i - 1]));
+  for (let i = m - 2; i >= 0; i--) v[i] = Math.min(v[i], Math.sqrt(v[i + 1] ** 2 + 2 * BOT.brake * step[i]));
+  let t = 0;
+  for (let i = 0; i < m - 1; i++) t += step[i] / Math.max(0.5, (v[i] + v[i + 1]) / 2);
+  return t;
+}
+
+function par(points: readonly RoadPoint[], closed: boolean): number {
+  return Math.ceil(drive_time(points, closed) * PAR_SHARE * 2) * 500;
 }
 
 const heading = (p: { tx: number; tz: number }) => Math.atan2(p.tx, p.tz);
@@ -57,7 +87,18 @@ const heading = (p: { tx: number; tz: number }) => Math.atan2(p.tx, p.tz);
 export function circuit_route(road: readonly RoadPoint[], checkpoints: readonly Checkpoint[]): Route {
   const lap = run(road) + length(road[0].x - road[road.length - 1].x, road[0].z - road[road.length - 1].z);
   const gates = [...checkpoints.slice(1), checkpoints[0]].map((c, index) => ({ ...c, index }));
-  return { id: "circuit", kind: RouteKind.CIRCUIT, closed: true, points: [...road], checkpoints: gates, gate_hw: ROAD_HALF, length: lap, par_ms: par(RouteKind.CIRCUIT, lap, 0) };
+  return { id: "circuit", kind: RouteKind.CIRCUIT, closed: true, points: [...road], checkpoints: gates, gate_hw: ROAD_HALF, length: lap, par_ms: par(road, true) };
+}
+
+/** The circuit driven the other way from the same start line; a road kicker would face backwards, so only a loop with none gets one. */
+export function reverse_circuit(circuit: Route, ramps: readonly Ramp[]): Route | null {
+  if (ramps.some((r) => r.road)) return null;
+  const [start, ...rest] = circuit.points;
+  const points = [start, ...rest.reverse()].map((p) => ({ ...p, tx: -p.tx, tz: -p.tz }));
+  const gates = circuit.checkpoints.slice(0, -1).reverse();
+  const finish = circuit.checkpoints[circuit.checkpoints.length - 1];
+  const checkpoints = [...gates, finish].map((c, index) => ({ ...c, heading: c.heading + Math.PI, index }));
+  return { ...circuit, id: "circuit-rev", points, checkpoints, par_ms: par(points, true) };
 }
 
 class Atlas {
@@ -287,7 +328,7 @@ export function street_routes(graph: RoadGraph, towns: readonly Town[], heights:
     checkpoints: c.checkpoints,
     gate_hw: STREET_HALF + SIDEWALK,
     length: c.length,
-    par_ms: par(RouteKind.STREET, c.length, c.turns),
+    par_ms: par(c.points, false),
   }));
   return { routes, items };
 }
