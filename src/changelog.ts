@@ -23,6 +23,18 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.9.0",
+    date: "2026-11-09",
+    title: "Main menu",
+    changes: [
+      { kind: NEW, text: "A main menu with Play, Garage, Online and Settings tabs. Pick Island or Sky Track, roll a new map, join friends or tune your car from big picture tiles. Open it with the menu button, Esc or Start." },
+      { kind: NEW, text: "The game remembers the last world you picked and picks up there next time." },
+      { kind: IMPROVED, text: "Settings now hold only real settings: Graphics, Display, Controls and Audio." },
+      { kind: IMPROVED, text: "On phones, Back steps through the menu instead of closing the app." },
+      { kind: FIXED, text: "On short phone screens, every settings page scrolls to its last control." },
+    ],
+  },
+  {
     version: "0.8.2",
     date: "2026-11-09",
     title: "Boost pads",
