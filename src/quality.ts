@@ -16,14 +16,15 @@ const DESKTOP: Tier[] = [
 ];
 
 // The contact shadow already grounds the car, so phones skip the shadow pass and bloom entirely.
+// Phones run without MSAA, so render scale is what keeps edges from stair-stepping on 2.5-3x screens.
 const MOBILE: Tier[] = [
-  { max_ratio: 1, bloom: false, shadow_size: 0, fog_far: 700 },
+  { max_ratio: 2, bloom: false, shadow_size: 0, fog_far: 700 },
+  { max_ratio: 1.4, bloom: false, shadow_size: 0, fog_far: 700 },
   { max_ratio: 0.85, bloom: false, shadow_size: 0, fog_far: 700 },
 ];
 
 const DESKTOP_LEVELS: Record<QualityTier, number> = { high: 0, medium: 1, low: 2 };
-// Phones have two tiers: high and medium share the first.
-const MOBILE_LEVELS: Record<QualityTier, number> = { high: 0, medium: 0, low: 1 };
+const MOBILE_LEVELS: Record<QualityTier, number> = { high: 0, medium: 1, low: 2 };
 
 const SLOW_FRAME = 1 / 45;
 const WINDOW_SECONDS = 3;
@@ -54,7 +55,6 @@ export class Quality {
   }
 
   get tier_name(): QualityTier {
-    if (this.mobile) return this.level === 0 ? "high" : "low";
     return this.level === 0 ? "high" : this.level === 1 ? "medium" : "low";
   }
 
