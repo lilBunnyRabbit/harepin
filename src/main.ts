@@ -246,12 +246,17 @@ function fall_back() {
 }
 
 // In a lobby race a reset stays on the circuit; free driving drops the car on the nearest street.
+/** Speed (m/s) above which a reset faces the way the car travels rather than where its nose points. */
+const RESET_MOVING = 2;
+
 function reset() {
   pads.clear();
-  const f = new THREE.Vector3(0, 0, 1).applyQuaternion(car.quat);
+  // A spun or sideways car points across the road; the way it was travelling is what the driver meant.
+  const moving = Math.hypot(car.vel.x, car.vel.z) > RESET_MOVING;
+  const f = moving ? new THREE.Vector3(car.vel.x, 0, car.vel.z) : new THREE.Vector3(0, 0, 1).applyQuaternion(car.quat);
   if (lobby.busy && lobby.route === "circuit") {
     const near = world.nearest_road(car.pos.x, car.pos.z);
-    spawn_at(world.road.indexOf(near), f.x * near.tx + f.z * near.tz < 0);
+    spawn_at(world.road.indexOf(near), false);
     return;
   }
   const spot = world.spawn_near(car.pos.x, car.pos.z, f.x, f.z);
