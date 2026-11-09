@@ -179,6 +179,7 @@ const KEYS: [string, string, string, string][] = [
   ["Handbrake", "Space", "A", "Handbrake"],
   ["Nitro (hold, when fitted)", "Shift / N", "B", "Nitro"],
   ["Reset", "R", "Y", "Reset"],
+  ["Restart lap", "L / lap strip button", "", "Lap strip button"],
   ["Rewind (hold)", "Backspace", "X", "Rewind (hold)"],
   ["Shift up / down", "E / Q", "RB / LB", ""],
   ["Auto gearbox", "M", "", ""],

@@ -164,7 +164,7 @@ export class PadMenu {
   }
 
   private hud(): Layer {
-    const roots = [$("mode-result"), document.querySelector(".dock-top .top-left"), document.querySelector(".actions"), $("join-map"), document.querySelector(".update-card")].filter((root) => root !== null);
+    const roots = [$("mode-result"), document.querySelector(".dock-top .top-left"), document.querySelector(".actions"), $("restart-lap"), $("join-map"), document.querySelector(".update-card")].filter((root) => root !== null);
     return { roots, back: () => this.close_hud(), first: () => first_of(...roots) };
   }
 

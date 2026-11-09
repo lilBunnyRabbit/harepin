@@ -1,7 +1,7 @@
 import type { Controls } from "./car";
 import { Touch } from "./touch";
 
-export type Action = "reset" | "camera" | "shift_up" | "shift_down" | "auto" | "tcs" | "abs" | "assist" | "ghost" | "help" | "garage" | "settings" | "recenter" | "menu";
+export type Action = "reset" | "camera" | "shift_up" | "shift_down" | "auto" | "tcs" | "abs" | "assist" | "ghost" | "help" | "garage" | "settings" | "recenter" | "menu" | "restart";
 
 const KEY_ACTIONS: Record<string, Action> = {
   KeyR: "reset",
@@ -16,6 +16,7 @@ const KEY_ACTIONS: Record<string, Action> = {
   KeyH: "help",
   KeyV: "garage",
   KeyF: "recenter",
+  KeyL: "restart",
   Escape: "settings",
 };
 

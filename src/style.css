@@ -1729,3 +1729,7 @@ body.no-blur * {
     padding: var(--space-1) var(--space-2);
   }
 }
+
+#restart-lap {
+  align-self: center;
+}

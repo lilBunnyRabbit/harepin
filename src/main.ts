@@ -132,12 +132,24 @@ race.on_lap = (improved) => {
   ghost.finish(improved);
   lobby.lap(performance.now());
 };
-lobby.on_start = () => {
-  modes.exit();
+function restart_lap() {
   spawn_at(SPAWN_INDEX);
   car.nitro.refill();
   race.reset();
   history.length = 0;
+}
+function restart_action() {
+  if (modes.active) modes.restart();
+  else if (lobby.busy) hud.toast("Lobby race is running");
+  else restart_lap();
+}
+$("restart-lap").addEventListener("click", (event) => {
+  (event.currentTarget as HTMLElement).blur();
+  restart_action();
+});
+lobby.on_start = () => {
+  modes.exit();
+  restart_lap();
 };
 race.on_start = () => ghost.start();
 
@@ -410,6 +422,7 @@ function frame(now: number) {
       if (modes.active) modes.restart();
       else reset();
     }
+    if (action === "restart") restart_action();
     const state = settings.state;
     if (action === "recenter") chase.recenter();
     if (action === "camera") {
