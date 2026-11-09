@@ -221,7 +221,7 @@ export const MUSCLE: CarSpec = {
   damper: 2000,
   arb_front: 8000,
   arb_rear: 2000,
-  mu: 1.08,
+  mu: 1.14,
   rear_grip: 1.08,
   peak_angle: 0.13,
   idle: 750,
