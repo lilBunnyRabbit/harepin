@@ -1,5 +1,6 @@
 import { SteerMode } from "./car";
-import { clean_name } from "./net";
+import { DirectoryStatus, PASSWORD_LENGTH, ROOM_LENGTH, clean_password, clean_room, save_password, type Server } from "./directory";
+import { clean_name, parse_seed } from "./net";
 import { THEMES, choose_theme, current_theme } from "./theme";
 import { TouchSteer } from "./touch";
 import "./settings.css";
@@ -154,6 +155,10 @@ export interface SettingsHost {
   toggle_race(laps: Laps): void;
   readonly version: string;
   show_changelog(): void;
+  servers(): Server[];
+  servers_status(): DirectoryStatus;
+  /** This room's handshake failed on the password, so its row offers another try. */
+  password_failed(): boolean;
 }
 
 interface Section {
@@ -204,6 +209,20 @@ function icon(id: string): SVGSVGElement {
 function random_code() {
   return Math.random().toString(36).slice(2, 8);
 }
+
+function random_seed() {
+  return Math.floor(Math.random() * 0x7fffffff);
+}
+
+export function invite_link(room: string, seed: number): string {
+  return `${location.origin}${location.pathname}?room=${encodeURIComponent(room)}&seed=${seed}`;
+}
+
+const DIRECTORY_NOTE: Record<DirectoryStatus, string> = {
+  connecting: "Looking for other games…",
+  online: "Games running right now",
+  offline: "Server list unavailable. Invite links still work.",
+};
 
 export class Settings {
   on_change: ((state: SettingsState, key: SettingKey) => void) | null = null;
@@ -304,6 +323,7 @@ export class Settings {
     const sections: Section[] = [
       { id: "graphics", label: "Graphics", icon: "icon-graphics", build: () => this.graphics() },
       { id: "lobby", label: "Lobby", icon: "icon-lobby", build: () => this.lobby() },
+      { id: "servers", label: "Servers", icon: "icon-servers", build: () => this.servers() },
       { id: "controls", label: "Controls", icon: "icon-controls", build: () => this.controls() },
       { id: "display", label: "Display", icon: "icon-display", build: () => this.display() },
       { id: "audio", label: "Audio", icon: "icon-audio", build: () => this.audio() },
@@ -446,7 +466,7 @@ export class Settings {
     const map_value = el("div", "settings-inline");
     map_value.append(
       el("b", "settings-value settings-number", String(seed)),
-      this.action("New map", () => this.go({ room, seed: String(Math.floor(Math.random() * 0x7fffffff)) })),
+      this.action("New map", () => this.go({ room, seed: String(random_seed()) })),
     );
 
     const name = el("input", "settings-input");
@@ -478,7 +498,7 @@ export class Settings {
     return [
       this.row("Your name", name, "Everyone in the room sees it; leave empty for a random bunny"),
       this.row("Room", room_value, "Friends join with the invite link"),
-      this.row("Private room", this.action("New private room", () => this.go({ room: random_code() })), "Starts an empty room with a fresh code"),
+      this.row("New room", this.action("New room", () => this.go({ room: random_code() })), "Starts an empty room with a fresh code; lock one with a password in Servers"),
       this.row("Map", map_value, "Others keep their map until they open your invite"),
       this.choice(
         "laps",
@@ -491,6 +511,125 @@ export class Settings {
 
   private go(query: Record<string, string>) {
     location.search = `?${new URLSearchParams(query)}`;
+  }
+
+  private join(server: Server, password: string | null) {
+    save_password(server.room, password);
+    this.go({ room: server.room, seed: String(server.seed) });
+  }
+
+  private servers(): HTMLElement[] {
+    const note = el("p", "servers-note");
+    const list = el("ol", "servers-list");
+    let list_key = "";
+
+    const unlock = el("form", "servers-unlock");
+    unlock.hidden = true;
+    const unlock_label = el("span", "servers-unlock-label");
+    const secret = this.password_input("Room password");
+    const unlock_join = el("button", "settings-action", "Join");
+    unlock_join.type = "submit";
+    const unlock_cancel = this.action("Cancel", () => (unlock.hidden = true));
+    const unlock_row = el("div", "settings-inline");
+    unlock_row.append(secret, unlock_join, unlock_cancel);
+    unlock.append(unlock_label, unlock_row);
+    let locked: Server | null = null;
+    unlock.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const password = clean_password(secret.value);
+      if (!locked || password === null) return this.invalid(secret, "Enter the room password");
+      this.join(locked, password);
+    });
+    const ask = (server: Server) => {
+      locked = server;
+      unlock_label.textContent = `Password for ${server.room}`;
+      secret.value = "";
+      unlock.hidden = false;
+      secret.focus();
+    };
+
+    this.syncs.push(() => {
+      const servers = this.host.servers();
+      note.textContent = DIRECTORY_NOTE[this.host.servers_status()];
+      const key = JSON.stringify([servers, this.host.password_failed()]);
+      if (key === list_key) return;
+      list_key = key;
+      list.replaceChildren(...servers.map((server) => this.server_row(server, ask)));
+    });
+
+    const create = el("form", "servers-create");
+    const name = el("input", "settings-input");
+    name.type = "text";
+    name.maxLength = ROOM_LENGTH;
+    name.autocomplete = "off";
+    name.placeholder = "Random code";
+    name.setAttribute("aria-label", "Room name");
+    const password = this.password_input("Password");
+    password.placeholder = "Optional, locks the room";
+    const seed = el("input", "settings-input");
+    seed.type = "text";
+    seed.inputMode = "numeric";
+    seed.maxLength = 10;
+    seed.autocomplete = "off";
+    seed.placeholder = "Random";
+    seed.setAttribute("aria-label", "Map seed");
+    const submit = el("button", "settings-action", "Create room");
+    submit.type = "submit";
+    for (const input of [name, password, seed]) input.addEventListener("input", () => input.setCustomValidity(""));
+    create.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const room = name.value.trim() ? clean_room(name.value) : random_code();
+      if (room === null) return this.invalid(name, `Up to ${ROOM_LENGTH} characters`);
+      const lock = password.value ? clean_password(password.value) : null;
+      if (password.value && lock === null) return this.invalid(password, `Up to ${PASSWORD_LENGTH} characters`);
+      const map = seed.value.trim() ? parse_seed(seed.value.trim()) : random_seed();
+      if (map === null) return this.invalid(seed, "A whole number from 0 to 4294967295");
+      save_password(room, lock);
+      this.go({ room, seed: String(map) });
+    });
+    create.append(
+      this.row("Room name", name),
+      this.row("Password", password, "Locked rooms show a lock; only players with the password can connect"),
+      this.row("Map seed", seed),
+      submit,
+    );
+
+    return [note, list, unlock, el("h4", "settings-sub", "New room"), create];
+  }
+
+  private server_row(server: Server, ask: (server: Server) => void): HTMLLIElement {
+    const li = el("li", "servers-row");
+    const name = el("div", "servers-name");
+    const room = el("b");
+    if (server.locked) {
+      const lock = icon("icon-lock");
+      lock.setAttribute("aria-label", "Locked");
+      lock.setAttribute("aria-hidden", "false");
+      room.append(lock);
+    }
+    room.append(el("span", "", server.room));
+    name.append(room, el("small", "", `${server.host} · map ${server.seed}`));
+    const players = el("span", "servers-players", `${server.players} ${server.players === 1 ? "player" : "players"}`);
+    li.append(name, players);
+    if (server.here && server.locked && this.host.password_failed()) li.append(this.action("Retry password", () => ask(server)));
+    else if (server.here) li.append(el("span", "servers-tag", "You're here"));
+    else if (server.version !== this.host.version) li.append(el("span", "servers-tag", "Different version"));
+    else li.append(this.action("Join", () => (server.locked ? ask(server) : this.join(server, null))));
+    return li;
+  }
+
+  private password_input(label: string): HTMLInputElement {
+    const input = el("input", "settings-input");
+    input.type = "password";
+    input.maxLength = PASSWORD_LENGTH;
+    input.autocomplete = "off";
+    input.setAttribute("aria-label", label);
+    return input;
+  }
+
+  private invalid(input: HTMLInputElement, message: string) {
+    input.setCustomValidity(message);
+    input.reportValidity();
   }
 
   private controls(): HTMLElement[] {

@@ -5,6 +5,7 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { Audio } from "./audio";
 import { ChaseCamera } from "./camera";
+import { Directory, load_password } from "./directory";
 import { build_code, build_spec } from "./build";
 import { Car } from "./car";
 import { Chat } from "./chat";
@@ -70,7 +71,10 @@ if (asked_name) {
   prefs.name = await asked_name;
   save_setting("name", prefs.name);
 }
-const net = new Net(room, seed, prefs.name ?? random_name);
+const password = load_password(room);
+const net = new Net(room, seed, prefs.name ?? random_name, password);
+const directory = new Directory(() => ({ room, seed, host: net.name, players: 1 + net.remotes.size, locked: password !== null, version: BUILD.version }));
+directory.start();
 const chat = new Chat(net);
 chat.start();
 const build = load_build(params.get("car"));
@@ -138,6 +142,9 @@ const settings = new Settings(document.body, {
   race_busy: () => lobby.busy,
   toggle_race: (laps) => (lobby.busy ? lobby.leave() : lobby.call(laps)),
   version: BUILD.version, show_changelog: () => updater.show_changelog(),
+  servers: () => directory.list(),
+  servers_status: () => directory.status,
+  password_failed: () => net.status === "password mismatch",
 }, prefs);
 
 function apply_car_settings(state: SettingsState) {

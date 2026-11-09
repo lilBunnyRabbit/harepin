@@ -65,7 +65,8 @@ const OWN_CHAT_BURST = 4;
 const FALLBACK_NAME = "Player";
 const ID_SUFFIX = 4;
 
-const MAX_SEED = 0xffffffff;
+export const APP_ID = "lilbunnyrabbit-harepin";
+export const MAX_SEED = 0xffffffff;
 export const MAX_LAPS = 10;
 const MAX_RACE_MS = 1e7;
 
@@ -182,16 +183,23 @@ export class Net {
 
   private name_: string;
 
+  /** `password` locks the room: peers without the same one fail the trystero handshake and never connect. */
   constructor(
     readonly room: string,
     readonly seed: number,
     name: string,
+    password: string | null = null,
   ) {
     this.name_ = clean_name(name);
-    this.channel = new BroadcastChannel(`harepin:${room}`);
+    // Same-browser tabs skip WebRTC, so a locked room keys its channel by the password too.
+    this.channel = new BroadcastChannel(password === null ? `harepin:${room}` : `harepin-locked:${JSON.stringify([room, password])}`);
     this.channel.onmessage = (event: MessageEvent<unknown>) => this.receive_local(event.data);
     try {
-      const p2p = joinRoom({ appId: "lilbunnyrabbit-harepin" }, room);
+      const p2p = joinRoom({ appId: APP_ID, ...(password === null ? {} : { password }) }, room, {
+        onJoinError: ({ error }) => {
+          if (this.peers === 0 && error.includes("password")) this.status = "password mismatch";
+        },
+      });
       const action = p2p.makeAction<CarState>("car");
       this.send_p2p = (state) => void action.send(state).catch(dropped);
       action.onMessage = (state, { peerId }) => this.receive(state, peerId);
