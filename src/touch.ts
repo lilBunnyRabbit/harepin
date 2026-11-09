@@ -52,6 +52,7 @@ export class Touch {
   set_steer_mode(mode: TouchSteer) {
     this.steer_mode = mode;
     this.root.dataset.steer = mode;
+    this.sync();
   }
 
   start() {

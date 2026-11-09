@@ -316,7 +316,7 @@ export class Car {
       const coast = wheel_omega * ratio < 0 ? -1 : 1;
       // Drag control, traction control's mirror: in the air nothing holds the driven wheels to road speed, and engine
       // braking would drag them down towards idle so the car lands on them half locked.
-      const dragging = this.tcs && max_drag > 0;
+      const dragging = max_drag > 0;
       const braking_torque = wheel_rpm > spec.idle && !dragging ? (1 - gas) * (20 + rpm * 0.009) * coast : 0;
       engine = rpm >= spec.redline ? -braking_torque : gas * torque_at(spec.torque, rpm) - braking_torque;
     }

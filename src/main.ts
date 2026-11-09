@@ -5,7 +5,7 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { Audio } from "./audio";
 import { ChaseCamera } from "./camera";
-import { build_code, build_spec } from "./build";
+import { build_code, build_spec, type Level } from "./build";
 import { Car } from "./car";
 import { Chat } from "./chat";
 import { Skids, Smoke } from "./effects";
@@ -346,7 +346,8 @@ setInterval(() => {
     id: net.id,
     name: net.name,
     paint: garage.build.paint,
-    b: build_code(garage.build),
+    // Builds before 0.5.0 reject suspension 3 and would show the whole car as a stock coupe; peers never see suspension.
+    b: build_code({ ...garage.build, suspension: Math.min(garage.build.suspension, 2) as Level }),
     seed,
     t: performance.now(),
     p: car.pos.toArray() as CarState["p"],
