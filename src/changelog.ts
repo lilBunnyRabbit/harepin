@@ -23,6 +23,21 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.7.0",
+    date: "2026-11-09",
+    title: "Dream garage",
+    changes: [
+      { kind: NEW, text: "Two new cars: Sturm, a wide-body air-cooled coupe with the engine in the back, and Raijin, a turbo all-wheel-drive sedan with a full kit." },
+      { kind: NEW, text: "Aero kits: a Street kit and a Race kit add a lip or splitter, side skirts, a diffuser and a bigger wing." },
+      { kind: NEW, text: "Create your own theme: roll one, adjust colour strength and contrast, lock the colours you like, then name and save it." },
+      { kind: NEW, text: "Pick a HUD layout in Settings: Minimal (the new default), Classic, Racing or Compact." },
+      { kind: NEW, text: "Dash switches for traction control, ABS, steer assist and the gearbox, with a lamp that lights when an aid is off." },
+      { kind: IMPROVED, text: "On phones the controls are see-through and the HUD fades while you drive, so you see more of the road." },
+      { kind: IMPROVED, text: "The garage holds the car still while you swap parts, so you see exactly what changed." },
+      { kind: FIXED, text: "With traction control off, holding full lock and full throttle keeps the wheels turned, so you can do donuts." },
+    ],
+  },
+  {
     version: "0.6.0",
     date: "2026-11-09",
     title: "Build your car",
@@ -42,7 +57,6 @@ export const CHANGELOG: Release[] = [
       { kind: IMPROVED, text: "The coupe has a rounder nose and a fastback roof." },
       { kind: IMPROVED, text: "Pinch to zoom the camera on phones. On desktop the garage, settings, chat and modes buttons sit at the bottom left." },
       { kind: FIXED, text: "Cars pull out of tight uphill hairpins at full lock instead of bogging down." },
-      { kind: FIXED, text: "With traction control off, holding full lock and full throttle keeps the wheels turned, so rear-drive cars and the rally car can do donuts again." },
       { kind: FIXED, text: "Skid marks show on the road again." },
       { kind: FIXED, text: "A car in neutral no longer rolls on flat ground, and cars no longer look sunk into the road." },
       { kind: FIXED, text: "Long room names no longer push into the lap strip." },
