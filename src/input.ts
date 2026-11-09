@@ -193,6 +193,9 @@ export class Input {
   private queued: Action[] = [];
   private pad_prev: boolean[] = [];
   private nav_prev: boolean[] = [];
+  /** Pad buttons that were down when a panel closed; they drive nothing until let go. */
+  private held = new Set<number>();
+  private was_blocked = false;
   pad: Gamepad | null = null;
   /** Menu presses on the pad since the last `read`, for a panel open over the game. */
   nav: Nav[] = [];
@@ -245,6 +248,13 @@ export class Input {
     this.rewind = this.down("Backspace");
     const pad = this.pad;
     this.look = { ...no_look(), ...this.mouse.take() };
+    const blocked = this.blocked();
+    // B backs out of the garage and A fits a part there; still held as the panel closes they would fire nitro or the
+    // handbrake. Keys need no latch: presses made while blocked never reach `keys`.
+    if (pad && this.was_blocked && !blocked) pad.buttons.forEach((b, i) => b.pressed && this.held.add(i));
+    this.was_blocked = blocked;
+    for (const i of this.held) if (!pad?.buttons[i]?.pressed) this.held.delete(i);
+    const button = (i: number) => (this.held.has(i) ? undefined : pad?.buttons[i]);
     if (pad) {
       const [x, y] = [pad.axes[2] ?? 0, pad.axes[3] ?? 0];
       const tilt = Math.hypot(x, y);
@@ -256,19 +266,19 @@ export class Input {
       const raw = pad.axes[0] ?? 0;
       const dead = Math.max(0, Math.abs(raw) - 0.08) / 0.92;
       const stick = Math.sign(raw) * dead ** 1.4;
-      const rt = pad.buttons[7]?.value ?? 0;
-      const lt = pad.buttons[6]?.value ?? 0;
-      if (Math.abs(stick) > 0 || rt > 0.02 || lt > 0.02 || pad.buttons[0]?.pressed) {
+      const rt = button(7)?.value ?? 0;
+      const lt = button(6)?.value ?? 0;
+      if (Math.abs(stick) > 0 || rt > 0.02 || lt > 0.02 || button(0)?.pressed) {
         if (key_steer === 0) {
           controls.steer = stick;
           controls.analog = true;
         }
         controls.throttle = Math.max(controls.throttle, rt);
         controls.brake = Math.max(controls.brake, lt);
-        controls.handbrake = Math.max(controls.handbrake, pad.buttons[0]?.pressed ? 1 : 0);
+        controls.handbrake = Math.max(controls.handbrake, button(0)?.pressed ? 1 : 0);
       }
-      if (pad.buttons[2]?.pressed) this.rewind = true;
-      if (pad.buttons[1]?.pressed) controls.nitro = true;
+      if (button(2)?.pressed) this.rewind = true;
+      if (button(1)?.pressed) controls.nitro = true;
       for (const [button, nav] of PAD_NAV) {
         const pressed = !!pad.buttons[button]?.pressed;
         if (pressed && !this.nav_prev[button]) this.nav.push(nav);

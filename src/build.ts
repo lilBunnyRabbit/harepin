@@ -39,14 +39,12 @@ export interface Part {
   look?: Look;
 }
 
-/** Where the garage camera goes for a slot. */
+/** How the garage shows a slot: the whole car always fits the clear screen, turned to the part and shifted toward it. */
 export interface SlotView {
   /** The point it centres, in the car's half extents: +x left flank, +y up, +z nose. */
   at: Triple;
   /** The car's turn on its stand, radians: 0.7 points the nose at the camera, -0.87 shows the left flank side on. */
   yaw: number;
-  /** Camera distance as a share of the distance that frames the whole car. */
-  distance: number;
 }
 
 export interface SlotSpec {
@@ -55,14 +53,14 @@ export interface SlotSpec {
   view?: SlotView;
 }
 
-export const WHOLE_CAR: SlotView = { at: [0, 0, 0], yaw: -0.5, distance: 1 };
+export const WHOLE_CAR: SlotView = { at: [0, 0, 0], yaw: -0.5 };
 
 // Spoiler, suspension and engine sit at fixed spots in the build code; every other slot rides in its tail in table order,
 // so a new slot goes last here or old codes would read its digits as another slot's.
 export const SLOTS = {
   engine: {
     label: "Engine",
-    view: { at: [0, 0.7, 0.55], yaw: 0.4, distance: 0.55 },
+    view: { at: [0, 0.7, 0.55], yaw: 0.4 },
     parts: [
       { name: "Stock", blurb: "Factory tune", mod: {} },
       { name: "Tuned", blurb: "+15% torque, revs higher, +15 kg", mod: { scale: { torque: 1.15 }, add: { redline: 300, upshift: 300, mass: 15 } } },
@@ -71,7 +69,7 @@ export const SLOTS = {
   },
   tyres: {
     label: "Tyres",
-    view: { at: [1, -0.45, 0.6], yaw: -0.6, distance: 0.55 },
+    view: { at: [1, -0.45, 0.6], yaw: -0.6 },
     parts: [
       { name: "Street", blurb: "All-round, fine on dirt", mod: {} },
       { name: "Sport", blurb: "More grip, a bit worse on dirt", mod: { scale: { mu: 1.06 }, add: { offroad: -0.15 } }, look: { tyre: { width: 1.15, rim: 1.06 } } },
@@ -81,7 +79,7 @@ export const SLOTS = {
   },
   spoiler: {
     label: "Spoiler",
-    view: { at: [0, 0.75, -0.85], yaw: -1.7, distance: 0.78 },
+    view: { at: [0, 0.75, -0.85], yaw: -1.7 },
     parts: [
       { name: "None", blurb: "Clean, lowest drag", mod: {} },
       { name: "Lip", blurb: "More downforce, a little drag", mod: { scale: { downforce: 1.8 }, add: { drag: 0.04, rear_grip: 0.02 } } },
@@ -90,7 +88,7 @@ export const SLOTS = {
   },
   suspension: {
     label: "Suspension",
-    view: { at: [1, -0.35, -0.6], yaw: -1, distance: 0.62 },
+    view: { at: [1, -0.35, -0.6], yaw: -1 },
     parts: [
       { name: "Soft", blurb: "Soft and tall, soaks up bumps", mod: { scale: { spring: 0.8, damper: 0.8, arb_front: 0.7, arb_rear: 0.7 }, add: { rest: 0.04 } } },
       { name: "Sport", blurb: "Balanced street setup", mod: {} },
@@ -101,7 +99,7 @@ export const SLOTS = {
   },
   brakes: {
     label: "Brakes",
-    view: { at: [1, -0.45, 0.6], yaw: -0.6, distance: 0.48 },
+    view: { at: [1, -0.45, 0.6], yaw: -0.6 },
     parts: [
       { name: "Stock", blurb: "Factory brakes", mod: {} },
       { name: "Sport", blurb: "+15% brake force", mod: { scale: { brake_front: 1.15, brake_rear: 1.15 }, add: { brake_grip: 0.14 } }, look: { caliper: { size: 1.15, tone: "error" } } },
@@ -110,7 +108,7 @@ export const SLOTS = {
   },
   weight: {
     label: "Weight",
-    view: { at: [0, 0, 0], yaw: -0.87, distance: 0.95 },
+    view: { at: [0, 0, 0], yaw: -0.87 },
     parts: [
       { name: "Stock", blurb: "Full interior", mod: {} },
       { name: "Light", blurb: "-5% mass, sits a little lower", mod: { scale: { mass: 0.95, inertia: 0.95 }, add: { cog: 0.01 } } },
@@ -129,7 +127,7 @@ export const SLOTS = {
   },
   nitro: {
     label: "Nitro",
-    view: { at: [0, 0.6, -0.65], yaw: -1.9, distance: 0.72 },
+    view: { at: [0, 0.6, -0.65], yaw: -1.9 },
     parts: [
       { name: "None", blurb: "No boost", mod: {} },
       { name: "Small tank", blurb: "4 s boost, +8 kg", mod: { add: { nitro: 4, mass: 8 } }, look: { bottle: { size: 1 } } },

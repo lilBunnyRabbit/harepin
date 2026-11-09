@@ -524,8 +524,11 @@ function frame(now: number) {
   if (quality.adapt(dt)) quality.apply(renderer, scene, sun);
   fit();
   world_view.update(camera, quality.tier.fog_far);
-  if (composer_on()) composer.render();
-  else renderer.render(scene, camera);
+  // The garage covers the screen and draws the car with its own renderer; the next frame after it closes draws the world.
+  if (!garage.is_open) {
+    if (composer_on()) composer.render();
+    else renderer.render(scene, camera);
+  }
   if (import.meta.env.DEV || debug_overlay) check_size(now);
   requestAnimationFrame(frame);
 }

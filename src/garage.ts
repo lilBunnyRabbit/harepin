@@ -47,13 +47,17 @@ const DECAL_NAMES: Record<Decal, string> = {
 };
 
 const EYE = new THREE.Vector3(4.6, 2.8, 5.4).normalize();
-const FRAME_MARGIN = 1.08;
+const FORWARD = EYE.clone().negate();
+const RIGHT = FORWARD.clone().cross(THREE.Object3D.DEFAULT_UP).normalize();
+const UP = RIGHT.clone().cross(FORWARD);
+/** Camera distance over the tightest fit, so a slot's point can pull the car off centre without it leaving the clear area. */
+const FIT_SLACK = 1.06;
 const EASE_MS = 600;
 const COUNT_MS = 450;
 /** Breathing room between the car and the panels around it, CSS px. */
 const FREE_PAD = 12;
-const SIDE_VIEW: SlotView = { at: [0, 0, 0], yaw: -0.87, distance: 0.9 };
-const DOOR_VIEW: SlotView = { at: [0.6, 0, 0], yaw: -0.87, distance: 0.6 };
+const SIDE_VIEW: SlotView = { at: [0, 0, 0], yaw: -0.87 };
+const DOOR_VIEW: SlotView = { at: [0.6, 0, 0], yaw: -0.87 };
 /** Slots shown under Body: the parts you see first on the car. Every other slot lands under Performance. */
 const BODY_SLOTS: readonly Slot[] = ["spoiler"];
 const SVG = "http://www.w3.org/2000/svg";
@@ -325,10 +329,9 @@ const turn = (from: number, to: number) => ((((to - from + Math.PI) % (2 * Math.
 interface Pose {
   at: THREE.Vector3;
   yaw: number;
-  distance: number;
 }
 
-const pose_of = (view: SlotView): Pose => ({ at: new THREE.Vector3(...view.at), yaw: view.yaw, distance: view.distance });
+const pose_of = (view: SlotView): Pose => ({ at: new THREE.Vector3(...view.at), yaw: view.yaw });
 
 interface Meter {
   value: HTMLElement;
@@ -366,8 +369,11 @@ export class Garage {
   private cursor = 0;
   private frame = 0;
   /** The car's centre and half extents with no turn, and the radius it sweeps when it turns. */
-  private readonly box = { center: new THREE.Vector3(), half: new THREE.Vector3(1, 1, 1), reach: 1 };
-  private readonly free = { x: 0, y: 0, width: 1, height: 1 };
+  private readonly box = { center: new THREE.Vector3(), half: new THREE.Vector3(1, 1, 1) };
+  /** The car's vertices with no turn, deduplicated: what has to stay inside the clear area. */
+  private points: THREE.Vector3[] = [];
+  /** The clear area between the panels in normalised device coordinates, -1..1, +y up. */
+  private readonly clear = { left: -1, right: 1, bottom: -1, top: 1 };
   private pose: Pose = pose_of(WHOLE_CAR);
   private from: Pose = pose_of(WHOLE_CAR);
   private to: Pose = pose_of(WHOLE_CAR);
@@ -744,7 +750,20 @@ export class Garage {
     const box = new THREE.Box3().setFromObject(this.view.root);
     box.getCenter(this.box.center);
     box.getSize(this.box.half).multiplyScalar(0.5);
-    this.box.reach = Math.hypot(Math.max(-box.min.x, box.max.x), Math.max(-box.min.z, box.max.z));
+    const seen = new Set<string>();
+    const vertex = new THREE.Vector3();
+    this.points = [];
+    this.view.root.traverseVisible((object) => {
+      if (!(object instanceof THREE.Mesh)) return;
+      const position = object.geometry.getAttribute("position");
+      for (let i = 0; i < position.count; i++) {
+        vertex.fromBufferAttribute(position, i).applyMatrix4(object.matrixWorld);
+        const key = `${Math.round(vertex.x * 50)},${Math.round(vertex.y * 50)},${Math.round(vertex.z * 50)}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        this.points.push(vertex.clone());
+      }
+    });
     this.shadow.mesh.position.set(this.box.center.x, box.min.y + 0.02, this.box.center.z);
     this.shadow.mesh.scale.set(this.box.half.x / 1.0, 1, this.box.half.z / 2.0);
     this.scene.add(this.view.root);
@@ -752,7 +771,7 @@ export class Garage {
   }
 
   private aim(view: SlotView) {
-    this.from = { at: this.pose.at.clone(), yaw: this.pose.yaw, distance: this.pose.distance };
+    this.from = { at: this.pose.at.clone(), yaw: this.pose.yaw };
     this.to = pose_of(view);
     this.moved = performance.now();
     if (this.calm.matches) {
@@ -767,7 +786,6 @@ export class Garage {
     this.pose = {
       at: this.from.at.clone().lerp(this.to.at, e),
       yaw: this.from.yaw + turn(this.from.yaw, this.to.yaw) * e,
-      distance: THREE.MathUtils.lerp(this.from.distance, this.to.distance, e),
     };
     this.draw();
     this.frame = u < 1 ? requestAnimationFrame(this.tick) : 0;
@@ -792,35 +810,66 @@ export class Garage {
       else if (cx < width / 2) area.left = Math.max(area.left, r.right + FREE_PAD);
       else area.right = Math.min(area.right, r.left - FREE_PAD);
     }
-    this.free.x = (area.left + area.right) / 2;
-    this.free.y = (area.top + area.bottom) / 2;
-    this.free.width = Math.max(80, area.right - area.left);
-    this.free.height = Math.max(80, area.bottom - area.top);
+    this.clear.left = (2 * area.left) / width - 1;
+    this.clear.right = (2 * Math.max(area.right, area.left + 80)) / width - 1;
+    this.clear.top = 1 - (2 * area.top) / height;
+    this.clear.bottom = 1 - (2 * Math.max(area.bottom, area.top + 80)) / height;
     this.camera.aspect = width / Math.max(1, height);
-    this.camera.setViewOffset(width, height, width / 2 - this.free.x, height / 2 - this.free.y, width, height);
+    this.camera.updateProjectionMatrix();
     this.draw();
   };
 
   private draw() {
     const renderer = this.renderer;
     if (!renderer || !this.view) return;
-    const { center, half, reach } = this.box;
-    const { yaw, at, distance } = this.pose;
+    const { center, half } = this.box;
+    const { yaw, at } = this.pose;
     this.view.root.rotation.y = yaw;
     this.shadow.mesh.rotation.y = yaw;
-    const target = new THREE.Vector3(center.x + at.x * half.x, center.y + at.y * half.y, center.z + at.z * half.z).applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw);
-    const view = this.camera.view;
-    const width = view?.fullWidth ?? 1;
-    const height = view?.fullHeight ?? 1;
-    const tan_v = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)) * (this.free.height / height);
-    const tan_h = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2)) * this.camera.aspect * (this.free.width / width);
-    const elevation = Math.asin(EYE.y);
-    const tall = reach * Math.sin(elevation) + half.y * Math.cos(elevation);
-    // The near end of the car sits up to `reach` closer than the centre and looks larger; half of that covers it in practice.
-    const whole = Math.max(reach / tan_h, tall / tan_v) * FRAME_MARGIN + reach * 0.5;
-    this.camera.position.copy(EYE).multiplyScalar(whole * distance).add(target);
+    const turned = new THREE.Vector3();
+    const n = this.points.length;
+    const along = { right: new Float64Array(n), up: new Float64Array(n), depth: new Float64Array(n) };
+    this.points.forEach((point, i) => {
+      turned.copy(point).applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw);
+      along.right[i] = turned.dot(RIGHT);
+      along.up[i] = turned.dot(UP);
+      along.depth[i] = turned.dot(FORWARD);
+    });
+    const focus = new THREE.Vector3(center.x + at.x * half.x, center.y + at.y * half.y, center.z + at.z * half.z).applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw);
+    const plane = center.clone().applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw).dot(FORWARD);
+    const tan_v = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2));
+    const tan_h = tan_v * this.camera.aspect;
+    const { left, right, bottom, top } = this.clear;
+    // With the view direction fixed, a camera `d` behind the plane through the car's centre and slid by (x, y) in it shows
+    // a point at screen x = (right_i - x) / (depth_i - plane + d) / tan_h; keeping every point inside the clear area bounds x
+    // and y to an interval per distance, and the intervals only widen as the camera backs off.
+    const slide = (d: number) => {
+      const range = { x0: -Infinity, x1: Infinity, y0: -Infinity, y1: Infinity };
+      for (let i = 0; i < n; i++) {
+        const w = along.depth[i] - plane + d;
+        if (w <= 0.05) return null;
+        range.x0 = Math.max(range.x0, along.right[i] - right * w * tan_h);
+        range.x1 = Math.min(range.x1, along.right[i] - left * w * tan_h);
+        range.y0 = Math.max(range.y0, along.up[i] - top * w * tan_v);
+        range.y1 = Math.min(range.y1, along.up[i] - bottom * w * tan_v);
+      }
+      return range.x0 <= range.x1 && range.y0 <= range.y1 ? range : null;
+    };
+    let near = 0.1;
+    let far = 400;
+    for (let i = 0; i < 40 && slide(far) === null; i++) far *= 2;
+    for (let i = 0; i < 32; i++) {
+      const mid = (near + far) / 2;
+      if (slide(mid)) far = mid;
+      else near = mid;
+    }
+    const distance = far * FIT_SLACK;
+    const range = slide(distance) ?? { x0: 0, x1: 0, y0: 0, y1: 0 };
+    const x = THREE.MathUtils.clamp(focus.dot(RIGHT), range.x0, range.x1);
+    const y = THREE.MathUtils.clamp(focus.dot(UP), range.y0, range.y1);
+    const target = new THREE.Vector3().addScaledVector(RIGHT, x).addScaledVector(UP, y).addScaledVector(FORWARD, plane);
+    this.camera.position.copy(target).addScaledVector(FORWARD, -distance);
     this.camera.lookAt(target);
-    this.camera.updateProjectionMatrix();
     renderer.render(this.scene, this.camera);
   }
 }
