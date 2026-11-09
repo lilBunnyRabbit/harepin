@@ -105,7 +105,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
   ghost: true,
   volume: 0.8,
   muted: false,
-  hud: HudLayout.MINIMAL,
+  hud: HudLayout.CLASSIC,
 };
 
 const one_of = <T extends string | number>(values: readonly T[], raw: unknown, fallback: T): T => (values.includes(raw as T) ? (raw as T) : fallback);
