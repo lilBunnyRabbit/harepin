@@ -26,7 +26,8 @@ import { WorldView, load_world, water_mesh } from "./scene";
 import { clouds, sky } from "./sky";
 import { Lighting } from "./lighting";
 import { NanProbe, sanitise_bloom } from "./postfx";
-import { CAMERA_RETURN_SECONDS, CameraView, Settings, load_settings, type SettingsState } from "./settings";
+import { CAMERA_RETURN_SECONDS, CameraView, Settings, load_settings, save_setting, type SettingsState } from "./settings";
+import { ask_name } from "./name-prompt";
 import { BUILD, Updater, show_version } from "./update";
 import "./style.css";
 
@@ -36,6 +37,7 @@ const seed = parse_seed(params.get("seed")) ?? seed_of(room);
 const ADJECTIVES = ["Swift", "Fuzzy", "Lucky", "Bouncy", "Sly", "Brave", "Zippy", "Mellow"];
 const random_name = `${ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)]} Bunny`;
 const prefs = load_settings(params);
+const asked_name = prefs.name === null ? ask_name(document.body, random_name) : null;
 
 show_version($("loading"));
 const { world, chunks } = await load_world(seed);
@@ -63,6 +65,10 @@ scene.add(...light.dress(sky(), clouds(world.seed)), world_view.root, roadside(w
 const gate_views = gates(world);
 for (const g of gate_views) scene.add(g.group);
 
+if (asked_name) {
+  prefs.name = await asked_name;
+  save_setting("name", prefs.name);
+}
 const net = new Net(room, seed, prefs.name ?? random_name);
 const chat = new Chat(net);
 chat.start();

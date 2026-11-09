@@ -125,6 +125,10 @@ function with_overrides(saved: SettingsState, params: URLSearchParams): Settings
   });
 }
 
+export function save_setting<K extends SettingKey>(key: K, value: SettingsState[K]) {
+  write_saved({ ...read_saved(), [key]: value });
+}
+
 export function load_settings(params = new URLSearchParams(location.search)): SettingsState {
   return with_overrides(read_saved(), params);
 }
@@ -441,7 +445,7 @@ export class Settings {
     name.maxLength = 24;
     name.autocomplete = "off";
     name.enterKeyHint = "done";
-    name.setAttribute("aria-label", "Player name");
+    name.setAttribute("aria-label", "Your name");
     const commit = () => {
       const next = name.value.trim() ? clean_name(name.value) : null;
       name.value = next ?? "";
@@ -463,9 +467,9 @@ export class Settings {
     this.syncs.push(() => (race.textContent = this.host.race_busy() ? "Leave race" : "Start race"));
 
     return [
+      this.row("Your name", name, "Everyone in the room sees it; leave empty for a random bunny"),
       this.row("Room", room_value, "Friends join with the invite link"),
       this.row("Private room", this.action("New private room", () => this.go({ room: random_code() })), "Starts an empty room with a fresh code"),
-      this.row("Player name", name, "Leave empty for a random bunny"),
       this.row("Map", map_value, "Others keep their map until they open your invite"),
       this.choice(
         "laps",

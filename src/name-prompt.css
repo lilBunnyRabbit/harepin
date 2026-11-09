@@ -1,0 +1,85 @@
+.name-prompt {
+  position: fixed;
+  inset: 0;
+  z-index: 35;
+  display: grid;
+  place-items: center;
+  padding: var(--inset-top) var(--inset-right) var(--inset-bottom) var(--inset-left);
+  background: color-mix(in oklch, var(--background-darkest) 40%, transparent);
+  color: var(--foreground);
+  font-size: var(--text-md);
+}
+
+.name-prompt-card {
+  display: grid;
+  gap: var(--space-2);
+  width: min(400px, 100%);
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: var(--panel-shadow);
+}
+
+.name-prompt-title {
+  margin: 0;
+  font-size: var(--text-xl);
+  font-weight: 600;
+  letter-spacing: -0.011em;
+}
+
+.name-prompt-hint {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--dim);
+}
+
+.name-prompt-row {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.name-prompt-input {
+  flex: 1;
+  min-width: 0;
+  height: var(--control-h);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: color-mix(in oklch, var(--panel-well) 60%, var(--panel));
+  color: var(--foreground);
+  font: inherit;
+  font-size: var(--text-lg);
+}
+
+.name-prompt-input:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.name-prompt .name-prompt-drive {
+  color: var(--background-darkest);
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.name-prompt .name-prompt-drive:hover {
+  background: color-mix(in oklch, var(--primary) 88%, var(--foreground));
+}
+
+/* Phone landscape: the on-screen keyboard takes the lower half, so the card sits at the top. */
+@media (max-height: 500px) {
+  .name-prompt {
+    align-items: start;
+  }
+
+  .name-prompt-card {
+    padding: var(--space-3) var(--space-4);
+  }
+}
+
+@media (pointer: coarse) {
+  .name-prompt-input {
+    font-size: var(--text-xl);
+  }
+}
