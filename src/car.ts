@@ -25,6 +25,15 @@ export type SteerMode = (typeof SteerMode)[keyof typeof SteerMode];
 export const CAR_BODY = { mass: COUPE.mass, yaw_inertia: COUPE.inertia[1] };
 const GRAVITY = 9.81;
 const SPIN_SLIP = 0.15;
+const TCS_SLIP = 0.14;
+/** Below this speed (m/s) traction control works per wheel and per axle; faster, braking one side yaws the car. */
+const TCS_LOW_SPEED = 15;
+/** Weight of a driven rear's sideways slip in traction control's slip: at 1.4 it cuts in at 0.9 of the peak slip angle. */
+const TCS_LATERAL = 1.4;
+/** Front slip angle the steer assist allows, in `peak_angle`: past peak a tyre only scrubs speed. */
+const USEFUL_SLIP = 1.1;
+/** Speeds (m/s) where the useful-slip cap fades in and back out: below, parking keeps full lock; above, `grip_lock` rules. */
+const USEFUL_SPEEDS = [3, 6, 12, 16] as const;
 const STEER_RATE = 9;
 const KEY_RAMP = 0.2;
 const KEY_RAMP_MIN = 0.03;
@@ -71,6 +80,8 @@ export class Wheel {
   load = 0;
   abs = false;
   abs_factor = 1;
+  /** Traction control's brake on this wheel, 0..1 of its drive torque. */
+  tcs_brake = 0;
   /** Where a braked, stopped wheel's contact patch is pinned; static friction holds it there until it breaks away. */
   readonly anchor = new Vector3();
   anchored = false;
@@ -278,6 +289,16 @@ export class Car {
       const beta = Math.atan2(-local.x, local.z);
       target += Math.sign(beta) * Math.max(0, Math.abs(beta) - 0.1) * 0.8;
     }
+    if (this.assist && local.z > 1) {
+      // Full lock at hairpin speed put the fronts at 20-27 degrees of slip, three times peak, and their scrub held the car
+      // at walking pace under full throttle. Keep them within reach of peak around the way the front axle is moving.
+      const course = Math.atan2(-(local.x + ang.dot(up) * spec.wheel.mounts[0][2]), local.z);
+      const [on_from, on_to, off_from, off_to] = USEFUL_SPEEDS;
+      const fade = Math.max((on_to - speed) / (on_to - on_from), (speed - off_from) / (off_to - off_from));
+      const free = spec.lock * Math.max(0, Math.min(1, fade));
+      const reach = USEFUL_SLIP * spec.peak_angle + free;
+      target = Math.max(course - reach, Math.min(course + reach, target));
+    }
     target = Math.max(-spec.lock, Math.min(spec.lock, target));
     // At speed the ramped key input moves slower than either limit; at parking speed this keeps the old keyboard feel.
     const rate = input.analog ? STEER_RATE : Math.max(1.6, lock * 6) * (input.steer === 0 ? 1.6 : 1);
@@ -300,13 +321,26 @@ export class Car {
 
     let max_slip = 0;
     let max_drag = 0;
-    for (const w of driven) {
-      max_slip = Math.max(max_slip, w.slip);
+    const acting = this.tcs && pedal > 0.1 && speed > 1;
+    const low = acting && speed < TCS_LOW_SPEED;
+    // A driven rear counts its sideways slip too, not wheelspin alone: in a tight turn it saturates sideways at a spin
+    // traction control never saw, and full drive swung the tail in. A front's sideways slip is the steering's; cutting
+    // power for it only stalls the car.
+    const spin = (w: Wheel) => (low && w.contact && !w.front ? Math.hypot(Math.max(0, w.slip), w.lateral * spec.peak_slip * TCS_LATERAL) : w.slip);
+    for (let i = 0; i < 4; i++) {
+      const w = this.wheels[i];
+      if (!w.driven) continue;
+      // An axle spins when both its wheels do; one spinning alone, like the unloaded inner wheel in a tight turn, is
+      // braked instead, as a brake-based TCS does. Cutting the engine for it starved the loaded wheel and the car bogged.
+      const other = this.wheels[i ^ 1];
+      max_slip = Math.max(max_slip, low ? Math.min(spin(w), spin(other)) : spin(w));
+      const lone = low && w.contact && w.slip > TCS_SLIP && other.slip <= TCS_SLIP;
+      w.tcs_brake = lone ? Math.min(1, w.tcs_brake + 9 * dt) : Math.max(0, w.tcs_brake - 2.5 * dt);
       if (!w.contact) max_drag = Math.max(max_drag, -w.slip);
     }
     // On the ground some torque always gets through so a stuck car can still crawl out; in the air there is no grip to save.
     const floor = driven.every((w) => !w.contact) ? 0 : 0.15;
-    if (this.tcs && pedal > 0.1 && max_slip > 0.14 && speed > 1) this.tcs_factor = Math.max(floor, this.tcs_factor - 9 * dt);
+    if (acting && max_slip > TCS_SLIP) this.tcs_factor = Math.max(floor, this.tcs_factor - 9 * dt);
     else this.tcs_factor = Math.min(1, this.tcs_factor + 2.5 * dt);
     const gas = pedal * (this.tcs ? this.tcs_factor : 1);
     this.throttle = gas;
@@ -378,7 +412,7 @@ export class Car {
       const other = this.wheels[i ^ 1];
       const inertia = w.driven ? driven_inertia : 1.4;
       const torque = w.driven ? (w.front ? drive_front : drive_rear) : 0;
-      const brake_torque = brake * (w.front ? spec.brake_front : spec.brake_rear) * w.abs_factor + (w.front ? 0 : input.handbrake * spec.handbrake) + (hold ? spec.hold : 0);
+      const brake_torque = brake * (w.front ? spec.brake_front : spec.brake_rear) * w.abs_factor + (w.front ? 0 : input.handbrake * spec.handbrake) + (hold ? spec.hold : 0) + w.tcs_brake * Math.abs(torque);
 
       if (!w.contact) {
         let omega = w.omega + (dt * torque) / inertia;
