@@ -250,7 +250,7 @@ export class Input {
       brake: this.down("KeyS", "ArrowDown") ? 1 : 0,
       handbrake: this.down("Space") ? 1 : 0,
       analog: false,
-      nitro: this.down("ShiftLeft", "ShiftRight", "KeyN"),
+      nitro: this.down("ShiftLeft", "ShiftRight"),
     };
     this.rewind = this.down("Backspace");
     const pad = this.pad;
