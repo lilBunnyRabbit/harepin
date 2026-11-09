@@ -2,7 +2,7 @@ import { Vector3 } from "three";
 import { Car } from "../src/car";
 import { COUPE, car_spec, type CarSpec } from "../src/cars";
 import { PadTimer } from "../src/sky-pads";
-import { World } from "../src/world";
+import { World, type RoadPoint } from "../src/world";
 import { FALL_DEPTH } from "../src/worldgen/sky";
 
 const DT = 1 / 360;
@@ -29,14 +29,12 @@ function corner_speed2(world: World, p: { x: number; z: number }, radius: number
 }
 
 /** Fastest the car may go now and still slow to every bend's v = sqrt(grip * radius) within the look-ahead. */
-function corner_pace(world: World, index: number): number {
-  const road = world.road;
-  const n = road.length;
+function corner_pace(world: World, at: (i: number) => RoadPoint, index: number): number {
   let pace = Infinity;
   for (let k = 0; k < CORNER_LOOK; k += 2) {
-    const a = road[(index + k - CORNER_SPAN + n) % n];
-    const b = road[(index + k) % n];
-    const c = road[(index + k + CORNER_SPAN) % n];
+    const a = at(index + k - CORNER_SPAN);
+    const b = at(index + k);
+    const c = at(index + k + CORNER_SPAN);
     const cross = Math.abs((b.x - a.x) * (c.z - a.z) - (b.z - a.z) * (c.x - a.x));
     if (cross === 0) continue;
     const radius = (Math.hypot(b.x - a.x, b.z - a.z) * Math.hypot(c.x - b.x, c.z - b.z) * Math.hypot(c.x - a.x, c.z - a.z)) / (2 * cross);
@@ -59,36 +57,38 @@ export interface Lap {
   toes: number[];
 }
 
-export function autolap(world: World, spec: CarSpec = COUPE): Lap {
+/** Drives `road` from its first point; an open one (a street or offroad route) ends at its last point instead of wrapping. */
+export function autolap(world: World, spec: CarSpec = COUPE, road: readonly RoadPoint[] = world.road, closed = true): Lap {
   const car = new Car(spec);
-  const p = world.road[0];
+  const n = road.length;
+  const point_at = (i: number) => (closed ? road[((i % n) + n) % n] : road[Math.max(0, Math.min(n - 1, i))]);
+  const p = road[0];
   car.place(p.x, world.height(p.x, p.z) + 0.75, p.z, Math.atan2(p.tx, p.tz));
   const pads = new PadTimer();
   let t = 0, index = 0, offroad = 0, worst = 0, slowest = Infinity, flipped = false, fell = false, impact = 0;
-  const n = world.road.length;
-  const step = world.road.reduce((sum, p, i) => sum + Math.hypot(world.road[(i + 1) % n].x - p.x, world.road[(i + 1) % n].z - p.z), 0) / n;
+  const step = road.reduce((sum, p, i) => sum + Math.hypot(road[(i + 1) % n].x - p.x, road[(i + 1) % n].z - p.z), 0) / n;
   // Each circuit kicker by its spot along the road: a box around the ramp axis only catches a car that is already lined up
   // with it, which on a bent run-up is too late to brake without turning, and the car took off still yawing.
   const kickers = world.ramps.filter((r) => r.road).map((r) => {
     let at = 0;
-    for (let i = 1; i < n; i++) if ((world.road[i].x - r.x) ** 2 + (world.road[i].z - r.z) ** 2 < (world.road[at].x - r.x) ** 2 + (world.road[at].z - r.z) ** 2) at = i;
+    for (let i = 1; i < n; i++) if ((road[i].x - r.x) ** 2 + (road[i].z - r.z) ** 2 < (road[at].x - r.x) ** 2 + (road[at].z - r.z) ** 2) at = i;
     return { ramp: r, at };
   });
   const toes: number[] = [];
   const behind = kickers.map(() => true);
-  while (t < 400 && index < world.road.length - 10) {
+  while (t < 400 && index < n - 10) {
     for (let k = index; k < index + 60; k++) {
-      const q = world.road[k % world.road.length];
+      const q = point_at(k);
       if ((q.x - car.pos.x) ** 2 + (q.z - car.pos.z) ** 2 < 100) index = Math.max(index, k);
     }
     const speed = car.vel.length();
-    const pace = corner_pace(world, index);
+    const pace = corner_pace(world, point_at, index);
     // `index` already runs up to 10 m ahead of the car; in a hairpin a longer aim point cuts across the inside.
-    const ahead = world.road[(index + (pace < HAIRPIN_PACE ? 0 : 6) + Math.floor(speed / 3)) % world.road.length];
+    const ahead = point_at(index + (pace < HAIRPIN_PACE ? 0 : 6) + Math.floor(speed / 3));
     const want = Math.atan2(ahead.x - car.pos.x, ahead.z - car.pos.z);
     const err = Math.atan2(Math.sin(want - car.heading), Math.cos(want - car.heading));
-    const far = world.road[(index + 40) % world.road.length];
-    const here = world.road[index];
+    const far = point_at(index + 40);
+    const here = point_at(index);
     const curve = Math.abs(Math.atan2(Math.sin(Math.atan2(far.tx, far.tz) - Math.atan2(here.tx, here.tz)), 1));
     // Takes a kicker on the circuit at JUMP_PACE and holds the wheel straight in the air, as a driver would.
     const jump = kickers.find(({ ramp, at }) => {
