@@ -1,0 +1,463 @@
+import { mulberry32, sub } from "../rng";
+import { sample, up, vertex } from "./field";
+import { circle16, length } from "./noise";
+import { CELL, ORIGIN, ROAD_HALF, SIZE, type Challenge, type ChallengeKind, type Item, type ItemKind, type Lot, type Ramp, type RampKind, type RoadPoint, type Solid, type Terrain, type Town } from "./types";
+
+export const GRAVITY = 9.81;
+const BACK = 1.2;
+const SIDE = 1;
+// Ramp mesh and surface reach this far below the base line, so uneven ground never shows a gap under one.
+const BURY = 3;
+export const RIDE = 0.5;
+/** Car body reach below and above its centre of mass, covering every car's sill and roof. */
+export const BODY_LOW = 0.25;
+export const BODY_HIGH = 0.9;
+// Share of the lip's vertical speed the car keeps: the suspension soaks up the rest. Fitted on every car at 360 Hz.
+const LAUNCH_KEEP = 0.91;
+
+const RUNUP = 30;
+const ROADSIDE_OFFSET = 18;
+const FLAT_BELOW = 1.2;
+const LANDING_UP = 0.85;
+const KEEP_OFF_ROAD = 3;
+const TOWN_CLEAR = 20;
+
+interface RampShape {
+  kind: RampKind;
+  hw: number;
+  length: number;
+  rise: number;
+  landing: number;
+  speed: number;
+}
+
+const KICKER: RampShape = { kind: "kicker", hw: 2.6, length: 8, rise: 2, landing: 45, speed: 21 };
+const BIG: RampShape = { kind: "big", hw: 3.2, length: 14, rise: 4, landing: 80, speed: 27 };
+
+const FRAME = 0.35;
+const WALL_HW = 7;
+const WALL_ABOVE = 1.2;
+const PIECE_HD = 0.25;
+const PILLAR = 0.5;
+const GAP_HW = 2.6;
+const GAP_BELOW = 1.3;
+const GAP_ABOVE = 1.7;
+const BAR_CLEAR = 1.6;
+const BAR_MIN = 0.8;
+const PILLAR_TOP = 6;
+/** Most the ground may climb across a challenge, and highest its opening may sit above that ground. */
+const CHALLENGE_SLOPE = 2.5;
+const CHALLENGE_HIGH = 6.5;
+const MIN_LAUNCH = 0.15;
+
+export interface Surface {
+  y: number;
+  gx: number;
+  gz: number;
+}
+
+export function ramp_local(r: Ramp, x: number, z: number): [number, number] {
+  const dx = x - r.x;
+  const dz = z - r.z;
+  return [dx * r.fz - dz * r.fx, dx * r.fx + dz * r.fz];
+}
+
+export function ramp_world(r: Ramp, u: number, v: number): [number, number] {
+  return [r.x + r.fz * u + r.fx * v, r.z - r.fx * u + r.fz * v];
+}
+
+export function ramp_extent(r: Ramp): { reach: number; from: number; to: number } {
+  return { reach: r.hw + (r.rise + BURY) / SIDE, from: (-BURY * r.length) / r.rise, to: r.length + (r.rise + BURY) / BACK };
+}
+
+// Planar on every cell of the grid u = ±hw, v = length: the mesh drawn on that grid is exactly the surface physics rides.
+export function ramp_lift(r: Ramp, u: number, v: number): number {
+  const along = v <= r.length ? (r.rise * v) / r.length : r.rise - (v - r.length) * BACK;
+  return along - Math.max(0, Math.abs(u) - r.hw) * SIDE;
+}
+
+/** The ground is the higher of this and terrain. */
+export function ramp_surface(r: Ramp, x: number, z: number): Surface | null {
+  const [u, v] = ramp_local(r, x, z);
+  const { reach, from, to } = ramp_extent(r);
+  if (v < from || v > to || Math.abs(u) > reach) return null;
+  const dv = r.grade + (v <= r.length ? r.rise / r.length : -BACK);
+  const du = Math.abs(u) > r.hw ? -SIDE * Math.sign(u) : 0;
+  return { y: r.y + r.grade * v + ramp_lift(r, u, v), gx: dv * r.fx + du * r.fz, gz: dv * r.fz - du * r.fx };
+}
+
+export function lip_height(r: Ramp): number {
+  return r.y + r.grade * r.length + r.rise;
+}
+
+export function launch(r: Ramp, speed: number): { speed: number; slope: number } {
+  const climb = r.rise + r.grade * r.length;
+  return { speed: Math.sqrt(speed * speed - 2 * GRAVITY * climb), slope: r.grade + r.rise / r.length };
+}
+
+/** Centre-of-mass height `d` metres past the lip for a car that hits the toe at `speed`. */
+export function flight(r: Ramp, speed: number, d: number): number {
+  const out = launch(r, speed);
+  const n = Math.sqrt(1 + out.slope * out.slope);
+  const vx = out.speed / n;
+  const t = d / vx;
+  return lip_height(r) + RIDE + ((LAUNCH_KEEP * out.speed * out.slope) / n) * t - (GRAVITY * t * t) / 2;
+}
+
+export function apex(r: Ramp): number {
+  const out = launch(r, r.speed);
+  return (LAUNCH_KEEP * out.slope * out.speed * out.speed) / (1 + out.slope * out.slope) / GRAVITY;
+}
+
+export interface Piece {
+  lx: number;
+  hw: number;
+  bottom: number;
+  top: number;
+  frame: boolean;
+}
+
+export function challenge_pieces(c: Challenge): Piece[] {
+  const g = c.gap_hw;
+  const gb = c.gap_bottom;
+  const gt = c.gap_top;
+  const outer = g + FRAME;
+  if (c.kind === "pillars")
+    return [-1, 1].map((side) => ({ lx: side * (g + PILLAR), hw: PILLAR, bottom: -1, top: gt, frame: true }));
+  if (c.kind === "bar") return [{ lx: 0, hw: g, bottom: -1, top: gb, frame: true }];
+  const frame: Piece[] = [
+    { lx: -g - FRAME / 2, hw: FRAME / 2, bottom: c.kind === "hoop" ? -1 : gb - FRAME, top: gt + FRAME, frame: true },
+    { lx: g + FRAME / 2, hw: FRAME / 2, bottom: c.kind === "hoop" ? -1 : gb - FRAME, top: gt + FRAME, frame: true },
+    { lx: 0, hw: g, bottom: gt, top: gt + FRAME, frame: true },
+    { lx: 0, hw: g, bottom: gb - FRAME, top: gb, frame: true },
+  ];
+  if (c.kind === "hoop") return frame;
+  const top = gt + WALL_ABOVE;
+  const side = (WALL_HW - outer) / 2;
+  return [
+    ...frame,
+    { lx: -outer - side, hw: side, bottom: -1, top, frame: false },
+    { lx: outer + side, hw: side, bottom: -1, top, frame: false },
+    { lx: 0, hw: outer, bottom: -1, top: gb - FRAME, frame: false },
+    { lx: 0, hw: outer, bottom: gt + FRAME, top, frame: false },
+  ];
+}
+
+export const PIECE_DEPTH = PIECE_HD;
+
+export function piece_solid(c: Challenge, p: Piece): Solid {
+  return { kind: "box", x: c.x + c.fz * p.lx, y: c.y, z: c.z - c.fx * p.lx, hw: p.hw, hd: PIECE_HD, cos: c.fz, sin: c.fx, height: p.top, bottom: p.bottom };
+}
+
+interface Zone {
+  x: number;
+  z: number;
+  r: number;
+}
+
+const ZONE_CELL = 16;
+
+/** Circles bucketed by every ZONE_CELL square they touch. */
+class Zones {
+  private readonly cells = new Map<number, Zone[]>();
+
+  private key(i: number, j: number) {
+    return (i + 512) * 1024 + (j + 512);
+  }
+
+  add(zone: Zone) {
+    const [i0, i1] = [Math.floor((zone.x - zone.r) / ZONE_CELL), Math.floor((zone.x + zone.r) / ZONE_CELL)];
+    const [j0, j1] = [Math.floor((zone.z - zone.r) / ZONE_CELL), Math.floor((zone.z + zone.r) / ZONE_CELL)];
+    for (let j = j0; j <= j1; j++)
+      for (let i = i0; i <= i1; i++) {
+        const k = this.key(i, j);
+        const list = this.cells.get(k);
+        if (list) list.push(zone);
+        else this.cells.set(k, [zone]);
+      }
+  }
+
+  hits(x: number, z: number, r: number): boolean {
+    const [i0, i1] = [Math.floor((x - r) / ZONE_CELL), Math.floor((x + r) / ZONE_CELL)];
+    const [j0, j1] = [Math.floor((z - r) / ZONE_CELL), Math.floor((z + r) / ZONE_CELL)];
+    for (let j = j0; j <= j1; j++)
+      for (let i = i0; i <= i1; i++) for (const q of this.cells.get(this.key(i, j)) ?? []) if (length(q.x - x, q.z - z) < q.r + r) return true;
+    return false;
+  }
+}
+
+export interface Jumps {
+  ramps: Ramp[];
+  items: Item[];
+  challenges: Challenge[];
+  solids: Solid[];
+  blocks(x: number, z: number, r: number): boolean;
+}
+
+interface ItemShape {
+  light: boolean;
+  r: number;
+  solid?: (x: number, y: number, z: number, fx: number, fz: number, scale: number) => Solid;
+}
+
+export const ITEMS: Record<ItemKind, ItemShape> = {
+  cone: { light: true, r: 0.3 },
+  barrel: { light: true, r: 0.45 },
+  hay: { light: true, r: 0.8 },
+  log: { light: false, r: 2.4, solid: (x, y, z, fx, fz, s) => ({ kind: "box", x, y, z, hw: 2.2 * s, hd: 0.35 * s, cos: fz, sin: fx, height: 0.6 * s }) },
+  rock: { light: false, r: 1.1, solid: (x, y, z, _fx, _fz, s) => ({ kind: "circle", x, y, z, radius: 0.95 * s, height: 1.3 * s }) },
+  barrier: { light: false, r: 1.6, solid: (x, y, z, fx, fz, s) => ({ kind: "box", x, y, z, hw: 0.3 * s, hd: 1.5 * s, cos: fz, sin: fx, height: 0.85 * s }) },
+};
+
+const ROADSIDE_STRIDE = 70;
+const OPEN_KICKERS = 40;
+const OPEN_ITEMS = 160;
+const HILL_STEP = 32;
+const HILL_RING = 48;
+const HILL_MIN = 22;
+const HILL_SPACING = 260;
+const RAMP_SPACING = 120;
+const MAX_BIG = 3;
+const MAX_KICKERS = 12;
+const LOT_ITEMS = 0.5;
+/** Most the ground may stray under a heavy box's corners from its centre: worldcheck's grounding limit, less a margin. */
+const LEVEL = 0.2;
+
+export class JumpPlanner {
+  readonly out: Jumps;
+  private readonly next: () => number;
+  /** Ramp run-ups, flights and landings plus every item: trees keep off these. */
+  private readonly zones = new Zones();
+  /** Solids placed before the planner ran. */
+  private readonly taken = new Zones();
+  private readonly dirs = circle16();
+
+  constructor(
+    seed: number,
+    private readonly terrain: Terrain,
+    private readonly towns: Town[],
+    private readonly occupied: Uint8Array,
+    existing: Solid[],
+  ) {
+    this.next = mulberry32(sub(seed, "jumps"));
+    for (const s of existing) this.taken.add({ x: s.x, z: s.z, r: s.kind === "circle" ? s.radius : length(s.hw, s.hd) });
+    const zones = this.zones;
+    this.out = { ramps: [], items: [], challenges: [], solids: [], blocks: (x, z, r) => zones.hits(x, z, r) };
+  }
+
+  private height(x: number, z: number) {
+    return sample(this.terrain.heights, x, z);
+  }
+
+  private road(x: number, z: number) {
+    return sample(this.terrain.road_dist, x, z);
+  }
+
+  private in_town(x: number, z: number, margin: number) {
+    return this.towns.some((t) => length(t.x - x, t.z - z) < t.radius + margin);
+  }
+
+  private clear(x: number, z: number, r: number, town_ok = false): boolean {
+    if (Math.abs(x) > SIZE / 2 - 40 || Math.abs(z) > SIZE / 2 - 40) return false;
+    if (this.height(x, z) < 3.5) return false;
+    if (this.road(x, z) < ROAD_HALF + r + KEEP_OFF_ROAD) return false;
+    const k = vertex(Math.round((x - ORIGIN) / CELL), Math.round((z - ORIGIN) / CELL));
+    if (this.occupied[k]) return false;
+    if (!town_ok && this.in_town(x, z, TOWN_CLEAR)) return false;
+    return !this.zones.hits(x, z, r) && !this.taken.hits(x, z, r);
+  }
+
+  private fits(r: Ramp): boolean {
+    const reach = r.hw + r.rise / SIDE + 1;
+    const to = r.length + r.rise / BACK;
+    for (let v = -RUNUP; v <= to + r.landing; v += 2)
+      for (let u = -reach; u <= reach; u += 2) {
+        const [x, z] = ramp_world(r, u, v);
+        if (!this.clear(x, z, 0.5)) return false;
+        const ground = this.height(x, z);
+        if (v >= 0 && v <= r.length && Math.abs(u) <= r.hw) {
+          const base = r.y + r.grade * v;
+          if (ground < base - FLAT_BELOW || (v > r.length / 4 && ground > base + ramp_lift(r, u, v) - 0.05)) return false;
+        }
+        if (v < 0 && up(this.terrain.heights, x, z) < LANDING_UP) return false;
+        if (v > to) {
+          if (up(this.terrain.heights, x, z) < LANDING_UP) return false;
+          if (ground > lip_height(r) + RIDE) return false;
+          if (v - r.length < apex(r) * 2 && ground > flight(r, r.speed, v - r.length) - 1.5) return false;
+        }
+      }
+    return true;
+  }
+
+  private ramp(shape: RampShape, x: number, z: number, fx: number, fz: number): Ramp | null {
+    const y = this.height(x, z);
+    const lip = this.height(x + fx * shape.length, z + fz * shape.length);
+    const r: Ramp = { id: this.out.ramps.length, kind: shape.kind, x, y, z, fx, fz, hw: shape.hw, length: shape.length, rise: shape.rise, grade: (lip - y) / shape.length, landing: shape.landing, speed: shape.speed };
+    const out = launch(r, r.speed);
+    if (Math.abs(r.grade) > 0.2 || out.slope < MIN_LAUNCH || !(out.speed > 8)) return null;
+    if (this.out.ramps.some((o) => length(o.x - x, o.z - z) < RAMP_SPACING)) return null;
+    if (!this.fits(r)) return null;
+    return r;
+  }
+
+  private accept(r: Ramp) {
+    this.out.ramps.push(r);
+    const { to } = ramp_extent(r);
+    for (let v = -RUNUP; v <= to + r.landing; v += 6) {
+      const [x, z] = ramp_world(r, 0, v);
+      this.zones.add({ x, z, r: ramp_extent(r).reach + 3 });
+    }
+    for (const v of [-7, -14])
+      for (const side of [-1, 1]) {
+        const [x, z] = ramp_world(r, side * (r.hw + 1.4), v);
+        this.items.push({ kind: "cone", x, y: this.height(x, z), z, fx: r.fx, fz: r.fz, scale: 1, light: true });
+      }
+    if (this.next() < 0.75) this.challenge(r);
+  }
+
+  private get items() {
+    return this.out.items;
+  }
+
+  private challenge(r: Ramp) {
+    const d = apex(r) * 0.85;
+    const [x, z] = ramp_world(r, 0, r.length + d);
+    let y = Infinity;
+    let high = -Infinity;
+    for (let lx = -WALL_HW; lx <= WALL_HW; lx += 1)
+      for (const dv of [-PIECE_HD, PIECE_HD]) {
+        const ground = this.height(...ramp_world(r, lx, r.length + d + dv));
+        y = Math.min(y, ground);
+        high = Math.max(high, ground);
+      }
+    if (high - y > CHALLENGE_SLOPE) return;
+    const com = flight(r, r.speed, d) - y;
+    if (com > CHALLENGE_HIGH) return;
+    const kinds: ChallengeKind[] = ["wall", "hoop", "pillars", "bar"];
+    let kind = kinds[Math.floor(this.next() * kinds.length)];
+    if (kind !== "bar" && kind !== "pillars" && com - GAP_BELOW < 1.2) kind = "bar";
+    const c: Challenge = { id: this.out.challenges.length, ramp: r.id, kind, x, y, z, fx: r.fx, fz: r.fz, gap_hw: GAP_HW, gap_bottom: com - GAP_BELOW, gap_top: com + GAP_ABOVE };
+    if (kind === "pillars") {
+      c.gap_bottom = 0;
+      c.gap_top = Math.max(PILLAR_TOP, com + GAP_ABOVE);
+    }
+    if (kind === "bar") {
+      c.gap_hw = WALL_HW - 2;
+      c.gap_bottom = com - BAR_CLEAR;
+      c.gap_top = 60;
+      if (c.gap_bottom < BAR_MIN) return;
+    }
+    this.out.challenges.push(c);
+    for (const p of challenge_pieces(c)) this.out.solids.push(piece_solid(c, p));
+  }
+
+  roadside(road: RoadPoint[]) {
+    const n = road.length;
+    const start = Math.floor(this.next() * n);
+    for (let k = 0; k < n && this.out.ramps.filter((r) => r.kind === "kicker").length < MAX_KICKERS / 2; k += ROADSIDE_STRIDE) {
+      const p = road[(start + k) % n];
+      const side = this.next() < 0.5 ? -1 : 1;
+      const x = p.x - p.tz * side * ROADSIDE_OFFSET;
+      const z = p.z + p.tx * side * ROADSIDE_OFFSET;
+      const r = this.ramp(KICKER, x, z, p.tx, p.tz);
+      if (r) this.accept(r);
+    }
+  }
+
+  open() {
+    for (let i = 0; i < OPEN_KICKERS && this.out.ramps.filter((r) => r.kind === "kicker").length < MAX_KICKERS; i++) {
+      const x = (this.next() - 0.5) * (SIZE - 200);
+      const z = (this.next() - 0.5) * (SIZE - 200);
+      const [fx, fz] = this.dirs[Math.floor(this.next() * 16)];
+      const r = this.ramp(KICKER, x, z, fx, fz);
+      if (r) this.accept(r);
+    }
+  }
+
+  hills() {
+    const tops: [number, number, number][] = [];
+    const ring = this.dirs.filter((_, i) => i % 2 === 0);
+    for (let z = ORIGIN + HILL_STEP * 3; z < -ORIGIN - HILL_STEP * 3; z += HILL_STEP)
+      for (let x = ORIGIN + HILL_STEP * 3; x < -ORIGIN - HILL_STEP * 3; x += HILL_STEP) {
+        const y = this.height(x, z);
+        if (y < HILL_MIN || ring.some(([dx, dz]) => this.height(x + dx * HILL_RING, z + dz * HILL_RING) > y)) continue;
+        tops.push([y, x, z]);
+      }
+    tops.sort((a, b) => b[0] - a[0] || a[1] - b[1] || a[2] - b[2]);
+    let big = 0;
+    for (const [, x, z] of tops) {
+      if (big >= MAX_BIG) break;
+      if (this.out.ramps.some((r) => r.kind === "big" && length(r.x - x, r.z - z) < HILL_SPACING)) continue;
+      const order = this.dirs.map((d, i) => [this.height(x + d[0] * 40, z + d[1] * 40), i] as const).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+      for (const [, i] of order.slice(0, 6)) {
+        const [fx, fz] = this.dirs[i];
+        const r = this.ramp(BIG, x - fx * BIG.length, z - fz * BIG.length, fx, fz);
+        if (!r) continue;
+        this.accept(r);
+        big++;
+        break;
+      }
+    }
+  }
+
+  private item(kind: ItemKind, x: number, z: number, fx: number, fz: number, scale: number, town_ok = false): boolean {
+    const shape = ITEMS[kind];
+    const r = shape.r * scale;
+    if (!this.clear(x, z, r, town_ok)) return false;
+    const y = this.height(x, z);
+    if (up(this.terrain.heights, x, z) < 0.8) return false;
+    if (shape.solid) {
+      const s = shape.solid(x, y, z, fx, fz, scale);
+      if (s.kind === "box")
+        for (const [a, b] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) {
+          const ground = this.height(x + a * s.hw * s.cos + b * s.hd * s.sin, z - a * s.hw * s.sin + b * s.hd * s.cos);
+          if (Math.abs(ground - y) > LEVEL) return false;
+        }
+    }
+    this.items.push({ kind, x, y, z, fx, fz, scale, light: shape.light });
+    this.zones.add({ x, z, r });
+    if (shape.solid) this.out.solids.push(shape.solid(x, y, z, fx, fz, scale));
+    return true;
+  }
+
+  roadside_items(road: RoadPoint[]) {
+    const n = road.length;
+    for (let s = Math.floor(this.next() * 40); s < n; s += 40 + Math.floor(this.next() * 60)) {
+      const p = road[s];
+      const side = this.next() < 0.5 ? -1 : 1;
+      const offset = ROAD_HALF + 4.5 + this.next() * 4;
+      const roll = this.next();
+      const at = (along: number, extra: number): [number, number] => [p.x + p.tx * along - p.tz * side * (offset + extra), p.z + p.tz * along + p.tx * side * (offset + extra)];
+      if (roll < 0.35) for (let i = 0; i < 3; i++) this.item("barrier", ...at(i * 3.2, 0), p.tx, p.tz, 1);
+      else if (roll < 0.6) for (let i = 0; i < 3; i++) this.item("hay", ...at(i * 1.9, (i % 2) * 0.9), p.tz, -p.tx, 1);
+      else if (roll < 0.85) for (let i = 0; i < 4; i++) this.item("barrel", ...at((i % 2) * 1.1, Math.floor(i / 2) * 1.1), p.tx, p.tz, 1);
+      else for (let i = 0; i < 5; i++) this.item("cone", ...at(i * 2.2, 0), p.tx, p.tz, 1);
+    }
+  }
+
+  lot_items(lots: Lot[]) {
+    for (const lot of lots) {
+      if (lot.kind !== "empty" || this.next() > LOT_ITEMS) continue;
+      const kinds: ItemKind[] = ["barrel", "hay", "cone"];
+      const kind = kinds[Math.floor(this.next() * kinds.length)];
+      const count = 2 + Math.floor(this.next() * 4);
+      for (let i = 0; i < count; i++) {
+        const lx = (this.next() - 0.5) * (lot.w - 3);
+        const lz = (this.next() - 0.5) * (lot.d - 3);
+        this.item(kind, lot.x + lot.fz * lx + lot.fx * lz, lot.z - lot.fx * lx + lot.fz * lz, lot.fx, lot.fz, 1, true);
+      }
+    }
+  }
+
+  open_items() {
+    for (let i = 0; i < OPEN_ITEMS; i++) {
+      const x = (this.next() - 0.5) * (SIZE - 200);
+      const z = (this.next() - 0.5) * (SIZE - 200);
+      const [fx, fz] = this.dirs[Math.floor(this.next() * 16)];
+      const roll = this.next();
+      if (roll < 0.55) this.item("rock", x, z, fx, fz, 0.7 + this.next() * 0.9);
+      else if (roll < 0.85) this.item("log", x, z, fx, fz, 0.8 + this.next() * 0.4);
+      else for (let k = 0; k < 3; k++) this.item("hay", x + fx * k * 1.9, z + fz * k * 1.9, fz, -fx, 1);
+    }
+  }
+}

@@ -193,6 +193,9 @@ export interface WorldData {
   parking: ParkingLot[];
   trees: Tree[];
   solids: Solid[];
+  ramps: Ramp[];
+  items: Item[];
+  challenges: Challenge[];
   checkpoints: Checkpoint[];
   /** Edge ids of the race loop, in driving order. */
   circuit: number[];
@@ -200,7 +203,71 @@ export interface WorldData {
   timings: [string, number][];
 }
 
-/** Box frame: local +z points along (sin, cos) in world x/z, local +x along (cos, -sin); hw spans x, hd spans z. */
+/**
+ * Box frame: local +z points along (sin, cos) in world x/z, local +x along (cos, -sin); hw spans x, hd spans z.
+ * A box with `bottom` spans y + bottom to y + height and is tested against the car's whole body, so a car can fly under
+ * it; one without stands on the ground and stops a car whose centre is below its top.
+ */
 export type Solid =
   | { kind: "circle"; x: number; y: number; z: number; radius: number; height: number }
-  | { kind: "box"; x: number; y: number; z: number; hw: number; hd: number; cos: number; sin: number; height: number };
+  | { kind: "box"; x: number; y: number; z: number; hw: number; hd: number; cos: number; sin: number; height: number; bottom?: number };
+
+export const RampKind = { KICKER: "kicker", BIG: "big" } as const;
+export type RampKind = (typeof RampKind)[keyof typeof RampKind];
+
+/**
+ * A wedge driven up along (fx, fz): toe centre at (x, z), `rise` above the base line at the lip `length` further on, then
+ * a steep drop. The base line runs from `y` at the toe with `grade` rise per metre. `landing` metres past the lip stay
+ * clear; `speed` (m/s at the toe) is the run its challenge, if any, is tuned for.
+ */
+export interface Ramp {
+  id: number;
+  kind: RampKind;
+  x: number;
+  y: number;
+  z: number;
+  fx: number;
+  fz: number;
+  hw: number;
+  length: number;
+  rise: number;
+  grade: number;
+  landing: number;
+  speed: number;
+}
+
+export const ItemKind = { CONE: "cone", BARREL: "barrel", HAY: "hay", LOG: "log", ROCK: "rock", BARRIER: "barrier" } as const;
+export type ItemKind = (typeof ItemKind)[keyof typeof ItemKind];
+
+/** Light items get knocked away by the car on the client; heavy ones are solids. Facing is (fx, fz). */
+export interface Item {
+  kind: ItemKind;
+  x: number;
+  y: number;
+  z: number;
+  fx: number;
+  fz: number;
+  scale: number;
+  light: boolean;
+}
+
+export const ChallengeKind = { WALL: "wall", HOOP: "hoop", PILLARS: "pillars", BAR: "bar" } as const;
+export type ChallengeKind = (typeof ChallengeKind)[keyof typeof ChallengeKind];
+
+/**
+ * Something to fly through or over across a ramp's flight line, facing back at the ramp along -(fx, fz). The opening is
+ * |lateral| < gap_hw and gap_bottom < height above `y` < gap_top.
+ */
+export interface Challenge {
+  id: number;
+  ramp: number;
+  kind: ChallengeKind;
+  x: number;
+  y: number;
+  z: number;
+  fx: number;
+  fz: number;
+  gap_hw: number;
+  gap_bottom: number;
+  gap_top: number;
+}

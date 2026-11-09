@@ -3,13 +3,17 @@ import type { Ground } from "./car";
 import { COUPE, type CarSpec } from "./cars";
 import { sample, slope_normal } from "./worldgen/field";
 import { generate } from "./worldgen/index";
+import { BODY_HIGH, BODY_LOW, ramp_surface, type Surface } from "./worldgen/jumps";
 import { ROAD_HALF } from "./worldgen/types";
 import type {
   Building,
+  Challenge,
   Checkpoint,
+  Item,
   Lot,
   ParkingLot,
   Prop,
+  Ramp,
   RoadGraph,
   RoadPoint,
   Solid,
@@ -131,6 +135,9 @@ export class World implements Ground {
   readonly trees: Tree[];
   readonly checkpoints: Checkpoint[];
   readonly solids: Solid[];
+  readonly ramps: Ramp[];
+  readonly items: Item[];
+  readonly challenges: Challenge[];
   readonly circuit: number[];
   readonly timings: [string, number][];
   private readonly solid_grid = new Map<number, number[]>();
@@ -159,6 +166,9 @@ export class World implements Ground {
     this.trees = data.trees;
     this.checkpoints = data.checkpoints;
     this.solids = data.solids;
+    this.ramps = data.ramps;
+    this.items = data.items;
+    this.challenges = data.challenges;
     this.circuit = data.circuit;
     this.timings = data.timings;
     this.seen = new Uint32Array(this.solids.length);
@@ -195,12 +205,25 @@ export class World implements Ground {
   }
 
   height(x: number, z: number): number {
-    return sample(this.heights, x, z);
+    const ground = sample(this.heights, x, z);
+    const ramp = this.ramp_at(x, z);
+    return ramp && ramp.y > ground ? ramp.y : ground;
   }
 
   normal(x: number, z: number, out: Vector3): Vector3 {
+    const ramp = this.ramp_at(x, z);
+    if (ramp && ramp.y > sample(this.heights, x, z)) return out.set(-ramp.gx, 1, -ramp.gz).normalize();
     const [nx, ny, nz] = slope_normal(this.heights, x, z);
     return out.set(nx, ny, nz).normalize();
+  }
+
+  private ramp_at(x: number, z: number): Surface | null {
+    let top: Surface | null = null;
+    for (const r of this.ramps) {
+      const s = ramp_surface(r, x, z);
+      if (s && (!top || s.y > top.y)) top = s;
+    }
+    return top;
   }
 
   distance_to_road(x: number, z: number): number {
@@ -277,7 +300,9 @@ export class World implements Ground {
 
   private hit(car: Collider, solid: Solid, offset: number, fx: number, fz: number): number {
     const { pos, spec } = car;
-    if (pos.y > solid.y + solid.height) return 0;
+    if (solid.kind === "box" && solid.bottom !== undefined) {
+      if (pos.y - BODY_LOW > solid.y + solid.height || pos.y + BODY_HIGH < solid.y + solid.bottom) return 0;
+    } else if (pos.y > solid.y + solid.height) return 0;
     const contact = circle_contact(solid, pos.x + fx * offset, pos.z + fz * offset, spec.radius, -fx * Math.sign(offset || 1), -fz * Math.sign(offset || 1));
     return contact ? this.resolve(car, contact, fx * offset, fz * offset) : 0;
   }

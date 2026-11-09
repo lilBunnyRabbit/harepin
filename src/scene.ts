@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { by_chunk, soup_geometry, town_chunks, type TownChunk } from "./buildings";
+import { JumpsView } from "./jumps";
 import { color, lighten, linear, mix, tones } from "./palette";
 import { SIZE, World, type RoadPoint, type Tree } from "./world";
 import { CHUNK, JITTER_LEVELS, type ChunkBuffers, type MeshTones } from "./worldgen/chunks";
@@ -80,6 +81,7 @@ interface ChunkView {
 /** The island as CHUNK-sized pieces with real bounds, so frustum culling works, plus distance LOD driven by `update`. */
 export class WorldView {
   readonly root = new THREE.Group();
+  readonly jumps: JumpsView;
   private readonly views: ChunkView[];
 
   constructor(world: World, chunks: ChunkBuffers[], private readonly mobile: boolean) {
@@ -110,6 +112,8 @@ export class WorldView {
       this.root.add(group);
       return { x0: chunk.x0, z0: chunk.z0, group, terrain: ground, full: chunk.terrain.full, trees: here, town, far: null, trees_shown: null };
     });
+    this.jumps = new JumpsView(world, (x, z) => world.height(x, z));
+    this.root.add(this.jumps.root);
   }
 
   /** `fog_far` is where linear fog ends: a chunk past it at every angle the camera sees is pure fog, so it is not drawn. */
@@ -119,6 +123,7 @@ export class WorldView {
     // Fog runs on view depth, not distance; toward a frustum corner depth is distance divided by this.
     const corner = Math.sqrt(1 + tan * tan * (1 + camera.aspect * camera.aspect));
     const far_at = this.mobile ? MOBILE_FAR : FAR;
+    this.jumps.cull(camera, fog_far);
     for (const view of this.views) {
       const dx = Math.max(view.x0 - x, 0, x - view.x0 - CHUNK);
       const dz = Math.max(view.z0 - z, 0, z - view.z0 - CHUNK);

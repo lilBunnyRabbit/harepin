@@ -1,4 +1,5 @@
 import { sample, up, vertex } from "./field";
+import { JumpPlanner } from "./jumps";
 import { fbm, hash, length } from "./noise";
 import { Lots } from "./lots";
 import { loop_road } from "./path";
@@ -98,6 +99,19 @@ export function generate(seed: number): WorldData {
     }
   }
 
+  lap("checkpoints");
+
+  const planner = new JumpPlanner(seed, land, towns, lots.occupied, solids);
+  planner.hills();
+  planner.roadside(road);
+  planner.open();
+  planner.roadside_items(road);
+  planner.lot_items(lot_list);
+  planner.open_items();
+  const jumps = planner.out;
+  solids.push(...jumps.solids);
+  lap("jumps");
+
   const trees: Tree[] = [...lots.out.trees];
   const limit = -ORIGIN - TREE_SPACING;
   for (let z = ORIGIN + TREE_SPACING; z < limit; z += TREE_SPACING)
@@ -112,11 +126,12 @@ export function generate(seed: number): WorldData {
       if (lots.occupied[vertex(Math.round((px - ORIGIN) / CELL), Math.round((pz - ORIGIN) / CELL))]) continue;
       if (towns.some((t) => length(t.x - px, t.z - pz) < t.radius)) continue;
       if (up(heights, px, pz) < 0.82) continue;
+      if (jumps.blocks(px, pz, 2)) continue;
       const scale = 0.75 + hash(x, z, seed + 94) * 0.9;
       trees.push({ x: px, y, z: pz, scale, kind: hash(x, z, seed + 95) < 0.7 ? 0 : 1 });
       solids.push({ kind: "circle", x: px, y, z: pz, radius: 0.35 * scale, height: 6 * scale });
     }
   lap("props");
 
-  return { terrain: land, graph: { nodes, edges }, towns, lots: lot_list, buildings, props, parking, trees, solids, checkpoints, circuit: [ring.id], road, timings };
+  return { terrain: land, graph: { nodes, edges }, towns, lots: lot_list, buildings, props, parking, trees, solids, ramps: jumps.ramps, items: jumps.items, challenges: jumps.challenges, checkpoints, circuit: [ring.id], road, timings };
 }

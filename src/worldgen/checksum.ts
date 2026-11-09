@@ -15,6 +15,9 @@ export function world_checksum(data: WorldData): string {
     data.terrain.road_dist,
     data.road.flatMap((p) => [p.x, p.y, p.z, p.tx, p.tz]),
     data.trees.flatMap((t) => [t.x, t.y, t.z, t.scale, t.kind]),
-    data.solids.flatMap((s) => (s.kind === "circle" ? [s.x, s.y, s.z, s.radius, s.height] : [s.x, s.y, s.z, s.hw, s.hd, s.cos, s.sin, s.height])),
+    data.solids.flatMap((s) => (s.kind === "circle" ? [s.x, s.y, s.z, s.radius, s.height] : [s.x, s.y, s.z, s.hw, s.hd, s.cos, s.sin, s.height, s.bottom ?? -1e9])),
+    data.ramps.flatMap((r) => [r.x, r.y, r.z, r.fx, r.fz, r.hw, r.length, r.rise, r.grade]),
+    data.challenges.flatMap((c) => [c.ramp, c.x, c.y, c.z, c.gap_hw, c.gap_bottom, c.gap_top]),
+    data.items.flatMap((i) => [i.x, i.y, i.z, i.fx, i.fz, i.scale]),
   ]);
 }
