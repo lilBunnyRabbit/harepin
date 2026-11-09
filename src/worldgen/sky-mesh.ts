@@ -1,4 +1,5 @@
 import type { Rgb } from "./mesh";
+import { rail_open } from "./sky";
 import { DECK_STRIDE, type Deck } from "./types";
 
 const THICK = 0.4;
@@ -7,6 +8,8 @@ const RAIL_HIGH = 1;
 const BANK_RAIL = 0.3;
 /** Bank (rad) at which the outside rail reaches its full extra BANK_RAIL. */
 const BANK_FULL = 0.35;
+/** Where a rail stops for an open section it rounds down to the deck over this many metres, so the gap is seen coming. */
+const CAP = 6;
 const RAIL_WIDE = 0.3;
 /** Track joints every SEGMENT metres: a seam plate SEAM long, a step darker; side faces drew as black bars from the chase camera. */
 const SEGMENT = 9;
@@ -51,7 +54,13 @@ export function deck_layers(deck: Deck, tones: DeckTones, chunk_of: (x: number, 
     const slope = Math.tan(f(i, 5));
     return [f(i, 0) + tz * u, f(i, 1) + u * slope + lift, f(i, 2) - tx * u];
   };
-  const rail_high = (i: number, side: number) => RAIL_HIGH + BANK_RAIL * Math.min(1, Math.max(0, side * f(i, 5)) / BANK_FULL);
+  const cap = (s: number, side: number) => {
+    if (rail_open(deck.open, s, side)) return 0;
+    let d = CAP;
+    for (const o of deck.open) if (o.side === 0 || o.side === side) d = Math.min(d, Math.abs(s - o.s0), Math.abs(s - o.s1));
+    return Math.sqrt(1 - (1 - d / CAP) ** 2);
+  };
+  const rail_high = (i: number, side: number) => (RAIL_HIGH + BANK_RAIL * Math.min(1, Math.max(0, side * f(i, 5)) / BANK_FULL)) * cap(f(i, 8), side);
   for (let i = 0; i < n; i++) {
     const j = i + 1;
     if (!f(i, 7) || !f(j, 7)) continue;
@@ -69,9 +78,15 @@ export function deck_layers(deck: Deck, tones: DeckTones, chunk_of: (x: number, 
       const outer_j = side * (hj + RAIL_WIDE);
       const top_i = rail_high(i, side);
       const top_j = rail_high(j, side);
-      quad(layer, tones.rail, at(i, inner_i, 0), at(j, inner_j, 0), at(j, inner_j, top_j - LIP_DROP), at(i, inner_i, top_i - LIP_DROP));
-      quad(layer, tones.rail, at(i, lip_i, top_i - LIP_DROP), at(j, lip_j, top_j - LIP_DROP), at(j, inner_j, top_j - LIP_DROP), at(i, inner_i, top_i - LIP_DROP));
-      quad(layer, tones.rail, at(i, lip_i, top_i - LIP_DROP), at(j, lip_j, top_j - LIP_DROP), at(j, lip_j, top_j), at(i, lip_i, top_i));
+      if (top_i === 0 && top_j === 0) {
+        quad(layer, tones.side, at(i, side * h, 0), at(j, side * hj, 0), at(j, side * hj, -THICK), at(i, side * h, -THICK));
+        continue;
+      }
+      const low_i = Math.max(0, top_i - LIP_DROP);
+      const low_j = Math.max(0, top_j - LIP_DROP);
+      quad(layer, tones.rail, at(i, inner_i, 0), at(j, inner_j, 0), at(j, inner_j, low_j), at(i, inner_i, low_i));
+      quad(layer, tones.rail, at(i, lip_i, low_i), at(j, lip_j, low_j), at(j, inner_j, low_j), at(i, inner_i, low_i));
+      quad(layer, tones.rail, at(i, lip_i, low_i), at(j, lip_j, low_j), at(j, lip_j, top_j), at(i, lip_i, top_i));
       quad(layer, tones.rail, at(i, lip_i, top_i), at(j, lip_j, top_j), at(j, outer_j, top_j), at(i, outer_i, top_i));
       quad(layer, tones.side, at(i, outer_i, top_i), at(j, outer_j, top_j), at(j, outer_j, -THICK), at(i, outer_i, -THICK));
     }
@@ -85,7 +100,7 @@ export function deck_layers(deck: Deck, tones: DeckTones, chunk_of: (x: number, 
     const tx = f(i, 3) * SEAM;
     const tz = f(i, 4) * SEAM;
     const shift = (p: V, lift: number): V => [p[0] + tx, p[1] + lift, p[2] + tz];
-    for (const [u0, u1, base] of [[-h + RAIL_WIDE, h - RAIL_WIDE, 0], [-h, -h + RAIL_WIDE + 0.001, rail_high(i, -1)], [h - RAIL_WIDE - 0.001, h, rail_high(i, 1)]]) {
+    for (const [u0, u1, base] of [[-h + RAIL_WIDE, h - RAIL_WIDE, 0], [-h, -h + RAIL_WIDE + 0.001, rail_high(i, -1)], [h - RAIL_WIDE - 0.001, h, rail_high(i, 1)]].filter((seam, k) => k === 0 || seam[2] > 0)) {
       const a1 = at(i, u0, base + SEAM_HIGH);
       const b1 = at(i, u1, base + SEAM_HIGH);
       quad(layer, tones.joint, a1, b1, shift(b1, 0), shift(a1, 0));

@@ -12,7 +12,7 @@ const ABYSS = -2000;
 function straight(bank = 0, half = 6): Deck {
   const points: number[] = [];
   for (let z = -200; z <= 200; z += 2) points.push(0, Y, z, 0, 1, bank, half, 1, z + 200);
-  return { half, pieces: [], line: new Float64Array(points), pads: [] };
+  return { half, pieces: [], line: new Float64Array(points), pads: [], open: [] };
 }
 
 function ground_of(index: DeckIndex): Ground {

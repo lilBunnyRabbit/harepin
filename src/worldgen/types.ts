@@ -228,6 +228,14 @@ export interface Deck {
   pieces: DeckPiece[];
   line: Float64Array<ArrayBuffer>;
   pads: { s0: number; s1: number }[];
+  /** Stretches with no rail on `side` (+1 left, -1 right, 0 both), metres along the lap. */
+  open: OpenSection[];
+}
+
+export interface OpenSection {
+  s0: number;
+  s1: number;
+  side: -1 | 0 | 1;
 }
 
 export interface WorldData {

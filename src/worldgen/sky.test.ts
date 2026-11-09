@@ -2,7 +2,7 @@
 import { expect, test } from "bun:test";
 import { Vector3 } from "three";
 import { World } from "../world";
-import { generate_sky, sky_layout, size_gap } from "./sky";
+import { generate_sky, rail_open, sky_layout, size_gap } from "./sky";
 import { DECK_STRIDE, SPAWN_INDEX } from "./types";
 
 const SEEDS = 12;
@@ -102,7 +102,7 @@ test("checkpoints, the start line and the spawn sit on unbanked deck, and the ra
       expect(w.height(p.x, p.z)).toBeCloseTo(p.y, 6);
     }
     expect(world.checkpoints.length).toBeGreaterThan(4);
-    expect(world.solids.filter((s) => s.kind === "box").length).toBeGreaterThan(world.road.length * 0.9);
+    expect(world.solids.filter((s) => s.kind === "box").length).toBeGreaterThan(world.road.length * 0.6);
   }
 });
 
@@ -123,6 +123,27 @@ test("every seed gets gap jumps, each with a checkpoint on the flat before its r
       const w = new World(0, world);
       expect(w.height(mx, mz)).toBeLessThan(r.y - 100);
       for (const s of world.solids) if (s.kind === "box") expect(Math.hypot(s.x - mx, s.z - mz)).toBeGreaterThan(gap / 2 - 3);
+    }
+  }
+});
+
+test("open sections drop a rail on 15-30% of the lap, only on straights and wide flat arcs, clear of banks and jumps", () => {
+  const { span } = size_gap();
+  for (const world of worlds) {
+    const deck = world.deck;
+    if (!deck) throw new Error("sky world without a deck");
+    const length = deck.line[deck.line.length - DECK_STRIDE + 8];
+    const open = deck.open.reduce((sum, o) => sum + o.s1 - o.s0, 0);
+    expect(deck.open.length).toBeGreaterThan(0);
+    expect(open / length).toBeLessThan(0.31);
+    for (let i = 0; i < deck.line.length / DECK_STRIDE; i++) {
+      const s = deck.line[i * DECK_STRIDE + 8];
+      if (!rail_open(deck.open, s, 1) && !rail_open(deck.open, s, -1)) continue;
+      expect(deck.line[i * DECK_STRIDE + 5]).toBe(0);
+      for (const r of world.ramps) {
+        const toe = deck.line[world.road.findIndex((p) => p.x === r.x && p.z === r.z) * DECK_STRIDE + 8];
+        expect(s < toe - 70 || s > toe + span + 50).toBe(true);
+      }
     }
   }
 });

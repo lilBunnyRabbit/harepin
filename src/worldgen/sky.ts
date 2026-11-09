@@ -1,6 +1,6 @@
 import { mulberry32, sub } from "../rng";
 import { flight, RIDE, ROAD_KICKER } from "./jumps";
-import { CELL, DECK_STRIDE, N, ROAD_HALF, SIZE, type Checkpoint, type DeckPiece, type Ramp, type RoadPoint, type Solid, type WorldData } from "./types";
+import { CELL, DECK_STRIDE, N, ROAD_HALF, SIZE, type Checkpoint, type DeckPiece, type OpenSection, type Ramp, type RoadPoint, type Solid, type WorldData } from "./types";
 
 export const ABYSS = -2000;
 /** How far below the deck under it a car counts as fallen off. */
@@ -31,6 +31,14 @@ const JUMP_GATE = 60;
 const JUMP_AFTER = 50;
 const JUMP_APART = 300;
 const MAX_JUMPS = 2;
+/** Share of the lap left without a rail on one or both sides, and the shortest such stretch. */
+const OPEN_SHARE = [0.15, 0.3] as const;
+const OPEN_MIN = 60;
+const OPEN_MAX = 220;
+/** Flat arcs at least this wide may lose a rail: at 45 m/s that is under half the planning grip. */
+const OPEN_RADIUS = 450;
+/** Kept clear of a jump zone or a banked or tight piece on either side. */
+const OPEN_CLEAR = 20;
 const RAIL_BOTTOM = -0.6;
 const RAIL_TOP = 1.2;
 const RAIL_HALF = 0.25;
@@ -415,6 +423,44 @@ export function sky_layout(seed: number): SkyLayout {
   throw new Error(`sky_layout: seed ${seed} found no track`);
 }
 
+/** Rail-free stretches on straights and wide flat arcs, clear of banks, tight bends and jumps. */
+function open_sections(seed: number, samples: readonly Sample[], pieces: readonly PlanPiece[], length: number, blocked: (s: number) => boolean): OpenSection[] {
+  const rng = mulberry32(sub(seed, "sky:open"));
+  const fit = (p: Sample) => {
+    const piece = pieces[p.piece];
+    return p.bank === 0 && (piece.kind === "straight" || Math.abs(1 / piece.curve) >= OPEN_RADIUS) && !blocked(p.s);
+  };
+  const runs: [number, number][] = [];
+  let from = -1;
+  samples.forEach((p, i) => {
+    const ok = fit(p) && p.s > START_AHEAD && p.s < length - START_BEHIND;
+    if (ok && from < 0) from = p.s;
+    if ((!ok || i === samples.length - 1) && from >= 0) {
+      runs.push([from + OPEN_CLEAR, p.s - OPEN_CLEAR]);
+      from = -1;
+    }
+  });
+  const target = length * (OPEN_SHARE[0] + rng() * (OPEN_SHARE[1] - OPEN_SHARE[0]));
+  const out: OpenSection[] = [];
+  let total = 0;
+  const order = runs.filter(([a, b]) => b - a >= OPEN_MIN).sort((x, y) => y[1] - y[0] - (x[1] - x[0]));
+  for (const [a, b] of order) {
+    if (total >= target) break;
+    const want = Math.min(b - a, OPEN_MAX, Math.max(OPEN_MIN, target - total));
+    const s0 = a + rng() * (b - a - want);
+    const straight = samples.every((p) => p.s < s0 || p.s > s0 + want || pieces[p.piece].kind === "straight");
+    const pick = rng();
+    const side: OpenSection["side"] = straight && pick < 0.3 ? 0 : pick < 0.65 ? 1 : -1;
+    out.push({ s0, s1: s0 + want, side });
+    total += want;
+  }
+  return out.sort((x, y) => x.s0 - y.s0);
+}
+
+export function rail_open(open: readonly OpenSection[], s: number, side: number): boolean {
+  return open.some((o) => s >= o.s0 && s <= o.s1 && (o.side === 0 || o.side === side));
+}
+
 export function generate_sky(seed: number): WorldData {
   const t0 = performance.now();
   const { pieces, samples, length, profile, toes } = sky_layout(seed);
@@ -458,6 +504,7 @@ export function generate_sky(seed: number): WorldData {
     ramps.push({ ...gap_ramp(), id: ramps.length, x: p.x, y: p.y, z: p.z, fx: p.tx, fz: p.tz, speed: ROAD_KICKER.speed, landing: jump.gap + jump.landing + jump.sag });
   }
   deck_pieces.sort((a, b) => a.s0 - b.s0);
+  const open = open_sections(seed, samples, pieces, length, (s) => toes.some((t) => s > t - JUMP_BEFORE - OPEN_CLEAR && s < t + jump.span + JUMP_AFTER));
   const solids: Solid[] = [];
   for (let i = 0; i < n; i += 2) {
     const a = i * DECK_STRIDE;
@@ -474,6 +521,7 @@ export function generate_sky(seed: number): WorldData {
     const slope = Math.tan((line[a + 5] + line[b + 5]) / 2);
     const half = (line[a + 6] + line[b + 6]) / 2;
     for (const side of [-1, 1]) {
+      if (rail_open(open, (line[a + 8] + line[b + 8]) / 2, side)) continue;
       const off = side * (half + RAIL_HALF);
       solids.push({ kind: "box", x: mx + tz * off, y: y + side * half * slope, z: mz - tx * off, hw: RAIL_HALF, hd: len / 2 + 0.1, cos: tz, sin: tx, height: RAIL_TOP, bottom: RAIL_BOTTOM });
     }
@@ -512,7 +560,7 @@ export function generate_sky(seed: number): WorldData {
   const road_dist = new Float32Array((N + 1) * (N + 1));
   return {
     kind: "sky",
-    deck: { half: ROAD_HALF, pieces: deck_pieces, line, pads: [] },
+    deck: { half: ROAD_HALF, pieces: deck_pieces, line, pads: [], open },
     terrain: { seed, size: SIZE, cell: CELL, n: N, heights, road_dist },
     graph: { nodes: [{ id: 0, x: road[0].x, z: road[0].z, y: road[0].y, kind: "junction" }], edges: [{ id: 0, a: 0, b: 0, kind: "highway", half: ROAD_HALF, closed: true, points: road }] },
     towns: [],
