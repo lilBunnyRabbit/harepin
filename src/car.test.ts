@@ -485,9 +485,17 @@ describe("aero kit", () => {
     const car = new Car(apply_build(CARS.coupe, { ...DEFAULT_BUILD, parts: { ...DEFAULT_PARTS, aero } }));
     car.place(0, 0.6, 0, 0);
     run(car, 1.5, () => idle);
-    run(car, 14, () => cruise(car, 160));
-    const [fl, fr, rl, rr] = car.wheels.map((w) => w.load);
-    return (fl + fr) / (fl + fr + rl + rr);
+    run(car, 13.5, () => cruise(car, 160));
+    // Averaged: the loads chatter by a step's worth from one instant to the next, a third of the margin.
+    let share = 0;
+    let samples = 0;
+    for (let t = 0; t < 0.5; t += DT) {
+      car.step(DT, cruise(car, 160), flat);
+      const [fl, fr, rl, rr] = car.wheels.map((w) => w.load);
+      share += (fl + fr) / (fl + fr + rl + rr);
+      samples++;
+    }
+    return share / samples;
   };
 
   test("the kits load the front tyres more at speed than the wing alone", () => {

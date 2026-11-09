@@ -71,6 +71,10 @@ const LOAD_FADE = 32000;
 // Normalised magic formula: peak at s = 1, sliding grip sin(C·π/2) ≈ 65% of peak.
 const MF_C = 1.55;
 const MF_B = Math.tan(Math.PI / (2 * MF_C));
+// Its tail kept falling to that 65%, so a car thrown fully sideways glided; real tyres slide at 70-80% of peak, so past
+// SLIDE_S the patch slides outright at SLIDE_GRIP.
+const SLIDE_GRIP = 0.76;
+const SLIDE_S = Math.tan((Math.PI - Math.asin(SLIDE_GRIP)) / MF_C) / MF_B;
 
 /** Suspension reach with the car parked on flat ground, for views that have no sim behind them. */
 export function rest_reach(spec: CarSpec): number {
@@ -127,7 +131,7 @@ function torque_at(curve: [number, number][], rpm: number): number {
 }
 
 function magic(s: number): number {
-  return Math.sin(MF_C * Math.atan(MF_B * s));
+  return Math.sin(MF_C * Math.atan(MF_B * Math.max(-SLIDE_S, Math.min(SLIDE_S, s))));
 }
 
 function combined_x(sx: number, sy: number): number {
@@ -493,7 +497,10 @@ export class Car {
       // parabola it fell to nothing at LOAD_FADE and reversed above it, which a hard landing reaches.
       const bite = Math.min(load, LOAD_FADE / 2);
       const peak = spec.mu * (w.front ? 1 : spec.rear_grip) * grip * bite * (1 - bite / LOAD_FADE);
-      const sy = -Math.atan2(v_lat, denom) / spec.peak_angle;
+      // Over the same denominator as the longitudinal slip, so the combined force points against the patch's slip
+      // velocity. As an angle it stopped at 90 degrees while wheelspin over a 2 m/s floor did not: a rear spinning fully
+      // sideways put nearly all its grip into drive and the car glided on the fronts.
+      const sy = -v_lat / denom / Math.tan(spec.peak_angle);
 
       // Semi-implicit wheel spin: linearise the tyre's longitudinal force around the current slip so a stiff tyre
       // can't overshoot within one step; past the peak the slope clamps to 0 and wheelspin runs free.
