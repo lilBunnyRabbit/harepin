@@ -4,6 +4,8 @@ import { $, format } from "../hud";
 import { ROAD_HALF, type World } from "../world";
 import { ComboEnd, DRIFT_IDS, DRIFT_LEVELS, DriftRun, DriftStatus, LEAD, build_zone, type DriftLevel } from "./drift";
 import { DriftView } from "./drift-view";
+import { HUNT_IDS, HUNT_LEVELS, HuntRun, HuntStatus, build_hunt, type HuntLevel } from "./hunt";
+import { HuntView } from "./hunt-view";
 import { GymRun, HIT_MS, LEVELS, LEVEL_IDS, MISS_MS, RunStatus, Step, build_course, find_site, to_world, type Course, type GymLevel, type Site } from "./gymkhana";
 import { GymkhanaView } from "./gymkhana-view";
 import { PARK_IDS, PARK_LEVELS, ParkRun, ParkStatus, Verdict, park_footprint, park_solids, type ParkLevel } from "./parking";
@@ -47,6 +49,7 @@ export class Modes {
   private readonly track: Track;
   private readonly park_track: Track;
   private readonly drift_track: Track;
+  private readonly hunt_track: Track;
   private site: Site | null | undefined;
   private park_site: Site | null | undefined;
   private level: GymLevel | null = null;
@@ -55,10 +58,13 @@ export class Modes {
   private view: GymkhanaView | null = null;
   private park_level: ParkLevel | null = null;
   private drift_level: DriftLevel | null = null;
+  private hunt_level: HuntLevel | null = null;
   private park: ParkRun | null = null;
   private park_view: ParkingView | null = null;
   private drift: DriftRun | null = null;
   private drift_view: DriftView | null = null;
+  private hunt: HuntRun | null = null;
+  private hunt_view: HuntView | null = null;
   private unplace: (() => void) | null = null;
   private high = true;
   private readonly park_area = park_footprint();
@@ -73,6 +79,9 @@ export class Modes {
     park_stars: $("park-stars"),
     drift_levels: $("drift-levels", HTMLOListElement),
     drift_stars: $("drift-stars"),
+    hunt_levels: $("hunt-levels", HTMLOListElement),
+    hunt_stars: $("hunt-stars"),
+    hint: $("mode-hint"),
     race: $("race-record"),
     status: $("mode-status"),
     result: $("mode-result"),
@@ -97,10 +106,11 @@ export class Modes {
     this.track = new Track("gymkhana", world.seed, LEVEL_IDS, local_store());
     this.park_track = new Track("parking", world.seed, PARK_IDS, local_store());
     this.drift_track = new Track("drift", world.seed, DRIFT_IDS, local_store());
+    this.hunt_track = new Track("hunt", world.seed, HUNT_IDS, local_store());
   }
 
   get active(): boolean {
-    return this.run !== null || this.park !== null || this.drift !== null;
+    return this.run !== null || this.park !== null || this.drift !== null || this.hunt !== null;
   }
 
   get current(): GymRun | null {
@@ -132,6 +142,7 @@ export class Modes {
     this.el.levels.addEventListener("click", pick, { signal });
     this.el.park_levels.addEventListener("click", pick, { signal });
     this.el.drift_levels.addEventListener("click", pick, { signal });
+    this.el.hunt_levels.addEventListener("click", pick, { signal });
     this.el.retry.addEventListener("click", () => this.restart(), { signal });
     this.el.next.addEventListener("click", () => this.play_next(), { signal });
     this.el.exit.addEventListener("click", () => this.exit(), { signal });
@@ -154,6 +165,7 @@ export class Modes {
   play(id: string) {
     if (PARK_IDS.includes(id)) return this.play_park(id);
     if (DRIFT_IDS.includes(id)) return this.play_drift(id);
+    if (HUNT_IDS.includes(id)) return this.play_hunt(id);
     const level = LEVELS.find((l) => l.id === id);
     if (!level || !this.track.is_open(id)) return;
     if (this.race_busy()) return this.notice("Leave the lobby race to play gymkhana");
@@ -204,6 +216,27 @@ export class Modes {
     this.place_on(zone.points[0]);
   }
 
+  private play_hunt(id: string) {
+    const level = HUNT_LEVELS.find((l) => l.id === id);
+    if (!level || !this.hunt_track.is_open(id)) return;
+    if (this.race_busy()) return this.notice("Leave the lobby race to hunt gates");
+    this.clear();
+    this.level = null;
+    this.hunt_level = level;
+    this.restart();
+  }
+
+  private restart_hunt(level: HuntLevel) {
+    const from = this.world.road[(this.start_index + this.world.road.length) % this.world.road.length];
+    const hunt = build_hunt(this.world.seed, this.world, from, level);
+    this.hunt_view?.dispose();
+    this.hunt_view = new HuntView(hunt, this.world);
+    this.scene.add(this.hunt_view.root);
+    this.hunt = new HuntRun(hunt);
+    this.el.result.hidden = true;
+    this.place_on(from);
+  }
+
   private place_on(p: { x: number; z: number; tx: number; tz: number }) {
     this.place(p.x, this.world.height(p.x, p.z) + SPAWN_LIFT, p.z, Math.atan2(p.tx, p.tz));
   }
@@ -211,6 +244,7 @@ export class Modes {
   restart() {
     if (this.park_level) return this.restart_park(this.park_level);
     if (this.drift_level) return this.restart_drift(this.drift_level);
+    if (this.hunt_level) return this.restart_hunt(this.hunt_level);
     const { course } = this;
     if (!course) return;
     this.view?.dispose();
@@ -258,13 +292,18 @@ export class Modes {
     this.drift_view = null;
     this.drift = null;
     this.drift_level = null;
+    this.hunt_view?.dispose();
+    this.hunt_view = null;
+    this.hunt = null;
+    this.hunt_level = null;
+    this.el.hint.hidden = true;
     this.el.result.hidden = true;
     this.status_key = "";
   }
 
   private play_next() {
-    const ids = this.park_level ? PARK_IDS : this.drift_level ? DRIFT_IDS : LEVEL_IDS;
-    const next = ids[ids.indexOf(this.park_level?.id ?? this.drift_level?.id ?? this.level?.id ?? "") + 1];
+    const ids = this.park_level ? PARK_IDS : this.drift_level ? DRIFT_IDS : this.hunt_level ? HUNT_IDS : LEVEL_IDS;
+    const next = ids[ids.indexOf(this.park_level?.id ?? this.drift_level?.id ?? this.hunt_level?.id ?? this.level?.id ?? "") + 1];
     if (next) this.play(next);
   }
 
@@ -272,6 +311,7 @@ export class Modes {
   update(sim_dt: number, car: Driven) {
     if (this.park) return this.update_park(sim_dt, car, this.park);
     if (this.drift) return this.update_drift(sim_dt, car, this.drift);
+    if (this.hunt) return this.update_hunt(sim_dt, car, this.hunt);
     const { run, view, level } = this;
     if (!run || !view || !level) return;
     const was = run.status;
@@ -349,6 +389,33 @@ export class Modes {
     this.show_status(`${level.name} · ${points(combo.score)} pts${live}`);
   }
 
+  private update_hunt(sim_dt: number, car: Driven, run: HuntRun) {
+    const was = run.status;
+    const hit = run.update(sim_dt * 1000, car.pos.x, car.pos.z, car.vel.length());
+    if (hit >= 0) {
+      this.hunt_view?.found(hit);
+      if (run.status !== HuntStatus.DONE) this.chime();
+    }
+    if (was !== HuntStatus.DONE && run.status === HuntStatus.DONE) {
+      this.el.hint.hidden = true;
+      this.finish_hunt(run);
+      return;
+    }
+    const next = run.nearest(car.pos.x, car.pos.z);
+    this.hunt_view?.aim(next);
+    this.hunt_view?.update(sim_dt);
+    const gate = run.hunt.gates[next];
+    const { gates, level } = run.hunt;
+    if (!gate) return;
+    const dx = gate.x - car.pos.x;
+    const dz = gate.z - car.pos.z;
+    const turn = Math.atan2(Math.sin(Math.atan2(dx, dz) - car.heading), Math.cos(Math.atan2(dx, dz) - car.heading));
+    this.el.hint.hidden = false;
+    this.el.hint.style.setProperty("--turn", `${(-turn * DEG).toFixed(1)}deg`);
+    const doing = run.status === HuntStatus.READY ? "drive to start the clock" : format(run.elapsed());
+    this.show_status(`${level.name} · ${run.found.size}/${gates.length} · ${doing} · ${Math.round(Math.hypot(dx, dz))} m`);
+  }
+
   private notice(text: string) {
     this.show_status(text);
     setTimeout(() => {
@@ -397,6 +464,22 @@ export class Modes {
       DRIFT_IDS,
       level.id,
       this.drift_track,
+    );
+  }
+
+  private finish_hunt(run: HuntRun) {
+    const { level, par_ms, gates } = run.hunt;
+    const stars = run.stars();
+    const ms = Math.round(run.elapsed());
+    const { improved, first } = this.hunt_track.record(level.id, { stars, ms });
+    const best = this.hunt_track.runs[level.id];
+    this.show_result(
+      `${level.name}${improved && !first ? " · new best" : ""}`,
+      stars,
+      [line("time", format(ms)), line("gates", String(gates.length)), line("par", format(par_ms)), line("best", best ? `${run_text(best)} ${star_text(best.stars)}` : "--")],
+      HUNT_IDS,
+      level.id,
+      this.hunt_track,
     );
   }
 
@@ -477,6 +560,7 @@ export class Modes {
     this.render_levels(el.levels, el.stars, LEVELS, this.track);
     this.render_levels(el.park_levels, el.park_stars, PARK_LEVELS, this.park_track);
     this.render_levels(el.drift_levels, el.drift_stars, DRIFT_LEVELS, this.drift_track);
+    this.render_levels(el.hunt_levels, el.hunt_stars, HUNT_LEVELS, this.hunt_track);
     const record = this.race_record();
     const bests = Object.entries(record.best)
       .sort(([a], [b]) => Number(a) - Number(b))

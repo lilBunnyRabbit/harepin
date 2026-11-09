@@ -330,7 +330,8 @@ select {
 
 #gym-levels,
 #park-levels,
-#drift-levels {
+#drift-levels,
+#hunt-levels {
   display: grid;
   gap: var(--space-1);
   margin: 0;
@@ -340,7 +341,8 @@ select {
 
 #gym-levels button,
 #park-levels button,
-#drift-levels button {
+#drift-levels button,
+#hunt-levels button {
   justify-content: space-between;
   width: 100%;
   font-weight: 400;
@@ -348,13 +350,15 @@ select {
 
 #gym-levels button > span:first-child,
 #park-levels button > span:first-child,
-#drift-levels button > span:first-child {
+#drift-levels button > span:first-child,
+#hunt-levels button > span:first-child {
   font-weight: 600;
 }
 
 #gym-levels button:disabled,
 #park-levels button:disabled,
-#drift-levels button:disabled {
+#drift-levels button:disabled,
+#hunt-levels button:disabled {
   opacity: 0.5;
   cursor: default;
 }
@@ -894,8 +898,29 @@ select {
 }
 
 #mode-status {
+  anchor-name: --mode-status;
   padding: var(--space-2) var(--space-4);
   white-space: nowrap;
+}
+
+#mode-hint {
+  position: fixed;
+  position-anchor: --mode-status;
+  top: calc(anchor(bottom) + var(--space-2));
+  left: anchor(center);
+  width: 16px;
+  height: 24px;
+  background: var(--primary);
+  clip-path: polygon(50% 0, 100% 100%, 50% 70%, 0 100%);
+  translate: -50% 0;
+  rotate: var(--turn, 0deg);
+  pointer-events: none;
+}
+
+#mode-hint[hidden],
+#mode-status[hidden] ~ #mode-hint,
+body:has(#mode-result:not([hidden])) #mode-hint {
+  display: none;
 }
 
 #race-panel[hidden],
