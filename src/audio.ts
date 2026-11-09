@@ -89,6 +89,10 @@ export class Audio {
     if (this.ctx) return;
     const ctx = new AudioContext();
     this.ctx = ctx;
+    // An installed app keeps running when it's backgrounded on phones, so the engine would keep droning from the pocket.
+    document.addEventListener("visibilitychange", () => {
+      (document.hidden ? ctx.suspend() : ctx.resume()).catch((error: unknown) => console.warn("audio: state change failed", error));
+    });
     this.noise = noise_buffer(ctx);
     const master = ctx.createGain();
     master.gain.value = this.gain();
