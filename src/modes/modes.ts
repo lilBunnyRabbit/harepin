@@ -34,17 +34,25 @@ interface Listed {
   brings: string;
 }
 
-const star_text = (stars: number) => "★".repeat(stars) + "☆".repeat(MAX_STARS - stars);
+function star_row(stars: number): HTMLSpanElement {
+  const row = document.createElement("span");
+  row.className = "stars";
+  const empty = document.createElement("span");
+  empty.className = "star-empty";
+  empty.textContent = "☆".repeat(MAX_STARS - stars);
+  row.append("★".repeat(stars), empty);
+  return row;
+}
 const points = (score: number) => Math.round(score).toLocaleString("en-US");
 const run_text = (run: StarRun) => (run.score === undefined ? format(run.ms) : `${points(run.score)} pts`);
 
-function line(label: string, value: string): HTMLElement {
+function line(label: string, ...value: (string | Node)[]): HTMLElement {
   const row = document.createElement("div");
   const name = document.createElement("span");
   name.className = "dim";
   name.textContent = label;
   const text = document.createElement("b");
-  text.textContent = value;
+  text.append(...value);
   row.append(name, text);
   return row;
 }
@@ -507,7 +515,7 @@ export class Modes {
   private show_result(title: string, stars: number, lines: HTMLElement[], ids: readonly string[], id: string, track: Track) {
     const { el } = this;
     el.title.textContent = title;
-    el.result_stars.textContent = star_text(stars);
+    el.result_stars.replaceChildren(star_row(stars));
     el.result_stars.setAttribute("aria-label", `${stars} of ${MAX_STARS} stars`);
     el.lines.replaceChildren(...lines);
     const index = ids.indexOf(id);
@@ -533,7 +541,7 @@ export class Modes {
         line("walls", String(combo.lost)),
         line("time", format(run.elapsed())),
         line("★★ / ★★★", `${points(zone.silver)} / ${points(zone.gold)}`),
-        line("best", best ? `${run_text(best)} ${star_text(best.stars)}` : "--"),
+        line("best", ...(best ? [`${run_text(best)} `, star_row(best.stars)] : ["--"])),
       ],
       DRIFT_IDS,
       level.id,
@@ -550,7 +558,7 @@ export class Modes {
     this.show_result(
       `${level.name}${improved && !first ? " · new best" : ""}`,
       stars,
-      [line("time", format(ms)), line("gates", String(gates.length)), line("par", format(par_ms)), line("best", best ? `${run_text(best)} ${star_text(best.stars)}` : "--")],
+      [line("time", format(ms)), line("gates", String(gates.length)), line("par", format(par_ms)), line("best", ...(best ? [`${run_text(best)} `, star_row(best.stars)] : ["--"]))],
       HUNT_IDS,
       level.id,
       this.hunt_track,
@@ -569,7 +577,7 @@ export class Modes {
     this.show_result(
       `${level.name}${improved && !first ? " · new best" : ""}`,
       stars,
-      [line("time", format(ms)), line("vs ghost", versus), line("par", format(par_ms)), line("best", best ? `${run_text(best)} ${star_text(best.stars)}` : "--")],
+      [line("time", format(ms)), line("vs ghost", versus), line("par", format(par_ms)), line("best", ...(best ? [`${run_text(best)} `, star_row(best.stars)] : ["--"]))],
       DUEL_IDS,
       level.id,
       this.duel_track,
@@ -583,7 +591,7 @@ export class Modes {
     const best = this.track.runs[level.id];
     const { el } = this;
     el.title.textContent = `${level.name}${improved && !first ? " · new best" : ""}`;
-    el.result_stars.textContent = star_text(stars);
+    el.result_stars.replaceChildren(star_row(stars));
     el.result_stars.setAttribute("aria-label", `${stars} of ${MAX_STARS} stars`);
     el.lines.replaceChildren(
       line("time", format(run.elapsed())),
@@ -591,7 +599,7 @@ export class Modes {
       line(`missed ×${run.misses}`, `+${(run.misses * MISS_MS) / 1000} s`),
       line("total", format(ms)),
       line("par", format(run.course.par_ms)),
-      line("best", best ? `${format(best.ms)} ${star_text(best.stars)}` : "--"),
+      line("best", ...(best ? [`${format(best.ms)} `, star_row(best.stars)] : ["--"])),
     );
     const index = LEVEL_IDS.indexOf(level.id);
     el.next.hidden = index + 1 >= LEVEL_IDS.length;
@@ -608,7 +616,7 @@ export class Modes {
     const best = this.park_track.runs[level.id];
     const { el } = this;
     el.title.textContent = `${level.name}${improved && !first ? " · new best" : ""}`;
-    el.result_stars.textContent = star_text(stars);
+    el.result_stars.replaceChildren(star_row(stars));
     el.result_stars.setAttribute("aria-label", `${stars} of ${MAX_STARS} stars`);
     el.lines.replaceChildren(
       line("time", format(ms)),
@@ -616,7 +624,7 @@ export class Modes {
       line("touches", String(result.touches)),
       line("angle", `${(result.angle * DEG).toFixed(1)}°`),
       line("off centre", `${result.offset.toFixed(2)} m`),
-      line("best", best ? `${format(best.ms)} ${star_text(best.stars)}` : "--"),
+      line("best", ...(best ? [`${format(best.ms)} `, star_row(best.stars)] : ["--"])),
     );
     const index = PARK_IDS.indexOf(level.id);
     el.next.hidden = index + 1 >= PARK_IDS.length;
@@ -639,7 +647,8 @@ export class Modes {
         name.textContent = `${i + 1}. ${level.name}`;
         const score = document.createElement("span");
         score.className = "dim";
-        score.textContent = !open ? "locked" : run ? `${star_text(run.stars)} ${run_text(run)}` : "new";
+        if (run && open) score.append(star_row(run.stars), ` ${run_text(run)}`);
+        else score.textContent = open ? "new" : "locked";
         button.title = level.brings;
         button.append(name, score);
         item.append(button);

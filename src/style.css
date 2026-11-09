@@ -1018,6 +1018,15 @@ body:has(#mode-result:not([hidden])) #mode-status {
   font-variant-numeric: tabular-nums;
 }
 
+.stars {
+  font-family: var(--font-sans);
+  white-space: nowrap;
+}
+
+.star-empty {
+  opacity: 0.35;
+}
+
 #mode-result .room-actions {
   justify-content: center;
   margin: 0;
