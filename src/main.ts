@@ -32,6 +32,7 @@ import { NanProbe, sanitise_bloom } from "./postfx";
 import { CAMERA_RETURN_SECONDS, CameraView, Settings, invite_link, load_settings, type SettingsState } from "./settings";
 import { BUILD, Updater, show_version } from "./update";
 import { pick_world } from "./world-pick";
+import { GUARD_STATE, SystemBack, type Watcher } from "./system-back";
 import { SPAWN_INDEX } from "./world";
 import { FALL_DEPTH } from "./worldgen/sky";
 import { WorldKind, world_id, world_key } from "./worldgen/types";
@@ -258,6 +259,23 @@ const modes = new Modes(scene, world, SPAWN_INDEX, () => lobby.record, (x, y, z,
 modes.start();
 const updater = new Updater(() => lobby.busy || modes.active);
 updater.start();
+const system_back = new SystemBack(
+  {
+    create_watcher: "CloseWatcher" in window ? () => new (window as unknown as { CloseWatcher: new () => Watcher }).CloseWatcher() : null,
+    push_guard: () => window.history.pushState(GUARD_STATE, ""),
+  },
+  () => {
+    const changelog = document.querySelector<HTMLDialogElement>("dialog.changelog[open]");
+    const popover = document.querySelector<HTMLElement>(":popover-open");
+    if (changelog) changelog.close();
+    else if (garage.is_open) garage.close();
+    else if (settings.is_open) settings.back();
+    else if (popover) popover.hidePopover();
+    else if (chat.is_open) chat.close();
+    else settings.open();
+  },
+);
+system_back.start();
 settings.open();
 // Typing a name on a phone would raise the keyboard over the menu, so only a mouse and keyboard get the cursor.
 if (prefs.name === null && matchMedia("(pointer: fine)").matches) settings.focus_name();
