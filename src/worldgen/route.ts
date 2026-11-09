@@ -27,7 +27,7 @@ const JOIN_SPACING = 20;
 /** cos² of the sharpest control-polygon turn a spur keeps (60°); a 90° turn on 16 m cells smooths to about ROAD_HALF. */
 const TURN_COS2 = 0.25;
 
-class Heap {
+export class Heap {
   private readonly keys: number[] = [];
   private readonly items: number[] = [];
 

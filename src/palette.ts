@@ -82,6 +82,7 @@ export const tones = {
   // Forest floor sits a step under grass, not at crown value, so pines still read against the ground they stand on.
   forest_floor: lighten(grass, -FOREST_FLOOR_DROP),
   sand: mix(brand.warning, brand.foreground, 0.35),
+  dirt: mix(brand.warning, brand.background_darkest, 0.5),
   rock: dark ? brand.background_lightest : mix(brand.foreground, brand.background_darkest, 0.35),
   snow: dark ? brand.foreground : brand.background_lightest,
   asphalt,

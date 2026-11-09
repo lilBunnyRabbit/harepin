@@ -1,5 +1,6 @@
 import { mulberry32, sub } from "../rng";
 import { sample, up, vertex } from "./field";
+import type { GapJump } from "./gap";
 import { circle16, length } from "./noise";
 import { CELL, ORIGIN, ROAD_HALF, SIZE, type Challenge, type ChallengeKind, type Item, type ItemKind, type Lot, type Ramp, type RampKind, type RoadPoint, type Solid, type Terrain, type Town } from "./types";
 
@@ -258,6 +259,9 @@ const HILL_RING = 48;
 const HILL_MIN = 22;
 const HILL_SPACING = 260;
 const RAMP_SPACING = 120;
+/** Trail points 2 m apart: every third one keeps a TRAIL_CLEAR disc free, the trail half plus a car either side. */
+const TRAIL_STRIDE = 3;
+const TRAIL_CLEAR = 8;
 const MAX_BIG = 3;
 const MAX_KICKERS = 12;
 const LOT_ITEMS = 0.5;
@@ -600,6 +604,23 @@ export class JumpPlanner {
       else if (roll < 0.85) for (let i = 0; i < 4; i++) this.item("barrel", ...at((i % 2) * 1.1, Math.floor(i / 2) * 1.1), p.tx, p.tz, 1);
       else for (let i = 0; i < 5; i++) this.item("cone", ...at(i * 2.2, 0), p.tx, p.tz, 1);
     }
+  }
+
+  /** The trail planner's canyon gap: lip and deck as laid, their run-up, flight and landing kept clear. */
+  gap(g: GapJump) {
+    const id = this.out.ramps.length;
+    for (const r of [{ ...g.takeoff, id }, { ...g.deck, id: id + 1 }]) {
+      this.out.ramps.push(r);
+      const { reach, from, to } = ramp_extent(r);
+      for (let v = from - (r.kind === "landing" ? 0 : RUNUP); v <= to + (r.kind === "landing" ? 0 : r.landing); v += 6) {
+        const [x, z] = ramp_world(r, 0, v);
+        this.zones.add({ x, z, r: reach + 3 });
+      }
+    }
+  }
+
+  keep_off(points: readonly { x: number; z: number }[]) {
+    for (let i = 0; i < points.length; i += TRAIL_STRIDE) this.zones.add({ x: points[i].x, z: points[i].z, r: TRAIL_CLEAR });
   }
 
   lot_items(lots: Lot[]) {

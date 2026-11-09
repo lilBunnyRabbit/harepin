@@ -6,7 +6,7 @@ import { sample, slope_normal } from "./worldgen/field";
 import { generate } from "./worldgen/index";
 import { ramp_surface, spawn_blocks, type Surface } from "./worldgen/jumps";
 import { FALL_DEPTH } from "./worldgen/sky";
-import { ROAD_HALF, type WorldKind } from "./worldgen/types";
+import { CELL, DIRT, N, ROAD_HALF, RouteKind, SIZE, type WorldKind } from "./worldgen/types";
 import type {
   Building,
   Challenge,
@@ -40,6 +40,8 @@ const GLIDE_YAW = 3;
 const GLIDE_EASE = 0.3;
 /** Under this share of the speed along the rail, a hit counts as head-on and the nose picks the way to glide. */
 const HEAD_ON = 0.2;
+/** Between asphalt 1 and grass 0.72: a car's `offroad` share decides how much of the loss it keeps. */
+const DIRT_GRIP = 0.88;
 const LANE_PACK = 1 << 16;
 
 export interface Collider {
@@ -136,6 +138,7 @@ export class World implements Ground {
   readonly deck: DeckIndex | null;
   readonly heights: Float32Array;
   readonly road_dist: Float32Array;
+  readonly surface: Uint8Array;
   /** The race circuit, in driving order; gates and the ghost follow it. */
   readonly road: RoadPoint[];
   readonly graph: RoadGraph;
@@ -163,6 +166,8 @@ export class World implements Ground {
   private readonly seen: Uint32Array;
   /** Circuit points no car is put down on; see spawn_blocks. */
   private readonly no_spawn: Uint8Array;
+  /** Offroad routes a reset can land on, after the graph's edges in the lane grid, with the points no car is put down on. */
+  private readonly trails: { points: RoadPoint[]; blocked: Uint8Array }[];
   private query = 0;
 
   /** `data` is `generate(seed)`, passed in when a worker already ran it. */
@@ -174,6 +179,7 @@ export class World implements Ground {
     this.deck = data.deck && new DeckIndex(data.deck);
     this.heights = data.terrain.heights;
     this.road_dist = data.terrain.road_dist;
+    this.surface = data.terrain.surface;
     this.road = data.road;
     this.graph = data.graph;
     this.towns = data.towns;
@@ -192,6 +198,7 @@ export class World implements Ground {
     this.timings = data.timings;
     this.seen = new Uint32Array(this.solids.length);
     this.no_spawn = spawn_blocks(this.road, this.ramps, this.challenges);
+    this.trails = this.routes.filter((r) => r.kind === RouteKind.OFFROAD).map((r) => ({ points: r.points, blocked: spawn_blocks(r.points, this.ramps, this.challenges) }));
     this.solids.forEach((solid, index) => this.index_solid(solid, index));
     this.road.forEach((p, index) => {
       const key = grid_key(Math.floor(p.x / ROAD_CELL), Math.floor(p.z / ROAD_CELL));
@@ -207,6 +214,15 @@ export class World implements Ground {
         if (list) list.push(packed);
         else this.lane_grid.set(key, [packed]);
       });
+    this.trails.forEach((trail, t) =>
+      trail.points.forEach((p, index) => {
+        const key = grid_key(Math.floor(p.x / ROAD_CELL), Math.floor(p.z / ROAD_CELL));
+        const list = this.lane_grid.get(key);
+        const packed = (this.graph.edges.length + t) * LANE_PACK + index;
+        if (list) list.push(packed);
+        else this.lane_grid.set(key, [packed]);
+      }),
+    );
   }
 
   private index_solid(solid: Solid, index: number) {
@@ -261,13 +277,20 @@ export class World implements Ground {
     return sample(this.road_dist, x, z);
   }
 
+  /** On a trail: the surface grid at the nearest vertex. */
+  dirt(x: number, z: number): boolean {
+    const i = Math.round((x + SIZE / 2) / CELL);
+    const j = Math.round((z + SIZE / 2) / CELL);
+    return i >= 0 && j >= 0 && i <= N && j <= N && this.surface[j * (N + 1) + i] === DIRT;
+  }
+
   grip(x: number, z: number): number {
     const d = this.distance_to_road(x, z);
-    return d < ROAD_HALF + 0.5 ? 1 : d < ROAD_HALF + 3 ? 0.85 : 0.72;
+    return d < ROAD_HALF + 0.5 ? 1 : this.dirt(x, z) ? DIRT_GRIP : d < ROAD_HALF + 3 ? 0.85 : 0.72;
   }
 
   roll(x: number, z: number): number {
-    return this.distance_to_road(x, z) < ROAD_HALF + 3 ? 1 : 12;
+    return this.distance_to_road(x, z) < ROAD_HALF + 3 || this.dirt(x, z) ? 1 : 12;
   }
 
   /** Nearest point of the race circuit; its index in `road` places gates and the ghost. */
@@ -283,13 +306,22 @@ export class World implements Ground {
     return i;
   }
 
-  /** Where a reset puts the car: the nearest point of any road (circuit, spur or street), facing along it the way `fx, fz` points. */
+  /** Where a reset puts the car: the nearest point of any road (circuit, spur or street) or trail, facing along it the way `fx, fz` points. */
   spawn_near(x: number, z: number, fx: number, fz: number): Spawn {
-    const point = (packed: number) => this.graph.edges[Math.floor(packed / LANE_PACK)].points[packed % LANE_PACK];
+    const edges = this.graph.edges.length;
+    const lane = (packed: number) => Math.floor(packed / LANE_PACK);
+    const point = (packed: number) => (lane(packed) < edges ? this.graph.edges[lane(packed)].points : this.trails[lane(packed) - edges].points)[packed % LANE_PACK];
     const packed = nearest(this.lane_grid, x, z, point);
     let p = packed < 0 ? this.road[0] : point(packed);
     const back = fx * p.tx + fz * p.tz < 0;
-    if (packed >= 0 && this.circuit.includes(Math.floor(packed / LANE_PACK))) p = this.road[this.clear_spawn(packed % LANE_PACK, back ? -1 : 1)];
+    if (packed >= 0 && this.circuit.includes(lane(packed))) p = this.road[this.clear_spawn(packed % LANE_PACK, back ? -1 : 1)];
+    else if (packed >= 0 && lane(packed) >= edges) {
+      const { points, blocked } = this.trails[lane(packed) - edges];
+      let i = packed % LANE_PACK;
+      // Back before the gap's run-up, whichever way the car faces: ahead of it is the jump or the deck.
+      while (i > 0 && blocked[i]) i--;
+      p = points[i];
+    }
     const heading = Math.atan2(p.tx, p.tz) + (back ? Math.PI : 0);
     return { x: p.x, y: this.height(p.x, p.z), z: p.z, heading };
   }

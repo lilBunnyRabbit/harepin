@@ -5,14 +5,14 @@ import { roof_rise } from "./lots";
 import { Builder, bounding_sphere, turned, type Rgb, type Sphere } from "./mesh";
 import { deck_layers, type DeckTones } from "./sky-mesh";
 import { fbm, hash } from "./noise";
-import { CELL, N, ORIGIN, PropKind, ROAD_HALF, Roof, SIDEWALK, SIZE, type RoadPoint, type WorldData } from "./types";
+import { CELL, DIRT, N, ORIGIN, PropKind, ROAD_HALF, Roof, SIDEWALK, SIZE, type RoadPoint, type WorldData } from "./types";
 
 export const CHUNK = 256;
 export const CHUNKS = SIZE / CHUNK;
 const CHUNK_CELLS = CHUNK / CELL;
 export const JITTER_LEVELS = 64;
 /** Ground surfaces, each with a LUT row of its own and one half-way to rock. */
-export const Ground = { GRASS: 0, DRY: 1, SAND: 2, FOREST: 3, UPLAND: 4, DUNE: 5 } as const;
+export const Ground = { GRASS: 0, DRY: 1, SAND: 2, FOREST: 3, UPLAND: 4, DUNE: 5, DIRT: 6 } as const;
 export type Ground = (typeof Ground)[keyof typeof Ground];
 const SURFACES = Object.keys(Ground).length;
 const ROCK_HALF = SURFACES;
@@ -109,7 +109,7 @@ function surface(biome: Biome, patch: number): Ground {
 }
 
 export function terrain_colors(data: WorldData, lut: Float32Array): Float32Array {
-  const { heights, seed } = data.terrain;
+  const { heights, seed, surface: surface_grid } = data.terrain;
   const cuts = biome_cuts(seed, heights);
   const colors = new Float32Array((N + 1) * (N + 1) * 3);
   for (let j = 0; j <= N; j++)
@@ -122,6 +122,7 @@ export function terrain_colors(data: WorldData, lut: Float32Array): Float32Array
       let base: number = y < 2.2 ? Ground.SAND : surface(biome_at(cuts, x, z, y), fbm(x / 140, z / 140, seed + 21, 3));
       if (ny < 0.8 || y > 120) base = ny < 0.7 || y > 135 ? ROCK : base + ROCK_HALF;
       if (y > 165) base = SNOW;
+      if (surface_grid[k] === DIRT) base = ny < 0.7 ? ROCK : Ground.DIRT;
       const level = Math.min(JITTER_LEVELS - 1, Math.floor((jitter(i, j) + 0.5) * JITTER_LEVELS));
       colors.set(lut.subarray((base * JITTER_LEVELS + level) * 3, (base * JITTER_LEVELS + level) * 3 + 3), k * 3);
     }

@@ -23,5 +23,5 @@ addEventListener("message", (event: MessageEvent<GenRequest>) => {
   const t1 = performance.now();
   const chunks = build_chunks(data, tones);
   const result: GenResult = { data, chunks, gen_ms: t1 - t0, mesh_ms: performance.now() - t1 };
-  postMessage(result, { transfer: [data.terrain.heights.buffer, data.terrain.road_dist.buffer, ...chunk_transfers(chunks)] });
+  postMessage(result, { transfer: [data.terrain.heights.buffer, data.terrain.road_dist.buffer, data.terrain.surface.buffer, ...chunk_transfers(chunks)] });
 });

@@ -33,6 +33,7 @@ function terrain_lut(): Float32Array {
     [Ground.FOREST]: tones.forest_floor,
     [Ground.UPLAND]: tones.grass_dry,
     [Ground.DUNE]: mix(tones.sand, tones.grass_dry, 0.5),
+    [Ground.DIRT]: tones.dirt,
   };
   const surfaces = Object.values(Ground).map((g) => surface[g]);
   const bases = [...surfaces, ...surfaces.map((t) => mix(tones.rock, t, 0.5)), tones.rock, tones.snow];

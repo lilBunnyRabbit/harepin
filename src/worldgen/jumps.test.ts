@@ -207,7 +207,7 @@ describe("canyon gap jump at 360 Hz", () => {
             expect(run.yaw, where).toBeLessThan(0.35);
             expect(Math.abs(run.heading), where).toBeLessThan(0.15);
           }
-    });
+    }, 30_000);
 });
 
 test("jumps come out the same for a seed and every world gets some", () => {

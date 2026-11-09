@@ -1,7 +1,7 @@
 import { cell_range, vertex } from "./field";
 import { smoothstep } from "./noise";
 import { town_level } from "./towns";
-import { CELL, ORIGIN, ROAD_HALF, SHOULDER, type RoadEdge, type Terrain, type Town } from "./types";
+import { CELL, DIRT, ORIGIN, ROAD_HALF, SHOULDER, type RoadEdge, type RoadPoint, type Terrain, type Town } from "./types";
 
 // Past `core` plus two cells every vertex a lot corner can touch is fully on the plane; the plane then eases back to
 // terrain over PLATEAU_BLEND.
@@ -10,6 +10,16 @@ const PLATEAU_BLEND = 40;
 // A terrain triangle touching a road or pad has vertices up to CELL * sqrt(2) outside it; flattening that far keeps it
 // under the surface mesh.
 const FLAT = 6;
+export const TRAIL_HALF = 4;
+const TRAIL_SHOULDER = 6;
+/** Dirt reaches this far past the trail half: the surface grid is read at the nearest vertex, up to CELL / 2 away. */
+const DIRT_MARGIN = 1.5;
+
+/** `blend(i)` is the share of the way the ground moves to the line's height by segment i: 0 leaves it, 1 sets it. */
+export interface TrailLine {
+  points: readonly RoadPoint[];
+  blend: (i: number) => number;
+}
 
 export class Stamp {
   private readonly road_height: Float32Array;
@@ -86,6 +96,47 @@ export class Stamp {
       if (this.owner_dist[k] > ROAD_HALF + SHOULDER || this.street[k]) continue;
       const w = 1 - smoothstep(ROAD_HALF + FLAT, ROAD_HALF + SHOULDER, this.owner_dist[k]);
       heights[k] += (this.road_height[k] - 0.05 - heights[k]) * w;
+    }
+  }
+
+  // Where lines overlap the nearest one owns a vertex, so a shared stretch is not blended twice.
+  trail(lines: readonly TrailLine[]) {
+    const { heights, road_dist, surface } = this.terrain;
+    const reach = TRAIL_HALF + TRAIL_SHOULDER;
+    const dist = new Float32Array(heights.length).fill(Infinity);
+    const target = new Float32Array(heights.length);
+    const weight = new Float32Array(heights.length);
+    const touched: number[] = [];
+    for (const { points, blend } of lines)
+      for (let s = 0; s < points.length - 1; s++) {
+        const a = points[s];
+        const b = points[s + 1];
+        const [i0, i1] = cell_range(Math.min(a.x, b.x) - reach, Math.max(a.x, b.x) + reach);
+        const [j0, j1] = cell_range(Math.min(a.z, b.z) - reach, Math.max(a.z, b.z) + reach);
+        const dx = b.x - a.x;
+        const dz = b.z - a.z;
+        const len2 = dx * dx + dz * dz || 1;
+        const w = blend(s);
+        for (let j = j0; j <= j1; j++)
+          for (let i = i0; i <= i1; i++) {
+            const px = ORIGIN + i * CELL;
+            const pz = ORIGIN + j * CELL;
+            const t = Math.max(0, Math.min(1, ((px - a.x) * dx + (pz - a.z) * dz) / len2));
+            const ox = px - (a.x + dx * t);
+            const oz = pz - (a.z + dz * t);
+            const d = Math.sqrt(ox * ox + oz * oz);
+            const k = vertex(i, j);
+            if (d >= reach || d >= dist[k]) continue;
+            if (dist[k] === Infinity) touched.push(k);
+            dist[k] = d;
+            target[k] = a.y + (b.y - a.y) * t;
+            weight[k] = w;
+          }
+      }
+    for (const k of touched) {
+      const guard = smoothstep(ROAD_HALF + FLAT, ROAD_HALF + SHOULDER, road_dist[k]);
+      heights[k] += (target[k] - heights[k]) * weight[k] * (1 - smoothstep(TRAIL_HALF, reach, dist[k])) * guard;
+      if (dist[k] <= TRAIL_HALF + DIRT_MARGIN) surface[k] = DIRT;
     }
   }
 }

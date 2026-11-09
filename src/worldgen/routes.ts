@@ -1,5 +1,6 @@
 import { sample } from "./field";
 import { length } from "./noise";
+import type { Trail } from "./trails";
 import { ROAD_HALF, RouteKind, SIDEWALK, STREET_HALF, type Checkpoint, type Item, type Ramp, type RoadGraph, type RoadPoint, type Route, type Town } from "./types";
 
 const STREET_COST = 0.6;
@@ -28,6 +29,12 @@ const BOT = { grip: 6, accel: 6, top: 36, brake: 6, span: 5 } as const;
 const PAR_SHARE = 1.15;
 const CONE_GAP = 2;
 const CONE_SET = 3;
+const TRAIL_GATES = 150;
+/** A gate this many points before the take-off toe, then none until the run-out end, where the ramp-out joins. */
+const TOE_GATE = 20;
+const TRAIL_GATE_HW = 8;
+// Fitted to scripts/races.ts: dirt grip, bumps and the run-up to the gap cost every car time drive_time does not see.
+const OFFROAD_SHARE = 1.5;
 
 type LegKind = "street" | "spur" | "ring";
 
@@ -77,8 +84,8 @@ export function drive_time(points: readonly RoadPoint[], closed: boolean): numbe
   return t;
 }
 
-function par(points: readonly RoadPoint[], closed: boolean): number {
-  return Math.ceil(drive_time(points, closed) * PAR_SHARE * 2) * 500;
+function par(points: readonly RoadPoint[], closed: boolean, share = PAR_SHARE): number {
+  return Math.ceil(drive_time(points, closed) * share * 2) * 500;
 }
 
 const heading = (p: { tx: number; tz: number }) => Math.atan2(p.tx, p.tz);
@@ -92,7 +99,7 @@ export function circuit_route(road: readonly RoadPoint[], checkpoints: readonly 
 
 /** The circuit driven the other way from the same start line; a road kicker would face backwards, so only a loop with none gets one. */
 export function reverse_circuit(circuit: Route, ramps: readonly Ramp[]): Route | null {
-  if (ramps.some((r) => r.road)) return null;
+  if (ramps.some((r) => r.road && circuit.points.some((p) => length(p.x - r.x, p.z - r.z) < ROAD_HALF))) return null;
   const [start, ...rest] = circuit.points;
   const points = [start, ...rest.reverse()].map((p) => ({ ...p, tx: -p.tx, tz: -p.tz }));
   const gates = circuit.checkpoints.slice(0, -1).reverse();
@@ -331,4 +338,35 @@ export function street_routes(graph: RoadGraph, towns: readonly Town[], heights:
     par_ms: par(c.points, false),
   }));
   return { routes, items };
+}
+
+/** Each trail as a point-to-point race: a gate every TRAIL_GATES metres, one before the gap and one where the ramp-out joins. */
+export function offroad_routes(trails: readonly Trail[]): Route[] {
+  return trails.map((trail): Route => {
+    const { points, toe, rejoin } = trail;
+    const features = toe >= 0 ? [Math.max(1, toe - TOE_GATE), rejoin] : [];
+    const picked: number[] = [];
+    let walked = 0;
+    let since = 0;
+    for (let i = 1; i < points.length - 1; i++) {
+      const step = length(points[i].x - points[i - 1].x, points[i].z - points[i - 1].z);
+      walked += step;
+      since += step;
+      if (features.includes(i)) {
+        picked.push(i);
+        since = 0;
+        continue;
+      }
+      if (toe >= 0 && i > features[0] && i < rejoin) continue;
+      const ahead = features.find((f) => f > i);
+      const room = (j: number) => run(points.slice(i, j + 1));
+      if (since >= TRAIL_GATES && (ahead === undefined || room(ahead) > GATE_GAP) && room(points.length - 1) > GATE_GAP) {
+        picked.push(i);
+        since = 0;
+      }
+    }
+    picked.push(points.length - 1);
+    const checkpoints = picked.map((i, index) => ({ x: points[i].x, y: points[i].y, z: points[i].z, heading: heading(points[i]), index }));
+    return { id: trail.id, kind: RouteKind.OFFROAD, closed: false, points, checkpoints, gate_hw: TRAIL_GATE_HW, length: run(points), par_ms: par(points, false, OFFROAD_SHARE) };
+  });
 }

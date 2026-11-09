@@ -952,7 +952,7 @@ export function generate_sky(seed: number): WorldData {
   return {
     kind: "sky",
     deck: { half: ROAD_HALF, pieces: deck_pieces, line, pads, open },
-    terrain: { seed, size: SIZE, cell: CELL, n: N, heights, road_dist },
+    terrain: { seed, size: SIZE, cell: CELL, n: N, heights, road_dist, surface: new Uint8Array(heights.length) },
     graph: { nodes: [{ id: 0, x: road[0].x, z: road[0].z, y: road[0].y, kind: "junction" }], edges: [{ id: 0, a: 0, b: 0, kind: "highway", half: ROAD_HALF, closed: true, points: road }] },
     towns: [],
     lots: [],

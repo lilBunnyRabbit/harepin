@@ -6,12 +6,13 @@ import { length } from "./noise";
 import { Lots } from "./lots";
 import { carve, plan_canyon } from "./canyon";
 import { loop_road } from "./path";
-import { circuit_route, reverse_circuit, street_routes } from "./routes";
+import { circuit_route, offroad_routes, reverse_circuit, street_routes } from "./routes";
 import { join_candidates, Router, SHAPE_GRADE, spur_need, spur_points } from "./route";
 import type { Path } from "./path";
 import { Stamp } from "./stamp";
 import { guard_rails, inside } from "./switchback";
 import { terrain } from "./terrain";
+import { plan_trails } from "./trails";
 import { generate_sky } from "./sky";
 import { place_towns, town_streets } from "./towns";
 import { CELL, ORIGIN, ROAD_HALF, SPAWN_INDEX, SPUR_HALF, type Checkpoint, type RoadEdge, type RoadNode, type Solid, type Tree, type WorldData, type WorldKind } from "./types";
@@ -131,7 +132,12 @@ export function generate(seed: number): WorldData {
 
   lap("checkpoints");
 
+  const trails = plan_trails(seed, land, stamp, canyon, towns, solids);
+  lap("trails");
+
   const planner = new JumpPlanner(seed, land, towns, lots.occupied, solids);
+  if (trails.gap) planner.gap(trails.gap);
+  planner.keep_off([...trails.trails.flatMap((t) => t.points), ...trails.ramp_out]);
   // Points of the switchback count as gates, so no kicker or chicane lands inside it.
   const climb = stack ? road.filter((p, i) => i % STACK_GATE === 0 && inside(stack, p.x, p.z, 0)) : [];
   planner.circuit(road, [...checkpoints, ...nodes.filter((n) => n.kind === "junction"), road[(SPAWN_INDEX + road.length) % road.length], ...climb]);
@@ -155,7 +161,8 @@ export function generate(seed: number): WorldData {
   const streets = street_routes({ nodes, edges }, towns, heights, jumps.ramps);
   jumps.items.push(...streets.items);
   const reverse = reverse_circuit(circuit, jumps.ramps);
-  const routes = reverse ? [circuit, ...streets.routes, reverse] : [circuit, ...streets.routes];
+  const offroad = offroad_routes(trails.trails);
+  const routes = reverse ? [circuit, ...streets.routes, ...offroad, reverse] : [circuit, ...streets.routes, ...offroad];
   lap("routes");
 
   const planted = plant(cuts, land, (x, z) => !lots.occupied[vertex(Math.round((x - ORIGIN) / CELL), Math.round((z - ORIGIN) / CELL))] && !towns.some((t) => length(t.x - x, t.z - z) < t.radius) && !jumps.blocks(x, z, 2) && !marks.blocks(x, z, 2));

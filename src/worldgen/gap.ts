@@ -33,12 +33,13 @@ export function touchdown(takeoff: Ramp, speed: number, ground: (d: number) => n
  * `drop` below the rim. The gap ends GAP_SHORT before a SIZE_V car comes down; the deck runs past a V_MAX one's touchdown.
  */
 export function gap_jump(id: number, x: number, y: number, z: number, fx: number, fz: number, drop = 0): GapJump {
-  const takeoff: Ramp = { id, x, y, z, fx, fz, grade: 0, ...ROAD_KICKER };
+  const takeoff: Ramp = { id, x, y, z, fx, fz, grade: 0, ...ROAD_KICKER, road: true };
   const deck_y = (gap: number) => (d: number) => (d < gap ? -Infinity : y - drop + DECK_GRADE * (d - gap));
   let gap = touchdown(takeoff, SIZE_V, () => y - drop) - GAP_SHORT;
   for (let i = 0; i < 8; i++) gap = touchdown(takeoff, SIZE_V, deck_y(gap)) - GAP_SHORT;
   const run = touchdown(takeoff, GAP_V_MAX, deck_y(gap)) - gap + DECK_TAIL;
   const at = takeoff.length + gap;
   const deck: Ramp = { id: id + 1, kind: "landing", x: x + fx * at, y: y - drop, z: z + fz * at, fx, fz, hw: DECK_HW, length: run, rise: 0, grade: DECK_GRADE, landing: 0, speed: 0 };
+  takeoff.landing = gap + run;
   return { takeoff, gap, deck };
 }

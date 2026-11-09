@@ -23,7 +23,7 @@ const CROSS_STRAIGHT = 60;
 const CROSS_TURN = 0.15;
 const STEP = 4;
 
-function peak(heights: Float32Array): [number, number, number] {
+export function peak(heights: Float32Array): [number, number, number] {
   let best = 0;
   for (let k = 1; k < heights.length; k++) if (heights[k] > heights[best]) best = k;
   const n = SIZE / CELL + 1;
