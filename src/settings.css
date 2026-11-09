@@ -77,6 +77,10 @@
   grid-area: tabs;
   display: flex;
   gap: 2px;
+  /* Seven tall touch tabs outgrow a phone-landscape sheet; left to grow, they stretch the row and the panel clips the page bottom. */
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
 }
 
 .settings .settings-tab {
@@ -482,7 +486,7 @@
   right: var(--inset-right);
   bottom: var(--inset-bottom);
   width: min(var(--set-sheet-w), calc(100% - var(--inset-left) - var(--inset-right)));
-  grid-template: "head head" auto "tabs body" 1fr "foot foot" auto / var(--set-tabs-w) 1fr;
+  grid-template: "head head" auto "tabs body" minmax(0, 1fr) "foot foot" auto / var(--set-tabs-w) 1fr;
 }
 
 .settings .settings-tabs {
@@ -531,7 +535,7 @@
 
 @media (max-width: 600px) {
   .settings .settings-panel {
-    grid-template: "head" auto "tabs" auto "body" 1fr "foot" auto / 1fr;
+    grid-template: "head" auto "tabs" auto "body" minmax(0, 1fr) "foot" auto / 1fr;
   }
 
   .settings .settings-tabs {
