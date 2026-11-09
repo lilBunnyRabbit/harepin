@@ -146,6 +146,8 @@ export class Car {
   /** Keyboard steer after the speed-scaled ramp, -1..1; follows the stick directly for analog input. */
   key_steer = 0;
   steer_mode: SteerMode = SteerMode.SNAP;
+  /** Idle hold latched on: it keeps braking at any speed until a pedal or the wheel is touched. */
+  parked = false;
 
   constructor(readonly spec: CarSpec = COUPE) {
     this.wheels = spec.wheel.mounts.map(([x, y, z]) => new Wheel(new Vector3(x, y, z), z > 0, x > 0, spec));
@@ -168,11 +170,19 @@ export class Car {
       w.compression = 0;
       w.anchored = false;
     }
+    this.parked = false;
   }
 
   /** Sets the car at rest on the ground under (x, z) at its own ride height, so a swap or respawn neither drops nor stacks. */
   park(x: number, z: number, heading: number, ground: Ground) {
-    this.place(x, ground.height(x, z) + ride_height(this.spec), z, heading);
+    const normal = ground.normal(x, z, tmp);
+    this.place(x, ground.height(x, z), z, heading);
+    this.quat.premultiply(steer_q.setFromUnitVectors(Y, normal));
+    this.pos.addScaledVector(normal, ride_height(this.spec));
+    // Start at static sag so the first step's damper sees no compression rate and the car does not bounce off the slope.
+    const sag = (this.spec.mass * GRAVITY) / (4 * this.spec.spring);
+    for (const w of this.wheels) w.compression = sag;
+    this.parked = true;
   }
 
   get forward_speed(): number {
@@ -225,7 +235,9 @@ export class Car {
     const reversing = this.gear === -1 && this.auto;
     const pedal = reversing ? input.brake : input.throttle;
     const brake = reversing ? input.throttle : input.brake;
-    const hold = pedal < 0.05 && brake < 0.05 && speed < 1 && this.gear !== 0;
+    const idle_now = pedal < 0.05 && brake < 0.05 && this.gear !== 0;
+    this.parked = idle_now && Math.abs(input.steer) < 0.05 && (this.parked || speed < 1);
+    const hold = this.parked || (idle_now && speed < 1);
     this.braking = brake;
 
     inv.copy(quat).invert();

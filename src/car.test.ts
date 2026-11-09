@@ -165,3 +165,43 @@ describe("parking", () => {
     }
   });
 });
+
+describe("park and idle hold", () => {
+  const slope = (grade: number): Ground => ({ ...flat, height: (_x, z) => z * grade, normal: (_x, _z, out) => out.set(0, 1, -grade).normalize() });
+
+  for (const heading of [0, Math.PI / 2, Math.PI]) {
+    test(`park() on a 30% slope lands without sliding (heading ${heading.toFixed(2)})`, () => {
+      const ground = slope(0.3);
+      for (const spec of Object.values(CARS)) {
+        const car = new Car(spec);
+        car.park(0, 0, heading, ground);
+        const start = car.pos.clone();
+        let fastest = 0;
+        for (let t = 0; t < 1; t += DT) {
+          car.step(DT, idle, ground);
+          fastest = Math.max(fastest, car.vel.length());
+        }
+        const settled = car.pos.clone();
+        for (let t = 0; t < 4; t += DT) car.step(DT, idle, ground);
+        expect(fastest).toBeLessThan(0.2);
+        expect(settled.distanceTo(start)).toBeLessThan(0.03);
+        expect(car.pos.distanceTo(settled)).toBeLessThan(0.001);
+      }
+    });
+  }
+
+  test("once engaged, the idle hold stays on until the driver touches a control", () => {
+    for (const spec of Object.values(CARS)) {
+      const car = new Car(spec);
+      car.park(0, 0, 0, flat);
+      run(car, 1, () => idle);
+      car.vel.set(0, 0, 3);
+      const start = car.pos.clone();
+      run(car, 3, () => idle);
+      expect(car.vel.length()).toBeLessThan(0.05);
+      expect(car.pos.distanceTo(start)).toBeLessThan(1.5);
+      run(car, 3, () => ({ ...idle, throttle: 0.3 }));
+      expect(kmh(car)).toBeGreaterThan(5);
+    }
+  });
+});
