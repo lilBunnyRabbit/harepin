@@ -46,10 +46,16 @@ const DECAL_NAMES: Record<Decal, string> = {
   rabbit: "Rabbit",
 };
 
-const EYE = new THREE.Vector3(4.6, 2.8, 5.4).normalize();
-const FORWARD = EYE.clone().negate();
-const RIGHT = FORWARD.clone().cross(THREE.Object3D.DEFAULT_UP).normalize();
-const UP = RIGHT.clone().cross(FORWARD);
+const EYE_AZIMUTH = Math.atan2(4.6, 5.4);
+const EYE_ELEVATION = Math.atan2(2.8, Math.hypot(4.6, 5.4));
+/** How far a drag tilts the view above and below the stand's usual angle, radians. */
+const PITCH_MIN = -0.25;
+const PITCH_MAX = 0.55;
+/** Zoom over the whole-car fit; 1 is the most a pinch or the wheel backs out. */
+const ZOOM_MAX = 2.6;
+const DRAG_YAW = 0.01;
+const DRAG_PITCH = 0.006;
+const WHEEL_ZOOM = 0.0015;
 /** Camera distance over the tightest fit, so a slot's point can pull the car off centre without it leaving the clear area. */
 const FIT_SLACK = 1.06;
 const EASE_MS = 600;
@@ -329,9 +335,12 @@ const turn = (from: number, to: number) => ((((to - from + Math.PI) % (2 * Math.
 interface Pose {
   at: THREE.Vector3;
   yaw: number;
+  /** Tilt added to the stand's camera angle by a drag, radians. */
+  pitch: number;
+  zoom: number;
 }
 
-const pose_of = (view: SlotView): Pose => ({ at: new THREE.Vector3(...view.at), yaw: view.yaw });
+const pose_of = (view: SlotView): Pose => ({ at: new THREE.Vector3(...view.at), yaw: view.yaw, pitch: 0, zoom: 1 });
 
 interface Meter {
   value: HTMLElement;
@@ -374,11 +383,13 @@ export class Garage {
   private points: THREE.Vector3[] = [];
   /** The clear area between the panels in normalised device coordinates, -1..1, +y up. */
   private readonly clear = { left: -1, right: 1, bottom: -1, top: 1 };
+  private area = { left: 0, top: 0, right: 0, bottom: 0 };
   private pose: Pose = pose_of(WHOLE_CAR);
   private from: Pose = pose_of(WHOLE_CAR);
   private to: Pose = pose_of(WHOLE_CAR);
   private moved = 0;
   private readonly calm = matchMedia("(prefers-reduced-motion: reduce)");
+  private readonly pointers = new Map<number, { x: number; y: number }>();
 
   constructor(
     private readonly parent: HTMLElement,
@@ -457,6 +468,10 @@ export class Garage {
     this.root.addEventListener("click", this.click);
     this.root.addEventListener("pointerover", this.hover);
     this.strip.addEventListener("pointerleave", this.unhover);
+    this.canvas.addEventListener("pointerdown", this.grab);
+    this.canvas.addEventListener("pointermove", this.drag);
+    this.canvas.addEventListener("lostpointercapture", this.release);
+    this.canvas.addEventListener("wheel", this.wheel, { passive: false });
     addEventListener("keydown", this.key);
     addEventListener("resize", this.resized);
     const items = TABS[this.tab].items(this.current);
@@ -475,6 +490,11 @@ export class Garage {
     this.root.removeEventListener("click", this.click);
     this.root.removeEventListener("pointerover", this.hover);
     this.strip.removeEventListener("pointerleave", this.unhover);
+    this.canvas.removeEventListener("pointerdown", this.grab);
+    this.canvas.removeEventListener("pointermove", this.drag);
+    this.canvas.removeEventListener("lostpointercapture", this.release);
+    this.canvas.removeEventListener("wheel", this.wheel);
+    this.pointers.clear();
     removeEventListener("keydown", this.key);
     removeEventListener("resize", this.resized);
     cancelAnimationFrame(this.frame);
@@ -589,6 +609,8 @@ export class Garage {
     this.render_strip(shown);
     this.render_meters(shown);
     this.show_car(shown);
+    // The strip and rail change height with the slot, and the clear area with them.
+    this.resized();
   }
 
   private render_tabs() {
@@ -771,7 +793,7 @@ export class Garage {
   }
 
   private aim(view: SlotView) {
-    this.from = { at: this.pose.at.clone(), yaw: this.pose.yaw };
+    this.from = { ...this.pose, at: this.pose.at.clone() };
     this.to = pose_of(view);
     this.moved = performance.now();
     if (this.calm.matches) {
@@ -786,10 +808,59 @@ export class Garage {
     this.pose = {
       at: this.from.at.clone().lerp(this.to.at, e),
       yaw: this.from.yaw + turn(this.from.yaw, this.to.yaw) * e,
+      pitch: THREE.MathUtils.lerp(this.from.pitch, this.to.pitch, e),
+      zoom: THREE.MathUtils.lerp(this.from.zoom, this.to.zoom, e),
     };
     this.draw();
     this.frame = u < 1 ? requestAnimationFrame(this.tick) : 0;
   };
+
+  private stop_easing() {
+    cancelAnimationFrame(this.frame);
+    this.frame = 0;
+  }
+
+  private readonly grab = (event: PointerEvent) => {
+    this.canvas.setPointerCapture(event.pointerId);
+    this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    this.stop_easing();
+  };
+
+  // One pointer turns the car on its stand and tilts the view; two pinch the zoom. Each move draws one frame, so a car
+  // left alone runs no loop.
+  private readonly drag = (event: PointerEvent) => {
+    const last = this.pointers.get(event.pointerId);
+    if (!last) return;
+    const spread = () => {
+      const [a, b] = [...this.pointers.values()];
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    };
+    if (this.pointers.size === 2) {
+      const before = spread();
+      this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (before > 0) this.zoom_by(spread() / before);
+      return;
+    }
+    this.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    this.pose.yaw += (event.clientX - last.x) * DRAG_YAW;
+    this.pose.pitch = THREE.MathUtils.clamp(this.pose.pitch + (event.clientY - last.y) * DRAG_PITCH, PITCH_MIN, PITCH_MAX);
+    this.draw();
+  };
+
+  private readonly release = (event: PointerEvent) => {
+    this.pointers.delete(event.pointerId);
+  };
+
+  private readonly wheel = (event: WheelEvent) => {
+    event.preventDefault();
+    this.stop_easing();
+    this.zoom_by(Math.exp(-event.deltaY * WHEEL_ZOOM));
+  };
+
+  private zoom_by(factor: number) {
+    this.pose.zoom = THREE.MathUtils.clamp(this.pose.zoom * factor, 1, ZOOM_MAX);
+    this.draw();
+  }
 
   /** Frames the car in the part of the screen the panels leave clear. */
   private readonly resized = () => {
@@ -800,16 +871,19 @@ export class Garage {
     renderer.setPixelRatio(Math.min(2, devicePixelRatio));
     renderer.setSize(width, height, false);
     const area = { left: 0, top: 0, right: width, bottom: height };
-    for (const panel of [this.top, this.rail, this.panel, this.bottom]) {
+    const box = (panel: HTMLElement) => {
       const r = panel.getBoundingClientRect();
-      if (!r.width || !r.height) continue;
-      const cx = (r.left + r.right) / 2;
-      const cy = (r.top + r.bottom) / 2;
-      if (cy > height * 0.6) area.bottom = Math.min(area.bottom, r.top - FREE_PAD);
-      else if (cy < height * 0.25 && r.width > width * 0.4) area.top = Math.max(area.top, r.bottom + FREE_PAD);
-      else if (cx < width / 2) area.left = Math.max(area.left, r.right + FREE_PAD);
-      else area.right = Math.min(area.right, r.left - FREE_PAD);
-    }
+      return r.width && r.height ? r : null;
+    };
+    const top = box(this.top);
+    const rail = box(this.rail);
+    const stats = box(this.panel);
+    const bottom = box(this.bottom);
+    if (top) area.top = Math.max(area.top, top.bottom + FREE_PAD);
+    if (rail) area.left = Math.max(area.left, rail.right + FREE_PAD);
+    if (stats) area.right = Math.min(area.right, stats.left - FREE_PAD);
+    if (bottom) area.bottom = Math.min(area.bottom, bottom.top - FREE_PAD);
+    this.area = area;
     this.clear.left = (2 * area.left) / width - 1;
     this.clear.right = (2 * Math.max(area.right, area.left + 80)) / width - 1;
     this.clear.top = 1 - (2 * area.top) / height;
@@ -823,7 +897,11 @@ export class Garage {
     const renderer = this.renderer;
     if (!renderer || !this.view) return;
     const { center, half } = this.box;
-    const { yaw, at } = this.pose;
+    const { yaw, at, pitch, zoom } = this.pose;
+    const elevation = EYE_ELEVATION + pitch;
+    const forward = new THREE.Vector3(Math.sin(EYE_AZIMUTH) * Math.cos(elevation), Math.sin(elevation), Math.cos(EYE_AZIMUTH) * Math.cos(elevation)).negate();
+    const right_axis = forward.clone().cross(THREE.Object3D.DEFAULT_UP).normalize();
+    const up = right_axis.clone().cross(forward);
     this.view.root.rotation.y = yaw;
     this.shadow.mesh.rotation.y = yaw;
     const turned = new THREE.Vector3();
@@ -831,12 +909,12 @@ export class Garage {
     const along = { right: new Float64Array(n), up: new Float64Array(n), depth: new Float64Array(n) };
     this.points.forEach((point, i) => {
       turned.copy(point).applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw);
-      along.right[i] = turned.dot(RIGHT);
-      along.up[i] = turned.dot(UP);
-      along.depth[i] = turned.dot(FORWARD);
+      along.right[i] = turned.dot(right_axis);
+      along.up[i] = turned.dot(up);
+      along.depth[i] = turned.dot(forward);
     });
     const focus = new THREE.Vector3(center.x + at.x * half.x, center.y + at.y * half.y, center.z + at.z * half.z).applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw);
-    const plane = center.clone().applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw).dot(FORWARD);
+    const plane = center.clone().applyAxisAngle(THREE.Object3D.DEFAULT_UP, yaw).dot(forward);
     const tan_v = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2));
     const tan_h = tan_v * this.camera.aspect;
     const { left, right, bottom, top } = this.clear;
@@ -863,12 +941,17 @@ export class Garage {
       if (slide(mid)) far = mid;
       else near = mid;
     }
-    const distance = far * FIT_SLACK;
-    const range = slide(distance) ?? { x0: 0, x1: 0, y0: 0, y1: 0 };
-    const x = THREE.MathUtils.clamp(focus.dot(RIGHT), range.x0, range.x1);
-    const y = THREE.MathUtils.clamp(focus.dot(UP), range.y0, range.y1);
-    const target = new THREE.Vector3().addScaledVector(RIGHT, x).addScaledVector(UP, y).addScaledVector(FORWARD, plane);
-    this.camera.position.copy(target).addScaledVector(FORWARD, -distance);
+    const fit = far * FIT_SLACK;
+    const range = slide(fit) ?? { x0: 0, x1: 0, y0: 0, y1: 0 };
+    // Zoomed in past the fit the car no longer fits anyway, so the view drifts from the fitted framing onto the part.
+    const closer = (zoom - 1) / (ZOOM_MAX - 1);
+    const distance = fit / zoom;
+    // Fitted, the car leans halfway from the middle of its room toward the part, so it never hugs one panel.
+    const lean = (lo: number, hi: number, at: number) => THREE.MathUtils.lerp((lo + hi) / 2, THREE.MathUtils.clamp(at, lo, hi), 0.5);
+    const x = THREE.MathUtils.lerp(lean(range.x0, range.x1, focus.dot(right_axis)), focus.dot(right_axis), closer);
+    const y = THREE.MathUtils.lerp(lean(range.y0, range.y1, focus.dot(up)), focus.dot(up), closer);
+    const target = new THREE.Vector3().addScaledVector(right_axis, x).addScaledVector(up, y).addScaledVector(forward, plane);
+    this.camera.position.copy(target).addScaledVector(forward, -distance);
     this.camera.lookAt(target);
     renderer.render(this.scene, this.camera);
   }

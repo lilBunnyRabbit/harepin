@@ -10,6 +10,8 @@
   background: radial-gradient(ellipse 60% 70% at 50% 55%, var(--garage-glow), var(--garage-floor) 78%);
   color: var(--foreground);
   font-size: var(--text-md);
+  /* A pinch here is the car's zoom; left to the browser it zooms the page and pushes the panels off screen. */
+  touch-action: none;
 }
 
 :root[data-scheme="light"] .garage {
@@ -120,6 +122,9 @@
   display: grid;
   gap: 2px;
   width: var(--garage-rail-w);
+  max-height: calc(100% - 2 * (var(--inset-top) + var(--control-h) + 18px));
+  overflow-y: auto;
+  scrollbar-width: none;
   padding: var(--space-2);
 }
 
@@ -304,10 +309,13 @@
   padding: 6px;
   overflow-x: auto;
   scrollbar-width: thin;
+  touch-action: pan-x;
 }
 
 .garage-card {
-  flex: 0 0 188px;
+  flex: 1 1 0;
+  min-width: 140px;
+  max-width: 188px;
   position: relative;
   display: grid;
   align-content: start;
@@ -363,11 +371,13 @@
 
 .garage-strip[data-kind="paint"] .garage-card,
 .garage-strip[data-kind="ink"] .garage-card {
-  flex-basis: 104px;
+  flex: 0 0 104px;
+  min-width: 0;
 }
 
 .garage-strip[data-kind="decal"] .garage-card {
-  flex-basis: 128px;
+  flex: 0 0 128px;
+  min-width: 0;
 }
 
 .garage-swatch {
@@ -532,6 +542,11 @@
     justify-self: center;
   }
 
+  .garage-tabs .garage-glyph,
+  .garage-hints {
+    display: none;
+  }
+
   .garage-heading {
     font-size: var(--text-xl);
   }
@@ -542,6 +557,8 @@
 
   .garage-rail {
     top: calc(var(--inset-top) + var(--control-h) + 18px);
+    max-height: calc(100% - var(--inset-top) - var(--control-h) - 18px - var(--inset-bottom));
+    align-content: start;
     translate: none;
     width: auto;
     padding: 4px;
@@ -603,6 +620,8 @@
 
   .garage-card {
     flex: 1 0 128px;
+    min-width: 0;
+    max-width: none;
     min-height: 48px;
     padding: var(--space-2) calc(var(--space-3) + 10px) var(--space-2) var(--space-3);
   }
@@ -641,6 +660,13 @@
 
   .garage-card .decal-tile {
     width: 72px;
+  }
+}
+
+@media (max-height: 400px) {
+  .garage-slot {
+    width: 36px;
+    height: 36px;
   }
 }
 
