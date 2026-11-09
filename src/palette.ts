@@ -50,19 +50,27 @@ export function rgba(lab: Lab, alpha = 1): string {
 // that read in light and shade, which the flat UI extremes (near-black or near-white) don't.
 const ground = dark ? brand.background_light : mix(brand.background_darker, brand.foreground, 0.75);
 
+// Dusk value ladder, darkest up: asphalt, tree crowns, grass, road markings. At dusk light all four collapsed into one
+// band, so each sits a fixed step apart in L.
+const DUSK_GRASS_LIFT = 0.04;
+const DUSK_CROWN_DROP = 0.06;
+const grass = dark ? lighten(mix(brand.success, ground, 0.32), DUSK_GRASS_LIFT) : mix(brand.success, ground, 0.42);
+const leaf_dark = mix(brand.success, dark ? brand.background : brand.foreground, 0.28);
+const asphalt = dark ? brand.background_darkest : mix(brand.foreground, brand.background_darkest, 0.62);
+
 export const tones = {
-  grass: mix(brand.success, ground, dark ? 0.32 : 0.42),
+  grass,
   grass_dry: mix(brand.warning, ground, dark ? 0.26 : 0.36),
   sand: mix(brand.warning, brand.foreground, 0.35),
   rock: dark ? brand.background_lightest : mix(brand.foreground, brand.background_darkest, 0.35),
   snow: dark ? brand.foreground : brand.background_lightest,
-  asphalt: dark ? brand.background_dark : mix(brand.foreground, brand.background_darkest, 0.62),
+  asphalt,
   skid: dark ? brand.background_darkest : brand.foreground,
   line: dark ? brand.foreground : brand.background_lightest,
-  edge_line: dark ? brand.cottontail : brand.background_light,
+  edge_line: dark ? mix(brand.foreground, asphalt, 0.7) : brand.background_light,
   water: mix(brand.info, brand.background, 0.4),
   leaf: mix(brand.success, dark ? brand.background : ground, 0.44),
-  leaf_dark: mix(brand.success, dark ? brand.background : brand.foreground, 0.28),
+  leaf_dark: dark ? lighten(leaf_dark, grass[0] - DUSK_CROWN_DROP - leaf_dark[0]) : leaf_dark,
   trunk: mix(brand.warning, brand.background_darkest, 0.25),
   glass: dark ? brand.background_darkest : brand.foreground,
   tyre: dark ? brand.background_darkest : mix(brand.foreground, brand.background_darkest, 0.8),
