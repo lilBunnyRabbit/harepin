@@ -1,7 +1,25 @@
 import { SteerMode } from "./car";
 import { DirectoryStatus, PASSWORD_LENGTH, ROOM_LENGTH, clean_password, clean_room, locked_name, save_lock, type Server } from "./directory";
 import { clean_name, parse_seed } from "./net";
-import { THEMES, choose_theme, current_theme } from "./theme";
+import { Harmony, generate_theme, is_dark, type ThemeMode } from "./random-theme";
+import {
+  THEMES,
+  THEME_NAME_LENGTH,
+  TOKENS,
+  choose_theme,
+  current_theme,
+  derive_theme,
+  find_saved,
+  find_theme,
+  load_saved_themes,
+  store_saved_themes,
+  theme_name_problem,
+  token_var,
+  with_saved,
+  without_saved,
+  type SavedTheme,
+  type ThemeBase,
+} from "./theme";
 import { TouchSteer } from "./touch";
 import { WorldMap } from "./world-map";
 import "./settings.css";
@@ -197,6 +215,31 @@ const KEYS: [string, string, string, string][] = [
 ];
 
 const PAD_SEPARATOR = /(, | \/ )/;
+
+const BASE_TOKENS: [keyof ThemeBase, string][] = [
+  ["background", "Background"],
+  ["foreground", "Text"],
+  ["primary", "Primary"],
+  ["secondary", "Secondary"],
+  ["accent", "Accent"],
+];
+
+const THEME_MODES: [ThemeMode, string][] = [
+  ["dark", "Dark"],
+  ["light", "Light"],
+  ["any", "Any"],
+];
+
+const HARMONIES: [Harmony | "any", string][] = [
+  ["any", "Any harmony"],
+  [Harmony.ANALOGOUS, "Analogous"],
+  [Harmony.COMPLEMENTARY, "Complementary"],
+  [Harmony.TRIADIC, "Triadic"],
+  [Harmony.SPLIT, "Split complementary"],
+];
+
+const PREVIEW_LADDER = ["darkest", "darker", "dark", "", "light", "lighter", "lightest"];
+const PREVIEW_CHIPS = ["primary", "secondary", "accent", "tertiary", "cottontail"] as const;
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, class_name = "", text = ""): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
@@ -803,17 +846,195 @@ export class Settings {
   }
 
   private display(): HTMLElement[] {
+    const active = current_theme();
+    let saved = load_saved_themes();
+    const in_use = THEMES[active] ? active : (find_saved(saved, active)?.name ?? active);
+
     const theme = el("select", "settings-select");
     theme.setAttribute("aria-label", "Theme");
-    const active = current_theme();
-    for (const name of Object.keys(THEMES)) theme.add(new Option(name, name, false, name === active));
     theme.addEventListener("change", () => {
       choose_theme(theme.value);
       this.reload("theme");
     });
+
+    const mine_title = el("h4", "settings-sub", "Your themes");
+    const mine = el("ul", "servers-list");
+    const list = () => {
+      const yours = el("optgroup");
+      yours.label = "Your themes";
+      const presets = el("optgroup");
+      presets.label = "Presets";
+      for (const { name } of saved) yours.append(new Option(name, name, false, name === in_use));
+      for (const name of Object.keys(THEMES)) presets.append(new Option(name, name, false, name === in_use));
+      theme.replaceChildren(...(saved.length ? [yours] : []), presets);
+      mine.replaceChildren(...saved.map(({ name }) => this.saved_row(name, name === in_use, () => remove(name))));
+      mine_title.hidden = saved.length === 0;
+    };
+    const remove = (name: string) => {
+      const next = without_saved(saved, name);
+      if (!store_saved_themes(next)) return;
+      if (name === in_use) return this.reload("theme");
+      saved = next;
+      list();
+      theme.focus();
+    };
+    list();
+
+    return [this.row("Theme", theme, "Reloads the page"), mine_title, mine, ...this.theme_create(active, () => saved)];
+  }
+
+  private saved_row(name: string, in_use: boolean, remove: () => void): HTMLLIElement {
+    const li = el("li", "servers-row");
+    const label = el("div", "servers-name");
+    label.append(el("b", "", name));
+    li.append(label, in_use ? el("span", "servers-tag", "In use") : el("span"), this.action("Delete", remove));
+    return li;
+  }
+
+  private theme_create(active: string, saved: () => SavedTheme[]): HTMLElement[] {
+    const { background, foreground, primary, secondary, accent } = find_theme(active) ?? THEMES["Brand Dark"];
+    let base: ThemeBase = { background, foreground, primary, secondary, accent };
+    let mode: ThemeMode = is_dark(base) ? "dark" : "light";
+    let harmony: Harmony | "any" = "any";
+    const locked = new Set<keyof ThemeBase>();
+
+    const modes = el("div", "settings-choice");
+    modes.setAttribute("role", "radiogroup");
+    modes.setAttribute("aria-label", "Mode");
+    const mode_buttons = THEME_MODES.map(([value, text]) => {
+      const button = el("button", "", text);
+      button.type = "button";
+      button.setAttribute("role", "radio");
+      button.addEventListener("click", () => {
+        mode = value;
+        sync_modes();
+      });
+      modes.append(button);
+      return [value, button] as const;
+    });
+    const sync_modes = () => {
+      for (const [value, button] of mode_buttons) button.setAttribute("aria-checked", String(value === mode));
+    };
+    sync_modes();
+
+    const harmonies = el("select", "settings-select");
+    harmonies.setAttribute("aria-label", "Harmony");
+    for (const [value, text] of HARMONIES) harmonies.add(new Option(text, value, value === harmony, value === harmony));
+    // The pad commits a select on A and resets it to its default when focus moves on, so a pick becomes the default.
+    harmonies.addEventListener("change", () => {
+      harmony = HARMONIES.find(([value]) => value === harmonies.value)?.[0] ?? "any";
+      for (const option of harmonies.options) option.defaultSelected = option.selected;
+    });
+
+    const vibrance = this.percent_range("Vibrance");
+    const contrast = this.percent_range("Contrast");
+
+    const preview = el("div", "theme-preview");
+    preview.setAttribute("aria-hidden", "true");
+    const ladder = el("div", "theme-preview-ladder");
+    for (const step of PREVIEW_LADDER) {
+      const shade = el("span");
+      shade.style.background = `var(--background${step ? `-${step}` : ""})`;
+      ladder.append(shade);
+    }
+    const words = el("div", "theme-preview-text");
+    words.append(el("b", "", "Harepin"), el("small", "", "Lap 2 / 3 · 1:04.2"));
+    const chips = el("div", "theme-preview-chips");
+    for (const token of PREVIEW_CHIPS) {
+      const chip = el("span");
+      chip.style.background = `var(${token_var(token)})`;
+      chips.append(chip);
+    }
+    preview.append(ladder, words, chips);
+
+    const locks = el("div", "theme-locks");
+    const lock_buttons = BASE_TOKENS.map(([token, label]) => {
+      const button = el("button", "theme-lock");
+      button.type = "button";
+      button.setAttribute("aria-label", `Keep ${label.toLowerCase()}`);
+      const swatch = el("span", "theme-swatch");
+      button.append(swatch, el("span", "", label), icon("icon-lock"));
+      button.addEventListener("click", () => {
+        if (locked.has(token)) locked.delete(token);
+        else locked.add(token);
+        render();
+      });
+      locks.append(button);
+      return [token, button, swatch] as const;
+    });
+
+    const render = () => {
+      const theme = derive_theme(base);
+      for (const token of TOKENS) preview.style.setProperty(token_var(token), theme[token]);
+      for (const [token, button, swatch] of lock_buttons) {
+        swatch.style.background = base[token];
+        button.setAttribute("aria-pressed", String(locked.has(token)));
+      }
+    };
+    render();
+
+    const generate = el("button", "settings-action theme-generate");
+    generate.type = "button";
+    generate.append(icon("icon-dice"), el("span", "", "Generate"));
+    generate.addEventListener("click", () => {
+      const keep = Object.fromEntries([...locked].map((token) => [token, base[token]]));
+      base = generate_theme({ mode, harmony, vibrance: Number(vibrance.value) / 100, contrast: Number(contrast.value) / 100, locked: keep });
+      render();
+    });
+
+    const form = el("form", "settings-inline");
+    const name = el("input", "settings-input");
+    name.type = "text";
+    name.maxLength = THEME_NAME_LENGTH;
+    name.autocomplete = "off";
+    name.enterKeyHint = "done";
+    name.setAttribute("aria-label", "Theme name");
+    // A pad can't type, so an empty name saves under the next free placeholder.
+    const free_name = () => {
+      let at = saved().length + 1;
+      while (find_saved(saved(), `My theme ${at}`)) at++;
+      return `My theme ${at}`;
+    };
+    name.placeholder = free_name();
+    name.addEventListener("input", () => name.setCustomValidity(""));
+    const save = el("button", "settings-action", "Save");
+    save.type = "submit";
+    form.append(name, save);
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const chosen = name.value.trim() || free_name();
+      const problem = theme_name_problem(chosen);
+      if (problem) return this.invalid(name, problem);
+      if (!store_saved_themes(with_saved(saved(), chosen, derive_theme(base)))) return this.invalid(name, "This browser refused to store it");
+      choose_theme(chosen);
+      this.reload("theme");
+    });
+
     return [
-      this.row("Theme", theme, "Reloads the page"),
+      el("h4", "settings-sub", "Create a theme"),
+      this.row("Mode", modes),
+      this.row("Harmony", harmonies, "How the colours sit around the colour wheel"),
+      this.row("Vibrance", vibrance, "Muted to vivid"),
+      this.row("Contrast", contrast, "Soft to strong; text always stays readable"),
+      preview,
+      this.row("Keep", locks, "Locked colours stay when you generate"),
+      generate,
+      this.row("Save as", form, "Adds it to Your themes and switches to it; reloads the page"),
     ];
+  }
+
+  private percent_range(label: string): HTMLInputElement {
+    const range = el("input", "settings-range");
+    range.type = "range";
+    range.min = "0";
+    range.max = "100";
+    range.step = "5";
+    range.value = "50";
+    range.setAttribute("aria-label", label);
+    const fill = () => range.style.setProperty("--fill", `${range.value}%`);
+    range.addEventListener("input", fill);
+    fill();
+    return range;
   }
 
   private audio(): HTMLElement[] {

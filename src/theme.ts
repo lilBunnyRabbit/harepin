@@ -18,9 +18,13 @@ export const TOKENS = [
   "warning",
   "error",
   "info",
+  "desktop",
 ] as const;
 export type Token = (typeof TOKENS)[number];
 export type Theme = Record<Token, string>;
+export type ThemeBase = Pick<Theme, "background" | "foreground" | "primary" | "secondary" | "accent">;
+
+export const DEFAULT_DESKTOP = "var(--background-darkest)";
 
 const BRAND_DARK: Theme = {
   background_lightest: "oklch(0.357 0.0326 230.47)",
@@ -40,6 +44,7 @@ const BRAND_DARK: Theme = {
   warning: "oklch(0.745 0.1398 70)",
   error: "oklch(0.745 0.1398 30)",
   info: "oklch(0.745 0.1398 240)",
+  desktop: DEFAULT_DESKTOP,
 };
 
 const BRAND_LIGHT: Theme = {
@@ -60,6 +65,8 @@ const BRAND_LIGHT: Theme = {
   warning: "oklch(0.4761 0.1064 113.24)",
   error: "oklch(0.4743 0.1556 30)",
   info: "oklch(0.4829 0.1244 246.07)",
+  // The brand's light page is the cream background; its lower shades are for small things, not the whole screen.
+  desktop: "var(--background)",
 };
 
 const WHILE_TRUE: Theme = {
@@ -80,6 +87,7 @@ const WHILE_TRUE: Theme = {
   warning: "oklch(0.4761 0.1064 113.24)",
   error: "oklch(0.4743 0.1556 30)",
   info: "oklch(0.4829 0.1244 246.07)",
+  desktop: DEFAULT_DESKTOP,
 };
 
 const SURFACE_STEPS: Partial<Record<Token, number>> = {
@@ -91,7 +99,7 @@ const SURFACE_STEPS: Partial<Record<Token, number>> = {
   background_darkest: -3,
 };
 
-function derive_theme([background, foreground, primary, secondary, accent]: [string, string, string, string, string]): Theme {
+export function derive_theme(base: ThemeBase): Theme {
   const surfaces = Object.fromEntries(
     Object.entries(SURFACE_STEPS).map(([token, step]) => [
       token,
@@ -102,69 +110,157 @@ function derive_theme([background, foreground, primary, secondary, accent]: [str
   );
   return {
     ...(surfaces as Pick<Theme, "background_lightest" | "background_lighter" | "background_light" | "background_dark" | "background_darker" | "background_darkest">),
-    background,
-    foreground,
-    primary,
-    secondary,
-    accent,
+    ...base,
     tertiary: "color-mix(in oklch, var(--primary), var(--secondary))",
     cottontail: "oklch(from var(--primary) calc(l + 0.2) calc(c * 1.34) h)",
     success: "oklch(from var(--primary) l 0.14 140)",
     warning: "oklch(from var(--primary) l 0.14 70)",
     error: "oklch(from var(--primary) l 0.14 30)",
     info: "oklch(from var(--primary) l 0.14 240)",
+    desktop: DEFAULT_DESKTOP,
   };
 }
+
+const preset = ([background, foreground, primary, secondary, accent]: [string, string, string, string, string]) => derive_theme({ background, foreground, primary, secondary, accent });
 
 export const THEMES: Record<string, Theme> = {
   "Brand Dark": BRAND_DARK,
   "Brand Light": BRAND_LIGHT,
-  "Light Pastel Blue": derive_theme(["oklch(0.98 0.01 250)", "oklch(0.22 0.02 80)", "oklch(0.7 0.09 200)", "oklch(0.7 0.09 20)", "oklch(0.7 0.09 320)"]),
-  "Red & Black": derive_theme(["oklch(0.45 0.22 29)", "oklch(0.15 0.01 0)", "oklch(0.85 0.02 29)", "oklch(0.7 0.13 80)", "oklch(0.7 0.13 340)"]),
-  "Dark Warm": derive_theme(["oklch(0.15 0.03 40)", "oklch(0.85 0.02 120)", "oklch(0.65 0.1 60)", "oklch(0.65 0.1 240)", "oklch(0.65 0.1 180)"]),
-  "Dark Purple": derive_theme(["oklch(0.35 0.04 300)", "oklch(0.9 0.015 60)", "oklch(0.8 0.08 270)", "oklch(0.8 0.08 90)", "oklch(0.8 0.08 180)"]),
-  "Mid-tone Green": derive_theme(["oklch(0.5 0.06 120)", "oklch(0.95 0.01 300)", "oklch(0.7 0.12 30)", "oklch(0.7 0.12 210)", "oklch(0.7 0.12 330)"]),
-  "Dark Cool": derive_theme(["oklch(0.22 0.025 270)", "oklch(0.8 0.02 180)", "oklch(0.6 0.09 350)", "oklch(0.6 0.09 170)", "oklch(0.6 0.09 90)"]),
-  "Warm Sunset": derive_theme(["oklch(0.18 0.04 30)", "oklch(0.92 0.01 50)", "oklch(0.7 0.15 40)", "oklch(0.65 0.13 320)", "oklch(0.75 0.14 60)"]),
-  "Ocean Breeze": derive_theme(["oklch(0.95 0.02 220)", "oklch(0.2 0.03 240)", "oklch(0.6 0.14 210)", "oklch(0.65 0.1 190)", "oklch(0.7 0.12 160)"]),
-  "Forest Night": derive_theme(["oklch(0.2 0.04 160)", "oklch(0.88 0.015 140)", "oklch(0.65 0.13 145)", "oklch(0.7 0.1 110)", "oklch(0.75 0.11 80)"]),
-  "Lavender Dream": derive_theme(["oklch(0.96 0.025 310)", "oklch(0.28 0.04 290)", "oklch(0.68 0.14 285)", "oklch(0.72 0.11 310)", "oklch(0.65 0.13 340)"]),
-  "Monochrome Dark": derive_theme(["oklch(0.18 0.01 0)", "oklch(0.85 0.01 0)", "oklch(0.5 0.02 0)", "oklch(0.4 0.015 0)", "oklch(0.65 0.02 0)"]),
-  "Vibrant Coral": derive_theme(["oklch(0.25 0.03 350)", "oklch(0.93 0.01 30)", "oklch(0.7 0.18 15)", "oklch(0.65 0.16 340)", "oklch(0.75 0.17 50)"]),
-  "Neon Black": derive_theme(["oklch(0.0 0 0)", "oklch(1.0 0 0)", "oklch(0.75 0.3 145)", "oklch(0.75 0.3 330)", "oklch(0.75 0.3 60)"]),
-  "Electric White": derive_theme(["oklch(1.0 0 0)", "oklch(0.0 0 0)", "oklch(0.55 0.35 265)", "oklch(0.6 0.32 340)", "oklch(0.65 0.33 100)"]),
-  "Deep Neon": derive_theme(["oklch(0.05 0 0)", "oklch(0.98 0.01 0)", "oklch(0.8 0.28 195)", "oklch(0.8 0.28 310)", "oklch(0.8 0.28 45)"]),
-  Cyberpunk: derive_theme(["oklch(0.1 0.05 290)", "oklch(0.95 0.03 180)", "oklch(0.7 0.35 325)", "oklch(0.75 0.32 200)", "oklch(0.8 0.3 55)"]),
-  "Terminal Green": derive_theme(["oklch(0.0 0 0)", "oklch(0.85 0.22 145)", "oklch(0.75 0.25 145)", "oklch(0.65 0.2 145)", "oklch(0.8 0.28 85)"]),
-  "High Visibility": derive_theme(["oklch(0.98 0.005 80)", "oklch(0.15 0.01 280)", "oklch(0.45 0.35 260)", "oklch(0.5 0.3 30)", "oklch(0.4 0.32 340)"]),
-  "Black & White": derive_theme(["oklch(0.0 0 0)", "oklch(1.0 0 0)", "oklch(0.6 0 0)", "oklch(0.4 0 0)", "oklch(0.8 0 0)"]),
-  "Speed Reader Light": derive_theme(["oklch(0.976 0.022 80.58)", "oklch(0.586 0.0467 242.26)", "oklch(0.75 0.0905 55.2)", "oklch(0.836 0.1393 129.45)", "oklch(0.679 0.1263 20.92)"]),
-  "Speed Reader Dark": derive_theme(["oklch(0.278 0.0269 229.12)", "oklch(0.775 0.0171 95.16)", "oklch(0.863 0.0575 65.19)", "oklch(0.907 0.0926 128.53)", "oklch(0.803 0.078 18.92)"]),
+  "Light Pastel Blue": preset(["oklch(0.98 0.01 250)", "oklch(0.22 0.02 80)", "oklch(0.7 0.09 200)", "oklch(0.7 0.09 20)", "oklch(0.7 0.09 320)"]),
+  "Red & Black": preset(["oklch(0.45 0.22 29)", "oklch(0.15 0.01 0)", "oklch(0.85 0.02 29)", "oklch(0.7 0.13 80)", "oklch(0.7 0.13 340)"]),
+  "Dark Warm": preset(["oklch(0.15 0.03 40)", "oklch(0.85 0.02 120)", "oklch(0.65 0.1 60)", "oklch(0.65 0.1 240)", "oklch(0.65 0.1 180)"]),
+  "Dark Purple": preset(["oklch(0.35 0.04 300)", "oklch(0.9 0.015 60)", "oklch(0.8 0.08 270)", "oklch(0.8 0.08 90)", "oklch(0.8 0.08 180)"]),
+  "Mid-tone Green": preset(["oklch(0.5 0.06 120)", "oklch(0.95 0.01 300)", "oklch(0.7 0.12 30)", "oklch(0.7 0.12 210)", "oklch(0.7 0.12 330)"]),
+  "Dark Cool": preset(["oklch(0.22 0.025 270)", "oklch(0.8 0.02 180)", "oklch(0.6 0.09 350)", "oklch(0.6 0.09 170)", "oklch(0.6 0.09 90)"]),
+  "Warm Sunset": preset(["oklch(0.18 0.04 30)", "oklch(0.92 0.01 50)", "oklch(0.7 0.15 40)", "oklch(0.65 0.13 320)", "oklch(0.75 0.14 60)"]),
+  "Ocean Breeze": preset(["oklch(0.95 0.02 220)", "oklch(0.2 0.03 240)", "oklch(0.6 0.14 210)", "oklch(0.65 0.1 190)", "oklch(0.7 0.12 160)"]),
+  "Forest Night": preset(["oklch(0.2 0.04 160)", "oklch(0.88 0.015 140)", "oklch(0.65 0.13 145)", "oklch(0.7 0.1 110)", "oklch(0.75 0.11 80)"]),
+  "Lavender Dream": preset(["oklch(0.96 0.025 310)", "oklch(0.28 0.04 290)", "oklch(0.68 0.14 285)", "oklch(0.72 0.11 310)", "oklch(0.65 0.13 340)"]),
+  "Monochrome Dark": preset(["oklch(0.18 0.01 0)", "oklch(0.85 0.01 0)", "oklch(0.5 0.02 0)", "oklch(0.4 0.015 0)", "oklch(0.65 0.02 0)"]),
+  "Vibrant Coral": preset(["oklch(0.25 0.03 350)", "oklch(0.93 0.01 30)", "oklch(0.7 0.18 15)", "oklch(0.65 0.16 340)", "oklch(0.75 0.17 50)"]),
+  "Neon Black": preset(["oklch(0.0 0 0)", "oklch(1.0 0 0)", "oklch(0.75 0.3 145)", "oklch(0.75 0.3 330)", "oklch(0.75 0.3 60)"]),
+  "Electric White": preset(["oklch(1.0 0 0)", "oklch(0.0 0 0)", "oklch(0.55 0.35 265)", "oklch(0.6 0.32 340)", "oklch(0.65 0.33 100)"]),
+  "Deep Neon": preset(["oklch(0.05 0 0)", "oklch(0.98 0.01 0)", "oklch(0.8 0.28 195)", "oklch(0.8 0.28 310)", "oklch(0.8 0.28 45)"]),
+  Cyberpunk: preset(["oklch(0.1 0.05 290)", "oklch(0.95 0.03 180)", "oklch(0.7 0.35 325)", "oklch(0.75 0.32 200)", "oklch(0.8 0.3 55)"]),
+  "Terminal Green": preset(["oklch(0.0 0 0)", "oklch(0.85 0.22 145)", "oklch(0.75 0.25 145)", "oklch(0.65 0.2 145)", "oklch(0.8 0.28 85)"]),
+  "High Visibility": preset(["oklch(0.98 0.005 80)", "oklch(0.15 0.01 280)", "oklch(0.45 0.35 260)", "oklch(0.5 0.3 30)", "oklch(0.4 0.32 340)"]),
+  "Black & White": preset(["oklch(0.0 0 0)", "oklch(1.0 0 0)", "oklch(0.6 0 0)", "oklch(0.4 0 0)", "oklch(0.8 0 0)"]),
+  "Speed Reader Light": preset(["oklch(0.976 0.022 80.58)", "oklch(0.586 0.0467 242.26)", "oklch(0.75 0.0905 55.2)", "oklch(0.836 0.1393 129.45)", "oklch(0.679 0.1263 20.92)"]),
+  "Speed Reader Dark": preset(["oklch(0.278 0.0269 229.12)", "oklch(0.775 0.0171 95.16)", "oklch(0.863 0.0575 65.19)", "oklch(0.907 0.0926 128.53)", "oklch(0.803 0.078 18.92)"]),
   "While True": WHILE_TRUE,
 };
 
 const STORAGE_KEY = "harepin:theme";
+const SAVED_KEY = "harepin:themes";
 const DEFAULT_THEME = "Brand Dark";
+export const THEME_NAME_LENGTH = 32;
+
+export interface SavedTheme {
+  name: string;
+  theme: Theme;
+}
+
+const name_key = (name: string) => name.trim().toLowerCase();
+
+const is_preset_name = (name: string) => Object.keys(THEMES).some((preset) => name_key(preset) === name_key(name));
+
+/** Why `name` can't name a saved theme, `null` when it can. */
+export function theme_name_problem(name: string): string | null {
+  const trimmed = name.trim();
+  if (!trimmed) return "Give the theme a name";
+  if (trimmed.length > THEME_NAME_LENGTH) return `Up to ${THEME_NAME_LENGTH} characters`;
+  if (is_preset_name(trimmed)) return "A preset already has that name";
+  return null;
+}
+
+/** The saved theme named `name`, case and outer spaces ignored. */
+export function find_saved(saved: SavedTheme[], name: string): SavedTheme | undefined {
+  return saved.find((entry) => name_key(entry.name) === name_key(name));
+}
+
+/** Saves `theme` as `name`, replacing one with the same name in place, else adding it at the end. */
+export function with_saved(saved: SavedTheme[], name: string, theme: Theme): SavedTheme[] {
+  const entry = { name: name.trim(), theme: { ...theme } };
+  const index = saved.findIndex((candidate) => name_key(candidate.name) === name_key(name));
+  return index === -1 ? [...saved, entry] : saved.map((candidate, at) => (at === index ? entry : candidate));
+}
+
+export function without_saved(saved: SavedTheme[], name: string): SavedTheme[] {
+  return saved.filter((entry) => name_key(entry.name) !== name_key(name));
+}
+
+/**
+ * Saved themes from storage, keeping only entries whose every token is a colour `supports` accepts. A missing `desktop`
+ * (a save from before the token) gets the default; preset names and repeated names are dropped.
+ */
+export function parse_saved_themes(raw: unknown, supports: (value: string) => boolean): SavedTheme[] {
+  if (!Array.isArray(raw)) return [];
+  const out: SavedTheme[] = [];
+  for (const entry of raw) {
+    if (typeof entry !== "object" || entry === null) continue;
+    const { name, theme } = entry as Record<string, unknown>;
+    if (typeof name !== "string" || theme_name_problem(name) || find_saved(out, name)) continue;
+    if (typeof theme !== "object" || theme === null) continue;
+    const tokens: Record<string, unknown> = { desktop: DEFAULT_DESKTOP, ...theme };
+    const values = TOKENS.map((token) => tokens[token]);
+    if (!values.every((value) => typeof value === "string" && supports(value))) continue;
+    out.push({ name: name.trim(), theme: Object.fromEntries(TOKENS.map((token, at) => [token, values[at]])) as Theme });
+  }
+  return out;
+}
+
+export function load_saved_themes(): SavedTheme[] {
+  try {
+    const text = localStorage.getItem(SAVED_KEY);
+    return parse_saved_themes(text === null ? null : JSON.parse(text), (value) => CSS.supports("color", value));
+  } catch (error) {
+    console.warn("theme: saved themes unreadable", error);
+    return [];
+  }
+}
+
+/** False when storage refused the write. */
+export function store_saved_themes(saved: SavedTheme[]): boolean {
+  try {
+    localStorage.setItem(SAVED_KEY, JSON.stringify(saved));
+    return true;
+  } catch (error) {
+    console.warn("theme: saved themes not stored", error);
+    return false;
+  }
+}
+
+/** A preset by its exact name, else a saved theme. */
+export function find_theme(name: string, saved = load_saved_themes()): Theme | undefined {
+  return THEMES[name] ?? find_saved(saved, name)?.theme;
+}
 
 export function current_theme(): string {
+  const saved = load_saved_themes();
   const asked = new URLSearchParams(location.search).get("theme");
-  if (asked && THEMES[asked]) return asked;
+  if (asked && find_theme(asked, saved)) return asked;
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved && THEMES[saved]) return saved;
-  } catch {}
+    const chosen = localStorage.getItem(STORAGE_KEY);
+    if (chosen && find_theme(chosen, saved)) return chosen;
+  } catch (error) {
+    console.warn("theme: saved choice unreadable", error);
+  }
   return DEFAULT_THEME;
 }
 
 export function choose_theme(name: string) {
   try {
     localStorage.setItem(STORAGE_KEY, name);
-  } catch {}
+  } catch (error) {
+    console.warn("theme: choice not saved", error);
+  }
 }
 
+export const token_var = (token: Token) => `--${token.replaceAll("_", "-")}`;
+
 export function apply_theme(name: string) {
-  const theme = THEMES[name] ?? THEMES[DEFAULT_THEME];
-  for (const token of TOKENS) document.documentElement.style.setProperty(`--${token.replaceAll("_", "-")}`, theme[token]);
+  const theme = find_theme(name) ?? THEMES[DEFAULT_THEME];
+  for (const token of TOKENS) document.documentElement.style.setProperty(token_var(token), theme[token]);
 }
 
 export type Lab = [number, number, number];
@@ -193,7 +289,7 @@ export function read_tokens(): Record<Token, Lab> {
   const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
   const out = {} as Record<Token, Lab>;
   for (const token of TOKENS) {
-    probe.style.color = `var(--${token.replaceAll("_", "-")})`;
+    probe.style.color = `var(${token_var(token)})`;
     ctx.clearRect(0, 0, 1, 1);
     ctx.fillStyle = getComputedStyle(probe).color;
     ctx.fillRect(0, 0, 1, 1);

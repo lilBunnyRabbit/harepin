@@ -5,6 +5,9 @@ export const theme_name = current_theme();
 apply_theme(theme_name);
 export const brand = read_tokens();
 export const dark = brand.background[0] < 0.55;
+// Native controls follow the palette's polarity, as in webos; the scene keeps its own cut above, so a mid-tone background
+// with dark text (Red & Black) drives at dusk with light form controls.
+document.documentElement.style.colorScheme = brand.foreground[0] < brand.background[0] ? "light" : "dark";
 
 export function mix(a: Lab, b: Lab, share: number): Lab {
   return [a[0] * share + b[0] * (1 - share), a[1] * share + b[1] * (1 - share), a[2] * share + b[2] * (1 - share)];
@@ -56,7 +59,10 @@ const DUSK_GRASS_LIFT = 0.04;
 const DUSK_CROWN_DROP = 0.06;
 const grass = dark ? lighten(mix(brand.success, ground, 0.32), DUSK_GRASS_LIFT) : mix(brand.success, ground, 0.42);
 const leaf_dark = mix(brand.success, dark ? brand.background : brand.foreground, 0.28);
-const asphalt = dark ? brand.background_darkest : mix(brand.foreground, brand.background_darkest, 0.62);
+// Brand Dark's road; on a darker ladder (generated or near-black themes) the dusk road rendered flat black, losing the
+// hill shading and the skid marks, which stay at `background_darkest` below it.
+const DUSK_ASPHALT_FLOOR = 0.15;
+const asphalt = dark ? lighten(brand.background_darkest, Math.max(0, DUSK_ASPHALT_FLOOR - brand.background_darkest[0])) : mix(brand.foreground, brand.background_darkest, 0.62);
 
 // A share of the asphalt-to-foreground range, not a fixed L step: on near-black roads a fixed step still renders black.
 const DUSK_TYRE_STEP = 0.3;

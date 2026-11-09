@@ -654,3 +654,127 @@
     transition: none;
   }
 }
+
+.settings .theme-generate {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.theme-generate svg {
+  width: var(--icon-size);
+  height: var(--icon-size);
+}
+
+/* Carries the generated theme's tokens on itself, so every colour below resolves against them, not the page's. */
+.theme-preview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-3);
+  border: 1px solid color-mix(in oklch, var(--foreground) 16%, transparent);
+  border-radius: var(--radius-md);
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.theme-preview-ladder {
+  grid-column: 1 / -1;
+  display: flex;
+  height: 10px;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+}
+
+.theme-preview-ladder span {
+  flex: 1;
+}
+
+.theme-preview-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.theme-preview-text b {
+  font-size: var(--text-xl);
+  font-weight: 700;
+}
+
+.theme-preview-text small {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: color-mix(in oklch, var(--foreground) 72%, transparent);
+}
+
+.theme-preview-chips {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.theme-preview-chips span {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+}
+
+.theme-locks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--space-2);
+}
+
+.settings .theme-lock {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  height: var(--control-h);
+  padding: 0 var(--space-2) 0 var(--space-1);
+  border: 1px solid var(--set-line);
+  border-radius: var(--radius-sm);
+  background: var(--set-soft);
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--set-dim);
+}
+
+.settings .theme-lock:hover {
+  border-color: var(--line-strong);
+}
+
+.settings .theme-lock[aria-pressed="true"] {
+  border-color: color-mix(in oklch, var(--primary) 45%, transparent);
+  background: var(--set-raised);
+  color: var(--foreground);
+}
+
+.theme-lock > span:nth-child(2) {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.theme-swatch {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--set-line);
+  border-radius: var(--radius-xs);
+}
+
+.theme-lock svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  opacity: 0.35;
+}
+
+.theme-lock[aria-pressed="true"] svg {
+  opacity: 1;
+  color: var(--primary);
+}
