@@ -409,6 +409,29 @@
   font-size: var(--text-xs);
 }
 
+.settings-keys[data-pad] .pad-glyph {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-full);
+  color: var(--foreground);
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.settings-keys[data-pad] .pad-face {
+  width: 22px;
+  padding: 0;
+}
+
+.settings-keys[data-pad] td.settings-col-pad {
+  white-space: normal;
+  color: var(--set-dim);
+}
+
 @media (pointer: fine) {
   .settings-keys .settings-col-touch,
   .settings-touch-only {
@@ -417,7 +440,7 @@
 }
 
 @media (pointer: coarse) {
-  .settings-keys .settings-col-pad {
+  .settings-keys:not([data-pad]) .settings-col-pad {
     display: none;
   }
 

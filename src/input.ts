@@ -1,7 +1,7 @@
 import type { Controls } from "./car";
 import { Touch } from "./touch";
 
-export type Action = "reset" | "camera" | "shift_up" | "shift_down" | "auto" | "tcs" | "abs" | "assist" | "ghost" | "help" | "garage" | "settings" | "recenter";
+export type Action = "reset" | "camera" | "shift_up" | "shift_down" | "auto" | "tcs" | "abs" | "assist" | "ghost" | "help" | "garage" | "settings" | "recenter" | "menu";
 
 const KEY_ACTIONS: Record<string, Action> = {
   KeyR: "reset",
@@ -23,6 +23,10 @@ const IMPACT_VIBRATE_MS = 60;
 const DOUBLE_TAP_MS = 300;
 const DOUBLE_TAP_PX = 32;
 const STICK_DEAD = 0.12;
+/** Left stick tilt that counts as a menu press, then the wait before it repeats and the repeat gap. */
+const NAV_TILT = 0.5;
+const NAV_REPEAT_DELAY_MS = 400;
+const NAV_REPEAT_MS = 120;
 
 /** Camera look input gathered since the last read. */
 export interface Look {
@@ -169,7 +173,7 @@ const PAD_ACTIONS: [number, Action][] = [
   [5, "shift_up"],
   [4, "shift_down"],
   [11, "recenter"],
-  [9, "garage"],
+  [9, "menu"],
 ];
 
 /** A menu press: the d-pad, A and B, and the bumpers as tab switches. */
@@ -199,10 +203,12 @@ export class Input {
   pad: Gamepad | null = null;
   /** Menu presses on the pad since the last `read`, for a panel open over the game. */
   nav: Nav[] = [];
+  private stick_nav: Nav | null = null;
+  private stick_repeat_at = 0;
   readonly touch: Touch;
   readonly mouse: MouseLook;
   look: Look = no_look();
-  /** While true (garage or settings open), only the garage and help keys get through and the car gets no input; those panels close themselves on Escape. */
+  /** While true (garage, settings or a pad menu open), only garage, help and menu presses get through and the car gets no input; those panels close themselves on Escape. */
   blocked: () => boolean = () => false;
 
   constructor(touch_root: HTMLElement, canvas: HTMLElement) {
@@ -284,6 +290,7 @@ export class Input {
         if (pressed && !this.nav_prev[button]) this.nav.push(nav);
         this.nav_prev[button] = pressed;
       }
+      this.stick_press(pad.axes[0] ?? 0, pad.axes[1] ?? 0);
       for (const [button, action] of PAD_ACTIONS) {
         const pressed = !!pad.buttons[button]?.pressed;
         if (pressed && !this.pad_prev[button]) actions.push(action);
@@ -308,9 +315,22 @@ export class Input {
     if (this.blocked()) {
       this.rewind = false;
       this.look = no_look();
-      return { controls: { steer: 0, throttle: 0, brake: 0, handbrake: 0, analog: false }, actions: actions.filter((a) => a === "garage" || a === "help") };
+      return { controls: { steer: 0, throttle: 0, brake: 0, handbrake: 0, analog: false }, actions: actions.filter((a) => a === "garage" || a === "help" || a === "menu") };
     }
     return { controls, actions };
+  }
+
+  private stick_press(x: number, y: number) {
+    const dir: Nav | null = Math.max(Math.abs(x), Math.abs(y)) < NAV_TILT ? null : Math.abs(x) > Math.abs(y) ? (x < 0 ? "left" : "right") : y < 0 ? "up" : "down";
+    const now = performance.now();
+    if (dir !== this.stick_nav) {
+      this.stick_nav = dir;
+      this.stick_repeat_at = now + NAV_REPEAT_DELAY_MS;
+      if (dir) this.nav.push(dir);
+    } else if (dir && now >= this.stick_repeat_at) {
+      this.stick_repeat_at = now + NAV_REPEAT_MS;
+      this.nav.push(dir);
+    }
   }
 
   rumble(weak: number, strong: number, impact = false) {

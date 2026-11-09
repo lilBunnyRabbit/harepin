@@ -175,7 +175,7 @@ const STATUS_MS = 1000;
 const COPIED_MS = 2000;
 
 const KEYS: [string, string, string, string][] = [
-  ["Drive", "WASD / arrows", "RT / LT, stick", "Gas, Brake, drag or arrow buttons to steer (Touch steering)"],
+  ["Drive", "WASD / arrows", "RT / LT, L stick", "Gas, Brake, drag or arrow buttons to steer (Touch steering)"],
   ["Handbrake", "Space", "A", "Handbrake"],
   ["Nitro (hold, when fitted)", "Shift / N", "B", "Nitro"],
   ["Reset", "R", "Y", "Reset"],
@@ -183,15 +183,19 @@ const KEYS: [string, string, string, string][] = [
   ["Shift up / down", "E / Q", "RB / LB", ""],
   ["Auto gearbox", "M", "", ""],
   ["Camera", "C", "View", "Cam"],
-  ["Look around", "Drag / wheel", "Right stick", "Drag, pinch to zoom"],
+  ["Look around", "Drag / wheel", "R stick", "Drag, pinch to zoom"],
   ["Recenter camera", "F / double-click", "R3", "Recenter"],
   ["Ghost", "G", "", ""],
   ["TCS / ABS / steer assist", "1 / 2 / 3", "", ""],
-  ["Garage", "V", "Menu", ""],
+  ["Garage", "V", "Menu, A", ""],
   ["This key list", "H", "", ""],
   ["Chat", "T", "", "Chat"],
   ["Settings", "Esc", "", ""],
+  ["Menus", "", "Menu", ""],
+  ["In menus: move, pick, back, tabs", "Tab, Enter, Esc", "D-pad, A, B, LB / RB", ""],
 ];
+
+const PAD_SEPARATOR = /(, | \/ )/;
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, class_name = "", text = ""): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
@@ -230,7 +234,7 @@ const DIRECTORY_NOTE: Record<DirectoryStatus, string> = {
 export class Settings {
   on_change: ((state: SettingsState, key: SettingKey) => void) | null = null;
   private readonly root = el("div", "settings");
-  private readonly panel = el("div", "settings-panel");
+  readonly panel = el("div", "settings-panel");
   private readonly body = el("div", "settings-body");
   private readonly tabs = new Map<string, HTMLButtonElement>();
   private readonly pages = new Map<string, HTMLElement>();
@@ -298,6 +302,16 @@ export class Settings {
   toggle() {
     if (this.is_open) this.close();
     else this.open();
+  }
+
+  /** The open tab's page. */
+  page(): HTMLElement {
+    return this.pages.get(this.section) ?? this.body;
+  }
+
+  step_section(step: number) {
+    const ids = [...this.tabs.keys()];
+    this.show(ids[(ids.indexOf(this.section) + step + ids.length) % ids.length]);
   }
 
   set<K extends SettingKey>(key: K, value: SettingsState[K]) {
@@ -725,17 +739,15 @@ export class Settings {
       const tr = el("tr");
       tr.append(el("th", "", what));
       const [keyboard, pad, touch] = ways;
-      for (const [way, column] of [
-        [keyboard, ""],
-        [pad, "settings-col-pad"],
-      ]) {
-        const td = el("td", column);
-        if (way) td.append(el("kbd", "", way));
-        tr.append(td);
-      }
+      const keys = el("td");
+      if (keyboard) keys.append(el("kbd", "", keyboard));
+      const buttons = el("td", "settings-col-pad");
+      for (const part of pad ? pad.split(PAD_SEPARATOR) : []) buttons.append(PAD_SEPARATOR.test(part) ? part : el("kbd", part.length === 1 ? "pad-glyph pad-face" : "pad-glyph", part));
+      tr.append(keys, buttons);
       tr.append(el("td", "settings-touch settings-col-touch", touch));
       table.tBodies[0].append(tr);
     }
+    this.syncs.push(() => table.toggleAttribute("data-pad", navigator.getGamepads().some((pad) => pad?.connected)));
     const wrap = el("div", "settings-keys-wrap");
     wrap.append(table);
     this.keys = wrap;

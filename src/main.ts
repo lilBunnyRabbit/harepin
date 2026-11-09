@@ -17,6 +17,7 @@ import { Input } from "./input";
 import { Lobby, min_lap_ms } from "./lobby";
 import { Modes } from "./modes/modes";
 import { build_view, contact_shadow, dispose_car_view, gates, place_contact_shadow, roadside, show_flame, sync_car_view } from "./models";
+import { PadMenu } from "./pad-menu";
 import { Net, WRONG_PASSWORD, parse_seed, type CarState } from "./net";
 import { peer_pass, type Near, type NitroSnapshot } from "./nitro";
 import { Quality } from "./quality";
@@ -109,8 +110,8 @@ composer.addPass(new OutputPass());
 
 const garage = new Garage(document.body, build);
 const input = new Input($("touch"), renderer.domElement);
-input.blocked = () => garage.is_open || settings.is_open;
-chat.blocked = input.blocked;
+input.blocked = () => garage.is_open || settings.is_open || pad_menu.is_open;
+chat.blocked = () => garage.is_open || settings.is_open;
 input.touch.start();
 input.touch.show_nitro(car.nitro.fitted);
 input.mouse.start();
@@ -179,6 +180,7 @@ settings.on_change = (state, key) => {
 };
 apply_settings(prefs);
 $("settings-btn").addEventListener("click", () => settings.open());
+const pad_menu = new PadMenu({ settings, chat, garage_open: () => garage.is_open });
 
 function spawn_at(index: number, reverse = false) {
   const p = world.road[world.clear_spawn(index, reverse ? -1 : 1)];
@@ -402,6 +404,7 @@ function frame(now: number) {
   last = now;
   const { controls, actions } = input.read();
   if (garage.is_open) garage.navigate(input.nav);
+  else pad_menu.navigate(input.nav);
   for (const action of actions) {
     if (action === "reset") {
       if (modes.active) modes.restart();
@@ -429,6 +432,7 @@ function frame(now: number) {
     if (action === "help" && !garage.is_open) settings.is_open ? settings.close() : settings.open_keys();
     if (action === "garage" && !settings.is_open) garage.is_open ? garage.close() : garage.open();
     if (action === "settings" && !garage.is_open) settings.open();
+    if (action === "menu") garage.is_open ? garage.close() : pad_menu.toggle();
   }
 
   lobby.update(now);
