@@ -129,7 +129,7 @@ export class Input {
         if (action === "garage" || action === "help") this.queued.push(action);
         return;
       }
-      // Escape that closes a popover (menu, modes) is consumed by it, not a request for settings.
+      // Escape that closes a popover (modes) is consumed by it, not a request for settings.
       if (action === "settings" && document.querySelector(":popover-open")) return;
       this.keys.add(e.code);
       if (action) this.queued.push(action);

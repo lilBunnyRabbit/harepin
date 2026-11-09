@@ -4,7 +4,7 @@
   color: var(--dim);
 }
 
-/* Under whatever holds the top: the dock (title and, in C and on phones, the strip) or the top-centre strip / key list. */
+/* Under whatever holds the top: the dock (title and, on phones, the strip) or the top-centre strip / key list. */
 .update-card {
   position: fixed;
   z-index: 40;
@@ -28,8 +28,7 @@
 }
 
 @media (pointer: fine) {
-  body[data-hud="a"] .update-card,
-  body[data-hud="b"] .update-card {
+  .update-card {
     position-anchor: --top-centre;
   }
 }

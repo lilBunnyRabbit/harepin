@@ -18,8 +18,7 @@ import { Modes } from "./modes/modes";
 import { car_view, contact_shadow, dispose_car_view, gates, place_contact_shadow, roadside, sync_car_view } from "./models";
 import { Net, parse_seed, type CarState } from "./net";
 import { Quality } from "./quality";
-import { brand, car_paints, color, rgba, theme_name, tones } from "./palette";
-import { THEMES, choose_theme } from "./theme";
+import { brand, car_paints, color, rgba, tones } from "./palette";
 import { Race, type RaceSnapshot } from "./race";
 import { Remotes } from "./remotes";
 import { seed_of } from "./rng";
@@ -55,7 +54,7 @@ $("app").append(renderer.domElement);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(64, innerWidth / innerHeight, 0.1, 5000);
 
-const light = new Lighting(scene, prefs.light);
+const light = new Lighting(scene);
 const sun = light.sun;
 quality.apply(renderer, scene, sun);
 
@@ -111,7 +110,7 @@ const chase = new ChaseCamera(camera);
 const remotes = new Remotes(scene, $("labels"), net, world);
 const lobby = new Lobby(net, min_lap_ms(world.checkpoints), seed);
 lobby.start();
-const hud = new Hud(world, race, net, room, lobby, prefs.hud);
+const hud = new Hud(world, race, net, room, lobby);
 const ghost = new Ghost(scene, world.seed);
 race.on_lap = (improved) => {
   ghost.finish(improved);
@@ -470,17 +469,6 @@ function frame(now: number) {
   requestAnimationFrame(frame);
 }
 
-const picker = $("theme", HTMLSelectElement);
-for (const theme of Object.keys(THEMES)) picker.add(new Option(theme, theme, false, theme === theme_name));
-picker.addEventListener("change", () => {
-  choose_theme(picker.value);
-  location.reload();
-});
-picker.addEventListener("keydown", (e) => {
-  e.preventDefault();
-  picker.blur();
-});
-
 if (import.meta.env.DEV)
   Object.assign(window, {
     open_road: {
@@ -507,26 +495,17 @@ if (import.meta.env.DEV)
 
 document.head.append(Object.assign(document.createElement("meta"), { name: "theme-color", content: rgba(brand.background_darker) }));
 
-for (const invite of [$("invite", HTMLButtonElement), $("chat-invite", HTMLButtonElement)]) {
-  invite.addEventListener("click", async () => {
-    const link = `${location.origin}${location.pathname}?room=${encodeURIComponent(room)}&seed=${seed}`;
-    try {
-      await navigator.clipboard.writeText(link);
-      invite.textContent = "Copied!";
-    } catch {
-      invite.textContent = link;
-    }
-    setTimeout(() => (invite.textContent = "Copy invite link"), 2000);
-    invite.blur();
-  });
-}
-const laps = $("race-laps", HTMLSelectElement);
-$("race-call").addEventListener("click", () => (lobby.busy ? lobby.leave() : lobby.call(Number(laps.value))));
-laps.addEventListener("change", () => laps.blur());
-
-$("private").addEventListener("click", () => {
-  const code = Math.random().toString(36).slice(2, 8);
-  location.search = `?room=${code}`;
+const invite = $("chat-invite", HTMLButtonElement);
+invite.addEventListener("click", async () => {
+  const link = `${location.origin}${location.pathname}?room=${encodeURIComponent(room)}&seed=${seed}`;
+  try {
+    await navigator.clipboard.writeText(link);
+    invite.textContent = "Copied!";
+  } catch {
+    invite.textContent = link;
+  }
+  setTimeout(() => (invite.textContent = "Copy invite link"), 2000);
+  invite.blur();
 });
 
 document.addEventListener("click", (e) => {

@@ -39,13 +39,6 @@ function row(name: string, time: string, you: boolean, note = ""): HTMLLIElement
 const MAP = 200;
 const TOAST_MS = 1200;
 
-export const HudLayout = {
-  STRIP: "a",
-  CLUSTER: "b",
-  CORNERS: "c",
-} as const;
-export type HudLayout = (typeof HudLayout)[keyof typeof HudLayout];
-
 export class Hud {
   private el = {
     speed: $("speed"),
@@ -66,7 +59,6 @@ export class Hud {
     race_panel: $("race-panel"),
     race_status: $("race-status"),
     race_results: $("race-results"),
-    race_call: $("race-call", HTMLButtonElement),
   };
   private map: CanvasRenderingContext2D;
   private road = new Path2D();
@@ -80,10 +72,8 @@ export class Hud {
     private net: Net,
     room: string,
     private lobby: Lobby,
-    layout: HudLayout,
   ) {
     $("room").textContent = room;
-    document.body.dataset.hud = layout;
     document.documentElement.dataset.scheme = dark ? "dark" : "light";
     const canvas = $("minimap", HTMLCanvasElement);
     canvas.width = MAP * devicePixelRatio;
@@ -155,7 +145,6 @@ export class Hud {
     const count = state.kind === "countdown" ? String(Math.ceil((state.go - now) / 1000)) : state.kind === "racing" && now - state.go < 1000 ? "GO" : "";
     el.countdown.textContent = count;
     el.countdown.style.opacity = count ? "1" : "0";
-    el.race_call.textContent = this.lobby.busy ? "Leave race" : "Start race";
     el.race_panel.hidden = state.kind === "idle";
     if (state.kind === "idle") return;
     const laps = `${state.laps} lap${state.laps === 1 ? "" : "s"}`;

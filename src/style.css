@@ -223,17 +223,15 @@ select {
 }
 
 .title .brand {
+  display: inline-flex;
+  align-items: center;
   gap: var(--space-2);
-  padding: 0;
+  height: var(--control-h);
   font-size: var(--text-xl);
+  font-weight: 600;
   letter-spacing: -0.011em;
-  background: none;
-  border: 0;
-}
-
-.title .brand:hover {
-  background: none;
-  color: var(--primary);
+  white-space: nowrap;
+  color: var(--foreground);
 }
 
 .title .logo {
@@ -270,7 +268,6 @@ select {
   font-weight: 600;
 }
 
-#menu,
 #modes {
   display: none;
   flex-direction: column;
@@ -285,7 +282,6 @@ select {
   font-size: var(--text-md);
 }
 
-#menu:popover-open,
 #modes:popover-open {
   display: flex;
   position: fixed;
@@ -295,20 +291,13 @@ select {
   left: anchor(left);
 }
 
-#menu button,
-#menu select,
 #modes button {
   background: var(--panel-raised);
   border-color: var(--line);
 }
 
-#menu button:hover,
 #modes button:hover:not(:disabled) {
   border-color: var(--line-strong);
-}
-
-#menu .room-actions {
-  margin: 0;
 }
 
 #modes {
@@ -369,13 +358,6 @@ select {
   display: flex;
   gap: var(--space-2);
   margin-bottom: var(--space-2);
-}
-
-.theme {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: var(--text-sm);
 }
 
 .top-right {
@@ -1190,10 +1172,6 @@ body:has(#mode-result:not([hidden])) #mode-status {
     padding: var(--space-1) var(--space-2);
   }
 
-  .theme {
-    display: none;
-  }
-
   .top-right {
     width: auto;
     padding: var(--space-2);
@@ -1354,77 +1332,33 @@ body:has(#mode-result:not([hidden])) #mode-status {
   height: 0;
 }
 
-/* HUD variations, `?hud=a|b|c` (hud.ts sets body[data-hud]). A: race strip. B: bottom cluster. C: corners, restyled. */
-
-body[data-hud="c"] .title .brand {
-  pointer-events: none;
-}
-
-body[data-hud="c"] #menu:not(:popover-open) {
-  display: flex;
-  position: static;
-  inset: auto;
-  overflow: visible;
-  padding: var(--space-3) 0 0;
-  border: 0;
-  border-radius: 0;
-  background: none;
-  box-shadow: none;
-}
-
-body[data-hud="c"] #menu:not(:popover-open) button,
-body[data-hud="c"] #menu:not(:popover-open) select {
-  background: var(--background-light);
-  border-color: var(--line-strong);
-}
-
-body[data-hud="c"] .dock-top {
-  gap: 0;
-}
-
-body[data-hud="c"] .dock-top .top-left {
-  border-bottom-left-radius: 0;
-  border-bottom-right-radius: 0;
-  border-bottom: 0;
-  padding-bottom: var(--space-2);
-  width: 100%;
-}
-
-body[data-hud="c"] #strip {
-  width: 100%;
-  border-top-left-radius: 0;
-  border-top-right-radius: 0;
-  border-top: 0;
-  padding-top: var(--space-2);
-}
-
-body:not([data-hud="c"]) #strip {
+#strip {
   display: flex;
   align-items: baseline;
   gap: var(--space-5);
 }
 
-body:not([data-hud="c"]) #strip div {
+#strip div {
   flex-direction: column;
   gap: 0;
 }
 
-body:not([data-hud="c"]) #strip .dim {
+#strip .dim {
   font-size: var(--text-xs);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
-body:not([data-hud="c"]) #strip b {
+#strip b {
   font-size: var(--text-lg);
 }
 
-body:not([data-hud="c"]) #strip .lap b {
+#strip .lap b {
   font-size: var(--text-2xl);
   color: var(--foreground);
 }
 
-body:not([data-hud="c"]) #gear {
+#gear {
   align-self: center;
   padding: 2px var(--space-3);
   border-radius: var(--radius-sm);
@@ -1432,12 +1366,12 @@ body:not([data-hud="c"]) #gear {
   background: color-mix(in oklch, var(--foreground) 10%, transparent);
 }
 
-body:not([data-hud="c"]) #speed {
+#speed {
   letter-spacing: -0.03em;
 }
 
 @media (pointer: fine) {
-  body[data-hud="a"] #strip {
+  #strip {
     anchor-name: --top-centre;
     position: fixed;
     top: var(--inset-top);
@@ -1447,17 +1381,17 @@ body:not([data-hud="c"]) #speed {
     padding: var(--space-2) var(--space-5);
   }
 
-  body[data-hud="a"] #strip b {
+  #strip b {
     white-space: nowrap;
   }
 
-  body[data-hud="a"] #race-panel,
-  body[data-hud="a"] #mode-status {
+  #race-panel,
+  #mode-status {
     position-anchor: --top-centre;
     top: calc(anchor(bottom) + var(--space-2));
   }
 
-  body[data-hud="a"] .top-right {
+  .top-right {
     width: auto;
     min-width: 200px;
     padding: 0;
@@ -1470,7 +1404,7 @@ body:not([data-hud="c"]) #speed {
     gap: var(--space-2);
   }
 
-  body[data-hud="a"] #minimap {
+  #minimap {
     align-self: flex-end;
     width: 176px;
     height: 176px;
@@ -1481,8 +1415,8 @@ body:not([data-hud="c"]) #speed {
     backdrop-filter: blur(6px);
   }
 
-  body[data-hud="a"] #net,
-  body[data-hud="a"] #players {
+  #net,
+  #players {
     margin: 0;
     padding: var(--space-1) var(--space-3);
     border-radius: var(--radius-md);
@@ -1491,90 +1425,49 @@ body:not([data-hud="c"]) #speed {
     backdrop-filter: blur(6px);
   }
 
-  body[data-hud="a"] #speed {
+  #speed {
     font-size: 48px;
-  }
-
-  body[data-hud="b"] #strip,
-  body[data-hud="b"] .bottom-right {
-    position: fixed;
-    bottom: var(--inset-bottom);
-    height: 92px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-  }
-
-  body[data-hud="b"] #strip {
-    right: 50%;
-    flex-direction: row;
-    align-items: center;
-    border-radius: var(--radius-lg) 0 0 var(--radius-lg);
-    border-right: 0;
-    padding: var(--space-3) var(--space-6);
-  }
-
-  body[data-hud="b"] .bottom-right {
-    left: 50%;
-    right: auto;
-    width: 260px;
-    border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
-    border-left: 1px solid color-mix(in oklch, var(--foreground) 8%, transparent);
-    padding: var(--space-3) var(--space-6);
-  }
-
-  body[data-hud="b"] #speed {
-    font-size: 48px;
-  }
-
-  body[data-hud="b"] .top-right {
-    width: auto;
-  }
-
-  body[data-hud="b"] #minimap {
-    width: 150px;
-    height: 150px;
   }
 }
 
 @media (pointer: coarse) {
-  body:not([data-hud="c"]) #strip {
+  #strip {
     gap: var(--space-4);
     padding: var(--space-1) var(--space-3);
   }
 
-  body:not([data-hud="c"]) #strip > div:nth-child(2),
-  body:not([data-hud="c"]) #strip > div:nth-child(3) {
+  #strip > div:nth-child(2),
+  #strip > div:nth-child(3) {
     display: none;
   }
 
-  body:not([data-hud="c"]) #strip .dim {
+  #strip .dim {
     font-size: var(--text-2xs);
   }
 
-  body:not([data-hud="c"]) #strip b {
+  #strip b {
     font-size: var(--text-sm);
   }
 
-  body:not([data-hud="c"]) #strip .lap b {
+  #strip .lap b {
     font-size: var(--text-xl);
   }
 
-  body:not([data-hud="c"]) #gear {
+  #gear {
     padding: 0 var(--space-2);
     font-size: var(--text-xl);
   }
 }
 
 @media (pointer: fine) and (max-width: 1199px) {
-  body[data-hud="a"] #strip {
+  #strip {
     left: calc(anchor(--title-bar right) + var(--space-2));
     translate: none;
     gap: var(--space-4);
     padding-inline: var(--space-4);
   }
 
-  body[data-hud="a"] #strip > div:nth-child(2) {
+  #strip > div:nth-child(2) {
     display: none;
   }
 }
@@ -1585,7 +1478,7 @@ body:not([data-hud="c"]) #speed {
     z-index: 1;
   }
 
-  body[data-hud] #strip {
+  #strip {
     position: static;
     translate: none;
     height: auto;
@@ -1593,31 +1486,20 @@ body:not([data-hud="c"]) #speed {
     border-radius: var(--radius-lg);
   }
 
-  body[data-hud] #strip > div:nth-child(2),
-  body[data-hud] #strip > div:nth-child(3) {
+  #strip > div:nth-child(2),
+  #strip > div:nth-child(3) {
     display: none;
   }
 
   .top-right {
     position-anchor: --top-dock;
     top: calc(anchor(bottom) + var(--space-2));
-  }
-
-  body[data-hud] .top-right {
     width: auto;
   }
 
-  body[data-hud] #minimap {
+  #minimap {
     width: var(--map-size);
     height: var(--map-size);
-  }
-
-  body[data-hud="b"] .bottom-right {
-    left: auto;
-    right: var(--inset-right);
-    width: 228px;
-    border-left: 1px solid var(--line);
-    border-radius: var(--radius-lg);
   }
 }
 

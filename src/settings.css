@@ -10,7 +10,7 @@
   position: fixed;
   inset: 0;
   z-index: 30;
-  background: color-mix(in oklch, var(--background-darkest) 40%, transparent);
+  background: color-mix(in oklch, var(--background-darkest) 20%, transparent);
   color: var(--foreground);
   font-size: var(--text-md);
   user-select: none;
@@ -120,7 +120,6 @@
   display: none;
 }
 
-.settings-page-title,
 .settings-sub {
   margin: 0;
   font-size: var(--text-md);
@@ -453,12 +452,8 @@
   background: var(--set-well);
 }
 
-/* A: side sheet. The world stays visible on the left, so quality and lighting changes show while the sheet is open. */
-.settings[data-layout="a"] {
-  background: color-mix(in oklch, var(--background-darkest) 20%, transparent);
-}
-
-.settings[data-layout="a"] .settings-panel {
+/* Side sheet. The world stays visible on the left, so quality changes show while the sheet is open. */
+.settings .settings-panel {
   top: var(--inset-top);
   right: var(--inset-right);
   bottom: var(--inset-bottom);
@@ -466,74 +461,15 @@
   grid-template: "head head" auto "tabs body" 1fr "foot foot" auto / var(--set-tabs-w) 1fr;
 }
 
-.settings[data-layout="a"] .settings-tabs {
+.settings .settings-tabs {
   flex-direction: column;
   padding: var(--space-3) var(--space-2);
   border-right: 1px solid var(--set-line);
 }
 
-.settings[data-layout="a"] .settings-page {
+.settings .settings-page {
   gap: var(--space-5);
   padding: var(--space-5) var(--space-5) var(--space-6);
-}
-
-.settings[data-layout="a"] .settings-page-title {
-  display: none;
-}
-
-.settings[data-layout="b"] .settings-panel {
-  top: 50%;
-  left: 50%;
-  translate: -50% -50%;
-  width: min(760px, calc(100% - var(--inset-left) - var(--inset-right)));
-  max-height: calc(100dvh - var(--inset-top) - var(--inset-bottom));
-  grid-template: "head" auto "tabs" auto "body" 1fr "foot" auto / 1fr;
-}
-
-.settings[data-layout="b"] .settings-tabs {
-  overflow-x: auto;
-  padding: var(--space-2) var(--space-3);
-  border-bottom: 1px solid var(--set-line);
-  scrollbar-width: none;
-}
-
-.settings[data-layout="b"] .settings-tab {
-  gap: var(--space-2);
-}
-
-.settings[data-layout="b"] .settings-page {
-  gap: var(--space-1);
-  padding: var(--space-5) var(--space-5) var(--space-3);
-}
-
-.settings[data-layout="b"] .settings-page + .settings-page {
-  border-top: 1px solid var(--set-line);
-}
-
-.settings[data-layout="b"] .settings-page-title {
-  margin-bottom: var(--space-2);
-}
-
-.settings[data-layout="b"] .settings-row:not(.settings-row-inline) {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 300px);
-}
-
-.settings[data-layout="b"] .settings-row {
-  gap: var(--space-6);
-  padding: var(--space-2) 0;
-}
-
-.settings[data-layout="b"] .settings-switch,
-.settings[data-layout="b"] .settings-action {
-  justify-self: end;
-}
-
-.settings[data-layout="b"] .settings-inline {
-  justify-content: flex-end;
-}
-
-.settings[data-layout="b"] .settings-status {
-  margin: var(--space-1) 0 var(--space-2);
 }
 
 @media (max-height: 500px) {
@@ -545,15 +481,15 @@
     padding: 0 var(--space-1) 0 var(--space-4);
   }
 
-  .settings[data-layout="a"] .settings-panel {
+  .settings .settings-panel {
     grid-template-columns: 76px 1fr;
   }
 
-  .settings[data-layout="a"] .settings-tabs {
+  .settings .settings-tabs {
     padding: var(--space-2);
   }
 
-  .settings[data-layout="a"] .settings-tab {
+  .settings .settings-tab {
     flex-direction: column;
     justify-content: center;
     gap: 2px;
@@ -563,30 +499,18 @@
     font-size: var(--text-xs);
   }
 
-  .settings[data-layout="a"] .settings-page {
+  .settings .settings-page {
     gap: var(--space-4);
     padding: var(--space-4);
-  }
-
-  .settings[data-layout="b"] .settings-tabs {
-    padding: var(--space-1) var(--space-3);
-  }
-
-  .settings[data-layout="b"] .settings-page {
-    padding: var(--space-4) var(--space-4) var(--space-2);
-  }
-
-  .settings[data-layout="b"] .settings-row {
-    padding: var(--space-1) 0;
   }
 }
 
 @media (max-width: 600px) {
-  .settings[data-layout="a"] .settings-panel {
+  .settings .settings-panel {
     grid-template: "head" auto "tabs" auto "body" 1fr "foot" auto / 1fr;
   }
 
-  .settings[data-layout="a"] .settings-tabs {
+  .settings .settings-tabs {
     flex-direction: row;
     overflow-x: auto;
     padding: var(--space-2) var(--space-3);
@@ -595,12 +519,7 @@
     scrollbar-width: none;
   }
 
-  .settings[data-layout="a"] .settings-tab {
-    gap: var(--space-2);
-  }
-
-  .settings[data-layout="b"] .settings-row:not(.settings-row-inline) {
-    grid-template-columns: minmax(0, 1fr);
+  .settings .settings-tab {
     gap: var(--space-2);
   }
 }

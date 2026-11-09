@@ -1,6 +1,4 @@
 import { SteerMode } from "./car";
-import { HudLayout } from "./hud";
-import { Mood } from "./lighting";
 import { clean_name } from "./net";
 import { THEMES, choose_theme, current_theme } from "./theme";
 import "./settings.css";
@@ -51,8 +49,6 @@ export interface SettingsState {
   camera_return: CameraReturn;
   invert_y: boolean;
   ghost: boolean;
-  hud: HudLayout;
-  light: Mood;
   /** Master volume, 0..1. */
   volume: number;
   muted: boolean;
@@ -72,14 +68,9 @@ export const DEFAULT_SETTINGS: SettingsState = {
   camera_return: CameraReturn.SHORT,
   invert_y: false,
   ghost: true,
-  hud: HudLayout.STRIP,
-  light: Mood.GOLDEN,
   volume: 0.8,
   muted: false,
 };
-
-/** Settings applied at load (layout, lighting); changing one reloads the page with its URL override dropped. */
-const RELOAD_KEYS: readonly SettingKey[] = ["hud", "light"];
 
 const one_of = <T extends string | number>(values: readonly T[], raw: unknown, fallback: T): T => (values.includes(raw as T) ? (raw as T) : fallback);
 const bool = (raw: unknown, fallback: boolean) => (typeof raw === "boolean" ? raw : fallback);
@@ -102,8 +93,6 @@ export function parse_settings(raw: unknown): SettingsState {
     camera_return: one_of(Object.values(CameraReturn), s.camera_return, d.camera_return),
     invert_y: bool(s.invert_y, d.invert_y),
     ghost: bool(s.ghost, d.ghost),
-    hud: one_of(Object.values(HudLayout), s.hud, d.hud),
-    light: one_of(Object.values(Mood), s.light, d.light),
     volume,
     muted: bool(s.muted, d.muted),
   };
@@ -133,8 +122,6 @@ function with_overrides(saved: SettingsState, params: URLSearchParams): Settings
     ...saved,
     quality: params.get("quality") ?? saved.quality,
     name: params.get("name") ?? saved.name,
-    hud: params.get("hud") ?? saved.hud,
-    light: params.get("light") ?? saved.light,
   });
 }
 
@@ -160,15 +147,6 @@ export interface SettingsHost {
   readonly version: string;
   show_changelog(): void;
 }
-
-export const SettingsLayout = {
-  SHEET: "a",
-  CARD: "b",
-} as const;
-export type SettingsLayout = (typeof SettingsLayout)[keyof typeof SettingsLayout];
-
-const asked_layout = new URLSearchParams(location.search).get("settings");
-export const settings_layout: SettingsLayout = one_of(Object.values(SettingsLayout), asked_layout, SettingsLayout.SHEET);
 
 interface Section {
   id: string;
@@ -236,11 +214,9 @@ export class Settings {
     private readonly parent: HTMLElement,
     private readonly host: SettingsHost,
     private current: SettingsState,
-    private readonly layout: SettingsLayout = settings_layout,
   ) {
     this.saved = read_saved();
     this.root.hidden = true;
-    this.root.dataset.layout = layout;
     this.panel.setAttribute("role", "dialog");
     this.panel.setAttribute("aria-modal", "true");
     this.panel.setAttribute("aria-labelledby", "settings-title");
@@ -259,14 +235,14 @@ export class Settings {
 
   open(section?: string) {
     if (section && this.pages.has(section)) this.section = section;
-    if (this.is_open) return this.show(this.section, true);
+    if (this.is_open) return this.show(this.section);
     if (!this.root.isConnected) this.parent.append(this.root);
     this.root.hidden = false;
     this.root.addEventListener("click", this.click);
     addEventListener("keydown", this.key);
     this.timer = window.setInterval(() => this.refresh(), STATUS_MS);
     this.refresh();
-    this.show(this.section, true);
+    this.show(this.section);
     this.panel.focus();
   }
 
@@ -294,7 +270,6 @@ export class Settings {
     this.current = { ...this.current, [key]: value };
     this.saved = { ...this.saved, [key]: value };
     write_saved(this.saved);
-    if (RELOAD_KEYS.includes(key)) return this.reload(key);
     this.refresh();
     this.on_change?.(this.current, key);
   }
@@ -339,7 +314,7 @@ export class Settings {
       const page = el("section", "settings-page");
       page.dataset.section = section.id;
       page.setAttribute("aria-label", section.label);
-      page.append(el("h3", "settings-page-title", section.label), ...section.build());
+      page.append(...section.build());
       this.body.append(page);
       this.pages.set(section.id, page);
     }
@@ -349,26 +324,14 @@ export class Settings {
     changes.addEventListener("click", () => this.host.show_changelog());
     foot.append(el("span", "", `Version v${this.host.version}`), changes);
     this.panel.append(head, nav, this.body, foot);
-    if (this.layout === SettingsLayout.CARD) this.body.addEventListener("scroll", this.follow_scroll, { passive: true });
   }
 
-  private show(section: string, scroll = false) {
+  private show(section: string) {
     this.section = section;
     for (const [id, tab] of this.tabs) tab.setAttribute("aria-current", String(id === section));
-    if (this.layout === SettingsLayout.SHEET) {
-      for (const [id, page] of this.pages) page.hidden = id !== section;
-      this.body.scrollTop = 0;
-    } else if (scroll) {
-      const page = this.pages.get(section);
-      if (page) this.body.scrollTop = page.offsetTop - this.body.offsetTop;
-    }
+    for (const [id, page] of this.pages) page.hidden = id !== section;
+    this.body.scrollTop = 0;
   }
-
-  private readonly follow_scroll = () => {
-    let seen = this.section;
-    for (const [id, page] of this.pages) if (page.offsetTop - this.body.offsetTop <= this.body.scrollTop + this.body.clientHeight / 3) seen = id;
-    if (seen !== this.section) this.show(seen);
-  };
 
   private row(label: string, control: HTMLElement, hint = "", inline = false): HTMLElement {
     const row = el("div", inline ? "settings-row settings-row-inline" : "settings-row");
@@ -591,26 +554,6 @@ export class Settings {
     });
     return [
       this.row("Theme", theme, "Reloads the page"),
-      this.choice(
-        "hud",
-        [
-          [HudLayout.STRIP, "Strip"],
-          [HudLayout.CLUSTER, "Cluster"],
-          [HudLayout.CORNERS, "Corners"],
-        ],
-        "HUD layout",
-        "Reloads the page",
-      ),
-      this.choice(
-        "light",
-        [
-          [Mood.GOLDEN, "Golden hour"],
-          [Mood.BLUE, "Blue hour"],
-          [Mood.NIGHT, "Night"],
-        ],
-        "Lighting",
-        "Reloads the page",
-      ),
     ];
   }
 
@@ -650,7 +593,7 @@ export class Settings {
     if (button.dataset.action === "close") return this.close();
     const section = button.dataset.section;
     if (!section) return;
-    this.show(section, true);
+    this.show(section);
   };
 
   private readonly key = (event: KeyboardEvent) => {
