@@ -395,12 +395,12 @@ export class Car {
       const surface = ground.grip(w.point.x, w.point.z);
       const grip = surface + (1 - surface) * spec.offroad;
       const peak = spec.mu * (w.front ? 1 : spec.rear_grip) * grip * load * (1 - load / 32000);
-      const peak_x = brake > 0.05 ? peak * spec.brake_grip : peak;
       const sy = -Math.atan2(v_lat, denom) / spec.peak_angle;
 
       // Semi-implicit wheel spin: linearise the tyre's longitudinal force around the current slip so a stiff tyre
       // can't overshoot within one step; past the peak the slope clamps to 0 and wheelspin runs free.
       const sx0 = (w.omega * radius - v_long) / denom / spec.peak_slip;
+      const peak_x = brake > 0.05 && sx0 * v_long < 0 ? peak * spec.brake_grip : peak;
       const fx0 = combined_x(sx0, sy) * peak_x;
       const k = Math.max(0, ((combined_x(sx0 + 1e-3, sy) * peak_x - fx0) / 1e-3) * (radius / (denom * spec.peak_slip)));
       const stiff = 1 + (dt * radius * k) / inertia;

@@ -96,10 +96,13 @@ export class Audio {
     master.connect(limiter).connect(ctx.destination);
     this.master = master;
 
-    ctx.audioWorklet
-      .addModule(engine_worklet)
-      .then(() => this.build_engine(ctx, master))
-      .catch((error: unknown) => console.warn("engine sound unavailable", error));
+    // audioWorklet is undefined outside a secure context (LAN http) and on old Safari; the rest of the sound still runs.
+    if (ctx.audioWorklet)
+      ctx.audioWorklet
+        .addModule(engine_worklet)
+        .then(() => this.build_engine(ctx, master))
+        .catch((error: unknown) => console.warn("engine sound unavailable", error));
+    else console.warn("engine sound unavailable: no AudioWorklet");
 
     this.squeal_filter = ctx.createBiquadFilter();
     this.squeal_filter.type = "bandpass";
