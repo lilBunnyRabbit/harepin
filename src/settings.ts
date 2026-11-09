@@ -1,7 +1,8 @@
 import { SteerMode } from "./car";
 import { DirectoryStatus, PASSWORD_LENGTH, ROOM_LENGTH, clean_password, clean_room, locked_name, save_lock, type Server } from "./directory";
 import { clean_name, parse_seed } from "./net";
-import { Harmony, generate_theme, is_dark, type ThemeMode } from "./random-theme";
+import { HARMONIES as HARMONY_HUES, Harmony, generate_theme, is_dark, type ThemeMode } from "./random-theme";
+import { mulberry32 } from "./rng";
 import {
   THEMES,
   THEME_NAME_LENGTH,
@@ -231,27 +232,26 @@ const PAD_SEPARATOR = /(, | \/ )/;
 const BASE_TOKENS: [keyof ThemeBase, string][] = [
   ["background", "Background"],
   ["foreground", "Text"],
-  ["primary", "Primary"],
-  ["secondary", "Secondary"],
+  ["primary", "Main"],
+  ["secondary", "Second"],
   ["accent", "Accent"],
 ];
 
 const THEME_MODES: [ThemeMode, string][] = [
   ["dark", "Dark"],
   ["light", "Light"],
-  ["any", "Any"],
+  ["any", "Either"],
 ];
 
-const HARMONIES: [Harmony | "any", string][] = [
-  ["any", "Any harmony"],
-  [Harmony.ANALOGOUS, "Analogous"],
-  [Harmony.COMPLEMENTARY, "Complementary"],
-  [Harmony.TRIADIC, "Triadic"],
-  [Harmony.SPLIT, "Split complementary"],
+const HARMONY_CHOICES: [Harmony | "any", string][] = [
+  ["any", "Surprise me"],
+  [Harmony.ANALOGOUS, "Matching"],
+  [Harmony.COMPLEMENTARY, "Contrasting"],
+  [Harmony.TRIADIC, "Three colours"],
+  [Harmony.SPLIT, "Split"],
 ];
 
-const PREVIEW_LADDER = ["darkest", "darker", "dark", "", "light", "lighter", "lightest"];
-const PREVIEW_CHIPS = ["primary", "secondary", "accent", "tertiary", "cottontail"] as const;
+const THEME_STEPS = ["Roll", "Adjust", "Name and save"];
 
 type WirePart = "bar" | "title" | "strip" | "map" | "speed" | "dash";
 
@@ -998,64 +998,36 @@ export class Settings {
     let base: ThemeBase = { background, foreground, primary, secondary, accent };
     let mode: ThemeMode = is_dark(base) ? "dark" : "light";
     let harmony: Harmony | "any" = "any";
+    // One seed per roll, so a slider or style change reshapes this theme instead of rolling a new one.
+    let seed = 0;
+    let rolled = false;
     const locked = new Set<keyof ThemeBase>();
 
-    const modes = el("div", "settings-choice");
-    modes.setAttribute("role", "radiogroup");
-    modes.setAttribute("aria-label", "Mode");
-    const mode_buttons = THEME_MODES.map(([value, text]) => {
-      const button = el("button", "", text);
-      button.type = "button";
-      button.setAttribute("role", "radio");
-      button.addEventListener("click", () => {
-        mode = value;
-        sync_modes();
-      });
-      modes.append(button);
-      return [value, button] as const;
-    });
-    const sync_modes = () => {
-      for (const [value, button] of mode_buttons) button.setAttribute("aria-checked", String(value === mode));
-    };
-    sync_modes();
-
-    const harmonies = el("select", "settings-select");
-    harmonies.setAttribute("aria-label", "Harmony");
-    for (const [value, text] of HARMONIES) harmonies.add(new Option(text, value, value === harmony, value === harmony));
-    // The pad commits a select on A and resets it to its default when focus moves on, so a pick becomes the default.
-    harmonies.addEventListener("change", () => {
-      harmony = HARMONIES.find(([value]) => value === harmonies.value)?.[0] ?? "any";
-      for (const option of harmonies.options) option.defaultSelected = option.selected;
+    const steps = el("ol", "theme-steps");
+    const step_items = THEME_STEPS.map((text) => {
+      const item = el("li", "", text);
+      steps.append(item);
+      return item;
     });
 
-    const vibrance = this.percent_range("Vibrance");
-    const contrast = this.percent_range("Contrast");
+    const roll = el("button", "settings-action theme-roll");
+    roll.type = "button";
+    const roll_label = el("span", "", "Roll a theme");
+    roll.append(icon("icon-dice"), roll_label);
 
-    const preview = el("div", "theme-preview");
-    preview.setAttribute("aria-hidden", "true");
-    const ladder = el("div", "theme-preview-ladder");
-    for (const step of PREVIEW_LADDER) {
-      const shade = el("span");
-      shade.style.background = `var(--background${step ? `-${step}` : ""})`;
-      ladder.append(shade);
-    }
-    const words = el("div", "theme-preview-text");
-    words.append(el("b", "", "Harepin"), el("small", "", "Lap 2 / 3 · 1:04.2"));
-    const chips = el("div", "theme-preview-chips");
-    for (const token of PREVIEW_CHIPS) {
-      const chip = el("span");
-      chip.style.background = `var(${token_var(token)})`;
-      chips.append(chip);
-    }
-    preview.append(ladder, words, chips);
+    const scene = el("div", "theme-scene");
+    scene.setAttribute("aria-hidden", "true");
+    for (const part of ["sky", "hill", "road", "lane", "car", "pill"]) scene.append(el("span", `theme-scene-${part}`));
+    scene.querySelector(".theme-scene-pill")?.append(el("b", "", "88"), el("small", "", "km/h"), el("i", "", "3"));
 
     const locks = el("div", "theme-locks");
     const lock_buttons = BASE_TOKENS.map(([token, label]) => {
       const button = el("button", "theme-lock");
       button.type = "button";
-      button.setAttribute("aria-label", `Keep ${label.toLowerCase()}`);
+      button.setAttribute("aria-label", `Lock ${label.toLowerCase()} colour`);
       const swatch = el("span", "theme-swatch");
-      button.append(swatch, el("span", "", label), icon("icon-lock"));
+      swatch.append(icon("icon-lock"));
+      button.append(swatch, el("span", "", label));
       button.addEventListener("click", () => {
         if (locked.has(token)) locked.delete(token);
         else locked.add(token);
@@ -1065,22 +1037,62 @@ export class Settings {
       return [token, button, swatch] as const;
     });
 
-    const render = () => {
-      const theme = derive_theme(base);
-      for (const token of TOKENS) preview.style.setProperty(token_var(token), theme[token]);
-      for (const [token, button, swatch] of lock_buttons) {
-        swatch.style.background = base[token];
-        button.setAttribute("aria-pressed", String(locked.has(token)));
-      }
-    };
-    render();
+    const modes = el("div", "settings-choice");
+    modes.setAttribute("role", "radiogroup");
+    modes.setAttribute("aria-label", "Light or dark");
+    const mode_buttons = THEME_MODES.map(([value, text]) => {
+      const button = el("button", "", text);
+      button.type = "button";
+      button.setAttribute("role", "radio");
+      button.addEventListener("click", () => {
+        mode = value;
+        adjust();
+      });
+      modes.append(button);
+      return [value, button] as const;
+    });
 
-    const generate = el("button", "settings-action theme-generate");
-    generate.type = "button";
-    generate.append(icon("icon-dice"), el("span", "", "Generate"));
-    generate.addEventListener("click", () => {
+    const styles = el("div", "theme-styles");
+    styles.setAttribute("role", "radiogroup");
+    styles.setAttribute("aria-label", "Colour style");
+    const style_buttons = HARMONY_CHOICES.map(([value, text]) => {
+      const button = el("button", "theme-style");
+      button.type = "button";
+      button.setAttribute("role", "radio");
+      const dots = el("span", "theme-style-dots");
+      // Swatches turn the page's own primary by the style's hue offsets, so they stay on the theme's tokens.
+      for (const turn of value === "any" ? [0, 0, 0] : HARMONY_HUES[value]) {
+        const dot = el("span", value === "any" ? "theme-style-any" : "");
+        dot.style.setProperty("--turn", String(turn));
+        dots.append(dot);
+      }
+      button.append(dots, el("span", "", text));
+      button.addEventListener("click", () => {
+        harmony = value;
+        adjust();
+      });
+      styles.append(button);
+      return [value, button] as const;
+    });
+
+    const vibrance = this.percent_range("Colour strength");
+    const contrast = this.percent_range("Contrast");
+    vibrance.addEventListener("input", () => adjust());
+    contrast.addEventListener("input", () => adjust());
+
+    const generate = () => {
       const keep = Object.fromEntries([...locked].map((token) => [token, base[token]]));
-      base = generate_theme({ mode, harmony, vibrance: Number(vibrance.value) / 100, contrast: Number(contrast.value) / 100, locked: keep });
+      base = generate_theme({ mode, harmony, vibrance: Number(vibrance.value) / 100, contrast: Number(contrast.value) / 100, locked: keep }, mulberry32(seed));
+    };
+    const adjust = () => {
+      if (rolled) generate();
+      render();
+    };
+    roll.addEventListener("click", () => {
+      seed = Math.floor(Math.random() * 2 ** 32);
+      rolled = true;
+      roll_label.textContent = "Roll again";
+      generate();
       render();
     });
 
@@ -1104,6 +1116,7 @@ export class Settings {
     form.append(name, save);
     form.addEventListener("submit", (event) => {
       event.preventDefault();
+      if (!rolled) return;
       const chosen = name.value.trim() || free_name();
       const problem = theme_name_problem(chosen);
       if (problem) return this.invalid(name, problem);
@@ -1112,17 +1125,39 @@ export class Settings {
       this.reload("theme");
     });
 
+    const render = () => {
+      const theme = derive_theme(base);
+      for (const token of TOKENS) scene.style.setProperty(token_var(token), theme[token]);
+      for (const [token, button, swatch] of lock_buttons) {
+        swatch.style.background = base[token];
+        button.setAttribute("aria-pressed", String(locked.has(token)));
+      }
+      for (const [value, button] of mode_buttons) button.setAttribute("aria-checked", String(value === mode));
+      for (const [value, button] of style_buttons) button.setAttribute("aria-checked", String(value === harmony));
+      save.disabled = !rolled;
+      name.disabled = !rolled;
+      step_items.forEach((item, at) => item.toggleAttribute("data-current", at === (rolled ? 1 : 0)));
+    };
+    render();
+
     return [
       el("h4", "settings-sub", "Create a theme"),
-      this.row("Mode", modes),
-      this.row("Harmony", harmonies, "How the colours sit around the colour wheel"),
-      this.row("Vibrance", vibrance, "Muted to vivid"),
-      this.row("Contrast", contrast, "Soft to strong; text always stays readable"),
-      preview,
-      this.row("Keep", locks, "Locked colours stay when you generate"),
-      generate,
-      this.row("Save as", form, "Adds it to Your themes and switches to it; reloads the page"),
+      steps,
+      roll,
+      scene,
+      this.row("Your colours", locks, "Lock a colour to keep it when you roll again"),
+      this.row("Light or dark", modes),
+      this.row("Colour style", styles),
+      this.row("Colour strength", this.range_ends(vibrance, "Muted", "Bold")),
+      this.row("Contrast", this.range_ends(contrast, "Soft", "Sharp"), "Text always stays readable"),
+      this.row("Name and save", form, "Adds it to Your themes and switches to it; reloads the page"),
     ];
+  }
+
+  private range_ends(range: HTMLInputElement, low: string, high: string): HTMLElement {
+    const wrap = el("div", "theme-range");
+    wrap.append(el("small", "", low), range, el("small", "", high));
+    return wrap;
   }
 
   private percent_range(label: string): HTMLInputElement {

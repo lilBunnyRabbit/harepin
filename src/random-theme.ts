@@ -10,7 +10,7 @@ export const Harmony = {
 export type Harmony = (typeof Harmony)[keyof typeof Harmony];
 
 /** Hue offsets for primary, secondary and accent around the base hue. */
-const HARMONIES: Record<Harmony, [number, number, number]> = {
+export const HARMONIES: Record<Harmony, [number, number, number]> = {
   analogous: [0, 30, -30],
   complementary: [0, 180, 30],
   triadic: [0, 120, 240],
