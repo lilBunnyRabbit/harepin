@@ -9,9 +9,15 @@ const HALF = 6;
 const LIFT = 0.03;
 const RADIUS = 40;
 const STEP = 2;
+const FLAT_BELOW = N / 2 + 3;
 
+// Bumps on one side of the ring, a tilted plane on the other: the ring crosses from cut cells into flat ones and back.
 function bumpy(): Float32Array {
-  return Float32Array.from({ length: (N + 1) * (N + 1) }, (_, k) => hash(k % (N + 1), Math.floor(k / (N + 1)), 11) * 2);
+  return Float32Array.from({ length: (N + 1) * (N + 1) }, (_, k) => {
+    const i = k % (N + 1);
+    const j = Math.floor(k / (N + 1));
+    return i < FLAT_BELOW ? 0.05 * i + 0.03 * j : hash(i, j, 11) * 2;
+  });
 }
 
 function ring(): RoadPoint[] {

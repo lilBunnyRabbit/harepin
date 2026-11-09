@@ -16,7 +16,6 @@ const SNOW = 7;
 const SKIRT = 6;
 export const SMALL_BUILDING = 6;
 
-const LANE_WIDTH = 3;
 const SURFACE_LIFT = 0.025;
 // Spurs sit a hair above streets and sidewalks so their mouth covers the street's sidewalk at the town gate.
 const SPUR_LIFT = 0.035;
@@ -31,6 +30,8 @@ const SPUR_MARK_CLEAR = 8;
 const SPUR_MOUTH = 30;
 const MOUTH_CLEAR = 5;
 const REACH_MARGIN = 0.8;
+/** A cell whose two halves differ by at most this (m, corner sums) counts as one plane: road pieces skip its diagonal. */
+const FLAT_CELL = 0.001;
 
 const SHOPFRONT_LOW = 0.5;
 const SHOPFRONT_HIGH = 2.8;
@@ -170,7 +171,6 @@ export class Roads {
 
   strip(layers: Layer[], road: RoadPoint[], closed: boolean, from: number, to: number, lift: number, keep: (s: number) => boolean, rgb: Rgb) {
     const segments = closed ? road.length : road.length - 1;
-    const lanes = Math.ceil((to - from) / LANE_WIDTH);
     const reach = offset_reach(road, closed);
     for (let s = 0; s < segments; s++) {
       if (!keep(s)) continue;
@@ -179,11 +179,7 @@ export class Roads {
       const ra = reach[s];
       const rb = reach[(s + 1) % road.length];
       const layer = layers[chunk_of(a.x, a.z)];
-      for (let lane = 0; lane < lanes; lane++) {
-        const l0 = from + ((to - from) * lane) / lanes;
-        const l1 = from + ((to - from) * (lane + 1)) / lanes;
-        this.quad(layer, a, b, ra, rb, l0, l1, lift, rgb);
-      }
+      this.quad(layer, a, b, ra, rb, from, to, lift, rgb);
     }
   }
 
@@ -204,12 +200,21 @@ export class Roads {
   // over a dip. Cutting it along every cell edge and diagonal it crosses lays it exactly on the ground the car drives on.
   // Every triangle is cut, however flat: one left whole beside a cut neighbour leaves a T-junction crack along their
   // shared edge, and its sag, deeper than the gap between asphalt and marks, sank lane marks under the asphalt.
+  // Whether a cut happens depends only on the terrain, never on the road triangle, so neighbours always agree: a diagonal
+  // is skipped only where its cell is flat, and then by every piece in that cell.
   private draped(layer: Layer, triangle: Point[], lift: number, rgb: Rgb) {
     let pieces = [triangle];
-    for (const [ux, uz, offset] of CREASES) {
-      const along = triangle.map(([x, z]) => (ux * x + uz * z - offset) / CELL);
-      for (let k = Math.floor(Math.min(...along)) + 1; k < Math.max(...along); k++) pieces = pieces.flatMap((piece) => split(piece, ux, uz, offset + k * CELL));
+    for (const [ux, uz] of GRID_LINES) {
+      const along = triangle.map(([x, z]) => (ux * x + uz * z - ORIGIN) / CELL);
+      for (let k = Math.floor(Math.min(...along)) + 1; k < Math.max(...along); k++) pieces = pieces.flatMap((piece) => split(piece, ux, uz, ORIGIN + k * CELL));
     }
+    pieces = pieces.flatMap((piece) => {
+      const [i, j] = cell_of(piece);
+      const k = j * (N + 1) + i;
+      const h = this.heights;
+      if (Math.abs(h[k] + h[k + N + 2] - h[k + 1] - h[k + N + 1]) <= FLAT_CELL) return [piece];
+      return split(piece, 1, 1, 2 * ORIGIN + (i + j + 1) * CELL);
+    });
     for (const piece of pieces)
       for (let i = 1; i < piece.length - 1; i++)
         for (const [x, z] of [piece[0], piece[i], piece[i + 1]]) {
@@ -221,12 +226,19 @@ export class Roads {
 
 type Point = [number, number];
 
-/** Terrain crease lines ux * x + uz * z = offset + k * CELL: cell columns, cell rows and the diagonal of every cell. */
-const CREASES: [number, number, number][] = [
-  [1, 0, ORIGIN],
-  [0, 1, ORIGIN],
-  [1, 1, 2 * ORIGIN],
+/** Cell columns and rows, ux * x + uz * z = ORIGIN + k * CELL. Each cell's diagonal runs x + z = 2 * ORIGIN + (i + j + 1) * CELL. */
+const GRID_LINES: [number, number][] = [
+  [1, 0],
+  [0, 1],
 ];
+
+/** The cell a piece already cut along the grid lines sits in, from its centroid. */
+function cell_of(piece: Point[]): [number, number] {
+  const x = piece.reduce((sum, p) => sum + p[0], 0) / piece.length;
+  const z = piece.reduce((sum, p) => sum + p[1], 0) / piece.length;
+  const clamp = (v: number) => Math.max(0, Math.min(N - 1, Math.floor((v - ORIGIN) / CELL)));
+  return [clamp(x), clamp(z)];
+}
 
 function split(piece: Point[], ux: number, uz: number, line: number): Point[][] {
   const side = piece.map(([x, z]) => ux * x + uz * z - line);
