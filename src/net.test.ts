@@ -1,6 +1,6 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import { RateLimit, clean_name, parse_seed, sanitize, sanitize_chat, sanitize_event } from "./net";
+import { RateLimit, clean_name, most_common, parse_seed, sanitize, sanitize_chat, sanitize_event } from "./net";
 
 test("chat text is stripped of control characters, trimmed and capped", () => {
   expect(sanitize_chat({ text: "  hi\u0000​ there\n ", t: 1 })).toEqual({ text: "hi there", t: 1 });
@@ -62,4 +62,11 @@ test("build code: valid kept, invalid or missing left out", () => {
   expect(sanitize({ ...car, b: "coupe.99.0.0.1.0" }, "x")?.b).toBeUndefined();
   expect(sanitize({ ...car, b: 7 }, "x")?.b).toBeUndefined();
   expect(sanitize(car, "x")?.b).toBeUndefined();
+});
+
+test("quick join follows the most common foreign seed, ties to the lower one", () => {
+  expect(most_common([])).toBeNull();
+  expect(most_common([7, 3, 7])).toBe(7);
+  expect(most_common([9, 3])).toBe(3);
+  expect(most_common([3, 9])).toBe(3);
 });

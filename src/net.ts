@@ -36,6 +36,11 @@ interface Snapshot {
   state: CarState;
 }
 
+interface Foreign {
+  seed: number;
+  seen: number;
+}
+
 export interface Remote {
   id: string;
   latest: CarState;
@@ -96,6 +101,16 @@ export function sanitize(raw: unknown, id: string): CarState | null {
   };
 }
 
+/** Ties go to the lower seed, so peers seeing the same crowd pick the same map. */
+export function most_common(values: number[]): number | null {
+  const counts = new Map<number, number>();
+  for (const v of values) counts.set(v, (counts.get(v) ?? 0) + 1);
+  let best: number | null = null;
+  let best_count = 0;
+  for (const [v, count] of counts) if (count > best_count || (count === best_count && best !== null && v < best)) [best, best_count] = [v, count];
+  return best;
+}
+
 export function parse_seed(raw: string | null): number | null {
   if (raw === null || !/^\d{1,10}$/.test(raw)) return null;
   const seed = Number(raw);
@@ -151,8 +166,8 @@ export class RateLimit {
 export class Net {
   readonly id = selfId;
   readonly remotes = new Map<string, Remote>();
-  /** Peers in this room on another seed, by id, with when they were last heard (performance.now ms). */
-  readonly foreign = new Map<string, number>();
+  /** Peers in this room on another seed, by id: their seed and when they were last heard (performance.now ms). */
+  readonly foreign = new Map<string, Foreign>();
   peers = 0;
   status = "connecting";
   on_chat: ((name: string, text: string) => void) | null = null;
@@ -279,7 +294,7 @@ export class Net {
     if (!state) return;
     const now = performance.now();
     if (state.seed !== this.seed) {
-      this.foreign.set(state.id, now);
+      this.foreign.set(state.id, { seed: state.seed, seen: now });
       this.remotes.delete(state.id);
       return;
     }
@@ -303,7 +318,12 @@ export class Net {
   prune() {
     const now = performance.now();
     for (const [id, remote] of this.remotes) if (now - remote.seen > TIMEOUT) this.remotes.delete(id);
-    for (const [id, seen] of this.foreign) if (now - seen > TIMEOUT) this.foreign.delete(id);
+    for (const [id, { seen }] of this.foreign) if (now - seen > TIMEOUT) this.foreign.delete(id);
+  }
+
+  /** The seed most peers on another map are on, so one tap follows the crowd. */
+  foreign_seed(): number | null {
+    return most_common([...this.foreign.values()].map((f) => f.seed));
   }
 
   render_time(remote: Remote): number {

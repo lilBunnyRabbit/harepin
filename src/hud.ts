@@ -52,6 +52,7 @@ export class Hud {
     toast: $("toast"),
     players: $("players"),
     net: $("net"),
+    join_map: $("join-map", HTMLButtonElement),
     banner: $("banner"),
     delta: $("delta"),
     rewind: $("rewind"),
@@ -74,6 +75,10 @@ export class Hud {
     private lobby: Lobby,
   ) {
     $("room").textContent = room;
+    this.el.join_map.addEventListener("click", () => {
+      const seed = this.net.foreign_seed();
+      if (seed !== null) location.search = `?${new URLSearchParams({ room, seed: String(seed) })}`;
+    });
     document.documentElement.dataset.scheme = dark ? "dark" : "light";
     const canvas = $("minimap", HTMLCanvasElement);
     canvas.width = MAP * devicePixelRatio;
@@ -124,6 +129,7 @@ export class Hud {
     }
     const foreign = this.net.foreign.size;
     el.net.textContent = `${this.net.status} · ${this.net.remotes.size} other${this.net.remotes.size === 1 ? "" : "s"}${foreign ? ` · ${foreign} peer${foreign === 1 ? "" : "s"} on a different map` : ""}`;
+    el.join_map.hidden = foreign === 0;
 
     const lap_flashing = race.lap_flash && now - race.lap_flash < 2600;
     el.banner.style.opacity = lap_flashing ? "1" : "0";
