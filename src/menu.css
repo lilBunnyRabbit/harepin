@@ -60,31 +60,6 @@
   font-weight: 600;
 }
 
-.settings:not([data-section="world"]) .settings-random {
-  display: none;
-}
-
-.settings .settings-random {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  height: var(--control-h);
-  padding: 0 var(--space-3);
-  border-radius: var(--radius-full);
-  border: 1px solid var(--set-line);
-  background: var(--set-panel);
-  font-weight: 600;
-}
-
-.settings .settings-random:hover {
-  border-color: var(--line-strong);
-}
-
-.settings-random svg {
-  width: var(--icon-size);
-  height: var(--icon-size);
-}
-
 .settings .settings-back:hover {
   background: var(--set-well);
 }

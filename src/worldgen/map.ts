@@ -1,4 +1,5 @@
 import { terrain_colors } from "./chunks";
+import { world_facts, type WorldFacts } from "./facts";
 import { CELL, DECK_STRIDE, N, SIZE, type WorldData, type WorldKind } from "./types";
 
 export const MAP_SIDE = N + 1;
@@ -49,6 +50,7 @@ export interface MapData {
   pads: MapMark[];
   checkpoints: MapMark[];
   start: MapMark;
+  facts: WorldFacts;
 }
 
 /** `terrain` is the game's terrain LUT and `water` a linear RGB tone, both from the main thread's palette. */
@@ -135,6 +137,7 @@ export function map_data(data: WorldData, tones: MapTones): MapData {
     pads: pad_marks(data),
     checkpoints: data.checkpoints.map((c) => ({ x: c.x, z: c.z, fx: Math.sin(c.heading), fz: Math.cos(c.heading), length: 0 })),
     start: { x: start.x, z: start.z, fx: start.tx, fz: start.tz, length: 0 },
+    facts: world_facts(data),
   };
 }
 

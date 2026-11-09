@@ -34,6 +34,7 @@ type MapStatus = (typeof MapStatus)[keyof typeof MapStatus];
 
 export class WorldMap {
   readonly root = document.createElement("div");
+  on_ready: ((map: MapData) => void) | null = null;
   private readonly canvas = document.createElement("canvas");
   private readonly note = document.createElement("span");
   private worker: Worker | null = null;
@@ -105,6 +106,7 @@ export class WorldMap {
     const ctx = canvas.getContext("2d");
     if (!map || !image || !ctx) return;
     this.set_status(MapStatus.READY);
+    this.on_ready?.(map);
     canvas.setAttribute("aria-label", `Map of ${map.kind === WorldKind.SKY ? "sky track" : "island"} ${map.seed}`);
     const ratio = devicePixelRatio;
     const side = Math.round((canvas.clientWidth || MAP_SIDE) * ratio);

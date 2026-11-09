@@ -26,6 +26,7 @@ import {
 } from "./theme";
 import { TouchSteer } from "./touch";
 import { WorldMap } from "./world-map";
+import type { MapData } from "./worldgen/map";
 import "./settings.css";
 import "./menu.css";
 
@@ -307,6 +308,7 @@ const CAMERA_RETURN_LABEL: Record<CameraReturn, string> = { off: "Off", short: "
 const STEER_LABEL: Record<SteerMode, string> = { snap: "Classic", hold: "Hold", smooth: "Smooth" };
 
 const WORLD_NAME: Record<WorldKind, string> = { island: "Island", sky: "Sky Track" };
+const WORLD_PICK: Record<WorldKind, string> = { island: "Roam an island with towns and a circuit", sky: "A toy circuit floating in the clouds" };
 const WORLD_NOTE: Record<WorldKind, string> = { island: "Towns, hills and every challenge", sky: "Drops, rails, jumps, boost pads" };
 const HERO_NOTE: Record<WorldKind, string> = {
   island: "Free roam. Flags on the orange circuit start the challenges.",
@@ -623,12 +625,7 @@ export class Settings {
     close.setAttribute("aria-label", "Back to driving");
     close.title = "Back to driving";
     close.append(icon("icon-close"));
-    const random = el("button", "settings-random");
-    random.type = "button";
-    random.dataset.action = "random";
-    random.title = "Drive a random map of this world";
-    random.append(icon("icon-dice"), el("span", "", "Random"));
-    head.append(back, this.title, random, close);
+    head.append(back, this.title, close);
 
     const pages: Section[] = [
       { id: MenuTab.PLAY, label: "Play", build: () => this.play() },
@@ -761,7 +758,7 @@ export class Settings {
       if (other === kind) tile.append(el("span", "menu-tag", "You're here"));
       return tile;
     };
-    const map = this.tile("map", "New map", "Preview a map, roll the dice or type a seed", this.picture(`${kind}-map`, true), () => this.show("world"));
+    const map = this.tile("map", "New map", "Pick a world and a map, or type a friend's map code", this.picture(`${kind}-map`, true), () => this.show("world"));
     const modes = this.tile("modes", "Modes", "Gymkhana, parking, drift zones, gate hunt, ghost duel", icon("icon-modes"), () => this.close());
     modes.popoverTargetElement = this.host.modes;
     return this.mosaic(MenuTab.PLAY, hero, world(WorldKind.ISLAND), world(WorldKind.SKY), map, modes);
@@ -863,52 +860,112 @@ export class Settings {
 
   private world(): HTMLElement[] {
     const { room, seed } = this.host;
-    const field = el("input", "settings-input settings-number");
+    const step = (n: number, text: string) => {
+      const head = el("h3", "map-step");
+      head.append(el("i", "", String(n)), el("span", "", text));
+      return head;
+    };
+
+    const worlds = el("div", "map-worlds");
+    worlds.setAttribute("role", "radiogroup");
+    worlds.setAttribute("aria-label", "World");
+    const world_buttons = ([WorldKind.ISLAND, WorldKind.SKY] as const).map((kind) => {
+      const button = el("button", "map-world");
+      button.type = "button";
+      button.setAttribute("role", "radio");
+      const text = el("span", "map-world-text");
+      text.append(el("b", "", WORLD_NAME[kind]), el("small", "", WORLD_PICK[kind]));
+      button.append(this.picture(kind), text);
+      button.addEventListener("click", () => {
+        this.chosen_kind = kind;
+        choose(this.chosen, true);
+      });
+      worlds.append(button);
+      return [kind, button] as const;
+    });
+
+    const field = el("input", "settings-input map-code");
     field.type = "text";
     field.inputMode = "numeric";
     field.maxLength = 10;
     field.autocomplete = "off";
     field.enterKeyHint = "go";
     field.value = String(seed);
-    field.setAttribute("aria-label", "Island seed");
-    const dice = el("button", "world-dice");
+    field.setAttribute("aria-label", "Map code");
+    const dice = el("button", "map-dice");
     dice.type = "button";
-    dice.title = "Random seed";
-    dice.setAttribute("aria-label", "Random seed");
-    dice.append(icon("icon-dice"));
-    const seed_field = el("div", "world-seed-field");
-    seed_field.append(field, dice);
-    const seed_row = this.row("Seed", seed_field, "Same seed, same island, for everyone");
-    seed_row.classList.add("world-seed");
+    dice.append(icon("icon-dice"), el("span", "", "New random map"));
+    const code = el("div", "map-code-row");
+    code.append(field, dice);
 
-    const drive = this.action("Drive this island", () => this.drive(this.chosen, this.chosen_kind));
-    drive.classList.add("world-drive");
+    const drive = el("button", "map-drive");
+    drive.type = "button";
+    drive.addEventListener("click", () => this.drive(this.chosen, this.chosen_kind));
+    const share = el("button", "map-share");
+    share.type = "button";
+    const share_label = el("span", "", "Share code");
+    share.append(icon("icon-share"), share_label);
+    share.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(invite_link(room, this.chosen, this.chosen_kind));
+        share_label.textContent = "Link copied";
+      } catch (error) {
+        console.warn("settings: clipboard refused", error);
+        share_label.textContent = "Copy failed";
+      }
+      setTimeout(() => (share_label.textContent = "Share code"), COPIED_MS);
+    });
+
+    const title = el("b", "map-title");
+    const facts = el("dl", "map-facts");
+    const legend = el("ul", "world-legend");
+    for (const [label, token] of [
+      ["Circuit", "accent"],
+      ["Start", "primary"],
+      ["Checkpoints", "foreground"],
+      ["Jumps", "secondary"],
+    ]) {
+      const item = el("li", "", label);
+      item.style.setProperty("--swatch", `var(--${token})`);
+      legend.append(item);
+    }
+    const boost = el("li", "", "Boost");
+    // The map's pad tone, tones.pad: the accent a step lighter, never mixed with another brand colour.
+    boost.style.setProperty("--swatch", "oklch(from var(--accent) calc(l + 0.14) c h)");
+    legend.append(boost);
+
+    const show_facts = (map: MapData | null) => {
+      const ready = map !== null && map.seed === this.chosen && map.kind === this.chosen_kind;
+      const sky = this.chosen_kind === WorldKind.SKY;
+      const f = ready ? map.facts : null;
+      const items: [string, string][] = [
+        [f ? `${(f.length / 1000).toFixed(1)} km` : "…", sky ? "track" : "circuit"],
+        [f ? String(f.corners) : "…", "corners"],
+        [f ? String(f.jumps) : "…", "jumps"],
+        sky ? [f ? String(f.gaps) : "…", f?.gaps === 1 ? "gap to fly over" : "gaps to fly over"] : [f ? String(f.towns) : "…", "towns"],
+      ];
+      facts.replaceChildren(
+        ...items.map(([value, label]) => {
+          const item = el("div");
+          item.append(el("dt", "", label), el("dd", "", value));
+          return item;
+        }),
+      );
+    };
+    this.world_map.on_ready = show_facts;
+
     const choose = (next: number, now: boolean) => {
       this.chosen = next;
-      const name = this.chosen_kind === WorldKind.SKY ? "track" : "island";
-      drive.textContent = `Drive this ${name}`;
-      drive.disabled = next === seed && this.chosen_kind === this.host.kind;
-      drive.title = drive.disabled ? `You're on this ${name}` : `Reloads room ${room} on ${name} ${next}`;
-      this.world_map.show(next, this.chosen_kind, now);
+      const here = next === seed && this.chosen_kind === this.host.kind;
+      drive.textContent = here ? "You're on this map" : "Drive this map";
+      drive.disabled = here;
+      drive.title = here ? "" : `Reloads room ${room} on ${WORLD_NAME[this.chosen_kind]} ${next}`;
+      title.textContent = `${WORLD_NAME[this.chosen_kind]} · map ${next}`;
+      for (const [kind, button] of world_buttons) button.setAttribute("aria-checked", String(kind === this.chosen_kind));
       boost.hidden = this.chosen_kind !== WorldKind.SKY;
+      show_facts(null);
+      this.world_map.show(next, this.chosen_kind, now);
     };
-    const kinds = el("div", "settings-choice");
-    kinds.setAttribute("role", "radiogroup");
-    kinds.setAttribute("aria-label", "World");
-    const kind_buttons = ([[WorldKind.ISLAND, "Island"], [WorldKind.SKY, "Sky Track"]] as const).map(([kind, text]) => {
-      const button = el("button", "", text);
-      button.type = "button";
-      button.setAttribute("role", "radio");
-      button.setAttribute("aria-checked", String(kind === this.chosen_kind));
-      button.addEventListener("click", () => {
-        this.chosen_kind = kind;
-        for (const [k, b] of kind_buttons) b.setAttribute("aria-checked", String(k === kind));
-        choose(this.chosen, true);
-      });
-      kinds.append(button);
-      return [kind, button] as const;
-    });
-    const kind_row = this.row("World", kinds, "An island to roam, or a toy circuit floating in the sky");
     field.addEventListener("input", () => {
       const next = parse_seed(field.value.trim());
       field.setCustomValidity(next === null ? "A whole number from 0 to 4294967295" : "");
@@ -924,33 +981,19 @@ export class Settings {
       field.setCustomValidity("");
       choose(next, true);
     });
-    drive.disabled = true;
+    choose(this.chosen, false);
 
-    const legend = el("ul", "world-legend");
-    for (const [label, token] of [
-      ["Circuit", "accent"],
-      ["Start", "primary"],
-      ["Checkpoints", "foreground"],
-      ["Jumps", "secondary"],
-    ]) {
-      const item = el("li", "", label);
-      item.style.setProperty("--swatch", `var(--${token})`);
-      legend.append(item);
-    }
-    const boost = el("li", "", "Boost");
-    // The map's pad tone, tones.pad: the accent a step lighter, never mixed with another brand colour.
-    boost.style.setProperty("--swatch", "oklch(from var(--accent) calc(l + 0.14) c h)");
-    boost.hidden = this.chosen_kind !== WorldKind.SKY;
-    legend.append(boost);
-
-    const current = el("div", "settings-inline");
-    current.append(el("b", "settings-value settings-number", String(seed)), this.copy_action("Copy link", invite_link(room, seed, this.host.kind)));
-    const current_row = this.row("This island", current, `Room ${room} is driving it`);
-    current_row.classList.add("world-current");
-
-    const world = el("div", "world");
-    world.append(kind_row, seed_row, this.world_map.root, legend, drive, current_row);
-    return [world];
+    const picks = el("div", "map-picks");
+    const actions = el("div", "map-actions");
+    actions.append(drive, share);
+    picks.append(step(1, "Pick a world"), worlds, step(2, "Pick a map"), code, el("p", "map-hint", "Got a code from a friend? Type it in."), actions);
+    const preview = el("div", "map-preview");
+    preview.append(this.world_map.root);
+    const about = el("div", "map-about");
+    about.append(title, facts, legend);
+    const page = el("div", "map-page");
+    page.append(picks, preview, about);
+    return [page];
   }
 
   /** A world the player picked: remembered for the next bare load, then driven in this room. */
@@ -1030,7 +1073,7 @@ export class Settings {
     seed.maxLength = 10;
     seed.autocomplete = "off";
     seed.placeholder = "Random";
-    seed.setAttribute("aria-label", "Map seed");
+    seed.setAttribute("aria-label", "Map code");
     const submit = el("button", "settings-action", "Create room");
     submit.type = "submit";
     for (const input of [name, password, seed]) input.addEventListener("input", () => input.setCustomValidity(""));
@@ -1049,7 +1092,7 @@ export class Settings {
     create.append(
       this.row("Room name", name),
       this.row("Password", password, "Locked rooms show a lock and get a short code on their name; only players with the password can connect"),
-      this.row("Map seed", seed),
+      this.row("Map code", seed, "Empty for a random map"),
       submit,
     );
 
@@ -1670,7 +1713,6 @@ export class Settings {
     if (!button) return;
     if (button.dataset.action === "close") return this.close();
     if (button.dataset.action === "back") return this.back();
-    if (button.dataset.action === "random") return this.drive(random_seed(), this.chosen_kind);
     if (button.dataset.sub) return this.show_sub(button.dataset.sub);
     const section = button.dataset.section;
     if (!section) return;
