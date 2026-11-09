@@ -192,6 +192,7 @@ function apply_settings(state: SettingsState) {
   document.documentElement.dataset.dash = state.dash;
   for (const chip of document.querySelectorAll<HTMLElement>("[data-aid]")) chip.setAttribute("aria-pressed", String(state[chip.dataset.aid as Aid]));
   input.touch.set_steer_mode(state.touch_steer);
+  input.precision = state.precision_key;
   chase.mode = state.camera === CameraView.COCKPIT ? 1 : 0;
   audio.set_view(state.camera === CameraView.COCKPIT);
   chase.return_delay = CAMERA_RETURN_SECONDS[state.camera_return];

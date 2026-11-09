@@ -87,6 +87,7 @@ export interface SettingsState {
   assist: boolean;
   auto: boolean;
   steer_mode: SteerMode;
+  precision_key: boolean;
   touch_steer: TouchSteer;
   camera: CameraView;
   camera_return: CameraReturn;
@@ -112,6 +113,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
   assist: true,
   auto: true,
   steer_mode: SteerMode.SNAP,
+  precision_key: false,
   touch_steer: TouchSteer.DRAG,
   camera: CameraView.CHASE,
   camera_return: CameraReturn.SHORT,
@@ -142,6 +144,7 @@ export function parse_settings(raw: unknown): SettingsState {
     assist: bool(s.assist, d.assist),
     auto: bool(s.auto, d.auto),
     steer_mode: one_of(Object.values(SteerMode), s.steer_mode, d.steer_mode),
+    precision_key: bool(s.precision_key, d.precision_key),
     touch_steer: one_of(Object.values(TouchSteer), s.touch_steer, d.touch_steer),
     camera: one_of(Object.values(CameraView), s.camera, d.camera),
     camera_return: one_of(Object.values(CameraReturn), s.camera_return, d.camera_return),
@@ -305,6 +308,7 @@ const COPIED_MS = 2000;
 const KEYS: [string, string, string, string][] = [
   ["Drive", "WASD / arrows", "RT / LT, L stick", "Gas, Brake, drag or arrow buttons to steer (Touch steering)"],
   ["Handbrake", "Space", "A", "Handbrake"],
+  ["Precision steer (hold, when on)", "X", "", ""],
   ["Nitro (hold, when fitted)", "Shift", "B", "Nitro key: tap on, tap off or burn the tank"],
   ["Reset", "R", "Y", "Reset"],
   ["Restart lap", "L / lap strip button", "", "Lap strip button"],
@@ -910,7 +914,7 @@ export class Settings {
     return [this.row("HUD layout", group, "Where speed, laps, map and buttons sit"), dash];
   }
 
-  private toggle_row(key: "tcs" | "abs" | "assist" | "auto" | "invert_y" | "ghost" | "muted", label: string, hint = ""): HTMLElement {
+  private toggle_row(key: "tcs" | "abs" | "assist" | "auto" | "precision_key" | "invert_y" | "ghost" | "muted", label: string, hint = ""): HTMLElement {
     const button = el("button", "settings-switch");
     button.type = "button";
     button.setAttribute("role", "switch");
@@ -1240,11 +1244,14 @@ export class Settings {
       this.choice(
         "steer_mode",
         [
-          [SteerMode.SNAP, "Snap back"],
-          [SteerMode.HOLD, "Hold & self-centre"],
+          [SteerMode.SNAP, "Classic"],
+          [SteerMode.HOLD, "Hold"],
+          [SteerMode.SMOOTH, "Smooth"],
         ],
         "Keyboard steering",
+        "Classic: quick to full turn, snaps back. Hold: wheel stays, centres as you roll. Smooth: tap nudges, hold builds the turn",
       ),
+      this.toggle_row("precision_key", "Precision steer key", "Hold X for half the keyboard steering"),
       this.touch_only(
         this.choice(
           "touch_steer",

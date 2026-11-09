@@ -1,5 +1,5 @@
 import { CARS, car_spec, type CarSpec } from "../src/cars";
-import { Car, type Controls, type Ground } from "../src/car";
+import { Car, SteerMode, type Controls, type Ground } from "../src/car";
 
 const DT = 1 / 360;
 const START = 5;
@@ -19,9 +19,9 @@ export interface Donut {
 }
 
 /** Full keyboard steer and full throttle from `START` m/s on the flat, held for `SECONDS`. */
-export function donut(spec: CarSpec, tcs: boolean, assist: boolean, log = false): Donut {
+export function donut(spec: CarSpec, tcs: boolean, assist: boolean, log = false, steer_mode: SteerMode = SteerMode.SNAP): Donut {
   const car = new Car(spec);
-  Object.assign(car, { tcs, assist });
+  Object.assign(car, { tcs, assist, steer_mode });
   car.park(0, 0, 0, flat);
   car.vel.set(0, 0, START);
   for (const w of car.wheels) w.omega = START / spec.wheel.radius;

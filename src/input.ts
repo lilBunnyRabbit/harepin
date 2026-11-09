@@ -21,6 +21,9 @@ const KEY_ACTIONS: Record<string, Action> = {
 };
 
 const IMPACT_VIBRATE_MS = 60;
+/** Held with the precision setting on, it scales the keyboard steer; Ctrl or Alt would turn W into a browser shortcut. */
+const PRECISION_KEY = "KeyX";
+const PRECISION_STEER = 0.5;
 const DOUBLE_TAP_MS = 300;
 const DOUBLE_TAP_PX = 32;
 const STICK_DEAD = 0.12;
@@ -237,6 +240,7 @@ export class Input {
   }
 
   rewind = false;
+  precision = false;
 
   read(): { controls: Controls; actions: Action[] } {
     this.pad = navigator.getGamepads?.().find((p) => p && p.connected) ?? null;
@@ -245,7 +249,7 @@ export class Input {
     this.nav = [];
     const key_steer = (this.down("KeyD", "ArrowRight") ? 1 : 0) - (this.down("KeyA", "ArrowLeft") ? 1 : 0);
     const controls: Controls = {
-      steer: key_steer,
+      steer: key_steer * (this.precision && this.down(PRECISION_KEY) ? PRECISION_STEER : 1),
       throttle: this.down("KeyW", "ArrowUp") ? 1 : 0,
       brake: this.down("KeyS", "ArrowDown") ? 1 : 0,
       handbrake: this.down("Space") ? 1 : 0,

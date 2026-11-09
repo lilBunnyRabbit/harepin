@@ -6,6 +6,7 @@ import { Car, SteerMode, ride_height, type Controls, type Ground } from "./car";
 import { CARS, type CarId, type CarSpec } from "./cars";
 import { donut } from "../scripts/donut";
 import { hairpin_pull } from "../scripts/hairpin";
+import { arc, hairpin, lane_change, tap } from "../scripts/keys";
 
 const flat: Ground = { height: () => 0, normal: (_x, _z, out) => out.set(0, 1, 0), grip: () => 1, roll: () => 1 };
 const DT = 1 / 360;
@@ -69,13 +70,66 @@ describe("keyboard steer mode", () => {
     expect(Math.abs(car.steer)).toBeLessThan(held * 0.1);
   });
 
-  test("analog input steers the same in both modes", () => {
+  test("analog input steers the same in every mode", () => {
     const pad = (car: Car): Controls => ({ ...cruise(car, 60, Math.sin(car.pos.z * 0.05)), analog: true });
-    const [snap, hold] = [fresh(SteerMode.SNAP), fresh(SteerMode.HOLD)];
+    const [snap, ...rest] = [SteerMode.SNAP, SteerMode.HOLD, SteerMode.SMOOTH].map(fresh);
     run(snap, 8, () => pad(snap));
-    run(hold, 8, () => pad(hold));
-    expect(hold.steer).toBe(snap.steer);
-    expect(hold.pos.toArray()).toEqual(snap.pos.toArray());
+    for (const car of rest) {
+      run(car, 8, () => pad(car));
+      expect(car.steer).toBe(snap.steer);
+      expect(car.pos.toArray()).toEqual(snap.pos.toArray());
+    }
+  });
+
+  test("smooth: a one-frame tap at 100 km/h is a small nudge, where classic barely registers", () => {
+    const smooth = tap(SteerMode.SMOOTH, 1 / 60);
+    expect(smooth.heading).toBeGreaterThan(0.2);
+    expect(smooth.heading).toBeLessThan(0.8);
+    expect(tap(SteerMode.SNAP, 1 / 60).heading).toBeLessThan(0.1);
+  });
+
+  test("smooth: at 100 km/h a held key builds from the tap share to full within 0.5 s, and lets go without a snap", () => {
+    const car = fresh(SteerMode.SMOOTH);
+    run(car, 30, () => cruise(car, 100));
+    run(car, 1 / 360, () => cruise(car, 100, 1));
+    expect(car.key_steer).toBeCloseTo(0.15, 2);
+    run(car, 0.2, () => cruise(car, 100, 1));
+    expect(car.key_steer).toBeGreaterThan(0.3);
+    expect(car.key_steer).toBeLessThan(0.7);
+    run(car, 0.3, () => cruise(car, 100, 1));
+    expect(car.key_steer).toBe(1);
+    run(car, 0.05, () => cruise(car, 100));
+    expect(car.key_steer).toBeGreaterThan(0.5);
+    run(car, 0.6, () => cruise(car, 100));
+    expect(car.key_steer).toBe(0);
+  });
+
+  test("smooth: half a key (the precision key) eases down to half, not a jump", () => {
+    const car = fresh(SteerMode.SMOOTH);
+    run(car, 1, () => ({ ...idle, steer: -1 }));
+    run(car, 1 / 360, () => ({ ...idle, steer: -0.5 }));
+    expect(car.key_steer).toBeLessThan(-0.9);
+    run(car, 1, () => ({ ...idle, steer: -0.5 }));
+    expect(car.key_steer).toBe(-0.5);
+  });
+
+  test("smooth: a held key takes a 50 km/h hairpin as tight as classic, inside the grip", () => {
+    const [classic, smooth] = [hairpin(SteerMode.SNAP), hairpin(SteerMode.SMOOTH)];
+    expect(smooth.t180).toBeLessThan(classic.t180 * 1.05);
+    expect(smooth.radius).toBeLessThan(classic.radius * 1.05);
+    expect(smooth.slip).toBeLessThan(5);
+  });
+
+  test("smooth: a keyboard lane change at 120 km/h settles without a weave", () => {
+    const change = lane_change(SteerMode.SMOOTH);
+    expect(change.overshoot).toBeLessThan(1);
+    expect(change.settle).toBeLessThan(3);
+  });
+
+  test("smooth: a keyboard driver holds a long 90 km/h bend with less weave than classic", () => {
+    const [classic, smooth] = [arc(SteerMode.SNAP), arc(SteerMode.SMOOTH)];
+    expect(smooth.rms).toBeLessThan(0.5);
+    expect(smooth.yaw_swing).toBeLessThan(classic.yaw_swing * 0.6);
   });
 });
 
@@ -452,12 +506,13 @@ describe("hairpin pull", () => {
 
 describe("donut", () => {
   for (const id of ["coupe", "muscle", "kaze", "formula", "sturm", "rally"] as const) {
-    test(`${id}: full steer and full gas from 5 m/s, TCS off, assist on, holds full lock and keeps rotating on the spot`, () => {
-      const d = donut(CARS[id], false, true);
-      expect(d.steer_min).toBeGreaterThan(0.99);
-      expect(d.yaw).toBeGreaterThan(0.6);
-      expect(d.yaw_min).toBeGreaterThan(0);
-      expect(d.kmh).toBeLessThan(30);
-    });
+    for (const mode of [SteerMode.SNAP, SteerMode.SMOOTH])
+      test(`${id} (${mode} keys): full steer and full gas from 5 m/s, TCS off, assist on, holds full lock and keeps rotating on the spot`, () => {
+        const d = donut(CARS[id], false, true, false, mode);
+        expect(d.steer_min).toBeGreaterThan(0.99);
+        expect(d.yaw).toBeGreaterThan(0.6);
+        expect(d.yaw_min).toBeGreaterThan(0);
+        expect(d.kmh).toBeLessThan(30);
+      });
   }
 });
