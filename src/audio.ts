@@ -208,4 +208,42 @@ export class Audio {
     crash.start();
     crash.stop(now + 0.22);
   }
+
+  /** Wall hit: the impact thud plus a short metal knock, both scaled by `strength` (impact speed, m/s). */
+  bonk(strength: number) {
+    const level = Math.min(1, strength / 20);
+    this.impact(level);
+    const { ctx, master } = this;
+    if (!ctx || !master || level < 0.05) return;
+    const now = ctx.currentTime;
+    for (const [hz, gain, decay] of [
+      [410, 0.35, 0.18],
+      [1130, 0.2, 0.09],
+      [1870, 0.1, 0.05],
+    ] as const) this.tone(hz, "triangle", now, gain * level, decay);
+  }
+
+  /** Soft two-note chime for a clean pass. */
+  chime() {
+    const { ctx } = this;
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    this.tone(1318.5, "sine", now, 0.12, 0.35);
+    this.tone(1975.5, "sine", now + 0.09, 0.1, 0.5);
+  }
+
+  private tone(hz: number, type: OscillatorType, at: number, level: number, decay: number) {
+    const { ctx, master } = this;
+    if (!ctx || !master) return;
+    const osc = ctx.createOscillator();
+    osc.type = type;
+    osc.frequency.value = hz;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, at);
+    gain.gain.exponentialRampToValueAtTime(level, at + 0.005);
+    gain.gain.exponentialRampToValueAtTime(0.0001, at + decay);
+    osc.connect(gain).connect(master);
+    osc.start(at);
+    osc.stop(at + decay + 0.02);
+  }
 }
