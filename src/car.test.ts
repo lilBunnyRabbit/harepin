@@ -1,7 +1,7 @@
 /// <reference types="bun" />
 import { describe, expect, test } from "bun:test";
 import { Vector3 } from "three";
-import { DEFAULT_BUILD, apply_build, type SuspensionLevel } from "./build";
+import { DEFAULT_BUILD, DEFAULT_PARTS, apply_build } from "./build";
 import { Car, SteerMode, ride_height, type Controls, type Ground } from "./car";
 import { CARS, type CarId, type CarSpec } from "./cars";
 
@@ -246,8 +246,8 @@ describe("drift suspension", () => {
   const power_on: Controls = { ...idle, steer: 0.3, throttle: 1, analog: true };
 
   // TCS off and held in third at 70 km/h, so the only thing between the two runs is the setup.
-  function rolling(id: CarId, suspension: SuspensionLevel, assist = false): Car {
-    const car = new Car(apply_build(CARS[id], { ...DEFAULT_BUILD, car: id, suspension }));
+  function rolling(id: CarId, suspension: number, assist = false): Car {
+    const car = new Car(apply_build(CARS[id], { ...DEFAULT_BUILD, car: id, parts: { ...DEFAULT_PARTS, suspension } }));
     Object.assign(car, { tcs: false, assist, auto: false });
     car.place(0, 0.6, 0, 0);
     run(car, 1.5, () => idle);
@@ -256,7 +256,7 @@ describe("drift suspension", () => {
     return car;
   }
 
-  function step_steer(id: CarId, suspension: SuspensionLevel) {
+  function step_steer(id: CarId, suspension: number) {
     const car = rolling(id, suspension);
     run(car, 0.8, () => power_on);
     const early = slip(car);
@@ -265,7 +265,7 @@ describe("drift suspension", () => {
   }
 
   // A plain countersteer-and-feather driver aiming for 26 degrees: time spent between 15 and 50 is a slide held.
-  function held_slide(id: CarId, suspension: SuspensionLevel) {
+  function held_slide(id: CarId, suspension: number) {
     const car = rolling(id, suspension);
     run(car, 1, () => power_on);
     let held = 0;

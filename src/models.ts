@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { rest_reach, type Car } from "./car";
-import { DECALS, build_spec, type Build, type Level } from "./build";
+import { DECALS, DEFAULT_PARTS, build_spec, type Build, type Slot } from "./build";
 import { COUPE, type BodyStyle, type CarSpec, type Triple } from "./cars";
 import { livery_parts, roof, type Livery, type Panel } from "./livery";
 import { NEUTRAL_INKS, brand, car_paints, color, dark, decal_inks, glow, mix, tones } from "./palette";
@@ -211,6 +211,10 @@ interface Design {
   rim: Rim;
   /** Where a bolt-on wing sits: rear deck or roof edge, [z, y]. */
   deck: Point;
+  /** Where an engine bulge or scoop sits on the hood, [z, y]. */
+  hood: Point;
+  /** Left tailpipe outlet for engine upgrades, at the rear face. */
+  exhaust: Triple;
 }
 
 const MIRROR: Triple = [0.16, 0.1, 0.18];
@@ -235,6 +239,8 @@ const DESIGNS: Record<BodyStyle, Design> = {
     tyre: [0.28, 0.3],
     rim: { size: 0.64, spokes: 6, tone: "metal" },
     deck: [-2.0, 0.9],
+    hood: [1.3, 0.84],
+    exhaust: [0.55, 0.3, -2.3],
   },
   hatch: {
     outline: [[1.9, 0.3], [1.95, 0.62], [1.88, 0.72], [1.0, 0.86], [-1.82, 0.92], [-1.95, 0.92], [-1.97, 0.6], [-1.93, 0.3]],
@@ -258,6 +264,8 @@ const DESIGNS: Record<BodyStyle, Design> = {
     tyre: [0.24, 0.24],
     rim: { size: 0.6, spokes: 0, tone: "metal" },
     deck: [-1.44, 1.37],
+    hood: [1.35, 0.8],
+    exhaust: [0.5, 0.32, -1.92],
   },
   muscle: {
     outline: [[2.46, 0.28], [2.53, 0.4], [2.53, 0.74], [2.4, 0.78], [0.45, 0.84], [-1.6, 0.86], [-2.42, 0.88], [-2.52, 0.84], [-2.52, 0.5], [-2.46, 0.28]],
@@ -293,6 +301,8 @@ const DESIGNS: Record<BodyStyle, Design> = {
     tyre: [0.3, 0.42],
     rim: { size: 0.62, spokes: 5, tone: "metal" },
     deck: [-2.15, 0.88],
+    hood: [1.95, 0.91],
+    exhaust: [0.5, 0.26, -2.44],
   },
   rally: {
     outline: [[2.15, 0.38], [2.2, 0.5], [2.17, 0.66], [1.2, 0.8], [-1.6, 0.88], [-2.13, 0.9], [-2.2, 0.86], [-2.2, 0.56], [-2.14, 0.38]],
@@ -321,6 +331,8 @@ const DESIGNS: Record<BodyStyle, Design> = {
     tyre: [0.3, 0.3],
     rim: { size: 0.56, spokes: 0, tone: "light" },
     deck: [-1.95, 0.9],
+    hood: [1.55, 0.75],
+    exhaust: [0.55, 0.4, -2.13],
   },
   kaze: {
     outline: [[1.96, 0.28], [2.0, 0.56], [1.94, 0.65], [0.57, 0.93], [-1.9, 0.95], [-2.0, 0.94], [-2.12, 0.91], [-2.14, 0.6], [-2.08, 0.28]],
@@ -345,6 +357,8 @@ const DESIGNS: Record<BodyStyle, Design> = {
     tyre: [0.34, 0.36],
     rim: { size: 0.58, spokes: 0, tone: "metal" },
     deck: [-2.0, 0.97],
+    hood: [1.2, 0.8],
+    exhaust: [0.55, 0.3, -2.08],
   },
 };
 
@@ -456,7 +470,7 @@ function skirts(d: Design, spec: CarSpec): THREE.BufferGeometry[] {
   return parts([{ size: [0.03, 0.09, front - rear], at: [d.width / 2 + 0.005, d.sill, (front + rear) / 2] }]);
 }
 
-function wing(level: Level, style: BodyStyle, width: number, [z, y]: Point, paint: THREE.Color, trim: THREE.Color): THREE.BufferGeometry[] {
+function wing(level: number, style: BodyStyle, width: number, [z, y]: Point, paint: THREE.Color, trim: THREE.Color): THREE.BufferGeometry[] {
   if (level === 0) {
     if (style !== "coupe") return [];
     return [tint(box(1.6, 0.05, 0.3, 0, y + 0.13, z), paint), ...[-1, 1].map((side) => tint(box(0.06, 0.13, 0.12, side * 0.6, y + 0.065, z + 0.02), trim))];
@@ -471,17 +485,103 @@ function wing(level: Level, style: BodyStyle, width: number, [z, y]: Point, pain
   return parts;
 }
 
-function wheel_geometry(radius: number, width: number, rim: Rim): THREE.BufferGeometry {
-  const metal = color(mix(brand.foreground, brand.background_lightest, 0.6));
-  const tone = rim.tone === "light" ? color(tones.check_light) : metal;
-  const disc = radius * rim.size;
+interface TyreLook {
+  /** Tread width and rim size against the design's: a bigger rim is a lower sidewall. */
+  width: number;
+  rim: number;
+  tread: boolean;
+  /** Sidewall lettering ring. */
+  band?: Lab;
+}
+
+/** Per `SLOTS.tyres` part. */
+const TYRE_LOOKS: TyreLook[] = [
+  { width: 1, rim: 1, tread: false },
+  { width: 1.15, rim: 1.06, tread: false },
+  { width: 1.32, rim: 1.12, tread: false, band: brand.warning },
+  { width: 1.1, rim: 0.88, tread: true },
+];
+const TREAD_BLOCKS = 12;
+
+/** Per `SLOTS.brakes` part: caliper colour and size. */
+const CALIPERS: { tone: Lab; size: number }[] = [
+  { tone: tones.trim, size: 1 },
+  { tone: brand.error, size: 1.15 },
+  { tone: brand.warning, size: 1.3 },
+];
+
+const chrome_tone = () => color(mix(brand.foreground, brand.background_lightest, 0.6));
+
+function wheel_geometry(radius: number, width: number, rim: Rim, tyres: number): THREE.BufferGeometry {
+  const look = TYRE_LOOKS[tyres];
+  const tone = rim.tone === "light" ? color(tones.check_light) : chrome_tone();
+  const wide = width * look.width;
+  const disc = radius * rim.size * look.rim;
+  const rubber = color(tones.tyre);
   const pieces = [
-    tint(new THREE.CylinderGeometry(radius, radius, width, 8).rotateZ(Math.PI / 2), color(tones.tyre)),
-    tint(new THREE.CylinderGeometry(disc, disc, width + 0.02, 8).rotateZ(Math.PI / 2), rim.spokes ? color(tones.trim) : tone),
+    tint(new THREE.CylinderGeometry(radius, radius, wide, 8).rotateZ(Math.PI / 2), rubber),
+    tint(new THREE.CylinderGeometry(disc, disc, wide + 0.02, 8).rotateZ(Math.PI / 2), rim.spokes ? color(tones.trim) : tone),
   ];
-  for (let i = 0; i < rim.spokes; i++) pieces.push(tint(new THREE.BoxGeometry(width + 0.04, disc * 1.9, 0.06).rotateX((i * Math.PI) / rim.spokes), tone));
-  if (rim.spokes) pieces.push(tint(new THREE.CylinderGeometry(disc * 0.3, disc * 0.3, width + 0.05, 6).rotateZ(Math.PI / 2), tone));
+  for (let i = 0; i < rim.spokes; i++) pieces.push(tint(new THREE.BoxGeometry(wide + 0.04, disc * 1.9, 0.06).rotateX((i * Math.PI) / rim.spokes), tone));
+  if (rim.spokes) pieces.push(tint(new THREE.CylinderGeometry(disc * 0.3, disc * 0.3, wide + 0.05, 6).rotateZ(Math.PI / 2), tone));
+  if (look.band) pieces.push(tint(new THREE.CylinderGeometry(disc + 0.022, disc + 0.022, wide + 0.01, 8).rotateZ(Math.PI / 2), color(look.band)));
+  if (look.tread)
+    for (let i = 0; i < TREAD_BLOCKS; i++)
+      pieces.push(tint(new THREE.BoxGeometry(wide * 0.46, 0.05, 0.1).translate((i % 2 ? 1 : -1) * wide * 0.26, radius, 0).rotateX((i * 2 * Math.PI) / TREAD_BLOCKS), rubber));
   return merge(...pieces);
+}
+
+// Fixed to the steering knuckle, not the spinning wheel. Stock hides behind the spokes; an upgrade sits proud of them so
+// its colour reads at speed and on disc rims.
+function caliper_geometry(radius: number, width: number, rim: Rim, tyres: number, brakes: number): THREE.BufferGeometry {
+  const look = TYRE_LOOKS[tyres];
+  const { tone, size } = CALIPERS[brakes];
+  const disc = radius * rim.size * look.rim;
+  const proud = brakes > 0 ? 0.046 : 0.03;
+  return tint(new THREE.BoxGeometry(width * look.width + proud, disc * 0.3 * size, disc * 0.5 * size).translate(0, disc * 0.68, 0).rotateX(-0.8), color(tone));
+}
+
+function hood_tilt(d: Design, z: number): number {
+  return -Math.atan2(top_at(d.outline, z + 0.2) - top_at(d.outline, z - 0.2), 0.4);
+}
+
+function panel(outline: Point[], from: number, to: number, width: number): THREE.BufferGeometry {
+  const zs = Array.from({ length: 7 }, (_, i) => from + ((to - from) * i) / 6);
+  const top = zs.map((z): Point => [z, top_at(outline, z) + 0.012]);
+  const under = [...zs].reverse().map((z): Point => [z, top_at(outline, z) - 0.02]);
+  return extrude([...top, ...under], width);
+}
+
+/** Engine bulge or scoop and tailpipes, and the bare panels of a weight-stripped car. */
+function kit_parts(d: Design, kit: Record<Slot, number>, paint: THREE.Color, trim: THREE.Color): THREE.BufferGeometry[] {
+  const out: THREE.BufferGeometry[] = [];
+  const base = d.cabin.points[0][0];
+  const nose = d.outline[0][0];
+  if (kit.weight > 0) {
+    const bare = paint.clone().lerp(trim, 0.75);
+    out.push(tint(panel(d.outline, base + 0.05, base + (nose - base) * 0.85, d.width * 0.72), bare));
+    const rear = d.cabin.points[d.cabin.points.length - 1][0] - 0.05;
+    const tail = d.outline[d.outline.length - 1][0] + 0.15;
+    if (kit.weight > 1 && rear - tail > 0.2) out.push(tint(panel(d.outline, tail, rear, d.width * 0.72), bare));
+  }
+  const engine = kit.engine;
+  if (engine > 0) {
+    const [z, y] = d.hood;
+    const tilt = hood_tilt(d, z);
+    const [w, h, l] = engine === 1 ? [0.56, 0.045, 0.7] : [0.5, 0.11, 0.6];
+    out.push(tint(new THREE.BoxGeometry(w, h, l).translate(0, h / 2, 0).rotateX(tilt).translate(0, y, z), paint));
+    if (engine > 1) out.push(tint(new THREE.BoxGeometry(w * 0.8, h * 0.6, 0.02).translate(0, h * 0.5, l / 2 + 0.005).rotateX(tilt).translate(0, y, z), trim));
+    const [x, py, pz] = d.exhaust;
+    const r = engine === 1 ? 0.045 : 0.052;
+    const xs = engine === 1 ? [x] : [x - 0.065, x + 0.065];
+    const chrome = chrome_tone();
+    for (const side of [-1, 1])
+      for (const at of xs) {
+        out.push(tint(new THREE.CylinderGeometry(r, r, 0.22, 8).rotateX(Math.PI / 2).translate(side * at, py, pz - 0.05), chrome));
+        out.push(tint(new THREE.CylinderGeometry(r * 0.65, r * 0.65, 0.22, 8).rotateX(Math.PI / 2).translate(side * at, py, pz - 0.056), trim));
+      }
+  }
+  return out;
 }
 
 const PANEL_MARGIN = 0.06;
@@ -535,11 +635,11 @@ export function livery_of(build: Build): Livery {
 }
 
 export function build_view(build: Build, spec: CarSpec = build_spec(build)): CarView {
-  return car_view(color(car_paints[build.paint % car_paints.length]), spec, build.spoiler, livery_of(build));
+  return car_view(color(car_paints[build.paint % car_paints.length]), spec, build.parts, livery_of(build));
 }
 
 // Paint, trim, glass and decals are baked into vertex colours so the whole shell is one draw; a repaint rebuilds the view.
-export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, spoiler: Level = 0, livery: Livery | null = null): CarView {
+export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<Slot, number> = DEFAULT_PARTS, livery: Livery | null = null): CarView {
   const style = spec.body.style;
   const d = DESIGNS[style];
   const root = new THREE.Group();
@@ -549,6 +649,7 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, spoiler: Lev
   const arch_tone = d.arches.tone === "paint" ? paint : trim;
 
   const glass = color(tones.glass);
+  const stripped = kit.weight > 1;
   const base = merge(
     tint(extrude(body_outline(d, spec), d.width), paint),
     cabin_parts(d.cabin, paint, glass),
@@ -557,13 +658,13 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, spoiler: Lev
     parts(d.paint).map((g) => tint(g, paint)),
     parts(d.trim).map((g) => tint(g, trim)),
     parts(livery && livery.decal !== "none" ? [] : (d.stripes ?? [])).map((g) => tint(g, trim)),
-    parts(d.markers).map((g) => tint(g, color(brand.warning))),
-    parts(d.chrome).map((g) => tint(g, color(mix(brand.foreground, brand.background_lightest, 0.6)))),
+    parts(stripped ? [] : d.markers).map((g) => tint(g, color(brand.warning))),
+    parts(stripped ? [] : d.chrome).map((g) => tint(g, chrome_tone())),
   );
   const nose = d.outline[0][0];
   const tail = d.outline[d.outline.length - 1][0];
   const decals = livery && livery.decal !== "none" ? livery_parts(livery, side_panel(d, spec), roof(base, glass), nose, tail) : [];
-  const shell = merge(base, wing(spoiler, style, d.width, d.deck, paint, trim), decals);
+  const shell = merge(base, wing(kit.spoiler, style, d.width, d.deck, paint, trim), kit_parts(d, kit, paint, trim), decals);
   const hull = new THREE.Mesh(shell, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
   hull.castShadow = true;
 
@@ -573,7 +674,8 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, spoiler: Lev
   body.add(hull, head_mesh, new THREE.Mesh(merge(parts(d.tails)), brake));
   root.add(body);
 
-  const axles = [wheel_geometry(spec.wheel.radius, d.tyre[0], d.rim), wheel_geometry(spec.wheel.radius, d.tyre[1], d.rim)];
+  const axles = [0, 1].map((axle) => wheel_geometry(spec.wheel.radius, d.tyre[axle], d.rim, kit.tyres));
+  const calipers = [0, 1].map((axle) => caliper_geometry(spec.wheel.radius, d.tyre[axle], d.rim, kit.tyres, kit.brakes));
   const wheel_material = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
   const wheels = [0, 1, 2, 3].map((i) => {
     const steer = new THREE.Group();
@@ -581,7 +683,7 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, spoiler: Lev
     const mesh = new THREE.Mesh(axles[i < 2 ? 0 : 1], wheel_material);
     mesh.castShadow = true;
     spin.add(mesh);
-    steer.add(spin);
+    steer.add(spin, new THREE.Mesh(calipers[i < 2 ? 0 : 1], wheel_material));
     root.add(steer);
     return steer;
   });

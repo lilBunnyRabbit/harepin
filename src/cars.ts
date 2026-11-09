@@ -68,7 +68,7 @@ export interface CarSpec {
   drag: number;
   downforce: number;
   roll_resist: number;
-  /** Share of the off-road grip loss and rolling drag the tyres shrug off: 0 road tyres, 1 none at all. */
+  /** Share of the off-road grip loss and rolling drag the tyres shrug off: 0 road tyres, 1 none at all, below 0 slicks that lose more. */
   offroad: number;
   /** Pitch and roll rate damping with no wheel or corner touching, 1/s; it also levels the body so a crest launch lands on its wheels. 0 flies ballistic. */
   air_settle: number;

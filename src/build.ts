@@ -1,7 +1,71 @@
-import { CARS, is_car, type CarId, type CarSpec } from "./cars";
+import { CARS, is_car, type CarId, type CarSpec, type Triple } from "./cars";
 
-export type Level = 0 | 1 | 2;
-export type SuspensionLevel = Level | 3;
+type NumericField = Exclude<{ [K in keyof CarSpec]-?: CarSpec[K] extends number ? K : never }[keyof CarSpec], "awd_split">;
+
+interface Derived {
+  torque: number;
+  inertia: number;
+  /** Suspension rest length, `wheel.rest`, metres. */
+  rest: number;
+  /** Metres the centre of mass sits lower in the body, from 0: wheel mounts and collision corners move up by it. */
+  cog: number;
+}
+
+export type Field = NumericField | keyof Derived;
+
+/** Per field the scales multiply onto the base first, then the adds sum on, so the slot order never changes the result. */
+export interface Mod {
+  scale?: Partial<Record<Field, number>>;
+  add?: Partial<Record<Field, number>>;
+}
+
+export interface Part {
+  name: string;
+  mod: Mod;
+}
+
+// Spoiler, suspension and engine sit at fixed spots in the build code; every other slot rides in its tail in table order,
+// so a new slot goes last here or old codes would read its digits as another slot's.
+export const SLOTS = {
+  engine: [
+    { name: "Stock", mod: {} },
+    { name: "Tuned", mod: { scale: { torque: 1.15 }, add: { redline: 300, upshift: 300, mass: 15 } } },
+    { name: "Race", mod: { scale: { torque: 1.3 }, add: { redline: 600, upshift: 600, mass: 30 } } },
+  ],
+  tyres: [
+    { name: "Street", mod: {} },
+    { name: "Sport", mod: { scale: { mu: 1.06 }, add: { offroad: -0.15 } } },
+    { name: "Semi-slick", mod: { scale: { mu: 1.12 }, add: { offroad: -0.6 } } },
+    { name: "Rally", mod: { scale: { mu: 0.96 }, add: { offroad: 0.5 } } },
+  ],
+  spoiler: [
+    { name: "None", mod: {} },
+    { name: "Lip", mod: { scale: { downforce: 1.8 }, add: { drag: 0.04, rear_grip: 0.02 } } },
+    { name: "Wing", mod: { scale: { downforce: 2.6 }, add: { drag: 0.09, rear_grip: 0.04 } } },
+  ],
+  suspension: [
+    { name: "Soft", mod: { scale: { spring: 0.8, damper: 0.8, arb_front: 0.7, arb_rear: 0.7 }, add: { rest: 0.04 } } },
+    { name: "Sport", mod: {} },
+    { name: "Race", mod: { scale: { spring: 1.3, damper: 1.3, arb_front: 1.4, arb_rear: 1.4 }, add: { rest: -0.03 } } },
+    // Drift's extra lock is the countersteer room that turns a power slide from a spin into a held angle.
+    { name: "Drift", mod: { scale: { spring: 1.25, damper: 1.25, arb_front: 0.6, arb_rear: 3, lock: 1.15, assist_yaw: 0.6 }, add: { rest: -0.02, rear_grip: -0.02 } } },
+  ],
+  brakes: [
+    { name: "Stock", mod: {} },
+    { name: "Sport", mod: { scale: { brake_front: 1.15, brake_rear: 1.15 }, add: { brake_grip: 0.06 } } },
+    { name: "Race", mod: { scale: { brake_front: 1.3, brake_rear: 1.3 }, add: { brake_grip: 0.12 } } },
+  ],
+  weight: [
+    { name: "Stock", mod: {} },
+    { name: "Light", mod: { scale: { mass: 0.95, inertia: 0.95 }, add: { cog: 0.01 } } },
+    { name: "Stripped", mod: { scale: { mass: 0.9, inertia: 0.9 }, add: { cog: 0.025 } } },
+  ],
+} satisfies Record<string, Part[]>;
+
+export type Slot = keyof typeof SLOTS;
+export const SLOT_NAMES = Object.keys(SLOTS) as Slot[];
+
+const LIMITS: Partial<Record<Field, [number, number]>> = { offroad: [-1, 1] };
 
 export interface Build {
   car: CarId;
@@ -13,10 +77,8 @@ export interface Build {
   ink: number;
   /** Shown by the number roundel, 0-99. */
   number: number;
-  spoiler: Level;
-  /** 0 soft, 1 sport (stock), 2 race, 3 drift. */
-  suspension: SuspensionLevel;
-  engine: Level;
+  /** Index into `SLOTS[slot]` per slot. */
+  parts: Record<Slot, number>;
 }
 
 export const MAX_PAINT = 15;
@@ -25,40 +87,22 @@ export type Decal = (typeof DECALS)[number];
 export const MAX_DECAL = DECALS.length - 1;
 export const MAX_INK = 8;
 export const MAX_NUMBER = 99;
-export const DEFAULT_BUILD: Build = { car: "coupe", paint: 0, decal: 0, ink: 0, number: 7, spoiler: 0, suspension: 1, engine: 0 };
+export const DEFAULT_PARTS: Record<Slot, number> = { engine: 0, tyres: 0, spoiler: 0, suspension: 1, brakes: 0, weight: 0 };
+export const DEFAULT_BUILD: Build = { car: "coupe", paint: 0, decal: 0, ink: 0, number: 7, parts: DEFAULT_PARTS };
 
-const SPOILER_DOWNFORCE = [1, 1.8, 2.6];
-const SPOILER_DRAG = [0, 0.04, 0.09];
-const SPOILER_REAR_GRIP = [0, 0.02, 0.04];
-const SUSPENSION_SPRING = [0.8, 1, 1.3, 1.25];
-const SUSPENSION_ARB_FRONT = [0.7, 1, 1.4, 0.6];
-const SUSPENSION_ARB_REAR = [0.7, 1, 1.4, 3];
-const SUSPENSION_REST = [0.04, 0, -0.03, -0.02];
-const SUSPENSION_REAR_GRIP = [0, 0, 0, -0.02];
-// Drift's extra lock is the countersteer room that turns a power slide from a spin into a held angle.
-const SUSPENSION_LOCK = [1, 1, 1, 1.15];
-const SUSPENSION_ASSIST_YAW = [1, 1, 1, 0.6];
-const ENGINE_TORQUE = [1, 1.15, 1.3];
-const ENGINE_REVS = [0, 300, 600];
-const ENGINE_MASS = [0, 15, 30];
+const HEAD: readonly Slot[] = ["spoiler", "suspension", "engine"];
+const TAIL = SLOT_NAMES.filter((slot) => !HEAD.includes(slot));
 
-// Ink and number ride as an optional tail, so a build that keeps their defaults has the same code it had before them.
-const CODE = new RegExp(`^(${Object.keys(CARS).join("|")})\\.(\\d{1,2})\\.(\\d)\\.([012])\\.([0-3])\\.([012])(?:\\.(\\d)\\.(\\d{1,2}))?$`);
+// Ink and number, then the tail slots, ride as optional tails, so a build that keeps their defaults has the code it had
+// before them and older peers still read it.
+const CODE = new RegExp(`^(${Object.keys(CARS).join("|")})\\.(\\d{1,2})\\.(\\d)\\.(\\d)\\.(\\d)\\.(\\d)(?:\\.(\\d)\\.(\\d{1,2})((?:\\.\\d){0,${TAIL.length}}))?$`);
 
 export function build_code(build: Build): string {
-  const code = `${build.car}.${build.paint}.${build.decal}.${build.spoiler}.${build.suspension}.${build.engine}`;
-  return build.ink === DEFAULT_BUILD.ink && build.number === DEFAULT_BUILD.number ? code : `${code}.${build.ink}.${build.number}`;
-}
-
-function level(digit: string): Level {
-  const n = Number(digit);
-  if (n !== 0 && n !== 1 && n !== 2) throw new Error(`level out of range: ${digit}`);
-  return n;
-}
-
-function suspension_level(digit: string): SuspensionLevel {
-  const n = Number(digit);
-  return n === 3 ? n : level(digit);
+  const code = `${build.car}.${build.paint}.${build.decal}.${HEAD.map((slot) => build.parts[slot]).join(".")}`;
+  const tail = TAIL.map((slot) => build.parts[slot]);
+  while (tail.length && tail[tail.length - 1] === DEFAULT_PARTS[TAIL[tail.length - 1]]) tail.pop();
+  if (!tail.length && build.ink === DEFAULT_BUILD.ink && build.number === DEFAULT_BUILD.number) return code;
+  return [code, build.ink, build.number, ...tail].join(".");
 }
 
 export function parse_build(code: unknown): Build | null {
@@ -70,33 +114,89 @@ export function parse_build(code: unknown): Build | null {
   const ink = m[7] === undefined ? DEFAULT_BUILD.ink : Number(m[7]);
   const number = m[8] === undefined ? DEFAULT_BUILD.number : Number(m[8]);
   if (paint > MAX_PAINT || decal > MAX_DECAL || ink > MAX_INK || number > MAX_NUMBER) return null;
-  return { car: m[1], paint, decal, ink, number, spoiler: level(m[4]), suspension: suspension_level(m[5]), engine: level(m[6]) };
+  const tail = m[9] ? m[9].slice(1).split(".").map(Number) : [];
+  const parts = { ...DEFAULT_PARTS };
+  HEAD.forEach((slot, i) => (parts[slot] = Number(m[4 + i])));
+  TAIL.forEach((slot, i) => (parts[slot] = tail[i] ?? DEFAULT_PARTS[slot]));
+  if (SLOT_NAMES.some((slot) => parts[slot] >= SLOTS[slot].length)) return null;
+  return { car: m[1], paint, decal, ink, number, parts };
 }
 
+function fold(mods: Mod[], field: Field, base: number): number {
+  let value = base;
+  for (const mod of mods) value *= mod.scale?.[field] ?? 1;
+  for (const mod of mods) value += mod.add?.[field] ?? 0;
+  const limit = LIMITS[field];
+  return limit ? Math.max(limit[0], Math.min(limit[1], value)) : value;
+}
+
+const is_numeric = (spec: CarSpec, field: keyof CarSpec): field is NumericField => typeof spec[field] === "number" && field !== "awd_split";
+
 export function apply_build(base: CarSpec, build: Build): CarSpec {
-  const { spoiler, suspension, engine } = build;
-  const spring = SUSPENSION_SPRING[suspension];
-  const revs = ENGINE_REVS[engine];
-  const torque = ENGINE_TORQUE[engine];
+  const mods = SLOT_NAMES.map((slot) => SLOTS[slot][build.parts[slot]].mod);
+  const at = (field: Field, value: number) => fold(mods, field, value);
+  const spec = { ...base };
+  for (const field of Object.keys(base) as (keyof CarSpec)[]) if (is_numeric(base, field)) spec[field] = at(field, base[field]);
+  const cog = at("cog", 0);
+  const [ix, iy, iz] = base.inertia;
   return {
-    ...base,
-    mass: base.mass + ENGINE_MASS[engine],
-    lock: base.lock * SUSPENSION_LOCK[suspension],
-    assist_yaw: base.assist_yaw * SUSPENSION_ASSIST_YAW[suspension],
-    wheel: { ...base.wheel, rest: base.wheel.rest + SUSPENSION_REST[suspension] },
-    spring: base.spring * spring,
-    damper: base.damper * spring,
-    arb_front: base.arb_front * SUSPENSION_ARB_FRONT[suspension],
-    arb_rear: base.arb_rear * SUSPENSION_ARB_REAR[suspension],
-    rear_grip: base.rear_grip + SPOILER_REAR_GRIP[spoiler] + SUSPENSION_REAR_GRIP[suspension],
-    redline: base.redline + revs,
-    upshift: base.upshift + revs,
-    torque: base.torque.map(([rpm, nm]) => [rpm, nm * torque]),
-    drag: base.drag + SPOILER_DRAG[spoiler],
-    downforce: base.downforce * SPOILER_DOWNFORCE[spoiler],
+    ...spec,
+    inertia: [at("inertia", ix), at("inertia", iy), at("inertia", iz)],
+    torque: base.torque.map(([rpm, nm]) => [rpm, at("torque", nm)]),
+    wheel: { ...base.wheel, rest: at("rest", base.wheel.rest), mounts: base.wheel.mounts.map(([x, y, z]): Triple => [x, y + cog, z]) },
+    corners: base.corners.map(([x, y, z]): Triple => [x, y + cog, z]),
   };
 }
 
 export function build_spec(build: Build): CarSpec {
   return apply_build(CARS[build.car], build);
+}
+
+const GRAVITY = 9.81;
+
+export interface Stats {
+  /** Peak power over mass, W/kg. */
+  power: number;
+  grip: number;
+  /** Peak straight-line braking, m/s². */
+  braking: number;
+  /** m/s, the lower of the drag limit at peak power and the limiter in top gear. */
+  top_speed: number;
+}
+
+export const STATS: readonly (keyof Stats)[] = ["power", "grip", "braking", "top_speed"];
+
+export function stats(spec: CarSpec): Stats {
+  const watts = Math.max(...spec.torque.filter(([rpm]) => rpm <= spec.redline).map(([rpm, nm]) => (nm * rpm * Math.PI) / 30));
+  const grip = (spec.mu * (1 + spec.rear_grip)) / 2;
+  const clamp = (2 * (spec.brake_front + spec.brake_rear)) / spec.wheel.radius / spec.mass;
+  const drag_limit = Math.cbrt((watts * spec.driveline) / spec.drag);
+  const gear_limit = ((spec.redline * Math.PI) / 30) * spec.wheel.radius / (spec.gears[spec.gears.length - 1] * spec.final);
+  return {
+    power: watts / spec.mass,
+    grip,
+    braking: Math.min(clamp, grip * spec.brake_grip * GRAVITY),
+    top_speed: Math.min(drag_limit, gear_limit),
+  };
+}
+
+let range: { low: Stats; high: Stats } | null = null;
+
+/** Each stat's spread over every car and part combination: the two ends of a garage bar. */
+export function stat_range(): { low: Stats; high: Stats } {
+  if (range) return range;
+  let combos: Record<Slot, number>[] = [{ ...DEFAULT_PARTS }];
+  for (const slot of SLOT_NAMES) combos = combos.flatMap((parts) => SLOTS[slot].map((_, i) => ({ ...parts, [slot]: i })));
+  const low: Stats = { power: Infinity, grip: Infinity, braking: Infinity, top_speed: Infinity };
+  const high: Stats = { power: 0, grip: 0, braking: 0, top_speed: 0 };
+  for (const car of Object.keys(CARS) as CarId[])
+    for (const parts of combos) {
+      const s = stats(build_spec({ ...DEFAULT_BUILD, car, parts }));
+      for (const key of STATS) {
+        low[key] = Math.min(low[key], s[key]);
+        high[key] = Math.max(high[key], s[key]);
+      }
+    }
+  range = { low, high };
+  return range;
 }

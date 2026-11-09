@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import { DECALS, DEFAULT_BUILD, MAX_NUMBER, build_code, build_spec, parse_build, type Build, type Decal } from "./build";
-import { CARS, is_car } from "./cars";
+import { DECALS, DEFAULT_BUILD, DEFAULT_PARTS, MAX_NUMBER, SLOTS, SLOT_NAMES, STATS, build_code, build_spec, parse_build, stat_range, stats, type Build, type Decal, type Slot, type Stats } from "./build";
+import { CARS, is_car, type CarSpec } from "./cars";
 import { FLAME, SIDE_BAND, SLASH } from "./livery";
 import { build_view, dispose_car_view, livery_of, rest_wheels, type CarView } from "./models";
 import { NEUTRAL_INKS, brand, car_paints, color, dark, decal_inks, rgba } from "./palette";
@@ -8,13 +8,12 @@ import "./garage.css";
 
 export const BUILD_KEY = "harepin:build";
 
-const LEVELS = {
-  spoiler: ["None", "Lip", "Wing"],
-  suspension: ["Soft", "Sport", "Race", "Drift"],
-  engine: ["Stock", "Tuned", "Race"],
-} satisfies Record<"spoiler" | "suspension" | "engine", readonly string[]>;
-type Option = keyof typeof LEVELS;
-const OPTIONS = Object.keys(LEVELS) as Option[];
+const STAT_NAMES: Record<keyof Stats, string> = { power: "Power", grip: "Grip", braking: "Braking", top_speed: "Top speed" };
+// An empty bar reads as broken, so the weakest car in the game still shows a sliver.
+const BAR_FLOOR = 0.08;
+
+const is_slot = (value: string): value is Slot => Object.hasOwn(SLOTS, value);
+const title = (slot: Slot) => slot[0].toUpperCase() + slot.slice(1);
 
 const DECAL_NAMES: Record<Decal, string> = {
   none: "None",
@@ -27,7 +26,7 @@ const DECAL_NAMES: Record<Decal, string> = {
   checker: "Checker",
   rabbit: "Rabbit",
 };
-const NUMERIC = ["paint", "decal", "ink", "spoiler", "suspension", "engine"] as const;
+const NUMERIC = ["paint", "decal", "ink"] as const;
 type Numeric = (typeof NUMERIC)[number];
 const is_numeric = (kind: string): kind is Numeric => (NUMERIC as readonly string[]).includes(kind);
 
@@ -138,6 +137,8 @@ export class Garage {
   private readonly decal_label = element("div", "garage-label");
   private readonly stepper = element("div", "garage-choice garage-stepper");
   private readonly number_input = element("input", "garage-number");
+  private readonly part_names = new Map<Slot, HTMLElement>();
+  private readonly bars = new Map<keyof Stats, { fill: HTMLElement; delta: HTMLElement; text: HTMLElement }>();
   private readonly scene = new THREE.Scene();
   private readonly camera = new THREE.PerspectiveCamera(32, 1, 0.1, 50);
   private renderer: THREE.WebGLRenderer | null = null;
@@ -176,11 +177,33 @@ export class Garage {
     });
     panel.append(this.group("paint", element("div", "garage-label", "Paint"), paints));
 
-    for (const option of OPTIONS) {
-      const row = element("div", "garage-row garage-choice");
-      LEVELS[option].forEach((label, level) => row.append(this.button(label, option, String(level))));
-      panel.append(this.group(option, element("div", "garage-label", option[0].toUpperCase() + option.slice(1)), row));
+    const slots = element("div", "garage-parts");
+    for (const slot of SLOT_NAMES) {
+      const cycler = element("div", "garage-choice garage-cycler");
+      const name = element("span", "garage-part");
+      this.part_names.set(slot, name);
+      const prev = this.button("‹", "part", `${slot}:-1`);
+      const next = this.button("›", "part", `${slot}:1`);
+      prev.setAttribute("aria-label", `Previous ${slot}`);
+      next.setAttribute("aria-label", `Next ${slot}`);
+      cycler.append(prev, name, next);
+      const cell = element("div", "garage-slot");
+      cell.append(element("div", "garage-label garage-slot-label", title(slot)), cycler);
+      slots.append(cell);
     }
+    panel.append(this.group("parts", element("div", "garage-label", "Parts"), slots));
+
+    const meters = element("div", "garage-stats");
+    for (const key of STATS) {
+      const track = element("div", "garage-bar");
+      const fill = element("div", "garage-bar-fill");
+      const delta = element("div", "garage-bar-delta");
+      track.append(fill, delta);
+      const text = element("span", "garage-bar-text");
+      meters.append(element("span", "garage-bar-label", STAT_NAMES[key]), track, text);
+      this.bars.set(key, { fill, delta, text });
+    }
+    panel.append(this.group("stats", element("div", "garage-label", "Stats vs stock"), meters));
 
     DECALS.forEach((decal, i) => {
       const tile = this.button("", "decal", String(i));
@@ -282,6 +305,12 @@ export class Garage {
     const b = this.current;
     if (kind === "car" && is_car(value)) this.apply({ ...b, car: value });
     else if (kind === "number") this.apply({ ...b, number: (b.number + Number(value) + MAX_NUMBER + 1) % (MAX_NUMBER + 1) });
+    else if (kind === "part") {
+      const [slot, step] = value.split(":");
+      if (!is_slot(slot)) return;
+      const count = SLOTS[slot].length;
+      this.apply({ ...b, parts: { ...b.parts, [slot]: (b.parts[slot] + Number(step) + count) % count } });
+    }
     else if (is_numeric(kind)) this.apply({ ...b, [kind]: Number(value) });
   };
 
@@ -310,11 +339,11 @@ export class Garage {
     const b = this.current;
     for (const button of this.buttons) {
       const { kind, value } = button.dataset;
-      if (kind === "number" || kind === "close") continue;
+      if (kind === "number" || kind === "close" || kind === "part") continue;
       const on =
         (kind === "car" && value === b.car) ||
         (kind === "paint" && Number(value) === b.paint % car_paints.length) ||
-        ((kind === "decal" || kind === "ink" || kind === "spoiler" || kind === "suspension" || kind === "engine") && Number(value) === b[kind]);
+        ((kind === "decal" || kind === "ink") && Number(value) === b[kind]);
       button.setAttribute("aria-pressed", String(on));
     }
     const decal = DECALS[b.decal];
@@ -334,6 +363,7 @@ export class Garage {
       dispose_car_view(this.view);
     }
     const spec = build_spec(b);
+    this.show_parts(spec);
     this.view = build_view(b, spec);
     rest_wheels(this.view, spec);
     this.view.root.position.y = -this.view.body.position.y - 0.6;
@@ -347,6 +377,26 @@ export class Garage {
     this.view.root.rotation.y = this.spin;
     this.scene.add(this.view.root);
     this.frame_car();
+  }
+
+  private show_parts(spec: CarSpec) {
+    const b = this.current;
+    for (const [slot, name] of this.part_names) name.textContent = SLOTS[slot][b.parts[slot]].name;
+    const now = stats(spec);
+    const stock = stats(build_spec({ ...b, parts: DEFAULT_PARTS }));
+    const { low, high } = stat_range();
+    const at = (key: keyof Stats, value: number) => BAR_FLOOR + (1 - BAR_FLOOR) * ((value - low[key]) / (high[key] - low[key]));
+    for (const [key, bar] of this.bars) {
+      const was = at(key, stock[key]);
+      const is = at(key, now[key]);
+      bar.fill.style.width = `${Math.min(was, is) * 100}%`;
+      bar.delta.style.left = `${Math.min(was, is) * 100}%`;
+      bar.delta.style.width = `${Math.abs(is - was) * 100}%`;
+      const change = Math.round((now[key] / stock[key] - 1) * 100);
+      bar.delta.dataset.trend = change > 0 ? "up" : change < 0 ? "down" : "flat";
+      bar.text.dataset.trend = bar.delta.dataset.trend;
+      bar.text.textContent = change === 0 ? "" : `${change > 0 ? "+" : "−"}${Math.abs(change)}%`;
+    }
   }
 
   private frame_car() {
