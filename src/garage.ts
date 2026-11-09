@@ -13,7 +13,8 @@ const STAT_NAMES: Record<keyof Stats, string> = { power: "Power", grip: "Grip", 
 const BAR_FLOOR = 0.08;
 
 const is_slot = (value: string): value is Slot => Object.hasOwn(SLOTS, value);
-const title = (slot: Slot) => slot[0].toUpperCase() + slot.slice(1);
+const SLOT_TITLES: Partial<Record<Slot, string>> = { bias: "Brake bias" };
+const title = (slot: Slot) => SLOT_TITLES[slot] ?? slot[0].toUpperCase() + slot.slice(1);
 
 const DECAL_NAMES: Record<Decal, string> = {
   none: "None",
@@ -385,7 +386,7 @@ export class Garage {
     const now = stats(spec);
     const stock = stats(build_spec({ ...b, parts: DEFAULT_PARTS }));
     const { low, high } = stat_range();
-    const at = (key: keyof Stats, value: number) => BAR_FLOOR + (1 - BAR_FLOOR) * ((value - low[key]) / (high[key] - low[key]));
+    const at = (key: keyof Stats, value: number) => BAR_FLOOR + (1 - BAR_FLOOR) * Math.max(0, Math.min(1, (value - low[key]) / (high[key] - low[key])));
     for (const [key, bar] of this.bars) {
       const was = at(key, stock[key]);
       const is = at(key, now[key]);

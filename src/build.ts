@@ -52,13 +52,18 @@ export const SLOTS = {
   ],
   brakes: [
     { name: "Stock", mod: {} },
-    { name: "Sport", mod: { scale: { brake_front: 1.15, brake_rear: 1.15 }, add: { brake_grip: 0.06 } } },
-    { name: "Race", mod: { scale: { brake_front: 1.3, brake_rear: 1.3 }, add: { brake_grip: 0.12 } } },
+    { name: "Sport", mod: { scale: { brake_front: 1.15, brake_rear: 1.15 }, add: { brake_grip: 0.14 } } },
+    { name: "Race", mod: { scale: { brake_front: 1.3, brake_rear: 1.3 }, add: { brake_grip: 0.3 } } },
   ],
   weight: [
     { name: "Stock", mod: {} },
     { name: "Light", mod: { scale: { mass: 0.95, inertia: 0.95 }, add: { cog: 0.01 } } },
     { name: "Stripped", mod: { scale: { mass: 0.9, inertia: 0.9 }, add: { cog: 0.025 } } },
+  ],
+  bias: [
+    { name: "Front", mod: { scale: { brake_front: 1.1, brake_rear: 0.75 } } },
+    { name: "Balanced", mod: {} },
+    { name: "Rear", mod: { scale: { brake_front: 0.92, brake_rear: 1.3 } } },
   ],
 } satisfies Record<string, Part[]>;
 
@@ -87,7 +92,7 @@ export type Decal = (typeof DECALS)[number];
 export const MAX_DECAL = DECALS.length - 1;
 export const MAX_INK = 8;
 export const MAX_NUMBER = 99;
-export const DEFAULT_PARTS: Record<Slot, number> = { engine: 0, tyres: 0, spoiler: 0, suspension: 1, brakes: 0, weight: 0 };
+export const DEFAULT_PARTS: Record<Slot, number> = { engine: 0, tyres: 0, spoiler: 0, suspension: 1, brakes: 0, weight: 0, bias: 1 };
 export const DEFAULT_BUILD: Build = { car: "coupe", paint: 0, decal: 0, ink: 0, number: 7, parts: DEFAULT_PARTS };
 
 const HEAD: readonly Slot[] = ["spoiler", "suspension", "engine"];
@@ -182,21 +187,26 @@ export function stats(spec: CarSpec): Stats {
 
 let range: { low: Stats; high: Stats } | null = null;
 
-/** Each stat's spread over every car and part combination: the two ends of a garage bar. */
+// Every combination is tens of thousands of specs, too slow for a garage tap on a phone. Per car, each stat takes the
+// best (or worst) part per slot on its own, which lands on or near the true extreme; the bars clamp the rest.
+/** Each stat's spread over the cars and their parts: the two ends of a garage bar. */
 export function stat_range(): { low: Stats; high: Stats } {
   if (range) return range;
-  let combos: Record<Slot, number>[] = [{ ...DEFAULT_PARTS }];
-  for (const slot of SLOT_NAMES) combos = combos.flatMap((parts) => SLOTS[slot].map((_, i) => ({ ...parts, [slot]: i })));
   const low: Stats = { power: Infinity, grip: Infinity, braking: Infinity, top_speed: Infinity };
   const high: Stats = { power: 0, grip: 0, braking: 0, top_speed: 0 };
   for (const car of Object.keys(CARS) as CarId[])
-    for (const parts of combos) {
-      const s = stats(build_spec({ ...DEFAULT_BUILD, car, parts }));
-      for (const key of STATS) {
-        low[key] = Math.min(low[key], s[key]);
-        high[key] = Math.max(high[key], s[key]);
+    for (const key of STATS)
+      for (const sign of [-1, 1]) {
+        const score = (parts: Record<Slot, number>) => sign * stats(build_spec({ ...DEFAULT_BUILD, car, parts }))[key];
+        const parts = { ...DEFAULT_PARTS };
+        for (const slot of SLOT_NAMES) {
+          const pick = (i: number) => score({ ...DEFAULT_PARTS, [slot]: i });
+          parts[slot] = SLOTS[slot].reduce((best, _, i) => (pick(i) > pick(best) ? i : best), DEFAULT_PARTS[slot]);
+        }
+        const value = sign * score(parts);
+        low[key] = Math.min(low[key], value);
+        high[key] = Math.max(high[key], value);
       }
-    }
   range = { low, high };
   return range;
 }

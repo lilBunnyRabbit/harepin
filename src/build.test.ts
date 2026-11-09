@@ -27,7 +27,7 @@ test("new slots ride a tail that is left off at their defaults", () => {
   const weight = with_parts({ weight: 2, engine: 2 }, { ink: 3, number: 11 });
   expect(build_code(weight)).toBe("coupe.0.0.0.1.2.3.11.0.0.2");
   expect(parse_build(build_code(weight))).toEqual(weight);
-  const all = with_parts({ tyres: 1, brakes: 2, weight: 1, spoiler: 2, suspension: 3, engine: 2 }, { car: "muscle", paint: 15, decal: 8, ink: 8, number: 99 });
+  const all = with_parts({ tyres: 1, brakes: 2, weight: 1, bias: 2, spoiler: 2, suspension: 3, engine: 2 }, { car: "muscle", paint: 15, decal: 8, ink: 8, number: 99 });
   expect(build_code(all).length).toBeLessThanOrEqual(32);
   expect(parse_build(build_code(all))).toEqual(all);
   expect(build_code(with_parts({}, { ink: 1 }))).toBe("coupe.0.0.0.1.0.1.7");
@@ -54,7 +54,8 @@ test("off-grammar codes are rejected", () => {
     "coupe.0.1.0.1.0.0",
     "coupe.0.1.0.1.0.0.7.4",
     "coupe.0.1.0.1.0.0.7.0.0.3",
-    "coupe.0.1.0.1.0.0.7.0.0.0.0",
+    "coupe.0.1.0.1.0.0.7.0.0.0.0.0",
+    "coupe.0.1.0.1.0.0.7.0.0.0.3",
     "coupe.0.1.0.1.0.0.7.",
     "coupe.0.1.0.1.0..7",
     "coupe.0.0.3.1.0",
@@ -167,7 +168,9 @@ test("tyres order tarmac grip street < sport < semi-slick, rally wins off it and
 test("brakes and weight move the spec the documented way", () => {
   const race = apply_build(COUPE, with_parts({ brakes: 2 }));
   expect(race.brake_front).toBeCloseTo(COUPE.brake_front * 1.3);
-  expect(race.brake_grip).toBeCloseTo(COUPE.brake_grip + 0.12);
+  expect(race.brake_grip).toBeCloseTo(COUPE.brake_grip + 0.3);
+  const rear = apply_build(COUPE, with_parts({ bias: 2 }));
+  expect(rear.brake_rear / rear.brake_front).toBeGreaterThan(COUPE.brake_rear / COUPE.brake_front);
   const stripped = apply_build(COUPE, with_parts({ weight: 2, engine: 2 }));
   expect(stripped.mass).toBeCloseTo(COUPE.mass * 0.9 + 30);
   expect(stripped.inertia[1]).toBeCloseTo(COUPE.inertia[1] * 0.9);
