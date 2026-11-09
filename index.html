@@ -137,6 +137,27 @@
           <span class="dim">room <b id="room"></b></span>
         </div>
       </div>
+      <div class="hud actions">
+        <button type="button" id="garage-btn" class="icon-button" aria-label="Garage" title="Garage"><svg aria-hidden="true"><use href="#icon-car" /></svg></button>
+        <button type="button" id="settings-btn" class="icon-button" aria-label="Settings" title="Settings (Esc)"><svg aria-hidden="true"><use href="#icon-settings" /></svg></button>
+        <button type="button" id="chat-btn" class="icon-button" aria-label="Chat" title="Chat (T)" aria-expanded="false" aria-controls="chat-panel"><svg aria-hidden="true"><use href="#icon-chat" /></svg><span id="chat-unread" class="badge" hidden></span></button>
+        <button type="button" id="modes-btn" popovertarget="modes">Modes</button>
+        <div id="modes" popover>
+          <div class="modes-head"><b>Gymkhana</b><span class="dim" id="gym-stars"></span></div>
+          <ol id="gym-levels"></ol>
+          <div class="modes-head"><b>Parking</b><span class="dim" id="park-stars"></span></div>
+          <ol id="park-levels"></ol>
+          <div class="modes-head"><b>Drift zones</b><span class="dim" id="drift-stars"></span></div>
+          <ol id="drift-levels"></ol>
+          <div class="modes-head"><b>Gate hunt</b><span class="dim" id="hunt-stars"></span></div>
+          <ol id="hunt-levels"></ol>
+          <div class="modes-head"><b>Ghost duel</b><span class="dim" id="duel-stars"></span></div>
+          <ol id="duel-levels"></ol>
+          <div class="modes-head"><b>Lobby race</b><span class="dim" id="race-record"></span></div>
+          <button type="button" id="free-drive">Free drive</button>
+        </div>
+      </div>
+      <div class="dock-break"></div>
       <div class="hud times" id="strip">
         <div class="lap"><span class="dim">lap</span><b id="lap"></b></div>
         <div><span class="dim">last</span><b id="last"></b></div>
@@ -145,25 +166,11 @@
         <button type="button" id="restart-lap" class="icon-button" aria-label="Restart lap" title="Restart lap (L)"><svg aria-hidden="true"><use href="#icon-restart" /></svg></button>
       </div>
     </div>
-    <div class="hud actions">
-      <button type="button" id="garage-btn" class="icon-button" aria-label="Garage" title="Garage"><svg aria-hidden="true"><use href="#icon-car" /></svg></button>
-      <button type="button" id="settings-btn" class="icon-button" aria-label="Settings" title="Settings (Esc)"><svg aria-hidden="true"><use href="#icon-settings" /></svg></button>
-      <button type="button" id="chat-btn" class="icon-button" aria-label="Chat" title="Chat (T)" aria-expanded="false" aria-controls="chat-panel"><svg aria-hidden="true"><use href="#icon-chat" /></svg><span id="chat-unread" class="badge" hidden></span></button>
-      <button type="button" id="modes-btn" popovertarget="modes">Modes</button>
-      <div id="modes" popover>
-        <div class="modes-head"><b>Gymkhana</b><span class="dim" id="gym-stars"></span></div>
-        <ol id="gym-levels"></ol>
-        <div class="modes-head"><b>Parking</b><span class="dim" id="park-stars"></span></div>
-        <ol id="park-levels"></ol>
-        <div class="modes-head"><b>Drift zones</b><span class="dim" id="drift-stars"></span></div>
-        <ol id="drift-levels"></ol>
-        <div class="modes-head"><b>Gate hunt</b><span class="dim" id="hunt-stars"></span></div>
-        <ol id="hunt-levels"></ol>
-        <div class="modes-head"><b>Ghost duel</b><span class="dim" id="duel-stars"></span></div>
-        <ol id="duel-levels"></ol>
-        <div class="modes-head"><b>Lobby race</b><span class="dim" id="race-record"></span></div>
-        <button type="button" id="free-drive">Free drive</button>
-      </div>
+    <div class="assists" role="group" aria-label="Driving aids">
+      <button type="button" class="chip" data-aid="tcs" aria-pressed="true" title="Traction control (1)">TC</button>
+      <button type="button" class="chip" data-aid="abs" aria-pressed="true" title="ABS (2)">ABS</button>
+      <button type="button" class="chip" data-aid="assist" aria-pressed="true" title="Steer assist (3)">Assist</button>
+      <button type="button" class="chip" data-aid="auto" aria-pressed="true" title="Auto gearbox (M)">Auto</button>
     </div>
 
     <div class="hud top-right">

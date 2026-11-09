@@ -173,6 +173,7 @@ function apply_car_settings(state: SettingsState) {
 
 function apply_settings(state: SettingsState) {
   apply_car_settings(state);
+  for (const chip of document.querySelectorAll<HTMLElement>(".assists [data-aid]")) chip.setAttribute("aria-pressed", String(state[chip.dataset.aid as "tcs" | "abs" | "assist" | "auto"]));
   input.touch.set_steer_mode(state.touch_steer);
   chase.mode = state.camera === CameraView.COCKPIT ? 1 : 0;
   audio.set_view(state.camera === CameraView.COCKPIT);
@@ -364,6 +365,18 @@ function fit() {
 }
 
 const TOGGLE_LABEL = { tcs: "TCS", abs: "ABS", assist: "Steer assist", ghost: "Ghost" } as const;
+type Aid = keyof typeof TOGGLE_LABEL | "auto";
+function toggle_aid(aid: Aid) {
+  const state = settings.state;
+  settings.set(aid, !state[aid]);
+  if (aid === "auto") hud.toast(state.auto ? "Manual gearbox" : "Auto gearbox");
+  else hud.toast(`${TOGGLE_LABEL[aid]} ${state[aid] ? "off" : "on"}`);
+}
+for (const chip of document.querySelectorAll<HTMLButtonElement>(".assists [data-aid]"))
+  chip.addEventListener("click", () => {
+    chip.blur();
+    toggle_aid(chip.dataset.aid as Aid);
+  });
 
 const DT = 1 / 360;
 // Farther than a step can move: the car was placed (reset, mode restart), so drawing it does not slide from the old spot.
@@ -435,14 +448,7 @@ function frame(now: number) {
       settings.set("auto", false);
       car.shift(action === "shift_up" ? 1 : -1);
     }
-    if (action === "auto") {
-      settings.set("auto", !state.auto);
-      hud.toast(state.auto ? "Manual gearbox" : "Auto gearbox");
-    }
-    if (action === "tcs" || action === "abs" || action === "assist" || action === "ghost") {
-      settings.set(action, !state[action]);
-      hud.toast(`${TOGGLE_LABEL[action]} ${state[action] ? "off" : "on"}`);
-    }
+    if (action === "auto" || action === "tcs" || action === "abs" || action === "assist" || action === "ghost") toggle_aid(action);
     if (action === "help" && !garage.is_open) settings.is_open ? settings.close() : settings.open_keys();
     if (action === "garage" && !settings.is_open) garage.is_open ? garage.close() : garage.open();
     if (action === "settings" && !garage.is_open) settings.open();
