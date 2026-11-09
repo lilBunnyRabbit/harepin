@@ -472,7 +472,7 @@ function frame(now: number) {
   audio.update({ rpm: car.rpm, throttle: car.throttle, scrub, speed, offroad, sound: car.spec.sound, redline: car.spec.redline });
   if (now - last_rumble > 100) {
     last_rumble = now;
-    const spin = Math.max(0, ...car.wheels.filter((w) => w.driven).map((w) => w.slip - 0.15));
+    const spin = Math.max(0, ...car.wheels.filter((w) => w.driven && w.contact).map((w) => w.slip - 0.15));
     input.rumble(scrub * 0.6 + (offroad ? Math.min(0.4, speed / 50) : 0), Math.min(1, spin * 2));
   }
 
