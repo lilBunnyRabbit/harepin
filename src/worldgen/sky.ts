@@ -162,33 +162,41 @@ function draw_layout(rng: () => number): PlanPiece[] | null {
 
 /** Slowest toe speed a gap is sized to clear, and the fastest its landing runs out. */
 export const GAP_SLOW = 22;
-export const GAP_FAST = 45;
-/** The landing starts this far below the lip and runs down at LANDING_GRADE. */
-const LANDING_DROP = 4;
-export const LANDING_GRADE = -0.25;
+// Past a 37 m/s toe (40 here, which the run-up arrives at 3 m/s down) the kaze yaws past 0.35 rad/s off every landing
+// tried, flat included, and it does on the island's road kicker at 45 too.
+export const GAP_FAST = 40;
+/** Landing deck half-width: a little wider than the run-up for a car that took off with some slip. */
+export const LANDING_HALF = 7.5;
+/** The landing starts this far below the lip. */
+const LANDING_DROP = 2;
+// Nearly level, like the island's road kicker landing: on a 25% landing every car came down 0.35 rad steeper than the
+// deck, bounced, and with a little slip yawed past 0.35 rad/s on the second touchdown.
+export const LANDING_GRADE = -0.04;
 /** Slowest touchdown lands this far onto the landing; the landing runs this far past the fastest one. */
 const LANDING_SPARE = 6;
 const LANDING_RUNOUT = 20;
-export const KICKER_GRADE = ROAD_KICKER.rise / ROAD_KICKER.length;
+export const SKY_KICKER = ROAD_KICKER;
 
 export interface GapJump {
   gap: number;
   /** Straight landing at LANDING_GRADE before its sag curve back to level. */
   landing: number;
   sag: number;
+  rise: number;
+  drop: number;
   /** Run-up before the toe, then the whole span from the toe to the end of the sag. */
   span: number;
 }
 
 /** The kicker lip as a ramp at the origin heading +z, for the flight maths. */
 export function gap_ramp(): Ramp {
-  return { id: 0, kind: ROAD_KICKER.kind, x: 0, y: 0, z: 0, fx: 0, fz: 1, hw: ROAD_HALF, length: ROAD_KICKER.length, rise: ROAD_KICKER.rise, grade: 0, landing: 0, speed: GAP_SLOW, back: ROAD_KICKER.back, road: true, deck: true };
+  return { id: 0, kind: ROAD_KICKER.kind, x: 0, y: 0, z: 0, fx: 0, fz: 1, hw: ROAD_HALF, length: SKY_KICKER.length, rise: SKY_KICKER.rise, grade: 0, landing: 0, speed: GAP_SLOW, back: SKY_KICKER.back, road: true, deck: true };
 }
 
 /** Metres past the lip where a car that hit the toe at `speed` comes down on the landing. */
 export function touchdown(speed: number, gap: number): number {
   const r = gap_ramp();
-  const lip = ROAD_KICKER.rise;
+  const lip = SKY_KICKER.rise;
   const surface = (d: number) => lip - LANDING_DROP + Math.min(0, LANDING_GRADE * (d - gap)) + RIDE;
   let d = 0.5;
   while (d < 400 && flight(r, speed, d) > surface(d)) d += 0.25;
@@ -198,11 +206,11 @@ export function touchdown(speed: number, gap: number): number {
 export function size_gap(): GapJump {
   const r = gap_ramp();
   let d = 1;
-  while (flight(r, GAP_SLOW, d) > ROAD_KICKER.rise - LANDING_DROP + RIDE) d += 0.25;
+  while (flight(r, GAP_SLOW, d) > SKY_KICKER.rise - LANDING_DROP + RIDE) d += 0.25;
   const gap = Math.floor(d - LANDING_SPARE);
   const landing = touchdown(GAP_FAST, gap) + LANDING_RUNOUT - gap;
   const sag = ramp_length(LANDING_GRADE, 0);
-  return { gap, landing, sag, span: ROAD_KICKER.length + gap + landing + sag };
+  return { gap, landing, sag, rise: SKY_KICKER.rise, drop: LANDING_DROP, span: SKY_KICKER.length + gap + landing + sag };
 }
 
 /** Rounded rectangle, for a seed whose every draw failed: always closes and keeps its distance. */

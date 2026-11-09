@@ -6,7 +6,7 @@ import { CARS } from "../cars";
 import { seed_of } from "../rng";
 import { generate } from "./index";
 import { DECK_UNDER } from "./deck";
-import { gap_ramp, GAP_FAST, GAP_SLOW, LANDING_GRADE, size_gap } from "./sky";
+import { gap_ramp, GAP_FAST, GAP_SLOW, LANDING_GRADE, LANDING_HALF, size_gap } from "./sky";
 import { apex, face_end, flight, GATE_CLEAR, GATE_RUNOUT, ramp_local, ramp_surface, ROAD_KICKER, RUN_DRIFT } from "./jumps";
 import { SPAWN_INDEX, type Ramp } from "./types";
 
@@ -37,25 +37,28 @@ interface Jump {
   /** Peak yaw rate (rad/s) once back on the ground, and how far the heading turned from the toe on. */
   yaw: number;
   heading: number;
+  /** Where the car first came back down after a real flight, and how far it had drifted sideways by then. */
+  touch: number;
+  drift: number;
 }
 
 /** A sky-track gap jump along +z: deck to the lip, open air over the gap, then the landing and its sag back to level. */
 function ground_gap(): Ground {
-  const { gap, landing, sag } = size_gap();
+  const { gap, landing, sag, rise, drop } = size_gap();
   const lip = gap_ramp().length;
   const land = lip + gap;
   const deck = (z: number): { y: number; g: number } | null => {
     if (z < 0) return { y: 0, g: 0 };
-    if (z <= lip) return { y: (2 * z) / lip, g: 2 / lip };
+    if (z <= lip) return { y: (rise * z) / lip, g: rise / lip };
     if (z < land) return null;
-    const top = 2 - 4;
+    const top = rise - drop;
     if (z < land + landing) return { y: top + LANDING_GRADE * (z - land), g: LANDING_GRADE };
     const t = Math.min(z - land - landing, sag);
     const g = LANDING_GRADE * (1 - t / sag);
     return { y: top + LANDING_GRADE * landing + ((LANDING_GRADE + g) / 2) * t, g };
   };
   const at = (x: number, z: number, y?: number) => {
-    const d = Math.abs(x) <= 6 ? deck(z) : null;
+    const d = deck(z);
     return d && (y === undefined || y > d.y - DECK_UNDER) ? d : null;
   };
   return {
@@ -69,7 +72,7 @@ function ground_gap(): Ground {
 function jump(r: Ramp, car: Car, speed: number, slip = 0, gas = 0, ground = ground_with(r)): Jump {
   const challenge = r.length + apex(r) * 0.85;
   const up = new Vector3();
-  const out: Jump = { toe: 0, at_challenge: NaN, sink: 0, upright: 1, air: 0, landed: 0, yaw: 0, heading: 0 };
+  const out: Jump = { toe: 0, at_challenge: NaN, sink: 0, upright: 1, air: 0, landed: 0, yaw: 0, heading: 0, touch: NaN, drift: NaN };
   car.place(0, 1, -60, 0);
   car.vel.set(0, 0, speed);
   let last = car.pos.z;
@@ -88,7 +91,10 @@ function jump(r: Ramp, car: Car, speed: number, slip = 0, gas = 0, ground = grou
     }
     out.sink = Math.max(out.sink, ground.height(car.pos.x, car.pos.z) - car.pos.y);
     out.upright = Math.min(out.upright, up.set(0, 1, 0).applyQuaternion(car.quat).y);
-    if (out.air > 0.2 && car.wheels.some((w) => w.contact)) out.yaw = Math.max(out.yaw, Math.abs(car.ang.y));
+    if (out.air > 0.2 && car.wheels.some((w) => w.contact)) {
+      out.yaw = Math.max(out.yaw, Math.abs(car.ang.y));
+      if (Number.isNaN(out.touch)) [out.touch, out.drift] = [car.pos.z, car.pos.x];
+    }
     last = car.pos.z;
   }
   out.heading += car.heading;
@@ -129,18 +135,18 @@ describe("sky gap jump at 360 Hz", () => {
   const r = gap_ramp();
   const { gap, landing } = size_gap();
   const ground = ground_gap();
-  // Red gate: with 1.5 m/s of sideways slip every car yaws past 0.35 rad/s landing on the 25% deck, so the generator
-  // places no gaps until this passes; flip back to `test` then.
+  // The ground runs on sideways forever: on the track the rails hold a drifting car, so only the touchdown has to fit the deck.
   for (const [id, spec] of Object.entries(CARS))
-    test.failing(`${id}: clears the gap and lands straight on its wheels from ${GAP_SLOW} to ${GAP_FAST} m/s`, () => {
-      for (const speed of [GAP_SLOW, 26, 30, 35, 40, GAP_FAST])
+    test(`${id}: clears the gap and lands straight on its wheels from ${GAP_SLOW} to ${GAP_FAST} m/s`, () => {
+      for (const speed of [GAP_SLOW, 26, 30, 34, 37, GAP_FAST])
         for (const gas of [0, 1])
           for (const slip of [0, 1.5]) {
             const car = new Car(spec);
             const run = jump(r, car, speed, slip, gas, ground);
             const where = `${speed} m/s (toe ${run.toe.toFixed(1)}), gas ${gas}, slip ${slip}`;
-            expect(run.landed, where).toBeGreaterThan(r.length + gap);
-            expect(run.landed, where).toBeLessThan(r.length + gap + landing);
+            expect(run.touch, where).toBeGreaterThan(r.length + gap);
+            expect(run.touch, where).toBeLessThan(r.length + gap + landing);
+            expect(Math.abs(run.drift), where).toBeLessThan(LANDING_HALF - 1);
             expect(car.pos.y - ground.height(car.pos.x, car.pos.z, car.pos.y), where).toBeGreaterThan(0);
             expect(car.pos.y - ground.height(car.pos.x, car.pos.z, car.pos.y), where).toBeLessThan(1.5);
             expect(run.upright, where).toBeGreaterThan(0.75);
