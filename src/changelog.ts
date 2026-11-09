@@ -23,13 +23,27 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
-    version: "0.5.2",
+    version: "0.6.0",
     date: "2026-11-09",
-    title: "Lights on the formula",
+    title: "Build your car",
     changes: [
-      { kind: FIXED, text: "Tyres, wings and dark trim on every car stand out from the road in dark themes." },
-      { kind: IMPROVED, text: "The formula car gets a slimmer engine cover, one central exhaust, a cleaner rear wing, a halo and a rain light that glows with the brakes." },
-      { kind: IMPROVED, text: "Nitro bottles on the formula sit inside the sidepods." },
+      { kind: NEW, text: "Parts for every car: engine, tyres, spoiler, suspension, brakes, weight, brake bias and nitro. Each one changes how the car drives, and most show on the car." },
+      { kind: NEW, text: "A new garage: the car fills the screen, turns to the part you pick, and the meters preview a part before you fit it. Drag to turn it, pinch or scroll to zoom." },
+      { kind: NEW, text: "Nitro: fit a tank, hold Shift, N or B. Drifts, jumps and near misses fill it." },
+      { kind: NEW, text: "A formula car: light, fast and glued to the road by downforce, but lost on grass." },
+      { kind: NEW, text: "A new circuit on every island, with a hairpin climb up the mountain and real hills. Lap records start fresh." },
+      { kind: NEW, text: "Servers: see open games, join one, or make a room with a password. Join their map takes you to a friend on another island." },
+      { kind: NEW, text: "World screen: pick or roll an island seed and see its map before you drive it." },
+      { kind: NEW, text: "Every menu works with a controller." },
+      { kind: NEW, text: "Restart the lap from the lap strip or with L." },
+      { kind: IMPROVED, text: "Engines and other sounds sit an octave lower, and mute fully stops the sound." },
+      { kind: IMPROVED, text: "Night scenes: headlights light things up without blowing them out, warm white lamps, a calmer sun, and car trim that stands out from the road." },
+      { kind: IMPROVED, text: "The muscle car grips better and every car stops shorter." },
+      { kind: IMPROVED, text: "The coupe has a rounder nose and a fastback roof." },
+      { kind: IMPROVED, text: "Pinch to zoom the camera on phones. On desktop the garage, settings, chat and modes buttons sit at the bottom left." },
+      { kind: FIXED, text: "Skid marks show on the road again." },
+      { kind: FIXED, text: "A car in neutral no longer rolls on flat ground, and cars no longer look sunk into the road." },
+      { kind: FIXED, text: "Long room names no longer push into the lap strip." },
     ],
   },
   {
