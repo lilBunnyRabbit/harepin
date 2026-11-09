@@ -426,7 +426,9 @@ export class Garage {
       const ghost = element("div", "garage-meter-ghost");
       const stock = element("i", "garage-meter-stock");
       track.append(fill, ghost, stock);
-      rows.append(element("span", "garage-meter-label", STAT_NAMES[key]), value, change, track);
+      const stat = element("div", "garage-stat");
+      stat.append(element("span", "garage-meter-label", STAT_NAMES[key]), value, change, track);
+      rows.append(stat);
       this.meters.set(key, { value, change, fill, ghost, stock, shown: Number.NaN, count: 0 });
     }
     this.panel.append(rows);
@@ -670,6 +672,8 @@ export class Garage {
     if (key !== this.strip_key) {
       this.strip_key = key;
       this.strip.dataset.kind = item.kind;
+      // A new slot's cards start from the strip's start, not the last slot's scroll, so the fitted one lands in view at once.
+      this.strip.scrollLeft = 0;
       if (item.kind === "number") {
         const card = element("div", "garage-card garage-stepper");
         const step = (label: string, value: string, aria: string) => {
@@ -891,18 +895,16 @@ export class Garage {
     renderer.setPixelRatio(Math.min(2, devicePixelRatio));
     renderer.setSize(width, height, false);
     const area = { left: 0, top: 0, right: width, bottom: height };
-    const box = (panel: HTMLElement) => {
+    // Each panel names the side of the stage it takes in `--garage-side`: the layouts move panels between sides.
+    for (const panel of [this.top, this.rail, this.panel, this.bottom]) {
       const r = panel.getBoundingClientRect();
-      return r.width && r.height ? r : null;
-    };
-    const top = box(this.top);
-    const rail = box(this.rail);
-    const stats = box(this.panel);
-    const bottom = box(this.bottom);
-    if (top) area.top = Math.max(area.top, top.bottom + FREE_PAD);
-    if (rail) area.left = Math.max(area.left, rail.right + FREE_PAD);
-    if (stats) area.right = Math.min(area.right, stats.left - FREE_PAD);
-    if (bottom) area.bottom = Math.min(area.bottom, bottom.top - FREE_PAD);
+      if (!r.width || !r.height) continue;
+      const side = getComputedStyle(panel).getPropertyValue("--garage-side").trim();
+      if (side === "top") area.top = Math.max(area.top, r.bottom + FREE_PAD);
+      else if (side === "left") area.left = Math.max(area.left, r.right + FREE_PAD);
+      else if (side === "right") area.right = Math.min(area.right, r.left - FREE_PAD);
+      else if (side === "bottom") area.bottom = Math.min(area.bottom, r.top - FREE_PAD);
+    }
     this.area = area;
     this.clear.left = (2 * area.left) / width - 1;
     this.clear.right = (2 * Math.max(area.right, area.left + 80)) / width - 1;
