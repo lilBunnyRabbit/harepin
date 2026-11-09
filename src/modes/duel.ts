@@ -30,10 +30,11 @@ export interface Route {
   par_ms: number;
 }
 
-export function build_route(seed: number, road: readonly RoutePoint[], level: DuelLevel): Route {
+/** `clear` moves a start point off anything a car must not be put down on, such as a kicker on the circuit. */
+export function build_route(seed: number, road: readonly RoutePoint[], level: DuelLevel, clear = (index: number) => index): Route {
   const rng = mulberry32(sub(seed, `duel:${level.id}`));
   const start = Math.floor(rng() * road.length);
-  const points = slice(road, start - DUEL_LEAD, level.points + DUEL_LEAD);
+  const points = slice(road, clear(start - DUEL_LEAD), level.points + DUEL_LEAD);
   const at = [0];
   for (let i = 1; i < points.length; i++) at.push(at[i - 1] + Math.hypot(points[i].x - points[i - 1].x, points[i].z - points[i - 1].z));
   const zero = at[DUEL_LEAD];

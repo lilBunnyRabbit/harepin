@@ -29,6 +29,7 @@ import { NanProbe, sanitise_bloom } from "./postfx";
 import { CAMERA_RETURN_SECONDS, CameraView, Settings, load_settings, save_setting, type SettingsState } from "./settings";
 import { ask_name } from "./name-prompt";
 import { BUILD, Updater, show_version } from "./update";
+import { SPAWN_INDEX } from "./world";
 import "./style.css";
 
 const params = new URLSearchParams(location.search);
@@ -121,7 +122,6 @@ race.on_lap = (improved) => {
   ghost.finish(improved);
   lobby.lap(performance.now());
 };
-const SPAWN_INDEX = -40;
 lobby.on_start = () => {
   modes.exit();
   spawn_at(SPAWN_INDEX);
@@ -167,7 +167,7 @@ apply_settings(prefs);
 $("settings-btn").addEventListener("click", () => settings.open());
 
 function spawn_at(index: number, reverse = false) {
-  const p = world.road[(index + world.road.length) % world.road.length];
+  const p = world.road[world.clear_spawn(index, reverse ? -1 : 1)];
   car.place(p.x, world.height(p.x, p.z) + 0.75, p.z, Math.atan2(p.tx, p.tz) + (reverse ? Math.PI : 0));
   chase.snap(car);
 }

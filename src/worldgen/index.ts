@@ -8,7 +8,7 @@ import type { Path } from "./path";
 import { Stamp } from "./stamp";
 import { terrain } from "./terrain";
 import { place_towns, town_streets } from "./towns";
-import { CELL, ORIGIN, ROAD_HALF, SPUR_HALF, type Checkpoint, type RoadEdge, type RoadNode, type Solid, type Tree, type WorldData } from "./types";
+import { CELL, ORIGIN, ROAD_HALF, SPAWN_INDEX, SPUR_HALF, type Checkpoint, type RoadEdge, type RoadNode, type Solid, type Tree, type WorldData } from "./types";
 
 const CHECKPOINTS = 12;
 const TREE_SPACING = 13;
@@ -103,7 +103,7 @@ export function generate(seed: number): WorldData {
 
   const planner = new JumpPlanner(seed, land, towns, lots.occupied, solids);
   planner.hills();
-  planner.circuit(road, [...checkpoints, ...nodes.filter((n) => n.kind === "junction")]);
+  planner.circuit(road, [...checkpoints, ...nodes.filter((n) => n.kind === "junction"), road[(SPAWN_INDEX + road.length) % road.length]]);
   planner.roadside(road);
   planner.open();
   planner.roadside_items(road);

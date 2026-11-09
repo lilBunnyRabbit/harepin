@@ -273,7 +273,7 @@ export class Modes {
   }
 
   private restart_duel(level: DuelLevel) {
-    const route = build_route(this.world.seed, this.world.road, level);
+    const route = build_route(this.world.seed, this.world.road, level, (index) => this.world.clear_spawn(index));
     this.duel_view?.dispose();
     this.duel_view = new DuelView(route, this.world);
     this.scene.add(this.duel_view.root);

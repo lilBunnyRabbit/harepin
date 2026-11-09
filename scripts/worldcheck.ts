@@ -1,10 +1,10 @@
 import { build_chunks, JITTER_LEVELS, type MeshTones } from "../src/worldgen/chunks";
 import { sample } from "../src/worldgen/field";
-import { BYPASS, challenge_outer, challenge_pieces, DECK_DRIFT, flight, GATE_CLEAR, ITEMS, ramp_local, ramp_world, RUN_DRIFT } from "../src/worldgen/jumps";
+import { BYPASS, challenge_outer, challenge_pieces, DECK_DRIFT, face_end, flight, GATE_CLEAR, ITEMS, ramp_local, ramp_world, RUN_DRIFT } from "../src/worldgen/jumps";
 import { seed_of } from "../src/rng";
 import { generate } from "../src/worldgen/index";
 import { APPROACH } from "../src/worldgen/route";
-import { SPUR_GRADE, ROAD_HALF, type Challenge, type Ramp, type RoadEdge, type RoadPoint, type Solid, type WorldData } from "../src/worldgen/types";
+import { SPAWN_INDEX, SPUR_GRADE, ROAD_HALF, type Challenge, type Ramp, type RoadEdge, type RoadPoint, type Solid, type WorldData } from "../src/worldgen/types";
 
 const SEEDS = [...Array(Number(process.argv[2] ?? 100)).keys(), seed_of("lobby")];
 const GROUND = 0.3;
@@ -129,6 +129,7 @@ const BODY_HIGH = 1;
 function check_jumps(data: WorldData, fail: (what: string) => void) {
   const { heights, road_dist } = data.terrain;
   const road = (x: number, z: number) => sample(road_dist, x, z);
+  const gates = [...data.checkpoints, data.road[(SPAWN_INDEX + data.road.length) % data.road.length]];
   const own = (s: Solid, r: Ramp) => s.kind === "box" && s.bottom !== undefined && data.challenges.some((c) => c.ramp === r.id && Math.hypot(c.x - s.x, c.z - s.z) < 10);
   const reach = (s: Solid) => (s.kind === "circle" ? s.radius : Math.hypot(s.hw, s.hd));
   for (const r of data.ramps) {
@@ -143,8 +144,8 @@ function check_jumps(data: WorldData, fail: (what: string) => void) {
         const [u, v] = ramp_local(r, p.x, p.z);
         if (v > r.length + r.landing) break;
         if (v < -RUNUP) continue;
-        if (Math.abs(u) > (v >= 0 && v <= lip ? DECK_DRIFT : RUN_DRIFT) + 0.1) return fail(`${at} leaves the circuit ${Math.abs(u).toFixed(1)} m off its line`);
-        if (data.checkpoints.some((c) => Math.hypot(c.x - p.x, c.z - p.z) < GATE_CLEAR - 1)) return fail(`${at} runs through a checkpoint`);
+        if (Math.abs(u) > (v >= 0 && v <= face_end(r) ? DECK_DRIFT : RUN_DRIFT) + 0.1) return fail(`${at} leaves the circuit ${Math.abs(u).toFixed(1)} m off its line`);
+        if (gates.some((c) => Math.hypot(c.x - p.x, c.z - p.z) < GATE_CLEAR - 1)) return fail(`${at} runs through a checkpoint or the start grid`);
       }
     } else
       for (let v = 0; v <= lip; v += 1)
@@ -189,7 +190,7 @@ function check_jumps(data: WorldData, fail: (what: string) => void) {
     const r = ITEMS[item.kind].r * item.scale;
     if (road(item.x, item.z) >= ROAD_HALF + r + 1) continue;
     if (!item.light) fail(`${item.kind} at ${item.x.toFixed(0)},${item.z.toFixed(0)} sits on the road`);
-    else if (data.checkpoints.some((c) => Math.hypot(c.x - item.x, c.z - item.z) < GATE_CLEAR - 1)) fail(`${item.kind} at ${item.x.toFixed(0)},${item.z.toFixed(0)} sits on the road at a checkpoint`);
+    else if (gates.some((c) => Math.hypot(c.x - item.x, c.z - item.z) < GATE_CLEAR - 1)) fail(`${item.kind} at ${item.x.toFixed(0)},${item.z.toFixed(0)} sits on the road at a checkpoint or the start grid`);
   }
 }
 

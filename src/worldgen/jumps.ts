@@ -24,6 +24,7 @@ const TOWN_CLEAR = 20;
 
 export interface RampShape {
   kind: RampKind;
+  back?: number;
   hw: number;
   length: number;
   rise: number;
@@ -33,8 +34,10 @@ export interface RampShape {
 
 const KICKER: RampShape = { kind: "kicker", hw: 2.6, length: 8, rise: 2, landing: 45, speed: 21 };
 const BIG: RampShape = { kind: "big", hw: 3.2, length: 14, rise: 4, landing: 80, speed: 27 };
+// A slow car on the circuit has to roll off the lip, not hang its belly on it as on the steep back of an off-road kicker.
+const ROAD_BACK = 0.3;
 // Tuned for racing pace: the landing runs out a 40 m/s launch.
-export const ROAD_KICKER: RampShape = { kind: "kicker", hw: ROAD_HALF + 0.5, length: 8, rise: 2, landing: 90, speed: 24 };
+export const ROAD_KICKER: RampShape = { kind: "kicker", hw: ROAD_HALF + 0.5, length: 8, rise: 2, landing: 90, speed: 24, back: ROAD_BACK };
 
 const FRAME = 0.35;
 const WALL_HW = 7;
@@ -71,12 +74,12 @@ export function ramp_world(r: Ramp, u: number, v: number): [number, number] {
 }
 
 export function ramp_extent(r: Ramp): { reach: number; from: number; to: number } {
-  return { reach: r.hw + (r.rise + BURY) / SIDE, from: (-BURY * r.length) / r.rise, to: r.length + (r.rise + BURY) / BACK };
+  return { reach: r.hw + (r.rise + BURY) / SIDE, from: (-BURY * r.length) / r.rise, to: r.length + (r.rise + BURY) / (r.back ?? BACK) };
 }
 
 // Planar on every cell of the grid u = ±hw, v = length: the mesh drawn on that grid is exactly the surface physics rides.
 export function ramp_lift(r: Ramp, u: number, v: number): number {
-  const along = v <= r.length ? (r.rise * v) / r.length : r.rise - (v - r.length) * BACK;
+  const along = v <= r.length ? (r.rise * v) / r.length : r.rise - (v - r.length) * (r.back ?? BACK);
   return along - Math.max(0, Math.abs(u) - r.hw) * SIDE;
 }
 
@@ -85,9 +88,37 @@ export function ramp_surface(r: Ramp, x: number, z: number): Surface | null {
   const [u, v] = ramp_local(r, x, z);
   const { reach, from, to } = ramp_extent(r);
   if (v < from || v > to || Math.abs(u) > reach) return null;
-  const dv = r.grade + (v <= r.length ? r.rise / r.length : -BACK);
+  const dv = r.grade + (v <= r.length ? r.rise / r.length : -(r.back ?? BACK));
   const du = Math.abs(u) > r.hw ? -SIDE * Math.sign(u) : 0;
   return { y: r.y + r.grade * v + ramp_lift(r, u, v), gx: dv * r.fx + du * r.fz, gz: dv * r.fz - du * r.fx };
+}
+
+/** Where the face past the lip meets the base line again. */
+export function face_end(r: Ramp): number {
+  return r.length + r.rise / (r.back ?? BACK);
+}
+
+/**
+ * Circuit points a reset or a mode start must not drop a car on: a road kicker from its toe to the end of its landing,
+ * and each challenge plane on the circuit, SPAWN_CLEAR either side. A car put down there can straddle a slab or a lip.
+ */
+export function spawn_blocks(road: readonly RoadPoint[], ramps: readonly Ramp[], challenges: readonly Challenge[]): Uint8Array {
+  const out = new Uint8Array(road.length);
+  road.forEach((p, i) => {
+    for (const r of ramps) {
+      if (!r.road) continue;
+      const { reach, from, to } = ramp_extent(r);
+      const [u, v] = ramp_local(r, p.x, p.z);
+      if (Math.abs(u) < reach && v > from - SPAWN_CLEAR && v < to + r.landing) out[i] = 1;
+    }
+    for (const c of challenges) {
+      if (!ramps[c.ramp].road) continue;
+      const dx = p.x - c.x;
+      const dz = p.z - c.z;
+      if (Math.abs(dx * c.fx + dz * c.fz) < SPAWN_CLEAR && Math.abs(dx * c.fz - dz * c.fx) < challenge_outer(c) + SPAWN_CLEAR) out[i] = 1;
+    }
+  });
+  return out;
 }
 
 export function lip_height(r: Ramp): number {
@@ -245,6 +276,7 @@ const ROAD_RUNOUT = 50;
 export const GATE_CLEAR = 20;
 /** Open ground beside a challenge that spans the road, so a car that misses the jump can drive round it. */
 export const BYPASS = 4;
+const SPAWN_CLEAR = 3;
 const CHICANES = 2;
 const CHICANE_STRIDE = 37;
 const CHICANE_GAP = 8;
@@ -334,6 +366,7 @@ export class JumpPlanner {
     const y = this.height(x, z);
     const lip = this.height(x + fx * shape.length, z + fz * shape.length);
     const r: Ramp = { id: this.out.ramps.length, kind: shape.kind, x, y, z, fx, fz, hw: shape.hw, length: shape.length, rise: shape.rise, grade: (lip - y) / shape.length, landing: shape.landing, speed: shape.speed };
+    if (shape.back !== undefined) r.back = shape.back;
     const out = launch(r, r.speed);
     if (Math.abs(r.grade) > 0.2 || out.slope < MIN_LAUNCH || !(out.speed > 8)) return null;
     if (this.out.ramps.some((o) => length(o.x - x, o.z - z) < RAMP_SPACING)) return null;
@@ -341,7 +374,8 @@ export class JumpPlanner {
   }
 
   private fits_road(r: Ramp, road: RoadPoint[], toe: number, gates: Spot[]): boolean {
-    const { reach, to } = ramp_extent(r);
+    const { reach } = ramp_extent(r);
+    const to = face_end(r);
     const end = to + r.landing;
     const n = road.length;
     for (let k = -ROAD_RUNUP; k < n; k++) {
@@ -350,7 +384,7 @@ export class JumpPlanner {
       if (v > end + ROAD_RUNOUT) break;
       if (v < -ROAD_RUNUP) continue;
       if (Math.abs(p.tx * r.fz - p.tz * r.fx) > RUN_TURN) return false;
-      if (v <= end && Math.abs(u) > (v >= -1 && v <= to ? DECK_DRIFT : RUN_DRIFT)) return false;
+      if (v <= end && Math.abs(u) > (v >= -1 && v <= face_end(r) ? DECK_DRIFT : RUN_DRIFT)) return false;
       if (gates.some((g) => length(g.x - p.x, g.z - p.z) < GATE_CLEAR)) return false;
     }
     for (let v = -ROAD_RUNUP; v <= end; v += 2)

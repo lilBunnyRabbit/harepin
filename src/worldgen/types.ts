@@ -10,6 +10,8 @@ export const SPUR_HALF = 5;
 export const SHOULDER = 16;
 /** Steepest a spur may climb, rise over run. */
 export const SPUR_GRADE = 0.12;
+/** Road index of the race start grid, counted back from the start line. */
+export const SPAWN_INDEX = -40;
 
 export interface RoadPoint {
   x: number;
@@ -236,6 +238,8 @@ export interface Ramp {
   speed: number;
   /** Laid across the full width of the circuit, which carries on under its run-up, flight and landing. */
   road?: boolean;
+  /** Drop per metre of the face past the lip; the steep kicker back when absent. */
+  back?: number;
 }
 
 export const ItemKind = { CONE: "cone", BARREL: "barrel", HAY: "hay", LOG: "log", ROCK: "rock", BARRIER: "barrier" } as const;

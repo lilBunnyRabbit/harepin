@@ -4,6 +4,7 @@ import { Vector3 } from "three";
 import { COUPE } from "./cars";
 import { World, type Collider } from "./world";
 import { generate } from "./worldgen/index";
+import { ramp_surface } from "./worldgen/jumps";
 import type { Solid } from "./worldgen/types";
 
 const X = 900;
@@ -42,3 +43,17 @@ test("a low bar on the ground stops a grounded car and a flying one clears it", 
   expect(grounded.vel.z).toBeLessThan(0);
   expect(world.collide(car_at(GROUND + 1.6))).toBe(0);
 });
+
+test("every circuit reset point is clear of solids and ramps on 20 seeds", () => {
+  const CAR_REACH = 2.5;
+  for (let seed = 0; seed < 20; seed++) {
+    const world = new World(seed);
+    const blocked = (index: number) => {
+      const p = world.road[index];
+      const solid = world.solids.some((s) => Math.hypot(s.x - p.x, s.z - p.z) < (s.kind === "circle" ? s.radius : Math.hypot(s.hw, s.hd)) + CAR_REACH);
+      return solid || world.ramps.some((r) => ramp_surface(r, p.x, p.z) !== null);
+    };
+    for (let i = 0; i < world.road.length; i++)
+      for (const step of [1, -1]) expect(blocked(world.clear_spawn(i, step))).toBe(false);
+  }
+}, 60_000);

@@ -3,7 +3,7 @@ import type { Ground } from "./car";
 import { COUPE, type CarSpec } from "./cars";
 import { sample, slope_normal } from "./worldgen/field";
 import { generate } from "./worldgen/index";
-import { BODY_HIGH, BODY_LOW, ramp_surface, type Surface } from "./worldgen/jumps";
+import { BODY_HIGH, BODY_LOW, ramp_surface, spawn_blocks, type Surface } from "./worldgen/jumps";
 import { ROAD_HALF } from "./worldgen/types";
 import type {
   Building,
@@ -24,7 +24,7 @@ import type {
 
 export { fbm } from "./worldgen/noise";
 export { min_radius } from "./worldgen/path";
-export { CELL, N, ROAD_HALF, SIDEWALK, SIZE } from "./worldgen/types";
+export { CELL, N, ROAD_HALF, SIDEWALK, SIZE, SPAWN_INDEX } from "./worldgen/types";
 export type { Building, Checkpoint, Lot, ParkingLot, Prop, RoadPoint, Solid, Town, Tree } from "./worldgen/types";
 
 const SOLID_CELL = 16;
@@ -147,6 +147,8 @@ export class World implements Ground {
   /** Solids a mode puts down for a while; few enough to check every one, so they stay out of the grid. */
   private placed: readonly Solid[] = [];
   private readonly seen: Uint32Array;
+  /** Circuit points no car is put down on; see spawn_blocks. */
+  private readonly no_spawn: Uint8Array;
   private query = 0;
 
   /** `data` is `generate(seed)`, passed in when a worker already ran it. */
@@ -172,6 +174,7 @@ export class World implements Ground {
     this.circuit = data.circuit;
     this.timings = data.timings;
     this.seen = new Uint32Array(this.solids.length);
+    this.no_spawn = spawn_blocks(this.road, this.ramps, this.challenges);
     this.solids.forEach((solid, index) => this.index_solid(solid, index));
     this.road.forEach((p, index) => {
       const key = grid_key(Math.floor(p.x / ROAD_CELL), Math.floor(p.z / ROAD_CELL));
@@ -244,12 +247,22 @@ export class World implements Ground {
     return this.road[Math.max(0, nearest(this.road_grid, x, z, (index) => this.road[index]))];
   }
 
+  /** The circuit point a car is put down on for `index`: that one, or the first clear one behind it; `step` -1 when the car faces back along the circuit. */
+  clear_spawn(index: number, step = 1): number {
+    const n = this.road.length;
+    let i = ((index % n) + n) % n;
+    for (let k = 0; k < n && this.no_spawn[i]; k++) i = (i - step + n) % n;
+    return i;
+  }
+
   /** Where a reset puts the car: the nearest point of any road (circuit, spur or street), facing along it the way `fx, fz` points. */
   spawn_near(x: number, z: number, fx: number, fz: number): Spawn {
     const point = (packed: number) => this.graph.edges[Math.floor(packed / LANE_PACK)].points[packed % LANE_PACK];
     const packed = nearest(this.lane_grid, x, z, point);
-    const p = packed < 0 ? this.road[0] : point(packed);
-    const heading = Math.atan2(p.tx, p.tz) + (fx * p.tx + fz * p.tz < 0 ? Math.PI : 0);
+    let p = packed < 0 ? this.road[0] : point(packed);
+    const back = fx * p.tx + fz * p.tz < 0;
+    if (packed >= 0 && this.circuit.includes(Math.floor(packed / LANE_PACK))) p = this.road[this.clear_spawn(packed % LANE_PACK, back ? -1 : 1)];
+    const heading = Math.atan2(p.tx, p.tz) + (back ? Math.PI : 0);
     return { x: p.x, y: this.height(p.x, p.z), z: p.z, heading };
   }
 
