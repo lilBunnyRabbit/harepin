@@ -6,6 +6,9 @@ import { ramp_local } from "../src/worldgen/jumps";
 
 const DT = 1 / 360;
 const RAMP_LOOK = 120;
+// Fastest pace on circuit kickers every seed's lap survives: past it the car lands with too little road left to brake
+// for the next bend, having had none in the air.
+const JUMP_PACE = 32;
 
 export interface Lap {
   t: number;
@@ -33,14 +36,14 @@ export function autolap(world: World, spec: CarSpec = COUPE): Lap {
     const far = world.road[(index + 40) % world.road.length];
     const here = world.road[index];
     const curve = Math.abs(Math.atan2(Math.sin(Math.atan2(far.tx, far.tz) - Math.atan2(here.tx, here.tz)), 1));
-    // Takes a kicker on the circuit at the pace it is built for and holds the wheel straight in the air, as a driver would.
+    // Takes a kicker on the circuit at JUMP_PACE and holds the wheel straight in the air, as a driver would.
     const jump = world.ramps.find((r) => {
       if (!r.road) return false;
       const [u, v] = ramp_local(r, car.pos.x, car.pos.z);
       return Math.abs(u) < r.hw && v > -RAMP_LOOK && v < r.length + r.landing;
     });
     const airborne = car.wheels.every((w) => !w.contact);
-    const target = jump ? jump.speed : curve > 0.5 ? 20 : curve > 0.25 ? 30 : 42;
+    const target = jump ? JUMP_PACE : curve > 0.5 ? 20 : curve > 0.25 ? 30 : 42;
     car.step(DT, { steer: airborne ? 0 : Math.max(-1, Math.min(1, -err * 3)), throttle: speed < target ? 1 : 0, brake: speed > target + 4 ? 0.7 : 0, handbrake: 0, analog: true }, world);
     world.collide(car);
     t += DT;
