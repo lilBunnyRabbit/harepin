@@ -54,7 +54,8 @@
   --line-strong: color-mix(in oklch, var(--foreground) 22%, transparent);
   --dim: color-mix(in oklch, var(--foreground) 62%, transparent);
 
-  --surface: color-mix(in oklch, var(--background-darkest) 78%, transparent);
+  /* Opaque enough that the sun glow behind a HUD panel never washes its text out. */
+  --surface: color-mix(in oklch, var(--background-darkest) 92%, transparent);
   --panel: var(--background-light);
   --panel-well: var(--background-darker);
   --panel-raised: var(--background-lightest);
@@ -62,7 +63,7 @@
 }
 
 :root[data-scheme="light"] {
-  --surface: color-mix(in oklch, var(--background-lighter) 88%, transparent);
+  --surface: color-mix(in oklch, var(--background-lighter) 94%, transparent);
   --line: color-mix(in oklch, var(--foreground) 16%, transparent);
   --dim: color-mix(in oklch, var(--foreground) 72%, transparent);
   --panel-well: var(--background-dark);
