@@ -90,18 +90,29 @@ test("a row of close passes pays at most once per cooldown and never twice for t
   expect(nitro.fill - again).toBeCloseTo(one);
 });
 
-test("a car rebuilt in the garage keeps its tank level, clamped to the new tank", () => {
+test("in a timed run a car rebuilt in the garage keeps its tank level, clamped to the new tank", () => {
   const small = Object.assign(new Nitro(4), { fill: 1.5 });
   const big = new Nitro(7);
-  big.carry(small);
+  big.carry(small, true);
   expect(big.fill).toBe(1.5);
-  const full = new Nitro(7);
   const back = new Nitro(4);
-  back.carry(full);
+  back.carry(new Nitro(7), true);
   expect(back.fill).toBe(4);
+  const fitted = new Nitro(4);
+  fitted.carry(new Nitro(0), true);
+  expect(fitted.fill).toBe(0);
   const none = new Nitro(0);
-  none.carry(big);
+  none.carry(big, true);
   expect(none.fill).toBe(0);
+});
+
+test("in free drive a garage change fills the tank, even one just fitted", () => {
+  const fitted = new Nitro(4);
+  fitted.carry(new Nitro(0), false);
+  expect(fitted.fill).toBe(4);
+  const big = new Nitro(7);
+  big.carry(Object.assign(new Nitro(4), { fill: 0.5 }), false);
+  expect(big.fill).toBe(7);
 });
 
 test("refill and cut let go of the boost", () => {

@@ -215,7 +215,7 @@ garage.on_change = (next) => {
   const { pos, heading } = car;
   const tank = car.nitro;
   car = new Car(build_spec(next));
-  car.nitro.carry(tank);
+  car.nitro.carry(tank, lobby.busy || modes.active);
   car.park(pos.x, pos.z, heading, world);
   apply_car_settings(settings.state);
   input.touch.show_nitro(car.nitro.fitted);

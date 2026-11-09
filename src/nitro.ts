@@ -77,9 +77,11 @@ export class Nitro {
     this.boosting = false;
   }
 
-  /** Takes over another tank's level and cooldowns, clamped to this one's size, for a car rebuilt from the garage. */
-  carry(from: Nitro) {
-    this.restore({ ...from.snapshot(), fill: Math.min(this.capacity, from.fill) });
+  /** For a car rebuilt from the garage: in a timed run it takes over the old tank's level and cooldowns, clamped to this
+   * one's size, so a garage trip can't refill it; in free drive it starts full. */
+  carry(from: Nitro, timed: boolean) {
+    if (timed) this.restore({ ...from.snapshot(), fill: Math.min(this.capacity, from.fill) });
+    else this.refill();
   }
 
   snapshot(): NitroSnapshot {
