@@ -1,5 +1,6 @@
 import { joinRoom, selfId } from "trystero";
 import { build_code, parse_build } from "./build";
+import { WORLD_VERSION } from "./worldgen/types";
 
 // A type alias, not an interface: trystero's DataPayload needs the implicit index signature only aliases get.
 export type CarState = {
@@ -9,6 +10,8 @@ export type CarState = {
   /** Build code (`build_code`), e.g. `"coupe.3.1.2.1.0"`; absent from peers that sent none or a bad one. */
   b?: string;
   seed: number;
+  /** `WORLD_VERSION` of the sender's build; peers that predate it send none and are on world 1. */
+  w?: number;
   t: number;
   p: [number, number, number];
   q: [number, number, number, number];
@@ -40,6 +43,7 @@ interface Snapshot {
 
 interface Foreign {
   seed: number;
+  world: number;
   seen: number;
 }
 
@@ -107,6 +111,7 @@ export function sanitize(raw: unknown, id: string): CarState | null {
     paint: finite(s.paint, 1e3) ? Math.abs(Math.round(s.paint)) : 0,
     b: build ? build_code(build) : undefined,
     seed: s.seed,
+    w: Number.isInteger(s.w) && finite(s.w, MAX_SEED) && (s.w as number) > 0 ? (s.w as number) : 1,
     t: s.t,
     p: s.p,
     q: (q as number[]).map((x) => x / length) as CarState["q"],
@@ -275,8 +280,9 @@ export class Net {
   }
 
   send(state: CarState) {
-    this.post({ kind: "car", id: this.id, data: state });
-    this.send_p2p?.(state);
+    const stamped = { ...state, w: WORLD_VERSION };
+    this.post({ kind: "car", id: this.id, data: stamped });
+    this.send_p2p?.(stamped);
   }
 
   send_chat(text: string): string | null {
@@ -340,8 +346,9 @@ export class Net {
     const state = sanitize(raw, sender);
     if (!state) return;
     const now = performance.now();
-    if (state.seed !== this.seed) {
-      this.foreign.set(state.id, { seed: state.seed, seen: now });
+    // The same seed on another world version is another island: racing on it would mean racing on different roads.
+    if (state.seed !== this.seed || state.w !== WORLD_VERSION) {
+      this.foreign.set(state.id, { seed: state.seed, world: state.w ?? 1, seen: now });
       this.remotes.delete(state.id);
       return;
     }
@@ -371,7 +378,7 @@ export class Net {
   /** The map most of the room is on, counting this one; null when that is already this one, so two players never swap. */
   foreign_seed(): number | null {
     if (!this.foreign.size) return null;
-    const seeds = [...this.foreign.values()].map((f) => f.seed);
+    const seeds = [...this.foreign.values()].filter((f) => f.world === WORLD_VERSION).map((f) => f.seed);
     for (let i = 0; i <= this.remotes.size; i++) seeds.push(this.seed);
     const seed = most_common(seeds);
     return seed === this.seed ? null : seed;

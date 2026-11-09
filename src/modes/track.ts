@@ -1,3 +1,5 @@
+import { world_key } from "../worldgen/types";
+
 export const MAX_STARS = 3;
 export const SILVER_SHARE = 1.25;
 
@@ -109,7 +111,7 @@ export class Track {
     readonly ids: readonly string[],
     private readonly store: Store | null,
   ) {
-    this.key = `harepin:${mode}:${seed}`;
+    this.key = `harepin:${mode}:${world_key(seed)}`;
     this.runs_ = parse_runs(read_json(store, this.key));
   }
 

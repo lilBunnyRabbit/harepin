@@ -12,6 +12,13 @@ export const SHOULDER = 16;
 export const SPUR_GRADE = 0.12;
 /** Road index of the race start grid, counted back from the start line. */
 export const SPAWN_INDEX = -40;
+/** Bump whenever `generate` makes a different island for the same seed: peers and saved records are matched on it. */
+export const WORLD_VERSION = 2;
+
+/** Storage key part for records set on `seed`'s island, so a new island starts with a clean sheet. */
+export function world_key(seed: number): string {
+  return `${seed}:w${WORLD_VERSION}`;
+}
 
 export interface RoadPoint {
   x: number;

@@ -64,6 +64,14 @@ test("build code: valid kept, invalid or missing left out", () => {
   expect(sanitize(car, "x")?.b).toBeUndefined();
 });
 
+test("world version: missing or bad means the first island", () => {
+  expect(sanitize({ ...car, w: 2 }, "x")?.w).toBe(2);
+  expect(sanitize(car, "x")?.w).toBe(1);
+  expect(sanitize({ ...car, w: 0 }, "x")?.w).toBe(1);
+  expect(sanitize({ ...car, w: 1.5 }, "x")?.w).toBe(1);
+  expect(sanitize({ ...car, w: "2" }, "x")?.w).toBe(1);
+});
+
 test("nitro flag: only a literal true lights it", () => {
   expect(sanitize({ ...car, boost: true }, "x")?.boost).toBe(true);
   expect(sanitize({ ...car, boost: "yes" }, "x")?.boost).toBe(false);

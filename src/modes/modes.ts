@@ -3,6 +3,7 @@ import type { CarSpec } from "../cars";
 import { Ghost } from "../ghost";
 import { $, format } from "../hud";
 import { ROAD_HALF, type World } from "../world";
+import { world_key } from "../worldgen/types";
 import { ComboEnd, DRIFT_IDS, DRIFT_LEVELS, DriftRun, DriftStatus, LEAD, build_zone, type DriftLevel } from "./drift";
 import { DriftView } from "./drift-view";
 import { HUNT_IDS, HUNT_LEVELS, HuntRun, HuntStatus, build_hunt, type HuntLevel } from "./hunt";
@@ -279,7 +280,7 @@ export class Modes {
     this.scene.add(this.duel_view.root);
     if (this.ghost_id !== level.id) {
       this.ghost?.dispose();
-      this.ghost = new Ghost(this.scene, this.world.seed, `harepin:ghost:duel:${level.id}:${this.world.seed}`);
+      this.ghost = new Ghost(this.scene, this.world.seed, `harepin:ghost:duel:${level.id}:${world_key(this.world.seed)}`);
       this.ghost_id = level.id;
     }
     this.ghost?.start();

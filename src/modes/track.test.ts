@@ -1,5 +1,6 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
+import { world_key } from "../worldgen/types";
 import { Track, add_race, placing, parse_race_record, parse_runs, record, stars_for, unlocked, type Store } from "./track";
 
 const IDS = ["g1", "g2", "g3"];
@@ -43,7 +44,7 @@ test("a track persists per mode and seed, and survives corrupt storage", () => {
   track.record("g1", { stars: 2, ms: 31_000 });
   expect(new Track("gymkhana", 7, IDS, store).runs.g1).toEqual({ stars: 2, ms: 31_000 });
   expect(new Track("gymkhana", 8, IDS, store).open).toBe(1);
-  store.data.set("harepin:gymkhana:9", "{not json");
+  store.data.set(`harepin:gymkhana:${world_key(9)}`, "{not json");
   expect(new Track("gymkhana", 9, IDS, store).runs).toEqual({});
   expect(new Track("gymkhana", 9, IDS, null).open).toBe(1);
 });

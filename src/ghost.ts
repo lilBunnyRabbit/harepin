@@ -2,6 +2,7 @@ import * as THREE from "three";
 import type { Car } from "./car";
 import { camera_fade, car_view, dispose_car_view, rest_wheels, type CarView } from "./models";
 import { brand, color } from "./palette";
+import { world_key } from "./worldgen/types";
 
 const STRIDE = 8;
 const EVERY_MS = 100;
@@ -47,7 +48,7 @@ export class Ghost {
 
   private readonly key: string;
 
-  constructor(scene: THREE.Scene, seed = 0, key = `harepin:ghost:${seed}`) {
+  constructor(scene: THREE.Scene, seed = 0, key = `harepin:ghost:${world_key(seed)}`) {
     this.key = key;
     this.best = load(this.key);
     this.view = car_view(color(brand.cottontail));
