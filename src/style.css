@@ -333,7 +333,8 @@ select {
 #park-levels,
 #drift-levels,
 #hunt-levels,
-#duel-levels {
+#duel-levels,
+#race-levels {
   display: grid;
   gap: var(--space-1);
   margin: 0;
@@ -345,7 +346,8 @@ select {
 #park-levels button,
 #drift-levels button,
 #hunt-levels button,
-#duel-levels button {
+#duel-levels button,
+#race-levels button {
   justify-content: space-between;
   width: 100%;
   font-weight: 400;
@@ -355,7 +357,8 @@ select {
 #park-levels button > span:first-child,
 #drift-levels button > span:first-child,
 #hunt-levels button > span:first-child,
-#duel-levels button > span:first-child {
+#duel-levels button > span:first-child,
+#race-levels button > span:first-child {
   font-weight: 600;
 }
 
@@ -363,7 +366,8 @@ select {
 #park-levels button:disabled,
 #drift-levels button:disabled,
 #hunt-levels button:disabled,
-#duel-levels button:disabled {
+#duel-levels button:disabled,
+#race-levels button:disabled {
   opacity: 0.5;
   cursor: default;
 }
