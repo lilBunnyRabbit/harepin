@@ -33,6 +33,13 @@ export type { Building, Checkpoint, Lot, ParkingLot, Prop, RoadPoint, Route, Sol
 const SOLID_CELL = 16;
 const ROAD_CELL = 32;
 const RESTITUTION = 1.25;
+/** Share of planar speed a sky rail takes per unit sine of the angle into it: a head-on hit keeps 88%, a 10° graze 98%. */
+export const GLIDE_LOSS = 0.12;
+/** Yaw rate (rad/s per rad of nose-to-rail angle) a rail hit eases the car toward, and how far it eases per contact. */
+const GLIDE_YAW = 3;
+const GLIDE_EASE = 0.3;
+/** Under this share of the speed along the rail, a hit counts as head-on and the nose picks the way to glide. */
+const HEAD_ON = 0.2;
 const LANE_PACK = 1 << 16;
 
 export interface Collider {
@@ -355,7 +362,33 @@ export class World implements Ground {
       if (pos.y - spec.band[0] > solid.y + solid.height || pos.y + spec.band[1] < solid.y + solid.bottom) return 0;
     } else if (pos.y > solid.y + solid.height) return 0;
     const contact = circle_contact(solid, pos.x + fx * offset, pos.z + fz * offset, spec.radius, -fx * Math.sign(offset || 1), -fz * Math.sign(offset || 1));
-    return contact ? this.resolve(car, contact, fx * offset, fz * offset) : 0;
+    if (!contact) return 0;
+    return this.kind === "sky" && solid.kind === "box" ? this.glide(car, contact) : this.resolve(car, contact, fx * offset, fz * offset);
+  }
+
+  // A sky rail redirects instead of bouncing: the into-rail velocity goes, the rest runs on along the rail with a loss
+  // that grows with the angle, and the nose eases round to follow it. No impulse at the contact arm, so no spin back.
+  private glide(car: Collider, { nx, nz, depth }: Contact): number {
+    const { pos, vel, ang } = car;
+    pos.x += nx * depth;
+    pos.z += nz * depth;
+    const into = vel.x * nx + vel.z * nz;
+    if (into >= 0) return 0;
+    const speed = Math.hypot(vel.x, vel.z);
+    let tx = -nz;
+    let tz = nx;
+    const along = vel.x * tx + vel.z * tz;
+    const ahead = Math.abs(along) > HEAD_ON * speed ? along : Math.sin(car.heading) * tx + Math.cos(car.heading) * tz;
+    if (ahead < 0) {
+      tx = -tx;
+      tz = -tz;
+    }
+    const keep = speed * (1 - (GLIDE_LOSS * -into) / speed);
+    vel.x = tx * keep;
+    vel.z = tz * keep;
+    const turn = Math.atan2(Math.sin(Math.atan2(tx, tz) - car.heading), Math.cos(Math.atan2(tx, tz) - car.heading));
+    ang.y += (turn * GLIDE_YAW - ang.y) * GLIDE_EASE;
+    return -into;
   }
 
   private resolve(car: Collider, { nx, nz, depth }: Contact, rx: number, rz: number): number {

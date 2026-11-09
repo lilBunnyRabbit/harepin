@@ -4,6 +4,7 @@ import { Vector3 } from "three";
 import { CARS, COUPE, FORMULA } from "./cars";
 import { World, type Collider } from "./world";
 import { generate } from "./worldgen/index";
+import { generate_sky } from "./worldgen/sky";
 import { ramp_surface } from "./worldgen/jumps";
 import type { Solid } from "./worldgen/types";
 
@@ -70,3 +71,58 @@ test("every circuit reset point is clear of solids and ramps on 20 seeds", () =>
       for (const step of [1, -1]) expect(blocked(world.clear_spawn(i, step))).toBe(false);
   }
 }, 60_000);
+
+describe_glide();
+
+function describe_glide() {
+  const sky = new World(2, generate_sky(2));
+  const island_rail = (x: number): Solid => ({ kind: "box", x, y: GROUND, z: Z, hw: 0.25, hd: 40, cos: 1, sin: 0, height: 1.2, bottom: -0.6 });
+
+  /** Rail centre x that the car's foremost collision circle overlaps by 5 cm. */
+  const touching = (heading: number) => X + Math.max(...COUPE.circles.map((c) => c * Math.sin(heading))) + COUPE.radius - 0.05 + 0.25;
+
+  /** A car at `angle` from the rail running along +z, pressed just into it from the -x side; returns its speed after. */
+  function hit(world: World, angle: number, speed = 30): { kept: number; into: number; spin: number; impact: number } {
+    const pos = new Vector3(X, GROUND + 0.5, Z);
+    const vel = new Vector3(Math.sin(angle) * speed, 0, Math.cos(angle) * speed);
+    const car: Collider = { pos, vel, ang: new Vector3(), heading: angle, spec: COUPE };
+    const restore = world.place([island_rail(touching(angle))]);
+    const impact = world.collide(car);
+    restore();
+    return { kept: Math.hypot(vel.x, vel.z) / speed, into: vel.x, spin: car.ang.y, impact };
+  }
+
+  test("a sky rail keeps a car gliding: a hard hit keeps 85-90% of its speed, a graze about 98%, never a stop or a bounce", () => {
+    for (const angle of [Math.PI / 2, Math.PI / 3]) {
+      const r = hit(sky, angle);
+      expect(r.impact).toBeGreaterThan(0);
+      expect(r.kept).toBeGreaterThan(0.85);
+      expect(r.kept).toBeLessThan(0.9);
+      expect(r.into).toBeLessThanOrEqual(1e-9);
+      expect(Math.abs(r.spin)).toBeLessThan(Math.abs(angle) * 3 + 1e-9);
+    }
+    const graze = hit(sky, (8 * Math.PI) / 180);
+    expect(graze.kept).toBeGreaterThan(0.98);
+    expect(graze.into).toBeLessThanOrEqual(1e-9);
+    expect(graze.spin).toBeLessThan(0);
+  });
+
+  test("a head-on sky rail hit turns the car along the rail the way its nose points", () => {
+    const left = hit(sky, Math.PI / 2 - 0.05);
+    const pos = new Vector3(X, GROUND + 0.5, Z);
+    const vel = new Vector3(30, 0, 0);
+    const car: Collider = { pos, vel, ang: new Vector3(), heading: Math.PI / 2 + 0.05, spec: COUPE };
+    const restore = sky.place([island_rail(touching(Math.PI / 2 + 0.05))]);
+    sky.collide(car);
+    restore();
+    expect(vel.z).toBeLessThan(-20);
+    expect(left.kept).toBeGreaterThan(0.85);
+  });
+
+  test("an island wall still bounces the car as before", () => {
+    const world = world_with();
+    const r = hit(world, Math.PI / 3);
+    expect(r.into).toBeLessThan(0);
+    expect(r.kept).toBeLessThan(0.85);
+  });
+}
