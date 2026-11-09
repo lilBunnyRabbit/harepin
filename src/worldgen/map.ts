@@ -1,5 +1,5 @@
 import { terrain_colors } from "./chunks";
-import { CELL, N, SIZE, type WorldData } from "./types";
+import { CELL, N, SIZE, type WorldData, type WorldKind } from "./types";
 
 export const MAP_SIDE = N + 1;
 const SUN = normalise([-1, 1.4, -1]);
@@ -7,6 +7,7 @@ const SHADE_MIN = 0.45;
 const SHADE_MAX = 1.25;
 const DEEP = 40;
 const DEEP_SHADE = 0.55;
+const CLOUD_FALLOFF = 0.35;
 // The browser's transfer curve without the linear toe: close enough for a map, and the worker has no palette to call.
 const GAMMA = 1 / 2.2;
 
@@ -38,6 +39,7 @@ export interface MapTown {
 /** World (x, z) lands on raster pixel (x + size / 2, z + size / 2) / size * (MAP_SIDE - 1). */
 export interface MapData {
   seed: number;
+  kind: WorldKind;
   size: number;
   pixels: Uint8ClampedArray<ArrayBuffer>;
   lines: MapLine[];
@@ -51,6 +53,8 @@ export interface MapData {
 export interface MapTones {
   terrain: Float32Array;
   water: [number, number, number];
+  /** The cloud floor's tone, the sky track's backdrop. */
+  cloud: [number, number, number];
 }
 
 function normalise([x, y, z]: [number, number, number]): [number, number, number] {
@@ -60,7 +64,21 @@ function normalise([x, y, z]: [number, number, number]): [number, number, number
 
 const encode = (c: number) => Math.round(255 * Math.min(1, c) ** GAMMA);
 
+function cloud_pixels(tones: MapTones): Uint8ClampedArray<ArrayBuffer> {
+  const pixels = new Uint8ClampedArray(MAP_SIDE * MAP_SIDE * 4);
+  const mid = (MAP_SIDE - 1) / 2;
+  for (let j = 0; j < MAP_SIDE; j++)
+    for (let i = 0; i < MAP_SIDE; i++) {
+      const k = j * MAP_SIDE + i;
+      const shade = 1 - CLOUD_FALLOFF * Math.min(1, Math.hypot(i - mid, j - mid) / mid);
+      for (let c = 0; c < 3; c++) pixels[k * 4 + c] = encode(tones.cloud[c] * shade);
+      pixels[k * 4 + 3] = 255;
+    }
+  return pixels;
+}
+
 export function map_pixels(data: WorldData, tones: MapTones): Uint8ClampedArray<ArrayBuffer> {
+  if (data.kind === "sky") return cloud_pixels(tones);
   const heights = data.terrain.heights;
   const colors = terrain_colors(data, tones.terrain);
   const pixels = new Uint8ClampedArray(MAP_SIDE * MAP_SIDE * 4);
@@ -96,6 +114,7 @@ export function map_data(data: WorldData, tones: MapTones): MapData {
   const start = data.road[0];
   return {
     seed: data.terrain.seed,
+    kind: data.kind,
     size: SIZE,
     pixels: map_pixels(data, tones),
     lines: [...roads, line(MapLineKind.CIRCUIT, true, data.road)],

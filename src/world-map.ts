@@ -1,7 +1,9 @@
 import { brand, linear, rgba, tones } from "./palette";
+import { sky_tones } from "./sky";
 import { mesh_tones } from "./scene";
 import { MAP_SIDE, MapLineKind, type MapData, type MapMark } from "./worldgen/map";
 import type { MapRequest } from "./worldgen/map-worker";
+import { WorldKind } from "./worldgen/types";
 import "./world-map.css";
 
 const DEBOUNCE_MS = 300;
@@ -27,7 +29,7 @@ const LABEL = rgba(brand.foreground);
 const MapStatus = { DRAWING: "drawing", READY: "ready", FAILED: "failed" } as const;
 type MapStatus = (typeof MapStatus)[keyof typeof MapStatus];
 
-const STATUS_TEXT: Record<MapStatus, string> = { drawing: "Drawing island…", ready: "", failed: "Preview failed" };
+
 
 export class WorldMap {
   readonly root = document.createElement("div");
@@ -35,7 +37,7 @@ export class WorldMap {
   private readonly note = document.createElement("span");
   private worker: Worker | null = null;
   private timer = 0;
-  private wanted: number | null = null;
+  private wanted: { seed: number; kind: WorldKind } | null = null;
   private map: MapData | null = null;
   private image: ImageBitmap | null = null;
 
@@ -46,14 +48,14 @@ export class WorldMap {
     this.root.append(this.canvas, this.note);
   }
 
-  /** Draws `seed`'s island, after a pause unless `now`, so typing a seed does not generate every keystroke. */
-  show(seed: number, now = false) {
-    this.wanted = seed;
+  /** Draws `seed`'s world, after a pause unless `now`, so typing a seed does not generate every keystroke. */
+  show(seed: number, kind: WorldKind, now = false) {
+    this.wanted = { seed, kind };
     clearTimeout(this.timer);
-    if (this.map?.seed === seed) return this.draw();
+    if (this.map?.seed === seed && this.map.kind === kind) return this.draw();
     this.set_status(MapStatus.DRAWING);
-    if (now) this.request(seed);
-    else this.timer = window.setTimeout(() => this.request(seed), DEBOUNCE_MS);
+    if (now) this.request(seed, kind);
+    else this.timer = window.setTimeout(() => this.request(seed, kind), DEBOUNCE_MS);
   }
 
   stop() {
@@ -62,7 +64,7 @@ export class WorldMap {
     this.worker = null;
   }
 
-  private request(seed: number) {
+  private request(seed: number, kind: WorldKind) {
     // A generation can't be cancelled from outside, so a stale one is dropped with its worker.
     this.worker?.terminate();
     const worker = new Worker(new URL("./worldgen/map-worker.ts", import.meta.url), { type: "module" });
@@ -79,7 +81,7 @@ export class WorldMap {
       console.warn("world map: generation failed", event.message);
       this.set_status(MapStatus.FAILED);
     });
-    const request: MapRequest = { seed, kind: "island", tones: { terrain: mesh_tones().terrain, water: linear(tones.water) } };
+    const request: MapRequest = { seed, kind, tones: { terrain: mesh_tones().terrain, water: linear(tones.water), cloud: linear(sky_tones.cloud) } };
     worker.postMessage(request);
   }
 
@@ -88,12 +90,13 @@ export class WorldMap {
     this.image?.close();
     this.image = image;
     this.map = map;
-    if (map.seed === this.wanted) this.draw();
+    if (map.seed === this.wanted?.seed && map.kind === this.wanted.kind) this.draw();
   }
 
   private set_status(status: MapStatus) {
     this.root.dataset.status = status;
-    this.note.textContent = STATUS_TEXT[status];
+    const sky = this.wanted?.kind === WorldKind.SKY;
+    this.note.textContent = status === MapStatus.DRAWING ? (sky ? "Drawing track…" : "Drawing island…") : status === MapStatus.FAILED ? "Preview failed" : "";
   }
 
   private draw() {
@@ -101,7 +104,7 @@ export class WorldMap {
     const ctx = canvas.getContext("2d");
     if (!map || !image || !ctx) return;
     this.set_status(MapStatus.READY);
-    canvas.setAttribute("aria-label", `Map of island ${map.seed}`);
+    canvas.setAttribute("aria-label", `Map of ${map.kind === WorldKind.SKY ? "sky track" : "island"} ${map.seed}`);
     const ratio = devicePixelRatio;
     const side = Math.round((canvas.clientWidth || MAP_SIDE) * ratio);
     canvas.width = canvas.height = side;

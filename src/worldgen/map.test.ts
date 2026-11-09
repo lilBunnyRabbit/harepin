@@ -7,7 +7,7 @@ import type { MapRequest } from "./map-worker";
 import { ORIGIN, SIZE } from "./types";
 
 const SEED = 7;
-const TONES: MapTones = { terrain: Float32Array.from({ length: 8 * JITTER_LEVELS * 3 }, (_, i) => (i % 97) / 97), water: [0.1, 0.2, 0.4] };
+const TONES: MapTones = { terrain: Float32Array.from({ length: 8 * JITTER_LEVELS * 3 }, (_, i) => (i % 97) / 97), water: [0.1, 0.2, 0.4], cloud: [0.7, 0.7, 0.75] };
 
 function from_worker(request: MapRequest): Promise<MapData> {
   const worker = new Worker(new URL("./map-worker.ts", import.meta.url), { type: "module" });
@@ -44,3 +44,14 @@ test("the map covers the island and draws the circuit through the start", () => 
   for (const l of map.lines) for (const v of l.points) expect(Math.abs(v)).toBeLessThanOrEqual(-ORIGIN);
   expect(map.size).toBe(SIZE);
 });
+
+test("the sky track preview is a cloud backdrop with the circuit, its gaps and checkpoints", async () => {
+  const map = await from_worker({ seed: SEED, kind: "sky", tones: TONES });
+  expect(map.kind).toBe("sky");
+  expect(map.towns).toEqual([]);
+  expect(map.lines.map((l) => l.kind)).toEqual(["circuit"]);
+  expect(map.jumps.length).toBeGreaterThan(0);
+  const centre = (MAP_SIDE - 1) / 2;
+  const mid = (centre * MAP_SIDE + centre) * 4;
+  expect(map.pixels[mid]).toBeGreaterThan(map.pixels[0]);
+}, 30_000);

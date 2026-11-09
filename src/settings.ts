@@ -364,6 +364,7 @@ export class Settings {
   private keys: HTMLElement | null = null;
   private readonly world_map = new WorldMap();
   private chosen: number;
+  private chosen_kind: WorldKind;
 
   constructor(
     private readonly parent: HTMLElement,
@@ -372,6 +373,7 @@ export class Settings {
   ) {
     this.saved = read_saved();
     this.chosen = host.seed;
+    this.chosen_kind = host.kind;
     this.root.hidden = true;
     this.panel.setAttribute("role", "dialog");
     this.panel.setAttribute("aria-modal", "true");
@@ -501,7 +503,7 @@ export class Settings {
     for (const [id, tab] of this.tabs) tab.setAttribute("aria-current", String(id === section));
     for (const [id, page] of this.pages) page.hidden = id !== section;
     this.body.scrollTop = 0;
-    if (section === "world") this.world_map.show(this.chosen, true);
+    if (section === "world") this.world_map.show(this.chosen, this.chosen_kind, true);
     else this.world_map.stop();
     this.host.browse_servers(section === "servers");
   }
@@ -706,14 +708,33 @@ export class Settings {
     const seed_row = this.row("Seed", seed_field, "Same seed, same island, for everyone");
     seed_row.classList.add("world-seed");
 
-    const drive = this.action("Drive this island", () => this.go({ room, seed: String(this.chosen) }));
+    const drive = this.action("Drive this island", () => this.go({ room, seed: String(this.chosen), ...(this.chosen_kind === WorldKind.SKY ? { world: this.chosen_kind } : {}) }));
     drive.classList.add("world-drive");
     const choose = (next: number, now: boolean) => {
       this.chosen = next;
-      drive.disabled = next === seed;
-      drive.title = drive.disabled ? "You're on this island" : `Reloads room ${room} on island ${next}`;
-      this.world_map.show(next, now);
+      const name = this.chosen_kind === WorldKind.SKY ? "track" : "island";
+      drive.textContent = `Drive this ${name}`;
+      drive.disabled = next === seed && this.chosen_kind === this.host.kind;
+      drive.title = drive.disabled ? `You're on this ${name}` : `Reloads room ${room} on ${name} ${next}`;
+      this.world_map.show(next, this.chosen_kind, now);
     };
+    const kinds = el("div", "settings-choice");
+    kinds.setAttribute("role", "radiogroup");
+    kinds.setAttribute("aria-label", "World");
+    const kind_buttons = ([[WorldKind.ISLAND, "Island"], [WorldKind.SKY, "Sky Track"]] as const).map(([kind, text]) => {
+      const button = el("button", "", text);
+      button.type = "button";
+      button.setAttribute("role", "radio");
+      button.setAttribute("aria-checked", String(kind === this.chosen_kind));
+      button.addEventListener("click", () => {
+        this.chosen_kind = kind;
+        for (const [k, b] of kind_buttons) b.setAttribute("aria-checked", String(k === kind));
+        choose(this.chosen, true);
+      });
+      kinds.append(button);
+      return [kind, button] as const;
+    });
+    const kind_row = this.row("World", kinds, "An island to roam, or a toy circuit floating in the sky");
     field.addEventListener("input", () => {
       const next = parse_seed(field.value.trim());
       field.setCustomValidity(next === null ? "A whole number from 0 to 4294967295" : "");
@@ -749,7 +770,7 @@ export class Settings {
     current_row.classList.add("world-current");
 
     const world = el("div", "world");
-    world.append(seed_row, this.world_map.root, legend, drive, current_row);
+    world.append(kind_row, seed_row, this.world_map.root, legend, drive, current_row);
     return [world];
   }
 
