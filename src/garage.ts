@@ -319,7 +319,8 @@ export class Garage {
     }
     const decal = DECALS[b.decal];
     const livery = livery_of(b);
-    this.decal_label.textContent = `Decal · ${DECAL_NAMES[decal]}`;
+    const swapped = decal !== "none" && !livery.ink.equals(color(decal_inks[b.ink % decal_inks.length]));
+    this.decal_label.textContent = `Decal · ${DECAL_NAMES[decal]}${swapped ? " · auto-contrast" : ""}`;
     this.decals.style.setProperty("--decal-paint", rgba(car_paints[b.paint % car_paints.length]));
     this.decals.style.setProperty("--decal-ink", livery.ink.getStyle());
     this.decals.style.setProperty("--decal-mark", livery.mark.getStyle());
