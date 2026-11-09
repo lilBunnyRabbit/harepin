@@ -23,6 +23,17 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.8.1",
+    date: "2026-11-09",
+    title: "HUD fixes",
+    changes: [
+      { kind: IMPROVED, text: "Classic is the default HUD layout again. A layout you picked yourself stays." },
+      { kind: FIXED, text: "In Minimal, the TC, ABS, Assist and Auto switches stay on screen, so you can click them." },
+      { kind: FIXED, text: "The speedo keeps one width instead of growing and shrinking with speed." },
+      { kind: IMPROVED, text: "Nitro is on Shift only; N no longer fires it." },
+    ],
+  },
+  {
     version: "0.8.0",
     date: "2026-11-09",
     title: "Sky Track",
