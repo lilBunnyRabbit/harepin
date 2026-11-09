@@ -1,5 +1,5 @@
 import type { Rgb } from "./mesh";
-import { rail_open } from "./sky";
+import { PAD_HALF, rail_open } from "./sky";
 import { DECK_STRIDE, type Deck } from "./types";
 
 const THICK = 0.4;
@@ -18,12 +18,21 @@ const SEAM_HIGH = 0.01;
 /** The rail's top folds inward over the deck by LIP, LIP_DROP deep. */
 const LIP = 0.1;
 const LIP_DROP = 0.12;
+/** Chevrons down a boost pad, pointing the way to drive: one every PITCH metres, arms BAR thick, tips DEPTH ahead. */
+const CHEVRON_PITCH = 3;
+const CHEVRON_BAR = 0.6;
+const CHEVRON_DEPTH = 2.2;
+const CHEVRON_HALF = PAD_HALF - 1;
+const PAD_LIFT = 0.01;
+const CHEVRON_LIFT = 0.03;
 
 export interface DeckTones {
   deck: Rgb;
   side: Rgb;
   rail: Rgb;
   joint: Rgb;
+  pad: Rgb;
+  chevron: Rgb;
 }
 
 export interface DeckLayer {
@@ -32,6 +41,10 @@ export interface DeckLayer {
 }
 
 type V = [number, number, number];
+
+function xz(p: V): [number, number] {
+  return [p[0], p[2]];
+}
 
 function push(layer: DeckLayer, rgb: Rgb, ...points: V[]) {
   for (const p of points) {
@@ -89,6 +102,36 @@ export function deck_layers(deck: Deck, tones: DeckTones, chunk_of: (x: number, 
       quad(layer, tones.rail, at(i, lip_i, low_i), at(j, lip_j, low_j), at(j, lip_j, top_j), at(i, lip_i, top_i));
       quad(layer, tones.rail, at(i, lip_i, top_i), at(j, lip_j, top_j), at(j, outer_j, top_j), at(i, outer_i, top_i));
       quad(layer, tones.side, at(i, outer_i, top_i), at(j, outer_j, top_j), at(j, outer_j, -THICK), at(i, outer_i, -THICK));
+    }
+  }
+  const index_at = (s: number) => {
+    let lo = 0;
+    let hi = n - 2;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (f(mid, 8) <= s) lo = mid;
+      else hi = mid - 1;
+    }
+    return lo;
+  };
+  const along = (s: number, u: number, lift: number): V => {
+    const i = index_at(s);
+    const a = at(i, u, lift);
+    const b = at(i + 1, u, lift);
+    const t = (s - f(i, 8)) / (f(i + 1, 8) - f(i, 8));
+    return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+  };
+  for (const pad of deck.pads) {
+    const layer = marks[chunk_of(...xz(along(pad.s0, 0, 0)))];
+    const cuts = [pad.s0];
+    for (let i = index_at(pad.s0) + 1; f(i, 8) < pad.s1; i++) cuts.push(f(i, 8));
+    cuts.push(pad.s1);
+    for (let k = 0; k + 1 < cuts.length; k++) quad(layer, tones.pad, along(cuts[k], -PAD_HALF, PAD_LIFT), along(cuts[k], PAD_HALF, PAD_LIFT), along(cuts[k + 1], PAD_HALF, PAD_LIFT), along(cuts[k + 1], -PAD_HALF, PAD_LIFT));
+    for (let c = pad.s0 + (CHEVRON_PITCH - CHEVRON_DEPTH - CHEVRON_BAR) / 2; c + CHEVRON_DEPTH + CHEVRON_BAR <= pad.s1; c += CHEVRON_PITCH) {
+      const p = (s: number, u: number) => along(s, u, CHEVRON_LIFT);
+      const tip = c + CHEVRON_DEPTH;
+      quad(layer, tones.chevron, p(c, -CHEVRON_HALF), p(tip, 0), p(tip + CHEVRON_BAR, 0), p(c + CHEVRON_BAR, -CHEVRON_HALF));
+      quad(layer, tones.chevron, p(tip, 0), p(c, CHEVRON_HALF), p(c + CHEVRON_BAR, CHEVRON_HALF), p(tip + CHEVRON_BAR, 0));
     }
   }
   for (let i = 0; i < n; i++) {

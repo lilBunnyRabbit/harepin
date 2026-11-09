@@ -43,6 +43,19 @@ const RAIL_BOTTOM = -0.6;
 const RAIL_TOP = 1.2;
 const RAIL_HALF = 0.25;
 const GATE_POST = 1.7;
+export const PAD_LENGTH = 12;
+/** Painted half-width of a pad, inset from the deck edge; a car whose centre is over it gets the kick. */
+export const PAD_HALF = ROAD_HALF - 1;
+/** A pad ends PAD_LEAD before the foot of a climb, or starts PAD_EXIT into the straight after a bend. */
+const PAD_LEAD = 15;
+const PAD_EXIT = 20;
+/** Straight deck left past a pad, so the kick is spent before the next bend. */
+const PAD_RUNOUT = 80;
+// Off the throttle every car coasts from PAD_MAX back under GAP_FAST within 480 m: a pad that far from a toe can't
+// launch a car past the speeds the gap is sized for.
+export const PAD_GAP_CLEAR = 500;
+const PAD_APART = 300;
+export const MAX_PADS = 4;
 
 interface Turn {
   angle: number;
@@ -461,6 +474,32 @@ export function rail_open(open: readonly OpenSection[], s: number, side: number)
   return open.some((o) => s >= o.s0 && s <= o.s1 && (o.side === 0 || o.side === side));
 }
 
+/** Boost pads on straights: first at the foot of climbs, then out of the tightest bends, never in a gap's reach. */
+function boost_pads(pieces: readonly PlanPiece[], profile: readonly Grade[], toes: readonly number[], length: number, samples: readonly Sample[]): { s0: number; s1: number }[] {
+  const span = size_gap().span;
+  const straights: { s0: number; s1: number; turn: number }[] = [];
+  let s0 = 0;
+  pieces.forEach((p, i) => {
+    if (p.kind === "straight") straights.push({ s0, s1: s0 + p.length, turn: i > 0 ? Math.abs(turn_angle(pieces[i - 1])) : 0 });
+    s0 += p.length;
+  });
+  const fits = (a: number) => {
+    const b = a + PAD_LENGTH;
+    if (!straights.some((t) => a >= t.s0 && b + PAD_RUNOUT <= t.s1) || a < START_AHEAD + PAD_EXIT || b > length - START_BEHIND) return false;
+    if (toes.some((t) => ((t - b + length) % length < PAD_GAP_CLEAR) || (a > t - JUMP_BEFORE && a < t + span + JUMP_AFTER))) return false;
+    return samples.every((q) => q.s < a - STEP || q.s > b + STEP || q.bank === 0) && profile.every((g) => g.s1 < a || g.s0 > b || g.solid);
+  };
+  const climbs = profile.filter((g) => g.solid && g.g0 === 0 && g.g1 > 0).map((g) => g.s0 - PAD_LEAD - PAD_LENGTH);
+  const exits = [...straights].sort((x, y) => y.turn - x.turn).map((t) => t.s0 + PAD_EXIT);
+  const pads: { s0: number; s1: number }[] = [];
+  for (const a of [...climbs, ...exits]) {
+    if (pads.length >= MAX_PADS) break;
+    if (!fits(a) || pads.some((p) => Math.min(Math.abs(p.s0 - a), length - Math.abs(p.s0 - a)) < PAD_APART)) continue;
+    pads.push({ s0: a, s1: a + PAD_LENGTH });
+  }
+  return pads.sort((x, y) => x.s0 - y.s0);
+}
+
 export function generate_sky(seed: number): WorldData {
   const t0 = performance.now();
   const { pieces, samples, length, profile, toes } = sky_layout(seed);
@@ -503,6 +542,8 @@ export function generate_sky(seed: number): WorldData {
     const p = road[samples.findIndex((q) => q.s >= toe)];
     ramps.push({ ...gap_ramp(), id: ramps.length, x: p.x, y: p.y, z: p.z, fx: p.tx, fz: p.tz, speed: ROAD_KICKER.speed, landing: jump.gap + jump.landing + jump.sag });
   }
+  const pads = boost_pads(pieces, profile, toes, length, samples);
+  for (const p of pads) deck_pieces.push({ kind: "pad", s0: p.s0, length: PAD_LENGTH, curve: 0 });
   deck_pieces.sort((a, b) => a.s0 - b.s0);
   const open = open_sections(seed, samples, pieces, length, (s) => toes.some((t) => s > t - JUMP_BEFORE - OPEN_CLEAR && s < t + jump.span + JUMP_AFTER));
   const solids: Solid[] = [];
@@ -560,7 +601,7 @@ export function generate_sky(seed: number): WorldData {
   const road_dist = new Float32Array((N + 1) * (N + 1));
   return {
     kind: "sky",
-    deck: { half: ROAD_HALF, pieces: deck_pieces, line, pads: [], open },
+    deck: { half: ROAD_HALF, pieces: deck_pieces, line, pads, open },
     terrain: { seed, size: SIZE, cell: CELL, n: N, heights, road_dist },
     graph: { nodes: [{ id: 0, x: road[0].x, z: road[0].z, y: road[0].y, kind: "junction" }], edges: [{ id: 0, a: 0, b: 0, kind: "highway", half: ROAD_HALF, closed: true, points: road }] },
     towns: [],

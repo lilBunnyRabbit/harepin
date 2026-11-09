@@ -1,6 +1,7 @@
 import { Vector3 } from "three";
 import { Car } from "../src/car";
 import { COUPE, car_spec, type CarSpec } from "../src/cars";
+import { PadTimer } from "../src/sky-pads";
 import { World } from "../src/world";
 import { FALL_DEPTH } from "../src/worldgen/sky";
 
@@ -60,6 +61,7 @@ export function autolap(world: World, spec: CarSpec = COUPE): Lap {
   const car = new Car(spec);
   const p = world.road[0];
   car.place(p.x, world.height(p.x, p.z) + 0.75, p.z, Math.atan2(p.tx, p.tz));
+  const pads = new PadTimer();
   let t = 0, index = 0, offroad = 0, worst = 0, slowest = Infinity, flipped = false, fell = false, impact = 0;
   const n = world.road.length;
   const step = world.road.reduce((sum, p, i) => sum + Math.hypot(world.road[(i + 1) % n].x - p.x, world.road[(i + 1) % n].z - p.z), 0) / n;
@@ -92,6 +94,7 @@ export function autolap(world: World, spec: CarSpec = COUPE): Lap {
     const airborne = car.wheels.every((w) => !w.contact);
     const target = Math.min(jump ? JUMP_PACE : Infinity, curve > 0.5 ? 20 : curve > 0.25 ? 30 : 42, pace);
     car.step(DT, { steer: airborne ? 0 : Math.max(-1, Math.min(1, -err * 3)), throttle: speed < target ? 1 : 0, brake: speed > target + (pace <= target ? 1 : 4) ? Math.min(0.5, (speed - target) / 10) * Math.max(0.2, 1 - Math.abs(err) * 4) : 0, handbrake: 0, analog: true }, world);
+    pads.step(DT, car, world);
     impact = Math.max(impact, world.collide(car));
     t += DT;
     const d = world.distance_to_road(car.pos.x, car.pos.z);

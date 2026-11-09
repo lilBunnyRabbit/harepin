@@ -74,6 +74,8 @@ export const tones = {
   deck: brand.accent,
   deck_side: lighten(brand.accent, -0.14),
   joint: lighten(brand.accent, -0.05),
+  pad: lighten(brand.accent, 0.14),
+  chevron: lighten(brand.accent, -0.16),
   grass,
   grass_dry: mix(brand.warning, ground, dark ? 0.26 : 0.36),
   sand: mix(brand.warning, brand.foreground, 0.35),

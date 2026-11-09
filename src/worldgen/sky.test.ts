@@ -2,7 +2,7 @@
 import { expect, test } from "bun:test";
 import { Vector3 } from "three";
 import { World } from "../world";
-import { generate_sky, rail_open, sky_layout, size_gap } from "./sky";
+import { generate_sky, MAX_PADS, PAD_GAP_CLEAR, PAD_LENGTH, rail_open, sky_layout, size_gap } from "./sky";
 import { DECK_STRIDE, SPAWN_INDEX } from "./types";
 
 const SEEDS = 12;
@@ -27,6 +27,7 @@ test("a seed makes the same track every time", () => {
   expect(again.deck?.line).toEqual(worlds[5].deck?.line);
   expect(again.solids).toEqual(worlds[5].solids);
   expect(again.checkpoints).toEqual(worlds[5].checkpoints);
+  expect(again.deck?.pads).toEqual(worlds[5].deck?.pads);
 });
 
 test("sections that aren't neighbours keep 40 m apart, and the track stays inside the map and the sky", () => {
@@ -143,6 +144,32 @@ test("open sections drop a rail on 15-30% of the lap, only on straights and wide
       for (const r of world.ramps) {
         const toe = deck.line[world.road.findIndex((p) => p.x === r.x && p.z === r.z) * DECK_STRIDE + 8];
         expect(s < toe - 70 || s > toe + span + 50).toBe(true);
+      }
+    }
+  }
+});
+
+test("every seed gets boost pads, on flat straight deck, clear of every gap's run-up and landing", () => {
+  const { span } = size_gap();
+  for (const world of worlds) {
+    const deck = world.deck;
+    if (!deck) throw new Error("sky world without a deck");
+    const length = deck.line[deck.line.length - DECK_STRIDE + 8];
+    const toes = deck.pieces.filter((p) => p.kind === "kicker").map((p) => p.s0);
+    expect(deck.pads.length).toBeGreaterThan(0);
+    expect(deck.pads.length).toBeLessThanOrEqual(MAX_PADS);
+    for (const pad of deck.pads) {
+      expect(pad.s1 - pad.s0).toBe(PAD_LENGTH);
+      expect(deck.pieces.some((p) => p.kind === "straight" && pad.s0 >= p.s0 && pad.s1 <= p.s0 + p.length)).toBe(true);
+      for (let i = 0; i < deck.line.length / DECK_STRIDE; i++) {
+        const s = deck.line[i * DECK_STRIDE + 8];
+        if (s < pad.s0 || s > pad.s1) continue;
+        expect(deck.line[i * DECK_STRIDE + 5]).toBe(0);
+        expect(deck.line[i * DECK_STRIDE + 7]).toBe(1);
+      }
+      for (const toe of toes) {
+        expect((toe - pad.s1 + length) % length).toBeGreaterThanOrEqual(PAD_GAP_CLEAR);
+        expect(pad.s0 < toe || pad.s0 > toe + span).toBe(true);
       }
     }
   }

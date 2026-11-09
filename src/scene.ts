@@ -40,7 +40,7 @@ export function mesh_tones(): MeshTones {
     walls: [tones.wall, tones.wall_warm, tones.wall_cool].map(linear),
     roofs: [tones.roof, tones.roof_slate].map(linear),
     roof_flat: linear(tones.roof_flat),
-    deck: { deck: linear(tones.deck), side: linear(tones.deck_side), rail: linear(tones.deck), joint: linear(tones.joint) },
+    deck: { deck: linear(tones.deck), side: linear(tones.deck_side), rail: linear(tones.deck), joint: linear(tones.joint), pad: linear(tones.pad), chevron: linear(tones.chevron) },
   };
 }
 

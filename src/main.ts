@@ -27,6 +27,7 @@ import { Remotes } from "./remotes";
 import { seed_of } from "./rng";
 import { WorldView, load_world, water_mesh } from "./scene";
 import { cloud_floor, clouds, sky } from "./sky";
+import { PadTimer } from "./sky-pads";
 import { Lighting } from "./lighting";
 import { NanProbe, sanitise_bloom } from "./postfx";
 import { CAMERA_RETURN_SECONDS, CameraView, Settings, invite_link, load_settings, save_setting, type SettingsState } from "./settings";
@@ -212,11 +213,13 @@ const WAKE_ZONE = 0.4;
 addEventListener("pointerdown", (event: PointerEvent) => {
   if (event.clientY < innerHeight * WAKE_ZONE) hud.wake();
 }, { capture: true });
+const pads = new PadTimer();
 const pad_menu = new PadMenu({ settings, chat, garage_open: () => garage.is_open });
 
 function spawn_at(index: number, reverse = false) {
   const p = world.road[world.clear_spawn(index, reverse ? -1 : 1)];
   car.place(p.x, world.height(p.x, p.z) + 0.75, p.z, Math.atan2(p.tx, p.tz) + (reverse ? Math.PI : 0));
+  pads.clear();
   chase.snap(car);
 }
 
@@ -313,6 +316,7 @@ function rewind_step(now: number) {
   car.wheels.forEach((w, i) => (w.omega = f.omega[i]));
   race.restore(f.race, now - f.at);
   car.nitro.restore(f.nitro);
+  pads.clear();
   if (race.started) ghost.rewind_to(now - race.started);
 }
 
@@ -501,6 +505,7 @@ function frame(now: number) {
       step_from.pos.copy(car.pos);
       step_from.quat.copy(car.quat);
       car.step(DT, controls, world);
+      pads.step(DT, car, world);
       stepped += DT;
       impact = Math.max(impact, world.collide(car));
       acc -= DT;

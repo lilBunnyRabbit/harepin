@@ -22,7 +22,7 @@ const TONES: MeshTones = {
     [0.2, 0.3, 0.4],
   ],
   roof_flat: [0.3, 0.3, 0.3],
-  deck: { deck: [0.2, 0.5, 0.8], side: [0.1, 0.2, 0.3], rail: [0.9, 0.9, 0.9], joint: [0.05, 0.05, 0.05] },
+  deck: { deck: [0.2, 0.5, 0.8], side: [0.1, 0.2, 0.3], rail: [0.9, 0.9, 0.9], joint: [0.05, 0.05, 0.05], pad: [0.4, 0.6, 0.9], chevron: [0.1, 0.3, 0.6] },
 };
 
 function from_worker(request: GenRequest): Promise<GenResult> {

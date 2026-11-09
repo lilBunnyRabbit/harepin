@@ -28,7 +28,7 @@ const TAGS: MeshTones = {
   walls: [[0, 0, 0]],
   roofs: [[0, 0, 0]],
   roof_flat: [0, 0, 0],
-  deck: { deck: [0, 0, 0], side: [0, 0, 0], rail: [0, 0, 0], joint: [0, 0, 0] },
+  deck: { deck: [0, 0, 0], side: [0, 0, 0], rail: [0, 0, 0], joint: [0, 0, 0], pad: [0, 0, 0], chevron: [0, 0, 0] },
 };
 const LAYER = ["", "asphalt", "sidewalk", "centre line", "edge line"];
 
