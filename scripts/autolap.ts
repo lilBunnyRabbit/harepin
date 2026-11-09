@@ -2,6 +2,7 @@ import { Vector3 } from "three";
 import { Car } from "../src/car";
 import { COUPE, car_spec, type CarSpec } from "../src/cars";
 import { World } from "../src/world";
+import { FALL_DEPTH } from "../src/worldgen/sky";
 
 const DT = 1 / 360;
 const RAMP_LOOK = 120;
@@ -40,13 +41,16 @@ export interface Lap {
   worst: number;
   slowest: number;
   flipped: boolean;
+  /** Dropped off a sky deck, and the hardest rail or wall hit (m/s into it). */
+  fell: boolean;
+  impact: number;
 }
 
 export function autolap(world: World, spec: CarSpec = COUPE): Lap {
   const car = new Car(spec);
   const p = world.road[0];
   car.place(p.x, world.height(p.x, p.z) + 0.75, p.z, Math.atan2(p.tx, p.tz));
-  let t = 0, index = 0, offroad = 0, worst = 0, slowest = Infinity, flipped = false;
+  let t = 0, index = 0, offroad = 0, worst = 0, slowest = Infinity, flipped = false, fell = false, impact = 0;
   const n = world.road.length;
   const step = world.road.reduce((sum, p, i) => sum + Math.hypot(world.road[(i + 1) % n].x - p.x, world.road[(i + 1) % n].z - p.z), 0) / n;
   // Each circuit kicker by its spot along the road: a box around the ramp axis only catches a car that is already lined up
@@ -78,7 +82,7 @@ export function autolap(world: World, spec: CarSpec = COUPE): Lap {
     const airborne = car.wheels.every((w) => !w.contact);
     const target = Math.min(jump ? JUMP_PACE : Infinity, curve > 0.5 ? 20 : curve > 0.25 ? 30 : 42, pace);
     car.step(DT, { steer: airborne ? 0 : Math.max(-1, Math.min(1, -err * 3)), throttle: speed < target ? 1 : 0, brake: speed > target + (pace <= target ? 1 : 4) ? Math.min(0.5, (speed - target) / 10) * Math.max(0.2, 1 - Math.abs(err) * 4) : 0, handbrake: 0, analog: true }, world);
-    world.collide(car);
+    impact = Math.max(impact, world.collide(car));
     t += DT;
     const d = world.distance_to_road(car.pos.x, car.pos.z);
     worst = Math.max(worst, d);
@@ -89,8 +93,12 @@ export function autolap(world: World, spec: CarSpec = COUPE): Lap {
       flipped = true;
       break;
     }
+    if (world.kind === "sky" && car.pos.y < world.nearest_road(car.pos.x, car.pos.z).y - FALL_DEPTH) {
+      fell = true;
+      break;
+    }
   }
-  return { t, index, offroad, worst, slowest, flipped };
+  return { t, index, offroad, worst, slowest, flipped, fell, impact };
 }
 
 if (import.meta.main) {
