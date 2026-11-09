@@ -2,12 +2,16 @@ import type { Rgb } from "./mesh";
 import { DECK_STRIDE, type Deck } from "./types";
 
 const THICK = 0.4;
-const RAIL_HIGH = 0.7;
+// About 75% of a car's height, as a toy track wall stands next to its car; the outside of a bank stands taller still.
+const RAIL_HIGH = 1;
+const BANK_RAIL = 0.3;
+/** Bank (rad) at which the outside rail reaches its full extra BANK_RAIL. */
+const BANK_FULL = 0.35;
 const RAIL_WIDE = 0.3;
-/** Track joints every SEGMENT metres: a raised seam SEAM long and SEAM_HIGH proud, read by light not colour. */
+/** Track joints every SEGMENT metres: a seam plate SEAM long, a step darker; side faces drew as black bars from the chase camera. */
 const SEGMENT = 9;
 const SEAM = 0.25;
-const SEAM_HIGH = 0.025;
+const SEAM_HIGH = 0.01;
 /** The rail's top folds inward over the deck by LIP, LIP_DROP deep. */
 const LIP = 0.1;
 const LIP_DROP = 0.12;
@@ -47,6 +51,7 @@ export function deck_layers(deck: Deck, tones: DeckTones, chunk_of: (x: number, 
     const slope = Math.tan(f(i, 5));
     return [f(i, 0) + tz * u, f(i, 1) + u * slope + lift, f(i, 2) - tx * u];
   };
+  const rail_high = (i: number, side: number) => RAIL_HIGH + BANK_RAIL * Math.min(1, Math.max(0, side * f(i, 5)) / BANK_FULL);
   for (let i = 0; i < n; i++) {
     const j = i + 1;
     if (!f(i, 7) || !f(j, 7)) continue;
@@ -62,11 +67,13 @@ export function deck_layers(deck: Deck, tones: DeckTones, chunk_of: (x: number, 
       const lip_j = side * (hj - LIP);
       const outer_i = side * (h + RAIL_WIDE);
       const outer_j = side * (hj + RAIL_WIDE);
-      quad(layer, tones.rail, at(i, inner_i, 0), at(j, inner_j, 0), at(j, inner_j, RAIL_HIGH - LIP_DROP), at(i, inner_i, RAIL_HIGH - LIP_DROP));
-      quad(layer, tones.rail, at(i, lip_i, RAIL_HIGH - LIP_DROP), at(j, lip_j, RAIL_HIGH - LIP_DROP), at(j, inner_j, RAIL_HIGH - LIP_DROP), at(i, inner_i, RAIL_HIGH - LIP_DROP));
-      quad(layer, tones.rail, at(i, lip_i, RAIL_HIGH - LIP_DROP), at(j, lip_j, RAIL_HIGH - LIP_DROP), at(j, lip_j, RAIL_HIGH), at(i, lip_i, RAIL_HIGH));
-      quad(layer, tones.rail, at(i, lip_i, RAIL_HIGH), at(j, lip_j, RAIL_HIGH), at(j, outer_j, RAIL_HIGH), at(i, outer_i, RAIL_HIGH));
-      quad(layer, tones.side, at(i, outer_i, RAIL_HIGH), at(j, outer_j, RAIL_HIGH), at(j, outer_j, -THICK), at(i, outer_i, -THICK));
+      const top_i = rail_high(i, side);
+      const top_j = rail_high(j, side);
+      quad(layer, tones.rail, at(i, inner_i, 0), at(j, inner_j, 0), at(j, inner_j, top_j - LIP_DROP), at(i, inner_i, top_i - LIP_DROP));
+      quad(layer, tones.rail, at(i, lip_i, top_i - LIP_DROP), at(j, lip_j, top_j - LIP_DROP), at(j, inner_j, top_j - LIP_DROP), at(i, inner_i, top_i - LIP_DROP));
+      quad(layer, tones.rail, at(i, lip_i, top_i - LIP_DROP), at(j, lip_j, top_j - LIP_DROP), at(j, lip_j, top_j), at(i, lip_i, top_i));
+      quad(layer, tones.rail, at(i, lip_i, top_i), at(j, lip_j, top_j), at(j, outer_j, top_j), at(i, outer_i, top_i));
+      quad(layer, tones.side, at(i, outer_i, top_i), at(j, outer_j, top_j), at(j, outer_j, -THICK), at(i, outer_i, -THICK));
     }
   }
   for (let i = 0; i < n; i++) {
@@ -78,14 +85,10 @@ export function deck_layers(deck: Deck, tones: DeckTones, chunk_of: (x: number, 
     const tx = f(i, 3) * SEAM;
     const tz = f(i, 4) * SEAM;
     const shift = (p: V, lift: number): V => [p[0] + tx, p[1] + lift, p[2] + tz];
-    for (const [u0, u1, base] of [[-h + RAIL_WIDE, h - RAIL_WIDE, 0], [-h, -h + RAIL_WIDE + 0.001, RAIL_HIGH], [h - RAIL_WIDE - 0.001, h, RAIL_HIGH]]) {
-      const a = at(i, u0, base);
-      const b = at(i, u1, base);
+    for (const [u0, u1, base] of [[-h + RAIL_WIDE, h - RAIL_WIDE, 0], [-h, -h + RAIL_WIDE + 0.001, rail_high(i, -1)], [h - RAIL_WIDE - 0.001, h, rail_high(i, 1)]]) {
       const a1 = at(i, u0, base + SEAM_HIGH);
       const b1 = at(i, u1, base + SEAM_HIGH);
       quad(layer, tones.joint, a1, b1, shift(b1, 0), shift(a1, 0));
-      quad(layer, tones.joint, a, b, b1, a1);
-      quad(layer, tones.joint, shift(a, 0), shift(a1, 0), shift(b1, 0), shift(b, 0));
     }
   }
 }

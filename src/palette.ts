@@ -70,10 +70,10 @@ const DUSK_TRIM_STEP = 0.38;
 const above_asphalt = (share: number) => lighten(asphalt, (brand.foreground[0] - asphalt[0]) * share);
 
 export const tones = {
-  // A toy track is one colour: the accent straight on deck and rails, shaded only down the background ladder underneath.
+  // A toy track is one colour: the accent straight on deck and rails; underside and seams only darker in its own hue.
   deck: brand.accent,
-  deck_side: mix(brand.accent, brand.background_darkest, 0.4),
-  joint: mix(brand.accent, brand.background_darkest, 0.12),
+  deck_side: lighten(brand.accent, -0.14),
+  joint: lighten(brand.accent, -0.05),
   grass,
   grass_dry: mix(brand.warning, ground, dark ? 0.26 : 0.36),
   sand: mix(brand.warning, brand.foreground, 0.35),
