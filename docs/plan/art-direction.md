@@ -25,12 +25,14 @@ Round 1, 2026-11-08. Direction only, nothing built. Screenshots (1600x900 and 84
 
 ## Do with P2 (ranked)
 
+Colour mixes follow `palette.mix(a, b, share)`: `share` is the amount of `a`, so `mix(foreground, asphalt, .7)` is 70% foreground.
+
 | # | What | File / owner | Tokens | Perf | Size |
 |---|------|--------------|--------|------|------|
 | 1 | Smoke: cap scale at ~0.5× today's (`0.4 + t*1.2`), life 1.0 s, material opacity 0.35. Tint road smoke from `FOG` mixed 50% with `foreground`, so it sits in the atmosphere. Dust and grass puffs at 0.25 size. | `effects.ts` (free; no coder on it) | `mix(sky FOG, foreground, .5)`; dust `mix(warning, background, .3)` kept | Fill drops ~4–6× during slides; same 1 draw | S |
 | 2 | Lighting mood for dark themes: **see variations A/B/C below** | `main.ts` lights, `sky.ts` | — | 0 draws | S |
 | 3 | Dusk value ladder: asphalt `background_dark` → `background_darkest`; grass up +0.04 L; tree crowns `leaf_dark` pushed 0.06 L under grass; edge line `mix(foreground, asphalt, .7)`; `cottontail` only on markers (lit gate, posts, checkpoint) | `palette.ts` `tones` (shared, tell world/scene coders) | as listed | 0 | S |
-| 4 | Car pops: player paint drawn from the tokens farthest in hue from `success` (grass) and `cottontail`. Dark themes only: paint L +0.06 through `lighten()`, glass `mix(background_darkest, sky_tones.upper, .3)` so it reflects some sky | `palette.ts` `car_paints`, `models.ts` (cars coder) | `secondary`/`accent`/`info` first; `primary` last | 0 | S |
+| 4 | Car pops: player paint drawn from the tokens farthest in hue from `success` (grass) and `cottontail`. Dark themes only: paint L +0.06 through `lighten()`, glass `mix(sky_tones.upper, background_darkest, .3)` so it reflects some sky | `palette.ts` `car_paints`, `models.ts` (cars coder) | `secondary`/`accent`/`info` first; `primary` last | 0 | S |
 | 5 | Headlight tone `mix(cottontail, foreground, .3)`; cone intensity −30% | `palette.ts` `tones.head`, `main.ts:70` | as listed | 0 | S |
 | 6 | HUD layout: **see variations A/B/C below** | `hud.ts`, `style.css`, `index.html` (HUD coder) | ladder only | DOM only | M |
 | 7 | Light HUD surfaces `light-dark(background_darkest, background_lighter)` at 85%; speed ink `primary`, not `cottontail` (brand rule: no brand colour on near-white, and keep enough contrast) | `style.css` | `background_lighter`, `primary` | 0 | S |
@@ -52,7 +54,7 @@ Round 1, 2026-11-08. Direction only, nothing built. Screenshots (1600x900 and 84
 
 | # | What | File | Tokens | Perf | Size |
 |---|------|------|--------|------|------|
-| 9 | Skid marks visible at dusk once asphalt drops (item 3): skid `mix(background_darkest, error, .1)` at 0.6, fade the oldest 20% of the ring buffer | `effects.ts` | `background_darkest`, `error` | 0 | S |
+| 9 | Skid marks visible at dusk once asphalt drops (item 3): skid `mix(error, background_darkest, .1)` at 0.6, fade the oldest 20% of the ring buffer | `effects.ts` | `background_darkest`, `error` | 0 | S |
 | 10 | Aerial perspective: distant terrain picks up `FOG` earlier on phones (fog far 700 hides the pop-in) and hills read as layered silhouettes | `main.ts` fog, `quality.ts` | `FOG` | 0 | S |
 | 11 | Car outline (inverted hull, `background_darkest`, 2 cm): toon edge, readable over any ground | `models.ts` | `background_darkest` | +1 draw per car (remotes +16) | M |
 | 12 | Phone AA: at ratio 0.85, use FXAA on the final pass instead of no AA, or drop to 0.75 and add FXAA | `quality.ts`, `main.ts` | — | 1 full-screen pass, cheap | M |
