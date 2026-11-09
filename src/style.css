@@ -1693,3 +1693,39 @@ body.no-blur * {
     translate: none;
   }
 }
+
+.actions {
+  anchor-name: --actions;
+  position: fixed;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--bar-h);
+  padding: 0 var(--space-3);
+}
+
+@media (pointer: fine) {
+  .actions {
+    left: var(--inset-left);
+    bottom: var(--inset-bottom);
+  }
+
+  .dock-left {
+    bottom: calc(var(--inset-bottom) + var(--bar-h) + var(--space-2));
+  }
+
+  #modes:popover-open {
+    position-anchor: --actions;
+    top: auto;
+    bottom: calc(anchor(top) + var(--space-2));
+  }
+}
+
+/* Bottom left is the steering zone on touch, so the buttons stay up top beside the title. */
+@media (pointer: coarse) {
+  .actions {
+    top: var(--inset-top);
+    left: calc(anchor(--title-bar right) + var(--space-2));
+    padding: var(--space-1) var(--space-2);
+  }
+}
