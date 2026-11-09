@@ -33,8 +33,6 @@
 
 .settings:not([data-view="menu"]) .menu-top,
 .settings:not([data-view="menu"]) .menu-tabs,
-.settings:not([data-view="sheet"]) .settings-tabs,
-.settings:not([data-view="sheet"]) .settings-foot,
 .settings[data-view="menu"] .settings-head {
   display: none;
 }
@@ -279,10 +277,6 @@
   grid-template: "room room games" 1fr "race new games" 1fr / 1fr 1fr 1.15fr;
 }
 
-.menu-mosaic[data-tab="settings"] {
-  grid-template: "graphics display" 1fr "controls audio" 1fr / 1fr 1fr;
-}
-
 .settings .menu-tile {
   --tile-scrim: var(--background-darkest);
   position: relative;
@@ -510,10 +504,6 @@
 [data-area="games"] { grid-area: games; }
 [data-area="race"] { grid-area: race; }
 [data-area="new"] { grid-area: new; }
-[data-area="graphics"] { grid-area: graphics; }
-[data-area="display"] { grid-area: display; }
-[data-area="controls"] { grid-area: controls; }
-[data-area="audio"] { grid-area: audio; }
 
 .settings .menu-info {
   display: flex;
@@ -610,10 +600,6 @@
 
   .menu-mosaic[data-tab="online"] {
     grid-template: "room games" minmax(var(--first-rows), auto) "race games" minmax(var(--first-rows), auto) "new games" 140px / 1fr 1fr;
-  }
-
-  .menu-mosaic[data-tab="settings"] {
-    grid-template: "graphics display" var(--first-rows) "controls audio" var(--first-rows) / 1fr 1fr;
   }
 
   .settings .menu-tab {

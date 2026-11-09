@@ -222,6 +222,7 @@ addEventListener("pointerdown", (event: PointerEvent) => {
 }, { capture: true });
 const pads = new PadTimer();
 const pad_menu = new PadMenu({ settings, chat, garage_open: () => garage.is_open });
+settings.on_nav = (nav) => pad_menu.navigate([nav]);
 
 function spawn_at(index: number, reverse = false) {
   const p = world.road[world.clear_spawn(index, reverse ? -1 : 1)];

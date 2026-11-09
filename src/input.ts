@@ -180,8 +180,8 @@ const PAD_ACTIONS: [number, Action][] = [
   [9, "menu"],
 ];
 
-/** A menu press: the d-pad, A and B, and the bumpers as tab switches. */
-export type Nav = "up" | "down" | "left" | "right" | "accept" | "back" | "prev" | "next";
+/** A menu press: the d-pad, A and B, the bumpers as tab switches, the triggers as section switches, Y as the page's second action. */
+export type Nav = "up" | "down" | "left" | "right" | "accept" | "back" | "prev" | "next" | "sub_prev" | "sub_next" | "alt";
 
 const PAD_NAV: [number, Nav][] = [
   [12, "up"],
@@ -190,8 +190,11 @@ const PAD_NAV: [number, Nav][] = [
   [15, "right"],
   [0, "accept"],
   [1, "back"],
+  [3, "alt"],
   [4, "prev"],
   [5, "next"],
+  [6, "sub_prev"],
+  [7, "sub_next"],
 ];
 
 export const typing = (target: EventTarget | null) => target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement;

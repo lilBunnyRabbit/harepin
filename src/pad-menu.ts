@@ -1,9 +1,11 @@
 import type { Chat } from "./chat";
 import { $ } from "./hud";
 import type { Nav } from "./input";
+import { ADJUST_EVENT } from "./setting-rows";
 import type { Settings } from "./settings";
 
-const FOCUSABLE = "button, input, select, textarea, a[href], [tabindex]:not([tabindex='-1'])";
+// Controls inside a menu row carry tabindex -1: the row holds focus and they stay click targets only.
+const FOCUSABLE = ":is(button, input, select, textarea, a[href], [tabindex]):not([tabindex='-1'])";
 // Borders and focus outlines make neighbours overlap by a few px; they still count as the next row or column.
 const OVERLAP_PX = 4;
 const SIDE_WEIGHT = 2;
@@ -14,6 +16,8 @@ interface Layer {
   roots: Element[];
   back(): void;
   tab?(step: number): HTMLElement | null;
+  sub?(step: number): HTMLElement | null;
+  alt?(): void;
   first(): HTMLElement | null;
 }
 
@@ -63,6 +67,10 @@ function focus(el: HTMLElement | null) {
 
 // A select only commits on A: the theme select reloads the page on change.
 function adjust(el: Element | null, step: number): boolean {
+  if (el instanceof HTMLElement && el.dataset.adjust !== undefined) {
+    el.dispatchEvent(new CustomEvent(ADJUST_EVENT, { detail: step }));
+    return true;
+  }
   if (el instanceof HTMLInputElement && el.type === "range") {
     if (step > 0) el.stepUp();
     else el.stepDown();
@@ -128,6 +136,14 @@ export class PadMenu {
         focus(layer.tab?.(nav === "prev" ? -1 : 1) ?? null);
         continue;
       }
+      if (nav === "sub_prev" || nav === "sub_next") {
+        focus(layer.sub?.(nav === "sub_prev" ? -1 : 1) ?? null);
+        continue;
+      }
+      if (nav === "alt") {
+        layer.alt?.();
+        continue;
+      }
       const current = document.activeElement;
       const items = candidates(layer.roots);
       if (!(current instanceof HTMLElement) || !items.includes(current)) {
@@ -186,9 +202,14 @@ export class PadMenu {
           if (settings.is_open) focus(first_of(settings.page()));
         },
         tab: (step) => {
-          settings.step_section(step);
+          settings.step_tab(step);
           return first_of(settings.page());
         },
+        sub: (step) => {
+          settings.step_sub(step);
+          return first_of(settings.page());
+        },
+        alt: () => settings.alt(),
         first: () => first_of(settings.page()) ?? first_of(settings.panel),
       };
     const modes = this.modes;

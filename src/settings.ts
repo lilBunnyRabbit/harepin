@@ -1,10 +1,11 @@
 import { SteerMode } from "./car";
 import type { GarageSection } from "./garage";
-import { typing } from "./input";
+import { typing, type Nav } from "./input";
 import { DirectoryStatus, PASSWORD_LENGTH, ROOM_LENGTH, clean_password, clean_room, locked_name, save_lock, type Server } from "./directory";
 import { clean_name, parse_seed } from "./net";
 import { HARMONIES as HARMONY_HUES, Harmony, generate_theme, is_dark, type ThemeMode } from "./random-theme";
 import { mulberry32 } from "./rng";
+import { Rows, el, icon, read, type Options, type RowHelp, type Text, type Value } from "./setting-rows";
 import { WorldKind } from "./worldgen/types";
 import {
   THEMES,
@@ -247,8 +248,31 @@ interface Section {
   build: () => HTMLElement[];
 }
 
-interface SheetSection extends Section {
+interface SettingsSection {
+  id: string;
+  label: string;
   icon: string;
+  summary: () => string;
+  /** What Reset section puts back. */
+  keys: readonly SettingKey[];
+  rows: () => HTMLElement[];
+}
+
+interface DeepPage {
+  id: string;
+  label: string;
+  parent: string;
+  help: string;
+  rows: () => HTMLElement[];
+}
+
+interface SubPage {
+  label: string;
+  parent: string | null;
+  keys: readonly SettingKey[];
+  tab: HTMLButtonElement | null;
+  list: HTMLElement;
+  help: string;
 }
 
 export const MenuTab = {
@@ -269,22 +293,20 @@ const MENU_TABS: [MenuTab, string][] = [
 const View = {
   MENU: "menu",
   PAGE: "page",
-  SHEET: "sheet",
 } as const;
 type View = (typeof View)[keyof typeof View];
 
 /** Full-screen pages under a menu tab, by title. */
 const PAGE_TITLE: Record<string, string> = { world: "New map", room: "New room" };
 
-/** Where Back goes from a page or a settings section. */
+/** Where Back goes from a page. */
 const PARENT: Record<string, MenuTab> = {
   world: MenuTab.PLAY,
   room: MenuTab.ONLINE,
-  graphics: MenuTab.SETTINGS,
-  controls: MenuTab.SETTINGS,
-  display: MenuTab.SETTINGS,
-  audio: MenuTab.SETTINGS,
 };
+
+const CAMERA_RETURN_LABEL: Record<CameraReturn, string> = { off: "Off", short: "1.5 s", long: "3 s", never: "Never" };
+const STEER_LABEL: Record<SteerMode, string> = { snap: "Classic", hold: "Hold", smooth: "Smooth" };
 
 const WORLD_NAME: Record<WorldKind, string> = { island: "Island", sky: "Sky Track" };
 const WORLD_NOTE: Record<WorldKind, string> = { island: "Towns, hills and every challenge", sky: "Drops, rails, jumps, boost pads" };
@@ -292,8 +314,6 @@ const HERO_NOTE: Record<WorldKind, string> = {
   island: "Free roam. Flags on the orange circuit start the challenges.",
   sky: "A toy circuit in the clouds: drops, rails, jumps and boost pads.",
 };
-
-type Text = string | (() => string);
 
 const preview = (name: string) => `${import.meta.env.BASE_URL}menu/${name}.webp`;
 
@@ -325,6 +345,7 @@ const KEYS: [string, string, string, string][] = [
   ["Chat", "T", "", "Chat"],
   ["Menu", "Esc", "Start", "Menu button"],
   ["In menus: move, pick, back, tabs", "Arrows, Enter, Esc, Q / E", "D-pad, A, B, LB / RB", ""],
+  ["In menus: sections, reset section", "", "LT / RT, Y", ""],
 ];
 
 const PAD_SEPARATOR = /(, | \/ )/;
@@ -350,8 +371,6 @@ const HARMONY_CHOICES: [Harmony | "any", string][] = [
   [Harmony.TRIADIC, "Three colours"],
   [Harmony.SPLIT, "Split"],
 ];
-
-const THEME_STEPS = ["Roll", "Adjust", "Name and save"];
 
 type WirePart = "bar" | "title" | "strip" | "map" | "speed" | "dash";
 
@@ -414,22 +433,6 @@ const HUD_LAYOUTS: HudLayoutOption[] = [
   },
 ];
 
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, class_name = "", text = ""): HTMLElementTagNameMap[K] {
-  const node = document.createElement(tag);
-  if (class_name) node.className = class_name;
-  if (text) node.textContent = text;
-  return node;
-}
-
-function icon(id: string): SVGSVGElement {
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("aria-hidden", "true");
-  const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
-  use.setAttribute("href", `#${id}`);
-  svg.append(use);
-  return svg;
-}
-
 function random_code() {
   return Math.random().toString(36).slice(2, 8);
 }
@@ -442,6 +445,8 @@ export function invite_link(room: string, seed: number, kind: WorldKind = WorldK
   return `${location.origin}${location.pathname}?room=${encodeURIComponent(room)}&seed=${seed}${kind === WorldKind.SKY ? `&world=${kind}` : ""}`;
 }
 
+const hud_name = (value: HudLayout) => HUD_LAYOUTS.find((layout) => layout.value === value)?.name ?? value;
+
 const DIRECTORY_NOTE: Record<DirectoryStatus, string> = {
   connecting: "Looking for other games…",
   online: "Games running right now",
@@ -450,10 +455,11 @@ const DIRECTORY_NOTE: Record<DirectoryStatus, string> = {
 
 export class Settings {
   on_change: ((state: SettingsState, key: SettingKey) => void) | null = null;
+  /** Arrow keys in the menu, handed to the pad's focus moves so both walk the same rows. */
+  on_nav: ((nav: Nav) => void) | null = null;
   private readonly root = el("div", "settings");
   readonly panel = el("div", "settings-panel");
   private readonly body = el("div", "settings-body");
-  private readonly sheet_tabs = new Map<string, HTMLButtonElement>();
   private readonly menu_tabs = new Map<string, HTMLButtonElement>();
   private readonly pages = new Map<string, HTMLElement>();
   private readonly syncs: (() => void)[] = [];
@@ -462,7 +468,13 @@ export class Settings {
   private saved: SettingsState;
   private timer = 0;
   private section: string = MenuTab.PLAY;
-  private keys: HTMLElement | null = null;
+  private readonly rows = new Rows();
+  private readonly subs = new Map<string, SubPage>();
+  private sub = "graphics";
+  private help: RowHelp | null = null;
+  private readonly help_title = el("b", "set-help-title");
+  private readonly help_text = el("p", "set-help-text");
+  private readonly help_visual = el("div", "set-help-visual");
   private readonly world_map = new WorldMap();
   private chosen: number;
   private chosen_kind: WorldKind;
@@ -494,7 +506,10 @@ export class Settings {
 
   /** The menu, on Play unless a section is named. */
   open(section: string = MenuTab.PLAY) {
-    if (this.pages.has(section)) this.section = section;
+    if (this.subs.has(section)) {
+      this.section = MenuTab.SETTINGS;
+      this.sub = section;
+    } else if (this.pages.has(section)) this.section = section;
     if (this.is_open) return this.show(this.section);
     if (!this.root.isConnected) this.parent.append(this.root);
     this.root.hidden = false;
@@ -506,10 +521,9 @@ export class Settings {
     this.panel.focus();
   }
 
-  /** Controls, scrolled to the key list: the help key lands here. */
+  /** The key list: the help key lands here. */
   open_keys() {
-    this.open("controls");
-    this.keys?.scrollIntoView({ block: "end" });
+    this.open("keys");
   }
 
   close() {
@@ -533,20 +547,22 @@ export class Settings {
 
   /** The open tab's page. */
   page(): HTMLElement {
+    if (this.section === MenuTab.SETTINGS) return this.subs.get(this.sub)?.list ?? this.body;
     return this.pages.get(this.section) ?? this.body;
   }
 
   /** One level up: a page or a settings section returns to its tab, a tab closes the menu. */
   back() {
+    const deep = this.section === MenuTab.SETTINGS ? this.subs.get(this.sub)?.parent : null;
+    if (deep) return this.show_sub(deep);
     const parent = PARENT[this.section];
     if (parent) this.show(parent);
     else this.close();
   }
 
-  step_section(step: number) {
-    const view = view_of(this.section);
-    if (view === View.PAGE) return;
-    const ids = [...(view === View.MENU ? this.menu_tabs : this.sheet_tabs).keys()];
+  step_tab(step: number) {
+    if (view_of(this.section) === View.PAGE) return;
+    const ids = [...this.menu_tabs.keys()];
     this.show(ids[(ids.indexOf(this.section) + step + ids.length) % ids.length]);
   }
 
@@ -619,28 +635,11 @@ export class Settings {
       { id: MenuTab.PLAY, label: "Play", build: () => this.play() },
       { id: MenuTab.GARAGE, label: "Garage", build: () => this.garage() },
       { id: MenuTab.ONLINE, label: "Online", build: () => this.online() },
-      { id: MenuTab.SETTINGS, label: "Settings", build: () => this.settings_tiles() },
+      { id: MenuTab.SETTINGS, label: "Settings", build: () => this.settings_page() },
       { id: "world", label: PAGE_TITLE.world, build: () => this.world() },
       { id: "room", label: PAGE_TITLE.room, build: () => this.create_room() },
     ];
-    const sheet: SheetSection[] = [
-      { id: "graphics", label: "Graphics", icon: "icon-graphics", build: () => this.graphics() },
-      { id: "controls", label: "Controls", icon: "icon-controls", build: () => this.controls() },
-      { id: "display", label: "Display", icon: "icon-display", build: () => [...this.hud_layout(), ...this.display()] },
-      { id: "audio", label: "Audio", icon: "icon-audio", build: () => this.audio() },
-    ];
-
-    const nav = el("nav", "settings-tabs");
-    nav.setAttribute("aria-label", "Settings sections");
-    for (const section of sheet) {
-      const tab = el("button", "settings-tab");
-      tab.type = "button";
-      tab.dataset.section = section.id;
-      tab.append(icon(section.icon), el("span", "", section.label));
-      nav.append(tab);
-      this.sheet_tabs.set(section.id, tab);
-    }
-    for (const section of [...pages, ...sheet]) {
+    for (const section of pages) {
       const page = el("section", "settings-page");
       page.dataset.section = section.id;
       page.setAttribute("aria-label", section.label);
@@ -648,12 +647,7 @@ export class Settings {
       this.body.append(page);
       this.pages.set(section.id, page);
     }
-    const foot = el("div", "settings-foot");
-    const changes = el("button", "settings-link", "What's new");
-    changes.type = "button";
-    changes.addEventListener("click", () => this.host.show_changelog());
-    foot.append(el("span", "", `Version v${this.host.version}`), changes);
-    this.panel.append(top, menu_nav, head, nav, this.body, foot);
+    this.panel.append(top, menu_nav, head, this.body);
   }
 
   private name_field(): HTMLInputElement {
@@ -683,7 +677,6 @@ export class Settings {
     this.section = section;
     this.root.dataset.view = view_of(section);
     this.root.dataset.section = section;
-    for (const [id, tab] of this.sheet_tabs) tab.setAttribute("aria-current", String(id === section));
     for (const [id, tab] of this.menu_tabs) tab.setAttribute("aria-current", String(id === section));
     for (const [id, page] of this.pages) page.hidden = id !== section;
     this.title.textContent = PAGE_TITLE[section] ?? "Settings";
@@ -691,6 +684,7 @@ export class Settings {
     if (section === "world") this.world_map.show(this.chosen, this.chosen_kind, true);
     else this.world_map.stop();
     this.host.browse_servers(section === MenuTab.ONLINE);
+    if (section === MenuTab.SETTINGS) this.show_sub(this.sub);
     this.refresh();
   }
 
@@ -829,26 +823,6 @@ export class Settings {
     return this.mosaic(MenuTab.ONLINE, room_tile, games, race_tile, fresh);
   }
 
-  private settings_tiles(): HTMLElement[] {
-    const hud = (value: HudLayout) => HUD_LAYOUTS.find((layout) => layout.value === value)?.name ?? value;
-    const quality = () => {
-      const tier = TIER_LABEL[this.host.quality_status().tier];
-      return this.current.quality === QualityMode.AUTO ? `Auto, running ${tier}` : `Fixed at ${tier}`;
-    };
-    const aids = () => {
-      const on = (["tcs", "abs", "assist"] as const).filter((aid) => this.current[aid]).length;
-      return `${on} of 3 aids on · ${this.current.auto ? "auto" : "manual"} gears · key list`;
-    };
-    const sound = () => (this.current.muted ? "Muted" : `Volume ${Math.round(this.current.volume * 100)}%`);
-    return this.mosaic(
-      MenuTab.SETTINGS,
-      this.tile("graphics", "Graphics", quality, icon("icon-graphics"), () => this.show("graphics")),
-      this.tile("display", "Display", () => `HUD ${hud(this.current.hud)} · ${current_theme()}`, icon("icon-display"), () => this.show("display")),
-      this.tile("controls", "Controls", aids, icon("icon-controls"), () => this.show("controls")),
-      this.tile("audio", "Audio", sound, icon("icon-audio"), () => this.show("audio")),
-    );
-  }
-
   private row(label: string, control: HTMLElement, hint = "", inline = false): HTMLElement {
     const row = el("div", inline ? "settings-row settings-row-inline" : "settings-row");
     const text = el("div", "settings-label");
@@ -876,93 +850,11 @@ export class Settings {
     return this.row(label, group, hint);
   }
 
-  private hud_layout(): HTMLElement[] {
-    const group = el("div", "hud-layouts");
-    group.setAttribute("role", "radiogroup");
-    group.setAttribute("aria-label", "HUD layout");
-    const buttons = HUD_LAYOUTS.map(({ value, name, note, wire }) => {
-      const button = el("button", "hud-layout");
-      button.type = "button";
-      button.setAttribute("role", "radio");
-      button.dataset.layout = value;
-      const frame = el("span", "hud-wire");
-      frame.setAttribute("aria-hidden", "true");
-      for (const [part, x, y, w, h] of wire) {
-        const box = el("span", `hud-wire-${part}`);
-        box.style.inset = `${y}% ${100 - x - w}% ${100 - y - h}% ${x}%`;
-        frame.append(box);
-      }
-      const text = el("span", "hud-layout-text");
-      text.append(el("b", "", name), el("small", "", note));
-      button.append(frame, text);
-      button.addEventListener("click", () => this.set("hud", value));
-      group.append(button);
-      return [value, button] as const;
-    });
-    this.syncs.push(() => {
-      for (const [value, button] of buttons) button.setAttribute("aria-checked", String(this.current.hud === value));
-    });
-    const dash = this.choice(
-      "dash",
-      [
-        [DashPlace.RIGHT, "Right"],
-        [DashPlace.CENTER, "Centre"],
-      ],
-      "Dash",
-      "Speed, gear and aids. Racing always centres it, Compact keeps it up top",
-    );
-    return [this.row("HUD layout", group, "Where speed, laps, map and buttons sit"), dash];
-  }
-
-  private toggle_row(key: "tcs" | "abs" | "assist" | "auto" | "precision_key" | "invert_y" | "ghost" | "muted", label: string, hint = ""): HTMLElement {
-    const button = el("button", "settings-switch");
-    button.type = "button";
-    button.setAttribute("role", "switch");
-    button.setAttribute("aria-label", label);
-    button.append(el("span", "settings-knob"));
-    button.addEventListener("click", () => this.set(key, !this.current[key]));
-    this.syncs.push(() => button.setAttribute("aria-checked", String(this.current[key])));
-    return this.row(label, button, hint, true);
-  }
-
-  private touch_only(row: HTMLElement): HTMLElement {
-    row.classList.add("settings-touch-only");
-    return row;
-  }
-
   private action(label: string, run: (button: HTMLButtonElement) => void): HTMLButtonElement {
     const button = el("button", "settings-action", label);
     button.type = "button";
     button.addEventListener("click", () => run(button));
     return button;
-  }
-
-  private graphics(): HTMLElement[] {
-    const status = el("div", "settings-status");
-    this.syncs.push(() => {
-      const s = this.host.quality_status();
-      const lead = this.current.quality === QualityMode.AUTO ? `Auto is running ${TIER_LABEL[s.tier]}` : `Fixed at ${TIER_LABEL[s.tier]}`;
-      status.replaceChildren(
-        el("span", "", lead),
-        this.stat("scale", `${s.ratio.toFixed(2)}x`),
-        this.stat("shadows", s.shadow_size ? `${s.shadow_size}px` : "off"),
-        this.stat("bloom", s.bloom ? "on" : "off"),
-      );
-    });
-    return [
-      this.choice(
-        "quality",
-        [
-          [QualityMode.AUTO, "Auto"],
-          [QualityMode.HIGH, "High"],
-          [QualityMode.MEDIUM, "Medium"],
-          [QualityMode.LOW, "Low"],
-        ],
-        "Quality",
-        "Auto steps down when the frame rate drops",
-      ),
-      status,
-    ];
   }
 
   private stat(label: string, value: string): HTMLElement {
@@ -1214,7 +1106,378 @@ export class Settings {
     input.reportValidity();
   }
 
+  private value<K extends SettingKey>(key: K): Value<SettingsState[K]> {
+    return { get: () => this.current[key], set: (value) => this.set(key, value) };
+  }
+
+  private settings_page(): HTMLElement[] {
+    const tier = () => TIER_LABEL[this.host.quality_status().tier];
+    const sections: SettingsSection[] = [
+      {
+        id: "graphics",
+        label: "Graphics",
+        icon: "icon-graphics",
+        summary: () => (this.current.quality === QualityMode.AUTO ? `Auto, running ${tier()}` : `Fixed at ${tier()}`),
+        keys: ["quality"],
+        rows: () => this.graphics(),
+      },
+      {
+        id: "display",
+        label: "Display",
+        icon: "icon-display",
+        summary: () => `${hud_name(this.current.hud)} HUD · ${current_theme()}`,
+        keys: ["hud", "dash"],
+        rows: () => this.display(),
+      },
+      {
+        id: "driving",
+        label: "Driving",
+        icon: "icon-aids",
+        summary: () => `${(["tcs", "abs", "assist"] as const).filter((aid) => this.current[aid]).length} of 3 aids · ${this.current.auto ? "auto" : "manual"} gears`,
+        keys: ["tcs", "abs", "assist", "auto", "ghost"],
+        rows: () => this.driving(),
+      },
+      {
+        id: "camera",
+        label: "Camera",
+        icon: "icon-camera",
+        summary: () => `${this.current.camera === CameraView.CHASE ? "Chase" : "Cockpit"} · returns ${CAMERA_RETURN_LABEL[this.current.camera_return]}`,
+        keys: ["camera", "camera_return", "invert_y"],
+        rows: () => this.camera(),
+      },
+      {
+        id: "controls",
+        label: "Controls",
+        icon: "icon-controls",
+        summary: () => `Keyboard ${STEER_LABEL[this.current.steer_mode].toLowerCase()} · key list`,
+        keys: ["steer_mode", "precision_key", "touch_steer"],
+        rows: () => this.controls(),
+      },
+      {
+        id: "audio",
+        label: "Audio",
+        icon: "icon-audio",
+        summary: () => (this.current.muted ? "Muted" : `Volume ${Math.round(this.current.volume * 100)}%`),
+        keys: ["volume", "muted"],
+        rows: () => this.audio(),
+      },
+    ];
+    const deep: DeepPage[] = [
+      { id: "creator", label: "Make your own theme", parent: "display", help: "Roll colours, keep the ones you like, then name and save it.", rows: () => this.theme_create() },
+      { id: "themes", label: "Your themes", parent: "display", help: "Themes you made. Pick one with Theme on Display.", rows: () => this.saved_themes() },
+      { id: "keys", label: "All keys and buttons", parent: "controls", help: "Every key, pad button and touch control. H opens this list while driving.", rows: () => this.key_list() },
+    ];
+
+    const nav = el("nav", "set-nav");
+    nav.setAttribute("aria-label", "Settings sections");
+    const foot = el("div", "set-foot");
+    const changes = () => {
+      const button = el("button", "set-changes", "What's new");
+      button.type = "button";
+      button.addEventListener("click", () => this.host.show_changelog());
+      return button;
+    };
+    foot.append(el("span", "", `v${this.host.version}`), changes());
+
+    const back = el("button", "set-crumb");
+    back.type = "button";
+    back.dataset.action = "back";
+    const back_label = el("span");
+    back.append(icon("icon-back"), back_label);
+    const title = el("h3", "set-title");
+    const reset = el("button", "set-reset");
+    reset.type = "button";
+    reset.append(icon("icon-restart"), el("span", "", "Reset section"));
+    reset.addEventListener("click", () => this.alt());
+    const head = el("div", "set-head");
+    head.append(back, title, changes(), reset);
+    const main = el("div", "set-main");
+    main.append(head);
+
+    for (const section of sections) {
+      const tab = el("button", "set-tab");
+      tab.type = "button";
+      tab.dataset.sub = section.id;
+      const summary = el("small");
+      this.syncs.push(() => (summary.textContent = section.summary()));
+      tab.append(icon(section.icon), el("b", "", section.label), summary);
+      nav.append(tab);
+      const list = this.sub_list(section.id, section.label, section.rows());
+      main.append(list);
+      this.subs.set(section.id, { label: section.label, parent: null, keys: section.keys, tab, list, help: "" });
+    }
+    for (const page of deep) {
+      const list = this.sub_list(page.id, page.label, page.rows());
+      main.append(list);
+      this.subs.set(page.id, { label: page.label, parent: page.parent, keys: [], tab: null, list, help: page.help });
+    }
+    nav.append(foot);
+
+    const help = el("aside", "set-help");
+    help.setAttribute("aria-live", "polite");
+    help.append(this.help_title, this.help_text, this.help_visual);
+
+    const legend = el("div", "set-legend");
+    for (const [glyphs, text] of [
+      [["A"], "Select"],
+      [["B"], "Back"],
+      [["Y"], "Reset section"],
+      [["LT", "RT"], "Section"],
+      [["LB", "RB"], "Tab"],
+    ] as const) {
+      const hint = el("span");
+      for (const glyph of glyphs) hint.append(el("kbd", glyph.length === 1 ? "pad-glyph pad-face" : "pad-glyph", glyph));
+      hint.append(text);
+      legend.append(hint);
+    }
+
+    this.syncs.push(() => {
+      const sub = this.subs.get(this.sub);
+      const parent = sub?.parent ? this.subs.get(sub.parent) : null;
+      back.hidden = !parent;
+      back_label.textContent = parent?.label ?? "";
+      title.textContent = sub?.label ?? "";
+      reset.hidden = !sub?.keys.length;
+    });
+    this.rows.on_focus = (row_help) => {
+      this.help = row_help;
+      this.render_help();
+    };
+
+    const root = el("div", "set");
+    root.append(nav, main, help, legend);
+    return [root];
+  }
+
+  private sub_list(id: string, label: string, rows: HTMLElement[]): HTMLElement {
+    const list = el("section", "set-list");
+    list.dataset.sub = id;
+    list.setAttribute("aria-label", label);
+    list.hidden = true;
+    list.append(...rows);
+    return list;
+  }
+
+  private show_sub(id: string) {
+    const sub = this.subs.get(id);
+    if (!sub) return;
+    this.sub = id;
+    const top = sub.parent ?? id;
+    for (const [key, { tab, list }] of this.subs) {
+      list.hidden = key !== id;
+      tab?.setAttribute("aria-current", String(key === top));
+    }
+    sub.list.scrollTop = 0;
+    this.help = this.rows.help_of(sub.list.querySelector(".row")) ?? { title: sub.label, text: sub.help };
+    this.refresh();
+  }
+
+  step_sub(step: number) {
+    if (this.section !== MenuTab.SETTINGS) return;
+    const tops = [...this.subs].filter(([, sub]) => sub.parent === null).map(([id]) => id);
+    const from = this.subs.get(this.sub)?.parent ?? this.sub;
+    this.show_sub(tops[(tops.indexOf(from) + step + tops.length) % tops.length]);
+  }
+
+  alt() {
+    if (this.section !== MenuTab.SETTINGS) return;
+    const sub = this.subs.get(this.sub);
+    if (!sub) return;
+    for (const key of sub.keys) this.set(key, DEFAULT_SETTINGS[key]);
+  }
+
+  private render_help() {
+    const help = this.help;
+    this.help_title.textContent = help?.title ?? "";
+    this.help_text.textContent = help ? read(help.text) : "";
+    const visual = help?.visual?.() ?? null;
+    this.help_visual.replaceChildren(...(visual ? [visual] : []));
+  }
+
+  private graphics(): HTMLElement[] {
+    const status = () => {
+      const s = this.host.quality_status();
+      const node = el("div", "settings-status");
+      node.append(
+        el("span", "", this.current.quality === QualityMode.AUTO ? `Auto is running ${TIER_LABEL[s.tier]}` : `Fixed at ${TIER_LABEL[s.tier]}`),
+        this.stat("scale", `${s.ratio.toFixed(2)}x`),
+        this.stat("shadows", s.shadow_size ? `${s.shadow_size}px` : "off"),
+        this.stat("bloom", s.bloom ? "on" : "off"),
+      );
+      return node;
+    };
+    return [
+      this.rows.segmented(
+        "Quality",
+        "How much the game draws. Auto steps down when the frame rate drops.",
+        this.value("quality"),
+        [
+          [QualityMode.AUTO, "Auto"],
+          [QualityMode.HIGH, "High"],
+          [QualityMode.MEDIUM, "Medium"],
+          [QualityMode.LOW, "Low"],
+        ],
+        status,
+      ),
+      this.rows.info(
+        "Running now",
+        "What the game draws at this moment; Auto changes it as the frame rate moves.",
+        () => {
+          const s = this.host.quality_status();
+          return `${TIER_LABEL[s.tier]} · ${s.ratio.toFixed(2)}x · shadows ${s.shadow_size ? `${s.shadow_size}px` : "off"} · bloom ${s.bloom ? "on" : "off"}`;
+        },
+        status,
+      ),
+    ];
+  }
+
+  private hud_wire(): HTMLElement {
+    const layout = HUD_LAYOUTS.find((option) => option.value === this.current.hud) ?? HUD_LAYOUTS[0];
+    const frame = el("span", "hud-wire");
+    frame.setAttribute("aria-hidden", "true");
+    for (const [part, x, y, w, h] of layout.wire) {
+      const box = el("span", `hud-wire-${part}`);
+      box.style.inset = `${y}% ${100 - x - w}% ${100 - y - h}% ${x}%`;
+      frame.append(box);
+    }
+    return frame;
+  }
+
+  private display(): HTMLElement[] {
+    const active = current_theme();
+    const saved = load_saved_themes();
+    const in_use = THEMES[active] ? active : (find_saved(saved, active)?.name ?? active);
+    let pick = in_use;
+    const names = (): Options<string> => [...saved.map(({ name }) => [name, name] as const), ...Object.keys(THEMES).map((name) => [name, name] as const)];
+    const use = () => {
+      if (pick === in_use) return;
+      choose_theme(pick);
+      this.reload("theme");
+    };
+    const swatches = () => {
+      const theme = find_theme(pick, saved);
+      if (!theme) return null;
+      const row = el("span", "set-swatches");
+      for (const [token] of BASE_TOKENS) {
+        const swatch = el("i");
+        swatch.style.background = theme[token];
+        row.append(swatch);
+      }
+      return row;
+    };
+    const theme = this.rows.stepper(
+      "Theme",
+      () => (pick === in_use ? "Colours for the whole game." : "Press A or tap Use to switch to it. The page reloads."),
+      {
+        get: () => pick,
+        set: (name) => {
+          pick = name;
+          this.refresh();
+        },
+      },
+      names,
+      swatches,
+      use,
+    );
+    const use_button = el("button", "set-use", "Use");
+    use_button.type = "button";
+    use_button.tabIndex = -1;
+    use_button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      use();
+    });
+    theme.lastElementChild?.before(use_button);
+    this.syncs.push(() => (use_button.hidden = pick === in_use));
+
+    const mine = this.rows.link("Your themes", "Themes you made: delete the ones you don't want.", () => `${load_saved_themes().length} saved`, () => this.show_sub("themes"));
+    this.syncs.push(() => (mine.hidden = load_saved_themes().length === 0));
+
+    return [
+      this.rows.stepper(
+        "HUD layout",
+        () => {
+          const layout = HUD_LAYOUTS.find((option) => option.value === this.current.hud);
+          return `Where speed, laps, map and buttons sit. ${layout?.name}: ${layout?.note}.`;
+        },
+        this.value("hud"),
+        HUD_LAYOUTS.map(({ value, name }) => [value, name] as const),
+        () => this.hud_wire(),
+      ),
+      this.rows.segmented(
+        "Dash",
+        "Speed, gear and aids. Racing always centres it, Compact keeps it up top.",
+        this.value("dash"),
+        [
+          [DashPlace.RIGHT, "Right"],
+          [DashPlace.CENTER, "Centre"],
+        ],
+        () => this.hud_wire(),
+      ),
+      theme,
+      this.rows.link("Make your own theme", "Roll colours, keep the ones you like, then name and save it.", "Roll, adjust, save", () => this.show_sub("creator")),
+      mine,
+    ];
+  }
+
+  private driving(): HTMLElement[] {
+    return [
+      this.rows.toggle("Traction control", "Cuts power when the rear wheels spin. 1 switches it while driving.", this.value("tcs")),
+      this.rows.toggle("Anti-lock brakes", "Keeps steering under hard braking. 2 switches it while driving.", this.value("abs")),
+      this.rows.toggle("Steering assist", "Counter-steers a slide for you. 3 switches it while driving.", this.value("assist")),
+      this.rows.toggle("Automatic gearbox", "Shifts for you. M switches it while driving.", this.value("auto")),
+      this.rows.toggle("Ghost car", "Your best lap drives beside you. G switches it while driving.", this.value("ghost")),
+    ];
+  }
+
+  private camera(): HTMLElement[] {
+    return [
+      this.rows.segmented("View", "Behind the car or from the driver's seat. C switches it while driving.", this.value("camera"), [
+        [CameraView.CHASE, "Chase"],
+        [CameraView.COCKPIT, "Cockpit"],
+      ]),
+      this.rows.segmented(
+        "Returns after",
+        "After a mouse look, the camera swings back behind the car once it drives.",
+        this.value("camera_return"),
+        Object.values(CameraReturn).map((value) => [value, CAMERA_RETURN_LABEL[value]] as const),
+      ),
+      this.rows.toggle("Invert camera Y", "Mouse drag and right stick.", this.value("invert_y")),
+    ];
+  }
+
   private controls(): HTMLElement[] {
+    const touch = this.rows.segmented("Touch steering", "Drag anywhere to steer, or arrow buttons that steer like the keyboard.", this.value("touch_steer"), [
+      [TouchSteer.DRAG, "Drag"],
+      [TouchSteer.BUTTONS, "Buttons"],
+    ]);
+    touch.classList.add("settings-touch-only");
+    return [
+      this.rows.segmented(
+        "Keyboard steering",
+        "Classic: quick to full turn, snaps back. Hold: the wheel stays and centres as you roll. Smooth: a tap nudges, holding builds the turn.",
+        this.value("steer_mode"),
+        Object.values(SteerMode).map((mode) => [mode, STEER_LABEL[mode]] as const),
+      ),
+      this.rows.toggle("Precision steer key", "Hold X for half the keyboard steering.", this.value("precision_key")),
+      touch,
+      this.rows.link("All keys and buttons", "Every key, pad button and touch control. H opens this list while driving.", "Keyboard, pad, touch", () => this.show_sub("keys")),
+    ];
+  }
+
+  private audio(): HTMLElement[] {
+    return [
+      this.rows.slider(
+        "Master volume",
+        "Engine, tyres, wind and the menu.",
+        { get: () => this.current.volume * 100, set: (value) => this.set("volume", value / 100) },
+        5,
+        () => !this.current.muted,
+      ),
+      this.rows.toggle("Mute", "Silences everything; the volume stays where it is.", this.value("muted")),
+    ];
+  }
+
+  private key_list(): HTMLElement[] {
     const table = el("table", "settings-keys");
     const head = el("tr");
     head.append(el("th"), el("th", "", "Keyboard"), el("th", "settings-col-pad", "Gamepad"), el("th", "settings-col-touch", "Touch"));
@@ -1233,129 +1496,52 @@ export class Settings {
       table.tBodies[0].append(tr);
     }
     this.syncs.push(() => table.toggleAttribute("data-pad", navigator.getGamepads().some((pad) => pad?.connected)));
+    // Focusable so the pad can scroll a list taller than a phone screen.
     const wrap = el("div", "settings-keys-wrap");
+    wrap.tabIndex = 0;
     wrap.append(table);
-    this.keys = wrap;
-    return [
-      this.toggle_row("tcs", "Traction control", "Cuts power when the rear wheels spin"),
-      this.toggle_row("abs", "Anti-lock brakes", "Keeps steering under hard braking"),
-      this.toggle_row("assist", "Steering assist", "Counter-steers a slide"),
-      this.toggle_row("auto", "Automatic gearbox"),
-      this.choice(
-        "steer_mode",
-        [
-          [SteerMode.SNAP, "Classic"],
-          [SteerMode.HOLD, "Hold"],
-          [SteerMode.SMOOTH, "Smooth"],
-        ],
-        "Keyboard steering",
-        "Classic: quick to full turn, snaps back. Hold: wheel stays, centres as you roll. Smooth: tap nudges, hold builds the turn",
-      ),
-      this.toggle_row("precision_key", "Precision steer key", "Hold X for half the keyboard steering"),
-      this.touch_only(
-        this.choice(
-          "touch_steer",
-          [
-            [TouchSteer.DRAG, "Drag"],
-            [TouchSteer.BUTTONS, "Buttons"],
-          ],
-          "Touch steering",
-          "Buttons steer like the keyboard",
-        ),
-      ),
-      this.choice(
-        "camera",
-        [
-          [CameraView.CHASE, "Chase"],
-          [CameraView.COCKPIT, "Cockpit"],
-        ],
-        "Camera",
-      ),
-      this.choice(
-        "camera_return",
-        [
-          [CameraReturn.OFF, "Off"],
-          [CameraReturn.SHORT, "1.5 s"],
-          [CameraReturn.LONG, "3 s"],
-          [CameraReturn.NEVER, "Never"],
-        ],
-        "Camera returns after",
-        "After a mouse look, once the car drives",
-      ),
-      this.toggle_row("invert_y", "Invert camera Y", "Mouse drag and right stick"),
-      this.toggle_row("ghost", "Ghost car", "Your best lap drives beside you"),
-      el("h4", "settings-sub", "Keys"),
-      wrap,
-    ];
+    return [wrap];
   }
 
-  private display(): HTMLElement[] {
-    const active = current_theme();
-    let saved = load_saved_themes();
-    const in_use = THEMES[active] ? active : (find_saved(saved, active)?.name ?? active);
-
-    const theme = el("select", "settings-select");
-    theme.setAttribute("aria-label", "Theme");
-    theme.addEventListener("change", () => {
-      choose_theme(theme.value);
-      this.reload("theme");
-    });
-
-    const mine_title = el("h4", "settings-sub", "Your themes");
-    const mine = el("ul", "servers-list");
-    const list = () => {
-      const yours = el("optgroup");
-      yours.label = "Your themes";
-      const presets = el("optgroup");
-      presets.label = "Presets";
-      for (const { name } of saved) yours.append(new Option(name, name, false, name === in_use));
-      for (const name of Object.keys(THEMES)) presets.append(new Option(name, name, false, name === in_use));
-      theme.replaceChildren(...(saved.length ? [yours] : []), presets);
-      mine.replaceChildren(...saved.map(({ name }) => this.saved_row(name, name === in_use, () => remove(name))));
-      mine_title.hidden = saved.length === 0;
+  private saved_themes(): HTMLElement[] {
+    const list = el("div", "set-rows");
+    const render = () => {
+      const saved = load_saved_themes();
+      const in_use = find_saved(saved, current_theme())?.name ?? null;
+      list.replaceChildren(
+        ...saved.map(({ name }) => {
+          const control = el("span", "set-inline");
+          if (name === in_use) control.append(el("span", "servers-tag", "In use"));
+          control.append(
+            this.action("Delete", () => {
+              if (!store_saved_themes(without_saved(load_saved_themes(), name))) return;
+              if (name === in_use) return this.reload("theme");
+              render();
+              this.refresh();
+              list.querySelector("button")?.focus();
+            }),
+          );
+          return this.rows.custom(name, name === in_use ? "The theme you're using. Delete it and the game goes back to Brand Dark." : "Delete it to remove it from the Theme list.", control);
+        }),
+      );
+      if (!saved.length) list.append(el("p", "servers-note", "No themes yet. Make one with Make your own theme."));
     };
-    const remove = (name: string) => {
-      const next = without_saved(saved, name);
-      if (!store_saved_themes(next)) return;
-      if (name === in_use) return this.reload("theme");
-      saved = next;
-      list();
-      theme.focus();
-    };
-    list();
-
-    return [this.row("Theme", theme, "Reloads the page"), mine_title, mine, ...this.theme_create(active, () => saved)];
+    render();
+    return [list];
   }
 
-  private saved_row(name: string, in_use: boolean, remove: () => void): HTMLLIElement {
-    const li = el("li", "servers-row");
-    const label = el("div", "servers-name");
-    label.append(el("b", "", name));
-    li.append(label, in_use ? el("span", "servers-tag", "In use") : el("span"), this.action("Delete", remove));
-    return li;
-  }
-
-  private theme_create(active: string, saved: () => SavedTheme[]): HTMLElement[] {
-    const { background, foreground, primary, secondary, accent } = find_theme(active) ?? THEMES["Brand Dark"];
+  private theme_create(): HTMLElement[] {
+    const saved = () => load_saved_themes();
+    const { background, foreground, primary, secondary, accent } = find_theme(current_theme()) ?? THEMES["Brand Dark"];
     let base: ThemeBase = { background, foreground, primary, secondary, accent };
     let mode: ThemeMode = is_dark(base) ? "dark" : "light";
     let harmony: Harmony | "any" = "any";
+    let vibrance = 50;
+    let contrast = 50;
     // One seed per roll, so a slider or style change reshapes this theme instead of rolling a new one.
     let seed = 0;
     let rolled = false;
     const locked = new Set<keyof ThemeBase>();
-
-    const steps = el("ol", "theme-steps");
-    const step_items = THEME_STEPS.map((text) => {
-      const item = el("li", "", text);
-      steps.append(item);
-      return item;
-    });
-
-    const roll = el("button", "settings-action theme-roll");
-    roll.type = "button";
-    const roll_label = el("span", "", "Roll a theme");
-    roll.append(icon("icon-dice"), roll_label);
 
     const scene = el("div", "theme-scene");
     scene.setAttribute("aria-hidden", "true");
@@ -1379,66 +1565,22 @@ export class Settings {
       return [token, button, swatch] as const;
     });
 
-    const modes = el("div", "settings-choice");
-    modes.setAttribute("role", "radiogroup");
-    modes.setAttribute("aria-label", "Light or dark");
-    const mode_buttons = THEME_MODES.map(([value, text]) => {
-      const button = el("button", "", text);
-      button.type = "button";
-      button.setAttribute("role", "radio");
-      button.addEventListener("click", () => {
-        mode = value;
-        adjust();
-      });
-      modes.append(button);
-      return [value, button] as const;
-    });
-
-    const styles = el("div", "theme-styles");
-    styles.setAttribute("role", "radiogroup");
-    styles.setAttribute("aria-label", "Colour style");
-    const style_buttons = HARMONY_CHOICES.map(([value, text]) => {
-      const button = el("button", "theme-style");
-      button.type = "button";
-      button.setAttribute("role", "radio");
-      const dots = el("span", "theme-style-dots");
-      // Swatches turn the page's own primary by the style's hue offsets, so they stay on the theme's tokens.
-      for (const turn of value === "any" ? [0, 0, 0] : HARMONY_HUES[value]) {
-        const dot = el("span", value === "any" ? "theme-style-any" : "");
-        dot.style.setProperty("--turn", String(turn));
-        dots.append(dot);
-      }
-      button.append(dots, el("span", "", text));
-      button.addEventListener("click", () => {
-        harmony = value;
-        adjust();
-      });
-      styles.append(button);
-      return [value, button] as const;
-    });
-
-    const vibrance = this.percent_range("Colour strength");
-    const contrast = this.percent_range("Contrast");
-    vibrance.addEventListener("input", () => adjust());
-    contrast.addEventListener("input", () => adjust());
-
     const generate = () => {
       const keep = Object.fromEntries([...locked].map((token) => [token, base[token]]));
-      base = generate_theme({ mode, harmony, vibrance: Number(vibrance.value) / 100, contrast: Number(contrast.value) / 100, locked: keep }, mulberry32(seed));
+      base = generate_theme({ mode, harmony, vibrance: vibrance / 100, contrast: contrast / 100, locked: keep }, mulberry32(seed));
     };
     const adjust = () => {
       if (rolled) generate();
       render();
     };
-    roll.addEventListener("click", () => {
+    const roll = () => {
       seed = Math.floor(Math.random() * 2 ** 32);
       rolled = true;
-      roll_label.textContent = "Roll again";
       generate();
       render();
-    });
+    };
 
-    const form = el("form", "settings-inline");
+    const form = el("form", "set-inline");
     const name = el("input", "settings-input");
     name.type = "text";
     name.maxLength = THEME_NAME_LENGTH;
@@ -1451,7 +1593,6 @@ export class Settings {
       while (find_saved(saved(), `My theme ${at}`)) at++;
       return `My theme ${at}`;
     };
-    name.placeholder = free_name();
     name.addEventListener("input", () => name.setCustomValidity(""));
     const save = el("button", "settings-action", "Save");
     save.type = "submit";
@@ -1474,74 +1615,67 @@ export class Settings {
         swatch.style.background = base[token];
         button.setAttribute("aria-pressed", String(locked.has(token)));
       }
-      for (const [value, button] of mode_buttons) button.setAttribute("aria-checked", String(value === mode));
-      for (const [value, button] of style_buttons) button.setAttribute("aria-checked", String(value === harmony));
       save.disabled = !rolled;
       name.disabled = !rolled;
-      step_items.forEach((item, at) => item.toggleAttribute("data-current", at === (rolled ? 1 : 0)));
+      name.placeholder = free_name();
+      this.refresh();
     };
     render();
 
+    const local = <T>(get: () => T, set: (value: T) => void): Value<T> => ({
+      get,
+      set: (value) => {
+        set(value);
+        adjust();
+      },
+    });
     return [
-      el("h4", "settings-sub", "Create a theme"),
-      steps,
-      roll,
       scene,
-      this.row("Your colours", locks, "Lock a colour to keep it when you roll again"),
-      this.row("Light or dark", modes),
-      this.row("Colour style", styles),
-      this.row("Colour strength", this.range_ends(vibrance, "Muted", "Bold")),
-      this.row("Contrast", this.range_ends(contrast, "Soft", "Sharp"), "Text always stays readable"),
-      this.row("Name and save", form, "Adds it to Your themes and switches to it; reloads the page"),
+      this.rows.link("Roll a theme", "New random colours. Locked colours stay as they are.", () => (rolled ? "Roll again" : "Roll"), roll),
+      this.rows.custom("Your colours", "Lock a colour to keep it when you roll again.", locks),
+      this.rows.segmented(
+        "Light or dark",
+        "Which kind of background a roll can give.",
+        local(
+          () => mode,
+          (value) => (mode = value),
+        ),
+        THEME_MODES,
+      ),
+      this.rows.stepper(
+        "Colour style",
+        "How the main colours relate to each other.",
+        local(
+          () => harmony,
+          (value) => (harmony = value),
+        ),
+        HARMONY_CHOICES,
+      ),
+      this.rows.slider(
+        "Colour strength",
+        "Muted to bold.",
+        local(
+          () => vibrance,
+          (value) => (vibrance = value),
+        ),
+      ),
+      this.rows.slider(
+        "Contrast",
+        "Soft to sharp. Text always stays readable.",
+        local(
+          () => contrast,
+          (value) => (contrast = value),
+        ),
+      ),
+      this.rows.custom("Name and save", "Roll first. Saving adds it to your themes and switches to it; the page reloads.", form),
     ];
-  }
-
-  private range_ends(range: HTMLInputElement, low: string, high: string): HTMLElement {
-    const wrap = el("div", "theme-range");
-    wrap.append(el("small", "", low), range, el("small", "", high));
-    return wrap;
-  }
-
-  private percent_range(label: string): HTMLInputElement {
-    const range = el("input", "settings-range");
-    range.type = "range";
-    range.min = "0";
-    range.max = "100";
-    range.step = "5";
-    range.value = "50";
-    range.setAttribute("aria-label", label);
-    const fill = () => range.style.setProperty("--fill", `${range.value}%`);
-    range.addEventListener("input", fill);
-    fill();
-    return range;
-  }
-
-  private audio(): HTMLElement[] {
-    const wrap = el("div", "settings-inline settings-volume");
-    const range = el("input", "settings-range");
-    range.type = "range";
-    range.min = "0";
-    range.max = "100";
-    range.step = "5";
-    range.setAttribute("aria-label", "Master volume");
-    const readout = el("b", "settings-value settings-number");
-    range.addEventListener("input", () => {
-      readout.textContent = `${range.value}%`;
-      this.set("volume", Number(range.value) / 100);
-    });
-    this.syncs.push(() => {
-      const percent = String(Math.round(this.current.volume * 100));
-      if (document.activeElement !== range) range.value = percent;
-      readout.textContent = `${percent}%`;
-      range.disabled = this.current.muted;
-      range.style.setProperty("--fill", `${this.current.volume * 100}%`);
-    });
-    wrap.append(range, readout);
-    return [this.row("Master volume", wrap), this.toggle_row("muted", "Mute")];
   }
 
   private refresh() {
     for (const sync of this.syncs) sync();
+    this.rows.refresh();
+    this.render_help();
+    this.root.toggleAttribute("data-pad", navigator.getGamepads().some((pad) => pad?.connected));
   }
 
   private readonly click = (event: MouseEvent) => {
@@ -1552,6 +1686,7 @@ export class Settings {
     if (button.dataset.action === "close") return this.close();
     if (button.dataset.action === "back") return this.back();
     if (button.dataset.action === "random") return this.drive(random_seed(), this.chosen_kind);
+    if (button.dataset.sub) return this.show_sub(button.dataset.sub);
     const section = button.dataset.section;
     if (!section) return;
     this.show(section);
@@ -1562,12 +1697,19 @@ export class Settings {
       event.preventDefault();
       return this.back();
     }
-    if (typing(event.target) || event.repeat) return;
-    if (event.code === "KeyQ" || event.code === "KeyE") this.step_section(event.code === "KeyQ" ? -1 : 1);
+    if (typing(event.target)) return;
+    const arrow = ARROW_NAV[event.key];
+    if (arrow) {
+      event.preventDefault();
+      return this.on_nav?.(arrow);
+    }
+    if (event.repeat) return;
+    if (event.code === "KeyQ" || event.code === "KeyE") this.step_tab(event.code === "KeyQ" ? -1 : 1);
   };
 }
 
+const ARROW_NAV: Record<string, Nav> = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right" };
+
 function view_of(section: string): View {
-  if (!(section in PARENT)) return View.MENU;
-  return section in PAGE_TITLE ? View.PAGE : View.SHEET;
+  return section in PARENT ? View.PAGE : View.MENU;
 }

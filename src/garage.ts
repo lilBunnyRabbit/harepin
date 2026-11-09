@@ -541,7 +541,7 @@ export class Garage {
       this.preview(this.item.kind === "number" ? (this.cursor + step + count) % count : Math.max(0, Math.min(count - 1, this.cursor + step)));
     } else if (nav === "accept") this.fit(this.cursor);
     else if (nav === "back") this.close();
-    else this.switch_tab(this.tab + (nav === "prev" ? -1 : 1));
+    else if (nav === "prev" || nav === "next") this.switch_tab(this.tab + (nav === "prev" ? -1 : 1));
   }
 
   private switch_tab(tab: number) {
