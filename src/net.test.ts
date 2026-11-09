@@ -1,6 +1,6 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import { RateLimit, clean_name, most_common, parse_seed, sanitize, sanitize_chat, sanitize_event } from "./net";
+import { RateLimit, WRONG_PASSWORD, clean_name, is_leader, join_error_status, most_common, parse_seed, sanitize, sanitize_chat, sanitize_event } from "./net";
 
 test("chat text is stripped of control characters, trimmed and capped", () => {
   expect(sanitize_chat({ text: "  hi\u0000​ there\n ", t: 1 })).toEqual({ text: "hi there", t: 1 });
@@ -75,4 +75,26 @@ test("quick join follows the most common foreign seed, ties to the lower one", (
   expect(most_common([7, 3, 7])).toBe(7);
   expect(most_common([9, 3])).toBe(3);
   expect(most_common([3, 9])).toBe(3);
+});
+
+const decrypt = "incorrect room password when decrypting offer";
+const timeout = "handshake timed out after 10000ms";
+
+test("wrong password: only your own guess, before you ever got in, on a password error", () => {
+  const guess = { password: "x", asked: true };
+  const host = { password: "x", asked: false };
+  expect(join_error_status(guess, false, 0, decrypt)).toBe(WRONG_PASSWORD);
+  expect(join_error_status(guess, false, 0, "incorrect password for overlapping room")).toBe(WRONG_PASSWORD);
+  expect(join_error_status(guess, false, 0, timeout)).toBeNull();
+  expect(join_error_status(guess, true, 0, decrypt)).toBeNull();
+  expect(join_error_status(host, false, 0, decrypt)).not.toBe(WRONG_PASSWORD);
+  expect(join_error_status(host, false, 0, timeout)).toBeNull();
+  expect(join_error_status(null, false, 0, decrypt)).toBeNull();
+});
+
+test("leader: lowest id in the room, ignoring peers known to be on another map", () => {
+  const foreign = new Map([["a", 1]]);
+  expect(is_leader("m", ["a", "z"], foreign)).toBe(true);
+  expect(is_leader("m", ["b", "z"], foreign)).toBe(false);
+  expect(is_leader("m", [], foreign)).toBe(true);
 });

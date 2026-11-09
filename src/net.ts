@@ -62,6 +62,9 @@ const DELAY = 110;
 const ELECT_MS = 5000;
 export const WRONG_PASSWORD = "wrong password";
 const TURNED_AWAY = "searching · turned away a wrong password";
+// A bad SDP decrypt, or a bad challenge over a connection two peers already share from another room. Never a timeout:
+// that is as likely a slow network as a bad password.
+const PASSWORD_ERROR = /incorrect (room )?password/;
 const TIMEOUT = 4000;
 const MAX_REMOTES = 16;
 const MIN_GAP_MS = 25;
@@ -113,6 +116,20 @@ export function sanitize(raw: unknown, id: string): CarState | null {
     boost: s.boost === true,
     best: finite(s.best, 1e7) && s.best > 0 ? s.best : null,
   };
+}
+
+// Both sides of a refused handshake get the same error, so only a player who typed a guess and never got in reads it
+// as their own failure; a host who has never had company reads it as someone else's.
+export function join_error_status(lock: RoomLock | null, had_peer: boolean, peers: number, error: string): string | null {
+  if (!lock || had_peer || !PASSWORD_ERROR.test(error)) return null;
+  if (lock.asked) return WRONG_PASSWORD;
+  return peers === 0 ? TURNED_AWAY : null;
+}
+
+/** Every id in the room counts except those known to be on another map, so a game past `MAX_REMOTES` still has one leader. */
+export function is_leader(self: string, ids: Iterable<string>, foreign: ReadonlyMap<string, unknown>): boolean {
+  for (const id of ids) if (id < self && !foreign.has(id)) return false;
+  return true;
 }
 
 /** Ties go to the lower seed, so peers seeing the same crowd pick the same map. */
@@ -182,7 +199,6 @@ export class Net {
   readonly remotes = new Map<string, Remote>();
   /** Peers in this room on another seed, by id: their seed and when they were last heard (performance.now ms). */
   readonly foreign = new Map<string, Foreign>();
-  peers = 0;
   status = "connecting";
   on_chat: ((name: string, text: string) => void) | null = null;
   private send_p2p: ((state: CarState) => void) | null = null;
@@ -197,13 +213,15 @@ export class Net {
   private name_: string;
 
   private readonly joined = performance.now();
+  private readonly peer_ids = new Set<string>();
+  private had_peer = false;
 
   /** `lock` locks the room: peers without the same password fail the trystero handshake and never connect. */
   constructor(
     readonly room: string,
     readonly seed: number,
     name: string,
-    lock: RoomLock | null = null,
+    private readonly lock: RoomLock | null = null,
   ) {
     this.name_ = clean_name(name);
     const password = lock?.password ?? null;
@@ -213,8 +231,7 @@ export class Net {
     try {
       const p2p = joinRoom({ appId: APP_ID, ...(password === null ? {} : { password }) }, room, {
         onJoinError: ({ error }) => {
-          // Over a connection the two peers already share (another room), the side with the wrong password only sees its handshake time out.
-          if (this.peers === 0 && lock && /password|handshake/.test(error)) this.status = lock.asked ? WRONG_PASSWORD : TURNED_AWAY;
+          this.status = join_error_status(lock, this.had_peer, this.peers, error) ?? this.status;
         },
       });
       const action = p2p.makeAction<CarState>("car");
@@ -226,12 +243,13 @@ export class Net {
       const events = p2p.makeAction<RaceEvent>("event");
       this.send_event_p2p = (event) => void events.send(event).catch(dropped);
       events.onMessage = (event, { peerId }) => this.receive_event(event, peerId);
-      p2p.onPeerJoin = () => {
-        this.peers++;
+      p2p.onPeerJoin = (peer) => {
+        this.peer_ids.add(peer);
+        this.had_peer = true;
         this.status = "online";
       };
       p2p.onPeerLeave = (peer) => {
-        this.peers = Math.max(0, this.peers - 1);
+        this.peer_ids.delete(peer);
         if (this.peers === 0) this.status = "searching";
         this.remotes.delete(peer);
         this.chat_limits.delete(peer);
@@ -242,6 +260,10 @@ export class Net {
       console.warn("p2p unavailable, same-browser tabs only", error);
       this.status = "local only";
     }
+  }
+
+  get peers(): number {
+    return this.peer_ids.size;
   }
 
   get name(): string {
@@ -355,9 +377,13 @@ export class Net {
     return seed === this.seed ? null : seed;
   }
 
-  /** The lowest id among this map's players speaks for the game in the directory. */
+  /**
+   * The lowest id among this map's players speaks for the game in the directory. A player who typed a password and
+   * never got in can't: their guess may be wrong, and they would list a lone copy of someone else's locked game.
+   */
   get leader(): boolean {
-    return performance.now() - this.joined > ELECT_MS && [...this.remotes.keys()].every((id) => id > this.id);
+    if (this.lock?.asked && !this.had_peer) return false;
+    return performance.now() - this.joined > ELECT_MS && is_leader(this.id, [...this.peer_ids, ...this.remotes.keys()], this.foreign);
   }
 
   render_time(remote: Remote): number {

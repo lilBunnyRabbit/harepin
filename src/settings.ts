@@ -1,5 +1,5 @@
 import { SteerMode } from "./car";
-import { DirectoryStatus, PASSWORD_LENGTH, ROOM_LENGTH, clean_password, clean_room, save_lock, type Server } from "./directory";
+import { DirectoryStatus, PASSWORD_LENGTH, ROOM_LENGTH, clean_password, clean_room, locked_name, save_lock, type Server } from "./directory";
 import { clean_name, parse_seed } from "./net";
 import { THEMES, choose_theme, current_theme } from "./theme";
 import { TouchSteer } from "./touch";
@@ -666,8 +666,7 @@ export class Settings {
       if (password.value && lock === null) return this.invalid(password, `Up to ${PASSWORD_LENGTH} characters`);
       const map = seed.value.trim() ? parse_seed(seed.value.trim()) : random_seed();
       if (map === null) return this.invalid(seed, "A whole number from 0 to 4294967295");
-      // A locked room gets a code on its name, so a plain room of the same name never meets its handshake.
-      const named = lock === null ? room : `${[...room].slice(0, ROOM_LENGTH - 5).join("").trim()}-${random_code().slice(0, 4)}`;
+      const named = lock === null ? room : locked_name(room);
       save_lock(named, lock === null ? null : { password: lock, asked: false });
       this.go({ room: named, seed: String(map) });
     });

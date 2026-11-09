@@ -17,6 +17,10 @@ const ANNOUNCE_GAP_MS = 1000;
 const ANNOUNCE_BURST = 6;
 const MAX_RECEIVE_BYTES = 16 * 1024;
 const LOCK_KEY = "harepin:room-password";
+const LOCK_CODE = 4;
+// Only a locked room gets this ending, so an unlocked game under such a name is a no-password visitor in someone's
+// locked room and stays out of the list instead of showing as a joinable twin.
+const LOCKED_NAME = new RegExp(`~[0-9a-z]{${LOCK_CODE}}$`);
 
 // A type alias, not an interface: trystero's DataPayload needs the implicit index signature only aliases get.
 export type Announce = {
@@ -54,6 +58,12 @@ export function clean_room(raw: unknown): string | null {
   return room;
 }
 
+/** A locked room's name gets a code, so a plain room of the same name never meets its handshake. */
+export function locked_name(room: string): string {
+  const code = Math.random().toString(36).slice(2, 2 + LOCK_CODE).padEnd(LOCK_CODE, "0");
+  return `${[...room].slice(0, ROOM_LENGTH - LOCK_CODE - 1).join("").trim()}~${code}`;
+}
+
 export function clean_password(raw: unknown): string | null {
   if (typeof raw !== "string" || !raw || /\p{C}/u.test(raw) || [...raw].length > PASSWORD_LENGTH) return null;
   return raw;
@@ -68,6 +78,7 @@ export function sanitize_announce(raw: unknown): Announce | null {
   if (typeof a.seed !== "number" || !Number.isInteger(a.seed) || a.seed < 0 || a.seed > MAX_SEED) return null;
   if (typeof a.players !== "number" || !Number.isInteger(a.players) || a.players < 1) return null;
   if (typeof a.locked !== "boolean" || typeof a.version !== "string" || !VERSION.test(a.version)) return null;
+  if (!a.locked && LOCKED_NAME.test(room)) return null;
   return { room, seed: a.seed, host: clean_name(a.host), players: Math.min(a.players, MAX_PLAYERS), locked: a.locked, version: a.version };
 }
 
@@ -115,13 +126,49 @@ export function save_lock(room: string, lock: RoomLock | null) {
   }
 }
 
+// Joined and mid-handshake peers both count, so a burst of handshakes can't all pass before any of them joins; a peer
+// turned away stays turned away for the session, so its reconnect attempts end at once instead of churning.
+export class Admission {
+  readonly joined = new Set<string>();
+  private readonly pending = new Set<string>();
+  private readonly refused = new Set<string>();
+
+  constructor(private readonly cap: number) {}
+
+  admit(id: string): boolean {
+    if (this.refused.has(id)) return false;
+    if (this.joined.has(id) || this.pending.has(id)) return true;
+    if (this.joined.size + this.pending.size >= this.cap) {
+      this.refused.add(id);
+      return false;
+    }
+    this.pending.add(id);
+    return true;
+  }
+
+  join(id: string) {
+    this.pending.delete(id);
+    this.joined.add(id);
+  }
+
+  drop(id: string) {
+    this.pending.delete(id);
+    this.joined.delete(id);
+  }
+
+  reset() {
+    this.pending.clear();
+    this.joined.clear();
+  }
+}
+
 const dropped = (error: unknown) => console.debug("directory: announce dropped", error);
 
 export class Directory {
   status: DirectoryStatus = DirectoryStatus.CONNECTING;
   private readonly entries = new Map<string, Entry>();
   private readonly limits = new Map<string, RateLimit>();
-  private readonly peers = new Set<string>();
+  private readonly admission = new Admission(MAX_PEERS);
   private room: Room | null = null;
   private send: ((announce: Announce, target?: string) => void) | null = null;
   private mode: Mode = "off";
@@ -179,21 +226,24 @@ export class Directory {
     try {
       // Announcers join passive: trystero never pairs two passive peers, so a game only links to players browsing the list.
       const room = joinRoom({ appId: APP_ID, maxReceiveBytes: MAX_RECEIVE_BYTES, passive: mode === "announce" }, DIRECTORY_ROOM, {
-        onPeerHandshake: async () => {
-          if (this.peers.size >= MAX_PEERS) throw new Error("directory: peer cap reached");
+        onPeerHandshake: async (peer) => {
+          if (!this.admission.admit(peer)) throw new Error("directory: peer cap reached");
+        },
+        onJoinError: ({ peerId }) => {
+          if (!this.admission.joined.has(peerId)) this.admission.drop(peerId);
         },
       });
       const action = room.makeAction<Announce>("announce");
       this.send = (announce, target) => void action.send(announce, target ? { target } : undefined).catch(dropped);
       action.onMessage = (raw, { peerId }) => this.receive(raw, peerId);
       room.onPeerJoin = (peer) => {
-        this.peers.add(peer);
+        this.admission.join(peer);
         this.status = DirectoryStatus.ONLINE;
         const own = this.announcement();
         if (own) this.send?.(own, peer);
       };
       room.onPeerLeave = (peer) => {
-        this.peers.delete(peer);
+        this.admission.drop(peer);
         this.entries.delete(peer);
         this.limits.delete(peer);
       };
@@ -215,11 +265,11 @@ export class Directory {
     this.send = null;
     this.entries.clear();
     this.limits.clear();
-    this.peers.clear();
+    this.admission.reset();
   }
 
   private receive(raw: unknown, peer: string) {
-    if (!this.peers.has(peer)) return;
+    if (!this.admission.joined.has(peer)) return;
     let limit = this.limits.get(peer);
     if (!limit) this.limits.set(peer, (limit = new RateLimit(ANNOUNCE_GAP_MS, ANNOUNCE_BURST)));
     if (!limit.allow(performance.now())) return;

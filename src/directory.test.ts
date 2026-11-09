@@ -1,6 +1,6 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import { DIRECTORY_ROOM, clean_password, clean_room, group_servers, sanitize_announce, type Announce } from "./directory";
+import { Admission, DIRECTORY_ROOM, clean_password, locked_name, clean_room, group_servers, sanitize_announce, type Announce } from "./directory";
 
 const announce: Announce = { room: "lobby", seed: 42, host: "Alice", players: 2, locked: false, version: "0.5.1" };
 
@@ -60,4 +60,26 @@ test("one row per game: the lowest id's announce wins whole, this game always li
 test("this game's row comes from its elected announcer when one is heard", () => {
   const servers = group_servers([["a", { ...announce, host: "Leader", players: 3 }]], { ...announce, host: "Me", players: 3 });
   expect(servers.map((s) => [s.host, s.here])).toEqual([["Leader", true]]);
+});
+
+test("locked names end in a code; an unlocked game under one is a visitor and is not listed", () => {
+  const name = locked_name("x".repeat(40));
+  expect(name).toMatch(/^x{27}~[0-9a-z]{4}$/);
+  expect(clean_room(name)).toBe(name);
+  expect(sanitize_announce({ ...announce, room: name, locked: true })?.room).toBe(name);
+  expect(sanitize_announce({ ...announce, room: name, locked: false })).toBeNull();
+  expect(sanitize_announce({ ...announce, room: "race-2024", locked: false })?.room).toBe("race-2024");
+});
+
+test("admission: a handshake burst stops at the cap, and refused peers stay refused", () => {
+  const admission = new Admission(3);
+  expect(["a", "b", "c", "d", "e"].map((id) => admission.admit(id))).toEqual([true, true, true, false, false]);
+  admission.join("a");
+  admission.drop("b");
+  expect(admission.admit("d")).toBe(false);
+  expect(admission.admit("f")).toBe(true);
+  expect(admission.admit("g")).toBe(false);
+  admission.reset();
+  expect(admission.admit("e")).toBe(false);
+  expect(admission.admit("h")).toBe(true);
 });
