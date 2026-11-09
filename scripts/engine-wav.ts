@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { CARS } from "../src/cars";
-import { EngineVoice, type EngineInput } from "../src/engine-dsp";
+import { EngineVoice, PITCH, type EngineInput } from "../src/engine-dsp";
 
 const RATE = 48000;
 const BLOCK = 128;
@@ -77,12 +77,12 @@ for (const id of Object.keys(CARS) as (keyof typeof CARS)[]) {
   for (const [view, mix] of [["chase", 0.5], ["hood", 1.6]] as const) wav(join(out_dir, `${id}-${view}.wav`), render(id, 11, sweep(id), mix));
   const rpm = 3000;
   const steady = render(id, 1, () => ({ rpm, throttle: 0.6, limit: 0 }), 0.5).subarray(RATE / 4);
-  const firing = (rpm / 60) * (cylinders / 2);
+  const firing = (rpm / 60) * (cylinders / 2) * PITCH;
   const bins: [number, number][] = [];
   for (let hz = 10; hz <= 1200; hz += 2.5) bins.push([hz, magnitude(steady, hz)]);
   const peaks = bins.filter(([, m], i) => i > 0 && i < bins.length - 1 && m > bins[i - 1][1] && m >= bins[i + 1][1]).sort((a, b) => b[1] - a[1]).slice(0, 5);
   const top = peaks[0][1];
-  const order = (hz: number) => (hz / (rpm / 120)).toFixed(1);
+  const order = (hz: number) => (hz / ((rpm / 120) * PITCH)).toFixed(1);
   console.log(`${id.padEnd(7)} firing ${firing.toFixed(0)} Hz at ${rpm} rpm (cycle order ${cylinders}); peaks ${peaks.map(([hz, m]) => `${hz.toFixed(0)} Hz (order ${order(hz)}, ${(20 * Math.log10(m / top)).toFixed(0)} dB)`).join(", ")}`);
 }
 console.log(`wrote ${out_dir}/<car>-chase.wav and <car>-hood.wav`);

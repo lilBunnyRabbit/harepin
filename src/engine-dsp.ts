@@ -55,11 +55,15 @@ function run(f: Biquad, x: number): number {
   return y;
 }
 
+/** Transposes the whole voice: firing rate, resonances, pulse shape and limiter rhythm. Below 1 the engine fires
+ *  slower than its real rpm/60 · cylinders/2 on purpose: at the true rate every preset sounded too high-pitched. */
+export const PITCH = 0.5;
 const FORMANT_Q = [3.5, 5, 6];
 const FORMANT_LEVEL = [1, 0.7, 0.45];
 const POP_RATE = 14;
-const CUT_ON = 0.04;
-const CUT_OFF = 0.06;
+const CUT_ON = 0.04 / PITCH;
+const CUT_OFF = 0.06 / PITCH;
+const DC_POLE = 1 - 0.003 * PITCH;
 
 // Shared by the AudioWorklet and the offline WAV renderer, so the rendered WAVs are what the game plays.
 export class EngineVoice {
@@ -120,12 +124,12 @@ export class EngineVoice {
     const rev = Math.min(1, rpm1 / 8000);
 
     const shift = 1 + sound.shift * (0.4 * load + rev);
-    for (let i = 0; i < 3; i++) bandpass(this.formants[i], rate, sound.formants[i] * shift, FORMANT_Q[i]);
-    const [closed, open] = sound.muffler;
-    lowpass(this.muffler, rate, closed + (open - closed) * (0.25 * rev + 0.75 * load), 0.8);
-    bandpass(this.intake_tone, rate, 260 + rpm1 * 0.07, 1.6);
-    bandpass(this.intake_noise, rate, 700 + rpm1 * 0.18, 1.1);
-    bandpass(this.flutter_tone, rate, 1300, 2.5);
+    for (let i = 0; i < 3; i++) bandpass(this.formants[i], rate, sound.formants[i] * shift * PITCH, FORMANT_Q[i]);
+    const closed = sound.muffler[0];
+    lowpass(this.muffler, rate, (closed + (sound.muffler[1] - closed) * (0.25 * rev + 0.75 * load)) * PITCH, 0.8);
+    bandpass(this.intake_tone, rate, (260 + rpm1 * 0.07) * PITCH, 1.6);
+    bandpass(this.intake_noise, rate, (700 + rpm1 * 0.18) * PITCH, 1.1);
+    bandpass(this.flutter_tone, rate, 1300 * PITCH, 2.5);
 
     const lifted = thr1 < 0.15 && thr0 >= 0.15;
     const boost_target = thr1 * rev * rev * 1.6;
@@ -133,14 +137,14 @@ export class EngineVoice {
     const overrun = thr1 < 0.08 && rpm1 > 1800 && rpm1 <= rpm0 + 5 ? Math.min(1, (rpm1 - 1800) / 2500) : 0;
     const drive = sound.drive * (0.35 + 0.65 * load);
     const norm = Math.tanh(drive);
-    const rise = Math.exp(-1 / (rate * 0.00012));
-    const decay = Math.exp(-1 / (rate * Math.min(sound.pulse_ms / 1000, (120 / rpm1 / sound.cylinders) * 0.45)));
+    const rise = Math.exp(-1 / ((rate * 0.00012) / PITCH));
+    const decay = Math.exp(-1 / ((rate * Math.min(sound.pulse_ms / 1000, (120 / rpm1 / sound.cylinders) * 0.45)) / PITCH));
 
     for (let s = 0; s < n; s++) {
       const f = s / n;
       const rpm = rpm0 + (rpm1 - rpm0) * f;
       const thr = thr0 + (thr1 - thr0) * f;
-      const cycle_hz = rpm / 120;
+      const cycle_hz = (rpm / 120) * PITCH;
       this.phase += cycle_hz / rate;
 
       if (input.limit > 0.5) this.cut_clock = (this.cut_clock + 1 / rate) % (CUT_ON + CUT_OFF);
@@ -172,7 +176,7 @@ export class EngineVoice {
       this.fire += ((cutting ? 0 : 1) - this.fire) * 0.01;
 
       let x = pulse + sound.rasp * (0.25 + 0.75 * thr) * Math.abs(pulse) * grit + this.pop * grit * 1.4;
-      const hp = x - this.dc_x + 0.997 * this.dc_y;
+      const hp = x - this.dc_x + DC_POLE * this.dc_y;
       this.dc_x = x;
       this.dc_y = hp;
       x = hp;
@@ -182,7 +186,7 @@ export class EngineVoice {
       exhaust[s] = run(this.muffler, y) * 0.5 + this.pop * grit * 0.3 * sound.crackle;
 
       this.boost += (boost_target - this.boost) * 0.0002;
-      this.whistle_phase = (this.whistle_phase + (2600 + this.boost * 4500) / rate) % 1;
+      this.whistle_phase = (this.whistle_phase + ((2600 + this.boost * 4500) * PITCH) / rate) % 1;
       this.flutter *= 0.99993;
       this.flutter_phase = (this.flutter_phase + 17 / rate) % 1;
       const chop = Math.max(0, Math.sin(2 * Math.PI * this.flutter_phase)) ** 3;

@@ -1,5 +1,5 @@
 import type { EngineSound } from "./cars";
-import { EngineVoice } from "./engine-dsp";
+import { EngineVoice, type EngineInput } from "./engine-dsp";
 
 declare const sampleRate: number;
 declare function registerProcessor(name: string, processor: unknown): void;
@@ -15,6 +15,7 @@ class EngineProcessor extends AudioWorkletProcessor {
   ];
 
   private readonly voice = new EngineVoice(sampleRate);
+  private readonly input: EngineInput = { rpm: 900, throttle: 0, limit: 0 };
 
   constructor() {
     super();
@@ -22,8 +23,14 @@ class EngineProcessor extends AudioWorkletProcessor {
   }
 
   process(_inputs: Float32Array[][], outputs: Float32Array[][], params: Record<string, Float32Array>): boolean {
-    const [intake, exhaust] = outputs[0];
-    this.voice.render({ rpm: params.rpm[0], throttle: params.throttle[0], limit: params.limit[0] }, intake, exhaust);
+    const output = outputs[0];
+    const intake = output[0];
+    const exhaust = output[1];
+    const { input } = this;
+    input.rpm = params.rpm[0];
+    input.throttle = params.throttle[0];
+    input.limit = params.limit[0];
+    this.voice.render(input, intake, exhaust);
     return true;
   }
 }

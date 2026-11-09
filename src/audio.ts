@@ -30,8 +30,8 @@ const MASTER_GAIN = 0.55;
 const ENGINE_GAIN = 0.6;
 // Intake sits ahead of the cabin and the exhaust behind it: the near one is louder and brighter, the far one dull.
 const VIEW_MIX = {
-  chase: { intake: [0.45, 2500], exhaust: [1, 14000] },
-  hood: { intake: [1, 9000], exhaust: [0.55, 1800] },
+  chase: { intake: [0.45, 1250], exhaust: [1, 7000] },
+  hood: { intake: [1, 4500], exhaust: [0.55, 900] },
 } as const;
 
 export class Audio {
@@ -64,6 +64,13 @@ export class Audio {
   set_muted(muted: boolean) {
     this.muted = muted;
     this.master?.gain.setTargetAtTime(this.gain(), this.master.context.currentTime, 0.02);
+    this.sync_running();
+  }
+
+  private sync_running() {
+    const { ctx } = this;
+    if (!ctx) return;
+    (document.hidden || this.muted ? ctx.suspend() : ctx.resume()).catch((error: unknown) => console.warn("audio: state change failed", error));
   }
 
   /** Hood view puts the listener at the intake, chase view behind the exhaust. */
@@ -90,9 +97,8 @@ export class Audio {
     const ctx = new AudioContext();
     this.ctx = ctx;
     // An installed app keeps running when it's backgrounded on phones, so the engine would keep droning from the pocket.
-    document.addEventListener("visibilitychange", () => {
-      (document.hidden ? ctx.suspend() : ctx.resume()).catch((error: unknown) => console.warn("audio: state change failed", error));
-    });
+    document.addEventListener("visibilitychange", () => this.sync_running());
+    this.sync_running();
     this.noise = noise_buffer(ctx);
     const master = ctx.createGain();
     master.gain.value = this.gain();
@@ -110,7 +116,7 @@ export class Audio {
 
     this.squeal_filter = ctx.createBiquadFilter();
     this.squeal_filter.type = "bandpass";
-    this.squeal_filter.frequency.value = 1100;
+    this.squeal_filter.frequency.value = 550;
     this.squeal_filter.Q.value = 9;
     this.squeal = ctx.createGain();
     this.squeal.gain.value = 0;
@@ -124,7 +130,7 @@ export class Audio {
 
     const rumble = ctx.createBiquadFilter();
     rumble.type = "lowpass";
-    rumble.frequency.value = 180;
+    rumble.frequency.value = 120;
     this.gravel = ctx.createGain();
     this.gravel.gain.value = 0;
     looped(ctx, this.noise).connect(rumble).connect(this.gravel).connect(master);
@@ -163,9 +169,9 @@ export class Audio {
       params.get("throttle")?.setTargetAtTime(throttle, t, 0.02);
       params.get("limit")?.setValueAtTime(rpm > redline - 150 && throttle > 0.5 ? 1 : 0, t);
     }
-    this.squeal_filter.frequency.setTargetAtTime(950 + scrub * 450, t, 0.05);
+    this.squeal_filter.frequency.setTargetAtTime(475 + scrub * 225, t, 0.05);
     this.squeal.gain.setTargetAtTime(scrub * 0.5, t, 0.04);
-    this.wind_filter.frequency.setTargetAtTime(300 + speed * 18, t, 0.1);
+    this.wind_filter.frequency.setTargetAtTime(150 + speed * 9, t, 0.1);
     this.wind.gain.setTargetAtTime(Math.min(0.22, (speed / 70) ** 2 * 0.22), t, 0.1);
     this.gravel.gain.setTargetAtTime(offroad ? Math.min(0.5, speed / 25) * 0.5 : 0, t, 0.08);
     if (this.last_rpm - rpm > 1200 && throttle > 0.3) this.blip(0.05);
@@ -179,7 +185,7 @@ export class Audio {
     source.buffer = noise;
     const filter = ctx.createBiquadFilter();
     filter.type = "bandpass";
-    filter.frequency.value = 2200;
+    filter.frequency.value = 1100;
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(level, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.08);
@@ -195,8 +201,8 @@ export class Audio {
     const level = Math.min(1, strength) * 0.9;
     const thump = ctx.createOscillator();
     thump.type = "sine";
-    thump.frequency.setValueAtTime(120, now);
-    thump.frequency.exponentialRampToValueAtTime(40, now + 0.25);
+    thump.frequency.setValueAtTime(80, now);
+    thump.frequency.exponentialRampToValueAtTime(30, now + 0.25);
     const thump_gain = ctx.createGain();
     thump_gain.gain.setValueAtTime(level, now);
     thump_gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
@@ -207,7 +213,7 @@ export class Audio {
     crash.buffer = noise;
     const filter = ctx.createBiquadFilter();
     filter.type = "lowpass";
-    filter.frequency.value = 1400;
+    filter.frequency.value = 700;
     const crash_gain = ctx.createGain();
     crash_gain.gain.setValueAtTime(level * 0.6, now);
     crash_gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
@@ -224,9 +230,9 @@ export class Audio {
     if (!ctx || !master || level < 0.05) return;
     const now = ctx.currentTime;
     for (const [hz, gain, decay] of [
-      [410, 0.35, 0.18],
-      [1130, 0.2, 0.09],
-      [1870, 0.1, 0.05],
+      [205, 0.35, 0.18],
+      [565, 0.2, 0.09],
+      [935, 0.1, 0.05],
     ] as const) this.tone(hz, "triangle", now, gain * level, decay);
   }
 
@@ -235,8 +241,8 @@ export class Audio {
     const { ctx } = this;
     if (!ctx) return;
     const now = ctx.currentTime;
-    this.tone(1318.5, "sine", now, 0.12, 0.35);
-    this.tone(1975.5, "sine", now + 0.09, 0.1, 0.5);
+    this.tone(659.25, "sine", now, 0.12, 0.35);
+    this.tone(987.77, "sine", now + 0.09, 0.1, 0.5);
   }
 
   private tone(hz: number, type: OscillatorType, at: number, level: number, decay: number) {
