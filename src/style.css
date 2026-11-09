@@ -1114,6 +1114,35 @@ body:has(#mode-result:not([hidden])) #mode-status {
   --pedal-w: 84px;
   --pedals: calc(2 * var(--pedal-w) + var(--space-3));
   --speedo-h: 64px;
+  --steer-key-w: 96px;
+  --steer-key-h: 140px;
+}
+
+.touch-steer-buttons {
+  position: absolute;
+  left: var(--inset-left);
+  bottom: var(--inset-bottom);
+  display: none;
+  gap: var(--space-3);
+}
+
+#touch[data-steer="buttons"] .touch-steer-buttons {
+  display: flex;
+}
+
+#touch[data-steer="buttons"] .touch-steer {
+  display: none;
+}
+
+.touch-steer-buttons .touch-key {
+  width: var(--steer-key-w);
+  height: var(--steer-key-h);
+  border-radius: var(--radius-lg);
+}
+
+.touch-steer-buttons svg {
+  width: 36px;
+  height: 36px;
 }
 
 .touch-buttons {
@@ -1249,6 +1278,10 @@ body:has(#mode-result:not([hidden])) #mode-status {
     bottom: calc(var(--inset-bottom) + 24px + var(--space-2));
     max-width: 40vw;
     pointer-events: none;
+  }
+
+  :root:has(#touch[data-steer="buttons"]) .dock-left {
+    bottom: calc(var(--inset-bottom) + var(--steer-key-h) + var(--space-2));
   }
 
   /* A full-height sheet on the left: with the keyboard up (interactive-widget=resizes-content) it shrinks and the input stays on screen. */

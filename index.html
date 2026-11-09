@@ -40,6 +40,12 @@
       <symbol id="icon-rewind" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
         <path d="M11 6.5v11L3.5 12zM20.5 6.5v11L13 12z" />
       </symbol>
+      <symbol id="icon-steer-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M15 5l-7 7 7 7" />
+      </symbol>
+      <symbol id="icon-steer-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 5l7 7-7 7" />
+      </symbol>
       <symbol id="icon-graphics" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M3 18l6-8 4 5 2.5-3L21 18z" />
         <circle cx="16.5" cy="6.5" r="2" />
@@ -78,6 +84,10 @@
     <div id="touch">
       <div class="touch-steer" data-touch="steer"><span class="touch-hint">drag to steer</span></div>
       <div id="steer-ring" hidden><div id="steer-knob"></div></div>
+      <div class="touch-steer-buttons">
+        <div class="touch-key" data-touch="left" aria-label="Steer left"><svg aria-hidden="true"><use href="#icon-steer-left" /></svg></div>
+        <div class="touch-key" data-touch="right" aria-label="Steer right"><svg aria-hidden="true"><use href="#icon-steer-right" /></svg></div>
+      </div>
       <div class="touch-buttons">
         <button type="button" data-touch="rewind" aria-label="Rewind (hold)"><svg aria-hidden="true"><use href="#icon-rewind" /></svg></button>
         <button type="button" data-touch="reset" aria-label="Reset">Reset</button>

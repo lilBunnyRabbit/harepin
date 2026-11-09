@@ -1,6 +1,7 @@
 import { SteerMode } from "./car";
 import { clean_name } from "./net";
 import { THEMES, choose_theme, current_theme } from "./theme";
+import { TouchSteer } from "./touch";
 import "./settings.css";
 
 export const SETTINGS_KEY = "harepin:settings";
@@ -45,6 +46,7 @@ export interface SettingsState {
   assist: boolean;
   auto: boolean;
   steer_mode: SteerMode;
+  touch_steer: TouchSteer;
   camera: CameraView;
   camera_return: CameraReturn;
   invert_y: boolean;
@@ -64,6 +66,7 @@ export const DEFAULT_SETTINGS: SettingsState = {
   assist: true,
   auto: true,
   steer_mode: SteerMode.SNAP,
+  touch_steer: TouchSteer.DRAG,
   camera: CameraView.CHASE,
   camera_return: CameraReturn.SHORT,
   invert_y: false,
@@ -89,6 +92,7 @@ export function parse_settings(raw: unknown): SettingsState {
     assist: bool(s.assist, d.assist),
     auto: bool(s.auto, d.auto),
     steer_mode: one_of(Object.values(SteerMode), s.steer_mode, d.steer_mode),
+    touch_steer: one_of(Object.values(TouchSteer), s.touch_steer, d.touch_steer),
     camera: one_of(Object.values(CameraView), s.camera, d.camera),
     camera_return: one_of(Object.values(CameraReturn), s.camera_return, d.camera_return),
     invert_y: bool(s.invert_y, d.invert_y),
@@ -164,7 +168,7 @@ const STATUS_MS = 1000;
 const COPIED_MS = 2000;
 
 const KEYS: [string, string, string, string][] = [
-  ["Drive", "WASD / arrows", "RT / LT, stick", "Gas, Brake, drag to steer"],
+  ["Drive", "WASD / arrows", "RT / LT, stick", "Gas, Brake, drag or arrow buttons to steer (Touch steering)"],
   ["Handbrake", "Space", "A", "Handbrake"],
   ["Reset", "R", "Y", "Reset"],
   ["Rewind (hold)", "Backspace", "X", "Rewind (hold)"],
@@ -375,6 +379,11 @@ export class Settings {
     return this.row(label, button, hint, true);
   }
 
+  private touch_only(row: HTMLElement): HTMLElement {
+    row.classList.add("settings-touch-only");
+    return row;
+  }
+
   private action(label: string, run: (button: HTMLButtonElement) => void): HTMLButtonElement {
     const button = el("button", "settings-action", label);
     button.type = "button";
@@ -520,6 +529,17 @@ export class Settings {
           [SteerMode.HOLD, "Hold & self-centre"],
         ],
         "Keyboard steering",
+      ),
+      this.touch_only(
+        this.choice(
+          "touch_steer",
+          [
+            [TouchSteer.DRAG, "Drag"],
+            [TouchSteer.BUTTONS, "Buttons"],
+          ],
+          "Touch steering",
+          "Buttons steer like the keyboard",
+        ),
       ),
       this.choice(
         "camera",

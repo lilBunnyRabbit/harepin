@@ -214,8 +214,12 @@ export class Input {
     }
     const touch = this.touch;
     if (touch.active) {
-      if (Math.abs(touch.steer) >= Math.abs(controls.steer)) controls.steer = touch.steer;
-      controls.analog = true;
+      if (touch.buttons) {
+        if (controls.steer === 0) controls.steer = touch.steer;
+      } else {
+        if (Math.abs(touch.steer) >= Math.abs(controls.steer)) controls.steer = touch.steer;
+        controls.analog = true;
+      }
       controls.throttle = Math.max(controls.throttle, touch.throttle);
       controls.brake = Math.max(controls.brake, touch.brake);
       controls.handbrake = Math.max(controls.handbrake, touch.handbrake);

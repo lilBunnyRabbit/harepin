@@ -5,7 +5,10 @@ const STEER_RANGE = 70;
 const STEER_DEADZONE = 6;
 const STEER_CURVE = 1.4;
 
-const CONTROLS = ["steer", "throttle", "brake", "handbrake", "rewind", "reset", "camera"] as const;
+export const TouchSteer = { DRAG: "drag", BUTTONS: "buttons" } as const;
+export type TouchSteer = (typeof TouchSteer)[keyof typeof TouchSteer];
+
+const CONTROLS = ["steer", "left", "right", "throttle", "brake", "handbrake", "rewind", "reset", "camera"] as const;
 type Control = (typeof CONTROLS)[number];
 
 interface Finger {
@@ -33,11 +36,22 @@ export class Touch {
   private knob = $("steer-knob");
   private abort: AbortController | null = null;
   private tick = 0;
+  private steer_mode: TouchSteer = TouchSteer.DRAG;
 
   constructor(private root: HTMLElement) {}
 
   get active() {
     return this.fingers.size > 0;
+  }
+
+  /** Buttons give -1, 0 or 1 like keys, so the car ramps them the way it ramps the keyboard. */
+  get buttons() {
+    return this.steer_mode === TouchSteer.BUTTONS;
+  }
+
+  set_steer_mode(mode: TouchSteer) {
+    this.steer_mode = mode;
+    this.root.dataset.steer = mode;
   }
 
   start() {
@@ -123,7 +137,7 @@ export class Touch {
     const all = [...this.fingers.values()];
     const max = (control: Control) => Math.max(0, ...all.filter((f) => f.control === control).map((f) => f.value));
     const steer = all.filter((f) => f.control === "steer").sort((a, b) => b.touched - a.touched)[0];
-    this.steer = steer?.value ?? 0;
+    this.steer = this.buttons ? max("right") - max("left") : (steer?.value ?? 0);
     this.throttle = max("throttle");
     this.brake = max("brake");
     this.handbrake = max("handbrake");

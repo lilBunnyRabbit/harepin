@@ -146,6 +146,7 @@ function apply_car_settings(state: SettingsState) {
 
 function apply_settings(state: SettingsState) {
   apply_car_settings(state);
+  input.touch.set_steer_mode(state.touch_steer);
   chase.mode = state.camera === CameraView.COCKPIT ? 1 : 0;
   audio.set_view(state.camera === CameraView.COCKPIT);
   chase.return_delay = CAMERA_RETURN_SECONDS[state.camera_return];

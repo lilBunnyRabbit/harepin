@@ -410,7 +410,8 @@
 }
 
 @media (pointer: fine) {
-  .settings-keys .settings-col-touch {
+  .settings-keys .settings-col-touch,
+  .settings-touch-only {
     display: none;
   }
 }
