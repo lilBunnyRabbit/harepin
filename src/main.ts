@@ -44,6 +44,16 @@ const prefs = load_settings(params);
 const asked_name = prefs.name === null ? ask_name(document.body, random_name) : null;
 
 show_version($("loading"));
+const audio = new Audio();
+// Built and unlocked before the island loads: the first taps (the name prompt) land while it builds.
+audio.prepare();
+// A touch only counts as a user gesture on release, so pointerdown alone never unlocked sound on phones.
+const UNLOCK_EVENTS = ["keydown", "pointerup", "touchend", "click", "gamepadconnected"];
+const unlock_audio = () => {
+  audio.start();
+  if (audio.running) for (const event of UNLOCK_EVENTS) removeEventListener(event, unlock_audio);
+};
+for (const event of UNLOCK_EVENTS) addEventListener(event, unlock_audio);
 const { world, chunks } = await load_world(seed);
 
 const quality = new Quality(params, prefs.quality);
@@ -118,8 +128,6 @@ input.mouse.start();
 const recenter = $("recenter", HTMLButtonElement);
 recenter.addEventListener("click", () => chase.recenter());
 renderer.domElement.addEventListener("dblclick", () => chase.recenter());
-const audio = new Audio();
-for (const event of ["keydown", "pointerdown", "gamepadconnected"]) addEventListener(event, () => audio.start(), { once: true });
 
 const race = new Race(world);
 const chase = new ChaseCamera(camera);

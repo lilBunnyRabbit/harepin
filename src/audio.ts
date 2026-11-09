@@ -95,7 +95,18 @@ export class Audio {
     }
   }
 
+  get running() {
+    return this.ctx?.state === "running";
+  }
+
+  /** Unlocks sound on a user gesture; the graph is already built, so it plays at once. */
   start() {
+    if (!this.ctx) this.prepare();
+    this.sync_running();
+  }
+
+  // Built before any gesture: on phones the worklet fetch and the graph took seconds after the first tap.
+  prepare() {
     if (this.ctx) return;
     const ctx = new AudioContext();
     this.ctx = ctx;
