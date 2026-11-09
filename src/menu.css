@@ -316,6 +316,13 @@
   outline-offset: 2px;
 }
 
+/* The hit area sits over the hero picture, so the global button fill (and its hover) must never paint. */
+.settings .menu-hit,
+.settings .menu-hit:hover {
+  background: none;
+  border: 0;
+}
+
 .settings .menu-hit {
   position: absolute;
   inset: 0;
