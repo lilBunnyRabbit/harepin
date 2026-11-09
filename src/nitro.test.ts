@@ -1,6 +1,6 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import { Nitro, type NitroSense } from "./nitro";
+import { Nitro, peer_pass, type NitroSense } from "./nitro";
 
 const DT = 1 / 360;
 const cruise: NitroSense = { slide: 0, speed: 20, airborne: false };
@@ -88,4 +88,62 @@ test("a row of close passes pays at most once per cooldown and never twice for t
   const again = nitro.fill;
   graze(POST_A);
   expect(nitro.fill - again).toBeCloseTo(one);
+});
+
+test("a car rebuilt in the garage keeps its tank level, clamped to the new tank", () => {
+  const small = Object.assign(new Nitro(4), { fill: 1.5 });
+  const big = new Nitro(7);
+  big.carry(small);
+  expect(big.fill).toBe(1.5);
+  const full = new Nitro(7);
+  const back = new Nitro(4);
+  back.carry(full);
+  expect(back.fill).toBe(4);
+  const none = new Nitro(0);
+  none.carry(big);
+  expect(none.fill).toBe(0);
+});
+
+test("refill and cut let go of the boost", () => {
+  const nitro = new Nitro(4);
+  run(nitro, 0.1, true);
+  expect(nitro.boosting).toBe(true);
+  nitro.cut();
+  expect(nitro.boosting).toBe(false);
+  run(nitro, 0.1, true);
+  nitro.refill();
+  expect(nitro.boosting).toBe(false);
+  expect(nitro.fill).toBe(4);
+});
+
+test("a rewind snapshot puts back the tank and the near-miss cooldowns, both ways", () => {
+  const nitro = Object.assign(new Nitro(10), { fill: 5 });
+  const graze = (near: object) => {
+    nitro.pass(near, false, 30);
+    nitro.pass(null, false, 30);
+  };
+  const before = nitro.snapshot();
+  graze(POST_A);
+  run(nitro, 1, true);
+  const after = nitro.snapshot();
+  nitro.restore(before);
+  expect(nitro.fill).toBe(5);
+  expect(nitro.boosting).toBe(false);
+  graze(POST_A);
+  expect(nitro.fill).toBeCloseTo(5.6);
+  nitro.restore(after);
+  expect(nitro.fill).toBeCloseTo(after.fill);
+  graze(POST_B);
+  expect(nitro.fill).toBeCloseTo(after.fill);
+});
+
+test("a ghost peer is a near miss inside the gap, and touched inside a car width", () => {
+  expect(peer_pass(6, 4)).toEqual({ close: false, touched: false });
+  expect(peer_pass(3, 4)).toEqual({ close: true, touched: false });
+  expect(peer_pass(1, 4)).toEqual({ close: true, touched: true });
+  const nitro = Object.assign(new Nitro(4), { fill: 0 });
+  const through = peer_pass(1, 4);
+  nitro.pass("peer", through.touched, 30);
+  nitro.pass(null, false, 30);
+  expect(nitro.fill).toBe(0);
 });

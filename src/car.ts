@@ -311,11 +311,13 @@ export class Car {
     const gas = pedal * (this.tcs ? this.tcs_factor : 1);
     this.throttle = gas;
 
-    const grounded = this.wheels.some((w) => w.contact);
-    // First gear is grip-bound: boost there only spins the wheels, and spinning wheels hold the auto box off its upshift.
-    const boost = this.nitro.step(dt, !!input.nitro && this.gear >= 2 && pedal > 0.1 && grounded, { slide, speed, airborne: !grounded });
     const launch = this.gear !== 0 ? spec.idle + gas * 2600 : spec.idle + gas * (spec.redline - spec.idle);
     const rpm = Math.max(wheel_rpm, launch);
+    const grounded = this.wheels.some((w) => w.contact);
+    // First gear is grip-bound: boost there only spins the wheels, and spinning wheels hold the auto box off its upshift.
+    // Mid-shift and on the limiter no torque reaches the wheels, so nothing burns either.
+    const drives = this.gear >= 2 && this.shifting <= 0 && rpm < spec.redline;
+    const boost = this.nitro.step(dt, !!input.nitro && drives && pedal > 0.1 && grounded, { slide, speed, airborne: !grounded });
     this.rpm += (rpm - this.rpm) * Math.min(1, dt * 30);
     let engine = 0;
     if (this.shifting <= 0 && this.gear !== 0) {

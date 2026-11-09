@@ -141,6 +141,7 @@ export class World implements Ground {
   readonly circuit: number[];
   readonly timings: [string, number][];
   private readonly solid_grid = new Map<number, number[]>();
+  private readonly nearby: Solid[] = [];
   private readonly road_grid = new Map<number, number[]>();
   /** Every edge's points, packed as edge * LANE_PACK + point index. */
   private readonly lane_grid = new Map<number, number[]>();
@@ -290,7 +291,7 @@ export class World implements Ground {
     let impact = 0;
     const fx = Math.sin(car.heading);
     const fz = Math.cos(car.heading);
-    for (const offset of spec.circles) this.near(pos.x + fx * offset, pos.z + fz * offset, (solid) => (impact = Math.max(impact, this.hit(car, solid, offset, fx, fz))));
+    for (const offset of spec.circles) for (const solid of this.near(pos.x + fx * offset, pos.z + fz * offset)) impact = Math.max(impact, this.hit(car, solid, offset, fx, fz));
     return impact;
   }
 
@@ -299,18 +300,18 @@ export class World implements Ground {
     const { pos, spec } = car;
     const fx = Math.sin(car.heading);
     const fz = Math.cos(car.heading);
-    let close: Solid | null = null;
     for (const offset of spec.circles) {
       const px = pos.x + fx * offset;
       const pz = pos.z + fz * offset;
-      this.near(px, pz, (solid) => {
-        if (pos.y <= solid.y + solid.height && circle_contact(solid, px, pz, spec.radius + gap, fx, fz)) close = solid;
-      });
+      for (const solid of this.near(px, pz)) if (pos.y <= solid.y + solid.height && circle_contact(solid, px, pz, spec.radius + gap, fx, fz)) return solid;
     }
-    return close;
+    return null;
   }
 
-  private near(px: number, pz: number, visit: (solid: Solid) => void) {
+  // Runs per collision circle every sim step, so it refills one array instead of allocating a list or a callback.
+  private near(px: number, pz: number): readonly Solid[] {
+    const found = this.nearby;
+    found.length = 0;
     const cx = Math.floor(px / SOLID_CELL);
     const cz = Math.floor(pz / SOLID_CELL);
     const stamp = ++this.query;
@@ -321,10 +322,11 @@ export class World implements Ground {
         for (const index of list) {
           if (this.seen[index] === stamp) continue;
           this.seen[index] = stamp;
-          visit(this.solids[index]);
+          found.push(this.solids[index]);
         }
       }
-    for (const solid of this.placed) visit(solid);
+    for (const solid of this.placed) found.push(solid);
+    return found;
   }
 
   private hit(car: Collider, solid: Solid, offset: number, fx: number, fz: number): number {

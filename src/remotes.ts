@@ -33,7 +33,8 @@ function translucent_view(build: Build, spec: CarSpec): { view: CarView; materia
   rest_wheels(view, spec);
   const copies = new Map<THREE.Material, THREE.Material>();
   view.root.traverse((object) => {
-    if (!(object instanceof THREE.Mesh)) return;
+    // The flame stays additive with no depth write; a faded copy would turn it into a see-through solid.
+    if (!(object instanceof THREE.Mesh) || object === view.flame) return;
     const original = object.material as THREE.Material;
     let copy = copies.get(original);
     if (!copy) {
@@ -61,6 +62,16 @@ export class Remotes {
     private net: Net,
     private world: World,
   ) {}
+
+  /** The peer car nearest `to` where it is drawn (interpolated), and how far away it is in metres. */
+  nearest(to: THREE.Vector3): { id: string; distance: number } | null {
+    let best: { id: string; distance: number } | null = null;
+    for (const [id, rv] of this.views) {
+      const distance = rv.view.root.position.distanceTo(to);
+      if (!best || distance < best.distance) best = { id, distance };
+    }
+    return best;
+  }
 
   update(dt: number, camera: THREE.Camera, me: THREE.Vector3) {
     for (const remote of this.net.remotes.values()) this.draw(remote, dt, camera, me);

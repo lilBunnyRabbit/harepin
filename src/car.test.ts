@@ -377,3 +377,49 @@ describe("rally off-road", () => {
     expect(car.wheels.every((w) => w.contact)).toBe(true);
   });
 });
+
+describe("nitro", () => {
+  const boosted = (): Car => {
+    const car = new Car({ ...CARS.coupe, nitro: 10 });
+    car.place(0, 0.6, 0, 0);
+    run(car, 1.5, () => idle);
+    run(car, 4, () => ({ ...idle, throttle: 1 }));
+    return car;
+  };
+  const gas = { ...idle, throttle: 1, nitro: true };
+
+  test("burns in 2nd and up, but not through a gear change or on the limiter", () => {
+    const car = boosted();
+    expect(car.gear).toBeGreaterThanOrEqual(2);
+    car.auto = false;
+    run(car, 0.2, () => gas);
+    expect(car.nitro.boosting).toBe(true);
+    car.shift(1);
+    const before = car.nitro.fill;
+    while (car.shifting > 0) {
+      car.step(DT, gas, flat);
+      if (car.shifting > 0) expect(car.nitro.boosting).toBe(false);
+    }
+    expect(car.nitro.fill).toBeGreaterThanOrEqual(before);
+    car.shift(-1);
+    run(car, 6, () => gas);
+    const at_limiter = car.nitro.fill;
+    let burning = 0;
+    for (let t = 0; t < 1; t += DT) {
+      car.step(DT, gas, flat);
+      if (car.nitro.boosting) burning++;
+    }
+    expect(burning).toBeLessThan(120);
+    expect(at_limiter - car.nitro.fill).toBeLessThan(0.3);
+  });
+
+  test("never in 1st, reverse or neutral", () => {
+    const car = new Car({ ...CARS.coupe, nitro: 10 });
+    car.place(0, 0.6, 0, 0);
+    run(car, 1.5, () => idle);
+    run(car, 0.5, () => gas);
+    expect(car.gear).toBe(1);
+    expect(car.nitro.boosting).toBe(false);
+    expect(car.nitro.fill).toBeGreaterThanOrEqual(10 - 1e-9);
+  });
+});

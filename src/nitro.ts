@@ -10,11 +10,28 @@ const NEAR_BONUS = 0.6;
 // A row of lamp posts or trees is many close passes in a row; these keep it from filling the tank.
 const NEAR_COOLDOWN = 1.5;
 const NEAR_REPEAT = 4;
+const PEER_TOUCH = 2;
 // An emptied tank waits for this much before it lights again; without it the trickle relit it every other step.
 const RELIGHT = 0.3;
 
 /** What a close pass is close to: a solid, or a peer's id; null when nothing is near. */
 export type Near = object | string | null;
+
+/** Everything a rewind puts back, so the tank and the near-miss cooldowns rewind with the car. */
+export interface NitroSnapshot {
+  fill: number;
+  close: boolean;
+  scraped: boolean;
+  target: Near;
+  clock: number;
+  paid_at: number;
+  paid: [object | string, number][];
+}
+
+/** A peer is a ghost with no collision: driving through one is not a near miss, so inside a car width it counts as touched. */
+export function peer_pass(distance: number, near: number): { close: boolean; touched: boolean } {
+  return { close: distance < near, touched: distance < PEER_TOUCH };
+}
 
 export interface NitroSense {
   slide: number;
@@ -48,10 +65,38 @@ export class Nitro {
 
   refill() {
     this.fill = this.capacity;
+    this.boosting = false;
     this.close = this.scraped = false;
     this.target = null;
     this.paid_at = -Infinity;
     this.paid.clear();
+  }
+
+  /** The sim is not stepping (rewind, garage, countdown): nothing burns. */
+  cut() {
+    this.boosting = false;
+  }
+
+  /** Takes over another tank's level and cooldowns, clamped to this one's size, for a car rebuilt from the garage. */
+  carry(from: Nitro) {
+    this.restore({ ...from.snapshot(), fill: Math.min(this.capacity, from.fill) });
+  }
+
+  snapshot(): NitroSnapshot {
+    const { fill, close, scraped, target, clock, paid_at } = this;
+    return { fill, close, scraped, target, clock, paid_at, paid: [...this.paid] };
+  }
+
+  restore(s: NitroSnapshot) {
+    this.fill = Math.min(this.capacity, s.fill);
+    this.boosting = false;
+    this.close = s.close;
+    this.scraped = s.scraped;
+    this.target = s.target;
+    this.clock = s.clock;
+    this.paid_at = s.paid_at;
+    this.paid.clear();
+    for (const [key, at] of s.paid) this.paid.set(key, at);
   }
 
   step(dt: number, want: boolean, sense: NitroSense): boolean {

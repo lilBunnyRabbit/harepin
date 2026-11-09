@@ -118,6 +118,7 @@ export class Hud {
     el.nitro.hidden = !car.nitro.fitted;
     el.nitro_fill.style.width = `${car.nitro.level * 100}%`;
     el.nitro.toggleAttribute("data-boost", car.nitro.boosting);
+    el.nitro.toggleAttribute("data-idle", car.gear < 2);
     el.lap.textContent = format(race.started ? now - race.started : null);
     el.best.textContent = format(race.best);
     el.last.textContent = format(race.last);

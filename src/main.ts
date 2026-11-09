@@ -18,7 +18,7 @@ import { Lobby, min_lap_ms } from "./lobby";
 import { Modes } from "./modes/modes";
 import { build_view, contact_shadow, dispose_car_view, gates, place_contact_shadow, roadside, show_flame, sync_car_view } from "./models";
 import { Net, WRONG_PASSWORD, parse_seed, type CarState } from "./net";
-import type { Near } from "./nitro";
+import { peer_pass, type Near, type NitroSnapshot } from "./nitro";
 import { Quality } from "./quality";
 import { brand, color, rgba, tones } from "./palette";
 import { Race, type RaceSnapshot } from "./race";
@@ -213,7 +213,9 @@ updater.start();
 
 garage.on_change = (next) => {
   const { pos, heading } = car;
+  const tank = car.nitro;
   car = new Car(build_spec(next));
+  car.nitro.carry(tank);
   car.park(pos.x, pos.z, heading, world);
   apply_car_settings(settings.state);
   input.touch.show_nitro(car.nitro.fitted);
@@ -236,6 +238,7 @@ interface Frame {
   gear: number;
   omega: number[];
   race: RaceSnapshot;
+  nitro: NitroSnapshot;
 }
 const REWIND_SECONDS = 10;
 const history: Frame[] = [];
@@ -250,6 +253,7 @@ function record(now: number) {
     gear: car.gear,
     omega: car.wheels.map((w) => w.omega),
     race: race.snapshot(),
+    nitro: car.nitro.snapshot(),
   });
   while (history.length && now - history[0].at > REWIND_SECONDS * 1000) history.shift();
 }
@@ -266,6 +270,7 @@ function rewind_step(now: number) {
   car.parked = false;
   car.wheels.forEach((w, i) => (w.omega = f.omega[i]));
   race.restore(f.race, now - f.at);
+  car.nitro.restore(f.nitro);
   if (race.started) ghost.rewind_to(now - race.started);
 }
 
@@ -382,16 +387,14 @@ let rewinding = false;
 
 const NEAR_GAP = 1.2;
 const NEAR_PEER = 4;
-const peer = new THREE.Vector3();
-function near_miss(): Near {
-  if (!car.nitro.fitted) return null;
+/** Something close this frame, and whether the pass touched it (a crash, or driving through a ghost peer). */
+function near_miss(impact: number): { near: Near; touched: boolean } {
+  if (!car.nitro.fitted) return { near: null, touched: false };
   const solid = world.grazes(car, NEAR_GAP);
-  if (solid) return solid;
-  for (const remote of net.remotes.values()) {
-    const [x, y, z] = remote.latest.p;
-    if (car.pos.distanceToSquared(peer.set(x, y, z)) < NEAR_PEER * NEAR_PEER) return remote.id;
-  }
-  return null;
+  if (solid) return { near: solid, touched: impact > 0 };
+  const ghost = remotes.nearest(car.pos);
+  const pass = ghost ? peer_pass(ghost.distance, NEAR_PEER) : null;
+  return ghost && pass?.close ? { near: ghost.id, touched: pass.touched } : { near: null, touched: impact > 0 };
 }
 
 function frame(now: number) {
@@ -451,7 +454,8 @@ function frame(now: number) {
       impact = Math.max(impact, world.collide(car));
       acc -= DT;
     }
-    car.nitro.pass(near_miss(), impact > 0, car.vel.length());
+    const { near, touched } = near_miss(impact);
+    car.nitro.pass(near, touched, car.vel.length());
     if (impact > 2) {
       if (world_view.jumps.bonked(car.pos.x, car.pos.z)) audio.bonk(impact);
       else audio.impact(impact / 20);
@@ -478,6 +482,8 @@ function frame(now: number) {
   update_gates(now / 1000);
   ghost.update(race.started && !modes.active ? now - race.started : null, camera.position);
   modes.update(stepped, car);
+  // Rewind, the garage and the countdown don't step the car, so a held boost would never let go of the flame.
+  if (!simulated) car.nitro.cut();
   if (!simulated || step_from.pos.distanceToSquared(car.pos) > TELEPORT_SQ) {
     step_from.pos.copy(car.pos);
     step_from.quat.copy(car.quat);

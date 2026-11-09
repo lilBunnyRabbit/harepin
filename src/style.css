@@ -826,6 +826,11 @@ select {
   background: var(--cottontail);
 }
 
+/* Boost works from 2nd gear up; in 1st the gauge reads as "not now". */
+.nitro[data-idle] {
+  opacity: 0.45;
+}
+
 #shift[data-on="true"] {
   animation: blink 0.12s steps(2) infinite;
 }
