@@ -2,11 +2,16 @@
 import { expect, test } from "bun:test";
 import { Vector3 } from "three";
 import { World } from "../world";
-import { generate_sky, sky_layout } from "./sky";
+import { generate_sky, sky_layout, size_gap } from "./sky";
 import { DECK_STRIDE, SPAWN_INDEX } from "./types";
 
 const SEEDS = 12;
 const worlds = Array.from({ length: SEEDS }, (_, seed) => generate_sky(seed));
+
+/** Kicker face and gap: a step in grade by design, and the one place the deck may climb past 10%. */
+function in_jump(world: (typeof worlds)[number], s: number): boolean {
+  return (world.deck?.pieces ?? []).some((p) => (p.kind === "kicker" || p.kind === "gap") && s >= p.s0 - 2.5 && s <= p.s0 + p.length + 2.5);
+}
 
 test("the lap closes on itself in position and heading", () => {
   for (let seed = 0; seed < SEEDS; seed++) {
@@ -42,6 +47,10 @@ test("sections that aren't neighbours keep 40 m apart, and the track stays insid
   }
 });
 
+function run_short(line: Float64Array, a: number, b: number): boolean {
+  return Math.hypot(line[b] - line[a], line[b + 2] - line[a + 2]) < 0.5;
+}
+
 test("grade stays within 10% up and 25% down and bank rolls in at most 1.2° per metre", () => {
   for (const world of worlds) {
     const line = world.deck?.line;
@@ -50,6 +59,7 @@ test("grade stays within 10% up and 25% down and bank rolls in at most 1.2° per
     for (let i = 0; i < n; i++) {
       const a = i * DECK_STRIDE;
       const b = ((i + 1) % n) * DECK_STRIDE;
+      if (in_jump(world, line[a + 8]) || run_short(line, a, b)) continue;
       const run = Math.hypot(line[b] - line[a], line[b + 2] - line[a + 2]);
       const grade = (line[b + 1] - line[a + 1]) / run;
       expect(grade).toBeLessThan(0.1 + 1e-9);
@@ -65,8 +75,10 @@ test("the surface normal is continuous along the deck, joints included", () => {
   for (const seed of [0, 3, 7]) {
     const world = new World(seed, worlds[seed]);
     const { road } = world;
+    const line = worlds[seed].deck?.line ?? new Float64Array();
     for (let i = 0; i < road.length; i++) {
       const p = road[i];
+      if (in_jump(worlds[seed], line[i * DECK_STRIDE + 8])) continue;
       for (const u of [-4, 0, 4]) {
         const x = p.x + p.tz * u;
         const z = p.z - p.tx * u;
@@ -91,5 +103,26 @@ test("checkpoints, the start line and the spawn sit on unbanked deck, and the ra
     }
     expect(world.checkpoints.length).toBeGreaterThan(4);
     expect(world.solids.filter((s) => s.kind === "box").length).toBeGreaterThan(world.road.length * 0.9);
+  }
+});
+
+test("every seed gets gap jumps, each with a checkpoint on the flat before its run-up and no rail across the gap", () => {
+  const { gap } = size_gap();
+  for (const world of worlds) {
+    expect(world.ramps.length).toBeGreaterThan(0);
+    for (const r of world.ramps) {
+      expect(r.deck).toBe(true);
+      const before = world.checkpoints.filter((c) => {
+        const along = (c.x - r.x) * r.fx + (c.z - r.z) * r.fz;
+        return along < -30 && along > -90 && Math.abs((c.x - r.x) * r.fz - (c.z - r.z) * r.fx) < 3;
+      });
+      expect(before.length).toBe(1);
+      const mid = r.length + gap / 2;
+      const mx = r.x + r.fx * mid;
+      const mz = r.z + r.fz * mid;
+      const w = new World(0, world);
+      expect(w.height(mx, mz)).toBeLessThan(r.y - 100);
+      for (const s of world.solids) if (s.kind === "box") expect(Math.hypot(s.x - mx, s.z - mz)).toBeGreaterThan(gap / 2 - 3);
+    }
   }
 });

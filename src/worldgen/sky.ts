@@ -25,6 +25,12 @@ const START_AHEAD = 60;
 const START_BEHIND = 120;
 const STRAIGHT_MIN = 40;
 const CHECKPOINT_GAP = 300;
+/** Flat deck before a gap's toe: a checkpoint JUMP_GATE before it, then the run-up. */
+const JUMP_BEFORE = 70;
+const JUMP_GATE = 60;
+const JUMP_AFTER = 50;
+const JUMP_APART = 300;
+const MAX_JUMPS = 2;
 const RAIL_BOTTOM = -0.6;
 const RAIL_TOP = 1.2;
 const RAIL_HALF = 0.25;
@@ -175,7 +181,10 @@ export const LANDING_GRADE = -0.04;
 /** Slowest touchdown lands this far onto the landing; the landing runs this far past the fastest one. */
 const LANDING_SPARE = 6;
 const LANDING_RUNOUT = 20;
+/** Past the landing the deck narrows back to ROAD_HALF over this many metres, so the rail never steps in. */
+const LANDING_TAPER = 40;
 export const SKY_KICKER = ROAD_KICKER;
+const KICKER_GRADE = SKY_KICKER.rise / SKY_KICKER.length;
 
 export interface GapJump {
   gap: number;
@@ -267,7 +276,7 @@ function ramp_length(g0: number, g1: number): number {
   return Math.abs(g1 - g0) * VERTICAL_RADIUS;
 }
 
-function draw_profile(rng: () => number, length: number): Grade[] | null {
+function draw_profile(rng: () => number, length: number, toes: readonly number[]): Grade[] | null {
   const out: Grade[] = [];
   let s = START_AHEAD;
   let y = 0;
@@ -285,14 +294,34 @@ function draw_profile(rng: () => number, length: number): Grade[] | null {
     y += g * (ramp + hold);
   };
   const reserve = Math.min(900, length * 0.25);
+  const jump = size_gap();
+  const pending = [...toes];
+  const gap_jump = (toe: number) => {
+    push(s, toe, 0, 0);
+    out.push({ s0: toe, s1: toe + SKY_KICKER.length, g0: KICKER_GRADE, g1: KICKER_GRADE, solid: true });
+    const land = toe + SKY_KICKER.length + jump.gap;
+    out.push({ s0: toe + SKY_KICKER.length, s1: land, g0: -jump.drop / jump.gap, g1: -jump.drop / jump.gap, solid: false });
+    push(land, land + jump.landing, LANDING_GRADE, LANDING_GRADE);
+    push(land + jump.landing, land + jump.landing + jump.sag, LANDING_GRADE, 0);
+    s = toe + jump.span;
+    y += SKY_KICKER.rise - jump.drop + LANDING_GRADE * jump.landing + (LANDING_GRADE / 2) * jump.sag;
+  };
   for (;;) {
     const at = s + 20 + rng() * 140;
     const rise = y < -25 || (y < 25 && rng() < 0.45);
     const g = rise ? 0.04 + rng() * (MAX_CLIMB - 0.04) : -(0.08 + rng() * (MAX_DROP - 0.08));
     const hold = rise ? 30 + rng() * 120 : 20 + rng() * 60;
+    const next = pending[0];
+    if (next !== undefined && at + 2 * ramp_length(0, g) + hold > next - JUMP_BEFORE) {
+      pending.shift();
+      if (next - JUMP_BEFORE < s) return null;
+      gap_jump(next);
+      continue;
+    }
     if (at + 2 * ramp_length(0, g) + hold > end - reserve) break;
     feature(at, g, hold);
   }
+  if (pending.length) return null;
   const at = s + 10;
   const room = end - 10 - at;
   const need = -y;
@@ -335,6 +364,24 @@ export interface SkyLayout {
   error: number;
   profile: Grade[];
   attempt: number;
+  /** Toe of every gap jump, metres along the lap. */
+  toes: number[];
+}
+
+/** A gap on every straight long enough for the checkpoint, run-up, jump and run-out, MAX_JUMPS at most, kept apart. */
+function jump_toes(pieces: readonly PlanPiece[], length: number): number[] {
+  const span = size_gap().span;
+  const toes: number[] = [];
+  let s0 = 0;
+  pieces.forEach((p, i) => {
+    const room = p.length - JUMP_BEFORE - span - JUMP_AFTER;
+    if (p.kind === "straight" && i > 0 && i < pieces.length - 1 && room >= 0 && toes.length < MAX_JUMPS) {
+      const toe = s0 + JUMP_BEFORE + room / 2;
+      if (toe > START_AHEAD + JUMP_BEFORE && toe + span < length - START_BEHIND && toes.every((t) => toe - t > JUMP_APART)) toes.push(toe);
+    }
+    s0 += p.length;
+  });
+  return toes;
 }
 
 export function sky_layout(seed: number): SkyLayout {
@@ -351,7 +398,8 @@ export function sky_layout(seed: number): SkyLayout {
     for (const p of samples) [x0, x1, z0, z1] = [Math.min(x0, p.x), Math.max(x1, p.x), Math.min(z0, p.z), Math.max(z1, p.z)];
     if (x1 - x0 > 2 * BOUND || z1 - z0 > 2 * BOUND) continue;
     if (!separated(samples, length)) continue;
-    const profile = draw_profile(mulberry32(sub(seed, `sky:profile:${attempt}`)), length);
+    const toes = jump_toes(pieces, length);
+    const profile = draw_profile(mulberry32(sub(seed, `sky:profile:${attempt}`)), length, toes);
     if (!profile) continue;
     const climbs = climb(profile);
     const ys = samples.map((p) => height_at(profile, climbs, p.s).y);
@@ -362,23 +410,34 @@ export function sky_layout(seed: number): SkyLayout {
       p.x -= cx;
       p.z -= cz;
     }
-    return { pieces, samples, length, error, profile, attempt };
+    return { pieces, samples, length, error, profile, attempt, toes };
   }
   throw new Error(`sky_layout: seed ${seed} found no track`);
 }
 
 export function generate_sky(seed: number): WorldData {
   const t0 = performance.now();
-  const { pieces, samples, length, profile } = sky_layout(seed);
+  const { pieces, samples, length, profile, toes } = sky_layout(seed);
+  const jump = size_gap();
   const climbs = climb(profile);
+  // The toe, lip and landing edge get samples of their own, so the 2 m centreline doesn't round the lip off.
+  for (const key of toes.flatMap((t) => [t, t + SKY_KICKER.length - 1e-6, t + SKY_KICKER.length + jump.gap])) {
+    const i = samples.findIndex((q, k) => q.s < key && (samples[k + 1]?.s ?? Infinity) > key);
+    const a = samples[i];
+    const b = samples[i + 1];
+    const f = (key - a.s) / (b.s - a.s);
+    samples.splice(i + 1, 0, { ...a, x: a.x + (b.x - a.x) * f, z: a.z + (b.z - a.z) * f, s: key });
+  }
   const n = samples.length;
   const line = new Float64Array(n * DECK_STRIDE);
   const road: RoadPoint[] = [];
   samples.forEach((p, i) => {
     const { y, solid } = height_at(profile, climbs, p.s);
+    const past = toes.map((t) => p.s - t - SKY_KICKER.length - jump.gap).find((d) => d >= 0 && d < jump.landing + LANDING_TAPER);
+    const half = past === undefined ? ROAD_HALF : past < jump.landing ? LANDING_HALF : LANDING_HALF + ((ROAD_HALF - LANDING_HALF) * (past - jump.landing)) / LANDING_TAPER;
     const tx = Math.sin(p.h);
     const tz = Math.cos(p.h);
-    line.set([p.x, y, p.z, tx, tz, p.bank, ROAD_HALF, solid ? 1 : 0, p.s], i * DECK_STRIDE);
+    line.set([p.x, y, p.z, tx, tz, p.bank, half, solid ? 1 : 0, p.s], i * DECK_STRIDE);
     road.push({ x: p.x, y, z: p.z, tx, tz });
   });
   const deck_pieces: DeckPiece[] = [];
@@ -388,6 +447,17 @@ export function generate_sky(seed: number): WorldData {
     s0 += p.length;
   }
 
+  const ramps: Ramp[] = [];
+  for (const toe of toes) {
+    deck_pieces.push(
+      { kind: "kicker", s0: toe, length: SKY_KICKER.length, curve: 0 },
+      { kind: "gap", s0: toe + SKY_KICKER.length, length: jump.gap, curve: 0 },
+      { kind: "landing", s0: toe + SKY_KICKER.length + jump.gap, length: jump.landing + jump.sag, curve: 0 },
+    );
+    const p = road[samples.findIndex((q) => q.s >= toe)];
+    ramps.push({ ...gap_ramp(), id: ramps.length, x: p.x, y: p.y, z: p.z, fx: p.tx, fz: p.tz, speed: ROAD_KICKER.speed, landing: jump.gap + jump.landing + jump.sag });
+  }
+  deck_pieces.sort((a, b) => a.s0 - b.s0);
   const solids: Solid[] = [];
   for (let i = 0; i < n; i += 2) {
     const a = i * DECK_STRIDE;
@@ -402,13 +472,16 @@ export function generate_sky(seed: number): WorldData {
     const tz = dz / len;
     const y = (line[a + 1] + line[b + 1]) / 2;
     const slope = Math.tan((line[a + 5] + line[b + 5]) / 2);
+    const half = (line[a + 6] + line[b + 6]) / 2;
     for (const side of [-1, 1]) {
-      const off = side * (ROAD_HALF + RAIL_HALF);
-      solids.push({ kind: "box", x: mx + tz * off, y: y + side * ROAD_HALF * slope, z: mz - tx * off, hw: RAIL_HALF, hd: len / 2 + 0.1, cos: tz, sin: tx, height: RAIL_TOP, bottom: RAIL_BOTTOM });
+      const off = side * (half + RAIL_HALF);
+      solids.push({ kind: "box", x: mx + tz * off, y: y + side * half * slope, z: mz - tx * off, hw: RAIL_HALF, hd: len / 2 + 0.1, cos: tz, sin: tx, height: RAIL_TOP, bottom: RAIL_BOTTOM });
     }
   }
 
-  const eligible = (i: number) => samples[i].bank === 0 && pieces[samples[i].piece].kind === "straight" && line[i * DECK_STRIDE + 7] === 1;
+  const gates = toes.map((t) => t - JUMP_GATE);
+  const in_jump = (s: number) => toes.some((t) => s > t - JUMP_GATE - 1 && s < t + jump.span);
+  const eligible = (i: number) => samples[i].bank === 0 && pieces[samples[i].piece].kind === "straight" && line[i * DECK_STRIDE + 7] === 1 && !in_jump(samples[i].s);
   const checkpoints: Checkpoint[] = [];
   const add_checkpoint = (i: number) => {
     const p = road[i];
@@ -421,9 +494,15 @@ export function generate_sky(seed: number): WorldData {
   add_checkpoint(0);
   let last = 0;
   for (let i = 1; i < n; i++) {
-    const gap = samples[i].s - samples[last].s;
-    if (length - samples[i].s < CHECKPOINT_GAP * 0.6) break;
-    if (gap >= CHECKPOINT_GAP && eligible(i)) {
+    const s = samples[i].s;
+    if (gates.some((g) => s >= g && samples[i - 1].s < g)) {
+      add_checkpoint(i);
+      last = i;
+      continue;
+    }
+    const gap = s - samples[last].s;
+    if (length - s < CHECKPOINT_GAP * 0.6) break;
+    if (gap >= CHECKPOINT_GAP && eligible(i) && !gates.some((g) => g > s && g - s < CHECKPOINT_GAP * 0.4)) {
       add_checkpoint(i);
       last = i;
     }
@@ -443,7 +522,7 @@ export function generate_sky(seed: number): WorldData {
     parking: [],
     trees: [],
     solids,
-    ramps: [],
+    ramps,
     items: [],
     challenges: [],
     checkpoints,

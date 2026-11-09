@@ -131,7 +131,7 @@ export class JumpsView {
       if (!b) builders.set(key, (b = new Builder()));
       return b;
     };
-    for (const r of data.ramps) ramp_mesh(of(r.x, r.z), r, t);
+    for (const r of data.ramps) if (!r.deck) ramp_mesh(of(r.x, r.z), r, t);
     for (const c of data.challenges) challenge_mesh(of(c.x, c.z), c, t);
     const material = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide });
     for (const b of builders.values()) {
