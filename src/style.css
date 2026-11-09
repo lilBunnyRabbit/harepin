@@ -1302,13 +1302,16 @@ body:has(#mode-result:not([hidden])) #mode-status {
 
   .bottom-right {
     right: calc(var(--inset-right) + var(--pedals) + var(--space-3));
-    width: 120px;
+    width: auto;
+    min-width: 120px;
     height: var(--speedo-h);
     padding: var(--space-2) var(--space-3);
     pointer-events: none;
   }
 
+  /* Room for three digits, so the box doesn't grow or push the gear out at 100 km/h. */
   #speed {
+    min-width: 3ch;
     font-size: 28px;
   }
 
