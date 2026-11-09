@@ -13,7 +13,8 @@
   bottom: var(--inset-bottom);
   left: 50%;
   translate: -50% 0;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: var(--space-2);
   width: min(380px, calc(100vw - var(--inset-left) - var(--inset-right)));
   height: fit-content;
@@ -56,10 +57,13 @@
 .update-changes {
   display: grid;
   gap: var(--space-2);
+  flex: 0 1 auto;
   min-height: 0;
   margin: 0;
   padding: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
   list-style: none;
   line-height: 1.4;
 }
