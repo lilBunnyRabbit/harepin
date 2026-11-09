@@ -1,7 +1,7 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
 import type { Route } from "../worldgen/types";
-import { GATE_REACH, RaceRun, RaceStatus, race_course, race_levels } from "./races";
+import { GATE_REACH, RaceRun, RaceStatus, race_choices, race_course, race_levels } from "./races";
 
 const N = 1000;
 const POINTS = Array.from({ length: N }, (_, i) => {
@@ -25,11 +25,15 @@ test("course: gates in order along the line, the finish on its last point", () =
   expect(open.gates).toEqual([200, 400, 599]);
 });
 
-test("run: the clock starts off the line and stops at the finish, every gate taken in order", () => {
+test("run: held through the countdown, then every gate in order to the finish", () => {
   const course = race_course(route(true));
-  const run = new RaceRun(course);
-  run.update(100, course.line[0].x, course.line[0].z);
+  const run = new RaceRun(course, 3000);
+  for (let i = 0; i < 29; i++) run.update(100, course.line[0].x, course.line[0].z);
   expect(run.status).toBe(RaceStatus.READY);
+  expect(run.countdown).toBe(100);
+  run.update(100, course.line[0].x, course.line[0].z);
+  expect(run.status).toBe(RaceStatus.RUNNING);
+  expect(run.countdown).toBe(0);
   const taken: number[] = [];
   for (let i = 1; i < course.line.length; i++) {
     const g = run.update(100, course.line[i].x, course.line[i].z);
@@ -37,13 +41,13 @@ test("run: the clock starts off the line and stops at the finish, every gate tak
   }
   expect(taken).toEqual([0, 1, 2, 3]);
   expect(run.status).toBe(RaceStatus.DONE);
-  expect(run.elapsed()).toBe((course.line.length - 2) * 100);
+  expect(run.elapsed()).toBe((course.line.length - 1) * 100);
   expect(run.stars()).toBe(1);
 });
 
 test("run: a gate passed wide or skipped stays next until the car comes back for it", () => {
   const course = race_course(route(false));
-  const run = new RaceRun(course);
+  const run = new RaceRun(course, 0);
   for (let i = 0; i < 190; i++) run.update(100, course.line[i].x, course.line[i].z);
   for (let i = 190; i < 200 + GATE_REACH + 15; i++) {
     const p = course.line[i];
@@ -60,4 +64,11 @@ test("run: a gate passed wide or skipped stays next until the car comes back for
 test("levels follow the progression order and list only routes the seed made", () => {
   expect(race_levels([{ id: "street-2" }, { id: "street-1" }, { id: "circuit" }]).map((l) => l.id)).toEqual(["circuit", "street-1", "street-2"]);
   expect(race_levels([{ id: "street-9" }])).toEqual([]);
+});
+
+test("lobby choices carry name, length and whether laps apply", () => {
+  expect(race_choices([{ id: "street-1", length: 1800, closed: false }, { id: "circuit", length: 4500, closed: true }])).toEqual([
+    { id: "circuit", name: "Circuit", length: 4500, closed: true },
+    { id: "street-1", name: "Town to town", length: 1800, closed: false },
+  ]);
 });

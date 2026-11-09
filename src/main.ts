@@ -135,7 +135,7 @@ const hud = new Hud(world, race, net, room, lobby);
 const ghost = new Ghost(scene, world.seed, `harepin:ghost:${world_key(world.seed, kind)}`);
 race.on_lap = (improved) => {
   ghost.finish(improved);
-  lobby.lap(performance.now());
+  if (lobby.route === "circuit") lobby.lap(performance.now());
 };
 function restart_lap() {
   spawn_at(SPAWN_INDEX);
@@ -155,6 +155,11 @@ $("restart-lap").addEventListener("click", (event) => {
 lobby.on_start = () => {
   modes.exit();
   restart_lap();
+  if (lobby.route !== "circuit")
+    modes.lobby_race(lobby.route, () => {
+      lobby.lap(performance.now());
+      return lobby.state.kind === "racing";
+    });
 };
 race.on_start = () => ghost.start();
 
@@ -236,7 +241,7 @@ function fall_back() {
 function reset() {
   pads.clear();
   const f = new THREE.Vector3(0, 0, 1).applyQuaternion(car.quat);
-  if (lobby.busy) {
+  if (lobby.busy && lobby.route === "circuit") {
     const near = world.nearest_road(car.pos.x, car.pos.z);
     spawn_at(world.road.indexOf(near), f.x * near.tx + f.z * near.tz < 0);
     return;
@@ -520,7 +525,7 @@ function frame(now: number) {
     rewinding = true;
     rewind_step(now);
     acc = 0;
-  } else if (lobby.state.kind === "countdown" || garage.is_open || (settings.is_open && net.remotes.size === 0)) {
+  } else if (lobby.state.kind === "countdown" || modes.holding || garage.is_open || (settings.is_open && net.remotes.size === 0)) {
     rewinding = false;
     acc = 0;
   } else {

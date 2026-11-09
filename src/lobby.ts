@@ -74,6 +74,11 @@ export class Lobby {
     this.net.on_event = null;
   }
 
+  /** Route of the race in progress or just run; the circuit when idle. */
+  get route(): string {
+    return this.state.kind === "idle" ? "circuit" : this.state.route;
+  }
+
   get busy() {
     return this.state.kind === "countdown" || this.state.kind === "racing";
   }

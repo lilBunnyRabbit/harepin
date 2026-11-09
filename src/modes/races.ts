@@ -5,7 +5,8 @@ import { stars_for } from "./track";
 /** Route points past its gate a car may get and still take it; past that the gate was skipped. */
 export const GATE_REACH = 10;
 const GATE_SLACK = 2;
-const START_AT = 1;
+/** Held at the line this long before the clock runs, in a solo race; the lobby holds its own countdown. */
+export const COUNTDOWN_MS = 3000;
 
 export interface RaceLevel {
   id: string;
@@ -20,10 +21,28 @@ const LEVELS: readonly RaceLevel[] = [
   { id: "offroad-1", name: "Trail", brings: "Point to point across the island on dirt." },
   { id: "street-2", name: "Cross town", brings: "Another pair of towns, every corner a square one." },
   { id: "offroad-2", name: "Long trail", brings: "The longer way across, on dirt." },
+  { id: "circuit-rev", name: "Circuit reversed", brings: "The circuit the wrong way round: every corner is new." },
 ];
 
 export function race_levels(routes: readonly { id: string }[]): RaceLevel[] {
   return LEVELS.filter((level) => routes.some((r) => r.id === level.id));
+}
+
+export interface RaceChoice {
+  id: string;
+  name: string;
+  /** Metres, one lap of a closed route. */
+  length: number;
+  /** Laps only apply to a closed route; the lobby runs any other once. */
+  closed: boolean;
+}
+
+/** What a lobby route picker lists: every route of the seed, in progression order. */
+export function race_choices(routes: readonly Pick<Route, "id" | "length" | "closed">[]): RaceChoice[] {
+  return race_levels(routes).flatMap((level) => {
+    const route = routes.find((r) => r.id === level.id);
+    return route ? [{ id: level.id, name: level.name, length: route.length, closed: route.closed }] : [];
+  });
 }
 
 export interface RaceCourse {
@@ -58,8 +77,16 @@ export class RaceRun {
   next = 0;
   readonly tracker: RouteTracker;
 
-  constructor(readonly course: RaceCourse) {
+  constructor(
+    readonly course: RaceCourse,
+    private readonly countdown_ms = COUNTDOWN_MS,
+  ) {
     this.tracker = new RouteTracker(course.line);
+  }
+
+  /** Ms left before the clock runs; the car is held until then. */
+  get countdown(): number {
+    return this.status === RaceStatus.READY ? Math.max(0, this.countdown_ms - this.clock) : 0;
   }
 
   elapsed(): number {
@@ -81,9 +108,9 @@ export class RaceRun {
     this.clock += dt_ms;
     const index = this.tracker.update(x, z);
     if (this.status === RaceStatus.READY) {
-      if (index < START_AT) return -1;
+      if (this.clock < this.countdown_ms) return -1;
       this.status = RaceStatus.RUNNING;
-      this.started = this.clock;
+      this.started = this.countdown_ms;
     }
     const at = this.course.gates[this.next];
     if (index < at || index > at + GATE_REACH || this.tracker.offset > this.course.route.gate_hw + GATE_SLACK) return -1;

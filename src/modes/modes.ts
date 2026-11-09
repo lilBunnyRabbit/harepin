@@ -14,7 +14,7 @@ import { GymRun, HIT_MS, LEVELS, LEVEL_IDS, MISS_MS, RunStatus, Step, build_cour
 import { GymkhanaView } from "./gymkhana-view";
 import { PARK_IDS, PARK_LEVELS, ParkRun, ParkStatus, Verdict, park_footprint, park_solids, type ParkLevel } from "./parking";
 import { ParkingView } from "./parking-view";
-import { RaceRun, RaceStatus, race_course, race_levels, type RaceLevel } from "./races";
+import { COUNTDOWN_MS, RaceRun, RaceStatus, race_course, race_levels, type RaceLevel } from "./races";
 import { RaceView } from "./race-view";
 import { MAX_STARS, Track, local_store, type RaceRecord, type StarRun } from "./track";
 
@@ -71,6 +71,9 @@ export class Modes {
   private race_level: RaceLevel | null = null;
   private race: RaceRun | null = null;
   private race_view: RaceView | null = null;
+  /** Set while a lobby race runs on a route of its own: called at each lap's end, true while laps remain. */
+  private lobby_lap: (() => boolean) | null = null;
+  private race_clock = 0;
   private site: Site | null | undefined;
   private park_site: Site | null | undefined;
   private level: GymLevel | null = null;
@@ -155,6 +158,22 @@ export class Modes {
 
   get active(): boolean {
     return this.run !== null || this.park !== null || this.drift !== null || this.hunt !== null || this.duel !== null || this.race !== null;
+  }
+
+  /** A solo race counting down: the car stays on the line. */
+  get holding(): boolean {
+    return this.race !== null && this.race.countdown > 0;
+  }
+
+  /** Runs the lobby's race on `id` instead of the circuit; the lobby keeps the time, so there is no countdown or record here. */
+  lobby_race(id: string, on_lap: () => boolean) {
+    const route = this.world.routes.find((r) => r.id === id);
+    if (!route) return;
+    this.clear();
+    this.level = null;
+    this.race_level = race_levels([route])[0] ?? { id, name: id, brings: "" };
+    this.lobby_lap = on_lap;
+    this.restart_race(this.race_level);
   }
 
   get current(): GymRun | null {
@@ -329,7 +348,8 @@ export class Modes {
     this.race_view?.dispose();
     this.race_view = new RaceView(course, this.world);
     this.scene.add(this.race_view.root);
-    this.race = new RaceRun(course);
+    this.race = new RaceRun(course, this.lobby_lap ? 0 : COUNTDOWN_MS);
+    this.race_clock = 0;
     this.el.result.hidden = true;
     this.place_on(course.line[0]);
   }
@@ -343,7 +363,7 @@ export class Modes {
     if (this.drift_level) return this.restart_drift(this.drift_level);
     if (this.hunt_level) return this.restart_hunt(this.hunt_level);
     if (this.duel_level) return this.restart_duel(this.duel_level);
-    if (this.race_level) return this.restart_race(this.race_level);
+    if (this.race_level) return this.lobby_lap ? this.notice("Lobby race is running") : this.restart_race(this.race_level);
     const { course } = this;
     if (!course) return;
     this.view?.dispose();
@@ -403,6 +423,7 @@ export class Modes {
     this.race_view = null;
     this.race = null;
     this.race_level = null;
+    this.lobby_lap = null;
     this.ghost?.update(null, this.camera.position);
     this.el.hint.hidden = true;
     this.el.result.hidden = true;
@@ -551,15 +572,23 @@ export class Modes {
   }
 
   private update_race(sim_dt: number, car: Driven, run: RaceRun) {
+    if (this.lobby_lap && !this.race_busy()) return this.exit();
+    // The countdown holds the sim, so it runs on the wall clock.
+    const now = performance.now();
+    const wall = this.race_clock ? now - this.race_clock : 0;
+    this.race_clock = now;
     const was = run.status;
-    const taken = run.update(sim_dt * 1000, car.pos.x, car.pos.z);
+    const taken = run.update(run.countdown > 0 ? wall : sim_dt * 1000, car.pos.x, car.pos.z);
     if (taken >= 0) {
       this.race_view?.aim(run.next);
       if (run.status !== RaceStatus.DONE) this.chime();
     }
     if (was !== RaceStatus.DONE && run.status === RaceStatus.DONE) {
       this.el.hint.hidden = true;
-      this.finish_race(run);
+      if (!this.lobby_lap) return this.finish_race(run);
+      if (!this.lobby_lap()) return this.exit();
+      this.race = new RaceRun(run.course, 0);
+      this.race_view?.aim(0);
       return;
     }
     const { line, gates } = run.course;
@@ -570,7 +599,7 @@ export class Modes {
     this.el.hint.hidden = false;
     this.el.hint.style.setProperty("--turn", `${(-turn * DEG).toFixed(1)}deg`);
     const name = this.race_level?.name ?? "";
-    if (run.status === RaceStatus.READY) return this.show_status(`${name} · drive to start the clock`);
+    if (run.status === RaceStatus.READY) return this.show_status(`${name} · ${Math.ceil(run.countdown / 1000)}`);
     const doing = run.missed ? "missed a gate, go back" : `gate ${run.next + 1}/${gates.length}`;
     this.show_status(`${name} · ${format(run.elapsed())} · ${doing}`);
   }
