@@ -185,6 +185,7 @@ test("stats rise with the parts that should raise them and stay inside the range
   expect(stats(build_spec(with_parts({ weight: 2 }))).power).toBeGreaterThan(stock.power);
   expect(stats(build_spec(with_parts({ tyres: 1 }))).grip).toBeGreaterThan(stock.grip);
   expect(stats(build_spec(with_parts({ brakes: 2 }))).braking).toBeGreaterThan(stock.braking);
+  for (const bias of [0, 2]) expect(stats(build_spec(with_parts({ bias }))).braking).toBeLessThan(stock.braking);
   expect(stats(build_spec(with_parts({ spoiler: 2 }))).top_speed).toBeLessThan(stock.top_speed);
   for (const car of Object.keys(CARS) as CarId[]) {
     const s = stats(CARS[car]);

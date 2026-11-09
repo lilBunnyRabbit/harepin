@@ -93,12 +93,14 @@ export const SLOTS = {
       { name: "Stripped", mod: { scale: { mass: 0.9, inertia: 0.9 }, add: { cog: 0.025 } } },
     ],
   },
+  // Balanced keeps both axles at their grip limit for the shortest straight stop; moving torque either way starves one.
+  // Rear-heavy rotates the car into a braked turn and locks the rear first without ABS; front-heavy pushes straight on.
   bias: {
     label: "Brake bias",
     parts: [
-      { name: "Front", mod: { scale: { brake_front: 1.1, brake_rear: 0.75 } } },
+      { name: "Front", mod: { scale: { brake_front: 1.1, brake_rear: 0.55 } } },
       { name: "Balanced", mod: {} },
-      { name: "Rear", mod: { scale: { brake_front: 0.92, brake_rear: 1.3 } } },
+      { name: "Rear", mod: { scale: { brake_front: 0.7, brake_rear: 1.6 } } },
     ],
   },
 } satisfies Record<string, SlotSpec>;
@@ -199,6 +201,9 @@ export function build_spec(build: Build): CarSpec {
 }
 
 const GRAVITY = 9.81;
+// Front axle's share of the weight under hard braking, one figure for every car: the braking stat only needs to rank
+// bias settings, so an axle with more torque than this share can hold adds nothing and one with less leaves grip unused.
+const BRAKING_FRONT_SHARE = 0.6;
 
 export interface Stats {
   /** Peak power over mass, W/kg. */
@@ -215,13 +220,15 @@ export const STATS: readonly (keyof Stats)[] = ["power", "grip", "braking", "top
 export function stats(spec: CarSpec): Stats {
   const watts = Math.max(...spec.torque.filter(([rpm]) => rpm <= spec.redline).map(([rpm, nm]) => (nm * rpm * Math.PI) / 30));
   const grip = (spec.mu * (1 + spec.rear_grip)) / 2;
-  const clamp = (2 * (spec.brake_front + spec.brake_rear)) / spec.wheel.radius / spec.mass;
+  const axle = (torque: number, mu: number, share: number) => Math.min((2 * torque) / spec.wheel.radius, mu * spec.brake_grip * share * spec.mass * GRAVITY);
+  const front = axle(spec.brake_front, spec.mu, BRAKING_FRONT_SHARE);
+  const rear = axle(spec.brake_rear, spec.mu * spec.rear_grip, 1 - BRAKING_FRONT_SHARE);
   const drag_limit = Math.cbrt((watts * spec.driveline) / spec.drag);
   const gear_limit = ((spec.redline * Math.PI) / 30) * spec.wheel.radius / (spec.gears[spec.gears.length - 1] * spec.final);
   return {
     power: watts / spec.mass,
     grip,
-    braking: Math.min(clamp, grip * spec.brake_grip * GRAVITY),
+    braking: (front + rear) / spec.mass,
     top_speed: Math.min(drag_limit, gear_limit),
   };
 }
