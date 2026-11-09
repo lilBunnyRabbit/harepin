@@ -3,7 +3,7 @@ import { DECALS, DEFAULT_BUILD, MAX_NUMBER, build_code, build_spec, parse_build,
 import { CARS, is_car } from "./cars";
 import { FLAME, SIDE_BAND, SLASH } from "./livery";
 import { build_view, dispose_car_view, livery_of, rest_wheels, type CarView } from "./models";
-import { NEUTRAL_INKS, brand, car_paints, color, decal_inks, rgba } from "./palette";
+import { NEUTRAL_INKS, brand, car_paints, color, dark, decal_inks, rgba } from "./palette";
 import "./garage.css";
 
 export const BUILD_KEY = "harepin:build";
@@ -32,19 +32,22 @@ type Numeric = (typeof NUMERIC)[number];
 const is_numeric = (kind: string): kind is Numeric => (NUMERIC as readonly string[]).includes(kind);
 
 const PREVIEW_SPIN = 0.5;
-const PREVIEW_EYE = new THREE.Vector3(4.6, 2.2, 5.4);
-// The default framing fits a 16:9 canvas; a narrower one (the landscape phone column) backs the camera off to keep the whole car in view.
-const PREVIEW_ASPECT = 1.6;
+const PREVIEW_EYE = new THREE.Vector3(4.6, 2.8, 5.4).normalize();
+const PREVIEW_MARGIN = 1.08;
+// Front three-quarter with the left flank toward the camera, so a fresh decal shows before the spin carries it away.
+const SIDE_YAW = -0.5;
 const SVG = "http://www.w3.org/2000/svg";
 
 type Point = [number, number];
 
-// Tile car in a 64 × 23 box, nose to the right; the door spans DOOR_X × DOOR_Y like the 3D side panel.
-const BODY: Point[] = [[3, 23], [3, 16], [18, 14], [24, 7], [42, 7], [49, 14], [61, 16], [61, 23]];
-const GLASS: Point[] = [[25.5, 9], [40.5, 9], [45.5, 13.6], [21.5, 13.6]];
-const DOOR_X: Point = [20, 44];
-const DOOR_Y: Point = [21.5, 15];
-const TOP_LINE = "M3 17.2 L18 15.2 M24 8.2 L42 8.2 M49 15.2 L61 17.2";
+// Tile car in a 64 × 26 box, nose to the right, drawn deep-bodied so the door (DOOR_X × DOOR_Y, like the 3D side panel)
+// is big enough for each pattern to read at phone size.
+const BODY: Point[] = [[2, 22], [2, 12.5], [15, 11], [21, 4], [41, 4], [48, 11], [62, 12.5], [62, 22]];
+const GLASS: Point[] = [[22.5, 6], [39.5, 6], [45, 10.6], [18.5, 10.6]];
+const WHEELS = [13, 51];
+const DOOR_X: Point = [18, 46];
+const DOOR_Y: Point = [20.6, 12];
+const TOP_LINE = "M2 13.6 L15 12.1 M21 5.1 L41 5.1 M48 12.1 L62 13.6";
 
 export function load_build(query: string | null): Build {
   const asked = parse_build(query);
@@ -87,9 +90,9 @@ function decal_marks(decal: Decal): SVGElement[] {
   const ink = { class: "decal-ink" };
   switch (decal) {
     case "centre":
-      return [svg("path", { class: "decal-line", d: TOP_LINE, "stroke-width": 2.4 })];
+      return [svg("path", { class: "decal-line", d: TOP_LINE, "stroke-width": 2.2 })];
     case "twin":
-      return [svg("path", { class: "decal-line", d: TOP_LINE, "stroke-width": 2.6 }), svg("path", { class: "decal-gap", d: TOP_LINE, "stroke-width": 0.8 })];
+      return [svg("path", { class: "decal-line", d: TOP_LINE, "stroke-width": 2.2 }), svg("path", { class: "decal-gap", d: TOP_LINE, "stroke-width": 0.7 })];
     case "side":
       return SIDE_BAND.map((band) => svg("path", { ...ink, d: path_of(door(band)) }));
     case "slash":
@@ -97,18 +100,18 @@ function decal_marks(decal: Decal): SVGElement[] {
     case "flames":
       return [svg("path", { ...ink, d: path_of(door(FLAME)) })];
     case "number":
-      return [svg("circle", { ...ink, cx: 32, cy: 18.2, r: 3.7 }), svg("text", { class: "decal-number", x: 32, y: 18.3 })];
+      return [svg("circle", { ...ink, cx: 32, cy: 16.3, r: 4.1 }), svg("text", { class: "decal-number", x: 32, y: 16.4 })];
     case "checker": {
-      const marks: SVGElement[] = [svg("rect", { class: "decal-back", x: 21.6, y: 16.6, width: 20.8, height: 3.2 })];
-      for (let col = 0; col < 16; col++)
+      const marks: SVGElement[] = [svg("rect", { class: "decal-back", x: 19.6, y: 13.7, width: 24.8, height: 5.2 })];
+      for (let col = 0; col < 10; col++)
         for (let row = 0; row < 2; row++)
-          if ((col + row) % 2 === 0) marks.push(svg("rect", { class: "decal-check", x: 22 + col * 1.25, y: 17 + row * 1.2, width: 1.25, height: 1.2 }));
+          if ((col + row) % 2 === 0) marks.push(svg("rect", { class: "decal-check", x: 20 + col * 2.4, y: 14.1 + row * 2.2, width: 2.4, height: 2.2 }));
       return marks;
     }
     case "rabbit":
       return [
-        svg("circle", { ...ink, cx: 32, cy: 19.4, r: 2.3 }),
-        ...[-1, 1].map((side) => svg("ellipse", { ...ink, cx: 32 + side * 1.1, cy: 15.6, rx: 0.8, ry: 2.6, transform: `rotate(${side * 12} ${32 + side * 1.1} 15.6)` })),
+        svg("circle", { ...ink, cx: 32, cy: 17.6, r: 2.8 }),
+        ...[-1, 1].map((side) => svg("ellipse", { ...ink, cx: 32 + side * 1.3, cy: 12.6, rx: 1, ry: 3, transform: `rotate(${side * 12} ${32 + side * 1.3} 12.6)` })),
       ];
     default:
       return [];
@@ -116,12 +119,12 @@ function decal_marks(decal: Decal): SVGElement[] {
 }
 
 function decal_tile(decal: Decal): SVGSVGElement {
-  const tile = svg("svg", { viewBox: "0 5 64 23", "aria-hidden": "true", class: "decal-tile" });
+  const tile = svg("svg", { viewBox: "0 3 64 23", "aria-hidden": "true", class: "decal-tile" });
   tile.append(
     svg("path", { class: "decal-body", d: path_of(BODY) }),
     svg("path", { class: "decal-glass", d: path_of(GLASS) }),
     ...decal_marks(decal),
-    ...[14, 50].map((cx) => svg("circle", { class: "decal-wheel", cx, cy: 23, r: 4.6 })),
+    ...WHEELS.map((cx) => svg("circle", { class: "decal-wheel", cx, cy: 22, r: 4 })),
   );
   return tile;
 }
@@ -141,7 +144,9 @@ export class Garage {
   private view: CarView | null = null;
   private frame = 0;
   private last = 0;
-  private spin = 0;
+  private spin = SIDE_YAW;
+  /** Car centre, its reach from the spin axis, and its half height: the bounds the turning car stays inside. */
+  private readonly fit = { center: new THREE.Vector3(), reach: 1, half_height: 1 };
 
   constructor(
     private readonly parent: HTMLElement,
@@ -211,12 +216,12 @@ export class Garage {
     panel.append(decal_group);
     this.root.append(panel);
 
-    this.scene.add(new THREE.HemisphereLight(color(brand.foreground), color(brand.background_darkest), 2.2));
-    const sun = new THREE.DirectionalLight(color(brand.foreground), 2.4);
+    // Light themes have a dark foreground, which would light the car like dusk; their light comes from the page white.
+    const light = dark ? brand.foreground : brand.background_lightest;
+    this.scene.add(new THREE.HemisphereLight(color(light), color(brand.background_darkest), 2.2));
+    const sun = new THREE.DirectionalLight(color(light), 2.4);
     sun.position.set(4, 6, 3);
     this.scene.add(sun);
-    this.camera.position.copy(PREVIEW_EYE);
-    this.camera.lookAt(0, 0.1, 0);
   }
 
   get build(): Build {
@@ -234,6 +239,7 @@ export class Garage {
     this.root.hidden = false;
     this.root.addEventListener("click", this.click);
     addEventListener("keydown", this.key);
+    this.spin = SIDE_YAW;
     this.refresh();
     this.last = performance.now();
     this.frame = requestAnimationFrame(this.tick);
@@ -292,6 +298,8 @@ export class Garage {
   private apply(next: Build) {
     const checked = parse_build(build_code(next));
     if (!checked || build_code(checked) === build_code(this.current)) return;
+    const was = this.current;
+    if (checked.car !== was.car || checked.decal !== was.decal || checked.ink !== was.ink || checked.number !== was.number) this.spin = SIDE_YAW;
     this.current = checked;
     save_build(checked);
     this.refresh();
@@ -328,8 +336,28 @@ export class Garage {
     this.view = build_view(b, spec);
     rest_wheels(this.view, spec);
     this.view.root.position.y = -this.view.body.position.y - 0.6;
+    this.view.root.rotation.y = 0;
+    this.view.root.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(this.view.root);
+    const size = box.getSize(new THREE.Vector3());
+    this.fit.center.set(0, (box.min.y + box.max.y) / 2, 0);
+    this.fit.reach = Math.hypot(Math.max(-box.min.x, box.max.x), Math.max(-box.min.z, box.max.z));
+    this.fit.half_height = size.y / 2;
     this.view.root.rotation.y = this.spin;
     this.scene.add(this.view.root);
+    this.frame_car();
+  }
+
+  private frame_car() {
+    const half_v = THREE.MathUtils.degToRad(this.camera.fov / 2);
+    const half_h = Math.atan(Math.tan(half_v) * this.camera.aspect);
+    const { reach, half_height } = this.fit;
+    const elevation = Math.asin(PREVIEW_EYE.y);
+    const tall = reach * Math.sin(elevation) + half_height * Math.cos(elevation);
+    // The near end of the car sits up to `reach` closer than the centre and looks larger; half of that covers it in practice.
+    const distance = Math.max(reach / Math.tan(half_h), tall / Math.tan(half_v)) * PREVIEW_MARGIN + reach * 0.5;
+    this.camera.position.copy(PREVIEW_EYE).multiplyScalar(distance).add(this.fit.center);
+    this.camera.lookAt(this.fit.center);
   }
 
   private readonly tick = (now: number) => {
@@ -345,8 +373,8 @@ export class Garage {
       renderer.setPixelRatio(devicePixelRatio);
       renderer.setSize(width, height, false);
       this.camera.aspect = width / Math.max(1, height);
-      this.camera.position.copy(PREVIEW_EYE).multiplyScalar(Math.sqrt(Math.max(1, PREVIEW_ASPECT / this.camera.aspect)));
       this.camera.updateProjectionMatrix();
+      this.frame_car();
     }
     renderer.render(this.scene, this.camera);
   };

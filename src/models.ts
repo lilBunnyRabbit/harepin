@@ -200,6 +200,8 @@ interface Design {
   tails: Part[];
   paint: Part[];
   trim: Part[];
+  /** Factory stripes in trim, dropped when a decal is chosen so the two never overlap. */
+  stripes?: Part[];
   markers: Part[];
   chrome: Part[];
   tyre: Point;
@@ -273,10 +275,12 @@ const DESIGNS: Record<BodyStyle, Design> = {
     trim: [
       { size: [0.9, 0.26, 0.04], at: [0.45, 0.6, 2.535] },
       { size: [0.19, 0.07, 0.02], at: [0.095, 0.97, 1.52] },
+      { size: [0.06, 0.06, 0.16], at: [0.5, 0.24, -2.46] },
+    ],
+    stripes: [
       { size: [0.12, 0.012, 1.7], at: [0.12, 0.916, 1.45] },
       { size: [0.12, 0.012, 0.75], at: [0.12, 1.247, -0.58] },
       { size: [0.12, 0.012, 0.8], at: [0.12, 0.886, -2.0], tilt: [-0.025, 0, 0] },
-      { size: [0.06, 0.06, 0.16], at: [0.5, 0.24, -2.46] },
     ],
     markers: [],
     chrome: [
@@ -549,6 +553,7 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, spoiler: Lev
     skirts(d, spec).map((g) => tint(g, trim)),
     parts(d.paint).map((g) => tint(g, paint)),
     parts(d.trim).map((g) => tint(g, trim)),
+    parts(livery && livery.decal !== "none" ? [] : (d.stripes ?? [])).map((g) => tint(g, trim)),
     parts(d.markers).map((g) => tint(g, color(brand.warning))),
     parts(d.chrome).map((g) => tint(g, color(mix(brand.foreground, brand.background_lightest, 0.6)))),
   );
