@@ -23,6 +23,18 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.9.1",
+    date: "2026-11-09",
+    title: "Cleaner road, dash switches",
+    changes: [
+      { kind: NEW, text: "TC, ABS, Assist and Auto now sit in a row inside the speedo box. Click one to switch it." },
+      { kind: NEW, text: "Put the dash at the bottom right or the bottom centre: Settings, Display." },
+      { kind: FIXED, text: "No more thin light streaks across the road on bends, and the centre line no longer breaks up on curves." },
+      { kind: FIXED, text: "Picking a world in the menu drives it right away instead of opening the menu again." },
+      { kind: FIXED, text: "The Keep driving picture no longer disappears when you hover it." },
+    ],
+  },
+  {
     version: "0.9.0",
     date: "2026-11-09",
     title: "Main menu",
