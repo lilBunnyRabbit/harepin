@@ -190,7 +190,7 @@ const modes = new Modes(scene, world, SPAWN_INDEX, () => lobby.record, (x, y, z,
   car.place(x, y, z, heading);
   chase.snap(car);
   history.length = 0;
-}, () => lobby.busy, () => audio.chime());
+}, () => lobby.busy, () => audio.chime(), camera);
 modes.start();
 const updater = new Updater(() => lobby.busy || modes.active);
 updater.start();
@@ -440,7 +440,7 @@ function frame(now: number) {
 
   race.update(car.pos.x, car.pos.z, now);
   update_gates(now / 1000);
-  ghost.update(race.started ? now - race.started : null, camera.position);
+  ghost.update(race.started && !modes.active ? now - race.started : null, camera.position);
   modes.update(stepped, car);
   if (!simulated || step_from.pos.distanceToSquared(car.pos) > TELEPORT_SQ) {
     step_from.pos.copy(car.pos);

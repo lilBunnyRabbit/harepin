@@ -1,11 +1,14 @@
-import type * as THREE from "three";
+import * as THREE from "three";
 import type { CarSpec } from "../cars";
+import { Ghost } from "../ghost";
 import { $, format } from "../hud";
 import { ROAD_HALF, type World } from "../world";
 import { ComboEnd, DRIFT_IDS, DRIFT_LEVELS, DriftRun, DriftStatus, LEAD, build_zone, type DriftLevel } from "./drift";
 import { DriftView } from "./drift-view";
 import { HUNT_IDS, HUNT_LEVELS, HuntRun, HuntStatus, build_hunt, type HuntLevel } from "./hunt";
 import { HuntView } from "./hunt-view";
+import { DUEL_IDS, DUEL_LEAD, DUEL_LEVELS, DuelRun, DuelStatus, build_route, type DuelLevel } from "./duel";
+import { DuelView } from "./duel-view";
 import { GymRun, HIT_MS, LEVELS, LEVEL_IDS, MISS_MS, RunStatus, Step, build_course, find_site, to_world, type Course, type GymLevel, type Site } from "./gymkhana";
 import { GymkhanaView } from "./gymkhana-view";
 import { PARK_IDS, PARK_LEVELS, ParkRun, ParkStatus, Verdict, park_footprint, park_solids, type ParkLevel } from "./parking";
@@ -20,6 +23,7 @@ const LOST_MS = 1500;
 export interface Driven {
   pos: THREE.Vector3;
   vel: THREE.Vector3;
+  quat: THREE.Quaternion;
   readonly heading: number;
   readonly spec: CarSpec;
 }
@@ -50,6 +54,7 @@ export class Modes {
   private readonly park_track: Track;
   private readonly drift_track: Track;
   private readonly hunt_track: Track;
+  private readonly duel_track: Track;
   private site: Site | null | undefined;
   private park_site: Site | null | undefined;
   private level: GymLevel | null = null;
@@ -59,12 +64,18 @@ export class Modes {
   private park_level: ParkLevel | null = null;
   private drift_level: DriftLevel | null = null;
   private hunt_level: HuntLevel | null = null;
+  private duel_level: DuelLevel | null = null;
   private park: ParkRun | null = null;
   private park_view: ParkingView | null = null;
   private drift: DriftRun | null = null;
   private drift_view: DriftView | null = null;
   private hunt: HuntRun | null = null;
   private hunt_view: HuntView | null = null;
+  private duel: DuelRun | null = null;
+  private duel_view: DuelView | null = null;
+  private ghost: Ghost | null = null;
+  private ghost_id = "";
+  private readonly ghost_at = new THREE.Vector3();
   private unplace: (() => void) | null = null;
   private high = true;
   private readonly park_area = park_footprint();
@@ -81,6 +92,8 @@ export class Modes {
     drift_stars: $("drift-stars"),
     hunt_levels: $("hunt-levels", HTMLOListElement),
     hunt_stars: $("hunt-stars"),
+    duel_levels: $("duel-levels", HTMLOListElement),
+    duel_stars: $("duel-stars"),
     hint: $("mode-hint"),
     race: $("race-record"),
     status: $("mode-status"),
@@ -102,15 +115,17 @@ export class Modes {
     private readonly place: (x: number, y: number, z: number, heading: number) => void,
     private readonly race_busy: () => boolean,
     private readonly chime: () => void,
+    private readonly camera: THREE.Camera,
   ) {
     this.track = new Track("gymkhana", world.seed, LEVEL_IDS, local_store());
     this.park_track = new Track("parking", world.seed, PARK_IDS, local_store());
     this.drift_track = new Track("drift", world.seed, DRIFT_IDS, local_store());
     this.hunt_track = new Track("hunt", world.seed, HUNT_IDS, local_store());
+    this.duel_track = new Track("duel", world.seed, DUEL_IDS, local_store());
   }
 
   get active(): boolean {
-    return this.run !== null || this.park !== null || this.drift !== null || this.hunt !== null;
+    return this.run !== null || this.park !== null || this.drift !== null || this.hunt !== null || this.duel !== null;
   }
 
   get current(): GymRun | null {
@@ -143,6 +158,7 @@ export class Modes {
     this.el.park_levels.addEventListener("click", pick, { signal });
     this.el.drift_levels.addEventListener("click", pick, { signal });
     this.el.hunt_levels.addEventListener("click", pick, { signal });
+    this.el.duel_levels.addEventListener("click", pick, { signal });
     this.el.retry.addEventListener("click", () => this.restart(), { signal });
     this.el.next.addEventListener("click", () => this.play_next(), { signal });
     this.el.exit.addEventListener("click", () => this.exit(), { signal });
@@ -166,6 +182,7 @@ export class Modes {
     if (PARK_IDS.includes(id)) return this.play_park(id);
     if (DRIFT_IDS.includes(id)) return this.play_drift(id);
     if (HUNT_IDS.includes(id)) return this.play_hunt(id);
+    if (DUEL_IDS.includes(id)) return this.play_duel(id);
     const level = LEVELS.find((l) => l.id === id);
     if (!level || !this.track.is_open(id)) return;
     if (this.race_busy()) return this.notice("Leave the lobby race to play gymkhana");
@@ -237,6 +254,32 @@ export class Modes {
     this.place_on(from);
   }
 
+  private play_duel(id: string) {
+    const level = DUEL_LEVELS.find((l) => l.id === id);
+    if (!level || !this.duel_track.is_open(id)) return;
+    if (this.race_busy()) return this.notice("Leave the lobby race to duel your ghost");
+    this.clear();
+    this.level = null;
+    this.duel_level = level;
+    this.restart();
+  }
+
+  private restart_duel(level: DuelLevel) {
+    const route = build_route(this.world.seed, this.world.road, level);
+    this.duel_view?.dispose();
+    this.duel_view = new DuelView(route, this.world);
+    this.scene.add(this.duel_view.root);
+    if (this.ghost_id !== level.id) {
+      this.ghost?.dispose();
+      this.ghost = new Ghost(this.scene, this.world.seed, `harepin:ghost:duel:${level.id}:${this.world.seed}`);
+      this.ghost_id = level.id;
+    }
+    this.ghost?.start();
+    this.duel = new DuelRun(route);
+    this.el.result.hidden = true;
+    this.place_on(route.points[0]);
+  }
+
   private place_on(p: { x: number; z: number; tx: number; tz: number }) {
     this.place(p.x, this.world.height(p.x, p.z) + SPAWN_LIFT, p.z, Math.atan2(p.tx, p.tz));
   }
@@ -245,6 +288,7 @@ export class Modes {
     if (this.park_level) return this.restart_park(this.park_level);
     if (this.drift_level) return this.restart_drift(this.drift_level);
     if (this.hunt_level) return this.restart_hunt(this.hunt_level);
+    if (this.duel_level) return this.restart_duel(this.duel_level);
     const { course } = this;
     if (!course) return;
     this.view?.dispose();
@@ -296,14 +340,20 @@ export class Modes {
     this.hunt_view = null;
     this.hunt = null;
     this.hunt_level = null;
+    this.duel_view?.dispose();
+    this.duel_view = null;
+    this.duel = null;
+    this.duel_level = null;
+    this.ghost?.update(null, this.camera.position);
     this.el.hint.hidden = true;
     this.el.result.hidden = true;
     this.status_key = "";
   }
 
   private play_next() {
-    const ids = this.park_level ? PARK_IDS : this.drift_level ? DRIFT_IDS : this.hunt_level ? HUNT_IDS : LEVEL_IDS;
-    const next = ids[ids.indexOf(this.park_level?.id ?? this.drift_level?.id ?? this.hunt_level?.id ?? this.level?.id ?? "") + 1];
+    const ids = this.park_level ? PARK_IDS : this.drift_level ? DRIFT_IDS : this.hunt_level ? HUNT_IDS : this.duel_level ? DUEL_IDS : LEVEL_IDS;
+    const current = this.park_level ?? this.drift_level ?? this.hunt_level ?? this.duel_level ?? this.level;
+    const next = ids[ids.indexOf(current?.id ?? "") + 1];
     if (next) this.play(next);
   }
 
@@ -312,6 +362,7 @@ export class Modes {
     if (this.park) return this.update_park(sim_dt, car, this.park);
     if (this.drift) return this.update_drift(sim_dt, car, this.drift);
     if (this.hunt) return this.update_hunt(sim_dt, car, this.hunt);
+    if (this.duel) return this.update_duel(sim_dt, car, this.duel);
     const { run, view, level } = this;
     if (!run || !view || !level) return;
     const was = run.status;
@@ -416,6 +467,29 @@ export class Modes {
     this.show_status(`${level.name} · ${run.found.size}/${gates.length} · ${doing} · ${Math.round(Math.hypot(dx, dz))} m`);
   }
 
+  private update_duel(sim_dt: number, car: Driven, run: DuelRun) {
+    const was = run.status;
+    run.update(sim_dt * 1000, car.pos.x, car.pos.z);
+    const { ghost } = this;
+    const running = run.status === DuelStatus.RUNNING;
+    if (running && sim_dt > 0) ghost?.record(run.elapsed(), car);
+    ghost?.update(running ? run.elapsed() : null, this.camera.position);
+    if (was !== DuelStatus.DONE && run.status === DuelStatus.DONE) {
+      ghost?.record(run.elapsed(), car);
+      this.finish_duel(run);
+      return;
+    }
+    const { level } = run.route;
+    if (run.status === DuelStatus.READY) {
+      const to_line = Math.max(0, Math.round(-run.route.at[Math.max(0, run.tracker.index)]));
+      this.show_status(`${level.name} · start line in ${to_line} m${ghost?.has_best ? "" : " · this run sets your ghost"}`);
+      return;
+    }
+    const gap = run.gap(ghost?.position(run.elapsed(), this.ghost_at) ?? null);
+    const versus = gap === null ? (ghost?.has_best ? "ghost finished" : "no ghost yet") : `${gap >= 0 ? "ahead" : "behind"} ${Math.abs(Math.round(gap))} m`;
+    this.show_status(`${level.name} · ${format(run.elapsed())} · ${versus}`);
+  }
+
   private notice(text: string) {
     this.show_status(text);
     setTimeout(() => {
@@ -480,6 +554,25 @@ export class Modes {
       HUNT_IDS,
       level.id,
       this.hunt_track,
+    );
+  }
+
+  private finish_duel(run: DuelRun) {
+    const { level, par_ms } = run.route;
+    const stars = run.stars();
+    const ms = Math.round(run.elapsed());
+    const before = this.duel_track.runs[level.id];
+    const { improved, first } = this.duel_track.record(level.id, { stars, ms });
+    this.ghost?.finish(improved);
+    const best = this.duel_track.runs[level.id];
+    const versus = !before ? "new ghost" : `${ms <= before.ms ? "−" : "+"}${(Math.abs(before.ms - ms) / 1000).toFixed(2)} s`;
+    this.show_result(
+      `${level.name}${improved && !first ? " · new best" : ""}`,
+      stars,
+      [line("time", format(ms)), line("vs ghost", versus), line("par", format(par_ms)), line("best", best ? `${run_text(best)} ${star_text(best.stars)}` : "--")],
+      DUEL_IDS,
+      level.id,
+      this.duel_track,
     );
   }
 
@@ -561,6 +654,7 @@ export class Modes {
     this.render_levels(el.park_levels, el.park_stars, PARK_LEVELS, this.park_track);
     this.render_levels(el.drift_levels, el.drift_stars, DRIFT_LEVELS, this.drift_track);
     this.render_levels(el.hunt_levels, el.hunt_stars, HUNT_LEVELS, this.hunt_track);
+    this.render_levels(el.duel_levels, el.duel_stars, DUEL_LEVELS, this.duel_track);
     const record = this.race_record();
     const bests = Object.entries(record.best)
       .sort(([a], [b]) => Number(a) - Number(b))

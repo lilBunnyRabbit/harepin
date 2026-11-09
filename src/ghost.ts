@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import type { Car } from "./car";
-import { camera_fade, car_view, rest_wheels, type CarView } from "./models";
+import { camera_fade, car_view, dispose_car_view, rest_wheels, type CarView } from "./models";
 import { brand, color } from "./palette";
 
 const STRIDE = 8;
@@ -47,8 +47,8 @@ export class Ghost {
 
   private readonly key: string;
 
-  constructor(scene: THREE.Scene, seed = 0) {
-    this.key = `harepin:ghost:${seed}`;
+  constructor(scene: THREE.Scene, seed = 0, key = `harepin:ghost:${seed}`) {
+    this.key = key;
     this.best = load(this.key);
     this.view = car_view(color(brand.cottontail));
     // Unlit and single-layer: a depth-only copy of every part draws first, so only the nearest face gets tinted.
@@ -80,7 +80,11 @@ export class Ghost {
     this.recording = [];
   }
 
-  record(lap_ms: number, car: Car) {
+  get has_best(): boolean {
+    return this.best !== null;
+  }
+
+  record(lap_ms: number, car: Pick<Car, "pos" | "quat">) {
     const last = this.recording.length ? this.recording[this.recording.length - STRIDE] : -Infinity;
     if (lap_ms - last < EVERY_MS) return;
     this.recording.push(lap_ms, car.pos.x, car.pos.y, car.pos.z, car.quat.x, car.quat.y, car.quat.z, car.quat.w);
@@ -102,13 +106,14 @@ export class Ghost {
     }
   }
 
-  update(lap_ms: number | null, camera: THREE.Vector3) {
+  position(lap_ms: number, out: THREE.Vector3): THREE.Vector3 | null {
     const best = this.best;
-    const root = this.view.root;
-    if (!best || lap_ms === null || !this.visible || lap_ms > best[best.length - STRIDE]) {
-      root.visible = false;
-      return;
-    }
+    if (!best || lap_ms > best[best.length - STRIDE]) return null;
+    const [i, j, k] = this.span(best, lap_ms);
+    return out.set(best[i + 1] + (best[j + 1] - best[i + 1]) * k, best[i + 2] + (best[j + 2] - best[i + 2]) * k, best[i + 3] + (best[j + 3] - best[i + 3]) * k);
+  }
+
+  private span(best: number[], lap_ms: number): [number, number, number] {
     let lo = 0;
     let hi = best.length / STRIDE - 1;
     while (hi - lo > 1) {
@@ -118,17 +123,27 @@ export class Ghost {
     }
     const i = lo * STRIDE;
     const j = hi * STRIDE;
-    const k = best[j] > best[i] ? Math.max(0, Math.min(1, (lap_ms - best[i]) / (best[j] - best[i]))) : 0;
-    root.position.set(
-      best[i + 1] + (best[j + 1] - best[i + 1]) * k,
-      best[i + 2] + (best[j + 2] - best[i + 2]) * k,
-      best[i + 3] + (best[j + 3] - best[i + 3]) * k,
-    );
+    return [i, j, best[j] > best[i] ? Math.max(0, Math.min(1, (lap_ms - best[i]) / (best[j] - best[i]))) : 0];
+  }
+
+  update(lap_ms: number | null, camera: THREE.Vector3) {
+    const best = this.best;
+    const root = this.view.root;
+    if (!best || lap_ms === null || !this.visible || !this.position(lap_ms, root.position)) {
+      root.visible = false;
+      return;
+    }
+    const [i, j, k] = this.span(best, lap_ms);
     this.a.set(best[i + 4], best[i + 5], best[i + 6], best[i + 7]);
     this.b.set(best[j + 4], best[j + 5], best[j + 6], best[j + 7]);
     root.quaternion.copy(this.a.slerp(this.b, k));
     const fade = camera_fade(root.position, camera);
     this.tint.opacity = GHOST_OPACITY * fade;
     root.visible = fade > 0;
+  }
+
+  dispose() {
+    this.view.root.removeFromParent();
+    dispose_car_view(this.view);
   }
 }
