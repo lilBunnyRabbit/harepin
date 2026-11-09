@@ -146,6 +146,8 @@ export class Modes {
     head.className = "modes-head";
     const title = document.createElement("b");
     title.textContent = "Race";
+    this.el.race_levels.id = "race-levels";
+    this.el.race_stars.id = "race-stars";
     this.el.race_stars.className = "dim";
     head.append(title, this.el.race_stars);
     this.el.race.parentElement?.before(head, this.el.race_levels);
