@@ -103,6 +103,7 @@ export function generate(seed: number): WorldData {
 
   const planner = new JumpPlanner(seed, land, towns, lots.occupied, solids);
   planner.hills();
+  planner.circuit(road, [...checkpoints, ...nodes.filter((n) => n.kind === "junction")]);
   planner.roadside(road);
   planner.open();
   planner.roadside_items(road);

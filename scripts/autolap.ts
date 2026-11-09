@@ -2,8 +2,10 @@ import { Vector3 } from "three";
 import { Car } from "../src/car";
 import { COUPE, car_spec, type CarSpec } from "../src/cars";
 import { World } from "../src/world";
+import { ramp_local } from "../src/worldgen/jumps";
 
 const DT = 1 / 360;
+const RAMP_LOOK = 120;
 
 export interface Lap {
   t: number;
@@ -31,8 +33,15 @@ export function autolap(world: World, spec: CarSpec = COUPE): Lap {
     const far = world.road[(index + 40) % world.road.length];
     const here = world.road[index];
     const curve = Math.abs(Math.atan2(Math.sin(Math.atan2(far.tx, far.tz) - Math.atan2(here.tx, here.tz)), 1));
-    const target = curve > 0.5 ? 20 : curve > 0.25 ? 30 : 42;
-    car.step(DT, { steer: Math.max(-1, Math.min(1, -err * 3)), throttle: speed < target ? 1 : 0, brake: speed > target + 4 ? 0.7 : 0, handbrake: 0, analog: true }, world);
+    // Takes a kicker on the circuit at the pace it is built for and holds the wheel straight in the air, as a driver would.
+    const jump = world.ramps.find((r) => {
+      if (!r.road) return false;
+      const [u, v] = ramp_local(r, car.pos.x, car.pos.z);
+      return Math.abs(u) < r.hw && v > -RAMP_LOOK && v < r.length + r.landing;
+    });
+    const airborne = car.wheels.every((w) => !w.contact);
+    const target = jump ? jump.speed : curve > 0.5 ? 20 : curve > 0.25 ? 30 : 42;
+    car.step(DT, { steer: airborne ? 0 : Math.max(-1, Math.min(1, -err * 3)), throttle: speed < target ? 1 : 0, brake: speed > target + 4 ? 0.7 : 0, handbrake: 0, analog: true }, world);
     world.collide(car);
     t += DT;
     const d = world.distance_to_road(car.pos.x, car.pos.z);

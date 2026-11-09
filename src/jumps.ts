@@ -2,7 +2,7 @@ import * as THREE from "three";
 import type { Car } from "./car";
 import { brand, dark, linear, mix, tones } from "./palette";
 import { CHUNK, chunk_of } from "./worldgen/chunks";
-import { BODY_HIGH, BODY_LOW, challenge_pieces, GRAVITY, ITEMS, PIECE_DEPTH, ramp_extent, ramp_lift } from "./worldgen/jumps";
+import { BODY_HIGH, BODY_LOW, challenge_outer, challenge_pieces, GRAVITY, ITEMS, PIECE_DEPTH, ramp_extent, ramp_lift } from "./worldgen/jumps";
 import { Builder, bounding_sphere, type Rgb } from "./worldgen/mesh";
 import type { Challenge, Item, ItemKind, Ramp } from "./worldgen/types";
 
@@ -183,7 +183,7 @@ export class JumpsView {
     return this.data.challenges.some((c) => {
       const dx = x - c.x;
       const dz = z - c.z;
-      return Math.abs(dx * c.fx + dz * c.fz) < BONK_REACH && Math.abs(dx * c.fz - dz * c.fx) < Math.max(...challenge_pieces(c).map((p) => Math.abs(p.lx) + p.hw)) + BONK_REACH;
+      return Math.abs(dx * c.fx + dz * c.fz) < BONK_REACH && Math.abs(dx * c.fz - dz * c.fx) < challenge_outer(c) + BONK_REACH;
     });
   }
 

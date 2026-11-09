@@ -22,7 +22,7 @@ const LANDING_UP = 0.85;
 const KEEP_OFF_ROAD = 3;
 const TOWN_CLEAR = 20;
 
-interface RampShape {
+export interface RampShape {
   kind: RampKind;
   hw: number;
   length: number;
@@ -33,6 +33,8 @@ interface RampShape {
 
 const KICKER: RampShape = { kind: "kicker", hw: 2.6, length: 8, rise: 2, landing: 45, speed: 21 };
 const BIG: RampShape = { kind: "big", hw: 3.2, length: 14, rise: 4, landing: 80, speed: 27 };
+// Tuned for racing pace: the landing runs out a 40 m/s launch.
+export const ROAD_KICKER: RampShape = { kind: "kicker", hw: ROAD_HALF + 0.5, length: 8, rise: 2, landing: 90, speed: 24 };
 
 const FRAME = 0.35;
 const WALL_HW = 7;
@@ -42,6 +44,8 @@ const PILLAR = 0.5;
 const GAP_HW = 2.6;
 const GAP_BELOW = 1.3;
 const GAP_ABOVE = 1.7;
+// Racers hit a road kicker well past its design speed and fly higher than the line it is tuned for.
+const ROAD_HEADROOM = 1;
 const BAR_CLEAR = 1.6;
 const BAR_MIN = 0.8;
 const PILLAR_TOP = 6;
@@ -145,13 +149,21 @@ export function challenge_pieces(c: Challenge): Piece[] {
 
 export const PIECE_DEPTH = PIECE_HD;
 
+/** Half-width of everything a challenge puts up, across its flight line. */
+export function challenge_outer(c: Challenge): number {
+  return Math.max(...challenge_pieces(c).map((p) => Math.abs(p.lx) + p.hw));
+}
+
 export function piece_solid(c: Challenge, p: Piece): Solid {
   return { kind: "box", x: c.x + c.fz * p.lx, y: c.y, z: c.z - c.fx * p.lx, hw: p.hw, hd: PIECE_HD, cos: c.fz, sin: c.fx, height: p.top, bottom: p.bottom };
 }
 
-interface Zone {
+export interface Spot {
   x: number;
   z: number;
+}
+
+interface Zone extends Spot {
   r: number;
 }
 
@@ -220,6 +232,24 @@ const RAMP_SPACING = 120;
 const MAX_BIG = 3;
 const MAX_KICKERS = 12;
 const LOT_ITEMS = 0.5;
+const MAX_ROAD_KICKERS = 4;
+const ROAD_STRIDE = 6;
+const ROAD_RUNUP = 30;
+/** Most the circuit's centre may stray from a road ramp's line: under the deck, and over its run-up and landing. */
+export const DECK_DRIFT = 0.4;
+export const RUN_DRIFT = 4;
+/** Sine of the most the circuit may turn away from a road ramp's line, out to ROAD_RUNOUT past its landing. */
+const RUN_TURN = 0.2;
+const ROAD_RUNOUT = 50;
+/** Checkpoints and spur junctions keep this far from anything on the circuit. */
+export const GATE_CLEAR = 20;
+/** Open ground beside a challenge that spans the road, so a car that misses the jump can drive round it. */
+export const BYPASS = 4;
+const CHICANES = 2;
+const CHICANE_STRIDE = 37;
+const CHICANE_GAP = 8;
+const CHICANE_RUN = 60;
+const CHICANE_KINDS: ItemKind[] = ["cone", "barrel", "hay"];
 /** Most the ground may stray under a heavy box's corners from its centre: worldcheck's grounding limit, less a margin. */
 const LEVEL = 0.2;
 
@@ -258,13 +288,19 @@ export class JumpPlanner {
   }
 
   private clear(x: number, z: number, r: number, town_ok = false): boolean {
+    return this.road(x, z) >= ROAD_HALF + r + KEEP_OFF_ROAD && this.free(x, z, r, town_ok);
+  }
+
+  private free(x: number, z: number, r: number, town_ok = false): boolean {
+    return this.bare(x, z, town_ok) && !this.zones.hits(x, z, r) && !this.taken.hits(x, z, r);
+  }
+
+  private bare(x: number, z: number, town_ok = false): boolean {
     if (Math.abs(x) > SIZE / 2 - 40 || Math.abs(z) > SIZE / 2 - 40) return false;
     if (this.height(x, z) < 3.5) return false;
-    if (this.road(x, z) < ROAD_HALF + r + KEEP_OFF_ROAD) return false;
     const k = vertex(Math.round((x - ORIGIN) / CELL), Math.round((z - ORIGIN) / CELL));
     if (this.occupied[k]) return false;
-    if (!town_ok && this.in_town(x, z, TOWN_CLEAR)) return false;
-    return !this.zones.hits(x, z, r) && !this.taken.hits(x, z, r);
+    return town_ok || !this.in_town(x, z, TOWN_CLEAR);
   }
 
   private fits(r: Ramp): boolean {
@@ -290,14 +326,50 @@ export class JumpPlanner {
   }
 
   private ramp(shape: RampShape, x: number, z: number, fx: number, fz: number): Ramp | null {
+    const r = this.shaped(shape, x, z, fx, fz);
+    return r && this.fits(r) ? r : null;
+  }
+
+  private shaped(shape: RampShape, x: number, z: number, fx: number, fz: number): Ramp | null {
     const y = this.height(x, z);
     const lip = this.height(x + fx * shape.length, z + fz * shape.length);
     const r: Ramp = { id: this.out.ramps.length, kind: shape.kind, x, y, z, fx, fz, hw: shape.hw, length: shape.length, rise: shape.rise, grade: (lip - y) / shape.length, landing: shape.landing, speed: shape.speed };
     const out = launch(r, r.speed);
     if (Math.abs(r.grade) > 0.2 || out.slope < MIN_LAUNCH || !(out.speed > 8)) return null;
     if (this.out.ramps.some((o) => length(o.x - x, o.z - z) < RAMP_SPACING)) return null;
-    if (!this.fits(r)) return null;
     return r;
+  }
+
+  private fits_road(r: Ramp, road: RoadPoint[], toe: number, gates: Spot[]): boolean {
+    const { reach, to } = ramp_extent(r);
+    const end = to + r.landing;
+    const n = road.length;
+    for (let k = -ROAD_RUNUP; k < n; k++) {
+      const p = road[(toe + k + n) % n];
+      const [u, v] = ramp_local(r, p.x, p.z);
+      if (v > end + ROAD_RUNOUT) break;
+      if (v < -ROAD_RUNUP) continue;
+      if (Math.abs(p.tx * r.fz - p.tz * r.fx) > RUN_TURN) return false;
+      if (v <= end && Math.abs(u) > (v >= -1 && v <= to ? DECK_DRIFT : RUN_DRIFT)) return false;
+      if (gates.some((g) => length(g.x - p.x, g.z - p.z) < GATE_CLEAR)) return false;
+    }
+    for (let v = -ROAD_RUNUP; v <= end; v += 2)
+      for (let u = -reach; u <= reach; u += 2) {
+        const [x, z] = ramp_world(r, u, v);
+        if (!this.free(x, z, 0.5)) return false;
+        const ground = this.height(x, z);
+        if (Math.abs(u) > r.hw) continue;
+        if (v >= 0 && v <= r.length) {
+          const base = r.y + r.grade * v;
+          if (ground < base - FLAT_BELOW || (v > r.length / 4 && ground > base + ramp_lift(r, u, v) - 0.05)) return false;
+        }
+        if ((v < 0 || v > to) && up(this.terrain.heights, x, z) < LANDING_UP) return false;
+        if (v > to) {
+          if (ground > lip_height(r) + RIDE) return false;
+          if (v - r.length < apex(r) * 2 && ground > flight(r, r.speed, v - r.length) - 1.5) return false;
+        }
+      }
+    return true;
   }
 
   private accept(r: Ramp) {
@@ -336,7 +408,7 @@ export class JumpPlanner {
     const kinds: ChallengeKind[] = ["wall", "hoop", "pillars", "bar"];
     let kind = kinds[Math.floor(this.next() * kinds.length)];
     if (kind !== "bar" && kind !== "pillars" && com - GAP_BELOW < 1.2) kind = "bar";
-    const c: Challenge = { id: this.out.challenges.length, ramp: r.id, kind, x, y, z, fx: r.fx, fz: r.fz, gap_hw: GAP_HW, gap_bottom: com - GAP_BELOW, gap_top: com + GAP_ABOVE };
+    const c: Challenge = { id: this.out.challenges.length, ramp: r.id, kind, x, y, z, fx: r.fx, fz: r.fz, gap_hw: GAP_HW, gap_bottom: com - GAP_BELOW, gap_top: com + GAP_ABOVE + (r.road ? ROAD_HEADROOM : 0) };
     if (kind === "pillars") {
       c.gap_bottom = 0;
       c.gap_top = Math.max(PILLAR_TOP, com + GAP_ABOVE);
@@ -347,8 +419,69 @@ export class JumpPlanner {
       c.gap_top = 60;
       if (c.gap_bottom < BAR_MIN) return;
     }
+    if (r.road && (kind === "wall" || kind === "bar") && !this.bypass(c)) return;
     this.out.challenges.push(c);
     for (const p of challenge_pieces(c)) this.out.solids.push(piece_solid(c, p));
+  }
+
+  private bypass(c: Challenge): boolean {
+    const outer = challenge_outer(c);
+    for (const side of [-1, 1]) {
+      let open = true;
+      for (let lx = outer + 0.5; open && lx <= outer + BYPASS; lx += 1)
+        for (let dv = -BYPASS; open && dv <= BYPASS; dv += 2) {
+          const x = c.x + c.fz * side * lx + c.fx * dv;
+          const z = c.z - c.fx * side * lx + c.fz * dv;
+          open = this.bare(x, z) && !this.taken.hits(x, z, 0.5) && up(this.terrain.heights, x, z) >= LANDING_UP;
+        }
+      if (!open) continue;
+      const [x, z] = [c.x + c.fz * side * (outer + BYPASS / 2), c.z - c.fx * side * (outer + BYPASS / 2)];
+      this.zones.add({ x, z, r: BYPASS });
+      return true;
+    }
+    return false;
+  }
+
+  circuit(road: RoadPoint[], gates: Spot[]) {
+    const n = road.length;
+    const start = Math.floor(this.next() * n);
+    let placed = 0;
+    for (let k = 0; k < n && placed < MAX_ROAD_KICKERS; k += ROAD_STRIDE) {
+      const toe = (start + k) % n;
+      const p = road[toe];
+      const q = road[(toe + ROAD_KICKER.length / 2) % n];
+      const d = length(q.x - p.x, q.z - p.z);
+      const r = this.shaped(ROAD_KICKER, p.x, p.z, (q.x - p.x) / d, (q.z - p.z) / d);
+      if (!r || !this.fits_road(r, road, toe, gates)) continue;
+      r.road = true;
+      this.accept(r);
+      placed++;
+    }
+    this.chicanes(road, gates);
+  }
+
+  private chicanes(road: RoadPoint[], gates: Spot[]) {
+    const n = road.length;
+    const start = Math.floor(this.next() * n);
+    let made = 0;
+    for (let k = 0; k < n && made < CHICANES; k += CHICANE_STRIDE) {
+      const at = (start + k) % n;
+      const kind = CHICANE_KINDS[Math.floor(this.next() * CHICANE_KINDS.length)];
+      const r = ITEMS[kind].r;
+      const side = this.next() < 0.5 ? -1 : 1;
+      const spots: [number, number, RoadPoint][] = [];
+      for (const [row, s] of [[0, side], [CHICANE_GAP, -side]]) {
+        const p = road[(at + row) % n];
+        for (let off = ROAD_HALF - r - 0.3; off > 0.5; off -= r * 2 + 0.4) spots.push([p.x - p.tz * s * off, p.z + p.tx * s * off, p]);
+      }
+      const run = Array.from({ length: CHICANE_RUN / 2 }, (_, i) => road[(at - CHICANE_RUN / 4 + i + n) % n]);
+      if (run.some((p) => gates.some((g) => length(g.x - p.x, g.z - p.z) < GATE_CLEAR) || this.in_town(p.x, p.z, TOWN_CLEAR) || this.zones.hits(p.x, p.z, ROAD_HALF))) continue;
+      for (const [x, z, p] of spots) {
+        this.items.push({ kind, x, y: this.height(x, z), z, fx: p.tx, fz: p.tz, scale: 1, light: true });
+        this.zones.add({ x, z, r });
+      }
+      made++;
+    }
   }
 
   roadside(road: RoadPoint[]) {

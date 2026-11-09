@@ -234,6 +234,8 @@ export interface Ramp {
   grade: number;
   landing: number;
   speed: number;
+  /** Laid across the full width of the circuit, which carries on under its run-up, flight and landing. */
+  road?: boolean;
 }
 
 export const ItemKind = { CONE: "cone", BARREL: "barrel", HAY: "hay", LOG: "log", ROCK: "rock", BARRIER: "barrier" } as const;

@@ -1,10 +1,10 @@
 import { build_chunks, JITTER_LEVELS, type MeshTones } from "../src/worldgen/chunks";
 import { sample } from "../src/worldgen/field";
-import { challenge_pieces, flight, ITEMS, ramp_local, ramp_world } from "../src/worldgen/jumps";
+import { BYPASS, challenge_outer, challenge_pieces, DECK_DRIFT, flight, GATE_CLEAR, ITEMS, ramp_local, ramp_world, RUN_DRIFT } from "../src/worldgen/jumps";
 import { seed_of } from "../src/rng";
 import { generate } from "../src/worldgen/index";
 import { APPROACH } from "../src/worldgen/route";
-import { SPUR_GRADE, ROAD_HALF, type Ramp, type RoadEdge, type RoadPoint, type Solid, type WorldData } from "../src/worldgen/types";
+import { SPUR_GRADE, ROAD_HALF, type Challenge, type Ramp, type RoadEdge, type RoadPoint, type Solid, type WorldData } from "../src/worldgen/types";
 
 const SEEDS = [...Array(Number(process.argv[2] ?? 100)).keys(), seed_of("lobby")];
 const GROUND = 0.3;
@@ -135,15 +135,27 @@ function check_jumps(data: WorldData, fail: (what: string) => void) {
     const at = `${r.kind} ramp ${r.id} at ${r.x.toFixed(0)},${r.z.toFixed(0)}`;
     const wide = r.hw + r.rise;
     const lip = r.length + r.rise;
-    for (let v = 0; v <= lip; v += 1)
-      for (let u = -wide; u <= wide; u += 1) {
-        const [x, z] = ramp_world(r, u, v);
-        if (road(x, z) < ROAD_HALF + RAMP_ROAD) return fail(`${at} sits on the road`);
+    if (r.road) {
+      const n = data.road.length;
+      const toe = data.road.reduce((best, p, i) => (Math.hypot(p.x - r.x, p.z - r.z) < Math.hypot(data.road[best].x - r.x, data.road[best].z - r.z) ? i : best), 0);
+      for (let k = -RUNUP; k < n; k++) {
+        const p = data.road[(toe + k + n) % n];
+        const [u, v] = ramp_local(r, p.x, p.z);
+        if (v > r.length + r.landing) break;
+        if (v < -RUNUP) continue;
+        if (Math.abs(u) > (v >= 0 && v <= lip ? DECK_DRIFT : RUN_DRIFT) + 0.1) return fail(`${at} leaves the circuit ${Math.abs(u).toFixed(1)} m off its line`);
+        if (data.checkpoints.some((c) => Math.hypot(c.x - p.x, c.z - p.z) < GATE_CLEAR - 1)) return fail(`${at} runs through a checkpoint`);
       }
+    } else
+      for (let v = 0; v <= lip; v += 1)
+        for (let u = -wide; u <= wide; u += 1) {
+          const [x, z] = ramp_world(r, u, v);
+          if (road(x, z) < ROAD_HALF + RAMP_ROAD) return fail(`${at} sits on the road`);
+        }
     for (let v = lip; v <= r.length + r.landing; v += 1)
       for (let u = -r.hw - 3; u <= r.hw + 3; u += 1) {
         const [x, z] = ramp_world(r, u, v);
-        if (road(x, z) < ROAD_HALF + 1) return fail(`${at} lands on the road`);
+        if (!r.road && road(x, z) < ROAD_HALF + 1) return fail(`${at} lands on the road`);
         if (sample(heights, x, z) < 2.5) return fail(`${at} lands in water`);
       }
     for (const s of data.solids) {
@@ -162,6 +174,10 @@ function check_jumps(data: WorldData, fail: (what: string) => void) {
     const [, v] = ramp_local(r, c.x, c.z);
     const com = flight(r, r.speed, v - r.length) - c.y;
     if (com - BODY_LOW < c.gap_bottom || com + BODY_HIGH > c.gap_top) fail(`${c.kind} challenge ${c.id}: the design flight (${com.toFixed(2)} m) misses its opening ${c.gap_bottom.toFixed(2)}-${c.gap_top.toFixed(2)} m`);
+    if (r.road) {
+      if ((c.kind === "wall" || c.kind === "bar") && !bypassed(data, c)) fail(`${c.kind} challenge ${c.id} closes the circuit with no way round`);
+      continue;
+    }
     for (const p of challenge_pieces(c))
       for (const lx of [p.lx - p.hw, p.lx + p.hw]) {
         const x = c.x + c.fz * lx;
@@ -171,8 +187,26 @@ function check_jumps(data: WorldData, fail: (what: string) => void) {
   }
   for (const item of data.items) {
     const r = ITEMS[item.kind].r * item.scale;
-    if (road(item.x, item.z) < ROAD_HALF + r + 1) fail(`${item.kind} at ${item.x.toFixed(0)},${item.z.toFixed(0)} sits on the road`);
+    if (road(item.x, item.z) >= ROAD_HALF + r + 1) continue;
+    if (!item.light) fail(`${item.kind} at ${item.x.toFixed(0)},${item.z.toFixed(0)} sits on the road`);
+    else if (data.checkpoints.some((c) => Math.hypot(c.x - item.x, c.z - item.z) < GATE_CLEAR - 1)) fail(`${item.kind} at ${item.x.toFixed(0)},${item.z.toFixed(0)} sits on the road at a checkpoint`);
   }
+}
+
+/** One side of the challenge has open, solid-free ground a car can drive round on. */
+function bypassed(data: WorldData, c: Challenge): boolean {
+  const outer = challenge_outer(c);
+  return [-1, 1].some((side) => {
+    const x = c.x + c.fz * side * (outer + BYPASS / 2);
+    const z = c.z - c.fx * side * (outer + BYPASS / 2);
+    if (sample(data.terrain.heights, x, z) < 2.5) return false;
+    const blocked = data.solids.some((s) => {
+      if (s.kind === "box" && s.bottom !== undefined && Math.hypot(s.x - c.x, s.z - c.z) < outer + 1) return false;
+      const reach = s.kind === "circle" ? s.radius : Math.hypot(s.hw, s.hd);
+      return Math.hypot(s.x - x, s.z - z) < BYPASS / 2 + reach;
+    });
+    return !blocked && !data.buildings.some((b) => Math.hypot(b.x - x, b.z - z) < BYPASS / 2 + Math.hypot(b.hw, b.hd));
+  });
 }
 
 // Every road triangle is wound the same way seen from above; one wound the other way is a ribbon folded over itself.
