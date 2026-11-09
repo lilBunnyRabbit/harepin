@@ -8,6 +8,30 @@ const RAMP_LOOK = 120;
 // Fastest pace on circuit kickers every seed's lap survives: past it the car lands with too little road left to brake
 // for the next bend, having had none in the air.
 const JUMP_PACE = 32;
+/** Cornering grip and braking the autopilot plans on, well inside every car's limit (m/s²). */
+const CORNER_GRIP = 4.5;
+const CORNER_BRAKE = 2.5;
+/** Road points ahead the autopilot reads for bends; past it any car stops from top speed for a hairpin. */
+const CORNER_LOOK = 90;
+const CORNER_SPAN = 5;
+const HAIRPIN_PACE = 15;
+
+/** Fastest the car may go now and still slow to every bend's v = sqrt(grip * radius) within the look-ahead. */
+function corner_pace(world: World, index: number): number {
+  const road = world.road;
+  const n = road.length;
+  let pace = Infinity;
+  for (let k = 0; k < CORNER_LOOK; k += 2) {
+    const a = road[(index + k - CORNER_SPAN + n) % n];
+    const b = road[(index + k) % n];
+    const c = road[(index + k + CORNER_SPAN) % n];
+    const cross = Math.abs((b.x - a.x) * (c.z - a.z) - (b.z - a.z) * (c.x - a.x));
+    if (cross === 0) continue;
+    const radius = (Math.hypot(b.x - a.x, b.z - a.z) * Math.hypot(c.x - b.x, c.z - b.z) * Math.hypot(c.x - a.x, c.z - a.z)) / (2 * cross);
+    pace = Math.min(pace, Math.sqrt(CORNER_GRIP * radius + 2 * CORNER_BRAKE * k * 2));
+  }
+  return pace;
+}
 
 export interface Lap {
   t: number;
@@ -38,7 +62,9 @@ export function autolap(world: World, spec: CarSpec = COUPE): Lap {
       if ((q.x - car.pos.x) ** 2 + (q.z - car.pos.z) ** 2 < 100) index = Math.max(index, k);
     }
     const speed = car.vel.length();
-    const ahead = world.road[(index + 6 + Math.floor(speed / 3)) % world.road.length];
+    const pace = corner_pace(world, index);
+    // `index` already runs up to 10 m ahead of the car; in a hairpin a longer aim point cuts across the inside.
+    const ahead = world.road[(index + (pace < HAIRPIN_PACE ? 0 : 6) + Math.floor(speed / 3)) % world.road.length];
     const want = Math.atan2(ahead.x - car.pos.x, ahead.z - car.pos.z);
     const err = Math.atan2(Math.sin(want - car.heading), Math.cos(want - car.heading));
     const far = world.road[(index + 40) % world.road.length];
@@ -50,8 +76,8 @@ export function autolap(world: World, spec: CarSpec = COUPE): Lap {
       return along * step < RAMP_LOOK && -along * step < ramp.length + ramp.landing;
     });
     const airborne = car.wheels.every((w) => !w.contact);
-    const target = Math.min(jump ? JUMP_PACE : Infinity, curve > 0.5 ? 20 : curve > 0.25 ? 30 : 42);
-    car.step(DT, { steer: airborne ? 0 : Math.max(-1, Math.min(1, -err * 3)), throttle: speed < target ? 1 : 0, brake: speed > target + 4 ? 0.7 : 0, handbrake: 0, analog: true }, world);
+    const target = Math.min(jump ? JUMP_PACE : Infinity, curve > 0.5 ? 20 : curve > 0.25 ? 30 : 42, pace);
+    car.step(DT, { steer: airborne ? 0 : Math.max(-1, Math.min(1, -err * 3)), throttle: speed < target ? 1 : 0, brake: speed > target + (pace <= target ? 1 : 4) ? Math.min(0.5, (speed - target) / 10) * Math.max(0.2, 1 - Math.abs(err) * 4) : 0, handbrake: 0, analog: true }, world);
     world.collide(car);
     t += DT;
     const d = world.distance_to_road(car.pos.x, car.pos.z);
