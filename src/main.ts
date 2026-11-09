@@ -239,7 +239,8 @@ function reset() {
   chase.snap(car);
 }
 
-spawn_at(SPAWN_INDEX);
+// `?debug&at=<road index>` starts the car anywhere on the circuit, for checking a stretch of track by eye.
+spawn_at((params.has("debug") && Number(params.get("at"))) || SPAWN_INDEX);
 
 const modes = new Modes(scene, world, SPAWN_INDEX, () => lobby.record, (x, y, z, heading) => {
   car.place(x, y, z, heading);
