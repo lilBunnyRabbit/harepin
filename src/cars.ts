@@ -68,6 +68,8 @@ export interface CarSpec {
   roll_resist: number;
   /** Share of the off-road grip loss and rolling drag the tyres shrug off: 0 road tyres, 1 none at all. */
   offroad: number;
+  /** Pitch and roll rate damping with no wheel or corner touching, 1/s; it also levels the body so a crest launch lands on its wheels. 0 flies ballistic. */
+  air_settle: number;
   /** Collision circle offsets along the heading (nose, tail), metres. */
   circles: [number, number];
   radius: number;
@@ -146,6 +148,7 @@ export const COUPE: CarSpec = {
   downforce: 0.9,
   roll_resist: 1.6,
   offroad: 0,
+  air_settle: 0,
   circles: [1.25, -1.25],
   radius: 1.05,
   corners: corners(0.95, -0.3, 0.72, 2.25),
@@ -285,7 +288,8 @@ export const RALLY: CarSpec = {
   handbrake: 2400,
   drag: 0.5,
   downforce: 0.8,
-  offroad: 0.7,
+  offroad: 0.8,
+  air_settle: 5,
   corners: corners(0.93, -0.34, 0.8, 2.15),
   body: { length: 4.4, width: 1.86, height: 1.38, style: "rally" },
   sound: { cylinders: 4, pulses: [1, 0.9, 1.02, 0.88], jitter: 0.14, pulse_ms: 0.9, formants: [150, 470, 1700], shift: 0.3, muffler: [800, 3800], drive: 3, rasp: 0.9, intake: 0.65, crackle: 0.75, turbo: 1 },

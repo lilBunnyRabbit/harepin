@@ -442,10 +442,12 @@ export class Car {
       total_force.addScaledVector(wheel_fwd, -rolling * (roll - 1) * (1 - spec.offroad));
     }
 
+    let airborne = this.wheels.every((w) => !w.contact);
     for (const corner of this.corners) {
       const p = mount.copy(corner).applyQuaternion(quat).add(pos);
       const depth = ground.height(p.x, p.z) - p.y;
       if (depth <= 0) continue;
+      airborne = false;
       ground.normal(p.x, p.z, tmp);
       lever.copy(p).sub(pos);
       point_vel.crossVectors(ang, lever).add(vel);
@@ -464,6 +466,14 @@ export class Car {
     const excess = Math.abs(slide) - 0.2;
     if (this.assist && excess > 0 && input.handbrake < 0.1 && Math.sign(ang.y) === Math.sign(slide)) {
       total_torque.y -= ang.y * spec.inertia[1] * Math.min(1, excess * 6) * 3.5;
+    }
+    if (airborne && spec.air_settle > 0) {
+      // Crests launch the car off whichever wheel leaves last, so it takes off spinning; bleed pitch and roll and level it
+      // in the air so it lands on its wheels. Yaw is left alone so a slide carries through the jump.
+      const level = tmp2.crossVectors(up, Y).multiplyScalar(spec.air_settle * spec.air_settle * 0.25);
+      const yaw = up.dot(ang);
+      tmp.copy(ang).addScaledVector(up, -yaw);
+      ang.addScaledVector(tmp, -Math.min(1, spec.air_settle * dt)).addScaledVector(level, dt);
     }
     total_force.addScaledVector(vel, -spec.drag * speed);
     total_force.addScaledVector(up, -spec.downforce * vf * vf);

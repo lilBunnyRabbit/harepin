@@ -1,7 +1,8 @@
 /// <reference types="bun" />
 import { describe, expect, test } from "bun:test";
+import { Vector3 } from "three";
 import { Car, SteerMode, ride_height, type Controls, type Ground } from "./car";
-import { CARS } from "./cars";
+import { CARS, type CarSpec } from "./cars";
 
 const flat: Ground = { height: () => 0, normal: (_x, _z, out) => out.set(0, 1, 0), grip: () => 1, roll: () => 1 };
 const DT = 1 / 360;
@@ -203,5 +204,54 @@ describe("park and idle hold", () => {
       run(car, 3, () => ({ ...idle, throttle: 0.3 }));
       expect(kmh(car)).toBeGreaterThan(5);
     }
+  });
+});
+
+describe("rally off-road", () => {
+  const grass: Ground = { ...flat, grip: () => 0.72, roll: () => 12 };
+  const flat_out = (spec: CarSpec, ground: Ground) => {
+    const car = new Car(spec);
+    car.place(0, 0.6, 0, 0);
+    for (let t = 0; t < 25; t += DT) car.step(DT, { ...idle, throttle: 1, analog: true }, ground);
+    return kmh(car);
+  };
+  const corner_g = (spec: CarSpec, ground: Ground) => {
+    let most = 0;
+    for (const steer of [0.35, 0.5, 0.7, 1]) {
+      const car = new Car(spec);
+      car.assist = false;
+      car.place(0, 0.6, 0, 0);
+      for (let t = 0; t < 20 && kmh(car) < 60; t += DT) car.step(DT, { ...idle, throttle: 1, analog: true }, ground);
+      for (let t = 0; t < 6; t += DT) car.step(DT, { ...idle, steer, analog: true, throttle: Math.max(0, Math.min(1, (60 - kmh(car)) * 0.2 + 0.25)) }, ground);
+      most = Math.max(most, Math.abs(car.ang.y * car.vel.length()) / 9.81);
+    }
+    return most;
+  };
+
+  test("on grass it keeps nearly its tarmac pace and outruns every other car by a wide margin", () => {
+    const rally = flat_out(CARS.rally, grass);
+    expect(rally).toBeGreaterThan(flat_out(CARS.rally, flat) * 0.9);
+    for (const spec of Object.values(CARS)) if (spec !== CARS.rally) expect(rally).toBeGreaterThan(flat_out(spec, grass) * 1.15);
+  });
+
+  test("on grass it keeps nearly its tarmac cornering grip, well above the coupe's", () => {
+    const rally = corner_g(CARS.rally, grass);
+    expect(rally).toBeGreaterThan(corner_g(CARS.rally, flat) * 0.9);
+    expect(rally).toBeGreaterThan(corner_g(CARS.coupe, grass) + 0.12);
+  });
+
+  test("launched off a crest spinning, it lands on its wheels", () => {
+    const car = new Car(CARS.rally);
+    car.place(0, 2, 0, 0);
+    car.vel.set(0, 5, 20);
+    car.ang.set(0, 0, 1.2);
+    const up = new Vector3();
+    let lowest = 1;
+    for (let t = 0; t < 4; t += DT) {
+      car.step(DT, idle, grass);
+      lowest = Math.min(lowest, up.set(0, 1, 0).applyQuaternion(car.quat).y);
+    }
+    expect(lowest).toBeGreaterThan(Math.cos((25 * Math.PI) / 180));
+    expect(car.wheels.every((w) => w.contact)).toBe(true);
   });
 });
