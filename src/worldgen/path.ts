@@ -42,8 +42,9 @@ const TONGUE: [number, number][] = [
 const ATTRACT_STEP = 4;
 /** Controls on either side of the summit one that the coast attractor leaves alone. */
 const SUMMIT_KEEP = 3;
-/** Fast open road: steeper than this, braking downhill into a bend at 40 m/s unsettles the rear. */
-const ROAD_GRADE = 0.09;
+const ROAD_GRADE = 0.12;
+/** Open road near a bend: steeper, braking downhill into the bend at 40 m/s unsettles the rear. */
+const BEND_GRADE = 0.09;
 /** Switchback legs, driven at hairpin pace. */
 const CLIMB_GRADE = 0.12;
 const HAIRPIN_GRADE = 0.06;
@@ -51,7 +52,14 @@ const HAIRPIN_GRADE = 0.06;
 const HAIRPIN_REACH = 8;
 /** Crests tighter than this (m) get eased: v²/g = 180 m lifts the wheels only past 42 m/s, the top of most straights. */
 const CREST_RADIUS = 180;
-const CREST_PASSES = 40;
+const CREST_PASSES = 60;
+/**
+ * Within BEND_REACH points of a bend under BEND_RADIUS the road gets BEND_CREST and BEND_GRADE: a car unloaded over a
+ * crest or braking downhill can't also turn in, and spins.
+ */
+const BEND_RADIUS = 400;
+const BEND_CREST = 400;
+const BEND_REACH = 40;
 /** Closest two stretches of the loop may come, centre to centre, unless they are neighbours along it. */
 const LOOP_CLEARANCE = 40;
 const CLEARANCE_ARC = 60;
@@ -377,16 +385,16 @@ export function limit_grade(ys: number[], run: number[], grade: number | readonl
 }
 
 // Grade clamping leaves kinks; each pass averages the points around any crest tighter than CREST_RADIUS.
-function ease_crests(ys: number[]): number[] {
+function ease_crests(ys: number[], crest: readonly number[]): number[] {
   const n = ys.length;
   const k = RADIUS_SPAN;
-  const limit = (k * STEP * (k * STEP)) / CREST_RADIUS;
+  const limit = crest.map((r) => (k * STEP * (k * STEP)) / r);
   for (let pass = 0; pass < CREST_PASSES; pass++) {
     const from = ys;
     const sharp = new Uint8Array(n);
     let any = false;
     for (let i = 0; i < n; i++)
-      if (2 * from[i] - from[(i - k + n) % n] - from[(i + k) % n] > limit) {
+      if (2 * from[i] - from[(i - k + n) % n] - from[(i + k) % n] > limit[i]) {
         any = true;
         for (let j = -k; j <= k; j++) sharp[(i + j + n) % n] = 1;
       }
@@ -405,9 +413,22 @@ export function loop_heights({ path, stack }: Loop, heights: Float32Array): numb
   const n = path.length;
   const run = path.map(([x, z], i) => length(path[(i + 1) % n][0] - x, path[(i + 1) % n][1] - z));
   const hairpins = stack?.bends.filter((b) => b.radius === HAIRPIN_RADIUS) ?? [];
-  const grade = path.map(([x, z]) => {
+  const bend = path.map((_, i) => {
+    const [ax, az] = path[(i - RADIUS_SPAN + n) % n];
+    const [bx, bz] = path[i];
+    const [cx, cz] = path[(i + RADIUS_SPAN) % n];
+    const cross = Math.abs((bx - ax) * (cz - az) - (bz - az) * (cx - ax));
+    return cross > 0 && !(stack && inside(stack, bx, bz, 0)) && length(bx - ax, bz - az) * length(cx - bx, cz - bz) * length(cx - ax, cz - az) < 2 * cross * BEND_RADIUS;
+  });
+  const near_bend = path.map((_, i) => {
+    for (let j = -BEND_REACH; j <= BEND_REACH; j++) if (bend[(i + j + n) % n]) return true;
+    return false;
+  });
+  const crest = near_bend.map((near) => (near ? BEND_CREST : CREST_RADIUS));
+  const grade = path.map(([x, z], i) => {
     if (hairpins.some((b) => length(b.x - x, b.z - z) < b.radius + HAIRPIN_REACH)) return HAIRPIN_GRADE;
-    return stack && inside(stack, x, z, 0) ? CLIMB_GRADE : ROAD_GRADE;
+    if (stack && inside(stack, x, z, 0)) return CLIMB_GRADE;
+    return near_bend[i] ? BEND_GRADE : ROAD_GRADE;
   });
   const ys = smooth(
     path.map(([x, z]) => Math.max(3, sample(heights, x, z))),
@@ -416,7 +437,7 @@ export function loop_heights({ path, stack }: Loop, heights: Float32Array): numb
     true,
   );
   const graded = (from: number[]) => limit_grade([...from, from[0]], run, grade).slice(0, n);
-  return graded(ease_crests(graded(ys)));
+  return graded(ease_crests(graded(ys), crest));
 }
 
 export interface LoopRoad {
