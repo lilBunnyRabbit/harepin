@@ -1,4 +1,5 @@
 import { Quaternion, Vector3 } from "three";
+import { axle_index, axles_of, type Axle } from "./axles";
 import { COUPE, type CarSpec } from "./cars";
 import { NITRO_TORQUE, Nitro, type NitroSense } from "./nitro";
 
@@ -112,11 +113,13 @@ export class Wheel {
 
   constructor(
     readonly mount: Vector3,
-    readonly front: boolean,
+    readonly axle: Axle,
+    /** Index of the other wheel on this axle. */
+    readonly pair: number,
     readonly left: boolean,
     spec: CarSpec,
   ) {
-    this.driven = spec.drive === "awd" || (spec.drive === "fwd") === front;
+    this.driven = axle.drive_share > 0;
     this.reach = spec.wheel.rest + spec.wheel.radius;
   }
 }
@@ -179,7 +182,7 @@ const Y = new Vector3(0, 1, 0);
 // traction control never saw, and full drive swung the tail in. A front's sideways slip is the steering's; cutting
 // power for it only stalls the car.
 function tcs_spin(w: Wheel, low: boolean, peak_slip: number): number {
-  return low && w.contact && !w.front ? Math.hypot(Math.max(0, w.slip), w.lateral * peak_slip * TCS_LATERAL) : w.slip;
+  return low && w.contact && !w.axle.steer ? Math.hypot(Math.max(0, w.slip), w.lateral * peak_slip * TCS_LATERAL) : w.slip;
 }
 
 /** Height of the ray from `mount` along `down`, `t` metres out, above the ground under it. */
@@ -193,9 +196,11 @@ export class Car {
   readonly quat = new Quaternion();
   readonly vel = new Vector3();
   readonly ang = new Vector3();
+  readonly axles: Axle[];
   readonly wheels: Wheel[];
   private readonly driven: Wheel[];
   private readonly corners: Vector3[];
+  private readonly steer_z: number;
   private readonly sense: NitroSense = { slide: 0, speed: 0, airborne: false };
 
   gear = 1;
@@ -218,7 +223,12 @@ export class Car {
 
   constructor(readonly spec: CarSpec = COUPE) {
     this.nitro = new Nitro(spec.nitro ?? 0);
-    this.wheels = spec.wheel.mounts.map(([x, y, z]) => new Wheel(new Vector3(x, y, z), z > 0, x > 0, spec));
+    this.axles = axles_of(spec);
+    this.wheels = spec.wheel.mounts.map(([x, y, z], i) => {
+      const axle = this.axles[axle_index(this.axles, i)];
+      return new Wheel(new Vector3(x, y, z), axle, axle.wheels[0] === i ? axle.wheels[1] : axle.wheels[0], x > 0, spec);
+    });
+    this.steer_z = this.axles.find((a) => a.steer)?.z ?? 0;
     this.driven = this.wheels.filter((w) => w.driven);
     this.corners = spec.corners.map(([x, y, z]) => new Vector3(x, y, z));
     this.rpm = spec.idle;
@@ -357,7 +367,7 @@ export class Car {
     if (this.assist && local.z > 1) {
       // Full lock at hairpin speed put the fronts at 20-27 degrees of slip, three times peak, and their scrub held the car
       // at walking pace under full throttle. Keep them within reach of peak around the way the front axle is moving.
-      const course = Math.atan2(-(local.x + ang.dot(up) * spec.wheel.mounts[0][2]), local.z);
+      const course = Math.atan2(-(local.x + ang.dot(up) * this.steer_z), local.z);
       const [on_from, on_to, off_from, off_to] = USEFUL_SPEEDS;
       const fade = Math.max((on_to - speed) / (on_to - on_from), (speed - off_from) / (off_to - off_from));
       const free = spec.lock * Math.max(0, Math.min(1, fade));
@@ -390,12 +400,11 @@ export class Car {
     let max_drag = 0;
     const acting = this.tcs && pedal > 0.1 && speed > 1;
     const low = acting && speed < TCS_LOW_SPEED;
-    for (let i = 0; i < 4; i++) {
-      const w = this.wheels[i];
+    for (const w of this.wheels) {
       if (!w.driven) continue;
       // An axle spins when both its wheels do; one spinning alone, like the unloaded inner wheel in a tight turn, is
       // braked instead, as a brake-based TCS does. Cutting the engine for it starved the loaded wheel and the car bogged.
-      const other = this.wheels[i ^ 1];
+      const other = this.wheels[w.pair];
       max_slip = Math.max(max_slip, low ? Math.min(tcs_spin(w, low, spec.peak_slip), tcs_spin(other, low, spec.peak_slip)) : tcs_spin(w, low, spec.peak_slip));
       const lone = low && w.contact && w.slip > TCS_SLIP && other.slip <= TCS_SLIP;
       w.tcs_brake = lone ? Math.min(1, w.tcs_brake + 9 * dt) : Math.max(0, w.tcs_brake - 2.5 * dt);
@@ -429,15 +438,7 @@ export class Car {
       const braking_torque = wheel_rpm > spec.idle && !dragging ? (1 - gas) * (20 + rpm * 0.009) * coast : 0;
       engine = rpm >= spec.redline ? -braking_torque : gas * torque_at(spec.torque, rpm) * (boost ? NITRO_TORQUE : 1) - braking_torque;
     }
-    let drive_front = 0;
-    let drive_rear = 0;
-    if (spec.drive === "awd") {
-      const total = engine * ratio * spec.driveline;
-      const split = spec.awd_split ?? 0.5;
-      drive_front = (total * split) / 2;
-      drive_rear = (total * (1 - split)) / 2;
-    } else if (spec.drive === "fwd") drive_front = (engine * ratio * spec.driveline) / driven.length;
-    else drive_rear = (engine * ratio * spec.driveline) / driven.length;
+    const drive = engine * ratio * spec.driveline;
     const driven_inertia = 1.4 + (spec.engine_inertia * ratio * ratio) / driven.length;
 
     total_force.set(0, -GRAVITY * spec.mass, 0);
@@ -463,7 +464,7 @@ export class Car {
         }
       }
       const compression = reach - t;
-      w.angle = w.front ? this.ackermann(w) : 0;
+      w.angle = w.axle.steer ? this.ackermann(w) : 0;
       w.reach = t;
       w.load = 0;
       w.point.copy(mount).addScaledVector(down, t);
@@ -471,13 +472,12 @@ export class Car {
       w.compression = compression;
     }
 
-    for (let i = 0; i < 4; i++) {
-      const w = this.wheels[i];
-      const prev = w.prev;
-      const other = this.wheels[i ^ 1];
+    for (const w of this.wheels) {
+      const { axle, prev } = w;
+      const other = this.wheels[w.pair];
       const inertia = w.driven ? driven_inertia : 1.4;
-      const torque = w.driven ? (w.front ? drive_front : drive_rear) : 0;
-      const brake_torque = brake * (w.front ? spec.brake_front : spec.brake_rear) * w.abs_factor + (w.front ? 0 : input.handbrake * spec.handbrake) + (hold ? spec.hold : 0) + w.tcs_brake * Math.abs(torque);
+      const torque = w.driven ? (drive * axle.drive_share) / axle.wheels.length : 0;
+      const brake_torque = brake * axle.brake * w.abs_factor + (axle.handbrake ? input.handbrake * spec.handbrake : 0) + (hold ? spec.hold : 0) + w.tcs_brake * Math.abs(torque);
 
       if (!w.contact) {
         let omega = w.omega + (dt * torque) / inertia;
@@ -495,7 +495,7 @@ export class Car {
       }
 
       let suspension = spec.spring * w.compression + (spec.damper * (w.compression - prev)) / dt;
-      suspension += (w.front ? spec.arb_front : spec.arb_rear) * (w.compression - other.compression);
+      suspension += axle.arb * (w.compression - other.compression);
       if (w.compression > rest) suspension += spec.bump * (w.compression - rest);
       suspension = Math.max(0, Math.min(40000, suspension));
       lever.copy(w.point).sub(pos);
@@ -521,7 +521,7 @@ export class Car {
       // Tyre force grows ever slower with load and tops out at half LOAD_FADE; past that it stays flat. Left as a
       // parabola it fell to nothing at LOAD_FADE and reversed above it, which a hard landing reaches.
       const bite = Math.min(load, LOAD_FADE / 2);
-      const peak = spec.mu * (w.front ? 1 : spec.rear_grip) * grip * bite * (1 - bite / LOAD_FADE);
+      const peak = spec.mu * axle.grip * grip * bite * (1 - bite / LOAD_FADE);
       // Over the same denominator as the longitudinal slip, so the combined force points against the patch's slip
       // velocity. As an angle it stopped at 90 degrees while wheelspin over a 2 m/s floor did not: a rear spinning fully
       // sideways put nearly all its grip into drive and the car glided on the fronts.

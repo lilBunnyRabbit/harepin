@@ -1,0 +1,28 @@
+import type { CarSpec } from "./cars";
+
+export interface Axle {
+  /** Distance ahead of the centre of mass, metres. */
+  z: number;
+  wheels: [number, number];
+  steer: boolean;
+  /** Share of the engine's torque at the wheels sent to this axle, 0..1. */
+  drive_share: number;
+  brake: number;
+  arb: number;
+  /** Scale on `spec.mu`. */
+  grip: number;
+  handbrake: boolean;
+}
+
+export function axles_of(spec: CarSpec): Axle[] {
+  const { mounts } = spec.wheel;
+  const front = spec.drive === "awd" ? (spec.awd_split ?? 0.5) : spec.drive === "fwd" ? 1 : 0;
+  return [
+    { z: mounts[0][2], wheels: [0, 1], steer: true, drive_share: front, brake: spec.brake_front, arb: spec.arb_front, grip: 1, handbrake: false },
+    { z: mounts[2][2], wheels: [2, 3], steer: false, drive_share: 1 - front, brake: spec.brake_rear, arb: spec.arb_rear, grip: spec.rear_grip, handbrake: true },
+  ];
+}
+
+export function axle_index(axles: Axle[], wheel: number): number {
+  return axles.findIndex((a) => a.wheels.includes(wheel));
+}

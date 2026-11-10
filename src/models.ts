@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { axle_index, axles_of } from "./axles";
 import { rest_reach, type Car } from "./car";
 import { DECALS, DEFAULT_PARTS, build_spec, part_of, type Build, type Look, type Slot } from "./build";
 import { COUPE, type BodyStyle, type CarSpec, type Triple } from "./cars";
@@ -149,6 +150,8 @@ export interface CarView {
   root: THREE.Group;
   body: THREE.Group;
   wheels: THREE.Group[];
+  /** Per wheel, whether it turns with the steering. */
+  steered: boolean[];
   brake: THREE.MeshLambertMaterial;
   /** Headlamp lenses; hidden from the hood camera, which sits right behind them. */
   heads: THREE.Mesh;
@@ -738,7 +741,7 @@ function cabin_parts(c: Cabin, paint: THREE.Color, glass: THREE.Color): THREE.Bu
 function body_outline(d: Design, spec: CarSpec): Point[] {
   const radius = spec.wheel.radius + d.arches.gap;
   const y = spec.wheel.radius;
-  return [...d.outline, ...arc(spec.wheel.mounts[2][2], y, radius, d.sill, d.arches.steps), ...arc(spec.wheel.mounts[0][2], y, radius, d.sill, d.arches.steps)];
+  return [...d.outline, ...axles_of(spec).reverse().flatMap((a) => arc(a.z, y, radius, d.sill, d.arches.steps))];
 }
 
 function flares(d: Design, spec: CarSpec): THREE.BufferGeometry[] {
@@ -746,16 +749,21 @@ function flares(d: Design, spec: CarSpec): THREE.BufferGeometry[] {
   const inner = spec.wheel.radius + d.arches.gap;
   const y = spec.wheel.radius;
   const edge = d.width / 2;
-  return [spec.wheel.mounts[0][2], spec.wheel.mounts[2][2]].flatMap((z) => {
+  return axles_of(spec).flatMap(({ z }) => {
     const ring = [...arc(z, y, inner + d.arches.flare, d.sill, d.arches.steps), ...arc(z, y, inner, d.sill, d.arches.steps).reverse()];
     return slab(ring, edge - d.arches.reach, edge + d.arches.out);
   });
 }
 
+/** Body length between the front and rear arches, `reach` short of each axle: [front, rear]. */
+function wheel_span(spec: CarSpec, reach: number): [number, number] {
+  const axles = axles_of(spec);
+  return [axles[0].z - reach, axles[axles.length - 1].z + reach];
+}
+
 function skirts(d: Design, spec: CarSpec, thick: number, deep: number): THREE.BufferGeometry[] {
   const reach = spec.wheel.radius + d.arches.gap + d.arches.flare;
-  const front = spec.wheel.mounts[0][2] - reach;
-  const rear = spec.wheel.mounts[2][2] + reach;
+  const [front, rear] = wheel_span(spec, reach);
   return parts([{ size: [thick, deep, front - rear], at: [d.width / 2 - 0.01 + thick / 2, d.sill + 0.045 - deep / 2, (front + rear) / 2] }]);
 }
 
@@ -972,8 +980,7 @@ function top_at(outline: Point[], z: number): number {
 function side_panel(d: Design, spec: CarSpec): Panel {
   if (d.panel) return d.panel;
   const reach = spec.wheel.radius + d.arches.gap + d.arches.flare + PANEL_MARGIN;
-  const front = spec.wheel.mounts[0][2] - reach;
-  const rear = spec.wheel.mounts[2][2] + reach;
+  const [front, rear] = wheel_span(spec, reach);
   let belt = Infinity;
   for (let i = 0; i <= 10; i++) belt = Math.min(belt, top_at(d.outline, rear + ((front - rear) * i) / 10));
   return { rear, front, low: d.sill + PANEL_FLOOR, high: belt - PANEL_ROOF, side: d.width / 2 };
@@ -1059,20 +1066,23 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
 
   const tyre = part_of("tyres", kit.tyres).look?.tyre ?? STOCK_TYRE;
   const caliper = part_of("brakes", kit.brakes).look?.caliper ?? (d.caliper ? { ...STOCK_CALIPER, tone: d.caliper } : STOCK_CALIPER);
-  const axles = [0, 1].map((axle) => wheel_geometry(spec.wheel.radius, d.tyre[axle], d.rim, tyre));
+  const axles = axles_of(spec);
+  const tyres = [0, 1].map((axle) => wheel_geometry(spec.wheel.radius, d.tyre[axle], d.rim, tyre));
   const calipers = [0, 1].map((axle) => caliper_geometry(spec.wheel.radius, d.tyre[axle], d.rim, tyre, caliper));
   const wheel_material = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
-  const wheels = [0, 1, 2, 3].map((i) => {
+  const wheel_axles = [0, 1, 2, 3].map((i) => axle_index(axles, i));
+  const wheels = wheel_axles.map((axle) => {
     const steer = new THREE.Group();
     const spin = new THREE.Group();
-    const mesh = new THREE.Mesh(axles[i < 2 ? 0 : 1], wheel_material);
+    const mesh = new THREE.Mesh(tyres[axle], wheel_material);
     mesh.castShadow = true;
     spin.add(mesh);
-    steer.add(spin, new THREE.Mesh(calipers[i < 2 ? 0 : 1], wheel_material));
+    steer.add(spin, new THREE.Mesh(calipers[axle], wheel_material));
     root.add(steer);
     return steer;
   });
-  return { root, body, wheels, brake, heads: head_mesh, halo, eye: d.eye ? new THREE.Vector3(0, body.position.y + d.eye[1], d.eye[0]) : null, flame };
+  const steered = wheel_axles.map((axle) => axles[axle].steer);
+  return { root, body, wheels, steered, brake, heads: head_mesh, halo, eye: d.eye ? new THREE.Vector3(0, body.position.y + d.eye[1], d.eye[0]) : null, flame };
 }
 
 export function sync_car_view(view: CarView, car: Car) {

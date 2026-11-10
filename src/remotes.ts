@@ -156,7 +156,7 @@ export class Remotes {
     const s = b.state;
     rv.spin += (Math.hypot(...s.v) / rv.spec.wheel.radius) * dt;
     rv.view.wheels.forEach((w, i) => {
-      w.rotation.y = i < 2 ? -s.steer : 0;
+      w.rotation.y = rv.view.steered[i] ? -s.steer : 0;
       w.children[0].rotation.x = rv.spin;
     });
     rv.view.brake.emissiveIntensity = s.brake ? 2.2 : 0.5;

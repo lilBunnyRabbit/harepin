@@ -101,7 +101,7 @@ export function hairpin_pull(spec: CarSpec, grade: number, tcs: boolean, assist:
       const inner = driven.filter((w) => car.steer > 0 !== w.left);
       const outer = driven.filter((w) => car.steer > 0 === w.left);
       const avg = (ws: typeof driven, f: (w: (typeof driven)[number]) => number) => ws.reduce((s, w) => s + f(w), 0) / ws.length;
-      const front = Math.max(...car.wheels.filter((w) => w.front).map((w) => w.lateral * spec.peak_angle)) * (180 / Math.PI);
+      const front = Math.max(...car.wheels.filter((w) => w.axle.steer).map((w) => w.lateral * spec.peak_angle)) * (180 / Math.PI);
       rows.push(
         [
           t.toFixed(2).padStart(5),

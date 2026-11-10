@@ -76,7 +76,7 @@ export function drift(spec: CarSpec, kmh: number, angle: number, aids: boolean, 
     const lock = aids ? spec.lock : (physics.unassisted_lock?.(spec, speed, Math.sign(want), slide) ?? spec.lock / (1 + speed / 45));
     if (Math.abs(want) > lock) locked++;
     const before = car.vel.length();
-    const rear_slip = car.wheels.filter((w) => w.driven && !w.front).reduce((most, w) => Math.max(most, w.slip), 0);
+    const rear_slip = car.wheels.filter((w) => w.driven && !w.axle.steer).reduce((most, w) => Math.max(most, w.slip), 0);
     if (ideal) gas = Math.max(0, Math.min(1, gas + (DT / 0.05) * (spec.peak_slip * SPIN_AIM - rear_slip) * 10));
     car.step(DT, { ...idle, throttle: gas, steer: Math.max(-1, Math.min(1, want / lock)) }, flat);
     if (!Number.isFinite(car.pos.x)) throw new Error(`NaN at t=${t.toFixed(3)}`);
@@ -87,7 +87,7 @@ export function drift(spec: CarSpec, kmh: number, angle: number, aids: boolean, 
       held = t;
       accel += a;
       steps++;
-      const rears = car.wheels.filter((w) => w.driven && !w.front);
+      const rears = car.wheels.filter((w) => w.driven && !w.axle.steer);
       spin += rears.reduce((sum, w) => sum + w.slip, 0) / Math.max(1, rears.length);
       if (window.length === 36) peak = Math.max(peak, window.reduce((sum, x) => sum + x, 0) / 36);
     }
