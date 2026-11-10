@@ -32,7 +32,7 @@ test("a land kind's world carries its own kind, so grip, mood and dressing follo
   expect(generate_world(0, WorldKind.DESERT).kind).toBe(WorldKind.DESERT);
 });
 
-test("every alpine seed joins a strip village to the circuit", () => {
+test("alpine seeds join a strip village to the circuit", () => {
   for (const seed of sweep(10)) {
     const world = alpine(seed);
     expect(world.towns.length).toBeGreaterThan(0);
