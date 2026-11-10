@@ -10,7 +10,7 @@ export const desert = kind_def({
   kind: WorldKind.DESERT,
   base: 2000,
   tag: "d",
-  version: 1,
+  version: 2,
   size: SIZE,
   generate: (seed, levels) => generate(seed, tune(DESERT, DESERT_KNOBS, levels), WorldKind.DESERT),
   options: DESERT_KNOBS,

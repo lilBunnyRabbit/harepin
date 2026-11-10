@@ -58,15 +58,15 @@ export function kind_def(spec: KindSpec): KindDef {
 export const LAND_GRIP: GripTable = {
   road: { grip: 1, roll: 1 },
   shoulder: { grip: 0.85, roll: 1 },
-  surfaces: { [SurfaceId.GRASS]: { grip: 0.72, roll: 12 }, [SurfaceId.DIRT]: { grip: 0.88, roll: 1 } },
+  surfaces: { [SurfaceId.GRASS]: { grip: 0.72, roll: 12 }, [SurfaceId.DIRT]: { grip: 0.88, roll: 1 }, [SurfaceId.HARDPACK]: { grip: 0.88, roll: 1 } },
 };
 
 /**
- * Hardpack (DIRT) runs like the island's trails. Loose sand (GRASS, the desert's own ground) slides a touch more than grass and drags twice as
- * hard (stock coupe: 0.63 g, 0-50 in 4.4 s against grass's 0.65 g, 4.1 s); off-road tyres still run it near hardpack.
+ * Dune sea: loose sand (GRASS, its own ground) slides and drags hard, so the pans' hardpack and the roads are where speed lives;
+ * trail dirt sits just under the pans.
  */
 export const SAND_GRIP: GripTable = {
   road: { grip: 1, roll: 1 },
   shoulder: { grip: 0.86, roll: 1 },
-  surfaces: { [SurfaceId.GRASS]: { grip: 0.74, roll: 24 }, [SurfaceId.DIRT]: { grip: 0.9, roll: 1 } },
+  surfaces: { [SurfaceId.GRASS]: { grip: 0.7, roll: 28 }, [SurfaceId.DIRT]: { grip: 0.9, roll: 1 }, [SurfaceId.HARDPACK]: { grip: 0.92, roll: 1 } },
 };

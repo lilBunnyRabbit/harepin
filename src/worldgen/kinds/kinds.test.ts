@@ -8,8 +8,8 @@ test("ids and keys match what saved records and older peers use", () => {
   expect(world_key(42)).toBe("42:w6");
   expect(world_key(42, WorldKind.ISLAND)).toBe("42:w6");
   expect(world_key(42, WorldKind.SKY)).toBe("42:sky3");
-  expect(world_id(WorldKind.DESERT)).toBe(2001);
-  expect(world_key(42, WorldKind.DESERT)).toBe("42:d1");
+  expect(world_id(WorldKind.DESERT)).toBe(2002);
+  expect(world_key(42, WorldKind.DESERT)).toBe("42:d2");
 });
 
 test("a land kind's world carries its own kind, so grip, mood and dressing follow it", () => {

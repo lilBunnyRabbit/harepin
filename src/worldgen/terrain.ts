@@ -1,11 +1,17 @@
 import { mulberry32, sub } from "../rng";
 import { at, cells, WHOLE, type Grid } from "./field";
-import { fbm, smoothstep } from "./noise";
-import { ISLAND, type Power, type TerraceLayer, type TerrainLayer, type TerrainRecipe } from "./recipe";
+import { circle16, fbm, smoothstep } from "./noise";
+import { ISLAND, type DunesLayer, type PanLayer, type Power, type TerraceLayer, type TerrainLayer, type TerrainRecipe } from "./recipe";
 import { CELL, N, ORIGIN, SIZE, type Terrain } from "./types";
 
 /** Share of the mask radius where the land starts fading to the edge height. */
 const MASK_FADE = 0.8;
+/** Crests bend over noise this many waves across, by up to half of `DUNE_BEND` waves either way. */
+const DUNE_BEND_SCALE = 2.5;
+const DUNE_BEND = 1.6;
+/** Dune fields come and go over noise this many waves across; between the cuts a field fades in. */
+const DUNE_FIELD_SCALE = 4;
+const DUNE_FIELD = [0.4, 0.6] as const;
 
 function peak_of(seed: number, reach: number): { x: number; z: number } {
   const next = mulberry32(sub(seed, "peak"));
@@ -41,7 +47,39 @@ function terraced(h: number, layer: TerraceLayer): number {
   return layer.base + (floor + smoothstep(1 - layer.riser, 1, t - floor)) * layer.step;
 }
 
-/** A layer with what it draws from the seed once: the peak's position. */
+function wind_of(seed: number, offset: number): { x: number; z: number } {
+  const [x, z] = circle16()[Math.floor(mulberry32(sub(seed, "wind") + offset)() * 16)];
+  return { x, z };
+}
+
+// Each wave rises over smoothstep to a sharp brink, then drops down the lee face, so the face stays a slope the mesh can draw.
+function dunes(layer: DunesLayer, seed: number, wx: number, wz: number, x: number, z: number): number {
+  const along = x * wx + z * wz;
+  const across = z * wx - x * wz;
+  let h = 0;
+  for (let b = 0; b < layer.bands.length; b++) {
+    const band = layer.bands[b];
+    const s = seed + layer.seed + b * 31;
+    const bend = (fbm(across / (band.wave * DUNE_BEND_SCALE), along / (band.wave * DUNE_BEND_SCALE * 2), s, 3) - 0.5) * DUNE_BEND;
+    const u = along / band.wave + bend;
+    const t = u - Math.floor(u);
+    const rise = 1 - band.lee;
+    const profile = t < rise ? smoothstep(0, rise, t) : smoothstep(1, rise, t);
+    const field = smoothstep(DUNE_FIELD[0], DUNE_FIELD[1], fbm(x / (band.wave * DUNE_FIELD_SCALE), z / (band.wave * DUNE_FIELD_SCALE), s + 7, 3));
+    h += profile * band.height * field;
+  }
+  return h;
+}
+
+// Quadratic smooth max of the height and the level: flat under level - blend, the height itself over level + blend.
+function pan(h: number, layer: PanLayer): number {
+  const t = (h - layer.level) / layer.blend;
+  if (t >= 1) return h;
+  if (t <= -1) return layer.level;
+  return layer.level + (layer.blend * (t + 1) * (t + 1)) / 4;
+}
+
+/** A layer with what it draws from the seed once: the peak's position, or the dunes' wind heading. */
 interface Seeded {
   layer: TerrainLayer;
   x: number;
@@ -70,11 +108,19 @@ function apply(seeded: Seeded, seed: number, x: number, z: number, h: number): n
       const r = Math.sqrt(x * x + z * z) / layer.radius + (fbm(x / layer.scale, z / layer.scale, seed + layer.seed) - 0.5) * layer.wobble;
       return layer.edge + (h - layer.edge) * (1 - smoothstep(MASK_FADE, 1.0, r));
     }
+    case "dunes":
+      return h + dunes(layer, seed, seeded.x, seeded.z, x, z);
+    case "pan":
+      return pan(h, layer);
   }
 }
 
 function seeded(seed: number, shape: TerrainRecipe): Seeded[] {
-  return shape.map((layer) => (layer.kind === "peak" ? { layer, ...peak_of(seed, layer.reach) } : { layer, x: 0, z: 0 }));
+  return shape.map((layer) => {
+    if (layer.kind === "peak") return { layer, ...peak_of(seed, layer.reach) };
+    if (layer.kind === "dunes") return { layer, ...wind_of(seed, layer.seed) };
+    return { layer, x: 0, z: 0 };
+  });
 }
 
 /** The recipe's point layers folded in order over a height starting at 0. */

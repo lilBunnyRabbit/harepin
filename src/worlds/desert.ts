@@ -6,15 +6,15 @@ import { lap_facts, shown, type WorldDef } from "./world-def";
 export const desert: WorldDef = {
   kind: WorldKind.DESERT,
   listed: true,
-  name: "Desert",
-  pick: "Dunes, mesas and a fast loop through the sand",
-  note: "Sand, mesas and dune jumps",
-  hero: "Free roam. Hardpack is quick, loose sand slides. Flags on the orange circuit start the challenges.",
-  drawing: "Drawing desert…",
+  name: "Dune sea",
+  pick: "Dune crests, hardpack pans and a fast loop through the sand",
+  note: "Dune crests, pans and outposts",
+  hero: "Free roam. The pale pans are quick, loose sand slides. Flags on the orange circuit start the challenges.",
+  drawing: "Drawing the dune sea…",
   map_label: "desert",
   pads: false,
-  // Sand throws a warm bounce up under the car, and dust pulls the haze in.
-  mood: { hemi_ground: tones.dirt, fog_near: 80, fog_far: 1100 },
+  // Sand throws a warm bounce up under the car, and blown dust pulls a close haze in over the crests.
+  mood: { hemi_ground: tones.sand, fog_near: 60, fog_far: 950 },
   ground_puff: "dust",
   backdrop: "sky",
   facts: (f) => [...lap_facts(f, "circuit"), [shown(f, (f) => String(f.towns)), f?.towns === 1 ? "outpost" : "outposts"]],

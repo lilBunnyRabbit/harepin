@@ -57,8 +57,29 @@ export interface MaskLayer {
   wobble: number;
 }
 
+/** One wavelength of dunes: crests `wave` metres apart, `height` tall, the steep lee face taking `lee` of each wave. */
+export interface DuneBand {
+  wave: number;
+  height: number;
+  lee: number;
+}
+
+/** Dune crests across a seeded wind, one of 16 headings: gentle windward slopes, steep lee faces, broken into fields by noise. */
+export interface DunesLayer {
+  kind: "dunes";
+  seed: number;
+  bands: readonly DuneBand[];
+}
+
+/** Fills ground under `level` up to it, eased over `blend` metres: flat pans in the low ground between the dunes. */
+export interface PanLayer {
+  kind: "pan";
+  level: number;
+  blend: number;
+}
+
 /** A point layer: a pure function of position, seed and the height so far, so any tile can rebuild it alone. */
-export type TerrainLayer = LiftLayer | FbmLayer | RidgedLayer | PeakLayer | TerraceLayer | MaskLayer;
+export type TerrainLayer = LiftLayer | FbmLayer | RidgedLayer | PeakLayer | TerraceLayer | MaskLayer | DunesLayer | PanLayer;
 
 /** Point layers folded in order over a height starting at 0. */
 export type TerrainRecipe = readonly TerrainLayer[];
@@ -98,6 +119,8 @@ export interface GroundLimits {
   /** Trees grow between these heights. */
   tree_floor: number;
   tree_line: number;
+  /** Ground at or under `top` metres is the `ground` row, whatever the biome: a pan layer's floor. */
+  pan: { top: number; ground: Ground } | null;
 }
 
 export interface BiomeRecipe {
@@ -127,6 +150,8 @@ export interface TownRecipe {
   trees: boolean;
   /** Street block size: min plus up to span, metres. */
   block: { min: number; span: number };
+  /** Every building gets a flat roof: adobe outposts. */
+  flat_roofs: boolean;
 }
 
 export const Landmark = { MAST: "mast", LIGHTHOUSE: "lighthouse", TURBINES: "turbines", ARCH: "arch" } as const;
@@ -158,7 +183,7 @@ function shore(radius: number, edge: number): MaskLayer {
 
 const HARDPACK: BiomeRecipe["surfaces"] = { [Ground.DIRT]: SurfaceId.DIRT };
 const ZONES: ZoneRecipe = { coast: { top: 6, wobble: 5, scale: 90 }, bands: ["meadow", "forest", "upland"] };
-const LIMITS: GroundLimits = { beach: 2.2, scree: { up: 0.8, height: 120 }, rock: { up: 0.7, height: 135 }, snow_line: 165, tree_floor: 3, tree_line: 125 };
+const LIMITS: GroundLimits = { beach: 2.2, scree: { up: 0.8, height: 120 }, rock: { up: 0.7, height: 135 }, snow_line: 165, tree_floor: 3, tree_line: 125, pan: null };
 
 export const ISLAND: Recipe = {
   terrain: [LIFT, hills(95), ridges(22), { kind: "peak", height: 150, radius: 430, reach: 220 }, shore(960, -9)],
@@ -181,47 +206,53 @@ export const ISLAND: Recipe = {
     },
   },
   road: { loop: { radius: 620, swing: 640, min: 380, max: 860 }, stacks: [4, 2], canyon: { outlet: 2 }, kickers: { road: 4, total: 12, big: 3 } },
-  towns: { min: 3, max: 6, trees: true, block: { min: 45, span: 25 } },
+  towns: { min: 3, max: 6, trees: true, block: { min: 45, span: 25 }, flat_roofs: false },
   landmarks: [Landmark.MAST, Landmark.LIGHTHOUSE, Landmark.TURBINES, Landmark.ARCH],
   scatter: [],
 };
 
 const BARE = { start: 1, fill: 0, pine: 0, scrub: 0, extra: 0 };
-/** Dither width of the desert's patch edges, so hardpack frays into sand instead of a hard camouflage line. */
+/** Dither width of the dune sea's patch edges, so the two sand tones fray into each other instead of a hard camouflage line. */
 const SOFT = 0.3;
+/** Pan floor height and its ease; ground at the floor is pale SAND, laid as hardpack. Dune ground keeps to DUNE and UPLAND. */
+const PAN: PanLayer = { kind: "pan", level: 20, blend: 3 };
 
-/** Sand, hardpack and terraced mesas inside a dune wall: low hills, no trees, a few outposts. */
+/** Wind-aligned dune crests to the horizon, pale hardpack pans between them, a few adobe outposts inside a dune wall. */
 export const DESERT: Recipe = {
   terrain: [
     LIFT,
-    hills(62),
-    ridges(10),
-    { kind: "peak", height: 40, radius: 380, reach: 260 },
-    { kind: "terrace", base: 28, step: 16, riser: 0.3 },
+    { kind: "fbm", scale: 700, seed: 7, octaves: 4, power: 2, amp: 44 },
     // Past the mask the land rises to a dune wall instead of falling to a sea floor.
     shore(960, 42),
-    { kind: "ridged", scale: 260, stretch: 3, seed: 17, octaves: 3, power: 2, amp: 6 },
+    {
+      kind: "dunes",
+      seed: 17,
+      bands: [
+        { wave: 280, height: 16, lee: 0.18 },
+        { wave: 70, height: 3, lee: 0.2 },
+      ],
+    },
+    PAN,
   ],
   biomes: {
-    surfaces: HARDPACK,
+    surfaces: { [Ground.SAND]: SurfaceId.HARDPACK },
     zones: ZONES,
-    limits: LIMITS,
+    limits: { ...LIMITS, pan: { top: PAN.level + PAN.blend * 0.1, ground: Ground.SAND } },
     rules: { coast: BARE, meadow: BARE, forest: BARE, upland: BARE },
     items: { coast: "rock", meadow: "rock", forest: null, upland: "rock" },
     ground: {
-      coast: { cut: 0.55, above: Ground.SAND, below: Ground.SAND, soft: 0 },
-      meadow: { cut: 0.55, above: Ground.DIRT, below: Ground.SAND, soft: SOFT },
-      forest: { cut: 0.6, above: Ground.DUNE, below: Ground.SAND, soft: SOFT },
+      coast: { cut: 0.55, above: Ground.DUNE, below: Ground.DUNE, soft: 0 },
+      meadow: { cut: 0.55, above: Ground.UPLAND, below: Ground.DUNE, soft: SOFT },
+      forest: { cut: 0.6, above: Ground.DUNE, below: Ground.UPLAND, soft: SOFT },
       upland: { cut: 0.5, above: Ground.UPLAND, below: Ground.DUNE, soft: SOFT },
     },
   },
   road: { loop: { radius: 650, swing: 500, min: 420, max: 850 }, stacks: [], canyon: { outlet: 24 }, kickers: { road: 4, total: 16, big: 4 } },
-  towns: { min: 1, max: 3, trees: false, block: { min: 35, span: 15 } },
-  landmarks: [Landmark.ARCH, Landmark.MAST, Landmark.TURBINES],
+  towns: { min: 1, max: 3, trees: false, block: { min: 35, span: 15 }, flat_roofs: true },
+  landmarks: [Landmark.MAST, Landmark.TURBINES],
   scatter: [
-    { kind: PropKind.CACTUS, spacing: 30, odds: 0.08, biomes: ["meadow", "upland"] },
-    { kind: PropKind.BOULDER, spacing: 44, odds: 0.1, biomes: ["meadow", "forest", "upland"] },
-    { kind: PropKind.SPIRE, spacing: 130, odds: 0.18, biomes: ["upland"] },
+    { kind: PropKind.CACTUS, spacing: 46, odds: 0.05, biomes: ["meadow", "upland"] },
+    { kind: PropKind.BOULDER, spacing: 70, odds: 0.06, biomes: ["meadow", "forest", "upland"] },
   ],
 };
 
@@ -229,5 +260,5 @@ export const DESERT: Recipe = {
 export const MAINLAND: Recipe = {
   ...ISLAND,
   terrain: [LIFT, hills(110), ridges(26), { kind: "peak", height: 240, radius: 1100, reach: 1400 }, shore(2900, -9)],
-  towns: { min: 10, max: 16, trees: true, block: { min: 45, span: 25 } },
+  towns: { min: 10, max: 16, trees: true, block: { min: 45, span: 25 }, flat_roofs: false },
 };

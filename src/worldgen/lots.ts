@@ -210,7 +210,8 @@ export class Lots {
     const floors = shop ? 1 + Math.floor(r2 * (reach < 0.4 ? 4 : 2)) : r1 < 0.4 ? 2 : 1;
     const height = shop ? floors * SHOP_FLOOR + 0.6 : floors * FLOOR + 0.3;
     let roof: Roof;
-    if (shop) roof = floors <= 2 && r3 < 0.3 ? Roof.GABLE : Roof.FLAT;
+    if (this.shape.flat_roofs) roof = Roof.FLAT;
+    else if (shop) roof = floors <= 2 && r3 < 0.3 ? Roof.GABLE : Roof.FLAT;
     else roof = r3 < 0.1 ? Roof.FLAT : r3 < 0.5 ? Roof.GABLE : r3 < 0.75 ? Roof.CROSS : Roof.HIP;
     const front = shop ? -1 : lot.d / 2 - 2 - hd;
     const [x, z] = local_to_world(lot, 0, front);
