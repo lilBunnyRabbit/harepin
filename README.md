@@ -23,13 +23,13 @@ Peer data is untrusted: `net.ts` takes the sender id from the WebRTC peer, shape
 
 ## Layout
 
-- `src/car.ts`: the sim. Rigid body at 360 Hz, raycast suspension + anti-roll bars, normalised Pacejka tyres with combined slip, semi-implicit wheel spin, torque curve, 6-speed box, RWD, ABS, TCS, and an assist mode that does three things: speed-sensitive grip-limited steering lock, countersteer past 6° of slide, and a yaw damper that only fights yaw growing a slide.
-- `src/world.ts`: 2 km procedural island heightfield (4 m grid), 4.1 km road loop flattened into it, 12 gates, ~4.7k trees.
-- `src/scene.ts`, `src/models.ts`, `src/sky.ts`, `src/effects.ts`: terrain/road/trees, car/gates/curbs/posts, dusk sky + clouds, tyre smoke/dust + skid marks.
-- `src/camera.ts`: chase cam that leads into slides, pulls back under acceleration, shakes off-road and on impacts.
-- `src/net.ts`, `src/remotes.ts`: each client owns its car and broadcasts at 20 Hz from a timer; remotes drawn 110 ms behind, interpolated. Transport: trystero (WebRTC, signalling over public Nostr relays, ~10-30 s to find a peer) plus BroadcastChannel for same-browser tabs. Cars are ghosts.
-- `src/theme.ts`, `src/palette.ts`: the webos theme presets (mirrored from webos `themes.ts`), applied as the same CSS custom properties webos uses (`--background`, `--primary`, …). The HUD styles from those vars; the 3D scene reads each resolved token back through a probe + 1px canvas, so relative-colour presets work too. Dark themes render dusk, light themes daytime. Theme picker in the HUD, saved in localStorage.
-- `src/ghost.ts`: records each lap at 10 Hz, replays your best lap as a translucent car.
+- `src/car/car.ts`: the sim. Rigid body at 360 Hz, raycast suspension + anti-roll bars, normalised Pacejka tyres with combined slip, semi-implicit wheel spin, torque curve, 6-speed box, RWD, ABS, TCS, and an assist mode that does three things: speed-sensitive grip-limited steering lock, countersteer past 6° of slide, and a yaw damper that only fights yaw growing a slide.
+- `src/world/world.ts`: 2 km procedural island heightfield (4 m grid), 4.1 km road loop flattened into it, 12 gates, ~4.7k trees.
+- `src/render/scene.ts`, `src/car/models.ts`, `src/render/sky.ts`, `src/render/effects.ts`: terrain/road/trees, car/gates/curbs/posts, dusk sky + clouds, tyre smoke/dust + skid marks.
+- `src/render/camera.ts`: chase cam that leads into slides, pulls back under acceleration, shakes off-road and on impacts.
+- `src/net/net.ts`, `src/net/remotes.ts`: each client owns its car and broadcasts at 20 Hz from a timer; remotes drawn 110 ms behind, interpolated. Transport: trystero (WebRTC, signalling over public Nostr relays, ~10-30 s to find a peer) plus BroadcastChannel for same-browser tabs. Cars are ghosts.
+- `src/theme/theme.ts`, `src/theme/palette.ts`: the webos theme presets (mirrored from webos `themes.ts`), applied as the same CSS custom properties webos uses (`--background`, `--primary`, …). The HUD styles from those vars; the 3D scene reads each resolved token back through a probe + 1px canvas, so relative-colour presets work too. Dark themes render dusk, light themes daytime. Theme picker in the HUD, saved in localStorage.
+- `src/car/ghost.ts`: records each lap at 10 Hz, replays your best lap as a translucent car.
 
 ## Why no physics engine
 
