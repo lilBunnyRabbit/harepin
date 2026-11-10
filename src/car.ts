@@ -1,6 +1,6 @@
 import { Quaternion, Vector3 } from "three";
 import { COUPE, type CarSpec } from "./cars";
-import { NITRO_TORQUE, Nitro } from "./nitro";
+import { NITRO_TORQUE, Nitro, type NitroSense } from "./nitro";
 
 export interface Ground {
   /** `y`, when given, is the height the query comes from; a ground with stacked surfaces answers the one below it. */
@@ -175,13 +175,28 @@ const inv = new Quaternion();
 const steer_q = new Quaternion();
 const Y = new Vector3(0, 1, 0);
 
+// A driven rear counts its sideways slip too, not wheelspin alone: in a tight turn it saturates sideways at a spin
+// traction control never saw, and full drive swung the tail in. A front's sideways slip is the steering's; cutting
+// power for it only stalls the car.
+function tcs_spin(w: Wheel, low: boolean, peak_slip: number): number {
+  return low && w.contact && !w.front ? Math.hypot(Math.max(0, w.slip), w.lateral * peak_slip * TCS_LATERAL) : w.slip;
+}
+
+/** Height of the ray from `mount` along `down`, `t` metres out, above the ground under it. */
+function ray_gap(ground: Ground, t: number): number {
+  const y = mount.y + down.y * t;
+  return y - ground.height(mount.x + down.x * t, mount.z + down.z * t, y);
+}
+
 export class Car {
   readonly pos = new Vector3();
   readonly quat = new Quaternion();
   readonly vel = new Vector3();
   readonly ang = new Vector3();
   readonly wheels: Wheel[];
+  private readonly driven: Wheel[];
   private readonly corners: Vector3[];
+  private readonly sense: NitroSense = { slide: 0, speed: 0, airborne: false };
 
   gear = 1;
   auto = true;
@@ -204,6 +219,7 @@ export class Car {
   constructor(readonly spec: CarSpec = COUPE) {
     this.nitro = new Nitro(spec.nitro ?? 0);
     this.wheels = spec.wheel.mounts.map(([x, y, z]) => new Wheel(new Vector3(x, y, z), z > 0, x > 0, spec));
+    this.driven = this.wheels.filter((w) => w.driven);
     this.corners = spec.corners.map(([x, y, z]) => new Vector3(x, y, z));
     this.rpm = spec.idle;
   }
@@ -355,7 +371,7 @@ export class Car {
     const rate = input.analog ? STEER_RATE : Math.max(1.6, lock * 6) * (input.steer === 0 ? 1.6 : 1);
     this.steer += Math.max(-rate * dt, Math.min(rate * dt, target - this.steer));
 
-    const driven = this.wheels.filter((w) => w.driven);
+    const driven = this.driven;
     const wheel_omega = driven.reduce((sum, w) => sum + w.omega, 0) / driven.length;
     const ratio = this.ratio();
     const wheel_rpm = Math.abs((wheel_omega * ratio * 60) / (2 * Math.PI));
@@ -374,17 +390,13 @@ export class Car {
     let max_drag = 0;
     const acting = this.tcs && pedal > 0.1 && speed > 1;
     const low = acting && speed < TCS_LOW_SPEED;
-    // A driven rear counts its sideways slip too, not wheelspin alone: in a tight turn it saturates sideways at a spin
-    // traction control never saw, and full drive swung the tail in. A front's sideways slip is the steering's; cutting
-    // power for it only stalls the car.
-    const spin = (w: Wheel) => (low && w.contact && !w.front ? Math.hypot(Math.max(0, w.slip), w.lateral * spec.peak_slip * TCS_LATERAL) : w.slip);
     for (let i = 0; i < 4; i++) {
       const w = this.wheels[i];
       if (!w.driven) continue;
       // An axle spins when both its wheels do; one spinning alone, like the unloaded inner wheel in a tight turn, is
       // braked instead, as a brake-based TCS does. Cutting the engine for it starved the loaded wheel and the car bogged.
       const other = this.wheels[i ^ 1];
-      max_slip = Math.max(max_slip, low ? Math.min(spin(w), spin(other)) : spin(w));
+      max_slip = Math.max(max_slip, low ? Math.min(tcs_spin(w, low, spec.peak_slip), tcs_spin(other, low, spec.peak_slip)) : tcs_spin(w, low, spec.peak_slip));
       const lone = low && w.contact && w.slip > TCS_SLIP && other.slip <= TCS_SLIP;
       w.tcs_brake = lone ? Math.min(1, w.tcs_brake + 9 * dt) : Math.max(0, w.tcs_brake - 2.5 * dt);
       if (!w.contact) max_drag = Math.max(max_drag, -w.slip);
@@ -402,7 +414,10 @@ export class Car {
     // First gear is grip-bound: boost there only spins the wheels, and spinning wheels hold the auto box off its upshift.
     // Mid-shift and on the limiter no torque reaches the wheels, so nothing burns either.
     const drives = this.gear >= 2 && this.shifting <= 0 && rpm < spec.redline;
-    const boost = this.nitro.step(dt, !!input.nitro && drives && pedal > 0.1 && grounded, { slide, speed, airborne: !grounded });
+    this.sense.slide = slide;
+    this.sense.speed = speed;
+    this.sense.airborne = !grounded;
+    const boost = this.nitro.step(dt, !!input.nitro && drives && pedal > 0.1 && grounded, this.sense);
     this.rpm += (rpm - this.rpm) * Math.min(1, dt * 30);
     let engine = 0;
     if (this.shifting <= 0 && this.gear !== 0) {
@@ -431,21 +446,17 @@ export class Car {
     const reach = rest + radius;
     for (const w of this.wheels) {
       mount.copy(w.mount).applyQuaternion(quat).add(pos);
-      const f = (t: number) => {
-        const y = mount.y + down.y * t;
-        return y - ground.height(mount.x + down.x * t, mount.z + down.z * t, y);
-      };
       let t = reach;
       w.contact = false;
-      if (f(reach) <= 0) {
+      if (ray_gap(ground, reach) <= 0) {
         w.contact = true;
-        if (f(0) <= 0) t = 0;
+        if (ray_gap(ground, 0) <= 0) t = 0;
         else {
           let lo = 0;
           let hi = reach;
           for (let i = 0; i < 12; i++) {
             const mid = (lo + hi) / 2;
-            if (f(mid) > 0) lo = mid;
+            if (ray_gap(ground, mid) > 0) lo = mid;
             else hi = mid;
           }
           t = (lo + hi) / 2;

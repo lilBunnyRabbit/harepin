@@ -22,9 +22,30 @@ const ABOVE = new THREE.Vector3(0, 2.2, 0);
 const REBUILD_GAP_MS = 1000;
 
 // Peers that predate build codes only send a paint index; they show as a stock coupe in that paint.
-function build_of(state: CarState): Build {
+interface Resolved {
+  build: Build;
+  code: string;
+}
+
+/** Distinct build codes kept parsed; a peer cycling codes only ever costs a reparse once this fills. */
+const RESOLVED_CAP = 64;
+const resolved = new Map<string, Resolved | null>();
+
+function resolve(build: Build): Resolved {
+  return { build, code: build_code(build) };
+}
+
+function build_of(state: CarState): Resolved {
   const code = "b" in state ? state.b : undefined;
-  return parse_build(code) ?? { ...DEFAULT_BUILD, paint: state.paint };
+  if (code === undefined) return resolve({ ...DEFAULT_BUILD, paint: state.paint });
+  let hit = resolved.get(code);
+  if (hit === undefined) {
+    if (resolved.size >= RESOLVED_CAP) resolved.clear();
+    const build = parse_build(code);
+    hit = build && resolve(build);
+    resolved.set(code, hit);
+  }
+  return hit ?? resolve({ ...DEFAULT_BUILD, paint: state.paint });
 }
 
 // Each remote gets its own material copies so its fade never touches another car.
@@ -87,8 +108,7 @@ export class Remotes {
   }
 
   private draw(remote: Remote, dt: number, camera: THREE.Camera, me: THREE.Vector3) {
-    const build = build_of(remote.latest);
-    const code = build_code(build);
+    const { build, code } = build_of(remote.latest);
     let rv = this.views.get(remote.id);
     const now = performance.now();
     if (rv && rv.code !== code && now - rv.built >= REBUILD_GAP_MS) {
