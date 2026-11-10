@@ -58,7 +58,7 @@ const unlock_audio = () => {
   if (audio.running) for (const event of UNLOCK_EVENTS) removeEventListener(event, unlock_audio);
 };
 for (const event of UNLOCK_EVENTS) addEventListener(event, unlock_audio);
-const { world, data, chunks } = await load_world(seed, kind);
+const { world, chunks } = await load_world(seed, kind);
 
 const quality = new Quality(params, prefs.quality);
 const scene = new THREE.Scene();
@@ -147,7 +147,6 @@ const settings = new Settings(document.body, {
   room,
   seed,
   kind,
-  world_data: data,
   name: () => net.name,
   quality_status: () => ({ tier: quality.tier_name, ratio: quality.ratio, bloom: quality.tier.bloom, shadow_size: quality.tier.shadow_size }),
   race_busy: () => lobby.busy,

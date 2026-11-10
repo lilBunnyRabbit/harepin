@@ -7,7 +7,7 @@ import { SIZE, World, type RoadPoint, type Tree } from "../world/world";
 import { CHUNK, Ground, JITTER_LEVELS, type ChunkBuffers, type MeshTones } from "../worldgen/chunks";
 import { TreeKind } from "../worldgen/biomes";
 import type { Lab } from "../theme/theme";
-import type { WorldData, WorldKind } from "../worldgen/types";
+import type { WorldKind } from "../worldgen/types";
 import type { GenRequest, GenResult } from "../worldgen/worker";
 
 const JITTER_LIGHTNESS = 0.035;
@@ -62,7 +62,6 @@ export function mesh_tones(): MeshTones {
 
 export interface LoadedWorld {
   world: World;
-  data: WorldData;
   chunks: ChunkBuffers[];
   gen_ms: number;
   mesh_ms: number;
@@ -74,7 +73,7 @@ export function load_world(seed: number, kind: WorldKind): Promise<LoadedWorld> 
     worker.addEventListener("message", (event: MessageEvent<GenResult>) => {
       worker.terminate();
       const { data, chunks, gen_ms, mesh_ms } = event.data;
-      resolve({ world: new World(seed, data), data, chunks, gen_ms, mesh_ms });
+      resolve({ world: new World(seed, data), chunks, gen_ms, mesh_ms });
     });
     worker.addEventListener("error", (event) => {
       worker.terminate();

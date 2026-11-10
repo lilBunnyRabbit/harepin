@@ -4,7 +4,7 @@ import type { RaceChoice } from "../modes/races";
 import type { Rows, Value } from "./setting-rows";
 import { world_query } from "../world/world-pick";
 import { DEFAULT_KIND } from "../worldgen/kinds/kinds";
-import type { WorldData, WorldKind } from "../worldgen/types";
+import type { WorldKind } from "../worldgen/types";
 import type { Laps, QualityTier, SettingKey, SettingsState } from "./prefs";
 
 export const MenuTab = {
@@ -27,8 +27,6 @@ export interface SettingsHost {
   readonly room: string;
   readonly seed: number;
   readonly kind: WorldKind;
-  /** The loaded world, so the world map draws it without generating it again. */
-  readonly world_data: WorldData;
   name(): string;
   quality_status(): QualityStatus;
   race_busy(): boolean;

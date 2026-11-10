@@ -1,9 +1,9 @@
 import { brand, linear, rgba, tones } from "../theme/palette";
 import { sky_tones } from "../render/sky";
 import { mesh_tones } from "../render/scene";
-import { MAP_SIDE, MapLineKind, map_data, type MapData, type MapMark, type MapTones } from "../worldgen/map";
+import { MAP_SIDE, MapLineKind, type MapData, type MapMark, type MapTones } from "../worldgen/map";
 import type { MapRequest } from "../worldgen/map-worker";
-import type { WorldData, WorldKind } from "../worldgen/types";
+import type { WorldKind } from "../worldgen/types";
 import { WORLDS } from "../worlds/worlds";
 import "./world-map.css";
 
@@ -44,8 +44,7 @@ export class WorldMap {
   private map: MapData | null = null;
   private image: ImageBitmap | null = null;
 
-  /** `loaded` is the world already driven, drawn without generating it again. */
-  constructor(private readonly loaded: WorldData | null = null) {
+  constructor() {
     this.root.className = "world-map";
     this.canvas.setAttribute("role", "img");
     this.note.className = "world-map-note";
@@ -69,7 +68,6 @@ export class WorldMap {
   }
 
   private request(seed: number, kind: WorldKind) {
-    if (this.loaded?.terrain.seed === seed && this.loaded.kind === kind) return void this.receive(map_data(this.loaded, map_tones()));
     // A generation can't be cancelled from outside, so a stale one is dropped with its worker.
     this.worker?.terminate();
     const worker = new Worker(new URL("../worldgen/map-worker.ts", import.meta.url), { type: "module" });

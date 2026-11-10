@@ -16,7 +16,7 @@ export class WorldPage implements MenuPage {
   private chosen_kind: WorldKind;
 
   constructor(private readonly menu: Menu) {
-    this.world_map = new WorldMap(menu.host.world_data);
+    this.world_map = new WorldMap();
     this.chosen = menu.host.seed;
     this.chosen_kind = menu.host.kind;
   }
