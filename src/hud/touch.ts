@@ -1,11 +1,11 @@
 import { $ } from "./hud";
 import type { Action } from "./bindings";
-import { TouchSteer } from "../menu/prefs";
+import { SteerSensitivity, TouchSteer } from "../menu/prefs";
+import { drag_steer, FULL_LOCK_PX } from "./drag-steer";
 import "./touch.css";
 
-const STEER_RANGE = 70;
-const STEER_DEADZONE = 6;
-const STEER_CURVE = 1.4;
+/** Knob offset in px at full lock, whatever the sensitivity, so the knob at the ring's edge always means full lock. */
+const KNOB_REACH = 70;
 /** Least pedal a zone press gives: a thumb landing low on a pedal, or below it, still drives. */
 const PEDAL_FLOOR = 0.25;
 
@@ -41,6 +41,7 @@ export class Touch {
   private abort: AbortController | null = null;
   private tick = 0;
   private steer_mode: TouchSteer = TouchSteer.DRAG;
+  private full_lock = FULL_LOCK_PX[SteerSensitivity.MEDIUM];
   private nitro_key = $("nitro-key");
 
   constructor(private root: HTMLElement) {}
@@ -73,6 +74,10 @@ export class Touch {
     this.steer_mode = mode;
     this.root.dataset.steer = mode;
     this.sync();
+  }
+
+  set_sensitivity(sensitivity: SteerSensitivity) {
+    this.full_lock = FULL_LOCK_PX[sensitivity];
   }
 
   start() {
@@ -149,10 +154,9 @@ export class Touch {
       const mid = left && right ? (left.right + right.left) / 2 : innerWidth / 4;
       finger.value = e.clientX < mid ? -1 : 1;
     } else if (finger.control === "steer") {
-      const dx = Math.max(-STEER_RANGE, Math.min(STEER_RANGE, e.clientX - finger.origin));
-      const dead = Math.max(0, Math.abs(dx) - STEER_DEADZONE) / (STEER_RANGE - STEER_DEADZONE);
-      finger.value = Math.sign(dx) * dead ** STEER_CURVE;
-      this.knob.style.translate = `${dx}px 0`;
+      const dx = e.clientX - finger.origin;
+      finger.value = drag_steer(dx, this.full_lock);
+      this.knob.style.translate = `${(Math.max(-1, Math.min(1, dx / this.full_lock)) * KNOB_REACH).toFixed(1)}px 0`;
     } else if (finger.control === "pedals") this.pedal(finger, e);
     else finger.value = 1;
     this.sync();

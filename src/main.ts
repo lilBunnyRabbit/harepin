@@ -208,6 +208,7 @@ function apply_settings(state: SettingsState) {
   hud.set_map(state.map);
   for (const chip of document.querySelectorAll<HTMLElement>("[data-aid]")) chip.setAttribute("aria-pressed", String(state[chip.dataset.aid as Aid]));
   input.touch.set_steer_mode(state.touch_steer);
+  input.touch.set_sensitivity(state.steer_sensitivity);
   input.precision = state.precision_key;
   input.set_bindings(state.bindings);
   show_key_hints(state.bindings);

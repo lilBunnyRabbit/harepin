@@ -59,6 +59,10 @@ export type MapView = (typeof MapView)[keyof typeof MapView];
 export const TouchSteer = { DRAG: "drag", BUTTONS: "buttons" } as const;
 export type TouchSteer = (typeof TouchSteer)[keyof typeof TouchSteer];
 
+/** How little finger travel drag steering needs for full lock; the px per step live in `hud/drag-steer.ts`. */
+export const SteerSensitivity = { LOW: "low", MEDIUM: "medium", HIGH: "high", VERY_HIGH: "very_high" } as const;
+export type SteerSensitivity = (typeof SteerSensitivity)[keyof typeof SteerSensitivity];
+
 export const LAPS = [1, 2, 3, 5] as const;
 export type Laps = (typeof LAPS)[number];
 
@@ -75,6 +79,7 @@ export interface SettingsState {
   precision_key: boolean;
   bindings: Bindings;
   touch_steer: TouchSteer;
+  steer_sensitivity: SteerSensitivity;
   camera: CameraView;
   camera_return: CameraReturn;
   invert_y: boolean;
@@ -121,6 +126,7 @@ const FIELDS: { [K in SettingKey]: Field<SettingsState[K]> } = {
   precision_key: flag(false),
   bindings: { fallback: DEFAULT_BINDINGS, parse: parse_bindings },
   touch_steer: one_of(Object.values(TouchSteer), TouchSteer.DRAG),
+  steer_sensitivity: one_of(Object.values(SteerSensitivity), SteerSensitivity.MEDIUM),
   camera: one_of(Object.values(CameraView), CameraView.CHASE),
   camera_return: one_of(Object.values(CameraReturn), CameraReturn.SHORT),
   invert_y: flag(false),

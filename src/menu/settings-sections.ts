@@ -4,7 +4,7 @@ import { binding_rows } from "./binding-rows";
 import { el, icon, type Options, type Text } from "./setting-rows";
 import { THEMES, choose_theme, current_theme, find_saved, find_theme, load_saved_themes } from "../theme/theme";
 import type { SettingsMenu } from "./page";
-import { CameraReturn, CameraView, DashPlace, HudLayout, MapView, QualityMode, TouchSteer, type QualityTier } from "./prefs";
+import { CameraReturn, CameraView, DashPlace, HudLayout, MapView, QualityMode, SteerSensitivity, TouchSteer, type QualityTier } from "./prefs";
 import { BASE_TOKENS, saved_themes, theme_create } from "./theme-pages";
 import { stat } from "./widgets";
 import { country_name, flag, own_country } from "../net/country";
@@ -396,6 +396,14 @@ function controls(m: SettingsMenu): HTMLElement[] {
       m.rows.segmented("Touch steering", "Drag anywhere to steer, or arrow buttons that steer like the keyboard.", m.value("touch_steer"), [
         [TouchSteer.DRAG, "Drag"],
         [TouchSteer.BUTTONS, "Buttons"],
+      ]),
+    ),
+    touch_only(
+      m.rows.segmented("Steering sensitivity", "Drag steering: how far you drag for full lock. Lower needs a longer drag and steers finer.", m.value("steer_sensitivity"), [
+        [SteerSensitivity.LOW, "Low"],
+        [SteerSensitivity.MEDIUM, "Medium"],
+        [SteerSensitivity.HIGH, "High"],
+        [SteerSensitivity.VERY_HIGH, "Very high"],
       ]),
     ),
     m.rows.link("Change keys and buttons", "Pick an action, then press its new key or pad button.", "Keyboard and pad", () => m.show_sub("bindings")),
