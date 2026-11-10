@@ -1,7 +1,7 @@
 import { format } from "../hud/hud";
 import type { World } from "../world/world";
 import { find_site, to_world, type Site } from "./gymkhana";
-import { NO_SITE, body_of, type Driven, type Finish, type ModeCtx, type ModeDef, type ModeRun } from "./mode";
+import { NO_SITE, body_of, pose_of, type Driven, type Finish, type ModeCtx, type ModeDef, type ModeRun } from "./mode";
 import { PARK_LEVELS, ParkRun, ParkStatus, Verdict, park_footprint, park_solids, type ParkLevel } from "./parking";
 import { ParkingView } from "./parking-view";
 import { best_line, line, result_title } from "./result";
@@ -34,7 +34,7 @@ class Parking implements ModeRun {
   update(sim_dt: number, car: Driven): string {
     const { run } = this;
     const was = run.status;
-    run.update(sim_dt * 1000, { x: car.pos.x, z: car.pos.z, heading: car.heading, speed: car.vel.length() }, body_of(car.spec));
+    run.update(sim_dt * 1000, pose_of(car), body_of(car.spec));
     const verdict = run.last.verdict;
     this.view.inside(verdict === Verdict.INSIDE);
     if (was !== ParkStatus.DONE && run.status === ParkStatus.DONE) this.finish();

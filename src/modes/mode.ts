@@ -1,7 +1,7 @@
 import type * as THREE from "three";
 import type { CarSpec } from "../car/cars";
 import type { World } from "../world/world";
-import type { Body } from "./gymkhana";
+import type { Body, Pose } from "./gymkhana";
 import type { Track } from "./track";
 import type { Bindable } from "../hud/bindings";
 
@@ -75,6 +75,11 @@ export interface ModeDef<L extends Level = Level> {
   levels(world: World): readonly L[];
   /** A run, a status line saying why it can't start, or null to do nothing. */
   start(ctx: ModeCtx, level: L): ModeRun | string | null;
+}
+
+// Horizontal speed only: the car drops onto its spawn, and that fall would read as driving off.
+export function pose_of(car: Driven): Pose {
+  return { x: car.pos.x, z: car.pos.z, heading: car.heading, speed: Math.hypot(car.vel.x, car.vel.z) };
 }
 
 export function body_of(spec: CarSpec): Body {
