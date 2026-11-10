@@ -1,9 +1,9 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import { CHUNKS, Roads } from "./chunks";
+import { CHUNKS, road_junctions, road_layers, Roads, type RoadTones } from "./chunks";
 import { sample } from "./field";
 import { hash } from "./noise";
-import { N, type RoadPoint } from "./types";
+import { N, SPUR_HALF, type RoadGraph, type RoadPoint } from "./types";
 
 const HALF = 6;
 const LIFT = 0.03;
@@ -76,4 +76,90 @@ test("a road ring lies exactly its lift above the ground everywhere, not only at
       worst = Math.max(worst, Math.abs(y - LIFT - sample(heights, x, z)));
     }
   expect(worst).toBeLessThan(1e-3);
+});
+
+const SPUR = 40;
+const TONES = { asphalt: [0, 0, 0], sidewalk: [0, 0, 1], line: [0, 1, 0], edge_line: [1, 0, 0] } satisfies RoadTones;
+
+// A spur meeting the ring fixture head-on at its point 0, the way `Router` brings every spur in along the ring normal.
+function junction_surface() {
+  const heights = bumpy();
+  const road = ring();
+  const at = road[0];
+  const spur: RoadPoint[] = Array.from({ length: SPUR }, (_, i) => ({ x: at.x + (SPUR - 1 - i) * STEP, y: 0, z: at.z, tx: -1, tz: 0 }));
+  const graph: RoadGraph = {
+    nodes: [
+      { id: 0, x: at.x, z: at.z, y: 0, kind: "junction" },
+      { id: 1, x: spur[0].x, z: spur[0].z, y: 0, kind: "end" },
+    ],
+    edges: [
+      { id: 0, a: 0, b: 0, kind: "highway", half: HALF, closed: true, points: road },
+      { id: 1, a: 1, b: 0, kind: "highway", half: SPUR_HALF, closed: false, points: spur },
+    ],
+  };
+  const roads = road_layers({ road, graph, circuit: [0] }, heights, TONES);
+  const positions = Float32Array.from(roads.surface.flatMap((layer) => layer.positions));
+  return { at, positions, patched: road_junctions({ road, graph, circuit: [0] }).patched.length };
+}
+
+function inside(p: Float32Array, t: number, x: number, z: number): boolean {
+  const o = t * 9;
+  const side = (a: number, b: number) => (p[o + b * 3] - p[o + a * 3]) * (z - p[o + a * 3 + 2]) - (p[o + b * 3 + 2] - p[o + a * 3 + 2]) * (x - p[o + a * 3]);
+  const s0 = side(0, 1);
+  const s1 = side(1, 2);
+  const s2 = side(2, 0);
+  return (s0 >= 0 && s1 >= 0 && s2 >= 0) || (s0 <= 0 && s1 <= 0 && s2 <= 0);
+}
+
+function near(p: Float32Array, x: number, z: number, reach: number): number[] {
+  const out: number[] = [];
+  for (let t = 0; t < p.length / 9; t++) if (Math.hypot(p[t * 9] - x, p[t * 9 + 2] - z) < reach) out.push(t);
+  return out;
+}
+
+test("a spur meets the ring through one patch: no edge is open with asphalt on both sides of it", () => {
+  const { at, positions: p, patched } = junction_surface();
+  expect(patched).toBe(1);
+  const tris = near(p, at.x, at.z, 40);
+  const key = (v: number) => `${p[v * 3]},${p[v * 3 + 1]},${p[v * 3 + 2]}`;
+  const uses = new Map<string, { a: number; b: number; count: number }>();
+  for (const t of tris)
+    for (let e = 0; e < 3; e++) {
+      const a = t * 3 + e;
+      const b = t * 3 + ((e + 1) % 3);
+      const id = [key(a), key(b)].sort().join("|");
+      const edge = uses.get(id);
+      if (edge) edge.count++;
+      else uses.set(id, { a, b, count: 1 });
+    }
+  const covered = (x: number, z: number) => tris.some((t) => inside(p, t, x, z));
+  let cracks = 0;
+  for (const { a, b, count } of uses.values()) {
+    if (count !== 1) continue;
+    const mx = (p[a * 3] + p[b * 3]) / 2;
+    const mz = (p[a * 3 + 2] + p[b * 3 + 2]) / 2;
+    if (Math.hypot(mx - at.x, mz - at.z) > 30) continue;
+    const len = Math.hypot(p[b * 3] - p[a * 3], p[b * 3 + 2] - p[a * 3 + 2]) || 1;
+    const nx = (-(p[b * 3 + 2] - p[a * 3 + 2]) / len) * 0.01;
+    const nz = ((p[b * 3] - p[a * 3]) / len) * 0.01;
+    if (covered(mx + nx, mz + nz) && covered(mx - nx, mz - nz)) cracks++;
+  }
+  expect(cracks).toBe(0);
+});
+
+test("a junction patch and the strips it trims face up and never overlap", () => {
+  const { at, positions: p } = junction_surface();
+  const tris = near(p, at.x, at.z, 40);
+  for (const t of tris) {
+    const o = t * 9;
+    expect((p[o + 5] - p[o + 2]) * (p[o + 6] - p[o]) - (p[o + 3] - p[o]) * (p[o + 8] - p[o + 2])).toBeGreaterThanOrEqual(-1e-6);
+  }
+  let worst = 0;
+  for (let i = -60; i <= 60; i++)
+    for (let j = -60; j <= 60; j++) {
+      const x = at.x + i * 0.4137 + 0.0731;
+      const z = at.z + j * 0.4093 + 0.0419;
+      worst = Math.max(worst, tris.filter((t) => inside(p, t, x, z)).length);
+    }
+  expect(worst).toBe(1);
 });

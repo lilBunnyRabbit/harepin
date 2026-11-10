@@ -7,7 +7,8 @@ import { Builder, bounding_sphere, turned, type Rgb, type Sphere } from "./mesh"
 import { deck_layers, type DeckTones } from "./sky-mesh";
 import { fbm, hash } from "./noise";
 import { spur_edges } from "./graph";
-import { CELL, DIRT, N, ORIGIN, PropKind, ROAD_HALF, Roof, SIDEWALK, SIZE, type RoadPoint, type WorldData } from "./types";
+import { junction_patch, type Arm, type Patch, type PatchPoint, type Reach, type RimPoint } from "./junction";
+import { CELL, DIRT, N, ORIGIN, PropKind, ROAD_HALF, Roof, SIDEWALK, SIZE, type RoadEdge, type RoadPoint, type WorldData } from "./types";
 
 export const CHUNK = 256;
 export const CHUNKS = SIZE / CHUNK;
@@ -37,10 +38,15 @@ const DASH = 6;
 const DASH_ON = 3;
 const SPUR_MARK_CLEAR = 8;
 const SPUR_MOUTH = 30;
+const CURB = 8;
 const MOUTH_CLEAR = 5;
 const REACH_MARGIN = 0.8;
 /** A cell whose two halves differ by at most this (m, corner sums) counts as one plane: road pieces skip its diagonal. */
 const FLAT_CELL = 0.001;
+const GIVE_WAY_DASH = 0.6;
+const GIVE_WAY_GAP = 0.3;
+const GIVE_WAY_OUT = 0.3;
+const GIVE_WAY_WIDTH = 0.4;
 
 const SHOPFRONT_LOW = 0.5;
 const SHOPFRONT_HIGH = 2.8;
@@ -90,6 +96,32 @@ export interface ChunkBuffers {
 interface Layer {
   positions: number[];
   colors: number[];
+}
+
+/** Height above the ground: `y` at (x, z), changing by gx, gz per metre. */
+interface Lift {
+  y: number;
+  gx: number;
+  gz: number;
+  x: number;
+  z: number;
+}
+
+function level(y: number): Lift {
+  return { y, gx: 0, gz: 0, x: 0, z: 0 };
+}
+
+// Anchored at `a`, a rim point: along a mouth both ends share the arm's lift and the plane drifts from it only by rounding.
+function plane(a: PatchPoint, b: PatchPoint, c: PatchPoint): Lift {
+  if (a.lift === b.lift && a.lift === c.lift) return level(a.lift);
+  const bx = b.x - a.x;
+  const bz = b.z - a.z;
+  const cx = c.x - a.x;
+  const cz = c.z - a.z;
+  const det = bx * cz - bz * cx || 1;
+  const db = b.lift - a.lift;
+  const dc = c.lift - a.lift;
+  return { y: a.lift, gx: (db * cz - dc * bz) / det, gz: (dc * bx - db * cx) / det, x: a.x, z: a.z };
 }
 
 export function chunk_of(x: number, z: number): number {
@@ -197,6 +229,7 @@ export class Roads {
   strip(layers: Layer[], road: RoadPoint[], closed: boolean, from: number, to: number, lift: number, keep: (s: number) => boolean, rgb: Rgb) {
     const segments = closed ? road.length : road.length - 1;
     const reach = offset_reach(road, closed);
+    const flat = level(lift);
     for (let s = 0; s < segments; s++) {
       if (!keep(s)) continue;
       const a = road[s];
@@ -204,11 +237,11 @@ export class Roads {
       const ra = reach[s];
       const rb = reach[(s + 1) % road.length];
       const layer = layers[chunk_of(a.x, a.z)];
-      this.quad(layer, a, b, ra, rb, from, to, lift, rgb);
+      this.quad(layer, a, b, ra, rb, from, to, flat, rgb);
     }
   }
 
-  private quad(layer: Layer, a: RoadPoint, b: RoadPoint, ra: Reach, rb: Reach, from: number, to: number, lift: number, rgb: Rgb) {
+  private quad(layer: Layer, a: RoadPoint, b: RoadPoint, ra: Reach, rb: Reach, from: number, to: number, lift: Lift, rgb: Rgb) {
     const a0 = Math.max(ra[0], Math.min(ra[1], from));
     const a1 = Math.max(ra[0], Math.min(ra[1], to));
     const b0 = Math.max(rb[0], Math.min(rb[1], from));
@@ -223,13 +256,61 @@ export class Roads {
     this.draped(layer, b0x, b0z, a1x, a1z, b.x - b.tz * b1, b.z + b.tx * b1, lift, rgb);
   }
 
+  /** A fan from the patch centre to its rim; lift eases between the arms' lifts so each mouth meets its strip flush. */
+  patch(layer: Layer, patch: Patch, rgb: Rgb) {
+    const { centre: c, outline } = patch;
+    for (let q = 0; q < outline.length; q++) {
+      const a = outline[(q + 1) % outline.length];
+      const b = outline[q];
+      this.draped(layer, c.x, c.z, a.x, a.z, b.x, b.z, plane(b, a, c), rgb);
+    }
+  }
+
+  rim_line(layer: Layer, line: RimPoint[], from: number, to: number, lift: number, rgb: Rgb) {
+    const flat = level(lift);
+    for (let q = 0; q + 1 < line.length; q++) {
+      const a = line[q];
+      const b = line[q + 1];
+      const a0x = a.x + a.wx * from;
+      const a0z = a.z + a.wz * from;
+      const b0x = b.x + b.wx * from;
+      const b0z = b.z + b.wz * from;
+      const a1x = a.x + a.wx * to;
+      const a1z = a.z + a.wz * to;
+      this.up(layer, a0x, a0z, a1x, a1z, b0x, b0z, flat, rgb);
+      this.up(layer, b0x, b0z, a1x, a1z, b.x + b.wx * to, b.z + b.wz * to, flat, rgb);
+    }
+  }
+
+  give_way(layer: Layer, p: RoadPoint, half: number, out: number, width: number, lift: number, rgb: Rgb) {
+    const flat = level(lift);
+    const dashes = Math.max(1, Math.round((2 * half + GIVE_WAY_GAP) / (GIVE_WAY_DASH + GIVE_WAY_GAP)));
+    const dash = (2 * half - (dashes - 1) * GIVE_WAY_GAP) / dashes;
+    const at = (side: number, ahead: number): [number, number] => [p.x - p.tz * side + p.tx * ahead, p.z + p.tx * side + p.tz * ahead];
+    for (let d = 0; d < dashes; d++) {
+      const s0 = -half + d * (dash + GIVE_WAY_GAP);
+      const s1 = s0 + dash;
+      const [ax, az] = at(s0, out);
+      const [bx, bz] = at(s1, out);
+      const [cx, cz] = at(s0, out + width);
+      const [ex, ez] = at(s1, out + width);
+      this.up(layer, ax, az, bx, bz, cx, cz, flat, rgb);
+      this.up(layer, cx, cz, bx, bz, ex, ez, flat, rgb);
+    }
+  }
+
+  private up(layer: Layer, ax: number, az: number, bx: number, bz: number, cx: number, cz: number, lift: Lift, rgb: Rgb) {
+    if ((bz - az) * (cx - ax) - (bx - ax) * (cz - az) >= 0) this.draped(layer, ax, az, bx, bz, cx, cz, lift, rgb);
+    else this.draped(layer, ax, az, cx, cz, bx, bz, lift, rgb);
+  }
+
   // Terrain is linear only inside each half cell, so a road triangle spanning a crease would cut under a ridge or float
   // over a dip. Cutting it along every cell edge and diagonal it crosses lays it exactly on the ground the car drives on.
   // Every triangle is cut, however flat: one left whole beside a cut neighbour leaves a T-junction crack along their
   // shared edge, and its sag, deeper than the gap between asphalt and marks, sank lane marks under the asphalt.
   // Whether a cut happens depends only on the terrain, never on the road triangle, so neighbours always agree: a diagonal
   // is skipped only where its cell is flat, and then by every piece in that cell.
-  private draped(layer: Layer, ax: number, az: number, bx: number, bz: number, cx: number, cz: number, lift: number, rgb: Rgb) {
+  private draped(layer: Layer, ax: number, az: number, bx: number, bz: number, cx: number, cz: number, lift: Lift, rgb: Rgb) {
     this.pieces.clear();
     this.pieces.begin();
     this.pieces.push(ax, az);
@@ -270,8 +351,9 @@ export class Roads {
     this.cut = pieces;
   }
 
-  private lay(layer: Layer, x: number, z: number, lift: number, rgb: Rgb) {
-    layer.positions.push(x, sample(this.heights, x, z) + lift, z);
+  private lay(layer: Layer, x: number, z: number, lift: Lift, rgb: Rgb) {
+    const up = lift.y + lift.gx * (x - lift.x) + lift.gz * (z - lift.z);
+    layer.positions.push(x, sample(this.heights, x, z) + up, z);
     layer.colors.push(rgb[0], rgb[1], rgb[2]);
   }
 }
@@ -290,9 +372,6 @@ function cell_column(pieces: Pieces, p: number, axis: 0 | 1): number {
   for (let i = 0; i < n; i++) sum += pieces.xz[s + 2 * i + axis];
   return Math.max(0, Math.min(N - 1, Math.floor((sum / n - ORIGIN) / CELL)));
 }
-
-/** Lowest and highest side offset a point's ribbon vertices may take. */
-type Reach = [number, number];
 
 // On a bend tighter than the ribbon's half width the inner offsets of two neighbouring points cross and the strip folds
 // into bow-ties. A quad keeps its winding while each end's offset stays ahead of the other end's offset line:
@@ -339,15 +418,132 @@ function nearest_index(road: RoadPoint[], x: number, z: number): number {
   return best;
 }
 
-function road_layers(data: WorldData, tones: MeshTones): Roads {
-  const out = new Roads(data.terrain.heights);
+interface ArmStyle {
+  radius: number;
+  rank: number;
+  lift: number;
+  lined: boolean;
+  sidewalk: number;
+}
+
+const RING_ARM: ArmStyle = { radius: CURB, rank: 2, lift: RING_LIFT, lined: true, sidewalk: 0 };
+const SPUR_ARM: ArmStyle = { radius: CURB, rank: 1, lift: SPUR_LIFT, lined: true, sidewalk: 0 };
+const STREET_ARM: ArmStyle = { radius: 0, rank: 0, lift: SURFACE_LIFT, lined: false, sidewalk: SIDEWALK };
+
+interface ArmEnd {
+  edge: RoadEdge;
+  start: boolean;
+}
+
+/** Points trimmed off each end of an edge, and per end the first point each side of its arm runs its own rim from. */
+export interface Trim {
+  mouths: [number, number];
+  sides: [[number, number], [number, number]];
+}
+
+// An arm reads its edge from the node outward, at most halfway along so the patch at the far end keeps its half.
+function arm_of({ edge, start }: ArmEnd, reach: readonly Reach[], style: ArmStyle): Arm {
+  const n = edge.points.length;
+  const most = Math.floor((n - 1) / 2);
+  const points: RoadPoint[] = [];
+  const out_reach: Reach[] = [];
+  for (let k = 0; k <= most; k++) {
+    const i = start ? k : edge.closed ? (n - k) % n : n - 1 - k;
+    const p = edge.points[i];
+    points.push(start ? p : { ...p, tx: -p.tx, tz: -p.tz });
+    out_reach.push(start ? reach[i] : [-reach[i][1], -reach[i][0]]);
+  }
+  return { points, reach: out_reach, half: edge.half, clear: edge.half + style.sidewalk, radius: style.radius, rank: style.rank, lift: style.lift, lined: style.lined };
+}
+
+export interface Junction {
+  x: number;
+  z: number;
+  arms: Arm[];
+  patch: Patch;
+}
+
+export interface Junctions {
+  patched: Junction[];
+  /** Road indices of spur mouths too sharp or cramped for a patch: the spur still overlaps the ring there. */
+  loose: number[];
+  trims: Map<number, Trim>;
+  /** Circuit edge id to the road index of its first point. */
+  ring_at: Map<number, number>;
+}
+
+export type RoadData = Pick<WorldData, "road" | "graph" | "circuit">;
+export type RoadTones = Pick<MeshTones, "asphalt" | "sidewalk" | "line" | "edge_line">;
+
+export function road_junctions(data: RoadData): Junctions {
   const { road, graph, circuit } = data;
   const n = road.length;
   const spurs = spur_edges(graph, circuit);
-  const mouths = graph.nodes.filter((node) => node.kind === "junction" && spurs.some((e) => e.b === node.id)).map((node) => nearest_index(road, node.x, node.z));
-  const clear_of_mouths = (s: number) => mouths.every((m) => Math.abs(((s - m + n * 1.5) % n) - n / 2) > MOUTH_CLEAR);
-  out.strip(out.surface, road, true, -ROAD_HALF, ROAD_HALF, RING_LIFT, () => true, tones.asphalt);
-  out.strip(out.marks, road, true, -MARK_HALF, MARK_HALF, MARK_LIFT, (s) => s % DASH < DASH_ON, tones.line);
+  const ring_reach = offset_reach(road, true);
+  const ring_at = new Map(circuit.map((id) => [id, nearest_index(road, graph.edges[id].points[0].x, graph.edges[id].points[0].z)]));
+  const style = (edge: RoadEdge) => (ring_at.has(edge.id) ? RING_ARM : edge.kind === "highway" ? SPUR_ARM : STREET_ARM);
+  const reach_of = (edge: RoadEdge): readonly Reach[] => {
+    const at = ring_at.get(edge.id);
+    if (at === undefined) return offset_reach(edge.points, false);
+    return edge.points.map((_, i) => ring_reach[(at + i) % n]);
+  };
+
+  const trims = new Map<number, Trim>();
+  const patched: Junction[] = [];
+  const loose: number[] = [];
+  for (const node of graph.nodes) {
+    const ends: ArmEnd[] = graph.edges.flatMap((edge) => [...(edge.a === node.id ? [{ edge, start: true }] : []), ...(edge.b === node.id ? [{ edge, start: false }] : [])]);
+    if (!ends.some(({ edge }) => spurs.includes(edge))) continue;
+    const arms = ends.map((end) => arm_of(end, reach_of(end.edge), style(end.edge)));
+    const patch = junction_patch(node.x, node.z, arms);
+    if (!patch) {
+      loose.push(nearest_index(road, node.x, node.z));
+      continue;
+    }
+    ends.forEach(({ edge, start }, i) => {
+      const t = trims.get(edge.id) ?? untrimmed();
+      t.mouths[start ? 0 : 1] = patch.mouths[i];
+      t.sides[start ? 0 : 1] = patch.sides[i];
+      trims.set(edge.id, t);
+    });
+    patched.push({ x: node.x, z: node.z, arms, patch });
+  }
+  return { patched, loose, trims, ring_at };
+}
+
+function untrimmed(): Trim {
+  return { mouths: [0, 0], sides: [[0, 0], [0, 0]] };
+}
+
+export function road_layers(data: RoadData, heights: Float32Array, tones: RoadTones): Roads {
+  const out = new Roads(heights);
+  const { road, graph, circuit } = data;
+  const n = road.length;
+  const spurs = spur_edges(graph, circuit);
+  const { patched, loose, trims, ring_at } = road_junctions(data);
+  const trim = (id: number): Trim => trims.get(id) ?? untrimmed();
+  for (const { x, z, arms, patch } of patched) {
+    const chunk = chunk_of(x, z);
+    out.patch(out.surface[chunk], patch, tones.asphalt);
+    for (const line of patch.lines) out.rim_line(out.marks[chunk], line, EDGE_INSET, EDGE_INSET + EDGE_WIDTH, MARK_LIFT, tones.edge_line);
+    for (const i of patch.minor) {
+      const arm = arms[i];
+      out.give_way(out.marks[chunk], arm.points[patch.mouths[i]], arm.half - EDGE_INSET, GIVE_WAY_OUT, GIVE_WAY_WIDTH, MARK_LIFT, tones.line);
+    }
+  }
+
+  const inside = new Uint8Array(n);
+  for (const [id, at] of ring_at) {
+    const { mouths } = trim(id);
+    const { points, closed } = graph.edges[id];
+    const end = closed ? points.length : points.length - 1;
+    for (let k = 0; k < mouths[0]; k++) inside[(at + k) % n] = 1;
+    for (let k = 1; k <= mouths[1]; k++) inside[(at + end - k) % n] = 1;
+  }
+  const open = (s: number) => !inside[s];
+  const clear_of_mouths = (s: number) => open(s) && loose.every((m) => Math.abs(((s - m + n * 1.5) % n) - n / 2) > MOUTH_CLEAR);
+  out.strip(out.surface, road, true, -ROAD_HALF, ROAD_HALF, RING_LIFT, open, tones.asphalt);
+  out.strip(out.marks, road, true, -MARK_HALF, MARK_HALF, MARK_LIFT, (s) => open(s) && s % DASH < DASH_ON, tones.line);
   out.strip(out.marks, road, true, ROAD_HALF - 0.55, ROAD_HALF - 0.3, MARK_LIFT, clear_of_mouths, tones.edge_line);
   out.strip(out.marks, road, true, -ROAD_HALF + 0.3, -ROAD_HALF + 0.55, MARK_LIFT, clear_of_mouths, tones.edge_line);
 
@@ -361,26 +557,36 @@ function road_layers(data: WorldData, tones: MeshTones): Roads {
     }
   };
   for (const edge of graph.edges) {
-    if (circuit.includes(edge.id)) continue;
+    if (ring_at.has(edge.id)) continue;
     const { points, half } = edge;
     const last = points.length - 1;
+    const { mouths, sides } = trim(edge.id);
     if (edge.kind === "highway") {
-      out.strip(out.surface, points, false, -half, half, SPUR_LIFT, () => true, tones.asphalt);
-      const open = (s: number) => s > SPUR_MARK_CLEAR && s < last - SPUR_MARK_CLEAR;
-      out.strip(out.marks, points, false, -MARK_HALF, MARK_HALF, MARK_LIFT, (s) => open(s) && s % DASH < DASH_ON, tones.line);
-      edge_lines(points, half, open);
+      const from = mouths[0] || SPUR_MARK_CLEAR + 1;
+      const to = last - (mouths[1] || SPUR_MARK_CLEAR);
+      const marked = (s: number) => s >= from && s < to;
+      out.strip(out.surface, points, false, -half, half, SPUR_LIFT, (s) => s >= mouths[0] && s < last - mouths[1], tones.asphalt);
+      out.strip(out.marks, points, false, -MARK_HALF, MARK_HALF, MARK_LIFT, (s) => marked(s) && s % DASH < DASH_ON, tones.line);
+      edge_lines(points, half, marked);
       continue;
     }
     // Sidewalks start at the crossing street's edge, so two sidewalks only ever overlap in the same colour at a block corner.
-    out.strip(out.surface, extended(points, half), false, -half, half, SURFACE_LIFT, () => true, tones.asphalt);
+    const from = mouths[0] ? mouths[0] : -1;
+    const to = mouths[1] ? last - mouths[1] : last + 1;
+    out.strip(out.surface, extended(points, half), false, -half, half, SURFACE_LIFT, (e) => e - 1 >= from && e - 1 < to, tones.asphalt);
     const step = Math.hypot(points[1].x - points[0].x, points[1].z - points[0].z) || 1;
     const ends = Math.ceil(half / step);
     const clear = Math.ceil((half + SIDEWALK) / step);
     const near_spur = points.map((p) => under_spur(p, half + SIDEWALK + 6));
-    const walkway = (s: number) => s >= ends && s < last - ends;
-    const marked = (s: number) => s >= clear && s < last - clear && !near_spur[s] && !near_spur[s + 1];
-    out.strip(out.surface, points, false, -half - SIDEWALK, -half, SURFACE_LIFT, walkway, tones.sidewalk);
-    out.strip(out.surface, points, false, half, half + SIDEWALK, SURFACE_LIFT, walkway, tones.sidewalk);
+    const marked = (s: number) => s >= Math.max(clear, mouths[0]) && s < last - Math.max(clear, mouths[1]) && !near_spur[s] && !near_spur[s + 1];
+    // A patched far end reads the street backwards, so its arm's -1 side is the strip's +1 side.
+    const walkway = (side: 0 | 1) => {
+      const lo = mouths[0] ? Math.max(ends, sides[0][side]) : ends;
+      const hi = last - (mouths[1] ? Math.max(ends, sides[1][1 - side]) : ends);
+      return (s: number) => s >= lo && s < hi;
+    };
+    out.strip(out.surface, points, false, -half - SIDEWALK, -half, SURFACE_LIFT, walkway(0), tones.sidewalk);
+    out.strip(out.surface, points, false, half, half + SIDEWALK, SURFACE_LIFT, walkway(1), tones.sidewalk);
     edge_lines(points, half, marked);
     out.strip(out.marks, points, false, -MARK_HALF, MARK_HALF, MARK_LIFT, (s) => marked(s) && s % DASH < DASH_ON, tones.line);
   }
@@ -486,7 +692,7 @@ function sky_chunks(data: WorldData, tones: MeshTones): ChunkBuffers[] {
 export function build_chunks(data: WorldData, tones: MeshTones): ChunkBuffers[] {
   if (data.kind === "sky") return sky_chunks(data, tones);
   const colors = terrain_colors(data, tones.terrain);
-  const roads = road_layers(data, tones);
+  const roads = road_layers(data, data.terrain.heights, tones);
   const towns = town_builders(data, tones);
   const chunks: ChunkBuffers[] = [];
   for (let cj = 0; cj < CHUNKS; cj++)
