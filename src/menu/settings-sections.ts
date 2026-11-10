@@ -1,5 +1,7 @@
 import { SteerMode } from "../car/car";
-import { el, icon, type Options } from "./setting-rows";
+import { keys_text, pad_text, type Bindable, type Bindings } from "../hud/bindings";
+import { binding_rows } from "./binding-rows";
+import { el, icon, type Options, type Text } from "./setting-rows";
 import { THEMES, choose_theme, current_theme, find_saved, find_theme, load_saved_themes } from "../theme/theme";
 import type { SettingsMenu } from "./page";
 import { CameraReturn, CameraView, DashPlace, HudLayout, QualityMode, TouchSteer, type QualityTier } from "./prefs";
@@ -26,28 +28,53 @@ const CAMERA_RETURN_LABEL: Record<CameraReturn, string> = { off: "Off", short: "
 const STEER_LABEL: Record<SteerMode, string> = { snap: "Classic", hold: "Hold", smooth: "Smooth" };
 
 const TIER_LABEL: Record<QualityTier, string> = { high: "High", medium: "Medium", low: "Low" };
-const KEYS: [string, string, string, string][] = [
-  ["Drive", "WASD / arrows", "RT / LT, L stick", "Gas, Brake, drag or arrow buttons to steer (Touch steering)"],
-  ["Handbrake", "Space", "A", "Handbrake"],
-  ["Precision steer (hold, when on)", "X", "", ""],
-  ["Nitro (hold, when fitted)", "Shift", "B", "Nitro key: tap on, tap off or burn the tank"],
-  ["Reset", "R", "Y", "Reset"],
-  ["Restart lap", "L / lap strip button", "", "Lap strip button"],
-  ["Rewind (hold)", "Backspace", "X", "Rewind (hold)"],
-  ["Shift up / down", "E / Q", "RB / LB", ""],
-  ["Auto gearbox", "M", "", ""],
-  ["Camera", "C", "View", "Cam"],
+type Shown = string | ((bindings: Bindings) => string);
+
+const keys =
+  (...actions: Bindable[]) =>
+  (bindings: Bindings) =>
+    actions.map((action) => keys_text(bindings[action])).join(" / ");
+const pads =
+  (...actions: Bindable[]) =>
+  (bindings: Bindings) =>
+    actions
+      .map((action) => pad_text(bindings, action))
+      .filter(Boolean)
+      .join(" / ");
+const also =
+  (shown: (bindings: Bindings) => string, more: string, by = " / ") =>
+  (bindings: Bindings) =>
+    [shown(bindings), more].filter(Boolean).join(by);
+
+const KEYS: [string, Shown, Shown, string][] = [
+  ["Gas", keys("throttle"), "RT", "Gas"],
+  ["Brake", keys("brake"), "LT", "Brake"],
+  ["Steer", keys("steer_left", "steer_right"), "L stick", "Drag or arrow buttons to steer (Touch steering)"],
+  ["Handbrake", keys("handbrake"), pads("handbrake"), "Handbrake"],
+  ["Precision steer (hold, when on)", keys("precision"), "", ""],
+  ["Nitro (hold, when fitted)", keys("nitro"), pads("nitro"), "Nitro key: tap on, tap off or burn the tank"],
+  ["Reset", keys("reset"), pads("reset"), "Reset"],
+  ["Restart lap", also(keys("restart"), "lap strip button"), pads("restart"), "Lap strip button"],
+  ["Rewind (hold)", keys("rewind"), pads("rewind"), "Rewind (hold)"],
+  ["Shift up / down", keys("shift_up", "shift_down"), pads("shift_up", "shift_down"), ""],
+  ["Auto gearbox", keys("auto"), pads("auto"), ""],
+  ["Camera", keys("camera"), pads("camera"), "Cam"],
   ["Look around", "Drag / wheel", "R stick", "Drag, pinch to zoom"],
-  ["Recenter camera", "F / double-click", "R3", "Recenter"],
-  ["Ghost", "G", "", ""],
-  ["TCS / ABS / steer assist", "1 / 2 / 3", "", ""],
-  ["Garage", "V", "Start, Garage", ""],
-  ["This key list", "H", "", ""],
+  ["Recenter camera", also(keys("recenter"), "double-click"), pads("recenter"), "Recenter"],
+  ["Ghost", keys("ghost"), pads("ghost"), ""],
+  ["TCS / ABS / steer assist", keys("tcs", "abs", "assist"), pads("tcs", "abs", "assist"), ""],
+  ["Garage", keys("garage"), also(pads("garage"), "Start, Garage", ", "), ""],
+  ["This key list", keys("help"), pads("help"), ""],
   ["Chat", "T", "", "Chat"],
   ["Menu", "Esc", "Start", "Menu button"],
   ["In menus: move, pick, back, tabs", "Arrows, Enter, Esc, Q / E", "D-pad, A, B, LB / RB", ""],
   ["In menus: sections, reset section", "", "LT / RT, Y", ""],
 ];
+
+const while_driving = (m: SettingsMenu, action: Bindable, help: string): Text => () => {
+  const key = keys_text(m.state().bindings[action]);
+  return key ? `${help} ${key} switches it while driving.` : help;
+};
 
 const PAD_SEPARATOR = /(, | \/ )/;
 
@@ -169,6 +196,7 @@ export function settings_sections(m: SettingsMenu): { sections: SettingsSection[
     { id: "creator", label: "Make your own theme", parent: "display", help: "Roll colours, keep the ones you like, then name and save it.", rows: () => theme_create(m) },
     { id: "themes", label: "Your themes", parent: "display", help: "Themes you made. Pick one with Theme on Display.", rows: () => saved_themes(m) },
     { id: "keys", label: "All keys and buttons", parent: "controls", help: "Every key, pad button and touch control. H opens this list while driving.", rows: () => key_list(m) },
+    { id: "bindings", label: "Change keys and buttons", parent: "controls", help: "Pick an action, then press its new key or pad button. One that another action has swaps with it.", rows: () => binding_rows(m) },
   ];
   return { sections, deep };
 }
@@ -300,17 +328,17 @@ function display(m: SettingsMenu): HTMLElement[] {
 
 function driving(m: SettingsMenu): HTMLElement[] {
   return [
-    m.rows.toggle("Traction control", "Cuts power when the rear wheels spin. 1 switches it while driving.", m.value("tcs")),
-    m.rows.toggle("Anti-lock brakes", "Keeps steering under hard braking. 2 switches it while driving.", m.value("abs")),
-    m.rows.toggle("Steering assist", "Counter-steers a slide for you. 3 switches it while driving.", m.value("assist")),
-    m.rows.toggle("Automatic gearbox", "Shifts for you. M switches it while driving.", m.value("auto")),
-    m.rows.toggle("Ghost car", "Your best lap drives beside you. G switches it while driving.", m.value("ghost")),
+    m.rows.toggle("Traction control", while_driving(m, "tcs", "Cuts power when the rear wheels spin."), m.value("tcs")),
+    m.rows.toggle("Anti-lock brakes", while_driving(m, "abs", "Keeps steering under hard braking."), m.value("abs")),
+    m.rows.toggle("Steering assist", while_driving(m, "assist", "Counter-steers a slide for you."), m.value("assist")),
+    m.rows.toggle("Automatic gearbox", while_driving(m, "auto", "Shifts for you."), m.value("auto")),
+    m.rows.toggle("Ghost car", while_driving(m, "ghost", "Your best lap drives beside you."), m.value("ghost")),
   ];
 }
 
 function camera(m: SettingsMenu): HTMLElement[] {
   return [
-    m.rows.segmented("View", "Behind the car or from the driver's seat. C switches it while driving.", m.value("camera"), [
+    m.rows.segmented("View", while_driving(m, "camera", "Behind the car or from the driver's seat."), m.value("camera"), [
       [CameraView.CHASE, "Chase"],
       [CameraView.COCKPIT, "Cockpit"],
     ]),
@@ -332,13 +360,14 @@ function controls(m: SettingsMenu): HTMLElement[] {
       m.value("steer_mode"),
       Object.values(SteerMode).map((mode) => [mode, STEER_LABEL[mode]] as const),
     ),
-    m.rows.toggle("Precision steer key", "Hold X for half the keyboard steering.", m.value("precision_key")),
+    m.rows.toggle("Precision steer key", () => `Hold ${keys_text(m.state().bindings.precision) || "the precision key"} for half the keyboard steering.`, m.value("precision_key")),
     touch_only(
       m.rows.segmented("Touch steering", "Drag anywhere to steer, or arrow buttons that steer like the keyboard.", m.value("touch_steer"), [
         [TouchSteer.DRAG, "Drag"],
         [TouchSteer.BUTTONS, "Buttons"],
       ]),
     ),
+    m.rows.link("Change keys and buttons", "Pick an action, then press its new key or pad button.", "Keyboard and pad", () => m.show_sub("bindings")),
     m.rows.link("All keys and buttons", "Every key, pad button and touch control. H opens this list while driving.", "Keyboard, pad, touch", () => m.show_sub("keys")),
   ];
 }
@@ -363,17 +392,23 @@ function key_list(m: SettingsMenu): HTMLElement[] {
   head.append(el("th"), el("th", "", "Keyboard"), el("th", "settings-col-pad", "Gamepad"), el("th", "settings-col-touch", "Touch"));
   table.append(el("thead"), el("tbody"));
   table.tHead?.append(head);
-  for (const [what, ...ways] of KEYS) {
+  for (const [what, keyboard, pad, touch] of KEYS) {
     const tr = el("tr");
     tr.append(el("th", "", what));
-    const [keyboard, pad, touch] = ways;
     const keys = el("td");
-    if (keyboard) keys.append(el("kbd", "", keyboard));
     const buttons = el("td", "settings-col-pad");
-    for (const part of pad ? pad.split(PAD_SEPARATOR) : []) buttons.append(PAD_SEPARATOR.test(part) ? part : el("kbd", part.length === 1 ? "pad-glyph pad-face" : "pad-glyph", part));
     tr.append(keys, buttons);
     tr.append(el("td", "settings-touch settings-col-touch", touch));
     table.tBodies[0].append(tr);
+    let shown = "";
+    m.sync(() => {
+      const bindings = m.state().bindings;
+      const [key_text, pad_shown] = [keyboard, pad].map((way) => (typeof way === "string" ? way : way(bindings)));
+      if (`${key_text}|${pad_shown}` === shown) return;
+      shown = `${key_text}|${pad_shown}`;
+      keys.replaceChildren(...(key_text ? [el("kbd", "", key_text)] : []));
+      buttons.replaceChildren(...(pad_shown ? pad_shown.split(PAD_SEPARATOR) : []).map((part) => (PAD_SEPARATOR.test(part) ? part : el("kbd", part.length === 1 ? "pad-glyph pad-face" : "pad-glyph", part))));
+    });
   }
   m.sync(() => table.toggleAttribute("data-pad", navigator.getGamepads().some((pad) => pad?.connected)));
   // Focusable so the pad can scroll a list taller than a phone screen.

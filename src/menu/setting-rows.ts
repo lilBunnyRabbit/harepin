@@ -161,6 +161,12 @@ export class Rows {
     return row;
   }
 
+  action(label: string, help: Text, control: HTMLElement, accept: () => void): HTMLElement {
+    const row = this.row(label, { title: label, text: help }, control, null, accept);
+    row.setAttribute("role", "button");
+    return row;
+  }
+
   info(label: string, help: Text, shown: Text, visual?: () => Node | null): HTMLElement {
     const text = el("span", "row-info");
     this.syncs.push(() => (text.textContent = read(shown)));

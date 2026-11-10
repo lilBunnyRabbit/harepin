@@ -179,7 +179,6 @@ export class Input {
   private readonly pad_binds = new Map<number, Bindable>();
   private bindings: Bindings = DEFAULT_BINDINGS;
   private catcher: ((caught: Caught | null) => void) | null = null;
-  private catch_since = 0;
   private catch_fresh = false;
   private queued: Action[] = [];
   private pad_prev: boolean[] = [];
@@ -202,13 +201,6 @@ export class Input {
     this.touch = new Touch(touch_root);
     this.mouse = new MouseLook(canvas);
     window.addEventListener("keydown", (e) => {
-      if (this.catcher) {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        // The Enter or Space that opened the capture is still bubbling up to here.
-        if (!e.repeat && e.timeStamp >= this.catch_since) this.catcher({ kind: "key", code: e.code });
-        return;
-      }
       if (e.repeat || typing(e.target)) return;
       const bound = this.key_binds.get(e.code);
       const action: Action | undefined = e.code === "Escape" ? "settings" : is_press(bound) ? bound : undefined;
@@ -222,6 +214,17 @@ export class Input {
       if (action) this.queued.push(action);
       if (bound) e.preventDefault();
     });
+    // Capture phase, ahead of the focused row: its own Enter or Space handler would read a Space meant for binding as a cancel.
+    window.addEventListener(
+      "keydown",
+      (e) => {
+        if (!this.catcher) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (!e.repeat) this.stop_catch({ kind: "key", code: e.code });
+      },
+      { capture: true },
+    );
     window.addEventListener("keyup", (e) => this.keys.delete(e.code));
     window.addEventListener("blur", () => this.keys.clear());
   }
@@ -245,7 +248,6 @@ export class Input {
   /** The next key or new pad button press goes to `on` instead of the game or the menu; null stops listening. */
   listen(on: ((caught: Caught | null) => void) | null) {
     this.catcher = on;
-    this.catch_since = performance.now();
     this.catch_fresh = on !== null;
   }
 

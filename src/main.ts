@@ -167,6 +167,7 @@ const settings = new Settings(document.body, {
   race_routes: race_choices(world.routes),
   players: () => 1 + net.remotes.size,
   restart_lap: () => restart_action(),
+  listen: (on) => input.listen(on),
 }, prefs);
 
 function apply_car_settings(state: SettingsState) {

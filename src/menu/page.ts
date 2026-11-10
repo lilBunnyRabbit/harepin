@@ -1,3 +1,4 @@
+import type { Caught } from "../hud/input";
 import type { DirectoryStatus, Server } from "../net/directory";
 import type { ModeEntry } from "../modes/modes";
 import type { RaceChoice } from "../modes/races";
@@ -50,6 +51,8 @@ export interface SettingsHost {
   readonly race_routes: readonly RaceChoice[];
   players(): number;
   restart_lap(): void;
+  /** Hands the next key or pad button press to `on` for a binding; null stops. */
+  listen(on: ((caught: Caught | null) => void) | null): void;
 }
 
 export interface Menu {
