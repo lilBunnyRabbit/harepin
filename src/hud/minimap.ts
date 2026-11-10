@@ -24,10 +24,16 @@ const CLOSE_TURN_LAG = 0.12;
 const PIECE = 32;
 const EDGE = MAP / 2 - 6;
 
-const full_x = (x: number) => MAP / 2 + (x / SIZE) * MAP * 1.05;
-const full_y = (z: number) => MAP / 2 + (z / SIZE) * MAP * 1.05;
+/** Full map: the world x/z at its centre and px per metre. */
+interface FullView {
+  cx: number;
+  cz: number;
+  scale: number;
+}
 
-interface Drawn {
+const ISLAND: FullView = { cx: 0, cz: 0, scale: (MAP * 1.05) / SIZE };
+
+interface Drawn extends FullView {
   id: string;
   points: readonly RoadPoint[];
   closed: boolean;
@@ -36,10 +42,30 @@ interface Drawn {
   bounds: Float64Array;
 }
 
+const full_x = (v: FullView, x: number) => MAP / 2 + (x - v.cx) * v.scale;
+const full_y = (v: FullView, z: number) => MAP / 2 + (z - v.cz) * v.scale;
+
+// A lap shows the whole island; an A to B run is a corner of it, so the full map fits that run's span instead.
+function full_view(route: Route): FullView {
+  if (route.closed) return ISLAND;
+  let x0 = Infinity;
+  let z0 = Infinity;
+  let x1 = -Infinity;
+  let z1 = -Infinity;
+  for (const p of route.points) {
+    x0 = Math.min(x0, p.x);
+    z0 = Math.min(z0, p.z);
+    x1 = Math.max(x1, p.x);
+    z1 = Math.max(z1, p.z);
+  }
+  return { cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, scale: EDGE / Math.max(1, Math.hypot(x1 - x0, z1 - z0) / 2) };
+}
+
 function drawn(route: Route): Drawn {
   const { points, closed } = route;
+  const view = full_view(route);
   const road = new Path2D();
-  points.forEach((p, i) => (i ? road.lineTo(full_x(p.x), full_y(p.z)) : road.moveTo(full_x(p.x), full_y(p.z))));
+  points.forEach((p, i) => (i ? road.lineTo(full_x(view, p.x), full_y(view, p.z)) : road.moveTo(full_x(view, p.x), full_y(view, p.z))));
   if (closed) road.closePath();
   const count = Math.ceil(points.length / PIECE);
   const bounds = new Float64Array(count * 4);
@@ -62,7 +88,7 @@ function drawn(route: Route): Drawn {
     bounds[k * 4 + 2] = x1;
     bounds[k * 4 + 3] = z1;
   }
-  return { id: route.id, points, closed, road, bounds };
+  return { id: route.id, points, closed, road, bounds, ...view };
 }
 
 export class Minimap {
@@ -138,16 +164,17 @@ export class Minimap {
   full(car: Car, gate: Dot | null, remotes: Iterable<Remote>) {
     this.fit();
     const { ctx } = this;
+    const view = this.drawn ?? ISLAND;
     ctx.setTransform(this.ratio, 0, 0, this.ratio, 0, 0);
     ctx.clearRect(0, 0, MAP, MAP);
     ctx.drawImage(this.road_layer, 0, 0, MAP, MAP);
     if (gate) {
       ctx.fillStyle = INK.checkpoint;
-      this.dot(full_x(gate.x), full_y(gate.z), 4.5);
+      this.dot(full_x(view, gate.x), full_y(view, gate.z), 4.5);
     }
     ctx.fillStyle = INK.remote;
-    for (const remote of remotes) this.dot(full_x(remote.latest.p[0]), full_y(remote.latest.p[2]), 3.5);
-    this.arrow(full_x(car.pos.x), full_y(car.pos.z), car.heading);
+    for (const remote of remotes) this.dot(full_x(view, remote.latest.p[0]), full_y(view, remote.latest.p[2]), 3.5);
+    this.arrow(full_x(view, car.pos.x), full_y(view, car.pos.z), car.heading);
   }
 
   close(car: Car, gate: Dot | null, remotes: Iterable<Remote>, now: number) {
