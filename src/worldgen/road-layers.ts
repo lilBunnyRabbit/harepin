@@ -80,7 +80,7 @@ export interface Trim {
 }
 
 // An arm reads its edge from the node outward, at most halfway along so the patch at the far end keeps its half.
-function arm_of({ edge, start }: ArmEnd, reach: readonly Reach[], style: ArmStyle): Arm {
+function arm_of({ edge, start }: ArmEnd, reach: readonly Reach[], style: ArmStyle, half: number): Arm {
   const n = edge.points.length;
   const most = Math.floor((n - 1) / 2);
   const points: RoadPoint[] = [];
@@ -91,7 +91,7 @@ function arm_of({ edge, start }: ArmEnd, reach: readonly Reach[], style: ArmStyl
     points.push(start ? p : { ...p, tx: -p.tx, tz: -p.tz });
     out_reach.push(start ? reach[i] : [-reach[i][1], -reach[i][0]]);
   }
-  return { points, reach: out_reach, half: edge.half, clear: edge.half + style.sidewalk, radius: style.radius, rank: style.rank, lift: style.lift, lined: style.lined };
+  return { points, reach: out_reach, half, clear: half + style.sidewalk, radius: style.radius, rank: style.rank, lift: style.lift, lined: style.lined };
 }
 
 export interface Junction {
@@ -161,7 +161,8 @@ export function road_junctions(data: RoadData): Junctions {
   for (const node of graph.nodes) {
     const ends: ArmEnd[] = graph.edges.flatMap((edge) => [...(edge.a === node.id ? [{ edge, start: true }] : []), ...(edge.b === node.id ? [{ edge, start: false }] : [])]);
     if (!ends.some(({ edge }) => spurs.includes(edge)) && !street_corner(ends)) continue;
-    const arms = ends.map((end) => arm_of(end, reach_of(end.edge), style(end.edge)));
+    // The circuit is drawn ROAD_HALF wide even where it runs along a narrower town street; its arms meet the patch at that width.
+    const arms = ends.map((end) => arm_of(end, reach_of(end.edge), style(end.edge), ring_at.has(end.edge.id) ? ROAD_HALF : end.edge.half));
     const patch = junction_patch(node.x, node.z, arms);
     if (!patch) {
       // A gate in town is no circuit mouth, however near the circuit's nearest point lies.

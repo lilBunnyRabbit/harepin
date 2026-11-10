@@ -58,12 +58,13 @@ function area(outline: readonly { x: number; z: number }[]): number {
 
 // A town's corners are 4-6 m curbs: a circuit crossing in town took the highway's 8 m fillet and spread its patch to 0.9.
 const TOWN_PATCH_SHARE = 0.65;
+const RING_RANK = 2;
 
 for (const seed of [...sweep(3), KINKED])
   test(`mainland ${seed}: a town crossing's patch stays small next to its roads' widths, and no two patches overlap`, () => {
     const { patched } = road_junctions(plan_mainland(seed).data);
     for (const j of patched) {
-      if (j.arms.some((arm) => arm.half > STREET_HALF)) continue;
+      if (!j.arms.every((arm) => arm.half === STREET_HALF || arm.rank === RING_RANK)) continue;
       const widths = j.arms.reduce((sum, arm) => sum + 2 * arm.clear, 0);
       expect(area(j.patch.outline)).toBeLessThanOrEqual(TOWN_PATCH_SHARE * widths * widths);
     }
