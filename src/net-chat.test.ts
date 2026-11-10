@@ -88,3 +88,27 @@ test("a peer's protocol is what its hello said; none, a bad one or a departed pe
   room.onPeerLeave?.("newer");
   expect(net.protocol_of("newer")).toBe(LEGACY_PROTOCOL);
 });
+
+test("same-browser tabs swap hellos without WebRTC; a legacy tab is greeted once", async () => {
+  const room = `test-${rooms++}`;
+  const tab = new BroadcastChannel(`harepin:${room}`);
+  const heard: unknown[] = [];
+  tab.onmessage = (event: MessageEvent<unknown>) => heard.push(event.data);
+  const offline = (() => {
+    throw new Error("no WebRTC");
+  }) as typeof joinRoom;
+  const net = new Net(room, 7, "Me", null, 1, "0.11.0", offline);
+  const hello = { protocol: PROTOCOL, version: "0.11.0", world: 1, seed: 7 };
+  tab.postMessage({ kind: "hello", id: "newer", data: { ...hello, protocol: 2 } });
+  tab.postMessage({ kind: "car", id: "old", data: car(7, "Old") });
+  tab.postMessage({ kind: "car", id: "old", data: car(7, "Old") });
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  tab.close();
+  expect(net.status).toBe("local only");
+  expect(net.protocol_of("newer")).toBe(2);
+  expect(heard).toEqual([
+    { kind: "hello", id: net.id, data: hello },
+    { kind: "hello", id: net.id, data: hello, to: "newer" },
+    { kind: "hello", id: net.id, data: hello, to: "old" },
+  ]);
+});

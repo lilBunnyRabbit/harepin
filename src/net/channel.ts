@@ -4,6 +4,8 @@ import type { RateLimit } from "./rate-limit";
 export interface Channel<T> {
   /** To every peer, or only to `to`. */
   send(data: T, to?: string): void;
+  /** To same-browser tabs only: every one, or only `to`. */
+  send_local(data: T, to?: string): void;
   subscribe(fn: (data: T, sender: string) => void): () => void;
 }
 
@@ -50,11 +52,14 @@ export class Link {
     this.receivers.set(name, receive);
     const action = this.room?.makeAction<T>(name) ?? null;
     if (action) action.onMessage = (data, { peerId }) => receive(data, peerId);
+    const post = (data: T, to?: string) =>
+      this.local.postMessage(to === undefined ? { kind: name, id: this.self, data } : { kind: name, id: this.self, data, to });
     return {
       send: (data, to) => {
-        this.local.postMessage(to === undefined ? { kind: name, id: this.self, data } : { kind: name, id: this.self, data, to });
+        post(data, to);
         void action?.send(data, to === undefined ? undefined : { target: to }).catch(dropped);
       },
+      send_local: post,
       subscribe: (fn) => {
         subscribers.add(fn);
         return () => subscribers.delete(fn);

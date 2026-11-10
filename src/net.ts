@@ -240,6 +240,8 @@ export class Net {
 
   private readonly joined = performance.now();
   private readonly peer_ids = new Set<string>();
+  /** Senders greeted over the BroadcastChannel, so a legacy tab that never answers gets exactly one hello. */
+  private readonly greeted = new Set<string>();
   private had_peer = false;
 
   /** `lock` locks the room: peers without the same password fail the trystero handshake and never connect. */
@@ -275,13 +277,21 @@ export class Net {
     this.chats = this.link.channel("chat", sanitize_chat, () => new RateLimit());
     this.events = this.link.channel("event", sanitize_event, () => new RateLimit(), (id) => this.same_map.has(id) || this.remotes.has(id));
     this.hello = this.link.channel("hello", sanitize_hello);
-    this.cars.subscribe((state) => this.receive(state));
-    this.hello.subscribe((hello, sender) => this.hellos.set(sender, hello));
+    this.cars.subscribe((state, sender) => {
+      this.greet(sender);
+      this.receive(state);
+    });
+    this.hello.subscribe((hello, sender) => {
+      this.greet(sender);
+      this.hellos.set(sender, hello);
+    });
+    // Same-browser tabs never fire onPeerJoin: open tabs hear this hello, and greet back a tab they hear from first.
+    this.hello.send_local(this.own_hello);
     if (!p2p) return;
     p2p.onPeerJoin = (peer) => {
       this.peer_ids.add(peer);
       this.had_peer = true;
-      this.hello.send({ protocol: PROTOCOL, version: this.version, world: this.world, seed: this.seed }, peer);
+      this.hello.send(this.own_hello, peer);
       this.status = "online";
     };
     p2p.onPeerLeave = (peer) => {
@@ -291,7 +301,18 @@ export class Net {
       this.same_map.delete(peer);
       this.link.forget(peer);
       this.hellos.delete(peer);
+      this.greeted.delete(peer);
     };
+  }
+
+  private get own_hello(): Hello {
+    return { protocol: PROTOCOL, version: this.version, world: this.world, seed: this.seed };
+  }
+
+  private greet(peer: string) {
+    if (this.greeted.has(peer)) return;
+    this.greeted.add(peer);
+    this.hello.send_local(this.own_hello, peer);
   }
 
   /** Peers that never said hello run `LEGACY_PROTOCOL`; one whose hello is still in flight reads as legacy too. */
