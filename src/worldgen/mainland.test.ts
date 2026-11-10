@@ -12,8 +12,8 @@ const EXT = extent(MAINLAND_SIZE);
 
 test("mainland ids and keys sit in their own thousand", async () => {
   const { world_id, world_key } = await import("./kinds/kinds");
-  expect(world_id("mainland")).toBe(3002);
-  expect(world_key(42, "mainland")).toBe("42:m2");
+  expect(world_id("mainland")).toBe(3003);
+  expect(world_key(42, "mainland")).toBe("42:m3");
 });
 
 test("the mainland is land in the middle and sea at its border", () => {
