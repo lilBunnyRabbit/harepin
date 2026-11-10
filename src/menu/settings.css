@@ -131,7 +131,9 @@
 }
 
 .settings-choice {
-  display: flex;
+  display: grid;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
   gap: 2px;
   height: var(--control-h);
   padding: 3px;
@@ -140,7 +142,6 @@
 }
 
 .settings .settings-choice button {
-  flex: 1 1 0;
   min-width: 0;
   padding: 0 var(--space-3);
   border-radius: var(--radius-xs);
