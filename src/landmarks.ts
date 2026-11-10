@@ -20,7 +20,10 @@ function rotor_geometry(): THREE.BufferGeometry {
     return blade.rotateZ((k * Math.PI * 2) / 3);
   });
   const hub = new THREE.ConeGeometry(0.55, 1.4, 6).rotateX(Math.PI / 2).translate(0, 0, 0.5);
-  return mergeGeometries([...blades.map((b) => b.toNonIndexed()), hub.toNonIndexed()]);
+  const rotor = mergeGeometries([...blades.map((b) => b.toNonIndexed()), hub.toNonIndexed()]);
+  // Centred on the hub, so the culling bounds hold at every spin angle and never need recomputing.
+  rotor.boundingSphere = new THREE.Sphere(new THREE.Vector3(), ROTOR_RADIUS + BLADE_WIDTH);
+  return rotor;
 }
 
 export class LandmarksView {
@@ -58,7 +61,6 @@ export class LandmarksView {
       : null;
     if (this.rotors) {
       this.rotors.castShadow = true;
-      this.rotors.frustumCulled = false;
       this.root.add(this.rotors);
     }
     this.lamp = new THREE.MeshLambertMaterial({
@@ -76,6 +78,7 @@ export class LandmarksView {
       this.root.add(mesh);
     }
     this.update(0);
+    this.rotors?.computeBoundingSphere();
   }
 
   update(time: number) {
