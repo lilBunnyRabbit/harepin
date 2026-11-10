@@ -112,7 +112,7 @@ Run what the change needs, nothing more:
 | Every commit | `typecheck` + `bun test` (fast) |
 | Touches generation (`worldgen/`, meshing, map) | + `bun scripts/golden.ts --check`. Output meant to change: run `bun scripts/golden.ts` and commit `scripts/golden/` with the change, so review sees which parts moved |
 | Car physics | `car.test.ts` + `scripts/telemetry.ts` / `scripts/feel.ts` byte-identical, nothing else |
-| Routes or race logic | `bun scripts/races.ts --changed` only |
+| Routes or race logic | `bun scripts/races.ts --changed` only; it fails only on runs missing from `scripts/golden/races-baseline.txt` and lists fixed ones. A change meant to move them: `bun scripts/races.ts --baseline` and commit the file |
 | Generation hot path | one `bun scripts/proof.ts --no-drive --jobs 1` timing table; no repeated medians |
 | Visual | screenshots, one theme unless the change is about themes, about 4 shots at most |
 | Release | `bun run test:full` + `bun scripts/proof.ts` |
