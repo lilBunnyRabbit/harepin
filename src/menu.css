@@ -430,6 +430,12 @@
   font-weight: 700;
 }
 
+:root[data-scheme="light"] .menu-go {
+  border: 1px solid var(--primary);
+  background: var(--set-raised);
+  color: var(--foreground);
+}
+
 .settings .menu-corner {
   position: absolute;
   top: var(--space-3);
