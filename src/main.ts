@@ -307,8 +307,7 @@ driver.place(driver.road_spot(start_index));
 
 const modes = new Modes(scene, world, SPAWN_INDEX, () => lobby.record, (x, y, z, heading) => {
   driver.place({ x, y, z, heading });
-  driver.car.nitro.refill();
-  driver.rewind.clear();
+  reset_lap();
 }, () => lobby.busy, () => audio.chime(), camera, () => driver.car.spec);
 modes.bindings = () => settings.state.bindings;
 modes.cover = (wait) => area_fade.cover(wait);
@@ -503,7 +502,8 @@ function frame(now: number) {
     stuck = 0;
   }
 
-  race.update(car.pos.x, car.pos.z, now);
+  // A mode spawns the car anywhere, the circuit start included: its lap clock would count that as a lap.
+  if (!modes.active) race.update(car.pos.x, car.pos.z, now);
   update_gates(now / 1000);
   ghost.update(race.started && !modes.active ? now - race.started : null, camera.position);
   modes.update(stepped, car);
