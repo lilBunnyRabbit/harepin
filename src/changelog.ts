@@ -23,6 +23,16 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.13.1",
+    date: "2026-11-10",
+    title: "Small fixes",
+    changes: [
+      { kind: FIXED, text: "What's new scrolls with the arrow keys and gets more room on phones." },
+      { kind: FIXED, text: "The racing tag in the players list no longer gets cut off on phones." },
+      { kind: FIXED, text: "Typing a room password no longer cuts the players list in half." },
+    ],
+  },
+  {
     version: "0.13.0",
     date: "2026-11-10",
     title: "Bus and friends online",
