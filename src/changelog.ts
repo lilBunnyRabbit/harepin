@@ -23,6 +23,16 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.20.0",
+    date: "2026-11-10",
+    title: "Races through town",
+    changes: [
+      { kind: NEW, text: "Street races now use the roads between towns and cross the circuit at crossroads, so there are more different races." },
+      { kind: IMPROVED, text: "Cones close the side roads only while a race runs, so the island is open when you free roam." },
+      { kind: IMPROVED, text: "Island lap records start fresh with the new race routes." },
+    ],
+  },
+  {
     version: "0.19.0",
     date: "2026-11-10",
     title: "Pick a car",
