@@ -1,11 +1,11 @@
+import { COMPACT, type Extent } from "./chunk-grid";
 import { sample } from "./field";
 import { Heap } from "./heap";
 import { length } from "./noise";
 import { chaikin, limit_grade, resample, road_points, smooth, type Path } from "./path";
-import { ORIGIN, ROAD_HALF, SIZE, SPUR_GRADE, type RoadPoint, type Town } from "./types";
+import { ROAD_HALF, SPUR_GRADE, type RoadPoint, type Town } from "./types";
 
 const COARSE = 16;
-const G = SIZE / COARSE;
 const SLOPE_COST = 40;
 const MAX_GRADE = 0.2;
 const STEEP_COST = 30;
@@ -71,34 +71,44 @@ export interface LinkPath {
   cost: number;
 }
 
-
-function centre(c: number): number {
-  return ORIGIN + (c + 0.5) * COARSE;
-}
-
-function cell_of(v: number): number {
-  return Math.max(0, Math.min(G - 1, Math.floor((v - ORIGIN) / COARSE)));
-}
+/** Ground height or road distance at a point, read from whatever grid the caller plans on. */
+export type Sampler = (x: number, z: number) => number;
 
 export class Router {
-  private readonly height = new Float32Array(G * G);
-  private readonly blocked = new Uint8Array(G * G);
+  private readonly g: number;
+  private readonly origin: number;
+  private readonly height: Float32Array;
+  private readonly blocked: Uint8Array;
   /** Cells kept off outright: unlike a road band, no run into a junction or link port may enter one. */
-  private readonly kept = new Uint8Array(G * G);
+  private readonly kept: Uint8Array;
 
   constructor(
-    heights: Float32Array,
-    road_dist: Float32Array,
+    heights: Sampler,
+    road_dist: Sampler,
     private readonly towns: Town[],
+    ext: Extent = COMPACT,
   ) {
-    for (let j = 0; j < G; j++)
-      for (let i = 0; i < G; i++) {
-        const x = centre(i);
-        const z = centre(j);
-        const k = j * G + i;
-        this.height[k] = sample(heights, x, z);
-        if (this.height[k] < WATER || sample(road_dist, x, z) < ROAD_HALF + RING_BAND) this.blocked[k] = 1;
+    this.g = ext.size / COARSE;
+    this.origin = ext.origin;
+    this.height = new Float32Array(this.g * this.g);
+    this.blocked = new Uint8Array(this.g * this.g);
+    this.kept = new Uint8Array(this.g * this.g);
+    for (let j = 0; j < this.g; j++)
+      for (let i = 0; i < this.g; i++) {
+        const x = this.centre(i);
+        const z = this.centre(j);
+        const k = j * this.g + i;
+        this.height[k] = heights(x, z);
+        if (this.height[k] < WATER || road_dist(x, z) < ROAD_HALF + RING_BAND) this.blocked[k] = 1;
       }
+  }
+
+  private centre(c: number): number {
+    return this.origin + (c + 0.5) * COARSE;
+  }
+
+  private cell_of(v: number): number {
+    return Math.max(0, Math.min(this.g - 1, Math.floor((v - this.origin) / COARSE)));
   }
 
   /**
@@ -111,8 +121,8 @@ export class Router {
     const az = to.z + to.tx * side * APPROACH;
     const sx = out ? from.x + out.x * APPROACH : from.x;
     const sz = out ? from.z + out.z * APPROACH : from.z;
-    const start = cell_of(sz) * G + cell_of(sx);
-    const goal = cell_of(az) * G + cell_of(ax);
+    const start = this.cell_of(sz) * this.g + this.cell_of(sx);
+    const goal = this.cell_of(az) * this.g + this.cell_of(ax);
     const out_x = out ? out.x : ax - from.x;
     const out_z = out ? out.z : az - from.z;
     const out_len = length(out_x, out_z) || 1;
@@ -126,8 +136,8 @@ export class Router {
     const free = (k: number) => {
       if (k === goal) return this.height[k] >= WATER;
       if (this.blocked[k]) return false;
-      const x = centre(k % G);
-      const z = centre(Math.floor(k / G));
+      const x = this.centre(k % this.g);
+      const z = this.centre(Math.floor(k / this.g));
       for (const t of this.towns) {
         const d = length(x - t.x, z - t.z);
         if (t !== town ? d < t.radius + TOWN_MARGIN : d < t.core + OWN_TOWN_MARGIN && !corridor(x, z)) return false;
@@ -135,25 +145,25 @@ export class Router {
       return true;
     };
     if (!free(goal)) return null;
-    const cost = new Float64Array(G * G).fill(Infinity);
-    const came = new Int32Array(G * G).fill(-1);
+    const cost = new Float64Array(this.g * this.g).fill(Infinity);
+    const came = new Int32Array(this.g * this.g).fill(-1);
     const heap = new Heap();
     cost[start] = 0;
     heap.push(start, 0);
-    const gx = goal % G;
-    const gz = Math.floor(goal / G);
+    const gx = goal % this.g;
+    const gz = Math.floor(goal / this.g);
     while (heap.size) {
       const k = heap.pop();
       if (k === goal) break;
-      const i = k % G;
-      const j = Math.floor(k / G);
+      const i = k % this.g;
+      const j = Math.floor(k / this.g);
       for (let dj = -1; dj <= 1; dj++)
         for (let di = -1; di <= 1; di++) {
           if (!di && !dj) continue;
           const ni = i + di;
           const nj = j + dj;
-          if (ni < 0 || nj < 0 || ni >= G || nj >= G) continue;
-          const n = nj * G + ni;
+          if (ni < 0 || nj < 0 || ni >= this.g || nj >= this.g) continue;
+          const n = nj * this.g + ni;
           if (!free(n)) continue;
           const run = (di && dj ? Math.SQRT2 : 1) * COARSE;
           const grade = Math.abs(this.height[n] - this.height[k]) / run;
@@ -167,7 +177,7 @@ export class Router {
     }
     if (came[goal] < 0 && goal !== start) return null;
     const cells: Path = [];
-    for (let k = came[goal]; k !== start && k >= 0; k = came[k]) cells.push([centre(k % G), centre(Math.floor(k / G))]);
+    for (let k = came[goal]; k !== start && k >= 0; k = came[k]) cells.push([this.centre(k % this.g), this.centre(Math.floor(k / this.g))]);
     cells.reverse();
     const clear = (x: number, z: number) => length(x - sx, z - sz) > COARSE * 1.5 && length(x - ax, z - az) > COARSE * 1.5;
     const head: Path = out ? [[from.x, from.z], [sx, sz]] : [[from.x, from.z]];
@@ -181,11 +191,11 @@ export class Router {
    */
   link(sources: readonly Port[], goals: readonly Port[], crossings: readonly Crossing[], exits: readonly Exit[], limit = Infinity): LinkPath | null {
     if (!sources.length || !goals.length) return null;
-    const cells = G * G;
+    const cells = this.g * this.g;
     // Flags over the grid, so the search's inner loop checks a cell without a map lookup.
     const portal = new Uint8Array(cells);
     const special = new Uint8Array(cells);
-    const at = (p: Way) => cell_of(p.z) * G + cell_of(p.x);
+    const at = (p: Way) => this.cell_of(p.z) * this.g + this.cell_of(p.x);
     const goal_at = new Map<number, number[]>();
     goals.forEach((g, i) => {
       const k = at(g);
@@ -211,11 +221,11 @@ export class Router {
     for (const t of this.towns) {
       const exit = exits.find((e) => e.town === t);
       const reach = exit ? t.core + OWN_TOWN_MARGIN : t.radius + TOWN_MARGIN;
-      for (let j = cell_of(t.z - reach); j <= cell_of(t.z + reach); j++)
-        for (let i = cell_of(t.x - reach); i <= cell_of(t.x + reach); i++) {
-          const k = j * G + i;
-          const x = centre(i);
-          const z = centre(j);
+      for (let j = this.cell_of(t.z - reach); j <= this.cell_of(t.z + reach); j++)
+        for (let i = this.cell_of(t.x - reach); i <= this.cell_of(t.x + reach); i++) {
+          const k = j * this.g + i;
+          const x = this.centre(i);
+          const z = this.centre(j);
           if (length(x - t.x, z - t.z) >= reach || (exit && corridor(exit, x, z))) continue;
           open[k] = 0;
         }
@@ -223,7 +233,7 @@ export class Router {
     const free = (k: number) => open[k] === 1;
     const door = (k: number) => portal[k] === 1 && this.height[k] >= WATER && !this.kept[k];
     const launched = new Uint8Array(cells);
-    const near = octile(goals.map(at));
+    const near = octile(goals.map(at), this.g);
     const cost = new Float64Array(cells + goals.length).fill(Infinity);
     const came = new Int32Array(cells).fill(-1);
     const hop = new Int32Array(cells).fill(-1);
@@ -266,15 +276,15 @@ export class Router {
         for (const h of hops.get(k) ?? []) if (door(h.to)) step_to(k, h.to, 2 * APPROACH + CROSS_COST, h.forward ? h.crossing : -2 - h.crossing);
       }
       if (!free(k) && !launched[k]) continue;
-      const i = k % G;
-      const j = Math.floor(k / G);
+      const i = k % this.g;
+      const j = Math.floor(k / this.g);
       for (let dj = -1; dj <= 1; dj++)
         for (let di = -1; di <= 1; di++) {
           if (!di && !dj) continue;
           const ni = i + di;
           const nj = j + dj;
-          if (ni < 0 || nj < 0 || ni >= G || nj >= G) continue;
-          const n = nj * G + ni;
+          if (ni < 0 || nj < 0 || ni >= this.g || nj >= this.g) continue;
+          const n = nj * this.g + ni;
           if (!free(n) && !door(n)) continue;
           const run = (di && dj ? Math.SQRT2 : 1) * COARSE;
           const grade = Math.abs(this.height[n] - this.height[k]) / run;
@@ -288,7 +298,7 @@ export class Router {
     const forward: boolean[] = [];
     const first = source[k];
     for (;;) {
-      legs[0].unshift([centre(k % G), centre(Math.floor(k / G))]);
+      legs[0].unshift([this.centre(k % this.g), this.centre(Math.floor(k / this.g))]);
       const via = hop[k];
       if (via !== -1) {
         taken.unshift(via >= 0 ? via : -2 - via);
@@ -304,7 +314,7 @@ export class Router {
   /** Whether every point from `from` to `to` lies on a cell nothing blocks, and no point at all on a kept-off cell. */
   clear(points: readonly RoadPoint[], from: number, to: number): boolean {
     for (let i = 0; i < points.length; i++) {
-      const k = cell_of(points[i].z) * G + cell_of(points[i].x);
+      const k = this.cell_of(points[i].z) * this.g + this.cell_of(points[i].x);
       if (this.kept[k] || (i >= from && i < to && this.blocked[k])) return false;
     }
     return true;
@@ -313,18 +323,18 @@ export class Router {
   /** Blocks every cell within `reach` of the line. */
   keep_off(line: readonly [number, number][], reach: number) {
     for (const [x, z] of line)
-      for (let j = cell_of(z - reach); j <= cell_of(z + reach); j++)
-        for (let i = cell_of(x - reach); i <= cell_of(x + reach); i++) if (length(centre(i) - x, centre(j) - z) < reach) this.blocked[j * G + i] = this.kept[j * G + i] = 1;
+      for (let j = this.cell_of(z - reach); j <= this.cell_of(z + reach); j++)
+        for (let i = this.cell_of(x - reach); i <= this.cell_of(x + reach); i++) if (length(this.centre(i) - x, this.centre(j) - z) < reach) this.blocked[j * this.g + i] = this.kept[j * this.g + i] = 1;
   }
 
   /** Blocks the cells along an accepted spur so later spurs keep their distance. */
   claim(path: Path) {
     for (const [x, z] of path) {
-      const c = cell_of(z) * G + cell_of(x);
+      const c = this.cell_of(z) * this.g + this.cell_of(x);
       for (let dj = -SPUR_BAND; dj <= SPUR_BAND; dj++)
         for (let di = -SPUR_BAND; di <= SPUR_BAND; di++) {
-          const n = c + dj * G + di;
-          if (n >= 0 && n < G * G) this.blocked[n] = 1;
+          const n = c + dj * this.g + di;
+          if (n >= 0 && n < this.g * this.g) this.blocked[n] = 1;
         }
     }
   }
@@ -332,31 +342,31 @@ export class Router {
 
 // Grid steps cost at least their run and a crossing more than its jump, so octile distance to the nearest goal never
 // overestimates: A* stays exact while it skips most of the grid.
-function octile(goals: readonly number[]): Float64Array {
-  const d = new Float64Array(G * G).fill(Infinity);
+function octile(goals: readonly number[], g: number): Float64Array {
+  const d = new Float64Array(g * g).fill(Infinity);
   for (const k of goals) d[k] = 0;
   const diagonal = Math.SQRT2 * COARSE;
   const relax = (k: number, n: number, step: number) => {
     if (d[n] + step < d[k]) d[k] = d[n] + step;
   };
-  for (let j = 0; j < G; j++)
-    for (let i = 0; i < G; i++) {
-      const k = j * G + i;
+  for (let j = 0; j < g; j++)
+    for (let i = 0; i < g; i++) {
+      const k = j * g + i;
       if (i > 0) relax(k, k - 1, COARSE);
       if (j > 0) {
-        relax(k, k - G, COARSE);
-        if (i > 0) relax(k, k - G - 1, diagonal);
-        if (i < G - 1) relax(k, k - G + 1, diagonal);
+        relax(k, k - g, COARSE);
+        if (i > 0) relax(k, k - g - 1, diagonal);
+        if (i < g - 1) relax(k, k - g + 1, diagonal);
       }
     }
-  for (let j = G - 1; j >= 0; j--)
-    for (let i = G - 1; i >= 0; i--) {
-      const k = j * G + i;
-      if (i < G - 1) relax(k, k + 1, COARSE);
-      if (j < G - 1) {
-        relax(k, k + G, COARSE);
-        if (i < G - 1) relax(k, k + G + 1, diagonal);
-        if (i > 0) relax(k, k + G - 1, diagonal);
+  for (let j = g - 1; j >= 0; j--)
+    for (let i = g - 1; i >= 0; i--) {
+      const k = j * g + i;
+      if (i < g - 1) relax(k, k + 1, COARSE);
+      if (j < g - 1) {
+        relax(k, k + g, COARSE);
+        if (i < g - 1) relax(k, k + g + 1, diagonal);
+        if (i > 0) relax(k, k + g - 1, diagonal);
       }
     }
   return d;

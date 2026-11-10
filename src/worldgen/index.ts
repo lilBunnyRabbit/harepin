@@ -82,7 +82,7 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   }
   lap("towns");
 
-  const router = new Router(heights, road_dist, towns);
+  const router = new Router((x, z) => sample(heights, x, z), (x, z) => sample(road_dist, x, z), towns);
   const on_stack = (j: number) => stack !== null && inside(stack, road[j].x, road[j].z, STACK_JOIN);
   const joins: Join[] = [];
   for (const town of towns) {
