@@ -45,6 +45,7 @@ interface Snapshot {
 }
 
 interface Foreign {
+  name: string;
   seed: number;
   world: number;
   seen: number;
@@ -305,9 +306,12 @@ export class Net {
 
   /** A peer's name, with a short id suffix when someone else in the room (you included) uses the same one. */
   display_name(remote: Remote): string {
-    const name = remote.latest.name;
-    const taken = name === this.name || [...this.remotes.values()].some((r) => r !== remote && r.latest.name === name);
-    return taken ? `${name} #${remote.id.slice(0, ID_SUFFIX)}` : name;
+    return this.label(remote.id, remote.latest.name);
+  }
+
+  private label(id: string, name: string): string {
+    const taken = name === this.name || [...this.remotes.values()].some((r) => r.id !== id && r.latest.name === name);
+    return taken ? `${name} #${id.slice(0, ID_SUFFIX)}` : name;
   }
 
   send_event(event: RaceEvent) {
@@ -327,11 +331,13 @@ export class Net {
     else if (packet.kind === "event") this.receive_event(packet.data, packet.id);
   }
 
+  // Any room peer may chat: one on another map, or one whose first car packet hasn't landed, has no `Remote` yet.
   private receive_chat(raw: unknown, sender: unknown) {
-    const remote = this.known(sender);
+    if (typeof sender !== "string" || sender === this.id) return;
     const msg = sanitize_chat(raw);
-    if (!remote || !msg || !this.allow(this.chat_limits, remote.id)) return;
-    this.on_chat?.(this.display_name(remote), msg.text);
+    if (!msg || !this.allow(this.chat_limits, sender)) return;
+    const remote = this.remotes.get(sender);
+    this.on_chat?.(remote ? this.display_name(remote) : this.label(sender, this.foreign.get(sender)?.name ?? FALLBACK_NAME), msg.text);
   }
 
   private receive_event(raw: unknown, sender: unknown) {
@@ -358,7 +364,7 @@ export class Net {
     const now = performance.now();
     // The same seed on another world version is another island: racing on it would mean racing on different roads.
     if (state.seed !== this.seed || state.w !== this.world) {
-      this.foreign.set(state.id, { seed: state.seed, world: state.w ?? 1, seen: now });
+      this.foreign.set(state.id, { name: state.name, seed: state.seed, world: state.w ?? 1, seen: now });
       this.remotes.delete(state.id);
       this.same_map.delete(state.id);
       return;
