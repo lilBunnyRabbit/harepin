@@ -23,6 +23,16 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.19.0",
+    date: "2026-11-10",
+    title: "Pick a car",
+    changes: [
+      { kind: NEW, text: "Presets in the garage: Easy cruiser, Maxed F1, Dirt rally, Mud basher, Drift and Party bus, one tap each." },
+      { kind: NEW, text: "The first-run guide lets you pick a car from the presets." },
+      { kind: IMPROVED, text: "New players start in an easy, forgiving hatch that is calm on lift-off and not too fast." },
+    ],
+  },
+  {
     version: "0.18.0",
     date: "2026-11-10",
     title: "Roads between towns",
