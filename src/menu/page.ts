@@ -35,6 +35,8 @@ export interface SettingsHost {
   toggle_race(laps: Laps, route: string): void;
   race_ready(): boolean;
   toggle_ready(laps: Laps, route: string): void;
+  /** Re-sends a standing ready with a new pick; nothing when not ready. */
+  repick_ready(laps: Laps, route: string): void;
   ready_status(): ReadyStatus;
   readonly version: string;
   /** Every release, newest first: the What's new page. */

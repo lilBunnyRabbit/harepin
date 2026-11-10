@@ -156,6 +156,9 @@ const settings = new Settings(document.body, {
   toggle_race: (laps, route) => (lobby.busy ? lobby.leave() : lobby.call(laps, route)),
   race_ready: () => lobby.ready,
   toggle_ready: (laps, route) => lobby.set_ready(lobby.ready ? null : { laps, route }),
+  repick_ready: (laps, route) => {
+    if (lobby.ready) lobby.set_ready({ laps, route });
+  },
   ready_status: () => lobby.ready_status(performance.now()),
   version: BUILD.version, changelog: () => updater.changelog_view(), update_ready: () => updater.ready,
   servers: () => directory.list(),
@@ -226,6 +229,7 @@ const modes = new Modes(scene, world, SPAWN_INDEX, () => lobby.record, (x, y, z,
   driver.rewind.clear();
 }, () => lobby.busy, () => audio.chime(), camera);
 modes.bindings = () => settings.state.bindings;
+hud.run_route = () => modes.route;
 modes.start();
 updater.start();
 const system_back = new SystemBack(

@@ -241,3 +241,16 @@ test("un-readying is sent once, and readying is refused while a race runs", () =
   lobby.set_ready({ laps: 2, route: "circuit" });
   expect(lobby.ready).toBe(false);
 });
+
+test("a new pick while ready is sent at once and is what the leader starts", () => {
+  const { net, lobby } = lobby_on("a");
+  const z = net.peer("z");
+  lobby.set_ready({ laps: 2, route: "circuit" });
+  lobby.tick(performance.now());
+  lobby.set_ready({ laps: 5, route: "circuit" });
+  lobby.tick(performance.now());
+  expect(net.readies).toEqual([READY, { ready: true, laps: 5, route: "circuit" }]);
+  net.hear_ready(READY, z);
+  lobby.tick(performance.now());
+  expect(lobby.state).toMatchObject({ kind: "countdown", laps: 5 });
+});

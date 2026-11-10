@@ -43,6 +43,14 @@ export class OnlinePage implements MenuPage {
 
     const routes = this.menu.host.race_routes;
     const route_of = () => routes.find((r) => r.id === this.race_route) ?? routes[0];
+    const picked = () => {
+      const route = route_of();
+      return { laps: route?.closed === false ? 1 : this.menu.state().laps, route: route?.id ?? "circuit" };
+    };
+    const repick = () => {
+      const { laps, route } = picked();
+      this.menu.host.repick_ready(laps, route);
+    };
     const picker = el("div", "race-routes");
     picker.setAttribute("role", "radiogroup");
     picker.setAttribute("aria-label", "Route");
@@ -53,6 +61,7 @@ export class OnlinePage implements MenuPage {
       button.append(el("b", "", choice.name), el("small", "", `${(choice.length / 1000).toFixed(1)} km · ${choice.closed ? "loop" : "A to B"}`));
       button.addEventListener("click", () => {
         this.race_route = choice.id;
+        repick();
         this.menu.refresh();
       });
       picker.append(button);
@@ -65,17 +74,16 @@ export class OnlinePage implements MenuPage {
       const button = el("button", "", String(count));
       button.type = "button";
       button.setAttribute("role", "radio");
-      button.addEventListener("click", () => this.menu.set("laps", count));
+      button.addEventListener("click", () => {
+        this.menu.set("laps", count);
+        repick();
+      });
       laps.append(button);
       return [count, button] as const;
     });
     const lap_row = el("div", "race-lap-row");
     lap_row.append(el("span", "", "Laps"), laps);
     const note = el("small", "menu-caption");
-    const picked = () => {
-      const route = route_of();
-      return { laps: route?.closed === false ? 1 : this.menu.state().laps, route: route?.id ?? "circuit" };
-    };
     const ready = action("Ready", () => {
       const { laps, route } = picked();
       this.menu.host.toggle_ready(laps, route);
