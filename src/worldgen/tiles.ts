@@ -62,11 +62,14 @@ export class TileStore {
   private k = 0;
   private fx = 0;
   private fz = 0;
+  /** Past the compact square a world never holds every chunk at once, so `whole` and `complete` mean nothing for it. */
+  readonly streamed: boolean;
 
   constructor(
     readonly ext: Extent = COMPACT,
     tiles: readonly Tile[] = [],
   ) {
+    this.streamed = ext.side > COMPACT.side;
     tiles.forEach((tile, index) => this.add(index, tile));
   }
 

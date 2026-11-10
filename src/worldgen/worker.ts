@@ -65,8 +65,11 @@ function open({ seed, kind, tones }: GenRequest) {
   const empty = { heights: new Float32Array(0), road_dist: new Float32Array(0), surface: new Uint8Array(0) };
   postMessage({ type: "plan", data: { ...data, terrain: { ...data.terrain, ...empty }, ground: { ...data.ground, ops: [] } } } satisfies WorkerReply);
   const ext = extent(KINDS[kind].size);
-  world = { ext, build: data.terrain.heights.length ? compact(data, tones) : streamed(data, ext, tones) };
-  for (let index = 0; index < ext.side * ext.side; index++) left.push(index);
+  if (!data.terrain.heights.length) world = { ext, build: streamed(data, ext, tones) };
+  else {
+    world = { ext, build: compact(data, tones) };
+    for (let index = 0; index < ext.side * ext.side; index++) left.push(index);
+  }
 }
 
 // A compact kind keeps its whole grid, so slicing is free; a streamed one (mainland) builds each tile from its plan.
@@ -83,12 +86,13 @@ function streamed(data: WorldData, ext: Extent, tones: MeshTones) {
 async function pump() {
   if (pumping || !world) return;
   pumping = true;
-  while (left.length) {
+  // A turn of the event loop before each chunk lets a focus or a batch of chunk requests reorder what is left.
+  for (;;) {
+    await new Promise((next) => setTimeout(next, 0));
+    if (!left.length) break;
     const index = nearest(world.ext);
     const { tile, chunk } = world.build(index);
     postMessage({ type: "chunk", index, tile, chunk } satisfies WorkerReply, { transfer: [...tile_transfers(tile), ...(chunk ? chunk_transfers([chunk]) : [])] });
-    // A turn of the event loop between chunks lets a focus or chunk request reorder what is left.
-    await new Promise((next) => setTimeout(next, 0));
   }
   pumping = false;
 }

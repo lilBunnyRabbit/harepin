@@ -1,24 +1,35 @@
+import { CHUNK, chunk_corner } from "../worldgen/chunk-grid";
 import type { ChunkBuffers, MeshTones } from "../worldgen/chunks";
 import type { WorldKind } from "../worldgen/types";
 import type { WorkerReply, WorkerRequest } from "../worldgen/worker";
 import { World } from "./world";
 
-/** One persistent generation worker: the world's plan first, then its chunks nearest the area someone waits on. */
+export interface ChunkListener {
+  add(chunk: ChunkBuffers): void;
+  drop(index: number): void;
+}
+
+/**
+ * One persistent generation worker: the world's plan first, then its chunks nearest the area someone waits on. A compact
+ * world sends every chunk once and keeps them; a streamed one keeps only the chunks around the car (`follow`).
+ */
 export class WorldStream {
   /** Chunks that came before anyone listened; handed over once, then let go. */
   private waiting: ChunkBuffers[] = [];
-  private listener: ((chunk: ChunkBuffers) => void) | null = null;
-  /** Replies still to come per chunk; the first load asks for every chunk once. */
+  private listener: ChunkListener | null = null;
+  /** Replies still to come per chunk; a compact world's first load asks for every chunk once. */
   private readonly pending: Uint16Array;
   /** Of those, how many answer a request made before the chunk was dropped, and so are thrown away. */
   private readonly stale: Uint16Array;
+  private at = -1;
+  private fog = 0;
 
   private constructor(
     private readonly worker: Worker,
     readonly world: World,
   ) {
     const { side } = world.tiles.ext;
-    this.pending = new Uint16Array(side * side).fill(1);
+    this.pending = new Uint16Array(side * side).fill(world.tiles.streamed ? 0 : 1);
     this.stale = new Uint16Array(side * side);
     world.tiles.on_need = (missing, focus) => {
       if (focus) this.post({ type: "focus", x: focus.x, z: focus.z });
@@ -49,17 +60,46 @@ export class WorldStream {
     });
   }
 
-  /** Every chunk mesh so far, then each one as it arrives; its tile is already in `world.tiles`. */
-  listen(listener: (chunk: ChunkBuffers) => void) {
-    for (const chunk of this.waiting) listener(chunk);
+  /** Every chunk mesh so far, then each one as it arrives (its tile already in `world.tiles`) and each drop. */
+  listen(listener: ChunkListener) {
+    for (const chunk of this.waiting) listener.add(chunk);
     this.waiting = [];
     this.listener = listener;
+  }
+
+  /**
+   * A streamed world keeps the chunks whose centre lies within `fog_far` plus one chunk of (x, z) and lets go of those
+   * past one chunk more, so driving along a border does not churn. Called every frame; only a new chunk or fog works.
+   */
+  follow(x: number, z: number, fog_far: number) {
+    const { tiles } = this.world;
+    if (!tiles.streamed) return;
+    const { ext } = tiles;
+    const ci = Math.max(0, Math.min(ext.side - 1, Math.floor((x - ext.origin) / CHUNK)));
+    const cj = Math.max(0, Math.min(ext.side - 1, Math.floor((z - ext.origin) / CHUNK)));
+    const at = cj * ext.side + ci;
+    if (at === this.at && fog_far === this.fog) return;
+    this.at = at;
+    this.fog = fog_far;
+    this.post({ type: "focus", x, z });
+    const keep = (fog_far + CHUNK) ** 2;
+    const leave = (fog_far + 2 * CHUNK) ** 2;
+    for (let index = 0; index < ext.side * ext.side; index++) {
+      const [x0, z0] = chunk_corner(index, ext);
+      const dx = x0 + CHUNK / 2 - x;
+      const dz = z0 + CHUNK / 2 - z;
+      const d = dx * dx + dz * dz;
+      const held = tiles.get(index) !== undefined || this.pending[index] > this.stale[index];
+      if (d <= keep && !held) this.request(index);
+      else if (d > leave && held) this.drop(index);
+    }
   }
 
   /** Lets chunk `index` go; its tile reads as missing until a wait on it or `request` brings it back. */
   drop(index: number) {
     this.world.tiles.drop(index);
     this.stale[index] = this.pending[index];
+    this.listener?.drop(index);
   }
 
   /** Asks for chunk `index` unless a reply that will be kept is already on its way. */
@@ -81,7 +121,7 @@ export class WorldStream {
     }
     this.world.tiles.add(reply.index, reply.tile);
     if (!reply.chunk) return;
-    if (this.listener) this.listener(reply.chunk);
+    if (this.listener) this.listener.add(reply.chunk);
     else this.waiting.push(reply.chunk);
   }
 }

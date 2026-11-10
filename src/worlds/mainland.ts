@@ -1,4 +1,3 @@
-import { roadside } from "../car/trackside";
 import { water_mesh } from "../render/scene";
 import { WorldKind } from "../worldgen/types";
 import { shown, type WorldDef } from "./world-def";
@@ -17,5 +16,5 @@ export const mainland: WorldDef = {
   ground_puff: "grass",
   backdrop: "sky",
   facts: (f) => [[shown(f, (f) => `${(f.length / 1000).toFixed(1)} km`), "circuit"], [shown(f, (f) => String(f.towns)), "towns"]],
-  dress: (world) => [roadside(world), water_mesh(world.tiles.ext.size)],
+  dress: (world) => [water_mesh(world.tiles.ext.size)],
 };

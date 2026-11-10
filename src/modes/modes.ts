@@ -176,6 +176,7 @@ export class Modes {
 
   private launch(active: Active) {
     // Mode sites and views read terrain anywhere on the map: a start before every chunk is in waits for the rest.
+    if (this.world.tiles.streamed) return this.show_status("Modes are not on this world yet");
     if (!this.world.tiles.complete) {
       void this.cover(this.world.tiles.whole()).then(() => {
         if (this.current === active && !active.run) this.launch(active);

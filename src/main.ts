@@ -88,11 +88,13 @@ render.apply_quality();
 const area_fade = new AreaFade(app);
 
 const world_view = new WorldView(world, quality.mobile);
-stream.listen((chunk) => world_view.add(chunk));
+stream.listen(world_view);
 scene.add(...(WORLDS[world.kind].backdrop === "sky" ? light.dress(sky(), clouds(world.seed)) : []), world_view.root);
 let gate_views: Gate[] = [];
-// Dressing and gates stand on terrain all round the world, so they go in once every chunk has arrived.
-void world.tiles.whole().then(() => {
+// Dressing and gates stand on terrain all round the world, so they go in once every chunk has arrived. A streamed
+// world never holds every chunk: its dress stands on nothing it reads, and it has no gates yet.
+if (world.tiles.streamed) scene.add(...WORLDS[world.kind].dress(world));
+else void world.tiles.whole().then(() => {
   performance.mark("world:whole");
   scene.add(...WORLDS[world.kind].dress(world));
   gate_views = gates(world);
@@ -508,6 +510,7 @@ function frame(now: number) {
   if (input.touch.nitro && car.nitro.fill <= 0) input.touch.tank_empty();
   hud.update(car, now, rewinding);
   if (quality.adapt(dt)) render.apply_quality();
+  stream.follow(car.pos.x, car.pos.z, quality.tier.fog_far);
   world_view.update(camera, quality.tier.fog_far);
   // The garage covers the screen and draws the car with its own renderer; the next frame after it closes draws the world.
   if (!garage.is_open && (!menu_hold || now - last_draw >= MENU_DRAW_MS)) {
