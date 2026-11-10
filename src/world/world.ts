@@ -156,6 +156,10 @@ export class World implements Ground {
   private readonly sea: number;
   /** `footing` in water: rewritten per query, never kept. */
   private readonly wading: Footing = { grip: 1, roll: 1 };
+  /** The footing `grip` just read, for the `roll` the car asks of the same wheel next: one query per wheel per step. */
+  private last: Footing | null = null;
+  private last_x = NaN;
+  private last_z = NaN;
   /** Terrain heights, `road_dist` and surface, one tile per chunk. */
   readonly tiles: TileStore;
   /** The race circuit, in driving order; gates and the ghost follow it. */
@@ -332,10 +336,12 @@ export class World implements Ground {
     return this.water_level(x, z) - this.tiles.height(x, z);
   }
 
-  /** Under deep water: the frame loop resets the car after it stays so a moment. */
-  drowned(pos: Vector3): boolean {
-    const level = this.water_level(pos.x, pos.z);
-    return pos.y < level && level - this.tiles.height(pos.x, pos.z) > DEEP_WATER;
+  /**
+   * Standing in deep water: the depth over the ground under the car, whatever the car's ride height, so a bus and a coupe
+   * reset at the same depth. The frame loop asks only while a wheel touches, so a jump over a river never counts.
+   */
+  drowned(x: number, z: number): boolean {
+    return this.depth(x, z) > DEEP_WATER;
   }
 
   distance_to_road(x: number, z: number): number {
@@ -381,11 +387,16 @@ export class World implements Ground {
   }
 
   grip(x: number, z: number): number {
-    return this.footing(x, z).grip;
+    this.last = this.footing(x, z);
+    this.last_x = x;
+    this.last_z = z;
+    return this.last.grip;
   }
 
   roll(x: number, z: number): number {
-    return this.footing(x, z).roll;
+    const footing = this.last && x === this.last_x && z === this.last_z ? this.last : this.footing(x, z);
+    this.last = null;
+    return footing.roll;
   }
 
   /** Nearest point of the race circuit; its index in `road` places gates and the ghost. */
