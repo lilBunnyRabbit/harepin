@@ -3,7 +3,7 @@ import { expect, test } from "bun:test";
 import { sweep } from "../sweep";
 import { plan_mainland } from "./mainland";
 import { KERB_OUT, ring_mouths, road_junctions, roadside_clear } from "./road-layers";
-import { ROAD_HALF } from "./types";
+import { ROAD_HALF, STREET_HALF } from "./types";
 
 const POST_OFF = ROAD_HALF + 1.6;
 // Room qa7ml: the circuit kinks where a road between towns meets a town's street, and the kerb folded over it there.
@@ -46,4 +46,30 @@ for (const seed of [...sweep(3), KINKED])
         expect(ahead).toBeGreaterThan(0);
       }
     });
+  });
+
+const reach = ({ x, z, patch }: { x: number; z: number; patch: { outline: readonly { x: number; z: number }[] } }) => Math.max(...patch.outline.map((q) => Math.hypot(q.x - x, q.z - z)));
+
+function area(outline: readonly { x: number; z: number }[]): number {
+  let twice = 0;
+  for (let a = 0, b = outline.length - 1; a < outline.length; b = a++) twice += outline[b].x * outline[a].z - outline[a].x * outline[b].z;
+  return Math.abs(twice / 2);
+}
+
+// A town's corners are 4-6 m curbs: a circuit crossing in town took the highway's 8 m fillet and spread its patch to 0.9.
+const TOWN_PATCH_SHARE = 0.65;
+
+for (const seed of [...sweep(3), KINKED])
+  test(`mainland ${seed}: a town crossing's patch stays small next to its roads' widths, and no two patches overlap`, () => {
+    const { patched } = road_junctions(plan_mainland(seed).data);
+    for (const j of patched) {
+      if (j.arms.some((arm) => arm.half > STREET_HALF)) continue;
+      const widths = j.arms.reduce((sum, arm) => sum + 2 * arm.clear, 0);
+      expect(area(j.patch.outline)).toBeLessThanOrEqual(TOWN_PATCH_SHARE * widths * widths);
+    }
+    for (const a of patched)
+      for (const b of patched) {
+        if (a === b || Math.hypot(a.x - b.x, a.z - b.z) > reach(a) + reach(b)) continue;
+        expect(a.patch.outline.some((q) => inside(b.patch.outline, q.x, q.z))).toBe(false);
+      }
   });

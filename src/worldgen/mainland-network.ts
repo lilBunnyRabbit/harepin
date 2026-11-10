@@ -216,5 +216,7 @@ function cycle_circuit(graph: RoadGraph, links: readonly Link[]): { circuit: num
     road.push(...(road.length ? points.slice(1) : points));
   }
   road.pop();
-  return { circuit: steps.map((s) => s.id), road };
+  // The lap starts halfway along its first link, so the start gate stands on open road, not at a town's gate.
+  const half = Math.floor((best[0].edge.points.length - 1) / 2);
+  return { circuit: steps.map((s) => s.id), road: [...road.slice(half), ...road.slice(0, half)] };
 }

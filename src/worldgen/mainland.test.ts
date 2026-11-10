@@ -3,7 +3,7 @@ import { expect, test } from "bun:test";
 import { sweep } from "../sweep";
 import { CHUNK, chunk_of, extent } from "./chunk-grid";
 import { build_tile } from "./ground";
-import { MAINLAND_SIZE, plan_mainland } from "./mainland";
+import { GATE_CLEAR, MAINLAND_SIZE, plan_mainland } from "./mainland";
 import { plan_sample } from "./plan-grid";
 import { TILE_SIDE, TileStore } from "./tiles";
 import type { Built } from "./tile-mesher";
@@ -21,6 +21,16 @@ test("the mainland is land in the middle and sea at its border", () => {
   expect(plan_sample(grid, 0, 0)).toBeGreaterThan(5);
   for (const [x, z] of [[EXT.origin, EXT.origin], [-EXT.origin - 1, 0], [0, EXT.origin]]) expect(plan_sample(grid, x, z)).toBeLessThan(0);
 });
+
+// Room qa7ml's map and the first sweep seeds: the start gate stood on the kink where the lap's first link meets a town.
+for (const seed of [...sweep(3), 3516535473])
+  test(`mainland ${seed}: gates run in lap order and stand clear of every road node`, () => {
+    const { data } = plan_mainland(seed);
+    const at = data.checkpoints.map((c) => data.road.findIndex((p) => p.x === c.x && p.z === c.z));
+    expect(at[0]).toBe(0);
+    at.forEach((s, i) => i && expect(s).toBeGreaterThan(at[i - 1]));
+    for (const c of data.checkpoints) for (const n of data.graph.nodes) expect(Math.hypot(n.x - c.x, n.z - c.z)).toBeGreaterThanOrEqual(GATE_CLEAR);
+  });
 
 for (const seed of sweep(3))
   test(`mainland ${seed}: every pair of neighbouring tiles shares its border vertices bit for bit`, () => {

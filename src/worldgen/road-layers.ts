@@ -61,6 +61,8 @@ interface ArmStyle {
 }
 
 const RING_ARM: ArmStyle = { radius: CURB, rank: 2, lift: RING_LIFT, lined: true, sidewalk: 0 };
+// The mainland circuit runs through towns on their streets: a crossing there keeps the town's own corner, not a highway's.
+const RING_STREET_ARM: ArmStyle = { ...RING_ARM, radius: STREET_CURB };
 const SPUR_ARM: ArmStyle = { radius: CURB, rank: 1, lift: SPUR_LIFT, lined: true, sidewalk: 0 };
 // Below a spur, so a road between towns gives way where it branches off one.
 const LOCAL_ARM: ArmStyle = { ...SPUR_ARM, rank: 0.5 };
@@ -142,7 +144,7 @@ export function road_junctions(data: RoadData): Junctions {
   const spurs = spur_edges(graph, circuit);
   const ring_reach = offset_reach(road, true);
   const ring_at = new Map(circuit.map((id) => [id, ring_span(road, graph.edges[id])]));
-  const style = (edge: RoadEdge) => (ring_at.has(edge.id) ? RING_ARM : edge.kind === "highway" ? SPUR_ARM : edge.kind === "local" ? LOCAL_ARM : STREET_ARM);
+  const style = (edge: RoadEdge) => (ring_at.has(edge.id) ? (edge.kind === "street" ? RING_STREET_ARM : RING_ARM) : edge.kind === "highway" ? SPUR_ARM : edge.kind === "local" ? LOCAL_ARM : STREET_ARM);
   const reach_of = (edge: RoadEdge): readonly Reach[] => {
     const span = ring_at.get(edge.id);
     if (span === undefined) return offset_reach(edge.points, false);

@@ -5,9 +5,11 @@ import { MAINLAND, type Recipe } from "./recipe";
 import { circuit_route, heading } from "./routes";
 import type { GroundOp } from "./stamp";
 import { land_height } from "./terrain";
-import { CELL, WorldKind, type Checkpoint, type WorldData } from "./types";
+import { CELL, WorldKind, type Checkpoint, type RoadPoint, type WorldData } from "./types";
 
 const CHECKPOINTS = 16;
+/** Metres a gate keeps from every road node: clear of junction patches and the kink where a link meets a town's street. */
+export const GATE_CLEAR = 60;
 
 export const MAINLAND_SIZE = 6144;
 /** Plan grid spacing: towns, routing and the world map read land this coarse; tiles rebuild it on the 4 m lattice. */
@@ -40,8 +42,27 @@ export function plan_mainland(seed: number, recipe: Recipe = MAINLAND): Mainland
     ...graph.edges.filter((e) => !on_circuit.has(e.id)).map((edge): GroundOp => ({ kind: "edge", edge, bank: recipe.road.bank })),
     { kind: "blend", bank: recipe.road.bank },
   ];
+  const clear = (p: RoadPoint) => graph.nodes.every((node) => (node.x - p.x) ** 2 + (node.z - p.z) ** 2 >= GATE_CLEAR * GATE_CLEAR);
+  // The first gate is the start line at road[0]; each other one takes the clear sample nearest its even slot, after the gate before.
+  const gates: number[] = [];
+  for (let index = 0; index < CHECKPOINTS && road.length; index++) {
+    const slot = Math.floor((index / CHECKPOINTS) * road.length);
+    const after = index ? gates[index - 1] + 1 : 0;
+    let at = Math.max(slot, after);
+    for (let k = 0; index && k < road.length; k++) {
+      if (slot + k < road.length && slot + k >= after && clear(road[slot + k])) {
+        at = slot + k;
+        break;
+      }
+      if (slot - k >= after && clear(road[slot - k])) {
+        at = slot - k;
+        break;
+      }
+    }
+    gates.push(at);
+  }
   const checkpoints: Checkpoint[] = road.length ? Array.from({ length: CHECKPOINTS }, (_, index) => {
-    const p = road[Math.floor((index / CHECKPOINTS) * road.length)];
+    const p = road[gates[index]];
     return { x: p.x, y: p.y, z: p.z, heading: heading(p), index };
   }) : [];
   const routes = road.length ? [circuit_route(road, checkpoints)] : [];
