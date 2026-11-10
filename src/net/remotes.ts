@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { DEFAULT_BUILD, build_code, build_spec, parse_build, type Build } from "../car/build";
 import { oversize, type CarSpec } from "../car/cars";
 import { contact_shadow, fit_contact_shadow, place_contact_shadow, type ContactShadow } from "../car/contact-shadow";
+import { chunk_of } from "../worldgen/chunk-grid";
 import { show_flame } from "../car/lights";
 import { build_view, camera_fade, dispose_car_view, rest_wheels, type CarView } from "../car/models";
 import type { World } from "../world/world";
@@ -159,7 +160,10 @@ export class Remotes {
       root.quaternion.copy(this.q0.set(...a.state.q).slerp(this.q1.set(...b.state.q), k));
     }
     this.forward.set(0, 0, 1).applyQuaternion(root.quaternion);
-    place_contact_shadow(rv.shadow, root.position.x, root.position.y, root.position.z, Math.atan2(this.forward.x, this.forward.z), this.world);
+    // A chunk that has not streamed in reads as flat sea level: no shadow there rather than one far under the car.
+    const { tiles } = this.world;
+    rv.shadow.mesh.visible = tiles.get(chunk_of(root.position.x, root.position.z, tiles.ext)) !== undefined;
+    if (rv.shadow.mesh.visible) place_contact_shadow(rv.shadow, root.position.x, root.position.y, root.position.z, Math.atan2(this.forward.x, this.forward.z), this.world);
     const s = b.state;
     rv.spin += (Math.hypot(...s.v) / rv.spec.wheel.radius) * dt;
     rv.view.wheels.forEach((w, i) => {
