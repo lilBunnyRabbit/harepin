@@ -30,8 +30,23 @@ function raw_height(x: number, z: number, seed: number, peak: Peak, shape: Terra
   const dz = z - peak.z;
   const t = Math.min(1, (dx * dx + dz * dz) / (shape.peak.radius * shape.peak.radius));
   const top = shape.peak.height * (1 - t) * (1 - t) * (1 - t);
-  const land = 5 + hills * Math.sqrt(hills) * Math.sqrt(Math.sqrt(hills)) * 95 + ridge * ridge * ridge * 22 + top;
-  return -9 + (land + 9) * mask;
+  let land = 5 + hills * Math.sqrt(hills) * Math.sqrt(Math.sqrt(hills)) * shape.hills + ridge * ridge * ridge * shape.ridge + top;
+  if (shape.mesas) land = terraced(land, shape.mesas);
+  const ground = shape.edge + (land - shape.edge) * mask;
+  return shape.dunes ? ground + dunes(x, z, seed, shape.dunes) : ground;
+}
+
+// The riser blend is smoothstep over the top `riser` share of each step, so a terrace face stays a slope the mesh can draw.
+function terraced(h: number, mesas: NonNullable<TerrainRecipe["mesas"]>): number {
+  if (h <= mesas.base) return h;
+  const t = (h - mesas.base) / mesas.step;
+  const floor = Math.floor(t);
+  return mesas.base + (floor + smoothstep(1 - mesas.riser, 1, t - floor)) * mesas.step;
+}
+
+function dunes(x: number, z: number, seed: number, shape: NonNullable<TerrainRecipe["dunes"]>): number {
+  const crest = 1 - Math.abs(2 * fbm(x / shape.scale, (z * 3) / shape.scale, seed + 17, 3) - 1);
+  return crest * crest * shape.height;
 }
 
 export function terrain(seed: number, shape: TerrainRecipe = ISLAND.terrain): Terrain {

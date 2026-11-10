@@ -1,4 +1,4 @@
-import { biome_cuts, item_kind, plant } from "./biomes";
+import { biome_cuts, harden, item_kind, plant } from "./biomes";
 import { sample, vertex } from "./field";
 import { ITEMS, JumpPlanner } from "./jumps";
 import { LandmarkPlanner } from "./landmarks";
@@ -18,7 +18,7 @@ import { terrain } from "./terrain";
 import { plan_trails } from "./trails";
 import { place_towns, town_streets } from "./towns";
 import { ISLAND, type Landmark, type Recipe } from "./recipe";
-import { CELL, ORIGIN, ROAD_HALF, SPAWN_INDEX, SPUR_HALF, type Checkpoint, type RoadEdge, type RoadGraph, type RoadNode, type RoadPoint, type Solid, type Tree, type WorldData } from "./types";
+import { CELL, ORIGIN, ROAD_HALF, SPAWN_INDEX, SPUR_HALF, WorldKind, type Checkpoint, type RoadEdge, type RoadGraph, type RoadNode, type RoadPoint, type Solid, type Tree, type WorldData } from "./types";
 
 const CHECKPOINTS = 12;
 const STACK_GATE = 5;
@@ -43,7 +43,7 @@ const LANDMARKS: Record<Landmark, (marks: LandmarkPlanner, roads: RoadEdge[]) =>
 // World generation uses only + - * / sqrt floor and integer ops, which IEEE 754 makes bit-exact on every engine, so
 // every discrete choice (towns, routes, lots, trees) comes out the same for every peer on the seed. Math.atan2 only
 // feeds display angles.
-export function generate(seed: number, recipe: Recipe = ISLAND): WorldData {
+export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind = WorldKind.ISLAND): WorldData {
   const timings: [string, number][] = [];
   let clock = performance.now();
   const lap = (stage: string) => {
@@ -57,7 +57,7 @@ export function generate(seed: number, recipe: Recipe = ISLAND): WorldData {
   lap("terrain");
 
   const { road, stack } = loop_road(seed, heights, recipe.road);
-  const canyon = recipe.road.canyon ? plan_canyon(seed, heights, road) : null;
+  const canyon = recipe.road.canyon ? plan_canyon(seed, heights, road, recipe.road.canyon.outlet) : null;
   if (canyon) carve(heights, canyon);
   const nodes: RoadNode[] = [];
   const edges: RoadEdge[] = [];
@@ -220,7 +220,8 @@ export function generate(seed: number, recipe: Recipe = ISLAND): WorldData {
   const planted = plant(cuts, land, (x, z) => !lots.occupied[vertex(Math.round((x - ORIGIN) / CELL), Math.round((z - ORIGIN) / CELL))] && !towns.some((t) => length(t.x - x, t.z - z) < t.radius) && !jumps.blocks(x, z, 2) && !marks.blocks(x, z, 2));
   const trees: Tree[] = [...lots.out.trees, ...planted.trees];
   solids.push(...planted.solids);
+  harden(cuts, land);
   lap("props");
 
-  return { kind: "island", deck: null, terrain: land, graph, towns, lots: lot_list, buildings, props, parking, trees, solids, ramps: jumps.ramps, items: jumps.items, challenges: jumps.challenges, checkpoints, circuit, road, routes, canyon, timings };
+  return { kind, deck: null, terrain: land, graph, towns, lots: lot_list, buildings, props, parking, trees, solids, ramps: jumps.ramps, items: jumps.items, challenges: jumps.challenges, checkpoints, circuit, road, routes, canyon, timings };
 }

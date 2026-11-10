@@ -3,6 +3,7 @@ import type { Car } from "../car/car";
 import { brand, color, dark, mix, tones } from "../theme/palette";
 import { FOG } from "./sky";
 import type { World } from "../world/world";
+import { KINDS } from "../worldgen/kinds/kinds";
 
 const PUFFS = 420;
 const SMOKE_LIFE = 0.7;
@@ -24,6 +25,9 @@ interface Puff {
   spin: number;
 }
 
+/** What a kind's open ground throws up; firm ground (trails, shoulders) always throws dust. */
+export type GroundPuff = "grass" | "dust";
+
 export class Smoke {
   readonly mesh: THREE.InstancedMesh;
   private puffs: Puff[] = [];
@@ -35,10 +39,12 @@ export class Smoke {
   private smoke = FOG.clone().lerp(color(dark ? brand.foreground : brand.background_lightest), 0.5);
   private dust = color(mix(brand.warning, brand.background, 0.3));
   private grass = color(mix(brand.success, brand.background, 0.28));
+  private readonly ground: THREE.Color;
   private carry: number[] = [];
   private kick = new THREE.Vector3();
 
-  constructor() {
+  constructor(ground: GroundPuff) {
+    this.ground = ground === "grass" ? this.grass : this.dust;
     const material = new THREE.MeshLambertMaterial({ flatShading: true, transparent: true, opacity: 0.35, depthWrite: false, emissive: this.smoke, emissiveIntensity: dark ? 0.3 : 0 });
     this.mesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), material, PUFFS);
     this.mesh.frustumCulled = false;
@@ -78,7 +84,7 @@ export class Smoke {
         rate = Math.min(1, slide * 1.2) * SMOKE_RATE;
       } else if (!on_road && speed > 4) {
         rate = Math.min(1, speed / 25) * 12 + Math.max(0, slide) * 20;
-        tint = world.grip(w.point.x, w.point.z) < 0.8 ? this.grass : this.dust;
+        tint = world.grip(w.point.x, w.point.z) === KINDS[world.kind].grip.ground ? this.ground : this.dust;
         size = DUST_SIZE;
         life = DUST_LIFE;
       }

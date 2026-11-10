@@ -119,7 +119,7 @@ const chase = new ChaseCamera(camera);
 const pads = new PadTimer();
 const driver = new Driver(scene, light, world, race, pads, chase, build);
 
-const smoke = new Smoke();
+const smoke = new Smoke(WORLDS[world.kind].ground_puff);
 const skids = new Skids();
 scene.add(smoke.mesh, skids.mesh);
 

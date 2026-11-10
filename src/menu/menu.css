@@ -274,7 +274,15 @@
 }
 
 .menu-mosaic[data-tab="play"] {
-  grid-template: "hero island sky" 1fr "hero map modes" 1fr "goals goals goals" auto / 1.6fr 1fr 1fr;
+  grid-template: "hero worlds worlds" 1fr "hero map modes" 1fr "goals goals goals" auto / 1.6fr 1fr 1fr;
+}
+
+/* Every world kind's tile shares one area, so a new kind adds no CSS. */
+.menu-worlds {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: var(--space-4);
 }
 
 .menu-mosaic[data-tab="online"] {
@@ -496,8 +504,7 @@
   border-color: var(--line-strong);
 }
 
-[data-area="island"] { grid-area: island; }
-[data-area="sky"] { grid-area: sky; }
+[data-area="worlds"] { grid-area: worlds; }
 [data-area="map"] { grid-area: map; }
 [data-area="modes"] { grid-area: modes; }
 [data-area="room"] { grid-area: room; }
@@ -594,7 +601,13 @@
   }
 
   .menu-mosaic[data-tab="play"] {
-    grid-template: "hero island" var(--first-rows) "hero sky" var(--first-rows) "map modes" 168px "goals goals" auto / 1.25fr 1fr;
+    grid-template: "hero worlds" var(--first-rows) "hero worlds" var(--first-rows) "map modes" 168px "goals goals" auto / 1.25fr 1fr;
+  }
+
+  .menu-worlds {
+    grid-auto-flow: row;
+    grid-auto-rows: minmax(0, 1fr);
+    gap: var(--space-3);
   }
 
   .menu-mosaic[data-tab="online"] {
@@ -633,7 +646,19 @@
 
 @media (max-width: 600px) {
   .menu-mosaic[data-tab="play"] {
-    grid-template: "hero hero" 220px "island sky" 160px "map modes" 160px "goals goals" auto / 1fr 1fr;
+    grid-template: "hero hero" 220px "worlds worlds" 160px "map modes" 160px "goals goals" auto / 1fr 1fr;
+  }
+
+  /* Side by side and scrolling past two, so each tile keeps a readable width. */
+  .menu-worlds {
+    grid-auto-flow: column;
+    grid-auto-columns: calc((100% - var(--space-3)) / 2.3);
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+  }
+
+  .menu-worlds > * {
+    scroll-snap-align: start;
   }
 
   .menu-mosaic[data-tab="online"] {

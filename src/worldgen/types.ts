@@ -15,13 +15,16 @@ export const SPUR_GRADE = 0.12;
 export const SPAWN_INDEX = -40;
 export const GRASS = 0;
 export const DIRT = 1;
+/** Ground surfaces, each with a LUT row of its own and one half-way to rock. DIRT is firm: trails, and hardpack a recipe lays. */
+export const Ground = { GRASS: 0, DRY: 1, SAND: 2, FOREST: 3, UPLAND: 4, DUNE: 5, DIRT: 6 } as const;
+export type Ground = (typeof Ground)[keyof typeof Ground];
 /** Bump whenever `generate` makes a different island for the same seed: peers and saved records are matched on it. */
 export const WORLD_VERSION = 6;
 
 /** Bump whenever `generate_sky` makes a different track for the same seed. */
 export const SKY_VERSION = 3;
 
-export const WorldKind = { ISLAND: "island", SKY: "sky" } as const;
+export const WorldKind = { ISLAND: "island", SKY: "sky", DESERT: "desert" } as const;
 export type WorldKind = (typeof WorldKind)[keyof typeof WorldKind];
 
 export interface RoadPoint {
@@ -57,7 +60,7 @@ export interface Terrain {
   heights: Float32Array<ArrayBuffer>;
   /** Distance to the nearest road surface edge plus ROAD_HALF, so every road reads as ROAD_HALF wide to grip(). */
   road_dist: Float32Array<ArrayBuffer>;
-  /** Ground under the wheels per vertex: GRASS, or DIRT where a trail runs. Asphalt is read from `road_dist`. */
+  /** Ground under the wheels per vertex: GRASS, or DIRT on a trail or hardpack. Asphalt is read from `road_dist`. */
   surface: Uint8Array<ArrayBuffer>;
 }
 

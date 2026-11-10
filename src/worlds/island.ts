@@ -13,6 +13,7 @@ export const island: WorldDef = {
   map_label: "island",
   pads: false,
   mood: {},
+  ground_puff: "grass",
   backdrop: "sky",
   facts: (f) => [...lap_facts(f, "circuit"), [shown(f, (f) => String(f.towns)), "towns"]],
   dress: (world) => [roadside(world), water_mesh()],

@@ -1,4 +1,5 @@
 import type * as THREE from "three";
+import type { GroundPuff } from "../render/effects";
 import type { MoodDelta } from "../render/lighting";
 import type { World } from "../world/world";
 import type { WorldFacts } from "../worldgen/facts";
@@ -24,6 +25,8 @@ export interface WorldDef {
   facts(f: WorldFacts | null): [string, string][];
   /** Merged over the theme's mood. */
   mood: MoodDelta;
+  /** Tint of the dust the open ground throws. */
+  ground_puff: GroundPuff;
   /** "sky" adds the sky dome and ring clouds; "indoor" adds neither. */
   backdrop: "sky" | "indoor";
   /** Scene pieces beyond the world view, sky and clouds. */

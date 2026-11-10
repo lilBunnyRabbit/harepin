@@ -1,7 +1,7 @@
 import { car_spec } from "../../src/car/cars";
 import { World } from "../../src/world/world";
 import { build_chunks } from "../../src/worldgen/chunks";
-import { generate_world } from "../../src/worldgen/kinds/kinds";
+import { generate_world, KINDS } from "../../src/worldgen/kinds/kinds";
 import type { WorldKind } from "../../src/worldgen/types";
 import { world_digest, type Digest } from "./digest";
 import { circuit_lap, drive_spurs, sky_lap, type Outcome } from "./drives";
@@ -15,9 +15,9 @@ const SPEC = car_spec("coupe");
 export interface ProofJob {
   kind: WorldKind;
   seed: number;
-  /** World rules (island only), on top of the digest. */
+  /** World rules (land kinds only), on top of the digest. */
   checks: boolean;
-  /** Spur drives and a circuit lap on the island, a lap on the sky track. */
+  /** Spur drives and a circuit lap on a land kind, a lap on the sky track. */
   drives: boolean;
 }
 
@@ -41,9 +41,9 @@ self.onmessage = (event: MessageEvent<ProofJob>) => {
   const chunks = build_chunks(data, MESH_TONES);
   const mesh_ms = performance.now() - t1;
   const digest = world_digest(data, chunks);
-  const island = kind === "island";
+  const land = KINDS[kind].ground;
   let world: string[] | null = null;
-  if (checks && island) {
+  if (checks && land) {
     const found: string[] = [];
     check_world(data, chunks, (what) => found.push(what));
     world = found;
@@ -52,8 +52,8 @@ self.onmessage = (event: MessageEvent<ProofJob>) => {
   let lap: Outcome | null = null;
   if (drives) {
     const live = new World(seed, data);
-    spurs = island ? drive_spurs(live, SPEC) : null;
-    lap = island ? circuit_lap(live, SPEC) : sky_lap(live, SPEC);
+    spurs = land ? drive_spurs(live, SPEC) : null;
+    lap = land ? circuit_lap(live, SPEC) : sky_lap(live, SPEC);
   }
   const result: ProofResult = { kind, seed, digest, gen_ms: t1 - t0, mesh_ms, stages: data.timings, world, spurs, lap };
   postMessage(result);

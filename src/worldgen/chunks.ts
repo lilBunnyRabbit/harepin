@@ -1,4 +1,4 @@
-import { biome_at, biome_cuts, Biome } from "./biomes";
+import { biome_cuts, ground_at } from "./biomes";
 import { CHUNK, CHUNKS, chunk_of } from "./chunk-grid";
 import { sample, vertex_up } from "./field";
 import { KINDS } from "./kinds/kinds";
@@ -8,14 +8,13 @@ import { Builder, bounding_sphere, turned, type Rgb, type Sphere } from "./mesh"
 import { road_layers, type RoadTones } from "./road-layers";
 import type { Layer } from "./roads";
 import { deck_layers, type DeckTones } from "./sky-mesh";
-import { fbm, hash } from "./noise";
-import { CELL, DIRT, N, ORIGIN, PropKind, Roof, type WorldData } from "./types";
+import { hash } from "./noise";
+import { ISLAND } from "./recipe";
+import { CELL, DIRT, Ground, N, ORIGIN, PropKind, Roof, type WorldData } from "./types";
 
 const CHUNK_CELLS = CHUNK / CELL;
 export const JITTER_LEVELS = 64;
-/** Ground surfaces, each with a LUT row of its own and one half-way to rock. */
-export const Ground = { GRASS: 0, DRY: 1, SAND: 2, FOREST: 3, UPLAND: 4, DUNE: 5, DIRT: 6 } as const;
-export type Ground = (typeof Ground)[keyof typeof Ground];
+export { Ground };
 const SURFACES = Object.keys(Ground).length;
 const ROCK_HALF = SURFACES;
 const ROCK = 2 * SURFACES;
@@ -71,16 +70,9 @@ function jitter(i: number, j: number): number {
   return h - Math.floor(h) - 0.5;
 }
 
-function surface(biome: Biome, patch: number): Ground {
-  if (biome === Biome.COAST) return patch > 0.55 ? Ground.SAND : Ground.DUNE;
-  if (biome === Biome.FOREST) return patch > 0.6 ? Ground.GRASS : Ground.FOREST;
-  if (biome === Biome.UPLAND) return patch > 0.5 ? Ground.DRY : Ground.UPLAND;
-  return patch > 0.55 ? Ground.DRY : Ground.GRASS;
-}
-
 export function terrain_colors(data: WorldData, lut: Float32Array): Float32Array {
   const { heights, seed, surface: surface_grid } = data.terrain;
-  const cuts = biome_cuts(seed, heights);
+  const cuts = biome_cuts(seed, heights, (KINDS[data.kind].recipe ?? ISLAND).biomes);
   const colors = new Float32Array((N + 1) * (N + 1) * 3);
   for (let j = 0; j <= N; j++)
     for (let i = 0; i <= N; i++) {
@@ -89,7 +81,7 @@ export function terrain_colors(data: WorldData, lut: Float32Array): Float32Array
       const z = ORIGIN + j * CELL;
       const y = heights[k];
       const ny = vertex_up(heights, i, j);
-      let base: number = y < 2.2 ? Ground.SAND : surface(biome_at(cuts, x, z, y), fbm(x / 140, z / 140, seed + 21, 3));
+      let base: number = y < 2.2 ? Ground.SAND : ground_at(cuts, x, z, y);
       if (ny < 0.8 || y > 120) base = ny < 0.7 || y > 135 ? ROCK : base + ROCK_HALF;
       if (y > 165) base = SNOW;
       if (surface_grid[k] === DIRT) base = ny < 0.7 ? ROCK : Ground.DIRT;

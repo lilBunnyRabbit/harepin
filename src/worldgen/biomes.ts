@@ -1,7 +1,7 @@
 import { sample, up } from "./field";
 import { fbm, hash } from "./noise";
 import { ISLAND, type BiomeRecipe } from "./recipe";
-import { CELL, N, ORIGIN, ROAD_HALF, type ItemKind, type Solid, type Terrain, type Tree } from "./types";
+import { CELL, DIRT, Ground, GRASS, N, ORIGIN, ROAD_HALF, type ItemKind, type Solid, type Terrain, type Tree } from "./types";
 
 export const Biome = {
   COAST: "coast",
@@ -22,6 +22,8 @@ const COAST_TOP = 6;
 const COAST_WOBBLE = 5;
 const COAST_SCALE = 90;
 const CUT_STEP = 8;
+const PATCH_SCALE = 140;
+const PATCH_SEED = 21;
 const DENSITY_SCALE = 180;
 const DENSITY_SEED = 55;
 /** Slope of the tree threshold across the density field: steep, so forests end in edges and clearings, not speckle. */
@@ -90,6 +92,23 @@ export function tree_kind(cuts: BiomeCuts, biome: Biome, x: number, z: number, k
   if (roll > (density - rule.start) * EDGE * rule.fill) return null;
   const pick = hash(Math.floor(x * 8), Math.floor(z * 8), cuts.seed + 95 + k);
   return pick < rule.scrub ? TreeKind.SCRUB : pick < rule.scrub + rule.pine ? TreeKind.PINE : TreeKind.BROADLEAF;
+}
+
+export function ground_at(cuts: BiomeCuts, x: number, z: number, y: number): Ground {
+  const rule = cuts.recipe.ground[biome_at(cuts, x, z, y)];
+  return fbm(x / PATCH_SCALE, z / PATCH_SCALE, cuts.seed + PATCH_SEED, 3) > rule.cut ? rule.above : rule.below;
+}
+
+/** Marks the recipe's hardpack, its DIRT ground rows, firm in the surface grid, so grip and colour agree. */
+export function harden(cuts: BiomeCuts, land: Terrain) {
+  if (!Object.values(cuts.recipe.ground).some((rule) => rule.above === Ground.DIRT || rule.below === Ground.DIRT)) return;
+  const { heights, surface } = land;
+  for (let j = 0; j <= N; j++)
+    for (let i = 0; i <= N; i++) {
+      const k = j * (N + 1) + i;
+      if (surface[k] !== GRASS) continue;
+      if (ground_at(cuts, ORIGIN + i * CELL, ORIGIN + j * CELL, heights[k]) === Ground.DIRT) surface[k] = DIRT;
+    }
 }
 
 export function item_kind(cuts: BiomeCuts, x: number, z: number, y: number): ItemKind | null {

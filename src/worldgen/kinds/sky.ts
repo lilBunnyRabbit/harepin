@@ -9,6 +9,7 @@ export const sky = kind_def({
   tag: "sky",
   version: SKY_VERSION,
   generate: generate_sky,
+  recipe: null,
   open_ground: false,
   rails: true,
   ground: false,

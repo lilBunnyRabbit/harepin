@@ -30,7 +30,7 @@ export function peak(heights: Float32Array): [number, number, number] {
   return [ORIGIN + (best % n) * CELL, ORIGIN + Math.floor(best / n) * CELL, heights[best]];
 }
 
-function descend(heights: Float32Array, x: number, z: number, dx: number, dz: number, seed: number): Path {
+function descend(heights: Float32Array, x: number, z: number, dx: number, dz: number, seed: number, outlet: number): Path {
   const path: Path = [[x, z]];
   const seen = new Set<number>();
   let i = Math.round((x - ORIGIN) / GRID);
@@ -53,7 +53,7 @@ function descend(heights: Float32Array, x: number, z: number, dx: number, dz: nu
     const px = ORIGIN + i * GRID;
     const pz = ORIGIN + j * GRID;
     path.push([px, pz]);
-    if (sample(heights, px, pz) < SEA) break;
+    if (sample(heights, px, pz) < outlet) break;
   }
   return path;
 }
@@ -97,10 +97,10 @@ function straight(road: readonly RoadPoint[], at: number): boolean {
 }
 
 /**
- * 0-1 canyon per seed: down the steepest way from the summit flank to the coast, crossing the circuit at most once and
- * only on a straight, where the road stamp later fills a causeway.
+ * 0-1 canyon per seed: down the steepest way from the summit flank to ground under `outlet` (the coast, or a desert
+ * basin), crossing the circuit at most once and only on a straight, where the road stamp later fills a causeway.
  */
-export function plan_canyon(seed: number, heights: Float32Array, road: readonly RoadPoint[]): Canyon | null {
+export function plan_canyon(seed: number, heights: Float32Array, road: readonly RoadPoint[], outlet = SEA): Canyon | null {
   const next = mulberry32(sub(seed, "canyon"));
   const [px, pz, top] = peak(heights);
   for (let t = 0; t < TRIES; t++) {
@@ -109,8 +109,8 @@ export function plan_canyon(seed: number, heights: Float32Array, road: readonly 
     const dz = Math.cos(angle);
     let r = 0;
     while (r < SIZE / 2 && sample(heights, px + dx * r, pz + dz * r) > top * FLANK) r += GRID;
-    const coarse = descend(heights, px + dx * r, pz + dz * r, dx, dz, seed + t);
-    if (sample(heights, coarse[coarse.length - 1][0], coarse[coarse.length - 1][1]) >= SEA) continue;
+    const coarse = descend(heights, px + dx * r, pz + dz * r, dx, dz, seed + t, outlet);
+    if (sample(heights, coarse[coarse.length - 1][0], coarse[coarse.length - 1][1]) >= outlet) continue;
     const points = resample(chaikin(coarse, 3), STEP, false);
     const metres = run(points);
     if (metres < MIN_LENGTH || metres > MAX_LENGTH) continue;

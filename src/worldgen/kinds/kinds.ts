@@ -1,9 +1,10 @@
 import type { WorldData, WorldKind } from "../types";
+import { desert } from "./desert";
 import { island } from "./island";
 import type { KindDef } from "./kind-def";
 import { sky } from "./sky";
 
-export const KINDS: Record<WorldKind, KindDef> = { island, sky };
+export const KINDS: Record<WorldKind, KindDef> = { island, sky, desert };
 
 /** What a URL or save without a world, or with one this build doesn't know, drives. */
 export const DEFAULT_KIND: WorldKind = island.kind;

@@ -412,7 +412,10 @@ export class Settings {
     const map = tile("map", "New map", "Pick a world and a map, or type a friend's map code", picture(`${kind}-map`, true), () => this.show("world"));
     const modes = tile("modes", "Modes", "Races, gymkhana, parking, drift zones, gate hunt, ghost duel", icon("icon-modes"), () => this.show("modes"));
     const goals = goals_card(this.menu, (to) => this.go_to(to));
-    return mosaic(MenuTab.PLAY, hero, ...Object.values(WORLDS).map(({ kind }) => world(kind)), map, modes, goals);
+    const worlds = el("div", "menu-worlds");
+    worlds.dataset.area = "worlds";
+    worlds.append(...Object.values(WORLDS).map(({ kind }) => world(kind)));
+    return mosaic(MenuTab.PLAY, hero, worlds, map, modes, goals);
   }
 
   /** A world the player picked: remembered for the next bare load, then driven in this room. */
