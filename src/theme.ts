@@ -150,7 +150,7 @@ export const THEMES: Record<string, Theme> = {
   "While True": WHILE_TRUE,
 };
 
-const STORAGE_KEY = "harepin:theme";
+export const THEME_KEY = "harepin:theme";
 const SAVED_KEY = "harepin:themes";
 const DEFAULT_THEME = "Brand Dark";
 export const THEME_NAME_LENGTH = 32;
@@ -240,7 +240,7 @@ export function current_theme(): string {
   const asked = new URLSearchParams(location.search).get("theme");
   if (asked && find_theme(asked, saved)) return asked;
   try {
-    const chosen = localStorage.getItem(STORAGE_KEY);
+    const chosen = localStorage.getItem(THEME_KEY);
     if (chosen && find_theme(chosen, saved)) return chosen;
   } catch (error) {
     console.warn("theme: saved choice unreadable", error);
@@ -250,7 +250,7 @@ export function current_theme(): string {
 
 export function choose_theme(name: string) {
   try {
-    localStorage.setItem(STORAGE_KEY, name);
+    localStorage.setItem(THEME_KEY, name);
   } catch (error) {
     console.warn("theme: choice not saved", error);
   }

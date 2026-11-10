@@ -5,12 +5,15 @@ import type { RaceChoice } from "./modes/races";
 import { MAX_STARS } from "./modes/track";
 import { DirectoryStatus, PASSWORD_LENGTH, ROOM_LENGTH, clean_password, clean_room, locked_name, save_lock, type Server } from "./directory";
 import { clean_name, parse_seed } from "./net";
+import { BUILD_KEY } from "./garage";
+import { guide_seen_on_load } from "./guide-rules";
 import { HARMONIES as HARMONY_HUES, Harmony, generate_theme, is_dark, type ThemeMode } from "./random-theme";
 import { mulberry32 } from "./rng";
 import { Rows, el, icon, read, type Options, type RowHelp, type Text, type Value } from "./setting-rows";
 import { WorldKind } from "./worldgen/types";
 import {
   THEMES,
+  THEME_KEY,
   THEME_NAME_LENGTH,
   TOKENS,
   choose_theme,
@@ -105,6 +108,8 @@ export interface SettingsState {
   /** The world the player last picked in the menu; a bare URL drives it again. Never set by an invite or a join. */
   last_world: WorldKind | null;
   last_seed: number | null;
+  /** Set by Drive, Skip or the last step of the first-run guide; never by an invite link. */
+  guide_seen: boolean;
 }
 export type SettingKey = keyof SettingsState;
 
@@ -129,14 +134,15 @@ export const DEFAULT_SETTINGS: SettingsState = {
   dash: DashPlace.RIGHT,
   last_world: null,
   last_seed: null,
+  guide_seen: false,
 };
 
 const one_of = <T extends string | number>(values: readonly T[], raw: unknown, fallback: T): T => (values.includes(raw as T) ? (raw as T) : fallback);
 const bool = (raw: unknown, fallback: boolean) => (typeof raw === "boolean" ? raw : fallback);
 
-export function parse_settings(raw: unknown): SettingsState {
+export function parse_settings(raw: unknown, played = false): SettingsState {
   const d = DEFAULT_SETTINGS;
-  if (typeof raw !== "object" || raw === null) return { ...d };
+  if (typeof raw !== "object" || raw === null) return { ...d, guide_seen: played };
   const s = raw as Record<string, unknown>;
   const volume = typeof s.volume === "number" && Number.isFinite(s.volume) ? Math.min(1, Math.max(0, s.volume)) : d.volume;
   return {
@@ -160,13 +166,15 @@ export function parse_settings(raw: unknown): SettingsState {
     dash: one_of(Object.values(DashPlace), s.dash, d.dash),
     last_world: s.last_world === WorldKind.ISLAND || s.last_world === WorldKind.SKY ? s.last_world : null,
     last_seed: typeof s.last_seed === "number" ? parse_seed(String(s.last_seed)) : null,
+    guide_seen: guide_seen_on_load(raw, played),
   };
 }
 
 function read_saved(): SettingsState {
   try {
     const text = localStorage.getItem(SETTINGS_KEY);
-    return parse_settings(text === null ? null : JSON.parse(text));
+    const played = localStorage.getItem(THEME_KEY) !== null || localStorage.getItem(BUILD_KEY) !== null;
+    return parse_settings(text === null ? null : JSON.parse(text), played);
   } catch (error) {
     console.warn("settings: saved settings unreadable", error);
     return { ...DEFAULT_SETTINGS };
