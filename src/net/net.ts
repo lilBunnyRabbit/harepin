@@ -1,5 +1,5 @@
 import { joinRoom, selfId, type Room } from "trystero";
-import { build_code, parse_build } from "../car/build";
+import { decode_car, encode_car } from "./car-packet";
 import { Link, type Channel } from "./channel";
 import { RateLimit } from "./rate-limit";
 import { WORLD_VERSION, WorldKind } from "../worldgen/types";
@@ -27,6 +27,9 @@ export type CarState = {
   boost?: boolean;
   best: number | null;
 };
+
+/** A car packet this build can't read is still a sign of life: a peer on another protocol, or garbage. */
+export type CarPacket = { kind: "car"; state: CarState } | { kind: "unreadable" };
 
 export type ChatMsg = { text: string; t: number };
 
@@ -94,7 +97,6 @@ const PASSWORD_ERROR = /incorrect (room )?password/;
 const TIMEOUT = 4000;
 const MAX_REMOTES = 16;
 const MIN_GAP_MS = 25;
-const WORLD_LIMIT = 5000;
 const NAME_LENGTH = 24;
 const CHAT_LENGTH = 140;
 // Stricter than what peers accept, so network jitter bunching two sends together never gets a legit message dropped.
@@ -110,7 +112,7 @@ export const MAX_LAPS = 10;
  * Wire protocol of this build. Bump it when peers on different protocols can no longer play together. A peer that never
  * says hello predates it: `LEGACY_PROTOCOL`, on `LEGACY_VERSION` or older.
  */
-export const PROTOCOL = 1;
+export const PROTOCOL = 2;
 export const LEGACY_PROTOCOL = 0;
 export const LEGACY_VERSION = "0.10.0";
 const MAX_PROTOCOL = 1e6;
@@ -118,36 +120,15 @@ const SEMVER = /^\d{1,6}\.\d{1,6}\.\d{1,6}$/;
 const MAX_RACE_MS = 1e7;
 
 const finite = (v: unknown, limit: number): v is number => typeof v === "number" && Number.isFinite(v) && Math.abs(v) <= limit;
-const triple = (v: unknown, limit: number): v is [number, number, number] => Array.isArray(v) && v.length === 3 && v.every((x) => finite(x, limit));
 
-// Peers are untrusted: anything that reaches the scene (positions, quaternions, names) is shape-checked and clamped
-// here, so one bad or hostile client can't put NaN into another player's renderer or flood it with cars.
-export function sanitize(raw: unknown, id: string): CarState | null {
-  if (!raw || typeof raw !== "object") return null;
-  const s = raw as Record<string, unknown>;
-  if (!finite(s.t, 1e12) || !triple(s.p, WORLD_LIMIT) || !triple(s.v, 500)) return null;
-  if (!finite(s.seed, MAX_SEED) || !Number.isInteger(s.seed) || s.seed < 0) return null;
-  const q = s.q;
-  if (!Array.isArray(q) || q.length !== 4 || !q.every((x) => finite(x, 1.01))) return null;
-  const length = Math.hypot(...(q as number[]));
-  if (length < 0.5) return null;
-  const build = parse_build(s.b);
-  return {
-    id,
-    name: clean_name(s.name),
-    paint: finite(s.paint, 1e3) ? Math.abs(Math.round(s.paint)) : 0,
-    b: build ? build_code(build) : undefined,
-    seed: s.seed,
-    w: Number.isInteger(s.w) && finite(s.w, MAX_SEED) && (s.w as number) > 0 ? (s.w as number) : 1,
-    t: s.t,
-    p: s.p,
-    q: (q as number[]).map((x) => x / length) as CarState["q"],
-    v: s.v,
-    steer: finite(s.steer, 1) ? s.steer : 0,
-    brake: s.brake === true,
-    boost: s.boost === true,
-    best: finite(s.best, 1e7) && s.best > 0 ? s.best : null,
-  };
+const UNREADABLE: CarPacket = { kind: "unreadable" };
+
+export function read_car(raw: unknown, id: string): CarPacket | null {
+  if (raw === null || raw === undefined) return null;
+  const state = decode_car(raw, id);
+  if (!state) return UNREADABLE;
+  state.name = clean_name(state.name);
+  return { kind: "car", state };
 }
 
 // Both sides of a refused handshake get the same error, so only a player who typed a guess and never got in reads it
@@ -229,9 +210,11 @@ export class Net {
   readonly same_map = new Map<string, Sighting>();
   /** What each peer said about its build as it joined; see `protocol_of`. */
   readonly hellos = new Map<string, Hello>();
+  /** Peers whose car packets this build can't read, by id: when they were last heard (performance.now ms). */
+  private readonly unreadable = new Map<string, number>();
   status = "connecting";
   private readonly link: Link;
-  private readonly cars: Channel<CarState>;
+  private readonly cars: Channel<CarPacket, Uint8Array>;
   private readonly chats: Channel<ChatMsg>;
   private readonly events: Channel<RaceEvent>;
   private readonly hello: Channel<Hello>;
@@ -274,17 +257,21 @@ export class Net {
     // Same-browser tabs skip WebRTC, so a locked room keys its channel by the password too.
     const local = new BroadcastChannel(password === null ? `harepin:${room}` : `harepin-locked:${JSON.stringify([room, password])}`);
     this.link = new Link(this.id, local, p2p);
-    this.cars = this.link.channel("car", sanitize);
+    this.cars = this.link.channel<CarPacket, Uint8Array>("car", read_car);
     this.chats = this.link.channel("chat", sanitize_chat, () => new RateLimit());
     this.events = this.link.channel("event", sanitize_event, () => new RateLimit(), (id) => this.same_map.has(id) || this.remotes.has(id));
     this.hello = this.link.channel("hello", sanitize_hello);
-    this.cars.subscribe((state, sender) => {
+    this.cars.subscribe((packet, sender) => {
       this.greet(sender);
-      this.receive(state);
+      if (packet.kind === "car") {
+        this.unreadable.delete(sender);
+        this.receive(packet.state);
+      } else if (this.protocol_of(sender) !== PROTOCOL) this.unreadable.set(sender, performance.now());
     });
     this.hello.subscribe((hello, sender) => {
       this.greet(sender);
       this.hellos.set(sender, hello);
+      if (hello.protocol === PROTOCOL) this.unreadable.delete(sender);
     });
     // Same-browser tabs never fire onPeerJoin: open tabs hear this hello, and greet back a tab they hear from first.
     this.hello.send_local(this.own_hello);
@@ -302,6 +289,7 @@ export class Net {
       this.same_map.delete(peer);
       this.link.forget(peer);
       this.hellos.delete(peer);
+      this.unreadable.delete(peer);
       this.greeted.delete(peer);
     };
   }
@@ -321,6 +309,18 @@ export class Net {
     return this.hellos.get(id)?.protocol ?? LEGACY_PROTOCOL;
   }
 
+  /** Peers heard on an older protocol (or none), whose cars this build can't show. */
+  get older_peers(): number {
+    let count = 0;
+    for (const id of this.unreadable.keys()) if (this.protocol_of(id) < PROTOCOL) count++;
+    return count;
+  }
+
+  /** Peers heard on a newer protocol: this build is out of date for them. */
+  get newer_peers(): number {
+    return this.unreadable.size - this.older_peers;
+  }
+
   get peers(): number {
     return this.peer_ids.size;
   }
@@ -334,7 +334,7 @@ export class Net {
   }
 
   send(state: CarState) {
-    this.cars.send({ ...state, w: this.world });
+    this.cars.send(encode_car({ ...state, w: this.world }));
   }
 
   send_chat(text: string): string | null {
@@ -409,6 +409,7 @@ export class Net {
     for (const [id, remote] of this.remotes) if (now - remote.seen > TIMEOUT) this.remotes.delete(id);
     for (const [id, { seen }] of this.foreign) if (now - seen > TIMEOUT) this.foreign.delete(id);
     for (const [id, { seen }] of this.same_map) if (now - seen > TIMEOUT) this.same_map.delete(id);
+    for (const [id, seen] of this.unreadable) if (now - seen > TIMEOUT) this.unreadable.delete(id);
   }
 
   /** The map most of the room is on, counting this one; null when that is already this one, so two players never swap. */

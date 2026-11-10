@@ -190,9 +190,10 @@ export class Hud {
       el.players.replaceChildren(...rows.map((r) => row(r.name, format(r.best), r.you)));
     }
     const foreign = this.net.foreign.size;
-    set_text(el.net, `${this.net.status} · ${this.net.remotes.size} other${this.net.remotes.size === 1 ? "" : "s"}${foreign ? ` · ${foreign} peer${foreign === 1 ? "" : "s"} on a different map` : ""}`);
+    const { older_peers: older, newer_peers: newer } = this.net;
+    set_text(el.net, `${this.net.status} · ${this.net.remotes.size} other${this.net.remotes.size === 1 ? "" : "s"}${foreign ? ` · ${foreign} peer${foreign === 1 ? "" : "s"} on a different map` : ""}${older ? ` · ${older} on an older version` : ""}${newer ? ` · ${newer} on a newer version, reload to update` : ""}`);
     set_hidden(el.join_map, this.net.foreign_seed() === null);
-    el.top_right?.toggleAttribute("data-alone", this.net.remotes.size === 0 && foreign === 0);
+    el.top_right?.toggleAttribute("data-alone", this.net.remotes.size === 0 && foreign === 0 && older === 0 && newer === 0);
 
     const lap_flashing = race.lap_flash && now - race.lap_flash < 2600;
     set_style(el.banner, "opacity", lap_flashing ? "1" : "0");

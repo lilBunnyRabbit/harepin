@@ -1,11 +1,11 @@
 import type { DataPayload, Room } from "trystero";
 import type { RateLimit } from "./rate-limit";
 
-export interface Channel<T> {
+export interface Channel<T, W = T> {
   /** To every peer, or only to `to`. */
-  send(data: T, to?: string): void;
+  send(data: W, to?: string): void;
   /** To same-browser tabs only: every one, or only `to`. */
-  send_local(data: T, to?: string): void;
+  send_local(data: W, to?: string): void;
   subscribe(fn: (data: T, sender: string) => void): () => void;
 }
 
@@ -34,7 +34,7 @@ export class Link {
     local.onmessage = (event: MessageEvent<unknown>) => this.receive_local(event.data);
   }
 
-  channel<T extends DataPayload>(name: string, sanitize: Sanitize<T>, limit?: () => RateLimit, accept?: Accept): Channel<T> {
+  channel<T extends DataPayload, W extends DataPayload = T>(name: string, sanitize: Sanitize<T>, limit?: () => RateLimit, accept?: Accept): Channel<T, W> {
     const subscribers = new Set<(data: T, sender: string) => void>();
     const limits = new Map<string, RateLimit>();
     if (limit) this.limits.push(limits);
@@ -50,9 +50,9 @@ export class Link {
       for (const fn of subscribers) fn(data, sender);
     };
     this.receivers.set(name, receive);
-    const action = this.room?.makeAction<T>(name) ?? null;
+    const action = this.room?.makeAction<W>(name) ?? null;
     if (action) action.onMessage = (data, { peerId }) => receive(data, peerId);
-    const post = (data: T, to?: string) =>
+    const post = (data: W, to?: string) =>
       this.local.postMessage(to === undefined ? { kind: name, id: this.self, data } : { kind: name, id: this.self, data, to });
     return {
       send: (data, to) => {

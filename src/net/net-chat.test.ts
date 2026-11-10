@@ -1,6 +1,7 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
 import type { Room, joinRoom } from "trystero";
+import { encode_car } from "./car-packet";
 import { LEGACY_PROTOCOL, Net, PROTOCOL, type RaceEvent, type Sender } from "./net";
 
 type Receive = (data: unknown, meta: { peerId: string }) => void;
@@ -39,7 +40,9 @@ function net_on(seed: number) {
   return { net, ...fake };
 }
 
-const car = (seed: number, name: string) => ({ name, seed, w: 1, t: 1, p: [0, 0, 0], q: [0, 0, 0, 1], v: [0, 0, 0], steer: 0, brake: false, best: null });
+const json_car = (seed: number, name: string) => ({ name, seed, w: 1, t: 1, p: [0, 0, 0], q: [0, 0, 0, 1], v: [0, 0, 0], steer: 0, brake: false, best: null });
+const car = (seed: number, name: string) =>
+  encode_car({ id: "", name, paint: 0, seed, w: 1, t: 1, p: [0, 0, 0], q: [0, 0, 0, 1], v: [0, 0, 0], steer: 0, brake: false, best: null });
 
 test("chat comes from any room peer: on another map, or before its first car packet, still rate-limited", () => {
   const { net, room, hear } = net_on(7);
@@ -99,16 +102,33 @@ test("same-browser tabs swap hellos without WebRTC; a legacy tab is greeted once
   }) as typeof joinRoom;
   const net = new Net(room, 7, "Me", null, 1, "0.11.0", offline);
   const hello = { protocol: PROTOCOL, version: "0.11.0", world: 1, seed: 7 };
-  tab.postMessage({ kind: "hello", id: "newer", data: { ...hello, protocol: 2 } });
-  tab.postMessage({ kind: "car", id: "old", data: car(7, "Old") });
-  tab.postMessage({ kind: "car", id: "old", data: car(7, "Old") });
+  tab.postMessage({ kind: "hello", id: "newer", data: { ...hello, protocol: PROTOCOL + 1 } });
+  tab.postMessage({ kind: "car", id: "old", data: json_car(7, "Old") });
+  tab.postMessage({ kind: "car", id: "old", data: json_car(7, "Old") });
+  tab.postMessage({ kind: "car", id: "mine", data: car(7, "Mine") });
   await new Promise((resolve) => setTimeout(resolve, 50));
   tab.close();
   expect(net.status).toBe("local only");
-  expect(net.protocol_of("newer")).toBe(2);
+  expect(net.remotes.get("mine")?.latest.name).toBe("Mine");
+  expect([net.older_peers, net.remotes.has("old")]).toEqual([1, false]);
+  expect(net.protocol_of("newer")).toBe(PROTOCOL + 1);
   expect(heard).toEqual([
     { kind: "hello", id: net.id, data: hello },
     { kind: "hello", id: net.id, data: hello, to: "newer" },
     { kind: "hello", id: net.id, data: hello, to: "old" },
+    { kind: "hello", id: net.id, data: hello, to: "mine" },
   ]);
+});
+
+test("a peer on another protocol shows as older or newer, never as a car, until it speaks ours", () => {
+  const { net, hear } = net_on(7);
+  hear("car", json_car(7, "Old"), "old");
+  hear("hello", { protocol: PROTOCOL + 1, version: "9.0.0", world: 1, seed: 7 }, "newer");
+  hear("car", new Uint8Array(200), "newer");
+  hear("hello", { protocol: PROTOCOL, version: "0.11.0", world: 1, seed: 7 }, "same");
+  hear("car", new Uint8Array(10), "same");
+  expect([net.older_peers, net.newer_peers, net.remotes.size]).toEqual([1, 1, 0]);
+  hear("hello", { protocol: PROTOCOL, version: "0.11.0", world: 1, seed: 7 }, "newer");
+  hear("car", car(7, "Old"), "old");
+  expect([net.older_peers, net.newer_peers, net.remotes.size]).toEqual([0, 0, 1]);
 });

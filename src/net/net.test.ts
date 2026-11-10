@@ -1,6 +1,7 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import { RateLimit, WRONG_PASSWORD, clean_name, leader_of, join_error_status, most_common, parse_seed, sanitize, sanitize_chat, sanitize_event, sanitize_hello } from "./net";
+import { RateLimit, WRONG_PASSWORD, clean_name, leader_of, join_error_status, most_common, parse_seed, read_car, sanitize_chat, sanitize_event, sanitize_hello, type CarState } from "./net";
+import { encode_car } from "./car-packet";
 
 test("chat text is stripped of control characters, trimmed and capped", () => {
   expect(sanitize_chat({ text: "  hi\u0000​ there\n ", t: 1 })).toEqual({ text: "hi there", t: 1 });
@@ -58,28 +59,13 @@ test("own chat limit is stricter than what peers accept", () => {
   expect([0, 900, 1800, 2700, 3600].map((t) => own.allow(t))).toEqual([true, true, true, true, false]);
 });
 
-const car = { t: 1, p: [0, 0, 0], q: [0, 0, 0, 1], v: [0, 0, 0], seed: 1, paint: 3, name: "A" };
-
-test("build code: valid kept, invalid or missing left out", () => {
-  expect(sanitize({ ...car, b: "rally.5.2.2.0.1" }, "x")?.b).toBe("rally.5.2.2.0.1");
-  expect(sanitize({ ...car, b: "tank.1.0.0.0.0" }, "x")?.b).toBeUndefined();
-  expect(sanitize({ ...car, b: "coupe.99.0.0.1.0" }, "x")?.b).toBeUndefined();
-  expect(sanitize({ ...car, b: 7 }, "x")?.b).toBeUndefined();
-  expect(sanitize(car, "x")?.b).toBeUndefined();
-});
-
-test("world version: missing or bad means the first island", () => {
-  expect(sanitize({ ...car, w: 2 }, "x")?.w).toBe(2);
-  expect(sanitize(car, "x")?.w).toBe(1);
-  expect(sanitize({ ...car, w: 0 }, "x")?.w).toBe(1);
-  expect(sanitize({ ...car, w: 1.5 }, "x")?.w).toBe(1);
-  expect(sanitize({ ...car, w: "2" }, "x")?.w).toBe(1);
-});
-
-test("nitro flag: only a literal true lights it", () => {
-  expect(sanitize({ ...car, boost: true }, "x")?.boost).toBe(true);
-  expect(sanitize({ ...car, boost: "yes" }, "x")?.boost).toBe(false);
-  expect(sanitize(car, "x")?.boost).toBe(false);
+test("car packets: binary decoded with a clean name; anything else is unreadable", () => {
+  const state = { id: "me", name: "Bad‮Bunny (you)", paint: 3, seed: 1, w: 1, t: 1, p: [0, 0, 0], q: [0, 0, 0, 1], v: [0, 0, 0], steer: 0, brake: false, best: null } satisfies CarState;
+  const read = read_car(encode_car(state), "x");
+  expect(read?.kind === "car" && read.state.name).toBe("BadBunny");
+  expect(read_car(state, "x")).toEqual({ kind: "unreadable" });
+  expect(read_car(new Uint8Array(3), "x")).toEqual({ kind: "unreadable" });
+  expect(read_car(undefined, "x")).toBeNull();
 });
 
 test("quick join follows the most common foreign seed, ties to the lower one", () => {
