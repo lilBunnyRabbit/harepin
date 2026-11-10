@@ -23,6 +23,14 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.17.1",
+    date: "2026-11-10",
+    title: "Deeper burble",
+    changes: [
+      { kind: FIXED, text: "Lifting off the throttle gives a deep exhaust burble instead of a bright crackle, and the rev limiter no longer crackles." },
+    ],
+  },
+  {
     version: "0.17.0",
     date: "2026-11-10",
     title: "Off the road",

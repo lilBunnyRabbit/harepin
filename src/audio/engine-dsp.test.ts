@@ -44,7 +44,7 @@ test("every engine fires at rpm/60 · cylinders/2 · PITCH, stays bounded and go
   }
 });
 
-function crackle_of(sound: EngineSound, at: (block: number) => EngineInput, blocks: number): Float32Array {
+function burble_of(sound: EngineSound, at: (block: number) => EngineInput, blocks: number): Float32Array {
   const voices = [new EngineVoice(RATE), new EngineVoice(RATE)];
   voices[0].set_sound(sound);
   voices[1].set_sound({ ...sound, crackle: 0 });
@@ -60,54 +60,57 @@ function crackle_of(sound: EngineSound, at: (block: number) => EngineInput, bloc
   return out;
 }
 
-/** Each pop's length until its 0.25 ms RMS envelope stays 20 dB under the pop's peak. */
+/** Each pop's length until its 5 ms RMS envelope stays 20 dB under the pop's peak. */
 function pop_lengths_ms(samples: Float32Array): number[] {
-  const W = 12;
+  const W = 240;
   const env: number[] = [];
   for (let i = 0; i + W <= samples.length; i += W) {
     let e = 0;
     for (let s = 0; s < W; s++) e += samples[i + s] ** 2;
     env.push(Math.sqrt(e / W));
   }
-  const floor = Math.max(...env) * 0.02;
+  const floor = Math.max(...env) * 0.05;
   const lengths: number[] = [];
   for (let i = 0; i < env.length; i++) {
     if (env[i] < floor) continue;
     let peak = 0;
     let j = i;
-    for (let below = 0; j < env.length && below < 4; j++) {
+    for (let below = 0; j < env.length && below < 2; j++) {
       peak = Math.max(peak, env[j]);
       below = env[j] < peak * 0.1 ? below + 1 : 0;
     }
-    lengths.push(((j - 4 - i) * W * 1000) / RATE);
+    lengths.push(((j - 2 - i) * W * 1000) / RATE);
     i = j;
   }
   return lengths;
 }
 
-test("overrun crackle is short bright pops, not low thumps, and pops on the limiter too", () => {
+test("overrun burble is sparse rounded low pops with no click, pitched with the car, silent on the limiter", () => {
   for (const spec of Object.values(CARS).filter((car) => car.sound.crackle >= 0.2)) {
     const blocks = Math.floor((3 * RATE) / 128);
-    const overrun = crackle_of(spec.sound, (block) => ({ rpm: spec.redline - (spec.redline - 2000) * (block / blocks), throttle: 0, limit: 0 }), blocks);
-    let low = 0;
+    const overrun = burble_of(spec.sound, (block) => ({ rpm: spec.redline - (spec.redline - 2000) * (block / blocks), throttle: 0, limit: 0 }), blocks);
+    let body = 0;
+    let click = 0;
     let power = 0;
     let weighted = 0;
-    let total = 0;
     const window = overrun.subarray(0, RATE);
-    for (let hz = 100; hz <= 12000; hz += 100) {
-      const m = magnitude(window, hz);
-      weighted += hz * m;
-      total += m;
-      power += m * m;
-      if (hz <= 600) low += m * m;
+    for (let hz = 20; hz <= 8000; hz += 20) {
+      const p = magnitude(window, hz) ** 2;
+      power += p;
+      weighted += hz * p;
+      if (hz >= 80 && hz <= 500) body += p;
+      if (hz >= 2000) click += p;
     }
-    expect(weighted / total).toBeGreaterThan(3000);
-    expect(low / power).toBeLessThan(0.03);
+    expect(body / power).toBeGreaterThan(0.85);
+    expect(click / power).toBeLessThan(0.001);
+    expect(weighted / power).toBeGreaterThan(spec.sound.formants[0] * 0.8);
+    expect(weighted / power).toBeLessThan(spec.sound.formants[0] * 2);
     const lengths = pop_lengths_ms(overrun).sort((a, b) => a - b);
-    expect(lengths.length).toBeGreaterThan(5);
-    expect(lengths[Math.floor(lengths.length * 0.9)]).toBeLessThan(12);
+    expect(lengths.length).toBeGreaterThan(1);
+    expect(lengths[0]).toBeGreaterThanOrEqual(20);
+    expect(lengths[lengths.length - 1]).toBeLessThan(80);
 
-    const limiter = crackle_of(spec.sound, () => ({ rpm: spec.redline, throttle: 1, limit: 1 }), blocks);
-    expect(pop_lengths_ms(limiter).length).toBeGreaterThan(3);
+    const limiter = burble_of(spec.sound, () => ({ rpm: spec.redline, throttle: 1, limit: 1 }), blocks);
+    expect(limiter.every((s) => s === 0)).toBe(true);
   }
 });
