@@ -242,7 +242,11 @@ const settings = new Settings(document.body, {
   mode_list: () => modes.mode_list(),
   play_level: (id) => modes.play(id),
   mode_running: () => modes.running,
-  quit_mode: () => modes.exit(),
+  quit_mode: () => {
+    // A lobby race on a route runs as a mode: quitting it leaves the lobby race too, as Leave race does.
+    if (lobby.busy) lobby.leave();
+    modes.exit();
+  },
   lobby_record: () => modes.lobby_record(),
   race_routes: race_choices(world.routes),
   players: () => 1 + net.remotes.size,
