@@ -23,6 +23,21 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.12.0",
+    date: "2026-11-10",
+    title: "Maps, keys and ready-up",
+    changes: [
+      { kind: NEW, text: "Map setting in Display: full map, a heading-up close-up, rally pace notes, or off. The map follows the route you race." },
+      { kind: NEW, text: "Change keys and pad buttons in Controls. Taking a key from another action says so, and Reset puts them back." },
+      { kind: NEW, text: "Ready up in lobby races: the race starts when everyone is ready, and the lobby shows who it is waiting for." },
+      { kind: IMPROVED, text: "Updates wait in the menu: an Update ready chip opens What's new, with only a short note while you drive." },
+      { kind: IMPROVED, text: "Multiplayer sends about four times less data per car. Players on older versions are told to update." },
+      { kind: FIXED, text: "The lobby race countdown now closes the menu so everyone sees it start." },
+      { kind: FIXED, text: "Your name stays the same after skipping the guide." },
+      { kind: FIXED, text: "No more scrollbars in the menu." },
+    ],
+  },
+  {
     version: "0.11.2",
     date: "2026-11-10",
     title: "Roomier phone garage",
