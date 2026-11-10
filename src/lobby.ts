@@ -8,6 +8,8 @@ const LATE_START_MS = 1000;
 const EARLY_START_MS = 10_000;
 const FINISH_SLACK_MS = 2000;
 const RESULTS_MS = 30_000;
+// A leader that is busy or gone never answers a request; past this the caller hears so instead of waiting on nothing.
+const REQUEST_MS = 4000;
 
 export interface Finisher {
   id: string;
@@ -52,8 +54,10 @@ export class Lobby {
   state: LobbyState = { kind: "idle" };
   finishers: Finisher[] = [];
   on_start: (() => void) | null = null;
+  on_unanswered: (() => void) | null = null;
   record: RaceRecord;
   private readonly record_key: string;
+  private asked_until = 0;
 
   constructor(
     private net: Net,
@@ -90,7 +94,10 @@ export class Lobby {
   call(laps: number, route = "circuit") {
     if (this.busy || !this.routes.has(route)) return;
     if (this.leading) this.begin(laps, route);
-    else this.net.send_event({ kind: "request", laps, route });
+    else {
+      this.net.send_event({ kind: "request", laps, route });
+      this.asked_until = performance.now() + REQUEST_MS;
+    }
   }
 
   leave() {
@@ -120,6 +127,10 @@ export class Lobby {
     const { state } = this;
     if (state.kind === "countdown" && now >= state.go) this.state = { ...state, kind: "racing", lap: 0 };
     else if (state.kind === "done" && now >= state.until) this.leave();
+    if (this.asked_until && now >= this.asked_until) {
+      this.asked_until = 0;
+      this.on_unanswered?.();
+    }
   }
 
   private begin(laps: number, route: string) {
@@ -134,6 +145,7 @@ export class Lobby {
 
   private enter(race: number, route: string, laps: number, go: number) {
     this.state = { kind: "countdown", race, route, laps, go, rivals: this.net.remotes.size };
+    this.asked_until = 0;
     this.finishers = [];
     this.on_start?.();
   }

@@ -165,6 +165,7 @@ lobby.on_start = () => {
       return lobby.state.kind === "racing";
     });
 };
+lobby.on_unanswered = () => hud.toast("No race leader answered");
 race.on_start = () => ghost.start();
 
 const settings = new Settings(document.body, {

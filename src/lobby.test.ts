@@ -132,3 +132,25 @@ test("finishes count only for this race and only when physically possible", () =
     clock.mockRestore();
   }
 });
+
+test("a request nobody answers tells the caller once; a start in time doesn't", () => {
+  const { net, lobby } = lobby_on("m");
+  const a = net.peer("a");
+  let unanswered = 0;
+  lobby.on_unanswered = () => unanswered++;
+  lobby.call(3);
+  expect(net.sent).toEqual([{ kind: "request", laps: 3, route: "circuit" }]);
+  const now = performance.now();
+  lobby.update(now + 1000);
+  expect(unanswered).toBe(0);
+  lobby.update(now + 5000);
+  lobby.update(now + 6000);
+  expect(unanswered).toBe(1);
+
+  lobby.call(3);
+  net.hear(start(1, performance.now() + COUNTDOWN_MS), a);
+  lobby.update(performance.now() + 2000);
+  lobby.leave();
+  lobby.update(performance.now() + 5000);
+  expect(unanswered).toBe(1);
+});
