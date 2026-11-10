@@ -1,3 +1,4 @@
+import { sample } from "./field";
 import { split_edge, type Join } from "./graph";
 import { length } from "./noise";
 import type { Path } from "./path";
@@ -210,7 +211,7 @@ function pieces(ctx: LinkContext, chain: Anchor[], found: LinkPath): Piece[] | n
     const cells: Path = [[from.x, from.z], [from.out.x, from.out.z], ...found.legs[k].filter(clear), [to.into.x, to.into.z], [to.x, to.z]];
     const path = unkink(cells, from.y, to.y, 2, true);
     if (spur_need(path, from.y, to.y) > SHAPE_GRADE) return k;
-    const points = spur_points(path, ctx.heights, from.y, to.y);
+    const points = spur_points(path, (x, z) => sample(ctx.heights, x, z), from.y, to.y);
     if (Math.abs(points[0].y - from.y) > PIN || Math.abs(points[points.length - 1].y - to.y) > PIN || tightest(points) < MIN_RADIUS) return k;
     // Smoothing can still pull a bend across a band the cells went round; the runs into the anchors cross bands on purpose.
     const ends = Math.ceil(END_CLEAR / 2);

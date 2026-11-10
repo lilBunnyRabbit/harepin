@@ -1,5 +1,4 @@
 import { COMPACT, type Extent } from "./chunk-grid";
-import { sample } from "./field";
 import { Heap } from "./heap";
 import { length } from "./noise";
 import { chaikin, limit_grade, resample, road_points, smooth, type Path } from "./path";
@@ -445,12 +444,12 @@ export function tightest(points: readonly RoadPoint[]): number {
   return radius;
 }
 
-export function spur_points(cells: Path, heights: Float32Array, from_y: number, to_y: number): RoadPoint[] {
+export function spur_points(cells: Path, height: Sampler, from_y: number, to_y: number): RoadPoint[] {
   const path = resample(chaikin(cells, 4), 2, false);
   const n = path.length;
   const run = path.slice(1).map(([x, z], i) => length(x - path[i][0], z - path[i][1]));
   const pinned = (ys: number[]) => ys.map((y, i) => (i < HOLD ? from_y : i > n - 1 - HOLD ? to_y : y));
-  let ys = pinned(smooth(path.map(([x, z]) => Math.max(3, sample(heights, x, z))), 10, 3, false));
+  let ys = pinned(smooth(path.map(([x, z]) => Math.max(3, height(x, z))), 10, 3, false));
   ys = limit_grade(ys, run, SHAPE_GRADE);
   ys = limit_grade(pinned(smooth(ys, 4, 2, false)), run, SHAPE_GRADE);
   return road_points(path, ys, false);

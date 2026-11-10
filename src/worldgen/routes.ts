@@ -98,7 +98,7 @@ function par(points: readonly RoadPoint[], closed: boolean, share = PAR_SHARE): 
   return Math.ceil(drive_time(points, closed) * share * 2) * 500;
 }
 
-const heading = (p: { tx: number; tz: number }) => Math.atan2(p.tx, p.tz);
+export const heading = (p: { tx: number; tz: number }) => Math.atan2(p.tx, p.tz);
 
 /** The race loop as a route: the circuit's own gates, the start line moved to the end as the finish. */
 export function circuit_route(road: readonly RoadPoint[], checkpoints: readonly Checkpoint[]): Route {

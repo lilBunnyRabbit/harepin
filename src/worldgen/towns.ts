@@ -2,6 +2,7 @@ import { mulberry32, sub } from "../rng";
 import { sample } from "./field";
 import { length } from "./noise";
 import { ISLAND, type TownRecipe } from "./recipe";
+import type { Sampler } from "./route";
 import { STREET_HALF, ROAD_HALF, type RoadEdge, type RoadNode, type RoadPoint, type Town } from "./types";
 
 const TOWN_TRIES = 900;
@@ -12,13 +13,13 @@ const RING_REACH = 260;
 const TOWN_RELIEF = 18;
 const TOWN_GRADE = 0.05;
 const TOWN_FLOOR = 4;
-const CORE = 1.15;
+export const CORE = 1.15;
 const STREET_RING_CLEAR = ROAD_HALF + STREET_HALF + 14;
 const STEP = 2;
 
 const SYLLABLES = ["har", "pin", "bun", "lop", "dell", "war", "ren", "burr", "ow", "clo", "ver", "thim", "ble", "fen", "brook", "hol", "low", "mead"];
 
-function town_name(next: () => number): string {
+export function town_name(next: () => number): string {
   const count = 2 + Math.floor(next() * 2);
   let name = "";
   for (let i = 0; i < count; i++) name += SYLLABLES[Math.floor(next() * SYLLABLES.length)];
@@ -112,7 +113,7 @@ export interface Streets {
   gate: number;
 }
 
-export function town_streets(seed: number, town: Town, heights: Float32Array, road: RoadPoint[], first_node: number, first_edge: number, shape: TownRecipe = ISLAND.towns): Streets | null {
+export function town_streets(seed: number, town: Town, height: Sampler, road: RoadPoint[], first_node: number, first_edge: number, shape: TownRecipe = ISLAND.towns): Streets | null {
   const next = mulberry32(sub(seed, `streets:${town.id}`));
   const block = shape.block.min + next() * shape.block.span;
   town.block = block;
@@ -127,7 +128,7 @@ export function town_streets(seed: number, town: Town, heights: Float32Array, ro
       const x = town.x + town.ux * i * block + vx * j * block;
       const z = town.z + town.uz * i * block + vz * j * block;
       if (length(x - town.x, z - town.z) > town.radius) continue;
-      const y = sample(heights, x, z);
+      const y = height(x, z);
       if (y < 3.5 || ring_distance(road, x, z) < STREET_RING_CLEAR) continue;
       slot.set(key(i, j), nodes.length);
       nodes.push({ id: 0, x, z, y, kind: "junction" });

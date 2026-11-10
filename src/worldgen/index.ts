@@ -73,7 +73,7 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   const towns = place_towns(seed, heights, road, recipe.towns);
   const gates = new Map<number, number>();
   for (const town of towns) {
-    const streets = town_streets(seed, town, heights, road, nodes.length, edges.length, recipe.towns);
+    const streets = town_streets(seed, town, (x, z) => sample(heights, x, z), road, nodes.length, edges.length, recipe.towns);
     if (!streets) continue;
     nodes.push(...streets.nodes);
     edges.push(...streets.edges);
@@ -93,7 +93,7 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
     const shaped = new Map<Path, RoadPoint[]>();
     const shape = (t: { path: Path; join: number }) => {
       let points = shaped.get(t.path);
-      if (!points) shaped.set(t.path, (points = spur_points(t.path, heights, gate.y, road[t.join].y)));
+      if (!points) shaped.set(t.path, (points = spur_points(t.path, (x, z) => sample(heights, x, z), gate.y, road[t.join].y)));
       return points;
     };
     const pinned = (t: { path: Path; join: number }) => {

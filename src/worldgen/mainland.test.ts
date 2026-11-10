@@ -1,5 +1,6 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
+import { sweep } from "../sweep";
 import { CHUNK, extent } from "./chunk-grid";
 import { build_tile } from "./ground";
 import { MAINLAND_SIZE, plan_mainland } from "./mainland";
@@ -42,3 +43,19 @@ test("a mainland tile store answers from the tile under the point, and the plan 
   expect(store.height(x, x)).toBe(build_tile(data.ground, corner, EXT).heights[(TILE_SIDE >> 1) * TILE_SIDE + (TILE_SIDE >> 1)]);
   expect(Math.abs(store.height(x, x) - plan_sample(grid, x, x))).toBeLessThan(4);
 });
+
+for (const seed of sweep(5))
+  test(`mainland ${seed}: towns joined by roads, and a circuit that is one unbroken closed loop over them`, () => {
+    const { data } = plan_mainland(seed);
+    expect(data.towns.length).toBeGreaterThanOrEqual(8);
+    const local = data.graph.edges.filter((e) => e.kind === "local");
+    expect(local.length).toBeGreaterThanOrEqual(data.towns.length - 1);
+    expect(data.road.length).toBeGreaterThan(1000);
+    const gaps = data.road.map((p, i) => {
+      const q = data.road[(i + 1) % data.road.length];
+      return Math.hypot(q.x - p.x, q.z - p.z);
+    });
+    expect(Math.max(...gaps)).toBeLessThan(8);
+    expect(data.routes[0].closed).toBe(true);
+    for (const id of data.circuit) expect(data.graph.edges[id]).toBeDefined();
+  });
