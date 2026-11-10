@@ -1,7 +1,7 @@
 import { at, sample, up, WHOLE, type Grid } from "./field";
 import { fbm, hash } from "./noise";
 import type { PlanGrid } from "./plan-grid";
-import { ISLAND, type BiomeRecipe } from "./recipe";
+import { ISLAND, type BiomeRecipe, type ZoneRecipe } from "./recipe";
 import { CELL, DIRT, Ground, GRASS, N, ORIGIN, ROAD_HALF, type ItemKind, type Solid, type Terrain, type Tree } from "./types";
 
 export const Biome = {
@@ -19,9 +19,6 @@ const FIELD_SCALE = 700;
 const FIELD_SEED = 61;
 /** Score per metre of height, so the dry third sits on high ground and meadows on low ground. */
 const UPLAND_PULL = 0.0016;
-const COAST_TOP = 6;
-const COAST_WOBBLE = 5;
-const COAST_SCALE = 90;
 const CUT_STEP = 8;
 const PATCH_SCALE = 140;
 const PATCH_SEED = 21;
@@ -36,8 +33,8 @@ const SCRUB_SCALE = [0.45, 0.8];
 export interface BiomeCuts {
   seed: number;
   recipe: BiomeRecipe;
-  forest: number;
-  upland: number;
+  /** Score where each inland band after the first starts. */
+  cuts: number[];
 }
 
 export interface TreeRule {
@@ -52,11 +49,11 @@ function score(seed: number, x: number, z: number, y: number): number {
   return fbm(x / FIELD_SCALE, z / FIELD_SCALE, seed + FIELD_SEED, 3) + y * UPLAND_PULL;
 }
 
-function coast_top(seed: number, x: number, z: number): number {
-  return COAST_TOP + (fbm(x / COAST_SCALE, z / COAST_SCALE, seed + FIELD_SEED + 2, 2) - 0.5) * COAST_WOBBLE;
+function coast_top(seed: number, coast: ZoneRecipe["coast"], x: number, z: number): number {
+  return coast.top + (fbm(x / coast.scale, z / coast.scale, seed + FIELD_SEED + 2, 2) - 0.5) * coast.wobble;
 }
 
-// Cut at the field's thirds over this island's own land, so every seed gets all three regions whatever its noise does.
+// Cut into equal shares of the field over this island's own land, so every seed gets every band whatever its noise does.
 export function biome_cuts(seed: number, heights: Float32Array, recipe: BiomeRecipe = ISLAND.biomes): BiomeCuts {
   const scores: number[] = [];
   for (let j = 0; j <= N; j += CUT_STEP)
@@ -64,12 +61,12 @@ export function biome_cuts(seed: number, heights: Float32Array, recipe: BiomeRec
       const y = heights[j * (N + 1) + i];
       const x = ORIGIN + i * CELL;
       const z = ORIGIN + j * CELL;
-      if (y >= coast_top(seed, x, z)) scores.push(score(seed, x, z, y));
+      if (y >= coast_top(seed, recipe.zones.coast, x, z)) scores.push(score(seed, x, z, y));
     }
-  return cut_at_thirds(seed, scores, recipe);
+  return cut_into_bands(seed, scores, recipe);
 }
 
-/** The same thirds over a streamed world's coarse plan grid, which every tile of it shares. */
+/** The same shares over a streamed world's coarse plan grid, which every tile of it shares. */
 export function plan_cuts(seed: number, grid: PlanGrid, recipe: BiomeRecipe): BiomeCuts {
   const scores: number[] = [];
   for (let j = 0; j <= grid.n; j++)
@@ -77,26 +74,25 @@ export function plan_cuts(seed: number, grid: PlanGrid, recipe: BiomeRecipe): Bi
       const y = grid.heights[j * (grid.n + 1) + i];
       const x = grid.ext.origin + i * grid.cell;
       const z = grid.ext.origin + j * grid.cell;
-      if (y >= coast_top(seed, x, z)) scores.push(score(seed, x, z, y));
+      if (y >= coast_top(seed, recipe.zones.coast, x, z)) scores.push(score(seed, x, z, y));
     }
-  return cut_at_thirds(seed, scores, recipe);
+  return cut_into_bands(seed, scores, recipe);
 }
 
-function cut_at_thirds(seed: number, scores: number[], recipe: BiomeRecipe): BiomeCuts {
+function cut_into_bands(seed: number, scores: number[], recipe: BiomeRecipe): BiomeCuts {
   scores.sort((a, b) => a - b);
-  if (!scores.length) return { seed, recipe, forest: 0, upland: 0 };
-  return {
-    seed,
-    recipe,
-    forest: scores[Math.floor(scores.length / 3)],
-    upland: scores[Math.floor((scores.length * 2) / 3)],
-  };
+  const parts = recipe.zones.bands.length;
+  const cuts: number[] = [];
+  for (let k = 1; k < parts; k++) cuts.push(scores.length ? scores[Math.floor((scores.length * k) / parts)] : 0);
+  return { seed, recipe, cuts };
 }
 
 export function biome_at(cuts: BiomeCuts, x: number, z: number, y: number): Biome {
-  if (y < COAST_TOP + COAST_WOBBLE / 2 && y < coast_top(cuts.seed, x, z)) return Biome.COAST;
+  const { coast, bands } = cuts.recipe.zones;
+  if (y < coast.top + coast.wobble / 2 && y < coast_top(cuts.seed, coast, x, z)) return Biome.COAST;
   const s = score(cuts.seed, x, z, y);
-  return s < cuts.forest ? Biome.MEADOW : s < cuts.upland ? Biome.FOREST : Biome.UPLAND;
+  for (let k = 0; k < cuts.cuts.length; k++) if (s < cuts.cuts[k]) return bands[k];
+  return bands[bands.length - 1];
 }
 
 export function tree_tries(cuts: BiomeCuts, biome: Biome): number {
@@ -177,7 +173,7 @@ function plant_at(cuts: BiomeCuts, probe: LandProbe, x: number, z: number, free:
     const px = x + (hash(x, z, seed + 91 + k * 16) - 0.5) * TREE_SPACING;
     const pz = z + (hash(x, z, seed + 92 + k * 16) - 0.5) * TREE_SPACING;
     const y = probe.height(px, pz);
-    if (y < 3 || y > 125) continue;
+    if (y < cuts.recipe.limits.tree_floor || y > cuts.recipe.limits.tree_line) continue;
     const kind = tree_kind(cuts, biome, px, pz, k);
     if (kind === null) continue;
     if (probe.road_dist(px, pz) < ROAD_HALF + 7) continue;

@@ -74,10 +74,11 @@ function jitter(i: number, j: number): number {
 export function paint(colors: Float32Array, k: number, lut: Float32Array, cuts: BiomeCuts, i: number, j: number, y: number, ny: number, surface: number) {
   const x = ORIGIN + i * CELL;
   const z = ORIGIN + j * CELL;
-  let base: number = y < 2.2 ? Ground.SAND : ground_at(cuts, x, z, y);
-  if (ny < 0.8 || y > 120) base = ny < 0.7 || y > 135 ? ROCK : base + ROCK_HALF;
-  if (y > 165) base = SNOW;
-  if (surface === DIRT) base = ny < 0.7 ? ROCK : Ground.DIRT;
+  const { beach, scree, rock, snow_line } = cuts.recipe.limits;
+  let base: number = y < beach ? Ground.SAND : ground_at(cuts, x, z, y);
+  if (ny < scree.up || y > scree.height) base = ny < rock.up || y > rock.height ? ROCK : base + ROCK_HALF;
+  if (y > snow_line) base = SNOW;
+  if (surface === DIRT) base = ny < rock.up ? ROCK : Ground.DIRT;
   const level = Math.min(JITTER_LEVELS - 1, Math.floor((jitter(i, j) + 0.5) * JITTER_LEVELS));
   const tone = (base * JITTER_LEVELS + level) * 3;
   colors[k * 3] = lut[tone];

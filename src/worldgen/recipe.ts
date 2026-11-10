@@ -79,7 +79,30 @@ export interface ScatterRule {
   biomes: readonly Biome[];
 }
 
+/** Where each biome sits: coast under a wobbling shore height, then inland bands cut from the biome score field. */
+export interface ZoneRecipe {
+  /** Land under `top` metres, wobbled `wobble` metres over `scale` metre noise, is coast. */
+  coast: { top: number; wobble: number; scale: number };
+  /** Inland biomes from low score to high, each given an equal share of the land. */
+  bands: readonly Biome[];
+}
+
+/** Heights and slopes (the up component of the ground normal) where the ground gives way to sand, rock and snow. */
+export interface GroundLimits {
+  /** Sand under this height, whatever the biome. */
+  beach: number;
+  /** Ground half-way to rock below `up` or above `height`. */
+  scree: { up: number; height: number };
+  rock: { up: number; height: number };
+  snow_line: number;
+  /** Trees grow between these heights. */
+  tree_floor: number;
+  tree_line: number;
+}
+
 export interface BiomeRecipe {
+  zones: ZoneRecipe;
+  limits: GroundLimits;
   rules: Record<Biome, TreeRule>;
   items: Record<Biome, ItemKind | null>;
   ground: Record<Biome, GroundRule>;
@@ -131,9 +154,14 @@ function shore(radius: number, edge: number): MaskLayer {
   return { kind: "mask", radius, edge, scale: 380, seed: 3, wobble: 0.3 };
 }
 
+const ZONES: ZoneRecipe = { coast: { top: 6, wobble: 5, scale: 90 }, bands: ["meadow", "forest", "upland"] };
+const LIMITS: GroundLimits = { beach: 2.2, scree: { up: 0.8, height: 120 }, rock: { up: 0.7, height: 135 }, snow_line: 165, tree_floor: 3, tree_line: 125 };
+
 export const ISLAND: Recipe = {
   terrain: [LIFT, hills(95), ridges(22), { kind: "peak", height: 150, radius: 430, reach: 220 }, shore(960, -9)],
   biomes: {
+    zones: ZONES,
+    limits: LIMITS,
     rules: {
       coast: { start: 0.5, fill: 0.12, pine: 0.2, scrub: 0.6, extra: 0 },
       meadow: { start: 0.52, fill: 0.3, pine: 0.15, scrub: 0.1, extra: 0 },
@@ -171,6 +199,8 @@ export const DESERT: Recipe = {
     { kind: "ridged", scale: 260, stretch: 3, seed: 17, octaves: 3, power: 2, amp: 6 },
   ],
   biomes: {
+    zones: ZONES,
+    limits: LIMITS,
     rules: { coast: BARE, meadow: BARE, forest: BARE, upland: BARE },
     items: { coast: "rock", meadow: "rock", forest: null, upland: "rock" },
     ground: {
