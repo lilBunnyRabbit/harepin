@@ -1,7 +1,7 @@
 import type { DirectoryStatus, Server } from "../directory";
 import type { ModeEntry } from "../modes/modes";
 import type { RaceChoice } from "../modes/races";
-import type { Rows } from "../setting-rows";
+import type { Rows, Value } from "../setting-rows";
 import { world_query } from "../world-pick";
 import { DEFAULT_KIND } from "../worldgen/kinds/kinds";
 import type { WorldData, WorldKind } from "../worldgen/types";
@@ -67,6 +67,15 @@ export interface Menu {
   /** A world the player picked: remembered for the next bare load, then driven in this room. */
   drive(seed: number, kind: WorldKind): void;
   go(query: Record<string, string>): void;
+}
+
+export interface SettingsMenu extends Menu {
+  /** A row's binding to one setting. */
+  value<K extends SettingKey>(key: K): Value<SettingsState[K]>;
+  show_sub(id: string): void;
+  /** Reload without the URL param, after a change the page only applies on load. */
+  reload(param: string): void;
+  redraw_help(): void;
 }
 
 export interface MenuPage {

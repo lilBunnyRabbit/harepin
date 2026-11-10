@@ -1,58 +1,21 @@
-import { SteerMode } from "./car";
 import { typing, type Nav } from "./input";
 import { DirectoryStatus, PASSWORD_LENGTH, ROOM_LENGTH, clean_password, clean_room, locked_name, save_lock, type Server } from "./directory";
 import { clean_name, parse_seed } from "./net";
 import { GUIDE_PARAM, Guide, ROLLED_VISIT, type GuideStep } from "./guide";
 import { ModesPage } from "./menu/modes-page";
-import { MenuTab, invite_link, type Menu, type MenuPage, type SettingsHost } from "./menu/page";
-import { CameraReturn, CameraView, DEFAULT_SETTINGS, DashPlace, HudLayout, LAPS, QualityMode, TouchSteer, type QualityTier, type SettingKey, type SettingsState } from "./menu/prefs";
+import { MenuTab, invite_link, type Menu, type MenuPage, type SettingsHost, type SettingsMenu } from "./menu/page";
+import { DEFAULT_SETTINGS, LAPS, type SettingKey, type SettingsState } from "./menu/prefs";
 import { mark_drive, read_saved, write_saved } from "./menu/prefs-store";
-import { action, copy_action, dress, info, invalid, mosaic, password_input, picture, random_seed, row, stat, tile } from "./menu/widgets";
+import { action, copy_action, dress, info, invalid, mosaic, password_input, picture, random_seed, row, tile } from "./menu/widgets";
+import { settings_sections } from "./menu/settings-sections";
 import { WorldPage } from "./menu/world-page";
-import { Harmony, generate_theme, is_dark, type ThemeMode } from "./random-theme";
-import { mulberry32 } from "./rng";
-import { Rows, el, icon, read, type Options, type RowHelp, type Value } from "./setting-rows";
+import { Rows, el, icon, read, type RowHelp, type Value } from "./setting-rows";
 import { WorldKind } from "./worldgen/types";
 import { kind_of_world } from "./worldgen/kinds/kinds";
 import { WORLDS } from "./worlds/worlds";
 import { world_query } from "./world-pick";
-import {
-  THEMES,
-  THEME_NAME_LENGTH,
-  TOKENS,
-  choose_theme,
-  current_theme,
-  derive_theme,
-  find_saved,
-  find_theme,
-  load_saved_themes,
-  store_saved_themes,
-  theme_name_problem,
-  token_var,
-  with_saved,
-  without_saved,
-  type ThemeBase,
-} from "./theme";
 import "./settings.css";
 import "./menu.css";
-
-interface SettingsSection {
-  id: string;
-  label: string;
-  icon: string;
-  summary: () => string;
-  /** What Reset section puts back. */
-  keys: readonly SettingKey[];
-  rows: () => HTMLElement[];
-}
-
-interface DeepPage {
-  id: string;
-  label: string;
-  parent: string;
-  help: string;
-  rows: () => HTMLElement[];
-}
 
 interface SubPage {
   label: string;
@@ -80,121 +43,7 @@ type View = (typeof View)[keyof typeof View];
 /** The What's new page: a settings page with no section tab, opened from the version line. */
 const CHANGES = "changes";
 
-const CAMERA_RETURN_LABEL: Record<CameraReturn, string> = { off: "Off", short: "1.5 s", long: "3 s", never: "Never" };
-const STEER_LABEL: Record<SteerMode, string> = { snap: "Classic", hold: "Hold", smooth: "Smooth" };
-
-const TIER_LABEL: Record<QualityTier, string> = { high: "High", medium: "Medium", low: "Low" };
 const STATUS_MS = 1000;
-
-const KEYS: [string, string, string, string][] = [
-  ["Drive", "WASD / arrows", "RT / LT, L stick", "Gas, Brake, drag or arrow buttons to steer (Touch steering)"],
-  ["Handbrake", "Space", "A", "Handbrake"],
-  ["Precision steer (hold, when on)", "X", "", ""],
-  ["Nitro (hold, when fitted)", "Shift", "B", "Nitro key: tap on, tap off or burn the tank"],
-  ["Reset", "R", "Y", "Reset"],
-  ["Restart lap", "L / lap strip button", "", "Lap strip button"],
-  ["Rewind (hold)", "Backspace", "X", "Rewind (hold)"],
-  ["Shift up / down", "E / Q", "RB / LB", ""],
-  ["Auto gearbox", "M", "", ""],
-  ["Camera", "C", "View", "Cam"],
-  ["Look around", "Drag / wheel", "R stick", "Drag, pinch to zoom"],
-  ["Recenter camera", "F / double-click", "R3", "Recenter"],
-  ["Ghost", "G", "", ""],
-  ["TCS / ABS / steer assist", "1 / 2 / 3", "", ""],
-  ["Garage", "V", "Start, Garage", ""],
-  ["This key list", "H", "", ""],
-  ["Chat", "T", "", "Chat"],
-  ["Menu", "Esc", "Start", "Menu button"],
-  ["In menus: move, pick, back, tabs", "Arrows, Enter, Esc, Q / E", "D-pad, A, B, LB / RB", ""],
-  ["In menus: sections, reset section", "", "LT / RT, Y", ""],
-];
-
-const PAD_SEPARATOR = /(, | \/ )/;
-
-const BASE_TOKENS: [keyof ThemeBase, string][] = [
-  ["background", "Background"],
-  ["foreground", "Text"],
-  ["primary", "Main"],
-  ["secondary", "Second"],
-  ["accent", "Accent"],
-];
-
-const THEME_MODES: [ThemeMode, string][] = [
-  ["dark", "Dark"],
-  ["light", "Light"],
-  ["any", "Either"],
-];
-
-const HARMONY_CHOICES: [Harmony | "any", string][] = [
-  ["any", "Surprise me"],
-  [Harmony.ANALOGOUS, "Matching"],
-  [Harmony.COMPLEMENTARY, "Contrasting"],
-  [Harmony.TRIADIC, "Three colours"],
-  [Harmony.SPLIT, "Split"],
-];
-
-type WirePart = "bar" | "title" | "strip" | "map" | "speed" | "dash";
-
-interface HudLayoutOption {
-  value: HudLayout;
-  name: string;
-  note: string;
-  /** Mini wireframe for the picker: part, then x, y, width, height in percent of a 16:9 frame. */
-  wire: [WirePart, number, number, number, number][];
-}
-
-const HUD_LAYOUTS: HudLayoutOption[] = [
-  {
-    value: HudLayout.MINIMAL,
-    name: "Minimal",
-    note: "Speed and gear; the rest when it matters",
-    wire: [
-      ["bar", 4, 6, 15, 11],
-      ["map", 86, 6, 10, 18],
-      ["speed", 78, 76, 18, 18],
-    ],
-  },
-  {
-    value: HudLayout.CLASSIC,
-    name: "Classic",
-    note: "Everything in the corners",
-    wire: [
-      ["title", 4, 6, 17, 11],
-      ["bar", 23, 6, 15, 11],
-      ["strip", 40, 6, 24, 11],
-      ["map", 82, 6, 14, 25],
-      ["dash", 4, 85, 24, 9],
-      ["speed", 74, 70, 22, 24],
-    ],
-  },
-  {
-    value: HudLayout.RACING,
-    name: "Racing",
-    note: "Lap timer on top, dash in the middle",
-    wire: [
-      ["title", 4, 6, 13, 11],
-      ["bar", 19, 6, 12, 11],
-      ["strip", 36, 6, 28, 13],
-      ["map", 82, 6, 14, 25],
-      ["speed", 38, 64, 24, 20],
-      ["dash", 38, 86, 24, 8],
-    ],
-  },
-  {
-    value: HudLayout.COMPACT,
-    name: "Compact",
-    note: "One slim top row, bottom left free",
-    wire: [
-      ["bar", 4, 6, 15, 10],
-      ["strip", 21, 6, 15, 10],
-      ["dash", 38, 6, 20, 10],
-      ["speed", 64, 6, 16, 10],
-      ["map", 84, 6, 12, 22],
-    ],
-  },
-];
-
-const hud_name = (value: HudLayout) => HUD_LAYOUTS.find((layout) => layout.value === value)?.name ?? value;
 
 function random_code() {
   return Math.random().toString(36).slice(2, 8);
@@ -230,6 +79,9 @@ export class Settings {
   private readonly help_visual = el("div", "set-help-visual");
   private readonly menu: Menu;
   private readonly page_list: MenuPage[];
+  private readonly settings_menu: SettingsMenu;
+  /** The section being built: `value` records its keys, which Reset section puts back. */
+  private recording: SettingKey[] | null = null;
   private race_route = "circuit";
   private readonly guide: Guide;
 
@@ -250,6 +102,13 @@ export class Settings {
       show: (section) => this.show(section),
       drive: (seed, kind) => this.drive(seed, kind),
       go: (query) => this.go(query),
+    };
+    this.settings_menu = {
+      ...this.menu,
+      value: (key) => this.value(key),
+      show_sub: (id) => this.show_sub(id),
+      reload: (param) => this.reload(param),
+      redraw_help: () => this.render_help(),
     };
     this.page_list = [
       { id: MenuTab.PLAY, label: "Play", build: () => this.play() },
@@ -743,66 +602,12 @@ export class Settings {
   }
 
   private value<K extends SettingKey>(key: K): Value<SettingsState[K]> {
+    if (this.recording && !this.recording.includes(key)) this.recording.push(key);
     return { get: () => this.current[key], set: (value) => this.set(key, value) };
   }
 
   private settings_page(): HTMLElement[] {
-    const tier = () => TIER_LABEL[this.host.quality_status().tier];
-    const sections: SettingsSection[] = [
-      {
-        id: "graphics",
-        label: "Graphics",
-        icon: "icon-graphics",
-        summary: () => (this.current.quality === QualityMode.AUTO ? `Auto, running ${tier()}` : `Fixed at ${tier()}`),
-        keys: ["quality"],
-        rows: () => this.graphics(),
-      },
-      {
-        id: "display",
-        label: "Display",
-        icon: "icon-display",
-        summary: () => `${hud_name(this.current.hud)} HUD · ${current_theme()}`,
-        keys: ["hud", "dash"],
-        rows: () => this.display(),
-      },
-      {
-        id: "driving",
-        label: "Driving",
-        icon: "icon-aids",
-        summary: () => `${(["tcs", "abs", "assist"] as const).filter((aid) => this.current[aid]).length} of 3 aids · ${this.current.auto ? "auto" : "manual"} gears`,
-        keys: ["tcs", "abs", "assist", "auto", "ghost"],
-        rows: () => this.driving(),
-      },
-      {
-        id: "camera",
-        label: "Camera",
-        icon: "icon-camera",
-        summary: () => `${this.current.camera === CameraView.CHASE ? "Chase" : "Cockpit"} · returns ${CAMERA_RETURN_LABEL[this.current.camera_return]}`,
-        keys: ["camera", "camera_return", "invert_y"],
-        rows: () => this.camera(),
-      },
-      {
-        id: "controls",
-        label: "Controls",
-        icon: "icon-controls",
-        summary: () => `Keyboard ${STEER_LABEL[this.current.steer_mode].toLowerCase()} · key list`,
-        keys: ["steer_mode", "precision_key", "touch_steer"],
-        rows: () => this.controls(),
-      },
-      {
-        id: "audio",
-        label: "Audio",
-        icon: "icon-audio",
-        summary: () => (this.current.muted ? "Muted" : `Volume ${Math.round(this.current.volume * 100)}%`),
-        keys: ["volume", "muted"],
-        rows: () => this.audio(),
-      },
-    ];
-    const deep: DeepPage[] = [
-      { id: "creator", label: "Make your own theme", parent: "display", help: "Roll colours, keep the ones you like, then name and save it.", rows: () => this.theme_create() },
-      { id: "themes", label: "Your themes", parent: "display", help: "Themes you made. Pick one with Theme on Display.", rows: () => this.saved_themes() },
-      { id: "keys", label: "All keys and buttons", parent: "controls", help: "Every key, pad button and touch control. H opens this list while driving.", rows: () => this.key_list() },
-    ];
+    const { sections, deep } = settings_sections(this.settings_menu);
 
     const nav = el("nav", "set-nav");
     nav.setAttribute("aria-label", "Settings sections");
@@ -843,9 +648,12 @@ export class Settings {
       this.syncs.push(() => (summary.textContent = section.summary()));
       tab.append(icon(section.icon), el("b", "", section.label), summary);
       nav.append(tab);
+      const keys: SettingKey[] = [];
+      this.recording = keys;
       const list = this.sub_list(section.id, section.label, section.rows());
+      this.recording = null;
       main.append(list);
-      this.subs.set(section.id, { label: section.label, parent: null, keys: section.keys, tab, list, help: "" });
+      this.subs.set(section.id, { label: section.label, parent: null, keys, tab, list, help: "" });
     }
     for (const page of deep) {
       const list = this.sub_list(page.id, page.label, page.rows());
@@ -936,384 +744,6 @@ export class Settings {
     this.help_text.textContent = help ? read(help.text) : "";
     const visual = help?.visual?.() ?? null;
     this.help_visual.replaceChildren(...(visual ? [visual] : []));
-  }
-
-  private graphics(): HTMLElement[] {
-    const status = () => {
-      const s = this.host.quality_status();
-      const node = el("div", "settings-status");
-      node.append(
-        el("span", "", this.current.quality === QualityMode.AUTO ? `Auto is running ${TIER_LABEL[s.tier]}` : `Fixed at ${TIER_LABEL[s.tier]}`),
-        stat("scale", `${s.ratio.toFixed(2)}x`),
-        stat("shadows", s.shadow_size ? `${s.shadow_size}px` : "off"),
-        stat("bloom", s.bloom ? "on" : "off"),
-      );
-      return node;
-    };
-    return [
-      this.rows.segmented(
-        "Quality",
-        "How much the game draws. Auto steps down when the frame rate drops.",
-        this.value("quality"),
-        [
-          [QualityMode.AUTO, "Auto"],
-          [QualityMode.HIGH, "High"],
-          [QualityMode.MEDIUM, "Medium"],
-          [QualityMode.LOW, "Low"],
-        ],
-        status,
-      ),
-      this.rows.info(
-        "Running now",
-        "What the game draws at this moment; Auto changes it as the frame rate moves.",
-        () => {
-          const s = this.host.quality_status();
-          return `${TIER_LABEL[s.tier]} · ${s.ratio.toFixed(2)}x · shadows ${s.shadow_size ? `${s.shadow_size}px` : "off"} · bloom ${s.bloom ? "on" : "off"}`;
-        },
-        status,
-      ),
-    ];
-  }
-
-  private hud_wire(): HTMLElement {
-    const layout = HUD_LAYOUTS.find((option) => option.value === this.current.hud) ?? HUD_LAYOUTS[0];
-    const frame = el("span", "hud-wire");
-    frame.setAttribute("aria-hidden", "true");
-    for (const [part, x, y, w, h] of layout.wire) {
-      const box = el("span", `hud-wire-${part}`);
-      box.style.inset = `${y}% ${100 - x - w}% ${100 - y - h}% ${x}%`;
-      frame.append(box);
-    }
-    return frame;
-  }
-
-  private display(): HTMLElement[] {
-    const active = current_theme();
-    const saved = load_saved_themes();
-    const in_use = THEMES[active] ? active : (find_saved(saved, active)?.name ?? active);
-    let pick = in_use;
-    const names = (): Options<string> => [...saved.map(({ name }) => [name, name] as const), ...Object.keys(THEMES).map((name) => [name, name] as const)];
-    const use = () => {
-      if (pick === in_use) return;
-      choose_theme(pick);
-      this.reload("theme");
-    };
-    const swatches = () => {
-      const theme = find_theme(pick, saved);
-      if (!theme) return null;
-      const row = el("span", "set-swatches");
-      for (const [token] of BASE_TOKENS) {
-        const swatch = el("i");
-        swatch.style.background = theme[token];
-        row.append(swatch);
-      }
-      return row;
-    };
-    const theme = this.rows.stepper(
-      "Theme",
-      () => (pick === in_use ? "Colours for the whole game." : "Press A or tap Use to switch to it. The page reloads."),
-      {
-        get: () => pick,
-        set: (name) => {
-          pick = name;
-          this.refresh();
-        },
-      },
-      names,
-      swatches,
-      use,
-    );
-    const use_button = el("button", "set-use", "Use");
-    use_button.type = "button";
-    use_button.tabIndex = -1;
-    use_button.addEventListener("click", (event) => {
-      event.stopPropagation();
-      use();
-    });
-    theme.lastElementChild?.before(use_button);
-    this.syncs.push(() => (use_button.hidden = pick === in_use));
-
-    const mine = this.rows.link("Your themes", "Themes you made: delete the ones you don't want.", () => `${load_saved_themes().length} saved`, () => this.show_sub("themes"));
-    this.syncs.push(() => (mine.hidden = load_saved_themes().length === 0));
-
-    return [
-      this.rows.stepper(
-        "HUD layout",
-        () => {
-          const layout = HUD_LAYOUTS.find((option) => option.value === this.current.hud);
-          return `Where speed, laps, map and buttons sit. ${layout?.name}: ${layout?.note}.`;
-        },
-        this.value("hud"),
-        HUD_LAYOUTS.map(({ value, name }) => [value, name] as const),
-        () => this.hud_wire(),
-      ),
-      this.rows.segmented(
-        "Dash",
-        "Speed, gear and aids. Racing always centres it, Compact keeps it up top.",
-        this.value("dash"),
-        [
-          [DashPlace.RIGHT, "Right"],
-          [DashPlace.CENTER, "Centre"],
-        ],
-        () => this.hud_wire(),
-      ),
-      theme,
-      this.rows.link("Make your own theme", "Roll colours, keep the ones you like, then name and save it.", "Roll, adjust, save", () => this.show_sub("creator")),
-      mine,
-    ];
-  }
-
-  private driving(): HTMLElement[] {
-    return [
-      this.rows.toggle("Traction control", "Cuts power when the rear wheels spin. 1 switches it while driving.", this.value("tcs")),
-      this.rows.toggle("Anti-lock brakes", "Keeps steering under hard braking. 2 switches it while driving.", this.value("abs")),
-      this.rows.toggle("Steering assist", "Counter-steers a slide for you. 3 switches it while driving.", this.value("assist")),
-      this.rows.toggle("Automatic gearbox", "Shifts for you. M switches it while driving.", this.value("auto")),
-      this.rows.toggle("Ghost car", "Your best lap drives beside you. G switches it while driving.", this.value("ghost")),
-    ];
-  }
-
-  private camera(): HTMLElement[] {
-    return [
-      this.rows.segmented("View", "Behind the car or from the driver's seat. C switches it while driving.", this.value("camera"), [
-        [CameraView.CHASE, "Chase"],
-        [CameraView.COCKPIT, "Cockpit"],
-      ]),
-      this.rows.segmented(
-        "Returns after",
-        "After a mouse look, the camera swings back behind the car once it drives.",
-        this.value("camera_return"),
-        Object.values(CameraReturn).map((value) => [value, CAMERA_RETURN_LABEL[value]] as const),
-      ),
-      this.rows.toggle("Invert camera Y", "Mouse drag and right stick.", this.value("invert_y")),
-    ];
-  }
-
-  private controls(): HTMLElement[] {
-    const touch = this.rows.segmented("Touch steering", "Drag anywhere to steer, or arrow buttons that steer like the keyboard.", this.value("touch_steer"), [
-      [TouchSteer.DRAG, "Drag"],
-      [TouchSteer.BUTTONS, "Buttons"],
-    ]);
-    touch.classList.add("settings-touch-only");
-    return [
-      this.rows.segmented(
-        "Keyboard steering",
-        "Classic: quick to full turn, snaps back. Hold: the wheel stays and centres as you roll. Smooth: a tap nudges, holding builds the turn.",
-        this.value("steer_mode"),
-        Object.values(SteerMode).map((mode) => [mode, STEER_LABEL[mode]] as const),
-      ),
-      this.rows.toggle("Precision steer key", "Hold X for half the keyboard steering.", this.value("precision_key")),
-      touch,
-      this.rows.link("All keys and buttons", "Every key, pad button and touch control. H opens this list while driving.", "Keyboard, pad, touch", () => this.show_sub("keys")),
-    ];
-  }
-
-  private audio(): HTMLElement[] {
-    return [
-      this.rows.slider(
-        "Master volume",
-        "Engine, tyres, wind and the menu.",
-        { get: () => this.current.volume * 100, set: (value) => this.set("volume", value / 100) },
-        5,
-        () => !this.current.muted,
-      ),
-      this.rows.toggle("Mute", "Silences everything; the volume stays where it is.", this.value("muted")),
-    ];
-  }
-
-  private key_list(): HTMLElement[] {
-    const table = el("table", "settings-keys");
-    const head = el("tr");
-    head.append(el("th"), el("th", "", "Keyboard"), el("th", "settings-col-pad", "Gamepad"), el("th", "settings-col-touch", "Touch"));
-    table.append(el("thead"), el("tbody"));
-    table.tHead?.append(head);
-    for (const [what, ...ways] of KEYS) {
-      const tr = el("tr");
-      tr.append(el("th", "", what));
-      const [keyboard, pad, touch] = ways;
-      const keys = el("td");
-      if (keyboard) keys.append(el("kbd", "", keyboard));
-      const buttons = el("td", "settings-col-pad");
-      for (const part of pad ? pad.split(PAD_SEPARATOR) : []) buttons.append(PAD_SEPARATOR.test(part) ? part : el("kbd", part.length === 1 ? "pad-glyph pad-face" : "pad-glyph", part));
-      tr.append(keys, buttons);
-      tr.append(el("td", "settings-touch settings-col-touch", touch));
-      table.tBodies[0].append(tr);
-    }
-    this.syncs.push(() => table.toggleAttribute("data-pad", navigator.getGamepads().some((pad) => pad?.connected)));
-    // Focusable so the pad can scroll a list taller than a phone screen.
-    const wrap = el("div", "settings-keys-wrap");
-    wrap.tabIndex = 0;
-    wrap.append(table);
-    return [wrap];
-  }
-
-  private saved_themes(): HTMLElement[] {
-    const list = el("div", "set-rows");
-    const render = () => {
-      const saved = load_saved_themes();
-      const in_use = find_saved(saved, current_theme())?.name ?? null;
-      list.replaceChildren(
-        ...saved.map(({ name }) => {
-          const control = el("span", "set-inline");
-          if (name === in_use) control.append(el("span", "servers-tag", "In use"));
-          control.append(
-            action("Delete", () => {
-              if (!store_saved_themes(without_saved(load_saved_themes(), name))) return;
-              if (name === in_use) return this.reload("theme");
-              render();
-              this.refresh();
-              list.querySelector("button")?.focus();
-            }),
-          );
-          return this.rows.custom(name, name === in_use ? "The theme you're using. Delete it and the game goes back to Brand Dark." : "Delete it to remove it from the Theme list.", control);
-        }),
-      );
-      if (!saved.length) list.append(el("p", "servers-note", "No themes yet. Make one with Make your own theme."));
-    };
-    render();
-    return [list];
-  }
-
-  private theme_create(): HTMLElement[] {
-    const saved = () => load_saved_themes();
-    const { background, foreground, primary, secondary, accent } = find_theme(current_theme()) ?? THEMES["Brand Dark"];
-    let base: ThemeBase = { background, foreground, primary, secondary, accent };
-    let mode: ThemeMode = is_dark(base) ? "dark" : "light";
-    let harmony: Harmony | "any" = "any";
-    let vibrance = 50;
-    let contrast = 50;
-    // One seed per roll, so a slider or style change reshapes this theme instead of rolling a new one.
-    let seed = 0;
-    let rolled = false;
-    const locked = new Set<keyof ThemeBase>();
-
-    const scene = el("div", "theme-scene");
-    scene.setAttribute("aria-hidden", "true");
-    for (const part of ["sky", "hill", "road", "lane", "car", "pill"]) scene.append(el("span", `theme-scene-${part}`));
-    scene.querySelector(".theme-scene-pill")?.append(el("b", "", "88"), el("small", "", "km/h"), el("i", "", "3"));
-
-    const locks = el("div", "theme-locks");
-    const lock_buttons = BASE_TOKENS.map(([token, label]) => {
-      const button = el("button", "theme-lock");
-      button.type = "button";
-      button.setAttribute("aria-label", `Lock ${label.toLowerCase()} colour`);
-      const swatch = el("span", "theme-swatch");
-      swatch.append(icon("icon-lock"));
-      button.append(swatch, el("span", "", label));
-      button.addEventListener("click", () => {
-        if (locked.has(token)) locked.delete(token);
-        else locked.add(token);
-        render();
-      });
-      locks.append(button);
-      return [token, button, swatch] as const;
-    });
-
-    const generate = () => {
-      const keep = Object.fromEntries([...locked].map((token) => [token, base[token]]));
-      base = generate_theme({ mode, harmony, vibrance: vibrance / 100, contrast: contrast / 100, locked: keep }, mulberry32(seed));
-    };
-    const adjust = () => {
-      if (rolled) generate();
-      render();
-    };
-    const roll = () => {
-      seed = Math.floor(Math.random() * 2 ** 32);
-      rolled = true;
-      generate();
-      render();
-    };
-
-    const form = el("form", "set-inline");
-    const name = el("input", "settings-input");
-    name.type = "text";
-    name.maxLength = THEME_NAME_LENGTH;
-    name.autocomplete = "off";
-    name.enterKeyHint = "done";
-    name.setAttribute("aria-label", "Theme name");
-    // A pad can't type, so an empty name saves under the next free placeholder.
-    const free_name = () => {
-      let at = saved().length + 1;
-      while (find_saved(saved(), `My theme ${at}`)) at++;
-      return `My theme ${at}`;
-    };
-    name.addEventListener("input", () => name.setCustomValidity(""));
-    const save = el("button", "settings-action", "Save");
-    save.type = "submit";
-    form.append(name, save);
-    form.addEventListener("submit", (event) => {
-      event.preventDefault();
-      if (!rolled) return;
-      const chosen = name.value.trim() || free_name();
-      const problem = theme_name_problem(chosen);
-      if (problem) return invalid(name, problem);
-      if (!store_saved_themes(with_saved(saved(), chosen, derive_theme(base)))) return invalid(name, "This browser refused to store it");
-      choose_theme(chosen);
-      this.reload("theme");
-    });
-
-    const render = () => {
-      const theme = derive_theme(base);
-      for (const token of TOKENS) scene.style.setProperty(token_var(token), theme[token]);
-      for (const [token, button, swatch] of lock_buttons) {
-        swatch.style.background = base[token];
-        button.setAttribute("aria-pressed", String(locked.has(token)));
-      }
-      save.disabled = !rolled;
-      name.disabled = !rolled;
-      name.placeholder = free_name();
-      this.rows.refresh();
-      this.render_help();
-    };
-    render();
-
-    const local = <T>(get: () => T, set: (value: T) => void): Value<T> => ({
-      get,
-      set: (value) => {
-        set(value);
-        adjust();
-      },
-    });
-    return [
-      scene,
-      this.rows.link("Roll a theme", "New random colours. Locked colours stay as they are.", () => (rolled ? "Roll again" : "Roll"), roll),
-      this.rows.custom("Your colours", "Lock a colour to keep it when you roll again.", locks),
-      this.rows.segmented(
-        "Light or dark",
-        "Which kind of background a roll can give.",
-        local(
-          () => mode,
-          (value) => (mode = value),
-        ),
-        THEME_MODES,
-      ),
-      this.rows.stepper(
-        "Colour style",
-        "How the main colours relate to each other.",
-        local(
-          () => harmony,
-          (value) => (harmony = value),
-        ),
-        HARMONY_CHOICES,
-      ),
-      this.rows.slider(
-        "Colour strength",
-        "Muted to bold.",
-        local(
-          () => vibrance,
-          (value) => (vibrance = value),
-        ),
-      ),
-      this.rows.slider(
-        "Contrast",
-        "Soft to sharp. Text always stays readable.",
-        local(
-          () => contrast,
-          (value) => (contrast = value),
-        ),
-      ),
-      this.rows.custom("Name and save", "Roll first. Saving adds it to your themes and switches to it; the page reloads.", form),
-    ];
   }
 
   private refresh() {
