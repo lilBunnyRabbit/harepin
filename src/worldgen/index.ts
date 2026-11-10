@@ -222,7 +222,7 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   const planted = plant(cuts, land, free);
   const trees: Tree[] = [...lots.out.trees, ...planted.trees];
   solids.push(...planted.solids);
-  const strewn = scatter(cuts, land, recipe.scatter, free);
+  const strewn = scatter(cuts, land, recipe.scatter, free, [...trails.trails.flatMap((t) => t.points), ...trails.ramp_out]);
   props.push(...strewn.props);
   solids.push(...strewn.solids);
   stamp.harden(cuts);
