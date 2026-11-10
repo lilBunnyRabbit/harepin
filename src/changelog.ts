@@ -23,6 +23,16 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.11.0",
+    date: "2026-11-10",
+    title: "Welcome guide",
+    changes: [
+      { kind: NEW, text: "First-run guide: new players pick a look, a help level and see the controls and what to do, right in the menu. Reopen it any time from Settings." },
+      { kind: FIXED, text: "Joining a Sky game from the server list now opens Sky instead of the island." },
+      { kind: FIXED, text: "The Drive button is readable in light themes." },
+    ],
+  },
+  {
     version: "0.10.0",
     date: "2026-11-10",
     title: "Races and wilder worlds",
