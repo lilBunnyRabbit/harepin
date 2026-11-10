@@ -261,8 +261,10 @@ function trace(atlas: Atlas, legs: number[], pair: [number, number]): Candidate 
           s += GATE_SPACING;
         }
       }
-    const into = before && atlas.mouth(leg.from, flip(before.points.slice(-2)));
-    const out = before && atlas.mouth(leg.from, leg.points);
+    // A street arm's corner stays sharp, so a line bent across it would cut over the sidewalk.
+    const curbed = before && before.kind !== "street" && leg.kind !== "street";
+    const into = curbed && atlas.mouth(leg.from, flip(before.points.slice(-2)));
+    const out = curbed && atlas.mouth(leg.from, leg.points);
     if (!into || !out || into >= points.length || out >= leg.points.length - 1) {
       points.push(...(k === 0 ? leg.points : leg.points.slice(1)));
       return;
