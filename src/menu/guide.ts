@@ -98,7 +98,7 @@ const AID_LIGHTS = [
 const TOUR: [string, string, string, string][] = [
   ["island", "Two worlds", "Roam the Island or race Sky Track in the clouds. New map rolls a fresh island.", "Play"],
   ["icon-modes", "Modes", "Race, gymkhana, parking, drift, hunt, duel. Stars and best times for each.", "Play, Modes"],
-  ["icon-paint", "Garage", "Swap engine, tyres and paint. Save builds, switch in a tap.", "Garage"],
+  ["icon-paint", "Garage", "Switch cars, from a hatchback to a city bus. Swap engine, tyres and paint, save builds.", "Garage"],
   ["icon-share", "Friends", "Send a link and friends drive your map with you. Race the lobby.", "Online"],
 ];
 
