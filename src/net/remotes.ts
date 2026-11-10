@@ -1,7 +1,9 @@
 import * as THREE from "three";
 import { DEFAULT_BUILD, build_code, build_spec, parse_build, type Build } from "../car/build";
 import type { CarSpec } from "../car/cars";
-import { build_view, camera_fade, contact_shadow, dispose_car_view, place_contact_shadow, rest_wheels, show_flame, type CarView, type ContactShadow } from "../car/models";
+import { contact_shadow, place_contact_shadow, type ContactShadow } from "../car/contact-shadow";
+import { show_flame } from "../car/lights";
+import { build_view, camera_fade, dispose_car_view, rest_wheels, type CarView } from "../car/models";
 import type { World } from "../world/world";
 import type { CarState, Net, Remote } from "./net";
 

@@ -1,5 +1,7 @@
 import * as THREE from "three";
-import type { Decal } from "./build";
+import { DECALS, type Build, type Decal } from "./build";
+import { NEUTRAL_INKS, car_paints, color, decal_inks } from "../theme/palette";
+import type { Lab } from "../theme/theme";
 
 type Point = [number, number];
 
@@ -281,4 +283,30 @@ export function livery_parts(livery: Livery, panel: Panel, over: Roof, front: nu
     ink.length ? paint(ink, livery.ink) : null,
     mark.length ? paint(mark, livery.mark) : null,
   ].filter((g): g is THREE.BufferGeometry => g !== null);
+}
+
+const INK_CLASH = 0.1;
+const NEUTRAL_CONTRAST = 0.15;
+
+const distance = (a: Lab, b: Lab) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+
+function far_neutral(from: Lab): Lab {
+  const [light, dark_ink] = decal_inks;
+  return Math.abs(light[0] - from[0]) >= Math.abs(dark_ink[0] - from[0]) ? light : dark_ink;
+}
+
+/** Decal colours for a build: the chosen ink unless it would vanish on the paint, then the neutral that stands out. */
+export function livery_of(build: Build): Livery {
+  const paint = car_paints[build.paint % car_paints.length];
+  const chosen = decal_inks[build.ink % decal_inks.length];
+  const neutral = build.ink % decal_inks.length < NEUTRAL_INKS;
+  const vanishes = neutral ? Math.abs(chosen[0] - paint[0]) < NEUTRAL_CONTRAST : distance(chosen, paint) < INK_CLASH;
+  const ink = vanishes ? far_neutral(paint) : chosen;
+  return {
+    decal: DECALS[build.decal] ?? "none",
+    number: build.number,
+    ink: color(ink),
+    key: neutral || vanishes ? null : color(far_neutral(paint)),
+    mark: color(far_neutral(ink)),
+  };
 }

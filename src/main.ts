@@ -13,7 +13,7 @@ import { Input, type Action } from "./hud/input";
 import { Lobby, lobby_routes } from "./net/lobby";
 import { Modes } from "./modes/modes";
 import { race_choices } from "./modes/races";
-import { gates } from "./car/models";
+import { gates } from "./car/trackside";
 import { GUIDE_PARAM, ROLLED_VISIT } from "./menu/guide";
 import { random_name as make_random_name } from "./menu/guide-rules";
 import { PadMenu } from "./menu/pad-menu";

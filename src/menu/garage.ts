@@ -25,8 +25,9 @@ import {
 import { BUILD_NAME_LENGTH, free_build_name, load_builds, renamed, store_builds, with_build, without_build, type SavedBuild } from "../car/builds";
 import { CARS, is_car } from "../car/cars";
 import { typing, type Nav } from "../hud/input";
-import { FLAME, SIDE_BAND, SLASH } from "../car/livery";
-import { build_view, contact_shadow, dispose_car_view, livery_of, rest_wheels, type CarView } from "../car/models";
+import { FLAME, SIDE_BAND, SLASH, livery_of } from "../car/livery";
+import { contact_shadow } from "../car/contact-shadow";
+import { build_view, dispose_car_view, rest_wheels, type CarView } from "../car/models";
 import { NEUTRAL_INKS, brand, car_paints, color, dark, decal_inks, rgba } from "../theme/palette";
 import "./garage.css";
 
