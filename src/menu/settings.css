@@ -210,6 +210,10 @@
   border-color: var(--line-strong);
 }
 
+.settings-action[hidden] {
+  display: none;
+}
+
 .settings-inline {
   display: flex;
   align-items: center;
