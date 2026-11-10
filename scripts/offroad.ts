@@ -1,8 +1,11 @@
+import { build_spec, parse_build } from "../src/car/build";
 import { Car, drop_height } from "../src/car/car";
 import { car_spec } from "../src/car/cars";
 import { World } from "../src/world/world";
 
-const SPEC = car_spec(process.argv[2] ?? "coupe");
+const ARG = process.argv[2] ?? "coupe";
+const BUILD = parse_build(ARG);
+const SPEC = BUILD ? build_spec(BUILD) : car_spec(ARG);
 const DT = 1 / 360;
 const world = new World();
 const start = 200;

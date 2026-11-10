@@ -23,8 +23,8 @@ export interface Mod {
 
 /** How a part shows on the car model (`models.ts`); a part without one draws as the design's stock look. */
 export interface Look {
-  /** Tread width and rim size against the design's (a bigger rim is a lower sidewall), block tread, and a sidewall ring colour. */
-  tyre?: { width: number; rim: number; tread?: boolean; band?: Token };
+  /** Tread width and rim size against the design's (a bigger rim is a lower sidewall), tread block size against the rally tyre's, and a sidewall ring colour. */
+  tyre?: { width: number; rim: number; tread?: number; band?: Token };
   /** Brake caliper size; a theme colour sets it proud of the spokes, without one it is trim and hides behind them. */
   caliper?: { size: number; tone?: Token };
   /** Nitrous bottle length against the small tank's, and a second bottle beside it. */
@@ -74,7 +74,9 @@ export const SLOTS = {
       { name: "Street", blurb: "All-round, fine on dirt", mod: {} },
       { name: "Sport", blurb: "More grip, a bit worse on dirt", mod: { scale: { mu: 1.06 }, add: { offroad: -0.15 } }, look: { tyre: { width: 1.15, rim: 1.06 } } },
       { name: "Semi-slick", blurb: "Most grip, slides on dirt", mod: { scale: { mu: 1.12 }, add: { offroad: -0.6 } }, look: { tyre: { width: 1.32, rim: 1.12, band: "warning" } } },
-      { name: "Rally", blurb: "Less grip, strong on dirt", mod: { scale: { mu: 0.96 }, add: { offroad: 0.5 } }, look: { tyre: { width: 1.1, rim: 0.88, tread: true } } },
+      { name: "Rally", blurb: "Less grip, strong on dirt", mod: { scale: { mu: 0.96 }, add: { offroad: 0.5 } }, look: { tyre: { width: 1.1, rim: 0.88, tread: 1 } } },
+      { name: "All-terrain", blurb: "A little less grip, good off road", mod: { scale: { mu: 0.98, roll_resist: 1.05 }, add: { offroad: 0.3 } }, look: { tyre: { width: 1.08, rim: 0.86, tread: 0.7 } } },
+      { name: "Mud-terrain", blurb: "Poor on tarmac, best on grass", mod: { scale: { mu: 0.88, roll_resist: 1.2 }, add: { offroad: 0.9 } }, look: { tyre: { width: 1.22, rim: 0.8, tread: 1.5 } } },
     ],
   },
   // The kits move the downforce forward of the centre of mass: the street kit's lip and short wing make a pointy car at
@@ -109,6 +111,7 @@ export const SLOTS = {
       { name: "Race", blurb: "Stiff and low, sharp turn-in", mod: { scale: { spring: 1.3, damper: 1.3, arb_front: 1.4, arb_rear: 1.4 }, add: { rest: -0.03 } } },
       // Drift's extra lock is the countersteer room that turns a power slide from a spin into a held angle.
       { name: "Drift", blurb: "Loose rear, extra steering lock", mod: { scale: { spring: 1.25, damper: 1.25, arb_front: 0.6, arb_rear: 3, lock: 1.15, assist_yaw: 0.6 }, add: { rest: -0.02, rear_grip: -0.02 } } },
+      { name: "Lifted", blurb: "Tall and soft, rolls, eats bumps", mod: { scale: { spring: 0.85, damper: 1.1, arb_front: 0.6, arb_rear: 0.6 }, add: { rest: 0.12 } } },
     ],
   },
   brakes: {

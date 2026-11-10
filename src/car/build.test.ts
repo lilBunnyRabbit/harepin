@@ -69,7 +69,7 @@ test("off-grammar codes are rejected", () => {
     "coupe.0.1.0.1.0.9.7",
     "coupe.0.1.0.1.0.0.100",
     "coupe.0.1.0.1.0.0",
-    "coupe.0.1.0.1.0.0.7.4",
+    "coupe.0.1.0.1.0.0.7.6",
     "coupe.0.1.0.1.0.0.7.0.0.3",
     "coupe.0.1.0.1.0.0.7.0.0.0.0.0.0",
     "coupe.0.1.0.1.0.0.7.0.0.0.1.3",
@@ -77,7 +77,7 @@ test("off-grammar codes are rejected", () => {
     "coupe.0.1.0.1.0.0.7.",
     "coupe.0.1.0.1.0..7",
     "coupe.0.0.5.1.0",
-    "coupe.0.0.0.4.0",
+    "coupe.0.0.0.5.0",
     "coupe.0.0.0.1.3",
     "coupe.-1.0.0.1.0",
     "coupe.1e1.0.0.1.0",
@@ -181,6 +181,36 @@ test("tyres order tarmac grip street < sport < semi-slick, rally wins off it and
     expect(rally.offroad).toBeLessThanOrEqual(1);
     expect(stats(slick).grip).toBeGreaterThan(stats(street).grip * 1.1);
   }
+});
+
+test("offroad tyres trade tarmac grip for grass grip, mud-terrain furthest", () => {
+  for (const base of [COUPE, RALLY]) {
+    const car = base.id as CarId;
+    const [street, , , rally, all_terrain, mud] = [0, 1, 2, 3, 4, 5].map((tyres) => apply_build(base, with_parts({ tyres }, { car })));
+    expect(surface_grip(all_terrain, 1)).toBeLessThan(surface_grip(street, 1));
+    expect(surface_grip(all_terrain, 1)).toBeGreaterThan(surface_grip(rally, 1));
+    expect(surface_grip(mud, 1)).toBeLessThan(surface_grip(rally, 1) * 0.95);
+    expect(surface_grip(all_terrain, 0.72)).toBeGreaterThanOrEqual(surface_grip(street, 0.72));
+    // A car built for dirt already keeps most of its grass grip, so there mud-terrain only loses tarmac grip.
+    if (base.offroad <= 0) expect(surface_grip(mud, 0.72)).toBeGreaterThan(surface_grip(rally, 0.72));
+    expect(mud.roll_resist).toBeGreaterThan(street.roll_resist);
+  }
+});
+
+test("offroad parts append to their slots, so older codes keep their meaning", () => {
+  const build = with_parts({ tyres: 5, suspension: 4 });
+  expect(build_code(build)).toBe("coupe.0.0.0.4.0.0.7.5");
+  expect(parse_build(build_code(build))).toEqual(build);
+  expect(SLOTS.tyres.parts.slice(0, 4).map((p) => p.name)).toEqual(["Street", "Sport", "Semi-slick", "Rally"]);
+  expect(SLOTS.suspension.parts.slice(0, 4).map((p) => p.name)).toEqual(["Soft", "Sport", "Race", "Drift"]);
+});
+
+test("lifted suspension sits tall and soft with softer bars", () => {
+  const spec = apply_build(COUPE, with_parts({ suspension: 4 }));
+  expect(spec.wheel.rest).toBeGreaterThan(apply_build(COUPE, with_parts({ suspension: 0 })).wheel.rest);
+  expect(spec.spring).toBeLessThan(COUPE.spring);
+  expect(spec.arb_front).toBeLessThan(COUPE.arb_front);
+  expect(spec.arb_rear).toBeLessThan(COUPE.arb_rear);
 });
 
 test("brakes and weight move the spec the documented way", () => {

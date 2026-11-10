@@ -36,7 +36,7 @@ export function wheel_geometry(radius: number, width: number, rim: Rim, look: Re
   if (look.band) pieces.push(tint(new THREE.CylinderGeometry(disc + 0.022, disc + 0.022, wide + 0.01, 8).rotateZ(Math.PI / 2), color(brand[look.band])));
   if (look.tread)
     for (let i = 0; i < TREAD_BLOCKS; i++)
-      pieces.push(tint(new THREE.BoxGeometry(wide * 0.46, 0.05, 0.1).translate((i % 2 ? 1 : -1) * wide * 0.26, radius, 0).rotateX((i * 2 * Math.PI) / TREAD_BLOCKS), rubber));
+      pieces.push(tint(new THREE.BoxGeometry(wide * 0.46, 0.05 * look.tread, 0.1 * look.tread).translate((i % 2 ? 1 : -1) * wide * 0.26, radius, 0).rotateX((i * 2 * Math.PI) / TREAD_BLOCKS), rubber));
   return merge(...pieces);
 }
 
