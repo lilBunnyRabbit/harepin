@@ -138,12 +138,12 @@ export class Wheel {
   }
 }
 
-function torque_at(curve: [number, number][], rpm: number): number {
+function curve_at(curve: readonly (readonly [number, number])[], x: number): number {
   for (let i = 1; i < curve.length; i++) {
-    const [r1, t1] = curve[i];
-    if (rpm <= r1) {
-      const [r0, t0] = curve[i - 1];
-      return t0 + ((t1 - t0) * (rpm - r0)) / (r1 - r0);
+    const [x1, y1] = curve[i];
+    if (x <= x1) {
+      const [x0, y0] = curve[i - 1];
+      return y0 + ((y1 - y0) * (x - x0)) / (x1 - x0);
     }
   }
   return curve[curve.length - 1][1];
@@ -463,7 +463,7 @@ export class Car {
       // braking would drag them down towards idle so the car lands on them half locked.
       const dragging = max_drag > 0;
       const braking_torque = wheel_rpm > spec.idle && !dragging ? (1 - gas) * (20 + rpm * 0.009) * coast : 0;
-      engine = rpm >= spec.redline ? -braking_torque : gas * torque_at(spec.torque, rpm) * (boost ? NITRO_TORQUE : 1) - braking_torque;
+      engine = rpm >= spec.redline ? -braking_torque : gas * curve_at(spec.torque, rpm) * (boost ? NITRO_TORQUE : 1) - braking_torque;
     }
     const drive = engine * ratio * spec.driveline;
     const driven_inertia = 1.4 + (spec.engine_inertia * ratio * ratio) / driven.length;
