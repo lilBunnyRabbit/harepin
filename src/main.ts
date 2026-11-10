@@ -70,24 +70,25 @@ const unlock_audio = () => {
   if (audio.running) for (const event of UNLOCK_EVENTS) removeEventListener(event, unlock_audio);
 };
 for (const event of UNLOCK_EVENTS) addEventListener(event, unlock_audio);
-const stream = await WorldStream.open(seed, kind, mesh_tones());
+// The renderer needs only the world's kind, so it sets up while the worker plans the world.
+const opening = WorldStream.open(seed, kind, mesh_tones());
+const quality = new Quality(params, prefs.quality);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(64, innerWidth / innerHeight, 0.1, 5000);
+
+const light = new Lighting(scene, WORLDS[kind].mood);
+const render = new Render(params, quality, scene, camera, light);
+const app = $("app");
+render.mount(app);
+render.apply_quality();
+const area_fade = new AreaFade(app);
+const stream = await opening;
 const world = stream.world;
 // `?debug&at=<road index>` starts the car anywhere on the circuit, for checking a stretch of track by eye.
 const start_index = (params.has("debug") && Number(params.get("at"))) || SPAWN_INDEX;
 const start_point = world.road[world.clear_spawn(start_index)];
 // The spawn chunks build while the rest of the game sets up; nothing before `driver.place` reads terrain.
 const spawn_ready = world.tiles.ensure(start_point.x, start_point.z);
-
-const quality = new Quality(params, prefs.quality);
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(64, innerWidth / innerHeight, 0.1, 5000);
-
-const light = new Lighting(scene, WORLDS[world.kind].mood);
-const render = new Render(params, quality, scene, camera, light);
-const app = $("app");
-render.mount(app);
-render.apply_quality();
-const area_fade = new AreaFade(app);
 
 const world_view = new WorldView(world, quality.mobile);
 scene.add(...(WORLDS[world.kind].backdrop === "sky" ? light.dress(sky(), clouds(world.seed)) : []), world_view.root);
