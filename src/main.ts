@@ -75,7 +75,8 @@ const world = stream.world;
 // `?debug&at=<road index>` starts the car anywhere on the circuit, for checking a stretch of track by eye.
 const start_index = (params.has("debug") && Number(params.get("at"))) || SPAWN_INDEX;
 const start_point = world.road[world.clear_spawn(start_index)];
-await world.tiles.ensure(start_point.x, start_point.z);
+// The spawn chunks build while the rest of the game sets up; nothing before `driver.place` reads terrain.
+const spawn_ready = world.tiles.ensure(start_point.x, start_point.z);
 
 const quality = new Quality(params, prefs.quality);
 const scene = new THREE.Scene();
@@ -297,6 +298,7 @@ settings.on_nav = (nav) => pad_menu.navigate([nav]);
 garage.on_tab = (step) => settings.step_tab(step);
 garage.on_back = () => settings.back();
 
+await spawn_ready;
 driver.place(driver.road_spot(start_index));
 
 const modes = new Modes(scene, world, SPAWN_INDEX, () => lobby.record, (x, y, z, heading) => {
