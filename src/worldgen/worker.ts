@@ -2,7 +2,7 @@ import { CHUNK, CHUNKS } from "./chunk-grid";
 import { chunk_meshes, chunk_transfers, type ChunkBuffers, type MeshTones } from "./chunks";
 import { generate_world } from "./kinds/kinds";
 import { build_tile } from "./ground";
-import { tile_transfers, type Tile } from "./tiles";
+import { slice_tile, tile_transfers, type Tile } from "./tiles";
 import { ORIGIN, SPAWN_INDEX, type WorldData, type WorldKind } from "./types";
 
 export interface GenRequest {
@@ -67,13 +67,13 @@ function open({ seed, kind, tones }: GenRequest) {
   for (let index = 0; index < CHUNKS * CHUNKS; index++) left.push(index);
 }
 
-// Each tile is rebuilt from the plan, so a chunk dropped on the main side can be asked for again at any time.
+// A compact kind keeps its whole grid, so slicing is free; the plan rebuilds a tile once a grid is gone (mainland).
 async function pump() {
   if (pumping || !world) return;
   pumping = true;
   while (left.length) {
     const index = nearest();
-    const tile = build_tile(world.data.ground, index);
+    const tile = world.data.terrain.heights.length ? slice_tile(world.data.terrain, index) : build_tile(world.data.ground, index);
     const chunk = world.build(index);
     postMessage({ type: "chunk", index, tile, chunk } satisfies WorkerReply, { transfer: [...tile_transfers(tile), ...(chunk ? chunk_transfers([chunk]) : [])] });
     // A turn of the event loop between chunks lets a focus or chunk request reorder what is left.
