@@ -36,9 +36,9 @@ export function plan_mainland(seed: number, recipe: Recipe = MAINLAND): Mainland
   const on_circuit = new Set(circuit);
   const ops: GroundOp[] = [
     ...towns.map((town): GroundOp => ({ kind: "plateau", town })),
-    ...circuit.map((id): GroundOp => ({ kind: "edge", edge: graph.edges[id] })),
-    ...graph.edges.filter((e) => !on_circuit.has(e.id)).map((edge): GroundOp => ({ kind: "edge", edge })),
-    { kind: "blend" },
+    ...circuit.map((id): GroundOp => ({ kind: "edge", edge: graph.edges[id], bank: recipe.road.bank })),
+    ...graph.edges.filter((e) => !on_circuit.has(e.id)).map((edge): GroundOp => ({ kind: "edge", edge, bank: recipe.road.bank })),
+    { kind: "blend", bank: recipe.road.bank },
   ];
   const checkpoints: Checkpoint[] = road.length ? Array.from({ length: CHECKPOINTS }, (_, index) => {
     const p = road[Math.floor((index / CHECKPOINTS) * road.length)];

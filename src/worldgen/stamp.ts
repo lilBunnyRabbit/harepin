@@ -2,7 +2,7 @@ import { harden, type BiomeCuts } from "./biomes";
 import { carve } from "./canyon";
 import { at, span_i, span_j, WHOLE, type Grid } from "./field";
 import { smoothstep } from "./noise";
-import type { TerrainRecipe } from "./recipe";
+import type { Bank, TerrainRecipe } from "./recipe";
 import { pad, type Crossing } from "./trails";
 import { town_level } from "./towns";
 import { CELL, ORIGIN, ROAD_HALF, SHOULDER, SurfaceId, type Canyon, type RoadEdge, type RoadPoint, type Terrain, type Town } from "./types";
@@ -38,9 +38,9 @@ export interface TrailLine {
 export type GroundOp =
   | { kind: "carve"; canyon: Canyon }
   | { kind: "plateau"; town: Town }
-  | { kind: "edge"; edge: RoadEdge }
+  | { kind: "edge"; edge: RoadEdge; bank: Bank | null }
   | { kind: "junction"; outline: readonly { x: number; z: number }[] }
-  | { kind: "blend" }
+  | { kind: "blend"; bank: Bank | null }
   | { kind: "pad"; crossing: Crossing }
   | { kind: "trail"; lines: { points: readonly RoadPoint[]; blend: number[] }[] }
   | { kind: "harden"; cuts: BiomeCuts; floor: number | null };
@@ -75,9 +75,9 @@ export class Stamp {
   replay(op: GroundOp) {
     if (op.kind === "carve") this.carve(op.canyon);
     else if (op.kind === "plateau") this.plateau(op.town);
-    else if (op.kind === "edge") this.edge(op.edge);
+    else if (op.kind === "edge") this.edge(op.edge, op.bank);
     else if (op.kind === "junction") this.junction(op.outline);
-    else if (op.kind === "blend") this.blend();
+    else if (op.kind === "blend") this.blend(op.bank);
     else if (op.kind === "pad") this.pad(op.crossing);
     else if (op.kind === "trail") this.trail(op.lines.map(({ points, blend }) => ({ points, blend: (i) => blend[i] })));
     else this.harden(op.cuts, op.floor);
@@ -124,11 +124,11 @@ export class Stamp {
   // Edges stamp in priority order (circuit, streets, spurs, roads between towns). A later edge never takes height over
   // another edge's flat band, so a spur meeting the sloped circuit merges into its surface instead of cutting a step
   // across it.
-  edge(edge: RoadEdge) {
-    this.log({ kind: "edge", edge });
+  edge(edge: RoadEdge, bank: Bank | null = null) {
+    this.log({ kind: "edge", edge, bank });
     const { road_dist } = this.terrain;
     const { points, half } = edge;
-    const reach = half + SHOULDER;
+    const reach = half + (bank ? Math.max(SHOULDER, bank.reach) : SHOULDER);
     const segments = edge.closed ? points.length : points.length - 1;
     for (let s = 0; s < segments; s++) {
       const a = points[s];
@@ -182,13 +182,17 @@ export class Stamp {
       }
   }
 
-  blend() {
-    this.log({ kind: "blend" });
+  blend(bank: Bank | null = null) {
+    this.log({ kind: "blend", bank });
     const { heights } = this.terrain;
+    const widest = bank ? Math.max(SHOULDER, bank.reach) : SHOULDER;
     for (let k = 0; k < heights.length; k++) {
       // Streets have a flat cross-section but the plateau under them tilts; the plateau is already the street surface.
-      if (this.owner_dist[k] > ROAD_HALF + SHOULDER || this.street[k]) continue;
-      const w = 1 - smoothstep(ROAD_HALF + FLAT, ROAD_HALF + SHOULDER, this.owner_dist[k]);
+      if (this.owner_dist[k] > ROAD_HALF + widest || this.street[k]) continue;
+      // A bank widens with the height it closes, so a deep cut or tall fill eases out instead of standing as a wall.
+      const span = bank ? Math.min(widest, Math.max(SHOULDER, FLAT + Math.abs(this.road_height[k] - heights[k]) * bank.run)) : SHOULDER;
+      if (this.owner_dist[k] > ROAD_HALF + span) continue;
+      const w = 1 - smoothstep(ROAD_HALF + FLAT, ROAD_HALF + span, this.owner_dist[k]);
       heights[k] += (this.road_height[k] - 0.05 - heights[k]) * w;
     }
   }

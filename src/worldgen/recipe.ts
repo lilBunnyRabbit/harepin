@@ -138,6 +138,15 @@ export interface BiomeRecipe {
   ground: Record<Biome, GroundRule>;
 }
 
+/**
+ * Past the flat band, ground eases to terrain over `run` metres per metre of height between them, out to `reach` metres
+ * past the road's half. Smoothstep's steepest grade is 1.5 times its mean, so run 3.75 keeps a bank under 1:2.5.
+ */
+export interface Bank {
+  run: number;
+  reach: number;
+}
+
 export interface RoadRecipe {
   /** Ring control radius: base plus noise times swing, clamped to min..max. */
   loop: { radius: number; swing: number; min: number; max: number };
@@ -150,6 +159,8 @@ export interface RoadRecipe {
   /** The canyon runs down to ground under `outlet` metres; null = no canyon. */
   canyon: { outlet: number } | null;
   kickers: { road: number; total: number; big: number };
+  /** Cut and fill banks wider than the fixed shoulder; null keeps the shoulder. */
+  bank: Bank | null;
 }
 
 export interface TownRecipe {
@@ -214,7 +225,7 @@ export const ISLAND: Recipe = {
       upland: { cut: 0.5, above: Ground.DRY, below: Ground.UPLAND, soft: 0 },
     },
   },
-  road: { loop: { radius: 620, swing: 640, min: 380, max: 860 }, straights: null, stacks: [4, 2], tongue: true, canyon: { outlet: 2 }, kickers: { road: 4, total: 12, big: 3 } },
+  road: { loop: { radius: 620, swing: 640, min: 380, max: 860 }, straights: null, stacks: [4, 2], tongue: true, canyon: { outlet: 2 }, kickers: { road: 4, total: 12, big: 3 }, bank: null },
   towns: { min: 3, max: 6, trees: true, block: { min: 45, span: 25 }, flat_roofs: false },
   landmarks: [Landmark.MAST, Landmark.LIGHTHOUSE, Landmark.TURBINES, Landmark.ARCH],
   scatter: [],
@@ -256,7 +267,7 @@ export const DESERT: Recipe = {
       upland: { cut: 0.5, above: Ground.UPLAND, below: Ground.DUNE, soft: SOFT },
     },
   },
-  road: { loop: { radius: 650, swing: 500, min: 420, max: 850 }, straights: 4, stacks: [], tongue: false, canyon: { outlet: 24 }, kickers: { road: 4, total: 16, big: 4 } },
+  road: { loop: { radius: 650, swing: 500, min: 420, max: 850 }, straights: 4, stacks: [], tongue: false, canyon: { outlet: 24 }, kickers: { road: 4, total: 16, big: 4 }, bank: null },
   towns: { min: 1, max: 3, trees: false, block: { min: 35, span: 15 }, flat_roofs: true },
   landmarks: [Landmark.MAST, Landmark.TURBINES],
   scatter: [
@@ -271,4 +282,5 @@ export const MAINLAND: Recipe = {
   ...ISLAND,
   terrain: [LIFT, hills(110), ridges(26), { kind: "peak", height: 240, radius: 1100, reach: 1400 }, shore(2900, -9)],
   towns: { min: 10, max: 16, trees: true, block: { min: 45, span: 25 }, flat_roofs: false },
+  road: { ...ISLAND.road, bank: { run: 3.75, reach: 64 } },
 };
