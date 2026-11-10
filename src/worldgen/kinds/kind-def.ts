@@ -1,15 +1,18 @@
 import type { Recipe } from "../recipe";
-import type { WorldData, WorldKind } from "../types";
+import { SurfaceId, type WorldData, type WorldKind } from "../types";
 import type { OptionDef } from "./options";
 
-export interface GripTable {
-  road: number;
-  dirt: number;
-  /** The strip just past a road edge. */
-  shoulder: number;
-  ground: number;
-  /** Rolling drag on `ground`, as a multiple of the road's. */
+export interface Footing {
+  grip: number;
+  /** Rolling drag, as a multiple of the road's. */
   roll: number;
+}
+
+export interface GripTable {
+  road: Footing;
+  /** The strip just past a road edge, where no laid surface covers the kind's own ground. */
+  shoulder: Footing;
+  surfaces: Record<SurfaceId, Footing>;
 }
 
 export interface KindSpec {
@@ -52,10 +55,18 @@ export function kind_def(spec: KindSpec): KindDef {
 }
 
 /** Trail dirt sits between asphalt and grass: a car's `offroad` share decides how much of the loss it keeps. */
-export const LAND_GRIP: GripTable = { road: 1, dirt: 0.88, shoulder: 0.85, ground: 0.72, roll: 12 };
+export const LAND_GRIP: GripTable = {
+  road: { grip: 1, roll: 1 },
+  shoulder: { grip: 0.85, roll: 1 },
+  surfaces: { [SurfaceId.GRASS]: { grip: 0.72, roll: 12 }, [SurfaceId.DIRT]: { grip: 0.88, roll: 1 } },
+};
 
 /**
- * Hardpack (`dirt`) runs like the island's trails. Loose sand (`ground`) slides a touch more than grass and drags twice as
+ * Hardpack (DIRT) runs like the island's trails. Loose sand (GRASS, the desert's own ground) slides a touch more than grass and drags twice as
  * hard (stock coupe: 0.63 g, 0-50 in 4.4 s against grass's 0.65 g, 4.1 s); off-road tyres still run it near hardpack.
  */
-export const SAND_GRIP: GripTable = { road: 1, dirt: 0.9, shoulder: 0.86, ground: 0.74, roll: 24 };
+export const SAND_GRIP: GripTable = {
+  road: { grip: 1, roll: 1 },
+  shoulder: { grip: 0.86, roll: 1 },
+  surfaces: { [SurfaceId.GRASS]: { grip: 0.74, roll: 24 }, [SurfaceId.DIRT]: { grip: 0.9, roll: 1 } },
+};

@@ -5,7 +5,7 @@ import { smoothstep } from "./noise";
 import type { TerrainRecipe } from "./recipe";
 import { pad, type Crossing } from "./trails";
 import { town_level } from "./towns";
-import { CELL, DIRT, ORIGIN, ROAD_HALF, SHOULDER, type Canyon, type RoadEdge, type RoadPoint, type Terrain, type Town } from "./types";
+import { CELL, ORIGIN, ROAD_HALF, SHOULDER, SurfaceId, type Canyon, type RoadEdge, type RoadPoint, type Terrain, type Town } from "./types";
 
 // Past `core` plus two cells every vertex a lot corner can touch is fully on the plane; the plane then eases back to
 // terrain over PLATEAU_BLEND.
@@ -232,7 +232,7 @@ export class Stamp {
     for (const k of touched) {
       const guard = smoothstep(ROAD_HALF + FLAT, ROAD_HALF + SHOULDER, road_dist[k]);
       heights[k] += (target[k] - heights[k]) * weight[k] * (1 - smoothstep(TRAIL_HALF, reach, dist[k])) * guard;
-      if (dist[k] <= TRAIL_HALF + DIRT_MARGIN) surface[k] = DIRT;
+      if (dist[k] <= TRAIL_HALF + DIRT_MARGIN) surface[k] = SurfaceId.DIRT;
     }
   }
 }

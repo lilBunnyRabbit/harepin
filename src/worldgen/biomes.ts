@@ -2,7 +2,7 @@ import { at, sample, up, WHOLE, type Grid } from "./field";
 import { fbm, hash } from "./noise";
 import type { PlanGrid } from "./plan-grid";
 import { ISLAND, type BiomeRecipe, type ZoneRecipe } from "./recipe";
-import { CELL, DIRT, Ground, GRASS, N, ORIGIN, ROAD_HALF, type ItemKind, type Solid, type Terrain, type Tree } from "./types";
+import { CELL, N, ORIGIN, ROAD_HALF, SurfaceId, type Ground, type ItemKind, type Solid, type Terrain, type Tree } from "./types";
 
 export const Biome = {
   COAST: "coast",
@@ -115,15 +115,17 @@ export function ground_at(cuts: BiomeCuts, x: number, z: number, y: number): Gro
   return patch + fray > rule.cut ? rule.above : rule.below;
 }
 
-/** Marks the recipe's hardpack, its DIRT ground rows, firm in the surface grid, so grip and colour agree. */
+/** Lays the recipe's surfaces (hardpack under its DIRT ground rows) into the surface grid, so grip and colour agree. */
 export function harden(cuts: BiomeCuts, land: Terrain, grid: Grid = WHOLE) {
-  if (!Object.values(cuts.recipe.ground).some((rule) => rule.above === Ground.DIRT || rule.below === Ground.DIRT)) return;
+  const laid = cuts.recipe.surfaces;
+  if (!Object.values(cuts.recipe.ground).some((rule) => laid[rule.above] !== undefined || laid[rule.below] !== undefined)) return;
   const { heights, surface } = land;
   for (let j = grid.j0; j <= grid.j1; j++)
     for (let i = grid.i0; i <= grid.i1; i++) {
       const k = at(grid, i, j);
-      if (surface[k] !== GRASS) continue;
-      if (ground_at(cuts, ORIGIN + i * CELL, ORIGIN + j * CELL, heights[k]) === Ground.DIRT) surface[k] = DIRT;
+      if (surface[k] !== SurfaceId.GRASS) continue;
+      const id = laid[ground_at(cuts, ORIGIN + i * CELL, ORIGIN + j * CELL, heights[k])];
+      if (id !== undefined) surface[k] = id;
     }
 }
 

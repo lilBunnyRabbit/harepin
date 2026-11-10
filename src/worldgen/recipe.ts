@@ -1,5 +1,5 @@
 import type { Biome, TreeRule } from "./biomes";
-import { Ground, PropKind, type ItemKind } from "./types";
+import { Ground, PropKind, SurfaceId, type ItemKind } from "./types";
 
 /** Exact shaping powers: integer powers and nested square roots, never a float exponent, so every engine agrees. */
 export type Power = 1 | 1.75 | 2 | 3;
@@ -101,6 +101,8 @@ export interface GroundLimits {
 }
 
 export interface BiomeRecipe {
+  /** Ground rows that lay a surface of their own under the wheels. */
+  surfaces: Partial<Record<Ground, SurfaceId>>;
   zones: ZoneRecipe;
   limits: GroundLimits;
   rules: Record<Biome, TreeRule>;
@@ -154,12 +156,14 @@ function shore(radius: number, edge: number): MaskLayer {
   return { kind: "mask", radius, edge, scale: 380, seed: 3, wobble: 0.3 };
 }
 
+const HARDPACK: BiomeRecipe["surfaces"] = { [Ground.DIRT]: SurfaceId.DIRT };
 const ZONES: ZoneRecipe = { coast: { top: 6, wobble: 5, scale: 90 }, bands: ["meadow", "forest", "upland"] };
 const LIMITS: GroundLimits = { beach: 2.2, scree: { up: 0.8, height: 120 }, rock: { up: 0.7, height: 135 }, snow_line: 165, tree_floor: 3, tree_line: 125 };
 
 export const ISLAND: Recipe = {
   terrain: [LIFT, hills(95), ridges(22), { kind: "peak", height: 150, radius: 430, reach: 220 }, shore(960, -9)],
   biomes: {
+    surfaces: HARDPACK,
     zones: ZONES,
     limits: LIMITS,
     rules: {
@@ -199,6 +203,7 @@ export const DESERT: Recipe = {
     { kind: "ridged", scale: 260, stretch: 3, seed: 17, octaves: 3, power: 2, amp: 6 },
   ],
   biomes: {
+    surfaces: HARDPACK,
     zones: ZONES,
     limits: LIMITS,
     rules: { coast: BARE, meadow: BARE, forest: BARE, upland: BARE },

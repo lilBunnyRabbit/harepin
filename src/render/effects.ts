@@ -4,6 +4,7 @@ import { brand, color, dark, mix, tones } from "../theme/palette";
 import { FOG } from "./sky";
 import type { World } from "../world/world";
 import { KINDS } from "../worldgen/kinds/kinds";
+import { SurfaceId } from "../worldgen/types";
 
 const PUFFS = 420;
 const SMOKE_LIFE = 0.7;
@@ -84,7 +85,7 @@ export class Smoke {
         rate = Math.min(1, slide * 1.2) * SMOKE_RATE;
       } else if (!on_road && speed > 4) {
         rate = Math.min(1, speed / 25) * 12 + Math.max(0, slide) * 20;
-        tint = world.grip(w.point.x, w.point.z) === KINDS[world.kind].grip.ground ? this.ground : this.dust;
+        tint = world.footing(w.point.x, w.point.z) === KINDS[world.kind].grip.surfaces[SurfaceId.GRASS] ? this.ground : this.dust;
         size = DUST_SIZE;
         life = DUST_LIFE;
       }

@@ -10,7 +10,7 @@ import { grid_ground, Roads, type Layer } from "./roads";
 import { deck_layers, type DeckTones } from "./sky-mesh";
 import { hash } from "./noise";
 import { ISLAND } from "./recipe";
-import { CELL, DIRT, Ground, N, ORIGIN, PropKind, Roof, type WorldData } from "./types";
+import { CELL, Ground, N, ORIGIN, PropKind, Roof, SURFACE_GROUND, type WorldData } from "./types";
 
 const CHUNK_CELLS = CHUNK / CELL;
 export const JITTER_LEVELS = 64;
@@ -78,7 +78,8 @@ export function paint(colors: Float32Array, k: number, lut: Float32Array, cuts: 
   let base: number = y < beach ? Ground.SAND : ground_at(cuts, x, z, y);
   if (ny < scree.up || y > scree.height) base = ny < rock.up || y > rock.height ? ROCK : base + ROCK_HALF;
   if (y > snow_line) base = SNOW;
-  if (surface === DIRT) base = ny < rock.up ? ROCK : Ground.DIRT;
+  const laid = SURFACE_GROUND[surface];
+  if (laid !== null) base = ny < rock.up ? ROCK : laid;
   const level = Math.min(JITTER_LEVELS - 1, Math.floor((jitter(i, j) + 0.5) * JITTER_LEVELS));
   const tone = (base * JITTER_LEVELS + level) * 3;
   colors[k * 3] = lut[tone];

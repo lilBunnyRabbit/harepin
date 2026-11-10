@@ -5,7 +5,7 @@ import { generate } from "./index";
 import { length } from "./noise";
 import { road_junctions } from "./road-layers";
 import { drive_time, street_routes } from "./routes";
-import { CELL, DIRT, N, ORIGIN, ROAD_HALF, RouteKind, SIDEWALK, STREET_HALF, type Route, type WorldData } from "./types";
+import { CELL, N, ORIGIN, ROAD_HALF, RouteKind, SIDEWALK, STREET_HALF, SurfaceId, type Route, type WorldData } from "./types";
 import { FULL, sweep } from "../sweep";
 
 const SEEDS = sweep(20);
@@ -17,7 +17,7 @@ const TRAIL_GATE_HW = 8;
 // Gates every 150 m, and none from the run-up to the run-out end, past a 110 m gap jump.
 const TRAIL_GATE_GAP = 320;
 
-const dirt = (world: WorldData, p: { x: number; z: number }) => world.terrain.surface[Math.round((p.z - ORIGIN) / CELL) * (N + 1) + Math.round((p.x - ORIGIN) / CELL)] === DIRT;
+const dirt = (world: WorldData, p: { x: number; z: number }) => world.terrain.surface[Math.round((p.z - ORIGIN) / CELL) * (N + 1) + Math.round((p.x - ORIGIN) / CELL)] === SurfaceId.DIRT;
 
 const town_at = (world: WorldData, p: { x: number; z: number }) => world.towns.find((t) => length(t.x - p.x, t.z - p.z) <= t.radius + STREET_HALF);
 

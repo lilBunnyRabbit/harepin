@@ -4,12 +4,12 @@ import { COUPE, type CarSpec } from "../car/cars";
 import { extent } from "../worldgen/chunk-grid";
 import { DeckIndex } from "../worldgen/deck";
 import { generate } from "../worldgen/index";
-import type { GripTable } from "../worldgen/kinds/kind-def";
+import type { Footing, GripTable } from "../worldgen/kinds/kind-def";
 import { KINDS } from "../worldgen/kinds/kinds";
 import { ramp_reach2, ramp_surface, spawn_blocks, type Surface } from "../worldgen/jumps";
 import { FALL_DEPTH } from "../worldgen/sky";
 import { slice_tiles, TileStore, type Tile } from "../worldgen/tiles";
-import { CELL, DIRT, ROAD_HALF, RouteKind, type WorldKind } from "../worldgen/types";
+import { CELL, ROAD_HALF, RouteKind, SurfaceId, type WorldKind } from "../worldgen/types";
 import type {
   Building,
   Challenge,
@@ -33,6 +33,9 @@ export { min_radius } from "../worldgen/path";
 export { CELL, N, ROAD_HALF, SIDEWALK, SIZE, SPAWN_INDEX } from "../worldgen/types";
 export type { Building, Checkpoint, Lot, ParkingLot, Prop, RoadPoint, Route, Solid, Town, Tree } from "../worldgen/types";
 
+/** Road distance under which the wheels are on asphalt: grip, `on_road` and the puffs all read this one edge. */
+const ON_ROAD = ROAD_HALF + 0.5;
+const SHOULDER_EDGE = ROAD_HALF + 3;
 const SOLID_CELL = 16;
 const ROAD_CELL = 32;
 const RESTITUTION = 1.25;
@@ -310,27 +313,39 @@ export class World implements Ground {
     return this.tiles.road_dist(x, z);
   }
 
-  /** On a trail: the surface grid at the nearest vertex. */
-  dirt(x: number, z: number): boolean {
+  /** The surface grid at the nearest vertex; the kind's own ground off the grid. */
+  surface(x: number, z: number): SurfaceId {
     const { size, n } = this.tiles.ext;
     const i = Math.round((x + size / 2) / CELL);
     const j = Math.round((z + size / 2) / CELL);
-    return i >= 0 && j >= 0 && i <= n && j <= n && this.tiles.surface(i, j) === DIRT;
+    return i >= 0 && j >= 0 && i <= n && j <= n ? (this.tiles.surface(i, j) as SurfaceId) : SurfaceId.GRASS;
   }
 
-  /** On a road surface, whatever grip the kind gives it. */
+  /** On a trail. */
+  dirt(x: number, z: number): boolean {
+    return this.surface(x, z) === SurfaceId.DIRT;
+  }
+
+  /** On a road surface, whatever grip the kind gives it: where `footing` is the road row. */
   on_road(x: number, z: number): boolean {
-    return this.distance_to_road(x, z) < ROAD_HALF + 0.5;
+    return this.distance_to_road(x, z) < ON_ROAD;
+  }
+
+  /** The grip row under (x, z): road, then a laid surface (trail, hardpack), then the shoulder, then the kind's own ground. */
+  footing(x: number, z: number): Footing {
+    const d = this.distance_to_road(x, z);
+    if (d < ON_ROAD) return this.grips.road;
+    const id = this.surface(x, z);
+    if (id !== SurfaceId.GRASS) return this.grips.surfaces[id];
+    return d < SHOULDER_EDGE ? this.grips.shoulder : this.grips.surfaces[SurfaceId.GRASS];
   }
 
   grip(x: number, z: number): number {
-    const d = this.distance_to_road(x, z);
-    const g = this.grips;
-    return d < ROAD_HALF + 0.5 ? g.road : this.dirt(x, z) ? g.dirt : d < ROAD_HALF + 3 ? g.shoulder : g.ground;
+    return this.footing(x, z).grip;
   }
 
   roll(x: number, z: number): number {
-    return this.distance_to_road(x, z) < ROAD_HALF + 3 || this.dirt(x, z) ? 1 : this.grips.roll;
+    return this.footing(x, z).roll;
   }
 
   /** Nearest point of the race circuit; its index in `road` places gates and the ghost. */
