@@ -6,8 +6,9 @@ import { length } from "./noise";
 import { road_junctions } from "./road-layers";
 import { drive_time, street_routes } from "./routes";
 import { CELL, DIRT, N, ORIGIN, ROAD_HALF, RouteKind, SIDEWALK, STREET_HALF, type Route, type WorldData } from "./types";
+import { FULL, sweep } from "../sweep";
 
-const SEEDS = Array.from({ length: 20 }, (_, i) => i);
+const SEEDS = sweep(20);
 const GAP = 3;
 const ON_ROAD = 0.5;
 const CONE_CLEAR = 3;
@@ -117,12 +118,12 @@ test.each(SEEDS)("seed %i: every route is whole, on the road, and gated to its f
   }
 }, 30_000);
 
-test("most seeds get a street race", () => {
+test.skipIf(!FULL)("most seeds get a street race", () => {
   expect(streets).toBeGreaterThanOrEqual(18);
   expect(closures).toBeGreaterThanOrEqual(18);
 });
 
-test("most seeds get an offroad race, and most of those a canyon gap", () => {
+test.skipIf(!FULL)("most seeds get an offroad race, and most of those a canyon gap", () => {
   expect(offroads).toBeGreaterThanOrEqual(18);
   expect(gaps).toBeGreaterThanOrEqual(16);
 });

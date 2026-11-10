@@ -5,10 +5,11 @@ import { sample } from "./field";
 import { generate } from "./index";
 import { loop_road } from "./path";
 import { terrain } from "./terrain";
+import { FULL, sweep } from "../sweep";
 
 test("most seeds get one canyon, flank to coast, crossing the circuit at most once", () => {
   let found = 0;
-  for (let seed = 0; seed < 20; seed++) {
+  for (const seed of sweep(20)) {
     const land = terrain(seed);
     const { road } = loop_road(seed, land.heights);
     const canyon = plan_canyon(seed, land.heights, road);
@@ -27,7 +28,7 @@ test("most seeds get one canyon, flank to coast, crossing the circuit at most on
       if (was > canyon.depth + 4) expect(was - now).toBeGreaterThan(canyon.depth * 0.8);
     }
   }
-  expect(found).toBeGreaterThanOrEqual(16);
+  if (FULL) expect(found).toBeGreaterThanOrEqual(16);
 }, 60_000);
 
 test("the circuit keeps its causeway where it crosses the canyon", () => {

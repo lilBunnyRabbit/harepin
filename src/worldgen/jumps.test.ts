@@ -10,6 +10,7 @@ import { gap_ramp, GAP_FAST, GAP_SLOW, LANDING_GRADE, LANDING_HALF, size_gap } f
 import { GAP_V_MAX, GAP_V_MIN, gap_jump, type GapJump } from "./gap";
 import { apex, face_end, flight, GATE_CLEAR, GATE_RUNOUT, ramp_local, ramp_surface, ROAD_KICKER, RUN_DRIFT } from "./jumps";
 import { SPAWN_INDEX, type Ramp } from "./types";
+import { sweep } from "../sweep";
 
 const DT = 1 / 360;
 // Jump lines are planned for a car's wheelbase and length; a longer body leaves the lip later and flies lower.
@@ -244,7 +245,7 @@ test("the lobby circuit gets as many road kickers as a typical seed", () => {
 }, 30_000);
 
 test("no checkpoint, junction or spawn sits in a road kicker's run-out", () => {
-  for (let seed = 0; seed < 100; seed++) {
+  for (const seed of sweep(100)) {
     const world = generate(seed);
     const { road } = world;
     const gates = [...world.checkpoints, ...world.graph.nodes.filter((n) => n.kind === "junction"), road[(SPAWN_INDEX + road.length) % road.length]];

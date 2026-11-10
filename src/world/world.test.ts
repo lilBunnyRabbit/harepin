@@ -7,6 +7,7 @@ import { generate } from "../worldgen/index";
 import { generate_sky } from "../worldgen/sky";
 import { ramp_surface } from "../worldgen/jumps";
 import type { Solid } from "../worldgen/types";
+import { sweep } from "../sweep";
 
 const X = 900;
 const Z = 900;
@@ -60,9 +61,9 @@ test("a low bar on the ground stops a grounded car and a flying one clears it", 
   expect(world.collide(car_at(GROUND + 1.6))).toBe(0);
 });
 
-test("every circuit reset point is clear of solids and ramps on 20 seeds", () => {
+test("every circuit reset point is clear of solids and ramps on every seed of the sweep", () => {
   const CAR_REACH = 2.5;
-  for (let seed = 0; seed < 20; seed++) {
+  for (const seed of sweep(20)) {
     const world = new World(seed);
     const blocked = (index: number) => {
       const p = world.road[index];
