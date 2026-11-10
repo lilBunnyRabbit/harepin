@@ -1,6 +1,7 @@
 import type { Caught } from "../hud/input";
 import type { DirectoryStatus, Server } from "../net/directory";
 import type { Player } from "../net/players";
+import type { Goals } from "../goals/goals";
 import type { ModeEntry } from "../modes/modes";
 import type { RaceChoice } from "../modes/races";
 import type { ReadyStatus } from "../net/ready";
@@ -31,6 +32,7 @@ export interface SettingsHost {
   readonly room: string;
   readonly seed: number;
   readonly kind: WorldKind;
+  readonly goals: Goals;
   name(): string;
   quality_status(): QualityStatus;
   race_busy(): boolean;

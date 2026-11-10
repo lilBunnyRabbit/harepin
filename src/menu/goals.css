@@ -1,0 +1,241 @@
+[data-area="goals"] {
+  grid-area: goals;
+}
+
+.settings .goals-card {
+  display: grid;
+  min-height: max-content;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  background: var(--set-panel);
+}
+
+.goals-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.goals-count {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.goals-bar {
+  position: relative;
+  flex: 0 1 160px;
+  height: 6px;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--line-strong);
+}
+
+.goals-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(var(--done) * 100%);
+  border-radius: inherit;
+  background: var(--primary);
+}
+
+.settings .goals-all {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: var(--control-h);
+  margin-left: auto;
+  padding: 0 var(--space-2) 0 var(--space-3);
+  border-radius: var(--radius-full);
+  background: none;
+  color: var(--set-dim);
+  font-size: var(--text-md);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.settings .goals-all:hover {
+  background: var(--set-well);
+  color: var(--foreground);
+}
+
+.goals-all svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  transform: scaleX(-1);
+}
+
+.goals-next {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.settings .goals-pick {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+  border: 1px solid var(--set-line);
+  border-radius: var(--radius-md);
+  background: var(--set-well);
+  text-align: left;
+}
+
+.settings .goals-pick:hover {
+  border-color: var(--line-strong);
+}
+
+.goals-words {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+}
+
+.goals-words b {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.goals-words b small {
+  color: var(--set-dim);
+  font-size: var(--text-md);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.goals-words > span {
+  color: var(--set-dim);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+
+.goals-pick .goals-words > span {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: normal;
+}
+
+.goals-go {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-full);
+  background: var(--set-raised);
+  font-size: var(--text-md);
+  font-weight: 700;
+}
+
+.goals-done {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--set-dim);
+}
+
+.goals-done svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  color: var(--success);
+}
+
+.goals-page {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.goals-summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+}
+
+.goals-summary .goals-count {
+  font-size: var(--text-2xl);
+}
+
+.goals-summary .goals-bar {
+  flex: none;
+  max-width: 280px;
+}
+
+.goals-lead {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--set-dim);
+}
+
+.goals-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.goals-row {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: 64px;
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--set-line);
+}
+
+.goals-mark {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--line-strong);
+  border-radius: 50%;
+}
+
+.goals-mark svg {
+  width: 14px;
+  height: 14px;
+}
+
+.goals-row[data-done] .goals-mark {
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.goals-row[data-done] .goals-words b {
+  color: var(--set-dim);
+  font-weight: 500;
+}
+
+@media (max-height: 500px) {
+  .settings .goals-card {
+    padding: var(--space-3) var(--space-4);
+  }
+}
+
+@media (max-width: 600px) {
+  .goals-next {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .goals-bar {
+    display: none;
+  }
+
+  .goals-summary .goals-bar {
+    display: block;
+  }
+}

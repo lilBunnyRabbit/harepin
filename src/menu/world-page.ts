@@ -6,6 +6,7 @@ import type { WorldKind } from "../worldgen/types";
 import { WORLDS } from "../worlds/worlds";
 import { MenuTab, invite_link, type Menu, type MenuPage } from "./page";
 import { COPIED_MS, picture, random_seed } from "./widgets";
+import { GoalId } from "../goals/goals";
 
 const PLAYERS_MS = 250;
 
@@ -25,6 +26,7 @@ export class WorldPage implements MenuPage {
   }
 
   on_show() {
+    this.menu.host.goals.done(GoalId.MAP);
     this.world_map.show(this.chosen, this.chosen_kind, true);
     clearInterval(this.players_timer);
     this.players_timer = window.setInterval(() => this.show_players(), PLAYERS_MS);

@@ -1,6 +1,7 @@
 import { typing, type Nav } from "../hud/input";
 import { clean_name } from "../net/net";
 import { GUIDE_PARAM, Guide, ROLLED_VISIT, type GuideStep } from "./guide";
+import { GoalsPage, goals_card } from "./goals-view";
 import { ModesPage } from "./modes-page";
 import { OnlinePage } from "./online-page";
 import { RoomPage } from "./room-page";
@@ -12,6 +13,7 @@ import { settings_sections } from "./settings-sections";
 import { WorldPage } from "./world-page";
 import { Rows, el, icon, read, type RowHelp, type Text, type Value } from "./setting-rows";
 import { WorldKind } from "../worldgen/types";
+import { GoTo, GoalId } from "../goals/goals";
 import { WORLDS } from "../worlds/worlds";
 import { world_query } from "../world/world-pick";
 import "./settings.css";
@@ -113,6 +115,7 @@ export class Settings {
       new WorldPage(this.menu),
       new ModesPage(this.menu),
       new RoomPage(this.menu),
+      new GoalsPage(this.menu, (to) => this.go_to(to)),
     ];
     this.guide = new Guide({
       state: () => this.current,
@@ -406,15 +409,23 @@ export class Settings {
     };
     const map = tile("map", "New map", "Pick a world and a map, or type a friend's map code", picture(`${kind}-map`, true), () => this.show("world"));
     const modes = tile("modes", "Modes", "Races, gymkhana, parking, drift zones, gate hunt, ghost duel", icon("icon-modes"), () => this.show("modes"));
-    return mosaic(MenuTab.PLAY, hero, ...Object.values(WORLDS).map(({ kind }) => world(kind)), map, modes);
+    const goals = goals_card(this.menu, (to) => this.go_to(to));
+    return mosaic(MenuTab.PLAY, hero, ...Object.values(WORLDS).map(({ kind }) => world(kind)), map, modes, goals);
   }
 
   /** A world the player picked: remembered for the next bare load, then driven in this room. */
   private drive(seed: number, kind: WorldKind) {
     this.set("last_world", kind);
     this.set("last_seed", seed);
+    if (seed !== this.host.seed) this.host.goals.done(GoalId.NEW_MAP);
     if (seed === this.host.seed && kind === this.host.kind) return this.close();
     this.go(world_query(this.host.room, seed, kind));
+  }
+
+  private go_to(to: GoTo) {
+    if (to === GoTo.DRIVE) return this.close();
+    if (to === GoTo.SKY) return this.drive(this.host.seed, WorldKind.SKY);
+    this.open(to);
   }
 
   private go(query: Record<string, string>) {

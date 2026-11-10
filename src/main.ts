@@ -16,7 +16,10 @@ import type { Action } from "./hud/bindings";
 import { Input } from "./hud/input";
 import { show_key_hints } from "./hud/key-hints";
 import { Lobby, lobby_routes } from "./net/lobby";
-import { Modes } from "./modes/modes";
+import { MODES, Modes } from "./modes/modes";
+import { local_store } from "./modes/track";
+import { GoalId, Goals } from "./goals/goals";
+import { build_goals, proven, saved_entries } from "./goals/catch-up";
 import { race_choices } from "./modes/races";
 import { gates } from "./car/trackside";
 import { GUIDE_PARAM, ROLLED_VISIT } from "./menu/guide";
@@ -94,6 +97,9 @@ const directory = new Directory(
 const chat = new Chat(net);
 chat.start();
 const build = load_build(params.get("car"));
+const mode_ids = MODES.map((mode) => mode.id);
+const goals = new Goals(local_store(), mode_ids);
+goals.catch_up(proven(saved_entries(), { kind, build, cockpit: prefs.camera === CameraView.COCKPIT }, mode_ids));
 const race = new Race(world);
 const chase = new ChaseCamera(camera);
 const pads = new PadTimer();
@@ -120,8 +126,10 @@ const remotes = new Remotes(scene, $("labels"), net, world);
 const lobby = new Lobby(net, lobby_routes(world.routes), world_key(seed, kind));
 lobby.start();
 const hud = new Hud(world, race, net, room, lobby);
+goals.on_done = (goal) => hud.toast(`Goal done: ${goal.title}`);
 const ghost = new Ghost(scene, world.seed, `harepin:ghost:${world_key(world.seed, kind)}`);
-race.on_lap = (improved) => {
+race.on_lap = (improved, first) => {
+  goals.done(improved && !first ? GoalId.BEST : GoalId.LAP);
   ghost.finish(improved);
   if (lobby.route === "circuit") lobby.lap(performance.now());
 };
@@ -158,6 +166,7 @@ const settings = new Settings(document.body, {
   room,
   seed,
   kind,
+  goals,
   name: () => net.name,
   quality_status: () => ({ tier: quality.tier_name, ratio: quality.ratio, bloom: quality.tier.bloom, shadow_size: quality.tier.shadow_size }),
   race_busy: () => lobby.busy,
@@ -222,6 +231,7 @@ function apply_settings(state: SettingsState) {
 }
 
 settings.on_change = (state, key) => {
+  if (key === "camera") goals.done(GoalId.CAMERA);
   if (key === "quality") {
     quality.set_mode(state.quality);
     render.apply_quality();
@@ -250,6 +260,7 @@ const modes = new Modes(scene, world, SPAWN_INDEX, () => lobby.record, (x, y, z,
   driver.rewind.clear();
 }, () => lobby.busy, () => audio.chime(), camera, () => driver.car.spec);
 modes.bindings = () => settings.state.bindings;
+modes.on_finish = (mode) => goals.played(mode);
 hud.run_route = () => modes.route;
 modes.start();
 updater.start();
@@ -281,6 +292,7 @@ if (guide_step !== null) {
 if (prefs.name === null && matchMedia("(pointer: fine)").matches) settings.focus_name();
 
 garage.on_change = (next) => {
+  for (const id of build_goals(next)) goals.done(id);
   driver.swap(next, lobby.busy || modes.active);
   apply_car_settings(settings.state);
   input.touch.show_nitro(driver.car.nitro.fitted);
@@ -388,6 +400,7 @@ function frame(now: number) {
   let simulated = false;
   if (input.rewind && driver.rewind.can_step && !lobby.busy && !modes.active) {
     rewinding = true;
+    goals.done(GoalId.REWIND);
     rewind_step(now);
     acc = 0;
   } else if (lobby.state.kind === "countdown" || modes.holding || garage.is_open || menu_hold) {
@@ -453,6 +466,7 @@ function frame(now: number) {
 
   net.prune();
   remotes.update(dt, camera, car.pos);
+  if (net.remotes.size) goals.done(GoalId.FRIEND);
 
   const speed = car.vel.length();
   const scrub = car.scrub * Math.min(1, speed / 6) * (offroad ? 0.3 : 1);

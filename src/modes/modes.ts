@@ -19,7 +19,7 @@ import "./modes.css";
 
 export type { Driven } from "./mode";
 
-const MODES: readonly ModeDef[] = [RACE_MODE, GYMKHANA_MODE, PARKING_MODE, DRIFT_MODE, HUNT_MODE, DUEL_MODE];
+export const MODES: readonly ModeDef[] = [RACE_MODE, GYMKHANA_MODE, PARKING_MODE, DRIFT_MODE, HUNT_MODE, DUEL_MODE];
 
 const SPAWN_LIFT = 0.75;
 const NOTICE_MS = 2500;
@@ -82,6 +82,7 @@ export class Modes {
   };
 
   bindings: () => Bindings = () => DEFAULT_BINDINGS;
+  on_finish: ((mode: string) => void) | null = null;
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -278,6 +279,7 @@ export class Modes {
     el.next.hidden = index + 1 >= levels.length;
     el.next.disabled = !track.is_open(levels[index + 1]?.id ?? "");
     el.result.hidden = false;
+    this.on_finish?.(active.mode.def.id);
     if (!finish.quiet) this.chime();
   }
 

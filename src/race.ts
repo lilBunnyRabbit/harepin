@@ -55,7 +55,7 @@ export class Race {
   lap_flash = 0;
   delta: number | null = null;
   delta_flash = 0;
-  on_lap: ((improved: boolean) => void) | null = null;
+  on_lap: ((improved: boolean, first: boolean) => void) | null = null;
   on_start: (() => void) | null = null;
 
   private readonly best_key: string;
@@ -81,6 +81,7 @@ export class Race {
         this.splits.push(lap);
         this.last = lap;
         this.show_delta(this.gates, lap, now);
+        const first = !this.best;
         const improved = !this.best || lap < this.best;
         if (improved) {
           this.best = lap;
@@ -88,7 +89,7 @@ export class Race {
           save(this.best_key, lap);
           save(this.splits_key, this.best_splits);
         }
-        this.on_lap?.(improved);
+        this.on_lap?.(improved, first);
         this.lap_flash = now;
       }
       this.started = now;
