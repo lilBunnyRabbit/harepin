@@ -1,10 +1,10 @@
-import { biome_cuts, harden, item_kind, plant } from "./biomes";
+import { biome_cuts, item_kind, plant } from "./biomes";
 import { sample, vertex } from "./field";
 import { ITEMS, JumpPlanner } from "./jumps";
 import { LandmarkPlanner } from "./landmarks";
 import { length } from "./noise";
 import { Lots } from "./lots";
-import { carve, plan_canyon } from "./canyon";
+import { plan_canyon } from "./canyon";
 import { split_circuit, type Join } from "./graph";
 import { link_towns, way_toward, ways } from "./links";
 import { loop_road } from "./path";
@@ -58,14 +58,14 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
 
   const { road, stack } = loop_road(seed, heights, recipe.road);
   const canyon = recipe.road.canyon ? plan_canyon(seed, heights, road, recipe.road.canyon.outlet) : null;
-  if (canyon) carve(heights, canyon);
+  const stamp = new Stamp(land);
+  if (canyon) stamp.carve(canyon);
   const nodes: RoadNode[] = [];
   const edges: RoadEdge[] = [];
   const graph: RoadGraph = { nodes, edges };
   const ring: RoadEdge = { id: 0, a: 0, b: 0, kind: "highway", half: ROAD_HALF, closed: true, points: road };
   nodes.push({ id: 0, x: road[0].x, z: road[0].z, y: road[0].y, kind: "junction" });
   edges.push(ring);
-  const stamp = new Stamp(land);
   stamp.edge(ring);
   lap("circuit");
 
@@ -220,8 +220,8 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   const planted = plant(cuts, land, (x, z) => !lots.occupied[vertex(Math.round((x - ORIGIN) / CELL), Math.round((z - ORIGIN) / CELL))] && !towns.some((t) => length(t.x - x, t.z - z) < t.radius) && !jumps.blocks(x, z, 2) && !marks.blocks(x, z, 2));
   const trees: Tree[] = [...lots.out.trees, ...planted.trees];
   solids.push(...planted.solids);
-  harden(cuts, land);
+  stamp.harden(cuts);
   lap("props");
 
-  return { kind, deck: null, terrain: land, graph, towns, lots: lot_list, buildings, props, parking, trees, solids, ramps: jumps.ramps, items: jumps.items, challenges: jumps.challenges, checkpoints, circuit, road, routes, canyon, timings };
+  return { kind, deck: null, terrain: land, ground: { base: { kind: "terrain", seed, shape: recipe.terrain }, ops: stamp.ops }, graph, towns, lots: lot_list, buildings, props, parking, trees, solids, ramps: jumps.ramps, items: jumps.items, challenges: jumps.challenges, checkpoints, circuit, road, routes, canyon, timings };
 }

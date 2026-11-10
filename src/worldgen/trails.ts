@@ -1,6 +1,6 @@
 import { mulberry32, sub } from "../rng";
 import { peak } from "./canyon";
-import { cell_range, sample, up, vertex } from "./field";
+import { at, cell_range, sample, span_i, span_j, up, vertex, WHOLE, type Grid } from "./field";
 import { DECK_GRADE, gap_jump, type GapJump } from "./gap";
 import { circle16, length, smoothstep } from "./noise";
 import { chaikin, limit_grade, resample, road_points, smooth, type Path } from "./path";
@@ -94,7 +94,7 @@ export interface Trails {
 
 type Point = [number, number];
 
-interface Crossing {
+export interface Crossing {
   /** Canyon centre under the gap, the trail's way across it and the canyon's way upstream. */
   cx: number;
   cz: number;
@@ -523,7 +523,7 @@ export function plan_trails(seed: number, land: Terrain, stamp: Stamp, canyon: C
   }
   if (!plans.length) return { trails: [], gap: null, ramp_out: [] };
 
-  if (cross) pad(land, cross);
+  if (cross) stamp.pad(cross);
   const done = plans.map((plan, n) => finish(plan, cross, heights, WINDOWS[n].id));
   const trails = done.map((d) => d.trail);
   const lines: TrailLine[] = done.map((d) => d.line);
@@ -564,7 +564,7 @@ function pad_share(c: Crossing, v: number): number {
 }
 
 /** Sets the ground to the jump profile under the run-up, kicker, deck and run-out, easing back to terrain at the edges. */
-function pad(land: Terrain, c: Crossing) {
+export function pad(land: Terrain, c: Crossing, grid: Grid = WHOLE) {
   const { heights, road_dist } = land;
   const { takeoff } = c.jump;
   const reach = PAD_HALF + PAD_BLEND;
@@ -572,8 +572,8 @@ function pad(land: Terrain, c: Crossing) {
     [takeoff.x + c.dx * c.from, takeoff.z + c.dz * c.from],
     [takeoff.x + c.dx * c.to, takeoff.z + c.dz * c.to],
   ];
-  const [i0, i1] = cell_range(Math.min(ends[0][0], ends[1][0]) - reach, Math.max(ends[0][0], ends[1][0]) + reach);
-  const [j0, j1] = cell_range(Math.min(ends[0][1], ends[1][1]) - reach, Math.max(ends[0][1], ends[1][1]) + reach);
+  const [i0, i1] = span_i(grid, Math.min(ends[0][0], ends[1][0]) - reach, Math.max(ends[0][0], ends[1][0]) + reach);
+  const [j0, j1] = span_j(grid, Math.min(ends[0][1], ends[1][1]) - reach, Math.max(ends[0][1], ends[1][1]) + reach);
   for (let j = j0; j <= j1; j++)
     for (let i = i0; i <= i1; i++) {
       const x = ORIGIN + i * CELL;
@@ -583,7 +583,7 @@ function pad(land: Terrain, c: Crossing) {
       if (u >= reach || v <= c.from || v >= c.to) continue;
       const want = profile(c, v);
       if (want === null) continue;
-      const k = vertex(i, j);
+      const k = at(grid, i, j);
       const w = (1 - smoothstep(PAD_HALF, reach, u)) * pad_share(c, v) * smoothstep(ROAD_HALF + 6, ROAD_HALF + 16, road_dist[k]);
       heights[k] += (want - heights[k]) * w;
     }

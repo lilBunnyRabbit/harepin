@@ -1,4 +1,5 @@
 import { mulberry32, sub } from "../rng";
+import { at, cells, WHOLE, type Grid } from "./field";
 import { fbm, smoothstep } from "./noise";
 import { ISLAND, type TerrainRecipe } from "./recipe";
 import { CELL, N, ORIGIN, SIZE, type Terrain } from "./types";
@@ -49,10 +50,10 @@ function dunes(x: number, z: number, seed: number, shape: NonNullable<TerrainRec
   return crest * crest * shape.height;
 }
 
-export function terrain(seed: number, shape: TerrainRecipe = ISLAND.terrain): Terrain {
-  const heights = new Float32Array((N + 1) * (N + 1));
+export function terrain(seed: number, shape: TerrainRecipe = ISLAND.terrain, grid: Grid = WHOLE): Terrain {
+  const heights = new Float32Array(cells(grid));
   const peak = peak_of(seed, shape.peak.reach);
-  for (let j = 0; j <= N; j++)
-    for (let i = 0; i <= N; i++) heights[j * (N + 1) + i] = raw_height(ORIGIN + i * CELL, ORIGIN + j * CELL, seed, peak, shape);
+  for (let j = grid.j0; j <= grid.j1; j++)
+    for (let i = grid.i0; i <= grid.i1; i++) heights[at(grid, i, j)] = raw_height(ORIGIN + i * CELL, ORIGIN + j * CELL, seed, peak, shape);
   return { seed, size: SIZE, cell: CELL, n: N, heights, road_dist: new Float32Array(heights.length).fill(1e9), surface: new Uint8Array(heights.length) };
 }

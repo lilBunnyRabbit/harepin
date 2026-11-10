@@ -61,3 +61,32 @@ export function vertex(i: number, j: number): number {
 export function cell_range(min: number, max: number): [number, number] {
   return [Math.max(0, Math.floor((min - ORIGIN) / CELL)), Math.min(N, Math.ceil((max - ORIGIN) / CELL))];
 }
+
+/** Vertices i0..i1 by j0..j1 of the grid, inclusive, stored `row` wide from (i0, j0): the whole grid, or one tile. */
+export interface Grid {
+  readonly i0: number;
+  readonly j0: number;
+  readonly i1: number;
+  readonly j1: number;
+  readonly row: number;
+}
+
+export const WHOLE: Grid = { i0: 0, j0: 0, i1: N, j1: N, row: N + 1 };
+
+/** Index of global vertex (i, j) in a field stored over `grid`. */
+export function at(grid: Grid, i: number, j: number): number {
+  return (j - grid.j0) * grid.row + i - grid.i0;
+}
+
+export function cells(grid: Grid): number {
+  return (grid.i1 - grid.i0 + 1) * (grid.j1 - grid.j0 + 1);
+}
+
+/** `cell_range` along x, clipped to the grid's columns; empty (lo > hi) when they miss. */
+export function span_i(grid: Grid, min: number, max: number): [number, number] {
+  return [Math.max(grid.i0, Math.floor((min - ORIGIN) / CELL)), Math.min(grid.i1, Math.ceil((max - ORIGIN) / CELL))];
+}
+
+export function span_j(grid: Grid, min: number, max: number): [number, number] {
+  return [Math.max(grid.j0, Math.floor((min - ORIGIN) / CELL)), Math.min(grid.j1, Math.ceil((max - ORIGIN) / CELL))];
+}

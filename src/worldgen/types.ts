@@ -1,3 +1,5 @@
+import type { GroundPlan } from "./stamp";
+
 export const SIZE = 2048;
 export const CELL = 4;
 export const N = SIZE / CELL;
@@ -239,6 +241,8 @@ export interface WorldData {
   /** The sky track's surface; null on the island. */
   deck: Deck | null;
   terrain: Terrain;
+  /** The ground grids as a base plus ordered writes, so a worker can rebuild any tile of `terrain` alone. */
+  ground: GroundPlan;
   graph: RoadGraph;
   towns: Town[];
   lots: Lot[];

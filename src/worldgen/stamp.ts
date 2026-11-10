@@ -1,7 +1,11 @@
-import { cell_range, vertex } from "./field";
+import { harden, type BiomeCuts } from "./biomes";
+import { carve } from "./canyon";
+import { at, span_i, span_j, WHOLE, type Grid } from "./field";
 import { smoothstep } from "./noise";
+import type { TerrainRecipe } from "./recipe";
+import { pad, type Crossing } from "./trails";
 import { town_level } from "./towns";
-import { CELL, DIRT, ORIGIN, ROAD_HALF, SHOULDER, type RoadEdge, type RoadPoint, type Terrain, type Town } from "./types";
+import { CELL, DIRT, ORIGIN, ROAD_HALF, SHOULDER, type Canyon, type RoadEdge, type RoadPoint, type Terrain, type Town } from "./types";
 
 // Past `core` plus two cells every vertex a lot corner can touch is fully on the plane; the plane then eases back to
 // terrain over PLATEAU_BLEND.
@@ -26,33 +30,92 @@ export interface TrailLine {
   blend: (i: number) => number;
 }
 
+/**
+ * One write to the ground grids, in the order generation made it. Each is a function of a vertex's position, its
+ * own earlier values and these inputs, never of its neighbours', so replaying the list over any window of the grid
+ * gives that window bit-identical to the whole-grid run.
+ */
+export type GroundOp =
+  | { kind: "carve"; canyon: Canyon }
+  | { kind: "plateau"; town: Town }
+  | { kind: "edge"; edge: RoadEdge }
+  | { kind: "junction"; outline: readonly { x: number; z: number }[] }
+  | { kind: "blend" }
+  | { kind: "pad"; crossing: Crossing }
+  | { kind: "trail"; lines: { points: readonly RoadPoint[]; blend: number[] }[] }
+  | { kind: "harden"; cuts: BiomeCuts };
+
+export type GroundBase = { kind: "terrain"; seed: number; shape: TerrainRecipe } | { kind: "flat"; height: number; road_dist: number };
+
+export interface GroundPlan {
+  base: GroundBase;
+  ops: GroundOp[];
+}
+
 export class Stamp {
   private readonly road_height: Float32Array;
   readonly owner_dist: Float32Array;
   readonly edge_of: Int32Array;
   /** 1 where the owning edge is a town street, whose height is the town plane. */
   readonly street: Uint8Array;
+  /** Every write so far, for `replay` over a tile; empty when not recording. */
+  readonly ops: GroundOp[] = [];
 
-  constructor(private readonly terrain: Terrain) {
+  constructor(
+    private readonly terrain: Terrain,
+    private readonly grid: Grid = WHOLE,
+    private readonly record = true,
+  ) {
     this.road_height = new Float32Array(terrain.heights.length);
     this.edge_of = new Int32Array(terrain.heights.length).fill(-1);
     this.owner_dist = new Float32Array(terrain.heights.length).fill(1e9);
     this.street = new Uint8Array(terrain.heights.length);
   }
 
+  replay(op: GroundOp) {
+    if (op.kind === "carve") this.carve(op.canyon);
+    else if (op.kind === "plateau") this.plateau(op.town);
+    else if (op.kind === "edge") this.edge(op.edge);
+    else if (op.kind === "junction") this.junction(op.outline);
+    else if (op.kind === "blend") this.blend();
+    else if (op.kind === "pad") this.pad(op.crossing);
+    else if (op.kind === "trail") this.trail(op.lines.map(({ points, blend }) => ({ points, blend: (i) => blend[i] })));
+    else this.harden(op.cuts);
+  }
+
+  private log(op: GroundOp) {
+    if (this.record) this.ops.push(op);
+  }
+
+  carve(canyon: Canyon) {
+    this.log({ kind: "carve", canyon });
+    carve(this.terrain.heights, canyon, this.grid);
+  }
+
+  pad(crossing: Crossing) {
+    this.log({ kind: "pad", crossing });
+    pad(this.terrain, crossing, this.grid);
+  }
+
+  harden(cuts: BiomeCuts) {
+    this.log({ kind: "harden", cuts });
+    harden(cuts, this.terrain, this.grid);
+  }
+
   plateau(town: Town) {
+    this.log({ kind: "plateau", town });
     const { heights } = this.terrain;
     const full = town.core + PLATEAU_EDGE;
     const reach = full + PLATEAU_BLEND;
-    const [i0, i1] = cell_range(town.x - reach, town.x + reach);
-    const [j0, j1] = cell_range(town.z - reach, town.z + reach);
+    const [i0, i1] = span_i(this.grid, town.x - reach, town.x + reach);
+    const [j0, j1] = span_j(this.grid, town.z - reach, town.z + reach);
     for (let j = j0; j <= j1; j++)
       for (let i = i0; i <= i1; i++) {
         const x = ORIGIN + i * CELL;
         const z = ORIGIN + j * CELL;
         const d = Math.sqrt((x - town.x) * (x - town.x) + (z - town.z) * (z - town.z));
         if (d >= reach) continue;
-        const k = vertex(i, j);
+        const k = at(this.grid, i, j);
         const w = 1 - smoothstep(full, reach, d);
         heights[k] += (town_level(town, x, z) - heights[k]) * w;
       }
@@ -62,6 +125,7 @@ export class Stamp {
   // another edge's flat band, so a spur meeting the sloped circuit merges into its surface instead of cutting a step
   // across it.
   edge(edge: RoadEdge) {
+    this.log({ kind: "edge", edge });
     const { road_dist } = this.terrain;
     const { points, half } = edge;
     const reach = half + SHOULDER;
@@ -69,8 +133,9 @@ export class Stamp {
     for (let s = 0; s < segments; s++) {
       const a = points[s];
       const b = points[(s + 1) % points.length];
-      const [i0, i1] = cell_range(Math.min(a.x, b.x) - reach, Math.max(a.x, b.x) + reach);
-      const [j0, j1] = cell_range(Math.min(a.z, b.z) - reach, Math.max(a.z, b.z) + reach);
+      const [i0, i1] = span_i(this.grid, Math.min(a.x, b.x) - reach, Math.max(a.x, b.x) + reach);
+      const [j0, j1] = span_j(this.grid, Math.min(a.z, b.z) - reach, Math.max(a.z, b.z) + reach);
+      if (i0 > i1 || j0 > j1) continue;
       const dx = b.x - a.x;
       const dz = b.z - a.z;
       const len2 = dx * dx + dz * dz || 1;
@@ -82,7 +147,7 @@ export class Stamp {
           const ox = px - (a.x + dx * t);
           const oz = pz - (a.z + dz * t);
           const d = Math.sqrt(ox * ox + oz * oz) - half + ROAD_HALF;
-          const k = vertex(i, j);
+          const k = at(this.grid, i, j);
           if (d < road_dist[k]) road_dist[k] = d;
           const owned = this.edge_of[k] !== edge.id && this.owner_dist[k] <= ROAD_HALF + FLAT;
           if (d < this.owner_dist[k] && !owned) {
@@ -100,14 +165,15 @@ export class Stamp {
   // vertices grips as asphalt up to the curb and keeps lots and trees as far from a curb as from a straight edge. The
   // ground there already lies within FLAT of an arm, so the arms' blend has levelled it.
   junction(outline: readonly { x: number; z: number }[]) {
+    this.log({ kind: "junction", outline });
     const { road_dist } = this.terrain;
     const xs = outline.map((p) => p.x);
     const zs = outline.map((p) => p.z);
-    const [i0, i1] = cell_range(Math.min(...xs) - RIM_REACH, Math.max(...xs) + RIM_REACH);
-    const [j0, j1] = cell_range(Math.min(...zs) - RIM_REACH, Math.max(...zs) + RIM_REACH);
+    const [i0, i1] = span_i(this.grid, Math.min(...xs) - RIM_REACH, Math.max(...xs) + RIM_REACH);
+    const [j0, j1] = span_j(this.grid, Math.min(...zs) - RIM_REACH, Math.max(...zs) + RIM_REACH);
     for (let j = j0; j <= j1; j++)
       for (let i = i0; i <= i1; i++) {
-        const k = vertex(i, j);
+        const k = at(this.grid, i, j);
         const x = ORIGIN + i * CELL;
         const z = ORIGIN + j * CELL;
         const d = rim_distance(outline, x, z);
@@ -117,7 +183,8 @@ export class Stamp {
   }
 
   blend() {
-    const { heights, road_dist } = this.terrain;
+    this.log({ kind: "blend" });
+    const { heights } = this.terrain;
     for (let k = 0; k < heights.length; k++) {
       // Streets have a flat cross-section but the plateau under them tilts; the plateau is already the street surface.
       if (this.owner_dist[k] > ROAD_HALF + SHOULDER || this.street[k]) continue;
@@ -128,6 +195,7 @@ export class Stamp {
 
   // Where lines overlap the nearest one owns a vertex, so a shared stretch is not blended twice.
   trail(lines: readonly TrailLine[]) {
+    if (this.record) this.ops.push({ kind: "trail", lines: lines.map(({ points, blend }) => ({ points, blend: points.slice(1).map((_, i) => blend(i)) })) });
     const { heights, road_dist, surface } = this.terrain;
     const reach = TRAIL_HALF + TRAIL_SHOULDER;
     const dist = new Float32Array(heights.length).fill(Infinity);
@@ -138,8 +206,9 @@ export class Stamp {
       for (let s = 0; s < points.length - 1; s++) {
         const a = points[s];
         const b = points[s + 1];
-        const [i0, i1] = cell_range(Math.min(a.x, b.x) - reach, Math.max(a.x, b.x) + reach);
-        const [j0, j1] = cell_range(Math.min(a.z, b.z) - reach, Math.max(a.z, b.z) + reach);
+        const [i0, i1] = span_i(this.grid, Math.min(a.x, b.x) - reach, Math.max(a.x, b.x) + reach);
+        const [j0, j1] = span_j(this.grid, Math.min(a.z, b.z) - reach, Math.max(a.z, b.z) + reach);
+        if (i0 > i1 || j0 > j1) continue;
         const dx = b.x - a.x;
         const dz = b.z - a.z;
         const len2 = dx * dx + dz * dz || 1;
@@ -152,7 +221,7 @@ export class Stamp {
             const ox = px - (a.x + dx * t);
             const oz = pz - (a.z + dz * t);
             const d = Math.sqrt(ox * ox + oz * oz);
-            const k = vertex(i, j);
+            const k = at(this.grid, i, j);
             if (d >= reach || d >= dist[k]) continue;
             if (dist[k] === Infinity) touched.push(k);
             dist[k] = d;

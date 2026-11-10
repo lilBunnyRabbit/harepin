@@ -1,4 +1,4 @@
-import { sample, up } from "./field";
+import { at, sample, up, WHOLE, type Grid } from "./field";
 import { fbm, hash } from "./noise";
 import { ISLAND, type BiomeRecipe } from "./recipe";
 import { CELL, DIRT, Ground, GRASS, N, ORIGIN, ROAD_HALF, type ItemKind, type Solid, type Terrain, type Tree } from "./types";
@@ -100,12 +100,12 @@ export function ground_at(cuts: BiomeCuts, x: number, z: number, y: number): Gro
 }
 
 /** Marks the recipe's hardpack, its DIRT ground rows, firm in the surface grid, so grip and colour agree. */
-export function harden(cuts: BiomeCuts, land: Terrain) {
+export function harden(cuts: BiomeCuts, land: Terrain, grid: Grid = WHOLE) {
   if (!Object.values(cuts.recipe.ground).some((rule) => rule.above === Ground.DIRT || rule.below === Ground.DIRT)) return;
   const { heights, surface } = land;
-  for (let j = 0; j <= N; j++)
-    for (let i = 0; i <= N; i++) {
-      const k = j * (N + 1) + i;
+  for (let j = grid.j0; j <= grid.j1; j++)
+    for (let i = grid.i0; i <= grid.i1; i++) {
+      const k = at(grid, i, j);
       if (surface[k] !== GRASS) continue;
       if (ground_at(cuts, ORIGIN + i * CELL, ORIGIN + j * CELL, heights[k]) === Ground.DIRT) surface[k] = DIRT;
     }

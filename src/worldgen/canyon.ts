@@ -1,5 +1,5 @@
 import { mulberry32, sub } from "../rng";
-import { cell_range, sample, vertex } from "./field";
+import { at, sample, span_i, span_j, WHOLE, type Grid } from "./field";
 import { hash, length, smoothstep } from "./noise";
 import { chaikin, resample, type Path } from "./path";
 import { CELL, ORIGIN, SIZE, type Canyon, type RoadPoint } from "./types";
@@ -122,15 +122,15 @@ export function plan_canyon(seed: number, heights: Float32Array, road: readonly 
 }
 
 /** Cuts the canyon into `heights`: `depth` under the floor, easing out over the walls, never below FLOOR_ABOVE_SEA. */
-export function carve(heights: Float32Array, canyon: Canyon) {
+export function carve(heights: Float32Array, canyon: Canyon, grid: Grid = WHOLE) {
   const { points, depth, floor, wall } = canyon;
   const reach = floor + wall;
   const cut = new Float32Array(heights.length);
   for (let s = 1; s < points.length; s++) {
     const [ax, az] = points[s - 1];
     const [bx, bz] = points[s];
-    const [i0, i1] = cell_range(Math.min(ax, bx) - reach, Math.max(ax, bx) + reach);
-    const [j0, j1] = cell_range(Math.min(az, bz) - reach, Math.max(az, bz) + reach);
+    const [i0, i1] = span_i(grid, Math.min(ax, bx) - reach, Math.max(ax, bx) + reach);
+    const [j0, j1] = span_j(grid, Math.min(az, bz) - reach, Math.max(az, bz) + reach);
     const dx = bx - ax;
     const dz = bz - az;
     const len2 = dx * dx + dz * dz || 1;
@@ -140,7 +140,7 @@ export function carve(heights: Float32Array, canyon: Canyon) {
         const z = ORIGIN + j * CELL;
         const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / len2));
         const d = length(x - (ax + dx * t), z - (az + dz * t));
-        const k = vertex(i, j);
+        const k = at(grid, i, j);
         cut[k] = Math.max(cut[k], depth * (1 - smoothstep(floor, reach, d)));
       }
   }
