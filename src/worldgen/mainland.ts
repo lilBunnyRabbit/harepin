@@ -35,7 +35,7 @@ export function plan_mainland(seed: number, recipe: Recipe = MAINLAND): Mainland
   lap("plan grid");
   const { graph, towns, circuit, road } = mainland_network(seed, grid, recipe.towns);
   lap("network");
-  const water = recipe.water ? plan_water(grid, recipe.water, graph.edges, towns) : null;
+  const water = recipe.water ? plan_water(grid, recipe.water, graph.edges, towns, land_height(seed, recipe.terrain)) : null;
   lap("water");
   // Water first, so towns and roads level over its channels: a road crossing a river is a ford at grade.
   // Then stamp order as the island's: plateaus, then the circuit, then every other edge by id, then one blend.

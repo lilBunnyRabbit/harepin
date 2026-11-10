@@ -1,10 +1,18 @@
 import { Heap } from "./heap";
+import { smoothstep } from "./noise";
 import type { PlanGrid } from "./plan-grid";
 import type { WaterRecipe } from "./recipe";
 import type { RoadEdge, Town } from "./types";
 
-/** Water stands this far under the filled plan height, so a river sits in its banks instead of brimming. */
+/** Water stands this far under the lowest ground across the channel, so a river sits in its banks instead of brimming. */
 const DROP = 0.6;
+/**
+ * Deepest a channel may cut through a rise to keep its surface flowing downhill. A river that would cut deeper (out of a
+ * basin that did not become a lake) rises below that rise instead, so it never stands as a slab over the basin floor.
+ */
+export const MAX_CUT = 10;
+/** A river's channel shorter than this, metres, is dropped. */
+const RIVER_LENGTH = 500;
 /** Metres of water over a ford's road surface: a wade, never a reset. */
 export const FORD_DEPTH = 0.3;
 const FORD_APRON = 6;
@@ -13,8 +21,15 @@ const ROAD_DRY = 0.4;
 const STEP = 6;
 const TOWN_CLEAR = 60;
 const RIVER_MIN = 16;
-/** River banks rise this many metres per metre past the channel's half width before they meet the land. */
-export const BANK_SLOPE = 0.5;
+/**
+ * Past the channel the ground is lowered by its height over the water, at most BANK_CUT, easing out over FLAT +
+ * `BANK_RUN` metres per metre lowered: the road banks' rule, so a deep cut opens out instead of standing as a wall, and
+ * a valley wall far above the river is only trimmed at its foot. BANK_CUT covers the deepest cut a river makes.
+ */
+const BANK_FLAT = 2;
+const BANK_RUN = 4;
+const BANK_CUT = 12;
+const BANK_CAP = BANK_FLAT + BANK_CUT * BANK_RUN;
 /** Ground up to this far over the water reads as wet shore. */
 export const WET_RISE = 0.6;
 const BUCKET = 32;
@@ -211,8 +226,50 @@ function ford(river: RiverPoint[], roads: Roads) {
   }
 }
 
+function downhill(river: RiverPoint[]) {
+  for (let i = 1; i < river.length; i++) river[i].level = Math.min(river[i].level, river[i - 1].level);
+}
+
+/** Lowest land across the channel at a point: its centre and both banks, before any carving. */
+function floor(p: RiverPoint, next: RiverPoint, height: (x: number, z: number) => number): number {
+  const dx = next.x - p.x;
+  const dz = next.z - p.z;
+  const len = Math.sqrt(dx * dx + dz * dz) || 1;
+  const nx = (-dz / len) * p.half;
+  const nz = (dx / len) * p.half;
+  let low = height(p.x, p.z);
+  for (const w of [-1, -0.5, 0.5, 1]) low = Math.min(low, height(p.x + nx * w, p.z + nz * w));
+  return low;
+}
+
+// The surface follows the lowest land across the channel, never rising downstream. Where that would mean cutting more
+// than MAX_CUT through a rise, the river starts below the rise; null when what is left is too short.
+function channel(river: RiverPoint[], height: (x: number, z: number) => number): RiverPoint[] | null {
+  const ground = river.map((p, i) => Math.max(0, floor(p, river[i + 1] ?? river[i - 1], height) - DROP));
+  let from = 0;
+  for (;;) {
+    let level = Infinity;
+    let cut = -1;
+    for (let i = from; i < river.length; i++) {
+      level = Math.min(level, ground[i]);
+      river[i].level = level;
+      if (ground[i] - level > MAX_CUT) cut = i;
+    }
+    if (cut < 0) break;
+    from = cut + 1;
+  }
+  const kept = river.slice(from);
+  let length = 0;
+  for (let i = 1; i < kept.length; i++) {
+    const dx = kept[i].x - kept[i - 1].x;
+    const dz = kept[i].z - kept[i - 1].z;
+    length += Math.sqrt(dx * dx + dz * dz);
+  }
+  return length < RIVER_LENGTH ? null : kept;
+}
+
 /** Plans lakes in the plan grid's basins and rivers down its biggest drainage paths, clear of towns and roads' decks. */
-export function plan_water(grid: PlanGrid, shape: WaterRecipe, edges: readonly RoadEdge[], towns: readonly Town[]): Water {
+export function plan_water(grid: PlanGrid, shape: WaterRecipe, edges: readonly RoadEdge[], towns: readonly Town[], height: (x: number, z: number) => number): Water {
   const m = grid.n + 1;
   const h = grid.heights;
   const { origin } = grid.ext;
@@ -286,11 +343,12 @@ export function plan_water(grid: PlanGrid, shape: WaterRecipe, edges: readonly R
     const peak = area[mouth];
     const path = stem.reverse().map((v): RiverPoint => {
       const share = Math.sqrt(Math.min(1, area[v] / peak));
-      return { x: px(v), z: pz(v), level: Math.max(0, filled[v] - DROP), half: top[0] + (top[1] - top[0]) * share, depth: shape.rivers.depth[0] + (shape.rivers.depth[1] - shape.rivers.depth[0]) * share };
+      return { x: px(v), z: pz(v), level: 0, half: top[0] + (top[1] - top[0]) * share, depth: shape.rivers.depth[0] + (shape.rivers.depth[1] - shape.rivers.depth[0]) * share };
     });
-    const river = resample(soften(soften(path)));
-    for (let i = 1; i < river.length; i++) river[i].level = Math.min(river[i].level, river[i - 1].level);
+    const river = channel(resample(soften(soften(path))), height);
+    if (!river) continue;
     ford(river, roads);
+    downhill(river);
     rivers.push(river);
   }
   return { origin, cell, n: grid.n, lake_of, lakes, rivers };
@@ -307,8 +365,7 @@ export function water_index(water: Water): WaterIndex {
 
 /** Cuts river channels into a tile's heights and lays the wet shore under and beside all water. */
 export function soak(index: WaterIndex, heights: Float32Array, surface: Uint8Array, k: number, x: number, z: number, wet: number) {
-  const bed = index.bed(x, z);
-  if (bed < heights[k]) heights[k] = bed;
+  heights[k] = index.carve(x, z, heights[k]);
   if (heights[k] < index.level(x, z) + WET_RISE) surface[k] = wet;
 }
 
@@ -331,7 +388,7 @@ export class WaterIndex {
     for (const river of water.rivers) {
       for (let i = 0; i < river.length; i++) {
         this.link[at + i] = i < river.length - 1 ? 1 : 0;
-        reach = Math.max(reach, river[i].half + river[i].depth / BANK_SLOPE + WET_RISE / BANK_SLOPE);
+        reach = Math.max(reach, river[i].half + BANK_CAP);
       }
       at += river.length;
     }
@@ -367,31 +424,18 @@ export class WaterIndex {
       const lake = water.lake_of[j * m + i];
       if (lake >= 0) level = water.lakes[lake];
     }
-    const s = this.nearest(x, z);
-    if (s < 0) return level;
-    return Math.max(level, this.river_level);
+    return Math.max(level, this.river(x, z));
   }
 
-  /** The channel's bed under (x, z), banks easing up to the land: Infinity off every river. */
-  bed(x: number, z: number): number {
-    this.nearest(x, z);
-    if (this.near_d === Infinity) return Infinity;
-    const d = this.near_d;
-    const { level, half, depth } = this.near_p;
-    if (d < half) return level - depth * (1 - (d / half) * (d / half));
-    return level + (d - half) * BANK_SLOPE;
-  }
-
-  private river_level = 0;
-  private near_d = Infinity;
-  private readonly near_p: RiverPoint = { x: 0, z: 0, level: 0, half: 0, depth: 0 };
-
-  // Nearest segment within `reach`: fills near_d (metres from the centreline) and near_p (the point interpolated there),
-  // and returns the segment when (x, z) is inside its half width, else -1.
-  private nearest(x: number, z: number): number {
-    this.near_d = Infinity;
+  /**
+   * Ground `h` at (x, z) after the rivers: the channel's bed inside its half width, eased banks past it. The lowest of
+   * every segment in reach, not the nearest one's, so where the nearest changes at a bend the ground does not step.
+   */
+  carve(x: number, z: number, h: number): number {
     const b = this.bucket(z) * this.side + this.bucket(x);
-    let best = -1;
+    let out = h;
+    let surface = Infinity;
+    let deepest = 0;
     for (let k = this.start[b]; k < this.start[b + 1]; k++) {
       const s = this.items[k];
       const a = this.flat[s];
@@ -402,16 +446,44 @@ export class WaterIndex {
       const ox = x - (a.x + dx * t);
       const oz = z - (a.z + dz * t);
       const d = Math.sqrt(ox * ox + oz * oz);
-      if (d >= this.near_d || d >= this.reach) continue;
-      this.near_d = d;
-      best = s;
-      const p = this.near_p;
-      p.level = a.level + (c.level - a.level) * t;
-      p.half = a.half + (c.half - a.half) * t;
-      p.depth = a.depth + (c.depth - a.depth) * t;
+      if (d >= this.reach) continue;
+      const level = a.level + (c.level - a.level) * t;
+      const half = a.half + (c.half - a.half) * t;
+      if (d < half) {
+        const depth = a.depth + (c.depth - a.depth) * t;
+        out = Math.min(out, level - depth * (1 - (d / half) * (d / half)));
+        if (level < surface) {
+          surface = level;
+          deepest = depth;
+        }
+        continue;
+      }
+      if (h <= level) continue;
+      const cut = Math.min(h - level, BANK_CUT);
+      const span = BANK_FLAT + cut * BANK_RUN;
+      if (d < half + span) out = Math.min(out, h - cut * (1 - smoothstep(half, half + span, d)));
     }
-    if (best < 0 || this.near_d >= this.near_p.half) return -1;
-    this.river_level = this.near_p.level;
-    return best;
+    // Inside a channel, a lower reach's bank (the next loop of a meander) never digs past that channel's own depth.
+    return surface === Infinity ? out : Math.max(out, surface - deepest);
+  }
+
+  // Lowest surface of every segment whose channel holds (x, z): where channels overlap at a bend the lower one wins,
+  // so the water never stands deeper than a channel over the bed `carve` cut there.
+  private river(x: number, z: number): number {
+    const b = this.bucket(z) * this.side + this.bucket(x);
+    let level = Infinity;
+    for (let k = this.start[b]; k < this.start[b + 1]; k++) {
+      const s = this.items[k];
+      const a = this.flat[s];
+      const c = this.flat[s + 1];
+      const dx = c.x - a.x;
+      const dz = c.z - a.z;
+      const t = Math.max(0, Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / (dx * dx + dz * dz || 1)));
+      const ox = x - (a.x + dx * t);
+      const oz = z - (a.z + dz * t);
+      const half = a.half + (c.half - a.half) * t;
+      if (ox * ox + oz * oz < half * half) level = Math.min(level, a.level + (c.level - a.level) * t);
+    }
+    return level === Infinity ? NONE : level;
   }
 }

@@ -133,7 +133,7 @@ function plan_pixels(data: WorldData, tones: MapTones): Uint8ClampedArray<ArrayB
     for (let k = 0; k < depths.length; k++) {
       const x = ext.origin + (k % MAP_SIDE) * step;
       const z = ext.origin + Math.floor(k / MAP_SIDE) * step;
-      const ground = Math.min(heights[k], water.bed(x, z));
+      const ground = water.carve(x, z, heights[k]);
       depths[k] = Math.max(-ground, water.level(x, z) - ground);
     }
   const last = MAP_SIDE - 1;
