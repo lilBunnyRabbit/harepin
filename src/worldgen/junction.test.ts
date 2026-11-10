@@ -3,6 +3,8 @@ import { expect, test } from "bun:test";
 import { road_junctions } from "./road-layers";
 import { generate } from "./index";
 import { junction_patch, type Arm, type Patch } from "./junction";
+import { sample } from "./field";
+import { ROAD_HALF } from "./types";
 
 const STEP = 2;
 const LENGTH = 30;
@@ -61,5 +63,23 @@ test("every circuit junction on seeds 0-2 gets a patch, and each faces up", () =
     const joins = new Set(data.circuit.map((id) => data.graph.edges[id].a)).size;
     expect(patched.filter((j) => j.arms.some((a) => a.rank === 2)).length).toBe(joins);
     for (const { patch } of patched) expect(faces_up(patch)).toBe(true);
+  }
+});
+
+test("town corners on seeds 0-1 are patched, give no way, and grip as asphalt out to the curb", () => {
+  for (const seed of [0, 1]) {
+    const data = generate(seed);
+    const streets = road_junctions(data).patched.filter((j) => j.arms.every((a) => a.rank === 0));
+    expect(streets.length).toBeGreaterThan(10);
+    for (const { patch } of streets) {
+      expect(faces_up(patch)).toBe(true);
+      expect(patch.minor).toEqual([]);
+      expect(patch.curbs.length).toBeGreaterThan(0);
+      for (const p of patch.outline) {
+        const x = patch.centre.x + (p.x - patch.centre.x) * 0.95;
+        const z = patch.centre.z + (p.z - patch.centre.z) * 0.95;
+        expect(sample(data.terrain.road_dist, x, z)).toBeLessThan(ROAD_HALF + 0.5);
+      }
+    }
   }
 });

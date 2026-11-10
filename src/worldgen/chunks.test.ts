@@ -5,7 +5,7 @@ import { road_junctions, road_layers, type RoadTones } from "./road-layers";
 import { Roads } from "./roads";
 import { sample } from "./field";
 import { hash } from "./noise";
-import { N, SPUR_HALF, type RoadGraph, type RoadPoint } from "./types";
+import { N, SIDEWALK, SPUR_HALF, STREET_HALF, type RoadGraph, type RoadPoint } from "./types";
 
 const HALF = 6;
 const LIFT = 0.03;
@@ -165,3 +165,68 @@ test("a junction patch and the strips it trims face up and never overlap", () =>
     }
   expect(worst).toBe(1);
 });
+
+const ARM = 30;
+const SIDE_CLEAR = 9;
+
+// Four town streets meeting square on the flat side of the fixture, each from the crossing outward.
+function town_crossroads(arms: number) {
+  const heights = bumpy();
+  const at = { x: -12.3, z: 4.1 };
+  const dirs = [
+    [1, 0],
+    [0, 1],
+    [-1, 0],
+    [0, -1],
+  ].slice(0, arms);
+  const graph: RoadGraph = { nodes: [{ id: 0, x: at.x, z: at.z, y: 0, kind: "junction" }], edges: [] };
+  dirs.forEach(([tx, tz], e) => {
+    const points = Array.from({ length: ARM + 1 }, (_, k) => ({ x: at.x + tx * k * STEP, y: 0, z: at.z + tz * k * STEP, tx, tz }));
+    graph.nodes.push({ id: e + 1, x: points[ARM].x, z: points[ARM].z, y: 0, kind: "end" });
+    graph.edges.push({ id: e, a: 0, b: e + 1, kind: "street", half: STREET_HALF, closed: false, points });
+  });
+  // The circuit sits far off: no spur reaches this node, so only the street corners can patch it.
+  const road = ring().map((p) => ({ ...p, x: p.x + 400 }));
+  const roads = road_layers({ road, graph, circuit: [] }, heights, TONES);
+  const positions = Float32Array.from(roads.surface.flatMap((layer) => layer.positions));
+  return { at, positions, junctions: road_junctions({ road, graph, circuit: [] }) };
+}
+
+// Asphalt or sidewalk where a real corner has it: either street's band, or the corner square outside its curb's sidewalk.
+function paved(dx: number, dz: number, arms: number): boolean {
+  const reach = STREET_HALF + SIDEWALK;
+  const ax = Math.abs(dx);
+  const az = Math.abs(dz);
+  const on_x = Math.abs(dz) <= reach && (dx >= -reach || arms > 2);
+  const on_z = Math.abs(dx) <= reach && (dz >= -reach || arms > 3);
+  if (on_x || on_z) return true;
+  const quadrant = (dx > 0 || arms > 2) && (dz > 0 || arms > 3);
+  return quadrant && ax < SIDE_CLEAR && az < SIDE_CLEAR && Math.hypot(ax - SIDE_CLEAR, az - SIDE_CLEAR) > SIDE_CLEAR - reach;
+}
+
+for (const arms of [3, 4])
+  test(`a town ${arms === 4 ? "crossroads" : "T"} gets curbed corners: faces up, no overlap, sidewalk round every corner without a gap`, () => {
+    const { at, positions: p, junctions } = town_crossroads(arms);
+    expect(junctions.patched.length).toBe(1);
+    expect(junctions.patched[0].patch.minor).toEqual([]);
+    expect(junctions.patched[0].patch.curbs.length).toBe(arms - 1 + (arms === 4 ? 1 : 0));
+    const tris = near(p, at.x, at.z, 30);
+    for (const t of tris) {
+      const o = t * 9;
+      expect((p[o + 5] - p[o + 2]) * (p[o + 6] - p[o]) - (p[o + 3] - p[o]) * (p[o + 8] - p[o + 2])).toBeGreaterThanOrEqual(-1e-6);
+    }
+    let worst = 0;
+    let wrong = 0;
+    for (let i = -50; i <= 50; i++)
+      for (let j = -50; j <= 50; j++) {
+        const dx = i * 0.3137 + 0.0131;
+        const dz = j * 0.3093 + 0.0219;
+        const count = tris.filter((t) => inside(p, t, at.x + dx, at.z + dz)).length;
+        worst = Math.max(worst, count);
+        // Facets of the 4° fillet steps sit up to a few centimetres off the true circle.
+        const fuzzy = [-0.06, 0.06].some((e) => paved(dx + e, dz + e, arms) !== paved(dx - e, dz - e, arms));
+        if (!fuzzy && Math.abs(dx) < 14 && Math.abs(dz) < 14 && (count > 0) !== paved(dx, dz, arms)) wrong++;
+      }
+    expect(worst).toBe(1);
+    expect(wrong).toBe(0);
+  });

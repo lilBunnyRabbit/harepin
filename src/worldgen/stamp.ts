@@ -14,6 +14,8 @@ export const TRAIL_HALF = 4;
 const TRAIL_SHOULDER = 6;
 /** Dirt reaches this far past the trail half: the surface grid is read at the nearest vertex, up to CELL / 2 away. */
 const DIRT_MARGIN = 1.5;
+/** Metres past a junction patch's rim its distance still writes road_dist: one cell, so every cell the rim crosses has both sides. */
+const RIM_REACH = CELL * 1.5;
 
 /** `blend(i)` is the share of the way the ground moves to the line's height by segment i: 0 leaves it, 1 sets it. */
 export interface TrailLine {
@@ -90,18 +92,24 @@ export class Stamp {
     }
   }
 
-  // Fillets reach past every arm's surface, so their asphalt would grip like grass. The ground there already lies within
-  // FLAT of an arm, so the arms' blend has levelled it.
+  // Fillets reach past every arm's surface, so their asphalt would grip like grass. Inside the outline and up to
+  // RIM_REACH past it, road_dist follows the distance to the rim the way an edge's does to its side, so the field read
+  // between vertices still grips as asphalt up to the curb. The ground there already lies within FLAT of an arm, so the
+  // arms' blend has levelled it.
   junction(outline: readonly { x: number; z: number }[]) {
     const { road_dist } = this.terrain;
     const xs = outline.map((p) => p.x);
     const zs = outline.map((p) => p.z);
-    const [i0, i1] = cell_range(Math.min(...xs), Math.max(...xs));
-    const [j0, j1] = cell_range(Math.min(...zs), Math.max(...zs));
+    const [i0, i1] = cell_range(Math.min(...xs) - RIM_REACH, Math.max(...xs) + RIM_REACH);
+    const [j0, j1] = cell_range(Math.min(...zs) - RIM_REACH, Math.max(...zs) + RIM_REACH);
     for (let j = j0; j <= j1; j++)
       for (let i = i0; i <= i1; i++) {
         const k = vertex(i, j);
-        if (road_dist[k] > ROAD_HALF && within(outline, ORIGIN + i * CELL, ORIGIN + j * CELL)) road_dist[k] = ROAD_HALF;
+        const x = ORIGIN + i * CELL;
+        const z = ORIGIN + j * CELL;
+        const d = rim_distance(outline, x, z);
+        const signed = within(outline, x, z) ? ROAD_HALF - d : d < RIM_REACH ? ROAD_HALF + d : Infinity;
+        if (signed < road_dist[k]) road_dist[k] = signed;
       }
   }
 
@@ -165,4 +173,19 @@ function within(outline: readonly { x: number; z: number }[], x: number, z: numb
     if (p.z > z !== q.z > z && x < ((q.x - p.x) * (z - p.z)) / (q.z - p.z) + p.x) inside = !inside;
   }
   return inside;
+}
+
+function rim_distance(outline: readonly { x: number; z: number }[], x: number, z: number): number {
+  let best = Infinity;
+  for (let a = 0, b = outline.length - 1; a < outline.length; b = a++) {
+    const p = outline[b];
+    const q = outline[a];
+    const dx = q.x - p.x;
+    const dz = q.z - p.z;
+    const t = Math.max(0, Math.min(1, ((x - p.x) * dx + (z - p.z) * dz) / (dx * dx + dz * dz || 1)));
+    const ox = x - (p.x + dx * t);
+    const oz = z - (p.z + dz * t);
+    best = Math.min(best, ox * ox + oz * oz);
+  }
+  return Math.sqrt(best);
 }

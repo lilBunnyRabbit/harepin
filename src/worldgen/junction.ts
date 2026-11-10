@@ -41,6 +41,8 @@ export interface Patch {
   /** Per arm, the first point each side (-1, +1 of the arm) runs its own rim from, sidewalks included. */
   sides: [number, number][];
   lines: RimPoint[][];
+  /** Per rounded corner between two arms with sidewalks, the curb from each arm's own sidewalk round the fillet; w points onto the asphalt. */
+  curbs: RimPoint[][];
   minor: number[];
 }
 
@@ -49,6 +51,8 @@ const SHARPEST = 0.6427876096865394;
 // Largest turn between two fillet segments, in radians (4°): coarser reads as facets up close.
 const FILLET_TURN = 0.0698;
 const FILLET_MIN_STEPS = 4;
+// Shortest fillet segment in metres: a town curb's 5 m radius at FILLET_TURN steps would lay chords a third of a metre long.
+const FILLET_CHORD = 0.5;
 /** Index slack for a setback that lands on a point: (4 + 4 cos 90°) / sin 90° comes out a hair over 4. */
 const SNAP = 1e-6;
 // A fillet end and the rim point it lands on come out a rounding apart; both kept make a sliver that faces nowhere.
@@ -156,6 +160,7 @@ export function junction_patch(x: number, z: number, arms: readonly Arm[]): Patc
   const outline: PatchPoint[] = [];
   const sides: [number, number][] = arms.map(() => [0, 0]);
   const lines: RimPoint[][] = [];
+  const curbs: RimPoint[][] = [];
   const push = (p: { x: number; z: number }, lift: number) => {
     const last = outline[outline.length - 1];
     if (!last || Math.abs(last.x - p.x) > SAME || Math.abs(last.z - p.z) > SAME) outline.push({ x: p.x, z: p.z, lift });
@@ -197,12 +202,13 @@ export function junction_patch(x: number, z: number, arms: readonly Arm[]): Patc
       for (const p of fillet(arm, arc, next, arcs[j], corner)) push(p, arm.lift + (next.lift - arm.lift) * p.t);
     }
     if (arm.lined && next.lined) lines.push(edge_line(arm, arc, m, from_plus, corner, next, arcs[j], mouths[j]));
+    if (corner.kind === "fillet" && corner.radius > 0 && arm.clear > arm.half && next.clear > next.half) curbs.push(curb(arm, arc, next, arcs[j], corner));
   }
   const first = outline[0];
   const last = outline[outline.length - 1];
   if (Math.abs(first.x - last.x) <= SAME && Math.abs(first.z - last.z) <= SAME) outline.pop();
   const minor = order.filter((i) => arms[i].rank < arms[top].rank);
-  return { centre, outline, mouths, sides, lines, minor };
+  return { centre, outline, mouths, sides, lines, curbs, minor };
 }
 
 function fillet(a: Arm, arc_a: readonly number[], b: Arm, arc_b: readonly number[], corner: Extract<Corner, { kind: "fillet" }>): { x: number; z: number; t: number }[] {
@@ -224,7 +230,8 @@ function fillet(a: Arm, arc_a: readonly number[], b: Arm, arc_b: readonly number
   const turn_cos = Math.max(-1, Math.min(1, -(p.tx * r.tx + p.tz * r.tz)));
   const half_cos = Math.sqrt((1 + turn_cos) / 2);
   const weight = sharp ? 1 : half_cos;
-  const steps = Math.max(FILLET_MIN_STEPS, Math.ceil(turn_angle(half_cos) / FILLET_TURN));
+  const turn = turn_angle(half_cos);
+  const steps = Math.max(FILLET_MIN_STEPS, Math.min(Math.ceil(turn / FILLET_TURN), Math.ceil((turn * corner.radius) / FILLET_CHORD)));
   const out = [];
   for (let step = 0; step <= steps; step++) {
     const u = step / steps;
@@ -234,6 +241,35 @@ function fillet(a: Arm, arc_a: readonly number[], b: Arm, arc_b: readonly number
     const sum = w0 + w1 + w2;
     out.push({ x: (p.x * w0 + cx * w1 + r.x * w2) / sum, z: (p.z * w0 + cz * w1 + r.z * w2) / sum, t: u });
   }
+  return out;
+}
+
+// From the rim point each arm's own sidewalk starts at, round the fillet; the ends take their arm's normal so the curb meets
+// the straight sidewalk edge without a step.
+function curb(a: Arm, arc_a: readonly number[], b: Arm, arc_b: readonly number[], corner: Extract<Corner, { kind: "fillet" }>): RimPoint[] {
+  const out: RimPoint[] = [];
+  const own = (arm: Arm, k: number, side: -1 | 1) => {
+    const p = arm.points[k];
+    const e = rim(arm, k, side);
+    out.push({ x: e.x, z: e.z, wx: side * p.tz, wz: -side * p.tx });
+  };
+  const ka = first_at(arc_a, corner.at_i);
+  if (ka < a.points.length && arc_a[ka] > corner.at_i + SAME) own(a, ka, 1);
+  const curve = fillet(a, arc_a, b, arc_b, corner);
+  const p = rim_at(a, arc_a, corner.at_i, 1);
+  const r = rim_at(b, arc_b, corner.at_j, -1);
+  for (let q = 0; q < curve.length; q++) {
+    if (q === 0) out.push({ x: curve[q].x, z: curve[q].z, wx: p.tz, wz: -p.tx });
+    else if (q === curve.length - 1) out.push({ x: curve[q].x, z: curve[q].z, wx: -r.tz, wz: r.tx });
+    else {
+      const prev = curve[q - 1];
+      const next = curve[q + 1];
+      const len = length(next.x - prev.x, next.z - prev.z) || 1;
+      out.push({ x: curve[q].x, z: curve[q].z, wx: -(next.z - prev.z) / len, wz: (next.x - prev.x) / len });
+    }
+  }
+  const kb = first_at(arc_b, corner.at_j);
+  if (kb < b.points.length && arc_b[kb] > corner.at_j + SAME) own(b, kb, -1);
   return out;
 }
 

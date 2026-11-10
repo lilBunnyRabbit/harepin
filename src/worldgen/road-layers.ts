@@ -18,9 +18,13 @@ const DASH_ON = 3;
 const SPUR_MARK_CLEAR = 8;
 const SPUR_MOUTH = 30;
 const CURB = 8;
+// A town corner's curb radius: 4-6 m in real grids, tight enough that the sidewalk still fits round it.
+const STREET_CURB = 5;
 const MOUTH_CLEAR = 5;
 const GIVE_WAY_OUT = 0.3;
 const GIVE_WAY_WIDTH = 0.4;
+/** |sin| between two streets at a node below which they run straight on. */
+const STRAIGHT_ON = 0.1;
 
 export interface RoadTones {
   asphalt: Rgb;
@@ -61,7 +65,7 @@ const RING_ARM: ArmStyle = { radius: CURB, rank: 2, lift: RING_LIFT, lined: true
 const SPUR_ARM: ArmStyle = { radius: CURB, rank: 1, lift: SPUR_LIFT, lined: true, sidewalk: 0 };
 // Below a spur, so a road between towns gives way where it branches off one.
 const LOCAL_ARM: ArmStyle = { ...SPUR_ARM, rank: 0.5 };
-const STREET_ARM: ArmStyle = { radius: 0, rank: 0, lift: SURFACE_LIFT, lined: false, sidewalk: SIDEWALK };
+const STREET_ARM: ArmStyle = { radius: STREET_CURB, rank: 0, lift: SURFACE_LIFT, lined: false, sidewalk: SIDEWALK };
 
 interface ArmEnd {
   edge: RoadEdge;
@@ -126,7 +130,7 @@ export function road_junctions(data: RoadData): Junctions {
   const on_ring = new Set(circuit.flatMap((id) => [graph.edges[id].a, graph.edges[id].b]));
   for (const node of graph.nodes) {
     const ends: ArmEnd[] = graph.edges.flatMap((edge) => [...(edge.a === node.id ? [{ edge, start: true }] : []), ...(edge.b === node.id ? [{ edge, start: false }] : [])]);
-    if (!ends.some(({ edge }) => spurs.includes(edge))) continue;
+    if (!ends.some(({ edge }) => spurs.includes(edge)) && !street_corner(ends)) continue;
     const arms = ends.map((end) => arm_of(end, reach_of(end.edge), style(end.edge)));
     const patch = junction_patch(node.x, node.z, arms);
     if (!patch) {
@@ -143,6 +147,14 @@ export function road_junctions(data: RoadData): Junctions {
     patched.push({ x: node.x, z: node.z, arms, patch });
   }
   return { patched, loose, trims, ring_at };
+}
+
+// Town streets meeting at a crossroads, a T or an L; a street running straight on through a node needs no patch.
+function street_corner(ends: readonly ArmEnd[]): boolean {
+  if (ends.length < 2 || ends.some(({ edge }) => edge.kind !== "street")) return false;
+  if (ends.length > 2) return true;
+  const [a, b] = ends.map(({ edge, start }) => (start ? edge.points[0] : edge.points[edge.points.length - 1]));
+  return Math.abs(a.tx * b.tz - a.tz * b.tx) > STRAIGHT_ON;
 }
 
 function untrimmed(): Trim {
@@ -176,6 +188,7 @@ export function road_layers(data: RoadData, heights: Float32Array, tones: RoadTo
     const chunk = chunk_of(x, z);
     out.patch(out.surface[chunk], patch, tones.asphalt);
     for (const line of patch.lines) out.rim_line(out.marks[chunk], line, EDGE_INSET, EDGE_INSET + EDGE_WIDTH, MARK_LIFT, tones.edge_line);
+    for (const curb of patch.curbs) out.rim_line(out.surface[chunk], curb, -SIDEWALK, 0, SURFACE_LIFT, tones.sidewalk);
     for (const i of patch.minor) {
       const arm = arms[i];
       out.give_way(out.marks[chunk], arm.points[patch.mouths[i]], arm.half - EDGE_INSET, GIVE_WAY_OUT, GIVE_WAY_WIDTH, MARK_LIFT, tones.line);
@@ -224,8 +237,8 @@ export function road_layers(data: RoadData, heights: Float32Array, tones: RoadTo
     const marked = (s: number) => s >= Math.max(clear, mouths[0]) && s < last - Math.max(clear, mouths[1]) && !near_spur[s] && !near_spur[s + 1];
     // A patched far end reads the street backwards, so its arm's -1 side is the strip's +1 side.
     const walkway = (side: 0 | 1) => {
-      const lo = mouths[0] ? Math.max(ends, sides[0][side]) : ends;
-      const hi = last - (mouths[1] ? Math.max(ends, sides[1][1 - side]) : ends);
+      const lo = mouths[0] ? sides[0][side] : ends;
+      const hi = last - (mouths[1] ? sides[1][1 - side] : ends);
       return (s: number) => s >= lo && s < hi;
     };
     out.strip(out.surface, points, false, -half - SIDEWALK, -half, SURFACE_LIFT, walkway(0), tones.sidewalk);
