@@ -1,0 +1,319 @@
+#touch {
+  display: none;
+}
+
+#touch {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  touch-action: none;
+  -webkit-touch-callout: none;
+}
+
+#touch [data-touch],
+#touch button {
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.touch-steer {
+  position: absolute;
+  inset: 0 55% 0 0;
+  display: grid;
+  place-items: end center;
+  padding-bottom: var(--inset-bottom);
+}
+
+.touch-hint {
+  height: 24px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-full);
+  font-size: var(--text-sm);
+  line-height: 24px;
+  color: color-mix(in oklch, var(--foreground) 80%, transparent);
+  background: var(--surface);
+}
+
+.touch-steer[data-held] .touch-hint {
+  visibility: hidden;
+}
+
+#steer-ring {
+  position: fixed;
+  left: -60px;
+  top: -60px;
+  width: 120px;
+  height: 120px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-full);
+  border: 2px solid color-mix(in oklch, var(--foreground) 35%, transparent);
+  background: color-mix(in oklch, var(--background-darkest) 30%, transparent);
+  pointer-events: none;
+}
+
+#steer-ring[hidden] {
+  display: none;
+}
+
+#steer-knob {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-full);
+  background: color-mix(in oklch, var(--primary) 70%, transparent);
+}
+
+.touch-steer-buttons {
+  position: absolute;
+  left: var(--inset-left);
+  bottom: var(--inset-bottom);
+  display: none;
+  gap: var(--space-3);
+}
+
+#touch[data-steer="buttons"] .touch-steer-buttons {
+  display: flex;
+}
+
+/* The keys are the picture; the steer zone behind them takes the touches and splits at the line between them. */
+#touch[data-steer="buttons"] .touch-steer-buttons .touch-key {
+  pointer-events: none;
+}
+
+#touch[data-steer="buttons"] .touch-hint {
+  display: none;
+}
+
+.touch-steer-buttons .touch-key {
+  width: var(--steer-key-w);
+  height: var(--steer-key-h);
+  border-radius: var(--radius-lg);
+}
+
+.touch-steer-buttons svg {
+  width: 36px;
+  height: 36px;
+}
+
+.touch-buttons {
+  position: absolute;
+  top: var(--inset-top);
+  right: calc(var(--inset-right) + var(--map-panel) + var(--space-2));
+  display: flex;
+  gap: var(--space-2);
+}
+
+.touch-buttons button[data-held] {
+  background: var(--accent);
+  color: var(--background-darkest);
+}
+
+/* The pedals' hit area: the whole lower right below the top buttons, out to the edges. The pedal keys under it are the
+   picture, and the speedo and map let touches through to it. */
+.touch-pedal-zone {
+  position: absolute;
+  inset: calc(var(--inset-top) + var(--control-h) + var(--space-2)) 0 0 55%;
+}
+
+#touch .touch-pedals [data-touch] {
+  pointer-events: none;
+}
+
+.touch-pedals {
+  position: absolute;
+  right: var(--inset-right);
+  bottom: var(--inset-bottom);
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+.touch-brake,
+.touch-gas {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.pedal,
+.touch-key {
+  --level: 0;
+  position: relative;
+  display: grid;
+  place-items: end center;
+  width: var(--pedal-w);
+  padding-bottom: var(--space-3);
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--foreground);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+}
+
+.pedal {
+  height: 140px;
+}
+
+.pedal.throttle {
+  height: 188px;
+}
+
+.pedal::before {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: calc(var(--level) * 100%);
+  background: color-mix(in oklch, var(--error) 55%, transparent);
+}
+
+.pedal.throttle::before {
+  background: color-mix(in oklch, var(--success) 55%, transparent);
+}
+
+.pedal span {
+  position: relative;
+}
+
+.touch-key {
+  height: var(--control-h);
+  place-items: center;
+  padding: 0;
+  letter-spacing: 0.02em;
+  border-radius: var(--radius-md);
+}
+
+.touch-key[data-held] {
+  background: var(--accent);
+  color: var(--background-darkest);
+}
+
+.touch-key[hidden] {
+  display: none;
+}
+
+/* Nitro on touch is a tap on the left, between steering inputs, never on a slide path: the right thumb at full gas drifts
+   up the pedal. The key is the tank gauge: it fills to the tank's level and lights while it burns. */
+.nitro-key {
+  --tank: 0;
+  position: absolute;
+  left: var(--inset-left);
+  top: 50%;
+  translate: 0 -50%;
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  padding: 0;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.nitro-key[hidden] {
+  display: none;
+}
+
+.nitro-key::before {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: calc(var(--tank) * 100%);
+  background: color-mix(in oklch, var(--info) 40%, transparent);
+}
+
+.nitro-key span {
+  position: relative;
+}
+
+#touch .nitro-key[aria-pressed="true"] {
+  border-color: var(--info);
+  box-shadow: 0 0 0 1.5px var(--info);
+}
+
+#touch .nitro-key[data-boost] {
+  color: var(--background-darkest);
+  text-shadow: none;
+}
+
+.nitro-key[data-boost]::before {
+  background: var(--cottontail);
+}
+
+@media (pointer: coarse) {
+  #touch {
+    display: block;
+  }
+
+  :root:has(#touch[data-steer="buttons"]) .dock-left {
+    bottom: calc(var(--inset-bottom) + var(--steer-key-h) + var(--space-2));
+  }
+}
+
+.touch-buttons,
+.touch-hint {
+  transition: opacity 0.4s;
+}
+
+@media (pointer: coarse) {
+  .pedal,
+  .touch-key,
+  .nitro-key {
+    background: var(--ghost-fill);
+    border: 1.5px solid var(--ghost-line);
+    color: var(--foreground);
+    text-shadow: var(--halo);
+    backdrop-filter: none;
+  }
+
+  .touch-key svg,
+  .touch-buttons svg {
+    filter: drop-shadow(0 0 3px var(--surface));
+  }
+
+  .pedal::before {
+    background: color-mix(in oklch, var(--error) 40%, transparent);
+  }
+
+  .pedal.throttle::before {
+    background: color-mix(in oklch, var(--success) 40%, transparent);
+  }
+
+  .touch-key[data-held],
+  .touch-buttons button[data-held] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--background-darkest);
+    text-shadow: none;
+  }
+
+  .touch-steer-buttons .touch-key {
+    --steer-key-w: 84px;
+    --steer-key-h: 120px;
+  }
+
+  .touch-hint {
+    background: var(--ghost-fill);
+    text-shadow: var(--halo);
+  }
+
+  :root[data-calm] .touch-buttons {
+    opacity: 0.3;
+  }
+
+  :root[data-calm] .touch-hint {
+    opacity: 0;
+  }
+}
+
+@media (pointer: coarse) {
+  :root[data-hud="compact"] .touch-buttons {
+    right: calc(var(--inset-right) + var(--compact-map) + var(--space-2));
+  }
+}

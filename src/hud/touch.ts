@@ -1,6 +1,7 @@
 import { $ } from "./hud";
 import type { Action } from "./input";
 import { TouchSteer } from "../menu/prefs";
+import "./touch.css";
 
 const STEER_RANGE = 70;
 const STEER_DEADZONE = 6;
