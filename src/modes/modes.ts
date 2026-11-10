@@ -166,12 +166,16 @@ export class Modes {
       const level = mode.levels.find((l) => l.id === id);
       if (!level) continue;
       if (mode.def.needs_ground && !KINDS[this.world.kind].open_ground) return this.notice(NO_GROUND_NOTICE);
-      if (mode.def.car_sized_only && !car_sized(this.spec())) return this.notice(TOO_BIG);
+      if (this.too_big(mode)) return this.notice(TOO_BIG);
       if (!mode.track.is_open(id)) return;
       if (this.race_busy()) return this.notice(mode.def.busy_notice);
       this.clear();
       return this.begin(mode, level);
     }
+  }
+
+  private too_big(mode: Mode): boolean {
+    return mode.def.car_sized_only && !car_sized(this.spec());
   }
 
   private begin(mode: Mode, level: Level) {
@@ -224,6 +228,7 @@ export class Modes {
     const active = this.current;
     if (!active) return;
     if (this.lobby_lap) return this.notice("Lobby race is running");
+    if (this.too_big(active.mode)) return this.notice(TOO_BIG);
     active.run?.dispose();
     active.run = null;
     this.launch(active);
