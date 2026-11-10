@@ -1,6 +1,6 @@
 import { DirectoryStatus, clean_password, save_lock, type Server } from "../net/directory";
 import { el, icon } from "./setting-rows";
-import { world_query } from "../world-pick";
+import { world_query } from "../world/world-pick";
 import { kind_of_world } from "../worldgen/kinds/kinds";
 import { WORLDS } from "../worlds/worlds";
 import { MenuTab, invite_link, type Menu, type MenuPage } from "./page";

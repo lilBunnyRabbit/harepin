@@ -7,8 +7,8 @@ import { build_view, contact_shadow, dispose_car_view, place_contact_shadow, sho
 import type { NitroSnapshot } from "./nitro";
 import type { Race } from "../race";
 import { Rewind, type RewindPart } from "./rewind";
-import type { PadTimer } from "../sky-pads";
-import { SPAWN_INDEX, type Spawn, type World } from "../world";
+import type { PadTimer } from "../world/sky-pads";
+import { SPAWN_INDEX, type Spawn, type World } from "../world/world";
 
 /** Speed (m/s) above which a reset faces the way the car travels rather than where its nose points. */
 const RESET_MOVING = 2;

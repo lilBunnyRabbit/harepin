@@ -1,6 +1,6 @@
 import { Car } from "../src/car/car";
 import { car_spec } from "../src/car/cars";
-import { World } from "../src/world";
+import { World } from "../src/world/world";
 
 const SPEC = car_spec(process.argv[2] ?? "coupe");
 const DT = 1 / 360;

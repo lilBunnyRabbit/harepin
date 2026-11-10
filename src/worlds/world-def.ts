@@ -1,5 +1,5 @@
 import type * as THREE from "three";
-import type { World } from "../world";
+import type { World } from "../world/world";
 import type { WorldFacts } from "../worldgen/facts";
 import type { WorldKind } from "../worldgen/types";
 

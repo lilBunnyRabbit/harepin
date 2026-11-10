@@ -1,5 +1,5 @@
 import { mulberry32, sub } from "../rng";
-import type { Solid } from "../world";
+import type { Solid } from "../world/world";
 import type { Body } from "./gymkhana";
 import { touching } from "./parking";
 import { RouteTracker, bendiest, length_of, slice, type RoutePoint } from "./route";

@@ -1,7 +1,7 @@
-import { parse_seed } from "./net/net";
-import { seed_of } from "./rng";
-import type { WorldKind } from "./worldgen/types";
-import { DEFAULT_KIND, parse_kind } from "./worldgen/kinds/kinds";
+import { parse_seed } from "../net/net";
+import { seed_of } from "../rng";
+import type { WorldKind } from "../worldgen/types";
+import { DEFAULT_KIND, parse_kind } from "../worldgen/kinds/kinds";
 
 export interface WorldPick {
   seed: number;

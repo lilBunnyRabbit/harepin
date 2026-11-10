@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { Ghost } from "../car/ghost";
 import { format } from "../hud/hud";
-import type { World } from "../world";
+import type { World } from "../world/world";
 import { world_key } from "../worldgen/kinds/kinds";
 import { DUEL_LEVELS, DuelRun, DuelStatus, build_route, type DuelLevel, type Route } from "./duel";
 import { DuelView } from "./duel-view";

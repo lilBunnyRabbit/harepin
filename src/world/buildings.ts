@@ -1,11 +1,11 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { car_paints, color, dark, glow, tones } from "./theme/palette";
+import { car_paints, color, dark, glow, tones } from "../theme/palette";
 import type { World } from "./world";
-import { chunk_of, type ChunkBuffers, type Soup } from "./worldgen/chunks";
-import { Builder, type Rgb, type Sphere } from "./worldgen/mesh";
-import { hash } from "./worldgen/noise";
-import { PropKind, type Prop } from "./worldgen/types";
+import { chunk_of, type ChunkBuffers, type Soup } from "../worldgen/chunks";
+import { Builder, type Rgb, type Sphere } from "../worldgen/mesh";
+import { hash } from "../worldgen/noise";
+import { PropKind, type Prop } from "../worldgen/types";
 
 const PAD_LIFT = 0.06;
 // Lit from inside: a dusk street reads by its shop windows, a day street by glass that stays bright in shade.

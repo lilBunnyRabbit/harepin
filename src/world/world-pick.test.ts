@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
-import { seed_of } from "./rng";
+import { seed_of } from "../rng";
 import { pick_world, world_query } from "./world-pick";
-import { WorldKind } from "./worldgen/types";
+import { WorldKind } from "../worldgen/types";
 
 const saved = { last_seed: 4242, last_world: WorldKind.SKY };
 const none = { last_seed: null, last_world: null };

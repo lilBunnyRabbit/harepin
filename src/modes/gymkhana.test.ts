@@ -1,6 +1,6 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import type { Solid } from "../world";
+import type { Solid } from "../world/world";
 import { GymRun, HIT_MS, LEVELS, MISS_MS, RunStatus, Step, build_course, find_site, footprint, to_local, to_world, type Body, type SiteGround, type Site } from "./gymkhana";
 
 const BODY: Body = { circles: [1.25, -1.25], radius: 1.05, length: 4.66, width: 1.9 };

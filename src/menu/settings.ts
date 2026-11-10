@@ -13,7 +13,7 @@ import { WorldPage } from "./world-page";
 import { Rows, el, icon, read, type RowHelp, type Value } from "./setting-rows";
 import { WorldKind } from "../worldgen/types";
 import { WORLDS } from "../worlds/worlds";
-import { world_query } from "../world-pick";
+import { world_query } from "../world/world-pick";
 import "./settings.css";
 import "./menu.css";
 

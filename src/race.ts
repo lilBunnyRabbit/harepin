@@ -1,4 +1,4 @@
-import type { World } from "./world";
+import type { World } from "./world/world";
 import { world_key } from "./worldgen/kinds/kinds";
 
 const BEST_KEY = "harepin:best";

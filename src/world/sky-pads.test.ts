@@ -1,11 +1,11 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import { Car, type Controls, type Ground } from "./car/car";
-import { CARS } from "./car/cars";
+import { Car, type Controls, type Ground } from "../car/car";
+import { CARS } from "../car/cars";
 import { PAD_ACCEL, PAD_MAX, PAD_TIME, PadTimer } from "./sky-pads";
 import { World } from "./world";
-import { GAP_FAST, generate_sky, PAD_GAP_CLEAR } from "./worldgen/sky";
-import { DECK_STRIDE } from "./worldgen/types";
+import { GAP_FAST, generate_sky, PAD_GAP_CLEAR } from "../worldgen/sky";
+import { DECK_STRIDE } from "../worldgen/types";
 
 const DT = 1 / 360;
 const coast: Controls = { steer: 0, throttle: 0, brake: 0, handbrake: 0, analog: true };

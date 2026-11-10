@@ -1,6 +1,6 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import type { Solid } from "../world";
+import type { Solid } from "../world/world";
 import { GATE_RADIUS, HUNT_LEVELS, HuntRun, HuntStatus, build_hunt, hunt_par, tour, type HuntGround, type Point } from "./hunt";
 
 function island(solids: Solid[] = []): HuntGround {

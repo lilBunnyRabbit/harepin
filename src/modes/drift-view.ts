@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { brand, tones } from "../theme/palette";
-import { ROAD_HALF } from "../world";
+import { ROAD_HALF } from "../world/world";
 import { LEAD, type Zone } from "./drift";
 import { Marks, type Ground } from "./marks";
 

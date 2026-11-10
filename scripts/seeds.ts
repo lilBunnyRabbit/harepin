@@ -1,4 +1,4 @@
-import { World, min_radius } from "../src/world";
+import { World, min_radius } from "../src/world/world";
 import { car_spec } from "../src/car/cars";
 import { build_spec, parse_build } from "../src/car/build";
 import { autolap } from "./autolap";

@@ -1,13 +1,13 @@
 import { Vector3 } from "three";
-import type { Ground } from "./car/car";
-import { COUPE, type CarSpec } from "./car/cars";
-import { DeckIndex } from "./worldgen/deck";
-import { sample, slope_normal } from "./worldgen/field";
-import { generate } from "./worldgen/index";
-import { KINDS } from "./worldgen/kinds/kinds";
-import { ramp_reach2, ramp_surface, spawn_blocks, type Surface } from "./worldgen/jumps";
-import { FALL_DEPTH } from "./worldgen/sky";
-import { CELL, DIRT, N, ROAD_HALF, RouteKind, SIZE, type WorldKind } from "./worldgen/types";
+import type { Ground } from "../car/car";
+import { COUPE, type CarSpec } from "../car/cars";
+import { DeckIndex } from "../worldgen/deck";
+import { sample, slope_normal } from "../worldgen/field";
+import { generate } from "../worldgen/index";
+import { KINDS } from "../worldgen/kinds/kinds";
+import { ramp_reach2, ramp_surface, spawn_blocks, type Surface } from "../worldgen/jumps";
+import { FALL_DEPTH } from "../worldgen/sky";
+import { CELL, DIRT, N, ROAD_HALF, RouteKind, SIZE, type WorldKind } from "../worldgen/types";
 import type {
   Building,
   Challenge,
@@ -24,12 +24,12 @@ import type {
   Town,
   Tree,
   WorldData,
-} from "./worldgen/types";
+} from "../worldgen/types";
 
-export { fbm } from "./worldgen/noise";
-export { min_radius } from "./worldgen/path";
-export { CELL, N, ROAD_HALF, SIDEWALK, SIZE, SPAWN_INDEX } from "./worldgen/types";
-export type { Building, Checkpoint, Lot, ParkingLot, Prop, RoadPoint, Route, Solid, Town, Tree } from "./worldgen/types";
+export { fbm } from "../worldgen/noise";
+export { min_radius } from "../worldgen/path";
+export { CELL, N, ROAD_HALF, SIDEWALK, SIZE, SPAWN_INDEX } from "../worldgen/types";
+export type { Building, Checkpoint, Lot, ParkingLot, Prop, RoadPoint, Route, Solid, Town, Tree } from "../worldgen/types";
 
 const SOLID_CELL = 16;
 const ROAD_CELL = 32;

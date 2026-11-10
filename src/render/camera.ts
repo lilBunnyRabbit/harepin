@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import type { Look } from "../hud/input";
-import type { World } from "../world";
+import type { World } from "../world/world";
 
 const angle_diff = (a: number, b: number) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
 const DEG = Math.PI / 180;

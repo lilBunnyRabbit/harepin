@@ -1,8 +1,8 @@
 import { Vector3 } from "three";
-import type { Car } from "./car/car";
+import type { Car } from "../car/car";
 import type { World } from "./world";
-import type { DeckIndex } from "./worldgen/deck";
-import { PAD_HALF } from "./worldgen/sky";
+import type { DeckIndex } from "../worldgen/deck";
+import { PAD_HALF } from "../worldgen/sky";
 
 /** Push along the car's nose while a kick lasts (m/s²), how long one lasts, and the speed past which it stops pushing. */
 export const PAD_ACCEL = 8;

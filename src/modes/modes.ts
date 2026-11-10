@@ -1,6 +1,6 @@
 import type * as THREE from "three";
 import { $, format } from "../hud/hud";
-import type { World } from "../world";
+import type { World } from "../world/world";
 import { KINDS } from "../worldgen/kinds/kinds";
 import { DRIFT_MODE } from "./drift-mode";
 import { DUEL_MODE } from "./duel-mode";

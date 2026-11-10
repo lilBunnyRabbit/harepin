@@ -2,7 +2,7 @@ import type { DirectoryStatus, Server } from "../net/directory";
 import type { ModeEntry } from "../modes/modes";
 import type { RaceChoice } from "../modes/races";
 import type { Rows, Value } from "./setting-rows";
-import { world_query } from "../world-pick";
+import { world_query } from "../world/world-pick";
 import { DEFAULT_KIND } from "../worldgen/kinds/kinds";
 import type { WorldData, WorldKind } from "../worldgen/types";
 import type { Laps, QualityTier, SettingKey, SettingsState } from "./prefs";

@@ -1,4 +1,4 @@
-import type { Solid } from "../world";
+import type { Solid } from "../world/world";
 import { to_local, to_world, type Body, type Pose, type Site } from "./gymkhana";
 import { MAX_STARS } from "./track";
 

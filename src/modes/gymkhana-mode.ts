@@ -1,5 +1,5 @@
 import { format } from "../hud/hud";
-import type { World } from "../world";
+import type { World } from "../world/world";
 import { GymRun, HIT_MS, LEVELS, MISS_MS, RunStatus, Step, build_course, find_site, type Course, type GymLevel, type Site } from "./gymkhana";
 import { GymkhanaView } from "./gymkhana-view";
 import { NO_SITE, body_of, type Driven, type Finish, type ModeCtx, type ModeDef, type ModeRun } from "./mode";

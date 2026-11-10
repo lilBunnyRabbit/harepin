@@ -1,7 +1,7 @@
 import { Vector3 } from "three";
 import { car_spec } from "../src/car/cars";
 import { Car } from "../src/car/car";
-import { ROAD_HALF, World } from "../src/world";
+import { ROAD_HALF, World } from "../src/world/world";
 
 const SPEC = car_spec(process.argv[2] ?? "coupe");
 

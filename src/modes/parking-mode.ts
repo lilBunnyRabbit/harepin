@@ -1,5 +1,5 @@
 import { format } from "../hud/hud";
-import type { World } from "../world";
+import type { World } from "../world/world";
 import { find_site, to_world, type Site } from "./gymkhana";
 import { NO_SITE, body_of, type Driven, type Finish, type ModeCtx, type ModeDef, type ModeRun } from "./mode";
 import { PARK_LEVELS, ParkRun, ParkStatus, Verdict, park_footprint, park_solids, type ParkLevel } from "./parking";

@@ -1,9 +1,9 @@
 import * as THREE from "three";
-import { by_chunk, soup_geometry, town_chunks, type TownChunk } from "../buildings";
-import { JumpsView } from "../jumps";
-import { LandmarksView } from "../landmarks";
+import { by_chunk, soup_geometry, town_chunks, type TownChunk } from "../world/buildings";
+import { JumpsView } from "../world/jumps";
+import { LandmarksView } from "../world/landmarks";
 import { color, lighten, linear, mix, tones } from "../theme/palette";
-import { SIZE, World, type RoadPoint, type Tree } from "../world";
+import { SIZE, World, type RoadPoint, type Tree } from "../world/world";
 import { CHUNK, Ground, JITTER_LEVELS, type ChunkBuffers, type MeshTones } from "../worldgen/chunks";
 import { TreeKind } from "../worldgen/biomes";
 import type { Lab } from "../theme/theme";

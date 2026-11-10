@@ -1,5 +1,5 @@
 import { format } from "../hud/hud";
-import { ROAD_HALF } from "../world";
+import { ROAD_HALF } from "../world/world";
 import { ComboEnd, DRIFT_LEVELS, DriftRun, DriftStatus, LEAD, build_zone, type DriftLevel, type Zone } from "./drift";
 import { DriftView } from "./drift-view";
 import { body_of, type Driven, type Finish, type ModeCtx, type ModeDef, type ModeRun } from "./mode";

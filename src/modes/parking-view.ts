@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { parked_car_geometry, parked_cars } from "../buildings";
+import { parked_car_geometry, parked_cars } from "../world/buildings";
 import { brand, car_paints, color, tones } from "../theme/palette";
 import { mulberry32, sub } from "../rng";
 import { to_world, type Site } from "./gymkhana";

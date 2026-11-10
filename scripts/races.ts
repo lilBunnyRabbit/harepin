@@ -1,5 +1,5 @@
 import { CARS } from "../src/car/cars";
-import { World } from "../src/world";
+import { World } from "../src/world/world";
 import { autolap } from "./autolap";
 
 // Drives every race route of each seed with every car: a route is sound when all of them finish it on the road, inside par.

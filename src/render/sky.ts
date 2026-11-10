@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { brand, color, dark, glow, mix } from "../theme/palette";
-import { fbm, type World } from "../world";
+import { fbm, type World } from "../world/world";
 
 const FLOOR_PUFFS = 120;
 const FLOOR_REACH = 1000;

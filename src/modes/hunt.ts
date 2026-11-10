@@ -1,5 +1,5 @@
 import { mulberry32, sub } from "../rng";
-import { ROAD_HALF, SIZE, type Solid } from "../world";
+import { ROAD_HALF, SIZE, type Solid } from "../world/world";
 import { stars_for } from "./track";
 
 export const GATE_RADIUS = 8;

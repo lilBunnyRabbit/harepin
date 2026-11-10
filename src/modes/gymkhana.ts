@@ -1,5 +1,5 @@
 import { mulberry32, sub } from "../rng";
-import { ROAD_HALF, type Solid } from "../world";
+import { ROAD_HALF, type Solid } from "../world/world";
 import type { Ground } from "./marks";
 import { stars_for } from "./track";
 

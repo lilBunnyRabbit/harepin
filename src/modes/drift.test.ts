@@ -1,6 +1,6 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import type { Solid } from "../world";
+import type { Solid } from "../world/world";
 import { Combo, ComboEnd, DRIFT_LEVELS, DriftRun, DriftStatus, GRACE_MS, LEAD, MAX_MULT, MULT_MS, build_zone, drift_stars, slip } from "./drift";
 import type { Body } from "./gymkhana";
 import { RouteTracker, bendiest } from "./route";

@@ -1,7 +1,7 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
 import { Vector3 } from "three";
-import { World } from "../world";
+import { World } from "../world/world";
 import { CLEARANCE, FALLBACK_SEED, generate_sky, MAX_PADS, PAD_GAP_CLEAR, PAD_LENGTH, rail_open, sky_layout, size_gap, TWIST, twistiness, twisty } from "./sky";
 import { DECK_STRIDE, SPAWN_INDEX } from "./types";
 
