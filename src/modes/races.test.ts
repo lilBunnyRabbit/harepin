@@ -45,6 +45,19 @@ test("run: held through the countdown, then every gate in order to the finish", 
   expect(run.stars()).toBe(1);
 });
 
+test("run: past the finish there is no gate, frame after frame", () => {
+  const course = race_course(route(false));
+  const run = new RaceRun(course, 0);
+  expect(run.gate).toEqual(course.line[course.gates[0]]);
+  for (const p of course.line) run.update(100, p.x, p.z);
+  expect(run.status).toBe(RaceStatus.DONE);
+  const end = course.line[course.line.length - 1];
+  for (let i = 0; i < 3; i++) {
+    expect(run.update(100, end.x, end.z)).toBe(-1);
+    expect(run.gate).toBeNull();
+  }
+});
+
 test("run: a gate passed wide or skipped stays next until the car comes back for it", () => {
   const course = race_course(route(false));
   const run = new RaceRun(course, 0);

@@ -22,7 +22,7 @@ class Race implements ModeRun {
     ctx.scene.add(this.view.root);
     this.unplace = ctx.world.place(course.route.closure);
     this.run = new RaceRun(course, ctx.lobby_lap() ? 0 : COUNTDOWN_MS);
-    this.route = { id: course.route.id, gate: course.line[course.gates[0]] ?? null };
+    this.route = { id: course.route.id, gate: this.run.gate };
     ctx.spawn_on(course.line[0]);
   }
 
@@ -59,12 +59,12 @@ class Race implements ModeRun {
       }
       return null;
     }
-    // Past the last gate there is no next one; the run keeps updating behind the result card.
-    if (run.status === RaceStatus.DONE) return null;
-    const { line, gates } = run.course;
-    const gate = line[gates[run.next]];
+    // A finished run keeps updating behind the result card, with no gate left to aim at.
+    const gate = run.gate;
+    this.route.gate = gate;
+    if (!gate) return null;
+    const { gates } = run.course;
     view.guide(run.tracker.index, gates[run.next]);
-    this.route.gate = gate ?? null;
     ctx.hint(turn_to(car, gate.x, gate.z));
     const { name } = this.level;
     if (run.status === RaceStatus.READY) return `${name} · ${Math.ceil(run.countdown / 1000)}`;

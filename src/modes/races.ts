@@ -107,6 +107,11 @@ export class RaceRun {
     return stars_for(this.elapsed(), this.course.route.par_ms);
   }
 
+  /** The next gate on the line; null once the last is taken. */
+  get gate(): RoutePoint | null {
+    return this.course.line[this.course.gates[this.next]] ?? null;
+  }
+
   get missed(): boolean {
     return this.status === RaceStatus.RUNNING && this.tracker.index > this.course.gates[this.next] + GATE_REACH;
   }
