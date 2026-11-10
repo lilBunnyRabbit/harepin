@@ -24,6 +24,7 @@ const PARTS: Partial<Record<PropKind, readonly Part[]>> = {
   ],
   [PropKind.SPIRE]: [{ x: 0, z: 0, radius: 2.4, height: 13 }],
   [PropKind.TANK]: [{ x: 0, z: 0, radius: 1.8, height: 6.4 }],
+  [PropKind.WIND_PUMP]: [{ x: 0, z: 0, radius: 1.1, height: 8.5 }],
 };
 
 /** The bigger half of the cacti grow a second, lower arm, so the mesh and its solids agree without a stored flag. */
@@ -98,7 +99,8 @@ export function scatter(cuts: BiomeCuts, land: Terrain, rules: readonly ScatterR
         const pz = z + (hash(x, z, seed + 2) - 0.5) * rule.spacing * 0.8;
         const y = sample(heights, px, pz);
         if (!rule.biomes.includes(biome_at(cuts, px, pz, y))) continue;
-        if (sample(road_dist, px, pz) < ROAD_CLEAR || up(heights, px, pz) < FLAT || !free(px, pz)) continue;
+        const road = sample(road_dist, px, pz);
+        if (road < ROAD_CLEAR || road > rule.road_within || up(heights, px, pz) < FLAT || !free(px, pz)) continue;
         const roll = hash(x, z, seed + 3);
         const { k, angle } = heading(hash(x, z, seed + 4));
         const prop: Prop = { x: px, y, z: pz, angle, kind: rule.kind, scale: SCALE[0] + roll * (SCALE[1] - SCALE[0]) };

@@ -98,6 +98,8 @@ export interface ScatterRule {
   spacing: number;
   odds: number;
   biomes: readonly Biome[];
+  /** Only this close to a road, metres; Infinity strews them anywhere. */
+  road_within: number;
 }
 
 /** Where each biome sits: coast under a wobbling shore height, then inland bands cut from the biome score field. */
@@ -253,8 +255,9 @@ export const DESERT: Recipe = {
   towns: { min: 1, max: 3, trees: false, block: { min: 35, span: 15 }, flat_roofs: true },
   landmarks: [Landmark.MAST, Landmark.TURBINES],
   scatter: [
-    { kind: PropKind.CACTUS, spacing: 46, odds: 0.05, biomes: ["meadow", "upland"] },
-    { kind: PropKind.BOULDER, spacing: 70, odds: 0.06, biomes: ["meadow", "forest", "upland"] },
+    { kind: PropKind.CACTUS, spacing: 46, odds: 0.05, biomes: ["meadow", "upland"], road_within: Infinity },
+    { kind: PropKind.BOULDER, spacing: 70, odds: 0.06, biomes: ["meadow", "forest", "upland"], road_within: Infinity },
+    { kind: PropKind.WIND_PUMP, spacing: 120, odds: 0.15, biomes: ["coast", "meadow", "forest", "upland"], road_within: 40 },
   ],
 };
 

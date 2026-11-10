@@ -23,6 +23,8 @@ const LIGHTHOUSE_BANDS = 4;
 const LANTERN = 2;
 const NACELLE = { hw: 0.9, hd: 2.2, low: -0.6, high: 1.2 };
 export const HUB_AHEAD = 2.6;
+/** Wind pump at scale 1, metres: legs this far off the centre, platform top, fan hub height, fan radius and how far ahead it turns. */
+const PUMP = { legs: 0.75, top: 8.3, hub: 9.6, fan: 1.8, ahead: 0.6, blades: 14 };
 export const HUB_RISE = 0.3;
 
 export interface Beacon {
@@ -183,6 +185,39 @@ function tank(out: Builder, base: number, t: LandmarkTones) {
   prism(out, 8, 1.95, 0, 5.6, 6.4, t.band, Math.PI / 8);
 }
 
+/** Both faces of a thin flat part: fan blades, braces and the tail vane are seen from either side. */
+function plate(out: Builder, a: V3, b: V3, c: V3, d: V3, rgb: Rgb) {
+  out.quad(a, b, c, d, rgb);
+  out.quad(d, c, b, a, rgb);
+}
+
+// Drawn to its solid part (scatter.ts): a four-leg tower, a platform, a many-bladed fan facing forward and a tail vane behind.
+function wind_pump(out: Builder, s: number, base: number, t: LandmarkTones) {
+  const { legs, top, hub, fan, blades } = PUMP;
+  for (const [cx, cz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) prism(out, 4, 0.09 * s, 0.07 * s, base, top * s, t.cap, Math.PI / 4, undefined, cx * legs * s, cz * legs * s);
+  for (const y of [top * 0.33, top * 0.66])
+    for (const side of [-1, 1]) {
+      const e = legs * s;
+      plate(out, [-e, y * s, side * e], [e, y * s, side * e], [e, (y + 0.12) * s, side * e], [-e, (y + 0.12) * s, side * e], t.cap);
+      plate(out, [side * e, y * s, -e], [side * e, y * s, e], [side * e, (y + 0.12) * s, e], [side * e, (y + 0.12) * s, -e], t.cap);
+    }
+  prism(out, 4, (legs + 0.25) * s, (legs + 0.25) * s, top * s, (top + 0.15) * s, t.cap, Math.PI / 4);
+  prism(out, 6, 0.3 * s, 0.25 * s, (top + 0.15) * s, (hub + 0.35) * s, t.band, 0);
+  const z = PUMP.ahead * s;
+  for (let k = 0; k < blades; k++) {
+    const [c, n] = ring(blades, 1, k, 0);
+    const at = (r: number, w: number): [V3, V3] => [
+      [(c * r - n * w) * s, (hub + n * r + c * w) * s, z],
+      [(c * r + n * w) * s, (hub + n * r - c * w) * s, z],
+    ];
+    const [a, b] = at(0.3, 0.08);
+    const [d, e] = at(fan, 0.22);
+    plate(out, a, b, e, d, t.pale);
+  }
+  plate(out, [0, (hub - 0.1) * s, -0.2 * s], [0, (hub - 0.1) * s, -1.4 * s], [0, (hub - 0.5) * s, -2.8 * s], [0, (hub + 0.1) * s, -1.4 * s], t.band);
+  plate(out, [0, (hub + 0.1) * s, -1.4 * s], [0, (hub - 0.5) * s, -2.8 * s], [0, (hub + 0.9) * s, -2.8 * s], [0, (hub + 0.1) * s, -1.4 * s], t.band);
+}
+
 export function landmark_mesh(out: Builder, prop: Prop, heights: Float32Array, tones: LandmarkTones) {
   const [fx, fz] = forward(prop);
   out.at({ x: prop.x, y: prop.y, z: prop.z, fx, fz });
@@ -194,4 +229,5 @@ export function landmark_mesh(out: Builder, prop: Prop, heights: Float32Array, t
   else if (prop.kind === PropKind.BOULDER) boulder(out, prop.scale, prop.angle, footing(prop, heights), tones);
   else if (prop.kind === PropKind.SPIRE) spire(out, prop.scale, prop.angle, footing(prop, heights), tones);
   else if (prop.kind === PropKind.TANK) tank(out, footing(prop, heights), tones);
+  else if (prop.kind === PropKind.WIND_PUMP) wind_pump(out, prop.scale, footing(prop, heights), tones);
 }

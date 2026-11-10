@@ -167,6 +167,7 @@ export const PropKind = {
   BOULDER: "boulder",
   SPIRE: "spire",
   TANK: "tank",
+  WIND_PUMP: "wind_pump",
 } as const;
 export type PropKind = (typeof PropKind)[keyof typeof PropKind];
 

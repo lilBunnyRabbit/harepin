@@ -37,6 +37,8 @@ const LOT_SLIDE = 3;
 // Inside a block, parcels from all four streets share the space: each reaches about a third of the way in, leaving
 // the corners and a back yard to whichever street claims them first.
 const BLOCK_SHARE = 0.3;
+/** Share of yardless outpost lots whose first prop is a wind pump instead of a water tank. */
+const PUMP_ODDS = 0.12;
 const FLOOR = 3.2;
 const SHOP_FLOOR = 3.6;
 const TREE_HEIGHT = 6;
@@ -184,10 +186,10 @@ export class Lots {
     this.out.solids.push({ kind: "circle", x, y, z, radius: TREE_RADIUS * scale, height: TREE_HEIGHT * scale });
   }
 
-  // A dry yard: the first spot holds the water tank, the rest boulders.
+  // A dry yard: the first spot holds a water tank or a wind pump, the rest boulders.
   private yard(x: number, z: number, roll: number, first: boolean) {
     const { k, angle } = heading(roll);
-    const prop: Prop = { x, y: sample(this.terrain.heights, x, z), z, angle, kind: first ? PropKind.TANK : PropKind.BOULDER, scale: first ? 1 : 0.5 + roll * 0.4 };
+    const prop: Prop = { x, y: sample(this.terrain.heights, x, z), z, angle, kind: first ? (roll < PUMP_ODDS ? PropKind.WIND_PUMP : PropKind.TANK) : PropKind.BOULDER, scale: first ? 1 : 0.5 + roll * 0.4 };
     this.out.props.push(prop);
     this.out.solids.push(...prop_solids(prop, k, this.terrain.heights));
   }
