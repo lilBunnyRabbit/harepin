@@ -859,7 +859,7 @@
   padding: var(--space-1) var(--space-4) var(--space-5);
   overflow-y: auto;
   overscroll-behavior: contain;
-  scrollbar-width: thin;
+  scrollbar-width: none;
 }
 
 .set-list[hidden] {

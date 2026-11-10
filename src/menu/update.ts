@@ -74,6 +74,7 @@ export class Updater {
   private update_sw: ((reload?: boolean) => Promise<void>) | null = null;
   private registration: ServiceWorkerRegistration | null = null;
   private waiting = false;
+  private applying = false;
   private readonly pending = el("div", "changelog-pending");
   private readonly toast = el("button", "update-toast");
   private check_timer = 0;
@@ -186,6 +187,7 @@ export class Updater {
   }
 
   private show_pending(remote: RemoteVersion | null): void {
+    if (this.applying) return;
     const head = el("div", "changelog-update");
     const text = el("div", "changelog-update-text");
     const status = el("p", "", `${remote ? `v${BUILD.version} → v${remote.version}` : `You have v${BUILD.version}`} · the game reloads`);
@@ -194,6 +196,7 @@ export class Updater {
     now.type = "button";
     now.addEventListener("click", () => {
       now.disabled = true;
+      this.applying = true;
       if (this.host.busy()) status.textContent = "Updating when this run ends";
       clearInterval(this.apply_wait);
       this.apply_wait = this.when_idle(() => {

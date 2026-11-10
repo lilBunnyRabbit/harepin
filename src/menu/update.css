@@ -31,6 +31,7 @@
   }
 }
 
+body:has(> .settings:not([hidden])) .update-toast,
 .update-toast[hidden] {
   display: none;
   opacity: 0;
@@ -196,10 +197,6 @@
   color: var(--background-darkest);
   font-size: var(--text-md);
   font-weight: 700;
-}
-
-.settings .changelog-update-now:hover {
-  background: color-mix(in oklch, var(--primary) 88%, var(--foreground));
 }
 
 :root[data-scheme="light"] .settings .changelog-update-now {
