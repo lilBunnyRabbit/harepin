@@ -35,7 +35,7 @@ export class Smoke {
   private smoke = FOG.clone().lerp(color(dark ? brand.foreground : brand.background_lightest), 0.5);
   private dust = color(mix(brand.warning, brand.background, 0.3));
   private grass = color(mix(brand.success, brand.background, 0.28));
-  private carry = [0, 0, 0, 0];
+  private carry: number[] = [];
   private kick = new THREE.Vector3();
 
   constructor() {
@@ -64,6 +64,7 @@ export class Smoke {
 
   update(dt: number, car: Car, world: World) {
     const speed = car.vel.length();
+    while (this.carry.length < car.wheels.length) this.carry.push(0);
     car.wheels.forEach((w, i) => {
       if (!w.contact) return;
       const on_road = world.grip(w.point.x, w.point.z) >= 1;
@@ -116,8 +117,8 @@ export class Skids {
   /** Write count when each vertex was laid, so the shader can fade by age without rewriting the buffer. */
   private laid = new Float32Array(SKID_QUADS * 6).fill(-SKID_QUADS);
   /** Each wheel's last mark point, valid while `marking`. */
-  private last = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
-  private marking = [false, false, false, false];
+  private last: THREE.Vector3[] = [];
+  private marking: boolean[] = [];
   private here = new THREE.Vector3();
   private side = new THREE.Vector3();
   private next = 0;
@@ -164,6 +165,10 @@ export class Skids {
 
   update(car: Car, world: World) {
     const { here, side } = this;
+    while (this.last.length < car.wheels.length) {
+      this.last.push(new THREE.Vector3());
+      this.marking.push(false);
+    }
     for (let i = 0; i < car.wheels.length; i++) {
       const w = car.wheels[i];
       const sliding = w.contact && car.vel.length() > 3 && (w.lateral > 1.15 || Math.abs(w.slip) > 0.2) && world.grip(w.point.x, w.point.z) >= 1;

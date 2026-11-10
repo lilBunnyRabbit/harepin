@@ -81,7 +81,11 @@ const SLIDE_S = Math.tan((Math.PI - Math.asin(SLIDE_GRIP)) / MF_C) / MF_B;
 
 /** Suspension reach with the car parked on flat ground, for views that have no sim behind them. */
 export function rest_reach(spec: CarSpec): number {
-  return spec.wheel.rest + spec.wheel.radius - (spec.mass * GRAVITY) / (4 * spec.spring);
+  return spec.wheel.rest + spec.wheel.radius - static_sag(spec);
+}
+
+function static_sag(spec: CarSpec): number {
+  return (spec.mass * GRAVITY) / (spec.wheel.mounts.length * spec.spring);
 }
 
 /** Height of the car origin above flat ground with the car parked at rest. */
@@ -259,7 +263,7 @@ export class Car {
     this.quat.premultiply(steer_q.setFromUnitVectors(Y, normal));
     this.pos.addScaledVector(normal, ride_height(this.spec));
     // Start at static sag so the first step's damper sees no compression rate and the car does not bounce off the slope.
-    const sag = (this.spec.mass * GRAVITY) / (4 * this.spec.spring);
+    const sag = static_sag(this.spec);
     for (const w of this.wheels) w.compression = sag;
     this.parked = true;
   }

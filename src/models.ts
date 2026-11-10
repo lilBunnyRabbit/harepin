@@ -1070,7 +1070,7 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
   const tyres = [0, 1].map((axle) => wheel_geometry(spec.wheel.radius, d.tyre[axle], d.rim, tyre));
   const calipers = [0, 1].map((axle) => caliper_geometry(spec.wheel.radius, d.tyre[axle], d.rim, tyre, caliper));
   const wheel_material = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
-  const wheel_axles = [0, 1, 2, 3].map((i) => axle_index(axles, i));
+  const wheel_axles = spec.wheel.mounts.map((_, i) => axle_index(axles, i));
   const wheels = wheel_axles.map((axle) => {
     const steer = new THREE.Group();
     const spin = new THREE.Group();
