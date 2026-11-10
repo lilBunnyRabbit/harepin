@@ -10,6 +10,7 @@ export const BUILD: VersionInfo = __HAREPIN_VERSION__;
 const CHECK_EVERY_MS = 30 * 60 * 1000;
 const VISIBLE_CHECK_GAP_MS = 60 * 1000;
 const BUSY_POLL_MS = 1500;
+const TOAST_MS = 4000;
 // updateSW(true) reloads once the new worker takes control; past this, clear this app's worker and caches instead.
 const RELOAD_TIMEOUT_MS = 6000;
 const UPDATE_PARAM = "__upd";
@@ -20,6 +21,13 @@ const KIND_LABEL: Record<ChangeKind, string> = {
   [ChangeKind.FIXED]: "Fixed",
 };
 
+export interface UpdateHost {
+  /** A lobby race or gymkhana run: no toast and no reload until it ends. */
+  busy(): boolean;
+  menu_open(): boolean;
+  show_notes(): void;
+}
+
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, class_name = "", text = ""): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
   if (class_name) node.className = class_name;
@@ -27,36 +35,28 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, class_name = "", text
   return node;
 }
 
-function change_list(releases: Release[]): HTMLUListElement {
+function change_list(release: Release): HTMLUListElement {
   const list = el("ul", "update-changes");
-  for (const release of releases) {
-    for (const change of release.changes) {
-      const item = el("li");
-      item.append(el("span", `update-kind update-kind-${change.kind}`, KIND_LABEL[change.kind]), el("span", "", change.text));
-      list.append(item);
-    }
+  for (const change of release.changes) {
+    const item = el("li");
+    item.append(el("span", `update-kind update-kind-${change.kind}`, KIND_LABEL[change.kind]), el("span", "", change.text));
+    list.append(item);
   }
   return list;
 }
 
-export function show_version(parent: HTMLElement): void {
-  parent.append(el("span", "version-tag", `v${BUILD.version}`));
+function release_view(release: Release, fresh: boolean): HTMLElement {
+  const section = el("section", "changelog-release");
+  const line = el("p", "changelog-line");
+  line.append(el("b", "", `v${release.version}`), el("span", "", release.title));
+  if (fresh) line.append(el("span", "changelog-fresh", "New"));
+  line.append(el("time", "", release.date));
+  section.append(line, change_list(release));
+  return section;
 }
 
-/** Every release, newest first: the What's new page in Settings. */
-export function changelog_view(): HTMLElement {
-  const body = el("div", "changelog");
-  // Focusable so the pad can scroll a list taller than the screen.
-  body.tabIndex = 0;
-  body.append(el("p", "changelog-build", `You have v${BUILD.version} · ${BUILD.commit}`));
-  for (const release of CHANGELOG) {
-    const section = el("section", "changelog-release");
-    const line = el("p", "changelog-line");
-    line.append(el("b", "", `v${release.version}`), el("span", "", release.title), el("time", "", release.date));
-    section.append(line, change_list([release]));
-    body.append(section);
-  }
-  return body;
+export function show_version(parent: HTMLElement): void {
+  parent.append(el("span", "version-tag", `v${BUILD.version}`));
 }
 
 async function fetch_remote(): Promise<RemoteVersion | null> {
@@ -73,12 +73,36 @@ async function fetch_remote(): Promise<RemoteVersion | null> {
 export class Updater {
   private update_sw: ((reload?: boolean) => Promise<void>) | null = null;
   private registration: ServiceWorkerRegistration | null = null;
-  private card: HTMLElement | null = null;
+  private waiting = false;
+  private readonly pending = el("div", "changelog-pending");
+  private readonly toast = el("button", "update-toast");
   private check_timer = 0;
-  private busy_timer = 0;
+  private toast_wait = 0;
+  private apply_wait = 0;
+  private toast_timer = 0;
   private last_check = 0;
 
-  constructor(private readonly busy: () => boolean) {}
+  constructor(private readonly host: UpdateHost) {
+    this.pending.hidden = true;
+    this.toast.type = "button";
+    this.toast.hidden = true;
+    this.toast.append(el("b", "", "Update ready"), el("span", "", "· in the menu"));
+  }
+
+  get ready(): boolean {
+    return this.waiting;
+  }
+
+  changelog_view(): HTMLElement {
+    const page = el("div", "changelog-page");
+    const body = el("div", "changelog");
+    // Focusable so the pad can scroll a list taller than the screen.
+    body.tabIndex = 0;
+    body.append(el("p", "changelog-build", `You have v${BUILD.version} · ${BUILD.commit}`));
+    for (const release of CHANGELOG) body.append(release_view(release, false));
+    page.append(this.pending, body);
+    return page;
+  }
 
   start(): void {
     const stripped = new URL(location.href);
@@ -97,14 +121,18 @@ export class Updater {
     });
     this.check_timer = window.setInterval(this.check, CHECK_EVERY_MS);
     document.addEventListener("visibilitychange", this.on_visible);
+    this.toast.addEventListener("click", this.open_notes);
+    document.body.append(this.toast);
   }
 
   stop(): void {
     clearInterval(this.check_timer);
-    clearInterval(this.busy_timer);
+    clearInterval(this.toast_wait);
+    clearInterval(this.apply_wait);
+    clearTimeout(this.toast_timer);
     document.removeEventListener("visibilitychange", this.on_visible);
-    this.card?.remove();
-    this.card = null;
+    this.toast.removeEventListener("click", this.open_notes);
+    this.toast.remove();
   }
 
   private readonly check = (): void => {
@@ -116,56 +144,67 @@ export class Updater {
     if (document.visibilityState === "visible" && Date.now() - this.last_check > VISIBLE_CHECK_GAP_MS) this.check();
   };
 
+  private readonly open_notes = (): void => {
+    this.hide_toast();
+    this.host.show_notes();
+  };
+
   private async offer(): Promise<void> {
     const remote = await fetch_remote();
-    this.when_idle(() => this.show_card(remote));
+    this.waiting = true;
+    this.show_pending(remote);
+    // In the menu the chip already says it.
+    if (this.host.menu_open()) return;
+    clearInterval(this.toast_wait);
+    this.toast_wait = this.when_idle(() => {
+      if (!this.host.menu_open()) this.show_toast();
+    });
   }
 
-  private when_idle(run: () => void): void {
-    clearInterval(this.busy_timer);
-    if (!this.busy()) return run();
-    this.busy_timer = window.setInterval(() => {
-      if (this.busy()) return;
-      clearInterval(this.busy_timer);
+  private when_idle(run: () => void): number {
+    if (!this.host.busy()) {
+      run();
+      return 0;
+    }
+    const timer = window.setInterval(() => {
+      if (this.host.busy()) return;
+      clearInterval(timer);
       run();
     }, BUSY_POLL_MS);
+    return timer;
   }
 
-  private show_card(remote: RemoteVersion | null): void {
-    this.card?.remove();
-    const card = el("section", "update-card");
-    card.setAttribute("role", "dialog");
-    card.setAttribute("aria-labelledby", "update-title");
-    const title = el("b", "update-title", remote ? `Harepin v${remote.version} is ready` : "A new Harepin is ready");
-    title.id = "update-title";
-    const notes = remote ? newer_releases(remote.notes, BUILD.version) : [];
-    const status = el("p", "update-status", `You have v${BUILD.version}`);
-    const later = el("button", "update-later", "Later");
-    const now = el("button", "update-now", "Update now");
-    later.type = now.type = "button";
-    later.addEventListener("click", () => this.dismiss());
+  private show_toast(): void {
+    this.toast.hidden = false;
+    clearTimeout(this.toast_timer);
+    this.toast_timer = window.setTimeout(() => this.hide_toast(), TOAST_MS);
+  }
+
+  private hide_toast(): void {
+    clearTimeout(this.toast_timer);
+    this.toast.hidden = true;
+  }
+
+  private show_pending(remote: RemoteVersion | null): void {
+    const head = el("div", "changelog-update");
+    const text = el("div", "changelog-update-text");
+    const status = el("p", "", `${remote ? `v${BUILD.version} → v${remote.version}` : `You have v${BUILD.version}`} · the game reloads`);
+    text.append(el("b", "", "Update ready"), status);
+    const now = el("button", "changelog-update-now", "Update now");
+    now.type = "button";
     now.addEventListener("click", () => {
-      now.disabled = later.disabled = true;
-      if (this.busy()) status.textContent = "Updating when this run ends";
-      this.when_idle(() => {
+      now.disabled = true;
+      if (this.host.busy()) status.textContent = "Updating when this run ends";
+      clearInterval(this.apply_wait);
+      this.apply_wait = this.when_idle(() => {
         status.textContent = "Updating…";
         void this.apply();
       });
     });
-    const actions = el("div", "update-actions");
-    actions.append(later, now);
-    card.append(title, status);
-    if (notes.length) card.append(el("p", "update-heading", "What's new"), change_list(notes));
-    card.append(actions);
-    document.body.append(card);
-    this.card = card;
-    now.focus({ preventScroll: true });
-  }
-
-  private dismiss(): void {
-    clearInterval(this.busy_timer);
-    this.card?.remove();
-    this.card = null;
+    head.append(text, now);
+    const notes = remote ? newer_releases(remote.notes, BUILD.version) : [];
+    this.pending.replaceChildren(head, ...notes.map((release) => release_view(release, true)));
+    this.pending.hidden = false;
   }
 
   private async apply(): Promise<void> {

@@ -34,7 +34,7 @@ import { CAMERA_RETURN_SECONDS, CameraView, type SettingsState } from "./menu/pr
 import { load_settings, take_drive } from "./menu/prefs-store";
 import { MenuTab, invite_link } from "./menu/page";
 import { Settings } from "./menu/settings";
-import { BUILD, Updater, changelog_view, show_version } from "./menu/update";
+import { BUILD, Updater, show_version } from "./menu/update";
 import { pick_world } from "./world/world-pick";
 import { GUARD_STATE, SystemBack, type Watcher } from "./menu/system-back";
 import { SPAWN_INDEX } from "./world/world";
@@ -144,6 +144,7 @@ lobby.on_start = () => {
 lobby.on_unanswered = () => hud.toast("No race leader answered");
 race.on_start = () => ghost.start();
 
+const updater = new Updater({ busy: () => lobby.busy || modes.active, menu_open: () => settings.is_open, show_notes: () => settings.open_changes() });
 const settings = new Settings(document.body, {
   room,
   seed,
@@ -152,7 +153,7 @@ const settings = new Settings(document.body, {
   quality_status: () => ({ tier: quality.tier_name, ratio: quality.ratio, bloom: quality.tier.bloom, shadow_size: quality.tier.shadow_size }),
   race_busy: () => lobby.busy,
   toggle_race: (laps, route) => (lobby.busy ? lobby.leave() : lobby.call(laps, route)),
-  version: BUILD.version, changelog: changelog_view,
+  version: BUILD.version, changelog: () => updater.changelog_view(), update_ready: () => updater.ready,
   servers: () => directory.list(),
   servers_status: () => directory.status,
   password_failed: () => net.status === WRONG_PASSWORD,
@@ -219,7 +220,6 @@ const modes = new Modes(scene, world, SPAWN_INDEX, () => lobby.record, (x, y, z,
   driver.rewind.clear();
 }, () => lobby.busy, () => audio.chime(), camera);
 modes.start();
-const updater = new Updater(() => lobby.busy || modes.active);
 updater.start();
 const system_back = new SystemBack(
   {

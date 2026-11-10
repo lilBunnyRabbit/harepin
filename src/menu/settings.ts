@@ -196,6 +196,10 @@ export class Settings {
     this.open("keys");
   }
 
+  open_changes() {
+    this.open(CHANGES);
+  }
+
   close() {
     if (!this.is_open) return;
     if (this.guide_open) this.set("guide_seen", true);
@@ -268,6 +272,12 @@ export class Settings {
     const name_chip = el("label", "menu-chip menu-name");
     name_chip.title = "Your name: everyone in the room sees it";
     name_chip.append(this.name_field(), icon("icon-edit"));
+    const update_chip = el("button", "menu-chip menu-update");
+    update_chip.type = "button";
+    update_chip.title = "A new version is ready: see what's new";
+    update_chip.append(el("span", "menu-update-dot"), el("span", "", "Update ready"));
+    update_chip.addEventListener("click", () => this.open_changes());
+    this.syncs.push(() => (update_chip.hidden = !this.host.update_ready()));
     const room = el("span", "menu-chip menu-room");
     const here = el("small");
     room.append(el("span", "menu-live"), el("span", "", `Room ${this.host.room}`), here);
@@ -278,7 +288,7 @@ export class Settings {
     leave.setAttribute("aria-label", "Back to driving");
     leave.title = "Back to driving (Esc)";
     leave.append(icon("icon-close"));
-    top.append(brand, name_chip, room, leave);
+    top.append(brand, name_chip, update_chip, room, leave);
 
     const menu_nav = el("nav", "menu-tabs");
     menu_nav.setAttribute("aria-label", "Menu");

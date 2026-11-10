@@ -122,7 +122,6 @@ export class PadMenu {
     this.hud_open = true;
     const layer = this.hud();
     const held = document.activeElement;
-    // The update card focuses its own button when it appears; Menu lands there.
     focus(held instanceof HTMLElement && candidates(layer.roots).includes(held) ? held : layer.first());
   }
 
@@ -188,7 +187,7 @@ export class PadMenu {
   }
 
   private hud(): Layer {
-    const roots = [$("mode-result"), document.querySelector(".dock-top .top-left"), document.querySelector(".actions"), document.querySelector(".assists"), $("restart-lap"), $("join-map"), document.querySelector(".update-card")].filter((root) => root !== null);
+    const roots = [document.querySelector(".update-toast"), $("mode-result"), document.querySelector(".dock-top .top-left"), document.querySelector(".actions"), document.querySelector(".assists"), $("restart-lap"), $("join-map")].filter((root) => root !== null);
     return { roots, back: () => this.close_hud(), first: () => first_of(...roots) };
   }
 
@@ -249,7 +248,7 @@ export class PadMenu {
   }
 
   private card_waiting(): boolean {
-    return [$("mode-result"), $("join-map"), document.querySelector(".update-card")].some((card) => card instanceof HTMLElement && card.checkVisibility());
+    return [$("mode-result"), $("join-map"), document.querySelector(".update-toast")].some((card) => card instanceof HTMLElement && card.checkVisibility());
   }
 
   private rotated(): boolean {

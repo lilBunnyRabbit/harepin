@@ -35,6 +35,8 @@ export interface SettingsHost {
   readonly version: string;
   /** Every release, newest first: the What's new page. */
   changelog(): HTMLElement;
+  /** A new version waits on What's new: the top bar shows its chip. */
+  update_ready(): boolean;
   servers(): Server[];
   servers_status(): DirectoryStatus;
   /** This room's handshake failed on the password, so its row offers another try. */

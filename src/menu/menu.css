@@ -171,6 +171,32 @@
   background: var(--primary);
 }
 
+.settings .menu-update {
+  gap: var(--space-2);
+  height: var(--control-h);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--set-line);
+  background: var(--set-panel);
+  font-weight: 600;
+}
+
+.settings .menu-update:hover {
+  background: var(--set-panel);
+  border-color: var(--line-strong);
+}
+
+.menu-update[hidden] {
+  display: none;
+}
+
+.menu-update-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+}
+
 .settings .menu-close {
   width: var(--control-h);
   height: var(--control-h);
