@@ -7,20 +7,22 @@ export interface Tier {
   /** Sun shadow map size in px; 0 turns shadow mapping off. */
   shadow_size: number;
   fog_far: number;
+  /** Metres past `fog_far` a streamed world keeps chunks resident, so a chunk arrives before the fog uncovers it. */
+  stream_pad: number;
 }
 
 const DESKTOP: Tier[] = [
-  { max_ratio: 1.75, bloom: true, shadow_size: 2048, fog_far: 1300 },
-  { max_ratio: 1, bloom: true, shadow_size: 1024, fog_far: 1300 },
-  { max_ratio: 1, bloom: false, shadow_size: 0, fog_far: 1300 },
+  { max_ratio: 1.75, bloom: true, shadow_size: 2048, fog_far: 1300, stream_pad: 256 },
+  { max_ratio: 1, bloom: true, shadow_size: 1024, fog_far: 1300, stream_pad: 256 },
+  { max_ratio: 1, bloom: false, shadow_size: 0, fog_far: 1300, stream_pad: 256 },
 ];
 
 // The contact shadow already grounds the car, so phones skip the shadow pass and bloom entirely.
 // Phones run without MSAA, so render scale is what keeps edges from stair-stepping on 2.5-3x screens.
 const MOBILE: Tier[] = [
-  { max_ratio: 2, bloom: false, shadow_size: 0, fog_far: 700 },
-  { max_ratio: 1.4, bloom: false, shadow_size: 0, fog_far: 700 },
-  { max_ratio: 0.85, bloom: false, shadow_size: 0, fog_far: 700 },
+  { max_ratio: 2, bloom: false, shadow_size: 0, fog_far: 700, stream_pad: 128 },
+  { max_ratio: 1.4, bloom: false, shadow_size: 0, fog_far: 700, stream_pad: 128 },
+  { max_ratio: 0.85, bloom: false, shadow_size: 0, fog_far: 700, stream_pad: 128 },
 ];
 
 const DESKTOP_LEVELS: Record<QualityTier, number> = { high: 0, medium: 1, low: 2 };

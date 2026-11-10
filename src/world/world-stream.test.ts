@@ -70,7 +70,7 @@ test("a streamed world keeps only the chunks around the car, nearest first, and 
   const from = (index: number, x: number, z: number) => Math.hypot(ext.origin + ((index % ext.side) + 0.5) * CHUNK - x, ext.origin + (Math.floor(index / ext.side) + 0.5) * CHUNK - z);
   const resident = () => Array.from({ length: ext.side ** 2 }, (_, index) => index).filter((index) => tiles.get(index));
   const settle = async (x: number, z: number) => {
-    stream.follow(x, z, fog);
+    stream.follow(x, z, fog + CHUNK);
     await tiles.ensure(x, z);
     for (let last = -1; last !== order.length; ) {
       last = order.length;

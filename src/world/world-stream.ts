@@ -24,7 +24,7 @@ export class WorldStream {
   /** Of those, how many answer a request made before the chunk was dropped, and so are thrown away. */
   private readonly stale: Uint16Array;
   private at = -1;
-  private fog = 0;
+  private reach = 0;
 
   private constructor(
     private readonly worker: Worker,
@@ -70,22 +70,22 @@ export class WorldStream {
   }
 
   /**
-   * A streamed world keeps the chunks whose centre lies within `fog_far` plus one chunk of (x, z) and lets go of those
-   * past one chunk more, so driving along a border does not churn. Called every frame; only a new chunk or fog works.
+   * A streamed world keeps the chunks whose centre lies within `reach` of (x, z) and lets go of those past one chunk
+   * more, so driving along a border does not churn. Called every frame; only a new chunk or reach works.
    */
-  follow(x: number, z: number, fog_far: number) {
+  follow(x: number, z: number, reach: number) {
     const { tiles } = this.world;
     if (!tiles.streamed) return;
     const { ext } = tiles;
     const ci = Math.max(0, Math.min(ext.side - 1, Math.floor((x - ext.origin) / CHUNK)));
     const cj = Math.max(0, Math.min(ext.side - 1, Math.floor((z - ext.origin) / CHUNK)));
     const at = cj * ext.side + ci;
-    if (at === this.at && fog_far === this.fog) return;
+    if (at === this.at && reach === this.reach) return;
     this.at = at;
-    this.fog = fog_far;
+    this.reach = reach;
     this.post({ type: "focus", x, z });
-    const keep = (fog_far + CHUNK) ** 2;
-    const leave = (fog_far + 2 * CHUNK) ** 2;
+    const keep = reach ** 2;
+    const leave = (reach + CHUNK) ** 2;
     for (let index = 0; index < ext.side * ext.side; index++) {
       const [x0, z0] = chunk_corner(index, ext);
       const dx = x0 + CHUNK / 2 - x;
