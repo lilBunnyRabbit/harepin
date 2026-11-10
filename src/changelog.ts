@@ -23,6 +23,14 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.16.0",
+    date: "2026-11-10",
+    title: "Proper junctions",
+    changes: [
+      { kind: NEW, text: "Where roads meet, the island now has real junctions: rounded corners, one smooth patch of asphalt and give-way lines." },
+    ],
+  },
+  {
     version: "0.15.0",
     date: "2026-11-10",
     title: "Calmer touch steering",
