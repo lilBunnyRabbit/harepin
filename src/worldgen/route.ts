@@ -177,27 +177,28 @@ export class Router {
    * `crossings`. Ports and crossing ends sit beside a road on purpose, so they are doors: a path may start or land on one
    * inside a blocked band and leave it, or end there, but never walk through it.
    */
-  link(sources: readonly Port[], goals: readonly Port[], crossings: readonly Crossing[], exits: readonly Exit[]): LinkPath | null {
+  link(sources: readonly Port[], goals: readonly Port[], crossings: readonly Crossing[], exits: readonly Exit[], limit = Infinity): LinkPath | null {
     if (!sources.length || !goals.length) return null;
     const cells = G * G;
-    const portal = new Set<number>();
+    // Flags over the grid, so the search's inner loop checks a cell without a map lookup.
+    const portal = new Uint8Array(cells);
+    const special = new Uint8Array(cells);
     const at = (p: Way) => cell_of(p.z) * G + cell_of(p.x);
     const goal_at = new Map<number, number[]>();
     goals.forEach((g, i) => {
       const k = at(g);
-      portal.add(k);
+      portal[k] = special[k] = 1;
       goal_at.set(k, [...(goal_at.get(k) ?? []), i]);
     });
     const hops = new Map<number, { to: number; crossing: number; forward: boolean }[]>();
     crossings.forEach((c, i) => {
       const a = at(c.a);
       const b = at(c.b);
-      portal.add(a);
-      portal.add(b);
+      portal[a] = portal[b] = special[a] = special[b] = 1;
       hops.set(a, [...(hops.get(a) ?? []), { to: b, crossing: i, forward: true }]);
       hops.set(b, [...(hops.get(b) ?? []), { to: a, crossing: i, forward: false }]);
     });
-    for (const p of sources) portal.add(at(p));
+    for (const p of sources) portal[at(p)] = 1;
     const corridor = (e: Exit, x: number, z: number) => {
       const along = (x - e.x) * e.way.x + (z - e.z) * e.way.z;
       const across = Math.abs((x - e.x) * e.way.z - (z - e.z) * e.way.x);
@@ -218,7 +219,7 @@ export class Router {
         }
     }
     const free = (k: number) => open[k] === 1;
-    const door = (k: number) => portal.has(k) && this.height[k] >= WATER;
+    const door = (k: number) => portal[k] === 1 && this.height[k] >= WATER;
     const launched = new Uint8Array(cells);
     const near = octile(goals.map(at));
     const cost = new Float64Array(cells + goals.length).fill(Infinity);
@@ -234,31 +235,34 @@ export class Router {
       launched[k] = 1;
       heap.push(k, p.cost + near[k]);
     });
+    const step_to = (k: number, n: number, step: number, via: number) => {
+      const total = cost[k] + step;
+      if (total >= cost[n]) return;
+      cost[n] = total;
+      came[n] = k;
+      hop[n] = via;
+      source[n] = source[k];
+      launched[n] = via === -1 ? 0 : 1;
+      heap.push(n, total + near[n]);
+    };
     let goal = -1;
-    while (heap.size) {
+    // Keys only grow along the search, so once the least reaches `limit` no cheaper link is left to find.
+    while (heap.size && heap.least < limit) {
       const k = heap.pop();
       if (k >= cells) {
         goal = k - cells;
         break;
       }
-      for (const g of goal_at.get(k) ?? []) {
-        const total = cost[k] + goals[g].cost;
-        if (total < cost[cells + g]) {
-          cost[cells + g] = total;
-          heap.push(cells + g, total);
+      if (special[k]) {
+        for (const g of goal_at.get(k) ?? []) {
+          const total = cost[k] + goals[g].cost;
+          if (total < cost[cells + g]) {
+            cost[cells + g] = total;
+            heap.push(cells + g, total);
+          }
         }
+        for (const h of hops.get(k) ?? []) if (door(h.to)) step_to(k, h.to, 2 * APPROACH + CROSS_COST, h.forward ? h.crossing : -2 - h.crossing);
       }
-      const step_to = (n: number, step: number, via: number) => {
-        const total = cost[k] + step;
-        if (total >= cost[n]) return;
-        cost[n] = total;
-        came[n] = k;
-        hop[n] = via;
-        source[n] = source[k];
-        launched[n] = via === -1 ? 0 : 1;
-        heap.push(n, total + near[n]);
-      };
-      for (const h of hops.get(k) ?? []) if (door(h.to)) step_to(h.to, 2 * APPROACH + CROSS_COST, h.forward ? h.crossing : -2 - h.crossing);
       if (!free(k) && !launched[k]) continue;
       const i = k % G;
       const j = Math.floor(k / G);
@@ -272,7 +276,7 @@ export class Router {
           if (!free(n) && !door(n)) continue;
           const run = (di && dj ? Math.SQRT2 : 1) * COARSE;
           const grade = Math.abs(this.height[n] - this.height[k]) / run;
-          step_to(n, run * (1 + SLOPE_COST * grade * grade) + (grade > MAX_GRADE ? STEEP_COST * run : 0), -1);
+          step_to(k, n, run * (1 + SLOPE_COST * grade * grade) + (grade > MAX_GRADE ? STEEP_COST * run : 0), -1);
         }
     }
     if (goal < 0) return null;

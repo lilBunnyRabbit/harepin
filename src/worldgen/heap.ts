@@ -7,6 +7,11 @@ export class Heap {
     return this.items.length;
   }
 
+  /** The lowest key waiting; Infinity when empty. */
+  get least(): number {
+    return this.keys.length ? this.keys[0] : Infinity;
+  }
+
   push(item: number, key: number) {
     const { keys, items } = this;
     let i = items.length;

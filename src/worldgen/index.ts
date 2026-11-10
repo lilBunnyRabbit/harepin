@@ -17,7 +17,7 @@ import { guard_rails, inside } from "./switchback";
 import { terrain } from "./terrain";
 import { plan_trails } from "./trails";
 import { place_towns, town_streets } from "./towns";
-import { CELL, ORIGIN, ROAD_HALF, SPAWN_INDEX, SPUR_HALF, type Checkpoint, type RoadEdge, type RoadGraph, type RoadNode, type Solid, type Tree, type WorldData } from "./types";
+import { CELL, ORIGIN, ROAD_HALF, SPAWN_INDEX, SPUR_HALF, type Checkpoint, type RoadEdge, type RoadGraph, type RoadNode, type RoadPoint, type Solid, type Tree, type WorldData } from "./types";
 
 const CHECKPOINTS = 12;
 const STACK_GATE = 5;
@@ -81,11 +81,17 @@ export function generate(seed: number): WorldData {
     if (gate_id === undefined) continue;
     const gate = nodes[gate_id];
     const candidates = join_candidates(road, gate);
+    const shaped = new Map<Path, RoadPoint[]>();
+    const shape = (t: { path: Path; join: number }) => {
+      let points = shaped.get(t.path);
+      if (!points) shaped.set(t.path, (points = spur_points(t.path, heights, gate.y, road[t.join].y)));
+      return points;
+    };
     const pinned = (t: { path: Path; join: number }) => {
-      const points = spur_points(t.path, heights, gate.y, road[t.join].y);
+      const points = shape(t);
       return Math.abs(points[0].y - gate.y) < PIN && Math.abs(points[points.length - 1].y - road[t.join].y) < PIN;
     };
-    const fits = (t: { path: Path; join: number }) => pinned(t) && tightest(spur_points(t.path, heights, gate.y, road[t.join].y)) >= MIN_RADIUS;
+    const fits = (t: { path: Path; join: number }) => pinned(t) && tightest(shape(t)) >= MIN_RADIUS;
     const pick = (leave: (join: number) => Way | null) => {
       const tried: { path: Path; join: number; need: number; stacked: boolean }[] = [];
       for (const join of [...candidates.filter((j) => !on_stack(j)), ...candidates.filter(on_stack)]) {
@@ -119,7 +125,7 @@ export function generate(seed: number): WorldData {
     const junction: RoadNode = { id: nodes.length, x: target.x, z: target.z, y: target.y, kind: "junction" };
     nodes.push(junction);
     joins.push({ node: junction.id, at: best.join });
-    edges.push({ id: edges.length, a: gate.id, b: junction.id, kind: "highway", half: SPUR_HALF, closed: false, points: spur_points(best.path, heights, gate.y, target.y) });
+    edges.push({ id: edges.length, a: gate.id, b: junction.id, kind: "highway", half: SPUR_HALF, closed: false, points: shape(best) });
   }
   lap("highways");
 
