@@ -2,7 +2,7 @@ import { Vector3 } from "three";
 import { CARS, car_spec, type CarSpec } from "../src/car/cars";
 import type { Controls, Ground } from "../src/car/car";
 
-const physics = (await import(process.env.DRIFT_CAR ?? "../src/car")) as Partial<typeof import("../src/car/car")> & Pick<typeof import("../src/car/car"), "Car">;
+const physics = (await import(process.env.DRIFT_CAR ?? "../src/car/car")) as Partial<typeof import("../src/car/car")> & Pick<typeof import("../src/car/car"), "Car">;
 const { Car } = physics;
 type Car = InstanceType<typeof Car>;
 
