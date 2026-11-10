@@ -1,6 +1,7 @@
 import { DEFAULT_BUILD, build_code, parse_build, type Build } from "../car/build";
 import { BUILD_NAME_LENGTH, free_build_name, renamed, type SavedBuild } from "../car/builds";
 import { CARS, is_car } from "../car/cars";
+import { PRESETS } from "../car/presets";
 import { icon } from "./garage-widgets";
 import { el } from "./setting-rows";
 
@@ -111,6 +112,14 @@ export function render_builds(rail: HTMLElement, view: BuildsView, actions: Buil
     }
     list.append(li);
   }
+  const presets = el("ol", "garage-builds");
+  PRESETS.forEach((preset, i) => {
+    const li = el("li", "garage-build garage-preset");
+    const text = el("div", "garage-build-name");
+    text.append(el("b", "", preset.name), el("small", "", preset.blurb));
+    li.append(text, preset.code === fitted ? el("span", "garage-tag", "On your car") : button("Load", "load-preset", String(i)));
+    presets.append(li);
+  });
   const head = (text: string) => el("h3", "garage-build-head", text);
   rail.replaceChildren(
     head("Save this car"),
@@ -119,6 +128,8 @@ export function render_builds(rail: HTMLElement, view: BuildsView, actions: Buil
     own,
     head("A friend's code"),
     paste,
+    head("Presets"),
+    presets,
     head(view.builds.length ? "My builds" : "No builds saved yet"),
     list,
   );

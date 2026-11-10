@@ -1,6 +1,7 @@
 import { DECALS, DEFAULT_BUILD, MAX_NUMBER, build_code, parse_build, type Build } from "../car/build";
 import { free_build_name, load_builds, store_builds, with_build, without_build, type SavedBuild } from "../car/builds";
 import { CARS } from "../car/cars";
+import { PRESETS } from "../car/presets";
 import { livery_of } from "../car/livery";
 import { typing, type Nav } from "../hud/input";
 import { car_paints, color, decal_inks, rgba } from "../theme/palette";
@@ -79,6 +80,16 @@ export class Garage {
 
   get is_open(): boolean {
     return !this.root.hidden;
+  }
+
+  get code(): string {
+    return build_code(this.current);
+  }
+
+  use_code(code: string) {
+    const build = parse_build(code);
+    if (build) this.apply(build);
+    if (this.is_open) this.refresh();
   }
 
   /** On `section`, or the tab it was last left on. */
@@ -223,7 +234,8 @@ export class Garage {
       const build = parse_build(this.builds.find((b) => b.name === value)?.code);
       if (build) this.apply(build);
       this.refresh();
-    } else if (action === "rename-build") {
+    } else if (action === "load-preset") this.use_code(PRESETS[n]?.code ?? "");
+    else if (action === "rename-build") {
       this.renaming = value ?? null;
       this.refresh();
       this.rail.querySelector<HTMLInputElement>(".garage-rename input")?.focus();
@@ -281,6 +293,7 @@ export class Garage {
     const checked = parse_build(build_code(next));
     if (!checked || build_code(checked) === build_code(this.current)) return;
     this.current = checked;
+    this.cursor = this.item.at(checked);
     save_build(checked);
     this.on_change?.(checked);
   }

@@ -777,6 +777,7 @@
   grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: var(--space-2);
+  max-height: calc(var(--garage-side-h) + var(--garage-bottom-h));
   padding: var(--space-4);
 }
 
@@ -874,6 +875,11 @@
   padding-right: var(--space-2);
 }
 
+.garage-preset {
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding-right: var(--space-2);
+}
+
 .garage-build-name {
   display: grid;
   min-width: 0;
@@ -893,6 +899,10 @@
 .garage-build-name small {
   font-size: var(--text-sm);
   color: var(--dim);
+}
+
+.garage-preset .garage-build-name small {
+  white-space: normal;
 }
 
 .garage-tag {
