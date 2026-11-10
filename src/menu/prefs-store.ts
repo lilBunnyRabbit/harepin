@@ -1,4 +1,4 @@
-import { BUILD_KEY } from "./garage";
+import { BUILD_KEY } from "./garage-builds";
 import { THEME_KEY } from "../theme/theme";
 import { DEFAULT_SETTINGS, parse_settings, type SettingKey, type SettingsState } from "./prefs";
 
