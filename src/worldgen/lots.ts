@@ -52,6 +52,8 @@ const PARKED = { w: 1.9, l: 4.5, h: 1.4 };
 const LIGHT_EVERY = 30;
 const LIGHT_HEIGHT = 6;
 export const ROOF_PITCH = 0.6;
+/** Mountain village gables, shedding snow. */
+const STEEP_PITCH = 1.15;
 
 export interface TownLots {
   lots: Lot[];
@@ -64,6 +66,7 @@ export interface TownLots {
 
 export function roof_rise(b: { hw: number; hd: number; roof: Roof }): number {
   if (b.roof === Roof.GABLE) return b.hd * ROOF_PITCH;
+  if (b.roof === Roof.STEEP) return b.hd * STEEP_PITCH;
   if (b.roof === Roof.CROSS) return b.hw * ROOF_PITCH;
   if (b.roof === Roof.HIP) return Math.min(b.hw, b.hd) * ROOF_PITCH;
   return 0;
@@ -212,7 +215,8 @@ export class Lots {
     const floors = shop ? 1 + Math.floor(r2 * (reach < 0.4 ? 4 : 2)) : r1 < 0.4 ? 2 : 1;
     const height = shop ? floors * SHOP_FLOOR + 0.6 : floors * FLOOR + 0.3;
     let roof: Roof;
-    if (this.shape.flat_roofs) roof = Roof.FLAT;
+    if (this.shape.roofs === "flat") roof = Roof.FLAT;
+    else if (this.shape.roofs === "steep") roof = shop && floors > 2 ? Roof.FLAT : Roof.STEEP;
     else if (shop) roof = floors <= 2 && r3 < 0.3 ? Roof.GABLE : Roof.FLAT;
     else roof = r3 < 0.1 ? Roof.FLAT : r3 < 0.5 ? Roof.GABLE : r3 < 0.75 ? Roof.CROSS : Roof.HIP;
     const front = shop ? -1 : lot.d / 2 - 2 - hd;

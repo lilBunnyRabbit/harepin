@@ -164,7 +164,7 @@ export interface Building {
 }
 
 /** GABLE ridge runs along local x, CROSS along local z, HIP slopes on all four sides. */
-export const Roof = { FLAT: "flat", GABLE: "gable", CROSS: "cross", HIP: "hip" } as const;
+export const Roof = { FLAT: "flat", GABLE: "gable", CROSS: "cross", HIP: "hip", STEEP: "steep" } as const;
 export type Roof = (typeof Roof)[keyof typeof Roof];
 
 export const PropKind = {

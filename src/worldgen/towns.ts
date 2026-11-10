@@ -16,6 +16,12 @@ const TOWN_FLOOR = 4;
 export const CORE = 1.15;
 const STREET_RING_CLEAR = ROAD_HALF + STREET_HALF + 14;
 const STEP = 2;
+/** A strip village's main street follows the contour where the ground climbs at least this across it; flatter keeps the seeded axis. */
+const CONTOUR_SLOPE = 0.02;
+const CONTOUR_PROBE = 20;
+/** A strip's relief is checked along its street out to this share of its radius, and this far either side of it. */
+const STRIP_REACH = 0.9;
+const STRIP_SIDE = 16;
 
 const SYLLABLES = ["har", "pin", "bun", "lop", "dell", "war", "ren", "burr", "ow", "clo", "ver", "thim", "ble", "fen", "brook", "hol", "low", "mead"];
 
@@ -32,6 +38,41 @@ export function ring_distance(road: RoadPoint[], x: number, z: number): number {
   return Math.sqrt(best);
 }
 
+// Along the level line through (x, z), so a strip village's main street stays flat on a valley side.
+function contour(heights: Float32Array, x: number, z: number, ux: number, uz: number): [number, number] {
+  const gx = sample(heights, x + CONTOUR_PROBE, z) - sample(heights, x - CONTOUR_PROBE, z);
+  const gz = sample(heights, x, z + CONTOUR_PROBE) - sample(heights, x, z - CONTOUR_PROBE);
+  return length(gx, gz) < CONTOUR_SLOPE * 2 * CONTOUR_PROBE ? [ux, uz] : [-gz, gx];
+}
+
+function box_relief(heights: Float32Array, x: number, z: number, radius: number): { low: number; high: number } {
+  let low = Infinity;
+  let high = -Infinity;
+  for (let a = -1; a <= 1; a++)
+    for (let b = -1; b <= 1; b++) {
+      const y = sample(heights, x + a * radius * 0.7, z + b * radius * 0.7);
+      low = Math.min(low, y);
+      high = Math.max(high, y);
+    }
+  return { low, high };
+}
+
+function strip_relief(heights: Float32Array, x: number, z: number, radius: number, ux: number, uz: number): { low: number; high: number } {
+  const len = length(ux, uz);
+  const ax = ux / len;
+  const az = uz / len;
+  let low = Infinity;
+  let high = -Infinity;
+  for (let a = -2; a <= 2; a++)
+    for (let b = -1; b <= 1; b++) {
+      const t = (a / 2) * radius * STRIP_REACH;
+      const y = sample(heights, x + ax * t - az * b * STRIP_SIDE, z + az * t + ax * b * STRIP_SIDE);
+      low = Math.min(low, y);
+      high = Math.max(high, y);
+    }
+  return { low, high };
+}
+
 export function place_towns(seed: number, heights: Float32Array, road: RoadPoint[], shape: TownRecipe = ISLAND.towns): Town[] {
   const next = mulberry32(sub(seed, "towns"));
   const target = shape.min + Math.floor(next() * (shape.max - shape.min + 1));
@@ -44,15 +85,9 @@ export function place_towns(seed: number, heights: Float32Array, road: RoadPoint
     let uz = next() - 0.5;
     if (x * x + z * z > TOWN_SPREAD * TOWN_SPREAD || ux * ux + uz * uz < 0.01) continue;
     const h = sample(heights, x, z);
-    if (h < 5 || h > 60) continue;
-    let low = h;
-    let high = h;
-    for (let a = -1; a <= 1; a++)
-      for (let b = -1; b <= 1; b++) {
-        const y = sample(heights, x + a * radius * 0.7, z + b * radius * 0.7);
-        low = Math.min(low, y);
-        high = Math.max(high, y);
-      }
+    if (h < 5 || h > shape.top) continue;
+    if (shape.layout === "strip") [ux, uz] = contour(heights, x, z, ux, uz);
+    const { low, high } = shape.layout === "strip" ? strip_relief(heights, x, z, radius, ux, uz) : box_relief(heights, x, z, radius);
     if (high - low > TOWN_RELIEF || low < 3) continue;
     if (towns.some((t) => length(t.x - x, t.z - z) < t.radius + radius + TOWN_GAP)) continue;
     const ring = ring_distance(road, x, z);
@@ -128,6 +163,7 @@ export function town_streets(seed: number, town: Town, height: Sampler, road: Ro
       const x = town.x + town.ux * i * block + vx * j * block;
       const z = town.z + town.uz * i * block + vz * j * block;
       if (length(x - town.x, z - town.z) > town.radius) continue;
+      if (shape.layout === "strip" && j !== 0 && (i !== 0 || Math.abs(j) > 1)) continue;
       const y = height(x, z);
       if (y < 3.5 || ring_distance(road, x, z) < STREET_RING_CLEAR) continue;
       slot.set(key(i, j), nodes.length);

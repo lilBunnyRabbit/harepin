@@ -199,7 +199,7 @@ function town_builders(data: WorldData, tones: MeshTones): Map<number, Town> {
     const out = (big ? town.big : town.small).at(b);
     out.walls(b.hw, b.hd, -1, b.height, wall);
     if (data.lots[b.lot].kind === "shop") shopfront((big ? town.glass_big : town.glass_small).at(b), b.hw, b.hd);
-    if (b.roof === Roof.GABLE) out.gable(b.hw, b.hd, b.height, rise, roof, wall);
+    if (b.roof === Roof.GABLE || b.roof === Roof.STEEP) out.gable(b.hw, b.hd, b.height, rise, roof, wall);
     else if (b.roof === Roof.CROSS) out.at(turned(b)).gable(b.hd, b.hw, b.height, rise, roof, wall);
     else if (b.roof === Roof.HIP) {
       if (b.hw >= b.hd) out.hip(b.hw, b.hd, b.height, rise, roof);
