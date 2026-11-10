@@ -140,7 +140,8 @@ export function generate(seed: number): WorldData {
   lap("links");
 
   for (const edge of edges) if (!circuit.includes(edge.id)) stamp.edge(edge);
-  for (const { patch } of road_junctions({ road, graph, circuit }).patched) stamp.junction(patch.outline);
+  const { patched } = road_junctions({ road, graph, circuit });
+  for (const { patch } of patched) stamp.junction(patch.outline);
   stamp.blend();
   lap("stamp");
 
@@ -203,7 +204,7 @@ export function generate(seed: number): WorldData {
   lap("jumps");
 
   const loop = circuit_route(road, checkpoints);
-  const streets = street_routes(graph, circuit, towns, heights, jumps.ramps);
+  const streets = street_routes(graph, circuit, towns, heights, patched, jumps.ramps);
   jumps.items.push(...streets.items);
   const reverse = reverse_circuit(loop, jumps.ramps);
   const offroad = offroad_routes(trails.trails);

@@ -3,6 +3,7 @@ import { expect, test } from "bun:test";
 import { sample } from "./field";
 import { generate } from "./index";
 import { length } from "./noise";
+import { road_junctions } from "./road-layers";
 import { drive_time, street_routes } from "./routes";
 import { CELL, DIRT, N, ORIGIN, ROAD_HALF, RouteKind, STREET_HALF, type Route, type WorldData } from "./types";
 
@@ -62,7 +63,7 @@ test.each(SEEDS)("seed %i: every route is whole, on the road, and gated to its f
   }
   const street = world.routes.filter((r) => r.kind === RouteKind.STREET);
   if (street.length) streets++;
-  const { items } = street_routes(world.graph, world.circuit, world.towns, world.terrain.heights, world.ramps);
+  const { items } = street_routes(world.graph, world.circuit, world.towns, world.terrain.heights, road_junctions(world).patched, world.ramps);
   for (const route of street) {
     expect(route.closed).toBe(false);
     const from = town_at(world, route.points[0]);

@@ -1,5 +1,6 @@
 import { sample } from "./field";
 import { length } from "./noise";
+import type { Junction } from "./road-layers";
 import type { Trail } from "./trails";
 import { ROAD_HALF, RouteKind, SIDEWALK, STREET_HALF, type Checkpoint, type Item, type Ramp, type RoadEdge, type RoadGraph, type RoadPoint, type Route, type Town } from "./types";
 
@@ -29,6 +30,7 @@ const GATE_MOUTH = 25;
 const BOT = { grip: 6, accel: 6, top: 36, brake: 6, span: 5 } as const;
 /** Par over the estimated autopilot time: wide enough that the slowest car's autopilot still makes it. */
 const PAR_SHARE = 1.15;
+const FILLET_STEP = 2;
 const CONE_GAP = 2;
 const CONE_SET = 3;
 /** Extra setback for a row across a road whose junction has a patch: the fillets' curb radius. */
@@ -118,6 +120,7 @@ export function reverse_circuit(circuit: Route, ramps: readonly Ramp[]): Route |
 class Atlas {
   readonly legs: Leg[] = [];
   readonly out = new Map<number, number[]>();
+  private readonly patches = new Map<string, Junction>();
   /** Every leg's way out of each node, one-way legs included, for closing the side roads a route passes. */
   readonly arms = new Map<number, Leg[]>();
   readonly town_nodes = new Map<number, number[]>();
@@ -128,8 +131,10 @@ class Atlas {
     readonly graph: RoadGraph,
     circuit: readonly number[],
     towns: readonly Town[],
+    junctions: readonly Junction[],
     private readonly ramps: readonly Ramp[] = [],
   ) {
+    for (const j of junctions) this.patches.set(`${j.x},${j.z}`, j);
     const town_of = (x: number, z: number) => towns.find((t) => length(t.x - x, t.z - z) <= t.radius + 1);
     for (const edge of graph.edges) {
       if (circuit.includes(edge.id)) continue;
@@ -153,6 +158,15 @@ class Atlas {
       const leg = graph.edges[id];
       if (!leg.closed && leg.a !== leg.b) this.add(leg.a, leg.b, "ring", leg.points, leg.half, this.kicked(leg.points));
     }
+  }
+
+  /** Points of `points` (outward from `node`) the junction patch there covers; 0 at a node with none. */
+  mouth(node: number, points: readonly RoadPoint[]): number {
+    const at = this.graph.nodes[node];
+    const junction = this.patches.get(`${at.x},${at.z}`);
+    if (!junction || points.length < 2) return 0;
+    const arm = junction.arms.findIndex((a) => a.points.length > 1 && a.points[1].x === points[1].x && a.points[1].z === points[1].z);
+    return arm < 0 ? 0 : junction.patch.mouths[arm];
   }
 
   // A road kicker is a wall from behind: the circuit past one is one way.
@@ -226,7 +240,6 @@ function trace(atlas: Atlas, legs: number[], pair: [number, number]): Candidate 
   const points: RoadPoint[] = [];
   const gates: Omit<Checkpoint, "index">[] = [];
   let turns = 0;
-  let metres = 0;
   const gate = (p: RoadPoint) => {
     const last = gates[gates.length - 1];
     if (last && length(last.x - p.x, last.z - p.z) < GATE_GAP) gates.pop();
@@ -237,8 +250,8 @@ function trace(atlas: Atlas, legs: number[], pair: [number, number]): Candidate 
     const before = k > 0 ? atlas.legs[legs[k - 1]] : null;
     if (before && atlas.corner(before, leg)) {
       turns++;
-      // Only street corners lack a junction patch; anywhere else the gate's posts would stand in its mouth.
-      gate(before.kind === "street" && leg.kind === "street" ? leg.points[0] : at_distance(leg.points, Math.min(GATE_MOUTH, leg.length / 2)));
+      // A gate on a patched junction would stand in its mouth.
+      gate(atlas.mouth(leg.from, leg.points) > 0 ? at_distance(leg.points, Math.min(GATE_MOUTH, leg.length / 2)) : leg.points[0]);
     }
     if (leg.kind !== "street")
       for (let s = GATE_SPACING, walked = 0, i = 1; i < leg.points.length; i++) {
@@ -248,11 +261,38 @@ function trace(atlas: Atlas, legs: number[], pair: [number, number]): Candidate 
           s += GATE_SPACING;
         }
       }
-    points.push(...(k === 0 ? leg.points : leg.points.slice(1)));
-    metres += leg.length;
+    const into = before && atlas.mouth(leg.from, flip(before.points.slice(-2)));
+    const out = before && atlas.mouth(leg.from, leg.points);
+    if (!into || !out || into >= points.length || out >= leg.points.length - 1) {
+      points.push(...(k === 0 ? leg.points : leg.points.slice(1)));
+      return;
+    }
+    points.length -= into;
+    points.push(...fillet(points[points.length - 1], atlas.graph.nodes[leg.from], leg.points[out]), ...leg.points.slice(out));
   });
   gate(points[points.length - 1]);
-  return { legs, points, checkpoints: gates.map((g, index) => ({ ...g, index })), turns, length: metres, pair };
+  return { legs, points, checkpoints: gates.map((g, index) => ({ ...g, index })), turns, length: run(points), pair };
+}
+
+/** The way through a patched junction, from one arm's mouth to the next's, bent round the node like the curbs either side. */
+function fillet(from: RoadPoint, node: { x: number; y: number; z: number }, to: RoadPoint): RoadPoint[] {
+  const steps = Math.ceil((length(node.x - from.x, node.z - from.z) + length(to.x - node.x, to.z - node.z)) / FILLET_STEP);
+  const out: RoadPoint[] = [];
+  for (let s = 1; s < steps; s++) {
+    const t = s / steps;
+    const u = 1 - t;
+    const tx = u * (node.x - from.x) + t * (to.x - node.x);
+    const tz = u * (node.z - from.z) + t * (to.z - node.z);
+    const len = length(tx, tz) || 1;
+    out.push({
+      x: u * u * from.x + 2 * t * u * node.x + t * t * to.x,
+      y: u * u * from.y + 2 * t * u * node.y + t * t * to.y,
+      z: u * u * from.z + 2 * t * u * node.z + t * t * to.z,
+      tx: tx / len,
+      tz: tz / len,
+    });
+  }
+  return out;
 }
 
 const fits = (c: Candidate, w: (typeof WINDOWS)[number]) => c.turns >= w.turns && c.length >= w.min && c.length <= w.max;
@@ -313,8 +353,8 @@ function at_distance(points: readonly RoadPoint[], metres: number): RoadPoint {
  * Point to point through two towns: from the far side of town A out along its spur, round the circuit, and in to the far
  * side of town B. Every street corner gets an apex cone; each route closes the roads it passes while it is raced.
  */
-export function street_routes(graph: RoadGraph, circuit: readonly number[], towns: readonly Town[], heights: Float32Array, ramps: readonly Ramp[] = []): { routes: Route[]; items: Item[] } {
-  const atlas = new Atlas(graph, circuit, towns, ramps);
+export function street_routes(graph: RoadGraph, circuit: readonly number[], towns: readonly Town[], heights: Float32Array, junctions: readonly Junction[], ramps: readonly Ramp[] = []): { routes: Route[]; items: Item[] } {
+  const atlas = new Atlas(graph, circuit, towns, junctions, ramps);
   const candidates: Candidate[] = [];
   const linked = towns.filter((t) => atlas.gates.has(t.id) && (atlas.town_nodes.get(t.id)?.length ?? 0) > 1);
   for (const a of linked)
@@ -342,7 +382,7 @@ export function street_routes(graph: RoadGraph, circuit: readonly number[], town
     c.legs.forEach((l, k) => {
       const leg = atlas.legs[l];
       const before = k > 0 ? atlas.legs[c.legs[k - 1]] : null;
-      if (before?.kind !== "street" || leg.kind !== "street" || !atlas.corner(before, leg)) return;
+      if (before?.kind !== "street" || leg.kind !== "street" || !atlas.corner(before, leg) || atlas.mouth(leg.from, leg.points) > 0) return;
       const a = before.points.at(-1) ?? leg.points[0];
       const b = leg.points[0];
       const inset = STREET_HALF - 0.8;
