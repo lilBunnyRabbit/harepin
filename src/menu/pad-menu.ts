@@ -114,8 +114,8 @@ function settle(el: Element | null) {
 
 /**
  * The pad through every menu outside the garage, on real focus: d-pad and left stick move, A clicks, B backs out, LB / RB
- * switch tabs. Start opens the main menu, or the HUD bar while a card there waits for an answer (mode result, update,
- * join their map), and shuts whatever is open.
+ * switch tabs. Start opens the main menu, or the HUD bar while a card there waits for an answer (mode result or update),
+ * and shuts whatever is open.
  */
 export class PadMenu {
   private hud_open = false;
