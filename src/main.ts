@@ -1,8 +1,4 @@
 import * as THREE from "three";
-import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
-import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
-import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
-import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
 import { Audio } from "./audio";
 import { ChaseCamera } from "./camera";
 import { Directory, clean_room, load_lock } from "./directory";
@@ -26,11 +22,11 @@ import { Quality } from "./quality";
 import { brand, color, rgba, tones } from "./palette";
 import { Race, type RaceSnapshot } from "./race";
 import { Remotes } from "./remotes";
+import { Render } from "./render";
 import { WorldView, load_world, water_mesh } from "./scene";
 import { cloud_floor, clouds, sky } from "./sky";
 import { PadTimer, type PadSnapshot } from "./sky-pads";
 import { Lighting } from "./lighting";
-import { NanProbe, sanitise_bloom } from "./postfx";
 import { CAMERA_RETURN_SECONDS, CameraView, MenuTab, Settings, invite_link, load_settings, take_drive, type SettingsState } from "./settings";
 import { BUILD, Updater, changelog_view, show_version } from "./update";
 import { pick_world } from "./world-pick";
@@ -60,22 +56,14 @@ for (const event of UNLOCK_EVENTS) addEventListener(event, unlock_audio);
 const { world, chunks } = await load_world(seed, kind);
 
 const quality = new Quality(params, prefs.quality);
-// Canvas-bug bisect switches for ?debug, combined with ?quality=medium: each drops one piece of the bloom path.
-const BISECT = ["nobloom", "nocomposer", "noblur", "alpha", "bloomhalf"] as const;
-const bisect = new Set(BISECT.filter((flag) => params.has(flag)));
-document.body.classList.toggle("no-blur", bisect.has("noblur"));
-const renderer = new THREE.WebGLRenderer({ antialias: quality.antialias, powerPreference: "high-performance", alpha: bisect.has("alpha"), premultipliedAlpha: true });
-renderer.setPixelRatio(quality.ratio);
-renderer.setSize(innerWidth, innerHeight, false);
-renderer.shadowMap.type = THREE.PCFShadowMap;
-$("app").append(renderer.domElement);
-
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(64, innerWidth / innerHeight, 0.1, 5000);
 
 const light = new Lighting(scene);
-const sun = light.sun;
-quality.apply(renderer, scene, sun);
+const render = new Render(params, quality, scene, camera, light);
+const app = $("app");
+render.mount(app);
+render.apply_quality();
 
 const world_view = new WorldView(world, chunks, quality.mobile);
 scene.add(...light.dress(sky(), clouds(world.seed)), world_view.root, ...(world.kind === WorldKind.SKY ? [cloud_floor(world)] : [roadside(world), water_mesh()]));
@@ -104,23 +92,10 @@ const smoke = new Smoke();
 const skids = new Skids();
 scene.add(smoke.mesh, skids.mesh);
 
-const composer = new EffectComposer(renderer);
-composer.addPass(new RenderPass(scene, camera));
-const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), light.bloom.strength, 0.45, light.bloom.threshold);
-if (bisect.has("bloomhalf")) {
-  const set_size = bloom.setSize.bind(bloom);
-  bloom.setSize = (width, height) => set_size(Math.round(width / 2), Math.round(height / 2));
-}
-sanitise_bloom(bloom);
-const nan_probe = params.has("debug") ? new NanProbe() : null;
-if (nan_probe) composer.addPass(nan_probe);
-if (!bisect.has("nobloom")) composer.addPass(bloom);
-composer.addPass(new OutputPass());
-
 const garage_stage = document.createElement("div");
 garage_stage.className = "menu-garage";
 const garage = new Garage(garage_stage, build);
-const input = new Input($("touch"), renderer.domElement);
+const input = new Input($("touch"), render.renderer.domElement);
 input.blocked = () => garage.is_open || settings.is_open || pad_menu.is_open;
 chat.blocked = () => garage.is_open || settings.is_open;
 input.touch.start();
@@ -128,7 +103,7 @@ input.touch.show_nitro(car.nitro.fitted);
 input.mouse.start();
 const recenter = $("recenter", HTMLButtonElement);
 recenter.addEventListener("click", () => chase.recenter());
-renderer.domElement.addEventListener("dblclick", () => chase.recenter());
+render.renderer.domElement.addEventListener("dblclick", () => chase.recenter());
 
 const race = new Race(world);
 const chase = new ChaseCamera(camera);
@@ -216,7 +191,7 @@ function apply_settings(state: SettingsState) {
 settings.on_change = (state, key) => {
   if (key === "quality") {
     quality.set_mode(state.quality);
-    quality.apply(renderer, scene, sun);
+    render.apply_quality();
   } else if (key === "name") net.set_name(state.name ?? random_name);
   else apply_settings(state);
 };
@@ -383,70 +358,6 @@ function update_gates(t: number) {
     g.material.color.copy(next ? lit : unlit);
     g.material.emissive.copy(next ? lit : black).multiplyScalar(next ? 0.55 + Math.sin(t * 6) * 0.25 : 0);
   });
-}
-
-const app = $("app");
-let fitted = "";
-// CSS owns the canvas size; this only matches the drawing buffer to it. Polled every frame because a resize event can
-// be missed (tab opened in the background, snapped window, zoom while hidden) and would leave the buffer stale.
-let size_report = "";
-let render_report = "";
-const DEBUG_MS = 250;
-const debug_overlay = params.has("debug") ? document.body.appendChild(Object.assign(document.createElement("pre"), { id: "debug" })) : null;
-let debug_at = 0;
-const composer_on = () => quality.tier.bloom && !bisect.has("nocomposer");
-// Runs after the frame is drawn, so viewport and scissor are what that frame actually left behind.
-function check_size(now: number) {
-  const gl = renderer.getContext();
-  const canvas = renderer.domElement;
-  const rect = canvas.getBoundingClientRect();
-  const viewport = gl.getParameter(gl.VIEWPORT) as Int32Array;
-  const scissor = gl.getParameter(gl.SCISSOR_BOX) as Int32Array;
-  const report = [
-    `window ${innerWidth}x${innerHeight} @${devicePixelRatio}`,
-    `canvas css ${rect.left},${rect.top} ${rect.width}x${rect.height}`,
-    `buffer ${canvas.width}x${canvas.height}`,
-    `drawing ${gl.drawingBufferWidth}x${gl.drawingBufferHeight}`,
-    `viewport ${[...viewport].join(",")}`,
-    `scissor ${gl.isEnabled(gl.SCISSOR_TEST) ? "on" : "off"} ${[...scissor].join(",")}`,
-    `ratio ${renderer.getPixelRatio()} tier ${quality.level}`,
-    `target ${renderer.getRenderTarget() === null ? "screen" : "offscreen"}`,
-    `composer ${composer_on() ? "on" : "off"} bloom ${composer_on() && !bisect.has("nobloom") && bloom.enabled ? "on" : "off"} shadows ${renderer.shadowMap.enabled ? "on" : "off"}`,
-    `bisect ${[...bisect].join(" ") || "none"}`,
-  ].join(" | ");
-  if (report !== render_report) {
-    render_report = report;
-    console.info("render:", report);
-  }
-  if (debug_overlay && now - debug_at > DEBUG_MS) {
-    debug_at = now;
-    const probe = composer_on() ? (nan_probe?.status ?? "") : "scene n/a (no composer)";
-    debug_overlay.textContent = `${report.replaceAll(" | ", "\n")}\n${probe}`;
-  }
-  const ok =
-    Math.abs(rect.width - innerWidth) < 1 &&
-    Math.abs(rect.height - innerHeight) < 1 &&
-    canvas.width === gl.drawingBufferWidth &&
-    canvas.height === gl.drawingBufferHeight &&
-    viewport[2] === canvas.width &&
-    viewport[3] === canvas.height;
-  if (!ok && report !== size_report) console.warn("canvas size mismatch:", report);
-  size_report = ok ? "" : report;
-}
-
-function fit() {
-  const width = app.clientWidth;
-  const height = app.clientHeight;
-  const ratio = quality.ratio;
-  const key = `${width}x${height}@${ratio}`;
-  if (key === fitted || !width || !height) return;
-  fitted = key;
-  renderer.setPixelRatio(ratio);
-  renderer.setSize(width, height, false);
-  composer.setPixelRatio(ratio);
-  composer.setSize(width, height);
-  camera.aspect = width / height;
-  camera.updateProjectionMatrix();
 }
 
 const TOGGLE_LABEL = { tcs: "TCS", abs: "ABS", assist: "Steer assist", ghost: "Ghost" } as const;
@@ -637,15 +548,12 @@ function frame(now: number) {
 
   if (input.touch.nitro && car.nitro.fill <= 0) input.touch.tank_empty();
   hud.update(car, now, rewinding);
-  if (quality.adapt(dt)) quality.apply(renderer, scene, sun);
-  fit();
+  if (quality.adapt(dt)) render.apply_quality();
+  render.fit(app);
   world_view.update(camera, quality.tier.fog_far);
   // The garage covers the screen and draws the car with its own renderer; the next frame after it closes draws the world.
-  if (!garage.is_open) {
-    if (composer_on()) composer.render();
-    else renderer.render(scene, camera);
-  }
-  if (import.meta.env.DEV || debug_overlay) check_size(now);
+  if (!garage.is_open) render.draw();
+  render.check_size(now);
   requestAnimationFrame(frame);
 }
 
@@ -667,9 +575,9 @@ if (import.meta.env.DEV)
       race,
       world,
       ghost,
-      renderer,
-      composer,
-      step_quality: () => quality.step() && quality.apply(renderer, scene, sun),
+      renderer: render.renderer,
+      composer: render.composer,
+      step_quality: () => quality.step() && render.apply_quality(),
     },
   });
 
