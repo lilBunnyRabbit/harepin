@@ -251,12 +251,9 @@ function graphics(m: SettingsMenu): HTMLElement[] {
 
 function hud_wire(m: SettingsMenu): HTMLElement {
   const layout = HUD_LAYOUTS.find((option) => option.value === m.state().hud) ?? HUD_LAYOUTS[0];
-  const map = m.state().map;
   const frame = el("span", "hud-wire");
   frame.setAttribute("aria-hidden", "true");
-  for (const [part, x, y, w, tall] of layout.wire) {
-    if (part === "map" && map === MapView.OFF) continue;
-    const h = part === "map" && map === MapView.PACE ? tall / 2 : tall;
+  for (const [part, x, y, w, h] of layout.wire) {
     const box = el("span", `hud-wire-${part}`);
     box.style.inset = `${y}% ${100 - x - w}% ${100 - y - h}% ${x}%`;
     frame.append(box);
@@ -339,7 +336,6 @@ function display(m: SettingsMenu): HTMLElement[] {
       () => `${MAP_VIEWS[m.state().map][1]}.`,
       m.value("map"),
       Object.values(MapView).map((view) => [view, MAP_VIEWS[view][0]] as const),
-      () => hud_wire(m),
     ),
     theme,
     m.rows.link("Make your own theme", "Roll colours, keep the ones you like, then name and save it.", "Roll, adjust, save", () => m.show_sub("creator")),
