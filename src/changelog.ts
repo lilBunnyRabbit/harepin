@@ -23,6 +23,20 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.23.0",
+    date: "2026-11-10",
+    title: "Mainland",
+    changes: [
+      { kind: NEW, text: "Mainland: a 6 km world of towns joined by open roads, with a long circuit. It streams in around you as you drive." },
+      { kind: NEW, text: "The Play tab leads with a live map of the mainland: where you are, the towns, the circuit and other players. The small worlds sit beside it as Mini maps." },
+      { kind: NEW, text: "New players start on the mainland, and the open lobby meets there." },
+      { kind: NEW, text: "Dune sea replaces the desert: wind-cut dune ridges, flat pans to blast across, long straights and wind pumps. Desert records start fresh." },
+      { kind: IMPROVED, text: "The game starts faster, especially on phones." },
+      { kind: IMPROVED, text: "Sand looks warm in the light themes instead of olive." },
+      { kind: FIXED, text: "A failed start shows a clean screen with a Reload button." },
+    ],
+  },
+  {
     version: "0.22.1",
     date: "2026-11-10",
     title: "Small fixes",
