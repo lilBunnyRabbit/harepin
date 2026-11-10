@@ -72,8 +72,8 @@ export class WorldStream {
   }
 
   /**
-   * A streamed world keeps the chunks whose centre lies within `reach` of (x, z) and lets go of those past one chunk
-   * more, so driving along a border does not churn. Called every frame; only a new chunk or reach works.
+   * A streamed world keeps the chunks with any point within `reach` of (x, z) and lets go of those past one chunk more,
+   * so driving along a border does not churn. Called every frame; only a new chunk or reach works.
    */
   follow(x: number, z: number, reach: number) {
     const { tiles } = this.world;
@@ -90,8 +90,8 @@ export class WorldStream {
     const leave = (reach + CHUNK) ** 2;
     for (let index = 0; index < ext.side * ext.side; index++) {
       const [x0, z0] = chunk_corner(index, ext);
-      const dx = x0 + CHUNK / 2 - x;
-      const dz = z0 + CHUNK / 2 - z;
+      const dx = Math.max(x0 - x, 0, x - x0 - CHUNK);
+      const dz = Math.max(z0 - z, 0, z - z0 - CHUNK);
       const d = dx * dx + dz * dz;
       const held = tiles.get(index) !== undefined || this.pending[index] > this.stale[index];
       if (d <= keep && !held) this.request(index);

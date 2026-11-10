@@ -67,10 +67,16 @@ test("a streamed world keeps only the chunks around the car, nearest first, and 
   const order: number[] = [];
   stream.listen({ add: (c) => void (shown.add(c.index), order.push(c.index)), drop: (index) => void shown.delete(index) });
   const fog = 700;
-  const from = (index: number, x: number, z: number) => Math.hypot(ext.origin + ((index % ext.side) + 0.5) * CHUNK - x, ext.origin + (Math.floor(index / ext.side) + 0.5) * CHUNK - z);
+  const pad = 128;
+  const from = (index: number, x: number, z: number) => {
+    const x0 = ext.origin + (index % ext.side) * CHUNK;
+    const z0 = ext.origin + Math.floor(index / ext.side) * CHUNK;
+    return Math.hypot(Math.max(x0 - x, 0, x - x0 - CHUNK), Math.max(z0 - z, 0, z - z0 - CHUNK));
+  };
+  const in_fog = (x: number, z: number) => Array.from({ length: ext.side ** 2 }, (_, index) => index).filter((index) => from(index, x, z) <= fog);
   const resident = () => Array.from({ length: ext.side ** 2 }, (_, index) => index).filter((index) => tiles.get(index));
   const settle = async (x: number, z: number) => {
-    stream.follow(x, z, fog + CHUNK);
+    stream.follow(x, z, fog + pad);
     await tiles.ensure(x, z);
     for (let last = -1; last !== order.length; ) {
       last = order.length;
@@ -79,14 +85,16 @@ test("a streamed world keeps only the chunks around the car, nearest first, and 
   };
   await settle(0, 0);
   const first = resident();
-  expect(first.length).toBeGreaterThan(38);
-  expect(first.length).toBeLessThan(50);
+  expect(first.length).toBeGreaterThan(44);
+  expect(first.length).toBeLessThan(60);
+  expect(in_fog(0, 0).filter((index) => !tiles.get(index))).toEqual([]);
   expect([...shown].sort()).toEqual(first.sort());
   expect(from(order[0], 0, 0)).toBeLessThan(CHUNK);
   await settle(1500, 0);
   const now = resident();
-  for (const index of now) expect(from(index, 1500, 0)).toBeLessThanOrEqual(fog + 2 * CHUNK);
-  expect(first.filter((index) => from(index, 1500, 0) > fog + 2 * CHUNK).length).toBeGreaterThan(10);
+  expect(in_fog(1500, 0).filter((index) => !tiles.get(index))).toEqual([]);
+  for (const index of now) expect(from(index, 1500, 0)).toBeLessThanOrEqual(fog + pad + CHUNK);
+  expect(first.filter((index) => from(index, 1500, 0) > fog + pad + CHUNK).length).toBeGreaterThan(10);
   expect([...shown].sort()).toEqual(now.sort());
 }, 60_000);
 
