@@ -3,11 +3,11 @@ import { Audio } from "./audio";
 import { ChaseCamera } from "./camera";
 import { Driver } from "./driver";
 import { Directory, clean_room, load_lock } from "./directory";
-import { build_code } from "./build";
 import { Chat } from "./chat";
 import { Skids, Smoke } from "./effects";
 import { Garage, load_build } from "./garage";
 import { Ghost } from "./ghost";
+import { Heartbeat } from "./heartbeat";
 import { $, Hud } from "./hud";
 import { Input } from "./input";
 import { Lobby, lobby_routes } from "./lobby";
@@ -16,7 +16,7 @@ import { race_choices } from "./modes/races";
 import { gates, place_contact_shadow, roadside, show_flame, sync_car_view } from "./models";
 import { GUIDE_PARAM, ROLLED_VISIT } from "./guide";
 import { PadMenu } from "./pad-menu";
-import { Net, WRONG_PASSWORD, type CarState } from "./net";
+import { Net, WRONG_PASSWORD } from "./net";
 import { peer_pass, type Near } from "./nitro";
 import { Quality } from "./quality";
 import { brand, color, rgba, tones } from "./palette";
@@ -288,29 +288,7 @@ const drawn = { pos: new THREE.Vector3(), quat: new THREE.Quaternion(), vel: new
 let last = performance.now();
 let last_rumble = 0;
 
-// A timer, not the render loop: rAF stops in a background tab, and a silent peer gets pruned by everyone else.
-setInterval(() => {
-  const car = driver.car;
-  const state: CarState = {
-    id: net.id,
-    name: net.name,
-    paint: garage.build.paint,
-    // Builds before 0.5.0 reject suspension 3, builds before nitro reject its tail digit and builds before the aero kits
-    // reject aero 3 and 4, each showing the whole car as a stock coupe; peers never see suspension, see a kit as its wing,
-    // and see nitro by the `boost` flame flag.
-    b: build_code({ ...garage.build, parts: { ...garage.build.parts, suspension: Math.min(garage.build.parts.suspension, 2), aero: Math.min(garage.build.parts.aero, 2), nitro: 0 } }),
-    seed,
-    t: performance.now(),
-    p: car.pos.toArray() as CarState["p"],
-    q: car.quat.toArray() as CarState["q"],
-    v: car.vel.toArray() as CarState["v"],
-    steer: car.steer,
-    brake: car.braking > 0.05,
-    boost: car.nitro.boosting,
-    best: race.best,
-  };
-  net.send(state);
-}, 50);
+new Heartbeat(net, garage, driver, race, seed).start();
 let stuck = 0;
 let rewinding = false;
 
