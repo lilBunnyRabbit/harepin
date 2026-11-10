@@ -4,7 +4,7 @@ import { cell_range, sample, up, vertex } from "./field";
 import { DECK_GRADE, gap_jump, type GapJump } from "./gap";
 import { circle16, length, smoothstep } from "./noise";
 import { chaikin, limit_grade, resample, road_points, smooth, type Path } from "./path";
-import { Heap } from "./route";
+import { Heap } from "./heap";
 import type { Stamp, TrailLine } from "./stamp";
 import { CELL, N, ORIGIN, ROAD_HALF, SIZE, type Canyon, type RoadPoint, type Solid, type Terrain, type Town } from "./types";
 
