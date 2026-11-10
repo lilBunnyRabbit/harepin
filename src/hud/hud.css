@@ -1165,7 +1165,7 @@
 
 /* Last in the corner, so showing it or a count changing never moves the map or the player list above it. */
 #online-chip {
-  align-self: flex-end;
+  align-self: center;
   display: inline-flex;
   --chip-gap: var(--space-2);
   align-items: center;
@@ -1220,7 +1220,7 @@
     display: flex;
     width: fit-content;
     height: 24px;
-    margin: var(--space-1) 0 0 auto;
+    margin: var(--space-1) auto 0;
     --chip-gap: var(--space-1);
     padding: 0 var(--space-2);
     font-size: var(--text-xs);
