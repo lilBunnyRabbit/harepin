@@ -6,6 +6,7 @@ import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPa
 import type { Lighting } from "./lighting";
 import { NanProbe, sanitise_bloom } from "./postfx";
 import type { Quality } from "./quality";
+import "./render.css";
 
 // Canvas-bug bisect switches for ?debug, combined with ?quality=medium: each changes one piece of the bloom path.
 const BISECT = ["nobloom", "nocomposer", "noblur", "alpha", "bloomfull"] as const;

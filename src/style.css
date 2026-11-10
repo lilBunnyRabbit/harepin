@@ -867,21 +867,6 @@ select {
   }
 }
 
-#debug {
-  position: fixed;
-  left: 50%;
-  bottom: var(--inset-bottom);
-  translate: -50% 0;
-  z-index: 50;
-  margin: 0;
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-sm);
-  background: var(--panel);
-  color: var(--foreground);
-  font: var(--text-xs) / 1.4 var(--font-mono);
-  pointer-events: none;
-}
-
 /* ?noblur canvas-bug bisect switch: drops every compositor filter over the canvas. */
 body.no-blur * {
   backdrop-filter: none !important;
