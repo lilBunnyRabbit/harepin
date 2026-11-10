@@ -1,5 +1,69 @@
+import type * as THREE from "three";
 import type { CarSpec } from "../cars";
+import type { World } from "../world";
 import type { Body } from "./gymkhana";
+import type { Track } from "./track";
+
+export const NO_SITE = "No flat ground near the start on this map";
+
+export interface Driven {
+  pos: THREE.Vector3;
+  vel: THREE.Vector3;
+  quat: THREE.Quaternion;
+  readonly heading: number;
+  readonly spec: CarSpec;
+}
+
+export interface Level {
+  id: string;
+  name: string;
+  brings: string;
+}
+
+export interface Finish {
+  title: string;
+  stars: number;
+  lines: HTMLElement[];
+  /** Gymkhana and parking show their card without the chime. */
+  quiet?: boolean;
+}
+
+export interface ModeCtx {
+  readonly scene: THREE.Scene;
+  readonly world: World;
+  readonly start_index: number;
+  readonly camera: THREE.Camera;
+  readonly track: Track;
+  /** Set while a lobby race runs on a route of its own: called at each lap's end, true while laps remain. */
+  lobby_lap(): (() => boolean) | null;
+  race_busy(): boolean;
+  high(): boolean;
+  spawn(x: number, z: number, heading: number): void;
+  spawn_on(p: { x: number; z: number; tx: number; tz: number }): void;
+  chime(): void;
+  hint(turn: number): void;
+  hide_hint(): void;
+  exit(): void;
+}
+
+export interface ModeRun {
+  /** `sim_dt`: seconds of physics stepped this frame, 0 while the sim is paused. Returns the status line, or null to keep it. */
+  update(sim_dt: number, car: Driven): string | null;
+  finished(): Finish | null;
+  readonly holding?: boolean;
+  dispose(): void;
+}
+
+export interface ModeDef<L extends Level = Level> {
+  readonly id: string;
+  readonly name: string;
+  readonly needs_ground: boolean;
+  readonly busy_notice: string;
+  readonly high_view?: boolean;
+  levels(world: World): readonly L[];
+  /** A run, a status line saying why it can't start, or null to do nothing. */
+  start(ctx: ModeCtx, level: L): ModeRun | string | null;
+}
 
 export function body_of(spec: CarSpec): Body {
   return { circles: spec.circles, radius: spec.radius, length: spec.body.length, width: spec.body.width };

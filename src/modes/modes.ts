@@ -1,49 +1,32 @@
-import * as THREE from "three";
-import type { CarSpec } from "../cars";
-import { Ghost } from "../ghost";
+import type * as THREE from "three";
 import { $, format } from "../hud";
-import { ROAD_HALF, type World } from "../world";
-import { world_key } from "../worldgen/types";
-import { ComboEnd, DRIFT_IDS, DRIFT_LEVELS, DriftRun, DriftStatus, LEAD, build_zone, type DriftLevel } from "./drift";
-import { DriftView } from "./drift-view";
-import { HUNT_IDS, HUNT_LEVELS, HuntRun, HuntStatus, build_hunt, type HuntLevel } from "./hunt";
-import { HuntView } from "./hunt-view";
-import { DUEL_IDS, DUEL_LEAD, DUEL_LEVELS, DuelRun, DuelStatus, build_route, type DuelLevel } from "./duel";
-import { DuelView } from "./duel-view";
-import { GymRun, HIT_MS, LEVELS, LEVEL_IDS, MISS_MS, RunStatus, Step, build_course, find_site, to_world, type Course, type GymLevel, type Site } from "./gymkhana";
-import { GymkhanaView } from "./gymkhana-view";
-import { PARK_IDS, PARK_LEVELS, ParkRun, ParkStatus, Verdict, park_footprint, park_solids, type ParkLevel } from "./parking";
-import { ParkingView } from "./parking-view";
-import { COUNTDOWN_MS, RaceRun, RaceStatus, race_course, race_levels, type RaceLevel } from "./races";
-import { RaceView } from "./race-view";
-import { body_of, turn_to } from "./mode";
-import { MAX_STARS, Track, local_store, type RaceRecord, type StarRun } from "./track";
+import type { World } from "../world";
+import { DRIFT_MODE } from "./drift-mode";
+import { DUEL_MODE } from "./duel-mode";
+import { GYMKHANA_MODE } from "./gymkhana-mode";
+import { HUNT_MODE } from "./hunt-mode";
+import type { Driven, Finish, Level, ModeCtx, ModeDef, ModeRun } from "./mode";
+import { PARKING_MODE } from "./parking-mode";
+import { RACE_MODE } from "./race-mode";
+import { race_levels } from "./races";
+import { run_text, star_row } from "./result";
+import { MAX_STARS, Track, local_store, type RaceRecord } from "./track";
+
+export type { Driven } from "./mode";
+
+const MODES: readonly ModeDef[] = [RACE_MODE, GYMKHANA_MODE, PARKING_MODE, DRIFT_MODE, HUNT_MODE, DUEL_MODE];
 
 const SPAWN_LIFT = 0.75;
 const NOTICE_MS = 2500;
 const DEG = 180 / Math.PI;
-const LOST_MS = 1500;
-
-export interface Driven {
-  pos: THREE.Vector3;
-  vel: THREE.Vector3;
-  quat: THREE.Quaternion;
-  readonly heading: number;
-  readonly spec: CarSpec;
-}
-
-interface Listed {
-  id: string;
-  name: string;
-  brings: string;
-}
+const OPEN_GROUND = "Needs open ground: drive the island for it";
+const SKY_NOTICE = "Gymkhana, parking and gate hunts need open ground: drive the island for them";
 
 export interface LevelEntry {
   id: string;
   name: string;
   brings: string;
   stars: number;
-  /** The best run as shown: a time or points; null before the first finish. */
   best: string | null;
   open: boolean;
   /** Race routes only: metres, and the par time in ms. */
@@ -56,77 +39,30 @@ export interface ModeEntry {
   name: string;
   stars: number;
   max: number;
-  /** Why the mode can't run on this world, or null. */
   blocked: string | null;
   levels: LevelEntry[];
 }
 
-const OPEN_GROUND = "Needs open ground: drive the island for it";
-
-function star_row(stars: number): HTMLSpanElement {
-  const row = document.createElement("span");
-  row.className = "stars";
-  const empty = document.createElement("span");
-  empty.className = "star-empty";
-  empty.textContent = "☆".repeat(MAX_STARS - stars);
-  row.append("★".repeat(stars), empty);
-  return row;
+interface Mode {
+  def: ModeDef;
+  levels: readonly Level[];
+  track: Track;
 }
-const points = (score: number) => Math.round(score).toLocaleString("en-US");
-const run_text = (run: StarRun) => (run.score === undefined ? format(run.ms) : `${points(run.score)} pts`);
 
-function line(label: string, ...value: (string | Node)[]): HTMLElement {
-  const row = document.createElement("div");
-  const name = document.createElement("span");
-  name.className = "dim";
-  name.textContent = label;
-  const text = document.createElement("b");
-  text.append(...value);
-  row.append(name, text);
-  return row;
+interface Active {
+  mode: Mode;
+  level: Level;
+  run: ModeRun | null;
+  shown: boolean;
 }
 
 export class Modes {
-  private readonly track: Track;
-  private readonly park_track: Track;
-  private readonly drift_track: Track;
-  private readonly hunt_track: Track;
-  private readonly duel_track: Track;
-  private readonly race_track: Track;
-  private readonly races: readonly RaceLevel[];
-  private race_level: RaceLevel | null = null;
-  private race: RaceRun | null = null;
-  private race_view: RaceView | null = null;
-  /** Set while a lobby race runs on a route of its own: called at each lap's end, true while laps remain. */
+  private readonly modes: Mode[];
+  private current: Active | null = null;
   private lobby_lap: (() => boolean) | null = null;
-  private race_clock = 0;
-  private site: Site | null | undefined;
-  private park_site: Site | null | undefined;
-  private level: GymLevel | null = null;
-  private course: Course | null = null;
-  private run: GymRun | null = null;
-  private view: GymkhanaView | null = null;
-  private park_level: ParkLevel | null = null;
-  private drift_level: DriftLevel | null = null;
-  private hunt_level: HuntLevel | null = null;
-  private duel_level: DuelLevel | null = null;
-  private park: ParkRun | null = null;
-  private park_view: ParkingView | null = null;
-  private drift: DriftRun | null = null;
-  private drift_view: DriftView | null = null;
-  private hunt: HuntRun | null = null;
-  private hunt_view: HuntView | null = null;
-  private duel: DuelRun | null = null;
-  private duel_view: DuelView | null = null;
-  private ghost: Ghost | null = null;
-  private ghost_id = "";
-  private readonly ghost_at = new THREE.Vector3();
-  private unplace: (() => void) | null = null;
   private high = true;
-  private readonly park_area = park_footprint();
   private abort: AbortController | null = null;
   private status_key = "";
-  private lost_at = -Infinity;
   private readonly el = {
     hint: $("mode-hint"),
     status: $("mode-status"),
@@ -149,45 +85,38 @@ export class Modes {
     private readonly chime: () => void,
     private readonly camera: THREE.Camera,
   ) {
-    this.track = new Track("gymkhana", world.seed, LEVEL_IDS, local_store(), world.kind);
-    this.park_track = new Track("parking", world.seed, PARK_IDS, local_store(), world.kind);
-    this.drift_track = new Track("drift", world.seed, DRIFT_IDS, local_store(), world.kind);
-    this.hunt_track = new Track("hunt", world.seed, HUNT_IDS, local_store(), world.kind);
-    this.duel_track = new Track("duel", world.seed, DUEL_IDS, local_store(), world.kind);
-    this.races = race_levels(world.routes);
-    this.race_track = new Track("race", world.seed, this.races.map((level) => level.id), local_store(), world.kind);
+    this.modes = MODES.map((def) => {
+      const levels = def.levels(world);
+      const track = new Track(def.id, world.seed, levels.map((level) => level.id), local_store(), world.kind);
+      return { def, levels, track };
+    });
   }
 
   get active(): boolean {
-    return this.run !== null || this.park !== null || this.drift !== null || this.hunt !== null || this.duel !== null || this.race !== null;
+    return (this.current?.run ?? null) !== null;
   }
 
   /** A solo race counting down: the car stays on the line. */
   get holding(): boolean {
-    return this.race !== null && this.race.countdown > 0;
+    return this.current?.run?.holding === true;
   }
 
   /** Runs the lobby's race on `id` instead of the circuit; the lobby keeps the time, so there is no countdown or record here. */
   lobby_race(id: string, on_lap: () => boolean) {
     const route = this.world.routes.find((r) => r.id === id);
-    if (!route) return;
+    const mode = this.modes.find((m) => m.def === RACE_MODE);
+    if (!route || !mode) return;
     this.clear();
-    this.level = null;
-    this.race_level = race_levels([route])[0] ?? { id, name: id, brings: "" };
     this.lobby_lap = on_lap;
-    this.restart_race(this.race_level);
-  }
-
-  get current(): GymRun | null {
-    return this.run;
+    this.begin(mode, race_levels([route])[0] ?? { id, name: id, brings: "" });
   }
 
   get parking(): boolean {
-    return this.park !== null;
+    return this.active && this.current?.mode.def.high_view === true;
   }
 
   get high_view(): boolean {
-    return this.park !== null && this.high;
+    return this.parking && this.high;
   }
 
   toggle_view() {
@@ -209,364 +138,97 @@ export class Modes {
   }
 
   play(id: string) {
-    if (this.races.some((level) => level.id === id)) return this.play_race(id);
-    if (this.world.kind === "sky" && !DRIFT_IDS.includes(id) && !DUEL_IDS.includes(id)) return this.notice("Gymkhana, parking and gate hunts need open ground: drive the island for them");
-    if (PARK_IDS.includes(id)) return this.play_park(id);
-    if (DRIFT_IDS.includes(id)) return this.play_drift(id);
-    if (HUNT_IDS.includes(id)) return this.play_hunt(id);
-    if (DUEL_IDS.includes(id)) return this.play_duel(id);
-    const level = LEVELS.find((l) => l.id === id);
-    if (!level || !this.track.is_open(id)) return;
-    if (this.race_busy()) return this.notice("Leave the lobby race to play gymkhana");
-    if (this.site === undefined) this.site = find_site(this.world, this.start_index);
-    this.clear();
-    this.level = level;
-    if (!this.site) {
-      this.show_status("No flat ground near the start on this map");
-      return;
+    for (const mode of this.modes) {
+      const level = mode.levels.find((l) => l.id === id);
+      if (!level) continue;
+      if (mode.def.needs_ground && this.world.kind === "sky") return this.notice(SKY_NOTICE);
+      if (!mode.track.is_open(id)) return;
+      if (this.race_busy()) return this.notice(mode.def.busy_notice);
+      this.clear();
+      return this.begin(mode, level);
     }
-    this.course = build_course(this.world.seed, this.site, level);
-    this.restart();
   }
 
-  private play_park(id: string) {
-    const level = PARK_LEVELS.find((l) => l.id === id);
-    if (!level || !this.park_track.is_open(id)) return;
-    if (this.race_busy()) return this.notice("Leave the lobby race to park");
-    if (this.park_site === undefined) this.park_site = find_site(this.world, this.start_index, this.park_area);
-    this.clear();
-    this.level = null;
-    if (!this.park_site) {
-      this.show_status("No flat ground near the start on this map");
-      return;
-    }
-    this.park_level = level;
-    this.restart();
+  private begin(mode: Mode, level: Level) {
+    this.current = { mode, level, run: null, shown: false };
+    this.launch(this.current);
   }
 
-  private play_drift(id: string) {
-    const level = DRIFT_LEVELS.find((l) => l.id === id);
-    if (!level || !this.drift_track.is_open(id)) return;
-    if (this.race_busy()) return this.notice("Leave the lobby race to drift");
-    this.clear();
-    this.level = null;
-    this.drift_level = level;
-    this.restart();
-  }
-
-  private restart_drift(level: DriftLevel) {
-    const zone = build_zone(this.world.seed, this.world.road, level);
-    this.drift_view?.dispose();
-    this.drift_view = new DriftView(zone, this.world);
-    this.scene.add(this.drift_view.root);
-    this.drift = new DriftRun(zone, this.world.solids);
-    this.lost_at = -Infinity;
+  private launch(active: Active) {
+    const run = active.mode.def.start(this.ctx(active.mode.track), active.level);
+    if (typeof run === "string") return this.show_status(run);
+    if (!run) return;
+    active.run = run;
+    active.shown = false;
     this.el.result.hidden = true;
-    this.place_on(zone.points[0]);
   }
 
-  private play_hunt(id: string) {
-    const level = HUNT_LEVELS.find((l) => l.id === id);
-    if (!level || !this.hunt_track.is_open(id)) return;
-    if (this.race_busy()) return this.notice("Leave the lobby race to hunt gates");
-    this.clear();
-    this.level = null;
-    this.hunt_level = level;
-    this.restart();
-  }
-
-  private restart_hunt(level: HuntLevel) {
-    const from = this.world.road[(this.start_index + this.world.road.length) % this.world.road.length];
-    const hunt = build_hunt(this.world.seed, this.world, from, level);
-    this.hunt_view?.dispose();
-    this.hunt_view = new HuntView(hunt, this.world);
-    this.scene.add(this.hunt_view.root);
-    this.hunt = new HuntRun(hunt);
-    this.el.result.hidden = true;
-    this.place_on(from);
-  }
-
-  private play_duel(id: string) {
-    const level = DUEL_LEVELS.find((l) => l.id === id);
-    if (!level || !this.duel_track.is_open(id)) return;
-    if (this.race_busy()) return this.notice("Leave the lobby race to duel your ghost");
-    this.clear();
-    this.level = null;
-    this.duel_level = level;
-    this.restart();
-  }
-
-  private restart_duel(level: DuelLevel) {
-    const route = build_route(this.world.seed, this.world.road, level, (index) => this.world.clear_spawn(index));
-    this.duel_view?.dispose();
-    this.duel_view = new DuelView(route, this.world);
-    this.scene.add(this.duel_view.root);
-    if (this.ghost_id !== level.id) {
-      this.ghost?.dispose();
-      this.ghost = new Ghost(this.scene, this.world.seed, `harepin:ghost:duel:${level.id}:${world_key(this.world.seed, this.world.kind)}`);
-      this.ghost_id = level.id;
-    }
-    this.ghost?.start();
-    this.duel = new DuelRun(route);
-    this.el.result.hidden = true;
-    this.place_on(route.points[0]);
-  }
-
-  private play_race(id: string) {
-    const level = this.races.find((l) => l.id === id);
-    if (!level || !this.race_track.is_open(id)) return;
-    if (this.race_busy()) return this.notice("Leave the lobby race to race solo");
-    this.clear();
-    this.level = null;
-    this.race_level = level;
-    this.restart();
-  }
-
-  private restart_race(level: RaceLevel) {
-    const route = this.world.routes.find((r) => r.id === level.id);
-    if (!route) return;
-    const course = race_course(route);
-    this.race_view?.dispose();
-    this.race_view = new RaceView(course, this.world);
-    this.scene.add(this.race_view.root);
-    this.race = new RaceRun(course, this.lobby_lap ? 0 : COUNTDOWN_MS);
-    this.race_clock = 0;
-    this.el.result.hidden = true;
-    this.place_on(course.line[0]);
-  }
-
-  private place_on(p: { x: number; z: number; tx: number; tz: number }) {
-    this.place(p.x, this.world.height(p.x, p.z) + SPAWN_LIFT, p.z, Math.atan2(p.tx, p.tz));
+  private ctx(track: Track): ModeCtx {
+    const { scene, world, start_index, camera } = this;
+    const spawn = (x: number, z: number, heading: number) => this.place(x, world.height(x, z) + SPAWN_LIFT, z, heading);
+    return {
+      scene,
+      world,
+      start_index,
+      camera,
+      track,
+      lobby_lap: () => this.lobby_lap,
+      race_busy: () => this.race_busy(),
+      high: () => this.high,
+      spawn,
+      spawn_on: (p) => spawn(p.x, p.z, Math.atan2(p.tx, p.tz)),
+      chime: () => this.chime(),
+      hint: (turn) => this.show_hint(turn),
+      hide_hint: () => {
+        this.el.hint.hidden = true;
+      },
+      exit: () => this.exit(),
+    };
   }
 
   restart() {
-    if (this.park_level) return this.restart_park(this.park_level);
-    if (this.drift_level) return this.restart_drift(this.drift_level);
-    if (this.hunt_level) return this.restart_hunt(this.hunt_level);
-    if (this.duel_level) return this.restart_duel(this.duel_level);
-    if (this.race_level) return this.lobby_lap ? this.notice("Lobby race is running") : this.restart_race(this.race_level);
-    const { course } = this;
-    if (!course) return;
-    this.view?.dispose();
-    this.view = new GymkhanaView(course, this.world);
-    this.scene.add(this.view.root);
-    this.run = new GymRun(course);
-    this.el.result.hidden = true;
-    const { site } = course;
-    this.place(site.x, this.world.height(site.x, site.z) + SPAWN_LIFT, site.z, site.heading);
-  }
-
-  private restart_park(level: ParkLevel) {
-    const site = this.park_site;
-    if (!site) return;
-    this.park_view?.dispose();
-    this.unplace?.();
-    this.park_view = new ParkingView(site, level, this.world, this.world.seed, this.park_area);
-    this.scene.add(this.park_view.root);
-    const solids = park_solids(site, level, (x, z) => this.world.height(x, z));
-    this.unplace = this.world.place(solids);
-    this.park = new ParkRun(site, level, solids);
-    this.el.result.hidden = true;
-    const at = to_world(site, level.start.u, level.start.v);
-    this.place(at.x, this.world.height(at.x, at.z) + SPAWN_LIFT, at.z, site.heading + level.start.heading);
+    const active = this.current;
+    if (!active) return;
+    if (this.lobby_lap) return this.notice("Lobby race is running");
+    active.run?.dispose();
+    active.run = null;
+    this.launch(active);
   }
 
   exit() {
     this.clear();
-    this.level = null;
     this.el.status.hidden = true;
   }
 
   private clear() {
-    this.view?.dispose();
-    this.view = null;
-    this.course = null;
-    this.run = null;
-    this.park_view?.dispose();
-    this.park_view = null;
-    this.unplace?.();
-    this.unplace = null;
-    this.park = null;
-    this.park_level = null;
-    this.drift_view?.dispose();
-    this.drift_view = null;
-    this.drift = null;
-    this.drift_level = null;
-    this.hunt_view?.dispose();
-    this.hunt_view = null;
-    this.hunt = null;
-    this.hunt_level = null;
-    this.duel_view?.dispose();
-    this.duel_view = null;
-    this.duel = null;
-    this.duel_level = null;
-    this.race_view?.dispose();
-    this.race_view = null;
-    this.race = null;
-    this.race_level = null;
+    this.current?.run?.dispose();
+    this.current = null;
     this.lobby_lap = null;
-    this.ghost?.update(null, this.camera.position);
     this.el.hint.hidden = true;
     this.el.result.hidden = true;
     this.status_key = "";
   }
 
   private play_next() {
-    const ids = this.park_level ? PARK_IDS : this.drift_level ? DRIFT_IDS : this.hunt_level ? HUNT_IDS : this.duel_level ? DUEL_IDS : this.race_level ? this.race_track.ids : LEVEL_IDS;
-    const current = this.park_level ?? this.drift_level ?? this.hunt_level ?? this.duel_level ?? this.race_level ?? this.level;
-    const next = ids[ids.indexOf(current?.id ?? "") + 1];
+    const active = this.current;
+    if (!active) return;
+    const ids = active.mode.levels.map((level) => level.id);
+    const next = ids[ids.indexOf(active.level.id) + 1];
     if (next) this.play(next);
   }
 
-  /** `sim_dt`: seconds of physics stepped this frame, 0 while the sim is paused. */
   update(sim_dt: number, car: Driven) {
-    if (this.park) return this.update_park(sim_dt, car, this.park);
-    if (this.drift) return this.update_drift(sim_dt, car, this.drift);
-    if (this.hunt) return this.update_hunt(sim_dt, car, this.hunt);
-    if (this.duel) return this.update_duel(sim_dt, car, this.duel);
-    if (this.race) return this.update_race(sim_dt, car, this.race);
-    const { run, view, level } = this;
-    if (!run || !view || !level) return;
-    const was = run.status;
-    const hits = run.update(sim_dt * 1000, { x: car.pos.x, z: car.pos.z, heading: car.heading, speed: car.vel.length() }, body_of(car.spec));
-    view.knock(hits);
-    view.update(sim_dt);
-    const step = run.step;
-    view.target(step === Step.SPIN ? "spin" : step === Step.STOP ? "stop" : null);
-    if (was !== RunStatus.DONE && run.status === RunStatus.DONE) this.finish(run, level);
-    const doing =
-      run.status === RunStatus.READY
-        ? "cross the start line"
-        : step === Step.SLALOM
-          ? `slalom ${run.next + 1}/${run.course.sides.length}`
-          : step === Step.SPIN
-            ? "spin 180° in the box"
-            : step === Step.STOP
-              ? "stop in the box, facing back"
-              : "done";
-    const penalty = run.penalty_ms();
-    this.show_status(`${level.name} · ${format(run.total())}${penalty ? ` (+${penalty / 1000} s)` : ""} · ${doing}`);
-  }
-
-  private update_park(sim_dt: number, car: Driven, run: ParkRun) {
-    const was = run.status;
-    run.update(sim_dt * 1000, { x: car.pos.x, z: car.pos.z, heading: car.heading, speed: car.vel.length() }, body_of(car.spec));
-    const verdict = run.last.verdict;
-    this.park_view?.inside(verdict === Verdict.INSIDE);
-    if (was !== ParkStatus.DONE && run.status === ParkStatus.DONE) this.finish_park(run);
-    const doing =
-      run.status === ParkStatus.READY
-        ? `park in the marked bay · C ${this.high ? "chase" : "high"} view`
-        : run.status === ParkStatus.DONE
-          ? "parked"
-          : verdict === Verdict.INSIDE
-            ? run.held > 0
-              ? "hold it"
-              : "stop to park"
-            : verdict === Verdict.BACKWARDS
-              ? "facing the wrong way"
-              : verdict === Verdict.CROOKED
-                ? "straighten up"
-                : "park in the marked bay";
-    const touches = run.touches ? ` · touches ${run.touches}` : "";
-    this.show_status(`${run.level.name} · ${format(run.elapsed())}${touches} · ${doing}`);
-  }
-
-  private update_drift(sim_dt: number, car: Driven, run: DriftRun) {
-    const was = run.status;
-    const end = run.update(
-      sim_dt * 1000,
-      { x: car.pos.x, z: car.pos.z, heading: car.heading, vx: car.vel.x, vz: car.vel.z },
-      body_of(car.spec),
-      ROAD_HALF,
-    );
-    if (end === ComboEnd.LOST) this.lost_at = run.clock;
-    if (was !== DriftStatus.DONE && run.status === DriftStatus.DONE) this.finish_drift(run);
-    const { level } = run.zone;
-    const { combo } = run;
-    if (run.status === DriftStatus.READY) {
-      this.show_status(`${level.name} · zone in ${Math.round((LEAD - Math.max(0, run.tracker.index)) * 2)} m`);
-      return;
+    const active = this.current;
+    const run = active?.run;
+    if (!active || !run) return;
+    const status = run.update(sim_dt, car);
+    if (this.current !== active || active.run !== run) return;
+    const finish = active.shown ? null : run.finished();
+    if (finish) {
+      active.shown = true;
+      this.show_result(finish, active);
     }
-    const live = combo.chain > 0 ? ` · ×${combo.mult} +${points(combo.chain)}` : run.clock - this.lost_at < LOST_MS ? " · wall, combo lost" : "";
-    this.show_status(`${level.name} · ${points(combo.score)} pts${live}`);
-  }
-
-  private update_hunt(sim_dt: number, car: Driven, run: HuntRun) {
-    const was = run.status;
-    const hit = run.update(sim_dt * 1000, car.pos.x, car.pos.z, car.vel.length());
-    if (hit >= 0) {
-      this.hunt_view?.found(hit);
-      if (run.status !== HuntStatus.DONE) this.chime();
-    }
-    if (was !== HuntStatus.DONE && run.status === HuntStatus.DONE) {
-      this.el.hint.hidden = true;
-      this.finish_hunt(run);
-      return;
-    }
-    const next = run.nearest(car.pos.x, car.pos.z);
-    this.hunt_view?.aim(next);
-    this.hunt_view?.update(sim_dt);
-    const gate = run.hunt.gates[next];
-    const { gates, level } = run.hunt;
-    if (!gate) return;
-    const dx = gate.x - car.pos.x;
-    const dz = gate.z - car.pos.z;
-    this.show_hint(turn_to(car, gate.x, gate.z));
-    const doing = run.status === HuntStatus.READY ? "drive to start the clock" : format(run.elapsed());
-    this.show_status(`${level.name} · ${run.found.size}/${gates.length} · ${doing} · ${Math.round(Math.hypot(dx, dz))} m`);
-  }
-
-  private update_duel(sim_dt: number, car: Driven, run: DuelRun) {
-    const was = run.status;
-    run.update(sim_dt * 1000, car.pos.x, car.pos.z);
-    const { ghost } = this;
-    const running = run.status === DuelStatus.RUNNING;
-    if (running && sim_dt > 0) ghost?.record(run.elapsed(), car);
-    ghost?.update(running ? run.elapsed() : null, this.camera.position);
-    if (was !== DuelStatus.DONE && run.status === DuelStatus.DONE) {
-      ghost?.record(run.elapsed(), car);
-      this.finish_duel(run);
-      return;
-    }
-    const { level } = run.route;
-    if (run.status === DuelStatus.READY) {
-      const to_line = Math.max(0, Math.round(-run.route.at[Math.max(0, run.tracker.index)]));
-      this.show_status(`${level.name} · start line in ${to_line} m${ghost?.has_best ? "" : " · this run sets your ghost"}`);
-      return;
-    }
-    const gap = run.gap(ghost?.position(run.elapsed(), this.ghost_at) ?? null);
-    const versus = gap === null ? (ghost?.has_best ? "ghost finished" : "no ghost yet") : `${gap >= 0 ? "ahead" : "behind"} ${Math.abs(Math.round(gap))} m`;
-    this.show_status(`${level.name} · ${format(run.elapsed())} · ${versus}`);
-  }
-
-  private update_race(sim_dt: number, car: Driven, run: RaceRun) {
-    if (this.lobby_lap && !this.race_busy()) return this.exit();
-    // The countdown holds the sim, so it runs on the wall clock.
-    const now = performance.now();
-    const wall = this.race_clock ? now - this.race_clock : 0;
-    this.race_clock = now;
-    const was = run.status;
-    const taken = run.update(run.countdown > 0 ? wall : sim_dt * 1000, car.pos.x, car.pos.z);
-    if (taken >= 0) {
-      this.race_view?.aim(run.next);
-      if (run.status !== RaceStatus.DONE) this.chime();
-    }
-    if (was !== RaceStatus.DONE && run.status === RaceStatus.DONE) {
-      this.el.hint.hidden = true;
-      if (!this.lobby_lap) return this.finish_race(run);
-      if (!this.lobby_lap()) return this.exit();
-      this.race = new RaceRun(run.course, 0);
-      this.race_view?.aim(0);
-      return;
-    }
-    const { line, gates } = run.course;
-    const gate = line[gates[run.next]];
-    this.show_hint(turn_to(car, gate.x, gate.z));
-    const name = this.race_level?.name ?? "";
-    if (run.status === RaceStatus.READY) return this.show_status(`${name} · ${Math.ceil(run.countdown / 1000)}`);
-    const doing = run.missed ? "missed a gate, go back" : `gate ${run.next + 1}/${gates.length}`;
-    this.show_status(`${name} · ${format(run.elapsed())} · ${doing}`);
+    if (status !== null) this.show_status(status);
   }
 
   private show_hint(turn: number) {
@@ -588,175 +250,46 @@ export class Modes {
     this.el.status.textContent = text;
   }
 
-  private show_result(title: string, stars: number, lines: HTMLElement[], ids: readonly string[], id: string, track: Track) {
+  private show_result(finish: Finish, active: Active) {
     const { el } = this;
-    el.title.textContent = title;
+    const { stars } = finish;
+    const { levels, track } = active.mode;
+    el.title.textContent = finish.title;
     el.result_stars.replaceChildren(star_row(stars));
     el.result_stars.setAttribute("aria-label", `${stars} of ${MAX_STARS} stars`);
-    el.lines.replaceChildren(...lines);
-    const index = ids.indexOf(id);
-    el.next.hidden = index + 1 >= ids.length;
-    el.next.disabled = !track.is_open(ids[index + 1] ?? "");
+    el.lines.replaceChildren(...finish.lines);
+    const index = levels.findIndex((level) => level.id === active.level.id);
+    el.next.hidden = index + 1 >= levels.length;
+    el.next.disabled = !track.is_open(levels[index + 1]?.id ?? "");
     el.result.hidden = false;
-    this.chime();
-  }
-
-  private finish_drift(run: DriftRun) {
-    const { zone, combo } = run;
-    const { level } = zone;
-    const stars = run.stars();
-    const score = Math.round(combo.score);
-    const { improved, first } = this.drift_track.record(level.id, { stars, ms: Math.max(1, Math.round(run.elapsed())), score });
-    const best = this.drift_track.runs[level.id];
-    this.show_result(
-      `${level.name}${run.timed_out ? " · time up" : improved && !first ? " · new best" : ""}`,
-      stars,
-      [
-        line("score", points(score)),
-        line("best chain", points(combo.best_chain)),
-        line("walls", String(combo.lost)),
-        line("time", format(run.elapsed())),
-        line("★★ / ★★★", `${points(zone.silver)} / ${points(zone.gold)}`),
-        line("best", ...(best ? [`${run_text(best)} `, star_row(best.stars)] : ["--"])),
-      ],
-      DRIFT_IDS,
-      level.id,
-      this.drift_track,
-    );
-  }
-
-  private finish_hunt(run: HuntRun) {
-    const { level, par_ms, gates } = run.hunt;
-    const stars = run.stars();
-    const ms = Math.round(run.elapsed());
-    const { improved, first } = this.hunt_track.record(level.id, { stars, ms });
-    const best = this.hunt_track.runs[level.id];
-    this.show_result(
-      `${level.name}${improved && !first ? " · new best" : ""}`,
-      stars,
-      [line("time", format(ms)), line("gates", String(gates.length)), line("par", format(par_ms)), line("best", ...(best ? [`${run_text(best)} `, star_row(best.stars)] : ["--"]))],
-      HUNT_IDS,
-      level.id,
-      this.hunt_track,
-    );
-  }
-
-  private finish_duel(run: DuelRun) {
-    const { level, par_ms } = run.route;
-    const stars = run.stars();
-    const ms = Math.round(run.elapsed());
-    const before = this.duel_track.runs[level.id];
-    const { improved, first } = this.duel_track.record(level.id, { stars, ms });
-    this.ghost?.finish(improved);
-    const best = this.duel_track.runs[level.id];
-    const versus = !before ? "new ghost" : `${ms <= before.ms ? "−" : "+"}${(Math.abs(before.ms - ms) / 1000).toFixed(2)} s`;
-    this.show_result(
-      `${level.name}${improved && !first ? " · new best" : ""}`,
-      stars,
-      [line("time", format(ms)), line("vs ghost", versus), line("par", format(par_ms)), line("best", ...(best ? [`${run_text(best)} `, star_row(best.stars)] : ["--"]))],
-      DUEL_IDS,
-      level.id,
-      this.duel_track,
-    );
-  }
-
-  private finish_race(run: RaceRun) {
-    const level = this.race_level;
-    if (!level) return;
-    const { par_ms, length } = run.course.route;
-    const stars = run.stars();
-    const ms = Math.round(run.elapsed());
-    const { improved, first } = this.race_track.record(level.id, { stars, ms });
-    const best = this.race_track.runs[level.id];
-    this.show_result(
-      `${level.name}${improved && !first ? " · new best" : ""}`,
-      stars,
-      [line("time", format(ms)), line("length", `${(length / 1000).toFixed(1)} km`), line("par", format(par_ms)), line("best", ...(best ? [`${run_text(best)} `, star_row(best.stars)] : ["--"]))],
-      this.race_track.ids,
-      level.id,
-      this.race_track,
-    );
-  }
-
-  private finish(run: GymRun, level: GymLevel) {
-    const stars = run.stars();
-    const ms = Math.round(run.total());
-    const { improved, first } = this.track.record(level.id, { stars, ms });
-    const best = this.track.runs[level.id];
-    const { el } = this;
-    el.title.textContent = `${level.name}${improved && !first ? " · new best" : ""}`;
-    el.result_stars.replaceChildren(star_row(stars));
-    el.result_stars.setAttribute("aria-label", `${stars} of ${MAX_STARS} stars`);
-    el.lines.replaceChildren(
-      line("time", format(run.elapsed())),
-      line(`cones ×${run.hits}`, `+${(run.hits * HIT_MS) / 1000} s`),
-      line(`missed ×${run.misses}`, `+${(run.misses * MISS_MS) / 1000} s`),
-      line("total", format(ms)),
-      line("par", format(run.course.par_ms)),
-      line("best", ...(best ? [`${format(best.ms)} `, star_row(best.stars)] : ["--"])),
-    );
-    const index = LEVEL_IDS.indexOf(level.id);
-    el.next.hidden = index + 1 >= LEVEL_IDS.length;
-    el.next.disabled = !this.track.is_open(LEVEL_IDS[index + 1] ?? "");
-    el.result.hidden = false;
-  }
-
-  private finish_park(run: ParkRun) {
-    const { level } = run;
-    const stars = run.stars();
-    const result = run.result();
-    const ms = Math.round(result.ms);
-    const { improved, first } = this.park_track.record(level.id, { stars, ms });
-    const best = this.park_track.runs[level.id];
-    const { el } = this;
-    el.title.textContent = `${level.name}${improved && !first ? " · new best" : ""}`;
-    el.result_stars.replaceChildren(star_row(stars));
-    el.result_stars.setAttribute("aria-label", `${stars} of ${MAX_STARS} stars`);
-    el.lines.replaceChildren(
-      line("time", format(ms)),
-      line("par", format(level.par_ms)),
-      line("touches", String(result.touches)),
-      line("angle", `${(result.angle * DEG).toFixed(1)}°`),
-      line("off centre", `${result.offset.toFixed(2)} m`),
-      line("best", ...(best ? [`${format(best.ms)} `, star_row(best.stars)] : ["--"])),
-    );
-    const index = PARK_IDS.indexOf(level.id);
-    el.next.hidden = index + 1 >= PARK_IDS.length;
-    el.next.disabled = !this.park_track.is_open(PARK_IDS[index + 1] ?? "");
-    el.result.hidden = false;
+    if (!finish.quiet) this.chime();
   }
 
   mode_list(): ModeEntry[] {
     const sky = this.world.kind === "sky";
-    const entry = (id: string, name: string, levels: readonly Listed[], track: Track, ground: boolean): ModeEntry => ({
-      id,
-      name,
-      stars: track.stars,
-      max: levels.length * MAX_STARS,
-      blocked: ground && sky ? OPEN_GROUND : null,
-      levels: levels.map((level) => {
-        const run = track.runs[level.id];
-        const route = this.world.routes.find((r) => r.id === level.id);
-        return {
-          id: level.id,
-          name: level.name,
-          brings: level.brings,
-          stars: run?.stars ?? 0,
-          best: run ? run_text(run) : null,
-          open: track.is_open(level.id),
-          length: route?.length ?? null,
-          par_ms: route?.par_ms ?? null,
-        };
-      }),
-    });
-    return [
-      ...(this.races.length ? [entry("race", "Race", this.races, this.race_track, false)] : []),
-      entry("gymkhana", "Gymkhana", LEVELS, this.track, true),
-      entry("parking", "Parking", PARK_LEVELS, this.park_track, true),
-      entry("drift", "Drift zones", DRIFT_LEVELS, this.drift_track, false),
-      entry("hunt", "Gate hunt", HUNT_LEVELS, this.hunt_track, true),
-      entry("duel", "Ghost duel", DUEL_LEVELS, this.duel_track, false),
-    ];
+    return this.modes
+      .filter(({ levels }) => levels.length)
+      .map(({ def, levels, track }) => ({
+        id: def.id,
+        name: def.name,
+        stars: track.stars,
+        max: levels.length * MAX_STARS,
+        blocked: def.needs_ground && sky ? OPEN_GROUND : null,
+        levels: levels.map((level) => {
+          const run = track.runs[level.id];
+          const route = this.world.routes.find((r) => r.id === level.id);
+          return {
+            id: level.id,
+            name: level.name,
+            brings: level.brings,
+            stars: run?.stars ?? 0,
+            best: run ? run_text(run) : null,
+            open: track.is_open(level.id),
+            length: route?.length ?? null,
+            par_ms: route?.par_ms ?? null,
+          };
+        }),
+      }));
   }
 
   lobby_record(): string {
