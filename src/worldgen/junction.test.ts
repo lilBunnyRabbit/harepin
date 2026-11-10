@@ -75,7 +75,10 @@ test("town corners on seeds 0-1 are patched, give no way, and grip as asphalt ou
       expect(faces_up(patch)).toBe(true);
       expect(patch.minor).toEqual([]);
       expect(patch.curbs.length).toBeGreaterThan(0);
+      // A square outside corner samples the field's cone between vertices, as any road end does; its rim either side holds.
+      const outer = patch.curbs.filter((c) => c.length === 3).map((c) => c[1]);
       for (const p of patch.outline) {
+        if (outer.some((o) => o.x === p.x && o.z === p.z)) continue;
         const x = patch.centre.x + (p.x - patch.centre.x) * 0.95;
         const z = patch.centre.z + (p.z - patch.centre.z) * 0.95;
         expect(sample(data.terrain.road_dist, x, z)).toBeLessThan(ROAD_HALF + 0.5);

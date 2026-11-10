@@ -51,6 +51,8 @@ const SHARPEST = 0.6427876096865394;
 // Largest turn between two fillet segments, in radians (4°): coarser reads as facets up close.
 const FILLET_TURN = 0.0698;
 const FILLET_MIN_STEPS = 4;
+/** -sin of the outer angle past which two sidewalked arms get a square outer corner: sin 30°. */
+const OUTER_SIN = 0.5;
 // Shortest fillet segment in metres: a town curb's 5 m radius at FILLET_TURN steps would lay chords a third of a metre long.
 const FILLET_CHORD = 0.5;
 /** Index slack for a setback that lands on a point: (4 + 4 cos 90°) / sin 90° comes out a hair over 4. */
@@ -196,13 +198,19 @@ export function junction_patch(x: number, z: number, arms: readonly Arm[]): Patc
       // instead of the fan laying a triangle with no area.
       const straight = Math.abs((p.x - x) * (r.z - z) - (p.z - z) * (r.x - x)) < SAME;
       const wider = arm.half >= next.half;
+      const outer = outer_corner(arm, next);
       if (!straight || wider) push(p, arm.lift);
+      if (outer) push(outer, arm.lift);
       if (!straight || !wider) push(r, next.lift);
     } else if (corner.kind === "fillet") {
       for (const p of fillet(arm, arc, next, arcs[j], corner)) push(p, arm.lift + (next.lift - arm.lift) * p.t);
     }
     if (arm.lined && next.lined) lines.push(edge_line(arm, arc, m, from_plus, corner, next, arcs[j], mouths[j]));
     if (corner.kind === "fillet" && corner.radius > 0 && arm.clear > arm.half && next.clear > next.half) curbs.push(curb(arm, arc, next, arcs[j], corner));
+    if (corner.kind === "walk") {
+      const outer = outer_corner(arm, next);
+      if (outer) curbs.push(outer_curb(arm, next, outer));
+    }
   }
   const first = outline[0];
   const last = outline[outline.length - 1];
@@ -242,6 +250,38 @@ function fillet(a: Arm, arc_a: readonly number[], b: Arm, arc_b: readonly number
     out.push({ x: (p.x * w0 + cx * w1 + r.x * w2) / sum, z: (p.z * w0 + cz * w1 + r.z * w2) / sum, t: u });
   }
   return out;
+}
+
+/**
+ * Where the outer rims of two sidewalked arms meet behind the node, as a town L keeps its square outside corner; null
+ * when the arms run near straight on, where that point would lie far back.
+ */
+function outer_corner(a: Arm, b: Arm): { x: number; z: number } | null {
+  if (a.clear <= a.half || b.clear <= b.half) return null;
+  const ta = a.points[0];
+  const tb = b.points[0];
+  const sin = ta.tx * tb.tz - ta.tz * tb.tx;
+  if (sin > -OUTER_SIN) return null;
+  const cos = ta.tx * tb.tx + ta.tz * tb.tz;
+  const u = (b.half + a.half * cos) / sin;
+  const p = rim(a, 0, 1);
+  return { x: p.x + ta.tx * u, z: p.z + ta.tz * u };
+}
+
+// The sidewalk round an outer corner: w at the corner is the miter of both arms' normals, so the band keeps its width.
+function outer_curb(a: Arm, b: Arm, outer: { x: number; z: number }): RimPoint[] {
+  const ta = a.points[0];
+  const tb = b.points[0];
+  const wa = { x: ta.tz, z: -ta.tx };
+  const wb = { x: -tb.tz, z: tb.tx };
+  const miter = 1 + wa.x * wb.x + wa.z * wb.z;
+  const p = rim(a, 0, 1);
+  const r = rim(b, 0, -1);
+  return [
+    { x: p.x, z: p.z, wx: wa.x, wz: wa.z },
+    { x: outer.x, z: outer.z, wx: (wa.x + wb.x) / miter, wz: (wa.z + wb.z) / miter },
+    { x: r.x, z: r.z, wx: wb.x, wz: wb.z },
+  ];
 }
 
 // From the rim point each arm's own sidewalk starts at, round the fillet; the ends take their arm's normal so the curb meets

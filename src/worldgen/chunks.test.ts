@@ -204,12 +204,13 @@ function paved(dx: number, dz: number, arms: number): boolean {
   return quadrant && ax < SIDE_CLEAR && az < SIDE_CLEAR && Math.hypot(ax - SIDE_CLEAR, az - SIDE_CLEAR) > SIDE_CLEAR - reach;
 }
 
-for (const arms of [3, 4])
-  test(`a town ${arms === 4 ? "crossroads" : "T"} gets curbed corners: faces up, no overlap, sidewalk round every corner without a gap`, () => {
+for (const arms of [2, 3, 4])
+  test(`a town ${["L", "T", "crossroads"][arms - 2]} gets curbed corners: faces up, no overlap, sidewalk round every corner without a gap`, () => {
     const { at, positions: p, junctions } = town_crossroads(arms);
     expect(junctions.patched.length).toBe(1);
     expect(junctions.patched[0].patch.minor).toEqual([]);
-    expect(junctions.patched[0].patch.curbs.length).toBe(arms - 1 + (arms === 4 ? 1 : 0));
+    // An L's outside corner stays square, with its own sidewalk round it.
+    expect(junctions.patched[0].patch.curbs.length).toBe(arms === 3 ? 2 : arms);
     const tris = near(p, at.x, at.z, 30);
     for (const t of tris) {
       const o = t * 9;

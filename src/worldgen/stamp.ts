@@ -14,8 +14,11 @@ export const TRAIL_HALF = 4;
 const TRAIL_SHOULDER = 6;
 /** Dirt reaches this far past the trail half: the surface grid is read at the nearest vertex, up to CELL / 2 away. */
 const DIRT_MARGIN = 1.5;
-/** Metres past a junction patch's rim its distance still writes road_dist: one cell, so every cell the rim crosses has both sides. */
-const RIM_REACH = CELL * 1.5;
+/**
+ * Metres past a junction patch's rim its distance still writes road_dist: a cell past every rule that reads road_dist
+ * (up to ROAD_HALF + SHOULDER), so where the patch field gives way to the edges' lies beyond what any rule sees.
+ */
+const RIM_REACH = SHOULDER + CELL;
 
 /** `blend(i)` is the share of the way the ground moves to the line's height by segment i: 0 leaves it, 1 sets it. */
 export interface TrailLine {
@@ -92,10 +95,10 @@ export class Stamp {
     }
   }
 
-  // Fillets reach past every arm's surface, so their asphalt would grip like grass. Inside the outline and up to
-  // RIM_REACH past it, road_dist follows the distance to the rim the way an edge's does to its side, so the field read
-  // between vertices still grips as asphalt up to the curb. The ground there already lies within FLAT of an arm, so the
-  // arms' blend has levelled it.
+  // Fillets reach past every arm's surface, so their asphalt would grip like grass. Inside the outline and out to
+  // RIM_REACH, road_dist follows the distance to the rim the way an edge's does to its side, so the field read between
+  // vertices grips as asphalt up to the curb and keeps lots and trees as far from a curb as from a straight edge. The
+  // ground there already lies within FLAT of an arm, so the arms' blend has levelled it.
   junction(outline: readonly { x: number; z: number }[]) {
     const { road_dist } = this.terrain;
     const xs = outline.map((p) => p.x);
