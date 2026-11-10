@@ -23,6 +23,17 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.18.0",
+    date: "2026-11-10",
+    title: "Roads between towns",
+    changes: [
+      { kind: NEW, text: "The island has a road network: towns are linked by local roads that merge into trunks, branch off at T-junctions and cross the circuit at proper crossroads." },
+      { kind: NEW, text: "Local roads show on the world map." },
+      { kind: IMPROVED, text: "Corners where roads meet grip like road, not grass." },
+      { kind: IMPROVED, text: "Island lap records start fresh with this new road layout." },
+    ],
+  },
+  {
     version: "0.17.1",
     date: "2026-11-10",
     title: "Deeper burble",
