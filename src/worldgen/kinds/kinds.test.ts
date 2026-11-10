@@ -10,6 +10,8 @@ import { generate_world, KINDS, kind_of_world, world_id, world_key } from "./kin
 const PASS_REACH = 60;
 /** Past a town's core and band the plateau holds the plane this much further, two cells, before it blends away. */
 const PLATEAU_RIM = 8;
+/** Generating every swept alpine world takes about a second each, so the first test to reach the cache pays for all of them. */
+const ALPINE_TIMEOUT = 30_000;
 
 const alpine_worlds = new Map<number, WorldData>();
 function alpine(seed: number): WorldData {
@@ -38,7 +40,7 @@ test("alpine seeds join a strip village to the circuit", () => {
     expect(world.towns.length).toBeGreaterThan(0);
     expect(world.graph.edges.some((e) => e.kind === "highway" && !world.circuit.includes(e.id))).toBe(true);
   }
-});
+}, ALPINE_TIMEOUT);
 
 test("the alpine circuit crosses the range over a pass, never through a trench in its crest", () => {
   for (const seed of sweep(10)) {
@@ -57,7 +59,7 @@ test("the alpine circuit crosses the range over a pass, never through a trench i
         for (const d of [-40, -20, 0, 20, 40]) expect(sample(raw, p.x + d * p.tz, p.z - d * p.tx) - p.y).toBeLessThan(16);
       }
   }
-});
+}, ALPINE_TIMEOUT);
 
 test("a strip village's plateau meets the valley side without a wall", () => {
   for (const seed of sweep(10)) {
@@ -79,7 +81,7 @@ test("a strip village's plateau meets the valley side without a wall", () => {
       }
     }
   }
-});
+}, ALPINE_TIMEOUT);
 
 test("every kind has its own id and key and is keyed by its own kind", () => {
   const defs = Object.entries(KINDS);
