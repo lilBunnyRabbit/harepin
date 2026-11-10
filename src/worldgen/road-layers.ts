@@ -98,7 +98,7 @@ export interface Junction {
 
 export interface Junctions {
   patched: Junction[];
-  /** Road indices of spur mouths too sharp or cramped for a patch: the spur still overlaps the ring there. */
+  /** Road indices of circuit junctions too sharp or cramped for a patch: the side road still overlaps the ring there. */
   loose: number[];
   trims: Map<number, Trim>;
   /** Circuit edge id to the road index of its first point. */
@@ -123,13 +123,15 @@ export function road_junctions(data: RoadData): Junctions {
   const trims = new Map<number, Trim>();
   const patched: Junction[] = [];
   const loose: number[] = [];
+  const on_ring = new Set(circuit.flatMap((id) => [graph.edges[id].a, graph.edges[id].b]));
   for (const node of graph.nodes) {
     const ends: ArmEnd[] = graph.edges.flatMap((edge) => [...(edge.a === node.id ? [{ edge, start: true }] : []), ...(edge.b === node.id ? [{ edge, start: false }] : [])]);
     if (!ends.some(({ edge }) => spurs.includes(edge))) continue;
     const arms = ends.map((end) => arm_of(end, reach_of(end.edge), style(end.edge)));
     const patch = junction_patch(node.x, node.z, arms);
     if (!patch) {
-      loose.push(nearest_index(road, node.x, node.z));
+      // A gate in town is no circuit mouth, however near the circuit's nearest point lies.
+      if (on_ring.has(node.id)) loose.push(nearest_index(road, node.x, node.z));
       continue;
     }
     ends.forEach(({ edge, start }, i) => {
