@@ -1,4 +1,4 @@
-import { Car } from "../src/car/car";
+import { Car, drop_height } from "../src/car/car";
 import { car_spec } from "../src/car/cars";
 import { World } from "../src/world/world";
 
@@ -26,7 +26,7 @@ function steer_along_road(car: Car, index: number): { steer: number; index: numb
 for (const [label, sx, sz] of [["road", p.x, p.z], ["grass", x0, z0]] as const) {
   const on_road = label === "road";
   const car = new Car(SPEC);
-  car.place(sx, world.height(sx, sz) + 0.75, sz, Math.atan2(p.tx, p.tz));
+  car.place(sx, world.height(sx, sz) + drop_height(SPEC, 0.75), sz, Math.atan2(p.tx, p.tz));
   for (let t = 0; t < 1.5; t += DT) car.step(DT, { steer: 0, throttle: 0, brake: 0, handbrake: 0, analog: true }, world);
   let index = start;
   let prev_vy = car.vel.y;

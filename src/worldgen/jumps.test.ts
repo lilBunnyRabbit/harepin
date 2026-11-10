@@ -1,8 +1,8 @@
 /// <reference types="bun" />
 import { describe, expect, test } from "bun:test";
 import { Vector3 } from "three";
-import { Car, type Ground } from "../car/car";
-import { CARS } from "../car/cars";
+import { Car, drop_height, type Ground } from "../car/car";
+import { CARS, car_sized } from "../car/cars";
 import { seed_of } from "../rng";
 import { generate } from "./index";
 import { DECK_UNDER } from "./deck";
@@ -12,6 +12,9 @@ import { apex, face_end, flight, GATE_CLEAR, GATE_RUNOUT, ramp_local, ramp_surfa
 import { SPAWN_INDEX, type Ramp } from "./types";
 
 const DT = 1 / 360;
+// Jump lines are planned for a car's wheelbase and length; a longer body leaves the lip later and flies lower.
+const CAR_SIZED = Object.entries(CARS).filter(([, spec]) => car_sized(spec));
+const OVERSIZED = Object.entries(CARS).filter(([, spec]) => !car_sized(spec));
 const KICKER: Ramp = { id: 0, kind: "kicker", x: 0, y: 0, z: 0, fx: 0, fz: 1, hw: 2.6, length: 8, rise: 2, grade: 0, landing: 45, speed: 21 };
 const BIG: Ramp = { ...KICKER, kind: "big", hw: 3.2, length: 14, rise: 4, landing: 80, speed: 27 };
 const ROAD: Ramp = { ...KICKER, ...ROAD_KICKER, road: true };
@@ -74,7 +77,7 @@ function jump(r: Ramp, car: Car, speed: number, slip = 0, gas = 0, ground = grou
   const challenge = r.length + apex(r) * 0.85;
   const up = new Vector3();
   const out: Jump = { toe: 0, at_challenge: NaN, sink: 0, upright: 1, air: 0, landed: 0, yaw: 0, heading: 0, touch: NaN, drift: NaN };
-  car.place(0, 1, -60, 0);
+  car.place(0, drop_height(car.spec, 1), -60, 0);
   car.vel.set(0, 0, speed);
   let last = car.pos.z;
   for (let i = 0; i < 360 * 8; i++) {
@@ -104,7 +107,7 @@ function jump(r: Ramp, car: Car, speed: number, slip = 0, gas = 0, ground = grou
 
 describe("ramps at 360 Hz", () => {
   for (const r of [KICKER, BIG, ROAD])
-    for (const [id, spec] of Object.entries(CARS))
+    for (const [id, spec] of CAR_SIZED)
       test(`${r.road ? "road " : ""}${r.kind}, ${id}: flies the predicted line and lands on its wheels`, () => {
         for (const offset of [-2, 0, 2]) {
           const run = jump(r, new Car(spec), r.speed + offset);
@@ -114,13 +117,13 @@ describe("ramps at 360 Hz", () => {
           expect(run.upright).toBeGreaterThan(0.75);
         }
       });
-  for (const [id, spec] of Object.entries(CARS))
+  for (const [id, spec] of CAR_SIZED)
     test(`road kicker, ${id}: lands on its wheels inside the landing at racing pace`, () => {
       const run = jump(ROAD, new Car(spec), 40);
       expect(run.landed).toBeLessThan(ROAD.length + ROAD.landing);
       expect(run.upright).toBeGreaterThan(0.75);
     });
-  for (const [id, spec] of Object.entries(CARS))
+  for (const [id, spec] of CAR_SIZED)
     test(`road kicker, ${id}: a flat-out landing with a little sideways slip stays straight`, () => {
       for (const speed of [35, 38, 42])
         for (const gas of [0, 1]) {
@@ -136,8 +139,22 @@ describe("sky gap jump at 360 Hz", () => {
   const r = gap_ramp();
   const { gap, landing } = size_gap();
   const ground = ground_gap();
+  for (const [id, spec] of OVERSIZED)
+    test(`${id}: clears the gap from the top of its own pace and lands on its wheels`, () => {
+      for (const speed of [26, 30])
+        for (const gas of [0, 1]) {
+          const car = new Car(spec);
+          const run = jump(r, car, speed, 0, gas, ground);
+          const where = `${speed} m/s (toe ${run.toe.toFixed(1)}), gas ${gas}`;
+          expect(run.toe, where).toBeGreaterThanOrEqual(GAP_SLOW);
+          expect(run.touch, where).toBeGreaterThan(r.length + gap);
+          expect(run.touch, where).toBeLessThan(r.length + gap + landing);
+          expect(run.upright, where).toBeGreaterThan(0.75);
+          expect(Math.abs(run.heading), where).toBeLessThan(0.15);
+        }
+    });
   // The ground runs on sideways forever: on the track the rails hold a drifting car, so only the touchdown has to fit the deck.
-  for (const [id, spec] of Object.entries(CARS))
+  for (const [id, spec] of CAR_SIZED)
     test(`${id}: clears the gap and lands straight on its wheels from ${GAP_SLOW} to ${GAP_FAST} m/s`, () => {
       for (const speed of [GAP_SLOW, 26, 30, 34, 37, GAP_FAST])
         for (const gas of [0, 1])
@@ -193,7 +210,7 @@ describe("canyon gap jump at 360 Hz", () => {
     expect(g.gap).toBeGreaterThan(12);
     expect(g.deck.length).toBeGreaterThan(60);
   });
-  for (const [id, spec] of Object.entries(CARS))
+  for (const [id, spec] of CAR_SIZED)
     test(`${id}: clears the gap and lands straight on the deck from ${GAP_V_MIN} to ${GAP_V_MAX} m/s`, () => {
       for (const speed of [GAP_V_MIN, 26, 30, 35, 40, GAP_V_MAX])
         for (const gas of [0, 1])

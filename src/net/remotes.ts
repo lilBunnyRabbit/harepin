@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { DEFAULT_BUILD, build_code, build_spec, parse_build, type Build } from "../car/build";
-import type { CarSpec } from "../car/cars";
-import { contact_shadow, place_contact_shadow, type ContactShadow } from "../car/contact-shadow";
+import { oversize, type CarSpec } from "../car/cars";
+import { contact_shadow, fit_contact_shadow, place_contact_shadow, type ContactShadow } from "../car/contact-shadow";
 import { show_flame } from "../car/lights";
 import { build_view, camera_fade, dispose_car_view, rest_wheels, type CarView } from "../car/models";
 import type { World } from "../world/world";
@@ -17,10 +17,12 @@ interface RemoteView {
   materials: THREE.Material[];
   shadow: ContactShadow;
   label: HTMLElement;
+  /** Name label height over the car origin, metres. */
+  above: number;
   spin: number;
 }
 
-const ABOVE = new THREE.Vector3(0, 2.2, 0);
+const ABOVE = 2.2;
 // A peer flicking through the garage would otherwise rebuild geometry every packet; the latest code wins after the gap.
 const REBUILD_GAP_MS = 1000;
 
@@ -118,7 +120,8 @@ export class Remotes {
       this.scene.remove(rv.view.root);
       dispose_car_view(rv.view);
       const spec = build_spec(build);
-      Object.assign(rv, { code, spec, built: now }, translucent_view(build, spec));
+      Object.assign(rv, { code, spec, built: now, above: ABOVE * oversize(spec).height }, translucent_view(build, spec));
+      fit_contact_shadow(rv.shadow, spec);
       this.scene.add(rv.view.root);
     }
     if (!rv) {
@@ -129,8 +132,9 @@ export class Remotes {
       label.className = "label";
       this.labels.append(label);
       const shadow = contact_shadow();
+      fit_contact_shadow(shadow, spec);
       this.scene.add(shadow.mesh);
-      rv = { code, built: now, spec, view, materials, shadow, label, spin: 0 };
+      rv = { code, built: now, spec, view, materials, shadow, label, above: ABOVE * oversize(spec).height, spin: 0 };
       this.views.set(remote.id, rv);
     }
     const t = this.net.render_time(remote);
@@ -171,7 +175,9 @@ export class Remotes {
       material.opacity = opacity;
       material.depthWrite = opacity > 0.99;
     }
-    this.screen.copy(root.position).add(ABOVE).project(camera);
+    this.screen.copy(root.position);
+    this.screen.y += rv.above;
+    this.screen.project(camera);
     const visible = this.screen.z < 1 && root.position.distanceTo(camera.position) < 400;
     rv.label.style.display = visible ? "block" : "none";
     if (visible) {

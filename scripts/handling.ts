@@ -1,6 +1,6 @@
 import { Vector3 } from "three";
 import { CARS, car_spec, type CarSpec } from "../src/car/cars";
-import { Car, type Controls, type Ground } from "../src/car/car";
+import { Car, drop_height, type Controls, type Ground } from "../src/car/car";
 
 const DT = 1 / 360;
 const surface = (grip: number, roll: number): Ground => ({ height: () => 0, normal: (_x, _z, out) => out.set(0, 1, 0), grip: () => grip, roll: () => roll });
@@ -13,7 +13,7 @@ const tmp = new Vector3();
 function fresh(spec: CarSpec, setup?: (car: Car) => void): Car {
   const car = new Car(spec);
   setup?.(car);
-  car.place(0, 0.6, 0, 0);
+  car.place(0, drop_height(spec, 0.6), 0, 0);
   run(car, 1.5, () => pad);
   return car;
 }

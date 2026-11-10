@@ -81,7 +81,7 @@ export interface Design {
   panel?: Panel;
   /** Where an engine bulge or scoop sits on the hood, [z, y]. */
   hood: Point;
-  /** Hood camera of an open cockpit, at the driver's eyes, [z, y]; closed bodies use the camera's own hood point. */
+  /** Hood camera [z, y] where the camera's own hood point misses the body: an open cockpit's eyes, a bus's windscreen. */
   eye?: Point;
   /** Left tailpipe outlet for engine upgrades, at the rear face; x 0 is one central pipe that widens instead of doubling. */
   exhaust: Triple;
@@ -384,6 +384,49 @@ export const DESIGNS: Record<BodyStyle, Design> = {
         ],
       },
     ],
+  },
+  bus: {
+    outline: [[5.84, 0.35], [5.9, 0.46], [5.92, 0.98], [5.88, 1.15], [-6.12, 1.15], [-6.16, 1.0], [-6.16, 0.46], [-6.1, 0.35]],
+    width: 2.5,
+    sill: 0.35,
+    cabin: {
+      points: [[5.86, 1.15], [5.76, 2.86], [5.6, 3.02], [-5.98, 3.02], [-6.12, 2.88], [-6.14, 1.15]],
+      width: 2.48,
+      tumble: 0,
+      frame: [0.07, 0.04, 0.4, 0.04, 0.12, 0.12],
+      screens: [[0, 0.1], [4, 0.3]],
+      split: [3.95, 0.14],
+      glass_to: -5.5,
+    },
+    arches: { gap: 0.06, steps: 8, flare: 0.04, out: 0.02, reach: 0.04, tone: "trim" },
+    heads: [{ size: [0.34, 0.16, 0.05], at: [0.9, 0.62, 5.92] }],
+    tails: [{ size: [0.16, 0.46, 0.05], at: [1.08, 0.78, -6.17] }],
+    paint: [
+      { size: [0.06, 0.32, 0.14], at: [1.5, 2.28, 5.55] },
+      { size: [0.26, 0.04, 0.04], at: [1.36, 2.46, 5.58] },
+      { size: [0.8, 0.2, 2.6], at: [0.4, 3.12, -1.4] },
+      ...[2.6, 1.3, 0, -1.3, -2.6, -5.1].map((z): Part => ({ size: [0.03, 1.38, 0.1], at: [1.252, 1.92, z] })),
+    ],
+    trim: [
+      { size: [0.03, 2.2, 1.1], at: [1.258, 1.5, 4.75] },
+      { size: [0.03, 2.2, 1.1], at: [1.258, 1.5, -4.15] },
+      { size: [1.26, 0.24, 0.1], at: [0.63, 0.44, 5.9] },
+      { size: [1.26, 0.24, 0.1], at: [0.63, 0.44, -6.16] },
+      { size: [0.9, 0.3, 0.03], at: [0.45, 0.8, -6.175] },
+    ],
+    stripes: [{ size: [0.02, 0.08, 11.6], at: [1.256, 1.21, -0.1] }],
+    markers: [{ size: [0.86, 0.2, 0.04], at: [0.43, 2.72, 5.79] }],
+    chrome: [
+      { size: [0.035, 2.1, 0.03], at: [1.262, 1.5, 4.75] },
+      { size: [0.035, 2.1, 0.03], at: [1.262, 1.5, -4.15] },
+    ],
+    tyre: [0.3, 0.42],
+    rim: { size: 0.56, spokes: 8, tone: "light", lip: 0.3 },
+    deck: [-5.7, 3.02],
+    hood: [-5.4, 3.02],
+    eye: [6.05, 2.3],
+    exhaust: [0.8, 0.42, -6.16],
+    bottles: "inside",
   },
   formula: {
     outline: [[2.3, 0.2], [2.32, 0.27], [2.1, 0.34], [1.3, 0.5], [0.98, 0.6], [0.9, 0.56], [0.42, 0.56], [0.3, 0.68], [-0.2, 0.7], [-1.2, 0.5], [-1.85, 0.38], [-2.0, 0.36], [-2.0, 0.12]],

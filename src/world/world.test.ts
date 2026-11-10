@@ -1,7 +1,7 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
 import { Vector3 } from "three";
-import { CARS, COUPE, FORMULA } from "../car/cars";
+import { BUS, CARS, COUPE, FORMULA, car_sized } from "../car/cars";
 import { World, type Collider } from "./world";
 import { generate } from "../worldgen/index";
 import { generate_sky } from "../worldgen/sky";
@@ -26,10 +26,12 @@ function car_at(y: number): Collider {
   return { pos: new Vector3(X, y, Z - 1.4), vel: new Vector3(0, 0, 20), ang: new Vector3(), heading: 0, spec: COUPE };
 }
 
-test("bars meet each car at its own body: the closed bodies keep the shared band, the formula its floor and roll hoop", () => {
-  for (const spec of Object.values(CARS)) if (spec !== FORMULA) expect(spec.band).toEqual([0.25, 0.9]);
-  const ys = FORMULA.corners.map(([, y]) => y);
-  expect(FORMULA.band).toEqual([-Math.min(...ys), Math.max(...ys)]);
+test("bars meet each car at its own body: the closed cars keep the shared band, the formula and the bus their own floor and roof", () => {
+  for (const spec of Object.values(CARS)) if (spec !== FORMULA && car_sized(spec)) expect(spec.band).toEqual([0.25, 0.9]);
+  for (const spec of [FORMULA, BUS]) {
+    const ys = spec.corners.map(([, y]) => y);
+    expect(spec.band).toEqual([-Math.min(...ys), Math.max(...ys)]);
+  }
   // Clears a bar the shared band would hit, and hits one low under its floor that the shared band would clear.
   const over = world_with(bar(0.85, 2));
   const under = world_with(bar(-1, 0.18));

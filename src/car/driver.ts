@@ -1,9 +1,10 @@
 import * as THREE from "three";
 import { build_spec, type Build } from "./build";
 import type { ChaseCamera } from "../render/camera";
-import { Car } from "./car";
+import { Car, drop_height } from "./car";
+import { oversize, type Size } from "./cars";
 import type { Lighting } from "../render/lighting";
-import { contact_shadow, place_contact_shadow } from "./contact-shadow";
+import { contact_shadow, fit_contact_shadow, place_contact_shadow } from "./contact-shadow";
 import { show_flame } from "./lights";
 import { build_view, dispose_car_view, sync_car_view, type CarView } from "./models";
 import type { NitroSnapshot } from "./nitro";
@@ -30,6 +31,7 @@ interface CarFrame {
 export class Driver {
   car: Car;
   view: CarView;
+  private size: Size;
   readonly shadow = contact_shadow();
   readonly rewind: Rewind;
   /** The car before its last physics step; the drawn car and the camera sit between this and `car`, `blend` of the way. */
@@ -47,6 +49,8 @@ export class Driver {
   ) {
     this.car = new Car(build_spec(build));
     this.view = build_view(build, this.car.spec);
+    this.size = oversize(this.car.spec);
+    fit_contact_shadow(this.shadow, this.car.spec);
     scene.add(this.view.root);
     scene.add(this.shadow.mesh);
     light.mount(this.view.root);
@@ -74,13 +78,14 @@ export class Driver {
   place(spot: Spawn) {
     this.car.place(spot.x, spot.y, spot.z, spot.heading);
     this.pads.clear();
+    this.chase.size = this.size;
     this.chase.snap(this.car);
   }
 
   road_spot(index: number, reverse = false): Spawn {
     const { world } = this;
     const p = world.road[world.clear_spawn(index, reverse ? -1 : 1)];
-    return { x: p.x, y: world.height(p.x, p.z) + RIDE_HEIGHT, z: p.z, heading: Math.atan2(p.tx, p.tz) + (reverse ? Math.PI : 0) };
+    return { x: p.x, y: world.height(p.x, p.z) + drop_height(this.car.spec, RIDE_HEIGHT), z: p.z, heading: Math.atan2(p.tx, p.tz) + (reverse ? Math.PI : 0) };
   }
 
   // In a lobby race a reset stays on the circuit; free driving drops the car on the nearest street.
@@ -91,7 +96,7 @@ export class Driver {
     const moving = Math.hypot(car.vel.x, car.vel.z) > RESET_MOVING;
     const f = moving ? new THREE.Vector3(car.vel.x, 0, car.vel.z) : new THREE.Vector3(0, 0, 1).applyQuaternion(car.quat);
     const spot = world.spawn_near(car.pos.x, car.pos.z, f.x, f.z);
-    this.place({ ...spot, y: spot.y + RIDE_HEIGHT });
+    this.place({ ...spot, y: spot.y + drop_height(car.spec, RIDE_HEIGHT) });
   }
 
   // Back on the last checkpoint passed, not the nearest deck: that can be a later section, and a fall would be a shortcut.
@@ -109,6 +114,8 @@ export class Driver {
     this.car.nitro.carry(tank, timed);
     this.pads.clear();
     this.car.park(pos.x, pos.z, heading, this.world);
+    this.size = oversize(this.car.spec);
+    fit_contact_shadow(this.shadow, this.car.spec);
     this.scene.remove(this.view.root);
     dispose_car_view(this.view);
     this.view = build_view(build, this.car.spec);
@@ -136,6 +143,7 @@ export class Driver {
     view.heads.visible = chase.mode !== 1 || chase.top;
     if (view.halo) view.halo.visible = view.heads.visible;
     chase.eye = view.eye;
+    chase.size = this.size;
     place_contact_shadow(this.shadow, drawn.pos.x, drawn.pos.y, drawn.pos.z, car.heading, this.world);
   }
 }

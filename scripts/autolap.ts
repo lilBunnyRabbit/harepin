@@ -1,5 +1,5 @@
 import { Vector3 } from "three";
-import { Car } from "../src/car/car";
+import { Car, drop_height } from "../src/car/car";
 import { COUPE, car_spec, type CarSpec } from "../src/car/cars";
 import { PadTimer } from "../src/world/sky-pads";
 import { ROAD_HALF, World, type RoadPoint } from "../src/world/world";
@@ -65,7 +65,7 @@ export function autolap(world: World, spec: CarSpec = COUPE, road: readonly Road
   const n = road.length;
   const point_at = (i: number) => (closed ? road[((i % n) + n) % n] : road[Math.max(0, Math.min(n - 1, i))]);
   const p = road[0];
-  car.place(p.x, world.height(p.x, p.z) + 0.75, p.z, Math.atan2(p.tx, p.tz));
+  car.place(p.x, world.height(p.x, p.z) + drop_height(spec, 0.75), p.z, Math.atan2(p.tx, p.tz));
   const pads = new PadTimer();
   let t = 0, index = 0, offroad = 0, worst = 0, slowest = Infinity, flipped = false, fell = false, impact = 0;
   const step = road.reduce((sum, p, i) => sum + Math.hypot(road[(i + 1) % n].x - p.x, road[(i + 1) % n].z - p.z), 0) / n;

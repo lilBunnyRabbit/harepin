@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { Vector3 } from "three";
 import { DEFAULT_BUILD, DEFAULT_PARTS, apply_build } from "./build";
 import { Car, SteerMode, ride_height, type Controls, type Ground } from "./car";
-import { CARS, type CarId, type CarSpec } from "./cars";
+import { CARS, car_sized, type CarId, type CarSpec } from "./cars";
 import { donut } from "../../scripts/donut";
 import { hairpin_pull } from "../../scripts/hairpin";
 import { arc, hairpin, lane_change, tap } from "../../scripts/keys";
@@ -258,7 +258,7 @@ describe("park and idle hold", () => {
   for (const heading of [0, Math.PI / 2, Math.PI]) {
     test(`park() on a 30% slope lands without sliding (heading ${heading.toFixed(2)})`, () => {
       const ground = slope(0.3);
-      for (const spec of Object.values(CARS)) {
+      for (const spec of Object.values(CARS).filter(car_sized)) {
         const car = new Car(spec);
         car.park(0, 0, heading, ground);
         const start = car.pos.clone();
@@ -272,6 +272,20 @@ describe("park and idle hold", () => {
         expect(fastest).toBeLessThan(0.2);
         expect(settled.distanceTo(start)).toBeLessThan(0.03);
         expect(car.pos.distanceTo(settled)).toBeLessThan(0.001);
+      }
+      // A tall, soft body leans into the slope on its springs and swings its centre of mass a few centimetres while it
+      // settles, so it is held to what parked means: the contact patches stay put and the body comes to rest.
+      for (const spec of Object.values(CARS).filter((s) => !car_sized(s))) {
+        const car = new Car(spec);
+        car.park(0, 0, heading, ground);
+        car.step(DT, idle, ground);
+        const patches = car.wheels.map((w) => w.point.clone());
+        for (let t = 0; t < 1; t += DT) car.step(DT, idle, ground);
+        car.wheels.forEach((w, i) => expect(w.point.distanceTo(patches[i]), spec.id).toBeLessThan(0.02));
+        for (let t = 0; t < 2; t += DT) car.step(DT, idle, ground);
+        const settled = car.pos.clone();
+        for (let t = 0; t < 2; t += DT) car.step(DT, idle, ground);
+        expect(car.pos.distanceTo(settled), spec.id).toBeLessThan(0.001);
       }
     });
   }

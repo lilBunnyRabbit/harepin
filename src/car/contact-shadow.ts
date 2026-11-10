@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { oversize, type CarSpec } from "./cars";
 import { color, dark, tones } from "../theme/palette";
 import type { World } from "../world/world";
 
@@ -23,7 +24,11 @@ export interface ContactShadow {
   mesh: THREE.Mesh;
   material: THREE.MeshBasicMaterial;
   strength: number;
+  /** Height of the car origin over the ground where the patch starts to fade. */
+  ride: number;
 }
+
+const RIDE = 0.5;
 
 // The sun's shadow lands metres away at a low sun and blurs out, so without a dark patch right under the body the car
 // reads as hovering; this is that patch, tinted from the theme rather than black. It multiplies what is under it: a plain
@@ -46,7 +51,14 @@ export function contact_shadow(): ContactShadow {
   });
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 5.0).rotateX(-Math.PI / 2), material);
   mesh.renderOrder = 1;
-  return { mesh, material, strength };
+  return { mesh, material, strength, ride: RIDE };
+}
+
+/** Sizes the patch to `spec`'s body: a car keeps the stock patch, a bigger body stretches it. */
+export function fit_contact_shadow(shadow: ContactShadow, spec: CarSpec) {
+  const size = oversize(spec);
+  shadow.mesh.scale.set(size.width, 1, size.length);
+  shadow.ride = RIDE * size.height;
 }
 
 const up = new THREE.Vector3(0, 1, 0);
@@ -61,6 +73,6 @@ export function place_contact_shadow(shadow: ContactShadow, x: number, y: number
   tilt.setFromUnitVectors(up, ground_normal);
   yaw.setFromAxisAngle(up, heading);
   shadow.mesh.quaternion.copy(tilt).multiply(yaw);
-  const lift = Math.max(0, y - ground - 0.5);
+  const lift = Math.max(0, y - ground - shadow.ride);
   shadow.material.opacity = shadow.strength * Math.max(0, 1 - lift / 3);
 }

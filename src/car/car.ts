@@ -69,6 +69,7 @@ const STICK_DAMPER = 2.2;
 // Bearing drag on a wheel in the air, per second. It was 0.1% a step, 30% a second at 360 Hz, so after a long jump every
 // wheel landed turning half the car's speed: past peak slip, with little lateral grip left.
 const AIR_SPIN_DRAG = 0.02;
+const DROP_CLEAR = 0.05;
 
 // Normalised magic formula: peak at s = 1, sliding grip sin(C·π/2) ≈ 65% of peak.
 const MF_C = 1.55;
@@ -90,6 +91,14 @@ function static_sag(spec: CarSpec): number {
 /** Height of the car origin above flat ground with the car parked at rest. */
 export function ride_height(spec: CarSpec): number {
   return rest_reach(spec) - spec.wheel.mounts[0][1];
+}
+
+/**
+ * Height of the car origin above the ground to drop it from: `height`, sized for a car, or just over its own ride height
+ * for a body that rides higher than that, so it never starts sunk into the road.
+ */
+export function drop_height(spec: CarSpec, height: number): number {
+  return Math.max(height, ride_height(spec) + DROP_CLEAR);
 }
 
 export class Wheel {

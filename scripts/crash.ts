@@ -1,6 +1,6 @@
 import { Vector3 } from "three";
 import { car_spec } from "../src/car/cars";
-import { Car } from "../src/car/car";
+import { Car, drop_height } from "../src/car/car";
 import { ROAD_HALF, World } from "../src/world/world";
 
 const SPEC = car_spec(process.argv[2] ?? "coupe");
@@ -35,7 +35,7 @@ for (const [label, lateral] of [
   const back = 45;
   const x = post.x - cp.tx * back - cp.tz * lateral;
   const z = post.z - cp.tz * back + cp.tx * lateral;
-  car.place(x, world.height(x, z) + 0.75, z, Math.atan2(cp.tx, cp.tz));
+  car.place(x, world.height(x, z) + drop_height(SPEC, 0.75), z, Math.atan2(cp.tx, cp.tz));
   let impact = 0;
   let closest = Infinity;
   for (let t = 0; t < 5; t += 1 / 360) {
@@ -59,7 +59,7 @@ for (const [label, lateral] of [
   const heading = Math.atan2(cp.tx, cp.tz);
   const x = post.x - cp.tx * SPEC.circles[0];
   const z = post.z - cp.tz * SPEC.circles[0];
-  car.place(x, world.height(x, z) + 0.75, z, heading);
+  car.place(x, world.height(x, z) + drop_height(SPEC, 0.75), z, heading);
   car.vel.set(cp.tx * 5, 0, cp.tz * 5);
   world.collide(car);
   const back = (x - car.pos.x) * cp.tx + (z - car.pos.z) * cp.tz;

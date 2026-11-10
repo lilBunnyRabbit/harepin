@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { Car } from "../car/car";
+import { oversize } from "../car/cars";
 import { brand, dark, linear, mix, tones } from "../theme/palette";
 import { CHUNK, chunk_of } from "../worldgen/chunks";
 import { challenge_outer, challenge_pieces, GRAVITY, ITEMS, PIECE_DEPTH, ramp_extent, ramp_lift } from "../worldgen/jumps";
@@ -247,7 +248,7 @@ export class JumpsView {
       const lateral = Math.abs(dx * c.fz - dz * c.fx);
       const y = car.pos.y - c.y;
       const airborne = car.wheels.every((w) => !w.contact);
-      if (airborne && lateral + BODY_HW < c.gap_hw && y - car.spec.band[0] > c.gap_bottom && y + car.spec.band[1] < c.gap_top) clean = c;
+      if (airborne && lateral + BODY_HW * oversize(car.spec).width < c.gap_hw && y - car.spec.band[0] > c.gap_bottom && y + car.spec.band[1] < c.gap_top) clean = c;
     }
     return clean;
   }

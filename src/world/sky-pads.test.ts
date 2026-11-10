@@ -1,6 +1,6 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import { Car, type Controls, type Ground } from "../car/car";
+import { Car, drop_height, type Controls, type Ground } from "../car/car";
 import { CARS } from "../car/cars";
 import { PAD_ACCEL, PAD_MAX, PAD_TIME, PadTimer } from "./sky-pads";
 import { World } from "./world";
@@ -59,7 +59,7 @@ test("a pad adds nothing past PAD_MAX, and nothing to a car in the air", () => {
 test(`every car kicked to PAD_MAX coasts back under GAP_FAST within ${PAD_GAP_CLEAR} m, even rolling in neutral`, () => {
   for (const [id, spec] of Object.entries(CARS)) {
     const car = new Car(spec);
-    car.place(0, 0.75, 0, 0);
+    car.place(0, drop_height(spec, 0.75), 0, 0);
     car.vel.set(0, 0, PAD_MAX);
     car.gear = 0;
     for (let t = 0; t < 30 && car.vel.length() >= GAP_FAST; t += DT) car.step(DT, coast, flat);

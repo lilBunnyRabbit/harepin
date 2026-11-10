@@ -1,7 +1,7 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
 import { DEFAULT_BUILD, DEFAULT_PARTS, SLOTS, SLOT_NAMES, STATS, apply_build, build_code, build_spec, parse_build, stat_range, stats, type Build } from "./build";
-import { CARS, COUPE, RALLY, type CarId, type CarSpec } from "./cars";
+import { CARS, COUPE, RALLY, car_sized, type CarId, type CarSpec } from "./cars";
 
 const with_parts = (parts: Partial<Build["parts"]>, rest: Partial<Omit<Build, "parts">> = {}): Build => ({ ...DEFAULT_BUILD, ...rest, parts: { ...DEFAULT_PARTS, ...parts } });
 
@@ -235,7 +235,7 @@ test("stats rise with the parts that should raise them and stay inside the range
   expect(stats(build_spec(with_parts({ aero: 2 }))).top_speed).toBeLessThan(stock.top_speed);
   for (const car of Object.keys(CARS) as CarId[]) {
     const s = stats(CARS[car]);
-    expect(s.top_speed * 3.6).toBeGreaterThan(150);
+    expect(s.top_speed * 3.6).toBeGreaterThan(car_sized(CARS[car]) ? 150 : 80);
     expect(s.top_speed * 3.6).toBeLessThan(330);
     for (const key of STATS) {
       expect(s[key]).toBeLessThanOrEqual(high[key]);

@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import type { Size } from "../car/cars";
 import type { Look } from "../hud/input";
 import type { World } from "../world/world";
 
@@ -49,6 +50,8 @@ export class ChaseCamera {
   top = false;
   /** Hood camera point in car space; null uses HOOD. */
   eye: THREE.Vector3 | null = null;
+  /** The car's body against a car-sized one (`oversize`): the chase view backs off and rises with it. */
+  size: Size = { length: 1, width: 1, height: 1 };
   boost = false;
   private yaw = 0;
   private height = 0;
@@ -88,7 +91,8 @@ export class ChaseCamera {
     this.orbit_yaw = this.aim_yaw = 0;
     this.orbit_pitch = this.aim_pitch = 0;
     this.recenter_t = Infinity;
-    this.chase.set(car.pos.x - Math.sin(this.yaw) * 7, car.pos.y + 2.5, car.pos.z - Math.cos(this.yaw) * 7);
+    const { length, height } = this.size;
+    this.chase.set(car.pos.x - Math.sin(this.yaw) * 7 * length, car.pos.y + 2.5 * height, car.pos.z - Math.cos(this.yaw) * 7 * length);
     this.camera.position.copy(this.chase);
     this.floor = this.orbit_floor = -Infinity;
   }
@@ -180,12 +184,13 @@ export class ChaseCamera {
       this.yaw += angle_diff(desired, this.yaw) * Math.min(1, dt * 5);
       this.height += (car.pos.y - this.height) * Math.min(1, dt * 6);
       this.pull += (Math.max(-1, Math.min(1, accel / 9)) - this.pull) * Math.min(1, dt * 3);
-      const back = this.top ? TOP_BACK : 6.2 + speed * 0.022 + this.pull * 0.7;
-      const rise = this.top ? TOP_RISE : 2.15 + speed * 0.006 - PIVOT_RISE;
+      const { length, height } = this.size;
+      const back = this.top ? TOP_BACK * length : 6.2 * length + speed * 0.022 + this.pull * 0.7;
+      const rise = this.top ? TOP_RISE * length : 2.15 * height + speed * 0.006 - PIVOT_RISE * height;
       const base_pitch = Math.atan2(rise, back);
       this.orbit(dt, look, speed, base_pitch);
       const reach = Math.hypot(back, rise);
-      const pivot_y = this.height + PIVOT_RISE;
+      const pivot_y = this.height + PIVOT_RISE * height;
       this.target.set(car.pos.x - Math.sin(this.yaw) * Math.cos(base_pitch) * reach, pivot_y + Math.sin(base_pitch) * reach, car.pos.z - Math.cos(this.yaw) * Math.cos(base_pitch) * reach);
       this.chase.lerp(this.target, 1 - Math.exp(-dt * FOLLOW_RATE));
       this.floor = this.ground(world, this.chase, pivot_y, this.floor, dt);
@@ -204,7 +209,7 @@ export class ChaseCamera {
       camera.position.y = Math.max(camera.position.y, this.orbit_floor);
       camera.up.set(0, 1, 0);
       const yaw = this.yaw + this.orbit_yaw;
-      const lead = this.top ? TOP_LEAD : LOOK_LEAD;
+      const lead = (this.top ? TOP_LEAD : LOOK_LEAD) * length;
       this.look.set(car.pos.x + Math.sin(yaw) * lead, pivot_y, car.pos.z + Math.cos(yaw) * lead);
       camera.lookAt(this.look);
     }

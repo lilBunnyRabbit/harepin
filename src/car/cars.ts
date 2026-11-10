@@ -1,5 +1,5 @@
 export type Drive = "rwd" | "fwd" | "awd";
-export type BodyStyle = "hatch" | "coupe" | "muscle" | "rally" | "kaze" | "formula" | "sturm" | "raijin";
+export type BodyStyle = "hatch" | "coupe" | "muscle" | "rally" | "kaze" | "formula" | "sturm" | "raijin" | "bus";
 export type Triple = [number, number, number];
 
 /** Engine voice; the limiter cuts in just under `redline`. */
@@ -553,7 +553,95 @@ export const RAIJIN: CarSpec = {
   sound: { cylinders: 4, pulses: [1, 0.95, 1.02, 0.94], jitter: 0.08, pulse_ms: 0.8, formants: [180, 560, 1800], shift: 0.35, muffler: [950, 4400], drive: 2.6, rasp: 0.6, intake: 0.8, crackle: 0.55, turbo: 1 },
 };
 
-export const CARS: Record<CarId, CarSpec> = { hatch: HATCH, coupe: COUPE, muscle: MUSCLE, rally: RALLY, kaze: KAZE, sturm: STURM, raijin: RAIJIN, formula: FORMULA };
+// City bus: 11.5 t on two axles 5.9 m apart, centre of mass 1.1 m up. Soft springs and thin bars let it lean hard; the
+// grip runs out before the roll does, so a steady corner slides it, and a sideways landing or a rail hit can still tip it.
+// The tyre and strut limits sit far above a car's because each wheel carries 20-30 kN at rest.
+const BUS_FLOOR = 0.8;
+const BUS_ROOF = 1.95;
+
+export const BUS: CarSpec = {
+  ...COUPE,
+  id: "bus",
+  name: "Bus",
+  mass: 11500,
+  inertia: [140000, 145000, 15000],
+  wheel: { radius: 0.5, rest: 0.32, mounts: mounts(1.05, -0.49, 3.24, 2.66) },
+  wheelbase: 5.9,
+  lock: 0.5,
+  spring: 137000,
+  damper: 26000,
+  bump: 900000,
+  strut_max: 160000,
+  arb_front: 45000,
+  arb_rear: 30000,
+  mu: 0.9,
+  rear_grip: 1.08,
+  load_fade: 220000,
+  peak_slip: 0.12,
+  peak_angle: 0.12,
+  idle: 600,
+  launch_rpm: 700,
+  redline: 2600,
+  upshift: 2350,
+  downshift: 1150,
+  gears: [3.4, 2.0, 1.4, 1.0, 0.8, 0.68],
+  reverse: 4.0,
+  final: 7.4,
+  driveline: 0.88,
+  engine_inertia: 0.6,
+  shift_time: 0.35,
+  torque: [
+    [0, 700],
+    [600, 900],
+    [1000, 1400],
+    [1300, 1650],
+    [1800, 1650],
+    [2200, 1450],
+    [2600, 1150],
+    [3200, 800],
+  ],
+  brake_front: 9500,
+  brake_rear: 8000,
+  brake_grip: 1.15,
+  assist_yaw: 1.2,
+  handbrake: 9000,
+  hold: 12000,
+  drag: 3.2,
+  downforce: 0.3,
+  roll_resist: 14,
+  offroad: 0.2,
+  air_settle: 4,
+  band: [BUS_FLOOR, BUS_ROOF],
+  circles: [4.6, 2.3, 0, -2.3, -4.86],
+  radius: 1.3,
+  corners: shifted(corners(1.25, -BUS_FLOOR, BUS_ROOF, 6.0), -0.16),
+  hull: [1200000, 60000],
+  body: { length: 12, width: 2.5, height: 3.05, style: "bus" },
+  sound: { cylinders: 6, pulses: [1, 0.92, 1, 0.94, 1, 0.9], jitter: 0.12, pulse_ms: 2.6, formants: [70, 210, 560], shift: 0.12, muffler: [300, 1300], drive: 2.4, rasp: 0.45, intake: 0.3, crackle: 0.05, turbo: 1 },
+};
+
+export const CARS: Record<CarId, CarSpec> = { hatch: HATCH, coupe: COUPE, muscle: MUSCLE, rally: RALLY, kaze: KAZE, sturm: STURM, raijin: RAIJIN, formula: FORMULA, bus: BUS };
+
+export interface Size {
+  length: number;
+  width: number;
+  height: number;
+}
+
+/** The biggest car body, metres: cameras, shadows and spawn lifts were tuned to fit everything up to it. */
+const CAR_ENVELOPE: Size = { length: 5, width: 2.1, height: 1.5 };
+
+/** Per axis, how many times the body outgrows `CAR_ENVELOPE`, never under 1, so views tuned for a car leave every car as it was. */
+export function oversize(spec: CarSpec): Size {
+  const { length, width, height } = spec.body;
+  return { length: Math.max(1, length / CAR_ENVELOPE.length), width: Math.max(1, width / CAR_ENVELOPE.width), height: Math.max(1, height / CAR_ENVELOPE.height) };
+}
+
+/** Fits inside `CAR_ENVELOPE`: everything planned around a car (jump lines, parking bays) holds for it. */
+export function car_sized(spec: CarSpec): boolean {
+  const { length, width, height } = oversize(spec);
+  return length === 1 && width === 1 && height === 1;
+}
 
 export function is_car(id: string): id is CarId {
   return Object.hasOwn(CARS, id);

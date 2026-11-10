@@ -1,6 +1,6 @@
 import { Vector3 } from "three";
 import { car_spec } from "../src/car/cars";
-import { Car, type Controls, type Ground } from "../src/car/car";
+import { Car, drop_height, type Controls, type Ground } from "../src/car/car";
 
 const SPEC = car_spec(process.argv[2] ?? "coupe");
 
@@ -29,7 +29,7 @@ function run(seconds: number, controls: (t: number) => Controls, until?: () => b
 const kmh = () => car.forward_speed * 3.6;
 const upright = () => new Vector3(0, 1, 0).applyQuaternion(car.quat).y;
 
-car.place(0, 0.6, 0, 0);
+car.place(0, drop_height(SPEC, 0.6), 0, 0);
 run(2, () => idle);
 console.log(`settled: CG height ${car.pos.y.toFixed(3)} m, loads ${car.wheels.map((w) => w.load.toFixed(0)).join(" / ")} N`);
 

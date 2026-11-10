@@ -1,6 +1,6 @@
 import { Vector3 } from "three";
 import { car_spec } from "../src/car/cars";
-import { Car, SteerMode, type Controls, type Ground } from "../src/car/car";
+import { Car, SteerMode, drop_height, type Controls, type Ground } from "../src/car/car";
 
 const SPEC = car_spec(process.argv[2] ?? "coupe");
 
@@ -19,7 +19,7 @@ const tmp = new Vector3();
 function fresh(ground = flat, setup?: (car: Car) => void): Car {
   const car = new Car(SPEC);
   setup?.(car);
-  car.place(0, ground.height(0, 0) + 0.6, 0, 0);
+  car.place(0, ground.height(0, 0) + drop_height(SPEC, 0.6), 0, 0);
   run(car, 1.5, () => idle, ground);
   return car;
 }
