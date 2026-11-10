@@ -22,7 +22,7 @@ const jobs: ProofJob[] = [
   ...SKY.map((seed) => ({ kind: "sky" as const, seed, checks: true, drives: DRIVES })),
   ...DESERT.map((seed) => ({ kind: "desert" as const, seed, checks: true, drives: DRIVES })),
 ];
-const golden: Record<WorldKind, Golden> = { island: read_golden("island"), sky: read_golden("sky"), desert: read_golden("desert") };
+const golden: Record<WorldKind, Golden> = { island: read_golden("island"), sky: read_golden("sky"), desert: read_golden("desert"), mainland: read_golden("mainland") };
 const size = pool_size(process.argv);
 const t0 = performance.now();
 const results = await run_pool<ProofJob, ProofResult>(new URL("./proof/worker.ts", import.meta.url), jobs, size, (r, done) =>

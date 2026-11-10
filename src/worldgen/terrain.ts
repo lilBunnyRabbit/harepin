@@ -57,3 +57,9 @@ export function terrain(seed: number, shape: TerrainRecipe = ISLAND.terrain, gri
     for (let i = grid.i0; i <= grid.i1; i++) heights[at(grid, i, j)] = raw_height(ORIGIN + i * CELL, ORIGIN + j * CELL, seed, peak, shape);
   return { seed, size: SIZE, cell: CELL, n: N, heights, road_dist: new Float32Array(heights.length).fill(1e9), surface: new Uint8Array(heights.length) };
 }
+
+/** `raw_height` with the seed's peak picked once, for plans that sample land off the vertex lattice. */
+export function land_height(seed: number, shape: TerrainRecipe): (x: number, z: number) => number {
+  const peak = peak_of(seed, shape.peak.reach);
+  return (x, z) => raw_height(x, z, seed, peak, shape);
+}

@@ -26,7 +26,7 @@ export const WORLD_VERSION = 6;
 /** Bump whenever `generate_sky` makes a different track for the same seed. */
 export const SKY_VERSION = 3;
 
-export const WorldKind = { ISLAND: "island", SKY: "sky", DESERT: "desert" } as const;
+export const WorldKind = { ISLAND: "island", SKY: "sky", DESERT: "desert", MAINLAND: "mainland" } as const;
 export type WorldKind = (typeof WorldKind)[keyof typeof WorldKind];
 
 export interface RoadPoint {

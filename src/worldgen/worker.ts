@@ -65,7 +65,7 @@ function open({ seed, kind, tones }: GenRequest) {
   const empty = { heights: new Float32Array(0), road_dist: new Float32Array(0), surface: new Uint8Array(0) };
   postMessage({ type: "plan", data: { ...data, terrain: { ...data.terrain, ...empty }, ground: { ...data.ground, ops: [] } } } satisfies WorkerReply);
   const ext = extent(KINDS[kind].size);
-  world = { data, ext, build: chunk_meshes(data, tones) };
+  world = { data, ext, build: data.terrain.heights.length ? chunk_meshes(data, tones) : () => null };
   for (let index = 0; index < ext.side * ext.side; index++) left.push(index);
 }
 

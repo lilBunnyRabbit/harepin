@@ -127,3 +127,10 @@ export const DESERT: Recipe = {
     { kind: PropKind.SPIRE, spacing: 130, odds: 0.18, biomes: ["upland"] },
   ],
 };
+
+/** The island's ground at three times the span: one wide landmass in the sea, its towns joined by a road network. */
+export const MAINLAND: Recipe = {
+  ...ISLAND,
+  terrain: { mask: 2900, edge: -9, peak: { height: 240, radius: 1100, reach: 1400 }, hills: 110, ridge: 26, dunes: null, mesas: null },
+  towns: { min: 10, max: 16, trees: true, block: { min: 45, span: 25 } },
+};
