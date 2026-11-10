@@ -2,6 +2,8 @@ import { joinRoom, selfId, type Room } from "trystero";
 import { decode_car, encode_car } from "./car-packet";
 import { Link, type Channel } from "./channel";
 import { RateLimit } from "./rate-limit";
+import { BlockedWatch } from "./blocked";
+import { clean_country } from "./country";
 import { TURN_SERVERS } from "./ice";
 import { READY_BURST, READY_GAP_MS, type ReadyMsg } from "./ready";
 import { WORLD_VERSION } from "../worldgen/types";
@@ -34,8 +36,14 @@ export type CarPacket = { kind: "car"; state: CarState } | { kind: "unreadable" 
 
 export type ChatMsg = { text: string; t: number };
 
-/** Sent once to each peer as it joins. `world` is the sender's `world_id`, `seed` its map seed. */
-export type Hello = { protocol: number; version: string; world: number; seed: number };
+/**
+ * Sent to each peer as it joins, again when the sender's country setting changes. `world` is the sender's `world_id`,
+ * `seed` its map seed, `country` its ISO code when shared; peers that predate it send none.
+ */
+export type Hello = { protocol: number; version: string; world: number; seed: number; country?: string };
+
+/** One player of a game, as its leader lists it in the directory. */
+export type RosterEntry = { name: string; country?: string; racing?: boolean };
 
 /**
  * `start_at` is in the sender's `performance.now()` clock; receivers shift it by their `Sender.offset`. `route` is a
@@ -91,7 +99,7 @@ const OFFSET_DRIFT = 0.5;
 // Long enough for the room's players to show up, so a newcomer doesn't briefly announce a game it isn't hosting.
 const ELECT_MS = 5000;
 export const WRONG_PASSWORD = "wrong password";
-const TURNED_AWAY = "searching · turned away a wrong password";
+export const TURNED_AWAY = "searching · turned away a wrong password";
 // A bad SDP decrypt, or a bad challenge over a connection two peers already share from another room. Never a timeout:
 // that is as likely a slow network as a bad password.
 const PASSWORD_ERROR = /incorrect (room )?password/;
@@ -139,10 +147,13 @@ export function read_car(raw: unknown, id: string): CarPacket | null {
 // Both sides of a refused handshake get the same error, so only a player who typed a guess and never got in reads it
 // as their own failure; a host who has never had company reads it as someone else's.
 export function join_error_status(lock: RoomLock | null, had_peer: boolean, peers: number, error: string): string | null {
-  if (SDP_FAILED.test(error)) return peers === 0 ? NETWORK_BLOCKED : null;
   if (!lock || had_peer || !PASSWORD_ERROR.test(error)) return null;
   if (lock.asked) return WRONG_PASSWORD;
   return peers === 0 ? TURNED_AWAY : null;
+}
+
+export function is_sdp_failure(error: string): boolean {
+  return SDP_FAILED.test(error);
 }
 
 export function leader_of(self: string, ids: Iterable<string>): string {
@@ -186,7 +197,10 @@ export function sanitize_hello(raw: unknown): Hello | null {
   const h = raw as Record<string, unknown>;
   if (!uint(h.protocol, MAX_PROTOCOL) || typeof h.version !== "string" || !SEMVER.test(h.version)) return null;
   if (!uint(h.world, MAX_SEED) || h.world === 0 || !uint(h.seed, MAX_SEED)) return null;
-  return { protocol: h.protocol, version: h.version, world: h.world, seed: h.seed };
+  const hello: Hello = { protocol: h.protocol, version: h.version, world: h.world, seed: h.seed };
+  const country = clean_country(h.country);
+  if (country !== null) hello.country = country;
+  return hello;
 }
 
 export function sanitize_chat(raw: unknown): ChatMsg | null {
@@ -234,6 +248,8 @@ export class Net {
   /** Senders greeted over the BroadcastChannel, so a legacy tab that never answers gets exactly one hello. */
   private readonly greeted = new Set<string>();
   private had_peer = false;
+  private readonly blocked = new BlockedWatch();
+  private country: string | null = null;
 
   /** `lock` locks the room: peers without the same password fail the trystero handshake and never connect. */
   constructor(
@@ -253,7 +269,10 @@ export class Net {
     try {
       p2p = join({ appId: APP_ID, turnConfig: TURN_SERVERS, ...(password === null ? {} : { password }) }, room, {
         onJoinError: ({ error }) => {
-          this.status = join_error_status(lock, this.had_peer, this.peers, error) ?? this.status;
+          if (is_sdp_failure(error)) {
+            this.blocked.fail(performance.now());
+            this.check_blocked();
+          } else this.status = join_error_status(lock, this.had_peer, this.peers, error) ?? this.status;
         },
       });
       this.status = "searching";
@@ -292,6 +311,7 @@ export class Net {
     p2p.onPeerJoin = (peer) => {
       this.peer_ids.add(peer);
       this.had_peer = true;
+      this.blocked.clear();
       this.hello.send(this.own_hello, peer);
       this.status = "online";
     };
@@ -309,7 +329,28 @@ export class Net {
   }
 
   private get own_hello(): Hello {
-    return { protocol: PROTOCOL, version: this.version, world: this.world, seed: this.seed };
+    const hello: Hello = { protocol: PROTOCOL, version: this.version, world: this.world, seed: this.seed };
+    if (this.country !== null) hello.country = this.country;
+    return hello;
+  }
+
+  /** Null hides it; peers already here hear the change. */
+  set_country(country: string | null) {
+    if (country === this.country) return;
+    this.country = country;
+    this.hello.send(this.own_hello);
+  }
+
+  private check_blocked() {
+    const blocked = this.peers === 0 && this.blocked.blocked(performance.now());
+    if (blocked) this.status = NETWORK_BLOCKED;
+    else if (this.status === NETWORK_BLOCKED) this.status = this.peers ? "online" : "searching";
+  }
+
+  /** This map's players for the directory, this player first: names as they sent them, countries from their hellos. */
+  roster(racing: boolean): RosterEntry[] {
+    const entry = (name: string, country: string | null | undefined): RosterEntry => ({ name, ...(country ? { country } : {}), ...(racing ? { racing } : {}) });
+    return [entry(this.name, this.country), ...[...this.same_map].map(([id, sighting]) => entry(sighting.name, this.hellos.get(id)?.country))];
   }
 
   private greet(peer: string) {
@@ -450,15 +491,16 @@ export class Net {
     for (const [id, { seen }] of this.same_map) if (now - seen > TIMEOUT) this.same_map.delete(id);
     for (const [id, seen] of this.unreadable) if (now - seen > TIMEOUT) this.unreadable.delete(id);
     this.recount();
+    this.check_blocked();
   }
 
   /**
-   * May show in the directory, where the lowest id among a game's players speaks for it. A player who typed a password
-   * and never got in can't: their guess may be wrong, and they would list a lone copy of someone else's locked game.
+   * The lowest id among this map's players speaks for the game in the directory. A player who typed a password and
+   * never got in can't: their guess may be wrong, and they would list a lone copy of someone else's locked game.
    */
-  get listed(): boolean {
+  get leader(): boolean {
     if (this.lock?.asked && !this.had_peer) return false;
-    return !this.electing;
+    return !this.electing && this.leader_id === this.id;
   }
 
   /** Within `ELECT_MS` of joining, while players already here may not have been heard. */

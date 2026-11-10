@@ -95,7 +95,7 @@ test("locked names end in a code; an unlocked game under one is a visitor and is
   expect(sanitize_announce({ ...announce, room: "race-2024", locked: false })?.room).toBe("race-2024");
 });
 
-test("admission: a handshake burst stops at the cap, and refused peers stay refused", () => {
+test("admission: a handshake burst stops at the cap, refused peers stay refused until the room is left", () => {
   const admission = new Admission(3);
   expect(["a", "b", "c", "d", "e"].map((id) => admission.admit(id))).toEqual([true, true, true, false, false]);
   admission.join("a");
@@ -104,12 +104,14 @@ test("admission: a handshake burst stops at the cap, and refused peers stay refu
   expect(admission.admit("f")).toBe(true);
   expect(admission.admit("g")).toBe(false);
   admission.reset();
-  expect(admission.admit("e")).toBe(false);
+  expect(admission.admit("e")).toBe(true);
   expect(admission.admit("h")).toBe(true);
 });
 
-test("announces keep a known country and a racing flag, and drop anything else in those fields", () => {
-  expect(sanitize_announce({ ...announce, country: "SI", racing: true })).toEqual({ ...announce, country: "SI", racing: true });
-  expect(sanitize_announce({ ...announce, country: "<b>", racing: "yes" })).toEqual(announce);
-  expect(sanitize_announce({ ...announce, country: "ZZ", racing: false })).toEqual(announce);
+test("announces keep a racing flag and a capped, cleaned roster", () => {
+  const roster = [{ name: " Ann ", country: "SI", racing: true }, { name: "Bo", country: "ZZ" }, { name: 5 }, "x"];
+  expect(sanitize_announce({ ...announce, racing: true, roster })).toEqual({ ...announce, racing: true, roster: [{ name: "Ann", country: "SI", racing: true }, { name: "Bo" }] });
+  expect(sanitize_announce({ ...announce, racing: "yes", roster: "Ann" })).toEqual(announce);
+  expect(sanitize_announce({ ...announce, roster: [] })).toEqual(announce);
+  expect(sanitize_announce({ ...announce, roster: Array.from({ length: 40 }, (_, i) => ({ name: `P${i}` })) })?.roster).toHaveLength(16);
 });

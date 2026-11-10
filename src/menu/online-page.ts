@@ -1,5 +1,5 @@
 import { DirectoryStatus, LOBBY_ROOM, type Server } from "../net/directory";
-import { NETWORK_BLOCKED, WRONG_PASSWORD } from "../net/net";
+import { NETWORK_BLOCKED, TURNED_AWAY, WRONG_PASSWORD } from "../net/net";
 import { el, icon } from "./setting-rows";
 import { world_query } from "../world/world-pick";
 import { WORLDS } from "../worlds/worlds";
@@ -22,6 +22,7 @@ const NET_LABEL: Record<string, string> = {
   "local only": "Offline, this browser's tabs only",
   [WRONG_PASSWORD]: "Wrong password",
   [NETWORK_BLOCKED]: "Network blocked",
+  [TURNED_AWAY]: "Searching, turned away a wrong password",
 };
 
 const BLOCKED_NOTE = "Found a player, but the network blocked the connection (mobile data often does). Try the same Wi-Fi.";
@@ -50,10 +51,10 @@ export class OnlinePage implements MenuPage {
     const leave_confirm = el("div", "online-confirm");
     if (room !== LOBBY_ROOM) {
       const leave = () => this.menu.go(world_query(LOBBY_ROOM, seed, kind));
-      invite.append(action("Leave room", () => (this.menu.host.race_busy() ? (leave_confirm.hidden = false) : leave())));
+      invite.append(action("Leave room", () => (this.menu.host.race_busy() || this.menu.host.mode_active() ? (leave_confirm.hidden = false) : leave())));
       const buttons = el("div", "settings-inline");
-      buttons.append(action("Leave race and room", leave), action("Stay", () => (leave_confirm.hidden = true)));
-      leave_confirm.append(el("span", "", "A race is running."), buttons);
+      buttons.append(action("Leave anyway", leave), action("Stay", () => (leave_confirm.hidden = true)));
+      leave_confirm.append(el("span", "", "Leaving ends your race or run."), buttons);
     }
     leave_confirm.hidden = true;
     const room_tile = info("room", "Your room", el("b", "menu-code", room), ...this.net_status(), players, invite, leave_confirm, el("small", "menu-caption", "Friends who open the link join this room on this map"));
@@ -163,7 +164,7 @@ export class OnlinePage implements MenuPage {
       if (text === shown) return;
       shown = text;
       line.textContent = text;
-      line.dataset.state = status === "online" ? "good" : status === "connecting" || status === "searching" ? "wait" : "bad";
+      line.dataset.state = status === "online" ? "good" : status === "connecting" || status === "searching" ? "wait" : status === TURNED_AWAY ? "none" : "bad";
       blocked.hidden = status !== NETWORK_BLOCKED;
     });
     return [line, blocked, versions];

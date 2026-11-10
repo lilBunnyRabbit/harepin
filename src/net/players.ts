@@ -1,6 +1,4 @@
-import type { Announce } from "./directory";
-import { WorldKind } from "../worldgen/types";
-import { world_id } from "../worldgen/kinds/kinds";
+import type { Announce, Server } from "./directory";
 
 const GOOD_PING_MS = 100;
 const OK_PING_MS = 250;
@@ -13,12 +11,15 @@ export const PingClass = {
 } as const;
 export type PingClass = (typeof PingClass)[keyof typeof PingClass];
 
-export interface Player extends Announce {
-  id: string;
-  /** Round trip in ms; null while not linked to that player. */
+export interface Player {
+  key: string;
+  name: string;
+  country: string | null;
+  racing: boolean;
+  /** Round trip to the game's announcer in ms; null for this game or while not linked to it. */
   ping: number | null;
-  here: boolean;
   you: boolean;
+  game: Server;
 }
 
 export function ping_class(ms: number | null): PingClass {
@@ -26,16 +27,15 @@ export function ping_class(ms: number | null): PingClass {
   return ms < GOOD_PING_MS ? PingClass.GOOD : ms < OK_PING_MS ? PingClass.OK : PingClass.BAD;
 }
 
-const world_of = (a: Announce) => a.world ?? world_id(WorldKind.ISLAND);
-
-export function same_place(a: Announce, b: Announce): boolean {
-  return a.room === b.room && a.seed === b.seed && world_of(a) === world_of(b);
-}
-
-export function player_list(entries: Iterable<readonly [string, Announce]>, pings: ReadonlyMap<string, number>, own: Announce | null): Player[] {
+// This game's row comes from whoever announces it, but its roster comes from this player, who is always first in it.
+export function player_list(games: readonly Server[], pings: ReadonlyMap<string, number>, own: Announce | null): Player[] {
   const players: Player[] = [];
-  for (const [id, a] of entries) players.push({ ...a, id, ping: pings.get(id) ?? null, here: own !== null && same_place(a, own), you: false });
-  players.sort((a, b) => Number(b.here) - Number(a.here) || a.host.localeCompare(b.host) || a.id.localeCompare(b.id));
-  if (own) players.unshift({ ...own, id: "", ping: null, here: true, you: true });
+  for (const game of games) {
+    const roster = (game.here ? own?.roster : game.roster) ?? [{ name: game.host }];
+    const ping = game.here ? null : (pings.get(game.peer) ?? null);
+    roster.forEach((entry, i) =>
+      players.push({ key: `${game.key}#${i}`, name: entry.name, country: entry.country ?? null, racing: entry.racing ?? game.racing ?? false, ping, you: game.here && i === 0, game }),
+    );
+  }
   return players;
 }

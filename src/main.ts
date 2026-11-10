@@ -81,13 +81,14 @@ for (const g of gate_views) scene.add(g.group);
 const lock = load_lock(room);
 const net = new Net(room, seed, prefs.name ?? random_name, lock, world_id(kind), BUILD.version);
 const country = own_country();
+net.set_country(prefs.show_country ? country : null);
 const directory = new Directory(
   () => ({
     room, seed, host: net.name, players: 1 + net.remotes.size, locked: lock !== null, version: BUILD.version, world: world_id(kind),
-    ...(settings.state.show_country && country !== null ? { country } : {}),
     ...(lobby.busy ? { racing: true } : {}),
+    roster: net.roster(lobby.busy),
   }),
-  () => net.listed,
+  () => net.leader,
 );
 const chat = new Chat(net);
 chat.start();
@@ -218,6 +219,7 @@ settings.on_change = (state, key) => {
     quality.set_mode(state.quality);
     render.apply_quality();
   } else if (key === "name") net.set_name(state.name ?? random_name);
+  else if (key === "show_country") net.set_country(state.show_country ? country : null);
   else apply_settings(state);
 };
 apply_settings(prefs);

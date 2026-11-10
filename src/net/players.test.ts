@@ -1,11 +1,10 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import type { Announce } from "./directory";
-import { WorldKind } from "../worldgen/types";
-import { world_id } from "../worldgen/kinds/kinds";
-import { PingClass, ping_class, player_list, same_place } from "./players";
+import type { Announce, Server } from "./directory";
+import { PingClass, ping_class, player_list } from "./players";
 
-const base: Announce = { room: "lobby", seed: 7, host: "Me", players: 1, locked: false, version: "1.0.0", world: world_id(WorldKind.ISLAND) };
+const base: Announce = { room: "lobby", seed: 7, host: "Leader", players: 2, locked: false, version: "1.0.0" };
+const game = (over: Partial<Server>): Server => ({ ...base, key: "k", here: false, peer: "p", ...over });
 
 test("ping classes: good under 100 ms, ok under 250, none when not linked", () => {
   expect(ping_class(null)).toBe(PingClass.NONE);
@@ -15,31 +14,22 @@ test("ping classes: good under 100 ms, ok under 250, none when not linked", () =
   expect(ping_class(250)).toBe(PingClass.BAD);
 });
 
-test("same place: room, map and world all match; no world means the island", () => {
-  expect(same_place(base, { ...base, host: "Other" })).toBe(true);
-  expect(same_place(base, { ...base, seed: 8 })).toBe(false);
-  expect(same_place(base, { ...base, room: "x" })).toBe(false);
-  expect(same_place({ ...base, world: undefined }, base)).toBe(true);
-});
-
-test("players: you first, then players here, then by name, each with its ping", () => {
+test("one row per roster entry, each carrying its game's announcer ping; this game's roster is this player's own", () => {
+  const own: Announce = { ...base, roster: [{ name: "Me", country: "SI" }, { name: "Pal" }] };
   const list = player_list(
     [
-      ["c", { ...base, host: "Cleo", seed: 9 }],
-      ["b", { ...base, host: "Bob", room: "den", locked: true }],
-      ["a", { ...base, host: "Zed" }],
+      game({ key: "here", here: true, peer: "", roster: [{ name: "Leader" }, { name: "Me" }] }),
+      game({ key: "den", peer: "d", room: "den", racing: true, roster: [{ name: "Ann", country: "US" }, { name: "Bo", racing: false }] }),
+      game({ key: "old", peer: "o", host: "Oldie" }),
     ],
-    new Map([["c", 42]]),
-    base,
+    new Map([["d", 42]]),
+    own,
   );
-  expect(list.map((p) => [p.id, p.host, p.here, p.you, p.ping])).toEqual([
-    ["", "Me", true, true, null],
-    ["a", "Zed", true, false, null],
-    ["b", "Bob", false, false, null],
-    ["c", "Cleo", false, false, 42],
+  expect(list.map((p) => [p.key, p.name, p.country, p.racing, p.ping, p.you])).toEqual([
+    ["here#0", "Me", "SI", false, null, true],
+    ["here#1", "Pal", null, false, null, false],
+    ["den#0", "Ann", "US", true, 42, false],
+    ["den#1", "Bo", null, false, 42, false],
+    ["old#0", "Oldie", null, false, null, false],
   ]);
-});
-
-test("players without an own announce list only the others", () => {
-  expect(player_list([["a", base]], new Map(), null).map((p) => p.you)).toEqual([false]);
 });

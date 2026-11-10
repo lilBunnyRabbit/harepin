@@ -1,5 +1,5 @@
 import { joinRoom, type Room } from "trystero";
-import { APP_ID, MAX_SEED, RateLimit, clean_name, type RoomLock } from "./net";
+import { APP_ID, MAX_SEED, RateLimit, clean_name, type RoomLock, type RosterEntry } from "./net";
 import { TURN_SERVERS } from "./ice";
 import { WorldKind } from "../worldgen/types";
 import { world_id } from "../worldgen/kinds/kinds";
@@ -19,6 +19,8 @@ const MAX_PEERS = 24;
 export const ROOM_LENGTH = 32;
 export const PASSWORD_LENGTH = 64;
 const MAX_PLAYERS = 64;
+// Keeps one announce well under MAX_RECEIVE_BYTES; a bigger game lists its first players and counts the rest.
+const MAX_ROSTER = 16;
 const VERSION = /^[0-9A-Za-z.+-]{1,24}$/;
 const PING_MS = 4000;
 const ANNOUNCE_GAP_MS = 1000;
@@ -40,15 +42,17 @@ export type Announce = {
   version: string;
   /** `world_id` of the game's world kind; peers that predate it send none and are on the island. */
   world?: number;
-  /** ISO 3166 code from the sender's time zone; none when they hide it or predate it. */
-  country?: string;
   /** In a lobby race, so not joinable until it ends; peers that predate it send none. */
   racing?: boolean;
+  /** The game's players, its announcer first; peers that predate it send none and show as one row under `host`. */
+  roster?: RosterEntry[];
 };
 
 export interface Server extends Announce {
   key: string;
   here: boolean;
+  /** Directory peer id of the announcer; empty for this game. */
+  peer: string;
 }
 
 interface Entry {
@@ -96,10 +100,23 @@ export function sanitize_announce(raw: unknown): Announce | null {
   if (a.world !== undefined && (typeof a.world !== "number" || !Number.isInteger(a.world) || a.world < 1 || a.world > MAX_SEED)) return null;
   const announce: Announce = { room, seed: a.seed, host: clean_name(a.host), players: Math.min(a.players, MAX_PLAYERS), locked: a.locked, version: a.version };
   if (a.world !== undefined) announce.world = a.world;
-  const country = clean_country(a.country);
-  if (country !== null) announce.country = country;
   if (a.racing === true) announce.racing = true;
+  if (Array.isArray(a.roster)) {
+    const roster = a.roster.slice(0, MAX_ROSTER).map(sanitize_entry).filter((entry) => entry !== null);
+    if (roster.length) announce.roster = roster;
+  }
   return announce;
+}
+
+function sanitize_entry(raw: unknown): RosterEntry | null {
+  if (!raw || typeof raw !== "object") return null;
+  const e = raw as Record<string, unknown>;
+  if (typeof e.name !== "string") return null;
+  const entry: RosterEntry = { name: clean_name(e.name) };
+  const country = clean_country(e.country);
+  if (country !== null) entry.country = country;
+  if (e.racing === true) entry.racing = true;
+  return entry;
 }
 
 const key_of = (a: Announce) => JSON.stringify([a.room, a.seed, a.world ?? world_id(WorldKind.ISLAND), a.locked, a.version]);
@@ -116,7 +133,7 @@ export function group_servers(entries: Iterable<readonly [string, Announce]>, ow
   const own_key = own ? key_of(own) : null;
   if (own && own_key && !best.has(own_key)) best.set(own_key, ["", own]);
   return [...best]
-    .map(([key, [, a]]) => ({ ...a, key, here: key === own_key }))
+    .map(([key, [peer, a]]) => ({ ...a, key, here: key === own_key, peer }))
     .sort((a, b) => Number(b.here) - Number(a.here) || b.players - a.players || a.room.localeCompare(b.room) || a.seed - b.seed);
 }
 
@@ -179,6 +196,7 @@ export class Admission {
   reset() {
     this.pending.clear();
     this.joined.clear();
+    this.refused.clear();
   }
 }
 
@@ -200,8 +218,7 @@ export class Directory {
 
   constructor(
     private readonly own: () => Announce,
-    /** Whether this player may speak for its game: see `Net.listed`. */
-    private readonly listed: () => boolean,
+    private readonly leader: () => boolean,
   ) {}
 
   start() {
@@ -225,9 +242,9 @@ export class Directory {
     return group_servers(this.heard(), sanitize_announce(this.own()));
   }
 
-  /** Everyone announcing, this player first; only filled while browsing, the only time this player links to them. */
+  /** Every listed game's players, this game first, each with the ping to its game's announcer. */
   players(): Player[] {
-    return player_list(this.heard(), this.pings, sanitize_announce(this.own()));
+    return player_list(this.list(), this.pings, sanitize_announce(this.own()));
   }
 
   private heard(): (readonly [string, Announce])[] {
@@ -237,7 +254,7 @@ export class Directory {
   }
 
   private announcement(): Announce | null {
-    return this.listed() ? sanitize_announce(this.own()) : null;
+    return this.leader() ? sanitize_announce(this.own()) : null;
   }
 
   private ping(room: Room, peer: string) {

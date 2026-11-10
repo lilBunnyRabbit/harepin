@@ -1,6 +1,6 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import { RateLimit, NETWORK_BLOCKED, WRONG_PASSWORD, clean_name, leader_of, join_error_status, parse_seed, read_car, sanitize_chat, sanitize_event, sanitize_hello, sanitize_ready, type CarState } from "./net";
+import { RateLimit, WRONG_PASSWORD, clean_name, is_sdp_failure, leader_of, join_error_status, parse_seed, read_car, sanitize_chat, sanitize_event, sanitize_hello, sanitize_ready, type CarState } from "./net";
 import { encode_car } from "./car-packet";
 
 test("chat text is stripped of control characters, trimmed and capped", () => {
@@ -92,6 +92,8 @@ test("leader: lowest id among this player and its same-map peers", () => {
 test("hello: whole protocol, semver version, real world and uint32 seed", () => {
   const hello = { protocol: 1, version: "0.11.0", world: 2, seed: 42 };
   expect(sanitize_hello({ ...hello, extra: "x" })).toEqual(hello);
+  expect(sanitize_hello({ ...hello, country: "SI" })).toEqual({ ...hello, country: "SI" });
+  expect(sanitize_hello({ ...hello, country: "<b>" })).toEqual(hello);
   expect(sanitize_hello({ ...hello, protocol: 1.5 })).toBeNull();
   expect(sanitize_hello({ ...hello, protocol: -1 })).toBeNull();
   expect(sanitize_hello({ ...hello, version: "v0.11" })).toBeNull();
@@ -112,9 +114,10 @@ test("ready messages are shape-checked", () => {
   expect(sanitize_ready(null)).toBeNull();
 });
 
-test("a failed SDP exchange with nobody connected reads as a blocked network", () => {
-  const sdp = "could not connect to peer abc after exchanging SDP; configure TURN servers with turnConfig or rtcConfig.iceServers";
-  expect(join_error_status(null, false, 0, sdp)).toBe(NETWORK_BLOCKED);
-  expect(join_error_status(null, true, 0, sdp)).toBe(NETWORK_BLOCKED);
-  expect(join_error_status(null, true, 1, sdp)).toBeNull();
+test("failed SDP exchanges are told apart, with and without TURN servers, and never read as a password", () => {
+  const plain = "could not connect to peer abc after exchanging SDP; configure TURN servers with turnConfig or rtcConfig.iceServers";
+  const turn = "could not connect to peer abc after exchanging SDP; check that your TURN server URLs and credentials are reachable by both peers";
+  expect([plain, turn].map(is_sdp_failure)).toEqual([true, true]);
+  expect(is_sdp_failure("incorrect room password when decrypting offer")).toBe(false);
+  expect(join_error_status({ password: "x", asked: true }, false, 0, plain)).toBeNull();
 });
