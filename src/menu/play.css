@@ -1,5 +1,7 @@
 .play {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 400px);
+  align-items: start;
   gap: var(--space-5);
   height: 100%;
   min-height: 420px;
@@ -7,12 +9,8 @@
 
 .play-map {
   position: relative;
-  flex: none;
-  display: grid;
-  place-items: center;
   height: 100%;
-  aspect-ratio: 1;
-  max-width: 60%;
+  min-width: 0;
   overflow: hidden;
   border-radius: var(--radius-lg);
   border: 1px solid var(--set-line);
@@ -20,9 +18,11 @@
 }
 
 .play-map .world-map {
+  width: 100%;
   height: 100%;
-  max-width: 100%;
+  aspect-ratio: auto;
   border-radius: 0;
+  background: var(--map-edge, var(--set-well));
 }
 
 .play-badge,
@@ -60,11 +60,11 @@
 }
 
 .play-side {
-  flex: 1;
-  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+  min-width: 0;
+  max-height: 100%;
   overflow-y: auto;
   scrollbar-width: none;
 }
@@ -94,12 +94,13 @@
 
 .play-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
 }
 
 .settings .play-go {
-  flex: 1;
+  flex: 1 1 160px;
   height: 52px;
   border-radius: var(--radius-md);
   background: var(--primary);
@@ -229,7 +230,7 @@
 
 .play-more {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: var(--space-3);
 }
 
@@ -260,6 +261,7 @@
 
 @media (max-height: 500px) {
   .play {
+    grid-template-columns: minmax(0, 4fr) minmax(0, 5fr);
     gap: var(--space-3);
     height: max(220px, calc(100dvh - var(--inset-top) - var(--inset-bottom) - 96px));
     min-height: 0;
@@ -290,19 +292,17 @@
 
 @media (orientation: portrait) {
   .play {
-    flex-direction: column;
+    grid-template-columns: minmax(0, 1fr);
     height: auto;
     min-height: 0;
   }
 
   .play-map {
-    width: 100%;
-    max-width: none;
     height: min(56dvh, calc(100vw - 32px));
-    aspect-ratio: auto;
   }
 
   .play-side {
+    max-height: none;
     overflow: visible;
   }
 }

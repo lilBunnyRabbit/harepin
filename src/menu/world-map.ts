@@ -111,6 +111,9 @@ export class WorldMap {
     this.image?.close();
     this.image = image;
     this.map = map;
+    // The raster's corner is open water, so a frame wider than the square map continues the sea instead of a band.
+    const [r, g, b] = map.pixels;
+    this.root.style.setProperty("--map-edge", `rgb(${r} ${g} ${b})`);
     if (map.seed === this.wanted?.seed && map.kind === this.wanted.kind) this.draw();
   }
 
@@ -128,7 +131,7 @@ export class WorldMap {
     this.on_ready?.(map);
     canvas.setAttribute("aria-label", `Map of ${WORLDS[map.kind].map_label} ${map.seed}`);
     const ratio = devicePixelRatio;
-    const side = Math.round((canvas.clientWidth || MAP_SIDE) * ratio);
+    const side = Math.round((Math.min(canvas.clientWidth, canvas.clientHeight) || MAP_SIDE) * ratio);
     if (this.drawn?.map === map && this.drawn.side === side) return this.draw_players();
     this.drawn = { map, side };
     canvas.width = canvas.height = side;
