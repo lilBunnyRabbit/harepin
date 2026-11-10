@@ -214,7 +214,7 @@ export const ISLAND: Recipe = {
 const BARE = { start: 1, fill: 0, pine: 0, scrub: 0, extra: 0 };
 /** Dither width of the dune sea's patch edges, so the two sand tones fray into each other instead of a hard camouflage line. */
 const SOFT = 0.3;
-/** Pan floor height and its ease; ground at the floor is pale SAND, laid as hardpack. Dune ground keeps to DUNE and UPLAND. */
+/** Pan floor height and its ease; ground at the floor is the pale PAN row, laid as hardpack. */
 const PAN: PanLayer = { kind: "pan", level: 20, blend: 3 };
 
 /** Wind-aligned dune crests to the horizon, pale hardpack pans between them, a few adobe outposts inside a dune wall. */
@@ -235,9 +235,9 @@ export const DESERT: Recipe = {
     PAN,
   ],
   biomes: {
-    surfaces: { [Ground.SAND]: SurfaceId.HARDPACK },
+    surfaces: { [Ground.PAN]: SurfaceId.HARDPACK },
     zones: ZONES,
-    limits: { ...LIMITS, pan: { top: PAN.level + PAN.blend * 0.1, ground: Ground.SAND } },
+    limits: { ...LIMITS, pan: { top: PAN.level + PAN.blend * 0.1, ground: Ground.PAN } },
     rules: { coast: BARE, meadow: BARE, forest: BARE, upland: BARE },
     items: { coast: "rock", meadow: "rock", forest: null, upland: "rock" },
     ground: {

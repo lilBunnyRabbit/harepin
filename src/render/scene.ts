@@ -11,6 +11,9 @@ import type { Lab } from "../theme/theme";
 
 const JITTER_LIGHTNESS = 0.035;
 const STONE_SHADE = 0.06;
+/** Dry pans read pale and stony against the dune sand around them. */
+const PAN_STONE = 0.3;
+const PAN_LIGHTEN = 0.12;
 // Scrub is a broadleaf crown squashed to a bush and sunk to the ground, so it costs no draw of its own.
 const SCRUB_SQUASH = 0.35;
 const SCRUB_SINK = 0.5;
@@ -33,6 +36,7 @@ function terrain_lut(): Float32Array {
     [Ground.UPLAND]: tones.grass_dry,
     [Ground.DUNE]: mix(tones.sand, tones.grass_dry, 0.5),
     [Ground.DIRT]: tones.dirt,
+    [Ground.PAN]: lighten(mix(tones.sand, tones.rock, PAN_STONE), PAN_LIGHTEN),
   };
   const surfaces = Object.values(Ground).map((g) => surface[g]);
   const bases = [...surfaces, ...surfaces.map((t) => mix(tones.rock, t, 0.5)), tones.rock, tones.snow];
