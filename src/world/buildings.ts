@@ -117,6 +117,8 @@ export interface TownChunk {
   readonly objects: THREE.Object3D[];
   /** Far: only buildings of SMALL_BUILDING and up, no glass below that, no parking, parked cars or lights. */
   far(on: boolean): void;
+  /** Frees what this chunk owns (its building, glass and parking soups, its instances), not the shared kit. */
+  dispose(): void;
 }
 
 export function by_chunk<T extends { x: number; z: number }>(items: T[], ext: Extent): Map<number, T[]> {
@@ -180,6 +182,12 @@ export class TownChunks {
       far(on) {
         for (const [geometry, big] of ranged) geometry.setDrawRange(0, on ? big : Infinity);
         for (const object of near) object.visible = !on;
+      },
+      dispose() {
+        for (const object of objects) {
+          if (object instanceof THREE.InstancedMesh) object.dispose();
+          else if (object instanceof THREE.Mesh) object.geometry.dispose();
+        }
       },
     };
   }

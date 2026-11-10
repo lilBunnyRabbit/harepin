@@ -137,7 +137,7 @@ export class WorldView {
     this.views[chunk.index] = { x0: chunk.x0, z0: chunk.z0, group, terrain: ground, road, full: chunk.terrain?.full ?? 0, trees: here, town, far: null, trees_shown: null };
   }
 
-  /** A compact world's trees and town objects stay built for the chunk's return; a streamed chunk's trees come back with it. */
+  /** A compact world's trees and town objects stay built for the chunk's return; a streamed chunk's are rebuilt when it comes back. */
   drop(index: number) {
     const view = this.views[index];
     if (!view) return;
@@ -147,6 +147,8 @@ export class WorldView {
     if (this.streamed) {
       for (const tree of view.trees) if (tree instanceof THREE.InstancedMesh) tree.dispose();
       this.trees.delete(index);
+      view.town?.dispose();
+      this.towns.delete(index);
     }
     this.views[index] = undefined;
   }
@@ -239,15 +241,14 @@ function tree_meshes({ trunk, crowns, bark, leaf }: TreeKit, here: readonly Tree
   return meshes;
 }
 
-function strip(world: World, positions: number[], road: RoadPoint[], from: number, to: number, lift: number, keep: (s: number) => boolean) {
+function strip(world: World, positions: number[], road: RoadPoint[], from: number, to: number, lift: number, samples: readonly number[]) {
   const lanes = Math.ceil((to - from) / LANE_WIDTH);
   const at = (p: RoadPoint, side: number) => {
     const x = p.x - p.tz * side;
     const z = p.z + p.tx * side;
     return [x, world.height(x, z) + lift, z];
   };
-  for (let s = 0; s < road.length; s++) {
-    if (!keep(s)) continue;
+  for (const s of samples) {
     const a = road[s];
     const b = road[(s + 1) % road.length];
     for (let lane = 0; lane < lanes; lane++) {
@@ -262,14 +263,18 @@ function strip(world: World, positions: number[], road: RoadPoint[], from: numbe
   }
 }
 
-/** A strip along the race circuit, `from` to `to` metres across it. */
-export function ribbon(world: World, from: number, to: number, lift: number, keep: (s: number) => boolean, tone: THREE.Color, offset: number): THREE.Mesh {
+export function ribbon_material(tone: THREE.Color, offset: number): THREE.MeshLambertMaterial {
+  return new THREE.MeshLambertMaterial({ color: tone, polygonOffset: true, polygonOffsetFactor: offset, polygonOffsetUnits: offset, side: THREE.DoubleSide });
+}
+
+/** A strip along the race circuit, `from` to `to` metres across it, over circuit `samples` in ascending order. */
+export function ribbon(world: World, from: number, to: number, lift: number, samples: readonly number[], material: THREE.Material): THREE.Mesh {
   const positions: number[] = [];
-  strip(world, positions, world.road, from, to, lift, keep);
+  strip(world, positions, world.road, from, to, lift, samples);
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
   geometry.computeVertexNormals();
-  const mesh = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({ color: tone, polygonOffset: true, polygonOffsetFactor: offset, polygonOffsetUnits: offset, side: THREE.DoubleSide }));
+  const mesh = new THREE.Mesh(geometry, material);
   mesh.receiveShadow = true;
   return mesh;
 }
