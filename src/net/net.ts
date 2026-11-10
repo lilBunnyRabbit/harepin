@@ -2,6 +2,7 @@ import { joinRoom, selfId, type Room } from "trystero";
 import { decode_car, encode_car } from "./car-packet";
 import { Link, type Channel } from "./channel";
 import { RateLimit } from "./rate-limit";
+import type { ReadyMsg } from "./ready";
 import { WORLD_VERSION, WorldKind } from "../worldgen/types";
 import { DEFAULT_KIND, world_id } from "../worldgen/kinds/kinds";
 
@@ -104,6 +105,9 @@ const OWN_CHAT_GAP_MS = 900;
 const OWN_CHAT_BURST = 4;
 const FALLBACK_NAME = "Player";
 const ID_SUFFIX = 4;
+// Room for the ready resend beat plus a few toggles per rate window.
+const READY_GAP_MS = 250;
+const READY_BURST = 16;
 
 export const APP_ID = "lilbunnyrabbit-harepin";
 export const MAX_SEED = 0xffffffff;
@@ -175,6 +179,14 @@ export function sanitize_event(raw: unknown): RaceEvent | null {
   return null;
 }
 
+export function sanitize_ready(raw: unknown): ReadyMsg | null {
+  if (!raw || typeof raw !== "object") return null;
+  const m = raw as Record<string, unknown>;
+  if (m.ready === false) return { ready: false };
+  const route = route_of(m.route);
+  return m.ready === true && laps_ok(m.laps) && route ? { ready: true, laps: m.laps, route } : null;
+}
+
 const uint = (v: unknown, limit: number): v is number => finite(v, limit) && Number.isInteger(v) && v >= 0;
 
 export function sanitize_hello(raw: unknown): Hello | null {
@@ -220,6 +232,7 @@ export class Net {
   private readonly chats: Channel<ChatMsg>;
   private readonly events: Channel<RaceEvent>;
   private readonly hello: Channel<Hello>;
+  private readonly readies: Channel<ReadyMsg>;
   private own_chat_limit = new RateLimit(OWN_CHAT_GAP_MS, OWN_CHAT_BURST);
 
   private name_: string;
@@ -263,6 +276,7 @@ export class Net {
     this.chats = this.link.channel("chat", sanitize_chat, () => new RateLimit());
     this.events = this.link.channel("event", sanitize_event, () => new RateLimit(), (id) => this.same_map.has(id) || this.remotes.has(id));
     this.hello = this.link.channel("hello", sanitize_hello);
+    this.readies = this.link.channel("ready", sanitize_ready, () => new RateLimit(READY_GAP_MS, READY_BURST), (id) => this.same_map.has(id) || this.remotes.has(id));
     this.cars.subscribe((packet, sender) => {
       this.greet(sender);
       if (packet.kind === "car") {
@@ -380,11 +394,27 @@ export class Net {
 
   on_event(fn: (event: RaceEvent, from: Sender) => void): () => void {
     return this.events.subscribe((event, id) => {
-      const remote = this.remotes.get(id);
-      const sighting = this.same_map.get(id);
-      if (remote) fn(event, { id, name: this.display_name(remote), offset: remote.offset });
-      else if (sighting) fn(event, { id, name: this.label(id, sighting.name), offset: sighting.offset });
+      const from = this.sender(id);
+      if (from) fn(event, from);
     });
+  }
+
+  send_ready(msg: ReadyMsg) {
+    this.readies.send(msg);
+  }
+
+  on_ready(fn: (msg: ReadyMsg, from: Sender) => void): () => void {
+    return this.readies.subscribe((msg, id) => {
+      const from = this.sender(id);
+      if (from) fn(msg, from);
+    });
+  }
+
+  private sender(id: string): Sender | null {
+    const remote = this.remotes.get(id);
+    if (remote) return { id, name: this.display_name(remote), offset: remote.offset };
+    const sighting = this.same_map.get(id);
+    return sighting ? { id, name: this.label(id, sighting.name), offset: sighting.offset } : null;
   }
 
   private receive(state: CarState) {

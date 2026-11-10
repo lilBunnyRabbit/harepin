@@ -1,6 +1,7 @@
 import { add_race, placing, local_store, parse_race_record, read_json, write_json, type RaceRecord, type Store } from "../modes/track";
 import type { Net, RaceEvent, Sender } from "./net";
 import type { Route } from "../worldgen/types";
+import { READY_RESEND_MS, ReadySet, type RaceCall, type ReadyStatus } from "./ready";
 
 export const COUNTDOWN_MS = 3000;
 const MAX_SPEED = 90;
@@ -10,6 +11,8 @@ const FINISH_SLACK_MS = 2000;
 const RESULTS_MS = 30_000;
 // A leader that is busy or gone never answers a request; past this the caller hears so instead of waiting on nothing.
 const REQUEST_MS = 4000;
+// A timer, not the render loop: rAF stops in a background tab, and a ready player there would lapse.
+const READY_TICK_MS = 250;
 
 export interface Finisher {
   id: string;
@@ -59,6 +62,12 @@ export class Lobby {
   private readonly record_key: string;
   private asked_until = 0;
   private unsubscribe: (() => void) | null = null;
+  private unsubscribe_ready: (() => void) | null = null;
+  private readonly readies = new ReadySet();
+  /** The race this player readied for; null while not ready. */
+  private own_ready: RaceCall | null = null;
+  private ready_due = Infinity;
+  private ready_timer: ReturnType<typeof setInterval> | undefined;
 
   constructor(
     private net: Net,
@@ -73,11 +82,31 @@ export class Lobby {
 
   start() {
     this.unsubscribe = this.net.on_event((event, from) => this.receive(event, from));
+    this.unsubscribe_ready = this.net.on_ready((msg, from) => this.readies.hear(from.id, from.name, msg, performance.now()));
+    this.ready_timer = setInterval(() => this.tick(performance.now()), READY_TICK_MS);
   }
 
   stop() {
     this.unsubscribe?.();
     this.unsubscribe = null;
+    this.unsubscribe_ready?.();
+    this.unsubscribe_ready = null;
+    clearInterval(this.ready_timer);
+  }
+
+  get ready(): boolean {
+    return this.own_ready !== null;
+  }
+
+  /** Readies for the next race with this call, or takes it back with null; ignored while a race runs. */
+  set_ready(call: RaceCall | null) {
+    if (this.busy) return;
+    this.own_ready = call;
+    this.ready_due = 0;
+  }
+
+  ready_status(now: number): ReadyStatus {
+    return this.readies.status(this.own_ready, this.net.same_map.keys(), this.net.leader_id, this.net.id, now);
   }
 
   /** Route of the race in progress or just run; the circuit when idle. */
@@ -135,6 +164,17 @@ export class Lobby {
     }
   }
 
+  /** Sends this player's ready on its beat; on the leader, starts the race once everyone is ready. */
+  tick(now: number) {
+    if (this.busy) return;
+    const own = this.own_ready;
+    if (now >= this.ready_due) {
+      this.net.send_ready(own ? { ready: true, ...own } : { ready: false });
+      this.ready_due = own ? now + READY_RESEND_MS : Infinity;
+    }
+    if (own && this.leading && this.readies.everyone(own, this.net.same_map.keys(), now)) this.begin(own.laps, own.route);
+  }
+
   private begin(laps: number, route: string) {
     const known = this.routes.get(route);
     if (!known) return;
@@ -149,6 +189,9 @@ export class Lobby {
     this.state = { kind: "countdown", race, route, laps, go, rivals: this.net.remotes.size };
     this.asked_until = 0;
     this.finishers = [];
+    this.own_ready = null;
+    this.ready_due = Infinity;
+    this.readies.clear();
     this.on_start?.();
   }
 

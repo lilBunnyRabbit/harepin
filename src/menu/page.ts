@@ -2,6 +2,7 @@ import type { Caught } from "../hud/input";
 import type { DirectoryStatus, Server } from "../net/directory";
 import type { ModeEntry } from "../modes/modes";
 import type { RaceChoice } from "../modes/races";
+import type { ReadyStatus } from "../net/ready";
 import type { Rows, Value } from "./setting-rows";
 import { world_query } from "../world/world-pick";
 import { DEFAULT_KIND } from "../worldgen/kinds/kinds";
@@ -32,6 +33,9 @@ export interface SettingsHost {
   quality_status(): QualityStatus;
   race_busy(): boolean;
   toggle_race(laps: Laps, route: string): void;
+  race_ready(): boolean;
+  toggle_ready(laps: Laps, route: string): void;
+  ready_status(): ReadyStatus;
   readonly version: string;
   /** Every release, newest first: the What's new page. */
   changelog(): HTMLElement;

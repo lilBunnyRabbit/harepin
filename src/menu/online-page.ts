@@ -3,6 +3,7 @@ import { el, icon } from "./setting-rows";
 import { world_query } from "../world/world-pick";
 import { kind_of_world } from "../worldgen/kinds/kinds";
 import { WORLDS } from "../worlds/worlds";
+import type { RaceChoice } from "../modes/races";
 import { MenuTab, invite_link, type Menu, type MenuPage } from "./page";
 import { LAPS } from "./prefs";
 import { action, copy_action, info, invalid, mosaic, password_input, tile } from "./widgets";
@@ -71,13 +72,23 @@ export class OnlinePage implements MenuPage {
     const lap_row = el("div", "race-lap-row");
     lap_row.append(el("span", "", "Laps"), laps);
     const note = el("small", "menu-caption");
-    const race = el("button", "settings-action", "Start race");
-    race.type = "button";
-    race.addEventListener("click", () => {
+    const picked = () => {
       const route = route_of();
-      this.menu.host.toggle_race(route?.closed === false ? 1 : this.menu.state().laps, route?.id ?? "circuit");
+      return { laps: route?.closed === false ? 1 : this.menu.state().laps, route: route?.id ?? "circuit" };
+    };
+    const ready = action("Ready", () => {
+      const { laps, route } = picked();
+      this.menu.host.toggle_ready(laps, route);
       this.menu.refresh();
     });
+    const race = action("Start race", () => {
+      const { laps, route } = picked();
+      this.menu.host.toggle_race(laps, route);
+      this.menu.refresh();
+    });
+    const race_actions = el("div", "settings-inline");
+    race_actions.append(ready, race);
+    const ready_line = el("small", "menu-caption race-ready");
     const record = el("small", "menu-caption");
     this.menu.sync(() => {
       const route = route_of();
@@ -88,13 +99,29 @@ export class OnlinePage implements MenuPage {
         button.disabled = !loop && count !== 1;
       }
       note.textContent = loop ? "Everyone in the room starts together." : "A to B routes are one run, start to finish.";
-      race.textContent = this.menu.host.race_busy() ? "Leave race" : "Start race";
+      const busy = this.menu.host.race_busy();
+      race.textContent = busy ? "Leave race" : "Start race";
+      const is_ready = this.menu.host.race_ready();
+      ready.hidden = busy;
+      ready.textContent = is_ready ? "Cancel ready" : "Ready";
+      ready.setAttribute("aria-pressed", String(is_ready));
+      ready_line.hidden = busy;
+      ready_line.textContent = this.ready_text(routes);
       record.textContent = this.menu.host.lobby_record();
     });
-    const race_tile = info("race", "Lobby race", picker, lap_row, note, race, record);
+    const race_tile = info("race", "Lobby race", picker, lap_row, note, race_actions, ready_line, record);
 
     const fresh = tile("new", "New room", "A fresh code, a map, an optional password", icon("icon-dice"), () => this.menu.show("room"));
     return mosaic(MenuTab.ONLINE, room_tile, games, race_tile, fresh);
+  }
+
+  private ready_text(routes: readonly RaceChoice[]): string {
+    const { names, total, next } = this.menu.host.ready_status();
+    if (total === 1) return "Ready starts the race when you're alone.";
+    const who = names.length ? ` · ${names.join(", ")}` : "";
+    const route = next && routes.find((r) => r.id === next.route);
+    const runs = route ? ` · next: ${route.name}${route.closed ? `, ${next.laps} lap${next.laps === 1 ? "" : "s"}` : ""}` : "";
+    return `${names.length}/${total} ready${who}${runs}. Starts when everyone is.`;
   }
 
   private join(server: Server, password: string | null) {

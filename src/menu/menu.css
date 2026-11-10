@@ -897,6 +897,10 @@
   flex: 0 1 220px;
 }
 
+.settings .settings-action[aria-pressed="true"] {
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
 .settings .race-laps button:disabled {
   opacity: 0.35;
   cursor: default;

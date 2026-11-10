@@ -1,7 +1,8 @@
 /// <reference types="bun" />
-import { expect, spyOn, test } from "bun:test";
+import { afterEach, expect, spyOn, test } from "bun:test";
 import { COUNTDOWN_MS, Lobby, lobby_routes, race_laps } from "./lobby";
 import { leader_of, type Net, type RaceEvent, type Sender } from "./net";
+import { READY_RESEND_MS, READY_TTL_MS, type ReadyMsg } from "./ready";
 
 test("lobby routes: laps only on a closed route, the plausible lap from its length", () => {
   const routes = lobby_routes([
@@ -25,8 +26,10 @@ class FakeNet {
   readonly remotes = new Map<string, Sender>();
   readonly same_map = new Map<string, number>();
   readonly sent: RaceEvent[] = [];
+  readonly readies: ReadyMsg[] = [];
   settling = false;
   private readonly listeners = new Set<(event: RaceEvent, from: Sender) => void>();
+  private readonly ready_listeners = new Set<(msg: ReadyMsg, from: Sender) => void>();
 
   constructor(readonly id: string) {}
 
@@ -53,12 +56,31 @@ class FakeNet {
   hear(event: RaceEvent, from: Sender) {
     for (const fn of this.listeners) fn(event, from);
   }
+
+  send_ready(msg: ReadyMsg) {
+    this.readies.push(msg);
+  }
+
+  on_ready(fn: (msg: ReadyMsg, from: Sender) => void) {
+    this.ready_listeners.add(fn);
+    return () => this.ready_listeners.delete(fn);
+  }
+
+  hear_ready(msg: ReadyMsg, from: Sender) {
+    for (const fn of this.ready_listeners) fn(msg, from);
+  }
 }
+
+const started: Lobby[] = [];
+afterEach(() => {
+  for (const lobby of started.splice(0)) lobby.stop();
+});
 
 function lobby_on(id: string) {
   const net = new FakeNet(id);
   const lobby = new Lobby(net as unknown as Net, ROUTES, "test", null);
   lobby.start();
+  started.push(lobby);
   return { net, lobby };
 }
 
@@ -154,4 +176,68 @@ test("a request nobody answers tells the caller once; a start in time doesn't", 
   lobby.leave();
   lobby.update(performance.now() + 5000);
   expect(unanswered).toBe(1);
+});
+
+const READY: ReadyMsg = { ready: true, laps: 2, route: "circuit" };
+
+test("a lone player who readies just starts", () => {
+  const { net, lobby } = lobby_on("m");
+  lobby.set_ready({ laps: 2, route: "circuit" });
+  lobby.tick(performance.now());
+  expect(net.readies).toEqual([READY]);
+  expect(lobby.state).toMatchObject({ kind: "countdown", laps: 2 });
+  expect(net.sent[0]).toMatchObject({ kind: "start", laps: 2 });
+  expect(lobby.ready).toBe(false);
+});
+
+test("the leader starts its own call once every present peer is ready; un-readying or a late leaver recounts", () => {
+  const { net, lobby } = lobby_on("a");
+  const z = net.peer("z");
+  const y = net.peer("y");
+  lobby.set_ready({ laps: 2, route: "circuit" });
+  net.hear_ready({ ready: true, laps: 5, route: "circuit" }, z);
+  lobby.tick(performance.now());
+  expect(lobby.state.kind).toBe("idle");
+  expect(lobby.ready_status(performance.now())).toEqual({ names: ["you", "z"], total: 3, next: { laps: 2, route: "circuit" } });
+  net.hear_ready(READY, y);
+  net.hear_ready({ ready: false }, z);
+  lobby.tick(performance.now());
+  expect(lobby.state.kind).toBe("idle");
+  net.remotes.delete("z");
+  net.same_map.delete("z");
+  lobby.tick(performance.now());
+  expect(lobby.state).toMatchObject({ kind: "countdown", laps: 2 });
+  expect(lobby.ready_status(performance.now()).names).toEqual([]);
+});
+
+test("a follower never starts on all-ready; it resends its ready on the beat and stops once the race starts", () => {
+  const { net, lobby } = lobby_on("m");
+  const a = net.peer("a");
+  lobby.set_ready({ laps: 2, route: "circuit" });
+  net.hear_ready(READY, a);
+  const now = performance.now();
+  lobby.tick(now);
+  lobby.tick(now + READY_RESEND_MS / 2);
+  expect(lobby.state.kind).toBe("idle");
+  expect(net.sent).toEqual([]);
+  lobby.tick(now + READY_RESEND_MS);
+  expect(net.readies).toEqual([READY, READY]);
+  net.hear(start(1, performance.now() + COUNTDOWN_MS), a);
+  expect(lobby.state.kind).toBe("countdown");
+  lobby.tick(now + READY_TTL_MS);
+  expect(net.readies.length).toBe(2);
+});
+
+test("un-readying is sent once, and readying is refused while a race runs", () => {
+  const { net, lobby } = lobby_on("m");
+  const a = net.peer("a");
+  lobby.set_ready({ laps: 2, route: "circuit" });
+  lobby.tick(performance.now());
+  lobby.set_ready(null);
+  lobby.tick(performance.now());
+  lobby.tick(performance.now() + READY_RESEND_MS * 3);
+  expect(net.readies).toEqual([READY, { ready: false }]);
+  net.hear(start(1, performance.now() + COUNTDOWN_MS), a);
+  lobby.set_ready({ laps: 2, route: "circuit" });
+  expect(lobby.ready).toBe(false);
 });

@@ -1,6 +1,6 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import { RateLimit, WRONG_PASSWORD, clean_name, leader_of, join_error_status, most_common, parse_seed, read_car, sanitize_chat, sanitize_event, sanitize_hello, type CarState } from "./net";
+import { RateLimit, WRONG_PASSWORD, clean_name, leader_of, join_error_status, most_common, parse_seed, read_car, sanitize_chat, sanitize_event, sanitize_hello, sanitize_ready, type CarState } from "./net";
 import { encode_car } from "./car-packet";
 
 test("chat text is stripped of control characters, trimmed and capped", () => {
@@ -106,4 +106,15 @@ test("hello: whole protocol, semver version, real world and uint32 seed", () => 
   expect(sanitize_hello({ ...hello, world: 0 })).toBeNull();
   expect(sanitize_hello({ ...hello, seed: 2 ** 32 })).toBeNull();
   expect(sanitize_hello("hi")).toBeNull();
+});
+
+test("ready messages are shape-checked", () => {
+  expect(sanitize_ready({ ready: true, laps: 3, route: "street-1", extra: 1 })).toEqual({ ready: true, laps: 3, route: "street-1" });
+  expect(sanitize_ready({ ready: true, laps: 2 })).toEqual({ ready: true, laps: 2, route: "circuit" });
+  expect(sanitize_ready({ ready: false, laps: "x" })).toEqual({ ready: false });
+  expect(sanitize_ready({ ready: true, laps: 0 })).toBeNull();
+  expect(sanitize_ready({ ready: true, laps: 99 })).toBeNull();
+  expect(sanitize_ready({ ready: true, laps: 1, route: "Bad Route" })).toBeNull();
+  expect(sanitize_ready({ ready: "yes" })).toBeNull();
+  expect(sanitize_ready(null)).toBeNull();
 });
