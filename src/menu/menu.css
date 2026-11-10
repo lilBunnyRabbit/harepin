@@ -156,6 +156,10 @@
   outline: none;
 }
 
+.settings .menu-name input:focus-visible {
+  outline: none;
+}
+
 .menu-name input::placeholder {
   color: var(--foreground);
 }
