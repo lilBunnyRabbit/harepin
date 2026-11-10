@@ -32,14 +32,14 @@ One level of feature folders under `src/`. Each folder owns its modules, tests (
 | `audio/` | engine sound and worklet |
 | `theme/` | palette and themes |
 
-`main.ts` is the composition root: it builds each feature and wires them; feature logic does not live there. `style.css` holds tokens, resets and base element styles only.
+`main.ts` is the composition root: it builds each feature and wires them; feature logic does not live there. `style.css` holds tokens, resets and base element styles, plus the few button rules that must load after the base `button:hover`; it is imported last in `main.ts`.
 
 ## Adding things
 
 Every kind of thing we add has a registry. Adding one touches its own files plus one registry line; the compiler lists anything missing.
 
 - **Game mode:** `src/modes/<mode>-mode.ts` exports a `ModeDef` (`mode.ts`); logic and view in their own files beside it. Add it to `MODES` in `modes.ts`. `needs_ground` decides whether it runs on Sky.
-- **World kind:** add a `WorldKind` value in `worldgen/types.ts`; worker side `worldgen/kinds/<kind>.ts` (id, key, generate, rails, open ground) in `KINDS`; UI side `worlds/<kind>.ts` in `WORLDS`; images `public/menu/<kind>.webp` and `<kind>-map.webp`. A kind's `id` and `key()` key saved records: never change them for an existing kind.
+- **World kind:** add a `WorldKind` value in `worldgen/types.ts`; worker side `worldgen/kinds/<kind>.ts` (id, key, generate, rails, open ground) in `KINDS`; UI side `worlds/<kind>.ts` in `WORLDS`; images `public/menu/<kind>.webp` and `<kind>-map.webp`. Not covered by the compiler yet: its meshing and map preview (`worldgen/chunks.ts` and `worldgen/map.ts` branch on `kind === "sky"`) and its Play tile's grid area in `menu/menu.css`. A kind's `id` and `key()` key saved records: never change them for an existing kind.
 - **Car:** a `CarSpec` in `car/cars.ts` added to `CARS`, plus its body design (`Record<BodyStyle, …>` makes a missing one a type error). Axles come from the spec through `axles_of`; don't index wheels by number.
 - **Part:** an entry in `SLOTS` in `car/build.ts`.
 - **Setting:** a field on `SettingsState` and its entry in `FIELDS` in `menu/prefs.ts` (the mapped type rejects a missing one), then its row in the section builder in `menu/settings-sections.ts`. Reset picks the key up from the row.

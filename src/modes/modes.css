@@ -206,7 +206,6 @@ body:has(#mode-result:not([hidden])) #mode-status {
   }
 }
 
-/* Touch: the halo is the surface colour, so ghost labels read on bright sky in light themes and on dark road in dark ones. */
 @media (pointer: coarse) {
   body:has(#race-panel:not([hidden])) #join-map {
     display: none;
