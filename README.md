@@ -1,4 +1,4 @@
-<a href="https://lilbunnyrabbit.github.io/harepin/"><img src="public/og.jpg" alt="Harepin: a low-poly coupe with its headlights on, on an island road at dusk" width="100%"></a>
+<a href="https://lilbunnyrabbit.github.io/harepin/"><img src="public/og.jpg" alt="Harepin: a fully tuned low-poly sports car with a big rear wing and its headlights on, on an island road at dusk" width="100%"></a>
 
 <h2 align="center"><a href="https://lilbunnyrabbit.github.io/harepin/">Play Harepin</a></h2>
 <p align="center">Free, in the browser, nothing to install.</p>
