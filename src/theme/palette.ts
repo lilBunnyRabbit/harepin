@@ -69,6 +69,9 @@ const asphalt = dark ? lighten(brand.background_darkest, Math.max(0, DUSK_ASPHAL
 const DUSK_TYRE_STEP = 0.3;
 const DUSK_TRIM_STEP = 0.38;
 const above_asphalt = (share: number) => lighten(asphalt, (brand.foreground[0] - asphalt[0]) * share);
+// Brand Light's warning alone is olive: sand mixed from it read as khaki dunes and beaches at noon. Leaning on error
+// warms it to tan; light sand then sits up at the pale surface end so it stays the lightest ground.
+const warm = mix(brand.warning, brand.error, 0.45);
 
 export const tones = {
   // A toy track is one colour: the accent straight on deck and rails; underside and seams only darker in its own hue.
@@ -81,7 +84,7 @@ export const tones = {
   grass_dry: mix(brand.warning, ground, dark ? 0.26 : 0.36),
   // Forest floor sits a step under grass, not at crown value, so pines still read against the ground they stand on.
   forest_floor: lighten(grass, -FOREST_FLOOR_DROP),
-  sand: mix(brand.warning, brand.foreground, 0.35),
+  sand: dark ? mix(brand.warning, brand.foreground, 0.35) : mix(warm, brand.background_darkest, 0.35),
   dirt: mix(brand.warning, brand.background_darkest, 0.5),
   rock: dark ? brand.background_lightest : mix(brand.foreground, brand.background_darkest, 0.35),
   snow: dark ? brand.foreground : brand.background_lightest,
@@ -93,7 +96,7 @@ export const tones = {
   leaf: mix(brand.success, dark ? brand.background : ground, 0.44),
   leaf_dark: dark ? lighten(leaf_dark, grass[0] - DUSK_CROWN_DROP - leaf_dark[0]) : leaf_dark,
   trunk: mix(brand.warning, brand.background_darkest, 0.25),
-  cone: mix(brand.warning, brand.error, 0.45),
+  cone: warm,
   glass: dark ? brand.background_darkest : brand.foreground,
   tyre: dark ? above_asphalt(DUSK_TYRE_STEP) : mix(brand.foreground, brand.background_darkest, 0.8),
   trim: dark ? above_asphalt(DUSK_TRIM_STEP) : brand.foreground,
