@@ -33,6 +33,15 @@ export function up(heights: Float32Array, x: number, z: number): number {
   return ny / Math.sqrt(nx * nx + ny * ny + nz * nz);
 }
 
+/** `up` at grid vertex (i, j), without the allocations; `corner` clamps i = N and j = N into the last cell's far side. */
+export function vertex_up(h: Float32Array, i: number, j: number): number {
+  const k = Math.min(j, N - 1) * (N + 1) + Math.min(i, N - 1);
+  const far = i === N && j === N;
+  const nx = far ? h[k + N + 1] - h[k + N + 2] : h[k] - h[k + 1];
+  const nz = far ? h[k + 1] - h[k + N + 2] : h[k] - h[k + N + 1];
+  return CELL / Math.sqrt(nx * nx + CELL * CELL + nz * nz);
+}
+
 export function vertex(i: number, j: number): number {
   return j * (N + 1) + i;
 }

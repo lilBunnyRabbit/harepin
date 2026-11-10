@@ -1,5 +1,5 @@
 import { biome_at, biome_cuts, Biome } from "./biomes";
-import { sample, up } from "./field";
+import { sample, vertex_up } from "./field";
 import { landmark_mesh, type LandmarkTones } from "./landmark-mesh";
 import { roof_rise } from "./lots";
 import { Builder, bounding_sphere, turned, type Rgb, type Sphere } from "./mesh";
@@ -118,13 +118,16 @@ export function terrain_colors(data: WorldData, lut: Float32Array): Float32Array
       const x = ORIGIN + i * CELL;
       const z = ORIGIN + j * CELL;
       const y = heights[k];
-      const ny = up(heights, x, z);
+      const ny = vertex_up(heights, i, j);
       let base: number = y < 2.2 ? Ground.SAND : surface(biome_at(cuts, x, z, y), fbm(x / 140, z / 140, seed + 21, 3));
       if (ny < 0.8 || y > 120) base = ny < 0.7 || y > 135 ? ROCK : base + ROCK_HALF;
       if (y > 165) base = SNOW;
       if (surface_grid[k] === DIRT) base = ny < 0.7 ? ROCK : Ground.DIRT;
       const level = Math.min(JITTER_LEVELS - 1, Math.floor((jitter(i, j) + 0.5) * JITTER_LEVELS));
-      colors.set(lut.subarray((base * JITTER_LEVELS + level) * 3, (base * JITTER_LEVELS + level) * 3 + 3), k * 3);
+      const tone = (base * JITTER_LEVELS + level) * 3;
+      colors[k * 3] = lut[tone];
+      colors[k * 3 + 1] = lut[tone + 1];
+      colors[k * 3 + 2] = lut[tone + 2];
     }
   return colors;
 }
