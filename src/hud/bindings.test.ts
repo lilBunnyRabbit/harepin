@@ -3,6 +3,12 @@ import { BINDABLE, DEFAULT_BINDINGS, key_label, pad_text, parse_bindings, rebind
 
 const owners = (bindings: Bindings, code: string) => BINDABLE.filter((action) => bindings[action].keys.includes(code));
 
+const unique = (bindings: Bindings) => {
+  const keys = BINDABLE.flatMap((action) => bindings[action].keys);
+  const pads = BINDABLE.flatMap((action) => bindings[action].pad ?? []);
+  return new Set(keys).size === keys.length && new Set(pads).size === pads.length;
+};
+
 describe("default table", () => {
   test("every key and button answers to one action", () => {
     expect(parse_bindings(DEFAULT_BINDINGS)).toEqual(DEFAULT_BINDINGS);
@@ -13,13 +19,18 @@ describe("default table", () => {
     expect(DEFAULT_BINDINGS.precision.keys).toEqual(["KeyX"]);
     expect(DEFAULT_BINDINGS.handbrake.pad).toBe(0);
   });
-});
 
-const unique = (bindings: Bindings) => {
-  const keys = BINDABLE.flatMap((action) => bindings[action].keys);
-  const pads = BINDABLE.flatMap((action) => bindings[action].pad ?? []);
-  return new Set(keys).size === keys.length && new Set(pads).size === pads.length;
-};
+  test("no two actions share a default key or pad button", () => {
+    expect(unique(DEFAULT_BINDINGS)).toBe(true);
+  });
+
+  test("pad buttons match the pre-remap game: X rewinds, precision steer is keyboard only", () => {
+    expect(DEFAULT_BINDINGS.rewind.pad).toBe(2);
+    expect(DEFAULT_BINDINGS.nitro.pad).toBe(1);
+    expect(DEFAULT_BINDINGS.precision.pad).toBeNull();
+    expect(pad_text(DEFAULT_BINDINGS, "precision")).toBe("");
+  });
+});
 
 describe("rebind_key", () => {
   test("a free key replaces the action's keys", () => {
