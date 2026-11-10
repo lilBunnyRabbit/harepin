@@ -136,6 +136,8 @@ export interface BiomeRecipe {
 export interface RoadRecipe {
   /** Ring control radius: base plus noise times swing, clamped to min..max. */
   loop: { radius: number; swing: number; min: number; max: number };
+  /** Every this-many ring controls is a corner and the road runs straight between them; null keeps the round ring. */
+  straights: number | null;
   /** Hairpin counts the summit stack tries, most first. */
   stacks: readonly number[];
   /** The canyon runs down to ground under `outlet` metres; null = no canyon. */
@@ -205,7 +207,7 @@ export const ISLAND: Recipe = {
       upland: { cut: 0.5, above: Ground.DRY, below: Ground.UPLAND, soft: 0 },
     },
   },
-  road: { loop: { radius: 620, swing: 640, min: 380, max: 860 }, stacks: [4, 2], canyon: { outlet: 2 }, kickers: { road: 4, total: 12, big: 3 } },
+  road: { loop: { radius: 620, swing: 640, min: 380, max: 860 }, straights: null, stacks: [4, 2], canyon: { outlet: 2 }, kickers: { road: 4, total: 12, big: 3 } },
   towns: { min: 3, max: 6, trees: true, block: { min: 45, span: 25 }, flat_roofs: false },
   landmarks: [Landmark.MAST, Landmark.LIGHTHOUSE, Landmark.TURBINES, Landmark.ARCH],
   scatter: [],
@@ -247,7 +249,7 @@ export const DESERT: Recipe = {
       upland: { cut: 0.5, above: Ground.UPLAND, below: Ground.DUNE, soft: SOFT },
     },
   },
-  road: { loop: { radius: 650, swing: 500, min: 420, max: 850 }, stacks: [], canyon: { outlet: 24 }, kickers: { road: 4, total: 16, big: 4 } },
+  road: { loop: { radius: 650, swing: 500, min: 420, max: 850 }, straights: 4, stacks: [], canyon: { outlet: 24 }, kickers: { road: 4, total: 16, big: 4 } },
   towns: { min: 1, max: 3, trees: false, block: { min: 35, span: 15 }, flat_roofs: true },
   landmarks: [Landmark.MAST, Landmark.TURBINES],
   scatter: [

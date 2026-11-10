@@ -174,6 +174,16 @@ interface Controls {
 // the shore for a sea-view stretch, and the one nearest the summit, which becomes the switchback stack up its face or,
 // where the face has no room, a single hairpin tongue.
 
+// Every `every`-th control is a corner; the ones between move onto the line joining its corners, so the spline runs straight.
+function straighten(controls: Path, every: number) {
+  const n = controls.length;
+  for (let c = 0; c < n; c += every) {
+    const [ax, az] = controls[c];
+    const [bx, bz] = controls[(c + every) % n];
+    for (let k = 1; k < every && c + k < n; k++) controls[c + k] = [ax + ((bx - ax) * k) / every, az + ((bz - az) * k) / every];
+  }
+}
+
 function loop_controls(seed: number, heights: Float32Array, summit: [number, number], shape: RoadRecipe): Controls {
   const { radius, swing: reach, min, max } = shape.loop;
   const controls: Path = circle24().map(([c, s]) => {
@@ -181,6 +191,7 @@ function loop_controls(seed: number, heights: Float32Array, summit: [number, num
     const r = Math.max(min, Math.min(max, radius + swing * reach));
     return walk(heights, [c * r, s * r], [0, 0], r, (y) => y >= COAST_LOW) ?? [0, 0];
   });
+  if (shape.straights) straighten(controls, shape.straights);
   const n = controls.length;
   let top = 0;
   for (let i = 1; i < n; i++)
