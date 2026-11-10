@@ -1,9 +1,9 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
 import { DEFAULT_BUILD, DEFAULT_PARTS, SLOTS, SLOT_NAMES, STATS, apply_build, build_code, build_spec, parse_build, stat_range, stats, type Build } from "./build";
-import { CARS, COUPE, RALLY, car_sized, type CarId, type CarSpec } from "./cars";
+import { CARS, COUPE, HATCH, RALLY, car_sized, type CarId, type CarSpec } from "./cars";
 
-const with_parts = (parts: Partial<Build["parts"]>, rest: Partial<Omit<Build, "parts">> = {}): Build => ({ ...DEFAULT_BUILD, ...rest, parts: { ...DEFAULT_PARTS, ...parts } });
+const with_parts = (parts: Partial<Build["parts"]>, rest: Partial<Omit<Build, "parts">> = {}): Build => ({ ...DEFAULT_BUILD, car: "coupe", ...rest, parts: { ...DEFAULT_PARTS, ...parts } });
 
 test("codes round-trip", () => {
   const build = with_parts({ aero: 2, suspension: 0, engine: 1 }, { car: "rally", paint: 12, decal: 3 });
@@ -38,7 +38,7 @@ test("new slots ride a tail that is left off at their defaults", () => {
 });
 
 test("codes from before decal ink, number and the new slots still parse", () => {
-  expect(build_code(DEFAULT_BUILD)).toBe("coupe.0.0.0.1.0");
+  expect(build_code(DEFAULT_BUILD)).toBe("hatch.0.0.2.1.0");
   expect(parse_build("kaze.3.1.0.2.0")).toEqual(with_parts({ suspension: 2 }, { car: "kaze", paint: 3, decal: 1 }));
   expect(parse_build("coupe.3.1.2.1.0")).toEqual(with_parts({ aero: 2 }, { paint: 3, decal: 1 }));
   expect(parse_build("coupe.3.1.2.1.0.4.12")).toEqual(with_parts({ aero: 2 }, { paint: 3, decal: 1, ink: 4, number: 12 }));
@@ -143,9 +143,9 @@ test("every build from before the parts table drives exactly as it did", () => {
   expect(checked).toBe(Object.keys(CARS).length * 3 * 4 * 3);
 });
 
-test("the default build leaves the base spec unchanged", () => {
-  expect(apply_build(COUPE, DEFAULT_BUILD)).toEqual(COUPE);
-  expect(build_spec(DEFAULT_BUILD)).toEqual(COUPE);
+test("the default parts leave the base spec unchanged", () => {
+  expect(apply_build(COUPE, with_parts({}))).toEqual(COUPE);
+  expect(build_spec(with_parts({}, { car: "hatch" }))).toEqual(HATCH);
 });
 
 test("the slot table and the default parts agree", () => {
