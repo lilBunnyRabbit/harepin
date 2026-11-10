@@ -29,6 +29,8 @@ export class PlayPage implements MenuPage {
   readonly label = "Play";
   private readonly world_map = new WorldMap();
   private players_timer = 0;
+  private readonly quit = el("button", "play-quit");
+  private readonly quit_label = el("span");
 
   constructor(
     private readonly menu: Menu,
@@ -44,6 +46,9 @@ export class PlayPage implements MenuPage {
   }
 
   on_show() {
+    const running = this.menu.host.mode_running();
+    this.quit.hidden = running === null;
+    this.quit_label.textContent = `Quit ${running ?? ""}`;
     this.world_map.show(this.seed, MAINLAND, true);
     clearInterval(this.players_timer);
     if (!this.here) return;
@@ -87,7 +92,14 @@ export class PlayPage implements MenuPage {
     const side = el("div", "play-side");
     const minis = el("section", "play-group");
     minis.append(el("h3", "play-head", "Mini maps"), this.minis());
-    side.append(this.drive(), minis, this.more(), goals_card(this.menu, this.go_to));
+    this.quit.type = "button";
+    this.quit.hidden = true;
+    this.quit.append(icon("icon-close"), this.quit_label);
+    this.quit.addEventListener("click", () => {
+      this.menu.close();
+      this.menu.host.quit_mode();
+    });
+    side.append(this.quit, this.drive(), minis, this.more(), goals_card(this.menu, this.go_to));
     return side;
   }
 

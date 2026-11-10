@@ -110,6 +110,10 @@ export class Modes {
     return (this.current?.run ?? null) !== null;
   }
 
+  get running(): string | null {
+    return this.current?.run ? this.current.mode.def.name : null;
+  }
+
   /** The route the running mode drives, null when it drives none of its own. */
   get route(): RouteRun | null {
     return this.current?.run?.route ?? null;

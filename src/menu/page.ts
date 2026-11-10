@@ -67,8 +67,8 @@ export interface SettingsHost {
   use_car(code: string): void;
   mode_list(): ModeEntry[];
   play_level(id: string): void;
-  mode_active(): boolean;
-  free_drive(): void;
+  mode_running(): string | null;
+  quit_mode(): void;
   lobby_record(): string;
   readonly race_routes: readonly RaceChoice[];
   players(): number;

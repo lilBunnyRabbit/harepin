@@ -52,7 +52,7 @@ export class OnlinePage implements MenuPage {
     const leave_confirm = el("div", "online-confirm");
     if (room !== LOBBY_ROOM) {
       const leave = () => this.menu.go(world_query(LOBBY_ROOM, seed, kind));
-      invite.append(action("Leave room", () => (this.menu.host.race_busy() || this.menu.host.mode_active() ? (leave_confirm.hidden = false) : leave())));
+      invite.append(action("Leave room", () => (this.menu.host.race_busy() || this.menu.host.mode_running() !== null ? (leave_confirm.hidden = false) : leave())));
       const buttons = el("div", "settings-inline");
       buttons.append(action("Leave anyway", leave), action("Stay", () => (leave_confirm.hidden = true)));
       leave_confirm.append(el("span", "", "Leaving ends your race or run."), buttons);

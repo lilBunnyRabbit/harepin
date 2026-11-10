@@ -88,13 +88,14 @@ export class ModesPage implements MenuPage {
     const about = el("p", "modes-about");
     about.append(title, text);
     bar.append(about);
-    if (this.menu.host.mode_active()) {
-      const free = action("Back to free drive", () => {
-        this.menu.close();
-        this.menu.host.free_drive();
-      });
-      bar.append(free);
-    }
+    const running = this.menu.host.mode_running();
+    if (running !== null)
+      bar.append(
+        action(`Quit ${running}`, () => {
+          this.menu.close();
+          this.menu.host.quit_mode();
+        }),
+      );
     const first = mode.levels.find((level) => level.open) ?? null;
     describe(mode.blocked ? null : first);
     if (mode.blocked) grid.append(el("p", "servers-note", mode.blocked));
