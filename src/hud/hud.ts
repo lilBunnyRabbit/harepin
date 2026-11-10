@@ -6,6 +6,7 @@ import { brand, dark, rgba } from "../theme/palette";
 import { tach } from "../car/tach";
 import { SIZE, type World } from "../world/world";
 import { world_query } from "../world/world-pick";
+import "./hud.css";
 
 export function $<T extends HTMLElement>(id: string, type: { new (): T; prototype: T }): T;
 export function $(id: string): HTMLElement;
