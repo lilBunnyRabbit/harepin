@@ -1,5 +1,5 @@
 import { sample } from "./field";
-import { CHUNKS, chunk_of } from "./chunk-grid";
+import { CHUNK, COMPACT, chunk_of, type Extent } from "./chunk-grid";
 import type { Patch, PatchPoint, Reach, RimPoint } from "./junction";
 import type { Rgb } from "./mesh";
 import { Pieces, split } from "./pieces";
@@ -10,6 +10,16 @@ const REACH_MARGIN = 0.8;
 const FLAT_CELL = 0.001;
 const GIVE_WAY_DASH = 0.6;
 const GIVE_WAY_GAP = 0.3;
+
+/** Ground the road drapes over: heights at lattice vertices (cells counted from ORIGIN) and between them. */
+export interface LatticeGround {
+  vertex(i: number, j: number): number;
+  height(x: number, z: number): number;
+}
+
+export function grid_ground(heights: Float32Array): LatticeGround {
+  return { vertex: (i, j) => heights[j * (N + 1) + i], height: (x, z) => sample(heights, x, z) };
+}
 
 export interface Layer {
   positions: number[];
@@ -43,13 +53,31 @@ function plane(a: PatchPoint, b: PatchPoint, c: PatchPoint): Lift {
 }
 
 export class Roads {
-  readonly surface: Layer[] = Array.from({ length: CHUNKS * CHUNKS }, () => ({ positions: [], colors: [] }));
-  readonly marks: Layer[] = Array.from({ length: CHUNKS * CHUNKS }, () => ({ positions: [], colors: [] }));
+  readonly surface: Layer[];
+  readonly marks: Layer[];
 
   private pieces = new Pieces();
   private cut = new Pieces();
+  private readonly lo: number;
+  private readonly hi: number;
 
-  constructor(private readonly heights: Float32Array) {}
+  /** With `only`, everything binned to another chunk is skipped: a streamed world meshes one chunk at a time. */
+  constructor(
+    private readonly ground: LatticeGround,
+    readonly ext: Extent = COMPACT,
+    private readonly only: number | null = null,
+  ) {
+    this.surface = Array.from({ length: ext.side * ext.side }, () => ({ positions: [], colors: [] }));
+    this.marks = Array.from({ length: ext.side * ext.side }, () => ({ positions: [], colors: [] }));
+    this.lo = ext.lattice * (CHUNK / CELL);
+    this.hi = this.lo + ext.n - 1;
+  }
+
+  /** The chunk (x, z) bins to, or -1 when this builder skips it. */
+  chunk(x: number, z: number): number {
+    const index = chunk_of(x, z, this.ext);
+    return this.only === null || index === this.only ? index : -1;
+  }
 
   strip(layers: Layer[], road: RoadPoint[], closed: boolean, from: number, to: number, lift: number, keep: (s: number) => boolean, rgb: Rgb) {
     const segments = closed ? road.length : road.length - 1;
@@ -61,7 +89,9 @@ export class Roads {
       const b = road[(s + 1) % road.length];
       const ra = reach[s];
       const rb = reach[(s + 1) % road.length];
-      const layer = layers[chunk_of(a.x, a.z)];
+      const chunk = this.chunk(a.x, a.z);
+      if (chunk < 0) continue;
+      const layer = layers[chunk];
       this.quad(layer, a, b, ra, rb, from, to, flat, rgb);
     }
   }
@@ -149,13 +179,12 @@ export class Roads {
       const top = Math.max(pa, pb, pc);
       for (let k = Math.floor(Math.min(pa, pb, pc)) + 1; k < top; k++) this.split_all(ux, uz, ORIGIN + k * CELL);
     }
-    const { pieces, cut, heights: h } = this;
+    const { pieces, cut, ground: g, lo, hi } = this;
     cut.clear();
     for (let p = 0; p < pieces.length; p++) {
-      const i = cell_column(pieces, p, 0);
-      const j = cell_column(pieces, p, 1);
-      const k = j * (N + 1) + i;
-      if (Math.abs(h[k] + h[k + N + 2] - h[k + 1] - h[k + N + 1]) <= FLAT_CELL) cut.copy(pieces, p);
+      const i = cell_column(pieces, p, 0, lo, hi);
+      const j = cell_column(pieces, p, 1, lo, hi);
+      if (Math.abs(g.vertex(i, j) + g.vertex(i + 1, j + 1) - g.vertex(i + 1, j) - g.vertex(i, j + 1)) <= FLAT_CELL) cut.copy(pieces, p);
       else split(pieces, p, cut, 1, 1, 2 * ORIGIN + (i + j + 1) * CELL);
     }
     for (let p = 0; p < cut.length; p++) {
@@ -178,7 +207,7 @@ export class Roads {
 
   private lay(layer: Layer, x: number, z: number, lift: Lift, rgb: Rgb) {
     const up = lift.y + lift.gx * (x - lift.x) + lift.gz * (z - lift.z);
-    layer.positions.push(x, sample(this.heights, x, z) + up, z);
+    layer.positions.push(x, this.ground.height(x, z) + up, z);
     layer.colors.push(rgb[0], rgb[1], rgb[2]);
   }
 }
@@ -190,12 +219,12 @@ const GRID_LINES: [number, number][] = [
 ];
 
 /** The cell column (axis 0) or row (axis 1) a piece already cut along the grid lines sits in, from its centroid. */
-function cell_column(pieces: Pieces, p: number, axis: 0 | 1): number {
+function cell_column(pieces: Pieces, p: number, axis: 0 | 1, lo: number, hi: number): number {
   const s = pieces.start[p];
   const n = pieces.count[p];
   let sum = 0;
   for (let i = 0; i < n; i++) sum += pieces.xz[s + 2 * i + axis];
-  return Math.max(0, Math.min(N - 1, Math.floor((sum / n - ORIGIN) / CELL)));
+  return Math.max(lo, Math.min(hi, Math.floor((sum / n - ORIGIN) / CELL)));
 }
 
 // On a bend tighter than the ribbon's half width the inner offsets of two neighbouring points cross and the strip folds

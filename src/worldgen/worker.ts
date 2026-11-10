@@ -1,7 +1,7 @@
 import { chunk_corner, CHUNK, extent, type Extent } from "./chunk-grid";
 import { chunk_meshes, chunk_transfers, type ChunkBuffers, type MeshTones } from "./chunks";
 import { generate_world, KINDS } from "./kinds/kinds";
-import { build_tile } from "./ground";
+import { TileMesher } from "./tile-mesher";
 import { slice_tile, tile_transfers, type Tile } from "./tiles";
 import { SPAWN_INDEX, type WorldData, type WorldKind } from "./types";
 
@@ -34,7 +34,7 @@ export type WorkerReply =
   | { type: "error"; message: string };
 
 let focus: [number, number] = [0, 0];
-let world: { data: WorldData; ext: Extent; build: (index: number) => ChunkBuffers | null } | null = null;
+let world: { ext: Extent; build: (index: number) => { tile: Tile; chunk: ChunkBuffers | null } } | null = null;
 const left: number[] = [];
 let pumping = false;
 
@@ -65,18 +65,27 @@ function open({ seed, kind, tones }: GenRequest) {
   const empty = { heights: new Float32Array(0), road_dist: new Float32Array(0), surface: new Uint8Array(0) };
   postMessage({ type: "plan", data: { ...data, terrain: { ...data.terrain, ...empty }, ground: { ...data.ground, ops: [] } } } satisfies WorkerReply);
   const ext = extent(KINDS[kind].size);
-  world = { data, ext, build: data.terrain.heights.length ? chunk_meshes(data, tones) : () => null };
+  world = { ext, build: data.terrain.heights.length ? compact(data, tones) : streamed(data, ext, tones) };
   for (let index = 0; index < ext.side * ext.side; index++) left.push(index);
 }
 
-// A compact kind keeps its whole grid, so slicing is free; the plan rebuilds a tile once a grid is gone (mainland).
+// A compact kind keeps its whole grid, so slicing is free; a streamed one (mainland) builds each tile from its plan.
+function compact(data: WorldData, tones: MeshTones) {
+  const mesh = chunk_meshes(data, tones);
+  return (index: number) => ({ tile: slice_tile(data.terrain, index), chunk: mesh(index) });
+}
+
+function streamed(data: WorldData, ext: Extent, tones: MeshTones) {
+  const mesher = new TileMesher(data, ext, tones);
+  return (index: number) => mesher.build(index);
+}
+
 async function pump() {
   if (pumping || !world) return;
   pumping = true;
   while (left.length) {
     const index = nearest(world.ext);
-    const tile = world.data.terrain.heights.length ? slice_tile(world.data.terrain, index) : build_tile(world.data.ground, index, world.ext);
-    const chunk = world.build(index);
+    const { tile, chunk } = world.build(index);
     postMessage({ type: "chunk", index, tile, chunk } satisfies WorkerReply, { transfer: [...tile_transfers(tile), ...(chunk ? chunk_transfers([chunk]) : [])] });
     // A turn of the event loop between chunks lets a focus or chunk request reorder what is left.
     await new Promise((next) => setTimeout(next, 0));

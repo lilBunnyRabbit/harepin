@@ -2,7 +2,7 @@
 import { expect, test } from "bun:test";
 import { CHUNKS } from "./chunk-grid";
 import { road_junctions, road_layers, type RoadTones } from "./road-layers";
-import { Roads } from "./roads";
+import { grid_ground, Roads } from "./roads";
 import { sample } from "./field";
 import { hash } from "./noise";
 import { N, SIDEWALK, SPUR_HALF, STREET_HALF, type RoadGraph, type RoadPoint } from "./types";
@@ -34,7 +34,7 @@ function drape_ring() {
   const heights = bumpy();
   const road = ring();
   const layer = { positions: [] as number[], colors: [] as number[] };
-  new Roads(heights).strip(Array(CHUNKS * CHUNKS).fill(layer), road, true, -HALF, HALF, LIFT, () => true, [0, 0, 0]);
+  new Roads(grid_ground(heights)).strip(Array(CHUNKS * CHUNKS).fill(layer), road, true, -HALF, HALF, LIFT, () => true, [0, 0, 0]);
   return { heights, road, positions: Float32Array.from(layer.positions) };
 }
 
@@ -99,7 +99,7 @@ function junction_surface() {
       { id: 1, a: 1, b: 0, kind: "highway", half: SPUR_HALF, closed: false, points: spur },
     ],
   };
-  const roads = road_layers({ road, graph, circuit: [0] }, heights, TONES);
+  const roads = road_layers({ road, graph, circuit: [0] }, new Roads(grid_ground(heights)), TONES);
   const positions = Float32Array.from(roads.surface.flatMap((layer) => layer.positions));
   return { at, positions, patched: road_junctions({ road, graph, circuit: [0] }).patched.length };
 }
@@ -187,7 +187,7 @@ function town_crossroads(arms: number) {
   });
   // The circuit sits far off: no spur reaches this node, so only the street corners can patch it.
   const road = ring().map((p) => ({ ...p, x: p.x + 400 }));
-  const roads = road_layers({ road, graph, circuit: [] }, heights, TONES);
+  const roads = road_layers({ road, graph, circuit: [] }, new Roads(grid_ground(heights)), TONES);
   const positions = Float32Array.from(roads.surface.flatMap((layer) => layer.positions));
   return { at, positions, junctions: road_junctions({ road, graph, circuit: [] }) };
 }

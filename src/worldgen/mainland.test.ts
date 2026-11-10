@@ -59,3 +59,22 @@ for (const seed of sweep(5))
     expect(data.routes[0].closed).toBe(true);
     for (const id of data.circuit) expect(data.graph.edges[id]).toBeDefined();
   });
+
+test("a mainland chunk meshes the same whatever was built before it, and shades a shared border alike", async () => {
+  const { MESH_TONES } = await import("../../scripts/proof/tones");
+  const { TileMesher } = await import("./tile-mesher");
+  const { data } = plan_mainland(1);
+  const road = data.road[0];
+  const index = Math.floor((road.z - EXT.origin) / CHUNK) * EXT.side + Math.floor((road.x - EXT.origin) / CHUNK);
+  const walked = new TileMesher(data, EXT, MESH_TONES);
+  for (const other of [index - EXT.side - 1, index + 2, index - 1]) walked.build(other);
+  const a = walked.build(index).chunk;
+  const b = new TileMesher(data, EXT, MESH_TONES).build(index).chunk;
+  expect(a.road?.positions.length).toBeGreaterThan(0);
+  expect(Array.from(a.road?.positions ?? [])).toEqual(Array.from(b.road?.positions ?? []));
+  expect(Array.from(a.terrain?.colors ?? [])).toEqual(Array.from(b.terrain?.colors ?? []));
+  const west = walked.build(index - 1).chunk;
+  const last = TILE_SIDE - 1;
+  for (let k = 0; k < TILE_SIDE; k++)
+    for (let c = 0; c < 3; c++) expect(west.terrain?.colors[(k * TILE_SIDE + last) * 3 + c]).toBe(a.terrain?.colors[k * TILE_SIDE * 3 + c]);
+});

@@ -1,6 +1,6 @@
 import { CHUNK, COMPACT, type Extent } from "./chunk-grid";
 import { face_nx, face_nz, tri } from "./field";
-import { CELL, N, type Terrain } from "./types";
+import { CELL, N, ORIGIN, type Terrain } from "./types";
 
 const TILE_CELLS = CHUNK / CELL;
 const MISS_ROAD_DIST = 1e4;
@@ -76,6 +76,10 @@ export class TileStore {
     if (this.waits.length) this.settle();
   }
 
+  get(index: number): Tile | undefined {
+    return this.tiles[index];
+  }
+
   drop(index: number) {
     if (this.tiles[index]) this.count--;
     this.tiles[index] = undefined;
@@ -136,6 +140,11 @@ export class TileStore {
     const cj = Math.floor(j / TILE_CELLS);
     this.k = (j - cj * TILE_CELLS) * TILE_SIDE + (i - ci * TILE_CELLS);
     return this.tile(ci, cj);
+  }
+
+  /** Height at lattice vertex (i, j), cells counted from ORIGIN: the tile's own value wherever (i, j) lies inside the world. */
+  vertex(i: number, j: number): number {
+    return this.height(ORIGIN + i * CELL, ORIGIN + j * CELL);
   }
 
   height(x: number, z: number): number {

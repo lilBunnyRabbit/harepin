@@ -1,8 +1,7 @@
-import { chunk_of } from "./chunk-grid";
 import { spur_edges } from "./graph";
 import { junction_patch, type Arm, type Patch, type Reach } from "./junction";
 import type { Rgb } from "./mesh";
-import { offset_reach, Roads } from "./roads";
+import { offset_reach, type Roads } from "./roads";
 import { ROAD_HALF, SIDEWALK, type RoadEdge, type RoadPoint, type WorldData } from "./types";
 
 const SURFACE_LIFT = 0.025;
@@ -176,16 +175,15 @@ export function ring_mouths(data: RoadData, junctions: Junctions): Uint8Array {
   return inside;
 }
 
-export function road_layers(data: RoadData, heights: Float32Array, tones: RoadTones): Roads {
-  const out = new Roads(heights);
+export function road_layers(data: RoadData, out: Roads, tones: RoadTones, junctions: Junctions = road_junctions(data)): Roads {
   const { road, graph, circuit } = data;
   const n = road.length;
   const spurs = spur_edges(graph, circuit);
-  const junctions = road_junctions(data);
   const { patched, loose, trims } = junctions;
   const trim = (id: number): Trim => trims.get(id) ?? untrimmed();
   for (const { x, z, arms, patch } of patched) {
-    const chunk = chunk_of(x, z);
+    const chunk = out.chunk(x, z);
+    if (chunk < 0) continue;
     out.patch(out.surface[chunk], patch, tones.asphalt);
     for (const line of patch.lines) out.rim_line(out.marks[chunk], line, EDGE_INSET, EDGE_INSET + EDGE_WIDTH, MARK_LIFT, tones.edge_line);
     for (const curb of patch.curbs) out.rim_line(out.surface[chunk], curb, -SIDEWALK, 0, SURFACE_LIFT, tones.sidewalk);

@@ -1,5 +1,6 @@
 import { at, sample, up, WHOLE, type Grid } from "./field";
 import { fbm, hash } from "./noise";
+import type { PlanGrid } from "./plan-grid";
 import { ISLAND, type BiomeRecipe } from "./recipe";
 import { CELL, DIRT, Ground, GRASS, N, ORIGIN, ROAD_HALF, type ItemKind, type Solid, type Terrain, type Tree } from "./types";
 
@@ -65,6 +66,23 @@ export function biome_cuts(seed: number, heights: Float32Array, recipe: BiomeRec
       const z = ORIGIN + j * CELL;
       if (y >= coast_top(seed, x, z)) scores.push(score(seed, x, z, y));
     }
+  return cut_at_thirds(seed, scores, recipe);
+}
+
+/** The same thirds over a streamed world's coarse plan grid, which every tile of it shares. */
+export function plan_cuts(seed: number, grid: PlanGrid, recipe: BiomeRecipe): BiomeCuts {
+  const scores: number[] = [];
+  for (let j = 0; j <= grid.n; j++)
+    for (let i = 0; i <= grid.n; i++) {
+      const y = grid.heights[j * (grid.n + 1) + i];
+      const x = grid.ext.origin + i * grid.cell;
+      const z = grid.ext.origin + j * grid.cell;
+      if (y >= coast_top(seed, x, z)) scores.push(score(seed, x, z, y));
+    }
+  return cut_at_thirds(seed, scores, recipe);
+}
+
+function cut_at_thirds(seed: number, scores: number[], recipe: BiomeRecipe): BiomeCuts {
   scores.sort((a, b) => a - b);
   if (!scores.length) return { seed, recipe, forest: 0, upland: 0 };
   return {

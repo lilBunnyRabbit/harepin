@@ -1,4 +1,4 @@
-import { biome_cuts, ground_at } from "./biomes";
+import { biome_cuts, ground_at, type BiomeCuts } from "./biomes";
 import { CHUNK, CHUNKS, chunk_of } from "./chunk-grid";
 import { sample, vertex_up } from "./field";
 import { KINDS } from "./kinds/kinds";
@@ -6,7 +6,7 @@ import { landmark_mesh, type LandmarkTones } from "./landmark-mesh";
 import { roof_rise } from "./lots";
 import { Builder, bounding_sphere, turned, type Rgb, type Sphere } from "./mesh";
 import { road_layers, type RoadTones } from "./road-layers";
-import type { Layer } from "./roads";
+import { grid_ground, Roads, type Layer } from "./roads";
 import { deck_layers, type DeckTones } from "./sky-mesh";
 import { hash } from "./noise";
 import { ISLAND } from "./recipe";
@@ -70,42 +70,48 @@ function jitter(i: number, j: number): number {
   return h - Math.floor(h) - 0.5;
 }
 
+/** Writes the colour of lattice vertex (i, j), cells counted from ORIGIN, at `colors[k * 3]`. */
+export function paint(colors: Float32Array, k: number, lut: Float32Array, cuts: BiomeCuts, i: number, j: number, y: number, ny: number, surface: number) {
+  const x = ORIGIN + i * CELL;
+  const z = ORIGIN + j * CELL;
+  let base: number = y < 2.2 ? Ground.SAND : ground_at(cuts, x, z, y);
+  if (ny < 0.8 || y > 120) base = ny < 0.7 || y > 135 ? ROCK : base + ROCK_HALF;
+  if (y > 165) base = SNOW;
+  if (surface === DIRT) base = ny < 0.7 ? ROCK : Ground.DIRT;
+  const level = Math.min(JITTER_LEVELS - 1, Math.floor((jitter(i, j) + 0.5) * JITTER_LEVELS));
+  const tone = (base * JITTER_LEVELS + level) * 3;
+  colors[k * 3] = lut[tone];
+  colors[k * 3 + 1] = lut[tone + 1];
+  colors[k * 3 + 2] = lut[tone + 2];
+}
+
 export function terrain_colors(data: WorldData, lut: Float32Array): Float32Array {
-  const { heights, seed, surface: surface_grid } = data.terrain;
+  const { heights, seed, surface } = data.terrain;
   const cuts = biome_cuts(seed, heights, (KINDS[data.kind].recipe ?? ISLAND).biomes);
   const colors = new Float32Array((N + 1) * (N + 1) * 3);
   for (let j = 0; j <= N; j++)
     for (let i = 0; i <= N; i++) {
       const k = j * (N + 1) + i;
-      const x = ORIGIN + i * CELL;
-      const z = ORIGIN + j * CELL;
-      const y = heights[k];
-      const ny = vertex_up(heights, i, j);
-      let base: number = y < 2.2 ? Ground.SAND : ground_at(cuts, x, z, y);
-      if (ny < 0.8 || y > 120) base = ny < 0.7 || y > 135 ? ROCK : base + ROCK_HALF;
-      if (y > 165) base = SNOW;
-      if (surface_grid[k] === DIRT) base = ny < 0.7 ? ROCK : Ground.DIRT;
-      const level = Math.min(JITTER_LEVELS - 1, Math.floor((jitter(i, j) + 0.5) * JITTER_LEVELS));
-      const tone = (base * JITTER_LEVELS + level) * 3;
-      colors[k * 3] = lut[tone];
-      colors[k * 3 + 1] = lut[tone + 1];
-      colors[k * 3 + 2] = lut[tone + 2];
+      paint(colors, k, lut, cuts, i, j, heights[k], vertex_up(heights, i, j), surface[k]);
     }
   return colors;
 }
 
 function terrain_chunk(data: WorldData, all_colors: Float32Array, ci: number, cj: number): ChunkBuffers["terrain"] {
-  const heights = data.terrain.heights;
+  const [x0, z0] = chunk_origin(ci + cj * CHUNKS);
+  return terrain_mesh(data.terrain.heights, all_colors, N + 1, ci * CHUNK_CELLS, cj * CHUNK_CELLS, x0, z0);
+}
+
+/** One chunk's terrain from `heights` and `all_colors`, `row` vertices wide, its first vertex at (i0, j0) and (x0, z0). */
+export function terrain_mesh(heights: Float32Array, all_colors: Float32Array, row: number, i0: number, j0: number, x0: number, z0: number): ChunkBuffers["terrain"] {
   const side = CHUNK_CELLS + 1;
   const skirt_start = side * side;
   const count = skirt_start + 4 * side;
   const positions = new Float32Array(count * 3);
   const colors = new Float32Array(count * 3);
   const put = (v: number, i: number, j: number, drop: number) => {
-    const gi = ci * CHUNK_CELLS + i;
-    const gj = cj * CHUNK_CELLS + j;
-    const k = gj * (N + 1) + gi;
-    positions.set([ORIGIN + gi * CELL, heights[k] - drop, ORIGIN + gj * CELL], v * 3);
+    const k = (j0 + j) * row + i0 + i;
+    positions.set([x0 + i * CELL, heights[k] - drop, z0 + j * CELL], v * 3);
     colors.set(all_colors.subarray(k * 3, k * 3 + 3), v * 3);
   };
   for (let j = 0; j < side; j++) for (let i = 0; i < side; i++) put(j * side + i, i, j, 0);
@@ -210,7 +216,7 @@ function town_builders(data: WorldData, tones: MeshTones): Map<number, Town> {
   return towns;
 }
 
-function soup(layers: Layer[]): Soup | null {
+export function soup(layers: Layer[]): Soup | null {
   const positions = packed(layers.map((l) => l.positions));
   if (!positions.length) return null;
   return { positions, colors: packed(layers.map((l) => l.colors)), sphere: bounding_sphere(positions) };
@@ -246,7 +252,7 @@ function chunk_origin(index: number): [number, number] {
 export function chunk_meshes(data: WorldData, tones: MeshTones): (index: number) => ChunkBuffers | null {
   if (!KINDS[data.kind].ground) return deck_chunks(data, tones);
   const colors = terrain_colors(data, tones.terrain);
-  const roads = road_layers(data, data.terrain.heights, tones);
+  const roads = road_layers(data, new Roads(grid_ground(data.terrain.heights)), tones);
   const towns = town_builders(data, tones);
   return (index) => {
     const ci = index % CHUNKS;
