@@ -88,7 +88,7 @@ function cloud_pixels(tones: MapTones): Uint8ClampedArray<ArrayBuffer> {
   return pixels;
 }
 
-/** Shaded raster from heights and colours over MAP_SIDE² vertices `step` metres apart. */
+/** Shaded raster from heights and colours over MAP_SIDEÂ² vertices `step` metres apart. */
 function shaded(heights: Float32Array, colors: Float32Array, tones: MapTones, step: number): Uint8ClampedArray<ArrayBuffer> {
   const last = MAP_SIDE - 1;
   const pixels = new Uint8ClampedArray(MAP_SIDE * MAP_SIDE * 4);
@@ -115,7 +115,7 @@ function shaded(heights: Float32Array, colors: Float32Array, tones: MapTones, st
 }
 
 // A streamed world holds no fine grid: its map is the bare land from the plan's height function, coloured with the
-// biome cuts its tiles use, at MAP_SIDE² samples (12 m on the 6 km mainland). Roads and towns are drawn over it as lines.
+// biome cuts its tiles use, at MAP_SIDEÂ² samples (12 m on the 6 km mainland). Roads and towns are drawn over it as lines.
 function plan_pixels(data: WorldData, tones: MapTones): Uint8ClampedArray<ArrayBuffer> {
   const { base } = data.ground;
   const height = base.kind === "terrain" ? land_height(base.seed, base.shape) : () => base.height;
