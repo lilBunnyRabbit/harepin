@@ -13,10 +13,10 @@ const X = 900;
 const Z = 900;
 const GROUND = 10;
 
+const ISLAND = generate(3);
+
 function world_with(...solids: Solid[]): World {
-  const data = generate(3);
-  data.solids.push(...solids);
-  return new World(3, data);
+  return new World(3, { ...ISLAND, solids: [...ISLAND.solids, ...solids] });
 }
 
 function bar(bottom: number, top: number): Solid {
