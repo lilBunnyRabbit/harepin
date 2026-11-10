@@ -76,7 +76,7 @@ const quality = new Quality(params, prefs.quality);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(64, innerWidth / innerHeight, 0.1, 5000);
 
-const light = new Lighting(scene, WORLDS[kind].mood);
+const light = new Lighting(scene, WORLDS[kind].mood, quality.mobile);
 const render = new Render(params, quality, scene, camera, light);
 const app = $("app");
 render.mount(app);

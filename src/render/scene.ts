@@ -5,6 +5,7 @@ import { LandmarksView } from "../world/landmarks";
 import { color, lighten, linear, mix, tones } from "../theme/palette";
 import { World, type RoadPoint, type Tree } from "../world/world";
 import { CHUNK } from "../worldgen/chunk-grid";
+import { fog_reach } from "./lighting";
 import { Ground, JITTER_LEVELS, type ChunkBuffers, type MeshTones } from "../worldgen/chunks";
 import { TreeKind } from "../worldgen/biomes";
 import type { Lab } from "../theme/theme";
@@ -19,7 +20,7 @@ const SCRUB_SQUASH = 0.35;
 const SCRUB_SINK = 0.5;
 const LANE_WIDTH = 3;
 const FAR = 600;
-const MOBILE_FAR = 300;
+const MOBILE_FAR = 200;
 const MOBILE_TREES = 300;
 function jitter(i: number, j: number): number {
   const h = Math.sin(i * 127.1 + j * 311.7) * 43758.5453;
@@ -156,9 +157,8 @@ export class WorldView {
   /** `fog_far` is where linear fog ends: a chunk past it at every angle the camera sees is pure fog, so it is not drawn. */
   update(camera: THREE.PerspectiveCamera, fog_far: number) {
     const { x, z } = camera.position;
-    const tan = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
-    // Fog runs on view depth, not distance; toward a frustum corner depth is distance divided by this.
-    const corner = Math.sqrt(1 + tan * tan * (1 + camera.aspect * camera.aspect));
+    // Phones fog on distance (`Lighting`), so nothing past `fog_far` is drawn and the streamed chunks cover the rest.
+    const reach = fog_reach(camera, fog_far, this.mobile);
     const far_at = this.mobile ? MOBILE_FAR : FAR;
     this.jumps.cull(camera, fog_far);
     this.landmarks.update(performance.now() / 1000);
@@ -167,7 +167,7 @@ export class WorldView {
       const dx = Math.max(view.x0 - x, 0, x - view.x0 - CHUNK);
       const dz = Math.max(view.z0 - z, 0, z - view.z0 - CHUNK);
       const d = Math.sqrt(dx * dx + dz * dz);
-      view.group.visible = d < fog_far * corner;
+      view.group.visible = d < reach;
       const far = d > far_at;
       if (far !== view.far) {
         view.far = far;

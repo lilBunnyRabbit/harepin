@@ -61,12 +61,23 @@ const DAY: MoodSpec = {
   bloom_threshold: 0.98,
 };
 
+/**
+ * Farthest ground distance, in metres, that is not pure fog. Linear fog runs on view depth, which toward the sides of a
+ * wide screen reaches well past `fog_far`; radial fog runs on distance and ends at `fog_far` in every direction.
+ */
+export function fog_reach(camera: THREE.PerspectiveCamera, fog_far: number, radial: boolean): number {
+  if (radial) return fog_far;
+  const tan = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+  return fog_far * Math.sqrt(1 + tan * tan * (1 + camera.aspect * camera.aspect));
+}
+
 export class Lighting {
   readonly sun: THREE.DirectionalLight;
   readonly bloom: { strength: number; threshold: number };
   private readonly spec: MoodSpec;
 
-  constructor(scene: THREE.Scene, mood: MoodDelta) {
+  /** `radial` fogs on distance instead of view depth, so a phone's streamed chunks cover all the fog leaves visible. */
+  constructor(scene: THREE.Scene, mood: MoodDelta, radial = false) {
     const spec = (this.spec = { ...(dark ? DUSK : DAY), ...mood });
     this.bloom = { strength: spec.bloom, threshold: spec.bloom_threshold };
     // The sky shader and clouds read SUN_DIR when built, so it is set before `sky()` and `clouds()` run.
@@ -75,6 +86,7 @@ export class Lighting {
     SUN_DIR.set((SUN_DIR.x / flat) * horizontal, spec.sun_y, (SUN_DIR.z / flat) * horizontal);
 
     scene.fog = new THREE.Fog(FOG, spec.fog_near, spec.fog_far);
+    if (radial) THREE.ShaderChunk.fog_vertex = THREE.ShaderChunk.fog_vertex.replace("vFogDepth = - mvPosition.z;", "vFogDepth = length( mvPosition.xyz );");
     scene.add(new THREE.HemisphereLight(color(spec.hemi_sky), color(spec.hemi_ground), spec.hemi_intensity));
     this.sun = new THREE.DirectionalLight(color(spec.key), spec.key_intensity);
     Object.assign(this.sun.shadow.camera, { left: -36, right: 36, top: 36, bottom: -36, near: 1, far: 900 });
