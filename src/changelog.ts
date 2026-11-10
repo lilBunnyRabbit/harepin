@@ -23,6 +23,15 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.23.1",
+    date: "2026-11-10",
+    title: "Warm earth",
+    changes: [
+      { kind: IMPROVED, text: "Dirt and road shoulders look like warm earth in the light themes." },
+      { kind: FIXED, text: "On narrow phones the map legend no longer covers the coast." },
+    ],
+  },
+  {
     version: "0.23.0",
     date: "2026-11-10",
     title: "Mainland",
