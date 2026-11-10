@@ -461,7 +461,7 @@ function frame(now: number) {
   chase.top = modes.high_view;
   chase.boost = car.nitro.boosting;
   driver.draw(!simulated, acc / DT, now);
-  const offroad = world.grip(car.pos.x, car.pos.z) < 1;
+  const offroad = !world.on_road(car.pos.x, car.pos.z);
   chase.update(dt, driver.drawn, world, offroad, now / 1000, input.look);
   recenter.toggleAttribute("data-shown", chase.orbited);
   light.follow(car.pos);

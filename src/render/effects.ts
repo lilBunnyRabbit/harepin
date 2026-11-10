@@ -67,7 +67,7 @@ export class Smoke {
     while (this.carry.length < car.wheels.length) this.carry.push(0);
     car.wheels.forEach((w, i) => {
       if (!w.contact) return;
-      const on_road = world.grip(w.point.x, w.point.z) >= 1;
+      const on_road = world.on_road(w.point.x, w.point.z);
       const slide = Math.max(w.lateral - 1.1, Math.abs(w.slip) - 0.18);
       let rate = 0;
       let tint = this.smoke;
@@ -171,7 +171,7 @@ export class Skids {
     }
     for (let i = 0; i < car.wheels.length; i++) {
       const w = car.wheels[i];
-      const sliding = w.contact && car.vel.length() > 3 && (w.lateral > 1.15 || Math.abs(w.slip) > 0.2) && world.grip(w.point.x, w.point.z) >= 1;
+      const sliding = w.contact && car.vel.length() > 3 && (w.lateral > 1.15 || Math.abs(w.slip) > 0.2) && world.on_road(w.point.x, w.point.z);
       if (!sliding) {
         this.marking[i] = false;
         continue;
