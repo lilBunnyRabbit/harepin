@@ -90,6 +90,7 @@ interface ChunkView {
   z0: number;
   group: THREE.Group;
   terrain: THREE.BufferGeometry | null;
+  road: THREE.BufferGeometry | null;
   full: number;
   trees: THREE.Object3D[];
   town: TownChunk | undefined;
@@ -102,43 +103,60 @@ export class WorldView {
   readonly root = new THREE.Group();
   readonly jumps: JumpsView;
   private readonly landmarks: LandmarksView;
-  private readonly views: ChunkView[];
+  /** By chunk index; a chunk not added yet, or dropped, is a hole. */
+  private readonly views: (ChunkView | undefined)[] = [];
+  private readonly terrain = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+  private readonly road = [-2, -4].map((offset) => new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, polygonOffset: true, polygonOffsetFactor: offset, polygonOffsetUnits: offset, side: THREE.DoubleSide }));
+  private readonly trees: Map<number, THREE.InstancedMesh[]>;
+  private readonly towns: Map<number, TownChunk>;
 
   constructor(world: World, chunks: ChunkBuffers[], private readonly mobile: boolean) {
-    const terrain = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
-    const road = [-2, -4].map((offset) => new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, polygonOffset: true, polygonOffsetFactor: offset, polygonOffsetUnits: offset, side: THREE.DoubleSide }));
-    const trees = tree_chunks(world.trees);
-    const towns = town_chunks(world, chunks);
-    this.views = chunks.map((chunk) => {
-      const group = new THREE.Group();
-      let ground: THREE.BufferGeometry | null = null;
-      if (chunk.terrain) {
-        ground = soup_geometry(chunk.terrain);
-        ground.setIndex(new THREE.BufferAttribute(chunk.terrain.index, 1));
-        ground.setDrawRange(0, chunk.terrain.full);
-        const ground_mesh = new THREE.Mesh(ground, terrain);
-        ground_mesh.receiveShadow = true;
-        group.add(ground_mesh);
-      }
-      if (chunk.road) {
-        const geometry = soup_geometry(chunk.road);
-        geometry.addGroup(0, chunk.road.surface, 0);
-        geometry.addGroup(chunk.road.surface, Infinity, 1);
-        const mesh = new THREE.Mesh(geometry, road);
-        mesh.receiveShadow = true;
-        group.add(mesh);
-      }
-      const here = trees.get(chunk.index) ?? [];
-      const town = towns.get(chunk.index);
-      if (here.length) group.add(...here);
-      if (town) group.add(...town.objects);
-      this.root.add(group);
-      return { x0: chunk.x0, z0: chunk.z0, group, terrain: ground, full: chunk.terrain?.full ?? 0, trees: here, town, far: null, trees_shown: null };
-    });
+    this.trees = tree_chunks(world.trees);
+    this.towns = town_chunks(world, chunks);
+    for (const chunk of chunks) this.add(chunk);
     this.jumps = new JumpsView(world, (x, z) => world.height(x, z));
     this.root.add(this.jumps.root);
     this.landmarks = new LandmarksView(world.props);
     this.root.add(this.landmarks.root);
+  }
+
+  add(chunk: ChunkBuffers) {
+    this.drop(chunk.index);
+    const group = new THREE.Group();
+    let ground: THREE.BufferGeometry | null = null;
+    let road: THREE.BufferGeometry | null = null;
+    if (chunk.terrain) {
+      ground = soup_geometry(chunk.terrain);
+      ground.setIndex(new THREE.BufferAttribute(chunk.terrain.index, 1));
+      ground.setDrawRange(0, chunk.terrain.full);
+      const ground_mesh = new THREE.Mesh(ground, this.terrain);
+      ground_mesh.receiveShadow = true;
+      group.add(ground_mesh);
+    }
+    if (chunk.road) {
+      road = soup_geometry(chunk.road);
+      road.addGroup(0, chunk.road.surface, 0);
+      road.addGroup(chunk.road.surface, Infinity, 1);
+      const mesh = new THREE.Mesh(road, this.road);
+      mesh.receiveShadow = true;
+      group.add(mesh);
+    }
+    const here = this.trees.get(chunk.index) ?? [];
+    const town = this.towns.get(chunk.index);
+    if (here.length) group.add(...here);
+    if (town) group.add(...town.objects);
+    this.root.add(group);
+    this.views[chunk.index] = { x0: chunk.x0, z0: chunk.z0, group, terrain: ground, road, full: chunk.terrain?.full ?? 0, trees: here, town, far: null, trees_shown: null };
+  }
+
+  /** Trees and town objects stay built for the chunk's return; only its terrain and road geometry go. */
+  drop(index: number) {
+    const view = this.views[index];
+    if (!view) return;
+    this.root.remove(view.group);
+    view.terrain?.dispose();
+    view.road?.dispose();
+    this.views[index] = undefined;
   }
 
   /** `fog_far` is where linear fog ends: a chunk past it at every angle the camera sees is pure fog, so it is not drawn. */
@@ -151,6 +169,7 @@ export class WorldView {
     this.jumps.cull(camera, fog_far);
     this.landmarks.update(performance.now() / 1000);
     for (const view of this.views) {
+      if (!view) continue;
       const dx = Math.max(view.x0 - x, 0, x - view.x0 - CHUNK);
       const dz = Math.max(view.z0 - z, 0, z - view.z0 - CHUNK);
       const d = Math.sqrt(dx * dx + dz * dz);
