@@ -1,5 +1,6 @@
 import { biome_at, biome_cuts, Biome } from "./biomes";
 import { sample, vertex_up } from "./field";
+import { Pieces, split } from "./pieces";
 import { landmark_mesh, type LandmarkTones } from "./landmark-mesh";
 import { roof_rise } from "./lots";
 import { Builder, bounding_sphere, turned, type Rgb, type Sphere } from "./mesh";
@@ -187,6 +188,9 @@ export class Roads {
   readonly surface: Layer[] = Array.from({ length: CHUNKS * CHUNKS }, () => ({ positions: [], colors: [] }));
   readonly marks: Layer[] = Array.from({ length: CHUNKS * CHUNKS }, () => ({ positions: [], colors: [] }));
 
+  private pieces = new Pieces();
+  private cut = new Pieces();
+
   constructor(private readonly heights: Float32Array) {}
 
   strip(layers: Layer[], road: RoadPoint[], closed: boolean, from: number, to: number, lift: number, keep: (s: number) => boolean, rgb: Rgb) {
@@ -204,16 +208,18 @@ export class Roads {
   }
 
   private quad(layer: Layer, a: RoadPoint, b: RoadPoint, ra: Reach, rb: Reach, from: number, to: number, lift: number, rgb: Rgb) {
-    const at = (p: RoadPoint, r: Reach, side: number): Point => {
-      const d = Math.max(r[0], Math.min(r[1], side));
-      return [p.x - p.tz * d, p.z + p.tx * d];
-    };
-    const a0 = at(a, ra, from);
-    const a1 = at(a, ra, to);
-    const b0 = at(b, rb, from);
-    const b1 = at(b, rb, to);
-    this.draped(layer, [a0, a1, b0], lift, rgb);
-    this.draped(layer, [b0, a1, b1], lift, rgb);
+    const a0 = Math.max(ra[0], Math.min(ra[1], from));
+    const a1 = Math.max(ra[0], Math.min(ra[1], to));
+    const b0 = Math.max(rb[0], Math.min(rb[1], from));
+    const b1 = Math.max(rb[0], Math.min(rb[1], to));
+    const a0x = a.x - a.tz * a0;
+    const a0z = a.z + a.tx * a0;
+    const a1x = a.x - a.tz * a1;
+    const a1z = a.z + a.tx * a1;
+    const b0x = b.x - b.tz * b0;
+    const b0z = b.z + b.tx * b0;
+    this.draped(layer, a0x, a0z, a1x, a1z, b0x, b0z, lift, rgb);
+    this.draped(layer, b0x, b0z, a1x, a1z, b.x - b.tz * b1, b.z + b.tx * b1, lift, rgb);
   }
 
   // Terrain is linear only inside each half cell, so a road triangle spanning a crease would cut under a ridge or float
@@ -222,29 +228,52 @@ export class Roads {
   // shared edge, and its sag, deeper than the gap between asphalt and marks, sank lane marks under the asphalt.
   // Whether a cut happens depends only on the terrain, never on the road triangle, so neighbours always agree: a diagonal
   // is skipped only where its cell is flat, and then by every piece in that cell.
-  private draped(layer: Layer, triangle: Point[], lift: number, rgb: Rgb) {
-    let pieces = [triangle];
+  private draped(layer: Layer, ax: number, az: number, bx: number, bz: number, cx: number, cz: number, lift: number, rgb: Rgb) {
+    this.pieces.clear();
+    this.pieces.begin();
+    this.pieces.push(ax, az);
+    this.pieces.push(bx, bz);
+    this.pieces.push(cx, cz);
+    this.pieces.end();
     for (const [ux, uz] of GRID_LINES) {
-      const along = triangle.map(([x, z]) => (ux * x + uz * z - ORIGIN) / CELL);
-      for (let k = Math.floor(Math.min(...along)) + 1; k < Math.max(...along); k++) pieces = pieces.flatMap((piece) => split(piece, ux, uz, ORIGIN + k * CELL));
+      const pa = (ux * ax + uz * az - ORIGIN) / CELL;
+      const pb = (ux * bx + uz * bz - ORIGIN) / CELL;
+      const pc = (ux * cx + uz * cz - ORIGIN) / CELL;
+      const top = Math.max(pa, pb, pc);
+      for (let k = Math.floor(Math.min(pa, pb, pc)) + 1; k < top; k++) this.split_all(ux, uz, ORIGIN + k * CELL);
     }
-    pieces = pieces.flatMap((piece) => {
-      const [i, j] = cell_of(piece);
+    const { pieces, cut, heights: h } = this;
+    cut.clear();
+    for (let p = 0; p < pieces.length; p++) {
+      const i = cell_column(pieces, p, 0);
+      const j = cell_column(pieces, p, 1);
       const k = j * (N + 1) + i;
-      const h = this.heights;
-      if (Math.abs(h[k] + h[k + N + 2] - h[k + 1] - h[k + N + 1]) <= FLAT_CELL) return [piece];
-      return split(piece, 1, 1, 2 * ORIGIN + (i + j + 1) * CELL);
-    });
-    for (const piece of pieces)
-      for (let i = 1; i < piece.length - 1; i++)
-        for (const [x, z] of [piece[0], piece[i], piece[i + 1]]) {
-          layer.positions.push(x, sample(this.heights, x, z) + lift, z);
-          layer.colors.push(rgb[0], rgb[1], rgb[2]);
-        }
+      if (Math.abs(h[k] + h[k + N + 2] - h[k + 1] - h[k + N + 1]) <= FLAT_CELL) cut.copy(pieces, p);
+      else split(pieces, p, cut, 1, 1, 2 * ORIGIN + (i + j + 1) * CELL);
+    }
+    for (let p = 0; p < cut.length; p++) {
+      const s = cut.start[p];
+      for (let i = 1; i < cut.count[p] - 1; i++) {
+        this.lay(layer, cut.xz[s], cut.xz[s + 1], lift, rgb);
+        this.lay(layer, cut.xz[s + 2 * i], cut.xz[s + 2 * i + 1], lift, rgb);
+        this.lay(layer, cut.xz[s + 2 * i + 2], cut.xz[s + 2 * i + 3], lift, rgb);
+      }
+    }
+  }
+
+  private split_all(ux: number, uz: number, line: number) {
+    const { pieces, cut } = this;
+    cut.clear();
+    for (let p = 0; p < pieces.length; p++) split(pieces, p, cut, ux, uz, line);
+    this.pieces = cut;
+    this.cut = pieces;
+  }
+
+  private lay(layer: Layer, x: number, z: number, lift: number, rgb: Rgb) {
+    layer.positions.push(x, sample(this.heights, x, z) + lift, z);
+    layer.colors.push(rgb[0], rgb[1], rgb[2]);
   }
 }
-
-type Point = [number, number];
 
 /** Cell columns and rows, ux * x + uz * z = ORIGIN + k * CELL. Each cell's diagonal runs x + z = 2 * ORIGIN + (i + j + 1) * CELL. */
 const GRID_LINES: [number, number][] = [
@@ -252,39 +281,13 @@ const GRID_LINES: [number, number][] = [
   [0, 1],
 ];
 
-/** The cell a piece already cut along the grid lines sits in, from its centroid. */
-function cell_of(piece: Point[]): [number, number] {
-  const x = piece.reduce((sum, p) => sum + p[0], 0) / piece.length;
-  const z = piece.reduce((sum, p) => sum + p[1], 0) / piece.length;
-  const clamp = (v: number) => Math.max(0, Math.min(N - 1, Math.floor((v - ORIGIN) / CELL)));
-  return [clamp(x), clamp(z)];
-}
-
-function split(piece: Point[], ux: number, uz: number, line: number): Point[][] {
-  const side = piece.map(([x, z]) => ux * x + uz * z - line);
-  if (side.every((v) => v >= 0) || side.every((v) => v <= 0)) return [piece];
-  const below: Point[] = [];
-  const above: Point[] = [];
-  piece.forEach((p, i) => {
-    const j = (i + 1) % piece.length;
-    const q = piece[j];
-    if (side[i] <= 0) below.push(p);
-    if (side[i] >= 0) above.push(p);
-    if ((side[i] < 0 && side[j] > 0) || (side[i] > 0 && side[j] < 0)) {
-      const cut = crossing(p, q, side[i], side[j]);
-      below.push(cut);
-      above.push(cut);
-    }
-  });
-  return [below, above].filter((part) => part.length >= 3);
-}
-
-// Both triangles on a shared edge walk it in opposite directions; interpolating from the same end gives them the
-// bit-identical vertex, so the cut leaves no hairline gap.
-function crossing(p: Point, q: Point, sp: number, sq: number): Point {
-  if (p[0] > q[0] || (p[0] === q[0] && p[1] > q[1])) return crossing(q, p, sq, sp);
-  const t = sp / (sp - sq);
-  return [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t];
+/** The cell column (axis 0) or row (axis 1) a piece already cut along the grid lines sits in, from its centroid. */
+function cell_column(pieces: Pieces, p: number, axis: 0 | 1): number {
+  const s = pieces.start[p];
+  const n = pieces.count[p];
+  let sum = 0;
+  for (let i = 0; i < n; i++) sum += pieces.xz[s + 2 * i + axis];
+  return Math.max(0, Math.min(N - 1, Math.floor((sum / n - ORIGIN) / CELL)));
 }
 
 /** Lowest and highest side offset a point's ribbon vertices may take. */
@@ -449,9 +452,19 @@ function town_builders(data: WorldData, tones: MeshTones): Map<number, Town> {
 }
 
 function soup(layers: Layer[]): Soup | null {
-  const positions = Float32Array.from(layers.flatMap((l) => l.positions));
+  const positions = packed(layers.map((l) => l.positions));
   if (!positions.length) return null;
-  return { positions, colors: Float32Array.from(layers.flatMap((l) => l.colors)), sphere: bounding_sphere(positions) };
+  return { positions, colors: packed(layers.map((l) => l.colors)), sphere: bounding_sphere(positions) };
+}
+
+function packed(parts: number[][]): Float32Array<ArrayBuffer> {
+  const out = new Float32Array(parts.reduce((sum, part) => sum + part.length, 0));
+  let at = 0;
+  for (const part of parts) {
+    out.set(part, at);
+    at += part.length;
+  }
+  return out;
 }
 
 function sky_chunks(data: WorldData, tones: MeshTones): ChunkBuffers[] {
