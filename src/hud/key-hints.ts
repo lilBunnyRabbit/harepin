@@ -3,10 +3,10 @@ import { keys_text, type Bindable, type Bindings } from "./bindings";
 const HINTS: [string, string, Bindable][] = [
   ["#restart-lap", "Restart lap", "restart"],
   ["#recenter", "Recenter camera", "recenter"],
-  ['[data-aid="tcs"]', "Traction control", "tcs"],
-  ['[data-aid="abs"]', "ABS", "abs"],
-  ['[data-aid="assist"]', "Steer assist", "assist"],
-  ['[data-aid="auto"]', "Auto gearbox", "auto"],
+  ['.aid-key[data-aid="tcs"]', "Traction control", "tcs"],
+  ['.aid-key[data-aid="abs"]', "ABS", "abs"],
+  ['.aid-key[data-aid="assist"]', "Steer assist", "assist"],
+  ['.aid-key[data-aid="auto"]', "Auto gearbox", "auto"],
 ];
 
 export function show_key_hints(bindings: Bindings) {

@@ -1,7 +1,7 @@
 export const HOLDS = ["throttle", "brake", "steer_left", "steer_right", "handbrake", "nitro", "precision", "rewind"] as const;
 export type Hold = (typeof HOLDS)[number];
 
-export const PRESSES = ["reset", "restart", "shift_up", "shift_down", "auto", "tcs", "abs", "assist", "camera", "recenter", "ghost", "garage", "help"] as const;
+export const PRESSES = ["reset", "restart", "shift_up", "shift_down", "auto", "tcs", "abs", "assist", "camera", "recenter", "ghost", "garage", "help", "map"] as const;
 export type Press = (typeof PRESSES)[number];
 
 /** Settings (Esc) and menu (Start) keep their menu role and never enter the binding table. */
@@ -47,6 +47,7 @@ export const BIND_INFO: Record<Bindable, BindInfo> = {
   ghost: { label: "Ghost car" },
   garage: { label: "Garage" },
   help: { label: "Key list" },
+  map: { label: "World map" },
 };
 
 export const DEFAULT_BINDINGS: Bindings = {
@@ -62,7 +63,7 @@ export const DEFAULT_BINDINGS: Bindings = {
   restart: { keys: ["KeyL"], pad: null },
   shift_up: { keys: ["KeyE"], pad: 5 },
   shift_down: { keys: ["KeyQ"], pad: 4 },
-  auto: { keys: ["KeyM"], pad: null },
+  auto: { keys: ["Digit4"], pad: null },
   tcs: { keys: ["Digit1"], pad: null },
   abs: { keys: ["Digit2"], pad: null },
   assist: { keys: ["Digit3"], pad: null },
@@ -71,6 +72,7 @@ export const DEFAULT_BINDINGS: Bindings = {
   ghost: { keys: ["KeyG"], pad: null },
   garage: { keys: ["KeyV"], pad: null },
   help: { keys: ["KeyH"], pad: null },
+  map: { keys: ["KeyM"], pad: null },
 };
 
 /** Held, they turn any key into a browser shortcut, which a bound action ignores. */
@@ -147,13 +149,23 @@ const valid_button = (raw: unknown): raw is number => typeof raw === "number" &&
 const stored_keys = (raw: unknown): string[] | null => (Array.isArray(raw) && raw.length > 0 && raw.length <= MAX_KEYS && raw.every(valid_key) ? [...new Set(raw)] : null);
 const stored_pad = (action: Bindable, raw: unknown): number | null | undefined => (!pad_bindable(action) ? null : raw === null || valid_button(raw) ? raw : undefined);
 
+// M was the gearbox key before the map took it. A table saved then still holds auto on M alone: auto drops to its new
+// default and M goes to the map. Anyone who moved auto off M keeps their table as it is.
+function migrate(stored: Record<string, unknown>): Record<string, unknown> {
+  const auto = stored.auto;
+  if (stored.map !== undefined || typeof auto !== "object" || auto === null) return stored;
+  const keys = (auto as Record<string, unknown>).keys;
+  if (!Array.isArray(keys) || keys.length !== 1 || keys[0] !== "KeyM") return stored;
+  return { ...stored, auto: { ...auto, keys: undefined }, map: { keys: ["KeyM"], pad: null } };
+}
+
 /**
  * Stored bindings are untrusted. Valid stored entries claim their keys and buttons first, in table order, so a remap
  * survives; a missing or bad entry takes whatever of its default is still free. A key or button claimed twice goes to
  * the first claimant only.
  */
 export function parse_bindings(raw: unknown): Bindings {
-  const stored = typeof raw === "object" && raw !== null ? (raw as Record<string, unknown>) : {};
+  const stored = migrate(typeof raw === "object" && raw !== null ? (raw as Record<string, unknown>) : {});
   const entry = (action: Bindable) => {
     const value = stored[action];
     return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};

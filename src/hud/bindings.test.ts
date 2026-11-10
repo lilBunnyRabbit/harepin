@@ -184,3 +184,37 @@ describe("labels", () => {
     expect(pad_text(DEFAULT_BINDINGS, "ghost")).toBe("");
   });
 });
+
+describe("M moves from the gearbox to the map", () => {
+  const before_map = () => {
+    const { map: _, ...rest } = structuredClone(DEFAULT_BINDINGS);
+    return { ...rest, auto: { keys: ["KeyM"], pad: 3 }, reset: { keys: ["KeyR"], pad: null } };
+  };
+
+  test("a table saved with auto on M gets auto on 4 and the map on M, auto keeps its pad button", () => {
+    const parsed = parse_bindings(JSON.parse(JSON.stringify(before_map())));
+    expect(parsed.auto).toEqual({ keys: ["Digit4"], pad: 3 });
+    expect(parsed.map.keys).toEqual(["KeyM"]);
+    expect(unique(parsed)).toBe(true);
+  });
+
+  test("a player who put M on something else keeps it and the map gets no key", () => {
+    const parsed = parse_bindings({ ...before_map(), auto: { keys: ["KeyK"], pad: null }, ghost: { keys: ["KeyM"], pad: null } });
+    expect(parsed.ghost.keys).toEqual(["KeyM"]);
+    expect(parsed.auto.keys).toEqual(["KeyK"]);
+    expect(parsed.map.keys).toEqual([]);
+  });
+
+  test("a 4 already taken stays with its owner; auto is left without a key", () => {
+    const parsed = parse_bindings({ ...before_map(), ghost: { keys: ["Digit4"], pad: null } });
+    expect(parsed.ghost.keys).toEqual(["Digit4"]);
+    expect(parsed.auto.keys).toEqual([]);
+    expect(parsed.map.keys).toEqual(["KeyM"]);
+  });
+
+  test("a table that already has the map is left alone", () => {
+    const parsed = parse_bindings({ ...before_map(), map: { keys: ["KeyJ"], pad: null } });
+    expect(parsed.auto.keys).toEqual(["KeyM"]);
+    expect(parsed.map.keys).toEqual(["KeyJ"]);
+  });
+});

@@ -71,6 +71,7 @@ const KEYS: [string, Shown, Shown, string][] = [
   ["Ghost", keys("ghost"), pads("ghost"), ""],
   ["TCS / ABS / steer assist", keys("tcs", "abs", "assist"), pads("tcs", "abs", "assist"), ""],
   ["Garage", keys("garage"), also(pads("garage"), "Start, Garage", ", "), ""],
+  ["World map", keys("map"), pads("map"), ""],
   ["This key list", keys("help"), pads("help"), ""],
   ["Chat", "T", "", "Chat"],
   ["Menu", "Esc", "Start", "Menu button"],

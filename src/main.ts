@@ -339,6 +339,7 @@ const ACTIONS: Record<Action, () => void> = {
   assist: () => toggle_aid("assist"),
   ghost: () => toggle_aid("ghost"),
   help: () => settings.open_keys(),
+  map: () => settings.open("world"),
   garage: () => settings.open(MenuTab.GARAGE),
   settings: () => settings.open(),
   menu: () => pad_menu.toggle(),
