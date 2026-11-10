@@ -46,7 +46,7 @@ test("a chunk not in yet reads flat sea-level ground far from a road, and an are
   const tiles = slice_tiles(generate(0).terrain);
   const store = new TileStore();
   const asked: [number, number][] = [];
-  store.on_need = (x, z) => asked.push([x, z]);
+  store.on_need = (_, focus) => focus && asked.push([focus.x, focus.z]);
   expect(store.height(10, 10)).toBe(0);
   expect(store.road_dist(10, 10)).toBeGreaterThan(1000);
   expect(store.surface(0, 0)).toBe(0);

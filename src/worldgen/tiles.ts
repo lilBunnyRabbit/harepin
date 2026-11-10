@@ -57,8 +57,8 @@ export class TileStore {
   private count = 0;
   private waits: { need: number[]; done: () => void; fail: (error: Error) => void }[] = [];
   private failed: Error | null = null;
-  /** Told the middle of an area someone waits on, so a streaming source can send those chunks first. */
-  on_need: ((x: number, z: number) => void) | null = null;
+  /** Told the missing chunks someone waits on, and the middle of their area if any, so a streaming source can send them first. */
+  on_need: ((missing: readonly number[], focus: { x: number; z: number } | null) => void) | null = null;
   private k = 0;
   private fx = 0;
   private fz = 0;
@@ -89,7 +89,7 @@ export class TileStore {
     const need: number[] = [];
     for (let j = Math.max(0, cj - 1); j <= Math.min(CHUNKS - 1, cj + 1); j++)
       for (let i = Math.max(0, ci - 1); i <= Math.min(CHUNKS - 1, ci + 1); i++) need.push(j * CHUNKS + i);
-    return this.wait(need, () => this.on_need?.(x, z));
+    return this.wait(need, { x, z });
   }
 
   /** Resolves once every chunk is in. */
@@ -97,10 +97,10 @@ export class TileStore {
     return this.wait(Array.from({ length: CHUNKS * CHUNKS }, (_, index) => index), null);
   }
 
-  private wait(need: number[], ask: (() => void) | null): Promise<void> {
+  private wait(need: number[], focus: { x: number; z: number } | null): Promise<void> {
     if (need.every((index) => this.tiles[index])) return Promise.resolve();
     if (this.failed) return Promise.reject(this.failed);
-    ask?.();
+    this.on_need?.(need.filter((index) => !this.tiles[index]), focus);
     return new Promise((done, fail) => this.waits.push({ need, done, fail }));
   }
 

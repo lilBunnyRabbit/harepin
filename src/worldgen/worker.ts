@@ -87,7 +87,7 @@ addEventListener("message", (event: MessageEvent<WorkerRequest>) => {
   try {
     if (request.type === "focus") focus = [request.x, request.z];
     else if (request.type === "chunk") {
-      if (!left.includes(request.index)) left.push(request.index);
+      left.push(request.index);
     } else open(request);
     pump().catch(fail);
   } catch (error) {

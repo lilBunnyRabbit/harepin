@@ -39,3 +39,21 @@ test("a dropped chunk comes back on request with the same tile and mesh", async 
   expect(checksum([probe()])).toBe(before);
   expect(again).toEqual([meshes.get(index) ?? ""]);
 }, 60_000);
+
+test("a wait on a dropped chunk asks for it again, and a reply asked for before a drop is thrown away", async () => {
+  const { MESH_TONES } = await import("../../scripts/proof/tones");
+  const stream = await WorldStream.open(5, "island", MESH_TONES);
+  await stream.world.tiles.whole();
+  const index = 27;
+  const x = ORIGIN + ((index % CHUNKS) + 0.5) * CHUNK;
+  const z = ORIGIN + (Math.floor(index / CHUNKS) + 0.5) * CHUNK;
+  const before = stream.world.tiles.height(x, z);
+  stream.drop(index);
+  stream.request(index);
+  stream.drop(index);
+  await new Promise((done) => setTimeout(done, 500));
+  expect(stream.world.tiles.complete).toBe(false);
+  await stream.world.tiles.ensure(x, z);
+  expect(stream.world.tiles.height(x, z)).toBe(before);
+  expect(stream.world.tiles.complete).toBe(true);
+}, 60_000);
