@@ -1,4 +1,4 @@
-import { format } from "../hud";
+import { format } from "../hud/hud";
 import { turn_to, type Driven, type Finish, type ModeCtx, type ModeDef, type ModeRun } from "./mode";
 import { COUNTDOWN_MS, RaceRun, RaceStatus, race_course, race_levels, type RaceCourse, type RaceLevel } from "./races";
 import { RaceView } from "./race-view";

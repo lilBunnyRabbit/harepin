@@ -1,4 +1,4 @@
-import { format } from "../hud";
+import { format } from "../hud/hud";
 import { ROAD_HALF } from "../world";
 import { ComboEnd, DRIFT_LEVELS, DriftRun, DriftStatus, LEAD, build_zone, type DriftLevel, type Zone } from "./drift";
 import { DriftView } from "./drift-view";

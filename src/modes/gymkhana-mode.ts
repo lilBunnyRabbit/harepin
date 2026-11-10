@@ -1,4 +1,4 @@
-import { format } from "../hud";
+import { format } from "../hud/hud";
 import type { World } from "../world";
 import { GymRun, HIT_MS, LEVELS, MISS_MS, RunStatus, Step, build_course, find_site, type Course, type GymLevel, type Site } from "./gymkhana";
 import { GymkhanaView } from "./gymkhana-view";

@@ -1,6 +1,6 @@
 import type { Chat } from "../net/chat";
-import { $ } from "../hud";
-import type { Nav } from "../input";
+import { $ } from "../hud/hud";
+import type { Nav } from "../hud/input";
 import { ADJUST_EVENT } from "./setting-rows";
 import type { Settings } from "./settings";
 

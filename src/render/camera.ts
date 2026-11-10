@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import type { Look } from "../input";
+import type { Look } from "../hud/input";
 import type { World } from "../world";
 
 const angle_diff = (a: number, b: number) => Math.atan2(Math.sin(a - b), Math.cos(a - b));

@@ -1,11 +1,11 @@
-import type { Car } from "./car/car";
-import type { Lobby } from "./net/lobby";
-import type { Net } from "./net/net";
-import type { Race } from "./race";
-import { brand, dark, rgba } from "./theme/palette";
-import { tach } from "./car/tach";
-import { SIZE, type World } from "./world";
-import { world_query } from "./world-pick";
+import type { Car } from "../car/car";
+import type { Lobby } from "../net/lobby";
+import type { Net } from "../net/net";
+import type { Race } from "../race";
+import { brand, dark, rgba } from "../theme/palette";
+import { tach } from "../car/tach";
+import { SIZE, type World } from "../world";
+import { world_query } from "../world-pick";
 
 export function $<T extends HTMLElement>(id: string, type: { new (): T; prototype: T }): T;
 export function $(id: string): HTMLElement;

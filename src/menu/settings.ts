@@ -1,4 +1,4 @@
-import { typing, type Nav } from "../input";
+import { typing, type Nav } from "../hud/input";
 import { clean_name } from "../net/net";
 import { GUIDE_PARAM, Guide, ROLLED_VISIT, type GuideStep } from "./guide";
 import { ModesPage } from "./modes-page";

@@ -1,4 +1,4 @@
-import { format } from "../hud";
+import { format } from "../hud/hud";
 import { MAX_STARS, type StarRun } from "./track";
 
 export function star_row(stars: number): HTMLSpanElement {

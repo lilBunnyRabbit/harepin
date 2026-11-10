@@ -1,5 +1,5 @@
-import { $ } from "../hud";
-import { typing } from "../input";
+import { $ } from "../hud/hud";
+import { typing } from "../hud/input";
 import type { Net } from "./net";
 
 const BUBBLES = 6;
