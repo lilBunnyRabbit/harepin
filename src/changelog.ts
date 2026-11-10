@@ -23,6 +23,18 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.17.0",
+    date: "2026-11-10",
+    title: "Off the road",
+    changes: [
+      { kind: NEW, text: "Things to try: a list of goals in the Play tab that shows you everything Harepin has, with a Go button for each." },
+      { kind: NEW, text: "Offroad tyres: All-terrain and Mud-terrain grip far better on grass and dirt, and give up a little on tarmac." },
+      { kind: NEW, text: "Lifted suspension: more ride height and travel for rough ground and hard landings." },
+      { kind: IMPROVED, text: "Rally tyres grip a little better on dirt and grass." },
+      { kind: FIXED, text: "The crackle when you lift off the throttle is short and sharp again, not a low thump." },
+    ],
+  },
+  {
     version: "0.16.0",
     date: "2026-11-10",
     title: "Proper junctions",
