@@ -6,6 +6,7 @@ import { show_flame } from "../car/lights";
 import { build_view, camera_fade, dispose_car_view, rest_wheels, type CarView } from "../car/models";
 import type { World } from "../world/world";
 import type { CarState, Net, Remote } from "./net";
+import "./remotes.css";
 
 interface RemoteView {
   code: string;

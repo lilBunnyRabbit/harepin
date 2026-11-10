@@ -1,0 +1,18 @@
+#labels {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  background: var(--surface);
+  color: var(--secondary);
+  white-space: nowrap;
+}
