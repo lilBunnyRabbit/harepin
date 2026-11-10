@@ -18,6 +18,7 @@ import { Lobby, lobby_routes } from "./lobby";
 import { Modes } from "./modes/modes";
 import { race_choices } from "./modes/races";
 import { build_view, contact_shadow, dispose_car_view, gates, place_contact_shadow, roadside, show_flame, sync_car_view } from "./models";
+import { GUIDE_PARAM, ROLLED_VISIT } from "./guide";
 import { PadMenu } from "./pad-menu";
 import { Net, WRONG_PASSWORD, type CarState } from "./net";
 import { peer_pass, type Near, type NitroSnapshot } from "./nitro";
@@ -291,7 +292,16 @@ const system_back = new SystemBack(
   },
 );
 system_back.start();
-if (!take_drive()) settings.open();
+const guide_step = params.get(GUIDE_PARAM);
+if (guide_step !== null) {
+  const clean = new URL(location.href);
+  clean.searchParams.delete(GUIDE_PARAM);
+  window.history.replaceState(window.history.state, "", clean);
+  settings.open_guide("look", guide_step === ROLLED_VISIT);
+} else if (!take_drive()) {
+  if (prefs.guide_seen) settings.open();
+  else settings.open_guide();
+}
 // Typing a name on a phone would raise the keyboard over the menu, so only a mouse and keyboard get the cursor.
 if (prefs.name === null && matchMedia("(pointer: fine)").matches) settings.focus_name();
 

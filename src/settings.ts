@@ -6,6 +6,7 @@ import { MAX_STARS } from "./modes/track";
 import { DirectoryStatus, PASSWORD_LENGTH, ROOM_LENGTH, clean_password, clean_room, locked_name, save_lock, type Server } from "./directory";
 import { clean_name, parse_seed } from "./net";
 import { BUILD_KEY } from "./garage";
+import { GUIDE_PARAM, Guide, ROLLED_VISIT, type GuideStep } from "./guide";
 import { guide_seen_on_load } from "./guide-rules";
 import { HARMONIES as HARMONY_HUES, Harmony, generate_theme, is_dark, type ThemeMode } from "./random-theme";
 import { mulberry32 } from "./rng";
@@ -308,6 +309,7 @@ const MENU_TABS: [MenuTab, string][] = [
 const View = {
   MENU: "menu",
   PAGE: "page",
+  GUIDE: "guide",
 } as const;
 type View = (typeof View)[keyof typeof View];
 
@@ -506,6 +508,7 @@ export class Settings {
   private race_route = "circuit";
   private chosen: number;
   private chosen_kind: WorldKind;
+  private readonly guide: Guide;
 
   constructor(
     private readonly parent: HTMLElement,
@@ -515,6 +518,24 @@ export class Settings {
     this.saved = read_saved();
     this.chosen = host.seed;
     this.chosen_kind = host.kind;
+    this.guide = new Guide({
+      state: () => this.current,
+      set: (key, value) => this.set(key, value),
+      name: () => this.host.name(),
+      kind: host.kind,
+      picture: (name) => this.picture(name),
+      skip: () => this.end_guide(),
+      drive: (kind) => {
+        this.end_guide();
+        this.drive(this.host.seed, kind);
+      },
+      reload_on_look: (rolled) => {
+        const params = new URLSearchParams(location.search);
+        params.delete("theme");
+        params.set(GUIDE_PARAM, rolled ? ROLLED_VISIT : "look");
+        location.replace(`${location.pathname}?${params}${location.hash}`);
+      },
+    });
     this.root.hidden = true;
     this.panel.setAttribute("role", "dialog");
     this.panel.setAttribute("aria-modal", "true");
@@ -530,6 +551,33 @@ export class Settings {
 
   get is_open(): boolean {
     return !this.root.hidden;
+  }
+
+  get guide_open(): boolean {
+    return this.is_open && this.root.dataset.view === View.GUIDE;
+  }
+
+  /** The first-run guide in the menu shell, on a step with the current choices filled in. */
+  open_guide(step: GuideStep = "you", rolled = false) {
+    this.open();
+    this.root.dataset.view = View.GUIDE;
+    this.root.dataset.section = "guide";
+    this.host.show_garage(false);
+    this.host.browse_servers(false);
+    this.world_map.stop();
+    this.guide.start(step, rolled);
+    this.panel.focus();
+  }
+
+  private end_guide() {
+    this.set("guide_seen", true);
+    this.guide.stop();
+    this.show(MenuTab.PLAY);
+  }
+
+  /** Start on the pad: the guide skips to Play. */
+  skip_guide() {
+    if (this.guide_open) this.end_guide();
   }
 
   /** The menu, on Play unless a section is named. */
@@ -556,6 +604,8 @@ export class Settings {
 
   close() {
     if (!this.is_open) return;
+    if (this.guide_open) this.set("guide_seen", true);
+    this.guide.stop();
     this.root.hidden = true;
     this.root.removeEventListener("click", this.click);
     removeEventListener("keydown", this.key);
@@ -571,17 +621,20 @@ export class Settings {
   }
 
   focus_name() {
-    this.name_input.focus();
+    if (this.guide_open) this.guide.focus_name();
+    else this.name_input.focus();
   }
 
   /** The open tab's page. */
   page(): HTMLElement {
+    if (this.guide_open) return this.guide.panel;
     if (this.section === MenuTab.SETTINGS) return this.subs.get(this.sub)?.list ?? this.body;
     return this.pages.get(this.section) ?? this.body;
   }
 
   /** One level up: a page or a settings section returns to its tab, a tab closes the menu. */
   back() {
+    if (this.guide_open) return void this.guide.back();
     const deep = this.section === MenuTab.SETTINGS ? this.subs.get(this.sub)?.parent : null;
     if (deep) return this.show_sub(deep);
     const parent = PARENT[this.section];
@@ -590,6 +643,7 @@ export class Settings {
   }
 
   step_tab(step: number) {
+    if (this.guide_open) return this.guide.step_by(step);
     if (view_of(this.section) === View.PAGE) return;
     const ids = [...this.menu_tabs.keys()];
     this.show(ids[(ids.indexOf(this.section) + step + ids.length) % ids.length]);
@@ -672,7 +726,9 @@ export class Settings {
       this.body.append(page);
       this.pages.set(section.id, page);
     }
-    this.panel.append(top, menu_nav, head, this.body);
+    this.guide.skip_button.dataset.guideOnly = "";
+    top.append(this.guide.skip_button);
+    this.panel.append(top, menu_nav, this.guide.rail, head, this.body, this.guide.panel);
   }
 
   private name_field(): HTMLInputElement {
@@ -1351,7 +1407,11 @@ export class Settings {
       return button;
     };
     const foot_changes = changes();
-    foot.append(el("span", "", `v${this.host.version}`), foot_changes);
+    const guide = el("button", "set-changes", "Guide");
+    guide.type = "button";
+    guide.title = "The first-run guide, with your current choices";
+    guide.addEventListener("click", () => this.open_guide());
+    foot.append(el("span", "", `v${this.host.version}`), guide, foot_changes);
 
     const back = el("button", "set-crumb");
     back.type = "button";
@@ -1858,7 +1918,7 @@ export class Settings {
 
   private readonly click = (event: MouseEvent) => {
     if (!(event.target instanceof Element)) return;
-    if (event.target === this.root) return this.close();
+    if (event.target === this.root) return this.guide_open ? undefined : this.close();
     const button = event.target.closest<HTMLButtonElement>("button");
     if (!button) return;
     if (button.dataset.action === "close") return this.close();

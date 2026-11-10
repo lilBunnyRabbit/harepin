@@ -1,0 +1,824 @@
+.settings:not([data-view="guide"]) :is(.guide-rail, .guide-panel, [data-guide-only]),
+.settings[data-view="guide"] .settings-panel :is(.menu-tabs, .settings-head, .settings-body, .menu-room, .menu-close) {
+  display: none;
+}
+
+.settings[data-view="guide"] {
+  background: none;
+}
+
+.settings[data-view="guide"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: color-mix(in oklch, var(--background-darkest) 72%, transparent);
+  backdrop-filter: blur(8px);
+  clip-path: inset(0 0 0 0);
+  transition: clip-path 320ms ease;
+}
+
+:root[data-scheme="light"] .settings[data-view="guide"]::before {
+  background: color-mix(in oklch, var(--background-lighter) 78%, transparent);
+}
+
+.settings[data-view="guide"]:has(.guide-panel[data-step="look"])::before {
+  clip-path: inset(0 calc(50% - var(--inset-left)) 0 0);
+}
+
+#app,
+#labels {
+  transition: transform 320ms ease;
+}
+
+:root:has(.settings[data-view="guide"]:not([hidden]) .guide-panel[data-step="look"]) :is(#app, #labels) {
+  transform: translateX(25%);
+}
+
+.settings[data-view="guide"] .settings-panel {
+  inset: var(--inset-top) var(--inset-right) var(--inset-bottom) var(--inset-left);
+  width: auto;
+  max-width: 1280px;
+  margin: 0 auto;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  overflow: visible;
+  grid-template: "top" auto "tabs" auto "body" minmax(0, 1fr) / minmax(0, 1fr);
+  gap: var(--space-5);
+}
+
+.settings[data-view="guide"] .settings-panel .menu-top {
+  display: flex;
+}
+
+.settings .guide-skip {
+  height: var(--control-h);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-full);
+  color: var(--set-dim);
+  font-weight: 600;
+}
+
+.settings .guide-skip:hover {
+  color: var(--foreground);
+  background: var(--set-well);
+}
+
+.settings[data-view="guide"]:has(.guide-panel[data-step="look"]) .guide-skip {
+  background: var(--set-panel);
+}
+
+.guide-rail {
+  grid-area: tabs;
+  justify-self: start;
+  display: flex;
+  gap: var(--space-1);
+  max-width: 100%;
+  padding: var(--space-1);
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--set-line);
+  background: var(--set-well);
+}
+
+.settings .guide-step {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: calc(var(--control-h) + var(--space-2));
+  padding: 0 var(--space-4) 0 var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  color: var(--set-dim);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.settings .guide-step:hover {
+  color: var(--foreground);
+}
+
+.settings .guide-step[aria-current="true"] {
+  color: var(--foreground);
+  background: var(--set-raised);
+  border-color: var(--line-strong);
+}
+
+.settings .guide-step:focus-visible {
+  outline-offset: -2px;
+}
+
+.guide-n {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--set-panel);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.guide-step.done .guide-n {
+  background: var(--primary);
+  color: var(--background-darkest);
+}
+
+:root[data-scheme="light"] .guide-step.done .guide-n {
+  background: var(--set-raised);
+  box-shadow: inset 0 0 0 1px var(--primary);
+  color: var(--primary);
+}
+
+.guide-panel {
+  grid-area: body;
+  display: grid;
+  grid-template: "copy visual" minmax(0, 1fr) "foot foot" auto / minmax(0, 0.9fr) minmax(0, 1.1fr);
+  column-gap: 40px;
+  min-height: 0;
+  padding: 32px 32px var(--space-5);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--set-line);
+  background: var(--set-panel);
+}
+
+.guide-panel:is([data-step="look"], [data-step="tour"], [data-step="drive"]) {
+  grid-template: "copy" minmax(0, 1fr) "foot" auto / minmax(0, 1fr);
+}
+
+.guide-panel[data-step="look"] {
+  width: 50%;
+}
+
+.guide-copy {
+  grid-area: copy;
+  display: flex;
+  flex-direction: column;
+  justify-content: safe center;
+  gap: var(--space-5);
+  min-height: 0;
+  margin: -3px;
+  padding: 3px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.guide-panel:is([data-step="tour"], [data-step="drive"]) .guide-copy {
+  justify-content: flex-start;
+}
+
+.guide-title {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+.guide-lede {
+  margin: calc(var(--space-3) - var(--space-5)) 0 0;
+  max-width: 46ch;
+  color: var(--set-dim);
+  font-size: var(--text-lg);
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+.guide-small {
+  color: var(--set-dim);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+.guide-eyebrow {
+  color: var(--set-dim);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.guide-field {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.guide-name-row {
+  display: flex;
+  gap: var(--space-2);
+  align-self: stretch;
+}
+
+.settings .guide-name {
+  flex: 1;
+  min-width: 0;
+  height: 44px;
+  padding: 0 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-strong);
+  background: var(--set-well);
+  color: var(--foreground);
+  font: 600 var(--text-xl) var(--font-sans);
+  outline: none;
+}
+
+.settings .guide-name::placeholder {
+  color: var(--foreground);
+}
+
+.settings .guide-name:focus-visible,
+.settings .guide-name:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.settings .guide-dice {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--set-line);
+  background: var(--set-raised);
+}
+
+.guide-dice svg {
+  width: var(--icon-size);
+  height: var(--icon-size);
+}
+
+.guide-visual {
+  grid-area: visual;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-3);
+  min-height: 0;
+}
+
+.guide-shot {
+  position: relative;
+  height: 100%;
+  max-height: 380px;
+  overflow: hidden;
+  border-radius: 14px;
+  border: 1px solid var(--set-line);
+  background: var(--set-well);
+}
+
+.guide-shot img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.guide-tag {
+  position: absolute;
+  left: 50%;
+  top: 58%;
+  transform: translate(-50%, -100%);
+  padding: var(--space-1) 10px;
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  font-size: var(--text-md);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.guide-foot {
+  grid-area: foot;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--set-line);
+}
+
+.settings .guide-back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: calc(var(--control-h) + 4px);
+  padding: 0 var(--space-4) 0 var(--space-3);
+  border-radius: 10px;
+  border: 1px solid var(--set-line);
+  background: var(--set-raised);
+  font-weight: 600;
+}
+
+.guide-back svg {
+  width: var(--icon-size);
+  height: var(--icon-size);
+}
+
+.settings .guide-go {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  margin-left: auto;
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-md);
+  background: var(--primary);
+  color: var(--background-darkest);
+  font-size: var(--text-xl);
+  font-weight: 700;
+}
+
+.settings .guide-drive {
+  height: 52px;
+  padding: 0 32px;
+  font-size: 18px;
+}
+
+.guide-seg {
+  display: inline-flex;
+  gap: var(--space-1);
+  max-width: 100%;
+  padding: var(--space-1);
+  border-radius: 10px;
+  border: 1px solid var(--set-line);
+  background: var(--set-well);
+}
+
+.settings .guide-seg button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--control-h);
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--set-dim);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.settings .guide-seg button[aria-pressed="true"] {
+  background: var(--set-raised);
+  border-color: var(--line-strong);
+  color: var(--foreground);
+}
+
+.guide-found {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+}
+
+.guide-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.settings .guide-tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--set-line);
+  background: var(--set-panel);
+  text-align: left;
+}
+
+.settings :is(.guide-tile, .guide-aid, .guide-world)[aria-pressed="true"] {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+  border-color: transparent;
+}
+
+.guide-swatch {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  background: var(--set-well);
+  color: var(--set-dim);
+}
+
+.guide-swatch i {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.guide-swatch svg {
+  width: 22px;
+  height: 22px;
+}
+
+.guide-tile-name {
+  overflow: hidden;
+  padding: 0 2px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.guide-card {
+  padding: 28px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--set-line);
+  background: var(--set-well);
+}
+
+.guide-keys {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 10px 14px;
+}
+
+.guide-caps {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.guide-wasd {
+  display: grid;
+  grid-template-columns: repeat(3, 30px);
+  gap: var(--space-1);
+}
+
+.guide-wasd kbd:nth-child(1) {
+  grid-column: 2;
+}
+
+.guide-wasd kbd:nth-child(2) {
+  grid-column: 1;
+}
+
+.guide-keys kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 var(--space-2);
+  border-radius: 7px;
+  border: 1px solid var(--line-strong);
+  border-bottom-width: 3px;
+  background: var(--set-panel);
+  font: 700 var(--text-sm) var(--font-mono);
+}
+
+.guide-keys[data-device="pad"] kbd {
+  border-radius: var(--radius-full);
+  border-bottom-width: 1px;
+}
+
+.guide-keys[data-device="touch"] kbd {
+  border-radius: var(--radius-sm);
+  border-bottom-width: 1px;
+  font-family: var(--font-sans);
+}
+
+.guide-keys kbd.guide-wide {
+  min-width: 70px;
+}
+
+.guide-what {
+  font-weight: 600;
+}
+
+.guide-what small {
+  display: block;
+  color: var(--set-dim);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.guide-aids {
+  display: grid;
+  gap: 10px;
+}
+
+.settings .guide-aid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: var(--space-1) var(--space-4);
+  padding: 14px var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--set-line);
+  background: var(--set-panel);
+  text-align: left;
+}
+
+.guide-aid b {
+  font-size: 15px;
+}
+
+.guide-aid > span:last-child {
+  grid-column: 1 / -1;
+  color: var(--set-dim);
+  font-size: var(--text-md);
+}
+
+.guide-picked {
+  display: none;
+}
+
+.guide-lights {
+  display: inline-flex;
+  gap: 10px;
+  color: var(--set-dim);
+  font: 700 var(--text-2xs) var(--font-mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.guide-lights i {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-style: normal;
+}
+
+.guide-lights i::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-strong);
+}
+
+.guide-lights i.on {
+  color: var(--foreground);
+}
+
+.guide-lights i.on::before {
+  border-color: var(--success);
+  background: var(--success);
+}
+
+.guide-dash {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 18px var(--space-5);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--set-line);
+  background: var(--surface);
+}
+
+.guide-speed {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.guide-speed b {
+  font: 700 44px/1 var(--font-mono);
+}
+
+.guide-gear {
+  margin-left: auto;
+  padding: var(--space-1) 10px;
+  border-radius: var(--radius-sm);
+  background: var(--set-well);
+  color: var(--primary);
+  font: 700 var(--text-xl) var(--font-mono);
+}
+
+.guide-rev {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--set-well);
+}
+
+.guide-rev i {
+  display: block;
+  width: 46%;
+  height: 100%;
+  background: var(--primary);
+}
+
+.guide-pics,
+.guide-worlds {
+  display: grid;
+  flex: 1;
+  min-height: 0;
+  gap: var(--space-3);
+}
+
+.guide-pics {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.guide-worlds {
+  grid-template-columns: 1fr 1fr;
+}
+
+.guide-pic,
+.settings .guide-world {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--set-line);
+  background: var(--set-well);
+  text-align: left;
+}
+
+.guide-pic-art {
+  display: grid;
+  place-items: center;
+  flex: 1;
+  min-height: 0;
+  color: var(--set-dim);
+}
+
+.guide-pic-art img,
+.guide-world img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.guide-world img {
+  position: absolute;
+  inset: 0;
+}
+
+.guide-pic-art svg {
+  width: 48px;
+  height: 48px;
+}
+
+.guide-pic-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-3) 14px 14px;
+  background: var(--set-panel);
+}
+
+.guide-world .guide-pic-text {
+  position: absolute;
+  inset: auto 0 0;
+  padding: 14px var(--space-4);
+  background: var(--surface);
+}
+
+.guide-pic-text b {
+  font-size: var(--text-xl);
+}
+
+.guide-pic-text span {
+  color: var(--set-dim);
+  font-size: var(--text-sm);
+  text-wrap: pretty;
+}
+
+.guide-where {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--set-raised);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+@media (max-height: 500px) {
+  .settings[data-view="guide"] .settings-panel {
+    grid-template: "tabs top" auto "body body" minmax(0, 1fr) / auto minmax(0, 1fr);
+    gap: var(--space-3);
+  }
+
+  .settings[data-view="guide"] .settings-panel :is(.menu-brand, .menu-name) {
+    display: none;
+  }
+
+  .guide-panel {
+    column-gap: var(--space-6);
+    padding: var(--space-4) var(--space-5) var(--space-3);
+  }
+
+  .guide-title {
+    font-size: var(--text-2xl);
+  }
+
+  .guide-copy {
+    gap: var(--space-3);
+  }
+
+  .guide-lede {
+    margin-top: calc(var(--space-1) - var(--space-3));
+    font-size: var(--text-md);
+  }
+
+  .guide-foot {
+    margin-top: var(--space-3);
+    padding-top: var(--space-3);
+  }
+
+  .guide-card {
+    padding: var(--space-4);
+  }
+
+  .guide-keys {
+    gap: 6px var(--space-3);
+  }
+
+  .guide-aids {
+    gap: 6px;
+  }
+
+  .settings .guide-aid {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .guide-tiles {
+    gap: 6px;
+  }
+
+  .settings .guide-tile {
+    gap: var(--space-1);
+    padding: 6px;
+  }
+
+  .guide-swatch {
+    height: 28px;
+  }
+
+  .guide-pic-art svg {
+    width: 32px;
+    height: 32px;
+  }
+
+  .guide-pic-text {
+    padding: var(--space-2) 10px 10px;
+  }
+
+  .guide-pic-text b {
+    font-size: var(--text-lg);
+  }
+}
+
+@media (max-height: 420px) {
+  .guide-panel:is([data-step="look"], [data-step="help"], [data-step="tour"]) .guide-lede,
+  .guide-panel[data-step="look"] .guide-copy > .guide-small {
+    display: none;
+  }
+
+  .guide-foot {
+    margin-top: var(--space-2);
+    padding-top: var(--space-2);
+  }
+
+  .guide-aid > span:last-child {
+    display: none;
+  }
+
+  .guide-picked {
+    display: block;
+  }
+}
+
+@media (max-width: 760px) {
+  .guide-step:not([aria-current="true"]) > span:last-child {
+    display: none;
+  }
+
+  .settings .guide-step:not([aria-current="true"]) {
+    padding: 0 var(--space-1);
+  }
+
+  .guide-panel[data-step="look"] {
+    width: 60%;
+  }
+
+  .guide-count {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings[data-view="guide"]::before,
+  #app,
+  #labels {
+    transition: none;
+  }
+}

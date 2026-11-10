@@ -110,6 +110,10 @@ export class PadMenu {
   toggle() {
     if (this.rotated()) return;
     const { settings } = this.host;
+    if (settings.guide_open) {
+      settings.skip_guide();
+      return focus(first_of(settings.page()));
+    }
     if (this.is_open || settings.is_open) return this.close_all();
     if (!this.card_waiting()) {
       settings.open();
