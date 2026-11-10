@@ -2,6 +2,7 @@ import { BUILD_KEY } from "./garage-builds";
 import { THEME_KEY } from "../theme/theme";
 import { DEFAULT_SETTINGS, parse_settings, type SettingKey, type SettingsState } from "./prefs";
 import { SETTINGS_KEY } from "./saved-pick";
+import { names_world, type SavedPick, type WorldPick } from "../world/world-pick";
 
 export function read_saved(): SettingsState {
   try {
@@ -29,6 +30,12 @@ function with_overrides(saved: SettingsState, params: URLSearchParams): Settings
     quality: params.get("quality") ?? saved.quality,
     name: params.get("name") ?? saved.name,
   });
+}
+
+/** A bare first load saves the world it drove, so a later change of default never moves a player who has played. */
+export function pin_pick(params: URLSearchParams, saved: SavedPick, { seed, kind }: WorldPick) {
+  if (saved.last_world !== null || names_world(params)) return;
+  write_saved({ ...read_saved(), last_world: kind, last_seed: seed });
 }
 
 export function save_setting<K extends SettingKey>(key: K, value: SettingsState[K]) {

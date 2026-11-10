@@ -12,11 +12,11 @@ export function read_saved_pick(): SavedPick {
   try {
     const text = localStorage.getItem(SETTINGS_KEY);
     const stored: unknown = text === null ? null : JSON.parse(text);
-    if (typeof stored !== "object" || stored === null) return { last_seed: null, last_world: null };
+    if (typeof stored !== "object" || stored === null) return { last_seed: null, last_world: null, played: false };
     const { last_seed, last_world } = stored as Record<string, unknown>;
-    return { last_seed: parse_last_seed(last_seed), last_world: parse_last_world(last_world) };
+    return { last_seed: parse_last_seed(last_seed), last_world: parse_last_world(last_world), played: true };
   } catch (error) {
     console.warn("settings: saved world unreadable", error);
-    return { last_seed: null, last_world: null };
+    return { last_seed: null, last_world: null, played: false };
   }
 }

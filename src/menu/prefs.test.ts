@@ -40,6 +40,7 @@ describe("parse_settings", () => {
       show_country: false,
       last_world: "sky",
       last_seed: 4294967295,
+      last_mainland_seed: 12,
       guide_seen: false,
       smooth_steer: true,
     };

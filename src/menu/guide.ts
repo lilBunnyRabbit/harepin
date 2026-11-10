@@ -9,7 +9,7 @@ import { key_label, keys_text, pad_text, type Bindable, type Bindings } from "..
 import { TouchSteer, type SettingKey, type SettingsState } from "./prefs";
 import { THEMES, choose_theme, current_theme, derive_theme, find_saved, find_theme, load_saved_themes, store_saved_themes, with_saved, without_saved } from "../theme/theme";
 import type { WorldKind } from "../worldgen/types";
-import { LISTED } from "../worlds/worlds";
+import { LISTED, MINIS } from "../worlds/worlds";
 import "./guide.css";
 
 export const GUIDE_STEPS = [
@@ -99,10 +99,10 @@ const AID_LIGHTS = [
   ["auto", "Auto"],
 ] as const;
 
-const WORLD_NAMES = new Intl.ListFormat("en", { type: "disjunction" }).format(LISTED.map((w) => w.name));
+const MINI_NAMES = new Intl.ListFormat("en", { type: "conjunction" }).format(MINIS.map((w) => w.name));
 
 const TOUR: [string, string, string, string][] = [
-  ["island", "Worlds", `Drive ${WORLD_NAMES}. New map rolls a fresh map of any of them.`, "Play"],
+  ["mainland", "Mainland", `Six kilometres of towns and open road, where the lobby meets. Mini maps: ${MINI_NAMES}.`, "Play"],
   ["icon-modes", "Modes", "Race, gymkhana, parking, drift, hunt, duel. Stars and best times for each.", "Play, Modes"],
   ["icon-paint", "Garage", "Switch cars, from a hatchback to a city bus. Swap engine, tyres and paint, save builds.", "Garage"],
   ["icon-share", "Friends", "Send a link and friends drive your map with you. Race the lobby.", "Online"],
@@ -254,9 +254,9 @@ export class Guide {
     const menu = { keyboard: "Esc", pad: "Start", touch: "the menu button" }[this.device];
     switch (this.id) {
       case "you":
-        return "A small driving game: an island to roam, a track in the sky, friends a link away. First, a name.";
+        return "A small driving game: a mainland to roam, mini maps for quick runs, friends a link away. First, a name.";
       case "look":
-        return "Colours for the menu, the HUD and the whole island. The game reloads in each one you pick.";
+        return "Colours for the menu, the HUD and the whole world. The game reloads in each one you pick.";
       case "controls":
         return {
           keyboard: `These are the keys you need; ${keys_text(this.host.state().bindings.help) || "Settings, Controls"} lists the rest${this.host.state().bindings.help.keys.length ? " while driving" : ""}.`,
@@ -270,7 +270,7 @@ export class Guide {
       case "tour":
         return `Four things worth knowing. All of them live in this menu; ${menu} opens it while driving.`;
       case "drive":
-        return "Where to first? You can switch worlds any time from Play.";
+        return "Where to first? The mainland is where everyone meets; switch any time from Play.";
     }
   }
 

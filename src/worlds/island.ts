@@ -6,6 +6,7 @@ import { lap_facts, shown, type WorldDef } from "./world-def";
 export const island: WorldDef = {
   kind: WorldKind.ISLAND,
   listed: true,
+  mini: true,
   name: "Island",
   pick: "Roam an island with towns and a circuit",
   note: "Towns, hills and every challenge",

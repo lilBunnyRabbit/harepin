@@ -95,6 +95,8 @@ export interface SettingsState {
   /** The world the player last picked in the menu; a bare URL drives it again. Never set by an invite or a join. */
   last_world: WorldKind | null;
   last_seed: number | null;
+  /** The mainland map last driven, for Play's map and its Keep driving while the player is on a mini map. */
+  last_mainland_seed: number | null;
   /** Set by Drive, Skip or the last step of the first-run guide; never by an invite link. */
   guide_seen: boolean;
   /** Set once Classic, the old default steer mode, has been moved to Smooth; a later pick of Classic sticks. */
@@ -139,6 +141,7 @@ const FIELDS: { [K in SettingKey]: Field<SettingsState[K]> } = {
   show_country: flag(true),
   last_world: { fallback: null, parse: parse_last_world },
   last_seed: { fallback: null, parse: parse_last_seed },
+  last_mainland_seed: { fallback: null, parse: parse_last_seed },
   guide_seen: { fallback: false, parse: seen_flag },
   smooth_steer: flag(true),
 };

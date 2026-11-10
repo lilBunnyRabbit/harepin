@@ -11,6 +11,8 @@ export interface WorldDef {
   name: string;
   /** Shown in the Play row, world picker and guide; an unlisted kind still loads from a `?world=` link. */
   listed: boolean;
+  /** A mini map: a short, focused world listed under the mainland on Play. */
+  mini: boolean;
   /** Under the name in the world picker. */
   pick: string;
   /** On the Play tile and the guide card. */
