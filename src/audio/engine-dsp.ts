@@ -61,19 +61,38 @@ export const PITCH = 0.5;
 const FORMANT_Q = [3.5, 5, 6];
 const FORMANT_LEVEL = [1, 0.7, 0.45];
 const POP_RATE = 14;
+// The crackle is not transposed by PITCH: an octave down through the engine's formants it turned into low thumps.
+const POP_DECAY_MS = 2.2;
+const POP_HZ = [1800, 5000];
+const POP_Q = 1.6;
+const POP_CLICK = 0.4;
+const POP_LEVEL = 0.75;
+const POP_CLUSTER = 0.45;
+const POP_GAP_MS = [4, 28];
+const LIMITER_CRACKLE = 0.6;
 const CUT_ON = 0.04 / PITCH;
 const CUT_OFF = 0.06 / PITCH;
 const DC_POLE = 1 - 0.003 * PITCH;
+
+function xorshift(x: number): number {
+  x ^= x << 13;
+  x ^= x >>> 17;
+  x ^= x << 5;
+  return x >>> 0;
+}
 
 // Shared by the AudioWorklet and the offline WAV renderer, so the rendered WAVs are what the game plays.
 export class EngineVoice {
   private sound: EngineSound | null = null;
   private seed = 0x2545f491;
+  private crackle_seed = 0x6d2b79f5;
   private phase = 0;
   private next = 0;
   private env_decay = 0;
   private env_rise = 0;
   private pop = 0;
+  private burst = 0;
+  private burst_gap = 0;
   private fire = 1;
   private rpm = 900;
   private throttle = 0;
@@ -89,6 +108,7 @@ export class EngineVoice {
   private readonly intake_tone = biquad();
   private readonly intake_noise = biquad();
   private readonly flutter_tone = biquad();
+  private readonly pop_tone = biquad();
 
   constructor(private readonly rate: number) {}
 
@@ -98,12 +118,23 @@ export class EngineVoice {
   }
 
   private noise(): number {
-    let x = this.seed;
-    x ^= x << 13;
-    x ^= x >>> 17;
-    x ^= x << 5;
-    this.seed = x >>> 0;
+    this.seed = xorshift(this.seed);
     return (this.seed / 0xffffffff) * 2 - 1;
+  }
+
+  /** 0..1 from its own stream, so the crackle never shifts the engine's jitter. */
+  private crackle_random(): number {
+    this.crackle_seed = xorshift(this.crackle_seed);
+    return this.crackle_seed / 0xffffffff;
+  }
+
+  private crack() {
+    const { rate } = this;
+    this.pop = 0.5 + 0.5 * this.crackle_random();
+    bandpass(this.pop_tone, rate, POP_HZ[0] + (POP_HZ[1] - POP_HZ[0]) * this.crackle_random(), POP_Q);
+    if (this.burst === 0 && this.crackle_random() < POP_CLUSTER) this.burst = 1 + Math.floor(this.crackle_random() * 3);
+    else if (this.burst > 0) this.burst--;
+    this.burst_gap = Math.round((rate * (POP_GAP_MS[0] + (POP_GAP_MS[1] - POP_GAP_MS[0]) * this.crackle_random())) / 1000);
   }
 
   /** Fills `intake` and `exhaust` (same length) for one block. */
@@ -139,6 +170,8 @@ export class EngineVoice {
     const norm = Math.tanh(drive);
     const rise = Math.exp(-1 / ((rate * 0.00012) / PITCH));
     const decay = Math.exp(-1 / ((rate * Math.min(sound.pulse_ms / 1000, (120 / rpm1 / sound.cylinders) * 0.45)) / PITCH));
+    const pop_decay = Math.exp(-1000 / (rate * POP_DECAY_MS));
+    const pop_level = POP_LEVEL * (0.4 + 0.6 * sound.crackle);
 
     for (let s = 0; s < n; s++) {
       const f = s / n;
@@ -171,11 +204,16 @@ export class EngineVoice {
       this.env_rise *= rise;
       const pulse = this.env_decay - this.env_rise;
       const grit = this.noise();
-      if (overrun > 0 && Math.abs(this.noise()) < (POP_RATE * sound.crackle * overrun) / rate) this.pop = 0.6 + 0.4 * Math.abs(this.noise());
-      this.pop *= 0.9975;
+      const unburnt = cutting ? Math.max(overrun, LIMITER_CRACKLE) : overrun;
+      if (this.burst > 0) {
+        if (--this.burst_gap <= 0) this.crack();
+      } else if (unburnt > 0 && this.crackle_random() < (POP_RATE * sound.crackle * unburnt) / rate) this.crack();
+      this.pop *= pop_decay;
+      const spark = this.crackle_random() * 2 - 1;
+      const crackle = this.pop * (run(this.pop_tone, spark) + POP_CLICK * spark) * pop_level;
       this.fire += ((cutting ? 0 : 1) - this.fire) * 0.01;
 
-      let x = pulse + sound.rasp * (0.25 + 0.75 * thr) * Math.abs(pulse) * grit + this.pop * grit * 1.4;
+      let x = pulse + sound.rasp * (0.25 + 0.75 * thr) * Math.abs(pulse) * grit;
       const hp = x - this.dc_x + DC_POLE * this.dc_y;
       this.dc_x = x;
       this.dc_y = hp;
@@ -183,7 +221,7 @@ export class EngineVoice {
       let y = 0.3 * x;
       for (let i = 0; i < 3; i++) y += FORMANT_LEVEL[i] * run(this.formants[i], x);
       y = Math.tanh(drive * y) / norm;
-      exhaust[s] = run(this.muffler, y) * 0.5 + this.pop * grit * 0.3 * sound.crackle;
+      exhaust[s] = run(this.muffler, y) * 0.5 + crackle;
 
       this.boost += (boost_target - this.boost) * 0.0002;
       this.whistle_phase = (this.whistle_phase + ((2600 + this.boost * 4500) * PITCH) / rate) % 1;
