@@ -1,6 +1,8 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import { CHUNKS, road_junctions, road_layers, Roads, type RoadTones } from "./chunks";
+import { CHUNKS } from "./chunk-grid";
+import { road_junctions, road_layers, type RoadTones } from "./road-layers";
+import { Roads } from "./roads";
 import { sample } from "./field";
 import { hash } from "./noise";
 import { N, SPUR_HALF, type RoadGraph, type RoadPoint } from "./types";

@@ -2,7 +2,7 @@ import * as THREE from "three";
 import type { Car } from "../car/car";
 import { oversize } from "../car/cars";
 import { brand, dark, linear, mix, tones } from "../theme/palette";
-import { CHUNK, chunk_of } from "../worldgen/chunks";
+import { CHUNK, chunk_of } from "../worldgen/chunk-grid";
 import { challenge_outer, challenge_pieces, GRAVITY, ITEMS, PIECE_DEPTH, ramp_extent, ramp_lift } from "../worldgen/jumps";
 import { Builder, bounding_sphere, type Rgb } from "../worldgen/mesh";
 import type { Challenge, Item, ItemKind, Ramp } from "../worldgen/types";
