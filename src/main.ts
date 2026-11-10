@@ -20,12 +20,13 @@ import { Net, WRONG_PASSWORD, type CarState } from "./net";
 import { peer_pass, type Near, type NitroSnapshot } from "./nitro";
 import { Quality } from "./quality";
 import { brand, color, rgba, tones } from "./palette";
-import { Race, type RaceSnapshot } from "./race";
+import { Race } from "./race";
 import { Remotes } from "./remotes";
 import { Render } from "./render";
+import { Rewind, type RewindPart } from "./rewind";
 import { WorldView, load_world, water_mesh } from "./scene";
 import { cloud_floor, clouds, sky } from "./sky";
-import { PadTimer, type PadSnapshot } from "./sky-pads";
+import { PadTimer } from "./sky-pads";
 import { Lighting } from "./lighting";
 import { CAMERA_RETURN_SECONDS, CameraView, MenuTab, Settings, invite_link, load_settings, take_drive, type SettingsState } from "./settings";
 import { BUILD, Updater, changelog_view, show_version } from "./update";
@@ -120,7 +121,7 @@ function restart_lap() {
   spawn_at(SPAWN_INDEX);
   car.nitro.refill();
   race.reset();
-  history.length = 0;
+  rewind.clear();
 }
 function restart_action() {
   if (modes.active) modes.restart();
@@ -249,7 +250,7 @@ const modes = new Modes(scene, world, SPAWN_INDEX, () => lobby.record, (x, y, z,
   car.nitro.refill();
   pads.clear();
   chase.snap(car);
-  history.length = 0;
+  rewind.clear();
 }, () => lobby.busy, () => audio.chime(), camera);
 modes.start();
 const updater = new Updater(() => lobby.busy || modes.active);
@@ -301,52 +302,31 @@ garage.on_change = (next) => {
 $("garage-btn").addEventListener("click", () => settings.open(MenuTab.GARAGE));
 $("modes-btn").addEventListener("click", () => settings.open("modes"));
 
-interface Frame {
-  at: number;
+interface CarFrame {
   pos: THREE.Vector3;
   quat: THREE.Quaternion;
   vel: THREE.Vector3;
   ang: THREE.Vector3;
   gear: number;
   omega: number[];
-  race: RaceSnapshot;
-  nitro: NitroSnapshot;
-  pads: PadSnapshot;
 }
-const REWIND_SECONDS = 10;
-const history: Frame[] = [];
-
-function record(now: number) {
-  history.push({
-    at: now,
-    pos: car.pos.clone(),
-    quat: car.quat.clone(),
-    vel: car.vel.clone(),
-    ang: car.ang.clone(),
-    gear: car.gear,
-    omega: car.wheels.map((w) => w.omega),
-    race: race.snapshot(),
-    nitro: car.nitro.snapshot(),
-    pads: pads.snapshot(),
-  });
-  while (history.length && now - history[0].at > REWIND_SECONDS * 1000) history.shift();
-}
+const car_body: RewindPart<CarFrame> = {
+  snapshot: () => ({ pos: car.pos.clone(), quat: car.quat.clone(), vel: car.vel.clone(), ang: car.ang.clone(), gear: car.gear, omega: car.wheels.map((w) => w.omega) }),
+  restore(f) {
+    car.pos.copy(f.pos);
+    car.quat.copy(f.quat);
+    car.vel.copy(f.vel);
+    car.ang.copy(f.ang);
+    car.gear = f.gear;
+    car.parked = false;
+    car.wheels.forEach((w, i) => (w.omega = f.omega[i]));
+  },
+};
+const car_nitro: RewindPart<NitroSnapshot> = { snapshot: () => car.nitro.snapshot(), restore: (s) => car.nitro.restore(s) };
+const rewind = new Rewind([car_body, race, car_nitro, pads]);
 
 function rewind_step(now: number) {
-  if (history.length > 1) history.pop();
-  const f = history[history.length - 1];
-  if (!f) return;
-  car.pos.copy(f.pos);
-  car.quat.copy(f.quat);
-  car.vel.copy(f.vel);
-  car.ang.copy(f.ang);
-  car.gear = f.gear;
-  car.parked = false;
-  car.wheels.forEach((w, i) => (w.omega = f.omega[i]));
-  race.restore(f.race, now - f.at);
-  car.nitro.restore(f.nitro);
-  pads.restore(f.pads);
-  if (race.started) ghost.rewind_to(now - race.started);
+  if (rewind.step(now) && race.started) ghost.rewind_to(now - race.started);
 }
 
 const lit = color(brand.accent);
@@ -454,7 +434,7 @@ function frame(now: number) {
   lobby.update(now);
   let stepped = 0;
   let simulated = false;
-  if (input.rewind && history.length > 1 && !lobby.busy && !modes.active) {
+  if (input.rewind && rewind.can_step && !lobby.busy && !modes.active) {
     rewinding = true;
     rewind_step(now);
     acc = 0;
@@ -483,7 +463,7 @@ function frame(now: number) {
       chase.bump(Math.min(1, impact / 15));
       input.rumble(1, 1, true);
     }
-    record(now);
+    rewind.record(now);
     if (world_view.jumps.update(dt, car).clean) {
       hud.toast("Clean!");
       audio.chime();
