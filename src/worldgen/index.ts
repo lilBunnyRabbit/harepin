@@ -17,6 +17,7 @@ import { guard_rails, inside } from "./switchback";
 import { terrain } from "./terrain";
 import { plan_trails } from "./trails";
 import { place_towns, town_streets } from "./towns";
+import { ISLAND, type Landmark, type Recipe } from "./recipe";
 import { CELL, ORIGIN, ROAD_HALF, SPAWN_INDEX, SPUR_HALF, type Checkpoint, type RoadEdge, type RoadGraph, type RoadNode, type RoadPoint, type Solid, type Tree, type WorldData } from "./types";
 
 const CHECKPOINTS = 12;
@@ -32,10 +33,17 @@ const GRID_BEHIND = 80;
 const GRID_AHEAD = 15;
 const CANYON_CLEAR = 30;
 
+const LANDMARKS: Record<Landmark, (marks: LandmarkPlanner, roads: RoadEdge[]) => void> = {
+  mast: (marks) => marks.mast(),
+  lighthouse: (marks) => marks.lighthouse(),
+  turbines: (marks) => marks.turbines(),
+  arch: (marks, roads) => marks.arch(roads),
+};
+
 // World generation uses only + - * / sqrt floor and integer ops, which IEEE 754 makes bit-exact on every engine, so
 // every discrete choice (towns, routes, lots, trees) comes out the same for every peer on the seed. Math.atan2 only
 // feeds display angles.
-export function generate(seed: number): WorldData {
+export function generate(seed: number, recipe: Recipe = ISLAND): WorldData {
   const timings: [string, number][] = [];
   let clock = performance.now();
   const lap = (stage: string) => {
@@ -44,12 +52,12 @@ export function generate(seed: number): WorldData {
     clock = now;
   };
 
-  const land = terrain(seed);
+  const land = terrain(seed, recipe.terrain);
   const { heights, road_dist } = land;
   lap("terrain");
 
-  const { road, stack } = loop_road(seed, heights);
-  const canyon = plan_canyon(seed, heights, road);
+  const { road, stack } = loop_road(seed, heights, recipe.road);
+  const canyon = recipe.road.canyon ? plan_canyon(seed, heights, road) : null;
   if (canyon) carve(heights, canyon);
   const nodes: RoadNode[] = [];
   const edges: RoadEdge[] = [];
@@ -61,10 +69,10 @@ export function generate(seed: number): WorldData {
   stamp.edge(ring);
   lap("circuit");
 
-  const towns = place_towns(seed, heights, road);
+  const towns = place_towns(seed, heights, road, recipe.towns);
   const gates = new Map<number, number>();
   for (const town of towns) {
-    const streets = town_streets(seed, town, heights, road, nodes.length, edges.length);
+    const streets = town_streets(seed, town, heights, road, nodes.length, edges.length, recipe.towns);
     if (!streets) continue;
     nodes.push(...streets.nodes);
     edges.push(...streets.edges);
@@ -168,10 +176,8 @@ export function generate(seed: number): WorldData {
   }
 
   const marks = new LandmarkPlanner(seed, land, road, towns);
-  marks.mast();
-  marks.lighthouse();
-  marks.turbines();
-  marks.arch(edges.filter((e) => !circuit.includes(e.id)));
+  const off_circuit = edges.filter((e) => !circuit.includes(e.id));
+  for (const mark of recipe.landmarks) LANDMARKS[mark](marks, off_circuit);
   props.push(...marks.out.props);
   solids.push(...marks.out.solids);
   lap("landmarks");
@@ -181,7 +187,7 @@ export function generate(seed: number): WorldData {
   const trails = plan_trails(seed, land, stamp, canyon, towns, solids);
   lap("trails");
 
-  const planner = new JumpPlanner(seed, land, towns, lots.occupied, solids);
+  const planner = new JumpPlanner(seed, land, towns, lots.occupied, solids, recipe.road.kickers);
   if (trails.gap) planner.gap(trails.gap);
   planner.keep_off([...trails.trails.flatMap((t) => t.points), ...trails.ramp_out]);
   // Points of the switchback count as gates, so no kicker or chicane lands inside it.
@@ -192,7 +198,7 @@ export function generate(seed: number): WorldData {
   planner.open();
   planner.roadside_items(road);
   planner.lot_items(lot_list);
-  const cuts = biome_cuts(seed, heights);
+  const cuts = biome_cuts(seed, heights, recipe.biomes);
   planner.open_items((x, z) => item_kind(cuts, x, z, sample(heights, x, z)));
   const jumps = planner.out;
   solids.push(...jumps.solids);

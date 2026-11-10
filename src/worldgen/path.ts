@@ -1,6 +1,7 @@
 import { sub } from "../rng";
 import { sample } from "./field";
 import { circle24, fbm, length } from "./noise";
+import { ISLAND, type RoadRecipe } from "./recipe";
 import { HAIRPIN_RADIUS, inside, switchback, type Switchback } from "./switchback";
 import { CELL, N, ORIGIN, type RoadPoint } from "./types";
 
@@ -8,10 +9,6 @@ const ROAD_MIN_RADIUS = 32;
 const ROAD_ATTEMPTS = 16;
 const RADIUS_SPAN = 5;
 const STEP = 2;
-const LOOP_RADIUS = 620;
-const LOOP_SWING = 640;
-const LOOP_MIN = 380;
-const LOOP_MAX = 860;
 /** Lowest ground a control point may sit on; the coast attractor aims between this and COAST_HIGH. */
 const COAST_LOW = 6;
 const COAST_HIGH = 12;
@@ -22,8 +19,6 @@ const SUMMIT_FLANK = 90;
 /** Steepest mean climb from the ring to the hairpin; past it the road could only reach the flank in a deep cut. */
 const FLANK_GRADE = 0.14;
 const FLANK_MIN = 120;
-/** Hairpin counts the summit stack tries, most first, before falling back to a single hairpin tongue. */
-const STACKS = [4, 2];
 /** Ring controls this close to the stack's footprint give way to it. */
 const STACK_CLEAR = 60;
 /** Fallback hairpin: a half circle of controls this far from its centre, apex on the flank. */
@@ -179,10 +174,11 @@ interface Controls {
 // the shore for a sea-view stretch, and the one nearest the summit, which becomes the switchback stack up its face or,
 // where the face has no room, a single hairpin tongue.
 
-function loop_controls(seed: number, heights: Float32Array, summit: [number, number]): Controls {
+function loop_controls(seed: number, heights: Float32Array, summit: [number, number], shape: RoadRecipe): Controls {
+  const { radius, swing: reach, min, max } = shape.loop;
   const controls: Path = circle24().map(([c, s]) => {
     const swing = fbm(c * 3, s * 3, seed) - 0.5 + (fbm(c * 9, s * 9, seed + 5) - 0.5) * 0.5;
-    const r = Math.max(LOOP_MIN, Math.min(LOOP_MAX, LOOP_RADIUS + swing * LOOP_SWING));
+    const r = Math.max(min, Math.min(max, radius + swing * reach));
     return walk(heights, [c * r, s * r], [0, 0], r, (y) => y >= COAST_LOW) ?? [0, 0];
   });
   const n = controls.length;
@@ -226,7 +222,7 @@ function loop_controls(seed: number, heights: Float32Array, summit: [number, num
   const prev = controls[(top - 1 + n) % n];
   const next = controls[(top + 1) % n];
   const ring: [number, number] = [next[0] - prev[0], next[1] - prev[1]];
-  for (const count of STACKS) {
+  for (const count of shape.stacks) {
     const stack = switchback(heights, controls[top], summit, ring, count);
     if (!stack) continue;
     let from = top;
@@ -345,12 +341,12 @@ export interface Loop {
   stack: Switchback | null;
 }
 
-export function loop_path(seed: number, heights: Float32Array): Loop {
+export function loop_path(seed: number, heights: Float32Array, shape: RoadRecipe = ISLAND.road): Loop {
   const summit = highest(heights);
   let best: Loop = { path: [], stack: null };
   let best_radius = -Infinity;
   for (let attempt = 0; attempt < ROAD_ATTEMPTS && best_radius < ROAD_MIN_RADIUS; attempt++) {
-    const controls = loop_controls(attempt ? sub(seed, "road") + attempt : seed + 41, heights, summit);
+    const controls = loop_controls(attempt ? sub(seed, "road") + attempt : seed + 41, heights, summit, shape);
     const { path, radius } = relaxed(controls);
     const score = crowded(path, controls.stack) ? -1 : radius;
     if (score > best_radius) {
@@ -472,7 +468,7 @@ export interface LoopRoad {
   stack: Switchback | null;
 }
 
-export function loop_road(seed: number, heights: Float32Array): LoopRoad {
-  const loop = loop_path(seed, heights);
+export function loop_road(seed: number, heights: Float32Array, shape: RoadRecipe = ISLAND.road): LoopRoad {
+  const loop = loop_path(seed, heights, shape);
   return { road: road_points(loop.path, loop_heights(loop, heights), true), stack: loop.stack };
 }

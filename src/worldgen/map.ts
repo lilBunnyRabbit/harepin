@@ -1,4 +1,5 @@
 import { terrain_colors } from "./chunks";
+import { KINDS } from "./kinds/kinds";
 import { world_facts, type WorldFacts } from "./facts";
 import { CELL, DECK_STRIDE, N, SIZE, type EdgeKind, type WorldData, type WorldKind } from "./types";
 
@@ -82,7 +83,7 @@ function cloud_pixels(tones: MapTones): Uint8ClampedArray<ArrayBuffer> {
 }
 
 export function map_pixels(data: WorldData, tones: MapTones): Uint8ClampedArray<ArrayBuffer> {
-  if (data.kind === "sky") return cloud_pixels(tones);
+  if (!KINDS[data.kind].ground) return cloud_pixels(tones);
   const heights = data.terrain.heights;
   const colors = terrain_colors(data, tones.terrain);
   const pixels = new Uint8ClampedArray(MAP_SIDE * MAP_SIDE * 4);

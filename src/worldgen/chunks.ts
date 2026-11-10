@@ -1,6 +1,7 @@
 import { biome_at, biome_cuts, Biome } from "./biomes";
 import { CHUNK, CHUNKS, chunk_of } from "./chunk-grid";
 import { sample, vertex_up } from "./field";
+import { KINDS } from "./kinds/kinds";
 import { landmark_mesh, type LandmarkTones } from "./landmark-mesh";
 import { roof_rise } from "./lots";
 import { Builder, bounding_sphere, turned, type Rgb, type Sphere } from "./mesh";
@@ -233,7 +234,7 @@ function packed(parts: number[][]): Float32Array<ArrayBuffer> {
   return out;
 }
 
-function sky_chunks(data: WorldData, tones: MeshTones): ChunkBuffers[] {
+function deck_chunks(data: WorldData, tones: MeshTones): ChunkBuffers[] {
   const surface: Layer[] = Array.from({ length: CHUNKS * CHUNKS }, () => ({ positions: [], colors: [] }));
   const marks: Layer[] = Array.from({ length: CHUNKS * CHUNKS }, () => ({ positions: [], colors: [] }));
   if (data.deck) deck_layers(data.deck, tones.deck, chunk_of, surface, marks);
@@ -249,7 +250,7 @@ function sky_chunks(data: WorldData, tones: MeshTones): ChunkBuffers[] {
 }
 
 export function build_chunks(data: WorldData, tones: MeshTones): ChunkBuffers[] {
-  if (data.kind === "sky") return sky_chunks(data, tones);
+  if (!KINDS[data.kind].ground) return deck_chunks(data, tones);
   const colors = terrain_colors(data, tones.terrain);
   const roads = road_layers(data, data.terrain.heights, tones);
   const towns = town_builders(data, tones);

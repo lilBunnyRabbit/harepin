@@ -2,6 +2,7 @@ import { mulberry32, sub } from "../rng";
 import { sample, up, vertex } from "./field";
 import type { GapJump } from "./gap";
 import { circle16, length } from "./noise";
+import { ISLAND, type RoadRecipe } from "./recipe";
 import { CELL, ORIGIN, ROAD_HALF, SIZE, type Challenge, type ChallengeKind, type Item, type ItemKind, type Lot, type Ramp, type RampKind, type RoadPoint, type Solid, type Terrain, type Town } from "./types";
 
 export const GRAVITY = 9.81;
@@ -288,10 +289,7 @@ const RAMP_SPACING = 120;
 /** Trail points 2 m apart: every third one keeps a TRAIL_CLEAR disc free, the trail half plus a car either side. */
 const TRAIL_STRIDE = 3;
 const TRAIL_CLEAR = 8;
-const MAX_BIG = 3;
-const MAX_KICKERS = 12;
 const LOT_ITEMS = 0.5;
-const MAX_ROAD_KICKERS = 4;
 const ROAD_STRIDE = 6;
 const ROAD_RUNUP = 30;
 /** Most the circuit's centre may stray from a road ramp's line: under the deck, and over its run-up and landing. */
@@ -330,6 +328,7 @@ export class JumpPlanner {
     private readonly towns: Town[],
     private readonly occupied: Uint8Array,
     existing: Solid[],
+    private readonly caps: RoadRecipe["kickers"] = ISLAND.road.kickers,
   ) {
     this.next = mulberry32(sub(seed, "jumps"));
     for (const s of existing) this.taken.add({ x: s.x, z: s.z, r: s.kind === "circle" ? s.radius : length(s.hw, s.hd) });
@@ -510,7 +509,7 @@ export class JumpPlanner {
     const n = road.length;
     const start = Math.floor(this.next() * n);
     let placed = 0;
-    for (let k = 0; k < n && placed < MAX_ROAD_KICKERS; k += ROAD_STRIDE) {
+    for (let k = 0; k < n && placed < this.caps.road; k += ROAD_STRIDE) {
       const toe = (start + k) % n;
       const p = road[toe];
       const q = road[(toe + ROAD_KICKER.length / 2) % n];
@@ -551,7 +550,7 @@ export class JumpPlanner {
   roadside(road: RoadPoint[]) {
     const n = road.length;
     const start = Math.floor(this.next() * n);
-    for (let k = 0; k < n && this.out.ramps.filter((r) => r.kind === "kicker").length < MAX_KICKERS / 2; k += ROADSIDE_STRIDE) {
+    for (let k = 0; k < n && this.out.ramps.filter((r) => r.kind === "kicker").length < this.caps.total / 2; k += ROADSIDE_STRIDE) {
       const p = road[(start + k) % n];
       const side = this.next() < 0.5 ? -1 : 1;
       const x = p.x - p.tz * side * ROADSIDE_OFFSET;
@@ -562,7 +561,7 @@ export class JumpPlanner {
   }
 
   open() {
-    for (let i = 0; i < OPEN_KICKERS && this.out.ramps.filter((r) => r.kind === "kicker").length < MAX_KICKERS; i++) {
+    for (let i = 0; i < OPEN_KICKERS && this.out.ramps.filter((r) => r.kind === "kicker").length < this.caps.total; i++) {
       const x = (this.next() - 0.5) * (SIZE - 200);
       const z = (this.next() - 0.5) * (SIZE - 200);
       const [fx, fz] = this.dirs[Math.floor(this.next() * 16)];
@@ -583,7 +582,7 @@ export class JumpPlanner {
     tops.sort((a, b) => b[0] - a[0] || a[1] - b[1] || a[2] - b[2]);
     let big = 0;
     for (const [, x, z] of tops) {
-      if (big >= MAX_BIG) break;
+      if (big >= this.caps.big) break;
       if (this.out.ramps.some((r) => r.kind === "big" && length(r.x - x, r.z - z) < HILL_SPACING)) continue;
       const order = this.dirs.map((d, i) => [this.height(x + d[0] * 40, z + d[1] * 40), i] as const).sort((a, b) => a[0] - b[0] || a[1] - b[1]);
       for (const [, i] of order.slice(0, 6)) {

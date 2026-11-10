@@ -1,18 +1,15 @@
 import { mulberry32, sub } from "../rng";
 import { sample } from "./field";
 import { length } from "./noise";
+import { ISLAND, type TownRecipe } from "./recipe";
 import { STREET_HALF, ROAD_HALF, type RoadEdge, type RoadNode, type RoadPoint, type Town } from "./types";
 
-const TOWN_MIN = 3;
-const TOWN_MAX = 6;
 const TOWN_TRIES = 900;
 const TOWN_SPREAD = 820;
 const TOWN_GAP = 140;
 const RING_CLEAR = 30;
 const RING_REACH = 260;
 const TOWN_RELIEF = 18;
-const BLOCK_MIN = 45;
-const BLOCK_SPAN = 25;
 const TOWN_GRADE = 0.05;
 const TOWN_FLOOR = 4;
 const CORE = 1.15;
@@ -34,9 +31,9 @@ export function ring_distance(road: RoadPoint[], x: number, z: number): number {
   return Math.sqrt(best);
 }
 
-export function place_towns(seed: number, heights: Float32Array, road: RoadPoint[]): Town[] {
+export function place_towns(seed: number, heights: Float32Array, road: RoadPoint[], shape: TownRecipe = ISLAND.towns): Town[] {
   const next = mulberry32(sub(seed, "towns"));
-  const target = TOWN_MIN + Math.floor(next() * (TOWN_MAX - TOWN_MIN + 1));
+  const target = shape.min + Math.floor(next() * (shape.max - shape.min + 1));
   const towns: Town[] = [];
   for (let attempt = 0; attempt < TOWN_TRIES && towns.length < target; attempt++) {
     const x = (next() * 2 - 1) * TOWN_SPREAD;
@@ -62,7 +59,7 @@ export function place_towns(seed: number, heights: Float32Array, road: RoadPoint
     const len = Math.sqrt(ux * ux + uz * uz);
     ux /= len;
     uz /= len;
-    towns.push({ id: towns.length, x, z, radius, ux, uz, angle: Math.atan2(ux, uz), name: town_name(next), y: h, gx: 0, gz: 0, core: radius * CORE, block: BLOCK_MIN });
+    towns.push({ id: towns.length, x, z, radius, ux, uz, angle: Math.atan2(ux, uz), name: town_name(next), y: h, gx: 0, gz: 0, core: radius * CORE, block: shape.block.min });
   }
   return towns;
 }
@@ -115,9 +112,9 @@ export interface Streets {
   gate: number;
 }
 
-export function town_streets(seed: number, town: Town, heights: Float32Array, road: RoadPoint[], first_node: number, first_edge: number): Streets | null {
+export function town_streets(seed: number, town: Town, heights: Float32Array, road: RoadPoint[], first_node: number, first_edge: number, shape: TownRecipe = ISLAND.towns): Streets | null {
   const next = mulberry32(sub(seed, `streets:${town.id}`));
-  const block = BLOCK_MIN + next() * BLOCK_SPAN;
+  const block = shape.block.min + next() * shape.block.span;
   town.block = block;
   const k = Math.ceil(town.radius / block);
   const vx = -town.uz;

@@ -1,5 +1,6 @@
 import { sample, up } from "./field";
 import { fbm, hash } from "./noise";
+import { ISLAND, type BiomeRecipe } from "./recipe";
 import { CELL, N, ORIGIN, ROAD_HALF, type ItemKind, type Solid, type Terrain, type Tree } from "./types";
 
 export const Biome = {
@@ -28,33 +29,21 @@ const EDGE = 6;
 const TREE_SPACING = 13;
 // Scrub is waist-high brush the car pushes through, so it gets no solid.
 const SCRUB_SCALE = [0.45, 0.8];
-const ITEM_OF: Record<Biome, ItemKind | null> = {
-  coast: "log",
-  meadow: "hay",
-  forest: "log",
-  upland: "rock",
-};
 
 export interface BiomeCuts {
   seed: number;
+  recipe: BiomeRecipe;
   forest: number;
   upland: number;
 }
 
-interface TreeRule {
+export interface TreeRule {
   start: number;
   fill: number;
   pine: number;
   scrub: number;
   extra: number;
 }
-
-const RULES: Record<Biome, TreeRule> = {
-  coast: { start: 0.5, fill: 0.12, pine: 0.2, scrub: 0.6, extra: 0 },
-  meadow: { start: 0.52, fill: 0.3, pine: 0.15, scrub: 0.1, extra: 0 },
-  forest: { start: 0.45, fill: 1, pine: 0.88, scrub: 0, extra: 1 },
-  upland: { start: 0.3, fill: 0.22, pine: 0.05, scrub: 0.75, extra: 0 },
-};
 
 function score(seed: number, x: number, z: number, y: number): number {
   return fbm(x / FIELD_SCALE, z / FIELD_SCALE, seed + FIELD_SEED, 3) + y * UPLAND_PULL;
@@ -65,7 +54,7 @@ function coast_top(seed: number, x: number, z: number): number {
 }
 
 // Cut at the field's thirds over this island's own land, so every seed gets all three regions whatever its noise does.
-export function biome_cuts(seed: number, heights: Float32Array): BiomeCuts {
+export function biome_cuts(seed: number, heights: Float32Array, recipe: BiomeRecipe = ISLAND.biomes): BiomeCuts {
   const scores: number[] = [];
   for (let j = 0; j <= N; j += CUT_STEP)
     for (let i = 0; i <= N; i += CUT_STEP) {
@@ -75,9 +64,10 @@ export function biome_cuts(seed: number, heights: Float32Array): BiomeCuts {
       if (y >= coast_top(seed, x, z)) scores.push(score(seed, x, z, y));
     }
   scores.sort((a, b) => a - b);
-  if (!scores.length) return { seed, forest: 0, upland: 0 };
+  if (!scores.length) return { seed, recipe, forest: 0, upland: 0 };
   return {
     seed,
+    recipe,
     forest: scores[Math.floor(scores.length / 3)],
     upland: scores[Math.floor((scores.length * 2) / 3)],
   };
@@ -89,12 +79,12 @@ export function biome_at(cuts: BiomeCuts, x: number, z: number, y: number): Biom
   return s < cuts.forest ? Biome.MEADOW : s < cuts.upland ? Biome.FOREST : Biome.UPLAND;
 }
 
-export function tree_tries(biome: Biome): number {
-  return 1 + RULES[biome].extra;
+export function tree_tries(cuts: BiomeCuts, biome: Biome): number {
+  return 1 + cuts.recipe.rules[biome].extra;
 }
 
 export function tree_kind(cuts: BiomeCuts, biome: Biome, x: number, z: number, k: number): TreeKind | null {
-  const rule = RULES[biome];
+  const rule = cuts.recipe.rules[biome];
   const density = fbm(x / DENSITY_SCALE, z / DENSITY_SCALE, cuts.seed + DENSITY_SEED, 3);
   const roll = hash(Math.floor(x * 8), Math.floor(z * 8), cuts.seed + 93 + k);
   if (roll > (density - rule.start) * EDGE * rule.fill) return null;
@@ -103,7 +93,7 @@ export function tree_kind(cuts: BiomeCuts, biome: Biome, x: number, z: number, k
 }
 
 export function item_kind(cuts: BiomeCuts, x: number, z: number, y: number): ItemKind | null {
-  return ITEM_OF[biome_at(cuts, x, z, y)];
+  return cuts.recipe.items[biome_at(cuts, x, z, y)];
 }
 
 export interface Planted {
@@ -120,7 +110,7 @@ export function plant(cuts: BiomeCuts, land: Terrain, free: (x: number, z: numbe
   for (let z = ORIGIN + TREE_SPACING; z < limit; z += TREE_SPACING)
     for (let x = ORIGIN + TREE_SPACING; x < limit; x += TREE_SPACING) {
       const biome = biome_at(cuts, x, z, sample(heights, x, z));
-      const tries = tree_tries(biome);
+      const tries = tree_tries(cuts, biome);
       for (let k = 0; k < tries; k++) {
         const px = x + (hash(x, z, seed + 91 + k * 16) - 0.5) * TREE_SPACING;
         const pz = z + (hash(x, z, seed + 92 + k * 16) - 0.5) * TREE_SPACING;
