@@ -1,3 +1,4 @@
+import { length } from "./noise";
 import type { RoadPoint } from "./types";
 
 /** Lowest and highest side offset a point's ribbon vertices may take. */
@@ -61,9 +62,19 @@ function pseudo_angle(x: number, z: number): number {
   return x < 0 ? 2 - z / (-x - z) : 3 + x / (x - z);
 }
 
+/**
+ * The turn in radians from `cos(turn / 2)`: four times the arcsine of sin(turn / 4), as its series to the fifth power.
+ * Under 1% short at 180°. Patches feed the stamp, and acos may round differently between engines.
+ */
+function turn_angle(half_cos: number): number {
+  const q = Math.sqrt(Math.max(0, (1 - half_cos) / 2));
+  const q2 = q * q;
+  return 4 * q * (1 + q2 / 6 + (3 * q2 * q2) / 40);
+}
+
 function arc_lengths(points: readonly RoadPoint[]): number[] {
   const out = [0];
-  for (let k = 1; k < points.length; k++) out.push(out[k - 1] + Math.hypot(points[k].x - points[k - 1].x, points[k].z - points[k - 1].z));
+  for (let k = 1; k < points.length; k++) out.push(out[k - 1] + length(points[k].x - points[k - 1].x, points[k].z - points[k - 1].z));
   return out;
 }
 
@@ -88,7 +99,7 @@ function rim_at(arm: Arm, arc: readonly number[], at: number, side: -1 | 1) {
   const b = rim(arm, k + 1, side);
   const tx = arm.points[k].tx + (arm.points[k + 1].tx - arm.points[k].tx) * t;
   const tz = arm.points[k].tz + (arm.points[k + 1].tz - arm.points[k].tz) * t;
-  const len = Math.hypot(tx, tz) || 1;
+  const len = length(tx, tz) || 1;
   return { x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t, tx: tx / len, tz: tz / len };
 }
 
@@ -211,8 +222,9 @@ function fillet(a: Arm, arc_a: readonly number[], b: Arm, arc_b: readonly number
   // A rational quadratic with middle weight cos(turn / 2) is a true circular arc when both tangents are equally long,
   // so the curb bends evenly instead of bunching its turn in the middle, and even steps turn about FILLET_TURN each.
   const turn_cos = Math.max(-1, Math.min(1, -(p.tx * r.tx + p.tz * r.tz)));
-  const weight = sharp ? 1 : Math.sqrt((1 + turn_cos) / 2);
-  const steps = Math.max(FILLET_MIN_STEPS, Math.ceil(Math.acos(turn_cos) / FILLET_TURN));
+  const half_cos = Math.sqrt((1 + turn_cos) / 2);
+  const weight = sharp ? 1 : half_cos;
+  const steps = Math.max(FILLET_MIN_STEPS, Math.ceil(turn_angle(half_cos) / FILLET_TURN));
   const out = [];
   for (let step = 0; step <= steps; step++) {
     const u = step / steps;
@@ -235,7 +247,7 @@ function edge_line(a: Arm, arc_a: readonly number[], m_a: number, from_a: number
   if (corner.kind === "taper") {
     const p = rim(a, m_a, 1);
     const r = rim(b, m_b, -1);
-    const len = Math.hypot(r.x - p.x, r.z - p.z) || 1;
+    const len = length(r.x - p.x, r.z - p.z) || 1;
     const wx = -(r.z - p.z) / len;
     const wz = (r.x - p.x) / len;
     return [
@@ -249,7 +261,7 @@ function edge_line(a: Arm, arc_a: readonly number[], m_a: number, from_a: number
     for (let q = 0; q < curve.length; q++) {
       const prev = curve[Math.max(0, q - 1)];
       const next = curve[Math.min(curve.length - 1, q + 1)];
-      const len = Math.hypot(next.x - prev.x, next.z - prev.z) || 1;
+      const len = length(next.x - prev.x, next.z - prev.z) || 1;
       out.push({ x: curve[q].x, z: curve[q].z, wx: -(next.z - prev.z) / len, wz: (next.x - prev.x) / len });
     }
   }
