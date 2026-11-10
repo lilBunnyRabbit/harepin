@@ -56,6 +56,9 @@ export class Settings {
   private readonly body = el("div", "settings-body");
   private readonly menu_tabs = new Map<string, HTMLButtonElement>();
   private readonly pages = new Map<string, HTMLElement>();
+  /** Pages whose content exists: each builds on first show, or on idle once `warm` runs. */
+  private readonly built = new Set<string>();
+  private warm_handle = 0;
   private readonly syncs: (() => void)[] = [];
   private readonly title = el("h2", "settings-title", "Settings");
   private readonly name_input = el("input");
@@ -160,7 +163,7 @@ export class Settings {
 
   /** The first-run guide in the menu shell, on a step with the current choices filled in. */
   open_guide(step: GuideStep = "you", rolled = false) {
-    this.open();
+    if (!this.is_open) this.attach();
     this.root.dataset.view = View.GUIDE;
     this.root.dataset.section = "guide";
     this.hide_pages();
@@ -187,19 +190,25 @@ export class Settings {
 
   /** The menu, on Play unless a section is named. */
   open(section: string = MenuTab.PLAY) {
+    if (!this.pages.has(section)) this.build_page(MenuTab.SETTINGS);
     if (this.subs.has(section)) {
       this.section = MenuTab.SETTINGS;
       this.sub = section;
     } else if (this.pages.has(section)) this.section = section;
     if (this.is_open) return this.show(this.section);
+    this.attach();
+    this.show(this.section);
+    this.panel.focus();
+  }
+
+  // The guide covers the tabs, so opening on it leaves every page unbuilt and hidden.
+  private attach() {
     if (!this.root.isConnected) this.parent.append(this.root);
     this.root.hidden = false;
     this.root.addEventListener("click", this.click);
     addEventListener("keydown", this.key);
     this.timer = window.setInterval(() => this.refresh(), STATUS_MS);
     this.refresh();
-    this.show(this.section);
-    this.panel.focus();
   }
 
   /** The key list: the help key lands here. */
@@ -330,13 +339,39 @@ export class Settings {
       const page = el("section", "settings-page");
       page.dataset.section = section.id;
       page.setAttribute("aria-label", section.label);
-      page.append(...section.build());
+      page.hidden = true;
       this.body.append(page);
       this.pages.set(section.id, page);
     }
     this.guide.skip_button.dataset.guideOnly = "";
     top.append(this.guide.skip_button);
     this.panel.append(top, menu_nav, this.guide.rail, head, this.body, this.guide.panel);
+  }
+
+  private build_page(id: string) {
+    const page = this.pages.get(id);
+    const shown = this.page_of(id);
+    if (!page || !shown || this.built.has(id)) return;
+    this.built.add(id);
+    page.append(...shown.build());
+  }
+
+  /** Builds the pages not yet shown in idle time, so opening one later costs no build. */
+  warm() {
+    this.stop_warm();
+    const next = (deadline: IdleDeadline) => {
+      for (const page of this.page_list) {
+        if (deadline.timeRemaining() <= 0) break;
+        this.build_page(page.id);
+      }
+      this.warm_handle = this.built.size < this.page_list.length ? requestIdleCallback(next) : 0;
+    };
+    this.warm_handle = requestIdleCallback(next);
+  }
+
+  stop_warm() {
+    cancelIdleCallback(this.warm_handle);
+    this.warm_handle = 0;
   }
 
   private name_field(): HTMLInputElement {
@@ -363,6 +398,7 @@ export class Settings {
   }
 
   private show(section: string) {
+    this.build_page(section);
     this.section = section;
     this.root.dataset.view = this.view_of(section);
     this.root.dataset.section = section;

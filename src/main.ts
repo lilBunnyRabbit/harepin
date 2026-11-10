@@ -591,3 +591,4 @@ document.addEventListener("click", (e) => {
 $("loading").remove();
 performance.mark("world:first");
 requestAnimationFrame(frame);
+settings.warm();
