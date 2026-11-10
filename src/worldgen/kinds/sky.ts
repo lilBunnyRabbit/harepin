@@ -1,13 +1,17 @@
 import { generate_sky } from "../sky";
 import { SKY_VERSION, WorldKind } from "../types";
-import type { KindDef } from "./kinds";
+import { kind_def, LAND_GRIP } from "./kind-def";
 
-/** The island keeps WORLD_VERSION as its id, so old builds see a sky peer as on a foreign map. */
-export const sky: KindDef = {
+/** Base 1000 keeps it off the island's ids, so old builds see a sky peer as on a foreign map. */
+export const sky = kind_def({
   kind: WorldKind.SKY,
-  id: 1000 + SKY_VERSION,
-  key: (seed) => `${seed}:sky${SKY_VERSION}`,
+  base: 1000,
+  tag: "sky",
+  version: SKY_VERSION,
   generate: generate_sky,
   open_ground: false,
   rails: true,
-};
+  ground: false,
+  fall_reset: true,
+  grip: LAND_GRIP,
+});

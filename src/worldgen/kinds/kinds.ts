@@ -1,20 +1,7 @@
 import type { WorldData, WorldKind } from "../types";
 import { island } from "./island";
+import type { KindDef } from "./kind-def";
 import { sky } from "./sky";
-
-/** Worker-safe half of a world kind: no DOM, no THREE, so `generate` runs in worldgen/worker.ts. */
-export interface KindDef {
-  kind: WorldKind;
-  /** Map identity peers and the directory compare. */
-  id: number;
-  /** Storage key part for records set on `seed`'s world, so a new world starts with a clean sheet. */
-  key(seed: number): string;
-  generate(seed: number): WorldData;
-  /** Gymkhana, parking and gate hunts need it. */
-  open_ground: boolean;
-  /** Box solids redirect the car along them instead of bouncing it off. */
-  rails: boolean;
-}
 
 export const KINDS: Record<WorldKind, KindDef> = { island, sky };
 

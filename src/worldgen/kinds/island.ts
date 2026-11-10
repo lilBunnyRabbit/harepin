@@ -1,12 +1,16 @@
 import { generate } from "../index";
 import { WORLD_VERSION, WorldKind } from "../types";
-import type { KindDef } from "./kinds";
+import { kind_def, LAND_GRIP } from "./kind-def";
 
-export const island: KindDef = {
+export const island = kind_def({
   kind: WorldKind.ISLAND,
-  id: WORLD_VERSION,
-  key: (seed) => `${seed}:w${WORLD_VERSION}`,
+  base: 0,
+  tag: "w",
+  version: WORLD_VERSION,
   generate,
   open_ground: true,
   rails: false,
-};
+  ground: true,
+  fall_reset: false,
+  grip: LAND_GRIP,
+});

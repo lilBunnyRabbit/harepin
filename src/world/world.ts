@@ -3,6 +3,7 @@ import type { Ground } from "../car/car";
 import { COUPE, type CarSpec } from "../car/cars";
 import { DeckIndex } from "../worldgen/deck";
 import { generate } from "../worldgen/index";
+import type { GripTable } from "../worldgen/kinds/kind-def";
 import { KINDS } from "../worldgen/kinds/kinds";
 import { ramp_reach2, ramp_surface, spawn_blocks, type Surface } from "../worldgen/jumps";
 import { FALL_DEPTH } from "../worldgen/sky";
@@ -41,8 +42,6 @@ const GLIDE_YAW = 3;
 const GLIDE_EASE = 0.3;
 /** Under this share of the speed along the rail, a hit counts as head-on and the nose picks the way to glide. */
 const HEAD_ON = 0.2;
-/** Between asphalt 1 and grass 0.72: a car's `offroad` share decides how much of the loss it keeps. */
-const DIRT_GRIP = 0.88;
 const LANE_PACK = 1 << 16;
 
 export interface Collider {
@@ -141,6 +140,8 @@ function nearest(grid: Map<number, number[]>, x: number, z: number, at: (item: n
 export class World implements Ground {
   readonly kind: WorldKind;
   readonly deck: DeckIndex | null;
+  private readonly grips: GripTable;
+  private readonly fall_reset: boolean;
   /** Terrain heights, `road_dist` and surface, one tile per chunk. */
   readonly tiles: TileStore;
   /** The race circuit, in driving order; gates and the ghost follow it. */
@@ -190,6 +191,8 @@ export class World implements Ground {
     data: WorldData = generate(seed),
   ) {
     this.kind = data.kind;
+    this.grips = KINDS[data.kind].grip;
+    this.fall_reset = KINDS[data.kind].fall_reset;
     this.deck = data.deck && new DeckIndex(data.deck);
     this.tiles = new TileStore(slice_tiles(data.terrain));
     this.road = data.road;
@@ -292,9 +295,9 @@ export class World implements Ground {
     return top;
   }
 
-  /** Sky only: further under every deck near the car than FALL_DEPTH. */
+  /** Further under every deck near the car than FALL_DEPTH, on a kind whose decks reset a fall. */
   fallen(pos: Vector3): boolean {
-    return this.deck !== null && pos.y < this.deck.floor(pos.x, pos.z) - FALL_DEPTH;
+    return this.fall_reset && this.deck !== null && pos.y < this.deck.floor(pos.x, pos.z) - FALL_DEPTH;
   }
 
   distance_to_road(x: number, z: number): number {
@@ -308,13 +311,19 @@ export class World implements Ground {
     return i >= 0 && j >= 0 && i <= N && j <= N && this.tiles.surface(i, j) === DIRT;
   }
 
+  /** On a road surface, whatever grip the kind gives it. */
+  on_road(x: number, z: number): boolean {
+    return this.distance_to_road(x, z) < ROAD_HALF + 0.5;
+  }
+
   grip(x: number, z: number): number {
     const d = this.distance_to_road(x, z);
-    return d < ROAD_HALF + 0.5 ? 1 : this.dirt(x, z) ? DIRT_GRIP : d < ROAD_HALF + 3 ? 0.85 : 0.72;
+    const g = this.grips;
+    return d < ROAD_HALF + 0.5 ? g.road : this.dirt(x, z) ? g.dirt : d < ROAD_HALF + 3 ? g.shoulder : g.ground;
   }
 
   roll(x: number, z: number): number {
-    return this.distance_to_road(x, z) < ROAD_HALF + 3 || this.dirt(x, z) ? 1 : 12;
+    return this.distance_to_road(x, z) < ROAD_HALF + 3 || this.dirt(x, z) ? 1 : this.grips.roll;
   }
 
   /** Nearest point of the race circuit; its index in `road` places gates and the ghost. */
