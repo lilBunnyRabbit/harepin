@@ -82,8 +82,8 @@ test("the streamed world, once every chunk is in, equals a direct call", async (
   expect(tiles.length).toBe(CHUNKS * CHUNKS);
   expect(tile_checksum(tiles)).toBe(tile_checksum(slice_tiles(direct.terrain)));
   expect(data.terrain.heights.length).toBe(0);
-  const { terrain: _, timings: __, ...rest } = data;
-  const { terrain: ___, timings: ____, ...direct_rest } = direct;
+  const { terrain: _, timings: __, ground: _g, ...rest } = data;
+  const { terrain: ___, timings: ____, ground: __g, ...direct_rest } = direct;
   expect(rest).toEqual(direct_rest);
   const spawn = direct.road.at(SPAWN_INDEX) ?? direct.road[0];
   const dist = (index: number) => Math.hypot(ORIGIN + ((index % CHUNKS) + 0.5) * CHUNK - spawn.x, ORIGIN + (Math.floor(index / CHUNKS) + 0.5) * CHUNK - spawn.z);

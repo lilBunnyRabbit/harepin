@@ -46,6 +46,15 @@ export class WorldStream {
     this.listener = listener;
   }
 
+  /** Lets chunk `index` go; its tile reads as missing until `request` brings it back. */
+  drop(index: number) {
+    this.world.tiles.drop(index);
+  }
+
+  request(index: number) {
+    this.post({ type: "chunk", index });
+  }
+
   private post(request: WorkerRequest) {
     this.worker.postMessage(request);
   }

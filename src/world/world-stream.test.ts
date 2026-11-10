@@ -1,6 +1,8 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import type { MeshTones } from "../worldgen/chunks";
+import { CHUNK, CHUNKS } from "../worldgen/chunk-grid";
+import type { ChunkBuffers, MeshTones } from "../worldgen/chunks";
+import { ORIGIN } from "../worldgen/types";
 import { WorldStream } from "./world-stream";
 
 const BROKEN = {} as MeshTones;
@@ -14,3 +16,26 @@ test("meshing that throws after the plan rejects every wait on a missing chunk",
   await expect(stream.world.tiles.whole()).rejects.toThrow(/world worker/);
   await expect(stream.world.tiles.ensure(900, 900)).rejects.toThrow(/world worker/);
 }, 30_000);
+
+test("a dropped chunk comes back on request with the same tile and mesh", async () => {
+  const { MESH_TONES: TONES } = await import("../../scripts/proof/tones");
+  const { checksum } = await import("../worldgen/checksum");
+  const stream = await WorldStream.open(3, "island", TONES);
+  const meshes = new Map<number, string>();
+  const mesh_sum = (c: ChunkBuffers) => checksum([...(c.terrain ? [c.terrain.positions, c.terrain.colors, c.terrain.index] : []), ...[c.road, c.buildings, c.parking].flatMap((p) => (p ? [p.positions, p.colors] : []))]);
+  const again: string[] = [];
+  stream.listen((c) => (meshes.has(c.index) ? again.push(mesh_sum(c)) : meshes.set(c.index, mesh_sum(c))));
+  await stream.world.tiles.whole();
+  const index = 27;
+  const x0 = ORIGIN + (index % CHUNKS) * CHUNK;
+  const z0 = ORIGIN + Math.floor(index / CHUNKS) * CHUNK;
+  const probe = () => Array.from({ length: 400 }, (_, k) => [stream.world.tiles.height(x0 + (k % 20) * 12.7, z0 + Math.floor(k / 20) * 12.7), stream.world.tiles.road_dist(x0 + (k % 20) * 12.7, z0 + Math.floor(k / 20) * 12.7)]).flat();
+  const before = checksum([probe()]);
+  stream.drop(index);
+  expect(stream.world.tiles.complete).toBe(false);
+  expect(checksum([probe()])).not.toBe(before);
+  stream.request(index);
+  await stream.world.tiles.whole();
+  expect(checksum([probe()])).toBe(before);
+  expect(again).toEqual([meshes.get(index) ?? ""]);
+}, 60_000);
