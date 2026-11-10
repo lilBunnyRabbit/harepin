@@ -4,7 +4,7 @@ import { brand, color, tones } from "../theme/palette";
 import { ribbon, ribbon_material } from "../render/scene";
 import { ROAD_HALF, World } from "../world/world";
 import { chunk_of } from "../worldgen/chunk-grid";
-import { ring_mouths, road_junctions } from "../worldgen/road-layers";
+import { roadside_clear } from "../worldgen/road-layers";
 import type { Solid } from "../worldgen/types";
 
 export interface Gate {
@@ -57,25 +57,6 @@ function curvature(world: World, s: number): number {
   return Math.atan2(a.tx * b.tz - a.tz * b.tx, a.tx * b.tx + a.tz * b.tz);
 }
 
-/** Circuit samples past a patch's mouth still kept clear: a post there would stand on the curb's last bend. */
-const MOUTH_MARGIN = 2;
-/** Circuit samples either side of a junction too sharp for a patch, where the side road just overlaps the circuit. */
-const LOOSE_CLEAR = 7;
-
-// Ring samples a road leaves the loop across; curbs and posts there would wall off the side road.
-function mouths(world: World): Set<number> {
-  const n = world.road.length;
-  const junctions = road_junctions(world);
-  const inside = ring_mouths(world, junctions);
-  const clear = new Set<number>();
-  const around = (s: number, reach: number) => {
-    for (let k = -reach; k <= reach; k++) clear.add((s + k + n) % n);
-  };
-  inside.forEach((v, s) => v && around(s, MOUTH_MARGIN));
-  for (const s of junctions.loose) around(s, LOOSE_CLEAR);
-  return clear;
-}
-
 interface RoadsideMarks {
   clear: Set<number>;
   /** Circuit sample to the side of the curb on the inside of its bend. */
@@ -88,7 +69,7 @@ function roadside_marks(world: World): RoadsideMarks {
     const k = curvature(world, s);
     if (Math.abs(k) > 0.09) inside.set(s, Math.sign(k));
   }
-  return { clear: mouths(world), inside };
+  return { clear: roadside_clear(world), inside };
 }
 
 /** Curb materials, post and cap shapes and materials: one set for the world, shared by every chunk's roadside. */

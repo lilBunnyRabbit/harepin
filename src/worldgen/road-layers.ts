@@ -104,8 +104,34 @@ export interface Junctions {
   /** Road indices of circuit junctions too sharp or cramped for a patch: the side road still overlaps the ring there. */
   loose: number[];
   trims: Map<number, Trim>;
-  /** Circuit edge id to the road index of its first point. */
-  ring_at: Map<number, number>;
+  /** Circuit edge id to where the circuit runs along it. */
+  ring_at: Map<number, RingSpan>;
+}
+
+/** The road index of a circuit edge's first point, and whether the circuit drives the edge from a to b or back. */
+export interface RingSpan {
+  at: number;
+  forward: boolean;
+}
+
+/** Road index of edge point `i` on a circuit edge. */
+function ring_point({ at, forward }: RingSpan, i: number, n: number): number {
+  return (forward ? at + i : at - i + n) % n;
+}
+
+/** Road segment that edge segment `k` (points k to k + 1) of a circuit edge is driven as. */
+function ring_segment({ at, forward }: RingSpan, k: number, n: number): number {
+  return (forward ? at + k : at - k - 1 + n) % n;
+}
+
+// The mainland circuit drives some edges from b to a; its road then runs the edge's points backwards.
+function ring_span(road: RoadPoint[], edge: RoadEdge): RingSpan {
+  const n = road.length;
+  const at = nearest_index(road, edge.points[0].x, edge.points[0].z);
+  const q = edge.points[1];
+  const ahead = road[(at + 1) % n];
+  const behind = road[(at - 1 + n) % n];
+  return { at, forward: (ahead.x - q.x) ** 2 + (ahead.z - q.z) ** 2 <= (behind.x - q.x) ** 2 + (behind.z - q.z) ** 2 };
 }
 
 export type RoadData = Pick<WorldData, "road" | "graph" | "circuit">;
@@ -115,12 +141,15 @@ export function road_junctions(data: RoadData): Junctions {
   const n = road.length;
   const spurs = spur_edges(graph, circuit);
   const ring_reach = offset_reach(road, true);
-  const ring_at = new Map(circuit.map((id) => [id, nearest_index(road, graph.edges[id].points[0].x, graph.edges[id].points[0].z)]));
+  const ring_at = new Map(circuit.map((id) => [id, ring_span(road, graph.edges[id])]));
   const style = (edge: RoadEdge) => (ring_at.has(edge.id) ? RING_ARM : edge.kind === "highway" ? SPUR_ARM : edge.kind === "local" ? LOCAL_ARM : STREET_ARM);
   const reach_of = (edge: RoadEdge): readonly Reach[] => {
-    const at = ring_at.get(edge.id);
-    if (at === undefined) return offset_reach(edge.points, false);
-    return edge.points.map((_, i) => ring_reach[(at + i) % n]);
+    const span = ring_at.get(edge.id);
+    if (span === undefined) return offset_reach(edge.points, false);
+    return edge.points.map((_, i): Reach => {
+      const r = ring_reach[ring_point(span, i, n)];
+      return span.forward ? r : [-r[1], -r[0]];
+    });
   };
 
   const trims = new Map<number, Trim>();
@@ -165,14 +194,31 @@ export function ring_mouths(data: RoadData, junctions: Junctions): Uint8Array {
   const { road, graph } = data;
   const n = road.length;
   const inside = new Uint8Array(n);
-  for (const [id, at] of junctions.ring_at) {
+  for (const [id, span] of junctions.ring_at) {
     const { mouths } = junctions.trims.get(id) ?? untrimmed();
     const { points, closed } = graph.edges[id];
     const end = closed ? points.length : points.length - 1;
-    for (let k = 0; k < mouths[0]; k++) inside[(at + k) % n] = 1;
-    for (let k = 1; k <= mouths[1]; k++) inside[(at + end - k) % n] = 1;
+    for (let k = 0; k < mouths[0]; k++) inside[ring_segment(span, k, n)] = 1;
+    for (let k = 1; k <= mouths[1]; k++) inside[ring_segment(span, end - k, n)] = 1;
   }
   return inside;
+}
+
+/** Circuit samples past a patch's mouth still kept clear: a post there would stand on the curb's last bend. */
+const MOUTH_MARGIN = 2;
+/** Circuit samples either side of a junction too sharp for a patch, where the side road just overlaps the circuit. */
+const LOOSE_CLEAR = 7;
+
+/** Circuit samples a road leaves the loop across; curbs and posts there would wall off the side road. */
+export function roadside_clear(data: RoadData, junctions: Junctions = road_junctions(data)): Set<number> {
+  const n = data.road.length;
+  const clear = new Set<number>();
+  const around = (s: number, reach: number) => {
+    for (let k = -reach; k <= reach; k++) clear.add((s + k + n) % n);
+  };
+  ring_mouths(data, junctions).forEach((v, s) => v && around(s, MOUTH_MARGIN));
+  for (const s of junctions.loose) around(s, LOOSE_CLEAR);
+  return clear;
 }
 
 export function road_layers(data: RoadData, out: Roads, tones: RoadTones, junctions: Junctions = road_junctions(data)): Roads {
