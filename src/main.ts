@@ -46,6 +46,7 @@ import { pick_world } from "./world/world-pick";
 import { GUARD_STATE, SystemBack, type Watcher } from "./menu/system-back";
 import { SPAWN_INDEX } from "./world/world";
 import { WorldStream } from "./world/world-stream";
+import { AreaFade } from "./hud/area-fade";
 import { WORLDS } from "./worlds/worlds";
 import { world_id, world_key } from "./worldgen/kinds/kinds";
 import "./style.css";
@@ -118,6 +119,8 @@ const race = new Race(world);
 const chase = new ChaseCamera(camera);
 const pads = new PadTimer();
 const driver = new Driver(scene, light, world, race, pads, chase, build);
+const area_fade = new AreaFade(app);
+driver.arrive = (x, z) => area_fade.cover(world.tiles.ensure(x, z));
 
 const smoke = new Smoke(WORLDS[world.kind].ground_puff);
 const skids = new Skids();
@@ -148,8 +151,8 @@ race.on_lap = (improved, first) => {
   ghost.finish(improved);
   if (lobby.route === "circuit") lobby.lap(performance.now());
 };
-function restart_lap() {
-  driver.place(driver.road_spot(SPAWN_INDEX));
+async function restart_lap() {
+  await driver.place_road(SPAWN_INDEX);
   driver.car.nitro.refill();
   race.reset();
   driver.rewind.clear();
@@ -157,7 +160,7 @@ function restart_lap() {
 function restart_action() {
   if (modes.active) modes.restart();
   else if (lobby.busy) hud.toast("Lobby race is running");
-  else restart_lap();
+  else void restart_lap();
 }
 $("restart-lap").addEventListener("click", (event) => {
   (event.currentTarget as HTMLElement).blur();
@@ -166,7 +169,7 @@ $("restart-lap").addEventListener("click", (event) => {
 lobby.on_start = () => {
   settings.close();
   modes.exit();
-  restart_lap();
+  void restart_lap();
   if (lobby.route !== "circuit")
     modes.lobby_race(lobby.route, () => {
       lobby.lap(performance.now());
@@ -276,6 +279,7 @@ const modes = new Modes(scene, world, SPAWN_INDEX, () => lobby.record, (x, y, z,
   driver.rewind.clear();
 }, () => lobby.busy, () => audio.chime(), camera, () => driver.car.spec);
 modes.bindings = () => settings.state.bindings;
+modes.cover = (wait) => area_fade.cover(wait);
 modes.on_finish = (mode) => goals.played(mode);
 hud.run_route = () => modes.route;
 modes.start();
@@ -454,13 +458,13 @@ function frame(now: number) {
 
   const upright = new THREE.Vector3(0, 1, 0).applyQuaternion(car.quat).y;
   if (world.fallen(car.pos)) {
-    driver.fall_back();
+    void driver.fall_back();
     stuck = 0;
   }
   const drowned = world.height(car.pos.x, car.pos.z) < -0.4 && car.pos.y < 0.4;
   stuck = !rewinding && (drowned || (upright < 0.3 && car.vel.length() < 2)) ? stuck + dt : 0;
   if (stuck > 1.5) {
-    driver.reset(lobby.busy && lobby.route === "circuit");
+    void driver.reset(lobby.busy && lobby.route === "circuit");
     stuck = 0;
   }
 

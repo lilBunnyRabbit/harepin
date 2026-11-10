@@ -5,14 +5,13 @@ import { World } from "./world";
 
 /** One persistent generation worker: the world's plan first, then its chunks nearest the area someone waits on. */
 export class WorldStream {
-  private readonly arrived: ChunkBuffers[] = [];
+  /** Chunks that came before anyone listened; handed over once, then let go. */
+  private waiting: ChunkBuffers[] = [];
   private listener: ((chunk: ChunkBuffers) => void) | null = null;
-  mesh_ms = 0;
 
   private constructor(
     private readonly worker: Worker,
     readonly world: World,
-    readonly gen_ms: number,
   ) {
     world.tiles.on_need = (x, z) => this.post({ type: "focus", x, z });
   }
@@ -21,44 +20,40 @@ export class WorldStream {
     const worker = new Worker(new URL("../worldgen/worker.ts", import.meta.url), { type: "module" });
     return new Promise((resolve, reject) => {
       let stream: WorldStream | null = null;
+      const fail = (error: Error) => {
+        worker.terminate();
+        if (!stream) return reject(error);
+        console.error(error);
+        stream.world.tiles.fail(error);
+      };
       worker.addEventListener("message", (event: MessageEvent<WorkerReply>) => {
         const reply = event.data;
         if (reply.type === "plan") {
-          stream = new WorldStream(worker, new World(seed, reply.data, []), reply.gen_ms);
+          stream = new WorldStream(worker, new World(seed, reply.data, []));
           resolve(stream);
-        } else stream?.receive(reply);
+        } else if (reply.type === "error") fail(new Error(`world worker: ${reply.message}`));
+        else stream?.receive(reply);
       });
-      worker.addEventListener("error", (event) => {
-        worker.terminate();
-        reject(new Error(`world worker: ${event.message}`));
-      });
+      worker.addEventListener("error", (event) => fail(new Error(`world worker: ${event.message}`)));
       worker.postMessage({ type: "gen", seed, kind, tones } satisfies WorkerRequest);
     });
   }
 
   /** Every chunk mesh so far, then each one as it arrives; its tile is already in `world.tiles`. */
   listen(listener: (chunk: ChunkBuffers) => void) {
-    for (const chunk of this.arrived) listener(chunk);
+    for (const chunk of this.waiting) listener(chunk);
+    this.waiting = [];
     this.listener = listener;
-  }
-
-  stop() {
-    this.worker.terminate();
-    this.listener = null;
   }
 
   private post(request: WorkerRequest) {
     this.worker.postMessage(request);
   }
 
-  private receive(reply: Exclude<WorkerReply, { type: "plan" }>) {
-    if (reply.type === "done") {
-      this.mesh_ms = reply.mesh_ms;
-      return;
-    }
+  private receive(reply: Extract<WorkerReply, { type: "chunk" }>) {
     this.world.tiles.add(reply.index, reply.tile);
     if (!reply.chunk) return;
-    this.arrived.push(reply.chunk);
-    this.listener?.(reply.chunk);
+    if (this.listener) this.listener(reply.chunk);
+    else this.waiting.push(reply.chunk);
   }
 }

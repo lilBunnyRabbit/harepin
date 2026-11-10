@@ -21,9 +21,10 @@ export type WorkerRequest = GenRequest | FocusRequest;
 
 export type WorkerReply =
   /** Everything but the terrain grids, which arrive tile by tile. */
-  | { type: "plan"; data: WorldData; gen_ms: number }
+  | { type: "plan"; data: WorldData }
   | { type: "chunk"; index: number; tile: Tile; chunk: ChunkBuffers | null }
-  | { type: "done"; mesh_ms: number };
+  /** Generation or meshing threw: before the plan the load fails, after it every wait on a missing chunk does. */
+  | { type: "error"; message: string };
 
 let focus: [number, number] = [0, 0];
 
@@ -43,13 +44,11 @@ function nearest(left: number[]): number {
 }
 
 async function stream({ seed, kind, tones }: GenRequest) {
-  const t0 = performance.now();
   const data = generate_world(seed, kind);
-  const t1 = performance.now();
   const spawn = data.road.at(SPAWN_INDEX) ?? data.road[0];
   if (spawn) focus = [spawn.x, spawn.z];
   const empty = { heights: new Float32Array(0), road_dist: new Float32Array(0), surface: new Uint8Array(0) };
-  postMessage({ type: "plan", data: { ...data, terrain: { ...data.terrain, ...empty } }, gen_ms: t1 - t0 } satisfies WorkerReply);
+  postMessage({ type: "plan", data: { ...data, terrain: { ...data.terrain, ...empty } } } satisfies WorkerReply);
   const build = chunk_meshes(data, tones);
   const left = Array.from({ length: CHUNKS * CHUNKS }, (_, index) => index);
   while (left.length) {
@@ -60,11 +59,10 @@ async function stream({ seed, kind, tones }: GenRequest) {
     // A turn of the event loop between chunks lets a focus request reorder what is left.
     await new Promise((next) => setTimeout(next, 0));
   }
-  postMessage({ type: "done", mesh_ms: performance.now() - t1 } satisfies WorkerReply);
 }
 
 addEventListener("message", (event: MessageEvent<WorkerRequest>) => {
   const request = event.data;
   if (request.type === "focus") focus = [request.x, request.z];
-  else void stream(request);
+  else stream(request).catch((error: unknown) => postMessage({ type: "error", message: error instanceof Error ? (error.stack ?? error.message) : String(error) } satisfies WorkerReply));
 });

@@ -44,11 +44,14 @@ function from_worker(request: Omit<GenRequest, "type">): Promise<Streamed> {
     worker.addEventListener("message", (event: MessageEvent<WorkerReply>) => {
       const reply = event.data;
       if (reply.type === "plan") out.data = reply.data;
-      else if (reply.type === "chunk") {
+      else if (reply.type === "error") {
+        worker.terminate();
+        reject(new Error(`error reply: ${reply.message}`));
+      } else {
         out.order.push(reply.index);
         out.tiles[reply.index] = reply.tile;
         if (reply.chunk) out.chunks.push(reply.chunk);
-      } else {
+        if (out.order.length < CHUNKS * CHUNKS) return;
         worker.terminate();
         if (!out.data) return reject(new Error("no plan"));
         out.chunks.sort((a, b) => a.index - b.index);
@@ -96,4 +99,8 @@ test("the worker builds the sky track as a direct call does, with no terrain mes
   expect(chunk_checksum(chunks)).toBe(chunk_checksum(build_chunks(direct, TONES)));
   expect(chunks.length).toBeGreaterThan(4);
   expect(chunks.every((c) => c.terrain === null && c.road)).toBe(true);
+}, 30_000);
+
+test("a throw in the worker comes back as an error reply instead of a silent hang", async () => {
+  await expect(from_worker({ seed: SEED, kind: "nowhere" as WorldData["kind"], tones: TONES })).rejects.toThrow(/^error reply: /);
 }, 30_000);

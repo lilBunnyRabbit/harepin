@@ -84,6 +84,8 @@ export class Modes {
   };
 
   bindings: () => Bindings = () => DEFAULT_BINDINGS;
+  /** Shows that a start waits on the rest of the world. */
+  cover: (wait: Promise<void>) => Promise<void> = (wait) => wait;
   on_finish: ((mode: string) => void) | null = null;
 
   constructor(
@@ -175,7 +177,7 @@ export class Modes {
   private launch(active: Active) {
     // Mode sites and views read terrain anywhere on the map: a start before every chunk is in waits for the rest.
     if (!this.world.tiles.complete) {
-      void this.world.tiles.whole().then(() => {
+      void this.cover(this.world.tiles.whole()).then(() => {
         if (this.current === active && !active.run) this.launch(active);
       });
       return;

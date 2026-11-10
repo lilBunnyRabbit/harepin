@@ -55,7 +55,8 @@ export class TileStore {
   static readonly FLAT: Tile = { heights: new Float32Array(TILE_SIDE * TILE_SIDE), road_dist: new Float32Array(TILE_SIDE * TILE_SIDE).fill(MISS_ROAD_DIST), surface: new Uint8Array(TILE_SIDE * TILE_SIDE) };
   private readonly tiles: (Tile | undefined)[] = [];
   private count = 0;
-  private waits: { need: number[]; done: () => void }[] = [];
+  private waits: { need: number[]; done: () => void; fail: (error: Error) => void }[] = [];
+  private failed: Error | null = null;
   /** Told the middle of an area someone waits on, so a streaming source can send those chunks first. */
   on_need: ((x: number, z: number) => void) | null = null;
   private k = 0;
@@ -64,10 +65,6 @@ export class TileStore {
 
   constructor(tiles: readonly Tile[] = []) {
     tiles.forEach((tile, index) => this.add(index, tile));
-  }
-
-  has(index: number): boolean {
-    return this.tiles[index] !== undefined;
   }
 
   add(index: number, tile: Tile) {
@@ -102,8 +99,15 @@ export class TileStore {
 
   private wait(need: number[], ask: (() => void) | null): Promise<void> {
     if (need.every((index) => this.tiles[index])) return Promise.resolve();
+    if (this.failed) return Promise.reject(this.failed);
     ask?.();
-    return new Promise((done) => this.waits.push({ need, done }));
+    return new Promise((done, fail) => this.waits.push({ need, done, fail }));
+  }
+
+  /** The source broke: every wait, now and later, rejects with `error` instead of hanging. */
+  fail(error: Error) {
+    this.failed = error;
+    for (const w of this.waits.splice(0)) w.fail(error);
   }
 
   private settle() {

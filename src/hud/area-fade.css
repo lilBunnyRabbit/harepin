@@ -1,0 +1,19 @@
+#area-fade {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--cottontail);
+  background: var(--background-darkest);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+
+#area-fade[data-shown] {
+  opacity: 1;
+  pointer-events: auto;
+  transition-duration: 0.15s;
+}
