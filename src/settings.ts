@@ -1,18 +1,19 @@
 import { SteerMode } from "./car";
 import { typing, type Nav } from "./input";
-import type { ModeEntry } from "./modes/modes";
-import type { RaceChoice } from "./modes/races";
-import { MAX_STARS } from "./modes/track";
 import { DirectoryStatus, PASSWORD_LENGTH, ROOM_LENGTH, clean_password, clean_room, locked_name, save_lock, type Server } from "./directory";
 import { clean_name, parse_seed } from "./net";
 import { GUIDE_PARAM, Guide, ROLLED_VISIT, type GuideStep } from "./guide";
-import { CameraReturn, CameraView, DEFAULT_SETTINGS, DashPlace, HudLayout, LAPS, QualityMode, TouchSteer, type Laps, type QualityTier, type SettingKey, type SettingsState } from "./menu/prefs";
+import { ModesPage } from "./menu/modes-page";
+import { MenuTab, invite_link, type Menu, type MenuPage, type SettingsHost } from "./menu/page";
+import { CameraReturn, CameraView, DEFAULT_SETTINGS, DashPlace, HudLayout, LAPS, QualityMode, TouchSteer, type QualityTier, type SettingKey, type SettingsState } from "./menu/prefs";
 import { mark_drive, read_saved, write_saved } from "./menu/prefs-store";
-import { HARMONIES as HARMONY_HUES, Harmony, generate_theme, is_dark, type ThemeMode } from "./random-theme";
+import { action, copy_action, dress, info, invalid, mosaic, password_input, picture, random_seed, row, stat, tile } from "./menu/widgets";
+import { WorldPage } from "./menu/world-page";
+import { Harmony, generate_theme, is_dark, type ThemeMode } from "./random-theme";
 import { mulberry32 } from "./rng";
-import { Rows, el, icon, read, type Options, type RowHelp, type Text, type Value } from "./setting-rows";
-import { WorldKind, type WorldData } from "./worldgen/types";
-import { DEFAULT_KIND, is_kind, kind_of_world } from "./worldgen/kinds/kinds";
+import { Rows, el, icon, read, type Options, type RowHelp, type Value } from "./setting-rows";
+import { WorldKind } from "./worldgen/types";
+import { kind_of_world } from "./worldgen/kinds/kinds";
 import { WORLDS } from "./worlds/worlds";
 import { world_query } from "./world-pick";
 import {
@@ -30,59 +31,10 @@ import {
   token_var,
   with_saved,
   without_saved,
-  type SavedTheme,
   type ThemeBase,
 } from "./theme";
-import { WorldMap } from "./world-map";
-import type { MapData } from "./worldgen/map";
 import "./settings.css";
 import "./menu.css";
-
-
-export interface QualityStatus {
-  tier: QualityTier;
-  ratio: number;
-  bloom: boolean;
-  /** Sun shadow map size in px, 0 when off. */
-  shadow_size: number;
-}
-
-export interface SettingsHost {
-  readonly room: string;
-  readonly seed: number;
-  readonly kind: WorldKind;
-  /** The loaded world, so the world map draws it without generating it again. */
-  readonly world_data: WorldData;
-  name(): string;
-  quality_status(): QualityStatus;
-  race_busy(): boolean;
-  toggle_race(laps: Laps, route: string): void;
-  readonly version: string;
-  /** Every release, newest first: the What's new page. */
-  changelog(): HTMLElement;
-  servers(): Server[];
-  servers_status(): DirectoryStatus;
-  /** This room's handshake failed on the password, so its row offers another try. */
-  password_failed(): boolean;
-  browse_servers(on: boolean): void;
-  /** The garage's own element: the Garage tab shows it, and `show_garage` starts and stops it with the tab. */
-  readonly garage_stage: HTMLElement;
-  show_garage(on: boolean): void;
-  mode_list(): ModeEntry[];
-  play_level(id: string): void;
-  mode_active(): boolean;
-  free_drive(): void;
-  lobby_record(): string;
-  readonly race_routes: readonly RaceChoice[];
-  players(): number;
-  restart_lap(): void;
-}
-
-interface Section {
-  id: string;
-  label: string;
-  build: () => HTMLElement[];
-}
 
 interface SettingsSection {
   id: string;
@@ -111,14 +63,6 @@ interface SubPage {
   help: string;
 }
 
-export const MenuTab = {
-  PLAY: "play",
-  GARAGE: "garage",
-  ONLINE: "online",
-  SETTINGS: "settings",
-} as const;
-export type MenuTab = (typeof MenuTab)[keyof typeof MenuTab];
-
 const MENU_TABS: [MenuTab, string][] = [
   [MenuTab.PLAY, "Play"],
   [MenuTab.GARAGE, "Garage"],
@@ -136,25 +80,11 @@ type View = (typeof View)[keyof typeof View];
 /** The What's new page: a settings page with no section tab, opened from the version line. */
 const CHANGES = "changes";
 
-/** Full-screen pages under a menu tab, by title. */
-const PAGE_TITLE: Record<string, string> = { world: "New map", modes: "Modes", room: "New room" };
-
-/** Where Back goes from a page. */
-const PARENT: Record<string, MenuTab> = {
-  world: MenuTab.PLAY,
-  modes: MenuTab.PLAY,
-  room: MenuTab.ONLINE,
-};
-
 const CAMERA_RETURN_LABEL: Record<CameraReturn, string> = { off: "Off", short: "1.5 s", long: "3 s", never: "Never" };
 const STEER_LABEL: Record<SteerMode, string> = { snap: "Classic", hold: "Hold", smooth: "Smooth" };
 
-
-const preview = (name: string) => `${import.meta.env.BASE_URL}menu/${name}.webp`;
-
 const TIER_LABEL: Record<QualityTier, string> = { high: "High", medium: "Medium", low: "Low" };
 const STATUS_MS = 1000;
-const COPIED_MS = 2000;
 
 const KEYS: [string, string, string, string][] = [
   ["Drive", "WASD / arrows", "RT / LT, L stick", "Gas, Brake, drag or arrow buttons to steer (Touch steering)"],
@@ -264,24 +194,11 @@ const HUD_LAYOUTS: HudLayoutOption[] = [
   },
 ];
 
+const hud_name = (value: HudLayout) => HUD_LAYOUTS.find((layout) => layout.value === value)?.name ?? value;
+
 function random_code() {
   return Math.random().toString(36).slice(2, 8);
 }
-
-function random_seed() {
-  return Math.floor(Math.random() * 0x7fffffff);
-}
-
-export function invite_link(room: string, seed: number, kind: WorldKind = DEFAULT_KIND): string {
-  return `${location.origin}${location.pathname}?${new URLSearchParams(world_query(room, seed, kind))}`;
-}
-
-const minutes = (ms: number) => {
-  const s = Math.round(ms / 1000);
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-};
-
-const hud_name = (value: HudLayout) => HUD_LAYOUTS.find((layout) => layout.value === value)?.name ?? value;
 
 const DIRECTORY_NOTE: Record<DirectoryStatus, string> = {
   connecting: "Looking for other games…",
@@ -311,12 +228,9 @@ export class Settings {
   private readonly help_title = el("b", "set-help-title");
   private readonly help_text = el("p", "set-help-text");
   private readonly help_visual = el("div", "set-help-visual");
-  private readonly world_map: WorldMap;
-  private readonly modes_root = el("div", "modes-page");
-  private mode_id = "";
+  private readonly menu: Menu;
+  private readonly page_list: MenuPage[];
   private race_route = "circuit";
-  private chosen: number;
-  private chosen_kind: WorldKind;
   private readonly guide: Guide;
 
   constructor(
@@ -325,15 +239,45 @@ export class Settings {
     private current: SettingsState,
   ) {
     this.saved = read_saved();
-    this.world_map = new WorldMap(host.world_data);
-    this.chosen = host.seed;
-    this.chosen_kind = host.kind;
+    this.menu = {
+      host,
+      rows: this.rows,
+      state: () => this.current,
+      set: (key, value) => this.set(key, value),
+      sync: (run) => this.syncs.push(run),
+      refresh: () => this.refresh(),
+      close: () => this.close(),
+      show: (section) => this.show(section),
+      drive: (seed, kind) => this.drive(seed, kind),
+      go: (query) => this.go(query),
+    };
+    this.page_list = [
+      { id: MenuTab.PLAY, label: "Play", build: () => this.play() },
+      {
+        id: MenuTab.GARAGE,
+        label: "Garage",
+        build: () => [host.garage_stage],
+        on_show: () => host.show_garage(true),
+        on_hide: () => host.show_garage(false),
+      },
+      {
+        id: MenuTab.ONLINE,
+        label: "Online",
+        build: () => this.online(),
+        on_show: () => host.browse_servers(true),
+        on_hide: () => host.browse_servers(false),
+      },
+      { id: MenuTab.SETTINGS, label: "Settings", build: () => this.settings_page(), on_show: () => this.show_sub(this.sub) },
+      new WorldPage(this.menu),
+      new ModesPage(this.menu),
+      { id: "room", label: "New room", parent: MenuTab.ONLINE, build: () => this.create_room() },
+    ];
     this.guide = new Guide({
       state: () => this.current,
       set: (key, value) => this.set(key, value),
       name: () => this.host.name(),
       kind: host.kind,
-      picture: (name) => this.picture(name),
+      picture: (name) => picture(name),
       skip: () => this.end_guide(),
       drive: (kind) => {
         this.end_guide();
@@ -372,9 +316,7 @@ export class Settings {
     this.open();
     this.root.dataset.view = View.GUIDE;
     this.root.dataset.section = "guide";
-    this.host.show_garage(false);
-    this.host.browse_servers(false);
-    this.world_map.stop();
+    this.hide_pages();
     this.guide.start(step, rolled);
     this.panel.focus();
   }
@@ -420,9 +362,11 @@ export class Settings {
     this.root.removeEventListener("click", this.click);
     removeEventListener("keydown", this.key);
     clearInterval(this.timer);
-    this.host.show_garage(false);
-    this.world_map.stop();
-    this.host.browse_servers(false);
+    this.hide_pages();
+  }
+
+  private hide_pages() {
+    for (const page of this.page_list) page.on_hide?.();
   }
 
   toggle() {
@@ -447,14 +391,14 @@ export class Settings {
     if (this.guide_open) return void this.guide.back();
     const deep = this.section === MenuTab.SETTINGS ? this.subs.get(this.sub)?.parent : null;
     if (deep) return this.show_sub(deep);
-    const parent = PARENT[this.section];
+    const parent = this.page_of(this.section)?.parent;
     if (parent) this.show(parent);
     else this.close();
   }
 
   step_tab(step: number) {
     if (this.guide_open) return this.guide.step_by(step);
-    if (view_of(this.section) === View.PAGE) return;
+    if (this.view_of(this.section) === View.PAGE) return;
     const ids = [...this.menu_tabs.keys()];
     this.show(ids[(ids.indexOf(this.section) + step + ids.length) % ids.length]);
   }
@@ -519,16 +463,7 @@ export class Settings {
     close.append(icon("icon-close"));
     head.append(back, this.title, close);
 
-    const pages: Section[] = [
-      { id: MenuTab.PLAY, label: "Play", build: () => this.play() },
-      { id: MenuTab.GARAGE, label: "Garage", build: () => this.garage() },
-      { id: MenuTab.ONLINE, label: "Online", build: () => this.online() },
-      { id: MenuTab.SETTINGS, label: "Settings", build: () => this.settings_page() },
-      { id: "world", label: PAGE_TITLE.world, build: () => this.world() },
-      { id: "modes", label: PAGE_TITLE.modes, build: () => [this.modes_root] },
-      { id: "room", label: PAGE_TITLE.room, build: () => this.create_room() },
-    ];
-    for (const section of pages) {
+    for (const section of this.page_list) {
       const page = el("section", "settings-page");
       page.dataset.section = section.id;
       page.setAttribute("aria-label", section.label);
@@ -566,74 +501,31 @@ export class Settings {
 
   private show(section: string) {
     this.section = section;
-    this.root.dataset.view = view_of(section);
+    this.root.dataset.view = this.view_of(section);
     this.root.dataset.section = section;
     for (const [id, tab] of this.menu_tabs) tab.setAttribute("aria-current", String(id === section));
     for (const [id, page] of this.pages) page.hidden = id !== section;
-    this.title.textContent = PAGE_TITLE[section] ?? "Settings";
+    const shown = this.page_of(section);
+    this.title.textContent = shown?.parent ? shown.label : "Settings";
     this.body.scrollTop = 0;
-    if (section === "modes") this.render_modes();
-    if (section === "world") this.world_map.show(this.chosen, this.chosen_kind, true);
-    else this.world_map.stop();
-    this.host.browse_servers(section === MenuTab.ONLINE);
-    this.host.show_garage(section === MenuTab.GARAGE);
-    if (section === MenuTab.SETTINGS) this.show_sub(this.sub);
+    for (const page of this.page_list) if (page !== shown) page.on_hide?.();
+    shown?.on_show?.();
     this.refresh();
   }
 
-  private bind(node: HTMLElement, text: Text) {
-    if (typeof text === "string") node.textContent = text;
-    else this.syncs.push(() => (node.textContent = text()));
+  private page_of(section: string): MenuPage | undefined {
+    return this.page_list.find((page) => page.id === section);
   }
 
-  /** Picture or icon behind, title and a line over a scrim at the bottom. */
-  private dress(tile: HTMLElement, title: Text, note: Text, art: Node | null, eyebrow = ""): HTMLElement {
-    if (art) {
-      const wrap = el("span", "menu-art");
-      wrap.append(art);
-      tile.append(wrap);
-    }
-    const text = el("span", "menu-text");
-    if (eyebrow) text.append(el("span", "menu-eyebrow", eyebrow));
-    const name = el("b");
-    const line = el("span");
-    this.bind(name, title);
-    this.bind(line, note);
-    text.append(name, line);
-    tile.append(text);
-    return text;
-  }
-
-  private tile(area: string, title: Text, note: Text, art: Node | null, run: () => void): HTMLButtonElement {
-    const tile = el("button", "menu-tile");
-    tile.type = "button";
-    tile.dataset.area = area;
-    this.dress(tile, title, note, art);
-    tile.addEventListener("click", run);
-    return tile;
-  }
-
-  private picture(name: string, contain = false): HTMLImageElement {
-    const img = el("img");
-    img.src = preview(name);
-    img.alt = "";
-    img.decoding = "async";
-    if (contain) img.dataset.fit = "contain";
-    return img;
-  }
-
-  private mosaic(tab: MenuTab, ...tiles: HTMLElement[]): HTMLElement[] {
-    const grid = el("div", "menu-mosaic");
-    grid.dataset.tab = tab;
-    grid.append(...tiles);
-    return [grid];
+  private view_of(section: string): View {
+    return this.page_of(section)?.parent ? View.PAGE : View.MENU;
   }
 
   private play(): HTMLElement[] {
     const { room, seed, kind } = this.host;
     const hero = el("div", "menu-tile");
     hero.dataset.area = "hero";
-    const text = this.dress(hero, `${WORLDS[kind].name} ${seed}`, WORLDS[kind].hero, this.picture(kind), "Keep driving");
+    const text = dress(hero, `${WORLDS[kind].name} ${seed}`, WORLDS[kind].hero, picture(kind), "Keep driving");
     text.append(el("span", "menu-go", "Drive"));
     const drive = el("button", "menu-hit");
     drive.type = "button";
@@ -649,25 +541,14 @@ export class Settings {
     hero.append(drive, restart);
 
     const world = (other: WorldKind) => {
-      const tile = this.tile(other, WORLDS[other].name, WORLDS[other].note, this.picture(other), () => this.drive(seed, other));
-      tile.title = other === kind ? "Keep driving here" : `Reloads room ${room} on ${WORLDS[other].name} ${seed}`;
-      if (other === kind) tile.append(el("span", "menu-tag", "You're here"));
-      return tile;
+      const button = tile(other, WORLDS[other].name, WORLDS[other].note, picture(other), () => this.drive(seed, other));
+      button.title = other === kind ? "Keep driving here" : `Reloads room ${room} on ${WORLDS[other].name} ${seed}`;
+      if (other === kind) button.append(el("span", "menu-tag", "You're here"));
+      return button;
     };
-    const map = this.tile("map", "New map", "Pick a world and a map, or type a friend's map code", this.picture(`${kind}-map`, true), () => this.show("world"));
-    const modes = this.tile("modes", "Modes", "Races, gymkhana, parking, drift zones, gate hunt, ghost duel", icon("icon-modes"), () => this.show("modes"));
-    return this.mosaic(MenuTab.PLAY, hero, ...Object.values(WORLDS).map(({ kind }) => world(kind)), map, modes);
-  }
-
-  private garage(): HTMLElement[] {
-    return [this.host.garage_stage];
-  }
-
-  private info(area: string, eyebrow: string, ...content: HTMLElement[]): HTMLElement {
-    const tile = el("div", "menu-tile menu-info");
-    tile.dataset.area = area;
-    tile.append(el("span", "menu-eyebrow", eyebrow), ...content);
-    return tile;
+    const map = tile("map", "New map", "Pick a world and a map, or type a friend's map code", picture(`${kind}-map`, true), () => this.show("world"));
+    const modes = tile("modes", "Modes", "Races, gymkhana, parking, drift zones, gate hunt, ghost duel", icon("icon-modes"), () => this.show("modes"));
+    return mosaic(MenuTab.PLAY, hero, ...Object.values(WORLDS).map(({ kind }) => world(kind)), map, modes);
   }
 
   private online(): HTMLElement[] {
@@ -675,12 +556,12 @@ export class Settings {
     const players = el("span", "menu-caption");
     this.syncs.push(() => (players.textContent = `${this.host.players()} here · ${WORLDS[kind].name} ${seed}`));
     const invite = el("div", "settings-inline");
-    invite.append(this.copy_action("Copy invite link", invite_link(room, seed, kind)));
-    const room_tile = this.info("room", "Your room", el("b", "menu-code", room), players, invite, el("small", "menu-caption", "Friends who open the link join this room on this map"));
+    invite.append(copy_action("Copy invite link", invite_link(room, seed, kind)));
+    const room_tile = info("room", "Your room", el("b", "menu-code", room), players, invite, el("small", "menu-caption", "Friends who open the link join this room on this map"));
 
     const scroll = el("div", "menu-scroll");
     scroll.append(...this.games());
-    const games = this.info("games", "Games running", scroll);
+    const games = info("games", "Games running", scroll);
 
     const routes = this.host.race_routes;
     const route_of = () => routes.find((r) => r.id === this.race_route) ?? routes[0];
@@ -733,270 +614,10 @@ export class Settings {
       race.textContent = this.host.race_busy() ? "Leave race" : "Start race";
       record.textContent = this.host.lobby_record();
     });
-    const race_tile = this.info("race", "Lobby race", picker, lap_row, note, race, record);
+    const race_tile = info("race", "Lobby race", picker, lap_row, note, race, record);
 
-    const fresh = this.tile("new", "New room", "A fresh code, a map, an optional password", icon("icon-dice"), () => this.show("room"));
-    return this.mosaic(MenuTab.ONLINE, room_tile, games, race_tile, fresh);
-  }
-
-  private row(label: string, control: HTMLElement, hint = "", inline = false): HTMLElement {
-    const row = el("div", inline ? "settings-row settings-row-inline" : "settings-row");
-    const text = el("div", "settings-label");
-    text.append(el("span", "", label));
-    if (hint) text.append(el("small", "", hint));
-    row.append(text, control);
-    return row;
-  }
-
-  private choice<K extends SettingKey>(key: K, options: readonly (readonly [SettingsState[K], string])[], label: string, hint = ""): HTMLElement {
-    const group = el("div", "settings-choice");
-    group.setAttribute("role", "radiogroup");
-    group.setAttribute("aria-label", label);
-    const buttons = options.map(([value, text]) => {
-      const button = el("button", "", text);
-      button.type = "button";
-      button.setAttribute("role", "radio");
-      button.addEventListener("click", () => this.set(key, value));
-      group.append(button);
-      return [value, button] as const;
-    });
-    this.syncs.push(() => {
-      for (const [value, button] of buttons) button.setAttribute("aria-checked", String(this.current[key] === value));
-    });
-    return this.row(label, group, hint);
-  }
-
-  private action(label: string, run: (button: HTMLButtonElement) => void): HTMLButtonElement {
-    const button = el("button", "settings-action", label);
-    button.type = "button";
-    button.addEventListener("click", () => run(button));
-    return button;
-  }
-
-  private stat(label: string, value: string): HTMLElement {
-    const node = el("span", "settings-stat");
-    node.append(el("span", "", label), el("b", "", value));
-    return node;
-  }
-
-  private copy_action(label: string, link: string): HTMLButtonElement {
-    return this.action(label, async (button) => {
-      try {
-        await navigator.clipboard.writeText(link);
-        button.textContent = "Copied";
-      } catch (error) {
-        console.warn("settings: clipboard refused", error);
-        button.textContent = "Copy failed";
-      }
-      setTimeout(() => (button.textContent = label), COPIED_MS);
-    });
-  }
-
-  private world(): HTMLElement[] {
-    const { room, seed } = this.host;
-    const step = (n: number, text: string) => {
-      const head = el("h3", "map-step");
-      head.append(el("i", "", String(n)), el("span", "", text));
-      return head;
-    };
-
-    const worlds = el("div", "map-worlds");
-    worlds.setAttribute("role", "radiogroup");
-    worlds.setAttribute("aria-label", "World");
-    const world_buttons = Object.values(WORLDS).map(({ kind }) => {
-      const button = el("button", "map-world");
-      button.type = "button";
-      button.setAttribute("role", "radio");
-      const text = el("span", "map-world-text");
-      text.append(el("b", "", WORLDS[kind].name), el("small", "", WORLDS[kind].pick));
-      button.append(this.picture(kind), text);
-      button.addEventListener("click", () => {
-        this.chosen_kind = kind;
-        choose(this.chosen, true);
-      });
-      worlds.append(button);
-      return [kind, button] as const;
-    });
-
-    const field = el("input", "settings-input map-code");
-    field.type = "text";
-    field.inputMode = "numeric";
-    field.maxLength = 10;
-    field.autocomplete = "off";
-    field.enterKeyHint = "go";
-    field.value = String(seed);
-    field.setAttribute("aria-label", "Map code");
-    const dice = el("button", "map-dice");
-    dice.type = "button";
-    dice.append(icon("icon-dice"), el("span", "", "New random map"));
-    const code = el("div", "map-code-row");
-    code.append(field, dice);
-
-    const drive = el("button", "map-drive");
-    drive.type = "button";
-    drive.addEventListener("click", () => this.drive(this.chosen, this.chosen_kind));
-    const share = el("button", "map-share");
-    share.type = "button";
-    const share_label = el("span", "", "Share code");
-    share.append(icon("icon-share"), share_label);
-    share.addEventListener("click", async () => {
-      try {
-        await navigator.clipboard.writeText(invite_link(room, this.chosen, this.chosen_kind));
-        share_label.textContent = "Link copied";
-      } catch (error) {
-        console.warn("settings: clipboard refused", error);
-        share_label.textContent = "Copy failed";
-      }
-      setTimeout(() => (share_label.textContent = "Share code"), COPIED_MS);
-    });
-
-    const title = el("b", "map-title");
-    const facts = el("dl", "map-facts");
-    const legend = el("ul", "world-legend");
-    for (const [label, token] of [
-      ["Circuit", "accent"],
-      ["Start", "primary"],
-      ["Checkpoints", "foreground"],
-      ["Jumps", "secondary"],
-    ]) {
-      const item = el("li", "", label);
-      item.style.setProperty("--swatch", `var(--${token})`);
-      legend.append(item);
-    }
-    const boost = el("li", "", "Boost");
-    // The map's pad tone, tones.pad: the accent a step lighter, never mixed with another brand colour.
-    boost.style.setProperty("--swatch", "oklch(from var(--accent) calc(l + 0.14) c h)");
-    legend.append(boost);
-
-    const show_facts = (map: MapData | null) => {
-      const ready = map !== null && map.seed === this.chosen && map.kind === this.chosen_kind;
-      facts.replaceChildren(
-        ...WORLDS[this.chosen_kind].facts(ready ? map.facts : null).map(([value, label]) => {
-          const item = el("div");
-          item.append(el("dt", "", label), el("dd", "", value));
-          return item;
-        }),
-      );
-    };
-    this.world_map.on_ready = show_facts;
-
-    const choose = (next: number, now: boolean) => {
-      this.chosen = next;
-      const here = next === seed && this.chosen_kind === this.host.kind;
-      drive.textContent = here ? "You're on this map" : "Drive this map";
-      drive.disabled = here;
-      drive.title = here ? "" : `Reloads room ${room} on ${WORLDS[this.chosen_kind].name} ${next}`;
-      title.textContent = `${WORLDS[this.chosen_kind].name} · map ${next}`;
-      for (const [kind, button] of world_buttons) button.setAttribute("aria-checked", String(kind === this.chosen_kind));
-      boost.hidden = !WORLDS[this.chosen_kind].pads;
-      show_facts(null);
-      this.world_map.show(next, this.chosen_kind, now);
-    };
-    field.addEventListener("input", () => {
-      const next = parse_seed(field.value.trim());
-      field.setCustomValidity(next === null ? "A whole number from 0 to 4294967295" : "");
-      if (next === null) drive.disabled = true;
-      else choose(next, false);
-    });
-    field.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" && !drive.disabled) drive.click();
-    });
-    dice.addEventListener("click", () => {
-      const next = random_seed();
-      field.value = String(next);
-      field.setCustomValidity("");
-      choose(next, true);
-    });
-    choose(this.chosen, false);
-
-    const picks = el("div", "map-picks");
-    const actions = el("div", "map-actions");
-    actions.append(drive, share);
-    picks.append(step(1, "Pick a world"), worlds, step(2, "Pick a map"), code, el("p", "map-hint", "Got a code from a friend? Type it in."), actions);
-    const preview = el("div", "map-preview");
-    preview.append(this.world_map.root);
-    const about = el("div", "map-about");
-    about.append(title, facts, legend);
-    const page = el("div", "map-page");
-    page.append(picks, preview, about);
-    return [page];
-  }
-
-  private render_modes() {
-    const modes = this.host.mode_list();
-    const mode = modes.find((m) => m.id === this.mode_id) ?? modes[0];
-    if (!mode) return this.modes_root.replaceChildren();
-    this.mode_id = mode.id;
-    const focused = document.activeElement instanceof HTMLElement && this.modes_root.contains(document.activeElement) ? document.activeElement.dataset.mode : undefined;
-
-    const nav = el("nav", "modes-nav");
-    nav.setAttribute("aria-label", "Modes");
-    const total = modes.reduce((sum, m) => sum + m.stars, 0);
-    const max = modes.reduce((sum, m) => sum + m.max, 0);
-    nav.append(el("span", "modes-total", `★ ${total} / ${max}`));
-    for (const m of modes) {
-      const button = el("button", "modes-tab");
-      button.type = "button";
-      button.dataset.mode = m.id;
-      button.setAttribute("aria-current", String(m.id === mode.id));
-      button.append(el("b", "", m.name), el("small", "", `${m.stars} / ${m.max} ★`));
-      button.addEventListener("click", () => {
-        this.mode_id = m.id;
-        this.render_modes();
-      });
-      nav.append(button);
-    }
-
-    const title = el("b");
-    const text = el("span");
-    const describe = (level: { name: string; brings: string } | null, locked = "") => {
-      title.textContent = level?.name ?? mode.name;
-      text.textContent = locked || (level ? level.brings : (mode.blocked ?? ""));
-    };
-    const grid = el("section", "modes-levels");
-    grid.setAttribute("aria-label", mode.name);
-    mode.levels.forEach((level, i) => {
-      const tile = el("button", "modes-level");
-      tile.type = "button";
-      const locked = level.open ? "" : `Finish ${mode.levels[i - 1]?.name ?? "the level before"} to open it.`;
-      tile.disabled = !level.open || mode.blocked !== null;
-      tile.append(el("small", "modes-n", `Level ${i + 1}`), el("b", "", level.name));
-      if (level.length !== null && level.par_ms !== null) tile.append(el("small", "modes-meta", `${(level.length / 1000).toFixed(1)} km · par ${minutes(level.par_ms)}`));
-      const foot = el("span", "modes-foot");
-      if (level.open) {
-        const stars = el("span", "modes-stars");
-        stars.append("★".repeat(level.stars), el("i", "", "★".repeat(Math.max(0, MAX_STARS - level.stars))));
-        foot.append(stars, el("small", level.best ? "" : "modes-new", level.best ?? "New"));
-      } else {
-        foot.append(icon("icon-lock"), el("small", "", `Finish ${mode.levels[i - 1]?.name}`));
-      }
-      tile.append(foot);
-      const show = () => describe(level, locked);
-      tile.addEventListener("focus", show);
-      tile.addEventListener("pointerenter", show);
-      tile.addEventListener("click", () => {
-        this.close();
-        this.host.play_level(level.id);
-      });
-      grid.append(tile);
-    });
-
-    const bar = el("div", "modes-bar");
-    const about = el("p", "modes-about");
-    about.append(title, text);
-    bar.append(about);
-    if (this.host.mode_active()) {
-      const free = this.action("Back to free drive", () => {
-        this.close();
-        this.host.free_drive();
-      });
-      bar.append(free);
-    }
-    const first = mode.levels.find((level) => level.open) ?? null;
-    describe(mode.blocked ? null : first);
-    if (mode.blocked) grid.append(el("p", "servers-note", mode.blocked));
-    this.modes_root.replaceChildren(nav, grid, bar);
-    if (focused) this.modes_root.querySelector<HTMLElement>(`[data-mode="${focused}"]`)?.focus({ focusVisible: true });
+    const fresh = tile("new", "New room", "A fresh code, a map, an optional password", icon("icon-dice"), () => this.show("room"));
+    return mosaic(MenuTab.ONLINE, room_tile, games, race_tile, fresh);
   }
 
   /** A world the player picked: remembered for the next bare load, then driven in this room. */
@@ -1025,10 +646,10 @@ export class Settings {
     const unlock = el("form", "servers-unlock");
     unlock.hidden = true;
     const unlock_label = el("span", "servers-unlock-label");
-    const secret = this.password_input("Room password");
+    const secret = password_input("Room password");
     const unlock_join = el("button", "settings-action", "Join");
     unlock_join.type = "submit";
-    const unlock_cancel = this.action("Cancel", () => (unlock.hidden = true));
+    const unlock_cancel = action("Cancel", () => (unlock.hidden = true));
     const unlock_row = el("div", "settings-inline");
     unlock_row.append(secret, unlock_join, unlock_cancel);
     unlock.append(unlock_label, unlock_row);
@@ -1036,7 +657,7 @@ export class Settings {
     unlock.addEventListener("submit", (event) => {
       event.preventDefault();
       const password = clean_password(secret.value);
-      if (!locked || password === null) return this.invalid(secret, "Enter the room password");
+      if (!locked || password === null) return invalid(secret, "Enter the room password");
       this.join(locked, password);
     });
     const ask = (server: Server) => {
@@ -1066,7 +687,7 @@ export class Settings {
     name.autocomplete = "off";
     name.placeholder = "Random code";
     name.setAttribute("aria-label", "Room name");
-    const password = this.password_input("Password");
+    const password = password_input("Password");
     password.placeholder = "Optional, locks the room";
     const seed = el("input", "settings-input");
     seed.type = "text";
@@ -1081,19 +702,19 @@ export class Settings {
     create.addEventListener("submit", (event) => {
       event.preventDefault();
       const room = name.value.trim() ? clean_room(name.value) : random_code();
-      if (room === null) return this.invalid(name, `Up to ${ROOM_LENGTH} characters`);
+      if (room === null) return invalid(name, `Up to ${ROOM_LENGTH} characters`);
       const lock = password.value ? clean_password(password.value) : null;
-      if (password.value && lock === null) return this.invalid(password, `Up to ${PASSWORD_LENGTH} characters`);
+      if (password.value && lock === null) return invalid(password, `Up to ${PASSWORD_LENGTH} characters`);
       const map = seed.value.trim() ? parse_seed(seed.value.trim()) : random_seed();
-      if (map === null) return this.invalid(seed, "A whole number from 0 to 4294967295");
+      if (map === null) return invalid(seed, "A whole number from 0 to 4294967295");
       const named = lock === null ? room : locked_name(room);
       save_lock(named, lock === null ? null : { password: lock, asked: false });
       this.go({ room: named, seed: String(map) });
     });
     create.append(
-      this.row("Room name", name),
-      this.row("Password", password, "Locked rooms show a lock and get a short code on their name; only players with the password can connect"),
-      this.row("Map code", seed, "Empty for a random map"),
+      row("Room name", name),
+      row("Password", password, "Locked rooms show a lock and get a short code on their name; only players with the password can connect"),
+      row("Map code", seed, "Empty for a random map"),
       submit,
     );
 
@@ -1114,25 +735,11 @@ export class Settings {
     name.append(room, el("small", "", `${server.host} · map ${server.seed}`));
     const players = el("span", "servers-players", `${server.players} ${server.players === 1 ? "player" : "players"}`);
     li.append(name, players);
-    if (server.here && server.locked && this.host.password_failed()) li.append(this.action("Retry password", () => ask(server)));
+    if (server.here && server.locked && this.host.password_failed()) li.append(action("Retry password", () => ask(server)));
     else if (server.here) li.append(el("span", "servers-tag", "You're here"));
     else if (server.version !== this.host.version) li.append(el("span", "servers-tag", "Different version"));
-    else li.append(this.action("Join", () => (server.locked ? ask(server) : this.join(server, null))));
+    else li.append(action("Join", () => (server.locked ? ask(server) : this.join(server, null))));
     return li;
-  }
-
-  private password_input(label: string): HTMLInputElement {
-    const input = el("input", "settings-input");
-    input.type = "password";
-    input.maxLength = PASSWORD_LENGTH;
-    input.autocomplete = "off";
-    input.setAttribute("aria-label", label);
-    return input;
-  }
-
-  private invalid(input: HTMLInputElement, message: string) {
-    input.setCustomValidity(message);
-    input.reportValidity();
   }
 
   private value<K extends SettingKey>(key: K): Value<SettingsState[K]> {
@@ -1337,9 +944,9 @@ export class Settings {
       const node = el("div", "settings-status");
       node.append(
         el("span", "", this.current.quality === QualityMode.AUTO ? `Auto is running ${TIER_LABEL[s.tier]}` : `Fixed at ${TIER_LABEL[s.tier]}`),
-        this.stat("scale", `${s.ratio.toFixed(2)}x`),
-        this.stat("shadows", s.shadow_size ? `${s.shadow_size}px` : "off"),
-        this.stat("bloom", s.bloom ? "on" : "off"),
+        stat("scale", `${s.ratio.toFixed(2)}x`),
+        stat("shadows", s.shadow_size ? `${s.shadow_size}px` : "off"),
+        stat("bloom", s.bloom ? "on" : "off"),
       );
       return node;
     };
@@ -1550,7 +1157,7 @@ export class Settings {
           const control = el("span", "set-inline");
           if (name === in_use) control.append(el("span", "servers-tag", "In use"));
           control.append(
-            this.action("Delete", () => {
+            action("Delete", () => {
               if (!store_saved_themes(without_saved(load_saved_themes(), name))) return;
               if (name === in_use) return this.reload("theme");
               render();
@@ -1639,8 +1246,8 @@ export class Settings {
       if (!rolled) return;
       const chosen = name.value.trim() || free_name();
       const problem = theme_name_problem(chosen);
-      if (problem) return this.invalid(name, problem);
-      if (!store_saved_themes(with_saved(saved(), chosen, derive_theme(base)))) return this.invalid(name, "This browser refused to store it");
+      if (problem) return invalid(name, problem);
+      if (!store_saved_themes(with_saved(saved(), chosen, derive_theme(base)))) return invalid(name, "This browser refused to store it");
       choose_theme(chosen);
       this.reload("theme");
     });
@@ -1746,7 +1353,3 @@ export class Settings {
 }
 
 const ARROW_NAV: Record<string, Nav> = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right" };
-
-function view_of(section: string): View {
-  return section in PARENT ? View.PAGE : View.MENU;
-}

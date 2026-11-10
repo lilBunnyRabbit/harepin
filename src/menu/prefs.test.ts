@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { DEFAULT_SETTINGS, parse_settings } from "./prefs";
+import { DEFAULT_SETTINGS, parse_settings, type SettingsState } from "./prefs";
 
 describe("parse_settings", () => {
   test("nothing stored gives the defaults, with the guide seen only by a returning player", () => {
@@ -13,7 +13,7 @@ describe("parse_settings", () => {
   });
 
   test("valid values survive", () => {
-    const stored = {
+    const stored: SettingsState = {
       quality: "low",
       name: "Hopper",
       laps: 5,
