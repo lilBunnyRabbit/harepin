@@ -45,7 +45,9 @@ export interface Patch {
 
 // cos 50°: a corner sharper than this needs a setback longer than the arms it joins.
 const SHARPEST = 0.6427876096865394;
-const FILLET_STEPS = 12;
+// Largest turn between two fillet segments, in radians (4°): coarser reads as facets up close.
+const FILLET_TURN = 0.0698;
+const FILLET_MIN_STEPS = 4;
 /** Index slack for a setback that lands on a point: (4 + 4 cos 90°) / sin 90° comes out a hair over 4. */
 const SNAP = 1e-6;
 
@@ -198,13 +200,19 @@ function fillet(a: Arm, arc_a: readonly number[], b: Arm, arc_b: readonly number
   const sharp = Math.abs(cross) < 1e-6 || s > 0 || t > 0;
   const cx = sharp ? (p.x + r.x) / 2 : p.x + p.tx * s;
   const cz = sharp ? (p.z + r.z) / 2 : p.z + p.tz * s;
+  // A rational quadratic with middle weight cos(turn / 2) is a true circular arc when both tangents are equally long,
+  // so the curb bends evenly instead of bunching its turn in the middle, and even steps turn about FILLET_TURN each.
+  const turn_cos = Math.max(-1, Math.min(1, -(p.tx * r.tx + p.tz * r.tz)));
+  const weight = sharp ? 1 : Math.sqrt((1 + turn_cos) / 2);
+  const steps = Math.max(FILLET_MIN_STEPS, Math.ceil(Math.acos(turn_cos) / FILLET_TURN));
   const out = [];
-  for (let step = 0; step <= FILLET_STEPS; step++) {
-    const u = step / FILLET_STEPS;
+  for (let step = 0; step <= steps; step++) {
+    const u = step / steps;
     const w0 = (1 - u) * (1 - u);
-    const w1 = 2 * u * (1 - u);
+    const w1 = 2 * u * (1 - u) * weight;
     const w2 = u * u;
-    out.push({ x: p.x * w0 + cx * w1 + r.x * w2, z: p.z * w0 + cz * w1 + r.z * w2, t: u });
+    const sum = w0 + w1 + w2;
+    out.push({ x: (p.x * w0 + cx * w1 + r.x * w2) / sum, z: (p.z * w0 + cz * w1 + r.z * w2) / sum, t: u });
   }
   return out;
 }

@@ -543,7 +543,7 @@ export function road_layers(data: RoadData, heights: Float32Array, tones: RoadTo
   const open = (s: number) => !inside[s];
   const clear_of_mouths = (s: number) => open(s) && loose.every((m) => Math.abs(((s - m + n * 1.5) % n) - n / 2) > MOUTH_CLEAR);
   out.strip(out.surface, road, true, -ROAD_HALF, ROAD_HALF, RING_LIFT, open, tones.asphalt);
-  out.strip(out.marks, road, true, -MARK_HALF, MARK_HALF, MARK_LIFT, (s) => open(s) && s % DASH < DASH_ON, tones.line);
+  out.strip(out.marks, road, true, -MARK_HALF, MARK_HALF, MARK_LIFT, (s) => s % DASH < DASH_ON, tones.line);
   out.strip(out.marks, road, true, ROAD_HALF - 0.55, ROAD_HALF - 0.3, MARK_LIFT, clear_of_mouths, tones.edge_line);
   out.strip(out.marks, road, true, -ROAD_HALF + 0.3, -ROAD_HALF + 0.55, MARK_LIFT, clear_of_mouths, tones.edge_line);
 
