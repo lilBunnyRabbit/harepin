@@ -281,7 +281,6 @@ export class Audio {
     ] as const) this.tone(hz, "triangle", now, gain * level, decay);
   }
 
-  /** Soft two-note chime for a clean pass. */
   chime() {
     const { ctx } = this;
     if (!ctx) return;

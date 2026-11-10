@@ -55,7 +55,6 @@ export class Touch {
     return this.steer_mode === TouchSteer.BUTTONS;
   }
 
-  /** The nitro key shows only with a tank fitted. */
   show_nitro(fitted: boolean) {
     this.nitro_key.hidden = !fitted;
     if (!fitted) this.set_nitro(false);
