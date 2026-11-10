@@ -1,7 +1,9 @@
+import type { Extent } from "../../src/worldgen/chunk-grid";
 import type { ChunkBuffers } from "../../src/worldgen/chunks";
 import { map_data } from "../../src/worldgen/map";
+import { TileMesher } from "../../src/worldgen/tile-mesher";
 import type { Route, WorldData } from "../../src/worldgen/types";
-import { MAP_TONES } from "./tones";
+import { MAP_TONES, MESH_TONES } from "./tones";
 
 export type Digest = [string, string][];
 
@@ -28,7 +30,35 @@ export function world_digest(data: WorldData, chunks: ChunkBuffers[]): Digest {
   for (const route of data.routes) parts.push([`route:${route.id}`, route_digest(route)]);
   parts.push(["mesh_road", hash(chunks.map((c) => c.road))]);
   parts.push(["mesh_rest", hash(chunks.map(({ road: _, ...rest }) => rest))]);
+  return [...parts, ...map_digest(data)];
+}
+
+function map_digest(data: WorldData): Digest {
   const { pixels, ...map } = map_data(data, MAP_TONES);
-  parts.push(["map_pixels", hash(pixels)], ["map", hash(map)]);
-  return parts;
+  return [["map_pixels", hash(pixels)], ["map", hash(map)]];
+}
+
+/** A streamed world holds no grids: every chunk is built alone from its plan and hashed as it comes, so only one is held. */
+export function streamed_digest(data: WorldData, ext: Extent): Digest {
+  const parts: Digest = [];
+  for (const [key, value] of Object.entries(data)) {
+    if (key === "ground" || key === "timings" || key === "routes") continue;
+    parts.push([key, hash(value)]);
+  }
+  for (const route of data.routes) parts.push([`route:${route.id}`, route_digest(route)]);
+  const mesher = new TileMesher(data, ext, MESH_TONES);
+  const tiles: string[] = [];
+  const roads: string[] = [];
+  const rest: string[] = [];
+  const planted: string[] = [];
+  for (let index = 0; index < ext.side * ext.side; index++) {
+    const built = mesher.build(index);
+    const { road, ...others } = built.chunk;
+    tiles.push(hash(built.tile));
+    roads.push(hash(road));
+    rest.push(hash(others));
+    planted.push(hash(built.planted));
+  }
+  parts.push(["tiles", hash(tiles)], ["mesh_road", hash(roads)], ["mesh_rest", hash(rest)], ["planted", hash(planted)]);
+  return [...parts, ...map_digest(data)];
 }

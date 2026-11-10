@@ -1,9 +1,10 @@
 import { car_spec } from "../../src/car/cars";
 import { World } from "../../src/world/world";
+import { extent } from "../../src/worldgen/chunk-grid";
 import { build_chunks } from "../../src/worldgen/chunks";
 import { generate_world, KINDS } from "../../src/worldgen/kinds/kinds";
 import type { WorldKind } from "../../src/worldgen/types";
-import { world_digest, type Digest } from "./digest";
+import { streamed_digest, world_digest, type Digest } from "./digest";
 import { circuit_lap, drive_spurs, sky_lap, type Outcome } from "./drives";
 import { MESH_TONES } from "./tones";
 import { check_world } from "./world-checks";
@@ -41,9 +42,12 @@ self.onmessage = (event: MessageEvent<ProofJob>) => {
   const t0 = performance.now();
   const data = generate_world(seed, kind, opts);
   const t1 = performance.now();
-  const chunks = build_chunks(data, MESH_TONES);
+  // A streamed kind's plan has no grids to mesh whole; its digest builds every chunk from the plan instead.
+  const streamed = !data.terrain.heights.length;
+  const built = streamed ? streamed_digest(data, extent(KINDS[kind].size)) : null;
+  const chunks = streamed ? [] : build_chunks(data, MESH_TONES);
   const mesh_ms = performance.now() - t1;
-  const digest = world_digest(data, chunks);
+  const digest = built ?? world_digest(data, chunks);
   const land = KINDS[kind].ground;
   let world: string[] | null = null;
   if (checks && land) {

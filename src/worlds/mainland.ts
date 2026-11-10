@@ -4,7 +4,7 @@ import { shown, type WorldDef } from "./world-def";
 
 export const mainland: WorldDef = {
   kind: WorldKind.MAINLAND,
-  listed: false,
+  listed: true,
   name: "Mainland",
   pick: "Six kilometres of towns joined by open roads",
   note: "Towns, highways and long drives",
