@@ -1,4 +1,5 @@
 import { DEFAULT_KIND, type WorldData, type WorldKind } from "../types";
+import { alpine } from "./alpine";
 import { desert } from "./desert";
 import { island } from "./island";
 import type { KindDef } from "./kind-def";
@@ -6,7 +7,7 @@ import { mainland } from "./mainland";
 import { normal_levels, opts_code, parse_opts } from "./options";
 import { sky } from "./sky";
 
-export const KINDS: Record<WorldKind, KindDef> = { island, sky, desert, mainland };
+export const KINDS: Record<WorldKind, KindDef> = { island, sky, desert, mainland, alpine };
 
 export function world_id(kind: WorldKind): number {
   return KINDS[kind].id;

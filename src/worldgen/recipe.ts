@@ -81,8 +81,29 @@ export interface PanLayer {
   blend: number;
 }
 
+/** Passes `at` metres either side of the range's middle, dipping the crest by `depth` of its height over `width` metres. */
+export interface Saddle {
+  at: number;
+  depth: number;
+  width: number;
+}
+
+/**
+ * A mountain range through the middle along a seeded heading, one of 16: `height` tall at the crest, falling to nothing
+ * `width` metres either side, the crest meandering `meander` metres. Ridged noise saws `saw` of its height into teeth.
+ */
+export interface RangeLayer {
+  kind: "range";
+  seed: number;
+  height: number;
+  width: number;
+  meander: number;
+  saw: number;
+  saddle: Saddle;
+}
+
 /** A point layer: a pure function of position, seed and the height so far, so any tile can rebuild it alone. */
-export type TerrainLayer = LiftLayer | FbmLayer | RidgedLayer | PeakLayer | TerraceLayer | MaskLayer | DunesLayer | PanLayer;
+export type TerrainLayer = LiftLayer | FbmLayer | RidgedLayer | PeakLayer | TerraceLayer | MaskLayer | DunesLayer | PanLayer | RangeLayer;
 
 /** Point layers folded in order over a height starting at 0. */
 export type TerrainRecipe = readonly TerrainLayer[];
@@ -126,6 +147,8 @@ export interface GroundLimits {
   tree_line: number;
   /** The ground row a pan layer's floor lays, whatever the biome. */
   pan: Ground | null;
+  /** The surface laid on ground over the scree height, where it paints half-way to rock and up; null lays none. */
+  loose: SurfaceId | null;
 }
 
 export interface BiomeRecipe {
@@ -196,6 +219,8 @@ export interface Recipe {
 }
 
 const LIFT: LiftLayer = { kind: "lift", height: 5 };
+/** Alpine valleys sit well over the floor, so the negative ridges never cut below it. */
+const VALLEY_FLOOR: LiftLayer = { kind: "lift", height: 30 };
 
 function hills(amp: number): FbmLayer {
   return { kind: "fbm", scale: 520, seed: 7, octaves: 5, power: 1.75, amp };
@@ -211,7 +236,7 @@ function shore(radius: number, edge: number): MaskLayer {
 
 const HARDPACK: BiomeRecipe["surfaces"] = { [Ground.DIRT]: SurfaceId.DIRT };
 const ZONES: ZoneRecipe = { coast: { top: 6, wobble: 5, scale: 90 }, bands: ["meadow", "forest", "upland"] };
-const LIMITS: GroundLimits = { beach: 2.2, scree: { up: 0.8, height: 120 }, rock: { up: 0.7, height: 135 }, snow_line: 165, tree_floor: 3, tree_line: 125, pan: null };
+const LIMITS: GroundLimits = { beach: 2.2, scree: { up: 0.8, height: 120 }, rock: { up: 0.7, height: 135 }, snow_line: 165, tree_floor: 3, tree_line: 125, pan: null, loose: null };
 
 export const ISLAND: Recipe = {
   terrain: [LIFT, hills(95), ridges(22), { kind: "peak", height: 150, radius: 430, reach: 220 }, shore(960, -9)],
@@ -292,4 +317,44 @@ export const MAINLAND: Recipe = {
   towns: { min: 10, max: 16, trees: true, block: { min: 45, span: 25 }, flat_roofs: false },
   road: { ...ISLAND.road, bank: { run: 3.75, reach: 64 } },
   water: { rivers: { count: 3, head: 120, width: [3, 11], depth: [1.2, 2.6] }, lakes: { count: 4, depth: 2, min: 4, max: 400 } },
+};
+
+const RANGE: RangeLayer = { kind: "range", seed: 23, height: 235, width: 480, meander: 120, saw: 0.5, saddle: { at: 600, depth: 0.62, width: 260 } };
+
+/**
+ * A saw-tooth range through the middle with a pass where the circuit crosses it on either side, valleys under a ring of
+ * peaks, pines thick in the valleys and thinning up to a tree line, scree and snow above it, a few mountain villages.
+ */
+export const ALPINE: Recipe = {
+  terrain: [
+    VALLEY_FLOOR,
+    { kind: "fbm", scale: 520, seed: 7, octaves: 5, power: 1.75, amp: 40 },
+    // Negative ridges fold the low ground into V-valleys.
+    { kind: "ridged", scale: 420, stretch: 1, seed: 11, octaves: 4, power: 3, amp: -26 },
+    RANGE,
+    // Past the mask the land climbs to a ring of peaks instead of falling to a sea floor.
+    { kind: "mask", radius: 960, edge: 170, scale: 300, seed: 3, wobble: 0.3 },
+  ],
+  biomes: {
+    surfaces: HARDPACK,
+    zones: { coast: { top: -1, wobble: 0, scale: 90 }, bands: ["forest", "meadow", "upland"] },
+    limits: { beach: -1, scree: { up: 0.72, height: 150 }, rock: { up: 0.6, height: 175 }, snow_line: 215, tree_floor: 3, tree_line: 155, pan: null, loose: SurfaceId.SCREE },
+    rules: {
+      coast: BARE,
+      forest: { start: 0.38, fill: 1.2, pine: 1, scrub: 0, extra: 1 },
+      meadow: { start: 0.5, fill: 0.35, pine: 0.9, scrub: 0.1, extra: 0 },
+      upland: { start: 0.6, fill: 0.12, pine: 0.6, scrub: 0.4, extra: 0 },
+    },
+    items: { coast: null, meadow: "hay", forest: "log", upland: "rock" },
+    ground: {
+      coast: { cut: 0.55, above: Ground.GRASS, below: Ground.GRASS, soft: 0 },
+      forest: { cut: 0.55, above: Ground.GRASS, below: Ground.FOREST, soft: 0.2 },
+      meadow: { cut: 0.6, above: Ground.DRY, below: Ground.GRASS, soft: 0.2 },
+      upland: { cut: 0.5, above: Ground.UPLAND, below: Ground.DRY, soft: 0.2 },
+    },
+  },
+  road: { loop: { radius: 600, swing: 260, min: 500, max: 700 }, straights: null, stacks: [4, 2], tongue: true, canyon: null, kickers: { road: 2, total: 8, big: 2 }, bank: { run: 3.75, reach: 64 } },
+  towns: { min: 2, max: 3, trees: true, block: { min: 35, span: 15 }, flat_roofs: false },
+  landmarks: [Landmark.MAST],
+  scatter: [{ kind: PropKind.BOULDER, spacing: 60, odds: 0.08, biomes: ["meadow", "upland"], road_within: Infinity }],
 };

@@ -56,6 +56,9 @@ export function kind_def(spec: KindSpec): KindDef {
   return { ...spec, id: spec.base + spec.version, key: (seed, opts = "") => `${seed}:${spec.tag}${spec.version}${opts ? `:${opts}` : ""}` };
 }
 
+/** Loose rock over the scree height: firmer than grass, short of trail dirt, and it drags a little. */
+const SCREE: Footing = { grip: 0.8, roll: 4 };
+
 /** Mud at the water's edge: soft enough to feel, firm enough to drive out of. */
 const WET: Footing = { grip: 0.78, roll: 3 };
 /** Water to the sills: grip goes and drag climbs with speed, so a ford is a choice, not a shortcut. */
@@ -65,7 +68,7 @@ const WADE: Footing = { grip: 0.45, roll: 40 };
 export const LAND_GRIP: GripTable = {
   road: { grip: 1, roll: 1 },
   shoulder: { grip: 0.85, roll: 1 },
-  surfaces: { [SurfaceId.GRASS]: { grip: 0.72, roll: 12 }, [SurfaceId.DIRT]: { grip: 0.88, roll: 1 }, [SurfaceId.HARDPACK]: { grip: 0.88, roll: 1 }, [SurfaceId.WET]: WET },
+  surfaces: { [SurfaceId.GRASS]: { grip: 0.72, roll: 12 }, [SurfaceId.DIRT]: { grip: 0.88, roll: 1 }, [SurfaceId.HARDPACK]: { grip: 0.88, roll: 1 }, [SurfaceId.SCREE]: SCREE, [SurfaceId.WET]: WET },
   wade: WADE,
 };
 
@@ -76,6 +79,6 @@ export const LAND_GRIP: GripTable = {
 export const SAND_GRIP: GripTable = {
   road: { grip: 1, roll: 1 },
   shoulder: { grip: 0.86, roll: 1 },
-  surfaces: { [SurfaceId.GRASS]: { grip: 0.7, roll: 28 }, [SurfaceId.DIRT]: { grip: 0.9, roll: 1 }, [SurfaceId.HARDPACK]: { grip: 0.92, roll: 1 }, [SurfaceId.WET]: WET },
+  surfaces: { [SurfaceId.GRASS]: { grip: 0.7, roll: 28 }, [SurfaceId.DIRT]: { grip: 0.9, roll: 1 }, [SurfaceId.HARDPACK]: { grip: 0.92, roll: 1 }, [SurfaceId.SCREE]: SCREE, [SurfaceId.WET]: WET },
   wade: WADE,
 };

@@ -1,7 +1,7 @@
 import { mulberry32, sub } from "../rng";
 import { at, cells, WHOLE, type Grid } from "./field";
 import { circle16, fbm, smoothstep } from "./noise";
-import { ISLAND, type DunesLayer, type PanLayer, type Power, type TerraceLayer, type TerrainLayer, type TerrainRecipe } from "./recipe";
+import { ISLAND, type DunesLayer, type PanLayer, type Power, type RangeLayer, type TerraceLayer, type TerrainLayer, type TerrainRecipe } from "./recipe";
 import { CELL, N, ORIGIN, SIZE, type Terrain } from "./types";
 
 /** Share of the mask radius where the land starts fading to the edge height. */
@@ -16,6 +16,9 @@ const DUNE_FIELD = [0.4, 0.6] as const;
 const PAN_SAMPLE = 64;
 /** Height over the pan level, as a share of its blend, still counted as pan floor. */
 const PAN_TOP = 0.1;
+/** A range's crest meanders over noise this many metres along it; its teeth are this far apart along it, half that across. */
+const RANGE_BEND = 700;
+const RANGE_TEETH = 220;
 
 function peak_of(seed: number, reach: number): { x: number; z: number } {
   const next = mulberry32(sub(seed, "peak"));
@@ -83,7 +86,21 @@ function pan(h: number, level: number, blend: number): number {
   return level + (blend * (t + 1) * (t + 1)) / 4;
 }
 
-/** A layer with what it draws from the seed once: the peak's position, the dunes' wind heading, or the pan's level. */
+// Crest line along the heading, meandering over noise; teeth from ridged noise; each pass a smoothstep dip on the crest.
+function range(layer: RangeLayer, seed: number, ax: number, az: number, x: number, z: number): number {
+  const s = seed + layer.seed;
+  const along = x * ax + z * az;
+  const across = z * ax - x * az;
+  const crest = (fbm(along / RANGE_BEND, 0.5, s, 3) - 0.5) * 2 * layer.meander;
+  const fall = 1 - smoothstep(0, layer.width, Math.abs(across - crest));
+  if (fall <= 0) return 0;
+  const teeth = 1 - Math.abs(2 * fbm(along / RANGE_TEETH, across / (RANGE_TEETH / 2), s + 3, 4) - 1);
+  const { at, depth, width } = layer.saddle;
+  const dip = depth * (1 - smoothstep(0, width, Math.abs(Math.abs(along) - at)));
+  return fall * layer.height * (1 - layer.saw + layer.saw * teeth) * (1 - dip);
+}
+
+/** A layer with what it draws from the seed once: the peak's position, the dunes' wind or range's heading, or the pan's level. */
 interface Seeded {
   layer: TerrainLayer;
   x: number;
@@ -117,6 +134,8 @@ function apply(seeded: Seeded, seed: number, x: number, z: number, h: number): n
       return h + dunes(layer, seed, seeded.x, seeded.z, x, z);
     case "pan":
       return pan(h, seeded.level, layer.blend);
+    case "range":
+      return h + range(layer, seed, seeded.x, seeded.z, x, z);
   }
 }
 
@@ -132,7 +151,7 @@ function seeded(seed: number, shape: TerrainRecipe): Seeded[] {
   const out: Seeded[] = [];
   for (const layer of shape) {
     if (layer.kind === "peak") out.push({ layer, ...peak_of(seed, layer.reach), level: 0 });
-    else if (layer.kind === "dunes") out.push({ layer, ...wind_of(seed, layer.seed), level: 0 });
+    else if (layer.kind === "dunes" || layer.kind === "range") out.push({ layer, ...wind_of(seed, layer.seed), level: 0 });
     else if (layer.kind === "pan") out.push({ layer, x: 0, z: 0, level: level_of(out, seed, layer.share) });
     else out.push({ layer, x: 0, z: 0, level: 0 });
   }

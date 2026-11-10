@@ -1,4 +1,4 @@
-import { DESERT, ISLAND, type Recipe, type RoadRecipe, type TownRecipe } from "../recipe";
+import { ALPINE, DESERT, ISLAND, type Recipe, type RoadRecipe, type TownRecipe } from "../recipe";
 import { knob, type Knob } from "./options";
 
 const LEVELS = ["Less", "Normal", "More"] as const;
@@ -38,4 +38,10 @@ export const DESERT_KNOBS: readonly Knob<Recipe>[] = [
   jumps([{ road: 2, total: 8, big: 2 }, DESERT.road.kickers, { road: 6, total: 22, big: 6 }]),
   towns([{ min: 0, max: 1 }, DESERT.towns, { min: 3, max: 5 }]),
   canyon(DESERT.road.canyon),
+];
+
+export const ALPINE_KNOBS: readonly Knob<Recipe>[] = [
+  hairpins([[], ALPINE.road.stacks, [6, 4, 2]]),
+  jumps([{ road: 1, total: 4, big: 1 }, ALPINE.road.kickers, { road: 4, total: 14, big: 4 }]),
+  towns([{ min: 1, max: 1 }, ALPINE.towns, { min: 3, max: 5 }]),
 ];

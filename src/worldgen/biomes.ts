@@ -116,20 +116,24 @@ export function ground_at(cuts: BiomeCuts, x: number, z: number, y: number): Gro
 }
 
 /**
- * Lays the recipe's surfaces into the surface grid, so grip and colour agree: under its ground rows, and its pan row on
- * ground at or under `floor`, a pan layer's floor.
+ * Lays the recipe's surfaces into the surface grid, so grip and colour agree: under its ground rows, its loose surface over
+ * the scree height, and its pan row on ground at or under `floor`, a pan layer's floor.
  */
 export function harden(cuts: BiomeCuts, land: Terrain, grid: Grid = WHOLE, floor: number | null = null) {
   const laid = cuts.recipe.surfaces;
-  const pan = cuts.recipe.limits.pan;
+  const { pan, loose, scree } = cuts.recipe.limits;
   const rows = Object.values(cuts.recipe.ground).flatMap((rule) => [rule.above, rule.below]);
   if (pan !== null) rows.push(pan);
-  if (!rows.some((row) => laid[row] !== undefined)) return;
+  if (loose === null && !rows.some((row) => laid[row] !== undefined)) return;
   const { heights, surface } = land;
   for (let j = grid.j0; j <= grid.j1; j++)
     for (let i = grid.i0; i <= grid.i1; i++) {
       const k = at(grid, i, j);
       if (surface[k] !== SurfaceId.GRASS) continue;
+      if (loose !== null && heights[k] > scree.height) {
+        surface[k] = loose;
+        continue;
+      }
       const row = pan !== null && floor !== null && heights[k] <= floor ? pan : ground_at(cuts, ORIGIN + i * CELL, ORIGIN + j * CELL, heights[k]);
       const id = laid[row];
       if (id !== undefined) surface[k] = id;

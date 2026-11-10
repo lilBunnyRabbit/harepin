@@ -22,7 +22,7 @@ export type Ground = (typeof Ground)[keyof typeof Ground];
  * What the wheels drive on, per vertex of the `surface` grid; each id has a grip row in its kind's `GripTable`. GRASS is the
  * kind's own ground (loose sand on the desert), every other id a surface laid over it. Stored in the grid: never renumber.
  */
-export const SurfaceId = { GRASS: 0, DIRT: 1, HARDPACK: 2, WET: 4 } as const;
+export const SurfaceId = { GRASS: 0, DIRT: 1, HARDPACK: 2, SCREE: 3, WET: 4 } as const;
 export type SurfaceId = (typeof SurfaceId)[keyof typeof SurfaceId];
 /** The ground row each laid surface paints, indexed by `SurfaceId`, so colour matches what the wheels feel; null keeps the biome's colour. */
 export const SURFACE_GROUND = [null, Ground.DIRT, Ground.PAN, null, Ground.DIRT] as const satisfies Record<SurfaceId, Ground | null>;
@@ -32,7 +32,7 @@ export const WORLD_VERSION = 6;
 /** Bump whenever `generate_sky` makes a different track for the same seed. */
 export const SKY_VERSION = 3;
 
-export const WorldKind = { ISLAND: "island", SKY: "sky", DESERT: "desert", MAINLAND: "mainland" } as const;
+export const WorldKind = { ISLAND: "island", SKY: "sky", DESERT: "desert", MAINLAND: "mainland", ALPINE: "alpine" } as const;
 export type WorldKind = (typeof WorldKind)[keyof typeof WorldKind];
 /** What a URL or save without a world, or with one this build doesn't know, drives. */
 export const DEFAULT_KIND: WorldKind = WorldKind.ISLAND;
@@ -78,7 +78,7 @@ export interface Terrain {
   heights: Float32Array<ArrayBuffer>;
   /** Distance to the nearest road surface edge plus ROAD_HALF, so every road reads as ROAD_HALF wide to grip(). */
   road_dist: Float32Array<ArrayBuffer>;
-  /** `SurfaceId` under the wheels per vertex: GRASS, DIRT on a trail, or HARDPACK on a pan. Asphalt is read from `road_dist`. */
+  /** `SurfaceId` under the wheels per vertex: GRASS, DIRT on a trail, HARDPACK on a pan, or SCREE on high rocky ground. Asphalt is read from `road_dist`. */
   surface: Uint8Array<ArrayBuffer>;
 }
 

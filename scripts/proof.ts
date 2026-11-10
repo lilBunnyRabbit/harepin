@@ -7,7 +7,7 @@ import type { ProofJob, ProofResult } from "./proof/worker";
 
 // One pass per seed: generate and mesh once, then the golden digest, the world rules (worldcheck.ts), the spur drives
 // (spurs.ts) and a circuit lap (seeds.ts) on the island, a lap (sky-seeds.ts) on the sky track, across all cores.
-// --seeds N island seeds plus the lobby's, --sky N sky seeds, --desert N desert seeds (checked and driven like the island), --no-drive skips the drives, --all lists every failure.
+// --seeds N island seeds plus the lobby's, --sky N sky seeds, --desert N desert and --alpine N alpine seeds (checked and driven like the island), --no-drive skips the drives, --all lists every failure.
 // --options instead sweeps map options: every level of every option over seeds 0-9 (the plain map alongside), plus 20 random combinations.
 const arg = (name: string, fallback: number) => {
   const at = process.argv.indexOf(name);
@@ -16,6 +16,7 @@ const arg = (name: string, fallback: number) => {
 const ISLAND = [...Array(arg("--seeds", 20)).keys(), seed_of("lobby")];
 const SKY = [...Array(arg("--sky", 20)).keys()];
 const DESERT = [...Array(arg("--desert", 10)).keys()];
+const ALPINE = [...Array(arg("--alpine", 10)).keys()];
 const MAINLAND = [...Array(arg("--mainland", 3)).keys()];
 const DRIVES = !process.argv.includes("--no-drive");
 const ALL = process.argv.includes("--all");
@@ -42,8 +43,9 @@ const jobs: ProofJob[] = process.argv.includes("--options") ? option_jobs() : [
   ...SKY.map((seed) => ({ kind: "sky" as const, seed, checks: true, drives: DRIVES })),
   ...DESERT.map((seed) => ({ kind: "desert" as const, seed, checks: true, drives: DRIVES })),
   ...MAINLAND.map((seed) => ({ kind: "mainland" as const, seed, checks: true, drives: false })),
+  ...ALPINE.map((seed) => ({ kind: "alpine" as const, seed, checks: true, drives: DRIVES })),
 ];
-const golden: Record<WorldKind, Golden> = { island: read_golden("island"), sky: read_golden("sky"), desert: read_golden("desert"), mainland: read_golden("mainland") };
+const golden: Record<WorldKind, Golden> = { island: read_golden("island"), sky: read_golden("sky"), desert: read_golden("desert"), mainland: read_golden("mainland"), alpine: read_golden("alpine") };
 const size = pool_size(process.argv);
 const t0 = performance.now();
 const results = await run_pool<ProofJob, ProofResult>(new URL("./proof/worker.ts", import.meta.url), jobs, size, (r, done) =>
