@@ -1,5 +1,5 @@
 import { typing, type Nav } from "./input";
-import { clean_name } from "./net";
+import { clean_name } from "./net/net";
 import { GUIDE_PARAM, Guide, ROLLED_VISIT, type GuideStep } from "./guide";
 import { ModesPage } from "./menu/modes-page";
 import { OnlinePage } from "./menu/online-page";

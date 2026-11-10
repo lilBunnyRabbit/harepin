@@ -1,9 +1,9 @@
 import { joinRoom, selfId, type Room } from "trystero";
-import { build_code, parse_build } from "./car/build";
-import { Link, type Channel } from "./net/channel";
-import { RateLimit } from "./net/rate-limit";
-import { WORLD_VERSION, WorldKind } from "./worldgen/types";
-import { DEFAULT_KIND, world_id } from "./worldgen/kinds/kinds";
+import { build_code, parse_build } from "../car/build";
+import { Link, type Channel } from "./channel";
+import { RateLimit } from "./rate-limit";
+import { WORLD_VERSION, WorldKind } from "../worldgen/types";
+import { DEFAULT_KIND, world_id } from "../worldgen/kinds/kinds";
 
 export { RateLimit };
 

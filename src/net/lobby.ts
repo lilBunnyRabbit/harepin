@@ -1,6 +1,6 @@
-import { add_race, placing, local_store, parse_race_record, read_json, write_json, type RaceRecord, type Store } from "./modes/track";
+import { add_race, placing, local_store, parse_race_record, read_json, write_json, type RaceRecord, type Store } from "../modes/track";
 import type { Net, RaceEvent, Sender } from "./net";
-import type { Route } from "./worldgen/types";
+import type { Route } from "../worldgen/types";
 
 export const COUNTDOWN_MS = 3000;
 const MAX_SPEED = 90;

@@ -1,4 +1,4 @@
-import { PASSWORD_LENGTH } from "../directory";
+import { PASSWORD_LENGTH } from "../net/directory";
 import { el } from "../setting-rows";
 import type { MenuTab } from "./page";
 

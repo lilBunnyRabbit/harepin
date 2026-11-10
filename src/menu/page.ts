@@ -1,4 +1,4 @@
-import type { DirectoryStatus, Server } from "../directory";
+import type { DirectoryStatus, Server } from "../net/directory";
 import type { ModeEntry } from "../modes/modes";
 import type { RaceChoice } from "../modes/races";
 import type { Rows, Value } from "../setting-rows";

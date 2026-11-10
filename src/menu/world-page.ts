@@ -1,4 +1,4 @@
-import { parse_seed } from "../net";
+import { parse_seed } from "../net/net";
 import { el, icon } from "../setting-rows";
 import { WorldMap } from "../world-map";
 import type { MapData } from "../worldgen/map";

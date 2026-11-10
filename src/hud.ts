@@ -1,6 +1,6 @@
 import type { Car } from "./car/car";
-import type { Lobby } from "./lobby";
-import type { Net } from "./net";
+import type { Lobby } from "./net/lobby";
+import type { Net } from "./net/net";
 import type { Race } from "./race";
 import { brand, dark, rgba } from "./theme/palette";
 import { tach } from "./car/tach";

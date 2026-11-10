@@ -1,7 +1,7 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import { WorldKind } from "./worldgen/types";
-import { kind_of_world, world_id } from "./worldgen/kinds/kinds";
+import { WorldKind } from "../worldgen/types";
+import { kind_of_world, world_id } from "../worldgen/kinds/kinds";
 import { Admission, DIRECTORY_ROOM, clean_password, locked_name, clean_room, group_servers, sanitize_announce, type Announce } from "./directory";
 
 const announce: Announce = { room: "lobby", seed: 42, host: "Alice", players: 2, locked: false, version: "0.5.1" };
