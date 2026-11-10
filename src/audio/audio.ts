@@ -1,4 +1,4 @@
-import type { EngineSound } from "./car/cars";
+import type { EngineSound } from "../car/cars";
 import engine_worklet from "./engine.worklet.ts?worker&url";
 
 export interface SoundFrame {

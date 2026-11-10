@@ -1,4 +1,4 @@
-import type { EngineSound } from "./car/cars";
+import type { EngineSound } from "../car/cars";
 import { EngineVoice, type EngineInput } from "./engine-dsp";
 
 declare const sampleRate: number;

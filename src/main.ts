@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { Audio } from "./audio";
+import { Audio } from "./audio/audio";
 import { ChaseCamera } from "./render/camera";
 import { Driver } from "./car/driver";
 import { Directory, clean_room, load_lock } from "./net/directory";

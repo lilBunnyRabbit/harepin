@@ -1,6 +1,6 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import { CARS } from "./car/cars";
+import { CARS } from "../car/cars";
 import { EngineVoice, PITCH } from "./engine-dsp";
 
 const RATE = 48000;
