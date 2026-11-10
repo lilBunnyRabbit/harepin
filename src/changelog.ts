@@ -23,6 +23,19 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.14.0",
+    date: "2026-11-10",
+    title: "Who else is here",
+    changes: [
+      { kind: NEW, text: "A small chip under the map shows how many players are on your map and online. Tap it for the Online tab." },
+      { kind: NEW, text: "Other players show on the minimap and the world map, with their names." },
+      { kind: NEW, text: "M opens the world map. The automatic gearbox toggle moves to 4." },
+      { kind: NEW, text: "You see a short note when someone joins or leaves your room." },
+      { kind: IMPROVED, text: "Keyboard steering defaults to Smooth. If you were on the old Classic default, you move to Smooth once." },
+      { kind: IMPROVED, text: "The guide and settings say plainly that turning steering assist off makes the car slide much sooner." },
+    ],
+  },
+  {
     version: "0.13.1",
     date: "2026-11-10",
     title: "Small fixes",
