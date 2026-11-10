@@ -1,9 +1,9 @@
 import * as THREE from "three";
 import { Audio } from "./audio";
 import { ChaseCamera } from "./camera";
+import { Driver } from "./driver";
 import { Directory, clean_room, load_lock } from "./directory";
-import { build_code, build_spec } from "./build";
-import { Car } from "./car";
+import { build_code } from "./build";
 import { Chat } from "./chat";
 import { Skids, Smoke } from "./effects";
 import { Garage, load_build } from "./garage";
@@ -13,17 +13,16 @@ import { Input } from "./input";
 import { Lobby, lobby_routes } from "./lobby";
 import { Modes } from "./modes/modes";
 import { race_choices } from "./modes/races";
-import { build_view, contact_shadow, dispose_car_view, gates, place_contact_shadow, roadside, show_flame, sync_car_view } from "./models";
+import { gates, place_contact_shadow, roadside, show_flame, sync_car_view } from "./models";
 import { GUIDE_PARAM, ROLLED_VISIT } from "./guide";
 import { PadMenu } from "./pad-menu";
 import { Net, WRONG_PASSWORD, type CarState } from "./net";
-import { peer_pass, type Near, type NitroSnapshot } from "./nitro";
+import { peer_pass, type Near } from "./nitro";
 import { Quality } from "./quality";
 import { brand, color, rgba, tones } from "./palette";
 import { Race } from "./race";
 import { Remotes } from "./remotes";
 import { Render } from "./render";
-import { Rewind, type RewindPart } from "./rewind";
 import { WorldView, load_world, water_mesh } from "./scene";
 import { cloud_floor, clouds, sky } from "./sky";
 import { PadTimer } from "./sky-pads";
@@ -81,13 +80,10 @@ directory.start();
 const chat = new Chat(net);
 chat.start();
 const build = load_build(params.get("car"));
-let car = new Car(build_spec(build));
-let view = build_view(build, car.spec);
-scene.add(view.root);
-const car_shadow = contact_shadow();
-scene.add(car_shadow.mesh);
-
-light.mount(view.root);
+const race = new Race(world);
+const chase = new ChaseCamera(camera);
+const pads = new PadTimer();
+const driver = new Driver(scene, light, world, race, pads, chase, build);
 
 const smoke = new Smoke();
 const skids = new Skids();
@@ -100,14 +96,12 @@ const input = new Input($("touch"), render.renderer.domElement);
 input.blocked = () => garage.is_open || settings.is_open || pad_menu.is_open;
 chat.blocked = () => garage.is_open || settings.is_open;
 input.touch.start();
-input.touch.show_nitro(car.nitro.fitted);
+input.touch.show_nitro(driver.car.nitro.fitted);
 input.mouse.start();
 const recenter = $("recenter", HTMLButtonElement);
 recenter.addEventListener("click", () => chase.recenter());
 render.renderer.domElement.addEventListener("dblclick", () => chase.recenter());
 
-const race = new Race(world);
-const chase = new ChaseCamera(camera);
 const remotes = new Remotes(scene, $("labels"), net, world);
 const lobby = new Lobby(net, lobby_routes(world.routes), world_key(seed, kind));
 lobby.start();
@@ -118,10 +112,10 @@ race.on_lap = (improved) => {
   if (lobby.route === "circuit") lobby.lap(performance.now());
 };
 function restart_lap() {
-  spawn_at(SPAWN_INDEX);
-  car.nitro.refill();
+  driver.place(driver.road_spot(SPAWN_INDEX));
+  driver.car.nitro.refill();
   race.reset();
-  rewind.clear();
+  driver.rewind.clear();
 }
 function restart_action() {
   if (modes.active) modes.restart();
@@ -170,7 +164,7 @@ const settings = new Settings(document.body, {
 }, prefs);
 
 function apply_car_settings(state: SettingsState) {
-  Object.assign(car, { tcs: state.tcs, abs: state.abs, assist: state.assist, auto: state.auto, steer_mode: state.steer_mode });
+  Object.assign(driver.car, { tcs: state.tcs, abs: state.abs, assist: state.assist, auto: state.auto, steer_mode: state.steer_mode });
 }
 
 function apply_settings(state: SettingsState) {
@@ -203,54 +197,18 @@ const WAKE_ZONE = 0.4;
 addEventListener("pointerdown", (event: PointerEvent) => {
   if (event.clientY < innerHeight * WAKE_ZONE) hud.wake();
 }, { capture: true });
-const pads = new PadTimer();
 const pad_menu = new PadMenu({ settings, chat, garage_open: () => garage.is_open });
 settings.on_nav = (nav) => pad_menu.navigate([nav]);
 garage.on_tab = (step) => settings.step_tab(step);
 garage.on_back = () => settings.back();
 
-function spawn_at(index: number, reverse = false) {
-  const p = world.road[world.clear_spawn(index, reverse ? -1 : 1)];
-  car.place(p.x, world.height(p.x, p.z) + 0.75, p.z, Math.atan2(p.tx, p.tz) + (reverse ? Math.PI : 0));
-  pads.clear();
-  chase.snap(car);
-}
-
-// Back on the last checkpoint passed, not the nearest deck: that can be a later section, and a fall would be a shortcut.
-function fall_back() {
-  const n = world.checkpoints.length;
-  const cp = world.checkpoints[(race.next - 1 + n) % n];
-  spawn_at(race.started ? world.road.indexOf(world.nearest_road(cp.x, cp.z)) : SPAWN_INDEX);
-}
-
-// In a lobby race a reset stays on the circuit; free driving drops the car on the nearest street.
-/** Speed (m/s) above which a reset faces the way the car travels rather than where its nose points. */
-const RESET_MOVING = 2;
-
-function reset() {
-  pads.clear();
-  // A spun or sideways car points across the road; the way it was travelling is what the driver meant.
-  const moving = Math.hypot(car.vel.x, car.vel.z) > RESET_MOVING;
-  const f = moving ? new THREE.Vector3(car.vel.x, 0, car.vel.z) : new THREE.Vector3(0, 0, 1).applyQuaternion(car.quat);
-  if (lobby.busy && lobby.route === "circuit") {
-    const near = world.nearest_road(car.pos.x, car.pos.z);
-    spawn_at(world.road.indexOf(near), false);
-    return;
-  }
-  const spot = world.spawn_near(car.pos.x, car.pos.z, f.x, f.z);
-  car.place(spot.x, spot.y + 0.75, spot.z, spot.heading);
-  chase.snap(car);
-}
-
 // `?debug&at=<road index>` starts the car anywhere on the circuit, for checking a stretch of track by eye.
-spawn_at((params.has("debug") && Number(params.get("at"))) || SPAWN_INDEX);
+driver.place(driver.road_spot((params.has("debug") && Number(params.get("at"))) || SPAWN_INDEX));
 
 const modes = new Modes(scene, world, SPAWN_INDEX, () => lobby.record, (x, y, z, heading) => {
-  car.place(x, y, z, heading);
-  car.nitro.refill();
-  pads.clear();
-  chase.snap(car);
-  rewind.clear();
+  driver.place({ x, y, z, heading });
+  driver.car.nitro.refill();
+  driver.rewind.clear();
 }, () => lobby.busy, () => audio.chime(), camera);
 modes.start();
 const updater = new Updater(() => lobby.busy || modes.active);
@@ -283,50 +241,16 @@ if (guide_step !== null) {
 if (prefs.name === null && matchMedia("(pointer: fine)").matches) settings.focus_name();
 
 garage.on_change = (next) => {
-  const { pos, heading } = car;
-  const tank = car.nitro;
-  car = new Car(build_spec(next));
-  car.nitro.carry(tank, lobby.busy || modes.active);
-  pads.clear();
-  car.park(pos.x, pos.z, heading, world);
+  driver.swap(next, lobby.busy || modes.active);
   apply_car_settings(settings.state);
-  input.touch.show_nitro(car.nitro.fitted);
-  scene.remove(view.root);
-  dispose_car_view(view);
-  view = build_view(next, car.spec);
-  scene.add(view.root);
-  light.mount(view.root);
-  sync_car_view(view, car);
+  input.touch.show_nitro(driver.car.nitro.fitted);
 };
 
 $("garage-btn").addEventListener("click", () => settings.open(MenuTab.GARAGE));
 $("modes-btn").addEventListener("click", () => settings.open("modes"));
 
-interface CarFrame {
-  pos: THREE.Vector3;
-  quat: THREE.Quaternion;
-  vel: THREE.Vector3;
-  ang: THREE.Vector3;
-  gear: number;
-  omega: number[];
-}
-const car_body: RewindPart<CarFrame> = {
-  snapshot: () => ({ pos: car.pos.clone(), quat: car.quat.clone(), vel: car.vel.clone(), ang: car.ang.clone(), gear: car.gear, omega: car.wheels.map((w) => w.omega) }),
-  restore(f) {
-    car.pos.copy(f.pos);
-    car.quat.copy(f.quat);
-    car.vel.copy(f.vel);
-    car.ang.copy(f.ang);
-    car.gear = f.gear;
-    car.parked = false;
-    car.wheels.forEach((w, i) => (w.omega = f.omega[i]));
-  },
-};
-const car_nitro: RewindPart<NitroSnapshot> = { snapshot: () => car.nitro.snapshot(), restore: (s) => car.nitro.restore(s) };
-const rewind = new Rewind([car_body, race, car_nitro, pads]);
-
 function rewind_step(now: number) {
-  if (rewind.step(now) && race.started) ghost.rewind_to(now - race.started);
+  if (driver.rewind.step(now) && race.started) ghost.rewind_to(now - race.started);
 }
 
 const lit = color(brand.accent);
@@ -366,6 +290,7 @@ let last_rumble = 0;
 
 // A timer, not the render loop: rAF stops in a background tab, and a silent peer gets pruned by everyone else.
 setInterval(() => {
+  const car = driver.car;
   const state: CarState = {
     id: net.id,
     name: net.name,
@@ -393,6 +318,7 @@ const NEAR_GAP = 1.2;
 const NEAR_PEER = 4;
 /** Something close this frame, and whether the pass touched it (a crash, or driving through a ghost peer). */
 function near_miss(impact: number): { near: Near; touched: boolean } {
+  const car = driver.car;
   if (!car.nitro.fitted) return { near: null, touched: false };
   const solid = world.grazes(car, NEAR_GAP);
   if (solid) return { near: solid, touched: impact > 0 };
@@ -410,7 +336,7 @@ function frame(now: number) {
   for (const action of actions) {
     if (action === "reset") {
       if (modes.active) modes.restart();
-      else reset();
+      else driver.reset(lobby.busy && lobby.route === "circuit");
     }
     if (action === "restart") restart_action();
     const state = settings.state;
@@ -422,7 +348,7 @@ function frame(now: number) {
     if (action === "shift_up" || action === "shift_down") {
       if (state.auto) hud.toast("Manual gearbox");
       settings.set("auto", false);
-      car.shift(action === "shift_up" ? 1 : -1);
+      driver.car.shift(action === "shift_up" ? 1 : -1);
     }
     if (action === "auto" || action === "tcs" || action === "abs" || action === "assist" || action === "ghost") toggle_aid(action);
     if (action === "help") settings.is_open ? settings.close() : settings.open_keys();
@@ -430,11 +356,12 @@ function frame(now: number) {
     if (action === "settings") settings.open();
     if (action === "menu") pad_menu.toggle();
   }
+  const { car, view } = driver;
 
   lobby.update(now);
   let stepped = 0;
   let simulated = false;
-  if (input.rewind && rewind.can_step && !lobby.busy && !modes.active) {
+  if (input.rewind && driver.rewind.can_step && !lobby.busy && !modes.active) {
     rewinding = true;
     rewind_step(now);
     acc = 0;
@@ -463,7 +390,7 @@ function frame(now: number) {
       chase.bump(Math.min(1, impact / 15));
       input.rumble(1, 1, true);
     }
-    rewind.record(now);
+    driver.rewind.record(now);
     if (world_view.jumps.update(dt, car).clean) {
       hud.toast("Clean!");
       audio.chime();
@@ -473,13 +400,13 @@ function frame(now: number) {
 
   const upright = new THREE.Vector3(0, 1, 0).applyQuaternion(car.quat).y;
   if (world.fallen(car.pos)) {
-    fall_back();
+    driver.fall_back();
     stuck = 0;
   }
   const drowned = world.height(car.pos.x, car.pos.z) < -0.4 && car.pos.y < 0.4;
   stuck = !rewinding && (drowned || (upright < 0.3 && car.vel.length() < 2)) ? stuck + dt : 0;
   if (stuck > 1.5) {
-    reset();
+    driver.reset(lobby.busy && lobby.route === "circuit");
     stuck = 0;
   }
 
@@ -505,7 +432,7 @@ function frame(now: number) {
   view.heads.visible = chase.mode !== 1 || chase.top;
   if (view.halo) view.halo.visible = view.heads.visible;
   chase.eye = view.eye;
-  place_contact_shadow(car_shadow, drawn.pos.x, drawn.pos.y, drawn.pos.z, car.heading, world);
+  place_contact_shadow(driver.shadow, drawn.pos.x, drawn.pos.y, drawn.pos.z, car.heading, world);
   const offroad = world.grip(car.pos.x, car.pos.z) < 1;
   chase.update(dt, drawn, world, offroad, now / 1000, input.look);
   recenter.toggleAttribute("data-shown", chase.orbited);
@@ -541,7 +468,7 @@ if (import.meta.env.DEV)
   Object.assign(window, {
     open_road: {
       get car() {
-        return car;
+        return driver.car;
       },
       garage,
       modes,
