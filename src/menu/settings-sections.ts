@@ -207,7 +207,7 @@ export function settings_sections(m: SettingsMenu): { sections: SettingsSection[
     { id: "creator", label: "Make your own theme", parent: "display", help: "Roll colours, keep the ones you like, then name and save it.", rows: () => theme_create(m) },
     { id: "themes", label: "Your themes", parent: "display", help: "Themes you made. Pick one with Theme on Display.", rows: () => saved_themes(m) },
     { id: "keys", label: "All keys and buttons", parent: "controls", help: list_help(m), rows: () => key_list(m) },
-    { id: "bindings", label: "Change keys and buttons", parent: "controls", help: "Pick an action, then press its new key or pad button. One that another action has swaps with it.", rows: () => binding_rows(m) },
+    { id: "bindings", label: "Change keys and buttons", parent: "controls", help: "Pick an action, then press its new key or pad button. Taking one from another action leaves it the rest.", rows: () => binding_rows(m) },
   ];
   return { sections, deep };
 }
@@ -251,9 +251,12 @@ function graphics(m: SettingsMenu): HTMLElement[] {
 
 function hud_wire(m: SettingsMenu): HTMLElement {
   const layout = HUD_LAYOUTS.find((option) => option.value === m.state().hud) ?? HUD_LAYOUTS[0];
+  const map = m.state().map;
   const frame = el("span", "hud-wire");
   frame.setAttribute("aria-hidden", "true");
-  for (const [part, x, y, w, h] of layout.wire) {
+  for (const [part, x, y, w, tall] of layout.wire) {
+    if (part === "map" && map === MapView.OFF) continue;
+    const h = part === "map" && map === MapView.PACE ? tall / 2 : tall;
     const box = el("span", `hud-wire-${part}`);
     box.style.inset = `${y}% ${100 - x - w}% ${100 - y - h}% ${x}%`;
     frame.append(box);
@@ -336,6 +339,7 @@ function display(m: SettingsMenu): HTMLElement[] {
       () => `${MAP_VIEWS[m.state().map][1]}.`,
       m.value("map"),
       Object.values(MapView).map((view) => [view, MAP_VIEWS[view][0]] as const),
+      () => hud_wire(m),
     ),
     theme,
     m.rows.link("Make your own theme", "Roll colours, keep the ones you like, then name and save it.", "Roll, adjust, save", () => m.show_sub("creator")),

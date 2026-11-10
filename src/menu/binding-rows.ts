@@ -64,7 +64,7 @@ export function binding_rows(m: SettingsMenu): HTMLElement[] {
     const control = el("span", "row-bind");
     control.append(note, keys);
     const prompt = pad_bindable(action) ? "Press a key or button" : "Press a key";
-    const help = pad_bindable(action) ? "Pick it, then press the new key or pad button. Esc or Start cancels; one another action has swaps with it." : "Pick it, then press the new key. Esc cancels; a key another action has swaps with it.";
+    const help = pad_bindable(action) ? "Pick it, then press the new key or pad button. Esc or Start cancels. Taking one from another action leaves it the rest." : "Pick it, then press the new key. Esc cancels. Taking a key from another action leaves it the rest.";
     const row = m.rows.action(label, help, control, () =>
       waiting === action ? stop() : start(action),
     );
