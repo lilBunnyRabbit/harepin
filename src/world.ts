@@ -4,7 +4,7 @@ import { COUPE, type CarSpec } from "./cars";
 import { DeckIndex } from "./worldgen/deck";
 import { sample, slope_normal } from "./worldgen/field";
 import { generate } from "./worldgen/index";
-import { ramp_surface, spawn_blocks, type Surface } from "./worldgen/jumps";
+import { ramp_reach2, ramp_surface, spawn_blocks, type Surface } from "./worldgen/jumps";
 import { FALL_DEPTH } from "./worldgen/sky";
 import { CELL, DIRT, N, ROAD_HALF, RouteKind, SIZE, type WorldKind } from "./worldgen/types";
 import type {
@@ -168,6 +168,8 @@ export class World implements Ground {
   private readonly no_spawn: Uint8Array;
   /** Offroad routes a reset can land on, after the graph's edges in the lane grid, with the points no car is put down on. */
   private readonly trails: { points: RoadPoint[]; blocked: Uint8Array }[];
+  /** Ramps a car rides as wedges, with `ramp_reach2` so a height query skips the far ones. */
+  private readonly wedges: { ramp: Ramp; reach2: number }[];
   private query = 0;
 
   /** `data` is `generate(seed)`, passed in when a worker already ran it. */
@@ -197,6 +199,7 @@ export class World implements Ground {
     this.routes = data.routes;
     this.timings = data.timings;
     this.seen = new Uint32Array(this.solids.length);
+    this.wedges = this.ramps.filter((r) => !r.deck).map((ramp) => ({ ramp, reach2: ramp_reach2(ramp) }));
     this.no_spawn = spawn_blocks(this.road, this.ramps, this.challenges);
     this.trails = this.routes.filter((r) => r.kind === RouteKind.OFFROAD).map((r) => ({ points: r.points, blocked: spawn_blocks(r.points, this.ramps, this.challenges) }));
     this.solids.forEach((solid, index) => this.index_solid(solid, index));
@@ -260,9 +263,11 @@ export class World implements Ground {
 
   private ramp_at(x: number, z: number): Surface | null {
     let top: Surface | null = null;
-    for (const r of this.ramps) {
-      if (r.deck) continue;
-      const s = ramp_surface(r, x, z);
+    for (const { ramp, reach2 } of this.wedges) {
+      const dx = x - ramp.x;
+      const dz = z - ramp.z;
+      if (dx * dx + dz * dz > reach2) continue;
+      const s = ramp_surface(ramp, x, z);
       if (s && (!top || s.y > top.y)) top = s;
     }
     return top;

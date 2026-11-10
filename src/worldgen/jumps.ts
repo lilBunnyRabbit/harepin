@@ -62,9 +62,15 @@ export interface Surface {
 }
 
 export function ramp_local(r: Ramp, x: number, z: number): [number, number] {
-  const dx = x - r.x;
-  const dz = z - r.z;
-  return [dx * r.fz - dz * r.fx, dx * r.fx + dz * r.fz];
+  return [local_u(r, x, z), local_v(r, x, z)];
+}
+
+function local_u(r: Ramp, x: number, z: number): number {
+  return (x - r.x) * r.fz - (z - r.z) * r.fx;
+}
+
+function local_v(r: Ramp, x: number, z: number): number {
+  return (x - r.x) * r.fx + (z - r.z) * r.fz;
 }
 
 export function ramp_world(r: Ramp, u: number, v: number): [number, number] {
@@ -72,8 +78,24 @@ export function ramp_world(r: Ramp, u: number, v: number): [number, number] {
 }
 
 export function ramp_extent(r: Ramp): { reach: number; from: number; to: number } {
-  if (r.kind === "landing") return { reach: r.hw + BURY / SIDE, from: 0, to: r.length };
-  return { reach: r.hw + (r.rise + BURY) / SIDE, from: (-BURY * r.length) / r.rise, to: r.length + (r.rise + BURY) / (r.back ?? BACK) };
+  return { reach: extent_reach(r), from: extent_from(r), to: extent_to(r) };
+}
+
+function extent_reach(r: Ramp): number {
+  return r.kind === "landing" ? r.hw + BURY / SIDE : r.hw + (r.rise + BURY) / SIDE;
+}
+
+function extent_from(r: Ramp): number {
+  return r.kind === "landing" ? 0 : (-BURY * r.length) / r.rise;
+}
+
+function extent_to(r: Ramp): number {
+  return r.kind === "landing" ? r.length : r.length + (r.rise + BURY) / (r.back ?? BACK);
+}
+
+/** Squared radius around (r.x, r.z) outside which `ramp_surface` is always null. */
+export function ramp_reach2(r: Ramp): number {
+  return (extent_reach(r) + Math.max(Math.abs(extent_from(r)), Math.abs(extent_to(r)))) ** 2;
 }
 
 // Planar on every cell of the grid u = ±hw, v = length: the mesh drawn on that grid is exactly the surface physics rides.
@@ -84,9 +106,9 @@ export function ramp_lift(r: Ramp, u: number, v: number): number {
 
 /** The ground is the higher of this and terrain. */
 export function ramp_surface(r: Ramp, x: number, z: number): Surface | null {
-  const [u, v] = ramp_local(r, x, z);
-  const { reach, from, to } = ramp_extent(r);
-  if (v < from || v > to || Math.abs(u) > reach) return null;
+  const u = local_u(r, x, z);
+  const v = local_v(r, x, z);
+  if (v < extent_from(r) || v > extent_to(r) || Math.abs(u) > extent_reach(r)) return null;
   const dv = r.grade + (v <= r.length ? r.rise / r.length : -(r.back ?? BACK));
   const du = Math.abs(u) > r.hw ? -SIDE * Math.sign(u) : 0;
   return { y: r.y + r.grade * v + ramp_lift(r, u, v), gx: dv * r.fx + du * r.fz, gz: dv * r.fz - du * r.fx };
