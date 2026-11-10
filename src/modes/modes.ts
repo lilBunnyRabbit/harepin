@@ -71,6 +71,7 @@ export class Modes {
   private high = true;
   private abort: AbortController | null = null;
   private status_key = "";
+  private notice_until = 0;
   private readonly el = {
     hint: $("mode-hint"),
     status: $("mode-status"),
@@ -267,7 +268,8 @@ export class Modes {
       active.shown = true;
       this.show_result(finish, active);
     }
-    if (status !== null) this.show_status(status);
+    // A notice holds the status line for its time against the run's own status.
+    if (status !== null && performance.now() >= this.notice_until) this.show_status(status);
   }
 
   private show_hint(turn: number) {
@@ -283,6 +285,7 @@ export class Modes {
       return;
     }
     this.show_status(text);
+    this.notice_until = performance.now() + NOTICE_MS;
     setTimeout(() => {
       if (this.status_key === text && !this.active) this.el.status.hidden = true;
     }, NOTICE_MS);
