@@ -1,6 +1,7 @@
 import { $ } from "../hud/hud";
 import { typing } from "../hud/input";
 import type { Net } from "./net";
+import "./chat.css";
 
 const BUBBLES = 6;
 const HISTORY = 100;
