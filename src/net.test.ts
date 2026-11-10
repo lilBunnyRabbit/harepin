@@ -1,6 +1,6 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import { RateLimit, WRONG_PASSWORD, clean_name, leader_of, join_error_status, most_common, parse_seed, sanitize, sanitize_chat, sanitize_event } from "./net";
+import { RateLimit, WRONG_PASSWORD, clean_name, leader_of, join_error_status, most_common, parse_seed, sanitize, sanitize_chat, sanitize_event, sanitize_hello } from "./net";
 
 test("chat text is stripped of control characters, trimmed and capped", () => {
   expect(sanitize_chat({ text: "  hi\u0000​ there\n ", t: 1 })).toEqual({ text: "hi there", t: 1 });
@@ -108,4 +108,16 @@ test("leader: lowest id among this player and its same-map peers", () => {
   expect(leader_of("m", ["n", "z"])).toBe("m");
   expect(leader_of("m", ["b", "z"])).toBe("b");
   expect(leader_of("m", [])).toBe("m");
+});
+
+test("hello: whole protocol, semver version, real world and uint32 seed", () => {
+  const hello = { protocol: 1, version: "0.11.0", world: 2, seed: 42 };
+  expect(sanitize_hello({ ...hello, extra: "x" })).toEqual(hello);
+  expect(sanitize_hello({ ...hello, protocol: 1.5 })).toBeNull();
+  expect(sanitize_hello({ ...hello, protocol: -1 })).toBeNull();
+  expect(sanitize_hello({ ...hello, version: "v0.11" })).toBeNull();
+  expect(sanitize_hello({ ...hello, version: "0.11.0<b>" })).toBeNull();
+  expect(sanitize_hello({ ...hello, world: 0 })).toBeNull();
+  expect(sanitize_hello({ ...hello, seed: 2 ** 32 })).toBeNull();
+  expect(sanitize_hello("hi")).toBeNull();
 });

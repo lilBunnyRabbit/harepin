@@ -29,6 +29,9 @@ export type CarState = {
 
 export type ChatMsg = { text: string; t: number };
 
+/** Sent once to each peer as it joins. `world` is the sender's `world_id`, `seed` its map seed. */
+export type Hello = { protocol: number; version: string; world: number; seed: number };
+
 /**
  * `start_at` is in the sender's `performance.now()` clock; receivers shift it by their `Sender.offset`. `route` is a
  * `Route.id`; peers that predate it send none and mean the circuit.
@@ -102,6 +105,15 @@ const ID_SUFFIX = 4;
 export const APP_ID = "lilbunnyrabbit-harepin";
 export const MAX_SEED = 0xffffffff;
 export const MAX_LAPS = 10;
+/**
+ * Wire protocol of this build. Bump it when peers on different protocols can no longer play together. A peer that never
+ * says hello predates it: `LEGACY_PROTOCOL`, on `LEGACY_VERSION` or older.
+ */
+export const PROTOCOL = 1;
+export const LEGACY_PROTOCOL = 0;
+export const LEGACY_VERSION = "0.10.0";
+const MAX_PROTOCOL = 1e6;
+const SEMVER = /^\d{1,6}\.\d{1,6}\.\d{1,6}$/;
 const MAX_RACE_MS = 1e7;
 
 const finite = (v: unknown, limit: number): v is number => typeof v === "number" && Number.isFinite(v) && Math.abs(v) <= limit;
@@ -181,6 +193,16 @@ export function sanitize_event(raw: unknown): RaceEvent | null {
   return null;
 }
 
+const uint = (v: unknown, limit: number): v is number => finite(v, limit) && Number.isInteger(v) && v >= 0;
+
+export function sanitize_hello(raw: unknown): Hello | null {
+  if (!raw || typeof raw !== "object") return null;
+  const h = raw as Record<string, unknown>;
+  if (!uint(h.protocol, MAX_PROTOCOL) || typeof h.version !== "string" || !SEMVER.test(h.version)) return null;
+  if (!uint(h.world, MAX_SEED) || h.world === 0 || !uint(h.seed, MAX_SEED)) return null;
+  return { protocol: h.protocol, version: h.version, world: h.world, seed: h.seed };
+}
+
 export function sanitize_chat(raw: unknown): ChatMsg | null {
   if (!raw || typeof raw !== "object") return null;
   const m = raw as Record<string, unknown>;
@@ -204,11 +226,14 @@ export class Net {
   readonly foreign = new Map<string, Foreign>();
   /** Peers on this map, by id. Uncapped, unlike `remotes`, so every player elects the same leader and hears its race events. */
   readonly same_map = new Map<string, Sighting>();
+  /** What each peer said about its build as it joined; see `protocol_of`. */
+  readonly hellos = new Map<string, Hello>();
   status = "connecting";
   private readonly link: Link;
   private readonly cars: Channel<CarState>;
   private readonly chats: Channel<ChatMsg>;
   private readonly events: Channel<RaceEvent>;
+  private readonly hello: Channel<Hello>;
   private own_chat_limit = new RateLimit(OWN_CHAT_GAP_MS, OWN_CHAT_BURST);
 
   private name_: string;
@@ -225,6 +250,8 @@ export class Net {
     private readonly lock: RoomLock | null = null,
     /** Map identity stamped as `w`: `world_id` of the world kind. */
     readonly world = WORLD_VERSION,
+    /** `package.json` version, sent in the hello. */
+    readonly version = "0.0.0",
     join = joinRoom,
   ) {
     this.name_ = clean_name(name);
@@ -247,11 +274,14 @@ export class Net {
     this.cars = this.link.channel("car", sanitize);
     this.chats = this.link.channel("chat", sanitize_chat, () => new RateLimit());
     this.events = this.link.channel("event", sanitize_event, () => new RateLimit());
+    this.hello = this.link.channel("hello", sanitize_hello);
     this.cars.subscribe((state) => this.receive(state));
+    this.hello.subscribe((hello, sender) => this.hellos.set(sender, hello));
     if (!p2p) return;
     p2p.onPeerJoin = (peer) => {
       this.peer_ids.add(peer);
       this.had_peer = true;
+      this.hello.send({ protocol: PROTOCOL, version: this.version, world: this.world, seed: this.seed }, peer);
       this.status = "online";
     };
     p2p.onPeerLeave = (peer) => {
@@ -260,7 +290,13 @@ export class Net {
       this.remotes.delete(peer);
       this.same_map.delete(peer);
       this.link.forget(peer);
+      this.hellos.delete(peer);
     };
+  }
+
+  /** Peers that never said hello run `LEGACY_PROTOCOL`; one whose hello is still in flight reads as legacy too. */
+  protocol_of(id: string): number {
+    return this.hellos.get(id)?.protocol ?? LEGACY_PROTOCOL;
   }
 
   get peers(): number {

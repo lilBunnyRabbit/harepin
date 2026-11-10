@@ -1,17 +1,27 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
 import type { Room, joinRoom } from "trystero";
-import { Net, type RaceEvent, type Sender } from "./net";
+import { LEGACY_PROTOCOL, Net, PROTOCOL, type RaceEvent, type Sender } from "./net";
 
 type Receive = (data: unknown, meta: { peerId: string }) => void;
 
+interface Sent {
+  name: string;
+  data: unknown;
+  target: unknown;
+}
+
 function fake_room() {
   const receivers = new Map<string, Receive>();
+  const sent: Sent[] = [];
   const room = {
     onPeerJoin: null as ((peer: string) => void) | null,
     onPeerLeave: null as ((peer: string) => void) | null,
     makeAction: (name: string) => ({
-      send: () => Promise.resolve(),
+      send: (data: unknown, options?: { target?: unknown }) => {
+        sent.push({ name, data, target: options?.target });
+        return Promise.resolve();
+      },
       set onMessage(fn: Receive) {
         receivers.set(name, fn);
       },
@@ -19,13 +29,13 @@ function fake_room() {
   };
   const join = (() => room as unknown as Room) as typeof joinRoom;
   const hear = (name: string, data: unknown, peerId: string) => receivers.get(name)?.(data, { peerId });
-  return { room, join, hear };
+  return { room, join, hear, sent };
 }
 
 let rooms = 0;
 function net_on(seed: number) {
   const fake = fake_room();
-  const net = new Net(`test-${rooms++}`, seed, "Me", null, 1, fake.join);
+  const net = new Net(`test-${rooms++}`, seed, "Me", null, 1, "0.11.0", fake.join);
   return { net, ...fake };
 }
 
@@ -59,4 +69,22 @@ test("race events come from any same-map peer, past the car cap too, never from 
     ["p00", "P0"],
     ["p19", "P19"],
   ]);
+});
+
+test("a joining peer gets a hello, and only that peer", () => {
+  const { room, sent } = net_on(7);
+  room.onPeerJoin?.("new");
+  expect(sent).toEqual([{ name: "hello", data: { protocol: PROTOCOL, version: "0.11.0", world: 1, seed: 7 }, target: "new" }]);
+});
+
+test("a peer's protocol is what its hello said; none, a bad one or a departed peer reads as legacy", () => {
+  const { net, room, hear } = net_on(7);
+  hear("hello", { protocol: 3, version: "0.12.0", world: 1, seed: 7 }, "newer");
+  hear("hello", { protocol: "2", version: "0.12.0", world: 1, seed: 7 }, "bad");
+  expect(net.protocol_of("newer")).toBe(3);
+  expect(net.hellos.get("newer")?.version).toBe("0.12.0");
+  expect(net.protocol_of("bad")).toBe(LEGACY_PROTOCOL);
+  expect(net.protocol_of("old")).toBe(LEGACY_PROTOCOL);
+  room.onPeerLeave?.("newer");
+  expect(net.protocol_of("newer")).toBe(LEGACY_PROTOCOL);
 });
