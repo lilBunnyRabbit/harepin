@@ -36,7 +36,7 @@ Run `typecheck` and `build` before every commit. A change to `car.ts`, `world.ts
 
 ## Versioning
 
-Semver, and `package.json` `version` is the only source. The build stamps it into the bundle (`__HAREPIN_VERSION__`) and into `dist/version.json` with the newest releases from `src/changelog.ts`; `src/update.ts` shows them when a new service worker is waiting.
+Semver, and `package.json` `version` is the only source. The build stamps it into the bundle (`__HAREPIN_VERSION__`) and into `dist/version.json` with the newest releases from `src/changelog.ts`; `src/menu/update.ts` shows them when a new service worker is waiting.
 
 - A release is one `feat:`/`fix:` commit (or a run of them) plus a bump: `fix:` → patch, `feat:` → minor, a save or room format that old builds can't read → major. `refactor:`/`chore:`/`docs:` alone don't bump.
 - Bump `package.json` and add an entry at the top of `CHANGELOG` in `src/changelog.ts` in the same commit: version, date, a short title, one line per change the player would notice, written for the player (`NEW`, `IMPROVED`, `FIXED`). `src/version.test.ts` fails when the two disagree.

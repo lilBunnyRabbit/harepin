@@ -1,6 +1,6 @@
 import { build_code, type Build } from "../car/build";
 import type { Driver } from "../car/driver";
-import type { Garage } from "../garage";
+import type { Garage } from "../menu/garage";
 import type { CarState, Net } from "./net";
 import type { Race } from "../race";
 

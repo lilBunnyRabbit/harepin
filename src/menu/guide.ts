@@ -1,11 +1,11 @@
-import { SteerMode } from "./car/car";
+import { SteerMode } from "../car/car";
 import { AidPreset, preset_aids, preset_of, random_name, rolled_name } from "./guide-rules";
-import { generate_theme } from "./theme/random-theme";
+import { generate_theme } from "../theme/random-theme";
 import { el, icon } from "./setting-rows";
-import { TouchSteer, type SettingKey, type SettingsState } from "./menu/prefs";
-import { THEMES, choose_theme, current_theme, derive_theme, find_saved, find_theme, load_saved_themes, store_saved_themes, with_saved, without_saved } from "./theme/theme";
-import type { WorldKind } from "./worldgen/types";
-import { WORLDS } from "./worlds/worlds";
+import { TouchSteer, type SettingKey, type SettingsState } from "./prefs";
+import { THEMES, choose_theme, current_theme, derive_theme, find_saved, find_theme, load_saved_themes, store_saved_themes, with_saved, without_saved } from "../theme/theme";
+import type { WorldKind } from "../worldgen/types";
+import { WORLDS } from "../worlds/worlds";
 import "./guide.css";
 
 export const GUIDE_STEPS = [

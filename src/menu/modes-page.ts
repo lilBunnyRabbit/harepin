@@ -1,5 +1,5 @@
 import { MAX_STARS } from "../modes/track";
-import { el, icon } from "../setting-rows";
+import { el, icon } from "./setting-rows";
 import { MenuTab, type Menu, type MenuPage } from "./page";
 import { action } from "./widgets";
 

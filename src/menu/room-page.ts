@@ -1,6 +1,6 @@
 import { PASSWORD_LENGTH, ROOM_LENGTH, clean_password, clean_room, locked_name, save_lock } from "../net/directory";
 import { parse_seed } from "../net/net";
-import { el } from "../setting-rows";
+import { el } from "./setting-rows";
 import { MenuTab, type Menu, type MenuPage } from "./page";
 import { invalid, password_input, random_seed, row } from "./widgets";
 

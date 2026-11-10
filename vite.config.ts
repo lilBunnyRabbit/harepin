@@ -58,7 +58,7 @@ export default defineConfig({
   plugins: [
     version_file(),
     VitePWA({
-      // prompt: a new build waits until the player picks Update now (src/update.ts), so nothing reloads mid-race.
+      // prompt: a new build waits until the player picks Update now (src/menu/update.ts), so nothing reloads mid-race.
       registerType: "prompt",
       injectRegister: false,
       // Relative, so the worker controls /harepin/ only: WebOS and Series Tracker share the origin.

@@ -1,7 +1,7 @@
 /// <reference types="vite-plugin-pwa/client" />
 import { registerSW } from "virtual:pwa-register";
-import { CHANGELOG, ChangeKind, type Release } from "./changelog";
-import { newer_releases, parse_version_file, type RemoteVersion, type VersionInfo } from "./version";
+import { CHANGELOG, ChangeKind, type Release } from "../changelog";
+import { newer_releases, parse_version_file, type RemoteVersion, type VersionInfo } from "../version";
 import "./update.css";
 
 declare const __HAREPIN_VERSION__: VersionInfo;

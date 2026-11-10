@@ -1,10 +1,10 @@
-import { brand, linear, rgba, tones } from "./theme/palette";
-import { sky_tones } from "./sky";
-import { mesh_tones } from "./scene";
-import { MAP_SIDE, MapLineKind, map_data, type MapData, type MapMark, type MapTones } from "./worldgen/map";
-import type { MapRequest } from "./worldgen/map-worker";
-import type { WorldData, WorldKind } from "./worldgen/types";
-import { WORLDS } from "./worlds/worlds";
+import { brand, linear, rgba, tones } from "../theme/palette";
+import { sky_tones } from "../sky";
+import { mesh_tones } from "../scene";
+import { MAP_SIDE, MapLineKind, map_data, type MapData, type MapMark, type MapTones } from "../worldgen/map";
+import type { MapRequest } from "../worldgen/map-worker";
+import type { WorldData, WorldKind } from "../worldgen/types";
+import { WORLDS } from "../worlds/worlds";
 import "./world-map.css";
 
 const DEBOUNCE_MS = 300;
@@ -72,7 +72,7 @@ export class WorldMap {
     if (this.loaded?.terrain.seed === seed && this.loaded.kind === kind) return void this.receive(map_data(this.loaded, map_tones()));
     // A generation can't be cancelled from outside, so a stale one is dropped with its worker.
     this.worker?.terminate();
-    const worker = new Worker(new URL("./worldgen/map-worker.ts", import.meta.url), { type: "module" });
+    const worker = new Worker(new URL("../worldgen/map-worker.ts", import.meta.url), { type: "module" });
     this.worker = worker;
     worker.addEventListener("message", (event: MessageEvent<MapData>) => {
       worker.terminate();

@@ -1,5 +1,5 @@
 import { PASSWORD_LENGTH } from "../net/directory";
-import { el } from "../setting-rows";
+import { el } from "./setting-rows";
 import type { MenuTab } from "./page";
 
 export const COPIED_MS = 2000;

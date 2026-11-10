@@ -21,13 +21,13 @@ import {
   type Slot,
   type SlotView,
   type Stats,
-} from "./car/build";
-import { BUILD_NAME_LENGTH, free_build_name, load_builds, renamed, store_builds, with_build, without_build, type SavedBuild } from "./car/builds";
-import { CARS, is_car } from "./car/cars";
-import { typing, type Nav } from "./input";
-import { FLAME, SIDE_BAND, SLASH } from "./car/livery";
-import { build_view, contact_shadow, dispose_car_view, livery_of, rest_wheels, type CarView } from "./car/models";
-import { NEUTRAL_INKS, brand, car_paints, color, dark, decal_inks, rgba } from "./theme/palette";
+} from "../car/build";
+import { BUILD_NAME_LENGTH, free_build_name, load_builds, renamed, store_builds, with_build, without_build, type SavedBuild } from "../car/builds";
+import { CARS, is_car } from "../car/cars";
+import { typing, type Nav } from "../input";
+import { FLAME, SIDE_BAND, SLASH } from "../car/livery";
+import { build_view, contact_shadow, dispose_car_view, livery_of, rest_wheels, type CarView } from "../car/models";
+import { NEUTRAL_INKS, brand, car_paints, color, dark, decal_inks, rgba } from "../theme/palette";
 import "./garage.css";
 
 export const BUILD_KEY = "harepin:build";

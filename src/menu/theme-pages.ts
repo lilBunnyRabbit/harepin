@@ -1,6 +1,6 @@
 import { Harmony, generate_theme, is_dark, type ThemeMode } from "../theme/random-theme";
 import { mulberry32 } from "../rng";
-import { el, icon, type Value } from "../setting-rows";
+import { el, icon, type Value } from "./setting-rows";
 import {
   THEMES,
   THEME_NAME_LENGTH,
