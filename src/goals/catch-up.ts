@@ -35,7 +35,7 @@ export function proven(saved: Iterable<[string, string]>, now: Now, mode_ids: re
   const ids = new Set<string>(build_goals(now.build));
   if (now.kind === WorldKind.SKY) ids.add(GoalId.SKY);
   if (now.cockpit) ids.add(GoalId.CAMERA);
-  const worlds = new Set<string>();
+  const seeds = new Set<string>();
   for (const [key, text] of saved) {
     if (key === BUILDS_KEY && parse_builds(json(text)).length) ids.add(GoalId.BUILD);
     let world: string | null = null;
@@ -50,10 +50,10 @@ export function proven(saved: Iterable<[string, string]>, now: Now, mode_ids: re
       world = key.slice(prefix.length);
     }
     if (world === null) continue;
-    worlds.add(world);
+    seeds.add(world.split(":")[0]);
     if (world.includes(SKY_MARK)) ids.add(GoalId.SKY);
   }
-  if (worlds.size > 1) ids.add(GoalId.NEW_MAP);
+  if (seeds.size > 1) ids.add(GoalId.NEW_MAP);
   return [...ids];
 }
 

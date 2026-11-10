@@ -18,25 +18,32 @@ function progress(menu: Menu): { done: number; text: string; bar: HTMLElement } 
   return { done, text: `${done} / ${GOALS.length}`, bar };
 }
 
-function keep_drawn(menu: Menu, draw: () => void) {
+function keep_drawn(menu: Menu, root: HTMLElement, draw: () => void) {
   let drawn = "";
   menu.sync(() => {
     const key = `${menu.host.goals.version}|${GOALS.map((goal) => hint_of(menu, goal)).join("|")}`;
     if (key === drawn) return;
     drawn = key;
+    const active = document.activeElement;
+    const held = active instanceof HTMLElement && root.contains(active) ? active : null;
+    const visible = held?.matches(":focus-visible") ?? false;
     draw();
+    if (!held) return;
+    const again = root.querySelector<HTMLElement>(`[data-focus="${held.dataset.focus}"]`) ?? root.querySelector<HTMLElement>("[data-focus]");
+    again?.focus({ focusVisible: visible });
   });
 }
 
 export function goals_card(menu: Menu, go: (to: GoTo) => void): HTMLElement {
   const card = el("div", "menu-tile goals-card");
   card.dataset.area = "goals";
-  keep_drawn(menu, () => {
+  keep_drawn(menu, card, () => {
     const { done, text, bar } = progress(menu);
     const head = el("div", "goals-head");
     const all = el("button", "goals-all");
     all.type = "button";
     all.dataset.section = "goals";
+    all.dataset.focus = "all";
     all.append(el("span", "", "See all"), icon("icon-back"));
     head.append(el("span", "menu-eyebrow", "Things to try"), el("span", "goals-count", text), bar, all);
     const next = el("div", "goals-next");
@@ -44,6 +51,7 @@ export function goals_card(menu: Menu, go: (to: GoTo) => void): HTMLElement {
     for (const goal of open) {
       const pick = el("button", "goals-pick");
       pick.type = "button";
+      pick.dataset.focus = goal.id;
       const words = el("span", "goals-words");
       words.append(el("b", "", goal.title), el("span", "", hint_of(menu, goal)));
       pick.append(words, el("span", "goals-go", "Go"));
@@ -72,7 +80,7 @@ export class GoalsPage implements MenuPage {
     private readonly menu: Menu,
     private readonly go: (to: GoTo) => void,
   ) {
-    keep_drawn(menu, () => this.render());
+    keep_drawn(menu, this.root, () => this.render());
   }
 
   build(): HTMLElement[] {
@@ -102,6 +110,7 @@ export class GoalsPage implements MenuPage {
       if (!finished) {
         const button = el("button", "settings-action goals-row-go", "Go");
         button.type = "button";
+        button.dataset.focus = goal.id;
         button.setAttribute("aria-label", `Go: ${goal.title}`);
         button.addEventListener("click", () => this.go(goal.go));
         row.append(button);

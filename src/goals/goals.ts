@@ -125,10 +125,11 @@ export class Goals {
   }
 
   /** Marks what saved data already proves, without a toast: a returning player doesn't start at zero. */
-  catch_up(ids: Iterable<string>) {
+  catch_up(proven: () => Iterable<string>) {
+    if (this.count === GOALS.length) return;
     const on_done = this.on_done;
     this.on_done = null;
-    for (const id of ids) {
+    for (const id of proven()) {
       if (id.startsWith(MODE_PART)) this.played(id.slice(MODE_PART.length));
       else {
         const goal = GOALS.find((g) => g.id === id);

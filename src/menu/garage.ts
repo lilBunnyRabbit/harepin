@@ -24,6 +24,7 @@ const KEY_NAV: Record<string, Nav> = {
 
 export class Garage {
   on_change: ((build: Build) => void) | null = null;
+  on_save: (() => void) | null = null;
   /** The garage is the menu's Garage tab: LB / RB and Back belong to the menu. */
   on_tab: ((step: number) => void) | null = null;
   on_back: (() => void) | null = null;
@@ -164,6 +165,7 @@ export class Garage {
     const name = typed.trim() || free_build_name(this.builds, CARS[this.current.car].name);
     const next = with_build(this.builds, name, build_code(this.current));
     if (!next || !store_builds(next)) return;
+    this.on_save?.();
     this.builds = next;
     this.tab = BUILDS_TAB;
     this.refresh();

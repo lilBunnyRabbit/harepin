@@ -47,7 +47,7 @@ test("catch up marks without a toast", () => {
   const goals = new Goals(memory(), MODES);
   let toasts = 0;
   goals.on_done = () => toasts++;
-  goals.catch_up(["lap", "mode:race", "mode:drift", "bogus"]);
+  goals.catch_up(() => ["lap", "mode:race", "mode:drift", "bogus"]);
   expect(toasts).toBe(0);
   expect(goals.count).toBe(2);
   goals.done(GoalId.SKY);
@@ -71,4 +71,26 @@ test("saved records prove goals", () => {
 test("a build shows what was changed in the garage", () => {
   expect(build_goals(DEFAULT_BUILD)).toEqual([]);
   expect(build_goals({ ...DEFAULT_BUILD, car: "bus", paint: 3, parts: { ...DEFAULT_BUILD.parts, engine: 2 } })).toEqual(["car", "bus", "tune", "paint"]);
+});
+
+test("one map number on both worlds is not a new map", () => {
+  const ids = proven(
+    [
+      ["harepin:best:42:w3", "61234"],
+      ["harepin:best:42:sky3", "51234"],
+    ],
+    { kind: WorldKind.ISLAND, build: DEFAULT_BUILD, cockpit: false },
+    MODES,
+  );
+  expect(ids).not.toContain("new_map");
+});
+
+test("catch up skips the scan once every goal is done", () => {
+  const goals = new Goals(memory({ [GOALS_KEY]: JSON.stringify(GOALS.map((goal) => goal.id)) }), MODES);
+  let scanned = false;
+  goals.catch_up(() => {
+    scanned = true;
+    return [];
+  });
+  expect(scanned).toBe(false);
 });

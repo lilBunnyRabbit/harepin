@@ -20,6 +20,7 @@ import { MODES, Modes } from "./modes/modes";
 import { local_store } from "./modes/track";
 import { GoalId, Goals } from "./goals/goals";
 import { build_goals, proven, saved_entries } from "./goals/catch-up";
+import { ToastQueue } from "./goals/toast-queue";
 import { race_choices } from "./modes/races";
 import { gates } from "./car/trackside";
 import { GUIDE_PARAM, ROLLED_VISIT } from "./menu/guide";
@@ -99,7 +100,7 @@ chat.start();
 const build = load_build(params.get("car"));
 const mode_ids = MODES.map((mode) => mode.id);
 const goals = new Goals(local_store(), mode_ids);
-goals.catch_up(proven(saved_entries(), { kind, build, cockpit: prefs.camera === CameraView.COCKPIT }, mode_ids));
+goals.catch_up(() => proven(saved_entries(), { kind, build, cockpit: prefs.camera === CameraView.COCKPIT }, mode_ids));
 const race = new Race(world);
 const chase = new ChaseCamera(camera);
 const pads = new PadTimer();
@@ -126,7 +127,8 @@ const remotes = new Remotes(scene, $("labels"), net, world);
 const lobby = new Lobby(net, lobby_routes(world.routes), world_key(seed, kind));
 lobby.start();
 const hud = new Hud(world, race, net, room, lobby);
-goals.on_done = (goal) => hud.toast(`Goal done: ${goal.title}`);
+const goal_toasts = new ToastQueue((text) => hud.toast(text), () => $("toast").dataset.shown !== undefined);
+goals.on_done = (goal) => goal_toasts.push(`Goal done: ${goal.title}`);
 const ghost = new Ghost(scene, world.seed, `harepin:ghost:${world_key(world.seed, kind)}`);
 race.on_lap = (improved, first) => {
   goals.done(improved && !first ? GoalId.BEST : GoalId.LAP);
@@ -291,6 +293,7 @@ if (guide_step !== null) {
 // Typing a name on a phone would raise the keyboard over the menu, so only a mouse and keyboard get the cursor.
 if (prefs.name === null && matchMedia("(pointer: fine)").matches) settings.focus_name();
 
+garage.on_save = () => goals.done(GoalId.BUILD);
 garage.on_change = (next) => {
   for (const id of build_goals(next)) goals.done(id);
   driver.swap(next, lobby.busy || modes.active);
