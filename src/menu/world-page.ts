@@ -3,7 +3,7 @@ import { el, icon } from "./setting-rows";
 import { WorldMap } from "./world-map";
 import type { MapData } from "../worldgen/map";
 import type { WorldKind } from "../worldgen/types";
-import { WORLDS } from "../worlds/worlds";
+import { LISTED, WORLDS } from "../worlds/worlds";
 import { MenuTab, invite_link, type Menu, type MenuPage } from "./page";
 import { COPIED_MS, picture, random_seed } from "./widgets";
 import { GoalId } from "../goals/goals";
@@ -58,7 +58,7 @@ export class WorldPage implements MenuPage {
     const worlds = el("div", "map-worlds");
     worlds.setAttribute("role", "radiogroup");
     worlds.setAttribute("aria-label", "World");
-    const world_buttons = Object.values(WORLDS).map(({ kind }) => {
+    const world_buttons = LISTED.map(({ kind }) => {
       const button = el("button", "map-world");
       button.type = "button";
       button.setAttribute("role", "radio");

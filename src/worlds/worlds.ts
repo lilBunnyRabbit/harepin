@@ -7,3 +7,6 @@ import type { WorldDef } from "./world-def";
 
 /** In menu order. */
 export const WORLDS: Record<WorldKind, WorldDef> = { island, sky, desert, mainland };
+
+/** The worlds a player can pick, in menu order. */
+export const LISTED = Object.values(WORLDS).filter((w) => w.listed);

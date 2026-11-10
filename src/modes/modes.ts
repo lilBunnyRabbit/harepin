@@ -5,7 +5,7 @@ import { DEFAULT_BINDINGS, keys_text, type Bindings } from "../hud/bindings";
 import { $, format } from "../hud/hud";
 import type { World } from "../world/world";
 import { KINDS } from "../worldgen/kinds/kinds";
-import { WORLDS } from "../worlds/worlds";
+import { LISTED } from "../worlds/worlds";
 import { DRIFT_MODE } from "./drift-mode";
 import { DUEL_MODE } from "./duel-mode";
 import { GYMKHANA_MODE } from "./gymkhana-mode";
@@ -25,7 +25,7 @@ export const MODES: readonly ModeDef[] = [RACE_MODE, GYMKHANA_MODE, PARKING_MODE
 const SPAWN_LIFT = 0.75;
 const NOTICE_MS = 2500;
 const DEG = 180 / Math.PI;
-const OPEN_WORLDS = Object.values(WORLDS).filter((w) => KINDS[w.kind].open_ground).map((w) => `the ${w.map_label}`).join(" or ");
+const OPEN_WORLDS = LISTED.filter((w) => KINDS[w.kind].open_ground).map((w) => `the ${w.map_label}`).join(" or ");
 const OPEN_GROUND = `Needs open ground: drive ${OPEN_WORLDS} for it`;
 const NO_GROUND_NOTICE = `Gymkhana, parking and gate hunts need open ground: drive ${OPEN_WORLDS} for them`;
 const TOO_BIG = "Too big for this mode";

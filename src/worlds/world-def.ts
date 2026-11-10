@@ -9,6 +9,8 @@ import type { WorldKind } from "../worldgen/types";
 export interface WorldDef {
   kind: WorldKind;
   name: string;
+  /** Shown in the Play row, world picker and guide; an unlisted kind still loads from a `?world=` link. */
+  listed: boolean;
   /** Under the name in the world picker. */
   pick: string;
   /** On the Play tile and the guide card. */

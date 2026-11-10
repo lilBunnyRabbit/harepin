@@ -4,6 +4,7 @@ import { lap_facts, shown, type WorldDef } from "./world-def";
 
 export const sky: WorldDef = {
   kind: WorldKind.SKY,
+  listed: true,
   name: "Sky Track",
   pick: "A toy circuit floating in the clouds",
   note: "Drops, rails, jumps, boost pads",

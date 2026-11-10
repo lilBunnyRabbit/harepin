@@ -14,7 +14,7 @@ import { WorldPage } from "./world-page";
 import { Rows, el, icon, read, type RowHelp, type Text, type Value } from "./setting-rows";
 import { WorldKind } from "../worldgen/types";
 import { GoTo, GoalId } from "../goals/goals";
-import { WORLDS } from "../worlds/worlds";
+import { LISTED, WORLDS } from "../worlds/worlds";
 import { world_query } from "../world/world-pick";
 import "./settings.css";
 import "./menu.css";
@@ -414,7 +414,7 @@ export class Settings {
     const goals = goals_card(this.menu, (to) => this.go_to(to));
     const worlds = el("div", "menu-worlds");
     worlds.dataset.area = "worlds";
-    worlds.append(...Object.values(WORLDS).map(({ kind }) => world(kind)));
+    worlds.append(...LISTED.map(({ kind }) => world(kind)));
     return mosaic(MenuTab.PLAY, hero, worlds, map, modes, goals);
   }
 

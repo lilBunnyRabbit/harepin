@@ -9,7 +9,7 @@ import { key_label, keys_text, pad_text, type Bindable, type Bindings } from "..
 import { TouchSteer, type SettingKey, type SettingsState } from "./prefs";
 import { THEMES, choose_theme, current_theme, derive_theme, find_saved, find_theme, load_saved_themes, store_saved_themes, with_saved, without_saved } from "../theme/theme";
 import type { WorldKind } from "../worldgen/types";
-import { WORLDS } from "../worlds/worlds";
+import { LISTED } from "../worlds/worlds";
 import "./guide.css";
 
 export const GUIDE_STEPS = [
@@ -99,7 +99,7 @@ const AID_LIGHTS = [
   ["auto", "Auto"],
 ] as const;
 
-const WORLD_NAMES = new Intl.ListFormat("en", { type: "disjunction" }).format(Object.values(WORLDS).map((w) => w.name));
+const WORLD_NAMES = new Intl.ListFormat("en", { type: "disjunction" }).format(LISTED.map((w) => w.name));
 
 const TOUR: [string, string, string, string][] = [
   ["island", "Worlds", `Drive ${WORLD_NAMES}. New map rolls a fresh map of any of them.`, "Play"],
@@ -529,7 +529,7 @@ export class Guide {
 
   private drive(copy: HTMLElement) {
     const pics = el("div", "guide-worlds");
-    for (const { kind, name: title, note: text } of Object.values(WORLDS)) {
+    for (const { kind, name: title, note: text } of LISTED) {
       const card = pressed(button("guide-world"), kind === this.world);
       const words = el("span", "guide-pic-text");
       words.append(el("b", "", title), el("span", "", text));

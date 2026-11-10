@@ -5,6 +5,7 @@ import { lap_facts, shown, type WorldDef } from "./world-def";
 
 export const desert: WorldDef = {
   kind: WorldKind.DESERT,
+  listed: true,
   name: "Desert",
   pick: "Dunes, mesas and a fast loop through the sand",
   note: "Sand, mesas and dune jumps",
