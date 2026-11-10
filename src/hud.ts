@@ -66,6 +66,12 @@ function row(name: string, time: string, you: boolean, note = ""): HTMLLIElement
 }
 
 const MAP = 200;
+const MAP_INK = {
+  road: rgba(brand.foreground, 0.5),
+  checkpoint: rgba(brand.accent),
+  remote: rgba(brand.secondary),
+  you: rgba(brand.cottontail),
+};
 const TOAST_MS = 1200;
 /** Driving this long above CALM_KMH lets the touch HUD (and the Minimal layout) fade back; stopping brings it back. */
 const CALM_MS = 3000;
@@ -99,8 +105,11 @@ export class Hud {
     strip: $("strip"),
     top_right: document.querySelector<HTMLElement>(".top-right"),
   };
+  private map_canvas = $("minimap", HTMLCanvasElement);
   private map: CanvasRenderingContext2D;
   private road = new Path2D();
+  private road_layer = new OffscreenCanvas(1, 1);
+  private map_ratio = 0;
   private toast_timer = 0;
   private players: PlayerRow[] = [];
   private results_key = "";
@@ -120,13 +129,9 @@ export class Hud {
       if (map) location.search = `?${new URLSearchParams({ room, seed: String(map.seed), ...(map.kind === WorldKind.SKY ? { world: map.kind } : {}) })}`;
     });
     document.documentElement.dataset.scheme = dark ? "dark" : "light";
-    const canvas = $("minimap", HTMLCanvasElement);
-    canvas.width = MAP * devicePixelRatio;
-    canvas.height = MAP * devicePixelRatio;
-    const map = canvas.getContext("2d");
+    const map = this.map_canvas.getContext("2d");
     if (!map) throw new Error("minimap has no 2d context");
     this.map = map;
-    this.map.scale(devicePixelRatio, devicePixelRatio);
     world.road.forEach((p, i) => (i ? this.road.lineTo(...this.to_map(p.x, p.z)) : this.road.moveTo(...this.to_map(p.x, p.z))));
     this.road.closePath();
   }
@@ -225,27 +230,44 @@ export class Hud {
     el.race_results.replaceChildren(...finishers.map((f, i) => row(`${i + 1}. ${f.name}${f.you ? " (you)" : ""}`, format(f.time), f.you, f.you ? "" : "claimed")));
   }
 
+  // The road never changes for a world and the theme is fixed per load, so it is stroked once per pixel ratio.
+  private fit_map() {
+    const ratio = devicePixelRatio;
+    if (ratio === this.map_ratio) return;
+    this.map_ratio = ratio;
+    const size = Math.round(MAP * ratio);
+    this.map_canvas.width = size;
+    this.map_canvas.height = size;
+    this.map.setTransform(ratio, 0, 0, ratio, 0, 0);
+    this.road_layer = new OffscreenCanvas(size, size);
+    const road = this.road_layer.getContext("2d");
+    if (!road) throw new Error("minimap road layer has no 2d context");
+    road.scale(ratio, ratio);
+    road.lineWidth = 3;
+    road.lineJoin = "round";
+    road.strokeStyle = MAP_INK.road;
+    road.stroke(this.road);
+  }
+
   private draw_map(car: Car) {
+    this.fit_map();
     const { map } = this;
     map.clearRect(0, 0, MAP, MAP);
-    map.lineWidth = 3;
-    map.lineJoin = "round";
-    map.strokeStyle = rgba(brand.foreground, 0.5);
-    map.stroke(this.road);
+    map.drawImage(this.road_layer, 0, 0, MAP, MAP);
     const cp = this.world.checkpoints[this.race.next];
-    map.fillStyle = rgba(brand.accent);
+    map.fillStyle = MAP_INK.checkpoint;
     map.beginPath();
     map.arc(...this.to_map(cp.x, cp.z), 4.5, 0, Math.PI * 2);
     map.fill();
+    map.fillStyle = MAP_INK.remote;
     for (const remote of this.net.remotes.values()) {
-      map.fillStyle = rgba(brand.secondary);
       map.beginPath();
       map.arc(...this.to_map(remote.latest.p[0], remote.latest.p[2]), 3.5, 0, Math.PI * 2);
       map.fill();
     }
     const [x, y] = this.to_map(car.pos.x, car.pos.z);
     const h = car.heading;
-    map.fillStyle = rgba(brand.cottontail);
+    map.fillStyle = MAP_INK.you;
     map.beginPath();
     map.moveTo(x + Math.sin(h) * 7, y + Math.cos(h) * 7);
     map.lineTo(x + Math.sin(h + 2.5) * 5, y + Math.cos(h + 2.5) * 5);
