@@ -1635,6 +1635,15 @@ body.no-blur * {
   filter: none !important;
 }
 
+/* A backdrop blur over the live canvas recomposites every frame, which phones pay for; --surface is near opaque without it. */
+@media (pointer: coarse) {
+  .hud,
+  #recenter,
+  .touch-buttons button {
+    backdrop-filter: none;
+  }
+}
+
 .title #room {
   display: inline-block;
   max-width: 12ch;
