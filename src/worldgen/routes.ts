@@ -57,6 +57,8 @@ interface Leg {
 }
 
 const WEIGHT: Record<LegKind, number> = { street: STREET_COST, spur: SPUR_COST, local: SPUR_COST, ring: RING_COST };
+// Fitted to scripts/races.ts: roads between towns climb and wind more than drive_time sees, which costs the slowest car most.
+const LEG_PAR: Record<LegKind, number> = { street: PAR_SHARE, spur: PAR_SHARE, local: 1.25, ring: PAR_SHARE };
 
 function run(points: readonly { x: number; z: number }[]): number {
   let total = 0;
@@ -399,7 +401,7 @@ export function street_routes(graph: RoadGraph, circuit: readonly number[], town
     checkpoints: c.checkpoints,
     gate_hw: STREET_HALF + SIDEWALK,
     length: c.length,
-    par_ms: par(c.points, false),
+    par_ms: par(c.points, false, Math.max(...c.legs.map((l) => LEG_PAR[atlas.legs[l].kind]))),
     closure: closure(atlas, c, heights),
   }));
   return { routes, items };
