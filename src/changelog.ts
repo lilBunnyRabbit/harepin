@@ -23,6 +23,19 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.11.1",
+    date: "2026-11-10",
+    title: "Faster and steadier",
+    changes: [
+      { kind: IMPROVED, text: "Islands load much faster: building the roads and terrain takes about a quarter of the time it did." },
+      { kind: IMPROVED, text: "Lighter on phones: the scene behind the menu redraws less often, the HUD and minimap do less work each frame, and touch screens skip the costly blur." },
+      { kind: IMPROVED, text: "Smoother bloom on desktop, now anti-aliased." },
+      { kind: FIXED, text: "The rev bar and shift light follow each car's own redline, so the Formula no longer maxes out at half revs." },
+      { kind: FIXED, text: "Lobby races: everyone agrees on who starts the race, chat reaches every player in the room, and an unanswered race request tells you so." },
+      { kind: FIXED, text: "A new room keeps the world you are on." },
+    ],
+  },
+  {
     version: "0.11.0",
     date: "2026-11-10",
     title: "Welcome guide",
