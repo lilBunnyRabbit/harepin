@@ -1,6 +1,6 @@
 {
   "name": "harepin",
-  "version": "0.20.0",
+  "version": "0.21.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "telemetry": "bun scripts/telemetry.ts",
+    "test:full": "FULL=1 bun test",
     "pwa-assets": "pwa-assets-generator"
   },
   "dependencies": {

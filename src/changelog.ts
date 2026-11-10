@@ -23,6 +23,17 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.21.0",
+    date: "2026-11-10",
+    title: "Rounded corners",
+    changes: [
+      { kind: IMPROVED, text: "Town street corners are rounded with proper curbs, and sidewalks follow them round." },
+      { kind: IMPROVED, text: "Race cones sit past the junction curbs, cover the whole road and look like the other cones." },
+      { kind: IMPROVED, text: "Faster collision checks while race cones are out." },
+      { kind: IMPROVED, text: "Island lap records start fresh with the new town corners." },
+    ],
+  },
+  {
     version: "0.20.0",
     date: "2026-11-10",
     title: "Races through town",
