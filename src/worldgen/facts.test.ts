@@ -1,7 +1,7 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
 import { count_corners, world_facts } from "./facts";
-import { generate_world } from "./index";
+import { generate_world } from "./kinds/kinds";
 import { WorldKind } from "./types";
 
 interface P {

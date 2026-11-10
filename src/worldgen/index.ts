@@ -13,9 +13,8 @@ import { Stamp } from "./stamp";
 import { guard_rails, inside } from "./switchback";
 import { terrain } from "./terrain";
 import { plan_trails } from "./trails";
-import { generate_sky } from "./sky";
 import { place_towns, town_streets } from "./towns";
-import { CELL, ORIGIN, ROAD_HALF, SPAWN_INDEX, SPUR_HALF, type Checkpoint, type RoadEdge, type RoadNode, type Solid, type Tree, type WorldData, type WorldKind } from "./types";
+import { CELL, ORIGIN, ROAD_HALF, SPAWN_INDEX, SPUR_HALF, type Checkpoint, type RoadEdge, type RoadNode, type Solid, type Tree, type WorldData } from "./types";
 
 const CHECKPOINTS = 12;
 const STACK_GATE = 5;
@@ -171,8 +170,4 @@ export function generate(seed: number): WorldData {
   lap("props");
 
   return { kind: "island", deck: null, terrain: land, graph: { nodes, edges }, towns, lots: lot_list, buildings, props, parking, trees, solids, ramps: jumps.ramps, items: jumps.items, challenges: jumps.challenges, checkpoints, circuit: [ring.id], road, routes, canyon, timings };
-}
-
-export function generate_world(seed: number, kind: WorldKind): WorldData {
-  return kind === "sky" ? generate_sky(seed) : generate(seed);
 }

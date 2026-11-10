@@ -5,7 +5,7 @@ import type { Race } from "./race";
 import { brand, dark, rgba } from "./palette";
 import { tach } from "./tach";
 import { SIZE, type World } from "./world";
-import { WorldKind } from "./worldgen/types";
+import { world_query } from "./world-pick";
 
 export function $<T extends HTMLElement>(id: string, type: { new (): T; prototype: T }): T;
 export function $(id: string): HTMLElement;
@@ -126,7 +126,7 @@ export class Hud {
     $("room").title = room;
     this.el.join_map.addEventListener("click", () => {
       const map = this.net.foreign_seed();
-      if (map) location.search = `?${new URLSearchParams({ room, seed: String(map.seed), ...(map.kind === WorldKind.SKY ? { world: map.kind } : {}) })}`;
+      if (map) location.search = `?${new URLSearchParams(world_query(room, map.seed, map.kind))}`;
     });
     document.documentElement.dataset.scheme = dark ? "dark" : "light";
     const map = this.map_canvas.getContext("2d");

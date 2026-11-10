@@ -1,4 +1,4 @@
-import { generate_world } from "./index";
+import { generate_world } from "./kinds/kinds";
 import { map_data, map_transfers, type MapTones } from "./map";
 import type { WorldKind } from "./types";
 

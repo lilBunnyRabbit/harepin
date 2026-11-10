@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { Ghost } from "../ghost";
 import { format } from "../hud";
 import type { World } from "../world";
-import { world_key } from "../worldgen/types";
+import { world_key } from "../worldgen/kinds/kinds";
 import { DUEL_LEVELS, DuelRun, DuelStatus, build_route, type DuelLevel, type Route } from "./duel";
 import { DuelView } from "./duel-view";
 import type { Driven, Finish, ModeCtx, ModeDef, ModeRun } from "./mode";

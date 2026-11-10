@@ -1,5 +1,5 @@
 import { build_chunks, chunk_transfers, type ChunkBuffers, type MeshTones } from "./chunks";
-import { generate_world } from "./index";
+import { generate_world } from "./kinds/kinds";
 import type { WorldData, WorldKind } from "./types";
 
 export interface GenRequest {

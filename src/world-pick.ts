@@ -1,6 +1,7 @@
 import { parse_seed } from "./net";
 import { seed_of } from "./rng";
-import { WorldKind, parse_kind } from "./worldgen/types";
+import type { WorldKind } from "./worldgen/types";
+import { DEFAULT_KIND, parse_kind } from "./worldgen/kinds/kinds";
 
 export interface WorldPick {
   seed: number;
@@ -20,5 +21,10 @@ const URL_WORLD_PARAMS = ["room", "seed", "world"];
  */
 export function pick_world(params: URLSearchParams, room: string, saved: SavedPick): WorldPick {
   if (URL_WORLD_PARAMS.some((param) => params.has(param))) return { seed: parse_seed(params.get("seed")) ?? seed_of(room), kind: parse_kind(params.get("world")) };
-  return { seed: saved.last_seed ?? seed_of(room), kind: saved.last_world ?? WorldKind.ISLAND };
+  return { seed: saved.last_seed ?? seed_of(room), kind: saved.last_world ?? DEFAULT_KIND };
+}
+
+/** URL params that load `seed`'s world in `room`; the default kind stays out, so old links and new ones match. */
+export function world_query(room: string, seed: number, kind: WorldKind): Record<string, string> {
+  return { room, seed: String(seed), ...(kind === DEFAULT_KIND ? {} : { world: kind }) };
 }

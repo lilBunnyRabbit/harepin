@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { seed_of } from "./rng";
-import { pick_world } from "./world-pick";
+import { pick_world, world_query } from "./world-pick";
 import { WorldKind } from "./worldgen/types";
 
 const saved = { last_seed: 4242, last_world: WorldKind.SKY };
@@ -35,4 +35,11 @@ test("a broken seed falls back to the room's map, never the saved one", () => {
 test("half a pick fills the other half from the defaults", () => {
   expect(pick_world(url(""), "lobby", { last_seed: 9, last_world: null })).toEqual({ seed: 9, kind: WorldKind.ISLAND });
   expect(pick_world(url(""), "lobby", { last_seed: null, last_world: WorldKind.SKY })).toEqual({ seed: seed_of("lobby"), kind: WorldKind.SKY });
+});
+
+test("a world query names the world only when it is not the island", () => {
+  expect(world_query("pals", 77, WorldKind.ISLAND)).toEqual({ room: "pals", seed: "77" });
+  expect(world_query("pals", 77, WorldKind.SKY)).toEqual({ room: "pals", seed: "77", world: "sky" });
+  const back = new URLSearchParams(world_query("my room", 77, WorldKind.SKY));
+  expect(pick_world(back, "my room", { last_seed: null, last_world: null })).toEqual({ seed: 77, kind: WorldKind.SKY });
 });

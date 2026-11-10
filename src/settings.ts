@@ -11,7 +11,10 @@ import { guide_seen_on_load } from "./guide-rules";
 import { HARMONIES as HARMONY_HUES, Harmony, generate_theme, is_dark, type ThemeMode } from "./random-theme";
 import { mulberry32 } from "./rng";
 import { Rows, el, icon, read, type Options, type RowHelp, type Text, type Value } from "./setting-rows";
-import { WorldKind, kind_of_world } from "./worldgen/types";
+import { WorldKind } from "./worldgen/types";
+import { DEFAULT_KIND, is_kind, kind_of_world } from "./worldgen/kinds/kinds";
+import { WORLDS } from "./worlds/worlds";
+import { world_query } from "./world-pick";
 import {
   THEMES,
   THEME_KEY,
@@ -165,7 +168,7 @@ export function parse_settings(raw: unknown, played = false): SettingsState {
     muted: bool(s.muted, d.muted),
     hud: one_of(Object.values(HudLayout), s.hud, d.hud),
     dash: one_of(Object.values(DashPlace), s.dash, d.dash),
-    last_world: s.last_world === WorldKind.ISLAND || s.last_world === WorldKind.SKY ? s.last_world : null,
+    last_world: is_kind(s.last_world) ? s.last_world : null,
     last_seed: typeof s.last_seed === "number" ? parse_seed(String(s.last_seed)) : null,
     guide_seen: guide_seen_on_load(raw, played),
   };
@@ -329,19 +332,8 @@ const PARENT: Record<string, MenuTab> = {
 const CAMERA_RETURN_LABEL: Record<CameraReturn, string> = { off: "Off", short: "1.5 s", long: "3 s", never: "Never" };
 const STEER_LABEL: Record<SteerMode, string> = { snap: "Classic", hold: "Hold", smooth: "Smooth" };
 
-const WORLD_NAME: Record<WorldKind, string> = { island: "Island", sky: "Sky Track" };
-const WORLD_PICK: Record<WorldKind, string> = { island: "Roam an island with towns and a circuit", sky: "A toy circuit floating in the clouds" };
-const WORLD_NOTE: Record<WorldKind, string> = { island: "Towns, hills and every challenge", sky: "Drops, rails, jumps, boost pads" };
-const HERO_NOTE: Record<WorldKind, string> = {
-  island: "Free roam. Flags on the orange circuit start the challenges.",
-  sky: "A toy circuit in the clouds: drops, rails, jumps and boost pads.",
-};
 
 const preview = (name: string) => `${import.meta.env.BASE_URL}menu/${name}.webp`;
-
-function world_query(room: string, seed: number, kind: WorldKind): Record<string, string> {
-  return { room, seed: String(seed), ...(kind === WorldKind.SKY ? { world: kind } : {}) };
-}
 
 const TIER_LABEL: Record<QualityTier, string> = { high: "High", medium: "Medium", low: "Low" };
 const STATUS_MS = 1000;
@@ -463,8 +455,8 @@ function random_seed() {
   return Math.floor(Math.random() * 0x7fffffff);
 }
 
-export function invite_link(room: string, seed: number, kind: WorldKind = WorldKind.ISLAND): string {
-  return `${location.origin}${location.pathname}?room=${encodeURIComponent(room)}&seed=${seed}${kind === WorldKind.SKY ? `&world=${kind}` : ""}`;
+export function invite_link(room: string, seed: number, kind: WorldKind = DEFAULT_KIND): string {
+  return `${location.origin}${location.pathname}?${new URLSearchParams(world_query(room, seed, kind))}`;
 }
 
 const minutes = (ms: number) => {
@@ -823,12 +815,12 @@ export class Settings {
     const { room, seed, kind } = this.host;
     const hero = el("div", "menu-tile");
     hero.dataset.area = "hero";
-    const text = this.dress(hero, `${WORLD_NAME[kind]} ${seed}`, HERO_NOTE[kind], this.picture(kind), "Keep driving");
+    const text = this.dress(hero, `${WORLDS[kind].name} ${seed}`, WORLDS[kind].hero, this.picture(kind), "Keep driving");
     text.append(el("span", "menu-go", "Drive"));
     const drive = el("button", "menu-hit");
     drive.type = "button";
     drive.dataset.action = "close";
-    drive.setAttribute("aria-label", `Keep driving ${WORLD_NAME[kind]} ${seed}`);
+    drive.setAttribute("aria-label", `Keep driving ${WORLDS[kind].name} ${seed}`);
     const restart = el("button", "menu-corner");
     restart.type = "button";
     restart.append(icon("icon-restart"), el("span", "", "Restart lap"));
@@ -839,14 +831,14 @@ export class Settings {
     hero.append(drive, restart);
 
     const world = (other: WorldKind) => {
-      const tile = this.tile(other, WORLD_NAME[other], WORLD_NOTE[other], this.picture(other), () => this.drive(seed, other));
-      tile.title = other === kind ? "Keep driving here" : `Reloads room ${room} on ${WORLD_NAME[other]} ${seed}`;
+      const tile = this.tile(other, WORLDS[other].name, WORLDS[other].note, this.picture(other), () => this.drive(seed, other));
+      tile.title = other === kind ? "Keep driving here" : `Reloads room ${room} on ${WORLDS[other].name} ${seed}`;
       if (other === kind) tile.append(el("span", "menu-tag", "You're here"));
       return tile;
     };
     const map = this.tile("map", "New map", "Pick a world and a map, or type a friend's map code", this.picture(`${kind}-map`, true), () => this.show("world"));
     const modes = this.tile("modes", "Modes", "Races, gymkhana, parking, drift zones, gate hunt, ghost duel", icon("icon-modes"), () => this.show("modes"));
-    return this.mosaic(MenuTab.PLAY, hero, world(WorldKind.ISLAND), world(WorldKind.SKY), map, modes);
+    return this.mosaic(MenuTab.PLAY, hero, ...Object.values(WORLDS).map(({ kind }) => world(kind)), map, modes);
   }
 
   private garage(): HTMLElement[] {
@@ -863,7 +855,7 @@ export class Settings {
   private online(): HTMLElement[] {
     const { room, seed, kind } = this.host;
     const players = el("span", "menu-caption");
-    this.syncs.push(() => (players.textContent = `${this.host.players()} here · ${WORLD_NAME[kind]} ${seed}`));
+    this.syncs.push(() => (players.textContent = `${this.host.players()} here · ${WORLDS[kind].name} ${seed}`));
     const invite = el("div", "settings-inline");
     invite.append(this.copy_action("Copy invite link", invite_link(room, seed, kind)));
     const room_tile = this.info("room", "Your room", el("b", "menu-code", room), players, invite, el("small", "menu-caption", "Friends who open the link join this room on this map"));
@@ -993,12 +985,12 @@ export class Settings {
     const worlds = el("div", "map-worlds");
     worlds.setAttribute("role", "radiogroup");
     worlds.setAttribute("aria-label", "World");
-    const world_buttons = ([WorldKind.ISLAND, WorldKind.SKY] as const).map((kind) => {
+    const world_buttons = Object.values(WORLDS).map(({ kind }) => {
       const button = el("button", "map-world");
       button.type = "button";
       button.setAttribute("role", "radio");
       const text = el("span", "map-world-text");
-      text.append(el("b", "", WORLD_NAME[kind]), el("small", "", WORLD_PICK[kind]));
+      text.append(el("b", "", WORLDS[kind].name), el("small", "", WORLDS[kind].pick));
       button.append(this.picture(kind), text);
       button.addEventListener("click", () => {
         this.chosen_kind = kind;
@@ -1060,16 +1052,8 @@ export class Settings {
 
     const show_facts = (map: MapData | null) => {
       const ready = map !== null && map.seed === this.chosen && map.kind === this.chosen_kind;
-      const sky = this.chosen_kind === WorldKind.SKY;
-      const f = ready ? map.facts : null;
-      const items: [string, string][] = [
-        [f ? `${(f.length / 1000).toFixed(1)} km` : "…", sky ? "track" : "circuit"],
-        [f ? String(f.corners) : "…", "corners"],
-        [f ? String(f.jumps) : "…", "jumps"],
-        sky ? [f ? String(f.gaps) : "…", f?.gaps === 1 ? "gap to fly over" : "gaps to fly over"] : [f ? String(f.towns) : "…", "towns"],
-      ];
       facts.replaceChildren(
-        ...items.map(([value, label]) => {
+        ...WORLDS[this.chosen_kind].facts(ready ? map.facts : null).map(([value, label]) => {
           const item = el("div");
           item.append(el("dt", "", label), el("dd", "", value));
           return item;
@@ -1083,10 +1067,10 @@ export class Settings {
       const here = next === seed && this.chosen_kind === this.host.kind;
       drive.textContent = here ? "You're on this map" : "Drive this map";
       drive.disabled = here;
-      drive.title = here ? "" : `Reloads room ${room} on ${WORLD_NAME[this.chosen_kind]} ${next}`;
-      title.textContent = `${WORLD_NAME[this.chosen_kind]} · map ${next}`;
+      drive.title = here ? "" : `Reloads room ${room} on ${WORLDS[this.chosen_kind].name} ${next}`;
+      title.textContent = `${WORLDS[this.chosen_kind].name} · map ${next}`;
       for (const [kind, button] of world_buttons) button.setAttribute("aria-checked", String(kind === this.chosen_kind));
-      boost.hidden = this.chosen_kind !== WorldKind.SKY;
+      boost.hidden = !WORLDS[this.chosen_kind].pads;
       show_facts(null);
       this.world_map.show(next, this.chosen_kind, now);
     };

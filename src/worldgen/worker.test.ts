@@ -2,7 +2,8 @@
 import { expect, test } from "bun:test";
 import { build_chunks, JITTER_LEVELS, TERRAIN_BASES, type MeshTones } from "./chunks";
 import { checksum, world_checksum } from "./checksum";
-import { generate, generate_world } from "./index";
+import { generate } from "./index";
+import { generate_world } from "./kinds/kinds";
 import type { GenRequest, GenResult } from "./worker";
 
 const SEED = 7;

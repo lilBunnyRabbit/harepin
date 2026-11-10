@@ -4,6 +4,7 @@ import { COUPE, type CarSpec } from "./cars";
 import { DeckIndex } from "./worldgen/deck";
 import { sample, slope_normal } from "./worldgen/field";
 import { generate } from "./worldgen/index";
+import { KINDS } from "./worldgen/kinds/kinds";
 import { ramp_reach2, ramp_surface, spawn_blocks, type Surface } from "./worldgen/jumps";
 import { FALL_DEPTH } from "./worldgen/sky";
 import { CELL, DIRT, N, ROAD_HALF, RouteKind, SIZE, type WorldKind } from "./worldgen/types";
@@ -400,7 +401,7 @@ export class World implements Ground {
     } else if (pos.y > solid.y + solid.height) return 0;
     const contact = circle_contact(solid, pos.x + fx * offset, pos.z + fz * offset, spec.radius, -fx * Math.sign(offset || 1), -fz * Math.sign(offset || 1));
     if (!contact) return 0;
-    return this.kind === "sky" && solid.kind === "box" ? this.glide(car, contact) : this.resolve(car, contact, fx * offset, fz * offset);
+    return KINDS[this.kind].rails && solid.kind === "box" ? this.glide(car, contact) : this.resolve(car, contact, fx * offset, fz * offset);
   }
 
   // A sky rail redirects instead of bouncing: the into-rail velocity goes, the rest runs on along the rail with a loss

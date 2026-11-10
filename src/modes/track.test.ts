@@ -1,6 +1,6 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import { world_key } from "../worldgen/types";
+import { world_key } from "../worldgen/kinds/kinds";
 import { Track, add_race, placing, parse_race_record, parse_runs, record, stars_for, unlocked, type Store } from "./track";
 
 const IDS = ["g1", "g2", "g3"];

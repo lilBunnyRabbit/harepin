@@ -3,7 +3,8 @@ import { sky_tones } from "./sky";
 import { mesh_tones } from "./scene";
 import { MAP_SIDE, MapLineKind, type MapData, type MapMark } from "./worldgen/map";
 import type { MapRequest } from "./worldgen/map-worker";
-import { WorldKind } from "./worldgen/types";
+import type { WorldKind } from "./worldgen/types";
+import { WORLDS } from "./worlds/worlds";
 import "./world-map.css";
 
 const DEBOUNCE_MS = 300;
@@ -97,8 +98,8 @@ export class WorldMap {
 
   private set_status(status: MapStatus) {
     this.root.dataset.status = status;
-    const sky = this.wanted?.kind === WorldKind.SKY;
-    this.note.textContent = status === MapStatus.DRAWING ? (sky ? "Drawing track…" : "Drawing island…") : status === MapStatus.FAILED ? "Preview failed" : "";
+    const drawing = this.wanted ? WORLDS[this.wanted.kind].drawing : "";
+    this.note.textContent = status === MapStatus.DRAWING ? drawing : status === MapStatus.FAILED ? "Preview failed" : "";
   }
 
   private draw() {
@@ -107,7 +108,7 @@ export class WorldMap {
     if (!map || !image || !ctx) return;
     this.set_status(MapStatus.READY);
     this.on_ready?.(map);
-    canvas.setAttribute("aria-label", `Map of ${map.kind === WorldKind.SKY ? "sky track" : "island"} ${map.seed}`);
+    canvas.setAttribute("aria-label", `Map of ${WORLDS[map.kind].map_label} ${map.seed}`);
     const ratio = devicePixelRatio;
     const side = Math.round((canvas.clientWidth || MAP_SIDE) * ratio);
     canvas.width = canvas.height = side;

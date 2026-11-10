@@ -5,7 +5,8 @@ import { el, icon } from "./setting-rows";
 import type { SettingKey, SettingsState } from "./settings";
 import { THEMES, choose_theme, current_theme, derive_theme, find_saved, find_theme, load_saved_themes, store_saved_themes, with_saved, without_saved } from "./theme";
 import { TouchSteer } from "./touch";
-import { WorldKind } from "./worldgen/types";
+import type { WorldKind } from "./worldgen/types";
+import { WORLDS } from "./worlds/worlds";
 import "./guide.css";
 
 export const GUIDE_STEPS = [
@@ -91,11 +92,6 @@ const TOUR: [string, string, string, string][] = [
   ["icon-modes", "Modes", "Race, gymkhana, parking, drift, hunt, duel. Stars and best times for each.", "Play, Modes"],
   ["icon-paint", "Garage", "Swap engine, tyres and paint. Save builds, switch in a tap.", "Garage"],
   ["icon-share", "Friends", "Send a link and friends drive your map with you. Race the lobby.", "Online"],
-];
-
-const WORLDS: [WorldKind, string, string][] = [
-  [WorldKind.ISLAND, "Island", "Towns, hills and every challenge"],
-  [WorldKind.SKY, "Sky Track", "Drops, rails, jumps, boost pads"],
 ];
 
 export interface GuideHost {
@@ -480,7 +476,7 @@ export class Guide {
 
   private drive(copy: HTMLElement) {
     const pics = el("div", "guide-worlds");
-    for (const [kind, title, text] of WORLDS) {
+    for (const { kind, name: title, note: text } of Object.values(WORLDS)) {
       const card = pressed(button("guide-world"), kind === this.world);
       const words = el("span", "guide-pic-text");
       words.append(el("b", "", title), el("span", "", text));

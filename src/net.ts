@@ -2,7 +2,8 @@ import { joinRoom, selfId, type Room } from "trystero";
 import { build_code, parse_build } from "./build";
 import { Link, type Channel } from "./net/channel";
 import { RateLimit } from "./net/rate-limit";
-import { WORLD_VERSION, WorldKind, world_id } from "./worldgen/types";
+import { WORLD_VERSION, WorldKind } from "./worldgen/types";
+import { DEFAULT_KIND, world_id } from "./worldgen/kinds/kinds";
 
 export { RateLimit };
 
@@ -420,7 +421,7 @@ export class Net {
     for (let i = 0; i <= this.remotes.size; i++) maps.push(own);
     const map = most_common(maps);
     if (map === null || map === own) return null;
-    return { seed: map % 2 ** 32, kind: kinds.get(Math.floor(map / 2 ** 32)) ?? WorldKind.ISLAND };
+    return { seed: map % 2 ** 32, kind: kinds.get(Math.floor(map / 2 ** 32)) ?? DEFAULT_KIND };
   }
 
   /**

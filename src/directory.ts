@@ -1,6 +1,7 @@
 import { joinRoom, type Room } from "trystero";
 import { APP_ID, MAX_SEED, RateLimit, clean_name, type RoomLock } from "./net";
-import { WorldKind, world_id } from "./worldgen/types";
+import { WorldKind } from "./worldgen/types";
+import { world_id } from "./worldgen/kinds/kinds";
 
 export const DIRECTORY_ROOM = "harepin-directory";
 const ANNOUNCE_MS = 3000;

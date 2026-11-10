@@ -1,6 +1,7 @@
 import type * as THREE from "three";
 import { $, format } from "../hud";
 import type { World } from "../world";
+import { KINDS } from "../worldgen/kinds/kinds";
 import { DRIFT_MODE } from "./drift-mode";
 import { DUEL_MODE } from "./duel-mode";
 import { GYMKHANA_MODE } from "./gymkhana-mode";
@@ -141,7 +142,7 @@ export class Modes {
     for (const mode of this.modes) {
       const level = mode.levels.find((l) => l.id === id);
       if (!level) continue;
-      if (mode.def.needs_ground && this.world.kind === "sky") return this.notice(SKY_NOTICE);
+      if (mode.def.needs_ground && !KINDS[this.world.kind].open_ground) return this.notice(SKY_NOTICE);
       if (!mode.track.is_open(id)) return;
       if (this.race_busy()) return this.notice(mode.def.busy_notice);
       this.clear();
@@ -266,7 +267,7 @@ export class Modes {
   }
 
   mode_list(): ModeEntry[] {
-    const sky = this.world.kind === "sky";
+    const ground = KINDS[this.world.kind].open_ground;
     return this.modes
       .filter(({ levels }) => levels.length)
       .map(({ def, levels, track }) => ({
@@ -274,7 +275,7 @@ export class Modes {
         name: def.name,
         stars: track.stars,
         max: levels.length * MAX_STARS,
-        blocked: def.needs_ground && sky ? OPEN_GROUND : null,
+        blocked: def.needs_ground && !ground ? OPEN_GROUND : null,
         levels: levels.map((level) => {
           const run = track.runs[level.id];
           const route = this.world.routes.find((r) => r.id === level.id);

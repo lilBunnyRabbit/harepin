@@ -23,25 +23,6 @@ export const SKY_VERSION = 3;
 export const WorldKind = { ISLAND: "island", SKY: "sky" } as const;
 export type WorldKind = (typeof WorldKind)[keyof typeof WorldKind];
 
-/** Map identity peers compare: the island keeps WORLD_VERSION, so old builds see a sky peer as on a foreign map. */
-export function world_id(kind: WorldKind): number {
-  return kind === WorldKind.SKY ? 1000 + SKY_VERSION : WORLD_VERSION;
-}
-
-/** The kind behind a `world_id`; none, or an id this build doesn't know, is the island. */
-export function kind_of_world(id: number | undefined): WorldKind {
-  return id === world_id(WorldKind.SKY) ? WorldKind.SKY : WorldKind.ISLAND;
-}
-
-export function parse_kind(text: string | null | undefined): WorldKind {
-  return text === WorldKind.SKY ? WorldKind.SKY : WorldKind.ISLAND;
-}
-
-/** Storage key part for records set on `seed`'s world, so a new world starts with a clean sheet. */
-export function world_key(seed: number, kind: WorldKind = WorldKind.ISLAND): string {
-  return kind === WorldKind.SKY ? `${seed}:sky${SKY_VERSION}` : `${seed}:w${WORLD_VERSION}`;
-}
-
 export interface RoadPoint {
   x: number;
   y: number;

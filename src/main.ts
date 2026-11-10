@@ -13,7 +13,7 @@ import { Input, type Action } from "./input";
 import { Lobby, lobby_routes } from "./lobby";
 import { Modes } from "./modes/modes";
 import { race_choices } from "./modes/races";
-import { gates, roadside } from "./models";
+import { gates } from "./models";
 import { GUIDE_PARAM, ROLLED_VISIT } from "./guide";
 import { random_name as make_random_name } from "./guide-rules";
 import { PadMenu } from "./pad-menu";
@@ -24,8 +24,8 @@ import { brand, color, rgba, tones } from "./palette";
 import { Race } from "./race";
 import { Remotes } from "./remotes";
 import { Render } from "./render";
-import { WorldView, load_world, water_mesh } from "./scene";
-import { cloud_floor, clouds, sky } from "./sky";
+import { WorldView, load_world } from "./scene";
+import { clouds, sky } from "./sky";
 import { PadTimer } from "./sky-pads";
 import { Lighting } from "./lighting";
 import { CAMERA_RETURN_SECONDS, CameraView, MenuTab, Settings, invite_link, load_settings, take_drive, type SettingsState } from "./settings";
@@ -33,7 +33,8 @@ import { BUILD, Updater, changelog_view, show_version } from "./update";
 import { pick_world } from "./world-pick";
 import { GUARD_STATE, SystemBack, type Watcher } from "./system-back";
 import { SPAWN_INDEX } from "./world";
-import { WorldKind, world_id, world_key } from "./worldgen/types";
+import { WORLDS } from "./worlds/worlds";
+import { world_id, world_key } from "./worldgen/kinds/kinds";
 import "./style.css";
 
 const params = new URLSearchParams(location.search);
@@ -66,7 +67,7 @@ render.mount(app);
 render.apply_quality();
 
 const world_view = new WorldView(world, chunks, quality.mobile);
-scene.add(...light.dress(sky(), clouds(world.seed)), world_view.root, ...(world.kind === WorldKind.SKY ? [cloud_floor(world)] : [roadside(world), water_mesh()]));
+scene.add(...light.dress(sky(), clouds(world.seed)), world_view.root, ...WORLDS[world.kind].dress(world));
 const gate_views = gates(world);
 for (const g of gate_views) scene.add(g.group);
 

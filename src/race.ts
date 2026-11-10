@@ -1,5 +1,5 @@
 import type { World } from "./world";
-import { world_key } from "./worldgen/types";
+import { world_key } from "./worldgen/kinds/kinds";
 
 const BEST_KEY = "harepin:best";
 const SPLITS_KEY = "harepin:splits";

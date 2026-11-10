@@ -1,4 +1,5 @@
-import { WorldKind, world_key } from "../worldgen/types";
+import { WorldKind } from "../worldgen/types";
+import { world_key } from "../worldgen/kinds/kinds";
 
 export const MAX_STARS = 3;
 export const SILVER_SHARE = 1.25;
