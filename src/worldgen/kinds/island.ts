@@ -1,6 +1,6 @@
 import { generate } from "../index";
 import { ISLAND } from "../recipe";
-import { WORLD_VERSION, WorldKind } from "../types";
+import { SIZE, WORLD_VERSION, WorldKind } from "../types";
 import { kind_def, LAND_GRIP } from "./kind-def";
 
 export const island = kind_def({
@@ -8,6 +8,7 @@ export const island = kind_def({
   base: 0,
   tag: "w",
   version: WORLD_VERSION,
+  size: SIZE,
   generate: (seed) => generate(seed, ISLAND, WorldKind.ISLAND),
   recipe: ISLAND,
   open_ground: true,

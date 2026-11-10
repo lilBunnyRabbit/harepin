@@ -2,7 +2,7 @@ import * as THREE from "three";
 import type { Car } from "../car/car";
 import { oversize } from "../car/cars";
 import { brand, dark, linear, mix, tones } from "../theme/palette";
-import { CHUNK, chunk_of } from "../worldgen/chunk-grid";
+import { CHUNK, chunk_of, type Extent } from "../worldgen/chunk-grid";
 import { challenge_outer, challenge_pieces, CONE_HEIGHT, CONE_RADIUS, GRAVITY, ITEMS, PIECE_DEPTH, ramp_extent, ramp_lift } from "../worldgen/jumps";
 import { Builder, bounding_sphere, type Rgb } from "../worldgen/mesh";
 import type { Challenge, Item, ItemKind, Ramp } from "../worldgen/types";
@@ -127,11 +127,12 @@ export class JumpsView {
   constructor(
     private readonly data: JumpData,
     private readonly height: (x: number, z: number) => number,
+    ext: Extent,
   ) {
     const t = jump_tones();
     const builders = new Map<number, Builder>();
     const of = (x: number, z: number) => {
-      const key = chunk_of(x, z);
+      const key = chunk_of(x, z, ext);
       let b = builders.get(key);
       if (!b) builders.set(key, (b = new Builder()));
       return b;

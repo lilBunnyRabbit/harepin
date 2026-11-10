@@ -3,7 +3,7 @@ import { by_chunk, soup_geometry, TownChunks, type TownChunk } from "../world/bu
 import { JumpsView } from "../world/jumps";
 import { LandmarksView } from "../world/landmarks";
 import { color, lighten, linear, mix, tones } from "../theme/palette";
-import { SIZE, World, type RoadPoint, type Tree } from "../world/world";
+import { World, type RoadPoint, type Tree } from "../world/world";
 import { CHUNK } from "../worldgen/chunk-grid";
 import { Ground, JITTER_LEVELS, type ChunkBuffers, type MeshTones } from "../worldgen/chunks";
 import { TreeKind } from "../worldgen/biomes";
@@ -89,10 +89,10 @@ export class WorldView {
   private readonly towns = new Map<number, TownChunk | undefined>();
 
   constructor(world: World, private readonly mobile: boolean) {
-    this.tree_lists = by_chunk(world.trees);
+    this.tree_lists = by_chunk(world.trees, world.tiles.ext);
     this.tree_order = new Map(world.trees.map((tree, i) => [tree, i]));
     this.town_kit = new TownChunks(world);
-    this.jumps = new JumpsView(world, (x, z) => world.height(x, z));
+    this.jumps = new JumpsView(world, (x, z) => world.height(x, z), world.tiles.ext);
     this.root.add(this.jumps.root);
     this.landmarks = new LandmarksView(world.props);
     this.root.add(this.landmarks.root);
@@ -262,8 +262,8 @@ export function ribbon(world: World, from: number, to: number, lift: number, kee
   return mesh;
 }
 
-export function water_mesh(): THREE.Mesh {
-  const geometry = new THREE.PlaneGeometry(SIZE * 4, SIZE * 4, 1, 1).rotateX(-Math.PI / 2);
+export function water_mesh(size: number): THREE.Mesh {
+  const geometry = new THREE.PlaneGeometry(size * 4, size * 4, 1, 1).rotateX(-Math.PI / 2);
   const mesh = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({ color: color(tones.water), transparent: true, opacity: 0.9 }));
   mesh.position.y = 0;
   mesh.receiveShadow = true;

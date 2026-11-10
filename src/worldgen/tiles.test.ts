@@ -1,6 +1,6 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import { CHUNK, CHUNKS } from "./chunk-grid";
+import { CHUNK, CHUNKS, COMPACT } from "./chunk-grid";
 import { sample, slope_normal } from "./field";
 import { generate } from "./index";
 import { slice_tiles, TileStore } from "./tiles";
@@ -24,7 +24,7 @@ for (const seed of [0, 3])
   test(`tile reads equal the whole-grid reads on seed ${seed}`, () => {
     const terrain = generate(seed).terrain;
     const { heights, road_dist, surface } = terrain;
-    const store = new TileStore(slice_tiles(terrain));
+    const store = new TileStore(COMPACT, slice_tiles(terrain));
     let bad = 0;
     for (const [x, z] of points()) {
       const [nx, ny, nz] = slope_normal(heights, x, z);
@@ -36,7 +36,7 @@ for (const seed of [0, 3])
   }, 30_000);
 
 test("a NaN coordinate reads NaN instead of throwing", () => {
-  const store = new TileStore(slice_tiles(generate(0).terrain));
+  const store = new TileStore(COMPACT, slice_tiles(generate(0).terrain));
   expect(store.height(NaN, 0)).toBeNaN();
   expect(store.road_dist(0, NaN)).toBeNaN();
   expect(store.slope(NaN, NaN, out).x).toBeNaN();
@@ -60,7 +60,7 @@ test("a chunk not in yet reads flat sea-level ground far from a road, and an are
   expect(ready).toBe(false);
   store.add(area[8], tiles[area[8]]);
   await wait;
-  expect(store.height(10, 10)).toBe(new TileStore(tiles).height(10, 10));
+  expect(store.height(10, 10)).toBe(new TileStore(COMPACT, tiles).height(10, 10));
   expect(store.complete).toBe(false);
   tiles.forEach((tile, index) => store.add(index, tile));
   expect(store.complete).toBe(true);

@@ -1,9 +1,9 @@
-import { CHUNK, CHUNKS } from "./chunk-grid";
+import { chunk_corner, CHUNK, extent, type Extent } from "./chunk-grid";
 import { chunk_meshes, chunk_transfers, type ChunkBuffers, type MeshTones } from "./chunks";
-import { generate_world } from "./kinds/kinds";
+import { generate_world, KINDS } from "./kinds/kinds";
 import { build_tile } from "./ground";
 import { slice_tile, tile_transfers, type Tile } from "./tiles";
-import { ORIGIN, SPAWN_INDEX, type WorldData, type WorldKind } from "./types";
+import { SPAWN_INDEX, type WorldData, type WorldKind } from "./types";
 
 export interface GenRequest {
   type: "gen";
@@ -34,16 +34,17 @@ export type WorkerReply =
   | { type: "error"; message: string };
 
 let focus: [number, number] = [0, 0];
-let world: { data: WorldData; build: (index: number) => ChunkBuffers | null } | null = null;
+let world: { data: WorldData; ext: Extent; build: (index: number) => ChunkBuffers | null } | null = null;
 const left: number[] = [];
 let pumping = false;
 
-function nearest(): number {
+function nearest(ext: Extent): number {
   let best = 0;
   let dist = Infinity;
   left.forEach((index, at) => {
-    const dx = ORIGIN + ((index % CHUNKS) + 0.5) * CHUNK - focus[0];
-    const dz = ORIGIN + (Math.floor(index / CHUNKS) + 0.5) * CHUNK - focus[1];
+    const [x0, z0] = chunk_corner(index, ext);
+    const dx = x0 + CHUNK / 2 - focus[0];
+    const dz = z0 + CHUNK / 2 - focus[1];
     const d = dx * dx + dz * dz;
     if (d < dist) {
       dist = d;
@@ -63,8 +64,9 @@ function open({ seed, kind, tones }: GenRequest) {
   if (spawn) focus = [spawn.x, spawn.z];
   const empty = { heights: new Float32Array(0), road_dist: new Float32Array(0), surface: new Uint8Array(0) };
   postMessage({ type: "plan", data: { ...data, terrain: { ...data.terrain, ...empty }, ground: { ...data.ground, ops: [] } } } satisfies WorkerReply);
-  world = { data, build: chunk_meshes(data, tones) };
-  for (let index = 0; index < CHUNKS * CHUNKS; index++) left.push(index);
+  const ext = extent(KINDS[kind].size);
+  world = { data, ext, build: chunk_meshes(data, tones) };
+  for (let index = 0; index < ext.side * ext.side; index++) left.push(index);
 }
 
 // A compact kind keeps its whole grid, so slicing is free; the plan rebuilds a tile once a grid is gone (mainland).
@@ -72,8 +74,8 @@ async function pump() {
   if (pumping || !world) return;
   pumping = true;
   while (left.length) {
-    const index = nearest();
-    const tile = world.data.terrain.heights.length ? slice_tile(world.data.terrain, index) : build_tile(world.data.ground, index);
+    const index = nearest(world.ext);
+    const tile = world.data.terrain.heights.length ? slice_tile(world.data.terrain, index) : build_tile(world.data.ground, index, world.ext);
     const chunk = world.build(index);
     postMessage({ type: "chunk", index, tile, chunk } satisfies WorkerReply, { transfer: [...tile_transfers(tile), ...(chunk ? chunk_transfers([chunk]) : [])] });
     // A turn of the event loop between chunks lets a focus or chunk request reorder what is left.

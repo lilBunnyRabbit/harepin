@@ -1,6 +1,7 @@
 import { Vector3 } from "three";
 import type { Ground } from "../car/car";
 import { COUPE, type CarSpec } from "../car/cars";
+import { extent } from "../worldgen/chunk-grid";
 import { DeckIndex } from "../worldgen/deck";
 import { generate } from "../worldgen/index";
 import type { GripTable } from "../worldgen/kinds/kind-def";
@@ -8,7 +9,7 @@ import { KINDS } from "../worldgen/kinds/kinds";
 import { ramp_reach2, ramp_surface, spawn_blocks, type Surface } from "../worldgen/jumps";
 import { FALL_DEPTH } from "../worldgen/sky";
 import { slice_tiles, TileStore, type Tile } from "../worldgen/tiles";
-import { CELL, DIRT, N, ROAD_HALF, RouteKind, SIZE, type WorldKind } from "../worldgen/types";
+import { CELL, DIRT, ROAD_HALF, RouteKind, type WorldKind } from "../worldgen/types";
 import type {
   Building,
   Challenge,
@@ -197,7 +198,7 @@ export class World implements Ground {
     this.grips = KINDS[data.kind].grip;
     this.fall_reset = KINDS[data.kind].fall_reset;
     this.deck = data.deck && new DeckIndex(data.deck);
-    this.tiles = new TileStore(tiles);
+    this.tiles = new TileStore(extent(KINDS[data.kind].size), tiles);
     this.road = data.road;
     this.graph = data.graph;
     this.towns = data.towns;
@@ -309,9 +310,10 @@ export class World implements Ground {
 
   /** On a trail: the surface grid at the nearest vertex. */
   dirt(x: number, z: number): boolean {
-    const i = Math.round((x + SIZE / 2) / CELL);
-    const j = Math.round((z + SIZE / 2) / CELL);
-    return i >= 0 && j >= 0 && i <= N && j <= N && this.tiles.surface(i, j) === DIRT;
+    const { size, n } = this.tiles.ext;
+    const i = Math.round((x + size / 2) / CELL);
+    const j = Math.round((z + size / 2) / CELL);
+    return i >= 0 && j >= 0 && i <= n && j <= n && this.tiles.surface(i, j) === DIRT;
   }
 
   /** On a road surface, whatever grip the kind gives it. */

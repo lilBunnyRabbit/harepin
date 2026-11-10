@@ -1,6 +1,6 @@
-import { CHUNK, CHUNKS } from "./chunk-grid";
+import { CHUNK, COMPACT, type Extent } from "./chunk-grid";
 import { face_nx, face_nz, tri } from "./field";
-import { CELL, N, ORIGIN, type Terrain } from "./types";
+import { CELL, N, type Terrain } from "./types";
 
 const TILE_CELLS = CHUNK / CELL;
 const MISS_ROAD_DIST = 1e4;
@@ -26,8 +26,8 @@ function slice<T extends Float32Array | Uint8Array>(grid: T, out: T, ci: number,
 }
 
 export function slice_tile(terrain: Terrain, index: number): Tile {
-  const ci = index % CHUNKS;
-  const cj = Math.floor(index / CHUNKS);
+  const ci = index % COMPACT.side;
+  const cj = Math.floor(index / COMPACT.side);
   return {
     heights: slice(terrain.heights, new Float32Array(TILE_SIDE * TILE_SIDE), ci, cj),
     road_dist: slice(terrain.road_dist, new Float32Array(TILE_SIDE * TILE_SIDE), ci, cj),
@@ -36,7 +36,7 @@ export function slice_tile(terrain: Terrain, index: number): Tile {
 }
 
 export function slice_tiles(terrain: Terrain): Tile[] {
-  return Array.from({ length: CHUNKS * CHUNKS }, (_, index) => slice_tile(terrain, index));
+  return Array.from({ length: COMPACT.side * COMPACT.side }, (_, index) => slice_tile(terrain, index));
 }
 
 export function tile_transfers(tile: Tile): ArrayBuffer[] {
@@ -63,7 +63,10 @@ export class TileStore {
   private fx = 0;
   private fz = 0;
 
-  constructor(tiles: readonly Tile[] = []) {
+  constructor(
+    readonly ext: Extent = COMPACT,
+    tiles: readonly Tile[] = [],
+  ) {
     tiles.forEach((tile, index) => this.add(index, tile));
   }
 
@@ -79,22 +82,23 @@ export class TileStore {
   }
 
   get complete(): boolean {
-    return this.count === CHUNKS * CHUNKS;
+    return this.count === this.ext.side * this.ext.side;
   }
 
   /** Resolves once the 3x3 chunks around (x, z) are in. */
   ensure(x: number, z: number): Promise<void> {
-    const ci = Math.floor((x - ORIGIN) / CHUNK);
-    const cj = Math.floor((z - ORIGIN) / CHUNK);
+    const { origin, side } = this.ext;
+    const ci = Math.floor((x - origin) / CHUNK);
+    const cj = Math.floor((z - origin) / CHUNK);
     const need: number[] = [];
-    for (let j = Math.max(0, cj - 1); j <= Math.min(CHUNKS - 1, cj + 1); j++)
-      for (let i = Math.max(0, ci - 1); i <= Math.min(CHUNKS - 1, ci + 1); i++) need.push(j * CHUNKS + i);
+    for (let j = Math.max(0, cj - 1); j <= Math.min(side - 1, cj + 1); j++)
+      for (let i = Math.max(0, ci - 1); i <= Math.min(side - 1, ci + 1); i++) need.push(j * side + i);
     return this.wait(need, { x, z });
   }
 
   /** Resolves once every chunk is in. */
   whole(): Promise<void> {
-    return this.wait(Array.from({ length: CHUNKS * CHUNKS }, (_, index) => index), null);
+    return this.wait(Array.from({ length: this.ext.side * this.ext.side }, (_, index) => index), null);
   }
 
   private wait(need: number[], focus: { x: number; z: number } | null): Promise<void> {
@@ -117,12 +121,13 @@ export class TileStore {
   }
 
   private tile(ci: number, cj: number): Tile {
-    return this.tiles[cj * CHUNKS + ci] ?? (Number.isNaN(ci + cj) ? TileStore.NONE : TileStore.FLAT);
+    return this.tiles[cj * this.ext.side + ci] ?? (Number.isNaN(ci + cj) ? TileStore.NONE : TileStore.FLAT);
   }
 
   private locate(x: number, z: number): Tile {
-    const gx = Math.max(0, Math.min(N - 1e-4, (x - ORIGIN) / CELL));
-    const gz = Math.max(0, Math.min(N - 1e-4, (z - ORIGIN) / CELL));
+    const { n, origin } = this.ext;
+    const gx = Math.max(0, Math.min(n - 1e-4, (x - origin) / CELL));
+    const gz = Math.max(0, Math.min(n - 1e-4, (z - origin) / CELL));
     const i = Math.floor(gx);
     const j = Math.floor(gz);
     this.fx = gx - i;
@@ -147,8 +152,8 @@ export class TileStore {
   }
 
   surface(i: number, j: number): number {
-    const ci = Math.min(CHUNKS - 1, Math.floor(i / TILE_CELLS));
-    const cj = Math.min(CHUNKS - 1, Math.floor(j / TILE_CELLS));
+    const ci = Math.min(this.ext.side - 1, Math.floor(i / TILE_CELLS));
+    const cj = Math.min(this.ext.side - 1, Math.floor(j / TILE_CELLS));
     return this.tile(ci, cj).surface[(j - cj * TILE_CELLS) * TILE_SIDE + (i - ci * TILE_CELLS)];
   }
 }

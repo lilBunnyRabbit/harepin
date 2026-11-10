@@ -1,6 +1,6 @@
 import { generate } from "../index";
 import { DESERT } from "../recipe";
-import { WorldKind } from "../types";
+import { SIZE, WorldKind } from "../types";
 import { kind_def, SAND_GRIP } from "./kind-def";
 
 /** Base 2000, its own thousand after the sky's. */
@@ -9,6 +9,7 @@ export const desert = kind_def({
   base: 2000,
   tag: "d",
   version: 1,
+  size: SIZE,
   generate: (seed) => generate(seed, DESERT, WorldKind.DESERT),
   recipe: DESERT,
   open_ground: true,

@@ -19,6 +19,8 @@ export interface KindSpec {
   tag: string;
   /** Bump whenever `generate` makes a different world for the same seed: peers and saved records are matched on it. */
   version: number;
+  /** Side of the square world, metres; a whole number of chunk pairs. */
+  size: number;
   generate(seed: number): WorldData;
   /** A land kind's tuning, which meshing and the map read too; null for a deck-only kind. */
   recipe: Recipe | null;

@@ -16,5 +16,5 @@ export const island: WorldDef = {
   ground_puff: "grass",
   backdrop: "sky",
   facts: (f) => [...lap_facts(f, "circuit"), [shown(f, (f) => String(f.towns)), "towns"]],
-  dress: (world) => [roadside(world), water_mesh()],
+  dress: (world) => [roadside(world), water_mesh(world.tiles.ext.size)],
 };

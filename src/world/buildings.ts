@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { car_paints, color, dark, glow, tones } from "../theme/palette";
 import type { World } from "./world";
-import { chunk_of } from "../worldgen/chunk-grid";
+import { chunk_of, type Extent } from "../worldgen/chunk-grid";
 import type { ChunkBuffers, Soup } from "../worldgen/chunks";
 import { Builder, type Rgb, type Sphere } from "../worldgen/mesh";
 import { hash } from "../worldgen/noise";
@@ -119,10 +119,10 @@ export interface TownChunk {
   far(on: boolean): void;
 }
 
-export function by_chunk<T extends { x: number; z: number }>(items: T[]): Map<number, T[]> {
+export function by_chunk<T extends { x: number; z: number }>(items: T[], ext: Extent): Map<number, T[]> {
   const out = new Map<number, T[]>();
   for (const item of items) {
-    const key = chunk_of(item.x, item.z);
+    const key = chunk_of(item.x, item.z, ext);
     const list = out.get(key);
     if (list) list.push(item);
     else out.set(key, [item]);
@@ -142,8 +142,8 @@ export class TownChunks {
   private readonly lights: Map<number, Prop[]>;
 
   constructor(private readonly world: World) {
-    this.cars = by_chunk(parked_spots(world));
-    this.lights = by_chunk(world.props.filter((p) => p.kind === PropKind.STREET_LIGHT));
+    this.cars = by_chunk(parked_spots(world), world.tiles.ext);
+    this.lights = by_chunk(world.props.filter((p) => p.kind === PropKind.STREET_LIGHT), world.tiles.ext);
   }
 
   build(chunk: ChunkBuffers): TownChunk | undefined {
