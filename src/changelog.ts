@@ -23,6 +23,17 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.22.0",
+    date: "2026-11-10",
+    title: "Desert",
+    changes: [
+      { kind: NEW, text: "Desert: a new world of dunes, mesas, a canyon and small outposts. Hardpack is quick, loose sand slides, and cacti and rocks stand in the way." },
+      { kind: NEW, text: "The Play tab shows every world in one row." },
+      { kind: IMPROVED, text: "Worlds load faster: the area around you is ready first and the rest streams in." },
+      { kind: IMPROVED, text: "If a world ever fails to load, you get a clear message and a Reload button." },
+    ],
+  },
+  {
     version: "0.21.0",
     date: "2026-11-10",
     title: "Rounded corners",
