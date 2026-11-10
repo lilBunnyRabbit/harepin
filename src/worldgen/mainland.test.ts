@@ -1,11 +1,12 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
 import { sweep } from "../sweep";
-import { CHUNK, extent } from "./chunk-grid";
+import { CHUNK, chunk_of, extent } from "./chunk-grid";
 import { build_tile } from "./ground";
 import { MAINLAND_SIZE, plan_mainland } from "./mainland";
 import { plan_sample } from "./plan-grid";
 import { TILE_SIDE, TileStore } from "./tiles";
+import type { Built } from "./tile-mesher";
 
 const EXT = extent(MAINLAND_SIZE);
 
@@ -21,18 +22,25 @@ test("the mainland is land in the middle and sea at its border", () => {
   for (const [x, z] of [[EXT.origin, EXT.origin], [-EXT.origin - 1, 0], [0, EXT.origin]]) expect(plan_sample(grid, x, z)).toBeLessThan(0);
 });
 
-test("neighbouring mainland tiles share their border vertices bit for bit", () => {
-  const { data } = plan_mainland(1);
-  const centre = (EXT.side / 2) * EXT.side + EXT.side / 2;
-  const here = build_tile(data.ground, centre, EXT);
-  const east = build_tile(data.ground, centre + 1, EXT);
-  const north = build_tile(data.ground, centre + EXT.side, EXT);
-  const last = TILE_SIDE - 1;
-  for (let k = 0; k < TILE_SIDE; k++) {
-    expect(east.heights[k * TILE_SIDE]).toBe(here.heights[k * TILE_SIDE + last]);
-    expect(north.heights[k]).toBe(here.heights[last * TILE_SIDE + k]);
-  }
-});
+for (const seed of sweep(3))
+  test(`mainland ${seed}: every pair of neighbouring tiles shares its border vertices bit for bit`, () => {
+    const { data } = plan_mainland(seed);
+    const tiles = Array.from({ length: EXT.side * EXT.side }, (_, index) => build_tile(data.ground, index, EXT));
+    const last = TILE_SIDE - 1;
+    let off = 0;
+    for (let cj = 0; cj < EXT.side; cj++)
+      for (let ci = 0; ci < EXT.side; ci++) {
+        const here = tiles[cj * EXT.side + ci];
+        const east = ci + 1 < EXT.side ? tiles[cj * EXT.side + ci + 1] : null;
+        const north = cj + 1 < EXT.side ? tiles[(cj + 1) * EXT.side + ci] : null;
+        for (let k = 0; k < TILE_SIDE; k++)
+          for (const field of ["heights", "road_dist", "surface"] as const) {
+            if (east && east[field][k * TILE_SIDE] !== here[field][k * TILE_SIDE + last]) off++;
+            if (north && north[field][k] !== here[field][last * TILE_SIDE + k]) off++;
+          }
+      }
+    expect(off).toBe(0);
+  }, 30_000);
 
 test("a mainland tile store answers from the tile under the point, and the plan grid agrees with it", () => {
   const { data, grid } = plan_mainland(2);
@@ -105,3 +113,33 @@ test("a mainland chunk plants the same trees whatever was built before it, each 
   }
   expect(trees).toBeGreaterThan(50);
 }, 60_000);
+
+for (const seed of sweep(2))
+  test(`mainland ${seed}: a circuit junction chunk meshes the same with neighbours built first or evicted and rebuilt`, async () => {
+    const { MESH_TONES } = await import("../../scripts/proof/tones");
+    const { TileMesher } = await import("./tile-mesher");
+    const { road_junctions } = await import("./road-layers");
+    const { data } = plan_mainland(seed);
+    const ring = road_junctions(data).patched.find((j) => j.arms.some((a) => a.rank === 2));
+    if (!ring) throw new Error("no circuit junction");
+    const index = chunk_of(ring.x, ring.z, EXT);
+    const digest = (built: Built) => ({
+      tile: [...built.tile.heights, ...built.tile.road_dist, ...built.tile.surface],
+      terrain: [...(built.chunk.terrain?.positions ?? []), ...(built.chunk.terrain?.colors ?? [])],
+      road: [...(built.chunk.road?.positions ?? []), ...(built.chunk.road?.colors ?? [])],
+      planted: built.planted,
+    });
+    const alone = digest(new TileMesher(data, EXT, MESH_TONES).build(index));
+    expect(alone.road.length).toBeGreaterThan(0);
+
+    const around = new TileMesher(data, EXT, MESH_TONES);
+    for (const k of [index + EXT.side + 1, index - 1, index - EXT.side, index + 1]) around.build(k);
+    expect(digest(around.build(index))).toEqual(alone);
+
+    const evicted = new TileMesher(data, EXT, MESH_TONES);
+    evicted.build(index);
+    // Seven far rows touch nine rows of tiles, past the mesher's cache of 160.
+    const row = Math.floor(index / EXT.side) < EXT.side / 2 ? EXT.side - 8 : 1;
+    for (let k = 0; k < 7 * EXT.side; k++) evicted.build(row * EXT.side + k);
+    expect(digest(evicted.build(index))).toEqual(alone);
+  }, 60_000);
