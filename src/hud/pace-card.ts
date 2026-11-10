@@ -61,7 +61,7 @@ export class PaceCard {
   private point = -1;
   private reversed = false;
   private ahead: Ahead = { next: -1, distance: 0, then: -1, into: false };
-  private shown = "";
+  private shown = { off: false, next: -2, then: -2, into: false, metres: -1, reversed: false };
 
   constructor(private routes: readonly Route[]) {
     this.el.id = "pace";
@@ -108,9 +108,14 @@ export class PaceCard {
     corners_ahead(reading, reading.at[this.point], this.ahead);
     const { next, then, into } = this.ahead;
     const metres = Math.round(this.ahead.distance / DISTANCE_STEP) * DISTANCE_STEP;
-    const key = off ? "off" : `${next}|${then}|${into}|${metres}|${this.reversed}`;
-    if (key === this.shown) return;
-    this.shown = key;
+    const s = this.shown;
+    if (s.off === off && (off || (s.next === next && s.then === then && s.into === into && s.metres === metres && s.reversed === this.reversed))) return;
+    s.off = off;
+    s.next = next;
+    s.then = then;
+    s.into = into;
+    s.metres = metres;
+    s.reversed = this.reversed;
     this.write(off, next < 0 ? null : reading.corners[next], then < 0 ? null : reading.corners[then], into, metres);
   }
 
