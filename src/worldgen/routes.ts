@@ -33,8 +33,6 @@ const PAR_SHARE = 1.15;
 const FILLET_STEP = 2;
 const CONE_GAP = 2;
 const CONE_SET = 3;
-/** Extra setback for a row across a road whose junction has a patch: the fillets' curb radius. */
-const CURB_CLEAR = 8;
 const CONE_RADIUS = 0.3;
 const CONE_HEIGHT = 0.7;
 const TRAIL_GATES = 150;
@@ -54,6 +52,8 @@ interface Leg {
   points: RoadPoint[];
   length: number;
   half: number;
+  /** Half width of the paving across the leg: the asphalt plus any sidewalk. */
+  paved: number;
 }
 
 const WEIGHT: Record<LegKind, number> = { street: STREET_COST, spur: SPUR_COST, local: SPUR_COST, ring: RING_COST };
@@ -141,7 +141,7 @@ class Atlas {
     for (const edge of graph.edges) {
       if (circuit.includes(edge.id)) continue;
       if (edge.kind === "street") {
-        this.add(edge.a, edge.b, "street", edge.points, edge.half);
+        this.add(edge.a, edge.b, "street", edge.points, edge.half, edge.half + SIDEWALK);
         const town = town_of(edge.points[0].x, edge.points[0].z);
         if (!town) continue;
         const list = this.town_nodes.get(town.id) ?? [];
@@ -149,7 +149,7 @@ class Atlas {
         this.town_nodes.set(town.id, list);
         continue;
       }
-      this.add(edge.a, edge.b, edge.kind === "local" ? "local" : "spur", edge.points, edge.half);
+      this.add(edge.a, edge.b, edge.kind === "local" ? "local" : "spur", edge.points, edge.half, edge.half);
       if (edge.kind !== "highway") continue;
       const gate = graph.nodes[edge.a];
       const town = town_of(gate.x, gate.z);
@@ -158,7 +158,7 @@ class Atlas {
     // A circuit with one join stays a closed loop on it: no leg leads anywhere new.
     for (const id of circuit) {
       const leg = graph.edges[id];
-      if (!leg.closed && leg.a !== leg.b) this.add(leg.a, leg.b, "ring", leg.points, leg.half, this.kicked(leg.points));
+      if (!leg.closed && leg.a !== leg.b) this.add(leg.a, leg.b, "ring", leg.points, leg.half, leg.half, this.kicked(leg.points));
     }
   }
 
@@ -176,11 +176,11 @@ class Atlas {
     return this.ramps.some((r) => r.road && points.some((p) => length(p.x - r.x, p.z - r.z) < r.length + ROAD_HALF));
   }
 
-  private add(a: number, b: number, kind: LegKind, points: RoadPoint[], half: number, one_way = false) {
+  private add(a: number, b: number, kind: LegKind, points: RoadPoint[], half: number, paved: number, one_way = false) {
     const piece = this.pieces++;
     const metres = run(points);
-    const ways = [{ from: a, to: b, kind, piece, points, length: metres, half }];
-    const back = { from: b, to: a, kind, piece, points: flip(points), length: metres, half };
+    const ways = [{ from: a, to: b, kind, piece, points, length: metres, half, paved }];
+    const back = { from: b, to: a, kind, piece, points: flip(points), length: metres, half, paved };
     for (const arm of [ways[0], back]) this.arms.set(arm.from, [...(this.arms.get(arm.from) ?? []), arm]);
     if (!one_way) ways.push(back);
     for (const leg of ways) {
@@ -317,8 +317,8 @@ function cone(heights: Float32Array, x: number, z: number, fx: number, fz: numbe
 }
 
 /**
- * A cone row across every road the route passes but does not take, out past the junction's curbs: side streets just
- * past the sidewalk, roads with a junction patch past its fillets.
+ * A cone row across the paving of every road the route passes but does not take, out past the junction's curbs: just
+ * past the sidewalk where the roads overlap, past the patch's mouth where the junction has one.
  */
 function closure(atlas: Atlas, c: Candidate, heights: Float32Array): Route["closure"] {
   const pieces = new Set(c.legs.map((l) => atlas.legs[l].piece));
@@ -332,9 +332,10 @@ function closure(atlas: Atlas, c: Candidate, heights: Float32Array): Route["clos
     for (const side of atlas.arms.get(node) ?? []) {
       if (pieces.has(side.piece) || closed.has(side.piece)) continue;
       closed.add(side.piece);
-      const set = through + SIDEWALK + CONE_SET + (side.kind === "street" ? 0 : CURB_CLEAR);
+      const mouth = atlas.mouth(node, side.points);
+      const set = Math.max(through + SIDEWALK, mouth > 0 ? run(side.points.slice(0, mouth + 1)) : 0) + CONE_SET;
       const p = at_distance(side.points, set);
-      for (let u = -side.half + CONE_GAP / 2; u < side.half; u += CONE_GAP) {
+      for (let u = -side.paved + CONE_GAP / 2; u < side.paved; u += CONE_GAP) {
         const x = p.x + p.tz * u;
         const z = p.z - p.tx * u;
         if (!near_route(x, z)) solids.push({ kind: "circle", x, y: sample(heights, x, z), z, radius: CONE_RADIUS, height: CONE_HEIGHT });
