@@ -2,11 +2,11 @@ import { Vector3 } from "three";
 import type { Ground } from "../car/car";
 import { COUPE, type CarSpec } from "../car/cars";
 import { DeckIndex } from "../worldgen/deck";
-import { sample, slope_normal } from "../worldgen/field";
 import { generate } from "../worldgen/index";
 import { KINDS } from "../worldgen/kinds/kinds";
 import { ramp_reach2, ramp_surface, spawn_blocks, type Surface } from "../worldgen/jumps";
 import { FALL_DEPTH } from "../worldgen/sky";
+import { slice_tiles, TileStore } from "../worldgen/tiles";
 import { CELL, DIRT, N, ROAD_HALF, RouteKind, SIZE, type WorldKind } from "../worldgen/types";
 import type {
   Building,
@@ -109,6 +109,10 @@ function circle_contact(solid: Solid, px: number, pz: number, radius: number, bx
   return { nx: nlx * cos + nlz * sin, nz: -nlx * sin + nlz * cos, depth };
 }
 
+function solid_reach(solid: Solid): number {
+  return solid.kind === "circle" ? solid.radius : Math.abs(solid.hw * solid.cos) + Math.abs(solid.hd * solid.sin) + Math.abs(solid.hw * solid.sin) + Math.abs(solid.hd * solid.cos);
+}
+
 function nearest(grid: Map<number, number[]>, x: number, z: number, at: (item: number) => { x: number; z: number }): number {
   const cx = Math.floor(x / ROAD_CELL);
   const cz = Math.floor(z / ROAD_CELL);
@@ -137,9 +141,8 @@ function nearest(grid: Map<number, number[]>, x: number, z: number, at: (item: n
 export class World implements Ground {
   readonly kind: WorldKind;
   readonly deck: DeckIndex | null;
-  readonly heights: Float32Array;
-  readonly road_dist: Float32Array;
-  readonly surface: Uint8Array;
+  /** Terrain heights, `road_dist` and surface, one tile per chunk. */
+  readonly tiles: TileStore;
   /** The race circuit, in driving order; gates and the ghost follow it. */
   readonly road: RoadPoint[];
   readonly graph: RoadGraph;
@@ -157,16 +160,22 @@ export class World implements Ground {
   readonly circuit: number[];
   readonly routes: Route[];
   readonly timings: [string, number][];
+  /** Slot indices per cell: `solids` first, then placed ones behind them. */
   private readonly solid_grid = new Map<number, number[]>();
+  /** `solids`, then whatever `place` put down; a freed slot is null until a later `place` reuses it. */
+  private readonly slots: (Solid | null)[];
+  private readonly free_slots: number[] = [];
+  /** Per slot, when `place` put it down: placed solids resolve in that order, wherever they sit in the grid. */
+  private readonly placed_at: number[] = [];
+  private placings = 0;
   private readonly nearby: Solid[] = [];
+  private readonly nearby_slots: number[] = [];
   private readonly road_grid = new Map<number, number[]>();
   /** Lane 0 is the circuit as `road`, then every other edge at its id + 1, then the trails. */
   private readonly lanes: readonly (readonly RoadPoint[])[];
   /** Every lane's points, packed as lane * LANE_PACK + point index. */
   private readonly lane_grid = new Map<number, number[]>();
-  /** Solids a mode puts down for a while; few enough to check every one, so they stay out of the grid. */
-  private placed: readonly Solid[] = [];
-  private readonly seen: Uint32Array;
+  private seen: Uint32Array;
   /** Circuit points no car is put down on; see spawn_blocks. */
   private readonly no_spawn: Uint8Array;
   /** Offroad routes a reset can land on, after the graph's edges in the lane grid, with the points no car is put down on. */
@@ -182,9 +191,7 @@ export class World implements Ground {
   ) {
     this.kind = data.kind;
     this.deck = data.deck && new DeckIndex(data.deck);
-    this.heights = data.terrain.heights;
-    this.road_dist = data.terrain.road_dist;
-    this.surface = data.terrain.surface;
+    this.tiles = new TileStore(slice_tiles(data.terrain));
     this.road = data.road;
     this.graph = data.graph;
     this.towns = data.towns;
@@ -201,6 +208,7 @@ export class World implements Ground {
     this.circuit = data.circuit;
     this.routes = data.routes;
     this.timings = data.timings;
+    this.slots = [...this.solids];
     this.seen = new Uint32Array(this.solids.length);
     this.wedges = this.ramps.filter((r) => !r.deck).map((ramp) => ({ ramp, reach2: ramp_reach2(ramp) }));
     this.no_spawn = spawn_blocks(this.road, this.ramps, this.challenges);
@@ -225,7 +233,7 @@ export class World implements Ground {
   }
 
   private index_solid(solid: Solid, index: number) {
-    const reach = solid.kind === "circle" ? solid.radius : Math.abs(solid.hw * solid.cos) + Math.abs(solid.hd * solid.sin) + Math.abs(solid.hw * solid.sin) + Math.abs(solid.hd * solid.cos);
+    const reach = solid_reach(solid);
     const x0 = Math.floor((solid.x - reach) / SOLID_CELL);
     const x1 = Math.floor((solid.x + reach) / SOLID_CELL);
     const z0 = Math.floor((solid.z - reach) / SOLID_CELL);
@@ -239,9 +247,25 @@ export class World implements Ground {
       }
   }
 
+  private unindex_solid(solid: Solid, index: number) {
+    const reach = solid_reach(solid);
+    const x0 = Math.floor((solid.x - reach) / SOLID_CELL);
+    const x1 = Math.floor((solid.x + reach) / SOLID_CELL);
+    const z0 = Math.floor((solid.z - reach) / SOLID_CELL);
+    const z1 = Math.floor((solid.z + reach) / SOLID_CELL);
+    for (let cz = z0; cz <= z1; cz++)
+      for (let cx = x0; cx <= x1; cx++) {
+        const list = this.solid_grid.get(grid_key(cx, cz));
+        const at = list ? list.indexOf(index) : -1;
+        if (!list || at < 0) continue;
+        list.copyWithin(at, at + 1);
+        list.length--;
+      }
+  }
+
   /** `y` is the height the query comes from: a deck only counts from above its underside. */
   height(x: number, z: number, y?: number): number {
-    const ground = sample(this.heights, x, z);
+    const ground = this.tiles.height(x, z);
     const ramp = this.ramp_at(x, z);
     const top = ramp && ramp.y > ground ? ramp.y : ground;
     const deck = this.deck?.surface(x, z, y);
@@ -250,11 +274,10 @@ export class World implements Ground {
 
   normal(x: number, z: number, out: Vector3, y?: number): Vector3 {
     const deck = this.deck?.surface(x, z, y);
-    if (deck && deck.y > sample(this.heights, x, z)) return out.set(-deck.gx, 1, -deck.gz).normalize();
+    if (deck && deck.y > this.tiles.height(x, z)) return out.set(-deck.gx, 1, -deck.gz).normalize();
     const ramp = this.ramp_at(x, z);
-    if (ramp && ramp.y > sample(this.heights, x, z)) return out.set(-ramp.gx, 1, -ramp.gz).normalize();
-    const [nx, ny, nz] = slope_normal(this.heights, x, z);
-    return out.set(nx, ny, nz).normalize();
+    if (ramp && ramp.y > this.tiles.height(x, z)) return out.set(-ramp.gx, 1, -ramp.gz).normalize();
+    return this.tiles.slope(x, z, out).normalize();
   }
 
   private ramp_at(x: number, z: number): Surface | null {
@@ -275,14 +298,14 @@ export class World implements Ground {
   }
 
   distance_to_road(x: number, z: number): number {
-    return sample(this.road_dist, x, z);
+    return this.tiles.road_dist(x, z);
   }
 
   /** On a trail: the surface grid at the nearest vertex. */
   dirt(x: number, z: number): boolean {
     const i = Math.round((x + SIZE / 2) / CELL);
     const j = Math.round((z + SIZE / 2) / CELL);
-    return i >= 0 && j >= 0 && i <= N && j <= N && this.surface[j * (N + 1) + i] === DIRT;
+    return i >= 0 && j >= 0 && i <= N && j <= N && this.tiles.surface(i, j) === DIRT;
   }
 
   grip(x: number, z: number): number {
@@ -329,10 +352,30 @@ export class World implements Ground {
 
   /** Returns the function that takes them away again. */
   place(solids: readonly Solid[]): () => void {
-    this.placed = [...this.placed, ...solids];
+    const slots = solids.map((solid) => this.add_placed(solid));
     return () => {
-      this.placed = this.placed.filter((solid) => !solids.includes(solid));
+      for (let k = 0; k < slots.length; k++) this.remove_placed(slots[k], solids[k]);
     };
+  }
+
+  private add_placed(solid: Solid): number {
+    const slot = this.free_slots.pop() ?? this.slots.length;
+    this.slots[slot] = solid;
+    this.placed_at[slot] = this.placings++;
+    if (slot >= this.seen.length) {
+      const seen = new Uint32Array(this.slots.length * 2);
+      seen.set(this.seen);
+      this.seen = seen;
+    }
+    this.index_solid(solid, slot);
+    return slot;
+  }
+
+  private remove_placed(slot: number, solid: Solid) {
+    if (this.slots[slot] !== solid) return;
+    this.unindex_solid(solid, slot);
+    this.slots[slot] = null;
+    this.free_slots.push(slot);
   }
 
   collide(car: Collider): number;
@@ -369,23 +412,48 @@ export class World implements Ground {
   }
 
   // Runs per collision circle every sim step, so it refills one array instead of allocating a list or a callback.
+  // Two passes keep baked solids ahead of placed ones, the order collisions resolve in.
   private near(px: number, pz: number): readonly Solid[] {
     const found = this.nearby;
     found.length = 0;
     const cx = Math.floor(px / SOLID_CELL);
     const cz = Math.floor(pz / SOLID_CELL);
     const stamp = ++this.query;
+    const baked = this.solids.length;
     for (let dz = -1; dz <= 1; dz++)
       for (let dx = -1; dx <= 1; dx++) {
         const list = this.solid_grid.get(grid_key(cx + dx, cz + dz));
         if (!list) continue;
         for (const index of list) {
+          if (index >= baked) break;
           if (this.seen[index] === stamp) continue;
           this.seen[index] = stamp;
           found.push(this.solids[index]);
         }
       }
-    for (const solid of this.placed) found.push(solid);
+    if (this.slots.length === baked) return found;
+    const first = found.length;
+    const slots = this.nearby_slots;
+    slots.length = 0;
+    for (let dz = -1; dz <= 1; dz++)
+      for (let dx = -1; dx <= 1; dx++) {
+        const list = this.solid_grid.get(grid_key(cx + dx, cz + dz));
+        if (!list) continue;
+        for (const index of list) {
+          const solid = this.slots[index];
+          if (index < baked || this.seen[index] === stamp || !solid) continue;
+          this.seen[index] = stamp;
+          let at = slots.length;
+          slots.push(index);
+          found.push(solid);
+          for (; at > 0 && this.placed_at[slots[at - 1]] > this.placed_at[index]; at--) {
+            slots[at] = slots[at - 1];
+            found[first + at] = found[first + at - 1];
+          }
+          slots[at] = index;
+          found[first + at] = solid;
+        }
+      }
     return found;
   }
 

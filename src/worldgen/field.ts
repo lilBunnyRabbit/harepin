@@ -8,24 +8,36 @@ function corner(x: number, z: number) {
   return { i, j, fx: gx - i, fz: gz - j };
 }
 
-export function sample(field: Float32Array, x: number, z: number): number {
-  const { i, j, fx, fz } = corner(x, z);
-  const k = j * (N + 1) + i;
+/** The triangle under (fx, fz) of the cell whose low corner is `field[k]`, in a grid `row` vertices wide. */
+export function tri(field: Float32Array, k: number, row: number, fx: number, fz: number): number {
   const h00 = field[k];
   const h10 = field[k + 1];
-  const h01 = field[k + N + 1];
-  const h11 = field[k + N + 2];
+  const h01 = field[k + row];
+  const h11 = field[k + row + 1];
   if (fx + fz <= 1) return h00 + (h10 - h00) * fx + (h01 - h00) * fz;
   return h11 + (h01 - h11) * (1 - fx) + (h10 - h11) * (1 - fz);
+}
+
+/** x of the unnormalised face normal (x, CELL, z) of that triangle. */
+export function face_nx(h: Float32Array, k: number, row: number, fx: number, fz: number): number {
+  return fx + fz <= 1 ? h[k] - h[k + 1] : h[k + row] - h[k + row + 1];
+}
+
+/** z of the unnormalised face normal (x, CELL, z) of that triangle. */
+export function face_nz(h: Float32Array, k: number, row: number, fx: number, fz: number): number {
+  return fx + fz <= 1 ? h[k] - h[k + row] : h[k + 1] - h[k + row + 1];
+}
+
+export function sample(field: Float32Array, x: number, z: number): number {
+  const { i, j, fx, fz } = corner(x, z);
+  return tri(field, j * (N + 1) + i, N + 1, fx, fz);
 }
 
 /** Unnormalised face normal (x, CELL, z) of the triangle under (x, z); y component of the unit normal is CELL / length. */
 export function slope_normal(heights: Float32Array, x: number, z: number): [number, number, number] {
   const { i, j, fx, fz } = corner(x, z);
-  const h = heights;
   const k = j * (N + 1) + i;
-  if (fx + fz <= 1) return [h[k] - h[k + 1], CELL, h[k] - h[k + N + 1]];
-  return [h[k + N + 1] - h[k + N + 2], CELL, h[k + 1] - h[k + N + 2]];
+  return [face_nx(heights, k, N + 1, fx, fz), CELL, face_nz(heights, k, N + 1, fx, fz)];
 }
 
 export function up(heights: Float32Array, x: number, z: number): number {
