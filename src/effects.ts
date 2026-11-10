@@ -13,6 +13,7 @@ const GROWTH = 1;
 const SMOKE_RATE = 45;
 /** Metres of road a tyre-smoke trail covers before its puffs are gone. */
 const SMOKE_TRAIL = 3;
+const UP = new THREE.Vector3(0, 1, 0);
 
 interface Puff {
   pos: THREE.Vector3;
@@ -35,6 +36,7 @@ export class Smoke {
   private dust = color(mix(brand.warning, brand.background, 0.3));
   private grass = color(mix(brand.success, brand.background, 0.28));
   private carry = [0, 0, 0, 0];
+  private kick = new THREE.Vector3();
 
   constructor() {
     const material = new THREE.MeshLambertMaterial({ flatShading: true, transparent: true, opacity: 0.35, depthWrite: false, emissive: this.smoke, emissiveIntensity: dark ? 0.3 : 0 });
@@ -52,7 +54,7 @@ export class Smoke {
     this.next = (this.next + 1) % PUFFS;
     const p = this.puffs[i];
     p.pos.copy(at);
-    p.vel.copy(vel).multiplyScalar(0.25).add(new THREE.Vector3((Math.random() - 0.5) * 1.5, 0.8 + Math.random(), (Math.random() - 0.5) * 1.5));
+    p.vel.copy(vel).multiplyScalar(0.25).add(this.kick.set((Math.random() - 0.5) * 1.5, 0.8 + Math.random(), (Math.random() - 0.5) * 1.5));
     p.age = 0;
     p.life = life;
     p.size = size;
@@ -94,7 +96,7 @@ export class Smoke {
       p.vel.y += dt * 0.6;
       const t = p.age / p.life;
       const scale = t >= 1 ? 0 : p.size * (0.4 + t * GROWTH) * (1 - t * t);
-      this.q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), p.spin + t * 2);
+      this.q.setFromAxisAngle(UP, p.spin + t * 2);
       this.mesh.setMatrixAt(i, this.matrix.compose(p.pos, this.q, this.s.setScalar(scale)));
     }
     this.mesh.instanceMatrix.needsUpdate = true;
@@ -113,7 +115,11 @@ export class Skids {
   private positions = new Float32Array(SKID_QUADS * 6 * 3);
   /** Write count when each vertex was laid, so the shader can fade by age without rewriting the buffer. */
   private laid = new Float32Array(SKID_QUADS * 6).fill(-SKID_QUADS);
-  private last: (THREE.Vector3 | null)[] = [null, null, null, null];
+  /** Each wheel's last mark point, valid while `marking`. */
+  private last = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
+  private marking = [false, false, false, false];
+  private here = new THREE.Vector3();
+  private side = new THREE.Vector3();
   private next = 0;
   private written = 0;
   private attribute: THREE.BufferAttribute;
@@ -157,34 +163,53 @@ export class Skids {
   }
 
   update(car: Car, world: World) {
-    const side = new THREE.Vector3();
-    car.wheels.forEach((w, i) => {
+    const { here, side } = this;
+    for (let i = 0; i < car.wheels.length; i++) {
+      const w = car.wheels[i];
       const sliding = w.contact && car.vel.length() > 3 && (w.lateral > 1.15 || Math.abs(w.slip) > 0.2) && world.grip(w.point.x, w.point.z) >= 1;
       if (!sliding) {
-        this.last[i] = null;
-        return;
+        this.marking[i] = false;
+        continue;
       }
-      const here = w.point.clone();
+      here.copy(w.point);
       here.y = world.height(here.x, here.z, here.y) + 0.1;
       const prev = this.last[i];
-      if (!prev) {
-        this.last[i] = here;
-        return;
+      if (!this.marking[i]) {
+        prev.copy(here);
+        this.marking[i] = true;
+        continue;
       }
-      if (prev.distanceToSquared(here) < 0.25) return;
-      side.subVectors(here, prev).cross(new THREE.Vector3(0, 1, 0)).normalize().multiplyScalar(0.13);
-      const a0 = prev.clone().add(side);
-      const a1 = prev.clone().sub(side);
-      const b0 = here.clone().add(side);
-      const b1 = here.clone().sub(side);
+      if (prev.distanceToSquared(here) < 0.25) continue;
+      side.subVectors(here, prev).cross(UP).normalize().multiplyScalar(0.13);
       const o = this.next * 18;
-      [a0, b0, a1, a1, b0, b1].forEach((v, k) => this.positions.set([v.x, v.y, v.z], o + k * 3));
+      this.corner(o, prev, 1);
+      this.corner(o + 3, here, 1);
+      this.corner(o + 6, prev, -1);
+      this.corner(o + 9, prev, -1);
+      this.corner(o + 12, here, 1);
+      this.corner(o + 15, here, -1);
       this.laid.fill(this.written, this.next * 6, this.next * 6 + 6);
+      grow_range(this.attribute, o, 18);
+      grow_range(this.laid_attribute, this.next * 6, 6);
       this.head.value = ++this.written;
       this.next = (this.next + 1) % SKID_QUADS;
       this.attribute.needsUpdate = true;
       this.laid_attribute.needsUpdate = true;
-      this.last[i] = here;
-    });
+      prev.copy(here);
+    }
   }
+
+  private corner(o: number, at: THREE.Vector3, sign: 1 | -1) {
+    const { side } = this;
+    this.positions[o] = at.x + sign * side.x;
+    this.positions[o + 1] = at.y + sign * side.y;
+    this.positions[o + 2] = at.z + sign * side.z;
+  }
+}
+
+// The renderer uploads and clears the ranges; quads are laid in ring order, so one frame's marks extend the last range.
+function grow_range(attribute: THREE.BufferAttribute, start: number, count: number) {
+  const last = attribute.updateRanges.at(-1);
+  if (last && last.start + last.count === start) last.count += count;
+  else attribute.addUpdateRange(start, count);
 }
