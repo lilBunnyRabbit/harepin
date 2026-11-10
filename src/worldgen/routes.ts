@@ -20,6 +20,8 @@ const STREET_ROUTES = 2;
 const GATE_SPACING = 150;
 /** Gates closer than this to the one before are dropped: a corner right after a spur gate would be two posts at once. */
 const GATE_GAP = 25;
+/** Metres out of a patched junction to a corner's gate: past the fillets and the arm's setback. */
+const GATE_MOUTH = 25;
 /**
  * The autopilot's driving, fitted to scripts/races.ts: corner speed sqrt(grip × radius), acceleration fading to nothing
  * at TOP, braking BRAKE. Within 5% of the median car on every fitted route.
@@ -29,6 +31,10 @@ const BOT = { grip: 6, accel: 6, top: 36, brake: 6, span: 5 } as const;
 const PAR_SHARE = 1.15;
 const CONE_GAP = 2;
 const CONE_SET = 3;
+/** Extra setback for a row across a road whose junction has a patch: the fillets' curb radius. */
+const CURB_CLEAR = 8;
+const CONE_RADIUS = 0.3;
+const CONE_HEIGHT = 0.7;
 const TRAIL_GATES = 150;
 /** A gate this many points before the take-off toe, then none until the run-out end, where the ramp-out joins. */
 const TOE_GATE = 20;
@@ -45,6 +51,7 @@ interface Leg {
   piece: number;
   points: RoadPoint[];
   length: number;
+  half: number;
 }
 
 const WEIGHT: Record<LegKind, number> = { street: STREET_COST, spur: SPUR_COST, local: SPUR_COST, ring: RING_COST };
@@ -94,7 +101,7 @@ const heading = (p: { tx: number; tz: number }) => Math.atan2(p.tx, p.tz);
 export function circuit_route(road: readonly RoadPoint[], checkpoints: readonly Checkpoint[]): Route {
   const lap = run(road) + length(road[0].x - road[road.length - 1].x, road[0].z - road[road.length - 1].z);
   const gates = [...checkpoints.slice(1), checkpoints[0]].map((c, index) => ({ ...c, index }));
-  return { id: "circuit", kind: RouteKind.CIRCUIT, closed: true, points: [...road], checkpoints: gates, gate_hw: ROAD_HALF, length: lap, par_ms: par(road, true) };
+  return { id: "circuit", kind: RouteKind.CIRCUIT, closed: true, points: [...road], checkpoints: gates, gate_hw: ROAD_HALF, length: lap, par_ms: par(road, true), closure: [] };
 }
 
 /** The circuit driven the other way from the same start line; a road kicker would face backwards, so only a loop with none gets one. */
@@ -111,6 +118,8 @@ export function reverse_circuit(circuit: Route, ramps: readonly Ramp[]): Route |
 class Atlas {
   readonly legs: Leg[] = [];
   readonly out = new Map<number, number[]>();
+  /** Every leg's way out of each node, one-way legs included, for closing the side roads a route passes. */
+  readonly arms = new Map<number, Leg[]>();
   readonly town_nodes = new Map<number, number[]>();
   readonly gates = new Map<number, number>();
   private pieces = 0;
@@ -125,7 +134,7 @@ class Atlas {
     for (const edge of graph.edges) {
       if (circuit.includes(edge.id)) continue;
       if (edge.kind === "street") {
-        this.add(edge.a, edge.b, "street", edge.points);
+        this.add(edge.a, edge.b, "street", edge.points, edge.half);
         const town = town_of(edge.points[0].x, edge.points[0].z);
         if (!town) continue;
         const list = this.town_nodes.get(town.id) ?? [];
@@ -133,7 +142,7 @@ class Atlas {
         this.town_nodes.set(town.id, list);
         continue;
       }
-      this.add(edge.a, edge.b, edge.kind === "local" ? "local" : "spur", edge.points);
+      this.add(edge.a, edge.b, edge.kind === "local" ? "local" : "spur", edge.points, edge.half);
       if (edge.kind !== "highway") continue;
       const gate = graph.nodes[edge.a];
       const town = town_of(gate.x, gate.z);
@@ -142,7 +151,7 @@ class Atlas {
     // A circuit with one join stays a closed loop on it: no leg leads anywhere new.
     for (const id of circuit) {
       const leg = graph.edges[id];
-      if (!leg.closed && leg.a !== leg.b) this.add(leg.a, leg.b, "ring", leg.points, this.kicked(leg.points));
+      if (!leg.closed && leg.a !== leg.b) this.add(leg.a, leg.b, "ring", leg.points, leg.half, this.kicked(leg.points));
     }
   }
 
@@ -151,11 +160,13 @@ class Atlas {
     return this.ramps.some((r) => r.road && points.some((p) => length(p.x - r.x, p.z - r.z) < r.length + ROAD_HALF));
   }
 
-  private add(a: number, b: number, kind: LegKind, points: RoadPoint[], one_way = false) {
+  private add(a: number, b: number, kind: LegKind, points: RoadPoint[], half: number, one_way = false) {
     const piece = this.pieces++;
     const metres = run(points);
-    const ways = [{ from: a, to: b, kind, piece, points, length: metres }];
-    if (!one_way) ways.push({ from: b, to: a, kind, piece, points: flip(points), length: metres });
+    const ways = [{ from: a, to: b, kind, piece, points, length: metres, half }];
+    const back = { from: b, to: a, kind, piece, points: flip(points), length: metres, half };
+    for (const arm of [ways[0], back]) this.arms.set(arm.from, [...(this.arms.get(arm.from) ?? []), arm]);
+    if (!one_way) ways.push(back);
     for (const leg of ways) {
       const list = this.out.get(leg.from) ?? [];
       list.push(this.legs.length);
@@ -223,9 +234,11 @@ function trace(atlas: Atlas, legs: number[], pair: [number, number]): Candidate 
   };
   legs.forEach((l, k) => {
     const leg = atlas.legs[l];
-    if (k > 0 && atlas.corner(atlas.legs[legs[k - 1]], leg)) {
+    const before = k > 0 ? atlas.legs[legs[k - 1]] : null;
+    if (before && atlas.corner(before, leg)) {
       turns++;
-      gate(leg.points[0]);
+      // Only street corners lack a junction patch; anywhere else the gate's posts would stand in its mouth.
+      gate(before.kind === "street" && leg.kind === "street" ? leg.points[0] : at_distance(leg.points, Math.min(GATE_MOUTH, leg.length / 2)));
     }
     if (leg.kind !== "street")
       for (let s = GATE_SPACING, walked = 0, i = 1; i < leg.points.length; i++) {
@@ -260,8 +273,45 @@ function cone(heights: Float32Array, x: number, z: number, fx: number, fz: numbe
 }
 
 /**
+ * A cone row across every road the route passes but does not take, out past the junction's curbs: side streets just
+ * past the sidewalk, roads with a junction patch past its fillets.
+ */
+function closure(atlas: Atlas, c: Candidate, heights: Float32Array): Route["closure"] {
+  const pieces = new Set(c.legs.map((l) => atlas.legs[l].piece));
+  const solids: Route["closure"] = [];
+  const closed = new Set<number>();
+  for (const l of c.legs) {
+    const node = atlas.legs[l].from;
+    const through = Math.max(...c.legs.filter((m) => atlas.legs[m].from === node || atlas.legs[m].to === node).map((m) => atlas.legs[m].half));
+    // A spur can leave its gate a few degrees off a side street, close enough that the row would stand on the spur.
+    const near_route = (x: number, z: number) => c.points.some((q) => length(q.x - x, q.z - z) < through + SIDEWALK);
+    for (const side of atlas.arms.get(node) ?? []) {
+      if (pieces.has(side.piece) || closed.has(side.piece)) continue;
+      closed.add(side.piece);
+      const set = through + SIDEWALK + CONE_SET + (side.kind === "street" ? 0 : CURB_CLEAR);
+      const p = at_distance(side.points, set);
+      for (let u = -side.half + CONE_GAP / 2; u < side.half; u += CONE_GAP) {
+        const x = p.x + p.tz * u;
+        const z = p.z - p.tx * u;
+        if (!near_route(x, z)) solids.push({ kind: "circle", x, y: sample(heights, x, z), z, radius: CONE_RADIUS, height: CONE_HEIGHT });
+      }
+    }
+  }
+  return solids;
+}
+
+/** The point `metres` along `points`, or its last point. */
+function at_distance(points: readonly RoadPoint[], metres: number): RoadPoint {
+  for (let walked = 0, i = 1; i < points.length; i++) {
+    walked += length(points[i].x - points[i - 1].x, points[i].z - points[i - 1].z);
+    if (walked >= metres) return points[i];
+  }
+  return points[points.length - 1];
+}
+
+/**
  * Point to point through two towns: from the far side of town A out along its spur, round the circuit, and in to the far
- * side of town B. Side streets the routes pass get a cone row and every corner an apex cone.
+ * side of town B. Every street corner gets an apex cone; each route closes the roads it passes while it is raced.
  */
 export function street_routes(graph: RoadGraph, circuit: readonly number[], towns: readonly Town[], heights: Float32Array, ramps: readonly Ramp[] = []): { routes: Route[]; items: Item[] } {
   const atlas = new Atlas(graph, circuit, towns, ramps);
@@ -287,35 +337,16 @@ export function street_routes(graph: RoadGraph, circuit: readonly number[], town
   for (const c of fitting) if (picked.length < STREET_ROUTES && !picked.some((p) => same(p, c))) picked.push(c);
   for (const c of fitting) if (picked.length < STREET_ROUTES && !picked.includes(c)) picked.push(c);
 
-  const used = new Set(picked.flatMap((c) => c.legs.map((l) => atlas.legs[l].piece)));
   const items: Item[] = [];
-  // A spur can leave its gate a few degrees off a side street, close enough that the row would stand on the spur.
-  const near_route = (x: number, z: number) => picked.some((c) => c.points.some((q) => length(q.x - x, q.z - z) < STREET_HALF + SIDEWALK));
-  const blocked = new Set<number>();
   for (const c of picked)
     c.legs.forEach((l, k) => {
       const leg = atlas.legs[l];
       const before = k > 0 ? atlas.legs[c.legs[k - 1]] : null;
-      if (before?.kind === "street" && leg.kind === "street" && atlas.corner(before, leg)) {
-        const a = atlas.legs[c.legs[k - 1]].points.at(-1) ?? leg.points[0];
-        const b = leg.points[0];
-        const inset = STREET_HALF - 0.8;
-        items.push(cone(heights, b.x + (b.tx - a.tx) * inset, b.z + (b.tz - a.tz) * inset, b.tx, b.tz));
-      }
-      for (const s of atlas.out.get(leg.from) ?? []) {
-        const side = atlas.legs[s];
-        if (side.kind !== "street" || used.has(side.piece) || blocked.has(side.piece)) continue;
-        blocked.add(side.piece);
-        const p = side.points[0];
-        const set = STREET_HALF + SIDEWALK + CONE_SET;
-        const x = p.x + p.tx * set;
-        const z = p.z + p.tz * set;
-        for (let u = -STREET_HALF + CONE_GAP / 2; u < STREET_HALF; u += CONE_GAP) {
-          const cx = x + p.tz * u;
-          const cz = z - p.tx * u;
-          if (!near_route(cx, cz)) items.push(cone(heights, cx, cz, p.tx, p.tz));
-        }
-      }
+      if (before?.kind !== "street" || leg.kind !== "street" || !atlas.corner(before, leg)) return;
+      const a = before.points.at(-1) ?? leg.points[0];
+      const b = leg.points[0];
+      const inset = STREET_HALF - 0.8;
+      items.push(cone(heights, b.x + (b.tx - a.tx) * inset, b.z + (b.tz - a.tz) * inset, b.tx, b.tz));
     });
 
   const routes = picked.map((c, i): Route => ({
@@ -327,6 +358,7 @@ export function street_routes(graph: RoadGraph, circuit: readonly number[], town
     gate_hw: STREET_HALF + SIDEWALK,
     length: c.length,
     par_ms: par(c.points, false),
+    closure: closure(atlas, c, heights),
   }));
   return { routes, items };
 }
@@ -358,6 +390,6 @@ export function offroad_routes(trails: readonly Trail[]): Route[] {
     }
     picked.push(points.length - 1);
     const checkpoints = picked.map((i, index) => ({ x: points[i].x, y: points[i].y, z: points[i].z, heading: heading(points[i]), index }));
-    return { id: trail.id, kind: RouteKind.OFFROAD, closed: false, points, checkpoints, gate_hw: TRAIL_GATE_HW, length: run(points), par_ms: par(points, false, OFFROAD_SHARE) };
+    return { id: trail.id, kind: RouteKind.OFFROAD, closed: false, points, checkpoints, gate_hw: TRAIL_GATE_HW, length: run(points), par_ms: par(points, false, OFFROAD_SHARE), closure: [] };
   });
 }

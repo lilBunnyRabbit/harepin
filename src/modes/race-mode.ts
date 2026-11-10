@@ -6,6 +6,7 @@ import { best_line, line, result_title } from "./result";
 
 class Race implements ModeRun {
   private readonly view: RaceView;
+  private readonly unplace: () => void;
   private run: RaceRun;
   private clock = 0;
   private result: Finish | null = null;
@@ -18,6 +19,7 @@ class Race implements ModeRun {
   ) {
     this.view = new RaceView(course, ctx.world);
     ctx.scene.add(this.view.root);
+    this.unplace = ctx.world.place(course.route.closure);
     this.run = new RaceRun(course, ctx.lobby_lap() ? 0 : COUNTDOWN_MS);
     this.route = { id: course.route.id, gate: course.line[course.gates[0]] ?? null };
     ctx.spawn_on(course.line[0]);
@@ -84,6 +86,7 @@ class Race implements ModeRun {
   }
 
   dispose() {
+    this.unplace();
     this.view.dispose();
   }
 }

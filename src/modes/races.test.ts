@@ -14,7 +14,7 @@ const gate = (i: number, index: number) => ({ x: POINTS[i % N].x, y: 0, z: POINT
 function route(closed: boolean): Route {
   const points = closed ? POINTS : POINTS.slice(0, 600);
   const checkpoints = closed ? [gate(250, 0), gate(500, 1), gate(750, 2), gate(0, 3)] : [gate(200, 0), gate(400, 1), gate(599, 2)];
-  return { id: closed ? "circuit" : "street-1", kind: closed ? "circuit" : "street", closed, points, checkpoints, gate_hw: 6, length: points.length * 2, par_ms: 60_000 };
+  return { id: closed ? "circuit" : "street-1", kind: closed ? "circuit" : "street", closed, points, checkpoints, gate_hw: 6, length: points.length * 2, par_ms: 60_000, closure: [] };
 }
 
 test("course: gates in order along the line, the finish on its last point", () => {

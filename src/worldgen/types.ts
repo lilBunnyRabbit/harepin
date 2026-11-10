@@ -280,6 +280,8 @@ export interface Route {
   /** Metres, one lap for a closed route. */
   length: number;
   par_ms: number;
+  /** Cones across the roads the route passes, placed only while it is raced. */
+  closure: Extract<Solid, { kind: "circle" }>[];
 }
 
 /**

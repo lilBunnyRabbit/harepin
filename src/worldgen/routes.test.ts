@@ -25,6 +25,7 @@ function contiguous(route: Route) {
 let streets = 0;
 let offroads = 0;
 let gaps = 0;
+let closures = 0;
 test.each(SEEDS)("seed %i: every route is whole, on the road, and gated to its finish", (seed) => {
   const world = generate(seed);
   const ids = world.routes.map((r) => r.id);
@@ -71,12 +72,14 @@ test.each(SEEDS)("seed %i: every route is whole, on the road, and gated to its f
     expect(from?.id).not.toBe(to?.id);
     expect(route.length).toBeGreaterThan(800);
     expect(route.length).toBeLessThan(3200);
-    for (const item of items) for (const p of route.points) expect(length(item.x - p.x, item.z - p.z)).toBeGreaterThan(CONE_CLEAR);
+    for (const item of [...items, ...route.closure]) for (const p of route.points) expect(length(item.x - p.x, item.z - p.z)).toBeGreaterThan(CONE_CLEAR);
+    if (route.closure.length) closures++;
   }
 }, 30_000);
 
 test("most seeds get a street race", () => {
   expect(streets).toBeGreaterThanOrEqual(18);
+  expect(closures).toBeGreaterThanOrEqual(18);
 });
 
 test("most seeds get an offroad race, and most of those a canyon gap", () => {
