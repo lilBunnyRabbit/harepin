@@ -66,6 +66,7 @@
 
 .settings-back svg,
 .settings-close svg {
+  flex: none;
   width: var(--icon-size);
   height: var(--icon-size);
 }
@@ -107,6 +108,7 @@
 }
 
 .menu-brand svg {
+  flex: none;
   width: 26px;
   height: 24px;
   fill: var(--primary);
@@ -178,6 +180,7 @@
 }
 
 .menu-close svg {
+  flex: none;
   width: var(--icon-size);
   height: var(--icon-size);
 }
@@ -454,6 +457,7 @@
 }
 
 .menu-corner svg {
+  flex: none;
   width: 14px;
   height: 14px;
 }
@@ -767,6 +771,7 @@
 }
 
 .modes-foot svg {
+  flex: none;
   width: 14px;
   height: 14px;
 }

@@ -836,6 +836,7 @@
 
 .set-crumb svg,
 .set-reset svg {
+  flex: none;
   width: 16px;
   height: 16px;
 }
