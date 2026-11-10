@@ -1,7 +1,7 @@
 import { add_race, placing, local_store, parse_race_record, read_json, write_json, type RaceRecord, type Store } from "../modes/track";
 import type { Net, RaceEvent, Sender } from "./net";
 import type { Route } from "../worldgen/types";
-import { READY_RESEND_MS, ReadySet, type RaceCall, type ReadyStatus } from "./ready";
+import { READY_RESEND_MS, READY_TTL_MS, ReadySet, type RaceCall, type ReadyStatus } from "./ready";
 
 export const COUNTDOWN_MS = 3000;
 const MAX_SPEED = 90;
@@ -67,6 +67,8 @@ export class Lobby {
   /** The race this player readied for; null while not ready. */
   private own_ready: RaceCall | null = null;
   private ready_due = Infinity;
+  /** Until when a cancel keeps being resent: a lost one would leave this player counted ready till the TTL. */
+  private cancel_until = 0;
   private ready_timer: ReturnType<typeof setInterval> | undefined;
 
   constructor(
@@ -99,14 +101,16 @@ export class Lobby {
   }
 
   /** Readies for the next race with this call, or takes it back with null; ignored while a race runs. */
-  set_ready(call: RaceCall | null) {
+  set_ready(call: RaceCall | null, now = performance.now()) {
     if (this.busy) return;
+    if (!call && this.own_ready) this.cancel_until = now + READY_TTL_MS;
     this.own_ready = call;
     this.ready_due = 0;
   }
 
   ready_status(now: number): ReadyStatus {
-    return this.readies.status(this.own_ready, this.net.same_map.keys(), this.net.leader_id, this.net.id, now);
+    const { net } = this;
+    return this.readies.status(this.own_ready, net.same_map.keys(), (id) => net.name_of(id), net.leader_id, net.id, now, net.electing);
   }
 
   /** Route of the race in progress or just run; the circuit when idle. */
@@ -170,7 +174,7 @@ export class Lobby {
     const own = this.own_ready;
     if (now >= this.ready_due) {
       this.net.send_ready(own ? { ready: true, ...own } : { ready: false });
-      this.ready_due = own ? now + READY_RESEND_MS : Infinity;
+      this.ready_due = own || now < this.cancel_until ? now + READY_RESEND_MS : Infinity;
     }
     if (own && this.leading && this.readies.everyone(own, this.net.same_map.keys(), now)) this.begin(own.laps, own.route);
   }
@@ -191,6 +195,7 @@ export class Lobby {
     this.finishers = [];
     this.own_ready = null;
     this.ready_due = Infinity;
+    this.cancel_until = 0;
     this.readies.clear();
     this.on_start?.();
   }

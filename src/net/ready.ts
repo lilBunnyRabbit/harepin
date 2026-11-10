@@ -1,6 +1,10 @@
 // Ready is resent on a beat so newcomers hear it; one that stops arriving lapses, so a player who left stops counting.
 export const READY_RESEND_MS = 1000;
 export const READY_TTL_MS = 3000;
+// Well under the sender's tick, so jitter bunching two sends never drops a cancel; the burst fits the beat, the cancel
+// resends and a few toggles per rate window.
+export const READY_GAP_MS = 100;
+export const READY_BURST = 32;
 
 export interface RaceCall {
   laps: number;
@@ -18,9 +22,13 @@ interface Heard {
 
 export interface ReadyStatus {
   names: string[];
+  /** Players not ready yet, "you" first when that is this one. */
+  waiting: string[];
   total: number;
   /** What the leader readied for, which is what an all-ready start runs; null while the leader isn't ready. */
   next: RaceCall | null;
+  /** Just joined: players already in the room may not have been heard yet. */
+  electing: boolean;
 }
 
 export class ReadySet {
@@ -46,15 +54,17 @@ export class ReadySet {
     return true;
   }
 
-  status(own: RaceCall | null, present: Iterable<string>, leader: string, self: string, now: number): ReadyStatus {
+  status(own: RaceCall | null, present: Iterable<string>, name_of: (id: string) => string, leader: string, self: string, now: number, electing: boolean): ReadyStatus {
     const names = own ? ["you"] : [];
+    const waiting = own ? [] : ["you"];
     let total = 1;
     for (const id of present) {
       total++;
       const heard = this.fresh(id, now);
       if (heard) names.push(heard.name);
+      else waiting.push(name_of(id));
     }
     const next = leader === self ? own : (this.fresh(leader, now)?.call ?? null);
-    return { names, total, next };
+    return { names, waiting, total, next, electing };
   }
 }

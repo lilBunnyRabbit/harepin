@@ -2,7 +2,7 @@ import { joinRoom, selfId, type Room } from "trystero";
 import { decode_car, encode_car } from "./car-packet";
 import { Link, type Channel } from "./channel";
 import { RateLimit } from "./rate-limit";
-import type { ReadyMsg } from "./ready";
+import { READY_BURST, READY_GAP_MS, type ReadyMsg } from "./ready";
 import { WORLD_VERSION, WorldKind } from "../worldgen/types";
 import { DEFAULT_KIND, world_id } from "../worldgen/kinds/kinds";
 
@@ -105,9 +105,6 @@ const OWN_CHAT_GAP_MS = 900;
 const OWN_CHAT_BURST = 4;
 const FALLBACK_NAME = "Player";
 const ID_SUFFIX = 4;
-// Room for the ready resend beat plus a few toggles per rate window.
-const READY_GAP_MS = 250;
-const READY_BURST = 16;
 
 export const APP_ID = "lilbunnyrabbit-harepin";
 export const MAX_SEED = 0xffffffff;
@@ -410,6 +407,11 @@ export class Net {
     });
   }
 
+  /** A same-map peer's display name, as race events and readies carry it. */
+  name_of(id: string): string {
+    return this.sender(id)?.name ?? FALLBACK_NAME;
+  }
+
   private sender(id: string): Sender | null {
     const remote = this.remotes.get(id);
     if (remote) return { id, name: this.display_name(remote), offset: remote.offset };
@@ -474,7 +476,12 @@ export class Net {
    */
   get leader(): boolean {
     if (this.lock?.asked && !this.had_peer) return false;
-    return performance.now() - this.joined > ELECT_MS && this.leader_id === this.id;
+    return !this.electing && this.leader_id === this.id;
+  }
+
+  /** Within `ELECT_MS` of joining, while players already here may not have been heard. */
+  get electing(): boolean {
+    return performance.now() - this.joined <= ELECT_MS;
   }
 
   get leader_id(): string {
@@ -483,7 +490,7 @@ export class Net {
 
   /** Just joined, with room peers whose map no car packet has told yet: one of them may be the leader. */
   get settling(): boolean {
-    if (performance.now() - this.joined > ELECT_MS) return false;
+    if (!this.electing) return false;
     for (const id of this.peer_ids) if (!this.same_map.has(id) && !this.foreign.has(id)) return true;
     return false;
   }

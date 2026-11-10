@@ -28,6 +28,7 @@ class FakeNet {
   readonly sent: RaceEvent[] = [];
   readonly readies: ReadyMsg[] = [];
   settling = false;
+  electing = false;
   private readonly listeners = new Set<(event: RaceEvent, from: Sender) => void>();
   private readonly ready_listeners = new Set<(msg: ReadyMsg, from: Sender) => void>();
 
@@ -55,6 +56,10 @@ class FakeNet {
 
   hear(event: RaceEvent, from: Sender) {
     for (const fn of this.listeners) fn(event, from);
+  }
+
+  name_of(id: string) {
+    return id;
   }
 
   send_ready(msg: ReadyMsg) {
@@ -198,7 +203,7 @@ test("the leader starts its own call once every present peer is ready; un-readyi
   net.hear_ready({ ready: true, laps: 5, route: "circuit" }, z);
   lobby.tick(performance.now());
   expect(lobby.state.kind).toBe("idle");
-  expect(lobby.ready_status(performance.now())).toEqual({ names: ["you", "z"], total: 3, next: { laps: 2, route: "circuit" } });
+  expect(lobby.ready_status(performance.now())).toEqual({ names: ["you", "z"], waiting: ["y"], total: 3, next: { laps: 2, route: "circuit" }, electing: false });
   net.hear_ready(READY, y);
   net.hear_ready({ ready: false }, z);
   lobby.tick(performance.now());
@@ -228,15 +233,20 @@ test("a follower never starts on all-ready; it resends its ready on the beat and
   expect(net.readies.length).toBe(2);
 });
 
-test("un-readying is sent once, and readying is refused while a race runs", () => {
+test("a cancel right after a beat is resent until the TTL, and readying is refused while a race runs", () => {
   const { net, lobby } = lobby_on("m");
   const a = net.peer("a");
+  const now = performance.now();
   lobby.set_ready({ laps: 2, route: "circuit" });
-  lobby.tick(performance.now());
-  lobby.set_ready(null);
-  lobby.tick(performance.now());
-  lobby.tick(performance.now() + READY_RESEND_MS * 3);
-  expect(net.readies).toEqual([READY, { ready: false }]);
+  lobby.tick(now);
+  lobby.tick(now + READY_RESEND_MS);
+  lobby.set_ready(null, now + READY_RESEND_MS + 1);
+  lobby.tick(now + READY_RESEND_MS + 1);
+  for (let beat = 2; beat <= 6; beat++) lobby.tick(now + READY_RESEND_MS * beat + 1);
+  const cancels = net.readies.slice(2);
+  expect(net.readies.slice(0, 2)).toEqual([READY, READY]);
+  expect(cancels.every((m) => !m.ready)).toBe(true);
+  expect(cancels.length).toBe(1 + READY_TTL_MS / READY_RESEND_MS);
   net.hear(start(1, performance.now() + COUNTDOWN_MS), a);
   lobby.set_ready({ laps: 2, route: "circuit" });
   expect(lobby.ready).toBe(false);

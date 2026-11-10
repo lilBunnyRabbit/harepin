@@ -1,6 +1,7 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import { READY_TTL_MS, ReadySet } from "./ready";
+import { READY_BURST, READY_GAP_MS, READY_RESEND_MS, READY_TTL_MS, ReadySet } from "./ready";
+import { RateLimit } from "./rate-limit";
 
 const CALL = { laps: 3, route: "circuit" };
 
@@ -33,7 +34,18 @@ test("status counts present players, names the ready ones and shows the leader's
   const set = new ReadySet();
   set.hear("a", "Ana", { ready: true, laps: 2, route: "street-1" }, 0);
   set.hear("gone", "Gone", { ready: true, ...CALL }, 0);
-  expect(set.status(CALL, ["a", "z"], "a", "m", 0)).toEqual({ names: ["you", "Ana"], total: 3, next: { laps: 2, route: "street-1" } });
-  expect(set.status(null, ["a", "z"], "a", "m", READY_TTL_MS + 1)).toEqual({ names: [], total: 3, next: null });
-  expect(set.status(CALL, ["z"], "m", "m", 0)).toEqual({ names: ["you"], total: 2, next: CALL });
+  const name_of = (id: string) => id.toUpperCase();
+  expect(set.status(CALL, ["a", "z"], name_of, "a", "m", 0, false)).toEqual({ names: ["you", "Ana"], waiting: ["Z"], total: 3, next: { laps: 2, route: "street-1" }, electing: false });
+  expect(set.status(null, ["a", "z"], name_of, "a", "m", READY_TTL_MS + 1, true)).toEqual({ names: [], waiting: ["you", "A", "Z"], total: 3, next: null, electing: true });
+  expect(set.status(CALL, ["z"], name_of, "m", "m", 0, false)).toEqual({ names: ["you"], waiting: ["Z"], total: 2, next: CALL, electing: false });
+});
+
+test("the receiver's limit keeps a cancel bunched right behind a beat, and a steady beat with toggles", () => {
+  const limit = new RateLimit(READY_GAP_MS, READY_BURST);
+  expect(limit.allow(0)).toBe(true);
+  expect(limit.allow(READY_RESEND_MS)).toBe(true);
+  expect(limit.allow(READY_RESEND_MS + READY_GAP_MS)).toBe(true);
+  const sends = [];
+  for (let t = 2 * READY_RESEND_MS; t < 10_000; t += READY_RESEND_MS) sends.push(limit.allow(t), limit.allow(t + 300), limit.allow(t + 600));
+  expect(sends.filter((ok) => !ok).length).toBe(0);
 });
