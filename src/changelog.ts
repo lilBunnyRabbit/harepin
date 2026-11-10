@@ -23,6 +23,20 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.13.0",
+    date: "2026-11-10",
+    title: "Bus and friends online",
+    changes: [
+      { kind: NEW, text: "A city bus: 12 metres, eleven tonnes, leans into every corner. Parking and gymkhana are too tight for it." },
+      { kind: NEW, text: "Players online in the Online tab: who is playing, where, their flag and ping, and Join to drive with them." },
+      { kind: NEW, text: "Leave room takes you back to the open lobby on the same map." },
+      { kind: IMPROVED, text: "Phones on mobile data can now connect to other players through a relay when a direct link fails." },
+      { kind: IMPROVED, text: "Connection status lives in the Online tab, and it tells you when the network blocks a connection." },
+      { kind: IMPROVED, text: "Shared links show a Harepin card with the tuned Sturm." },
+      { kind: FIXED, text: "The guide now mentions that you can switch cars." },
+    ],
+  },
+  {
     version: "0.12.0",
     date: "2026-11-10",
     title: "Maps, keys and ready-up",
