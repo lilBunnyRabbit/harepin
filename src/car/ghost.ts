@@ -4,11 +4,10 @@ import { COUPE, car_sized } from "./cars";
 import { camera_fade, car_view, dispose_car_view, rest_wheels, type CarView } from "./models";
 import { brand, color } from "../theme/palette";
 import { world_key } from "../worldgen/kinds/kinds";
+import { lap_cap_ms } from "./ghost-cap";
 
 const STRIDE = 8;
 const EVERY_MS = 100;
-/** Past this a free drive after the start line stops growing the recording; no lap that slow is worth replaying. */
-const MAX_LAP_MS = 10 * 60_000;
 const GHOST_OPACITY = 0.32;
 const GHOST_ORDER = 10;
 
@@ -50,9 +49,11 @@ export class Ghost {
   private b = new THREE.Quaternion();
 
   private readonly key: string;
+  private readonly cap_ms: number;
 
-  constructor(scene: THREE.Scene, seed = 0, key = `harepin:ghost:${world_key(seed)}`) {
+  constructor(scene: THREE.Scene, seed = 0, key = `harepin:ghost:${world_key(seed)}`, lap_m = 0) {
     this.key = key;
+    this.cap_ms = lap_cap_ms(lap_m);
     this.best = load(this.key);
     this.view = car_view(color(brand.cottontail));
     // Unlit and single-layer: a depth-only copy of every part draws first, so only the nearest face gets tinted.
@@ -92,7 +93,7 @@ export class Ghost {
   // runs on the road instead of floating a metre up.
   record(lap_ms: number, car: Pick<Car, "pos" | "quat" | "spec">) {
     const last = this.recording.length ? this.recording[this.recording.length - STRIDE] : -Infinity;
-    if (lap_ms - last < EVERY_MS || lap_ms > MAX_LAP_MS) return;
+    if (lap_ms - last < EVERY_MS || lap_ms > this.cap_ms) return;
     const y = car_sized(car.spec) ? car.pos.y : car.pos.y - (ride_height(car.spec) - ride_height(COUPE));
     this.recording.push(lap_ms, car.pos.x, y, car.pos.z, car.quat.x, car.quat.y, car.quat.z, car.quat.w);
   }
