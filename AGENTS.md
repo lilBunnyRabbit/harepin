@@ -8,12 +8,16 @@ Vite + TypeScript + Three.js driving game, no framework, no server. Code style f
 bun run typecheck          # tsc --noEmit, must stay at 0 errors
 bun run build              # static dist/
 bun run telemetry          # scripts/telemetry.ts: 0-100, top speed, braking, skidpad
+bun test                   # fast: seed sweeps take seeds 0-4; `bun run test:full` (FULL=1) sweeps every seed
+bun scripts/golden.ts      # rewrite scripts/golden/*.txt; --check diffs generated worlds against them
+bun scripts/proof.ts       # every world check, drive, golden diff and gen timing, one pass per seed, all cores
+bun scripts/races.ts --changed  # race drives on routes whose golden digest moved, plus three canaries
 bun scripts/feel.ts        # handling scenarios
 bun scripts/autolap.ts     # autopilot lap; also scripts/crash.ts, scripts/offroad.ts
 node scripts/og/render.mjs # link-preview card public/og.jpg from scripts/og/og.html; capture.mjs <port> re-shoots hero.jpg from a vite preview
 ```
 
-Run `typecheck` and `build` before every commit. A change to `src/car/`, `src/world/` or input also runs the `scripts/*.ts` checks and compares numbers against the previous run.
+Run `typecheck` and `build` before every commit; what else a change runs is in [Tests](#tests).
 
 ## Structure
 
@@ -40,7 +44,7 @@ One level of feature folders under `src/`. Each folder owns its modules, tests (
 Every kind of thing we add has a registry. Adding one touches its own files plus one registry line; the compiler lists anything missing.
 
 - **Game mode:** `src/modes/<mode>-mode.ts` exports a `ModeDef` (`mode.ts`); logic and view in their own files beside it. Add it to `MODES` in `modes.ts`. `needs_ground` decides whether it runs on Sky.
-- **World kind:** a `WorldKind` value in `worldgen/types.ts`, then four pieces. Worker side: `worldgen/kinds/<kind>.ts` exports `kind_def({ … })` (`kinds/kind-def.ts`: `base`/`tag`/`version` derive `id` and `key()`, plus `generate`, `open_ground`, `rails`, `ground`, `fall_reset`, `grip`) and goes in `KINDS`. A land kind's `generate` is `generate(seed, RECIPE)` with its own `Recipe` (`worldgen/recipe.ts`: terrain, biomes, road, towns, landmarks); a recipe is part of the kind's version, so changing a value bumps `version`. UI side: `worlds/<kind>.ts` (copy, facts, `mood` deltas over the theme, `backdrop`, `dress`) in `WORLDS`. Images: `public/menu/<kind>.webp` and `<kind>-map.webp`. Not covered yet: the Play tile's grid area in `menu/menu.css` names each kind. A kind's `base`, `tag` and `version` key saved records: never change them for an existing kind except as a deliberate version bump.
+- **World kind:** a `WorldKind` value in `worldgen/types.ts`, then four pieces. Worker side: `worldgen/kinds/<kind>.ts` exports `kind_def({ … })` (`kinds/kind-def.ts`: `base`/`tag`/`version` derive `id` and `key()`, plus `generate`, `recipe`, `open_ground`, `rails`, `ground`, `fall_reset`, `grip`) and goes in `KINDS`. A land kind's `generate` is `generate(seed, RECIPE, kind)` with its own `Recipe` (`worldgen/recipe.ts`: terrain shape, biome tree rules, items and ground rows, road, towns, landmarks); a recipe is part of the kind's version, so changing a value bumps `version`. UI side: `worlds/<kind>.ts` (copy, facts, `mood` deltas over the theme, `ground_puff`, `backdrop`, `dress`) in `WORLDS`. Images: `public/menu/<kind>.webp` and `<kind>-map.webp`. The Play tab shows every kind's tile in its one `worlds` area. A kind's `base`, `tag` and `version` key saved records: never change them for an existing kind except as a deliberate version bump.
 - **Car:** a `CarSpec` in `car/cars.ts` added to `CARS`, plus its body design (`Record<BodyStyle, …>` makes a missing one a type error). Axles come from the spec through `axles_of`; don't index wheels by number.
 - **Part:** an entry in `SLOTS` in `car/build.ts`.
 - **Setting:** a field on `SettingsState` and its entry in `FIELDS` in `menu/prefs.ts` (the mapped type rejects a missing one), then its row in the section builder in `menu/settings-sections.ts`. Reset picks the key up from the row.
@@ -66,7 +70,7 @@ Several agents often work in this repo at once.
 
 - No allocations in the 360 Hz physics step or the per-frame loop: hoist scratch vectors, no closures, `filter`, spreads or object literals per call.
 - The DOM is written only when a value changes; read layout before writing, never after.
-- A change that claims identical output proves it: `car.test.ts` bit-exact and `scripts/telemetry.ts` / `scripts/feel.ts` byte-identical for physics; a hash of the generated arrays for worldgen and meshes.
+- A change that claims identical output proves it: `car.test.ts` bit-exact and `scripts/telemetry.ts` / `scripts/feel.ts` byte-identical for physics; `bun scripts/golden.ts --check` for worldgen and meshes.
 - Generated world output is keyed by `WORLD_VERSION` / `SKY_VERSION` (`worldgen/types.ts`). Changing what `generate_world` returns needs a bump, which resets every player's records for that kind.
 
 ## Rules
@@ -100,6 +104,20 @@ Semver, and `package.json` `version` is the only source. The build stamps it int
 ## Tests
 
 `bun test` for pure logic, `*.test.ts` beside the module, no fakes for what can run for real; `bun test src/<folder>` runs one feature. A module that needs a fake (a trystero room) takes it as a parameter rather than through a process-wide `mock.module`. Sim behaviour is checked by asserting on the `scripts/*.ts` numbers. Rendering is checked by eye in the browser: one headless browser at a time, against a `vite preview` of a build when others are editing the tree.
+
+Run what the change needs, nothing more:
+
+| Change | Proof |
+|---|---|
+| Every commit | `typecheck` + `bun test` (fast) |
+| Touches generation (`worldgen/`, meshing, map) | + `bun scripts/golden.ts --check`. Output meant to change: run `bun scripts/golden.ts` and commit `scripts/golden/` with the change, so review sees which parts moved |
+| Car physics | `car.test.ts` + `scripts/telemetry.ts` / `scripts/feel.ts` byte-identical, nothing else |
+| Routes or race logic | `bun scripts/races.ts --changed` only |
+| Generation hot path | one `bun scripts/proof.ts --no-drive --jobs 1` timing table; no repeated medians |
+| Visual | screenshots, one theme unless the change is about themes, about 4 shots at most |
+| Release | `bun run test:full` + `bun scripts/proof.ts` |
+
+No base archives for identity proofs: the committed goldens are the base. A sweep test takes its seeds from `sweep(n)` (`src/sweep.ts`), so the fast run stays fast.
 
 ## Differs today
 
