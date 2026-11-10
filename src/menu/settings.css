@@ -596,6 +596,11 @@
   display: none;
 }
 
+/* The form says which room it asks for; a list squeezed beside it would only show a sliver of a row. */
+.menu-info:has(> .servers-unlock:not([hidden])) > .menu-scroll {
+  display: none;
+}
+
 .servers-unlock-label {
   font-weight: 600;
 }
