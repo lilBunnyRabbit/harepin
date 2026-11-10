@@ -1,5 +1,6 @@
 import { joinRoom, type Room } from "trystero";
 import { APP_ID, MAX_SEED, RateLimit, clean_name, type RoomLock } from "./net";
+import { TURN_SERVERS } from "./ice";
 import { WorldKind } from "../worldgen/types";
 import { world_id } from "../worldgen/kinds/kinds";
 
@@ -232,7 +233,7 @@ export class Directory {
     this.status = DirectoryStatus.CONNECTING;
     try {
       // Announcers join passive: trystero never pairs two passive peers, so a game only links to players browsing the list.
-      const room = joinRoom({ appId: APP_ID, maxReceiveBytes: MAX_RECEIVE_BYTES, passive: mode === "announce" }, DIRECTORY_ROOM, {
+      const room = joinRoom({ appId: APP_ID, turnConfig: TURN_SERVERS, maxReceiveBytes: MAX_RECEIVE_BYTES, passive: mode === "announce" }, DIRECTORY_ROOM, {
         onPeerHandshake: async (peer) => {
           if (!this.admission.admit(peer)) throw new Error("directory: peer cap reached");
         },

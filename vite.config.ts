@@ -1,11 +1,12 @@
 import { execSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { defineConfig, type Plugin } from "vite";
+import { defineConfig, loadEnv, type Plugin } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 import { BRAND_INK } from "./pwa-assets.config";
 import { CHANGELOG } from "./src/changelog";
 import type { RemoteVersion, VersionInfo } from "./src/version";
+import { encode_turn } from "./src/net/turn-code";
 
 // version.json carries the newest releases so a tab several versions behind still lists what it skipped.
 const NOTES_KEPT = 10;
@@ -41,51 +42,55 @@ function version_file(): Plugin {
   };
 }
 
-export default defineConfig({
-  // Relative asset URLs so the same build works at a domain root and under a GitHub Pages project path (/<repo>/).
-  base: "./",
-  define: { __HAREPIN_VERSION__: JSON.stringify(VERSION) },
-  resolve: { dedupe: ["three"] },
-  optimizeDeps: {
-    include: [
-      "three",
-      "three/examples/jsm/postprocessing/EffectComposer.js",
-      "three/examples/jsm/postprocessing/OutputPass.js",
-      "three/examples/jsm/postprocessing/RenderPass.js",
-      "three/examples/jsm/postprocessing/UnrealBloomPass.js",
-    ],
-  },
-  plugins: [
-    version_file(),
-    VitePWA({
-      // prompt: a new build waits until the player picks Update now (src/menu/update.ts), so nothing reloads mid-race.
-      registerType: "prompt",
-      injectRegister: false,
-      // Relative, so the worker controls /harepin/ only: WebOS and Series Tracker share the origin.
-      scope: "./",
-      workbox: {
-        globPatterns: ["**/*.{js,css,html,woff2,svg,png,ico,webp}"],
-      },
-      manifest: {
-        id: "harepin",
-        name: "Harepin",
-        short_name: "Harepin",
-        description: "Low-poly open-world driving in the browser.",
-        start_url: "./",
+export default defineConfig(({ mode }) => {
+  // No VITE_ prefix, so the relay login never reaches import.meta.env in plain text; CI passes it from repo secrets.
+  const env = loadEnv(mode, process.cwd(), "");
+  return {
+    // Relative asset URLs so the same build works at a domain root and under a GitHub Pages project path (/<repo>/).
+    base: "./",
+    define: { __HAREPIN_VERSION__: JSON.stringify(VERSION), __HAREPIN_TURN__: JSON.stringify(encode_turn(env.TURN_USERNAME, env.TURN_CREDENTIAL)) },
+    resolve: { dedupe: ["three"] },
+    optimizeDeps: {
+      include: [
+        "three",
+        "three/examples/jsm/postprocessing/EffectComposer.js",
+        "three/examples/jsm/postprocessing/OutputPass.js",
+        "three/examples/jsm/postprocessing/RenderPass.js",
+        "three/examples/jsm/postprocessing/UnrealBloomPass.js",
+      ],
+    },
+    plugins: [
+      version_file(),
+      VitePWA({
+        // prompt: a new build waits until the player picks Update now (src/menu/update.ts), so nothing reloads mid-race.
+        registerType: "prompt",
+        injectRegister: false,
+        // Relative, so the worker controls /harepin/ only: WebOS and Series Tracker share the origin.
         scope: "./",
-        display: "fullscreen",
-        display_override: ["fullscreen", "standalone"],
-        orientation: "landscape",
-        theme_color: BRAND_INK,
-        background_color: BRAND_INK,
-        icons: [
-          { src: "pwa-64x64.png", sizes: "64x64", type: "image/png" },
-          { src: "pwa-192x192.png", sizes: "192x192", type: "image/png" },
-          { src: "pwa-512x512.png", sizes: "512x512", type: "image/png", purpose: "any" },
-          { src: "maskable-icon-512x512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
-        ],
-      },
-    }),
-  ],
-  build: { chunkSizeWarningLimit: 1200 },
+        workbox: {
+          globPatterns: ["**/*.{js,css,html,woff2,svg,png,ico,webp}"],
+        },
+        manifest: {
+          id: "harepin",
+          name: "Harepin",
+          short_name: "Harepin",
+          description: "Low-poly open-world driving in the browser.",
+          start_url: "./",
+          scope: "./",
+          display: "fullscreen",
+          display_override: ["fullscreen", "standalone"],
+          orientation: "landscape",
+          theme_color: BRAND_INK,
+          background_color: BRAND_INK,
+          icons: [
+            { src: "pwa-64x64.png", sizes: "64x64", type: "image/png" },
+            { src: "pwa-192x192.png", sizes: "192x192", type: "image/png" },
+            { src: "pwa-512x512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+            { src: "maskable-icon-512x512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+          ],
+        },
+      }),
+    ],
+    build: { chunkSizeWarningLimit: 1200 },
+  };
 });

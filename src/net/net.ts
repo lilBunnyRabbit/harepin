@@ -2,6 +2,7 @@ import { joinRoom, selfId, type Room } from "trystero";
 import { decode_car, encode_car } from "./car-packet";
 import { Link, type Channel } from "./channel";
 import { RateLimit } from "./rate-limit";
+import { TURN_SERVERS } from "./ice";
 import { READY_BURST, READY_GAP_MS, type ReadyMsg } from "./ready";
 import { WORLD_VERSION, WorldKind } from "../worldgen/types";
 import { DEFAULT_KIND, world_id } from "../worldgen/kinds/kinds";
@@ -256,7 +257,7 @@ export class Net {
     const password = lock?.password ?? null;
     let p2p: Room | null = null;
     try {
-      p2p = join({ appId: APP_ID, ...(password === null ? {} : { password }) }, room, {
+      p2p = join({ appId: APP_ID, turnConfig: TURN_SERVERS, ...(password === null ? {} : { password }) }, room, {
         onJoinError: ({ error }) => {
           this.status = join_error_status(lock, this.had_peer, this.peers, error) ?? this.status;
         },
