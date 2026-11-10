@@ -9,7 +9,7 @@ import { Garage, load_build } from "./garage";
 import { Ghost } from "./ghost";
 import { Heartbeat } from "./heartbeat";
 import { $, Hud } from "./hud";
-import { Input } from "./input";
+import { Input, type Action } from "./input";
 import { Lobby, lobby_routes } from "./lobby";
 import { Modes } from "./modes/modes";
 import { race_choices } from "./modes/races";
@@ -278,6 +278,33 @@ for (const chip of document.querySelectorAll<HTMLButtonElement>("button[data-aid
     toggle_aid(chip.dataset.aid as Aid);
   });
 
+function shift(step: 1 | -1) {
+  if (settings.state.auto) hud.toast("Manual gearbox");
+  settings.set("auto", false);
+  driver.car.shift(step);
+}
+
+const ACTIONS: Record<Action, () => void> = {
+  reset: () => (modes.active ? modes.restart() : driver.reset(lobby.busy && lobby.route === "circuit")),
+  restart: () => restart_action(),
+  recenter: () => chase.recenter(),
+  camera: () => {
+    if (modes.parking) modes.toggle_view();
+    else settings.set("camera", settings.state.camera === CameraView.CHASE ? CameraView.COCKPIT : CameraView.CHASE);
+  },
+  shift_up: () => shift(1),
+  shift_down: () => shift(-1),
+  auto: () => toggle_aid("auto"),
+  tcs: () => toggle_aid("tcs"),
+  abs: () => toggle_aid("abs"),
+  assist: () => toggle_aid("assist"),
+  ghost: () => toggle_aid("ghost"),
+  help: () => (settings.is_open ? settings.close() : settings.open_keys()),
+  garage: () => (garage.is_open ? settings.close() : settings.open(MenuTab.GARAGE)),
+  settings: () => settings.open(),
+  menu: () => pad_menu.toggle(),
+};
+
 const DT = 1 / 360;
 // Farther than a step can move: the car was placed (reset, mode restart), so drawing it does not slide from the old spot.
 const TELEPORT_SQ = 1;
@@ -311,29 +338,7 @@ function frame(now: number) {
   const { controls, actions } = input.read();
   if (garage.is_open) garage.navigate(input.nav);
   else pad_menu.navigate(input.nav);
-  for (const action of actions) {
-    if (action === "reset") {
-      if (modes.active) modes.restart();
-      else driver.reset(lobby.busy && lobby.route === "circuit");
-    }
-    if (action === "restart") restart_action();
-    const state = settings.state;
-    if (action === "recenter") chase.recenter();
-    if (action === "camera") {
-      if (modes.parking) modes.toggle_view();
-      else settings.set("camera", state.camera === CameraView.CHASE ? CameraView.COCKPIT : CameraView.CHASE);
-    }
-    if (action === "shift_up" || action === "shift_down") {
-      if (state.auto) hud.toast("Manual gearbox");
-      settings.set("auto", false);
-      driver.car.shift(action === "shift_up" ? 1 : -1);
-    }
-    if (action === "auto" || action === "tcs" || action === "abs" || action === "assist" || action === "ghost") toggle_aid(action);
-    if (action === "help") settings.is_open ? settings.close() : settings.open_keys();
-    if (action === "garage") garage.is_open ? settings.close() : settings.open(MenuTab.GARAGE);
-    if (action === "settings") settings.open();
-    if (action === "menu") pad_menu.toggle();
-  }
+  for (const action of actions) ACTIONS[action]();
   const { car, view } = driver;
 
   lobby.update(now);
