@@ -1,6 +1,6 @@
 import type { Car } from "../car/car";
 import type { Remote } from "../net/net";
-import type { Checkpoint, RoadPoint } from "../worldgen/types";
+import type { Checkpoint, RoadPoint, Route } from "../worldgen/types";
 import { brand, rgba } from "../theme/palette";
 import { ROAD_HALF, SIZE } from "../world/world";
 
@@ -19,51 +19,86 @@ const CLOSE_TURN_LAG = 0.12;
 const PIECE = 32;
 const EDGE = MAP / 2 - 6;
 
+const full_x = (x: number) => MAP / 2 + (x / SIZE) * MAP * 1.05;
+const full_y = (z: number) => MAP / 2 + (z / SIZE) * MAP * 1.05;
+
+interface Drawn {
+  id: string;
+  points: readonly RoadPoint[];
+  closed: boolean;
+  road: Path2D;
+  /** Per close-up piece: min x, min z, max x, max z. */
+  bounds: Float64Array;
+}
+
+function drawn(route: Route): Drawn {
+  const { points, closed } = route;
+  const road = new Path2D();
+  points.forEach((p, i) => (i ? road.lineTo(full_x(p.x), full_y(p.z)) : road.moveTo(full_x(p.x), full_y(p.z))));
+  if (closed) road.closePath();
+  const count = Math.ceil(points.length / PIECE);
+  const bounds = new Float64Array(count * 4);
+  for (let k = 0; k < count; k++) {
+    let x0 = Infinity;
+    let z0 = Infinity;
+    let x1 = -Infinity;
+    let z1 = -Infinity;
+    for (let j = 0; j <= PIECE; j++) {
+      const i = k * PIECE + j;
+      if (!closed && i >= points.length) break;
+      const p = points[i % points.length];
+      x0 = Math.min(x0, p.x);
+      z0 = Math.min(z0, p.z);
+      x1 = Math.max(x1, p.x);
+      z1 = Math.max(z1, p.z);
+    }
+    bounds[k * 4] = x0;
+    bounds[k * 4 + 1] = z0;
+    bounds[k * 4 + 2] = x1;
+    bounds[k * 4 + 3] = z1;
+  }
+  return { id: route.id, points, closed, road, bounds };
+}
+
 export class Minimap {
   private ctx: CanvasRenderingContext2D;
-  private road = new Path2D();
   private road_layer = new OffscreenCanvas(1, 1);
   private ratio = 0;
-  private bounds: Float64Array;
+  private drawn: Drawn | null = null;
+  private wanted = "";
+  private cache = new Map<string, Drawn>();
   private turn = Number.NaN;
   private last = 0;
 
   constructor(
     private canvas: HTMLCanvasElement,
-    private points: readonly RoadPoint[],
+    private routes: readonly Route[],
   ) {
-    const road = points;
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("minimap has no 2d context");
     this.ctx = ctx;
-    road.forEach((p, i) => (i ? this.road.lineTo(...this.to_full(p.x, p.z)) : this.road.moveTo(...this.to_full(p.x, p.z))));
-    this.road.closePath();
-    const count = Math.ceil(road.length / PIECE);
-    this.bounds = new Float64Array(count * 4);
-    for (let k = 0; k < count; k++) {
-      let x0 = Infinity;
-      let z0 = Infinity;
-      let x1 = -Infinity;
-      let z1 = -Infinity;
-      for (let j = 0; j <= PIECE; j++) {
-        const p = road[(k * PIECE + j) % road.length];
-        x0 = Math.min(x0, p.x);
-        z0 = Math.min(z0, p.z);
-        x1 = Math.max(x1, p.x);
-        z1 = Math.max(z1, p.z);
-      }
-      this.bounds.set([x0, z0, x1, z1], k * 4);
+  }
+
+  /** The route both views draw: a lobby race's, else the circuit. Rebuilt only when it changes. */
+  show_route(id: string) {
+    if (id === this.wanted && this.drawn) return;
+    this.wanted = id;
+    const route = this.routes.find((r) => r.id === id) ?? this.routes[0];
+    if (!route) return;
+    let next = this.cache.get(route.id);
+    if (!next) {
+      next = drawn(route);
+      this.cache.set(route.id, next);
     }
+    if (next === this.drawn) return;
+    this.drawn = next;
+    this.ratio = 0;
   }
 
-  private to_full(x: number, z: number): [number, number] {
-    return [MAP / 2 + (x / SIZE) * MAP * 1.05, MAP / 2 + (z / SIZE) * MAP * 1.05];
-  }
-
-  // The road never changes for a world and the theme is fixed per load, so the full map's road is stroked once per pixel ratio.
+  // The road only changes with the race route and the theme is fixed per load, so the full map's road is stroked once per route and pixel ratio.
   private fit() {
     const ratio = devicePixelRatio;
-    if (ratio === this.ratio) return;
+    if (ratio === this.ratio || !this.drawn) return;
     this.ratio = ratio;
     const size = Math.round(MAP * ratio);
     this.canvas.width = size;
@@ -75,7 +110,7 @@ export class Minimap {
     road.lineWidth = 3;
     road.lineJoin = "round";
     road.strokeStyle = INK.road;
-    road.stroke(this.road);
+    road.stroke(this.drawn.road);
   }
 
   private dot(x: number, y: number, radius: number) {
@@ -95,20 +130,22 @@ export class Minimap {
     ctx.fill();
   }
 
-  full(car: Car, gate: Checkpoint, remotes: Iterable<Remote>) {
+  full(car: Car, gate: Checkpoint | null, remotes: Iterable<Remote>) {
     this.fit();
     const { ctx } = this;
     ctx.setTransform(this.ratio, 0, 0, this.ratio, 0, 0);
     ctx.clearRect(0, 0, MAP, MAP);
     ctx.drawImage(this.road_layer, 0, 0, MAP, MAP);
-    ctx.fillStyle = INK.checkpoint;
-    this.dot(...this.to_full(gate.x, gate.z), 4.5);
+    if (gate) {
+      ctx.fillStyle = INK.checkpoint;
+      this.dot(full_x(gate.x), full_y(gate.z), 4.5);
+    }
     ctx.fillStyle = INK.remote;
-    for (const remote of remotes) this.dot(...this.to_full(remote.latest.p[0], remote.latest.p[2]), 3.5);
-    this.arrow(...this.to_full(car.pos.x, car.pos.z), car.heading);
+    for (const remote of remotes) this.dot(full_x(remote.latest.p[0]), full_y(remote.latest.p[2]), 3.5);
+    this.arrow(full_x(car.pos.x), full_y(car.pos.z), car.heading);
   }
 
-  close(car: Car, gate: Checkpoint, remotes: Iterable<Remote>, now: number) {
+  close(car: Car, gate: Checkpoint | null, remotes: Iterable<Remote>, now: number) {
     this.fit();
     const { ctx } = this;
     const heading = car.heading;
@@ -142,21 +179,25 @@ export class Minimap {
       const dz = remote.latest.p[2] - z;
       this.dot(cx + cos * dx - sin * dz, cy + sin * dx + cos * dz, 3.5);
     }
-    const gx = cos * (gate.x - x) - sin * (gate.z - z) + cx - MAP / 2;
-    const gy = sin * (gate.x - x) + cos * (gate.z - z) + cy - MAP / 2;
-    const edge = Math.min(1, EDGE / Math.hypot(gx, gy));
-    ctx.fillStyle = INK.checkpoint;
-    this.dot(MAP / 2 + gx * edge, MAP / 2 + gy * edge, 4.5);
+    if (gate) {
+      const gx = cos * (gate.x - x) - sin * (gate.z - z) + cx - MAP / 2;
+      const gy = sin * (gate.x - x) + cos * (gate.z - z) + cy - MAP / 2;
+      const edge = Math.min(1, EDGE / Math.hypot(gx, gy));
+      ctx.fillStyle = INK.checkpoint;
+      this.dot(MAP / 2 + gx * edge, MAP / 2 + gy * edge, 4.5);
+    }
     this.arrow(cx, cy, Math.PI);
   }
 
   // One path for every piece in reach: stroked piece by piece, the half-transparent ink doubled up where they meet.
   private trace(x: number, z: number) {
-    const { ctx, bounds, points } = this;
+    const { ctx, drawn } = this;
+    ctx.beginPath();
+    if (!drawn) return;
+    const { bounds, points, closed } = drawn;
     const reach = MAP / CLOSE_SCALE;
     const count = bounds.length / 4;
     let joined = false;
-    ctx.beginPath();
     for (let k = 0; k < count; k++) {
       const at = k * 4;
       if (bounds[at] > x + reach || bounds[at + 2] < x - reach || bounds[at + 1] > z + reach || bounds[at + 3] < z - reach) {
@@ -164,7 +205,9 @@ export class Minimap {
         continue;
       }
       for (let j = joined ? 1 : 0; j <= PIECE; j++) {
-        const p = points[(k * PIECE + j) % points.length];
+        const i = k * PIECE + j;
+        if (!closed && i >= points.length) break;
+        const p = points[i % points.length];
         if (j) ctx.lineTo(p.x, p.z);
         else ctx.moveTo(p.x, p.z);
       }

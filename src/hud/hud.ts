@@ -70,6 +70,8 @@ function row(name: string, time: string, you: boolean, note = ""): HTMLLIElement
 }
 
 const TOAST_MS = 1200;
+/** The lobby's route id when no race is on; lap gates belong to it. */
+const CIRCUIT = "circuit";
 /** Driving this long above CALM_KMH lets the touch HUD (and the Minimal layout) fade back; stopping brings it back. */
 const CALM_MS = 3000;
 const CALM_KMH = 12;
@@ -125,7 +127,7 @@ export class Hud {
     });
     document.documentElement.dataset.scheme = dark ? "dark" : "light";
     const canvas = $("minimap", HTMLCanvasElement);
-    this.map = new Minimap(canvas, world.road);
+    this.map = new Minimap(canvas, world.routes);
     this.pace = new PaceCard(world.routes);
     canvas.after(this.pace.el);
   }
@@ -228,9 +230,12 @@ export class Hud {
   }
 
   private draw_map(car: Car, now: number) {
-    const gate = this.world.checkpoints[this.race.next];
+    const route = this.lobby.route;
+    // Lap gates are the circuit's; on another race route that dot would point somewhere wrong.
+    const gate = route === CIRCUIT ? this.world.checkpoints[this.race.next] : null;
+    if (this.view === MapView.FULL || this.view === MapView.CLOSE) this.map.show_route(route);
     if (this.view === MapView.FULL) this.map.full(car, gate, this.net.remotes.values());
     else if (this.view === MapView.CLOSE) this.map.close(car, gate, this.net.remotes.values(), now);
-    else if (this.view === MapView.PACE) this.pace.update(car, this.lobby.route);
+    else if (this.view === MapView.PACE) this.pace.update(car, route);
   }
 }
