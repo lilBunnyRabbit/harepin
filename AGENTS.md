@@ -12,7 +12,61 @@ bun scripts/feel.ts        # handling scenarios
 bun scripts/autolap.ts     # autopilot lap; also scripts/crash.ts, scripts/offroad.ts
 ```
 
-Run `typecheck` and `build` before every commit. A change to `car.ts`, `world.ts` or input also runs the `scripts/*.ts` checks and compares numbers against the previous run.
+Run `typecheck` and `build` before every commit. A change to `src/car/`, `src/world/` or input also runs the `scripts/*.ts` checks and compares numbers against the previous run.
+
+## Structure
+
+One level of feature folders under `src/`. Each folder owns its modules, tests (`*.test.ts` beside the module) and CSS (imported by the module that renders it). Import the real file; no barrel `index.ts`.
+
+| Folder | Owns |
+|---|---|
+| `car/` | physics (`car.ts`, `rigid-body.ts`, `axles.ts`), specs (`cars.ts`), parts (`build.ts`, `builds.ts`), 3D models and livery, driver session, rewind, ghost |
+| `world/` | runtime world queries (`world.ts`: height, normal, grip, collide), ramps, buildings, landmarks |
+| `worldgen/` | pure generation, runs in a Web Worker: no DOM, no THREE. `kinds/` holds the worker side of each world kind |
+| `worlds/` | UI side of each world kind: names, copy, facts, scene dressing |
+| `modes/` | game modes, one `<mode>-mode.ts` def + logic + view each |
+| `net/` | P2P (trystero + BroadcastChannel): channels, lobby, directory, chat, remotes, heartbeat |
+| `menu/` | main menu shell (`settings.ts`), one file per page, prefs (`prefs.ts`), guide, garage |
+| `hud/` | dash, minimap, touch, input |
+| `render/` | renderer, composer, scene, lighting, effects, camera, quality tiers |
+| `audio/` | engine sound and worklet |
+| `theme/` | palette and themes |
+
+`main.ts` is the composition root: it builds each feature and wires them; feature logic does not live there. `style.css` holds tokens, resets and base element styles only.
+
+## Adding things
+
+Every kind of thing we add has a registry. Adding one touches its own files plus one registry line; the compiler lists anything missing.
+
+- **Game mode:** `src/modes/<mode>-mode.ts` exports a `ModeDef` (`mode.ts`); logic and view in their own files beside it. Add it to `MODES` in `modes.ts`. `needs_ground` decides whether it runs on Sky.
+- **World kind:** add a `WorldKind` value in `worldgen/types.ts`; worker side `worldgen/kinds/<kind>.ts` (id, key, generate, rails, open ground) in `KINDS`; UI side `worlds/<kind>.ts` in `WORLDS`; images `public/menu/<kind>.webp` and `<kind>-map.webp`. A kind's `id` and `key()` key saved records: never change them for an existing kind.
+- **Car:** a `CarSpec` in `car/cars.ts` added to `CARS`, plus its body design (`Record<BodyStyle, …>` makes a missing one a type error). Axles come from the spec through `axles_of`; don't index wheels by number.
+- **Part:** an entry in `SLOTS` in `car/build.ts`.
+- **Setting:** a field on `SettingsState` and its entry in `FIELDS` in `menu/prefs.ts` (the mapped type rejects a missing one), then its row in the section builder in `menu/settings-sections.ts`. Reset picks the key up from the row.
+- **Menu page:** a class implementing `MenuPage` (`menu/page.ts`, optional `on_show` / `on_hide`), one line in `page_list` in `menu/settings.ts`.
+- **Net message:** one `this.link.channel(name, sanitize, limit?, accept?)` line in `net/net.ts` and its sanitizer. New fields on an existing message are optional; never rename or remove a wire field. Bump `PROTOCOL` when old peers can't play with new ones; peers send it in `hello`.
+
+## Working in parallel
+
+Several agents often work in this repo at once.
+
+- One agent per feature folder. A shared file (`main.ts`, a registry list) only gets the one line the change needs.
+- Stage only your own hunks, never `git add -A`; run `git branch --show-current` before each commit; commit after every green step.
+- Workers never bump the version or touch `changelog.ts`; the lead does that once per release.
+
+## Code shape
+
+- Small files split by responsibility, about 150-400 lines. A file past that is a sign it holds two things.
+- Reuse an existing helper when it fits. Never bend a function with flags or mode parameters to cover every case: two clear functions beat one switch.
+- Data over special cases: a difference between cars, worlds or modes is a field on their def, not an `if (kind === …)` in shared code.
+- The code is the source: no comments that restate it.
+
+## Performance
+
+- No allocations in the 360 Hz physics step or the per-frame loop: hoist scratch vectors, no closures, `filter`, spreads or object literals per call.
+- The DOM is written only when a value changes; read layout before writing, never after.
+- A change that claims identical output proves it: `car.test.ts` bit-exact and `scripts/telemetry.ts` / `scripts/feel.ts` byte-identical for physics; a hash of the generated arrays for worldgen and meshes.
+- Generated world output is keyed by `WORLD_VERSION` / `SKY_VERSION` (`worldgen/types.ts`). Changing what `generate_world` returns needs a bump, which resets every player's records for that kind.
 
 ## Rules
 
@@ -44,15 +98,13 @@ Semver, and `package.json` `version` is the only source. The build stamps it int
 
 ## Tests
 
-webos uses Vitest (unit in Node, browser tests in Chromium via Playwright), tests beside their source as `*.test.ts`. Here: `bun test` for pure logic, `src/{module}.test.ts` beside the module, no fakes for what can run for real. Sim behaviour is checked by asserting on the `scripts/*.ts` numbers. Rendering is checked by eye in the browser.
+`bun test` for pure logic, `*.test.ts` beside the module, no fakes for what can run for real; `bun test src/<folder>` runs one feature. A module that needs a fake (a trystero room) takes it as a parameter rather than through a process-wide `mock.module`. Sim behaviour is checked by asserting on the `scripts/*.ts` numbers. Rendering is checked by eye in the browser: one headless browser at a time, against a `vite preview` of a build when others are editing the tree.
 
 ## Differs today
 
-- `src/style.css:1-15` hard-codes Brand Dark's OKLCH values: a second copy of `theme.ts` that will drift.
-- `index.html:8` hard-codes `theme-color` `#1a2329` (`main.ts:343` overwrites it at runtime).
-- `src/car/models.ts:238-240` paints the contact-shadow blob in raw white. Fine as an alpha mask; say so or use `alphaMap`.
-- `src/car/ghost.ts:20-21`, `src/race.ts:9-10` trust `JSON.parse` from localStorage (`as T`, no shape check); `ghost.ts`, `race.ts` have empty `catch {}`.
-- `src/hud/hud.ts:7`, `src/main.ts:28` use `as T` / `!` `$` helpers that hide a missing element.
-- Imports mix `import * as THREE` (8 modules) with named imports (`car.ts`): pick one.
-- No tests: `scripts/*.ts` print numbers and throw only on NaN; nothing fails when handling regresses.
+- `src/style.css` hard-codes Brand Dark's OKLCH values: a second copy of `theme.ts` that will drift.
+- `index.html:8` hard-codes `theme-color` `#1a2329` (`main.ts` overwrites it at runtime).
+- The car contact-shadow blob is painted in raw white. Fine as an alpha mask; say so or use `alphaMap`.
+- Imports mix `import * as THREE` (25 modules) with named imports (`car.ts`): pick one.
 - `theme.ts` mirrors webos `themes.ts` by hand, with no check that they still match.
+- `scripts/*.ts` print numbers and throw only on NaN; nothing fails when handling regresses beyond `car.test.ts`.
