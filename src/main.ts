@@ -186,6 +186,10 @@ const settings = new Settings(document.body, {
   lobby_record: () => modes.lobby_record(),
   race_routes: race_choices(world.routes),
   players: () => 1 + net.remotes.size,
+  map_players: () => [
+    { name: net.name, x: driver.car.pos.x, z: driver.car.pos.z, you: true },
+    ...[...net.remotes.values()].map((r) => ({ name: net.display_name(r), x: r.latest.p[0], z: r.latest.p[2], you: false })),
+  ],
   restart_lap: () => restart_action(),
   listen: (on) => input.listen(on),
 }, prefs);

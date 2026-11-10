@@ -8,6 +8,7 @@ import type { Rows, Value } from "./setting-rows";
 import { world_query } from "../world/world-pick";
 import { DEFAULT_KIND } from "../worldgen/kinds/kinds";
 import type { WorldKind } from "../worldgen/types";
+import type { MapPlayer } from "./world-map";
 import type { Laps, QualityTier, SettingKey, SettingsState } from "./prefs";
 
 export const MenuTab = {
@@ -67,6 +68,8 @@ export interface SettingsHost {
   lobby_record(): string;
   readonly race_routes: readonly RaceChoice[];
   players(): number;
+  /** You and the cars on this map, for the world map. */
+  map_players(): MapPlayer[];
   restart_lap(): void;
   /** Hands the next key or pad button press to `on` for a binding; null stops. */
   listen(on: ((caught: Caught | null) => void) | null): void;

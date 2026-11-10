@@ -15,6 +15,8 @@ const INK = {
   checkpoint: rgba(brand.accent),
   remote: rgba(brand.secondary),
   you: rgba(brand.cottontail),
+  label: rgba(brand.foreground),
+  halo: rgba(brand.background_darkest, 0.7),
 };
 /** Close-up: about 200 m of road ahead of the car. */
 const CLOSE_CAR_Y = 0.7;
@@ -100,6 +102,7 @@ export class Minimap {
   private cache = new Map<string, Drawn>();
   private turn = Number.NaN;
   private last = 0;
+  private readonly font: string;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -108,6 +111,7 @@ export class Minimap {
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("minimap has no 2d context");
     this.ctx = ctx;
+    this.font = `600 9px ${getComputedStyle(canvas).fontFamily}`;
   }
 
   /** The route both views draw: a lobby race's, else the circuit. Rebuilt only when it changes. */
@@ -172,8 +176,23 @@ export class Minimap {
       ctx.fillStyle = INK.checkpoint;
       this.dot(full_x(view, gate.x), full_y(view, gate.z), 4.5);
     }
-    ctx.fillStyle = INK.remote;
-    for (const remote of remotes) this.dot(full_x(view, remote.latest.p[0]), full_y(view, remote.latest.p[2]), 3.5);
+    ctx.font = this.font;
+    ctx.textBaseline = "middle";
+    ctx.lineJoin = "round";
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = INK.halo;
+    for (const remote of remotes) {
+      const x = full_x(view, remote.latest.p[0]);
+      const y = full_y(view, remote.latest.p[2]);
+      ctx.fillStyle = INK.remote;
+      this.dot(x, y, 3.5);
+      // Names point inward, so one near the rim stays on the map.
+      const left = x > MAP / 2;
+      ctx.textAlign = left ? "right" : "left";
+      ctx.fillStyle = INK.label;
+      ctx.strokeText(remote.latest.name, left ? x - 6 : x + 6, y);
+      ctx.fillText(remote.latest.name, left ? x - 6 : x + 6, y);
+    }
     this.arrow(full_x(view, car.pos.x), full_y(view, car.pos.z), car.heading);
   }
 
@@ -206,10 +225,14 @@ export class Minimap {
     ctx.stroke();
     ctx.setTransform(r, 0, 0, r, 0, 0);
     ctx.fillStyle = INK.remote;
+    // Out of reach, a car rides the rim like the gate, so you still see which way they are.
     for (const remote of remotes) {
       const dx = remote.latest.p[0] - x;
       const dz = remote.latest.p[2] - z;
-      this.dot(cx + cos * dx - sin * dz, cy + sin * dx + cos * dz, 3.5);
+      const px = cos * dx - sin * dz + cx - MAP / 2;
+      const py = sin * dx + cos * dz + cy - MAP / 2;
+      const edge = Math.min(1, EDGE / Math.hypot(px, py));
+      this.dot(MAP / 2 + px * edge, MAP / 2 + py * edge, 3.5);
     }
     if (gate) {
       const gx = cos * (gate.x - x) - sin * (gate.z - z) + cx - MAP / 2;

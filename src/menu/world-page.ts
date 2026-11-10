@@ -1,6 +1,8 @@
 import { parse_seed } from "../net/net";
 import { el, icon } from "./setting-rows";
 import { WorldMap } from "./world-map";
+
+const PLAYERS_MS = 250;
 import type { MapData } from "../worldgen/map";
 import type { WorldKind } from "../worldgen/types";
 import { WORLDS } from "../worlds/worlds";
@@ -14,6 +16,7 @@ export class WorldPage implements MenuPage {
   private readonly world_map: WorldMap;
   private chosen: number;
   private chosen_kind: WorldKind;
+  private players_timer = 0;
 
   constructor(private readonly menu: Menu) {
     this.world_map = new WorldMap();
@@ -23,10 +26,21 @@ export class WorldPage implements MenuPage {
 
   on_show() {
     this.world_map.show(this.chosen, this.chosen_kind, true);
+    clearInterval(this.players_timer);
+    this.players_timer = window.setInterval(() => this.show_players(), PLAYERS_MS);
+    this.show_players();
   }
 
   on_hide() {
+    clearInterval(this.players_timer);
+    this.players_timer = 0;
     this.world_map.stop();
+  }
+
+  private show_players() {
+    const { host } = this.menu;
+    const here = this.chosen === host.seed && this.chosen_kind === host.kind;
+    this.world_map.show_players(here ? host.map_players() : []);
   }
 
   build(): HTMLElement[] {

@@ -27,16 +27,28 @@ const PAD = rgba(tones.pad);
 const CHECKPOINT = rgba(brand.foreground);
 const START = rgba(brand.primary);
 const LABEL = rgba(brand.foreground);
+const PLAYER = rgba(brand.secondary);
+const YOU = rgba(brand.cottontail);
 
 const MapStatus = { DRAWING: "drawing", READY: "ready", FAILED: "failed" } as const;
 type MapStatus = (typeof MapStatus)[keyof typeof MapStatus];
 
-
+/** A car on the map, in world metres. */
+export interface MapPlayer {
+  name: string;
+  x: number;
+  z: number;
+  you: boolean;
+}
 
 export class WorldMap {
   readonly root = document.createElement("div");
   on_ready: ((map: MapData) => void) | null = null;
   private readonly canvas = document.createElement("canvas");
+  // Cars move on their own layer, so a 4 Hz refresh never repaints the terrain and roads under them.
+  private readonly cars = document.createElement("canvas");
+  private players: readonly MapPlayer[] = [];
+  private at: ((x: number, z: number) => [number, number]) | null = null;
   private readonly note = document.createElement("span");
   private worker: Worker | null = null;
   private timer = 0;
@@ -48,13 +60,16 @@ export class WorldMap {
     this.root.className = "world-map";
     this.canvas.setAttribute("role", "img");
     this.note.className = "world-map-note";
-    this.root.append(this.canvas, this.note);
+    this.cars.className = "world-map-cars";
+    this.cars.setAttribute("aria-hidden", "true");
+    this.root.append(this.canvas, this.cars, this.note);
   }
 
   /** Draws `seed`'s world, after a pause unless `now`, so typing a seed does not generate every keystroke. */
   show(seed: number, kind: WorldKind, now = false) {
     this.wanted = { seed, kind };
     clearTimeout(this.timer);
+    this.show_players([]);
     if (this.map?.seed === seed && this.map.kind === kind) return this.draw();
     this.set_status(MapStatus.DRAWING);
     if (now) this.request(seed, kind);
@@ -114,6 +129,8 @@ export class WorldMap {
     canvas.width = canvas.height = side;
     const scale = (side / MAP_SIDE) * ((MAP_SIDE - 1) / map.size);
     const at = (x: number, z: number): [number, number] => [(x + map.size / 2) * scale + side / MAP_SIDE / 2, (z + map.size / 2) * scale + side / MAP_SIDE / 2];
+    this.at = at;
+    this.cars.width = this.cars.height = side;
     ctx.imageSmoothingQuality = "high";
     ctx.drawImage(image, 0, 0, side, side);
     ctx.lineJoin = "round";
@@ -164,6 +181,48 @@ export class WorldMap {
       ctx.strokeText(town.name, x, y);
       ctx.fillStyle = LABEL;
       ctx.fillText(town.name, x, y);
+    }
+    this.draw_players();
+  }
+
+  show_players(players: readonly MapPlayer[]) {
+    if (!players.length && !this.players.length) return;
+    this.players = players;
+    this.draw_players();
+  }
+
+  private draw_players() {
+    const { cars, at } = this;
+    const ctx = cars.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, cars.width, cars.height);
+    if (!at || !this.players.length) return;
+    const ratio = devicePixelRatio;
+    ctx.font = `600 ${12 * ratio}px ${getComputedStyle(this.root).fontFamily}`;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.lineJoin = "round";
+    // Others first, so your own marker always sits on top; it goes unlabelled, like the minimap's arrow.
+    for (let pass = 0; pass < 2; pass++) {
+      for (const player of this.players) {
+        if (player.you !== (pass === 1)) continue;
+        const [x, y] = at(player.x, player.z);
+        ctx.beginPath();
+        ctx.arc(x, y, (player.you ? 6 : 5) * ratio, 0, Math.PI * 2);
+        ctx.fillStyle = player.you ? YOU : PLAYER;
+        ctx.fill();
+        stroke(ctx, null, CASING, 2 * ratio);
+        if (player.you) continue;
+        const label = player.name;
+        const width = ctx.measureText(label).width;
+        const right = x + 10 * ratio + width < cars.width;
+        const lx = right ? x + 10 * ratio : x - 10 * ratio - width;
+        ctx.lineWidth = 3 * ratio;
+        ctx.strokeStyle = CASING;
+        ctx.strokeText(label, lx, y);
+        ctx.fillStyle = LABEL;
+        ctx.fillText(label, lx, y);
+      }
     }
   }
 }
