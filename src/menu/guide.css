@@ -773,7 +773,7 @@
 
 @media (max-height: 500px) {
   .settings[data-view="guide"] .settings-panel {
-    grid-template: "tabs top" auto "body body" minmax(0, 1fr) / auto minmax(0, 1fr);
+    grid-template: "tabs top" auto "body body" minmax(0, 1fr) / minmax(0, 1fr) auto;
     gap: var(--space-3);
   }
 
