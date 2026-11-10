@@ -42,6 +42,24 @@ function version_file(): Plugin {
   };
 }
 
+// The boot entry imports main.ts dynamically, so the browser would only learn of the game chunk once boot has run;
+// a modulepreload in the page starts that download with the HTML.
+function preload_game(): Plugin {
+  return {
+    name: "harepin-preload-game",
+    apply: "build",
+    transformIndexHtml: {
+      order: "post",
+      handler(html, ctx) {
+        const bundle = ctx.bundle ?? {};
+        const main = Object.values(bundle).find((chunk) => chunk.type === "chunk" && chunk.facadeModuleId?.endsWith("/src/main.ts"));
+        if (main?.type !== "chunk") throw new Error("preload: no main.ts chunk in the bundle");
+        return [main.fileName, ...main.imports].filter((file) => !html.includes(file)).map((file) => ({ tag: "link", attrs: { rel: "modulepreload", crossorigin: true, href: `./${file}` }, injectTo: "head" as const }));
+      },
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => {
   // No VITE_ prefix, so the relay login never reaches import.meta.env in plain text; CI passes it from repo secrets.
   const env = loadEnv(mode, process.cwd(), "");
@@ -61,6 +79,7 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       version_file(),
+      preload_game(),
       VitePWA({
         // prompt: a new build waits until the player picks Update now (src/menu/update.ts), so nothing reloads mid-race.
         registerType: "prompt",

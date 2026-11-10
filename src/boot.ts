@@ -1,4 +1,3 @@
-import "./style.css";
 import { read_saved_pick } from "./menu/saved-pick";
 import { LOBBY_ROOM, clean_room } from "./net/room-name";
 import { pick_world } from "./world/world-pick";
@@ -9,4 +8,22 @@ import { start_early } from "./world/world-worker";
 const params = new URLSearchParams(location.search);
 const { seed, kind } = pick_world(params, clean_room(params.get("room")) ?? LOBBY_ROOM, read_saved_pick());
 start_early(seed, kind);
-await import("./main");
+try {
+  await import("./main");
+} catch (error) {
+  console.error(error);
+  boot_failed();
+}
+
+// A stale tab after a deploy, or a dropped connection, fails the game chunk's download; the loading screen says so.
+function boot_failed() {
+  const loading = document.getElementById("loading");
+  if (!loading) return;
+  const text = loading.querySelector("span");
+  if (text) text.textContent = "Harepin failed to load";
+  const reload = document.createElement("button");
+  reload.type = "button";
+  reload.textContent = "Reload";
+  reload.addEventListener("click", () => location.reload());
+  loading.append(reload);
+}

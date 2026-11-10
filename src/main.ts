@@ -51,6 +51,7 @@ import { AreaFade } from "./hud/area-fade";
 import { start_lobby } from "./modes/lobby-start";
 import { WORLDS } from "./worlds/worlds";
 import { world_id, world_key } from "./worldgen/kinds/kinds";
+import "./style.css";
 
 const params = new URLSearchParams(location.search);
 const room = clean_room(params.get("room")) ?? LOBBY_ROOM;
