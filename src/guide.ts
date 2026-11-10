@@ -244,7 +244,7 @@ export class Guide {
       case "you":
         return "A small driving game: an island to roam, a track in the sky, friends a link away. First, a name.";
       case "look":
-        return "Colours for the menu, the HUD and the whole island. The game behind changes as you pick.";
+        return "Colours for the menu, the HUD and the whole island. The game reloads in each one you pick.";
       case "controls":
         return {
           keyboard: "These are the keys you need; H lists the rest while driving.",
@@ -318,12 +318,26 @@ export class Guide {
     const row = el("div", "guide-name-row");
     row.append(this.name_input, dice);
     copy.append(this.field("Your name", row, el("span", "guide-small", "Others see it above your car. Change it any time from the name chip in the menu.")));
-    const shot = el("div", "guide-shot");
-    shot.append(this.host.picture(this.host.kind), this.name_tag);
-    visual.append(shot);
+    visual.append(this.shot(this.name_tag));
   }
 
-  private look(copy: HTMLElement) {
+  private shot(...over: HTMLElement[]): HTMLElement {
+    const shot = el("div", "guide-shot");
+    shot.append(this.host.picture(this.host.kind), ...over);
+    return shot;
+  }
+
+  private dash(): HTMLElement {
+    const dash = el("div", "guide-dash");
+    const speed = el("div", "guide-speed");
+    speed.append(el("b", "", "48"), el("span", "guide-small", "km/h"), el("span", "guide-gear", "3"));
+    const rev = el("div", "guide-rev");
+    rev.append(el("i"));
+    dash.append(speed, rev, this.lights(this.host.state()));
+    return dash;
+  }
+
+  private look(copy: HTMLElement, visual: HTMLElement) {
     const active = current_theme();
     const tiles = el("div", "guide-tiles");
     const tile = (label: string, name: string | null, on: boolean, art: Element[]) => {
@@ -354,6 +368,8 @@ export class Guide {
     roll.addEventListener("click", () => this.roll());
     tiles.append(roll);
     copy.append(tiles, el("span", "guide-small", "Make your own later: Settings, Display."));
+    const tag = el("span", "guide-tag", this.host.state().name ?? this.host.name());
+    visual.append(this.shot(tag, this.dash()));
   }
 
   private pick_theme(name: string) {
@@ -425,13 +441,7 @@ export class Guide {
       list.append(node);
     }
     copy.append(list);
-    const dash = el("div", "guide-dash");
-    const speed = el("div", "guide-speed");
-    speed.append(el("b", "", "48"), el("span", "guide-small", "km/h"), el("span", "guide-gear", "3"));
-    const rev = el("div", "guide-rev");
-    rev.append(el("i"));
-    dash.append(speed, rev, this.lights(state));
-    visual.append(dash);
+    visual.append(this.dash());
     const picked = PRESETS.find(([preset]) => preset === current);
     if (picked) {
       const line = el("span", "guide-picked");
