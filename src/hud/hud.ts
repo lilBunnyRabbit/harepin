@@ -90,6 +90,7 @@ export class Hud {
     lap: $("lap"),
     best: $("best"),
     last: $("last"),
+    gate: $("gate"),
     cp: $("cp"),
     toast: $("toast"),
     players: $("players"),
@@ -177,6 +178,7 @@ export class Hud {
     set_text(el.lap, format(race.started ? now - race.started : null));
     set_text(el.best, format(race.best));
     set_text(el.last, format(race.last));
+    set_hidden(el.gate, this.run_route() !== null);
     set_text(el.cp, race.started ? `${race.next === 0 ? race.gates : race.next} / ${race.gates}` : "drive through the lit gate");
     el.strip.toggleAttribute("data-idle", !race.started);
 

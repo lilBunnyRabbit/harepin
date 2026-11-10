@@ -73,6 +73,10 @@
   justify-content: space-between;
 }
 
+.times div[hidden] {
+  display: none;
+}
+
 .times b {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
