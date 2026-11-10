@@ -494,7 +494,7 @@ function frame(now: number) {
     void driver.fall_back();
     stuck = 0;
   }
-  const drowned = world.height(car.pos.x, car.pos.z) < -0.4 && car.pos.y < 0.4;
+  const drowned = world.drowned(car.pos);
   stuck = !rewinding && (drowned || (upright < 0.3 && car.vel.length() < 2)) ? stuck + dt : 0;
   if (stuck > 1.5) {
     void driver.reset(lobby.busy && lobby.route === "circuit");

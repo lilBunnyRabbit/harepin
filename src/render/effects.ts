@@ -26,6 +26,10 @@ interface Puff {
   spin: number;
 }
 
+/** Water this deep under a wheel throws spray instead of smoke or dust. */
+const SPLASH = 0.05;
+const SPRAY_RATE = 30;
+
 /** What a kind's open ground throws up; firm ground (trails, shoulders) always throws dust. */
 export type GroundPuff = "grass" | "dust";
 
@@ -40,6 +44,7 @@ export class Smoke {
   private smoke = FOG.clone().lerp(color(dark ? brand.foreground : brand.background_lightest), 0.5);
   private dust = color(mix(brand.warning, brand.background, 0.3));
   private grass = color(mix(brand.success, brand.background, 0.28));
+  private spray = color(mix(brand.info, brand.background_lightest, 0.6));
   private readonly ground: THREE.Color;
   private carry: number[] = [];
   private kick = new THREE.Vector3();
@@ -81,7 +86,12 @@ export class Smoke {
       let size = SMOKE_SIZE;
       // Puffs left behind stream toward the chase camera; capping trail length keeps them from filling the screen at speed.
       let life = Math.min(SMOKE_LIFE, SMOKE_TRAIL / speed);
-      if (on_road && slide > 0 && speed > 2) {
+      if (world.depth(w.point.x, w.point.z) > SPLASH && speed > 2) {
+        rate = Math.min(1, speed / 15) * SPRAY_RATE;
+        tint = this.spray;
+        size = DUST_SIZE;
+        life = DUST_LIFE;
+      } else if (on_road && slide > 0 && speed > 2) {
         rate = Math.min(1, slide * 1.2) * SMOKE_RATE;
       } else if (!on_road && speed > 4) {
         rate = Math.min(1, speed / 25) * 12 + Math.max(0, slide) * 20;

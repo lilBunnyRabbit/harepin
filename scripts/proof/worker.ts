@@ -7,6 +7,7 @@ import type { WorldKind } from "../../src/worldgen/types";
 import { streamed_digest, world_digest, type Digest } from "./digest";
 import { circuit_lap, drive_spurs, sky_lap, type Outcome } from "./drives";
 import { MESH_TONES } from "./tones";
+import { check_water } from "./water-checks";
 import { check_world } from "./world-checks";
 
 declare const self: Worker;
@@ -53,6 +54,7 @@ self.onmessage = (event: MessageEvent<ProofJob>) => {
   if (checks && land) {
     const found: string[] = [];
     check_world(data, chunks, (what) => found.push(what));
+    check_water(data, (what) => found.push(what));
     world = found;
   }
   let spurs: Outcome[] | null = null;

@@ -16,6 +16,7 @@ const arg = (name: string, fallback: number) => {
 const ISLAND = [...Array(arg("--seeds", 20)).keys(), seed_of("lobby")];
 const SKY = [...Array(arg("--sky", 20)).keys()];
 const DESERT = [...Array(arg("--desert", 10)).keys()];
+const MAINLAND = [...Array(arg("--mainland", 3)).keys()];
 const DRIVES = !process.argv.includes("--no-drive");
 const ALL = process.argv.includes("--all");
 
@@ -40,6 +41,7 @@ const jobs: ProofJob[] = process.argv.includes("--options") ? option_jobs() : [
   ...ISLAND.map((seed) => ({ kind: "island" as const, seed, checks: true, drives: DRIVES })),
   ...SKY.map((seed) => ({ kind: "sky" as const, seed, checks: true, drives: DRIVES })),
   ...DESERT.map((seed) => ({ kind: "desert" as const, seed, checks: true, drives: DRIVES })),
+  ...MAINLAND.map((seed) => ({ kind: "mainland" as const, seed, checks: true, drives: false })),
 ];
 const golden: Record<WorldKind, Golden> = { island: read_golden("island"), sky: read_golden("sky"), desert: read_golden("desert"), mainland: read_golden("mainland") };
 const size = pool_size(process.argv);

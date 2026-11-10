@@ -10,6 +10,7 @@ import { ramp_reach2, ramp_surface, spawn_blocks, type Surface } from "../worldg
 import { FALL_DEPTH } from "../worldgen/sky";
 import { slice_tiles, TileStore, type Tile } from "../worldgen/tiles";
 import { CELL, ROAD_HALF, RouteKind, SurfaceId, type WorldKind } from "../worldgen/types";
+import { water_index, type WaterIndex } from "../worldgen/water";
 import type {
   Building,
   Challenge,
@@ -47,6 +48,10 @@ const GLIDE_EASE = 0.3;
 /** Under this share of the speed along the rail, a hit counts as head-on and the nose picks the way to glide. */
 const HEAD_ON = 0.2;
 const LANE_PACK = 1 << 16;
+/** Water this deep takes the whole wade row; shallower eases to it from the footing underneath. */
+const WADE_FULL = 0.6;
+/** Water deeper than this over the ground resets the car, as a fall does. */
+export const DEEP_WATER = 0.9;
 
 export interface Collider {
   pos: Vector3;
@@ -146,6 +151,11 @@ export class World implements Ground {
   readonly deck: DeckIndex | null;
   private readonly grips: GripTable;
   private readonly fall_reset: boolean;
+  private readonly water: WaterIndex | null;
+  /** The sea's level on a kind with ground; none on a deck-only kind. */
+  private readonly sea: number;
+  /** `footing` in water: rewritten per query, never kept. */
+  private readonly wading: Footing = { grip: 1, roll: 1 };
   /** Terrain heights, `road_dist` and surface, one tile per chunk. */
   readonly tiles: TileStore;
   /** The race circuit, in driving order; gates and the ghost follow it. */
@@ -202,6 +212,9 @@ export class World implements Ground {
     this.kind = data.kind;
     this.grips = KINDS[data.kind].grip;
     this.fall_reset = KINDS[data.kind].fall_reset;
+    const water = data.ground.ops.find((op) => op.kind === "water");
+    this.water = water?.kind === "water" ? water_index(water.water) : null;
+    this.sea = KINDS[data.kind].ground ? 0 : -Infinity;
     this.deck = data.deck && new DeckIndex(data.deck);
     this.tiles = new TileStore(extent(KINDS[data.kind].size), tiles);
     this.road = data.road;
@@ -309,6 +322,22 @@ export class World implements Ground {
     return this.fall_reset && this.deck !== null && pos.y < this.deck.floor(pos.x, pos.z) - FALL_DEPTH;
   }
 
+  /** Height of the sea, lake or river surface at (x, z); -Infinity where there is none. */
+  water_level(x: number, z: number): number {
+    return this.water ? Math.max(this.sea, this.water.level(x, z)) : this.sea;
+  }
+
+  /** Metres of water over the ground; negative on dry land. */
+  depth(x: number, z: number): number {
+    return this.water_level(x, z) - this.tiles.height(x, z);
+  }
+
+  /** Under deep water: the frame loop resets the car after it stays so a moment. */
+  drowned(pos: Vector3): boolean {
+    const level = this.water_level(pos.x, pos.z);
+    return pos.y < level && level - this.tiles.height(pos.x, pos.z) > DEEP_WATER;
+  }
+
   distance_to_road(x: number, z: number): number {
     return this.tiles.road_dist(x, z);
   }
@@ -331,8 +360,19 @@ export class World implements Ground {
     return this.distance_to_road(x, z) < ON_ROAD;
   }
 
-  /** The grip row under (x, z): road, then a laid surface (trail, hardpack), then the shoulder, then the kind's own ground. */
+  /** The grip row under (x, z), eased toward wading in water: road, then a laid surface (trail, hardpack), then the shoulder, then the kind's own ground. */
   footing(x: number, z: number): Footing {
+    const dry = this.dry_footing(x, z);
+    const depth = this.depth(x, z);
+    if (!(depth > 0)) return dry;
+    const w = Math.min(1, depth / WADE_FULL);
+    const { wade } = this.grips;
+    this.wading.grip = dry.grip + (wade.grip - dry.grip) * w;
+    this.wading.roll = dry.roll + (wade.roll - dry.roll) * w;
+    return this.wading;
+  }
+
+  private dry_footing(x: number, z: number): Footing {
     const d = this.distance_to_road(x, z);
     if (d < ON_ROAD) return this.grips.road;
     const id = this.surface(x, z);
