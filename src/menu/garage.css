@@ -533,6 +533,8 @@
     --garage-sheet-w: clamp(288px, 42vw, 360px);
     --garage-top-h: calc(var(--control-h) + 6px);
     --garage-card-h: 60px;
+    --garage-gap: var(--space-3);
+    --garage-strip-pad: 6px;
   }
 
   .garage-top {
@@ -567,16 +569,21 @@
 
   .garage-rail {
     --garage-side: right;
-    top: calc(var(--inset-top) + var(--garage-top-h) + var(--space-2));
+    top: calc(var(--inset-top) + var(--garage-top-h) + var(--garage-gap));
     right: var(--inset-right);
     left: auto;
     translate: none;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     align-content: start;
-    gap: var(--space-1);
+    gap: var(--space-2) var(--space-1);
     width: var(--garage-sheet-w);
-    max-height: calc(100% - var(--inset-top) - var(--garage-top-h) - 2 * var(--space-2) - var(--garage-card-h) - 10px - var(--inset-bottom));
-    padding: var(--space-1);
+    max-height: calc(100% - var(--inset-top) - var(--garage-top-h) - 2 * var(--garage-gap) - var(--garage-card-h) - 2 * var(--garage-strip-pad) - var(--inset-bottom));
+    padding: 0;
+  }
+
+  .garage:not([data-tab="builds"]) .garage-rail {
+    border-color: transparent;
+    background: none;
   }
 
   .garage-slot {
@@ -604,7 +611,7 @@
   .garage-stats {
     --garage-side: bottom;
     top: auto;
-    bottom: var(--inset-bottom);
+    bottom: calc(var(--inset-bottom) + var(--garage-strip-pad));
     left: var(--inset-left);
     right: calc(var(--inset-right) + var(--garage-sheet-w) + var(--space-3));
     translate: none;
@@ -660,17 +667,19 @@
     height: auto;
   }
 
-  /* The strip bleeds to the sheet's edges so a card cut off at the side says "swipe for more". */
+  /* The padding holds the cursor ring (outline plus offset) clear of the scroll clip; the mask fades a card cut off at
+     the side instead of chopping it, which still says "swipe for more". */
   .garage-strip {
     gap: var(--space-2);
-    padding: 2px;
+    padding: var(--garage-strip-pad) var(--space-3);
+    scroll-padding-inline: var(--space-3);
     scrollbar-width: none;
     overscroll-behavior-x: contain;
+    mask-image: linear-gradient(to right, transparent, var(--foreground) var(--space-2), var(--foreground) calc(100% - var(--space-2)), transparent);
   }
 
-  /* Two and a bit cards across the sheet: the cut-off one says the strip swipes. */
   .garage-card {
-    flex: 0 0 calc((var(--garage-sheet-w) - 2 * var(--space-2)) / 2.4);
+    flex: 0 0 calc((var(--garage-sheet-w) - 2 * var(--space-3) - 2 * var(--space-2)) / 2.4);
     min-width: 0;
     max-width: none;
     min-height: var(--garage-card-h);
@@ -740,8 +749,15 @@
     --garage-card-h: 52px;
   }
 
+  /* One clamped line said only "+30% torque,…"; the meters' ghost bars already show what a part does. Names alone fit
+     three cards across: a three-part slot shows whole, a longer one peeks its fourth to say it swipes. */
   .garage-card-blurb {
-    -webkit-line-clamp: 1;
+    display: none;
+  }
+
+  .garage-card {
+    flex: 1 0 calc((var(--garage-sheet-w) - 2 * var(--space-3) - 3 * var(--space-2)) / 3.3);
+    align-content: center;
   }
 }
 
