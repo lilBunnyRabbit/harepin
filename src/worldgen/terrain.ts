@@ -12,6 +12,10 @@ const DUNE_BEND = 1.6;
 /** Dune fields come and go over noise this many waves across; between the cuts a field fades in. */
 const DUNE_FIELD_SCALE = 4;
 const DUNE_FIELD = [0.4, 0.6] as const;
+/** Spacing of the coarse sample a pan's level is drawn from, metres. */
+const PAN_SAMPLE = 64;
+/** Height over the pan level, as a share of its blend, still counted as pan floor. */
+const PAN_TOP = 0.1;
 
 function peak_of(seed: number, reach: number): { x: number; z: number } {
   const next = mulberry32(sub(seed, "peak"));
@@ -72,18 +76,19 @@ function dunes(layer: DunesLayer, seed: number, wx: number, wz: number, x: numbe
 }
 
 // Quadratic smooth max of the height and the level: flat under level - blend, the height itself over level + blend.
-function pan(h: number, layer: PanLayer): number {
-  const t = (h - layer.level) / layer.blend;
+function pan(h: number, level: number, blend: number): number {
+  const t = (h - level) / blend;
   if (t >= 1) return h;
-  if (t <= -1) return layer.level;
-  return layer.level + (layer.blend * (t + 1) * (t + 1)) / 4;
+  if (t <= -1) return level;
+  return level + (blend * (t + 1) * (t + 1)) / 4;
 }
 
-/** A layer with what it draws from the seed once: the peak's position, or the dunes' wind heading. */
+/** A layer with what it draws from the seed once: the peak's position, the dunes' wind heading, or the pan's level. */
 interface Seeded {
   layer: TerrainLayer;
   x: number;
   z: number;
+  level: number;
 }
 
 // The polynomial bump stands in for exp(), which is not bit-exact across engines.
@@ -111,16 +116,36 @@ function apply(seeded: Seeded, seed: number, x: number, z: number, h: number): n
     case "dunes":
       return h + dunes(layer, seed, seeded.x, seeded.z, x, z);
     case "pan":
-      return pan(h, layer);
+      return pan(h, seeded.level, layer.blend);
   }
 }
 
+// The share's height among the layers so far, sampled on a coarse lattice over the whole map.
+function level_of(below: readonly Seeded[], seed: number, share: number): number {
+  const hs: number[] = [];
+  for (let z = ORIGIN; z <= -ORIGIN; z += PAN_SAMPLE) for (let x = ORIGIN; x <= -ORIGIN; x += PAN_SAMPLE) hs.push(fold(below, seed, x, z));
+  hs.sort((a, b) => a - b);
+  return hs[Math.min(hs.length - 1, Math.floor(hs.length * share))];
+}
+
 function seeded(seed: number, shape: TerrainRecipe): Seeded[] {
-  return shape.map((layer) => {
-    if (layer.kind === "peak") return { layer, ...peak_of(seed, layer.reach) };
-    if (layer.kind === "dunes") return { layer, ...wind_of(seed, layer.seed) };
-    return { layer, x: 0, z: 0 };
-  });
+  const out: Seeded[] = [];
+  for (const layer of shape) {
+    if (layer.kind === "peak") out.push({ layer, ...peak_of(seed, layer.reach), level: 0 });
+    else if (layer.kind === "dunes") out.push({ layer, ...wind_of(seed, layer.seed), level: 0 });
+    else if (layer.kind === "pan") out.push({ layer, x: 0, z: 0, level: level_of(out, seed, layer.share) });
+    else out.push({ layer, x: 0, z: 0, level: 0 });
+  }
+  return out;
+}
+
+/** Height at or under which the ground is a pan's floor, or null when the recipe has no pan layer. */
+export function pan_floor(seed: number, shape: TerrainRecipe): number | null {
+  const layers = seeded(seed, shape);
+  const at = layers.findIndex((s) => s.layer.kind === "pan");
+  if (at < 0) return null;
+  const { layer, level } = layers[at];
+  return layer.kind === "pan" ? level + layer.blend * PAN_TOP : null;
 }
 
 /** The recipe's point layers folded in order over a height starting at 0. */

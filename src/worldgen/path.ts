@@ -191,7 +191,6 @@ function loop_controls(seed: number, heights: Float32Array, summit: [number, num
     const r = Math.max(min, Math.min(max, radius + swing * reach));
     return walk(heights, [c * r, s * r], [0, 0], r, (y) => y >= COAST_LOW) ?? [0, 0];
   });
-  if (shape.straights) straighten(controls, shape.straights);
   const n = controls.length;
   let top = 0;
   for (let i = 1; i < n; i++)
@@ -229,6 +228,8 @@ function loop_controls(seed: number, heights: Float32Array, summit: [number, num
     }
     controls[shore] = shore_at;
   }
+  // After the shore pull, so a pulled control between corners goes back on its straight instead of kinking it.
+  if (shape.straights) straighten(controls, shape.straights);
 
   const prev = controls[(top - 1 + n) % n];
   const next = controls[(top + 1) % n];
@@ -244,6 +245,7 @@ function loop_controls(seed: number, heights: Float32Array, summit: [number, num
     return { points: [...stack.points, ...kept], fixed: 0, fixed_count: stack.points.length, stack };
   }
 
+  if (!shape.tongue) return { points: controls, fixed: 0, fixed_count: 0, stack: null };
   const base = sample(heights, controls[top][0], controls[top][1]);
   const flank = walk(heights, controls[top], summit, Infinity, (y, d) => y >= SUMMIT_FLANK || (d >= FLANK_MIN && y - base > FLANK_GRADE * d)) ?? controls[top];
   const ux = summit[0] - flank[0];

@@ -109,26 +109,29 @@ export function tree_kind(cuts: BiomeCuts, biome: Biome, x: number, z: number, k
 }
 
 export function ground_at(cuts: BiomeCuts, x: number, z: number, y: number): Ground {
-  const pan = cuts.recipe.limits.pan;
-  if (pan && y <= pan.top) return pan.ground;
   const rule = cuts.recipe.ground[biome_at(cuts, x, z, y)];
   const patch = fbm(x / PATCH_SCALE, z / PATCH_SCALE, cuts.seed + PATCH_SEED, 3);
   const fray = rule.soft ? (hash(x, z, cuts.seed + PATCH_SEED + 1) - 0.5) * rule.soft : 0;
   return patch + fray > rule.cut ? rule.above : rule.below;
 }
 
-/** Lays the recipe's surfaces (hardpack under its DIRT ground rows and pan floors) into the surface grid, so grip and colour agree. */
-export function harden(cuts: BiomeCuts, land: Terrain, grid: Grid = WHOLE) {
+/**
+ * Lays the recipe's surfaces into the surface grid, so grip and colour agree: under its ground rows, and its pan row on
+ * ground at or under `floor`, a pan layer's floor.
+ */
+export function harden(cuts: BiomeCuts, land: Terrain, grid: Grid = WHOLE, floor: number | null = null) {
   const laid = cuts.recipe.surfaces;
+  const pan = cuts.recipe.limits.pan;
   const rows = Object.values(cuts.recipe.ground).flatMap((rule) => [rule.above, rule.below]);
-  if (cuts.recipe.limits.pan) rows.push(cuts.recipe.limits.pan.ground);
+  if (pan !== null) rows.push(pan);
   if (!rows.some((row) => laid[row] !== undefined)) return;
   const { heights, surface } = land;
   for (let j = grid.j0; j <= grid.j1; j++)
     for (let i = grid.i0; i <= grid.i1; i++) {
       const k = at(grid, i, j);
       if (surface[k] !== SurfaceId.GRASS) continue;
-      const id = laid[ground_at(cuts, ORIGIN + i * CELL, ORIGIN + j * CELL, heights[k])];
+      const row = pan !== null && floor !== null && heights[k] <= floor ? pan : ground_at(cuts, ORIGIN + i * CELL, ORIGIN + j * CELL, heights[k]);
+      const id = laid[row];
       if (id !== undefined) surface[k] = id;
     }
 }

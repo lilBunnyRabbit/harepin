@@ -15,7 +15,7 @@ import { scatter } from "./scatter";
 import { Stamp } from "./stamp";
 import { road_junctions } from "./road-layers";
 import { guard_rails, inside } from "./switchback";
-import { terrain } from "./terrain";
+import { pan_floor, terrain } from "./terrain";
 import { plan_trails } from "./trails";
 import { place_towns, town_streets } from "./towns";
 import { ISLAND, type Landmark, type Recipe } from "./recipe";
@@ -225,7 +225,7 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   const strewn = scatter(cuts, land, recipe.scatter, free, [...trails.trails.flatMap((t) => t.points), ...trails.ramp_out]);
   props.push(...strewn.props);
   solids.push(...strewn.solids);
-  stamp.harden(cuts);
+  stamp.harden(cuts, pan_floor(seed, recipe.terrain));
   lap("props");
 
   return { kind, deck: null, terrain: land, ground: { base: { kind: "terrain", seed, shape: recipe.terrain }, ops: stamp.ops }, graph, towns, lots: lot_list, buildings, props, parking, trees, solids, ramps: jumps.ramps, items: jumps.items, challenges: jumps.challenges, checkpoints, circuit, road, routes, canyon, timings };

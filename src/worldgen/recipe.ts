@@ -71,10 +71,13 @@ export interface DunesLayer {
   bands: readonly DuneBand[];
 }
 
-/** Fills ground under `level` up to it, eased over `blend` metres: flat pans in the low ground between the dunes. */
+/**
+ * Fills the lowest `share` of the map flat, eased over `blend` metres: pans in the low ground between the dunes. The level
+ * is that share's height on a coarse sample of the layers before it, so every seed gets about the same pan area.
+ */
 export interface PanLayer {
   kind: "pan";
-  level: number;
+  share: number;
   blend: number;
 }
 
@@ -121,8 +124,8 @@ export interface GroundLimits {
   /** Trees grow between these heights. */
   tree_floor: number;
   tree_line: number;
-  /** Ground at or under `top` metres is the `ground` row, whatever the biome: a pan layer's floor. */
-  pan: { top: number; ground: Ground } | null;
+  /** The ground row a pan layer's floor lays, whatever the biome. */
+  pan: Ground | null;
 }
 
 export interface BiomeRecipe {
@@ -142,6 +145,8 @@ export interface RoadRecipe {
   straights: number | null;
   /** Hairpin counts the summit stack tries, most first. */
   stacks: readonly number[];
+  /** With no stack built, the ring bends a tongue toward the summit; false keeps the ring as it is. */
+  tongue: boolean;
   /** The canyon runs down to ground under `outlet` metres; null = no canyon. */
   canyon: { outlet: number } | null;
   kickers: { road: number; total: number; big: number };
@@ -209,7 +214,7 @@ export const ISLAND: Recipe = {
       upland: { cut: 0.5, above: Ground.DRY, below: Ground.UPLAND, soft: 0 },
     },
   },
-  road: { loop: { radius: 620, swing: 640, min: 380, max: 860 }, straights: null, stacks: [4, 2], canyon: { outlet: 2 }, kickers: { road: 4, total: 12, big: 3 } },
+  road: { loop: { radius: 620, swing: 640, min: 380, max: 860 }, straights: null, stacks: [4, 2], tongue: true, canyon: { outlet: 2 }, kickers: { road: 4, total: 12, big: 3 } },
   towns: { min: 3, max: 6, trees: true, block: { min: 45, span: 25 }, flat_roofs: false },
   landmarks: [Landmark.MAST, Landmark.LIGHTHOUSE, Landmark.TURBINES, Landmark.ARCH],
   scatter: [],
@@ -218,8 +223,8 @@ export const ISLAND: Recipe = {
 const BARE = { start: 1, fill: 0, pine: 0, scrub: 0, extra: 0 };
 /** Dither width of the dune sea's patch edges, so the two sand tones fray into each other instead of a hard camouflage line. */
 const SOFT = 0.3;
-/** Pan floor height and its ease; ground at the floor is the pale PAN row, laid as hardpack. */
-const PAN: PanLayer = { kind: "pan", level: 20, blend: 3 };
+/** Share of the map the pans fill and their ease; the floor is the pale PAN row, laid as hardpack. */
+const PAN: PanLayer = { kind: "pan", share: 0.2, blend: 3 };
 
 /** Wind-aligned dune crests to the horizon, pale hardpack pans between them, a few adobe outposts inside a dune wall. */
 export const DESERT: Recipe = {
@@ -241,7 +246,7 @@ export const DESERT: Recipe = {
   biomes: {
     surfaces: { [Ground.PAN]: SurfaceId.HARDPACK },
     zones: ZONES,
-    limits: { ...LIMITS, pan: { top: PAN.level + PAN.blend * 0.1, ground: Ground.PAN } },
+    limits: { ...LIMITS, pan: Ground.PAN },
     rules: { coast: BARE, meadow: BARE, forest: BARE, upland: BARE },
     items: { coast: "rock", meadow: "rock", forest: null, upland: "rock" },
     ground: {
@@ -251,7 +256,7 @@ export const DESERT: Recipe = {
       upland: { cut: 0.5, above: Ground.UPLAND, below: Ground.DUNE, soft: SOFT },
     },
   },
-  road: { loop: { radius: 650, swing: 500, min: 420, max: 850 }, straights: 4, stacks: [], canyon: { outlet: 24 }, kickers: { road: 4, total: 16, big: 4 } },
+  road: { loop: { radius: 650, swing: 500, min: 420, max: 850 }, straights: 4, stacks: [], tongue: false, canyon: { outlet: 24 }, kickers: { road: 4, total: 16, big: 4 } },
   towns: { min: 1, max: 3, trees: false, block: { min: 35, span: 15 }, flat_roofs: true },
   landmarks: [Landmark.MAST, Landmark.TURBINES],
   scatter: [

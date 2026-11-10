@@ -43,7 +43,7 @@ export type GroundOp =
   | { kind: "blend" }
   | { kind: "pad"; crossing: Crossing }
   | { kind: "trail"; lines: { points: readonly RoadPoint[]; blend: number[] }[] }
-  | { kind: "harden"; cuts: BiomeCuts };
+  | { kind: "harden"; cuts: BiomeCuts; floor: number | null };
 
 export type GroundBase = { kind: "terrain"; seed: number; shape: TerrainRecipe } | { kind: "flat"; height: number; road_dist: number };
 
@@ -80,7 +80,7 @@ export class Stamp {
     else if (op.kind === "blend") this.blend();
     else if (op.kind === "pad") this.pad(op.crossing);
     else if (op.kind === "trail") this.trail(op.lines.map(({ points, blend }) => ({ points, blend: (i) => blend[i] })));
-    else this.harden(op.cuts);
+    else this.harden(op.cuts, op.floor);
   }
 
   private log(op: GroundOp) {
@@ -97,9 +97,9 @@ export class Stamp {
     pad(this.terrain, crossing, this.grid);
   }
 
-  harden(cuts: BiomeCuts) {
-    this.log({ kind: "harden", cuts });
-    harden(cuts, this.terrain, this.grid);
+  harden(cuts: BiomeCuts, floor: number | null) {
+    this.log({ kind: "harden", cuts, floor });
+    harden(cuts, this.terrain, this.grid, floor);
   }
 
   plateau(town: Town) {
