@@ -48,6 +48,14 @@ export const DashPlace = {
 } as const;
 export type DashPlace = (typeof DashPlace)[keyof typeof DashPlace];
 
+export const MapView = {
+  FULL: "full",
+  CLOSE: "close",
+  PACE: "pace",
+  OFF: "off",
+} as const;
+export type MapView = (typeof MapView)[keyof typeof MapView];
+
 export const TouchSteer = { DRAG: "drag", BUTTONS: "buttons" } as const;
 export type TouchSteer = (typeof TouchSteer)[keyof typeof TouchSteer];
 
@@ -65,6 +73,7 @@ export interface SettingsState {
   auto: boolean;
   steer_mode: SteerMode;
   precision_key: boolean;
+  bindings: Bindings;
   touch_steer: TouchSteer;
   camera: CameraView;
   camera_return: CameraReturn;
@@ -73,9 +82,9 @@ export interface SettingsState {
   /** Master volume, 0..1. */
   volume: number;
   muted: boolean;
-  bindings: Bindings;
   hud: HudLayout;
   dash: DashPlace;
+  map: MapView;
   /** The world the player last picked in the menu; a bare URL drives it again. Never set by an invite or a join. */
   last_world: WorldKind | null;
   last_seed: number | null;
@@ -106,6 +115,7 @@ const FIELDS: { [K in SettingKey]: Field<SettingsState[K]> } = {
   auto: flag(true),
   steer_mode: one_of(Object.values(SteerMode), SteerMode.SNAP),
   precision_key: flag(false),
+  bindings: { fallback: DEFAULT_BINDINGS, parse: parse_bindings },
   touch_steer: one_of(Object.values(TouchSteer), TouchSteer.DRAG),
   camera: one_of(Object.values(CameraView), CameraView.CHASE),
   camera_return: one_of(Object.values(CameraReturn), CameraReturn.SHORT),
@@ -115,7 +125,7 @@ const FIELDS: { [K in SettingKey]: Field<SettingsState[K]> } = {
   muted: flag(false),
   hud: one_of(Object.values(HudLayout), HudLayout.CLASSIC),
   dash: one_of(Object.values(DashPlace), DashPlace.RIGHT),
-  bindings: { fallback: DEFAULT_BINDINGS, parse: parse_bindings },
+  map: one_of(Object.values(MapView), MapView.FULL),
   last_world: { fallback: null, parse: (raw) => (is_kind(raw) ? raw : null) },
   last_seed: { fallback: null, parse: (raw) => (typeof raw === "number" ? parse_seed(String(raw)) : null) },
   guide_seen: { fallback: false, parse: seen_flag },

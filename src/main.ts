@@ -179,6 +179,7 @@ function apply_settings(state: SettingsState) {
   apply_car_settings(state);
   document.documentElement.dataset.hud = state.hud;
   document.documentElement.dataset.dash = state.dash;
+  hud.set_map(state.map);
   for (const chip of document.querySelectorAll<HTMLElement>("[data-aid]")) chip.setAttribute("aria-pressed", String(state[chip.dataset.aid as Aid]));
   input.touch.set_steer_mode(state.touch_steer);
   input.precision = state.precision_key;

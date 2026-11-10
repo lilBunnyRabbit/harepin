@@ -1,0 +1,139 @@
+#pace {
+  display: none;
+}
+
+:root[data-map="pace"] #pace {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  align-self: flex-end;
+  container-type: inline-size;
+  width: 176px;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+/* The card takes the map's width in every layout, so the corner keeps its footprint whichever view is on. */
+@media (pointer: coarse), (pointer: fine) and (max-width: 600px) {
+  :root[data-map="pace"] #pace {
+    width: var(--map-size);
+    padding: var(--space-2) var(--space-3);
+    column-gap: var(--space-2);
+  }
+}
+
+:root[data-map="pace"][data-hud="minimal"] #pace,
+:root[data-map="pace"][data-hud="compact"] #pace {
+  width: var(--compact-map);
+  padding: var(--space-2) var(--space-3);
+  column-gap: var(--space-2);
+}
+
+:root[data-map="pace"] #minimap,
+:root[data-map="off"] #minimap {
+  display: none;
+}
+
+.pace-arrow {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  fill: none;
+  stroke: var(--foreground);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+#pace[data-side="left"] .pace-arrow {
+  scale: -1 1;
+}
+
+#pace[data-tight] .pace-arrow {
+  stroke: var(--accent);
+}
+
+.pace-call {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    "grade side"
+    "grade distance";
+  align-items: baseline;
+  column-gap: var(--space-2);
+}
+
+.pace-call b {
+  grid-area: grade;
+  align-self: center;
+  font-family: var(--font-mono);
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.pace-side {
+  grid-area: side;
+  color: var(--dim);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+.pace-distance {
+  grid-area: distance;
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.pace-then {
+  grid-column: 1 / -1;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--line);
+  color: var(--dim);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+.pace-then:empty {
+  display: none;
+}
+
+#pace[data-off] {
+  opacity: 0.6;
+}
+
+@container (width < 150px) {
+  .pace-call {
+    display: contents;
+  }
+
+  .pace-distance {
+    grid-column: 1 / -1;
+    font-size: var(--text-md);
+  }
+
+  .pace-side {
+    display: none;
+  }
+
+  .pace-arrow {
+    width: 28px;
+    height: 28px;
+  }
+
+  .pace-call b {
+    grid-area: auto;
+    font-size: 22px;
+  }
+
+  .pace-then {
+    font-size: var(--text-2xs);
+    white-space: normal;
+  }
+}

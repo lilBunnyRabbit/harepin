@@ -4,7 +4,7 @@ import { binding_rows } from "./binding-rows";
 import { el, icon, type Options, type Text } from "./setting-rows";
 import { THEMES, choose_theme, current_theme, find_saved, find_theme, load_saved_themes } from "../theme/theme";
 import type { SettingsMenu } from "./page";
-import { CameraReturn, CameraView, DashPlace, HudLayout, QualityMode, TouchSteer, type QualityTier } from "./prefs";
+import { CameraReturn, CameraView, DashPlace, HudLayout, MapView, QualityMode, TouchSteer, type QualityTier } from "./prefs";
 import { BASE_TOKENS, saved_themes, theme_create } from "./theme-pages";
 import { stat } from "./widgets";
 
@@ -26,6 +26,12 @@ export interface DeepPage {
 
 const CAMERA_RETURN_LABEL: Record<CameraReturn, string> = { off: "Off", short: "1.5 s", long: "3 s", never: "Never" };
 const STEER_LABEL: Record<SteerMode, string> = { snap: "Classic", hold: "Hold", smooth: "Smooth" };
+const MAP_VIEWS: Record<MapView, [string, string]> = {
+  full: ["Full", "The whole track"],
+  close: ["Close-up", "Turns with you and shows the next 200 m"],
+  pace: ["Pace notes", "No map: the next turn, 1 tightest to 6 fastest, and how far off it is"],
+  off: ["Off", "No map"],
+};
 
 const TIER_LABEL: Record<QualityTier, string> = { high: "High", medium: "Medium", low: "Low" };
 type Shown = string | ((bindings: Bindings) => string);
@@ -319,6 +325,12 @@ function display(m: SettingsMenu): HTMLElement[] {
         [DashPlace.CENTER, "Centre"],
       ],
       () => hud_wire(m),
+    ),
+    m.rows.segmented(
+      "Map",
+      () => `${MAP_VIEWS[m.state().map][1]}.`,
+      m.value("map"),
+      Object.values(MapView).map((view) => [view, MAP_VIEWS[view][0]] as const),
     ),
     theme,
     m.rows.link("Make your own theme", "Roll colours, keep the ones you like, then name and save it.", "Roll, adjust, save", () => m.show_sub("creator")),
