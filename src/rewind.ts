@@ -39,6 +39,7 @@ export class Rewind {
     slot.at = now;
     this.parts.forEach((part, i) => (slot.snapshots[i] = part.snapshot()));
     while (this.count && now - this.slot(0).at > REWIND_SECONDS * 1000) {
+      this.slot(0).snapshots.fill(undefined);
       this.head = (this.head + 1) % this.slots.length;
       this.count--;
     }
@@ -46,7 +47,7 @@ export class Rewind {
 
   /** Drops the newest frame and restores the one before it; false when there is nothing left to restore. */
   step(now: number): boolean {
-    if (this.count > 1) this.count--;
+    if (this.count > 1) this.slot(--this.count).snapshots.fill(undefined);
     if (!this.count) return false;
     const slot = this.slot(this.count - 1);
     this.parts.forEach((part, i) => part.restore(slot.snapshots[i], now - slot.at));
@@ -54,6 +55,7 @@ export class Rewind {
   }
 
   clear() {
+    for (let i = 0; i < this.count; i++) this.slot(i).snapshots.fill(undefined);
     this.count = 0;
   }
 
