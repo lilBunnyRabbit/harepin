@@ -3,6 +3,7 @@ import type { Lobby } from "./lobby";
 import type { Net } from "./net";
 import type { Race } from "./race";
 import { brand, dark, rgba } from "./palette";
+import { tach } from "./tach";
 import { SIZE, type World } from "./world";
 import { WorldKind } from "./worldgen/types";
 
@@ -130,9 +131,10 @@ export class Hud {
     document.documentElement.toggleAttribute("data-calm", this.moving_since > 0 && now - this.moving_since > CALM_MS);
     el.gear.textContent = car.gear === -1 ? "R" : car.gear === 0 ? "N" : String(car.gear);
     el.gear.dataset.mode = car.auto ? "A" : "M";
-    el.rpm.style.width = `${Math.min(100, (car.rpm / 7300) * 100)}%`;
-    el.rpm.dataset.hot = String(car.rpm > 6600);
-    el.shift.dataset.on = String(!car.auto && car.rpm > 6700);
+    const rev = tach(car.rpm, car.spec);
+    el.rpm.style.width = `${rev.fill}%`;
+    el.rpm.dataset.hot = String(rev.hot);
+    el.shift.dataset.on = String(!car.auto && rev.shift);
     el.nitro.hidden = !car.nitro.fitted;
     el.nitro_fill.style.width = `${car.nitro.level * 100}%`;
     el.nitro.toggleAttribute("data-boost", car.nitro.boosting);
