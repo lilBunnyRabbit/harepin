@@ -115,7 +115,7 @@ const FIELDS: { [K in SettingKey]: Field<SettingsState[K]> } = {
   abs: flag(true),
   assist: flag(true),
   auto: flag(true),
-  steer_mode: one_of(Object.values(SteerMode), SteerMode.SNAP),
+  steer_mode: one_of(Object.values(SteerMode), SteerMode.SMOOTH),
   precision_key: flag(false),
   bindings: { fallback: DEFAULT_BINDINGS, parse: parse_bindings },
   touch_steer: one_of(Object.values(TouchSteer), TouchSteer.DRAG),

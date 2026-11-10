@@ -38,9 +38,9 @@ const slip_deg = (car: Car) => {
 };
 
 describe("fresh player on the keyboard", () => {
-  test("gets the stock coupe, every aid on and Classic steering", () => {
+  test("gets the stock coupe, every aid on and Smooth steering", () => {
     expect(DEFAULT_BUILD.car).toBe("coupe");
-    expect(DEFAULT_SETTINGS).toMatchObject({ tcs: true, abs: true, assist: true, auto: true, steer_mode: SteerMode.SNAP, precision_key: false });
+    expect(DEFAULT_SETTINGS).toMatchObject({ tcs: true, abs: true, assist: true, auto: true, steer_mode: SteerMode.SMOOTH, precision_key: false });
   });
 
   // Pinned from the 0.10.0 - 0.13.1 replays, which all match: a change here changes how the game feels on a first drive.
