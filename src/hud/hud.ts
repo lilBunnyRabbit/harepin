@@ -10,6 +10,11 @@ import type { RouteRun } from "../modes/mode";
 import { Minimap } from "./minimap";
 import { PaceCard } from "./pace-card";
 import "./hud.css";
+import "./top-bar.css";
+import "./corner.css";
+import "./dash.css";
+import "./aids.css";
+import "./overlays.css";
 
 export function $<T extends HTMLElement>(id: string, type: { new (): T; prototype: T }): T;
 export function $(id: string): HTMLElement;

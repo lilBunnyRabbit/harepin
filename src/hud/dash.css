@@ -1,0 +1,333 @@
+.bottom-right {
+  bottom: var(--inset-bottom);
+  right: var(--inset-right);
+  width: 264px;
+}
+
+/* Out of flow above the speedo, so it reserves nothing while hidden; it only shows when the view is orbited away. */
+#recenter {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + var(--space-2));
+  border-color: var(--line);
+  background: var(--surface);
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: auto;
+  transition:
+    opacity 0.2s,
+    visibility 0.2s;
+}
+
+#recenter[data-shown] {
+  opacity: 1;
+  visibility: visible;
+}
+
+#recenter:hover {
+  background: var(--background-light);
+}
+
+.speedo {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+#speed,
+#gear {
+  font-family: var(--font-mono);
+}
+
+/* Room for three digits, so the box keeps one width from 0 to 300 km/h. */
+#speed {
+  min-width: 3ch;
+  text-align: right;
+  font-size: 52px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--cottontail);
+}
+
+:root[data-scheme="light"] #speed {
+  color: var(--foreground);
+}
+
+.unit {
+  font-size: var(--text-sm);
+  color: var(--dim);
+}
+
+#gear {
+  margin-left: auto;
+  font-size: 34px;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+#gear[data-mode="M"]::after {
+  content: "M";
+  font-size: var(--text-sm);
+  margin-left: 2px;
+  color: var(--accent);
+}
+
+.rpm {
+  position: relative;
+  height: 8px;
+  margin-top: var(--space-3);
+  border-radius: var(--radius-full);
+  background: var(--background-light);
+  overflow: hidden;
+}
+
+#rpm-fill {
+  height: 100%;
+  background: var(--primary);
+  transition: width 40ms linear;
+}
+
+#rpm-fill[data-hot="true"] {
+  background: var(--error);
+}
+
+#shift {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--cottontail);
+  opacity: 0;
+}
+
+.nitro {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.nitro[hidden] {
+  display: none;
+}
+
+.nitro-tank {
+  flex: 1;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--background-light);
+  overflow: hidden;
+}
+
+#nitro-fill {
+  height: 100%;
+  background: var(--info);
+}
+
+.nitro[data-boost] #nitro-fill {
+  background: var(--cottontail);
+}
+
+/* Boost works from 2nd gear up; in 1st the gauge reads as "not now". */
+.nitro[data-idle] {
+  opacity: 0.45;
+}
+
+#shift[data-on="true"] {
+  animation: blink 0.12s steps(2) infinite;
+}
+
+@keyframes blink {
+  from {
+    opacity: 0.9;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@media (pointer: coarse) {
+  .bottom-right {
+    right: calc(var(--inset-right) + var(--pedals) + var(--space-3));
+    width: auto;
+    min-width: 120px;
+    height: var(--speedo-h);
+    padding: var(--space-2) var(--space-3);
+    pointer-events: none;
+  }
+
+  #speed {
+    font-size: 28px;
+  }
+
+  .unit {
+    font-size: var(--text-2xs);
+  }
+
+  #gear {
+    font-size: var(--text-2xl);
+  }
+
+  .rpm {
+    height: 5px;
+    margin-top: var(--space-2);
+  }
+
+  /* The nitro key is the tank gauge on touch. */
+  .bottom-right .nitro {
+    display: none;
+  }
+}
+
+#gear {
+  align-self: center;
+  padding: 2px var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: 22px;
+  background: color-mix(in oklch, var(--foreground) 10%, transparent);
+}
+
+#speed {
+  letter-spacing: -0.03em;
+}
+
+@media (pointer: fine) {
+  #speed {
+    font-size: 48px;
+  }
+}
+
+/* A backdrop blur over the live canvas recomposites every frame, which phones pay for; --surface is near opaque without it. */
+@media (pointer: coarse) {
+  #gear {
+    padding: 0 var(--space-2);
+    font-size: var(--text-xl);
+  }
+
+  #recenter {
+    backdrop-filter: none;
+  }
+
+  #speed {
+    text-align: right;
+  }
+
+  .bottom-right {
+    min-width: 0;
+    height: auto;
+    padding: var(--space-1) var(--space-3) var(--space-2);
+    background: color-mix(in oklch, var(--surface) 55%, transparent);
+  }
+
+  #speed {
+    font-size: 26px;
+  }
+
+  .rpm {
+    height: 3px;
+    margin-top: var(--space-1);
+  }
+}
+
+:root[data-hud="racing"] .bottom-right,
+:root[data-hud="compact"] .bottom-right {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: var(--space-3);
+  width: auto;
+  min-height: var(--bar-h);
+  padding: var(--space-2) var(--space-3);
+}
+
+:root[data-hud="racing"] .bottom-right {
+  right: auto;
+  left: 50%;
+  translate: -50% 0;
+  width: var(--racing-speedo);
+}
+
+:root[data-hud="racing"] .speedo,
+:root[data-hud="compact"] .speedo {
+  align-items: center;
+}
+
+:root[data-hud="racing"] #speed {
+  font-size: 36px;
+}
+
+:root[data-hud="racing"] .speedo {
+  flex: 1;
+  justify-content: center;
+}
+
+:root[data-hud="racing"] .rpm,
+:root[data-hud="racing"] .nitro,
+:root[data-hud="compact"] .rpm,
+:root[data-hud="compact"] .nitro {
+  flex-basis: 100%;
+  margin-top: var(--space-1);
+}
+
+:root[data-hud="racing"] .rpm,
+:root[data-hud="compact"] .rpm {
+  height: 4px;
+}
+
+:root[data-hud="minimal"] .bottom-right {
+  width: auto;
+  padding: var(--space-2) var(--space-3);
+}
+
+:root[data-dash="center"]:is([data-hud="classic"], [data-hud="minimal"]) .bottom-right {
+  right: auto;
+  left: 50%;
+  translate: -50% 0;
+}
+
+:root[data-hud="compact"] .bottom-right {
+  inset: var(--inset-top) calc(var(--inset-right) + var(--compact-map) + var(--space-2)) auto auto;
+  width: var(--racing-speedo);
+}
+
+:root[data-hud="compact"] #speed {
+  font-size: 32px;
+}
+
+:root[data-hud="compact"] #recenter {
+  top: calc(100% + var(--space-2));
+  bottom: auto;
+}
+
+@media (pointer: coarse) {
+  :root[data-hud="racing"] .bottom-right {
+    min-height: 0;
+    min-width: 0;
+    padding: var(--space-1) var(--space-3);
+  }
+
+  :root[data-hud="racing"] #speed {
+    font-size: 26px;
+  }
+
+  /* A phone's top band can't hold the bar, the lap strip, the touch buttons, the dash and the map in one row, so on
+     touch Compact keeps the smaller map up top and sets the dash between the thumbs like Racing does. */
+  :root[data-hud="compact"] .bottom-right {
+    inset: auto auto var(--inset-bottom) 50%;
+    translate: -50% 0;
+    width: var(--racing-speedo);
+    min-height: 0;
+    min-width: 0;
+    padding: var(--space-1) var(--space-3);
+  }
+
+  :root[data-hud="compact"] #speed {
+    font-size: 26px;
+  }
+
+  :root[data-hud="compact"] #recenter {
+    top: auto;
+    bottom: calc(100% + var(--space-2));
+  }
+}

@@ -1,0 +1,144 @@
+#toast {
+  top: calc(var(--inset-top) + var(--bar-h) + var(--space-4));
+  left: 50%;
+  translate: -50% 0;
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+#toast[data-shown] {
+  opacity: 1;
+  transition-duration: 0.1s;
+}
+
+#banner {
+  position: fixed;
+  top: 18%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 34px;
+  font-weight: 800;
+  color: var(--cottontail);
+  text-shadow: 0 2px 18px var(--background-darkest);
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+
+#delta {
+  position: fixed;
+  top: calc(18% + 48px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  background: var(--surface);
+  color: var(--error);
+  opacity: 0;
+  transition: opacity 0.25s;
+  pointer-events: none;
+}
+
+#delta[data-ahead="true"] {
+  color: var(--success);
+}
+
+#rewind {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--cottontail);
+  text-shadow: 0 2px 20px var(--background-darkest);
+  opacity: 0;
+  transition: opacity 0.15s;
+  pointer-events: none;
+}
+
+#countdown {
+  position: fixed;
+  top: 32%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: var(--font-mono);
+  font-size: 96px;
+  font-weight: 700;
+  color: var(--cottontail);
+  text-shadow: 0 2px 24px var(--background-darkest);
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+
+#rotate {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  #banner {
+    font-size: 24px;
+  }
+
+  #toast {
+    position-anchor: --top-dock;
+    top: calc(anchor(bottom) + var(--space-2));
+  }
+
+  #countdown {
+    font-size: 64px;
+  }
+}
+
+@media (orientation: portrait) and (pointer: coarse) {
+  #rotate {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: var(--space-4);
+    padding: var(--space-6);
+    text-align: center;
+    font-size: var(--text-xl);
+    font-weight: 600;
+    color: var(--foreground);
+    background: var(--background-darkest);
+  }
+
+  #rotate .logo {
+    width: 64px;
+    height: 58px;
+    color: var(--primary);
+  }
+}
+
+#toast {
+  translate: -50% calc(-1 * var(--space-2));
+  transition:
+    opacity 0.3s,
+    translate 0.3s;
+}
+
+#toast[data-shown] {
+  translate: -50% 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #toast,
+  #toast[data-shown] {
+    translate: -50% 0;
+  }
+}

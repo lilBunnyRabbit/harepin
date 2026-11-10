@@ -1,0 +1,351 @@
+.dock-top {
+  anchor-name: --top-dock;
+  position: fixed;
+  top: var(--inset-top);
+  left: var(--inset-left);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.dock-top .hud {
+  position: static;
+}
+
+.top-left {
+  anchor-name: --title-bar;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: var(--bar-h);
+  padding: var(--space-2) var(--space-3);
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.title .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--control-h);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  letter-spacing: -0.011em;
+  white-space: nowrap;
+  color: var(--foreground);
+}
+
+.title .logo {
+  width: 20px;
+  height: 18px;
+  color: var(--primary);
+}
+
+.title .dim {
+  margin-right: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.times {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: var(--space-1) var(--space-4);
+}
+
+.times div {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: space-between;
+}
+
+.times div[hidden] {
+  display: none;
+}
+
+.times b {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+#cp {
+  font-family: var(--font-sans);
+  font-weight: 600;
+}
+
+@media (pointer: coarse) {
+  .top-left {
+    padding: var(--space-1) var(--space-2);
+  }
+}
+
+#strip {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-5);
+}
+
+#strip div {
+  flex-direction: column;
+  gap: 0;
+}
+
+#strip .dim {
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+#strip b {
+  font-size: var(--text-lg);
+}
+
+#strip .lap b {
+  font-size: var(--text-2xl);
+  color: var(--foreground);
+}
+
+@media (pointer: fine) {
+  #strip {
+    anchor-name: --top-centre;
+    position: fixed;
+    top: var(--inset-top);
+    left: 50%;
+    translate: -50% 0;
+    min-height: var(--bar-h);
+    padding: var(--space-2) var(--space-5);
+  }
+
+  #strip b {
+    white-space: nowrap;
+  }
+}
+
+@media (pointer: coarse) {
+  #strip {
+    gap: var(--space-4);
+    padding: var(--space-1) var(--space-3);
+  }
+
+  #strip > div:nth-child(2),
+  #strip > div:nth-child(3) {
+    display: none;
+  }
+
+  #strip .dim {
+    font-size: var(--text-2xs);
+  }
+
+  #strip b {
+    font-size: var(--text-sm);
+  }
+
+  #strip .lap b {
+    font-size: var(--text-xl);
+  }
+}
+
+@media (pointer: fine) and (max-width: 1199px) {
+  #strip {
+    left: calc(anchor(--actions right) + var(--space-2));
+    translate: none;
+    gap: var(--space-4);
+    padding-inline: var(--space-4);
+  }
+
+  #strip > div:nth-child(2) {
+    display: none;
+  }
+}
+
+/* Narrow desktop window: the key list goes, the strip joins the dock and a smaller map sits under it. */
+@media (pointer: fine) and (max-width: 600px) {
+  #strip {
+    position: static;
+    translate: none;
+    height: auto;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+  }
+
+  #strip > div:nth-child(2),
+  #strip > div:nth-child(3) {
+    display: none;
+  }
+}
+
+.title #room {
+  display: inline-block;
+  max-width: 12ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+/* Centred, the strip runs into the title bar below about 1440px, so it docks beside it instead. */
+@media (pointer: fine) and (max-width: 1439px) {
+  #strip {
+    left: calc(anchor(--actions right) + var(--space-2));
+    translate: none;
+  }
+}
+
+.dock-top {
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.dock-break {
+  flex-basis: 100%;
+  height: 0;
+}
+
+.actions {
+  anchor-name: --actions;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--bar-h);
+  padding: 0 var(--space-3);
+}
+
+@media (pointer: fine) {
+  #strip {
+    left: calc(anchor(--actions right) + var(--space-2));
+    translate: none;
+  }
+}
+
+@media (pointer: coarse) {
+  .actions {
+    padding: var(--space-1) var(--space-2);
+  }
+}
+
+#restart-lap {
+  align-self: center;
+}
+
+#modes-btn {
+  padding-inline: var(--space-2) var(--space-3);
+}
+
+#strip[data-idle] > div:nth-child(2) {
+  display: none;
+}
+
+.dock-top,
+.dock-top .hud {
+  transition: opacity 0.4s;
+}
+
+@media (pointer: coarse) {
+  .dock-top .top-left {
+    display: none;
+  }
+
+  .actions {
+    gap: var(--space-1);
+    padding: var(--space-1);
+  }
+
+  /* The dock's own box spans its wrapped rows; only its panels take touches, the gaps between them steer. */
+  .dock-top {
+    pointer-events: none;
+  }
+
+  .dock-top > * {
+    pointer-events: auto;
+  }
+
+  #modes-btn {
+    width: var(--control-h);
+    padding: 0;
+  }
+
+  #modes-btn span {
+    display: none;
+  }
+
+  #strip[data-idle] .lap,
+  #strip[data-idle] .dim {
+    display: none;
+  }
+
+  #strip[data-idle] #cp {
+    font-size: var(--text-sm);
+    font-weight: 400;
+    color: var(--dim);
+  }
+
+  #strip {
+    align-items: center;
+    min-height: 0;
+  }
+
+  #strip:not([data-idle]) #cp {
+    font-family: var(--font-mono);
+  }
+
+  #strip[data-idle] {
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+  }
+
+  #restart-lap {
+    border-color: transparent;
+    background: none;
+  }
+
+  :root[data-calm] .actions {
+    opacity: 0.3;
+  }
+
+  :root[data-calm] #strip[data-idle] {
+    opacity: 0;
+  }
+}
+
+/* HUD layouts (Settings, Display). Classic is the base above; the others only move and trim it, so the pad's spatial
+   focus order follows whatever lands where. */
+:root[data-hud="racing"] #strip .lap b {
+  font-size: 24px;
+}
+
+/* Centred, the strip meets the button bar below 1440px; there it keeps the Classic spot. */
+@media (pointer: fine) and (min-width: 1440px) {
+  :root[data-hud="racing"] #strip {
+    left: 50%;
+    translate: -50% 0;
+  }
+}
+
+:root[data-hud="minimal"] .dock-top .top-left,
+:root[data-hud="minimal"] #strip[data-idle],
+:root[data-hud="minimal"] #strip > div:nth-child(2),
+:root[data-hud="minimal"] #strip > div:nth-child(3),
+:root[data-hud="compact"] .dock-top .top-left,
+:root[data-hud="compact"] #strip > div:nth-child(2),
+:root[data-hud="compact"] #strip > div:nth-child(3) {
+  display: none;
+}
+
+:root[data-hud="minimal"][data-calm] .actions {
+  opacity: 0.3;
+}
+
+:root[data-hud="compact"] .dock-top {
+  anchor-name: --top-dock;
+}
+
+@media (pointer: fine) {
+  :root[data-hud="compact"] .dock-top .actions {
+    min-height: var(--bar-h);
+  }
+}
