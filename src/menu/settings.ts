@@ -164,9 +164,15 @@ export class Settings {
   }
 
   private end_guide() {
-    this.set("guide_seen", true);
+    this.mark_guide_seen();
     this.guide.stop();
     this.show(MenuTab.PLAY);
+  }
+
+  // A name left empty would roll a new random one on every reload, so the one shown in the guide sticks.
+  private mark_guide_seen() {
+    if (this.current.name === null) this.set("name", this.host.name());
+    this.set("guide_seen", true);
   }
 
   /** Start on the pad: the guide skips to Play. */
@@ -202,7 +208,7 @@ export class Settings {
 
   close() {
     if (!this.is_open) return;
-    if (this.guide_open) this.set("guide_seen", true);
+    if (this.guide_open) this.mark_guide_seen();
     this.guide.stop();
     this.root.hidden = true;
     this.root.removeEventListener("click", this.click);
