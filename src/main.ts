@@ -10,7 +10,8 @@ import { load_build } from "./menu/garage-builds";
 import { Ghost } from "./car/ghost";
 import { Heartbeat } from "./net/heartbeat";
 import { $, Hud } from "./hud/hud";
-import { Input, type Action } from "./hud/input";
+import type { Action } from "./hud/bindings";
+import { Input } from "./hud/input";
 import { Lobby, lobby_routes } from "./net/lobby";
 import { Modes } from "./modes/modes";
 import { race_choices } from "./modes/races";
@@ -180,6 +181,7 @@ function apply_settings(state: SettingsState) {
   input.touch.set_steer_mode(state.touch_steer);
   input.precision = state.precision_key;
   chase.mode = state.camera === CameraView.COCKPIT ? 1 : 0;
+  input.set_bindings(state.bindings);
   audio.set_view(state.camera === CameraView.COCKPIT);
   chase.return_delay = CAMERA_RETURN_SECONDS[state.camera_return];
   chase.invert_y = state.invert_y;

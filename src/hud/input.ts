@@ -1,28 +1,11 @@
 import type { Controls } from "../car/car";
+import { BINDABLE, DEFAULT_BINDINGS, MENU_BUTTON, PRESSES, type Action, type Bindable, type Bindings, type Hold } from "./bindings";
 import { Touch } from "./touch";
 
-export type Action = "reset" | "camera" | "shift_up" | "shift_down" | "auto" | "tcs" | "abs" | "assist" | "ghost" | "help" | "garage" | "settings" | "recenter" | "menu" | "restart";
-
-const KEY_ACTIONS: Record<string, Action> = {
-  KeyR: "reset",
-  KeyC: "camera",
-  KeyE: "shift_up",
-  KeyQ: "shift_down",
-  KeyM: "auto",
-  Digit1: "tcs",
-  Digit2: "abs",
-  Digit3: "assist",
-  KeyG: "ghost",
-  KeyH: "help",
-  KeyV: "garage",
-  KeyF: "recenter",
-  KeyL: "restart",
-  Escape: "settings",
-};
+/** A key or pad button caught for a binding; null when the capture ended without one (the menu closed). */
+export type Caught = { kind: "key"; code: string } | { kind: "pad"; button: number };
 
 const IMPACT_VIBRATE_MS = 60;
-/** Held with the precision setting on, it scales the keyboard steer; Ctrl or Alt would turn W into a browser shortcut. */
-const PRECISION_KEY = "KeyX";
 const PRECISION_STEER = 0.5;
 const DOUBLE_TAP_MS = 300;
 const DOUBLE_TAP_PX = 32;
@@ -171,15 +154,6 @@ export class MouseLook {
   }
 }
 
-const PAD_ACTIONS: [number, Action][] = [
-  [3, "reset"],
-  [8, "camera"],
-  [5, "shift_up"],
-  [4, "shift_down"],
-  [11, "recenter"],
-  [9, "menu"],
-];
-
 /** A menu press: the d-pad, A and B, the bumpers as tab switches, the triggers as section switches, Y as the page's second action. */
 export type Nav = "up" | "down" | "left" | "right" | "accept" | "back" | "prev" | "next" | "sub_prev" | "sub_next" | "alt";
 
@@ -201,6 +175,12 @@ export const typing = (target: EventTarget | null) => target instanceof HTMLInpu
 
 export class Input {
   private keys = new Set<string>();
+  private readonly key_binds = new Map<string, Bindable>();
+  private readonly pad_binds = new Map<number, Bindable>();
+  private bindings: Bindings = DEFAULT_BINDINGS;
+  private catcher: ((caught: Caught | null) => void) | null = null;
+  private catch_since = 0;
+  private catch_fresh = false;
   private queued: Action[] = [];
   private pad_prev: boolean[] = [];
   private nav_prev: boolean[] = [];
@@ -222,8 +202,16 @@ export class Input {
     this.touch = new Touch(touch_root);
     this.mouse = new MouseLook(canvas);
     window.addEventListener("keydown", (e) => {
+      if (this.catcher) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        // The Enter or Space that opened the capture is still bubbling up to here.
+        if (!e.repeat && e.timeStamp >= this.catch_since) this.catcher({ kind: "key", code: e.code });
+        return;
+      }
       if (e.repeat || typing(e.target)) return;
-      const action = KEY_ACTIONS[e.code];
+      const bound = this.key_binds.get(e.code);
+      const action: Action | undefined = e.code === "Escape" ? "settings" : is_press(bound) ? bound : undefined;
       if (this.blocked()) {
         if (action === "garage" || action === "help") this.queued.push(action);
         return;
@@ -232,14 +220,33 @@ export class Input {
       if (action === "settings" && document.querySelector(":popover-open")) return;
       this.keys.add(e.code);
       if (action) this.queued.push(action);
-      if (e.code.startsWith("Arrow") || e.code === "Space" || e.code === "Backspace") e.preventDefault();
+      if (bound) e.preventDefault();
     });
     window.addEventListener("keyup", (e) => this.keys.delete(e.code));
     window.addEventListener("blur", () => this.keys.clear());
   }
 
-  private down(...codes: string[]) {
-    return codes.some((c) => this.keys.has(c));
+  private down(hold: Hold): boolean {
+    for (const code of this.bindings[hold].keys) if (this.keys.has(code)) return true;
+    return false;
+  }
+
+  set_bindings(bindings: Bindings) {
+    this.bindings = bindings;
+    this.key_binds.clear();
+    this.pad_binds.clear();
+    for (const action of BINDABLE) {
+      for (const code of bindings[action].keys) this.key_binds.set(code, action);
+      const button = bindings[action].pad;
+      if (button !== null) this.pad_binds.set(button, action);
+    }
+  }
+
+  /** The next key or new pad button press goes to `on` instead of the game or the menu; null stops listening. */
+  listen(on: ((caught: Caught | null) => void) | null) {
+    this.catcher = on;
+    this.catch_since = performance.now();
+    this.catch_fresh = on !== null;
   }
 
   rewind = false;
@@ -250,25 +257,32 @@ export class Input {
     const actions = this.queued;
     this.queued = [];
     this.nav = [];
-    const key_steer = (this.down("KeyD", "ArrowRight") ? 1 : 0) - (this.down("KeyA", "ArrowLeft") ? 1 : 0);
+    const key_steer = (this.down("steer_right") ? 1 : 0) - (this.down("steer_left") ? 1 : 0);
     const controls: Controls = {
-      steer: key_steer * (this.precision && this.down(PRECISION_KEY) ? PRECISION_STEER : 1),
-      throttle: this.down("KeyW", "ArrowUp") ? 1 : 0,
-      brake: this.down("KeyS", "ArrowDown") ? 1 : 0,
-      handbrake: this.down("Space") ? 1 : 0,
+      steer: key_steer * (this.precision && this.down("precision") ? PRECISION_STEER : 1),
+      throttle: this.down("throttle") ? 1 : 0,
+      brake: this.down("brake") ? 1 : 0,
+      handbrake: this.down("handbrake") ? 1 : 0,
       analog: false,
-      nitro: this.down("ShiftLeft", "ShiftRight"),
+      nitro: this.down("nitro"),
     };
-    this.rewind = this.down("Backspace");
+    this.rewind = this.down("rewind");
     const pad = this.pad;
     this.look = { ...no_look(), ...this.mouse.take() };
     const blocked = this.blocked();
+    if (this.catcher && !blocked) this.stop_catch(null);
+    const catching = this.catcher !== null;
     // B backs out of the garage and A fits a part there; still held as the panel closes they would fire nitro or the
     // handbrake. Keys need no latch: presses made while blocked never reach `keys`.
     if (pad && this.was_blocked && !blocked) pad.buttons.forEach((b, i) => b.pressed && this.held.add(i));
     this.was_blocked = blocked;
     for (const i of this.held) if (!pad?.buttons[i]?.pressed) this.held.delete(i);
+    const caught = pad && this.catcher ? this.catch_pad(pad) : null;
     const button = (i: number) => (this.held.has(i) ? undefined : pad?.buttons[i]);
+    const pad_down = (hold: Hold) => {
+      const i = this.bindings[hold].pad;
+      return i !== null && !!button(i)?.pressed;
+    };
     if (pad) {
       const [x, y] = [pad.axes[2] ?? 0, pad.axes[3] ?? 0];
       const tilt = Math.hypot(x, y);
@@ -282,29 +296,36 @@ export class Input {
       const stick = Math.sign(raw) * dead ** 1.4;
       const rt = button(7)?.value ?? 0;
       const lt = button(6)?.value ?? 0;
-      if (Math.abs(stick) > 0 || rt > 0.02 || lt > 0.02 || button(0)?.pressed) {
+      const handbrake = pad_down("handbrake");
+      if (Math.abs(stick) > 0 || rt > 0.02 || lt > 0.02 || handbrake) {
         if (key_steer === 0) {
           controls.steer = stick;
           controls.analog = true;
         }
         controls.throttle = Math.max(controls.throttle, rt);
         controls.brake = Math.max(controls.brake, lt);
-        controls.handbrake = Math.max(controls.handbrake, button(0)?.pressed ? 1 : 0);
+        controls.handbrake = Math.max(controls.handbrake, handbrake ? 1 : 0);
       }
-      if (button(2)?.pressed) this.rewind = true;
-      if (button(1)?.pressed) controls.nitro = true;
+      if (pad_down("rewind")) this.rewind = true;
+      if (pad_down("nitro")) controls.nitro = true;
       for (const [button, nav] of PAD_NAV) {
         const pressed = !!pad.buttons[button]?.pressed;
         if (pressed && !this.nav_prev[button]) this.nav.push(nav);
         this.nav_prev[button] = pressed;
       }
       this.stick_press(pad.axes[0] ?? 0, pad.axes[1] ?? 0);
-      for (const [button, action] of PAD_ACTIONS) {
-        const pressed = !!pad.buttons[button]?.pressed;
-        if (pressed && !this.pad_prev[button]) actions.push(action);
-        this.pad_prev[button] = pressed;
+      for (let i = 0; i < pad.buttons.length; i++) {
+        const pressed = pad.buttons[i].pressed;
+        const action = i === MENU_BUTTON ? "menu" : this.pad_binds.get(i);
+        if (pressed && !this.pad_prev[i] && is_press(action)) actions.push(action);
+        this.pad_prev[i] = pressed;
       }
     }
+    if (catching) {
+      this.nav = [];
+      actions.length = 0;
+    }
+    if (caught) this.stop_catch(caught);
     const touch = this.touch;
     if (touch.active) {
       if (touch.buttons) {
@@ -326,6 +347,25 @@ export class Input {
       return { controls: { steer: 0, throttle: 0, brake: 0, handbrake: 0, analog: false }, actions: actions.filter((a) => a === "garage" || a === "help" || a === "menu") };
     }
     return { controls, actions };
+  }
+
+  // Buttons already down when the capture starts (the A that opened it) count only once let go and pressed again.
+  private catch_pad(pad: Gamepad): Caught | null {
+    if (this.catch_fresh) {
+      this.catch_fresh = false;
+      pad.buttons.forEach((b, i) => b.pressed && this.held.add(i));
+      return null;
+    }
+    const i = pad.buttons.findIndex((b, i) => b.pressed && !this.held.has(i));
+    if (i < 0) return null;
+    this.held.add(i);
+    return { kind: "pad", button: i };
+  }
+
+  private stop_catch(caught: Caught | null) {
+    const done = this.catcher;
+    this.listen(null);
+    done?.(caught);
   }
 
   private stick_press(x: number, y: number) {
@@ -351,3 +391,6 @@ export class Input {
     actuator.playEffect("dual-rumble", { duration: 120, weakMagnitude: Math.min(1, weak), strongMagnitude: Math.min(1, strong) }).catch(() => {});
   }
 }
+
+const PRESS_SET: ReadonlySet<string> = new Set([...PRESSES, "menu"]);
+const is_press = (action: string | undefined): action is Action => action !== undefined && PRESS_SET.has(action);

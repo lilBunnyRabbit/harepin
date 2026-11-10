@@ -1,5 +1,5 @@
 import { $ } from "./hud";
-import type { Action } from "./input";
+import type { Action } from "./bindings";
 import { TouchSteer } from "../menu/prefs";
 import "./touch.css";
 

@@ -1,4 +1,5 @@
 import { SteerMode } from "../car/car";
+import { DEFAULT_BINDINGS, parse_bindings, type Bindings } from "../hud/bindings";
 import { guide_seen_on_load, seen_flag } from "./guide-rules";
 import { clean_name, parse_seed } from "../net/net";
 import { is_kind } from "../worldgen/kinds/kinds";
@@ -72,6 +73,7 @@ export interface SettingsState {
   /** Master volume, 0..1. */
   volume: number;
   muted: boolean;
+  bindings: Bindings;
   hud: HudLayout;
   dash: DashPlace;
   /** The world the player last picked in the menu; a bare URL drives it again. Never set by an invite or a join. */
@@ -113,6 +115,7 @@ const FIELDS: { [K in SettingKey]: Field<SettingsState[K]> } = {
   muted: flag(false),
   hud: one_of(Object.values(HudLayout), HudLayout.CLASSIC),
   dash: one_of(Object.values(DashPlace), DashPlace.RIGHT),
+  bindings: { fallback: DEFAULT_BINDINGS, parse: parse_bindings },
   last_world: { fallback: null, parse: (raw) => (is_kind(raw) ? raw : null) },
   last_seed: { fallback: null, parse: (raw) => (typeof raw === "number" ? parse_seed(String(raw)) : null) },
   guide_seen: { fallback: false, parse: seen_flag },

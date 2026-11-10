@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { DEFAULT_BINDINGS, rebind_key } from "../hud/bindings";
 import { DEFAULT_SETTINGS, parse_settings, type SettingsState } from "./prefs";
 
 describe("parse_settings", () => {
@@ -23,6 +24,7 @@ describe("parse_settings", () => {
       auto: false,
       steer_mode: "smooth",
       precision_key: true,
+      bindings: rebind_key(DEFAULT_BINDINGS, "reset", "KeyC").bindings,
       touch_steer: "buttons",
       camera: "cockpit",
       camera_return: "never",
@@ -40,7 +42,7 @@ describe("parse_settings", () => {
   });
 
   test("wrong types fall back per field", () => {
-    const parsed = parse_settings({ quality: 1, laps: "3", tcs: "no", volume: "0.5", hud: null, last_world: 2, last_seed: "12", name: 7, guide_seen: "yes" });
+    const parsed = parse_settings({ quality: 1, laps: "3", tcs: "no", volume: "0.5", hud: null, bindings: [], last_world: 2, last_seed: "12", name: 7, guide_seen: "yes" });
     expect(parsed).toEqual({ ...DEFAULT_SETTINGS, guide_seen: true });
   });
 
