@@ -23,6 +23,23 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.10.0",
+    date: "2026-11-10",
+    title: "Races and wilder worlds",
+    changes: [
+      { kind: NEW, text: "Races: race the circuit, town-to-town street routes and dirt offroad routes, each with gates, a par time and stars. Lobby races can run on any route." },
+      { kind: NEW, text: "Islands have biomes and landmarks: coast, meadow, pine forest and dry upland, with a summit mast, a lighthouse, wind turbines and a rock arch." },
+      { kind: NEW, text: "A canyon cuts across every island, with a gap jump on the dirt trails." },
+      { kind: NEW, text: "Sky Track layouts twist: hairpins, esses, spiral climbs and crossovers. Rails let you glide along instead of stopping you." },
+      { kind: NEW, text: "Everything is in the menu: settings as rows, the garage as a tab with saved builds you can share by code, a Modes page, and What's new." },
+      { kind: NEW, text: "New map page: pick a world, roll or type a map code, and see the map with its length, corners and jumps." },
+      { kind: IMPROVED, text: "Drifting: with steering assist off, countersteering gets full lock, so you can hold a power drift on the throttle." },
+      { kind: IMPROVED, text: "A car sliding fully sideways scrubs speed like real sliding tyres." },
+      { kind: FIXED, text: "Reset faces the way you were travelling, not where the nose pointed." },
+      { kind: FIXED, text: "The map preview keeps its shape." },
+    ],
+  },
+  {
     version: "0.9.2",
     date: "2026-11-09",
     title: "Keyboard steering",
