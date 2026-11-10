@@ -6,3 +6,4 @@
 - Peer data is hostile: every channel has a sanitizer; a channel that can be flooded or must come from a known peer adds a per-sender rate limit and an `accept` check, which runs before the limit.
 - One leader rule everywhere: `Net.leader_id`, the lowest id among same-map peers.
 - Tests inject the room factory; no process-wide `mock.module("trystero")`.
+- ICE: trystero's default STUN (Google, Cloudflare) plus `TURN_SERVERS` from `ice.ts`, passed as `turnConfig` to every `joinRoom` (game and directory rooms). TURN only carries peers with no direct path (carrier NAT); without the build env `TURN_USERNAME` / `TURN_CREDENTIAL` it is empty and play falls back to direct only. The login is encoded into the bundle by `turn-code.ts` through a Vite define: obfuscated, not secret; rotate it in Metered if abused.

@@ -1,43 +1,70 @@
+<a href="https://lilbunnyrabbit.github.io/harepin/"><img src="public/og.jpg" alt="Harepin: a low-poly coupe with its headlights on, on an island road at dusk" width="100%"></a>
+
+<h2 align="center"><a href="https://lilbunnyrabbit.github.io/harepin/">Play Harepin</a></h2>
+<p align="center">Free, in the browser, nothing to install.</p>
+
 # Harepin
 
-Browser open-world driving MVP. Vite + Three.js, custom car sim, P2P multiplayer, no server.
+A small low-poly driving game. Pick a car, drive an island at dusk, then take the track in the sky.
+
+- **Two worlds.** An island with a road loop, villages, mountain hairpins and open ground to roam. Above it, a track of rails and decks in the sky.
+- **Modes.** Race, Ghost duel, Gymkhana, Drift zones, Gate hunt and Parking, with levels and stars. Your best lap drives beside you as a ghost.
+- **Garage.** Body, paint and parts: engine, tyres, suspension, brakes. Save builds and see what each part changes against stock.
+- **Friends a link away.** Copy the invite link and whoever opens it lands in your room, on your map. No account, no server. Race, chat, see each other's cars.
+- **Any device.** Keyboard, gamepad, or touch on a phone or tablet held sideways. Install it as an app (PWA) and it runs offline.
+
+## Why the name
+
+Hare plus hairpin. The hare is the lilBunnyRabbit bunny, the ears in the logo. The hairpin is the tight 180° bend, the corner every driving game gets judged by.
+
+## How online works
+
+There is no game server.
+
+- **Finding players.** Trystero posts tiny signalling messages to public Nostr relays (5 of them, picked from the app id). Tabs in the same browser also talk over BroadcastChannel.
+- **Connecting.** Cars talk peer to peer over WebRTC. ICE always tries a direct path first: the local network, then your public address through STUN (Google and Cloudflare, trystero's defaults). A TURN relay (Metered free tier, `src/net/ice.ts`, added through trystero's `turnConfig`) is only used when no direct path works. That usually means a phone on mobile data behind carrier NAT. It is a fallback: if TURN is down or the free quota runs out, players who can connect directly play as before.
+- **Credentials.** The TURN login comes in at build time from the GitHub Actions secrets `TURN_USERNAME` / `TURN_CREDENTIAL` (locally from `.env.local`, which git ignores). It is only lightly obfuscated in the bundle and is not a secret, because browsers need it. If it gets abused, rotate it in the Metered dashboard. A build without it uses STUN only.
+- **Game data.** Each client owns its car and sends a binary packet of about 80 bytes 20 times a second (`src/net/car-packet.ts`). Peers on another protocol version are told to update.
+
+## Develop
 
 ```sh
 bun install
 bun run dev                # http://localhost:5173
+bun run typecheck
+bun test
 bun run telemetry          # 0-100, top speed, braking, skidpad
 bun scripts/feel.ts        # handling scenarios: step steer, lift-off, power-on, handbrake, trail brake, slopes
 bun scripts/autolap.ts     # autopilot lap of the island road
-bun run build              # static dist/, deploy anywhere (Vercel, Cloudflare Pages)
+bun run build              # static dist/
 ```
 
-URL params: `?room=friends` (default `lobby`), `?name=Ana`, `?paint=0..6`, `?theme=Brand%20Light`, `?quality=low` (no bloom, 1x pixel ratio). Quality also steps down on its own when frames run under 45 fps.
+`AGENTS.md` has the folder map, registries and code rules.
 
-Controls: WASD/arrows, Space handbrake, R reset, Backspace rewind (10 s), C camera, G best-lap ghost, H help, Q/E manual shift, M auto, 1/2/3 toggle TCS/ABS/assist. Gamepad: RT/LT, stick, A handbrake, X rewind, Y reset, LB/RB shift.
+URL params: `?room=friends` (default `lobby`), `?name=Ana`, `?world=sky`, `?seed=…`, `?theme=Brand%20Light`, `?quality=low` (no bloom, 1x pixel ratio). Quality also steps down on its own when frames run under 45 fps.
+
+Default controls (rebindable in Settings): WASD/arrows, Space handbrake, Backspace rewind, R reset, L restart lap, C camera, F recenter, G best-lap ghost, V garage, H key list, Q/E shift, M auto gearbox, 1/2/3 toggle TCS/ABS/assist, T chat, Esc menu. Gamepad: RT/LT, stick, A handbrake, X rewind, Y reset, LB/RB shift.
 
 ## Hosting
 
-Static site, no server. Vercel: import the repo (framework Vite, build `bun run build`, output `dist`) or run `bunx vercel` in this folder. Cloudflare Pages: same build command and output. WebRTC signalling uses public Nostr relays, so nothing else to deploy.
+Static site on GitHub Pages: `.github/workflows/deploy.yml` builds on every push to `master` with the TURN secrets in the environment. Any static host works with the same `bun run build` and `dist/`.
 
-Peer data is untrusted: `net.ts` takes the sender id from the WebRTC peer, shape-checks and clamps every field, rate-limits each peer and caps the lobby at 16 remote cars.
+Peer data is untrusted: `net.ts` takes the sender id from the WebRTC peer, shape-checks and clamps every field, and rate-limits each peer.
 
-## Layout
+## How it's built
 
-- `src/car/car.ts`: the sim. Rigid body at 360 Hz, raycast suspension + anti-roll bars, normalised Pacejka tyres with combined slip, semi-implicit wheel spin, torque curve, 6-speed box, RWD, ABS, TCS, and an assist mode that does three things: speed-sensitive grip-limited steering lock, countersteer past 6° of slide, and a yaw damper that only fights yaw growing a slide.
-- `src/world/world.ts`: 2 km procedural island heightfield (4 m grid), 4.1 km road loop flattened into it, 12 gates, ~4.7k trees.
-- `src/render/scene.ts`, `src/car/models.ts`, `src/render/sky.ts`, `src/render/effects.ts`: terrain/road/trees, car/gates/curbs/posts, dusk sky + clouds, tyre smoke/dust + skid marks.
-- `src/render/camera.ts`: chase cam that leads into slides, pulls back under acceleration, shakes off-road and on impacts.
-- `src/net/net.ts`, `src/net/remotes.ts`: each client owns its car and broadcasts at 20 Hz from a timer; remotes drawn 110 ms behind, interpolated. Transport: trystero (WebRTC, signalling over public Nostr relays, ~10-30 s to find a peer) plus BroadcastChannel for same-browser tabs. Cars are ghosts.
-- `src/theme/theme.ts`, `src/theme/palette.ts`: the webos theme presets (mirrored from webos `themes.ts`), applied as the same CSS custom properties webos uses (`--background`, `--primary`, …). The HUD styles from those vars; the 3D scene reads each resolved token back through a probe + 1px canvas, so relative-colour presets work too. Dark themes render dusk, light themes daytime. Theme picker in the HUD, saved in localStorage.
-- `src/car/ghost.ts`: records each lap at 10 Hz, replays your best lap as a translucent car.
+- `src/car/car.ts`: the sim. Rigid body at 360 Hz, raycast suspension and anti-roll bars, normalised Pacejka tyres with combined slip, semi-implicit wheel spin, torque curve, gearbox, RWD/FWD/AWD per car, ABS, TCS, and an assist mode: speed-sensitive grip-limited steering lock, countersteer past 6° of slide, and a yaw damper that only fights yaw growing a slide.
+- `src/worldgen/`: pure world generation in a Web Worker: island heightfield and road, sky track rails. `src/world/` answers height, grip and collision queries at runtime.
+- `src/render/`: scene, dusk/day sky and clouds, effects, quality tiers, and a chase camera that leads into slides, pulls back under acceleration and shakes off-road and on impacts.
+- `src/net/`: trystero rooms, the binary car packet, lobby, chat and the room directory. Remotes are drawn slightly behind and interpolated. Cars are ghosts to each other.
+- `src/theme/`: the webos theme presets, applied as the same CSS custom properties webos uses. The HUD styles from them and the 3D scene reads each resolved token back. Dark themes drive at dusk, light themes in daytime.
+- `src/car/ghost.ts`: records each lap and replays your best one as a translucent car.
 
 ## Why no physics engine
 
-Feel lives in the tyre/drivetrain/assist layer, which no web engine provides; their vehicle controllers would be replaced anyway. What remains (one rigid body, 4 raycasts on a heightfield) is ~150 lines, runs headless in Bun for the scenario scripts, and keeps the bundle at ~190 KB gzipped instead of +1-3 MB WASM. Switch the chassis and collisions to Rapier once the world needs mesh colliders (ramps, bridges, rails, props) or car-to-car contact; the tyre code stays and just feeds it forces.
+Feel lives in the tyre/drivetrain/assist layer, which no web engine provides; their vehicle controllers would be replaced anyway. What remains (one rigid body, 4 raycasts on a heightfield) is small, runs headless in Bun for the scenario scripts, and keeps the bundle free of a 1-3 MB WASM engine. Switch the chassis and collisions to Rapier once the world needs mesh colliders or car-to-car contact; the tyre code stays and just feeds it forces.
 
 ## Known limits
 
 - P2P can't stop cheating; lap times are client-reported.
-- No TURN relay: some NATs won't connect.
-- Trees and gate posts collide against a two-circle car (nose and tail); reflector posts and curbs don't.
-- Whole island is one mesh, no streaming; fine at 2 km.
+- Cars pass through each other.
