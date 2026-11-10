@@ -12,6 +12,8 @@ export const island: WorldDef = {
   drawing: "Drawing island…",
   map_label: "island",
   pads: false,
+  mood: {},
+  backdrop: "sky",
   facts: (f) => [...lap_facts(f, "circuit"), [shown(f, (f) => String(f.towns)), "towns"]],
   dress: (world) => [roadside(world), water_mesh()],
 };

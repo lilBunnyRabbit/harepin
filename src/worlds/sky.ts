@@ -11,6 +11,8 @@ export const sky: WorldDef = {
   drawing: "Drawing track…",
   map_label: "sky track",
   pads: true,
+  mood: {},
+  backdrop: "sky",
   facts: (f) => [...lap_facts(f, "track"), [shown(f, (f) => String(f.gaps)), f?.gaps === 1 ? "gap to fly over" : "gaps to fly over"]],
   dress: (world) => [cloud_floor(world)],
 };

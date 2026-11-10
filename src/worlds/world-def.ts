@@ -1,4 +1,5 @@
 import type * as THREE from "three";
+import type { MoodDelta } from "../render/lighting";
 import type { World } from "../world/world";
 import type { WorldFacts } from "../worldgen/facts";
 import type { WorldKind } from "../worldgen/types";
@@ -21,6 +22,10 @@ export interface WorldDef {
   pads: boolean;
   /** Value and label pairs for the world map; "…" while `f` is not ready. */
   facts(f: WorldFacts | null): [string, string][];
+  /** Merged over the theme's mood. */
+  mood: MoodDelta;
+  /** "sky" adds the sky dome and ring clouds; "indoor" adds neither. */
+  backdrop: "sky" | "indoor";
   /** Scene pieces beyond the world view, sky and clouds. */
   dress(world: World): THREE.Object3D[];
 }

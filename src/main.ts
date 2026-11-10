@@ -72,14 +72,14 @@ const quality = new Quality(params, prefs.quality);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(64, innerWidth / innerHeight, 0.1, 5000);
 
-const light = new Lighting(scene);
+const light = new Lighting(scene, WORLDS[world.kind].mood);
 const render = new Render(params, quality, scene, camera, light);
 const app = $("app");
 render.mount(app);
 render.apply_quality();
 
 const world_view = new WorldView(world, chunks, quality.mobile);
-scene.add(...light.dress(sky(), clouds(world.seed)), world_view.root, ...WORLDS[world.kind].dress(world));
+scene.add(...(WORLDS[world.kind].backdrop === "sky" ? light.dress(sky(), clouds(world.seed)) : []), world_view.root, ...WORLDS[world.kind].dress(world));
 const gate_views = gates(world);
 for (const g of gate_views) scene.add(g.group);
 

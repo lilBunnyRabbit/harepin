@@ -5,6 +5,7 @@ import { DEFAULT_BINDINGS, keys_text, type Bindings } from "../hud/bindings";
 import { $, format } from "../hud/hud";
 import type { World } from "../world/world";
 import { KINDS } from "../worldgen/kinds/kinds";
+import { WORLDS } from "../worlds/worlds";
 import { DRIFT_MODE } from "./drift-mode";
 import { DUEL_MODE } from "./duel-mode";
 import { GYMKHANA_MODE } from "./gymkhana-mode";
@@ -24,8 +25,9 @@ export const MODES: readonly ModeDef[] = [RACE_MODE, GYMKHANA_MODE, PARKING_MODE
 const SPAWN_LIFT = 0.75;
 const NOTICE_MS = 2500;
 const DEG = 180 / Math.PI;
-const OPEN_GROUND = "Needs open ground: drive the island for it";
-const SKY_NOTICE = "Gymkhana, parking and gate hunts need open ground: drive the island for them";
+const OPEN_WORLDS = Object.values(WORLDS).filter((w) => KINDS[w.kind].open_ground).map((w) => `the ${w.map_label}`).join(" or ");
+const OPEN_GROUND = `Needs open ground: drive ${OPEN_WORLDS} for it`;
+const NO_GROUND_NOTICE = `Gymkhana, parking and gate hunts need open ground: drive ${OPEN_WORLDS} for them`;
 const TOO_BIG = "Too big for this mode";
 
 export interface LevelEntry {
@@ -156,7 +158,7 @@ export class Modes {
     for (const mode of this.modes) {
       const level = mode.levels.find((l) => l.id === id);
       if (!level) continue;
-      if (mode.def.needs_ground && !KINDS[this.world.kind].open_ground) return this.notice(SKY_NOTICE);
+      if (mode.def.needs_ground && !KINDS[this.world.kind].open_ground) return this.notice(NO_GROUND_NOTICE);
       if (mode.def.car_sized_only && !car_sized(this.spec())) return this.notice(TOO_BIG);
       if (!mode.track.is_open(id)) return;
       if (this.race_busy()) return this.notice(mode.def.busy_notice);
