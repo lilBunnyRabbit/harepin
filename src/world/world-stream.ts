@@ -4,6 +4,9 @@ import type { Tree } from "../worldgen/types";
 import type { WorldKind } from "../worldgen/types";
 import type { WorkerReply, WorkerRequest } from "../worldgen/worker";
 import { World } from "./world";
+
+/** Metres the car moves before `follow` looks again; small next to the stream pad, so the fog never outruns it. */
+const FOLLOW_STEP = 64;
 import { WorldWorker, take_early } from "./world-worker";
 
 export interface ChunkListener {
@@ -24,7 +27,8 @@ export class WorldStream {
   private readonly pending: Uint16Array;
   /** Of those, how many answer a request made before the chunk was dropped, and so are thrown away. */
   private readonly stale: Uint16Array;
-  private at = -1;
+  private at_x = Infinity;
+  private at_z = Infinity;
   private reach = 0;
 
   private constructor(
@@ -73,18 +77,16 @@ export class WorldStream {
 
   /**
    * A streamed world keeps the chunks with any point within `reach` of (x, z) and lets go of those past one chunk more,
-   * so driving along a border does not churn. Called every frame; only a new chunk or reach works.
+   * so driving along a border does not churn. Called every frame; only a move of `FOLLOW_STEP` or a new reach works.
    */
   follow(x: number, z: number, reach: number) {
     const { tiles } = this.world;
     if (!tiles.streamed) return;
-    const { ext } = tiles;
-    const ci = Math.max(0, Math.min(ext.side - 1, Math.floor((x - ext.origin) / CHUNK)));
-    const cj = Math.max(0, Math.min(ext.side - 1, Math.floor((z - ext.origin) / CHUNK)));
-    const at = cj * ext.side + ci;
-    if (at === this.at && reach === this.reach) return;
-    this.at = at;
+    if ((x - this.at_x) ** 2 + (z - this.at_z) ** 2 < FOLLOW_STEP ** 2 && reach === this.reach) return;
+    this.at_x = x;
+    this.at_z = z;
     this.reach = reach;
+    const { ext } = tiles;
     this.post({ type: "focus", x, z });
     const keep = reach ** 2;
     const leave = (reach + CHUNK) ** 2;

@@ -96,6 +96,13 @@ test("a streamed world keeps only the chunks around the car, nearest first, and 
   for (const index of now) expect(from(index, 1500, 0)).toBeLessThanOrEqual(fog + pad + CHUNK);
   expect(first.filter((index) => from(index, 1500, 0) > fog + pad + CHUNK).length).toBeGreaterThan(10);
   expect([...shown].sort()).toEqual(now.sort());
+  // Crossing one chunk north to south: a chunk 400 m east and one row past the fog comes into it before the car leaves.
+  const x = ext.origin + Math.floor((1500 - ext.origin) / CHUNK) * CHUNK + 112;
+  const north = ext.origin + Math.floor(-ext.origin / CHUNK) * CHUNK + 2;
+  await settle(x, north - 1200);
+  await settle(x, north);
+  await settle(x, north + CHUNK - 4);
+  expect(in_fog(x, north + CHUNK - 4).filter((index) => !tiles.get(index))).toEqual([]);
 }, 60_000);
 
 test("a compact world keeps every chunk wherever the car goes", async () => {
