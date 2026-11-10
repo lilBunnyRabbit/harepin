@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { SteerMode } from "../car/car";
 import { DEFAULT_BINDINGS, rebind_key } from "../hud/bindings";
 import { DEFAULT_SETTINGS, parse_settings, type SettingsState } from "./prefs";
 
@@ -39,6 +40,7 @@ describe("parse_settings", () => {
       last_world: "sky",
       last_seed: 4294967295,
       guide_seen: false,
+      smooth_steer: true,
     };
     expect(parse_settings(stored)).toEqual(stored);
   });
@@ -67,5 +69,19 @@ describe("parse_settings", () => {
 
   test("unknown keys are dropped", () => {
     expect(parse_settings({ junk: 1 })).toEqual({ ...DEFAULT_SETTINGS, guide_seen: true });
+  });
+});
+
+describe("smooth steer default", () => {
+  test("a save from before Smooth moves Classic to Smooth once", () => {
+    expect(parse_settings({ steer_mode: SteerMode.SNAP }).steer_mode).toBe(SteerMode.SMOOTH);
+  });
+
+  test("Classic picked after the move stays Classic", () => {
+    expect(parse_settings({ steer_mode: SteerMode.SNAP, smooth_steer: true }).steer_mode).toBe(SteerMode.SNAP);
+  });
+
+  test("Hold is never moved", () => {
+    expect(parse_settings({ steer_mode: SteerMode.HOLD }).steer_mode).toBe(SteerMode.HOLD);
   });
 });

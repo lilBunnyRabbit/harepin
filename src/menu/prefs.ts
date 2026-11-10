@@ -92,6 +92,8 @@ export interface SettingsState {
   last_seed: number | null;
   /** Set by Drive, Skip or the last step of the first-run guide; never by an invite link. */
   guide_seen: boolean;
+  /** Set once Classic, the old default steer mode, has been moved to Smooth; a later pick of Classic sticks. */
+  smooth_steer: boolean;
 }
 export type SettingKey = keyof SettingsState;
 
@@ -132,6 +134,7 @@ const FIELDS: { [K in SettingKey]: Field<SettingsState[K]> } = {
   last_world: { fallback: null, parse: (raw) => (is_kind(raw) ? raw : null) },
   last_seed: { fallback: null, parse: (raw) => (typeof raw === "number" ? parse_seed(String(raw)) : null) },
   guide_seen: { fallback: false, parse: seen_flag },
+  smooth_steer: flag(true),
 };
 
 const KEYS = Object.keys(FIELDS) as SettingKey[];
@@ -145,5 +148,8 @@ export const DEFAULT_SETTINGS: SettingsState = from_fields((_, field) => field.f
 export function parse_settings(raw: unknown, played = false): SettingsState {
   if (typeof raw !== "object" || raw === null) return { ...DEFAULT_SETTINGS, guide_seen: guide_seen_on_load(raw, played) };
   const stored = raw as Record<string, unknown>;
-  return from_fields((key, field) => field.parse(stored[key]));
+  const state = from_fields((key, field) => field.parse(stored[key]));
+  if (stored.smooth_steer !== true && state.steer_mode === SteerMode.SNAP) state.steer_mode = SteerMode.SMOOTH;
+  state.smooth_steer = true;
+  return state;
 }
