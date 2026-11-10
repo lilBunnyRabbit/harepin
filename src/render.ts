@@ -7,10 +7,11 @@ import type { Lighting } from "./lighting";
 import { NanProbe, sanitise_bloom } from "./postfx";
 import type { Quality } from "./quality";
 
-// Canvas-bug bisect switches for ?debug, combined with ?quality=medium: each drops one piece of the bloom path.
-const BISECT = ["nobloom", "nocomposer", "noblur", "alpha", "bloomhalf"] as const;
+// Canvas-bug bisect switches for ?debug, combined with ?quality=medium: each changes one piece of the bloom path.
+const BISECT = ["nobloom", "nocomposer", "noblur", "alpha", "bloomfull"] as const;
 type Bisect = (typeof BISECT)[number];
 const DEBUG_MS = 250;
+const COMPOSER_SAMPLES = 4;
 
 export class Render {
   readonly renderer: THREE.WebGLRenderer;
@@ -39,10 +40,13 @@ export class Render {
     this.renderer.setSize(innerWidth, innerHeight, false);
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
 
-    this.composer = new EffectComposer(this.renderer);
+    // The composer draws into its own target, so the backbuffer's antialias never reaches the screen: the target multisamples instead.
+    const buffer = this.renderer.getDrawingBufferSize(new THREE.Vector2());
+    const target = new THREE.WebGLRenderTarget(buffer.x, buffer.y, { type: THREE.HalfFloatType, samples: quality.antialias ? COMPOSER_SAMPLES : 0 });
+    this.composer = new EffectComposer(this.renderer, target);
     this.composer.addPass(new RenderPass(scene, camera));
     const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), light.bloom.strength, 0.45, light.bloom.threshold);
-    if (this.bisect.has("bloomhalf")) {
+    if (!this.bisect.has("bloomfull")) {
       const set_size = bloom.setSize.bind(bloom);
       bloom.setSize = (width, height) => set_size(Math.round(width / 2), Math.round(height / 2));
     }
