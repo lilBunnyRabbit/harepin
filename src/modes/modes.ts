@@ -173,6 +173,13 @@ export class Modes {
   }
 
   private launch(active: Active) {
+    // Mode sites and views read terrain anywhere on the map: a start before every chunk is in waits for the rest.
+    if (!this.world.tiles.complete) {
+      void this.world.tiles.whole().then(() => {
+        if (this.current === active && !active.run) this.launch(active);
+      });
+      return;
+    }
     const run = active.mode.def.start(this.ctx(active.mode.track), active.level);
     if (typeof run === "string") return this.show_status(run);
     if (!run) return;

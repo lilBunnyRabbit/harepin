@@ -1,10 +1,13 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import { build_chunks, JITTER_LEVELS, TERRAIN_BASES, type MeshTones } from "./chunks";
-import { checksum, world_checksum } from "./checksum";
+import { build_chunks, JITTER_LEVELS, TERRAIN_BASES, type ChunkBuffers, type MeshTones } from "./chunks";
+import { checksum } from "./checksum";
 import { generate } from "./index";
 import { generate_world } from "./kinds/kinds";
-import type { GenRequest, GenResult } from "./worker";
+import { CHUNK, CHUNKS } from "./chunk-grid";
+import { slice_tiles, type Tile } from "./tiles";
+import { ORIGIN, SPAWN_INDEX, type WorldData } from "./types";
+import type { GenRequest, WorkerReply } from "./worker";
 
 const SEED = 7;
 const TONES: MeshTones = {
@@ -27,37 +30,67 @@ const TONES: MeshTones = {
   deck: { deck: [0.2, 0.5, 0.8], side: [0.1, 0.2, 0.3], rail: [0.9, 0.9, 0.9], joint: [0.05, 0.05, 0.05], pad: [0.4, 0.6, 0.9], chevron: [0.1, 0.3, 0.6] },
 };
 
-function from_worker(request: GenRequest): Promise<GenResult> {
+interface Streamed {
+  data: WorldData;
+  chunks: ChunkBuffers[];
+  tiles: Tile[];
+  order: number[];
+}
+
+function from_worker(request: Omit<GenRequest, "type">): Promise<Streamed> {
   const worker = new Worker(new URL("./worker.ts", import.meta.url), { type: "module" });
+  const out: Partial<Streamed> & Omit<Streamed, "data"> = { chunks: [], tiles: [], order: [] };
   return new Promise((resolve, reject) => {
-    worker.addEventListener("message", (event: MessageEvent<GenResult>) => {
-      worker.terminate();
-      resolve(event.data);
+    worker.addEventListener("message", (event: MessageEvent<WorkerReply>) => {
+      const reply = event.data;
+      if (reply.type === "plan") out.data = reply.data;
+      else if (reply.type === "chunk") {
+        out.order.push(reply.index);
+        out.tiles[reply.index] = reply.tile;
+        if (reply.chunk) out.chunks.push(reply.chunk);
+      } else {
+        worker.terminate();
+        if (!out.data) return reject(new Error("no plan"));
+        out.chunks.sort((a, b) => a.index - b.index);
+        resolve({ ...out, data: out.data });
+      }
     });
     worker.addEventListener("error", (event) => {
       worker.terminate();
       reject(new Error(event.message));
     });
-    worker.postMessage(request);
+    worker.postMessage({ type: "gen", ...request } satisfies GenRequest);
   });
 }
 
-function chunk_checksum(chunks: GenResult["chunks"]): string {
+function chunk_checksum(chunks: ChunkBuffers[]): string {
   return checksum(chunks.flatMap((c) => [...(c.terrain ? [c.terrain.positions, c.terrain.colors, c.terrain.index] : []), ...[c.road, c.buildings, c.parking].flatMap((p) => (p ? [p.positions, p.colors] : [])), c.glass?.positions ?? []]));
 }
 
-test("the worker builds the same world and meshes as a direct call", async () => {
+function tile_checksum(tiles: Tile[]): string {
+  return checksum(tiles.flatMap((t) => [t.heights, t.road_dist, t.surface]));
+}
+
+test("the streamed world, once every chunk is in, equals a direct call", async () => {
   const direct = generate(SEED);
   const direct_chunks = build_chunks(direct, TONES);
-  const { data, chunks } = await from_worker({ seed: SEED, kind: "island", tones: TONES });
-  expect(world_checksum(data)).toBe(world_checksum(direct));
+  const { data, chunks, tiles, order } = await from_worker({ seed: SEED, kind: "island", tones: TONES });
   expect(chunk_checksum(chunks)).toBe(chunk_checksum(direct_chunks));
-  expect({ ...data, timings: [] }).toEqual({ ...direct, timings: [] });
+  expect(tiles.length).toBe(CHUNKS * CHUNKS);
+  expect(tile_checksum(tiles)).toBe(tile_checksum(slice_tiles(direct.terrain)));
+  expect(data.terrain.heights.length).toBe(0);
+  const { terrain: _, timings: __, ...rest } = data;
+  const { terrain: ___, timings: ____, ...direct_rest } = direct;
+  expect(rest).toEqual(direct_rest);
+  const spawn = direct.road.at(SPAWN_INDEX) ?? direct.road[0];
+  const dist = (index: number) => Math.hypot(ORIGIN + ((index % CHUNKS) + 0.5) * CHUNK - spawn.x, ORIGIN + (Math.floor(index / CHUNKS) + 0.5) * CHUNK - spawn.z);
+  expect(order.map(dist)).toEqual(order.map(dist).toSorted((a, b) => a - b));
 }, 30_000);
 
 test("the worker builds the sky track as a direct call does, with no terrain mesh", async () => {
   const direct = generate_world(SEED, "sky");
-  const { data, chunks } = await from_worker({ seed: SEED, kind: "sky", tones: TONES });
+  const { data, chunks, tiles } = await from_worker({ seed: SEED, kind: "sky", tones: TONES });
+  expect(tiles.filter(Boolean).length).toBe(CHUNKS * CHUNKS);
   expect(data.kind).toBe("sky");
   expect(data.deck?.line).toEqual(direct.deck?.line);
   expect(chunk_checksum(chunks)).toBe(chunk_checksum(build_chunks(direct, TONES)));

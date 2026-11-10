@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { by_chunk, soup_geometry, town_chunks, type TownChunk } from "../world/buildings";
+import { by_chunk, soup_geometry, TownChunks, type TownChunk } from "../world/buildings";
 import { JumpsView } from "../world/jumps";
 import { LandmarksView } from "../world/landmarks";
 import { color, lighten, linear, mix, tones } from "../theme/palette";
@@ -8,8 +8,6 @@ import { CHUNK } from "../worldgen/chunk-grid";
 import { Ground, JITTER_LEVELS, type ChunkBuffers, type MeshTones } from "../worldgen/chunks";
 import { TreeKind } from "../worldgen/biomes";
 import type { Lab } from "../theme/theme";
-import type { WorldKind } from "../worldgen/types";
-import type { GenRequest, GenResult } from "../worldgen/worker";
 
 const JITTER_LIGHTNESS = 0.035;
 const STONE_SHADE = 0.06;
@@ -61,30 +59,6 @@ export function mesh_tones(): MeshTones {
   };
 }
 
-export interface LoadedWorld {
-  world: World;
-  chunks: ChunkBuffers[];
-  gen_ms: number;
-  mesh_ms: number;
-}
-
-export function load_world(seed: number, kind: WorldKind): Promise<LoadedWorld> {
-  const worker = new Worker(new URL("../worldgen/worker.ts", import.meta.url), { type: "module" });
-  return new Promise((resolve, reject) => {
-    worker.addEventListener("message", (event: MessageEvent<GenResult>) => {
-      worker.terminate();
-      const { data, chunks, gen_ms, mesh_ms } = event.data;
-      resolve({ world: new World(seed, data), chunks, gen_ms, mesh_ms });
-    });
-    worker.addEventListener("error", (event) => {
-      worker.terminate();
-      reject(new Error(`world worker: ${event.message}`));
-    });
-    const request: GenRequest = { seed, kind, tones: mesh_tones() };
-    worker.postMessage(request);
-  });
-}
-
 interface ChunkView {
   x0: number;
   z0: number;
@@ -107,13 +81,17 @@ export class WorldView {
   private readonly views: (ChunkView | undefined)[] = [];
   private readonly terrain = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
   private readonly road = [-2, -4].map((offset) => new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, polygonOffset: true, polygonOffsetFactor: offset, polygonOffsetUnits: offset, side: THREE.DoubleSide }));
-  private readonly trees: Map<number, THREE.InstancedMesh[]>;
-  private readonly towns: Map<number, TownChunk>;
+  private readonly tree_kit = tree_kit();
+  private readonly tree_lists: Map<number, Tree[]>;
+  private readonly tree_order: Map<Tree, number>;
+  private readonly town_kit: TownChunks;
+  private readonly trees = new Map<number, THREE.InstancedMesh[]>();
+  private readonly towns = new Map<number, TownChunk | undefined>();
 
-  constructor(world: World, chunks: ChunkBuffers[], private readonly mobile: boolean) {
-    this.trees = tree_chunks(world.trees);
-    this.towns = town_chunks(world, chunks);
-    for (const chunk of chunks) this.add(chunk);
+  constructor(world: World, private readonly mobile: boolean) {
+    this.tree_lists = by_chunk(world.trees);
+    this.tree_order = new Map(world.trees.map((tree, i) => [tree, i]));
+    this.town_kit = new TownChunks(world);
     this.jumps = new JumpsView(world, (x, z) => world.height(x, z));
     this.root.add(this.jumps.root);
     this.landmarks = new LandmarksView(world.props);
@@ -141,6 +119,8 @@ export class WorldView {
       mesh.receiveShadow = true;
       group.add(mesh);
     }
+    if (!this.trees.has(chunk.index)) this.trees.set(chunk.index, tree_meshes(this.tree_kit, this.tree_lists.get(chunk.index) ?? [], this.tree_order));
+    if (!this.towns.has(chunk.index)) this.towns.set(chunk.index, this.town_kit.build(chunk));
     const here = this.trees.get(chunk.index) ?? [];
     const town = this.towns.get(chunk.index);
     if (here.length) group.add(...here);
@@ -190,52 +170,61 @@ export class WorldView {
   }
 }
 
-function tree_chunks(trees: Tree[]): Map<number, THREE.InstancedMesh[]> {
-  const trunk = new THREE.CylinderGeometry(0.25, 0.35, 2.2, 5).translate(0, 1.1, 0);
-  const crowns = [new THREE.ConeGeometry(2.1, 6, 6).translate(0, 4.6, 0), new THREE.IcosahedronGeometry(2.4, 0).translate(0, 4.2, 0)];
-  const bark = new THREE.MeshLambertMaterial({ color: color(tones.trunk), flatShading: true });
-  const leaf = new THREE.MeshLambertMaterial({ flatShading: true });
-  const out = new Map<number, THREE.InstancedMesh[]>();
+interface TreeKit {
+  trunk: THREE.BufferGeometry;
+  crowns: THREE.BufferGeometry[];
+  bark: THREE.Material;
+  leaf: THREE.Material;
+}
+
+function tree_kit(): TreeKit {
+  return {
+    trunk: new THREE.CylinderGeometry(0.25, 0.35, 2.2, 5).translate(0, 1.1, 0),
+    crowns: [new THREE.ConeGeometry(2.1, 6, 6).translate(0, 4.6, 0), new THREE.IcosahedronGeometry(2.4, 0).translate(0, 4.2, 0)],
+    bark: new THREE.MeshLambertMaterial({ color: color(tones.trunk), flatShading: true }),
+    leaf: new THREE.MeshLambertMaterial({ flatShading: true }),
+  };
+}
+
+const crown_of = (kind: number) => (kind === TreeKind.SCRUB ? TreeKind.BROADLEAF : kind);
+
+function tree_meshes({ trunk, crowns, bark, leaf }: TreeKit, here: Tree[], order: Map<Tree, number>): THREE.InstancedMesh[] {
+  if (!here.length) return [];
   const m = new THREE.Matrix4();
   const q = new THREE.Quaternion();
   const s = new THREE.Vector3();
   const p = new THREE.Vector3();
   const axis = new THREE.Vector3(0, 1, 0);
   const tint = new THREE.Color();
-  const order = new Map(trees.map((tree, i) => [tree, i]));
-  const crown_of = (kind: number) => (kind === TreeKind.SCRUB ? TreeKind.BROADLEAF : kind);
-  for (const [key, here] of by_chunk(trees)) {
-    const trunks = new THREE.InstancedMesh(trunk, bark, Math.max(1, here.filter((t) => t.kind !== TreeKind.SCRUB).length));
-    let trunk_count = 0;
-    const kinds = crowns.map((geometry, kind) => new THREE.InstancedMesh(geometry, leaf, Math.max(1, here.filter((t) => crown_of(t.kind) === kind).length)));
-    const filled = kinds.map(() => 0);
-    here.forEach((tree) => {
-      q.setFromAxisAngle(axis, (tree.x * 13.37) % (Math.PI * 2));
-      const shade = jitter(order.get(tree) ?? 0, tree.kind);
-      const scrub = tree.kind === TreeKind.SCRUB;
-      if (scrub) m.compose(p.set(tree.x, tree.y - SCRUB_SINK, tree.z), q, s.set(tree.scale, tree.scale * SCRUB_SQUASH, tree.scale));
-      else {
-        m.compose(p.set(tree.x, tree.y - 0.2, tree.z), q, s.setScalar(tree.scale));
-        trunks.setMatrixAt(trunk_count++, m);
-      }
-      const crown = kinds[crown_of(tree.kind)];
-      const slot = filled[crown_of(tree.kind)]++;
-      crown.setMatrixAt(slot, m);
-      const [r, g, b] = linear(scrub ? mix(tones.leaf, tones.grass_dry, 0.45 + shade * 0.5) : mix(tones.leaf, tones.leaf_dark, 0.5 + shade * 1.6));
-      crown.setColorAt(slot, tint.setRGB(r, g, b));
-    });
-    trunks.count = trunk_count;
-    kinds.forEach((mesh, kind) => (mesh.count = filled[kind]));
-    const meshes = [trunks, ...kinds].filter((mesh) => mesh.count > 0);
-    for (const mesh of meshes) {
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      mesh.computeBoundingSphere();
-      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+  const trunks = new THREE.InstancedMesh(trunk, bark, Math.max(1, here.filter((t) => t.kind !== TreeKind.SCRUB).length));
+  let trunk_count = 0;
+  const kinds = crowns.map((geometry, kind) => new THREE.InstancedMesh(geometry, leaf, Math.max(1, here.filter((t) => crown_of(t.kind) === kind).length)));
+  const filled = kinds.map(() => 0);
+  here.forEach((tree) => {
+    q.setFromAxisAngle(axis, (tree.x * 13.37) % (Math.PI * 2));
+    const shade = jitter(order.get(tree) ?? 0, tree.kind);
+    const scrub = tree.kind === TreeKind.SCRUB;
+    if (scrub) m.compose(p.set(tree.x, tree.y - SCRUB_SINK, tree.z), q, s.set(tree.scale, tree.scale * SCRUB_SQUASH, tree.scale));
+    else {
+      m.compose(p.set(tree.x, tree.y - 0.2, tree.z), q, s.setScalar(tree.scale));
+      trunks.setMatrixAt(trunk_count++, m);
     }
-    out.set(key, meshes);
+    const crown = kinds[crown_of(tree.kind)];
+    const slot = filled[crown_of(tree.kind)]++;
+    crown.setMatrixAt(slot, m);
+    const [r, g, b] = linear(scrub ? mix(tones.leaf, tones.grass_dry, 0.45 + shade * 0.5) : mix(tones.leaf, tones.leaf_dark, 0.5 + shade * 1.6));
+    crown.setColorAt(slot, tint.setRGB(r, g, b));
+  });
+  trunks.count = trunk_count;
+  kinds.forEach((mesh, kind) => (mesh.count = filled[kind]));
+  const meshes = [trunks, ...kinds].filter((mesh) => mesh.count > 0);
+  for (const mesh of meshes) {
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.computeBoundingSphere();
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   }
-  return out;
+  return meshes;
 }
 
 function strip(world: World, positions: number[], road: RoadPoint[], from: number, to: number, lift: number, keep: (s: number) => boolean) {

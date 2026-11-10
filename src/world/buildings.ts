@@ -40,14 +40,21 @@ export interface ParkedCar {
   paint: THREE.Color;
 }
 
-function parked_car_list(world: World): ParkedCar[] {
+interface ParkedSpot {
+  x: number;
+  z: number;
+  heading: number;
+  paint: THREE.Color;
+}
+
+function parked_spots(world: World): ParkedSpot[] {
   return world.parking
     .flatMap((lot) => lot.obstacles.filter((o) => o.kind === "car").map((o) => ({ lot, o })))
     .map(({ lot, o }, i) => {
       const frame = world.lots[lot.lot];
       const x = frame.x + frame.fz * o.x + frame.fx * o.z;
       const z = frame.z - frame.fx * o.x + frame.fz * o.z;
-      return { x, y: world.height(x, z) + PAD_LIFT, z, heading: frame.angle + o.heading, paint: color(car_paints[Math.floor(hash(lot.lot, i, world.seed + 63) * car_paints.length)]) };
+      return { x, z, heading: frame.angle + o.heading, paint: color(car_paints[Math.floor(hash(lot.lot, i, world.seed + 63) * car_paints.length)]) };
     });
 }
 
@@ -123,51 +130,57 @@ export function by_chunk<T extends { x: number; z: number }>(items: T[]): Map<nu
   return out;
 }
 
-export function town_chunks(world: World, chunks: ChunkBuffers[]): Map<number, TownChunk> {
-  const building = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
-  const glass = new THREE.MeshLambertMaterial({ color: color(tones.shopfront), emissive: color(tones.shop_glow), emissiveIntensity: GLASS_GLOW, flatShading: true });
-  const parking = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
-  const car_material = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
-  const car_shape = parked_car_geometry();
-  const parts = light_parts();
-  const cars = by_chunk(parked_car_list(world));
-  const lights = by_chunk(world.props.filter((p) => p.kind === PropKind.STREET_LIGHT));
-  const out = new Map<number, TownChunk>();
-  for (const chunk of chunks) {
-    const here_cars = cars.get(chunk.index) ?? [];
-    const here_lights = lights.get(chunk.index) ?? [];
-    if (!chunk.buildings && !chunk.parking && !here_cars.length && !here_lights.length) continue;
+/** Builds a chunk's town objects when it arrives: parked cars stand on its terrain, which arrives with it. */
+export class TownChunks {
+  private readonly building = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+  private readonly glass = new THREE.MeshLambertMaterial({ color: color(tones.shopfront), emissive: color(tones.shop_glow), emissiveIntensity: GLASS_GLOW, flatShading: true });
+  private readonly parking = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  private readonly car_material = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+  private readonly car_shape = parked_car_geometry();
+  private readonly parts = light_parts();
+  private readonly cars: Map<number, ParkedSpot[]>;
+  private readonly lights: Map<number, Prop[]>;
+
+  constructor(private readonly world: World) {
+    this.cars = by_chunk(parked_spots(world));
+    this.lights = by_chunk(world.props.filter((p) => p.kind === PropKind.STREET_LIGHT));
+  }
+
+  build(chunk: ChunkBuffers): TownChunk | undefined {
+    const here_cars = this.cars.get(chunk.index) ?? [];
+    const here_lights = this.lights.get(chunk.index) ?? [];
+    if (!chunk.buildings && !chunk.parking && !here_cars.length && !here_lights.length) return undefined;
     const objects: THREE.Object3D[] = [];
     const near: THREE.Object3D[] = [];
     const ranged: [THREE.BufferGeometry, number][] = [];
     if (chunk.buildings) {
-      const mesh = new THREE.Mesh(soup_geometry(chunk.buildings), building);
+      const mesh = new THREE.Mesh(soup_geometry(chunk.buildings), this.building);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       objects.push(mesh);
       ranged.push([mesh.geometry, chunk.buildings.big]);
     }
     if (chunk.glass) {
-      const mesh = new THREE.Mesh(soup_geometry(chunk.glass), glass);
+      const mesh = new THREE.Mesh(soup_geometry(chunk.glass), this.glass);
       mesh.receiveShadow = true;
       objects.push(mesh);
       ranged.push([mesh.geometry, chunk.glass.big]);
     }
     if (chunk.parking) {
-      const mesh = new THREE.Mesh(soup_geometry(chunk.parking), parking);
+      const mesh = new THREE.Mesh(soup_geometry(chunk.parking), this.parking);
       mesh.receiveShadow = true;
       near.push(mesh);
     }
-    if (here_cars.length) near.push(parked_cars(here_cars, car_shape, car_material));
-    if (here_lights.length) near.push(...street_lights(here_lights, parts));
+    const cars = here_cars.map((car) => ({ ...car, y: this.world.height(car.x, car.z) + PAD_LIFT }));
+    if (cars.length) near.push(parked_cars(cars, this.car_shape, this.car_material));
+    if (here_lights.length) near.push(...street_lights(here_lights, this.parts));
     objects.push(...near);
-    out.set(chunk.index, {
+    return {
       objects,
       far(on) {
         for (const [geometry, big] of ranged) geometry.setDrawRange(0, on ? big : Infinity);
         for (const object of near) object.visible = !on;
       },
-    });
+    };
   }
-  return out;
 }

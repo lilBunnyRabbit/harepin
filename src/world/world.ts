@@ -7,7 +7,7 @@ import type { GripTable } from "../worldgen/kinds/kind-def";
 import { KINDS } from "../worldgen/kinds/kinds";
 import { ramp_reach2, ramp_surface, spawn_blocks, type Surface } from "../worldgen/jumps";
 import { FALL_DEPTH } from "../worldgen/sky";
-import { slice_tiles, TileStore } from "../worldgen/tiles";
+import { slice_tiles, TileStore, type Tile } from "../worldgen/tiles";
 import { CELL, DIRT, N, ROAD_HALF, RouteKind, SIZE, type WorldKind } from "../worldgen/types";
 import type {
   Building,
@@ -187,16 +187,17 @@ export class World implements Ground {
   private readonly wedges: { ramp: Ramp; reach2: number }[];
   private query = 0;
 
-  /** `data` is `generate(seed)`, passed in when a worker already ran it. */
+  /** `data` is `generate(seed)`, passed in when a worker already ran it; `tiles` empty when they stream in after. */
   constructor(
     readonly seed = 0,
     data: WorldData = generate(seed),
+    tiles: readonly Tile[] = slice_tiles(data.terrain),
   ) {
     this.kind = data.kind;
     this.grips = KINDS[data.kind].grip;
     this.fall_reset = KINDS[data.kind].fall_reset;
     this.deck = data.deck && new DeckIndex(data.deck);
-    this.tiles = new TileStore(slice_tiles(data.terrain));
+    this.tiles = new TileStore(tiles);
     this.road = data.road;
     this.graph = data.graph;
     this.towns = data.towns;

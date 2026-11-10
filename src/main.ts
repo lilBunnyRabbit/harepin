@@ -22,7 +22,7 @@ import { GoalId, Goals } from "./goals/goals";
 import { build_goals, proven, saved_entries } from "./goals/catch-up";
 import { ToastQueue } from "./goals/toast-queue";
 import { race_choices } from "./modes/races";
-import { gates } from "./car/trackside";
+import { gates, type Gate } from "./car/trackside";
 import { GUIDE_PARAM, ROLLED_VISIT } from "./menu/guide";
 import { random_name as make_random_name } from "./menu/guide-rules";
 import { PadMenu } from "./menu/pad-menu";
@@ -33,7 +33,7 @@ import { brand, color, rgba, tones } from "./theme/palette";
 import { Race } from "./race";
 import { Remotes } from "./net/remotes";
 import { Render } from "./render/render";
-import { WorldView, load_world } from "./render/scene";
+import { WorldView, mesh_tones } from "./render/scene";
 import { clouds, sky } from "./render/sky";
 import { PadTimer } from "./world/sky-pads";
 import { Lighting } from "./render/lighting";
@@ -45,6 +45,7 @@ import { BUILD, Updater, show_version } from "./menu/update";
 import { pick_world } from "./world/world-pick";
 import { GUARD_STATE, SystemBack, type Watcher } from "./menu/system-back";
 import { SPAWN_INDEX } from "./world/world";
+import { WorldStream } from "./world/world-stream";
 import { WORLDS } from "./worlds/worlds";
 import { world_id, world_key } from "./worldgen/kinds/kinds";
 import "./style.css";
@@ -66,7 +67,12 @@ const unlock_audio = () => {
   if (audio.running) for (const event of UNLOCK_EVENTS) removeEventListener(event, unlock_audio);
 };
 for (const event of UNLOCK_EVENTS) addEventListener(event, unlock_audio);
-const { world, chunks } = await load_world(seed, kind);
+const stream = await WorldStream.open(seed, kind, mesh_tones());
+const world = stream.world;
+// `?debug&at=<road index>` starts the car anywhere on the circuit, for checking a stretch of track by eye.
+const start_index = (params.has("debug") && Number(params.get("at"))) || SPAWN_INDEX;
+const start_point = world.road[world.clear_spawn(start_index)];
+await world.tiles.ensure(start_point.x, start_point.z);
 
 const quality = new Quality(params, prefs.quality);
 const scene = new THREE.Scene();
@@ -78,10 +84,17 @@ const app = $("app");
 render.mount(app);
 render.apply_quality();
 
-const world_view = new WorldView(world, chunks, quality.mobile);
-scene.add(...(WORLDS[world.kind].backdrop === "sky" ? light.dress(sky(), clouds(world.seed)) : []), world_view.root, ...WORLDS[world.kind].dress(world));
-const gate_views = gates(world);
-for (const g of gate_views) scene.add(g.group);
+const world_view = new WorldView(world, quality.mobile);
+stream.listen((chunk) => world_view.add(chunk));
+scene.add(...(WORLDS[world.kind].backdrop === "sky" ? light.dress(sky(), clouds(world.seed)) : []), world_view.root);
+let gate_views: Gate[] = [];
+// Dressing and gates stand on terrain all round the world, so they go in once every chunk has arrived.
+void world.tiles.whole().then(() => {
+  performance.mark("world:whole");
+  scene.add(...WORLDS[world.kind].dress(world));
+  gate_views = gates(world);
+  for (const g of gate_views) scene.add(g.group);
+});
 
 const lock = load_lock(room);
 const net = new Net(room, seed, prefs.name ?? random_name, lock, world_id(kind), BUILD.version);
@@ -255,8 +268,7 @@ settings.on_nav = (nav) => pad_menu.navigate([nav]);
 garage.on_tab = (step) => settings.step_tab(step);
 garage.on_back = () => settings.back();
 
-// `?debug&at=<road index>` starts the car anywhere on the circuit, for checking a stretch of track by eye.
-driver.place(driver.road_spot((params.has("debug") && Number(params.get("at"))) || SPAWN_INDEX));
+driver.place(driver.road_spot(start_index));
 
 const modes = new Modes(scene, world, SPAWN_INDEX, () => lobby.record, (x, y, z, heading) => {
   driver.place({ x, y, z, heading });
@@ -539,4 +551,5 @@ document.addEventListener("click", (e) => {
 });
 
 $("loading").remove();
+performance.mark("world:first");
 requestAnimationFrame(frame);

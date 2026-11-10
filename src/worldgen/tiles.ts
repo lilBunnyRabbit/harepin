@@ -3,6 +3,7 @@ import { face_nx, face_nz, tri } from "./field";
 import { CELL, N, ORIGIN, type Terrain } from "./types";
 
 const TILE_CELLS = CHUNK / CELL;
+const MISS_ROAD_DIST = 1e4;
 /** Vertices per tile row: a tile shares its border row and column with the next one. */
 export const TILE_SIDE = TILE_CELLS + 1;
 
@@ -24,16 +25,22 @@ function slice<T extends Float32Array | Uint8Array>(grid: T, out: T, ci: number,
   return out;
 }
 
+export function slice_tile(terrain: Terrain, index: number): Tile {
+  const ci = index % CHUNKS;
+  const cj = Math.floor(index / CHUNKS);
+  return {
+    heights: slice(terrain.heights, new Float32Array(TILE_SIDE * TILE_SIDE), ci, cj),
+    road_dist: slice(terrain.road_dist, new Float32Array(TILE_SIDE * TILE_SIDE), ci, cj),
+    surface: slice(terrain.surface, new Uint8Array(TILE_SIDE * TILE_SIDE), ci, cj),
+  };
+}
+
 export function slice_tiles(terrain: Terrain): Tile[] {
-  const tiles: Tile[] = [];
-  for (let cj = 0; cj < CHUNKS; cj++)
-    for (let ci = 0; ci < CHUNKS; ci++)
-      tiles.push({
-        heights: slice(terrain.heights, new Float32Array(TILE_SIDE * TILE_SIDE), ci, cj),
-        road_dist: slice(terrain.road_dist, new Float32Array(TILE_SIDE * TILE_SIDE), ci, cj),
-        surface: slice(terrain.surface, new Uint8Array(TILE_SIDE * TILE_SIDE), ci, cj),
-      });
-  return tiles;
+  return Array.from({ length: CHUNKS * CHUNKS }, (_, index) => slice_tile(terrain, index));
+}
+
+export function tile_transfers(tile: Tile): ArrayBuffer[] {
+  return [tile.heights.buffer, tile.road_dist.buffer, tile.surface.buffer] as ArrayBuffer[];
 }
 
 // The cell and its fractions come from global coordinates, so a tile answers bit-identically to the grid it was cut
@@ -41,29 +48,72 @@ export function slice_tiles(terrain: Terrain): Tile[] {
 export class TileStore {
   /** Answers NaN to a NaN coordinate, as the whole-grid `sample` did, so a bad position never throws in the sim. */
   private static readonly NONE: Tile = { heights: new Float32Array(0), road_dist: new Float32Array(0), surface: new Uint8Array(0) };
+  /**
+   * A chunk that has not arrived reads as flat ground at sea level, far from any road. Spawns and teleports wait for
+   * their chunks, so only far things (remote cars, ghosts, a camera ray) read it.
+   */
+  static readonly FLAT: Tile = { heights: new Float32Array(TILE_SIDE * TILE_SIDE), road_dist: new Float32Array(TILE_SIDE * TILE_SIDE).fill(MISS_ROAD_DIST), surface: new Uint8Array(TILE_SIDE * TILE_SIDE) };
   private readonly tiles: (Tile | undefined)[] = [];
+  private count = 0;
+  private waits: { need: number[]; done: () => void }[] = [];
+  /** Told the middle of an area someone waits on, so a streaming source can send those chunks first. */
+  on_need: ((x: number, z: number) => void) | null = null;
   private k = 0;
   private fx = 0;
   private fz = 0;
 
-  constructor(tiles: readonly Tile[]) {
+  constructor(tiles: readonly Tile[] = []) {
     tiles.forEach((tile, index) => this.add(index, tile));
   }
 
+  has(index: number): boolean {
+    return this.tiles[index] !== undefined;
+  }
+
   add(index: number, tile: Tile) {
+    if (!this.tiles[index]) this.count++;
     this.tiles[index] = tile;
+    if (this.waits.length) this.settle();
   }
 
   drop(index: number) {
+    if (this.tiles[index]) this.count--;
     this.tiles[index] = undefined;
   }
 
-  private tile(ci: number, cj: number): Tile {
-    return this.tiles[cj * CHUNKS + ci] ?? (Number.isNaN(ci + cj) ? TileStore.NONE : this.miss(ci, cj));
+  get complete(): boolean {
+    return this.count === CHUNKS * CHUNKS;
   }
 
-  private miss(ci: number, cj: number): never {
-    throw new Error(`terrain tile ${ci},${cj} not loaded`);
+  /** Resolves once the 3x3 chunks around (x, z) are in. */
+  ensure(x: number, z: number): Promise<void> {
+    const ci = Math.floor((x - ORIGIN) / CHUNK);
+    const cj = Math.floor((z - ORIGIN) / CHUNK);
+    const need: number[] = [];
+    for (let j = Math.max(0, cj - 1); j <= Math.min(CHUNKS - 1, cj + 1); j++)
+      for (let i = Math.max(0, ci - 1); i <= Math.min(CHUNKS - 1, ci + 1); i++) need.push(j * CHUNKS + i);
+    return this.wait(need, () => this.on_need?.(x, z));
+  }
+
+  /** Resolves once every chunk is in. */
+  whole(): Promise<void> {
+    return this.wait(Array.from({ length: CHUNKS * CHUNKS }, (_, index) => index), null);
+  }
+
+  private wait(need: number[], ask: (() => void) | null): Promise<void> {
+    if (need.every((index) => this.tiles[index])) return Promise.resolve();
+    ask?.();
+    return new Promise((done) => this.waits.push({ need, done }));
+  }
+
+  private settle() {
+    const waits = this.waits;
+    this.waits = waits.filter((w) => !w.need.every((index) => this.tiles[index]));
+    for (const w of waits) if (!this.waits.includes(w)) w.done();
+  }
+
+  private tile(ci: number, cj: number): Tile {
+    return this.tiles[cj * CHUNKS + ci] ?? (Number.isNaN(ci + cj) ? TileStore.NONE : TileStore.FLAT);
   }
 
   private locate(x: number, z: number): Tile {

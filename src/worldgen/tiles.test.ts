@@ -1,6 +1,6 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import { CHUNK } from "./chunk-grid";
+import { CHUNK, CHUNKS } from "./chunk-grid";
 import { sample, slope_normal } from "./field";
 import { generate } from "./index";
 import { slice_tiles, TileStore } from "./tiles";
@@ -40,4 +40,29 @@ test("a NaN coordinate reads NaN instead of throwing", () => {
   expect(store.height(NaN, 0)).toBeNaN();
   expect(store.road_dist(0, NaN)).toBeNaN();
   expect(store.slope(NaN, NaN, out).x).toBeNaN();
+});
+
+test("a chunk not in yet reads flat sea-level ground far from a road, and an area wait resolves on its 3x3", async () => {
+  const tiles = slice_tiles(generate(0).terrain);
+  const store = new TileStore();
+  const asked: [number, number][] = [];
+  store.on_need = (x, z) => asked.push([x, z]);
+  expect(store.height(10, 10)).toBe(0);
+  expect(store.road_dist(10, 10)).toBeGreaterThan(1000);
+  expect(store.surface(0, 0)).toBe(0);
+  let ready = false;
+  const wait = store.ensure(10, 10).then(() => (ready = true));
+  expect(asked).toEqual([[10, 10]]);
+  const centre = (CHUNKS / 2) * CHUNKS + CHUNKS / 2;
+  const area = [-1, 0, 1].flatMap((dj) => [-1, 0, 1].map((di) => centre + dj * CHUNKS + di));
+  for (const index of area.slice(0, 8)) store.add(index, tiles[index]);
+  await Promise.resolve();
+  expect(ready).toBe(false);
+  store.add(area[8], tiles[area[8]]);
+  await wait;
+  expect(store.height(10, 10)).toBe(new TileStore(tiles).height(10, 10));
+  expect(store.complete).toBe(false);
+  tiles.forEach((tile, index) => store.add(index, tile));
+  expect(store.complete).toBe(true);
+  await store.whole();
 });

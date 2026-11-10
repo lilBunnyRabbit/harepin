@@ -234,46 +234,57 @@ function packed(parts: number[][]): Float32Array<ArrayBuffer> {
   return out;
 }
 
-function deck_chunks(data: WorldData, tones: MeshTones): ChunkBuffers[] {
+function deck_chunks(data: WorldData, tones: MeshTones): (index: number) => ChunkBuffers | null {
   const surface: Layer[] = Array.from({ length: CHUNKS * CHUNKS }, () => ({ positions: [], colors: [] }));
   const marks: Layer[] = Array.from({ length: CHUNKS * CHUNKS }, () => ({ positions: [], colors: [] }));
   if (data.deck) deck_layers(data.deck, tones.deck, chunk_of, surface, marks);
-  const chunks: ChunkBuffers[] = [];
-  for (let cj = 0; cj < CHUNKS; cj++)
-    for (let ci = 0; ci < CHUNKS; ci++) {
-      const index = cj * CHUNKS + ci;
-      const road = soup([surface[index], marks[index]]);
-      if (!road) continue;
-      chunks.push({ index, x0: ORIGIN + ci * CHUNK, z0: ORIGIN + cj * CHUNK, terrain: null, road: { ...road, surface: surface[index].positions.length / 3 }, buildings: null, glass: null, parking: null });
-    }
-  return chunks;
+  return (index) => {
+    const road = soup([surface[index], marks[index]]);
+    if (!road) return null;
+    const [x0, z0] = chunk_origin(index);
+    return { index, x0, z0, terrain: null, road: { ...road, surface: surface[index].positions.length / 3 }, buildings: null, glass: null, parking: null };
+  };
 }
 
-export function build_chunks(data: WorldData, tones: MeshTones): ChunkBuffers[] {
+function chunk_origin(index: number): [number, number] {
+  return [ORIGIN + (index % CHUNKS) * CHUNK, ORIGIN + Math.floor(index / CHUNKS) * CHUNK];
+}
+
+/** The world-wide passes run once here; the returned builder meshes one chunk by index, null where it holds nothing. */
+export function chunk_meshes(data: WorldData, tones: MeshTones): (index: number) => ChunkBuffers | null {
   if (!KINDS[data.kind].ground) return deck_chunks(data, tones);
   const colors = terrain_colors(data, tones.terrain);
   const roads = road_layers(data, data.terrain.heights, tones);
   const towns = town_builders(data, tones);
+  return (index) => {
+    const ci = index % CHUNKS;
+    const cj = Math.floor(index / CHUNKS);
+    const surface = roads.surface[index];
+    const road = soup([surface, roads.marks[index]]);
+    const town = towns.get(index);
+    const buildings = town && soup([town.big, town.small]);
+    const glass = town && soup([town.glass_big, town.glass_small]);
+    const [x0, z0] = chunk_origin(index);
+    return {
+      index,
+      x0,
+      z0,
+      terrain: terrain_chunk(data, colors, ci, cj),
+      road: road && { ...road, surface: surface.positions.length / 3 },
+      buildings: town && buildings ? { ...buildings, big: town.big.vertices } : null,
+      glass: town && glass ? { positions: glass.positions, sphere: glass.sphere, big: town.glass_big.vertices } : null,
+      parking: (town && soup([town.parking])) ?? null,
+    };
+  };
+}
+
+export function build_chunks(data: WorldData, tones: MeshTones): ChunkBuffers[] {
+  const build = chunk_meshes(data, tones);
   const chunks: ChunkBuffers[] = [];
-  for (let cj = 0; cj < CHUNKS; cj++)
-    for (let ci = 0; ci < CHUNKS; ci++) {
-      const index = cj * CHUNKS + ci;
-      const surface = roads.surface[index];
-      const road = soup([surface, roads.marks[index]]);
-      const town = towns.get(index);
-      const buildings = town && soup([town.big, town.small]);
-      const glass = town && soup([town.glass_big, town.glass_small]);
-      chunks.push({
-        index,
-        x0: ORIGIN + ci * CHUNK,
-        z0: ORIGIN + cj * CHUNK,
-        terrain: terrain_chunk(data, colors, ci, cj),
-        road: road && { ...road, surface: surface.positions.length / 3 },
-        buildings: town && buildings ? { ...buildings, big: town.big.vertices } : null,
-        glass: town && glass ? { positions: glass.positions, sphere: glass.sphere, big: town.glass_big.vertices } : null,
-        parking: (town && soup([town.parking])) ?? null,
-      });
-    }
+  for (let index = 0; index < CHUNKS * CHUNKS; index++) {
+    const chunk = build(index);
+    if (chunk) chunks.push(chunk);
+  }
   return chunks;
 }
 
