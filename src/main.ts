@@ -13,7 +13,7 @@ import { Input, type Action } from "./input";
 import { Lobby, lobby_routes } from "./lobby";
 import { Modes } from "./modes/modes";
 import { race_choices } from "./modes/races";
-import { gates, place_contact_shadow, roadside, show_flame, sync_car_view } from "./models";
+import { gates, roadside } from "./models";
 import { GUIDE_PARAM, ROLLED_VISIT } from "./guide";
 import { random_name as make_random_name } from "./guide-rules";
 import { PadMenu } from "./pad-menu";
@@ -306,12 +306,7 @@ const ACTIONS: Record<Action, () => void> = {
 };
 
 const DT = 1 / 360;
-// Farther than a step can move: the car was placed (reset, mode restart), so drawing it does not slide from the old spot.
-const TELEPORT_SQ = 1;
 let acc = 0;
-/** The car before its last physics step; the drawn car and the camera sit between this and `car`, `acc / DT` of the way. */
-const step_from = { pos: new THREE.Vector3(), quat: new THREE.Quaternion() };
-const drawn = { pos: new THREE.Vector3(), quat: new THREE.Quaternion(), vel: new THREE.Vector3() };
 let last = performance.now();
 let last_rumble = 0;
 
@@ -339,7 +334,7 @@ function frame(now: number) {
   if (garage.is_open) garage.navigate(input.nav);
   else pad_menu.navigate(input.nav);
   for (const action of actions) ACTIONS[action]();
-  const { car, view } = driver;
+  const car = driver.car;
 
   lobby.update(now);
   let stepped = 0;
@@ -357,8 +352,7 @@ function frame(now: number) {
     acc += dt;
     let impact = 0;
     while (acc >= DT) {
-      step_from.pos.copy(car.pos);
-      step_from.quat.copy(car.quat);
+      driver.begin_step();
       car.step(DT, controls, world);
       pads.step(DT, car, world);
       stepped += DT;
@@ -399,25 +393,11 @@ function frame(now: number) {
   modes.update(stepped, car);
   // Rewind, the garage and the countdown don't step the car, so a held boost would never let go of the flame.
   if (!simulated) car.nitro.cut();
-  if (!simulated || step_from.pos.distanceToSquared(car.pos) > TELEPORT_SQ) {
-    step_from.pos.copy(car.pos);
-    step_from.quat.copy(car.quat);
-  }
-  drawn.pos.lerpVectors(step_from.pos, car.pos, acc / DT);
-  drawn.quat.slerpQuaternions(step_from.quat, car.quat, acc / DT);
-  drawn.vel.copy(car.vel);
-  sync_car_view(view, car);
-  show_flame(view, car.nitro.boosting, now / 1000);
-  view.root.position.copy(drawn.pos);
-  view.root.quaternion.copy(drawn.quat);
   chase.top = modes.high_view;
   chase.boost = car.nitro.boosting;
-  view.heads.visible = chase.mode !== 1 || chase.top;
-  if (view.halo) view.halo.visible = view.heads.visible;
-  chase.eye = view.eye;
-  place_contact_shadow(driver.shadow, drawn.pos.x, drawn.pos.y, drawn.pos.z, car.heading, world);
+  driver.draw(!simulated, acc / DT, now);
   const offroad = world.grip(car.pos.x, car.pos.z) < 1;
-  chase.update(dt, drawn, world, offroad, now / 1000, input.look);
+  chase.update(dt, driver.drawn, world, offroad, now / 1000, input.look);
   recenter.toggleAttribute("data-shown", chase.orbited);
   light.follow(car.pos);
 

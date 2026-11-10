@@ -3,7 +3,7 @@ import { build_spec, type Build } from "./build";
 import type { ChaseCamera } from "./camera";
 import { Car } from "./car";
 import type { Lighting } from "./lighting";
-import { build_view, contact_shadow, dispose_car_view, sync_car_view, type CarView } from "./models";
+import { build_view, contact_shadow, dispose_car_view, place_contact_shadow, show_flame, sync_car_view, type CarView } from "./models";
 import type { NitroSnapshot } from "./nitro";
 import type { Race } from "./race";
 import { Rewind, type RewindPart } from "./rewind";
@@ -13,6 +13,8 @@ import { SPAWN_INDEX, type Spawn, type World } from "./world";
 /** Speed (m/s) above which a reset faces the way the car travels rather than where its nose points. */
 const RESET_MOVING = 2;
 const RIDE_HEIGHT = 0.75;
+// Farther than a step can move: the car was placed (reset, mode restart), so drawing it does not slide from the old spot.
+const TELEPORT_SQ = 1;
 
 interface CarFrame {
   pos: THREE.Vector3;
@@ -28,6 +30,9 @@ export class Driver {
   view: CarView;
   readonly shadow = contact_shadow();
   readonly rewind: Rewind;
+  /** The car before its last physics step; the drawn car and the camera sit between this and `car`, `blend` of the way. */
+  private readonly step_from = { pos: new THREE.Vector3(), quat: new THREE.Quaternion() };
+  readonly drawn = { pos: new THREE.Vector3(), quat: new THREE.Quaternion(), vel: new THREE.Vector3() };
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -108,5 +113,27 @@ export class Driver {
     this.scene.add(this.view.root);
     this.light.mount(this.view.root);
     sync_car_view(this.view, this.car);
+  }
+
+  begin_step() {
+    this.step_from.pos.copy(this.car.pos);
+    this.step_from.quat.copy(this.car.quat);
+  }
+
+  /** `held`: the car did not step this frame (rewind, garage, countdown), so nothing to blend from. */
+  draw(held: boolean, blend: number, now: number) {
+    const { car, view, step_from, drawn, chase } = this;
+    if (held || step_from.pos.distanceToSquared(car.pos) > TELEPORT_SQ) this.begin_step();
+    drawn.pos.lerpVectors(step_from.pos, car.pos, blend);
+    drawn.quat.slerpQuaternions(step_from.quat, car.quat, blend);
+    drawn.vel.copy(car.vel);
+    sync_car_view(view, car);
+    show_flame(view, car.nitro.boosting, now / 1000);
+    view.root.position.copy(drawn.pos);
+    view.root.quaternion.copy(drawn.quat);
+    view.heads.visible = chase.mode !== 1 || chase.top;
+    if (view.halo) view.halo.visible = view.heads.visible;
+    chase.eye = view.eye;
+    place_contact_shadow(this.shadow, drawn.pos.x, drawn.pos.y, drawn.pos.z, car.heading, this.world);
   }
 }
