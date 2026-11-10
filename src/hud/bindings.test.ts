@@ -46,6 +46,16 @@ describe("rebind_key", () => {
     expect(bindings.camera.keys).toEqual(["KeyR"]);
   });
 
+  test("an action with no key to give leaves the owner with none, not a swap", () => {
+    const keyless = parse_bindings({ reset: { keys: ["KeyC"], pad: 3 } });
+    expect(keyless.camera.keys).toEqual([]);
+    const { bindings, from, swapped } = rebind_key(keyless, "camera", "KeyC");
+    expect(from).toBe("reset");
+    expect(swapped).toBe(false);
+    expect(bindings.camera.keys).toEqual(["KeyC"]);
+    expect(bindings.reset.keys).toEqual([]);
+  });
+
   test("rebinding the key an action already has changes nothing else", () => {
     const { bindings, from } = rebind_key(DEFAULT_BINDINGS, "throttle", "KeyW");
     expect(from).toBeNull();
@@ -115,6 +125,10 @@ describe("parse_bindings", () => {
   test("empty key lists and empty codes are bad entries", () => {
     expect(parse_bindings({ reset: { keys: [], pad: 3 } }).reset.keys).toEqual(["KeyR"]);
     expect(parse_bindings({ reset: { keys: [""], pad: 3 } }).reset.keys).toEqual(["KeyR"]);
+  });
+
+  test("Ctrl and Meta never load: held, they make any key a browser shortcut", () => {
+    for (const code of ["ControlLeft", "ControlRight", "MetaLeft", "MetaRight"]) expect(parse_bindings({ nitro: { keys: [code], pad: 1 } }).nitro).toEqual(DEFAULT_BINDINGS.nitro);
   });
 
   test("menu-reserved keys and buttons never load", () => {

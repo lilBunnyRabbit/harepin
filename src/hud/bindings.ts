@@ -73,8 +73,10 @@ export const DEFAULT_BINDINGS: Bindings = {
   help: { keys: ["KeyH"], pad: null },
 };
 
+/** Held, they turn any key into a browser shortcut, which a bound action ignores. */
+export const SHORTCUT_KEYS: readonly string[] = ["ControlLeft", "ControlRight", "MetaLeft", "MetaRight"];
 /** Escape opens the menu and cancels a capture; Enter and Tab pick and move in menus; T and Enter open the chat. */
-export const RESERVED_KEYS: readonly string[] = ["Escape", "Enter", "NumpadEnter", "Tab", "KeyT"];
+export const RESERVED_KEYS: readonly string[] = ["Escape", "Enter", "NumpadEnter", "Tab", "KeyT", ...SHORTCUT_KEYS];
 export const MENU_BUTTON = 9;
 /** The triggers stay analog gas and brake; Start opens the menu and cancels a capture. */
 export const RESERVED_BUTTONS: readonly number[] = [6, 7, MENU_BUTTON];
@@ -125,8 +127,8 @@ export function rebind_key(bindings: Bindings, action: Bindable, code: string): 
   const from = BINDABLE.find((other) => other !== action && bindings[other].keys.includes(code)) ?? null;
   if (!from) return { bindings: next, from, swapped: false };
   const left = bindings[from].keys.filter((key) => key !== code);
-  const swapped = left.length === 0;
-  next[from] = { ...bindings[from], keys: swapped ? old : left };
+  const swapped = left.length === 0 && old.length > 0;
+  next[from] = { ...bindings[from], keys: left.length > 0 ? left : old };
   return { bindings: next, from, swapped };
 }
 

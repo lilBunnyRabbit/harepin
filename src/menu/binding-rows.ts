@@ -1,4 +1,4 @@
-import { BINDABLE, BIND_INFO, DEFAULT_BINDINGS, MENU_BUTTON, RESERVED_BUTTONS, RESERVED_KEYS, key_label, pad_bindable, pad_label, pad_text, rebind_key, rebind_pad, type Bindable } from "../hud/bindings";
+import { BINDABLE, BIND_INFO, DEFAULT_BINDINGS, MENU_BUTTON, RESERVED_BUTTONS, RESERVED_KEYS, SHORTCUT_KEYS, key_label, pad_bindable, pad_label, pad_text, rebind_key, rebind_pad, type Bindable } from "../hud/bindings";
 import type { Caught } from "../hud/input";
 import type { SettingsMenu } from "./page";
 import { el } from "./setting-rows";
@@ -7,7 +7,10 @@ import "./bindings.css";
 const cancels = (caught: Caught) => (caught.kind === "key" ? caught.code === "Escape" : caught.button === MENU_BUTTON);
 
 function refusal(action: Bindable, caught: Caught): string | null {
-  if (caught.kind === "key") return RESERVED_KEYS.includes(caught.code) ? `${key_label(caught.code)} stays with the menu` : null;
+  if (caught.kind === "key") {
+    if (SHORTCUT_KEYS.includes(caught.code)) return `${key_label(caught.code)} is kept for browser shortcuts`;
+    return RESERVED_KEYS.includes(caught.code) ? `${key_label(caught.code)} stays with the menu` : null;
+  }
   const fixed = BIND_INFO[action].fixed_pad;
   if (fixed) return `${fixed} drives this on the pad`;
   if (fixed !== undefined) return "Keyboard only";

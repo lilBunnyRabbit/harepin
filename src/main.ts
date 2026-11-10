@@ -314,8 +314,8 @@ const ACTIONS: Record<Action, () => void> = {
   abs: () => toggle_aid("abs"),
   assist: () => toggle_aid("assist"),
   ghost: () => toggle_aid("ghost"),
-  help: () => (settings.is_open ? settings.close() : settings.open_keys()),
-  garage: () => (garage.is_open ? settings.close() : settings.open(MenuTab.GARAGE)),
+  help: () => settings.open_keys(),
+  garage: () => settings.open(MenuTab.GARAGE),
   settings: () => settings.open(),
   menu: () => pad_menu.toggle(),
 };

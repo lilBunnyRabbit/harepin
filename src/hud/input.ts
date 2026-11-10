@@ -194,7 +194,7 @@ export class Input {
   readonly touch: Touch;
   readonly mouse: MouseLook;
   look: Look = no_look();
-  /** While true (garage, settings or a pad menu open), only garage, help and menu presses get through and the car gets no input; those panels close themselves on Escape. */
+  /** While true (garage, settings or a pad menu open), only the pad's menu press gets through and the car gets no input; those panels close themselves on Escape. */
   blocked: () => boolean = () => false;
 
   constructor(touch_root: HTMLElement, canvas: HTMLElement) {
