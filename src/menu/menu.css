@@ -661,6 +661,11 @@
     scroll-snap-align: start;
   }
 
+  /* The world being driven leads the row, so its tag is on screen without scrolling. */
+  .menu-worlds > :has(.menu-tag) {
+    order: -1;
+  }
+
   .menu-mosaic[data-tab="online"] {
     grid-template: "room room" minmax(168px, auto) "players players" minmax(220px, auto) "race race" auto "games games" minmax(220px, auto) "new new" minmax(140px, auto) / 1fr 1fr;
   }
