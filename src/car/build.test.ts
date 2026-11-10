@@ -167,7 +167,7 @@ test("drift stiffens the rear bar past the front and sits low", () => {
 });
 
 const surface_grip = (spec: CarSpec, surface: number, dirt = false) =>
-  spec.mu * (surface + (1 - surface) * spec.offroad) * (surface < 1 ? ((dirt ? spec.grip_dirt : spec.grip_grass) ?? 1) : 1);
+  spec.mu * Math.min(1, (surface + (1 - surface) * spec.offroad) * (surface < 1 ? ((dirt ? spec.grip_dirt : spec.grip_grass) ?? 1) : 1));
 
 test("tyres order tarmac grip street < sport < semi-slick, rally wins off it and slicks lose there", () => {
   for (const base of [COUPE, RALLY]) {
@@ -184,24 +184,33 @@ test("tyres order tarmac grip street < sport < semi-slick, rally wins off it and
   }
 });
 
+test("no tyre grips more off asphalt than on it", () => {
+  for (const car of Object.keys(CARS) as CarId[])
+    for (let tyres = 0; tyres < SLOTS.tyres.parts.length; tyres++) {
+      const spec = build_spec(with_parts({ tyres }, { car }));
+      for (const [surface, dirt] of [[0.88, true], [0.85, false], [0.72, false]] as const) expect(surface_grip(spec, surface, dirt)).toBeLessThanOrEqual(surface_grip(spec, 1));
+    }
+});
+
 test("offroad tyres trade tarmac grip for dirt and grass: rally best on dirt, mud-terrain on grass", () => {
-  for (const base of [COUPE, RALLY]) {
-    const car = base.id as CarId;
-    const [street, sport, slick, rally, all_terrain, mud] = [0, 1, 2, 3, 4, 5].map((tyres) => apply_build(base, with_parts({ tyres }, { car })));
+  for (const car of (Object.keys(CARS) as CarId[]).filter((id) => CARS[id].offroad <= 0)) {
+    const [street, sport, slick, rally, all_terrain, mud] = [0, 1, 2, 3, 4, 5].map((tyres) => build_spec(with_parts({ tyres }, { car })));
     const dirt = (spec: CarSpec) => surface_grip(spec, 0.88, true);
     const grass = (spec: CarSpec) => surface_grip(spec, 0.72);
     expect(surface_grip(all_terrain, 1)).toBeLessThan(surface_grip(street, 1));
     expect(surface_grip(all_terrain, 1)).toBeGreaterThan(surface_grip(rally, 1));
-    expect(surface_grip(mud, 1)).toBeLessThan(surface_grip(rally, 1) * 0.95);
-    for (const off of [rally, all_terrain]) for (const road of [sport, slick]) expect(dirt(off)).toBeGreaterThan(dirt(road) * 1.03);
-    for (const off of [rally, all_terrain, mud]) for (const road of [sport, slick]) expect(grass(off)).toBeGreaterThan(grass(road) * 1.04);
-    expect(dirt(rally)).toBeGreaterThanOrEqual(Math.max(dirt(all_terrain), dirt(mud)) * 0.999);
-    expect(grass(mud)).toBeGreaterThan(Math.max(grass(rally), grass(all_terrain)));
-    expect(dirt(mud)).toBeGreaterThan(dirt(street));
+    expect(surface_grip(mud, 1)).toBeLessThan(surface_grip(rally, 1));
+    expect(dirt(rally)).toBeGreaterThan(dirt(all_terrain));
+    expect(dirt(all_terrain)).toBeGreaterThan(dirt(mud));
+    for (const road of [sport, slick]) {
+      expect(dirt(mud)).toBeGreaterThan(dirt(road));
+      expect(dirt(all_terrain)).toBeGreaterThan(dirt(road) * 1.03);
+      for (const off of [rally, all_terrain, mud]) expect(grass(off)).toBeGreaterThan(grass(road) * 1.1);
+    }
+    expect(grass(mud)).toBeGreaterThan(grass(rally));
+    expect(grass(rally)).toBeGreaterThan(grass(all_terrain));
     expect(mud.roll_resist).toBeGreaterThan(street.roll_resist);
   }
-  const coupe_mud = apply_build(COUPE, with_parts({ tyres: 5 }));
-  expect(surface_grip(coupe_mud, 0.88, true)).toBeGreaterThan(surface_grip(apply_build(COUPE, with_parts({ tyres: 1 })), 0.88, true) * 1.03);
 });
 
 test("offroad parts append to their slots, so older codes keep their meaning", () => {

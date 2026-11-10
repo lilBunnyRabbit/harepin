@@ -542,7 +542,8 @@ export class Car {
       const denom = Math.max(Math.abs(v_long), 2);
       const surface = ground.grip(w.point.x, w.point.z);
       const off = surface < 1 ? (ground.dirt?.(w.point.x, w.point.z) ? spec.grip_dirt : spec.grip_grass) : 1;
-      const grip = (surface + (1 - surface) * spec.offroad) * (off ?? 1);
+      // Capped at asphalt's: a tyre built for dirt still never makes cutting across the grass faster than the road.
+      const grip = Math.min(1, (surface + (1 - surface) * spec.offroad) * (off ?? 1));
       // Tyre force grows ever slower with load and tops out at half `load_fade`; past that it stays flat. Left as a
       // parabola it fell to nothing at `load_fade` and reversed above it, which a hard landing reaches.
       const bite = Math.min(load, spec.load_fade / 2);
