@@ -39,6 +39,8 @@ export function slice_tiles(terrain: Terrain): Tile[] {
 // The cell and its fractions come from global coordinates, so a tile answers bit-identically to the grid it was cut
 // from. `locate` leaves its answer in fields: physics calls it at 360 Hz.
 export class TileStore {
+  /** Answers NaN to a NaN coordinate, as the whole-grid `sample` did, so a bad position never throws in the sim. */
+  private static readonly NONE: Tile = { heights: new Float32Array(0), road_dist: new Float32Array(0), surface: new Uint8Array(0) };
   private readonly tiles: (Tile | undefined)[] = [];
   private k = 0;
   private fx = 0;
@@ -57,7 +59,7 @@ export class TileStore {
   }
 
   private tile(ci: number, cj: number): Tile {
-    return this.tiles[cj * CHUNKS + ci] ?? this.miss(ci, cj);
+    return this.tiles[cj * CHUNKS + ci] ?? (Number.isNaN(ci + cj) ? TileStore.NONE : this.miss(ci, cj));
   }
 
   private miss(ci: number, cj: number): never {

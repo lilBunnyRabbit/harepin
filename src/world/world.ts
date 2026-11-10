@@ -169,6 +169,8 @@ export class World implements Ground {
   /** Per slot, when `place` put it down: placed solids resolve in that order, wherever they sit in the grid. */
   private readonly placed_at: number[] = [];
   private placings = 0;
+  /** Placed solids in the grid right now: none, and `near` skips the placed pass. */
+  private live = 0;
   private readonly nearby: Solid[] = [];
   private readonly nearby_slots: number[] = [];
   private readonly road_grid = new Map<number, number[]>();
@@ -371,6 +373,7 @@ export class World implements Ground {
     const slot = this.free_slots.pop() ?? this.slots.length;
     this.slots[slot] = solid;
     this.placed_at[slot] = this.placings++;
+    this.live++;
     if (slot >= this.seen.length) {
       const seen = new Uint32Array(this.slots.length * 2);
       seen.set(this.seen);
@@ -385,6 +388,7 @@ export class World implements Ground {
     this.unindex_solid(solid, slot);
     this.slots[slot] = null;
     this.free_slots.push(slot);
+    this.live--;
   }
 
   collide(car: Collider): number;
@@ -440,7 +444,7 @@ export class World implements Ground {
           found.push(this.solids[index]);
         }
       }
-    if (this.slots.length === baked) return found;
+    if (this.live === 0) return found;
     const first = found.length;
     const slots = this.nearby_slots;
     slots.length = 0;
