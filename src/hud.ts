@@ -1,9 +1,9 @@
-import type { Car } from "./car";
+import type { Car } from "./car/car";
 import type { Lobby } from "./lobby";
 import type { Net } from "./net";
 import type { Race } from "./race";
 import { brand, dark, rgba } from "./theme/palette";
-import { tach } from "./tach";
+import { tach } from "./car/tach";
 import { SIZE, type World } from "./world";
 import { world_query } from "./world-pick";
 

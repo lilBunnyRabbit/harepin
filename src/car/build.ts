@@ -1,5 +1,5 @@
 import { CARS, is_car, type CarId, type CarSpec, type Triple } from "./cars";
-import type { Token } from "./theme/theme";
+import type { Token } from "../theme/theme";
 
 type NumericField = Exclude<{ [K in keyof CarSpec]-?: CarSpec[K] extends number ? K : never }[keyof CarSpec], "awd_split">;
 

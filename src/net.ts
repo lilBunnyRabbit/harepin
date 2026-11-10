@@ -1,5 +1,5 @@
 import { joinRoom, selfId, type Room } from "trystero";
-import { build_code, parse_build } from "./build";
+import { build_code, parse_build } from "./car/build";
 import { Link, type Channel } from "./net/channel";
 import { RateLimit } from "./net/rate-limit";
 import { WORLD_VERSION, WorldKind } from "./worldgen/types";

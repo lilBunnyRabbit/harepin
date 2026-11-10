@@ -4,9 +4,9 @@ import { Vector3 } from "three";
 import { DEFAULT_BUILD, DEFAULT_PARTS, apply_build } from "./build";
 import { Car, SteerMode, ride_height, type Controls, type Ground } from "./car";
 import { CARS, type CarId, type CarSpec } from "./cars";
-import { donut } from "../scripts/donut";
-import { hairpin_pull } from "../scripts/hairpin";
-import { arc, hairpin, lane_change, tap } from "../scripts/keys";
+import { donut } from "../../scripts/donut";
+import { hairpin_pull } from "../../scripts/hairpin";
+import { arc, hairpin, lane_change, tap } from "../../scripts/keys";
 
 const flat: Ground = { height: () => 0, normal: (_x, _z, out) => out.set(0, 1, 0), grip: () => 1, roll: () => 1 };
 const DT = 1 / 360;

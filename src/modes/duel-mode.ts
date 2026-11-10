@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { Ghost } from "../ghost";
+import { Ghost } from "../car/ghost";
 import { format } from "../hud";
 import type { World } from "../world";
 import { world_key } from "../worldgen/kinds/kinds";

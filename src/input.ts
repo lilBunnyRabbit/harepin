@@ -1,4 +1,4 @@
-import type { Controls } from "./car";
+import type { Controls } from "./car/car";
 import { Touch } from "./touch";
 
 export type Action = "reset" | "camera" | "shift_up" | "shift_down" | "auto" | "tcs" | "abs" | "assist" | "ghost" | "help" | "garage" | "settings" | "recenter" | "menu" | "restart";

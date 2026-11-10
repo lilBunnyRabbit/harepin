@@ -1,4 +1,4 @@
-import { CARS } from "../src/cars";
+import { CARS } from "../src/car/cars";
 import { World } from "../src/world";
 import { autolap } from "./autolap";
 

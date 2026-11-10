@@ -1,5 +1,5 @@
 import type * as THREE from "three";
-import type { CarSpec } from "../cars";
+import type { CarSpec } from "../car/cars";
 import type { World } from "../world";
 import type { Body } from "./gymkhana";
 import type { Track } from "./track";

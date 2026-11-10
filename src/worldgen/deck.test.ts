@@ -1,8 +1,8 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
 import { Vector3 } from "three";
-import { Car, type Ground } from "../car";
-import { COUPE } from "../cars";
+import { Car, type Ground } from "../car/car";
+import { COUPE } from "../car/cars";
 import { DECK_UNDER, DeckIndex } from "./deck";
 import { DECK_STRIDE, type Deck } from "./types";
 

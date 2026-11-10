@@ -1,4 +1,4 @@
-import type { EngineSound } from "./cars";
+import type { EngineSound } from "./car/cars";
 
 /** Per-block engine inputs; the voice ramps between blocks so automation steps never click. */
 export interface EngineInput {

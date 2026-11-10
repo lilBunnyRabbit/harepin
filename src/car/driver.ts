@@ -1,14 +1,14 @@
 import * as THREE from "three";
 import { build_spec, type Build } from "./build";
-import type { ChaseCamera } from "./camera";
+import type { ChaseCamera } from "../camera";
 import { Car } from "./car";
-import type { Lighting } from "./lighting";
+import type { Lighting } from "../lighting";
 import { build_view, contact_shadow, dispose_car_view, place_contact_shadow, show_flame, sync_car_view, type CarView } from "./models";
 import type { NitroSnapshot } from "./nitro";
-import type { Race } from "./race";
+import type { Race } from "../race";
 import { Rewind, type RewindPart } from "./rewind";
-import type { PadTimer } from "./sky-pads";
-import { SPAWN_INDEX, type Spawn, type World } from "./world";
+import type { PadTimer } from "../sky-pads";
+import { SPAWN_INDEX, type Spawn, type World } from "../world";
 
 /** Speed (m/s) above which a reset faces the way the car travels rather than where its nose points. */
 const RESET_MOVING = 2;

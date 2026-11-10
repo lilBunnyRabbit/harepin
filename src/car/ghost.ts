@@ -1,8 +1,8 @@
 import * as THREE from "three";
 import type { Car } from "./car";
 import { camera_fade, car_view, dispose_car_view, rest_wheels, type CarView } from "./models";
-import { brand, color } from "./theme/palette";
-import { world_key } from "./worldgen/kinds/kinds";
+import { brand, color } from "../theme/palette";
+import { world_key } from "../worldgen/kinds/kinds";
 
 const STRIDE = 8;
 const EVERY_MS = 100;

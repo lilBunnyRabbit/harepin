@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import type { Car } from "./car";
+import type { Car } from "./car/car";
 import { brand, dark, linear, mix, tones } from "./theme/palette";
 import { CHUNK, chunk_of } from "./worldgen/chunks";
 import { challenge_outer, challenge_pieces, GRAVITY, ITEMS, PIECE_DEPTH, ramp_extent, ramp_lift } from "./worldgen/jumps";

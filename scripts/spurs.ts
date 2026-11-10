@@ -1,6 +1,6 @@
 import { Vector3 } from "three";
-import { Car } from "../src/car";
-import { car_spec } from "../src/cars";
+import { Car } from "../src/car/car";
+import { car_spec } from "../src/car/cars";
 import { seed_of } from "../src/rng";
 import { World } from "../src/world";
 import type { RoadPoint } from "../src/worldgen/types";

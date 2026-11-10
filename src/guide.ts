@@ -1,4 +1,4 @@
-import { SteerMode } from "./car";
+import { SteerMode } from "./car/car";
 import { AidPreset, preset_aids, preset_of, random_name, rolled_name } from "./guide-rules";
 import { generate_theme } from "./theme/random-theme";
 import { el, icon } from "./setting-rows";

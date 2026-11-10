@@ -1,6 +1,6 @@
 import { Vector3 } from "three";
-import { Car } from "../src/car";
-import { COUPE, car_spec, type CarSpec } from "../src/cars";
+import { Car } from "../src/car/car";
+import { COUPE, car_spec, type CarSpec } from "../src/car/cars";
 import { PadTimer } from "../src/sky-pads";
 import { ROAD_HALF, World, type RoadPoint } from "../src/world";
 

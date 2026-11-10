@@ -1,5 +1,5 @@
-import { build_spec, parse_build } from "../src/build";
-import { car_spec } from "../src/cars";
+import { build_spec, parse_build } from "../src/car/build";
+import { car_spec } from "../src/car/cars";
 import { World } from "../src/world";
 import { GAP_FAST, GAP_SLOW, generate_sky, twistiness, twisty } from "../src/worldgen/sky";
 import { autolap } from "./autolap";

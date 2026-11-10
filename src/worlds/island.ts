@@ -1,4 +1,4 @@
-import { roadside } from "../models";
+import { roadside } from "../car/models";
 import { water_mesh } from "../scene";
 import { WorldKind } from "../worldgen/types";
 import { lap_facts, shown, type WorldDef } from "./world-def";

@@ -1,4 +1,4 @@
-import { SteerMode } from "../car";
+import { SteerMode } from "../car/car";
 import { guide_seen_on_load, seen_flag } from "../guide-rules";
 import { clean_name, parse_seed } from "../net";
 import { is_kind } from "../worldgen/kinds/kinds";

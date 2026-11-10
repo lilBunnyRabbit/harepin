@@ -1,6 +1,6 @@
 import { Vector3 } from "three";
-import type { Ground } from "./car";
-import { COUPE, type CarSpec } from "./cars";
+import type { Ground } from "./car/car";
+import { COUPE, type CarSpec } from "./car/cars";
 import { DeckIndex } from "./worldgen/deck";
 import { sample, slope_normal } from "./worldgen/field";
 import { generate } from "./worldgen/index";

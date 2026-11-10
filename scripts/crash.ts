@@ -1,6 +1,6 @@
 import { Vector3 } from "three";
-import { car_spec } from "../src/cars";
-import { Car } from "../src/car";
+import { car_spec } from "../src/car/cars";
+import { Car } from "../src/car/car";
 import { ROAD_HALF, World } from "../src/world";
 
 const SPEC = car_spec(process.argv[2] ?? "coupe");

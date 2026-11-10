@@ -1,6 +1,6 @@
 import { Vector3 } from "three";
-import { COUPE, type CarSpec } from "../src/cars";
-import { Car, SteerMode, type Controls, type Ground } from "../src/car";
+import { COUPE, type CarSpec } from "../src/car/cars";
+import { Car, SteerMode, type Controls, type Ground } from "../src/car/car";
 
 const DT = 1 / 360;
 const FRAME = 1 / 60;

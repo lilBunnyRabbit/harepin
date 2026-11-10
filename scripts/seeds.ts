@@ -1,6 +1,6 @@
 import { World, min_radius } from "../src/world";
-import { car_spec } from "../src/cars";
-import { build_spec, parse_build } from "../src/build";
+import { car_spec } from "../src/car/cars";
+import { build_spec, parse_build } from "../src/car/build";
 import { autolap } from "./autolap";
 
 const SEEDS = 20;

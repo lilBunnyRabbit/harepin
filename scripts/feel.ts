@@ -1,6 +1,6 @@
 import { Vector3 } from "three";
-import { car_spec } from "../src/cars";
-import { Car, SteerMode, type Controls, type Ground } from "../src/car";
+import { car_spec } from "../src/car/cars";
+import { Car, SteerMode, type Controls, type Ground } from "../src/car/car";
 
 const SPEC = car_spec(process.argv[2] ?? "coupe");
 

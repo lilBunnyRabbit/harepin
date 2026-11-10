@@ -1,5 +1,5 @@
 import { Vector3 } from "three";
-import type { Car } from "./car";
+import type { Car } from "./car/car";
 import type { World } from "./world";
 import type { DeckIndex } from "./worldgen/deck";
 import { PAD_HALF } from "./worldgen/sky";

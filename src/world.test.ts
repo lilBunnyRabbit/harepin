@@ -1,7 +1,7 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
 import { Vector3 } from "three";
-import { CARS, COUPE, FORMULA } from "./cars";
+import { CARS, COUPE, FORMULA } from "./car/cars";
 import { World, type Collider } from "./world";
 import { generate } from "./worldgen/index";
 import { generate_sky } from "./worldgen/sky";

@@ -1,6 +1,6 @@
 import { Vector3 } from "three";
-import { CARS, car_spec, type CarSpec } from "../src/cars";
-import { Car, type Controls, type Ground } from "../src/car";
+import { CARS, car_spec, type CarSpec } from "../src/car/cars";
+import { Car, type Controls, type Ground } from "../src/car/car";
 
 const DT = 1 / 360;
 const surface = (grip: number, roll: number): Ground => ({ height: () => 0, normal: (_x, _z, out) => out.set(0, 1, 0), grip: () => grip, roll: () => roll });

@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { CARS } from "../src/cars";
+import { CARS } from "../src/car/cars";
 import { EngineVoice, PITCH, type EngineInput } from "../src/engine-dsp";
 
 const RATE = 48000;

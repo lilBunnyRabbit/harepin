@@ -50,8 +50,8 @@ webos uses Vitest (unit in Node, browser tests in Chromium via Playwright), test
 
 - `src/style.css:1-15` hard-codes Brand Dark's OKLCH values: a second copy of `theme.ts` that will drift.
 - `index.html:8` hard-codes `theme-color` `#1a2329` (`main.ts:343` overwrites it at runtime).
-- `src/models.ts:238-240` paints the contact-shadow blob in raw white. Fine as an alpha mask; say so or use `alphaMap`.
-- `src/ghost.ts:20-21`, `src/race.ts:9-10` trust `JSON.parse` from localStorage (`as T`, no shape check); `ghost.ts`, `race.ts` have empty `catch {}`.
+- `src/car/models.ts:238-240` paints the contact-shadow blob in raw white. Fine as an alpha mask; say so or use `alphaMap`.
+- `src/car/ghost.ts:20-21`, `src/race.ts:9-10` trust `JSON.parse` from localStorage (`as T`, no shape check); `ghost.ts`, `race.ts` have empty `catch {}`.
 - `src/hud.ts:7`, `src/main.ts:28` use `as T` / `!` `$` helpers that hide a missing element.
 - Imports mix `import * as THREE` (8 modules) with named imports (`car.ts`): pick one.
 - No tests: `scripts/*.ts` print numbers and throw only on NaN; nothing fails when handling regresses.

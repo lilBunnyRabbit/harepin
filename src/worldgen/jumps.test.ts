@@ -1,8 +1,8 @@
 /// <reference types="bun" />
 import { describe, expect, test } from "bun:test";
 import { Vector3 } from "three";
-import { Car, type Ground } from "../car";
-import { CARS } from "../cars";
+import { Car, type Ground } from "../car/car";
+import { CARS } from "../car/cars";
 import { seed_of } from "../rng";
 import { generate } from "./index";
 import { DECK_UNDER } from "./deck";
