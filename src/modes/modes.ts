@@ -1,4 +1,5 @@
 import type * as THREE from "three";
+import { DEFAULT_BINDINGS, keys_text, type Bindings } from "../hud/bindings";
 import { $, format } from "../hud/hud";
 import type { World } from "../world/world";
 import { KINDS } from "../worldgen/kinds/kinds";
@@ -76,6 +77,8 @@ export class Modes {
     next: $("mode-next", HTMLButtonElement),
     exit: $("mode-exit", HTMLButtonElement),
   };
+
+  bindings: () => Bindings = () => DEFAULT_BINDINGS;
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -177,6 +180,7 @@ export class Modes {
       lobby_lap: () => this.lobby_lap,
       race_busy: () => this.race_busy(),
       high: () => this.high,
+      key_of: (action) => keys_text(this.bindings()[action]),
       spawn,
       spawn_on: (p) => spawn(p.x, p.z, Math.atan2(p.tx, p.tz)),
       chime: () => this.chime(),

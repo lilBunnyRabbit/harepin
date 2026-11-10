@@ -12,6 +12,7 @@ import { Heartbeat } from "./net/heartbeat";
 import { $, Hud } from "./hud/hud";
 import type { Action } from "./hud/bindings";
 import { Input } from "./hud/input";
+import { show_key_hints } from "./hud/key-hints";
 import { Lobby, lobby_routes } from "./net/lobby";
 import { Modes } from "./modes/modes";
 import { race_choices } from "./modes/races";
@@ -183,8 +184,9 @@ function apply_settings(state: SettingsState) {
   for (const chip of document.querySelectorAll<HTMLElement>("[data-aid]")) chip.setAttribute("aria-pressed", String(state[chip.dataset.aid as Aid]));
   input.touch.set_steer_mode(state.touch_steer);
   input.precision = state.precision_key;
-  chase.mode = state.camera === CameraView.COCKPIT ? 1 : 0;
   input.set_bindings(state.bindings);
+  show_key_hints(state.bindings);
+  chase.mode = state.camera === CameraView.COCKPIT ? 1 : 0;
   audio.set_view(state.camera === CameraView.COCKPIT);
   chase.return_delay = CAMERA_RETURN_SECONDS[state.camera_return];
   chase.invert_y = state.invert_y;
@@ -220,6 +222,7 @@ const modes = new Modes(scene, world, SPAWN_INDEX, () => lobby.record, (x, y, z,
   driver.car.nitro.refill();
   driver.rewind.clear();
 }, () => lobby.busy, () => audio.chime(), camera);
+modes.bindings = () => settings.state.bindings;
 modes.start();
 updater.start();
 const system_back = new SystemBack(

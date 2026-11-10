@@ -2,6 +2,7 @@ import { SteerMode } from "../car/car";
 import { AidPreset, preset_aids, preset_of, random_name, rolled_name } from "./guide-rules";
 import { generate_theme } from "../theme/random-theme";
 import { el, icon } from "./setting-rows";
+import { key_label, keys_text, pad_text, type Bindable, type Bindings } from "../hud/bindings";
 import { TouchSteer, type SettingKey, type SettingsState } from "./prefs";
 import { THEMES, choose_theme, current_theme, derive_theme, find_saved, find_theme, load_saved_themes, store_saved_themes, with_saved, without_saved } from "../theme/theme";
 import type { WorldKind } from "../worldgen/types";
@@ -48,36 +49,44 @@ const TOUCH_STEER: Record<TouchSteer, [string, string]> = {
   buttons: ["Buttons", "Left and right buttons that steer like the keyboard."],
 };
 
-const KEYMAP: Record<Device, [string[], string, string][]> = {
-  keyboard: [
-    [["W", "A", "S", "D"], "Drive", "or the arrow keys"],
-    [["Space"], "Handbrake", ""],
-    [["Shift"], "Nitro", "when fitted"],
-    [["Backspace"], "Rewind", "hold"],
-    [["R", "C"], "Reset, camera", ""],
-    [["Esc"], "Menu", ""],
-  ],
-  pad: [
-    [["RT", "LT"], "Gas, brake", ""],
-    [["L stick"], "Steer", ""],
-    [["A"], "Handbrake", ""],
-    [["B"], "Nitro", "when fitted"],
-    [["X", "Y"], "Rewind, reset", "hold X to rewind"],
-    [["Start"], "Menu", ""],
-  ],
-  touch: [
-    [["Gas", "Brake"], "Pedals", "bottom right"],
-    [["Steer"], "Steer", "drag or arrows, bottom left"],
-    [["Nitro"], "Nitro", "when fitted"],
-    [["Rewind"], "Rewind", "hold"],
-    [["Menu"], "Menu", "top left"],
-  ],
-};
+const DRIVE_KEYS = ["throttle", "steer_left", "brake", "steer_right"] as const;
+
+function keymap(bindings: Bindings): Record<Device, [string[], string, string][]> {
+  const first = (action: Bindable) => bindings[action].keys.slice(0, 1).map(key_label);
+  const pad = (action: Bindable) => [pad_text(bindings, action)].filter(Boolean);
+  const second = DRIVE_KEYS.map((action) => bindings[action].keys[1]);
+  const rewind = pad("rewind");
+  return {
+    keyboard: [
+      [DRIVE_KEYS.flatMap(first), "Drive", second.every(Boolean) ? `or ${second.map((code) => key_label(code)).join(" ")}` : ""],
+      [bindings.handbrake.keys.map(key_label), "Handbrake", ""],
+      [first("nitro"), "Nitro", "when fitted"],
+      [first("rewind"), "Rewind", "hold"],
+      [[...first("reset"), ...first("camera")], "Reset, camera", ""],
+      [["Esc"], "Menu", ""],
+    ],
+    pad: [
+      [["RT", "LT"], "Gas, brake", ""],
+      [["L stick"], "Steer", ""],
+      [pad("handbrake"), "Handbrake", ""],
+      [pad("nitro"), "Nitro", "when fitted"],
+      [[...rewind, ...pad("reset")], "Rewind, reset", rewind.length ? `hold ${rewind[0]} to rewind` : ""],
+      [["Start"], "Menu", ""],
+    ],
+    touch: [
+      [["Gas", "Brake"], "Pedals", "bottom right"],
+      [["Steer"], "Steer", "drag or arrows, bottom left"],
+      [["Nitro"], "Nitro", "when fitted"],
+      [["Rewind"], "Rewind", "hold"],
+      [["Menu"], "Menu", "top left"],
+    ],
+  };
+}
 
 const PRESETS: [AidPreset, string, string][] = [
   [AidPreset.EASY, "Easy", "Grip, brakes and slides looked after. Gears shift for you."],
   [AidPreset.BALANCED, "Balanced", "Grip and brakes still help. Slides are yours to catch."],
-  [AidPreset.PRO, "Pro", "Nothing helps. You shift with E and Q."],
+  [AidPreset.PRO, "Pro", "Nothing helps. You shift yourself."],
 ];
 const AID_LIGHTS = [
   ["tcs", "TC"],
@@ -242,7 +251,7 @@ export class Guide {
         return "Colours for the menu, the HUD and the whole island. The game reloads in each one you pick.";
       case "controls":
         return {
-          keyboard: "These are the keys you need; H lists the rest while driving.",
+          keyboard: `These are the keys you need; ${keys_text(this.host.state().bindings.help) || "Settings, Controls"} lists the rest${this.host.state().bindings.help.keys.length ? " while driving" : ""}.`,
           pad: "Triggers drive, the left stick steers.",
           touch: "Pedals on the right, steering on the left.",
         }[this.device];
@@ -403,7 +412,7 @@ export class Guide {
     } else copy.append(this.field("Steering feel", el("span", "guide-small", "The stick steers as far as you push it. Nothing to set.")));
     const keys = el("div", "guide-keys");
     keys.dataset.device = this.device;
-    for (const [glyphs, what, note] of KEYMAP[this.device]) {
+    for (const [glyphs, what, note] of keymap(state.bindings)[this.device]) {
       const caps = el("span", glyphs.length === 4 ? "guide-wasd" : "guide-caps");
       for (const glyph of glyphs) caps.append(el("kbd", glyph.length > 2 ? "guide-wide" : "", glyph));
       const label = el("span", "guide-what", what);
@@ -428,7 +437,7 @@ export class Guide {
     for (const [preset, name, text] of PRESETS) {
       const aids = preset_aids(preset, touch);
       const node = pressed(button("guide-aid", el("b", "", name), this.lights(aids)), preset === current);
-      node.append(el("span", "", preset === AidPreset.PRO ? this.pro_text(text) : text));
+      node.append(el("span", "", preset === AidPreset.PRO ? this.pro_text() : text));
       node.addEventListener("click", () => {
         for (const [key] of AID_LIGHTS) this.host.set(key, aids[key]);
         this.render();
@@ -440,17 +449,29 @@ export class Guide {
     const picked = PRESETS.find(([preset]) => preset === current);
     if (picked) {
       const line = el("span", "guide-picked");
-      line.append(el("b", "", `${picked[1]}. `), el("span", "guide-small", picked[0] === AidPreset.PRO ? this.pro_text(picked[2]) : picked[2]));
+      line.append(el("b", "", `${picked[1]}. `), el("span", "guide-small", picked[0] === AidPreset.PRO ? this.pro_text() : picked[2]));
       visual.append(line);
     }
-    const note = this.device === Device.KEYBOARD ? "1, 2, 3 and M switch each one while driving." : "Change them any time in Settings, Driving.";
+    const note = this.device === Device.KEYBOARD ? this.aid_keys() : "Change them any time in Settings, Driving.";
     visual.append(el("span", "guide-small", `The dash shows which aids are on. ${note}`));
   }
 
-  private pro_text(text: string): string {
-    if (this.device === Device.PAD) return "Nothing helps. You shift with RB and LB.";
+  private aid_keys(): string {
+    const { bindings } = this.host.state();
+    const keys = (["tcs", "abs", "assist", "auto"] as const).map((aid) => keys_text(bindings[aid]));
+    if (!keys.every(Boolean)) return "Change them any time in Settings, Driving.";
+    return `${keys.slice(0, -1).join(", ")} and ${keys.at(-1)} switch each one while driving.`;
+  }
+
+  private shift_with(up: string, down: string): string {
+    return up && down ? `Nothing helps. You shift with ${up} and ${down}.` : "Nothing helps. You shift yourself: set the keys in Settings, Controls.";
+  }
+
+  private pro_text(): string {
+    const { bindings } = this.host.state();
+    if (this.device === Device.PAD) return this.shift_with(pad_text(bindings, "shift_up"), pad_text(bindings, "shift_down"));
     if (this.device === Device.TOUCH) return "No traction, ABS or assist. Gears stay automatic on touch.";
-    return text;
+    return this.shift_with(keys_text(bindings.shift_up), keys_text(bindings.shift_down));
   }
 
   private lights(aids: Pick<SettingsState, "tcs" | "abs" | "assist" | "auto">): HTMLElement {

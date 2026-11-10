@@ -3,6 +3,7 @@ import type { CarSpec } from "../car/cars";
 import type { World } from "../world/world";
 import type { Body } from "./gymkhana";
 import type { Track } from "./track";
+import type { Bindable } from "../hud/bindings";
 
 export const NO_SITE = "No flat ground near the start on this map";
 
@@ -38,6 +39,8 @@ export interface ModeCtx {
   lobby_lap(): (() => boolean) | null;
   race_busy(): boolean;
   high(): boolean;
+  /** The keys bound to `action` now, as the player reads them; empty when none. */
+  key_of(action: Bindable): string;
   spawn(x: number, z: number, heading: number): void;
   spawn_on(p: { x: number; z: number; tx: number; tz: number }): void;
   chime(): void;

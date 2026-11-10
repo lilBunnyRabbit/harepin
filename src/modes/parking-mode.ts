@@ -40,7 +40,7 @@ class Parking implements ModeRun {
     if (was !== ParkStatus.DONE && run.status === ParkStatus.DONE) this.finish();
     const doing =
       run.status === ParkStatus.READY
-        ? `park in the marked bay · C ${this.ctx.high() ? "chase" : "high"} view`
+        ? this.ready_line()
         : run.status === ParkStatus.DONE
           ? "parked"
           : verdict === Verdict.INSIDE
@@ -54,6 +54,11 @@ class Parking implements ModeRun {
                 : "park in the marked bay";
     const touches = run.touches ? ` · touches ${run.touches}` : "";
     return `${run.level.name} · ${format(run.elapsed())}${touches} · ${doing}`;
+  }
+
+  private ready_line(): string {
+    const key = this.ctx.key_of("camera");
+    return key ? `park in the marked bay · ${key} ${this.ctx.high() ? "chase" : "high"} view` : "park in the marked bay";
   }
 
   private finish() {
