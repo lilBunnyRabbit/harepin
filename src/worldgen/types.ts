@@ -125,6 +125,8 @@ export interface Town {
   gz: number;
   /** Radius every lot corner stays inside. */
   core: number;
+  /** A strip village's ground and lots also stay within this many metres of its main street, across it. */
+  band?: number;
   /** Street spacing of the grid, centre to centre. */
   block: number;
 }

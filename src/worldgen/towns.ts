@@ -19,9 +19,10 @@ const STEP = 2;
 /** A strip village's main street follows the contour where the ground climbs at least this across it; flatter keeps the seeded axis. */
 const CONTOUR_SLOPE = 0.02;
 const CONTOUR_PROBE = 20;
-/** A strip's relief is checked along its street out to this share of its radius, and this far either side of it. */
-const STRIP_REACH = 0.9;
-const STRIP_SIDE = 16;
+/** A strip village's plateau reaches this far past its lanes, across the street, for the lots behind them. */
+const STRIP_BACK = 6;
+/** Deepest cut or fill a strip's plateau may need against the best plane it can tilt to. */
+const STRIP_GAP = 12;
 
 const SYLLABLES = ["har", "pin", "bun", "lop", "dell", "war", "ren", "burr", "ow", "clo", "ver", "thim", "ble", "fen", "brook", "hol", "low", "mead"];
 
@@ -57,20 +58,41 @@ function box_relief(heights: Float32Array, x: number, z: number, radius: number)
   return { low, high };
 }
 
-function strip_relief(heights: Float32Array, x: number, z: number, radius: number, ux: number, uz: number): { low: number; high: number } {
-  const len = length(ux, uz);
-  const ax = ux / len;
-  const az = uz / len;
-  let low = Infinity;
-  let high = -Infinity;
-  for (let a = -2; a <= 2; a++)
-    for (let b = -1; b <= 1; b++) {
-      const t = (a / 2) * radius * STRIP_REACH;
-      const y = sample(heights, x + ax * t - az * b * STRIP_SIDE, z + az * t + ax * b * STRIP_SIDE);
-      low = Math.min(low, y);
-      high = Math.max(high, y);
+/** Widest band a strip village of this recipe can level either side of its street. */
+function strip_band(shape: TownRecipe): number {
+  return shape.block.min + shape.block.span + STRIP_BACK;
+}
+
+/** Ground points over a strip's whole plateau: its core along the street, `band` either side across it. */
+function strip_lattice(height: Sampler, x: number, z: number, core: number, ax: number, az: number, band: number): Ground[] {
+  const out: Ground[] = [];
+  for (let a = -4; a <= 4; a++)
+    for (let b = -2; b <= 2; b++) {
+      const across = (b / 2) * band;
+      const along = (a / 4) * Math.sqrt(Math.max(0, core * core - across * across));
+      const px = x + ax * along - az * across;
+      const pz = z + az * along + ax * across;
+      out.push({ x: px, z: pz, y: height(px, pz) });
     }
-  return { low, high };
+  return out;
+}
+
+// The deepest cut or fill the plane a strip would tilt to needs anywhere on its plateau.
+function strip_gap(heights: Float32Array, x: number, z: number, radius: number, ux: number, uz: number, band: number): number {
+  const len = length(ux, uz);
+  const core = radius * CORE;
+  const lattice = strip_lattice((px, pz) => sample(heights, px, pz), x, z, core, ux / len, uz / len, band);
+  const plane: Plane = { x, z, core, y: 0, gx: 0, gz: 0 };
+  fit_plane(lattice, plane);
+  let gap = 0;
+  for (const p of lattice) gap = Math.max(gap, Math.abs(p.y - town_level(plane, p.x, p.z)));
+  return gap;
+}
+
+/** True when a point lies on the town's levelled core: inside `core` and, for a strip village, within `band` of its street. */
+export function on_core(town: Town, x: number, z: number): boolean {
+  if (length(x - town.x, z - town.z) > town.core) return false;
+  return town.band === undefined || Math.abs((x - town.x) * town.uz - (z - town.z) * town.ux) <= town.band;
 }
 
 export function place_towns(seed: number, heights: Float32Array, road: RoadPoint[], shape: TownRecipe = ISLAND.towns): Town[] {
@@ -87,8 +109,12 @@ export function place_towns(seed: number, heights: Float32Array, road: RoadPoint
     const h = sample(heights, x, z);
     if (h < 5 || h > shape.top) continue;
     if (shape.layout === "strip") [ux, uz] = contour(heights, x, z, ux, uz);
-    const { low, high } = shape.layout === "strip" ? strip_relief(heights, x, z, radius, ux, uz) : box_relief(heights, x, z, radius);
-    if (high - low > TOWN_RELIEF || low < 3) continue;
+    if (shape.layout === "strip") {
+      if (strip_gap(heights, x, z, radius, ux, uz, strip_band(shape)) > STRIP_GAP) continue;
+    } else {
+      const { low, high } = box_relief(heights, x, z, radius);
+      if (high - low > TOWN_RELIEF || low < 3) continue;
+    }
     if (towns.some((t) => length(t.x - x, t.z - z) < t.radius + radius + TOWN_GAP)) continue;
     const ring = ring_distance(road, x, z);
     if (ring < radius + RING_CLEAR || ring > radius + RING_REACH) continue;
@@ -100,13 +126,21 @@ export function place_towns(seed: number, heights: Float32Array, road: RoadPoint
   return towns;
 }
 
-export function town_level(town: Town, x: number, z: number): number {
+interface Ground {
+  x: number;
+  z: number;
+  y: number;
+}
+
+type Plane = Pick<Town, "x" | "z" | "core" | "y" | "gx" | "gz">;
+
+export function town_level(town: Plane, x: number, z: number): number {
   return town.y + town.gx * (x - town.x) + town.gz * (z - town.z);
 }
 
 // The whole town sits on one least-squares plane through its street nodes, tilted at most TOWN_GRADE: every crossing
 // agrees on its height and every lot on a block shares the ground, so pads never fight each other.
-function fit_plane(nodes: RoadNode[], town: Town) {
+function fit_plane(nodes: readonly Ground[], town: Plane) {
   let sxx = 0, sxz = 0, szz = 0, sx = 0, sz = 0, sy = 0, sxy = 0, szy = 0;
   for (const n of nodes) {
     const x = n.x - town.x;
@@ -138,7 +172,6 @@ function fit_plane(nodes: RoadNode[], town: Town) {
   town.gx = gx;
   town.gz = gz;
   town.y = Math.max(y, TOWN_FLOOR + length(gx, gz) * town.core);
-  for (const n of nodes) n.y = town_level(town, n.x, n.z);
 }
 
 export interface Streets {
@@ -152,6 +185,7 @@ export function town_streets(seed: number, town: Town, height: Sampler, road: Ro
   const next = mulberry32(sub(seed, `streets:${town.id}`));
   const block = shape.block.min + next() * shape.block.span;
   town.block = block;
+  if (shape.layout === "strip") town.band = block + STRIP_BACK;
   const k = Math.ceil(town.radius / block);
   const vx = -town.uz;
   const vz = town.ux;
@@ -170,7 +204,9 @@ export function town_streets(seed: number, town: Town, height: Sampler, road: Ro
       nodes.push({ id: 0, x, z, y, kind: "junction" });
     }
   if (nodes.length < 3) return null;
-  fit_plane(nodes, town);
+  // A strip's plane fits the ground its plateau levels, the one its site was checked against, not just its few nodes.
+  fit_plane(town.band === undefined ? nodes : strip_lattice(height, town.x, town.z, town.core, town.ux, town.uz, town.band), town);
+  for (const n of nodes) n.y = town_level(town, n.x, n.z);
   const links: [number, number][] = [];
   for (let i = -k; i <= k; i++)
     for (let j = -k; j <= k; j++) {

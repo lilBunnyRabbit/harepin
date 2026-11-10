@@ -3,6 +3,7 @@ import { hash, length } from "./noise";
 import type { TownRecipe } from "./recipe";
 import { heading, prop_solids } from "./scatter";
 import type { Stamp } from "./stamp";
+import { on_core } from "./towns";
 import {
   CELL,
   ORIGIN,
@@ -97,7 +98,7 @@ export class Lots {
     this.occupied = new Uint8Array(terrain.heights.length);
   }
 
-  // Lot corners stay inside the town core, which the plateau holds exactly on the town plane. A highway's shoulder
+  // Lot corners stay on the town core, which the plateau holds exactly on the town plane. A highway's shoulder
   // blends terrain toward that highway's height, so lots keep off any vertex a highway owns, one cell beyond too.
   private fits(x: number, z: number, w: number, d: number, fx: number, fz: number, town: Town): boolean {
     const { heights, road_dist } = this.terrain;
@@ -109,7 +110,7 @@ export class Lots {
       [w / 2, d / 2],
     ]) {
       const [px, pz] = local_to_world({ x, z, fx, fz }, lx, lz);
-      if (length(px - town.x, pz - town.z) > town.core) return false;
+      if (!on_core(town, px, pz)) return false;
       if (sample(heights, px, pz) < 3) return false;
     }
     const level = (k: number) => street[k] === 1 || owner_dist[k] > ROAD_HALF + SHOULDER;

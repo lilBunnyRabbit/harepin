@@ -12,6 +12,9 @@ import { CELL, ORIGIN, ROAD_HALF, SHOULDER, SurfaceId, type Canyon, type RoadEdg
 // terrain over PLATEAU_BLEND.
 const PLATEAU_EDGE = CELL * 2;
 const PLATEAU_BLEND = 40;
+/** A strip village's plateau eases back no steeper than this, so a cut or fill on a valley side blends over a wider run. */
+const STRIP_EASE = 0.5;
+const STRIP_BLEND_MAX = 120;
 // A terrain triangle touching a road or pad has vertices up to CELL * sqrt(2) outside it; flattening that far keeps it
 // under the surface mesh.
 const FLAT = 6;
@@ -116,6 +119,7 @@ export class Stamp {
 
   plateau(town: Town) {
     this.log({ kind: "plateau", town });
+    if (town.band !== undefined) return this.strip_plateau(town, town.band);
     const { heights } = this.terrain;
     const full = town.core + PLATEAU_EDGE;
     const reach = full + PLATEAU_BLEND;
@@ -130,6 +134,27 @@ export class Stamp {
         const k = at(this.grid, i, j);
         const w = 1 - smoothstep(full, reach, d);
         heights[k] += (town_level(town, x, z) - heights[k]) * w;
+      }
+  }
+
+  // Levels the strip's core within its band of the street; past it the blend runs wider where the cut or fill is deeper.
+  private strip_plateau(town: Town, band: number) {
+    const { heights } = this.terrain;
+    const reach = town.core + PLATEAU_EDGE + STRIP_BLEND_MAX;
+    const [i0, i1] = span_i(this.grid, town.x - reach, town.x + reach);
+    const [j0, j1] = span_j(this.grid, town.z - reach, town.z + reach);
+    for (let j = j0; j <= j1; j++)
+      for (let i = i0; i <= i1; i++) {
+        const x = ORIGIN + i * CELL;
+        const z = ORIGIN + j * CELL;
+        const dx = x - town.x;
+        const dz = z - town.z;
+        const out = Math.max(Math.sqrt(dx * dx + dz * dz) - town.core, Math.abs(dx * town.uz - dz * town.ux) - band);
+        const k = at(this.grid, i, j);
+        const level = town_level(town, x, z);
+        const blend = Math.min(STRIP_BLEND_MAX, Math.max(PLATEAU_BLEND, Math.abs(heights[k] - level) / STRIP_EASE));
+        if (out >= PLATEAU_EDGE + blend) continue;
+        heights[k] += (level - heights[k]) * (1 - smoothstep(PLATEAU_EDGE, PLATEAU_EDGE + blend, out));
       }
   }
 

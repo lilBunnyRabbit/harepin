@@ -2,11 +2,14 @@ import { expect, test } from "bun:test";
 import { sweep } from "../../sweep";
 import { sample } from "../field";
 import { crest_crossings, terrain } from "../terrain";
+import { town_level } from "../towns";
 import { WorldKind, parse_kind, type WorldData } from "../types";
 import { generate_world, KINDS, kind_of_world, world_id, world_key } from "./kinds";
 
 /** Road points either side of a crest crossing, 2 m apart, that the pass must hold. */
 const PASS_REACH = 60;
+/** Past a town's core and band the plateau holds the plane this much further, two cells, before it blends away. */
+const PLATEAU_RIM = 8;
 
 const alpine_worlds = new Map<number, WorldData>();
 function alpine(seed: number): WorldData {
@@ -53,6 +56,28 @@ test("the alpine circuit crosses the range over a pass, never through a trench i
         const p = road[(index + k + road.length) % road.length];
         for (const d of [-40, -20, 0, 20, 40]) expect(sample(raw, p.x + d * p.tz, p.z - d * p.tx) - p.y).toBeLessThan(16);
       }
+  }
+});
+
+test("a strip village's plateau meets the valley side without a wall", () => {
+  for (const seed of sweep(10)) {
+    const world = alpine(seed);
+    const base = world.ground.base;
+    if (base.kind !== "terrain") throw new Error("alpine ground is terrain");
+    const raw = terrain(seed, base.shape).heights;
+    for (const town of world.towns) {
+      if (town.band === undefined) continue;
+      const radius = town.core + PLATEAU_RIM;
+      const band = town.band + PLATEAU_RIM;
+      for (let k = 0; k < 360; k++) {
+        const c = Math.cos((k / 180) * Math.PI);
+        const s = Math.sin((k / 180) * Math.PI);
+        const d = Math.min(radius, Math.abs(s) > 1e-9 ? band / Math.abs(s) : Infinity);
+        const x = town.x + (town.ux * c - town.uz * s) * d;
+        const z = town.z + (town.uz * c + town.ux * s) * d;
+        expect(Math.abs(sample(raw, x, z) - town_level(town, x, z))).toBeLessThan(19);
+      }
+    }
   }
 });
 
