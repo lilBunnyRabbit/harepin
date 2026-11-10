@@ -6,6 +6,7 @@ import { dark } from "../theme/palette";
 import { MapView } from "../menu/prefs";
 import { tach } from "../car/tach";
 import type { World } from "../world/world";
+import type { RouteRun } from "../modes/mode";
 import { Minimap } from "./minimap";
 import { PaceCard } from "./pace-card";
 import { world_query } from "../world/world-pick";
@@ -107,6 +108,8 @@ export class Hud {
   private map: Minimap;
   private pace: PaceCard;
   private view: MapView = MapView.FULL;
+  /** The route a mode run drives, if any; it wins over the lobby's. */
+  run_route: () => RouteRun | null = () => null;
   private toast_timer = 0;
   private players: PlayerRow[] = [];
   private results_key = "";
@@ -230,9 +233,10 @@ export class Hud {
   }
 
   private draw_map(car: Car, now: number) {
-    const route = this.lobby.route;
-    // Lap gates are the circuit's; on another race route that dot would point somewhere wrong.
-    const gate = route === CIRCUIT ? this.world.checkpoints[this.race.next] : null;
+    const run = this.run_route();
+    const route = run ? run.id : this.lobby.route;
+    // Lap gates are the circuit's; a run on any route brings its own.
+    const gate = run ? run.gate : route === CIRCUIT ? this.world.checkpoints[this.race.next] : null;
     if (this.view === MapView.FULL || this.view === MapView.CLOSE) this.map.show_route(route);
     if (this.view === MapView.FULL) this.map.full(car, gate, this.net.remotes.values());
     else if (this.view === MapView.CLOSE) this.map.close(car, gate, this.net.remotes.values(), now);

@@ -7,7 +7,7 @@ import { DRIFT_MODE } from "./drift-mode";
 import { DUEL_MODE } from "./duel-mode";
 import { GYMKHANA_MODE } from "./gymkhana-mode";
 import { HUNT_MODE } from "./hunt-mode";
-import type { Driven, Finish, Level, ModeCtx, ModeDef, ModeRun } from "./mode";
+import type { Driven, Finish, Level, ModeCtx, ModeDef, ModeRun, RouteRun } from "./mode";
 import { PARKING_MODE } from "./parking-mode";
 import { RACE_MODE } from "./race-mode";
 import { race_levels } from "./races";
@@ -99,6 +99,11 @@ export class Modes {
 
   get active(): boolean {
     return (this.current?.run ?? null) !== null;
+  }
+
+  /** The route the running mode drives, null when it drives none of its own. */
+  get route(): RouteRun | null {
+    return this.current?.run?.route ?? null;
   }
 
   /** A solo race counting down: the car stays on the line. */

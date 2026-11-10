@@ -49,11 +49,18 @@ export interface ModeCtx {
   exit(): void;
 }
 
+/** The route a run drives and its next gate, for the map and pace notes; one object the run keeps current. */
+export interface RouteRun {
+  readonly id: string;
+  gate: { x: number; z: number } | null;
+}
+
 export interface ModeRun {
   /** `sim_dt`: seconds of physics stepped this frame, 0 while the sim is paused. Returns the status line, or null to keep it. */
   update(sim_dt: number, car: Driven): string | null;
   finished(): Finish | null;
   readonly holding?: boolean;
+  readonly route?: RouteRun;
   dispose(): void;
 }
 

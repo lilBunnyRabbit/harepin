@@ -1,5 +1,5 @@
 import { format } from "../hud/hud";
-import { turn_to, type Driven, type Finish, type ModeCtx, type ModeDef, type ModeRun } from "./mode";
+import { turn_to, type Driven, type Finish, type ModeCtx, type ModeDef, type ModeRun, type RouteRun } from "./mode";
 import { COUNTDOWN_MS, RaceRun, RaceStatus, race_course, race_levels, type RaceCourse, type RaceLevel } from "./races";
 import { RaceView } from "./race-view";
 import { best_line, line, result_title } from "./result";
@@ -9,6 +9,7 @@ class Race implements ModeRun {
   private run: RaceRun;
   private clock = 0;
   private result: Finish | null = null;
+  readonly route: RouteRun;
 
   constructor(
     private readonly ctx: ModeCtx,
@@ -18,6 +19,7 @@ class Race implements ModeRun {
     this.view = new RaceView(course, ctx.world);
     ctx.scene.add(this.view.root);
     this.run = new RaceRun(course, ctx.lobby_lap() ? 0 : COUNTDOWN_MS);
+    this.route = { id: course.route.id, gate: course.line[course.gates[0]] ?? null };
     ctx.spawn_on(course.line[0]);
   }
 
@@ -43,6 +45,7 @@ class Race implements ModeRun {
       if (run.status !== RaceStatus.DONE) ctx.chime();
     }
     if (was !== RaceStatus.DONE && run.status === RaceStatus.DONE) {
+      this.route.gate = null;
       ctx.hide_hint();
       if (!lobby_lap) this.finish();
       else if (!lobby_lap()) ctx.exit();
@@ -54,6 +57,7 @@ class Race implements ModeRun {
     }
     const { line, gates } = run.course;
     const gate = line[gates[run.next]];
+    this.route.gate = gate ?? null;
     ctx.hint(turn_to(car, gate.x, gate.z));
     const { name } = this.level;
     if (run.status === RaceStatus.READY) return `${name} · ${Math.ceil(run.countdown / 1000)}`;

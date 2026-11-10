@@ -1,6 +1,11 @@
 import type { Car } from "../car/car";
 import type { Remote } from "../net/net";
-import type { Checkpoint, RoadPoint, Route } from "../worldgen/types";
+import type { RoadPoint, Route } from "../worldgen/types";
+
+interface Dot {
+  x: number;
+  z: number;
+}
 import { brand, rgba } from "../theme/palette";
 import { ROAD_HALF, SIZE } from "../world/world";
 
@@ -130,7 +135,7 @@ export class Minimap {
     ctx.fill();
   }
 
-  full(car: Car, gate: Checkpoint | null, remotes: Iterable<Remote>) {
+  full(car: Car, gate: Dot | null, remotes: Iterable<Remote>) {
     this.fit();
     const { ctx } = this;
     ctx.setTransform(this.ratio, 0, 0, this.ratio, 0, 0);
@@ -145,7 +150,7 @@ export class Minimap {
     this.arrow(full_x(car.pos.x), full_y(car.pos.z), car.heading);
   }
 
-  close(car: Car, gate: Checkpoint | null, remotes: Iterable<Remote>, now: number) {
+  close(car: Car, gate: Dot | null, remotes: Iterable<Remote>, now: number) {
     this.fit();
     const { ctx } = this;
     const heading = car.heading;
