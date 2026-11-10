@@ -28,6 +28,11 @@ export function world_id(kind: WorldKind): number {
   return kind === WorldKind.SKY ? 1000 + SKY_VERSION : WORLD_VERSION;
 }
 
+/** The kind behind a `world_id`; none, or an id this build doesn't know, is the island. */
+export function kind_of_world(id: number | undefined): WorldKind {
+  return id === world_id(WorldKind.SKY) ? WorldKind.SKY : WorldKind.ISLAND;
+}
+
 export function parse_kind(text: string | null | undefined): WorldKind {
   return text === WorldKind.SKY ? WorldKind.SKY : WorldKind.ISLAND;
 }

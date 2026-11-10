@@ -11,7 +11,7 @@ import { guide_seen_on_load } from "./guide-rules";
 import { HARMONIES as HARMONY_HUES, Harmony, generate_theme, is_dark, type ThemeMode } from "./random-theme";
 import { mulberry32 } from "./rng";
 import { Rows, el, icon, read, type Options, type RowHelp, type Text, type Value } from "./setting-rows";
-import { WorldKind } from "./worldgen/types";
+import { WorldKind, kind_of_world } from "./worldgen/types";
 import {
   THEMES,
   THEME_KEY,
@@ -1214,7 +1214,7 @@ export class Settings {
 
   private join(server: Server, password: string | null) {
     save_lock(server.room, password === null ? null : { password, asked: true });
-    this.go({ room: server.room, seed: String(server.seed) });
+    this.go(world_query(server.room, server.seed, kind_of_world(server.world)));
   }
 
   private games(): HTMLElement[] {

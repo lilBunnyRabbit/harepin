@@ -1,5 +1,6 @@
 import { joinRoom, type Room } from "trystero";
 import { APP_ID, MAX_SEED, RateLimit, clean_name, type RoomLock } from "./net";
+import { WorldKind, world_id } from "./worldgen/types";
 
 export const DIRECTORY_ROOM = "harepin-directory";
 const ANNOUNCE_MS = 3000;
@@ -30,6 +31,8 @@ export type Announce = {
   players: number;
   locked: boolean;
   version: string;
+  /** `world_id` of the game's world kind; peers that predate it send none and are on the island. */
+  world?: number;
 };
 
 export interface Server extends Announce {
@@ -79,10 +82,13 @@ export function sanitize_announce(raw: unknown): Announce | null {
   if (typeof a.players !== "number" || !Number.isInteger(a.players) || a.players < 1) return null;
   if (typeof a.locked !== "boolean" || typeof a.version !== "string" || !VERSION.test(a.version)) return null;
   if (!a.locked && LOCKED_NAME.test(room)) return null;
-  return { room, seed: a.seed, host: clean_name(a.host), players: Math.min(a.players, MAX_PLAYERS), locked: a.locked, version: a.version };
+  if (a.world !== undefined && (typeof a.world !== "number" || !Number.isInteger(a.world) || a.world < 1 || a.world > MAX_SEED)) return null;
+  const announce: Announce = { room, seed: a.seed, host: clean_name(a.host), players: Math.min(a.players, MAX_PLAYERS), locked: a.locked, version: a.version };
+  if (a.world !== undefined) announce.world = a.world;
+  return announce;
 }
 
-const key_of = (a: Announce) => JSON.stringify([a.room, a.seed, a.locked, a.version]);
+const key_of = (a: Announce) => JSON.stringify([a.room, a.seed, a.world ?? world_id(WorldKind.ISLAND), a.locked, a.version]);
 
 // One game has one elected announcer; if two claim the same game (a hand-over, or a spoof), the lowest peer id wins
 // whole, so host and player count always come from a single announce and every viewer shows the same row.

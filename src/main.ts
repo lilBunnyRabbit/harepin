@@ -85,7 +85,7 @@ for (const g of gate_views) scene.add(g.group);
 const lock = load_lock(room);
 const net = new Net(room, seed, prefs.name ?? random_name, lock, world_id(kind));
 const directory = new Directory(
-  () => ({ room, seed, host: net.name, players: 1 + net.remotes.size, locked: lock !== null, version: BUILD.version }),
+  () => ({ room, seed, host: net.name, players: 1 + net.remotes.size, locked: lock !== null, version: BUILD.version, world: world_id(kind) }),
   () => net.leader,
 );
 directory.start();

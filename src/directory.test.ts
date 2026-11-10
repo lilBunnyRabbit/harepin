@@ -1,5 +1,6 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
+import { WorldKind, kind_of_world, world_id } from "./worldgen/types";
 import { Admission, DIRECTORY_ROOM, clean_password, locked_name, clean_room, group_servers, sanitize_announce, type Announce } from "./directory";
 
 const announce: Announce = { room: "lobby", seed: 42, host: "Alice", players: 2, locked: false, version: "0.5.1" };
@@ -60,6 +61,28 @@ test("one row per game: the lowest id's announce wins whole, this game always li
 test("this game's row comes from its elected announcer when one is heard", () => {
   const servers = group_servers([["a", { ...announce, host: "Leader", players: 3 }]], { ...announce, host: "Me", players: 3 });
   expect(servers.map((s) => [s.host, s.here])).toEqual([["Leader", true]]);
+});
+
+test("the world kind travels with the announce and splits an island game from a sky game on the same seed", () => {
+  const sky = world_id(WorldKind.SKY);
+  const island = world_id(WorldKind.ISLAND);
+  expect(sanitize_announce({ ...announce, world: sky })?.world).toBe(sky);
+  expect(sanitize_announce(announce)).not.toHaveProperty("world");
+  expect(sanitize_announce({ ...announce, world: 1.5 })).toBeNull();
+  expect(sanitize_announce({ ...announce, world: "sky" })).toBeNull();
+  expect(sanitize_announce({ ...announce, world: 0 })).toBeNull();
+  const servers = group_servers(
+    [
+      ["a", { ...announce, host: "Old" }],
+      ["b", { ...announce, host: "Island", world: island }],
+      ["c", { ...announce, host: "Sky", world: sky }],
+    ],
+    null,
+  );
+  expect(servers.map((s) => [s.host, kind_of_world(s.world)])).toEqual([
+    ["Old", WorldKind.ISLAND],
+    ["Sky", WorldKind.SKY],
+  ]);
 });
 
 test("locked names end in a code; an unlocked game under one is a visitor and is not listed", () => {
