@@ -20,7 +20,7 @@ export interface DeepPage {
   id: string;
   label: string;
   parent: string;
-  help: string;
+  help: Text;
   rows: () => HTMLElement[];
 }
 
@@ -76,6 +76,11 @@ const KEYS: [string, Shown, Shown, string][] = [
   ["In menus: move, pick, back, tabs", "Arrows, Enter, Esc, Q / E", "D-pad, A, B, LB / RB", ""],
   ["In menus: sections, reset section", "", "LT / RT, Y", ""],
 ];
+
+const list_help = (m: SettingsMenu): Text => () => {
+  const key = keys_text(m.state().bindings.help);
+  return `Every key, pad button and touch control.${key ? ` ${key} opens this list while driving.` : ""}`;
+};
 
 const while_driving = (m: SettingsMenu, action: Bindable, help: string): Text => () => {
   const key = keys_text(m.state().bindings[action]);
@@ -201,7 +206,7 @@ export function settings_sections(m: SettingsMenu): { sections: SettingsSection[
   const deep: DeepPage[] = [
     { id: "creator", label: "Make your own theme", parent: "display", help: "Roll colours, keep the ones you like, then name and save it.", rows: () => theme_create(m) },
     { id: "themes", label: "Your themes", parent: "display", help: "Themes you made. Pick one with Theme on Display.", rows: () => saved_themes(m) },
-    { id: "keys", label: "All keys and buttons", parent: "controls", help: "Every key, pad button and touch control. H opens this list while driving.", rows: () => key_list(m) },
+    { id: "keys", label: "All keys and buttons", parent: "controls", help: list_help(m), rows: () => key_list(m) },
     { id: "bindings", label: "Change keys and buttons", parent: "controls", help: "Pick an action, then press its new key or pad button. One that another action has swaps with it.", rows: () => binding_rows(m) },
   ];
   return { sections, deep };
@@ -380,7 +385,7 @@ function controls(m: SettingsMenu): HTMLElement[] {
       ]),
     ),
     m.rows.link("Change keys and buttons", "Pick an action, then press its new key or pad button.", "Keyboard and pad", () => m.show_sub("bindings")),
-    m.rows.link("All keys and buttons", "Every key, pad button and touch control. H opens this list while driving.", "Keyboard, pad, touch", () => m.show_sub("keys")),
+    m.rows.link("All keys and buttons", list_help(m), "Keyboard, pad, touch", () => m.show_sub("keys")),
   ];
 }
 

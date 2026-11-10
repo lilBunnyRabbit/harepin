@@ -10,7 +10,7 @@ import { mark_drive, read_saved, write_saved } from "./prefs-store";
 import { dress, mosaic, picture, tile } from "./widgets";
 import { settings_sections } from "./settings-sections";
 import { WorldPage } from "./world-page";
-import { Rows, el, icon, read, type RowHelp, type Value } from "./setting-rows";
+import { Rows, el, icon, read, type RowHelp, type Text, type Value } from "./setting-rows";
 import { WorldKind } from "../worldgen/types";
 import { WORLDS } from "../worlds/worlds";
 import { world_query } from "../world/world-pick";
@@ -23,7 +23,7 @@ interface SubPage {
   keys: readonly SettingKey[];
   tab: HTMLButtonElement | null;
   list: HTMLElement;
-  help: string;
+  help: Text;
 }
 
 const MENU_TABS: [MenuTab, string][] = [
