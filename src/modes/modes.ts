@@ -12,6 +12,7 @@ import { RACE_MODE } from "./race-mode";
 import { race_levels } from "./races";
 import { run_text, star_row } from "./result";
 import { MAX_STARS, Track, local_store, type RaceRecord } from "./track";
+import "./modes.css";
 
 export type { Driven } from "./mode";
 

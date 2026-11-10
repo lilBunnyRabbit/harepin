@@ -270,12 +270,6 @@ select {
   font-weight: 600;
 }
 
-.room-actions {
-  display: flex;
-  gap: var(--space-2);
-  margin-bottom: var(--space-2);
-}
-
 .top-right {
   top: var(--inset-top);
   right: var(--inset-right);
@@ -588,161 +582,6 @@ select {
   opacity: 0;
   transition: opacity 0.2s;
   pointer-events: none;
-}
-
-/* Status lines sit under whatever holds the top centre: the strip (A), the key list (B) or nothing (C). */
-#race-panel,
-#mode-status {
-  top: var(--inset-top);
-  left: 50%;
-  translate: -50% 0;
-  pointer-events: none;
-  font-variant-numeric: tabular-nums;
-}
-
-#race-panel {
-  anchor-name: --race-panel;
-  min-width: 220px;
-}
-
-#mode-status {
-  anchor-name: --mode-status;
-  padding: var(--space-2) var(--space-4);
-  white-space: nowrap;
-}
-
-#mode-hint {
-  position: fixed;
-  position-anchor: --mode-status;
-  top: calc(anchor(bottom) + var(--space-2));
-  left: anchor(center);
-  width: 16px;
-  height: 24px;
-  background: var(--primary);
-  clip-path: polygon(50% 0, 100% 100%, 50% 70%, 0 100%);
-  translate: -50% 0;
-  rotate: var(--turn, 0deg);
-  pointer-events: none;
-}
-
-#mode-hint[hidden],
-#mode-status[hidden] ~ #mode-hint,
-body:has(#mode-result:not([hidden])) #mode-hint {
-  display: none;
-}
-
-#race-panel[hidden],
-#mode-status[hidden],
-#mode-result[hidden] {
-  display: none;
-}
-
-#race-status {
-  font-weight: 600;
-  color: var(--cottontail);
-}
-
-#race-results {
-  margin: var(--space-2) 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-#race-results:empty {
-  display: none;
-}
-
-#race-results li {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
-#race-results li[data-you="true"] {
-  color: var(--primary);
-}
-
-#race-results i {
-  font-style: normal;
-  color: var(--dim);
-}
-
-#mode-result {
-  top: 50%;
-  left: 50%;
-  translate: -50% -50%;
-  display: grid;
-  gap: var(--space-3);
-  min-width: 280px;
-  padding: var(--space-5);
-  background: var(--panel);
-  box-shadow: var(--panel-shadow);
-  backdrop-filter: none;
-  text-align: center;
-}
-
-#race-panel:not([hidden]) ~ #mode-status {
-  position-anchor: --race-panel;
-  top: calc(anchor(bottom) + var(--space-2));
-}
-
-body:has(#mode-result:not([hidden])) #mode-status {
-  display: none;
-}
-
-#mode-result-title {
-  font-size: var(--text-xl);
-  font-weight: 600;
-}
-
-#mode-result-stars {
-  font-size: 32px;
-  line-height: 1;
-  letter-spacing: var(--space-1);
-  color: var(--primary);
-}
-
-#mode-result-lines {
-  display: grid;
-  gap: var(--space-1);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-md);
-  background: var(--panel-well);
-}
-
-#mode-result-lines div {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-4);
-}
-
-#mode-result-lines b {
-  font-family: var(--font-mono);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
-.stars {
-  font-family: var(--font-sans);
-  white-space: nowrap;
-}
-
-.star-empty {
-  opacity: 0.35;
-}
-
-#mode-result .room-actions {
-  justify-content: center;
-  margin: 0;
-}
-
-#mode-result button {
-  background: var(--panel-raised);
-  border-color: var(--line);
-}
-
-#mode-result button[hidden] {
-  display: none;
 }
 
 #touch,
@@ -1095,46 +934,9 @@ body:has(#mode-result:not([hidden])) #mode-status {
     font-size: 24px;
   }
 
-  #race-panel {
-    top: calc(var(--inset-top) + var(--control-h) + var(--space-2));
-    left: auto;
-    right: calc(var(--inset-right) + var(--map-panel) + var(--space-2));
-    translate: none;
-    min-width: 200px;
-  }
-
-  #mode-status {
-    top: calc(var(--inset-top) + var(--control-h) + var(--space-2));
-  }
-
   #toast {
     position-anchor: --top-dock;
     top: calc(anchor(bottom) + var(--space-2));
-  }
-
-  /* Between the top dock and the speedo row; the score lines go two columns to fit a phone's height. */
-  #mode-result {
-    position-anchor: --top-dock;
-    top: calc(anchor(bottom) + var(--space-2));
-    bottom: calc(var(--inset-bottom) + var(--speedo-h) + var(--space-2));
-    translate: -50% 0;
-    height: fit-content;
-    max-height: stretch;
-    margin-block: auto;
-    overflow-y: auto;
-    gap: var(--space-2);
-    padding: var(--space-3) var(--space-4);
-  }
-
-  #mode-result-stars {
-    font-size: var(--text-2xl);
-  }
-
-  #mode-result-lines {
-    grid-template-rows: repeat(3, auto);
-    grid-auto-flow: column;
-    gap: 0 var(--space-5);
-    padding: var(--space-1) var(--space-3);
   }
 
   #countdown {
@@ -1223,12 +1025,6 @@ body:has(#mode-result:not([hidden])) #mode-status {
 
   #strip b {
     white-space: nowrap;
-  }
-
-  #race-panel,
-  #mode-status {
-    position-anchor: --top-centre;
-    top: calc(anchor(bottom) + var(--space-2));
   }
 
   .top-right {
@@ -1627,7 +1423,6 @@ button:active:not(:disabled) {
   }
 }
 
-/* Touch: the halo is the surface colour, so ghost labels read on bright sky in light themes and on dark road in dark ones. */
 @media (pointer: coarse) {
   :root {
     --control-h: 44px;
@@ -1773,10 +1568,6 @@ button:active:not(:disabled) {
     margin: 0;
     white-space: nowrap;
     pointer-events: auto;
-  }
-
-  body:has(#race-panel:not([hidden])) #join-map {
-    display: none;
   }
 
   #minimap {
