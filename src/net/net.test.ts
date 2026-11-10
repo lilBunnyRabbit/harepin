@@ -1,6 +1,6 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import { RateLimit, WRONG_PASSWORD, clean_name, is_sdp_failure, leader_of, join_error_status, parse_seed, read_car, sanitize_chat, sanitize_event, sanitize_hello, sanitize_ready, type CarState } from "./net";
+import { RateLimit, WRONG_PASSWORD, clean_name, is_sdp_failure, leader_of, join_error_status, parse_seed, read_car, sanitize_chat, sanitize_event, sanitize_hello, sanitize_online, sanitize_ready, type CarState } from "./net";
 import { encode_car } from "./car-packet";
 
 test("chat text is stripped of control characters, trimmed and capped", () => {
@@ -120,4 +120,10 @@ test("failed SDP exchanges are told apart, with and without TURN servers, and ne
   expect([plain, turn].map(is_sdp_failure)).toEqual([true, true]);
   expect(is_sdp_failure("incorrect room password when decrypting offer")).toBe(false);
   expect(join_error_status({ password: "x", asked: true }, false, 0, plain)).toBeNull();
+});
+
+test("online count: a positive whole number, capped", () => {
+  expect(sanitize_online({ online: 7 })).toEqual({ online: 7 });
+  expect(sanitize_online({ online: 1e9 })).toEqual({ online: 9999 });
+  for (const raw of [null, 3, {}, { online: 0 }, { online: -2 }, { online: 2.5 }, { online: "7" }, { online: Number.NaN }]) expect(sanitize_online(raw)).toBeNull();
 });

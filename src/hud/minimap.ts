@@ -155,6 +155,24 @@ export class Minimap {
     ctx.fill();
   }
 
+  // Every car dot carries its name, so it never reads as a map mark.
+  private car(x: number, y: number, name: string) {
+    const { ctx } = this;
+    ctx.fillStyle = INK.remote;
+    this.dot(x, y, 3.5);
+    ctx.font = this.font;
+    ctx.textBaseline = "middle";
+    ctx.lineJoin = "round";
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = INK.halo;
+    // Names point inward, so one near the rim stays on the map.
+    const left = x > MAP / 2;
+    ctx.textAlign = left ? "right" : "left";
+    ctx.fillStyle = INK.label;
+    ctx.strokeText(name, left ? x - 6 : x + 6, y);
+    ctx.fillText(name, left ? x - 6 : x + 6, y);
+  }
+
   private arrow(x: number, y: number, h: number) {
     const { ctx } = this;
     ctx.fillStyle = INK.you;
@@ -176,23 +194,7 @@ export class Minimap {
       ctx.fillStyle = INK.checkpoint;
       this.dot(full_x(view, gate.x), full_y(view, gate.z), 4.5);
     }
-    ctx.font = this.font;
-    ctx.textBaseline = "middle";
-    ctx.lineJoin = "round";
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = INK.halo;
-    for (const remote of remotes) {
-      const x = full_x(view, remote.latest.p[0]);
-      const y = full_y(view, remote.latest.p[2]);
-      ctx.fillStyle = INK.remote;
-      this.dot(x, y, 3.5);
-      // Names point inward, so one near the rim stays on the map.
-      const left = x > MAP / 2;
-      ctx.textAlign = left ? "right" : "left";
-      ctx.fillStyle = INK.label;
-      ctx.strokeText(remote.latest.name, left ? x - 6 : x + 6, y);
-      ctx.fillText(remote.latest.name, left ? x - 6 : x + 6, y);
-    }
+    for (const remote of remotes) this.car(full_x(view, remote.latest.p[0]), full_y(view, remote.latest.p[2]), remote.latest.name);
     this.arrow(full_x(view, car.pos.x), full_y(view, car.pos.z), car.heading);
   }
 
@@ -232,7 +234,7 @@ export class Minimap {
       const px = cos * dx - sin * dz + cx - MAP / 2;
       const py = sin * dx + cos * dz + cy - MAP / 2;
       const edge = Math.min(1, EDGE / Math.hypot(px, py));
-      this.dot(MAP / 2 + px * edge, MAP / 2 + py * edge, 3.5);
+      this.car(MAP / 2 + px * edge, MAP / 2 + py * edge, remote.latest.name);
     }
     if (gate) {
       const gx = cos * (gate.x - x) - sin * (gate.z - z) + cx - MAP / 2;

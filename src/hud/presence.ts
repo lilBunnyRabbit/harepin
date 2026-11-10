@@ -2,12 +2,13 @@ import type { Net } from "../net/net";
 import { $ } from "./hud";
 
 const TICK_MS = 1000;
+const SEND_MS = 3000;
 // Several arrivals inside this gap share one toast, so a full room joining at once doesn't flash names for a minute.
 const TOAST_GAP_MS = 4000;
 
 export interface PresenceHost {
   net: Net;
-  elsewhere(): number;
+  elsewhere(): number | null;
   watch(on: boolean): void;
   toast(text: string): void;
   open_online(): void;
@@ -27,13 +28,13 @@ export class Presence {
   private last_toast = 0;
   private timer = 0;
   private shown = "";
+  private online = 0;
+  private last_send = 0;
 
   constructor(private readonly host: PresenceHost) {}
 
   start() {
     this.chip.addEventListener("click", this.open);
-    document.addEventListener("visibilitychange", this.visibility);
-    this.visibility();
     this.timer = window.setInterval(() => this.tick(), TICK_MS);
     this.tick();
   }
@@ -41,20 +42,32 @@ export class Presence {
   stop() {
     clearInterval(this.timer);
     this.chip.removeEventListener("click", this.open);
-    document.removeEventListener("visibilitychange", this.visibility);
     this.host.watch(false);
   }
 
   private readonly open = () => this.host.open_online();
 
-  private readonly visibility = () => this.host.watch(!document.hidden);
-
+  // Only the leader watches the directory and tells its room, so links grow with games rather than players. Until a
+  // new leader's directory connects, the count the old one sent stays up.
   private tick() {
     const { net } = this.host;
+    const now = performance.now();
     const here = 1 + net.same_map.size;
-    const online = here + this.host.elsewhere();
-    this.draw(here, online);
-    this.track(net, performance.now());
+    const leader = net.leader;
+    this.host.watch(leader && !document.hidden);
+    if (leader) {
+      const elsewhere = this.host.elsewhere();
+      if (elsewhere !== null) this.online = here + elsewhere;
+      if (here > 1 && this.online > 0 && now - this.last_send >= SEND_MS) {
+        net.send_online(Math.max(here, this.online));
+        this.last_send = now;
+      }
+    } else {
+      const heard = net.leader_online;
+      if (heard !== null) this.online = heard;
+    }
+    this.draw(here, Math.max(here, this.online));
+    this.track(net, now);
   }
 
   private draw(here: number, online: number) {

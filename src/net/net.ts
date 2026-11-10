@@ -116,6 +116,12 @@ const CHAT_LENGTH = 140;
 const OWN_CHAT_GAP_MS = 900;
 const OWN_CHAT_BURST = 4;
 const FALLBACK_NAME = "Player";
+const MAX_ONLINE = 9999;
+// The leader repeats its count every few seconds; one this old means it stopped, and the last shown count stays up.
+const ONLINE_STALE_MS = 10_000;
+// A leader sends once per ONLINE_SEND_MS (presence.ts); this lets a little jitter through and stops a flood.
+const ONLINE_GAP_MS = 1000;
+const ONLINE_BURST = 6;
 const ID_SUFFIX = 4;
 
 export const APP_ID = "lilbunnyrabbit-harepin";
@@ -182,6 +188,15 @@ export function sanitize_event(raw: unknown): RaceEvent | null {
   return null;
 }
 
+/** Players online across every game, as this map's leader hears the directory. */
+export type OnlineMsg = { online: number };
+
+export function sanitize_online(raw: unknown): OnlineMsg | null {
+  if (!raw || typeof raw !== "object") return null;
+  const online = (raw as Record<string, unknown>).online;
+  return typeof online === "number" && Number.isInteger(online) && online >= 1 ? { online: Math.min(online, MAX_ONLINE) } : null;
+}
+
 export function sanitize_ready(raw: unknown): ReadyMsg | null {
   if (!raw || typeof raw !== "object") return null;
   const m = raw as Record<string, unknown>;
@@ -239,6 +254,8 @@ export class Net {
   private readonly events: Channel<RaceEvent>;
   private readonly hello: Channel<Hello>;
   private readonly readies: Channel<ReadyMsg>;
+  private readonly onlines: Channel<OnlineMsg>;
+  private heard_online: { from: string; count: number; at: number } | null = null;
   private own_chat_limit = new RateLimit(OWN_CHAT_GAP_MS, OWN_CHAT_BURST);
 
   private name_: string;
@@ -288,6 +305,8 @@ export class Net {
     this.events = this.link.channel("event", sanitize_event, () => new RateLimit(), (id) => this.same_map.has(id) || this.remotes.has(id));
     this.hello = this.link.channel("hello", sanitize_hello);
     this.readies = this.link.channel("ready", sanitize_ready, () => new RateLimit(READY_GAP_MS, READY_BURST), (id) => this.same_map.has(id) || this.remotes.has(id));
+    this.onlines = this.link.channel("online", sanitize_online, () => new RateLimit(ONLINE_GAP_MS, ONLINE_BURST), (id) => this.same_map.has(id) || this.remotes.has(id));
+    this.onlines.subscribe((msg, from) => (this.heard_online = { from, count: msg.online, at: performance.now() }));
     this.cars.subscribe((packet, sender) => {
       this.greet(sender);
       if (packet.kind === "car") {
@@ -434,6 +453,16 @@ export class Net {
 
   send_ready(msg: ReadyMsg) {
     this.readies.send(msg);
+  }
+
+  send_online(count: number) {
+    this.onlines.send({ online: count });
+  }
+
+  /** The online count this map's leader last sent; null when the leader hasn't sent one lately. */
+  get leader_online(): number | null {
+    const heard = this.heard_online;
+    return heard && heard.from === this.leader_id && performance.now() - heard.at < ONLINE_STALE_MS ? heard.count : null;
   }
 
   on_ready(fn: (msg: ReadyMsg, from: Sender) => void): () => void {

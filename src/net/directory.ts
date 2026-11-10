@@ -241,8 +241,8 @@ export class Directory {
   }
 
   /**
-   * Connects to announcers for the HUD's player counts, without pings. Every watcher links to every other one as well
-   * as to the announcers, so it only runs while the game is on screen.
+   * Connects to announcers for the HUD's player counts, without pings. Watchers link to each other too, so only each
+   * game's leader watches and passes the count to its room.
    */
   watch(on: boolean) {
     if (on === this.watching) return;
@@ -250,8 +250,9 @@ export class Directory {
     this.tick();
   }
 
-  /** Players in every other listed game. */
-  elsewhere(): number {
+  /** Players in every other listed game; null while the directory is still connecting. */
+  elsewhere(): number | null {
+    if (this.status === DirectoryStatus.CONNECTING) return null;
     let count = 0;
     for (const server of this.list()) if (!server.here) count += server.players;
     return count;
