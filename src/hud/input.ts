@@ -202,17 +202,17 @@ export class Input {
     this.mouse = new MouseLook(canvas);
     window.addEventListener("keydown", (e) => {
       if (e.repeat || typing(e.target)) return;
+      // Menu presses (arrows, Enter, Q / E) stay with the menu whatever they are bound to.
+      if (this.blocked()) return;
+      // Ctrl or Cmd with a bound key is a browser shortcut (Ctrl+R reloads), not a reset.
+      if (chord(e, "ctrlKey", "Control") || chord(e, "metaKey", "Meta")) return;
       const bound = this.key_binds.get(e.code);
       const action: Action | undefined = e.code === "Escape" ? "settings" : is_press(bound) ? bound : undefined;
-      if (this.blocked()) {
-        if (action === "garage" || action === "help") this.queued.push(action);
-        return;
-      }
       // Escape that closes a popover (modes) is consumed by it, not a request for settings.
       if (action === "settings" && document.querySelector(":popover-open")) return;
       this.keys.add(e.code);
       if (action) this.queued.push(action);
-      if (bound) e.preventDefault();
+      if (bound && !chord(e, "altKey", "Alt")) e.preventDefault();
     });
     // Capture phase, ahead of the focused row: its own Enter or Space handler would read a Space meant for binding as a cancel.
     window.addEventListener(
@@ -221,7 +221,7 @@ export class Input {
         if (!this.catcher) return;
         e.preventDefault();
         e.stopImmediatePropagation();
-        if (!e.repeat) this.stop_catch({ kind: "key", code: e.code });
+        if (!e.repeat && e.code) this.stop_catch({ kind: "key", code: e.code });
       },
       { capture: true },
     );
@@ -280,11 +280,6 @@ export class Input {
     this.was_blocked = blocked;
     for (const i of this.held) if (!pad?.buttons[i]?.pressed) this.held.delete(i);
     const caught = pad && this.catcher ? this.catch_pad(pad) : null;
-    const button = (i: number) => (this.held.has(i) ? undefined : pad?.buttons[i]);
-    const pad_down = (hold: Hold) => {
-      const i = this.bindings[hold].pad;
-      return i !== null && !!button(i)?.pressed;
-    };
     if (pad) {
       const [x, y] = [pad.axes[2] ?? 0, pad.axes[3] ?? 0];
       const tilt = Math.hypot(x, y);
@@ -296,9 +291,9 @@ export class Input {
       const raw = pad.axes[0] ?? 0;
       const dead = Math.max(0, Math.abs(raw) - 0.08) / 0.92;
       const stick = Math.sign(raw) * dead ** 1.4;
-      const rt = button(7)?.value ?? 0;
-      const lt = button(6)?.value ?? 0;
-      const handbrake = pad_down("handbrake");
+      const rt = this.button(7)?.value ?? 0;
+      const lt = this.button(6)?.value ?? 0;
+      const handbrake = this.pad_down("handbrake");
       if (Math.abs(stick) > 0 || rt > 0.02 || lt > 0.02 || handbrake) {
         if (key_steer === 0) {
           controls.steer = stick;
@@ -308,8 +303,8 @@ export class Input {
         controls.brake = Math.max(controls.brake, lt);
         controls.handbrake = Math.max(controls.handbrake, handbrake ? 1 : 0);
       }
-      if (pad_down("rewind")) this.rewind = true;
-      if (pad_down("nitro")) controls.nitro = true;
+      if (this.pad_down("rewind")) this.rewind = true;
+      if (this.pad_down("nitro")) controls.nitro = true;
       for (const [button, nav] of PAD_NAV) {
         const pressed = !!pad.buttons[button]?.pressed;
         if (pressed && !this.nav_prev[button]) this.nav.push(nav);
@@ -346,7 +341,7 @@ export class Input {
     if (this.blocked()) {
       this.rewind = false;
       this.look = no_look();
-      return { controls: { steer: 0, throttle: 0, brake: 0, handbrake: 0, analog: false }, actions: actions.filter((a) => a === "garage" || a === "help" || a === "menu") };
+      return { controls: { steer: 0, throttle: 0, brake: 0, handbrake: 0, analog: false }, actions: actions.filter((a) => a === "menu") };
     }
     return { controls, actions };
   }
@@ -362,6 +357,15 @@ export class Input {
     if (i < 0) return null;
     this.held.add(i);
     return { kind: "pad", button: i };
+  }
+
+  private button(i: number): GamepadButton | undefined {
+    return this.held.has(i) ? undefined : this.pad?.buttons[i];
+  }
+
+  private pad_down(hold: Hold): boolean {
+    const i = this.bindings[hold].pad;
+    return i !== null && !!this.button(i)?.pressed;
   }
 
   private stop_catch(caught: Caught | null) {
@@ -396,3 +400,6 @@ export class Input {
 
 const PRESS_SET: ReadonlySet<string> = new Set([...PRESSES, "menu"]);
 const is_press = (action: string | undefined): action is Action => action !== undefined && PRESS_SET.has(action);
+
+type Modifier = "ctrlKey" | "metaKey" | "altKey";
+const chord = (e: KeyboardEvent, held: Modifier, own: string) => e[held] && !e.code.startsWith(own);
