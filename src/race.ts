@@ -62,8 +62,8 @@ export class Race {
   private readonly splits_key: string;
 
   constructor(private world: World) {
-    this.best_key = `${BEST_KEY}:${world_key(world.seed, world.kind, world.opts)}`;
-    this.splits_key = `${SPLITS_KEY}:${world_key(world.seed, world.kind, world.opts)}`;
+    this.best_key = `${BEST_KEY}:${world_key(world.seed, world.kind)}`;
+    this.splits_key = `${SPLITS_KEY}:${world_key(world.seed, world.kind)}`;
     this.best = load<number | null>(this.best_key, is_time, null);
     this.best_splits = load(this.splits_key, is_splits, []);
   }

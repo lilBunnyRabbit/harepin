@@ -1,7 +1,7 @@
 import { clean_password, save_lock, type Announce } from "../net/directory";
 import { el } from "./setting-rows";
 import { world_query } from "../world/world-pick";
-import { kind_of_world, opts_of_world } from "../worldgen/kinds/kinds";
+import { kind_of_world } from "../worldgen/kinds/kinds";
 import type { Menu } from "./page";
 import { action, invalid, password_input } from "./widgets";
 
@@ -12,7 +12,7 @@ export interface Unlock {
 
 export function join_game(menu: Menu, target: Announce, password: string | null) {
   save_lock(target.room, password === null ? null : { password, asked: true });
-  menu.go(world_query(target.room, target.seed, kind_of_world(target.world), opts_of_world(target.world)));
+  menu.go(world_query(target.room, target.seed, kind_of_world(target.world)));
 }
 
 export function join_or_ask(menu: Menu, unlock: Unlock, target: Announce) {

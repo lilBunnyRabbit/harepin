@@ -26,7 +26,7 @@ const towns = (values: readonly Pick<TownRecipe, "min" | "max">[]) =>
   knob<Recipe, Pick<TownRecipe, "min" | "max">>({ name: "Towns", help: "Towns, their streets and the roads between them.", labels: LEVELS, normal: 1, values, set: (r, count) => ({ ...r, towns: { ...r.towns, ...count } }) });
 
 export const ISLAND_KNOBS: readonly Knob<Recipe>[] = [
-  length([{ radius: 560, swing: 560, min: 360, max: 780 }, ISLAND.road.loop, { radius: 680, swing: 640, min: 440, max: 880 }]),
+  length([{ radius: 560, swing: 560, min: 360, max: 780 }, ISLAND.road.loop, { radius: 660, swing: 640, min: 420, max: 870 }]),
   twist([320, ISLAND.road.loop.swing, 900]),
   hairpins([[], ISLAND.road.stacks, [6, 4, 2]]),
   jumps([{ road: 2, total: 6, big: 1 }, ISLAND.road.kickers, { road: 6, total: 18, big: 5 }]),

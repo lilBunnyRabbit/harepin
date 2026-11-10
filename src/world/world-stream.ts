@@ -39,7 +39,7 @@ export class WorldStream {
     };
   }
 
-  static open(seed: number, kind: WorldKind, tones: MeshTones, opts = ""): Promise<WorldStream> {
+  static open(seed: number, kind: WorldKind, tones: MeshTones): Promise<WorldStream> {
     const worker = new Worker(new URL("../worldgen/worker.ts", import.meta.url), { type: "module" });
     return new Promise((resolve, reject) => {
       let stream: WorldStream | null = null;
@@ -52,13 +52,13 @@ export class WorldStream {
       worker.addEventListener("message", (event: MessageEvent<WorkerReply>) => {
         const reply = event.data;
         if (reply.type === "plan") {
-          stream = new WorldStream(worker, new World(seed, reply.data, [], opts));
+          stream = new WorldStream(worker, new World(seed, reply.data, []));
           resolve(stream);
         } else if (reply.type === "error") fail(new Error(`world worker: ${reply.message}`));
         else stream?.receive(reply);
       });
       worker.addEventListener("error", (event) => fail(new Error(`world worker: ${event.message}`)));
-      worker.postMessage({ type: "gen", seed, kind, opts, tones } satisfies WorkerRequest);
+      worker.postMessage({ type: "gen", seed, kind, tones } satisfies WorkerRequest);
     });
   }
 

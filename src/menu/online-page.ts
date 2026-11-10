@@ -1,7 +1,7 @@
 import { DirectoryStatus, LOBBY_ROOM, type Server } from "../net/directory";
 import { NETWORK_BLOCKED, TURNED_AWAY, WRONG_PASSWORD } from "../net/net";
 import { el, icon } from "./setting-rows";
-import { map_code, world_query } from "../world/world-pick";
+import { world_query } from "../world/world-pick";
 import { WORLDS } from "../worlds/worlds";
 import type { RaceChoice } from "../modes/races";
 import { MenuTab, invite_link, type Menu, type MenuPage } from "./page";
@@ -43,14 +43,14 @@ export class OnlinePage implements MenuPage {
   }
 
   build(): HTMLElement[] {
-    const { room, seed, kind, opts } = this.menu.host;
+    const { room, seed, kind } = this.menu.host;
     const players = el("span", "menu-caption");
-    this.menu.sync(() => (players.textContent = `${this.menu.host.players()} here · ${WORLDS[kind].name} ${map_code(seed, opts)}`));
+    this.menu.sync(() => (players.textContent = `${this.menu.host.players()} here · ${WORLDS[kind].name} ${seed}`));
     const invite = el("div", "settings-inline");
-    invite.append(copy_action("Copy invite link", invite_link(room, seed, kind, opts)));
+    invite.append(copy_action("Copy invite link", invite_link(room, seed, kind)));
     const leave_confirm = el("div", "online-confirm");
     if (room !== LOBBY_ROOM) {
-      const leave = () => this.menu.go(world_query(LOBBY_ROOM, seed, kind, opts));
+      const leave = () => this.menu.go(world_query(LOBBY_ROOM, seed, kind));
       invite.append(action("Leave room", () => (this.menu.host.race_busy() || this.menu.host.mode_active() ? (leave_confirm.hidden = false) : leave())));
       const buttons = el("div", "settings-inline");
       buttons.append(action("Leave anyway", leave), action("Stay", () => (leave_confirm.hidden = true)));

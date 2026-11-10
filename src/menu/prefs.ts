@@ -95,8 +95,6 @@ export interface SettingsState {
   /** The world the player last picked in the menu; a bare URL drives it again. Never set by an invite or a join. */
   last_world: WorldKind | null;
   last_seed: number | null;
-  /** The map options picked with `last_world`, as its option code. */
-  last_opts: string | null;
   /** Set by Drive, Skip or the last step of the first-run guide; never by an invite link. */
   guide_seen: boolean;
   /** Set once Classic, the old default steer mode, has been moved to Smooth; a later pick of Classic sticks. */
@@ -141,7 +139,6 @@ const FIELDS: { [K in SettingKey]: Field<SettingsState[K]> } = {
   show_country: flag(true),
   last_world: { fallback: null, parse: (raw) => (is_kind(raw) ? raw : null) },
   last_seed: { fallback: null, parse: (raw) => (typeof raw === "number" ? parse_seed(String(raw)) : null) },
-  last_opts: { fallback: null, parse: (raw) => (typeof raw === "string" && /^\d{0,16}$/.test(raw) ? raw : null) },
   guide_seen: { fallback: false, parse: seen_flag },
   smooth_steer: flag(true),
 };

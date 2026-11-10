@@ -112,9 +112,8 @@ export class Track {
     readonly ids: readonly string[],
     private readonly store: Store | null,
     kind: WorldKind = WorldKind.ISLAND,
-    opts = "",
   ) {
-    this.key = `harepin:${mode}:${world_key(seed, kind, opts)}`;
+    this.key = `harepin:${mode}:${world_key(seed, kind)}`;
     this.runs_ = parse_runs(read_json(store, this.key));
   }
 

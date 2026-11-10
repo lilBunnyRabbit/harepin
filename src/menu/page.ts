@@ -32,8 +32,6 @@ export interface SettingsHost {
   readonly room: string;
   readonly seed: number;
   readonly kind: WorldKind;
-  /** This world's option code; empty for the plain map. */
-  readonly opts: string;
   readonly goals: Goals;
   name(): string;
   quality_status(): QualityStatus;
@@ -92,7 +90,7 @@ export interface Menu {
   close(): void;
   show(section: string): void;
   /** A world the player picked: remembered for the next bare load, then driven in this room. */
-  drive(seed: number, kind: WorldKind, opts?: string): void;
+  drive(seed: number, kind: WorldKind): void;
   go(query: Record<string, string>): void;
 }
 
@@ -115,6 +113,6 @@ export interface MenuPage {
   on_hide?(): void;
 }
 
-export function invite_link(room: string, seed: number, kind: WorldKind = DEFAULT_KIND, opts = ""): string {
-  return `${location.origin}${location.pathname}?${new URLSearchParams(world_query(room, seed, kind, opts))}`;
+export function invite_link(room: string, seed: number, kind: WorldKind = DEFAULT_KIND): string {
+  return `${location.origin}${location.pathname}?${new URLSearchParams(world_query(room, seed, kind))}`;
 }

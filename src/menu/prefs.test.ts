@@ -40,7 +40,6 @@ describe("parse_settings", () => {
       show_country: false,
       last_world: "sky",
       last_seed: 4294967295,
-      last_opts: "10111",
       guide_seen: false,
       smooth_steer: true,
     };
@@ -60,7 +59,6 @@ describe("parse_settings", () => {
     expect(parse_settings({ volume: Number.NaN }).volume).toBe(0.8);
     expect(parse_settings({ last_seed: 4294967296 }).last_seed).toBeNull();
     expect(parse_settings({ last_seed: -1 }).last_seed).toBeNull();
-    expect(parse_settings({ last_opts: "a1" }).last_opts).toBeNull();
     expect(parse_settings({ last_seed: 1.5 }).last_seed).toBeNull();
     expect(parse_settings({ last_world: "moon" }).last_world).toBeNull();
   });

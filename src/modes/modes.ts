@@ -101,7 +101,7 @@ export class Modes {
   ) {
     this.modes = MODES.map((def) => {
       const levels = def.levels(world);
-      const track = new Track(def.id, world.seed, levels.map((level) => level.id), local_store(), world.kind, world.opts);
+      const track = new Track(def.id, world.seed, levels.map((level) => level.id), local_store(), world.kind);
       return { def, levels, track };
     });
   }

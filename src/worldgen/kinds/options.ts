@@ -36,26 +36,3 @@ export function parse_opts(options: readonly OptionDef[], code: string): number[
   const levels = [...code].map(Number);
   return levels.every((level, i) => Number.isInteger(level) && level >= 0 && level < options[i].labels.length) ? levels : null;
 }
-
-/**
- * Levels packed as a mixed-radix number, each digit the level's step past normal, so all normal packs to 0. It rides in
- * the high bits of the world id peers compare, which a u32 holds for any count of options a page can show.
- */
-export function opts_number(options: readonly OptionDef[], levels: readonly number[]): number {
-  let n = 0;
-  for (let i = options.length - 1; i >= 0; i--) {
-    const base = options[i].labels.length;
-    n = n * base + ((levels[i] - options[i].normal + base) % base);
-  }
-  return n;
-}
-
-export function levels_of_number(options: readonly OptionDef[], n: number): number[] | null {
-  const levels: number[] = [];
-  for (const o of options) {
-    const base = o.labels.length;
-    levels.push((o.normal + (n % base)) % base);
-    n = Math.floor(n / base);
-  }
-  return n === 0 ? levels : null;
-}

@@ -10,7 +10,6 @@ export interface GenRequest {
   type: "gen";
   seed: number;
   kind: WorldKind;
-  opts?: string;
   tones: MeshTones;
 }
 
@@ -61,8 +60,8 @@ function fail(error: unknown) {
   postMessage({ type: "error", message: error instanceof Error ? (error.stack ?? error.message) : String(error) } satisfies WorkerReply);
 }
 
-function open({ seed, kind, opts = "", tones }: GenRequest) {
-  const data = generate_world(seed, kind, opts);
+function open({ seed, kind, tones }: GenRequest) {
+  const data = generate_world(seed, kind);
   const spawn = data.road.at(SPAWN_INDEX) ?? data.road[0];
   if (spawn) focus = [spawn.x, spawn.z];
   const empty = { heights: new Float32Array(0), road_dist: new Float32Array(0), surface: new Uint8Array(0) };

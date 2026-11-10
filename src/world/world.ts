@@ -195,8 +195,6 @@ export class World implements Ground {
     readonly seed = 0,
     data: WorldData = generate(seed),
     tiles: readonly Tile[] = slice_tiles(data.terrain),
-    /** The map option code `data` was built with; records and ghosts are keyed by it. */
-    readonly opts = "",
   ) {
     this.kind = data.kind;
     this.grips = KINDS[data.kind].grip;

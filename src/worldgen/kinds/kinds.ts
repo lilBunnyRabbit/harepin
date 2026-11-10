@@ -3,7 +3,7 @@ import { desert } from "./desert";
 import { island } from "./island";
 import type { KindDef } from "./kind-def";
 import { mainland } from "./mainland";
-import { levels_of_number, normal_levels, opts_code, opts_number, parse_opts } from "./options";
+import { normal_levels, opts_code, parse_opts } from "./options";
 import { sky } from "./sky";
 
 export const KINDS: Record<WorldKind, KindDef> = { island, sky, desert, mainland };
@@ -15,26 +15,13 @@ export function is_kind(value: unknown): value is WorldKind {
   return typeof value === "string" && Object.hasOwn(KINDS, value);
 }
 
-/** Options ride above the kind's id, so peers on other options see a foreign map and old builds need no new field. */
-const OPTS_UNIT = 0x10000;
-
-export function world_id(kind: WorldKind, opts = ""): number {
-  const def = KINDS[kind];
-  return def.id + opts_number(def.options, levels_of(kind, opts)) * OPTS_UNIT;
+export function world_id(kind: WorldKind): number {
+  return KINDS[kind].id;
 }
 
 /** The kind behind a `world_id`; none, or an id this build doesn't know, is the default. */
 export function kind_of_world(id: number | undefined): WorldKind {
-  const base = id === undefined ? undefined : id % OPTS_UNIT;
-  return Object.values(KINDS).find((def) => def.id === base)?.kind ?? DEFAULT_KIND;
-}
-
-/** The option code behind a `world_id`; empty when it carries none this build can read. */
-export function opts_of_world(id: number | undefined): string {
-  if (id === undefined) return "";
-  const { options } = KINDS[kind_of_world(id)];
-  const levels = levels_of_number(options, Math.floor(id / OPTS_UNIT));
-  return levels ? opts_code(options, levels) : "";
+  return Object.values(KINDS).find((def) => def.id === id)?.kind ?? DEFAULT_KIND;
 }
 
 /** `text` as `kind`'s option code: canonical, or empty when it is not one. */
