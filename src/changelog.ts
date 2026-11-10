@@ -23,6 +23,15 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.15.0",
+    date: "2026-11-10",
+    title: "Calmer touch steering",
+    changes: [
+      { kind: NEW, text: "Steering sensitivity for drag steering on touch screens, from Low to Very high, in Controls." },
+      { kind: IMPROVED, text: "Drag steering is calmer by default: full lock needs a longer drag. High is the old feel." },
+    ],
+  },
+  {
     version: "0.14.1",
     date: "2026-11-10",
     title: "Tidy chip",
