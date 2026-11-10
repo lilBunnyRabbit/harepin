@@ -134,6 +134,7 @@ $("restart-lap").addEventListener("click", (event) => {
   restart_action();
 });
 lobby.on_start = () => {
+  settings.close();
   modes.exit();
   restart_lap();
   if (lobby.route !== "circuit")
