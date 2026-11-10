@@ -1,12 +1,12 @@
 import * as THREE from "three";
-import { brand, color } from "../theme/palette";
+import { brand } from "../theme/palette";
+import { item_geometry, item_material } from "../world/jumps";
 import { Marks, type Ground } from "./marks";
 import type { RaceCourse } from "./races";
 
 const LINE = 0.6;
 const GATE = 0.4;
 const DIM = 0.3;
-const CONE_SEGMENTS = 10;
 
 export class RaceView {
   private readonly marks: Marks;
@@ -29,12 +29,11 @@ export class RaceView {
   }
 
   private cones(closure: RaceCourse["route"]["closure"]): THREE.InstancedMesh {
-    const material = this.marks.track(new THREE.MeshLambertMaterial({ color: color(brand.warning) }));
-    const meshes = new THREE.InstancedMesh(this.marks.track(new THREE.ConeGeometry(1, 1, CONE_SEGMENTS).translate(0, 0.5, 0)), material, closure.length);
+    const meshes = new THREE.InstancedMesh(this.marks.track(item_geometry("cone")), this.marks.track(item_material("cone")), closure.length);
     meshes.castShadow = true;
     const matrix = new THREE.Matrix4();
     closure.forEach((solid, i) => {
-      meshes.setMatrixAt(i, matrix.makeScale(solid.radius, solid.height, solid.radius).setPosition(solid.x, solid.y, solid.z));
+      meshes.setMatrixAt(i, matrix.makeTranslation(solid.x, solid.y, solid.z));
     });
     return meshes;
   }

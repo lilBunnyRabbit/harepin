@@ -264,6 +264,10 @@ interface ItemShape {
   solid?: (x: number, y: number, z: number, fx: number, fz: number, scale: number) => Solid;
 }
 
+/** A traffic cone's size, for the baked cones and the cones a race closes roads with. */
+export const CONE_RADIUS = 0.25;
+export const CONE_HEIGHT = 0.75;
+
 export const ITEMS: Record<ItemKind, ItemShape> = {
   cone: { light: true, r: 0.3 },
   barrel: { light: true, r: 0.45 },

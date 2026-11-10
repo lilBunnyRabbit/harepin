@@ -1,4 +1,5 @@
 import { sample } from "./field";
+import { CONE_HEIGHT, CONE_RADIUS } from "./jumps";
 import { length } from "./noise";
 import type { Junction } from "./road-layers";
 import type { Trail } from "./trails";
@@ -33,8 +34,6 @@ const PAR_SHARE = 1.15;
 const FILLET_STEP = 2;
 const CONE_GAP = 2;
 const CONE_SET = 3;
-const CONE_RADIUS = 0.3;
-const CONE_HEIGHT = 0.7;
 const TRAIL_GATES = 150;
 /** A gate this many points before the take-off toe, then none until the run-out end, where the ramp-out joins. */
 const TOE_GATE = 20;

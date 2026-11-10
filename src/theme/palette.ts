@@ -93,6 +93,7 @@ export const tones = {
   leaf: mix(brand.success, dark ? brand.background : ground, 0.44),
   leaf_dark: dark ? lighten(leaf_dark, grass[0] - DUSK_CROWN_DROP - leaf_dark[0]) : leaf_dark,
   trunk: mix(brand.warning, brand.background_darkest, 0.25),
+  cone: mix(brand.warning, brand.error, 0.45),
   glass: dark ? brand.background_darkest : brand.foreground,
   tyre: dark ? above_asphalt(DUSK_TYRE_STEP) : mix(brand.foreground, brand.background_darkest, 0.8),
   trim: dark ? above_asphalt(DUSK_TRIM_STEP) : brand.foreground,

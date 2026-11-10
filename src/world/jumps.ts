@@ -3,7 +3,7 @@ import type { Car } from "../car/car";
 import { oversize } from "../car/cars";
 import { brand, dark, linear, mix, tones } from "../theme/palette";
 import { CHUNK, chunk_of } from "../worldgen/chunk-grid";
-import { challenge_outer, challenge_pieces, GRAVITY, ITEMS, PIECE_DEPTH, ramp_extent, ramp_lift } from "../worldgen/jumps";
+import { challenge_outer, challenge_pieces, CONE_HEIGHT, CONE_RADIUS, GRAVITY, ITEMS, PIECE_DEPTH, ramp_extent, ramp_lift } from "../worldgen/jumps";
 import { Builder, bounding_sphere, type Rgb } from "../worldgen/mesh";
 import type { Challenge, Item, ItemKind, Ramp } from "../worldgen/types";
 
@@ -69,10 +69,10 @@ function challenge_mesh(out: Builder, c: Challenge, t: Tones) {
   }
 }
 
-function item_geometry(kind: ItemKind): THREE.BufferGeometry {
+export function item_geometry(kind: ItemKind): THREE.BufferGeometry {
   switch (kind) {
     case "cone":
-      return new THREE.ConeGeometry(0.25, 0.75, 7).translate(0, 0.375, 0);
+      return new THREE.ConeGeometry(CONE_RADIUS, CONE_HEIGHT, 7).translate(0, CONE_HEIGHT / 2, 0);
     case "barrel":
       return new THREE.CylinderGeometry(0.3, 0.3, 0.9, 8).translate(0, 0.45, 0);
     case "hay":
@@ -86,9 +86,13 @@ function item_geometry(kind: ItemKind): THREE.BufferGeometry {
   }
 }
 
+export function item_material(kind: ItemKind): THREE.MeshLambertMaterial {
+  return new THREE.MeshLambertMaterial({ color: item_tone(kind), flatShading: true });
+}
+
 function item_tone(kind: ItemKind): THREE.Color {
   const lab = {
-    cone: mix(brand.warning, brand.error, 0.45),
+    cone: tones.cone,
     barrel: mix(brand.info, brand.background_darkest, 0.55),
     hay: mix(brand.warning, brand.foreground, 0.55),
     log: tones.trunk,
@@ -152,7 +156,7 @@ export class JumpsView {
     for (const kind of Object.keys(ITEMS) as ItemKind[]) {
       const here = data.items.filter((i) => i.kind === kind);
       if (!here.length) continue;
-      const mesh = new THREE.InstancedMesh(item_geometry(kind), new THREE.MeshLambertMaterial({ color: item_tone(kind), flatShading: true }), here.length);
+      const mesh = new THREE.InstancedMesh(item_geometry(kind), item_material(kind), here.length);
       here.forEach((item, slot) => {
         const pos = new THREE.Vector3(item.x, item.y, item.z);
         const quat = new THREE.Quaternion().setFromAxisAngle(up, Math.atan2(item.fx, item.fz));
