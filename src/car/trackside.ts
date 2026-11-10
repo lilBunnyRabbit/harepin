@@ -4,7 +4,7 @@ import { brand, color, tones } from "../theme/palette";
 import { ribbon, ribbon_material } from "../render/scene";
 import { ROAD_HALF, World } from "../world/world";
 import { chunk_of } from "../worldgen/chunk-grid";
-import { roadside_clear } from "../worldgen/road-layers";
+import { KERB_OUT, roadside_clear } from "../worldgen/road-layers";
 import type { Solid } from "../worldgen/types";
 
 export interface Gate {
@@ -102,8 +102,8 @@ export function roadside(world: World, marks: RoadsideMarks = roadside_marks(wor
   const { clear, inside } = marks;
   CURB_TONES.forEach((_, parity) => {
     for (const side of [-1, 1]) {
-      const from = side > 0 ? ROAD_HALF - 0.1 : -ROAD_HALF - 0.9;
-      const to = side > 0 ? ROAD_HALF + 0.9 : -ROAD_HALF + 0.1;
+      const from = side > 0 ? ROAD_HALF - 0.1 : -KERB_OUT;
+      const to = side > 0 ? KERB_OUT : -ROAD_HALF + 0.1;
       // Positive curvature bends toward the +side offset, so matching signs put the curb on the inside of the bend.
       const here = samples.filter((s) => inside.get(s) === side && s % 2 === parity && !clear.has(s));
       if (here.length) group.add(ribbon(world, from, to, 0.12, here, kit.curbs[parity]));

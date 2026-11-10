@@ -206,6 +206,10 @@ export function ring_mouths(data: RoadData, junctions: Junctions): Uint8Array {
 
 /** Circuit samples past a patch's mouth still kept clear: a post there would stand on the curb's last bend. */
 const MOUTH_MARGIN = 2;
+/** Outer edge of a circuit kerb, metres off the centre line. */
+export const KERB_OUT = ROAD_HALF + 0.9;
+/** Circuit samples either side of a kink tighter than a kerb's offset, where the road between towns meets a street. */
+const FOLD_CLEAR = 4;
 /** Circuit samples either side of a junction too sharp for a patch, where the side road just overlaps the circuit. */
 const LOOSE_CLEAR = 7;
 
@@ -218,7 +222,15 @@ export function roadside_clear(data: RoadData, junctions: Junctions = road_junct
   };
   ring_mouths(data, junctions).forEach((v, s) => v && around(s, MOUTH_MARGIN));
   for (const s of junctions.loose) around(s, LOOSE_CLEAR);
+  data.road.forEach((p, s) => folds(p, data.road[(s + 1) % n]) && around(s, FOLD_CLEAR));
   return clear;
+}
+
+// The kerb's edge from p to q runs backwards: the circuit turns tighter there than the kerb sits off its centre line.
+function folds(p: RoadPoint, q: RoadPoint): boolean {
+  const along = (q.x - p.x) * p.tx + (q.z - p.z) * p.tz;
+  const turn = (q.tx - p.tx) * p.tz - (q.tz - p.tz) * p.tx;
+  return along - KERB_OUT * Math.abs(turn) <= 0;
 }
 
 export function road_layers(data: RoadData, out: Roads, tones: RoadTones, junctions: Junctions = road_junctions(data)): Roads {
