@@ -130,7 +130,9 @@ function plan_pixels(data: WorldData, tones: MapTones): Uint8ClampedArray<ArrayB
   for (let j = 0; j < MAP_SIDE; j++)
     for (let i = 0; i < MAP_SIDE; i++) {
       const k = j * MAP_SIDE + i;
-      const up = (2 * step) / Math.hypot(at(i - 1, j) - at(i + 1, j), 2 * step, at(i, j - 1) - at(i, j + 1));
+      const dx = at(i - 1, j) - at(i + 1, j);
+      const dz = at(i, j - 1) - at(i, j + 1);
+      const up = (2 * step) / Math.sqrt(dx * dx + 4 * step * step + dz * dz);
       paint(colors, k, tones.terrain, cuts, (ext.origin + i * step - ORIGIN) / CELL, (ext.origin + j * step - ORIGIN) / CELL, heights[k], up, 0);
     }
   return shaded(heights, colors, tones, step);
