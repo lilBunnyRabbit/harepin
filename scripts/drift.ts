@@ -2,7 +2,8 @@ import { Vector3 } from "three";
 import { CARS, car_spec, type CarSpec } from "../src/cars";
 import type { Controls, Ground } from "../src/car";
 
-const { Car } = (await import(process.env.DRIFT_CAR ?? "../src/car")) as typeof import("../src/car");
+const physics = (await import(process.env.DRIFT_CAR ?? "../src/car")) as Partial<typeof import("../src/car")> & Pick<typeof import("../src/car"), "Car">;
+const { Car } = physics;
 type Car = InstanceType<typeof Car>;
 
 const DT = 1 / 360;
@@ -70,7 +71,9 @@ export function drift(spec: CarSpec, kmh: number, angle: number, aids: boolean, 
     if (t > GRACE && (Math.abs(Math.abs(b) - target) > LOST || local.z < 1)) break;
     const course = Math.atan2(-(local.x + car.ang.y * zf), local.z);
     const want = course + Math.sign(b) * 1.2 * (Math.abs(b) - target) + 0.12 * rate;
-    const lock = spec.lock / (1 + car.vel.length() / 45);
+    const speed = car.vel.length();
+    const slide = speed > 5 ? Math.atan2(-local.x, Math.abs(local.z)) : 0;
+    const lock = aids ? spec.lock : (physics.unassisted_lock?.(spec, speed, Math.sign(want), slide) ?? spec.lock / (1 + speed / 45));
     if (Math.abs(want) > lock) locked++;
     const before = car.vel.length();
     const rear_slip = car.wheels.filter((w) => w.driven && !w.front).reduce((most, w) => Math.max(most, w.slip), 0);

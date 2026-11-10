@@ -43,6 +43,8 @@ const USEFUL_SPEEDS = [3, 6, 12, 16] as const;
 const SLIDE_OUT = 0.1;
 /** Speeds (m/s) over which a power slide stops counting: the slide assists keep catching the car above them. */
 const SLIDE_SPEEDS = [12, 16] as const;
+/** Body slip (rad) against the held steer over which an unassisted countersteer blends to full lock. */
+const COUNTER_SLIP = [0.1, 0.2] as const;
 const STEER_RATE = 9;
 const KEY_RAMP = 0.2;
 const KEY_RAMP_MIN = 0.03;
@@ -128,6 +130,18 @@ function torque_at(curve: [number, number][], rpm: number): number {
     }
   }
   return curve[curve.length - 1][1];
+}
+
+/**
+ * Lock (rad) with the steer assist off at `speed` m/s, `steer` the held stick and `slide` the body slip (rad). It shrinks
+ * with speed so a key tap at speed is not a flick, but a countersteer gets it all back: cut, the fronts could not reach
+ * their course past 30 degrees of body slip and a power slide spun.
+ */
+export function unassisted_lock(spec: CarSpec, speed: number, steer: number, slide: number): number {
+  const [from, to] = COUNTER_SLIP;
+  const counter = Math.max(0, Math.min(1, (Math.sign(steer) * slide - from) / (to - from)));
+  const cut = spec.lock / (1 + speed / 45);
+  return cut + (spec.lock - cut) * counter;
 }
 
 function magic(s: number): number {
@@ -321,7 +335,7 @@ export class Car {
     // that catch a slide at speed (grip lock, countersteer, yaw damping) would straighten the wheels and stop it.
     const tail_out = Math.max(0, Math.min(1, (-Math.sign(this.key_steer) * beta) / SLIDE_OUT));
     const power_slide = (spec.drive === "fwd" ? 0 : 1) * walking * Math.min(1, pedal) * Math.abs(this.key_steer) * tail_out;
-    const lock = this.assist ? Math.min(spec.lock, grip_lock + (spec.lock - grip_lock) * power_slide) : spec.lock / (1 + speed / 45);
+    const lock = this.assist ? Math.min(spec.lock, grip_lock + (spec.lock - grip_lock) * power_slide) : unassisted_lock(spec, speed, this.key_steer, slide);
     let target = this.key_steer * lock;
     if (this.assist && speed > 4 && local.z > 1) target += Math.sign(beta) * Math.max(0, Math.abs(beta) - 0.1) * 0.8 * (1 - power_slide);
     if (this.assist && local.z > 1) {
