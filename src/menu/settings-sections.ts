@@ -361,7 +361,7 @@ function driving(m: SettingsMenu): HTMLElement[] {
   return [
     m.rows.toggle("Traction control", while_driving(m, "tcs", "Cuts power when the rear wheels spin."), m.value("tcs")),
     m.rows.toggle("Anti-lock brakes", while_driving(m, "abs", "Keeps steering under hard braking."), m.value("abs")),
-    m.rows.toggle("Steering assist", while_driving(m, "assist", "Counter-steers a slide for you."), m.value("assist")),
+    m.rows.toggle("Steering assist", while_driving(m, "assist", "Limits steering at speed and counter-steers a slide for you. Off, the car slides much sooner."), m.value("assist")),
     m.rows.toggle("Automatic gearbox", while_driving(m, "auto", "Shifts for you."), m.value("auto")),
     m.rows.toggle("Ghost car", while_driving(m, "ghost", "Your best lap drives beside you."), m.value("ghost")),
   ];
