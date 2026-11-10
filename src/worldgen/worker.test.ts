@@ -13,6 +13,7 @@ const SEED = 7;
 const TONES: MeshTones = {
   terrain: Float32Array.from({ length: TERRAIN_BASES * JITTER_LEVELS * 3 }, (_, i) => (i % 97) / 97),
   asphalt: [0.1, 0.1, 0.12],
+  water: [0.1, 0.3, 0.6],
   sidewalk: [0.4, 0.4, 0.38],
   line: [0.9, 0.9, 0.9],
   edge_line: [0.8, 0.8, 0.5],

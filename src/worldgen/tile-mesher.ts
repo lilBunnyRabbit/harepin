@@ -11,6 +11,8 @@ import { Roads } from "./roads";
 import { land_height } from "./terrain";
 import { TILE_SIDE, TileStore, type Tile, type VectorOut } from "./tiles";
 import { CELL, type WorldData } from "./types";
+import { water_index, type WaterIndex } from "./water";
+import { bounding_sphere } from "./mesh";
 
 // Past the desktop resident set (about 116 chunks), so a chunk streamed in at the ring edge finds its neighbours built.
 const CACHE = 160;
@@ -21,6 +23,9 @@ export interface Built {
   planted: Planted;
 }
 
+/** Water quads span this many lattice cells: low-poly, and the banks rise fast enough to hide the overhang. */
+const WATER_STEP = 2;
+
 const UP: VectorOut<number> = { set: (x, y, z) => y / Math.sqrt(x * x + y * y + z * z) };
 
 // Neighbour tiles are built too: road pieces binned to a chunk reach past its border.
@@ -30,6 +35,7 @@ export class TileMesher {
   private readonly cuts: BiomeCuts;
   private readonly junctions: Junctions;
   private readonly probe: LandProbe;
+  private readonly water: WaterIndex | null;
 
   constructor(
     private readonly data: WorldData,
@@ -43,6 +49,8 @@ export class TileMesher {
     const height = base.kind === "terrain" ? land_height(base.seed, base.shape) : () => base.height;
     this.cuts = plan_cuts(seed, plan_grid(ext, PLAN_CELL, height), biomes);
     this.junctions = road_junctions(data);
+    const op = data.ground.ops.find((o) => o.kind === "water");
+    this.water = op?.kind === "water" ? water_index(op.water) : null;
     const store = this.store;
     this.probe = { height: (x, z) => store.height(x, z), road_dist: (x, z) => store.road_dist(x, z), up: (x, z) => store.slope(x, z, UP) };
   }
@@ -67,8 +75,52 @@ export class TileMesher {
       glass: null,
       parking: null,
     };
-    const planted = plant_square(this.cuts, this.probe, x0, z0, CHUNK, (x, z) => !this.data.towns.some((t) => (t.x - x) ** 2 + (t.z - z) ** 2 < t.radius * t.radius));
+    const planted = plant_square(this.cuts, this.probe, x0, z0, CHUNK, (x, z) => !this.data.towns.some((t) => (t.x - x) ** 2 + (t.z - z) ** 2 < t.radius * t.radius) && !this.wet(x, z));
+    const water = this.water && this.surface(tile, x0, z0);
+    if (water) chunk.water = water;
     return { tile: { heights: tile.heights.slice(), road_dist: tile.road_dist.slice(), surface: tile.surface.slice() }, chunk, planted };
+  }
+
+  private wet(x: number, z: number): boolean {
+    return this.water !== null && this.water.level(x, z) > this.store.height(x, z) - 0.5;
+  }
+
+  // One flat quad per WATER_STEP cells wherever any corner is under water. A corner off the water takes the highest
+  // level among the others, so a river's edge runs on into its rising bank instead of stepping.
+  private surface(tile: Tile, x0: number, z0: number): ChunkBuffers["water"] {
+    const water = this.water as WaterIndex;
+    const side = (TILE_SIDE - 1) / WATER_STEP + 1;
+    const levels = new Float32Array(side * side);
+    for (let j = 0; j < side; j++) for (let i = 0; i < side; i++) levels[j * side + i] = water.level(x0 + i * WATER_STEP * CELL, z0 + j * WATER_STEP * CELL);
+    const positions: number[] = [];
+    const corner = [0, 0, 0, 0];
+    for (let j = 0; j < side - 1; j++)
+      for (let i = 0; i < side - 1; i++) {
+        const ks = [j * side + i, j * side + i + 1, (j + 1) * side + i + 1, (j + 1) * side + i];
+        let top = -Infinity;
+        for (const k of ks) top = Math.max(top, levels[k]);
+        if (top === -Infinity) continue;
+        let under = false;
+        for (let c = 0; c < 4; c++) {
+          const k = ks[c];
+          const level = levels[k] === -Infinity ? top : levels[k];
+          corner[c] = level;
+          const ti = (k % side) * WATER_STEP;
+          const tj = Math.floor(k / side) * WATER_STEP;
+          if (tile.heights[tj * TILE_SIDE + ti] < level) under = true;
+        }
+        if (!under) continue;
+        const xa = x0 + i * WATER_STEP * CELL;
+        const za = z0 + j * WATER_STEP * CELL;
+        const xb = xa + WATER_STEP * CELL;
+        const zb = za + WATER_STEP * CELL;
+        positions.push(xa, corner[0], za, xb, corner[2], zb, xb, corner[1], za, xa, corner[0], za, xa, corner[3], zb, xb, corner[2], zb);
+      }
+    if (!positions.length) return undefined;
+    const colors = new Float32Array(positions.length);
+    for (let v = 0; v < colors.length; v += 3) colors.set(this.tones.water, v);
+    const packed = Float32Array.from(positions);
+    return { positions: packed, colors, sphere: bounding_sphere(packed) };
   }
 
   private tile(index: number): Tile {

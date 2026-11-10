@@ -1,3 +1,4 @@
+import { water_index } from "./water";
 import { plan_cuts } from "./biomes";
 import { extent } from "./chunk-grid";
 import { paint, terrain_colors } from "./chunks";
@@ -89,7 +90,7 @@ function cloud_pixels(tones: MapTones): Uint8ClampedArray<ArrayBuffer> {
 }
 
 /** Shaded raster from heights and colours over MAP_SIDE² vertices `step` metres apart. */
-function shaded(heights: Float32Array, colors: Float32Array, tones: MapTones, step: number): Uint8ClampedArray<ArrayBuffer> {
+function shaded(heights: Float32Array, colors: Float32Array, tones: MapTones, step: number, depths: Float32Array | null = null): Uint8ClampedArray<ArrayBuffer> {
   const last = MAP_SIDE - 1;
   const pixels = new Uint8ClampedArray(MAP_SIDE * MAP_SIDE * 4);
   const at = (i: number, j: number) => heights[Math.min(last, Math.max(0, j)) * MAP_SIDE + Math.min(last, Math.max(0, i))];
@@ -99,9 +100,10 @@ function shaded(heights: Float32Array, colors: Float32Array, tones: MapTones, st
       const y = heights[k];
       let rgb: ArrayLike<number> = colors.subarray(k * 3, k * 3 + 3);
       let shade: number;
-      if (y < 0) {
+      const depth = depths ? depths[k] : -y;
+      if (depth > 0) {
         rgb = tones.water;
-        shade = 1 - (1 - DEEP_SHADE) * Math.min(1, -y / DEEP);
+        shade = 1 - (1 - DEEP_SHADE) * Math.min(1, depth / DEEP);
       } else {
         const [nx, ny, nz] = normalise([at(i - 1, j) - at(i + 1, j), 2 * step, at(i, j - 1) - at(i, j + 1)]);
         shade = Math.min(SHADE_MAX, Math.max(SHADE_MIN, (nx * SUN[0] + ny * SUN[1] + nz * SUN[2]) / SUN[1]));
@@ -124,6 +126,16 @@ function plan_pixels(data: WorldData, tones: MapTones): Uint8ClampedArray<ArrayB
   const cuts = plan_cuts(data.terrain.seed, plan_grid(ext, PLAN_CELL, height), (KINDS[data.kind].recipe ?? ISLAND).biomes);
   const heights = new Float32Array(MAP_SIDE * MAP_SIDE);
   for (let j = 0; j < MAP_SIDE; j++) for (let i = 0; i < MAP_SIDE; i++) heights[j * MAP_SIDE + i] = height(ext.origin + i * step, ext.origin + j * step);
+  const op = data.ground.ops.find((o) => o.kind === "water");
+  const water = op?.kind === "water" ? water_index(op.water) : null;
+  const depths = water && new Float32Array(MAP_SIDE * MAP_SIDE);
+  if (water && depths)
+    for (let k = 0; k < depths.length; k++) {
+      const x = ext.origin + (k % MAP_SIDE) * step;
+      const z = ext.origin + Math.floor(k / MAP_SIDE) * step;
+      const ground = Math.min(heights[k], water.bed(x, z));
+      depths[k] = Math.max(-ground, water.level(x, z) - ground);
+    }
   const last = MAP_SIDE - 1;
   const at = (i: number, j: number) => heights[Math.min(last, Math.max(0, j)) * MAP_SIDE + Math.min(last, Math.max(0, i))];
   const colors = new Float32Array(MAP_SIDE * MAP_SIDE * 3);
@@ -135,7 +147,7 @@ function plan_pixels(data: WorldData, tones: MapTones): Uint8ClampedArray<ArrayB
       const up = (2 * step) / Math.sqrt(dx * dx + 4 * step * step + dz * dz);
       paint(colors, k, tones.terrain, cuts, (ext.origin + i * step - ORIGIN) / CELL, (ext.origin + j * step - ORIGIN) / CELL, heights[k], up, 0);
     }
-  return shaded(heights, colors, tones, step);
+  return shaded(heights, colors, tones, step, depths);
 }
 
 export function map_pixels(data: WorldData, tones: MapTones): Uint8ClampedArray<ArrayBuffer> {

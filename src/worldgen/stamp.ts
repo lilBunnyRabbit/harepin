@@ -5,6 +5,7 @@ import { smoothstep } from "./noise";
 import type { Bank, TerrainRecipe } from "./recipe";
 import { pad, type Crossing } from "./trails";
 import { town_level } from "./towns";
+import { soak, water_index, type Water } from "./water";
 import { CELL, ORIGIN, ROAD_HALF, SHOULDER, SurfaceId, type Canyon, type RoadEdge, type RoadPoint, type Terrain, type Town } from "./types";
 
 // Past `core` plus two cells every vertex a lot corner can touch is fully on the plane; the plane then eases back to
@@ -43,7 +44,8 @@ export type GroundOp =
   | { kind: "blend"; bank: Bank | null }
   | { kind: "pad"; crossing: Crossing }
   | { kind: "trail"; lines: { points: readonly RoadPoint[]; blend: number[] }[] }
-  | { kind: "harden"; cuts: BiomeCuts; floor: number | null };
+  | { kind: "harden"; cuts: BiomeCuts; floor: number | null }
+  | { kind: "water"; water: Water };
 
 export type GroundBase = { kind: "terrain"; seed: number; shape: TerrainRecipe } | { kind: "flat"; height: number; road_dist: number };
 
@@ -80,6 +82,7 @@ export class Stamp {
     else if (op.kind === "blend") this.blend(op.bank);
     else if (op.kind === "pad") this.pad(op.crossing);
     else if (op.kind === "trail") this.trail(op.lines.map(({ points, blend }) => ({ points, blend: (i) => blend[i] })));
+    else if (op.kind === "water") this.water(op.water);
     else this.harden(op.cuts, op.floor);
   }
 
@@ -100,6 +103,15 @@ export class Stamp {
   harden(cuts: BiomeCuts, floor: number | null) {
     this.log({ kind: "harden", cuts, floor });
     harden(cuts, this.terrain, this.grid, floor);
+  }
+
+  water(water: Water) {
+    this.log({ kind: "water", water });
+    const index = water_index(water);
+    const { heights, surface } = this.terrain;
+    const { grid } = this;
+    for (let j = grid.j0; j <= grid.j1; j++)
+      for (let i = grid.i0; i <= grid.i1; i++) soak(index, heights, surface, at(grid, i, j), ORIGIN + i * CELL, ORIGIN + j * CELL, SurfaceId.WET);
   }
 
   plateau(town: Town) {

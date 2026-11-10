@@ -12,6 +12,7 @@ for (let i = 0; i < lut.length; i++) lut[i] = (i % 97) / 97;
 export const MESH_TONES: MeshTones = {
   terrain: lut,
   asphalt: [ASPHALT, 0, 0],
+  water: [0.1, 0.3, 0.6],
   sidewalk: [2, 0, 0],
   line: [3, 0, 0],
   edge_line: [4, 0, 0],

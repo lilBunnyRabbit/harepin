@@ -5,6 +5,7 @@ import { MAINLAND, type Recipe } from "./recipe";
 import { circuit_route, heading } from "./routes";
 import type { GroundOp } from "./stamp";
 import { land_height } from "./terrain";
+import { plan_water } from "./water";
 import { CELL, WorldKind, type Checkpoint, type RoadPoint, type WorldData } from "./types";
 
 const CHECKPOINTS = 16;
@@ -34,9 +35,13 @@ export function plan_mainland(seed: number, recipe: Recipe = MAINLAND): Mainland
   lap("plan grid");
   const { graph, towns, circuit, road } = mainland_network(seed, grid, recipe.towns);
   lap("network");
-  // Stamp order as the island's: plateaus, then the circuit, then every other edge by id, then one blend.
+  const water = recipe.water ? plan_water(grid, recipe.water, graph.edges, towns) : null;
+  lap("water");
+  // Water first, so towns and roads level over its channels: a road crossing a river is a ford at grade.
+  // Then stamp order as the island's: plateaus, then the circuit, then every other edge by id, then one blend.
   const on_circuit = new Set(circuit);
   const ops: GroundOp[] = [
+    ...(water ? [{ kind: "water", water } satisfies GroundOp] : []),
     ...towns.map((town): GroundOp => ({ kind: "plateau", town })),
     ...circuit.map((id): GroundOp => ({ kind: "edge", edge: graph.edges[id], bank: recipe.road.bank })),
     ...graph.edges.filter((e) => !on_circuit.has(e.id)).map((edge): GroundOp => ({ kind: "edge", edge, bank: recipe.road.bank })),

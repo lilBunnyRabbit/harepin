@@ -53,6 +53,7 @@ export function mesh_tones(): MeshTones {
   return {
     terrain: terrain_lut(),
     asphalt: linear(tones.asphalt),
+    water: linear(tones.water),
     sidewalk: linear(tones.sidewalk),
     line: linear(tones.line),
     edge_line: linear(tones.edge_line),
@@ -70,6 +71,7 @@ interface ChunkView {
   group: THREE.Group;
   terrain: THREE.BufferGeometry | null;
   road: THREE.BufferGeometry | null;
+  water: THREE.BufferGeometry | null;
   full: number;
   trees: THREE.Object3D[];
   town: TownChunk | undefined;
@@ -86,6 +88,8 @@ export class WorldView {
   private readonly views: (ChunkView | undefined)[] = [];
   private readonly terrain = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
   private readonly road = [-2, -4].map((offset) => new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, polygonOffset: true, polygonOffsetFactor: offset, polygonOffsetUnits: offset, side: THREE.DoubleSide }));
+  // The sea plane's look, so a river meets the sea in one tone.
+  private readonly water = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, transparent: true, opacity: 0.9 });
   private readonly tree_kit = tree_kit();
   private readonly tree_lists: Map<number, Tree[]>;
   private readonly tree_order: Map<Tree, number>;
@@ -127,6 +131,13 @@ export class WorldView {
       mesh.receiveShadow = true;
       group.add(mesh);
     }
+    let water: THREE.BufferGeometry | null = null;
+    if (chunk.water) {
+      water = soup_geometry(chunk.water);
+      const mesh = new THREE.Mesh(water, this.water);
+      mesh.receiveShadow = true;
+      group.add(mesh);
+    }
     if (trees) this.trees.set(chunk.index, tree_meshes(this.tree_kit, trees, null));
     else if (!this.trees.has(chunk.index)) this.trees.set(chunk.index, tree_meshes(this.tree_kit, this.tree_lists.get(chunk.index) ?? [], this.tree_order));
     if (!this.towns.has(chunk.index)) this.towns.set(chunk.index, this.town_kit.build(chunk));
@@ -135,7 +146,7 @@ export class WorldView {
     if (here.length) group.add(...here);
     if (town) group.add(...town.objects);
     this.root.add(group);
-    this.views[chunk.index] = { x0: chunk.x0, z0: chunk.z0, group, terrain: ground, road, full: chunk.terrain?.full ?? 0, trees: here, town, far: null, trees_shown: null };
+    this.views[chunk.index] = { x0: chunk.x0, z0: chunk.z0, group, terrain: ground, road, water, full: chunk.terrain?.full ?? 0, trees: here, town, far: null, trees_shown: null };
   }
 
   /** A compact world's trees and town objects stay built for the chunk's return; a streamed chunk's are rebuilt when it comes back. */
@@ -145,6 +156,7 @@ export class WorldView {
     this.root.remove(view.group);
     view.terrain?.dispose();
     view.road?.dispose();
+    view.water?.dispose();
     if (this.streamed) {
       for (const tree of view.trees) if (tree instanceof THREE.InstancedMesh) tree.dispose();
       this.trees.delete(index);

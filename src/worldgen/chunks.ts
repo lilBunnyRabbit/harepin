@@ -38,6 +38,7 @@ const LINE_HALF = 0.06;
 export interface MeshTones extends RoadTones {
   /** Base-major, JITTER_LEVELS lightness steps per base: the Ground surfaces in order, each half-way to rock, rock, snow. */
   terrain: Float32Array;
+  water: Rgb;
   walls: Rgb[];
   roofs: Rgb[];
   roof_flat: Rgb;
@@ -63,6 +64,8 @@ export interface ChunkBuffers {
   buildings: (Soup & { big: number }) | null;
   glass: { positions: Float32Array<ArrayBuffer>; big: number; sphere: Sphere } | null;
   parking: Soup | null;
+  /** Lake and river surface; left out where a chunk holds none, and on kinds that plan no water. */
+  water?: Soup;
 }
 
 function jitter(i: number, j: number): number {
@@ -292,7 +295,7 @@ export function chunk_transfers(chunks: ChunkBuffers[]): ArrayBuffer[] {
   const out: ArrayBuffer[] = [];
   for (const c of chunks) {
     if (c.terrain) out.push(c.terrain.positions.buffer, c.terrain.colors.buffer, c.terrain.index.buffer);
-    for (const part of [c.road, c.buildings, c.parking]) if (part) out.push(part.positions.buffer, part.colors.buffer);
+    for (const part of [c.road, c.buildings, c.parking, c.water]) if (part) out.push(part.positions.buffer, part.colors.buffer);
     if (c.glass) out.push(c.glass.positions.buffer);
   }
   return out;
