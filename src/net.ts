@@ -273,7 +273,7 @@ export class Net {
     this.link = new Link(this.id, local, p2p);
     this.cars = this.link.channel("car", sanitize);
     this.chats = this.link.channel("chat", sanitize_chat, () => new RateLimit());
-    this.events = this.link.channel("event", sanitize_event, () => new RateLimit());
+    this.events = this.link.channel("event", sanitize_event, () => new RateLimit(), (id) => this.same_map.has(id) || this.remotes.has(id));
     this.hello = this.link.channel("hello", sanitize_hello);
     this.cars.subscribe((state) => this.receive(state));
     this.hello.subscribe((hello, sender) => this.hellos.set(sender, hello));

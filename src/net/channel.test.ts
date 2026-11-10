@@ -84,3 +84,16 @@ test("same-browser tabs hear each other over the BroadcastChannel, a targeted se
   await new Promise((resolve) => setTimeout(resolve, 50));
   expect(heard.sort()).toEqual(["b<a:all", "b<a:just b", "c<a:all"]);
 });
+
+test("a refused sender spends none of its rate limit", () => {
+  const { room, hear } = fake_room();
+  const link = new Link("self", new BroadcastChannel("test-accept"), room);
+  const known = new Set<string>();
+  const heard: string[] = [];
+  link.channel("ping", text, () => new RateLimit(), (id) => known.has(id)).subscribe((t, from) => heard.push(`${from}:${t}`));
+  hear("ping", "early", "x");
+  known.add("x");
+  hear("ping", "1", "x");
+  hear("ping", "2", "x");
+  expect(heard).toEqual(["x:1"]);
+});

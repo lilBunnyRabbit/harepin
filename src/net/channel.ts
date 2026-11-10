@@ -10,11 +10,15 @@ export interface Channel<T> {
 /** Shape-checks a peer's payload; null drops it. */
 export type Sanitize<T> = (raw: unknown, sender: string) => T | null;
 
+/** Whether this sender may be heard at all; checked before the rate limit, so a refused packet spends none of it. */
+export type Accept = (sender: string) => boolean;
+
 const dropped = (error: unknown) => console.debug("net: send dropped", error);
 
 /**
  * One room's transports: trystero for remote peers and a BroadcastChannel for same-browser tabs. Every channel's
- * payload is sanitized and, with a `limit`, rate-limited per sender before any subscriber sees it.
+ * payload is sanitized, then, when given, checked by `accept` and rate-limited per sender by `limit` before any
+ * subscriber sees it.
  */
 export class Link {
   private readonly receivers = new Map<string, (raw: unknown, sender: string) => void>();
@@ -28,12 +32,12 @@ export class Link {
     local.onmessage = (event: MessageEvent<unknown>) => this.receive_local(event.data);
   }
 
-  channel<T extends DataPayload>(name: string, sanitize: Sanitize<T>, limit?: () => RateLimit): Channel<T> {
+  channel<T extends DataPayload>(name: string, sanitize: Sanitize<T>, limit?: () => RateLimit, accept?: Accept): Channel<T> {
     const subscribers = new Set<(data: T, sender: string) => void>();
     const limits = new Map<string, RateLimit>();
     if (limit) this.limits.push(limits);
     const receive = (raw: unknown, sender: string) => {
-      if (sender === this.self) return;
+      if (sender === this.self || (accept && !accept(sender))) return;
       const data = sanitize(raw, sender);
       if (!data) return;
       if (limit) {
