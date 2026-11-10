@@ -175,6 +175,12 @@ export interface Bank {
   reach: number;
 }
 
+/** A road kicker's toe needs the circuit before it to fall no steeper than `grade` over `reach` metres: braking down a steep run-up for the lip puts a car off the road. */
+export interface Runup {
+  grade: number;
+  reach: number;
+}
+
 export interface RoadRecipe {
   /** Ring control radius: base plus noise times swing, clamped to min..max. */
   loop: { radius: number; swing: number; min: number; max: number };
@@ -187,6 +193,8 @@ export interface RoadRecipe {
   /** The canyon runs down to ground under `outlet` metres; null = no canyon. */
   canyon: { outlet: number } | null;
   kickers: { road: number; total: number; big: number };
+  /** Null puts a road kicker after any descent the road allows. */
+  runup: Runup | null;
   /** Cut and fill banks wider than the fixed shoulder; null keeps the shoulder. */
   bank: Bank | null;
 }
@@ -267,7 +275,7 @@ export const ISLAND: Recipe = {
       upland: { cut: 0.5, above: Ground.DRY, below: Ground.UPLAND, soft: 0 },
     },
   },
-  road: { loop: { radius: 620, swing: 640, min: 380, max: 860 }, straights: null, stacks: [4, 2], tongue: true, canyon: { outlet: 2 }, kickers: { road: 4, total: 12, big: 3 }, bank: null },
+  road: { loop: { radius: 620, swing: 640, min: 380, max: 860 }, straights: null, stacks: [4, 2], tongue: true, canyon: { outlet: 2 }, kickers: { road: 4, total: 12, big: 3 }, runup: null, bank: null },
   towns: { min: 3, max: 6, trees: true, block: { min: 45, span: 25 }, top: 60, layout: "grid", roofs: "mixed" },
   landmarks: [Landmark.MAST, Landmark.LIGHTHOUSE, Landmark.TURBINES, Landmark.ARCH],
   scatter: [],
@@ -309,7 +317,7 @@ export const DESERT: Recipe = {
       upland: { cut: 0.5, above: Ground.UPLAND, below: Ground.DUNE, soft: SOFT },
     },
   },
-  road: { loop: { radius: 650, swing: 500, min: 420, max: 850 }, straights: 4, stacks: [], tongue: false, canyon: { outlet: 24 }, kickers: { road: 4, total: 16, big: 4 }, bank: null },
+  road: { loop: { radius: 650, swing: 500, min: 420, max: 850 }, straights: 4, stacks: [], tongue: false, canyon: { outlet: 24 }, kickers: { road: 4, total: 16, big: 4 }, runup: null, bank: null },
   towns: { min: 1, max: 3, trees: false, block: { min: 35, span: 15 }, top: 60, layout: "grid", roofs: "flat" },
   landmarks: [Landmark.MAST, Landmark.TURBINES],
   scatter: [
@@ -362,7 +370,7 @@ export const ALPINE: Recipe = {
       upland: { cut: 0.5, above: Ground.UPLAND, below: Ground.DRY, soft: 0.2 },
     },
   },
-  road: { loop: { radius: 600, swing: 260, min: 500, max: 700 }, straights: null, stacks: [4, 2], tongue: true, canyon: null, kickers: { road: 2, total: 8, big: 2 }, bank: { run: 3.75, reach: 64 } },
+  road: { loop: { radius: 600, swing: 260, min: 500, max: 700 }, straights: null, stacks: [4, 2], tongue: true, canyon: null, kickers: { road: 2, total: 8, big: 2 }, runup: { grade: 0.1, reach: 100 }, bank: { run: 3.75, reach: 64 } },
   towns: { min: 2, max: 3, trees: true, block: { min: 35, span: 15 }, top: 110, layout: "strip", roofs: "steep" },
   landmarks: [Landmark.MAST],
   scatter: [{ kind: PropKind.BOULDER, spacing: 60, odds: 0.08, biomes: ["meadow", "upland"], road_within: Infinity }],

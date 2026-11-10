@@ -1,6 +1,8 @@
 import { expect, test } from "bun:test";
 import { sweep } from "../../sweep";
 import { sample } from "../field";
+import { steep_runup } from "../jumps";
+import { ALPINE } from "../recipe";
 import { crest_crossings, terrain } from "../terrain";
 import { town_level } from "../towns";
 import { WorldKind, parse_kind, type WorldData } from "../types";
@@ -58,6 +60,20 @@ test("the alpine circuit crosses the range over a pass, never through a trench i
         const p = road[(index + k + road.length) % road.length];
         for (const d of [-40, -20, 0, 20, 40]) expect(sample(raw, p.x + d * p.tz, p.z - d * p.tx) - p.y).toBeLessThan(16);
       }
+  }
+}, ALPINE_TIMEOUT);
+
+test("an alpine road kicker never sits at the foot of a steep descent", () => {
+  const runup = ALPINE.road.runup;
+  if (!runup) throw new Error("alpine sets a kicker run-up");
+  for (const seed of sweep(10)) {
+    const { road, ramps } = alpine(seed);
+    for (const r of ramps) {
+      if (!r.road) continue;
+      const toe = road.findIndex((p) => p.x === r.x && p.z === r.z);
+      expect(toe).toBeGreaterThanOrEqual(0);
+      expect(steep_runup(road, toe, runup)).toBe(false);
+    }
   }
 }, ALPINE_TIMEOUT);
 

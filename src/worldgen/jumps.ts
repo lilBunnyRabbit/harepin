@@ -2,7 +2,7 @@ import { mulberry32, sub } from "../rng";
 import { sample, up, vertex } from "./field";
 import type { GapJump } from "./gap";
 import { circle16, length } from "./noise";
-import { ISLAND, type RoadRecipe } from "./recipe";
+import { ISLAND, type RoadRecipe, type Runup } from "./recipe";
 import { CELL, ORIGIN, ROAD_HALF, SIZE, type Challenge, type ChallengeKind, type Item, type ItemKind, type Lot, type Ramp, type RampKind, type RoadPoint, type Solid, type Terrain, type Town } from "./types";
 
 export const GRAVITY = 9.81;
@@ -313,6 +313,18 @@ const CHICANE_KINDS: ItemKind[] = ["cone", "barrel", "hay"];
 /** Most the ground may stray under a heavy box's corners from its centre: worldcheck's grounding limit, less a margin. */
 const LEVEL = 0.2;
 
+export function steep_runup(road: readonly RoadPoint[], toe: number, runup: Runup): boolean {
+  const n = road.length;
+  for (let k = 1, along = 0; along < runup.reach && k < n; k++) {
+    const a = road[(toe - k + n) % n];
+    const b = road[(toe - k + 1 + n) % n];
+    const run = length(b.x - a.x, b.z - a.z);
+    if (a.y - b.y > runup.grade * run) return true;
+    along += run;
+  }
+  return false;
+}
+
 export class JumpPlanner {
   readonly out: Jumps;
   private readonly next: () => number;
@@ -505,12 +517,13 @@ export class JumpPlanner {
     return false;
   }
 
-  circuit(road: RoadPoint[], gates: Spot[]) {
+  circuit(road: RoadPoint[], gates: Spot[], runup: Runup | null) {
     const n = road.length;
     const start = Math.floor(this.next() * n);
     let placed = 0;
     for (let k = 0; k < n && placed < this.caps.road; k += ROAD_STRIDE) {
       const toe = (start + k) % n;
+      if (runup && steep_runup(road, toe, runup)) continue;
       const p = road[toe];
       const q = road[(toe + ROAD_KICKER.length / 2) % n];
       const d = length(q.x - p.x, q.z - p.z);

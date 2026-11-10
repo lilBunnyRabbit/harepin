@@ -198,7 +198,7 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   planner.keep_off([...trails.trails.flatMap((t) => t.points), ...trails.ramp_out]);
   // Points of the switchback count as gates, so no kicker or chicane lands inside it.
   const climb = stack ? road.filter((p, i) => i % STACK_GATE === 0 && inside(stack, p.x, p.z, 0)) : [];
-  planner.circuit(road, [...checkpoints, ...nodes.filter((n) => n.kind === "junction"), road[(SPAWN_INDEX + road.length) % road.length], ...climb]);
+  planner.circuit(road, [...checkpoints, ...nodes.filter((n) => n.kind === "junction"), road[(SPAWN_INDEX + road.length) % road.length], ...climb], recipe.road.runup);
   planner.hills();
   planner.roadside(road);
   planner.open();
