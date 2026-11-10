@@ -1074,10 +1074,10 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
   const wheels = wheel_axles.map((axle) => {
     const steer = new THREE.Group();
     const spin = new THREE.Group();
-    const mesh = new THREE.Mesh(tyres[axle], wheel_material);
+    const mesh = new THREE.Mesh(tyres[Math.min(axle, 1)], wheel_material);
     mesh.castShadow = true;
     spin.add(mesh);
-    steer.add(spin, new THREE.Mesh(calipers[axle], wheel_material));
+    steer.add(spin, new THREE.Mesh(calipers[Math.min(axle, 1)], wheel_material));
     root.add(steer);
     return steer;
   });
