@@ -1,7 +1,19 @@
 import { expect, test } from "bun:test";
 import { sweep } from "../../sweep";
-import { WorldKind, parse_kind } from "../types";
+import { sample } from "../field";
+import { crest_crossings, terrain } from "../terrain";
+import { WorldKind, parse_kind, type WorldData } from "../types";
 import { generate_world, KINDS, kind_of_world, world_id, world_key } from "./kinds";
+
+/** Road points either side of a crest crossing, 2 m apart, that the pass must hold. */
+const PASS_REACH = 60;
+
+const alpine_worlds = new Map<number, WorldData>();
+function alpine(seed: number): WorldData {
+  let world = alpine_worlds.get(seed);
+  if (!world) alpine_worlds.set(seed, (world = generate_world(seed, WorldKind.ALPINE)));
+  return world;
+}
 
 test("ids and keys match what saved records and older peers use", () => {
   expect(world_id(WorldKind.ISLAND)).toBe(6);
@@ -19,9 +31,28 @@ test("a land kind's world carries its own kind, so grip, mood and dressing follo
 
 test("every alpine seed joins a strip village to the circuit", () => {
   for (const seed of sweep(10)) {
-    const world = generate_world(seed, WorldKind.ALPINE);
+    const world = alpine(seed);
     expect(world.towns.length).toBeGreaterThan(0);
     expect(world.graph.edges.some((e) => e.kind === "highway" && !world.circuit.includes(e.id))).toBe(true);
+  }
+});
+
+test("the alpine circuit crosses the range over a pass, never through a trench in its crest", () => {
+  for (const seed of sweep(10)) {
+    const world = alpine(seed);
+    const base = world.ground.base;
+    if (base.kind !== "terrain") throw new Error("alpine ground is terrain");
+    const range = base.shape.find((layer) => layer.kind === "range");
+    if (range?.kind !== "range") throw new Error("alpine has a range");
+    const raw = terrain(seed, base.shape).heights;
+    const road = world.road;
+    const crossings = crest_crossings(seed, range, road.map((p): [number, number] => [p.x, p.z]));
+    expect(crossings.length).toBeGreaterThanOrEqual(2);
+    for (const { index } of crossings)
+      for (let k = -PASS_REACH; k <= PASS_REACH; k++) {
+        const p = road[(index + k + road.length) % road.length];
+        for (const d of [-40, -20, 0, 20, 40]) expect(sample(raw, p.x + d * p.tz, p.z - d * p.tx) - p.y).toBeLessThan(16);
+      }
   }
 });
 

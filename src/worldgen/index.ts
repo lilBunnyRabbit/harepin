@@ -7,7 +7,7 @@ import { Lots } from "./lots";
 import { plan_canyon } from "./canyon";
 import { split_circuit, type Join } from "./graph";
 import { link_towns, way_toward, ways } from "./links";
-import { loop_road } from "./path";
+import { loop_heights, loop_path, road_points } from "./path";
 import { circuit_route, offroad_routes, reverse_circuit, street_routes } from "./routes";
 import { join_candidates, MIN_RADIUS, Router, SHAPE_GRADE, spur_need, spur_points, tightest, type Way } from "./route";
 import type { Path } from "./path";
@@ -15,7 +15,7 @@ import { scatter } from "./scatter";
 import { Stamp } from "./stamp";
 import { road_junctions } from "./road-layers";
 import { guard_rails, inside } from "./switchback";
-import { pan_floor, terrain } from "./terrain";
+import { pan_floor, terrain, with_passes } from "./terrain";
 import { plan_trails } from "./trails";
 import { place_towns, town_streets } from "./towns";
 import { ISLAND, type Landmark, type Recipe } from "./recipe";
@@ -53,11 +53,16 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
     clock = now;
   };
 
-  const land = terrain(seed, recipe.terrain);
+  let land = terrain(seed, recipe.terrain);
+  const planned = loop_path(seed, land.heights, recipe.road);
+  // A range dips into a pass wherever the planned circuit crosses its crest, so the land is drawn again over the passes.
+  const shape = with_passes(seed, recipe.terrain, planned.path);
+  if (shape !== recipe.terrain) land = terrain(seed, shape);
   const { heights, road_dist } = land;
   lap("terrain");
 
-  const { road, stack } = loop_road(seed, heights, recipe.road);
+  const { stack } = planned;
+  const road = road_points(planned.path, loop_heights(planned, heights), true);
   const canyon = recipe.road.canyon ? plan_canyon(seed, heights, road, recipe.road.canyon.outlet) : null;
   const stamp = new Stamp(land);
   if (canyon) stamp.carve(canyon);
@@ -225,8 +230,8 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   const strewn = scatter(cuts, land, recipe.scatter, free, [...trails.trails.flatMap((t) => t.points), ...trails.ramp_out]);
   props.push(...strewn.props);
   solids.push(...strewn.solids);
-  stamp.harden(cuts, pan_floor(seed, recipe.terrain));
+  stamp.harden(cuts, pan_floor(seed, shape));
   lap("props");
 
-  return { kind, deck: null, terrain: land, ground: { base: { kind: "terrain", seed, shape: recipe.terrain }, ops: stamp.ops }, graph, towns, lots: lot_list, buildings, props, parking, trees, solids, ramps: jumps.ramps, items: jumps.items, challenges: jumps.challenges, checkpoints, circuit, road, routes, canyon, timings };
+  return { kind, deck: null, terrain: land, ground: { base: { kind: "terrain", seed, shape }, ops: stamp.ops }, graph, towns, lots: lot_list, buildings, props, parking, trees, solids, ramps: jumps.ramps, items: jumps.items, challenges: jumps.challenges, checkpoints, circuit, road, routes, canyon, timings };
 }

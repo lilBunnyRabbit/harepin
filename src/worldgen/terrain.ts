@@ -86,18 +86,45 @@ function pan(h: number, level: number, blend: number): number {
   return level + (blend * (t + 1) * (t + 1)) / 4;
 }
 
-// Crest line along the heading, meandering over noise; teeth from ridged noise; each pass a smoothstep dip on the crest.
+/** Offset of a range's crest line from its middle, across the heading, `along` metres along it. */
+function crest_of(layer: RangeLayer, seed: number, along: number): number {
+  return (fbm(along / RANGE_BEND, 0.5, seed + layer.seed, 3) - 0.5) * 2 * layer.meander;
+}
+
+// Crest line along the heading, meandering over noise; teeth from ridged noise; each pass a smoothstep dip on the crest,
+// the deepest one winning where two overlap.
 function range(layer: RangeLayer, seed: number, ax: number, az: number, x: number, z: number): number {
-  const s = seed + layer.seed;
   const along = x * ax + z * az;
   const across = z * ax - x * az;
-  const crest = (fbm(along / RANGE_BEND, 0.5, s, 3) - 0.5) * 2 * layer.meander;
-  const fall = 1 - smoothstep(0, layer.width, Math.abs(across - crest));
+  const fall = 1 - smoothstep(0, layer.width, Math.abs(across - crest_of(layer, seed, along)));
   if (fall <= 0) return 0;
-  const teeth = 1 - Math.abs(2 * fbm(along / RANGE_TEETH, across / (RANGE_TEETH / 2), s + 3, 4) - 1);
-  const { at, depth, width } = layer.saddle;
-  const dip = depth * (1 - smoothstep(0, width, Math.abs(Math.abs(along) - at)));
-  return fall * layer.height * (1 - layer.saw + layer.saw * teeth) * (1 - dip);
+  const teeth = 1 - Math.abs(2 * fbm(along / RANGE_TEETH, across / (RANGE_TEETH / 2), seed + layer.seed + 3, 4) - 1);
+  const { at, depth, floor, width } = layer.saddle;
+  let dip = 0;
+  for (const a of at) dip = Math.max(dip, 1 - smoothstep(floor, width, Math.abs(along - a)));
+  return fall * layer.height * (1 - layer.saw + layer.saw * teeth) * (1 - depth * dip);
+}
+
+/** Where the closed `path` crosses a range's crest line: the point before each crossing and how far along the range it is. */
+export function crest_crossings(seed: number, layer: RangeLayer, path: readonly (readonly [number, number])[]): { index: number; along: number }[] {
+  const { x: ax, z: az } = wind_of(seed, layer.seed);
+  const along = path.map(([x, z]) => x * ax + z * az);
+  const side = path.map(([x, z], i) => z * ax - x * az - crest_of(layer, seed, along[i]));
+  const out: { index: number; along: number }[] = [];
+  for (let i = 0; i < path.length; i++) {
+    const j = (i + 1) % path.length;
+    if (side[i] < 0 === side[j] < 0) continue;
+    out.push({ index: i, along: along[i] + ((along[j] - along[i]) * side[i]) / (side[i] - side[j]) });
+  }
+  return out;
+}
+
+/** The shape with each range's passes where the closed `path` crosses its crest; the shape itself when it has no range. */
+export function with_passes(seed: number, shape: TerrainRecipe, path: readonly (readonly [number, number])[]): TerrainRecipe {
+  if (!shape.some((layer) => layer.kind === "range")) return shape;
+  return shape.map((layer) =>
+    layer.kind === "range" ? { ...layer, saddle: { ...layer.saddle, at: crest_crossings(seed, layer, path).map((c) => c.along) } } : layer,
+  );
 }
 
 /** A layer with what it draws from the seed once: the peak's position, the dunes' wind or range's heading, or the pan's level. */

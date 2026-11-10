@@ -81,10 +81,15 @@ export interface PanLayer {
   blend: number;
 }
 
-/** Passes `at` metres either side of the range's middle, dipping the crest by `depth` of its height over `width` metres. */
+/**
+ * Passes centred `at` metres along the range from its middle, each dipping the crest by `depth` of its height: flat for
+ * `floor` metres either side, rising back to the full crest by `width`. The circuit is planned over the recipe's `at`;
+ * the generator then moves the passes to where it crosses the crest.
+ */
 export interface Saddle {
-  at: number;
+  at: readonly number[];
   depth: number;
+  floor: number;
   width: number;
 }
 
@@ -323,7 +328,7 @@ export const MAINLAND: Recipe = {
   water: { rivers: { count: 3, head: 120, width: [3, 11], depth: [1.2, 2.6] }, lakes: { count: 4, depth: 2, min: 4, max: 400 } },
 };
 
-const RANGE: RangeLayer = { kind: "range", seed: 23, height: 235, width: 480, meander: 120, saw: 0.5, saddle: { at: 600, depth: 0.62, width: 260 } };
+const RANGE: RangeLayer = { kind: "range", seed: 23, height: 235, width: 480, meander: 120, saw: 0.5, saddle: { at: [-600, 600], depth: 0.88, floor: 100, width: 360 } };
 
 /**
  * A saw-tooth range through the middle with a pass where the circuit crosses it on either side, valleys under a ring of
