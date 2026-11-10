@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import type { QualityMode, QualityTier } from "./settings";
+import type { QualityMode, QualityTier } from "./menu/prefs";
 
 export interface Tier {
   max_ratio: number;

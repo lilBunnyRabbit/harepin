@@ -1,14 +1,12 @@
 import { $ } from "./hud";
 import type { Action } from "./input";
+import { TouchSteer } from "./menu/prefs";
 
 const STEER_RANGE = 70;
 const STEER_DEADZONE = 6;
 const STEER_CURVE = 1.4;
 /** Least pedal a zone press gives: a thumb landing low on a pedal, or below it, still drives. */
 const PEDAL_FLOOR = 0.25;
-
-export const TouchSteer = { DRAG: "drag", BUTTONS: "buttons" } as const;
-export type TouchSteer = (typeof TouchSteer)[keyof typeof TouchSteer];
 
 const CONTROLS = ["steer", "left", "right", "pedals", "throttle", "brake", "handbrake", "nitro", "rewind", "reset", "camera"] as const;
 type Control = (typeof CONTROLS)[number];

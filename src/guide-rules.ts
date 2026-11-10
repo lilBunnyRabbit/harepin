@@ -1,7 +1,10 @@
 // Settings saved before the flag existed, a stored theme or a stored build all mean a player who has been here before.
 export function guide_seen_on_load(raw: unknown, played: boolean): boolean {
   if (typeof raw !== "object" || raw === null) return played;
-  const seen = (raw as Record<string, unknown>).guide_seen;
+  return seen_flag((raw as Record<string, unknown>).guide_seen);
+}
+
+export function seen_flag(seen: unknown): boolean {
   return typeof seen === "boolean" ? seen : true;
 }
 

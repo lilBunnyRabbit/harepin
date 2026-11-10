@@ -5,9 +5,9 @@ import type { RaceChoice } from "./modes/races";
 import { MAX_STARS } from "./modes/track";
 import { DirectoryStatus, PASSWORD_LENGTH, ROOM_LENGTH, clean_password, clean_room, locked_name, save_lock, type Server } from "./directory";
 import { clean_name, parse_seed } from "./net";
-import { BUILD_KEY } from "./garage";
 import { GUIDE_PARAM, Guide, ROLLED_VISIT, type GuideStep } from "./guide";
-import { guide_seen_on_load } from "./guide-rules";
+import { CameraReturn, CameraView, DEFAULT_SETTINGS, DashPlace, HudLayout, LAPS, QualityMode, TouchSteer, type Laps, type QualityTier, type SettingKey, type SettingsState } from "./menu/prefs";
+import { mark_drive, read_saved, write_saved } from "./menu/prefs-store";
 import { HARMONIES as HARMONY_HUES, Harmony, generate_theme, is_dark, type ThemeMode } from "./random-theme";
 import { mulberry32 } from "./rng";
 import { Rows, el, icon, read, type Options, type RowHelp, type Text, type Value } from "./setting-rows";
@@ -17,7 +17,6 @@ import { WORLDS } from "./worlds/worlds";
 import { world_query } from "./world-pick";
 import {
   THEMES,
-  THEME_KEY,
   THEME_NAME_LENGTH,
   TOKENS,
   choose_theme,
@@ -34,195 +33,11 @@ import {
   type SavedTheme,
   type ThemeBase,
 } from "./theme";
-import { TouchSteer } from "./touch";
 import { WorldMap } from "./world-map";
 import type { MapData } from "./worldgen/map";
 import "./settings.css";
 import "./menu.css";
 
-export const SETTINGS_KEY = "harepin:settings";
-
-export const QualityMode = {
-  AUTO: "auto",
-  HIGH: "high",
-  MEDIUM: "medium",
-  LOW: "low",
-} as const;
-export type QualityMode = (typeof QualityMode)[keyof typeof QualityMode];
-export type QualityTier = Exclude<QualityMode, "auto">;
-
-export const CameraView = {
-  CHASE: "chase",
-  COCKPIT: "cockpit",
-} as const;
-export type CameraView = (typeof CameraView)[keyof typeof CameraView];
-
-/** When a mouse look moved off the chase angle eases back behind the car, once the car drives. */
-export const CameraReturn = {
-  OFF: "off",
-  SHORT: "short",
-  LONG: "long",
-  NEVER: "never",
-} as const;
-export type CameraReturn = (typeof CameraReturn)[keyof typeof CameraReturn];
-
-/** Seconds of driving before the camera eases back; `off` returns at once. */
-export const CAMERA_RETURN_SECONDS: Record<CameraReturn, number> = { off: 0, short: 1.5, long: 3, never: Infinity };
-
-/** Where the HUD pieces sit; each is a CSS layout keyed on `data-hud` on the root. */
-export const HudLayout = {
-  MINIMAL: "minimal",
-  CLASSIC: "classic",
-  RACING: "racing",
-  COMPACT: "compact",
-} as const;
-export type HudLayout = (typeof HudLayout)[keyof typeof HudLayout];
-
-/** Where the dash (speed, gear, revs, aid switches) sits in Classic and Minimal; Racing always centres it, Compact keeps it up top. */
-export const DashPlace = {
-  RIGHT: "right",
-  CENTER: "center",
-} as const;
-export type DashPlace = (typeof DashPlace)[keyof typeof DashPlace];
-
-export const LAPS = [1, 2, 3, 5] as const;
-export type Laps = (typeof LAPS)[number];
-
-export interface SettingsState {
-  quality: QualityMode;
-  /** null: a random bunny name each load. */
-  name: string | null;
-  laps: Laps;
-  tcs: boolean;
-  abs: boolean;
-  assist: boolean;
-  auto: boolean;
-  steer_mode: SteerMode;
-  precision_key: boolean;
-  touch_steer: TouchSteer;
-  camera: CameraView;
-  camera_return: CameraReturn;
-  invert_y: boolean;
-  ghost: boolean;
-  /** Master volume, 0..1. */
-  volume: number;
-  muted: boolean;
-  hud: HudLayout;
-  dash: DashPlace;
-  /** The world the player last picked in the menu; a bare URL drives it again. Never set by an invite or a join. */
-  last_world: WorldKind | null;
-  last_seed: number | null;
-  /** Set by Drive, Skip or the last step of the first-run guide; never by an invite link. */
-  guide_seen: boolean;
-}
-export type SettingKey = keyof SettingsState;
-
-export const DEFAULT_SETTINGS: SettingsState = {
-  quality: QualityMode.AUTO,
-  name: null,
-  laps: 3,
-  tcs: true,
-  abs: true,
-  assist: true,
-  auto: true,
-  steer_mode: SteerMode.SNAP,
-  precision_key: false,
-  touch_steer: TouchSteer.DRAG,
-  camera: CameraView.CHASE,
-  camera_return: CameraReturn.SHORT,
-  invert_y: false,
-  ghost: true,
-  volume: 0.8,
-  muted: false,
-  hud: HudLayout.CLASSIC,
-  dash: DashPlace.RIGHT,
-  last_world: null,
-  last_seed: null,
-  guide_seen: false,
-};
-
-const one_of = <T extends string | number>(values: readonly T[], raw: unknown, fallback: T): T => (values.includes(raw as T) ? (raw as T) : fallback);
-const bool = (raw: unknown, fallback: boolean) => (typeof raw === "boolean" ? raw : fallback);
-
-export function parse_settings(raw: unknown, played = false): SettingsState {
-  const d = DEFAULT_SETTINGS;
-  if (typeof raw !== "object" || raw === null) return { ...d, guide_seen: played };
-  const s = raw as Record<string, unknown>;
-  const volume = typeof s.volume === "number" && Number.isFinite(s.volume) ? Math.min(1, Math.max(0, s.volume)) : d.volume;
-  return {
-    quality: one_of(Object.values(QualityMode), s.quality, d.quality),
-    name: typeof s.name === "string" && s.name.trim() ? clean_name(s.name) : null,
-    laps: one_of(LAPS, s.laps, d.laps),
-    tcs: bool(s.tcs, d.tcs),
-    abs: bool(s.abs, d.abs),
-    assist: bool(s.assist, d.assist),
-    auto: bool(s.auto, d.auto),
-    steer_mode: one_of(Object.values(SteerMode), s.steer_mode, d.steer_mode),
-    precision_key: bool(s.precision_key, d.precision_key),
-    touch_steer: one_of(Object.values(TouchSteer), s.touch_steer, d.touch_steer),
-    camera: one_of(Object.values(CameraView), s.camera, d.camera),
-    camera_return: one_of(Object.values(CameraReturn), s.camera_return, d.camera_return),
-    invert_y: bool(s.invert_y, d.invert_y),
-    ghost: bool(s.ghost, d.ghost),
-    volume,
-    muted: bool(s.muted, d.muted),
-    hud: one_of(Object.values(HudLayout), s.hud, d.hud),
-    dash: one_of(Object.values(DashPlace), s.dash, d.dash),
-    last_world: is_kind(s.last_world) ? s.last_world : null,
-    last_seed: typeof s.last_seed === "number" ? parse_seed(String(s.last_seed)) : null,
-    guide_seen: guide_seen_on_load(raw, played),
-  };
-}
-
-function read_saved(): SettingsState {
-  try {
-    const text = localStorage.getItem(SETTINGS_KEY);
-    const played = localStorage.getItem(THEME_KEY) !== null || localStorage.getItem(BUILD_KEY) !== null;
-    return parse_settings(text === null ? null : JSON.parse(text), played);
-  } catch (error) {
-    console.warn("settings: saved settings unreadable", error);
-    return { ...DEFAULT_SETTINGS };
-  }
-}
-
-function write_saved(state: SettingsState) {
-  try {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(state));
-  } catch (error) {
-    console.warn("settings: not saved", error);
-  }
-}
-
-/** URL params win for this load only; the saved copy keeps what the viewer chose. */
-function with_overrides(saved: SettingsState, params: URLSearchParams): SettingsState {
-  return parse_settings({
-    ...saved,
-    quality: params.get("quality") ?? saved.quality,
-    name: params.get("name") ?? saved.name,
-  });
-}
-
-export function save_setting<K extends SettingKey>(key: K, value: SettingsState[K]) {
-  write_saved({ ...read_saved(), [key]: value });
-}
-
-// Picking a world reloads the page; this one-shot flag lets that load skip the menu and drive straight away.
-const DRIVE_KEY = "harepin:drive";
-
-/** True once after a menu pick reloaded the page. */
-export function take_drive(): boolean {
-  try {
-    const set = sessionStorage.getItem(DRIVE_KEY) !== null;
-    sessionStorage.removeItem(DRIVE_KEY);
-    return set;
-  } catch {
-    return false;
-  }
-}
-
-export function load_settings(params = new URLSearchParams(location.search)): SettingsState {
-  return with_overrides(read_saved(), params);
-}
 
 export interface QualityStatus {
   tier: QualityTier;
@@ -1193,9 +1008,7 @@ export class Settings {
   }
 
   private go(query: Record<string, string>) {
-    try {
-      sessionStorage.setItem(DRIVE_KEY, "1");
-    } catch {}
+    mark_drive();
     location.search = `?${new URLSearchParams(query)}`;
   }
 
