@@ -15,30 +15,40 @@ describe("default table", () => {
   });
 });
 
+const unique = (bindings: Bindings) => {
+  const keys = BINDABLE.flatMap((action) => bindings[action].keys);
+  const pads = BINDABLE.flatMap((action) => bindings[action].pad ?? []);
+  return new Set(keys).size === keys.length && new Set(pads).size === pads.length;
+};
+
 describe("rebind_key", () => {
   test("a free key replaces the action's keys", () => {
-    const { bindings, swapped } = rebind_key(DEFAULT_BINDINGS, "reset", "KeyK");
+    const { bindings, from, swapped } = rebind_key(DEFAULT_BINDINGS, "reset", "KeyK");
     expect(bindings.reset.keys).toEqual(["KeyK"]);
-    expect(swapped).toBeNull();
+    expect(from).toBeNull();
+    expect(swapped).toBe(false);
     expect(owners(bindings, "KeyR")).toEqual([]);
   });
 
-  test("a taken key swaps: the other action gets the old keys in its place", () => {
-    const { bindings, swapped } = rebind_key(DEFAULT_BINDINGS, "reset", "KeyC");
-    expect(swapped).toBe("camera");
+  test("a taken key is stolen; the owner keeps its other keys", () => {
+    const { bindings, from, swapped } = rebind_key(DEFAULT_BINDINGS, "throttle", "KeyS");
+    expect(from).toBe("brake");
+    expect(swapped).toBe(false);
+    expect(bindings.throttle.keys).toEqual(["KeyS"]);
+    expect(bindings.brake.keys).toEqual(["ArrowDown"]);
+  });
+
+  test("an owner left with no key takes the old keys: a true swap", () => {
+    const { bindings, from, swapped } = rebind_key(DEFAULT_BINDINGS, "reset", "KeyC");
+    expect(from).toBe("camera");
+    expect(swapped).toBe(true);
     expect(bindings.reset.keys).toEqual(["KeyC"]);
     expect(bindings.camera.keys).toEqual(["KeyR"]);
   });
 
-  test("a swap out of a key list keeps the other keys and their order", () => {
-    const { bindings } = rebind_key(DEFAULT_BINDINGS, "handbrake", "ArrowUp");
-    expect(bindings.throttle.keys).toEqual(["KeyW", "Space"]);
-    expect(owners(bindings, "ArrowUp")).toEqual(["handbrake"]);
-  });
-
   test("rebinding the key an action already has changes nothing else", () => {
-    const { bindings, swapped } = rebind_key(DEFAULT_BINDINGS, "throttle", "KeyW");
-    expect(swapped).toBeNull();
+    const { bindings, from } = rebind_key(DEFAULT_BINDINGS, "throttle", "KeyW");
+    expect(from).toBeNull();
     expect(bindings.throttle.keys).toEqual(["KeyW"]);
   });
 
@@ -48,18 +58,37 @@ describe("rebind_key", () => {
     rebind_pad(DEFAULT_BINDINGS, "reset", 0);
     expect(DEFAULT_BINDINGS).toEqual(before);
   });
+
+  test("a chain of steals stays unique, within the key limit, and survives a reload", () => {
+    let bindings = DEFAULT_BINDINGS;
+    for (const [action, code] of [
+      ["throttle", "KeyS"],
+      ["steer_left", "ArrowDown"],
+      ["steer_right", "KeyW"],
+    ] as const)
+      bindings = rebind_key(bindings, action, code).bindings;
+    expect(bindings.throttle.keys).toEqual(["KeyS"]);
+    expect(bindings.brake.keys).toEqual(["KeyA", "ArrowLeft"]);
+    expect(bindings.steer_left.keys).toEqual(["ArrowDown"]);
+    expect(bindings.steer_right.keys).toEqual(["KeyW"]);
+    expect(unique(bindings)).toBe(true);
+    expect(BINDABLE.every((action) => bindings[action].keys.length <= 4)).toBe(true);
+    expect(parse_bindings(JSON.parse(JSON.stringify(bindings)))).toEqual(bindings);
+  });
 });
 
 describe("rebind_pad", () => {
-  test("a taken button swaps, including into an empty slot", () => {
-    const { bindings, swapped } = rebind_pad(DEFAULT_BINDINGS, "ghost", 0);
-    expect(swapped).toBe("handbrake");
-    expect(bindings.ghost.pad).toBe(0);
-    expect(bindings.handbrake.pad).toBeNull();
+  test("a button taken by an action with nothing to give leaves the owner with none", () => {
+    const { bindings, from, swapped } = rebind_pad(DEFAULT_BINDINGS, "restart", 3);
+    expect(from).toBe("reset");
+    expect(swapped).toBe(false);
+    expect(bindings.restart.pad).toBe(3);
+    expect(bindings.reset.pad).toBeNull();
   });
 
   test("two bound buttons trade places", () => {
-    const { bindings } = rebind_pad(DEFAULT_BINDINGS, "reset", 1);
+    const { bindings, swapped } = rebind_pad(DEFAULT_BINDINGS, "reset", 1);
+    expect(swapped).toBe(true);
     expect(bindings.reset.pad).toBe(1);
     expect(bindings.nitro.pad).toBe(3);
   });
@@ -83,6 +112,11 @@ describe("parse_bindings", () => {
     expect(parsed.ghost).toEqual(DEFAULT_BINDINGS.ghost);
   });
 
+  test("empty key lists and empty codes are bad entries", () => {
+    expect(parse_bindings({ reset: { keys: [], pad: 3 } }).reset.keys).toEqual(["KeyR"]);
+    expect(parse_bindings({ reset: { keys: [""], pad: 3 } }).reset.keys).toEqual(["KeyR"]);
+  });
+
   test("menu-reserved keys and buttons never load", () => {
     expect(parse_bindings({ reset: { keys: ["Escape"], pad: 9 } }).reset).toEqual(DEFAULT_BINDINGS.reset);
     expect(parse_bindings({ reset: { keys: ["KeyK"], pad: 7 } }).reset.pad).toBe(DEFAULT_BINDINGS.reset.pad);
@@ -92,9 +126,21 @@ describe("parse_bindings", () => {
     expect(parse_bindings({ throttle: { keys: ["KeyW"], pad: 3 } }).throttle.pad).toBeNull();
   });
 
-  test("a table where two actions share a key or button falls back whole", () => {
-    expect(parse_bindings({ reset: { keys: ["KeyC"], pad: 3 } })).toEqual(DEFAULT_BINDINGS);
-    expect(parse_bindings({ ghost: { keys: ["KeyG"], pad: 0 } })).toEqual(DEFAULT_BINDINGS);
+  test("a stored remap beats the default it collides with; the default gives up only that key", () => {
+    const parsed = parse_bindings({ reset: { keys: ["KeyC"], pad: 1 } });
+    expect(parsed.reset).toEqual({ keys: ["KeyC"], pad: 1 });
+    expect(parsed.camera.keys).toEqual([]);
+    expect(parsed.nitro.pad).toBeNull();
+    expect(parsed.brake).toEqual(DEFAULT_BINDINGS.brake);
+    expect(unique(parsed)).toBe(true);
+  });
+
+  test("two stored entries sharing a key: the first in table order keeps it, nothing else resets", () => {
+    const parsed = parse_bindings({ reset: { keys: ["KeyK", "KeyJ"], pad: 3 }, ghost: { keys: ["KeyK"], pad: null }, throttle: { keys: ["KeyI"], pad: null } });
+    expect(parsed.reset.keys).toEqual(["KeyK", "KeyJ"]);
+    expect(parsed.ghost.keys).toEqual([]);
+    expect(parsed.throttle.keys).toEqual(["KeyI"]);
+    expect(unique(parsed)).toBe(true);
   });
 
   test("duplicate keys within one action collapse", () => {

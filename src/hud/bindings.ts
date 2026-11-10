@@ -112,52 +112,73 @@ export const pad_text = (bindings: Bindings, action: Bindable) => {
 
 export interface Rebound {
   bindings: Bindings;
-  /** The action that held the key or button and took the old one in exchange. */
-  swapped: Bindable | null;
+  /** The action that had the key or button. */
+  from: Bindable | null;
+  /** `from` was left with nothing and took the key or button `action` gave up. */
+  swapped: boolean;
 }
 
-/** `action` now answers to `code` alone; an action that had `code` takes `action`'s old keys in its place. */
+/** `action` now answers to `code` alone. The action that had `code` keeps its other keys; left with none, it takes `action`'s old ones. */
 export function rebind_key(bindings: Bindings, action: Bindable, code: string): Rebound {
   const old = bindings[action].keys;
   const next = { ...bindings, [action]: { ...bindings[action], keys: [code] } };
-  const swapped = BINDABLE.find((other) => other !== action && bindings[other].keys.includes(code)) ?? null;
-  if (swapped) {
-    const keys = bindings[swapped].keys.flatMap((key) => (key === code ? old.filter((k) => !bindings[swapped].keys.includes(k)) : [key]));
-    next[swapped] = { ...bindings[swapped], keys };
-  }
-  return { bindings: next, swapped };
+  const from = BINDABLE.find((other) => other !== action && bindings[other].keys.includes(code)) ?? null;
+  if (!from) return { bindings: next, from, swapped: false };
+  const left = bindings[from].keys.filter((key) => key !== code);
+  const swapped = left.length === 0;
+  next[from] = { ...bindings[from], keys: swapped ? old : left };
+  return { bindings: next, from, swapped };
 }
 
+/** The action that had `button` gets `action`'s old button, or none when it had none. */
 export function rebind_pad(bindings: Bindings, action: Bindable, button: number): Rebound {
   const old = bindings[action].pad;
   const next = { ...bindings, [action]: { ...bindings[action], pad: button } };
-  const swapped = BINDABLE.find((other) => other !== action && bindings[other].pad === button) ?? null;
-  if (swapped) next[swapped] = { ...bindings[swapped], pad: old };
-  return { bindings: next, swapped };
+  const from = BINDABLE.find((other) => other !== action && bindings[other].pad === button) ?? null;
+  if (from) next[from] = { ...bindings[from], pad: old };
+  return { bindings: next, from, swapped: from !== null && old !== null };
 }
 
 const valid_key = (raw: unknown): raw is string => typeof raw === "string" && CODE.test(raw) && !RESERVED_KEYS.includes(raw);
 const valid_button = (raw: unknown): raw is number => typeof raw === "number" && Number.isInteger(raw) && raw >= 0 && raw < PAD_BUTTONS && !RESERVED_BUTTONS.includes(raw);
 
-function parse_binding(action: Bindable, raw: unknown): Binding {
-  const fallback = DEFAULT_BINDINGS[action];
-  if (typeof raw !== "object" || raw === null) return fallback;
-  const { keys, pad } = raw as Record<string, unknown>;
-  const clean = Array.isArray(keys) && keys.length <= MAX_KEYS && keys.every(valid_key) ? [...new Set(keys)] : fallback.keys;
-  const button = !pad_bindable(action) ? null : pad === null || valid_button(pad) ? pad : fallback.pad;
-  return { keys: clean, pad: button };
-}
+const stored_keys = (raw: unknown): string[] | null => (Array.isArray(raw) && raw.length > 0 && raw.length <= MAX_KEYS && raw.every(valid_key) ? [...new Set(raw)] : null);
+const stored_pad = (action: Bindable, raw: unknown): number | null | undefined => (!pad_bindable(action) ? null : raw === null || valid_button(raw) ? raw : undefined);
 
-function unique(bindings: Bindings): boolean {
-  const keys = BINDABLE.flatMap((action) => bindings[action].keys);
-  const pads = BINDABLE.flatMap((action) => bindings[action].pad ?? []);
-  return new Set(keys).size === keys.length && new Set(pads).size === pads.length;
-}
-
-/** Stored bindings are untrusted: a bad entry takes its default, and a table where two actions share a key or button is dropped whole. */
+/**
+ * Stored bindings are untrusted. Valid stored entries claim their keys and buttons first, in table order, so a remap
+ * survives; a missing or bad entry takes whatever of its default is still free. A key or button claimed twice goes to
+ * the first claimant only.
+ */
 export function parse_bindings(raw: unknown): Bindings {
-  if (typeof raw !== "object" || raw === null) return DEFAULT_BINDINGS;
-  const stored = raw as Record<string, unknown>;
-  const parsed = Object.fromEntries(BINDABLE.map((action) => [action, parse_binding(action, stored[action])])) as Bindings;
-  return unique(parsed) ? parsed : DEFAULT_BINDINGS;
+  const stored = typeof raw === "object" && raw !== null ? (raw as Record<string, unknown>) : {};
+  const entry = (action: Bindable) => {
+    const value = stored[action];
+    return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
+  };
+  const taken_keys = new Set<string>();
+  const taken_pads = new Set<number>();
+  const keys = new Map<Bindable, string[]>();
+  const pads = new Map<Bindable, number | null>();
+  const claim_keys = (action: Bindable, list: string[]) => {
+    const free = list.filter((key) => !taken_keys.has(key));
+    for (const key of free) taken_keys.add(key);
+    keys.set(action, free);
+  };
+  const claim_pad = (action: Bindable, button: number | null) => {
+    const free = button !== null && taken_pads.has(button) ? null : button;
+    if (free !== null) taken_pads.add(free);
+    pads.set(action, free);
+  };
+  for (const action of BINDABLE) {
+    const list = stored_keys(entry(action).keys);
+    if (list) claim_keys(action, list);
+    const button = stored_pad(action, entry(action).pad);
+    if (button !== undefined) claim_pad(action, button);
+  }
+  for (const action of BINDABLE) {
+    if (!keys.has(action)) claim_keys(action, DEFAULT_BINDINGS[action].keys);
+    if (!pads.has(action)) claim_pad(action, DEFAULT_BINDINGS[action].pad);
+  }
+  return Object.fromEntries(BINDABLE.map((action) => [action, { keys: keys.get(action) ?? [], pad: pads.get(action) ?? null }])) as Bindings;
 }

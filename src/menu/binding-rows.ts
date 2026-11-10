@@ -1,4 +1,4 @@
-import { BINDABLE, BIND_INFO, DEFAULT_BINDINGS, MENU_BUTTON, RESERVED_BUTTONS, RESERVED_KEYS, key_label, pad_bindable, pad_text, rebind_key, rebind_pad, type Bindable } from "../hud/bindings";
+import { BINDABLE, BIND_INFO, DEFAULT_BINDINGS, MENU_BUTTON, RESERVED_BUTTONS, RESERVED_KEYS, key_label, pad_bindable, pad_label, pad_text, rebind_key, rebind_pad, type Bindable } from "../hud/bindings";
 import type { Caught } from "../hud/input";
 import type { SettingsMenu } from "./page";
 import { el } from "./setting-rows";
@@ -39,11 +39,13 @@ export function binding_rows(m: SettingsMenu): HTMLElement[] {
       return m.refresh();
     }
     const bindings = m.state().bindings;
-    const { bindings: next, swapped } = got.kind === "key" ? rebind_key(bindings, action, got.code) : rebind_pad(bindings, action, got.button);
+    const { bindings: next, from, swapped } = got.kind === "key" ? rebind_key(bindings, action, got.code) : rebind_pad(bindings, action, got.button);
     notes.delete(action);
-    if (swapped) {
-      notes.set(action, `Swapped with ${BIND_INFO[swapped].label}`);
-      notes.set(swapped, `Swapped with ${BIND_INFO[action].label}`);
+    if (from) {
+      const name = got.kind === "key" ? key_label(got.code) : pad_label(got.button);
+      const left_none = got.kind === "key" ? next[from].keys.length === 0 : next[from].pad === null;
+      notes.set(action, swapped ? `Swapped with ${BIND_INFO[from].label}` : `Taken from ${BIND_INFO[from].label}`);
+      notes.set(from, swapped ? `Swapped with ${BIND_INFO[action].label}` : `${name} moved to ${BIND_INFO[action].label}${left_none ? (got.kind === "key" ? " · no key" : " · no button") : ""}`);
     }
     waiting = null;
     m.set("bindings", next);
