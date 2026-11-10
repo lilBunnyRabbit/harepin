@@ -5,7 +5,7 @@ import { DEFAULT_BINDINGS, keys_text, type Bindings } from "../hud/bindings";
 import { $, format } from "../hud/hud";
 import type { World } from "../world/world";
 import { KINDS } from "../worldgen/kinds/kinds";
-import { LISTED } from "../worlds/worlds";
+import { LISTED, WORLDS } from "../worlds/worlds";
 import { DRIFT_MODE } from "./drift-mode";
 import { DUEL_MODE } from "./duel-mode";
 import { GYMKHANA_MODE } from "./gymkhana-mode";
@@ -127,7 +127,7 @@ export class Modes {
     if (!route || !mode) return;
     this.clear();
     this.lobby_lap = on_lap;
-    this.begin(mode, race_levels([route])[0] ?? { id, name: id, brings: "" });
+    this.begin(mode, race_levels([route], WORLDS[this.world.kind].map_label)[0] ?? { id, name: id, brings: "" });
   }
 
   get parking(): boolean {

@@ -14,18 +14,27 @@ export interface RaceLevel {
   brings: string;
 }
 
+interface LevelDef {
+  id: string;
+  name: string;
+  /** `place` is what the world calls itself: "island", "mainland". */
+  brings(place: string): string;
+}
+
 /** In progression order; a seed lists only the routes it generated, so one without a canyon skips the offroad ids. */
-const LEVELS: readonly RaceLevel[] = [
-  { id: "circuit", name: "Circuit", brings: "One lap of the island circuit from a standing start." },
-  { id: "street-1", name: "Town to town", brings: "Through the back streets of one town, round the circuit and into the next." },
-  { id: "offroad-1", name: "Trail", brings: "Point to point across the island on dirt." },
-  { id: "street-2", name: "Cross town", brings: "Another pair of towns, every corner a square one." },
-  { id: "offroad-2", name: "Long trail", brings: "The longer way across, on dirt." },
-  { id: "circuit-rev", name: "Circuit reversed", brings: "The circuit the wrong way round: every corner is new." },
+const LEVELS: readonly LevelDef[] = [
+  { id: "circuit", name: "Circuit", brings: (place) => `One lap of the ${place} circuit from a standing start.` },
+  { id: "street-1", name: "Town to town", brings: () => "Through the back streets of one town, round the circuit and into the next." },
+  { id: "offroad-1", name: "Trail", brings: (place) => `Point to point across the ${place} on dirt.` },
+  { id: "street-2", name: "Cross town", brings: () => "Another pair of towns, every corner a square one." },
+  { id: "offroad-2", name: "Long trail", brings: () => "The longer way across, on dirt." },
+  { id: "circuit-rev", name: "Circuit reversed", brings: () => "The circuit the wrong way round: every corner is new." },
 ];
 
-export function race_levels(routes: readonly { id: string }[]): RaceLevel[] {
-  return LEVELS.filter((level) => routes.some((r) => r.id === level.id));
+const listed = (routes: readonly { id: string }[]) => LEVELS.filter((level) => routes.some((r) => r.id === level.id));
+
+export function race_levels(routes: readonly { id: string }[], place: string): RaceLevel[] {
+  return listed(routes).map(({ id, name, brings }) => ({ id, name, brings: brings(place) }));
 }
 
 export interface RaceChoice {
@@ -39,7 +48,7 @@ export interface RaceChoice {
 
 /** What a lobby route picker lists: every route of the seed, in progression order. */
 export function race_choices(routes: readonly Pick<Route, "id" | "length" | "closed">[]): RaceChoice[] {
-  return race_levels(routes).flatMap((level) => {
+  return listed(routes).flatMap((level) => {
     const route = routes.find((r) => r.id === level.id);
     return route ? [{ id: level.id, name: level.name, length: route.length, closed: route.closed }] : [];
   });

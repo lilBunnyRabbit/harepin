@@ -1,4 +1,5 @@
 import { format } from "../hud/hud";
+import { WORLDS } from "../worlds/worlds";
 import { turn_to, type Driven, type Finish, type ModeCtx, type ModeDef, type ModeRun, type RouteRun } from "./mode";
 import { COUNTDOWN_MS, RaceRun, RaceStatus, race_course, race_levels, type RaceCourse, type RaceLevel } from "./races";
 import { RaceView } from "./race-view";
@@ -97,7 +98,7 @@ export const RACE_MODE: ModeDef<RaceLevel> = {
   needs_ground: false,
   car_sized_only: false,
   busy_notice: "Leave the lobby race to race solo",
-  levels: (world) => race_levels(world.routes),
+  levels: (world) => race_levels(world.routes, WORLDS[world.kind].map_label),
   start(ctx, level) {
     const route = ctx.world.routes.find((r) => r.id === level.id);
     return route ? new Race(ctx, level, race_course(route)) : null;

@@ -62,8 +62,9 @@ test("run: a gate passed wide or skipped stays next until the car comes back for
 });
 
 test("levels follow the progression order and list only routes the seed made", () => {
-  expect(race_levels([{ id: "street-2" }, { id: "street-1" }, { id: "circuit" }]).map((l) => l.id)).toEqual(["circuit", "street-1", "street-2"]);
-  expect(race_levels([{ id: "street-9" }])).toEqual([]);
+  expect(race_levels([{ id: "street-2" }, { id: "street-1" }, { id: "circuit" }], "island").map((l) => l.id)).toEqual(["circuit", "street-1", "street-2"]);
+  expect(race_levels([{ id: "street-9" }], "island")).toEqual([]);
+  expect(race_levels([{ id: "circuit" }], "mainland")[0].brings).toBe("One lap of the mainland circuit from a standing start.");
 });
 
 test("lobby choices carry name, length and whether laps apply", () => {
