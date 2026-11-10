@@ -85,6 +85,7 @@ const render = new Render(params, quality, scene, camera, light);
 const app = $("app");
 render.mount(app);
 render.apply_quality();
+const area_fade = new AreaFade(app);
 
 const world_view = new WorldView(world, quality.mobile);
 stream.listen((chunk) => world_view.add(chunk));
@@ -96,7 +97,7 @@ void world.tiles.whole().then(() => {
   scene.add(...WORLDS[world.kind].dress(world));
   gate_views = gates(world);
   for (const g of gate_views) scene.add(g.group);
-});
+}, (error: unknown) => area_fade.fail(error));
 
 const lock = load_lock(room);
 const net = new Net(room, seed, prefs.name ?? random_name, lock, world_id(kind), BUILD.version);
@@ -120,7 +121,6 @@ const race = new Race(world);
 const chase = new ChaseCamera(camera);
 const pads = new PadTimer();
 const driver = new Driver(scene, light, world, race, pads, chase, build);
-const area_fade = new AreaFade(app);
 driver.arrive = (x, z) => area_fade.cover(world.tiles.ensure(x, z));
 
 const smoke = new Smoke(WORLDS[world.kind].ground_puff);

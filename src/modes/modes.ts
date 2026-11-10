@@ -179,7 +179,7 @@ export class Modes {
     if (!this.world.tiles.complete) {
       void this.cover(this.world.tiles.whole()).then(() => {
         if (this.current === active && !active.run) this.launch(active);
-      });
+      }, (error: unknown) => console.error(error));
       return;
     }
     const run = active.mode.def.start(this.ctx(active.mode.track), active.level);

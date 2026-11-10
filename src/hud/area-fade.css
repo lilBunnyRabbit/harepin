@@ -2,7 +2,9 @@
   position: fixed;
   inset: 0;
   display: grid;
-  place-items: center;
+  place-content: center;
+  justify-items: center;
+  gap: var(--space-4);
   font-size: var(--text-lg);
   font-weight: 600;
   color: var(--cottontail);
@@ -10,6 +12,10 @@
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.25s;
+}
+
+#area-fade p {
+  margin: 0;
 }
 
 #area-fade[data-shown] {

@@ -39,6 +39,7 @@ export class Driver {
   readonly drawn = { pos: new THREE.Vector3(), quat: new THREE.Quaternion(), vel: new THREE.Vector3() };
   /** Resolves once the ground around (x, z) is in; a teleport reads its height only after. */
   arrive: (x: number, z: number) => Promise<void> = (x, z) => this.world.tiles.ensure(x, z);
+  private teleporting = false;
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -91,15 +92,16 @@ export class Driver {
   }
 
   // In a lobby race a reset stays on the circuit; free driving drops the car on the nearest street.
-  async reset(on_circuit: boolean) {
+  reset(on_circuit: boolean): Promise<void> {
     const { car, world } = this;
     if (on_circuit) return this.place_road(world.road.indexOf(world.nearest_road(car.pos.x, car.pos.z)));
-    await this.arrive(car.pos.x, car.pos.z);
     // A spun or sideways car points across the road; the way it was travelling is what the driver meant.
     const moving = Math.hypot(car.vel.x, car.vel.z) > RESET_MOVING;
     const f = moving ? new THREE.Vector3(car.vel.x, 0, car.vel.z) : new THREE.Vector3(0, 0, 1).applyQuaternion(car.quat);
-    const spot = world.spawn_near(car.pos.x, car.pos.z, f.x, f.z);
-    this.place({ ...spot, y: spot.y + drop_height(car.spec, RIDE_HEIGHT) });
+    return this.teleport(car.pos.x, car.pos.z, () => {
+      const spot = world.spawn_near(car.pos.x, car.pos.z, f.x, f.z);
+      return { ...spot, y: spot.y + drop_height(car.spec, RIDE_HEIGHT) };
+    });
   }
 
   // Back on the last checkpoint passed, not the nearest deck: that can be a later section, and a fall would be a shortcut.
@@ -110,11 +112,24 @@ export class Driver {
     return this.place_road(race.started ? world.road.indexOf(world.nearest_road(cp.x, cp.z)) : SPAWN_INDEX);
   }
 
-  async place_road(index: number) {
+  place_road(index: number): Promise<void> {
     const { world } = this;
     const p = world.road[world.clear_spawn(index)];
-    await this.arrive(p.x, p.z);
-    this.place(this.road_spot(index));
+    return this.teleport(p.x, p.z, () => this.road_spot(index));
+  }
+
+  // One at a time: the frame loop asks again every frame while the car still looks fallen or stuck.
+  private async teleport(x: number, z: number, spot: () => Spawn) {
+    if (this.teleporting) return;
+    this.teleporting = true;
+    try {
+      await this.arrive(x, z);
+      this.place(spot());
+    } catch (error) {
+      console.error(error);
+    } finally {
+      this.teleporting = false;
+    }
   }
 
   swap(build: Build, timed: boolean) {
