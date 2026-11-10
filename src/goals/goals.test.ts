@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { DEFAULT_BUILD } from "../car/build";
+import { DEFAULT_BUILD, DEFAULT_PARTS } from "../car/build";
 import type { Store } from "../modes/track";
 import { WorldKind } from "../worldgen/types";
 import { build_goals, proven } from "./catch-up";
@@ -70,6 +70,7 @@ test("saved records prove goals", () => {
 
 test("a build shows what was changed in the garage", () => {
   expect(build_goals(DEFAULT_BUILD)).toEqual([]);
+  expect(build_goals({ ...DEFAULT_BUILD, car: "coupe", parts: DEFAULT_PARTS })).toEqual([]);
   expect(build_goals({ ...DEFAULT_BUILD, car: "bus", paint: 3, parts: { ...DEFAULT_BUILD.parts, engine: 2 } })).toEqual(["car", "bus", "tune", "paint"]);
 });
 

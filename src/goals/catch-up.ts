@@ -1,4 +1,4 @@
-import { DEFAULT_BUILD, SLOT_NAMES, type Build } from "../car/build";
+import { DEFAULT_BUILD, DEFAULT_PARTS, SLOT_NAMES, type Build } from "../car/build";
 import { BUILDS_KEY, parse_builds } from "../car/builds";
 import { parse_runs } from "../modes/track";
 import { WorldKind } from "../worldgen/types";
@@ -22,11 +22,14 @@ function json(text: string): unknown {
   }
 }
 
+// The stock coupe was the starting car before 0.18; a save still holding it is no proof of a change.
+const STARTS: readonly Build[] = [DEFAULT_BUILD, { ...DEFAULT_BUILD, car: "coupe", parts: DEFAULT_PARTS }];
+
 export function build_goals(build: Build): GoalId[] {
   const ids: GoalId[] = [];
-  if (build.car !== DEFAULT_BUILD.car) ids.push(GoalId.CAR);
+  if (STARTS.every((start) => build.car !== start.car)) ids.push(GoalId.CAR);
   if (build.car === "bus") ids.push(GoalId.BUS);
-  if (SLOT_NAMES.some((slot) => build.parts[slot] !== DEFAULT_BUILD.parts[slot])) ids.push(GoalId.TUNE);
+  if (STARTS.every((start) => SLOT_NAMES.some((slot) => build.parts[slot] !== start.parts[slot]))) ids.push(GoalId.TUNE);
   if (build.paint !== DEFAULT_BUILD.paint || build.decal !== DEFAULT_BUILD.decal || build.ink !== DEFAULT_BUILD.ink || build.number !== DEFAULT_BUILD.number) ids.push(GoalId.PAINT);
   return ids;
 }
