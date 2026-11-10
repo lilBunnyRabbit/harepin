@@ -16,7 +16,7 @@ export const SPAWN_INDEX = -40;
 export const GRASS = 0;
 export const DIRT = 1;
 /** Bump whenever `generate` makes a different island for the same seed: peers and saved records are matched on it. */
-export const WORLD_VERSION = 4;
+export const WORLD_VERSION = 5;
 
 /** Bump whenever `generate_sky` makes a different track for the same seed. */
 export const SKY_VERSION = 3;

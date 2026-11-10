@@ -36,7 +36,7 @@ const TRAIL_GATE_HW = 8;
 // Fitted to scripts/races.ts: dirt grip, bumps and the run-up to the gap cost every car time drive_time does not see.
 const OFFROAD_SHARE = 1.5;
 
-type LegKind = "street" | "spur" | "ring";
+type LegKind = "street" | "spur" | "local" | "ring";
 
 interface Leg {
   from: number;
@@ -47,7 +47,7 @@ interface Leg {
   length: number;
 }
 
-const WEIGHT: Record<LegKind, number> = { street: STREET_COST, spur: SPUR_COST, ring: RING_COST };
+const WEIGHT: Record<LegKind, number> = { street: STREET_COST, spur: SPUR_COST, local: SPUR_COST, ring: RING_COST };
 
 function run(points: readonly { x: number; z: number }[]): number {
   let total = 0;
@@ -122,30 +122,8 @@ class Atlas {
     private readonly ramps: readonly Ramp[] = [],
   ) {
     const town_of = (x: number, z: number) => towns.find((t) => length(t.x - x, t.z - z) <= t.radius + 1);
-    // Roads between towns stay out of the search until routes are built over the graph: a race would shortcut along one
-    // with no gates or cones where it leaves. The circuit legs and spurs they split at their junctions join back up.
-    const local = new Set<number>();
-    for (const edge of graph.edges) if (edge.kind === "local") local.add(edge.a).add(edge.b);
-    const ins = new Map<number, number>();
-    const outs = new Map<number, RoadEdge[]>();
     for (const edge of graph.edges) {
-      if (edge.kind === "local") continue;
-      for (const node of edge.kind === "street" ? [edge.a, edge.b] : [edge.b]) ins.set(node, (ins.get(node) ?? 0) + 1);
-      if (edge.kind !== "street") outs.set(edge.a, [...(outs.get(edge.a) ?? []), edge]);
-    }
-    const onward = new Map<number, RoadEdge>();
-    for (const [node, list] of outs) if (local.has(node) && list.length === 1 && ins.get(node) === 1) onward.set(node, list[0]);
-    const whole = (edge: RoadEdge): RoadEdge => {
-      let points = edge.points;
-      let b = edge.b;
-      for (let next = onward.get(b); next && next !== edge; next = onward.get(b)) {
-        points = [...points, ...next.points.slice(1)];
-        b = next.b;
-      }
-      return { ...edge, b, points };
-    };
-    for (const edge of graph.edges) {
-      if (circuit.includes(edge.id) || edge.kind === "local" || (edge.kind !== "street" && onward.get(edge.a) === edge)) continue;
+      if (circuit.includes(edge.id)) continue;
       if (edge.kind === "street") {
         this.add(edge.a, edge.b, "street", edge.points);
         const town = town_of(edge.points[0].x, edge.points[0].z);
@@ -155,16 +133,15 @@ class Atlas {
         this.town_nodes.set(town.id, list);
         continue;
       }
-      const spur = whole(edge);
-      this.add(spur.a, spur.b, "spur", spur.points);
+      this.add(edge.a, edge.b, edge.kind === "local" ? "local" : "spur", edge.points);
+      if (edge.kind !== "highway") continue;
       const gate = graph.nodes[edge.a];
       const town = town_of(gate.x, gate.z);
-      if (town) this.gates.set(town.id, edge.a);
+      if (town && !this.gates.has(town.id)) this.gates.set(town.id, edge.a);
     }
     // A circuit with one join stays a closed loop on it: no leg leads anywhere new.
     for (const id of circuit) {
-      if (onward.get(graph.edges[id].a) === graph.edges[id]) continue;
-      const leg = whole(graph.edges[id]);
+      const leg = graph.edges[id];
       if (!leg.closed && leg.a !== leg.b) this.add(leg.a, leg.b, "ring", leg.points, this.kicked(leg.points));
     }
   }
@@ -188,18 +165,17 @@ class Atlas {
   }
 
   corner(a: Leg, b: Leg): boolean {
-    if (a.kind !== "street" || b.kind !== "street") return false;
     const p = a.points[a.points.length - 1];
     const q = b.points[0];
     return Math.abs(p.tx * q.tz - p.tz * q.tx) > CORNER_SIN;
   }
 
-  /** Cheapest legs from `start` to `end` with corners rewarded; never doubles straight back along a piece. */
-  search(start: number, end: number): number[] | null {
+  /** Cheapest legs from `start` to `end` with corners rewarded, off legs of the `banned` kind; never doubles straight back along a piece. */
+  search(start: number, end: number, banned: LegKind | null): number[] | null {
     const cost = new Float64Array(this.legs.length).fill(Infinity);
     const prev = new Int32Array(this.legs.length).fill(-1);
     const done = new Uint8Array(this.legs.length);
-    for (const l of this.out.get(start) ?? []) cost[l] = this.legs[l].length * WEIGHT[this.legs[l].kind];
+    for (const l of this.out.get(start) ?? []) if (this.legs[l].kind !== banned) cost[l] = this.legs[l].length * WEIGHT[this.legs[l].kind];
     for (;;) {
       let best = -1;
       for (let l = 0; l < this.legs.length; l++) if (!done[l] && cost[l] < Infinity && (best < 0 || cost[l] < cost[best])) best = l;
@@ -213,7 +189,7 @@ class Atlas {
       }
       for (const l of this.out.get(leg.to) ?? []) {
         const next = this.legs[l];
-        if (done[l] || next.piece === leg.piece) continue;
+        if (done[l] || next.piece === leg.piece || next.kind === banned) continue;
         const c = cost[best] + next.length * WEIGHT[next.kind] - (this.corner(leg, next) ? TURN_BONUS : 0);
         if (c < cost[l]) {
           cost[l] = c;
@@ -296,9 +272,12 @@ export function street_routes(graph: RoadGraph, circuit: readonly number[], town
       if (a === b) continue;
       const start = farthest(graph, atlas.town_nodes.get(a.id) ?? [], atlas.gates.get(a.id) ?? 0);
       const end = farthest(graph, atlas.town_nodes.get(b.id) ?? [], atlas.gates.get(b.id) ?? 0);
-      const legs = atlas.search(start, end);
-      const found = legs && trace(atlas, legs, [a.id, b.id]);
-      if (found) candidates.push(found);
+      // The way round the circuit stays a candidate beside the one the roads between towns open up.
+      for (const banned of [null, "local"] as const) {
+        const legs = atlas.search(start, end, banned);
+        const found = legs && trace(atlas, legs, [a.id, b.id]);
+        if (found && !candidates.some((c) => c.legs.join() === found.legs.join())) candidates.push(found);
+      }
     }
   const window = WINDOWS.find((w) => candidates.some((c) => fits(c, w))) ?? WINDOWS[0];
   const fitting = candidates.filter((c) => fits(c, window));
@@ -316,7 +295,8 @@ export function street_routes(graph: RoadGraph, circuit: readonly number[], town
   for (const c of picked)
     c.legs.forEach((l, k) => {
       const leg = atlas.legs[l];
-      if (k > 0 && atlas.corner(atlas.legs[c.legs[k - 1]], leg)) {
+      const before = k > 0 ? atlas.legs[c.legs[k - 1]] : null;
+      if (before?.kind === "street" && leg.kind === "street" && atlas.corner(before, leg)) {
         const a = atlas.legs[c.legs[k - 1]].points.at(-1) ?? leg.points[0];
         const b = leg.points[0];
         const inset = STREET_HALF - 0.8;

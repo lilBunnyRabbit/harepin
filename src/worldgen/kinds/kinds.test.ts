@@ -3,10 +3,10 @@ import { WorldKind } from "../types";
 import { KINDS, kind_of_world, parse_kind, world_id, world_key } from "./kinds";
 
 test("ids and keys match what saved records and older peers use", () => {
-  expect(world_id(WorldKind.ISLAND)).toBe(4);
+  expect(world_id(WorldKind.ISLAND)).toBe(5);
   expect(world_id(WorldKind.SKY)).toBe(1003);
-  expect(world_key(42)).toBe("42:w4");
-  expect(world_key(42, WorldKind.ISLAND)).toBe("42:w4");
+  expect(world_key(42)).toBe("42:w5");
+  expect(world_key(42, WorldKind.ISLAND)).toBe("42:w5");
   expect(world_key(42, WorldKind.SKY)).toBe("42:sky3");
 });
 
