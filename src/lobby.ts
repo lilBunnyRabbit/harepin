@@ -58,6 +58,7 @@ export class Lobby {
   record: RaceRecord;
   private readonly record_key: string;
   private asked_until = 0;
+  private unsubscribe: (() => void) | null = null;
 
   constructor(
     private net: Net,
@@ -71,11 +72,12 @@ export class Lobby {
   }
 
   start() {
-    this.net.on_event = (event, from) => this.receive(event, from);
+    this.unsubscribe = this.net.on_event((event, from) => this.receive(event, from));
   }
 
   stop() {
-    this.net.on_event = null;
+    this.unsubscribe?.();
+    this.unsubscribe = null;
   }
 
   /** Route of the race in progress or just run; the circuit when idle. */

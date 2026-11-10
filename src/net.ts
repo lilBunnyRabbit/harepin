@@ -1,6 +1,10 @@
-import { joinRoom, selfId } from "trystero";
+import { joinRoom, selfId, type Room } from "trystero";
 import { build_code, parse_build } from "./build";
+import { Link, type Channel } from "./net/channel";
+import { RateLimit } from "./net/rate-limit";
 import { WORLD_VERSION, WorldKind, world_id } from "./worldgen/types";
+
+export { RateLimit };
 
 // A type alias, not an interface: trystero's DataPayload needs the implicit index signature only aliases get.
 export type CarState = {
@@ -33,11 +37,6 @@ export type RaceEvent =
   | { kind: "request"; laps: number; route: string }
   | { kind: "start"; race: number; laps: number; start_at: number; route: string }
   | { kind: "finish"; race: number; time: number };
-
-type Packet =
-  | { kind: "car"; id: string; data: CarState }
-  | { kind: "chat"; id: string; data: ChatMsg }
-  | { kind: "event"; id: string; data: RaceEvent };
 
 interface Snapshot {
   at: number;
@@ -79,9 +78,6 @@ const MIN_GAP_MS = 25;
 const WORLD_LIMIT = 5000;
 const NAME_LENGTH = 24;
 const CHAT_LENGTH = 140;
-const CHAT_GAP_MS = 800;
-const CHAT_BURST = 5;
-const CHAT_WINDOW_MS = 10_000;
 // Stricter than what peers accept, so network jitter bunching two sends together never gets a legit message dropped.
 const OWN_CHAT_GAP_MS = 900;
 const OWN_CHAT_BURST = 4;
@@ -94,7 +90,6 @@ export const MAX_LAPS = 10;
 const MAX_RACE_MS = 1e7;
 
 const finite = (v: unknown, limit: number): v is number => typeof v === "number" && Number.isFinite(v) && Math.abs(v) <= limit;
-const dropped = (error: unknown) => console.debug("net: send dropped", error);
 const triple = (v: unknown, limit: number): v is [number, number, number] => Array.isArray(v) && v.length === 3 && v.every((x) => finite(x, limit));
 
 // Peers are untrusted: anything that reaches the scene (positions, quaternions, names) is shape-checked and clamped
@@ -187,24 +182,6 @@ export function clean_name(raw: unknown): string {
   return name || FALLBACK_NAME;
 }
 
-export class RateLimit {
-  private times: number[] = [];
-
-  constructor(
-    private gap = CHAT_GAP_MS,
-    private burst = CHAT_BURST,
-  ) {}
-
-  allow(now: number): boolean {
-    while (this.times.length && now - this.times[0] >= CHAT_WINDOW_MS) this.times.shift();
-    const last = this.times[this.times.length - 1];
-    if (last !== undefined && now - last < this.gap) return false;
-    if (this.times.length >= this.burst) return false;
-    this.times.push(now);
-    return true;
-  }
-}
-
 export class Net {
   readonly id = selfId;
   readonly remotes = new Map<string, Remote>();
@@ -213,14 +190,10 @@ export class Net {
   /** Peers on this map, by id: when last heard (performance.now ms). Uncapped, unlike `remotes`, so every player elects the same leader. */
   readonly same_map = new Map<string, number>();
   status = "connecting";
-  on_chat: ((name: string, text: string) => void) | null = null;
-  private send_p2p: ((state: CarState) => void) | null = null;
-  on_event: ((event: RaceEvent, from: Remote) => void) | null = null;
-  private send_chat_p2p: ((msg: ChatMsg) => void) | null = null;
-  private send_event_p2p: ((event: RaceEvent) => void) | null = null;
-  private event_limits = new Map<string, RateLimit>();
-  private channel: BroadcastChannel;
-  private chat_limits = new Map<string, RateLimit>();
+  private readonly link: Link;
+  private readonly cars: Channel<CarState>;
+  private readonly chats: Channel<ChatMsg>;
+  private readonly events: Channel<RaceEvent>;
   private own_chat_limit = new RateLimit(OWN_CHAT_GAP_MS, OWN_CHAT_BURST);
 
   private name_: string;
@@ -240,42 +213,38 @@ export class Net {
   ) {
     this.name_ = clean_name(name);
     const password = lock?.password ?? null;
-    // Same-browser tabs skip WebRTC, so a locked room keys its channel by the password too.
-    this.channel = new BroadcastChannel(password === null ? `harepin:${room}` : `harepin-locked:${JSON.stringify([room, password])}`);
-    this.channel.onmessage = (event: MessageEvent<unknown>) => this.receive_local(event.data);
+    let p2p: Room | null = null;
     try {
-      const p2p = joinRoom({ appId: APP_ID, ...(password === null ? {} : { password }) }, room, {
+      p2p = joinRoom({ appId: APP_ID, ...(password === null ? {} : { password }) }, room, {
         onJoinError: ({ error }) => {
           this.status = join_error_status(lock, this.had_peer, this.peers, error) ?? this.status;
         },
       });
-      const action = p2p.makeAction<CarState>("car");
-      this.send_p2p = (state) => void action.send(state).catch(dropped);
-      action.onMessage = (state, { peerId }) => this.receive(state, peerId);
-      const chat = p2p.makeAction<ChatMsg>("chat");
-      this.send_chat_p2p = (msg) => void chat.send(msg).catch(dropped);
-      chat.onMessage = (msg, { peerId }) => this.receive_chat(msg, peerId);
-      const events = p2p.makeAction<RaceEvent>("event");
-      this.send_event_p2p = (event) => void events.send(event).catch(dropped);
-      events.onMessage = (event, { peerId }) => this.receive_event(event, peerId);
-      p2p.onPeerJoin = (peer) => {
-        this.peer_ids.add(peer);
-        this.had_peer = true;
-        this.status = "online";
-      };
-      p2p.onPeerLeave = (peer) => {
-        this.peer_ids.delete(peer);
-        if (this.peers === 0) this.status = "searching";
-        this.remotes.delete(peer);
-        this.same_map.delete(peer);
-        this.chat_limits.delete(peer);
-        this.event_limits.delete(peer);
-      };
       this.status = "searching";
     } catch (error) {
       console.warn("p2p unavailable, same-browser tabs only", error);
       this.status = "local only";
     }
+    // Same-browser tabs skip WebRTC, so a locked room keys its channel by the password too.
+    const local = new BroadcastChannel(password === null ? `harepin:${room}` : `harepin-locked:${JSON.stringify([room, password])}`);
+    this.link = new Link(this.id, local, p2p);
+    this.cars = this.link.channel("car", sanitize);
+    this.chats = this.link.channel("chat", sanitize_chat, () => new RateLimit());
+    this.events = this.link.channel("event", sanitize_event, () => new RateLimit());
+    this.cars.subscribe((state) => this.receive(state));
+    if (!p2p) return;
+    p2p.onPeerJoin = (peer) => {
+      this.peer_ids.add(peer);
+      this.had_peer = true;
+      this.status = "online";
+    };
+    p2p.onPeerLeave = (peer) => {
+      this.peer_ids.delete(peer);
+      if (this.peers === 0) this.status = "searching";
+      this.remotes.delete(peer);
+      this.same_map.delete(peer);
+      this.link.forget(peer);
+    };
   }
 
   get peers(): number {
@@ -291,17 +260,22 @@ export class Net {
   }
 
   send(state: CarState) {
-    const stamped = { ...state, w: this.world };
-    this.post({ kind: "car", id: this.id, data: stamped });
-    this.send_p2p?.(stamped);
+    this.cars.send({ ...state, w: this.world });
   }
 
   send_chat(text: string): string | null {
     const msg = sanitize_chat({ text, t: performance.now() });
     if (!msg || !this.own_chat_limit.allow(msg.t)) return null;
-    this.post({ kind: "chat", id: this.id, data: msg });
-    this.send_chat_p2p?.(msg);
+    this.chats.send(msg);
     return msg.text;
+  }
+
+  // Any room peer may chat: one on another map, or one whose first car packet hasn't landed, has no `Remote` yet.
+  on_chat(fn: (name: string, text: string) => void): () => void {
+    return this.chats.subscribe((msg, sender) => {
+      const remote = this.remotes.get(sender);
+      fn(remote ? this.display_name(remote) : this.label(sender, this.foreign.get(sender)?.name ?? FALLBACK_NAME), msg.text);
+    });
   }
 
   /** A peer's name, with a short id suffix when someone else in the room (you included) uses the same one. */
@@ -315,52 +289,17 @@ export class Net {
   }
 
   send_event(event: RaceEvent) {
-    this.post({ kind: "event", id: this.id, data: event });
-    this.send_event_p2p?.(event);
+    this.events.send(event);
   }
 
-  private post(packet: Packet) {
-    this.channel.postMessage(packet);
+  on_event(fn: (event: RaceEvent, from: Remote) => void): () => void {
+    return this.events.subscribe((event, sender) => {
+      const remote = this.remotes.get(sender);
+      if (remote) fn(event, remote);
+    });
   }
 
-  private receive_local(raw: unknown) {
-    if (!raw || typeof raw !== "object") return;
-    const packet = raw as Record<string, unknown>;
-    if (packet.kind === "car") this.receive(packet.data, packet.id);
-    else if (packet.kind === "chat") this.receive_chat(packet.data, packet.id);
-    else if (packet.kind === "event") this.receive_event(packet.data, packet.id);
-  }
-
-  // Any room peer may chat: one on another map, or one whose first car packet hasn't landed, has no `Remote` yet.
-  private receive_chat(raw: unknown, sender: unknown) {
-    if (typeof sender !== "string" || sender === this.id) return;
-    const msg = sanitize_chat(raw);
-    if (!msg || !this.allow(this.chat_limits, sender)) return;
-    const remote = this.remotes.get(sender);
-    this.on_chat?.(remote ? this.display_name(remote) : this.label(sender, this.foreign.get(sender)?.name ?? FALLBACK_NAME), msg.text);
-  }
-
-  private receive_event(raw: unknown, sender: unknown) {
-    const remote = this.known(sender);
-    const event = sanitize_event(raw);
-    if (!remote || !event || !this.allow(this.event_limits, remote.id)) return;
-    this.on_event?.(event, remote);
-  }
-
-  private known(sender: unknown): Remote | null {
-    return typeof sender === "string" && sender !== this.id ? (this.remotes.get(sender) ?? null) : null;
-  }
-
-  private allow(limits: Map<string, RateLimit>, id: string): boolean {
-    let limit = limits.get(id);
-    if (!limit) limits.set(id, (limit = new RateLimit()));
-    return limit.allow(performance.now());
-  }
-
-  private receive(raw: unknown, sender: unknown) {
-    if (typeof sender !== "string" || sender === this.id) return;
-    const state = sanitize(raw, sender);
-    if (!state) return;
+  private receive(state: CarState) {
     const now = performance.now();
     // The same seed on another world version is another island: racing on it would mean racing on different roads.
     if (state.seed !== this.seed || state.w !== this.world) {

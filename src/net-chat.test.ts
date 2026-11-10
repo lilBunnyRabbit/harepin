@@ -24,7 +24,7 @@ const car = (seed: number, name: string) => ({ name, seed, w: 1, t: 1, p: [0, 0,
 test("chat comes from any room peer: on another map, or before its first car packet, still rate-limited", () => {
   const net = new Net("lobby", 7, "Me", null, 1);
   const heard: string[] = [];
-  net.on_chat = (name, text) => heard.push(`${name}: ${text}`);
+  net.on_chat((name, text) => heard.push(`${name}: ${text}`));
   const say = (peerId: string, text: string) => actions.get("chat")?.onMessage?.({ text, t: 1 }, { peerId });
   room.onPeerJoin("fresh");
   say("fresh", "hi");

@@ -68,14 +68,13 @@ export class Chat {
       { signal },
     );
     this.bubbles.addEventListener("animationend", (e) => e.target instanceof HTMLElement && e.target.remove(), { signal });
-    this.net.on_chat = (name, text) => this.add(name, text, false);
+    signal.addEventListener("abort", this.net.on_chat((name, text) => this.add(name, text, false)));
     this.sync_empty();
   }
 
   stop() {
     this.abort?.abort();
     this.abort = null;
-    this.net.on_chat = null;
     this.stop_presence();
   }
 

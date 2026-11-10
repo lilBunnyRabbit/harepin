@@ -26,7 +26,7 @@ class FakeNet {
   readonly same_map = new Map<string, number>();
   readonly sent: RaceEvent[] = [];
   settling = false;
-  on_event: ((event: RaceEvent, from: Remote) => void) | null = null;
+  private readonly listeners = new Set<(event: RaceEvent, from: Remote) => void>();
 
   constructor(readonly id: string) {}
 
@@ -49,8 +49,13 @@ class FakeNet {
     return remote.latest.name;
   }
 
+  on_event(fn: (event: RaceEvent, from: Remote) => void) {
+    this.listeners.add(fn);
+    return () => this.listeners.delete(fn);
+  }
+
   hear(event: RaceEvent, from: Remote) {
-    this.on_event?.(event, from);
+    for (const fn of this.listeners) fn(event, from);
   }
 }
 
