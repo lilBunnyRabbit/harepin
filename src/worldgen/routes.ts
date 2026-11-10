@@ -1,7 +1,7 @@
 import { sample } from "./field";
 import { length } from "./noise";
 import type { Trail } from "./trails";
-import { ROAD_HALF, RouteKind, SIDEWALK, STREET_HALF, type Checkpoint, type Item, type Ramp, type RoadGraph, type RoadPoint, type Route, type Town } from "./types";
+import { ROAD_HALF, RouteKind, SIDEWALK, STREET_HALF, type Checkpoint, type Item, type Ramp, type RoadEdge, type RoadGraph, type RoadPoint, type Route, type Town } from "./types";
 
 const STREET_COST = 0.6;
 const SPUR_COST = 1;
@@ -122,8 +122,30 @@ class Atlas {
     private readonly ramps: readonly Ramp[] = [],
   ) {
     const town_of = (x: number, z: number) => towns.find((t) => length(t.x - x, t.z - z) <= t.radius + 1);
+    // Roads between towns stay out of the search until routes are built over the graph: a race would shortcut along one
+    // with no gates or cones where it leaves. The circuit legs and spurs they split at their junctions join back up.
+    const local = new Set<number>();
+    for (const edge of graph.edges) if (edge.kind === "local") local.add(edge.a).add(edge.b);
+    const ins = new Map<number, number>();
+    const outs = new Map<number, RoadEdge[]>();
     for (const edge of graph.edges) {
-      if (circuit.includes(edge.id)) continue;
+      if (edge.kind === "local") continue;
+      for (const node of edge.kind === "street" ? [edge.a, edge.b] : [edge.b]) ins.set(node, (ins.get(node) ?? 0) + 1);
+      if (edge.kind !== "street") outs.set(edge.a, [...(outs.get(edge.a) ?? []), edge]);
+    }
+    const onward = new Map<number, RoadEdge>();
+    for (const [node, list] of outs) if (local.has(node) && list.length === 1 && ins.get(node) === 1) onward.set(node, list[0]);
+    const whole = (edge: RoadEdge): RoadEdge => {
+      let points = edge.points;
+      let b = edge.b;
+      for (let next = onward.get(b); next && next !== edge; next = onward.get(b)) {
+        points = [...points, ...next.points.slice(1)];
+        b = next.b;
+      }
+      return { ...edge, b, points };
+    };
+    for (const edge of graph.edges) {
+      if (circuit.includes(edge.id) || edge.kind === "local" || (edge.kind !== "street" && onward.get(edge.a) === edge)) continue;
       if (edge.kind === "street") {
         this.add(edge.a, edge.b, "street", edge.points);
         const town = town_of(edge.points[0].x, edge.points[0].z);
@@ -133,16 +155,17 @@ class Atlas {
         this.town_nodes.set(town.id, list);
         continue;
       }
-      this.add(edge.a, edge.b, "spur", edge.points);
-      if (edge.kind !== "highway") continue;
+      const spur = whole(edge);
+      this.add(spur.a, spur.b, "spur", spur.points);
       const gate = graph.nodes[edge.a];
       const town = town_of(gate.x, gate.z);
       if (town) this.gates.set(town.id, edge.a);
     }
     // A circuit with one join stays a closed loop on it: no leg leads anywhere new.
     for (const id of circuit) {
-      const leg = graph.edges[id];
-      if (!leg.closed) this.add(leg.a, leg.b, "ring", leg.points, this.kicked(leg.points));
+      if (onward.get(graph.edges[id].a) === graph.edges[id]) continue;
+      const leg = whole(graph.edges[id]);
+      if (!leg.closed && leg.a !== leg.b) this.add(leg.a, leg.b, "ring", leg.points, this.kicked(leg.points));
     }
   }
 
