@@ -47,6 +47,7 @@ import { GUARD_STATE, SystemBack, type Watcher } from "./menu/system-back";
 import { SPAWN_INDEX } from "./world/world";
 import { WorldStream } from "./world/world-stream";
 import { AreaFade } from "./hud/area-fade";
+import { start_lobby } from "./modes/lobby-start";
 import { WORLDS } from "./worlds/worlds";
 import { world_id, world_key } from "./worldgen/kinds/kinds";
 import "./style.css";
@@ -151,11 +152,14 @@ race.on_lap = (improved, first) => {
   ghost.finish(improved);
   if (lobby.route === "circuit") lobby.lap(performance.now());
 };
-async function restart_lap() {
-  await driver.place_road(SPAWN_INDEX);
+function reset_lap() {
   driver.car.nitro.refill();
   race.reset();
   driver.rewind.clear();
+}
+async function restart_lap() {
+  await driver.place_road(SPAWN_INDEX);
+  reset_lap();
 }
 function restart_action() {
   if (modes.active) modes.restart();
@@ -169,12 +173,15 @@ $("restart-lap").addEventListener("click", (event) => {
 lobby.on_start = () => {
   settings.close();
   modes.exit();
-  void restart_lap();
-  if (lobby.route !== "circuit")
-    modes.lobby_race(lobby.route, () => {
-      lobby.lap(performance.now());
-      return lobby.state.kind === "racing";
-    });
+  void start_lobby(lobby.route, {
+    restart: restart_lap,
+    reset: reset_lap,
+    race: (route) =>
+      modes.lobby_race(route, () => {
+        lobby.lap(performance.now());
+        return lobby.state.kind === "racing";
+      }),
+  });
 };
 lobby.on_unanswered = () => hud.toast("No race leader answered");
 race.on_start = () => ghost.start();
