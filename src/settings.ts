@@ -11,7 +11,7 @@ import { guide_seen_on_load } from "./guide-rules";
 import { HARMONIES as HARMONY_HUES, Harmony, generate_theme, is_dark, type ThemeMode } from "./random-theme";
 import { mulberry32 } from "./rng";
 import { Rows, el, icon, read, type Options, type RowHelp, type Text, type Value } from "./setting-rows";
-import { WorldKind } from "./worldgen/types";
+import { WorldKind, type WorldData } from "./worldgen/types";
 import { DEFAULT_KIND, is_kind, kind_of_world } from "./worldgen/kinds/kinds";
 import { WORLDS } from "./worlds/worlds";
 import { world_query } from "./world-pick";
@@ -236,6 +236,8 @@ export interface SettingsHost {
   readonly room: string;
   readonly seed: number;
   readonly kind: WorldKind;
+  /** The loaded world, so the world map draws it without generating it again. */
+  readonly world_data: WorldData;
   name(): string;
   quality_status(): QualityStatus;
   race_busy(): boolean;
@@ -494,7 +496,7 @@ export class Settings {
   private readonly help_title = el("b", "set-help-title");
   private readonly help_text = el("p", "set-help-text");
   private readonly help_visual = el("div", "set-help-visual");
-  private readonly world_map = new WorldMap();
+  private readonly world_map: WorldMap;
   private readonly modes_root = el("div", "modes-page");
   private mode_id = "";
   private race_route = "circuit";
@@ -508,6 +510,7 @@ export class Settings {
     private current: SettingsState,
   ) {
     this.saved = read_saved();
+    this.world_map = new WorldMap(host.world_data);
     this.chosen = host.seed;
     this.chosen_kind = host.kind;
     this.guide = new Guide({
