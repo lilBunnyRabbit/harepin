@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { sweep } from "../../sweep";
 import { WorldKind, parse_kind } from "../types";
 import { generate_world, KINDS, kind_of_world, world_id, world_key } from "./kinds";
 
@@ -14,6 +15,14 @@ test("ids and keys match what saved records and older peers use", () => {
 
 test("a land kind's world carries its own kind, so grip, mood and dressing follow it", () => {
   expect(generate_world(0, WorldKind.DESERT).kind).toBe(WorldKind.DESERT);
+});
+
+test("every alpine seed joins a strip village to the circuit", () => {
+  for (const seed of sweep(10)) {
+    const world = generate_world(seed, WorldKind.ALPINE);
+    expect(world.towns.length).toBeGreaterThan(0);
+    expect(world.graph.edges.some((e) => e.kind === "highway" && !world.circuit.includes(e.id))).toBe(true);
+  }
 });
 
 test("every kind has its own id and key and is keyed by its own kind", () => {
