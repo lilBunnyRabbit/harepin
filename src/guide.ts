@@ -67,7 +67,7 @@ const KEYMAP: Record<Device, [string[], string, string][]> = {
   ],
   touch: [
     [["Gas", "Brake"], "Pedals", "bottom right"],
-    [["Steer"], "Steer", "drag or arrow buttons, bottom left"],
+    [["Steer"], "Steer", "drag or arrows, bottom left"],
     [["Nitro"], "Nitro", "when fitted"],
     [["Rewind"], "Rewind", "hold"],
     [["Menu"], "Menu", "top left"],
