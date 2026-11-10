@@ -10,6 +10,7 @@ bun run build              # static dist/
 bun run telemetry          # scripts/telemetry.ts: 0-100, top speed, braking, skidpad
 bun scripts/feel.ts        # handling scenarios
 bun scripts/autolap.ts     # autopilot lap; also scripts/crash.ts, scripts/offroad.ts
+node scripts/og/render.mjs # link-preview card public/og.jpg from scripts/og/og.html; capture.mjs <port> re-shoots hero.jpg from a vite preview
 ```
 
 Run `typecheck` and `build` before every commit. A change to `src/car/`, `src/world/` or input also runs the `scripts/*.ts` checks and compares numbers against the previous run.
