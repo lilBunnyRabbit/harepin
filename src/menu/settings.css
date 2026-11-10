@@ -1316,6 +1316,12 @@
   display: none;
 }
 
+@media (max-height: 500px) {
+  .set:has(.set-list[data-sub="changes"]:not([hidden])) .set-help {
+    display: none;
+  }
+}
+
 @media (orientation: landscape) and (max-height: 420px) {
   .settings .set-tab {
     padding: var(--space-2) 2px;

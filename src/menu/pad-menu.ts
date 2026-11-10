@@ -9,6 +9,8 @@ const FOCUSABLE = ":is(button, input, select, textarea, a[href], [tabindex]):not
 // Borders and focus outlines make neighbours overlap by a few px; they still count as the next row or column.
 const OVERLAP_PX = 4;
 const SIDE_WEIGHT = 2;
+/** Share of the visible height one up or down press scrolls a focused block taller than its scroller. */
+const SCROLL_STEP = 0.4;
 
 type Direction = "up" | "down" | "left" | "right";
 
@@ -59,6 +61,26 @@ function nearest(from: HTMLElement, items: HTMLElement[], dir: Direction): HTMLE
     }
   }
   return best;
+}
+
+function scroller(el: HTMLElement): HTMLElement | null {
+  for (let at: HTMLElement | null = el; at; at = at.parentElement) {
+    if (at.scrollHeight > at.clientHeight && /auto|scroll/.test(getComputedStyle(at).overflowY)) return at;
+  }
+  return null;
+}
+
+// A focused block with content past the scroller's edge (the changelog, the key list) scrolls before focus moves on.
+function scroll_within(el: HTMLElement, dir: "up" | "down"): boolean {
+  const box = scroller(el);
+  if (!box) return false;
+  const r = el.getBoundingClientRect();
+  const b = box.getBoundingClientRect();
+  const end = box.scrollHeight - box.clientHeight - box.scrollTop;
+  const hidden = dir === "down" ? Math.min(end, box === el ? end : r.bottom - b.bottom) : Math.min(box.scrollTop, box === el ? box.scrollTop : b.top - r.top);
+  if (hidden <= OVERLAP_PX) return false;
+  box.scrollBy({ top: (dir === "down" ? 1 : -1) * Math.min(hidden, box.clientHeight * SCROLL_STEP) });
+  return true;
 }
 
 function focus(el: HTMLElement | null) {
@@ -152,6 +174,7 @@ export class PadMenu {
         continue;
       }
       if ((nav === "left" || nav === "right") && adjust(current, nav === "left" ? -1 : 1)) continue;
+      if ((nav === "up" || nav === "down") && scroll_within(current, nav)) continue;
       const next = nearest(current, items, nav);
       if (!next) continue;
       settle(current);
