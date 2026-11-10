@@ -2,6 +2,7 @@ import { Quaternion, Vector3 } from "three";
 import { axle_index, axles_of, type Axle } from "./axles";
 import { COUPE, type CarSpec } from "./cars";
 import { NITRO_TORQUE, Nitro, type NitroSense } from "./nitro";
+import { RigidBody } from "./rigid-body";
 
 export interface Ground {
   /** `y`, when given, is the height the query comes from; a ground with stacked surfaces answers the one below it. */
@@ -174,8 +175,6 @@ const lat = new Vector3();
 const lever = new Vector3();
 const point_vel = new Vector3();
 const force = new Vector3();
-const total_force = new Vector3();
-const total_torque = new Vector3();
 const tmp = new Vector3();
 const tmp2 = new Vector3();
 const inv = new Quaternion();
@@ -196,10 +195,7 @@ function ray_gap(ground: Ground, t: number): number {
 }
 
 export class Car {
-  readonly pos = new Vector3();
-  readonly quat = new Quaternion();
-  readonly vel = new Vector3();
-  readonly ang = new Vector3();
+  readonly body: RigidBody;
   readonly axles: Axle[];
   readonly wheels: Wheel[];
   private readonly driven: Wheel[];
@@ -226,6 +222,7 @@ export class Car {
   readonly nitro: Nitro;
 
   constructor(readonly spec: CarSpec = COUPE) {
+    this.body = new RigidBody(spec.mass, spec.inertia);
     this.nitro = new Nitro(spec.nitro ?? 0);
     this.axles = axles_of(spec);
     this.wheels = spec.wheel.mounts.map(([x, y, z], i) => {
@@ -236,6 +233,22 @@ export class Car {
     this.driven = this.wheels.filter((w) => w.driven);
     this.corners = spec.corners.map(([x, y, z]) => new Vector3(x, y, z));
     this.rpm = spec.idle;
+  }
+
+  get pos(): Vector3 {
+    return this.body.pos;
+  }
+
+  get quat(): Quaternion {
+    return this.body.quat;
+  }
+
+  get vel(): Vector3 {
+    return this.body.vel;
+  }
+
+  get ang(): Vector3 {
+    return this.body.ang;
   }
 
   place(x: number, y: number, z: number, heading: number) {
@@ -303,7 +316,8 @@ export class Car {
   }
 
   step(dt: number, input: Controls, ground: Ground) {
-    const { pos, quat, vel, ang, spec } = this;
+    const { body, spec } = this;
+    const { pos, quat, vel, ang } = body;
     const { radius, rest } = spec.wheel;
     up.set(0, 1, 0).applyQuaternion(quat);
     down.copy(up).negate();
@@ -445,8 +459,7 @@ export class Car {
     const drive = engine * ratio * spec.driveline;
     const driven_inertia = 1.4 + (spec.engine_inertia * ratio * ratio) / driven.length;
 
-    total_force.set(0, -GRAVITY * spec.mass, 0);
-    total_torque.set(0, 0, 0);
+    body.force.y -= GRAVITY * spec.mass;
 
     const reach = rest + radius;
     for (const w of this.wheels) {
@@ -507,9 +520,7 @@ export class Car {
       const load = suspension * Math.max(0, up.dot(w.normal));
       w.load = load;
       // Along body up, a pitched body pushed itself sideways and a car in neutral rolled off on the flat.
-      force.copy(w.normal).multiplyScalar(load);
-      total_force.add(force);
-      total_torque.add(tmp2.crossVectors(lever, force));
+      body.apply(force.copy(w.normal).multiplyScalar(load), w.point);
 
       steer_q.setFromAxisAngle(Y, -w.angle);
       wheel_fwd.set(0, 0, 1).applyQuaternion(steer_q).applyQuaternion(quat);
@@ -569,11 +580,10 @@ export class Car {
         if (tmp2.length() > peak) w.anchored = false;
         else force.copy(tmp2);
       }
-      total_force.add(force);
-      total_torque.add(tmp2.crossVectors(lever, force));
+      body.apply(force, w.point);
       // Grass drag acts at the centre of mass: at the contact patch it pitched load off the rear, and at full throttle on grass
       // the unloaded rear lost straight-line yaw stability, so the car circled while TCS cut the power.
-      total_force.addScaledVector(wheel_fwd, -rolling * (roll - 1) * (1 - spec.offroad));
+      body.force.addScaledVector(wheel_fwd, -rolling * (roll - 1) * (1 - spec.offroad));
     }
 
     let airborne = this.wheels.every((w) => !w.contact);
@@ -583,23 +593,21 @@ export class Car {
       if (depth <= 0) continue;
       airborne = false;
       ground.normal(p.x, p.z, tmp, p.y);
-      lever.copy(p).sub(pos);
-      point_vel.crossVectors(ang, lever).add(vel);
+      point_vel.crossVectors(ang, lever.copy(p).sub(pos)).add(vel);
       const vn = point_vel.dot(tmp);
       const normal_force = Math.max(0, 140000 * depth - 7000 * vn);
       force.copy(tmp).multiplyScalar(normal_force);
       point_vel.addScaledVector(tmp, -vn);
       const vt = point_vel.length();
       if (vt > 1e-4) force.addScaledVector(point_vel, -Math.min(0.6 * normal_force, vt * 4000) / vt);
-      total_force.add(force);
-      total_torque.add(tmp2.crossVectors(lever, force));
+      body.apply(force, p);
     }
 
     // Stability assist: damp only yaw that grows the slide, so a drift can be held and caught but not spun; the
     // handbrake bypasses it so slides can still be started on purpose.
     const excess = Math.abs(slide) - 0.2;
     if (this.assist && excess > 0 && input.handbrake < 0.1 && Math.sign(ang.y) === Math.sign(slide)) {
-      total_torque.y -= ang.y * spec.inertia[1] * Math.min(1, excess * 6) * 3.5 * spec.assist_yaw * (1 - power_slide);
+      body.torque.y -= ang.y * spec.inertia[1] * Math.min(1, excess * 6) * 3.5 * spec.assist_yaw * (1 - power_slide);
     }
     if (airborne && spec.air_settle > 0) {
       // Crests launch the car off whichever wheel leaves last, so it takes off spinning; bleed pitch and roll and level it
@@ -609,28 +617,14 @@ export class Car {
       tmp.copy(ang).addScaledVector(up, -yaw);
       ang.addScaledVector(tmp, -Math.min(1, spec.air_settle * dt)).addScaledVector(level, dt);
     }
-    total_force.addScaledVector(vel, -spec.drag * speed);
+    body.force.addScaledVector(vel, -spec.drag * speed);
     const lift = this.wheels.some((w) => w.contact) ? 1 : 1 - spec.ground_effect;
     const press = spec.downforce * lift * vf * vf;
-    total_force.addScaledVector(up, -press);
+    body.force.addScaledVector(up, -press);
     // Downforce ahead of the centre of mass pitches the nose onto its springs, so the front tyres carry more of it.
-    if (spec.aero_front) total_torque.add(tmp2.crossVectors(lever.copy(forward).multiplyScalar(spec.aero_front * spec.wheelbase), tmp.copy(up).multiplyScalar(-press)));
+    if (spec.aero_front) body.torque.add(tmp2.crossVectors(lever.copy(forward).multiplyScalar(spec.aero_front * spec.wheelbase), tmp.copy(up).multiplyScalar(-press)));
 
-    vel.addScaledVector(total_force, dt / spec.mass);
-    const body_torque = total_torque.applyQuaternion(inv);
-    body_torque.set(body_torque.x / spec.inertia[0], body_torque.y / spec.inertia[1], body_torque.z / spec.inertia[2]).applyQuaternion(quat);
-    ang.addScaledVector(body_torque, dt);
-    pos.addScaledVector(vel, dt);
-
-    const half = dt / 2;
-    const { x, y, z, w } = quat;
-    quat.set(
-      x + half * (ang.x * w + ang.y * z - ang.z * y),
-      y + half * (ang.y * w + ang.z * x - ang.x * z),
-      z + half * (ang.z * w + ang.x * y - ang.y * x),
-      w - half * (ang.x * x + ang.y * y + ang.z * z),
-    );
-    quat.normalize();
+    body.integrate(dt);
   }
 
   get scrub(): number {
