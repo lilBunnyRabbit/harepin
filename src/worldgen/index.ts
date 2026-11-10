@@ -9,7 +9,7 @@ import { split_circuit, type Join } from "./graph";
 import { link_towns, way_toward, ways } from "./links";
 import { loop_road } from "./path";
 import { circuit_route, offroad_routes, reverse_circuit, street_routes } from "./routes";
-import { join_candidates, Router, SHAPE_GRADE, spur_need, spur_points, type Way } from "./route";
+import { join_candidates, MIN_RADIUS, Router, SHAPE_GRADE, spur_need, spur_points, tightest, type Way } from "./route";
 import type { Path } from "./path";
 import { Stamp } from "./stamp";
 import { road_junctions } from "./road-layers";
@@ -85,6 +85,7 @@ export function generate(seed: number): WorldData {
       const points = spur_points(t.path, heights, gate.y, road[t.join].y);
       return Math.abs(points[0].y - gate.y) < PIN && Math.abs(points[points.length - 1].y - road[t.join].y) < PIN;
     };
+    const fits = (t: { path: Path; join: number }) => pinned(t) && tightest(spur_points(t.path, heights, gate.y, road[t.join].y)) >= MIN_RADIUS;
     const pick = (leave: (join: number) => Way | null) => {
       const tried: { path: Path; join: number; need: number; stacked: boolean }[] = [];
       for (const join of [...candidates.filter((j) => !on_stack(j)), ...candidates.filter(on_stack)]) {
@@ -106,12 +107,12 @@ export function generate(seed: number): WorldData {
     for (const leave of leaving) {
       const found = pick(leave);
       best ??= found;
-      if (found && pinned(found)) {
+      if (found && fits(found)) {
         best = found;
         break;
       }
     }
-    if (best && !pinned(best)) best = pick(() => null) ?? best;
+    if (best && !fits(best)) best = pick(() => null) ?? best;
     if (!best) continue;
     router.claim(best.path);
     const target = road[best.join];

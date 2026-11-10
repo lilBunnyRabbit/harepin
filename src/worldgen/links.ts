@@ -1,7 +1,7 @@
 import { split_edge, type Join } from "./graph";
 import { length } from "./noise";
 import type { Path } from "./path";
-import { APPROACH, CROSS_COST, Router, SHAPE_GRADE, spur_need, spur_points, unkink, type Crossing, type Exit, type LinkPath, type Port, type Way } from "./route";
+import { APPROACH, CROSS_COST, MIN_RADIUS, Router, SHAPE_GRADE, spur_need, spur_points, tightest, unkink, type Crossing, type Exit, type LinkPath, type Port, type Way } from "./route";
 import { LOCAL_HALF, type RoadEdge, type RoadGraph, type RoadNode, type RoadPoint, type Town } from "./types";
 
 /** What a metre of road already built costs against a new one, so later links ride the trunks earlier ones laid. */
@@ -211,7 +211,7 @@ function pieces(ctx: LinkContext, chain: Anchor[], found: LinkPath): Piece[] | n
     const path = unkink(cells, from.y, to.y, 2, true);
     if (spur_need(path, from.y, to.y) > SHAPE_GRADE) return k;
     const points = spur_points(path, ctx.heights, from.y, to.y);
-    if (Math.abs(points[0].y - from.y) > PIN || Math.abs(points[points.length - 1].y - to.y) > PIN) return k;
+    if (Math.abs(points[0].y - from.y) > PIN || Math.abs(points[points.length - 1].y - to.y) > PIN || tightest(points) < MIN_RADIUS) return k;
     // Smoothing can still pull a bend across a band the cells went round; the runs into the anchors cross bands on purpose.
     const ends = Math.ceil(END_CLEAR / 2);
     if (!ctx.router.clear(points, ends, points.length - ends)) return k;

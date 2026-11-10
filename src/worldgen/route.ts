@@ -26,6 +26,9 @@ const JOIN_TRIES = 16;
 const JOIN_SPACING = 20;
 /** Extra cost of crossing the circuit, in metres: one crossing where a detour of up to this much avoids a second. */
 export const CROSS_COST = 200;
+/** Tightest bend a spur or link may take, m: a square departure that bends harder is routed another way. */
+export const MIN_RADIUS = 11;
+const BEND_SPAN = 2;
 /** cos² of the sharpest control-polygon turn a spur keeps (60°); a 90° turn on 16 m cells smooths to about ROAD_HALF. */
 const TURN_COS2 = 0.25;
 
@@ -462,6 +465,18 @@ export function unkink(cells: Path, from_y: number, to_y: number, head = 1, squa
     i = Math.max(1, Math.min(i, drop) - 1);
   }
   return out;
+}
+
+/** Smallest bend radius along the road, from tangents BEND_SPAN points either side. */
+export function tightest(points: readonly RoadPoint[]): number {
+  let radius = Infinity;
+  for (let i = BEND_SPAN; i < points.length - BEND_SPAN; i++) {
+    const a = points[i - BEND_SPAN];
+    const b = points[i + BEND_SPAN];
+    const half_sin = Math.sqrt(Math.max(0, (1 - (a.tx * b.tx + a.tz * b.tz)) / 2));
+    if (half_sin > 0) radius = Math.min(radius, length(b.x - a.x, b.z - a.z) / 2 / half_sin);
+  }
+  return radius;
 }
 
 export function spur_points(cells: Path, heights: Float32Array, from_y: number, to_y: number): RoadPoint[] {

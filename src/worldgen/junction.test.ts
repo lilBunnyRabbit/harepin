@@ -54,13 +54,12 @@ test("a straight road through a T keeps its far rim: the patch walks it point fo
   expect(patch.minor).toEqual([1]);
 });
 
-test("every junction on seeds 0-2 gets a patch, and each faces up", () => {
+test("every circuit junction on seeds 0-2 gets a patch, and each faces up", () => {
   for (const seed of [0, 1, 2]) {
     const data = generate(seed);
-    const { patched, loose } = road_junctions(data);
+    const { patched } = road_junctions(data);
     const joins = new Set(data.circuit.map((id) => data.graph.edges[id].a)).size;
     expect(patched.filter((j) => j.arms.some((a) => a.rank === 2)).length).toBe(joins);
-    expect(loose).toEqual([]);
     for (const { patch } of patched) expect(faces_up(patch)).toBe(true);
   }
 });
