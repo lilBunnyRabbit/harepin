@@ -1,5 +1,5 @@
 import type { Biome, TreeRule } from "./biomes";
-import { Ground, type ItemKind } from "./types";
+import { Ground, PropKind, type ItemKind } from "./types";
 
 export interface TerrainRecipe {
   /** Distance from the centre where the land meets `edge`, metres. */
@@ -16,11 +16,20 @@ export interface TerrainRecipe {
   mesas: { base: number; step: number; riser: number } | null;
 }
 
-/** A biome's ground row: `above` where its patch noise passes `cut`, else `below`. */
+/** A biome's ground row: `above` where its patch noise passes `cut`, else `below`; `soft` dithers the cut that wide. */
 export interface GroundRule {
   cut: number;
   above: Ground;
   below: Ground;
+  soft: number;
+}
+
+/** Props strewn over open ground: one at most per `spacing` cell, on `odds` of the cells in `biomes`. */
+export interface ScatterRule {
+  kind: PropKind;
+  spacing: number;
+  odds: number;
+  biomes: readonly Biome[];
 }
 
 export interface BiomeRecipe {
@@ -42,6 +51,8 @@ export interface RoadRecipe {
 export interface TownRecipe {
   min: number;
   max: number;
+  /** Gardens and house yards get trees; false gives them a water tank and boulders instead. */
+  trees: boolean;
   /** Street block size: min plus up to span, metres. */
   block: { min: number; span: number };
 }
@@ -56,6 +67,7 @@ export interface Recipe {
   road: RoadRecipe;
   towns: TownRecipe;
   landmarks: readonly Landmark[];
+  scatter: readonly ScatterRule[];
 }
 
 export const ISLAND: Recipe = {
@@ -69,18 +81,21 @@ export const ISLAND: Recipe = {
     },
     items: { coast: "log", meadow: "hay", forest: "log", upland: "rock" },
     ground: {
-      coast: { cut: 0.55, above: Ground.SAND, below: Ground.DUNE },
-      meadow: { cut: 0.55, above: Ground.DRY, below: Ground.GRASS },
-      forest: { cut: 0.6, above: Ground.GRASS, below: Ground.FOREST },
-      upland: { cut: 0.5, above: Ground.DRY, below: Ground.UPLAND },
+      coast: { cut: 0.55, above: Ground.SAND, below: Ground.DUNE, soft: 0 },
+      meadow: { cut: 0.55, above: Ground.DRY, below: Ground.GRASS, soft: 0 },
+      forest: { cut: 0.6, above: Ground.GRASS, below: Ground.FOREST, soft: 0 },
+      upland: { cut: 0.5, above: Ground.DRY, below: Ground.UPLAND, soft: 0 },
     },
   },
   road: { loop: { radius: 620, swing: 640, min: 380, max: 860 }, stacks: [4, 2], canyon: { outlet: 2 }, kickers: { road: 4, total: 12, big: 3 } },
-  towns: { min: 3, max: 6, block: { min: 45, span: 25 } },
+  towns: { min: 3, max: 6, trees: true, block: { min: 45, span: 25 } },
   landmarks: [Landmark.MAST, Landmark.LIGHTHOUSE, Landmark.TURBINES, Landmark.ARCH],
+  scatter: [],
 };
 
 const BARE = { start: 1, fill: 0, pine: 0, scrub: 0, extra: 0 };
+/** Dither width of the desert's patch edges, so hardpack frays into sand instead of a hard camouflage line. */
+const SOFT = 0.3;
 
 /** Sand, hardpack and terraced mesas inside a dune wall: low hills, no trees, a few outposts. */
 export const DESERT: Recipe = {
@@ -97,13 +112,18 @@ export const DESERT: Recipe = {
     rules: { coast: BARE, meadow: BARE, forest: BARE, upland: BARE },
     items: { coast: "rock", meadow: "rock", forest: null, upland: "rock" },
     ground: {
-      coast: { cut: 0.55, above: Ground.SAND, below: Ground.DUNE },
-      meadow: { cut: 0.45, above: Ground.DIRT, below: Ground.DUNE },
-      forest: { cut: 0.6, above: Ground.DUNE, below: Ground.SAND },
-      upland: { cut: 0.5, above: Ground.UPLAND, below: Ground.DIRT },
+      coast: { cut: 0.55, above: Ground.SAND, below: Ground.SAND, soft: 0 },
+      meadow: { cut: 0.55, above: Ground.DIRT, below: Ground.SAND, soft: SOFT },
+      forest: { cut: 0.6, above: Ground.DUNE, below: Ground.SAND, soft: SOFT },
+      upland: { cut: 0.5, above: Ground.UPLAND, below: Ground.DUNE, soft: SOFT },
     },
   },
   road: { loop: { radius: 650, swing: 500, min: 420, max: 850 }, stacks: [], canyon: { outlet: 24 }, kickers: { road: 4, total: 16, big: 4 } },
-  towns: { min: 1, max: 3, block: { min: 35, span: 15 } },
+  towns: { min: 1, max: 3, trees: false, block: { min: 35, span: 15 } },
   landmarks: [Landmark.ARCH, Landmark.MAST, Landmark.TURBINES],
+  scatter: [
+    { kind: PropKind.CACTUS, spacing: 30, odds: 0.08, biomes: ["meadow", "upland"] },
+    { kind: PropKind.BOULDER, spacing: 44, odds: 0.1, biomes: ["meadow", "forest", "upland"] },
+    { kind: PropKind.SPIRE, spacing: 130, odds: 0.18, biomes: ["upland"] },
+  ],
 };

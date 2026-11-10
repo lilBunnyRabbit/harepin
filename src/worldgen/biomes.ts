@@ -96,7 +96,9 @@ export function tree_kind(cuts: BiomeCuts, biome: Biome, x: number, z: number, k
 
 export function ground_at(cuts: BiomeCuts, x: number, z: number, y: number): Ground {
   const rule = cuts.recipe.ground[biome_at(cuts, x, z, y)];
-  return fbm(x / PATCH_SCALE, z / PATCH_SCALE, cuts.seed + PATCH_SEED, 3) > rule.cut ? rule.above : rule.below;
+  const patch = fbm(x / PATCH_SCALE, z / PATCH_SCALE, cuts.seed + PATCH_SEED, 3);
+  const fray = rule.soft ? (hash(x, z, cuts.seed + PATCH_SEED + 1) - 0.5) * rule.soft : 0;
+  return patch + fray > rule.cut ? rule.above : rule.below;
 }
 
 /** Marks the recipe's hardpack, its DIRT ground rows, firm in the surface grid, so grip and colour agree. */

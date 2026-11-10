@@ -11,6 +11,7 @@ import { loop_road } from "./path";
 import { circuit_route, offroad_routes, reverse_circuit, street_routes } from "./routes";
 import { join_candidates, MIN_RADIUS, Router, SHAPE_GRADE, spur_need, spur_points, tightest, type Way } from "./route";
 import type { Path } from "./path";
+import { scatter } from "./scatter";
 import { Stamp } from "./stamp";
 import { road_junctions } from "./road-layers";
 import { guard_rails, inside } from "./switchback";
@@ -153,7 +154,7 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   stamp.blend();
   lap("stamp");
 
-  const lots = new Lots(seed, land, stamp);
+  const lots = new Lots(seed, land, stamp, recipe.towns);
   for (const edge of edges) {
     if (edge.kind !== "street") continue;
     const town = towns.find((t) => length(t.x - edge.points[0].x, t.z - edge.points[0].z) <= t.radius + 1);
@@ -217,9 +218,13 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   const routes = reverse ? [loop, ...streets.routes, ...offroad, reverse] : [loop, ...streets.routes, ...offroad];
   lap("routes");
 
-  const planted = plant(cuts, land, (x, z) => !lots.occupied[vertex(Math.round((x - ORIGIN) / CELL), Math.round((z - ORIGIN) / CELL))] && !towns.some((t) => length(t.x - x, t.z - z) < t.radius) && !jumps.blocks(x, z, 2) && !marks.blocks(x, z, 2));
+  const free = (x: number, z: number) => !lots.occupied[vertex(Math.round((x - ORIGIN) / CELL), Math.round((z - ORIGIN) / CELL))] && !towns.some((t) => length(t.x - x, t.z - z) < t.radius) && !jumps.blocks(x, z, 2) && !marks.blocks(x, z, 2);
+  const planted = plant(cuts, land, free);
   const trees: Tree[] = [...lots.out.trees, ...planted.trees];
   solids.push(...planted.solids);
+  const strewn = scatter(cuts, land, recipe.scatter, free);
+  props.push(...strewn.props);
+  solids.push(...strewn.solids);
   stamp.harden(cuts);
   lap("props");
 

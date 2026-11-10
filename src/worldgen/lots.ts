@@ -1,5 +1,7 @@
 import { cell_range, sample, vertex } from "./field";
 import { hash, length } from "./noise";
+import type { TownRecipe } from "./recipe";
+import { prop_solid } from "./scatter";
 import type { Stamp } from "./stamp";
 import {
   CELL,
@@ -85,6 +87,7 @@ export class Lots {
     private readonly seed: number,
     private readonly terrain: Terrain,
     private readonly stamp: Stamp,
+    private readonly shape: TownRecipe,
   ) {
     this.occupied = new Uint8Array(terrain.heights.length);
   }
@@ -181,12 +184,20 @@ export class Lots {
     this.out.solids.push({ kind: "circle", x, y, z, radius: TREE_RADIUS * scale, height: TREE_HEIGHT * scale });
   }
 
+  // A dry yard: the first spot holds the water tank, the rest boulders.
+  private yard(x: number, z: number, roll: number, first: boolean) {
+    const prop: Prop = { x, y: sample(this.terrain.heights, x, z), z, angle: roll * Math.PI * 2, kind: first ? PropKind.TANK : PropKind.BOULDER, scale: first ? 1 : 0.5 + roll * 0.4 };
+    this.out.props.push(prop);
+    this.out.solids.push(prop_solid(prop));
+  }
+
   private garden(lot: Lot, count: number) {
     for (let i = 0; i < count; i++) {
       const lx = (hash(lot.id, i, this.seed + 71) - 0.5) * (lot.w - 5);
       const lz = (hash(lot.id, i, this.seed + 72) - 0.5) * (lot.d - 5);
       const [x, z] = local_to_world(lot, lx, lz);
-      this.tree(x, z, hash(lot.id, i, this.seed + 73));
+      if (this.shape.trees) this.tree(x, z, hash(lot.id, i, this.seed + 73));
+      else this.yard(x, z, hash(lot.id, i, this.seed + 73), i === 0);
     }
   }
 
@@ -219,7 +230,8 @@ export class Lots {
     const yard = front - hd + lot.d / 2;
     if (!shop && yard > 5 && hash(lot.id, 1, this.seed + 74) < 0.6) {
       const [tx, tz] = local_to_world(lot, (hash(lot.id, 2, this.seed + 74) - 0.5) * (lot.w - 4), -lot.d / 2 + yard / 2);
-      this.tree(tx, tz, hash(lot.id, 3, this.seed + 74));
+      if (this.shape.trees) this.tree(tx, tz, hash(lot.id, 3, this.seed + 74));
+      else this.yard(tx, tz, hash(lot.id, 3, this.seed + 74), false);
     }
   }
 

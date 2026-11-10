@@ -10,6 +10,8 @@ export interface LandmarkTones {
   cap: Rgb;
   stone: Rgb;
   stone_shade: Rgb;
+  plant: Rgb;
+  plant_shade: Rgb;
 }
 
 const MAST_BANDS = 6;
@@ -135,6 +137,41 @@ function arch(out: Builder, prop: Prop, heights: Float32Array, t: LandmarkTones)
   slab(out, -reach * 0.55, reach * 0.4, ARCH_LEG * 0.8, top, top + 1.1, t.stone_shade, t.stone);
 }
 
+// Drawn to SCATTER_SHAPE (scatter.ts) at scale 1: a saguaro of tree-crown green with one or two arms.
+function cactus(out: Builder, s: number, roll: number, t: LandmarkTones) {
+  const limb = (cx: number, y0: number, y1: number, r: number) => {
+    prism(out, 6, r, r * 0.9, y0, y1, t.plant, 0, t.plant_shade, cx, 0);
+    prism(out, 6, r * 0.9, 0, y1, y1 + r * 1.4, t.plant, 0, t.plant_shade, cx, 0);
+  };
+  limb(0, -0.5, 3.9 * s, 0.45 * s);
+  slab(out, 0.3 * s, 0.95 * s, 0.26 * s, 1.7 * s, 2.2 * s, t.plant, t.plant_shade);
+  limb(0.95 * s, 1.7 * s, 3.1 * s, 0.3 * s);
+  if (roll < 0.5) return;
+  slab(out, -0.95 * s, -0.3 * s, 0.24 * s, 1.2 * s, 1.65 * s, t.plant, t.plant_shade);
+  limb(-0.95 * s, 1.2 * s, 2.4 * s, 0.27 * s);
+}
+
+function boulder(out: Builder, s: number, roll: number, t: LandmarkTones) {
+  prism(out, 6, 1.6 * s, 1.05 * s, -0.4, 1.0 * s, t.stone, roll * Math.PI, t.stone_shade);
+  prism(out, 5, 1.05 * s, 0.35 * s, 1.0 * s, 1.5 * s, t.stone_shade, roll * Math.PI, t.stone);
+  prism(out, 5, 0.7 * s, 0.3 * s, -0.3, 0.8 * s, t.stone_shade, roll * 5, t.stone, 1.5 * s, 0.4 * s);
+}
+
+// A hoodoo: a tapering column of alternating stone bands under a wider cap rock.
+function spire(out: Builder, s: number, roll: number, t: LandmarkTones) {
+  const phase = roll * Math.PI;
+  prism(out, 6, 2.4 * s, 1.7 * s, -1, 5 * s, t.stone, phase, t.stone_shade);
+  prism(out, 6, 1.7 * s, 1.1 * s, 5 * s, 10 * s, t.stone_shade, phase, t.stone);
+  prism(out, 5, 1.1 * s, 0.8 * s, 10 * s, 11.6 * s, t.stone, phase);
+  prism(out, 6, 1.7 * s, 1.4 * s, 11.6 * s, 13 * s, t.stone_shade, phase + 0.4, t.stone);
+}
+
+function tank(out: Builder, t: LandmarkTones) {
+  for (const [cx, cz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) prism(out, 4, 0.14, 0.14, -0.5, 3.3, t.cap, Math.PI / 4, undefined, cx, cz);
+  prism(out, 8, 1.8, 1.8, 3.2, 5.6, t.pale, Math.PI / 8, t.band);
+  prism(out, 8, 1.95, 0, 5.6, 6.4, t.band, Math.PI / 8);
+}
+
 export function landmark_mesh(out: Builder, prop: Prop, heights: Float32Array, tones: LandmarkTones) {
   const [fx, fz] = forward(prop);
   out.at({ x: prop.x, y: prop.y, z: prop.z, fx, fz });
@@ -142,4 +179,8 @@ export function landmark_mesh(out: Builder, prop: Prop, heights: Float32Array, t
   else if (prop.kind === PropKind.LIGHTHOUSE) lighthouse(out, tones);
   else if (prop.kind === PropKind.TURBINE) turbine(out, tones);
   else if (prop.kind === PropKind.ARCH) arch(out, prop, heights, tones);
+  else if (prop.kind === PropKind.CACTUS) cactus(out, prop.scale, prop.angle / (Math.PI * 2), tones);
+  else if (prop.kind === PropKind.BOULDER) boulder(out, prop.scale, prop.angle, tones);
+  else if (prop.kind === PropKind.SPIRE) spire(out, prop.scale, prop.angle, tones);
+  else if (prop.kind === PropKind.TANK) tank(out, tones);
 }

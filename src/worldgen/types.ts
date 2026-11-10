@@ -151,7 +151,17 @@ export interface Building {
 export const Roof = { FLAT: "flat", GABLE: "gable", CROSS: "cross", HIP: "hip" } as const;
 export type Roof = (typeof Roof)[keyof typeof Roof];
 
-export const PropKind = { STREET_LIGHT: "street_light", MAST: "mast", LIGHTHOUSE: "lighthouse", TURBINE: "turbine", ARCH: "arch" } as const;
+export const PropKind = {
+  STREET_LIGHT: "street_light",
+  MAST: "mast",
+  LIGHTHOUSE: "lighthouse",
+  TURBINE: "turbine",
+  ARCH: "arch",
+  CACTUS: "cactus",
+  BOULDER: "boulder",
+  SPIRE: "spire",
+  TANK: "tank",
+} as const;
 export type PropKind = (typeof PropKind)[keyof typeof PropKind];
 
 export interface Prop {
@@ -160,7 +170,7 @@ export interface Prop {
   z: number;
   angle: number;
   kind: PropKind;
-  /** Street lights and towers 1; the arch spans the road with this half distance between its leg centres, at `y` its road height. */
+  /** Street lights and towers 1; scattered props their size; the arch spans the road with this half distance between its leg centres, at `y` its road height. */
   scale: number;
 }
 
