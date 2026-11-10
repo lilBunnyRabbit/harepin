@@ -29,7 +29,7 @@ const STEER_LABEL: Record<SteerMode, string> = { snap: "Classic", hold: "Hold", 
 const MAP_VIEWS: Record<MapView, [string, string]> = {
   full: ["Full", "The whole track"],
   close: ["Close-up", "Turns with you and shows the next 200 m"],
-  pace: ["Pace notes", "No map: the next turn, 1 tightest to 6 fastest, and how far off it is"],
+  pace: ["Notes", "Rally pace notes instead of a map: the next turn, 1 tightest to 6 fastest, and how far off it is"],
   off: ["Off", "No map"],
 };
 
