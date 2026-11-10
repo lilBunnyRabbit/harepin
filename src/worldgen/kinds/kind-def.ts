@@ -13,6 +13,8 @@ export interface GripTable {
   /** The strip just past a road edge, where no laid surface covers the kind's own ground. */
   shoulder: Footing;
   surfaces: Record<SurfaceId, Footing>;
+  /** In water at WADE_FULL depth and over; shallower water eases toward the footing under it. */
+  wade: Footing;
 }
 
 export interface KindSpec {
@@ -54,11 +56,17 @@ export function kind_def(spec: KindSpec): KindDef {
   return { ...spec, id: spec.base + spec.version, key: (seed, opts = "") => `${seed}:${spec.tag}${spec.version}${opts ? `:${opts}` : ""}` };
 }
 
+/** Mud at the water's edge: soft enough to feel, firm enough to drive out of. */
+const WET: Footing = { grip: 0.78, roll: 3 };
+/** Water to the sills: grip goes and drag climbs with speed, so a ford is a choice, not a shortcut. */
+const WADE: Footing = { grip: 0.45, roll: 40 };
+
 /** Trail dirt sits between asphalt and grass: a car's `offroad` share decides how much of the loss it keeps. */
 export const LAND_GRIP: GripTable = {
   road: { grip: 1, roll: 1 },
   shoulder: { grip: 0.85, roll: 1 },
-  surfaces: { [SurfaceId.GRASS]: { grip: 0.72, roll: 12 }, [SurfaceId.DIRT]: { grip: 0.88, roll: 1 }, [SurfaceId.HARDPACK]: { grip: 0.88, roll: 1 } },
+  surfaces: { [SurfaceId.GRASS]: { grip: 0.72, roll: 12 }, [SurfaceId.DIRT]: { grip: 0.88, roll: 1 }, [SurfaceId.HARDPACK]: { grip: 0.88, roll: 1 }, [SurfaceId.WET]: WET },
+  wade: WADE,
 };
 
 /**
@@ -68,5 +76,6 @@ export const LAND_GRIP: GripTable = {
 export const SAND_GRIP: GripTable = {
   road: { grip: 1, roll: 1 },
   shoulder: { grip: 0.86, roll: 1 },
-  surfaces: { [SurfaceId.GRASS]: { grip: 0.7, roll: 28 }, [SurfaceId.DIRT]: { grip: 0.9, roll: 1 }, [SurfaceId.HARDPACK]: { grip: 0.92, roll: 1 } },
+  surfaces: { [SurfaceId.GRASS]: { grip: 0.7, roll: 28 }, [SurfaceId.DIRT]: { grip: 0.9, roll: 1 }, [SurfaceId.HARDPACK]: { grip: 0.92, roll: 1 }, [SurfaceId.WET]: WET },
+  wade: WADE,
 };

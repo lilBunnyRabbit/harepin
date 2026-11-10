@@ -174,6 +174,12 @@ export interface TownRecipe {
   flat_roofs: boolean;
 }
 
+/** Rivers down the `count` biggest drainage basins, from where `head` plan cells drain into them; lakes in basins `depth` deep and `min`-`max` plan cells wide. */
+export interface WaterRecipe {
+  rivers: { count: number; head: number; width: readonly [number, number]; depth: readonly [number, number] };
+  lakes: { count: number; depth: number; min: number; max: number };
+}
+
 export const Landmark = { MAST: "mast", LIGHTHOUSE: "lighthouse", TURBINES: "turbines", ARCH: "arch" } as const;
 export type Landmark = (typeof Landmark)[keyof typeof Landmark];
 
@@ -185,6 +191,8 @@ export interface Recipe {
   towns: TownRecipe;
   landmarks: readonly Landmark[];
   scatter: readonly ScatterRule[];
+  /** Lakes and rivers planned on a streamed kind's plan grid; left out = the sea only. */
+  water?: WaterRecipe;
 }
 
 const LIFT: LiftLayer = { kind: "lift", height: 5 };
@@ -283,4 +291,5 @@ export const MAINLAND: Recipe = {
   terrain: [LIFT, hills(110), ridges(26), { kind: "peak", height: 240, radius: 1100, reach: 1400 }, shore(2900, -9)],
   towns: { min: 10, max: 16, trees: true, block: { min: 45, span: 25 }, flat_roofs: false },
   road: { ...ISLAND.road, bank: { run: 3.75, reach: 64 } },
+  water: { rivers: { count: 3, head: 120, width: [3, 11], depth: [1.2, 2.6] }, lakes: { count: 4, depth: 2, min: 4, max: 400 } },
 };
