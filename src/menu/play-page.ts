@@ -126,7 +126,7 @@ export class PlayPage implements MenuPage {
       const words = el("span", "play-words");
       words.append(el("b", "", name), el("span", "", note));
       button.append(picture(kind), words);
-      if (kind === host.kind) button.append(el("span", "menu-tag", "You're here"));
+      if (kind === host.kind) words.prepend(el("span", "menu-tag", "You're here"));
       button.addEventListener("click", () => this.menu.drive(host.seed, kind));
       if (kind !== host.kind) {
         list.append(button);

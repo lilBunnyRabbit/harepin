@@ -214,11 +214,10 @@
   border-radius: var(--radius-sm);
 }
 
-.play-mini .menu-tag {
-  top: 50%;
-  left: auto;
-  right: var(--space-3);
-  translate: 0 -50%;
+.play-words .menu-tag {
+  position: static;
+  justify-self: start;
+  translate: none;
 }
 
 .play-words {
@@ -231,7 +230,7 @@
   font-size: var(--text-lg);
 }
 
-.play-words span {
+.play-words span:not(.menu-tag) {
   overflow: hidden;
   font-size: var(--text-sm);
   color: var(--set-dim);
@@ -262,7 +261,7 @@
   font-size: var(--text-md);
 }
 
-.play-link .play-words span {
+.play-link .play-words span:not(.menu-tag) {
   font-size: var(--text-xs);
   white-space: normal;
   text-wrap: balance;
