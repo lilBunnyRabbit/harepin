@@ -49,6 +49,8 @@ Default controls (rebindable in Settings): WASD/arrows, Space handbrake, Backspa
 
 Static site on GitHub Pages: `.github/workflows/deploy.yml` builds on every push to `master` with the TURN secrets in the environment. Any static host works with the same `bun run build` and `dist/`.
 
+Usage stats: [Umami](https://umami.is) counts anonymous page views (no cookies, nothing stored on the device, no personal data), so no consent banner. The script tag in `index.html` only reports on `lilbunnyrabbit.github.io`, never from local dev.
+
 Peer data is untrusted: `net.ts` takes the sender id from the WebRTC peer, shape-checks and clamps every field, and rate-limits each peer.
 
 ## How it's built
