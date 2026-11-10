@@ -1,6 +1,6 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import { RateLimit, WRONG_PASSWORD, clean_name, is_leader, join_error_status, most_common, parse_seed, sanitize, sanitize_chat, sanitize_event } from "./net";
+import { RateLimit, WRONG_PASSWORD, clean_name, leader_of, join_error_status, most_common, parse_seed, sanitize, sanitize_chat, sanitize_event } from "./net";
 
 test("chat text is stripped of control characters, trimmed and capped", () => {
   expect(sanitize_chat({ text: "  hi\u0000​ there\n ", t: 1 })).toEqual({ text: "hi there", t: 1 });
@@ -104,9 +104,8 @@ test("wrong password: only your own guess, before you ever got in, on a password
   expect(join_error_status(null, false, 0, decrypt)).toBeNull();
 });
 
-test("leader: lowest id in the room, ignoring peers known to be on another map", () => {
-  const foreign = new Map([["a", 1]]);
-  expect(is_leader("m", ["a", "z"], foreign)).toBe(true);
-  expect(is_leader("m", ["b", "z"], foreign)).toBe(false);
-  expect(is_leader("m", [], foreign)).toBe(true);
+test("leader: lowest id among this player and its same-map peers", () => {
+  expect(leader_of("m", ["n", "z"])).toBe("m");
+  expect(leader_of("m", ["b", "z"])).toBe("b");
+  expect(leader_of("m", [])).toBe("m");
 });

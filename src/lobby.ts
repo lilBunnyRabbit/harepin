@@ -83,13 +83,13 @@ export class Lobby {
     return this.state.kind === "countdown" || this.state.kind === "racing";
   }
 
-  private get leader(): string {
-    return [this.net.id, ...this.net.remotes.keys()].sort()[0];
+  private get leading(): boolean {
+    return this.net.leader_id === this.net.id && !this.net.settling;
   }
 
   call(laps: number, route = "circuit") {
     if (this.busy || !this.routes.has(route)) return;
-    if (this.leader === this.net.id) this.begin(laps, route);
+    if (this.leading) this.begin(laps, route);
     else this.net.send_event({ kind: "request", laps, route });
   }
 
@@ -143,11 +143,11 @@ export class Lobby {
     const { state } = this;
     switch (event.kind) {
       case "request":
-        if (!this.busy && this.leader === this.net.id) this.begin(event.laps, event.route);
+        if (!this.busy && this.leading) this.begin(event.laps, event.route);
         break;
       case "start": {
         const known = this.routes.get(event.route);
-        if (this.busy || from.id !== this.leader || !known) return;
+        if (this.busy || from.id !== this.net.leader_id || !known) return;
         const go = event.start_at + from.offset;
         if (go < now - LATE_START_MS || go > now + EARLY_START_MS) return;
         this.enter(event.race, event.route, race_laps(known, event.laps), go);

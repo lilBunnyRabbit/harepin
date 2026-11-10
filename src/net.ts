@@ -134,10 +134,10 @@ export function join_error_status(lock: RoomLock | null, had_peer: boolean, peer
   return peers === 0 ? TURNED_AWAY : null;
 }
 
-/** Every id in the room counts except those known to be on another map, so a game past `MAX_REMOTES` still has one leader. */
-export function is_leader(self: string, ids: Iterable<string>, foreign: ReadonlyMap<string, unknown>): boolean {
-  for (const id of ids) if (id < self && !foreign.has(id)) return false;
-  return true;
+export function leader_of(self: string, ids: Iterable<string>): string {
+  let leader = self;
+  for (const id of ids) if (id < leader) leader = id;
+  return leader;
 }
 
 /** Ties go to the lower seed, so peers seeing the same crowd pick the same map. */
@@ -209,6 +209,8 @@ export class Net {
   readonly remotes = new Map<string, Remote>();
   /** Peers in this room on another seed, by id: their seed and when they were last heard (performance.now ms). */
   readonly foreign = new Map<string, Foreign>();
+  /** Peers on this map, by id: when last heard (performance.now ms). Uncapped, unlike `remotes`, so every player elects the same leader. */
+  readonly same_map = new Map<string, number>();
   status = "connecting";
   on_chat: ((name: string, text: string) => void) | null = null;
   private send_p2p: ((state: CarState) => void) | null = null;
@@ -264,6 +266,7 @@ export class Net {
         this.peer_ids.delete(peer);
         if (this.peers === 0) this.status = "searching";
         this.remotes.delete(peer);
+        this.same_map.delete(peer);
         this.chat_limits.delete(peer);
         this.event_limits.delete(peer);
       };
@@ -357,9 +360,11 @@ export class Net {
     if (state.seed !== this.seed || state.w !== this.world) {
       this.foreign.set(state.id, { seed: state.seed, world: state.w ?? 1, seen: now });
       this.remotes.delete(state.id);
+      this.same_map.delete(state.id);
       return;
     }
     this.foreign.delete(state.id);
+    this.same_map.set(state.id, now);
     let remote = this.remotes.get(state.id);
     if (remote && state.t - remote.latest.t < MIN_GAP_MS && remote.snapshots.length) return;
     if (!remote) {
@@ -380,6 +385,7 @@ export class Net {
     const now = performance.now();
     for (const [id, remote] of this.remotes) if (now - remote.seen > TIMEOUT) this.remotes.delete(id);
     for (const [id, { seen }] of this.foreign) if (now - seen > TIMEOUT) this.foreign.delete(id);
+    for (const [id, seen] of this.same_map) if (now - seen > TIMEOUT) this.same_map.delete(id);
   }
 
   /** The map most of the room is on, counting this one; null when that is already this one, so two players never swap. */
@@ -401,7 +407,18 @@ export class Net {
    */
   get leader(): boolean {
     if (this.lock?.asked && !this.had_peer) return false;
-    return performance.now() - this.joined > ELECT_MS && is_leader(this.id, [...this.peer_ids, ...this.remotes.keys()], this.foreign);
+    return performance.now() - this.joined > ELECT_MS && this.leader_id === this.id;
+  }
+
+  get leader_id(): string {
+    return leader_of(this.id, this.same_map.keys());
+  }
+
+  /** Just joined, with room peers whose map no car packet has told yet: one of them may be the leader. */
+  get settling(): boolean {
+    if (performance.now() - this.joined > ELECT_MS) return false;
+    for (const id of this.peer_ids) if (!this.same_map.has(id) && !this.foreign.has(id)) return true;
+    return false;
   }
 
   render_time(remote: Remote): number {
