@@ -277,12 +277,19 @@
   grid-template: "hero worlds worlds" 1fr "hero map modes" 1fr "goals goals goals" auto / 1.6fr 1fr 1fr;
 }
 
-/* Every world kind's tile shares one area, so a new kind adds no CSS. */
+/* Every world kind's tile shares one area, so a new kind adds no CSS. Too narrow for all of them, the row scrolls. */
 .menu-worlds {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-columns: minmax(140px, 1fr);
   gap: var(--space-4);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.menu-worlds > * {
+  scroll-snap-align: start;
 }
 
 .menu-mosaic[data-tab="online"] {
@@ -669,17 +676,8 @@
   }
 }
 
-/* Phone either way up: the worlds scroll as one row, the world being driven first so its tag is on screen. */
+/* Phone either way up: the world being driven comes first in the scrolling row, so its tag is on screen. */
 @media (max-height: 500px), (max-width: 600px) {
-  .menu-worlds {
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-  }
-
-  .menu-worlds > * {
-    scroll-snap-align: start;
-  }
-
   .menu-worlds > :has(.menu-tag) {
     order: -1;
   }
