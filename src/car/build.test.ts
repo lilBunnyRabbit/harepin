@@ -237,9 +237,10 @@ test("stats rise with the parts that should raise them and stay inside the range
     const s = stats(CARS[car]);
     expect(s.top_speed * 3.6).toBeGreaterThan(car_sized(CARS[car]) ? 150 : 80);
     expect(s.top_speed * 3.6).toBeLessThan(330);
-    for (const key of STATS) {
-      expect(s[key]).toBeLessThanOrEqual(high[key]);
-      expect(s[key]).toBeGreaterThanOrEqual(low[key]);
-    }
+    if (car_sized(CARS[car]))
+      for (const key of STATS) {
+        expect(s[key]).toBeLessThanOrEqual(high[key]);
+        expect(s[key]).toBeGreaterThanOrEqual(low[key]);
+      }
   }
 });

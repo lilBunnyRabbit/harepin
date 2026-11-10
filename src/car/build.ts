@@ -1,4 +1,4 @@
-import { CARS, is_car, type CarId, type CarSpec, type Triple } from "./cars";
+import { CARS, car_sized, is_car, type CarId, type CarSpec, type Triple } from "./cars";
 import type { Token } from "../theme/theme";
 
 type NumericField = Exclude<{ [K in keyof CarSpec]-?: CarSpec[K] extends number ? K : never }[keyof CarSpec], "awd_split">;
@@ -288,12 +288,12 @@ let range: { low: Stats; high: Stats } | null = null;
 
 // Every combination is tens of thousands of specs, too slow for a garage tap on a phone. Per car, each stat takes the
 // best (or worst) part per slot on its own, which lands on or near the true extreme; the bars clamp the rest.
-/** Each stat's spread over the cars and their parts: the two ends of a garage bar. */
+/** Each stat's spread over the car-sized cars and their parts: the two ends of a garage bar. A bigger vehicle clamps into it. */
 export function stat_range(): { low: Stats; high: Stats } {
   if (range) return range;
   const low: Stats = { power: Infinity, grip: Infinity, braking: Infinity, top_speed: Infinity };
   const high: Stats = { power: 0, grip: 0, braking: 0, top_speed: 0 };
-  for (const car of Object.keys(CARS) as CarId[])
+  for (const car of (Object.keys(CARS) as CarId[]).filter((id) => car_sized(CARS[id])))
     for (const key of STATS)
       for (const sign of [-1, 1]) {
         const score = (parts: Record<Slot, number>) => sign * stats(build_spec({ ...DEFAULT_BUILD, car, parts }))[key];

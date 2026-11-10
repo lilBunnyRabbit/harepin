@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { ride_height, type Car } from "./car";
-import { COUPE } from "./cars";
+import { COUPE, car_sized } from "./cars";
 import { camera_fade, car_view, dispose_car_view, rest_wheels, type CarView } from "./models";
 import { brand, color } from "../theme/palette";
 import { world_key } from "../worldgen/kinds/kinds";
@@ -88,12 +88,12 @@ export class Ghost {
     return this.best !== null;
   }
 
-  // The ghost is always drawn as a stock coupe, so a body riding higher or lower is recorded at the coupe's ride height:
-  // a bus lap's ghost runs on the road instead of floating a metre up.
+  // The ghost is always drawn as a stock coupe, so a bigger body is recorded at the coupe's ride height: a bus lap's ghost
+  // runs on the road instead of floating a metre up.
   record(lap_ms: number, car: Pick<Car, "pos" | "quat" | "spec">) {
     const last = this.recording.length ? this.recording[this.recording.length - STRIDE] : -Infinity;
     if (lap_ms - last < EVERY_MS || lap_ms > MAX_LAP_MS) return;
-    const y = car.pos.y - (ride_height(car.spec) - ride_height(COUPE));
+    const y = car_sized(car.spec) ? car.pos.y : car.pos.y - (ride_height(car.spec) - ride_height(COUPE));
     this.recording.push(lap_ms, car.pos.x, y, car.pos.z, car.quat.x, car.quat.y, car.quat.z, car.quat.w);
   }
 
