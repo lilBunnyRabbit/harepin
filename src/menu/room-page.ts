@@ -1,6 +1,7 @@
 import { PASSWORD_LENGTH, ROOM_LENGTH, clean_password, clean_room, locked_name, save_lock } from "../net/directory";
 import { parse_seed } from "../net/net";
 import { el } from "./setting-rows";
+import { world_query } from "../world/world-pick";
 import { MenuTab, type Menu, type MenuPage } from "./page";
 import { invalid, password_input, random_seed, row } from "./widgets";
 
@@ -45,7 +46,7 @@ export class RoomPage implements MenuPage {
       if (map === null) return invalid(seed, "A whole number from 0 to 4294967295");
       const named = lock === null ? room : locked_name(room);
       save_lock(named, lock === null ? null : { password: lock, asked: false });
-      this.menu.go({ room: named, seed: String(map) });
+      this.menu.go(world_query(named, map, this.menu.host.kind));
     });
     create.append(
       row("Room name", name),
