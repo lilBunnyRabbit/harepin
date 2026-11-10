@@ -23,7 +23,7 @@ export interface Corner {
 export interface PaceRoute {
   closed: boolean;
   length: number;
-  /** Metres along the route at each point; a closed route's origin sits on a straight so no corner spans the seam. */
+  /** Metres along the route at each point; a closed route's origin sits mid-way along its longest straight, so no corner spans the seam. */
   at: Float64Array;
   corners: Corner[];
 }
@@ -62,6 +62,32 @@ interface Run {
   apex: number;
 }
 
+/** Middle of the longest straight, so the seam never falls in a short gap that would merge two bends into one corner anywhere else. */
+function longest_straight(n: number, bend: (i: number) => number, gap: (i: number, j: number) => number): number {
+  let first = 0;
+  while (first < n && bend(first) === 0) first++;
+  if (first === n) return 0;
+  let best = 0;
+  let best_length = -1;
+  let from = -1;
+  for (let k = 1; k <= n; k++) {
+    const i = (first + k) % n;
+    if (bend(i) === 0) {
+      if (from < 0) from = i;
+      continue;
+    }
+    if (from < 0) continue;
+    const last = (i - 1 + n) % n;
+    const length = gap(from, last);
+    if (length > best_length) {
+      best_length = length;
+      best = (from + Math.floor(((last - from + n) % n) / 2)) % n;
+    }
+    from = -1;
+  }
+  return best;
+}
+
 /** Corners in the order `points` runs; left and right as the driver sees them going that way. */
 export function read_route(points: readonly PacePoint[], closed: boolean): PaceRoute {
   const n = points.length;
@@ -89,8 +115,7 @@ export function read_route(points: readonly PacePoint[], closed: boolean): PaceR
   }
   const bend = (i: number) => (Math.abs(curve[i]) * GRADE_RADIUS[5] >= 1 ? Math.sign(curve[i]) : 0);
 
-  let origin = 0;
-  if (closed) while (origin < n - 1 && bend(origin) !== 0) origin++;
+  const origin = closed ? longest_straight(n, bend, gap) : 0;
   const at = new Float64Array(n);
   for (let i = 0; i < n; i++) at[i] = gap(origin, i);
 
@@ -131,6 +156,8 @@ export function reverse_route(route: PaceRoute): PaceRoute {
   return { closed, length, at: route.at.map(flip), corners };
 }
 
+const ahead = (closed: boolean, length: number, from: number, to: number) => (closed && to < from ? to + length - from : to - from);
+
 export function corners_ahead(route: PaceRoute, s: number, out: Ahead): Ahead {
   const { corners, closed, length } = route;
   const count = corners.length;
@@ -146,12 +173,11 @@ export function corners_ahead(route: PaceRoute, s: number, out: Ahead): Ahead {
     }
   if (next < 0 && closed && count > 0) next = 0;
   if (next < 0) return out;
-  const ahead = (from: number, to: number) => (closed && to < from ? to + length - from : to - from);
   const corner = corners[next];
   out.next = next;
-  out.distance = corner.start <= s && corner.apex >= s ? 0 : ahead(s, corner.start);
+  out.distance = corner.start <= s && corner.apex >= s ? 0 : ahead(closed, length, s, corner.start);
   out.then = next + 1 < count ? next + 1 : closed && count > 1 ? 0 : -1;
-  if (out.then >= 0) out.into = ahead(corner.end, corners[out.then].start) <= INTO_GAP;
+  if (out.then >= 0) out.into = ahead(closed, length, corner.end, corners[out.then].start) <= INTO_GAP;
   return out;
 }
 

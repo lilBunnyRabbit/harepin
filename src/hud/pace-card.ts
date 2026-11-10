@@ -58,6 +58,7 @@ export class PaceCard {
   private then = document.createElement("span");
   private readings = new Map<string, Reading>();
   private route: Route | null = null;
+  private route_id = "";
   private point = -1;
   private reversed = false;
   private ahead: Ahead = { next: -1, distance: 0, then: -1, into: false };
@@ -90,9 +91,11 @@ export class PaceCard {
   }
 
   update(car: Car, route_id: string) {
-    if (this.route?.id !== route_id) {
+    if (this.route_id !== route_id) {
+      this.route_id = route_id;
       this.route = this.routes.find((r) => r.id === route_id) ?? this.routes[0] ?? null;
       this.point = -1;
+      this.shown.next = -2;
     }
     const { route } = this;
     if (!route) return;

@@ -9,13 +9,17 @@ function drive(legs: [number, number][]): PacePoint[] {
   let x = 0;
   let z = 0;
   let heading = 0;
-  for (const [metres, radius] of legs)
-    for (let s = 0; s < metres; s += STEP) {
+  for (const [metres, radius] of legs) {
+    const steps = Math.max(1, Math.round(metres / STEP));
+    const step = metres / steps;
+    for (let k = 0; k < steps; k++) {
       points.push({ x, z, tx: Math.sin(heading), tz: Math.cos(heading) });
-      if (radius) heading -= STEP / radius;
-      x += Math.sin(heading) * STEP;
-      z += Math.cos(heading) * STEP;
+      if (radius) heading -= step / radius / 2;
+      x += Math.sin(heading) * step;
+      z += Math.cos(heading) * step;
+      if (radius) heading -= step / radius / 2;
     }
+  }
   return points;
 }
 
@@ -73,6 +77,14 @@ describe("corners_ahead", () => {
   test("inside a corner before its apex the distance is 0; past the last one there is nothing", () => {
     expect(corners_ahead(route, route.corners[0].start + 1, ahead()).distance).toBe(0);
     expect(corners_ahead(route, route.corners[1].apex + 1, ahead()).next).toBe(-1);
+  });
+
+  test("a closed route.s seam never splits two bends that merge everywhere else", () => {
+    const r = 40;
+    const q = quarter(r);
+    const loop = read_route(drive([[6, 0], [q, r], [100, 0], [q, r], [12, 0], [q, r], [100, 0], [q, r], [6, 0]]), true);
+    expect(loop.corners).toHaveLength(2);
+    for (const corner of loop.corners) expect(corner.turn).toBeCloseTo(Math.PI, 0);
   });
 
   test("a closed route wraps round to its first corner", () => {
