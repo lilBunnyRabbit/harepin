@@ -59,6 +59,8 @@ class Race implements ModeRun {
       }
       return null;
     }
+    // Past the last gate there is no next one; the run keeps updating behind the result card.
+    if (run.status === RaceStatus.DONE) return null;
     const { line, gates } = run.course;
     const gate = line[gates[run.next]];
     view.guide(run.tracker.index, gates[run.next]);
