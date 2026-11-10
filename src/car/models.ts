@@ -7,7 +7,7 @@ import { COUPE, type BodyStyle, type CarSpec, type Triple } from "./cars";
 import { livery_parts, roof, type Livery, type Panel } from "./livery";
 import { NEUTRAL_INKS, brand, car_paints, color, dark, decal_inks, glow, mix, tones } from "../theme/palette";
 import type { Lab, Token } from "../theme/theme";
-import { ribbon } from "../scene";
+import { ribbon } from "../render/scene";
 import { ROAD_HALF, World } from "../world";
 
 // Brake emissive runs 0.5 at rest and 2.2 braking (`sync_car_view`, remotes): only the braking glow clears bloom.

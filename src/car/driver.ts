@@ -1,8 +1,8 @@
 import * as THREE from "three";
 import { build_spec, type Build } from "./build";
-import type { ChaseCamera } from "../camera";
+import type { ChaseCamera } from "../render/camera";
 import { Car } from "./car";
-import type { Lighting } from "../lighting";
+import type { Lighting } from "../render/lighting";
 import { build_view, contact_shadow, dispose_car_view, place_contact_shadow, show_flame, sync_car_view, type CarView } from "./models";
 import type { NitroSnapshot } from "./nitro";
 import type { Race } from "../race";

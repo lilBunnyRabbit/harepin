@@ -1,7 +1,7 @@
 import * as THREE from "three";
-import { brand, color, dark, glow, mix, tones } from "./theme/palette";
+import { brand, color, dark, glow, mix, tones } from "../theme/palette";
 import { FOG, SUN_DIR, sky_tones } from "./sky";
-import type { Lab } from "./theme/theme";
+import type { Lab } from "../theme/theme";
 
 interface MoodSpec {
   /** Height of the sun direction; below 0 puts it under the horizon, leaving only its glow. */

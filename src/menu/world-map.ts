@@ -1,6 +1,6 @@
 import { brand, linear, rgba, tones } from "../theme/palette";
-import { sky_tones } from "../sky";
-import { mesh_tones } from "../scene";
+import { sky_tones } from "../render/sky";
+import { mesh_tones } from "../render/scene";
 import { MAP_SIDE, MapLineKind, map_data, type MapData, type MapMark, type MapTones } from "../worldgen/map";
 import type { MapRequest } from "../worldgen/map-worker";
 import type { WorldData, WorldKind } from "../worldgen/types";

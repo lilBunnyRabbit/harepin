@@ -30,7 +30,7 @@ Object.assign(globalThis, {
   },
 });
 
-const { mesh_tones } = await import("../src/scene");
+const { mesh_tones } = await import("../src/render/scene");
 const { build_chunks, terrain_colors } = await import("../src/worldgen/chunks");
 const { checksum, world_checksum } = await import("../src/worldgen/checksum");
 const { sample } = await import("../src/worldgen/field");

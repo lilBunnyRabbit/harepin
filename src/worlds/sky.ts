@@ -1,4 +1,4 @@
-import { cloud_floor } from "../sky";
+import { cloud_floor } from "../render/sky";
 import { WorldKind } from "../worldgen/types";
 import { lap_facts, shown, type WorldDef } from "./world-def";
 

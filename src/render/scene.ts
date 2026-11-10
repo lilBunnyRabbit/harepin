@@ -1,14 +1,14 @@
 import * as THREE from "three";
-import { by_chunk, soup_geometry, town_chunks, type TownChunk } from "./buildings";
-import { JumpsView } from "./jumps";
-import { LandmarksView } from "./landmarks";
-import { color, lighten, linear, mix, tones } from "./theme/palette";
-import { SIZE, World, type RoadPoint, type Tree } from "./world";
-import { CHUNK, Ground, JITTER_LEVELS, type ChunkBuffers, type MeshTones } from "./worldgen/chunks";
-import { TreeKind } from "./worldgen/biomes";
-import type { Lab } from "./theme/theme";
-import type { WorldData, WorldKind } from "./worldgen/types";
-import type { GenRequest, GenResult } from "./worldgen/worker";
+import { by_chunk, soup_geometry, town_chunks, type TownChunk } from "../buildings";
+import { JumpsView } from "../jumps";
+import { LandmarksView } from "../landmarks";
+import { color, lighten, linear, mix, tones } from "../theme/palette";
+import { SIZE, World, type RoadPoint, type Tree } from "../world";
+import { CHUNK, Ground, JITTER_LEVELS, type ChunkBuffers, type MeshTones } from "../worldgen/chunks";
+import { TreeKind } from "../worldgen/biomes";
+import type { Lab } from "../theme/theme";
+import type { WorldData, WorldKind } from "../worldgen/types";
+import type { GenRequest, GenResult } from "../worldgen/worker";
 
 const JITTER_LIGHTNESS = 0.035;
 const STONE_SHADE = 0.06;
@@ -69,7 +69,7 @@ export interface LoadedWorld {
 }
 
 export function load_world(seed: number, kind: WorldKind): Promise<LoadedWorld> {
-  const worker = new Worker(new URL("./worldgen/worker.ts", import.meta.url), { type: "module" });
+  const worker = new Worker(new URL("../worldgen/worker.ts", import.meta.url), { type: "module" });
   return new Promise((resolve, reject) => {
     worker.addEventListener("message", (event: MessageEvent<GenResult>) => {
       worker.terminate();
