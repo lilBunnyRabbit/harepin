@@ -8,12 +8,12 @@ describe("tach", () => {
     expect(tach(6601, COUPE).hot).toBe(true);
     expect(tach(6700, COUPE).shift).toBe(false);
     expect(tach(6701, COUPE).shift).toBe(true);
-    expect(tach(7300, COUPE).fill).toBe(100);
+    expect(tach(7300, COUPE).fill).toBe(1);
   });
 
   test("formula car does not pin or flash at coupe revs", () => {
     const at = tach(7300, FORMULA);
-    expect(at.fill).toBeLessThan(60);
+    expect(at.fill).toBeLessThan(0.6);
     expect(at.hot).toBe(false);
     expect(at.shift).toBe(false);
     expect(tach(12000, FORMULA).shift).toBe(true);

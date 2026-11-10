@@ -22,6 +22,33 @@ export const format = (ms: number | null) => {
   return `${m}:${s.toFixed(3).padStart(6, "0")}`;
 };
 
+function set_text(el: HTMLElement, text: string) {
+  if (el.textContent !== text) el.textContent = text;
+}
+
+function set_data(el: HTMLElement, key: string, value: string) {
+  if (el.dataset[key] !== value) el.dataset[key] = value;
+}
+
+function set_style(el: HTMLElement, prop: string, value: string) {
+  if (el.style.getPropertyValue(prop) !== value) el.style.setProperty(prop, value);
+}
+
+function set_hidden(el: HTMLElement, hidden: boolean) {
+  if (el.hidden !== hidden) el.hidden = hidden;
+}
+
+// Rounded so a value that barely moves doesn't restyle every frame, and so the CSS serialisation reads back equal.
+const percent = (fraction: number) => `${Math.round(fraction * 1000) / 10}%`;
+
+interface PlayerRow {
+  name: string;
+  best: number | null;
+  you: boolean;
+}
+
+const same_rows = (a: PlayerRow[], b: PlayerRow[]) => a.length === b.length && a.every((r, i) => r.name === b[i].name && r.best === b[i].best && r.you === b[i].you);
+
 function row(name: string, time: string, you: boolean, note = ""): HTMLLIElement {
   const li = document.createElement("li");
   li.dataset.you = String(you);
@@ -75,7 +102,7 @@ export class Hud {
   private map: CanvasRenderingContext2D;
   private road = new Path2D();
   private toast_timer = 0;
-  private players_key = "";
+  private players: PlayerRow[] = [];
   private results_key = "";
   private moving_since = 0;
 
@@ -125,53 +152,52 @@ export class Hud {
   update(car: Car, now: number, rewinding: boolean) {
     const { el, race } = this;
     const kmh = Math.round(Math.abs(car.forward_speed) * 3.6);
-    el.speed.textContent = String(kmh);
+    set_text(el.speed, String(kmh));
     if (kmh < STOP_KMH || document.activeElement?.closest(".dock-top, .assists, #modes")) this.moving_since = 0;
     else if (kmh > CALM_KMH && !this.moving_since) this.moving_since = now;
     document.documentElement.toggleAttribute("data-calm", this.moving_since > 0 && now - this.moving_since > CALM_MS);
-    el.gear.textContent = car.gear === -1 ? "R" : car.gear === 0 ? "N" : String(car.gear);
-    el.gear.dataset.mode = car.auto ? "A" : "M";
+    set_text(el.gear, car.gear === -1 ? "R" : car.gear === 0 ? "N" : String(car.gear));
+    set_data(el.gear, "mode", car.auto ? "A" : "M");
     const rev = tach(car.rpm, car.spec);
-    el.rpm.style.width = `${rev.fill}%`;
-    el.rpm.dataset.hot = String(rev.hot);
-    el.shift.dataset.on = String(!car.auto && rev.shift);
-    el.nitro.hidden = !car.nitro.fitted;
-    el.nitro_fill.style.width = `${car.nitro.level * 100}%`;
+    set_style(el.rpm, "width", percent(rev.fill));
+    set_data(el.rpm, "hot", String(rev.hot));
+    set_data(el.shift, "on", String(!car.auto && rev.shift));
+    set_hidden(el.nitro, !car.nitro.fitted);
+    set_style(el.nitro_fill, "width", percent(car.nitro.level));
     el.nitro.toggleAttribute("data-boost", car.nitro.boosting);
     el.nitro.toggleAttribute("data-idle", car.gear < 2);
-    el.nitro_key.style.setProperty("--tank", String(car.nitro.level));
+    set_style(el.nitro_key, "--tank", String(Math.round(car.nitro.level * 100) / 100));
     el.nitro_key.toggleAttribute("data-boost", car.nitro.boosting);
-    el.lap.textContent = format(race.started ? now - race.started : null);
-    el.best.textContent = format(race.best);
-    el.last.textContent = format(race.last);
-    el.cp.textContent = race.started ? `${race.next === 0 ? race.gates : race.next} / ${race.gates}` : "drive through the lit gate";
+    set_text(el.lap, format(race.started ? now - race.started : null));
+    set_text(el.best, format(race.best));
+    set_text(el.last, format(race.last));
+    set_text(el.cp, race.started ? `${race.next === 0 ? race.gates : race.next} / ${race.gates}` : "drive through the lit gate");
     el.strip.toggleAttribute("data-idle", !race.started);
 
-    const rows = [
+    const rows: PlayerRow[] = [
       { name: `${this.net.name} (you)`, best: race.best, you: true },
       ...[...this.net.remotes.values()].map((r) => ({ name: this.net.display_name(r), best: r.latest.best, you: false })),
     ];
     rows.sort((a, b) => (a.best ?? Infinity) - (b.best ?? Infinity));
-    const players_key = JSON.stringify(rows);
-    if (players_key !== this.players_key) {
-      this.players_key = players_key;
+    if (!same_rows(rows, this.players)) {
+      this.players = rows;
       el.players.replaceChildren(...rows.map((r) => row(r.name, format(r.best), r.you)));
     }
     const foreign = this.net.foreign.size;
-    el.net.textContent = `${this.net.status} · ${this.net.remotes.size} other${this.net.remotes.size === 1 ? "" : "s"}${foreign ? ` · ${foreign} peer${foreign === 1 ? "" : "s"} on a different map` : ""}`;
-    el.join_map.hidden = this.net.foreign_seed() === null;
+    set_text(el.net, `${this.net.status} · ${this.net.remotes.size} other${this.net.remotes.size === 1 ? "" : "s"}${foreign ? ` · ${foreign} peer${foreign === 1 ? "" : "s"} on a different map` : ""}`);
+    set_hidden(el.join_map, this.net.foreign_seed() === null);
     el.top_right?.toggleAttribute("data-alone", this.net.remotes.size === 0 && foreign === 0);
 
     const lap_flashing = race.lap_flash && now - race.lap_flash < 2600;
-    el.banner.style.opacity = lap_flashing ? "1" : "0";
-    if (lap_flashing) el.banner.textContent = `LAP ${format(race.last)}${race.last === race.best ? " · BEST" : ""}`;
+    set_style(el.banner, "opacity", lap_flashing ? "1" : "0");
+    if (lap_flashing) set_text(el.banner, `LAP ${format(race.last)}${race.last === race.best ? " · BEST" : ""}`);
     const delta_on = race.delta !== null && now - race.delta_flash < 2200;
-    el.delta.style.opacity = delta_on ? "1" : "0";
+    set_style(el.delta, "opacity", delta_on ? "1" : "0");
     if (delta_on && race.delta !== null) {
-      el.delta.textContent = `${race.delta < 0 ? "−" : "+"}${(Math.abs(race.delta) / 1000).toFixed(2)}`;
-      el.delta.dataset.ahead = String(race.delta < 0);
+      set_text(el.delta, `${race.delta < 0 ? "−" : "+"}${(Math.abs(race.delta) / 1000).toFixed(2)}`);
+      set_data(el.delta, "ahead", String(race.delta < 0));
     }
-    el.rewind.style.opacity = rewinding ? "1" : "0";
+    set_style(el.rewind, "opacity", rewinding ? "1" : "0");
     this.draw_lobby(now);
     this.draw_map(car);
   }
@@ -180,17 +206,19 @@ export class Hud {
     const { el } = this;
     const { state, finishers } = this.lobby;
     const count = state.kind === "countdown" ? String(Math.ceil((state.go - now) / 1000)) : state.kind === "racing" && now - state.go < 1000 ? "GO" : "";
-    el.countdown.textContent = count;
-    el.countdown.style.opacity = count ? "1" : "0";
-    el.race_panel.hidden = state.kind === "idle";
+    set_text(el.countdown, count);
+    set_style(el.countdown, "opacity", count ? "1" : "0");
+    set_hidden(el.race_panel, state.kind === "idle");
     if (state.kind === "idle") return;
     const laps = `${state.laps} lap${state.laps === 1 ? "" : "s"}`;
-    el.race_status.textContent =
+    set_text(
+      el.race_status,
       state.kind === "countdown"
         ? `Race · ${laps} · get ready`
         : state.kind === "racing"
           ? `Race · lap ${state.lap + 1}/${state.laps} · ${format(now - state.go)}`
-          : `Finished P${state.place} · ${format(state.time)}${state.improved ? " · new best" : ` · best ${format(this.lobby.record.best[state.laps] ?? null)}`}`;
+          : `Finished P${state.place} · ${format(state.time)}${state.improved ? " · new best" : ` · best ${format(this.lobby.record.best[state.laps] ?? null)}`}`,
+    );
     const results_key = JSON.stringify(finishers);
     if (results_key === this.results_key) return;
     this.results_key = results_key;

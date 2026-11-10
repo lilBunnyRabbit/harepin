@@ -6,7 +6,7 @@ const HOT_RATIO = 6600 / 7300;
 const SHIFT_RATIO = 6700 / 6900;
 
 export interface Tach {
-  /** Bar fill, 0-100 percent of redline. */
+  /** Bar fill, 0-1 of redline. */
   fill: number;
   hot: boolean;
   shift: boolean;
@@ -14,7 +14,7 @@ export interface Tach {
 
 export function tach(rpm: number, spec: Pick<CarSpec, "redline" | "upshift">): Tach {
   return {
-    fill: Math.min(100, (rpm / spec.redline) * 100),
+    fill: Math.min(1, rpm / spec.redline),
     hot: rpm > spec.redline * HOT_RATIO,
     shift: rpm > spec.upshift * SHIFT_RATIO,
   };

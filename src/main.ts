@@ -333,6 +333,8 @@ function near_miss(impact: number): { near: Near; touched: boolean } {
 function frame(now: number) {
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
+  // Before any HUD write this frame: the size read would otherwise force a layout.
+  render.fit(app);
   const { controls, actions } = input.read();
   if (garage.is_open) garage.navigate(input.nav);
   else pad_menu.navigate(input.nav);
@@ -423,7 +425,6 @@ function frame(now: number) {
   if (input.touch.nitro && car.nitro.fill <= 0) input.touch.tank_empty();
   hud.update(car, now, rewinding);
   if (quality.adapt(dt)) render.apply_quality();
-  render.fit(app);
   world_view.update(camera, quality.tier.fog_far);
   // The garage covers the screen and draws the car with its own renderer; the next frame after it closes draws the world.
   if (!garage.is_open && (!menu_hold || now - last_draw >= MENU_DRAW_MS)) {
