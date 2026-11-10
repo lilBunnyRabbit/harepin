@@ -16,6 +16,7 @@ import { Rows, el, icon, read, type RowHelp, type Text, type Value } from "./set
 import { WorldKind } from "../worldgen/types";
 import { GoTo, GoalId } from "../goals/goals";
 import { mainland_seed, world_query } from "../world/world-pick";
+import { warm_pick } from "./warm";
 import "./settings.css";
 import "./menu.css";
 
@@ -359,12 +360,16 @@ export class Settings {
   /** Builds the pages not yet shown in idle time, so opening one later costs no build. */
   warm() {
     this.stop_warm();
+    const ids = this.page_list.map((p) => p.id);
+    // One page per idle slot, and only when the slot outlasts its build, so a drive never drops a frame for it.
     const next = (deadline: IdleDeadline) => {
-      for (const page of this.page_list) {
-        if (deadline.timeRemaining() <= 0) break;
-        this.build_page(page.id);
+      const pick = warm_pick(ids, this.built, MenuTab.SETTINGS, deadline.timeRemaining());
+      if (pick === "done") {
+        this.warm_handle = 0;
+        return;
       }
-      this.warm_handle = this.built.size < this.page_list.length ? requestIdleCallback(next) : 0;
+      if (pick !== "wait") this.build_page(pick);
+      this.warm_handle = requestIdleCallback(next);
     };
     this.warm_handle = requestIdleCallback(next);
   }
