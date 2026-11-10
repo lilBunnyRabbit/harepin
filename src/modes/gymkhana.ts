@@ -1,5 +1,6 @@
 import { mulberry32, sub } from "../rng";
 import { ROAD_HALF, type Solid } from "../world";
+import type { Ground } from "./marks";
 import { stars_for } from "./track";
 
 export const CONE_RADIUS = 0.3;
@@ -77,8 +78,7 @@ export interface Course {
   par_ms: number;
 }
 
-export interface Ground {
-  height(x: number, z: number): number;
+export interface SiteGround extends Ground {
   distance_to_road(x: number, z: number): number;
   readonly road: readonly { x: number; z: number; tx: number; tz: number }[];
   readonly solids: readonly Solid[];
@@ -122,7 +122,7 @@ export function footprint(levels: readonly GymLevel[] = LEVELS): { u0: number; u
   return { u0: -half - SITE_MARGIN, u1: LANE_GAP + half + SITE_MARGIN, v0: -6, v1 };
 }
 
-function site_score(ground: Ground, site: Site, area: ReturnType<typeof footprint>, solids: readonly Solid[]): number {
+function site_score(ground: SiteGround, site: Site, area: ReturnType<typeof footprint>, solids: readonly Solid[]): number {
   let low = Infinity;
   let high = -Infinity;
   for (let u = area.u0; u <= area.u1; u += SITE_STEP)
@@ -142,7 +142,7 @@ function site_score(ground: Ground, site: Site, area: ReturnType<typeof footprin
 }
 
 /** The flattest clear patch beside the road near `start`, laid out parallel to it; null when nothing nearby is clear. */
-export function find_site(ground: Ground, start: number, area = footprint()): Site | null {
+export function find_site(ground: SiteGround, start: number, area = footprint()): Site | null {
   const reach = Math.hypot(area.u1 - area.u0, area.v1 - area.v0) + Math.max(...SEARCH_OFFSETS);
   const from = ground.road[(start + ground.road.length) % ground.road.length];
   const span = SEARCH_POINTS * SEARCH_STRIDE * 6 + reach;

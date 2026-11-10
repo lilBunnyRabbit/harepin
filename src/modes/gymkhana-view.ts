@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { brand, color, tones } from "../palette";
 import { CONE_RADIUS, to_world, type Box, type Course, type Hit } from "./gymkhana";
+import { Marks, type Ground } from "./marks";
 
 const CONE_HEIGHT = 0.7;
 const FALL_S = 0.35;
@@ -17,12 +18,8 @@ interface Fall {
   slide: number;
 }
 
-interface Ground {
-  height(x: number, z: number): number;
-}
-
 export class GymkhanaView {
-  readonly root = new THREE.Group();
+  private readonly marks: Marks;
   private readonly cones: THREE.InstancedMesh;
   private readonly falls: Fall[] = [];
   private readonly base: THREE.Vector3[] = [];
@@ -30,8 +27,6 @@ export class GymkhanaView {
   private readonly quat = new THREE.Quaternion();
   private readonly pos = new THREE.Vector3();
   private readonly scale = new THREE.Vector3(1, 1, 1);
-  private readonly materials: THREE.Material[] = [];
-  private readonly geometries: THREE.BufferGeometry[] = [];
   private readonly spin_line: THREE.LineLoop;
   private readonly stop_line: THREE.LineLoop;
 
@@ -39,10 +34,9 @@ export class GymkhanaView {
     readonly course: Course,
     private readonly ground: Ground,
   ) {
-    const geometry = new THREE.ConeGeometry(CONE_RADIUS, CONE_HEIGHT, 10).translate(0, CONE_HEIGHT / 2, 0);
-    const material = new THREE.MeshLambertMaterial({ color: color(brand.warning) });
-    this.geometries.push(geometry);
-    this.materials.push(material);
+    this.marks = new Marks(ground);
+    const geometry = this.marks.track(new THREE.ConeGeometry(CONE_RADIUS, CONE_HEIGHT, 10).translate(0, CONE_HEIGHT / 2, 0));
+    const material = this.marks.track(new THREE.MeshLambertMaterial({ color: color(brand.warning) }));
     this.cones = new THREE.InstancedMesh(geometry, material, course.cones.length);
     this.cones.castShadow = true;
     course.cones.forEach((cone, index) => {
@@ -59,9 +53,7 @@ export class GymkhanaView {
   }
 
   private line_material(tone: Parameters<typeof color>[0]): THREE.LineBasicMaterial {
-    const material = new THREE.LineBasicMaterial({ color: color(tone), transparent: true, opacity: 0.85 });
-    this.materials.push(material);
-    return material;
+    return this.marks.track(new THREE.LineBasicMaterial({ color: color(tone), transparent: true, opacity: 0.85 }));
   }
 
   private ground_point(u: number, v: number): THREE.Vector3 {
@@ -84,17 +76,19 @@ export class GymkhanaView {
       const steps = Math.max(1, Math.ceil(Math.hypot(b.u - a.u, b.v - a.v) / LINE_STEP));
       for (let s = 0; s < steps; s++) points.push(this.ground_point(a.u + ((b.u - a.u) * s) / steps, a.v + ((b.v - a.v) * s) / steps));
     });
-    const geometry = new THREE.BufferGeometry().setFromPoints(points);
-    this.geometries.push(geometry);
+    const geometry = this.marks.track(new THREE.BufferGeometry().setFromPoints(points));
     return new THREE.LineLoop(geometry, this.line_material(tone));
   }
 
   private strip(v: number, half: number): THREE.Line {
     const points: THREE.Vector3[] = [];
     for (let u = -half; u <= half + 1e-6; u += LINE_STEP) points.push(this.ground_point(u, v));
-    const geometry = new THREE.BufferGeometry().setFromPoints(points);
-    this.geometries.push(geometry);
+    const geometry = this.marks.track(new THREE.BufferGeometry().setFromPoints(points));
     return new THREE.Line(geometry, this.line_material(tones.line));
+  }
+
+  get root(): THREE.Group {
+    return this.marks.root;
   }
 
   target(box: "spin" | "stop" | null) {
@@ -130,9 +124,7 @@ export class GymkhanaView {
   }
 
   dispose() {
-    this.root.removeFromParent();
-    for (const geometry of this.geometries) geometry.dispose();
-    for (const material of this.materials) material.dispose();
+    this.marks.dispose();
     this.cones.dispose();
   }
 }

@@ -16,6 +16,7 @@ import { PARK_IDS, PARK_LEVELS, ParkRun, ParkStatus, Verdict, park_footprint, pa
 import { ParkingView } from "./parking-view";
 import { COUNTDOWN_MS, RaceRun, RaceStatus, race_course, race_levels, type RaceLevel } from "./races";
 import { RaceView } from "./race-view";
+import { body_of, turn_to } from "./mode";
 import { MAX_STARS, Track, local_store, type RaceRecord, type StarRun } from "./track";
 
 const SPAWN_LIFT = 0.75;
@@ -427,12 +428,7 @@ export class Modes {
     const { run, view, level } = this;
     if (!run || !view || !level) return;
     const was = run.status;
-    const hits = run.update(sim_dt * 1000, { x: car.pos.x, z: car.pos.z, heading: car.heading, speed: car.vel.length() }, {
-      circles: car.spec.circles,
-      radius: car.spec.radius,
-      length: car.spec.body.length,
-      width: car.spec.body.width,
-    });
+    const hits = run.update(sim_dt * 1000, { x: car.pos.x, z: car.pos.z, heading: car.heading, speed: car.vel.length() }, body_of(car.spec));
     view.knock(hits);
     view.update(sim_dt);
     const step = run.step;
@@ -454,12 +450,7 @@ export class Modes {
 
   private update_park(sim_dt: number, car: Driven, run: ParkRun) {
     const was = run.status;
-    run.update(sim_dt * 1000, { x: car.pos.x, z: car.pos.z, heading: car.heading, speed: car.vel.length() }, {
-      circles: car.spec.circles,
-      radius: car.spec.radius,
-      length: car.spec.body.length,
-      width: car.spec.body.width,
-    });
+    run.update(sim_dt * 1000, { x: car.pos.x, z: car.pos.z, heading: car.heading, speed: car.vel.length() }, body_of(car.spec));
     const verdict = run.last.verdict;
     this.park_view?.inside(verdict === Verdict.INSIDE);
     if (was !== ParkStatus.DONE && run.status === ParkStatus.DONE) this.finish_park(run);
@@ -486,7 +477,7 @@ export class Modes {
     const end = run.update(
       sim_dt * 1000,
       { x: car.pos.x, z: car.pos.z, heading: car.heading, vx: car.vel.x, vz: car.vel.z },
-      { circles: car.spec.circles, radius: car.spec.radius, length: car.spec.body.length, width: car.spec.body.width },
+      body_of(car.spec),
       ROAD_HALF,
     );
     if (end === ComboEnd.LOST) this.lost_at = run.clock;
@@ -521,9 +512,7 @@ export class Modes {
     if (!gate) return;
     const dx = gate.x - car.pos.x;
     const dz = gate.z - car.pos.z;
-    const turn = Math.atan2(Math.sin(Math.atan2(dx, dz) - car.heading), Math.cos(Math.atan2(dx, dz) - car.heading));
-    this.el.hint.hidden = false;
-    this.el.hint.style.setProperty("--turn", `${(-turn * DEG).toFixed(1)}deg`);
+    this.show_hint(turn_to(car, gate.x, gate.z));
     const doing = run.status === HuntStatus.READY ? "drive to start the clock" : format(run.elapsed());
     this.show_status(`${level.name} · ${run.found.size}/${gates.length} · ${doing} · ${Math.round(Math.hypot(dx, dz))} m`);
   }
@@ -573,15 +562,16 @@ export class Modes {
     }
     const { line, gates } = run.course;
     const gate = line[gates[run.next]];
-    const dx = gate.x - car.pos.x;
-    const dz = gate.z - car.pos.z;
-    const turn = Math.atan2(Math.sin(Math.atan2(dx, dz) - car.heading), Math.cos(Math.atan2(dx, dz) - car.heading));
-    this.el.hint.hidden = false;
-    this.el.hint.style.setProperty("--turn", `${(-turn * DEG).toFixed(1)}deg`);
+    this.show_hint(turn_to(car, gate.x, gate.z));
     const name = this.race_level?.name ?? "";
     if (run.status === RaceStatus.READY) return this.show_status(`${name} · ${Math.ceil(run.countdown / 1000)}`);
     const doing = run.missed ? "missed a gate, go back" : `gate ${run.next + 1}/${gates.length}`;
     this.show_status(`${name} · ${format(run.elapsed())} · ${doing}`);
+  }
+
+  private show_hint(turn: number) {
+    this.el.hint.hidden = false;
+    this.el.hint.style.setProperty("--turn", `${(-turn * DEG).toFixed(1)}deg`);
   }
 
   private notice(text: string) {

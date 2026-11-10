@@ -3,6 +3,7 @@ import { parked_car_geometry, parked_cars } from "../buildings";
 import { brand, car_paints, color, tones } from "../palette";
 import { mulberry32, sub } from "../rng";
 import { to_world, type Site } from "./gymkhana";
+import { Marks, type Ground } from "./marks";
 import { CONE_RADIUS, type ParkBay, type ParkLevel } from "./parking";
 
 const LINE_LIFT = 0.08;
@@ -14,14 +15,8 @@ const PAD_MARGIN = 3;
 const ARROW = 1.4;
 const PAINT = 0.12;
 
-interface Ground {
-  height(x: number, z: number): number;
-}
-
 export class ParkingView {
-  readonly root = new THREE.Group();
-  private readonly materials: THREE.Material[] = [];
-  private readonly geometries: THREE.BufferGeometry[] = [];
+  private readonly marks: Marks;
   private readonly target: THREE.MeshBasicMaterial;
   private cars: THREE.InstancedMesh | null = null;
 
@@ -32,9 +27,10 @@ export class ParkingView {
     seed: number,
     area: { u0: number; u1: number; v0: number; v1: number },
   ) {
+    this.marks = new Marks(ground);
     this.root.add(this.pad(area));
-    for (const bay of level.lines) this.root.add(this.bay_line(bay, this.paint(tones.line, 0.7)));
-    this.target = this.paint(brand.accent, 1);
+    for (const bay of level.lines) this.root.add(this.bay_line(bay, this.marks.paint(tones.line, 0.7)));
+    this.target = this.marks.paint(brand.accent, 1);
     this.root.add(this.bay_line(level.bay, this.target));
     if (!level.bay.either) this.root.add(this.arrow(level.bay));
     const rng = mulberry32(sub(seed, `parking:${level.id}`));
@@ -45,19 +41,15 @@ export class ParkingView {
         return { x, y: ground.height(x, z), z, heading: site.heading + o.heading, paint: color(car_paints[Math.floor(rng() * car_paints.length)]) };
       });
     if (cars.length) {
-      const shape = parked_car_geometry();
-      const material = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
-      this.geometries.push(shape);
-      this.materials.push(material);
+      const shape = this.marks.track(parked_car_geometry());
+      const material = this.marks.track(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
       this.cars = parked_cars(cars, shape, material);
       this.root.add(this.cars);
     }
-    const cone_shape = new THREE.ConeGeometry(CONE_RADIUS, 1, 10).translate(0, 0.5, 0);
-    const cone_material = new THREE.MeshLambertMaterial({ color: color(brand.warning) });
-    const wall_shape = new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0);
-    const wall_material = new THREE.MeshLambertMaterial({ color: color(tones.wall), flatShading: true });
-    this.geometries.push(cone_shape, wall_shape);
-    this.materials.push(cone_material, wall_material);
+    const cone_shape = this.marks.track(new THREE.ConeGeometry(CONE_RADIUS, 1, 10).translate(0, 0.5, 0));
+    const cone_material = this.marks.track(new THREE.MeshLambertMaterial({ color: color(brand.warning) }));
+    const wall_shape = this.marks.track(new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0));
+    const wall_material = this.marks.track(new THREE.MeshLambertMaterial({ color: color(tones.wall), flatShading: true }));
     for (const o of level.obstacles) {
       if (o.kind === "car") continue;
       const { x, z } = to_world(site, o.u, o.v);
@@ -69,12 +61,6 @@ export class ParkingView {
       mesh.receiveShadow = true;
       this.root.add(mesh);
     }
-  }
-
-  private paint(tone: Parameters<typeof color>[0], opacity: number): THREE.MeshBasicMaterial {
-    const material = new THREE.MeshBasicMaterial({ color: color(tone), transparent: true, opacity, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 });
-    this.materials.push(material);
-    return material;
   }
 
   private point(u: number, v: number, lift = LINE_LIFT): THREE.Vector3 {
@@ -106,9 +92,8 @@ export class ParkingView {
         for (const i of [0, 1, 2, 2, 1, 3]) positions.push(p[i].x, p[i].y, p[i].z);
       }
     }
-    const geometry = new THREE.BufferGeometry();
+    const geometry = this.marks.track(new THREE.BufferGeometry());
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-    this.geometries.push(geometry);
     return new THREE.Mesh(geometry, material);
   }
 
@@ -162,12 +147,15 @@ export class ParkingView {
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
     geometry.setIndex(index);
     geometry.computeVertexNormals();
-    const material = new THREE.MeshLambertMaterial({ color: color(tones.asphalt), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
-    this.geometries.push(geometry);
-    this.materials.push(material);
+    this.marks.track(geometry);
+    const material = this.marks.track(new THREE.MeshLambertMaterial({ color: color(tones.asphalt), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
     const mesh = new THREE.Mesh(geometry, material);
     mesh.receiveShadow = true;
     return mesh;
+  }
+
+  get root(): THREE.Group {
+    return this.marks.root;
   }
 
   inside(on: boolean) {
@@ -175,9 +163,7 @@ export class ParkingView {
   }
 
   dispose() {
-    this.root.removeFromParent();
-    for (const geometry of this.geometries) geometry.dispose();
-    for (const material of this.materials) material.dispose();
+    this.marks.dispose();
     this.cars?.dispose();
   }
 }

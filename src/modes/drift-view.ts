@@ -2,15 +2,11 @@ import * as THREE from "three";
 import { brand, tones } from "../palette";
 import { ROAD_HALF } from "../world";
 import { LEAD, type Zone } from "./drift";
-import { Marks } from "./marks";
+import { Marks, type Ground } from "./marks";
 
 const LINE = 0.6;
 const TICK_EVERY = 12;
 const TICK = { half: 0.5, width: 1.6 };
-
-interface Ground {
-  height(x: number, z: number): number;
-}
 
 export class DriftView {
   private readonly marks: Marks;

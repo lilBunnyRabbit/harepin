@@ -1,15 +1,11 @@
 import type * as THREE from "three";
 import { brand } from "../palette";
-import { Marks } from "./marks";
+import { Marks, type Ground } from "./marks";
 import type { RaceCourse } from "./races";
 
 const LINE = 0.6;
 const GATE = 0.4;
 const DIM = 0.3;
-
-interface Ground {
-  height(x: number, z: number): number;
-}
 
 export class RaceView {
   private readonly marks: Marks;

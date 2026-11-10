@@ -7,7 +7,7 @@ const STEP = 1;
 
 type Tone = Parameters<typeof color>[0];
 
-interface Ground {
+export interface Ground {
   height(x: number, z: number): number;
 }
 

@@ -2,13 +2,9 @@ import type * as THREE from "three";
 import { brand } from "../palette";
 import { ROAD_HALF } from "../world";
 import { DUEL_LEAD, type Route } from "./duel";
-import { Marks } from "./marks";
+import { Marks, type Ground } from "./marks";
 
 const LINE = 0.6;
-
-interface Ground {
-  height(x: number, z: number): number;
-}
 
 export class DuelView {
   private readonly marks: Marks;

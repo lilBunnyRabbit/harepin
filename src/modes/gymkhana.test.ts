@@ -1,11 +1,11 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
 import type { Solid } from "../world";
-import { GymRun, HIT_MS, LEVELS, MISS_MS, RunStatus, Step, build_course, find_site, footprint, to_local, to_world, type Body, type Ground, type Site } from "./gymkhana";
+import { GymRun, HIT_MS, LEVELS, MISS_MS, RunStatus, Step, build_course, find_site, footprint, to_local, to_world, type Body, type SiteGround, type Site } from "./gymkhana";
 
 const BODY: Body = { circles: [1.25, -1.25], radius: 1.05, length: 4.66, width: 1.9 };
 
-function flat(solids: Solid[] = []): Ground {
+function flat(solids: Solid[] = []): SiteGround {
   const road = Array.from({ length: 400 }, (_, i) => ({ x: 0, z: (i - 200) * 5, tx: 0, tz: 1 }));
   return { height: () => 5, distance_to_road: (x) => Math.abs(x), road, solids };
 }
