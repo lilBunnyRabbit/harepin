@@ -83,6 +83,8 @@ function cell_of(v: number): number {
 export class Router {
   private readonly height = new Float32Array(G * G);
   private readonly blocked = new Uint8Array(G * G);
+  /** Cells kept off outright: unlike a road band, no run into a junction or link port may enter one. */
+  private readonly kept = new Uint8Array(G * G);
 
   constructor(
     heights: Float32Array,
@@ -219,7 +221,7 @@ export class Router {
         }
     }
     const free = (k: number) => open[k] === 1;
-    const door = (k: number) => portal[k] === 1 && this.height[k] >= WATER;
+    const door = (k: number) => portal[k] === 1 && this.height[k] >= WATER && !this.kept[k];
     const launched = new Uint8Array(cells);
     const near = octile(goals.map(at));
     const cost = new Float64Array(cells + goals.length).fill(Infinity);
@@ -299,9 +301,12 @@ export class Router {
     return { source: first, goal, legs, crossings: taken, forward, cost: cost[cells + goal] };
   }
 
-  /** Whether every point from `from` to `to` lies on a cell nothing blocks. */
+  /** Whether every point from `from` to `to` lies on a cell nothing blocks, and no point at all on a kept-off cell. */
   clear(points: readonly RoadPoint[], from: number, to: number): boolean {
-    for (let i = Math.max(0, from); i < Math.min(points.length, to); i++) if (this.blocked[cell_of(points[i].z) * G + cell_of(points[i].x)]) return false;
+    for (let i = 0; i < points.length; i++) {
+      const k = cell_of(points[i].z) * G + cell_of(points[i].x);
+      if (this.kept[k] || (i >= from && i < to && this.blocked[k])) return false;
+    }
     return true;
   }
 
@@ -309,7 +314,7 @@ export class Router {
   keep_off(line: readonly [number, number][], reach: number) {
     for (const [x, z] of line)
       for (let j = cell_of(z - reach); j <= cell_of(z + reach); j++)
-        for (let i = cell_of(x - reach); i <= cell_of(x + reach); i++) if (length(centre(i) - x, centre(j) - z) < reach) this.blocked[j * G + i] = 1;
+        for (let i = cell_of(x - reach); i <= cell_of(x + reach); i++) if (length(centre(i) - x, centre(j) - z) < reach) this.blocked[j * G + i] = this.kept[j * G + i] = 1;
   }
 
   /** Blocks the cells along an accepted spur so later spurs keep their distance. */
