@@ -13,7 +13,6 @@ const VEL_SCALE = 64;
 const STEER_SCALE = 127;
 const BRAKE = 1;
 const BOOST = 2;
-const FLAGS = BRAKE | BOOST;
 
 const T = 0;
 const BEST = 8;
@@ -30,15 +29,33 @@ export const CAR_HEADER = 54;
 const encoder = new TextEncoder();
 const decoder = new TextDecoder("utf-8", { fatal: true });
 
+// Name and build change rarely; the heartbeat reuses their bytes instead of encoding them every tick.
+class Utf8Cache {
+  private text = "";
+  private bytes = new Uint8Array(0);
+
+  constructor(private readonly limit: number) {}
+
+  get(text: string): Uint8Array {
+    if (text !== this.text) [this.text, this.bytes] = [text, encoder.encode(text).subarray(0, this.limit)];
+    return this.bytes;
+  }
+}
+
+const names = new Utf8Cache(NAME_BYTES);
+const builds = new Utf8Cache(BUILD_BYTES);
+
 const int16 = (x: number) => Math.max(-32767, Math.min(32767, Math.round(x))) || 0;
 
 /**
  * Fixed layout, little-endian: t f64, best f64 (0 = none), p 3×f32, q 4×i16 (unit), v 3×i16 (1/64 m/s), seed u32,
  * w u32, paint u16, steer i8, flags u8 (brake, boost), then name and build as a length byte and UTF-8.
+ * Append-only within a protocol: a new field goes after the build and a new flag takes a free bit, and decoders ignore
+ * both. Reordering or resizing a field needs a `PROTOCOL` bump.
  */
 export function encode_car(state: CarState): Uint8Array<ArrayBuffer> {
-  const name = encoder.encode(state.name).subarray(0, NAME_BYTES);
-  const build = encoder.encode(state.b ?? "").subarray(0, BUILD_BYTES);
+  const name = names.get(state.name);
+  const build = builds.get(state.b ?? "");
   const bytes = new Uint8Array(CAR_HEADER + 2 + name.length + build.length);
   const view = new DataView(bytes.buffer);
   view.setFloat64(T, state.t, true);
@@ -66,11 +83,12 @@ export function decode_car(raw: unknown, id: string): CarState | null {
   const name_length = raw[CAR_HEADER];
   if (name_length > NAME_BYTES || raw.length < CAR_HEADER + 2 + name_length) return null;
   const build_length = raw[CAR_HEADER + 1 + name_length];
-  if (build_length > BUILD_BYTES || raw.length !== CAR_HEADER + 2 + name_length + build_length) return null;
+  const end = CAR_HEADER + 2 + name_length + build_length;
+  if (build_length > BUILD_BYTES || raw.length < end) return null;
 
   const t = view.getFloat64(T, true);
   const best = view.getFloat64(BEST, true);
-  if (!(t >= 0 && t <= MAX_TIME) || !(best >= 0 && best <= MAX_BEST)) return null;
+  if (!(t >= 0 && t <= MAX_TIME)) return null;
   const p: CarState["p"] = [view.getFloat32(P, true), view.getFloat32(P + 4, true), view.getFloat32(P + 8, true)];
   if (!p.every((x) => Math.abs(x) <= WORLD_LIMIT)) return null;
   const q: CarState["q"] = [0, 0, 0, 0];
@@ -84,13 +102,13 @@ export function decode_car(raw: unknown, id: string): CarState | null {
   const paint = view.getUint16(PAINT, true);
   const steer = view.getInt8(STEER);
   const flags = view.getUint8(FLAG);
-  if (w === 0 || paint > MAX_PAINT || steer < -STEER_SCALE || flags & ~FLAGS) return null;
+  if (w === 0 || paint > MAX_PAINT || steer < -STEER_SCALE) return null;
 
   let name: string;
   let code: string;
   try {
     name = decoder.decode(raw.subarray(CAR_HEADER + 1, CAR_HEADER + 1 + name_length));
-    code = decoder.decode(raw.subarray(CAR_HEADER + 2 + name_length));
+    code = decoder.decode(raw.subarray(CAR_HEADER + 2 + name_length, end));
   } catch {
     return null;
   }
@@ -109,6 +127,6 @@ export function decode_car(raw: unknown, id: string): CarState | null {
     steer: steer / STEER_SCALE,
     brake: (flags & BRAKE) !== 0,
     boost: (flags & BOOST) !== 0,
-    best: best > 0 ? best : null,
+    best: best > 0 && best <= MAX_BEST ? best : null,
   };
 }

@@ -61,15 +61,12 @@ test("build code: valid kept, unknown left out", () => {
   expect(decode_car(bytes_of({ ...state, b: "coupe.99.0.0.1.0" }), "x")?.b).toBeUndefined();
 });
 
-test("rejects anything but bytes, and the wrong length", () => {
+test("rejects anything but bytes, and a packet shorter than it says", () => {
   const good = bytes_of(state);
   expect(decode_car({ ...state }, "x")).toBeNull();
   expect(decode_car(good.buffer, "x")).toBeNull();
   expect(decode_car("car", "x")).toBeNull();
   expect(decode_car(good.subarray(0, good.length - 1), "x")).toBeNull();
-  const longer = new Uint8Array(good.length + 1);
-  longer.set(good);
-  expect(decode_car(longer, "x")).toBeNull();
   expect(decode_car(good.subarray(0, CAR_HEADER), "x")).toBeNull();
   expect(decode_car(with_byte(good, (v) => v.setUint8(CAR_HEADER, 200)), "x")).toBeNull();
 });
@@ -80,8 +77,6 @@ test("rejects non-finite and out-of-range values", () => {
   expect(bad((v) => v.setFloat64(0, NaN, true))).toBeNull();
   expect(bad((v) => v.setFloat64(0, Infinity, true))).toBeNull();
   expect(bad((v) => v.setFloat64(0, -1, true))).toBeNull();
-  expect(bad((v) => v.setFloat64(8, NaN, true))).toBeNull();
-  expect(bad((v) => v.setFloat64(8, 1e8, true))).toBeNull();
   expect(bad((v) => v.setFloat32(16, NaN, true))).toBeNull();
   expect(bad((v) => v.setFloat32(20, -Infinity, true))).toBeNull();
   expect(bad((v) => v.setFloat32(24, WORLD_LIMIT + 1, true))).toBeNull();
@@ -90,7 +85,6 @@ test("rejects non-finite and out-of-range values", () => {
   expect(bad((v) => v.setUint32(46, 0, true))).toBeNull();
   expect(bad((v) => v.setUint16(50, 1001, true))).toBeNull();
   expect(bad((v) => v.setInt8(52, -128))).toBeNull();
-  expect(bad((v) => v.setUint8(53, 4))).toBeNull();
 });
 
 test("rejects a name or build that isn't UTF-8", () => {
@@ -104,4 +98,30 @@ test("encoder clamps instead of wrapping", () => {
   expect(out?.v[0]).toBeGreaterThan(511);
   expect(out?.v[1]).toBeLessThan(-511);
   expect(out?.steer).toBe(1);
+});
+
+test("forward compatible: trailing bytes and unknown flag bits from a later build are ignored", () => {
+  const good = bytes_of(state);
+  const longer = new Uint8Array(good.length + 9);
+  longer.set(good);
+  longer.fill(0xff, good.length);
+  expect(decode_car(longer, "x")).toEqual(decode_car(good, "x"));
+  const flagged = with_byte(good, (v) => v.setUint8(53, 0xfc | 1));
+  expect([decode_car(flagged, "x")?.brake, decode_car(flagged, "x")?.boost]).toEqual([true, false]);
+});
+
+test("a best lap that fails the check reads as none, not a dropped packet", () => {
+  const good = bytes_of(state);
+  for (const best of [NaN, Infinity, -5, 1e8]) {
+    const out = decode_car(with_byte(good, (v) => v.setFloat64(8, best, true)), "x");
+    expect(out?.best).toBeNull();
+    expect(out?.t).toBe(state.t);
+  }
+});
+
+test("a name or build change shows up despite the cached bytes", () => {
+  expect(decode_car(bytes_of(state), "x")?.name).toBe(state.name);
+  const renamed = decode_car(bytes_of({ ...state, name: "Other", b: "coupe.3.1.2.1.0" }), "x");
+  expect([renamed?.name, renamed?.b]).toEqual(["Other", "coupe.3.1.2.1.0"]);
+  expect(decode_car(bytes_of(state), "x")?.b).toBe(state.b);
 });

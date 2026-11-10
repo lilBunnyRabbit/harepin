@@ -44,7 +44,7 @@ Every kind of thing we add has a registry. Adding one touches its own files plus
 - **Part:** an entry in `SLOTS` in `car/build.ts`.
 - **Setting:** a field on `SettingsState` and its entry in `FIELDS` in `menu/prefs.ts` (the mapped type rejects a missing one), then its row in the section builder in `menu/settings-sections.ts`. Reset picks the key up from the row.
 - **Menu page:** a class implementing `MenuPage` (`menu/page.ts`, optional `on_show` / `on_hide`), one line in `page_list` in `menu/settings.ts`.
-- **Net message:** one `this.link.channel(name, sanitize, limit?, accept?)` line in `net/net.ts` and its sanitizer. New fields on an existing message are optional; never rename or remove a wire field. Bump `PROTOCOL` when old peers can't play with new ones; peers send it in `hello`.
+- **Net message:** one `this.link.channel(name, sanitize, limit?, accept?)` line in `net/net.ts` and its sanitizer. New fields on an existing message are optional; never rename or remove a wire field. Bump `PROTOCOL` when old peers can't play with new ones; peers send it in `hello`. The binary `car` packet (`net/car-packet.ts`) is append-only: new fields go at the end and new flag bits are optional, both ignored by older decoders; reordering or resizing a field bumps `PROTOCOL`.
 
 ## Working in parallel
 

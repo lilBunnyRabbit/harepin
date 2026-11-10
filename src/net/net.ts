@@ -212,6 +212,8 @@ export class Net {
   readonly hellos = new Map<string, Hello>();
   /** Peers whose car packets this build can't read, by id: when they were last heard (performance.now ms). */
   private readonly unreadable = new Map<string, number>();
+  private older = 0;
+  private newer = 0;
   status = "connecting";
   private readonly link: Link;
   private readonly cars: Channel<CarPacket, Uint8Array>;
@@ -264,14 +266,19 @@ export class Net {
     this.cars.subscribe((packet, sender) => {
       this.greet(sender);
       if (packet.kind === "car") {
-        this.unreadable.delete(sender);
+        if (this.unreadable.delete(sender)) this.recount();
         this.receive(packet.state);
-      } else if (this.protocol_of(sender) !== PROTOCOL) this.unreadable.set(sender, performance.now());
+      } else if (this.protocol_of(sender) !== PROTOCOL) {
+        const known = this.unreadable.has(sender);
+        this.unreadable.set(sender, performance.now());
+        if (!known) this.recount();
+      }
     });
     this.hello.subscribe((hello, sender) => {
       this.greet(sender);
       this.hellos.set(sender, hello);
       if (hello.protocol === PROTOCOL) this.unreadable.delete(sender);
+      this.recount();
     });
     // Same-browser tabs never fire onPeerJoin: open tabs hear this hello, and greet back a tab they hear from first.
     this.hello.send_local(this.own_hello);
@@ -290,6 +297,7 @@ export class Net {
       this.link.forget(peer);
       this.hellos.delete(peer);
       this.unreadable.delete(peer);
+      this.recount();
       this.greeted.delete(peer);
     };
   }
@@ -311,14 +319,18 @@ export class Net {
 
   /** Peers heard on an older protocol (or none), whose cars this build can't show. */
   get older_peers(): number {
-    let count = 0;
-    for (const id of this.unreadable.keys()) if (this.protocol_of(id) < PROTOCOL) count++;
-    return count;
+    return this.older;
   }
 
   /** Peers heard on a newer protocol: this build is out of date for them. */
   get newer_peers(): number {
-    return this.unreadable.size - this.older_peers;
+    return this.newer;
+  }
+
+  private recount() {
+    this.older = 0;
+    for (const id of this.unreadable.keys()) if (this.protocol_of(id) < PROTOCOL) this.older++;
+    this.newer = this.unreadable.size - this.older;
   }
 
   get peers(): number {
@@ -410,6 +422,7 @@ export class Net {
     for (const [id, { seen }] of this.foreign) if (now - seen > TIMEOUT) this.foreign.delete(id);
     for (const [id, { seen }] of this.same_map) if (now - seen > TIMEOUT) this.same_map.delete(id);
     for (const [id, seen] of this.unreadable) if (now - seen > TIMEOUT) this.unreadable.delete(id);
+    this.recount();
   }
 
   /** The map most of the room is on, counting this one; null when that is already this one, so two players never swap. */
