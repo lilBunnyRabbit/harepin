@@ -124,6 +124,17 @@ body:has(#mode-result:not([hidden])) #mode-status {
   background: var(--panel-well);
 }
 
+#mode-result-note {
+  margin: 0;
+  max-width: 280px;
+  justify-self: center;
+  color: var(--dim);
+}
+
+#mode-result-note[hidden] {
+  display: none;
+}
+
 #mode-result-lines div {
   display: flex;
   justify-content: space-between;

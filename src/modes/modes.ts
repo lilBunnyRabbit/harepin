@@ -78,6 +78,7 @@ export class Modes {
     title: $("mode-result-title"),
     result_stars: $("mode-result-stars"),
     lines: $("mode-result-lines"),
+    note: $("mode-result-note"),
     retry: $("mode-retry", HTMLButtonElement),
     next: $("mode-next", HTMLButtonElement),
     exit: $("mode-exit", HTMLButtonElement),
@@ -269,7 +270,13 @@ export class Modes {
     this.el.hint.style.setProperty("--turn", `${(-turn * DEG).toFixed(1)}deg`);
   }
 
+  // The status line hides behind the result card, so a refused Next or Retry says why on the card itself.
   private notice(text: string) {
+    if (!this.el.result.hidden) {
+      this.el.note.textContent = text;
+      this.el.note.hidden = false;
+      return;
+    }
     this.show_status(text);
     setTimeout(() => {
       if (this.status_key === text && !this.active) this.el.status.hidden = true;
@@ -291,6 +298,7 @@ export class Modes {
     el.result_stars.replaceChildren(star_row(stars));
     el.result_stars.setAttribute("aria-label", `${stars} of ${MAX_STARS} stars`);
     el.lines.replaceChildren(...finish.lines);
+    el.note.hidden = true;
     const index = levels.findIndex((level) => level.id === active.level.id);
     el.next.hidden = index + 1 >= levels.length;
     el.next.disabled = !track.is_open(levels[index + 1]?.id ?? "");
