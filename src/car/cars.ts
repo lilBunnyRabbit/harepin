@@ -40,13 +40,19 @@ export interface CarSpec {
   spring: number;
   damper: number;
   bump: number;
+  /** Most force one strut pushes with, N. */
+  strut_max: number;
   arb_front: number;
   arb_rear: number;
   mu: number;
   rear_grip: number;
+  /** Wheel load (N) at which tyre grip would fall back to zero; it tops out at half of it and stays flat past that. */
+  load_fade: number;
   peak_slip: number;
   peak_angle: number;
   idle: number;
+  /** Revs over idle that full throttle holds the engine at while the wheels turn slower: the clutch or converter launch. */
+  launch_rpm: number;
   redline: number;
   upshift: number;
   downshift: number;
@@ -78,10 +84,12 @@ export interface CarSpec {
   air_settle: number;
   /** How far the body reaches below and above the centre of mass, metres: what a bar or a raised solid has to clear. */
   band: [number, number];
-  /** Collision circle offsets along the heading (nose, tail), metres. */
-  circles: [number, number];
+  /** Collision circle offsets along the heading, nose to tail, metres. */
+  circles: number[];
   radius: number;
   corners: Triple[];
+  /** Spring (N/m) and damper (N·s/m) pushing a body corner back out of the ground. */
+  hull: [number, number];
   body: { length: number; width: number; height: number; style: BodyStyle };
   sound: EngineSound;
   /** Boost seconds a full nitro tank holds; absent or 0 without one. */
@@ -128,13 +136,16 @@ export const COUPE: CarSpec = {
   spring: 34000,
   damper: 2700,
   bump: 160000,
+  strut_max: 40000,
   arb_front: 16000,
   arb_rear: 9000,
   mu: 1.12,
   rear_grip: 1.08,
+  load_fade: 32000,
   peak_slip: 0.11,
   peak_angle: 0.1,
   idle: 900,
+  launch_rpm: 2600,
   redline: 7300,
   upshift: 6900,
   downshift: 3000,
@@ -170,6 +181,7 @@ export const COUPE: CarSpec = {
   circles: [1.25, -1.25],
   radius: 1.05,
   corners: corners(0.95, -0.3, 0.72, 2.25),
+  hull: [140000, 7000],
   body: { length: 4.66, width: 1.9, height: 1.2, style: "coupe" },
   sound: { cylinders: 6, pulses: [1, 0.97, 1, 0.98, 1, 0.96], jitter: 0.05, pulse_ms: 1.1, formants: [170, 540, 1500], shift: 0.3, muffler: [900, 3400], drive: 1.8, rasp: 0.35, intake: 0.6, crackle: 0.25, turbo: 0 },
 };

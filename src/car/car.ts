@@ -69,8 +69,6 @@ const STICK_DAMPER = 2.2;
 // Bearing drag on a wheel in the air, per second. It was 0.1% a step, 30% a second at 360 Hz, so after a long jump every
 // wheel landed turning half the car's speed: past peak slip, with little lateral grip left.
 const AIR_SPIN_DRAG = 0.02;
-/** Load (N) at which the old load-sensitivity parabola fell to zero grip. */
-const LOAD_FADE = 32000;
 
 // Normalised magic formula: peak at s = 1, sliding grip sin(C·π/2) ≈ 65% of peak.
 const MF_C = 1.55;
@@ -435,7 +433,7 @@ export class Car {
     const gas = pedal * (this.tcs ? this.tcs_factor : 1);
     this.throttle = gas;
 
-    const launch = this.gear !== 0 ? spec.idle + gas * 2600 : spec.idle + gas * (spec.redline - spec.idle);
+    const launch = this.gear !== 0 ? spec.idle + gas * spec.launch_rpm : spec.idle + gas * (spec.redline - spec.idle);
     const rpm = Math.max(wheel_rpm, launch);
     const grounded = this.wheels.some((w) => w.contact);
     // First gear is grip-bound: boost there only spins the wheels, and spinning wheels hold the auto box off its upshift.
@@ -514,7 +512,7 @@ export class Car {
       let suspension = spec.spring * w.compression + (spec.damper * (w.compression - prev)) / dt;
       suspension += axle.arb * (w.compression - other.compression);
       if (w.compression > rest) suspension += spec.bump * (w.compression - rest);
-      suspension = Math.max(0, Math.min(40000, suspension));
+      suspension = Math.max(0, Math.min(spec.strut_max, suspension));
       lever.copy(w.point).sub(pos);
       ground.normal(w.point.x, w.point.z, w.normal, w.point.y);
       const load = suspension * Math.max(0, up.dot(w.normal));
@@ -533,10 +531,10 @@ export class Car {
       const denom = Math.max(Math.abs(v_long), 2);
       const surface = ground.grip(w.point.x, w.point.z);
       const grip = surface + (1 - surface) * spec.offroad;
-      // Tyre force grows ever slower with load and tops out at half LOAD_FADE; past that it stays flat. Left as a
-      // parabola it fell to nothing at LOAD_FADE and reversed above it, which a hard landing reaches.
-      const bite = Math.min(load, LOAD_FADE / 2);
-      const peak = spec.mu * axle.grip * grip * bite * (1 - bite / LOAD_FADE);
+      // Tyre force grows ever slower with load and tops out at half `load_fade`; past that it stays flat. Left as a
+      // parabola it fell to nothing at `load_fade` and reversed above it, which a hard landing reaches.
+      const bite = Math.min(load, spec.load_fade / 2);
+      const peak = spec.mu * axle.grip * grip * bite * (1 - bite / spec.load_fade);
       // Over the same denominator as the longitudinal slip, so the combined force points against the patch's slip
       // velocity. As an angle it stopped at 90 degrees while wheelspin over a 2 m/s floor did not: a rear spinning fully
       // sideways put nearly all its grip into drive and the car glided on the fronts.
@@ -595,7 +593,7 @@ export class Car {
       ground.normal(p.x, p.z, tmp, p.y);
       point_vel.crossVectors(ang, lever.copy(p).sub(pos)).add(vel);
       const vn = point_vel.dot(tmp);
-      const normal_force = Math.max(0, 140000 * depth - 7000 * vn);
+      const normal_force = Math.max(0, spec.hull[0] * depth - spec.hull[1] * vn);
       force.copy(tmp).multiplyScalar(normal_force);
       point_vel.addScaledVector(tmp, -vn);
       const vt = point_vel.length();
