@@ -81,6 +81,7 @@ export const GYMKHANA_MODE: ModeDef<GymLevel> = {
   id: "gymkhana",
   name: "Gymkhana",
   needs_ground: true,
+  car_sized_only: true,
   busy_notice: "Leave the lobby race to play gymkhana",
   levels: () => LEVELS,
   start(ctx, level) {

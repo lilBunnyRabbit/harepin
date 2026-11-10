@@ -69,6 +69,7 @@ export const HUNT_MODE: ModeDef<HuntLevel> = {
   id: "hunt",
   name: "Gate hunt",
   needs_ground: true,
+  car_sized_only: false,
   busy_notice: "Leave the lobby race to hunt gates",
   levels: () => HUNT_LEVELS,
   start(ctx, level) {

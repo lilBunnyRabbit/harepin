@@ -92,6 +92,7 @@ export const RACE_MODE: ModeDef<RaceLevel> = {
   id: "race",
   name: "Race",
   needs_ground: false,
+  car_sized_only: false,
   busy_notice: "Leave the lobby race to race solo",
   levels: (world) => race_levels(world.routes),
   start(ctx, level) {

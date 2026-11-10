@@ -68,6 +68,8 @@ export interface ModeDef<L extends Level = Level> {
   readonly id: string;
   readonly name: string;
   readonly needs_ground: boolean;
+  /** Its bays, cone lanes and spin boxes are laid out for a car: a bigger vehicle can't play it. */
+  readonly car_sized_only: boolean;
   readonly busy_notice: string;
   readonly high_view?: boolean;
   levels(world: World): readonly L[];

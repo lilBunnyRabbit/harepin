@@ -228,7 +228,7 @@ const modes = new Modes(scene, world, SPAWN_INDEX, () => lobby.record, (x, y, z,
   driver.place({ x, y, z, heading });
   driver.car.nitro.refill();
   driver.rewind.clear();
-}, () => lobby.busy, () => audio.chime(), camera);
+}, () => lobby.busy, () => audio.chime(), camera, () => driver.car.spec);
 modes.bindings = () => settings.state.bindings;
 hud.run_route = () => modes.route;
 modes.start();

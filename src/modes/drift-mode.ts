@@ -71,6 +71,7 @@ export const DRIFT_MODE: ModeDef<DriftLevel> = {
   id: "drift",
   name: "Drift zones",
   needs_ground: false,
+  car_sized_only: false,
   busy_notice: "Leave the lobby race to drift",
   levels: () => DRIFT_LEVELS,
   start: (ctx, level) => new Drift(ctx, build_zone(ctx.world.seed, ctx.world.road, level)),

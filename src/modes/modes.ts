@@ -1,4 +1,6 @@
 import type * as THREE from "three";
+import { drop_height } from "../car/car";
+import { car_sized, type CarSpec } from "../car/cars";
 import { DEFAULT_BINDINGS, keys_text, type Bindings } from "../hud/bindings";
 import { $, format } from "../hud/hud";
 import type { World } from "../world/world";
@@ -24,6 +26,7 @@ const NOTICE_MS = 2500;
 const DEG = 180 / Math.PI;
 const OPEN_GROUND = "Needs open ground: drive the island for it";
 const SKY_NOTICE = "Gymkhana, parking and gate hunts need open ground: drive the island for them";
+const TOO_BIG = "Too big for this mode";
 
 export interface LevelEntry {
   id: string;
@@ -89,6 +92,7 @@ export class Modes {
     private readonly race_busy: () => boolean,
     private readonly chime: () => void,
     private readonly camera: THREE.Camera,
+    private readonly spec: () => CarSpec,
   ) {
     this.modes = MODES.map((def) => {
       const levels = def.levels(world);
@@ -152,6 +156,7 @@ export class Modes {
       const level = mode.levels.find((l) => l.id === id);
       if (!level) continue;
       if (mode.def.needs_ground && !KINDS[this.world.kind].open_ground) return this.notice(SKY_NOTICE);
+      if (mode.def.car_sized_only && !car_sized(this.spec())) return this.notice(TOO_BIG);
       if (!mode.track.is_open(id)) return;
       if (this.race_busy()) return this.notice(mode.def.busy_notice);
       this.clear();
@@ -175,7 +180,7 @@ export class Modes {
 
   private ctx(track: Track): ModeCtx {
     const { scene, world, start_index, camera } = this;
-    const spawn = (x: number, z: number, heading: number) => this.place(x, world.height(x, z) + SPAWN_LIFT, z, heading);
+    const spawn = (x: number, z: number, heading: number) => this.place(x, world.height(x, z) + drop_height(this.spec(), SPAWN_LIFT), z, heading);
     return {
       scene,
       world,
@@ -278,6 +283,7 @@ export class Modes {
 
   mode_list(): ModeEntry[] {
     const ground = KINDS[this.world.kind].open_ground;
+    const fits = car_sized(this.spec());
     return this.modes
       .filter(({ levels }) => levels.length)
       .map(({ def, levels, track }) => ({
@@ -285,7 +291,7 @@ export class Modes {
         name: def.name,
         stars: track.stars,
         max: levels.length * MAX_STARS,
-        blocked: def.needs_ground && !ground ? OPEN_GROUND : null,
+        blocked: def.needs_ground && !ground ? OPEN_GROUND : def.car_sized_only && !fits ? TOO_BIG : null,
         levels: levels.map((level) => {
           const run = track.runs[level.id];
           const route = this.world.routes.find((r) => r.id === level.id);

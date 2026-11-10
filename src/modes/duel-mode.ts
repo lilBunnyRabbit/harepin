@@ -92,6 +92,7 @@ export const DUEL_MODE: ModeDef<DuelLevel> = {
   id: "duel",
   name: "Ghost duel",
   needs_ground: false,
+  car_sized_only: false,
   busy_notice: "Leave the lobby race to duel your ghost",
   levels: () => DUEL_LEVELS,
   start(ctx, level) {

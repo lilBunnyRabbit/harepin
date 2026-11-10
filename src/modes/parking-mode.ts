@@ -98,6 +98,7 @@ export const PARKING_MODE: ModeDef<ParkLevel> = {
   id: "parking",
   name: "Parking",
   needs_ground: true,
+  car_sized_only: true,
   busy_notice: "Leave the lobby race to park",
   high_view: true,
   levels: () => PARK_LEVELS,

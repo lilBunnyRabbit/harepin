@@ -2,7 +2,7 @@
 import { describe, expect, test } from "bun:test";
 import { Vector3 } from "three";
 import { DEFAULT_BUILD, DEFAULT_PARTS, apply_build } from "./build";
-import { Car, SteerMode, ride_height, type Controls, type Ground } from "./car";
+import { Car, SteerMode, drop_height, ride_height, type Controls, type Ground } from "./car";
 import { CARS, car_sized, type CarId, type CarSpec } from "./cars";
 import { donut } from "../../scripts/donut";
 import { hairpin_pull } from "../../scripts/hairpin";
@@ -250,6 +250,27 @@ describe("parking", () => {
       expect(rolling.forward_speed).toBeLessThan(-2);
     }
   });
+});
+
+test("the car-sized list is exactly the eight cars, so a body change can't silently drop one from the car tests", () => {
+  expect(Object.values(CARS).filter(car_sized).map((spec) => spec.id).sort()).toEqual(["coupe", "formula", "hatch", "kaze", "muscle", "raijin", "rally", "sturm"]);
+});
+
+test("dropped at drop_height for a mode start or a reset, every car settles without bouncing", () => {
+  for (const spec of Object.values(CARS)) {
+    const car = new Car(spec);
+    const start = drop_height(spec, 0.75);
+    car.place(0, start, 0, 0);
+    let rise = 0;
+    let highest = start;
+    for (let t = 0; t < 3; t += DT) {
+      car.step(DT, idle, flat);
+      rise = Math.max(rise, car.vel.y);
+      highest = Math.max(highest, car.pos.y);
+    }
+    expect(rise, spec.id).toBeLessThan(1);
+    expect(highest - start, spec.id).toBeLessThan(0.02);
+  }
 });
 
 describe("park and idle hold", () => {
