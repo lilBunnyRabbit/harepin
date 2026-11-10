@@ -17,10 +17,11 @@ interface Stroke {
 
 const LINE_STYLE: Record<MapLineKind, Stroke> = {
   street: { color: rgba(tones.sidewalk), width: 1.5, casing: 0 },
+  local: { color: rgba(brand.foreground, 0.55), width: 1.75, casing: 0 },
   highway: { color: rgba(brand.foreground, 0.8), width: 2, casing: 0 },
   circuit: { color: rgba(brand.accent), width: 3, casing: 2 },
 };
-const LINE_ORDER: MapLineKind[] = [MapLineKind.STREET, MapLineKind.HIGHWAY, MapLineKind.CIRCUIT];
+const LINE_ORDER: MapLineKind[] = [MapLineKind.STREET, MapLineKind.LOCAL, MapLineKind.HIGHWAY, MapLineKind.CIRCUIT];
 const CASING = rgba(brand.background_darkest, 0.7);
 const JUMP = rgba(brand.secondary);
 const PAD = rgba(tones.pad);

@@ -1,6 +1,6 @@
 import { terrain_colors } from "./chunks";
 import { world_facts, type WorldFacts } from "./facts";
-import { CELL, DECK_STRIDE, N, SIZE, type WorldData, type WorldKind } from "./types";
+import { CELL, DECK_STRIDE, N, SIZE, type EdgeKind, type WorldData, type WorldKind } from "./types";
 
 export const MAP_SIDE = N + 1;
 const SUN = normalise([-1, 1.4, -1]);
@@ -12,7 +12,7 @@ const CLOUD_FALLOFF = 0.35;
 // The browser's transfer curve without the linear toe: close enough for a map, and the worker has no palette to call.
 const GAMMA = 1 / 2.2;
 
-export const MapLineKind = { HIGHWAY: "highway", STREET: "street", CIRCUIT: "circuit" } as const;
+export const MapLineKind = { HIGHWAY: "highway", LOCAL: "local", STREET: "street", CIRCUIT: "circuit" } as const;
 export type MapLineKind = (typeof MapLineKind)[keyof typeof MapLineKind];
 
 export interface MapLine {
@@ -124,7 +124,8 @@ function pad_marks(data: WorldData): MapMark[] {
 
 export function map_data(data: WorldData, tones: MapTones): MapData {
   const circuit = new Set(data.circuit);
-  const roads = data.graph.edges.filter((e) => !circuit.has(e.id)).map((e) => line(e.kind === "street" ? MapLineKind.STREET : MapLineKind.HIGHWAY, e.closed, e.points));
+  const kinds: Record<EdgeKind, MapLineKind> = { highway: MapLineKind.HIGHWAY, local: MapLineKind.LOCAL, street: MapLineKind.STREET };
+  const roads = data.graph.edges.filter((e) => !circuit.has(e.id)).map((e) => line(kinds[e.kind], e.closed, e.points));
   const start = data.road[0];
   return {
     seed: data.terrain.seed,
