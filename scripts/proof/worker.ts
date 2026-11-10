@@ -15,6 +15,8 @@ const SPEC = car_spec("coupe");
 export interface ProofJob {
   kind: WorldKind;
   seed: number;
+  /** Map option code; empty for the plain map. */
+  opts?: string;
   /** World rules (land kinds only), on top of the digest. */
   checks: boolean;
   /** Spur drives and a circuit lap on a land kind, a lap on the sky track. */
@@ -24,6 +26,7 @@ export interface ProofJob {
 export interface ProofResult {
   kind: WorldKind;
   seed: number;
+  opts: string;
   digest: Digest;
   gen_ms: number;
   mesh_ms: number;
@@ -34,9 +37,9 @@ export interface ProofResult {
 }
 
 self.onmessage = (event: MessageEvent<ProofJob>) => {
-  const { kind, seed, checks, drives } = event.data;
+  const { kind, seed, opts = "", checks, drives } = event.data;
   const t0 = performance.now();
-  const data = generate_world(seed, kind);
+  const data = generate_world(seed, kind, opts);
   const t1 = performance.now();
   const chunks = build_chunks(data, MESH_TONES);
   const mesh_ms = performance.now() - t1;
@@ -55,6 +58,6 @@ self.onmessage = (event: MessageEvent<ProofJob>) => {
     spurs = land ? drive_spurs(live, SPEC) : null;
     lap = land ? circuit_lap(live, SPEC) : sky_lap(live, SPEC);
   }
-  const result: ProofResult = { kind, seed, digest, gen_ms: t1 - t0, mesh_ms, stages: data.timings, world, spurs, lap };
+  const result: ProofResult = { kind, seed, opts, digest, gen_ms: t1 - t0, mesh_ms, stages: data.timings, world, spurs, lap };
   postMessage(result);
 };

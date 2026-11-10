@@ -91,7 +91,7 @@ export class Settings {
       refresh: () => this.refresh(),
       close: () => this.close(),
       show: (section) => this.show(section),
-      drive: (seed, kind) => this.drive(seed, kind),
+      drive: (seed, kind, opts) => this.drive(seed, kind, opts),
       go: (query) => this.go(query),
     };
     this.settings_menu = {
@@ -404,7 +404,7 @@ export class Settings {
     hero.append(drive, restart);
 
     const world = (other: WorldKind) => {
-      const button = tile(other, WORLDS[other].name, WORLDS[other].note, picture(other), () => this.drive(seed, other));
+      const button = tile(other, WORLDS[other].name, WORLDS[other].note, picture(other), () => this.drive(seed, other, other === kind ? this.host.opts : ""));
       button.title = other === kind ? "Keep driving here" : `Reloads room ${room} on ${WORLDS[other].name} ${seed}`;
       if (other === kind) button.append(el("span", "menu-tag", "You're here"));
       return button;
@@ -419,12 +419,13 @@ export class Settings {
   }
 
   /** A world the player picked: remembered for the next bare load, then driven in this room. */
-  private drive(seed: number, kind: WorldKind) {
+  private drive(seed: number, kind: WorldKind, opts = "") {
     this.set("last_world", kind);
     this.set("last_seed", seed);
+    this.set("last_opts", opts);
     if (seed !== this.host.seed) this.host.goals.done(GoalId.NEW_MAP);
-    if (seed === this.host.seed && kind === this.host.kind) return this.close();
-    this.go(world_query(this.host.room, seed, kind));
+    if (seed === this.host.seed && kind === this.host.kind && opts === this.host.opts) return this.close();
+    this.go(world_query(this.host.room, seed, kind, opts));
   }
 
   private go_to(to: GoTo) {

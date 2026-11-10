@@ -55,7 +55,7 @@ import "./style.css";
 const params = new URLSearchParams(location.search);
 const room = clean_room(params.get("room")) ?? LOBBY_ROOM;
 const prefs = load_settings(params);
-const { seed, kind } = pick_world(params, room, prefs);
+const { seed, kind, opts } = pick_world(params, room, prefs);
 const random_name = make_random_name();
 
 show_version($("loading"));
@@ -69,7 +69,7 @@ const unlock_audio = () => {
   if (audio.running) for (const event of UNLOCK_EVENTS) removeEventListener(event, unlock_audio);
 };
 for (const event of UNLOCK_EVENTS) addEventListener(event, unlock_audio);
-const stream = await WorldStream.open(seed, kind, mesh_tones());
+const stream = await WorldStream.open(seed, kind, mesh_tones(), opts);
 const world = stream.world;
 // `?debug&at=<road index>` starts the car anywhere on the circuit, for checking a stretch of track by eye.
 const start_index = (params.has("debug") && Number(params.get("at"))) || SPAWN_INDEX;
@@ -102,12 +102,12 @@ else void world.tiles.whole().then(() => {
 }, (error: unknown) => area_fade.fail(error));
 
 const lock = load_lock(room);
-const net = new Net(room, seed, prefs.name ?? random_name, lock, world_id(kind), BUILD.version);
+const net = new Net(room, seed, prefs.name ?? random_name, lock, world_id(kind, opts), BUILD.version);
 const country = own_country();
 net.set_country(prefs.show_country ? country : null);
 const directory = new Directory(
   () => ({
-    room, seed, host: net.name, players: 1 + net.remotes.size, locked: lock !== null, version: BUILD.version, world: world_id(kind),
+    room, seed, host: net.name, players: 1 + net.remotes.size, locked: lock !== null, version: BUILD.version, world: world_id(kind, opts),
     ...(lobby.busy ? { racing: true } : {}),
     roster: net.roster(lobby.busy),
   }),
@@ -143,12 +143,12 @@ recenter.addEventListener("click", () => chase.recenter());
 render.renderer.domElement.addEventListener("dblclick", () => chase.recenter());
 
 const remotes = new Remotes(scene, $("labels"), net, world);
-const lobby = new Lobby(net, lobby_routes(world.routes), world_key(seed, kind));
+const lobby = new Lobby(net, lobby_routes(world.routes), world_key(seed, kind, opts));
 lobby.start();
 const hud = new Hud(world, race, net, room, lobby);
 const goal_toasts = new ToastQueue((text) => hud.toast(text), () => $("toast").dataset.shown !== undefined);
 goals.on_done = (goal) => goal_toasts.push(`Goal done: ${goal.title}`);
-const ghost = new Ghost(scene, world.seed, `harepin:ghost:${world_key(world.seed, kind)}`);
+const ghost = new Ghost(scene, world.seed, `harepin:ghost:${world_key(world.seed, kind, opts)}`);
 race.on_lap = (improved, first) => {
   goals.done(improved && !first ? GoalId.BEST : GoalId.LAP);
   ghost.finish(improved);
@@ -193,6 +193,7 @@ const settings = new Settings(document.body, {
   room,
   seed,
   kind,
+  opts,
   goals,
   name: () => net.name,
   quality_status: () => ({ tier: quality.tier_name, ratio: quality.ratio, bloom: quality.tier.bloom, shadow_size: quality.tier.shadow_size }),
@@ -549,7 +550,7 @@ document.head.append(Object.assign(document.createElement("meta"), { name: "them
 
 const invite = $("chat-invite", HTMLButtonElement);
 invite.addEventListener("click", async () => {
-  const link = invite_link(room, seed, kind);
+  const link = invite_link(room, seed, kind, opts);
   try {
     await navigator.clipboard.writeText(link);
     invite.textContent = "Copied!";

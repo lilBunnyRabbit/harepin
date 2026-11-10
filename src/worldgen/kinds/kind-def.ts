@@ -1,5 +1,6 @@
 import type { Recipe } from "../recipe";
 import type { WorldData, WorldKind } from "../types";
+import type { OptionDef } from "./options";
 
 export interface GripTable {
   road: number;
@@ -21,7 +22,9 @@ export interface KindSpec {
   version: number;
   /** Side of the square world, metres; a whole number of chunk pairs. */
   size: number;
-  generate(seed: number): WorldData;
+  generate(seed: number, levels: readonly number[]): WorldData;
+  /** Map options, in map code order; each one's normal level builds the kind as it was before options. */
+  options: readonly OptionDef[];
   /** A land kind's tuning, which meshing and the map read too; null for a deck-only kind. */
   recipe: Recipe | null;
   /** Gymkhana, parking and gate hunts need it. */
@@ -40,11 +43,12 @@ export interface KindDef extends KindSpec {
   /** Map identity peers and the directory compare. */
   id: number;
   /** Storage key part for records set on `seed`'s world. Never changes for an existing kind and version. */
-  key(seed: number): string;
+  key(seed: number, opts?: string): string;
 }
 
 export function kind_def(spec: KindSpec): KindDef {
-  return { ...spec, id: spec.base + spec.version, key: (seed) => `${seed}:${spec.tag}${spec.version}` };
+  // The option code joins the key only off the defaults, so records saved before options keep theirs.
+  return { ...spec, id: spec.base + spec.version, key: (seed, opts = "") => `${seed}:${spec.tag}${spec.version}${opts ? `:${opts}` : ""}` };
 }
 
 /** Trail dirt sits between asphalt and grass: a car's `offroad` share decides how much of the loss it keeps. */

@@ -22,9 +22,6 @@ const ZONE_MAX = 160;
 const MAX_ZONES = 4;
 /** Room before a crossover to climb or drop to its level. */
 const ZONE_LEAD = 200;
-const EIGHT_ODDS = 0.3;
-const HELIX_ODDS = 0.45;
-const HAIRPIN_ODDS = 0.35;
 const MACRO_ODDS = 0.7;
 const HAIRPIN_ANGLE = [2.6, 3.5] as const;
 const HAIRPIN_RADIUS = [26, 40] as const;
@@ -57,9 +54,6 @@ const JUMP_BEFORE = 70;
 const JUMP_GATE = 60;
 const JUMP_AFTER = 50;
 const JUMP_APART = 300;
-const MAX_JUMPS = 2;
-/** Share of the lap left without a rail on one or both sides, and the shortest such stretch. */
-const OPEN_SHARE = [0.15, 0.3] as const;
 const OPEN_MIN = 60;
 const OPEN_MAX = 220;
 /** Flat arcs at least this wide may lose a rail: at 45 m/s that is under half the planning grip. */
@@ -83,6 +77,18 @@ const PAD_RUNOUT = 80;
 export const PAD_GAP_CLEAR = 500;
 const PAD_APART = 300;
 export const MAX_PADS = 4;
+
+export interface SkyRecipe {
+  odds: { eight: number; helix: number; hairpin: number };
+  /** 0 builds a track without a gap. */
+  gaps: number;
+  pads: number;
+  /** Share of the lap without a rail on one or both sides. */
+  open: readonly [number, number];
+  length: readonly [number, number];
+}
+
+export const SKY: SkyRecipe = { odds: { eight: 0.3, helix: 0.45, hairpin: 0.35 }, gaps: 2, pads: MAX_PADS, open: [0.15, 0.3], length: [2400, 5200] };
 
 interface Turn {
   angle: number;
@@ -187,11 +193,11 @@ function macro(rng: () => number): PlanPiece[] {
 }
 
 /** Skeleton turns that share `total` exactly: some hairpins, the rest sweepers splitting what the hairpins leave. */
-function skeleton(rng: () => number, total: number): Turn[] | null {
+function skeleton(rng: () => number, total: number, hairpin_odds: number): Turn[] | null {
   const sign = Math.sign(total) || 1;
   const pins: number[] = [];
   let rest = total;
-  while (rng() < HAIRPIN_ODDS * 2 && pins.length < 2) {
+  while (rng() < hairpin_odds * 2 && pins.length < 2) {
     const a = hairpin_angle(rng, sign);
     if (Math.abs(rest - a) < SWEEP_MIN * 2 || Math.sign(rest - a) !== sign) break;
     pins.push(a);
@@ -212,18 +218,18 @@ function skeleton(rng: () => number, total: number): Turn[] | null {
 }
 
 // Heading closes only if the turning totals 2π per lap: 0 for a figure-eight, plus 2π for a helix coil.
-function draw_layout(rng: () => number): PlanPiece[] | null {
-  const eight = rng() < EIGHT_ODDS;
-  const coil = rng() < HELIX_ODDS ? (rng() < 0.5 ? 1 : -1) : 0;
+function draw_layout(rng: () => number, odds: SkyRecipe["odds"]): PlanPiece[] | null {
+  const eight = rng() < odds.eight;
+  const coil = rng() < odds.helix ? (rng() < 0.5 ? 1 : -1) : 0;
   const helix_angle = coil * (2 * Math.PI + HELIX_EXTRA[0] + rng() * (HELIX_EXTRA[1] - HELIX_EXTRA[0]));
   const need = (eight ? 0 : 2 * Math.PI) + coil * 2 * Math.PI - helix_angle;
   let turns: Turn[] | null;
   if (eight) {
     const lefts = Math.PI * (1.2 + rng() * 0.8);
-    const a = skeleton(rng, lefts);
-    const b = skeleton(rng, need - lefts);
+    const a = skeleton(rng, lefts, odds.hairpin);
+    const b = skeleton(rng, need - lefts, odds.hairpin);
     turns = a && b ? [...a, ...b] : null;
-  } else turns = skeleton(rng, need);
+  } else turns = skeleton(rng, need, odds.hairpin);
   if (!turns) return null;
   const last = turns.length - 1;
   const jump_at = Math.floor(rng() * last);
@@ -697,16 +703,18 @@ export interface SkyLayout {
   toes: number[];
   zones: Zone[];
   twist: Twist;
+  /** What the layout was built with: the plain recipe when the asked one found no track. */
+  recipe: SkyRecipe;
 }
 
-/** A gap on every straight long enough for the checkpoint, run-up, jump and run-out, MAX_JUMPS at most, kept apart and off crossovers. */
-function jump_toes(pieces: readonly PlanPiece[], length: number, zones: readonly Zone[]): number[] {
+/** A gap on every straight long enough for the checkpoint, run-up, jump and run-out, `most` at most, kept apart and off crossovers. */
+function jump_toes(pieces: readonly PlanPiece[], length: number, zones: readonly Zone[], most: number): number[] {
   const span = size_gap().span;
   const toes: number[] = [];
   let s0 = 0;
   pieces.forEach((p, i) => {
     const room = p.length - JUMP_BEFORE - span - JUMP_AFTER;
-    if (p.kind === "straight" && i > 0 && i < pieces.length - 1 && room >= 0 && toes.length < MAX_JUMPS) {
+    if (p.kind === "straight" && i > 0 && i < pieces.length - 1 && room >= 0 && toes.length < most) {
       const toe = s0 + JUMP_BEFORE + room / 2;
       const a = toe - JUMP_BEFORE - ZONE_MARGIN;
       const b = toe + span + JUMP_AFTER + ZONE_MARGIN;
@@ -744,13 +752,13 @@ function zones_fit(zones: Zone[], helices: readonly Helix[], length: number): bo
   });
 }
 
-export function sky_layout(seed: number): SkyLayout {
+export function sky_layout(seed: number, recipe: SkyRecipe = SKY): SkyLayout {
   for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
     const rng = mulberry32(sub(seed, `sky:${attempt}`));
-    const pieces = draw_layout(rng);
+    const pieces = draw_layout(rng, recipe.odds);
     if (!pieces) continue;
     const { samples, length, error } = sample_layout(pieces);
-    if (length < 2400 || length > 5200) continue;
+    if (length < recipe.length[0] || length > recipe.length[1]) continue;
     let x0 = Infinity;
     let x1 = -Infinity;
     let z0 = Infinity;
@@ -763,8 +771,8 @@ export function sky_layout(seed: number): SkyLayout {
     const zones = zones_of(samples, pairs);
     const helices = helices_of(pieces);
     if (!zones_fit(zones, helices, length)) continue;
-    const toes = jump_toes(pieces, length, zones);
-    if (!toes.length) continue;
+    const toes = jump_toes(pieces, length, zones, recipe.gaps);
+    if (!toes.length && recipe.gaps > 0) continue;
     for (let k = 0; k < PROFILE_TRIES; k++) {
       const profile = draw_profile(mulberry32(sub(seed, `sky:profile:${attempt}:${k}`)), length, toes, helices, zones);
       if (!profile) continue;
@@ -778,15 +786,17 @@ export function sky_layout(seed: number): SkyLayout {
         p.x -= cx;
         p.z -= cz;
       }
-      return { pieces, samples, length, error, profile, attempt, toes, zones, twist };
+      return { pieces, samples, length, error, profile, attempt, toes, zones, twist, recipe };
     }
   }
+  // Options no layout of this seed meets fall back to this seed's plain track, so they never hand out another seed's.
+  if (recipe !== SKY) return sky_layout(seed, SKY);
   if (seed === FALLBACK_SEED) throw new Error(`sky_layout: fallback seed ${seed} found no track`);
   return sky_layout(FALLBACK_SEED);
 }
 
 /** Rail-free stretches on straights and wide flat arcs, clear of banks, tight bends and jumps. */
-function open_sections(seed: number, samples: readonly Sample[], pieces: readonly PlanPiece[], length: number, blocked: (s: number) => boolean): OpenSection[] {
+function open_sections(seed: number, samples: readonly Sample[], pieces: readonly PlanPiece[], length: number, share: SkyRecipe["open"], blocked: (s: number) => boolean): OpenSection[] {
   const rng = mulberry32(sub(seed, "sky:open"));
   const fit = (p: Sample) => {
     const piece = pieces[p.piece];
@@ -802,7 +812,7 @@ function open_sections(seed: number, samples: readonly Sample[], pieces: readonl
       from = -1;
     }
   });
-  const target = length * (OPEN_SHARE[0] + rng() * (OPEN_SHARE[1] - OPEN_SHARE[0]));
+  const target = length * (share[0] + rng() * (share[1] - share[0]));
   const out: OpenSection[] = [];
   let total = 0;
   const order = runs.filter(([a, b]) => b - a >= OPEN_MIN).sort((x, y) => y[1] - y[0] - (x[1] - x[0]));
@@ -824,7 +834,7 @@ export function rail_open(open: readonly OpenSection[], s: number, side: number)
 }
 
 /** Boost pads on straights: first at the foot of climbs, then out of the tightest bends, never in a gap's reach. */
-function boost_pads(pieces: readonly PlanPiece[], profile: readonly Grade[], toes: readonly number[], length: number, samples: readonly Sample[]): { s0: number; s1: number }[] {
+function boost_pads(pieces: readonly PlanPiece[], profile: readonly Grade[], toes: readonly number[], length: number, samples: readonly Sample[], most: number): { s0: number; s1: number }[] {
   const span = size_gap().span;
   const straights: { s0: number; s1: number; turn: number }[] = [];
   let s0 = 0;
@@ -842,16 +852,16 @@ function boost_pads(pieces: readonly PlanPiece[], profile: readonly Grade[], toe
   const exits = [...straights].sort((x, y) => y.turn - x.turn).map((t) => t.s0 + PAD_EXIT);
   const pads: { s0: number; s1: number }[] = [];
   for (const a of [...climbs, ...exits]) {
-    if (pads.length >= MAX_PADS) break;
+    if (pads.length >= most) break;
     if (!fits(a) || pads.some((p) => Math.min(Math.abs(p.s0 - a), length - Math.abs(p.s0 - a)) < PAD_APART)) continue;
     pads.push({ s0: a, s1: a + PAD_LENGTH });
   }
   return pads.sort((x, y) => x.s0 - y.s0);
 }
 
-export function generate_sky(seed: number): WorldData {
+export function generate_sky(seed: number, recipe: SkyRecipe = SKY): WorldData {
   const t0 = performance.now();
-  const { pieces, samples, length, profile, toes, zones } = sky_layout(seed);
+  const { pieces, samples, length, profile, toes, zones, recipe: built } = sky_layout(seed, recipe);
   const stacked = (s: number) => zones.some((z) => (s > z.s0 - ZONE_MARGIN && s < z.s1 + ZONE_MARGIN) || (s > z.a0 - ZONE_MARGIN && s < z.a1 + ZONE_MARGIN));
   const jump = size_gap();
   const climbs = climb(profile);
@@ -892,10 +902,10 @@ export function generate_sky(seed: number): WorldData {
     const p = road[samples.findIndex((q) => q.s >= toe)];
     ramps.push({ ...gap_ramp(), id: ramps.length, x: p.x, y: p.y, z: p.z, fx: p.tx, fz: p.tz, speed: ROAD_KICKER.speed, landing: jump.gap + jump.landing + jump.sag });
   }
-  const pads = boost_pads(pieces, profile, toes, length, samples);
+  const pads = boost_pads(pieces, profile, toes, length, samples, built.pads);
   for (const p of pads) deck_pieces.push({ kind: "pad", s0: p.s0, length: PAD_LENGTH, curve: 0 });
   deck_pieces.sort((a, b) => a.s0 - b.s0);
-  const open = open_sections(seed, samples, pieces, length, (s) => stacked(s) || toes.some((t) => s > t - JUMP_BEFORE - OPEN_CLEAR && s < t + jump.span + JUMP_AFTER));
+  const open = open_sections(seed, samples, pieces, length, built.open, (s) => stacked(s) || toes.some((t) => s > t - JUMP_BEFORE - OPEN_CLEAR && s < t + jump.span + JUMP_AFTER));
   const solids: Solid[] = [];
   for (let i = 0; i < n; i += 2) {
     const a = i * DECK_STRIDE;

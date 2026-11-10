@@ -15,7 +15,7 @@ function ghost_for(ctx: ModeCtx, id: string): Ghost {
   const kept = ghosts.get(world);
   if (kept?.id === id) return kept.ghost;
   kept?.ghost.dispose();
-  const ghost = new Ghost(ctx.scene, world.seed, `harepin:ghost:duel:${id}:${world_key(world.seed, world.kind)}`);
+  const ghost = new Ghost(ctx.scene, world.seed, `harepin:ghost:duel:${id}:${world_key(world.seed, world.kind, world.opts)}`);
   ghosts.set(world, { id, ghost });
   return ghost;
 }

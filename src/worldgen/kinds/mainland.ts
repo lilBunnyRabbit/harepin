@@ -11,6 +11,7 @@ export const mainland = kind_def({
   version: 1,
   size: MAINLAND_SIZE,
   generate: generate_mainland,
+  options: [],
   recipe: MAINLAND,
   open_ground: true,
   rails: false,

@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { WorldKind } from "../types";
-import { KINDS, kind_of_world, parse_kind, world_id, world_key } from "./kinds";
+import { generate_world, KINDS, kind_of_world, parse_kind, world_id, world_key } from "./kinds";
 
 test("ids and keys match what saved records and older peers use", () => {
   expect(world_id(WorldKind.ISLAND)).toBe(6);
@@ -13,7 +13,7 @@ test("ids and keys match what saved records and older peers use", () => {
 });
 
 test("a land kind's world carries its own kind, so grip, mood and dressing follow it", () => {
-  expect(KINDS.desert.generate(0).kind).toBe(WorldKind.DESERT);
+  expect(generate_world(0, WorldKind.DESERT).kind).toBe(WorldKind.DESERT);
 });
 
 test("every kind has its own id and key and is keyed by its own kind", () => {

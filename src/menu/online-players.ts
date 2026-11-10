@@ -2,7 +2,8 @@ import { DirectoryStatus, LOBBY_ROOM } from "../net/directory";
 import { country_name, flag } from "../net/country";
 import { ping_class, type Player } from "../net/players";
 import { el, icon } from "./setting-rows";
-import { kind_of_world } from "../worldgen/kinds/kinds";
+import { kind_of_world, opts_of_world } from "../worldgen/kinds/kinds";
+import { map_code } from "../world/world-pick";
 import { WORLDS } from "../worlds/worlds";
 import type { Menu } from "./page";
 import { join_or_ask, unlock_form } from "./online-join";
@@ -19,7 +20,7 @@ function place(player: Player): HTMLElement {
   const parts: (string | Node)[] = [];
   const { game } = player;
   if (player.country) parts.push(`${flag(player.country)} ${country_name(player.country)}`);
-  const map = `${WORLDS[kind_of_world(game.world)].name} ${game.seed}`;
+  const map = `${WORLDS[kind_of_world(game.world)].name} ${map_code(game.seed, opts_of_world(game.world))}`;
   if (game.room === LOBBY_ROOM) parts.push(`Free roam · ${map}`);
   else {
     const room = el("span", "players-room");
