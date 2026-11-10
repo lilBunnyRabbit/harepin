@@ -1,7 +1,7 @@
 import { cell_range, sample, vertex } from "./field";
 import { hash, length } from "./noise";
 import type { TownRecipe } from "./recipe";
-import { prop_solid } from "./scatter";
+import { heading, prop_solids } from "./scatter";
 import type { Stamp } from "./stamp";
 import {
   CELL,
@@ -186,9 +186,10 @@ export class Lots {
 
   // A dry yard: the first spot holds the water tank, the rest boulders.
   private yard(x: number, z: number, roll: number, first: boolean) {
-    const prop: Prop = { x, y: sample(this.terrain.heights, x, z), z, angle: roll * Math.PI * 2, kind: first ? PropKind.TANK : PropKind.BOULDER, scale: first ? 1 : 0.5 + roll * 0.4 };
+    const { k, angle } = heading(roll);
+    const prop: Prop = { x, y: sample(this.terrain.heights, x, z), z, angle, kind: first ? PropKind.TANK : PropKind.BOULDER, scale: first ? 1 : 0.5 + roll * 0.4 };
     this.out.props.push(prop);
-    this.out.solids.push(prop_solid(prop));
+    this.out.solids.push(...prop_solids(prop, k, this.terrain.heights));
   }
 
   private garden(lot: Lot, count: number) {

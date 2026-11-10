@@ -2,7 +2,7 @@ import { sample } from "./field";
 import { ARCH_CLEARANCE, ARCH_LEG, ARCH_THICK, LIGHTHOUSE_HEIGHT, MAST_HEIGHT, TURBINE_HEIGHT } from "./landmarks";
 import type { Builder, Rgb, V3 } from "./mesh";
 import { hash } from "./noise";
-import { reach } from "./scatter";
+import { HEADINGS, reach, two_arms } from "./scatter";
 import { PropKind, type Prop } from "./types";
 
 export interface LandmarkTones {
@@ -138,22 +138,18 @@ function arch(out: Builder, prop: Prop, heights: Float32Array, t: LandmarkTones)
   slab(out, -reach * 0.55, reach * 0.4, ARCH_LEG * 0.8, top, top + 1.1, t.stone_shade, t.stone);
 }
 
-// Drawn to SCATTER_SHAPE (scatter.ts) at scale 1: a saguaro of tree-crown green with one or two arms.
+// Drawn to its solid parts (scatter.ts) at scale 1: a saguaro of tree-crown green with one or two arms.
 /** Base height, below the prop's own ground, that keeps the whole footprint buried on a slope. */
 const FOOTING = 0.3;
-const FOOTING_RAYS = 8;
 
 function footing(prop: Prop, heights: Float32Array): number {
   const r = reach(prop);
   let low = 0;
-  for (let k = 0; k < FOOTING_RAYS; k++) {
-    const a = (k / FOOTING_RAYS) * Math.PI * 2;
-    low = Math.min(low, sample(heights, prop.x + Math.cos(a) * r, prop.z + Math.sin(a) * r) - prop.y);
-  }
+  for (const [dx, dz] of HEADINGS) low = Math.min(low, sample(heights, prop.x + dx * r, prop.z + dz * r) - prop.y);
   return low - FOOTING;
 }
 
-function cactus(out: Builder, s: number, roll: number, base: number, t: LandmarkTones) {
+function cactus(out: Builder, s: number, two: boolean, base: number, t: LandmarkTones) {
   const limb = (cx: number, y0: number, y1: number, r: number) => {
     prism(out, 6, r, r * 0.9, y0, y1, t.plant, 0, t.plant_shade, cx, 0);
     prism(out, 6, r * 0.9, 0, y1, y1 + r * 1.4, t.plant, 0, t.plant_shade, cx, 0);
@@ -161,7 +157,7 @@ function cactus(out: Builder, s: number, roll: number, base: number, t: Landmark
   limb(0, base, 3.9 * s, 0.45 * s);
   slab(out, 0.3 * s, 0.95 * s, 0.26 * s, 1.7 * s, 2.2 * s, t.plant, t.plant_shade);
   limb(0.95 * s, 1.7 * s, 3.1 * s, 0.3 * s);
-  if (roll < 0.5) return;
+  if (!two) return;
   slab(out, -0.95 * s, -0.3 * s, 0.24 * s, 1.2 * s, 1.65 * s, t.plant, t.plant_shade);
   limb(-0.95 * s, 1.2 * s, 2.4 * s, 0.27 * s);
 }
@@ -194,7 +190,7 @@ export function landmark_mesh(out: Builder, prop: Prop, heights: Float32Array, t
   else if (prop.kind === PropKind.LIGHTHOUSE) lighthouse(out, tones);
   else if (prop.kind === PropKind.TURBINE) turbine(out, tones);
   else if (prop.kind === PropKind.ARCH) arch(out, prop, heights, tones);
-  else if (prop.kind === PropKind.CACTUS) cactus(out, prop.scale, prop.angle / (Math.PI * 2), footing(prop, heights), tones);
+  else if (prop.kind === PropKind.CACTUS) cactus(out, prop.scale, two_arms(prop), footing(prop, heights), tones);
   else if (prop.kind === PropKind.BOULDER) boulder(out, prop.scale, prop.angle, footing(prop, heights), tones);
   else if (prop.kind === PropKind.SPIRE) spire(out, prop.scale, prop.angle, footing(prop, heights), tones);
   else if (prop.kind === PropKind.TANK) tank(out, footing(prop, heights), tones);
