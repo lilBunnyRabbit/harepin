@@ -2,7 +2,15 @@ import { Vector3 } from "three";
 import { car_spec } from "../src/car/cars";
 import { Car, SteerMode, drop_height, type Controls, type Ground } from "../src/car/car";
 
+// bun scripts/feel.ts [car] [steer mode]: the shipped Smooth keys unless a mode is named.
 const SPEC = car_spec(process.argv[2] ?? "coupe");
+const MODE = steer_mode(process.argv[3] ?? SteerMode.SMOOTH);
+
+function steer_mode(arg: string): SteerMode {
+  const mode = Object.values(SteerMode).find((m) => m === arg);
+  if (!mode) throw new Error(`unknown steer mode ${arg}`);
+  return mode;
+}
 
 const flat: Ground = { height: () => 0, normal: (_x, _z, out) => out.set(0, 1, 0), grip: () => 1, roll: () => 1 };
 const slope = (grade: number): Ground => ({
@@ -18,6 +26,7 @@ const tmp = new Vector3();
 
 function fresh(ground = flat, setup?: (car: Car) => void): Car {
   const car = new Car(SPEC);
+  car.steer_mode = MODE;
   setup?.(car);
   car.place(0, ground.height(0, 0) + drop_height(SPEC, 0.6), 0, 0);
   run(car, 1.5, () => idle, ground);
@@ -130,8 +139,13 @@ for (const tcs of [true, false]) {
   const car = fresh();
   get_to(car, 120);
   let worst = 0;
-  run(car, 4, () => ({ ...idle, brake: 1, steer: 0.4 }), flat, () => (worst = Math.max(worst, Math.abs(slip_angle(car)))));
-  note("trail brake 120 km/h + steer", `max slip ${worst.toFixed(1)}°, stopped ${kmh(car).toFixed(1)}`);
+  let stopped = -1;
+  // Off the brake once stopped: held on, the auto box takes it as reverse and the slip of a car backing up reads ~180°.
+  run(car, 4, () => (stopped < 0 ? { ...idle, brake: 1, steer: 0.4 } : idle), flat, (t) => {
+    worst = Math.max(worst, Math.abs(slip_angle(car)));
+    if (stopped < 0 && kmh(car) < 1) stopped = t;
+  });
+  note("trail brake 120 km/h + steer", `max slip ${worst.toFixed(1)}°, stopped in ${stopped.toFixed(2)} s`);
 }
 
 {

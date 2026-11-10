@@ -1,5 +1,5 @@
 import { Vector3 } from "three";
-import { COUPE, type CarSpec } from "../src/car/cars";
+import { CARS, COUPE, car_spec, type CarSpec } from "../src/car/cars";
 import { Car, SteerMode, type Controls, type Ground } from "../src/car/car";
 
 const DT = 1 / 360;
@@ -153,26 +153,136 @@ export interface Tap {
   heading: number;
   /** Sideways step 2 s after the tap, metres. */
   lateral: number;
+  /** Peak yaw rate, rad/s. */
+  yaw: number;
+  /** Worst body slip, degrees: a tap that throws the tail out shows here. */
+  slip: number;
 }
 
 export function tap(mode: SteerMode, seconds = 0.05, speed = 100, spec = COUPE): Tap {
   const car = rolling(spec, mode, speed);
-  for (let t = 0; t < 2 + seconds; t += DT) car.step(DT, { steer: t < seconds ? 1 : 0, throttle: throttle(car, speed), brake: 0, handbrake: 0, analog: false }, flat);
+  let yaw = 0;
+  let slip = 0;
+  for (let t = 0; t < 2 + seconds; t += DT) {
+    car.step(DT, { steer: t < seconds ? 1 : 0, throttle: throttle(car, speed), brake: 0, handbrake: 0, analog: false }, flat);
+    yaw = Math.max(yaw, Math.abs(car.ang.y));
+    slip = Math.max(slip, Math.abs(slip_deg(car)));
+  }
+  return { heading: (-car.heading * 180) / Math.PI, lateral: -car.pos.x, yaw, slip };
+}
+
+export interface Swerve {
+  /** Heading left 1.5 s after the keys are let go, degrees: a symmetric swerve should end pointing straight. */
+  heading: number;
+  /** Sideways step by then, metres. */
+  lateral: number;
+}
+
+/** Open-loop lane change on held keys: `hold` seconds right, `hold` seconds left, then let go. */
+export function swerve(mode: SteerMode, spec = COUPE, speed = 100, hold = 0.4): Swerve {
+  const car = rolling(spec, mode, speed);
+  for (let t = 0; t < 2 * hold + 1.5; t += DT) {
+    const steer = t < hold ? 1 : t < 2 * hold ? -1 : 0;
+    car.step(DT, { steer, throttle: throttle(car, speed), brake: 0, handbrake: 0, analog: false }, flat);
+  }
   return { heading: (-car.heading * 180) / Math.PI, lateral: -car.pos.x };
 }
 
-if (import.meta.main) {
-  const f = (n: number, d = 2) => (Number.isFinite(n) ? n.toFixed(d) : "never");
-  for (const mode of Object.values(SteerMode)) {
-    const lc = lane_change(mode);
-    const a = arc(mode);
-    const h = hairpin(mode);
-    const short = tap(mode, 1 / 60);
-    const long = tap(mode, 0.1);
-    console.log(mode);
-    console.log(`  lane change 120: overshoot ${f(lc.overshoot)} m, settle ${f(lc.settle)} s, ${lc.presses} presses`);
-    console.log(`  arc R150 90:     rms ${f(a.rms)} m, ${f(a.rate, 1)} presses/s, yaw swing ${f(a.yaw_swing, 3)} rad/s`);
-    console.log(`  hairpin 50:      180 deg in ${f(h.t180)} s, radius ${f(h.radius, 1)} m, slip ${f(h.slip, 1)} deg`);
-    console.log(`  tap 100:         1 frame ${f(short.heading)} deg ${f(short.lateral)} m, 0.1 s ${f(long.heading)} deg ${f(long.lateral)} m`);
+export interface Slalom {
+  /** Peak yaw rate, rad/s. */
+  yaw: number;
+  /** Worst body slip, degrees. */
+  slip: number;
+}
+
+/** Keys alternating every `half` seconds for four seconds. */
+export function slalom(mode: SteerMode, spec = COUPE, speed = 100, half = 0.5): Slalom {
+  const car = rolling(spec, mode, speed);
+  let yaw = 0;
+  let slip = 0;
+  for (let t = 0; t < 4; t += DT) {
+    const steer = Math.floor(t / half) % 2 === 0 ? 1 : -1;
+    car.step(DT, { steer, throttle: throttle(car, speed), brake: 0, handbrake: 0, analog: false }, flat);
+    yaw = Math.max(yaw, Math.abs(car.ang.y));
+    slip = Math.max(slip, Math.abs(slip_deg(car)));
   }
+  return { yaw, slip };
+}
+
+/** Worst body slip, degrees, over 2 s off the gas with the key still held, after 2.5 s cornering on it. */
+export function lift_off(mode: SteerMode, spec = COUPE, speed = 90): number {
+  const car = rolling(spec, mode, speed);
+  for (let t = 0; t < 2.5; t += DT) car.step(DT, { steer: 1, throttle: throttle(car, speed), brake: 0, handbrake: 0, analog: false }, flat);
+  let slip = 0;
+  for (let t = 0; t < 2; t += DT) {
+    car.step(DT, { steer: 1, throttle: 0, brake: 0, handbrake: 0, analog: false }, flat);
+    slip = Math.max(slip, Math.abs(slip_deg(car)));
+  }
+  return slip;
+}
+
+export interface Flick {
+  /** Heading change over the flick, degrees. */
+  turned: number;
+  /** Time after the flick until body slip is under 3 degrees and yaw under 0.1 rad/s, seconds. */
+  settle: number;
+}
+
+/** Handbrake and full key for `hold` seconds, then a light throttle with the keys let go. */
+export function flick(mode: SteerMode, spec = COUPE, speed = 70, hold = 0.45): Flick {
+  const car = rolling(spec, mode, speed);
+  for (let t = 0; t < hold; t += DT) car.step(DT, { steer: 1, throttle: 0, brake: 0, handbrake: 1, analog: false }, flat);
+  const turned = (-car.heading * 180) / Math.PI;
+  let settle = Infinity;
+  for (let t = 0; t < 5 && settle === Infinity; t += DT) {
+    car.step(DT, { steer: 0, throttle: 0.4, brake: 0, handbrake: 0, analog: false }, flat);
+    if (Math.abs(slip_deg(car)) < 3 && Math.abs(car.ang.y) < 0.1) settle = t;
+  }
+  return { turned, settle };
+}
+
+/** Time from a standstill with a key held until the wheels reach 99% of full lock, seconds. */
+export function park_lock(mode: SteerMode, spec = COUPE): number {
+  const car = new Car(spec);
+  car.steer_mode = mode;
+  car.park(0, 0, 0, flat);
+  for (let t = 0; t < 2; t += DT) {
+    car.step(DT, { steer: 1, throttle: 0, brake: 0, handbrake: 0, analog: false }, flat);
+    if (car.steer >= spec.lock * 0.99) return t;
+  }
+  return Infinity;
+}
+
+function is_mode(arg: string): arg is SteerMode {
+  return (Object.values(SteerMode) as string[]).includes(arg);
+}
+
+if (import.meta.main) {
+  // bun scripts/keys.ts [mode|all] [car|all]: the shipped Smooth mode on the coupe by default.
+  const [mode_arg = SteerMode.SMOOTH, car_arg = "coupe"] = process.argv.slice(2);
+  const modes = mode_arg === "all" ? Object.values(SteerMode) : is_mode(mode_arg) ? [mode_arg] : [];
+  if (modes.length === 0) throw new Error(`unknown steer mode ${mode_arg}`);
+  const specs = car_arg === "all" ? Object.values(CARS) : [car_spec(car_arg)];
+  const f = (n: number, d = 2) => (Number.isFinite(n) ? n.toFixed(d) : "never");
+  for (const spec of specs)
+    for (const mode of modes) {
+      const lc = lane_change(mode, spec);
+      const a = arc(mode, 150, 90, spec);
+      const h = hairpin(mode, spec);
+      const sw = swerve(mode, spec);
+      const short = tap(mode, 1 / 60, 100, spec);
+      const long = tap(mode, 0.15, 100, spec);
+      const sl = slalom(mode, spec);
+      const fl = flick(mode, spec);
+      console.log(`${spec.id} ${mode}`);
+      console.log(`  lane change 120: overshoot ${f(lc.overshoot)} m, settle ${f(lc.settle)} s, ${lc.presses} presses`);
+      console.log(`  arc R150 90:     rms ${f(a.rms)} m, ${f(a.rate, 1)} presses/s, yaw swing ${f(a.yaw_swing, 3)} rad/s`);
+      console.log(`  hairpin 50:      180 deg in ${f(h.t180)} s, radius ${f(h.radius, 1)} m, slip ${f(h.slip, 1)} deg`);
+      console.log(`  swerve 100:      0.4 s each way, heading ${f(sw.heading, 1)} deg, lateral ${f(sw.lateral, 1)} m`);
+      console.log(`  tap 100:         17 ms ${f(short.heading)} deg yaw ${f(short.yaw, 3)}, 150 ms ${f(long.heading)} deg yaw ${f(long.yaw, 3)} slip ${f(long.slip, 1)} deg, ratio ${f(long.heading / short.heading, 1)}`);
+      console.log(`  slalom 100:      0.5 s, yaw ${f(sl.yaw, 3)} rad/s, slip ${f(sl.slip, 1)} deg`);
+      console.log(`  lift-off 90:     slip ${f(lift_off(mode, spec), 1)} deg`);
+      console.log(`  flick 70:        turned ${f(fl.turned, 0)} deg, straight in ${f(fl.settle)} s`);
+      console.log(`  parked:          key to full lock ${f(park_lock(mode, spec))} s`);
+    }
 }
