@@ -7,6 +7,8 @@ import { World } from "./world";
 
 /** Metres the car moves before `follow` looks again; small next to the stream pad, so the fog never outruns it. */
 const FOLLOW_STEP = 64;
+/** Milliseconds of each frame a streamed world spends handing arrived chunk meshes on; at least one goes per frame. */
+const ADD_BUDGET_MS = 3;
 import { WorldWorker, take_early } from "./world-worker";
 
 export interface ChunkListener {
@@ -22,6 +24,9 @@ export interface ChunkListener {
 export class WorldStream {
   /** Chunks that came before anyone listened; handed over once, then let go. */
   private waiting: { chunk: ChunkBuffers; trees: readonly Tree[] | null }[] = [];
+  /** Chunks arrived while driving, nearest first, handed on a few per frame so a burst of replies never stalls one. */
+  private queued: { chunk: ChunkBuffers; trees: readonly Tree[] | null }[] = [];
+  private head = 0;
   private listener: ChunkListener | null = null;
   /** Replies still to come per chunk; a compact world's first load asks for every chunk once. */
   private readonly pending: Uint16Array;
@@ -82,6 +87,7 @@ export class WorldStream {
   follow(x: number, z: number, reach: number) {
     const { tiles } = this.world;
     if (!tiles.streamed) return;
+    this.hand_on();
     if ((x - this.at_x) ** 2 + (z - this.at_z) ** 2 < FOLLOW_STEP ** 2 && reach === this.reach) return;
     this.at_x = x;
     this.at_z = z;
@@ -106,7 +112,9 @@ export class WorldStream {
     this.world.tiles.drop(index);
     this.world.unplant(index);
     this.stale[index] = this.pending[index];
-    this.listener?.drop(index);
+    const at = this.queued.findIndex(({ chunk }, i) => i >= this.head && chunk.index === index);
+    if (at >= 0) this.queued.splice(at, 1);
+    else this.listener?.drop(index);
   }
 
   /** Asks for chunk `index` unless a reply that will be kept is already on its way. */
@@ -130,7 +138,21 @@ export class WorldStream {
     if (reply.planted) this.world.plant(reply.index, reply.planted.solids);
     if (!reply.chunk) return;
     const trees = reply.planted?.trees ?? null;
-    if (this.listener) this.listener.add(reply.chunk, trees);
-    else this.waiting.push({ chunk: reply.chunk, trees });
+    // Before the first `follow` the loading screen is up, so the spawn's chunks go on at once.
+    if (!this.listener) this.waiting.push({ chunk: reply.chunk, trees });
+    else if (this.at_x === Infinity) this.listener.add(reply.chunk, trees);
+    else this.queued.push({ chunk: reply.chunk, trees });
+  }
+
+  private hand_on() {
+    const listener = this.listener;
+    const queued = this.queued;
+    if (!listener || this.head === queued.length) return;
+    const start = performance.now();
+    do {
+      const { chunk, trees } = queued[this.head++];
+      listener.add(chunk, trees);
+    } while (this.head < queued.length && performance.now() - start < ADD_BUDGET_MS);
+    if (this.head === queued.length) queued.length = this.head = 0;
   }
 }

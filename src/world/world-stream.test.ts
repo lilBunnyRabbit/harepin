@@ -81,6 +81,7 @@ test("a streamed world keeps only the chunks around the car, nearest first, and 
     for (let last = -1; last !== order.length; ) {
       last = order.length;
       await new Promise((done) => setTimeout(done, 600));
+      stream.follow(x, z, fog + pad);
     }
   };
   await settle(0, 0);
