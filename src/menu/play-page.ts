@@ -97,19 +97,21 @@ export class PlayPage implements MenuPage {
     go.addEventListener("click", () => this.menu.drive(this.seed, MAINLAND));
     const row = el("div", "play-actions");
     row.append(go);
-    if (this.here) {
-      const restart = el("button", "play-restart");
-      restart.type = "button";
-      restart.append(icon("icon-restart"), el("span", "", "Restart lap"));
-      restart.addEventListener("click", () => {
-        this.menu.close();
-        this.menu.host.restart_lap();
-      });
-      row.append(restart);
-    }
+    if (this.here) row.append(this.restart("play-restart"));
     const card = el("div", "play-drive");
     card.append(title, row);
     return card;
+  }
+
+  private restart(name: string): HTMLButtonElement {
+    const restart = el("button", name);
+    restart.type = "button";
+    restart.append(icon("icon-restart"), el("span", "", "Restart lap"));
+    restart.addEventListener("click", () => {
+      this.menu.close();
+      this.menu.host.restart_lap();
+    });
+    return restart;
   }
 
   private minis(): HTMLElement {
@@ -124,7 +126,13 @@ export class PlayPage implements MenuPage {
       button.append(picture(kind), words);
       if (kind === host.kind) button.append(el("span", "menu-tag", "You're here"));
       button.addEventListener("click", () => this.menu.drive(host.seed, kind));
-      list.append(button);
+      if (kind !== host.kind) {
+        list.append(button);
+        continue;
+      }
+      const here = el("div", "play-here");
+      here.append(button, this.restart("play-restart-small"));
+      list.append(here);
     }
     return list;
   }
