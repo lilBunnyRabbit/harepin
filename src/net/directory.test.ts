@@ -115,3 +115,27 @@ test("announces keep a racing flag and a capped, cleaned roster", () => {
   expect(sanitize_announce({ ...announce, roster: [] })).toEqual(announce);
   expect(sanitize_announce({ ...announce, roster: Array.from({ length: 40 }, (_, i) => ({ name: `P${i}` })) })?.roster).toHaveLength(16);
 });
+
+test("admission: past 24 links, watchers make room for browsers and never take more than their share", () => {
+  const evicted: string[] = [];
+  const admission = new Admission(24, 16, (id) => evicted.push(id));
+  const games = Array.from({ length: 30 }, (_, i) => `game-${String(i).padStart(2, "0")}`);
+  for (const id of games.slice(0, 20)) {
+    expect(admission.admit(id)).toBe(true);
+    admission.join(id);
+    admission.role(id, true);
+  }
+  expect(evicted).toEqual(games.slice(16, 20));
+  for (const id of games.slice(20, 28)) {
+    expect(admission.admit(id)).toBe(true);
+    admission.join(id);
+  }
+  expect(admission.joined.size).toBe(24);
+  expect(admission.admit("browser")).toBe(true);
+  expect(evicted.at(-1)).toBe(games[0]);
+  expect(admission.admit(games[0])).toBe(false);
+  admission.join("browser");
+  for (const id of games.slice(1, 16)) admission.role(id, false);
+  expect(admission.admit("late")).toBe(false);
+  expect(admission.joined.size).toBe(24);
+});

@@ -117,9 +117,9 @@ const OWN_CHAT_GAP_MS = 900;
 const OWN_CHAT_BURST = 4;
 const FALLBACK_NAME = "Player";
 const MAX_ONLINE = 9999;
-// The leader repeats its count every few seconds; one this old means it stopped, and the last shown count stays up.
+// The leader repeats its count every few seconds; one this old means it stopped or its tab is hidden.
 const ONLINE_STALE_MS = 10_000;
-// A leader sends once per ONLINE_SEND_MS (presence.ts); this lets a little jitter through and stops a flood.
+// A leader sends once per SEND_MS in hud/presence.ts; this lets a little jitter through and stops a flood.
 const ONLINE_GAP_MS = 1000;
 const ONLINE_BURST = 6;
 const ID_SUFFIX = 4;
@@ -306,7 +306,9 @@ export class Net {
     this.hello = this.link.channel("hello", sanitize_hello);
     this.readies = this.link.channel("ready", sanitize_ready, () => new RateLimit(READY_GAP_MS, READY_BURST), (id) => this.same_map.has(id) || this.remotes.has(id));
     this.onlines = this.link.channel("online", sanitize_online, () => new RateLimit(ONLINE_GAP_MS, ONLINE_BURST), (id) => this.same_map.has(id) || this.remotes.has(id));
-    this.onlines.subscribe((msg, from) => (this.heard_online = { from, count: msg.online, at: performance.now() }));
+    this.onlines.subscribe((msg, from) => {
+      if (from === this.leader_id) this.heard_online = { from, count: msg.online, at: performance.now() };
+    });
     this.cars.subscribe((packet, sender) => {
       this.greet(sender);
       if (packet.kind === "car") {

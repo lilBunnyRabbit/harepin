@@ -183,7 +183,8 @@ export class Minimap {
     ctx.fill();
   }
 
-  full(car: Car, gate: Dot | null, remotes: Iterable<Remote>) {
+  /** `names`: each car's display name by id; a car missing from it shows the name it sent. */
+  full(car: Car, gate: Dot | null, remotes: Iterable<Remote>, names: ReadonlyMap<string, string>) {
     this.fit();
     const { ctx } = this;
     const view = this.drawn ?? ISLAND;
@@ -194,11 +195,11 @@ export class Minimap {
       ctx.fillStyle = INK.checkpoint;
       this.dot(full_x(view, gate.x), full_y(view, gate.z), 4.5);
     }
-    for (const remote of remotes) this.car(full_x(view, remote.latest.p[0]), full_y(view, remote.latest.p[2]), remote.latest.name);
+    for (const remote of remotes) this.car(full_x(view, remote.latest.p[0]), full_y(view, remote.latest.p[2]), names.get(remote.id) ?? remote.latest.name);
     this.arrow(full_x(view, car.pos.x), full_y(view, car.pos.z), car.heading);
   }
 
-  close(car: Car, gate: Dot | null, remotes: Iterable<Remote>, now: number) {
+  close(car: Car, gate: Dot | null, remotes: Iterable<Remote>, names: ReadonlyMap<string, string>, now: number) {
     this.fit();
     const { ctx } = this;
     const heading = car.heading;
@@ -234,7 +235,7 @@ export class Minimap {
       const px = cos * dx - sin * dz + cx - MAP / 2;
       const py = sin * dx + cos * dz + cy - MAP / 2;
       const edge = Math.min(1, EDGE / Math.hypot(px, py));
-      this.car(MAP / 2 + px * edge, MAP / 2 + py * edge, remote.latest.name);
+      this.car(MAP / 2 + px * edge, MAP / 2 + py * edge, names.get(remote.id) ?? remote.latest.name);
     }
     if (gate) {
       const gx = cos * (gate.x - x) - sin * (gate.z - z) + cx - MAP / 2;

@@ -70,6 +70,8 @@ function row(name: string, time: string, you: boolean, note = ""): HTMLLIElement
 }
 
 const TOAST_MS = 1200;
+// Display names add an id suffix when two cars share a name, which allocates, so the map's labels refresh at this rate.
+const NAMES_MS = 1000;
 /** The lobby's route id when no race is on; lap gates belong to it. */
 const CIRCUIT = "circuit";
 /** Driving this long above CALM_KMH lets the touch HUD (and the Minimal layout) fade back; stopping brings it back. */
@@ -111,6 +113,8 @@ export class Hud {
   private players: PlayerRow[] = [];
   private results_key = "";
   private moving_since = 0;
+  private readonly names = new Map<string, string>();
+  private names_at = -Infinity;
 
   constructor(
     private world: World,
@@ -227,8 +231,13 @@ export class Hud {
     // Lap gates are the circuit's; a run on any route brings its own.
     const gate = run ? run.gate : route === CIRCUIT ? this.world.checkpoints[this.race.next] : null;
     if (this.view === MapView.FULL || this.view === MapView.CLOSE) this.map.show_route(route);
-    if (this.view === MapView.FULL) this.map.full(car, gate, this.net.remotes.values());
-    else if (this.view === MapView.CLOSE) this.map.close(car, gate, this.net.remotes.values(), now);
+    if ((this.view === MapView.FULL || this.view === MapView.CLOSE) && now - this.names_at >= NAMES_MS) {
+      this.names_at = now;
+      this.names.clear();
+      for (const remote of this.net.remotes.values()) this.names.set(remote.id, this.net.display_name(remote));
+    }
+    if (this.view === MapView.FULL) this.map.full(car, gate, this.net.remotes.values(), this.names);
+    else if (this.view === MapView.CLOSE) this.map.close(car, gate, this.net.remotes.values(), this.names, now);
     else if (this.view === MapView.PACE) this.pace.update(car, route);
   }
 }

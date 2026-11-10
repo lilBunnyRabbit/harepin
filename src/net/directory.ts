@@ -16,6 +16,8 @@ const EXPIRE_MS = ANNOUNCE_MS * 3 + 1000;
 const EMPTY_AFTER_MS = 12_000;
 // Past this many directory links a peer turns new ones away, so a busy directory can't swamp a phone.
 const MAX_PEERS = 24;
+// Leaders watching for the HUD count take at most this many of those links, so players browsing the list always fit.
+const MAX_WATCHERS = 16;
 export const ROOM_LENGTH = 32;
 export const PASSWORD_LENGTH = 64;
 const MAX_PLAYERS = 64;
@@ -163,24 +165,56 @@ export function save_lock(room: string, lock: RoomLock | null) {
   }
 }
 
+// A role, sent after joining: true while the peer only watches for player counts. Peers that predate it never say and
+// count as browsers.
+type Role = { watch: boolean };
+
+const sanitize_role = (raw: unknown): Role | null => (raw && typeof raw === "object" && typeof (raw as Record<string, unknown>).watch === "boolean" ? { watch: (raw as Role).watch } : null);
+
 // Joined and mid-handshake peers both count, so a burst of handshakes can't all pass before any of them joins; a peer
-// turned away stays turned away for the session, so its reconnect attempts end at once instead of churning.
+// turned away stays turned away for the session, so its reconnect attempts end at once instead of churning. A full
+// directory makes room for a newcomer by dropping a watcher, since the newcomer may be a player browsing the list; a
+// watcher past the watcher cap is dropped as soon as it says what it is.
 export class Admission {
   readonly joined = new Set<string>();
   private readonly pending = new Set<string>();
   private readonly refused = new Set<string>();
+  private readonly watchers = new Set<string>();
 
-  constructor(private readonly cap: number) {}
+  constructor(
+    private readonly cap: number,
+    private readonly watch_cap = cap,
+    private readonly evict: (id: string) => void = () => {},
+  ) {}
 
   admit(id: string): boolean {
     if (this.refused.has(id)) return false;
     if (this.joined.has(id) || this.pending.has(id)) return true;
     if (this.joined.size + this.pending.size >= this.cap) {
-      this.refused.add(id);
-      return false;
+      const watcher = this.watchers.values().next();
+      if (watcher.done) {
+        this.refused.add(id);
+        return false;
+      }
+      this.kick(watcher.value);
     }
     this.pending.add(id);
     return true;
+  }
+
+  role(id: string, watch: boolean) {
+    if (!this.joined.has(id)) return;
+    if (!watch) this.watchers.delete(id);
+    else if (!this.watchers.has(id)) {
+      this.watchers.add(id);
+      if (this.watchers.size > this.watch_cap) this.kick(id);
+    }
+  }
+
+  private kick(id: string) {
+    this.drop(id);
+    this.refused.add(id);
+    this.evict(id);
   }
 
   join(id: string) {
@@ -191,12 +225,14 @@ export class Admission {
   drop(id: string) {
     this.pending.delete(id);
     this.joined.delete(id);
+    this.watchers.delete(id);
   }
 
   reset() {
     this.pending.clear();
     this.joined.clear();
     this.refused.clear();
+    this.watchers.clear();
   }
 }
 
@@ -206,10 +242,11 @@ export class Directory {
   status: DirectoryStatus = DirectoryStatus.CONNECTING;
   private readonly entries = new Map<string, Entry>();
   private readonly limits = new Map<string, RateLimit>();
-  private readonly admission = new Admission(MAX_PEERS);
+  private readonly admission = new Admission(MAX_PEERS, MAX_WATCHERS, (peer) => this.kick(peer));
   private readonly pings = new Map<string, number>();
   private room: Room | null = null;
   private send: ((announce: Announce, target?: string) => void) | null = null;
+  private send_role: ((target?: string) => void) | null = null;
   private mode: Mode = "off";
   private browsing = false;
   private watching = false;
@@ -238,6 +275,7 @@ export class Directory {
     this.browsing = on;
     this.tick();
     this.sync_pings();
+    this.send_role?.();
   }
 
   /**
@@ -291,6 +329,8 @@ export class Directory {
     const mode: Mode = this.browsing || this.watching ? "listen" : own ? "announce" : "off";
     if (mode !== this.mode) this.switch_to(mode);
     if (own) this.send?.(own);
+    // Repeated with the announce: a role that beat the peer's join on the other side was dropped there.
+    this.send_role?.();
   }
 
   private switch_to(mode: Mode) {
@@ -311,10 +351,19 @@ export class Directory {
       const action = room.makeAction<Announce>("announce");
       this.send = (announce, target) => void action.send(announce, target ? { target } : undefined).catch(dropped);
       action.onMessage = (raw, { peerId }) => this.receive(raw, peerId);
+      const role = room.makeAction<Role>("role");
+      this.send_role = (target) => {
+        if (this.mode === "listen") void role.send({ watch: !this.browsing }, target ? { target } : undefined).catch(dropped);
+      };
+      role.onMessage = (raw, { peerId }) => {
+        const msg = sanitize_role(raw);
+        if (msg) this.admission.role(peerId, msg.watch);
+      };
       room.onPeerJoin = (peer) => {
         this.admission.join(peer);
         this.status = DirectoryStatus.ONLINE;
         if (this.browsing) this.ping(room, peer);
+        if (this.mode === "listen") this.send_role?.(peer);
         const own = this.announcement();
         if (own) this.send?.(own, peer);
       };
@@ -351,6 +400,13 @@ export class Directory {
     }, PING_MS);
   }
 
+  private kick(peer: string) {
+    this.entries.delete(peer);
+    this.limits.delete(peer);
+    this.pings.delete(peer);
+    this.room?.getPeers()[peer]?.close();
+  }
+
   private leave() {
     clearTimeout(this.empty_timer);
     clearInterval(this.ping_timer);
@@ -358,6 +414,7 @@ export class Directory {
     this.room?.leave().catch((error: unknown) => console.debug("directory: leave failed", error));
     this.room = null;
     this.send = null;
+    this.send_role = null;
     this.entries.clear();
     this.limits.clear();
     this.pings.clear();

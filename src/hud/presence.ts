@@ -47,14 +47,14 @@ export class Presence {
 
   private readonly open = () => this.host.open_online();
 
-  // Only the leader watches the directory and tells its room, so links grow with games rather than players. Until a
-  // new leader's directory connects, the count the old one sent stays up.
+  // Only a visible leader watches the directory and tells its room, so links grow with games rather than players. Until
+  // a new leader's directory connects, the count the old one sent stays up; a count gone stale drops off the chip.
   private tick() {
     const { net } = this.host;
     const now = performance.now();
     const here = 1 + net.same_map.size;
-    const leader = net.leader;
-    this.host.watch(leader && !document.hidden);
+    const leader = net.leader && !document.hidden;
+    this.host.watch(leader);
     if (leader) {
       const elsewhere = this.host.elsewhere();
       if (elsewhere !== null) this.online = here + elsewhere;
@@ -63,8 +63,7 @@ export class Presence {
         this.last_send = now;
       }
     } else {
-      const heard = net.leader_online;
-      if (heard !== null) this.online = heard;
+      this.online = net.leader_online ?? 0;
     }
     this.draw(here, Math.max(here, this.online));
     this.track(net, now);

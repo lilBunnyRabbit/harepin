@@ -1,13 +1,13 @@
 import { parse_seed } from "../net/net";
 import { el, icon } from "./setting-rows";
 import { WorldMap } from "./world-map";
-
-const PLAYERS_MS = 250;
 import type { MapData } from "../worldgen/map";
 import type { WorldKind } from "../worldgen/types";
 import { WORLDS } from "../worlds/worlds";
 import { MenuTab, invite_link, type Menu, type MenuPage } from "./page";
 import { COPIED_MS, picture, random_seed } from "./widgets";
+
+const PLAYERS_MS = 250;
 
 export class WorldPage implements MenuPage {
   readonly id = "world";
@@ -38,6 +38,7 @@ export class WorldPage implements MenuPage {
   }
 
   private show_players() {
+    if (document.hidden) return;
     const { host } = this.menu;
     const here = this.chosen === host.seed && this.chosen_kind === host.kind;
     this.world_map.show_players(here ? host.map_players() : []);
