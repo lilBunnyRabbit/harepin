@@ -134,6 +134,7 @@ class Atlas {
         continue;
       }
       this.add(edge.a, edge.b, "spur", edge.points);
+      if (edge.kind !== "highway") continue;
       const gate = graph.nodes[edge.a];
       const town = town_of(gate.x, gate.z);
       if (town) this.gates.set(town.id, edge.a);

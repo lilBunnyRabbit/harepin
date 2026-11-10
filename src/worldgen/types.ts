@@ -7,6 +7,7 @@ export const STREET_HALF = 4;
 /** Sidewalk strip beyond each street edge; part of the street surface for lot setbacks, not for grip. */
 export const SIDEWALK = 2;
 export const SPUR_HALF = 5;
+export const LOCAL_HALF = 5;
 export const SHOULDER = 16;
 /** Steepest a spur may climb, rise over run. */
 export const SPUR_GRADE = 0.12;
@@ -15,7 +16,7 @@ export const SPAWN_INDEX = -40;
 export const GRASS = 0;
 export const DIRT = 1;
 /** Bump whenever `generate` makes a different island for the same seed: peers and saved records are matched on it. */
-export const WORLD_VERSION = 3;
+export const WORLD_VERSION = 4;
 
 /** Bump whenever `generate_sky` makes a different track for the same seed. */
 export const SKY_VERSION = 3;
@@ -61,7 +62,8 @@ export interface Terrain {
 }
 
 export type NodeKind = "junction" | "end" | "town";
-export type EdgeKind = "highway" | "street";
+/** `highway`: a town's spur to the circuit; `local`: a road between towns. */
+export type EdgeKind = "highway" | "local" | "street";
 
 export interface RoadNode {
   id: number;

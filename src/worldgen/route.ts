@@ -24,8 +24,48 @@ const NEED_MARGIN = 12;
 const JOIN_TRIES = 16;
 /** Ring points between two join candidates, 2 m apart. */
 const JOIN_SPACING = 20;
+/** Extra cost of crossing the circuit, in metres: one crossing where a detour of up to this much avoids a second. */
+export const CROSS_COST = 200;
 /** cos² of the sharpest control-polygon turn a spur keeps (60°); a 90° turn on 16 m cells smooths to about ROAD_HALF. */
 const TURN_COS2 = 0.25;
+
+/** A unit direction on the ground. */
+export interface Way {
+  x: number;
+  z: number;
+}
+
+/** A point a link may start or end at, with what it costs to get there from the town it serves. */
+export interface Port {
+  x: number;
+  z: number;
+  cost: number;
+}
+
+/** A place the circuit may be crossed square: the approach points either side of it. */
+export interface Crossing {
+  a: Way;
+  b: Way;
+}
+
+/** A town a link starts or ends at by its own exit: its core is open only along the exit's corridor. */
+export interface Exit {
+  town: Town;
+  x: number;
+  z: number;
+  way: Way;
+}
+
+export interface LinkPath {
+  source: number;
+  goal: number;
+  /** Cells between the ports, split where the path crosses the circuit; `crossings[k]` sits between legs k and k + 1. */
+  legs: Path[];
+  crossings: number[];
+  /** Whether crossing k was taken from its `a` side. */
+  forward: boolean[];
+  cost: number;
+}
 
 export class Heap {
   private readonly keys: number[] = [];
@@ -109,15 +149,20 @@ export class Router {
       }
   }
 
-  /** A* from the gate to the ring point `to`, arriving straight along the ring normal on the gate's side. */
-  route(from: { x: number; y: number; z: number }, to: RoadPoint, town: Town): Path | null {
+  /**
+   * A* from the gate to the ring point `to`, arriving straight along the ring normal on the gate's side. With `out` the
+   * spur first leaves the gate straight along that unit direction, so it meets the gate's streets square.
+   */
+  route(from: { x: number; y: number; z: number }, to: RoadPoint, town: Town, out: Way | null = null): Path | null {
     const side = Math.sign((from.x - to.x) * -to.tz + (from.z - to.z) * to.tx) || 1;
     const ax = to.x - to.tz * side * APPROACH;
     const az = to.z + to.tx * side * APPROACH;
-    const start = cell_of(from.z) * G + cell_of(from.x);
+    const sx = out ? from.x + out.x * APPROACH : from.x;
+    const sz = out ? from.z + out.z * APPROACH : from.z;
+    const start = cell_of(sz) * G + cell_of(sx);
     const goal = cell_of(az) * G + cell_of(ax);
-    const out_x = ax - from.x;
-    const out_z = az - from.z;
+    const out_x = out ? out.x : ax - from.x;
+    const out_z = out ? out.z : az - from.z;
     const out_len = length(out_x, out_z) || 1;
     // Inside its own town the spur may only leave along the corridor from the gate toward the ring; the gate is the
     // node nearest the ring, so no street lies in that corridor.
@@ -172,8 +217,145 @@ export class Router {
     const cells: Path = [];
     for (let k = came[goal]; k !== start && k >= 0; k = came[k]) cells.push([centre(k % G), centre(Math.floor(k / G))]);
     cells.reverse();
-    const clear = (x: number, z: number) => length(x - from.x, z - from.z) > COARSE * 1.5 && length(x - ax, z - az) > COARSE * 1.5;
-    return unkink([[from.x, from.z], ...cells.filter(([x, z]) => clear(x, z)), [ax, az], [to.x, to.z]], from.y, to.y);
+    const clear = (x: number, z: number) => length(x - sx, z - sz) > COARSE * 1.5 && length(x - ax, z - az) > COARSE * 1.5;
+    const head: Path = out ? [[from.x, from.z], [sx, sz]] : [[from.x, from.z]];
+    return unkink([...head, ...cells.filter(([x, z]) => clear(x, z)), [ax, az], [to.x, to.z]], from.y, to.y, head.length);
+  }
+
+  /**
+   * Cheapest way from any source port to any goal port over open ground, where the circuit can only be crossed at one of
+   * `crossings`. Ports and crossing ends sit beside a road on purpose, so they are doors: a path may start or land on one
+   * inside a blocked band and leave it, or end there, but never walk through it.
+   */
+  link(sources: readonly Port[], goals: readonly Port[], crossings: readonly Crossing[], exits: readonly Exit[]): LinkPath | null {
+    if (!sources.length || !goals.length) return null;
+    const cells = G * G;
+    const portal = new Set<number>();
+    const at = (p: Way) => cell_of(p.z) * G + cell_of(p.x);
+    const goal_at = new Map<number, number[]>();
+    goals.forEach((g, i) => {
+      const k = at(g);
+      portal.add(k);
+      goal_at.set(k, [...(goal_at.get(k) ?? []), i]);
+    });
+    const hops = new Map<number, { to: number; crossing: number; forward: boolean }[]>();
+    crossings.forEach((c, i) => {
+      const a = at(c.a);
+      const b = at(c.b);
+      portal.add(a);
+      portal.add(b);
+      hops.set(a, [...(hops.get(a) ?? []), { to: b, crossing: i, forward: true }]);
+      hops.set(b, [...(hops.get(b) ?? []), { to: a, crossing: i, forward: false }]);
+    });
+    for (const p of sources) portal.add(at(p));
+    const corridor = (e: Exit, x: number, z: number) => {
+      const along = (x - e.x) * e.way.x + (z - e.z) * e.way.z;
+      const across = Math.abs((x - e.x) * e.way.z - (z - e.z) * e.way.x);
+      return along > 0 && across < CORRIDOR;
+    };
+    const open = new Uint8Array(cells);
+    for (let k = 0; k < cells; k++) if (this.height[k] >= WATER && !this.blocked[k]) open[k] = 1;
+    for (const t of this.towns) {
+      const exit = exits.find((e) => e.town === t);
+      const reach = exit ? t.core + OWN_TOWN_MARGIN : t.radius + TOWN_MARGIN;
+      for (let j = cell_of(t.z - reach); j <= cell_of(t.z + reach); j++)
+        for (let i = cell_of(t.x - reach); i <= cell_of(t.x + reach); i++) {
+          const k = j * G + i;
+          const x = centre(i);
+          const z = centre(j);
+          if (length(x - t.x, z - t.z) >= reach || (exit && corridor(exit, x, z))) continue;
+          open[k] = 0;
+        }
+    }
+    const free = (k: number) => open[k] === 1;
+    const door = (k: number) => portal.has(k) && this.height[k] >= WATER;
+    const launched = new Uint8Array(cells);
+    const near = octile(goals.map(at));
+    const cost = new Float64Array(cells + goals.length).fill(Infinity);
+    const came = new Int32Array(cells).fill(-1);
+    const hop = new Int32Array(cells).fill(-1);
+    const source = new Int32Array(cells).fill(-1);
+    const heap = new Heap();
+    sources.forEach((p, i) => {
+      const k = at(p);
+      if (!door(k) || p.cost >= cost[k]) return;
+      cost[k] = p.cost;
+      source[k] = i;
+      launched[k] = 1;
+      heap.push(k, p.cost + near[k]);
+    });
+    let goal = -1;
+    while (heap.size) {
+      const k = heap.pop();
+      if (k >= cells) {
+        goal = k - cells;
+        break;
+      }
+      for (const g of goal_at.get(k) ?? []) {
+        const total = cost[k] + goals[g].cost;
+        if (total < cost[cells + g]) {
+          cost[cells + g] = total;
+          heap.push(cells + g, total);
+        }
+      }
+      const step_to = (n: number, step: number, via: number) => {
+        const total = cost[k] + step;
+        if (total >= cost[n]) return;
+        cost[n] = total;
+        came[n] = k;
+        hop[n] = via;
+        source[n] = source[k];
+        launched[n] = via === -1 ? 0 : 1;
+        heap.push(n, total + near[n]);
+      };
+      for (const h of hops.get(k) ?? []) if (door(h.to)) step_to(h.to, 2 * APPROACH + CROSS_COST, h.forward ? h.crossing : -2 - h.crossing);
+      if (!free(k) && !launched[k]) continue;
+      const i = k % G;
+      const j = Math.floor(k / G);
+      for (let dj = -1; dj <= 1; dj++)
+        for (let di = -1; di <= 1; di++) {
+          if (!di && !dj) continue;
+          const ni = i + di;
+          const nj = j + dj;
+          if (ni < 0 || nj < 0 || ni >= G || nj >= G) continue;
+          const n = nj * G + ni;
+          if (!free(n) && !door(n)) continue;
+          const run = (di && dj ? Math.SQRT2 : 1) * COARSE;
+          const grade = Math.abs(this.height[n] - this.height[k]) / run;
+          step_to(n, run * (1 + SLOPE_COST * grade * grade) + (grade > MAX_GRADE ? STEEP_COST * run : 0), -1);
+        }
+    }
+    if (goal < 0) return null;
+    let k = at(goals[goal]);
+    const legs: Path[] = [[]];
+    const taken: number[] = [];
+    const forward: boolean[] = [];
+    const first = source[k];
+    for (;;) {
+      legs[0].unshift([centre(k % G), centre(Math.floor(k / G))]);
+      const via = hop[k];
+      if (via !== -1) {
+        taken.unshift(via >= 0 ? via : -2 - via);
+        forward.unshift(via >= 0);
+        legs.unshift([]);
+      }
+      if (came[k] < 0) break;
+      k = came[k];
+    }
+    return { source: first, goal, legs, crossings: taken, forward, cost: cost[cells + goal] };
+  }
+
+  /** Whether every point from `from` to `to` lies on a cell nothing blocks. */
+  clear(points: readonly RoadPoint[], from: number, to: number): boolean {
+    for (let i = Math.max(0, from); i < Math.min(points.length, to); i++) if (this.blocked[cell_of(points[i].z) * G + cell_of(points[i].x)]) return false;
+    return true;
+  }
+
+  /** Blocks every cell within `reach` of the line. */
+  keep_off(line: readonly [number, number][], reach: number) {
+    for (const [x, z] of line)
+      for (let j = cell_of(z - reach); j <= cell_of(z + reach); j++)
+        for (let i = cell_of(x - reach); i <= cell_of(x + reach); i++) if (length(centre(i) - x, centre(j) - z) < reach) this.blocked[j * G + i] = 1;
   }
 
   /** Blocks the cells along an accepted spur so later spurs keep their distance. */
@@ -187,6 +369,38 @@ export class Router {
         }
     }
   }
+}
+
+// Grid steps cost at least their run and a crossing more than its jump, so octile distance to the nearest goal never
+// overestimates: A* stays exact while it skips most of the grid.
+function octile(goals: readonly number[]): Float64Array {
+  const d = new Float64Array(G * G).fill(Infinity);
+  for (const k of goals) d[k] = 0;
+  const diagonal = Math.SQRT2 * COARSE;
+  const relax = (k: number, n: number, step: number) => {
+    if (d[n] + step < d[k]) d[k] = d[n] + step;
+  };
+  for (let j = 0; j < G; j++)
+    for (let i = 0; i < G; i++) {
+      const k = j * G + i;
+      if (i > 0) relax(k, k - 1, COARSE);
+      if (j > 0) {
+        relax(k, k - G, COARSE);
+        if (i > 0) relax(k, k - G - 1, diagonal);
+        if (i < G - 1) relax(k, k - G + 1, diagonal);
+      }
+    }
+  for (let j = G - 1; j >= 0; j--)
+    for (let i = G - 1; i >= 0; i--) {
+      const k = j * G + i;
+      if (i < G - 1) relax(k, k + 1, COARSE);
+      if (j < G - 1) {
+        relax(k, k + G, COARSE);
+        if (i < G - 1) relax(k, k + G + 1, diagonal);
+        if (i > 0) relax(k, k + G - 1, diagonal);
+      }
+    }
+  return d;
 }
 
 /** Ring indices to try as the spur's T, nearest first, at least JOIN_SPACING points apart. */
@@ -225,21 +439,27 @@ function turn_too_sharp(a: [number, number], b: [number, number], c: [number, nu
 // whose inner edge folds over itself. Drops the cell at each sharp corner, keeping the gate, the approach point and the
 // junction. A corner short of a reversal stays when the shorter spur could no longer hold SHAPE_GRADE (some zig-zags are
 // the switchbacks of a climb); the mesh pulls in the inner edge there. A reversal always goes: no ribbon survives one.
-function unkink(cells: Path, from_y: number, to_y: number): Path {
+// The first `head` points (the gate and its departure point) and the last two stay. A departure point, and with
+// `square_end` the approach point, keeps any turn short of a reversal: its legs run APPROACH metres, so chaikin rounds
+// even a square turn wide, and dropping cells beside it until the turn eased would cut straight across whatever the
+// path went round.
+export function unkink(cells: Path, from_y: number, to_y: number, head = 1, square_end = false): Path {
   let out = cells;
   for (let i = 1; i < out.length - 1; ) {
-    if (!turn_too_sharp(out[i - 1], out[i], out[i + 1])) {
+    const sharp = i < head || (square_end && i === out.length - 2) ? reverses : turn_too_sharp;
+    if (!sharp(out[i - 1], out[i], out[i + 1])) {
       i++;
       continue;
     }
-    const drop = i < out.length - 2 ? i : i - 1;
+    const fixed = (k: number) => k < head || k >= out.length - 2;
+    const drop = !fixed(i) ? i : !fixed(i + 1) ? i + 1 : i - 1;
     const next = out.filter((_, k) => k !== drop);
-    if (drop < 1 || (!reverses(out[i - 1], out[i], out[i + 1]) && spur_need(next, from_y, to_y) > SHAPE_GRADE)) {
+    if (drop < 1 || fixed(drop) || (!reverses(out[i - 1], out[i], out[i + 1]) && spur_need(next, from_y, to_y) > SHAPE_GRADE)) {
       i++;
       continue;
     }
     out = next;
-    i = Math.max(1, drop - 1);
+    i = Math.max(1, Math.min(i, drop) - 1);
   }
   return out;
 }

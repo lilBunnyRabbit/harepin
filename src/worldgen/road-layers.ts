@@ -59,6 +59,8 @@ interface ArmStyle {
 
 const RING_ARM: ArmStyle = { radius: CURB, rank: 2, lift: RING_LIFT, lined: true, sidewalk: 0 };
 const SPUR_ARM: ArmStyle = { radius: CURB, rank: 1, lift: SPUR_LIFT, lined: true, sidewalk: 0 };
+// Below a spur, so a road between towns gives way where it branches off one.
+const LOCAL_ARM: ArmStyle = { ...SPUR_ARM, rank: 0.5 };
 const STREET_ARM: ArmStyle = { radius: 0, rank: 0, lift: SURFACE_LIFT, lined: false, sidewalk: SIDEWALK };
 
 interface ArmEnd {
@@ -111,7 +113,7 @@ export function road_junctions(data: RoadData): Junctions {
   const spurs = spur_edges(graph, circuit);
   const ring_reach = offset_reach(road, true);
   const ring_at = new Map(circuit.map((id) => [id, nearest_index(road, graph.edges[id].points[0].x, graph.edges[id].points[0].z)]));
-  const style = (edge: RoadEdge) => (ring_at.has(edge.id) ? RING_ARM : edge.kind === "highway" ? SPUR_ARM : STREET_ARM);
+  const style = (edge: RoadEdge) => (ring_at.has(edge.id) ? RING_ARM : edge.kind === "highway" ? SPUR_ARM : edge.kind === "local" ? LOCAL_ARM : STREET_ARM);
   const reach_of = (edge: RoadEdge): readonly Reach[] => {
     const at = ring_at.get(edge.id);
     if (at === undefined) return offset_reach(edge.points, false);
@@ -145,12 +147,28 @@ function untrimmed(): Trim {
   return { mouths: [0, 0], sides: [[0, 0], [0, 0]] };
 }
 
+/** 1 for each circuit segment a junction patch covers: the circuit's own strip, curbs and posts stop there. */
+export function ring_mouths(data: RoadData, junctions: Junctions): Uint8Array {
+  const { road, graph } = data;
+  const n = road.length;
+  const inside = new Uint8Array(n);
+  for (const [id, at] of junctions.ring_at) {
+    const { mouths } = junctions.trims.get(id) ?? untrimmed();
+    const { points, closed } = graph.edges[id];
+    const end = closed ? points.length : points.length - 1;
+    for (let k = 0; k < mouths[0]; k++) inside[(at + k) % n] = 1;
+    for (let k = 1; k <= mouths[1]; k++) inside[(at + end - k) % n] = 1;
+  }
+  return inside;
+}
+
 export function road_layers(data: RoadData, heights: Float32Array, tones: RoadTones): Roads {
   const out = new Roads(heights);
   const { road, graph, circuit } = data;
   const n = road.length;
   const spurs = spur_edges(graph, circuit);
-  const { patched, loose, trims, ring_at } = road_junctions(data);
+  const junctions = road_junctions(data);
+  const { patched, loose, trims } = junctions;
   const trim = (id: number): Trim => trims.get(id) ?? untrimmed();
   for (const { x, z, arms, patch } of patched) {
     const chunk = chunk_of(x, z);
@@ -162,14 +180,7 @@ export function road_layers(data: RoadData, heights: Float32Array, tones: RoadTo
     }
   }
 
-  const inside = new Uint8Array(n);
-  for (const [id, at] of ring_at) {
-    const { mouths } = trim(id);
-    const { points, closed } = graph.edges[id];
-    const end = closed ? points.length : points.length - 1;
-    for (let k = 0; k < mouths[0]; k++) inside[(at + k) % n] = 1;
-    for (let k = 1; k <= mouths[1]; k++) inside[(at + end - k) % n] = 1;
-  }
+  const inside = ring_mouths(data, junctions);
   const open = (s: number) => !inside[s];
   const clear_of_mouths = (s: number) => open(s) && loose.every((m) => Math.abs(((s - m + n * 1.5) % n) - n / 2) > MOUTH_CLEAR);
   out.strip(out.surface, road, true, -ROAD_HALF, ROAD_HALF, RING_LIFT, open, tones.asphalt);
@@ -187,11 +198,11 @@ export function road_layers(data: RoadData, heights: Float32Array, tones: RoadTo
     }
   };
   for (const edge of graph.edges) {
-    if (ring_at.has(edge.id)) continue;
+    if (junctions.ring_at.has(edge.id)) continue;
     const { points, half } = edge;
     const last = points.length - 1;
     const { mouths, sides } = trim(edge.id);
-    if (edge.kind === "highway") {
+    if (edge.kind !== "street") {
       const from = mouths[0] || SPUR_MARK_CLEAR + 1;
       const to = last - (mouths[1] || SPUR_MARK_CLEAR);
       const marked = (s: number) => s >= from && s < to;

@@ -52,6 +52,7 @@ function check(seed: number, data: WorldData, fail: (what: string) => void) {
   const h = data.terrain.heights;
   const { edges, nodes } = data.graph;
   const spurs = spur_edges(data.graph, data.circuit);
+  const ring_nodes = new Set(data.circuit.flatMap((id) => [edges[id].a, edges[id].b]));
 
   for (const spur of spurs) {
     const p = spur.points;
@@ -60,14 +61,17 @@ function check(seed: number, data: WorldData, fail: (what: string) => void) {
     let worst = 0;
     for (let i = GRADE_RUN; i < p.length; i++) worst = Math.max(worst, Math.abs(p[i].y - p[i - GRADE_RUN].y) / (along[i] - along[i - GRADE_RUN]));
     if (worst > SPUR_GRADE) fail(`spur ${spur.id} grade ${(worst * 100).toFixed(0)}%`);
-    const gate = nodes[spur.a];
-    if (Math.abs(p[0].y - gate.y) > 0.01) fail(`spur ${spur.id} starts ${(p[0].y - gate.y).toFixed(2)} m off its gate`);
-    const end = p[p.length - 1];
-    const back = p[p.length - 1 - Math.round(APPROACH / 4)];
-    const ring = data.road.reduce((best, q) => (Math.hypot(q.x - end.x, q.z - end.z) < Math.hypot(best.x - end.x, best.z - end.z) ? q : best));
-    const dx = end.x - back.x;
-    const dz = end.z - back.z;
-    if (Math.abs(dx * ring.tx + dz * ring.tz) / Math.hypot(dx, dz) > T_ANGLE) fail(`spur ${spur.id} meets the ring at a shallow angle`);
+    for (const [node, end, back] of [
+      [nodes[spur.a], p[0], p[Math.round(APPROACH / 4)]],
+      [nodes[spur.b], p[p.length - 1], p[p.length - 1 - Math.round(APPROACH / 4)]],
+    ] as const) {
+      if (Math.abs(end.y - node.y) > 0.01) fail(`spur ${spur.id} ends ${(end.y - node.y).toFixed(2)} m off its node`);
+      if (!ring_nodes.has(node.id)) continue;
+      const ring = data.road.reduce((best, q) => (Math.hypot(q.x - end.x, q.z - end.z) < Math.hypot(best.x - end.x, best.z - end.z) ? q : best));
+      const dx = end.x - back.x;
+      const dz = end.z - back.z;
+      if (Math.abs(dx * ring.tx + dz * ring.tz) / Math.hypot(dx, dz) > T_ANGLE) fail(`spur ${spur.id} meets the ring at a shallow angle`);
+    }
     for (const other of edges) {
       const on_circuit = data.circuit.includes(other.id);
       if (other === spur || (!on_circuit && [other.a, other.b].some((n) => n === spur.a || n === spur.b))) continue;

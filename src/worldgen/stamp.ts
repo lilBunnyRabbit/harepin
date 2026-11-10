@@ -53,8 +53,9 @@ export class Stamp {
       }
   }
 
-  // Edges stamp in priority order (circuit, streets, spurs). A later edge never takes height over another edge's flat
-  // band, so a spur meeting the sloped circuit merges into its surface instead of cutting a step across it.
+  // Edges stamp in priority order (circuit, streets, spurs, roads between towns). A later edge never takes height over
+  // another edge's flat band, so a spur meeting the sloped circuit merges into its surface instead of cutting a step
+  // across it.
   edge(edge: RoadEdge) {
     const { road_dist } = this.terrain;
     const { points, half } = edge;
@@ -87,6 +88,21 @@ export class Stamp {
           }
         }
     }
+  }
+
+  // Fillets reach past every arm's surface, so their asphalt would grip like grass. The ground there already lies within
+  // FLAT of an arm, so the arms' blend has levelled it.
+  junction(outline: readonly { x: number; z: number }[]) {
+    const { road_dist } = this.terrain;
+    const xs = outline.map((p) => p.x);
+    const zs = outline.map((p) => p.z);
+    const [i0, i1] = cell_range(Math.min(...xs), Math.max(...xs));
+    const [j0, j1] = cell_range(Math.min(...zs), Math.max(...zs));
+    for (let j = j0; j <= j1; j++)
+      for (let i = i0; i <= i1; i++) {
+        const k = vertex(i, j);
+        if (road_dist[k] > ROAD_HALF && within(outline, ORIGIN + i * CELL, ORIGIN + j * CELL)) road_dist[k] = ROAD_HALF;
+      }
   }
 
   blend() {
@@ -139,4 +155,14 @@ export class Stamp {
       if (dist[k] <= TRAIL_HALF + DIRT_MARGIN) surface[k] = DIRT;
     }
   }
+}
+
+function within(outline: readonly { x: number; z: number }[], x: number, z: number): boolean {
+  let inside = false;
+  for (let a = 0, b = outline.length - 1; a < outline.length; b = a++) {
+    const p = outline[a];
+    const q = outline[b];
+    if (p.z > z !== q.z > z && x < ((q.x - p.x) * (z - p.z)) / (q.z - p.z) + p.x) inside = !inside;
+  }
+  return inside;
 }

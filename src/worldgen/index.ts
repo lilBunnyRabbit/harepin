@@ -6,16 +6,18 @@ import { length } from "./noise";
 import { Lots } from "./lots";
 import { carve, plan_canyon } from "./canyon";
 import { split_circuit, type Join } from "./graph";
+import { link_towns, way_toward, ways } from "./links";
 import { loop_road } from "./path";
 import { circuit_route, offroad_routes, reverse_circuit, street_routes } from "./routes";
-import { join_candidates, Router, SHAPE_GRADE, spur_need, spur_points } from "./route";
+import { join_candidates, Router, SHAPE_GRADE, spur_need, spur_points, type Way } from "./route";
 import type { Path } from "./path";
 import { Stamp } from "./stamp";
+import { road_junctions } from "./road-layers";
 import { guard_rails, inside } from "./switchback";
 import { terrain } from "./terrain";
 import { plan_trails } from "./trails";
 import { place_towns, town_streets } from "./towns";
-import { CELL, ORIGIN, ROAD_HALF, SPAWN_INDEX, SPUR_HALF, type Checkpoint, type RoadEdge, type RoadNode, type Solid, type Tree, type WorldData } from "./types";
+import { CELL, ORIGIN, ROAD_HALF, SPAWN_INDEX, SPUR_HALF, type Checkpoint, type RoadEdge, type RoadGraph, type RoadNode, type Solid, type Tree, type WorldData } from "./types";
 
 const CHECKPOINTS = 12;
 const STACK_GATE = 5;
@@ -23,6 +25,12 @@ const STACK_GATE = 5;
 const STACK_JOIN = 20;
 /** A spur end further than this from its gate or junction height failed to fit the grade. */
 const PIN = 0.01;
+/** Circuit points a link keeps from a checkpoint, whose posts would stand in its mouth. */
+const CHECKPOINT_CLEAR = 15;
+/** Circuit points behind the start line, where the grid lines up, and past it, kept clear of crossings. */
+const GRID_BEHIND = 80;
+const GRID_AHEAD = 15;
+const CANYON_CLEAR = 30;
 
 // World generation uses only + - * / sqrt floor and integer ops, which IEEE 754 makes bit-exact on every engine, so
 // every discrete choice (towns, routes, lots, trees) comes out the same for every peer on the seed. Math.atan2 only
@@ -45,6 +53,7 @@ export function generate(seed: number): WorldData {
   if (canyon) carve(heights, canyon);
   const nodes: RoadNode[] = [];
   const edges: RoadEdge[] = [];
+  const graph: RoadGraph = { nodes, edges };
   const ring: RoadEdge = { id: 0, a: 0, b: 0, kind: "highway", half: ROAD_HALF, closed: true, points: road };
   nodes.push({ id: 0, x: road[0].x, z: road[0].z, y: road[0].y, kind: "junction" });
   edges.push(ring);
@@ -65,28 +74,44 @@ export function generate(seed: number): WorldData {
   lap("towns");
 
   const router = new Router(heights, road_dist, towns);
+  const on_stack = (j: number) => stack !== null && inside(stack, road[j].x, road[j].z, STACK_JOIN);
   const joins: Join[] = [];
   for (const town of towns) {
     const gate_id = gates.get(town.id);
     if (gate_id === undefined) continue;
     const gate = nodes[gate_id];
-    const on_stack = (j: number) => stack !== null && inside(stack, road[j].x, road[j].z, STACK_JOIN);
-    const tried: { path: Path; join: number; need: number; stacked: boolean }[] = [];
     const candidates = join_candidates(road, gate);
-    for (const join of [...candidates.filter((j) => !on_stack(j)), ...candidates.filter(on_stack)]) {
-      const path = router.route(gate, road[join], town);
-      if (!path) continue;
-      const need = spur_need(path, gate.y, road[join].y);
-      tried.push({ path, join, need, stacked: on_stack(join) });
-      if (need <= SHAPE_GRADE) break;
-    }
-    tried.sort((a, b) => Number(a.stacked) - Number(b.stacked) || a.need - b.need);
-    // The need estimate is conservative both ways near the limit, so the first spur whose ends stay pinned wins.
-    const pinned = (t: (typeof tried)[number]) => {
+    const pinned = (t: { path: Path; join: number }) => {
       const points = spur_points(t.path, heights, gate.y, road[t.join].y);
       return Math.abs(points[0].y - gate.y) < PIN && Math.abs(points[points.length - 1].y - road[t.join].y) < PIN;
     };
-    const best = tried.find((t) => t.need <= SHAPE_GRADE) ?? tried.find(pinned) ?? tried.reduce<(typeof tried)[number] | null>((b, t) => (!b || t.need < b.need ? t : b), null);
+    const pick = (leave: (join: number) => Way | null) => {
+      const tried: { path: Path; join: number; need: number; stacked: boolean }[] = [];
+      for (const join of [...candidates.filter((j) => !on_stack(j)), ...candidates.filter(on_stack)]) {
+        const way = leave(join);
+        const path = router.route(gate, road[join], town, way);
+        if (!path) continue;
+        const need = spur_need(path, gate.y, road[join].y);
+        tried.push({ path, join, need, stacked: on_stack(join) });
+        if (need <= SHAPE_GRADE) break;
+      }
+      tried.sort((a, b) => Number(a.stacked) - Number(b.stacked) || a.need - b.need);
+      // The need estimate is conservative both ways near the limit, so the first spur whose ends stay pinned wins.
+      return tried.find((t) => t.need <= SHAPE_GRADE) ?? tried.find(pinned) ?? tried.reduce<(typeof tried)[number] | null>((b, t) => (!b || t.need < b.need ? t : b), null);
+    };
+    // Leaving the gate square to its streets gets the gate a patch: the way toward each join first, then each free way.
+    // A spur that cannot hold the grade any of those ways leaves as it did before, overlapping the streets.
+    const leaving = [(join: number) => way_toward(graph, gate, town, road[join].x, road[join].z), ...ways(graph, gate, town).map((w) => () => w)];
+    let best = null;
+    for (const leave of leaving) {
+      const found = pick(leave);
+      best ??= found;
+      if (found && pinned(found)) {
+        best = found;
+        break;
+      }
+    }
+    if (best && !pinned(best)) best = pick(() => null) ?? best;
     if (!best) continue;
     router.claim(best.path);
     const target = road[best.join];
@@ -97,7 +122,18 @@ export function generate(seed: number): WorldData {
   }
   lap("highways");
 
-  for (const edge of edges) if (edge !== ring) stamp.edge(edge);
+  const n = road.length;
+  const checkpoint_at = Array.from({ length: CHECKPOINTS }, (_, i) => Math.floor((i / CHECKPOINTS) * n));
+  const keep = (at: number) =>
+    on_stack(at) || at < GRID_AHEAD || at >= n - GRID_BEHIND || checkpoint_at.some((c) => Math.min((at - c + n) % n, (c - at + n) % n) < CHECKPOINT_CLEAR);
+  // Roads between towns stay out of the canyon, where the trail's gap jump needs a clear run-up.
+  if (canyon) router.keep_off(canyon.points, canyon.floor + canyon.wall + CANYON_CLEAR);
+  link_towns({ graph, ring, road, towns, heights, router, joins, keep });
+  const circuit = split_circuit(graph, road, joins);
+  lap("links");
+
+  for (const edge of edges) if (!circuit.includes(edge.id)) stamp.edge(edge);
+  for (const { patch } of road_junctions({ road, graph, circuit }).patched) stamp.junction(patch.outline);
   stamp.blend();
   lap("stamp");
 
@@ -113,7 +149,7 @@ export function generate(seed: number): WorldData {
 
   const checkpoints: Checkpoint[] = [];
   for (let i = 0; i < CHECKPOINTS; i++) {
-    const p = road[Math.floor((i / CHECKPOINTS) * road.length)];
+    const p = road[checkpoint_at[i]];
     checkpoints.push({ x: p.x, y: p.y, z: p.z, heading: Math.atan2(p.tx, p.tz), index: i });
     for (const side of [-1, 1]) {
       const off = side * (ROAD_HALF + 1.7);
@@ -127,7 +163,7 @@ export function generate(seed: number): WorldData {
   marks.mast();
   marks.lighthouse();
   marks.turbines();
-  marks.arch(edges);
+  marks.arch(edges.filter((e) => !circuit.includes(e.id)));
   props.push(...marks.out.props);
   solids.push(...marks.out.solids);
   lap("landmarks");
@@ -159,8 +195,6 @@ export function generate(seed: number): WorldData {
   }
   lap("jumps");
 
-  const graph = { nodes, edges };
-  const circuit = split_circuit(graph, road, joins);
   const loop = circuit_route(road, checkpoints);
   const streets = street_routes(graph, circuit, towns, heights, jumps.ramps);
   jumps.items.push(...streets.items);

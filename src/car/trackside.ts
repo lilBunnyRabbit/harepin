@@ -3,6 +3,7 @@ import { merge, tint } from "./geometry";
 import { brand, color, tones } from "../theme/palette";
 import { ribbon } from "../render/scene";
 import { ROAD_HALF, World } from "../world/world";
+import { ring_mouths, road_junctions } from "../worldgen/road-layers";
 
 export interface Gate {
   group: THREE.Group;
@@ -42,20 +43,22 @@ function curvature(world: World, s: number): number {
   return Math.atan2(a.tx * b.tz - a.tz * b.tx, a.tx * b.tx + a.tz * b.tz);
 }
 
-const MOUTH_MARGIN = 3;
+/** Circuit samples past a patch's mouth still kept clear: a post there would stand on the curb's last bend. */
+const MOUTH_MARGIN = 2;
+/** Circuit samples either side of a junction too sharp for a patch, where the side road just overlaps the circuit. */
+const LOOSE_CLEAR = 7;
 
-// Ring samples where a spur leaves the loop; curbs and posts there would wall off the side road.
+// Ring samples a road leaves the loop across; curbs and posts there would wall off the side road.
 function mouths(world: World): Set<number> {
+  const n = world.road.length;
+  const junctions = road_junctions(world);
+  const inside = ring_mouths(world, junctions);
   const clear = new Set<number>();
-  for (const node of world.graph.nodes) {
-    if (node.kind !== "junction") continue;
-    const spurs = world.graph.edges.filter((e) => !world.circuit.includes(e.id) && (e.a === node.id || e.b === node.id));
-    if (!spurs.length) continue;
-    const reach = Math.max(...spurs.map((e) => e.half)) + MOUTH_MARGIN;
-    world.road.forEach((p, s) => {
-      if (Math.hypot(p.x - node.x, p.z - node.z) < reach + ROAD_HALF) clear.add(s);
-    });
-  }
+  const around = (s: number, reach: number) => {
+    for (let k = -reach; k <= reach; k++) clear.add((s + k + n) % n);
+  };
+  inside.forEach((v, s) => v && around(s, MOUTH_MARGIN));
+  for (const s of junctions.loose) around(s, LOOSE_CLEAR);
   return clear;
 }
 

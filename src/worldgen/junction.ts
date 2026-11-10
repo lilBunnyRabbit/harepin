@@ -50,6 +50,8 @@ const FILLET_TURN = 0.0698;
 const FILLET_MIN_STEPS = 4;
 /** Index slack for a setback that lands on a point: (4 + 4 cos 90°) / sin 90° comes out a hair over 4. */
 const SNAP = 1e-6;
+// A fillet end and the rim point it lands on come out a rounding apart; both kept make a sliver that faces nowhere.
+const SAME = 1e-6;
 
 type Corner = { kind: "walk" } | { kind: "taper" } | { kind: "fillet"; at_i: number; at_j: number; radius: number };
 
@@ -145,7 +147,7 @@ export function junction_patch(x: number, z: number, arms: readonly Arm[]): Patc
   const lines: RimPoint[][] = [];
   const push = (p: { x: number; z: number }, lift: number) => {
     const last = outline[outline.length - 1];
-    if (!last || last.x !== p.x || last.z !== p.z) outline.push({ x: p.x, z: p.z, lift });
+    if (!last || Math.abs(last.x - p.x) > SAME || Math.abs(last.z - p.z) > SAME) outline.push({ x: p.x, z: p.z, lift });
   };
   // Where the rim leaves each arm's side for the corner, as arc length: -1 side from the corner before, +1 side from the one after.
   const leave = (q: number, side: -1 | 1): number => {
@@ -172,8 +174,14 @@ export function junction_patch(x: number, z: number, arms: readonly Arm[]): Patc
     const j = order[(q + 1) % count];
     const next = arms[j];
     if (corner.kind === "walk") {
-      push(rim(arm, 0, 1), arm.lift);
-      push(rim(next, 0, -1), next.lift);
+      const p = rim(arm, 0, 1);
+      const r = rim(next, 0, -1);
+      // Straight through, both rims sit on one line across the node: keep the wider, so the narrower arm tapers out to it
+      // instead of the fan laying a triangle with no area.
+      const straight = Math.abs((p.x - x) * (r.z - z) - (p.z - z) * (r.x - x)) < SAME;
+      const wider = arm.half >= next.half;
+      if (!straight || wider) push(p, arm.lift);
+      if (!straight || !wider) push(r, next.lift);
     } else if (corner.kind === "fillet") {
       for (const p of fillet(arm, arc, next, arcs[j], corner)) push(p, arm.lift + (next.lift - arm.lift) * p.t);
     }
@@ -181,7 +189,7 @@ export function junction_patch(x: number, z: number, arms: readonly Arm[]): Patc
   }
   const first = outline[0];
   const last = outline[outline.length - 1];
-  if (first.x === last.x && first.z === last.z) outline.pop();
+  if (Math.abs(first.x - last.x) <= SAME && Math.abs(first.z - last.z) <= SAME) outline.pop();
   const minor = order.filter((i) => arms[i].rank < arms[top].rank);
   return { centre, outline, mouths, sides, lines, minor };
 }

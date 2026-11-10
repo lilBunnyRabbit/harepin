@@ -1,4 +1,4 @@
-import type { RoadEdge, RoadGraph, RoadPoint } from "./types";
+import type { RoadEdge, RoadGraph, RoadNode, RoadPoint } from "./types";
 
 export interface Join {
   node: number;
@@ -34,6 +34,19 @@ export function split_circuit(graph: RoadGraph, road: readonly RoadPoint[], join
   });
 }
 
+/** Every road off the circuit that is not a town street: spurs and the roads between towns. */
 export function spur_edges(graph: RoadGraph, circuit: readonly number[]): RoadEdge[] {
-  return graph.edges.filter((e) => e.kind === "highway" && !circuit.includes(e.id));
+  return graph.edges.filter((e) => e.kind !== "street" && !circuit.includes(e.id));
+}
+
+/** Splits an off-circuit edge at `point` (one of its own points, by identity) with a new junction node there. */
+export function split_edge(graph: RoadGraph, edge: RoadEdge, point: RoadPoint): number {
+  const at = edge.points.indexOf(point);
+  if (at <= 0 || at >= edge.points.length - 1) throw new Error(`edge ${edge.id} has no inner point to split at`);
+  const node: RoadNode = { id: graph.nodes.length, x: point.x, z: point.z, y: point.y, kind: "junction" };
+  graph.nodes.push(node);
+  graph.edges.push({ ...edge, id: graph.edges.length, a: node.id, points: edge.points.slice(at) });
+  edge.b = node.id;
+  edge.points = edge.points.slice(0, at + 1);
+  return node.id;
 }

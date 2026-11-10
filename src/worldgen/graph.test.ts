@@ -99,11 +99,12 @@ test.each(SEEDS)("seed %i: every edge ends on a node and the circuit is a cycle 
   expect_whole(graph);
   expect_cycle(graph, circuit, road);
   const degree = degrees(graph);
-  const spurs = spur_edges(graph, circuit);
-  expect(spurs.length).toBe(circuit.length);
-  for (const spur of spurs) {
-    expect(degree[spur.b]).toBe(3);
-    expect(circuit.filter((id) => graph.edges[id].a === spur.b || graph.edges[id].b === spur.b)).toHaveLength(2);
-    expect(degree[spur.a]).toBeGreaterThan(1);
+  const off = spur_edges(graph, circuit);
+  for (const id of circuit) {
+    const join = graph.edges[id].a;
+    expect(circuit.filter((c) => graph.edges[c].a === join || graph.edges[c].b === join)).toHaveLength(circuit.length > 1 ? 2 : 1);
+    const crossing = off.filter((e) => e.a === join || e.b === join).length;
+    expect(crossing === 1 || crossing === 2).toBe(true);
   }
+  for (const spur of off.filter((e) => e.kind === "highway")) expect(degree[spur.a]).toBeGreaterThan(1);
 });
