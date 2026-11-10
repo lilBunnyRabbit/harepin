@@ -1,7 +1,7 @@
 /// <reference types="bun" />
 import { expect, spyOn, test } from "bun:test";
 import { COUNTDOWN_MS, Lobby, lobby_routes, race_laps } from "./lobby";
-import { leader_of, type Net, type RaceEvent, type Remote } from "./net";
+import { leader_of, type Net, type RaceEvent, type Sender } from "./net";
 
 test("lobby routes: laps only on a closed route, the plausible lap from its length", () => {
   const routes = lobby_routes([
@@ -22,11 +22,11 @@ const MIN_LAP = ROUTES.get("circuit")?.min_lap ?? 0;
 
 class FakeNet {
   readonly name = "Me";
-  readonly remotes = new Map<string, Remote>();
+  readonly remotes = new Map<string, Sender>();
   readonly same_map = new Map<string, number>();
   readonly sent: RaceEvent[] = [];
   settling = false;
-  private readonly listeners = new Set<(event: RaceEvent, from: Remote) => void>();
+  private readonly listeners = new Set<(event: RaceEvent, from: Sender) => void>();
 
   constructor(readonly id: string) {}
 
@@ -34,27 +34,23 @@ class FakeNet {
     return leader_of(this.id, this.same_map.keys());
   }
 
-  peer(id: string, offset = 0): Remote {
-    const remote = { id, latest: { name: id }, snapshots: [], offset, seen: 0 } as unknown as Remote;
-    this.remotes.set(id, remote);
+  peer(id: string, offset = 0): Sender {
+    const sender = { id, name: id, offset };
+    this.remotes.set(id, sender);
     this.same_map.set(id, 0);
-    return remote;
+    return sender;
   }
 
   send_event(event: RaceEvent) {
     this.sent.push(event);
   }
 
-  display_name(remote: Remote): string {
-    return remote.latest.name;
-  }
-
-  on_event(fn: (event: RaceEvent, from: Remote) => void) {
+  on_event(fn: (event: RaceEvent, from: Sender) => void) {
     this.listeners.add(fn);
     return () => this.listeners.delete(fn);
   }
 
-  hear(event: RaceEvent, from: Remote) {
+  hear(event: RaceEvent, from: Sender) {
     for (const fn of this.listeners) fn(event, from);
   }
 }

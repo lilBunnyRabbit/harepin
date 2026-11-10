@@ -1,5 +1,5 @@
 import { add_race, placing, local_store, parse_race_record, read_json, write_json, type RaceRecord, type Store } from "./modes/track";
-import type { Net, RaceEvent, Remote } from "./net";
+import type { Net, RaceEvent, Sender } from "./net";
 import type { Route } from "./worldgen/types";
 
 export const COUNTDOWN_MS = 3000;
@@ -152,7 +152,7 @@ export class Lobby {
     this.on_start?.();
   }
 
-  private receive(event: RaceEvent, from: Remote) {
+  private receive(event: RaceEvent, from: Sender) {
     const now = performance.now();
     const { state } = this;
     switch (event.kind) {
@@ -171,7 +171,7 @@ export class Lobby {
         if (state.kind === "idle" || event.race !== state.race) return;
         const min_lap = this.routes.get(state.route)?.min_lap ?? Infinity;
         if (event.time < state.laps * min_lap || event.time > now - state.go + FINISH_SLACK_MS) return;
-        this.add({ id: from.id, name: this.net.display_name(from), time: event.time, you: false });
+        this.add({ id: from.id, name: from.name, time: event.time, you: false });
         if (state.kind === "done") state.until = Math.max(state.until, now + RESULTS_MS);
         break;
       }

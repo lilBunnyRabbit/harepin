@@ -30,7 +30,7 @@ export type CarState = {
 export type ChatMsg = { text: string; t: number };
 
 /**
- * `start_at` is in the sender's `performance.now()` clock; receivers shift it by their `Remote.offset`. `route` is a
+ * `start_at` is in the sender's `performance.now()` clock; receivers shift it by their `Sender.offset`. `route` is a
  * `Route.id`; peers that predate it send none and mean the circuit.
  */
 export type RaceEvent =
@@ -50,6 +50,20 @@ interface Foreign {
   seen: number;
 }
 
+interface Sighting {
+  name: string;
+  /** Same as `Remote.offset`, kept for peers past the car cap too. */
+  offset: number;
+  seen: number;
+}
+
+/** Who sent a race event: a peer on this map, with a display name and its clock offset (see `Remote.offset`). */
+export interface Sender {
+  id: string;
+  name: string;
+  offset: number;
+}
+
 export interface RoomLock {
   password: string;
   /** Typed into the unlock form to get in, so a handshake failure is this player's wrong guess, not an intruder's. */
@@ -65,6 +79,7 @@ export interface Remote {
 }
 
 const DELAY = 110;
+const OFFSET_DRIFT = 0.5;
 // Long enough for the room's players to show up, so a newcomer doesn't briefly announce a game it isn't hosting.
 const ELECT_MS = 5000;
 export const WRONG_PASSWORD = "wrong password";
@@ -187,8 +202,8 @@ export class Net {
   readonly remotes = new Map<string, Remote>();
   /** Peers in this room on another seed, by id: their seed and when they were last heard (performance.now ms). */
   readonly foreign = new Map<string, Foreign>();
-  /** Peers on this map, by id: when last heard (performance.now ms). Uncapped, unlike `remotes`, so every player elects the same leader. */
-  readonly same_map = new Map<string, number>();
+  /** Peers on this map, by id. Uncapped, unlike `remotes`, so every player elects the same leader and hears its race events. */
+  readonly same_map = new Map<string, Sighting>();
   status = "connecting";
   private readonly link: Link;
   private readonly cars: Channel<CarState>;
@@ -210,12 +225,13 @@ export class Net {
     private readonly lock: RoomLock | null = null,
     /** Map identity stamped as `w`: `world_id` of the world kind. */
     readonly world = WORLD_VERSION,
+    join = joinRoom,
   ) {
     this.name_ = clean_name(name);
     const password = lock?.password ?? null;
     let p2p: Room | null = null;
     try {
-      p2p = joinRoom({ appId: APP_ID, ...(password === null ? {} : { password }) }, room, {
+      p2p = join({ appId: APP_ID, ...(password === null ? {} : { password }) }, room, {
         onJoinError: ({ error }) => {
           this.status = join_error_status(lock, this.had_peer, this.peers, error) ?? this.status;
         },
@@ -292,10 +308,12 @@ export class Net {
     this.events.send(event);
   }
 
-  on_event(fn: (event: RaceEvent, from: Remote) => void): () => void {
-    return this.events.subscribe((event, sender) => {
-      const remote = this.remotes.get(sender);
-      if (remote) fn(event, remote);
+  on_event(fn: (event: RaceEvent, from: Sender) => void): () => void {
+    return this.events.subscribe((event, id) => {
+      const remote = this.remotes.get(id);
+      const sighting = this.same_map.get(id);
+      if (remote) fn(event, { id, name: this.display_name(remote), offset: remote.offset });
+      else if (sighting) fn(event, { id, name: this.label(id, sighting.name), offset: sighting.offset });
     });
   }
 
@@ -309,7 +327,9 @@ export class Net {
       return;
     }
     this.foreign.delete(state.id);
-    this.same_map.set(state.id, now);
+    const offset = now - state.t;
+    const sighting = this.same_map.get(state.id);
+    this.same_map.set(state.id, { name: state.name, offset: sighting ? Math.min(sighting.offset + OFFSET_DRIFT, offset) : offset, seen: now });
     let remote = this.remotes.get(state.id);
     if (remote && state.t - remote.latest.t < MIN_GAP_MS && remote.snapshots.length) return;
     if (!remote) {
@@ -319,7 +339,7 @@ export class Net {
     }
     if (state.t <= remote.latest.t && remote.snapshots.length) return;
     // Clock offset tracks the fastest delivery seen, drifting up slowly so a one-off lucky packet doesn't pin it.
-    remote.offset = Math.min(remote.offset + 0.5, now - state.t);
+    remote.offset = Math.min(remote.offset + OFFSET_DRIFT, now - state.t);
     remote.latest = state;
     remote.seen = now;
     remote.snapshots.push({ at: state.t, state });
@@ -330,7 +350,7 @@ export class Net {
     const now = performance.now();
     for (const [id, remote] of this.remotes) if (now - remote.seen > TIMEOUT) this.remotes.delete(id);
     for (const [id, { seen }] of this.foreign) if (now - seen > TIMEOUT) this.foreign.delete(id);
-    for (const [id, seen] of this.same_map) if (now - seen > TIMEOUT) this.same_map.delete(id);
+    for (const [id, { seen }] of this.same_map) if (now - seen > TIMEOUT) this.same_map.delete(id);
   }
 
   /** The map most of the room is on, counting this one; null when that is already this one, so two players never swap. */
