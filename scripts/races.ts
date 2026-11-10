@@ -14,6 +14,7 @@ for (const seed of SEEDS) {
   for (const route of world.routes) {
     if (KIND && route.kind !== KIND && route.id !== KIND) continue;
     const line = route.closed ? [...route.points, route.points[0]] : route.points;
+    const unplace = world.place(route.closure);
     const rows = Object.values(CARS).map((spec) => {
       const lap = autolap(world, spec, line, false);
       const done = lap.index >= line.length - 10 && !lap.flipped;
@@ -24,6 +25,7 @@ for (const seed of SEEDS) {
       }
       return `${spec.id} ${lap.t.toFixed(0)}s${done ? "" : ` STOPPED ${lap.index}/${line.length}`}${over ? " OVER PAR" : ""}${lap.offroad > 0 ? ` off ${lap.offroad.toFixed(1)}s` : ""}`;
     });
+    unplace();
     console.log(`seed ${seed} ${route.id}: ${(route.length / 1000).toFixed(2)} km, par ${(route.par_ms / 1000).toFixed(1)} s | ${rows.join(", ")}`);
   }
 }
