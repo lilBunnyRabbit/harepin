@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
-import { WorldKind } from "../types";
-import { generate_world, KINDS, kind_of_world, parse_kind, world_id, world_key } from "./kinds";
+import { WorldKind, parse_kind } from "../types";
+import { generate_world, KINDS, kind_of_world, world_id, world_key } from "./kinds";
 
 test("ids and keys match what saved records and older peers use", () => {
   expect(world_id(WorldKind.ISLAND)).toBe(6);

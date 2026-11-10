@@ -2,7 +2,8 @@ import * as THREE from "three";
 import { Audio } from "./audio/audio";
 import { ChaseCamera } from "./render/camera";
 import { Driver } from "./car/driver";
-import { Directory, LOBBY_ROOM, clean_room, load_lock } from "./net/directory";
+import { Directory, load_lock } from "./net/directory";
+import { LOBBY_ROOM, clean_room } from "./net/room-name";
 import { own_country } from "./net/country";
 import { Chat } from "./net/chat";
 import { Skids, Smoke } from "./render/effects";
@@ -50,7 +51,6 @@ import { AreaFade } from "./hud/area-fade";
 import { start_lobby } from "./modes/lobby-start";
 import { WORLDS } from "./worlds/worlds";
 import { world_id, world_key } from "./worldgen/kinds/kinds";
-import "./style.css";
 
 const params = new URLSearchParams(location.search);
 const room = clean_room(params.get("room")) ?? LOBBY_ROOM;
@@ -164,7 +164,7 @@ lobby.start();
 const hud = new Hud(world, race, net, room, lobby);
 const goal_toasts = new ToastQueue((text) => hud.toast(text), () => $("toast").dataset.shown !== undefined);
 goals.on_done = (goal) => goal_toasts.push(`Goal done: ${goal.title}`);
-const ghost = new Ghost(scene, world.seed, `harepin:ghost:${world_key(world.seed, kind)}`);
+const ghost = new Ghost(scene, world.seed, `harepin:ghost:${world_key(world.seed, kind)}`, world.routes.find((r) => r.id === "circuit")?.length);
 race.on_lap = (improved, first) => {
   goals.done(improved && !first ? GoalId.BEST : GoalId.LAP);
   ghost.finish(improved);

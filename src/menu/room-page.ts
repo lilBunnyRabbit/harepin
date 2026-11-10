@@ -1,5 +1,6 @@
-import { PASSWORD_LENGTH, ROOM_LENGTH, clean_password, clean_room, locked_name, save_lock } from "../net/directory";
-import { parse_seed } from "../net/net";
+import { PASSWORD_LENGTH, clean_password, locked_name, save_lock } from "../net/directory";
+import { ROOM_LENGTH, clean_room } from "../net/room-name";
+import { parse_seed } from "../net/seed";
 import { el } from "./setting-rows";
 import { world_query } from "../world/world-pick";
 import { MenuTab, type Menu, type MenuPage } from "./page";

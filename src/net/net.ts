@@ -7,6 +7,7 @@ import { clean_country } from "./country";
 import { TURN_SERVERS } from "./ice";
 import { READY_BURST, READY_GAP_MS, type ReadyMsg } from "./ready";
 import { WORLD_VERSION } from "../worldgen/types";
+import { MAX_SEED } from "./seed";
 
 export { RateLimit };
 
@@ -125,7 +126,6 @@ const ONLINE_BURST = 6;
 const ID_SUFFIX = 4;
 
 export const APP_ID = "lilbunnyrabbit-harepin";
-export const MAX_SEED = 0xffffffff;
 export const MAX_LAPS = 10;
 /**
  * Wire protocol of this build. Bump it when peers on different protocols can no longer play together. A peer that never
@@ -166,12 +166,6 @@ export function leader_of(self: string, ids: Iterable<string>): string {
   let leader = self;
   for (const id of ids) if (id < leader) leader = id;
   return leader;
-}
-
-export function parse_seed(raw: string | null): number | null {
-  if (raw === null || !/^\d{1,10}$/.test(raw)) return null;
-  const seed = Number(raw);
-  return seed <= MAX_SEED ? seed : null;
 }
 
 const laps_ok = (v: unknown): v is number => finite(v, MAX_LAPS) && Number.isInteger(v) && v >= 1;

@@ -1,8 +1,7 @@
 import { BUILD_KEY } from "./garage-builds";
 import { THEME_KEY } from "../theme/theme";
 import { DEFAULT_SETTINGS, parse_settings, type SettingKey, type SettingsState } from "./prefs";
-
-export const SETTINGS_KEY = "harepin:settings";
+import { SETTINGS_KEY } from "./saved-pick";
 
 export function read_saved(): SettingsState {
   try {

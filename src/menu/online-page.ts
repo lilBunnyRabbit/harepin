@@ -1,4 +1,5 @@
-import { DirectoryStatus, LOBBY_ROOM, type Server } from "../net/directory";
+import { DirectoryStatus, type Server } from "../net/directory";
+import { LOBBY_ROOM } from "../net/room-name";
 import { NETWORK_BLOCKED, TURNED_AWAY, WRONG_PASSWORD } from "../net/net";
 import { el, icon } from "./setting-rows";
 import { world_query } from "../world/world-pick";

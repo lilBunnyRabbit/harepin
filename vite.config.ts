@@ -91,6 +91,8 @@ export default defineConfig(({ mode }) => {
         },
       }),
     ],
-    build: { chunkSizeWarningLimit: 1200 },
+    // One stylesheet in the page head, as before the boot entry split the bundle: the HUD markup in index.html is styled
+    // from first paint instead of when the game chunk's CSS arrives.
+    build: { chunkSizeWarningLimit: 1200, cssCodeSplit: false },
   };
 });

@@ -1,14 +1,13 @@
 import { joinRoom, type Room } from "trystero";
-import { APP_ID, MAX_SEED, RateLimit, clean_name, type RoomLock, type RosterEntry } from "./net";
+import { APP_ID, RateLimit, clean_name, type RoomLock, type RosterEntry } from "./net";
+import { DIRECTORY_ROOM, ROOM_LENGTH, clean_room } from "./room-name";
+import { MAX_SEED } from "./seed";
 import { TURN_SERVERS } from "./ice";
 import { WorldKind } from "../worldgen/types";
 import { world_id } from "../worldgen/kinds/kinds";
 import { clean_country } from "./country";
 import { player_list, type Player } from "./players";
 
-export const DIRECTORY_ROOM = "harepin-directory";
-/** The open room a bare link lands in: free roam on whatever map the player picked. */
-export const LOBBY_ROOM = "lobby";
 const ANNOUNCE_MS = 3000;
 // About three missed announces, plus slack for a late timer in a background tab.
 const EXPIRE_MS = ANNOUNCE_MS * 3 + 1000;
@@ -18,7 +17,6 @@ const EMPTY_AFTER_MS = 12_000;
 const MAX_PEERS = 24;
 // Leaders watching for the HUD count take at most this many of those links, so players browsing the list always fit.
 const MAX_WATCHERS = 16;
-export const ROOM_LENGTH = 32;
 export const PASSWORD_LENGTH = 64;
 const MAX_PLAYERS = 64;
 // Keeps one announce well under MAX_RECEIVE_BYTES; a bigger game lists its first players and counts the rest.
@@ -70,13 +68,6 @@ export const DirectoryStatus = {
   OFFLINE: "offline",
 } as const;
 export type DirectoryStatus = (typeof DirectoryStatus)[keyof typeof DirectoryStatus];
-
-export function clean_room(raw: unknown): string | null {
-  if (typeof raw !== "string") return null;
-  const room = raw.trim();
-  if (!room || /\p{C}/u.test(room) || [...room].length > ROOM_LENGTH || room === DIRECTORY_ROOM) return null;
-  return room;
-}
 
 /** A locked room's name gets a code, so a plain room of the same name never meets its handshake. */
 export function locked_name(room: string): string {

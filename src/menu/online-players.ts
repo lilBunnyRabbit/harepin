@@ -1,4 +1,5 @@
-import { DirectoryStatus, LOBBY_ROOM } from "../net/directory";
+import { DirectoryStatus } from "../net/directory";
+import { LOBBY_ROOM } from "../net/room-name";
 import { country_name, flag } from "../net/country";
 import { ping_class, type Player } from "../net/players";
 import { el, icon } from "./setting-rows";

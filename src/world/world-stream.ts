@@ -4,6 +4,7 @@ import type { Tree } from "../worldgen/types";
 import type { WorldKind } from "../worldgen/types";
 import type { WorkerReply, WorkerRequest } from "../worldgen/worker";
 import { World } from "./world";
+import { WorldWorker, take_early } from "./world-worker";
 
 export interface ChunkListener {
   /** `trees` null on a compact world, whose trees came with its plan. */
@@ -27,7 +28,7 @@ export class WorldStream {
   private reach = 0;
 
   private constructor(
-    private readonly worker: Worker,
+    private readonly worker: WorldWorker,
     readonly world: World,
   ) {
     const { side } = world.tiles.ext;
@@ -39,26 +40,27 @@ export class WorldStream {
     };
   }
 
+  /** Takes over the boot entry's worker when it was started for this world, else starts one. */
   static open(seed: number, kind: WorldKind, tones: MeshTones): Promise<WorldStream> {
-    const worker = new Worker(new URL("../worldgen/worker.ts", import.meta.url), { type: "module" });
+    const worker = take_early(seed, kind) ?? WorldWorker.start(seed, kind);
+    worker.post({ type: "tones", tones });
     return new Promise((resolve, reject) => {
       let stream: WorldStream | null = null;
       const fail = (error: Error) => {
-        worker.terminate();
+        worker.stop();
         if (!stream) return reject(error);
         console.error(error);
         stream.world.tiles.fail(error);
       };
-      worker.addEventListener("message", (event: MessageEvent<WorkerReply>) => {
-        const reply = event.data;
+      worker.listen((event) => {
+        if (event.type === "error") return fail(new Error(`world worker: ${event.message}`));
+        const { reply } = event;
         if (reply.type === "plan") {
           stream = new WorldStream(worker, new World(seed, reply.data, []));
           resolve(stream);
         } else if (reply.type === "error") fail(new Error(`world worker: ${reply.message}`));
         else stream?.receive(reply);
       });
-      worker.addEventListener("error", (event) => fail(new Error(`world worker: ${event.message}`)));
-      worker.postMessage({ type: "gen", seed, kind, tones } satisfies WorkerRequest);
     });
   }
 
@@ -113,7 +115,7 @@ export class WorldStream {
   }
 
   private post(request: WorkerRequest) {
-    this.worker.postMessage(request);
+    this.worker.post(request);
   }
 
   private receive(reply: Extract<WorkerReply, { type: "chunk" }>) {

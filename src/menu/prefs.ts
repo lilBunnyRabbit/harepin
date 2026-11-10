@@ -1,8 +1,8 @@
 import { SteerMode } from "../car/car";
 import { DEFAULT_BINDINGS, parse_bindings, type Bindings } from "../hud/bindings";
 import { guide_seen_on_load, seen_flag } from "./guide-rules";
-import { clean_name, parse_seed } from "../net/net";
-import { is_kind } from "../worldgen/kinds/kinds";
+import { clean_name } from "../net/net";
+import { parse_last_seed, parse_last_world } from "./saved-pick";
 import type { WorldKind } from "../worldgen/types";
 
 export const QualityMode = {
@@ -137,8 +137,8 @@ const FIELDS: { [K in SettingKey]: Field<SettingsState[K]> } = {
   dash: one_of(Object.values(DashPlace), DashPlace.RIGHT),
   map: one_of(Object.values(MapView), MapView.FULL),
   show_country: flag(true),
-  last_world: { fallback: null, parse: (raw) => (is_kind(raw) ? raw : null) },
-  last_seed: { fallback: null, parse: (raw) => (typeof raw === "number" ? parse_seed(String(raw)) : null) },
+  last_world: { fallback: null, parse: parse_last_world },
+  last_seed: { fallback: null, parse: parse_last_seed },
   guide_seen: { fallback: false, parse: seen_flag },
   smooth_steer: flag(true),
 };

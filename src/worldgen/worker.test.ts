@@ -7,7 +7,7 @@ import { generate_world } from "./kinds/kinds";
 import { CHUNK, CHUNKS } from "./chunk-grid";
 import { slice_tiles, type Tile } from "./tiles";
 import { ORIGIN, SPAWN_INDEX, type WorldData } from "./types";
-import type { GenRequest, WorkerReply } from "./worker";
+import type { GenRequest, TonesRequest, WorkerReply } from "./worker";
 
 const SEED = 7;
 const TONES: MeshTones = {
@@ -37,7 +37,7 @@ interface Streamed {
   order: number[];
 }
 
-function from_worker(request: Omit<GenRequest, "type">): Promise<Streamed> {
+function from_worker({ tones, ...request }: Omit<GenRequest, "type"> & { tones: MeshTones }): Promise<Streamed> {
   const worker = new Worker(new URL("./worker.ts", import.meta.url), { type: "module" });
   const out: Partial<Streamed> & Omit<Streamed, "data"> = { chunks: [], tiles: [], order: [] };
   return new Promise((resolve, reject) => {
@@ -63,6 +63,7 @@ function from_worker(request: Omit<GenRequest, "type">): Promise<Streamed> {
       reject(new Error(event.message));
     });
     worker.postMessage({ type: "gen", ...request } satisfies GenRequest);
+    worker.postMessage({ type: "tones", tones } satisfies TonesRequest);
   });
 }
 

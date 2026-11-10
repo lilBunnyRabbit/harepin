@@ -1,7 +1,8 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import { RateLimit, WRONG_PASSWORD, clean_name, is_sdp_failure, leader_of, join_error_status, parse_seed, read_car, sanitize_chat, sanitize_event, sanitize_hello, sanitize_online, sanitize_ready, type CarState } from "./net";
+import { RateLimit, WRONG_PASSWORD, clean_name, is_sdp_failure, leader_of, join_error_status, read_car, sanitize_chat, sanitize_event, sanitize_hello, sanitize_online, sanitize_ready, type CarState } from "./net";
 import { encode_car } from "./car-packet";
+import { parse_seed } from "./seed";
 
 test("chat text is stripped of control characters, trimmed and capped", () => {
   expect(sanitize_chat({ text: "  hi\u0000​ there\n ", t: 1 })).toEqual({ text: "hi there", t: 1 });

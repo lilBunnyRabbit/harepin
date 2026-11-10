@@ -10,6 +10,11 @@ export interface GenRequest {
   type: "gen";
   seed: number;
   kind: WorldKind;
+}
+
+/** The plan needs no colours, so it starts before the page has read its theme; chunks wait for these. */
+export interface TonesRequest {
+  type: "tones";
   tones: MeshTones;
 }
 
@@ -25,7 +30,7 @@ export interface ChunkRequest {
   index: number;
 }
 
-export type WorkerRequest = GenRequest | FocusRequest | ChunkRequest;
+export type WorkerRequest = GenRequest | TonesRequest | FocusRequest | ChunkRequest;
 
 export type WorkerReply =
   /** Everything but the terrain grids, which arrive tile by tile. */
@@ -37,6 +42,8 @@ export type WorkerReply =
 
 let focus: [number, number] = [0, 0];
 let world: { ext: Extent; build: (index: number) => { tile: Tile; chunk: ChunkBuffers | null; planted: Planted | null } } | null = null;
+let plan: { data: WorldData; kind: WorldKind } | null = null;
+let tones: MeshTones | null = null;
 const left: number[] = [];
 let pumping = false;
 
@@ -60,12 +67,20 @@ function fail(error: unknown) {
   postMessage({ type: "error", message: error instanceof Error ? (error.stack ?? error.message) : String(error) } satisfies WorkerReply);
 }
 
-function open({ seed, kind, tones }: GenRequest) {
+function open({ seed, kind }: GenRequest) {
   const data = generate_world(seed, kind);
   const spawn = data.road.at(SPAWN_INDEX) ?? data.road[0];
   if (spawn) focus = [spawn.x, spawn.z];
   const empty = { heights: new Float32Array(0), road_dist: new Float32Array(0), surface: new Uint8Array(0) };
   postMessage({ type: "plan", data: { ...data, terrain: { ...data.terrain, ...empty }, ground: { ...data.ground, ops: [] } } } satisfies WorkerReply);
+  plan = { data, kind };
+  mesh();
+}
+
+function mesh() {
+  if (!plan || !tones) return;
+  const { data, kind } = plan;
+  plan = null;
   const ext = extent(KINDS[kind].size);
   if (!data.terrain.heights.length) world = { ext, build: streamed(data, ext, tones) };
   else {
@@ -105,6 +120,9 @@ addEventListener("message", (event: MessageEvent<WorkerRequest>) => {
     if (request.type === "focus") focus = [request.x, request.z];
     else if (request.type === "chunk") {
       left.push(request.index);
+    } else if (request.type === "tones") {
+      tones = request.tones;
+      mesh();
     } else open(request);
     pump().catch(fail);
   } catch (error) {

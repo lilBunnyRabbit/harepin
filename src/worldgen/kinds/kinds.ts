@@ -1,4 +1,4 @@
-import type { WorldData, WorldKind } from "../types";
+import { DEFAULT_KIND, type WorldData, type WorldKind } from "../types";
 import { desert } from "./desert";
 import { island } from "./island";
 import type { KindDef } from "./kind-def";
@@ -7,13 +7,6 @@ import { normal_levels, opts_code, parse_opts } from "./options";
 import { sky } from "./sky";
 
 export const KINDS: Record<WorldKind, KindDef> = { island, sky, desert, mainland };
-
-/** What a URL or save without a world, or with one this build doesn't know, drives. */
-export const DEFAULT_KIND: WorldKind = island.kind;
-
-export function is_kind(value: unknown): value is WorldKind {
-  return typeof value === "string" && Object.hasOwn(KINDS, value);
-}
 
 export function world_id(kind: WorldKind): number {
   return KINDS[kind].id;
@@ -34,10 +27,6 @@ export function clean_opts(kind: WorldKind, text: string | null | undefined): st
 export function levels_of(kind: WorldKind, opts: string): number[] {
   const { options } = KINDS[kind];
   return parse_opts(options, opts) ?? normal_levels(options);
-}
-
-export function parse_kind(text: string | null | undefined): WorldKind {
-  return is_kind(text) ? text : DEFAULT_KIND;
 }
 
 export function world_key(seed: number, kind: WorldKind = DEFAULT_KIND, opts = ""): string {

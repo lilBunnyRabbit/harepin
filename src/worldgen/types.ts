@@ -34,6 +34,16 @@ export const SKY_VERSION = 3;
 
 export const WorldKind = { ISLAND: "island", SKY: "sky", DESERT: "desert", MAINLAND: "mainland" } as const;
 export type WorldKind = (typeof WorldKind)[keyof typeof WorldKind];
+/** What a URL or save without a world, or with one this build doesn't know, drives. */
+export const DEFAULT_KIND: WorldKind = WorldKind.ISLAND;
+
+export function is_kind(value: unknown): value is WorldKind {
+  return typeof value === "string" && Object.values<string>(WorldKind).includes(value);
+}
+
+export function parse_kind(text: string | null | undefined): WorldKind {
+  return is_kind(text) ? text : DEFAULT_KIND;
+}
 
 export interface RoadPoint {
   x: number;
