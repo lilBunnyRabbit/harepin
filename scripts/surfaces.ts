@@ -24,7 +24,8 @@ const SURFACES: [string, number, number][] = [
 function flat(x: number, z: number): Ground {
   const grip = world.grip(x, z);
   const roll = world.roll(x, z);
-  return { height: () => 0, normal: (_x, _z, out) => out.set(0, 1, 0), grip: () => grip, roll: () => roll };
+  const dirt = world.dirt(x, z);
+  return { height: () => 0, normal: (_x, _z, out) => out.set(0, 1, 0), grip: () => grip, roll: () => roll, dirt: () => dirt };
 }
 
 function measure(tyres: number, ground: Ground): string {

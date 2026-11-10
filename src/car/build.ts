@@ -11,6 +11,9 @@ interface Derived {
   /** Metres the centre of mass sits lower in the body, from 0: wheel mounts and collision corners move up by it. */
   cog: number;
   nitro: number;
+  /** Tyre grip multipliers on dirt trails and on grass or verge, from 1. */
+  grip_dirt: number;
+  grip_grass: number;
 }
 
 export type Field = NumericField | keyof Derived;
@@ -74,9 +77,9 @@ export const SLOTS = {
       { name: "Street", blurb: "All-round, fine on dirt", mod: {} },
       { name: "Sport", blurb: "More grip, a bit worse on dirt", mod: { scale: { mu: 1.06 }, add: { offroad: -0.15 } }, look: { tyre: { width: 1.15, rim: 1.06 } } },
       { name: "Semi-slick", blurb: "Most grip, slides on dirt", mod: { scale: { mu: 1.12 }, add: { offroad: -0.6 } }, look: { tyre: { width: 1.32, rim: 1.12, band: "warning" } } },
-      { name: "Rally", blurb: "Less grip, strong on dirt", mod: { scale: { mu: 0.96 }, add: { offroad: 0.5 } }, look: { tyre: { width: 1.1, rim: 0.88, tread: 1 } } },
-      { name: "All-terrain", blurb: "A little less grip, good off road", mod: { scale: { mu: 0.98, roll_resist: 1.05 }, add: { offroad: 0.3 } }, look: { tyre: { width: 1.08, rim: 0.86, tread: 0.7 } } },
-      { name: "Mud-terrain", blurb: "Poor on tarmac, best on grass", mod: { scale: { mu: 0.88, roll_resist: 1.2 }, add: { offroad: 0.9 } }, look: { tyre: { width: 1.22, rim: 0.8, tread: 1.5 } } },
+      { name: "Rally", blurb: "Less grip, strong on dirt", mod: { scale: { mu: 0.96, grip_dirt: 1.12, grip_grass: 1.05 }, add: { offroad: 0.5 } }, look: { tyre: { width: 1.1, rim: 0.88, tread: 1 } } },
+      { name: "All-terrain", blurb: "A little less grip, good off road", mod: { scale: { mu: 0.98, roll_resist: 1.05, grip_dirt: 1.08, grip_grass: 1.03 }, add: { offroad: 0.3 } }, look: { tyre: { width: 1.08, rim: 0.86, tread: 0.7 } } },
+      { name: "Mud-terrain", blurb: "Poor on tarmac, best on grass", mod: { scale: { mu: 0.88, roll_resist: 1.2, grip_dirt: 1.12, grip_grass: 1.18 }, add: { offroad: 0.9 } }, look: { tyre: { width: 1.22, rim: 0.8, tread: 1.5 } } },
     ],
   },
   // The kits move the downforce forward of the centre of mass: the street kit's lip and short wing make a pointy car at
@@ -239,6 +242,8 @@ export function apply_build(base: CarSpec, build: Build): CarSpec {
   const spec = { ...base };
   for (const field of Object.keys(base) as (keyof CarSpec)[]) if (is_numeric(base, field)) spec[field] = at(field, base[field]);
   const cog = at("cog", 0);
+  const grip_dirt = at("grip_dirt", base.grip_dirt ?? 1);
+  const grip_grass = at("grip_grass", base.grip_grass ?? 1);
   const [ix, iy, iz] = base.inertia;
   return {
     ...spec,
@@ -247,6 +252,8 @@ export function apply_build(base: CarSpec, build: Build): CarSpec {
     wheel: { ...base.wheel, rest: at("rest", base.wheel.rest), mounts: base.wheel.mounts.map(([x, y, z]): Triple => [x, y + cog, z]) },
     corners: base.corners.map(([x, y, z]): Triple => [x, y + cog, z]),
     nitro: at("nitro", base.nitro ?? 0) || undefined,
+    grip_dirt: grip_dirt === 1 ? base.grip_dirt : grip_dirt,
+    grip_grass: grip_grass === 1 ? base.grip_grass : grip_grass,
   };
 }
 

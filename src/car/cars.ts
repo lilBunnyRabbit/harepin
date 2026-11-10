@@ -94,6 +94,9 @@ export interface CarSpec {
   sound: EngineSound;
   /** Boost seconds a full nitro tank holds; absent or 0 without one. */
   nitro?: number;
+  /** Tyre grip multipliers on a dirt trail and on any other ground off asphalt, on top of `offroad`; absent is 1. */
+  grip_dirt?: number;
+  grip_grass?: number;
 }
 
 export type CarId = BodyStyle;
