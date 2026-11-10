@@ -21,7 +21,7 @@ class GateHunt implements ModeRun {
   update(sim_dt: number, car: Driven): string | null {
     const { run, view, ctx } = this;
     const was = run.status;
-    const hit = run.update(sim_dt * 1000, car.pos.x, car.pos.z, car.vel.length());
+    const hit = run.update(sim_dt * 1000, car.pos.x, car.pos.z, car.vel.x, car.vel.z);
     if (hit >= 0) {
       view.found(hit);
       if (run.status !== HuntStatus.DONE) ctx.chime();

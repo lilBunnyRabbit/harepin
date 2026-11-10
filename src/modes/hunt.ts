@@ -168,11 +168,12 @@ export class HuntRun {
     return best;
   }
 
-  update(dt_ms: number, x: number, z: number, speed: number): number {
+  // Horizontal only: the car drops onto its spawn, and that fall would start the clock before the player drives.
+  update(dt_ms: number, x: number, z: number, vx: number, vz: number): number {
     if (this.status === HuntStatus.DONE) return -1;
     this.clock += dt_ms;
     if (this.status === HuntStatus.READY) {
-      if (speed <= MOVE_SPEED) return -1;
+      if (Math.hypot(vx, vz) <= MOVE_SPEED) return -1;
       this.status = HuntStatus.RUNNING;
       this.started = this.clock;
     }

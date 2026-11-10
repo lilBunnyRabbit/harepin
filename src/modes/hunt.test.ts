@@ -55,25 +55,35 @@ test("par follows the nearest-first tour and grows with the ladder", () => {
 test("run: clock starts on moving, gates count once, any order, done at the last", () => {
   const hunt = { level: HUNT_LEVELS[0], start: START, gates: [{ x: 100, z: 0 }, { x: -100, z: 0 }], par_ms: 30_000 };
   const run = new HuntRun(hunt);
-  expect(run.update(100, 0, 0, 0)).toBe(-1);
+  expect(run.update(100, 0, 0, 0, 0)).toBe(-1);
   expect(run.status).toBe(HuntStatus.READY);
-  run.update(100, 0, 0, 5);
+  run.update(100, 0, 0, 5, 0);
   expect(run.status).toBe(HuntStatus.RUNNING);
   expect(run.nearest(-50, 0)).toBe(1);
-  expect(run.update(1000, -100 + GATE_RADIUS - 0.5, 0, 20)).toBe(1);
-  expect(run.update(1000, -100, 0, 20)).toBe(-1);
+  expect(run.update(1000, -100 + GATE_RADIUS - 0.5, 0, 20, 0)).toBe(1);
+  expect(run.update(1000, -100, 0, 20, 0)).toBe(-1);
   expect(run.nearest(-100, 0)).toBe(0);
-  expect(run.update(1000, 100, 1, 20)).toBe(0);
+  expect(run.update(1000, 100, 1, 20, 0)).toBe(0);
   expect(run.status).toBe(HuntStatus.DONE);
   expect(run.elapsed()).toBe(3000);
   expect(run.stars()).toBe(3);
   expect(run.nearest(0, 0)).toBe(-1);
 });
 
+test("run: the drop onto the spawn does not start the clock", () => {
+  const hunt = { level: HUNT_LEVELS[0], start: START, gates: [{ x: 100, z: 0 }], par_ms: 30_000 };
+  const run = new HuntRun(hunt);
+  run.update(100, 0, 0, 0.1, -0.1);
+  expect(run.status).toBe(HuntStatus.READY);
+  expect(run.elapsed()).toBe(0);
+  run.update(100, 0, 0, 0, 3);
+  expect(run.status).toBe(HuntStatus.RUNNING);
+});
+
 test("stars against par", () => {
   const hunt = { level: HUNT_LEVELS[0], start: START, gates: [{ x: 100, z: 0 }], par_ms: 10_000 };
   const slow = new HuntRun(hunt);
-  slow.update(100, 0, 0, 5);
-  slow.update(13_000, 100, 0, 5);
+  slow.update(100, 0, 0, 5, 0);
+  slow.update(13_000, 100, 0, 5, 0);
   expect(slow.stars()).toBe(1);
 });
