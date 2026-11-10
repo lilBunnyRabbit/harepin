@@ -274,6 +274,8 @@ On the brief's assumption that `WORLD_LIMIT` forces a `PROTOCOL` bump: it doesn'
 
 ## 5. Open questions for the owner
 
+Decided 2026-11-10: all 12 recommendations accepted.
+
 | # | Question | Options | Recommendation |
 |---|---|---|---|
 | 1 | Is the big world a new kind or the island grown? | (a) New `mainland` kind beside the island. (b) Replace the island. | **(a)**: the island stays the fast phone and lobby map; mainland records start clean; the registry supports this (`kinds.ts:31`). |
