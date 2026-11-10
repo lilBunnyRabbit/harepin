@@ -117,14 +117,13 @@ class Atlas {
 
   constructor(
     readonly graph: RoadGraph,
+    circuit: readonly number[],
     towns: readonly Town[],
     private readonly ramps: readonly Ramp[] = [],
   ) {
-    const ring = graph.edges.find((e) => e.closed);
     const town_of = (x: number, z: number) => towns.find((t) => length(t.x - x, t.z - z) <= t.radius + 1);
-    const junctions: { node: number; at: number }[] = [];
     for (const edge of graph.edges) {
-      if (edge.closed) continue;
+      if (circuit.includes(edge.id)) continue;
       if (edge.kind === "street") {
         this.add(edge.a, edge.b, "street", edge.points);
         const town = town_of(edge.points[0].x, edge.points[0].z);
@@ -138,24 +137,12 @@ class Atlas {
       const gate = graph.nodes[edge.a];
       const town = town_of(gate.x, gate.z);
       if (town) this.gates.set(town.id, edge.a);
-      if (!ring) continue;
-      const end = graph.nodes[edge.b];
-      let at = 0;
-      ring.points.forEach((p, i) => {
-        const best = ring.points[at];
-        if ((p.x - end.x) ** 2 + (p.z - end.z) ** 2 < (best.x - end.x) ** 2 + (best.z - end.z) ** 2) at = i;
-      });
-      junctions.push({ node: edge.b, at });
     }
-    if (!ring || junctions.length < 2) return;
-    junctions.sort((a, b) => a.at - b.at || a.node - b.node);
-    const n = ring.points.length;
-    junctions.forEach((j, k) => {
-      const next = junctions[(k + 1) % junctions.length];
-      const span = (next.at - j.at + n) % n;
-      const points = Array.from({ length: span + 1 }, (_, i) => ring.points[(j.at + i) % n]);
-      this.add(j.node, next.node, "ring", points, this.kicked(points));
-    });
+    // A circuit with one join stays a closed loop on it: no leg leads anywhere new.
+    for (const id of circuit) {
+      const leg = graph.edges[id];
+      if (!leg.closed) this.add(leg.a, leg.b, "ring", leg.points, this.kicked(leg.points));
+    }
   }
 
   // A road kicker is a wall from behind: the circuit past one is one way.
@@ -276,8 +263,8 @@ function cone(heights: Float32Array, x: number, z: number, fx: number, fz: numbe
  * Point to point through two towns: from the far side of town A out along its spur, round the circuit, and in to the far
  * side of town B. Side streets the routes pass get a cone row and every corner an apex cone.
  */
-export function street_routes(graph: RoadGraph, towns: readonly Town[], heights: Float32Array, ramps: readonly Ramp[] = []): { routes: Route[]; items: Item[] } {
-  const atlas = new Atlas(graph, towns, ramps);
+export function street_routes(graph: RoadGraph, circuit: readonly number[], towns: readonly Town[], heights: Float32Array, ramps: readonly Ramp[] = []): { routes: Route[]; items: Item[] } {
+  const atlas = new Atlas(graph, circuit, towns, ramps);
   const candidates: Candidate[] = [];
   const linked = towns.filter((t) => atlas.gates.has(t.id) && (atlas.town_nodes.get(t.id)?.length ?? 0) > 1);
   for (const a of linked)

@@ -9,7 +9,9 @@ function island(solids: Solid[] = []): HuntGround {
   return {
     height: (x, z) => (Math.hypot(x, z) > 700 ? -2 : 5),
     distance_to_road: (x, z) => Math.min(Math.abs(z), Math.abs(x)),
-    graph: { edges: [{ points }, { points: cross }] },
+    road: points,
+    circuit: [0],
+    graph: { edges: [{ id: 0, points }, { id: 1, points: cross }] },
     solids,
   };
 }

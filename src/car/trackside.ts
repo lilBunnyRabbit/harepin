@@ -49,7 +49,7 @@ function mouths(world: World): Set<number> {
   const clear = new Set<number>();
   for (const node of world.graph.nodes) {
     if (node.kind !== "junction") continue;
-    const spurs = world.graph.edges.filter((e) => !e.closed && (e.a === node.id || e.b === node.id));
+    const spurs = world.graph.edges.filter((e) => !world.circuit.includes(e.id) && (e.a === node.id || e.b === node.id));
     if (!spurs.length) continue;
     const reach = Math.max(...spurs.map((e) => e.half)) + MOUTH_MARGIN;
     world.road.forEach((p, s) => {

@@ -45,7 +45,10 @@ export interface Point {
 export interface HuntGround {
   height(x: number, z: number): number;
   distance_to_road(x: number, z: number): number;
-  readonly graph: { readonly edges: readonly { readonly points: readonly Point[] }[] };
+  /** The circuit, whose edges in `graph` are listed in `circuit`. */
+  readonly road: readonly Point[];
+  readonly circuit: readonly number[];
+  readonly graph: { readonly edges: readonly { readonly id: number; readonly points: readonly Point[] }[] };
   readonly solids: readonly Solid[];
 }
 
@@ -102,9 +105,10 @@ export function build_hunt(seed: number, ground: HuntGround, start: Point, level
   const within = (p: Point) => !far(p, start, level.spread) && far(p, start, NEAR_START);
   const solids = ground.solids.filter((s) => !far(s, start, level.spread + SOLID_CLEAR * 4));
   const roads: Point[] = [];
-  for (const edge of ground.graph.edges)
-    for (let i = 0; i < edge.points.length; i += ROAD_STRIDE) {
-      const p = edge.points[i];
+  const lines = [ground.road, ...ground.graph.edges.filter((e) => !ground.circuit.includes(e.id)).map((e) => e.points)];
+  for (const points of lines)
+    for (let i = 0; i < points.length; i += ROAD_STRIDE) {
+      const p = points[i];
       if (within(p) && drivable(ground, p)) roads.push({ x: p.x, z: p.z });
     }
   const wild_count = Math.round(level.gates * level.wild);

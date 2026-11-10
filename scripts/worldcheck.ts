@@ -2,6 +2,7 @@ import { build_chunks, JITTER_LEVELS, TERRAIN_BASES, type MeshTones } from "../s
 import { sample } from "../src/worldgen/field";
 import { BYPASS, challenge_outer, challenge_pieces, DECK_DRIFT, face_end, flight, GATE_CLEAR, ITEMS, ramp_local, ramp_world, RUN_DRIFT } from "../src/worldgen/jumps";
 import { seed_of } from "../src/rng";
+import { spur_edges } from "../src/worldgen/graph";
 import { generate } from "../src/worldgen/index";
 import { APPROACH } from "../src/worldgen/route";
 import { SPAWN_INDEX, SPUR_GRADE, ROAD_HALF, type Challenge, type Ramp, type RoadEdge, type RoadPoint, type Solid, type WorldData } from "../src/worldgen/types";
@@ -50,7 +51,7 @@ function local(frame: { x: number; z: number; fx: number; fz: number }, lx: numb
 function check(seed: number, data: WorldData, fail: (what: string) => void) {
   const h = data.terrain.heights;
   const { edges, nodes } = data.graph;
-  const spurs = edges.filter((e) => e.kind === "highway" && !e.closed);
+  const spurs = spur_edges(data.graph, data.circuit);
 
   for (const spur of spurs) {
     const p = spur.points;
@@ -68,8 +69,9 @@ function check(seed: number, data: WorldData, fail: (what: string) => void) {
     const dz = end.z - back.z;
     if (Math.abs(dx * ring.tx + dz * ring.tz) / Math.hypot(dx, dz) > T_ANGLE) fail(`spur ${spur.id} meets the ring at a shallow angle`);
     for (const other of edges) {
-      if (other === spur || [other.a, other.b].some((n) => n === spur.a || n === spur.b)) continue;
-      if (crossing(spur, other)) fail(`spur ${spur.id} crosses ${other.closed ? "the ring" : `edge ${other.id}`} without a junction`);
+      const on_circuit = data.circuit.includes(other.id);
+      if (other === spur || (!on_circuit && [other.a, other.b].some((n) => n === spur.a || n === spur.b))) continue;
+      if (crossing(spur, other)) fail(`spur ${spur.id} crosses ${on_circuit ? "the ring" : `edge ${other.id}`} without a junction`);
     }
   }
 
@@ -271,7 +273,7 @@ for (const seed of SEEDS) {
   }
   for (const [stage, stage_ms] of data.timings) stages.set(stage, Math.max(stages.get(stage) ?? 0, stage_ms));
   towns += data.towns.length;
-  linked += data.graph.edges.filter((e) => e.kind === "highway" && !e.closed).length;
+  linked += spur_edges(data.graph, data.circuit).length;
   lots += data.lots.length;
   buildings += data.buildings.length;
   check(seed, data, (what) => failures.push({ seed, what }));

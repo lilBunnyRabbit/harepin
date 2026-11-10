@@ -160,7 +160,9 @@ export class World implements Ground {
   private readonly solid_grid = new Map<number, number[]>();
   private readonly nearby: Solid[] = [];
   private readonly road_grid = new Map<number, number[]>();
-  /** Every edge's points, packed as edge * LANE_PACK + point index. */
+  /** Lane 0 is the circuit as `road`, then every other edge at its id + 1, then the trails. */
+  private readonly lanes: readonly (readonly RoadPoint[])[];
+  /** Every lane's points, packed as lane * LANE_PACK + point index. */
   private readonly lane_grid = new Map<number, number[]>();
   /** Solids a mode puts down for a while; few enough to check every one, so they stay out of the grid. */
   private placed: readonly Solid[] = [];
@@ -210,19 +212,12 @@ export class World implements Ground {
       if (list) list.push(index);
       else this.road_grid.set(key, [index]);
     });
-    for (const edge of this.graph.edges)
-      edge.points.forEach((p, index) => {
+    this.lanes = [this.road, ...this.graph.edges.map((e) => (this.circuit.includes(e.id) ? [] : e.points)), ...this.trails.map((t) => t.points)];
+    this.lanes.forEach((points, lane) =>
+      points.forEach((p, index) => {
         const key = grid_key(Math.floor(p.x / ROAD_CELL), Math.floor(p.z / ROAD_CELL));
         const list = this.lane_grid.get(key);
-        const packed = edge.id * LANE_PACK + index;
-        if (list) list.push(packed);
-        else this.lane_grid.set(key, [packed]);
-      });
-    this.trails.forEach((trail, t) =>
-      trail.points.forEach((p, index) => {
-        const key = grid_key(Math.floor(p.x / ROAD_CELL), Math.floor(p.z / ROAD_CELL));
-        const list = this.lane_grid.get(key);
-        const packed = (this.graph.edges.length + t) * LANE_PACK + index;
+        const packed = lane * LANE_PACK + index;
         if (list) list.push(packed);
         else this.lane_grid.set(key, [packed]);
       }),
@@ -314,15 +309,15 @@ export class World implements Ground {
 
   /** Where a reset puts the car: the nearest point of any road (circuit, spur or street) or trail, facing along it the way `fx, fz` points. */
   spawn_near(x: number, z: number, fx: number, fz: number): Spawn {
-    const edges = this.graph.edges.length;
+    const first_trail = this.graph.edges.length + 1;
     const lane = (packed: number) => Math.floor(packed / LANE_PACK);
-    const point = (packed: number) => (lane(packed) < edges ? this.graph.edges[lane(packed)].points : this.trails[lane(packed) - edges].points)[packed % LANE_PACK];
+    const point = (packed: number) => this.lanes[lane(packed)][packed % LANE_PACK];
     const packed = nearest(this.lane_grid, x, z, point);
     let p = packed < 0 ? this.road[0] : point(packed);
     const back = fx * p.tx + fz * p.tz < 0;
-    if (packed >= 0 && this.circuit.includes(lane(packed))) p = this.road[this.clear_spawn(packed % LANE_PACK, back ? -1 : 1)];
-    else if (packed >= 0 && lane(packed) >= edges) {
-      const { points, blocked } = this.trails[lane(packed) - edges];
+    if (packed >= 0 && lane(packed) === 0) p = this.road[this.clear_spawn(packed % LANE_PACK, back ? -1 : 1)];
+    else if (packed >= 0 && lane(packed) >= first_trail) {
+      const { points, blocked } = this.trails[lane(packed) - first_trail];
       let i = packed % LANE_PACK;
       // Back before the gap's run-up, whichever way the car faces: ahead of it is the jump or the deck.
       while (i > 0 && blocked[i]) i--;

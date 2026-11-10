@@ -92,7 +92,7 @@ for (const seed of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]) {
   );
   const stages = world.timings.map(([stage, ms]) => `${stage} ${ms.toFixed(0)}`).join(", ");
   const streets = world.graph.edges.filter((e) => e.kind === "street").length;
-  const spurs = world.graph.edges.length - streets - 1;
+  const spurs = world.graph.edges.length - streets - world.circuit.length;
   console.log(
     `  stages ms: ${stages} | towns ${world.towns.length}, streets ${streets}, spurs ${spurs}, lots ${world.lots.length}, buildings ${world.buildings.length}, parking ${world.parking.length}, lights ${world.props.filter((p) => p.kind === "street_light").length}, landmarks ${world.props.filter((p) => p.kind !== "street_light").map((p) => p.kind).join(" ")}, solids ${world.solids.length}`,
   );

@@ -6,6 +6,7 @@ import { roof_rise } from "./lots";
 import { Builder, bounding_sphere, turned, type Rgb, type Sphere } from "./mesh";
 import { deck_layers, type DeckTones } from "./sky-mesh";
 import { fbm, hash } from "./noise";
+import { spur_edges } from "./graph";
 import { CELL, DIRT, N, ORIGIN, PropKind, ROAD_HALF, Roof, SIDEWALK, SIZE, type RoadPoint, type WorldData } from "./types";
 
 export const CHUNK = 256;
@@ -340,9 +341,9 @@ function nearest_index(road: RoadPoint[], x: number, z: number): number {
 
 function road_layers(data: WorldData, tones: MeshTones): Roads {
   const out = new Roads(data.terrain.heights);
-  const { road, graph } = data;
+  const { road, graph, circuit } = data;
   const n = road.length;
-  const spurs = graph.edges.filter((e) => e.kind === "highway" && !e.closed);
+  const spurs = spur_edges(graph, circuit);
   const mouths = graph.nodes.filter((node) => node.kind === "junction" && spurs.some((e) => e.b === node.id)).map((node) => nearest_index(road, node.x, node.z));
   const clear_of_mouths = (s: number) => mouths.every((m) => Math.abs(((s - m + n * 1.5) % n) - n / 2) > MOUTH_CLEAR);
   out.strip(out.surface, road, true, -ROAD_HALF, ROAD_HALF, RING_LIFT, () => true, tones.asphalt);
@@ -360,7 +361,7 @@ function road_layers(data: WorldData, tones: MeshTones): Roads {
     }
   };
   for (const edge of graph.edges) {
-    if (edge.closed) continue;
+    if (circuit.includes(edge.id)) continue;
     const { points, half } = edge;
     const last = points.length - 1;
     if (edge.kind === "highway") {

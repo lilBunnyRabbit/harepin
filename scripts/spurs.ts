@@ -3,6 +3,7 @@ import { Car } from "../src/car/car";
 import { car_spec } from "../src/car/cars";
 import { seed_of } from "../src/rng";
 import { World } from "../src/world/world";
+import { spur_edges } from "../src/worldgen/graph";
 import type { RoadPoint } from "../src/worldgen/types";
 
 const DT = 1 / 360;
@@ -53,8 +54,7 @@ let failed = 0;
 let spurs = 0;
 for (const seed of SEEDS) {
   const world = new World(seed);
-  for (const edge of world.graph.edges) {
-    if (edge.kind !== "highway" || edge.closed) continue;
+  for (const edge of spur_edges(world.graph, world.circuit)) {
     spurs++;
     const run = drive(world, edge.points);
     const clean = run.done && !run.flipped && run.offroad < 0.5;

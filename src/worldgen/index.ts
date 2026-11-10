@@ -5,6 +5,7 @@ import { LandmarkPlanner } from "./landmarks";
 import { length } from "./noise";
 import { Lots } from "./lots";
 import { carve, plan_canyon } from "./canyon";
+import { split_circuit, type Join } from "./graph";
 import { loop_road } from "./path";
 import { circuit_route, offroad_routes, reverse_circuit, street_routes } from "./routes";
 import { join_candidates, Router, SHAPE_GRADE, spur_need, spur_points } from "./route";
@@ -64,6 +65,7 @@ export function generate(seed: number): WorldData {
   lap("towns");
 
   const router = new Router(heights, road_dist, towns);
+  const joins: Join[] = [];
   for (const town of towns) {
     const gate_id = gates.get(town.id);
     if (gate_id === undefined) continue;
@@ -90,6 +92,7 @@ export function generate(seed: number): WorldData {
     const target = road[best.join];
     const junction: RoadNode = { id: nodes.length, x: target.x, z: target.z, y: target.y, kind: "junction" };
     nodes.push(junction);
+    joins.push({ node: junction.id, at: best.join });
     edges.push({ id: edges.length, a: gate.id, b: junction.id, kind: "highway", half: SPUR_HALF, closed: false, points: spur_points(best.path, heights, gate.y, target.y) });
   }
   lap("highways");
@@ -156,12 +159,14 @@ export function generate(seed: number): WorldData {
   }
   lap("jumps");
 
-  const circuit = circuit_route(road, checkpoints);
-  const streets = street_routes({ nodes, edges }, towns, heights, jumps.ramps);
+  const graph = { nodes, edges };
+  const circuit = split_circuit(graph, road, joins);
+  const loop = circuit_route(road, checkpoints);
+  const streets = street_routes(graph, circuit, towns, heights, jumps.ramps);
   jumps.items.push(...streets.items);
-  const reverse = reverse_circuit(circuit, jumps.ramps);
+  const reverse = reverse_circuit(loop, jumps.ramps);
   const offroad = offroad_routes(trails.trails);
-  const routes = reverse ? [circuit, ...streets.routes, ...offroad, reverse] : [circuit, ...streets.routes, ...offroad];
+  const routes = reverse ? [loop, ...streets.routes, ...offroad, reverse] : [loop, ...streets.routes, ...offroad];
   lap("routes");
 
   const planted = plant(cuts, land, (x, z) => !lots.occupied[vertex(Math.round((x - ORIGIN) / CELL), Math.round((z - ORIGIN) / CELL))] && !towns.some((t) => length(t.x - x, t.z - z) < t.radius) && !jumps.blocks(x, z, 2) && !marks.blocks(x, z, 2));
@@ -169,5 +174,5 @@ export function generate(seed: number): WorldData {
   solids.push(...planted.solids);
   lap("props");
 
-  return { kind: "island", deck: null, terrain: land, graph: { nodes, edges }, towns, lots: lot_list, buildings, props, parking, trees, solids, ramps: jumps.ramps, items: jumps.items, challenges: jumps.challenges, checkpoints, circuit: [ring.id], road, routes, canyon, timings };
+  return { kind: "island", deck: null, terrain: land, graph, towns, lots: lot_list, buildings, props, parking, trees, solids, ramps: jumps.ramps, items: jumps.items, challenges: jumps.challenges, checkpoints, circuit, road, routes, canyon, timings };
 }
