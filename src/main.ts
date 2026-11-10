@@ -190,6 +190,8 @@ const settings = new Settings(document.body, {
   version_peers: () => ({ older: net.older_peers, newer: net.newer_peers }),
   garage_stage,
   show_garage: (on) => (on ? garage.open() : garage.close()),
+  car_code: () => garage.code,
+  use_car: (code) => garage.use_code(code),
   mode_list: () => modes.mode_list(),
   play_level: (id) => modes.play(id),
   mode_active: () => modes.active,

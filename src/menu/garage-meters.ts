@@ -2,7 +2,7 @@ import { DEFAULT_PARTS, STATS, build_spec, stat_range, stats, type Build, type S
 import { ease } from "./garage-stage";
 import { el } from "./setting-rows";
 
-const STAT_NAMES: Record<keyof Stats, string> = { power: "Power", grip: "Grip", braking: "Braking", top_speed: "Top speed" };
+export const STAT_NAMES: Record<keyof Stats, string> = { power: "Power", grip: "Grip", braking: "Braking", top_speed: "Top speed" };
 // An empty bar reads as broken, so the weakest car in the game still shows a sliver.
 const BAR_FLOOR = 0.08;
 const COUNT_MS = 450;
@@ -11,7 +11,7 @@ const bar_of = (key: keyof Stats, value: number) => {
   const { low, high } = stat_range();
   return BAR_FLOOR + (1 - BAR_FLOOR) * Math.max(0, Math.min(1, (value - low[key]) / (high[key] - low[key])));
 };
-const rating = (key: keyof Stats, value: number) => Math.round(bar_of(key, value) * 100);
+export const stat_rating = (key: keyof Stats, value: number) => Math.round(bar_of(key, value) * 100);
 const signed = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : "0");
 const trend = (n: number) => (n > 0 ? "up" : n < 0 ? "down" : "flat");
 
@@ -64,14 +64,14 @@ export class StatMeters {
       meter.ghost.style.left = `${lo * 100}%`;
       meter.ghost.style.width = `${Math.abs(b - a) * 100}%`;
       meter.stock.style.left = `${bar_of(key, stock[key]) * 100}%`;
-      const fitted = rating(key, now[key]);
-      const tried = rating(key, next[key]);
+      const fitted = stat_rating(key, now[key]);
+      const tried = stat_rating(key, next[key]);
       meter.ghost.dataset.trend = trend(tried - fitted);
       if (tried !== fitted) {
         meter.change.textContent = `→ ${tried}`;
         meter.change.dataset.trend = trend(tried - fitted);
       } else {
-        const against = fitted - rating(key, stock[key]);
+        const against = fitted - stat_rating(key, stock[key]);
         meter.change.textContent = against ? signed(against) : "";
         meter.change.dataset.trend = trend(against);
       }

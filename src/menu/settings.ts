@@ -123,6 +123,8 @@ export class Settings {
       name: () => this.host.name(),
       kind: host.kind,
       picture: (name) => picture(name),
+      car_code: () => host.car_code(),
+      use_car: (code) => host.use_car(code),
       skip: () => this.end_guide(),
       drive: (kind) => {
         this.end_guide();

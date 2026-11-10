@@ -1,4 +1,7 @@
 import { SteerMode } from "../car/car";
+import { STATS, build_spec, parse_build, stats } from "../car/build";
+import { PRESETS as CAR_PRESETS } from "../car/presets";
+import { STAT_NAMES, stat_rating } from "./garage-meters";
 import { AidPreset, preset_aids, preset_of, random_name, rolled_name } from "./guide-rules";
 import { generate_theme } from "../theme/random-theme";
 import { el, icon } from "./setting-rows";
@@ -14,6 +17,7 @@ export const GUIDE_STEPS = [
   { id: "look", label: "Look", title: "Pick a look" },
   { id: "controls", label: "Controls", title: "How you drive" },
   { id: "help", label: "Help", title: "How much help?" },
+  { id: "car", label: "Car", title: "Pick a car" },
   { id: "tour", label: "What's here", title: "What's here" },
   { id: "drive", label: "Drive", title: "Ready to drive" },
 ] as const;
@@ -106,6 +110,8 @@ export interface GuideHost {
   state(): SettingsState;
   set<K extends SettingKey>(key: K, value: SettingsState[K]): void;
   name(): string;
+  car_code(): string;
+  use_car(code: string): void;
   readonly kind: WorldKind;
   picture(name: string): HTMLImageElement;
   skip(): void;
@@ -257,6 +263,8 @@ export class Guide {
         }[this.device];
       case "help":
         return "Aids keep the car tidy while you learn. Turn any of them off later.";
+      case "car":
+        return "A ready-made build to start in. Swap any part later in the Garage.";
       case "tour":
         return `Four things worth knowing. All of them live in this menu; ${menu} opens it while driving.`;
       case "drive":
@@ -478,6 +486,29 @@ export class Guide {
     const row = el("span", "guide-lights");
     for (const [key, label] of AID_LIGHTS) row.append(el("i", aids[key] ? "on" : "", label));
     return row;
+  }
+
+  private car(copy: HTMLElement) {
+    const fitted = this.host.car_code();
+    const cards = el("div", "guide-cars");
+    CAR_PRESETS.forEach(({ name, blurb, code }, at) => {
+      const build = parse_build(code);
+      if (!build) return;
+      const rated = stats(build_spec(build));
+      const card = pressed(button("guide-car"), code === fitted);
+      const head = el("span", "guide-car-head");
+      head.append(el("b", "", name));
+      if (at === 0) head.append(el("span", "guide-badge", "Recommended"));
+      const hint = STATS.filter((key) => key !== "braking").map((key) => `${STAT_NAMES[key]} ${stat_rating(key, rated[key])}`).join(" · ");
+      card.append(head, el("span", "guide-car-blurb", blurb), el("span", "guide-car-stats", hint));
+      card.addEventListener("click", () => {
+        this.host.use_car(code);
+        this.render();
+        this.panel.querySelector<HTMLElement>(`.guide-car[aria-pressed="true"]`)?.focus({ focusVisible: false });
+      });
+      cards.append(card);
+    });
+    copy.append(cards);
   }
 
   private tour(copy: HTMLElement) {

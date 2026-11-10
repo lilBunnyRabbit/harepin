@@ -63,6 +63,8 @@ export interface SettingsHost {
   /** The garage's own element: the Garage tab shows it, and `show_garage` starts and stops it with the tab. */
   readonly garage_stage: HTMLElement;
   show_garage(on: boolean): void;
+  car_code(): string;
+  use_car(code: string): void;
   mode_list(): ModeEntry[];
   play_level(id: string): void;
   mode_active(): boolean;
