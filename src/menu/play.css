@@ -59,6 +59,12 @@
   display: none;
 }
 
+@media (max-width: 599px) {
+  .world-legend .play-soon {
+    display: none;
+  }
+}
+
 .play-side {
   display: flex;
   flex-direction: column;
