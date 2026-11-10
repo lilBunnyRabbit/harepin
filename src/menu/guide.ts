@@ -99,8 +99,10 @@ const AID_LIGHTS = [
   ["auto", "Auto"],
 ] as const;
 
+const WORLD_NAMES = new Intl.ListFormat("en", { type: "disjunction" }).format(Object.values(WORLDS).map((w) => w.name));
+
 const TOUR: [string, string, string, string][] = [
-  ["island", "Two worlds", "Roam the Island or race Sky Track in the clouds. New map rolls a fresh island.", "Play"],
+  ["island", "Worlds", `Drive ${WORLD_NAMES}. New map rolls a fresh map of any of them.`, "Play"],
   ["icon-modes", "Modes", "Race, gymkhana, parking, drift, hunt, duel. Stars and best times for each.", "Play, Modes"],
   ["icon-paint", "Garage", "Switch cars, from a hatchback to a city bus. Swap engine, tyres and paint, save builds.", "Garage"],
   ["icon-share", "Friends", "Send a link and friends drive your map with you. Race the lobby.", "Online"],
