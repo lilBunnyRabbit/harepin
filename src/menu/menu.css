@@ -273,30 +273,6 @@
   min-height: 0;
 }
 
-.menu-mosaic[data-tab="play"] {
-  grid-template: "hero worlds worlds" 1fr "hero map modes" 1fr "goals goals goals" auto / 1.6fr 1fr 1fr;
-}
-
-/* Every world kind's tile shares one area, so a new kind adds no CSS. Too narrow for all of them, the row scrolls. */
-.menu-worlds {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(140px, 1fr);
-  gap: var(--space-4);
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  scrollbar-width: none;
-}
-
-.menu-worlds > * {
-  scroll-snap-align: start;
-}
-
-/* The world being driven comes first in the row, so its tag is on screen even when the row scrolls. */
-.menu-worlds > :has(.menu-tag) {
-  order: -1;
-}
-
 .menu-mosaic[data-tab="online"] {
   grid-template: "room race players" 1fr "new race games" 1fr / 1fr 1fr 1.15fr;
 }
@@ -318,39 +294,17 @@
   --tile-scrim: var(--background-lighter);
 }
 
-.settings button.menu-tile:hover,
-.menu-tile:has(> .menu-hit:hover) {
+.settings button.menu-tile:hover {
   border-color: var(--line-strong);
 }
 
-.settings button.menu-tile:active,
-.menu-tile:has(> .menu-hit:active) {
+.settings button.menu-tile:active {
   transform: scale(0.985);
 }
 
-.settings button.menu-tile:focus-visible,
-.settings .menu-hit:focus-visible {
+.settings button.menu-tile:focus-visible {
   outline: 3px solid var(--primary);
   outline-offset: 2px;
-}
-
-/* The hit area sits over the hero picture, so the global button fill (and its hover) must never paint. */
-.settings .menu-hit,
-.settings .menu-hit:hover {
-  background: none;
-  border: 0;
-}
-
-.settings .menu-hit {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  border-radius: inherit;
-}
-
-.menu-hit:focus-visible {
-  outline-offset: -3px;
 }
 
 .menu-art {
@@ -385,12 +339,6 @@
   width: clamp(28px, 28%, 56px);
   height: auto;
   aspect-ratio: 1;
-}
-
-.menu-split {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2px;
 }
 
 .menu-tile:has(img)::after {
@@ -452,73 +400,12 @@
   pointer-events: none;
 }
 
-[data-area="hero"] {
-  grid-area: hero;
-}
-
-[data-area="hero"] .menu-text {
-  padding: var(--space-6);
-}
-
-[data-area="hero"] .menu-text b {
-  font-size: 28px;
-}
-
-[data-area="hero"] .menu-text > span {
-  max-width: 48ch;
-  white-space: normal;
-}
-
-.menu-text .menu-go {
-  justify-self: start;
-  display: inline-flex;
-  align-items: center;
-  height: 40px;
-  margin-top: var(--space-3);
-  padding: 0 var(--space-5);
-  border-radius: var(--radius-md);
-  background: var(--primary);
-  color: var(--background-darkest);
-  font-size: var(--text-xl);
-  font-weight: 700;
-}
-
 :root[data-scheme="light"] .menu-go {
   border: 1px solid var(--primary);
   background: var(--set-raised);
   color: var(--foreground);
 }
 
-.settings .menu-corner {
-  position: absolute;
-  top: var(--space-3);
-  right: var(--space-3);
-  z-index: 2;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  height: var(--control-h);
-  padding: 0 var(--space-3);
-  border-radius: var(--radius-full);
-  border: 1px solid var(--set-line);
-  background: var(--set-panel);
-  font-size: var(--text-sm);
-  font-weight: 600;
-}
-
-.menu-corner svg {
-  flex: none;
-  width: 14px;
-  height: 14px;
-}
-
-.settings .menu-corner:hover {
-  border-color: var(--line-strong);
-}
-
-[data-area="worlds"] { grid-area: worlds; }
-[data-area="map"] { grid-area: map; }
-[data-area="modes"] { grid-area: modes; }
 [data-area="room"] { grid-area: room; }
 [data-area="games"] { grid-area: games; }
 [data-area="race"] { grid-area: race; }
@@ -585,7 +472,7 @@
     gap: var(--space-3);
   }
 
-  /* Tabs and the name / close bar share one row, so the first screen keeps the height for the hero and its Drive. */
+  /* Tabs and the name / close bar share one row, so the first screen keeps the height for the map and its Drive. */
   .settings[data-view="menu"] .settings-panel {
     grid-template: "tabs top" auto "body body" minmax(0, 1fr) / auto minmax(0, 1fr);
     column-gap: var(--space-3);
@@ -600,26 +487,11 @@
     justify-content: flex-end;
   }
 
-  /*
-   * The first two rows split what is left of the screen, minus a strip of the next row as a hint that more scrolls in;
-   * the rest scrolls instead of shrinking.
-   */
   .menu-mosaic {
-    --first-rows: max(120px, calc((100dvh - var(--inset-top) - var(--inset-bottom) - 136px) / 2));
     gap: var(--space-3);
     height: auto;
     min-height: 0;
     grid-auto-rows: 168px;
-  }
-
-  .menu-mosaic[data-tab="play"] {
-    grid-template: "hero worlds" var(--first-rows) "hero worlds" var(--first-rows) "map modes" 168px "goals goals" auto / 1.25fr 1fr;
-  }
-
-  /* Stacked, three tiles would be too short for title and tag; side by side they keep the full height and scroll. */
-  .menu-worlds {
-    grid-auto-columns: calc((100% - var(--space-3)) / 1.6);
-    gap: var(--space-3);
   }
 
   .menu-mosaic[data-tab="online"] {
@@ -632,14 +504,6 @@
 
   .menu-text {
     padding: var(--space-3) var(--space-4);
-  }
-
-  [data-area="hero"] .menu-text {
-    padding: var(--space-4);
-  }
-
-  [data-area="hero"] .menu-text b {
-    font-size: var(--text-2xl);
   }
 
   .settings .menu-info {
@@ -657,15 +521,6 @@
 }
 
 @media (max-width: 600px) {
-  .menu-mosaic[data-tab="play"] {
-    grid-template: "hero hero" 220px "worlds worlds" 160px "map modes" 160px "goals goals" auto / 1fr 1fr;
-  }
-
-  /* Side by side and scrolling past two, so each tile keeps a readable width. */
-  .menu-worlds {
-    grid-auto-columns: calc((100% - var(--space-3)) / 2.3);
-  }
-
   .menu-mosaic[data-tab="online"] {
     grid-template: "room room" minmax(168px, auto) "players players" minmax(220px, auto) "race race" auto "games games" minmax(220px, auto) "new new" minmax(140px, auto) / 1fr 1fr;
   }
@@ -688,7 +543,6 @@
   }
 
   .settings button.menu-tile:active,
-  .menu-tile:has(> .menu-hit:active),
   .menu-tile:hover .menu-art img {
     transform: none;
   }

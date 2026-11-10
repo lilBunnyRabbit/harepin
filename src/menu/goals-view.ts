@@ -4,7 +4,7 @@ import { el, icon } from "./setting-rows";
 import { MenuTab, type Menu, type MenuPage } from "./page";
 import "./goals.css";
 
-const NEXT_SHOWN = 3;
+const NEXT_SHOWN = 1;
 
 function hint_of(menu: Menu, goal: Goal): string {
   const keys = goal.key ? keys_text(menu.state().bindings[goal.key]) : "";

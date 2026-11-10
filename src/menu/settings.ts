@@ -1,21 +1,21 @@
 import { typing, type Nav } from "../hud/input";
 import { clean_name } from "../net/net";
 import { GUIDE_PARAM, Guide, ROLLED_VISIT, type GuideStep } from "./guide";
-import { GoalsPage, goals_card } from "./goals-view";
+import { GoalsPage } from "./goals-view";
 import { ModesPage } from "./modes-page";
 import { OnlinePage } from "./online-page";
 import { RoomPage } from "./room-page";
 import { MenuTab, type Menu, type MenuPage, type SettingsHost, type SettingsMenu } from "./page";
 import { DEFAULT_SETTINGS, type SettingKey, type SettingsState } from "./prefs";
 import { mark_drive, read_saved, write_saved } from "./prefs-store";
-import { dress, mosaic, picture, tile } from "./widgets";
+import { picture } from "./widgets";
 import { settings_sections } from "./settings-sections";
+import { PlayPage } from "./play-page";
 import { WorldPage } from "./world-page";
 import { Rows, el, icon, read, type RowHelp, type Text, type Value } from "./setting-rows";
 import { WorldKind } from "../worldgen/types";
 import { GoTo, GoalId } from "../goals/goals";
-import { LISTED, WORLDS } from "../worlds/worlds";
-import { world_query } from "../world/world-pick";
+import { mainland_seed, world_query } from "../world/world-pick";
 import "./settings.css";
 import "./menu.css";
 
@@ -102,7 +102,7 @@ export class Settings {
       redraw_help: () => this.render_help(),
     };
     this.page_list = [
-      { id: MenuTab.PLAY, label: "Play", build: () => this.play() },
+      new PlayPage(this.menu, (to) => this.go_to(to)),
       {
         id: MenuTab.GARAGE,
         label: "Garage",
@@ -128,7 +128,7 @@ export class Settings {
       skip: () => this.end_guide(),
       drive: (kind) => {
         this.end_guide();
-        this.drive(this.host.seed, kind);
+        this.drive(kind === WorldKind.MAINLAND ? mainland_seed(this.host, this.current.last_mainland_seed) : this.host.seed, kind);
       },
       reload_on_look: (rolled) => {
         const params = new URLSearchParams(location.search);
@@ -384,44 +384,11 @@ export class Settings {
     return this.page_of(section)?.parent ? View.PAGE : View.MENU;
   }
 
-  private play(): HTMLElement[] {
-    const { room, seed, kind } = this.host;
-    const hero = el("div", "menu-tile");
-    hero.dataset.area = "hero";
-    const text = dress(hero, `${WORLDS[kind].name} ${seed}`, WORLDS[kind].hero, picture(kind), "Keep driving");
-    text.append(el("span", "menu-go", "Drive"));
-    const drive = el("button", "menu-hit");
-    drive.type = "button";
-    drive.dataset.action = "close";
-    drive.setAttribute("aria-label", `Keep driving ${WORLDS[kind].name} ${seed}`);
-    const restart = el("button", "menu-corner");
-    restart.type = "button";
-    restart.append(icon("icon-restart"), el("span", "", "Restart lap"));
-    restart.addEventListener("click", () => {
-      this.close();
-      this.host.restart_lap();
-    });
-    hero.append(drive, restart);
-
-    const world = (other: WorldKind) => {
-      const button = tile(other, WORLDS[other].name, WORLDS[other].note, picture(other), () => this.drive(seed, other));
-      button.title = other === kind ? "Keep driving here" : `Reloads room ${room} on ${WORLDS[other].name} ${seed}`;
-      if (other === kind) button.append(el("span", "menu-tag", "You're here"));
-      return button;
-    };
-    const map = tile("map", "New map", "Pick a world and a map, or type a friend's map code", picture(`${kind}-map`, true), () => this.show("world"));
-    const modes = tile("modes", "Modes", "Races, gymkhana, parking, drift zones, gate hunt, ghost duel", icon("icon-modes"), () => this.show("modes"));
-    const goals = goals_card(this.menu, (to) => this.go_to(to));
-    const worlds = el("div", "menu-worlds");
-    worlds.dataset.area = "worlds";
-    worlds.append(...LISTED.map(({ kind }) => world(kind)));
-    return mosaic(MenuTab.PLAY, hero, worlds, map, modes, goals);
-  }
-
   /** A world the player picked: remembered for the next bare load, then driven in this room. */
   private drive(seed: number, kind: WorldKind) {
     this.set("last_world", kind);
     this.set("last_seed", seed);
+    if (kind === WorldKind.MAINLAND) this.set("last_mainland_seed", seed);
     if (seed !== this.host.seed) this.host.goals.done(GoalId.NEW_MAP);
     if (seed === this.host.seed && kind === this.host.kind) return this.close();
     this.go(world_query(this.host.room, seed, kind));

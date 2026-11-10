@@ -56,6 +56,8 @@ export class WorldMap {
   private wanted: { seed: number; kind: WorldKind } | null = null;
   private map: MapData | null = null;
   private image: ImageBitmap | null = null;
+  // What the canvas holds: showing the same map at the same size again only repaints the cars.
+  private drawn: { map: MapData; side: number } | null = null;
 
   constructor() {
     this.root.className = "world-map";
@@ -127,6 +129,8 @@ export class WorldMap {
     canvas.setAttribute("aria-label", `Map of ${WORLDS[map.kind].map_label} ${map.seed}`);
     const ratio = devicePixelRatio;
     const side = Math.round((canvas.clientWidth || MAP_SIDE) * ratio);
+    if (this.drawn?.map === map && this.drawn.side === side) return this.draw_players();
+    this.drawn = { map, side };
     canvas.width = canvas.height = side;
     const scale = (side / MAP_SIDE) * ((MAP_SIDE - 1) / map.size);
     const at = (x: number, z: number): [number, number] => [(x + map.size / 2) * scale + side / MAP_SIDE / 2, (z + map.size / 2) * scale + side / MAP_SIDE / 2];
