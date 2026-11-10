@@ -1,5 +1,6 @@
 import type { Caught } from "../hud/input";
 import type { DirectoryStatus, Server } from "../net/directory";
+import type { Player } from "../net/players";
 import type { ModeEntry } from "../modes/modes";
 import type { RaceChoice } from "../modes/races";
 import type { ReadyStatus } from "../net/ready";
@@ -48,6 +49,14 @@ export interface SettingsHost {
   /** This room's handshake failed on the password, so its row offers another try. */
   password_failed(): boolean;
   browse_servers(on: boolean): void;
+  /** Everyone in the directory, this player first; filled while `browse_servers` is on. */
+  players_online(): Player[];
+  /** `Net.status`: online, searching, connecting, or why it can't connect. */
+  net_status(): string;
+  /** Peers linked in this room, on any map. */
+  peers(): number;
+  /** Room peers whose cars this build can't show, by which side is out of date. */
+  version_peers(): { older: number; newer: number };
   /** The garage's own element: the Garage tab shows it, and `show_garage` starts and stops it with the tab. */
   readonly garage_stage: HTMLElement;
   show_garage(on: boolean): void;

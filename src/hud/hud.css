@@ -101,15 +101,6 @@
   margin-bottom: var(--space-2);
 }
 
-#join-map {
-  width: 100%;
-  margin-top: var(--space-2);
-}
-
-#join-map[hidden] {
-  display: none;
-}
-
 #players {
   margin: var(--space-2) 0 0;
   padding: 0;
@@ -408,12 +399,6 @@
     margin-bottom: var(--space-1);
   }
 
-  #net {
-    max-width: var(--map-size);
-    font-size: var(--text-2xs);
-    text-align: center;
-  }
-
   #players {
     display: none;
   }
@@ -571,7 +556,6 @@
     backdrop-filter: blur(6px);
   }
 
-  #net,
   #players {
     margin: 0;
     padding: var(--space-1) var(--space-3);
@@ -894,8 +878,7 @@
 
 .dock-top,
 .dock-top .hud,
-.assists,
-#net {
+.assists {
   transition: opacity 0.4s;
 }
 
@@ -980,30 +963,10 @@
     pointer-events: none;
   }
 
-  /* Under the map it lands on the pedals; beside the map, under the top buttons, it is clear of every touch zone. A lobby
-     race panel takes that spot, and a race has no foreign map to join anyway. */
-  #join-map {
-    position: absolute;
-    top: calc(var(--control-h) + var(--space-2));
-    right: calc(100% + var(--space-2));
-    width: auto;
-    margin: 0;
-    white-space: nowrap;
-    pointer-events: auto;
-  }
-
   #minimap {
     margin: 0;
     border-radius: 50%;
     background: color-mix(in oklch, var(--surface) 35%, transparent);
-  }
-
-  #net {
-    text-shadow: var(--halo);
-  }
-
-  .top-right[data-alone] #net {
-    display: none;
   }
 
   .bottom-right {
@@ -1100,7 +1063,6 @@
 :root[data-hud="minimal"] #strip > div:nth-child(2),
 :root[data-hud="minimal"] #strip > div:nth-child(3),
 :root[data-hud="minimal"] #players,
-:root[data-hud="minimal"] .top-right[data-alone] #net,
 :root[data-hud="compact"] .dock-top .top-left,
 :root[data-hud="compact"] #strip > div:nth-child(2),
 :root[data-hud="compact"] #strip > div:nth-child(3),
@@ -1178,12 +1140,6 @@
   :root[data-hud="compact"] #minimap {
     width: var(--compact-map);
     height: var(--compact-map);
-  }
-
-  /* The peer line wraps to the map's width; at the full map's it widened the corner past the smaller map. */
-  :root[data-hud="minimal"] #net,
-  :root[data-hud="compact"] #net {
-    max-width: var(--compact-map);
   }
 
   /* A phone's top band can't hold the bar, the lap strip, the touch buttons, the dash and the map in one row, so on

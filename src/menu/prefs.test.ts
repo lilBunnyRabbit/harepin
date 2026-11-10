@@ -35,6 +35,7 @@ describe("parse_settings", () => {
       hud: "compact",
       dash: "center",
       map: "pace",
+      show_country: false,
       last_world: "sky",
       last_seed: 4294967295,
       guide_seen: false,

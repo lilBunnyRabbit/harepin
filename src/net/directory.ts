@@ -3,8 +3,12 @@ import { APP_ID, MAX_SEED, RateLimit, clean_name, type RoomLock } from "./net";
 import { TURN_SERVERS } from "./ice";
 import { WorldKind } from "../worldgen/types";
 import { world_id } from "../worldgen/kinds/kinds";
+import { clean_country } from "./country";
+import { player_list, type Player } from "./players";
 
 export const DIRECTORY_ROOM = "harepin-directory";
+/** The open room a bare link lands in: free roam on whatever map the player picked. */
+export const LOBBY_ROOM = "lobby";
 const ANNOUNCE_MS = 3000;
 // About three missed announces, plus slack for a late timer in a background tab.
 const EXPIRE_MS = ANNOUNCE_MS * 3 + 1000;
@@ -16,6 +20,7 @@ export const ROOM_LENGTH = 32;
 export const PASSWORD_LENGTH = 64;
 const MAX_PLAYERS = 64;
 const VERSION = /^[0-9A-Za-z.+-]{1,24}$/;
+const PING_MS = 4000;
 const ANNOUNCE_GAP_MS = 1000;
 const ANNOUNCE_BURST = 6;
 const MAX_RECEIVE_BYTES = 16 * 1024;
@@ -35,6 +40,10 @@ export type Announce = {
   version: string;
   /** `world_id` of the game's world kind; peers that predate it send none and are on the island. */
   world?: number;
+  /** ISO 3166 code from the sender's time zone; none when they hide it or predate it. */
+  country?: string;
+  /** In a lobby race, so not joinable until it ends; peers that predate it send none. */
+  racing?: boolean;
 };
 
 export interface Server extends Announce {
@@ -87,6 +96,9 @@ export function sanitize_announce(raw: unknown): Announce | null {
   if (a.world !== undefined && (typeof a.world !== "number" || !Number.isInteger(a.world) || a.world < 1 || a.world > MAX_SEED)) return null;
   const announce: Announce = { room, seed: a.seed, host: clean_name(a.host), players: Math.min(a.players, MAX_PLAYERS), locked: a.locked, version: a.version };
   if (a.world !== undefined) announce.world = a.world;
+  const country = clean_country(a.country);
+  if (country !== null) announce.country = country;
+  if (a.racing === true) announce.racing = true;
   return announce;
 }
 
@@ -177,16 +189,19 @@ export class Directory {
   private readonly entries = new Map<string, Entry>();
   private readonly limits = new Map<string, RateLimit>();
   private readonly admission = new Admission(MAX_PEERS);
+  private readonly pings = new Map<string, number>();
   private room: Room | null = null;
   private send: ((announce: Announce, target?: string) => void) | null = null;
   private mode: Mode = "off";
   private browsing = false;
   private timer = 0;
   private empty_timer = 0;
+  private ping_timer = 0;
 
   constructor(
     private readonly own: () => Announce,
-    private readonly leader: () => boolean,
+    /** Whether this player may speak for its game: see `Net.listed`. */
+    private readonly listed: () => boolean,
   ) {}
 
   start() {
@@ -207,16 +222,31 @@ export class Directory {
   }
 
   list(): Server[] {
+    return group_servers(this.heard(), sanitize_announce(this.own()));
+  }
+
+  /** Everyone announcing, this player first; only filled while browsing, the only time this player links to them. */
+  players(): Player[] {
+    return player_list(this.heard(), this.pings, sanitize_announce(this.own()));
+  }
+
+  private heard(): (readonly [string, Announce])[] {
     const now = performance.now();
     for (const [id, entry] of this.entries) if (now - entry.seen > EXPIRE_MS) this.entries.delete(id);
-    return group_servers(
-      [...this.entries].map(([id, entry]) => [id, entry.announce] as const),
-      sanitize_announce(this.own()),
-    );
+    return [...this.entries].map(([id, entry]) => [id, entry.announce] as const);
   }
 
   private announcement(): Announce | null {
-    return this.leader() ? sanitize_announce(this.own()) : null;
+    return this.listed() ? sanitize_announce(this.own()) : null;
+  }
+
+  private ping(room: Room, peer: string) {
+    room
+      .ping(peer)
+      .then((ms) => {
+        if (this.room === room && this.admission.joined.has(peer)) this.pings.set(peer, Math.round(ms));
+      })
+      .catch((error: unknown) => console.debug("directory: ping failed", error));
   }
 
   private tick() {
@@ -247,6 +277,7 @@ export class Directory {
       room.onPeerJoin = (peer) => {
         this.admission.join(peer);
         this.status = DirectoryStatus.ONLINE;
+        if (this.mode === "browse") this.ping(room, peer);
         const own = this.announcement();
         if (own) this.send?.(own, peer);
       };
@@ -254,12 +285,17 @@ export class Directory {
         this.admission.drop(peer);
         this.entries.delete(peer);
         this.limits.delete(peer);
+        this.pings.delete(peer);
       };
       this.room = room;
-      if (mode === "browse")
+      if (mode === "browse") {
+        this.ping_timer = window.setInterval(() => {
+          for (const peer of this.admission.joined) this.ping(room, peer);
+        }, PING_MS);
         this.empty_timer = window.setTimeout(() => {
           if (this.status === DirectoryStatus.CONNECTING) this.status = DirectoryStatus.OFFLINE;
         }, EMPTY_AFTER_MS);
+      }
     } catch (error) {
       console.warn("directory unavailable, the server list shows this game only", error);
       this.status = DirectoryStatus.OFFLINE;
@@ -268,11 +304,13 @@ export class Directory {
 
   private leave() {
     clearTimeout(this.empty_timer);
+    clearInterval(this.ping_timer);
     this.room?.leave().catch((error: unknown) => console.debug("directory: leave failed", error));
     this.room = null;
     this.send = null;
     this.entries.clear();
     this.limits.clear();
+    this.pings.clear();
     this.admission.reset();
   }
 

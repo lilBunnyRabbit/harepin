@@ -2,7 +2,8 @@ import * as THREE from "three";
 import { Audio } from "./audio/audio";
 import { ChaseCamera } from "./render/camera";
 import { Driver } from "./car/driver";
-import { Directory, clean_room, load_lock } from "./net/directory";
+import { Directory, LOBBY_ROOM, clean_room, load_lock } from "./net/directory";
+import { own_country } from "./net/country";
 import { Chat } from "./net/chat";
 import { Skids, Smoke } from "./render/effects";
 import { Garage } from "./menu/garage";
@@ -44,7 +45,7 @@ import { world_id, world_key } from "./worldgen/kinds/kinds";
 import "./style.css";
 
 const params = new URLSearchParams(location.search);
-const room = clean_room(params.get("room")) ?? "lobby";
+const room = clean_room(params.get("room")) ?? LOBBY_ROOM;
 const prefs = load_settings(params);
 const { seed, kind } = pick_world(params, room, prefs);
 const random_name = make_random_name();
@@ -79,11 +80,15 @@ for (const g of gate_views) scene.add(g.group);
 
 const lock = load_lock(room);
 const net = new Net(room, seed, prefs.name ?? random_name, lock, world_id(kind), BUILD.version);
+const country = own_country();
 const directory = new Directory(
-  () => ({ room, seed, host: net.name, players: 1 + net.remotes.size, locked: lock !== null, version: BUILD.version, world: world_id(kind) }),
-  () => net.leader,
+  () => ({
+    room, seed, host: net.name, players: 1 + net.remotes.size, locked: lock !== null, version: BUILD.version, world: world_id(kind),
+    ...(settings.state.show_country && country !== null ? { country } : {}),
+    ...(lobby.busy ? { racing: true } : {}),
+  }),
+  () => net.listed,
 );
-directory.start();
 const chat = new Chat(net);
 chat.start();
 const build = load_build(params.get("car"));
@@ -166,6 +171,10 @@ const settings = new Settings(document.body, {
   servers_status: () => directory.status,
   password_failed: () => net.status === WRONG_PASSWORD,
   browse_servers: (on) => directory.browse(on),
+  players_online: () => directory.players(),
+  net_status: () => net.status,
+  peers: () => net.peers,
+  version_peers: () => ({ older: net.older_peers, newer: net.newer_peers }),
   garage_stage,
   show_garage: (on) => (on ? garage.open() : garage.close()),
   mode_list: () => modes.mode_list(),
@@ -178,6 +187,8 @@ const settings = new Settings(document.body, {
   restart_lap: () => restart_action(),
   listen: (on) => input.listen(on),
 }, prefs);
+// Started once settings and lobby exist: the announce reads both.
+directory.start();
 
 function apply_car_settings(state: SettingsState) {
   Object.assign(driver.car, { tcs: state.tcs, abs: state.abs, assist: state.assist, auto: state.auto, steer_mode: state.steer_mode });

@@ -278,7 +278,7 @@
 }
 
 .menu-mosaic[data-tab="online"] {
-  grid-template: "room race games" 1fr "new race games" 1fr / 1fr 1fr 1.15fr;
+  grid-template: "room race players" 1fr "new race games" 1fr / 1fr 1fr 1.15fr;
 }
 
 .settings .menu-tile {
@@ -504,6 +504,7 @@
 [data-area="games"] { grid-area: games; }
 [data-area="race"] { grid-area: race; }
 [data-area="new"] { grid-area: new; }
+[data-area="players"] { grid-area: players; }
 
 .settings .menu-info {
   display: flex;
@@ -597,7 +598,7 @@
   }
 
   .menu-mosaic[data-tab="online"] {
-    grid-template: "race room" auto "race games" minmax(var(--first-rows), auto) "new games" 140px / 1fr 1fr;
+    grid-template: "room players" auto "race games" auto "new new" 140px / 1fr 1fr;
   }
 
   .settings .menu-tab {
@@ -636,7 +637,7 @@
   }
 
   .menu-mosaic[data-tab="online"] {
-    grid-template: "room room" minmax(168px, auto) "race race" auto "games games" minmax(220px, auto) "new new" minmax(140px, auto) / 1fr 1fr;
+    grid-template: "room room" minmax(168px, auto) "players players" minmax(220px, auto) "race race" auto "games games" minmax(220px, auto) "new new" minmax(140px, auto) / 1fr 1fr;
   }
 
   .menu-mosaic {

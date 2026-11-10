@@ -1,6 +1,6 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import { RateLimit, WRONG_PASSWORD, clean_name, leader_of, join_error_status, most_common, parse_seed, read_car, sanitize_chat, sanitize_event, sanitize_hello, sanitize_ready, type CarState } from "./net";
+import { RateLimit, NETWORK_BLOCKED, WRONG_PASSWORD, clean_name, leader_of, join_error_status, parse_seed, read_car, sanitize_chat, sanitize_event, sanitize_hello, sanitize_ready, type CarState } from "./net";
 import { encode_car } from "./car-packet";
 
 test("chat text is stripped of control characters, trimmed and capped", () => {
@@ -68,13 +68,6 @@ test("car packets: binary decoded with a clean name; anything else is unreadable
   expect(read_car(undefined, "x")).toBeNull();
 });
 
-test("quick join follows the most common foreign seed, ties to the lower one", () => {
-  expect(most_common([])).toBeNull();
-  expect(most_common([7, 3, 7])).toBe(7);
-  expect(most_common([9, 3])).toBe(3);
-  expect(most_common([3, 9])).toBe(3);
-});
-
 const decrypt = "incorrect room password when decrypting offer";
 const timeout = "handshake timed out after 10000ms";
 
@@ -117,4 +110,11 @@ test("ready messages are shape-checked", () => {
   expect(sanitize_ready({ ready: true, laps: 1, route: "Bad Route" })).toBeNull();
   expect(sanitize_ready({ ready: "yes" })).toBeNull();
   expect(sanitize_ready(null)).toBeNull();
+});
+
+test("a failed SDP exchange with nobody connected reads as a blocked network", () => {
+  const sdp = "could not connect to peer abc after exchanging SDP; configure TURN servers with turnConfig or rtcConfig.iceServers";
+  expect(join_error_status(null, false, 0, sdp)).toBe(NETWORK_BLOCKED);
+  expect(join_error_status(null, true, 0, sdp)).toBe(NETWORK_BLOCKED);
+  expect(join_error_status(null, true, 1, sdp)).toBeNull();
 });

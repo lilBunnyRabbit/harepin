@@ -4,8 +4,7 @@ import { Link, type Channel } from "./channel";
 import { RateLimit } from "./rate-limit";
 import { TURN_SERVERS } from "./ice";
 import { READY_BURST, READY_GAP_MS, type ReadyMsg } from "./ready";
-import { WORLD_VERSION, WorldKind } from "../worldgen/types";
-import { DEFAULT_KIND, world_id } from "../worldgen/kinds/kinds";
+import { WORLD_VERSION } from "../worldgen/types";
 
 export { RateLimit };
 
@@ -96,6 +95,10 @@ const TURNED_AWAY = "searching · turned away a wrong password";
 // A bad SDP decrypt, or a bad challenge over a connection two peers already share from another room. Never a timeout:
 // that is as likely a slow network as a bad password.
 const PASSWORD_ERROR = /incorrect (room )?password/;
+// Trystero's wording when offers crossed through the relay but no direct route opened: without a TURN server that is a
+// network refusing peer-to-peer, usually a carrier NAT.
+const SDP_FAILED = /could not connect to peer .* after exchanging SDP/;
+export const NETWORK_BLOCKED = "network blocked";
 const TIMEOUT = 4000;
 const MAX_REMOTES = 16;
 const MIN_GAP_MS = 25;
@@ -136,6 +139,7 @@ export function read_car(raw: unknown, id: string): CarPacket | null {
 // Both sides of a refused handshake get the same error, so only a player who typed a guess and never got in reads it
 // as their own failure; a host who has never had company reads it as someone else's.
 export function join_error_status(lock: RoomLock | null, had_peer: boolean, peers: number, error: string): string | null {
+  if (SDP_FAILED.test(error)) return peers === 0 ? NETWORK_BLOCKED : null;
   if (!lock || had_peer || !PASSWORD_ERROR.test(error)) return null;
   if (lock.asked) return WRONG_PASSWORD;
   return peers === 0 ? TURNED_AWAY : null;
@@ -145,16 +149,6 @@ export function leader_of(self: string, ids: Iterable<string>): string {
   let leader = self;
   for (const id of ids) if (id < leader) leader = id;
   return leader;
-}
-
-/** Ties go to the lower seed, so peers seeing the same crowd pick the same map. */
-export function most_common(values: number[]): number | null {
-  const counts = new Map<number, number>();
-  for (const v of values) counts.set(v, (counts.get(v) ?? 0) + 1);
-  let best: number | null = null;
-  let best_count = 0;
-  for (const [v, count] of counts) if (count > best_count || (count === best_count && best !== null && v < best)) [best, best_count] = [v, count];
-  return best;
 }
 
 export function parse_seed(raw: string | null): number | null {
@@ -458,26 +452,13 @@ export class Net {
     this.recount();
   }
 
-  /** The map most of the room is on, counting this one; null when that is already this one, so two players never swap. */
-  foreign_seed(): { seed: number; kind: WorldKind } | null {
-    if (!this.foreign.size) return null;
-    const kinds = new Map(Object.values(WorldKind).map((kind) => [world_id(kind), kind]));
-    const key = (world: number, seed: number) => world * 2 ** 32 + seed;
-    const maps = [...this.foreign.values()].filter((f) => kinds.has(f.world)).map((f) => key(f.world, f.seed));
-    const own = key(this.world, this.seed);
-    for (let i = 0; i <= this.remotes.size; i++) maps.push(own);
-    const map = most_common(maps);
-    if (map === null || map === own) return null;
-    return { seed: map % 2 ** 32, kind: kinds.get(Math.floor(map / 2 ** 32)) ?? DEFAULT_KIND };
-  }
-
   /**
-   * The lowest id among this map's players speaks for the game in the directory. A player who typed a password and
-   * never got in can't: their guess may be wrong, and they would list a lone copy of someone else's locked game.
+   * May show in the directory, where the lowest id among a game's players speaks for it. A player who typed a password
+   * and never got in can't: their guess may be wrong, and they would list a lone copy of someone else's locked game.
    */
-  get leader(): boolean {
+  get listed(): boolean {
     if (this.lock?.asked && !this.had_peer) return false;
-    return !this.electing && this.leader_id === this.id;
+    return !this.electing;
   }
 
   /** Within `ELECT_MS` of joining, while players already here may not have been heard. */

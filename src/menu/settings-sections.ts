@@ -7,6 +7,7 @@ import type { SettingsMenu } from "./page";
 import { CameraReturn, CameraView, DashPlace, HudLayout, MapView, QualityMode, TouchSteer, type QualityTier } from "./prefs";
 import { BASE_TOKENS, saved_themes, theme_create } from "./theme-pages";
 import { stat } from "./widgets";
+import { country_name, flag, own_country } from "../net/country";
 
 export interface SettingsSection {
   id: string;
@@ -201,6 +202,13 @@ export function settings_sections(m: SettingsMenu): { sections: SettingsSection[
       icon: "icon-audio",
       summary: () => (m.state().muted ? "Muted" : `Volume ${Math.round(m.state().volume * 100)}%`),
       rows: () => audio(m),
+    },
+    {
+      id: "net",
+      label: "Online",
+      icon: "icon-globe",
+      summary: () => (m.state().show_country ? "Country shown" : "Country hidden"),
+      rows: () => online(m),
     },
   ];
   const deep: DeepPage[] = [
@@ -406,6 +414,12 @@ function audio(m: SettingsMenu): HTMLElement[] {
     ),
     m.rows.toggle("Mute", "Silences everything; the volume stays where it is.", m.value("muted")),
   ];
+}
+
+function online(m: SettingsMenu): HTMLElement[] {
+  const country = own_country();
+  const hint = country === null ? "Your time zone matches no country, so nothing is shown." : `Players online see ${flag(country)} ${country_name(country)}, from your time zone.`;
+  return [m.rows.toggle("Show my country", hint, m.value("show_country"))];
 }
 
 function key_list(m: SettingsMenu): HTMLElement[] {

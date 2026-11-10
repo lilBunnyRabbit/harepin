@@ -205,9 +205,3 @@ body:has(#mode-result:not([hidden])) #mode-status {
     top: calc(anchor(bottom) + var(--space-2));
   }
 }
-
-@media (pointer: coarse) {
-  body:has(#race-panel:not([hidden])) #join-map {
-    display: none;
-  }
-}

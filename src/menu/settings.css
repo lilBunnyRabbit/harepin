@@ -501,6 +501,80 @@
   font-weight: 600;
 }
 
+.players-place svg {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  margin-right: 2px;
+  vertical-align: -1px;
+  color: var(--primary);
+}
+
+.players-ping {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+  color: var(--set-dim);
+}
+
+.players-ping::before,
+.online-status::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: var(--radius-full);
+  background: var(--set-line);
+}
+
+.players-ping:empty::before {
+  display: none;
+}
+
+.players-ping[data-ping="good"]::before,
+.online-status[data-state="good"]::before {
+  background: var(--success);
+}
+
+.players-ping[data-ping="ok"]::before,
+.online-status[data-state="wait"]::before {
+  background: var(--warning);
+}
+
+.players-ping[data-ping="bad"]::before,
+.online-status[data-state="bad"]::before {
+  background: var(--error);
+}
+
+.online-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+
+.online-blocked {
+  max-width: 48ch;
+  font-size: var(--text-sm);
+  color: var(--set-dim);
+}
+
+.online-confirm {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--set-soft);
+}
+
+.online-confirm[hidden] {
+  display: none;
+}
+
 .servers-unlock {
   display: grid;
   gap: var(--space-2);

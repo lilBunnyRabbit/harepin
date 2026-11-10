@@ -85,6 +85,8 @@ export interface SettingsState {
   hud: HudLayout;
   dash: DashPlace;
   map: MapView;
+  /** Sends the country guessed from the time zone with this player's directory entry. */
+  show_country: boolean;
   /** The world the player last picked in the menu; a bare URL drives it again. Never set by an invite or a join. */
   last_world: WorldKind | null;
   last_seed: number | null;
@@ -126,6 +128,7 @@ const FIELDS: { [K in SettingKey]: Field<SettingsState[K]> } = {
   hud: one_of(Object.values(HudLayout), HudLayout.CLASSIC),
   dash: one_of(Object.values(DashPlace), DashPlace.RIGHT),
   map: one_of(Object.values(MapView), MapView.FULL),
+  show_country: flag(true),
   last_world: { fallback: null, parse: (raw) => (is_kind(raw) ? raw : null) },
   last_seed: { fallback: null, parse: (raw) => (typeof raw === "number" ? parse_seed(String(raw)) : null) },
   guide_seen: { fallback: false, parse: seen_flag },

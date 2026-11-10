@@ -9,7 +9,6 @@ import type { World } from "../world/world";
 import type { RouteRun } from "../modes/mode";
 import { Minimap } from "./minimap";
 import { PaceCard } from "./pace-card";
-import { world_query } from "../world/world-pick";
 import "./hud.css";
 
 export function $<T extends HTMLElement>(id: string, type: { new (): T; prototype: T }): T;
@@ -94,8 +93,6 @@ export class Hud {
     cp: $("cp"),
     toast: $("toast"),
     players: $("players"),
-    net: $("net"),
-    join_map: $("join-map", HTMLButtonElement),
     banner: $("banner"),
     delta: $("delta"),
     rewind: $("rewind"),
@@ -104,7 +101,6 @@ export class Hud {
     race_status: $("race-status"),
     race_results: $("race-results"),
     strip: $("strip"),
-    top_right: document.querySelector<HTMLElement>(".top-right"),
   };
   private map: Minimap;
   private pace: PaceCard;
@@ -125,10 +121,6 @@ export class Hud {
   ) {
     $("room").textContent = room;
     $("room").title = room;
-    this.el.join_map.addEventListener("click", () => {
-      const map = this.net.foreign_seed();
-      if (map) location.search = `?${new URLSearchParams(world_query(room, map.seed, map.kind))}`;
-    });
     document.documentElement.dataset.scheme = dark ? "dark" : "light";
     const canvas = $("minimap", HTMLCanvasElement);
     this.map = new Minimap(canvas, world.routes);
@@ -191,11 +183,6 @@ export class Hud {
       this.players = rows;
       el.players.replaceChildren(...rows.map((r) => row(r.name, format(r.best), r.you)));
     }
-    const foreign = this.net.foreign.size;
-    const { older_peers: older, newer_peers: newer } = this.net;
-    set_text(el.net, `${this.net.status} · ${this.net.remotes.size} other${this.net.remotes.size === 1 ? "" : "s"}${foreign ? ` · ${foreign} peer${foreign === 1 ? "" : "s"} on a different map` : ""}${older ? ` · ${older} on an older version` : ""}${newer ? ` · ${newer} on a newer version, reload to update` : ""}`);
-    set_hidden(el.join_map, this.net.foreign_seed() === null);
-    el.top_right?.toggleAttribute("data-alone", this.net.remotes.size === 0 && foreign === 0 && older === 0 && newer === 0);
 
     const lap_flashing = race.lap_flash && now - race.lap_flash < 2600;
     set_style(el.banner, "opacity", lap_flashing ? "1" : "0");

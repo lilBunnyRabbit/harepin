@@ -1,18 +1,30 @@
-import { DirectoryStatus, clean_password, save_lock, type Server } from "../net/directory";
+import { DirectoryStatus, LOBBY_ROOM, type Server } from "../net/directory";
+import { NETWORK_BLOCKED, WRONG_PASSWORD } from "../net/net";
 import { el, icon } from "./setting-rows";
 import { world_query } from "../world/world-pick";
-import { kind_of_world } from "../worldgen/kinds/kinds";
 import { WORLDS } from "../worlds/worlds";
 import type { RaceChoice } from "../modes/races";
 import { MenuTab, invite_link, type Menu, type MenuPage } from "./page";
 import { LAPS } from "./prefs";
-import { action, copy_action, info, invalid, mosaic, password_input, tile } from "./widgets";
+import { join_or_ask, unlock_form, type Unlock } from "./online-join";
+import { players_tile } from "./online-players";
+import { action, copy_action, info, mosaic, tile } from "./widgets";
 
 const DIRECTORY_NOTE: Record<DirectoryStatus, string> = {
   connecting: "Looking for other games…",
   online: "Games running right now",
   offline: "No other games found. Invite links still work.",
 };
+
+const NET_LABEL: Record<string, string> = {
+  connecting: "Connecting",
+  searching: "Searching for players",
+  "local only": "Offline, this browser's tabs only",
+  [WRONG_PASSWORD]: "Wrong password",
+  [NETWORK_BLOCKED]: "Network blocked",
+};
+
+const BLOCKED_NOTE = "Found a player, but the network blocked the connection (mobile data often does). Try the same Wi-Fi.";
 
 export class OnlinePage implements MenuPage {
   readonly id = MenuTab.ONLINE;
@@ -35,7 +47,16 @@ export class OnlinePage implements MenuPage {
     this.menu.sync(() => (players.textContent = `${this.menu.host.players()} here · ${WORLDS[kind].name} ${seed}`));
     const invite = el("div", "settings-inline");
     invite.append(copy_action("Copy invite link", invite_link(room, seed, kind)));
-    const room_tile = info("room", "Your room", el("b", "menu-code", room), players, invite, el("small", "menu-caption", "Friends who open the link join this room on this map"));
+    const leave_confirm = el("div", "online-confirm");
+    if (room !== LOBBY_ROOM) {
+      const leave = () => this.menu.go(world_query(LOBBY_ROOM, seed, kind));
+      invite.append(action("Leave room", () => (this.menu.host.race_busy() ? (leave_confirm.hidden = false) : leave())));
+      const buttons = el("div", "settings-inline");
+      buttons.append(action("Leave race and room", leave), action("Stay", () => (leave_confirm.hidden = true)));
+      leave_confirm.append(el("span", "", "A race is running."), buttons);
+    }
+    leave_confirm.hidden = true;
+    const room_tile = info("room", "Your room", el("b", "menu-code", room), ...this.net_status(), players, invite, leave_confirm, el("small", "menu-caption", "Friends who open the link join this room on this map"));
 
     const scroll = el("div", "menu-scroll");
     scroll.append(...this.games());
@@ -120,7 +141,32 @@ export class OnlinePage implements MenuPage {
     const race_tile = info("race", "Lobby race", picker, lap_row, note, race_actions, ready_line, record);
 
     const fresh = tile("new", "New room", "A fresh code, a map, an optional password", icon("icon-dice"), () => this.menu.show("room"));
-    return mosaic(MenuTab.ONLINE, room_tile, games, race_tile, fresh);
+    return mosaic(MenuTab.ONLINE, room_tile, players_tile(this.menu), games, race_tile, fresh);
+  }
+
+  private net_status(): HTMLElement[] {
+    const line = el("span", "online-status");
+    const blocked = el("small", "online-blocked", BLOCKED_NOTE);
+    const versions = el("small", "online-blocked");
+    versions.hidden = true;
+    let shown = "";
+    this.menu.sync(() => {
+      const { older, newer } = this.menu.host.version_peers();
+      const version_text = [older ? `${older} on an older version` : "", newer ? `${newer} on a newer version, reload to update` : ""].filter(Boolean).join(" · ");
+      if (versions.textContent !== version_text) {
+        versions.textContent = version_text;
+        versions.hidden = !version_text;
+      }
+      const status = this.menu.host.net_status();
+      const peers = this.menu.host.peers();
+      const text = status === "online" ? `Online · ${peers} ${peers === 1 ? "player" : "players"} connected` : (NET_LABEL[status] ?? status);
+      if (text === shown) return;
+      shown = text;
+      line.textContent = text;
+      line.dataset.state = status === "online" ? "good" : status === "connecting" || status === "searching" ? "wait" : "bad";
+      blocked.hidden = status !== NETWORK_BLOCKED;
+    });
+    return [line, blocked, versions];
   }
 
   private ready_text(routes: readonly RaceChoice[]): string {
@@ -132,40 +178,11 @@ export class OnlinePage implements MenuPage {
     return `${names.length}/${total} ready${who} · waiting for ${waiting.join(", ")}${runs}.`;
   }
 
-  private join(server: Server, password: string | null) {
-    save_lock(server.room, password === null ? null : { password, asked: true });
-    this.menu.go(world_query(server.room, server.seed, kind_of_world(server.world)));
-  }
-
   private games(): HTMLElement[] {
     const note = el("p", "servers-note");
     const list = el("ol", "servers-list");
     let list_key = "";
-
-    const unlock = el("form", "servers-unlock");
-    unlock.hidden = true;
-    const unlock_label = el("span", "servers-unlock-label");
-    const secret = password_input("Room password");
-    const unlock_join = el("button", "settings-action", "Join");
-    unlock_join.type = "submit";
-    const unlock_cancel = action("Cancel", () => (unlock.hidden = true));
-    const unlock_row = el("div", "settings-inline");
-    unlock_row.append(secret, unlock_join, unlock_cancel);
-    unlock.append(unlock_label, unlock_row);
-    let locked: Server | null = null;
-    unlock.addEventListener("submit", (event) => {
-      event.preventDefault();
-      const password = clean_password(secret.value);
-      if (!locked || password === null) return invalid(secret, "Enter the room password");
-      this.join(locked, password);
-    });
-    const ask = (server: Server) => {
-      locked = server;
-      unlock_label.textContent = `Password for ${server.room}`;
-      secret.value = "";
-      unlock.hidden = false;
-      secret.focus();
-    };
+    const unlock = unlock_form(this.menu);
 
     this.menu.sync(() => {
       const servers = this.menu.host.servers();
@@ -173,12 +190,12 @@ export class OnlinePage implements MenuPage {
       const key = JSON.stringify([servers, this.menu.host.password_failed()]);
       if (key === list_key) return;
       list_key = key;
-      list.replaceChildren(...servers.map((server) => this.server_row(server, ask)));
+      list.replaceChildren(...servers.map((server) => this.server_row(server, unlock)));
     });
-    return [note, list, unlock];
+    return [note, list, unlock.form];
   }
 
-  private server_row(server: Server, ask: (server: Server) => void): HTMLLIElement {
+  private server_row(server: Server, unlock: Unlock): HTMLLIElement {
     const li = el("li", "servers-row");
     const name = el("div", "servers-name");
     const room = el("b");
@@ -192,10 +209,10 @@ export class OnlinePage implements MenuPage {
     name.append(room, el("small", "", `${server.host} · map ${server.seed}`));
     const players = el("span", "servers-players", `${server.players} ${server.players === 1 ? "player" : "players"}`);
     li.append(name, players);
-    if (server.here && server.locked && this.menu.host.password_failed()) li.append(action("Retry password", () => ask(server)));
+    if (server.here && server.locked && this.menu.host.password_failed()) li.append(action("Retry password", () => unlock.ask(server)));
     else if (server.here) li.append(el("span", "servers-tag", "You're here"));
     else if (server.version !== this.menu.host.version) li.append(el("span", "servers-tag", "Different version"));
-    else li.append(action("Join", () => (server.locked ? ask(server) : this.join(server, null))));
+    else li.append(action("Join", () => join_or_ask(this.menu, unlock, server)));
     return li;
   }
 }

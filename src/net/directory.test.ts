@@ -107,3 +107,9 @@ test("admission: a handshake burst stops at the cap, and refused peers stay refu
   expect(admission.admit("e")).toBe(false);
   expect(admission.admit("h")).toBe(true);
 });
+
+test("announces keep a known country and a racing flag, and drop anything else in those fields", () => {
+  expect(sanitize_announce({ ...announce, country: "SI", racing: true })).toEqual({ ...announce, country: "SI", racing: true });
+  expect(sanitize_announce({ ...announce, country: "<b>", racing: "yes" })).toEqual(announce);
+  expect(sanitize_announce({ ...announce, country: "ZZ", racing: false })).toEqual(announce);
+});
