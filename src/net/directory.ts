@@ -60,7 +60,7 @@ interface Entry {
   seen: number;
 }
 
-type Mode = "off" | "announce" | "browse";
+type Mode = "off" | "announce" | "listen";
 
 export const DirectoryStatus = {
   CONNECTING: "connecting",
@@ -212,6 +212,7 @@ export class Directory {
   private send: ((announce: Announce, target?: string) => void) | null = null;
   private mode: Mode = "off";
   private browsing = false;
+  private watching = false;
   private timer = 0;
   private empty_timer = 0;
   private ping_timer = 0;
@@ -231,11 +232,29 @@ export class Directory {
     this.switch_to("off");
   }
 
-  /** Only a player looking at the list connects to announcers; everyone else stays out of the directory. */
+  /** A player looking at the list connects to announcers and pings them. */
   browse(on: boolean) {
     if (on === this.browsing) return;
     this.browsing = on;
     this.tick();
+    this.sync_pings();
+  }
+
+  /**
+   * Connects to announcers for the HUD's player counts, without pings. Every watcher links to every other one as well
+   * as to the announcers, so it only runs while the game is on screen.
+   */
+  watch(on: boolean) {
+    if (on === this.watching) return;
+    this.watching = on;
+    this.tick();
+  }
+
+  /** Players in every other listed game. */
+  elsewhere(): number {
+    let count = 0;
+    for (const server of this.list()) if (!server.here) count += server.players;
+    return count;
   }
 
   list(): Server[] {
@@ -268,7 +287,7 @@ export class Directory {
 
   private tick() {
     const own = this.announcement();
-    const mode: Mode = this.browsing ? "browse" : own ? "announce" : "off";
+    const mode: Mode = this.browsing || this.watching ? "listen" : own ? "announce" : "off";
     if (mode !== this.mode) this.switch_to(mode);
     if (own) this.send?.(own);
   }
@@ -294,7 +313,7 @@ export class Directory {
       room.onPeerJoin = (peer) => {
         this.admission.join(peer);
         this.status = DirectoryStatus.ONLINE;
-        if (this.mode === "browse") this.ping(room, peer);
+        if (this.browsing) this.ping(room, peer);
         const own = this.announcement();
         if (own) this.send?.(own, peer);
       };
@@ -305,10 +324,8 @@ export class Directory {
         this.pings.delete(peer);
       };
       this.room = room;
-      if (mode === "browse") {
-        this.ping_timer = window.setInterval(() => {
-          for (const peer of this.admission.joined) this.ping(room, peer);
-        }, PING_MS);
+      this.sync_pings();
+      if (mode === "listen") {
         this.empty_timer = window.setTimeout(() => {
           if (this.status === DirectoryStatus.CONNECTING) this.status = DirectoryStatus.OFFLINE;
         }, EMPTY_AFTER_MS);
@@ -319,9 +336,24 @@ export class Directory {
     }
   }
 
+  private sync_pings() {
+    const room = this.room;
+    const on = this.browsing && room !== null;
+    if (on === (this.ping_timer !== 0)) return;
+    clearInterval(this.ping_timer);
+    this.ping_timer = 0;
+    this.pings.clear();
+    if (!on) return;
+    for (const peer of this.admission.joined) this.ping(room, peer);
+    this.ping_timer = window.setInterval(() => {
+      for (const peer of this.admission.joined) this.ping(room, peer);
+    }, PING_MS);
+  }
+
   private leave() {
     clearTimeout(this.empty_timer);
     clearInterval(this.ping_timer);
+    this.ping_timer = 0;
     this.room?.leave().catch((error: unknown) => console.debug("directory: leave failed", error));
     this.room = null;
     this.send = null;

@@ -1162,3 +1162,82 @@
     bottom: calc(100% + var(--space-2));
   }
 }
+
+/* Last in the corner, so showing it or a count changing never moves the map or the player list above it. */
+#online-chip {
+  align-self: flex-end;
+  display: inline-flex;
+  --chip-gap: var(--space-2);
+  align-items: center;
+  gap: var(--chip-gap);
+  height: 28px;
+  padding: 0 var(--space-3) 0 var(--space-2);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  backdrop-filter: blur(6px);
+  font-size: var(--text-sm);
+  font-weight: 400;
+  color: var(--dim);
+  white-space: nowrap;
+  pointer-events: auto;
+}
+
+#online-chip[hidden] {
+  display: none;
+}
+
+#online-chip:hover {
+  color: var(--foreground);
+  background: var(--background-light);
+}
+
+#online-chip svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+#online-chip b {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--foreground);
+}
+
+#online-chip[data-both] .online-total::before {
+  content: "·";
+  margin-right: var(--chip-gap);
+}
+
+#online-chip[data-alone] .online-here,
+#online-chip:not([data-alone], [data-both]) .online-total {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  #online-chip {
+    display: flex;
+    width: fit-content;
+    height: 24px;
+    margin: var(--space-1) 0 0 auto;
+    --chip-gap: var(--space-1);
+    padding: 0 var(--space-2);
+    font-size: var(--text-xs);
+    background: color-mix(in oklch, var(--surface) 72%, transparent);
+    backdrop-filter: none;
+  }
+
+  #online-chip svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  #online-chip[data-both] .online-word {
+    display: none;
+  }
+
+  :root[data-calm] #online-chip {
+    opacity: 0.3;
+  }
+}
