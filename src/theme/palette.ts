@@ -70,7 +70,8 @@ const DUSK_TYRE_STEP = 0.3;
 const DUSK_TRIM_STEP = 0.38;
 const above_asphalt = (share: number) => lighten(asphalt, (brand.foreground[0] - asphalt[0]) * share);
 // Brand Light's warning alone is olive: sand mixed from it read as khaki dunes and beaches at noon. Leaning on error
-// warms it to tan; light sand then sits up at the pale surface end so it stays the lightest ground.
+// warms it to tan; light sand then sits up at the pale surface end so it stays the lightest ground, and dirt a step under
+// it in the same hue, so shoulders and trails read as earth rather than olive.
 const warm = mix(brand.warning, brand.error, 0.45);
 
 export const tones = {
@@ -85,7 +86,7 @@ export const tones = {
   // Forest floor sits a step under grass, not at crown value, so pines still read against the ground they stand on.
   forest_floor: lighten(grass, -FOREST_FLOOR_DROP),
   sand: dark ? mix(brand.warning, brand.foreground, 0.35) : mix(warm, brand.background_darkest, 0.35),
-  dirt: mix(brand.warning, brand.background_darkest, 0.5),
+  dirt: dark ? mix(brand.warning, brand.background_darkest, 0.5) : mix(warm, brand.background_darkest, 0.6),
   rock: dark ? brand.background_lightest : mix(brand.foreground, brand.background_darkest, 0.35),
   snow: dark ? brand.foreground : brand.background_lightest,
   asphalt,
