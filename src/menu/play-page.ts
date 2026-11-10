@@ -85,7 +85,9 @@ export class PlayPage implements MenuPage {
 
   private side(): HTMLElement {
     const side = el("div", "play-side");
-    side.append(this.drive(), el("h3", "play-head", "Mini maps"), this.minis(), this.more(), goals_card(this.menu, this.go_to));
+    const minis = el("section", "play-group");
+    minis.append(el("h3", "play-head", "Mini maps"), this.minis());
+    side.append(this.drive(), minis, this.more(), goals_card(this.menu, this.go_to));
     return side;
   }
 

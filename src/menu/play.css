@@ -62,11 +62,16 @@
 .play-side {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-5);
   min-width: 0;
   max-height: 100%;
   overflow-y: auto;
   scrollbar-width: none;
+}
+
+.play-group {
+  display: grid;
+  gap: var(--space-3);
 }
 
 .play-drive {
@@ -129,7 +134,7 @@
 
 .play-head {
   margin: 0;
-  font-size: var(--text-md);
+  font-size: var(--text-lg);
   font-weight: 700;
 }
 
@@ -253,6 +258,12 @@
 
 .play-link .play-words span {
   font-size: var(--text-xs);
+  white-space: normal;
+  text-wrap: balance;
+}
+
+.play .goals-head .menu-eyebrow {
+  white-space: nowrap;
 }
 
 .play .goals-next {
