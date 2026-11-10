@@ -1,15 +1,15 @@
 import { mulberry32, sub } from "../rng";
 import { at, cells, WHOLE, type Grid } from "./field";
 import { fbm, smoothstep } from "./noise";
-import { ISLAND, type TerrainRecipe } from "./recipe";
+import { ISLAND, type PeakLayer, type Power, type TerraceLayer, type TerrainLayer, type TerrainRecipe } from "./recipe";
 import { CELL, N, ORIGIN, SIZE, type Terrain } from "./types";
 
-interface Peak {
-  x: number;
-  z: number;
-}
+/** Share of the mask radius where the land starts fading to the edge height. */
+const MASK_FADE = 0.8;
 
-function peak_of(seed: number, reach: number): Peak {
+type Step = (x: number, z: number, h: number) => number;
+
+function peak_of(seed: number, reach: number): { x: number; z: number } {
   const next = mulberry32(sub(seed, "peak"));
   let x = 0;
   let z = 0;
@@ -21,45 +21,74 @@ function peak_of(seed: number, reach: number): Peak {
   return { x: x * scale, z: z * scale };
 }
 
-// hills ** 1.75 and the polynomial bump stand in for ** 1.7 and exp(), which are not bit-exact across engines.
-function raw_height(x: number, z: number, seed: number, peak: Peak, shape: TerrainRecipe): number {
-  const r = Math.sqrt(x * x + z * z) / shape.mask + (fbm(x / 380, z / 380, seed + 3) - 0.5) * 0.3;
-  const mask = 1 - smoothstep(0.8, 1.0, r);
-  const hills = fbm(x / 520, z / 520, seed + 7);
-  const ridge = 1 - Math.abs(2 * fbm(x / 300, z / 300, seed + 11) - 1);
-  const dx = x - peak.x;
-  const dz = z - peak.z;
-  const t = Math.min(1, (dx * dx + dz * dz) / (shape.peak.radius * shape.peak.radius));
-  const top = shape.peak.height * (1 - t) * (1 - t) * (1 - t);
-  let land = 5 + hills * Math.sqrt(hills) * Math.sqrt(Math.sqrt(hills)) * shape.hills + ridge * ridge * ridge * shape.ridge + top;
-  if (shape.mesas) land = terraced(land, shape.mesas);
-  const ground = shape.edge + (land - shape.edge) * mask;
-  return shape.dunes ? ground + dunes(x, z, seed, shape.dunes) : ground;
+// t ** 1.75 as nested roots: a float power is not bit-exact across engines.
+function shaped(t: number, power: Power): number {
+  switch (power) {
+    case 1:
+      return t;
+    case 1.75:
+      return t * Math.sqrt(t) * Math.sqrt(Math.sqrt(t));
+    case 2:
+      return t * t;
+    case 3:
+      return t * t * t;
+  }
+}
+
+// The polynomial bump stands in for exp(), which is not bit-exact across engines.
+function peak(layer: PeakLayer, seed: number): Step {
+  const top = peak_of(seed, layer.reach);
+  const r2 = layer.radius * layer.radius;
+  return (x, z, h) => {
+    const dx = x - top.x;
+    const dz = z - top.z;
+    const t = Math.min(1, (dx * dx + dz * dz) / r2);
+    return h + layer.height * (1 - t) * (1 - t) * (1 - t);
+  };
 }
 
 // The riser blend is smoothstep over the top `riser` share of each step, so a terrace face stays a slope the mesh can draw.
-function terraced(h: number, mesas: NonNullable<TerrainRecipe["mesas"]>): number {
-  if (h <= mesas.base) return h;
-  const t = (h - mesas.base) / mesas.step;
+function terraced(h: number, layer: TerraceLayer): number {
+  if (h <= layer.base) return h;
+  const t = (h - layer.base) / layer.step;
   const floor = Math.floor(t);
-  return mesas.base + (floor + smoothstep(1 - mesas.riser, 1, t - floor)) * mesas.step;
+  return layer.base + (floor + smoothstep(1 - layer.riser, 1, t - floor)) * layer.step;
 }
 
-function dunes(x: number, z: number, seed: number, shape: NonNullable<TerrainRecipe["dunes"]>): number {
-  const crest = 1 - Math.abs(2 * fbm(x / shape.scale, (z * 3) / shape.scale, seed + 17, 3) - 1);
-  return crest * crest * shape.height;
+function step(layer: TerrainLayer, seed: number): Step {
+  switch (layer.kind) {
+    case "lift":
+      return (_x, _z, h) => h + layer.height;
+    case "fbm":
+      return (x, z, h) => h + shaped(fbm(x / layer.scale, z / layer.scale, seed + layer.seed, layer.octaves), layer.power) * layer.amp;
+    case "ridged":
+      return (x, z, h) => h + shaped(1 - Math.abs(2 * fbm(x / layer.scale, (z * layer.stretch) / layer.scale, seed + layer.seed, layer.octaves) - 1), layer.power) * layer.amp;
+    case "peak":
+      return peak(layer, seed);
+    case "terrace":
+      return (_x, _z, h) => terraced(h, layer);
+    case "mask":
+      return (x, z, h) => {
+        const r = Math.sqrt(x * x + z * z) / layer.radius + (fbm(x / layer.scale, z / layer.scale, seed + layer.seed) - 0.5) * layer.wobble;
+        return layer.edge + (h - layer.edge) * (1 - smoothstep(MASK_FADE, 1.0, r));
+      };
+  }
+}
+
+/** The recipe's point layers folded over a height starting at 0, seeded once, for any point on or off the vertex lattice. */
+export function land_height(seed: number, shape: TerrainRecipe): (x: number, z: number) => number {
+  const steps = shape.map((layer) => step(layer, seed));
+  return (x, z) => {
+    let h = 0;
+    for (const s of steps) h = s(x, z, h);
+    return h;
+  };
 }
 
 export function terrain(seed: number, shape: TerrainRecipe = ISLAND.terrain, grid: Grid = WHOLE): Terrain {
   const heights = new Float32Array(cells(grid));
-  const peak = peak_of(seed, shape.peak.reach);
+  const height = land_height(seed, shape);
   for (let j = grid.j0; j <= grid.j1; j++)
-    for (let i = grid.i0; i <= grid.i1; i++) heights[at(grid, i, j)] = raw_height(ORIGIN + i * CELL, ORIGIN + j * CELL, seed, peak, shape);
+    for (let i = grid.i0; i <= grid.i1; i++) heights[at(grid, i, j)] = height(ORIGIN + i * CELL, ORIGIN + j * CELL);
   return { seed, size: SIZE, cell: CELL, n: N, heights, road_dist: new Float32Array(heights.length).fill(1e9), surface: new Uint8Array(heights.length) };
-}
-
-/** `raw_height` with the seed's peak picked once, for plans that sample land off the vertex lattice. */
-export function land_height(seed: number, shape: TerrainRecipe): (x: number, z: number) => number {
-  const peak = peak_of(seed, shape.peak.reach);
-  return (x, z) => raw_height(x, z, seed, peak, shape);
 }

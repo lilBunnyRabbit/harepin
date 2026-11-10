@@ -1,20 +1,67 @@
 import type { Biome, TreeRule } from "./biomes";
 import { Ground, PropKind, type ItemKind } from "./types";
 
-export interface TerrainRecipe {
-  /** Distance from the centre where the land meets `edge`, metres. */
-  mask: number;
-  /** Height past the mask: the island's sea floor, the desert's dune wall. */
-  edge: number;
-  peak: { height: number; radius: number; reach: number };
-  /** Rolling hills and ridge lines, metres at full noise. */
-  hills: number;
-  ridge: number;
-  /** Long ridged sand waves across the whole square, `scale` metres along and `scale / 3` across. */
-  dunes: { height: number; scale: number } | null;
-  /** Land above `base` is cut into terraces `step` high, with risers `riser` of a step wide. */
-  mesas: { base: number; step: number; riser: number } | null;
+/** Exact shaping powers: integer powers and nested square roots, never a float exponent, so every engine agrees. */
+export type Power = 1 | 1.75 | 2 | 3;
+
+/** Adds `height` metres everywhere. */
+export interface LiftLayer {
+  kind: "lift";
+  height: number;
 }
+
+/** Adds fbm noise `scale` metres across, raised to `power`, times `amp` metres. `seed` offsets the world seed. */
+export interface FbmLayer {
+  kind: "fbm";
+  scale: number;
+  seed: number;
+  octaves: number;
+  power: Power;
+  amp: number;
+}
+
+/** Adds ridged fbm (crests where the noise crosses its middle), `scale` metres along x and `scale / stretch` along z. */
+export interface RidgedLayer {
+  kind: "ridged";
+  scale: number;
+  stretch: number;
+  seed: number;
+  octaves: number;
+  power: Power;
+  amp: number;
+}
+
+/** Adds one seeded mountain `height` metres tall, `radius` wide, its top within `reach` of the centre. */
+export interface PeakLayer {
+  kind: "peak";
+  height: number;
+  radius: number;
+  reach: number;
+}
+
+/** Cuts land above `base` into terraces `step` high, with risers `riser` of a step wide. */
+export interface TerraceLayer {
+  kind: "terrace";
+  base: number;
+  step: number;
+  riser: number;
+}
+
+/** Fades the land to `edge` metres past `radius` from the centre; the shore wobbles `wobble` of the radius over `scale` metre noise. */
+export interface MaskLayer {
+  kind: "mask";
+  radius: number;
+  edge: number;
+  scale: number;
+  seed: number;
+  wobble: number;
+}
+
+/** A point layer: a pure function of position, seed and the height so far, so any tile can rebuild it alone. */
+export type TerrainLayer = LiftLayer | FbmLayer | RidgedLayer | PeakLayer | TerraceLayer | MaskLayer;
+
+/** Point layers folded in order over a height starting at 0. */
+export type TerrainRecipe = readonly TerrainLayer[];
 
 /** A biome's ground row: `above` where its patch noise passes `cut`, else `below`; `soft` dithers the cut that wide. */
 export interface GroundRule {
@@ -70,8 +117,22 @@ export interface Recipe {
   scatter: readonly ScatterRule[];
 }
 
+const LIFT: LiftLayer = { kind: "lift", height: 5 };
+
+function hills(amp: number): FbmLayer {
+  return { kind: "fbm", scale: 520, seed: 7, octaves: 5, power: 1.75, amp };
+}
+
+function ridges(amp: number): RidgedLayer {
+  return { kind: "ridged", scale: 300, stretch: 1, seed: 11, octaves: 5, power: 3, amp };
+}
+
+function shore(radius: number, edge: number): MaskLayer {
+  return { kind: "mask", radius, edge, scale: 380, seed: 3, wobble: 0.3 };
+}
+
 export const ISLAND: Recipe = {
-  terrain: { mask: 960, edge: -9, peak: { height: 150, radius: 430, reach: 220 }, hills: 95, ridge: 22, dunes: null, mesas: null },
+  terrain: [LIFT, hills(95), ridges(22), { kind: "peak", height: 150, radius: 430, reach: 220 }, shore(960, -9)],
   biomes: {
     rules: {
       coast: { start: 0.5, fill: 0.12, pine: 0.2, scrub: 0.6, extra: 0 },
@@ -99,15 +160,16 @@ const SOFT = 0.3;
 
 /** Sand, hardpack and terraced mesas inside a dune wall: low hills, no trees, a few outposts. */
 export const DESERT: Recipe = {
-  terrain: {
-    mask: 960,
-    edge: 42,
-    peak: { height: 40, radius: 380, reach: 260 },
-    hills: 62,
-    ridge: 10,
-    dunes: { height: 6, scale: 260 },
-    mesas: { base: 28, step: 16, riser: 0.3 },
-  },
+  terrain: [
+    LIFT,
+    hills(62),
+    ridges(10),
+    { kind: "peak", height: 40, radius: 380, reach: 260 },
+    { kind: "terrace", base: 28, step: 16, riser: 0.3 },
+    // Past the mask the land rises to a dune wall instead of falling to a sea floor.
+    shore(960, 42),
+    { kind: "ridged", scale: 260, stretch: 3, seed: 17, octaves: 3, power: 2, amp: 6 },
+  ],
   biomes: {
     rules: { coast: BARE, meadow: BARE, forest: BARE, upland: BARE },
     items: { coast: "rock", meadow: "rock", forest: null, upland: "rock" },
@@ -131,6 +193,6 @@ export const DESERT: Recipe = {
 /** The island's ground at three times the span: one wide landmass in the sea, its towns joined by a road network. */
 export const MAINLAND: Recipe = {
   ...ISLAND,
-  terrain: { mask: 2900, edge: -9, peak: { height: 240, radius: 1100, reach: 1400 }, hills: 110, ridge: 26, dunes: null, mesas: null },
+  terrain: [LIFT, hills(110), ridges(26), { kind: "peak", height: 240, radius: 1100, reach: 1400 }, shore(2900, -9)],
   towns: { min: 10, max: 16, trees: true, block: { min: 45, span: 25 } },
 };
