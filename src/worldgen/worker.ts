@@ -1,3 +1,4 @@
+import type { Planted } from "./biomes";
 import { chunk_corner, CHUNK, extent, type Extent } from "./chunk-grid";
 import { chunk_meshes, chunk_transfers, type ChunkBuffers, type MeshTones } from "./chunks";
 import { generate_world, KINDS } from "./kinds/kinds";
@@ -30,12 +31,13 @@ export type WorkerRequest = GenRequest | FocusRequest | ChunkRequest;
 export type WorkerReply =
   /** Everything but the terrain grids, which arrive tile by tile. */
   | { type: "plan"; data: WorldData }
-  | { type: "chunk"; index: number; tile: Tile; chunk: ChunkBuffers | null }
+  /** `planted`: a streamed chunk's own trees and their solids; a compact world's come with its plan. */
+  | { type: "chunk"; index: number; tile: Tile; chunk: ChunkBuffers | null; planted: Planted | null }
   /** Generation or meshing threw: before the plan the load fails, after it every wait on a missing chunk does. */
   | { type: "error"; message: string };
 
 let focus: [number, number] = [0, 0];
-let world: { ext: Extent; build: (index: number) => { tile: Tile; chunk: ChunkBuffers | null } } | null = null;
+let world: { ext: Extent; build: (index: number) => { tile: Tile; chunk: ChunkBuffers | null; planted: Planted | null } } | null = null;
 const left: number[] = [];
 let pumping = false;
 
@@ -76,7 +78,7 @@ function open({ seed, kind, opts = "", tones }: GenRequest) {
 // A compact kind keeps its whole grid, so slicing is free; a streamed one (mainland) builds each tile from its plan.
 function compact(data: WorldData, tones: MeshTones) {
   const mesh = chunk_meshes(data, tones);
-  return (index: number) => ({ tile: slice_tile(data.terrain, index), chunk: mesh(index) });
+  return (index: number) => ({ tile: slice_tile(data.terrain, index), chunk: mesh(index), planted: null });
 }
 
 function streamed(data: WorldData, ext: Extent, tones: MeshTones) {
@@ -92,8 +94,8 @@ async function pump() {
     await new Promise((next) => setTimeout(next, 0));
     if (!left.length) break;
     const index = nearest(world.ext);
-    const { tile, chunk } = world.build(index);
-    postMessage({ type: "chunk", index, tile, chunk } satisfies WorkerReply, { transfer: [...tile_transfers(tile), ...(chunk ? chunk_transfers([chunk]) : [])] });
+    const { tile, chunk, planted } = world.build(index);
+    postMessage({ type: "chunk", index, tile, chunk, planted } satisfies WorkerReply, { transfer: [...tile_transfers(tile), ...(chunk ? chunk_transfers([chunk]) : [])] });
   }
   pumping = false;
 }

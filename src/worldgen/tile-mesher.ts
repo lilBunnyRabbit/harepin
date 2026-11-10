@@ -1,5 +1,5 @@
-import { plan_cuts, type BiomeCuts } from "./biomes";
-import { chunk_corner, chunk_vertex, type Extent } from "./chunk-grid";
+import { plan_cuts, plant_square, type BiomeCuts, type LandProbe, type Planted } from "./biomes";
+import { CHUNK, chunk_corner, chunk_vertex, type Extent } from "./chunk-grid";
 import { paint, soup, terrain_mesh, type ChunkBuffers, type MeshTones } from "./chunks";
 import { build_tile } from "./ground";
 import { KINDS } from "./kinds/kinds";
@@ -9,7 +9,7 @@ import { ISLAND } from "./recipe";
 import { road_junctions, road_layers, type Junctions } from "./road-layers";
 import { Roads } from "./roads";
 import { land_height } from "./terrain";
-import { TILE_SIDE, TileStore, type Tile } from "./tiles";
+import { TILE_SIDE, TileStore, type Tile, type VectorOut } from "./tiles";
 import { CELL, type WorldData } from "./types";
 
 // Past the desktop resident set (about 116 chunks), so a chunk streamed in at the ring edge finds its neighbours built.
@@ -18,7 +18,10 @@ const CACHE = 160;
 export interface Built {
   tile: Tile;
   chunk: ChunkBuffers;
+  planted: Planted;
 }
+
+const UP: VectorOut<number> = { set: (x, y, z) => y / Math.sqrt(x * x + y * y + z * z) };
 
 // Neighbour tiles are built too: road pieces binned to a chunk reach past its border.
 export class TileMesher {
@@ -26,6 +29,7 @@ export class TileMesher {
   private readonly recent: number[] = [];
   private readonly cuts: BiomeCuts;
   private readonly junctions: Junctions;
+  private readonly probe: LandProbe;
 
   constructor(
     private readonly data: WorldData,
@@ -39,6 +43,8 @@ export class TileMesher {
     const height = base.kind === "terrain" ? land_height(base.seed, base.shape) : () => base.height;
     this.cuts = plan_cuts(seed, plan_grid(ext, PLAN_CELL, height), biomes);
     this.junctions = road_junctions(data);
+    const store = this.store;
+    this.probe = { height: (x, z) => store.height(x, z), road_dist: (x, z) => store.road_dist(x, z), up: (x, z) => store.slope(x, z, UP) };
   }
 
   build(index: number): Built {
@@ -61,7 +67,8 @@ export class TileMesher {
       glass: null,
       parking: null,
     };
-    return { tile: { heights: tile.heights.slice(), road_dist: tile.road_dist.slice(), surface: tile.surface.slice() }, chunk };
+    const planted = plant_square(this.cuts, this.probe, x0, z0, CHUNK, (x, z) => !this.data.towns.some((t) => (t.x - x) ** 2 + (t.z - z) ** 2 < t.radius * t.radius));
+    return { tile: { heights: tile.heights.slice(), road_dist: tile.road_dist.slice(), surface: tile.surface.slice() }, chunk, planted };
   }
 
   private tile(index: number): Tile {

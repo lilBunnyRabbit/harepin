@@ -180,6 +180,8 @@ export class World implements Ground {
   /** Every lane's points, packed as lane * LANE_PACK + point index. */
   private readonly lane_grid = new Map<number, number[]>();
   private seen: Uint32Array;
+  /** Per streamed chunk, what takes the solids it brought out of the grid again. */
+  private readonly planted = new Map<number, () => void>();
   /** Circuit points no car is put down on; see spawn_blocks. */
   private readonly no_spawn: Uint8Array;
   /** Offroad routes a reset can land on, after the graph's edges in the lane grid, with the points no car is put down on. */
@@ -372,6 +374,17 @@ export class World implements Ground {
     return () => {
       for (let k = 0; k < slots.length; k++) this.remove_placed(slots[k], solids[k]);
     };
+  }
+
+  /** A streamed chunk's solids join the grid as it arrives, and `unplant` takes them out when it goes. */
+  plant(index: number, solids: readonly Solid[]) {
+    this.unplant(index);
+    if (solids.length) this.planted.set(index, this.place(solids));
+  }
+
+  unplant(index: number) {
+    this.planted.get(index)?.();
+    this.planted.delete(index);
   }
 
   private add_placed(solid: Solid): number {

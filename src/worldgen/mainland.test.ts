@@ -78,3 +78,30 @@ test("a mainland chunk meshes the same whatever was built before it, and shades 
   for (let k = 0; k < TILE_SIDE; k++)
     for (let c = 0; c < 3; c++) expect(west.terrain?.colors[(k * TILE_SIDE + last) * 3 + c]).toBe(a.terrain?.colors[k * TILE_SIDE * 3 + c]);
 });
+
+test("a mainland chunk plants the same trees whatever was built before it, each from a lattice point of its own", async () => {
+  const { MESH_TONES } = await import("../../scripts/proof/tones");
+  const { TileMesher } = await import("./tile-mesher");
+  const { data } = plan_mainland(2);
+  const centre = (EXT.side / 2) * EXT.side + EXT.side / 2;
+  const ring = [-EXT.side - 1, -EXT.side, -EXT.side + 1, -1, 0, 1, EXT.side - 1, EXT.side, EXT.side + 1].map((d) => centre + d);
+  const forward = new TileMesher(data, EXT, MESH_TONES);
+  const ahead = new Map(ring.map((index) => [index, forward.build(index).planted]));
+  const backward = new TileMesher(data, EXT, MESH_TONES);
+  const behind = new Map([...ring].reverse().map((index) => [index, backward.build(index).planted]));
+  let trees = 0;
+  const seen = new Set<string>();
+  for (const index of ring) {
+    expect(behind.get(index)).toEqual(ahead.get(index) as NonNullable<ReturnType<typeof ahead.get>>);
+    const planted = ahead.get(index);
+    if (!planted) continue;
+    trees += planted.trees.length;
+    expect(planted.solids.length).toBeLessThanOrEqual(planted.trees.length);
+    for (const t of planted.trees) {
+      const key = `${t.x},${t.z}`;
+      expect(seen.has(key)).toBe(false);
+      seen.add(key);
+    }
+  }
+  expect(trees).toBeGreaterThan(50);
+}, 60_000);

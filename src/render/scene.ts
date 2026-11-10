@@ -88,7 +88,10 @@ export class WorldView {
   private readonly trees = new Map<number, THREE.InstancedMesh[]>();
   private readonly towns = new Map<number, TownChunk | undefined>();
 
+  private readonly streamed: boolean;
+
   constructor(world: World, private readonly mobile: boolean) {
+    this.streamed = world.tiles.streamed;
     this.tree_lists = by_chunk(world.trees, world.tiles.ext);
     this.tree_order = new Map(world.trees.map((tree, i) => [tree, i]));
     this.town_kit = new TownChunks(world);
@@ -98,7 +101,7 @@ export class WorldView {
     this.root.add(this.landmarks.root);
   }
 
-  add(chunk: ChunkBuffers) {
+  add(chunk: ChunkBuffers, trees: readonly Tree[] | null = null) {
     this.drop(chunk.index);
     const group = new THREE.Group();
     let ground: THREE.BufferGeometry | null = null;
@@ -119,7 +122,8 @@ export class WorldView {
       mesh.receiveShadow = true;
       group.add(mesh);
     }
-    if (!this.trees.has(chunk.index)) this.trees.set(chunk.index, tree_meshes(this.tree_kit, this.tree_lists.get(chunk.index) ?? [], this.tree_order));
+    if (trees) this.trees.set(chunk.index, tree_meshes(this.tree_kit, trees, null));
+    else if (!this.trees.has(chunk.index)) this.trees.set(chunk.index, tree_meshes(this.tree_kit, this.tree_lists.get(chunk.index) ?? [], this.tree_order));
     if (!this.towns.has(chunk.index)) this.towns.set(chunk.index, this.town_kit.build(chunk));
     const here = this.trees.get(chunk.index) ?? [];
     const town = this.towns.get(chunk.index);
@@ -129,13 +133,17 @@ export class WorldView {
     this.views[chunk.index] = { x0: chunk.x0, z0: chunk.z0, group, terrain: ground, road, full: chunk.terrain?.full ?? 0, trees: here, town, far: null, trees_shown: null };
   }
 
-  /** Trees and town objects stay built for the chunk's return; only its terrain and road geometry go. */
+  /** A compact world's trees and town objects stay built for the chunk's return; a streamed chunk's trees come back with it. */
   drop(index: number) {
     const view = this.views[index];
     if (!view) return;
     this.root.remove(view.group);
     view.terrain?.dispose();
     view.road?.dispose();
+    if (this.streamed) {
+      for (const tree of view.trees) if (tree instanceof THREE.InstancedMesh) tree.dispose();
+      this.trees.delete(index);
+    }
     this.views[index] = undefined;
   }
 
@@ -188,7 +196,7 @@ function tree_kit(): TreeKit {
 
 const crown_of = (kind: number) => (kind === TreeKind.SCRUB ? TreeKind.BROADLEAF : kind);
 
-function tree_meshes({ trunk, crowns, bark, leaf }: TreeKit, here: Tree[], order: Map<Tree, number>): THREE.InstancedMesh[] {
+function tree_meshes({ trunk, crowns, bark, leaf }: TreeKit, here: readonly Tree[], order: Map<Tree, number> | null): THREE.InstancedMesh[] {
   if (!here.length) return [];
   const m = new THREE.Matrix4();
   const q = new THREE.Quaternion();
@@ -202,7 +210,7 @@ function tree_meshes({ trunk, crowns, bark, leaf }: TreeKit, here: Tree[], order
   const filled = kinds.map(() => 0);
   here.forEach((tree) => {
     q.setFromAxisAngle(axis, (tree.x * 13.37) % (Math.PI * 2));
-    const shade = jitter(order.get(tree) ?? 0, tree.kind);
+    const shade = jitter(order ? (order.get(tree) ?? 0) : tree.x + tree.z * 0.37, tree.kind);
     const scrub = tree.kind === TreeKind.SCRUB;
     if (scrub) m.compose(p.set(tree.x, tree.y - SCRUB_SINK, tree.z), q, s.set(tree.scale, tree.scale * SCRUB_SQUASH, tree.scale));
     else {

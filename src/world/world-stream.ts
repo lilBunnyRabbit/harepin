@@ -1,11 +1,13 @@
 import { CHUNK, chunk_corner } from "../worldgen/chunk-grid";
 import type { ChunkBuffers, MeshTones } from "../worldgen/chunks";
+import type { Tree } from "../worldgen/types";
 import type { WorldKind } from "../worldgen/types";
 import type { WorkerReply, WorkerRequest } from "../worldgen/worker";
 import { World } from "./world";
 
 export interface ChunkListener {
-  add(chunk: ChunkBuffers): void;
+  /** `trees` null on a compact world, whose trees came with its plan. */
+  add(chunk: ChunkBuffers, trees: readonly Tree[] | null): void;
   drop(index: number): void;
 }
 
@@ -15,7 +17,7 @@ export interface ChunkListener {
  */
 export class WorldStream {
   /** Chunks that came before anyone listened; handed over once, then let go. */
-  private waiting: ChunkBuffers[] = [];
+  private waiting: { chunk: ChunkBuffers; trees: readonly Tree[] | null }[] = [];
   private listener: ChunkListener | null = null;
   /** Replies still to come per chunk; a compact world's first load asks for every chunk once. */
   private readonly pending: Uint16Array;
@@ -62,7 +64,7 @@ export class WorldStream {
 
   /** Every chunk mesh so far, then each one as it arrives (its tile already in `world.tiles`) and each drop. */
   listen(listener: ChunkListener) {
-    for (const chunk of this.waiting) listener.add(chunk);
+    for (const { chunk, trees } of this.waiting) listener.add(chunk, trees);
     this.waiting = [];
     this.listener = listener;
   }
@@ -98,6 +100,7 @@ export class WorldStream {
   /** Lets chunk `index` go; its tile reads as missing until a wait on it or `request` brings it back. */
   drop(index: number) {
     this.world.tiles.drop(index);
+    this.world.unplant(index);
     this.stale[index] = this.pending[index];
     this.listener?.drop(index);
   }
@@ -120,8 +123,10 @@ export class WorldStream {
       return;
     }
     this.world.tiles.add(reply.index, reply.tile);
+    if (reply.planted) this.world.plant(reply.index, reply.planted.solids);
     if (!reply.chunk) return;
-    if (this.listener) this.listener.add(reply.chunk);
-    else this.waiting.push(reply.chunk);
+    const trees = reply.planted?.trees ?? null;
+    if (this.listener) this.listener.add(reply.chunk, trees);
+    else this.waiting.push({ chunk: reply.chunk, trees });
   }
 }

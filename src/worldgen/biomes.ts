@@ -140,47 +140,68 @@ export interface Planted {
   solids: Solid[];
 }
 
+/** What planting reads of the land: the whole grid on a compact world, a tile and its neighbours on a streamed one. */
+export interface LandProbe {
+  height(x: number, z: number): number;
+  road_dist(x: number, z: number): number;
+  up(x: number, z: number): number;
+}
+
 /** `free` rules out ground taken by lots, towns, jumps and landmarks. */
 export function plant(cuts: BiomeCuts, land: Terrain, free: (x: number, z: number) => boolean): Planted {
   const { heights, road_dist } = land;
-  const seed = cuts.seed;
+  const probe: LandProbe = { height: (x, z) => sample(heights, x, z), road_dist: (x, z) => sample(road_dist, x, z), up: (x, z) => up(heights, x, z) };
   const out: Planted = { trees: [], solids: [] };
   const limit = -ORIGIN - TREE_SPACING;
   for (let z = ORIGIN + TREE_SPACING; z < limit; z += TREE_SPACING)
-    for (let x = ORIGIN + TREE_SPACING; x < limit; x += TREE_SPACING) {
-      const biome = biome_at(cuts, x, z, sample(heights, x, z));
-      const tries = tree_tries(cuts, biome);
-      for (let k = 0; k < tries; k++) {
-        const px = x + (hash(x, z, seed + 91 + k * 16) - 0.5) * TREE_SPACING;
-        const pz = z + (hash(x, z, seed + 92 + k * 16) - 0.5) * TREE_SPACING;
-        const y = sample(heights, px, pz);
-        if (y < 3 || y > 125) continue;
-        const kind = tree_kind(cuts, biome, px, pz, k);
-        if (kind === null) continue;
-        if (sample(road_dist, px, pz) < ROAD_HALF + 7) continue;
-        if (up(heights, px, pz) < 0.82 || !free(px, pz)) continue;
-        const roll = hash(x, z, seed + 94 + k * 16);
-        if (kind === TreeKind.SCRUB) {
-          out.trees.push({
-            x: px,
-            y,
-            z: pz,
-            scale: SCRUB_SCALE[0] + roll * (SCRUB_SCALE[1] - SCRUB_SCALE[0]),
-            kind,
-          });
-          continue;
-        }
-        const scale = 0.75 + roll * 0.9;
-        out.trees.push({ x: px, y, z: pz, scale, kind });
-        out.solids.push({
-          kind: "circle",
-          x: px,
-          y,
-          z: pz,
-          radius: 0.35 * scale,
-          height: 6 * scale,
-        });
-      }
-    }
+    for (let x = ORIGIN + TREE_SPACING; x < limit; x += TREE_SPACING) plant_at(cuts, probe, x, z, free, out);
   return out;
+}
+
+/**
+ * The trees of the lattice points inside the square from (x0, z0) of side `size`: each point hashes its own trees, so
+ * a chunk plants the same whatever order chunks are built in, and no tree belongs to two chunks.
+ */
+export function plant_square(cuts: BiomeCuts, probe: LandProbe, x0: number, z0: number, size: number, free: (x: number, z: number) => boolean): Planted {
+  const out: Planted = { trees: [], solids: [] };
+  for (let m = Math.ceil((z0 - ORIGIN) / TREE_SPACING); ORIGIN + m * TREE_SPACING < z0 + size; m++)
+    for (let n = Math.ceil((x0 - ORIGIN) / TREE_SPACING); ORIGIN + n * TREE_SPACING < x0 + size; n++) plant_at(cuts, probe, ORIGIN + n * TREE_SPACING, ORIGIN + m * TREE_SPACING, free, out);
+  return out;
+}
+
+function plant_at(cuts: BiomeCuts, probe: LandProbe, x: number, z: number, free: (x: number, z: number) => boolean, out: Planted) {
+  const seed = cuts.seed;
+  const biome = biome_at(cuts, x, z, probe.height(x, z));
+  const tries = tree_tries(cuts, biome);
+  for (let k = 0; k < tries; k++) {
+    const px = x + (hash(x, z, seed + 91 + k * 16) - 0.5) * TREE_SPACING;
+    const pz = z + (hash(x, z, seed + 92 + k * 16) - 0.5) * TREE_SPACING;
+    const y = probe.height(px, pz);
+    if (y < 3 || y > 125) continue;
+    const kind = tree_kind(cuts, biome, px, pz, k);
+    if (kind === null) continue;
+    if (probe.road_dist(px, pz) < ROAD_HALF + 7) continue;
+    if (probe.up(px, pz) < 0.82 || !free(px, pz)) continue;
+    const roll = hash(x, z, seed + 94 + k * 16);
+    if (kind === TreeKind.SCRUB) {
+      out.trees.push({
+        x: px,
+        y,
+        z: pz,
+        scale: SCRUB_SCALE[0] + roll * (SCRUB_SCALE[1] - SCRUB_SCALE[0]),
+        kind,
+      });
+      continue;
+    }
+    const scale = 0.75 + roll * 0.9;
+    out.trees.push({ x: px, y, z: pz, scale, kind });
+    out.solids.push({
+      kind: "circle",
+      x: px,
+      y,
+      z: pz,
+      radius: 0.35 * scale,
+      height: 6 * scale,
+    });
+  }
 }
