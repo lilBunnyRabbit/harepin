@@ -50,6 +50,7 @@ class Race implements ModeRun {
     if (was !== RaceStatus.DONE && run.status === RaceStatus.DONE) {
       this.route.gate = null;
       ctx.hide_hint();
+      view.guide(0, 0);
       if (!lobby_lap) this.finish();
       else if (!lobby_lap()) ctx.exit();
       else {
@@ -60,6 +61,7 @@ class Race implements ModeRun {
     }
     const { line, gates } = run.course;
     const gate = line[gates[run.next]];
+    view.guide(run.tracker.index, gates[run.next]);
     this.route.gate = gate ?? null;
     ctx.hint(turn_to(car, gate.x, gate.z));
     const { name } = this.level;

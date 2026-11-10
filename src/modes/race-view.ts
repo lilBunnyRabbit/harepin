@@ -1,12 +1,19 @@
 import * as THREE from "three";
 import { brand } from "../theme/palette";
 import { item_geometry, item_material } from "../world/jumps";
-import { Marks, type Ground } from "./marks";
+import { CHEVRON_VERTS, Marks, type Ground } from "./marks";
 import type { RaceCourse } from "./races";
+import type { RoutePoint } from "./route";
 
-const LINE = 0.6;
-const GATE = 0.4;
+const LINE = 2;
+const GATE = 4;
 const DIM = 0.3;
+/** Metres between the arrowheads that lead the way to the next gate. */
+const LEAD_PITCH = 10;
+const LEAD_SHAPE = { half: 2.2, depth: 2.4, bar: 1.1 };
+const LEAD_OPACITY = 0.85;
+/** Route points before a gate kept clear of arrowheads, so the gate band reads on its own. */
+const GATE_CLEAR = 3;
 
 export class RaceView {
   private readonly marks: Marks;
@@ -14,6 +21,11 @@ export class RaceView {
   private readonly dim: THREE.Material;
   private readonly lit: THREE.Material;
   private readonly closure: THREE.InstancedMesh;
+  private readonly lead: THREE.Mesh;
+  /** Line index of each arrowhead, ascending. */
+  private readonly lead_at: number[];
+  private lead_first = -1;
+  private lead_end = -1;
 
   constructor(course: RaceCourse, ground: Ground) {
     const { line, gates, route } = course;
@@ -25,7 +37,14 @@ export class RaceView {
     this.gates = gates.map((at, i) => (i === gates.length - 1 ? this.marks.across(line[at], route.gate_hw, LINE, finish) : this.marks.across(line[at], route.gate_hw, GATE, this.dim)));
     this.closure = this.cones(route.closure);
     this.root.add(this.closure);
+    this.lead_at = spaced(line, LEAD_PITCH);
+    this.lead = this.marks.chevrons(
+      this.lead_at.map((i) => line[i]),
+      LEAD_SHAPE,
+      this.marks.paint(brand.accent, LEAD_OPACITY),
+    );
     this.aim(0);
+    this.guide(0, 0);
   }
 
   private cones(closure: RaceCourse["route"]["closure"]): THREE.InstancedMesh {
@@ -49,8 +68,43 @@ export class RaceView {
     });
   }
 
+  /** Shows the arrowheads past line index `from` up to the gate at line index `to`; `guide(0, 0)` hides them all. */
+  guide(from: number, to: number) {
+    const first = after(this.lead_at, from);
+    const end = Math.max(first, after(this.lead_at, to - GATE_CLEAR));
+    if (first === this.lead_first && end === this.lead_end) return;
+    this.lead_first = first;
+    this.lead_end = end;
+    this.lead.geometry.setDrawRange(first * CHEVRON_VERTS, (end - first) * CHEVRON_VERTS);
+  }
+
   dispose() {
     this.closure.dispose();
     this.marks.dispose();
   }
+}
+
+function spaced(line: readonly RoutePoint[], pitch: number): number[] {
+  const at: number[] = [];
+  let walked = pitch;
+  for (let i = 1; i < line.length; i++) {
+    walked += Math.hypot(line[i].x - line[i - 1].x, line[i].z - line[i - 1].z);
+    if (walked >= pitch) {
+      at.push(i);
+      walked = 0;
+    }
+  }
+  return at;
+}
+
+/** The first slot of ascending `sorted` holding a value above `value`. */
+function after(sorted: readonly number[], value: number): number {
+  let lo = 0;
+  let hi = sorted.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (sorted[mid] <= value) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
 }
