@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { color } from "../palette";
+import { color } from "../theme/palette";
 import type { RoutePoint } from "./route";
 
 const LIFT = 0.1;

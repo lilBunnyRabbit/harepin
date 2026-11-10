@@ -5,8 +5,8 @@ import { rest_reach, type Car } from "./car";
 import { DECALS, DEFAULT_PARTS, build_spec, part_of, type Build, type Look, type Slot } from "./build";
 import { COUPE, type BodyStyle, type CarSpec, type Triple } from "./cars";
 import { livery_parts, roof, type Livery, type Panel } from "./livery";
-import { NEUTRAL_INKS, brand, car_paints, color, dark, decal_inks, glow, mix, tones } from "./palette";
-import type { Lab, Token } from "./theme";
+import { NEUTRAL_INKS, brand, car_paints, color, dark, decal_inks, glow, mix, tones } from "./theme/palette";
+import type { Lab, Token } from "./theme/theme";
 import { ribbon } from "./scene";
 import { ROAD_HALF, World } from "./world";
 

@@ -27,7 +27,7 @@ import { CARS, is_car } from "./cars";
 import { typing, type Nav } from "./input";
 import { FLAME, SIDE_BAND, SLASH } from "./livery";
 import { build_view, contact_shadow, dispose_car_view, livery_of, rest_wheels, type CarView } from "./models";
-import { NEUTRAL_INKS, brand, car_paints, color, dark, decal_inks, rgba } from "./palette";
+import { NEUTRAL_INKS, brand, car_paints, color, dark, decal_inks, rgba } from "./theme/palette";
 import "./garage.css";
 
 export const BUILD_KEY = "harepin:build";

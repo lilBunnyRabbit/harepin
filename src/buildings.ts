@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { car_paints, color, dark, glow, tones } from "./palette";
+import { car_paints, color, dark, glow, tones } from "./theme/palette";
 import type { World } from "./world";
 import { chunk_of, type ChunkBuffers, type Soup } from "./worldgen/chunks";
 import { Builder, type Rgb, type Sphere } from "./worldgen/mesh";

@@ -1,5 +1,5 @@
 import { BUILD_KEY } from "../garage";
-import { THEME_KEY } from "../theme";
+import { THEME_KEY } from "../theme/theme";
 import { DEFAULT_SETTINGS, parse_settings, type SettingKey, type SettingsState } from "./prefs";
 
 export const SETTINGS_KEY = "harepin:settings";

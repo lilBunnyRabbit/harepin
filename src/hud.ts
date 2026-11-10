@@ -2,7 +2,7 @@ import type { Car } from "./car";
 import type { Lobby } from "./lobby";
 import type { Net } from "./net";
 import type { Race } from "./race";
-import { brand, dark, rgba } from "./palette";
+import { brand, dark, rgba } from "./theme/palette";
 import { tach } from "./tach";
 import { SIZE, type World } from "./world";
 import { world_query } from "./world-pick";

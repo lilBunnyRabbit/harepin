@@ -1,4 +1,4 @@
-import { brand, linear, rgba, tones } from "./palette";
+import { brand, linear, rgba, tones } from "./theme/palette";
 import { sky_tones } from "./sky";
 import { mesh_tones } from "./scene";
 import { MAP_SIDE, MapLineKind, map_data, type MapData, type MapMark, type MapTones } from "./worldgen/map";

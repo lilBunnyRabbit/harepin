@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { brand, color, dark, glow, mix } from "./palette";
+import { brand, color, dark, glow, mix } from "./theme/palette";
 import { fbm, type World } from "./world";
 
 const FLOOR_PUFFS = 120;

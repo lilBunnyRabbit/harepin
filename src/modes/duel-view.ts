@@ -1,5 +1,5 @@
 import type * as THREE from "three";
-import { brand } from "../palette";
+import { brand } from "../theme/palette";
 import { ROAD_HALF } from "../world";
 import { DUEL_LEAD, type Route } from "./duel";
 import { Marks, type Ground } from "./marks";

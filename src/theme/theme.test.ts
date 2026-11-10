@@ -76,7 +76,7 @@ describe("saved themes", () => {
 });
 
 // The owner's checkout layout; elsewhere the parity checks skip. Both webos modules import only types, so Bun runs them.
-const WEBOS = join(import.meta.dir, "../../../orgs/lilbunnyrabbit/webos/src/lib/core/api/services/settings");
+const WEBOS = join(import.meta.dir, "../../../../orgs/lilbunnyrabbit/webos/src/lib/core/api/services/settings");
 const has_webos = existsSync(join(WEBOS, "themes.ts")) && existsSync(join(WEBOS, "random-theme.ts"));
 
 describe.skipIf(!has_webos)("webos parity", () => {

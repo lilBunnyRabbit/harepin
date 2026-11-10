@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { color, dark, glow, tones } from "./palette";
+import { color, dark, glow, tones } from "./theme/palette";
 import { beacons, rotor_hub } from "./worldgen/landmark-mesh";
 import { ROTOR_RADIUS } from "./worldgen/landmarks";
 import { PropKind, type Prop } from "./worldgen/types";

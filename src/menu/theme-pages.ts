@@ -1,4 +1,4 @@
-import { Harmony, generate_theme, is_dark, type ThemeMode } from "../random-theme";
+import { Harmony, generate_theme, is_dark, type ThemeMode } from "../theme/random-theme";
 import { mulberry32 } from "../rng";
 import { el, icon, type Value } from "../setting-rows";
 import {
@@ -17,7 +17,7 @@ import {
   with_saved,
   without_saved,
   type ThemeBase,
-} from "../theme";
+} from "../theme/theme";
 import type { SettingsMenu } from "./page";
 import { action, invalid } from "./widgets";
 

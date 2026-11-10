@@ -20,7 +20,7 @@ import { PadMenu } from "./pad-menu";
 import { Net, WRONG_PASSWORD } from "./net";
 import { peer_pass, type Near } from "./nitro";
 import { Quality } from "./quality";
-import { brand, color, rgba, tones } from "./palette";
+import { brand, color, rgba, tones } from "./theme/palette";
 import { Race } from "./race";
 import { Remotes } from "./remotes";
 import { Render } from "./render";

@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { brand, color, tones } from "../palette";
+import { brand, color, tones } from "../theme/palette";
 import { CONE_RADIUS, to_world, type Box, type Course, type Hit } from "./gymkhana";
 import { Marks, type Ground } from "./marks";
 

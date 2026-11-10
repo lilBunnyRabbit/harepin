@@ -1,5 +1,5 @@
 import type * as THREE from "three";
-import { brand } from "../palette";
+import { brand } from "../theme/palette";
 import { Marks, type Ground } from "./marks";
 import type { RaceCourse } from "./races";
 

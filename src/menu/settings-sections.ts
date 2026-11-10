@@ -1,6 +1,6 @@
 import { SteerMode } from "../car";
 import { el, icon, type Options } from "../setting-rows";
-import { THEMES, choose_theme, current_theme, find_saved, find_theme, load_saved_themes } from "../theme";
+import { THEMES, choose_theme, current_theme, find_saved, find_theme, load_saved_themes } from "../theme/theme";
 import type { SettingsMenu } from "./page";
 import { CameraReturn, CameraView, DashPlace, HudLayout, QualityMode, TouchSteer, type QualityTier } from "./prefs";
 import { BASE_TOKENS, saved_themes, theme_create } from "./theme-pages";

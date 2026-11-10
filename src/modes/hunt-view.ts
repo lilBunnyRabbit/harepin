@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { brand, color } from "../palette";
+import { brand, color } from "../theme/palette";
 import { GATE_RADIUS, type Hunt } from "./hunt";
 import { Marks, type Ground } from "./marks";
 

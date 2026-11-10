@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import type { Car } from "./car";
-import { brand, color, dark, mix, tones } from "./palette";
+import { brand, color, dark, mix, tones } from "./theme/palette";
 import { FOG } from "./sky";
 import type { World } from "./world";
 
