@@ -508,6 +508,7 @@
 }
 
 .settings .guide-aid {
+  min-width: 0;
   display: grid;
   grid-template-columns: 1fr auto;
   align-items: center;
@@ -812,6 +813,18 @@
 
   .guide-count {
     display: none;
+  }
+
+  .settings .guide-aid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .guide-aid > span:last-child {
+    display: none;
+  }
+
+  .guide-picked {
+    display: block;
   }
 }
 
