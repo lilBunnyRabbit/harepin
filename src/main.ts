@@ -309,6 +309,9 @@ const DT = 1 / 360;
 let acc = 0;
 let last = performance.now();
 let last_rumble = 0;
+/** The menu's blur sits over a scene that only turbines and gates animate while it holds the sim, so it redraws at this rate. */
+const MENU_DRAW_MS = 100;
+let last_draw = 0;
 
 new Heartbeat(net, garage, driver, race, seed).start();
 let stuck = 0;
@@ -337,13 +340,14 @@ function frame(now: number) {
   const car = driver.car;
 
   lobby.update(now);
+  const menu_hold = settings.is_open && net.remotes.size === 0;
   let stepped = 0;
   let simulated = false;
   if (input.rewind && driver.rewind.can_step && !lobby.busy && !modes.active) {
     rewinding = true;
     rewind_step(now);
     acc = 0;
-  } else if (lobby.state.kind === "countdown" || modes.holding || garage.is_open || (settings.is_open && net.remotes.size === 0)) {
+  } else if (lobby.state.kind === "countdown" || modes.holding || garage.is_open || menu_hold) {
     rewinding = false;
     acc = 0;
   } else {
@@ -422,7 +426,10 @@ function frame(now: number) {
   render.fit(app);
   world_view.update(camera, quality.tier.fog_far);
   // The garage covers the screen and draws the car with its own renderer; the next frame after it closes draws the world.
-  if (!garage.is_open) render.draw();
+  if (!garage.is_open && (!menu_hold || now - last_draw >= MENU_DRAW_MS)) {
+    last_draw = now;
+    render.draw();
+  }
   render.check_size(now);
   requestAnimationFrame(frame);
 }
