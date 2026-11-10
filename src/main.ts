@@ -22,7 +22,7 @@ import { GoalId, Goals } from "./goals/goals";
 import { build_goals, proven, saved_entries } from "./goals/catch-up";
 import { ToastQueue } from "./goals/toast-queue";
 import { race_choices } from "./modes/races";
-import { gates, type Gate } from "./car/trackside";
+import { ChunkTrackside, gates, type Gate } from "./car/trackside";
 import { GUIDE_PARAM, ROLLED_VISIT } from "./menu/guide";
 import { random_name as make_random_name } from "./menu/guide-rules";
 import { PadMenu } from "./menu/pad-menu";
@@ -88,18 +88,34 @@ render.apply_quality();
 const area_fade = new AreaFade(app);
 
 const world_view = new WorldView(world, quality.mobile);
-stream.listen(world_view);
 scene.add(...(WORLDS[world.kind].backdrop === "sky" ? light.dress(sky(), clouds(world.seed)) : []), world_view.root);
-let gate_views: Gate[] = [];
+let gate_views: readonly (Gate | undefined)[] = [];
 // Dressing and gates stand on terrain all round the world, so they go in once every chunk has arrived. A streamed
-// world never holds every chunk: its dress stands on nothing it reads, and it has no gates yet.
-if (world.tiles.streamed) scene.add(...WORLDS[world.kind].dress(world));
-else void world.tiles.whole().then(() => {
-  performance.mark("world:whole");
-  scene.add(...WORLDS[world.kind].dress(world));
-  gate_views = gates(world);
-  for (const g of gate_views) scene.add(g.group);
-}, (error: unknown) => area_fade.fail(error));
+// world never holds every chunk: its dress stands on nothing it reads, and its curbs and gates come and go per chunk.
+if (world.tiles.streamed) {
+  const trackside = new ChunkTrackside(world);
+  gate_views = trackside.gates;
+  scene.add(...WORLDS[world.kind].dress(world), trackside.root);
+  stream.listen({
+    add: (chunk, trees) => {
+      world_view.add(chunk, trees);
+      trackside.add(chunk.index);
+    },
+    drop: (index) => {
+      world_view.drop(index);
+      trackside.drop(index);
+    },
+  });
+} else {
+  stream.listen(world_view);
+  void world.tiles.whole().then(() => {
+    performance.mark("world:whole");
+    scene.add(...WORLDS[world.kind].dress(world));
+    const all = gates(world);
+    gate_views = all;
+    for (const g of all) scene.add(g.group);
+  }, (error: unknown) => area_fade.fail(error));
+}
 
 const lock = load_lock(room);
 const net = new Net(room, seed, prefs.name ?? random_name, lock, world_id(kind), BUILD.version);
@@ -340,6 +356,7 @@ const unlit = color(tones.gate);
 const black = new THREE.Color(0, 0, 0);
 function update_gates(t: number) {
   gate_views.forEach((g, i) => {
+    if (!g) return;
     const next = i === race.next;
     g.material.color.copy(next ? lit : unlit);
     g.material.emissive.copy(next ? lit : black).multiplyScalar(next ? 0.55 + Math.sin(t * 6) * 0.25 : 0);
