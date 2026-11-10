@@ -22,6 +22,53 @@
     <meta name="twitter:title" content="Harepin" />
     <meta name="twitter:description" content="An island to roam, a track in the sky, friends a link away." />
     <meta name="twitter:image" content="https://lilbunnyrabbit.github.io/harepin/og.jpg" />
+    <style>
+      /* Here, not in style.css: the game bundle brings that sheet, and a failed boot never loads it. boot.ts sets the theme tokens. */
+      body:has(#loading) > :not(#loading) {
+        visibility: hidden;
+      }
+
+      #loading {
+        position: fixed;
+        inset: 0;
+        z-index: 15;
+        display: grid;
+        place-content: center;
+        justify-items: center;
+        gap: 16px;
+        font: 600 14px "Inter", ui-sans-serif, system-ui, sans-serif;
+        color: color-mix(in oklch, var(--foreground) 80%, transparent);
+        background: var(--desktop);
+      }
+
+      #loading .logo {
+        width: 96px;
+        height: 88px;
+        color: var(--primary);
+        fill: currentColor;
+      }
+
+      #loading button {
+        height: 32px;
+        padding: 0 12px;
+        font: inherit;
+        font-size: 12px;
+        color: var(--foreground);
+        background: var(--background-light);
+        border: 1px solid color-mix(in oklch, var(--foreground) 22%, transparent);
+        border-radius: 8px;
+        cursor: pointer;
+      }
+
+      #loading button:hover {
+        background: var(--background-lighter);
+      }
+
+      #loading button:focus-visible {
+        outline: 2px solid var(--primary);
+        outline-offset: 2px;
+      }
+    </style>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
     <script defer src="https://cloud.umami.is/script.js" data-website-id="9bf1138d-addd-4d13-b01d-4bf98a424b51" data-domains="lilbunnyrabbit.github.io"></script>

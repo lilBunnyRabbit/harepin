@@ -1,8 +1,11 @@
 import { read_saved_pick } from "./menu/saved-pick";
 import { LOBBY_ROOM, clean_room } from "./net/room-name";
+import { apply_theme, current_theme } from "./theme/theme";
 import { pick_world } from "./world/world-pick";
 import { start_early } from "./world/world-worker";
 
+// The loading screen, and the failure note if the bundle never arrives, wear the player's theme from the first frame.
+apply_theme(current_theme());
 // The game bundle takes over a second to evaluate on a phone; the world's plan generates meanwhile. main.ts picks the
 // world again with the full settings and takes this worker over only if both picks agree.
 const params = new URLSearchParams(location.search);
