@@ -1,5 +1,5 @@
 import { SteerMode } from "./car";
-import { AidPreset, preset_aids, preset_of, rolled_name } from "./guide-rules";
+import { AidPreset, preset_aids, preset_of, random_name, rolled_name } from "./guide-rules";
 import { generate_theme } from "./random-theme";
 import { el, icon } from "./setting-rows";
 import type { SettingKey, SettingsState } from "./settings";
@@ -310,9 +310,10 @@ export class Guide {
     dice.title = "Another name";
     dice.setAttribute("aria-label", "Another name");
     dice.addEventListener("click", () => {
-      this.name_input.value = "";
-      this.host.set("name", null);
-      this.name_tag.textContent = this.host.name();
+      const next = random_name(this.name_input.value.trim() || this.host.name());
+      this.name_input.value = next;
+      this.name_tag.textContent = next;
+      this.host.set("name", next);
     });
     const row = el("div", "guide-name-row");
     row.append(this.name_input, dice);

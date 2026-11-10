@@ -15,6 +15,7 @@ import { Modes } from "./modes/modes";
 import { race_choices } from "./modes/races";
 import { gates, place_contact_shadow, roadside, show_flame, sync_car_view } from "./models";
 import { GUIDE_PARAM, ROLLED_VISIT } from "./guide";
+import { random_name as make_random_name } from "./guide-rules";
 import { PadMenu } from "./pad-menu";
 import { Net, WRONG_PASSWORD } from "./net";
 import { peer_pass, type Near } from "./nitro";
@@ -39,8 +40,7 @@ const params = new URLSearchParams(location.search);
 const room = clean_room(params.get("room")) ?? "lobby";
 const prefs = load_settings(params);
 const { seed, kind } = pick_world(params, room, prefs);
-const ADJECTIVES = ["Swift", "Fuzzy", "Lucky", "Bouncy", "Sly", "Brave", "Zippy", "Mellow"];
-const random_name = `${ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)]} Bunny`;
+const random_name = make_random_name();
 
 show_version($("loading"));
 const audio = new Audio();

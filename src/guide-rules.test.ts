@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { AidPreset, guide_seen_on_load, preset_aids, preset_of, rolled_name } from "./guide-rules";
+import { AidPreset, guide_seen_on_load, preset_aids, preset_of, random_name, rolled_name } from "./guide-rules";
 
 describe("guide_seen_on_load", () => {
   test("a fresh install has not seen it", () => {
@@ -42,4 +42,14 @@ describe("presets", () => {
 test("rolled_name takes the first free number", () => {
   expect(rolled_name([])).toBe("Rolled 1");
   expect(rolled_name(["Rolled 1", "Mine", "Rolled 3"])).toBe("Rolled 2");
+});
+
+describe("random_name", () => {
+  test("never repeats the current name", () => {
+    for (let at = 0; at < 8; at++) expect(random_name("Swift Bunny", () => at / 8)).not.toBe("Swift Bunny");
+  });
+
+  test("always gives a bunny", () => {
+    expect(random_name("", () => 0.999)).toMatch(/ Bunny$/);
+  });
 });

@@ -44,3 +44,10 @@ export function rolled_name(taken: readonly string[]): string {
   while (used.has(n)) n++;
   return `Rolled ${n}`;
 }
+
+const ADJECTIVES = ["Swift", "Fuzzy", "Lucky", "Bouncy", "Sly", "Brave", "Zippy", "Mellow"];
+
+export function random_name(not = "", pick = Math.random): string {
+  const choices = ADJECTIVES.map((word) => `${word} Bunny`).filter((name) => name !== not);
+  return choices[Math.floor(pick() * choices.length)];
+}
