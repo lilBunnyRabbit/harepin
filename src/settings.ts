@@ -1,17 +1,17 @@
 import { typing, type Nav } from "./input";
-import { DirectoryStatus, PASSWORD_LENGTH, ROOM_LENGTH, clean_password, clean_room, locked_name, save_lock, type Server } from "./directory";
-import { clean_name, parse_seed } from "./net";
+import { clean_name } from "./net";
 import { GUIDE_PARAM, Guide, ROLLED_VISIT, type GuideStep } from "./guide";
 import { ModesPage } from "./menu/modes-page";
-import { MenuTab, invite_link, type Menu, type MenuPage, type SettingsHost, type SettingsMenu } from "./menu/page";
-import { DEFAULT_SETTINGS, LAPS, type SettingKey, type SettingsState } from "./menu/prefs";
+import { OnlinePage } from "./menu/online-page";
+import { RoomPage } from "./menu/room-page";
+import { MenuTab, type Menu, type MenuPage, type SettingsHost, type SettingsMenu } from "./menu/page";
+import { DEFAULT_SETTINGS, type SettingKey, type SettingsState } from "./menu/prefs";
 import { mark_drive, read_saved, write_saved } from "./menu/prefs-store";
-import { action, copy_action, dress, info, invalid, mosaic, password_input, picture, random_seed, row, tile } from "./menu/widgets";
+import { dress, mosaic, picture, tile } from "./menu/widgets";
 import { settings_sections } from "./menu/settings-sections";
 import { WorldPage } from "./menu/world-page";
 import { Rows, el, icon, read, type RowHelp, type Value } from "./setting-rows";
 import { WorldKind } from "./worldgen/types";
-import { kind_of_world } from "./worldgen/kinds/kinds";
 import { WORLDS } from "./worlds/worlds";
 import { world_query } from "./world-pick";
 import "./settings.css";
@@ -45,16 +45,6 @@ const CHANGES = "changes";
 
 const STATUS_MS = 1000;
 
-function random_code() {
-  return Math.random().toString(36).slice(2, 8);
-}
-
-const DIRECTORY_NOTE: Record<DirectoryStatus, string> = {
-  connecting: "Looking for other games…",
-  online: "Games running right now",
-  offline: "No other games found. Invite links still work.",
-};
-
 export class Settings {
   on_change: ((state: SettingsState, key: SettingKey) => void) | null = null;
   /** Arrow keys in the menu, handed to the pad's focus moves so both walk the same rows. */
@@ -82,7 +72,6 @@ export class Settings {
   private readonly settings_menu: SettingsMenu;
   /** The section being built: `value` records its keys, which Reset section puts back. */
   private recording: SettingKey[] | null = null;
-  private race_route = "circuit";
   private readonly guide: Guide;
 
   constructor(
@@ -119,17 +108,11 @@ export class Settings {
         on_show: () => host.show_garage(true),
         on_hide: () => host.show_garage(false),
       },
-      {
-        id: MenuTab.ONLINE,
-        label: "Online",
-        build: () => this.online(),
-        on_show: () => host.browse_servers(true),
-        on_hide: () => host.browse_servers(false),
-      },
+      new OnlinePage(this.menu),
       { id: MenuTab.SETTINGS, label: "Settings", build: () => this.settings_page(), on_show: () => this.show_sub(this.sub) },
       new WorldPage(this.menu),
       new ModesPage(this.menu),
-      { id: "room", label: "New room", parent: MenuTab.ONLINE, build: () => this.create_room() },
+      new RoomPage(this.menu),
     ];
     this.guide = new Guide({
       state: () => this.current,
@@ -410,75 +393,6 @@ export class Settings {
     return mosaic(MenuTab.PLAY, hero, ...Object.values(WORLDS).map(({ kind }) => world(kind)), map, modes);
   }
 
-  private online(): HTMLElement[] {
-    const { room, seed, kind } = this.host;
-    const players = el("span", "menu-caption");
-    this.syncs.push(() => (players.textContent = `${this.host.players()} here · ${WORLDS[kind].name} ${seed}`));
-    const invite = el("div", "settings-inline");
-    invite.append(copy_action("Copy invite link", invite_link(room, seed, kind)));
-    const room_tile = info("room", "Your room", el("b", "menu-code", room), players, invite, el("small", "menu-caption", "Friends who open the link join this room on this map"));
-
-    const scroll = el("div", "menu-scroll");
-    scroll.append(...this.games());
-    const games = info("games", "Games running", scroll);
-
-    const routes = this.host.race_routes;
-    const route_of = () => routes.find((r) => r.id === this.race_route) ?? routes[0];
-    const picker = el("div", "race-routes");
-    picker.setAttribute("role", "radiogroup");
-    picker.setAttribute("aria-label", "Route");
-    const route_buttons = routes.map((choice) => {
-      const button = el("button", "race-route");
-      button.type = "button";
-      button.setAttribute("role", "radio");
-      button.append(el("b", "", choice.name), el("small", "", `${(choice.length / 1000).toFixed(1)} km · ${choice.closed ? "loop" : "A to B"}`));
-      button.addEventListener("click", () => {
-        this.race_route = choice.id;
-        this.refresh();
-      });
-      picker.append(button);
-      return [choice.id, button] as const;
-    });
-    const laps = el("div", "settings-choice race-laps");
-    laps.setAttribute("role", "radiogroup");
-    laps.setAttribute("aria-label", "Laps");
-    const lap_buttons = LAPS.map((count) => {
-      const button = el("button", "", String(count));
-      button.type = "button";
-      button.setAttribute("role", "radio");
-      button.addEventListener("click", () => this.set("laps", count));
-      laps.append(button);
-      return [count, button] as const;
-    });
-    const lap_row = el("div", "race-lap-row");
-    lap_row.append(el("span", "", "Laps"), laps);
-    const note = el("small", "menu-caption");
-    const race = el("button", "settings-action", "Start race");
-    race.type = "button";
-    race.addEventListener("click", () => {
-      const route = route_of();
-      this.host.toggle_race(route?.closed === false ? 1 : this.current.laps, route?.id ?? "circuit");
-      this.refresh();
-    });
-    const record = el("small", "menu-caption");
-    this.syncs.push(() => {
-      const route = route_of();
-      const loop = route?.closed !== false;
-      for (const [id, button] of route_buttons) button.setAttribute("aria-checked", String(id === route?.id));
-      for (const [count, button] of lap_buttons) {
-        button.setAttribute("aria-checked", String(loop ? this.current.laps === count : count === 1));
-        button.disabled = !loop && count !== 1;
-      }
-      note.textContent = loop ? "Everyone in the room starts together." : "A to B routes are one run, start to finish.";
-      race.textContent = this.host.race_busy() ? "Leave race" : "Start race";
-      record.textContent = this.host.lobby_record();
-    });
-    const race_tile = info("race", "Lobby race", picker, lap_row, note, race, record);
-
-    const fresh = tile("new", "New room", "A fresh code, a map, an optional password", icon("icon-dice"), () => this.show("room"));
-    return mosaic(MenuTab.ONLINE, room_tile, games, race_tile, fresh);
-  }
-
   /** A world the player picked: remembered for the next bare load, then driven in this room. */
   private drive(seed: number, kind: WorldKind) {
     this.set("last_world", kind);
@@ -490,115 +404,6 @@ export class Settings {
   private go(query: Record<string, string>) {
     mark_drive();
     location.search = `?${new URLSearchParams(query)}`;
-  }
-
-  private join(server: Server, password: string | null) {
-    save_lock(server.room, password === null ? null : { password, asked: true });
-    this.go(world_query(server.room, server.seed, kind_of_world(server.world)));
-  }
-
-  private games(): HTMLElement[] {
-    const note = el("p", "servers-note");
-    const list = el("ol", "servers-list");
-    let list_key = "";
-
-    const unlock = el("form", "servers-unlock");
-    unlock.hidden = true;
-    const unlock_label = el("span", "servers-unlock-label");
-    const secret = password_input("Room password");
-    const unlock_join = el("button", "settings-action", "Join");
-    unlock_join.type = "submit";
-    const unlock_cancel = action("Cancel", () => (unlock.hidden = true));
-    const unlock_row = el("div", "settings-inline");
-    unlock_row.append(secret, unlock_join, unlock_cancel);
-    unlock.append(unlock_label, unlock_row);
-    let locked: Server | null = null;
-    unlock.addEventListener("submit", (event) => {
-      event.preventDefault();
-      const password = clean_password(secret.value);
-      if (!locked || password === null) return invalid(secret, "Enter the room password");
-      this.join(locked, password);
-    });
-    const ask = (server: Server) => {
-      locked = server;
-      unlock_label.textContent = `Password for ${server.room}`;
-      secret.value = "";
-      unlock.hidden = false;
-      secret.focus();
-    };
-
-    this.syncs.push(() => {
-      const servers = this.host.servers();
-      note.textContent = DIRECTORY_NOTE[this.host.servers_status()];
-      const key = JSON.stringify([servers, this.host.password_failed()]);
-      if (key === list_key) return;
-      list_key = key;
-      list.replaceChildren(...servers.map((server) => this.server_row(server, ask)));
-    });
-    return [note, list, unlock];
-  }
-
-  private create_room(): HTMLElement[] {
-    const create = el("form", "servers-create");
-    const name = el("input", "settings-input");
-    name.type = "text";
-    name.maxLength = ROOM_LENGTH;
-    name.autocomplete = "off";
-    name.placeholder = "Random code";
-    name.setAttribute("aria-label", "Room name");
-    const password = password_input("Password");
-    password.placeholder = "Optional, locks the room";
-    const seed = el("input", "settings-input");
-    seed.type = "text";
-    seed.inputMode = "numeric";
-    seed.maxLength = 10;
-    seed.autocomplete = "off";
-    seed.placeholder = "Random";
-    seed.setAttribute("aria-label", "Map code");
-    const submit = el("button", "settings-action", "Create room");
-    submit.type = "submit";
-    for (const input of [name, password, seed]) input.addEventListener("input", () => input.setCustomValidity(""));
-    create.addEventListener("submit", (event) => {
-      event.preventDefault();
-      const room = name.value.trim() ? clean_room(name.value) : random_code();
-      if (room === null) return invalid(name, `Up to ${ROOM_LENGTH} characters`);
-      const lock = password.value ? clean_password(password.value) : null;
-      if (password.value && lock === null) return invalid(password, `Up to ${PASSWORD_LENGTH} characters`);
-      const map = seed.value.trim() ? parse_seed(seed.value.trim()) : random_seed();
-      if (map === null) return invalid(seed, "A whole number from 0 to 4294967295");
-      const named = lock === null ? room : locked_name(room);
-      save_lock(named, lock === null ? null : { password: lock, asked: false });
-      this.go({ room: named, seed: String(map) });
-    });
-    create.append(
-      row("Room name", name),
-      row("Password", password, "Locked rooms show a lock and get a short code on their name; only players with the password can connect"),
-      row("Map code", seed, "Empty for a random map"),
-      submit,
-    );
-
-    return [el("p", "servers-note", "Everything is optional: leave it empty for a random code and map."), create];
-  }
-
-  private server_row(server: Server, ask: (server: Server) => void): HTMLLIElement {
-    const li = el("li", "servers-row");
-    const name = el("div", "servers-name");
-    const room = el("b");
-    if (server.locked) {
-      const lock = icon("icon-lock");
-      lock.setAttribute("aria-label", "Locked");
-      lock.setAttribute("aria-hidden", "false");
-      room.append(lock);
-    }
-    room.append(el("span", "", server.room));
-    name.append(room, el("small", "", `${server.host} · map ${server.seed}`));
-    const players = el("span", "servers-players", `${server.players} ${server.players === 1 ? "player" : "players"}`);
-    li.append(name, players);
-    if (server.here && server.locked && this.host.password_failed()) li.append(action("Retry password", () => ask(server)));
-    else if (server.here) li.append(el("span", "servers-tag", "You're here"));
-    else if (server.version !== this.host.version) li.append(el("span", "servers-tag", "Different version"));
-    else li.append(action("Join", () => (server.locked ? ask(server) : this.join(server, null))));
-    return li;
   }
 
   private value<K extends SettingKey>(key: K): Value<SettingsState[K]> {
