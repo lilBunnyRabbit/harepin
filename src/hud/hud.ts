@@ -132,7 +132,9 @@ export class Hud {
     $("room").title = room;
     document.documentElement.dataset.scheme = dark ? "dark" : "light";
     const canvas = $("minimap", HTMLCanvasElement);
-    this.map = new Minimap(canvas, world.routes);
+    const circuit = new Set(world.circuit);
+    const network = world.tiles.streamed ? { roads: world.graph.edges.filter((e) => !circuit.has(e.id)).map((e) => e.points), towns: world.towns } : undefined;
+    this.map = new Minimap(canvas, world.routes, world.tiles.ext.size, network);
     this.pace = new PaceCard(world.routes);
     canvas.after(this.pace.el);
   }

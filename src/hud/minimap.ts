@@ -7,7 +7,7 @@ interface Dot {
   z: number;
 }
 import { brand, rgba } from "../theme/palette";
-import { ROAD_HALF, SIZE } from "../world/world";
+import { ROAD_HALF } from "../world/world";
 
 const MAP = 200;
 const INK = {
@@ -33,23 +33,31 @@ interface FullView {
   scale: number;
 }
 
-const ISLAND: FullView = { cx: 0, cz: 0, scale: (MAP * 1.05) / SIZE };
-
-interface Drawn extends FullView {
-  id: string;
+/** A polyline cut into close-up pieces of `PIECE` points, each with its bounds, so the close-up skips what is out of reach. */
+interface Line {
   points: readonly RoadPoint[];
   closed: boolean;
-  road: Path2D;
   /** Per close-up piece: min x, min z, max x, max z. */
   bounds: Float64Array;
+}
+
+interface Drawn extends FullView, Line {
+  id: string;
+  road: Path2D;
+}
+
+/** Roads past the routes a streamed world's maps draw too: every plan edge off the circuit, and its towns. */
+export interface MapNetwork {
+  roads: readonly (readonly RoadPoint[])[];
+  towns: readonly Dot[];
 }
 
 const full_x = (v: FullView, x: number) => MAP / 2 + (x - v.cx) * v.scale;
 const full_y = (v: FullView, z: number) => MAP / 2 + (z - v.cz) * v.scale;
 
-// A lap shows the whole island; an A to B run is a corner of it, so the full map fits that run's span instead.
-function full_view(route: Route): FullView {
-  if (route.closed) return ISLAND;
+// A lap shows the whole world; an A to B run is a corner of it, so the full map fits that run's span instead.
+function full_view(route: Route, size: number): FullView {
+  if (route.closed) return { cx: 0, cz: 0, scale: (MAP * 1.05) / size };
   let x0 = Infinity;
   let z0 = Infinity;
   let x1 = -Infinity;
@@ -63,12 +71,7 @@ function full_view(route: Route): FullView {
   return { cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, scale: EDGE / Math.max(1, Math.hypot(x1 - x0, z1 - z0) / 2) };
 }
 
-function drawn(route: Route): Drawn {
-  const { points, closed } = route;
-  const view = full_view(route);
-  const road = new Path2D();
-  points.forEach((p, i) => (i ? road.lineTo(full_x(view, p.x), full_y(view, p.z)) : road.moveTo(full_x(view, p.x), full_y(view, p.z))));
-  if (closed) road.closePath();
+function line(points: readonly RoadPoint[], closed: boolean): Line {
   const count = Math.ceil(points.length / PIECE);
   const bounds = new Float64Array(count * 4);
   for (let k = 0; k < count; k++) {
@@ -90,7 +93,18 @@ function drawn(route: Route): Drawn {
     bounds[k * 4 + 2] = x1;
     bounds[k * 4 + 3] = z1;
   }
-  return { id: route.id, points, closed, road, bounds, ...view };
+  return { points, closed, bounds };
+}
+
+function path(view: FullView, points: readonly RoadPoint[], closed: boolean, into = new Path2D()): Path2D {
+  points.forEach((p, i) => (i ? into.lineTo(full_x(view, p.x), full_y(view, p.z)) : into.moveTo(full_x(view, p.x), full_y(view, p.z))));
+  if (closed) into.closePath();
+  return into;
+}
+
+function drawn(route: Route, size: number): Drawn {
+  const view = full_view(route, size);
+  return { id: route.id, road: path(view, route.points, route.closed), ...line(route.points, route.closed), ...view };
 }
 
 export class Minimap {
@@ -104,10 +118,16 @@ export class Minimap {
   private last = 0;
   private readonly font: string;
 
+  private readonly network: Line[];
+
   constructor(
     private canvas: HTMLCanvasElement,
     private routes: readonly Route[],
+    /** World side in metres: a lap's full map shows all of it. */
+    private readonly size: number,
+    private readonly roads: MapNetwork = { roads: [], towns: [] },
   ) {
+    this.network = roads.roads.map((points) => line(points, false));
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("minimap has no 2d context");
     this.ctx = ctx;
@@ -122,7 +142,7 @@ export class Minimap {
     if (!route) return;
     let next = this.cache.get(route.id);
     if (!next) {
-      next = drawn(route);
+      next = drawn(route, this.size);
       this.cache.set(route.id, next);
     }
     if (next === this.drawn) return;
@@ -142,9 +162,20 @@ export class Minimap {
     const road = this.road_layer.getContext("2d");
     if (!road) throw new Error("minimap road layer has no 2d context");
     road.scale(ratio, ratio);
-    road.lineWidth = 3;
     road.lineJoin = "round";
     road.strokeStyle = INK.road;
+    const view = this.drawn;
+    if (this.network.length) {
+      road.lineWidth = 1.5;
+      road.stroke(this.roads.roads.reduce((into, points) => path(view, points, false, into), new Path2D()));
+      road.fillStyle = INK.road;
+      for (const town of this.roads.towns) {
+        road.beginPath();
+        road.arc(full_x(view, town.x), full_y(view, town.z), 3, 0, Math.PI * 2);
+        road.fill();
+      }
+    }
+    road.lineWidth = 3;
     road.stroke(this.drawn.road);
   }
 
@@ -187,7 +218,7 @@ export class Minimap {
   full(car: Car, gate: Dot | null, remotes: Iterable<Remote>, names: ReadonlyMap<string, string>) {
     this.fit();
     const { ctx } = this;
-    const view = this.drawn ?? ISLAND;
+    const view = this.drawn ?? { cx: 0, cz: 0, scale: (MAP * 1.05) / this.size };
     ctx.setTransform(this.ratio, 0, 0, this.ratio, 0, 0);
     ctx.clearRect(0, 0, MAP, MAP);
     ctx.drawImage(this.road_layer, 0, 0, MAP, MAP);
@@ -249,10 +280,13 @@ export class Minimap {
 
   // One path for every piece in reach: stroked piece by piece, the half-transparent ink doubled up where they meet.
   private trace(x: number, z: number) {
-    const { ctx, drawn } = this;
-    ctx.beginPath();
-    if (!drawn) return;
-    const { bounds, points, closed } = drawn;
+    this.ctx.beginPath();
+    if (this.drawn) this.trace_line(this.drawn, x, z);
+    for (const road of this.network) this.trace_line(road, x, z);
+  }
+
+  private trace_line({ bounds, points, closed }: Line, x: number, z: number) {
+    const { ctx } = this;
     const reach = MAP / CLOSE_SCALE;
     const count = bounds.length / 4;
     let joined = false;

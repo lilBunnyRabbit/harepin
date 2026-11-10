@@ -1,7 +1,13 @@
-import { terrain_colors } from "./chunks";
+import { plan_cuts } from "./biomes";
+import { extent } from "./chunk-grid";
+import { paint, terrain_colors } from "./chunks";
+import { PLAN_CELL } from "./mainland";
+import { plan_grid } from "./plan-grid";
+import { ISLAND } from "./recipe";
+import { land_height } from "./terrain";
 import { KINDS } from "./kinds/kinds";
 import { world_facts, type WorldFacts } from "./facts";
-import { CELL, DECK_STRIDE, N, SIZE, type EdgeKind, type WorldData, type WorldKind } from "./types";
+import { CELL, DECK_STRIDE, N, ORIGIN, type EdgeKind, type WorldData, type WorldKind } from "./types";
 
 export const MAP_SIDE = N + 1;
 const SUN = normalise([-1, 1.4, -1]);
@@ -82,14 +88,13 @@ function cloud_pixels(tones: MapTones): Uint8ClampedArray<ArrayBuffer> {
   return pixels;
 }
 
-export function map_pixels(data: WorldData, tones: MapTones): Uint8ClampedArray<ArrayBuffer> {
-  if (!KINDS[data.kind].ground) return cloud_pixels(tones);
-  const heights = data.terrain.heights;
-  const colors = terrain_colors(data, tones.terrain);
+/** Shaded raster from heights and colours over MAP_SIDE² vertices `step` metres apart. */
+function shaded(heights: Float32Array, colors: Float32Array, tones: MapTones, step: number): Uint8ClampedArray<ArrayBuffer> {
+  const last = MAP_SIDE - 1;
   const pixels = new Uint8ClampedArray(MAP_SIDE * MAP_SIDE * 4);
-  const at = (i: number, j: number) => heights[Math.min(N, Math.max(0, j)) * MAP_SIDE + Math.min(N, Math.max(0, i))];
-  for (let j = 0; j <= N; j++)
-    for (let i = 0; i <= N; i++) {
+  const at = (i: number, j: number) => heights[Math.min(last, Math.max(0, j)) * MAP_SIDE + Math.min(last, Math.max(0, i))];
+  for (let j = 0; j <= last; j++)
+    for (let i = 0; i <= last; i++) {
       const k = j * MAP_SIDE + i;
       const y = heights[k];
       let rgb: ArrayLike<number> = colors.subarray(k * 3, k * 3 + 3);
@@ -98,7 +103,7 @@ export function map_pixels(data: WorldData, tones: MapTones): Uint8ClampedArray<
         rgb = tones.water;
         shade = 1 - (1 - DEEP_SHADE) * Math.min(1, -y / DEEP);
       } else {
-        const [nx, ny, nz] = normalise([at(i - 1, j) - at(i + 1, j), 2 * CELL, at(i, j - 1) - at(i, j + 1)]);
+        const [nx, ny, nz] = normalise([at(i - 1, j) - at(i + 1, j), 2 * step, at(i, j - 1) - at(i, j + 1)]);
         shade = Math.min(SHADE_MAX, Math.max(SHADE_MIN, (nx * SUN[0] + ny * SUN[1] + nz * SUN[2]) / SUN[1]));
       }
       pixels[k * 4] = encode(rgb[0] * shade);
@@ -107,6 +112,34 @@ export function map_pixels(data: WorldData, tones: MapTones): Uint8ClampedArray<
       pixels[k * 4 + 3] = 255;
     }
   return pixels;
+}
+
+// A streamed world holds no fine grid: its map is the bare land from the plan's height function, coloured with the
+// biome cuts its tiles use, at MAP_SIDE² samples (12 m on the 6 km mainland). Roads and towns are drawn over it as lines.
+function plan_pixels(data: WorldData, tones: MapTones): Uint8ClampedArray<ArrayBuffer> {
+  const { base } = data.ground;
+  const height = base.kind === "terrain" ? land_height(base.seed, base.shape) : () => base.height;
+  const ext = extent(KINDS[data.kind].size);
+  const step = ext.size / (MAP_SIDE - 1);
+  const cuts = plan_cuts(data.terrain.seed, plan_grid(ext, PLAN_CELL, height), (KINDS[data.kind].recipe ?? ISLAND).biomes);
+  const heights = new Float32Array(MAP_SIDE * MAP_SIDE);
+  for (let j = 0; j < MAP_SIDE; j++) for (let i = 0; i < MAP_SIDE; i++) heights[j * MAP_SIDE + i] = height(ext.origin + i * step, ext.origin + j * step);
+  const last = MAP_SIDE - 1;
+  const at = (i: number, j: number) => heights[Math.min(last, Math.max(0, j)) * MAP_SIDE + Math.min(last, Math.max(0, i))];
+  const colors = new Float32Array(MAP_SIDE * MAP_SIDE * 3);
+  for (let j = 0; j < MAP_SIDE; j++)
+    for (let i = 0; i < MAP_SIDE; i++) {
+      const k = j * MAP_SIDE + i;
+      const up = (2 * step) / Math.hypot(at(i - 1, j) - at(i + 1, j), 2 * step, at(i, j - 1) - at(i, j + 1));
+      paint(colors, k, tones.terrain, cuts, (ext.origin + i * step - ORIGIN) / CELL, (ext.origin + j * step - ORIGIN) / CELL, heights[k], up, 0);
+    }
+  return shaded(heights, colors, tones, step);
+}
+
+export function map_pixels(data: WorldData, tones: MapTones): Uint8ClampedArray<ArrayBuffer> {
+  if (!KINDS[data.kind].ground) return cloud_pixels(tones);
+  if (!data.terrain.heights.length) return plan_pixels(data, tones);
+  return shaded(data.terrain.heights, terrain_colors(data, tones.terrain), tones, CELL);
 }
 
 function line(kind: MapLineKind, closed: boolean, points: { x: number; z: number }[]): MapLine {
@@ -131,7 +164,7 @@ export function map_data(data: WorldData, tones: MapTones): MapData {
   return {
     seed: data.terrain.seed,
     kind: data.kind,
-    size: SIZE,
+    size: KINDS[data.kind].size,
     pixels: map_pixels(data, tones),
     lines: [...roads, line(MapLineKind.CIRCUIT, true, data.road)],
     towns: data.towns.map(({ x, z, radius, name }) => ({ x, z, radius, name })),
