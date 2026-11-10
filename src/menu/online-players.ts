@@ -32,8 +32,10 @@ function place(player: Player): HTMLElement {
     room.append(game.room);
     parts.push(room, map);
   }
-  if (player.racing) parts.push("racing");
-  parts.forEach((part, i) => line.append(...(i ? [" · ", part] : [part])));
+  const where = el("span", "players-where");
+  parts.forEach((part, i) => where.append(...(i ? [" · ", part] : [part])));
+  line.append(where);
+  if (player.racing) line.append(el("span", "players-racing", " · racing"));
   return line;
 }
 

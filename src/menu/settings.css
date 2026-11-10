@@ -501,6 +501,15 @@
   font-weight: 600;
 }
 
+.players-place {
+  display: flex;
+}
+
+.servers-name .players-racing {
+  flex: none;
+  white-space: pre;
+}
+
 .players-place svg {
   width: 12px;
   height: 12px;
