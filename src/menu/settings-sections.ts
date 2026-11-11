@@ -70,7 +70,7 @@ const KEYS: [string, Shown, Shown, string][] = [
   ["Look around", "Drag / wheel", "R stick", "Drag, pinch to zoom"],
   ["Recenter camera", also(keys("recenter"), "double-click"), pads("recenter"), "Recenter"],
   ["Ghost", keys("ghost"), pads("ghost"), ""],
-  ["TCS / ABS / steer assist", keys("tcs", "abs", "assist"), pads("tcs", "abs", "assist"), ""],
+  ["TCS / ABS / steering / stability", keys("tcs", "abs", "assist", "stability"), pads("tcs", "abs", "assist", "stability"), ""],
   ["Garage", keys("garage"), also(pads("garage"), "Start, Garage", ", "), ""],
   ["World map", keys("map"), pads("map"), ""],
   ["This key list", keys("help"), pads("help"), ""],
@@ -181,7 +181,7 @@ export function settings_sections(m: SettingsMenu): { sections: SettingsSection[
       id: "driving",
       label: "Driving",
       icon: "icon-aids",
-      summary: () => `${(["tcs", "abs", "assist"] as const).filter((aid) => m.state()[aid]).length} of 3 aids · ${m.state().auto ? "auto" : "manual"} gears`,
+      summary: () => `${(["tcs", "abs", "assist", "stability"] as const).filter((aid) => m.state()[aid]).length} of 4 aids · ${m.state().auto ? "auto" : "manual"} gears`,
       rows: () => driving(m),
     },
     {
@@ -363,6 +363,7 @@ function driving(m: SettingsMenu): HTMLElement[] {
     m.rows.toggle("Traction control", while_driving(m, "tcs", "Cuts power when the rear wheels spin."), m.value("tcs")),
     m.rows.toggle("Anti-lock brakes", while_driving(m, "abs", "Keeps steering under hard braking."), m.value("abs")),
     m.rows.toggle("Steering assist", while_driving(m, "assist", "Limits steering at speed and counter-steers a slide for you. Off, the car slides much sooner."), m.value("assist")),
+    m.rows.toggle("Stability", while_driving(m, "stability", "Damps a slide before it swings into a spin. Off, a slide can carry the car round."), m.value("stability")),
     m.rows.toggle("Automatic gearbox", while_driving(m, "auto", "Shifts for you."), m.value("auto")),
     m.rows.toggle("Ghost car", while_driving(m, "ghost", "Your best lap drives beside you."), m.value("ghost")),
   ];

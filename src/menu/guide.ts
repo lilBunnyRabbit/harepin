@@ -90,13 +90,14 @@ function keymap(bindings: Bindings): Record<Device, [string[], string, string][]
 
 const PRESETS: [AidPreset, string, string][] = [
   [AidPreset.EASY, "Easy", "Grip, brakes and slides looked after. Gears shift for you."],
-  [AidPreset.BALANCED, "Balanced", "Traction and ABS stay on, steering assist is off: a sharp turn at speed will slide. Catch it yourself."],
+  [AidPreset.BALANCED, "Balanced", "Traction and ABS stay on, steering assist and stability are off: a sharp turn at speed will slide. Catch it yourself."],
   [AidPreset.PRO, "Pro", "Nothing helps. You shift yourself."],
 ];
 const AID_LIGHTS = [
   ["tcs", "TC"],
   ["abs", "ABS"],
-  ["assist", "Assist"],
+  ["assist", "Steer"],
+  ["stability", "STM"],
   ["auto", "Auto"],
 ] as const;
 
@@ -469,7 +470,7 @@ export class Guide {
 
   private aid_keys(): string {
     const { bindings } = this.host.state();
-    const keys = (["tcs", "abs", "assist", "auto"] as const).map((aid) => keys_text(bindings[aid]));
+    const keys = (["tcs", "abs", "assist", "stability", "auto"] as const).map((aid) => keys_text(bindings[aid]));
     if (!keys.every(Boolean)) return "Change them any time in Settings, Driving.";
     return `${keys.slice(0, -1).join(", ")} and ${keys.at(-1)} switch each one while driving.`;
   }
@@ -481,11 +482,11 @@ export class Guide {
   private pro_text(): string {
     const { bindings } = this.host.state();
     if (this.device === Device.PAD) return this.shift_with(pad_text(bindings, "shift_up"), pad_text(bindings, "shift_down"));
-    if (this.device === Device.TOUCH) return "No traction, ABS or assist. Gears stay automatic on touch.";
+    if (this.device === Device.TOUCH) return "No traction, ABS, steering assist or stability. Gears stay automatic on touch.";
     return this.shift_with(keys_text(bindings.shift_up), keys_text(bindings.shift_down));
   }
 
-  private lights(aids: Pick<SettingsState, "tcs" | "abs" | "assist" | "auto">): HTMLElement {
+  private lights(aids: Pick<SettingsState, "tcs" | "abs" | "assist" | "stability" | "auto">): HTMLElement {
     const row = el("span", "guide-lights");
     for (const [key, label] of AID_LIGHTS) row.append(el("i", aids[key] ? "on" : "", label));
     return row;

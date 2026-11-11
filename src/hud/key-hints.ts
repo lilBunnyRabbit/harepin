@@ -5,7 +5,8 @@ const HINTS: [string, string, Bindable][] = [
   ["#recenter", "Recenter camera", "recenter"],
   ['.aid-key[data-aid="tcs"]', "Traction control", "tcs"],
   ['.aid-key[data-aid="abs"]', "ABS", "abs"],
-  ['.aid-key[data-aid="assist"]', "Steer assist", "assist"],
+  ['.aid-key[data-aid="assist"]', "Steering assist", "assist"],
+  ['.aid-key[data-aid="stability"]', "Stability", "stability"],
   ['.aid-key[data-aid="auto"]', "Auto gearbox", "auto"],
 ];
 

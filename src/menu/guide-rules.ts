@@ -19,13 +19,14 @@ export interface Aids {
   tcs: boolean;
   abs: boolean;
   assist: boolean;
+  stability: boolean;
   auto: boolean;
 }
 
 const PRESET_AIDS: Record<AidPreset, Aids> = {
-  easy: { tcs: true, abs: true, assist: true, auto: true },
-  balanced: { tcs: true, abs: true, assist: false, auto: true },
-  pro: { tcs: false, abs: false, assist: false, auto: false },
+  easy: { tcs: true, abs: true, assist: true, stability: true, auto: true },
+  balanced: { tcs: true, abs: true, assist: false, stability: false, auto: true },
+  pro: { tcs: false, abs: false, assist: false, stability: false, auto: false },
 };
 
 /** Touch has no shift buttons, so Pro keeps the automatic gearbox there. */
@@ -35,7 +36,7 @@ export function preset_aids(preset: AidPreset, touch: boolean): Aids {
 }
 
 export function preset_of(aids: Aids, touch: boolean): AidPreset | null {
-  const same = (a: Aids, b: Aids) => a.tcs === b.tcs && a.abs === b.abs && a.assist === b.assist && a.auto === b.auto;
+  const same = (a: Aids, b: Aids) => a.tcs === b.tcs && a.abs === b.abs && a.assist === b.assist && a.stability === b.stability && a.auto === b.auto;
   return Object.values(AidPreset).find((preset) => same(preset_aids(preset, touch), aids)) ?? null;
 }
 

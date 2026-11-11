@@ -155,11 +155,17 @@
   flex-basis: 100%;
 }
 
+/* Five switches across the speedo's fixed width: flex growth spaces them, padding would push the last one out. */
+:root[data-hud="racing"] .aid-key,
+:root[data-hud="compact"] .aid-key {
+  padding: 0;
+}
+
 :root[data-hud="minimal"][data-calm] .assists:not(:hover, :focus-within) {
   opacity: 0.3;
 }
 
-/* Classic: TC and ABS sit as small lamps in the dial foot; assist and gearbox show by toast and gear letter. */
+/* Classic: TC, ABS and STM sit as small lamps in the dial foot; steering assist and gearbox show by toast and gear letter. */
 :root[data-hud="classic"] .assists {
   align-self: end;
   gap: var(--space-2);

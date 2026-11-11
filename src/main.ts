@@ -262,7 +262,7 @@ directory.start();
 new Presence({ net, elsewhere: () => directory.elsewhere(), watch: (on) => directory.watch(on), toast: (text) => hud.toast(text), open_online: () => settings.open(MenuTab.ONLINE) }).start();
 
 function apply_car_settings(state: SettingsState) {
-  Object.assign(driver.car, { tcs: state.tcs, abs: state.abs, assist: state.assist, auto: state.auto, steer_mode: state.steer_mode });
+  Object.assign(driver.car, { tcs: state.tcs, abs: state.abs, assist: state.assist, stability: state.stability, auto: state.auto, steer_mode: state.steer_mode });
 }
 
 function apply_settings(state: SettingsState) {
@@ -375,7 +375,7 @@ function update_gates(t: number) {
   });
 }
 
-const TOGGLE_LABEL = { tcs: "TCS", abs: "ABS", assist: "Steer assist", ghost: "Ghost" } as const;
+const TOGGLE_LABEL = { tcs: "TCS", abs: "ABS", assist: "Steering assist", stability: "Stability", ghost: "Ghost" } as const;
 type Aid = keyof typeof TOGGLE_LABEL | "auto";
 function toggle_aid(aid: Aid) {
   const state = settings.state;
@@ -409,6 +409,7 @@ const ACTIONS: Record<Action, () => void> = {
   tcs: () => toggle_aid("tcs"),
   abs: () => toggle_aid("abs"),
   assist: () => toggle_aid("assist"),
+  stability: () => toggle_aid("stability"),
   ghost: () => toggle_aid("ghost"),
   help: () => settings.open_keys(),
   map: () => settings.open("world"),

@@ -14,8 +14,8 @@ const tmp = new Vector3();
 // Mirrors main.ts apply_car_settings and Input.read for keys; Input itself needs a DOM.
 function fresh_player(): Car {
   const car = new Car(build_spec(DEFAULT_BUILD));
-  const { tcs, abs, assist, auto, steer_mode } = DEFAULT_SETTINGS;
-  Object.assign(car, { tcs, abs, assist, auto, steer_mode });
+  const { tcs, abs, assist, stability, auto, steer_mode } = DEFAULT_SETTINGS;
+  Object.assign(car, { tcs, abs, assist, stability, auto, steer_mode });
   car.place(0, 0.75, 0, 0);
   return car;
 }
@@ -41,7 +41,7 @@ const slip_deg = (car: Car) => {
 describe("fresh player on the keyboard", () => {
   test("gets the hatch with a wing, every aid on and Smooth steering", () => {
     expect(DEFAULT_BUILD).toMatchObject({ car: "hatch", parts: { ...DEFAULT_PARTS, aero: 2 } });
-    expect(DEFAULT_SETTINGS).toMatchObject({ tcs: true, abs: true, assist: true, auto: true, steer_mode: SteerMode.SMOOTH, precision_key: false });
+    expect(DEFAULT_SETTINGS).toMatchObject({ tcs: true, abs: true, assist: true, stability: true, auto: true, steer_mode: SteerMode.SMOOTH, precision_key: false });
   });
 
   // Pinned from the hatch replays: a change here changes how the game feels on a first drive.

@@ -33,9 +33,10 @@ describe("presets", () => {
   });
 
   test("today's defaults read as Easy, a mix as none", () => {
-    expect(preset_of({ tcs: true, abs: true, assist: true, auto: true }, false)).toBe(AidPreset.EASY);
-    expect(preset_of({ tcs: true, abs: true, assist: false, auto: true }, false)).toBe(AidPreset.BALANCED);
-    expect(preset_of({ tcs: false, abs: true, assist: false, auto: true }, false)).toBe(null);
+    expect(preset_of({ tcs: true, abs: true, assist: true, stability: true, auto: true }, false)).toBe(AidPreset.EASY);
+    expect(preset_of({ tcs: true, abs: true, assist: false, stability: false, auto: true }, false)).toBe(AidPreset.BALANCED);
+    expect(preset_of({ tcs: false, abs: true, assist: false, stability: false, auto: true }, false)).toBe(null);
+    expect(preset_of({ tcs: true, abs: true, assist: false, stability: true, auto: true }, false)).toBe(null);
   });
 });
 

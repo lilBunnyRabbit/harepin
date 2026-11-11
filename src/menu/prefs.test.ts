@@ -22,6 +22,7 @@ describe("parse_settings", () => {
       tcs: false,
       abs: false,
       assist: false,
+      stability: true,
       auto: false,
       steer_mode: "smooth",
       precision_key: true,
@@ -73,6 +74,23 @@ describe("parse_settings", () => {
 
   test("unknown keys are dropped", () => {
     expect(parse_settings({ junk: 1 })).toEqual({ ...DEFAULT_SETTINGS, guide_seen: true });
+  });
+});
+
+describe("steering assist and stability split", () => {
+  test("a save from before the split gives stability the old steer assist's value", () => {
+    expect(parse_settings({ assist: false })).toMatchObject({ assist: false, stability: false });
+    expect(parse_settings({ assist: true })).toMatchObject({ assist: true, stability: true });
+    expect(parse_settings({})).toMatchObject({ assist: true, stability: true });
+  });
+
+  test("a saved stability is kept apart from the steering assist", () => {
+    expect(parse_settings({ assist: false, stability: true })).toMatchObject({ assist: false, stability: true });
+    expect(parse_settings({ assist: true, stability: false })).toMatchObject({ assist: true, stability: false });
+  });
+
+  test("both are on by default", () => {
+    expect(DEFAULT_SETTINGS).toMatchObject({ assist: true, stability: true });
   });
 });
 

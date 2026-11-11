@@ -80,7 +80,10 @@ export interface SettingsState {
   laps: Laps;
   tcs: boolean;
   abs: boolean;
+  /** Steering assist: grip-limited lock and auto countersteer. */
   assist: boolean;
+  /** Stability (STM): the yaw damper. Saves from before the split take the old steer assist's value. */
+  stability: boolean;
   auto: boolean;
   steer_mode: SteerMode;
   precision_key: boolean;
@@ -132,6 +135,7 @@ const FIELDS: { [K in SettingKey]: Field<SettingsState[K]> } = {
   tcs: flag(true),
   abs: flag(true),
   assist: flag(true),
+  stability: flag(true),
   auto: flag(true),
   steer_mode: one_of(Object.values(SteerMode), SteerMode.SMOOTH),
   precision_key: flag(false),
@@ -171,5 +175,6 @@ export function parse_settings(raw: unknown, played = false): SettingsState {
   const state = from_fields((key, field) => field.parse(stored[key]));
   if (stored.smooth_steer !== true && state.steer_mode === SteerMode.SNAP) state.steer_mode = SteerMode.SMOOTH;
   state.smooth_steer = true;
+  if (typeof stored.stability !== "boolean") state.stability = state.assist;
   return state;
 }
