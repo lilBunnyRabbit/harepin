@@ -699,6 +699,12 @@
   grid-template-columns: 1fr 1fr;
 }
 
+@media (max-width: 600px) {
+  .guide-pics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .guide-pic,
 .settings .guide-world {
   position: relative;
@@ -732,15 +738,82 @@
   inset: 0;
 }
 
-.guide-pic-art svg {
-  flex: none;
-  box-sizing: border-box;
-  width: 72px;
-  height: 72px;
-  padding: var(--space-5);
-  border-radius: 50%;
-  background: var(--set-panel);
-  color: var(--foreground);
+.tour-art {
+  --art-hill: var(--set-soft);
+  --art-ground: var(--set-raised);
+  --art-road: var(--set-well);
+  --art-ink: var(--background-darkest);
+  width: 100%;
+  height: 100%;
+}
+
+:root[data-scheme="light"] .tour-art {
+  --art-hill: var(--background);
+  --art-ground: var(--background-darker);
+  --art-road: var(--background-darkest);
+  --art-ink: var(--foreground);
+}
+
+.tour-art :is(.art-hill, .art-wall, .art-turntable) {
+  fill: var(--art-hill);
+}
+
+.tour-art .art-ground {
+  fill: var(--art-ground);
+}
+
+.tour-art .art-road {
+  fill: var(--art-road);
+}
+
+.tour-art :is(.art-tyre, .art-glass, .art-flag-dark, .art-post) {
+  fill: var(--art-ink);
+}
+
+.tour-art .art-frame {
+  fill: var(--background-darkest);
+}
+
+.tour-art :is(.art-door, .art-bubble) {
+  fill: var(--set-panel);
+}
+
+.tour-art .art-hub {
+  fill: var(--set-raised);
+}
+
+.tour-art .art-mark {
+  fill: var(--set-dim);
+}
+
+.tour-art .art-flag-light {
+  fill: var(--foreground);
+}
+
+:root[data-scheme="light"] .tour-art .art-flag-light {
+  fill: var(--background-lightest);
+}
+
+.tour-art :is(.art-car, .art-star) {
+  fill: var(--primary);
+}
+
+.tour-art :is(.art-car-friend, .art-chip-secondary) {
+  fill: var(--secondary);
+}
+
+.tour-art :is(.art-cone, .art-chip-accent) {
+  fill: var(--accent);
+}
+
+.tour-art .art-chip-tertiary {
+  fill: var(--tertiary);
+}
+
+.tour-art .art-link {
+  fill: none;
+  stroke: var(--foreground);
+  stroke-width: 2.5;
 }
 
 .guide-pic-text {
@@ -870,17 +943,6 @@
 
   .guide-swatch {
     height: 28px;
-  }
-
-  .guide-pic-art {
-    place-items: end center;
-    padding-bottom: var(--space-2);
-  }
-
-  .guide-pic-art svg {
-    width: 40px;
-    height: 40px;
-    padding: var(--space-2);
   }
 
   .guide-pic-text {

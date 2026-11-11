@@ -11,6 +11,7 @@ import { TouchSteer, type SettingKey, type SettingsState } from "./prefs";
 import { THEMES, choose_theme, current_theme, derive_theme, find_saved, find_theme, load_saved_themes, store_saved_themes, with_saved, without_saved } from "../theme/theme";
 import type { WorldKind } from "../worldgen/types";
 import { LISTED, MINIS } from "../worlds/worlds";
+import { TourArt, tour_art } from "./tour-art";
 import "./guide.css";
 
 export const GUIDE_STEPS = [
@@ -103,11 +104,11 @@ const AID_LIGHTS = [
 
 const MINI_NAMES = new Intl.ListFormat("en", { type: "conjunction" }).format(MINIS.map((w) => w.name));
 
-const TOUR: [string, string, string, string][] = [
-  ["mainland", "Mainland", `Six kilometres of towns and open road, where the lobby meets. Mini maps: ${MINI_NAMES}.`, "Play"],
-  ["icon-modes", "Modes", "Race, gymkhana, parking, drift, hunt, duel. Stars and best times for each.", "Play, Modes"],
-  ["icon-paint", "Garage", "Switch cars, from a hatchback to a city bus. Swap engine, tyres and paint, save builds.", "Garage"],
-  ["icon-share", "Friends", "Send a link and friends drive your map with you. Race the lobby.", "Online"],
+const TOUR: [(host: GuideHost) => Element, string, string, string][] = [
+  [(host) => host.picture("mainland"), "Mainland", `Six kilometres of towns and open road, where the lobby meets. Mini maps: ${MINI_NAMES}.`, "Play"],
+  [() => tour_art(TourArt.MODES), "Modes", "Race, gymkhana, parking, drift, hunt, duel. Stars and best times for each.", "Play, Modes"],
+  [() => tour_art(TourArt.GARAGE), "Garage", "Switch cars, from a hatchback to a city bus. Swap engine, tyres and paint, save builds.", "Garage"],
+  [() => tour_art(TourArt.FRIENDS), "Friends", "Send a link and friends drive your map with you. Race the lobby.", "Online"],
 ];
 
 export interface GuideHost {
@@ -520,7 +521,7 @@ export class Guide {
     for (const [art, title, text, where] of TOUR) {
       const card = el("div", "guide-pic");
       const top = el("span", "guide-pic-art");
-      top.append(art.startsWith("icon-") ? icon(art) : this.host.picture(art));
+      top.append(art(this.host));
       const words = el("span", "guide-pic-text");
       words.append(el("b", "", title), el("span", "", text));
       card.append(top, el("span", "guide-where", where), words);
