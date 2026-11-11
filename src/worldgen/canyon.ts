@@ -120,6 +120,21 @@ export function plan_canyon(seed: number, heights: Float32Array, road: readonly 
   return null;
 }
 
+/** Like `plan_canyon`, but from the end of `lead`, which joins its start so the line leaves along it. */
+export function plan_gully(seed: number, heights: Float32Array, lead: Path, dx: number, dz: number, outlet: number, tries: number): Canyon | null {
+  const next = mulberry32(sub(seed, "gully"));
+  const [x, z] = lead[lead.length - 1];
+  for (let t = 0; t < tries; t++) {
+    const coarse = descend(heights, x, z, dx, dz, seed + t, outlet);
+    const end = coarse[coarse.length - 1];
+    if (sample(heights, end[0], end[1]) >= outlet) continue;
+    const points = resample(chaikin([...lead.slice(0, -1), ...coarse], 3), STEP, false);
+    if (run(points) > MAX_LENGTH) continue;
+    return { points, depth: 7 + next() * 5, floor: 6 + next() * 4, wall: 6 + next() * 4 };
+  }
+  return null;
+}
+
 /** Cuts the canyon into `heights`: `depth` under the floor, easing out over the walls, never below FLOOR_ABOVE_SEA. */
 export function carve(heights: Float32Array, canyon: Canyon, grid: Grid = WHOLE) {
   const { points, depth, floor, wall } = canyon;

@@ -28,6 +28,7 @@ const LEVELS: readonly LevelDef[] = [
   { id: "offroad-1", name: "Trail", brings: (place) => `Point to point across the ${place} on dirt.` },
   { id: "street-2", name: "Cross town", brings: () => "Another pair of towns, every corner a square one." },
   { id: "offroad-2", name: "Long trail", brings: () => "The longer way across, on dirt." },
+  { id: "descent", name: "Rim to sea", brings: () => "One way off the crater rim: down the hairpins and the gully to the sea." },
   { id: "circuit-rev", name: "Circuit reversed", brings: () => "The circuit the wrong way round: every corner is new." },
 ];
 

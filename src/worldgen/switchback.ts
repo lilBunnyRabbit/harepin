@@ -22,6 +22,9 @@ const STACK_GAP = 60;
 const SLOPE_PROBE = 150;
 const SLOPE_MIN = 0.06;
 const SUMMIT_KEEP = 40;
+/** Straight run before the first hairpin and after the last: room for the CREST_BEND fillet off the fall line. */
+const DESCENT_LEAD = 40;
+const DESCENT_STEP = 2;
 const LAND = 6;
 const SPACING = 6;
 const ARC_DEPTH = 4;
@@ -209,6 +212,40 @@ export function switchback(heights: Float32Array, base: [number, number], summit
     return { x: bx, z: bz, radius: bend.radius, arc: bend.arc.map(world) };
   });
   return { points, bends, x, z, tx, tz, ux, uz, t0: a - HAIRPIN_RADIUS, t1: d + HAIRPIN_RADIUS, u1: top + HAIRPIN_RADIUS };
+}
+
+/** One-way: `count` hairpins down the fall line `down` from `top`. Unlike `switchback`, the frame's `u` runs downhill. */
+export function descent_stack(heights: Float32Array, top: [number, number], down: [number, number], count: number): Switchback | null {
+  const [x, z] = top;
+  const [ux, uz] = down;
+  const tx = -uz;
+  const tz = ux;
+  const slope = (sample(heights, x + ux * DESCENT_LEAD, z + uz * DESCENT_LEAD) - sample(heights, x + ux * (DESCENT_LEAD + SLOPE_PROBE), z + uz * (DESCENT_LEAD + SLOPE_PROBE))) / SLOPE_PROBE;
+  if (slope < SLOPE_MIN || slope > SLOPE_MAX) return null;
+  const spacing = SPACING_MIN * HAIRPIN_RADIUS;
+  const half = LEG_MAX / 2;
+  const local: Path = [
+    [0, 0],
+    [0, DESCENT_LEAD],
+  ];
+  const hairpins = new Set<number>();
+  for (let j = 1; j <= count; j++)
+    for (const du of U_TURN) {
+      hairpins.add(local.length);
+      local.push([j % 2 ? half : -half, DESCENT_LEAD + j * spacing + du]);
+    }
+  const foot = DESCENT_LEAD + (count + 1) * spacing;
+  local.push([0, foot], [0, foot + DESCENT_LEAD]);
+  const shaped = fillet(local, hairpins);
+  if (!shaped) return null;
+  const world = (p: [number, number]): [number, number] => [x + tx * p[0] + ux * p[1], z + tz * p[0] + uz * p[1]];
+  const points = spaced(shaped.line, DESCENT_STEP).map(world);
+  if (points.some(([px, pz]) => sample(heights, px, pz) < LAND)) return null;
+  const bends = shaped.bends.map((bend) => {
+    const [bx, bz] = world([bend.x, bend.z]);
+    return { x: bx, z: bz, radius: bend.radius, arc: bend.arc.map(world) };
+  });
+  return { points, bends, x, z, tx, tz, ux, uz, t0: -half - HAIRPIN_RADIUS, t1: half + HAIRPIN_RADIUS, u1: foot + DESCENT_LEAD };
 }
 
 /** Barriers along the outside of every hairpin, where the fill falls away; spots on uneven ground are left open. */

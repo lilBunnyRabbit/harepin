@@ -199,6 +199,13 @@ export interface Runup {
   reach: number;
 }
 
+/** A one-way road off the ring down to ground under `outlet`: a stack of the first of `stacks` hairpins that fits, then a gully. */
+export interface DescentRecipe {
+  stacks: readonly number[];
+  outlet: number;
+  tries: number;
+}
+
 export interface RoadRecipe {
   /** Ring control radius: base plus noise times swing, clamped to min..max. */
   loop: { radius: number; swing: number; min: number; max: number };
@@ -218,6 +225,7 @@ export interface RoadRecipe {
   runup: Runup | null;
   /** Cut and fill banks wider than the fixed shoulder; null keeps the shoulder. */
   bank: Bank | null;
+  descent?: DescentRecipe;
 }
 
 export interface TownRecipe {
@@ -444,8 +452,9 @@ export const TUNDRA: Recipe = {
 const CINDER: GroundRule = { cut: 0.5, above: Ground.UPLAND, below: Ground.DRY, soft: 0.2 };
 
 /**
- * One cone filling the island, a crater in its top and the circuit round the rim: loose scree from the rim down, scrub
- * thickening down the flank. No towns: the flank has no ground flat enough, nor a spur that holds the grade to the rim.
+ * One cone filling the island, a crater in its top, the circuit round the rim and a hairpin road down the flank to the
+ * sea: loose scree from the rim down, scrub thickening down the flank. No towns: the flank has no ground flat enough, nor
+ * a spur that holds the grade to the rim.
  */
 export const VOLCANO: Recipe = {
   terrain: [
@@ -469,7 +478,7 @@ export const VOLCANO: Recipe = {
     items: { coast: "rock", meadow: "rock", forest: "log", upland: "rock" },
     ground: { coast: { cut: 0.55, above: Ground.SAND, below: Ground.DUNE, soft: 0 }, meadow: CINDER, forest: { cut: 0.6, above: Ground.DRY, below: Ground.FOREST, soft: 0.2 }, upland: CINDER },
   },
-  road: { loop: { radius: 205, swing: 30, min: 195, max: 235 }, straights: null, stacks: [], tongue: false, canyon: null, kickers: { road: 2, total: 6, big: 1 }, runup: { grade: 0.08, reach: 100 }, bank: { run: 3.75, reach: 64 } },
+  road: { loop: { radius: 205, swing: 30, min: 195, max: 235 }, straights: null, stacks: [], tongue: false, canyon: null, kickers: { road: 2, total: 6, big: 1 }, runup: { grade: 0.08, reach: 100 }, bank: { run: 3.75, reach: 64 }, descent: { stacks: [12, 13, 14], outlet: 2, tries: 16 } },
   towns: { min: 0, max: 0, trees: false, pines: 1, block: { min: 35, span: 10 }, top: 60, layout: "grid", roofs: "flat", variety: false, exact: true },
   landmarks: [],
   scatter: [{ kind: PropKind.BOULDER, spacing: 50, odds: 0.1, biomes: ["meadow", "upland"], road_within: Infinity }],

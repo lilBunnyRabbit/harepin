@@ -5,12 +5,13 @@ import { LandmarkPlanner } from "./landmarks";
 import { length } from "./noise";
 import { Lots } from "./lots";
 import { plan_canyon } from "./canyon";
+import { plan_descent } from "./descent";
 import { on_ice, plan_ice } from "./ice";
 import { in_lava } from "./lava";
 import { split_circuit, type Join } from "./graph";
 import { link_towns, way_toward, ways } from "./links";
 import { loop_heights, loop_path, road_points } from "./path";
-import { circuit_route, offroad_routes, reverse_circuit, street_routes } from "./routes";
+import { circuit_route, descent_route, offroad_routes, reverse_circuit, street_routes } from "./routes";
 import { join_candidates, MIN_RADIUS, Router, SHAPE_GRADE, spur_need, spur_points, tightest, type Way } from "./route";
 import type { Path } from "./path";
 import { scatter } from "./scatter";
@@ -66,11 +67,21 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
 
   const { stack } = planned;
   const road = road_points(planned.path, loop_heights(planned, heights), true);
+  const on_stack = (j: number) => stack !== null && inside(stack, road[j].x, road[j].z, STACK_JOIN);
+  const n = road.length;
+  const checkpoint_at = Array.from({ length: CHECKPOINTS }, (_, i) => Math.floor((i / CHECKPOINTS) * n));
+  const keep = (at: number) =>
+    on_stack(at) || at < GRID_AHEAD || at >= n - GRID_BEHIND || checkpoint_at.some((c) => Math.min((at - c + n) % n, (c - at + n) % n) < CHECKPOINT_CLEAR);
   // Planned on the hillside as drawn, before the face reshapes the stack flank; the carve still cuts after it.
   const canyon = recipe.road.canyon ? plan_canyon(seed, heights, road, recipe.road.canyon.outlet, recipe.road.canyon.tries) : null;
   const stamp = new Stamp(land);
   if (stack) stamp.face(road.filter((p) => inside(stack, p.x, p.z, 0)));
   if (canyon) stamp.carve(canyon);
+  const descent = recipe.road.descent ? plan_descent(seed, heights, road, recipe.road.descent, (at) => !keep(at)) : null;
+  if (descent) {
+    stamp.face(descent.points.filter((p) => inside(descent.stack, p.x, p.z, 0)));
+    stamp.carve(descent.gully);
+  }
   const nodes: RoadNode[] = [];
   const edges: RoadEdge[] = [];
   const graph: RoadGraph = { nodes, edges };
@@ -93,7 +104,6 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   lap("towns");
 
   const router = new Router((x, z) => sample(heights, x, z), (x, z) => sample(road_dist, x, z), towns);
-  const on_stack = (j: number) => stack !== null && inside(stack, road[j].x, road[j].z, STACK_JOIN);
   const joins: Join[] = [];
   for (const town of towns) {
     const gate_id = gates.get(town.id);
@@ -148,12 +158,15 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   }
   lap("highways");
 
-  const n = road.length;
-  const checkpoint_at = Array.from({ length: CHECKPOINTS }, (_, i) => Math.floor((i / CHECKPOINTS) * n));
-  const keep = (at: number) =>
-    on_stack(at) || at < GRID_AHEAD || at >= n - GRID_BEHIND || checkpoint_at.some((c) => Math.min((at - c + n) % n, (c - at + n) % n) < CHECKPOINT_CLEAR);
   // Roads between towns stay out of the canyon, where the trail's gap jump needs a clear run-up.
   if (canyon) router.keep_off(canyon.points, canyon.floor + canyon.wall + CANYON_CLEAR);
+  if (descent) {
+    const { join, points } = descent;
+    const end = points[points.length - 1];
+    nodes.push({ id: nodes.length, x: road[join].x, z: road[join].z, y: road[join].y, kind: "junction" }, { id: nodes.length + 1, x: end.x, z: end.z, y: end.y, kind: "end" });
+    joins.push({ node: nodes.length - 2, at: join });
+    edges.push({ id: edges.length, a: nodes.length - 2, b: nodes.length - 1, kind: "highway", half: ROAD_HALF, closed: false, points });
+  }
   link_towns({ graph, ring, road, towns, heights, router, joins, keep });
   const circuit = split_circuit(graph, road, joins);
   lap("links");
@@ -215,7 +228,7 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   planner.open_items((x, z) => item_kind(cuts, x, z, sample(heights, x, z)));
   const jumps = planner.out;
   solids.push(...jumps.solids);
-  for (const rail of stack ? guard_rails(stack, heights, road_dist) : []) {
+  for (const rail of [stack, descent?.stack ?? null].flatMap((s) => (s ? guard_rails(s, heights, road_dist) : []))) {
     jumps.items.push(rail);
     const solid = ITEMS.barrier.solid?.(rail.x, rail.y, rail.z, rail.fx, rail.fz, rail.scale);
     if (solid) solids.push(solid);
@@ -227,7 +240,8 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   jumps.items.push(...streets.items);
   const reverse = reverse_circuit(loop, jumps.ramps);
   const offroad = offroad_routes(trails.trails);
-  const routes = reverse ? [loop, ...streets.routes, ...offroad, reverse] : [loop, ...streets.routes, ...offroad];
+  const sprint = descent ? [descent_route(descent.points)] : [];
+  const routes = reverse ? [loop, ...streets.routes, ...offroad, ...sprint, reverse] : [loop, ...streets.routes, ...offroad, ...sprint];
   lap("routes");
 
   const free = (x: number, z: number) => !lots.occupied[vertex(Math.round((x - ORIGIN) / CELL), Math.round((z - ORIGIN) / CELL))] && !towns.some((t) => length(t.x - x, t.z - z) < t.radius) && !jumps.blocks(x, z, 2) && !marks.blocks(x, z, 2) && !on_ice(lakes, x, z) && !(lava.length && in_lava(lava, x, z, sample(heights, x, z)));
