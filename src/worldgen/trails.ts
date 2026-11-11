@@ -75,6 +75,8 @@ const DEEP_CUT = 6;
  * trail's own edge: a car drifting wide on the climb stays on it instead of dropping a wheel off a dyke.
  */
 const BED = 3;
+/** Banks of a deep run meet the hillside within this of its line; the switchback's own reach would shape 280 m around it. */
+const BANK_REACH = 40;
 /** A point the CLIMB grading moved further than this is stamped in full. */
 const CUT_MOVED = 0.05;
 /** A trail still climbing faster than CLIMB_MAX over CLIMB_SPAN points after that is dropped for the next option. */
@@ -92,7 +94,7 @@ const COAST_HIGH = 8;
 const START_OUT = 24;
 /** Starts sit on ground at most this steep (the unit normal's y): a standing start on a hillside slides back. */
 const LEVEL_UP = 0.97;
-const OPTIONS = 60;
+const OPTIONS = 32;
 const WINDOWS = [
   { id: "offroad-1", min: 1200, max: 3000, aim: 2000 },
   { id: "offroad-2", min: 2200, max: 4400, aim: 3200 },
@@ -426,6 +428,11 @@ function climb(ys: number[], ground: number[], steps: number[], pinned: (i: numb
   return out;
 }
 
+// A leg too steep on its own sinks every option through it, so the legs after it are never routed.
+function steep_leg(leg: Path | null, land: Terrain, cross: Crossing | null): Path | null {
+  return leg && !too_steep(resample(chaikin(leg, 3), STEP, false), land, cross) ? leg : null;
+}
+
 // Drops grid corners sharper than TURN_COS2 that are not `fixed`; chaikin would fold a reversal over itself.
 function unkink(path: Path, fixed: (i: number) => boolean): Path {
   let out = path;
@@ -511,9 +518,10 @@ export function plan_trails(seed: number, land: Terrain, stamp: Stamp, canyon: C
   if (cross) stamp.pad(cross);
   const done: Finished[] = [];
   for (const [n, plan] of plans.entries()) done.push(finish(plan, cross, land, WINDOWS[n].id, done));
-  for (const run of done.flatMap((d) => d.deep)) stamp.face([-BED, 0, BED].flatMap((o) => run.map((q) => ({ ...q, x: q.x - q.tz * o, z: q.z + q.tx * o }))));
-  // A bank shaped for one trail can reach another running beside it: that one then sets its own line in full.
-  for (const { trail, blend } of done) for (const [i, q] of trail.points.entries()) if (Math.abs(sample(land.heights, q.x, q.z) - q.y) > MAX_CUT) blend[i] = 1;
+  for (const runs of done.map((d) => merged(d.deep))) for (const run of runs) stamp.face([-BED, 0, BED].flatMap((o) => run.map((q) => ({ ...q, x: q.x - q.tz * o, z: q.z + q.tx * o }))), BANK_REACH);
+  // A bank shaped for one trail can reach another running beside it: that one then sets its own line in full. A point at
+  // blend 0 is the pad's, the slot over the canyon among them.
+  for (const { trail, blend } of done) for (const [i, q] of trail.points.entries()) if (blend[i] > 0 && Math.abs(sample(land.heights, q.x, q.z) - q.y) > MAX_CUT) blend[i] = 1;
   const trails = done.map((d) => d.trail);
   const lines: TrailLine[] = done.map((d) => ({ points: d.trail.points, blend: (i) => d.blend[i] }));
   if (cross) lines.push({ points: cross.ramp_out, blend: (i) => (i < cross.cut ? 1 : 0) });
@@ -569,7 +577,7 @@ function route_trails(seed: number, p: Planner, marks: ReturnType<typeof waypoin
       for (const [from, to] of legs) {
         const fresh = found.length === 0 || (cross !== null && found.length === 1);
         const memo = `${from}>${to}`;
-        const leg = fresh && cache.has(memo) ? (cache.get(memo) ?? null) : p.route(from, to, fresh ? p.blocked : blocked);
+        const leg = fresh && cache.has(memo) ? (cache.get(memo) ?? null) : steep_leg(p.route(from, to, fresh ? p.blocked : blocked), p.land, cross);
         if (fresh) cache.set(memo, leg);
         if (!leg) break;
         found.push(leg);
@@ -607,6 +615,8 @@ interface Finished {
 }
 
 interface Shared {
+  x: number;
+  z: number;
   y: number;
   blend: number;
 }
@@ -619,7 +629,8 @@ function finish(plan: Plan, cross: Crossing | null, land: Terrain, id: string, e
   // Steeper than TRAIL_GRADE the trail is cut and filled toward its graded line; elsewhere it keeps half the bumps.
   const graded = (ys: number[]) => limit_grade(ys, steps, TRAIL_GRADE).map((y, i) => ground[i] + Math.max(-MAX_CUT, Math.min(MAX_CUT, y - ground[i])));
   const share = (ys: number[], i: number) => Math.min(CUT_BLEND, TRAIL_BLEND + CUT_PER_M * Math.abs(ground[i] - ys[i]));
-  const shared = path.map((q) => nearest(earlier, q));
+  const near = buckets(earlier);
+  const shared = path.map((q) => nearest(near, q));
   let ys = graded(smooth(ground, 5, 2, false));
   let toe = -1;
   let rejoin = -1;
@@ -644,7 +655,7 @@ function finish(plan: Plan, cross: Crossing | null, land: Terrain, id: string, e
   const deep: RoadPoint[][] = [];
   let from = -1;
   for (let i = 0; i <= points.length; i++) {
-    const cut = i < points.length && !shared[i] && Math.abs(ys[i] - ground[i]) > MAX_CUT;
+    const cut = i < points.length && !shared[i] && !hard(i) && Math.abs(ys[i] - ground[i]) > MAX_CUT;
     if (cut && from < 0) from = i;
     if (!cut && from >= 0) {
       deep.push(points.slice(from, i));
@@ -654,16 +665,42 @@ function finish(plan: Plan, cross: Crossing | null, land: Terrain, id: string, e
   return { trail: { id, points, toe, rejoin }, blend, deep };
 }
 
-function nearest(earlier: readonly Finished[], q: Point): Shared | null {
-  let best = SHARED * SHARED;
-  let out: Shared | null = null;
+// Runs whose banks would overlap shape the ground in one pass.
+function merged(runs: readonly RoadPoint[][]): RoadPoint[][] {
+  const out: RoadPoint[][] = [];
+  for (const run of runs) {
+    const last = out[out.length - 1]?.at(-1);
+    if (last && length(run[0].x - last.x, run[0].z - last.z) < 2 * BANK_REACH) out[out.length - 1] = [...out[out.length - 1], ...run];
+    else out.push(run);
+  }
+  return out;
+}
+
+const bucket = (x: number, z: number) => `${Math.floor(x / SHARED)},${Math.floor(z / SHARED)}`;
+
+function buckets(earlier: readonly Finished[]): Map<string, Shared[]> {
+  const out = new Map<string, Shared[]>();
   for (const { trail, blend } of earlier)
     for (const [k, p] of trail.points.entries()) {
-      const d = (p.x - q[0]) ** 2 + (p.z - q[1]) ** 2;
-      if (d >= best) continue;
-      best = d;
-      out = { y: p.y, blend: blend[k] };
+      const key = bucket(p.x, p.z);
+      const list = out.get(key) ?? [];
+      list.push({ x: p.x, z: p.z, y: p.y, blend: blend[k] });
+      out.set(key, list);
     }
+  return out;
+}
+
+function nearest(near: Map<string, Shared[]>, q: Point): Shared | null {
+  let best = SHARED * SHARED;
+  let out: Shared | null = null;
+  for (let dz = -1; dz <= 1; dz++)
+    for (let dx = -1; dx <= 1; dx++)
+      for (const p of near.get(bucket(q[0] + dx * SHARED, q[1] + dz * SHARED)) ?? []) {
+        const d = (p.x - q[0]) ** 2 + (p.z - q[1]) ** 2;
+        if (d >= best) continue;
+        best = d;
+        out = p;
+      }
   return out;
 }
 

@@ -32,6 +32,18 @@ test("most seeds get one canyon, flank to coast, crossing the circuit at most on
   if (FULL) expect(found).toBeGreaterThanOrEqual(16);
 }, 60_000);
 
+test("the trail's canyon gap stays open: no bank or trail stamp fills the slot under it", () => {
+  for (let seed = 0; seed < 10; seed++) {
+    const world = generate(seed);
+    const takeoff = world.ramps.find((r) => r.road && world.ramps.some((d) => d.kind === "landing" && d.id === r.id + 1));
+    const landing = world.ramps.find((d) => takeoff && d.kind === "landing" && d.id === takeoff.id + 1);
+    if (!takeoff || !landing) continue;
+    const x = (takeoff.x + takeoff.fx * takeoff.length + landing.x) / 2;
+    const z = (takeoff.z + takeoff.fz * takeoff.length + landing.z) / 2;
+    expect(sample(world.terrain.heights, x, z)).toBeLessThan(landing.y - 4);
+  }
+}, 120_000);
+
 test("the circuit keeps its causeway where it crosses the canyon", () => {
   const world = generate(0);
   expect(world.canyon).not.toBeNull();
