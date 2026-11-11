@@ -108,7 +108,7 @@ export class Updater {
     this.pending.hidden = true;
     this.toast.type = "button";
     this.toast.hidden = true;
-    this.toast.append(el("b", "", "Update ready"), el("span", "", "· in the menu"));
+    this.toast.append(el("b", "", "Update ready"), el("span", "", "· what's new"));
     this.chip.root.addEventListener("click", () => {
       if (this.state !== UpdateState.READY) return this.host.show_notes();
       this.request_apply((text) => this.chip.show(UpdateState.READY, text));
@@ -242,7 +242,9 @@ export class Updater {
   }
 
   private request_apply(say: (text: string) => void): void {
+    if (this.applying) return;
     this.applying = true;
+    this.chip.root.disabled = true;
     if (this.host.busy()) say("Updating when this run ends");
     clearInterval(this.apply_wait);
     this.apply_wait = this.when_idle(() => {

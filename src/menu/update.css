@@ -259,7 +259,8 @@ body:has(> .settings:not([hidden])) .update-toast,
   }
 }
 
-.drive-update[hidden] {
+.drive-update[hidden],
+body:has(#chat-panel:not([hidden])) .drive-update {
   display: none;
 }
 
