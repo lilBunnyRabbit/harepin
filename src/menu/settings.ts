@@ -489,6 +489,7 @@ export class Settings {
     const title = el("h3", "set-title");
     const reset = el("button", "set-reset");
     reset.type = "button";
+    reset.setAttribute("aria-label", "Reset section");
     reset.append(icon("icon-restart"), el("span", "", "Reset section"));
     reset.addEventListener("click", () => this.alt());
     const head = el("div", "set-head");
