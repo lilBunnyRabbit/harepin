@@ -90,7 +90,7 @@ function keymap(bindings: Bindings): Record<Device, [string[], string, string][]
 
 const PRESETS: [AidPreset, string, string][] = [
   [AidPreset.EASY, "Easy", "Grip, brakes and slides looked after. Gears shift for you."],
-  [AidPreset.BALANCED, "Balanced", "Traction and ABS stay on, steering assist and stability are off: a sharp turn at speed will slide. Catch it yourself."],
+  [AidPreset.BALANCED, "Balanced", "Traction, ABS and stability stay on, steering assist is off: a slide is yours to countersteer."],
   [AidPreset.PRO, "Pro", "Nothing helps. You shift yourself."],
 ];
 const AID_LIGHTS = [

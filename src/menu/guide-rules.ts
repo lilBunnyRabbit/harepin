@@ -25,7 +25,7 @@ export interface Aids {
 
 const PRESET_AIDS: Record<AidPreset, Aids> = {
   easy: { tcs: true, abs: true, assist: true, stability: true, auto: true },
-  balanced: { tcs: true, abs: true, assist: false, stability: false, auto: true },
+  balanced: { tcs: true, abs: true, assist: false, stability: true, auto: true },
   pro: { tcs: false, abs: false, assist: false, stability: false, auto: false },
 };
 

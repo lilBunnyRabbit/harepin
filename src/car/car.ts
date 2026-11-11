@@ -585,7 +585,10 @@ export class Car {
       const reach = USEFUL_SLIP * spec.peak_angle + free;
       // In a power slide the front axle's course swings with the tail, and pulling the fronts after it straightened them
       // under a player holding full lock.
-      target += (Math.max(course - reach, Math.min(course + reach, target)) - target) * (1 - power_slide);
+      const near = Math.max(course - reach, Math.min(course + reach, target));
+      // Without the assist the clamp only takes lock off: turning the wheels towards the course on its own is the countersteer.
+      const kept = this.assist ? near : Math.sign(target) * Math.max(0, Math.min(Math.abs(target), Math.sign(target) * near));
+      target += (kept - target) * (1 - power_slide);
     }
     target = Math.max(-spec.lock, Math.min(spec.lock, target));
     // At speed the ramped key input moves slower than either limit; at parking speed this keeps the old keyboard feel.

@@ -23,15 +23,11 @@ describe("steering assist and stability", () => {
   });
 
   for (const aids of COMBOS) {
-    test(`${name(aids)}: steering assist alone owns the lock and countersteer, stability alone owns the spin`, () => {
+    test(`${name(aids)}: the grip-limited lock holds either way, stability alone owns the spin`, () => {
       for (const id of LOCKED) {
         const spec = CARS[id];
-        const sl = slalom(SMOOTH, spec, 100, 0.5, aids).slip;
-        const guided = slalom(SMOOTH, spec, 100, 0.5, { ...aids, assist: true }).slip;
-        if (aids.assist) {
-          expect(Math.abs(swerve(SMOOTH, spec, 100, 0.4, aids).heading)).toBeLessThan(2);
-          expect(sl).toBeLessThan(5);
-        } else expect(sl).toBeGreaterThan(guided * 2);
+        expect(Math.abs(swerve(SMOOTH, spec, 100, 0.4, aids).heading)).toBeLessThan(2);
+        expect(slalom(SMOOTH, spec, 100, 0.5, aids).slip).toBeLessThan(5);
       }
       for (const spec of Object.values(CARS)) {
         const slip = kick(SMOOTH, spec, 100, 1.5, aids);

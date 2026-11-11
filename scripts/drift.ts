@@ -75,7 +75,9 @@ export function drift(spec: CarSpec, kmh: number, angle: number, aids: boolean, 
     const want = course + Math.sign(b) * 1.2 * (Math.abs(b) - target) + 0.12 * rate;
     const speed = car.vel.length();
     const slide = speed > 5 ? Math.atan2(-local.x, Math.abs(local.z)) : 0;
-    const lock = aids ? spec.lock : (physics.unassisted_lock?.(spec, speed, Math.sign(want), slide) ?? spec.lock / (1 + speed / 45));
+    // A car module from before grip_lock took the speed where it now takes the grip-limited lock.
+    const second = physics.grip_lock ? Math.min(spec.lock, physics.grip_lock(spec, speed)) : speed;
+    const lock = aids ? spec.lock : (physics.unassisted_lock?.(spec, second, Math.sign(want), slide) ?? spec.lock / (1 + speed / 45));
     if (Math.abs(want) > lock) locked++;
     const before = car.vel.length();
     const rear_slip = car.wheels.filter((w) => w.driven && !w.axle.steer).reduce((most, w) => Math.max(most, w.slip), 0);

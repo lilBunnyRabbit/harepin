@@ -2,7 +2,7 @@
 import { describe, expect, test } from "bun:test";
 import { Vector3 } from "three";
 import { DEFAULT_BUILD, DEFAULT_PARTS, apply_build } from "./build";
-import { Car, SteerMode, drop_height, ride_height, type Controls, type Ground } from "./car";
+import { Car, SteerMode, drop_height, grip_lock, ride_height, unassisted_lock, type Controls, type Ground } from "./car";
 import { CARS, car_sized, is_car, type CarId, type CarSpec } from "./cars";
 import { donut } from "../../scripts/donut";
 import { hairpin_pull } from "../../scripts/hairpin";
@@ -396,6 +396,8 @@ describe("drift suspension", () => {
   };
   const slip = (car: Car) => Math.abs(beta(car)) * (180 / Math.PI);
   const power_on: Controls = { ...idle, steer: 0.3, throttle: 1, analog: true };
+  // Steering assist off still caps the lock at the grip limit, about 0.3 of the old speed-cut lock at 70 km/h.
+  const power_in: Controls = { ...power_on, steer: 1 };
 
   // TCS off and held in third at 70 km/h, so the only thing between the two runs is the setup.
   function rolling(id: CarId, suspension: number, assist = false): Car {
@@ -410,23 +412,24 @@ describe("drift suspension", () => {
 
   function step_steer(id: CarId, suspension: number) {
     const car = rolling(id, suspension);
-    run(car, 0.8, () => power_on);
+    run(car, 0.8, () => power_in);
     const early = slip(car);
-    run(car, 0.4, () => power_on);
+    run(car, 0.4, () => power_in);
     return { early, late: slip(car) };
   }
 
   // A plain countersteer-and-feather driver aiming for 26 degrees: time spent between 15 and 50 is a slide held.
   function held_slide(id: CarId, suspension: number) {
     const car = rolling(id, suspension);
-    run(car, 1, () => power_on);
+    run(car, 1, () => power_in);
     let held = 0;
     let most = 0;
     for (let t = 0; t < 4; t += DT) {
       const b = beta(car);
       const err = Math.abs(b) - 0.45;
-      const lock = car.spec.lock / (1 + car.vel.length() / 45);
-      car.step(DT, { ...idle, analog: true, steer: Math.max(-1, Math.min(1, (b * 1.2 + Math.sign(b) * err) / lock)), throttle: Math.max(0, Math.min(1, 0.5 - err)) }, flat);
+      const want = b * 1.2 + Math.sign(b) * err;
+      const lock = unassisted_lock(car.spec, Math.min(car.spec.lock, grip_lock(car.spec, car.vel.length())), Math.sign(want), b);
+      car.step(DT, { ...idle, analog: true, steer: Math.max(-1, Math.min(1, want / lock)), throttle: Math.max(0, Math.min(1, 0.5 - err)) }, flat);
       const s = slip(car);
       most = Math.max(most, s);
       if (s >= 15 && s <= 50) held += DT;
@@ -475,7 +478,8 @@ describe("drift suspension", () => {
       const race = held_slide(id, 2);
       const drift = held_slide(id, 3);
       expect(drift.held).toBeGreaterThan(1.4);
-      expect(drift.held).toBeGreaterThan(race.held + 0.8);
+      // The grip-capped lock lets race hold a caught slide longer too: 0.4 s before, 1.1 s now, against drift's 1.8.
+      expect(drift.held).toBeGreaterThan(race.held + 0.6);
       expect(drift.most).toBeLessThan(45);
     });
   }
