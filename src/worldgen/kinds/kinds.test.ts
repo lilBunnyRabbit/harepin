@@ -157,7 +157,7 @@ test("an old build, which matches ids whole, sees a custom map as a foreign map 
 });
 
 test("maps that share a w still meet as different maps by their codes", () => {
-  const { options } = KINDS.island;
+  const options = KINDS.island.options.filter((o) => !o.slider);
   let all: number[][] = [[]];
   for (const o of options) all = all.flatMap((levels) => o.labels.map((_, level) => [...levels, level]));
   const maps = all.map((levels) => ({ kind: WorldKind.ISLAND, seed: 42, levels })).filter((map) => !is_plain(map));
@@ -172,4 +172,20 @@ test("maps that share a w still meet as different maps by their codes", () => {
 test("records keys: a map off only K2 knobs keeps its digit key", () => {
   expect(world_key(42, WorldKind.DESERT, [2, 1, 0])).toBe("42:d2:210");
   expect(world_key(42, WorldKind.SKY, [1, 1, 0, 1, 1])).toBe("42:sky3:11011");
+});
+
+test("records keys: a slider off normal keys by the code's letters, never a K2 digit key", () => {
+  const desert = KINDS.desert.options.map((o) => o.normal);
+  expect(world_key(42, WorldKind.DESERT, desert.map((l, i) => (i === 3 ? 0 : l)))).toBe("42:d2:H0");
+  expect(world_key(42, WorldKind.DESERT, desert.map((l, i) => (i === 0 ? 2 : i === 4 ? 31 : l)))).toBe("42:d2:DZJ2");
+});
+
+test("a slider's normal level is the kind's own value and its ends are the ranges it names", () => {
+  for (const kind of Object.values(WorldKind))
+    for (const o of KINDS[kind].options.filter((p) => p.slider)) {
+      expect(o.labels).toHaveLength(32);
+      expect(o.normal).toBe(16);
+    }
+  const hills = KINDS.island.options.find((o) => o.field === "H");
+  expect([hills?.labels[0], hills?.labels[16], hills?.labels[31]]).toEqual(["40%", "100%", "150%"]);
 });

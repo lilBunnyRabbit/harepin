@@ -46,8 +46,11 @@ function parse_legacy(text: string, kind: WorldKind): MapRead | null {
   const legacy = LEGACY.exec(text);
   if (!legacy) return null;
   const seed = parse_seed(legacy[1]);
-  const levels = parse_opts(KINDS[kind].options, legacy[2] ?? "");
-  return seed === null || !levels ? { ok: false, why: "bad" } : { ok: true, map: { kind, seed, levels } };
+  const { options } = KINDS[kind];
+  const knobs = options.filter((o) => !o.slider);
+  const digits = parse_opts(knobs, legacy[2] ?? "");
+  if (seed === null || !digits) return { ok: false, why: "bad" };
+  return { ok: true, map: { kind, seed, levels: options.map((o) => (o.slider ? o.normal : digits[knobs.indexOf(o)])) } };
 }
 
 export function parse_map_code(text: string, kind: WorldKind = DEFAULT_KIND): MapRead {

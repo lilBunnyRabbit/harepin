@@ -20,7 +20,7 @@ const LEGEND = [
 ] as const;
 
 const MORE = [
-  ["New map", "Any world, any map code", "icon-dice", "world"],
+  ["Create world", "Pick a world, tune it, share its code", "icon-dice", "world"],
   ["Modes", "Races, drift, gymkhana", "icon-modes", "modes"],
 ] as const;
 

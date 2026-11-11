@@ -53,8 +53,9 @@ export class WorldMap {
   private readonly note = document.createElement("span");
   private worker: Worker | null = null;
   private timer = 0;
-  private wanted: { seed: number; kind: WorldKind } | null = null;
+  private wanted: { seed: number; kind: WorldKind; key: string } | null = null;
   private map: MapData | null = null;
+  private map_key = "";
   private image: ImageBitmap | null = null;
   // What the canvas holds: showing the same map at the same size again only repaints the cars.
   private drawn: { map: MapData; side: number } | null = null;
@@ -68,15 +69,16 @@ export class WorldMap {
     this.root.append(this.canvas, this.cars, this.note);
   }
 
-  /** Draws `seed`'s world, after a pause unless `now`, so typing a seed does not generate every keystroke. */
-  show(seed: number, kind: WorldKind, now = false) {
-    this.wanted = { seed, kind };
+  /** Draws `seed`'s world, after a pause unless `now`, so typing a seed or dragging a slider does not generate every step. */
+  show(seed: number, kind: WorldKind, now = false, levels: readonly number[] = []) {
+    const key = `${kind}:${seed}:${levels.join(".")}`;
+    this.wanted = { seed, kind, key };
     clearTimeout(this.timer);
     this.show_players([]);
-    if (this.map?.seed === seed && this.map.kind === kind) return this.draw();
+    if (this.map && this.map_key === key) return this.draw();
     this.set_status(MapStatus.DRAWING);
-    if (now) this.request(seed, kind);
-    else this.timer = window.setTimeout(() => this.request(seed, kind), DEBOUNCE_MS);
+    if (now) this.request(seed, kind, levels, key);
+    else this.timer = window.setTimeout(() => this.request(seed, kind, levels, key), DEBOUNCE_MS);
   }
 
   stop() {
@@ -85,7 +87,7 @@ export class WorldMap {
     this.worker = null;
   }
 
-  private request(seed: number, kind: WorldKind) {
+  private request(seed: number, kind: WorldKind, levels: readonly number[], key: string) {
     // A generation can't be cancelled from outside, so a stale one is dropped with its worker.
     this.worker?.terminate();
     const worker = new Worker(new URL("../worldgen/map-worker.ts", import.meta.url), { type: "module" });
@@ -93,7 +95,7 @@ export class WorldMap {
     worker.addEventListener("message", (event: MessageEvent<MapData>) => {
       worker.terminate();
       if (this.worker === worker) this.worker = null;
-      void this.receive(event.data);
+      void this.receive(event.data, key);
     });
     worker.addEventListener("error", (event) => {
       worker.terminate();
@@ -102,19 +104,20 @@ export class WorldMap {
       console.warn("world map: generation failed", event.message);
       this.set_status(MapStatus.FAILED);
     });
-    const request: MapRequest = { seed, kind, levels: [], tones: map_tones() };
+    const request: MapRequest = { seed, kind, levels, tones: map_tones() };
     worker.postMessage(request);
   }
 
-  private async receive(map: MapData) {
+  private async receive(map: MapData, key: string) {
     const image = await createImageBitmap(new ImageData(map.pixels, MAP_SIDE, MAP_SIDE));
     this.image?.close();
     this.image = image;
     this.map = map;
+    this.map_key = key;
     // The raster's corner is open water, so a frame wider than the square map continues the sea instead of a band.
     const [r, g, b] = map.pixels;
     this.root.style.setProperty("--map-edge", `rgb(${r} ${g} ${b})`);
-    if (map.seed === this.wanted?.seed && map.kind === this.wanted.kind) this.draw();
+    if (key === this.wanted?.key) this.draw();
   }
 
   private set_status(status: MapStatus) {

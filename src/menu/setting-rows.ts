@@ -20,6 +20,8 @@ export interface SliderOptions {
   unit?: string;
   min?: number;
   max?: number;
+  /** Readout in place of the rounded value and unit. */
+  format?: (value: number) => string;
 }
 
 export const ADJUST_EVENT = "adjust";
@@ -136,7 +138,7 @@ export class Rows {
     return this.row(label, { title: label, text: help }, button, (by) => value.set(by > 0), () => value.set(!value.get()));
   }
 
-  slider(label: string, help: Text, value: Value<number>, { step = 5, enabled = () => true, unit = "%", min = 0, max = 100 }: SliderOptions = {}): HTMLElement {
+  slider(label: string, help: Text, value: Value<number>, { step = 5, enabled = () => true, unit = "%", min = 0, max = 100, format }: SliderOptions = {}): HTMLElement {
     const wrap = el("div", "row-slider");
     const range = el("input", "settings-range");
     range.type = "range";
@@ -151,7 +153,7 @@ export class Rows {
     this.syncs.push(() => {
       const now = value.get();
       if (document.activeElement !== range) range.value = String(now);
-      readout.textContent = `${Math.round(now)}${unit}`;
+      readout.textContent = format ? format(now) : `${Math.round(now)}${unit}`;
       range.disabled = !enabled();
       range.style.setProperty("--fill", `${((now - min) / (max - min)) * 100}%`);
     });

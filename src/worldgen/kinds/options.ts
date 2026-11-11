@@ -8,6 +8,8 @@ export interface OptionDef {
   normal: number;
   /** A 0-31 slider: never part of a K2 records key, so K2 records keep theirs. */
   slider?: boolean;
+  /** Shown under the Create-world page's Advanced fold. */
+  more?: boolean;
 }
 
 export interface Knob<R> extends OptionDef {
@@ -18,6 +20,21 @@ export interface Knob<R> extends OptionDef {
 export function knob<R, V>(spec: OptionDef & { values: readonly V[]; set: (recipe: R, value: V) => R }): Knob<R> {
   const { values, set, ...def } = spec;
   return { ...def, apply: (recipe, level) => (level === def.normal ? recipe : set(recipe, values[level])) };
+}
+
+export const SLIDER_LEVELS = 32;
+/** Level 16 is the kind as it was: 16 steps below it, 15 above. */
+export const SLIDER_NORMAL = 16;
+
+/** A slider's value at `level`: `lo` at 0, `mid` (the kind's own) at normal, `hi` at 31, in plain IEEE steps so peers agree. */
+export function slider_value(level: number, lo: number, mid: number, hi: number): number {
+  return level < SLIDER_NORMAL ? lo + ((mid - lo) * level) / SLIDER_NORMAL : mid + ((hi - mid) * (level - SLIDER_NORMAL)) / (SLIDER_LEVELS - 1 - SLIDER_NORMAL);
+}
+
+export function slider<R>(spec: Omit<OptionDef, "labels" | "normal" | "slider"> & { lo: number; mid: number; hi: number; label: (value: number) => string; set: (recipe: R, value: number) => R }): Knob<R> {
+  const { lo, mid, hi, label, set, ...def } = spec;
+  const values = Array.from({ length: SLIDER_LEVELS }, (_, level) => slider_value(level, lo, mid, hi));
+  return knob<R, number>({ ...def, slider: true, labels: values.map(label), normal: SLIDER_NORMAL, values, set });
 }
 
 export function tune<R>(recipe: R, knobs: readonly Knob<R>[], levels: readonly number[]): R {

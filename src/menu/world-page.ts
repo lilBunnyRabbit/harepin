@@ -1,33 +1,37 @@
-import { parse_seed } from "../net/seed";
 import { el, icon } from "./setting-rows";
 import { WorldMap } from "./world-map";
 import type { MapData } from "../worldgen/map";
 import type { WorldKind } from "../worldgen/types";
+import { KINDS, plain_map, type MapSpec } from "../worldgen/kinds/kinds";
+import { custom_code, map_code, parse_map_code } from "../worldgen/kinds/map-code";
+import type { OptionDef } from "../worldgen/kinds/options";
 import { LISTED, WORLDS } from "../worlds/worlds";
 import { MenuTab, invite_link, type Menu, type MenuPage } from "./page";
+import { MAP_NAME_LENGTH, SAVED_MAPS_MAX } from "./prefs";
 import { COPIED_MS, picture, random_seed } from "./widgets";
 import { GoalId } from "../goals/goals";
 
 const PLAYERS_MS = 250;
+const NEWER = "Made in a newer Harepin: update to drive it";
+const BAD = "Not a map code";
 
 export class WorldPage implements MenuPage {
   readonly id = "world";
-  readonly label = "New map";
+  readonly label = "Create world";
   readonly parent = MenuTab.PLAY;
   private readonly world_map: WorldMap;
-  private chosen: number;
-  private chosen_kind: WorldKind;
+  private chosen: MapSpec;
   private players_timer = 0;
 
   constructor(private readonly menu: Menu) {
     this.world_map = new WorldMap();
-    this.chosen = menu.host.seed;
-    this.chosen_kind = menu.host.kind;
+    const { seed, kind, levels } = menu.host;
+    this.chosen = { seed, kind, levels: KINDS[kind].options.map((o, i) => levels[i] ?? o.normal) };
   }
 
   on_show() {
     this.menu.host.goals.done(GoalId.MAP);
-    this.world_map.show(this.chosen, this.chosen_kind, true);
+    this.world_map.show(this.chosen.seed, this.chosen.kind, true, this.chosen.levels);
     clearInterval(this.players_timer);
     this.players_timer = window.setInterval(() => this.show_players(), PLAYERS_MS);
     this.show_players();
@@ -39,16 +43,19 @@ export class WorldPage implements MenuPage {
     this.world_map.stop();
   }
 
+  private get here(): boolean {
+    const { host } = this.menu;
+    return this.chosen.seed === host.seed && this.chosen.kind === host.kind && custom_code(this.chosen) === host.code;
+  }
+
   private show_players() {
     if (document.hidden) return;
-    const { host } = this.menu;
-    const here = this.chosen === host.seed && this.chosen_kind === host.kind;
-    this.world_map.show_players(here ? host.map_players() : []);
+    this.world_map.show_players(this.here ? this.menu.host.map_players() : []);
   }
 
   build(): HTMLElement[] {
-    const { host } = this.menu;
-    const { room, seed } = host;
+    const { host, rows } = this.menu;
+    const { room } = host;
     const step = (n: number, text: string) => {
       const head = el("h3", "map-step");
       head.append(el("i", "", String(n)), el("span", "", text));
@@ -65,45 +72,53 @@ export class WorldPage implements MenuPage {
       const text = el("span", "map-world-text");
       text.append(el("b", "", WORLDS[kind].name), el("small", "", WORLDS[kind].pick));
       button.append(picture(kind), text);
-      button.addEventListener("click", () => {
-        this.chosen_kind = kind;
-        choose(this.chosen, true);
-      });
+      button.addEventListener("click", () => choose(plain_map(kind, this.chosen.seed), true));
       worlds.append(button);
       return [kind, button] as const;
     });
 
     const field = el("input", "settings-input map-code");
     field.type = "text";
-    field.inputMode = "numeric";
-    field.maxLength = 10;
+    field.maxLength = 64;
     field.autocomplete = "off";
+    field.autocapitalize = "characters";
+    field.spellcheck = false;
     field.enterKeyHint = "go";
-    field.value = String(seed);
     field.setAttribute("aria-label", "Map code");
     const dice = el("button", "map-dice");
     dice.type = "button";
     dice.append(icon("icon-dice"), el("span", "", "New random map"));
-    const code = el("div", "map-code-row");
-    code.append(field, dice);
+    const code_row = el("div", "map-code-row");
+    code_row.append(field, dice);
+    const hint = el("p", "map-hint");
 
     const drive = el("button", "map-drive");
     drive.type = "button";
-    drive.addEventListener("click", () => this.menu.drive(this.chosen, this.chosen_kind));
-    const share = el("button", "map-share");
-    share.type = "button";
-    const share_label = el("span", "", "Share code");
-    share.append(icon("icon-share"), share_label);
-    share.addEventListener("click", async () => {
-      try {
-        await navigator.clipboard.writeText(invite_link(room, this.chosen, this.chosen_kind));
-        share_label.textContent = "Link copied";
-      } catch (error) {
-        console.warn("settings: clipboard refused", error);
-        share_label.textContent = "Copy failed";
-      }
-      setTimeout(() => (share_label.textContent = "Share code"), COPIED_MS);
-    });
+    drive.addEventListener("click", () => this.menu.drive(this.chosen.seed, this.chosen.kind, this.chosen.levels));
+    const copy = (label: string, text: () => string) => {
+      const button = el("button", "map-share");
+      button.type = "button";
+      const shown = el("span", "", label);
+      button.setAttribute("aria-label", label);
+      button.title = label;
+      button.append(icon(label === "Copy code" ? "icon-edit" : "icon-share"), shown);
+      button.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(text());
+          shown.textContent = "Copied";
+        } catch (error) {
+          console.warn("settings: clipboard refused", error);
+          shown.textContent = "Copy failed";
+        }
+        setTimeout(() => (shown.textContent = label), COPIED_MS);
+      });
+      return button;
+    };
+    const share = el("div", "map-shares");
+    share.append(
+      copy("Copy code", () => map_code(this.chosen)),
+      copy("Copy link", () => invite_link(room, this.chosen.seed, this.chosen.kind, custom_code(this.chosen))),
+    );
 
     const title = el("b", "map-title");
     const facts = el("dl", "map-facts");
@@ -124,9 +139,8 @@ export class WorldPage implements MenuPage {
     legend.append(boost);
 
     const show_facts = (map: MapData | null) => {
-      const ready = map !== null && map.seed === this.chosen && map.kind === this.chosen_kind;
       facts.replaceChildren(
-        ...WORLDS[this.chosen_kind].facts(ready ? map.facts : null).map(([value, label]) => {
+        ...WORLDS[this.chosen.kind].facts(map ? map.facts : null).map(([value, label]) => {
           const item = el("div");
           item.append(el("dt", "", label), el("dd", "", value));
           return item;
@@ -135,45 +149,146 @@ export class WorldPage implements MenuPage {
     };
     this.world_map.on_ready = show_facts;
 
-    const choose = (next: number, now: boolean) => {
+    // Every kind's rows are built once and shown with their kind, so switching worlds never piles up row syncs.
+    const tune_rows: { kind: WorldKind; more: boolean; row: HTMLElement }[] = [];
+    let advanced = false;
+    const set_level = (kind: WorldKind, at: number, level: number) => {
+      if (this.chosen.kind !== kind || this.chosen.levels[at] === level) return;
+      choose({ ...this.chosen, levels: this.chosen.levels.map((l, i) => (i === at ? level : l)) }, false);
+    };
+    const level_of = (kind: WorldKind, at: number, o: OptionDef) => (this.chosen.kind === kind ? this.chosen.levels[at] : o.normal);
+    for (const { kind } of LISTED)
+      KINDS[kind].options.forEach((o, at) => {
+        const value = { get: () => level_of(kind, at, o), set: (level: number) => set_level(kind, at, level) };
+        const row = o.slider
+          ? rows.slider(o.name, o.help, value, { step: 1, min: 0, max: o.labels.length - 1, format: (level) => o.labels[level] ?? "" })
+          : rows.segmented(o.name, o.help, value, o.labels.map((label, level) => [level, label] as const));
+        tune_rows.push({ kind, more: o.more === true, row });
+      });
+    const fold_text = el("span", "", "More settings");
+    const fold_shown = el("span", "row-link pad-fold");
+    fold_shown.append(fold_text, icon("icon-steer-right"));
+    const fold = rows.action("Advanced", "Ridges, water, town size and the rest of this world's settings.", fold_shown, () => {
+      advanced = !advanced;
+      show_rows();
+      this.menu.refresh();
+    });
+    const reset = el("button", "map-reset", "Reset");
+    reset.type = "button";
+    reset.addEventListener("click", () => choose(plain_map(this.chosen.kind, this.chosen.seed), true));
+    const none = el("p", "map-hint map-none", "This world has no settings yet.");
+    const show_rows = () => {
+      const { kind } = this.chosen;
+      const mine = tune_rows.filter((t) => t.kind === kind);
+      for (const t of tune_rows) t.row.hidden = t.kind !== kind || (t.more && !advanced);
+      fold.hidden = !mine.some((t) => t.more);
+      fold.setAttribute("aria-expanded", String(advanced));
+      reset.hidden = !mine.length;
+      none.hidden = mine.length > 0;
+    };
+    const tune_head = el("div", "map-tune-head");
+    tune_head.append(step(3, "Tune it"), reset);
+    const tune_list = el("div", "set-rows map-rows");
+    tune_list.append(...tune_rows.filter((t) => !t.more).map((t) => t.row), fold, ...tune_rows.filter((t) => t.more).map((t) => t.row));
+
+    const name = el("input", "settings-input map-name");
+    name.type = "text";
+    name.maxLength = MAP_NAME_LENGTH;
+    name.autocomplete = "off";
+    name.placeholder = "Name this map";
+    name.setAttribute("aria-label", "Map name");
+    const save = el("button", "map-save", "Save");
+    save.type = "button";
+    const save_row = el("div", "map-code-row map-save-row");
+    save_row.append(name, save);
+    const saved_list = el("div", "set-rows map-saved");
+    const show_saved = () => {
+      const maps = this.menu.state().saved_maps;
+      saved_list.replaceChildren(
+        ...maps.map((map, index) => {
+          const remove = el("button", "map-remove");
+          remove.type = "button";
+          remove.setAttribute("aria-label", `Delete ${map.name}`);
+          remove.append(icon("icon-close"));
+          remove.addEventListener("click", (event) => {
+            event.stopPropagation();
+            this.menu.set("saved_maps", maps.filter((_, i) => i !== index));
+            show_saved();
+          });
+          const control = el("span", "map-saved-code");
+          control.append(el("span", "", map.code), remove);
+          return rows.action(map.name, `Load ${map.name}: ${map.code}`, control, () => {
+            const read = parse_map_code(map.code);
+            if (read.ok) choose(read.map, true);
+          });
+        }),
+      );
+    };
+    const save_map = () => {
+      const label = [...name.value.replace(/\p{C}/gu, "").trim()].slice(0, MAP_NAME_LENGTH).join("").trim();
+      if (!label) return name.focus();
+      const code = map_code(this.chosen);
+      const others = this.menu.state().saved_maps.filter((m) => m.name !== label);
+      this.menu.set("saved_maps", [{ name: label, code }, ...others].slice(0, SAVED_MAPS_MAX));
+      name.value = "";
+      show_saved();
+    };
+    save.addEventListener("click", save_map);
+    name.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") save_map();
+    });
+
+    const choose = (next: MapSpec, now: boolean) => {
       this.chosen = next;
-      const here = next === seed && this.chosen_kind === host.kind;
+      const { seed, kind, levels } = next;
+      const here = this.here;
+      const code = map_code(next);
       drive.textContent = here ? "You're on this map" : "Drive this map";
       drive.disabled = here;
-      drive.title = here ? "" : `Reloads room ${room} on ${WORLDS[this.chosen_kind].name} ${next}`;
-      title.textContent = `${WORLDS[this.chosen_kind].name} · map ${next}`;
-      for (const [kind, button] of world_buttons) button.setAttribute("aria-checked", String(kind === this.chosen_kind));
-      boost.hidden = !WORLDS[this.chosen_kind].pads;
+      drive.title = here ? "" : `Reloads room ${room} on ${WORLDS[kind].name} ${code}`;
+      title.textContent = `${WORLDS[kind].name} · ${code}`;
+      if (document.activeElement !== field) field.value = code;
+      field.setCustomValidity("");
+      hint.textContent = "Got a code from a friend? Type it in.";
+      for (const [k, button] of world_buttons) button.setAttribute("aria-checked", String(k === kind));
+      boost.hidden = !WORLDS[kind].pads;
+      show_rows();
       show_facts(null);
-      this.world_map.show(next, this.chosen_kind, now);
+      this.menu.refresh();
+      this.world_map.show(seed, kind, now, levels);
     };
     field.addEventListener("input", () => {
-      const next = parse_seed(field.value.trim());
-      field.setCustomValidity(next === null ? "A whole number from 0 to 4294967295" : "");
-      if (next === null) drive.disabled = true;
-      else choose(next, false);
+      const read = parse_map_code(field.value, this.chosen.kind);
+      if (read.ok) return choose(read.map, false);
+      const message = read.why === "newer" ? NEWER : BAD;
+      field.setCustomValidity(message);
+      hint.textContent = message;
+      drive.disabled = true;
+    });
+    field.addEventListener("blur", () => {
+      if (field.validity.valid) field.value = map_code(this.chosen);
     });
     field.addEventListener("keydown", (event) => {
       if (event.key === "Enter" && !drive.disabled) drive.click();
     });
-    dice.addEventListener("click", () => {
-      const next = random_seed();
-      field.value = String(next);
-      field.setCustomValidity("");
-      choose(next, true);
-    });
+    dice.addEventListener("click", () => choose({ ...this.chosen, seed: random_seed() }, true));
     choose(this.chosen, false);
+    show_saved();
 
     const picks = el("div", "map-picks");
+    picks.append(step(1, "Pick a world"), worlds, step(2, "Pick a map"), code_row, hint);
+    const tune = el("div", "map-tune");
+    tune.append(tune_head, tune_list, none, step(4, "Save it"), save_row, saved_list);
+    const side = el("div", "map-side");
+    side.append(picks, tune);
     const actions = el("div", "map-actions");
     actions.append(drive, share);
-    picks.append(step(1, "Pick a world"), worlds, step(2, "Pick a map"), code, el("p", "map-hint", "Got a code from a friend? Type it in."), actions);
     const preview = el("div", "map-preview");
     preview.append(this.world_map.root);
     const about = el("div", "map-about");
     about.append(title, facts, legend);
     const page = el("div", "map-page");
-    page.append(picks, preview, about);
+    page.append(side, preview, about, actions);
     return [page];
   }
 }

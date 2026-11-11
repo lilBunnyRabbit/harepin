@@ -16,9 +16,9 @@ test("the plain map keeps its key and an empty code", () => {
   expect(world_key(42, WorldKind.ISLAND, [1, 2, 1, 1, 1, 1])).toBe("42:w7:121111");
 });
 
-test("every code a kind has reads back to itself", () => {
+test("every K2 digit code a kind has reads back to itself", () => {
   for (const kind of Object.values(WorldKind)) {
-    const { options } = KINDS[kind];
+    const options = KINDS[kind].options.filter((o) => !o.slider);
     let codes = [""];
     for (const o of options) codes = codes.flatMap((c) => o.labels.map((_, level) => c + level));
     for (const code of codes) expect(parse_opts(options, code)).toEqual(code ? [...code].map(Number) : options.map((o) => o.normal));
@@ -50,9 +50,12 @@ const read = (text: string, kind?: WorldKind) => {
 
 test("map code field letters and preset chars never move", () => {
   const fields = Object.fromEntries(Object.values(WorldKind).map((kind) => [kind, KINDS[kind].options.map((o) => o.field).join("")]));
-  expect(fields).toEqual({ island: "EQYJCX", sky: "EQAVF", desert: "JCX", mainland: "", alpine: "YJC" });
+  expect(fields).toEqual({ island: "EQYJCXHTGPZ", sky: "EQAVF", desert: "JCXHDKZ", mainland: "", alpine: "YJCHTGZ" });
   expect(PRESETS.map((p) => `${p.char}${p.kind}`)).toEqual(["Cisland", "Ssky", "Ddesert", "Mmainland", "Aalpine"]);
-  for (const kind of Object.values(WorldKind)) expect(new Set(fields[kind]).size).toBe(fields[kind].length);
+  for (const kind of Object.values(WorldKind)) {
+    expect(new Set(fields[kind]).size).toBe(fields[kind].length);
+    for (const field of fields[kind]) expect("ILOU0123456789").not.toContain(field);
+  }
 });
 
 test("a plain map's code is the preset and the seed, nine chars", () => {
@@ -81,25 +84,25 @@ test("every level of every field of every preset round-trips through its code", 
 });
 
 test("overrides come out sorted, and ones equal to the preset drop out", () => {
-  const code = map_code({ kind: WorldKind.ISLAND, seed: 42, levels: [2, 0, 1, 1, 1, 0] });
-  expect(code).toBe("1C000001A-E2Q0X0");
-  expect(map_code(read("1c000001a-x0q0e2"))).toBe(code);
-  expect(map_code(read("1C000001A-E2Y1Q0X0"))).toBe(code);
-  expect(map_code(read(" 1c00-0001a e2 q0 x0 "))).toBe(code);
-  expect(map_code(read("1c0000o1a-e2q0x0"))).toBe(code);
+  const code = map_code({ kind: WorldKind.ISLAND, seed: 42, levels: [2, 0, 1, 1, 1, 0, 31, 16, 0] });
+  expect(code).toBe("1C000001A-E2G0HZQ0X0");
+  expect(map_code(read("1c000001a-x0hzg0q0e2"))).toBe(code);
+  expect(map_code(read("1C000001A-E2Y1Q0X0HZG0TG"))).toBe(code);
+  expect(map_code(read(" 1c00-0001a e2 g0 hz q0 x0 "))).toBe(code);
+  expect(map_code(read("1c0000o1a-e2g0hzq0x0"))).toBe(code);
 });
 
 test("K2 codes read as the picked kind's plain preset plus their digits", () => {
-  expect(read("42-121111")).toEqual({ kind: WorldKind.ISLAND, seed: 42, levels: [1, 2, 1, 1, 1, 1] });
+  expect(read("42-121111")).toEqual({ kind: WorldKind.ISLAND, seed: 42, levels: [1, 2, 1, 1, 1, 1, 16, 16, 16, 16, 16] });
   expect(read("42", WorldKind.SKY)).toEqual({ kind: WorldKind.SKY, seed: 42, levels: [1, 1, 1, 1, 1] });
-  expect(read("7-201", WorldKind.DESERT)).toEqual({ kind: WorldKind.DESERT, seed: 7, levels: [2, 0, 1] });
+  expect(read("7-201", WorldKind.DESERT)).toEqual({ kind: WorldKind.DESERT, seed: 7, levels: [2, 0, 1, 16, 16, 16, 16] });
   expect(map_code(read("42-121111"))).toBe("1C000001A-Q2");
   expect(map_code(read("42-111111"))).toBe("1C000001A");
   for (const bad of ["42-12111", "42-1211119", "4294967296", "42-", "-42"]) expect(parse_map_code(bad).ok).toBe(false);
 });
 
 test("a code this build can't build says newer, never builds another map", () => {
-  for (const newer of ["2C000001A", "1Z000001A", "1C000001A-P3", "1C000001A-E3", "1D000001A-E2", "1M000001A-E2"]) expect(parse_map_code(newer)).toEqual({ ok: false, why: "newer" });
+  for (const newer of ["2C000001A", "1Z000001A", "1C000001A-R3", "1C000001A-E3", "1D000001A-E2", "1M000001A-E2"]) expect(parse_map_code(newer)).toEqual({ ok: false, why: "newer" });
   for (const bad of ["", "1C00001A", "1C000001A-E", "1C000001A-E2E0", "1C00U001A", "1C000001!", "1CZZZZZZZ", "x".repeat(65)])
     expect(parse_map_code(bad)).toEqual({ ok: false, why: "bad" });
 });
