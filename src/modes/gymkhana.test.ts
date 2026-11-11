@@ -54,6 +54,13 @@ test("site: clear of the road and of solids, same every time", () => {
   expect(local.u < area.u0 || local.u > area.u1 || local.v < area.v0 || local.v > area.v1).toBe(true);
 });
 
+test("site: none on a hillside", () => {
+  const road = Array.from({ length: 400 }, (_, i) => ({ x: 0, z: (i - 200) * 5, tx: 0, tz: 1 }));
+  const slope = (grade: number): SiteGround => ({ height: (x) => 5 + Math.abs(x) * grade, distance_to_road: (x) => Math.abs(x), road, solids: [] });
+  expect(find_site(slope(0.02), 200)).not.toBeNull();
+  expect(find_site(slope(0.3), 200)).toBeNull();
+});
+
 test("levels get harder and courses are seeded", () => {
   const pars = LEVELS.map((level) => build_course(1, SITE, level).par_ms);
   expect(LEVELS.length).toBeGreaterThanOrEqual(5);

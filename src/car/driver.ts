@@ -85,6 +85,14 @@ export class Driver {
     this.chase.snap(this.car);
   }
 
+  /** At rest on the ground under (x, z), tilted to its slope: a level drop onto a steep site can roll the car. */
+  park(x: number, z: number, heading: number) {
+    this.car.park(x, z, heading, this.world);
+    this.pads.clear();
+    this.chase.size = this.size;
+    this.chase.snap(this.car);
+  }
+
   road_spot(index: number, reverse = false): Spawn {
     const { world } = this;
     const p = world.road[world.clear_spawn(index, reverse ? -1 : 1)];

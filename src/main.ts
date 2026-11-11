@@ -309,8 +309,8 @@ garage.on_back = () => settings.back();
 await spawn_ready;
 driver.place(driver.road_spot(start_index));
 
-const modes = new Modes(scene, world, SPAWN_INDEX, () => lobby.record, (x, y, z, heading) => {
-  driver.place({ x, y, z, heading });
+const modes = new Modes(scene, world, SPAWN_INDEX, () => lobby.record, (x, z, heading) => {
+  driver.park(x, z, heading);
   reset_lap();
 }, () => lobby.busy, () => audio.chime(), camera, () => driver.car.spec);
 modes.bindings = () => settings.state.bindings;

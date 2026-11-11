@@ -19,6 +19,8 @@ const SITE_ROAD_CLEAR = ROAD_HALF + 3;
 const SEARCH_POINTS = 160;
 const SEARCH_STRIDE = 4;
 const SEARCH_OFFSETS = [24, 36, 50, 66];
+/** Steepest rise across or along the site, over its width or length: past it the site is a hillside a car rolls off. */
+const MAX_SITE_GRADE = 0.25;
 
 export interface GymLevel {
   id: string;
@@ -141,7 +143,27 @@ function site_score(ground: SiteGround, site: Site, area: ReturnType<typeof foot
   return high - low;
 }
 
-/** The flattest clear patch beside the road near `start`, laid out parallel to it; null when nothing nearby is clear. */
+function site_grade(ground: SiteGround, site: Site, area: ReturnType<typeof footprint>): number {
+  const rise = (u0: number, v0: number, du: number, dv: number, n: number) => {
+    let low = Infinity;
+    let high = -Infinity;
+    for (let k = 0; k <= n; k++) {
+      const { x, z } = to_world(site, u0 + du * k, v0 + dv * k);
+      const y = ground.height(x, z);
+      low = Math.min(low, y);
+      high = Math.max(high, y);
+    }
+    return high - low;
+  };
+  const width = area.u1 - area.u0;
+  const length = area.v1 - area.v0;
+  let grade = 0;
+  for (let v = area.v0; v <= area.v1; v += SITE_STEP) grade = Math.max(grade, rise(area.u0, v, SITE_STEP, 0, Math.floor(width / SITE_STEP)) / width);
+  for (let u = area.u0; u <= area.u1; u += SITE_STEP) grade = Math.max(grade, rise(u, area.v0, 0, SITE_STEP, Math.floor(length / SITE_STEP)) / length);
+  return grade;
+}
+
+/** The flattest clear patch beside the road near `start`, laid out parallel to it; null when nothing nearby is clear and flat enough. */
 export function find_site(ground: SiteGround, start: number, area = footprint()): Site | null {
   const reach = Math.hypot(area.u1 - area.u0, area.v1 - area.v0) + Math.max(...SEARCH_OFFSETS);
   const from = ground.road[(start + ground.road.length) % ground.road.length];
@@ -166,7 +188,7 @@ export function find_site(ground: SiteGround, start: number, area = footprint())
       }
     if (best_score < 0.6) break;
   }
-  if (!best) return null;
+  if (!best || site_grade(ground, best, area) > MAX_SITE_GRADE) return null;
   return { ...best, y: ground.height(best.x, best.z) };
 }
 

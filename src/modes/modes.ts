@@ -1,5 +1,4 @@
 import type * as THREE from "three";
-import { drop_height } from "../car/car";
 import { car_sized, type CarSpec } from "../car/cars";
 import { DEFAULT_BINDINGS, keys_text, type Bindings } from "../hud/bindings";
 import { $, format } from "../hud/hud";
@@ -22,7 +21,6 @@ export type { Driven } from "./mode";
 
 export const MODES: readonly ModeDef[] = [RACE_MODE, GYMKHANA_MODE, PARKING_MODE, DRIFT_MODE, HUNT_MODE, DUEL_MODE];
 
-const SPAWN_LIFT = 0.75;
 const NOTICE_MS = 2500;
 const DEG = 180 / Math.PI;
 const OPEN_WORLDS = LISTED.filter((w) => KINDS[w.kind].open_ground).map((w) => `the ${w.map_label}`).join(" or ");
@@ -95,7 +93,7 @@ export class Modes {
     private readonly world: World,
     private readonly start_index: number,
     private readonly race_record: () => RaceRecord,
-    private readonly place: (x: number, y: number, z: number, heading: number) => void,
+    private readonly park: (x: number, z: number, heading: number) => void,
     private readonly race_busy: () => boolean,
     private readonly chime: () => void,
     private readonly camera: THREE.Camera,
@@ -203,7 +201,7 @@ export class Modes {
 
   private ctx(track: Track): ModeCtx {
     const { scene, world, start_index, camera } = this;
-    const spawn = (x: number, z: number, heading: number) => this.place(x, world.height(x, z) + drop_height(this.spec(), SPAWN_LIFT), z, heading);
+    const spawn = (x: number, z: number, heading: number) => this.park(x, z, heading);
     return {
       scene,
       world,
