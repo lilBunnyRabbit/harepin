@@ -55,12 +55,25 @@ const KEY_RAMP_MIN = 0.03;
 const KEY_RAMP_SPEED = 30;
 const KEY_RETURN = 2.5;
 const HOLD_TIME = 0.4;
-/** Smooth keyboard steer: share of the grip-limited turn a tap asks for at once. */
-const SMOOTH_TAP = 0.15;
-/** Smooth keyboard steer: time constant (s) of the build; a held key goes from a tap to full in ln(1 / SMOOTH_TAP) of them, 0.4 s at speed. */
-const SMOOTH_BUILD = 0.21;
-/** Smooth keyboard steer: time constant (s) of the unwind once the key is let go. */
-const SMOOTH_RELEASE = 0.12;
+/** A keyboard steer filter: the key is a virtual stick that moves at these rates. */
+interface KeyProfile {
+  /** Seconds from no key to full key, by speed (km/h), linear between rows. */
+  attack: readonly (readonly [kmh: number, s: number])[];
+  /** Seconds from full key back to none once it is let go, by speed (km/h). */
+  release: readonly (readonly [kmh: number, s: number])[];
+  /** Attack rate multiplier while the key opposes the wheel, until it crosses centre. */
+  reverse: number;
+  /** Share of full key a press applies on its first step; the linear attack after it makes press length set the turn. */
+  tap: number;
+}
+
+// Linear and not exponential from a fixed share: heading then grows with press time squared, so taps scale with length.
+const SMOOTH_KEYS: KeyProfile = {
+  attack: [[0, 0.05], [30, 0.1], [60, 0.18], [100, 0.26], [150, 0.32], [200, 0.36]],
+  release: [[0, 0.04], [30, 0.07], [60, 0.1], [100, 0.14], [150, 0.16], [200, 0.18]],
+  reverse: 3,
+  tap: 0.05,
+};
 // Released, a held wheel centres over this many metres rolled: 0.5 s at 100 km/h, about 25 s of creeping at 2 km/h.
 const HOLD_CENTRE_DISTANCE = 14;
 // The slip model is viscous below its 2 m/s floor, so a locked wheel still creeps under any steady force (a slope);
@@ -364,16 +377,18 @@ export class Car {
         this.key_steer += Math.max(-step, Math.min(step, input.steer - this.key_steer));
       }
     } else if (this.steer_mode === SteerMode.SMOOTH) {
-      const held = Math.abs(this.key_steer);
-      const want = input.steer * this.key_steer < 0 ? 0 : Math.abs(input.steer);
-      // Growth and unwind in proportion to the request: a tap stays a nudge, and letting go eases the wheel back as the
-      // car settles instead of snapping it straight, which threw the yaw past centre and set up a weave.
-      if (held > want) this.key_steer -= Math.sign(this.key_steer) * Math.min(held - want, held * (1 - Math.exp(-dt / SMOOTH_RELEASE)) + dt);
-      else {
-        const from = Math.max(held, SMOOTH_TAP * want);
-        // Scaled down with speed as the classic ramp is: a donut or a power slide wants the lock at once.
-        const build = SMOOTH_BUILD * Math.min(1, speed / KEY_RAMP_SPEED) + KEY_RAMP_MIN;
-        this.key_steer = Math.sign(input.steer) * Math.min(want, from * (2 - Math.exp(-dt / build)));
+      const kmh = speed * 3.6;
+      const held = this.key_steer;
+      const want = input.steer;
+      if (want * held < 0) {
+        const step = (SMOOTH_KEYS.reverse / curve_at(SMOOTH_KEYS.attack, kmh)) * dt;
+        this.key_steer += Math.max(-step, Math.min(step, want - held));
+      } else if (Math.abs(want) > Math.abs(held)) {
+        const from = Math.max(Math.abs(held), SMOOTH_KEYS.tap * Math.abs(want));
+        this.key_steer = Math.sign(want) * Math.min(Math.abs(want), from + dt / curve_at(SMOOTH_KEYS.attack, kmh));
+      } else {
+        const step = dt / curve_at(SMOOTH_KEYS.release, kmh);
+        this.key_steer += Math.max(-step, Math.min(step, want - held));
       }
     } else {
       const full = KEY_RAMP * Math.min(1, speed / KEY_RAMP_SPEED) + KEY_RAMP_MIN;

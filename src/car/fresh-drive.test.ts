@@ -4,6 +4,7 @@ import { Vector3 } from "three";
 import { DEFAULT_BUILD, DEFAULT_PARTS, build_spec, stats } from "./build";
 import { Car, SteerMode, type Controls, type Ground } from "./car";
 import { DEFAULT_SETTINGS } from "../menu/prefs";
+import { swerve, tap } from "../../scripts/keys";
 
 const flat: Ground = { height: () => 0, normal: (_x, _z, out) => out.set(0, 1, 0), grip: () => 1, roll: () => 1 };
 const DT = 1 / 360;
@@ -81,6 +82,15 @@ describe("fresh player on the keyboard", () => {
       worst = Math.max(worst, Math.abs(slip_deg(car)));
     }
     expect(worst).toBeLessThan(6);
+  });
+
+  test("a key lane change at 100 km/h ends within 2 degrees of straight, and a 150 ms tap turns far more than a one-frame one", () => {
+    const spec = build_spec(DEFAULT_BUILD);
+    const { steer_mode } = DEFAULT_SETTINGS;
+    expect(Math.abs(swerve(steer_mode, spec).heading)).toBeLessThan(2);
+    const [short, long] = [tap(steer_mode, 1 / 60, 100, spec), tap(steer_mode, 0.15, 100, spec)];
+    expect(long.heading / short.heading).toBeGreaterThan(20);
+    expect(long.slip).toBeLessThan(2);
   });
 
   test("is well off the pace of the fast cars", () => {

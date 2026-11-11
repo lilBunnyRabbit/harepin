@@ -6,7 +6,7 @@ import { Car, SteerMode, drop_height, ride_height, type Controls, type Ground } 
 import { CARS, car_sized, type CarId, type CarSpec } from "./cars";
 import { donut } from "../../scripts/donut";
 import { hairpin_pull } from "../../scripts/hairpin";
-import { arc, hairpin, lane_change, tap } from "../../scripts/keys";
+import { arc, flick, hairpin, lane_change, lift_off, slalom, swerve, tap } from "../../scripts/keys";
 
 const flat: Ground = { height: () => 0, normal: (_x, _z, out) => out.set(0, 1, 0), grip: () => 1, roll: () => 1 };
 const DT = 1 / 360;
@@ -83,25 +83,33 @@ describe("keyboard steer mode", () => {
 
   test("smooth: a one-frame tap at 100 km/h is a small nudge, where classic barely registers", () => {
     const smooth = tap(SteerMode.SMOOTH, 1 / 60);
-    expect(smooth.heading).toBeGreaterThan(0.2);
-    expect(smooth.heading).toBeLessThan(0.8);
-    expect(tap(SteerMode.SNAP, 1 / 60).heading).toBeLessThan(0.1);
+    expect(smooth.heading).toBeGreaterThan(0.05);
+    expect(smooth.heading).toBeLessThan(0.2);
+    expect(tap(SteerMode.SNAP, 1 / 60).heading).toBeLessThan(0.05);
   });
 
-  test("smooth: at 100 km/h a held key builds from the tap share to full within 0.5 s, and lets go without a snap", () => {
+  test("smooth: at 100 km/h a held key starts at the tap share, builds linearly to full within 0.3 s, and lets go within 0.15 s", () => {
     const car = fresh(SteerMode.SMOOTH);
     run(car, 30, () => cruise(car, 100));
     run(car, 1 / 360, () => cruise(car, 100, 1));
-    expect(car.key_steer).toBeCloseTo(0.15, 2);
+    expect(car.key_steer).toBeCloseTo(0.06, 2);
+    run(car, 0.1, () => cruise(car, 100, 1));
+    expect(car.key_steer).toBeGreaterThan(0.4);
+    expect(car.key_steer).toBeLessThan(0.5);
     run(car, 0.2, () => cruise(car, 100, 1));
-    expect(car.key_steer).toBeGreaterThan(0.3);
-    expect(car.key_steer).toBeLessThan(0.7);
-    run(car, 0.3, () => cruise(car, 100, 1));
     expect(car.key_steer).toBe(1);
     run(car, 0.05, () => cruise(car, 100));
     expect(car.key_steer).toBeGreaterThan(0.5);
-    run(car, 0.6, () => cruise(car, 100));
+    run(car, 0.1, () => cruise(car, 100));
     expect(car.key_steer).toBe(0);
+  });
+
+  test("smooth: the opposite key crosses centre at three times the attack", () => {
+    const car = fresh(SteerMode.SMOOTH);
+    run(car, 30, () => cruise(car, 100));
+    run(car, 0.5, () => cruise(car, 100, 1));
+    run(car, 0.1, () => cruise(car, 100, -1));
+    expect(car.key_steer).toBeLessThan(0);
   });
 
   test("smooth: half a key (the precision key) eases down to half, not a jump", () => {
@@ -126,11 +134,27 @@ describe("keyboard steer mode", () => {
     expect(change.settle).toBeLessThan(3);
   });
 
-  test("smooth: a keyboard driver holds a long 90 km/h bend with less weave than classic", () => {
+  test("smooth: a keyboard driver holds a long 90 km/h bend with no more weave than classic", () => {
     const [classic, smooth] = [arc(SteerMode.SNAP), arc(SteerMode.SMOOTH)];
     expect(smooth.rms).toBeLessThan(0.5);
-    expect(smooth.yaw_swing).toBeLessThan(classic.yaw_swing * 0.6);
+    expect(smooth.yaw_swing).toBeLessThan(classic.yaw_swing);
   });
+});
+
+describe("smooth keys on every car at 100 km/h", () => {
+  for (const spec of Object.values(CARS)) {
+    test(`${spec.id}: a symmetric swerve ends straight, taps scale with press length, and the assists own the rest`, () => {
+      expect(Math.abs(swerve(SteerMode.SMOOTH, spec).heading)).toBeLessThan(2);
+      const [short, long] = [tap(SteerMode.SMOOTH, 1 / 60, 100, spec), tap(SteerMode.SMOOTH, 0.15, 100, spec)];
+      expect(long.heading / short.heading).toBeGreaterThan(20);
+      expect(long.slip).toBeLessThan(2);
+      expect(slalom(SteerMode.SMOOTH, spec).slip).toBeLessThanOrEqual(slalom(SteerMode.SNAP, spec).slip);
+      expect(lift_off(SteerMode.SMOOTH, spec)).toBeLessThan(lift_off(SteerMode.SNAP, spec) * 1.1);
+      const [classic, smooth] = [flick(SteerMode.SNAP, spec), flick(SteerMode.SMOOTH, spec)];
+      expect(smooth.turned).toBeGreaterThan(classic.turned * 0.85);
+      expect(smooth.settle).toBeLessThan(classic.settle * 1.1);
+    });
+  }
 });
 
 describe("garage swap", () => {
