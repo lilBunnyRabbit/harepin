@@ -22,7 +22,6 @@ const INK = {
   north: rgba(brand.foreground, 0.9),
   gap: rgba(brand.background_darkest),
   casing: rgba(brand.background_darkest, 0.75),
-  cone: rgba(brand.cottontail, 0.3),
 };
 /** Close-up: about 200 m of road ahead of the car. */
 const CLOSE_CAR_Y = 0.7;
@@ -262,14 +261,7 @@ export class Minimap {
     const at = (turn: number, r: number): [number, number] => [x + Math.sin(h + turn) * r, y + Math.cos(h + turn) * r];
     ctx.beginPath();
     if (this.disc) {
-      // A faint cone ahead and a long notched chevron: which way you face reads at a glance, even on the phone's small disc.
-      const facing = Math.PI / 2 - h;
-      ctx.fillStyle = INK.cone;
-      ctx.moveTo(x, y);
-      ctx.arc(x, y, 40, facing - 0.38, facing + 0.38);
-      ctx.closePath();
-      ctx.fill();
-      ctx.beginPath();
+      // A long notched chevron: which way you face reads at a glance, even on the phone's small disc.
       ctx.moveTo(...at(0, 19));
       ctx.lineTo(...at(2.6, 14));
       ctx.lineTo(...at(Math.PI, 5));

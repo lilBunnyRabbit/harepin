@@ -245,19 +245,23 @@
   }
 }
 
-/* Touch: each switch keeps a 44 px target, its chip drawn smaller inside it so four fit between the steer hint and the
-   pedals. */
+/* Touch: the steer zone (left 45%) and the pedal zone (right 45%) leave no room beside the readout, so the switches sit
+   in a row under the button panel, a deliberate reach rather than where a resting thumb lands; each keeps a 44 px
+   target with its chip drawn smaller inside it. */
 @media (pointer: coarse) {
   :root[data-hud="classic"] .assists {
-    grid-area: 1 / 1;
-    align-self: center;
-    gap: 2px;
+    position: fixed;
+    top: calc(var(--inset-top) + var(--control-h) + 2 * var(--space-1) + var(--space-1));
+    left: var(--inset-left);
+    gap: var(--space-2);
     margin: 0;
   }
 
   :root[data-hud="classic"] .aid-key {
     position: relative;
     isolation: isolate;
+    justify-content: center;
+    min-width: 44px;
     height: 44px;
     padding: 0 var(--space-2);
     gap: 4px;
@@ -293,12 +297,3 @@
   }
 }
 
-/* A small phone has no room for them beside the readout without meeting the steer hint, so they sit under the button
-   panel instead. */
-@media (pointer: coarse) and (max-width: 700px) {
-  :root[data-hud="classic"] .assists {
-    position: fixed;
-    top: calc(var(--inset-top) + var(--control-h) + 2 * var(--space-1) + var(--space-1));
-    left: var(--inset-left);
-  }
-}

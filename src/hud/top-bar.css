@@ -430,23 +430,23 @@
   }
 }
 
-/* Centred, the title meets the title and button bars below 1440px; there it sits beside them like the panel strip did. */
-@media (pointer: fine) and (min-width: 1440px) {
+/* The event title stays top centre at every width; where it would meet the title and button bars it drops below them. */
+@media (pointer: fine) {
   :root[data-hud="classic"] #strip {
+    position: fixed;
+    top: var(--inset-top);
     left: 50%;
+    right: auto;
     translate: -50% 0;
+    height: auto;
+    border: 0;
   }
 }
 
-@media (pointer: fine) and (max-width: 1439px) {
-  :root[data-hud="classic"] #strip {
-    right: var(--inset-right);
-    justify-content: flex-start;
-    max-width: none;
-  }
-
-  :root[data-hud="classic"] #strip .lap {
-    justify-content: flex-start;
+@media (pointer: fine) and (max-width: 1299px) {
+  :root[data-hud="classic"] :is(#strip, #mode-status) {
+    top: calc(var(--inset-top) + var(--bar-h) + var(--space-3));
+    max-width: calc(100vw - 2 * var(--inset));
   }
 }
 
