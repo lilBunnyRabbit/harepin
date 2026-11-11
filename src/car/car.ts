@@ -39,10 +39,12 @@ const TCS_SLIP = 0.14;
 const TCS_LOW_SPEED = 15;
 /** Weight of a driven rear's sideways slip in traction control's slip: at 1.4 it cuts in at 0.9 of the peak slip angle. */
 const TCS_LATERAL = 1.4;
-/** Power-slide intent (walking pace × gas × key) past which a launch from rest may spin up the rear and swing the tail out. */
+/** Power-slide intent (walking pace × gas × held key) past which a launch from rest may spin up the rear and swing the tail out. */
 const DRIFT_INTENT = 0.9;
-/** Speed (m/s) under which that intent counts as a launch: rolling, full lock and full gas is a hairpin to pull out of. */
+/** Speed (m/s) under which the car counts as at rest: rolling, full lock and full gas is a hairpin to pull out of. */
 const DRIFT_START = 1;
+/** Seconds after leaving rest on the gas that full key still counts as a launch, so the gas may go down first. */
+const LAUNCH_WINDOW = 0.75;
 /** Traction control's slip in a launched power slide: about four times peak, enough wheelspin to break the rear loose. */
 const DRIFT_TCS_SLIP = 0.5;
 /** Body slip (rad) over which the yaw damper comes back in a launched power slide, so it stays a drift and not a spin. */
@@ -257,8 +259,10 @@ export class Car {
   private key_press = 0;
   /** Side (sign of the key) of the power slide asked for since the steer was last let go; 0 with none. */
   private slide_side = 0;
-  /** A power slide launched from rest and still asked for. */
-  private launched = false;
+  /** Side (sign of the held key) of a power slide launched from rest and still asked for; 0 with none. */
+  private launch_side = 0;
+  /** Seconds since the car left rest with the gas down, held since; Infinity when it was not, or the gas came up. */
+  private launch_age = Infinity;
   steer_mode: SteerMode = SteerMode.SNAP;
   /** Idle hold latched on: it keeps braking at any speed until a pedal or the wheel is touched. */
   parked = false;
@@ -305,8 +309,7 @@ export class Car {
     this.key_steer = 0;
     this.key_input = 0;
     this.key_press = 0;
-    this.slide_side = 0;
-    this.launched = false;
+    this.forget_slide();
     this.shifting = 0;
     for (const w of this.wheels) {
       w.omega = 0;
@@ -330,6 +333,18 @@ export class Car {
 
   get forward_speed(): number {
     return this.vel.dot(forward.set(0, 0, 1).applyQuaternion(this.quat));
+  }
+
+  /** A power slide launched from rest is under way: traction control lets the rear spin up. */
+  get launched(): boolean {
+    return this.launch_side !== 0;
+  }
+
+  /** Drops the slide the driver was asking for, for a car put somewhere new or rewound. */
+  forget_slide() {
+    this.slide_side = 0;
+    this.launch_side = 0;
+    this.launch_age = Infinity;
   }
 
   get heading(): number {
@@ -438,12 +453,19 @@ export class Car {
     // The countersteer that catches a slide is full key the other way at full gas too: until the steer is let go it
     // catches rather than asking for the mirror slide, which swung the tail past straight into a spin.
     if (Math.abs(input.steer) < 0.05) this.slide_side = 0;
+    const rear_drive = spec.drive !== "fwd" && this.gear >= 1 ? walking * Math.min(1, pedal) : 0;
     const side = Math.sign(this.key_steer);
-    const intent = (spec.drive === "fwd" || this.slide_side === -side ? 0 : 1) * walking * Math.min(1, pedal) * Math.abs(this.key_steer);
+    const intent = (this.slide_side === -side ? 0 : rear_drive) * Math.abs(this.key_steer);
     if (intent > DRIFT_INTENT) this.slide_side = side;
     const power_slide = intent * tail_out;
-    if (intent <= DRIFT_INTENT) this.launched = false;
-    else if (speed < DRIFT_START) this.launched = true;
+    // The launch reads the held key, not the filtered wheel: a keyboard wheel still ramping, or the gas down first, had the
+    // car past walking speed before the wheel got there.
+    this.launch_age = pedal <= 0.1 ? Infinity : speed < DRIFT_START ? 0 : this.launch_age + dt;
+    const held = Math.sign(input.steer);
+    const asked = (this.slide_side === -held ? 0 : rear_drive) * Math.abs(input.steer);
+    if (asked <= DRIFT_INTENT || held !== this.launch_side) this.launch_side = 0;
+    if (asked > DRIFT_INTENT && this.launch_age < LAUNCH_WINDOW) this.launch_side = held;
+    if (this.launch_side !== 0) this.slide_side = this.launch_side;
     const lock = this.assist ? Math.min(spec.lock, grip_lock + (spec.lock - grip_lock) * power_slide) : unassisted_lock(spec, speed, this.key_steer, slide);
     let target = this.key_steer * lock;
     if (this.assist && speed > 4 && local.z > 1) target += Math.sign(beta) * Math.max(0, Math.abs(beta) - 0.1) * 0.8 * (1 - power_slide);

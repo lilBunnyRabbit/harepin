@@ -260,6 +260,8 @@ export interface PowerOver {
   /** Seconds of full key and full gas from parked until the rear axle slips 30 degrees out against the key. */
   t30: number;
   peak: number;
+  /** Largest body slip against the key, degrees: past 90 the car is going backwards, a spin however it is caught. */
+  body: number;
   /** Seconds from the countersteer until the tail is under 10 degrees and stays there for 1 s. */
   catch: number;
   /** Largest slip the other way after the countersteer, degrees. */
@@ -272,11 +274,19 @@ const POWER_OVER_AT = 30;
 const CAUGHT = 10;
 const SPUN = 120;
 
+export interface PowerOverRun {
+  counter?: Counter;
+  tcs?: boolean;
+  assist?: boolean;
+  /** Seconds the gas goes down before the key; negative, the key goes on first. */
+  lead?: number;
+}
+
 /**
  * Parked, full key and full gas for 3 s, then the countersteer at full gas still: `release` lets go of the key, `tap`
  * holds the opposite key until the tail is under 10 degrees, `hold` keeps it on.
  */
-export function power_over(mode: SteerMode, spec = COUPE, counter: Counter = Counter.RELEASE, tcs = true, assist = true): PowerOver {
+export function power_over(mode: SteerMode, spec = COUPE, { counter = Counter.RELEASE, tcs = true, assist = true, lead = 0 }: PowerOverRun = {}): PowerOver {
   const car = new Car(spec);
   Object.assign(car, { steer_mode: mode, tcs, abs: tcs, assist });
   car.park(0, 0, 0, flat);
@@ -289,11 +299,17 @@ export function power_over(mode: SteerMode, spec = COUPE, counter: Counter = Cou
     const side = local.x + car.ang.y * rear_z;
     return Math.hypot(side, local.z) < 0.5 ? 0 : (Math.atan2(side, local.z) * 180) / Math.PI;
   };
-  const out: PowerOver = { t30: Infinity, peak: 0, catch: Infinity, flip: 0, spun: false };
+  const body = () => {
+    const local = ahead.copy(car.vel).applyQuaternion(car.quat.clone().invert());
+    return car.vel.length() < 0.5 ? 0 : (Math.atan2(local.x, local.z) * 180) / Math.PI;
+  };
+  for (let t = 0; t < Math.abs(lead); t += DT) car.step(DT, { steer: lead < 0 ? 1 : 0, throttle: lead > 0 ? 1 : 0, brake: 0, handbrake: 0, analog: false }, flat);
+  const out: PowerOver = { t30: Infinity, peak: 0, body: 0, catch: Infinity, flip: 0, spun: false };
   for (let t = 0; t < POWER_OVER_HOLD; t += DT) {
     car.step(DT, { steer: 1, throttle: 1, brake: 0, handbrake: 0, analog: false }, flat);
     const d = tail();
     out.peak = Math.max(out.peak, d);
+    out.body = Math.max(out.body, body());
     out.spun ||= Math.abs(d) > SPUN;
     if (d >= POWER_OVER_AT && out.t30 === Infinity) out.t30 = t;
   }
@@ -304,6 +320,7 @@ export function power_over(mode: SteerMode, spec = COUPE, counter: Counter = Cou
     const d = tail();
     if (counter === Counter.TAP && d < CAUGHT) steer = 0;
     out.peak = Math.max(out.peak, d);
+    out.body = Math.max(out.body, body());
     out.flip = Math.max(out.flip, -d);
     out.spun ||= Math.abs(d) > SPUN;
     if (Math.abs(d) >= CAUGHT) calm = -1;
@@ -344,7 +361,7 @@ if (import.meta.main) {
       console.log(`  lift-off 90:     slip ${f(lift_off(mode, spec), 1)} deg`);
       console.log(`  flick 70:        turned ${f(fl.turned, 0)} deg, straight in ${f(fl.settle)} s`);
       console.log(`  parked:          key to full lock ${f(park_lock(mode, spec))} s`);
-      const [let_go, held] = [power_over(mode, spec, Counter.RELEASE), power_over(mode, spec, Counter.HOLD)];
+      const [let_go, held] = [power_over(mode, spec), power_over(mode, spec, { counter: Counter.HOLD })];
       console.log(`  power over:      30 deg in ${f(let_go.t30)} s, peak ${f(let_go.peak, 0)} deg; caught let go ${f(let_go.catch)} s, held ${f(held.catch)} s, flip ${f(Math.max(let_go.flip, held.flip), 0)} deg${let_go.spun || held.spun ? ", spun" : ""}`);
     }
 }

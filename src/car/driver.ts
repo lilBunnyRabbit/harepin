@@ -71,6 +71,7 @@ export class Driver {
         car.gear = f.gear;
         car.parked = false;
         car.wheels.forEach((w, i) => (w.omega = f.omega[i]));
+        car.forget_slide();
       },
     };
     const nitro: RewindPart<NitroSnapshot> = { snapshot: () => this.car.nitro.snapshot(), restore: (s) => this.car.nitro.restore(s) };

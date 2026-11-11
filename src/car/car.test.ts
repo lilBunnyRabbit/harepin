@@ -6,7 +6,7 @@ import { Car, SteerMode, drop_height, ride_height, type Controls, type Ground } 
 import { CARS, car_sized, is_car, type CarId, type CarSpec } from "./cars";
 import { donut } from "../../scripts/donut";
 import { hairpin_pull } from "../../scripts/hairpin";
-import { Counter, arc, flick, hairpin, lane_change, lift_off, power_over, slalom, swerve, tap } from "../../scripts/keys";
+import { Counter, arc, flick, hairpin, lane_change, lift_off, power_over, slalom, swerve, tap, type PowerOver } from "../../scripts/keys";
 
 const flat: Ground = { height: () => 0, normal: (_x, _z, out) => out.set(0, 1, 0), grip: () => 1, roll: () => 1 };
 const DT = 1 / 360;
@@ -621,20 +621,53 @@ describe("donut", () => {
 });
 
 describe("power over from rest", () => {
-  for (const id of ["coupe", "muscle", "kaze", "formula", "sturm", "rally", "raijin"] as const) {
+  const RWD_AWD = ["coupe", "muscle", "kaze", "formula", "sturm", "rally", "raijin"] as const;
+  const caught = (over: PowerOver) => {
+    expect(over.t30).toBeLessThan(2.5);
+    expect(over.peak).toBeGreaterThan(25);
+    expect(over.body).toBeLessThan(85);
+    expect(over.catch).toBeLessThan(1.2);
+    expect(over.flip).toBeLessThan(15);
+    expect(over.spun).toBe(false);
+  };
+
+  for (const id of RWD_AWD) {
     test(`${id}: full lock and full gas from parked, TCS and assist on, swings the tail out and a countersteer at full gas catches it`, () => {
-      for (const counter of [Counter.RELEASE, Counter.TAP, Counter.HOLD]) {
-        const over = power_over(SteerMode.SMOOTH, CARS[id], counter);
-        expect(over.t30).toBeLessThan(2.5);
-        expect(over.peak).toBeGreaterThan(25);
-        expect(over.catch).toBeLessThan(1.2);
-        expect(over.flip).toBeLessThan(15);
-        expect(over.spun).toBe(false);
-      }
+      for (const counter of [Counter.RELEASE, Counter.TAP, Counter.HOLD]) caught(power_over(SteerMode.SMOOTH, CARS[id], { counter }));
+    });
+
+    test(`${id}: it launches whichever goes down first, the gas up to 0.4 s early or the key, in every key mode`, () => {
+      for (const lead of [-0.2, 0.1, 0.2, 0.4]) caught(power_over(SteerMode.SMOOTH, CARS[id], { lead }));
+      for (const mode of [SteerMode.SNAP, SteerMode.HOLD]) caught(power_over(mode, CARS[id], { lead: 0.2 }));
     });
   }
 
   test("hatch (FWD): full lock and full gas from parked stays a grip circle", () => {
     expect(power_over(SteerMode.SMOOTH, CARS.hatch).t30).toBe(Infinity);
+  });
+
+  test("reversing on full lock never launches one", () => {
+    for (const id of RWD_AWD) {
+      const car = new Car(CARS[id]);
+      car.steer_mode = SteerMode.SMOOTH;
+      car.park(0, 0, 0, flat);
+      run(car, 0.5, () => ({ ...idle, brake: 1 }));
+      expect(car.gear).toBe(-1);
+      for (let t = 0; t < 2; t += DT) {
+        car.step(DT, { ...idle, steer: 1, brake: 1 }, flat);
+        expect(car.launched).toBe(false);
+      }
+    }
+  });
+
+  test("a car put back by a rewind forgets the slide it was launched into", () => {
+    const car = new Car(CARS.coupe);
+    car.park(0, 0, 0, flat);
+    run(car, 0.5, () => ({ ...idle, steer: 1, throttle: 1 }));
+    expect(car.launched).toBe(true);
+    car.forget_slide();
+    car.vel.set(0, 0, 5);
+    car.step(DT, { ...idle, steer: 1, throttle: 1 }, flat);
+    expect(car.launched).toBe(false);
   });
 });
