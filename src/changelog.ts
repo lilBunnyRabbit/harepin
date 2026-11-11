@@ -23,6 +23,18 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.26.0",
+    date: "2026-11-11",
+    title: "Loose ground",
+    changes: [
+      { kind: NEW, text: "Controller rumble: tyres sliding, loose ground, kerbs, landings and hits. Off, Subtle or Strong in Settings, Controls." },
+      { kind: IMPROVED, text: "Dirt, gravel, grass and sand slide like loose ground: less grip, and the slide builds gently so you can catch it." },
+      { kind: IMPROVED, text: "Every tyre has its job: Street on tarmac, Rally on dirt and gravel, Mud on grass, sand and wet ground, All-terrain a bit of everything." },
+      { kind: IMPROVED, text: "Cars level out in the air off a crest and land on their wheels instead of tumbling." },
+      { kind: FIXED, text: "Slicks in deep water no longer grip like tarmac." },
+    ],
+  },
+  {
     version: "0.25.1",
     date: "2026-11-11",
     title: "Stability",
