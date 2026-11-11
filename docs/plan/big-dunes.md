@@ -155,3 +155,5 @@ This leaves out weight transfer (helps RWD, hurts FWD), TCS, engine power, cos �
 | 2 | Crest air | (a) Smooth crests you ride over, plus built crest jumps. (b) Real sharp brinks with big free air (needs L1) | **(a) first.** Add (b) only if L1 lands clean |
 | 3 | Home | Own mini map / Dunes slider level / mainland region | **Own mini map**, region later |
 | 4 | Height on the 2 km map | 80-150 m now, or wait for mainland for 300 m | **~120 m now** |
+
+**Owner picks (2026-11-12):** only off-road cars bash dunes (keep SAND_GRIP; others use packed lines) · rounded crests + built crest jumps first · own mini map, ~120 m dunes now; 300 m later as a mainland region.
