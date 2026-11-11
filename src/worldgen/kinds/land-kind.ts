@@ -10,7 +10,7 @@ const MIN_LAND = 0.45;
 
 const soften_layer = (l: TerrainLayer, f: number): TerrainLayer => {
   if (l.kind === "fbm" || l.kind === "ridged") return { ...l, amp: l.amp * f };
-  if (l.kind === "peak") return { ...l, height: l.height * f };
+  if (l.kind === "peak" || l.kind === "range") return { ...l, height: l.height * f };
   if (l.kind === "dunes") return { ...l, bands: l.bands.map((b) => ({ ...b, height: b.height * f })) };
   return l;
 };
