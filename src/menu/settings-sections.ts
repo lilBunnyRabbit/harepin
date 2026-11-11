@@ -9,6 +9,7 @@ import type { SettingsMenu } from "./page";
 import { CameraReturn, CameraView, DashPlace, SpeedZoom, HudLayout, MapView, QualityMode, SteerSensitivity, TouchSteer, type QualityTier } from "./prefs";
 import { BASE_TOKENS, saved_themes, theme_create } from "./theme-pages";
 import { stat } from "./widgets";
+import { AidPreset, preset_aids, preset_of, type Aids } from "./guide-rules";
 import { country_name, flag, own_country } from "../net/country";
 
 export interface SettingsSection {
@@ -361,8 +362,32 @@ function display(m: SettingsMenu): HTMLElement[] {
   ];
 }
 
+const AID_PRESETS: Options<AidPreset | null> = [
+  [AidPreset.EASY, "Easy"],
+  [AidPreset.BALANCED, "Balanced"],
+  [AidPreset.PRO, "Pro"],
+];
+
+function aid_preset(m: SettingsMenu): HTMLElement {
+  const touch = () => matchMedia("(pointer: coarse)").matches;
+  return m.rows.segmented(
+    "Preset",
+    "Sets the five aids below in one go. Easy looks after grip, brakes and slides. Balanced keeps traction and ABS, so a sharp turn at speed slides. Pro turns everything off. Change any toggle for your own mix.",
+    {
+      get: () => preset_of(m.state(), touch()),
+      set: (preset) => {
+        if (!preset) return;
+        const aids = preset_aids(preset, touch());
+        for (const key of Object.keys(aids) as (keyof Aids)[]) m.set(key, aids[key]);
+      },
+    },
+    AID_PRESETS,
+  );
+}
+
 function driving(m: SettingsMenu): HTMLElement[] {
   return [
+    aid_preset(m),
     m.rows.toggle("Traction control", while_driving(m, "tcs", "Cuts power when the rear wheels spin."), m.value("tcs")),
     m.rows.toggle("Anti-lock brakes", while_driving(m, "abs", "Keeps steering under hard braking."), m.value("abs")),
     m.rows.toggle("Steering assist", while_driving(m, "assist", "Limits steering at speed and counter-steers a slide for you. Off, the car slides much sooner."), m.value("assist")),
@@ -390,7 +415,7 @@ function camera(m: SettingsMenu): HTMLElement[] {
       m.value("speed_zoom"),
       Object.values(SpeedZoom).map((value) => [value, SPEED_ZOOM_LABEL[value]] as const),
     ),
-    m.rows.toggle("Camera tilt", "The chase view dips under braking, lifts as you accelerate and leans through corners.", m.value("camera_tilt")),
+    m.rows.toggle("Camera tilt", "The chase view dips under braking and lifts as you accelerate. It never leans.", m.value("camera_tilt")),
     m.rows.toggle("Invert camera Y", "Mouse drag and right stick.", m.value("invert_y")),
   ];
 }
