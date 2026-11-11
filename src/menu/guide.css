@@ -705,6 +705,15 @@
   }
 }
 
+@media (max-width: 600px), (max-height: 420px) {
+  .guide-pic .guide-pic-text span {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+  }
+}
+
 .guide-pic,
 .settings .guide-world {
   position: relative;
@@ -980,8 +989,8 @@
     display: none;
   }
 
-  .guide-pic {
-    display: flex;
+  .guide-pics {
+    grid-template-rows: minmax(56px, 1fr) auto;
   }
 
   .guide-aid > span:last-child {
