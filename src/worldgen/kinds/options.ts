@@ -1,4 +1,6 @@
 export interface OptionDef {
+  /** Its letter in the map code: never reused or renumbered, so old codes keep parsing. */
+  field: string;
   name: string;
   help: string;
   labels: readonly string[];
