@@ -1,6 +1,7 @@
 import type { Controls } from "../car/car";
 import { BINDABLE, DEFAULT_BINDINGS, MENU_BUTTON, PRESSES, type Action, type Bindable, type Bindings, type Hold } from "./bindings";
 import { Touch } from "./touch";
+import type { RumbleEffect } from "./rumble";
 
 /** A key or pad button caught for a binding; null when the capture ended without one (the menu closed). */
 export type Caught = { kind: "key"; code: string } | { kind: "pad"; button: number };
@@ -187,6 +188,8 @@ export class Input {
   private held = new Set<number>();
   private was_blocked = false;
   pad: Gamepad | null = null;
+  /** Pads whose rumble threw, by `Gamepad.id`: left still. */
+  private readonly numb = new Set<string>();
   /** Menu presses on the pad since the last `read`, for a panel open over the game. */
   nav: Nav[] = [];
   private stick_nav: Nav | null = null;
@@ -387,16 +390,40 @@ export class Input {
     }
   }
 
-  rumble(weak: number, strong: number, impact = false) {
-    const actuator = (this.pad as (Gamepad & { vibrationActuator?: { playEffect?: (type: string, params: object) => Promise<unknown> } }) | null)?.vibrationActuator;
-    if (!actuator?.playEffect) {
-      if (impact && this.touch.used) navigator.vibrate?.(IMPACT_VIBRATE_MS);
-      return;
+  /** A hit, on a phone driven by touch with no pad: one short buzz. */
+  buzz() {
+    if (!this.pad && this.touch.used) navigator.vibrate?.(IMPACT_VIBRATE_MS);
+  }
+
+  /** Plays `effect` on the pad's motors, through whichever rumble API the browser has; a pad without one stays still. */
+  rumble(effect: RumbleEffect) {
+    const pad = this.pad as (Gamepad & PadHaptics) | null;
+    if (!pad || this.numb.has(pad.id)) return;
+    try {
+      const dual = pad.vibrationActuator;
+      if (dual?.playEffect) {
+        dual.playEffect("dual-rumble", { duration: effect.ms, strongMagnitude: Math.min(1, effect.strong), weakMagnitude: Math.min(1, effect.weak) }).catch(superseded);
+        return;
+      }
+      const motor = pad.hapticActuators?.[0];
+      if (motor?.pulse) void Promise.resolve(motor.pulse(Math.min(1, Math.max(effect.strong, effect.weak)), effect.ms)).catch(superseded);
+    } catch (error) {
+      // A pad whose API throws (motors listed but missing, a browser that half ships it) would throw ten times a
+      // second; it stays still from then on.
+      console.warn("pad rumble off for", pad.id, error);
+      this.numb.add(pad.id);
     }
-    if (weak < 0.02 && strong < 0.02) return;
-    actuator.playEffect("dual-rumble", { duration: 120, weakMagnitude: Math.min(1, weak), strongMagnitude: Math.min(1, strong) }).catch(() => {});
   }
 }
+
+/** The rumble APIs browsers ship: `vibrationActuator` (Chromium, Safari) and the older `hapticActuators` (Firefox). */
+interface PadHaptics {
+  vibrationActuator?: { playEffect?(type: "dual-rumble", params: { duration: number; strongMagnitude: number; weakMagnitude: number }): Promise<unknown> } | null;
+  hapticActuators?: readonly { pulse?(value: number, ms: number): Promise<unknown> | boolean }[];
+}
+
+/** A rumble promise rejects when the next effect cuts it short, which every refresh does by design. */
+function superseded() {}
 
 const PRESS_SET: ReadonlySet<string> = new Set([...PRESSES, "menu"]);
 const is_press = (action: string | undefined): action is Action => action !== undefined && PRESS_SET.has(action);

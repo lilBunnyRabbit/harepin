@@ -1,5 +1,6 @@
 import { SteerMode } from "../car/car";
 import { DEFAULT_BINDINGS, parse_bindings, type Bindings } from "../hud/bindings";
+import { RumbleLevel } from "../hud/rumble";
 import { guide_seen_on_load, seen_flag } from "./guide-rules";
 import { clean_name } from "../net/net";
 import { parse_last_seed, parse_last_world } from "./saved-pick";
@@ -90,6 +91,8 @@ export interface SettingsState {
   bindings: Bindings;
   touch_steer: TouchSteer;
   steer_sensitivity: SteerSensitivity;
+  /** Pad rumble from tyre slip, rough ground, kerbs, landings and hits. */
+  rumble: RumbleLevel;
   camera: CameraView;
   camera_return: CameraReturn;
   speed_zoom: SpeedZoom;
@@ -142,6 +145,7 @@ const FIELDS: { [K in SettingKey]: Field<SettingsState[K]> } = {
   bindings: { fallback: DEFAULT_BINDINGS, parse: parse_bindings },
   touch_steer: one_of(Object.values(TouchSteer), TouchSteer.DRAG),
   steer_sensitivity: one_of(Object.values(SteerSensitivity), SteerSensitivity.MEDIUM),
+  rumble: one_of(Object.values(RumbleLevel), RumbleLevel.SUBTLE),
   camera: one_of(Object.values(CameraView), CameraView.CHASE),
   camera_return: one_of(Object.values(CameraReturn), CameraReturn.SHORT),
   speed_zoom: one_of(Object.values(SpeedZoom), SpeedZoom.SUBTLE),

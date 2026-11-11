@@ -9,6 +9,7 @@ import { KINDS } from "../worldgen/kinds/kinds";
 import { ramp_reach2, ramp_surface, spawn_blocks, type Surface } from "../worldgen/jumps";
 import { FALL_DEPTH } from "../worldgen/sky";
 import { slice_tiles, TileStore, type Tile } from "../worldgen/tiles";
+import { KERB_OUT } from "../worldgen/road-layers";
 import { CELL, ROAD_HALF, RouteKind, SurfaceId, type WorldKind } from "../worldgen/types";
 import { water_index, type WaterIndex } from "../worldgen/water";
 import type {
@@ -364,6 +365,12 @@ export class World implements Ground {
   /** On a road surface, whatever grip the kind gives it: where `footing` is the road row. */
   on_road(x: number, z: number): boolean {
     return this.distance_to_road(x, z) < ON_ROAD;
+  }
+
+  /** On the strip along a road's edge where the circuit lays its kerbs on bends: what a tyre feels as a rumble strip. */
+  on_edge(x: number, z: number): boolean {
+    const d = this.distance_to_road(x, z);
+    return d > ROAD_HALF - 0.1 && d < KERB_OUT;
   }
 
   /** The grip row under (x, z), eased toward wading in water: road, then a laid surface (trail, hardpack), then the shoulder, then the kind's own ground. */

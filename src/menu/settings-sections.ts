@@ -1,5 +1,6 @@
 import { SteerMode } from "../car/car";
 import { keys_text, pad_text, type Bindable, type Bindings } from "../hud/bindings";
+import { RumbleLevel } from "../hud/rumble";
 import { binding_rows } from "./binding-rows";
 import { el, icon, type Options, type Text } from "./setting-rows";
 import { THEMES, choose_theme, current_theme, find_saved, find_theme, load_saved_themes } from "../theme/theme";
@@ -27,6 +28,7 @@ export interface DeepPage {
 
 const CAMERA_RETURN_LABEL: Record<CameraReturn, string> = { off: "Off", short: "1.5 s", long: "3 s", never: "Never" };
 const SPEED_ZOOM_LABEL: Record<SpeedZoom, string> = { off: "Off", subtle: "Subtle", strong: "Strong" };
+const RUMBLE_LABEL: Record<RumbleLevel, string> = { off: "Off", subtle: "Subtle", strong: "Strong" };
 const STEER_LABEL: Record<SteerMode, string> = { snap: "Classic", hold: "Hold", smooth: "Smooth" };
 const MAP_VIEWS: Record<MapView, [string, string]> = {
   full: ["Full", "The whole track"],
@@ -414,6 +416,12 @@ function controls(m: SettingsMenu): HTMLElement[] {
         [SteerSensitivity.HIGH, "High"],
         [SteerSensitivity.VERY_HIGH, "Very high"],
       ]),
+    ),
+    m.rows.segmented(
+      "Controller rumble",
+      "Gamepad vibration as the tyres slide, on rough ground and kerbs, and from landings and hits.",
+      m.value("rumble"),
+      Object.values(RumbleLevel).map((level) => [level, RUMBLE_LABEL[level]] as const),
     ),
     m.rows.link("Change keys and buttons", "Pick an action, then press its new key or pad button.", "Keyboard and pad", () => m.show_sub("bindings")),
     m.rows.link("All keys and buttons", list_help(m), "Keyboard, pad, touch", () => m.show_sub("keys")),

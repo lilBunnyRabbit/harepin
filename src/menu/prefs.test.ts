@@ -29,6 +29,7 @@ describe("parse_settings", () => {
       bindings: rebind_key(DEFAULT_BINDINGS, "reset", "KeyC").bindings,
       touch_steer: "buttons",
       steer_sensitivity: "low",
+      rumble: "strong",
       camera: "cockpit",
       camera_return: "never",
       speed_zoom: "strong",

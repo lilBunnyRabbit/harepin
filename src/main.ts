@@ -15,6 +15,7 @@ import { $, Hud } from "./hud/hud";
 import { Presence } from "./hud/presence";
 import type { Action } from "./hud/bindings";
 import { Input } from "./hud/input";
+import { Rumble, sense_drive, type RumbleSense } from "./hud/rumble";
 import { show_key_hints } from "./hud/key-hints";
 import { Lobby, lobby_routes } from "./net/lobby";
 import { MODES, Modes } from "./modes/modes";
@@ -155,6 +156,8 @@ const garage_stage = document.createElement("div");
 garage_stage.className = "menu-garage";
 const garage = new Garage(garage_stage, build);
 const input = new Input($("touch"), render.renderer.domElement);
+const rumble = new Rumble();
+const rumble_sense: RumbleSense = { scrub: 0, speed: 0, loose: 0, edge: 0, airborne: false, vy: 0, impact: 0 };
 input.blocked = () => garage.is_open || settings.is_open || pad_menu.is_open;
 chat.blocked = () => garage.is_open || settings.is_open;
 input.touch.start();
@@ -282,6 +285,7 @@ function apply_settings(state: SettingsState) {
   chase.invert_y = state.invert_y;
   chase.speed_zoom = state.speed_zoom;
   chase.tilt_on = state.camera_tilt;
+  rumble.level = state.rumble;
   ghost.visible = state.ghost;
   audio.set_volume(state.volume);
   audio.set_muted(state.muted);
@@ -421,7 +425,6 @@ const ACTIONS: Record<Action, () => void> = {
 const DT = 1 / 360;
 let acc = 0;
 let last = performance.now();
-let last_rumble = 0;
 /** The menu's blur sits over a scene that only turbines and gates animate while it holds the sim, so it redraws at this rate. */
 const MENU_DRAW_MS = 100;
 let last_draw = 0;
@@ -458,6 +461,7 @@ function frame(now: number) {
   const menu_hold = settings.is_open && net.remotes.size === 0;
   let stepped = 0;
   let simulated = false;
+  let impact = 0;
   if (input.rewind && driver.rewind.can_step && !lobby.busy && !modes.active) {
     rewinding = true;
     goals.done(GoalId.REWIND);
@@ -470,7 +474,6 @@ function frame(now: number) {
     simulated = true;
     rewinding = false;
     acc += dt;
-    let impact = 0;
     while (acc >= DT) {
       driver.begin_step();
       car.step(DT, controls, world);
@@ -485,7 +488,7 @@ function frame(now: number) {
       if (world_view.jumps.bonked(car.pos.x, car.pos.z)) audio.bonk(impact);
       else audio.impact(impact / 20);
       chase.bump(Math.min(1, impact / 15));
-      input.rumble(1, 1, true);
+      input.buzz();
     }
     driver.rewind.record(now);
     if (world_view.jumps.update(dt, car).clean) {
@@ -535,10 +538,9 @@ function frame(now: number) {
   const speed = car.vel.length();
   const scrub = car.scrub * Math.min(1, speed / 6) * (offroad ? 0.3 : 1);
   audio.update({ rpm: car.rpm, throttle: car.throttle, scrub, speed, offroad, sound: car.spec.sound, redline: car.spec.redline, boost: car.nitro.boosting });
-  if (now - last_rumble > 100) {
-    last_rumble = now;
-    const spin = Math.max(0, ...car.wheels.filter((w) => w.driven && w.contact).map((w) => w.slip - 0.15));
-    input.rumble(scrub * 0.6 + (offroad ? Math.min(0.4, speed / 50) : 0), Math.min(1, spin * 2));
+  if (simulated) {
+    const effect = rumble.update(now, dt, sense_drive(rumble_sense, car, world, impact));
+    if (effect) input.rumble(effect);
   }
 
   if (input.touch.nitro && car.nitro.fill <= 0) input.touch.tank_empty();
