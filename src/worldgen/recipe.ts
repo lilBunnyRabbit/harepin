@@ -190,8 +190,11 @@ export interface RoadRecipe {
   stacks: readonly number[];
   /** With no stack built, the ring bends a tongue toward the summit; false keeps the ring as it is. */
   tongue: boolean;
-  /** The canyon runs down to ground under `outlet` metres; null = no canyon. */
-  canyon: { outlet: number } | null;
+  /**
+   * The canyon runs down to ground under `outlet` metres; null = no canyon. Its planner draws up to `tries` descents, and
+   * the trail tries up to `crossings` places to jump it.
+   */
+  canyon: { outlet: number; tries: number; crossings: number } | null;
   kickers: { road: number; total: number; big: number };
   /** Null puts a road kicker after any descent the road allows. */
   runup: Runup | null;
@@ -279,7 +282,7 @@ export const ISLAND: Recipe = {
       upland: { cut: 0.5, above: Ground.DRY, below: Ground.UPLAND, soft: 0 },
     },
   },
-  road: { loop: { radius: 620, swing: 640, min: 380, max: 860 }, straights: null, stacks: [4, 2], tongue: true, canyon: { outlet: 2 }, kickers: { road: 4, total: 12, big: 3 }, runup: null, bank: null },
+  road: { loop: { radius: 620, swing: 640, min: 380, max: 860 }, straights: null, stacks: [4, 2], tongue: true, canyon: { outlet: 2, tries: 64, crossings: 4 }, kickers: { road: 4, total: 12, big: 3 }, runup: null, bank: null },
   towns: { min: 3, max: 6, trees: true, block: { min: 45, span: 25 }, top: 60, layout: "grid", roofs: "mixed", variety: false, exact: true },
   landmarks: [Landmark.MAST, Landmark.LIGHTHOUSE, Landmark.TURBINES, Landmark.ARCH],
   scatter: [],
@@ -321,7 +324,7 @@ export const DESERT: Recipe = {
       upland: { cut: 0.5, above: Ground.UPLAND, below: Ground.DUNE, soft: SOFT },
     },
   },
-  road: { loop: { radius: 650, swing: 500, min: 420, max: 850 }, straights: 4, stacks: [], tongue: false, canyon: { outlet: 24 }, kickers: { road: 4, total: 16, big: 4 }, runup: null, bank: null },
+  road: { loop: { radius: 650, swing: 500, min: 420, max: 850 }, straights: 4, stacks: [], tongue: false, canyon: { outlet: 24, tries: 24, crossings: 1 }, kickers: { road: 4, total: 16, big: 4 }, runup: null, bank: null },
   towns: { min: 1, max: 3, trees: false, block: { min: 35, span: 15 }, top: 60, layout: "grid", roofs: "flat", variety: false, exact: false },
   landmarks: [Landmark.MAST, Landmark.TURBINES],
   scatter: [

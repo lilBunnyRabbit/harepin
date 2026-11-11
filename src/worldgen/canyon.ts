@@ -5,7 +5,6 @@ import { chaikin, resample, type Path } from "./path";
 import { CELL, ORIGIN, SIZE, type Canyon, type RoadPoint } from "./types";
 
 const GRID = 16;
-const TRIES = 24;
 /** Start on the summit flank at this share of the peak's height: high enough to fall a long way, never the top. */
 const FLANK = 0.6;
 const WOBBLE = 4;
@@ -100,10 +99,10 @@ function straight(road: readonly RoadPoint[], at: number): boolean {
  * 0-1 canyon per seed: down the steepest way from the summit flank to ground under `outlet` (the coast, or a desert
  * basin), crossing the circuit at most once and only on a straight, where the road stamp later fills a causeway.
  */
-export function plan_canyon(seed: number, heights: Float32Array, road: readonly RoadPoint[], outlet = SEA): Canyon | null {
+export function plan_canyon(seed: number, heights: Float32Array, road: readonly RoadPoint[], outlet = SEA, tries = 24): Canyon | null {
   const next = mulberry32(sub(seed, "canyon"));
   const [px, pz, top] = peak(heights);
-  for (let t = 0; t < TRIES; t++) {
+  for (let t = 0; t < tries; t++) {
     const angle = next() * Math.PI * 2;
     const dx = Math.sin(angle);
     const dz = Math.cos(angle);

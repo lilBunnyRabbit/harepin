@@ -63,9 +63,10 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
 
   const { stack } = planned;
   const road = road_points(planned.path, loop_heights(planned, heights), true);
+  // Planned on the hillside as drawn, before the face reshapes the stack flank; the carve still cuts after it.
+  const canyon = recipe.road.canyon ? plan_canyon(seed, heights, road, recipe.road.canyon.outlet, recipe.road.canyon.tries) : null;
   const stamp = new Stamp(land);
   if (stack) stamp.face(road.filter((p) => inside(stack, p.x, p.z, 0)));
-  const canyon = recipe.road.canyon ? plan_canyon(seed, heights, road, recipe.road.canyon.outlet) : null;
   if (canyon) stamp.carve(canyon);
   const nodes: RoadNode[] = [];
   const edges: RoadEdge[] = [];
@@ -191,7 +192,7 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
 
   lap("checkpoints");
 
-  const trails = plan_trails(seed, land, stamp, canyon, towns, solids);
+  const trails = plan_trails(seed, land, stamp, canyon, towns, solids, recipe.road.canyon?.crossings);
   lap("trails");
 
   const planner = new JumpPlanner(seed, land, towns, lots.occupied, solids, recipe.road.kickers);

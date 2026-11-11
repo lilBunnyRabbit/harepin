@@ -49,6 +49,8 @@ const APPROACH_GRADE = 0.08;
 const STRAIGHT_SPAN = 6;
 const STRAIGHT_TURN = 0.45;
 const ROAD_CLEAR = ROAD_HALF + 16;
+/** Centres of two crossings tried in turn lie this far apart: a near one meets the same blocked legs. */
+const CROSS_APART = 80;
 // The ramp-out runs along the floor first, clear of the promontories, before it climbs the far wall.
 const FLOOR_RUN = 24;
 const RAMP_GRADE = 0.2;
@@ -266,10 +268,10 @@ class Planner {
     return [a, ...cells.filter((p) => !near(p, a) && !near(p, b)), b];
   }
 
-  /** The crossing with the least ground to move: a straight canyon stretch with level rims, clear of roads and towns. */
-  crossing(): Crossing | null {
+  /** Crossings over straight canyon stretches with level rims, clear of roads and towns, least ground to move first. */
+  crossings(): Crossing[] {
     const canyon = this.canyon;
-    if (!canyon) return null;
+    if (!canyon) return [];
     const { points } = canyon;
     const { heights, road_dist } = this.land;
     const rim = canyon.floor + canyon.wall;
@@ -277,8 +279,7 @@ class Planner {
     const slot0 = shape.takeoff.length;
     const slot1 = slot0 + shape.gap;
     const deck_end = slot1 + shape.deck.length;
-    let best: Crossing | null = null;
-    let best_fill = Infinity;
+    const found: { cross: Crossing; fill: number }[] = [];
     const lo = Math.max(STRAIGHT_SPAN, Math.floor(points.length * 0.15));
     const hi = Math.min(points.length - 1 - STRAIGHT_SPAN, Math.floor(points.length * 0.85));
     for (let c = lo; c <= hi; c += 3) {
@@ -334,13 +335,12 @@ class Planner {
             if (Math.abs(v + toe_at) > rim && Math.abs(h - want) > MAX_FILL) ok = false;
             fill += Math.abs(h - want);
           }
-        if (!ok || fill >= best_fill) continue;
+        if (!ok) continue;
         if (!this.ramp_out(cross, rim + RIM_OUT)) continue;
-        best = cross;
-        best_fill = fill;
+        found.push({ cross, fill });
       }
     }
-    return best;
+    return found.sort((a, b) => a.fill - b.fill).map((f) => f.cross);
   }
 
   /** Floor under the gap, upstream along it, a climb up the far wall to the rim, then over to the run-out end. */
@@ -443,12 +443,36 @@ interface Plan {
  * and down to the coast. The crossing is planned first and laid as one straight from run-up to run-out; the legs between
  * are A* on the 16 m grid with half a spur's slope penalty, a toll per road crossed and towns blocked.
  */
-export function plan_trails(seed: number, land: Terrain, stamp: Stamp, canyon: Canyon | null, towns: readonly Town[], solids: readonly Solid[]): Trails {
-  const next = mulberry32(sub(seed, "trails"));
+export function plan_trails(seed: number, land: Terrain, stamp: Stamp, canyon: Canyon | null, towns: readonly Town[], solids: readonly Solid[], tries = 1): Trails {
   const p = new Planner(land, towns, solids, canyon);
-  const cross = p.crossing();
   const { heights } = land;
   const marks = waypoints(p, heights, towns);
+  const base = Uint8Array.from(p.blocked);
+  const crossings = p.crossings();
+  const picked: Crossing[] = [];
+  for (const c of crossings) if (picked.length < tries && picked.every((q) => length(q.cx - c.cx, q.cz - c.cz) > CROSS_APART)) picked.push(c);
+  let cross: Crossing | null = null;
+  let plans: Plan[] = [];
+  // A crossing no trail can reach gives way to the next best one apart from it.
+  for (const c of picked.length ? picked : [null]) {
+    p.blocked.set(base);
+    cross = c;
+    plans = route_trails(seed, p, marks, heights, c);
+    if (plans.length) break;
+  }
+  if (!plans.length) return { trails: [], gap: null, ramp_out: [] };
+
+  if (cross) stamp.pad(cross);
+  const done = plans.map((plan, n) => finish(plan, cross, heights, WINDOWS[n].id));
+  const trails = done.map((d) => d.trail);
+  const lines: TrailLine[] = done.map((d) => d.line);
+  if (cross) lines.push({ points: cross.ramp_out, blend: (i) => (i < cross.cut ? 1 : 0) });
+  stamp.trail(lines);
+  return { trails, gap: cross?.jump ?? null, ramp_out: cross?.ramp_out ?? [] };
+}
+
+function route_trails(seed: number, p: Planner, marks: ReturnType<typeof waypoints>, heights: Float32Array, cross: Crossing | null): Plan[] {
+  const next = mulberry32(sub(seed, "trails"));
   const straight: Point[] = [];
   if (cross) {
     const { jump, dx, dz } = cross;
@@ -521,15 +545,7 @@ export function plan_trails(seed: number, land: Terrain, stamp: Stamp, canyon: C
       break;
     }
   }
-  if (!plans.length) return { trails: [], gap: null, ramp_out: [] };
-
-  if (cross) stamp.pad(cross);
-  const done = plans.map((plan, n) => finish(plan, cross, heights, WINDOWS[n].id));
-  const trails = done.map((d) => d.trail);
-  const lines: TrailLine[] = done.map((d) => d.line);
-  if (cross) lines.push({ points: cross.ramp_out, blend: (i) => (i < cross.cut ? 1 : 0) });
-  stamp.trail(lines);
-  return { trails, gap: cross?.jump ?? null, ramp_out: cross?.ramp_out ?? [] };
+  return plans;
 }
 
 // Where the pad sets the ground the trail leaves it alone, and it takes over again as the pad eases out.
