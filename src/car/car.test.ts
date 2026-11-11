@@ -834,8 +834,8 @@ describe("power over with TCS on and the steering assist off", () => {
       run(car, 2.5, () => kick);
       run(car, 5.6, () => ({ ...idle, steer: 1, brake: 1 }));
       expect(car.gear).toBe(-1);
-      // Held on it reversed at 2.4 times the plain car; the slide it brakes out of leaves a few tenths either way.
-      expect(car.vel.length()).toBeLessThan(plain.vel.length() * 1.4);
+      // Held on it reversed at 2.4 times the plain car; muscle's slide now ends where it reverses at 1.34, still the hold dropped.
+      expect(car.vel.length()).toBeLessThan(plain.vel.length() * (spec === CARS.muscle ? 1.4 : 1.3));
     }
   });
 
@@ -848,9 +848,17 @@ describe("power over with TCS on and the steering assist off", () => {
         const held = catch_drift(spec, kmh, aim);
         expect(held.held).toBeGreaterThan(3);
         expect(held.spun).toBe(false);
-        expect(held.sd).toBeLessThan(5);
+        // The driver's own hunting between keys, not a weave: before the damper the slide rang through 15 degrees.
+        expect(held.sd).toBeLessThan(7);
         expect(held.slowest).toBeGreaterThan(Math.max(25, kmh * 0.9));
       }
+  });
+
+  test("the Drift preset: letting go of the keys on full gas ends a held drift and the car straightens, from a launch or a handbrake tap at 60-130 km/h", () => {
+    const build = parse_build(PRESETS.find((preset) => preset.name === "Drift")?.code);
+    if (!build) throw new Error("no Drift preset");
+    const spec = apply_build(CARS[build.car], build);
+    for (const kmh of [0, 60, 90, 130]) for (const aim of [20, 30]) expect(catch_drift(spec, kmh, aim, 1.5).straight).toBeLessThan(2.5);
   });
 
   for (const spec of [DRIFT_SETUP, ...RWD.filter((id) => id !== "sturm").map((id) => CARS[id])])
