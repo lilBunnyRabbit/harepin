@@ -247,3 +247,5 @@ Approvals needed: 3 new `WorldKind`s and their ids (map identity, net `w`); `Sur
 8. **Fall penalty:** keep "drive back from the checkpoint" (Sky rule), or add time?
 
 **Owner answers (2026-11-11):** Rooftops layout A downtown loop first · mood follows the theme · Volcano layout A one descent · Ice canyon yes, after Volcano. Open (lead defaults until asked): roof plazas on the lap, lava instant reset, lap/route records only, Sky fall rule.
+
+**Owner 2026-11-12:** Rooftops dropped for now ("just sky map with blocks below"). R1 code stays unlisted. Career tier-1 final stays on its Sky stand-in.
