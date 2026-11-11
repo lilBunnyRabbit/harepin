@@ -161,7 +161,7 @@ for (const seed of sweep(2))
     const { TileMesher } = await import("./tile-mesher");
     const { road_junctions } = await import("./road-layers");
     const { water_index } = await import("./water");
-    const { ROAD_HALF, SIDEWALK } = await import("./types");
+    const { PropKind, ROAD_HALF, SIDEWALK } = await import("./types");
     const { data } = plan_mainland(seed);
     expect(data.buildings.length).toBeGreaterThan(data.towns.length * 10);
     const store = new TileStore(EXT);
@@ -196,6 +196,28 @@ for (const seed of sweep(2))
           expect(Math.abs(dx * a.fz - dz * a.fx) > a.w / 2 || Math.abs(dx * a.fx + dz * a.fz) > a.d / 2).toBe(true);
         }
       }
+    const ring = new Set(data.circuit);
+    const lines = [{ points: data.road, half: ROAD_HALF, closed: true }, ...data.graph.edges.map((e) => ({ points: e.points, half: ring.has(e.id) ? Math.max(e.half, ROAD_HALF) : e.half, closed: e.closed }))];
+    const off = (points: readonly { x: number; z: number }[], closed: boolean, x: number, z: number) => {
+      let best = Infinity;
+      for (let s = 0; s < (closed ? points.length : points.length - 1); s++) {
+        const a = points[s];
+        const b = points[(s + 1) % points.length];
+        const dx = b.x - a.x;
+        const dz = b.z - a.z;
+        const t = Math.max(0, Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / (dx * dx + dz * dz || 1)));
+        best = Math.min(best, Math.hypot(a.x + dx * t - x, a.z + dz * t - z));
+      }
+      return best;
+    };
+    const standing = [...data.props, ...data.solids];
+    expect(data.props.some((p) => p.kind === PropKind.STREET_LIGHT)).toBe(true);
+    for (const { points, half, closed } of lines) {
+      const xs = points.map((p) => p.x);
+      const zs = points.map((p) => p.z);
+      const [x0, x1, z0, z1] = [Math.min(...xs) - half - 1, Math.max(...xs) + half + 1, Math.min(...zs) - half - 1, Math.max(...zs) + half + 1];
+      for (const p of standing) if (p.x >= x0 && p.x <= x1 && p.z >= z0 && p.z <= z1) expect(off(points, closed, p.x, p.z)).toBeGreaterThan(half + 0.5);
+    }
     const index = chunk_of(data.buildings[0].x, data.buildings[0].z, EXT);
     const digest = (built: Built) => ({ buildings: [...(built.chunk.buildings?.positions ?? []), ...(built.chunk.buildings?.colors ?? [])], parking: [...(built.chunk.parking?.positions ?? [])], planted: built.planted });
     const alone = digest(new TileMesher(data, EXT, MESH_TONES).build(index));

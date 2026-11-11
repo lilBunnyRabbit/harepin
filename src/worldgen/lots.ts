@@ -129,7 +129,8 @@ export class Lots {
   readonly occupied: Uint8Array;
   private readonly placed: Rect[] = [];
 
-  // A shared `out` keeps lot ids running on across several town windows.
+  // A shared `out` keeps lot ids running on across several town windows. `ring` holds circuit edge ids: the circuit is
+  // drawn ROAD_HALF wide even along a narrower street, so lots and lights keep off that width there.
   constructor(
     private readonly seed: number,
     private readonly terrain: Terrain,
@@ -137,6 +138,7 @@ export class Lots {
     private readonly shape: TownRecipe,
     private readonly grid: Grid = WHOLE,
     readonly out: TownLots = empty_lots(),
+    private readonly ring: ReadonlySet<number> = new Set(),
   ) {
     this.occupied = new Uint8Array(terrain.heights.length);
   }
@@ -192,6 +194,7 @@ export class Lots {
     const b = edge.points[edge.points.length - 1];
     const len = length(b.x - a.x, b.z - a.z);
     const { tx, tz } = a;
+    const half = this.ring.has(edge.id) ? Math.max(edge.half, ROAD_HALF) : edge.half;
     const look = this.shape.variety ? character(this.seed, town) : PLAIN;
     for (const side of [-1, 1] as const) {
       const ox = -tz * side;
@@ -199,7 +202,7 @@ export class Lots {
       const mx = (a.x + b.x) / 2 + ox * town.block;
       const mz = (a.z + b.z) / 2 + oz * town.block;
       const inner = this.sample(this.terrain.road_dist, mx, mz) < ROAD_HALF + 1;
-      const room = inner ? (town.block - 2 * (edge.half + FRONT_GAP)) * BLOCK_SHARE : Infinity;
+      const room = inner ? (town.block - 2 * (half + FRONT_GAP)) * BLOCK_SHARE : Infinity;
       let u = CORNER_CLEAR;
       for (let n = 0; u + LOT_MIN_W <= len - CORNER_CLEAR; n++) {
         const r = (k: number) => hash(edge.id * 8 + (side + 1) * 2, n, this.seed + k);
@@ -210,8 +213,8 @@ export class Lots {
           for (const d of [deep, deep * 0.75, LOT_MIN_D]) {
             if (placed || d < LOT_MIN_D) continue;
             const along = u + w / 2;
-            const x = a.x + tx * along + ox * (edge.half + FRONT_GAP + d / 2);
-            const z = a.z + tz * along + oz * (edge.half + FRONT_GAP + d / 2);
+            const x = a.x + tx * along + ox * (half + FRONT_GAP + d / 2);
+            const z = a.z + tz * along + oz * (half + FRONT_GAP + d / 2);
             if (this.fits(x, z, w, d, -ox, -oz, town)) placed = { x, z, w, d, along };
           }
         if (!placed) {
@@ -235,7 +238,7 @@ export class Lots {
         else if (kind === "garden") this.garden(lot, 1 + Math.floor(r(7) * 3));
       }
     }
-    this.lights(edge);
+    this.lights(edge, half);
   }
 
   private tree(x: number, z: number, roll: number) {
@@ -346,17 +349,18 @@ export class Lots {
     });
   }
 
-  private lights(edge: RoadEdge) {
+  // An exact town's light also skips any spot inside a crossing road's asphalt.
+  private lights(edge: RoadEdge, half: number) {
     const a = edge.points[0];
     const b = edge.points[edge.points.length - 1];
     const len = length(b.x - a.x, b.z - a.z);
     const { tx, tz } = a;
     for (let u = CORNER_CLEAR, n = 0; u < len - CORNER_CLEAR; u += LIGHT_EVERY, n++) {
       const side = n % 2 ? 1 : -1;
-      const off = side * (edge.half + 1);
+      const off = side * (half + 1);
       const x = a.x + tx * u - tz * off;
       const z = a.z + tz * u + tx * off;
-      if (this.occupied[this.vertex_at(x, z)]) continue;
+      if (this.occupied[this.vertex_at(x, z)] || (this.shape.exact && this.sample(this.terrain.road_dist, x, z) < ROAD_HALF + 0.5)) continue;
       const y = this.sample(this.terrain.heights, x, z);
       this.out.props.push({ x, y, z, angle: Math.atan2(tz * side, -tx * side), kind: PropKind.STREET_LIGHT, scale: 1 });
       this.out.solids.push({ kind: "circle", x, y, z, radius: 0.18, height: LIGHT_HEIGHT });
