@@ -23,6 +23,14 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.25.1",
+    date: "2026-11-11",
+    title: "Stability",
+    changes: [
+      { kind: NEW, text: "Stability is its own driving aid, separate from steering assist: a Settings row, key 5 and an STM lamp on the dash. Turn it off to let slides grow; launches from rest still catch." },
+    ],
+  },
+  {
     version: "0.25.0",
     date: "2026-11-11",
     title: "Floating HUD",
