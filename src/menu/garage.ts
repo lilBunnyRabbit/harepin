@@ -405,10 +405,14 @@ export class Garage {
               card.append(swatch);
             }
             if (item.kind === "decal") card.append(decal_tile(DECALS[i]));
-            card.append(el("b", "garage-card-name", item.name(i)));
+            const name = el("b", "garage-card-name", item.name(i));
+            if (item.kind === "car") {
+              const head = el("span", "garage-card-head");
+              head.append(name, build_badge(item.with(this.current, i)));
+              card.append(head);
+            } else card.append(name);
             const blurb = item.blurb(i);
             if (blurb) card.append(el("span", "garage-card-blurb", blurb));
-            if (item.kind === "car") card.append(build_badge(item.with(this.current, i)));
             return card;
           }),
         );

@@ -389,6 +389,24 @@
   font-weight: 600;
 }
 
+.garage-card-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* A car card is as wide as its name and class badge, so neither is cut; the strip scrolls like the decal one. */
+.garage-strip[data-kind="car"] .garage-card {
+  flex: 0 0 auto;
+  max-width: none;
+}
+
+.garage-card-head .garage-card-name {
+  flex: none;
+  max-width: none;
+  white-space: nowrap;
+}
+
 .garage-card-blurb {
   color: var(--dim);
   font-size: var(--text-sm);
