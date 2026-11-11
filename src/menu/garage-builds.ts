@@ -87,6 +87,15 @@ export function render_builds(rail: HTMLElement, view: BuildsView, actions: Buil
   own.append(el("code", "garage-code", build_code(view.current)), button("Copy", "copy-code"));
 
   const fitted = build_code(view.current);
+  const card = (title: string, sub: string, code: string, action: string, value: string) => {
+    const build = parse_build(code);
+    const on_car = code === fitted;
+    const body = on_car ? el("div", "garage-build-load") : button("", action, value, "garage-build-load");
+    const meta = el("span", "garage-build-meta");
+    meta.append(...(build ? [build_badge(build)] : []), on_car ? el("span", "garage-tag", "On your car") : el("span", "garage-build-go", "Load"));
+    body.append(el("b", "garage-build-title", title), el("small", "garage-build-sub", sub), meta);
+    return body;
+  };
   const list = el("ol", "garage-builds");
   for (const saved of view.builds) {
     const li = el("li", "garage-build");
@@ -100,26 +109,22 @@ export function render_builds(rail: HTMLElement, view: BuildsView, actions: Buil
       li.append(rename);
     } else {
       const build = parse_build(saved.code);
-      const text = el("div", "garage-build-name");
-      text.append(el("b", "", saved.name), el("small", "", build ? CARS[build.car].name : ""));
-      const load = saved.code === fitted ? el("span", "garage-tag", "On your car") : button("Load", "load-build", saved.name);
       const edit = button("", "rename-build", saved.name, "garage-mini");
       edit.setAttribute("aria-label", `Rename ${saved.name}`);
       edit.append(icon("rename"));
       const drop = button("", "delete-build", saved.name, "garage-mini");
       drop.setAttribute("aria-label", `Delete ${saved.name}`);
       drop.append(icon("delete"));
-      li.append(text, ...(build ? [build_badge(build)] : []), load, edit, drop);
+      const tools = el("div", "garage-build-tools");
+      tools.append(edit, drop);
+      li.append(card(saved.name, build ? CARS[build.car].name : "", saved.code, "load-build", saved.name), tools);
     }
     list.append(li);
   }
   const presets = el("ol", "garage-builds");
   PRESETS.forEach((preset, i) => {
-    const li = el("li", "garage-build garage-preset");
-    const text = el("div", "garage-build-name");
-    text.append(el("b", "", preset.name), el("small", "", preset.blurb));
-    const build = parse_build(preset.code);
-    li.append(text, ...(build ? [build_badge(build)] : []), preset.code === fitted ? el("span", "garage-tag", "On your car") : button("Load", "load-preset", String(i)));
+    const li = el("li", "garage-build");
+    li.append(card(preset.name, preset.blurb, preset.code, "load-preset", String(i)));
     presets.append(li);
   });
   const head = (text: string) => el("h3", "garage-build-head", text);
