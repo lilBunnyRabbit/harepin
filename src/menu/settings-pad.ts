@@ -16,11 +16,11 @@ const svg = <K extends keyof SVGElementTagNameMap>(tag: K, class_name: string): 
 };
 
 export function pad_advanced(m: SettingsMenu): HTMLElement[] {
-  const slider = (label: string, help: string, key: SettingKey & `pad_${string}`, step: number) => m.rows.slider(label, help, m.value(key), step);
+  const slider = (label: string, help: string, key: SettingKey & `pad_${string}`, step: number, unit?: string) => m.rows.slider(label, help, m.value(key), step, undefined, unit);
   const rows = [
     slider("Steering inside deadzone", "Stick travel from centre that steers nothing. Raise it if the car pulls with the stick let go.", "pad_steer_inner", DEADZONE_STEP),
     slider("Steering outside deadzone", "Stick travel that already gives full lock. Lower reaches full lock before the stick hits its edge.", "pad_steer_outer", DEADZONE_STEP),
-    slider("Steering linearity", "0 is linear: the wheels follow the stick. Higher steers finer near centre and keeps full lock for the edge.", "pad_steer_linearity", LINEARITY_STEP),
+    slider("Steering linearity", "0 is linear: the wheels follow the stick. Higher steers finer near centre and keeps full lock for the edge.", "pad_steer_linearity", LINEARITY_STEP, ""),
     slider("Throttle inside deadzone", "Right trigger travel that gives no gas.", "pad_throttle_inner", DEADZONE_STEP),
     slider("Throttle outside deadzone", "Right trigger travel that already gives full gas.", "pad_throttle_outer", DEADZONE_STEP),
     slider("Brake inside deadzone", "Left trigger travel that gives no brake.", "pad_brake_inner", DEADZONE_STEP),
