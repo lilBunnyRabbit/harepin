@@ -1,3 +1,4 @@
+import { TreeKind } from "./biomes";
 import { at, sample_on, span_i, span_j, WHOLE, type Grid } from "./field";
 import { hash, length } from "./noise";
 import type { TownRecipe } from "./recipe";
@@ -244,7 +245,7 @@ export class Lots {
   private tree(x: number, z: number, roll: number) {
     const y = this.sample(this.terrain.heights, x, z);
     const scale = 0.7 + roll * 0.6;
-    this.out.trees.push({ x, y, z, scale, kind: roll < 0.5 ? 1 : 0 });
+    this.out.trees.push({ x, y, z, scale, kind: roll < 1 - this.shape.pines ? TreeKind.BROADLEAF : TreeKind.PINE });
     this.out.solids.push({ kind: "circle", x, y, z, radius: TREE_RADIUS * scale, height: TREE_HEIGHT * scale });
   }
 

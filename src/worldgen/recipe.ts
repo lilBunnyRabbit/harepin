@@ -209,6 +209,8 @@ export interface TownRecipe {
   max: number;
   /** Gardens and house yards get trees; false gives them a water tank and boulders instead. */
   trees: boolean;
+  /** Share of those trees that are pines; the rest are broadleaf. */
+  pines: number;
   /** Street block size: min plus up to span, metres. */
   block: { min: number; span: number };
   /** Highest ground a town centre sits on, metres. */
@@ -288,7 +290,7 @@ export const ISLAND: Recipe = {
     },
   },
   road: { loop: { radius: 620, swing: 640, min: 380, max: 860 }, straights: null, stacks: [4, 2], tongue: true, canyon: { outlet: 2, tries: 64, crossings: 4 }, kickers: { road: 4, total: 12, big: 3 }, runup: null, bank: null },
-  towns: { min: 3, max: 6, trees: true, block: { min: 45, span: 25 }, top: 60, layout: "grid", roofs: "mixed", variety: false, exact: true },
+  towns: { min: 3, max: 6, trees: true, pines: 0.5, block: { min: 45, span: 25 }, top: 60, layout: "grid", roofs: "mixed", variety: false, exact: true },
   landmarks: [Landmark.MAST, Landmark.LIGHTHOUSE, Landmark.TURBINES, Landmark.ARCH],
   scatter: [],
 };
@@ -330,7 +332,7 @@ export const DESERT: Recipe = {
     },
   },
   road: { loop: { radius: 650, swing: 500, min: 420, max: 850 }, straights: 4, stacks: [], tongue: false, canyon: { outlet: 24, tries: 24, crossings: 1 }, kickers: { road: 4, total: 16, big: 4 }, runup: null, bank: null },
-  towns: { min: 1, max: 3, trees: false, block: { min: 35, span: 15 }, top: 60, layout: "grid", roofs: "flat", variety: false, exact: false },
+  towns: { min: 1, max: 3, trees: false, pines: 0.5, block: { min: 35, span: 15 }, top: 60, layout: "grid", roofs: "flat", variety: false, exact: false },
   landmarks: [Landmark.MAST, Landmark.TURBINES],
   scatter: [
     { kind: PropKind.CACTUS, spacing: 46, odds: 0.05, biomes: ["meadow", "upland"], road_within: Infinity },
@@ -343,7 +345,7 @@ export const DESERT: Recipe = {
 export const MAINLAND: Recipe = {
   ...ISLAND,
   terrain: [LIFT, hills(110), ridges(26), { kind: "peak", height: 240, radius: 1100, reach: 1400 }, shore(2900, -9)],
-  towns: { min: 10, max: 16, trees: true, block: { min: 45, span: 25 }, top: 60, layout: "grid", roofs: "mixed", variety: true, exact: true },
+  towns: { min: 10, max: 16, trees: true, pines: 0.5, block: { min: 45, span: 25 }, top: 60, layout: "grid", roofs: "mixed", variety: true, exact: true },
   road: { ...ISLAND.road, bank: { run: 3.75, reach: 64 } },
   water: { rivers: { count: 3, head: 120, width: [3, 11], depth: [1.2, 2.6] }, lakes: { count: 4, depth: 2, min: 4, max: 400 } },
 };
@@ -383,7 +385,7 @@ export const ALPINE: Recipe = {
     },
   },
   road: { loop: { radius: 600, swing: 260, min: 500, max: 700 }, straights: null, stacks: [4, 2], tongue: true, canyon: null, kickers: { road: 2, total: 8, big: 2 }, runup: { grade: 0.08, reach: 100 }, bank: { run: 3.75, reach: 64 } },
-  towns: { min: 2, max: 3, trees: true, block: { min: 35, span: 15 }, top: 110, layout: "strip", roofs: "steep", variety: false, exact: true },
+  towns: { min: 2, max: 3, trees: true, pines: 0.5, block: { min: 35, span: 15 }, top: 110, layout: "strip", roofs: "steep", variety: false, exact: true },
   landmarks: [Landmark.MAST],
   scatter: [{ kind: PropKind.BOULDER, spacing: 60, odds: 0.08, biomes: ["meadow", "upland"], road_within: Infinity }],
 };
@@ -416,7 +418,7 @@ export const TUNDRA: Recipe = {
     ground: { coast: SNOWFIELD, forest: SNOWFIELD, meadow: SNOWFIELD, upland: SNOWFIELD },
   },
   road: { loop: { radius: 640, swing: 420, min: 460, max: 820 }, straights: null, stacks: [], tongue: false, canyon: null, kickers: { road: 3, total: 10, big: 2 }, runup: null, bank: null },
-  towns: { min: 1, max: 2, trees: true, block: { min: 35, span: 10 }, top: 60, layout: "grid", roofs: "steep", variety: false, exact: true },
+  towns: { min: 1, max: 2, trees: true, pines: 1, block: { min: 35, span: 10 }, top: 60, layout: "grid", roofs: "steep", variety: false, exact: true },
   landmarks: [Landmark.MAST],
   scatter: [{ kind: PropKind.BOULDER, spacing: 80, odds: 0.05, biomes: ["meadow", "upland"], road_within: Infinity }],
   snow: SNOW_KIT,
