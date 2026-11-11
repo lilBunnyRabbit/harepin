@@ -1053,7 +1053,19 @@
 
 @media (max-width: 480px) {
   .row > .settings-choice {
+    flex-basis: 100%;
     grid-auto-columns: auto;
+  }
+
+  .settings .row > .settings-choice button {
+    padding: 0 var(--space-2);
+  }
+}
+
+@media (max-width: 400px) {
+  .settings .row > .settings-choice button {
+    padding: 0 var(--space-1);
+    font-size: var(--text-sm);
   }
 
   .settings .set-reset {
