@@ -10,7 +10,7 @@ export const alpine = kind_def({
   kind: WorldKind.ALPINE,
   base: 4000,
   tag: "a",
-  version: 1,
+  version: 2,
   size: SIZE,
   generate: (seed, levels) => generate(seed, tune(ALPINE, ALPINE_KNOBS, levels), WorldKind.ALPINE),
   options: ALPINE_KNOBS,

@@ -23,10 +23,10 @@ function alpine(seed: number): WorldData {
 }
 
 test("ids and keys match what saved records and older peers use", () => {
-  expect(world_id(WorldKind.ISLAND)).toBe(6);
+  expect(world_id(WorldKind.ISLAND)).toBe(7);
   expect(world_id(WorldKind.SKY)).toBe(1003);
-  expect(world_key(42)).toBe("42:w6");
-  expect(world_key(42, WorldKind.ISLAND)).toBe("42:w6");
+  expect(world_key(42)).toBe("42:w7");
+  expect(world_key(42, WorldKind.ISLAND)).toBe("42:w7");
   expect(world_key(42, WorldKind.SKY)).toBe("42:sky3");
   expect(world_id(WorldKind.DESERT)).toBe(2002);
   expect(world_key(42, WorldKind.DESERT)).toBe("42:d2");

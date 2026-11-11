@@ -370,7 +370,7 @@ export const ALPINE: Recipe = {
       upland: { cut: 0.5, above: Ground.UPLAND, below: Ground.DRY, soft: 0.2 },
     },
   },
-  road: { loop: { radius: 600, swing: 260, min: 500, max: 700 }, straights: null, stacks: [4, 2], tongue: true, canyon: null, kickers: { road: 2, total: 8, big: 2 }, runup: { grade: 0.1, reach: 100 }, bank: { run: 3.75, reach: 64 } },
+  road: { loop: { radius: 600, swing: 260, min: 500, max: 700 }, straights: null, stacks: [4, 2], tongue: true, canyon: null, kickers: { road: 2, total: 8, big: 2 }, runup: { grade: 0.08, reach: 100 }, bank: { run: 3.75, reach: 64 } },
   towns: { min: 2, max: 3, trees: true, block: { min: 35, span: 15 }, top: 110, layout: "strip", roofs: "steep" },
   landmarks: [Landmark.MAST],
   scatter: [{ kind: PropKind.BOULDER, spacing: 60, odds: 0.08, biomes: ["meadow", "upland"], road_within: Infinity }],

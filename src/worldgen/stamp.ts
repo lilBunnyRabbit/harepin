@@ -5,6 +5,7 @@ import { smoothstep } from "./noise";
 import type { Bank, TerrainRecipe } from "./recipe";
 import { pad, type Crossing } from "./trails";
 import { town_level } from "./towns";
+import { shape_face } from "./switchback";
 import { soak, water_index, type Water } from "./water";
 import { CELL, ORIGIN, ROAD_HALF, SHOULDER, SurfaceId, type Canyon, type RoadEdge, type RoadPoint, type Terrain, type Town } from "./types";
 
@@ -41,6 +42,7 @@ export interface TrailLine {
  */
 export type GroundOp =
   | { kind: "carve"; canyon: Canyon }
+  | { kind: "face"; points: readonly RoadPoint[] }
   | { kind: "plateau"; town: Town }
   | { kind: "edge"; edge: RoadEdge; bank: Bank | null }
   | { kind: "junction"; outline: readonly { x: number; z: number }[] }
@@ -79,6 +81,7 @@ export class Stamp {
 
   replay(op: GroundOp) {
     if (op.kind === "carve") this.carve(op.canyon);
+    else if (op.kind === "face") this.face(op.points);
     else if (op.kind === "plateau") this.plateau(op.town);
     else if (op.kind === "edge") this.edge(op.edge, op.bank);
     else if (op.kind === "junction") this.junction(op.outline);
@@ -96,6 +99,11 @@ export class Stamp {
   carve(canyon: Canyon) {
     this.log({ kind: "carve", canyon });
     carve(this.terrain.heights, canyon, this.grid);
+  }
+
+  face(points: readonly RoadPoint[]) {
+    this.log({ kind: "face", points });
+    shape_face(this.terrain.heights, points, this.grid);
   }
 
   pad(crossing: Crossing) {

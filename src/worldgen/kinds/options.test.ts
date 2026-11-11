@@ -9,9 +9,9 @@ test("the plain map keeps its key and an empty code", () => {
     const { options } = KINDS[kind];
     expect(opts_code(options, options.map((o) => o.normal))).toBe("");
   }
-  expect(world_key(42, WorldKind.ISLAND, "")).toBe("42:w6");
-  expect(world_key(42, WorldKind.ISLAND, "111111")).toBe("42:w6");
-  expect(world_key(42, WorldKind.ISLAND, "121111")).toBe("42:w6:121111");
+  expect(world_key(42, WorldKind.ISLAND, "")).toBe("42:w7");
+  expect(world_key(42, WorldKind.ISLAND, "111111")).toBe("42:w7");
+  expect(world_key(42, WorldKind.ISLAND, "121111")).toBe("42:w7:121111");
 });
 
 test("every code a kind has reads back to itself", () => {

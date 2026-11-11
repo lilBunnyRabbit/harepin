@@ -1,9 +1,14 @@
-import { sample } from "./field";
-import { length } from "./noise";
+import { at, sample, WHOLE, type Grid } from "./field";
+import { length, smoothstep } from "./noise";
 import type { Path } from "./path";
-import { ROAD_HALF, type Item } from "./types";
+import { CELL, N, ORIGIN, ROAD_HALF, type Item, type RoadPoint } from "./types";
 
 export const HAIRPIN_RADIUS = 16;
+/**
+ * Each hairpin turns on two corners a hairpin's width apart, up the face from its row. One corner would fillet two legs
+ * meeting at a sharp angle, and its arc would sit far inside the leg ends, eating most of the climb.
+ */
+const U_TURN = [-HAIRPIN_RADIUS, HAIRPIN_RADIUS];
 const CREST_BEND = 40;
 /** Leg length and hairpin spacing are picked so the terrain under a leg rises this much per metre of road. */
 const LEG_GRADE = 0.1;
@@ -29,6 +34,18 @@ const RAIL_WIDTH = 0.3;
 /** Nearest any road's centre may come to a rail: the world check keeps solid items this far off the asphalt. */
 const RAIL_ROAD = ROAD_HALF + RAIL_HALF + 1.5;
 const RAIL_STEP = 3.2;
+/**
+ * The ground under the stack stays within FACE_CUT of the nearest leg's height across the asphalt and climbs or falls
+ * away from it no steeper than FACE_BANK, out to FACE_HOLD; past that it eases back to the hillside by FACE_FADE. The
+ * legs climb at road grades up a face that rises far faster, so without it they run in cuts tens of metres deep.
+ */
+const FACE_CUT = 1;
+const FACE_BANK = 1;
+const FACE_HOLD = 30;
+const FACE_FADE = 120;
+/** Vertices this near a road point take its exact cone; the rest get it through the chamfer passes. */
+const FACE_SEED = ROAD_HALF + 2 * CELL;
+const DIAGONAL = CELL * Math.SQRT2;
 
 export interface Bend {
   x: number;
@@ -163,12 +180,20 @@ export function switchback(heights: Float32Array, base: [number, number], summit
   const local: Path = [];
   const hairpins = new Set<number>();
   for (let j = 0; j <= count + 1; j++) {
-    if (j >= 1 && j <= count) hairpins.add(local.length);
-    local.push([j % 2 ? b : a, j * spacing]);
+    if (j < 1 || j > count) local.push([j % 2 ? b : a, j * spacing]);
+    else
+      for (const du of U_TURN) {
+        hairpins.add(local.length);
+        local.push([j % 2 ? b : a, j * spacing + du]);
+      }
   }
   for (let j = 1; j <= count + 1; j++) {
-    if (j <= count) hairpins.add(local.length);
-    local.push([j % 2 ? d : c, top - j * spacing]);
+    if (j > count) local.push([j % 2 ? d : c, top - j * spacing]);
+    else
+      for (const du of U_TURN) {
+        hairpins.add(local.length);
+        local.push([j % 2 ? d : c, top - j * spacing - du]);
+      }
   }
   const shaped = fillet(local, hairpins);
   if (!shaped) return null;
@@ -207,4 +232,81 @@ export function guard_rails(stack: Switchback, heights: Float32Array, road_dist:
     }
   }
   return out;
+}
+
+// The bounds come from a lattice of their own over the stack's box, filled by two chamfer passes, so a tile replaying this
+// op gets the same values as the whole grid: nothing in it reads the ground.
+/** Shapes the ground under the stack's `points` (the road inside its footprint) to a face its legs sit on. */
+export function shape_face(heights: Float32Array, points: readonly RoadPoint[], grid: Grid = WHOLE) {
+  let x0 = Infinity;
+  let x1 = -Infinity;
+  let z0 = Infinity;
+  let z1 = -Infinity;
+  for (const p of points) {
+    x0 = Math.min(x0, p.x);
+    x1 = Math.max(x1, p.x);
+    z0 = Math.min(z0, p.z);
+    z1 = Math.max(z1, p.z);
+  }
+  const i0 = Math.max(0, Math.floor((x0 - FACE_FADE - ORIGIN) / CELL));
+  const i1 = Math.min(N, Math.ceil((x1 + FACE_FADE - ORIGIN) / CELL));
+  const j0 = Math.max(0, Math.floor((z0 - FACE_FADE - ORIGIN) / CELL));
+  const j1 = Math.min(N, Math.ceil((z1 + FACE_FADE - ORIGIN) / CELL));
+  if (i0 > i1 || j0 > j1) return;
+  const w = i1 - i0 + 1;
+  const size = w * (j1 - j0 + 1);
+  const hi = new Float32Array(size).fill(Infinity);
+  const lo = new Float32Array(size).fill(-Infinity);
+  const dist = new Float32Array(size).fill(Infinity);
+  for (const p of points) {
+    const pi0 = Math.max(i0, Math.floor((p.x - FACE_SEED - ORIGIN) / CELL));
+    const pi1 = Math.min(i1, Math.ceil((p.x + FACE_SEED - ORIGIN) / CELL));
+    const pj0 = Math.max(j0, Math.floor((p.z - FACE_SEED - ORIGIN) / CELL));
+    const pj1 = Math.min(j1, Math.ceil((p.z + FACE_SEED - ORIGIN) / CELL));
+    for (let j = pj0; j <= pj1; j++)
+      for (let i = pi0; i <= pi1; i++) {
+        const d = length(ORIGIN + i * CELL - p.x, ORIGIN + j * CELL - p.z);
+        if (d > FACE_SEED) continue;
+        const l = (j - j0) * w + i - i0;
+        const bank = Math.max(0, d - ROAD_HALF) * FACE_BANK;
+        hi[l] = Math.min(hi[l], p.y + FACE_CUT + bank);
+        lo[l] = Math.max(lo[l], p.y - FACE_CUT - bank);
+        dist[l] = Math.min(dist[l], d);
+      }
+  }
+  const pull = (l: number, from: number, step: number) => {
+    hi[l] = Math.min(hi[l], hi[from] + step * FACE_BANK);
+    lo[l] = Math.max(lo[l], lo[from] - step * FACE_BANK);
+    dist[l] = Math.min(dist[l], dist[from] + step);
+  };
+  const rows = j1 - j0 + 1;
+  for (let j = 0; j < rows; j++)
+    for (let i = 0; i < w; i++) {
+      const l = j * w + i;
+      if (i > 0) pull(l, l - 1, CELL);
+      if (j > 0) {
+        pull(l, l - w, CELL);
+        if (i > 0) pull(l, l - w - 1, DIAGONAL);
+        if (i < w - 1) pull(l, l - w + 1, DIAGONAL);
+      }
+    }
+  for (let j = rows - 1; j >= 0; j--)
+    for (let i = w - 1; i >= 0; i--) {
+      const l = j * w + i;
+      if (i < w - 1) pull(l, l + 1, CELL);
+      if (j < rows - 1) {
+        pull(l, l + w, CELL);
+        if (i < w - 1) pull(l, l + w + 1, DIAGONAL);
+        if (i > 0) pull(l, l + w - 1, DIAGONAL);
+      }
+    }
+  for (let j = Math.max(j0, grid.j0); j <= Math.min(j1, grid.j1); j++)
+    for (let i = Math.max(i0, grid.i0); i <= Math.min(i1, grid.i1); i++) {
+      const l = (j - j0) * w + i - i0;
+      const weight = 1 - smoothstep(FACE_HOLD, FACE_FADE, dist[l]);
+      if (weight <= 0) continue;
+      const k = at(grid, i, j);
+      const h = heights[k];
+      heights[k] = h + (Math.min(hi[l], Math.max(lo[l], h)) - h) * weight;
+    }
 }

@@ -21,10 +21,11 @@ test("most seeds get one canyon, flank to coast, crossing the circuit at most on
     const [sx, sz] = canyon.points[0];
     const [ex, ez] = canyon.points[canyon.points.length - 1];
     expect(sample(before, sx, sz)).toBeGreaterThan(sample(before, ex, ez) + 30);
+    // Per vertex: a point sampled between a carved vertex and one already under the floor dips below it.
+    expect(before.filter((h, k) => h > 3.5 && land.heights[k] < 3.5).length).toBe(0);
     for (const [x, z] of canyon.points) {
       const was = sample(before, x, z);
       const now = sample(land.heights, x, z);
-      if (was > 5) expect(now).toBeGreaterThanOrEqual(3.5 - 1e-3);
       if (was > canyon.depth + 4) expect(was - now).toBeGreaterThan(canyon.depth * 0.8);
     }
   }
