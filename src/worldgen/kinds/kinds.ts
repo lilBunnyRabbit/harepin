@@ -9,8 +9,9 @@ import { mainland } from "./mainland";
 import { in_k2, normal_levels, overrides } from "./options";
 import { sky } from "./sky";
 import { tundra } from "./tundra";
+import { volcano } from "./volcano";
 
-export const KINDS: Record<WorldKind, KindDef> = { island, sky, desert, mainland, alpine, tundra };
+export const KINDS: Record<WorldKind, KindDef> = { island, sky, desert, mainland, alpine, tundra, volcano };
 
 export interface MapSpec {
   kind: WorldKind;

@@ -41,6 +41,20 @@ export interface PeakLayer {
   reach: number;
 }
 
+/**
+ * A crater in the middle of the map, rim `radius` metres out. Inside `floor` of the radius the ground lies flat, `depth`
+ * metres under the mean height of the layers before it round the rim; the wall climbs back to the land at the rim, which
+ * stands `lip` metres proud, easing to nothing `lip_width` metres either side of it.
+ */
+export interface CraterLayer {
+  kind: "crater";
+  radius: number;
+  floor: number;
+  depth: number;
+  lip: number;
+  lip_width: number;
+}
+
 /** Cuts land above `base` into terraces `step` high, with risers `riser` of a step wide. */
 export interface TerraceLayer {
   kind: "terrace";
@@ -110,7 +124,7 @@ export interface RangeLayer {
 }
 
 /** A point layer: a pure function of position, seed and the height so far, so any tile can rebuild it alone. */
-export type TerrainLayer = LiftLayer | FbmLayer | RidgedLayer | PeakLayer | TerraceLayer | MaskLayer | DunesLayer | PanLayer | RangeLayer;
+export type TerrainLayer = LiftLayer | FbmLayer | RidgedLayer | PeakLayer | CraterLayer | TerraceLayer | MaskLayer | DunesLayer | PanLayer | RangeLayer;
 
 /** Point layers folded in order over a height starting at 0. */
 export type TerrainRecipe = readonly TerrainLayer[];
@@ -423,4 +437,38 @@ export const TUNDRA: Recipe = {
   scatter: [{ kind: PropKind.BOULDER, spacing: 80, odds: 0.05, biomes: ["meadow", "upland"], road_within: Infinity }],
   snow: SNOW_KIT,
   ice: { count: 5, radius: [60, 140], reach: 760 },
+};
+
+const CINDER: GroundRule = { cut: 0.5, above: Ground.UPLAND, below: Ground.DRY, soft: 0.2 };
+
+/**
+ * One cone filling the island, a crater in its top and the circuit round the rim: loose scree from the rim down, scrub
+ * thickening down the flank. No towns: the flank has no ground flat enough, nor a spur that holds the grade to the rim.
+ */
+export const VOLCANO: Recipe = {
+  terrain: [
+    LIFT,
+    hills(30),
+    ridges(10),
+    { kind: "peak", height: 260, radius: 900, reach: 0 },
+    { kind: "crater", radius: 200, floor: 0.5, depth: 70, lip: 8, lip_width: 30 },
+    shore(960, -9),
+  ],
+  biomes: {
+    surfaces: HARDPACK,
+    zones: ZONES,
+    limits: { ...LIMITS, scree: { up: 0.8, height: 150 }, rock: { up: 0.7, height: 170 }, snow_line: 1000, tree_line: 110, loose: SurfaceId.SCREE },
+    rules: {
+      coast: { start: 0.5, fill: 0.12, pine: 0.2, scrub: 0.6, extra: 0 },
+      meadow: { start: 0.6, fill: 0.15, pine: 0.3, scrub: 0.6, extra: 0 },
+      forest: { start: 0.45, fill: 0.6, pine: 0.9, scrub: 0.2, extra: 0 },
+      upland: BARE,
+    },
+    items: { coast: "rock", meadow: "rock", forest: "log", upland: "rock" },
+    ground: { coast: { cut: 0.55, above: Ground.SAND, below: Ground.DUNE, soft: 0 }, meadow: CINDER, forest: { cut: 0.6, above: Ground.DRY, below: Ground.FOREST, soft: 0.2 }, upland: CINDER },
+  },
+  road: { loop: { radius: 205, swing: 30, min: 195, max: 235 }, straights: null, stacks: [], tongue: false, canyon: null, kickers: { road: 2, total: 6, big: 1 }, runup: { grade: 0.08, reach: 100 }, bank: { run: 3.75, reach: 64 } },
+  towns: { min: 0, max: 0, trees: false, pines: 1, block: { min: 35, span: 10 }, top: 60, layout: "grid", roofs: "flat", variety: false, exact: true },
+  landmarks: [],
+  scatter: [{ kind: PropKind.BOULDER, spacing: 50, odds: 0.1, biomes: ["meadow", "upland"], road_within: Infinity }],
 };

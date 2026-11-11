@@ -1,7 +1,7 @@
 import { mulberry32, sub } from "../rng";
 import { at, cells, WHOLE, type Grid } from "./field";
-import { circle16, fbm, smoothstep } from "./noise";
-import { ISLAND, type DunesLayer, type PanLayer, type Power, type RangeLayer, type TerraceLayer, type TerrainLayer, type TerrainRecipe } from "./recipe";
+import { circle16, circle24, fbm, smoothstep } from "./noise";
+import { ISLAND, type CraterLayer, type DunesLayer, type PanLayer, type Power, type RangeLayer, type TerraceLayer, type TerrainLayer, type TerrainRecipe } from "./recipe";
 import { CELL, N, ORIGIN, SIZE, type Terrain } from "./types";
 
 /** Share of the mask radius where the land starts fading to the edge height. */
@@ -127,7 +127,7 @@ export function with_passes(seed: number, shape: TerrainRecipe, path: readonly (
   );
 }
 
-/** A layer with what it draws from the seed once: the peak's position, the dunes' wind or range's heading, or the pan's level. */
+/** A layer with what it draws from the seed once: the peak's position, the dunes' wind or range's heading, or the pan's or crater's level. */
 interface Seeded {
   layer: TerrainLayer;
   x: number;
@@ -150,6 +150,11 @@ function apply(seeded: Seeded, seed: number, x: number, z: number, h: number): n
       const dz = z - seeded.z;
       const t = Math.min(1, (dx * dx + dz * dz) / (layer.radius * layer.radius));
       return h + layer.height * (1 - t) * (1 - t) * (1 - t);
+    }
+    case "crater": {
+      const d = Math.sqrt(x * x + z * z);
+      const lipped = h + layer.lip * (1 - smoothstep(0, layer.lip_width, Math.abs(d - layer.radius)));
+      return seeded.level + (lipped - seeded.level) * smoothstep(layer.radius * layer.floor, layer.radius, d);
     }
     case "terrace":
       return terraced(h, layer);
@@ -174,12 +179,21 @@ function level_of(below: readonly Seeded[], seed: number, share: number): number
   return hs[Math.min(hs.length - 1, Math.floor(hs.length * share))];
 }
 
+// The mean height round the rim of the layers so far, less the crater's depth.
+function crater_floor(below: readonly Seeded[], seed: number, layer: CraterLayer): number {
+  let sum = 0;
+  const ring = circle24();
+  for (const [c, s] of ring) sum += fold(below, seed, c * layer.radius, s * layer.radius);
+  return sum / ring.length - layer.depth;
+}
+
 function seeded(seed: number, shape: TerrainRecipe): Seeded[] {
   const out: Seeded[] = [];
   for (const layer of shape) {
     if (layer.kind === "peak") out.push({ layer, ...peak_of(seed, layer.reach), level: 0 });
     else if (layer.kind === "dunes" || layer.kind === "range") out.push({ layer, ...wind_of(seed, layer.seed), level: 0 });
     else if (layer.kind === "pan") out.push({ layer, x: 0, z: 0, level: level_of(out, seed, layer.share) });
+    else if (layer.kind === "crater") out.push({ layer, x: 0, z: 0, level: crater_floor(out, seed, layer) });
     else out.push({ layer, x: 0, z: 0, level: 0 });
   }
   return out;

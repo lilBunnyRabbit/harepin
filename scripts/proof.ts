@@ -18,6 +18,7 @@ const SKY = [...Array(arg("--sky", 20)).keys()];
 const DESERT = [...Array(arg("--desert", 10)).keys()];
 const ALPINE = [...Array(arg("--alpine", 10)).keys()];
 const TUNDRA = [...Array(arg("--tundra", 10)).keys()];
+const VOLCANO = [...Array(arg("--volcano", 10)).keys()];
 const MAINLAND = [...Array(arg("--mainland", 3)).keys()];
 const DRIVES = !process.argv.includes("--no-drive");
 const ALL = process.argv.includes("--all");
@@ -48,8 +49,9 @@ const jobs: ProofJob[] = process.argv.includes("--options") ? option_jobs() : [
   ...MAINLAND.map((seed) => ({ kind: "mainland" as const, seed, checks: true, drives: false })),
   ...ALPINE.map((seed) => ({ kind: "alpine" as const, seed, checks: true, drives: DRIVES })),
   ...TUNDRA.map((seed) => ({ kind: "tundra" as const, seed, checks: true, drives: DRIVES })),
+  ...VOLCANO.map((seed) => ({ kind: "volcano" as const, seed, checks: true, drives: DRIVES })),
 ];
-const golden: Record<WorldKind, Golden> = { island: read_golden("island"), sky: read_golden("sky"), desert: read_golden("desert"), mainland: read_golden("mainland"), alpine: read_golden("alpine"), tundra: read_golden("tundra") };
+const golden: Record<WorldKind, Golden> = { island: read_golden("island"), sky: read_golden("sky"), desert: read_golden("desert"), mainland: read_golden("mainland"), alpine: read_golden("alpine"), tundra: read_golden("tundra"), volcano: read_golden("volcano") };
 const size = pool_size(process.argv);
 const t0 = performance.now();
 const results = await run_pool<ProofJob, ProofResult>(new URL("./proof/worker.ts", import.meta.url), jobs, size, (r, done) =>
