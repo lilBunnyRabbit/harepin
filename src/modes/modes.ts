@@ -27,6 +27,7 @@ const OPEN_WORLDS = LISTED.filter((w) => KINDS[w.kind].open_ground).map((w) => `
 const OPEN_GROUND = `Needs open ground: drive ${OPEN_WORLDS} for it`;
 const NO_GROUND_NOTICE = `Gymkhana, parking and gate hunts need open ground: drive ${OPEN_WORLDS} for them`;
 const TOO_BIG = "Too big for this mode";
+const STREAMED = "Modes are not on this world yet";
 
 export interface LevelEntry {
   id: string;
@@ -184,7 +185,10 @@ export class Modes {
 
   private launch(active: Active) {
     // Mode sites and views read terrain anywhere on the map: a start before every chunk is in waits for the rest.
-    if (this.world.tiles.streamed) return this.show_status("Modes are not on this world yet");
+    if (this.world.tiles.streamed) {
+      this.clear();
+      return this.notice(STREAMED);
+    }
     if (!this.world.tiles.complete) {
       void this.cover(this.world.tiles.whole()).then(() => {
         if (this.current === active && !active.run) this.launch(active);
@@ -192,7 +196,10 @@ export class Modes {
       return;
     }
     const run = active.mode.def.start(this.ctx(active.mode.track), active.level);
-    if (typeof run === "string") return this.show_status(run);
+    if (typeof run === "string") {
+      this.clear();
+      return this.notice(run);
+    }
     if (!run) return;
     active.run = run;
     active.shown = false;
@@ -316,6 +323,7 @@ export class Modes {
   mode_list(): ModeEntry[] {
     const ground = KINDS[this.world.kind].open_ground;
     const fits = car_sized(this.spec());
+    const streamed = this.world.tiles.streamed;
     return this.modes
       .filter(({ levels }) => levels.length)
       .map(({ def, levels, track }) => ({
@@ -323,7 +331,7 @@ export class Modes {
         name: def.name,
         stars: track.stars,
         max: levels.length * MAX_STARS,
-        blocked: def.needs_ground && !ground ? OPEN_GROUND : def.car_sized_only && !fits ? TOO_BIG : null,
+        blocked: streamed ? STREAMED : def.needs_ground && !ground ? OPEN_GROUND : def.car_sized_only && !fits ? TOO_BIG : null,
         levels: levels.map((level) => {
           const run = track.runs[level.id];
           const route = this.world.routes.find((r) => r.id === level.id);
