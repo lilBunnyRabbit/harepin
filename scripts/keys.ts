@@ -68,15 +68,15 @@ export interface LaneChange {
   presses: number;
 }
 
-export function lane_change(mode: SteerMode, spec = COUPE): LaneChange {
-  const car = rolling(spec, mode, 120);
+export function lane_change(mode: SteerMode, spec = COUPE, speed = 120): LaneChange {
+  const car = rolling(spec, mode, speed);
   let overshoot = 0;
   let settled = 0;
   const seconds = 6;
   const presses = drive(
     car,
     seconds,
-    120,
+    speed,
     (x) => LANE - x,
     (t) => {
       overshoot = Math.max(overshoot, car.pos.x - LANE);

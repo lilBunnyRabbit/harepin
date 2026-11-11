@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { Vector3 } from "three";
 import { DEFAULT_BUILD, DEFAULT_PARTS, apply_build } from "./build";
 import { Car, SteerMode, drop_height, ride_height, type Controls, type Ground } from "./car";
-import { CARS, car_sized, type CarId, type CarSpec } from "./cars";
+import { CARS, car_sized, is_car, type CarId, type CarSpec } from "./cars";
 import { donut } from "../../scripts/donut";
 import { hairpin_pull } from "../../scripts/hairpin";
 import { arc, flick, hairpin, lane_change, lift_off, slalom, swerve, tap } from "../../scripts/keys";
@@ -150,6 +150,19 @@ describe("keyboard steer mode", () => {
   });
 });
 
+// Lane change at 120 km/h settle (s) with Smooth keys before the speed-table retune (scripts/keys.ts at 390308c); the bus never settled.
+const OLD_SMOOTH_LANE_SETTLE: Record<CarId, number> = {
+  hatch: 2.39,
+  coupe: 2.37,
+  muscle: 2.49,
+  rally: 2.46,
+  kaze: 2.4,
+  sturm: 2.37,
+  raijin: 3.92,
+  formula: 2.53,
+  bus: Infinity,
+};
+
 describe("smooth keys on every car at 100 km/h", () => {
   test("a keyboard driver weaves through bends from 60 to 130 km/h well under classic, averaged over the cars", () => {
     const bends: [number, number][] = [[80, 60], [150, 90], [200, 110], [300, 130]];
@@ -161,7 +174,7 @@ describe("smooth keys on every car at 100 km/h", () => {
   });
 
   for (const spec of Object.values(CARS)) {
-    test(`${spec.id}: a symmetric swerve ends straight, taps scale with press length, a long bend weaves less than classic, and the assists own the rest`, () => {
+    test(`${spec.id}: a symmetric swerve ends straight, taps scale with press length, a long bend weaves less than classic, a 120 km/h lane change settles as fast, and the assists own the rest`, () => {
       expect(Math.abs(swerve(SteerMode.SMOOTH, spec).heading)).toBeLessThan(2);
       const [short, long] = [tap(SteerMode.SMOOTH, 1 / 60, 100, spec), tap(SteerMode.SMOOTH, 0.15, 100, spec)];
       expect(long.heading / short.heading).toBeGreaterThan(12);
@@ -171,6 +184,8 @@ describe("smooth keys on every car at 100 km/h", () => {
       expect(smooth_arc.yaw_swing).toBeLessThan(classic_arc.yaw_swing * 0.75);
       expect(slalom(SteerMode.SMOOTH, spec).slip).toBeLessThanOrEqual(slalom(SteerMode.SNAP, spec).slip);
       expect(lift_off(SteerMode.SMOOTH, spec)).toBeLessThan(lift_off(SteerMode.SNAP, spec) * 1.1);
+      const lane = lane_change(SteerMode.SMOOTH, spec).settle;
+      expect(lane).toBeLessThanOrEqual(Math.max(lane_change(SteerMode.SNAP, spec).settle * 1.1, is_car(spec.id) ? OLD_SMOOTH_LANE_SETTLE[spec.id] : 0));
       const [classic, smooth] = [flick(SteerMode.SNAP, spec), flick(SteerMode.SMOOTH, spec)];
       expect(smooth.turned).toBeGreaterThan(classic.turned * 0.75);
       expect(smooth.settle).toBeLessThan(classic.settle * 1.1 + 0.05);
