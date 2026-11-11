@@ -17,6 +17,7 @@ import { WorldKind } from "../worldgen/types";
 import { GoTo, GoalId } from "../goals/goals";
 import { mainland_seed, world_query } from "../world/world-pick";
 import { warm_pick } from "./warm";
+import { UpdateState } from "../version";
 import "./settings.css";
 import "./menu.css";
 
@@ -295,10 +296,16 @@ export class Settings {
     name_chip.append(this.name_field(), icon("icon-edit"));
     const update_chip = el("button", "menu-chip menu-update");
     update_chip.type = "button";
-    update_chip.title = "A new version is ready: see what's new";
-    update_chip.append(el("span", "menu-update-dot"), el("span", "", "Update ready"));
+    const update_label = el("span");
+    update_chip.append(el("span", "menu-update-dot"), update_label);
     update_chip.addEventListener("click", () => this.open_changes());
-    this.syncs.push(() => (update_chip.hidden = !this.host.update_ready()));
+    this.syncs.push(() => {
+      const state = this.host.update_state();
+      update_chip.hidden = state === UpdateState.NONE;
+      update_chip.dataset.state = state;
+      update_label.textContent = state === UpdateState.READY ? "Update ready" : "Downloading update";
+      update_chip.title = state === UpdateState.READY ? "A new version is ready: tap to update" : "A new version is downloading";
+    });
     const room = el("span", "menu-chip menu-room");
     const here = el("small");
     room.append(el("span", "menu-live"), el("span", "", `Room ${this.host.room}`), here);

@@ -1,5 +1,13 @@
 import { ChangeKind, type Change, type Release } from "./changelog";
 
+export const UpdateState = {
+  NONE: "none",
+  /** version.json is newer; the worker is still downloading the build. */
+  COMING: "coming",
+  READY: "ready",
+} as const;
+export type UpdateState = (typeof UpdateState)[keyof typeof UpdateState];
+
 export interface VersionInfo {
   version: string;
   commit: string;

@@ -5,6 +5,7 @@ import type { Goals } from "../goals/goals";
 import type { ModeEntry } from "../modes/modes";
 import type { RaceChoice } from "../modes/races";
 import type { ReadyStatus } from "../net/ready";
+import type { UpdateState } from "../version";
 import type { Rows, Value } from "./setting-rows";
 import { world_query } from "../world/world-pick";
 import { DEFAULT_KIND } from "../worldgen/types";
@@ -45,8 +46,8 @@ export interface SettingsHost {
   readonly version: string;
   /** Every release, newest first: the What's new page. */
   changelog(): HTMLElement;
-  /** A new version waits on What's new: the top bar shows its chip. */
-  update_ready(): boolean;
+  /** A new version is downloading or waits on What's new: the top bar shows its chip. */
+  update_state(): UpdateState;
   servers(): Server[];
   servers_status(): DirectoryStatus;
   /** This room's handshake failed on the password, so its row offers another try. */

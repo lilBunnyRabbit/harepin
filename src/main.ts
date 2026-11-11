@@ -229,7 +229,7 @@ const settings = new Settings(document.body, {
     if (lobby.ready) lobby.set_ready({ laps, route });
   },
   ready_status: () => lobby.ready_status(performance.now()),
-  version: BUILD.version, changelog: () => updater.changelog_view(), update_ready: () => updater.ready,
+  version: BUILD.version, changelog: () => updater.changelog_view(), update_state: () => updater.state,
   servers: () => directory.list(),
   servers_status: () => directory.status,
   password_failed: () => net.status === WRONG_PASSWORD,

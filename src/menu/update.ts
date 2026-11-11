@@ -1,7 +1,7 @@
 /// <reference types="vite-plugin-pwa/client" />
 import { registerSW } from "virtual:pwa-register";
 import { CHANGELOG, ChangeKind, type Release } from "../changelog";
-import { newer_releases, parse_version_file, type RemoteVersion, type VersionInfo } from "../version";
+import { UpdateState, compare_versions, newer_releases, parse_version_file, type RemoteVersion, type VersionInfo } from "../version";
 import "./update.css";
 
 declare const __HAREPIN_VERSION__: VersionInfo;
@@ -74,6 +74,7 @@ export class Updater {
   private update_sw: ((reload?: boolean) => Promise<void>) | null = null;
   private registration: ServiceWorkerRegistration | null = null;
   private waiting = false;
+  private coming = false;
   private applying = false;
   private readonly pending = el("div", "changelog-pending");
   private readonly toast = el("button", "update-toast");
@@ -90,8 +91,9 @@ export class Updater {
     this.toast.append(el("b", "", "Update ready"), el("span", "", "· in the menu"));
   }
 
-  get ready(): boolean {
-    return this.waiting;
+  get state(): UpdateState {
+    if (this.waiting) return UpdateState.READY;
+    return this.coming ? UpdateState.COMING : UpdateState.NONE;
   }
 
   changelog_view(): HTMLElement {
@@ -136,8 +138,15 @@ export class Updater {
     this.toast.remove();
   }
 
+  // The worker only reports once the whole build is cached; the small version file says it is coming right away.
+  private async peek(): Promise<void> {
+    const remote = await fetch_remote();
+    if (remote && compare_versions(remote.version, BUILD.version) > 0) this.coming = true;
+  }
+
   private readonly check = (): void => {
     this.last_check = Date.now();
+    void this.peek();
     this.registration?.update().catch((error: unknown) => console.warn("update: check failed", error));
   };
 

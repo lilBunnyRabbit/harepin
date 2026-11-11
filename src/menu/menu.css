@@ -185,6 +185,22 @@
   border-color: var(--line-strong);
 }
 
+.settings .menu-update[data-state="ready"] {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--background-darkest);
+}
+
+:root[data-scheme="light"] .settings .menu-update[data-state="ready"] {
+  background: var(--set-raised);
+  color: var(--foreground);
+}
+
+.settings .menu-update[data-state="coming"] {
+  color: var(--dim);
+  font-weight: 500;
+}
+
 .menu-update[hidden] {
   display: none;
 }
@@ -195,6 +211,23 @@
   height: 8px;
   border-radius: 50%;
   background: var(--success);
+  animation: update-pulse 1.4s ease-in-out infinite;
+}
+
+.menu-update[data-state="ready"] .menu-update-dot {
+  background: currentColor;
+}
+
+@keyframes update-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-update-dot {
+    animation: none;
+  }
 }
 
 .settings .menu-close {
