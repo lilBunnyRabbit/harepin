@@ -44,7 +44,7 @@ class Gymkhana implements ModeRun {
               ? "stop in the box, facing back"
               : "done";
     const penalty = run.penalty_ms();
-    return `${level.name} · ${format(run.total())}${penalty ? ` (+${penalty / 1000} s)` : ""} · ${doing}`;
+    return `${level.name} · ${format(run.elapsed())}${penalty ? ` (+${penalty / 1000} s)` : ""} · ${doing}`;
   }
 
   private finish(level: GymLevel) {
