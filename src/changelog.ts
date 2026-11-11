@@ -23,6 +23,16 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.26.2",
+    date: "2026-11-11",
+    title: "Calmer camera",
+    changes: [
+      { kind: FIXED, text: "The chase camera no longer leans through corners. Camera tilt keeps only the dip under braking and the lift on throttle." },
+      { kind: NEW, text: "Assist presets in Settings > Assists: Easy, Balanced and Pro set all five aids in one tap." },
+      { kind: IMPROVED, text: "The menu says an update is downloading as soon as you open the game, and Update ready now stands out." },
+    ],
+  },
+  {
     version: "0.26.1",
     date: "2026-11-11",
     title: "Pad tuning",
