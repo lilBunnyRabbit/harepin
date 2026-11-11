@@ -88,28 +88,43 @@ describe("keyboard steer mode", () => {
     expect(tap(SteerMode.SNAP, 1 / 60).heading).toBeLessThan(0.05);
   });
 
-  test("smooth: at 100 km/h a held key starts at the tap share, builds linearly to full within 0.3 s, and lets go within 0.15 s", () => {
+  test("smooth: at 100 km/h a held key starts at the tap share, builds linearly to full, and lets go fast from full and gently near centre", () => {
     const car = fresh(SteerMode.SMOOTH);
     run(car, 30, () => cruise(car, 100));
     run(car, 1 / 360, () => cruise(car, 100, 1));
-    expect(car.key_steer).toBeCloseTo(0.06, 2);
+    expect(car.key_steer).toBeGreaterThan(0.05);
+    expect(car.key_steer).toBeLessThan(0.06);
     run(car, 0.1, () => cruise(car, 100, 1));
-    expect(car.key_steer).toBeGreaterThan(0.4);
-    expect(car.key_steer).toBeLessThan(0.5);
-    run(car, 0.2, () => cruise(car, 100, 1));
+    const early = car.key_steer;
+    run(car, 0.1, () => cruise(car, 100, 1));
+    expect(car.key_steer - early).toBeCloseTo(early - 0.05, 1);
+    run(car, 0.3, () => cruise(car, 100, 1));
     expect(car.key_steer).toBe(1);
     run(car, 0.05, () => cruise(car, 100));
-    expect(car.key_steer).toBeGreaterThan(0.5);
-    run(car, 0.1, () => cruise(car, 100));
+    const fast = 1 - car.key_steer;
+    expect(fast).toBeGreaterThan(0.3);
+    while (car.key_steer > 0.2) run(car, 1 / 360, () => cruise(car, 100));
+    const near = car.key_steer;
+    run(car, 0.05, () => cruise(car, 100));
+    expect(near - car.key_steer).toBeLessThan(fast * 0.5);
+    run(car, 0.4, () => cruise(car, 100));
     expect(car.key_steer).toBe(0);
   });
 
-  test("smooth: the opposite key crosses centre at three times the attack", () => {
-    const car = fresh(SteerMode.SMOOTH);
-    run(car, 30, () => cruise(car, 100));
-    run(car, 0.5, () => cruise(car, 100, 1));
-    run(car, 0.1, () => cruise(car, 100, -1));
-    expect(car.key_steer).toBeLessThan(0);
+  test("smooth: the opposite key carries the wheel through centre with no step and catches up to a fresh press", () => {
+    const [reversed, fresh_press] = [fresh(SteerMode.SMOOTH), fresh(SteerMode.SMOOTH)];
+    for (const car of [reversed, fresh_press]) run(car, 30, () => cruise(car, 100));
+    run(reversed, 0.5, () => cruise(reversed, 100, 1));
+    let jump = 0;
+    for (let t = 0; t < 0.3; t += DT) {
+      const before = reversed.key_steer;
+      run(reversed, DT, () => cruise(reversed, 100, -1));
+      run(fresh_press, DT, () => cruise(fresh_press, 100, -1));
+      if (Math.abs(before) < 0.1) jump = Math.max(jump, Math.abs(reversed.key_steer - before));
+    }
+    expect(jump).toBeGreaterThan(0);
+    expect(jump).toBeLessThan(0.02);
+    expect(reversed.key_steer).toBeCloseTo(fresh_press.key_steer, 2);
   });
 
   test("smooth: half a key (the precision key) eases down to half, not a jump", () => {
@@ -133,26 +148,32 @@ describe("keyboard steer mode", () => {
     expect(change.overshoot).toBeLessThan(1);
     expect(change.settle).toBeLessThan(3);
   });
-
-  test("smooth: a keyboard driver holds a long 90 km/h bend with no more weave than classic", () => {
-    const [classic, smooth] = [arc(SteerMode.SNAP), arc(SteerMode.SMOOTH)];
-    expect(smooth.rms).toBeLessThan(0.5);
-    expect(smooth.yaw_swing).toBeLessThan(classic.yaw_swing);
-  });
 });
 
 describe("smooth keys on every car at 100 km/h", () => {
+  test("a keyboard driver weaves through bends from 60 to 130 km/h well under classic, averaged over the cars", () => {
+    const bends: [number, number][] = [[80, 60], [150, 90], [200, 110], [300, 130]];
+    for (const [radius, speed] of bends) {
+      let share = 0;
+      for (const spec of Object.values(CARS)) share += arc(SteerMode.SMOOTH, radius, speed, spec).yaw_swing / arc(SteerMode.SNAP, radius, speed, spec).yaw_swing;
+      expect(share / Object.keys(CARS).length).toBeLessThan(0.7);
+    }
+  });
+
   for (const spec of Object.values(CARS)) {
-    test(`${spec.id}: a symmetric swerve ends straight, taps scale with press length, and the assists own the rest`, () => {
+    test(`${spec.id}: a symmetric swerve ends straight, taps scale with press length, a long bend weaves less than classic, and the assists own the rest`, () => {
       expect(Math.abs(swerve(SteerMode.SMOOTH, spec).heading)).toBeLessThan(2);
       const [short, long] = [tap(SteerMode.SMOOTH, 1 / 60, 100, spec), tap(SteerMode.SMOOTH, 0.15, 100, spec)];
-      expect(long.heading / short.heading).toBeGreaterThan(20);
+      expect(long.heading / short.heading).toBeGreaterThan(12);
       expect(long.slip).toBeLessThan(2);
+      const [classic_arc, smooth_arc] = [arc(SteerMode.SNAP, 150, 90, spec), arc(SteerMode.SMOOTH, 150, 90, spec)];
+      expect(smooth_arc.rms).toBeLessThan(0.5);
+      expect(smooth_arc.yaw_swing).toBeLessThan(classic_arc.yaw_swing * 0.75);
       expect(slalom(SteerMode.SMOOTH, spec).slip).toBeLessThanOrEqual(slalom(SteerMode.SNAP, spec).slip);
       expect(lift_off(SteerMode.SMOOTH, spec)).toBeLessThan(lift_off(SteerMode.SNAP, spec) * 1.1);
       const [classic, smooth] = [flick(SteerMode.SNAP, spec), flick(SteerMode.SMOOTH, spec)];
-      expect(smooth.turned).toBeGreaterThan(classic.turned * 0.85);
-      expect(smooth.settle).toBeLessThan(classic.settle * 1.1);
+      expect(smooth.turned).toBeGreaterThan(classic.turned * 0.75);
+      expect(smooth.settle).toBeLessThan(classic.settle * 1.1 + 0.05);
     });
   }
 });

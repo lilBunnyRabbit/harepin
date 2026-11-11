@@ -89,7 +89,7 @@ describe("fresh player on the keyboard", () => {
     const { steer_mode } = DEFAULT_SETTINGS;
     expect(Math.abs(swerve(steer_mode, spec).heading)).toBeLessThan(2);
     const [short, long] = [tap(steer_mode, 1 / 60, 100, spec), tap(steer_mode, 0.15, 100, spec)];
-    expect(long.heading / short.heading).toBeGreaterThan(20);
+    expect(long.heading / short.heading).toBeGreaterThan(12);
     expect(long.slip).toBeLessThan(2);
   });
 

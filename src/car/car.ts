@@ -57,21 +57,26 @@ const KEY_RETURN = 2.5;
 const HOLD_TIME = 0.4;
 /** A keyboard steer filter: the key is a virtual stick that moves at these rates. */
 interface KeyProfile {
-  /** Seconds from no key to full key, by speed (km/h), linear between rows. */
+  /** Seconds from the tap share to full key, linear, by speed (km/h) with linear steps between rows. */
   attack: readonly (readonly [kmh: number, s: number])[];
   /** Seconds from full key back to none once it is let go, by speed (km/h). */
   release: readonly (readonly [kmh: number, s: number])[];
-  /** Attack rate multiplier while the key opposes the wheel, until it crosses centre. */
+  /**
+   * Shape of the release: the key unwinds at a rate in proportion to `key + release_ease`. Small lets a full key go
+   * fast and a small one gently, so short gaps between presses keep a correction rather than dropping it.
+   */
+  release_ease: number;
+  /** Rate multiplier, on the attack, for the opposite key: through centre and on until it meets a fresh press's ramp. */
   reverse: number;
-  /** Share of full key a press applies on its first step; the linear attack after it makes press length set the turn. */
+  /** Share of full key a fresh press applies on its first step. */
   tap: number;
 }
 
-// Linear and not exponential from a fixed share: heading then grows with press time squared, so taps scale with length.
 const SMOOTH_KEYS: KeyProfile = {
-  attack: [[0, 0.05], [30, 0.1], [60, 0.18], [100, 0.26], [150, 0.32], [200, 0.36]],
-  release: [[0, 0.04], [30, 0.07], [60, 0.1], [100, 0.14], [150, 0.16], [200, 0.18]],
-  reverse: 3,
+  attack: [[0, 0.08], [30, 0.15], [60, 0.3], [100, 0.39], [150, 0.48], [200, 0.54]],
+  release: [[0, 0.09], [30, 0.15], [60, 0.22], [100, 0.31], [150, 0.35], [200, 0.4]],
+  release_ease: 0.12,
+  reverse: 2.5,
   tap: 0.05,
 };
 // Released, a held wheel centres over this many metres rolled: 0.5 s at 100 km/h, about 25 s of creeping at 2 km/h.
@@ -238,6 +243,10 @@ export class Car {
   throttle = 0;
   /** Keyboard steer after the speed-scaled ramp, -1..1; follows the stick directly for analog input. */
   key_steer = 0;
+  /** Smooth keys: the steer input on the last step, so a fresh press is told from a held or reversed one. */
+  private key_input = 0;
+  /** Smooth keys: seconds the steer key has been held in its current direction. */
+  private key_press = 0;
   steer_mode: SteerMode = SteerMode.SNAP;
   /** Idle hold latched on: it keeps braking at any speed until a pedal or the wheel is touched. */
   parked = false;
@@ -282,6 +291,8 @@ export class Car {
     this.rpm = this.spec.idle;
     this.steer = 0;
     this.key_steer = 0;
+    this.key_input = 0;
+    this.key_press = 0;
     this.shifting = 0;
     for (const w of this.wheels) {
       w.omega = 0;
@@ -377,19 +388,27 @@ export class Car {
         this.key_steer += Math.max(-step, Math.min(step, input.steer - this.key_steer));
       }
     } else if (this.steer_mode === SteerMode.SMOOTH) {
+      const keys = SMOOTH_KEYS;
       const kmh = speed * 3.6;
       const held = this.key_steer;
       const want = input.steer;
-      if (want * held < 0) {
-        const step = (SMOOTH_KEYS.reverse / curve_at(SMOOTH_KEYS.attack, kmh)) * dt;
-        this.key_steer += Math.max(-step, Math.min(step, want - held));
-      } else if (Math.abs(want) > Math.abs(held)) {
-        const from = Math.max(Math.abs(held), SMOOTH_KEYS.tap * Math.abs(want));
-        this.key_steer = Math.sign(want) * Math.min(Math.abs(want), from + dt / curve_at(SMOOTH_KEYS.attack, kmh));
+      const size = Math.abs(want);
+      this.key_press = want * this.key_input > 0 ? this.key_press + dt : want === 0 ? 0 : dt;
+      const attack = curve_at(keys.attack, kmh) / (1 - keys.tap);
+      // Where a press held this long would sit had it started at centre: the opposite key catches the wheel up to it.
+      const ramp = size * Math.min(1, keys.tap + this.key_press / attack);
+      if (want * held < 0 || (want !== 0 && Math.abs(held) < ramp)) {
+        const from = this.key_input === 0 && want * held >= 0 ? Math.sign(want) * Math.max(Math.abs(held), keys.tap * size) : held;
+        const step = (keys.reverse / attack) * dt;
+        this.key_steer = from + Math.max(-step, Math.min(step, Math.sign(want) * ramp - from));
+      } else if (size > Math.abs(held)) {
+        this.key_steer = Math.sign(want) * Math.min(size, Math.abs(held) + dt / attack);
       } else {
-        const step = dt / curve_at(SMOOTH_KEYS.release, kmh);
+        const decay = curve_at(keys.release, kmh) / Math.log((1 + keys.release_ease) / keys.release_ease);
+        const step = ((Math.abs(held) + keys.release_ease) * dt) / decay;
         this.key_steer += Math.max(-step, Math.min(step, want - held));
       }
+      this.key_input = want;
     } else {
       const full = KEY_RAMP * Math.min(1, speed / KEY_RAMP_SPEED) + KEY_RAMP_MIN;
       const back = input.steer === 0 || input.steer * this.key_steer < 0;
