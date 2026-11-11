@@ -569,7 +569,8 @@
   gap: var(--space-1) var(--space-2);
 }
 
-.guide-car-head b {
+/* Direct child only: the class badge letter is a <b> too, and 16px there towered over its 12px PI. */
+.guide-car-head > b {
   font-size: var(--text-xl);
 }
 

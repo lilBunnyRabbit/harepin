@@ -1,6 +1,8 @@
-/* One neutral style: the letter carries the class. State colours keep their meaning elsewhere; only X wears the brand. */
+/* One neutral style: the letter carries the class. State colours keep their meaning elsewhere; only X wears the brand.
+   The edge is --dim, not a hairline: a faint rounded edge on a fractional pixel vanished beside the crisp divider and
+   read as a cut-off badge. */
 .class-badge {
-  --class-edge: var(--line-strong);
+  --class-edge: var(--dim);
   display: inline-flex;
   flex: none;
   align-items: stretch;
