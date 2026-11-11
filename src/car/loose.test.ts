@@ -5,6 +5,7 @@ import { CARS, type CarId } from "./cars";
 import { Car, drop_height, surface_grip, type Controls, type Ground } from "./car";
 import { LAND_GRIP, SAND_GRIP, type Footing } from "../worldgen/kinds/kind-def";
 import { footing_ground } from "../../scripts/grounds";
+import { SurfaceId } from "../worldgen/types";
 import { FULL } from "../sweep";
 
 const DT = 1 / 360;
@@ -65,6 +66,37 @@ for (const car of CHECKED)
         if (r.abs < stock.abs * TIE) failed.push(`${where}: ABS stop ${r.abs.toFixed(1)} m < ${stock.abs.toFixed(1)} m`);
         if (r.locked < stock.locked * TIE) failed.push(`${where}: locked stop ${r.locked.toFixed(1)} m < ${stock.locked.toFixed(1)} m`);
       }
+    });
+    expect(failed).toEqual([]);
+  }, 30_000);
+
+// The best of a sweep of fixed ABS slips, against the default following the curve's peak. At asphalt's fixed 0.1 the
+// stops ran up to 4% past the best; following the peak they sit within half a percent.
+const ABS_SLIPS = [0.06, 0.08, 0.1, 0.12, 0.14, 0.16, 0.18, 0.2];
+const ABS_IDEAL = 1.01;
+
+function abs_stop(car: CarId, tyres: number, ground: Ground, abs_slip?: number): number {
+  const spec = build_spec({ ...DEFAULT_BUILD, car, parts: { ...DEFAULT_PARTS, tyres } });
+  const sim = new Car(spec);
+  if (abs_slip !== undefined) sim.abs_slip = abs_slip;
+  const kmh = () => sim.forward_speed * 3.6;
+  sim.place(0, drop_height(spec, 0.6), 0, 0);
+  for (let t = 0; t < 0.6; t += DT) sim.step(DT, idle, ground);
+  for (let t = 0; t < 30 && kmh() < 100; t += DT) sim.step(DT, { ...idle, throttle: 1 }, ground);
+  for (let t = 0; t < 1.5; t += DT) sim.step(DT, { ...idle, throttle: Math.max(0, Math.min(1, (100 - kmh()) * 0.2 + 0.3)) }, ground);
+  const from = sim.pos.z;
+  for (let t = 0; t < 30 && kmh() > 0.5; t += DT) sim.step(DT, { ...idle, brake: 1 }, ground);
+  return sim.pos.z - from;
+}
+
+for (const car of ["coupe", "rally"] as const)
+  test(`ABS on dirt stops the ${car} from 100 within 1% of the best fixed-slip stop on every tyre`, () => {
+    const ground = footing_ground({ ...LAND_GRIP.surfaces[SurfaceId.DIRT], roll: 1 });
+    const failed: string[] = [];
+    SLOTS.tyres.parts.forEach((part, tyres) => {
+      const stop = abs_stop(car, tyres, ground);
+      const best = Math.min(...ABS_SLIPS.map((slip) => abs_stop(car, tyres, ground, slip)));
+      if (stop > best * ABS_IDEAL) failed.push(`${part.name}: ${stop.toFixed(2)} m > best ${best.toFixed(2)} m`);
     });
     expect(failed).toEqual([]);
   }, 30_000);

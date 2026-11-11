@@ -37,6 +37,8 @@ export const CAR_BODY = { mass: COUPE.mass, yaw_inertia: COUPE.inertia[1] };
 const GRAVITY = 9.81;
 const SPIN_SLIP = 0.15;
 const TCS_SLIP = 0.14;
+/** Wheel slip (locking) past which ABS eases the brake, on asphalt; loose ground scales it by `Wheel.peak`. */
+const ABS_SLIP = 0.1;
 /** Below this speed (m/s) traction control works per wheel and per axle; faster, braking one side yaws the car. */
 const TCS_LOW_SPEED = 15;
 /** Weight of a driven rear's sideways slip in traction control's slip: at 1.4 it cuts in at 0.9 of the peak slip angle. */
@@ -122,6 +124,8 @@ let curve_b = MF_B;
 let curve_s = SLIDE_S;
 let curve_spread = 1;
 let curve_cap = 1;
+/** Where the bounded curve peaks, in `s`: under 1 once the stock tyre's asphalt curve cuts the loose one off before its own peak. */
+let curve_peak = 1;
 
 // `share` (from `surface_grip`) and `road` (the stock tyres' `mu` over this tyre's) bound the loose curve by
 // the stock tyre's asphalt curve at the same slip. Unbound, wider and slower to fall past the peak, it kept more of a
@@ -132,6 +136,7 @@ function shape(loose: number, offroad: number, share: number, road: number) {
     curve_b = MF_B;
     curve_s = SLIDE_S;
     curve_spread = 1;
+    curve_peak = 1;
     return;
   }
   curve_cap = road / share;
@@ -146,6 +151,30 @@ function shape(loose: number, offroad: number, share: number, road: number) {
   const floor = SLIDE_GRIP + (slide - SLIDE_GRIP) * loose;
   curve_s = floor > Math.sin((curve_c * Math.PI) / 2) + 1e-6 ? Math.tan((Math.PI - Math.asin(floor)) / curve_c) / curve_b : Infinity;
   curve_spread = 1 + (spread - 1) * loose;
+  curve_peak = bound_peak();
+}
+
+// The loose curve rises to its peak at s = 1 while the bound, past its own peak at 1 / spread, falls: the bounded
+// curve peaks where they cross, or on the bound's peak when the loose curve is already over it there.
+function bound_peak(): number {
+  if (bound_at(1) >= 1) return 1;
+  let lo = 1 / curve_spread;
+  if (loose_at(lo) >= bound_at(lo)) return lo;
+  let hi = 1;
+  for (let i = 0; i < 14; i++) {
+    const mid = (lo + hi) / 2;
+    if (loose_at(mid) < bound_at(mid)) lo = mid;
+    else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+
+function bound_at(s: number): number {
+  return curve_cap * Math.sin(MF_C * Math.atan(MF_B * s * curve_spread));
+}
+
+function loose_at(s: number): number {
+  return Math.sin(curve_c * Math.atan(curve_b * s));
 }
 
 /** Suspension reach with the car parked on flat ground, for views that have no sim behind them. */
@@ -183,6 +212,11 @@ export class Wheel {
   load = 0;
   abs = false;
   abs_factor = 1;
+  /**
+   * Slip at the peak of the tyre curve under this wheel, over asphalt's (1). ABS and traction control follow it: at
+   * asphalt's slip the brake let go well short of the wider loose peak and stops on dirt ran long.
+   */
+  peak = 1;
   /** Traction control's brake on this wheel, 0..1 of its drive torque. */
   tcs_brake = 0;
   /** Where a braked, stopped wheel's contact patch is pinned; static friction holds it there until it breaks away. */
@@ -275,7 +309,14 @@ const Y = new Vector3(0, 1, 0);
 // traction control never saw, and full drive swung the tail in. A front's sideways slip is the steering's; cutting
 // power for it only stalls the car.
 function tcs_spin(w: Wheel, low: boolean, peak_slip: number): number {
-  return low && w.contact && !w.axle.steer ? Math.hypot(Math.max(0, w.slip), w.lateral * peak_slip * TCS_LATERAL) : w.slip;
+  const slip = tcs_slip(w, peak_slip);
+  return low && w.contact && !w.axle.steer ? Math.hypot(Math.max(0, slip), w.lateral * peak_slip * TCS_LATERAL) : slip;
+}
+
+// Wheelspin past the peak of the curve under the wheel, in asphalt's terms: traction control allows the same slip past
+// it on any ground. Scaled with the peak instead, as ABS is, a wide loose curve spun the rally car up and launched slower.
+function tcs_slip(w: Wheel, peak_slip: number): number {
+  return w.slip - peak_slip * (w.peak - 1);
 }
 
 /** Height of the ray from `mount` along `down`, `t` metres out, above the ground under it. */
@@ -300,6 +341,8 @@ export class Car {
   shifting = 0;
   tcs = true;
   abs = true;
+  /** ABS's slip on asphalt; tests sweep it for the best fixed-slip stop. */
+  abs_slip = ABS_SLIP;
   /** Steering assist: the grip-limited lock, the auto countersteer and the fronts held near their course. */
   assist = true;
   /** Stability (STM): the yaw damper that stops a slide growing into a spin. */
@@ -571,7 +614,7 @@ export class Car {
       // braked instead, as a brake-based TCS does. Cutting the engine for it starved the loaded wheel and the car bogged.
       const other = this.wheels[w.pair];
       max_slip = Math.max(max_slip, low ? Math.min(tcs_spin(w, sideways, spec.peak_slip), tcs_spin(other, sideways, spec.peak_slip)) : tcs_spin(w, sideways, spec.peak_slip));
-      const lone = sideways && w.contact && w.slip > TCS_SLIP && other.slip <= TCS_SLIP;
+      const lone = sideways && w.contact && tcs_slip(w, spec.peak_slip) > TCS_SLIP && tcs_slip(other, spec.peak_slip) <= TCS_SLIP;
       w.tcs_brake = lone ? Math.min(1, w.tcs_brake + 9 * dt) : Math.max(0, w.tcs_brake - 2.5 * dt);
       if (!w.contact) max_drag = Math.max(max_drag, -w.slip);
     }
@@ -692,6 +735,7 @@ export class Car {
       // sideways put nearly all its grip into drive and the car glided on the fronts.
       const sy = -v_lat / denom / Math.tan(spec.peak_angle) / curve_spread;
       const peak_slip = spec.peak_slip * curve_spread;
+      w.peak = curve_spread * curve_peak;
 
       // Semi-implicit wheel spin: linearise the tyre's longitudinal force around the current slip so a stiff tyre
       // can't overshoot within one step; past the peak the slope clamps to 0 and wheelspin runs free.
@@ -712,7 +756,7 @@ export class Car {
       const fx = combined_x(sx, sy) * peak_x - rolling;
       const fy = combined_y(sx, sy) * peak;
       w.slip = sx * peak_slip;
-      const locking = this.abs && brake > 0.1 && w.slip < -0.1 && Math.abs(v_long) > 2;
+      const locking = this.abs && brake > 0.1 && w.slip < -this.abs_slip * w.peak && Math.abs(v_long) > 2;
       w.abs_factor = locking ? Math.max(0.2, w.abs_factor - 25 * dt) : Math.min(1, w.abs_factor + 12 * dt);
       w.abs = w.abs_factor < 0.95;
       w.lateral = Math.abs(sy);
