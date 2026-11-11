@@ -238,7 +238,7 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   stamp.harden(cuts, pan_floor(seed, shape));
   if (recipe.snow) {
     const bare = heights.slice();
-    stamp.snow(recipe.snow, recipe.biomes.limits.beach);
+    stamp.snow(recipe.snow, recipe.biomes.limits.beach, jumps.items.filter((item) => !item.light));
     // Whatever stands on a snowbank rides up on it; buildings keep their plateau, which the banks leave alone.
     for (const thing of [...jumps.items, ...trees, ...props, ...solids]) thing.y += sample(heights, thing.x, thing.z) - sample(bare, thing.x, thing.z);
   }
