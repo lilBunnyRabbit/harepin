@@ -1042,6 +1042,21 @@
   flex: none;
 }
 
+.row:has(> .settings-choice) {
+  flex-wrap: wrap;
+  row-gap: var(--space-3);
+}
+
+.row > .settings-choice {
+  max-width: 100%;
+}
+
+@media (max-width: 480px) {
+  .row > .settings-choice {
+    grid-auto-columns: auto;
+  }
+}
+
 .row-step {
   display: flex;
   align-items: center;
