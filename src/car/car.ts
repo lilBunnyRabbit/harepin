@@ -213,8 +213,8 @@ export class Wheel {
   abs = false;
   abs_factor = 1;
   /**
-   * Slip at the peak of the tyre curve under this wheel, over asphalt's (1). ABS follows it: at asphalt's slip the brake
-   * let go well short of the wider loose peak and stops on dirt ran long.
+   * Slip at the peak of the tyre curve under this wheel, over asphalt's (1). ABS and traction control follow it: at
+   * asphalt's slip the brake let go well short of the wider loose peak and stops on dirt ran long.
    */
   peak = 1;
   /** Traction control's brake on this wheel, 0..1 of its drive torque. */
@@ -309,7 +309,14 @@ const Y = new Vector3(0, 1, 0);
 // traction control never saw, and full drive swung the tail in. A front's sideways slip is the steering's; cutting
 // power for it only stalls the car.
 function tcs_spin(w: Wheel, low: boolean, peak_slip: number): number {
-  return low && w.contact && !w.axle.steer ? Math.hypot(Math.max(0, w.slip), w.lateral * peak_slip * TCS_LATERAL) : w.slip;
+  const slip = tcs_slip(w, peak_slip);
+  return low && w.contact && !w.axle.steer ? Math.hypot(Math.max(0, slip), w.lateral * peak_slip * TCS_LATERAL) : slip;
+}
+
+// Wheelspin past the peak of the curve under the wheel, in asphalt's terms: traction control allows the same slip past
+// it on any ground. Scaled with the peak instead, as ABS is, a wide loose curve spun the rally car up and launched slower.
+function tcs_slip(w: Wheel, peak_slip: number): number {
+  return w.slip - peak_slip * (w.peak - 1);
 }
 
 /** Height of the ray from `mount` along `down`, `t` metres out, above the ground under it. */
@@ -607,7 +614,7 @@ export class Car {
       // braked instead, as a brake-based TCS does. Cutting the engine for it starved the loaded wheel and the car bogged.
       const other = this.wheels[w.pair];
       max_slip = Math.max(max_slip, low ? Math.min(tcs_spin(w, sideways, spec.peak_slip), tcs_spin(other, sideways, spec.peak_slip)) : tcs_spin(w, sideways, spec.peak_slip));
-      const lone = sideways && w.contact && w.slip > TCS_SLIP && other.slip <= TCS_SLIP;
+      const lone = sideways && w.contact && tcs_slip(w, spec.peak_slip) > TCS_SLIP && tcs_slip(other, spec.peak_slip) <= TCS_SLIP;
       w.tcs_brake = lone ? Math.min(1, w.tcs_brake + 9 * dt) : Math.max(0, w.tcs_brake - 2.5 * dt);
       if (!w.contact) max_drag = Math.max(max_drag, -w.slip);
     }
