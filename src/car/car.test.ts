@@ -744,37 +744,45 @@ describe("power over with TCS on and the steering assist off", () => {
 
   const kick: Controls = { ...idle, steer: 1, throttle: 1 };
 
-  /** Full lock and full gas, the gas stabbed off for `lift` s after 0.2 s: the gesture a rolling kick needs. */
-  function stab(car: Car, lift = 0.15, low = 0): boolean {
-    for (let t = 0; t < 1; t += DT) {
-      car.step(DT, { ...kick, throttle: t >= 0.2 && t < 0.2 + lift ? low : 1 }, flat);
+  /** Full gas, the stick at `steer`, the handbrake tapped for 0.25 s after 0.2 s: the gesture a rolling kick needs. */
+  function tap(car: Car, { steer = 1, throttle = 1 } = {}): boolean {
+    for (let t = 0; t < 1.5; t += DT) {
+      car.step(DT, { ...idle, steer, throttle, handbrake: t >= 0.2 && t < 0.45 ? 1 : 0 }, flat);
       if (car.launched) return true;
     }
     return false;
   }
 
   for (const id of RWD)
-    test(`${id}: rolling from walking pace to 30 km/h, a throttle stab at full lock kicks a power slide`, () => {
-      for (const from of [5, 15, 20]) expect(stab(rolling(CARS[id], from))).toBe(true);
+    test(`${id}: rolling from walking pace to 30 km/h, a handbrake tap at full lock on the gas kicks a power slide`, () => {
+      for (const from of [5, 15, 20]) expect(tap(rolling(CARS[id], from))).toBe(true);
     });
 
-  test("keys and touch buttons are always full: held full gas at full key through a slow corner never kicks one", () => {
+  test("keys and touch buttons are always full: held or feathered full gas at full key through a slow corner never kicks one", () => {
     for (const spec of [DRIFT_SETUP, ...RWD.map((id) => CARS[id])])
       for (const from of [5, 15, 25]) {
-        const car = rolling(spec, from);
-        expect(launches(car, kick, 1.2)).toBe(false);
-        expect(Math.abs(tail(car))).toBeLessThan(15);
+        const held = rolling(spec, from);
+        expect(launches(held, kick, 1.2)).toBe(false);
+        expect(Math.abs(tail(held))).toBeLessThan(15);
+        const feathered = rolling(spec, from);
+        for (let t = 0; t < 2.5; t += DT) {
+          feathered.step(DT, { ...kick, throttle: (t * 3) % 1 < 0.5 ? 1 : 0 }, flat);
+          expect(feathered.launched).toBe(false);
+        }
       }
   });
 
-  test("a stab that only eases the gas, lifts too long, comes faster than 30 km/h or with the steering assist on, or on all-wheel drive kicks nothing", () => {
+  test("a handbrake turn without gas, parking or stopping on it, an eased stick, 40 km/h, the steering assist on or all-wheel drive kicks nothing", () => {
     for (const id of RWD) {
-      expect(stab(rolling(CARS[id], 15), 0.15, 0.5)).toBe(false);
-      expect(stab(rolling(CARS[id], 15), 0.6)).toBe(false);
-      expect(stab(rolling(CARS[id], 40))).toBe(false);
-      expect(stab(rolling(CARS[id], 15, true))).toBe(false);
+      expect(tap(rolling(CARS[id], 15), { throttle: 0 })).toBe(false);
+      expect(tap(rolling(CARS[id], 15), { steer: 0.6 })).toBe(false);
+      expect(tap(rolling(CARS[id], 40))).toBe(false);
+      expect(tap(rolling(CARS[id], 15, true))).toBe(false);
+      const stop = rolling(CARS[id], 15);
+      expect(launches(stop, { ...idle, handbrake: 1 }, 3)).toBe(false);
+      expect(launches(stop, { ...idle, steer: 1, handbrake: 1 }, 1)).toBe(false);
     }
-    for (const id of AWD) expect(stab(rolling(CARS[id], 15))).toBe(false);
+    for (const id of AWD) expect(tap(rolling(CARS[id], 15))).toBe(false);
   });
 
   test("a parking turn, full lock without full gas, a gentle throttle turn or reversing never kicks one", () => {
@@ -791,21 +799,21 @@ describe("power over with TCS on and the steering assist off", () => {
     }
   });
 
-  for (const spec of [DRIFT_SETUP, CARS.coupe])
-    test(`${spec.id}${spec === DRIFT_SETUP ? " (drift setup)" : ""}: easing a pad stick mid-slide eases the countersteer, never swings the wheels into the turn`, () => {
-      for (const eased of [0.85, 0.7]) {
-        const car = rolling(spec, 0);
-        run(car, 2.5, () => ({ ...kick, analog: true }));
-        const before = car.steer;
-        const out = tail(car);
-        let most = 0;
-        for (let t = 0; t < 0.5; t += DT) {
-          car.step(DT, { ...kick, analog: true, steer: eased }, flat);
-          expect(Math.sign(car.steer)).toBe(Math.sign(before));
-          most = Math.max(most, tail(car));
+  for (const spec of [DRIFT_SETUP, CARS.coupe, CARS.muscle])
+    test(`${spec.id}${spec === DRIFT_SETUP ? " (drift setup)" : ""}: easing pad gas or stick mid-slide eases out of it, never steering into the turn or pivoting`, () => {
+      for (const eased of [0.85, 0.7, 0.6])
+        for (const which of ["steer", "throttle"] as const) {
+          const car = rolling(spec, 0);
+          run(car, 2.5, () => ({ ...kick, analog: true }));
+          let into = -Infinity;
+          for (let t = 0; t < 1.5; t += DT) {
+            car.step(DT, { ...kick, analog: true, [which]: eased }, flat);
+            if (Math.abs(tail(car)) > 10) into = Math.max(into, car.steer);
+          }
+          // A few degrees into the turn is the front axle's own course in the tight arc the slide leaves behind.
+          expect(into).toBeLessThan(0.2);
+          expect(car.vel.length() * 3.6).toBeGreaterThan(15);
         }
-        expect(most).toBeLessThan(out + 3);
-      }
     });
 
   for (const spec of [DRIFT_SETUP, ...RWD.filter((id) => id !== "sturm").map((id) => CARS[id])])
