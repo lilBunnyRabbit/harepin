@@ -56,8 +56,14 @@ function drive(world: World, points: RoadPoint[], spec: CarSpec): Drive {
   return { done: index >= last - 3, t, offroad, worst, flipped: false };
 }
 
+// An edge a route races (the volcano descent) is driven by races.ts with the full autopilot; this crude driver is fitted to town spurs.
+function raced(world: World, points: readonly RoadPoint[]): boolean {
+  const [a, b] = [points[0], points[points.length - 1]];
+  return world.routes.some((r) => !r.closed && r.points.length === points.length && r.points[0].x === a.x && r.points[0].z === a.z && r.points[r.points.length - 1].x === b.x && r.points[r.points.length - 1].z === b.z);
+}
+
 export function drive_spurs(world: World, spec: CarSpec): Outcome[] {
-  return spur_edges(world.graph, world.circuit).map((edge) => {
+  return spur_edges(world.graph, world.circuit).filter((edge) => !raced(world, edge.points)).map((edge) => {
     const run = drive(world, edge.points, spec);
     return {
       clean: run.done && !run.flipped && run.offroad < 0.5,
