@@ -157,7 +157,7 @@ garage_stage.className = "menu-garage";
 const garage = new Garage(garage_stage, build);
 const input = new Input($("touch"), render.renderer.domElement);
 const rumble = new Rumble();
-const rumble_sense: RumbleSense = { scrub: 0, speed: 0, loose: 0, edge: 0, airborne: false, vy: 0, impact: 0 };
+const rumble_sense: RumbleSense = { scrub: 0, speed: 0, loose: 0, kerb: 0, airborne: false, vy: 0, impact: 0, x: 0, y: 0, z: 0 };
 input.blocked = () => garage.is_open || settings.is_open || pad_menu.is_open;
 chat.blocked = () => garage.is_open || settings.is_open;
 input.touch.start();
@@ -538,10 +538,11 @@ function frame(now: number) {
   const speed = car.vel.length();
   const scrub = car.scrub * Math.min(1, speed / 6) * (offroad ? 0.3 : 1);
   audio.update({ rpm: car.rpm, throttle: car.throttle, scrub, speed, offroad, sound: car.spec.sound, redline: car.spec.redline, boost: car.nitro.boosting });
-  if (simulated) {
+  // Off behind any menu, a lobby keeps driving with one open; a held sim (rewind, countdown) has no drive to feel.
+  if (simulated && !input.blocked()) {
     const effect = rumble.update(now, dt, sense_drive(rumble_sense, car, world, impact));
     if (effect) input.rumble(effect);
-  }
+  } else rumble.reset(now);
 
   if (input.touch.nitro && car.nitro.fill <= 0) input.touch.tank_empty();
   hud.update(car, now, rewinding);

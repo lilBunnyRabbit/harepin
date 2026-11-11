@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { Rumble, RumbleLevel, sense_drive, type RumbleEffect, type RumbleSense } from "./rumble";
 
 const FRAME = 1000 / 60;
-const calm: RumbleSense = { scrub: 0, speed: 20, loose: 0, edge: 0, airborne: false, vy: 0, impact: 0 };
+const calm: RumbleSense = { scrub: 0, speed: 20, loose: 0, kerb: 0, airborne: false, vy: 0, impact: 0, x: 0, y: 0, z: 0 };
 
 /** Drives `rumble` for `seconds` of 60 Hz frames from `at` ms, sense from `sense(t)`; returns the effects it asked for, copied. */
 function drive(rumble: Rumble, seconds: number, sense: (t: number) => RumbleSense, at = 0): (RumbleEffect & { at: number })[] {
@@ -19,7 +19,7 @@ describe("rumble", () => {
   test("off never asks the pad for anything", () => {
     const rumble = new Rumble();
     rumble.level = RumbleLevel.OFF;
-    expect(drive(rumble, 2, () => ({ ...calm, scrub: 1, loose: 1, edge: 1, impact: 20 }))).toEqual([]);
+    expect(drive(rumble, 2, () => ({ ...calm, scrub: 1, loose: 1, kerb: 1, impact: 20 }))).toEqual([]);
   });
 
   test("a clean drive on asphalt is silent", () => {
@@ -43,7 +43,7 @@ describe("rumble", () => {
   });
 
   test("scrub past the peak, loose ground and the kerb strip each buzz, harder on Strong than Subtle", () => {
-    for (const sense of [{ scrub: 0.6 }, { loose: 0.8 }, { edge: 1 }]) {
+    for (const sense of [{ scrub: 0.6 }, { loose: 0.8 }, { kerb: 1 }]) {
       const [subtle] = drive(new Rumble(), 0.2, () => ({ ...calm, ...sense }));
       const strong_rumble = new Rumble();
       strong_rumble.level = RumbleLevel.STRONG;
@@ -87,6 +87,28 @@ describe("rumble", () => {
     expect(jump(0.6, -1)).toEqual([]);
   });
 
+  test("a held sim (menu, rewind, countdown) forgets the air: rewound from mid-air, the landing after does not knock", () => {
+    const rumble = new Rumble();
+    drive(rumble, 0.6, () => ({ ...calm, airborne: true, vy: -9 }));
+    rumble.reset(600);
+    expect(drive(rumble, 0.5, () => calm, 600)).toEqual([]);
+  });
+
+  test("a respawn (a jump in position) forgets the air, and the drop onto the wheels does not knock", () => {
+    const rumble = new Rumble();
+    drive(rumble, 0.6, () => ({ ...calm, airborne: true, vy: -9 }));
+    const respawn = { ...calm, speed: 0, x: 400, z: -250 };
+    const effects = drive(rumble, 0.9, (t) => (t < 0.4 ? { ...respawn, airborne: true, vy: -4 } : respawn), 600);
+    expect(effects).toEqual([]);
+  });
+
+  test("a real landing after a respawn's settle still knocks", () => {
+    const rumble = new Rumble();
+    drive(rumble, 0.1, () => calm);
+    const after = drive(rumble, 2.5, (t) => (t > 1.2 && t < 1.8 ? { ...calm, x: 5, airborne: true, vy: -8 } : { ...calm, x: 5 }), 100);
+    expect(after.filter((e) => e.pulse).length).toBe(1);
+  });
+
   test("in the air the tyres and ground go quiet", () => {
     const effects = drive(new Rumble(), 1, () => ({ ...calm, airborne: true, vy: 2, scrub: 1, loose: 1 }));
     expect(effects).toEqual([]);
@@ -95,16 +117,17 @@ describe("rumble", () => {
 
 describe("sense_drive", () => {
   const wheel = (x: number, contact = true) => ({ contact, point: { x, z: 0 } });
-  const ground = { footing: (x: number) => ({ loose: x > 0 ? 0.8 : 0 }), on_edge: (x: number) => x === -1 };
+  const ground = { footing: (x: number) => ({ loose: x > 0 ? 0.8 : 0 }), on_kerb: (x: number) => x === -1 };
   const vel = { y: -3, length: () => 20 };
+  const pos = { x: 4, y: 1, z: -2 };
 
   test("averages the ground under the wheels that touch it", () => {
-    const sense = sense_drive({ ...calm }, { scrub: 0.4, vel, wheels: [wheel(1), wheel(1), wheel(-1), wheel(-2), wheel(5, false)] }, ground, 7);
-    expect(sense).toEqual({ scrub: 0.4, speed: 20, loose: 0.4, edge: 0.25, airborne: false, vy: -3, impact: 7 });
+    const sense = sense_drive({ ...calm }, { scrub: 0.4, vel, pos, wheels: [wheel(1), wheel(1), wheel(-1), wheel(-2), wheel(5, false)] }, ground, 7);
+    expect(sense).toEqual({ scrub: 0.4, speed: 20, loose: 0.4, kerb: 0.25, airborne: false, vy: -3, impact: 7, x: 4, y: 1, z: -2 });
   });
 
   test("no wheel down is airborne, with nothing under it", () => {
-    const sense = sense_drive({ ...calm }, { scrub: 0, vel, wheels: [wheel(1, false), wheel(-1, false)] }, ground, 0);
-    expect(sense).toMatchObject({ airborne: true, loose: 0, edge: 0, vy: -3 });
+    const sense = sense_drive({ ...calm }, { scrub: 0, vel, pos, wheels: [wheel(1, false), wheel(-1, false)] }, ground, 0);
+    expect(sense).toMatchObject({ airborne: true, loose: 0, kerb: 0, vy: -3 });
   });
 });

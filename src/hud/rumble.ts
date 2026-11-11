@@ -22,6 +22,10 @@ const AIR_MIN = 0.2;
 /** Sink speed (m/s) at touchdown a landing needs to pulse, and the one that pulses in full. */
 const LAND_FROM = 2;
 const LAND_FULL = 10;
+/** A move between updates this far past what the speed covers is a reset or a respawn. */
+const TELEPORT = 3;
+/** After a reset, landings stay quiet this long: a respawned car drops onto its wheels. */
+const SETTLE_MS = 1000;
 
 export interface RumbleSense {
   /** Tyre slip past the peak, 0..1: `Car.scrub`. */
@@ -30,14 +34,18 @@ export interface RumbleSense {
   speed: number;
   /** Mean `loose` of the ground under the wheels that touch it, 0 sealed road .. 1 sand. */
   loose: number;
-  /** Share of the touching wheels on the road's edge strip, where the circuit's kerbs sit, 0..1. */
-  edge: number;
+  /** Share of the touching wheels on a drawn kerb, 0..1. */
+  kerb: number;
   /** No wheel on the ground. */
   airborne: boolean;
   /** Vertical speed, m/s, up positive. */
   vy: number;
   /** Hardest collision since the last update, m/s: `World.collide`. */
   impact: number;
+  /** Car position, metres: a jump between updates is a reset or a respawn, not a drive. */
+  x: number;
+  y: number;
+  z: number;
 }
 
 /** What to play: magnitudes 0..1 for the low (strong) and high (weak) motor, for `ms`. */
@@ -63,12 +71,19 @@ export class Rumble {
   private sent_weak = 0;
   private air = 0;
   private sink = 0;
+  private settle_until = -Infinity;
+  private readonly last = { x: NaN, y: NaN, z: NaN };
   private readonly effect: RumbleEffect = { strong: 0, weak: 0, ms: 0, pulse: false };
 
   /** `now` in ms, `dt` in s since the last update. The returned effect is reused: play it before the next call. */
   update(now: number, dt: number, sense: RumbleSense): RumbleEffect | null {
     const gain = LEVEL_GAIN[this.level];
-    const landed = !sense.airborne && this.air >= AIR_MIN ? this.sink : 0;
+    const { x, y, z } = this.last;
+    if (Math.hypot(sense.x - x, sense.y - y, sense.z - z) > sense.speed * dt + TELEPORT) this.reset(now);
+    this.last.x = sense.x;
+    this.last.y = sense.y;
+    this.last.z = sense.z;
+    const landed = !sense.airborne && this.air >= AIR_MIN && now >= this.settle_until ? this.sink : 0;
     if (sense.airborne) {
       this.air += dt;
       this.sink = Math.max(0, -sense.vy);
@@ -91,9 +106,9 @@ export class Rumble {
     const fast = Math.min(1, sense.speed / 25);
     const grip = sense.airborne ? 0 : sense.scrub * rolling;
     const ground = sense.airborne ? 0 : sense.loose * fast;
-    const edge = sense.airborne ? 0 : sense.edge * Math.min(1, sense.speed / 12);
-    const strong = Math.min(1, (grip * 0.35 + ground * 0.15 + edge * 0.25) * gain);
-    const weak = Math.min(1, (grip * 0.5 + ground * 0.35 + edge * 0.6) * gain);
+    const kerb = sense.airborne ? 0 : sense.kerb * Math.min(1, sense.speed / 12);
+    const strong = Math.min(1, (grip * 0.35 + ground * 0.15 + kerb * 0.25) * gain);
+    const weak = Math.min(1, (grip * 0.5 + ground * 0.35 + kerb * 0.6) * gain);
     // Gone quiet, the last held effect just runs out: a call to stop it would be one more call for nothing.
     if (strong < QUIET && weak < QUIET) return null;
     const same = Math.abs(strong - this.sent_strong) < SAME && Math.abs(weak - this.sent_weak) < SAME;
@@ -101,6 +116,17 @@ export class Rumble {
     this.hold_at = now;
     this.held_until = now + HOLD_MS;
     return this.play(strong, weak, HOLD_MS, false);
+  }
+
+  /**
+   * Forgets the air under the car and holds landings off for a moment: call it while the sim is held (menus, rewind,
+   * countdown); a jump in position calls it too. Otherwise a car rewound or respawned in the air knocked as it landed.
+   */
+  reset(now: number) {
+    this.air = 0;
+    this.sink = 0;
+    this.settle_until = now + SETTLE_MS;
+    this.last.x = NaN;
   }
 
   private play(strong: number, weak: number, ms: number, pulse: boolean): RumbleEffect {
@@ -122,32 +148,36 @@ function ramp(value: number, from: number, full: number): number {
 export interface RumbleCar {
   readonly scrub: number;
   readonly vel: { readonly y: number; length(): number };
+  readonly pos: { readonly x: number; readonly y: number; readonly z: number };
   readonly wheels: readonly { readonly contact: boolean; readonly point: { readonly x: number; readonly z: number } }[];
 }
 
 /** What `sense_drive` reads off the ground: `World` fits it. */
 export interface RumbleGround {
   footing(x: number, z: number): { readonly loose: number };
-  on_edge(x: number, z: number): boolean;
+  on_kerb(x: number, z: number): boolean;
 }
 
 /** Fills `out` from the car on `ground` this frame, `impact` the hardest collision since the last frame. */
 export function sense_drive(out: RumbleSense, car: RumbleCar, ground: RumbleGround, impact: number): RumbleSense {
   let touching = 0;
   let loose = 0;
-  let edge = 0;
+  let kerb = 0;
   for (const w of car.wheels) {
     if (!w.contact) continue;
     touching++;
     loose += ground.footing(w.point.x, w.point.z).loose;
-    if (ground.on_edge(w.point.x, w.point.z)) edge++;
+    if (ground.on_kerb(w.point.x, w.point.z)) kerb++;
   }
   out.scrub = car.scrub;
   out.speed = car.vel.length();
   out.loose = touching ? loose / touching : 0;
-  out.edge = touching ? edge / touching : 0;
+  out.kerb = touching ? kerb / touching : 0;
   out.airborne = touching === 0;
   out.vy = car.vel.y;
   out.impact = impact;
+  out.x = car.pos.x;
+  out.y = car.pos.y;
+  out.z = car.pos.z;
   return out;
 }

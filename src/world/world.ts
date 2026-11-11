@@ -9,7 +9,7 @@ import { KINDS } from "../worldgen/kinds/kinds";
 import { ramp_reach2, ramp_surface, spawn_blocks, type Surface } from "../worldgen/jumps";
 import { FALL_DEPTH } from "../worldgen/sky";
 import { slice_tiles, TileStore, type Tile } from "../worldgen/tiles";
-import { KERB_OUT } from "../worldgen/road-layers";
+import { kerb_marks, on_kerb_segment, type KerbMarks } from "./kerbs";
 import { CELL, ROAD_HALF, RouteKind, SurfaceId, type WorldKind } from "../worldgen/types";
 import { water_index, type WaterIndex } from "../worldgen/water";
 import type {
@@ -156,7 +156,7 @@ export class World implements Ground {
   /** The sea's level on a kind with ground; none on a deck-only kind. */
   private readonly sea: number;
   /** `footing` in water: rewritten per query, never kept. */
-  private readonly wading: Footing = { grip: 1, roll: 1, loose: 0 };
+  private readonly wading: Footing = { grip: 1, roll: 1, loose: 0, firm: false };
   /** The footing `grip` just read, for the `roll` the car asks of the same wheel next: one query per wheel per step. */
   private last: Footing | null = null;
   private last_x = NaN;
@@ -207,6 +207,7 @@ export class World implements Ground {
   /** Ramps a car rides as wedges, with `ramp_reach2` so a height query skips the far ones. */
   private readonly wedges: { ramp: Ramp; reach2: number }[];
   private query = 0;
+  private kerb_marks: KerbMarks | null = null;
 
   /** `data` is `generate(seed)`, passed in when a worker already ran it; `tiles` empty when they stream in after. */
   constructor(
@@ -357,9 +358,9 @@ export class World implements Ground {
     return i >= 0 && j >= 0 && i <= n && j <= n ? (this.tiles.surface(i, j) as SurfaceId) : SurfaceId.GRASS;
   }
 
-  /** On a trail. */
+  /** On dirt or gravel (a trail, hardpack, scree), from the footing `grip` just read: where a tyre's `grip_dirt` applies. */
   dirt(x: number, z: number): boolean {
-    return this.surface(x, z) === SurfaceId.DIRT;
+    return this.read(x, z).firm;
   }
 
   /** On a road surface, whatever grip the kind gives it: where `footing` is the road row. */
@@ -367,10 +368,17 @@ export class World implements Ground {
     return this.distance_to_road(x, z) < ON_ROAD;
   }
 
-  /** On the strip along a road's edge where the circuit lays its kerbs on bends: what a tyre feels as a rumble strip. */
-  on_edge(x: number, z: number): boolean {
-    const d = this.distance_to_road(x, z);
-    return d > ROAD_HALF - 0.1 && d < KERB_OUT;
+  /** Where the circuit's kerbs are drawn, worked out on first use: the mesh and the tyres read the same marks. */
+  get kerbs(): KerbMarks {
+    return (this.kerb_marks ??= kerb_marks(this));
+  }
+
+  /** On a drawn kerb: the inside of a circuit bend, between the road edge and the kerb's outer edge. */
+  on_kerb(x: number, z: number): boolean {
+    const s = nearest(this.road_grid, x, z, (index) => this.road[index]);
+    if (s < 0) return false;
+    const n = this.road.length;
+    return on_kerb_segment(this.kerbs, this.road, s, x, z) || on_kerb_segment(this.kerbs, this.road, (s - 1 + n) % n, x, z);
   }
 
   /** The grip row under (x, z), eased toward wading in water: road, then a laid surface (trail, hardpack), then the shoulder, then the kind's own ground. */
@@ -383,6 +391,7 @@ export class World implements Ground {
     this.wading.grip = dry.grip + (wade.grip - dry.grip) * w;
     this.wading.roll = dry.roll + (wade.roll - dry.roll) * w;
     this.wading.loose = dry.loose + (wade.loose - dry.loose) * w;
+    this.wading.firm = dry.firm && w < 0.5;
     return this.wading;
   }
 
@@ -403,7 +412,11 @@ export class World implements Ground {
 
   /** Like `roll`, from the footing `grip` just read, but it leaves that footing for `roll`. */
   loose(x: number, z: number): number {
-    return (this.last && x === this.last_x && z === this.last_z ? this.last : this.footing(x, z)).loose;
+    return this.read(x, z).loose;
+  }
+
+  private read(x: number, z: number): Footing {
+    return this.last && x === this.last_x && z === this.last_z ? this.last : this.footing(x, z);
   }
 
   roll(x: number, z: number): number {

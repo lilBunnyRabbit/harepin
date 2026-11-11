@@ -3,6 +3,7 @@ import { Car, drop_height } from "../src/car/car";
 import { COUPE, car_spec, type CarSpec } from "../src/car/cars";
 import { PadTimer } from "../src/world/sky-pads";
 import { ROAD_HALF, World, type RoadPoint } from "../src/world/world";
+import { SurfaceId } from "../src/worldgen/types";
 
 const DT = 1 / 360;
 const RAMP_LOOK = 120;
@@ -114,7 +115,7 @@ export function autolap(world: World, spec: CarSpec = COUPE, road: readonly Road
     t += DT;
     const d = world.distance_to_road(car.pos.x, car.pos.z);
     worst = Math.max(worst, d);
-    if (d > 7 && !world.dirt(car.pos.x, car.pos.z)) offroad += DT;
+    if (d > 7 && world.surface(car.pos.x, car.pos.z) !== SurfaceId.DIRT) offroad += DT;
     if (t > 5) slowest = Math.min(slowest, speed);
     if (!Number.isFinite(car.pos.x)) throw new Error("NaN");
     if (new Vector3(0, 1, 0).applyQuaternion(car.quat).y < 0.3) {

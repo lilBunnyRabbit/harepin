@@ -12,7 +12,7 @@ export interface Ground {
   roll(x: number, z: number): number;
   /** How loose the surface is, 0 sealed road .. 1 sand: it widens the tyre curve and softens its fall past the peak. A ground without loose surfaces leaves it out. */
   loose?(x: number, z: number): number;
-  /** On a dirt trail; a ground without trails leaves it out. */
+  /** On dirt or gravel, where a tyre's `grip_dirt` applies rather than `grip_grass`; a ground without it leaves it out. */
   dirt?(x: number, z: number): boolean;
 }
 
@@ -121,8 +121,12 @@ let curve_c = MF_C;
 let curve_b = MF_B;
 let curve_s = SLIDE_S;
 let curve_spread = 1;
+let curve_cap = 1;
 
-function shape(loose: number, offroad: number) {
+// `share` (from `surface_grip`) and `road` (the stock tyres' `mu` over this tyre's) bound the loose curve by
+// the stock tyre's asphalt curve at the same slip. Unbound, wider and slower to fall past the peak, it kept more of a
+// high-share tyre's grip in a slide than asphalt does, and locked stops and launches off the road beat the road.
+function shape(loose: number, offroad: number, share: number, road: number) {
   if (loose <= 0) {
     curve_c = MF_C;
     curve_b = MF_B;
@@ -130,6 +134,7 @@ function shape(loose: number, offroad: number) {
     curve_spread = 1;
     return;
   }
+  curve_cap = road / share;
   const slide = LOOSE_SLIDE + LOOSE_BITE * Math.max(-1, Math.min(1, offroad));
   // With this C the magic formula falls from its peak towards `slide` and never under it.
   const c = (2 * (Math.PI - Math.asin(slide))) / Math.PI;
@@ -235,7 +240,10 @@ export function unassisted_lock(spec: CarSpec, speed: number, steer: number, sli
 }
 
 function magic(s: number): number {
-  return Math.sin(curve_c * Math.atan(curve_b * Math.max(-curve_s, Math.min(curve_s, s))));
+  const y = Math.sin(curve_c * Math.atan(curve_b * Math.max(-curve_s, Math.min(curve_s, s))));
+  if (curve_spread === 1) return y;
+  const road = s * curve_spread;
+  return Math.min(y, curve_cap * Math.sin(MF_C * Math.atan(MF_B * Math.max(-SLIDE_S, Math.min(SLIDE_S, road)))));
 }
 
 function combined_x(sx: number, sy: number): number {
@@ -600,6 +608,8 @@ export class Car {
 
     body.force.y -= GRAVITY * spec.mass;
 
+    // A tyre part's grip over stock tyres counts on asphalt only: off it the curve stays under the stock tyre's on the road.
+    const stock = (spec.stock_mu ?? spec.mu) / spec.mu;
     const reach = rest + radius;
     for (const w of this.wheels) {
       mount.copy(w.mount).applyQuaternion(quat).add(pos);
@@ -672,7 +682,7 @@ export class Car {
       const denom = Math.max(Math.abs(v_long), 2);
       const surface = ground.grip(w.point.x, w.point.z);
       const grip = surface_grip(spec, surface, surface < 1 && !!ground.dirt?.(w.point.x, w.point.z));
-      shape(ground.loose?.(w.point.x, w.point.z) ?? 0, spec.offroad);
+      shape(ground.loose?.(w.point.x, w.point.z) ?? 0, spec.offroad, grip, stock);
       // Tyre force grows ever slower with load and tops out at half `load_fade`; past that it stays flat. Left as a
       // parabola it fell to nothing at `load_fade` and reversed above it, which a hard landing reaches.
       const bite = Math.min(load, spec.load_fade / 2);

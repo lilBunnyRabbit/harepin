@@ -97,6 +97,8 @@ export interface CarSpec {
   /** Tyre grip multipliers on a dirt trail and on any other ground off asphalt, on top of `offroad`; absent is 1. */
   grip_dirt?: number;
   grip_grass?: number;
+  /** The car's `mu` on its stock tyres, when a tyre part changed it: loose ground never slides better than stock tyres on asphalt. */
+  stock_mu?: number;
 }
 
 export type CarId = BodyStyle;

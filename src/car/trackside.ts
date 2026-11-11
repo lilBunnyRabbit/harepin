@@ -4,7 +4,8 @@ import { brand, color, tones } from "../theme/palette";
 import { ribbon, ribbon_material } from "../render/scene";
 import { ROAD_HALF, World } from "../world/world";
 import { chunk_of } from "../worldgen/chunk-grid";
-import { KERB_OUT, roadside_clear } from "../worldgen/road-layers";
+import { KERB_OUT } from "../worldgen/road-layers";
+import { KERB_IN, type KerbMarks } from "../world/kerbs";
 import type { Solid } from "../worldgen/types";
 
 export interface Gate {
@@ -50,28 +51,6 @@ export function gates(world: World): Gate[] {
   return world.checkpoints.map((_, index) => gate(world, kit, index));
 }
 
-function curvature(world: World, s: number): number {
-  const road = world.road;
-  const a = road[(s - 6 + road.length) % road.length];
-  const b = road[(s + 6) % road.length];
-  return Math.atan2(a.tx * b.tz - a.tz * b.tx, a.tx * b.tx + a.tz * b.tz);
-}
-
-interface RoadsideMarks {
-  clear: Set<number>;
-  /** Circuit sample to the side of the curb on the inside of its bend. */
-  inside: Map<number, number>;
-}
-
-function roadside_marks(world: World): RoadsideMarks {
-  const inside = new Map<number, number>();
-  for (let s = 0; s < world.road.length; s++) {
-    const k = curvature(world, s);
-    if (Math.abs(k) > 0.09) inside.set(s, Math.sign(k));
-  }
-  return { clear: roadside_clear(world), inside };
-}
-
 /** Curb materials, post and cap shapes and materials: one set for the world, shared by every chunk's roadside. */
 export interface RoadsideKit {
   curbs: readonly THREE.Material[];
@@ -97,13 +76,13 @@ function roadside_kit(): RoadsideKit {
 const POST_SPACING = 12;
 
 /** Curbs and posts along circuit `samples` (ascending): all of them on a compact world, one chunk's on a streamed one. */
-export function roadside(world: World, marks: RoadsideMarks = roadside_marks(world), kit: RoadsideKit = roadside_kit(), samples: readonly number[] = world.road.map((_, s) => s)): THREE.Group {
+export function roadside(world: World, marks: KerbMarks = world.kerbs, kit: RoadsideKit = roadside_kit(), samples: readonly number[] = world.road.map((_, s) => s)): THREE.Group {
   const group = new THREE.Group();
   const { clear, inside } = marks;
   CURB_TONES.forEach((_, parity) => {
     for (const side of [-1, 1]) {
-      const from = side > 0 ? ROAD_HALF - 0.1 : -KERB_OUT;
-      const to = side > 0 ? KERB_OUT : -ROAD_HALF + 0.1;
+      const from = side > 0 ? KERB_IN : -KERB_OUT;
+      const to = side > 0 ? KERB_OUT : -KERB_IN;
       // Positive curvature bends toward the +side offset, so matching signs put the curb on the inside of the bend.
       const here = samples.filter((s) => inside.get(s) === side && s % 2 === parity && !clear.has(s));
       if (here.length) group.add(ribbon(world, from, to, 0.12, here, kit.curbs[parity]));
@@ -164,7 +143,7 @@ export class ChunkTrackside {
   readonly gates: (Gate | undefined)[];
   private readonly kit = gate_kit();
   private readonly roadside_kit = roadside_kit();
-  private readonly marks: RoadsideMarks;
+  private readonly marks: KerbMarks;
   /** Circuit samples per chunk, ascending. */
   private readonly samples = new Map<number, number[]>();
   /** Checkpoints per chunk. */
@@ -173,7 +152,7 @@ export class ChunkTrackside {
 
   constructor(private readonly world: World) {
     const { ext } = world.tiles;
-    this.marks = roadside_marks(world);
+    this.marks = world.kerbs;
     world.road.forEach((p, s) => push(this.samples, chunk_of(p.x, p.z, ext), s));
     world.checkpoints.forEach((cp, at) => push(this.checkpoints, chunk_of(cp.x, cp.z, ext), at));
     this.gates = world.checkpoints.map(() => undefined);

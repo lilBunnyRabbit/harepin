@@ -181,28 +181,43 @@ test("tyres order tarmac grip street < sport < semi-slick, rally wins off it and
     expect(surface_grip(slick, 1)).toBeGreaterThan(surface_grip(sport, 1));
     expect(surface_grip(rally, 1)).toBeLessThan(surface_grip(street, 1));
     expect(surface_grip(rally, 1)).toBeGreaterThan(surface_grip(street, 1) * 0.94);
-    for (const other of [street, sport, slick]) expect(surface_grip(rally, 0.5)).toBeGreaterThan(surface_grip(other, 0.5) * 1.05);
+    for (const other of [street, sport, slick]) expect(surface_grip(rally, 0.5, true)).toBeGreaterThan(surface_grip(other, 0.5, true) * 1.05);
     expect(surface_grip(slick, 0.72)).toBeLessThan(surface_grip(street, 0.72) * (base.offroad > 0 ? 1 : 0.92));
     expect(rally.offroad).toBeLessThanOrEqual(1);
     expect(stats(slick).grip).toBeGreaterThan(stats(street).grip * 1.1);
   }
 });
 
+const LOOSE_ROWS = [LAND_GRIP, SAND_GRIP].flatMap((table) => [table.shoulder, table.wade, ...Object.values(table.surfaces)]);
+
 test("no tyre grips more on any loose row than the car's stock tyres on asphalt", () => {
-  const rows = [LAND_GRIP, SAND_GRIP].flatMap((table) => [table.shoulder, table.wade, ...Object.values(table.surfaces)].map((row) => [row.grip, row === table.surfaces[SurfaceId.DIRT]] as const));
   for (const car of Object.keys(CARS) as CarId[]) {
     const stock = surface_grip(build_spec(with_parts({}, { car })), 1);
     for (let tyres = 0; tyres < SLOTS.tyres.parts.length; tyres++) {
       const spec = build_spec(with_parts({ tyres }, { car }));
-      for (const [surface, dirt] of rows) expect(surface_grip(spec, surface, dirt)).toBeLessThanOrEqual(stock * 1.0005);
+      for (const row of LOOSE_ROWS) expect(surface_grip(spec, row.grip, row.firm)).toBeLessThanOrEqual(stock * 1.0005);
     }
   }
 });
 
-test("on the rally car, whose stock tyres already shrug off most of the loss, the off-road tyres still win off-road", () => {
-  const [street, , , rally, all_terrain, mud] = [0, 1, 2, 3, 4, 5].map((tyres) => build_spec(with_parts({ tyres }, { car: "rally" })));
-  for (const off of [rally, all_terrain]) expect(surface_grip(off, DIRT, true)).toBeGreaterThan(surface_grip(street, DIRT, true) * 1.015);
-  for (const off of [rally, all_terrain, mud]) expect(surface_grip(off, GRASS)).toBeGreaterThan(surface_grip(street, GRASS) * 1.015);
+test("every tyre has its niche on every car: street on asphalt, rally on dirt and gravel, mud-terrain on grass, mud and sand, all-terrain between", () => {
+  const names = SLOTS.tyres.parts.map((part) => part.name);
+  const failed: string[] = [];
+  for (const car of Object.keys(CARS) as CarId[]) {
+    const specs = names.map((_, tyres) => build_spec(with_parts({ tyres }, { car })));
+    const [street, , , rally, all_terrain, mud] = specs;
+    const on = (spec: CarSpec, grip: number, firm: boolean) => surface_grip(spec, grip, firm);
+    const road = [street, all_terrain, rally, mud].map((spec) => on(spec, 1, false));
+    if (!road.every((grip, i) => i === 0 || grip < road[i - 1])) failed.push(`${car} asphalt: street > all-terrain > rally > mud-terrain, got ${road.map((g) => g.toFixed(3))}`);
+    for (const row of LOOSE_ROWS) {
+      const grips = specs.map((spec) => on(spec, row.grip, row.firm));
+      const best = names[grips.indexOf(Math.max(...grips))];
+      const want = row.firm ? "Rally" : "Mud-terrain";
+      if (best !== want) failed.push(`${car} on grip ${row.grip}${row.firm ? " firm" : ""}: ${best} best, not ${want}`);
+      if (on(all_terrain, row.grip, row.firm) <= on(street, row.grip, row.firm)) failed.push(`${car} on grip ${row.grip}: all-terrain no better than street`);
+    }
+  }
+  expect(failed).toEqual([]);
 });
 
 test("offroad tyres trade tarmac grip for dirt and grass: rally best on dirt, mud-terrain on grass", () => {

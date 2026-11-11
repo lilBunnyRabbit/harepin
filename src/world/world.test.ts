@@ -129,3 +129,31 @@ function describe_glide() {
     expect(r.kept).toBeLessThan(0.85);
   });
 }
+
+test("a tyre feels a kerb only where one is drawn: inside a circuit bend, never on a straight or the outside", () => {
+  const world = new World(3, ISLAND);
+  const { inside, clear } = world.kerbs;
+  const at = (s: number, side: number, off: number) => {
+    const p = world.road[s];
+    const q = world.road[(s + 1) % world.road.length];
+    const x = (p.x + q.x) / 2 - p.tz * side * off;
+    const z = (p.z + q.z) / 2 + p.tx * side * off;
+    return world.on_kerb(x, z);
+  };
+  let kerbs = 0;
+  let straights = 0;
+  for (let s = 0; s < world.road.length; s++) {
+    const side = inside.get(s);
+    if (side !== undefined && !clear.has(s) && inside.get((s + 1) % world.road.length) === side) {
+      expect(at(s, side, 6.4)).toBe(true);
+      expect(at(s, -side, 6.4)).toBe(false);
+      expect(at(s, side, 3)).toBe(false);
+      kerbs++;
+    } else if (side === undefined && [-3, -2, -1, 1, 2, 3].every((k) => !inside.has((s + k + world.road.length) % world.road.length))) {
+      expect(at(s, 1, 6.4) || at(s, -1, 6.4)).toBe(false);
+      straights++;
+    }
+  }
+  expect(kerbs).toBeGreaterThan(10);
+  expect(straights).toBeGreaterThan(10);
+});
