@@ -995,7 +995,7 @@ export function generate_sky(seed: number, recipe: SkyRecipe = SKY, plain: SkyRe
     }
   }
 
-  const roofs = built.roofs ? roof_buildings(seed, line) : { lots: [], buildings: [] };
+  const roofs = built.roofs ? roof_buildings(seed, line, samples.map((p) => p.h)) : { lots: [], buildings: [] };
   const heights = new Float32Array((N + 1) * (N + 1)).fill(ABYSS);
   const road_dist = new Float32Array((N + 1) * (N + 1));
   return {
