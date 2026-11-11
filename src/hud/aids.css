@@ -161,6 +161,20 @@
   padding: 0;
 }
 
+/* On touch the speedo narrows to 190 px: the lamps close up so all five stay inside it. */
+@media (pointer: coarse) {
+  :root[data-hud="racing"] .assists,
+  :root[data-hud="compact"] .assists {
+    gap: var(--space-1);
+  }
+
+  :root[data-hud="racing"] .aid-key,
+  :root[data-hud="compact"] .aid-key {
+    gap: 3px;
+    letter-spacing: 0.02em;
+  }
+}
+
 :root[data-hud="minimal"][data-calm] .assists:not(:hover, :focus-within) {
   opacity: 0.3;
 }

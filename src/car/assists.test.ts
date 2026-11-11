@@ -1,6 +1,6 @@
 /// <reference types="bun" />
 import { describe, expect, test } from "bun:test";
-import { Car, SteerMode } from "./car";
+import { Car, SteerMode, type Ground } from "./car";
 import { CARS } from "./cars";
 import { ALL_AIDS, Counter, kick, lift_off, power_over, slalom, swerve, type Aids, type PowerOver } from "../../scripts/keys";
 
@@ -48,6 +48,31 @@ describe("steering assist and stability", () => {
       expect(slalom(SMOOTH, spec, 100, 0.5, off)).toEqual(slalom(SMOOTH, spec));
     }
   });
+
+  const flat: Ground = { height: () => 0, normal: (_x, _z, out) => out.set(0, 1, 0), grip: () => 1, roll: () => 1 };
+  /** Wheel angle (rad) 0.1 s into a 20 degree slide at `kmh` with the keys let go. */
+  const hands_off = (aids: Aids, kmh: number) => {
+    const car = new Car(CARS.coupe);
+    Object.assign(car, aids);
+    car.park(0, 0, 0, flat);
+    car.parked = false;
+    const v = kmh / 3.6;
+    const beta = (20 * Math.PI) / 180;
+    car.vel.set(v * Math.sin(beta), 0, v * Math.cos(beta));
+    for (const w of car.wheels) w.omega = (v * Math.cos(beta)) / car.spec.wheel.radius;
+    for (let t = 0; t < 0.1; t += 1 / 360) car.step(1 / 360, { steer: 0, throttle: 0, brake: 0, handbrake: 0, analog: false }, flat);
+    return car.steer;
+  };
+
+  for (const aids of COMBOS)
+    test(`${name(aids)}: hands off in a slide, ${aids.assist ? "the wheels countersteer into it" : "the wheels stay straight"}`, () => {
+      // 60 km/h is past the course clamp's speeds, so only the countersteer turns the wheels; at 30 km/h the clamp does too.
+      for (const kmh of [60, 30]) {
+        const steer = hands_off(aids, kmh);
+        if (aids.assist) expect(steer).toBeLessThan(-0.05);
+        else expect(steer).toBe(0);
+      }
+    });
 
   const caught = (over: PowerOver) => {
     expect(over.t30).toBeLessThan(2.5);
