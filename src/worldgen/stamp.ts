@@ -30,6 +30,10 @@ const DIRT_MARGIN = 1.5;
  * (up to ROAD_HALF + SHOULDER), so where the patch field gives way to the edges' lies beyond what any rule sees.
  */
 const RIM_REACH = SHOULDER + CELL;
+const GROUP = 8;
+// Past the bound by more than float32 rounding, a skipped distance could not tie a kept one once stored.
+const BOUND_SLACK = 1e-6;
+const BOUND_GAP = 1e-5;
 
 /** `blend(i)` is the share of the way the ground moves to the line's height by segment i: 0 leaves it, 1 sets it. */
 export interface TrailLine {
@@ -71,6 +75,9 @@ export class Stamp {
   readonly street: Uint8Array;
   /** Every write so far, for `replay` over a tile; empty when not recording. */
   readonly ops: GroundOp[] = [];
+  private bound = new Float64Array(0);
+  private bound_mark = new Int32Array(0);
+  private pass = 0;
 
   constructor(
     private readonly terrain: Terrain,
@@ -193,23 +200,108 @@ export class Stamp {
   // Edges stamp in priority order (circuit, streets, spurs, roads between towns). A later edge never takes height over
   // another edge's flat band, so a spur meeting the sloped circuit merges into its surface instead of cutting a step
   // across it.
+  // A group of segments is skipped at a vertex its box lies past that vertex's bound from: none of them could write it,
+  // so the grids come out bit-identical to testing every segment over its whole box.
   edge(edge: RoadEdge, bank: Bank | null = null) {
     this.log({ kind: "edge", edge, bank });
-    const { road_dist } = this.terrain;
     const { points, half } = edge;
     const reach = half + (bank ? Math.max(SHOULDER, bank.reach) : SHOULDER);
     const segments = edge.closed ? points.length : points.length - 1;
+    let left = Infinity;
+    let right = -Infinity;
+    let low = Infinity;
+    let high = -Infinity;
+    for (const p of points) {
+      left = Math.min(left, p.x);
+      right = Math.max(right, p.x);
+      low = Math.min(low, p.z);
+      high = Math.max(high, p.z);
+    }
+    const [ei0, ei1] = span_i(this.grid, left - reach, right + reach);
+    const [ej0, ej1] = span_j(this.grid, low - reach, high + reach);
+    if (ei0 > ei1 || ej0 > ej1) return;
+    const boxes = new Int32Array(segments * 4);
     for (let s = 0; s < segments; s++) {
       const a = points[s];
       const b = points[(s + 1) % points.length];
       const [i0, i1] = span_i(this.grid, Math.min(a.x, b.x) - reach, Math.max(a.x, b.x) + reach);
       const [j0, j1] = span_j(this.grid, Math.min(a.z, b.z) - reach, Math.max(a.z, b.z) + reach);
-      if (i0 > i1 || j0 > j1) continue;
+      boxes[s * 4] = i0;
+      boxes[s * 4 + 1] = i1;
+      boxes[s * 4 + 2] = j0;
+      boxes[s * 4 + 3] = j1;
+    }
+    this.bound_edge(edge, boxes, segments);
+    const { bound, bound_mark, pass } = this;
+    for (let g = 0; g < segments; g += GROUP) {
+      const last = Math.min(segments, g + GROUP);
+      let x0 = Infinity;
+      let x1 = -Infinity;
+      let z0 = Infinity;
+      let z1 = -Infinity;
+      let i0 = Infinity;
+      let i1 = -Infinity;
+      let j0 = Infinity;
+      let j1 = -Infinity;
+      for (let s = g; s < last; s++) {
+        const a = points[s];
+        const b = points[(s + 1) % points.length];
+        x0 = Math.min(x0, a.x, b.x);
+        x1 = Math.max(x1, a.x, b.x);
+        z0 = Math.min(z0, a.z, b.z);
+        z1 = Math.max(z1, a.z, b.z);
+        const o = s * 4;
+        if (boxes[o] > boxes[o + 1] || boxes[o + 2] > boxes[o + 3]) continue;
+        i0 = Math.min(i0, boxes[o]);
+        i1 = Math.max(i1, boxes[o + 1]);
+        j0 = Math.min(j0, boxes[o + 2]);
+        j1 = Math.max(j1, boxes[o + 3]);
+      }
+      for (let j = j0; j <= j1; j++) {
+        const pz = ORIGIN + j * CELL;
+        const oz = Math.max(z0 - pz, 0, pz - z1);
+        for (let i = i0; i <= i1; i++) {
+          const k = at(this.grid, i, j);
+          const nearest = bound_mark[k] === pass ? bound[k] : this.held(edge, k);
+          const radius = nearest + half - ROAD_HALF + Math.abs(nearest) * BOUND_SLACK + BOUND_GAP;
+          if (radius > 0) {
+            const ox = Math.max(x0 - ORIGIN - i * CELL, 0, ORIGIN + i * CELL - x1);
+            if (ox * ox + oz * oz > radius * radius) continue;
+          }
+          for (let s = g; s < last; s++) {
+            const o = s * 4;
+            if (i >= boxes[o] && i <= boxes[o + 1] && j >= boxes[o + 2] && j <= boxes[o + 3]) this.edge_vertex(edge, s, i, j, k);
+          }
+        }
+      }
+    }
+  }
+
+  /** The distance below which `edge` would still write vertex k: past it the vertex keeps what it holds. */
+  private held(edge: RoadEdge, k: number): number {
+    const owned = this.edge_of[k] !== edge.id && this.owner_dist[k] <= ROAD_HALF + FLAT;
+    return owned ? this.terrain.road_dist[k] : Math.max(this.terrain.road_dist[k], this.owner_dist[k]);
+  }
+
+  // Each vertex's bound: what it holds, or the nearest of every GROUP-th segment whose box covers it when nearer.
+  private bound_edge(edge: RoadEdge, boxes: Int32Array, segments: number) {
+    const size = this.terrain.heights.length;
+    if (this.bound.length !== size) {
+      this.bound = new Float64Array(size);
+      this.bound_mark = new Int32Array(size);
+    }
+    const pass = ++this.pass;
+    const { bound, bound_mark } = this;
+    const { points, half } = edge;
+    for (let s = 0; s < segments; s += GROUP) {
+      const a = points[s];
+      const b = points[(s + 1) % points.length];
       const dx = b.x - a.x;
       const dz = b.z - a.z;
       const len2 = dx * dx + dz * dz || 1;
-      for (let j = j0; j <= j1; j++)
-        for (let i = i0; i <= i1; i++) {
+      const o = s * 4;
+      for (let j = boxes[o + 2]; j <= boxes[o + 3]; j++)
+        for (let i = boxes[o]; i <= boxes[o + 1]; i++) {
           const px = ORIGIN + i * CELL;
           const pz = ORIGIN + j * CELL;
           const t = Math.max(0, Math.min(1, ((px - a.x) * dx + (pz - a.z) * dz) / len2));
@@ -217,15 +309,34 @@ export class Stamp {
           const oz = pz - (a.z + dz * t);
           const d = Math.sqrt(ox * ox + oz * oz) - half + ROAD_HALF;
           const k = at(this.grid, i, j);
-          if (d < road_dist[k]) road_dist[k] = d;
-          const owned = this.edge_of[k] !== edge.id && this.owner_dist[k] <= ROAD_HALF + FLAT;
-          if (d < this.owner_dist[k] && !owned) {
-            this.owner_dist[k] = d;
-            this.road_height[k] = a.y + (b.y - a.y) * t;
-            this.edge_of[k] = edge.id;
-            this.street[k] = edge.kind === "street" ? 1 : 0;
-          }
+          if (bound_mark[k] !== pass) {
+            bound[k] = Math.min(d, this.held(edge, k));
+            bound_mark[k] = pass;
+          } else if (d < bound[k]) bound[k] = d;
         }
+    }
+  }
+
+  private edge_vertex(edge: RoadEdge, s: number, i: number, j: number, k: number) {
+    const { road_dist } = this.terrain;
+    const a = edge.points[s];
+    const b = edge.points[(s + 1) % edge.points.length];
+    const dx = b.x - a.x;
+    const dz = b.z - a.z;
+    const len2 = dx * dx + dz * dz || 1;
+    const px = ORIGIN + i * CELL;
+    const pz = ORIGIN + j * CELL;
+    const t = Math.max(0, Math.min(1, ((px - a.x) * dx + (pz - a.z) * dz) / len2));
+    const ox = px - (a.x + dx * t);
+    const oz = pz - (a.z + dz * t);
+    const d = Math.sqrt(ox * ox + oz * oz) - edge.half + ROAD_HALF;
+    if (d < road_dist[k]) road_dist[k] = d;
+    const owned = this.edge_of[k] !== edge.id && this.owner_dist[k] <= ROAD_HALF + FLAT;
+    if (d < this.owner_dist[k] && !owned) {
+      this.owner_dist[k] = d;
+      this.road_height[k] = a.y + (b.y - a.y) * t;
+      this.edge_of[k] = edge.id;
+      this.street[k] = edge.kind === "street" ? 1 : 0;
     }
   }
 
