@@ -422,6 +422,7 @@ const ACTIONS: Record<Action, () => void> = {
   settings: () => settings.open(),
   menu: () => pad_menu.toggle(),
 };
+if (params.has("feel")) void import("./hud/feel-panel").then(({ feel_panel }) => feel_panel({ set: (key, value) => settings.set(key, value), use_car: (code) => garage.use_code(code), respawn: ACTIONS.reset }));
 
 const DT = 1 / 360;
 let acc = 0;

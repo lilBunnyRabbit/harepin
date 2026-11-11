@@ -262,15 +262,23 @@ export function surface_grip(spec: CarSpec, surface: number, dirt: boolean): num
 }
 
 /**
- * Lock (rad) with the steer assist off at `speed` m/s, `steer` the held stick and `slide` the body slip (rad). It shrinks
- * with speed so a key tap at speed is not a flick, but a countersteer gets it all back: cut, the fronts could not reach
- * their course past 30 degrees of body slip and a power slide spun.
+ * Lock (rad) at `speed` m/s that a grip-limited corner needs: kinematic L/R plus front-minus-rear slip, which is small
+ * because body slip already loads the fronts. Past it the fronts go over peak, lose yaw damping and the car wallows.
  */
-export function unassisted_lock(spec: CarSpec, speed: number, steer: number, slide: number): number {
+export function grip_lock(spec: CarSpec, speed: number): number {
+  return (spec.wheelbase * GRAVITY * 1.05) / Math.max(1, speed * speed) + spec.peak_angle * 0.45;
+}
+
+/**
+ * Lock (rad) with the steer assist off, `limit` the grip-limited lock, `steer` the held stick and `slide` the body slip
+ * (rad). Into a turn it is the grip-limited lock, as with the assist: the wider speed-cut lock it had put the fronts at
+ * four to six times their peak slip, and a held key pushed wide and scrubbed speed. A countersteer opens it to full
+ * lock: capped, the fronts could not reach their course past 30 degrees of body slip and a power slide spun.
+ */
+export function unassisted_lock(spec: CarSpec, limit: number, steer: number, slide: number): number {
   const [from, to] = COUNTER_SLIP;
   const counter = Math.max(0, Math.min(1, (Math.sign(steer) * slide - from) / (to - from)));
-  const cut = spec.lock / (1 + speed / 45);
-  return cut + (spec.lock - cut) * counter;
+  return limit + (spec.lock - limit) * counter;
 }
 
 function magic(s: number): number {
@@ -501,9 +509,6 @@ export class Car {
     inv.copy(quat).invert();
     const local = tmp.copy(vel).applyQuaternion(inv);
     const slide = speed > 5 ? Math.atan2(-local.x, Math.abs(local.z)) : 0;
-    // Assisted lock is the steer a grip-limited corner needs: kinematic L/R plus front-minus-rear slip, which is small
-    // because body slip already loads the fronts. Past it the fronts go over peak, lose yaw damping and the car wallows.
-    const grip_lock = (spec.wheelbase * GRAVITY * 1.05) / Math.max(1, speed * speed) + spec.peak_angle * 0.45;
     // A key is full stick at once, which at speed makes every tap a full-lock flick; ramp it like a thumb would.
     if (input.analog) this.key_steer = input.steer;
     else if (this.steer_mode === SteerMode.HOLD) {
@@ -565,10 +570,12 @@ export class Car {
     if (asked <= DRIFT_INTENT || held !== this.launch_side) this.launch_side = 0;
     if (asked > DRIFT_INTENT && this.launch_age < LAUNCH_WINDOW) this.launch_side = held;
     if (this.launch_side !== 0) this.slide_side = this.launch_side;
-    const lock = this.assist ? Math.min(spec.lock, grip_lock + (spec.lock - grip_lock) * power_slide) : unassisted_lock(spec, speed, this.key_steer, slide);
+    const cornering = grip_lock(spec, speed);
+    const limit = Math.min(spec.lock, cornering + (spec.lock - cornering) * power_slide);
+    const lock = this.assist ? limit : unassisted_lock(spec, limit, this.key_steer, slide);
     let target = this.key_steer * lock;
     if (this.assist && speed > 4 && local.z > 1) target += Math.sign(beta) * Math.max(0, Math.abs(beta) - 0.1) * 0.8 * (1 - power_slide);
-    if (this.assist && local.z > 1) {
+    if (local.z > 1) {
       // Full lock at hairpin speed put the fronts at 20-27 degrees of slip, three times peak, and their scrub held the car
       // at walking pace under full throttle. Keep them within reach of peak around the way the front axle is moving.
       const course = Math.atan2(-(local.x + ang.dot(up) * this.steer_z), local.z);

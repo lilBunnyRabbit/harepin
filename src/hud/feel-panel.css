@@ -1,0 +1,62 @@
+.feel-panel {
+  position: fixed;
+  top: 50%;
+  right: var(--inset-right);
+  transform: translateY(-50%);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+  width: 200px;
+  font-size: var(--text-xs);
+  color: var(--foreground);
+}
+
+.feel-panel details {
+  align-self: stretch;
+  padding: var(--space-1);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.feel-panel summary {
+  padding: 2px var(--space-1);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.feel-strip button {
+  justify-content: flex-start;
+  height: auto;
+  padding: 3px var(--space-2);
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--foreground);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.feel-strip button:hover {
+  background: var(--line);
+}
+
+.feel-strip button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--background-darkest);
+}
+
+.feel-note p {
+  margin: 2px var(--space-1) var(--space-1);
+  color: var(--dim);
+}
+
+/* On a phone the right edge below the top row holds the pedals, so the panel hangs from the top instead. */
+@media (pointer: coarse) {
+  .feel-panel {
+    top: calc(var(--inset-top) + 52px);
+    transform: none;
+  }
+}
