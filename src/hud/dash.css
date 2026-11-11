@@ -67,10 +67,12 @@
   color: var(--primary);
 }
 
-/* The classic HUD hides the Auto switch, so the gear itself flips the gearbox. */
-#gear {
-  pointer-events: auto;
-  cursor: pointer;
+/* The classic HUD hides the Auto switch, so the gear itself flips the gearbox. Touch keeps the switch: the gear sits in the pedal zone. */
+@media (pointer: fine) {
+  #gear {
+    pointer-events: auto;
+    cursor: pointer;
+  }
 }
 
 #gear[data-mode="M"]::after {
