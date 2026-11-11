@@ -13,9 +13,16 @@ const LANE = 3.5;
 const flat: Ground = { height: () => 0, normal: (_x, _z, out) => out.set(0, 1, 0), grip: () => 1, roll: () => 1 };
 const ahead = new Vector3();
 
-function rolling(spec: CarSpec, mode: SteerMode, kmh: number): Car {
+/** The two steering aids a run drives with: steering assist and stability. */
+export interface Aids {
+  assist: boolean;
+  stability: boolean;
+}
+export const ALL_AIDS: Aids = { assist: true, stability: true };
+
+function rolling(spec: CarSpec, mode: SteerMode, kmh: number, aids = ALL_AIDS): Car {
   const car = new Car(spec);
-  car.steer_mode = mode;
+  Object.assign(car, { steer_mode: mode, assist: aids.assist, stability: aids.stability });
   car.park(0, 0, 0, flat);
   const v = kmh / 3.6;
   car.vel.set(0, 0, v);
@@ -179,8 +186,8 @@ export interface Swerve {
 }
 
 /** Open-loop lane change on held keys: `hold` seconds right, `hold` seconds left, then let go. */
-export function swerve(mode: SteerMode, spec = COUPE, speed = 100, hold = 0.4): Swerve {
-  const car = rolling(spec, mode, speed);
+export function swerve(mode: SteerMode, spec = COUPE, speed = 100, hold = 0.4, aids = ALL_AIDS): Swerve {
+  const car = rolling(spec, mode, speed, aids);
   for (let t = 0; t < 2 * hold + 1.5; t += DT) {
     const steer = t < hold ? 1 : t < 2 * hold ? -1 : 0;
     car.step(DT, { steer, throttle: throttle(car, speed), brake: 0, handbrake: 0, analog: false }, flat);
@@ -196,8 +203,8 @@ export interface Slalom {
 }
 
 /** Keys alternating every `half` seconds for four seconds. */
-export function slalom(mode: SteerMode, spec = COUPE, speed = 100, half = 0.5): Slalom {
-  const car = rolling(spec, mode, speed);
+export function slalom(mode: SteerMode, spec = COUPE, speed = 100, half = 0.5, aids = ALL_AIDS): Slalom {
+  const car = rolling(spec, mode, speed, aids);
   let yaw = 0;
   let slip = 0;
   for (let t = 0; t < 4; t += DT) {
@@ -210,13 +217,29 @@ export function slalom(mode: SteerMode, spec = COUPE, speed = 100, half = 0.5): 
 }
 
 /** Worst body slip, degrees, over 2 s off the gas with the key still held, after 2.5 s cornering on it. */
-export function lift_off(mode: SteerMode, spec = COUPE, speed = 90): number {
-  const car = rolling(spec, mode, speed);
+export function lift_off(mode: SteerMode, spec = COUPE, speed = 90, aids = ALL_AIDS): number {
+  const car = rolling(spec, mode, speed, aids);
   for (let t = 0; t < 2.5; t += DT) car.step(DT, { steer: 1, throttle: throttle(car, speed), brake: 0, handbrake: 0, analog: false }, flat);
   let slip = 0;
   for (let t = 0; t < 2; t += DT) {
     car.step(DT, { steer: 1, throttle: 0, brake: 0, handbrake: 0, analog: false }, flat);
     slip = Math.max(slip, Math.abs(slip_deg(car)));
+  }
+  return slip;
+}
+
+/**
+ * Worst body slip, degrees, over 4 s keys off and off the gas after a `yaw` rad/s kick at `speed`, as from a kerb strike:
+ * past 90 the car went round.
+ */
+export function kick(mode: SteerMode, spec = COUPE, speed = 100, yaw = 1.5, aids = ALL_AIDS): number {
+  const car = rolling(spec, mode, speed, aids);
+  car.ang.y = yaw;
+  let slip = 0;
+  for (let t = 0; t < 4; t += DT) {
+    car.step(DT, { steer: 0, throttle: 0, brake: 0, handbrake: 0, analog: false }, flat);
+    const local = ahead.copy(car.vel).applyQuaternion(car.quat.clone().invert());
+    if (car.vel.length() > 0.5) slip = Math.max(slip, Math.abs((Math.atan2(local.x, local.z) * 180) / Math.PI));
   }
   return slip;
 }
@@ -278,6 +301,7 @@ export interface PowerOverRun {
   counter?: Counter;
   tcs?: boolean;
   assist?: boolean;
+  stability?: boolean;
   /** Seconds the gas goes down before the key; negative, the key goes on first. */
   lead?: number;
 }
@@ -286,9 +310,9 @@ export interface PowerOverRun {
  * Parked, full key and full gas for 3 s, then the countersteer at full gas still: `release` lets go of the key, `tap`
  * holds the opposite key until the tail is under 10 degrees, `hold` keeps it on.
  */
-export function power_over(mode: SteerMode, spec = COUPE, { counter = Counter.RELEASE, tcs = true, assist = true, lead = 0 }: PowerOverRun = {}): PowerOver {
+export function power_over(mode: SteerMode, spec = COUPE, { counter = Counter.RELEASE, tcs = true, assist = true, stability = true, lead = 0 }: PowerOverRun = {}): PowerOver {
   const car = new Car(spec);
-  Object.assign(car, { steer_mode: mode, tcs, abs: tcs, assist });
+  Object.assign(car, { steer_mode: mode, tcs, abs: tcs, assist, stability });
   car.park(0, 0, 0, flat);
   for (let t = 0; t < 0.5; t += DT) car.step(DT, { steer: 0, throttle: 0, brake: 0, handbrake: 0, analog: false }, flat);
   // Slip of the rear axle, not of the body: in a tight grip circle the centre of mass runs wide of the rear wheels' path,

@@ -77,7 +77,7 @@ export function measure(spec: CarSpec): Measured {
     let best = 0;
     for (const steer of SKID_STEER) {
       car.place(0, y, 0, 0);
-      car.assist = false;
+      Object.assign(car, { assist: false, stability: false });
       if (
         run(
           car,
@@ -100,7 +100,7 @@ export function measure(spec: CarSpec): Measured {
     }
     g.push(best);
   }
-  car.assist = true;
+  Object.assign(car, { assist: true, stability: true });
   const v2 = SKID_KMH.map((k) => (k / 3.6) ** 2);
   const slope = g[1] > 0 ? (g[1] - g[0]) / (v2[1] - v2[0]) : 0;
   const pace: Pace = {

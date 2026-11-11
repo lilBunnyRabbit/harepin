@@ -67,7 +67,7 @@ export interface CarSpec {
   brake_rear: number;
   /** Longitudinal tyre grip multiplier while the brake pedal is down: arcade stopping power that leaves cornering alone. */
   brake_grip: number;
-  /** Scale on the steer assist's slide-growing yaw damper: 1 stock, lower lets a slide rotate further before it bites. */
+  /** Scale on the stability assist's slide-growing yaw damper: 1 stock, lower lets a slide rotate further before it bites. */
   assist_yaw: number;
   handbrake: number;
   hold: number;

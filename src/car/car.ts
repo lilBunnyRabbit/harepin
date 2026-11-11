@@ -247,7 +247,10 @@ export class Car {
   shifting = 0;
   tcs = true;
   abs = true;
+  /** Steering assist: the grip-limited lock, the auto countersteer and the fronts held near their course. */
   assist = true;
+  /** Stability (STM): the yaw damper that stops a slide growing into a spin. */
+  stability = true;
   tcs_factor = 1;
   braking = 0;
   throttle = 0;
@@ -699,11 +702,13 @@ export class Car {
     // Stability assist: damp only yaw that grows the slide, so a drift can be held and caught but not spun; the
     // handbrake bypasses it so slides can still be started on purpose.
     // A launched slide past a drift's angle is a spin in the making: the momentum carried it round with the gas already cut.
+    // That hold belongs to the launch, not to stability: without it a launch with stability off pirouetted the AWD cars.
     const [hold_from, hold_to] = DRIFT_HOLD;
     const spinning = this.launched ? Math.max(0, Math.min(1, (Math.abs(beta) - hold_from) / (hold_to - hold_from))) : 0;
     const excess = Math.abs(slide) - 0.2;
-    if (this.assist && excess > 0 && input.handbrake < 0.1 && Math.sign(ang.y) === Math.sign(slide)) {
-      body.torque.y -= ang.y * spec.inertia[1] * Math.min(1, excess * 6) * 3.5 * spec.assist_yaw * (1 - power_slide * (1 - spinning));
+    const damp = this.stability ? 1 - power_slide * (1 - spinning) : spinning;
+    if ((this.stability || spinning > 0) && excess > 0 && input.handbrake < 0.1 && Math.sign(ang.y) === Math.sign(slide)) {
+      body.torque.y -= ang.y * spec.inertia[1] * Math.min(1, excess * 6) * 3.5 * spec.assist_yaw * damp;
     }
     if (airborne && spec.air_settle > 0) {
       // Crests launch the car off whichever wheel leaves last, so it takes off spinning; bleed pitch and roll and level it

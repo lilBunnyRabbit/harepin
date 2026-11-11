@@ -399,7 +399,7 @@ describe("drift suspension", () => {
   // TCS off and held in third at 70 km/h, so the only thing between the two runs is the setup.
   function rolling(id: CarId, suspension: number, assist = false): Car {
     const car = new Car(apply_build(CARS[id], { ...DEFAULT_BUILD, car: id, parts: { ...DEFAULT_PARTS, suspension } }));
-    Object.assign(car, { tcs: false, assist, auto: false });
+    Object.assign(car, { tcs: false, assist, stability: assist, auto: false });
     car.place(0, 0.6, 0, 0);
     run(car, 1.5, () => idle);
     car.gear = 3;
@@ -492,7 +492,7 @@ describe("rally off-road", () => {
     let most = 0;
     for (const steer of [0.35, 0.5, 0.7, 1]) {
       const car = new Car(spec);
-      car.assist = false;
+      Object.assign(car, { assist: false, stability: false });
       car.place(0, 0.6, 0, 0);
       for (let t = 0; t < 20 && kmh(car) < 60; t += DT) car.step(DT, { ...idle, throttle: 1, analog: true }, ground);
       for (let t = 0; t < 6; t += DT) car.step(DT, { ...idle, steer, analog: true, throttle: Math.max(0, Math.min(1, (60 - kmh(car)) * 0.2 + 0.25)) }, ground);

@@ -90,7 +90,7 @@ const note = (key: string, value: string) => {
 }
 
 for (const assist of [true, false]) {
-  const car = fresh(flat, (c) => (c.assist = assist));
+  const car = fresh(flat, (c) => Object.assign(c, { assist, stability: assist }));
   get_to(car, 90);
   run(car, 2.5, () => cruise(car, 90, { steer: 0.8 }));
   let worst = 0;

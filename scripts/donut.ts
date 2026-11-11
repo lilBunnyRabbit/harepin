@@ -21,7 +21,7 @@ export interface Donut {
 /** Full keyboard steer and full throttle from `START` m/s on the flat, held for `SECONDS`. */
 export function donut(spec: CarSpec, tcs: boolean, assist: boolean, log = false, steer_mode: SteerMode = SteerMode.SNAP): Donut {
   const car = new Car(spec);
-  Object.assign(car, { tcs, assist, steer_mode });
+  Object.assign(car, { tcs, assist, stability: assist, steer_mode });
   car.park(0, 0, 0, flat);
   car.vel.set(0, 0, START);
   for (const w of car.wheels) w.omega = START / spec.wheel.radius;

@@ -20,7 +20,7 @@ export function slide(spec: CarSpec, kmh: number, slip: number, assist: boolean,
   const idle: Controls = { steer: 0, throttle: 0, brake: 0, handbrake: 0, analog: false };
   const input: Controls = { ...idle, throttle };
   const car = new Car(spec);
-  Object.assign(car, { tcs: assist, assist });
+  Object.assign(car, { tcs: assist, assist, stability: assist });
   car.park(0, 0, 0, flat);
   for (let t = 0; t < 0.5; t += DT) car.step(DT, idle, flat);
   car.parked = false;

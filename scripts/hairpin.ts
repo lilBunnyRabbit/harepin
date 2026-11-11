@@ -56,7 +56,7 @@ export type Mode = (typeof Mode)[keyof typeof Mode];
 export function lock_radius(spec: CarSpec, kmh: number, mode: Mode, assist: boolean): { radius: number; kmh: number } {
   const ground = new Climb(0);
   const car = new Car(spec);
-  car.assist = assist;
+  Object.assign(car, { assist, stability: assist });
   car.park(0, 0, 0, ground);
   const v = kmh / 3.6;
   car.vel.set(0, 0, v);
@@ -78,7 +78,7 @@ export interface Pull {
 export function hairpin_pull(spec: CarSpec, grade: number, tcs: boolean, assist: boolean, seconds = 5, log = false): Pull {
   const ground = new Climb(grade);
   const car = new Car(spec);
-  Object.assign(car, { tcs, assist });
+  Object.assign(car, { tcs, assist, stability: assist });
   car.park(0, 0, 0, ground);
   for (let t = 0; t < 1; t += DT) car.step(DT, { steer: 0, throttle: 0, brake: 0, handbrake: 0, analog: false }, ground);
   const v = START_KMH / 3.6;

@@ -33,7 +33,7 @@ export interface Drift {
 export function drift(spec: CarSpec, kmh: number, angle: number, aids: boolean, ideal = false): Drift {
   const idle: Controls = { steer: 0, throttle: 0, brake: 0, handbrake: 0, analog: true };
   const car: Car = new Car(spec);
-  Object.assign(car, { tcs: aids, assist: aids, auto: true });
+  Object.assign(car, { tcs: aids, assist: aids, stability: aids, auto: true });
   car.park(0, 0, 0, flat);
   for (let t = 0; t < 0.5; t += DT) car.step(DT, idle, flat);
   car.parked = false;

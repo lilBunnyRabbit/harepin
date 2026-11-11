@@ -59,6 +59,7 @@ function slide_hold(spec: CarSpec, gain: number, gas: number): number {
   const car = fresh(spec, (c) => {
     c.tcs = false;
     c.assist = false;
+    c.stability = false;
   });
   run(car, 30, () => cruise(car, 60, {}, pad));
   run(car, 2, (t) => ({ ...pad, steer: -1, throttle: 1, handbrake: t < 0.3 ? 1 : 0 }), ROAD, () => Math.abs(slip(car)) >= 17);
@@ -94,7 +95,7 @@ export function bench(spec: CarSpec): Bench {
 
   let skidpad = 0;
   for (const steer of [0.2, 0.35, 0.5, 0.7, 1]) {
-    car = fresh(spec, (c) => (c.assist = false));
+    car = fresh(spec, (c) => Object.assign(c, { assist: false, stability: false }));
     run(car, 20, () => ({ ...pad, throttle: 1 }), ROAD, () => kmh(car) >= 70);
     run(car, 8, () => ({ ...pad, steer, throttle: Math.max(0, Math.min(1, (70 - kmh(car)) * 0.2 + 0.25)) }));
     skidpad = Math.max(skidpad, Math.abs(car.ang.y * car.vel.length()) / 9.81);
@@ -140,7 +141,7 @@ export function bench(spec: CarSpec): Bench {
 
   let grass_g = 0;
   for (const steer of [0.2, 0.35, 0.5, 0.7, 1]) {
-    car = fresh(spec, (c) => (c.assist = false));
+    car = fresh(spec, (c) => Object.assign(c, { assist: false, stability: false }));
     run(car, 20, () => ({ ...pad, throttle: 1 }), GRASS, () => kmh(car) >= 50);
     run(car, 8, () => ({ ...pad, steer, throttle: Math.max(0, Math.min(1, (50 - kmh(car)) * 0.2 + 0.25)) }), GRASS);
     grass_g = Math.max(grass_g, Math.abs(car.ang.y * car.vel.length()) / 9.81);
