@@ -79,7 +79,7 @@ test("frozen lakes lie flat under ice, clear of roads, towns and trees, and repl
     expect(lakes.some((l) => Math.abs(heights[k] - l.level) < 1e-3)).toBe(true);
   }
   expect(ice).toBeGreaterThan(500);
-  for (const tree of data.trees) expect(on_ice(lakes, tree.x, tree.z)).toBe(false);
+  for (const thing of [...data.trees, ...data.items, ...data.ramps]) expect(on_ice(lakes, thing.x, thing.z)).toBe(false);
   for (const town of data.towns) for (const l of lakes) expect(Math.hypot(town.x - l.x, town.z - l.z)).toBeGreaterThan(town.radius + l.radius);
   let bad = 0;
   for (let index = 0; index < CHUNKS * CHUNKS; index++) {

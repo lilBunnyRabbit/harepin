@@ -198,7 +198,7 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   const trails = plan_trails(seed, land, stamp, canyon, towns, solids, recipe.road.canyon?.crossings);
   lap("trails");
 
-  const planner = new JumpPlanner(seed, land, towns, lots.occupied, solids, recipe.road.kickers);
+  const planner = new JumpPlanner(seed, land, towns, lots.occupied, solids, recipe.road.kickers, lakes);
   if (trails.gap) planner.gap(trails.gap);
   planner.keep_off([...trails.trails.flatMap((t) => t.points), ...trails.ramp_out]);
   // Points of the switchback count as gates, so no kicker or chicane lands inside it.
