@@ -233,6 +233,7 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   props.push(...strewn.props);
   solids.push(...strewn.solids);
   stamp.harden(cuts, pan_floor(seed, shape));
+  if (recipe.snow) stamp.snow(recipe.snow, recipe.biomes.limits.beach);
   lap("props");
 
   return { kind, deck: null, terrain: land, ground: { base: { kind: "terrain", seed, shape }, ops: stamp.ops }, graph, towns, lots: lot_list, buildings, props, parking, trees, solids, ramps: jumps.ramps, items: jumps.items, challenges: jumps.challenges, checkpoints, circuit, road, routes, canyon, timings };

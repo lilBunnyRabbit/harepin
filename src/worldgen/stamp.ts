@@ -6,6 +6,7 @@ import type { Bank, TerrainRecipe } from "./recipe";
 import { pad, type Crossing } from "./trails";
 import { town_level } from "./towns";
 import { shape_face } from "./switchback";
+import { snow_vertex, type SnowKit } from "./snow";
 import { soak, water_index, type Water } from "./water";
 import { CELL, ORIGIN, ROAD_HALF, SHOULDER, SurfaceId, type Canyon, type RoadEdge, type RoadPoint, type Terrain, type Town } from "./types";
 
@@ -50,7 +51,8 @@ export type GroundOp =
   | { kind: "pad"; crossing: Crossing }
   | { kind: "trail"; lines: { points: readonly RoadPoint[]; blend: number[] }[] }
   | { kind: "harden"; cuts: BiomeCuts; floor: number | null }
-  | { kind: "water"; water: Water };
+  | { kind: "water"; water: Water }
+  | { kind: "snow"; kit: SnowKit; beach: number };
 
 export type GroundBase = { kind: "terrain"; seed: number; shape: TerrainRecipe } | { kind: "flat"; height: number; road_dist: number };
 
@@ -89,6 +91,7 @@ export class Stamp {
     else if (op.kind === "pad") this.pad(op.crossing);
     else if (op.kind === "trail") this.trail(op.lines.map(({ points, blend }) => ({ points, blend: (i) => blend[i] })));
     else if (op.kind === "water") this.water(op.water);
+    else if (op.kind === "snow") this.snow(op.kit, op.beach);
     else this.harden(op.cuts, op.floor);
   }
 
@@ -123,6 +126,13 @@ export class Stamp {
     const { grid } = this;
     for (let j = grid.j0; j <= grid.j1; j++)
       for (let i = grid.i0; i <= grid.i1; i++) soak(index, heights, surface, at(grid, i, j), ORIGIN + i * CELL, ORIGIN + j * CELL, SurfaceId.WET);
+  }
+
+  snow(kit: SnowKit, beach: number) {
+    this.log({ kind: "snow", kit, beach });
+    const { heights, surface } = this.terrain;
+    const { grid } = this;
+    for (let j = grid.j0; j <= grid.j1; j++) for (let i = grid.i0; i <= grid.i1; i++) snow_vertex(kit, beach, heights, surface, at(grid, i, j));
   }
 
   plateau(town: Town) {

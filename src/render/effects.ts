@@ -3,8 +3,6 @@ import type { Car } from "../car/car";
 import { brand, color, dark, mix, tones } from "../theme/palette";
 import { FOG } from "./sky";
 import type { World } from "../world/world";
-import { KINDS } from "../worldgen/kinds/kinds";
-import { SurfaceId } from "../worldgen/types";
 
 const PUFFS = 420;
 const SMOKE_LIFE = 0.7;
@@ -31,7 +29,7 @@ const SPLASH = 0.05;
 const SPRAY_RATE = 30;
 
 /** What a kind's open ground throws up; firm ground (trails, shoulders) always throws dust. */
-export type GroundPuff = "grass" | "dust";
+export type GroundPuff = "grass" | "dust" | "snow";
 
 export class Smoke {
   readonly mesh: THREE.InstancedMesh;
@@ -44,13 +42,14 @@ export class Smoke {
   private smoke = FOG.clone().lerp(color(dark ? brand.foreground : brand.background_lightest), 0.5);
   private dust = color(mix(brand.warning, brand.background, 0.3));
   private grass = color(mix(brand.success, brand.background, 0.28));
+  private snow = color(tones.snow);
   private spray = color(mix(brand.info, brand.background_lightest, 0.6));
   private readonly ground: THREE.Color;
   private carry: number[] = [];
   private kick = new THREE.Vector3();
 
   constructor(ground: GroundPuff) {
-    this.ground = ground === "grass" ? this.grass : this.dust;
+    this.ground = { grass: this.grass, dust: this.dust, snow: this.snow }[ground];
     const material = new THREE.MeshLambertMaterial({ flatShading: true, transparent: true, opacity: 0.35, depthWrite: false, emissive: this.smoke, emissiveIntensity: dark ? 0.3 : 0 });
     this.mesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), material, PUFFS);
     this.mesh.frustumCulled = false;
@@ -95,7 +94,7 @@ export class Smoke {
         rate = Math.min(1, slide * 1.2) * SMOKE_RATE;
       } else if (!on_road && speed > 4) {
         rate = Math.min(1, speed / 25) * 12 + Math.max(0, slide) * 20;
-        tint = world.footing(w.point.x, w.point.z) === KINDS[world.kind].grip.surfaces[SurfaceId.GRASS] ? this.ground : this.dust;
+        tint = world.footing(w.point.x, w.point.z) === world.own_ground ? this.ground : this.dust;
         size = DUST_SIZE;
         life = DUST_LIFE;
       }

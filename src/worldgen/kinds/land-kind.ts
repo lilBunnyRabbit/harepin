@@ -68,6 +68,7 @@ export function land_kind(base: Recipe, knobs: readonly Knob<Recipe>[], kind: Wo
   return {
     generate: (seed: number, levels: readonly number[], relief = 1) => generate(seed, recipe(levels, relief), kind),
     clamp,
+    tuned: (levels: readonly number[]) => recipe(levels, 1),
     drivable: (data: WorldData, levels: readonly number[]) => drivable(data, recipe(levels, 1)),
   };
 }

@@ -15,11 +15,29 @@ import { CELL, Ground, N, ORIGIN, PropKind, Roof, SURFACE_GROUND, type Building,
 const CHUNK_CELLS = CHUNK / CELL;
 export const JITTER_LEVELS = 64;
 export { Ground };
-const SURFACES = Object.keys(Ground).length;
-const ROCK_HALF = SURFACES;
-const ROCK = 2 * SURFACES;
+// The rows before the snow kit, their half-rock rows, rock and the snow cap keep the LUT places they had before the kit,
+// so older worlds paint the same; the kit's rows and their half-rock rows follow.
+const KIT_FIRST = Ground.SNOW;
+const KIT_ROWS = Object.keys(Ground).length - KIT_FIRST;
+const ROCK = 2 * KIT_FIRST;
 const SNOW = ROCK + 1;
-export const TERRAIN_BASES = SNOW + 1;
+const KIT = SNOW + 1;
+export const TERRAIN_BASES = KIT + 2 * KIT_ROWS;
+
+const base_of = (g: Ground): number => (g < KIT_FIRST ? g : KIT + g - KIT_FIRST);
+const half_of = (g: Ground): number => (g < KIT_FIRST ? KIT_FIRST + g : KIT + KIT_ROWS + g - KIT_FIRST);
+
+/** The LUT's bases in order from each ground row's tone: the rows, each half-way to `rock`, `rock`, `snow`. */
+export function terrain_bases<T>(rows: Record<Ground, T>, half: (tone: T) => T, rock: T, snow: T): T[] {
+  const bases: T[] = new Array(TERRAIN_BASES);
+  for (const g of Object.values(Ground)) {
+    bases[base_of(g)] = rows[g];
+    bases[half_of(g)] = half(rows[g]);
+  }
+  bases[ROCK] = rock;
+  bases[SNOW] = snow;
+  return bases;
+}
 // Deep enough to hide the crack where a half-res chunk edge skips the odd vertices of its full-res neighbour.
 const SKIRT = 6;
 export const SMALL_BUILDING = 6;
@@ -78,11 +96,12 @@ export function paint(colors: Float32Array, k: number, lut: Float32Array, cuts: 
   const x = ORIGIN + i * CELL;
   const z = ORIGIN + j * CELL;
   const { beach, scree, rock, snow_line } = cuts.recipe.limits;
-  let base: number = y < beach ? Ground.SAND : ground_at(cuts, x, z, y);
-  if (ny < scree.up || y > scree.height) base = ny < rock.up || y > rock.height ? ROCK : base + ROCK_HALF;
+  const row = y < beach ? Ground.SAND : ground_at(cuts, x, z, y);
+  let base = base_of(row);
+  if (ny < scree.up || y > scree.height) base = ny < rock.up || y > rock.height ? ROCK : half_of(row);
   if (y > snow_line) base = SNOW;
   const laid = SURFACE_GROUND[surface];
-  if (laid !== null) base = ny < rock.up ? ROCK : laid;
+  if (laid !== null) base = ny < rock.up ? ROCK : base_of(laid);
   const level = Math.min(JITTER_LEVELS - 1, Math.floor((jitter(i, j) + 0.5) * JITTER_LEVELS));
   const tone = (base * JITTER_LEVELS + level) * 3;
   colors[k * 3] = lut[tone];

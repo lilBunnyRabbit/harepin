@@ -10,7 +10,12 @@ export interface OptionDef {
   slider?: boolean;
   /** Shown under the Create-world page's Advanced fold. */
   more?: boolean;
+  /** Came after K2 codes, so never one of their digits: K2 codes and keys keep theirs. */
+  late?: boolean;
 }
+
+/** One of the digits of a K2 code (`42-121111`) and K2 records key. */
+export const in_k2 = (o: OptionDef): boolean => !o.slider && !o.late;
 
 export interface Knob<R> extends OptionDef {
   apply(recipe: R, level: number): R;

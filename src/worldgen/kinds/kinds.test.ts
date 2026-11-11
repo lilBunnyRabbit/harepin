@@ -10,6 +10,7 @@ import { WorldKind, parse_kind, type WorldData } from "../types";
 import { build_world, generate_world, is_plain, KINDS, kind_of_world, map_id, plain_map, world_id, world_key, type MapSpec } from "./kinds";
 import { same_map } from "../../net/net";
 import { map_code } from "./map-code";
+import { in_k2 } from "./options";
 
 /** Road points either side of a crest crossing, 2 m apart, that the pass must hold. */
 const PASS_REACH = 60;
@@ -158,7 +159,7 @@ test("an old build, which matches ids whole, sees a custom map as a foreign map 
 });
 
 test("maps that share a w still meet as different maps by their codes", () => {
-  const options = KINDS.island.options.filter((o) => !o.slider);
+  const options = KINDS.island.options.filter(in_k2);
   let all: number[][] = [[]];
   for (const o of options) all = all.flatMap((levels) => o.labels.map((_, level) => [...levels, level]));
   const maps = all.map((levels) => ({ kind: WorldKind.ISLAND, seed: 42, levels })).filter((map) => !is_plain(map));

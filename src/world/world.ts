@@ -5,7 +5,7 @@ import { extent } from "../worldgen/chunk-grid";
 import { DeckIndex } from "../worldgen/deck";
 import { generate } from "../worldgen/index";
 import type { Footing, GripTable } from "../worldgen/kinds/kind-def";
-import { KINDS, world_key } from "../worldgen/kinds/kinds";
+import { KINDS, snow_of, world_key } from "../worldgen/kinds/kinds";
 import { ramp_reach2, ramp_surface, spawn_blocks, type Surface } from "../worldgen/jumps";
 import { FALL_DEPTH } from "../worldgen/sky";
 import { slice_tiles, TileStore, type Tile } from "../worldgen/tiles";
@@ -153,6 +153,10 @@ export class World implements Ground {
   readonly key: string;
   readonly deck: DeckIndex | null;
   private readonly grips: GripTable;
+  /** Under the snow kit: winter, or a kind always snowy. */
+  readonly snowy: boolean;
+  /** The footing of the kind's own ground, untouched by any laid surface. */
+  readonly own_ground: Footing;
   private readonly fall_reset: boolean;
   private readonly water: WaterIndex | null;
   /** The sea's level on a kind with ground; none on a deck-only kind. */
@@ -220,7 +224,10 @@ export class World implements Ground {
   ) {
     this.kind = data.kind;
     this.key = world_key(seed, data.kind, levels);
-    this.grips = KINDS[data.kind].grip;
+    const snow = snow_of({ kind: data.kind, levels });
+    this.snowy = snow !== null;
+    this.grips = snow?.grip ?? KINDS[data.kind].grip;
+    this.own_ground = this.grips.surfaces[SurfaceId.GRASS];
     this.fall_reset = KINDS[data.kind].fall_reset;
     const water = data.ground.ops.find((op) => op.kind === "water");
     this.water = water?.kind === "water" ? water_index(water.water) : null;

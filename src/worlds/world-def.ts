@@ -4,6 +4,7 @@ import type { MoodDelta } from "../render/lighting";
 import type { World } from "../world/world";
 import type { WorldFacts } from "../worldgen/facts";
 import type { WorldKind } from "../worldgen/types";
+import { tones } from "../theme/palette";
 
 /** The UI half of a world kind: menu copy, map preview text and scene dressing. */
 export interface WorldDef {
@@ -46,4 +47,13 @@ export function lap_facts(f: WorldFacts | null, lap: string): [string, string][]
     [shown(f, (f) => String(f.corners)), "corners"],
     [shown(f, (f) => String(f.jumps)), "jumps"],
   ];
+}
+
+type Look = Pick<WorldDef, "mood" | "ground_puff">;
+
+/** Over any world's own look under the snow kit: a bright bounce off the snow, a low sun, cold air pulling the fog in. */
+const WINTER: Look = { mood: { hemi_ground: tones.snow, sun_y: 0.3, fog_near: 90, fog_far: 1100 }, ground_puff: "snow" };
+
+export function world_look(def: WorldDef, snowy: boolean): Look {
+  return snowy ? { mood: { ...def.mood, ...WINTER.mood }, ground_puff: WINTER.ground_puff } : def;
 }

@@ -1,4 +1,5 @@
 import { ALPINE, DESERT, ISLAND, type Recipe, type RoadRecipe, type TerrainLayer, type TownRecipe } from "../recipe";
+import { SNOW_KIT, type SnowKit } from "../snow";
 import { knob, slider, type Knob } from "./options";
 
 const LEVELS = ["Less", "Normal", "More"] as const;
@@ -24,6 +25,18 @@ const canyon = (on: RoadRecipe["canyon"]) =>
 
 const towns = (values: readonly Pick<TownRecipe, "min" | "max">[]) =>
   knob<Recipe, Pick<TownRecipe, "min" | "max">>({ field: "C", name: "Towns", help: "Towns, their streets and the roads between them.", labels: LEVELS, normal: 1, values, set: (r, count) => ({ ...r, towns: { ...r.towns, ...count } }) });
+
+// Winter keeps the seed's geometry, so its lap lines stay comparable with summer's; its records are its own all the same.
+const season = knob<Recipe, SnowKit | null>({
+  field: "W",
+  name: "Season",
+  help: "Winter lays snow over the land, packs it on the roads and freezes the lakes.",
+  labels: ["Summer", "Winter"],
+  normal: 0,
+  late: true,
+  values: [null, SNOW_KIT],
+  set: (r, snow) => (snow ? { ...r, snow } : r),
+});
 
 const percent = (value: number) => `${(value * 100).toFixed(0)}%`;
 const metres = (value: number) => `${value > 0 ? "+" : ""}${value.toFixed(1)} m`;
@@ -124,6 +137,7 @@ export const ISLAND_KNOBS: readonly Knob<Recipe>[] = [
   ridges,
   water,
   town_size(ISLAND.towns.block.min),
+  season,
 ];
 
 export const DESERT_KNOBS: readonly Knob<Recipe>[] = [
@@ -134,6 +148,7 @@ export const DESERT_KNOBS: readonly Knob<Recipe>[] = [
   dunes,
   rocks,
   town_size(DESERT.towns.block.min),
+  season,
 ];
 
 export const ALPINE_KNOBS: readonly Knob<Recipe>[] = [
@@ -144,4 +159,5 @@ export const ALPINE_KNOBS: readonly Knob<Recipe>[] = [
   trees,
   ridges,
   town_size(ALPINE.towns.block.min),
+  season,
 ];

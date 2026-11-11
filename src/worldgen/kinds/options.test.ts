@@ -3,7 +3,7 @@ import { sky_layout, SKY } from "../sky";
 import { WorldKind } from "../types";
 import { KINDS, world_key } from "./kinds";
 import { clean_map_code, map_code, parse_map_code, pick_problem, PRESETS, read_pick } from "./map-code";
-import { opts_code, parse_opts, tune } from "./options";
+import { in_k2, opts_code, parse_opts, tune } from "./options";
 import { MAX_SEED } from "../../net/seed";
 
 test("the plain map keeps its key and an empty code", () => {
@@ -18,7 +18,7 @@ test("the plain map keeps its key and an empty code", () => {
 
 test("every K2 digit code a kind has reads back to itself", () => {
   for (const kind of Object.values(WorldKind)) {
-    const options = KINDS[kind].options.filter((o) => !o.slider);
+    const options = KINDS[kind].options.filter(in_k2);
     let codes = [""];
     for (const o of options) codes = codes.flatMap((c) => o.labels.map((_, level) => c + level));
     for (const code of codes) expect(parse_opts(options, code)).toEqual(code ? [...code].map(Number) : options.map((o) => o.normal));
@@ -50,7 +50,7 @@ const read = (text: string, kind?: WorldKind) => {
 
 test("map code field letters and preset chars never move", () => {
   const fields = Object.fromEntries(Object.values(WorldKind).map((kind) => [kind, KINDS[kind].options.map((o) => o.field).join("")]));
-  expect(fields).toEqual({ island: "EQYJCXHTGPZ", sky: "EQAVF", desert: "JCXHDKZ", mainland: "", alpine: "YJCHTGZ" });
+  expect(fields).toEqual({ island: "EQYJCXHTGPZW", sky: "EQAVF", desert: "JCXHDKZW", mainland: "", alpine: "YJCHTGZW" });
   expect(PRESETS.map((p) => `${p.char}${p.kind}`)).toEqual(["Cisland", "Ssky", "Ddesert", "Mmainland", "Aalpine"]);
   for (const kind of Object.values(WorldKind)) {
     expect(new Set(fields[kind]).size).toBe(fields[kind].length);
@@ -93,9 +93,9 @@ test("overrides come out sorted, and ones equal to the preset drop out", () => {
 });
 
 test("K2 codes read as the picked kind's plain preset plus their digits", () => {
-  expect(read("42-121111")).toEqual({ kind: WorldKind.ISLAND, seed: 42, levels: [1, 2, 1, 1, 1, 1, 16, 16, 16, 16, 16] });
+  expect(read("42-121111")).toEqual({ kind: WorldKind.ISLAND, seed: 42, levels: [1, 2, 1, 1, 1, 1, 16, 16, 16, 16, 16, 0] });
   expect(read("42", WorldKind.SKY)).toEqual({ kind: WorldKind.SKY, seed: 42, levels: [1, 1, 1, 1, 1] });
-  expect(read("7-201", WorldKind.DESERT)).toEqual({ kind: WorldKind.DESERT, seed: 7, levels: [2, 0, 1, 16, 16, 16, 16] });
+  expect(read("7-201", WorldKind.DESERT)).toEqual({ kind: WorldKind.DESERT, seed: 7, levels: [2, 0, 1, 16, 16, 16, 16, 0] });
   expect(map_code(read("42-121111"))).toBe("1C000001A-Q2");
   expect(map_code(read("42-111111"))).toBe("1C000001A");
   for (const bad of ["42-12111", "42-1211119", "4294967296", "42-", "-42"]) expect(parse_map_code(bad).ok).toBe(false);

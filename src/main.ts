@@ -52,7 +52,8 @@ import { WorldStream } from "./world/world-stream";
 import { AreaFade } from "./hud/area-fade";
 import { start_lobby } from "./modes/lobby-start";
 import { WORLDS } from "./worlds/worlds";
-import { map_id } from "./worldgen/kinds/kinds";
+import { map_id, snow_of } from "./worldgen/kinds/kinds";
+import { world_look } from "./worlds/world-def";
 import { custom_code, pick_problem, read_pick } from "./worldgen/kinds/map-code";
 import { map_note } from "./menu/world-page";
 import { plain_map } from "./worldgen/kinds/kinds";
@@ -80,12 +81,14 @@ const unlock_audio = () => {
 };
 for (const event of UNLOCK_EVENTS) addEventListener(event, unlock_audio);
 // The renderer needs only the world's kind, so it sets up while the worker plans the world.
-const opening = WorldStream.open(pick, map, mesh_tones());
+const snowy = snow_of(map) !== null;
+const look = world_look(WORLDS[kind], snowy);
+const opening = WorldStream.open(pick, map, mesh_tones(snowy));
 const quality = new Quality(params, prefs.quality);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(64, innerWidth / innerHeight, 0.1, 5000);
 
-const light = new Lighting(scene, WORLDS[kind].mood, quality.mobile);
+const light = new Lighting(scene, look.mood, quality.mobile);
 const render = new Render(params, quality, scene, camera, light);
 const app = $("app");
 render.mount(app);
@@ -160,7 +163,7 @@ const pads = new PadTimer();
 const driver = new Driver(scene, light, world, race, pads, chase, build);
 driver.arrive = (x, z) => area_fade.cover(world.tiles.ensure(x, z));
 
-const smoke = new Smoke(WORLDS[world.kind].ground_puff);
+const smoke = new Smoke(look.ground_puff);
 const skids = new Skids();
 scene.add(smoke.mesh, skids.mesh);
 

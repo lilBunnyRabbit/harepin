@@ -15,17 +15,20 @@ export const SHOULDER = 16;
 export const SPUR_GRADE = 0.12;
 /** Road index of the race start grid, counted back from the start line. */
 export const SPAWN_INDEX = -40;
-/** Ground surfaces, each with a LUT row of its own and one half-way to rock. DIRT is firm: trails, and hardpack a recipe lays. */
-export const Ground = { GRASS: 0, DRY: 1, SAND: 2, FOREST: 3, UPLAND: 4, DUNE: 5, DIRT: 6, PAN: 7 } as const;
+/**
+ * Ground surfaces, each with a LUT row of its own and one half-way to rock. DIRT is firm: trails, and hardpack a recipe lays.
+ * SNOW and after are the snow kit's rows.
+ */
+export const Ground = { GRASS: 0, DRY: 1, SAND: 2, FOREST: 3, UPLAND: 4, DUNE: 5, DIRT: 6, PAN: 7, SNOW: 8, PACKED_SNOW: 9, ICE: 10, SLUSH: 11 } as const;
 export type Ground = (typeof Ground)[keyof typeof Ground];
 /**
  * What the wheels drive on, per vertex of the `surface` grid; each id has a grip row in its kind's `GripTable`. GRASS is the
  * kind's own ground (loose sand on the desert), every other id a surface laid over it. Stored in the grid: never renumber.
  */
-export const SurfaceId = { GRASS: 0, DIRT: 1, HARDPACK: 2, SCREE: 3, WET: 4 } as const;
+export const SurfaceId = { GRASS: 0, DIRT: 1, HARDPACK: 2, SCREE: 3, WET: 4, SNOW: 5, PACKED_SNOW: 6, ICE: 7, SLUSH: 8 } as const;
 export type SurfaceId = (typeof SurfaceId)[keyof typeof SurfaceId];
 /** The ground row each laid surface paints, indexed by `SurfaceId`, so colour matches what the wheels feel; null keeps the biome's colour. */
-export const SURFACE_GROUND = [null, Ground.DIRT, Ground.PAN, null, Ground.DIRT] as const satisfies Record<SurfaceId, Ground | null>;
+export const SURFACE_GROUND = [null, Ground.DIRT, Ground.PAN, null, Ground.DIRT, Ground.SNOW, Ground.PACKED_SNOW, Ground.ICE, Ground.SLUSH] as const satisfies Record<SurfaceId, Ground | null>;
 /** Bump whenever `generate` makes a different island for the same seed: peers and saved records are matched on it. */
 export const WORLD_VERSION = 7;
 

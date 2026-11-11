@@ -1,7 +1,7 @@
 import { DEFAULT_KIND, WorldKind } from "../types";
 import { MAX_SEED, parse_seed } from "../../net/seed";
 import { is_plain, KINDS, plain_map, type MapSpec } from "./kinds";
-import { CODE_CHARS as ALPHABET, normal_levels, overrides, parse_opts } from "./options";
+import { CODE_CHARS as ALPHABET, in_k2, normal_levels, overrides, parse_opts } from "./options";
 
 /** `newer`: made in a build that knows more presets, fields or levels; `bad`: not a map code at all. */
 export type MapRead = { ok: true; map: MapSpec } | { ok: false; why: "newer" | "bad" };
@@ -47,10 +47,10 @@ function parse_legacy(text: string, kind: WorldKind): MapRead | null {
   if (!legacy) return null;
   const seed = parse_seed(legacy[1]);
   const { options } = KINDS[kind];
-  const knobs = options.filter((o) => !o.slider);
+  const knobs = options.filter(in_k2);
   const digits = parse_opts(knobs, legacy[2] ?? "");
   if (seed === null || !digits) return { ok: false, why: "bad" };
-  return { ok: true, map: { kind, seed, levels: options.map((o) => (o.slider ? o.normal : digits[knobs.indexOf(o)])) } };
+  return { ok: true, map: { kind, seed, levels: options.map((o) => (in_k2(o) ? digits[knobs.indexOf(o)] : o.normal)) } };
 }
 
 export function parse_map_code(text: string, kind: WorldKind = DEFAULT_KIND): MapRead {

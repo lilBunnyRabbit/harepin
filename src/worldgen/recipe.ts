@@ -1,4 +1,5 @@
 import type { Biome, TreeRule } from "./biomes";
+import type { SnowKit } from "./snow";
 import { Ground, PropKind, SurfaceId, type ItemKind } from "./types";
 
 /** Exact shaping powers: integer powers and nested square roots, never a float exponent, so every engine agrees. */
@@ -240,6 +241,8 @@ export interface Recipe {
   scatter: readonly ScatterRule[];
   /** Lakes and rivers planned on a streamed kind's plan grid; left out = the sea only. */
   water?: WaterRecipe;
+  /** Laid over the finished ground: winter. Left out = no snow but over the snow line. */
+  snow?: SnowKit;
 }
 
 const LIFT: LiftLayer = { kind: "lift", height: 5 };

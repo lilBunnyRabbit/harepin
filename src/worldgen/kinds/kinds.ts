@@ -4,8 +4,9 @@ import { alpine } from "./alpine";
 import { desert } from "./desert";
 import { island } from "./island";
 import type { KindDef } from "./kind-def";
+import type { SnowKit } from "../snow";
 import { mainland } from "./mainland";
-import { normal_levels, overrides } from "./options";
+import { in_k2, normal_levels, overrides } from "./options";
 import { sky } from "./sky";
 
 export const KINDS: Record<WorldKind, KindDef> = { island, sky, desert, mainland, alpine };
@@ -54,9 +55,15 @@ export function kind_of_world(id: number | undefined): WorldKind {
 export function world_key(seed: number, kind: WorldKind = DEFAULT_KIND, levels: readonly number[] = []): string {
   const { options } = KINDS[kind];
   if (is_plain({ kind, levels })) return KINDS[kind].key(seed);
-  const k2 = options.every((o, i) => !o.slider || (levels[i] ?? o.normal) === o.normal);
-  const suffix = k2 ? options.filter((o) => !o.slider).map((o) => String(levels[options.indexOf(o)] ?? o.normal)).join("") : overrides(options, levels);
+  const k2 = options.every((o, i) => in_k2(o) || (levels[i] ?? o.normal) === o.normal);
+  const suffix = k2 ? options.filter(in_k2).map((o) => String(levels[options.indexOf(o)] ?? o.normal)).join("") : overrides(options, levels);
   return KINDS[kind].key(seed, suffix);
+}
+
+/** The snow kit a map lays, from its tuned recipe: winter, or a kind that is always snowy; null in summer. */
+export function snow_of({ kind, levels }: Pick<MapSpec, "kind" | "levels">): SnowKit | null {
+  const def = KINDS[kind];
+  return (def.tuned?.(levels) ?? def.recipe)?.snow ?? null;
 }
 
 /** Softer builds a custom map gets before it gives up, each with the relief at RELIEF_STEP of the last. */

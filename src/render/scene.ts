@@ -6,7 +6,7 @@ import { color, lighten, linear, mix, tones } from "../theme/palette";
 import { World, type RoadPoint, type Tree } from "../world/world";
 import { CHUNK } from "../worldgen/chunk-grid";
 import { fog_reach } from "./lighting";
-import { Ground, JITTER_LEVELS, type ChunkBuffers, type MeshTones } from "../worldgen/chunks";
+import { Ground, JITTER_LEVELS, terrain_bases, type ChunkBuffers, type MeshTones } from "../worldgen/chunks";
 import { TreeKind } from "../worldgen/biomes";
 import type { Lab } from "../theme/theme";
 
@@ -15,9 +15,18 @@ const STONE_SHADE = 0.06;
 /** Dry pans read as pale clay against the dunes: sand warmed by dirt, never rock, which reads cool grey under the noon sun. */
 const PAN_CLAY = 0.3;
 const PAN_LIGHTEN = 0.12;
+/** Snow kit rows: packed snow greys toward rock where wheels compact it, ice takes the water's blue, slush the mud under it. */
+const PACKED_GREY = 0.3;
+const ICE_BLUE = 0.55;
+const SLUSH_MUD = 0.35;
 // Scrub is a broadleaf crown squashed to a bush and sunk to the ground, so it costs no draw of its own.
 const SCRUB_SQUASH = 0.35;
 const SCRUB_SINK = 0.5;
+// Pines hold the most snow on their tiers, broadleaf crowns the least; scrub sits half buried.
+const SNOWY_CROWNS: Record<TreeKind, number> = { [TreeKind.PINE]: 0.55, [TreeKind.BROADLEAF]: 0.35, [TreeKind.SCRUB]: 0.6 };
+const BARE_CROWNS: Record<TreeKind, number> = { [TreeKind.PINE]: 0, [TreeKind.BROADLEAF]: 0, [TreeKind.SCRUB]: 0 };
+/** Packed snow over a winter road's asphalt. */
+const ROAD_SNOW = 0.35;
 const LANE_WIDTH = 3;
 const FAR = 600;
 const MOBILE_FAR = 200;
@@ -38,9 +47,12 @@ function terrain_lut(): Float32Array {
     [Ground.DUNE]: mix(tones.sand, tones.grass_dry, 0.5),
     [Ground.DIRT]: tones.dirt,
     [Ground.PAN]: lighten(mix(tones.sand, tones.dirt, PAN_CLAY), PAN_LIGHTEN),
+    [Ground.SNOW]: tones.snow,
+    [Ground.PACKED_SNOW]: mix(tones.snow, tones.rock, PACKED_GREY),
+    [Ground.ICE]: mix(tones.snow, tones.water, ICE_BLUE),
+    [Ground.SLUSH]: mix(tones.snow, tones.dirt, SLUSH_MUD),
   };
-  const surfaces = Object.values(Ground).map((g) => surface[g]);
-  const bases = [...surfaces, ...surfaces.map((t) => mix(tones.rock, t, 0.5)), tones.rock, tones.snow];
+  const bases = terrain_bases(surface, (t) => mix(tones.rock, t, 0.5), tones.rock, tones.snow);
   const lut = new Float32Array(bases.length * JITTER_LEVELS * 3);
   bases.forEach((tone, b) => {
     for (let l = 0; l < JITTER_LEVELS; l++)
@@ -49,10 +61,10 @@ function terrain_lut(): Float32Array {
   return lut;
 }
 
-export function mesh_tones(): MeshTones {
+export function mesh_tones(snowy = false): MeshTones {
   return {
     terrain: terrain_lut(),
-    asphalt: linear(tones.asphalt),
+    asphalt: linear(snowy ? mix(tones.asphalt, tones.snow, ROAD_SNOW) : tones.asphalt),
     water: linear(tones.water),
     sidewalk: linear(tones.sidewalk),
     line: linear(tones.line),
@@ -90,7 +102,7 @@ export class WorldView {
   private readonly road = [-2, -4].map((offset) => new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, polygonOffset: true, polygonOffsetFactor: offset, polygonOffsetUnits: offset, side: THREE.DoubleSide }));
   // The sea plane's look, so a river meets the sea in one tone.
   private readonly water = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, transparent: true, opacity: 0.9 });
-  private readonly tree_kit = tree_kit();
+  private readonly tree_kit: TreeKit;
   private readonly tree_lists: Map<number, Tree[]>;
   private readonly tree_order: Map<Tree, number>;
   private readonly town_kit: TownChunks;
@@ -101,6 +113,7 @@ export class WorldView {
 
   constructor(world: World, private readonly mobile: boolean) {
     this.streamed = world.tiles.streamed;
+    this.tree_kit = tree_kit(world.snowy);
     this.tree_lists = by_chunk(world.trees, world.tiles.ext);
     this.tree_order = new Map(world.trees.map((tree, i) => [tree, i]));
     this.town_kit = new TownChunks(world);
@@ -201,10 +214,13 @@ interface TreeKit {
   crowns: THREE.BufferGeometry[];
   bark: THREE.Material;
   leaf: THREE.Material;
+  /** Share of snow mixed into each tree kind's crown. */
+  snow: Record<TreeKind, number>;
 }
 
-function tree_kit(): TreeKit {
+function tree_kit(snowy: boolean): TreeKit {
   return {
+    snow: snowy ? SNOWY_CROWNS : BARE_CROWNS,
     trunk: new THREE.CylinderGeometry(0.25, 0.35, 2.2, 5).translate(0, 1.1, 0),
     crowns: [new THREE.ConeGeometry(2.1, 6, 6).translate(0, 4.6, 0), new THREE.IcosahedronGeometry(2.4, 0).translate(0, 4.2, 0)],
     bark: new THREE.MeshLambertMaterial({ color: color(tones.trunk), flatShading: true }),
@@ -214,7 +230,7 @@ function tree_kit(): TreeKit {
 
 const crown_of = (kind: number) => (kind === TreeKind.SCRUB ? TreeKind.BROADLEAF : kind);
 
-function tree_meshes({ trunk, crowns, bark, leaf }: TreeKit, here: readonly Tree[], order: Map<Tree, number> | null): THREE.InstancedMesh[] {
+function tree_meshes({ trunk, crowns, bark, leaf, snow }: TreeKit, here: readonly Tree[], order: Map<Tree, number> | null): THREE.InstancedMesh[] {
   if (!here.length) return [];
   const m = new THREE.Matrix4();
   const q = new THREE.Quaternion();
@@ -238,7 +254,8 @@ function tree_meshes({ trunk, crowns, bark, leaf }: TreeKit, here: readonly Tree
     const crown = kinds[crown_of(tree.kind)];
     const slot = filled[crown_of(tree.kind)]++;
     crown.setMatrixAt(slot, m);
-    const [r, g, b] = linear(scrub ? mix(tones.leaf, tones.grass_dry, 0.45 + shade * 0.5) : mix(tones.leaf, tones.leaf_dark, 0.5 + shade * 1.6));
+    const leafy = scrub ? mix(tones.leaf, tones.grass_dry, 0.45 + shade * 0.5) : mix(tones.leaf, tones.leaf_dark, 0.5 + shade * 1.6);
+    const [r, g, b] = linear(mix(leafy, tones.snow, snow[tree.kind as TreeKind]));
     crown.setColorAt(slot, tint.setRGB(r, g, b));
   });
   trunks.count = trunk_count;
