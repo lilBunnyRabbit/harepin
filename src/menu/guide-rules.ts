@@ -51,6 +51,21 @@ export function rolled_name(taken: readonly string[]): string {
 
 const ADJECTIVES = ["Swift", "Fuzzy", "Lucky", "Bouncy", "Sly", "Brave", "Zippy", "Mellow"];
 
+const ROLLED_NAME_KEY = "harepin:rolled-name";
+
+/** The name a player who never typed one goes by: rolled once and kept, so a reload or the guide never renames them. */
+export function kept_random_name(): string {
+  try {
+    const kept = localStorage.getItem(ROLLED_NAME_KEY);
+    if (kept) return kept;
+    const rolled = random_name();
+    localStorage.setItem(ROLLED_NAME_KEY, rolled);
+    return rolled;
+  } catch {
+    return random_name();
+  }
+}
+
 export function random_name(not = "", pick = Math.random): string {
   const choices = ADJECTIVES.map((word) => `${word} Bunny`).filter((name) => name !== not);
   return choices[Math.floor(pick() * choices.length)];

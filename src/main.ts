@@ -26,7 +26,7 @@ import { ToastQueue } from "./goals/toast-queue";
 import { race_choices } from "./modes/races";
 import { ChunkTrackside, gates, type Gate } from "./car/trackside";
 import { GUIDE_PARAM, ROLLED_VISIT } from "./menu/guide";
-import { random_name as make_random_name } from "./menu/guide-rules";
+import { kept_random_name } from "./menu/guide-rules";
 import { PadMenu } from "./menu/pad-menu";
 import { Net, WRONG_PASSWORD } from "./net/net";
 import { peer_pass, type Near } from "./car/nitro";
@@ -66,7 +66,7 @@ pin_pick(params, saved_pick, pick);
 const map = read_pick(pick);
 const { seed, kind } = map;
 const prefs = load_settings(params);
-const random_name = make_random_name();
+const random_name = kept_random_name();
 
 show_version($("loading"));
 const audio = new Audio();
