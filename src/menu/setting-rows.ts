@@ -201,6 +201,8 @@ export class Rows {
       row.addEventListener("click", accept);
       row.addEventListener("keydown", (event) => {
         if (event.key !== "Enter" && event.key !== " ") return;
+        // An inner button (a saved map's delete) answers its own Enter; the row's accept is for the row itself.
+        if (event.target !== row && event.target instanceof HTMLButtonElement) return;
         event.preventDefault();
         accept();
       });

@@ -53,7 +53,9 @@ import { AreaFade } from "./hud/area-fade";
 import { start_lobby } from "./modes/lobby-start";
 import { WORLDS } from "./worlds/worlds";
 import { map_id } from "./worldgen/kinds/kinds";
-import { custom_code, read_pick } from "./worldgen/kinds/map-code";
+import { custom_code, pick_problem, read_pick } from "./worldgen/kinds/map-code";
+import { map_note } from "./menu/world-page";
+import { plain_map } from "./worldgen/kinds/kinds";
 import "./style.css";
 
 const params = new URLSearchParams(location.search);
@@ -62,8 +64,7 @@ const saved_pick = read_saved_pick();
 const pick = pick_world(params, room, saved_pick);
 pin_pick(params, saved_pick, pick);
 const map = read_pick(pick);
-const { seed, kind, levels } = map;
-const code = custom_code(map);
+const { seed, kind } = map;
 const prefs = load_settings(params);
 const random_name = make_random_name();
 
@@ -92,6 +93,11 @@ render.apply_quality();
 const area_fade = new AreaFade(app);
 const stream = await opening;
 const world = stream.world;
+// A custom map with no drivable build stands in as its seed's plain map everywhere: peers, records and the menu.
+const built = stream.fallback ? plain_map(kind, seed) : map;
+const { levels } = built;
+const code = custom_code(built);
+const note = map_note(pick_problem(pick), stream.fallback);
 // `?debug&at=<road index>` starts the car anywhere on the circuit, for checking a stretch of track by eye.
 const start_index = (params.has("debug") && Number(params.get("at"))) || SPAWN_INDEX;
 const start_point = world.road[world.clear_spawn(start_index)];
@@ -129,12 +135,12 @@ if (world.tiles.streamed) {
 }
 
 const lock = load_lock(room);
-const net = new Net(room, seed, prefs.name ?? random_name, lock, map_id(map), BUILD.version, undefined, code);
+const net = new Net(room, seed, prefs.name ?? random_name, lock, map_id(built), BUILD.version, undefined, code);
 const country = own_country();
 net.set_country(prefs.show_country ? country : null);
 const directory = new Directory(
   () => ({
-    room, seed, host: net.name, players: 1 + net.remotes.size, locked: lock !== null, version: BUILD.version, world: map_id(map),
+    room, seed, host: net.name, players: 1 + net.remotes.size, locked: lock !== null, version: BUILD.version, world: map_id(built),
     ...(code ? { map: code } : {}),
     ...(lobby.busy ? { racing: true } : {}),
     roster: net.roster(lobby.busy),
@@ -177,6 +183,7 @@ const lobby = new Lobby(net, lobby_routes(world.routes), world.key);
 lobby.start();
 const hud = new Hud(world, race, net, room, lobby);
 const goal_toasts = new ToastQueue((text) => hud.toast(text), () => $("toast").dataset.shown !== undefined);
+if (note) goal_toasts.push(note);
 goals.on_done = (goal) => goal_toasts.push(`Goal done: ${goal.title}`);
 const ghost = new Ghost(scene, world.seed, `harepin:ghost:${world.key}`, world.routes.find((r) => r.id === "circuit")?.length);
 race.on_lap = (improved, first) => {
@@ -225,6 +232,7 @@ const settings = new Settings(document.body, {
   kind,
   levels,
   code,
+  map_note: note,
   goals,
   name: () => net.name,
   quality_status: () => ({ tier: quality.tier_name, ratio: quality.ratio, bloom: quality.tier.bloom, shadow_size: quality.tier.shadow_size }),

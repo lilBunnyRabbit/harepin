@@ -333,6 +333,11 @@
   color: var(--set-dim);
 }
 
+.map-hint[data-error] {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
 .map-actions {
   grid-area: actions;
   display: grid;
@@ -490,7 +495,7 @@
   }
 
   .map-world-text small,
-  .map-hint {
+  .map-hint:not([data-error]) {
     display: none;
   }
 

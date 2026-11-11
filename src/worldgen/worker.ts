@@ -1,7 +1,7 @@
 import type { Planted } from "./biomes";
 import { chunk_corner, CHUNK, extent, type Extent } from "./chunk-grid";
 import { chunk_meshes, chunk_transfers, type ChunkBuffers, type MeshTones } from "./chunks";
-import { generate_world, KINDS } from "./kinds/kinds";
+import { build_world, KINDS } from "./kinds/kinds";
 import { read_pick } from "./kinds/map-code";
 import { TileMesher } from "./tile-mesher";
 import { slice_tile, tile_transfers, type Tile } from "./tiles";
@@ -36,7 +36,7 @@ export type WorkerRequest = GenRequest | TonesRequest | FocusRequest | ChunkRequ
 
 export type WorkerReply =
   /** Everything but the terrain grids, which arrive tile by tile. */
-  | { type: "plan"; data: WorldData }
+  | { type: "plan"; data: WorldData; fallback: boolean }
   /** `planted`: a streamed chunk's own trees and their solids; a compact world's come with its plan. */
   | { type: "chunk"; index: number; tile: Tile; chunk: ChunkBuffers | null; planted: Planted | null }
   /** Generation or meshing threw: before the plan the load fails, after it every wait on a missing chunk does. */
@@ -71,14 +71,14 @@ function fail(error: unknown) {
 
 function open(request: GenRequest) {
   const { seed, kind, levels } = read_pick(request);
-  const data = generate_world(seed, kind, levels);
+  const { data, fallback } = build_world(seed, kind, levels);
   const spawn = data.road.at(SPAWN_INDEX) ?? data.road[0];
   if (spawn) focus = [spawn.x, spawn.z];
   // The sim reads water depth from the plan's water op; every other op only rebuilds tiles, which stay in this worker.
   const empty = { heights: new Float32Array(0), road_dist: new Float32Array(0), surface: new Uint8Array(0) };
   // A streamed world's trees and solids come with the chunk they stand in, so physics only holds what is built.
   const kept = data.terrain.heights.length ? {} : { trees: [], solids: [] };
-  postMessage({ type: "plan", data: { ...data, ...kept, terrain: { ...data.terrain, ...empty }, ground: { ...data.ground, ops: data.ground.ops.filter((op) => op.kind === "water") } } } satisfies WorkerReply);
+  postMessage({ type: "plan", fallback, data: { ...data, ...kept, terrain: { ...data.terrain, ...empty }, ground: { ...data.ground, ops: data.ground.ops.filter((op) => op.kind === "water") } } } satisfies WorkerReply);
   plan = { data, kind };
   mesh();
 }

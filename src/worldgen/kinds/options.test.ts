@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { sky_layout, SKY } from "../sky";
 import { WorldKind } from "../types";
 import { KINDS, world_key } from "./kinds";
-import { map_code, parse_map_code, PRESETS } from "./map-code";
+import { clean_map_code, map_code, parse_map_code, pick_problem, PRESETS, read_pick } from "./map-code";
 import { opts_code, parse_opts, tune } from "./options";
 import { MAX_SEED } from "../../net/seed";
 
@@ -105,4 +105,22 @@ test("a code this build can't build says newer, never builds another map", () =>
   for (const newer of ["2C000001A", "1Z000001A", "1C000001A-R3", "1C000001A-E3", "1D000001A-E2", "1M000001A-E2"]) expect(parse_map_code(newer)).toEqual({ ok: false, why: "newer" });
   for (const bad of ["", "1C00001A", "1C000001A-E", "1C000001A-E2E0", "1C00U001A", "1C000001!", "1CZZZZZZZ", "x".repeat(65)])
     expect(parse_map_code(bad)).toEqual({ ok: false, why: "bad" });
+});
+
+test("a link's code that can't be read is named as newer or bad, and the plain map it falls to is its own seed's", () => {
+  const pick = (code: string | null) => ({ seed: 9, kind: WorldKind.SKY, code });
+  expect(pick_problem(pick("1Z000001A"))).toBe("newer");
+  expect(pick_problem(pick("1C000001A-R3"))).toBe("newer");
+  expect(pick_problem(pick("hello"))).toBe("bad");
+  expect(pick_problem(pick(null))).toBeNull();
+  expect(pick_problem(pick("1C000001A-E2"))).toBeNull();
+  expect(read_pick(pick("1Z000001A"))).toEqual({ kind: WorldKind.SKY, seed: 9, levels: [1, 1, 1, 1, 1] });
+});
+
+test("codes past the relief budget read as their clamped map, so one world has one code", () => {
+  const over = read("1C000001A-GZHZ");
+  expect(map_code(over)).toBe("1C000001A-HZ");
+  expect(map_code(read("1C000001A-HZ"))).toBe("1C000001A-HZ");
+  expect(clean_map_code("1C000001A-GZHZ")).toBeNull();
+  expect(clean_map_code("1C000001A-HZ")).toBe("1C000001A-HZ");
 });

@@ -243,3 +243,18 @@ test("a custom map builds the same world every time, and a plain map passes the 
   const plain = generate_world(0, WorldKind.ISLAND);
   expect(KINDS.island.drivable?.(plain, KINDS.island.options.map((o) => o.normal))).toBe(true);
 }, 60_000);
+
+test("a custom map with no drivable build says so and stands in as its own seed's plain map", () => {
+  const island = KINDS.island;
+  const check = island.drivable;
+  island.drivable = () => false;
+  try {
+    const built = build_world(4, WorldKind.ISLAND, island.options.map((o) => (o.field === "E" ? 2 : o.normal)));
+    expect(built.fallback).toBe(true);
+    expect(built.retries).toBe(4);
+    expect(built.data.road).toEqual(generate_world(4, WorldKind.ISLAND).road);
+    expect(build_world(4, WorldKind.ISLAND).fallback).toBe(false);
+  } finally {
+    island.drivable = check;
+  }
+}, 60_000);

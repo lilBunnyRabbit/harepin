@@ -36,6 +36,8 @@ export interface SettingsHost {
   readonly levels: readonly number[];
   /** This map's code when it is a custom one; null for the plain map. */
   readonly code: string | null;
+  /** Why this load is not on the map it was sent to: a code it can't read, or settings with no drivable build. */
+  readonly map_note: string | null;
   readonly goals: Goals;
   name(): string;
   quality_status(): QualityStatus;

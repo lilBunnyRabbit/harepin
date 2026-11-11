@@ -47,6 +47,8 @@ export interface MapTown {
 
 /** World (x, z) lands on raster pixel (x + size / 2, z + size / 2) / size * (MAP_SIDE - 1). */
 export interface MapData {
+  /** The settings built nothing drivable, so this is the seed's plain map; absent otherwise. */
+  fallback?: boolean;
   seed: number;
   kind: WorldKind;
   size: number;

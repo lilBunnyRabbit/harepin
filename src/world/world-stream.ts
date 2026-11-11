@@ -40,6 +40,8 @@ export class WorldStream {
   private constructor(
     private readonly worker: WorldWorker,
     readonly world: World,
+    /** The picked custom map built nothing drivable, so `world` is its seed's plain map. */
+    readonly fallback = false,
   ) {
     const { side } = world.tiles.ext;
     this.pending = new Uint16Array(side * side).fill(world.tiles.streamed ? 0 : 1);
@@ -66,7 +68,7 @@ export class WorldStream {
         if (event.type === "error") return fail(new Error(`world worker: ${event.message}`));
         const { reply } = event;
         if (reply.type === "plan") {
-          stream = new WorldStream(worker, new World(map.seed, reply.data, [], map.levels));
+          stream = new WorldStream(worker, new World(map.seed, reply.data, [], reply.fallback ? [] : map.levels), reply.fallback);
           resolve(stream);
         } else if (reply.type === "error") fail(new Error(`world worker: ${reply.message}`));
         else stream?.receive(reply);

@@ -14,6 +14,15 @@ import { GoalId } from "../goals/goals";
 const PLAYERS_MS = 250;
 const NEWER = "Made in a newer Harepin: update to drive it";
 const BAD = "Not a map code";
+const FALLBACK = "These settings can't build a drivable world; showing the plain map";
+const HINT = "Got a code from a friend? Type it in.";
+
+/** What a load tells the player when it is not on the map it was sent to; null when it is. */
+export function map_note(problem: "newer" | "bad" | null, fallback: boolean): string | null {
+  if (problem === "newer") return "This map was made in a newer Harepin: update to drive it";
+  if (problem === "bad") return "That link's map is not a map code; showing the room's map";
+  return fallback ? FALLBACK : null;
+}
 
 export class WorldPage implements MenuPage {
   readonly id = "world";
@@ -138,7 +147,15 @@ export class WorldPage implements MenuPage {
     boost.style.setProperty("--swatch", "oklch(from var(--accent) calc(l + 0.14) c h)");
     legend.append(boost);
 
+    const set_hint = (text: string, error: boolean) => {
+      hint.textContent = text;
+      hint.toggleAttribute("data-error", error);
+    };
     const show_facts = (map: MapData | null) => {
+      if (map?.fallback) {
+        title.textContent = `${WORLDS[this.chosen.kind].name} · ${map_code(plain_map(this.chosen.kind, this.chosen.seed))}`;
+        set_hint(FALLBACK, true);
+      }
       facts.replaceChildren(
         ...WORLDS[this.chosen.kind].facts(map ? map.facts : null).map(([value, label]) => {
           const item = el("div");
@@ -250,7 +267,7 @@ export class WorldPage implements MenuPage {
       title.textContent = `${WORLDS[kind].name} · ${code}`;
       if (document.activeElement !== field) field.value = code;
       field.setCustomValidity("");
-      hint.textContent = "Got a code from a friend? Type it in.";
+      set_hint(HINT, false);
       for (const [k, button] of world_buttons) button.setAttribute("aria-checked", String(k === kind));
       boost.hidden = !WORLDS[kind].pads;
       show_rows();
@@ -263,7 +280,7 @@ export class WorldPage implements MenuPage {
       if (read.ok) return choose(read.map, false);
       const message = read.why === "newer" ? NEWER : BAD;
       field.setCustomValidity(message);
-      hint.textContent = message;
+      set_hint(message, true);
       drive.disabled = true;
     });
     field.addEventListener("blur", () => {
@@ -274,6 +291,7 @@ export class WorldPage implements MenuPage {
     });
     dice.addEventListener("click", () => choose({ ...this.chosen, seed: random_seed() }, true));
     choose(this.chosen, false);
+    if (host.map_note) set_hint(host.map_note, true);
     show_saved();
 
     const picks = el("div", "map-picks");

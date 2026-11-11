@@ -77,7 +77,7 @@ export function parse_map_code(text: string, kind: WorldKind = DEFAULT_KIND): Ma
     if (at < 0 || level >= options[at].labels.length) return { ok: false, why: "newer" };
     levels[at] = level;
   }
-  return { ok: true, map: { kind: preset.kind, seed, levels } };
+  return { ok: true, map: { kind: preset.kind, seed, levels: KINDS[preset.kind].clamp?.(levels) ?? levels } };
 }
 
 /** A peer's or a URL's code: kept only as the canonical code of a map off its preset, which is the only kind sent. */
@@ -90,8 +90,16 @@ export function clean_map_code(raw: unknown): string | null {
 /** The code a link or a hello carries: only a custom map's, so plain maps keep their old links and hellos. */
 export const custom_code = (map: MapSpec): string | null => (is_plain(map) ? null : map_code(map));
 
+type Pick = { seed: number; kind: WorldKind; code: string | null };
+
 /** The map a pick drives: its code when it reads, else the plain map of its seed and kind. */
-export function read_pick(pick: { seed: number; kind: WorldKind; code: string | null }): MapSpec {
+export function read_pick(pick: Pick): MapSpec {
   const read = pick.code === null ? null : parse_map_code(pick.code, pick.kind);
   return read?.ok ? read.map : plain_map(pick.kind, pick.seed);
+}
+
+/** Why a pick's code was not driven, so the player is told instead of landing on another map unawares; null when it read. */
+export function pick_problem(pick: Pick): "newer" | "bad" | null {
+  const read = pick.code === null ? null : parse_map_code(pick.code, pick.kind);
+  return read && !read.ok ? read.why : null;
 }
