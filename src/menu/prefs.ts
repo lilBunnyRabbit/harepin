@@ -167,7 +167,7 @@ const FIELDS: { [K in SettingKey]: Field<SettingsState[K]> } = {
   camera: one_of(Object.values(CameraView), CameraView.CHASE),
   camera_return: one_of(Object.values(CameraReturn), CameraReturn.SHORT),
   speed_zoom: one_of(Object.values(SpeedZoom), SpeedZoom.SUBTLE),
-  camera_tilt: flag(true),
+  camera_tilt: flag(false),
   invert_y: flag(false),
   ghost: flag(true),
   volume: { fallback: 0.8, parse: (raw) => (typeof raw === "number" && Number.isFinite(raw) ? Math.min(1, Math.max(0, raw)) : 0.8) },

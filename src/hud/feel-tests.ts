@@ -19,7 +19,7 @@ const BALANCED = { tcs: true, abs: true, assist: false, stability: true, auto: t
 const NO_AIDS = { tcs: false, abs: false, assist: false, stability: false, auto: true };
 const ALL_AIDS = { tcs: true, abs: true, assist: true, stability: true, auto: true };
 const SMOOTH = { steer_mode: SteerMode.SMOOTH, touch_steer: TouchSteer.DRAG, steer_sensitivity: SteerSensitivity.MEDIUM };
-const CAMERA = { speed_zoom: SpeedZoom.SUBTLE, camera_tilt: true };
+const CAMERA = { speed_zoom: SpeedZoom.SUBTLE, camera_tilt: false };
 
 export const FEEL_TESTS: readonly FeelTest[] = [
   {
