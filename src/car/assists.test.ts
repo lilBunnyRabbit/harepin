@@ -86,6 +86,7 @@ describe("steering assist and stability", () => {
     expect(over.peak).toBeGreaterThan(25);
     expect(over.body).toBeLessThan(85);
     expect(over.spun).toBe(false);
+    if (counter === Counter.RELEASE) expect(over.catch).toBeLessThan(2);
     expect(over.flip).toBeLessThan(counter === Counter.HOLD ? 35 : 5);
   };
 

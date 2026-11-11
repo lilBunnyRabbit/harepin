@@ -923,7 +923,7 @@ export class Car {
       body.torque.y -= ang.y * spec.inertia[1] * Math.min(1, excess * 6) * 3.5 * spec.assist_yaw * damp;
     }
     // In the air there is no slip angle to hold; damped there it cancelled the yaw a slide carries over a jump.
-    if (!this.assist && this.hold_side !== 0 && this.tcs && spec.drive === "rwd" && speed > 1 && this.wheels.some((w) => w.contact)) {
+    if (!this.assist && this.hold_side !== 0 && this.tcs && spec.drive === "rwd" && speed > 1 && !airborne) {
       // Yaw against the velocity's own turn rate is the slip angle changing; damping that, not yaw, leaves the arc alone.
       const swing = ang.y - tmp.crossVectors(vel, body.force).y / (spec.mass * speed * speed);
       const [damp_from, damp_to] = DRIFT_DAMP_SLIP;
