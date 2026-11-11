@@ -1,11 +1,13 @@
 import { Vector3 } from "three";
 import { CARS, car_spec, type CarSpec } from "../src/car/cars";
 import { Car, drop_height, type Controls, type Ground } from "../src/car/car";
+import { GROUNDS, ground_arg } from "./grounds";
 
 const DT = 1 / 360;
 const surface = (grip: number, roll: number): Ground => ({ height: () => 0, normal: (_x, _z, out) => out.set(0, 1, 0), grip: () => grip, roll: () => roll });
-const ROAD = surface(1, 1);
-const GRASS = surface(0.72, 12);
+// --ground <name> (scripts/grounds.ts) runs the road columns on that surface instead.
+const ROAD = ground_arg(surface(1, 1));
+const GRASS = GROUNDS.grass;
 const pad: Controls = { steer: 0, throttle: 0, brake: 0, handbrake: 0, analog: true };
 const keys: Controls = { ...pad, analog: false };
 const tmp = new Vector3();
@@ -151,7 +153,8 @@ export function bench(spec: CarSpec): Bench {
 }
 
 if (import.meta.main) {
-  const ids = process.argv[2] ? [process.argv[2]] : Object.keys(CARS);
+  const named = process.argv.slice(2).find((a, i, all) => !a.startsWith("-") && all[i - 1] !== "--ground");
+  const ids = named ? [named] : Object.keys(CARS);
   console.log("| car | 0-100 s | top km/h | 100-0 m | dive ° | skidpad g | turn-in ms | roll ° | lift-off ° | power-on ° | flick slip ° | slide hold s | grass km/h @12 s | grass g |");
   console.log("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|");
   for (const id of ids) {

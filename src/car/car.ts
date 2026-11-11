@@ -10,6 +10,8 @@ export interface Ground {
   normal(x: number, z: number, out: Vector3, y?: number): Vector3;
   grip(x: number, z: number): number;
   roll(x: number, z: number): number;
+  /** How loose the surface is, 0 sealed road .. 1 sand: it widens the tyre curve and softens its fall past the peak. A ground without loose surfaces leaves it out. */
+  loose?(x: number, z: number): number;
   /** On a dirt trail; a ground without trails leaves it out. */
   dirt?(x: number, z: number): boolean;
 }
@@ -108,6 +110,38 @@ const MF_B = Math.tan(Math.PI / (2 * MF_C));
 // SLIDE_S the patch slides outright at SLIDE_GRIP.
 const SLIDE_GRIP = 0.76;
 const SLIDE_S = Math.tan((Math.PI - Math.asin(SLIDE_GRIP)) / MF_C) / MF_B;
+// Loose ground: the share of its peak a road tyre (`offroad` 0) keeps sliding on fully loose ground. Gravel and grass
+// roll under the tread rather than tearing it, so a slide keeps most of the grip and stays catchable.
+const LOOSE_SLIDE = 0.86;
+/** Sliding share `offroad` 1 adds on loose ground: knobbly tread digs in; slicks (below 0) lose it. */
+const LOOSE_BITE = 0.09;
+
+// Module scratch rather than a returned object: the step runs at 360 Hz per wheel and must not allocate.
+let curve_c = MF_C;
+let curve_b = MF_B;
+let curve_s = SLIDE_S;
+let curve_spread = 1;
+
+function shape(loose: number, offroad: number) {
+  if (loose <= 0) {
+    curve_c = MF_C;
+    curve_b = MF_B;
+    curve_s = SLIDE_S;
+    curve_spread = 1;
+    return;
+  }
+  const slide = LOOSE_SLIDE + LOOSE_BITE * Math.max(-1, Math.min(1, offroad));
+  // With this C the magic formula falls from its peak towards `slide` and never under it.
+  const c = (2 * (Math.PI - Math.asin(slide))) / Math.PI;
+  // The peak moves out to keep asphalt's cornering stiffness: softer, a 120 km/h keyboard lane change on dirt took a
+  // second longer to settle; stiffer, the peak sat at asphalt's slip and nothing felt broader.
+  const spread = (c * Math.tan(Math.PI / (2 * c))) / (MF_C * MF_B);
+  curve_c = MF_C + (c - MF_C) * loose;
+  curve_b = Math.tan(Math.PI / (2 * curve_c));
+  const floor = SLIDE_GRIP + (slide - SLIDE_GRIP) * loose;
+  curve_s = floor > Math.sin((curve_c * Math.PI) / 2) + 1e-6 ? Math.tan((Math.PI - Math.asin(floor)) / curve_c) / curve_b : Infinity;
+  curve_spread = 1 + (spread - 1) * loose;
+}
 
 /** Suspension reach with the car parked on flat ground, for views that have no sim behind them. */
 export function rest_reach(spec: CarSpec): number {
@@ -178,6 +212,17 @@ function curve_at(curve: readonly (readonly [number, number])[], x: number): num
 }
 
 /**
+ * Share of `spec.mu` a tyre grips with on ground of row grip `surface`, `dirt` on a trail. The loss `offroad` shrugs off
+ * is capped at asphalt's, and the tyre's own loose-ground bite (`grip_dirt`, `grip_grass`) goes on top: capped
+ * together, an off-road tyre's tarmac penalty followed it onto the dirt and the rally car's stock tyres outgripped its
+ * rally tyres there. The parts keep bite × their `mu` scale at or under 1, so loose ground never outgrips road tyres on the road.
+ */
+export function surface_grip(spec: CarSpec, surface: number, dirt: boolean): number {
+  const bite = surface < 1 ? ((dirt ? spec.grip_dirt : spec.grip_grass) ?? 1) : 1;
+  return Math.min(1, surface + (1 - surface) * spec.offroad) * bite;
+}
+
+/**
  * Lock (rad) with the steer assist off at `speed` m/s, `steer` the held stick and `slide` the body slip (rad). It shrinks
  * with speed so a key tap at speed is not a flick, but a countersteer gets it all back: cut, the fronts could not reach
  * their course past 30 degrees of body slip and a power slide spun.
@@ -190,17 +235,17 @@ export function unassisted_lock(spec: CarSpec, speed: number, steer: number, sli
 }
 
 function magic(s: number): number {
-  return Math.sin(MF_C * Math.atan(MF_B * Math.max(-SLIDE_S, Math.min(SLIDE_S, s))));
+  return Math.sin(curve_c * Math.atan(curve_b * Math.max(-curve_s, Math.min(curve_s, s))));
 }
 
 function combined_x(sx: number, sy: number): number {
   const s = Math.hypot(sx, sy);
-  return s < 1e-6 ? MF_C * MF_B * sx : (magic(s) * sx) / s;
+  return s < 1e-6 ? curve_c * curve_b * sx : (magic(s) * sx) / s;
 }
 
 function combined_y(sx: number, sy: number): number {
   const s = Math.hypot(sx, sy);
-  return s < 1e-6 ? MF_C * MF_B * sy : (magic(s) * sy) / s;
+  return s < 1e-6 ? curve_c * curve_b * sy : (magic(s) * sy) / s;
 }
 
 const up = new Vector3();
@@ -626,9 +671,8 @@ export class Car {
       const v_lat = point_vel.dot(lat);
       const denom = Math.max(Math.abs(v_long), 2);
       const surface = ground.grip(w.point.x, w.point.z);
-      const off = surface < 1 ? (ground.dirt?.(w.point.x, w.point.z) ? spec.grip_dirt : spec.grip_grass) : 1;
-      // Capped at asphalt's: a tyre built for dirt still never makes cutting across the grass faster than the road.
-      const grip = Math.min(1, (surface + (1 - surface) * spec.offroad) * (off ?? 1));
+      const grip = surface_grip(spec, surface, surface < 1 && !!ground.dirt?.(w.point.x, w.point.z));
+      shape(ground.loose?.(w.point.x, w.point.z) ?? 0, spec.offroad);
       // Tyre force grows ever slower with load and tops out at half `load_fade`; past that it stays flat. Left as a
       // parabola it fell to nothing at `load_fade` and reversed above it, which a hard landing reaches.
       const bite = Math.min(load, spec.load_fade / 2);
@@ -636,14 +680,15 @@ export class Car {
       // Over the same denominator as the longitudinal slip, so the combined force points against the patch's slip
       // velocity. As an angle it stopped at 90 degrees while wheelspin over a 2 m/s floor did not: a rear spinning fully
       // sideways put nearly all its grip into drive and the car glided on the fronts.
-      const sy = -v_lat / denom / Math.tan(spec.peak_angle);
+      const sy = -v_lat / denom / Math.tan(spec.peak_angle) / curve_spread;
+      const peak_slip = spec.peak_slip * curve_spread;
 
       // Semi-implicit wheel spin: linearise the tyre's longitudinal force around the current slip so a stiff tyre
       // can't overshoot within one step; past the peak the slope clamps to 0 and wheelspin runs free.
-      const sx0 = (w.omega * radius - v_long) / denom / spec.peak_slip;
+      const sx0 = (w.omega * radius - v_long) / denom / peak_slip;
       const peak_x = brake > 0.05 && sx0 * v_long < 0 ? peak * spec.brake_grip : peak;
       const fx0 = combined_x(sx0, sy) * peak_x;
-      const k = Math.max(0, ((combined_x(sx0 + 1e-3, sy) * peak_x - fx0) / 1e-3) * (radius / (denom * spec.peak_slip)));
+      const k = Math.max(0, ((combined_x(sx0 + 1e-3, sy) * peak_x - fx0) / 1e-3) * (radius / (denom * peak_slip)));
       const stiff = 1 + (dt * radius * k) / inertia;
       let omega = (w.omega + (dt / inertia) * (torque - radius * fx0 + radius * k * w.omega)) / stiff;
       const cut = (dt * brake_torque) / inertia / stiff;
@@ -651,12 +696,12 @@ export class Car {
       w.omega = omega;
       w.spin += omega * dt;
 
-      const sx = (omega * radius - v_long) / denom / spec.peak_slip;
+      const sx = (omega * radius - v_long) / denom / peak_slip;
       const roll = ground.roll(w.point.x, w.point.z);
       const rolling = v_long * spec.roll_resist;
       const fx = combined_x(sx, sy) * peak_x - rolling;
       const fy = combined_y(sx, sy) * peak;
-      w.slip = sx * spec.peak_slip;
+      w.slip = sx * peak_slip;
       const locking = this.abs && brake > 0.1 && w.slip < -0.1 && Math.abs(v_long) > 2;
       w.abs_factor = locking ? Math.max(0.2, w.abs_factor - 25 * dt) : Math.min(1, w.abs_factor + 12 * dt);
       w.abs = w.abs_factor < 0.95;

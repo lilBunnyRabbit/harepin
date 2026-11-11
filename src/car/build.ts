@@ -75,11 +75,11 @@ export const SLOTS = {
     view: { yaw: -0.6 },
     parts: [
       { name: "Street", blurb: "All-round, fine on dirt", mod: {} },
-      { name: "Sport", blurb: "More grip, a bit worse on dirt", mod: { scale: { mu: 1.06 }, add: { offroad: -0.15 } }, look: { tyre: { width: 1.15, rim: 1.06 } } },
-      { name: "Semi-slick", blurb: "Most grip, slides on dirt", mod: { scale: { mu: 1.12 }, add: { offroad: -0.6 } }, look: { tyre: { width: 1.32, rim: 1.12, band: "warning" } } },
-      { name: "Rally", blurb: "Less grip, strong on dirt", mod: { scale: { mu: 0.96, grip_dirt: 1.07, grip_grass: 1.05 }, add: { offroad: 0.5 } }, look: { tyre: { width: 1.1, rim: 0.88, tread: 1 } } },
-      { name: "All-terrain", blurb: "A little less grip, good off road", mod: { scale: { mu: 0.98, roll_resist: 1.05, grip_dirt: 1.06, grip_grass: 1.03 }, add: { offroad: 0.3 } }, look: { tyre: { width: 1.08, rim: 0.86, tread: 0.7 } } },
-      { name: "Mud-terrain", blurb: "Poor on tarmac, best on grass", mod: { scale: { mu: 0.94, roll_resist: 1.2, grip_grass: 1.18 }, add: { offroad: 0.9 } }, look: { tyre: { width: 1.22, rim: 0.8, tread: 1.5 } } },
+      { name: "Sport", blurb: "More grip, a bit worse on dirt", mod: { scale: { mu: 1.06, grip_dirt: 0.95, grip_grass: 0.95 }, add: { offroad: -0.15 } }, look: { tyre: { width: 1.15, rim: 1.06 } } },
+      { name: "Semi-slick", blurb: "Most grip, slides on dirt", mod: { scale: { mu: 1.12, grip_dirt: 0.92, grip_grass: 0.92 }, add: { offroad: -0.6 } }, look: { tyre: { width: 1.32, rim: 1.12, band: "warning" } } },
+      { name: "Rally", blurb: "Less grip, strong on dirt", mod: { scale: { mu: 0.96, grip_dirt: 1.04, grip_grass: 1.03 }, add: { offroad: 0.5 } }, look: { tyre: { width: 1.1, rim: 0.88, tread: 1 } } },
+      { name: "All-terrain", blurb: "A little less grip, good off road", mod: { scale: { mu: 0.98, roll_resist: 1.05, grip_dirt: 1.02, grip_grass: 1.01 }, add: { offroad: 0.3 } }, look: { tyre: { width: 1.08, rim: 0.86, tread: 0.7 } } },
+      { name: "Mud-terrain", blurb: "Poor on tarmac, best on grass", mod: { scale: { mu: 0.94, roll_resist: 1.2, grip_dirt: 0.9, grip_grass: 1.02 }, add: { offroad: 0.9 } }, look: { tyre: { width: 1.22, rim: 0.8, tread: 1.5 } } },
     ],
   },
   // The kits move the downforce forward of the centre of mass: the street kit's lip and short wing make a pointy car at

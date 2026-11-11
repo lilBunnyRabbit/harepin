@@ -1,6 +1,7 @@
 import { Vector3 } from "three";
 import { CARS, car_spec, type CarSpec } from "../src/car/cars";
 import type { Controls, Ground } from "../src/car/car";
+import { ground_arg } from "./grounds";
 
 const physics = (await import(process.env.DRIFT_CAR ?? "../src/car/car")) as Partial<typeof import("../src/car/car")> & Pick<typeof import("../src/car/car"), "Car">;
 const { Car } = physics;
@@ -12,7 +13,8 @@ const SECONDS = 6;
 const SPIN_AIM = 1.5;
 const GRACE = 0.75;
 const LOST = (12 * Math.PI) / 180;
-const flat: Ground = { height: () => 0, normal: (_x, _z, out) => out.set(0, 1, 0), grip: () => 1, roll: () => 1 };
+// --ground <name> (scripts/grounds.ts) runs every scenario on that surface instead of flat asphalt.
+const flat: Ground = ground_arg({ height: () => 0, normal: (_x, _z, out) => out.set(0, 1, 0), grip: () => 1, roll: () => 1 });
 
 export interface Drift {
   held: number;
@@ -99,7 +101,7 @@ export function drift(spec: CarSpec, kmh: number, angle: number, aids: boolean, 
 export const DRIFT_CARS = ["coupe", "muscle", "kaze", "sturm", "raijin", "rally", "hatch"] as const;
 
 if (import.meta.main) {
-  const named = process.argv.slice(2).find((a) => !a.startsWith("-"));
+  const named = process.argv.slice(2).find((a, i, all) => !a.startsWith("-") && all[i - 1] !== "--ground");
   const ids = named ? [car_spec(named).id] : DRIFT_CARS;
   const aids = process.argv.includes("--aids");
   const ideal = process.argv.includes("--ideal");

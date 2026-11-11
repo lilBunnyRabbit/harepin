@@ -155,7 +155,7 @@ export class World implements Ground {
   /** The sea's level on a kind with ground; none on a deck-only kind. */
   private readonly sea: number;
   /** `footing` in water: rewritten per query, never kept. */
-  private readonly wading: Footing = { grip: 1, roll: 1 };
+  private readonly wading: Footing = { grip: 1, roll: 1, loose: 0 };
   /** The footing `grip` just read, for the `roll` the car asks of the same wheel next: one query per wheel per step. */
   private last: Footing | null = null;
   private last_x = NaN;
@@ -375,6 +375,7 @@ export class World implements Ground {
     const { wade } = this.grips;
     this.wading.grip = dry.grip + (wade.grip - dry.grip) * w;
     this.wading.roll = dry.roll + (wade.roll - dry.roll) * w;
+    this.wading.loose = dry.loose + (wade.loose - dry.loose) * w;
     return this.wading;
   }
 
@@ -391,6 +392,11 @@ export class World implements Ground {
     this.last_x = x;
     this.last_z = z;
     return this.last.grip;
+  }
+
+  /** Like `roll`, from the footing `grip` just read, but it leaves that footing for `roll`. */
+  loose(x: number, z: number): number {
+    return (this.last && x === this.last_x && z === this.last_z ? this.last : this.footing(x, z)).loose;
   }
 
   roll(x: number, z: number): number {

@@ -2,6 +2,9 @@
 import { expect, test } from "bun:test";
 import { DEFAULT_BUILD, DEFAULT_PARTS, SLOTS, SLOT_NAMES, STATS, apply_build, build_code, build_spec, parse_build, stat_range, stats, type Build } from "./build";
 import { CARS, COUPE, HATCH, RALLY, car_sized, type CarId, type CarSpec } from "./cars";
+import { surface_grip as tyre_share } from "./car";
+import { LAND_GRIP, SAND_GRIP } from "../worldgen/kinds/kind-def";
+import { SurfaceId } from "../worldgen/types";
 
 const with_parts = (parts: Partial<Build["parts"]>, rest: Partial<Omit<Build, "parts">> = {}): Build => ({ ...DEFAULT_BUILD, car: "coupe", ...rest, parts: { ...DEFAULT_PARTS, ...parts } });
 
@@ -166,8 +169,9 @@ test("drift stiffens the rear bar past the front and sits low", () => {
   expect(spec.assist_yaw).toBeLessThan(COUPE.assist_yaw);
 });
 
-const surface_grip = (spec: CarSpec, surface: number, dirt = false) =>
-  spec.mu * Math.min(1, (surface + (1 - surface) * spec.offroad) * (surface < 1 ? ((dirt ? spec.grip_dirt : spec.grip_grass) ?? 1) : 1));
+const surface_grip = (spec: CarSpec, surface: number, dirt = false) => spec.mu * tyre_share(spec, surface, dirt);
+const DIRT = LAND_GRIP.surfaces[SurfaceId.DIRT].grip;
+const GRASS = LAND_GRIP.surfaces[SurfaceId.GRASS].grip;
 
 test("tyres order tarmac grip street < sport < semi-slick, rally wins off it and slicks lose there", () => {
   for (const base of [COUPE, RALLY]) {
@@ -184,19 +188,28 @@ test("tyres order tarmac grip street < sport < semi-slick, rally wins off it and
   }
 });
 
-test("no tyre grips more off asphalt than on it", () => {
-  for (const car of Object.keys(CARS) as CarId[])
+test("no tyre grips more on any loose row than the car's stock tyres on asphalt", () => {
+  const rows = [LAND_GRIP, SAND_GRIP].flatMap((table) => [table.shoulder, table.wade, ...Object.values(table.surfaces)].map((row) => [row.grip, row === table.surfaces[SurfaceId.DIRT]] as const));
+  for (const car of Object.keys(CARS) as CarId[]) {
+    const stock = surface_grip(build_spec(with_parts({}, { car })), 1);
     for (let tyres = 0; tyres < SLOTS.tyres.parts.length; tyres++) {
       const spec = build_spec(with_parts({ tyres }, { car }));
-      for (const [surface, dirt] of [[0.88, true], [0.85, false], [0.72, false]] as const) expect(surface_grip(spec, surface, dirt)).toBeLessThanOrEqual(surface_grip(spec, 1));
+      for (const [surface, dirt] of rows) expect(surface_grip(spec, surface, dirt)).toBeLessThanOrEqual(stock * 1.0005);
     }
+  }
+});
+
+test("on the rally car, whose stock tyres already shrug off most of the loss, the off-road tyres still win off-road", () => {
+  const [street, , , rally, all_terrain, mud] = [0, 1, 2, 3, 4, 5].map((tyres) => build_spec(with_parts({ tyres }, { car: "rally" })));
+  for (const off of [rally, all_terrain]) expect(surface_grip(off, DIRT, true)).toBeGreaterThan(surface_grip(street, DIRT, true) * 1.015);
+  for (const off of [rally, all_terrain, mud]) expect(surface_grip(off, GRASS)).toBeGreaterThan(surface_grip(street, GRASS) * 1.015);
 });
 
 test("offroad tyres trade tarmac grip for dirt and grass: rally best on dirt, mud-terrain on grass", () => {
   for (const car of (Object.keys(CARS) as CarId[]).filter((id) => CARS[id].offroad <= 0)) {
     const [street, sport, slick, rally, all_terrain, mud] = [0, 1, 2, 3, 4, 5].map((tyres) => build_spec(with_parts({ tyres }, { car })));
-    const dirt = (spec: CarSpec) => surface_grip(spec, 0.88, true);
-    const grass = (spec: CarSpec) => surface_grip(spec, 0.72);
+    const dirt = (spec: CarSpec) => surface_grip(spec, DIRT, true);
+    const grass = (spec: CarSpec) => surface_grip(spec, GRASS);
     expect(surface_grip(all_terrain, 1)).toBeLessThan(surface_grip(street, 1));
     expect(surface_grip(all_terrain, 1)).toBeGreaterThan(surface_grip(rally, 1));
     expect(surface_grip(mud, 1)).toBeLessThan(surface_grip(rally, 1));

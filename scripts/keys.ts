@@ -1,6 +1,7 @@
 import { Vector3 } from "three";
 import { CARS, COUPE, car_spec, type CarSpec } from "../src/car/cars";
 import { Car, SteerMode, type Controls, type Ground } from "../src/car/car";
+import { ground_arg } from "./grounds";
 
 const DT = 1 / 360;
 const FRAME = 1 / 60;
@@ -10,7 +11,8 @@ const DEAD = 0.2;
 const KEY_MIN = 0.1;
 const LANE = 3.5;
 
-const flat: Ground = { height: () => 0, normal: (_x, _z, out) => out.set(0, 1, 0), grip: () => 1, roll: () => 1 };
+// --ground <name> (scripts/grounds.ts) runs every scenario on that surface instead of flat asphalt.
+const flat: Ground = ground_arg({ height: () => 0, normal: (_x, _z, out) => out.set(0, 1, 0), grip: () => 1, roll: () => 1 });
 const ahead = new Vector3();
 
 /** The two steering aids a run drives with: steering assist and stability. */

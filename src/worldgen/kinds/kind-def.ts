@@ -6,6 +6,8 @@ export interface Footing {
   grip: number;
   /** Rolling drag, as a multiple of the road's. */
   roll: number;
+  /** How loose the ground is, 0 sealed road .. 1 sand: the tyre curve on it peaks at wider slip and falls slower past the peak. */
+  loose: number;
 }
 
 export interface GripTable {
@@ -57,18 +59,18 @@ export function kind_def(spec: KindSpec): KindDef {
 }
 
 /** Loose rock over the scree height: firmer than grass, short of trail dirt, and it drags a little. */
-const SCREE: Footing = { grip: 0.8, roll: 4 };
+const SCREE: Footing = { grip: 0.8, roll: 4, loose: 0.9 };
 
 /** Mud at the water's edge: soft enough to feel, firm enough to drive out of. */
-const WET: Footing = { grip: 0.78, roll: 3 };
+const WET: Footing = { grip: 0.78, roll: 3, loose: 0.8 };
 /** Water to the sills: grip goes and drag climbs with speed, so a ford is a choice, not a shortcut. */
-const WADE: Footing = { grip: 0.45, roll: 40 };
+const WADE: Footing = { grip: 0.45, roll: 40, loose: 1 };
 
 /** Trail dirt sits between asphalt and grass: a car's `offroad` share decides how much of the loss it keeps. */
 export const LAND_GRIP: GripTable = {
-  road: { grip: 1, roll: 1 },
-  shoulder: { grip: 0.85, roll: 1 },
-  surfaces: { [SurfaceId.GRASS]: { grip: 0.72, roll: 12 }, [SurfaceId.DIRT]: { grip: 0.88, roll: 1 }, [SurfaceId.HARDPACK]: { grip: 0.88, roll: 1 }, [SurfaceId.SCREE]: SCREE, [SurfaceId.WET]: WET },
+  road: { grip: 1, roll: 1, loose: 0 },
+  shoulder: { grip: 0.85, roll: 1, loose: 0.3 },
+  surfaces: { [SurfaceId.GRASS]: { grip: 0.72, roll: 12, loose: 0.7 }, [SurfaceId.DIRT]: { grip: 0.82, roll: 1, loose: 0.8 }, [SurfaceId.HARDPACK]: { grip: 0.86, roll: 1, loose: 0.5 }, [SurfaceId.SCREE]: SCREE, [SurfaceId.WET]: WET },
   wade: WADE,
 };
 
@@ -77,8 +79,8 @@ export const LAND_GRIP: GripTable = {
  * trail dirt sits just under the pans.
  */
 export const SAND_GRIP: GripTable = {
-  road: { grip: 1, roll: 1 },
-  shoulder: { grip: 0.86, roll: 1 },
-  surfaces: { [SurfaceId.GRASS]: { grip: 0.7, roll: 28 }, [SurfaceId.DIRT]: { grip: 0.9, roll: 1 }, [SurfaceId.HARDPACK]: { grip: 0.92, roll: 1 }, [SurfaceId.SCREE]: SCREE, [SurfaceId.WET]: WET },
+  road: { grip: 1, roll: 1, loose: 0 },
+  shoulder: { grip: 0.86, roll: 1, loose: 0.4 },
+  surfaces: { [SurfaceId.GRASS]: { grip: 0.7, roll: 28, loose: 1 }, [SurfaceId.DIRT]: { grip: 0.84, roll: 1, loose: 0.8 }, [SurfaceId.HARDPACK]: { grip: 0.92, roll: 1, loose: 0.5 }, [SurfaceId.SCREE]: SCREE, [SurfaceId.WET]: WET },
   wade: WADE,
 };

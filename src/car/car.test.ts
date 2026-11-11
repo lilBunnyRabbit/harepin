@@ -7,6 +7,7 @@ import { CARS, car_sized, is_car, type CarId, type CarSpec } from "./cars";
 import { donut } from "../../scripts/donut";
 import { hairpin_pull } from "../../scripts/hairpin";
 import { Counter, arc, flick, hairpin, lane_change, lift_off, power_over, slalom, swerve, tap, type PowerOver } from "../../scripts/keys";
+import { GROUNDS } from "../../scripts/grounds";
 
 const flat: Ground = { height: () => 0, normal: (_x, _z, out) => out.set(0, 1, 0), grip: () => 1, roll: () => 1 };
 const DT = 1 / 360;
@@ -227,7 +228,7 @@ describe("garage swap", () => {
 });
 
 describe("grass drag", () => {
-  const grass: Ground = { ...flat, grip: () => 0.72, roll: () => 12 };
+  const grass = GROUNDS.grass;
 
   test("flat out in a straight line, no car yaws away or loses speed", () => {
     for (const spec of Object.values(CARS)) {
@@ -481,7 +482,7 @@ describe("drift suspension", () => {
 });
 
 describe("rally off-road", () => {
-  const grass: Ground = { ...flat, grip: () => 0.72, roll: () => 12 };
+  const grass = GROUNDS.grass;
   const flat_out = (spec: CarSpec, ground: Ground) => {
     const car = new Car(spec);
     car.place(0, 0.6, 0, 0);
