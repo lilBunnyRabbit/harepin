@@ -209,3 +209,60 @@ body:has(> .settings:not([hidden])) .update-toast,
   opacity: 0.6;
   cursor: default;
 }
+
+/* Under the top-left dock (title, buttons and, where it flows there, the strip), never beside them. */
+.drive-update {
+  position: fixed;
+  z-index: 5;
+  position-anchor: --top-dock;
+  top: calc(anchor(bottom) + var(--space-2));
+  left: var(--inset-left);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--control-h);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--foreground);
+  font-size: var(--text-md);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.drive-update:hover {
+  background: var(--panel);
+  border-color: var(--line-strong);
+}
+
+.drive-update[data-state="coming"] {
+  color: var(--dim);
+  font-weight: 500;
+}
+
+.drive-update[data-state="ready"] {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--background-darkest);
+}
+
+:root[data-scheme="light"] .drive-update[data-state="ready"] {
+  background: var(--panel-raised);
+  color: var(--foreground);
+}
+
+/* Touch Classic hangs the aid switches under the buttons, out of the dock's flow. */
+@media (pointer: coarse) {
+  :root[data-hud="classic"] .drive-update {
+    position-anchor: --assists;
+  }
+}
+
+.drive-update[hidden] {
+  display: none;
+}
+
+.drive-update[data-state="ready"] .menu-update-dot {
+  background: currentColor;
+}

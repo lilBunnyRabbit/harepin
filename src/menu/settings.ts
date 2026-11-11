@@ -18,7 +18,7 @@ import { GoTo, GoalId } from "../goals/goals";
 import { mainland_seed, world_query } from "../world/world-pick";
 import { custom_code } from "../worldgen/kinds/map-code";
 import { warm_pick } from "./warm";
-import { UpdateState } from "../version";
+import { UpdateChip } from "./update";
 import "./settings.css";
 import "./menu.css";
 
@@ -295,18 +295,11 @@ export class Settings {
     const name_chip = el("label", "menu-chip menu-name");
     name_chip.title = "Your name: everyone in the room sees it";
     name_chip.append(this.name_field(), icon("icon-edit"));
-    const update_chip = el("button", "menu-chip menu-update");
-    update_chip.type = "button";
-    const update_label = el("span");
-    update_chip.append(el("span", "menu-update-dot"), update_label);
-    update_chip.addEventListener("click", () => this.open_changes());
+    const update_chip = new UpdateChip("menu-chip menu-update");
+    update_chip.root.addEventListener("click", () => this.open_changes());
     this.syncs.push(() => {
       const state = this.host.update_state();
-      if (update_chip.dataset.state === state) return;
-      update_chip.hidden = state === UpdateState.NONE;
-      update_chip.dataset.state = state;
-      update_label.textContent = state === UpdateState.READY ? "Update ready" : "Downloading update";
-      update_chip.title = state === UpdateState.READY ? "A new version is ready: tap to update" : "A new version is downloading";
+      if (update_chip.root.dataset.state !== state) update_chip.show(state);
     });
     const room = el("span", "menu-chip menu-room");
     const here = el("small");
@@ -318,7 +311,7 @@ export class Settings {
     leave.setAttribute("aria-label", "Back to driving");
     leave.title = "Back to driving (Esc)";
     leave.append(icon("icon-close"));
-    top.append(brand, name_chip, update_chip, room, leave);
+    top.append(brand, name_chip, update_chip.root, room, leave);
 
     const menu_nav = el("nav", "menu-tabs");
     menu_nav.setAttribute("aria-label", "Menu");
