@@ -329,7 +329,11 @@ export class Input {
     const touch = this.touch;
     if (touch.active) {
       if (touch.buttons) {
-        if (controls.steer === 0) controls.steer = touch.steer;
+        // A held arrow beats a pad stick that only drifts off centre; keys still win, and the arrows steer like keys.
+        if (touch.steer !== 0 && key_steer === 0) {
+          controls.steer = touch.steer;
+          controls.analog = false;
+        }
       } else {
         if (Math.abs(touch.steer) >= Math.abs(controls.steer)) controls.steer = touch.steer;
         controls.analog = true;

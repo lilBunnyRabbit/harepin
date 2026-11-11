@@ -13,6 +13,15 @@ export interface RowHelp {
   visual?: () => Node | null;
 }
 
+export interface SliderOptions {
+  step?: number;
+  enabled?: () => boolean;
+  /** Readout suffix after the rounded value. */
+  unit?: string;
+  min?: number;
+  max?: number;
+}
+
 export const ADJUST_EVENT = "adjust";
 
 export const read = (text: Text) => (typeof text === "string" ? text : text());
@@ -127,12 +136,12 @@ export class Rows {
     return this.row(label, { title: label, text: help }, button, (by) => value.set(by > 0), () => value.set(!value.get()));
   }
 
-  slider(label: string, help: Text, value: Value<number>, step = 5, enabled: () => boolean = () => true, unit = "%"): HTMLElement {
+  slider(label: string, help: Text, value: Value<number>, { step = 5, enabled = () => true, unit = "%", min = 0, max = 100 }: SliderOptions = {}): HTMLElement {
     const wrap = el("div", "row-slider");
     const range = el("input", "settings-range");
     range.type = "range";
-    range.min = "0";
-    range.max = "100";
+    range.min = String(min);
+    range.max = String(max);
     range.step = String(step);
     range.tabIndex = -1;
     range.setAttribute("aria-label", label);
@@ -144,10 +153,10 @@ export class Rows {
       if (document.activeElement !== range) range.value = String(now);
       readout.textContent = `${Math.round(now)}${unit}`;
       range.disabled = !enabled();
-      range.style.setProperty("--fill", `${now}%`);
+      range.style.setProperty("--fill", `${((now - min) / (max - min)) * 100}%`);
     });
     wrap.append(range, readout);
-    const nudge = (by: number) => value.set(Math.max(0, Math.min(100, value.get() + by * step)));
+    const nudge = (by: number) => value.set(Math.max(min, Math.min(max, value.get() + by * step)));
     return this.row(label, { title: label, text: help }, wrap, nudge, () => {});
   }
 

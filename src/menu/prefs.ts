@@ -1,7 +1,7 @@
 import { SteerMode } from "../car/car";
 import { DEFAULT_BINDINGS, parse_bindings, type Bindings } from "../hud/bindings";
 import { RumbleLevel } from "../hud/rumble";
-import { pad_response, STEER_INNER, STEER_LINEARITY, STEER_OUTER, TRIGGER_INNER, TRIGGER_OUTER, type PadPercents, type PadResponse } from "../hud/pad-curve";
+import { fit_zone, pad_response, STEER_INNER, STEER_LINEARITY, STEER_OUTER, TRIGGER_INNER, TRIGGER_OUTER, type PadPercents, type PadResponse } from "../hud/pad-curve";
 import { guide_seen_on_load, seen_flag } from "./guide-rules";
 import { clean_name } from "../net/net";
 import { parse_last_seed, parse_last_world } from "./saved-pick";
@@ -198,6 +198,9 @@ export function parse_settings(raw: unknown, played = false): SettingsState {
   if (stored.smooth_steer !== true && state.steer_mode === SteerMode.SNAP) state.steer_mode = SteerMode.SMOOTH;
   state.smooth_steer = true;
   if (typeof stored.stability !== "boolean") state.stability = state.assist;
+  for (const axis of ["steer", "throttle", "brake"] as const) {
+    [state[`pad_${axis}_inner`], state[`pad_${axis}_outer`]] = fit_zone(state[`pad_${axis}_inner`], state[`pad_${axis}_outer`], "inner");
+  }
   return state;
 }
 

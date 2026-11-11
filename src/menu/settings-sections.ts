@@ -437,8 +437,7 @@ function audio(m: SettingsMenu): HTMLElement[] {
       "Master volume",
       "Engine, tyres, wind and the menu.",
       { get: () => volume.get() * 100, set: (value) => volume.set(value / 100) },
-      5,
-      () => !m.state().muted,
+      { step: 5, enabled: () => !m.state().muted },
     ),
     m.rows.toggle("Mute", "Silences everything; the volume stays where it is.", m.value("muted")),
   ];

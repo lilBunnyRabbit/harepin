@@ -83,9 +83,16 @@ describe("parse_settings", () => {
     expect(pad_settings(parsed).throttle).toEqual({ inner: 0, outer: 1, exponent: 1 });
   });
 
+  test("corrupt deadzone pairs are repaired to legal ones", () => {
+    const parsed = parse_settings({ pad_steer_inner: 90, pad_steer_outer: 20, pad_throttle_inner: 0, pad_throttle_outer: 0, pad_brake_inner: 45, pad_brake_outer: 50 });
+    expect([parsed.pad_steer_inner, parsed.pad_steer_outer]).toEqual([50, 60]);
+    expect([parsed.pad_throttle_inner, parsed.pad_throttle_outer]).toEqual([0, 50]);
+    expect([parsed.pad_brake_inner, parsed.pad_brake_outer]).toEqual([45, 55]);
+  });
+
   test("pad percents clamp to 0..100 and round", () => {
-    expect(parse_settings({ pad_steer_inner: 140 }).pad_steer_inner).toBe(100);
-    expect(parse_settings({ pad_steer_outer: -5 }).pad_steer_outer).toBe(0);
+    expect(parse_settings({ pad_steer_inner: 140 }).pad_steer_inner).toBe(50);
+    expect(parse_settings({ pad_steer_outer: -5 }).pad_steer_outer).toBe(50);
     expect(parse_settings({ pad_steer_linearity: 33.6 }).pad_steer_linearity).toBe(34);
     expect(parse_settings({ pad_brake_inner: "10" }).pad_brake_inner).toBe(0);
   });

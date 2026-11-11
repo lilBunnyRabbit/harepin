@@ -1,7 +1,7 @@
-import { axis_value } from "../hud/pad-curve";
+import { axis_value, fit_zone, INNER_MAX, OUTER_MIN } from "../hud/pad-curve";
 import { el, icon } from "./setting-rows";
 import type { SettingsMenu } from "./page";
-import { pad_settings, type SettingKey } from "./prefs";
+import { pad_settings } from "./prefs";
 import "./settings-pad.css";
 
 const SVG = "http://www.w3.org/2000/svg";
@@ -16,15 +16,28 @@ const svg = <K extends keyof SVGElementTagNameMap>(tag: K, class_name: string): 
 };
 
 export function pad_advanced(m: SettingsMenu): HTMLElement[] {
-  const slider = (label: string, help: string, key: SettingKey & `pad_${string}`, step: number, unit?: string) => m.rows.slider(label, help, m.value(key), step, undefined, unit);
+  const zone = (axis: "steer" | "throttle" | "brake", inner_help: [string, string], outer_help: [string, string]) => {
+    const inner = m.value(`pad_${axis}_inner`);
+    const outer = m.value(`pad_${axis}_outer`);
+    const fit = (i: number, o: number, keep: "inner" | "outer") => {
+      const [fi, fo] = fit_zone(i, o, keep);
+      inner.set(fi);
+      outer.set(fo);
+    };
+    return [
+      m.rows.slider(inner_help[0], inner_help[1], { get: inner.get, set: (value) => fit(value, outer.get(), "inner") }, { step: DEADZONE_STEP, max: INNER_MAX }),
+      m.rows.slider(outer_help[0], outer_help[1], { get: outer.get, set: (value) => fit(inner.get(), value, "outer") }, { step: DEADZONE_STEP, min: OUTER_MIN }),
+    ];
+  };
   const rows = [
-    slider("Steering inside deadzone", "Stick travel from centre that steers nothing. Raise it if the car pulls with the stick let go.", "pad_steer_inner", DEADZONE_STEP),
-    slider("Steering outside deadzone", "Stick travel that already gives full lock. Lower reaches full lock before the stick hits its edge.", "pad_steer_outer", DEADZONE_STEP),
-    slider("Steering linearity", "0 is linear: the wheels follow the stick. Higher steers finer near centre and keeps full lock for the edge.", "pad_steer_linearity", LINEARITY_STEP, ""),
-    slider("Throttle inside deadzone", "Right trigger travel that gives no gas.", "pad_throttle_inner", DEADZONE_STEP),
-    slider("Throttle outside deadzone", "Right trigger travel that already gives full gas.", "pad_throttle_outer", DEADZONE_STEP),
-    slider("Brake inside deadzone", "Left trigger travel that gives no brake.", "pad_brake_inner", DEADZONE_STEP),
-    slider("Brake outside deadzone", "Left trigger travel that already gives full brake.", "pad_brake_outer", DEADZONE_STEP),
+    ...zone(
+      "steer",
+      ["Steering inside deadzone", "Stick travel from centre that steers nothing. Raise it if the car pulls with the stick let go."],
+      ["Steering outside deadzone", "Stick travel that already gives full lock. Lower reaches full lock before the stick hits its edge."],
+    ),
+    m.rows.slider("Steering linearity", "0 is linear: the wheels follow the stick. Higher steers finer near centre and keeps full lock for the edge.", m.value("pad_steer_linearity"), { step: LINEARITY_STEP, unit: "" }),
+    ...zone("throttle", ["Throttle inside deadzone", "Right trigger travel that gives no gas."], ["Throttle outside deadzone", "Right trigger travel that already gives full gas."]),
+    ...zone("brake", ["Brake inside deadzone", "Left trigger travel that gives no brake."], ["Brake outside deadzone", "Left trigger travel that already gives full brake."]),
     preview(m),
   ];
   let open = false;
