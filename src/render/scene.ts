@@ -8,6 +8,7 @@ import { CHUNK } from "../worldgen/chunk-grid";
 import { fog_reach } from "./lighting";
 import { Ground, JITTER_LEVELS, terrain_bases, type ChunkBuffers, type MeshTones } from "../worldgen/chunks";
 import { TreeKind } from "../worldgen/biomes";
+import { crown_tone } from "./crowns";
 import type { Lab } from "../theme/theme";
 
 const JITTER_LIGHTNESS = 0.035;
@@ -22,9 +23,6 @@ const SLUSH_MUD = 0.35;
 // Scrub is a broadleaf crown squashed to a bush and sunk to the ground, so it costs no draw of its own.
 const SCRUB_SQUASH = 0.35;
 const SCRUB_SINK = 0.5;
-// Pines hold the most snow on their tiers, broadleaf crowns the least; scrub sits half buried.
-const SNOWY_CROWNS: Record<TreeKind, number> = { [TreeKind.PINE]: 0.55, [TreeKind.BROADLEAF]: 0.35, [TreeKind.SCRUB]: 0.6 };
-const BARE_CROWNS: Record<TreeKind, number> = { [TreeKind.PINE]: 0, [TreeKind.BROADLEAF]: 0, [TreeKind.SCRUB]: 0 };
 /** Packed snow over a winter road's asphalt. */
 const ROAD_SNOW = 0.35;
 const LANE_WIDTH = 3;
@@ -48,9 +46,9 @@ function terrain_lut(): Float32Array {
     [Ground.DIRT]: tones.dirt,
     [Ground.PAN]: lighten(mix(tones.sand, tones.dirt, PAN_CLAY), PAN_LIGHTEN),
     [Ground.SNOW]: tones.snow,
-    [Ground.PACKED_SNOW]: mix(tones.snow, tones.rock, PACKED_GREY),
-    [Ground.ICE]: mix(tones.snow, tones.water, ICE_BLUE),
-    [Ground.SLUSH]: mix(tones.snow, tones.dirt, SLUSH_MUD),
+    [Ground.PACKED_SNOW]: mix(tones.rock, tones.snow, PACKED_GREY),
+    [Ground.ICE]: mix(tones.water, tones.snow, ICE_BLUE),
+    [Ground.SLUSH]: mix(tones.dirt, tones.snow, SLUSH_MUD),
   };
   const bases = terrain_bases(surface, (t) => mix(tones.rock, t, 0.5), tones.rock, tones.snow);
   const lut = new Float32Array(bases.length * JITTER_LEVELS * 3);
@@ -64,7 +62,7 @@ function terrain_lut(): Float32Array {
 export function mesh_tones(snowy = false): MeshTones {
   return {
     terrain: terrain_lut(),
-    asphalt: linear(snowy ? mix(tones.asphalt, tones.snow, ROAD_SNOW) : tones.asphalt),
+    asphalt: linear(snowy ? mix(tones.snow, tones.asphalt, ROAD_SNOW) : tones.asphalt),
     water: linear(tones.water),
     sidewalk: linear(tones.sidewalk),
     line: linear(tones.line),
@@ -214,13 +212,12 @@ interface TreeKit {
   crowns: THREE.BufferGeometry[];
   bark: THREE.Material;
   leaf: THREE.Material;
-  /** Share of snow mixed into each tree kind's crown. */
-  snow: Record<TreeKind, number>;
+  snowy: boolean;
 }
 
 function tree_kit(snowy: boolean): TreeKit {
   return {
-    snow: snowy ? SNOWY_CROWNS : BARE_CROWNS,
+    snowy,
     trunk: new THREE.CylinderGeometry(0.25, 0.35, 2.2, 5).translate(0, 1.1, 0),
     crowns: [new THREE.ConeGeometry(2.1, 6, 6).translate(0, 4.6, 0), new THREE.IcosahedronGeometry(2.4, 0).translate(0, 4.2, 0)],
     bark: new THREE.MeshLambertMaterial({ color: color(tones.trunk), flatShading: true }),
@@ -230,7 +227,7 @@ function tree_kit(snowy: boolean): TreeKit {
 
 const crown_of = (kind: number) => (kind === TreeKind.SCRUB ? TreeKind.BROADLEAF : kind);
 
-function tree_meshes({ trunk, crowns, bark, leaf, snow }: TreeKit, here: readonly Tree[], order: Map<Tree, number> | null): THREE.InstancedMesh[] {
+function tree_meshes({ trunk, crowns, bark, leaf, snowy }: TreeKit, here: readonly Tree[], order: Map<Tree, number> | null): THREE.InstancedMesh[] {
   if (!here.length) return [];
   const m = new THREE.Matrix4();
   const q = new THREE.Quaternion();
@@ -254,8 +251,7 @@ function tree_meshes({ trunk, crowns, bark, leaf, snow }: TreeKit, here: readonl
     const crown = kinds[crown_of(tree.kind)];
     const slot = filled[crown_of(tree.kind)]++;
     crown.setMatrixAt(slot, m);
-    const leafy = scrub ? mix(tones.leaf, tones.grass_dry, 0.45 + shade * 0.5) : mix(tones.leaf, tones.leaf_dark, 0.5 + shade * 1.6);
-    const [r, g, b] = linear(mix(leafy, tones.snow, snow[tree.kind as TreeKind]));
+    const [r, g, b] = linear(crown_tone(tree.kind as TreeKind, shade, snowy));
     crown.setColorAt(slot, tint.setRGB(r, g, b));
   });
   trunks.count = trunk_count;
