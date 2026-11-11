@@ -6,7 +6,7 @@ import { circle16, length, smoothstep } from "./noise";
 import { chaikin, limit_grade, resample, road_points, smooth, type Path } from "./path";
 import { Heap } from "./heap";
 import type { Stamp, TrailLine } from "./stamp";
-import { CELL, N, ORIGIN, ROAD_HALF, SIZE, type Canyon, type RoadPoint, type Solid, type Terrain, type Town } from "./types";
+import { CELL, N, ORIGIN, ROAD_HALF, SHOULDER, SIZE, type Canyon, type RoadPoint, type Solid, type Terrain, type Town } from "./types";
 
 const GRID = 16;
 const G = SIZE / GRID;
@@ -66,6 +66,25 @@ const MAX_CUT = 1.5;
 const MAX_STEEP = 0.8;
 const STEEP_SPAN = 3;
 const STEP = 2;
+/** A hatch on dirt stalls from rest past about 0.32: every stretch steeper than CLIMB is cut and filled down to it. */
+const CLIMB = 0.24;
+/** Deepest such a cut or fill gets; the ground beside it is shaped to banks, so it is no trench. */
+const DEEP_CUT = 6;
+/**
+ * The banks of a deep run are shaped off copies of its line this far to each side, so its bed runs level out past the
+ * trail's own edge: a car drifting wide on the climb stays on it instead of dropping a wheel off a dyke.
+ */
+const BED = 3;
+/** A point the CLIMB grading moved further than this is stamped in full. */
+const CUT_MOVED = 0.05;
+/** A trail still climbing faster than CLIMB_MAX over CLIMB_SPAN points after that is dropped for the next option. */
+const CLIMB_MAX = 0.26;
+const CLIMB_SPAN = 20;
+/** Nor may it pitch up faster than PITCH_MAX over PITCH_SPAN points: a ridge deeper than DEEP_CUT to cut through. */
+const PITCH_MAX = 0.4;
+const PITCH_SPAN = 4;
+/** Points this close to an earlier trail take its height and blend: two lines graded apart would stamp a washboard. */
+const SHARED = 2;
 
 const SHOULDER_TOP = 110;
 const SHOULDER_LOW = 70;
@@ -73,7 +92,7 @@ const COAST_HIGH = 8;
 const START_OUT = 24;
 /** Starts sit on ground at most this steep (the unit normal's y): a standing start on a hillside slides back. */
 const LEVEL_UP = 0.97;
-const OPTIONS = 6;
+const OPTIONS = 60;
 const WINDOWS = [
   { id: "offroad-1", min: 1200, max: 3000, aim: 2000 },
   { id: "offroad-2", min: 2200, max: 4400, aim: 3200 },
@@ -166,7 +185,7 @@ class Planner {
   private readonly rough = new Uint8Array(G * G);
 
   constructor(
-    private readonly land: Terrain,
+    readonly land: Terrain,
     private readonly towns: readonly Town[],
     solids: readonly Solid[],
     private readonly canyon: Canyon | null,
@@ -372,12 +391,39 @@ class Planner {
 }
 
 // The grid sees 16 m steps; a road embankment or a plateau edge can still put a wall inside one.
-function too_steep(line: Path, heights: Float32Array, cross: Crossing | null): boolean {
-  const ground = line.map(([x, z]) => sample(heights, x, z));
-  const ys = limit_grade(smooth(ground, 5, 2, false), line.slice(1).map((q, i) => dist(q, line[i])), TRAIL_GRADE).map((y, i) => ground[i] + Math.max(-MAX_CUT, Math.min(MAX_CUT, y - ground[i])));
+function too_steep(line: Path, land: Terrain, cross: Crossing | null): boolean {
+  const ground = line.map(([x, z]) => sample(land.heights, x, z));
+  const steps = line.slice(1).map((q, i) => dist(q, line[i]));
+  const ys = limit_grade(smooth(ground, 5, 2, false), steps, TRAIL_GRADE).map((y, i) => ground[i] + Math.max(-MAX_CUT, Math.min(MAX_CUT, y - ground[i])));
   const on_pad = (q: Point) => cross !== null && Math.abs((q[0] - cross.cx) * cross.dz - (q[1] - cross.cz) * cross.dx) < PAD_HALF + PAD_BLEND && Math.abs((q[0] - cross.cx) * cross.dx + (q[1] - cross.cz) * cross.dz) < cross.to + PAD_BLEND;
   for (let i = 0; i + STEEP_SPAN < line.length; i++) if (!on_pad(line[i]) && Math.abs(ys[i + STEEP_SPAN] - ys[i]) > MAX_STEEP * STEEP_SPAN * STEP) return true;
-  return false;
+  const cut = climb(ys, ground, steps, () => false, (i) => by_road(land, line[i]));
+  const rises = (span: number, most: number) => {
+    for (let i = 0; i + span < line.length; i++) if (!on_pad(line[i]) && !on_pad(line[i + span]) && cut[i + span] - cut[i] > most * span * STEP) return true;
+    return false;
+  };
+  return rises(CLIMB_SPAN, CLIMB_MAX) || rises(PITCH_SPAN, PITCH_MAX);
+}
+
+// The trail stamp leaves the ground by a road to the road's blend, so grading there starts from that ground.
+function by_road(land: Terrain, q: Point): boolean {
+  return sample(land.road_dist, q[0], q[1]) < ROAD_HALF + SHOULDER;
+}
+
+/** Grades each run between `pinned` points to CLIMB, cutting or filling at most DEEP_CUT; points `near_road` keep their height. */
+function climb(ys: number[], ground: number[], steps: number[], pinned: (i: number) => boolean, near_road: (i: number) => boolean): number[] {
+  const out = ys.slice();
+  for (let a = 0; a < ys.length; a++) {
+    if (pinned(a)) continue;
+    let b = a;
+    while (b + 1 < ys.length && !pinned(b + 1)) b++;
+    const from = Math.max(0, a - 1);
+    const to = Math.min(ys.length - 1, b + 1);
+    const want = limit_grade(ys.slice(from, to + 1).map((y, k) => (near_road(from + k) ? ground[from + k] : y)), steps.slice(from, to), CLIMB);
+    for (let i = a; i <= b; i++) if (!near_road(i)) out[i] = ground[i] + Math.max(-DEEP_CUT, Math.min(DEEP_CUT, want[i - from] - ground[i]));
+    a = b;
+  }
+  return out;
 }
 
 // Drops grid corners sharper than TURN_COS2 that are not `fixed`; chaikin would fold a reversal over itself.
@@ -463,9 +509,13 @@ export function plan_trails(seed: number, land: Terrain, stamp: Stamp, canyon: C
   if (!plans.length) return { trails: [], gap: null, ramp_out: [] };
 
   if (cross) stamp.pad(cross);
-  const done = plans.map((plan, n) => finish(plan, cross, heights, WINDOWS[n].id));
+  const done: Finished[] = [];
+  for (const [n, plan] of plans.entries()) done.push(finish(plan, cross, land, WINDOWS[n].id, done));
+  for (const run of done.flatMap((d) => d.deep)) stamp.face([-BED, 0, BED].flatMap((o) => run.map((q) => ({ ...q, x: q.x - q.tz * o, z: q.z + q.tx * o }))));
+  // A bank shaped for one trail can reach another running beside it: that one then sets its own line in full.
+  for (const { trail, blend } of done) for (const [i, q] of trail.points.entries()) if (Math.abs(sample(land.heights, q.x, q.z) - q.y) > MAX_CUT) blend[i] = 1;
   const trails = done.map((d) => d.trail);
-  const lines: TrailLine[] = done.map((d) => d.line);
+  const lines: TrailLine[] = done.map((d) => ({ points: d.trail.points, blend: (i) => d.blend[i] }));
   if (cross) lines.push({ points: cross.ramp_out, blend: (i) => (i < cross.cut ? 1 : 0) });
   stamp.trail(lines);
   return { trails, gap: cross?.jump ?? null, ramp_out: cross?.ramp_out ?? [] };
@@ -539,7 +589,7 @@ function route_trails(seed: number, p: Planner, marks: ReturnType<typeof waypoin
       const line = resample(chaikin(unkink(path, (i) => first >= 0 && i >= first && i <= first + straight.length - 1), 3), STEP, false);
       const metres = run(line);
       if (metres[metres.length - 1] < window.min || metres[metres.length - 1] > window.max) continue;
-      if (too_steep(line, heights, cross)) continue;
+      if (too_steep(line, p.land, cross)) continue;
       plans.push({ path: line });
       used.add(id);
       break;
@@ -548,31 +598,73 @@ function route_trails(seed: number, p: Planner, marks: ReturnType<typeof waypoin
   return plans;
 }
 
+interface Finished {
+  trail: Trail;
+  /** Share of the way the stamp moves the ground to the line, per point. */
+  blend: number[];
+  /** Runs cut or filled deeper than MAX_CUT, whose ground is shaped to banks. */
+  deep: RoadPoint[][];
+}
+
+interface Shared {
+  y: number;
+  blend: number;
+}
+
 // Where the pad sets the ground the trail leaves it alone, and it takes over again as the pad eases out.
-function finish(plan: Plan, cross: Crossing | null, heights: Float32Array, id: string): { trail: Trail; line: TrailLine } {
+function finish(plan: Plan, cross: Crossing | null, land: Terrain, id: string, earlier: readonly Finished[]): Finished {
   const { path } = plan;
-  const ground = path.map(([x, z]) => sample(heights, x, z));
+  const ground = path.map(([x, z]) => sample(land.heights, x, z));
   const steps = path.slice(1).map((q, i) => dist(q, path[i]));
   // Steeper than TRAIL_GRADE the trail is cut and filled toward its graded line; elsewhere it keeps half the bumps.
   const graded = (ys: number[]) => limit_grade(ys, steps, TRAIL_GRADE).map((y, i) => ground[i] + Math.max(-MAX_CUT, Math.min(MAX_CUT, y - ground[i])));
   const share = (ys: number[], i: number) => Math.min(CUT_BLEND, TRAIL_BLEND + CUT_PER_M * Math.abs(ground[i] - ys[i]));
+  const shared = path.map((q) => nearest(earlier, q));
   let ys = graded(smooth(ground, 5, 2, false));
-  if (!cross) {
-    const points = road_points(path, ys, false);
-    const blend = ys.map((_, i) => share(ys, i));
-    return { trail: { id, points, toe: -1, rejoin: -1 }, line: { points, blend: (i) => blend[i] } };
+  let toe = -1;
+  let rejoin = -1;
+  let hard = (_: number) => false;
+  let eased = (_: number) => 1;
+  if (cross) {
+    const c = cross;
+    const { takeoff } = c.jump;
+    const v_of = (q: Point) => (q[0] - takeoff.x) * c.dx + (q[1] - takeoff.z) * c.dz;
+    const on_line = (q: Point) => Math.abs((q[0] - takeoff.x) * c.dz - (q[1] - takeoff.z) * c.dx) < 1 && v_of(q) >= c.from && v_of(q) <= c.to;
+    hard = (i) => on_line(path[i]) && v_of(path[i]) >= -HARD && v_of(path[i]) <= c.deck_end;
+    eased = (i) => (on_line(path[i]) ? 1 - pad_share(c, v_of(path[i])) : 1);
+    const fix = (from: number[]) => from.map((y, i) => (hard(i) ? (profile(c, v_of(path[i])) ?? c.y) + sink(c, v_of(path[i])) : y));
+    ys = fix(graded(fix(ys)));
+    toe = path.findIndex((q) => on_line(q) && v_of(q) >= 0);
+    rejoin = path.findIndex((q, i) => i > toe && on_line(q) && v_of(q) >= c.to - GRID);
   }
-  const { takeoff } = cross.jump;
-  const v_of = (q: Point) => (q[0] - takeoff.x) * cross.dx + (q[1] - takeoff.z) * cross.dz;
-  const on_line = (q: Point) => Math.abs((q[0] - takeoff.x) * cross.dz - (q[1] - takeoff.z) * cross.dx) < 1 && v_of(q) >= cross.from && v_of(q) <= cross.to;
-  const hard = (i: number) => on_line(path[i]) && v_of(path[i]) >= -HARD && v_of(path[i]) <= cross.deck_end;
-  const fix = (from: number[]) => from.map((y, i) => (hard(i) ? (profile(cross, v_of(path[i])) ?? cross.y) + sink(cross, v_of(path[i])) : y));
-  ys = fix(graded(fix(ys)));
-  const blend = path.map((q, i) => share(ys, i) * (on_line(q) ? 1 - pad_share(cross, v_of(q)) : 1));
-  const toe = path.findIndex((q) => on_line(q) && v_of(q) >= 0);
-  const rejoin = path.findIndex((q, i) => i > toe && on_line(q) && v_of(q) >= cross.to - GRID);
+  const flat = ys.map((y, i) => shared[i]?.y ?? y);
+  ys = climb(flat, ground, steps, (i) => hard(i) || shared[i] !== null, (i) => by_road(land, path[i]));
+  const blend = ys.map((y, i) => shared[i]?.blend ?? (Math.abs(y - flat[i]) > CUT_MOVED ? 1 : share(ys, i) * eased(i)));
   const points = road_points(path, ys, false);
-  return { trail: { id, points, toe, rejoin }, line: { points, blend: (i) => blend[i] } };
+  const deep: RoadPoint[][] = [];
+  let from = -1;
+  for (let i = 0; i <= points.length; i++) {
+    const cut = i < points.length && !shared[i] && Math.abs(ys[i] - ground[i]) > MAX_CUT;
+    if (cut && from < 0) from = i;
+    if (!cut && from >= 0) {
+      deep.push(points.slice(from, i));
+      from = -1;
+    }
+  }
+  return { trail: { id, points, toe, rejoin }, blend, deep };
+}
+
+function nearest(earlier: readonly Finished[], q: Point): Shared | null {
+  let best = SHARED * SHARED;
+  let out: Shared | null = null;
+  for (const { trail, blend } of earlier)
+    for (const [k, p] of trail.points.entries()) {
+      const d = (p.x - q[0]) ** 2 + (p.z - q[1]) ** 2;
+      if (d >= best) continue;
+      best = d;
+      out = { y: p.y, blend: blend[k] };
+    }
+  return out;
 }
 
 function pad_share(c: Crossing, v: number): number {
