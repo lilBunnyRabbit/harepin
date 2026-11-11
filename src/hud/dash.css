@@ -67,6 +67,12 @@
   color: var(--primary);
 }
 
+/* The classic HUD hides the Auto switch, so the gear itself flips the gearbox. */
+#gear {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
 #gear[data-mode="M"]::after {
   content: "M";
   font-size: var(--text-sm);

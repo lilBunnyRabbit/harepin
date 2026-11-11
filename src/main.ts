@@ -416,6 +416,7 @@ for (const chip of document.querySelectorAll<HTMLButtonElement>("button[data-aid
     chip.blur();
     toggle_aid(chip.dataset.aid as Aid);
   });
+document.getElementById("gear")?.addEventListener("click", () => toggle_aid("auto"));
 
 function shift(step: 1 | -1) {
   if (settings.state.auto) hud.toast("Manual gearbox");
