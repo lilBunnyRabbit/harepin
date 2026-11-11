@@ -23,6 +23,27 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.24.0",
+    date: "2026-11-11",
+    title: "Alpine pass",
+    changes: [
+      { kind: NEW, text: "Alpine pass: a mini map with a mountain range, two passes, a hairpin climb and villages on the slopes." },
+      { kind: NEW, text: "Mainland rivers and lakes. Drive through shallow fords; deep water puts you back on the road." },
+      { kind: NEW, text: "Quit a running mode from the Play tab or the Modes page." },
+      { kind: IMPROVED, text: "Calmer camera at speed: a subtle zoom by default, plus a slight dip under braking and lean in corners. Speed zoom and Camera tilt are new settings." },
+      { kind: IMPROVED, text: "Smooth keyboard steering turns in faster, catches a swerve cleanly and answers short taps with small corrections." },
+      { kind: IMPROVED, text: "Race gates are easier to read at speed, with arrowheads leading to the next gate." },
+      { kind: IMPROVED, text: "Menu pages open faster and the game starts sooner." },
+      { kind: FIXED, text: "Next level after a race no longer freezes the game." },
+      { kind: FIXED, text: "Modes no longer run the free-drive lap timer, so no stray lap times or goals." },
+      { kind: FIXED, text: "Gate hunt and parking clocks wait until you drive." },
+      { kind: FIXED, text: "Gymkhana and parking never start on a hillside, and the car lands upright." },
+      { kind: FIXED, text: "When a mode can't start, the result card says why." },
+      { kind: FIXED, text: "A drift run with no points earns no stars. Gymkhana time no longer counts its penalty twice." },
+      { kind: FIXED, text: "The Play tab drops Restart lap, and the You're here tag no longer covers the map name." },
+    ],
+  },
+  {
     version: "0.23.1",
     date: "2026-11-10",
     title: "Warm earth",
