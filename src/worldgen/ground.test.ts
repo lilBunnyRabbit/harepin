@@ -16,6 +16,7 @@ const CASES: [WorldKind, number[]][] = [
   [WorldKind.ISLAND, sweep(20)],
   [WorldKind.ALPINE, sweep(10)],
   [WorldKind.DESERT, [0, 1]],
+  [WorldKind.TUNDRA, [0, 1]],
   [WorldKind.SKY, [0]],
 ];
 

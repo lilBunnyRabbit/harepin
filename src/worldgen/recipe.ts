@@ -1,6 +1,6 @@
 import type { Biome, TreeRule } from "./biomes";
 import type { IceRecipe } from "./ice";
-import type { SnowKit } from "./snow";
+import { SNOW_KIT, type SnowKit } from "./snow";
 import { Ground, PropKind, SurfaceId, type ItemKind } from "./types";
 
 /** Exact shaping powers: integer powers and nested square roots, never a float exponent, so every engine agrees. */
@@ -386,4 +386,39 @@ export const ALPINE: Recipe = {
   towns: { min: 2, max: 3, trees: true, block: { min: 35, span: 15 }, top: 110, layout: "strip", roofs: "steep", variety: false, exact: true },
   landmarks: [Landmark.MAST],
   scatter: [{ kind: PropKind.BOULDER, spacing: 60, odds: 0.08, biomes: ["meadow", "upland"], road_within: Infinity }],
+};
+
+const SNOWFIELD: GroundRule = { cut: 0.55, above: Ground.SNOW, below: Ground.SNOW, soft: 0 };
+
+/**
+ * Wide white flats over low rolling ground and stretched drumlins, frozen lakes in the hollows, pine bands in the sheltered
+ * low ground, a long gentle loop and a few cabins inside a ring of low hills. Always under the snow kit.
+ */
+export const TUNDRA: Recipe = {
+  terrain: [
+    LIFT,
+    { kind: "fbm", scale: 640, seed: 7, octaves: 4, power: 1.75, amp: 16 },
+    { kind: "ridged", scale: 360, stretch: 3, seed: 11, octaves: 3, power: 2, amp: 5 },
+    // Past the mask the land rises to low hills instead of falling to a sea floor.
+    { kind: "mask", radius: 960, edge: 26, scale: 380, seed: 3, wobble: 0.3 },
+  ],
+  biomes: {
+    surfaces: HARDPACK,
+    zones: { coast: { top: -1, wobble: 0, scale: 90 }, bands: ["forest", "meadow", "upland"] },
+    limits: { ...LIMITS, beach: -1 },
+    rules: {
+      coast: BARE,
+      forest: { start: 0.42, fill: 1.1, pine: 1, scrub: 0, extra: 1 },
+      meadow: { start: 0.6, fill: 0.12, pine: 1, scrub: 0, extra: 0 },
+      upland: BARE,
+    },
+    items: { coast: null, meadow: "rock", forest: "log", upland: "rock" },
+    ground: { coast: SNOWFIELD, forest: SNOWFIELD, meadow: SNOWFIELD, upland: SNOWFIELD },
+  },
+  road: { loop: { radius: 640, swing: 420, min: 460, max: 820 }, straights: null, stacks: [], tongue: false, canyon: null, kickers: { road: 3, total: 10, big: 2 }, runup: null, bank: null },
+  towns: { min: 1, max: 2, trees: true, block: { min: 35, span: 10 }, top: 60, layout: "grid", roofs: "steep", variety: false, exact: true },
+  landmarks: [Landmark.MAST],
+  scatter: [{ kind: PropKind.BOULDER, spacing: 80, odds: 0.05, biomes: ["meadow", "upland"], road_within: Infinity }],
+  snow: SNOW_KIT,
+  ice: { count: 5, radius: [60, 140], reach: 760 },
 };

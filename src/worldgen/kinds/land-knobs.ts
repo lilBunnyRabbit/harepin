@@ -1,4 +1,4 @@
-import { ALPINE, DESERT, ISLAND, type Recipe, type RoadRecipe, type TerrainLayer, type TownRecipe } from "../recipe";
+import { ALPINE, DESERT, ISLAND, TUNDRA, type Recipe, type RoadRecipe, type TerrainLayer, type TownRecipe } from "../recipe";
 import { SNOW_KIT, type SnowKit } from "../snow";
 import { knob, slider, type Knob } from "./options";
 
@@ -160,4 +160,13 @@ export const ALPINE_KNOBS: readonly Knob<Recipe>[] = [
   ridges,
   town_size(ALPINE.towns.block.min),
   season,
+];
+
+// No season row: the tundra is always under snow.
+export const TUNDRA_KNOBS: readonly Knob<Recipe>[] = [
+  jumps([{ road: 1, total: 5, big: 1 }, TUNDRA.road.kickers, { road: 5, total: 16, big: 4 }]),
+  towns([{ min: 1, max: 1 }, TUNDRA.towns, { min: 3, max: 4 }]),
+  hills(1.5),
+  trees,
+  town_size(TUNDRA.towns.block.min),
 ];

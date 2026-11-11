@@ -122,7 +122,7 @@ test("unknown ids and names fall back to the island", () => {
 
 test("a plain map of every kind keeps its id and records key; levels at normal are plain", () => {
   const keys = Object.fromEntries(Object.values(WorldKind).map((kind) => [kind, [world_key(42, kind), map_id(plain_map(kind, 42))]]));
-  expect(keys).toEqual({ island: ["42:w7", 7], sky: ["42:sky3", 1003], desert: ["42:d2", 2002], mainland: ["42:m4", 3004], alpine: ["42:a2", 4002] });
+  expect(keys).toEqual({ island: ["42:w7", 7], sky: ["42:sky3", 1003], desert: ["42:d2", 2002], mainland: ["42:m4", 3004], alpine: ["42:a2", 4002], tundra: ["42:t1", 5001] });
   for (const kind of Object.values(WorldKind)) {
     const normal = KINDS[kind].options.map((o) => o.normal);
     expect(world_key(42, kind, normal)).toBe(world_key(42, kind));
@@ -210,7 +210,7 @@ function combo_maps(kind: WorldKind): MapSpec[] {
 
 const SWEEP_TIMEOUT = FULL ? 600_000 : 60_000;
 
-for (const kind of [WorldKind.ISLAND, WorldKind.DESERT, WorldKind.ALPINE])
+for (const kind of [WorldKind.ISLAND, WorldKind.DESERT, WorldKind.ALPINE, WorldKind.TUNDRA])
   test(`every ${kind} slider at its ends builds a drivable world of its own seed`, () => {
     const failed: string[] = [];
     for (const map of [...slider_maps(kind), ...combo_maps(kind)]) {

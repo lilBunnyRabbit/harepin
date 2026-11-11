@@ -19,9 +19,9 @@ export interface FrozenLake {
 }
 
 const STEP = 32;
-/** The rim wanders this share of the radius in and out, over noise this many metres across. */
-const WOBBLE = 0.35;
-const WOBBLE_SCALE = 90;
+/** The rim wanders up to half this share of the radius in and out, over noise this many metres across. */
+const WOBBLE = 1.2;
+const WOBBLE_SCALE = 45;
 const WOBBLE_SEED = 71;
 /** Ground eases from the ice back to the land over this many metres past the rim. */
 const SHORE = 24;
@@ -69,7 +69,7 @@ export function freeze_vertex(lakes: readonly FrozenLake[], seed: number, height
     const reach = outer(lake);
     if (dx * dx + dz * dz >= reach * reach) continue;
     const d = Math.sqrt(dx * dx + dz * dz);
-    const rim = lake.radius * (1 - WOBBLE / 2 + WOBBLE * fbm(x / WOBBLE_SCALE, z / WOBBLE_SCALE, seed + WOBBLE_SEED, 3));
+    const rim = lake.radius * (1 + (fbm(x / WOBBLE_SCALE, z / WOBBLE_SCALE, seed + WOBBLE_SEED, 3) - 0.5) * WOBBLE);
     if (d < rim) {
       heights[k] = lake.level;
       surface[k] = SurfaceId.ICE;

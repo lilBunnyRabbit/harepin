@@ -8,8 +8,9 @@ import type { SnowKit } from "../snow";
 import { mainland } from "./mainland";
 import { in_k2, normal_levels, overrides } from "./options";
 import { sky } from "./sky";
+import { tundra } from "./tundra";
 
-export const KINDS: Record<WorldKind, KindDef> = { island, sky, desert, mainland, alpine };
+export const KINDS: Record<WorldKind, KindDef> = { island, sky, desert, mainland, alpine, tundra };
 
 export interface MapSpec {
   kind: WorldKind;
