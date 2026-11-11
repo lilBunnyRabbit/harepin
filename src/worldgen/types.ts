@@ -310,7 +310,7 @@ export interface Canyon {
   wall: number;
 }
 
-export const RouteKind = { CIRCUIT: "circuit", STREET: "street", OFFROAD: "offroad" } as const;
+export const RouteKind = { CIRCUIT: "circuit", STREET: "street", OFFROAD: "offroad", SPRINT: "sprint" } as const;
 export type RouteKind = (typeof RouteKind)[keyof typeof RouteKind];
 
 /** A closed route's lap ends back on `points[0]`. */
