@@ -490,7 +490,7 @@
 @media (pointer: fine) {
   :root[data-hud="classic"][data-speedo="bar"] .bottom-right {
     grid-template-columns: auto 1fr auto;
-    grid-template-rows: auto auto auto;
+    grid-template-rows: none;
     align-items: end;
     column-gap: var(--space-2);
     row-gap: var(--space-3);
@@ -519,7 +519,7 @@
   :root[data-hud="classic"][data-speedo="bar"] #speed {
     grid-area: 1 / 2;
     justify-self: end;
-    font-size: 80px;
+    font-size: calc(var(--dial) * 0.3);
     font-weight: 200;
     line-height: 0.86;
   }
@@ -549,12 +549,16 @@
     background: var(--error);
   }
 
-  :root[data-hud="classic"][data-speedo="bar"] .assists {
-    grid-area: 3 / 1 / 4 / 4;
+  /* Nitro and the switches take the next free rows, so an unfitted tank leaves no empty row behind. */
+  :root[data-hud="classic"][data-speedo="bar"] :is(.nitro, .assists) {
+    grid-area: auto / 1 / auto / 4;
   }
 
   :root[data-hud="classic"][data-speedo="bar"] .bottom-right .nitro {
-    display: none;
+    justify-self: stretch;
+    align-self: center;
+    width: auto;
+    margin: 0;
   }
 }
 
@@ -562,6 +566,7 @@
    left of the pedals so it stays clear of the steer hint, the revs a bar beneath it. */
 @media (pointer: coarse) {
   :root[data-hud="classic"] .bottom-right {
+    bottom: var(--inset-bottom);
     right: calc(var(--inset-right) + var(--pedals) + var(--space-3));
     display: grid;
     grid-template-columns: auto auto;
