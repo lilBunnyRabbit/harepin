@@ -3,7 +3,7 @@ import { town_pairs } from "./links";
 import { length } from "./noise";
 import { plan_sample, type PlanGrid } from "./plan-grid";
 import type { TownRecipe } from "./recipe";
-import { Router, spur_points, type Exit, type Sampler } from "./route";
+import { APPROACH, Router, spur_points, unkink, type Exit, type Sampler, type Way } from "./route";
 import { heading } from "./routes";
 import { CORE, town_name, town_streets } from "./towns";
 import { LOCAL_HALF, type RoadEdge, type RoadGraph, type RoadNode, type RoadPoint, type Town } from "./types";
@@ -18,6 +18,10 @@ const TOWN_HIGH = 90;
 /** The circuit is the graph cycle whose length lands nearest this, metres. */
 const LAP_TARGET = 11000;
 const NO_RING: Sampler = () => Infinity;
+// cos 45°
+const SQUARE = Math.SQRT1_2;
+/** Router cells this close to a link's straight departure would bend it back toward the port. */
+const CELL_CLEAR = 24;
 
 export interface Network {
   graph: RoadGraph;
@@ -70,21 +74,59 @@ function place_towns(seed: number, grid: PlanGrid, shape: TownRecipe): Town[] {
   return towns;
 }
 
-function port(graph: RoadGraph, town: Town, toward: Town): RoadNode {
-  let best: RoadNode | null = null;
-  for (const n of graph.nodes) {
-    if (length(n.x - town.x, n.z - town.z) > town.radius + 1) continue;
-    if (!best || length(n.x - toward.x, n.z - toward.z) < length(best.x - toward.x, best.z - toward.z)) best = n;
+interface Door {
+  node: RoadNode;
+  way: Way;
+}
+
+function arm_ways(graph: RoadGraph, node: RoadNode): Way[] {
+  const out: Way[] = [];
+  for (const e of graph.edges) {
+    const n = e.points.length;
+    if (e.a === node.id) out.push(unit(e.points[0], e.points[1]));
+    if (e.b === node.id) out.push(unit(e.points[n - 1], e.points[n - 2]));
   }
-  if (!best) throw new Error(`town ${town.id} has no street node`);
+  return out;
+}
+
+function unit(p: RoadPoint, q: RoadPoint): Way {
+  const d = length(q.x - p.x, q.z - p.z) || 1;
+  return { x: (q.x - p.x) / d, z: (q.z - p.z) / d };
+}
+
+// A link leaves along a free axis of the town's grid, square to its streets, so its port gets a clean T or L patch
+// instead of a shallow wedge no patch fits.
+function door(graph: RoadGraph, town: Town, toward: Town): Door {
+  const axes: Way[] = [
+    { x: town.ux, z: town.uz },
+    { x: -town.ux, z: -town.uz },
+    { x: -town.uz, z: town.ux },
+    { x: town.uz, z: -town.ux },
+  ];
+  let best: Door | null = null;
+  let best_d = Infinity;
+  for (const node of graph.nodes) {
+    if (length(node.x - town.x, node.z - town.z) > town.radius + 1) continue;
+    const arms = arm_ways(graph, node);
+    for (const way of axes) {
+      if (arms.some((a) => a.x * way.x + a.z * way.z > SQUARE)) continue;
+      const d = length(node.x + way.x * APPROACH - toward.x, node.z + way.z * APPROACH - toward.z);
+      if (d < best_d) {
+        best_d = d;
+        best = { node, way };
+      }
+    }
+  }
+  if (!best) throw new Error(`town ${town.id} has no free street end`);
   return best;
 }
 
-function exit_of(node: RoadNode, town: Town, toward: Town): Exit {
-  const dx = toward.x - node.x;
-  const dz = toward.z - node.z;
-  const d = length(dx, dz) || 1;
-  return { town, x: node.x, z: node.z, way: { x: dx / d, z: dz / d } };
+function exit_of({ node, way }: Door, town: Town): Exit {
+  return { town, x: node.x, z: node.z, way };
+}
+
+function out_of({ node, way }: Door): [number, number] {
+  return [node.x + way.x * APPROACH, node.z + way.z * APPROACH];
 }
 
 // Towns first, then a relative-neighbourhood graph between them routed over the plan grid. The router keeps off every
@@ -104,11 +146,16 @@ export function mainland_network(seed: number, grid: PlanGrid, shape: TownRecipe
   const router = new Router(height, NO_RING, towns, grid.ext);
   const links: Link[] = [];
   for (const { a, b, tree } of town_pairs(towns)) {
-    const from = port(graph, a, b);
-    const to = port(graph, b, a);
-    const found = router.link([{ x: from.x, z: from.z, cost: 0 }], [{ x: to.x, z: to.z, cost: 0 }], [], [exit_of(from, a, b), exit_of(to, b, a)]);
+    const start = door(graph, a, b);
+    const end = door(graph, b, a);
+    const from = start.node;
+    const to = end.node;
+    const [sx, sz] = out_of(start);
+    const [ex, ez] = out_of(end);
+    const found = router.link([{ x: sx, z: sz, cost: 0 }], [{ x: ex, z: ez, cost: 0 }], [], [exit_of(start, a), exit_of(end, b)]);
     if (!found) continue;
-    const cells: [number, number][] = [[from.x, from.z], ...found.legs[0], [to.x, to.z]];
+    const clear = ([x, z]: [number, number]) => length(x - sx, z - sz) > CELL_CLEAR && length(x - ex, z - ez) > CELL_CLEAR;
+    const cells = unkink([[from.x, from.z], [sx, sz], ...found.legs[0].filter(clear), [ex, ez], [to.x, to.z]], from.y, to.y, 2, true);
     router.claim(found.legs[0]);
     const edge: RoadEdge = { id: graph.edges.length, a: from.id, b: to.id, kind: "local", half: LOCAL_HALF, closed: false, points: spur_points(cells, height, from.y, to.y) };
     graph.edges.push(edge);

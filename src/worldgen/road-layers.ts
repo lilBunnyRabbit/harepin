@@ -180,9 +180,10 @@ export function road_junctions(data: RoadData): Junctions {
   return { patched, loose, trims, ring_at };
 }
 
-// Town streets meeting at a crossroads, a T or an L; a street running straight on through a node needs no patch.
+// Town streets meeting at a crossroads, a T or an L, or a circuit road meeting them at a town's port; a street running
+// straight on through a node needs no patch.
 function street_corner(ends: readonly ArmEnd[]): boolean {
-  if (ends.length < 2 || ends.some(({ edge }) => edge.kind !== "street")) return false;
+  if (ends.length < 2 || !ends.some(({ edge }) => edge.kind === "street")) return false;
   if (ends.length > 2) return true;
   const [a, b] = ends.map(({ edge, start }) => (start ? edge.points[0] : edge.points[edge.points.length - 1]));
   return Math.abs(a.tx * b.tz - a.tz * b.tx) > STRAIGHT_ON;
@@ -193,11 +194,12 @@ function untrimmed(): Trim {
 }
 
 /** 1 for each circuit segment a junction patch covers: the circuit's own strip, curbs and posts stop there. */
-export function ring_mouths(data: RoadData, junctions: Junctions): Uint8Array {
+export function ring_mouths(data: RoadData, junctions: Junctions, keep: (edge: RoadEdge) => boolean = () => true): Uint8Array {
   const { road, graph } = data;
   const n = road.length;
   const inside = new Uint8Array(n);
   for (const [id, span] of junctions.ring_at) {
+    if (!keep(graph.edges[id])) continue;
     const { mouths } = junctions.trims.get(id) ?? untrimmed();
     const { points, closed } = graph.edges[id];
     const end = closed ? points.length : points.length - 1;
@@ -255,10 +257,12 @@ export function road_layers(data: RoadData, out: Roads, tones: RoadTones, juncti
   }
 
   const inside = ring_mouths(data, junctions);
+  // A circuit along town roads drops its centre line across every crossing; a highway keeps it through a side road's T.
+  const unlined = ring_mouths(data, junctions, (edge) => edge.kind !== "highway");
   const open = (s: number) => !inside[s];
   const clear_of_mouths = (s: number) => open(s) && loose.every((m) => Math.abs(((s - m + n * 1.5) % n) - n / 2) > MOUTH_CLEAR);
   out.strip(out.surface, road, true, -ROAD_HALF, ROAD_HALF, RING_LIFT, open, tones.asphalt);
-  out.strip(out.marks, road, true, -MARK_HALF, MARK_HALF, MARK_LIFT, (s) => s % DASH < DASH_ON, tones.line);
+  out.strip(out.marks, road, true, -MARK_HALF, MARK_HALF, MARK_LIFT, (s) => !unlined[s] && s % DASH < DASH_ON, tones.line);
   out.strip(out.marks, road, true, ROAD_HALF - 0.55, ROAD_HALF - 0.3, MARK_LIFT, clear_of_mouths, tones.edge_line);
   out.strip(out.marks, road, true, -ROAD_HALF + 0.3, -ROAD_HALF + 0.55, MARK_LIFT, clear_of_mouths, tones.edge_line);
 
