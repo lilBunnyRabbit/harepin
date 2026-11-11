@@ -1377,6 +1377,7 @@
   }
 }
 
+.set-head:has(~ .set-list[data-sub="changes"]:not([hidden])) .set-changes,
 .set-head:has(> .set-crumb:not([hidden])) .set-changes {
   display: none;
 }
