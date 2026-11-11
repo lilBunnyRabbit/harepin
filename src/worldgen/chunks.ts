@@ -276,11 +276,13 @@ function deck_chunks(data: WorldData, tones: MeshTones): (index: number) => Chun
   const surface: Layer[] = Array.from({ length: CHUNKS * CHUNKS }, () => ({ positions: [], colors: [] }));
   const marks: Layer[] = Array.from({ length: CHUNKS * CHUNKS }, () => ({ positions: [], colors: [] }));
   if (data.deck) deck_layers(data.deck, tones.deck, chunk_of, surface, marks);
+  const towns = town_builders(data, data, tones, () => 0, (x, z) => chunk_of(x, z));
   return (index) => {
     const road = soup([surface[index], marks[index]]);
-    if (!road) return null;
+    const town = towns.get(index);
+    if (!road && !town) return null;
     const [x0, z0] = chunk_origin(index);
-    return { index, x0, z0, terrain: null, road: { ...road, surface: surface[index].positions.length / 3 }, buildings: null, glass: null, parking: null };
+    return { index, x0, z0, terrain: null, road: road && { ...road, surface: surface[index].positions.length / 3 }, ...town_meshes(town) };
   };
 }
 

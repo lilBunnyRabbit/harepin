@@ -1,7 +1,8 @@
 import { mulberry32, sub } from "../rng";
 import { flight, RIDE, ROAD_KICKER } from "./jumps";
 import { circuit_route } from "./routes";
-import { CELL, DECK_STRIDE, N, ROAD_HALF, SIZE, type Checkpoint, type DeckPiece, type OpenSection, type Ramp, type RoadPoint, type Solid, type WorldData } from "./types";
+import { roof_buildings } from "./rooftops";
+import { CELL, DECK_STRIDE, N, ROAD_HALF, SIZE, WorldKind, type Checkpoint, type DeckPiece, type OpenSection, type Ramp, type RoadPoint, type Solid, type WorldData } from "./types";
 
 export const ABYSS = -2000;
 /** How far below the deck under it a car counts as fallen off. */
@@ -79,6 +80,12 @@ const PAD_APART = 300;
 export const MAX_PADS = 4;
 
 export interface SkyRecipe {
+  /** The world kind it builds, which also salts every draw, so two kinds never share a seed's track. */
+  kind: WorldKind;
+  /** "free" rises and drops between events; "terraced" holds flat roof runs joined by short drops and long ramps back up. */
+  profile: "free" | "terraced";
+  /** A building under every flat run of deck. */
+  roofs: boolean;
   odds: { eight: number; helix: number; hairpin: number };
   /** 0 builds a track without a gap. */
   gaps: number;
@@ -88,7 +95,7 @@ export interface SkyRecipe {
   length: readonly [number, number];
 }
 
-export const SKY: SkyRecipe = { odds: { eight: 0.3, helix: 0.45, hairpin: 0.35 }, gaps: 2, pads: MAX_PADS, open: [0.15, 0.3], length: [2400, 5200] };
+export const SKY: SkyRecipe = { kind: WorldKind.SKY, profile: "free", roofs: false, odds: { eight: 0.3, helix: 0.45, hairpin: 0.35 }, gaps: 2, pads: MAX_PADS, open: [0.15, 0.3], length: [2400, 5200] };
 
 interface Turn {
   angle: number;
@@ -565,7 +572,40 @@ type ProfileEvent = JumpEvent | HelixEvent | ZoneEvent;
 const ZONE_GRADE = 0.18;
 const HELIX_DROP = 0.12;
 
-function draw_profile(rng: () => number, length: number, toes: readonly number[], helices: readonly Helix[], zones: readonly Zone[]): Grade[] | null {
+/** Terraced: a roof run this long between level changes, a drop of one to three storeys, and once the roofs run as low as
+ * TERRACE_FLOOR a car-park ramp back up to TERRACE_TOP. */
+const ROOF_RUN = [60, 200] as const;
+const ROOF_DROP = [4, 12] as const;
+const TERRACE_FLOOR = -40;
+const TERRACE_TOP = [0, 20] as const;
+const RAMP_GRADE = [0.06, MAX_CLIMB] as const;
+
+interface Step {
+  at: number;
+  g: number;
+  hold: number;
+}
+
+function free_step(rng: () => number, s: number, y: number): Step {
+  const at = s + 20 + rng() * 140;
+  const rise = y < -25 || (y < 25 && rng() < 0.45);
+  const g = rise ? 0.04 + rng() * (MAX_CLIMB - 0.04) : -(0.08 + rng() * (MAX_DROP - 0.08));
+  const hold = rise ? 30 + rng() * 120 : 20 + rng() * 60;
+  return { at, g, hold };
+}
+
+// A drop with no hold is two vertical curves back to back, so it falls g² · VERTICAL_RADIUS: the grade follows from the drop.
+function terrace_step(rng: () => number, s: number, y: number): Step {
+  const at = s + ROOF_RUN[0] + rng() * (ROOF_RUN[1] - ROOF_RUN[0]);
+  if (y > TERRACE_FLOOR) return { at, g: -Math.sqrt((ROOF_DROP[0] + rng() * (ROOF_DROP[1] - ROOF_DROP[0])) / VERTICAL_RADIUS), hold: 0 };
+  const g = RAMP_GRADE[0] + rng() * (RAMP_GRADE[1] - RAMP_GRADE[0]);
+  const top = TERRACE_TOP[0] + rng() * (TERRACE_TOP[1] - TERRACE_TOP[0]);
+  return { at, g, hold: Math.max(0, (top - y) / g - ramp_length(0, g)) };
+}
+
+const STEPS: Record<SkyRecipe["profile"], typeof free_step> = { free: free_step, terraced: terrace_step };
+
+function draw_profile(rng: () => number, length: number, toes: readonly number[], helices: readonly Helix[], zones: readonly Zone[], step: typeof free_step): Grade[] | null {
   const out: Grade[] = [];
   let s = START_AHEAD;
   let y = 0;
@@ -647,10 +687,7 @@ function draw_profile(rng: () => number, length: number, toes: readonly number[]
     ...zones.filter((z) => !z.helix).map((zone): ProfileEvent => ({ kind: "zone", at: zone.s0 - ZONE_LEAD, zone })),
   ].sort((a, b) => a.at - b.at);
   for (;;) {
-    const at = s + 20 + rng() * 140;
-    const rise = y < -25 || (y < 25 && rng() < 0.45);
-    const g = rise ? 0.04 + rng() * (MAX_CLIMB - 0.04) : -(0.08 + rng() * (MAX_DROP - 0.08));
-    const hold = rise ? 30 + rng() * 120 : 20 + rng() * 60;
+    const { at, g, hold } = step(rng, s, y);
     const done = at + 2 * ramp_length(0, g) + hold;
     const next = events[0];
     if (next && (done > next.at || done > end - reserve)) {
@@ -752,9 +789,10 @@ function zones_fit(zones: Zone[], helices: readonly Helix[], length: number): bo
   });
 }
 
-export function sky_layout(seed: number, recipe: SkyRecipe = SKY): SkyLayout {
+/** `plain` is the kind's own recipe, which a seed falls back to when the asked one finds no track. */
+export function sky_layout(seed: number, recipe: SkyRecipe = SKY, plain: SkyRecipe = SKY): SkyLayout {
   for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
-    const rng = mulberry32(sub(seed, `sky:${attempt}`));
+    const rng = mulberry32(sub(seed, `${recipe.kind}:${attempt}`));
     const pieces = draw_layout(rng, recipe.odds);
     if (!pieces) continue;
     const { samples, length, error } = sample_layout(pieces);
@@ -774,7 +812,7 @@ export function sky_layout(seed: number, recipe: SkyRecipe = SKY): SkyLayout {
     const toes = jump_toes(pieces, length, zones, recipe.gaps);
     if (!toes.length && recipe.gaps > 0) continue;
     for (let k = 0; k < PROFILE_TRIES; k++) {
-      const profile = draw_profile(mulberry32(sub(seed, `sky:profile:${attempt}:${k}`)), length, toes, helices, zones);
+      const profile = draw_profile(mulberry32(sub(seed, `${recipe.kind}:profile:${attempt}:${k}`)), length, toes, helices, zones, STEPS[recipe.profile]);
       if (!profile) continue;
       const climbs = climb(profile);
       const ys = samples.map((p) => height_at(profile, climbs, p.s).y);
@@ -790,14 +828,14 @@ export function sky_layout(seed: number, recipe: SkyRecipe = SKY): SkyLayout {
     }
   }
   // Options no layout of this seed meets fall back to this seed's plain track, so they never hand out another seed's.
-  if (recipe !== SKY) return sky_layout(seed, SKY);
+  if (recipe !== plain) return sky_layout(seed, plain, plain);
   if (seed === FALLBACK_SEED) throw new Error(`sky_layout: fallback seed ${seed} found no track`);
-  return sky_layout(FALLBACK_SEED);
+  return sky_layout(FALLBACK_SEED, plain, plain);
 }
 
 /** Rail-free stretches on straights and wide flat arcs, clear of banks, tight bends and jumps. */
-function open_sections(seed: number, samples: readonly Sample[], pieces: readonly PlanPiece[], length: number, share: SkyRecipe["open"], blocked: (s: number) => boolean): OpenSection[] {
-  const rng = mulberry32(sub(seed, "sky:open"));
+function open_sections(seed: number, kind: WorldKind, samples: readonly Sample[], pieces: readonly PlanPiece[], length: number, share: SkyRecipe["open"], blocked: (s: number) => boolean): OpenSection[] {
+  const rng = mulberry32(sub(seed, `${kind}:open`));
   const fit = (p: Sample) => {
     const piece = pieces[p.piece];
     return p.bank === 0 && (piece.kind === "straight" || Math.abs(1 / piece.curve) >= OPEN_RADIUS) && !blocked(p.s);
@@ -859,9 +897,9 @@ function boost_pads(pieces: readonly PlanPiece[], profile: readonly Grade[], toe
   return pads.sort((x, y) => x.s0 - y.s0);
 }
 
-export function generate_sky(seed: number, recipe: SkyRecipe = SKY): WorldData {
+export function generate_sky(seed: number, recipe: SkyRecipe = SKY, plain: SkyRecipe = SKY): WorldData {
   const t0 = performance.now();
-  const { pieces, samples, length, profile, toes, zones, recipe: built } = sky_layout(seed, recipe);
+  const { pieces, samples, length, profile, toes, zones, recipe: built } = sky_layout(seed, recipe, plain);
   const stacked = (s: number) => zones.some((z) => (s > z.s0 - ZONE_MARGIN && s < z.s1 + ZONE_MARGIN) || (s > z.a0 - ZONE_MARGIN && s < z.a1 + ZONE_MARGIN));
   const jump = size_gap();
   const climbs = climb(profile);
@@ -905,7 +943,7 @@ export function generate_sky(seed: number, recipe: SkyRecipe = SKY): WorldData {
   const pads = boost_pads(pieces, profile, toes, length, samples, built.pads);
   for (const p of pads) deck_pieces.push({ kind: "pad", s0: p.s0, length: PAD_LENGTH, curve: 0 });
   deck_pieces.sort((a, b) => a.s0 - b.s0);
-  const open = open_sections(seed, samples, pieces, length, built.open, (s) => stacked(s) || toes.some((t) => s > t - JUMP_BEFORE - OPEN_CLEAR && s < t + jump.span + JUMP_AFTER));
+  const open = open_sections(seed, built.kind, samples, pieces, length, built.open, (s) => stacked(s) || toes.some((t) => s > t - JUMP_BEFORE - OPEN_CLEAR && s < t + jump.span + JUMP_AFTER));
   const solids: Solid[] = [];
   for (let i = 0; i < n; i += 2) {
     const a = i * DECK_STRIDE;
@@ -957,17 +995,18 @@ export function generate_sky(seed: number, recipe: SkyRecipe = SKY): WorldData {
     }
   }
 
+  const roofs = built.roofs ? roof_buildings(seed, line) : { lots: [], buildings: [] };
   const heights = new Float32Array((N + 1) * (N + 1)).fill(ABYSS);
   const road_dist = new Float32Array((N + 1) * (N + 1));
   return {
-    kind: "sky",
+    kind: built.kind,
     deck: { half: ROAD_HALF, pieces: deck_pieces, line, pads, open },
     terrain: { seed, size: SIZE, cell: CELL, n: N, heights, road_dist, surface: new Uint8Array(heights.length) },
     ground: { base: { kind: "flat", height: ABYSS, road_dist: 0 }, ops: [] },
     graph: { nodes: [{ id: 0, x: road[0].x, z: road[0].z, y: road[0].y, kind: "junction" }], edges: [{ id: 0, a: 0, b: 0, kind: "highway", half: ROAD_HALF, closed: true, points: road }] },
     towns: [],
-    lots: [],
-    buildings: [],
+    lots: roofs.lots,
+    buildings: roofs.buildings,
     props: [],
     parking: [],
     trees: [],
@@ -980,6 +1019,6 @@ export function generate_sky(seed: number, recipe: SkyRecipe = SKY): WorldData {
     road,
     routes: [circuit_route(road, checkpoints)],
     canyon: null,
-    timings: [["sky", performance.now() - t0]],
+    timings: [[built.kind, performance.now() - t0]],
   };
 }

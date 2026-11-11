@@ -7,11 +7,12 @@ import type { KindDef } from "./kind-def";
 import type { SnowKit } from "../snow";
 import { mainland } from "./mainland";
 import { in_k2, normal_levels, overrides } from "./options";
+import { rooftops } from "./rooftops";
 import { sky } from "./sky";
 import { tundra } from "./tundra";
 import { volcano } from "./volcano";
 
-export const KINDS: Record<WorldKind, KindDef> = { island, sky, desert, mainland, alpine, tundra, volcano };
+export const KINDS: Record<WorldKind, KindDef> = { island, sky, desert, mainland, alpine, tundra, volcano, rooftops };
 
 export interface MapSpec {
   kind: WorldKind;

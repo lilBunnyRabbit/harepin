@@ -1,8 +1,7 @@
 import type { Rgb } from "./mesh";
 import { PAD_HALF, rail_open } from "./sky";
-import { DECK_STRIDE, type Deck } from "./types";
+import { DECK_STRIDE, DECK_THICK as THICK, type Deck } from "./types";
 
-const THICK = 0.4;
 // About 75% of a car's height, as a toy track wall stands next to its car; the outside of a bank stands taller still.
 const RAIL_HIGH = 1;
 const BANK_RAIL = 0.3;
