@@ -32,6 +32,13 @@ export type CameraReturn = (typeof CameraReturn)[keyof typeof CameraReturn];
 /** Seconds of driving before the camera eases back; `off` returns at once. */
 export const CAMERA_RETURN_SECONDS: Record<CameraReturn, number> = { off: 0, short: 1.5, long: 3, never: Infinity };
 
+export const SpeedZoom = {
+  OFF: "off",
+  SUBTLE: "subtle",
+  STRONG: "strong",
+} as const;
+export type SpeedZoom = (typeof SpeedZoom)[keyof typeof SpeedZoom];
+
 /** Where the HUD pieces sit; each is a CSS layout keyed on `data-hud` on the root. */
 export const HudLayout = {
   MINIMAL: "minimal",
@@ -82,6 +89,8 @@ export interface SettingsState {
   steer_sensitivity: SteerSensitivity;
   camera: CameraView;
   camera_return: CameraReturn;
+  speed_zoom: SpeedZoom;
+  camera_tilt: boolean;
   invert_y: boolean;
   ghost: boolean;
   /** Master volume, 0..1. */
@@ -131,6 +140,8 @@ const FIELDS: { [K in SettingKey]: Field<SettingsState[K]> } = {
   steer_sensitivity: one_of(Object.values(SteerSensitivity), SteerSensitivity.MEDIUM),
   camera: one_of(Object.values(CameraView), CameraView.CHASE),
   camera_return: one_of(Object.values(CameraReturn), CameraReturn.SHORT),
+  speed_zoom: one_of(Object.values(SpeedZoom), SpeedZoom.SUBTLE),
+  camera_tilt: flag(true),
   invert_y: flag(false),
   ghost: flag(true),
   volume: { fallback: 0.8, parse: (raw) => (typeof raw === "number" && Number.isFinite(raw) ? Math.min(1, Math.max(0, raw)) : 0.8) },

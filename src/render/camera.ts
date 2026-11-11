@@ -2,6 +2,8 @@ import * as THREE from "three";
 import type { Size } from "../car/cars";
 import type { Look } from "../hud/input";
 import type { World } from "../world/world";
+import type { SpeedZoom } from "../menu/prefs";
+import { SPEED_ZOOM, Tilt, speed_fov, zoom_share } from "./camera-feel";
 
 const angle_diff = (a: number, b: number) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
 const DEG = Math.PI / 180;
@@ -30,7 +32,6 @@ const ORBITED_ZOOM = 0.15;
 const TOP_BACK = 9;
 const TOP_RISE = 15;
 const TOP_LEAD = 5;
-const BOOST_FOV = 6;
 
 /** The car as drawn this frame: interpolated between physics steps, so the camera never follows the step rhythm. */
 export interface CarPose {
@@ -53,11 +54,18 @@ export class ChaseCamera {
   /** The car's body against a car-sized one (`oversize`): the chase view backs off and rises with it. */
   size: Size = { length: 1, width: 1, height: 1 };
   boost = false;
+  speed_zoom: SpeedZoom = "subtle";
+  /** Pitch and roll the chase view with the car's acceleration. */
+  tilt_on = true;
+  private readonly tilt = new Tilt();
   private yaw = 0;
   private height = 0;
   private pull = 0;
   private shake = 0;
   private last_speed = 0;
+  private readonly last_vel = new THREE.Vector3();
+  private readonly accel = new THREE.Vector3();
+  private readonly side = new THREE.Vector3();
   private floor = -Infinity;
   private orbit_floor = -Infinity;
   private readonly chase = new THREE.Vector3();
@@ -91,6 +99,10 @@ export class ChaseCamera {
     this.orbit_yaw = this.aim_yaw = 0;
     this.orbit_pitch = this.aim_pitch = 0;
     this.recenter_t = Infinity;
+    this.last_speed = car.vel.length();
+    this.last_vel.copy(car.vel);
+    this.pull = 0;
+    this.tilt.reset();
     const { length, height } = this.size;
     this.chase.set(car.pos.x - Math.sin(this.yaw) * 7 * length, car.pos.y + 2.5 * height, car.pos.z - Math.cos(this.yaw) * 7 * length);
     this.camera.position.copy(this.chase);
@@ -162,9 +174,16 @@ export class ChaseCamera {
   update(dt: number, car: CarPose, world: World, offroad: boolean, time: number, look: Look) {
     const { camera } = this;
     const speed = car.vel.length();
-    const accel = (speed - this.last_speed) / Math.max(dt, 1e-3);
+    const step = Math.max(dt, 1e-3);
+    const accel = (speed - this.last_speed) / step;
     this.last_speed = speed;
     this.fwd.set(0, 0, 1).applyQuaternion(car.quat);
+    this.side.set(1, 0, 0).applyQuaternion(car.quat);
+    this.accel.subVectors(car.vel, this.last_vel).divideScalar(step);
+    this.last_vel.copy(car.vel);
+    this.tilt.update(dt, this.accel.dot(this.fwd), this.accel.dot(this.side), this.tilt_on && this.mode === 0 && !this.top);
+    const zoom = SPEED_ZOOM[this.speed_zoom];
+    const share = zoom_share(zoom, speed);
     const heading = Math.atan2(this.fwd.x, this.fwd.z);
     this.shake = Math.max(0, this.shake - dt * 2.5);
     const rumble = (offroad ? Math.min(1, speed / 20) * 0.008 : 0) + Math.max(0, speed - 50) * 0.0004 + this.shake * 0.2;
@@ -185,8 +204,8 @@ export class ChaseCamera {
       this.height += (car.pos.y - this.height) * Math.min(1, dt * 6);
       this.pull += (Math.max(-1, Math.min(1, accel / 9)) - this.pull) * Math.min(1, dt * 3);
       const { length, height } = this.size;
-      const back = this.top ? TOP_BACK * length : 6.2 * length + speed * 0.022 + this.pull * 0.7;
-      const rise = this.top ? TOP_RISE * length : 2.15 * height + speed * 0.006 - PIVOT_RISE * height;
+      const back = this.top ? TOP_BACK * length : 6.2 * length + zoom.back * share + this.pull * zoom.pull;
+      const rise = this.top ? TOP_RISE * length : 2.15 * height + zoom.rise * share - PIVOT_RISE * height;
       const base_pitch = Math.atan2(rise, back);
       this.orbit(dt, look, speed, base_pitch);
       const reach = Math.hypot(back, rise);
@@ -212,13 +231,15 @@ export class ChaseCamera {
       const lead = (this.top ? TOP_LEAD : LOOK_LEAD) * length;
       this.look.set(car.pos.x + Math.sin(yaw) * lead, pivot_y, car.pos.z + Math.cos(yaw) * lead);
       camera.lookAt(this.look);
+      camera.rotateX(this.tilt.pitch);
+      camera.rotateZ(this.tilt.roll);
     }
     if (rumble > 0) {
       camera.position.x += Math.sin(time * 23) * rumble * 0.6;
       camera.position.y += Math.sin(time * 17 + 1.3) * rumble;
       camera.rotation.z += Math.sin(time * 13) * rumble * 0.02;
     }
-    camera.fov += (64 + Math.min(24, speed * 0.3) + (this.boost ? BOOST_FOV : 0) - camera.fov) * Math.min(1, dt * 3);
+    camera.fov += (speed_fov(zoom, speed, this.boost) - camera.fov) * Math.min(1, dt * 3);
     camera.updateProjectionMatrix();
   }
 

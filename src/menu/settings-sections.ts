@@ -4,7 +4,7 @@ import { binding_rows } from "./binding-rows";
 import { el, icon, type Options, type Text } from "./setting-rows";
 import { THEMES, choose_theme, current_theme, find_saved, find_theme, load_saved_themes } from "../theme/theme";
 import type { SettingsMenu } from "./page";
-import { CameraReturn, CameraView, DashPlace, HudLayout, MapView, QualityMode, SteerSensitivity, TouchSteer, type QualityTier } from "./prefs";
+import { CameraReturn, CameraView, DashPlace, SpeedZoom, HudLayout, MapView, QualityMode, SteerSensitivity, TouchSteer, type QualityTier } from "./prefs";
 import { BASE_TOKENS, saved_themes, theme_create } from "./theme-pages";
 import { stat } from "./widgets";
 import { country_name, flag, own_country } from "../net/country";
@@ -26,6 +26,7 @@ export interface DeepPage {
 }
 
 const CAMERA_RETURN_LABEL: Record<CameraReturn, string> = { off: "Off", short: "1.5 s", long: "3 s", never: "Never" };
+const SPEED_ZOOM_LABEL: Record<SpeedZoom, string> = { off: "Off", subtle: "Subtle", strong: "Strong" };
 const STEER_LABEL: Record<SteerMode, string> = { snap: "Classic", hold: "Hold", smooth: "Smooth" };
 const MAP_VIEWS: Record<MapView, [string, string]> = {
   full: ["Full", "The whole track"],
@@ -379,6 +380,13 @@ function camera(m: SettingsMenu): HTMLElement[] {
       m.value("camera_return"),
       Object.values(CameraReturn).map((value) => [value, CAMERA_RETURN_LABEL[value]] as const),
     ),
+    m.rows.segmented(
+      "Speed zoom",
+      "How much the view widens and backs off as you go faster.",
+      m.value("speed_zoom"),
+      Object.values(SpeedZoom).map((value) => [value, SPEED_ZOOM_LABEL[value]] as const),
+    ),
+    m.rows.toggle("Camera tilt", "The chase view dips under braking, lifts as you accelerate and leans through corners.", m.value("camera_tilt")),
     m.rows.toggle("Invert camera Y", "Mouse drag and right stick.", m.value("invert_y")),
   ];
 }

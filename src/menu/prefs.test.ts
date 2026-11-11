@@ -30,6 +30,8 @@ describe("parse_settings", () => {
       steer_sensitivity: "low",
       camera: "cockpit",
       camera_return: "never",
+      speed_zoom: "strong",
+      camera_tilt: false,
       invert_y: true,
       ghost: false,
       volume: 0.25,

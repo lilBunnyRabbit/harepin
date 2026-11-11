@@ -280,6 +280,8 @@ function apply_settings(state: SettingsState) {
   audio.set_view(state.camera === CameraView.COCKPIT);
   chase.return_delay = CAMERA_RETURN_SECONDS[state.camera_return];
   chase.invert_y = state.invert_y;
+  chase.speed_zoom = state.speed_zoom;
+  chase.tilt_on = state.camera_tilt;
   ghost.visible = state.ghost;
   audio.set_volume(state.volume);
   audio.set_muted(state.muted);
