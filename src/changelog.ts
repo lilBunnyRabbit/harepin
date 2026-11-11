@@ -23,6 +23,22 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.28.0",
+    date: "2026-11-11",
+    title: "Create world",
+    changes: [
+      { kind: NEW, text: "Create world: pick a preset, tune hills, trees, dunes, rocks, ridges, water and town size, save your maps and share them as a short code or link. Every combination builds a drivable world." },
+      { kind: NEW, text: "Mainland towns have buildings, street lights and parked cars." },
+      { kind: NEW, text: "New HUD: filled cards for the map and the speedometer, a clean ring gauge (or a Forza-style bar in Settings), four clickable assist switches, and the map in the bottom left or top right." },
+      { kind: IMPROVED, text: "Drifting: full lock and full gas from a stop kicks a slide you can hold on full gas, and it keeps its speed. While rolling, tap the handbrake at full lock and floor it." },
+      { kind: IMPROVED, text: "Steering: a full key turns a little tighter at speed, and fast cars build and release steering more smoothly." },
+      { kind: IMPROVED, text: "Island and Alpine hairpins climb the hillside on U-turns instead of cutting into it. Records on those maps start fresh." },
+      { kind: IMPROVED, text: "Mainland junctions meet at clean angles, with no overlapping asphalt or stray kerbs. Mainland records start fresh." },
+      { kind: IMPROVED, text: "Camera tilt is off by default, and the chase camera no longer swings in quick weaves." },
+      { kind: FIXED, text: "The sky no longer turns black far out on the mainland, and your rolled name no longer changes when you reopen the guide." },
+    ],
+  },
+  {
     version: "0.27.0",
     date: "2026-11-11",
     title: "Grip",
