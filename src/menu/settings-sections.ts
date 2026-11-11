@@ -2,6 +2,7 @@ import { SteerMode } from "../car/car";
 import { keys_text, pad_text, type Bindable, type Bindings } from "../hud/bindings";
 import { RumbleLevel } from "../hud/rumble";
 import { binding_rows } from "./binding-rows";
+import { pad_advanced } from "./settings-pad";
 import { el, icon, type Options, type Text } from "./setting-rows";
 import { THEMES, choose_theme, current_theme, find_saved, find_theme, load_saved_themes } from "../theme/theme";
 import type { SettingsMenu } from "./page";
@@ -423,6 +424,7 @@ function controls(m: SettingsMenu): HTMLElement[] {
       m.value("rumble"),
       Object.values(RumbleLevel).map((level) => [level, RUMBLE_LABEL[level]] as const),
     ),
+    ...pad_advanced(m),
     m.rows.link("Change keys and buttons", "Pick an action, then press its new key or pad button.", "Keyboard and pad", () => m.show_sub("bindings")),
     m.rows.link("All keys and buttons", list_help(m), "Keyboard, pad, touch", () => m.show_sub("keys")),
   ];
