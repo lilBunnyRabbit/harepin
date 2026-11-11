@@ -74,7 +74,7 @@ Grip numbers are *est.*: calibrate with `scripts/surfaces.ts` / `offroad.ts` bef
 | Mood | Winter delta: bright hemi ground, cool fog | On | On |
 | Geometry | — | Its own terrain layers | **Unchanged except snowbanks**: same seed, same roads, towns, trails; lap lines stay comparable |
 
-Recommendation: **two settings, one kit.** `biome` picks the land; `season` (summer / winter, autumn later) applies the kit. Tundra locks season to winter (the row greys out). Winter is part of the map code and the records key: grip changes lap times. Why not make winter a biome: it would have to copy every biome's terrain to exist in winter, the opposite of data over branches. Why not make tundra "temperate + winter": the owner wants flats and frozen lakes, which is a different terrain, not a different tint.
+Recommendation: **two settings, one kit.** `biome` picks the land; `season` (summer / winter, autumn later) applies the kit. Tundra is always winter and has no Season row at all (built that way in B5, accepted over a greyed-out row). Winter is part of the map code and the records key: grip changes lap times. Why not make winter a biome: it would have to copy every biome's terrain to exist in winter, the opposite of data over branches. Why not make tundra "temperate + winter": the owner wants flats and frozen lakes, which is a different terrain, not a different tint.
 
 ## 2. Generator architecture
 
