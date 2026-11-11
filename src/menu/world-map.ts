@@ -244,7 +244,7 @@ export class WorldMap {
 }
 
 function map_tones(): MapTones {
-  return { terrain: mesh_tones().terrain, water: linear(tones.water), cloud: linear(sky_tones.cloud) };
+  return { terrain: mesh_tones().terrain, water: linear(tones.water), cloud: linear(sky_tones.cloud), lava: linear(tones.lava) };
 }
 
 function stroke(ctx: CanvasRenderingContext2D, path: Path2D | null, color: string, width: number) {

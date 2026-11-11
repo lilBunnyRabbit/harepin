@@ -29,4 +29,4 @@ export const MESH_TONES: MeshTones = {
   deck: { deck: [0.21, 0, 0], side: [0.22, 0, 0], rail: [0.23, 0, 0], joint: [0.24, 0, 0], pad: [0.25, 0, 0], chevron: [0.26, 0, 0] },
 };
 
-export const MAP_TONES: MapTones = { terrain: lut, water: [0.1, 0.3, 0.6], cloud: [0.9, 0.9, 0.95] };
+export const MAP_TONES: MapTones = { terrain: lut, water: [0.1, 0.3, 0.6], cloud: [0.9, 0.9, 0.95], lava: [0.9, 0.3, 0.1] };

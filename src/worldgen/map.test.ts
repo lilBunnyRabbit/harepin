@@ -2,12 +2,13 @@
 import { expect, test } from "bun:test";
 import { JITTER_LEVELS, TERRAIN_BASES } from "./chunks";
 import { generate } from "./index";
+import { KINDS } from "./kinds/kinds";
 import { MAP_SIDE, MapLineKind, map_data, type MapData, type MapTones } from "./map";
 import type { MapRequest } from "./map-worker";
 import { ORIGIN, SIZE } from "./types";
 
 const SEED = 7;
-const TONES: MapTones = { terrain: Float32Array.from({ length: TERRAIN_BASES * JITTER_LEVELS * 3 }, (_, i) => (i % 97) / 97), water: [0.1, 0.2, 0.4], cloud: [0.7, 0.7, 0.75] };
+const TONES: MapTones = { terrain: Float32Array.from({ length: TERRAIN_BASES * JITTER_LEVELS * 3 }, (_, i) => (i % 97) / 97), water: [0.1, 0.2, 0.4], cloud: [0.7, 0.7, 0.75], lava: [0.9, 0.3, 0.1] };
 
 function from_worker(request: MapRequest): Promise<MapData> {
   const worker = new Worker(new URL("./map-worker.ts", import.meta.url), { type: "module" });
@@ -57,3 +58,10 @@ test("the sky track preview is a cloud backdrop with the circuit, its gaps, boos
   const mid = (centre * MAP_SIDE + centre) * 4;
   expect(map.pixels[mid]).toBeGreaterThan(map.pixels[0]);
 }, 30_000);
+
+test("crater lava draws in its own tone, unshaded", () => {
+  const map = map_data(KINDS.volcano.generate(SEED, []), TONES);
+  const centre = (MAP_SIDE - 1) / 2;
+  const mid = (centre * MAP_SIDE + centre) * 4;
+  expect([...map.pixels.slice(mid, mid + 3)]).toEqual(TONES.lava.map((c) => Math.round(255 * c ** (1 / 2.2))));
+});

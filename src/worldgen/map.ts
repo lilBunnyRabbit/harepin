@@ -8,7 +8,7 @@ import { ISLAND } from "./recipe";
 import { land_height } from "./terrain";
 import { KINDS } from "./kinds/kinds";
 import { world_facts, type WorldFacts } from "./facts";
-import { CELL, DECK_STRIDE, N, ORIGIN, type EdgeKind, type WorldData, type WorldKind } from "./types";
+import { CELL, DECK_STRIDE, N, ORIGIN, SurfaceId, type EdgeKind, type WorldData, type WorldKind } from "./types";
 
 export const MAP_SIDE = N + 1;
 const SUN = normalise([-1, 1.4, -1]);
@@ -69,6 +69,7 @@ export interface MapTones {
   water: [number, number, number];
   /** The cloud floor's tone, the sky track's backdrop. */
   cloud: [number, number, number];
+  lava: [number, number, number];
 }
 
 function normalise([x, y, z]: [number, number, number]): [number, number, number] {
@@ -92,7 +93,7 @@ function cloud_pixels(tones: MapTones): Uint8ClampedArray<ArrayBuffer> {
 }
 
 /** Shaded raster from heights and colours over MAP_SIDE² vertices `step` metres apart. */
-function shaded(heights: Float32Array, colors: Float32Array, tones: MapTones, step: number, depths: Float32Array | null = null): Uint8ClampedArray<ArrayBuffer> {
+function shaded(heights: Float32Array, colors: Float32Array, tones: MapTones, step: number, depths: Float32Array | null = null, surface: Uint8Array | null = null): Uint8ClampedArray<ArrayBuffer> {
   const last = MAP_SIDE - 1;
   const pixels = new Uint8ClampedArray(MAP_SIDE * MAP_SIDE * 4);
   const at = (i: number, j: number) => heights[Math.min(last, Math.max(0, j)) * MAP_SIDE + Math.min(last, Math.max(0, i))];
@@ -103,7 +104,11 @@ function shaded(heights: Float32Array, colors: Float32Array, tones: MapTones, st
       let rgb: ArrayLike<number> = colors.subarray(k * 3, k * 3 + 3);
       let shade: number;
       const depth = depths ? depths[k] : -y;
-      if (depth > 0) {
+      // Lava glows: unshaded, like the lit disc over it in the scene.
+      if (surface?.[k] === SurfaceId.LAVA) {
+        rgb = tones.lava;
+        shade = 1;
+      } else if (depth > 0) {
         rgb = tones.water;
         shade = 1 - (1 - DEEP_SHADE) * Math.min(1, depth / DEEP);
       } else {
@@ -155,7 +160,7 @@ function plan_pixels(data: WorldData, tones: MapTones): Uint8ClampedArray<ArrayB
 export function map_pixels(data: WorldData, tones: MapTones): Uint8ClampedArray<ArrayBuffer> {
   if (!KINDS[data.kind].ground) return cloud_pixels(tones);
   if (!data.terrain.heights.length) return plan_pixels(data, tones);
-  return shaded(data.terrain.heights, terrain_colors(data, tones.terrain), tones, CELL);
+  return shaded(data.terrain.heights, terrain_colors(data, tones.terrain), tones, CELL, null, data.terrain.surface);
 }
 
 function line(kind: MapLineKind, closed: boolean, points: { x: number; z: number }[]): MapLine {
