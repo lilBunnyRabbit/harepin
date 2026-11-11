@@ -692,7 +692,7 @@
 }
 
 .guide-pics {
-  grid-template: minmax(0, 1fr) auto / repeat(4, minmax(0, 1fr));
+  grid-template: minmax(72px, 1fr) auto / repeat(4, minmax(0, 1fr));
 }
 
 .guide-worlds {
@@ -701,7 +701,7 @@
 
 @media (max-width: 600px) {
   .guide-pics {
-    grid-template: repeat(2, minmax(0, 1fr) auto) / repeat(2, minmax(0, 1fr));
+    grid-template: repeat(2, minmax(72px, 1fr) auto) / repeat(2, minmax(0, 1fr));
   }
 }
 
