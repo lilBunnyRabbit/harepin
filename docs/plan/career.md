@@ -87,7 +87,7 @@ interface Tier {
 |---|---|---|
 | `harepin:career` | `{ stars: { [event_id]: 1-3 } }` | **No** (F2) |
 | `harepin:career:<event_id>:<world_key>` | best `StarRun` (`track.ts:7`) | Yes, by key |
-| `harepin:ghost:career:<event_id>:<world_key>` | your best ghost | Yes, by key |
+| `harepin:ghost:career:<event_id>:<level>:<world_key>` | your best ghost (duel keys ghosts by `Track.scope` and level, so the level segment stays) | Yes, by key |
 
 Career runs do not write the mode's `Track` (`track.ts:111`): the rules and thresholds differ, so a career time is not a free-play time.
 
@@ -104,7 +104,7 @@ Worlds: Island `C`, Winter island `C…-W1`, Dune sea `D`, Alpine `A`, Frozen la
 | r1 | First lap | Island | `1C0000003` | race `circuit` | ≤ C |
 | r2 | Cones | Island | `1C0000003` | gymkhana `g2` | ≤ C |
 | r3 | Bay | Island | `1C0000003` | parking `p1` | Easy cruiser |
-| r4 | Sand trail | Dune sea | `1D0000005` | race `offroad-1` | Dirt rally |
+| r4 | Sand trail | Dune sea | `1D0000005` | race `circuit` (no Dune sea seed 5-125 has an `offroad-*` route, per `career-check`) | Dirt rally |
 | r5 | Dune gates | Dune sea | `1D0000005` | hunt `h1` | ≤ C |
 | r6 | Cloud sprint | Sky Track | `1S0000002` | duel `v1` | ≤ C |
 | r7 | **Final: Downtown** | Rooftops | `1R0000001` | race `circuit` | ≤ C |
@@ -117,7 +117,7 @@ Worlds: Island `C`, Winter island `C…-W1`, Dune sea `D`, Alpine `A`, Frozen la
 | c2 | Mountain S | Alpine | `1A0000004` | drift `d2` | Drift |
 | c3 | Ice box | Frozen lakes | `1T0000006` | gymkhana `g4` | ≤ B |
 | c4 | Lake search | Frozen lakes | `1T0000006` | hunt `h3` | Mud basher |
-| c5 | Winter reverse | Winter island | `1C0000003-W1` | race `circuit-rev` | ≤ A |
+| c5 | Winter reverse | Winter island | `1C0000006-W1` (seed 3 in winter has no `circuit-rev`) | race `circuit-rev` | ≤ A |
 | c6 | Mainland lap | Mainland | `1M<MAINLAND_SEED>` | race `circuit` | ≤ A |
 | c7 | **Final: Rim to sea** | Volcano | `1V0000001` | race (descent route) | ≤ A |
 
@@ -130,7 +130,7 @@ Worlds: Island `C`, Winter island `C…-W1`, Dune sea `D`, Alpine `A`, Frozen la
 | p3 | Touge | Alpine | `1A0000009` | drift `d5` | ≤ S1 |
 | p4 | Island sweep | Island | `1C0000008` | hunt `h5` | ≤ S1 |
 | p5 | Ice parallel | Frozen lakes | `1T0000006` | parking `p7` | Drift |
-| p6 | Precision | Winter island | `1C0000008-W1` | gymkhana `g7` | ≤ S2 |
+| p6 | Precision | Winter island | `1C0000009-W1` (seed 8 in winter has no gymkhana site) | gymkhana `g7` | ≤ S2 |
 | p7 | **Final: Riverbed** | Ice canyon | (new preset char) | race (riverbed route) | ≤ S1 |
 
 Mix: race 7, gymkhana 3, parking 3, drift 2, hunt 3, duel 2 (the 3 finals are races). Sky Track and Rooftops have no open ground (`open_ground: false`, `kinds/sky.ts:32`, `kinds/rooftops.ts:17`), so only race, drift and duel run there.
@@ -140,7 +140,7 @@ Mix: race 7, gymkhana 3, parking 3, drift 2, hunt 3, duel 2 (the 3 finals are ra
 | Final | Real | Blocked by | Stand-in |
 |---|---|---|---|
 | r7 | Rooftops `circuit` | `listed: false` (`worlds/rooftops.ts:22`), R1-R4 | Sky Track `1S0000002` race `circuit` |
-| c7 | Volcano rim-to-sea | `listed: false` (`worlds/volcano.ts:10`), one-way route + checkpoint respawn (special-maps V3; `descent.ts` in flight) | Alpine `1A0000004` race `offroad-2` |
+| c7 | Volcano rim-to-sea | `listed: false` (`worlds/volcano.ts:10`), one-way route + checkpoint respawn (special-maps V3; `descent.ts` in flight) | Alpine `1A0000004` race `street-2` (Alpine has no canyon, so never an `offroad-*` route) |
 | p7 | Ice canyon riverbed | Not started (I1-I2, after V3) | Frozen lakes `1T0000006` race `circuit` |
 | c6, p1 | Mainland | Modes off on streamed worlds | Island `1C0000008` race `street-2` / duel `v5` |
 

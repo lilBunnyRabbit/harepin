@@ -67,7 +67,10 @@ const event = event_of(params.get(EVENT_PARAM));
 // Any peer on the map can call a lobby race, and that ends a mode run: an event link without a room of its own runs
 // alone in an unlisted room. The menu still names `room`, so the next world picked lands back in it.
 const solo = event !== null && !params.has("room");
-const net_room = solo ? `solo-${crypto.randomUUID().slice(0, 8)}` : room;
+// getRandomValues, not randomUUID: the latter only exists in a secure context, and a phone on the LAN dev server is not one.
+const net_room = solo ? `solo-${[...crypto.getRandomValues(new Uint8Array(4))].map((b) => b.toString(16).padStart(2, "0")).join("")}` : room;
+// A room the player chose stays theirs across events; without one the event runs solo.
+const KEPT_ON_EVENT = ["room", "car"];
 const saved_pick = read_saved_pick();
 const pick = pick_world(params, room, saved_pick);
 pin_pick(params, saved_pick, pick);
@@ -403,7 +406,12 @@ function start_event(id: string) {
   if (!to) return;
   if (!on_this_map(to)) {
     mark_drive();
-    location.search = `?${new URLSearchParams({ [EVENT_PARAM]: to.id, [CAREER_PARAM]: "" })}`;
+    const query = new URLSearchParams({ [EVENT_PARAM]: to.id, [CAREER_PARAM]: "" });
+    for (const kept of KEPT_ON_EVENT) {
+      const value = params.get(kept);
+      if (value !== null) query.set(kept, value);
+    }
+    location.search = `?${query}`;
     return;
   }
   settings.close();

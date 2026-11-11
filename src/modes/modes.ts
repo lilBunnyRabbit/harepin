@@ -1,5 +1,5 @@
 import type * as THREE from "three";
-import { next_event, spot_of, tier_line, tier_of, type CareerEvent } from "../career/career";
+import { TIERS, next_event, spot_of, tier_line, tier_of, tier_open, type CareerEvent } from "../career/career";
 import { event_track, type Career } from "../career/career-store";
 import { car_sized, type CarSpec } from "../car/cars";
 import { DEFAULT_BINDINGS, keys_text, type Bindings } from "../hud/bindings";
@@ -191,6 +191,9 @@ export class Modes {
     const mode = this.modes.find((m) => m.def.id === event.mode);
     const level = mode?.levels.find((l) => l.id === spot.level);
     if (!mode || !level) return this.notice(NO_EVENT);
+    const tier = tier_of(event);
+    const before = TIERS[TIERS.indexOf(tier) - 1];
+    if (!this.career || !tier_open(this.career.stars, tier)) return this.notice(`${tier.name} opens at ${tier.opens_at} ★ in ${before?.name ?? "the tier before"}`);
     if (mode.def.needs_ground && !KINDS[this.world.kind].open_ground) return this.notice(NO_GROUND_NOTICE);
     if (this.too_big(mode)) return this.notice(TOO_BIG);
     if (this.race_busy()) return this.notice(mode.def.busy_notice);
