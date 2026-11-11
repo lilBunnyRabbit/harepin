@@ -95,7 +95,8 @@ test("off the road or going backwards runs the grace clock instead of scoring", 
 
 test("stars by score thresholds", () => {
   const zone = { silver: 500, gold: 1000 };
-  expect(drift_stars(0, zone)).toBe(1);
+  expect(drift_stars(0, zone)).toBe(0);
+  expect(drift_stars(1, zone)).toBe(1);
   expect(drift_stars(500, zone)).toBe(2);
   expect(drift_stars(999, zone)).toBe(2);
   expect(drift_stars(1000, zone)).toBe(3);

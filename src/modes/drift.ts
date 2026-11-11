@@ -60,7 +60,8 @@ export function build_zone(seed: number, road: readonly RoutePoint[], level: Dri
 
 export function drift_stars(score: number, zone: Pick<Zone, "silver" | "gold">): number {
   if (score >= zone.gold) return MAX_STARS;
-  return score >= zone.silver ? 2 : 1;
+  if (score >= zone.silver) return 2;
+  return score > 0 ? 1 : 0;
 }
 
 export interface Motion {

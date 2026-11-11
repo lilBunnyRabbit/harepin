@@ -32,6 +32,13 @@ test("a run replaces the best only on more stars, or the same stars faster", () 
   expect(record(runs, "g2", { stars: 1, ms: 1 }).first).toBe(true);
 });
 
+test("a starless run sets no best and opens nothing", () => {
+  const zero = record({}, "g1", { stars: 0, ms: 30_000, score: 0 });
+  expect(zero.improved).toBe(false);
+  expect(zero.runs).toEqual({});
+  expect(unlocked(zero.runs, IDS)).toBe(1);
+});
+
 test("saves are validated entry by entry", () => {
   expect(parse_runs({ g1: { stars: 3, ms: 1000 }, g2: { stars: 4, ms: 1 }, g3: { stars: 1, ms: -1 }, g4: "x" })).toEqual({ g1: { stars: 3, ms: 1000 } });
   expect(parse_runs([1, 2])).toEqual({});

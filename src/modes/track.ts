@@ -49,7 +49,8 @@ export function total_stars(runs: Readonly<Runs>, ids: readonly string[]): numbe
 
 export function record(runs: Readonly<Runs>, id: string, run: StarRun): Recorded {
   const old = runs[id];
-  const improved = better(old, run);
+  // A starless run is no finish: it sets no best and opens nothing.
+  const improved = run.stars >= 1 && better(old, run);
   return { runs: improved ? { ...runs, [id]: run } : { ...runs }, improved, first: !old };
 }
 
