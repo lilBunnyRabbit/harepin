@@ -46,8 +46,8 @@ const TCS_LATERAL = 1.4;
 /** Power-slide intent (walking pace × gas × held key) past which a launch may spin up the rear and swing the tail out. */
 const DRIFT_INTENT = 0.9;
 /**
- * Speed (m/s), about 30 km/h, under which a handbrake tap at full lock kicks a power slide while rolling. Faster it is
- * a plain handbrake turn: under the 43 km/h where a power slide stops counting and the 50 km/h hairpin of keys.ts.
+ * Speed (m/s), about 30 km/h, under which a handbrake tap at full lock kicks a power slide while rolling. Faster, the tap
+ * and full gas hold the slide the handbrake threw rather than launch one, so the gas still can't kick a slow corner.
  */
 const DRIFT_START = 8.5;
 /** Seconds after a rolling handbrake tap in which full gas and full lock still launch, so the gas may follow the tap. */
@@ -65,6 +65,19 @@ const DRIFT_TCS_SLIP = 0.5;
 const HELD_TCS_SLIP = 1.5;
 /** Body slip (rad) over which the yaw damper comes back in a launched power slide, so it stays a drift and not a spin. */
 const DRIFT_HOLD = [0.8, 1.2] as const;
+/**
+ * Rate (1/s) at which a held drift's slip angle stops swinging, FH's "yaw inertia" help, on full gas; lifting lets it go.
+ * Without it the angle rang from straight to 50 degrees every 2.5 s on full gas, and a keyboard countersteer caught the
+ * tail only to snap it straight.
+ */
+const DRIFT_DAMP = 4;
+/**
+ * Body slip (rad) over which `DRIFT_DAMP` comes in on a swing out to the drift's side, so the kick from rest still swings
+ * the tail out at its old pace. Any other swing is damped at every angle: gated too, the catch snapped past straight.
+ */
+const DRIFT_DAMP_SLIP = [0.15, 0.35] as const;
+/** Yaw rate (rad/s) under which a caught drift lets go once the tail is in: dropped at straight, it swung on into a spin. */
+const DRIFT_CALM = 0.3;
 /** Front slip angle the steer assist allows, in `peak_angle`: past peak a tyre only scrubs speed. */
 const USEFUL_SLIP = 1.1;
 /**
@@ -614,23 +627,31 @@ export class Car {
     // car past walking speed before the wheel got there.
     // Rolling, a handbrake tap at full lock kicks it, the Forza way: keys and touch buttons are always full, so no gas
     // pattern tells a drift from a slow corner. TCS on and the assist off, as from rest; all-wheel drive stalled in it.
-    const tapped = this.tcs && !this.assist && spec.drive === "rwd" && speed < DRIFT_START && this.gear >= 1 && input.handbrake > 0.5 && Math.abs(input.steer) > DRIFT_INTENT;
+    const tapped = this.tcs && !this.assist && spec.drive === "rwd" && this.gear >= 1 && input.handbrake > 0.5 && Math.abs(input.steer) > DRIFT_INTENT;
     this.tap_age = tapped ? 0 : this.tap_age + dt;
+    const kicks = speed < DRIFT_START;
     this.launch_age = pedal > 0.1 && speed < 1 ? 0 : pedal <= 0.1 ? Infinity : this.launch_age + dt;
     const held = Math.sign(input.steer);
     const asked = (this.slide_side === -held ? 0 : rear_drive) * Math.abs(input.steer);
     if (asked <= DRIFT_INTENT || held !== this.launch_side) this.launch_side = 0;
-    if (asked > DRIFT_INTENT && (this.launch_age < LAUNCH_WINDOW || this.tap_age < TAP_WINDOW)) this.launch_side = held;
+    if (asked > DRIFT_INTENT && (this.launch_age < LAUNCH_WINDOW || (kicks && this.tap_age < TAP_WINDOW))) this.launch_side = held;
     if (this.launch_side !== 0) this.slide_side = this.launch_side;
     // All-wheel drive pulls its own nose along the course; held there too it came out of the slide at 45 km/h, where
     // the opposite key is a full-lock turn the other way rather than a catch.
     // Once gas or stick eases the launch off, the hold stays while the tail is still out on the launched side and fades as
     // it comes in: cut there, the wheels swung from countersteer to lock and the car pivoted down to walking pace.
     const [fade_from, fade_to] = HOLD_FADE;
-    const tail_left = Math.max(0, Math.min(1, (-side * beta - fade_from) / (fade_to - fade_from)));
     if (this.launched) this.hold_side = this.launch_side;
+    // Faster, the tap's slide is the drift: its side is the way the tail went, as the key may already be countersteering.
+    else if (!kicks && this.tap_age < TAP_WINDOW && pedal > DRIFT_INTENT && Math.abs(beta) > fade_from) this.hold_side = -Math.sign(beta);
+    const tail_left = Math.max(0, Math.min(1, (-(this.hold_side || side) * beta - fade_from) / (fade_to - fade_from)));
+    // With the steering assist off, the countersteer key or a let-go key is the catch, not the end: dropping the hold for
+    // it put traction control back at 0.14, the gas went to its floor and the car slowed and gripped up mid-slide. The
+    // assist catches a let-go slide on its own, so there the key still ends it.
+    const let_go = this.assist && (this.hold_side !== held || this.hold_side !== side);
     // Braking or reversing out of it is no drift: held on, the loose TCS let the car reverse at full lock to 41 km/h.
-    else if (this.hold_side !== held || this.hold_side !== side || tail_left === 0 || this.gear < 1 || brake > 0.1 || local.z < 0) this.hold_side = 0;
+    const swung = tail_left === 0 && (Math.abs(ang.y) < DRIFT_CALM || this.assist);
+    if (!this.launched && (let_go || swung || this.gear < 1 || brake > 0.1 || local.z < 0)) this.hold_side = 0;
     const drift_steer = !this.tcs || spec.drive !== "rwd" ? 0 : this.launched ? 1 : this.hold_side !== 0 ? tail_left : 0;
     const cornering = grip_lock(spec, speed);
     const limit = Math.min(spec.lock, cornering + (spec.lock - cornering) * power_slide);
@@ -882,11 +903,22 @@ export class Car {
     // A launched slide past a drift's angle is a spin in the making: the momentum carried it round with the gas already cut.
     // That hold belongs to the launch, not to stability: without it a launch with stability off pirouetted the AWD cars.
     const [hold_from, hold_to] = DRIFT_HOLD;
-    const spinning = this.launched ? Math.max(0, Math.min(1, (Math.abs(beta) - hold_from) / (hold_to - hold_from))) : 0;
+    // With the steering assist off the held drift is the driver's, and stability gives way to it as to a launch: at speed it
+    // damped the handbrake's slide away before the gas could hold it. The assist's own countersteer catches the rest.
+    const held_drift = this.assist ? 0 : drift_steer;
+    const drifting = this.launched || held_drift > 0;
+    const spinning = drifting ? Math.max(0, Math.min(1, (Math.abs(beta) - hold_from) / (hold_to - hold_from))) : 0;
     const excess = Math.abs(slide) - 0.2;
-    const damp = this.stability ? 1 - power_slide * (1 - spinning) : spinning;
+    const damp = this.stability ? 1 - Math.max(power_slide, held_drift) * (1 - spinning) : spinning;
     if ((this.stability || spinning > 0) && excess > 0 && input.handbrake < 0.1 && Math.sign(ang.y) === Math.sign(slide)) {
       body.torque.y -= ang.y * spec.inertia[1] * Math.min(1, excess * 6) * 3.5 * spec.assist_yaw * damp;
+    }
+    if (!this.assist && this.hold_side !== 0 && this.tcs && spec.drive === "rwd" && speed > 1) {
+      // Yaw against the velocity's own turn rate is the slip angle changing; damping that, not yaw, leaves the arc alone.
+      const swing = ang.y - tmp.crossVectors(vel, body.force).y / (spec.mass * speed * speed);
+      const [damp_from, damp_to] = DRIFT_DAMP_SLIP;
+      const settle = Math.sign(swing) !== -this.hold_side ? 1 : held_drift * Math.max(0, Math.min(1, (Math.abs(beta) - damp_from) / (damp_to - damp_from)));
+      body.torque.y -= swing * spec.inertia[1] * DRIFT_DAMP * Math.min(1, pedal) * settle;
     }
     if (airborne && spec.air_settle > 0) {
       // Crests launch the car off whichever wheel leaves last, so it takes off spinning; bleed pitch and roll and level it

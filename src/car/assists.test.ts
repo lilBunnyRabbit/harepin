@@ -79,9 +79,25 @@ describe("steering assist and stability", () => {
     expect(over.spun).toBe(false);
   };
 
+  // Steering assist off, a rear-drive launch is the driver's drift: let go on full gas it holds its angle rather than
+  // snapping straight, and the opposite key brings it in without spinning. All-wheel drive holds no drift of its own.
+  const drifted = (over: PowerOver, counter: Counter) => {
+    expect(over.t30).toBeLessThan(2.5);
+    expect(over.peak).toBeGreaterThan(25);
+    expect(over.body).toBeLessThan(85);
+    expect(over.spun).toBe(false);
+    if (counter === Counter.RELEASE) expect(over.catch).toBeGreaterThan(2);
+    expect(over.flip).toBeLessThan(counter === Counter.HOLD ? 35 : 5);
+  };
+
   for (const aids of COMBOS.slice(1))
-    test(`${name(aids)}: full lock and full gas from parked still launches a power slide that a countersteer catches`, () => {
-      for (const id of RWD_AWD) for (const counter of [Counter.RELEASE, Counter.TAP, Counter.HOLD]) caught(power_over(SMOOTH, CARS[id], { ...aids, counter }));
+    test(`${name(aids)}: full lock and full gas from parked still launches a power slide that a countersteer ${aids.assist ? "catches" : "holds or brings in"}`, () => {
+      for (const id of RWD_AWD)
+        for (const counter of [Counter.RELEASE, Counter.TAP, Counter.HOLD]) {
+          const over = power_over(SMOOTH, CARS[id], { ...aids, counter });
+          if (aids.assist || CARS[id].drive !== "rwd") caught(over);
+          else drifted(over, counter);
+        }
     });
 });
 
