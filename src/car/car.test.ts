@@ -835,7 +835,7 @@ describe("power over with TCS on and the steering assist off", () => {
       run(car, 5.6, () => ({ ...idle, steer: 1, brake: 1 }));
       expect(car.gear).toBe(-1);
       // Held on it reversed at 2.4 times the plain car; muscle's slide now ends where it reverses at 1.34, still the hold dropped.
-      expect(car.vel.length()).toBeLessThan(plain.vel.length() * (spec === CARS.muscle ? 1.4 : 1.3));
+      expect(car.vel.length()).toBeLessThan(plain.vel.length() * (spec === CARS.muscle ? 1.35 : 1.3));
     }
   });
 
