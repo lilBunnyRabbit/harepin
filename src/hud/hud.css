@@ -67,8 +67,9 @@
 :root[data-hud="classic"] {
   /* The halo is the scheme's own background, so it always sits opposite the glyph: dark behind light text, light behind dark. */
   --halo-ink: var(--background-darkest);
-  --halo: 0 0 1px var(--halo-ink), 0 0 2px var(--halo-ink), 0 0 6px var(--halo-ink), 0 1px 12px var(--halo-ink);
-  --halo-drop: drop-shadow(0 0 1px var(--halo-ink)) drop-shadow(0 0 2px var(--halo-ink)) drop-shadow(0 1px 6px var(--halo-ink));
+  /* A one-pixel outline first, then the glow: a soft glow alone vanished over mid-grey road. */
+  --halo: -1px 0 var(--halo-ink), 1px 0 var(--halo-ink), 0 -1px var(--halo-ink), 0 1px var(--halo-ink), 0 0 6px var(--halo-ink), 0 1px 12px var(--halo-ink);
+  --halo-drop: drop-shadow(0 0 1px var(--halo-ink)) drop-shadow(0 0 1px var(--halo-ink)) drop-shadow(0 0 1px var(--halo-ink)) drop-shadow(0 1px 6px var(--halo-ink));
   --disc: color-mix(in oklch, var(--background-darkest) 58%, transparent);
   --dial: 220px;
   --map-disc: 168px;
@@ -131,4 +132,8 @@
     top: calc(var(--inset-top) + var(--control-h) + var(--space-2));
     font-size: var(--text-lg);
   }
+}
+
+:root[data-scheme="light"][data-hud="classic"] :is(.actions, #strip, .top-right, .bottom-right, #toast) {
+  --dim: var(--foreground);
 }
