@@ -261,6 +261,165 @@ Status: **have** / **partial** / **missing**. The pick column says whether to ta
 
 ---
 
+## Part 3: Drift (power-over from a standstill)
+
+Owner ask (2026-11-11): "how forza handles drifting. if i fully turn when standing and full gas the car drifts and i can still 'catch it' when full gas".
+
+Scenario used throughout: parked, full steer + full throttle; countersteer while still at full throttle. Same tags as above ([off] / [comm] / [spec]).
+
+### 3.1 What is known about FH5 / FH4
+
+| Topic | Finding | Tag / source |
+|---|---|---|
+| Hidden yaw assist | Standard steering "influences the yaw inertia of the car to help maintain control during rapid lock-to-lock steering situations". This is the only official line about a yaw assist. | [off] FH5 Wheel Setup (snippet) |
+| Countersteer help | Standard feels like "driving with other guy who helps you with steering (mostly counter-steering)" | [comm] forum, FWD thread |
+| Separate countersteer option | FH6 requests name "Drift Assist" and "Counter Steer" as their own settings, so auto-countersteer is not simply part of Standard. Not checked for FH5. | [comm] forum 822122 |
+| TCS / STM in a drift | Drift guides switch both off and keep Standard steering. That implies both cut a power slide, but no official text says how. | [comm] drifted.com, gamertweak |
+| Full throttle | Some guides say "just go full throttle and chuck it in". The forum says "don't go full throttle on a hard drift". No source says "full gas and still catch it". | [comm] |
+| Tyre past peak | Nothing public on FH5. Turn 10 dropped Pacejka for a custom load-sensitive model built on tyre-maker data (FM3 era, Jalopnik 2010). FM4 used Pirelli data, FM5 Calspan. | [comm] / [off] FM4 |
+| Magic Formula tail | C sets the sliding limit (y∞ = D·sin(πC/2)). Fitters cap E ≤ 1.1 so the curve does not fall back to zero. Lateral C ≈ 1.3 gives a mild sag past peak, close to a plateau. | academic (arXiv 2209.04346, TNO MF-Tyre) |
+| Friction ellipse | A tyre cannot give full longitudinal and full lateral force together. Under power the rears use up the budget. | Beckman, Physics of Racing parts 7, 24, 25 |
+| How mods keep a slide catchable | AC Advanced Gamepad Assist uses four parts: caster-like self-steer (gain + max angle), a yaw-rate "damping", a separate countersteer gain kept < 50% to stop overcorrection, and an inward steer limit while oversteering | AC-AGA ConfigGuide v1.5.5 (Dec 2024) |
+| Diff | An open diff gives both wheels only what the light inner wheel holds, so it spins alone and the slide dies. A locked or 100% accel diff spins the whole axle, so throttle steers the angle. | [comm] LFS forum; [spec] for FH5 |
+| Community drift tune | Drift compound (or Sport); front 28-32 psi, rear about 25 psi; camber front −3 to −5°, rear 0 to −0.5°; toe front +1°, rear −0.2 to −0.5°; caster 7°; diff accel 100% (95-98% over 600 hp), decel 0-100%; rear ARB a little softer; rear tyres 1-2 steps wider; under 600 hp | [comm] drifted.com (2025-04-15), forza-horizon-6.pages.dev, GTPlanet |
+
+Mechanisms likely behind "full gas, still catchable", ranked by evidence:
+
+1. A yaw assist inside Standard steering [off, wording only].
+2. Countersteer help [comm].
+3. Wheelspin with a locked diff, which makes throttle the angle control [physics; spec for FH5].
+4. A tyre that plateaus past peak [spec].
+5. Rear grip coming back once wheelspin drops [spec].
+
+Nothing measured exists. FH5 Data Out logging this exact move would give real targets (Q-D5).
+
+### 3.2 Ours, measured
+
+Scratch probe on the `Car` as it is in the working tree (not committed; `scratchpad/drift/probe2.ts`), flat ground, SMOOTH keys. Throttle stays at 1 the whole time, and the countersteer phase too. "Tail-out" is body slip against the held steer. The geometric slip of a tight circle reads the other way, because the centre of mass sits ahead of the rear axle, so it does not count. Keys and pad (analog) gave the same numbers within 2°, except sturm with TCS off (100° on pad against 88° on keys), so the key filter is not the cause.
+
+**Phase 1: 3 s of full lock + full gas from parked**
+
+| car | shipped (TCS + assist on): peak tail-out / peak yaw / km/h at 3 s | what it does | all off: peak tail-out / yaw / km/h at 3 s | what it does |
+|---|---|---|---|---|
+| hatch (FWD) | 0° / 1.69 / 34 | grip circle, understeer | 0° / 1.35 / 31 | understeer |
+| coupe | 0° / 1.37 / 32 | grip circle that widens | 91° / 2.73 / 9 | spins |
+| muscle | 0° / 1.31 / 32 | grip circle | 107° / 2.74 / 11 | spins |
+| rally (AWD) | 1° / 1.44 / 39 | grip circle | 151° / 3.05 / 4 | spins |
+| kaze | 0° / 1.41 / 28 | grip circle | 82° / 2.60 / 9 | pivots on the nose |
+| sturm | 2° / 0.98 / 60 | grip circle | 90° / 1.71 / 23 | pivots |
+| raijin (AWD) | 0° / 1.48 / 36 | grip circle | 126° / 2.68 / 4 | spins |
+| formula | 0° / 1.25 / 46 | grip circle | 127° / 2.75 / 13 | spins |
+
+TCS off with the assist on gives about the same as all off: peaks of 78-148°, 20° tail-out reached in 1.1-1.8 s. Rear slip ratio in the slide is 13-37, against a `peak_slip` of 0.11-0.16, so the rear wheels sit at the limiter.
+
+**Phase 2: catch.** Countersteer once the tail is 30° out, full throttle throughout.
+
+| car | TCS off, opposite key until straight, then let go: catch s (peak / flip the other way) | all off, same | TCS off, opposite key held 4 s: flip |
+|---|---|---|---|
+| coupe | no (74° / 17°) | 1.65 (81° / 0) | 73° |
+| muscle | no (65° / 22°) | 1.37 (111° / 0) | 163° spin |
+| rally | 2.90 (43° / 21°) | no (92° / 29°) | 180° spin |
+| kaze | no (68° / 19°) | no (69° / 68°) | 132° spin |
+| sturm | 1.12 (36° / 2°) | no (55° / 71°) | 26° |
+| raijin | 2.67 (39° / 21°) | no (70° / 87°) | 180° spin |
+| formula | no (43° / 32°) | 1.39, then spins (131°) | 171° spin |
+
+"Catch" means tail-out under 10° and held there for 1 s. Shipped assists never reach 30°, so there is nothing to catch.
+
+### 3.3 Root cause
+
+In our model, starting a power-over and catching one pull against each other, and no setting lets both happen.
+
+1. **Shipped: TCS stops the start.** Below 15 m/s, traction control counts a driven rear's sideways slip (`TCS_LATERAL = 1.4`, `tcs_spin`, car.ts:36-41, :209-211) and cuts at `TCS_SLIP = 0.14` (car.ts:443-459). At full lock that means it cuts at 0.9 of peak slip angle, before the tail can step out. The coupe trace holds gas at 0.45-0.55 and rear slip at 0.14 for the whole 3 s. The tail never comes out, so `power_slide` (car.ts:404-405), which needs `tail_out`, never arms. `grip_lock` (car.ts:367) then shrinks the lock as speed builds, and the circle widens.
+2. **TCS off: rear lateral grip collapses, and every yaw aid is off.** Nothing bounds the wheelspin, so the rears run at slip ratio 13-37. The normalised ellipse (`combined_y`, car.ts:186-189) then gives the rear `0.76·sy/hypot(sx, sy)`, which is 11-20% of peak lateral grip (coupe at 2.0 s: sx ≈ 127, sy ≈ 34). Meanwhile:
+   - `power_slide` zeroes the countersteer, the course clamp and the yaw damper below 12-16 m/s (`SLIDE_SPEEDS`, car.ts:49, :406-419, :636).
+   - `slide` reads 0 below 5 m/s (car.ts:364), so the damper never sees the spin.
+   - The countersteer term needs more than 4 m/s (car.ts:408).
+   - Yaw reaches 2.5-3.2 rad/s and speed bleeds to 3-23 km/h.
+   - Countersteer can stop the rotation, but the rear has no lateral grip while the throttle keeps it spinning, so the car flips the other way.
+3. **The opposite key re-arms the donut.** `power_slide` is symmetric. Once the opposite key is held at full gas and the tail swings past straight, the assist treats it as a new deliberate power slide the other way. That accounts for the 73-180° flips in the "held" column.
+
+These are not the cause:
+- **The tyre curve past peak.** It already plateaus: sliding grip falls to 0.76 by 6.15× peak and stays flat (`SLIDE_GRIP`, car.ts:89-95). Values: magic(2) = 0.92, magic(3) = 0.85.
+- **The key filter.** Pad and keys gave the same numbers.
+- **The diff.** Drive is split equally per wheel with the wheels uncoupled (car.ts:520), and in the slide both rears spin together.
+
+### 3.4 Proposal, lightest first
+
+Every lever below was run on a scratch copy of car.ts (`scratchpad/drift/car-x.ts`, env switches). None of them is in the repo.
+
+| # | Lever | Weight | Measured effect | What it breaks |
+|---|---|---|---|---|
+| A | Tyre curve past peak (`MF_C`, `SLIDE_GRIP`) | data | Not tried: it is already a plateau, and the loss comes from the ellipse share, not the curve | — |
+| B | Lateral floor in the ellipse: clamp sx to ±3 inside `combined_x` / `combined_y` (`SX_CAP`, one constant) | data + 2 lines | All off: coupe, muscle, kaze and formula now hold an 18-22° drift and catch in 0.05-1.02 s with no spin. AWD still flips (66-92°). 0-100, half-lock power-on and keys.ts rows unchanged (launch −0.04 s) | Every wheelspin and lock-up case changes. A locked wheel under ABS-off braking keeps more side grip, and longitudinal force while spinning rises from 0.76 to 0.85. car.test.ts is bit-exact, so it moves. With the assist on and TCS off, coupe, muscle and kaze no longer reach 30° (peak 25-27°), so B and C do not stack as is |
+| C | **Drift-intent TCS** (recommended first): when `walking·pedal·abs(key_steer) > 0.9` on RWD/AWD, TCS uses slip 0.5 and drops the lateral term and the lone-wheel brake | local code, about 4 lines; reuses `walking`, `pedal` and `key_steer` already computed in `step` | Shipped: every RWD/AWD car reaches 30° in 1.6-2.3 s (the RWD cars hold 21-28°). Opposite key, then let go: caught in 0.8-1.9 s, flip ≤ 16°, no spin. **Just letting go of the key: caught in 0.5-1.1 s, flip ≤ 3°**, because the auto countersteer and full TCS come back. 0-100 and half-lock power-on unchanged (the scope keeps them out); the hatch is unchanged | A beginner who floors it at full lock while parked now gets a power slide. `scripts/donut.ts` rows with TCS on change by design. The car.test.ts donut block (:574) runs with TCS off, so C leaves it alone. With global loosening instead of scoped, launches lose 0.3-0.5 s and half-lock power-on throws the tail 24-29°, which is why it is scoped |
+| D | Catch latch: no `power_slide` / intent for the opposite direction while the tail is still out from the last one | local code | Not measured [spec]. Targets the 47-149° flips that are still left with the opposite key held under C | A deliberate figure-8 donut needs a brief let-go between sides |
+| E | Diff lock part (`diff_lock` on spec plus coupling of the driven wheels' speeds) | new physics | Not measured. Community tunes run 100% accel | Medium work. Not the blocker, because both rears already spin together in the slide |
+| F | Yaw-rate cap (assist on, damp above 1.6 rad/s) | local code | Rejected. With TCS off it cuts peak yaw from 2.5 to 1.75 rad/s, but muscle, rally and formula still spin. Paired with B it stops coupe, muscle and kaze starting at all (peak 6-14°) | Kills donuts and starts. It fights the `power_slide` design |
+
+Recommendation: do **C** alone first, which covers the shipped-assist feel the owner described. Retune **B** with C on afterwards, but only if assist-off drifting should also forgive full throttle (Q-D3). **D** follows if keyboard drifters hold the opposite key.
+
+Rough shape of C (inside `step`, before the TCS loop):
+
+```ts
+const intent = spec.drive !== "fwd" && walking * Math.min(1, pedal) * Math.abs(this.key_steer) > DRIFT_INTENT;
+const slip_limit = intent ? DRIFT_TCS_SLIP : TCS_SLIP; // 0.9, 0.5
+// tcs_spin(w, low && !intent, …); lone-wheel brake only when !intent
+```
+
+### 3.5 Red / green scenario for keys.ts
+
+Add `power_over(spec, { tcs, assist, counter })`:
+
+1. Park the car, settle it for 0.5 s, then give full key and full throttle until the tail is 30° out. Fail if that takes more than 3 s.
+2. Then do one of three things: `counter = "release"` lets go of the key; `"tap"` holds the opposite key until the tail is under 10°, then lets go; `"hold"` keeps the opposite key on for 4 s.
+3. Throttle stays at 1 throughout.
+4. Record:
+   - `t30`: seconds to 30° of tail-out.
+   - `catch`: seconds until the tail is under 10° and stays there for 1 s.
+   - `peak`: the largest tail-out.
+   - `flip`: the largest slip the other way.
+   - `spun`: true if any slip goes over 120°.
+
+| Case | Today (red) | Green target |
+|---|---|---|
+| coupe, muscle, kaze, formula, sturm, rally, raijin; shipped; release | t30 never | t30 ≤ 2.5 s, catch ≤ 1.2 s, peak ≤ 60°, flip ≤ 5°, no spin |
+| same; shipped; tap | t30 never | catch ≤ 2 s, flip ≤ 20° |
+| same; shipped; hold | t30 never | no spin (flip ≤ 60° until D lands, then ≤ 20°) |
+| hatch; shipped | no tail-out | unchanged (FWD has no power-over) |
+| guards | — | 0-100 within ±2%, half-lock full-gas tail-out from 20 km/h ≤ 5°, every existing keys.ts row byte-identical |
+
+### 3.6 Open questions (drift)
+
+| # | Question | Recommendation |
+|---|---|---|
+| Q-D1 | In FH5, were TCS and STM on or off when you did this? The guides drift with both off, and our "shipped" maps to TCS on. | **Check the FH5 assist menu once.** If they were on, C is the match. If off, B (assist-off forgiveness) matters more. |
+| Q-D2 | Should shipped TCS let a full-lock, full-gas start from parked turn into a power slide (C)? | **Yes**, for RWD/AWD at walking pace only. It is the move you described, and the scope keeps launches and half-lock corners as they are. |
+| Q-D3 | With assists off, should full throttle stay catchable (B), or should you have to lift, as in a sim? | **Lift, for now.** Ship C, then decide B once C has been driven. B touches every wheelspin and lock-up case. |
+| Q-D4 | Holding the opposite key at full gas: should it catch and straighten, or start the mirror donut? | **Catch.** The mirror donut can need a let-go first (D). |
+| Q-D5 | Log FH5 Data Out (yaw rate, slip, wheel speeds) for this exact move? | **Yes.** It costs 10 minutes and turns every [spec] row in 3.1 into a target. |
+| Q-D6 | A diff-lock part (FH tunes run 100% accel)? | **Later.** It is not the blocker here. Revisit with the 2.4 diff item. |
+
+Drift sources (beyond the table at the end):
+
+| Source | Date / version | Used for |
+|---|---|---|
+| [FH5 Wheel Setup](https://support.forza.net/hc/en-us/articles/4409761195923-FH5-Wheel-Setup-and-Tuning) (snippet) | FH5 | "influences the yaw inertia" |
+| [forums: driving assistance and FWD](https://forums.forza.net/t/question-about-driving-assistance-and-fwd-cars/536873), [FH6 countersteer assist request](https://forums.forza.net/t/add-optional-automatic-countersteer-assist-for-drifting-fh6/822122), [drifting question](https://forums.forza.net/t/drifting-question/84271) | snippets | countersteer help, separate option, throttle advice |
+| [drifted.com FH4 drift guide](https://www.drifted.com/how-to-drift-in-forza-horizon-4), [gamertweak FH5 drifting](https://gamertweak.com/forza-horizon-5-drifting-guide), [whatifgaming](https://whatifgaming.com/?p=107506) | 2018-2022 | TCS/STM off, full-throttle claim |
+| [drifted.com FH5 drift tune](https://drifted.com/forza-horizon-5-drift-tune), [FH drift tune basics](https://forza-horizon-6.pages.dev/tuning/guides/drift-tune-basics), [GTPlanet drift tuning](https://www.gtplanet.net/forum/threads/a-guide-to-tuning-a-drift-car.276105/) | 2025-04-15 / undated | tune numbers |
+| [Jalopnik: Inside Forza part III](https://jalopnik.com/inside-forza-motorsport-part-iii-the-physics-of-drivi-5480781) | 2010-02-26 | custom tyre model, not Pacejka |
+| [Microsoft: FM4 physics and Pirelli](https://blogs.microsoft.com/next/2012/05/04/the-making-of-forza-motorsport-4-physics-pirelli-and-performance/) | 2012-05-04 | tyre data source |
+| [arXiv 2209.04346](https://arxiv.org/pdf/2209.04346), [TNO MF-Tyre](https://publications.tno.nl/publication/34606988/ORSVMS/schmeitz-2013-mftyre-presentatie.pdf) | 2022 / 2013 | MF C/E tail behaviour |
+| [Beckman, Physics of Racing](https://miata.net/sport/Physics/index.html) | 1991- | ellipse, slip vs grip |
+| [Marco Monster, Car Physics for Games](https://rsms.me/etc/car-physics/) | v1.9, 2003-11 | clamped (plateau) lateral model |
+| [AC Advanced Gamepad Assist ConfigGuide](https://github.com/adam10603/AC-Advanced-Gamepad-Assist/blob/main/ConfigGuide.md), [v1.5.4 notes](https://overtake.gg/downloads/advanced-gamepad-assist.62485/updates) | v1.5.5, 2024-12 | self-steer, yaw damping, countersteer gain |
+| [LFS forum: diff](https://lfs.net/forum/post/666859) | — | locked vs open diff in a slide |
+
+Repo measurements: scratch probe `probe2.ts` plus the lever copy `car-x.ts` in the session scratchpad, 2026-11-11, car physics as in the working tree.
+
+---
+
 ## Open questions for the owner
 
 | # | Question | Recommendation |
