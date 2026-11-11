@@ -23,6 +23,17 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.27.0",
+    date: "2026-11-11",
+    title: "Grip",
+    changes: [
+      { kind: IMPROVED, text: "Steering grips with Steering assist off: the front tyres stay at their limit, so bends hold without sliding or scrubbing speed. Steering assist now only countersteers a slide for you." },
+      { kind: IMPROVED, text: "The Balanced assist preset turns Stability on." },
+      { kind: IMPROVED, text: "Traction control lets loose ground spin the wheels as much as asphalt does, so dirt and sand feel livelier." },
+      { kind: FIXED, text: "The chase camera stays calm in quick left-right weaves and still follows long turns." },
+    ],
+  },
+  {
     version: "0.26.2",
     date: "2026-11-11",
     title: "Calmer camera",
