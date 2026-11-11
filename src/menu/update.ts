@@ -59,6 +59,26 @@ export function show_version(parent: HTMLElement): void {
   parent.append(el("span", "version-tag", `v${BUILD.version}`));
 }
 
+/** The "Downloading update" / "Update ready" chip, shared by the menu bar and the drive screen. */
+export class UpdateChip {
+  readonly root = el("button");
+  private readonly label = el("span");
+
+  constructor(class_name: string) {
+    this.root.className = class_name;
+    this.root.type = "button";
+    this.root.hidden = true;
+    this.root.append(el("span", "menu-update-dot"), this.label);
+  }
+
+  show(state: UpdateState, text?: string): void {
+    this.root.hidden = state === UpdateState.NONE;
+    this.root.dataset.state = state;
+    this.label.textContent = text ?? (state === UpdateState.READY ? "Update ready" : "Downloading update");
+    this.root.title = state === UpdateState.READY ? "A new version is ready: tap to update" : "A new version is downloading";
+  }
+}
+
 async function fetch_remote(): Promise<RemoteVersion | null> {
   try {
     const res = await fetch(`${import.meta.env.BASE_URL}version.json`, { cache: "no-store" });
@@ -77,6 +97,7 @@ export class Updater {
   private applying = false;
   private readonly pending = el("div", "changelog-pending");
   private readonly toast = el("button", "update-toast");
+  private readonly chip = new UpdateChip("drive-update");
   private check_timer = 0;
   private toast_wait = 0;
   private apply_wait = 0;
@@ -88,6 +109,10 @@ export class Updater {
     this.toast.type = "button";
     this.toast.hidden = true;
     this.toast.append(el("b", "", "Update ready"), el("span", "", "· in the menu"));
+    this.chip.root.addEventListener("click", () => {
+      if (this.state !== UpdateState.READY) return this.host.show_notes();
+      this.request_apply((text) => this.chip.show(UpdateState.READY, text));
+    });
   }
 
   get state(): UpdateState {
@@ -124,7 +149,7 @@ export class Updater {
     this.check_timer = window.setInterval(this.check, CHECK_EVERY_MS);
     document.addEventListener("visibilitychange", this.on_visible);
     this.toast.addEventListener("click", this.open_notes);
-    document.body.append(this.toast);
+    document.body.append(this.toast, this.chip.root);
   }
 
   stop(): void {
@@ -135,12 +160,14 @@ export class Updater {
     document.removeEventListener("visibilitychange", this.on_visible);
     this.toast.removeEventListener("click", this.open_notes);
     this.toast.remove();
+    this.chip.root.remove();
   }
 
   // The worker only reports once the whole build is cached; the small version file says it is coming right away.
   private async peek(): Promise<void> {
     const remote = await fetch_remote();
     this.coming = !!this.registration && !!remote && compare_versions(remote.version, BUILD.version) > 0;
+    if (!this.applying) this.chip.show(this.state);
   }
 
   private readonly check = (): void => {
@@ -162,6 +189,7 @@ export class Updater {
     const remote = await fetch_remote();
     if (!remote) console.warn("update: version.json unreachable, showing the update without notes");
     this.waiting = true;
+    if (!this.applying) this.chip.show(this.state);
     this.show_pending(remote);
     // In the menu the chip already says it.
     if (this.host.menu_open()) return;
@@ -205,18 +233,22 @@ export class Updater {
     now.type = "button";
     now.addEventListener("click", () => {
       now.disabled = true;
-      this.applying = true;
-      if (this.host.busy()) status.textContent = "Updating when this run ends";
-      clearInterval(this.apply_wait);
-      this.apply_wait = this.when_idle(() => {
-        status.textContent = "Updating…";
-        void this.apply();
-      });
+      this.request_apply((text) => (status.textContent = text));
     });
     head.append(text, now);
     const notes = remote ? newer_releases(remote.notes, BUILD.version) : [];
     this.pending.replaceChildren(head, ...notes.map((release) => release_view(release, true)));
     this.pending.hidden = false;
+  }
+
+  private request_apply(say: (text: string) => void): void {
+    this.applying = true;
+    if (this.host.busy()) say("Updating when this run ends");
+    clearInterval(this.apply_wait);
+    this.apply_wait = this.when_idle(() => {
+      say("Updating…");
+      void this.apply();
+    });
   }
 
   private async apply(): Promise<void> {
