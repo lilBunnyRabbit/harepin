@@ -23,6 +23,17 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.25.0",
+    date: "2026-11-11",
+    title: "Floating HUD",
+    changes: [
+      { kind: NEW, text: "A new driving HUD with no panels: a round map bottom-left, a speed dial bottom-right with gear and shift light, and the event up top. Racing, Compact and Minimal layouts stay in Settings." },
+      { kind: NEW, text: "Car classes: every build gets a class (D to X) and a performance rating, shown in the garage and on cars, presets and saved builds. Trying a part shows how the rating changes." },
+      { kind: IMPROVED, text: "From a standstill, full lock and full gas swing a rear- or all-wheel-drive car into a slide you can catch without lifting." },
+      { kind: FIXED, text: "The class badge no longer covers a car card's weight." },
+    ],
+  },
+  {
     version: "0.24.0",
     date: "2026-11-11",
     title: "Alpine pass",
