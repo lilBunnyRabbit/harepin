@@ -6,6 +6,7 @@ import type { Bank, TerrainRecipe } from "./recipe";
 import { pad, type Crossing } from "./trails";
 import { town_level } from "./towns";
 import { shape_face } from "./switchback";
+import { freeze_vertex, type FrozenLake } from "./ice";
 import { snow_vertex, type SnowKit } from "./snow";
 import { soak, water_index, type Water } from "./water";
 import { CELL, ORIGIN, ROAD_HALF, SHOULDER, SurfaceId, type Canyon, type RoadEdge, type RoadPoint, type Terrain, type Town } from "./types";
@@ -52,7 +53,8 @@ export type GroundOp =
   | { kind: "trail"; lines: { points: readonly RoadPoint[]; blend: number[] }[] }
   | { kind: "harden"; cuts: BiomeCuts; floor: number | null }
   | { kind: "water"; water: Water }
-  | { kind: "snow"; kit: SnowKit; beach: number };
+  | { kind: "snow"; kit: SnowKit; beach: number }
+  | { kind: "ice"; lakes: readonly FrozenLake[]; seed: number };
 
 export type GroundBase = { kind: "terrain"; seed: number; shape: TerrainRecipe } | { kind: "flat"; height: number; road_dist: number };
 
@@ -92,6 +94,7 @@ export class Stamp {
     else if (op.kind === "trail") this.trail(op.lines.map(({ points, blend }) => ({ points, blend: (i) => blend[i] })));
     else if (op.kind === "water") this.water(op.water);
     else if (op.kind === "snow") this.snow(op.kit, op.beach);
+    else if (op.kind === "ice") this.ice(op.lakes, op.seed);
     else this.harden(op.cuts, op.floor);
   }
 
@@ -128,11 +131,22 @@ export class Stamp {
       for (let i = grid.i0; i <= grid.i1; i++) soak(index, heights, surface, at(grid, i, j), ORIGIN + i * CELL, ORIGIN + j * CELL, SurfaceId.WET);
   }
 
-  snow(kit: SnowKit, beach: number) {
-    this.log({ kind: "snow", kit, beach });
+  ice(lakes: readonly FrozenLake[], seed: number) {
+    this.log({ kind: "ice", lakes, seed });
     const { heights, surface } = this.terrain;
     const { grid } = this;
-    for (let j = grid.j0; j <= grid.j1; j++) for (let i = grid.i0; i <= grid.i1; i++) snow_vertex(kit, beach, heights, surface, at(grid, i, j));
+    for (let j = grid.j0; j <= grid.j1; j++) for (let i = grid.i0; i <= grid.i1; i++) freeze_vertex(lakes, seed, heights, surface, at(grid, i, j), ORIGIN + i * CELL, ORIGIN + j * CELL);
+  }
+
+  snow(kit: SnowKit, beach: number) {
+    this.log({ kind: "snow", kit, beach });
+    const { heights, road_dist, surface } = this.terrain;
+    const { grid } = this;
+    for (let j = grid.j0; j <= grid.j1; j++)
+      for (let i = grid.i0; i <= grid.i1; i++) {
+        const k = at(grid, i, j);
+        snow_vertex(kit, beach, heights, road_dist, surface, this.street[k] === 1, k);
+      }
   }
 
   plateau(town: Town) {

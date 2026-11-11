@@ -5,6 +5,7 @@ import { LandmarkPlanner } from "./landmarks";
 import { length } from "./noise";
 import { Lots } from "./lots";
 import { plan_canyon } from "./canyon";
+import { on_ice, plan_ice } from "./ice";
 import { split_circuit, type Join } from "./graph";
 import { link_towns, way_toward, ways } from "./links";
 import { loop_heights, loop_path, road_points } from "./path";
@@ -159,6 +160,8 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   const { patched } = road_junctions({ road, graph, circuit });
   for (const { patch } of patched) stamp.junction(patch.outline);
   stamp.blend();
+  const lakes = recipe.ice ? plan_ice(seed, land, graph, towns, recipe.ice) : [];
+  if (lakes.length) stamp.ice(lakes, seed);
   lap("stamp");
 
   const lots = new Lots(seed, land, stamp, recipe.towns);
@@ -225,7 +228,7 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   const routes = reverse ? [loop, ...streets.routes, ...offroad, reverse] : [loop, ...streets.routes, ...offroad];
   lap("routes");
 
-  const free = (x: number, z: number) => !lots.occupied[vertex(Math.round((x - ORIGIN) / CELL), Math.round((z - ORIGIN) / CELL))] && !towns.some((t) => length(t.x - x, t.z - z) < t.radius) && !jumps.blocks(x, z, 2) && !marks.blocks(x, z, 2);
+  const free = (x: number, z: number) => !lots.occupied[vertex(Math.round((x - ORIGIN) / CELL), Math.round((z - ORIGIN) / CELL))] && !towns.some((t) => length(t.x - x, t.z - z) < t.radius) && !jumps.blocks(x, z, 2) && !marks.blocks(x, z, 2) && !on_ice(lakes, x, z);
   const planted = plant(cuts, land, free);
   const trees: Tree[] = [...lots.out.trees, ...planted.trees];
   solids.push(...planted.solids);
@@ -233,7 +236,12 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   props.push(...strewn.props);
   solids.push(...strewn.solids);
   stamp.harden(cuts, pan_floor(seed, shape));
-  if (recipe.snow) stamp.snow(recipe.snow, recipe.biomes.limits.beach);
+  if (recipe.snow) {
+    const bare = heights.slice();
+    stamp.snow(recipe.snow, recipe.biomes.limits.beach);
+    // Whatever stands on a snowbank rides up on it; buildings keep their plateau, which the banks leave alone.
+    for (const thing of [...jumps.items, ...trees, ...props, ...solids]) thing.y += sample(heights, thing.x, thing.z) - sample(bare, thing.x, thing.z);
+  }
   lap("props");
 
   return { kind, deck: null, terrain: land, ground: { base: { kind: "terrain", seed, shape }, ops: stamp.ops }, graph, towns, lots: lot_list, buildings, props, parking, trees, solids, ramps: jumps.ramps, items: jumps.items, challenges: jumps.challenges, checkpoints, circuit, road, routes, canyon, timings };

@@ -1,4 +1,5 @@
 import type { Biome, TreeRule } from "./biomes";
+import type { IceRecipe } from "./ice";
 import type { SnowKit } from "./snow";
 import { Ground, PropKind, SurfaceId, type ItemKind } from "./types";
 
@@ -243,6 +244,7 @@ export interface Recipe {
   water?: WaterRecipe;
   /** Laid over the finished ground: winter. Left out = no snow but over the snow line. */
   snow?: SnowKit;
+  ice?: IceRecipe;
 }
 
 const LIFT: LiftLayer = { kind: "lift", height: 5 };
