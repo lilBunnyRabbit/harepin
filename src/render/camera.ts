@@ -209,7 +209,8 @@ export class ChaseCamera {
     const reversing = !this.top && this.local.z < -2;
     const desired = (reversing ? heading + Math.PI : heading) + slide * 0.55;
     // Tracked in the cockpit too, so switching to the chase view does not swing in from where the car pointed when the cockpit was picked.
-    const yaw_rate = Math.max(Math.min(YAW_RATE, YAW_RATE_SPEED / Math.max(speed, 1)), Math.abs(this.turn) / TURN_LAG);
+    // Never above the old fixed rate: a spin or a heading jump would otherwise snap the view round.
+    const yaw_rate = Math.min(YAW_RATE, Math.max(YAW_RATE_SPEED / Math.max(speed, 1), Math.abs(this.turn) / TURN_LAG));
     this.yaw += angle_diff(desired, this.yaw) * Math.min(1, dt * yaw_rate);
 
     if (this.mode === 1 && !this.top) {
