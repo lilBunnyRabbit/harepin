@@ -23,6 +23,16 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.26.1",
+    date: "2026-11-11",
+    title: "Pad tuning",
+    changes: [
+      { kind: NEW, text: "Advanced controller settings in Controls: steering deadzones and response curve, throttle and brake deadzones, with a live stick preview. Defaults feel exactly as before." },
+      { kind: IMPROVED, text: "ABS brakes harder on dirt and grass, matching the loose ground's grip." },
+      { kind: FIXED, text: "Holding a touch arrow steers even with a gamepad connected." },
+    ],
+  },
+  {
     version: "0.26.0",
     date: "2026-11-11",
     title: "Loose ground",
