@@ -44,6 +44,22 @@ export function icon(id: string): SVGSVGElement {
   return svg;
 }
 
+/** Spells out under a row's label what turning it on and off does. */
+export function with_effect(row: HTMLElement, on: string, off: string): HTMLElement {
+  const label = row.querySelector(".row-label");
+  if (!label) return row;
+  const words = el("span", "row-words");
+  const effect = el("span", "row-effect");
+  for (const [state, text] of [["On", on], ["Off", off]]) {
+    const line = el("span");
+    line.append(el("b", "", state), text);
+    effect.append(line);
+  }
+  label.replaceWith(words);
+  words.append(label, effect);
+  return row;
+}
+
 // The row holds focus, not its inner controls, so the pad and arrow keys move row by row and left / right changes the value.
 function inner(tag: "button", class_name = "", text = ""): HTMLButtonElement {
   const button = el(tag, class_name, text);
