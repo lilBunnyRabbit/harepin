@@ -358,7 +358,7 @@
   gap: var(--space-1) var(--space-4);
   max-width: 46vw;
   min-height: 0;
-  padding: 0;
+  padding: var(--space-2) var(--space-4);
 }
 
 :root[data-hud="classic"] #strip .lap {
@@ -374,7 +374,6 @@
   width: 22px;
   height: 22px;
   color: var(--primary);
-  filter: var(--halo-drop);
 }
 
 :root[data-hud="classic"] #strip .lap .dim {
@@ -410,7 +409,6 @@
 :root[data-hud="classic"] #restart-lap {
   border: 0;
   background: none;
-  filter: var(--halo-drop);
 }
 
 @media (pointer: fine) {
@@ -439,11 +437,10 @@
     right: auto;
     translate: -50% 0;
     height: auto;
-    border: 0;
   }
 }
 
-@media (pointer: fine) and (max-width: 1299px) {
+@media (pointer: fine) and (max-width: 1599px) {
   :root[data-hud="classic"] :is(#strip, #mode-status) {
     top: calc(var(--inset-top) + var(--bar-h) + var(--space-3));
     max-width: calc(100vw - 2 * var(--inset));

@@ -52,8 +52,6 @@
   bottom: var(--inset-bottom);
 }
 
-/* Classic floats its event title, map and gauge over the scene with a halo or a soft glass for legibility; the buttons
-   keep their panel. */
 .dial,
 .event-icon,
 .event-name,
@@ -63,33 +61,32 @@
   display: none;
 }
 
+/* Classic sets every overlay on a filled panel of the surface token, like the button bar: no blur, glass or halo, so each
+   reads the same over sky, snow and road in either scheme. */
 :root[data-hud="classic"] {
-  /* The halo is the scheme's own background, so it always sits opposite the glyph: dark behind light text, light behind dark. */
-  --halo-ink: var(--background-darkest);
-  /* A one-pixel outline first, then the glow: a soft glow alone vanished over mid-grey road. */
-  --halo: -1px 0 var(--halo-ink), 1px 0 var(--halo-ink), 0 -1px var(--halo-ink), 0 1px var(--halo-ink), 0 0 6px var(--halo-ink), 0 1px 12px var(--halo-ink);
-  --halo-drop: drop-shadow(0 0 1px var(--halo-ink)) drop-shadow(0 0 1px var(--halo-ink)) drop-shadow(0 0 1px var(--halo-ink)) drop-shadow(0 1px 6px var(--halo-ink));
-  --glass: color-mix(in oklch, var(--background-darkest) 50%, transparent);
   --map-disc: 196px;
   --dial: 220px;
+  /* The bottom corner cards sit twice the inset in, mirrored, so neither crowds the window edge. */
+  --corner-bottom: calc(var(--inset-bottom) + var(--inset));
+  --corner-left: calc(var(--inset-left) + var(--inset));
+  --corner-right: calc(var(--inset-right) + var(--inset));
 }
 
-:root[data-scheme="light"][data-hud="classic"] {
-  --halo-ink: var(--background);
-  --glass: color-mix(in oklch, var(--background-lighter) 55%, transparent);
+:root[data-hud="classic"] :is(.hud, #recenter) {
+  backdrop-filter: none;
 }
 
-:root[data-hud="classic"] :is(#strip, .top-right, .bottom-right) {
-  --dim: color-mix(in oklch, var(--foreground) 80%, transparent);
+@media (pointer: coarse) {
+  :root[data-hud="classic"] .hud {
+    background: var(--surface);
+  }
 }
 
-:root[data-hud="classic"] :is(#strip, .top-right, .bottom-right, #mode-status, #race-panel, #players, #online-chip) {
+:root[data-hud="classic"] :is(.top-right, .bottom-right) {
   background: none;
   border: 0;
   border-radius: 0;
-  backdrop-filter: none;
   box-shadow: none;
-  text-shadow: var(--halo);
 }
 
 :root[data-hud="classic"] #mode-status,
@@ -100,7 +97,7 @@
 
 @media (pointer: fine) {
   :root[data-hud="classic"] .dock-left {
-    bottom: calc(var(--inset-bottom) + var(--map-disc) + 88px);
+    bottom: calc(var(--corner-bottom) + var(--map-disc) + 80px);
   }
 }
 
@@ -132,6 +129,3 @@
   }
 }
 
-:root[data-scheme="light"][data-hud="classic"] :is(#strip, .top-right, .bottom-right) {
-  --dim: var(--foreground);
-}

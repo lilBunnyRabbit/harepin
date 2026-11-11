@@ -2,7 +2,7 @@ import type { CarSpec } from "./cars";
 
 // The coupe's tuned look (hot from 6600 of 7300, shift light from 6700 with a 6900 upshift), kept as ratios so every
 // engine lights at the same point in its own rev range.
-const HOT_RATIO = 6600 / 7300;
+export const HOT_RATIO = 6600 / 7300;
 const SHIFT_RATIO = 6700 / 6900;
 
 export interface Tach {

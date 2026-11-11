@@ -4,7 +4,7 @@ import type { Net } from "../net/net";
 import type { Race } from "../race";
 import { dark } from "../theme/palette";
 import { HudLayout, MapView } from "../menu/prefs";
-import { tach } from "../car/tach";
+import { HOT_RATIO, tach } from "../car/tach";
 import type { World } from "../world/world";
 import type { RouteRun } from "../modes/mode";
 import { Minimap } from "./minimap";
@@ -90,10 +90,8 @@ const CALM_MS = 3000;
 const CALM_KMH = 12;
 const STOP_KMH = 4;
 const SVG = "http://www.w3.org/2000/svg";
-/** The dial arc: centre, radius and its 270° sweep starting bottom left, in the dial's 200 px view box. */
-const DIAL_R = 75;
-const DIAL_START = (135 * Math.PI) / 180;
-const DIAL_SWEEP = (270 * Math.PI) / 180;
+/** Where the dial's red zone starts, in its 100-unit path length. */
+const DIAL_HOT = HOT_RATIO * 100;
 
 export class Hud {
   private el = {
@@ -113,7 +111,8 @@ export class Hud {
     toast_text: $("toast-text"),
     toast_label: $("toast-label"),
     dial_fill: svg("dial-fill"),
-    dial_ticks: svg("dial-ticks"),
+    dial_hot: svg("dial-hot"),
+    dial_zone: svg("dial-zone"),
     map_note: $("map-note"),
     event_name: $("event-name"),
     map_dist: $("map-dist"),
@@ -139,7 +138,6 @@ export class Hud {
   private readonly names = new Map<string, string>();
   private names_at = -Infinity;
   private dial_at = -1;
-  private redline = 0;
   private metres = -1;
 
   constructor(
@@ -156,6 +154,7 @@ export class Hud {
     const circuit = new Set(world.circuit);
     const network = world.tiles.streamed ? { roads: world.graph.edges.filter((e) => !circuit.has(e.id)).map((e) => e.points), towns: world.towns } : undefined;
     this.map = new Minimap(canvas, world.routes, world.tiles.ext.size, network);
+    this.el.dial_zone.style.strokeDasharray = `0 ${DIAL_HOT} ${100 - DIAL_HOT} 100`;
     this.pace = new PaceCard(world.routes);
     canvas.after(this.pace.el);
   }
@@ -200,15 +199,16 @@ export class Hud {
     const dial = Math.round(rev.fill * 200);
     if (dial !== this.dial_at) {
       this.dial_at = dial;
-      el.dial_fill.style.strokeDashoffset = String(100 - dial / 2);
+      const at = dial / 2;
+      el.dial_fill.style.strokeDasharray = `${Math.min(at, DIAL_HOT)} 100`;
+      el.dial_hot.style.strokeDasharray = `0 ${DIAL_HOT} ${Math.max(0, at - DIAL_HOT)} 100`;
     }
-    if (car.spec.redline !== this.redline) this.dial_ticks(car.spec.redline);
     const hot = String(rev.hot);
     const shift = String(!car.auto && rev.shift);
     set_data(el.rpm, "hot", hot);
     set_data(el.shift, "on", shift);
-    set_data(el.dial_fill, "hot", hot);
     set_data(el.dial_fill, "shift", shift);
+    set_data(el.dial_hot, "shift", shift);
     set_data(el.gear, "shift", shift);
     set_hidden(el.nitro, !car.nitro.fitted);
     set_style(el.nitro_fill, "width", percent(car.nitro.level));
@@ -246,28 +246,6 @@ export class Hud {
     set_style(el.rewind, "opacity", rewinding ? "1" : "0");
     this.draw_lobby(now);
     this.draw_map(car, now);
-  }
-
-  // Rebuilt only when the car changes: one number per 1000 rpm outside the arc.
-  private dial_ticks(redline: number) {
-    this.redline = redline;
-    const group = this.el.dial_ticks;
-    const count = Math.floor(redline / 1000);
-    const nodes: SVGElement[] = [];
-    for (let i = 0; i <= count; i++) {
-      const a = DIAL_START + (DIAL_SWEEP * i * 1000) / redline;
-      const tick = document.createElementNS(SVG, "line");
-      tick.setAttribute("x1", String(100 + Math.cos(a) * (DIAL_R - 6)));
-      tick.setAttribute("y1", String(100 + Math.sin(a) * (DIAL_R - 6)));
-      tick.setAttribute("x2", String(100 + Math.cos(a) * (DIAL_R + 6)));
-      tick.setAttribute("y2", String(100 + Math.sin(a) * (DIAL_R + 6)));
-      const label = document.createElementNS(SVG, "text");
-      label.setAttribute("x", String(100 + Math.cos(a) * (DIAL_R + 17)));
-      label.setAttribute("y", String(100 + Math.sin(a) * (DIAL_R + 17)));
-      label.textContent = String(i);
-      nodes.push(tick, label);
-    }
-    group.replaceChildren(...nodes);
   }
 
   private draw_note(car: Car, gate: { x: number; z: number } | null) {

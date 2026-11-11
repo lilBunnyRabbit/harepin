@@ -6,22 +6,27 @@ interface Dot {
   x: number;
   z: number;
 }
-import { brand, rgba } from "../theme/palette";
+import { brand, dark, rgba } from "../theme/palette";
 import { ROAD_HALF } from "../world/world";
 
 const MAP = 200;
+// The disc's own fill (--surface's base): the rings that keep marks off the route and the N off the roads match the plate
+// rather than drawing a halo around them.
+const plate = dark ? brand.background_darkest : brand.background_lighter;
 const INK = {
   road: rgba(brand.foreground, 0.5),
   checkpoint: rgba(brand.accent),
   remote: rgba(brand.secondary),
-  you: rgba(brand.cottontail),
+  // A derived light theme's cottontail is a pale tint of primary that vanished on the light disc; the speed has the same
+  // swap to foreground.
+  you: rgba(dark ? brand.cottontail : brand.foreground),
   label: rgba(brand.foreground),
-  halo: rgba(brand.background_darkest, 0.7),
+  halo: rgba(plate),
   route: rgba(brand.primary),
   faint: rgba(brand.foreground, 0.6),
   north: rgba(brand.foreground, 0.9),
-  gap: rgba(brand.background_darkest),
-  casing: rgba(brand.background_darkest, 0.75),
+  gap: rgba(plate),
+  casing: rgba(plate),
 };
 /** Close-up: about 200 m of road ahead of the car. */
 const CLOSE_CAR_Y = 0.7;
@@ -175,7 +180,7 @@ export class Minimap {
     road.strokeStyle = this.disc ? INK.faint : INK.road;
     const view = this.drawn;
     if (this.network.length) {
-      road.lineWidth = this.disc ? 3 : 1.5;
+      road.lineWidth = this.disc ? 2.25 : 1.5;
       road.stroke(this.roads.roads.reduce((into, points) => path(view, points, false, into), new Path2D()));
       road.fillStyle = INK.road;
       for (const town of this.roads.towns) {
@@ -186,12 +191,12 @@ export class Minimap {
     }
     road.lineWidth = 3;
     if (this.disc) {
-      // A dark casing under the bright ribbon keeps the route standing out over grass, snow and night ground alike.
+      // A casing of the plate's shade under the ribbon keeps the route clear of the faint roads it crosses.
       road.lineCap = "round";
-      road.lineWidth = 11;
+      road.lineWidth = 7;
       road.strokeStyle = INK.casing;
       road.stroke(this.drawn.road);
-      road.lineWidth = 6;
+      road.lineWidth = 4;
       road.strokeStyle = INK.route;
     }
     road.stroke(this.drawn.road);
