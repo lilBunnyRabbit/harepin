@@ -424,12 +424,12 @@ function driving(m: SettingsMenu): HTMLElement[] {
       "Hard braking locks the wheels; the car slides on.",
     ),
     with_effect(
-      m.rows.toggle("Steering assist", while_driving(m, "assist", "Counter-steers a slide for you. Off, catching a slide is up to you."), m.value("assist")),
+      m.rows.toggle("Steering assist", while_driving(m, "assist", "Counter-steers a slide for you."), m.value("assist")),
       "Counter-steers a slide for you.",
       "Catching a slide is up to you.",
     ),
     with_effect(
-      m.rows.toggle("Stability", while_driving(m, "stability", "Damps a slide before it swings into a spin. Off, a slide can carry the car round."), m.value("stability")),
+      m.rows.toggle("Stability", while_driving(m, "stability", "Damps a slide before it swings into a spin."), m.value("stability")),
       "Damps a slide before it turns into a spin.",
       "A slide can carry the car all the way round.",
     ),
