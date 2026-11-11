@@ -1055,6 +1055,14 @@
   .row > .settings-choice {
     grid-auto-columns: auto;
   }
+
+  .settings .set-reset {
+    padding: 0 var(--space-2);
+  }
+
+  .set-reset span {
+    display: none;
+  }
 }
 
 .row-step {
@@ -1340,7 +1348,7 @@
 
   .set-head .set-changes {
     display: inline;
-    margin-right: auto;
+    color: var(--set-dim);
   }
 
   .set-list .theme-scene {
@@ -1350,10 +1358,6 @@
   .set-head {
     min-height: 0;
     padding: var(--space-2) var(--space-4) var(--space-1);
-  }
-
-  .set-head:has(> .set-crumb[hidden]) .set-title {
-    display: none;
   }
 
   .set-list {
