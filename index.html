@@ -24,6 +24,13 @@
     <meta name="twitter:image" content="https://lilbunnyrabbit.github.io/harepin/og.jpg" />
     <style>
       /* Here, not in style.css: the game bundle brings that sheet, and a failed boot never loads it. boot.ts sets the theme tokens. */
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+      }
+
       body:has(#loading) > :not(#loading) {
         visibility: hidden;
       }
