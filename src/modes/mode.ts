@@ -4,6 +4,7 @@ import type { World } from "../world/world";
 import type { Body, Pose } from "./gymkhana";
 import type { Track } from "./track";
 import type { Bindable } from "../hud/bindings";
+import type { RoutePoint } from "./route";
 
 export const NO_SITE = "No flat ground near the start on this map";
 
@@ -53,6 +54,8 @@ export interface ModeCtx {
 export interface RouteRun {
   readonly id: string;
   gate: { x: number; z: number } | null;
+  /** Where a fall puts the car back: the last gate taken, the start before any. */
+  respawn: RoutePoint;
 }
 
 export interface ModeRun {

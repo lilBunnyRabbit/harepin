@@ -555,9 +555,9 @@ function frame(now: number) {
 
   const upright = new THREE.Vector3(0, 1, 0).applyQuaternion(car.quat).y;
   if (world.fallen(car.pos)) {
-    void driver.fall_back();
+    void driver.fall_back(modes.route);
     stuck = 0;
-  }
+  } else driver.track_safe(upright);
   let touching = false;
   for (const w of car.wheels) touching ||= w.contact;
   const drowned = touching && world.drowned(car.pos.x, car.pos.z);

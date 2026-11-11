@@ -22,7 +22,7 @@ class Race implements ModeRun {
     ctx.scene.add(this.view.root);
     this.unplace = ctx.world.place(course.route.closure);
     this.run = new RaceRun(course, ctx.lobby_lap() ? 0 : COUNTDOWN_MS);
-    this.route = { id: course.route.id, gate: this.run.gate };
+    this.route = { id: course.route.id, gate: this.run.gate, respawn: course.line[0] };
     ctx.spawn_on(course.line[0]);
   }
 
@@ -44,6 +44,7 @@ class Race implements ModeRun {
     const was = run.status;
     const taken = run.update(run.countdown > 0 ? wall : sim_dt * 1000, car.pos.x, car.pos.z);
     if (taken >= 0) {
+      this.route.respawn = run.course.line[run.course.gates[taken]];
       view.aim(run.next);
       if (run.status !== RaceStatus.DONE) ctx.chime();
     }
@@ -55,6 +56,7 @@ class Race implements ModeRun {
       else if (!lobby_lap()) ctx.exit();
       else {
         this.run = new RaceRun(run.course, 0);
+        this.route.respawn = run.course.line[0];
         view.aim(0);
       }
       return null;

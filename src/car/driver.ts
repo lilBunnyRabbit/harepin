@@ -9,13 +9,18 @@ import { show_flame } from "./lights";
 import { build_view, dispose_car_view, sync_car_view, type CarView } from "./models";
 import type { NitroSnapshot } from "./nitro";
 import type { Race } from "../race";
+import type { RoutePoint } from "../modes/route";
 import { Rewind, type RewindPart } from "./rewind";
 import type { PadTimer } from "../world/sky-pads";
-import { SPAWN_INDEX, type Spawn, type World } from "../world/world";
+import { ROAD_HALF, type Spawn, type World } from "../world/world";
 
 /** Speed (m/s) above which a reset faces the way the car travels rather than where its nose points. */
 const RESET_MOVING = 2;
 const RIDE_HEIGHT = 0.75;
+/** Nose up at least this much, every wheel down and on the road: a spot a fall can come back to. */
+const SAFE_UPRIGHT = 0.8;
+/** A safe spot this near the circuit counts as on it, for the lap's checkpoint rule. */
+const ON_CIRCUIT = ROAD_HALF * 2;
 // Farther than a step can move: the car was placed (reset, mode restart), so drawing it does not slide from the old spot.
 const TELEPORT_SQ = 1;
 
@@ -40,6 +45,8 @@ export class Driver {
   /** Resolves once the ground around (x, z) is in; a teleport reads its height only after. */
   arrive: (x: number, z: number) => Promise<void> = (x, z) => this.world.tiles.ensure(x, z);
   private teleporting = false;
+  /** The last spot the car stood safely on a road, and the way it was going there. */
+  private readonly safe = { x: 0, z: 0, fx: 0, fz: 1 };
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -81,6 +88,7 @@ export class Driver {
   /** `spot.y` is the car's height, not the ground's. */
   place(spot: Spawn) {
     this.car.place(spot.x, spot.y, spot.z, spot.heading);
+    this.keep_safe(spot.x, spot.z, spot.heading);
     this.pads.clear();
     this.chase.size = this.size;
     this.chase.snap(this.car);
@@ -89,6 +97,7 @@ export class Driver {
   /** At rest on the ground under (x, z), tilted to its slope: a level drop onto a steep site can roll the car. */
   park(x: number, z: number, heading: number) {
     this.car.park(x, z, heading, this.world);
+    this.keep_safe(x, z, heading);
     this.pads.clear();
     this.chase.size = this.size;
     this.chase.snap(this.car);
@@ -113,12 +122,41 @@ export class Driver {
     });
   }
 
-  // Back on the last checkpoint passed, not the nearest deck: that can be a later section, and a fall would be a shortcut.
-  fall_back() {
-    const { world, race } = this;
-    const n = world.checkpoints.length;
-    const cp = world.checkpoints[(race.next - 1 + n) % n];
-    return this.place_road(race.started ? world.road.indexOf(world.nearest_road(cp.x, cp.z)) : SPAWN_INDEX);
+  /** Called every frame the car has not fallen. */
+  track_safe(upright: number) {
+    const { car, world } = this;
+    if (upright < SAFE_UPRIGHT || !world.on_road(car.pos.x, car.pos.z)) return;
+    for (const w of car.wheels) if (!w.contact) return;
+    this.keep_safe(car.pos.x, car.pos.z, Math.hypot(car.vel.x, car.vel.z) > RESET_MOVING ? Math.atan2(car.vel.x, car.vel.z) : car.heading);
+  }
+
+  private keep_safe(x: number, z: number, heading: number) {
+    this.safe.x = x;
+    this.safe.z = z;
+    this.safe.fx = Math.sin(heading);
+    this.safe.fz = Math.cos(heading);
+  }
+
+  // Never the nearest road to where the car fell: that can be a later section, and a fall would be a shortcut. A route
+  // run puts it back on its last gate; a lap on the circuit on the lap's last checkpoint; free driving where it last stood safely.
+  fall_back(route: { respawn: RoutePoint } | null) {
+    const { world, race, safe, car } = this;
+    const lift = drop_height(car.spec, RIDE_HEIGHT);
+    if (route) {
+      const p = route.respawn;
+      return this.teleport(p.x, p.z, () => ({ x: p.x, y: world.height(p.x, p.z) + lift, z: p.z, heading: Math.atan2(p.tx, p.tz) }));
+    }
+    const near = world.nearest_road(safe.x, safe.z);
+    if (race.started && Math.hypot(near.x - safe.x, near.z - safe.z) < ON_CIRCUIT) {
+      const n = world.checkpoints.length;
+      const cp = world.checkpoints[(race.next - 1 + n) % n];
+      return this.place_road(world.road.indexOf(world.nearest_road(cp.x, cp.z)));
+    }
+    const { x, z, fx, fz } = safe;
+    return this.teleport(x, z, () => {
+      const spot = world.spawn_near(x, z, fx, fz);
+      return { ...spot, y: spot.y + lift };
+    });
   }
 
   place_road(index: number): Promise<void> {
