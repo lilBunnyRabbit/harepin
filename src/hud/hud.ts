@@ -172,13 +172,13 @@ export class Hud {
   }
 
   /** A short note that fades on its own, for a setting changed by key; `label` is an optional line above it. */
-  toast(text: string, label = "") {
+  toast(text: string, label = "", hold = TOAST_MS) {
     const { toast } = this.el;
     this.el.toast_text.textContent = text;
     this.el.toast_label.textContent = label;
     toast.dataset.shown = "";
     clearTimeout(this.toast_timer);
-    this.toast_timer = window.setTimeout(() => delete toast.dataset.shown, TOAST_MS);
+    this.toast_timer = window.setTimeout(() => delete toast.dataset.shown, hold);
   }
 
   /** Brings the faded HUD back for another stretch, after a touch near the top of the screen. */

@@ -96,6 +96,7 @@
 }
 
 .touch-buttons {
+  anchor-name: --touch-buttons;
   position: absolute;
   top: var(--inset-top);
   right: calc(var(--inset-right) + var(--map-panel) + var(--space-2));

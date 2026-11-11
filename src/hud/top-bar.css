@@ -447,13 +447,15 @@
   }
 }
 
+/* Touch: centred in the gap between the button panel and the touch buttons, so it never runs into either. */
 @media (pointer: coarse) {
   :root[data-hud="classic"] #strip {
     position: fixed;
     top: var(--inset-top);
-    left: 50%;
-    translate: -50% 0;
-    max-width: 36vw;
+    left: calc(anchor(--actions right) + var(--space-3));
+    right: calc(anchor(--touch-buttons left) + var(--space-3));
+    width: fit-content;
+    margin-inline: auto;
   }
 }
 
@@ -461,7 +463,16 @@
 @media (pointer: coarse) and (max-width: 760px) {
   :root[data-hud="classic"] #strip {
     top: calc(var(--inset-top) + var(--control-h) + var(--space-5));
+    left: 50%;
+    right: auto;
+    translate: -50% 0;
+    max-width: 36vw;
   }
+}
+
+/* The toast hangs under the event title, or under the mode status that takes its place. */
+:root[data-hud="classic"] :is(#strip, #mode-status) {
+  anchor-name: --top-centre;
 }
 
 /* The modes live in the menu, so Classic drops their button while driving; the aids sit in Settings and the gauge. */

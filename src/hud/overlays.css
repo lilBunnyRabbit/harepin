@@ -101,6 +101,22 @@
   }
 }
 
+:root[data-hud="classic"] #toast {
+  position-anchor: --top-centre;
+  top: calc(anchor(bottom) + var(--space-2));
+  left: anchor(center);
+}
+
+/* On touch the pedals and map crowd the sides, so a long note wraps to the title's width instead. */
+@media (pointer: coarse) {
+  :root[data-hud="classic"] #toast {
+    max-width: anchor-size(width);
+    white-space: normal;
+    text-wrap: balance;
+    text-align: center;
+  }
+}
+
 @media (orientation: portrait) and (pointer: coarse) {
   #rotate {
     position: fixed;

@@ -2,17 +2,23 @@
 const GAP_MS = 1400;
 const RETRY_MS = 300;
 
+interface Note {
+  text: string;
+  hold?: number;
+}
+
 export class ToastQueue {
-  private readonly waiting: string[] = [];
+  private readonly waiting: Note[] = [];
   private timer = 0;
 
   constructor(
-    private readonly show: (text: string) => void,
+    private readonly show: (text: string, hold?: number) => void,
     private readonly busy: () => boolean,
   ) {}
 
-  push(text: string) {
-    this.waiting.push(text);
+  /** `hold` keeps a note up longer than the HUD toast's default, for one that needs reading, like an error. */
+  push(text: string, hold?: number) {
+    this.waiting.push({ text, hold });
     if (!this.timer) this.next();
   }
 
@@ -29,9 +35,9 @@ export class ToastQueue {
       this.timer = window.setTimeout(() => this.next(), RETRY_MS);
       return;
     }
-    const text = this.waiting.shift();
-    if (text === undefined) return;
-    this.show(text);
-    this.timer = window.setTimeout(() => this.next(), GAP_MS);
+    const note = this.waiting.shift();
+    if (!note) return;
+    this.show(note.text, note.hold);
+    this.timer = window.setTimeout(() => this.next(), Math.max(GAP_MS, note.hold ?? 0));
   }
 }
