@@ -224,7 +224,7 @@ function curve_at(curve: readonly (readonly [number, number])[], x: number): num
  */
 export function surface_grip(spec: CarSpec, surface: number, dirt: boolean): number {
   const bite = surface < 1 ? ((dirt ? spec.grip_dirt : spec.grip_grass) ?? 1) : 1;
-  return Math.min(1, surface + (1 - surface) * spec.offroad) * bite;
+  return Math.max(0, Math.min(1, surface + (1 - surface) * spec.offroad)) * bite;
 }
 
 /**

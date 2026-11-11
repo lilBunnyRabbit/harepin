@@ -2,7 +2,7 @@
 import { expect, test } from "bun:test";
 import { DEFAULT_BUILD, DEFAULT_PARTS, SLOTS, build_spec } from "./build";
 import { CARS, type CarId } from "./cars";
-import { Car, drop_height, type Controls, type Ground } from "./car";
+import { Car, drop_height, surface_grip, type Controls, type Ground } from "./car";
 import { LAND_GRIP, SAND_GRIP, type Footing } from "../worldgen/kinds/kind-def";
 import { footing_ground } from "../../scripts/grounds";
 import { FULL } from "../sweep";
@@ -60,9 +60,20 @@ for (const car of CHECKED)
         const r = runs(car, tyres, footing_ground({ ...row, roll: 1 }));
         const where = `${car} ${part.name} on grip ${row.grip} loose ${row.loose}`;
         if (r.launch < stock.launch * TIE) failed.push(`${where}: 0-50 ${r.launch.toFixed(2)} s < ${stock.launch.toFixed(2)} s`);
+        // A tyre with no grip there never reaches 50, so its stops start at rest and measure nothing.
+        if (r.launch >= 30) continue;
         if (r.abs < stock.abs * TIE) failed.push(`${where}: ABS stop ${r.abs.toFixed(1)} m < ${stock.abs.toFixed(1)} m`);
         if (r.locked < stock.locked * TIE) failed.push(`${where}: locked stop ${r.locked.toFixed(1)} m < ${stock.locked.toFixed(1)} m`);
       }
     });
     expect(failed).toEqual([]);
-  });
+  }, 30_000);
+
+test("no tyre grips with a negative share, so deep water never flips the asphalt cap into full grip", () => {
+  for (const car of Object.keys(CARS) as CarId[])
+    for (let tyres = 0; tyres < SLOTS.tyres.parts.length; tyres++) {
+      const spec = build_spec({ ...DEFAULT_BUILD, car, parts: { ...DEFAULT_PARTS, tyres } });
+      for (let surface = 0; surface <= 1; surface += 0.05)
+        for (const dirt of [true, false]) expect(surface_grip(spec, surface, dirt)).toBeGreaterThanOrEqual(0);
+    }
+});
