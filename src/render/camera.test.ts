@@ -40,12 +40,6 @@ describe("chase camera tilt feed", () => {
     expect(r.chase.tilt.pitch).toBeLessThan(-0.5 * DEG);
   });
 
-  test("a right turn rolls the view outward, camera up toward the car's left", () => {
-    const r = rig();
-    drive(1, 60, new THREE.Vector3(-8, 0, 0), r);
-    expect(r.chase.tilt.roll).toBeGreaterThan(0.5 * DEG);
-  });
-
   test("a nose-down car in free fall feels nothing", () => {
     const r = rig();
     r.car.quat.setFromAxisAngle(new THREE.Vector3(1, 0, 0), 30 * DEG);
@@ -68,7 +62,7 @@ describe("chase camera tilt feed", () => {
       const r = rig();
       set(r.chase);
       drive(1, 60, new THREE.Vector3(-8, 0, -9), r);
-      expect([r.chase.tilt.pitch, r.chase.tilt.roll]).toEqual([0, 0]);
+      expect(r.chase.tilt.pitch).toBe(0);
     }
   });
 

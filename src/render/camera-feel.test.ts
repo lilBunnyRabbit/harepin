@@ -36,36 +36,35 @@ describe("speed zoom", () => {
 });
 
 describe("tilt", () => {
-  const run = (tilt: Tilt, seconds: number, forward: (t: number) => number, left: (t: number) => number, on = true) => {
+  const run = (tilt: Tilt, seconds: number, forward: (t: number) => number, on = true) => {
     const dt = 1 / 60;
     let max_step = 0;
     for (let i = 0; i < seconds * 60; i++) {
       const pitch = tilt.pitch;
-      tilt.update(dt, forward(i * dt), left(i * dt), on);
+      tilt.update(dt, forward(i * dt), on);
       max_step = Math.max(max_step, Math.abs(tilt.pitch - pitch));
     }
     return max_step;
   };
 
-  test("braking dips, accelerating lifts, a corner rolls outward", () => {
+  test("braking dips, accelerating lifts, a corner never rolls the view", () => {
     const brake = new Tilt();
-    run(brake, 2, () => -12, () => 0);
+    run(brake, 2, () => -12);
     expect(brake.pitch).toBeLessThan(-0.5 * DEG);
     const launch = new Tilt();
-    run(launch, 2, () => 5, () => 0);
+    run(launch, 2, () => 5);
     expect(launch.pitch).toBeGreaterThan(0.3 * DEG);
     const right_turn = new Tilt();
-    run(right_turn, 2, () => 0, () => -9);
-    expect(right_turn.roll).toBeGreaterThan(0.5 * DEG);
+    run(right_turn, 2, () => 0);
+    expect(right_turn.pitch).toBe(0);
   });
 
   test("bounded under any acceleration, and a one-frame teleport spike barely moves it", () => {
     const tilt = new Tilt();
-    run(tilt, 3, () => -1e4, () => 1e4);
+    run(tilt, 3, () => -1e4);
     expect(Math.abs(tilt.pitch)).toBeLessThanOrEqual(1.5 * DEG + 1e-12);
-    expect(Math.abs(tilt.roll)).toBeLessThanOrEqual(2 * DEG + 1e-12);
     const spike = new Tilt();
-    spike.update(1 / 60, 1e5, 1e5, true);
+    spike.update(1 / 60, 1e5, true);
     expect(Math.abs(spike.pitch)).toBeLessThan(0.05 * DEG);
   });
 
@@ -73,23 +72,22 @@ describe("tilt", () => {
     const tilt = new Tilt();
     let peak = 0;
     for (let i = 0; i < 300; i++) {
-      tilt.update(1 / 60, -9.81, 0, true);
+      tilt.update(1 / 60, -9.81, true);
       peak = Math.min(peak, tilt.pitch);
     }
     expect(peak).toBeCloseTo(tilt.pitch, 6);
     const jitter = new Tilt();
-    run(jitter, 2, () => -9.81, () => 0);
+    run(jitter, 2, () => -9.81);
     const settled = jitter.pitch;
-    const max_step = run(jitter, 1, (t) => -9.81 * (Math.round(t * 60) % 2 ? 1.17 : 0.83), () => 0);
+    const max_step = run(jitter, 1, (t) => -9.81 * (Math.round(t * 60) % 2 ? 1.17 : 0.83));
     expect(max_step).toBeLessThan(0.02 * DEG);
     expect(Math.abs(jitter.pitch - settled)).toBeLessThan(0.05 * DEG);
   });
 
   test("off eases back level", () => {
     const tilt = new Tilt();
-    run(tilt, 2, () => -9.81, () => 9.81);
-    run(tilt, 3, () => -9.81, () => 9.81, false);
+    run(tilt, 2, () => -9.81);
+    run(tilt, 3, () => -9.81, false);
     expect(Math.abs(tilt.pitch)).toBeLessThan(0.01 * DEG);
-    expect(Math.abs(tilt.roll)).toBeLessThan(0.01 * DEG);
   });
 });

@@ -55,7 +55,7 @@ export class ChaseCamera {
   size: Size = { length: 1, width: 1, height: 1 };
   boost = false;
   speed_zoom: SpeedZoom = "subtle";
-  /** Pitch and roll the chase view with the car's acceleration. */
+  /** Pitch the chase view with the car's acceleration. */
   tilt_on = true;
   /** Rewind replays snapshots backwards, so its acceleration would tilt the view the wrong way. */
   rewinding = false;
@@ -67,7 +67,6 @@ export class ChaseCamera {
   private last_speed = 0;
   private readonly last_vel = new THREE.Vector3();
   private readonly accel = new THREE.Vector3();
-  private readonly side = new THREE.Vector3();
   private floor = -Infinity;
   private orbit_floor = -Infinity;
   private readonly chase = new THREE.Vector3();
@@ -180,12 +179,11 @@ export class ChaseCamera {
     const accel = (speed - this.last_speed) / step;
     this.last_speed = speed;
     this.fwd.set(0, 0, 1).applyQuaternion(car.quat);
-    this.side.set(1, 0, 0).applyQuaternion(car.quat);
     this.accel.subVectors(car.vel, this.last_vel).divideScalar(step);
     this.last_vel.copy(car.vel);
     // Felt g, not kinematic: in free fall the body feels nothing, so a nose-down jump does not lift the view.
     this.accel.y += GRAVITY;
-    this.tilt.update(dt, this.accel.dot(this.fwd), this.accel.dot(this.side), this.tilt_on && !this.rewinding && this.mode === 0 && !this.top);
+    this.tilt.update(dt, this.accel.dot(this.fwd), this.tilt_on && !this.rewinding && this.mode === 0 && !this.top);
     const zoom = SPEED_ZOOM[this.speed_zoom];
     const share = zoom_share(zoom, speed);
     const heading = Math.atan2(this.fwd.x, this.fwd.z);
@@ -236,7 +234,6 @@ export class ChaseCamera {
       this.look.set(car.pos.x + Math.sin(yaw) * lead, pivot_y, car.pos.z + Math.cos(yaw) * lead);
       camera.lookAt(this.look);
       camera.rotateX(this.tilt.pitch);
-      camera.rotateZ(this.tilt.roll);
     }
     if (rumble > 0) {
       camera.position.x += Math.sin(time * 23) * rumble * 0.6;
