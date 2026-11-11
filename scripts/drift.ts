@@ -120,7 +120,10 @@ export interface Launch {
   caught: number;
 }
 
-/** Settled at `kmh` (0 parked), then full lock and full gas held, as the Drift feel test's driver does. */
+/**
+ * Settled at `kmh` (0 parked), then full lock and full gas held, as the Drift feel test's driver does; rolling, the gas
+ * is stabbed off for 0.15 s after 0.2 s, the gesture a rolling kick needs.
+ */
 export function launch(spec: CarSpec, kmh: number, aids: { tcs: boolean; assist: boolean; stability: boolean }): Launch {
   const idle: Controls = { steer: 0, throttle: 0, brake: 0, handbrake: 0, analog: false };
   const rolled = (): Car => {
@@ -138,12 +141,12 @@ export function launch(spec: CarSpec, kmh: number, aids: { tcs: boolean; assist:
     const side = local.x + car.ang.y * car.axles[car.axles.length - 1].z;
     return Math.hypot(side, local.z) < 0.5 ? 0 : (Math.atan2(side, local.z) * 180) / Math.PI;
   };
-  const kick: Controls = { ...idle, steer: 1, throttle: 1 };
+  const kick = (t: number): Controls => ({ ...idle, steer: 1, throttle: kmh > 0 && t >= 0.2 && t < 0.35 ? 0 : 1 });
   const out: Launch = { armed: Infinity, t30: Infinity, peak: 0, kmh3: 0, kmh6: 0, tail: 0, caught: Infinity };
   let car = rolled();
   let steps = 0;
   for (let t = 0; t < 6; t += DT) {
-    car.step(DT, kick, flat);
+    car.step(DT, kick(t), flat);
     const d = tail(car);
     if (car.launched && out.armed === Infinity) out.armed = t;
     if (d >= 30 && out.t30 === Infinity) out.t30 = t;
@@ -157,7 +160,7 @@ export function launch(spec: CarSpec, kmh: number, aids: { tcs: boolean; assist:
   out.kmh6 = car.vel.length() * 3.6;
   out.tail /= Math.max(1, steps);
   car = rolled();
-  for (let t = 0; t < 3; t += DT) car.step(DT, kick, flat);
+  for (let t = 0; t < 3; t += DT) car.step(DT, kick(t), flat);
   let calm = -1;
   for (let t = 0; t < 4 && out.caught === Infinity; t += DT) {
     car.step(DT, { ...idle, throttle: 1 }, flat);
@@ -173,7 +176,7 @@ function launch_table(ids: readonly string[]) {
   const specs: [string, CarSpec][] = ids.map((id) => [id, car_spec(id)]);
   if (drift_build) specs.unshift(["Drift", apply_build(car_spec(drift_build.car), drift_build)]);
   const f = (n: number, d = 2) => (Number.isFinite(n) ? n.toFixed(d) : "-");
-  console.log("full lock + full gas held 6 s, Smooth keys, TCS on, stability on; let go of the key at 3 s for the catch");
+  console.log("full lock + full gas held 6 s (rolling: gas stabbed off 0.2-0.35 s), Smooth keys, TCS on, stability on; let go of the key at 3 s for the catch");
   console.log("car      assist  km/h  armed   t30  peak  km/h@3  km/h@6  tail  caught");
   for (const [id, spec] of specs)
     for (const assist of [false, true])

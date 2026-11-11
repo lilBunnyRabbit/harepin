@@ -43,7 +43,7 @@ export const FEEL_TESTS: readonly FeelTest[] = [
     car: "Drift",
     settings: { ...BALANCED, ...SMOOTH, ...CAMERA },
     respawn: true,
-    try: "full lock + full gas from rest and rolling up to 30 km/h; hold it, then let go",
+    try: "full lock + full gas from rest; rolling under 30 km/h, stab the gas at full lock; hold, then let go",
     feel: "kicks out sooner, holds 30-45 km/h, catchable on full gas",
   },
   {
