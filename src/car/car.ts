@@ -50,6 +50,8 @@ const DRIFT_INTENT = 0.9;
  * a plain handbrake turn: under the 43 km/h where a power slide stops counting and the 50 km/h hairpin of keys.ts.
  */
 const DRIFT_START = 8.5;
+/** Seconds after a rolling handbrake tap in which full gas and full lock still launch, so the gas may follow the tap. */
+const TAP_WINDOW = 0.6;
 /** Body slip (rad) against the key over which a launched slide's hold fades out once the launch has ended. */
 const HOLD_FADE = [0.03, 0.15] as const;
 /** Seconds after leaving rest on the gas that full key still counts as a launch, so the gas may go down first. */
@@ -387,6 +389,8 @@ export class Car {
   private launch_age = Infinity;
   /** Side of the launched slide whose hold is still fading out after gas or stick eased the launch off; 0 with none. */
   private hold_side = 0;
+  /** Seconds since a rolling handbrake tap at full lock; Infinity with none. */
+  private tap_age = Infinity;
   steer_mode: SteerMode = SteerMode.SNAP;
   /** Idle hold latched on: it keeps braking at any speed until a pedal or the wheel is touched. */
   parked = false;
@@ -470,6 +474,7 @@ export class Car {
     this.launch_side = 0;
     this.launch_age = Infinity;
     this.hold_side = 0;
+    this.tap_age = Infinity;
   }
 
   get heading(): number {
@@ -585,11 +590,12 @@ export class Car {
     // Rolling, a handbrake tap at full lock kicks it, the Forza way: keys and touch buttons are always full, so no gas
     // pattern tells a drift from a slow corner. TCS on and the assist off, as from rest; all-wheel drive stalled in it.
     const tapped = this.tcs && !this.assist && spec.drive === "rwd" && speed < DRIFT_START && this.gear >= 1 && input.handbrake > 0.5 && Math.abs(input.steer) > DRIFT_INTENT;
-    this.launch_age = tapped || (pedal > 0.1 && speed < 1) ? 0 : pedal <= 0.1 ? Infinity : this.launch_age + dt;
+    this.tap_age = tapped ? 0 : this.tap_age + dt;
+    this.launch_age = pedal > 0.1 && speed < 1 ? 0 : pedal <= 0.1 ? Infinity : this.launch_age + dt;
     const held = Math.sign(input.steer);
     const asked = (this.slide_side === -held ? 0 : rear_drive) * Math.abs(input.steer);
     if (asked <= DRIFT_INTENT || held !== this.launch_side) this.launch_side = 0;
-    if (asked > DRIFT_INTENT && this.launch_age < LAUNCH_WINDOW) this.launch_side = held;
+    if (asked > DRIFT_INTENT && (this.launch_age < LAUNCH_WINDOW || this.tap_age < TAP_WINDOW)) this.launch_side = held;
     if (this.launch_side !== 0) this.slide_side = this.launch_side;
     // All-wheel drive pulls its own nose along the course; held there too it came out of the slide at 45 km/h, where
     // the opposite key is a full-lock turn the other way rather than a catch.
@@ -598,7 +604,8 @@ export class Car {
     const [fade_from, fade_to] = HOLD_FADE;
     const tail_left = Math.max(0, Math.min(1, (-side * beta - fade_from) / (fade_to - fade_from)));
     if (this.launched) this.hold_side = this.launch_side;
-    else if (this.hold_side !== held || this.hold_side !== side || tail_left === 0) this.hold_side = 0;
+    // Braking or reversing out of it is no drift: held on, the loose TCS let the car reverse at full lock to 41 km/h.
+    else if (this.hold_side !== held || this.hold_side !== side || tail_left === 0 || this.gear < 1 || brake > 0.1 || local.z < 0) this.hold_side = 0;
     const drift_steer = !this.tcs || spec.drive !== "rwd" ? 0 : this.launched ? 1 : this.hold_side !== 0 ? tail_left : 0;
     const cornering = grip_lock(spec, speed);
     const limit = Math.min(spec.lock, cornering + (spec.lock - cornering) * power_slide);
@@ -623,6 +630,9 @@ export class Car {
       const on_course = Math.max(course - DRIFT_REACH * spec.peak_angle, Math.min(course + DRIFT_REACH * spec.peak_angle, target));
       const loose = target + (kept - target) * (1 - power_slide);
       target = loose + (on_course - loose) * drift_steer;
+      // Fading, the wheels still never point further into the turn than the held course: blended with the full lock the
+      // stick asks for, an eased kaze steered 17 degrees into the turn and the tail swung out again.
+      if (this.hold_side !== 0 && drift_steer > 0) target = this.hold_side * Math.min(this.hold_side * target, this.hold_side * on_course);
     }
     target = Math.max(-spec.lock, Math.min(spec.lock, target));
     // At speed the ramped key input moves slower than either limit; at parking speed this keeps the old keyboard feel.
