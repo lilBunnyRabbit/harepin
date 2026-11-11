@@ -48,6 +48,7 @@ describe("parse_settings", () => {
       muted: true,
       hud: "compact",
       dash: "center",
+      speedo: "bar",
       map: "pace",
       show_country: false,
       last_world: "sky",

@@ -58,6 +58,13 @@ export const DashPlace = {
 } as const;
 export type DashPlace = (typeof DashPlace)[keyof typeof DashPlace];
 
+/** How Classic draws the speed on a desk: a rev ring round it, or a rev bar under it the way Forza Horizon does. */
+export const SpeedoStyle = {
+  RING: "ring",
+  BAR: "bar",
+} as const;
+export type SpeedoStyle = (typeof SpeedoStyle)[keyof typeof SpeedoStyle];
+
 export const MapView = {
   FULL: "full",
   CLOSE: "close",
@@ -114,6 +121,7 @@ export interface SettingsState {
   muted: boolean;
   hud: HudLayout;
   dash: DashPlace;
+  speedo: SpeedoStyle;
   map: MapView;
   /** Sends the country guessed from the time zone with this player's directory entry. */
   show_country: boolean;
@@ -201,6 +209,7 @@ const FIELDS: { [K in SettingKey]: Field<SettingsState[K]> } = {
   muted: flag(false),
   hud: one_of(Object.values(HudLayout), HudLayout.CLASSIC),
   dash: one_of(Object.values(DashPlace), DashPlace.RIGHT),
+  speedo: one_of(Object.values(SpeedoStyle), SpeedoStyle.RING),
   map: one_of(Object.values(MapView), MapView.FULL),
   show_country: flag(true),
   last_world: { fallback: null, parse: parse_last_world },

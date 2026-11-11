@@ -6,7 +6,7 @@ import { pad_advanced } from "./settings-pad";
 import { el, icon, type Options, type Text } from "./setting-rows";
 import { THEMES, choose_theme, current_theme, find_saved, find_theme, load_saved_themes } from "../theme/theme";
 import type { SettingsMenu } from "./page";
-import { CameraReturn, CameraView, DashPlace, SpeedZoom, HudLayout, MapView, QualityMode, SteerSensitivity, TouchSteer, type QualityTier } from "./prefs";
+import { CameraReturn, CameraView, DashPlace, SpeedoStyle, SpeedZoom, HudLayout, MapView, QualityMode, SteerSensitivity, TouchSteer, type QualityTier } from "./prefs";
 import { BASE_TOKENS, saved_themes, theme_create } from "./theme-pages";
 import { stat } from "./widgets";
 import { AidPreset, preset_aids, preset_of, type Aids } from "./guide-rules";
@@ -348,6 +348,15 @@ function display(m: SettingsMenu): HTMLElement[] {
         [DashPlace.CENTER, "Centre"],
       ],
       () => hud_wire(m),
+    ),
+    m.rows.segmented(
+      "Speedometer",
+      "Classic layout. Ring: revs round the speed. Bar: a big speed over a rev bar.",
+      m.value("speedo"),
+      [
+        [SpeedoStyle.RING, "Ring"],
+        [SpeedoStyle.BAR, "Bar"],
+      ],
     ),
     m.rows.segmented(
       "Map",

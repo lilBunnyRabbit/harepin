@@ -155,6 +155,7 @@ export class Hud {
     const network = world.tiles.streamed ? { roads: world.graph.edges.filter((e) => !circuit.has(e.id)).map((e) => e.points), towns: world.towns } : undefined;
     this.map = new Minimap(canvas, world.routes, world.tiles.ext.size, network);
     this.el.dial_zone.style.strokeDasharray = `0 ${DIAL_HOT} ${100 - DIAL_HOT} 100`;
+    this.el.rpm.parentElement?.style.setProperty("--rpm-hot", percent(HOT_RATIO));
     this.pace = new PaceCard(world.routes);
     canvas.after(this.pace.el);
   }
