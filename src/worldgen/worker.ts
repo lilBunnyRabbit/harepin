@@ -73,7 +73,9 @@ function open({ seed, kind }: GenRequest) {
   if (spawn) focus = [spawn.x, spawn.z];
   // The sim reads water depth from the plan's water op; every other op only rebuilds tiles, which stay in this worker.
   const empty = { heights: new Float32Array(0), road_dist: new Float32Array(0), surface: new Uint8Array(0) };
-  postMessage({ type: "plan", data: { ...data, terrain: { ...data.terrain, ...empty }, ground: { ...data.ground, ops: data.ground.ops.filter((op) => op.kind === "water") } } } satisfies WorkerReply);
+  // A streamed world's trees and solids come with the chunk they stand in, so physics only holds what is built.
+  const kept = data.terrain.heights.length ? {} : { trees: [], solids: [] };
+  postMessage({ type: "plan", data: { ...data, ...kept, terrain: { ...data.terrain, ...empty }, ground: { ...data.ground, ops: data.ground.ops.filter((op) => op.kind === "water") } } } satisfies WorkerReply);
   plan = { data, kind };
   mesh();
 }

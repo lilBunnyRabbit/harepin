@@ -1,4 +1,4 @@
-import { cell_range, sample, vertex } from "./field";
+import { at, sample_on, span_i, span_j, WHOLE, type Grid } from "./field";
 import { hash, length } from "./noise";
 import type { TownRecipe } from "./recipe";
 import { heading, prop_solids } from "./scatter";
@@ -85,17 +85,70 @@ function local_to_world(lot: { x: number; z: number; fx: number; fz: number }, l
   return [lot.x + lot.fz * lx + lot.fx * lz, lot.z - lot.fx * lx + lot.fz * lz];
 }
 
+interface Character {
+  wide: number;
+  floors: number;
+  taller: number;
+  tone: number | null;
+}
+
+const PLAIN: Character = { wide: 1, floors: 0, taller: 0, tone: null };
+
+function character(seed: number, town: Town): Character {
+  const r = (k: number) => hash(town.id, k, seed + 91);
+  return { wide: 0.8 + r(0) * 0.5, floors: Math.floor(r(1) * 3), taller: r(2) * 0.5, tone: Math.floor(r(3) * 3) };
+}
+
+interface Rect {
+  x: number;
+  z: number;
+  w: number;
+  d: number;
+  fx: number;
+  fz: number;
+}
+
+function apart(a: Rect, b: Rect): boolean {
+  for (const [ax, az] of [
+    [a.fz, -a.fx],
+    [a.fx, a.fz],
+    [b.fz, -b.fx],
+    [b.fx, b.fz],
+  ]) {
+    const reach = (r: Rect) => (Math.abs(r.fz * ax - r.fx * az) * r.w + Math.abs(r.fx * ax + r.fz * az) * r.d) / 2;
+    if (Math.abs((b.x - a.x) * ax + (b.z - a.z) * az) >= reach(a) + reach(b)) return true;
+  }
+  return false;
+}
+
+export function empty_lots(): TownLots {
+  return { lots: [], buildings: [], parking: [], props: [], trees: [], solids: [] };
+}
+
 export class Lots {
   readonly occupied: Uint8Array;
-  readonly out: TownLots = { lots: [], buildings: [], parking: [], props: [], trees: [], solids: [] };
+  private readonly placed: Rect[] = [];
 
+  // A shared `out` keeps lot ids running on across several town windows. `exact` also tests lot rectangles and their
+  // corners' road_dist between the cell vertices; the compact worlds keep the vertex test alone so their records hold.
   constructor(
     private readonly seed: number,
     private readonly terrain: Terrain,
     private readonly stamp: Stamp,
     private readonly shape: TownRecipe,
+    private readonly grid: Grid = WHOLE,
+    readonly out: TownLots = empty_lots(),
+    private readonly exact = false,
   ) {
     this.occupied = new Uint8Array(terrain.heights.length);
+  }
+
+  private sample(field: Float32Array, x: number, z: number): number {
+    return sample_on(this.grid, field, x, z);
+  }
+
+  private vertex_at(x: number, z: number): number {
+    return at(this.grid, Math.round((x - ORIGIN) / CELL), Math.round((z - ORIGIN) / CELL));
   }
 
   // Lot corners stay on the town core, which the plateau holds exactly on the town plane. A highway's shoulder
@@ -111,8 +164,10 @@ export class Lots {
     ]) {
       const [px, pz] = local_to_world({ x, z, fx, fz }, lx, lz);
       if (!on_core(town, px, pz)) return false;
-      if (sample(heights, px, pz) < 3) return false;
+      if (this.sample(heights, px, pz) < 3) return false;
+      if (this.exact && this.sample(road_dist, px, pz) <= STREET_CLEAR) return false;
     }
+    if (this.exact && !this.placed.every((o) => apart(o, { x, z, w, d, fx, fz }))) return false;
     const level = (k: number) => street[k] === 1 || owner_dist[k] > ROAD_HALF + SHOULDER;
     if (!this.scan(x, z, w + CELL * 2, d + CELL * 2, fx, fz, level)) return false;
     return this.scan(x, z, w, d, fx, fz, (k) => !this.occupied[k] && road_dist[k] > STREET_CLEAR);
@@ -120,14 +175,14 @@ export class Lots {
 
   private scan(x: number, z: number, w: number, d: number, fx: number, fz: number, visit: (k: number) => boolean): boolean {
     const reach = (w + d) / 2;
-    const [i0, i1] = cell_range(x - reach, x + reach);
-    const [j0, j1] = cell_range(z - reach, z + reach);
+    const [i0, i1] = span_i(this.grid, x - reach, x + reach);
+    const [j0, j1] = span_j(this.grid, z - reach, z + reach);
     for (let j = j0; j <= j1; j++)
       for (let i = i0; i <= i1; i++) {
         const dx = ORIGIN + i * CELL - x;
         const dz = ORIGIN + j * CELL - z;
         if (Math.abs(dx * fz - dz * fx) > w / 2 || Math.abs(dx * fx + dz * fz) > d / 2) continue;
-        if (!visit(vertex(i, j))) return false;
+        if (!visit(at(this.grid, i, j))) return false;
       }
     return true;
   }
@@ -139,17 +194,18 @@ export class Lots {
     const b = edge.points[edge.points.length - 1];
     const len = length(b.x - a.x, b.z - a.z);
     const { tx, tz } = a;
+    const look = this.shape.variety ? character(this.seed, town) : PLAIN;
     for (const side of [-1, 1] as const) {
       const ox = -tz * side;
       const oz = tx * side;
       const mx = (a.x + b.x) / 2 + ox * town.block;
       const mz = (a.z + b.z) / 2 + oz * town.block;
-      const inner = sample(this.terrain.road_dist, mx, mz) < ROAD_HALF + 1;
+      const inner = this.sample(this.terrain.road_dist, mx, mz) < ROAD_HALF + 1;
       const room = inner ? (town.block - 2 * (edge.half + FRONT_GAP)) * BLOCK_SHARE : Infinity;
       let u = CORNER_CLEAR;
       for (let n = 0; u + LOT_MIN_W <= len - CORNER_CLEAR; n++) {
         const r = (k: number) => hash(edge.id * 8 + (side + 1) * 2, n, this.seed + k);
-        const wide = Math.min(12 + r(1) * 8, len - CORNER_CLEAR - u);
+        const wide = Math.min((12 + r(1) * 8) * look.wide, len - CORNER_CLEAR - u);
         const deep = Math.max(LOT_MIN_D, Math.min(room, 14 + r(2) * 12));
         let placed: { x: number; z: number; w: number; d: number; along: number } | null = null;
         for (const w of wide > LOT_MIN_W ? [wide, LOT_MIN_W] : [wide])
@@ -166,16 +222,17 @@ export class Lots {
         }
         const { x, z, w, d, along } = placed;
         u += w + LOT_GAP;
+        this.placed.push({ x, z, w, d, fx: -ox, fz: -oz });
         this.scan(x, z, w, d, -ox, -oz, (k) => {
           this.occupied[k] = 1;
           return true;
         });
         const reach = length(x - town.x, z - town.z) / town.radius;
         const kind = lot_kind(reach, r(3), d);
-        const lot: Lot = { id: this.out.lots.length, town: town.id, edge: edge.id, side, x, y: sample(heights, x, z), z, w, d, fx: -ox, fz: -oz, angle: Math.atan2(-ox, -oz), kind };
+        const lot: Lot = { id: this.out.lots.length, town: town.id, edge: edge.id, side, x, y: this.sample(heights, x, z), z, w, d, fx: -ox, fz: -oz, angle: Math.atan2(-ox, -oz), kind };
         this.out.lots.push(lot);
         const index = Math.max(0, Math.min(edge.points.length - 1, Math.round((along / len) * (edge.points.length - 1))));
-        if (kind === "house" || kind === "shop") this.building(lot, reach, r(4), r(5), r(6));
+        if (kind === "house" || kind === "shop") this.building(lot, reach, look, r(4), r(5), r(6));
         else if (kind === "parking") this.parking(lot, index);
         else if (kind === "garden") this.garden(lot, 1 + Math.floor(r(7) * 3));
       }
@@ -184,7 +241,7 @@ export class Lots {
   }
 
   private tree(x: number, z: number, roll: number) {
-    const y = sample(this.terrain.heights, x, z);
+    const y = this.sample(this.terrain.heights, x, z);
     const scale = 0.7 + roll * 0.6;
     this.out.trees.push({ x, y, z, scale, kind: roll < 0.5 ? 1 : 0 });
     this.out.solids.push({ kind: "circle", x, y, z, radius: TREE_RADIUS * scale, height: TREE_HEIGHT * scale });
@@ -193,7 +250,7 @@ export class Lots {
   // A dry yard: the first spot holds a water tank or a wind pump, the rest boulders.
   private yard(x: number, z: number, roll: number, first: boolean) {
     const { k, angle } = heading(roll);
-    const prop: Prop = { x, y: sample(this.terrain.heights, x, z), z, angle, kind: first ? (roll < PUMP_ODDS ? PropKind.WIND_PUMP : PropKind.TANK) : PropKind.BOULDER, scale: first ? 1 : 0.5 + roll * 0.4 };
+    const prop: Prop = { x, y: this.sample(this.terrain.heights, x, z), z, angle, kind: first ? (roll < PUMP_ODDS ? PropKind.WIND_PUMP : PropKind.TANK) : PropKind.BOULDER, scale: first ? 1 : 0.5 + roll * 0.4 };
     this.out.props.push(prop);
     this.out.solids.push(...prop_solids(prop, k, this.terrain.heights));
   }
@@ -208,12 +265,17 @@ export class Lots {
     }
   }
 
-  private building(lot: Lot, reach: number, r1: number, r2: number, r3: number) {
+  private style(lot: Lot, look: Character, r3: number): number {
+    if (look.tone === null || hash(lot.id, 5, this.seed + 74) >= 2 / 3) return Math.floor(r3 * 3);
+    return look.tone;
+  }
+
+  private building(lot: Lot, reach: number, look: Character, r1: number, r2: number, r3: number) {
     const { heights } = this.terrain;
     const shop = lot.kind === "shop";
     const hw = shop ? lot.w / 2 - 1 : lot.w / 2 - 2 - r1 * 1.5;
     const hd = shop ? Math.max(3, lot.d / 2 - 2.5) : Math.max(3, Math.min(6.5, lot.d / 2 - 3.5 - r2 * 2));
-    const floors = shop ? 1 + Math.floor(r2 * (reach < 0.4 ? 4 : 2)) : r1 < 0.4 ? 2 : 1;
+    const floors = shop ? 1 + Math.floor(r2 * (reach < 0.4 ? 4 : 2)) + look.floors : r1 < 0.4 + look.taller ? 2 : 1;
     const height = shop ? floors * SHOP_FLOOR + 0.6 : floors * FLOOR + 0.3;
     let roof: Roof;
     if (this.shape.roofs === "flat") roof = Roof.FLAT;
@@ -231,9 +293,9 @@ export class Lots {
       [hw, hd],
     ]) {
       const [px, pz] = local_to_world({ x, z, fx: lot.fx, fz: lot.fz }, lx, lz);
-      y = Math.min(y, sample(heights, px, pz));
+      y = Math.min(y, this.sample(heights, px, pz));
     }
-    const building: Building = { lot: lot.id, x, y, z, hw, hd, fx: lot.fx, fz: lot.fz, angle: lot.angle, height, style: Math.floor(r3 * 3), roof };
+    const building: Building = { lot: lot.id, x, y, z, hw, hd, fx: lot.fx, fz: lot.fz, angle: lot.angle, height, style: this.style(lot, look, r3), roof };
     this.out.buildings.push(building);
     this.out.solids.push({ kind: "box", x, y, z, hw, hd, cos: lot.fz, sin: lot.fx, height: height + roof_rise(building) });
     const yard = front - hd + lot.d / 2;
@@ -266,7 +328,7 @@ export class Lots {
       if (!parked[i]) return;
       obstacles.push({ kind: "car", x: bay.x, z: bay.z, heading: bay.heading, w: PARKED.w, l: PARKED.l, h: PARKED.h });
       const [x, z] = local_to_world(lot, bay.x, bay.z);
-      this.out.solids.push({ kind: "box", x, y: sample(this.terrain.heights, x, z), z, hw: PARKED.w / 2, hd: PARKED.l / 2, cos: lot.fz, sin: lot.fx, height: PARKED.h });
+      this.out.solids.push({ kind: "box", x, y: this.sample(this.terrain.heights, x, z), z, hw: PARKED.w / 2, hd: PARKED.l / 2, cos: lot.fz, sin: lot.fx, height: PARKED.h });
     });
     const difficulty = bays.length ? obstacles.length / bays.length : 0;
     this.out.parking.push({
@@ -296,8 +358,8 @@ export class Lots {
       const off = side * (edge.half + 1);
       const x = a.x + tx * u - tz * off;
       const z = a.z + tz * u + tx * off;
-      if (this.occupied[vertex(Math.round((x - ORIGIN) / CELL), Math.round((z - ORIGIN) / CELL))]) continue;
-      const y = sample(this.terrain.heights, x, z);
+      if (this.occupied[this.vertex_at(x, z)]) continue;
+      const y = this.sample(this.terrain.heights, x, z);
       this.out.props.push({ x, y, z, angle: Math.atan2(tz * side, -tx * side), kind: PropKind.STREET_LIGHT, scale: 1 });
       this.out.solids.push({ kind: "circle", x, y, z, radius: 0.18, height: LIGHT_HEIGHT });
     }

@@ -1,4 +1,5 @@
 import { extent } from "./chunk-grid";
+import { mainland_lots } from "./mainland-lots";
 import { mainland_network } from "./mainland-network";
 import { plan_grid, type PlanGrid } from "./plan-grid";
 import { MAINLAND, type Recipe } from "./recipe";
@@ -47,6 +48,8 @@ export function plan_mainland(seed: number, recipe: Recipe = MAINLAND): Mainland
     ...graph.edges.filter((e) => !on_circuit.has(e.id)).map((edge): GroundOp => ({ kind: "edge", edge, bank: recipe.road.bank })),
     { kind: "blend", bank: recipe.road.bank },
   ];
+  const town = mainland_lots(seed, recipe, graph, towns, circuit, road, ops, water);
+  lap("lots");
   const clear = (p: RoadPoint) => graph.nodes.every((node) => (node.x - p.x) ** 2 + (node.z - p.z) ** 2 >= GATE_CLEAR * GATE_CLEAR);
   // The first gate is the start line at road[0]; each other one takes the clear sample nearest its even slot, after the gate before.
   const gates: number[] = [];
@@ -80,12 +83,12 @@ export function plan_mainland(seed: number, recipe: Recipe = MAINLAND): Mainland
     ground: { base: { kind: "terrain", seed, shape: recipe.terrain }, ops },
     graph,
     towns,
-    lots: [],
-    buildings: [],
-    props: [],
-    parking: [],
-    trees: [],
-    solids: [],
+    lots: town.lots,
+    buildings: town.buildings,
+    props: town.props,
+    parking: town.parking,
+    trees: town.trees,
+    solids: town.solids,
     ramps: [],
     items: [],
     challenges: [],

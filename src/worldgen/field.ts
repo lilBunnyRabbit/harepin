@@ -90,3 +90,12 @@ export function span_i(grid: Grid, min: number, max: number): [number, number] {
 export function span_j(grid: Grid, min: number, max: number): [number, number] {
   return [Math.max(grid.j0, Math.floor((min - ORIGIN) / CELL)), Math.min(grid.j1, Math.ceil((max - ORIGIN) / CELL))];
 }
+
+/** `sample` of a field stored over `grid`, clamped to its cells: on WHOLE it answers exactly as `sample` does. */
+export function sample_on(grid: Grid, field: Float32Array, x: number, z: number): number {
+  const gx = Math.max(grid.i0, Math.min(grid.i1 - 1e-4, (x - ORIGIN) / CELL));
+  const gz = Math.max(grid.j0, Math.min(grid.j1 - 1e-4, (z - ORIGIN) / CELL));
+  const i = Math.floor(gx);
+  const j = Math.floor(gz);
+  return tri(field, at(grid, i, j), grid.row, gx - i, gz - j);
+}

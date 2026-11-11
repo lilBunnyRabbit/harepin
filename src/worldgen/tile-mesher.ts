@@ -1,6 +1,6 @@
 import { plan_cuts, plant_square, type BiomeCuts, type LandProbe, type Planted } from "./biomes";
-import { CHUNK, chunk_corner, chunk_vertex, type Extent } from "./chunk-grid";
-import { paint, soup, terrain_mesh, type ChunkBuffers, type MeshTones } from "./chunks";
+import { CHUNK, chunk_corner, chunk_of, chunk_vertex, type Extent } from "./chunk-grid";
+import { paint, soup, terrain_mesh, town_builders, town_meshes, type ChunkBuffers, type MeshTones } from "./chunks";
 import { build_tile } from "./ground";
 import { KINDS } from "./kinds/kinds";
 import { PLAN_CELL } from "./mainland";
@@ -10,12 +10,20 @@ import { road_junctions, road_layers, type Junctions } from "./road-layers";
 import { Roads } from "./roads";
 import { land_height } from "./terrain";
 import { TILE_SIDE, TileStore, type Tile, type VectorOut } from "./tiles";
-import { CELL, type WorldData } from "./types";
+import { CELL, type Building, type ParkingLot, type Prop, type Solid, type Tree, type WorldData } from "./types";
 import { water_index, type WaterIndex } from "./water";
 import { bounding_sphere } from "./mesh";
 
 // Past the desktop resident set (about 116 chunks), so a chunk streamed in at the ring edge finds its neighbours built.
 const CACHE = 160;
+
+interface ChunkTown {
+  buildings: Building[];
+  props: Prop[];
+  parking: ParkingLot[];
+  trees: Tree[];
+  solids: Solid[];
+}
 
 export interface Built {
   tile: Tile;
@@ -36,6 +44,7 @@ export class TileMesher {
   private readonly junctions: Junctions;
   private readonly probe: LandProbe;
   private readonly water: WaterIndex | null;
+  private readonly towns = new Map<number, ChunkTown>();
 
   constructor(
     private readonly data: WorldData,
@@ -52,6 +61,17 @@ export class TileMesher {
     const op = data.ground.ops.find((o) => o.kind === "water");
     this.water = op?.kind === "water" ? water_index(op.water) : null;
     const store = this.store;
+    const town = (x: number, z: number) => {
+      const key = chunk_of(x, z, ext);
+      let parts = this.towns.get(key);
+      if (!parts) this.towns.set(key, (parts = { buildings: [], props: [], parking: [], trees: [], solids: [] }));
+      return parts;
+    };
+    for (const b of data.buildings) town(b.x, b.z).buildings.push(b);
+    for (const p of data.props) town(p.x, p.z).props.push(p);
+    for (const lot of data.parking) town(data.lots[lot.lot].x, data.lots[lot.lot].z).parking.push(lot);
+    for (const t of data.trees) town(t.x, t.z).trees.push(t);
+    for (const s of data.solids) town(s.x, s.z).solids.push(s);
     this.probe = { height: (x, z) => store.height(x, z), road_dist: (x, z) => store.road_dist(x, z), up: (x, z) => store.slope(x, z, UP) };
   }
 
@@ -65,17 +85,20 @@ export class TileMesher {
     const [x0, z0] = chunk_corner(index, this.ext);
     const roads = road_layers(this.data, new Roads(this.store, this.ext, index), this.tones, this.junctions);
     const road = soup([roads.surface[index], roads.marks[index]]);
+    const here = this.towns.get(index);
     const chunk: ChunkBuffers = {
       index,
       x0,
       z0,
       terrain: terrain_mesh(tile.heights, this.colors(index, tile), TILE_SIDE, 0, 0, x0, z0),
       road: road && { ...road, surface: roads.surface[index].positions.length / 3 },
-      buildings: null,
-      glass: null,
-      parking: null,
+      ...town_meshes(here && town_builders(this.data, here, this.tones, (x, z) => this.store.height(x, z), () => index).get(index)),
     };
     const planted = plant_square(this.cuts, this.probe, x0, z0, CHUNK, (x, z) => !this.data.towns.some((t) => (t.x - x) ** 2 + (t.z - z) ** 2 < t.radius * t.radius) && !this.wet(x, z));
+    if (here) {
+      planted.trees.push(...here.trees);
+      planted.solids.push(...here.solids);
+    }
     const water = this.water && this.surface(tile, x0, z0);
     if (water) chunk.water = water;
     return { tile: { heights: tile.heights.slice(), road_dist: tile.road_dist.slice(), surface: tile.surface.slice() }, chunk, planted };

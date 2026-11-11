@@ -12,8 +12,8 @@ const EXT = extent(MAINLAND_SIZE);
 
 test("mainland ids and keys sit in their own thousand", async () => {
   const { world_id, world_key } = await import("./kinds/kinds");
-  expect(world_id("mainland")).toBe(3003);
-  expect(world_key(42, "mainland")).toBe("42:m3");
+  expect(world_id("mainland")).toBe(3004);
+  expect(world_key(42, "mainland")).toBe("42:m4");
 });
 
 test("the mainland is land in the middle and sea at its border", () => {
@@ -114,7 +114,8 @@ test("a mainland chunk plants the same trees whatever was built before it, each 
     const planted = ahead.get(index);
     if (!planted) continue;
     trees += planted.trees.length;
-    expect(planted.solids.length).toBeLessThanOrEqual(planted.trees.length);
+    const town = data.solids.filter((s) => chunk_of(s.x, s.z, EXT) === index).length;
+    expect(planted.solids.length).toBeLessThanOrEqual(planted.trees.length + town);
     for (const t of planted.trees) {
       const key = `${t.x},${t.z}`;
       expect(seen.has(key)).toBe(false);
@@ -153,3 +154,53 @@ for (const seed of sweep(2))
     for (let k = 0; k < 7 * EXT.side; k++) evicted.build(row * EXT.side + k);
     expect(digest(evicted.build(index))).toEqual(alone);
   }, 60_000);
+
+for (const seed of sweep(2))
+  test(`mainland ${seed}: town lots keep off streets, junctions, water and each other, and a town chunk builds alike alone`, async () => {
+    const { MESH_TONES } = await import("../../scripts/proof/tones");
+    const { TileMesher } = await import("./tile-mesher");
+    const { road_junctions } = await import("./road-layers");
+    const { water_index } = await import("./water");
+    const { ROAD_HALF, SIDEWALK } = await import("./types");
+    const { data } = plan_mainland(seed);
+    expect(data.buildings.length).toBeGreaterThan(data.towns.length * 10);
+    const store = new TileStore(EXT);
+    const need = new Set(data.lots.flatMap((l) => [-1, 0, 1].flatMap((dj) => [-1, 0, 1].map((di) => chunk_of(l.x, l.z, EXT) + dj * EXT.side + di))));
+    for (const index of need) store.add(index, build_tile(data.ground, index, EXT));
+    const op = data.ground.ops.find((o) => o.kind === "water");
+    const water = op?.kind === "water" ? water_index(op.water) : null;
+    const patches = road_junctions(data).patched.map((j) => j.patch.outline);
+    const corners = (l: (typeof data.lots)[number], inset: number) =>
+      [[-1, -1], [1, -1], [1, 1], [-1, 1], [0, 0]].map(([a, b]) => {
+        const lx = a * (l.w / 2 - inset);
+        const lz = b * (l.d / 2 - inset);
+        return [l.x + l.fz * lx + l.fx * lz, l.z - l.fx * lx + l.fz * lz];
+      });
+    for (const lot of data.lots)
+      for (const [x, z] of corners(lot, 0.5)) {
+        expect(store.road_dist(x, z)).toBeGreaterThan(ROAD_HALF + SIDEWALK);
+        if (water) expect(water.level(x, z)).toBeLessThan(store.height(x, z));
+        for (const outline of patches) {
+          let hit = false;
+          for (let a = 0, b = outline.length - 1; a < outline.length; b = a++)
+            if (outline[a].z > z !== outline[b].z > z && x < ((outline[b].x - outline[a].x) * (z - outline[a].z)) / (outline[b].z - outline[a].z) + outline[a].x) hit = !hit;
+          expect(hit).toBe(false);
+        }
+      }
+    for (const a of data.lots)
+      for (const b of data.lots) {
+        if (a.id >= b.id || Math.hypot(a.x - b.x, a.z - b.z) > 40) continue;
+        for (const [x, z] of corners(b, 0.5)) {
+          const dx = x - a.x;
+          const dz = z - a.z;
+          expect(Math.abs(dx * a.fz - dz * a.fx) > a.w / 2 || Math.abs(dx * a.fx + dz * a.fz) > a.d / 2).toBe(true);
+        }
+      }
+    const index = chunk_of(data.buildings[0].x, data.buildings[0].z, EXT);
+    const digest = (built: Built) => ({ buildings: [...(built.chunk.buildings?.positions ?? []), ...(built.chunk.buildings?.colors ?? [])], parking: [...(built.chunk.parking?.positions ?? [])], planted: built.planted });
+    const alone = digest(new TileMesher(data, EXT, MESH_TONES).build(index));
+    expect(alone.buildings.length).toBeGreaterThan(0);
+    const around = new TileMesher(data, EXT, MESH_TONES);
+    for (const k of [index + EXT.side + 1, index - 1, index - EXT.side, index + 1]) around.build(k);
+    expect(digest(around.build(index))).toEqual(alone);
+  }, 120_000);

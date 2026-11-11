@@ -10,7 +10,7 @@ import { grid_ground, Roads, type Layer } from "./roads";
 import { deck_layers, type DeckTones } from "./sky-mesh";
 import { hash } from "./noise";
 import { ISLAND } from "./recipe";
-import { CELL, Ground, N, ORIGIN, PropKind, Roof, SURFACE_GROUND, type WorldData } from "./types";
+import { CELL, Ground, N, ORIGIN, PropKind, Roof, SURFACE_GROUND, type Building, type ParkingLot, type Prop, type WorldData } from "./types";
 
 const CHUNK_CELLS = CHUNK / CELL;
 export const JITTER_LEVELS = 64;
@@ -177,11 +177,17 @@ function shopfront(out: Builder, hw: number, hd: number) {
   }
 }
 
-function town_builders(data: WorldData, tones: MeshTones): Map<number, Town> {
+export interface TownParts {
+  buildings: readonly Building[];
+  props: readonly Prop[];
+  parking: readonly ParkingLot[];
+}
+
+/** Town meshes keyed by `key(x, z)`, each part placed by its own position; `ground` drapes the parking pads. */
+export function town_builders(data: WorldData, parts: TownParts, tones: MeshTones, ground: (x: number, z: number) => number, key_of: (x: number, z: number) => number): Map<number, Town> {
   const towns = new Map<number, Town>();
-  const ground = (x: number, z: number) => sample(data.terrain.heights, x, z);
   const of = (x: number, z: number) => {
-    const key = chunk_of(x, z);
+    const key = key_of(x, z);
     let town = towns.get(key);
     if (!town) {
       town = { big: new Builder(), small: new Builder(), glass_big: new Builder(), glass_small: new Builder(), parking: new Builder(undefined, ground) };
@@ -190,7 +196,7 @@ function town_builders(data: WorldData, tones: MeshTones): Map<number, Town> {
     return town;
   };
   const seed = data.terrain.seed;
-  for (const b of data.buildings) {
+  for (const b of parts.buildings) {
     const wall = tones.walls[b.style % tones.walls.length];
     const roof = tones.roofs[Math.floor(hash(b.lot, 0, seed + 81) * tones.roofs.length)];
     const rise = roof_rise(b);
@@ -206,8 +212,8 @@ function town_builders(data: WorldData, tones: MeshTones): Map<number, Town> {
       else out.at(turned(b)).hip(b.hd, b.hw, b.height, rise, roof);
     } else out.top(b.hw, b.hd, b.height, tones.roof_flat);
   }
-  for (const prop of data.props) if (prop.kind !== PropKind.STREET_LIGHT) landmark_mesh(of(prop.x, prop.z).big, prop, data.terrain.heights, tones.landmark);
-  for (const lot of data.parking) {
+  for (const prop of parts.props) if (prop.kind !== PropKind.STREET_LIGHT) landmark_mesh(of(prop.x, prop.z).big, prop, data.terrain.heights, tones.landmark);
+  for (const lot of parts.parking) {
     const frame = data.lots[lot.lot];
     const out = of(frame.x, frame.z).parking.at(frame);
     out.top(lot.size.w / 2, lot.size.d / 2, PAD_LIFT, tones.asphalt);
@@ -219,6 +225,16 @@ function town_builders(data: WorldData, tones: MeshTones): Map<number, Town> {
     }
   }
   return towns;
+}
+
+export function town_meshes(town: Town | undefined): Pick<ChunkBuffers, "buildings" | "glass" | "parking"> {
+  const buildings = town && soup([town.big, town.small]);
+  const glass = town && soup([town.glass_big, town.glass_small]);
+  return {
+    buildings: town && buildings ? { ...buildings, big: town.big.vertices } : null,
+    glass: town && glass ? { positions: glass.positions, sphere: glass.sphere, big: town.glass_big.vertices } : null,
+    parking: (town && soup([town.parking])) ?? null,
+  };
 }
 
 export function soup(layers: Layer[]): Soup | null {
@@ -258,15 +274,12 @@ export function chunk_meshes(data: WorldData, tones: MeshTones): (index: number)
   if (!KINDS[data.kind].ground) return deck_chunks(data, tones);
   const colors = terrain_colors(data, tones.terrain);
   const roads = road_layers(data, new Roads(grid_ground(data.terrain.heights)), tones);
-  const towns = town_builders(data, tones);
+  const towns = town_builders(data, data, tones, (x, z) => sample(data.terrain.heights, x, z), (x, z) => chunk_of(x, z));
   return (index) => {
     const ci = index % CHUNKS;
     const cj = Math.floor(index / CHUNKS);
     const surface = roads.surface[index];
     const road = soup([surface, roads.marks[index]]);
-    const town = towns.get(index);
-    const buildings = town && soup([town.big, town.small]);
-    const glass = town && soup([town.glass_big, town.glass_small]);
     const [x0, z0] = chunk_origin(index);
     return {
       index,
@@ -274,9 +287,7 @@ export function chunk_meshes(data: WorldData, tones: MeshTones): (index: number)
       z0,
       terrain: terrain_chunk(data, colors, ci, cj),
       road: road && { ...road, surface: surface.positions.length / 3 },
-      buildings: town && buildings ? { ...buildings, big: town.big.vertices } : null,
-      glass: town && glass ? { positions: glass.positions, sphere: glass.sphere, big: town.glass_big.vertices } : null,
-      parking: (town && soup([town.parking])) ?? null,
+      ...town_meshes(towns.get(index)),
     };
   };
 }

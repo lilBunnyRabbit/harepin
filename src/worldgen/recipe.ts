@@ -212,6 +212,8 @@ export interface TownRecipe {
   layout: "grid" | "strip";
   /** "flat" puts a flat roof on every building (adobe outposts), "steep" a steep gable on every house and small shop. */
   roofs: "mixed" | "flat" | "steep";
+  /** Each town picks its own lot width, height and wall tone; false builds every town alike. */
+  variety: boolean;
 }
 
 /** Rivers down the `count` biggest drainage basins, from where `head` plan cells drain into them; lakes in basins `depth` deep and `min`-`max` plan cells wide. */
@@ -276,7 +278,7 @@ export const ISLAND: Recipe = {
     },
   },
   road: { loop: { radius: 620, swing: 640, min: 380, max: 860 }, straights: null, stacks: [4, 2], tongue: true, canyon: { outlet: 2 }, kickers: { road: 4, total: 12, big: 3 }, runup: null, bank: null },
-  towns: { min: 3, max: 6, trees: true, block: { min: 45, span: 25 }, top: 60, layout: "grid", roofs: "mixed" },
+  towns: { min: 3, max: 6, trees: true, block: { min: 45, span: 25 }, top: 60, layout: "grid", roofs: "mixed", variety: false },
   landmarks: [Landmark.MAST, Landmark.LIGHTHOUSE, Landmark.TURBINES, Landmark.ARCH],
   scatter: [],
 };
@@ -318,7 +320,7 @@ export const DESERT: Recipe = {
     },
   },
   road: { loop: { radius: 650, swing: 500, min: 420, max: 850 }, straights: 4, stacks: [], tongue: false, canyon: { outlet: 24 }, kickers: { road: 4, total: 16, big: 4 }, runup: null, bank: null },
-  towns: { min: 1, max: 3, trees: false, block: { min: 35, span: 15 }, top: 60, layout: "grid", roofs: "flat" },
+  towns: { min: 1, max: 3, trees: false, block: { min: 35, span: 15 }, top: 60, layout: "grid", roofs: "flat", variety: false },
   landmarks: [Landmark.MAST, Landmark.TURBINES],
   scatter: [
     { kind: PropKind.CACTUS, spacing: 46, odds: 0.05, biomes: ["meadow", "upland"], road_within: Infinity },
@@ -331,7 +333,7 @@ export const DESERT: Recipe = {
 export const MAINLAND: Recipe = {
   ...ISLAND,
   terrain: [LIFT, hills(110), ridges(26), { kind: "peak", height: 240, radius: 1100, reach: 1400 }, shore(2900, -9)],
-  towns: { min: 10, max: 16, trees: true, block: { min: 45, span: 25 }, top: 60, layout: "grid", roofs: "mixed" },
+  towns: { min: 10, max: 16, trees: true, block: { min: 45, span: 25 }, top: 60, layout: "grid", roofs: "mixed", variety: true },
   road: { ...ISLAND.road, bank: { run: 3.75, reach: 64 } },
   water: { rivers: { count: 3, head: 120, width: [3, 11], depth: [1.2, 2.6] }, lakes: { count: 4, depth: 2, min: 4, max: 400 } },
 };
@@ -371,7 +373,7 @@ export const ALPINE: Recipe = {
     },
   },
   road: { loop: { radius: 600, swing: 260, min: 500, max: 700 }, straights: null, stacks: [4, 2], tongue: true, canyon: null, kickers: { road: 2, total: 8, big: 2 }, runup: { grade: 0.08, reach: 100 }, bank: { run: 3.75, reach: 64 } },
-  towns: { min: 2, max: 3, trees: true, block: { min: 35, span: 15 }, top: 110, layout: "strip", roofs: "steep" },
+  towns: { min: 2, max: 3, trees: true, block: { min: 35, span: 15 }, top: 110, layout: "strip", roofs: "steep", variety: false },
   landmarks: [Landmark.MAST],
   scatter: [{ kind: PropKind.BOULDER, spacing: 60, odds: 0.08, biomes: ["meadow", "upland"], road_within: Infinity }],
 };
