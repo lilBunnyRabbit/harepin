@@ -43,18 +43,31 @@ const ABS_SLIP = 0.1;
 const TCS_LOW_SPEED = 15;
 /** Weight of a driven rear's sideways slip in traction control's slip: at 1.4 it cuts in at 0.9 of the peak slip angle. */
 const TCS_LATERAL = 1.4;
-/** Power-slide intent (walking pace × gas × held key) past which a launch from rest may spin up the rear and swing the tail out. */
+/** Power-slide intent (walking pace × gas × held key) past which a launch may spin up the rear and swing the tail out. */
 const DRIFT_INTENT = 0.9;
-/** Speed (m/s) under which the car counts as at rest: rolling, full lock and full gas is a hairpin to pull out of. */
-const DRIFT_START = 1;
+/**
+ * Speed (m/s), about 30 km/h, under which full lock and full gas kick a power slide while rolling. Faster it is a
+ * corner to pull out of: under the 43 km/h where a power slide stops counting and the 50 km/h hairpin of keys.ts.
+ */
+const DRIFT_START = 8.5;
 /** Seconds after leaving rest on the gas that full key still counts as a launch, so the gas may go down first. */
 const LAUNCH_WINDOW = 0.75;
 /** Traction control's slip in a launched power slide: about four times peak, enough wheelspin to break the rear loose. */
 const DRIFT_TCS_SLIP = 0.5;
+/**
+ * Traction control's slip in a rear-drive launched slide, which holds its fronts on the course: at 0.5 it cut the gas to
+ * a fifth through the slide and the car stalled to walking pace. All-wheel drive keeps 0.5: looser, its fronts spun too.
+ */
+const HELD_TCS_SLIP = 1.5;
 /** Body slip (rad) over which the yaw damper comes back in a launched power slide, so it stays a drift and not a spin. */
 const DRIFT_HOLD = [0.8, 1.2] as const;
 /** Front slip angle the steer assist allows, in `peak_angle`: past peak a tyre only scrubs speed. */
 const USEFUL_SLIP = 1.1;
+/**
+ * Front slip angle past the front axle's course in a launched power slide, in `peak_angle`. At full lock the fronts
+ * pulled the car round a 3 m circle whose scrub held it near 10 km/h; at `USEFUL_SLIP` they still did below 20 km/h.
+ */
+const DRIFT_REACH = 0.6;
 /** Speeds (m/s) where the useful-slip cap fades in and back out: below, parking keeps full lock; above, `grip_lock` rules. */
 const USEFUL_SPEEDS = [3, 6, 12, 16] as const;
 /** Body slip (rad) with the tail out against the held steer at which a power slide counts in full. */
@@ -564,12 +577,18 @@ export class Car {
     const power_slide = intent * tail_out;
     // The launch reads the held key, not the filtered wheel: a keyboard wheel still ramping, or the gas down first, had the
     // car past walking speed before the wheel got there.
-    this.launch_age = pedal <= 0.1 ? Infinity : speed < DRIFT_START ? 0 : this.launch_age + dt;
+    // Rolling, the kick is traction control's and needs the steering assist off: with TCS off full lock and full gas is
+    // the driver's own donut, and with the assist on it is a hairpin to pull out of.
+    const rolling_kick = this.tcs && !this.assist;
+    this.launch_age = pedal <= 0.1 ? Infinity : speed < (rolling_kick ? DRIFT_START : 1) ? 0 : this.launch_age + dt;
     const held = Math.sign(input.steer);
     const asked = (this.slide_side === -held ? 0 : rear_drive) * Math.abs(input.steer);
     if (asked <= DRIFT_INTENT || held !== this.launch_side) this.launch_side = 0;
     if (asked > DRIFT_INTENT && this.launch_age < LAUNCH_WINDOW) this.launch_side = held;
     if (this.launch_side !== 0) this.slide_side = this.launch_side;
+    // All-wheel drive pulls its own nose along the course; held there too it came out of the slide at 45 km/h, where
+    // the opposite key is a full-lock turn the other way rather than a catch.
+    const drift_steer = this.launched && this.tcs && spec.drive === "rwd";
     const cornering = grip_lock(spec, speed);
     const limit = Math.min(spec.lock, cornering + (spec.lock - cornering) * power_slide);
     const lock = this.assist ? limit : unassisted_lock(spec, limit, this.key_steer, slide);
@@ -581,14 +600,16 @@ export class Car {
       const course = Math.atan2(-(local.x + ang.dot(up) * this.steer_z), local.z);
       const [on_from, on_to, off_from, off_to] = USEFUL_SPEEDS;
       const fade = Math.max((on_to - speed) / (on_to - on_from), (speed - off_from) / (off_to - off_from));
-      const free = spec.lock * Math.max(0, Math.min(1, fade));
-      const reach = USEFUL_SLIP * spec.peak_angle + free;
+      // A launched slide under traction control keeps the fronts on the course at any speed, with the assist off too: it is
+      // the launch's own countersteer, as its yaw hold is, and what lets the slide carry speed rather than pivot.
+      const free = drift_steer ? 0 : spec.lock * Math.max(0, Math.min(1, fade));
+      const reach = (drift_steer ? DRIFT_REACH : USEFUL_SLIP) * spec.peak_angle + free;
       // In a power slide the front axle's course swings with the tail, and pulling the fronts after it straightened them
       // under a player holding full lock.
       const near = Math.max(course - reach, Math.min(course + reach, target));
       // Without the assist the clamp only takes lock off: turning the wheels towards the course on its own is the countersteer.
-      const kept = this.assist ? near : Math.sign(target) * Math.max(0, Math.min(Math.abs(target), Math.sign(target) * near));
-      target += (kept - target) * (1 - power_slide);
+      const kept = this.assist || drift_steer ? near : Math.sign(target) * Math.max(0, Math.min(Math.abs(target), Math.sign(target) * near));
+      target += (kept - target) * (drift_steer ? 1 : 1 - power_slide);
     }
     target = Math.max(-spec.lock, Math.min(spec.lock, target));
     // At speed the ramped key input moves slower than either limit; at parking speed this keeps the old keyboard feel.
@@ -617,7 +638,7 @@ export class Car {
     // Launched from rest on full key and full gas, the driver asks for a power slide: the lateral term and the lone-wheel
     // brake exist to keep the tail in, and they cut the gas before it could step out.
     const sideways = low && !this.launched;
-    const slip_limit = this.launched ? DRIFT_TCS_SLIP : TCS_SLIP;
+    const slip_limit = drift_steer ? HELD_TCS_SLIP : this.launched ? DRIFT_TCS_SLIP : TCS_SLIP;
     for (const w of this.wheels) {
       if (!w.driven) continue;
       // An axle spins when both its wheels do; one spinning alone, like the unloaded inner wheel in a tight turn, is

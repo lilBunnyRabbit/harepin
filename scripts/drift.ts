@@ -1,5 +1,7 @@
 import { Vector3 } from "three";
+import { apply_build, parse_build } from "../src/car/build";
 import { CARS, car_spec, type CarSpec } from "../src/car/cars";
+import { PRESETS } from "../src/car/presets";
 import type { Controls, Ground } from "../src/car/car";
 import { ground_arg } from "./grounds";
 
@@ -102,9 +104,93 @@ export function drift(spec: CarSpec, kmh: number, angle: number, aids: boolean, 
 
 export const DRIFT_CARS = ["coupe", "muscle", "kaze", "sturm", "raijin", "rally", "hatch"] as const;
 
+export interface Launch {
+  /** Seconds from full lock and full gas until the launch arms; Infinity when it never does. */
+  armed: number;
+  /** Seconds until the rear axle slips 30 degrees out against the key. */
+  t30: number;
+  /** Largest rear-axle slip against the key, degrees. */
+  peak: number;
+  /** km/h after 3 and 6 s of full lock and full gas. */
+  kmh3: number;
+  kmh6: number;
+  /** Mean rear-axle slip against the key from 2 to 6 s, degrees: under about 15 the slide has turned into grip. */
+  tail: number;
+  /** Seconds from letting go of the key at 3 s, gas still full, until the tail is under 10 degrees for 1 s. */
+  caught: number;
+}
+
+/** Settled at `kmh` (0 parked), then full lock and full gas held, as the Drift feel test's driver does. */
+export function launch(spec: CarSpec, kmh: number, aids: { tcs: boolean; assist: boolean; stability: boolean }): Launch {
+  const idle: Controls = { steer: 0, throttle: 0, brake: 0, handbrake: 0, analog: false };
+  const rolled = (): Car => {
+    const car: Car = new Car(spec);
+    Object.assign(car, aids, { steer_mode: "smooth" });
+    car.park(0, 0, 0, flat);
+    for (let t = 0; t < 0.5; t += DT) car.step(DT, idle, flat);
+    for (let t = 0; t < 15 && car.vel.length() * 3.6 < kmh; t += DT) car.step(DT, { ...idle, throttle: 0.6 }, flat);
+    if (kmh > 0) for (let t = 0; t < 1; t += DT) car.step(DT, { ...idle, throttle: Math.max(0, Math.min(1, (kmh - car.vel.length() * 3.6) * 0.15 + 0.15)) }, flat);
+    return car;
+  };
+  const local = new Vector3();
+  const tail = (car: Car) => {
+    local.copy(car.vel).applyQuaternion(car.quat.clone().invert());
+    const side = local.x + car.ang.y * car.axles[car.axles.length - 1].z;
+    return Math.hypot(side, local.z) < 0.5 ? 0 : (Math.atan2(side, local.z) * 180) / Math.PI;
+  };
+  const kick: Controls = { ...idle, steer: 1, throttle: 1 };
+  const out: Launch = { armed: Infinity, t30: Infinity, peak: 0, kmh3: 0, kmh6: 0, tail: 0, caught: Infinity };
+  let car = rolled();
+  let steps = 0;
+  for (let t = 0; t < 6; t += DT) {
+    car.step(DT, kick, flat);
+    const d = tail(car);
+    if (car.launched && out.armed === Infinity) out.armed = t;
+    if (d >= 30 && out.t30 === Infinity) out.t30 = t;
+    out.peak = Math.max(out.peak, d);
+    if (t < 3) out.kmh3 = car.vel.length() * 3.6;
+    if (t >= 2) {
+      out.tail += d;
+      steps++;
+    }
+  }
+  out.kmh6 = car.vel.length() * 3.6;
+  out.tail /= Math.max(1, steps);
+  car = rolled();
+  for (let t = 0; t < 3; t += DT) car.step(DT, kick, flat);
+  let calm = -1;
+  for (let t = 0; t < 4 && out.caught === Infinity; t += DT) {
+    car.step(DT, { ...idle, throttle: 1 }, flat);
+    if (Math.abs(tail(car)) >= 10) calm = -1;
+    else if (calm < 0) calm = t;
+    else if (t - calm >= 1) out.caught = calm;
+  }
+  return out;
+}
+
+function launch_table(ids: readonly string[]) {
+  const drift_build = parse_build(PRESETS.find((preset) => preset.name === "Drift")?.code);
+  const specs: [string, CarSpec][] = ids.map((id) => [id, car_spec(id)]);
+  if (drift_build) specs.unshift(["Drift", apply_build(car_spec(drift_build.car), drift_build)]);
+  const f = (n: number, d = 2) => (Number.isFinite(n) ? n.toFixed(d) : "-");
+  console.log("full lock + full gas held 6 s, Smooth keys, TCS on, stability on; let go of the key at 3 s for the catch");
+  console.log("car      assist  km/h  armed   t30  peak  km/h@3  km/h@6  tail  caught");
+  for (const [id, spec] of specs)
+    for (const assist of [false, true])
+      for (const kmh of [0, 10, 20, 30, 40]) {
+        const r = launch(spec, kmh, { tcs: true, assist, stability: true });
+        const cells = [f(r.armed).padStart(5), f(r.t30).padStart(5), f(r.peak, 0).padStart(5), f(r.kmh3, 1).padStart(7), f(r.kmh6, 1).padStart(7), f(r.tail, 0).padStart(5), f(r.caught).padStart(7)];
+        console.log(`${id.padEnd(8)} ${(assist ? "on" : "off").padEnd(6)} ${String(kmh).padStart(5)} ${cells.join(" ")}`);
+      }
+}
+
 if (import.meta.main) {
   const named = process.argv.slice(2).find((a, i, all) => !a.startsWith("-") && all[i - 1] !== "--ground");
   const ids = named ? [car_spec(named).id] : DRIFT_CARS;
+  if (process.argv.includes("--launch")) {
+    launch_table(named ? ids : DRIFT_CARS);
+    process.exit(0);
+  }
   const aids = process.argv.includes("--aids");
   const ideal = process.argv.includes("--ideal");
   console.log(`${ideal ? `throttle holding rear slip at ${SPIN_AIM}x peak` : "full throttle"}, countersteer driver; TCS and steer assist ${aids ? "on" : "off"}; held = s within 12 deg of target (max ${SECONDS})`);

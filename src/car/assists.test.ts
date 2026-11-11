@@ -85,10 +85,11 @@ describe("steering assist and stability", () => {
     });
 });
 
-// Captured at 412bd08, before the split: the default pair must drive exactly as the one steer assist did.
+// Captured at 412bd08, before the split: the default pair must drive exactly as the one steer assist did. The power over
+// of the rear-drive cars is re-captured with the launch's looser traction control and its own countersteer, by design.
 const BEFORE_SPLIT = {
-  coupe: { swerve: -0.6700782823942704, slalom: 3.203028883365339, lift: 3.976719773473729, t30: 1.6666666666666614, peak: 70.55051651646333, catch: 0.3972222222222213, held: 0.3916666666666658 },
-  muscle: { swerve: -0.554125484121893, slalom: 3.908775701011693, lift: 3.5190292135852954, t30: 1.6972222222222169, peak: 81.27962711368201, catch: 0.5027777777777765, held: 0.44722222222222113 },
+  coupe: { swerve: -0.6700782823942704, slalom: 3.203028883365339, lift: 3.976719773473729, t30: 1.4944444444444398, peak: 65.41261525337042, catch: 0.48888888888888765, held: 0.37777777777777694 },
+  muscle: { swerve: -0.554125484121893, slalom: 3.908775701011693, lift: 3.5190292135852954, t30: 1.4888888888888843, peak: 69.63440274969838, catch: 0.605555555555554, held: 0.4944444444444432 },
   rally: { swerve: 0.28588541310505927, slalom: 4.270474022385427, lift: 13.019912053627973, t30: 1.3499999999999959, peak: 68.52582111088348, catch: 0.2944444444444439, held: 0.29722222222222167 },
 } as const;
 

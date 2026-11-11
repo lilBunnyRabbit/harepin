@@ -474,12 +474,15 @@ describe("drift suspension", () => {
       expect(drift.late).toBeLessThan(45);
     });
 
-    test(`${id}: drift holds a caught slide that race straightens out of`, () => {
+    test(`${id}: drift swings wider and slides longer than race under a driver who keeps kicking it back out`, () => {
       const race = held_slide(id, 2);
       const drift = held_slide(id, 3);
       expect(drift.held).toBeGreaterThan(1.4);
-      // The grip-capped lock lets race hold a caught slide longer too: 0.4 s before, 1.1 s now, against drift's 1.8.
+      // Race still straightens each slide inside 0.6 s. At the grip-capped lock the driver's kick back into the turn now
+      // bites where the over-peak fronts used to scrub, so race's time is two short swings; race ARB 1.0-2.0 and +0.04
+      // rear grip moved it by under 0.05 s, so the gap is in the angle and the swings, not in race straightening.
       expect(drift.held).toBeGreaterThan(race.held + 0.6);
+      expect(drift.most).toBeGreaterThan(race.most + 6);
       expect(drift.most).toBeLessThan(45);
     });
   }
@@ -706,4 +709,78 @@ describe("power over from rest", () => {
     car.step(DT, { ...idle, steer: 1, throttle: 1 }, flat);
     expect(car.launched).toBe(false);
   });
+});
+
+describe("power over with TCS on and the steering assist off", () => {
+  const RWD = ["coupe", "muscle", "kaze", "formula", "sturm"] as const;
+  const AWD = ["rally", "raijin"] as const;
+  const DRIFT_SETUP = apply_build(CARS.muscle, { ...DEFAULT_BUILD, car: "muscle", parts: { ...DEFAULT_PARTS, suspension: 3 } });
+  const ahead = new Vector3();
+
+  function rolling(spec: CarSpec, from: number, assist = false): Car {
+    const car = new Car(spec);
+    Object.assign(car, { steer_mode: SteerMode.SMOOTH, assist });
+    car.park(0, 0, 0, flat);
+    run(car, 0.5, () => idle);
+    while (car.vel.length() * 3.6 < from) car.step(DT, { ...idle, throttle: 0.6 }, flat);
+    if (from > 0) run(car, 1, () => cruise(car, from));
+    return car;
+  }
+
+  // Rear-axle slip, as in keys.ts: body slip reads a tail out in a plain tight circle.
+  function tail(car: Car): number {
+    const local = ahead.copy(car.vel).applyQuaternion(car.quat.clone().invert());
+    const side = local.x + car.ang.y * car.axles[car.axles.length - 1].z;
+    return Math.hypot(side, local.z) < 0.5 ? 0 : (Math.atan2(side, local.z) * 180) / Math.PI;
+  }
+
+  function launches(car: Car, controls: Controls, seconds = 2): boolean {
+    for (let t = 0; t < seconds; t += DT) {
+      car.step(DT, controls, flat);
+      if (car.launched) return true;
+    }
+    return false;
+  }
+
+  const kick: Controls = { ...idle, steer: 1, throttle: 1 };
+
+  for (const id of [...RWD, ...AWD])
+    test(`${id}: rolling from walking pace to 30 km/h, full lock and full gas kicks a power slide as from rest`, () => {
+      for (const from of [5, 15, 28]) expect(launches(rolling(CARS[id], from), kick, 0.1)).toBe(true);
+    });
+
+  test("faster than 30 km/h, or with the steering assist on, full lock and full gas from rolling stays a corner", () => {
+    for (const id of [...RWD, ...AWD]) {
+      expect(launches(rolling(CARS[id], 40), kick)).toBe(false);
+      expect(launches(rolling(CARS[id], 15, true), kick)).toBe(false);
+    }
+  });
+
+  test("a parking turn, full lock without full gas, a gentle throttle turn or reversing never kicks one", () => {
+    for (const id of [...RWD, ...AWD]) {
+      expect(launches(rolling(CARS[id], 0), { ...idle, steer: 1, throttle: 0.3 })).toBe(false);
+      for (const from of [0, 10, 20, 30]) {
+        expect(launches(rolling(CARS[id], from), { ...idle, steer: 1, throttle: 0.7 })).toBe(false);
+        expect(launches(rolling(CARS[id], from), { ...idle, steer: 0.6, throttle: 1 })).toBe(false);
+      }
+      const reverse = rolling(CARS[id], 0);
+      run(reverse, 0.5, () => ({ ...idle, brake: 1 }));
+      expect(reverse.gear).toBe(-1);
+      expect(launches(reverse, { ...idle, steer: 1, brake: 1 })).toBe(false);
+    }
+  });
+
+  for (const spec of [DRIFT_SETUP, ...RWD.filter((id) => id !== "sturm").map((id) => CARS[id])])
+    test(`${spec.id}${spec === DRIFT_SETUP ? " (drift setup)" : ""}: a held power slide from rest on full lock and full gas carries speed instead of pivoting`, () => {
+      const car = rolling(spec, 0);
+      run(car, 2, () => kick);
+      let out = 0;
+      let steps = 0;
+      for (let t = 0; t < 4; t += DT, steps++) {
+        car.step(DT, kick, flat);
+        out += tail(car);
+      }
+      expect(car.vel.length() * 3.6).toBeGreaterThan(25);
+      expect(out / steps).toBeGreaterThan(15);
+    });
 });
