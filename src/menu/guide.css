@@ -28,8 +28,17 @@
   background: none;
   box-shadow: none;
   overflow: visible;
-  grid-template: "top" auto "tabs" auto "body" minmax(0, 1fr) / minmax(0, 1fr);
-  gap: var(--space-5);
+  /* The rail and panel sit centred below the top bar when they fit. The spacer rows give way first, the top one down to
+     the usual gap, so a short window keeps the block at the top and the panel shrinks into its own scroll. */
+  grid-template:
+    "top" auto
+    "." minmax(var(--space-5), 1fr)
+    "tabs" auto
+    "." var(--space-5)
+    "body" minmax(0, 640px)
+    "." minmax(0, 1fr)
+    / minmax(0, 1fr);
+  gap: 0;
 }
 
 .settings[data-view="guide"] .settings-panel .menu-top {
@@ -121,7 +130,6 @@
   grid-template: "copy visual" minmax(0, 1fr) "foot foot" auto / minmax(0, 0.9fr) minmax(0, 1.1fr);
   column-gap: 40px;
   height: 100%;
-  max-height: 640px;
   min-height: 0;
   padding: 32px 32px var(--space-6);
   border-radius: var(--radius-lg);
