@@ -65,8 +65,10 @@
 }
 
 :root[data-hud="classic"] {
-  --halo: 0 0 1px var(--surface), 0 0 3px var(--surface), 0 1px 10px var(--surface);
-  --halo-drop: drop-shadow(0 0 1px var(--surface)) drop-shadow(0 1px 6px var(--surface));
+  /* The halo is the scheme's own background, so it always sits opposite the glyph: dark behind light text, light behind dark. */
+  --halo-ink: var(--background-darkest);
+  --halo: 0 0 1px var(--halo-ink), 0 0 2px var(--halo-ink), 0 0 6px var(--halo-ink), 0 1px 12px var(--halo-ink);
+  --halo-drop: drop-shadow(0 0 1px var(--halo-ink)) drop-shadow(0 0 2px var(--halo-ink)) drop-shadow(0 1px 6px var(--halo-ink));
   --disc: color-mix(in oklch, var(--background-darkest) 58%, transparent);
   --dial: 220px;
   --map-disc: 168px;
@@ -75,6 +77,11 @@
 
 :root[data-scheme="light"][data-hud="classic"] {
   --disc: color-mix(in oklch, var(--background-lighter) 62%, transparent);
+  --halo-ink: var(--background);
+}
+
+:root[data-hud="classic"] :is(.actions, #strip, .top-right, .bottom-right, #toast) {
+  --dim: color-mix(in oklch, var(--foreground) 80%, transparent);
 }
 
 :root[data-hud="classic"] :is(.top-left, .actions, #strip, .top-right, .bottom-right, #mode-status, #race-panel, #toast, #players, #online-chip) {

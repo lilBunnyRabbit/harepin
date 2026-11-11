@@ -362,7 +362,6 @@
 :root[data-hud="classic"] .dial-red {
   stroke: var(--error);
   stroke-width: 4;
-  stroke-dasharray: 0 90 10 0;
 }
 
 :root[data-hud="classic"] .dial-fill {
@@ -385,7 +384,7 @@
   font-weight: 600;
   text-anchor: middle;
   dominant-baseline: central;
-  stroke: var(--surface);
+  stroke: var(--halo-ink);
   stroke-width: 3;
   paint-order: stroke;
 }
@@ -396,7 +395,7 @@
   justify-items: center;
   align-content: center;
   gap: 0;
-  margin-top: var(--space-2);
+  margin-bottom: var(--space-4);
   text-shadow: var(--halo);
 }
 
@@ -426,10 +425,57 @@
   display: none;
 }
 
+:root[data-hud="classic"] .dial-fill[data-hot="true"] {
+  stroke: var(--warning);
+}
+
+/* The shift light: the arc and the gear flash together, the way a rev-limiter LED strip reads in the corner of an eye. */
+:root[data-hud="classic"] .dial-fill[data-shift="true"],
+:root[data-hud="classic"] #gear[data-shift="true"] {
+  animation: shift-flash 0.16s steps(2) infinite;
+}
+
+:root[data-hud="classic"] .dial-fill[data-shift="true"] {
+  stroke: var(--error);
+}
+
+:root[data-hud="classic"] #gear[data-shift="true"] {
+  color: var(--error);
+}
+
+@keyframes shift-flash {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.35;
+  }
+}
+
+/* Under the TC and ABS lamps, clear of the speed digits. */
 :root[data-hud="classic"] .bottom-right .nitro {
   align-self: end;
   width: 64px;
-  margin: 0 0 var(--space-4);
+  margin: 0 0 calc(var(--space-6) + 28px);
+}
+
+:root[data-hud="classic"] .bottom-right .nitro .unit {
+  display: none;
+}
+
+@media (pointer: fine) and (max-width: 600px) {
+  :root[data-hud="classic"] {
+    --dial: 168px;
+    --map-disc: 124px;
+  }
+
+  :root[data-hud="classic"] #speed {
+    font-size: 36px;
+  }
+
+  :root[data-hud="classic"] #dial-ticks text {
+    display: none;
+  }
 }
 
 @media (pointer: coarse) {

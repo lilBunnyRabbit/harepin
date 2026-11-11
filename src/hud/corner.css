@@ -259,8 +259,15 @@
 
 :root[data-hud="classic"] #online-chip {
   align-self: center;
-  height: 20px;
-  padding: 0;
+  padding: 0 var(--space-2);
+  filter: var(--halo-drop);
+}
+
+@media (pointer: fine) {
+  :root[data-hud="classic"] #online-chip {
+    height: 20px;
+    padding: 0;
+  }
 }
 
 :root[data-hud="classic"] #players {

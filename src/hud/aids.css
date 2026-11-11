@@ -185,8 +185,15 @@
   display: none;
 }
 
+/* On touch the lamps are a readout only: a 20 px target would be too small, and the toggles live in Settings. */
 @media (pointer: coarse) {
   :root[data-hud="classic"] .assists {
-    display: none;
+    gap: var(--space-1);
+    margin-bottom: 0;
+    pointer-events: none;
+  }
+
+  :root[data-hud="classic"] .aid-key {
+    height: 16px;
   }
 }

@@ -420,11 +420,32 @@
 }
 
 :root[data-hud="classic"] #restart-lap {
-  height: 24px;
-  width: 24px;
   border: 0;
   background: none;
   filter: var(--halo-drop);
+}
+
+@media (pointer: fine) {
+  :root[data-hud="classic"] #restart-lap {
+    height: 24px;
+    width: 24px;
+  }
+}
+
+/* Floating glyphs have no panel behind them, so a calm fade to 0.3 lost them against a bright sky. */
+:root[data-hud="classic"][data-calm] .actions,
+:root[data-hud="classic"][data-calm] #online-chip {
+  opacity: 0.6;
+}
+
+@media (pointer: coarse) {
+  :root[data-hud="classic"] #strip[data-idle] .lap {
+    display: flex;
+  }
+
+  :root[data-hud="classic"] .event-name {
+    font-size: var(--text-lg);
+  }
 }
 
 @media (pointer: fine) {

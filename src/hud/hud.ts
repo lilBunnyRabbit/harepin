@@ -41,7 +41,7 @@ function set_text(el: HTMLElement, text: string) {
   if (el.textContent !== text) el.textContent = text;
 }
 
-function set_data(el: HTMLElement, key: string, value: string) {
+function set_data(el: HTMLElement | SVGElement, key: string, value: string) {
   if (el.dataset[key] !== value) el.dataset[key] = value;
 }
 
@@ -203,8 +203,13 @@ export class Hud {
       el.dial_fill.style.strokeDashoffset = String(100 - dial / 2);
     }
     if (car.spec.redline !== this.redline) this.dial_ticks(car.spec.redline);
-    set_data(el.rpm, "hot", String(rev.hot));
-    set_data(el.shift, "on", String(!car.auto && rev.shift));
+    const hot = String(rev.hot);
+    const shift = String(!car.auto && rev.shift);
+    set_data(el.rpm, "hot", hot);
+    set_data(el.shift, "on", shift);
+    set_data(el.dial_fill, "hot", hot);
+    set_data(el.dial_fill, "shift", shift);
+    set_data(el.gear, "shift", shift);
     set_hidden(el.nitro, !car.nitro.fitted);
     set_style(el.nitro_fill, "width", percent(car.nitro.level));
     el.nitro.toggleAttribute("data-boost", car.nitro.boosting);
