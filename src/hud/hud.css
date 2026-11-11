@@ -99,6 +99,10 @@
   :root[data-hud="classic"] .dock-left {
     bottom: calc(var(--corner-bottom) + var(--map-disc) + 80px);
   }
+
+  :root[data-hud="classic"][data-map-corner="top-right"] .dock-left {
+    bottom: var(--corner-bottom);
+  }
 }
 
 @media (pointer: coarse) {

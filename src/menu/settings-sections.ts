@@ -6,7 +6,7 @@ import { pad_advanced } from "./settings-pad";
 import { el, icon, type Options, type Text } from "./setting-rows";
 import { THEMES, choose_theme, current_theme, find_saved, find_theme, load_saved_themes } from "../theme/theme";
 import type { SettingsMenu } from "./page";
-import { CameraReturn, CameraView, DashPlace, SpeedoStyle, SpeedZoom, HudLayout, MapView, QualityMode, SteerSensitivity, TouchSteer, type QualityTier } from "./prefs";
+import { CameraReturn, CameraView, DashPlace, MapCorner, SpeedoStyle, SpeedZoom, HudLayout, MapView, QualityMode, SteerSensitivity, TouchSteer, type QualityTier } from "./prefs";
 import { BASE_TOKENS, saved_themes, theme_create } from "./theme-pages";
 import { stat } from "./widgets";
 import { AidPreset, preset_aids, preset_of, type Aids } from "./guide-rules";
@@ -365,10 +365,26 @@ function display(m: SettingsMenu): HTMLElement[] {
       Object.values(MapView).map((view) => [view, MAP_VIEWS[view][0]] as const),
       () => hud_wire(m),
     ),
+    map_corner(m),
     theme,
     m.rows.link("Make your own theme", "Roll colours, keep the ones you like, then name and save it.", "Roll, adjust, save", () => m.show_sub("creator")),
     mine,
   ];
+}
+
+/** Touch always keeps the map top right, clear of the thumbs, so the choice is a desk one. */
+function map_corner(m: SettingsMenu): HTMLElement {
+  const row = m.rows.segmented(
+    "Map corner",
+    "Classic layout. Bottom left mirrors the speedometer; top right keeps the lower screen clear.",
+    m.value("map_corner"),
+    [
+      [MapCorner.BOTTOM_LEFT, "Bottom left"],
+      [MapCorner.TOP_RIGHT, "Top right"],
+    ],
+  );
+  m.sync(() => (row.hidden = matchMedia("(pointer: coarse)").matches));
+  return row;
 }
 
 const AID_PRESETS: Options<AidPreset | null> = [

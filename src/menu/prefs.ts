@@ -65,6 +65,13 @@ export const SpeedoStyle = {
 } as const;
 export type SpeedoStyle = (typeof SpeedoStyle)[keyof typeof SpeedoStyle];
 
+/** Which corner Classic puts the map card in on a desk; touch always keeps it top right, clear of the thumbs. */
+export const MapCorner = {
+  BOTTOM_LEFT: "bottom-left",
+  TOP_RIGHT: "top-right",
+} as const;
+export type MapCorner = (typeof MapCorner)[keyof typeof MapCorner];
+
 export const MapView = {
   FULL: "full",
   CLOSE: "close",
@@ -123,6 +130,7 @@ export interface SettingsState {
   dash: DashPlace;
   speedo: SpeedoStyle;
   map: MapView;
+  map_corner: MapCorner;
   /** Sends the country guessed from the time zone with this player's directory entry. */
   show_country: boolean;
   /** The world the player last picked in the menu; a bare URL drives it again. Never set by an invite or a join. */
@@ -211,6 +219,7 @@ const FIELDS: { [K in SettingKey]: Field<SettingsState[K]> } = {
   dash: one_of(Object.values(DashPlace), DashPlace.RIGHT),
   speedo: one_of(Object.values(SpeedoStyle), SpeedoStyle.RING),
   map: one_of(Object.values(MapView), MapView.FULL),
+  map_corner: one_of(Object.values(MapCorner), MapCorner.BOTTOM_LEFT),
   show_country: flag(true),
   last_world: { fallback: null, parse: parse_last_world },
   last_seed: { fallback: null, parse: parse_last_seed },

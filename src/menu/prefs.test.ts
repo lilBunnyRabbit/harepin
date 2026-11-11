@@ -50,6 +50,7 @@ describe("parse_settings", () => {
       dash: "center",
       speedo: "bar",
       map: "pace",
+      map_corner: "top-right",
       show_country: false,
       last_world: "sky",
       last_seed: 4294967295,
@@ -70,6 +71,7 @@ describe("parse_settings", () => {
   test("out-of-range values fall back or clamp", () => {
     expect(parse_settings({ laps: 4 }).laps).toBe(3);
     expect(parse_settings({ quality: "ultra" }).quality).toBe("auto");
+    expect(parse_settings({ map_corner: "top-left" }).map_corner).toBe("bottom-left");
     expect(parse_settings({ volume: 3 }).volume).toBe(1);
     expect(parse_settings({ volume: -1 }).volume).toBe(0);
     expect(parse_settings({ volume: Number.NaN }).volume).toBe(0.8);

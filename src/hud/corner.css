@@ -385,6 +385,19 @@
   }
 }
 
+/* Map corner Top right on a desk: the same card at the same inset as the bottom ones. The players sit beside it on
+   the inner side, level with its foot, so a long list grows up into open sky rather than into the event strip. */
+@media (pointer: fine) {
+  :root[data-hud="classic"][data-map-corner="top-right"] .top-right {
+    inset: calc(var(--inset-top) + var(--inset)) var(--corner-right) auto auto;
+  }
+
+  :root[data-hud="classic"][data-map-corner="top-right"] #players {
+    left: auto;
+    right: calc(100% + var(--space-3));
+  }
+}
+
 /* Touch: the thumbs own the bottom corners, so the map stays top right. */
 @media (pointer: coarse) {
   :root[data-hud="classic"] {
