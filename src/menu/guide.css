@@ -528,6 +528,7 @@
 
 .guide-aid > span:last-child {
   grid-column: 1 / -1;
+  white-space: normal;
   color: var(--set-dim);
   font-size: var(--text-md);
 }

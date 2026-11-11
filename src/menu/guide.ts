@@ -470,9 +470,9 @@ export class Guide {
 
   private aid_keys(): string {
     const { bindings } = this.host.state();
-    const keys = (["tcs", "abs", "assist", "stability", "auto"] as const).map((aid) => keys_text(bindings[aid]));
-    if (!keys.every(Boolean)) return "Change them any time in Settings, Driving.";
-    return `${keys.slice(0, -1).join(", ")} and ${keys.at(-1)} switch each one while driving.`;
+    const keys = AID_LIGHTS.map(([aid, label]) => [keys_text(bindings[aid]), label] as const);
+    if (!keys.every(([key]) => key)) return "Change them any time in Settings, Driving.";
+    return `While driving, keys switch each one: ${keys.map(([key, label]) => `${key} ${label}`).join(", ")}.`;
   }
 
   private shift_with(up: string, down: string): string {
