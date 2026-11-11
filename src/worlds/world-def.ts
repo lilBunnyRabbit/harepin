@@ -3,8 +3,10 @@ import type { GroundPuff } from "../render/effects";
 import type { MoodDelta } from "../render/lighting";
 import type { World } from "../world/world";
 import type { WorldFacts } from "../worldgen/facts";
+import type { MapLineKind } from "../worldgen/map";
 import type { WorldKind } from "../worldgen/types";
-import { tones } from "../theme/palette";
+import type { Lab } from "../theme/theme";
+import { brand, dark, tones } from "../theme/palette";
 
 /** The UI half of a world kind: menu copy, map preview text and scene dressing. */
 export interface WorldDef {
@@ -49,11 +51,22 @@ export function lap_facts(f: WorldFacts | null, lap: string): [string, string][]
   ];
 }
 
-type Look = Pick<WorldDef, "mood" | "ground_puff">;
+/** The world map's ink for each road class under the circuit: a tone and its opacity. */
+export type RoadInk = Record<Exclude<MapLineKind, "circuit">, readonly [Lab, number]>;
+
+type Look = Pick<WorldDef, "mood" | "ground_puff"> & { roads: RoadInk };
+
+const ROADS: RoadInk = { street: [tones.sidewalk, 1], local: [brand.foreground, 0.55], highway: [brand.foreground, 0.8] };
+// Dusk snow is the foreground itself, so the roads take the opposite end of the ladder to stay on it.
+const snow_ink = dark ? brand.background_darkest : brand.foreground;
 
 /** Over any world's own look under the snow kit: a bright bounce off the snow, a low sun, cold air pulling the fog in. */
-const WINTER: Look = { mood: { hemi_ground: tones.snow, sun_y: 0.3, fog_near: 90, fog_far: 1100 }, ground_puff: "snow" };
+const WINTER: Look = {
+  mood: { hemi_ground: tones.snow, sun_y: 0.3, fog_near: 90, fog_far: 1100 },
+  ground_puff: "snow",
+  roads: { street: [snow_ink, 0.45], local: [snow_ink, 0.6], highway: [snow_ink, 0.8] },
+};
 
 export function world_look(def: WorldDef, snowy: boolean): Look {
-  return snowy ? { mood: { ...def.mood, ...WINTER.mood }, ground_puff: WINTER.ground_puff } : def;
+  return snowy ? { mood: { ...def.mood, ...WINTER.mood }, ground_puff: WINTER.ground_puff, roads: WINTER.roads } : { mood: def.mood, ground_puff: def.ground_puff, roads: ROADS };
 }

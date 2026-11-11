@@ -5,22 +5,24 @@ import { MAP_SIDE, MapLineKind, type MapData, type MapMark, type MapTones } from
 import type { MapRequest } from "../worldgen/map-worker";
 import type { WorldKind } from "../worldgen/types";
 import { WORLDS } from "../worlds/worlds";
+import { world_look, type RoadInk } from "../worlds/world-def";
+import { snow_of } from "../worldgen/kinds/kinds";
 import "./world-map.css";
 
 const DEBOUNCE_MS = 300;
 
 interface Stroke {
-  color: string;
   width: number;
   casing: number;
 }
 
 const LINE_STYLE: Record<MapLineKind, Stroke> = {
-  street: { color: rgba(tones.sidewalk), width: 1.5, casing: 0 },
-  local: { color: rgba(brand.foreground, 0.55), width: 1.75, casing: 0 },
-  highway: { color: rgba(brand.foreground, 0.8), width: 2, casing: 0 },
-  circuit: { color: rgba(brand.accent), width: 3, casing: 2 },
+  street: { width: 1.5, casing: 0 },
+  local: { width: 1.75, casing: 0 },
+  highway: { width: 2, casing: 0 },
+  circuit: { width: 3, casing: 2 },
 };
+const CIRCUIT = rgba(brand.accent);
 const LINE_ORDER: MapLineKind[] = [MapLineKind.STREET, MapLineKind.LOCAL, MapLineKind.HIGHWAY, MapLineKind.CIRCUIT];
 const CASING = rgba(brand.background_darkest, 0.7);
 const JUMP = rgba(brand.secondary);
@@ -56,6 +58,7 @@ export class WorldMap {
   private wanted: { seed: number; kind: WorldKind; key: string } | null = null;
   private map: MapData | null = null;
   private map_key = "";
+  private roads: RoadInk | null = null;
   private image: ImageBitmap | null = null;
   // What the canvas holds: showing the same map at the same size again only repaints the cars.
   private drawn: { map: MapData; side: number } | null = null;
@@ -95,7 +98,7 @@ export class WorldMap {
     worker.addEventListener("message", (event: MessageEvent<MapData>) => {
       worker.terminate();
       if (this.worker === worker) this.worker = null;
-      void this.receive(event.data, key);
+      void this.receive(event.data, key, world_look(WORLDS[kind], snow_of({ kind, levels }) !== null).roads);
     });
     worker.addEventListener("error", (event) => {
       worker.terminate();
@@ -108,11 +111,12 @@ export class WorldMap {
     worker.postMessage(request);
   }
 
-  private async receive(map: MapData, key: string) {
+  private async receive(map: MapData, key: string, roads: RoadInk) {
     const image = await createImageBitmap(new ImageData(map.pixels, MAP_SIDE, MAP_SIDE));
     this.image?.close();
     this.image = image;
     this.map = map;
+    this.roads = roads;
     this.map_key = key;
     // The raster's corner is open water, so a frame wider than the square map continues the sea instead of a band.
     const [r, g, b] = map.pixels;
@@ -127,9 +131,9 @@ export class WorldMap {
   }
 
   private draw() {
-    const { map, image, canvas } = this;
+    const { map, image, roads, canvas } = this;
     const ctx = canvas.getContext("2d");
-    if (!map || !image || !ctx) return;
+    if (!map || !image || !roads || !ctx) return;
     this.set_status(MapStatus.READY);
     this.on_ready?.(map);
     canvas.setAttribute("aria-label", `Map of ${WORLDS[map.kind].map_label} ${map.seed}`);
@@ -149,6 +153,7 @@ export class WorldMap {
 
     for (const kind of LINE_ORDER) {
       const style = LINE_STYLE[kind];
+      const color = kind === MapLineKind.CIRCUIT ? CIRCUIT : rgba(...roads[kind]);
       const path = new Path2D();
       for (const line of map.lines) {
         if (line.kind !== kind) continue;
@@ -158,7 +163,7 @@ export class WorldMap {
         if (line.closed) path.closePath();
       }
       if (style.casing) stroke(ctx, path, CASING, (style.width + 2 * style.casing) * ratio);
-      stroke(ctx, path, style.color, style.width * ratio);
+      stroke(ctx, path, color, style.width * ratio);
     }
 
     for (const jump of map.jumps) arrow(ctx, at(jump.x, jump.z), jump, 7 * ratio, JUMP);
