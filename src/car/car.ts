@@ -78,6 +78,12 @@ const DRIFT_DAMP = 4;
 const DRIFT_DAMP_SLIP = [0.15, 0.35] as const;
 /** Yaw rate (rad/s) under which a caught drift lets go once the tail is in: dropped at straight, it swung on into a spin. */
 const DRIFT_CALM = 0.3;
+/**
+ * Seconds the stick sits under `LET_GO_STEER` before a held drift ends, the FH way: let go and the car straightens. Short
+ * enough that a real let-go reads at once, long enough that keyboard taps through centre mid-drift keep it.
+ */
+const LET_GO_TIME = 0.3;
+const LET_GO_STEER = 0.3;
 /** Front slip angle the steer assist allows, in `peak_angle`: past peak a tyre only scrubs speed. */
 const USEFUL_SLIP = 1.1;
 /**
@@ -429,6 +435,8 @@ export class Car {
   private hold_side = 0;
   /** Seconds since a rolling handbrake tap at full lock; Infinity with none. */
   private tap_age = Infinity;
+  /** Seconds the stick has sat near centre; a held drift ends past `LET_GO_TIME`. */
+  private centred = 0;
   steer_mode: SteerMode = SteerMode.SNAP;
   /** Idle hold latched on: it keeps braking at any speed until a pedal or the wheel is touched. */
   parked = false;
@@ -513,6 +521,7 @@ export class Car {
     this.launch_age = Infinity;
     this.hold_side = 0;
     this.tap_age = Infinity;
+    this.centred = 0;
   }
 
   get heading(): number {
@@ -645,10 +654,10 @@ export class Car {
     // Faster, the tap's slide is the drift: its side is the way the tail went, as the key may already be countersteering.
     else if (!kicks && this.tap_age < TAP_WINDOW && pedal > DRIFT_INTENT && Math.abs(beta) > fade_from) this.hold_side = -Math.sign(beta);
     const tail_left = Math.max(0, Math.min(1, (-(this.hold_side || side) * beta - fade_from) / (fade_to - fade_from)));
-    // With the steering assist off, the countersteer key or a let-go key is the catch, not the end: dropping the hold for
-    // it put traction control back at 0.14, the gas went to its floor and the car slowed and gripped up mid-slide. The
-    // assist catches a let-go slide on its own, so there the key still ends it.
-    const let_go = this.assist && (this.hold_side !== held || this.hold_side !== side);
+    // With the steering assist off, the countersteer key is the catch, not the end: dropping the hold for it put traction
+    // control back at 0.14, the gas went to its floor and the car slowed and gripped up mid-slide. Letting go ends it.
+    this.centred = Math.abs(input.steer) < LET_GO_STEER ? this.centred + dt : 0;
+    const let_go = this.assist ? this.hold_side !== held || this.hold_side !== side : this.centred >= LET_GO_TIME;
     // Braking or reversing out of it is no drift: held on, the loose TCS let the car reverse at full lock to 41 km/h.
     const swung = tail_left === 0 && (Math.abs(ang.y) < DRIFT_CALM || this.assist);
     if (!this.launched && (let_go || swung || this.gear < 1 || brake > 0.1 || local.z < 0)) this.hold_side = 0;
@@ -913,7 +922,8 @@ export class Car {
     if ((this.stability || spinning > 0) && excess > 0 && input.handbrake < 0.1 && Math.sign(ang.y) === Math.sign(slide)) {
       body.torque.y -= ang.y * spec.inertia[1] * Math.min(1, excess * 6) * 3.5 * spec.assist_yaw * damp;
     }
-    if (!this.assist && this.hold_side !== 0 && this.tcs && spec.drive === "rwd" && speed > 1) {
+    // In the air there is no slip angle to hold; damped there it cancelled the yaw a slide carries over a jump.
+    if (!this.assist && this.hold_side !== 0 && this.tcs && spec.drive === "rwd" && speed > 1 && this.wheels.some((w) => w.contact)) {
       // Yaw against the velocity's own turn rate is the slip angle changing; damping that, not yaw, leaves the arc alone.
       const swing = ang.y - tmp.crossVectors(vel, body.force).y / (spec.mass * speed * speed);
       const [damp_from, damp_to] = DRIFT_DAMP_SLIP;

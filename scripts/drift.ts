@@ -182,6 +182,8 @@ export interface Caught {
   slowest: number;
   end: number;
   spun: boolean;
+  /** Seconds from letting go of the keys, gas still full, until the slip is under 5 degrees for 0.5 s; Infinity if never. */
+  straight: number;
 }
 
 const CATCH_SECONDS = 5;
@@ -193,9 +195,10 @@ const LOOK_AHEAD = 0.15;
 /**
  * A keyboard drifter on full gas: from `kmh` 0 full key and full gas until the tail is 30 degrees out; rolling, 0.4 s of
  * full key on the gas, then a 0.3 s handbrake tap at full key. Then binary keys with `REACTION` aiming the body slip at
- * `aim` degrees: the opposite key over aim + 5, the turn key under aim - 10, neither between.
+ * `aim` degrees: the opposite key over aim, the turn key under aim - 10, whichever was down in between. A key always
+ * stays down: letting go is the way out of a drift, and after `let_go` seconds the driver does, on full gas still.
  */
-export function catch_drift(spec: CarSpec, kmh: number, aim: number, aids = { tcs: true, assist: false, stability: true }): Caught {
+export function catch_drift(spec: CarSpec, kmh: number, aim: number, let_go = Infinity, aids = { tcs: true, assist: false, stability: true }): Caught {
   const idle: Controls = { steer: 0, throttle: 0, brake: 0, handbrake: 0, analog: false };
   const car: Car = new Car(spec);
   Object.assign(car, aids, { abs: aids.tcs, steer_mode: "smooth" });
@@ -214,8 +217,9 @@ export function catch_drift(spec: CarSpec, kmh: number, aim: number, aids = { tc
   } else for (let t = 0; t < 4 && out() < 30; t += DT) car.step(DT, { ...idle, steer: 1, throttle: 1 }, flat);
   const seen: number[] = [];
   const late: number[] = [];
-  const r: Caught = { held: 0, mean: 0, sd: 0, peak: 0, slowest: Infinity, end: 0, spun: false };
+  const r: Caught = { held: 0, mean: 0, sd: 0, peak: 0, slowest: Infinity, end: 0, spun: false, straight: Infinity };
   let key = 1;
+  let calm = -1;
   for (let t = 0; t < CATCH_SECONDS; t += DT) {
     const d = out();
     seen.push(d);
@@ -224,8 +228,11 @@ export function catch_drift(spec: CarSpec, kmh: number, aim: number, aids = { tc
       const now = seen[Math.max(0, step - Math.round(REACTION / DT))];
       const before = seen[Math.max(0, step - Math.round((REACTION + 0.05) / DT))];
       const ahead = now + ((now - before) / 0.05) * LOOK_AHEAD;
-      key = ahead > aim + 5 ? -1 : ahead < aim - 10 ? 1 : 0;
+      key = t >= let_go ? 0 : ahead > aim + 5 ? -1 : ahead < aim ? 1 : key;
     }
+    if (t < let_go || Math.abs(d) >= 5) calm = -1;
+    else if (calm < 0) calm = t;
+    else if (t - calm >= 0.5 && r.straight === Infinity) r.straight = calm - let_go;
     car.step(DT, { ...idle, steer: key, throttle: 1 }, flat);
     if (!Number.isFinite(car.pos.x)) throw new Error(`NaN at t=${t.toFixed(3)}`);
     r.peak = Math.max(r.peak, d);
@@ -245,12 +252,13 @@ export function catch_drift(spec: CarSpec, kmh: number, aim: number, aids = { tc
 function catch_table(ids: readonly string[]) {
   const f = (n: number, d = 1) => (Number.isFinite(n) ? n.toFixed(d) : "-");
   console.log(`keyboard drifter on full gas, Smooth keys, Balanced aids (TCS + stability, steering assist off), ${CATCH_SECONDS} s; 0 km/h = full lock from rest to 30 deg, else a handbrake tap at full key`);
-  console.log("car      km/h  aim  held s  mean   sd  peak  slowest  end km/h  spun");
+  console.log("let go: the same, keys let go after 1.5 s; seconds until the slip stays under 5 degrees");
+  console.log("car      km/h  aim  held s  mean   sd  peak  slowest  end km/h  spun  let go");
   for (const [id, spec] of drift_specs(ids))
-    for (const kmh of [0, 60, 75, 90])
+    for (const kmh of [0, 60, 75, 90, 130])
       for (const aim of [20, 30]) {
         const r = catch_drift(spec, kmh, aim);
-        const cells = [f(r.held, 2).padStart(6), f(r.mean, 0).padStart(5), f(r.sd).padStart(4), f(r.peak, 0).padStart(5), f(r.slowest, 0).padStart(8), f(r.end, 0).padStart(9), String(r.spun).padStart(5)];
+        const cells = [f(r.held, 2).padStart(6), f(r.mean, 0).padStart(5), f(r.sd).padStart(4), f(r.peak, 0).padStart(5), f(r.slowest, 0).padStart(8), f(r.end, 0).padStart(9), String(r.spun).padStart(5), f(catch_drift(spec, kmh, aim, 1.5).straight, 2).padStart(7)];
         console.log(`${id.padEnd(8)} ${String(kmh).padStart(4)} ${String(aim).padStart(4)} ${cells.join(" ")}`);
       }
 }
