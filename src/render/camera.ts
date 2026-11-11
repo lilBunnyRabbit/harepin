@@ -25,6 +25,9 @@ const ORBIT_SMOOTH_RATE = 20;
 const FOLLOW_RATE = 14;
 const PIVOT_RISE = 1.05;
 const LOOK_LEAD = 4;
+const YAW_RATE = 5;
+// Above ~32 km/h the yaw follow slows with speed, so its lag in a turn is bounded by grip, not time: a quick weave at speed barely turns the view, a hairpin is still followed.
+const YAW_RATE_SPEED = 44;
 const RECENTER_SECONDS = 0.25;
 const ORBITED_YAW = 12 * DEG;
 const ORBITED_PITCH = 8 * DEG;
@@ -202,7 +205,7 @@ export class ChaseCamera {
       // Up high the view stays nose-up when reversing, so the bay does not swing round under a parking car.
       const reversing = !this.top && this.local.z < -2;
       const desired = (reversing ? heading + Math.PI : heading) + slide * 0.55;
-      this.yaw += angle_diff(desired, this.yaw) * Math.min(1, dt * 5);
+      this.yaw += angle_diff(desired, this.yaw) * Math.min(1, dt * Math.min(YAW_RATE, YAW_RATE_SPEED / Math.max(speed, 1)));
       this.height += (car.pos.y - this.height) * Math.min(1, dt * 6);
       this.pull += (Math.max(-1, Math.min(1, accel / 9)) - this.pull) * Math.min(1, dt * 3);
       const { length, height } = this.size;

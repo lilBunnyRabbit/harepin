@@ -80,3 +80,35 @@ describe("chase camera tilt feed", () => {
     expect(worst).toBeLessThan(0.002 * DEG);
   });
 });
+
+describe("chase camera follow", () => {
+  /** Peak view turn rate (rad/s) after 3 s and the car's final angle off the view, driving heading `at(t)` at `kmh` for 6 s. */
+  const follow = (kmh: number, at: (t: number) => number) => {
+    const r = rig();
+    const up = new THREE.Vector3(0, 1, 0);
+    const dir = new THREE.Vector3();
+    const v = kmh / 3.6;
+    let t = 0;
+    let last = 0;
+    let peak = 0;
+    let heading = 0;
+    for (let i = 0; i < 360; i++) {
+      t += 1 / 60;
+      heading = at(t);
+      r.car.vel.set(Math.sin(heading) * v, 0, Math.cos(heading) * v);
+      r.car.quat.setFromAxisAngle(up, heading);
+      r.frame(1 / 60);
+      const view = Math.atan2(r.chase.camera.getWorldDirection(dir).x, dir.z);
+      if (t > 3) peak = Math.max(peak, Math.abs(view - last) * 60);
+      last = view;
+    }
+    return { peak, off: Math.abs(heading - last) };
+  };
+
+  test("a quick weave at speed barely turns the view, a hairpin is still followed", () => {
+    const w = 2 * Math.PI * 0.75;
+    const v = 80 / 3.6;
+    expect(follow(80, (t) => (w / v) * Math.sin(w * t)).peak).toBeLessThan(28 * DEG);
+    expect(follow(40, (t) => Math.min(t, 4) * 45 * DEG).off).toBeLessThan(13 * DEG);
+  });
+});
