@@ -253,6 +253,66 @@ export function park_lock(mode: SteerMode, spec = COUPE): number {
   return Infinity;
 }
 
+export const Counter = { RELEASE: "release", TAP: "tap", HOLD: "hold" } as const;
+export type Counter = (typeof Counter)[keyof typeof Counter];
+
+export interface PowerOver {
+  /** Seconds of full key and full gas from parked until the rear axle slips 30 degrees out against the key. */
+  t30: number;
+  peak: number;
+  /** Seconds from the countersteer until the tail is under 10 degrees and stays there for 1 s. */
+  catch: number;
+  /** Largest slip the other way after the countersteer, degrees. */
+  flip: number;
+  spun: boolean;
+}
+
+const POWER_OVER_HOLD = 3;
+const POWER_OVER_AT = 30;
+const CAUGHT = 10;
+const SPUN = 120;
+
+/**
+ * Parked, full key and full gas for 3 s, then the countersteer at full gas still: `release` lets go of the key, `tap`
+ * holds the opposite key until the tail is under 10 degrees, `hold` keeps it on.
+ */
+export function power_over(mode: SteerMode, spec = COUPE, counter: Counter = Counter.RELEASE, tcs = true, assist = true): PowerOver {
+  const car = new Car(spec);
+  Object.assign(car, { steer_mode: mode, tcs, abs: tcs, assist });
+  car.park(0, 0, 0, flat);
+  for (let t = 0; t < 0.5; t += DT) car.step(DT, { steer: 0, throttle: 0, brake: 0, handbrake: 0, analog: false }, flat);
+  // Slip of the rear axle, not of the body: in a tight grip circle the centre of mass runs wide of the rear wheels' path,
+  // so body slip reads a tail out that is not there.
+  const rear_z = car.axles[car.axles.length - 1].z;
+  const tail = () => {
+    const local = ahead.copy(car.vel).applyQuaternion(car.quat.clone().invert());
+    const side = local.x + car.ang.y * rear_z;
+    return Math.hypot(side, local.z) < 0.5 ? 0 : (Math.atan2(side, local.z) * 180) / Math.PI;
+  };
+  const out: PowerOver = { t30: Infinity, peak: 0, catch: Infinity, flip: 0, spun: false };
+  for (let t = 0; t < POWER_OVER_HOLD; t += DT) {
+    car.step(DT, { steer: 1, throttle: 1, brake: 0, handbrake: 0, analog: false }, flat);
+    const d = tail();
+    out.peak = Math.max(out.peak, d);
+    out.spun ||= Math.abs(d) > SPUN;
+    if (d >= POWER_OVER_AT && out.t30 === Infinity) out.t30 = t;
+  }
+  let steer = counter === Counter.RELEASE ? 0 : -1;
+  let calm = -1;
+  for (let tc = 0; tc < 4; tc += DT) {
+    car.step(DT, { steer, throttle: 1, brake: 0, handbrake: 0, analog: false }, flat);
+    const d = tail();
+    if (counter === Counter.TAP && d < CAUGHT) steer = 0;
+    out.peak = Math.max(out.peak, d);
+    out.flip = Math.max(out.flip, -d);
+    out.spun ||= Math.abs(d) > SPUN;
+    if (Math.abs(d) >= CAUGHT) calm = -1;
+    else if (calm < 0) calm = tc;
+    else if (tc - calm >= 1 && out.catch === Infinity) out.catch = calm;
+  }
+  return out;
+}
+
 function is_mode(arg: string): arg is SteerMode {
   return (Object.values(SteerMode) as string[]).includes(arg);
 }
@@ -284,5 +344,7 @@ if (import.meta.main) {
       console.log(`  lift-off 90:     slip ${f(lift_off(mode, spec), 1)} deg`);
       console.log(`  flick 70:        turned ${f(fl.turned, 0)} deg, straight in ${f(fl.settle)} s`);
       console.log(`  parked:          key to full lock ${f(park_lock(mode, spec))} s`);
+      const [let_go, held] = [power_over(mode, spec, Counter.RELEASE), power_over(mode, spec, Counter.HOLD)];
+      console.log(`  power over:      30 deg in ${f(let_go.t30)} s, peak ${f(let_go.peak, 0)} deg; caught let go ${f(let_go.catch)} s, held ${f(held.catch)} s, flip ${f(Math.max(let_go.flip, held.flip), 0)} deg${let_go.spun || held.spun ? ", spun" : ""}`);
     }
 }

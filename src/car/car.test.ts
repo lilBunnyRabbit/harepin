@@ -6,7 +6,7 @@ import { Car, SteerMode, drop_height, ride_height, type Controls, type Ground } 
 import { CARS, car_sized, is_car, type CarId, type CarSpec } from "./cars";
 import { donut } from "../../scripts/donut";
 import { hairpin_pull } from "../../scripts/hairpin";
-import { arc, flick, hairpin, lane_change, lift_off, slalom, swerve, tap } from "../../scripts/keys";
+import { Counter, arc, flick, hairpin, lane_change, lift_off, power_over, slalom, swerve, tap } from "../../scripts/keys";
 
 const flat: Ground = { height: () => 0, normal: (_x, _z, out) => out.set(0, 1, 0), grip: () => 1, roll: () => 1 };
 const DT = 1 / 360;
@@ -618,4 +618,23 @@ describe("donut", () => {
         expect(d.kmh).toBeLessThan(30);
       });
   }
+});
+
+describe("power over from rest", () => {
+  for (const id of ["coupe", "muscle", "kaze", "formula", "sturm", "rally", "raijin"] as const) {
+    test(`${id}: full lock and full gas from parked, TCS and assist on, swings the tail out and a countersteer at full gas catches it`, () => {
+      for (const counter of [Counter.RELEASE, Counter.TAP, Counter.HOLD]) {
+        const over = power_over(SteerMode.SMOOTH, CARS[id], counter);
+        expect(over.t30).toBeLessThan(2.5);
+        expect(over.peak).toBeGreaterThan(25);
+        expect(over.catch).toBeLessThan(1.2);
+        expect(over.flip).toBeLessThan(15);
+        expect(over.spun).toBe(false);
+      }
+    });
+  }
+
+  test("hatch (FWD): full lock and full gas from parked stays a grip circle", () => {
+    expect(power_over(SteerMode.SMOOTH, CARS.hatch).t30).toBe(Infinity);
+  });
 });

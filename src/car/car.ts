@@ -39,6 +39,14 @@ const TCS_SLIP = 0.14;
 const TCS_LOW_SPEED = 15;
 /** Weight of a driven rear's sideways slip in traction control's slip: at 1.4 it cuts in at 0.9 of the peak slip angle. */
 const TCS_LATERAL = 1.4;
+/** Power-slide intent (walking pace × gas × key) past which a launch from rest may spin up the rear and swing the tail out. */
+const DRIFT_INTENT = 0.9;
+/** Speed (m/s) under which that intent counts as a launch: rolling, full lock and full gas is a hairpin to pull out of. */
+const DRIFT_START = 1;
+/** Traction control's slip in a launched power slide: about four times peak, enough wheelspin to break the rear loose. */
+const DRIFT_TCS_SLIP = 0.5;
+/** Body slip (rad) over which the yaw damper comes back in a launched power slide, so it stays a drift and not a spin. */
+const DRIFT_HOLD = [0.8, 1.2] as const;
 /** Front slip angle the steer assist allows, in `peak_angle`: past peak a tyre only scrubs speed. */
 const USEFUL_SLIP = 1.1;
 /** Speeds (m/s) where the useful-slip cap fades in and back out: below, parking keeps full lock; above, `grip_lock` rules. */
@@ -247,6 +255,10 @@ export class Car {
   private key_input = 0;
   /** Smooth keys: seconds the steer key has been held in its current direction. */
   private key_press = 0;
+  /** Side (sign of the key) of the power slide asked for since the steer was last let go; 0 with none. */
+  private slide_side = 0;
+  /** A power slide launched from rest and still asked for. */
+  private launched = false;
   steer_mode: SteerMode = SteerMode.SNAP;
   /** Idle hold latched on: it keeps braking at any speed until a pedal or the wheel is touched. */
   parked = false;
@@ -293,6 +305,8 @@ export class Car {
     this.key_steer = 0;
     this.key_input = 0;
     this.key_press = 0;
+    this.slide_side = 0;
+    this.launched = false;
     this.shifting = 0;
     for (const w of this.wheels) {
       w.omega = 0;
@@ -421,7 +435,15 @@ export class Car {
     // Steer held into the turn on the gas with the tail out, at walking pace: a deliberate power slide or a donut. The assists
     // that catch a slide at speed (grip lock, countersteer, yaw damping) would straighten the wheels and stop it.
     const tail_out = Math.max(0, Math.min(1, (-Math.sign(this.key_steer) * beta) / SLIDE_OUT));
-    const power_slide = (spec.drive === "fwd" ? 0 : 1) * walking * Math.min(1, pedal) * Math.abs(this.key_steer) * tail_out;
+    // The countersteer that catches a slide is full key the other way at full gas too: until the steer is let go it
+    // catches rather than asking for the mirror slide, which swung the tail past straight into a spin.
+    if (Math.abs(input.steer) < 0.05) this.slide_side = 0;
+    const side = Math.sign(this.key_steer);
+    const intent = (spec.drive === "fwd" || this.slide_side === -side ? 0 : 1) * walking * Math.min(1, pedal) * Math.abs(this.key_steer);
+    if (intent > DRIFT_INTENT) this.slide_side = side;
+    const power_slide = intent * tail_out;
+    if (intent <= DRIFT_INTENT) this.launched = false;
+    else if (speed < DRIFT_START) this.launched = true;
     const lock = this.assist ? Math.min(spec.lock, grip_lock + (spec.lock - grip_lock) * power_slide) : unassisted_lock(spec, speed, this.key_steer, slide);
     let target = this.key_steer * lock;
     if (this.assist && speed > 4 && local.z > 1) target += Math.sign(beta) * Math.max(0, Math.abs(beta) - 0.1) * 0.8 * (1 - power_slide);
@@ -461,19 +483,23 @@ export class Car {
     let max_drag = 0;
     const acting = this.tcs && pedal > 0.1 && speed > 1;
     const low = acting && speed < TCS_LOW_SPEED;
+    // Launched from rest on full key and full gas, the driver asks for a power slide: the lateral term and the lone-wheel
+    // brake exist to keep the tail in, and they cut the gas before it could step out.
+    const sideways = low && !this.launched;
+    const slip_limit = this.launched ? DRIFT_TCS_SLIP : TCS_SLIP;
     for (const w of this.wheels) {
       if (!w.driven) continue;
       // An axle spins when both its wheels do; one spinning alone, like the unloaded inner wheel in a tight turn, is
       // braked instead, as a brake-based TCS does. Cutting the engine for it starved the loaded wheel and the car bogged.
       const other = this.wheels[w.pair];
-      max_slip = Math.max(max_slip, low ? Math.min(tcs_spin(w, low, spec.peak_slip), tcs_spin(other, low, spec.peak_slip)) : tcs_spin(w, low, spec.peak_slip));
-      const lone = low && w.contact && w.slip > TCS_SLIP && other.slip <= TCS_SLIP;
+      max_slip = Math.max(max_slip, low ? Math.min(tcs_spin(w, sideways, spec.peak_slip), tcs_spin(other, sideways, spec.peak_slip)) : tcs_spin(w, sideways, spec.peak_slip));
+      const lone = sideways && w.contact && w.slip > TCS_SLIP && other.slip <= TCS_SLIP;
       w.tcs_brake = lone ? Math.min(1, w.tcs_brake + 9 * dt) : Math.max(0, w.tcs_brake - 2.5 * dt);
       if (!w.contact) max_drag = Math.max(max_drag, -w.slip);
     }
     // On the ground some torque always gets through so a stuck car can still crawl out; in the air there is no grip to save.
     const floor = driven.every((w) => !w.contact) ? 0 : 0.15;
-    if (acting && max_slip > TCS_SLIP) this.tcs_factor = Math.max(floor, this.tcs_factor - 9 * dt);
+    if (acting && max_slip > slip_limit) this.tcs_factor = Math.max(floor, this.tcs_factor - 9 * dt);
     else this.tcs_factor = Math.min(1, this.tcs_factor + 2.5 * dt);
     const gas = pedal * (this.tcs ? this.tcs_factor : 1);
     this.throttle = gas;
@@ -650,9 +676,12 @@ export class Car {
 
     // Stability assist: damp only yaw that grows the slide, so a drift can be held and caught but not spun; the
     // handbrake bypasses it so slides can still be started on purpose.
+    // A launched slide past a drift's angle is a spin in the making: the momentum carried it round with the gas already cut.
+    const [hold_from, hold_to] = DRIFT_HOLD;
+    const spinning = this.launched ? Math.max(0, Math.min(1, (Math.abs(beta) - hold_from) / (hold_to - hold_from))) : 0;
     const excess = Math.abs(slide) - 0.2;
     if (this.assist && excess > 0 && input.handbrake < 0.1 && Math.sign(ang.y) === Math.sign(slide)) {
-      body.torque.y -= ang.y * spec.inertia[1] * Math.min(1, excess * 6) * 3.5 * spec.assist_yaw * (1 - power_slide);
+      body.torque.y -= ang.y * spec.inertia[1] * Math.min(1, excess * 6) * 3.5 * spec.assist_yaw * (1 - power_slide * (1 - spinning));
     }
     if (airborne && spec.air_settle > 0) {
       // Crests launch the car off whichever wheel leaves last, so it takes off spinning; bleed pitch and roll and level it
