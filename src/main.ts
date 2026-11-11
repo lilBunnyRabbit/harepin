@@ -105,7 +105,8 @@ const start_point = world.road[world.clear_spawn(start_index)];
 const spawn_ready = world.tiles.ensure(start_point.x, start_point.z);
 
 const world_view = new WorldView(world, quality.mobile);
-scene.add(...(WORLDS[world.kind].backdrop === "sky" ? light.dress(sky(), clouds(world.seed)) : []), world_view.root);
+const dome = sky();
+scene.add(...(WORLDS[world.kind].backdrop === "sky" ? light.dress(dome, clouds(world.seed)) : []), world_view.root);
 let gate_views: readonly (Gate | undefined)[] = [];
 // Dressing and gates stand on terrain all round the world, so they go in once every chunk has arrived. A streamed
 // world never holds every chunk: its dress stands on nothing it reads, and its curbs and gates come and go per chunk.
@@ -567,6 +568,8 @@ function frame(now: number) {
   hud.update(car, now, rewinding);
   if (quality.adapt(dt)) render.apply_quality();
   stream.follow(car.pos.x, car.pos.z, quality.tier.fog_far + quality.tier.stream_pad);
+  // The dome is 2.4 km across and the mainland is wider, so it rides with the camera instead of the world origin.
+  dome.position.copy(camera.position);
   world_view.update(camera, quality.tier.fog_far);
   // The garage covers the screen and draws the car with its own renderer; the next frame after it closes draws the world.
   if (!garage.is_open && (!menu_hold || now - last_draw >= MENU_DRAW_MS)) {
