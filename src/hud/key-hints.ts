@@ -15,6 +15,8 @@ export function show_key_hints(bindings: Bindings) {
     const node = document.querySelector<HTMLElement>(selector);
     const key = keys_text(bindings[action]);
     const title = key ? `${label} (${key})` : label;
-    if (node && node.title !== title) node.title = title;
+    if (!node) continue;
+    if (node.title !== title) node.title = title;
+    if (node.dataset.key !== key) node.dataset.key = key;
   }
 }

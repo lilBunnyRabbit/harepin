@@ -18,9 +18,11 @@ const INK = {
   label: rgba(brand.foreground),
   halo: rgba(brand.background_darkest, 0.7),
   route: rgba(brand.primary),
-  faint: rgba(brand.foreground, 0.28),
+  faint: rgba(brand.foreground, 0.6),
   north: rgba(brand.foreground, 0.9),
   gap: rgba(brand.background_darkest),
+  casing: rgba(brand.background_darkest, 0.75),
+  cone: rgba(brand.cottontail, 0.3),
 };
 /** Close-up: about 200 m of road ahead of the car. */
 const CLOSE_CAR_Y = 0.7;
@@ -174,7 +176,7 @@ export class Minimap {
     road.strokeStyle = this.disc ? INK.faint : INK.road;
     const view = this.drawn;
     if (this.network.length) {
-      road.lineWidth = 1.5;
+      road.lineWidth = this.disc ? 3 : 1.5;
       road.stroke(this.roads.roads.reduce((into, points) => path(view, points, false, into), new Path2D()));
       road.fillStyle = INK.road;
       for (const town of this.roads.towns) {
@@ -183,9 +185,14 @@ export class Minimap {
         road.fill();
       }
     }
-    road.lineWidth = this.disc ? 3.5 : 3;
+    road.lineWidth = 3;
     if (this.disc) {
+      // A dark casing under the bright ribbon keeps the route standing out over grass, snow and night ground alike.
       road.lineCap = "round";
+      road.lineWidth = 11;
+      road.strokeStyle = INK.casing;
+      road.stroke(this.drawn.road);
+      road.lineWidth = 6;
       road.strokeStyle = INK.route;
     }
     road.stroke(this.drawn.road);
@@ -252,13 +259,32 @@ export class Minimap {
 
   private arrow(x: number, y: number, h: number) {
     const { ctx } = this;
-    ctx.fillStyle = INK.you;
+    const at = (turn: number, r: number): [number, number] => [x + Math.sin(h + turn) * r, y + Math.cos(h + turn) * r];
     ctx.beginPath();
-    ctx.moveTo(x + Math.sin(h) * 7, y + Math.cos(h) * 7);
-    ctx.lineTo(x + Math.sin(h + 2.5) * 5, y + Math.cos(h + 2.5) * 5);
-    ctx.lineTo(x + Math.sin(h - 2.5) * 5, y + Math.cos(h - 2.5) * 5);
+    if (this.disc) {
+      // A faint cone ahead and a long notched chevron: which way you face reads at a glance, even on the phone's small disc.
+      const facing = Math.PI / 2 - h;
+      ctx.fillStyle = INK.cone;
+      ctx.moveTo(x, y);
+      ctx.arc(x, y, 40, facing - 0.38, facing + 0.38);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(...at(0, 19));
+      ctx.lineTo(...at(2.6, 14));
+      ctx.lineTo(...at(Math.PI, 5));
+      ctx.lineTo(...at(-2.6, 14));
+      ctx.closePath();
+      ctx.fillStyle = INK.you;
+      this.gap();
+      ctx.fill();
+      return;
+    }
+    ctx.fillStyle = INK.you;
+    ctx.moveTo(...at(0, 7));
+    ctx.lineTo(...at(2.5, 5));
+    ctx.lineTo(...at(-2.5, 5));
     ctx.closePath();
-    if (this.disc) this.gap();
     ctx.fill();
   }
 
@@ -272,7 +298,7 @@ export class Minimap {
     ctx.drawImage(this.road_layer, 0, 0, MAP, MAP);
     if (gate) {
       ctx.fillStyle = INK.checkpoint;
-      this.dot(full_x(view, gate.x), full_y(view, gate.z), 4.5);
+      this.dot(full_x(view, gate.x), full_y(view, gate.z), this.disc ? 6 : 4.5);
     }
     for (const remote of remotes) this.car(full_x(view, remote.latest.p[0]), full_y(view, remote.latest.p[2]), names.get(remote.id) ?? remote.latest.name);
     this.arrow(full_x(view, car.pos.x), full_y(view, car.pos.z), car.heading);
@@ -308,10 +334,13 @@ export class Minimap {
       ctx.beginPath();
       for (const road of this.network) this.trace_line(road, x, z);
       ctx.stroke();
-      ctx.strokeStyle = INK.route;
-      ctx.lineWidth = ROAD_HALF * 1.2;
       ctx.beginPath();
       if (this.drawn) this.trace_line(this.drawn, x, z);
+      ctx.strokeStyle = INK.casing;
+      ctx.lineWidth = ROAD_HALF * 2.6;
+      ctx.stroke();
+      ctx.strokeStyle = INK.route;
+      ctx.lineWidth = ROAD_HALF * 1.6;
       ctx.stroke();
     } else {
       ctx.strokeStyle = INK.road;
@@ -334,7 +363,7 @@ export class Minimap {
       const gy = sin * (gate.x - x) + cos * (gate.z - z) + cy - MAP / 2;
       const edge = Math.min(1, EDGE / Math.hypot(gx, gy));
       ctx.fillStyle = INK.checkpoint;
-      this.dot(MAP / 2 + gx * edge, MAP / 2 + gy * edge, 4.5);
+      this.dot(MAP / 2 + gx * edge, MAP / 2 + gy * edge, this.disc ? 6 : 4.5);
     }
     this.arrow(cx, cy, Math.PI);
     this.north(this.turn - Math.PI);

@@ -332,12 +332,14 @@
   }
 }
 
-/* Arc dial: revs round a 270 degree rim, speed and gear in the middle. */
+/* Classic gauge: thin lines and big light type over the scene, no plate. Revs round a 270 degree arc, red only at the
+   redline; speed, gear and the TC/ABS/STM tags read inside it. */
 :root[data-hud="classic"] .bottom-right {
   display: grid;
+  grid-template-columns: var(--dial);
+  grid-template-rows: var(--dial) auto;
   place-items: center;
   width: var(--dial);
-  height: var(--dial);
   padding: 0;
 }
 
@@ -352,81 +354,47 @@
   overflow: visible;
   fill: none;
   stroke-linecap: butt;
+  filter: var(--halo-drop);
 }
 
 :root[data-hud="classic"] .dial-track {
-  stroke: var(--disc);
-  stroke-width: 14;
+  stroke: var(--line-strong);
+  stroke-width: 2;
 }
 
 :root[data-hud="classic"] .dial-red {
   stroke: var(--error);
-  stroke-width: 4;
+  stroke-width: 3;
 }
 
 :root[data-hud="classic"] .dial-fill {
   stroke: var(--primary);
-  stroke-width: 8;
+  stroke-width: 5;
   stroke-dasharray: 100 100;
   stroke-dashoffset: 100;
 }
 
+:root[data-hud="classic"] .dial-fill[data-hot="true"] {
+  stroke: var(--warning);
+}
+
 :root[data-hud="classic"] #dial-ticks line {
   stroke: var(--foreground);
-  stroke-width: 1.5;
-  opacity: 0.7;
+  stroke-width: 1.25;
+  opacity: 0.75;
 }
 
 :root[data-hud="classic"] #dial-ticks text {
   fill: var(--foreground);
   font-family: var(--font-sans);
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   text-anchor: middle;
   dominant-baseline: central;
-  stroke: var(--halo-ink);
-  stroke-width: 3;
-  paint-order: stroke;
-}
-
-:root[data-hud="classic"] .speedo {
-  display: grid;
-  grid-template-columns: auto;
-  justify-items: center;
-  align-content: center;
-  gap: 0;
-  margin-bottom: var(--space-4);
-  text-shadow: var(--halo);
-}
-
-:root[data-hud="classic"] #speed {
-  min-width: 3ch;
-  text-align: center;
-  font-size: 46px;
-  letter-spacing: 0;
-}
-
-:root[data-hud="classic"] .speedo .unit {
-  order: 2;
-  font-size: var(--text-2xs);
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-:root[data-hud="classic"] #gear {
-  order: -1;
-  margin: 0;
-  padding: 0;
-  background: none;
-  font-size: var(--text-2xl);
 }
 
 :root[data-hud="classic"] .rpm {
   display: none;
-}
-
-:root[data-hud="classic"] .dial-fill[data-hot="true"] {
-  stroke: var(--warning);
 }
 
 /* The shift light: the arc and the gear flash together, the way a rev-limiter LED strip reads in the corner of an eye. */
@@ -452,11 +420,56 @@
   }
 }
 
-/* Under the TC and ABS lamps, clear of the speed digits. */
+/* Speed big and light in the middle, its unit under it; the gear in its own slot in the ring's open foot. */
+:root[data-hud="classic"] .speedo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+:root[data-hud="classic"] #speed {
+  min-width: 3ch;
+  font-family: var(--font-sans);
+  font-size: 64px;
+  font-weight: 300;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  line-height: 1;
+  text-align: center;
+}
+
+:root[data-hud="classic"] .speedo .unit {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+:root[data-hud="classic"] #gear {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--dial) * 0.8);
+  translate: -50% 0;
+  display: grid;
+  place-items: center;
+  min-width: 32px;
+  height: 32px;
+  margin: 0;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--glass);
+  font-family: var(--font-sans);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  line-height: 1;
+}
+
 :root[data-hud="classic"] .bottom-right .nitro {
   align-self: end;
   width: 64px;
-  margin: 0 0 calc(var(--space-6) + 28px);
+  margin-bottom: calc(var(--dial) * 0.24);
 }
 
 :root[data-hud="classic"] .bottom-right .nitro .unit {
@@ -465,46 +478,92 @@
 
 @media (pointer: fine) and (max-width: 600px) {
   :root[data-hud="classic"] {
-    --dial: 168px;
-    --map-disc: 124px;
+    --dial: 184px;
   }
 
   :root[data-hud="classic"] #speed {
-    font-size: 36px;
-  }
-
-  :root[data-hud="classic"] #dial-ticks text {
-    display: none;
+    font-size: 48px;
   }
 }
 
+/* Touch: the ring would crowd the car and the pedals, so the phone gets a slim readout along the bottom, ending just
+   left of the pedals so it stays clear of the steer hint, the revs a thin line beneath it. */
 @media (pointer: coarse) {
   :root[data-hud="classic"] .bottom-right {
+    display: grid;
+    grid-template-columns: auto auto auto;
+    grid-template-rows: auto auto;
+    align-items: center;
+    column-gap: var(--space-4);
+    row-gap: var(--space-2);
+    width: auto;
+    height: auto;
     min-width: 0;
-    height: var(--dial);
     padding: 0;
   }
 
-  :root[data-hud="classic"] #speed {
-    font-size: 30px;
+  :root[data-hud="classic"] .bottom-right > * {
+    grid-area: auto;
   }
 
-  :root[data-hud="classic"] #dial-ticks text {
+  :root[data-hud="classic"] .dial {
     display: none;
   }
-}
 
-/* On a small phone the dial sits close to the car's rear corner; a smaller one clears it. */
-@media (pointer: coarse) and (max-width: 700px) {
-  :root[data-hud="classic"] {
-    --dial: 104px;
+  :root[data-hud="classic"] .speedo {
+    grid-area: 1 / 2;
+    flex-direction: row;
+    align-items: baseline;
+    gap: var(--space-2);
   }
 
   :root[data-hud="classic"] #speed {
-    font-size: 24px;
+    font-size: 40px;
   }
 
   :root[data-hud="classic"] #gear {
+    position: static;
+    translate: none;
+    grid-area: 1 / 3;
+    min-width: 28px;
+    height: 28px;
     font-size: var(--text-lg);
+  }
+
+  :root[data-hud="classic"] .assists {
+    grid-area: 1 / 1;
+  }
+
+  :root[data-hud="classic"] .rpm {
+    display: block;
+    grid-area: 2 / 1 / 3 / 4;
+    justify-self: stretch;
+    height: 3px;
+    margin: 0;
+    background: var(--line-strong);
+  }
+
+  :root[data-hud="classic"] #rpm-fill {
+    background: var(--primary);
+  }
+
+  :root[data-hud="classic"] #rpm-fill[data-hot="true"] {
+    background: var(--error);
+  }
+}
+
+/* A small phone: the readout drops its unit to fit. */
+@media (pointer: coarse) and (max-width: 700px) {
+  :root[data-hud="classic"] .bottom-right {
+    column-gap: var(--space-2);
+  }
+
+  :root[data-hud="classic"] #speed {
+    min-width: 0;
+    font-size: 32px;
+  }
+
+  :root[data-hud="classic"] .speedo .unit {
+    display: none;
   }
 }

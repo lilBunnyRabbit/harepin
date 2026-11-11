@@ -179,41 +179,126 @@
   opacity: 0.3;
 }
 
-/* Classic: TC, ABS and STM sit as small lamps in the dial foot; steering assist and gearbox show by toast and gear letter. */
+/* Classic: TC, ABS, Steer and STM as small switch buttons under the gauge, lit while the aid is on; the gearbox shows by
+   the gear letter and lives in Settings. */
 :root[data-hud="classic"] .assists {
-  align-self: end;
+  grid-area: 2 / 1;
+  align-self: start;
+  justify-self: end;
   gap: var(--space-2);
-  margin: 0 0 var(--space-6);
+  margin: var(--space-3) 0 0;
   padding: 0;
   border: 0;
+  pointer-events: auto;
 }
 
 :root[data-hud="classic"] .aid-key {
-  height: 20px;
-  padding: 0 var(--space-1);
-  gap: 4px;
-  font-size: var(--text-2xs);
-  text-shadow: var(--halo);
+  flex: none;
+  height: 26px;
+  padding: 0 var(--space-2);
+  gap: 5px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--glass);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-shadow: none;
+  cursor: pointer;
 }
 
 :root[data-hud="classic"] .aid-key::before {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 
-:root[data-hud="classic"] .aid-key:is([data-aid="assist"], [data-aid="auto"]) {
+:root[data-hud="classic"] .aid-key[aria-pressed="false"] {
+  border-style: dashed;
+  opacity: 0.6;
+}
+
+:root[data-hud="classic"] .aid-key[data-aid="auto"] {
   display: none;
 }
 
-/* On touch the lamps are a readout only: a 20 px target would be too small, and the toggles live in Settings. */
+@media (pointer: fine) {
+  :root[data-hud="classic"] .aid-key[data-key]:not([data-key=""])::after {
+    content: attr(data-key);
+    order: -1;
+    margin-right: 1px;
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    font-weight: 600;
+    color: var(--dim);
+  }
+
+  :root[data-hud="classic"] .aid-key:hover {
+    translate: 0 -1px;
+    border-color: var(--foreground);
+    background: var(--panel);
+    opacity: 1;
+  }
+
+  :root[data-hud="classic"] .aid-key:active {
+    translate: 0 1px;
+  }
+}
+
+/* Touch: each switch keeps a 44 px target, its chip drawn smaller inside it so four fit between the steer hint and the
+   pedals. */
 @media (pointer: coarse) {
   :root[data-hud="classic"] .assists {
-    gap: var(--space-1);
-    margin-bottom: 0;
-    pointer-events: none;
+    grid-area: 1 / 1;
+    align-self: center;
+    gap: 2px;
+    margin: 0;
   }
 
   :root[data-hud="classic"] .aid-key {
-    height: 16px;
+    position: relative;
+    isolation: isolate;
+    height: 44px;
+    padding: 0 var(--space-2);
+    gap: 4px;
+    border: 0;
+    background: none;
+    font-size: var(--text-2xs);
+  }
+
+  :root[data-hud="classic"] .aid-key::after {
+    content: "";
+    position: absolute;
+    inset: 10px 0;
+    z-index: -1;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm);
+    background: var(--glass);
+  }
+
+  :root[data-hud="classic"] .aid-key[aria-pressed="false"] {
+    border-style: none;
+  }
+
+  :root[data-hud="classic"] .aid-key[aria-pressed="false"]::after {
+    border-style: dashed;
+  }
+
+  :root[data-hud="classic"] .aid-key:hover {
+    background: none;
+  }
+
+  :root[data-hud="classic"] .aid-key:active::after {
+    background: var(--panel);
+  }
+}
+
+/* A small phone has no room for them beside the readout without meeting the steer hint, so they sit under the button
+   panel instead. */
+@media (pointer: coarse) and (max-width: 700px) {
+  :root[data-hud="classic"] .assists {
+    position: fixed;
+    top: calc(var(--inset-top) + var(--control-h) + 2 * var(--space-1) + var(--space-1));
+    left: var(--inset-left);
   }
 }

@@ -231,65 +231,136 @@
   }
 }
 
+/* A round map of glass: a soft edge instead of a rim, the route a bright ribbon over faint roads. */
 :root[data-hud="classic"] #minimap {
   width: var(--map-disc);
   height: var(--map-disc);
   border: 0;
   border-radius: 50%;
-  background: var(--disc);
-  backdrop-filter: none;
+  background: var(--glass);
+  backdrop-filter: blur(8px);
+  mask-image: radial-gradient(closest-side, black 80%, transparent);
+}
+
+/* The players sit on a crisp glass panel like the aid switches, not on a halo. */
+:root[data-hud="classic"] #players {
+  border: 1px solid var(--line-strong);
+  background: var(--glass);
+  text-shadow: none;
 }
 
 :root[data-hud="classic"] #map-note:not([hidden]) {
   display: flex;
+  align-self: center;
   justify-content: center;
   align-items: baseline;
   gap: var(--space-2);
   font-size: var(--text-xs);
   font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--dim);
 }
 
 :root[data-hud="classic"] #map-dist {
-  font-family: var(--font-mono);
-  font-size: var(--text-lg);
+  font-family: var(--font-sans);
+  font-size: var(--text-xl);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
   color: var(--foreground);
 }
 
-:root[data-hud="classic"] #online-chip {
-  align-self: center;
-  padding: 0 var(--space-2);
-  filter: var(--halo-drop);
+/* The online count reads as part of the title bar, after the room: anchored into room the bar leaves for it while it
+   shows, so neither the bar nor the map moves when it comes and goes. */
+:root[data-hud="classic"] {
+  --online-w: 92px;
 }
 
-@media (pointer: fine) {
+:root[data-hud="classic"] #online-chip {
+  position: fixed;
+  position-anchor: --title-bar;
+  top: anchor(center);
+  right: calc(anchor(right) + var(--space-3));
+  translate: 0 -50%;
+  justify-content: flex-start;
+  width: var(--online-w);
+  height: var(--control-h);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  backdrop-filter: none;
+  filter: none;
+  text-shadow: none;
+  font-size: var(--text-sm);
+}
+
+:root[data-hud="classic"] #online-chip:hover {
+  background: none;
+}
+
+:root[data-hud="classic"] #online-chip[data-both] .online-here {
+  display: none;
+}
+
+:root[data-hud="classic"] #online-chip[data-both] .online-total::before {
+  content: none;
+}
+
+:root[data-hud="classic"] body:has(#online-chip:not([hidden])) .top-left {
+  padding-right: calc(var(--space-3) + var(--online-w));
+}
+
+/* Touch has no title bar, so the count, just the icon and number, joins the end of the button panel. */
+@media (pointer: coarse) {
+  :root[data-hud="classic"] {
+    --online-w: 48px;
+  }
+
   :root[data-hud="classic"] #online-chip {
-    height: 20px;
-    padding: 0;
+    position-anchor: --actions;
+    right: calc(anchor(right) + var(--space-1));
+    justify-content: center;
+    height: var(--control-h);
+    --chip-gap: 3px;
+  }
+
+  :root[data-hud="classic"] #online-chip :is(.online-here, .online-total) {
+    font-size: 0;
+  }
+
+  :root[data-hud="classic"] #online-chip b {
+    font-size: var(--text-sm);
+  }
+
+  :root[data-hud="classic"] body:has(#online-chip:not([hidden])) .actions {
+    padding-right: calc(var(--space-1) + var(--online-w));
   }
 }
 
 :root[data-hud="classic"] #players {
-  padding: 0;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
 }
 
-/* Bottom left, over the menu keys, with the gate distance above the disc. */
+/* Bottom left on a desk, with the gate distance over the map and the players beside it. */
 @media (pointer: fine) {
   :root[data-hud="classic"] .top-right {
-    inset: auto auto calc(var(--inset-bottom) + var(--key-row) + var(--space-2)) var(--inset-left);
+    inset: auto auto var(--inset-bottom) var(--inset-left);
     width: var(--map-disc);
     min-width: 0;
+    gap: var(--space-2);
   }
 
   :root[data-hud="classic"] #map-note {
     order: -1;
   }
 
+  /* Beside the disc, out of flow, so the map holds still when the players come and go. */
   :root[data-hud="classic"] #players {
     position: absolute;
-    left: calc(100% + var(--space-3));
-    bottom: var(--space-6);
+    left: calc(100% + var(--space-4));
+    bottom: var(--space-2);
     width: max-content;
     max-width: 220px;
   }
@@ -297,8 +368,62 @@
 
 /* Touch: the thumbs own the bottom corners, so the map stays top right. */
 @media (pointer: coarse) {
+  :root[data-hud="classic"] {
+    --map-disc: var(--map-size);
+  }
+
   :root[data-hud="classic"] #minimap {
-    width: var(--map-size);
-    height: var(--map-size);
+    backdrop-filter: none;
+  }
+
+  :root[data-hud="classic"] .top-right {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  :root[data-hud="classic"] #map-note {
+    order: 1;
+  }
+
+  :root[data-hud="classic"] #map-note span {
+    display: none;
+  }
+
+  :root[data-hud="classic"] #map-dist {
+    font-size: var(--text-lg);
+  }
+
+  :root[data-hud="classic"] .touch-buttons {
+    right: calc(var(--inset-right) + var(--map-panel) + var(--space-5));
+  }
+}
+
+@media (pointer: fine) and (max-width: 600px) {
+  :root[data-hud="classic"] {
+    --map-disc: 132px;
+  }
+}
+
+
+/* Map 2: a flat lens, bigger, on a deeper glass with a fine rim so its edge reads on snow and sky. */
+:root[data-hud="classic"] {
+  --map-glass: color-mix(in oklch, var(--background-darkest) 66%, transparent);
+}
+
+:root[data-scheme="light"][data-hud="classic"] {
+  --map-glass: color-mix(in oklch, var(--background-lighter) 72%, transparent);
+}
+
+:root[data-hud="classic"] #minimap {
+  background: var(--map-glass);
+  box-shadow: inset 0 0 0 1.5px var(--line-strong);
+  mask-image: radial-gradient(closest-side, black 94%, transparent);
+}
+
+@media (pointer: fine) and (min-width: 601px) {
+  :root[data-hud="classic"] {
+    --map-disc: 224px;
   }
 }

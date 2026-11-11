@@ -248,7 +248,7 @@ export class Hud {
     this.draw_map(car, now);
   }
 
-  // Rebuilt only when the car changes: one number per 1000 rpm round the arc.
+  // Rebuilt only when the car changes: one number per 1000 rpm outside the arc.
   private dial_ticks(redline: number) {
     this.redline = redline;
     const group = this.el.dial_ticks;
@@ -262,8 +262,8 @@ export class Hud {
       tick.setAttribute("x2", String(100 + Math.cos(a) * (DIAL_R + 6)));
       tick.setAttribute("y2", String(100 + Math.sin(a) * (DIAL_R + 6)));
       const label = document.createElementNS(SVG, "text");
-      label.setAttribute("x", String(100 + Math.cos(a) * (DIAL_R - 17)));
-      label.setAttribute("y", String(100 + Math.sin(a) * (DIAL_R - 17)));
+      label.setAttribute("x", String(100 + Math.cos(a) * (DIAL_R + 17)));
+      label.setAttribute("y", String(100 + Math.sin(a) * (DIAL_R + 17)));
       label.textContent = String(i);
       nodes.push(tick, label);
     }

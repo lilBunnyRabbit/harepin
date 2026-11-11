@@ -350,20 +350,8 @@
   }
 }
 
-:root[data-hud="classic"] .actions button {
-  border-color: transparent;
-  background: none;
-  filter: var(--halo-drop);
-}
-
-:root[data-hud="classic"] .actions button:hover {
-  background: color-mix(in oklch, var(--foreground) 12%, transparent);
-}
-
 /* Event title: icon, name and timer, with the rest of the lap a small line under it. */
 :root[data-hud="classic"] #strip {
-  left: 50%;
-  translate: -50% 0;
   flex-wrap: wrap;
   justify-content: center;
   align-items: baseline;
@@ -432,12 +420,6 @@
   }
 }
 
-/* Floating glyphs have no panel behind them, so a calm fade to 0.3 lost them against a bright sky. */
-:root[data-hud="classic"][data-calm] .actions,
-:root[data-hud="classic"][data-calm] #online-chip {
-  opacity: 0.6;
-}
-
 @media (pointer: coarse) {
   :root[data-hud="classic"] #strip[data-idle] .lap {
     display: flex;
@@ -448,18 +430,23 @@
   }
 }
 
-@media (pointer: fine) {
-  :root[data-hud="classic"] .dock-top .top-left {
-    display: none;
+/* Centred, the title meets the title and button bars below 1440px; there it sits beside them like the panel strip did. */
+@media (pointer: fine) and (min-width: 1440px) {
+  :root[data-hud="classic"] #strip {
+    left: 50%;
+    translate: -50% 0;
+  }
+}
+
+@media (pointer: fine) and (max-width: 1439px) {
+  :root[data-hud="classic"] #strip {
+    right: var(--inset-right);
+    justify-content: flex-start;
+    max-width: none;
   }
 
-  :root[data-hud="classic"] .actions {
-    position: fixed;
-    left: var(--inset-left);
-    bottom: var(--inset-bottom);
-    min-height: var(--key-row);
-    padding: 0;
-    gap: var(--space-1);
+  :root[data-hud="classic"] #strip .lap {
+    justify-content: flex-start;
   }
 }
 
@@ -467,21 +454,20 @@
   :root[data-hud="classic"] #strip {
     position: fixed;
     top: var(--inset-top);
+    left: 50%;
+    translate: -50% 0;
     max-width: 36vw;
-  }
-}
-
-@media (pointer: fine) and (max-width: 600px) {
-  :root[data-hud="classic"] #strip {
-    position: fixed;
-    top: var(--inset-top);
-    max-width: calc(100vw - 2 * var(--inset));
   }
 }
 
 /* A narrow phone's top row is full of buttons, so the title drops under it like the mode status does. */
 @media (pointer: coarse) and (max-width: 760px) {
   :root[data-hud="classic"] #strip {
-    top: calc(var(--inset-top) + var(--control-h) + var(--space-2));
+    top: calc(var(--inset-top) + var(--control-h) + var(--space-5));
   }
+}
+
+/* The modes live in the menu, so Classic drops their button while driving; the aids sit in Settings and the gauge. */
+:root[data-hud="classic"] :is(#modes-btn, #aids-btn) {
+  display: none;
 }

@@ -52,15 +52,14 @@
   bottom: var(--inset-bottom);
 }
 
-/* The default (Classic) layout floats every piece over the scene with no panel; legibility comes from a halo in the
-   theme surface colour. The other layouts keep their panels. */
+/* Classic floats its event title, map and gauge over the scene with a halo or a soft glass for legibility; the buttons
+   keep their panel. */
 .dial,
 .event-icon,
 .event-name,
 #map-note,
 .toast-icon,
-#toast-label:empty,
-:root:not([data-hud="classic"]) #toast-label {
+#toast-label {
   display: none;
 }
 
@@ -70,22 +69,21 @@
   /* A one-pixel outline first, then the glow: a soft glow alone vanished over mid-grey road. */
   --halo: -1px 0 var(--halo-ink), 1px 0 var(--halo-ink), 0 -1px var(--halo-ink), 0 1px var(--halo-ink), 0 0 6px var(--halo-ink), 0 1px 12px var(--halo-ink);
   --halo-drop: drop-shadow(0 0 1px var(--halo-ink)) drop-shadow(0 0 1px var(--halo-ink)) drop-shadow(0 0 1px var(--halo-ink)) drop-shadow(0 1px 6px var(--halo-ink));
-  --disc: color-mix(in oklch, var(--background-darkest) 58%, transparent);
+  --glass: color-mix(in oklch, var(--background-darkest) 50%, transparent);
+  --map-disc: 196px;
   --dial: 220px;
-  --map-disc: 168px;
-  --key-row: 32px;
 }
 
 :root[data-scheme="light"][data-hud="classic"] {
-  --disc: color-mix(in oklch, var(--background-lighter) 62%, transparent);
   --halo-ink: var(--background);
+  --glass: color-mix(in oklch, var(--background-lighter) 55%, transparent);
 }
 
-:root[data-hud="classic"] :is(.actions, #strip, .top-right, .bottom-right, #toast) {
+:root[data-hud="classic"] :is(#strip, .top-right, .bottom-right) {
   --dim: color-mix(in oklch, var(--foreground) 80%, transparent);
 }
 
-:root[data-hud="classic"] :is(.top-left, .actions, #strip, .top-right, .bottom-right, #mode-status, #race-panel, #toast, #players, #online-chip) {
+:root[data-hud="classic"] :is(#strip, .top-right, .bottom-right, #mode-status, #race-panel, #players, #online-chip) {
   background: none;
   border: 0;
   border-radius: 0;
@@ -102,13 +100,13 @@
 
 @media (pointer: fine) {
   :root[data-hud="classic"] .dock-left {
-    bottom: calc(var(--inset-bottom) + var(--key-row) + var(--map-disc) + 80px);
+    bottom: calc(var(--inset-bottom) + var(--map-disc) + 88px);
   }
 }
 
 @media (pointer: coarse) {
   :root[data-hud="classic"] {
-    --dial: 128px;
+    --dial: 140px;
   }
 }
 
@@ -134,6 +132,6 @@
   }
 }
 
-:root[data-scheme="light"][data-hud="classic"] :is(.actions, #strip, .top-right, .bottom-right, #toast) {
+:root[data-scheme="light"][data-hud="classic"] :is(#strip, .top-right, .bottom-right) {
   --dim: var(--foreground);
 }
