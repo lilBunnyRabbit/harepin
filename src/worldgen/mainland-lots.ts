@@ -88,7 +88,7 @@ export function mainland_lots(seed: number, recipe: Recipe, graph: RoadGraph, to
     const land = terrain(seed, recipe.terrain, grid);
     const stamp = new Stamp(land, grid, false);
     for (const op of ops) stamp.replay(op);
-    const lots = new Lots(seed, land, stamp, recipe.towns, grid, out, true);
+    const lots = new Lots(seed, land, stamp, recipe.towns, grid, out);
     const near = outlines.filter((o) => o.x1 >= ORIGIN + grid.i0 * CELL && o.x0 <= ORIGIN + grid.i1 * CELL && o.z1 >= ORIGIN + grid.j0 * CELL && o.z0 <= ORIGIN + grid.j1 * CELL);
     block(lots.occupied, grid, land.heights, near, wet);
     for (const edge of streets) lots.street(edge, town);

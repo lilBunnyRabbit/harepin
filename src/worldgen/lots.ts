@@ -129,8 +129,7 @@ export class Lots {
   readonly occupied: Uint8Array;
   private readonly placed: Rect[] = [];
 
-  // A shared `out` keeps lot ids running on across several town windows. `exact` also tests lot rectangles and their
-  // corners' road_dist between the cell vertices; the compact worlds keep the vertex test alone so their records hold.
+  // A shared `out` keeps lot ids running on across several town windows.
   constructor(
     private readonly seed: number,
     private readonly terrain: Terrain,
@@ -138,7 +137,6 @@ export class Lots {
     private readonly shape: TownRecipe,
     private readonly grid: Grid = WHOLE,
     readonly out: TownLots = empty_lots(),
-    private readonly exact = false,
   ) {
     this.occupied = new Uint8Array(terrain.heights.length);
   }
@@ -165,9 +163,9 @@ export class Lots {
       const [px, pz] = local_to_world({ x, z, fx, fz }, lx, lz);
       if (!on_core(town, px, pz)) return false;
       if (this.sample(heights, px, pz) < 3) return false;
-      if (this.exact && this.sample(road_dist, px, pz) <= STREET_CLEAR) return false;
+      if (this.shape.exact && this.sample(road_dist, px, pz) <= STREET_CLEAR) return false;
     }
-    if (this.exact && !this.placed.every((o) => apart(o, { x, z, w, d, fx, fz }))) return false;
+    if (this.shape.exact && !this.placed.every((o) => apart(o, { x, z, w, d, fx, fz }))) return false;
     const level = (k: number) => street[k] === 1 || owner_dist[k] > ROAD_HALF + SHOULDER;
     if (!this.scan(x, z, w + CELL * 2, d + CELL * 2, fx, fz, level)) return false;
     return this.scan(x, z, w, d, fx, fz, (k) => !this.occupied[k] && road_dist[k] > STREET_CLEAR);
