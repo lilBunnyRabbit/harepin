@@ -294,12 +294,21 @@ export function grip_lock(spec: CarSpec, speed: number): number {
 }
 
 /**
- * Lock (rad) a full key adds past `grip_lock` at `speed` m/s, in proportion to the key cubed so a press held through
- * reaches it and a short correction does not.
+ * Lock (rad) a full key adds past `grip_lock` at `speed` m/s. Keys take it in along `key_reach`, a stick linearly.
  */
 function full_key_reach(spec: CarSpec, speed: number): number {
   const [slow, fast] = FULL_KEY_SPEEDS;
   return spec.peak_angle * FULL_KEY_REACH * Math.max(0, Math.min(1, (speed - slow) / (fast - slow)));
+}
+
+/**
+ * Share of `full_key_reach` a key held at `key` (-1..1) asks for: a smoothstep, flat at both ends, so the wheel meets and
+ * leaves full lock no faster than the plain lock alone moves it. The key cubed it replaced was steepest at full key, and
+ * the wheel swung into the extra lock and off it quicker than before.
+ */
+function key_reach(key: number): number {
+  const size = Math.min(1, Math.abs(key));
+  return Math.sign(key) * size * size * (3 - 2 * size);
 }
 
 /**
@@ -626,7 +635,7 @@ export class Car {
     const cornering = grip_lock(spec, speed);
     const limit = Math.min(spec.lock, cornering + (spec.lock - cornering) * power_slide);
     const lock = this.assist ? limit : unassisted_lock(spec, limit, this.key_steer, slide);
-    let target = this.key_steer * lock + this.key_steer ** 3 * full_key_reach(spec, speed);
+    let target = this.key_steer * lock + (input.analog ? this.key_steer : key_reach(this.key_steer)) * full_key_reach(spec, speed);
     if (this.assist && speed > 4 && local.z > 1) target += Math.sign(beta) * Math.max(0, Math.abs(beta) - 0.1) * 0.8 * (1 - power_slide);
     if (local.z > 1) {
       // Full lock at hairpin speed put the fronts at 20-27 degrees of slip, three times peak, and their scrub held the car
