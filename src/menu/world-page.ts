@@ -154,7 +154,8 @@ export class WorldPage implements MenuPage {
     let advanced = false;
     const set_level = (kind: WorldKind, at: number, level: number) => {
       if (this.chosen.kind !== kind || this.chosen.levels[at] === level) return;
-      choose({ ...this.chosen, levels: this.chosen.levels.map((l, i) => (i === at ? level : l)) }, false);
+      const levels = this.chosen.levels.map((l, i) => (i === at ? level : l));
+      choose({ ...this.chosen, levels: KINDS[kind].clamp?.(levels) ?? levels }, false);
     };
     const level_of = (kind: WorldKind, at: number, o: OptionDef) => (this.chosen.kind === kind ? this.chosen.levels[at] : o.normal);
     for (const { kind } of LISTED)

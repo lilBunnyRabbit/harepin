@@ -1,7 +1,6 @@
-import { generate } from "../index";
 import { ALPINE } from "../recipe";
 import { ALPINE_KNOBS } from "./land-knobs";
-import { tune } from "./options";
+import { land_kind } from "./land-kind";
 import { SIZE, WorldKind } from "../types";
 import { kind_def, LAND_GRIP } from "./kind-def";
 
@@ -12,7 +11,7 @@ export const alpine = kind_def({
   tag: "a",
   version: 2,
   size: SIZE,
-  generate: (seed, levels) => generate(seed, tune(ALPINE, ALPINE_KNOBS, levels), WorldKind.ALPINE),
+  ...land_kind(ALPINE, ALPINE_KNOBS, WorldKind.ALPINE),
   options: ALPINE_KNOBS,
   recipe: ALPINE,
   open_ground: true,

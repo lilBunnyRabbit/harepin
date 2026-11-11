@@ -14,6 +14,8 @@ export interface OptionDef {
 
 export interface Knob<R> extends OptionDef {
   apply(recipe: R, level: number): R;
+  /** A slider's value per level. */
+  values?: readonly number[];
 }
 
 /** A knob whose levels set `values[level]` on the recipe; the normal level leaves the recipe untouched, so it builds today's world. */
@@ -34,7 +36,7 @@ export function slider_value(level: number, lo: number, mid: number, hi: number)
 export function slider<R>(spec: Omit<OptionDef, "labels" | "normal" | "slider"> & { lo: number; mid: number; hi: number; label: (value: number) => string; set: (recipe: R, value: number) => R }): Knob<R> {
   const { lo, mid, hi, label, set, ...def } = spec;
   const values = Array.from({ length: SLIDER_LEVELS }, (_, level) => slider_value(level, lo, mid, hi));
-  return knob<R, number>({ ...def, slider: true, labels: values.map(label), normal: SLIDER_NORMAL, values, set });
+  return { ...knob<R, number>({ ...def, slider: true, labels: values.map(label), normal: SLIDER_NORMAL, values, set }), values };
 }
 
 export function tune<R>(recipe: R, knobs: readonly Knob<R>[], levels: readonly number[]): R {

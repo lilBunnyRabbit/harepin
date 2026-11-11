@@ -23,6 +23,8 @@ const ALL = process.argv.includes("--all");
 
 const OPTION_SEEDS = [...Array(10).keys()];
 const COMBOS = 20;
+// A slider is swept at its ends and middle, as the Create-world sweep test does; every one of its 32 levels would be 31 jobs per seed.
+const SLIDER_STOPS = [0, 15, 31];
 function option_jobs(): ProofJob[] {
   const out: ProofJob[] = [];
   const rng = mulberry32(seed_of("options"));
@@ -31,7 +33,8 @@ function option_jobs(): ProofJob[] {
     const normal = def.options.map((o) => o.normal);
     const add = (levels: number[], seeds: number[]) => out.push(...seeds.map((seed) => ({ kind: def.kind, seed, levels, checks: true, drives: false })));
     add(normal, OPTION_SEEDS);
-    def.options.forEach((o, i) => o.labels.forEach((_, level) => level !== o.normal && add(normal.map((l, j) => (j === i ? level : l)), OPTION_SEEDS)));
+    const levels_of = (o: (typeof def.options)[number]) => (o.slider ? SLIDER_STOPS : o.labels.map((_, level) => level));
+    def.options.forEach((o, i) => levels_of(o).forEach((level) => level !== o.normal && add(normal.map((l, j) => (j === i ? level : l)), OPTION_SEEDS)));
     for (let k = 0; k < COMBOS; k++) add(def.options.map((o) => Math.floor(rng() * o.labels.length)), [Math.floor(rng() * 1000)]);
   }
   return out;

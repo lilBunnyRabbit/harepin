@@ -59,7 +59,38 @@ export function world_key(seed: number, kind: WorldKind = DEFAULT_KIND, levels: 
   return KINDS[kind].key(seed, suffix);
 }
 
+/** Softer builds a custom map gets before it gives up, each with the relief at RELIEF_STEP of the last. */
+const RETRIES = 3;
+const RELIEF_STEP = 0.85;
+
+export interface Built {
+  data: WorldData;
+  /** Builds that failed their check before this one. */
+  retries: number;
+  /** Every build failed: this is the seed's plain map, never another seed's. */
+  fallback: boolean;
+}
+
+/**
+ * A custom map builds with its levels clamped, then checked; a failed check rebuilds with softer relief, the same way
+ * on every peer, and past the last retry the seed's plain map stands in. A plain map builds once, as it always has.
+ */
+export function build_world(seed: number, kind: WorldKind, levels: readonly number[] = []): Built {
+  const def = KINDS[kind];
+  const full = def.options.map((o, i) => levels[i] ?? o.normal);
+  if (is_plain({ kind, levels: full }) || !def.drivable) return { data: def.generate(seed, full), retries: 0, fallback: false };
+  const clamped = def.clamp?.(full) ?? full;
+  for (let retries = 0, relief = 1; retries <= RETRIES; retries++, relief *= RELIEF_STEP) {
+    try {
+      const data = def.generate(seed, clamped, relief);
+      if (def.drivable(data, clamped)) return { data, retries, fallback: false };
+    } catch (error) {
+      console.warn(`worldgen: ${kind} ${seed} [${clamped.join(",")}] relief ${relief} threw`, error);
+    }
+  }
+  return { data: def.generate(seed, normal_levels(def.options)), retries: RETRIES + 1, fallback: true };
+}
+
 export function generate_world(seed: number, kind: WorldKind, levels: readonly number[] = []): WorldData {
-  const { options } = KINDS[kind];
-  return KINDS[kind].generate(seed, options.map((o, i) => levels[i] ?? o.normal));
+  return build_world(seed, kind, levels).data;
 }

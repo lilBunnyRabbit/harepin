@@ -1,12 +1,13 @@
 import { expect, test } from "bun:test";
-import { sweep } from "../../sweep";
+import { FULL, sweep } from "../../sweep";
+import { mulberry32, seed_of } from "../../rng";
 import { sample } from "../field";
 import { steep_runup } from "../jumps";
 import { ALPINE } from "../recipe";
 import { crest_crossings, terrain } from "../terrain";
 import { town_level } from "../towns";
 import { WorldKind, parse_kind, type WorldData } from "../types";
-import { generate_world, is_plain, KINDS, kind_of_world, map_id, plain_map, world_id, world_key } from "./kinds";
+import { build_world, generate_world, is_plain, KINDS, kind_of_world, map_id, plain_map, world_id, world_key, type MapSpec } from "./kinds";
 import { same_map } from "../../net/net";
 import { map_code } from "./map-code";
 
@@ -189,3 +190,56 @@ test("a slider's normal level is the kind's own value and its ends are the range
   const hills = KINDS.island.options.find((o) => o.field === "H");
   expect([hills?.labels[0], hills?.labels[16], hills?.labels[31]]).toEqual(["40%", "100%", "150%"]);
 });
+
+/** Each slider alone at its ends (and its middle on a full run), the rest at the preset's levels. */
+function slider_maps(kind: WorldKind): MapSpec[] {
+  const { options } = KINDS[kind];
+  const normal = options.map((o) => o.normal);
+  const ends = FULL ? [0, 15, 31] : [0, 31];
+  const seeds = sweep(10).slice(0, FULL ? 10 : 2);
+  return options.flatMap((o, i) => (o.slider ? ends.flatMap((level) => seeds.map((seed) => ({ kind, seed, levels: normal.map((n, j) => (j === i ? level : n)) }))) : []));
+}
+
+/** Random full combinations of every option, on a full run only: each takes a whole generation. */
+function combo_maps(kind: WorldKind): MapSpec[] {
+  if (!FULL) return [];
+  const rng = mulberry32(seed_of(`sweep:${kind}`));
+  return Array.from({ length: 50 }, () => ({ kind, seed: Math.floor(rng() * 1000), levels: KINDS[kind].options.map((o) => Math.floor(rng() * o.labels.length)) }));
+}
+
+const SWEEP_TIMEOUT = FULL ? 600_000 : 60_000;
+
+for (const kind of [WorldKind.ISLAND, WorldKind.DESERT, WorldKind.ALPINE])
+  test(`every ${kind} slider at its ends builds a drivable world of its own seed`, () => {
+    const failed: string[] = [];
+    for (const map of [...slider_maps(kind), ...combo_maps(kind)]) {
+      const built = build_world(map.seed, map.kind, map.levels);
+      if (built.fallback) failed.push(map_code(map));
+      expect(built.data.terrain.seed).toBe(map.seed);
+    }
+    expect(failed).toEqual([]);
+  }, SWEEP_TIMEOUT);
+
+test("hills and the second relief slider share one budget; the clamp keeps every lower pair", () => {
+  const island = KINDS.island;
+  const at = (field: string) => island.options.findIndex((o) => o.field === field);
+  const normal = island.options.map((o) => o.normal);
+  const both = normal.map((n, i) => (i === at("H") || i === at("G") ? 31 : n));
+  expect(island.clamp?.(both)[at("G")]).toBe(16);
+  const low = normal.map((n, i) => (i === at("G") ? 31 : n));
+  expect(island.clamp?.(low)).toEqual(low);
+  const desert = KINDS.desert;
+  const d = (field: string) => desert.options.findIndex((o) => o.field === field);
+  const dunes = desert.options.map((o, i) => (i === d("H") || i === d("D") ? 31 : o.normal));
+  expect(desert.clamp?.(dunes)[d("D")]).toBeLessThan(31);
+});
+
+test("a custom map builds the same world every time, and a plain map passes the checks it never runs", () => {
+  const map = { kind: WorldKind.ISLAND, seed: 3, levels: KINDS.island.options.map((o) => (o.field === "P" ? 31 : o.normal)) };
+  const a = build_world(map.seed, map.kind, map.levels);
+  const b = build_world(map.seed, map.kind, map.levels);
+  expect(a.retries).toBe(b.retries);
+  expect(a.data.road).toEqual(b.data.road);
+  const plain = generate_world(0, WorldKind.ISLAND);
+  expect(KINDS.island.drivable?.(plain, KINDS.island.options.map((o) => o.normal))).toBe(true);
+}, 60_000);

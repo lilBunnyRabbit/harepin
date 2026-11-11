@@ -31,7 +31,12 @@ export interface KindSpec {
   version: number;
   /** Side of the square world, metres; a whole number of chunk pairs. */
   size: number;
-  generate(seed: number, levels: readonly number[]): WorldData;
+  /** `relief` scales the relief layers down when a custom map's first build failed its drivability check. */
+  generate(seed: number, levels: readonly number[], relief?: number): WorldData;
+  /** Levels brought inside the coupled limits the generator holds; absent = every combination builds. */
+  clamp?(levels: readonly number[]): number[];
+  /** Whether a custom map's build is one to drive; absent = always. */
+  drivable?(data: WorldData, levels: readonly number[]): boolean;
   /** Map options, in map code order; each one's normal level builds the kind as it was before options. */
   options: readonly OptionDef[];
   /** A land kind's tuning, which meshing and the map read too; null for a deck-only kind. */
