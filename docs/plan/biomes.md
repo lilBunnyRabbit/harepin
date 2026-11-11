@@ -67,7 +67,7 @@ Grip numbers are *est.*: calibrate with `scripts/surfaces.ts` / `offroad.ts` bef
 |---|---|---|---|
 | Surfaces | `SNOW`, `PACKED_SNOW`, `ICE`, `SLUSH` ground rows + grip rows | Always on: ground = snow, roads = packed snow | Grass/dry/forest/upland rows → SNOW; sand rows → SLUSH (beach); roads → packed snow |
 | Grip | `WINTER_GRIP` per surface (snow 0.55, ice 0.35, packed 0.8) | Its grip | Replaces the biome's grip rows for the mapped surfaces |
-| Water | Lake op takes `frozen: true` → ICE surface, no water mesh, drivable | All lakes frozen | All lakes and rivers frozen; the sea stays water |
+| Water | Lake op takes `frozen: true` → ICE surface, no water mesh, drivable | All lakes frozen. Built apart: frozen lakes come from their own hollow-disc planner and `ice` ground op (`ice.ts`), because the water basin planner (`water.ts` priority flood) sees tundra, ringed by its mask hills, as one map-wide bowl (1 basin on seeds 0-9) | All lakes and rivers frozen; the sea stays water |
 | Road edges | Snowbank op: raise the strip past the shoulder 0.6-1 m as a terrain stamp (so collision is free), white paint | On | On |
 | Trees | Snowy tint per tree kind (vertex colour LUT row), broadleaf → bare-branch variant *later* | Pines only | Same tree positions, tinted |
 | Snow line | Recipe `snow_line` (today hard 165 m, `chunks.ts:79`) | 0 | 0 (all snow) |
