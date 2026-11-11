@@ -8,6 +8,7 @@ import { car_paints, color, decal_inks, rgba } from "../theme/palette";
 import { render_builds, save_build } from "./garage-builds";
 import { build_badge } from "./class-badge";
 import { BUILDS_TAB, GarageSection, TABS, type Item } from "./garage-items";
+import { strip_key } from "./garage-strip-key";
 import { StatMeters } from "./garage-meters";
 import { GarageStage } from "./garage-stage";
 import { decal_tile, glyph, hint, icon } from "./garage-widgets";
@@ -373,7 +374,7 @@ export class Garage {
     if (this.cursor !== fitted) head.push(hint("Fit", "accept"));
     this.strip_head.replaceChildren(...head);
 
-    const key = `${item.id}:${item.count}:${this.tab}`;
+    const key = strip_key(item, this.tab, this.current);
     if (key !== this.strip_key) {
       this.strip_key = key;
       this.strip.dataset.kind = item.kind;

@@ -96,7 +96,9 @@ export class StatMeters {
       this.rating_change.textContent = against ? signed(against) : "";
       this.rating_change.dataset.trend = trend(against);
     }
-    this.rating.replaceChildren(el("span", "garage-meter-label", "Class"), class_badge(fitted), this.rating_change);
+    const slot = el("span", "garage-rating-slot");
+    slot.append(this.rating_change, class_badge(fitted));
+    this.rating.replaceChildren(el("span", "garage-meter-label", "Class"), slot);
   }
 
   private count(meter: Meter, to: number) {

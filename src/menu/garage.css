@@ -179,11 +179,23 @@
 .garage-rating {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: var(--space-2);
 }
 
-.garage-rating .garage-meter-label {
-  flex: 1;
+/* The delta hangs off the badge's left edge, so a tried part never slides the badge and an empty one leaves no gap. */
+.garage-rating-slot {
+  position: relative;
+  display: flex;
+}
+
+.garage-rating-slot .garage-meter-change {
+  position: absolute;
+  inset-block: 0;
+  right: calc(100% + var(--space-2));
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
 }
 
 .garage-rating .class-badge {
