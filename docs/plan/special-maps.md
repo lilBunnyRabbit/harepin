@@ -245,3 +245,5 @@ Approvals needed: 3 new `WorldKind`s and their ids (map identity, net `w`); `Sur
 6. **Ice canyon:** build it after Volcano, or drop it?
 7. **Records:** lap and route times only, or also free-roam stunts (roofs jumped, longest air)?
 8. **Fall penalty:** keep "drive back from the checkpoint" (Sky rule), or add time?
+
+**Owner answers (2026-11-11):** Rooftops layout A downtown loop first · mood follows the theme · Volcano layout A one descent · Ice canyon yes, after Volcano. Open (lead defaults until asked): roof plazas on the lap, lava instant reset, lap/route records only, Sky fall rule.
