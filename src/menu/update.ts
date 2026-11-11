@@ -64,8 +64,7 @@ async function fetch_remote(): Promise<RemoteVersion | null> {
     const res = await fetch(`${import.meta.env.BASE_URL}version.json`, { cache: "no-store" });
     if (!res.ok) return null;
     return parse_version_file(await res.json());
-  } catch (error) {
-    console.warn("update: version.json unreachable, showing the update without notes", error);
+  } catch {
     return null;
   }
 }
@@ -141,7 +140,7 @@ export class Updater {
   // The worker only reports once the whole build is cached; the small version file says it is coming right away.
   private async peek(): Promise<void> {
     const remote = await fetch_remote();
-    if (remote && compare_versions(remote.version, BUILD.version) > 0) this.coming = true;
+    this.coming = !!this.registration && !!remote && compare_versions(remote.version, BUILD.version) > 0;
   }
 
   private readonly check = (): void => {
@@ -161,6 +160,7 @@ export class Updater {
 
   private async offer(): Promise<void> {
     const remote = await fetch_remote();
+    if (!remote) console.warn("update: version.json unreachable, showing the update without notes");
     this.waiting = true;
     this.show_pending(remote);
     // In the menu the chip already says it.

@@ -372,7 +372,7 @@ function aid_preset(m: SettingsMenu): HTMLElement {
   const touch = () => matchMedia("(pointer: coarse)").matches;
   return m.rows.segmented(
     "Preset",
-    "Sets the five aids below in one go. Easy looks after grip, brakes and slides. Balanced keeps traction and ABS, so a sharp turn at speed slides. Pro turns everything off. Change any toggle for your own mix.",
+    "Sets the five aids below in one go. Easy looks after grip, brakes and slides. Balanced keeps traction and ABS, so a sharp turn at speed slides. Pro turns everything off (on touch the gearbox stays automatic). Change any toggle for your own mix.",
     {
       get: () => preset_of(m.state(), touch()),
       set: (preset) => {

@@ -301,6 +301,7 @@ export class Settings {
     update_chip.addEventListener("click", () => this.open_changes());
     this.syncs.push(() => {
       const state = this.host.update_state();
+      if (update_chip.dataset.state === state) return;
       update_chip.hidden = state === UpdateState.NONE;
       update_chip.dataset.state = state;
       update_label.textContent = state === UpdateState.READY ? "Update ready" : "Downloading update";
