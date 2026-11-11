@@ -242,7 +242,7 @@
       </div>
       <div class="dock-break"></div>
       <div class="hud times" id="strip">
-        <div class="lap"><span class="dim">lap</span><b id="lap"></b></div>
+        <div class="lap"><svg class="event-icon" aria-hidden="true"><use href="#icon-modes" /></svg><span id="event-name" class="event-name"></span><span class="dim">lap</span><b id="lap"></b></div>
         <div><span class="dim">last</span><b id="last"></b></div>
         <div><span class="dim">best</span><b id="best"></b></div>
         <div id="gate"><span class="dim">gate</span><b id="cp"></b></div>
@@ -251,6 +251,7 @@
     </div>
 
     <div class="hud top-right">
+      <div id="map-note" hidden><span>Next gate</span><b id="map-dist"></b></div>
       <canvas id="minimap"></canvas>
       <ol id="players"></ol>
       <button type="button" id="online-chip" hidden>
@@ -280,7 +281,7 @@
         <button type="button" id="mode-exit">Free drive</button>
       </div>
     </div>
-    <div id="toast" class="hud" role="status"></div>
+    <div id="toast" class="hud" role="status"><svg class="toast-icon" aria-hidden="true"><use href="#logo-mark" /></svg><span id="toast-label"></span><span id="toast-text"></span></div>
     <div id="rewind">◂◂ REWIND</div>
 
     <div class="dock-left">
@@ -307,6 +308,12 @@
 
     <div class="hud bottom-right">
       <button type="button" id="recenter" class="icon-button" aria-label="Recenter camera" title="Recenter camera (F)"><svg aria-hidden="true"><use href="#icon-recenter" /></svg></button>
+      <svg class="dial" viewBox="0 0 200 200" aria-hidden="true">
+        <path class="dial-track" pathLength="100" d="M 47 153 A 75 75 0 1 1 153 153" />
+        <path class="dial-red" pathLength="100" d="M 47 153 A 75 75 0 1 1 153 153" />
+        <path id="dial-fill" class="dial-fill" pathLength="100" d="M 47 153 A 75 75 0 1 1 153 153" />
+        <g id="dial-ticks"></g>
+      </svg>
       <div class="speedo">
         <span id="speed">0</span><span class="unit">km/h</span>
         <span id="gear" data-mode="A">1</span>

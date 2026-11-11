@@ -3,7 +3,7 @@ import type { Lobby } from "../net/lobby";
 import type { Net } from "../net/net";
 import type { Race } from "../race";
 import { dark } from "../theme/palette";
-import { MapView } from "../menu/prefs";
+import { HudLayout, MapView } from "../menu/prefs";
 import { tach } from "../car/tach";
 import type { World } from "../world/world";
 import type { RouteRun } from "../modes/mode";
@@ -30,6 +30,12 @@ export const format = (ms: number | null) => {
   const s = (ms % 60000) / 1000;
   return `${m}:${s.toFixed(3).padStart(6, "0")}`;
 };
+
+function svg(id: string): SVGElement {
+  const el = document.getElementById(id);
+  if (!(el instanceof SVGElement)) throw new Error(`#${id} is missing or not an SVG element`);
+  return el;
+}
 
 function set_text(el: HTMLElement, text: string) {
   if (el.textContent !== text) el.textContent = text;
@@ -83,6 +89,11 @@ const CIRCUIT = "circuit";
 const CALM_MS = 3000;
 const CALM_KMH = 12;
 const STOP_KMH = 4;
+const SVG = "http://www.w3.org/2000/svg";
+/** The dial arc: centre, radius and its 270° sweep starting bottom left, in the dial's 200 px view box. */
+const DIAL_R = 75;
+const DIAL_START = (135 * Math.PI) / 180;
+const DIAL_SWEEP = (270 * Math.PI) / 180;
 
 export class Hud {
   private el = {
@@ -99,6 +110,13 @@ export class Hud {
     gate: $("gate"),
     cp: $("cp"),
     toast: $("toast"),
+    toast_text: $("toast-text"),
+    toast_label: $("toast-label"),
+    dial_fill: svg("dial-fill"),
+    dial_ticks: svg("dial-ticks"),
+    map_note: $("map-note"),
+    event_name: $("event-name"),
+    map_dist: $("map-dist"),
     players: $("players"),
     banner: $("banner"),
     delta: $("delta"),
@@ -120,6 +138,9 @@ export class Hud {
   private moving_since = 0;
   private readonly names = new Map<string, string>();
   private names_at = -Infinity;
+  private dial_at = -1;
+  private redline = 0;
+  private metres = -1;
 
   constructor(
     private world: World,
@@ -139,16 +160,22 @@ export class Hud {
     canvas.after(this.pace.el);
   }
 
+  set_layout(layout: HudLayout) {
+    document.documentElement.dataset.hud = layout;
+    this.map.set_disc(layout === HudLayout.CLASSIC);
+  }
+
   set_map(view: MapView) {
     document.documentElement.dataset.map = view;
     if (view === MapView.CLOSE && this.view !== view) this.map.reset();
     this.view = view;
   }
 
-  /** A short note in the middle of the screen that fades on its own, for a setting changed by key. */
-  toast(text: string) {
+  /** A short note that fades on its own, for a setting changed by key; `label` is an optional line above it. */
+  toast(text: string, label = "") {
     const { toast } = this.el;
-    toast.textContent = text;
+    this.el.toast_text.textContent = text;
+    this.el.toast_label.textContent = label;
     toast.dataset.shown = "";
     clearTimeout(this.toast_timer);
     this.toast_timer = window.setTimeout(() => delete toast.dataset.shown, TOAST_MS);
@@ -170,6 +197,12 @@ export class Hud {
     set_data(el.gear, "mode", car.auto ? "A" : "M");
     const rev = tach(car.rpm, car.spec);
     set_style(el.rpm, "width", percent(rev.fill));
+    const dial = Math.round(rev.fill * 200);
+    if (dial !== this.dial_at) {
+      this.dial_at = dial;
+      el.dial_fill.style.strokeDashoffset = String(100 - dial / 2);
+    }
+    if (car.spec.redline !== this.redline) this.dial_ticks(car.spec.redline);
     set_data(el.rpm, "hot", String(rev.hot));
     set_data(el.shift, "on", String(!car.auto && rev.shift));
     set_hidden(el.nitro, !car.nitro.fitted);
@@ -184,6 +217,7 @@ export class Hud {
     set_hidden(el.gate, this.run_route() !== null);
     set_text(el.cp, race.started ? `${race.next === 0 ? race.gates : race.next} / ${race.gates}` : "drive through the lit gate");
     el.strip.toggleAttribute("data-idle", !race.started);
+    set_text(el.event_name, race.started ? "Lap" : "Free roam");
 
     const rows: PlayerRow[] = [
       { name: `${this.net.name} (you)`, best: race.best, you: true },
@@ -207,6 +241,38 @@ export class Hud {
     set_style(el.rewind, "opacity", rewinding ? "1" : "0");
     this.draw_lobby(now);
     this.draw_map(car, now);
+  }
+
+  // Rebuilt only when the car changes: one number per 1000 rpm round the arc.
+  private dial_ticks(redline: number) {
+    this.redline = redline;
+    const group = this.el.dial_ticks;
+    const count = Math.floor(redline / 1000);
+    const nodes: SVGElement[] = [];
+    for (let i = 0; i <= count; i++) {
+      const a = DIAL_START + (DIAL_SWEEP * i * 1000) / redline;
+      const tick = document.createElementNS(SVG, "line");
+      tick.setAttribute("x1", String(100 + Math.cos(a) * (DIAL_R - 6)));
+      tick.setAttribute("y1", String(100 + Math.sin(a) * (DIAL_R - 6)));
+      tick.setAttribute("x2", String(100 + Math.cos(a) * (DIAL_R + 6)));
+      tick.setAttribute("y2", String(100 + Math.sin(a) * (DIAL_R + 6)));
+      const label = document.createElementNS(SVG, "text");
+      label.setAttribute("x", String(100 + Math.cos(a) * (DIAL_R - 17)));
+      label.setAttribute("y", String(100 + Math.sin(a) * (DIAL_R - 17)));
+      label.textContent = String(i);
+      nodes.push(tick, label);
+    }
+    group.replaceChildren(...nodes);
+  }
+
+  private draw_note(car: Car, gate: { x: number; z: number } | null) {
+    const { el } = this;
+    set_hidden(el.map_note, gate === null);
+    if (!gate) return;
+    const metres = Math.round(Math.hypot(gate.x - car.pos.x, gate.z - car.pos.z) / 10) * 10;
+    if (metres === this.metres) return;
+    this.metres = metres;
+    set_text(el.map_dist, metres >= 1000 ? `${(metres / 1000).toFixed(1)} km` : `${metres} m`);
   }
 
   private draw_lobby(now: number) {
@@ -237,6 +303,7 @@ export class Hud {
     const route = run ? run.id : this.lobby.route;
     // Lap gates are the circuit's; a run on any route brings its own.
     const gate = run ? run.gate : route === CIRCUIT ? this.world.checkpoints[this.race.next] : null;
+    this.draw_note(car, gate);
     if (this.view === MapView.FULL || this.view === MapView.CLOSE) this.map.show_route(route);
     if ((this.view === MapView.FULL || this.view === MapView.CLOSE) && now - this.names_at >= NAMES_MS) {
       this.names_at = now;

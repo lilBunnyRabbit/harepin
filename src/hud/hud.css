@@ -51,3 +51,77 @@
 :root[data-hud="compact"] .dock-left {
   bottom: var(--inset-bottom);
 }
+
+/* The default (Classic) layout floats every piece over the scene with no panel; legibility comes from a halo in the
+   theme surface colour. The other layouts keep their panels. */
+.dial,
+.event-icon,
+.event-name,
+#map-note,
+.toast-icon,
+#toast-label:empty,
+:root:not([data-hud="classic"]) #toast-label {
+  display: none;
+}
+
+:root[data-hud="classic"] {
+  --halo: 0 0 1px var(--surface), 0 0 3px var(--surface), 0 1px 10px var(--surface);
+  --halo-drop: drop-shadow(0 0 1px var(--surface)) drop-shadow(0 1px 6px var(--surface));
+  --disc: color-mix(in oklch, var(--background-darkest) 58%, transparent);
+  --dial: 220px;
+  --map-disc: 168px;
+  --key-row: 32px;
+}
+
+:root[data-scheme="light"][data-hud="classic"] {
+  --disc: color-mix(in oklch, var(--background-lighter) 62%, transparent);
+}
+
+:root[data-hud="classic"] :is(.top-left, .actions, #strip, .top-right, .bottom-right, #mode-status, #race-panel, #toast, #players, #online-chip) {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  backdrop-filter: none;
+  box-shadow: none;
+  text-shadow: var(--halo);
+}
+
+:root[data-hud="classic"] #mode-status,
+:root[data-hud="classic"] #race-panel {
+  top: calc(var(--inset-top) + 64px);
+  font-weight: 600;
+}
+
+@media (pointer: fine) {
+  :root[data-hud="classic"] .dock-left {
+    bottom: calc(var(--inset-bottom) + var(--key-row) + var(--map-disc) + 80px);
+  }
+}
+
+@media (pointer: coarse) {
+  :root[data-hud="classic"] {
+    --dial: 128px;
+  }
+}
+
+/* A mode run brings its own clock and gates, so its status line takes the event title's place. */
+:root[data-hud="classic"] body:has(#mode-status:not([hidden])) #strip {
+  display: none;
+}
+
+:root[data-hud="classic"] #mode-status {
+  top: var(--inset-top);
+  font-size: var(--text-xl);
+  font-weight: 800;
+}
+
+:root[data-hud="classic"] #race-panel:not([hidden]) ~ #mode-status {
+  top: calc(anchor(bottom) + var(--space-2));
+}
+
+@media (pointer: coarse) {
+  :root[data-hud="classic"] #mode-status {
+    top: calc(var(--inset-top) + var(--control-h) + var(--space-2));
+    font-size: var(--text-lg);
+  }
+}

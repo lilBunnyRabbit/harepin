@@ -17,6 +17,10 @@ const INK = {
   you: rgba(brand.cottontail),
   label: rgba(brand.foreground),
   halo: rgba(brand.background_darkest, 0.7),
+  route: rgba(brand.primary),
+  faint: rgba(brand.foreground, 0.28),
+  north: rgba(brand.foreground, 0.9),
+  gap: rgba(brand.background_darkest),
 };
 /** Close-up: about 200 m of road ahead of the car. */
 const CLOSE_CAR_Y = 0.7;
@@ -117,8 +121,11 @@ export class Minimap {
   private turn = Number.NaN;
   private last = 0;
   private readonly font: string;
+  private readonly bold: string;
 
   private readonly network: Line[];
+  /** The floating HUD's disc look: the route bright over faint roads, and an N on the rim. */
+  private disc = false;
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -132,6 +139,7 @@ export class Minimap {
     if (!ctx) throw new Error("minimap has no 2d context");
     this.ctx = ctx;
     this.font = `600 9px ${getComputedStyle(canvas).fontFamily}`;
+    this.bold = `800 13px ${getComputedStyle(canvas).fontFamily}`;
   }
 
   /** The route both views draw: a lobby race's, else the circuit. Rebuilt only when it changes. */
@@ -163,7 +171,7 @@ export class Minimap {
     if (!road) throw new Error("minimap road layer has no 2d context");
     road.scale(ratio, ratio);
     road.lineJoin = "round";
-    road.strokeStyle = INK.road;
+    road.strokeStyle = this.disc ? INK.faint : INK.road;
     const view = this.drawn;
     if (this.network.length) {
       road.lineWidth = 1.5;
@@ -175,15 +183,53 @@ export class Minimap {
         road.fill();
       }
     }
-    road.lineWidth = 3;
+    road.lineWidth = this.disc ? 3.5 : 3;
+    if (this.disc) {
+      road.lineCap = "round";
+      road.strokeStyle = INK.route;
+    }
     road.stroke(this.drawn.road);
   }
 
+  // `turn`: how far north sits clockwise from the top of the map.
+  private north(turn: number) {
+    if (!this.disc) return;
+    const { ctx } = this;
+    const r = MAP / 2 - 13;
+    const x = MAP / 2 + Math.sin(turn) * r;
+    const y = MAP / 2 - Math.cos(turn) * r;
+    ctx.font = this.bold;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.lineJoin = "round";
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = INK.halo;
+    ctx.fillStyle = INK.north;
+    ctx.strokeText("N", x, y);
+    ctx.fillText("N", x, y);
+  }
+
+  set_disc(on: boolean) {
+    if (on === this.disc) return;
+    this.disc = on;
+    this.ratio = 0;
+  }
+
+  // On the disc every mark sits on the bright route; a ring of the page shade keeps two brand colours from touching.
   private dot(x: number, y: number, radius: number) {
     const { ctx } = this;
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, Math.PI * 2);
+    if (this.disc) this.gap();
     ctx.fill();
+  }
+
+  private gap() {
+    const { ctx } = this;
+    ctx.lineWidth = 3;
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = INK.gap;
+    ctx.stroke();
   }
 
   // Every car dot carries its name, so it never reads as a map mark.
@@ -211,6 +257,8 @@ export class Minimap {
     ctx.moveTo(x + Math.sin(h) * 7, y + Math.cos(h) * 7);
     ctx.lineTo(x + Math.sin(h + 2.5) * 5, y + Math.cos(h + 2.5) * 5);
     ctx.lineTo(x + Math.sin(h - 2.5) * 5, y + Math.cos(h - 2.5) * 5);
+    ctx.closePath();
+    if (this.disc) this.gap();
     ctx.fill();
   }
 
@@ -228,6 +276,7 @@ export class Minimap {
     }
     for (const remote of remotes) this.car(full_x(view, remote.latest.p[0]), full_y(view, remote.latest.p[2]), names.get(remote.id) ?? remote.latest.name);
     this.arrow(full_x(view, car.pos.x), full_y(view, car.pos.z), car.heading);
+    this.north(0);
   }
 
   close(car: Car, gate: Dot | null, remotes: Iterable<Remote>, names: ReadonlyMap<string, string>, now: number) {
@@ -254,9 +303,21 @@ export class Minimap {
     ctx.lineWidth = ROAD_HALF * 2;
     ctx.lineJoin = "round";
     ctx.lineCap = "round";
-    ctx.strokeStyle = INK.road;
-    this.trace(x, z);
-    ctx.stroke();
+    if (this.disc) {
+      ctx.strokeStyle = INK.faint;
+      ctx.beginPath();
+      for (const road of this.network) this.trace_line(road, x, z);
+      ctx.stroke();
+      ctx.strokeStyle = INK.route;
+      ctx.lineWidth = ROAD_HALF * 1.2;
+      ctx.beginPath();
+      if (this.drawn) this.trace_line(this.drawn, x, z);
+      ctx.stroke();
+    } else {
+      ctx.strokeStyle = INK.road;
+      this.trace(x, z);
+      ctx.stroke();
+    }
     ctx.setTransform(r, 0, 0, r, 0, 0);
     ctx.fillStyle = INK.remote;
     // Out of reach, a car rides the rim like the gate, so you still see which way they are.
@@ -276,6 +337,7 @@ export class Minimap {
       this.dot(MAP / 2 + gx * edge, MAP / 2 + gy * edge, 4.5);
     }
     this.arrow(cx, cy, Math.PI);
+    this.north(this.turn - Math.PI);
   }
 
   // One path for every piece in reach: stroked piece by piece, the half-transparent ink doubled up where they meet.

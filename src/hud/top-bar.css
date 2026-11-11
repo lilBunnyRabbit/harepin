@@ -349,3 +349,111 @@
     min-height: var(--bar-h);
   }
 }
+
+:root[data-hud="classic"] .actions button {
+  border-color: transparent;
+  background: none;
+  filter: var(--halo-drop);
+}
+
+:root[data-hud="classic"] .actions button:hover {
+  background: color-mix(in oklch, var(--foreground) 12%, transparent);
+}
+
+/* Event title: icon, name and timer, with the rest of the lap a small line under it. */
+:root[data-hud="classic"] #strip {
+  left: 50%;
+  translate: -50% 0;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-4);
+  max-width: 46vw;
+  min-height: 0;
+  padding: 0;
+}
+
+:root[data-hud="classic"] #strip .lap {
+  flex-basis: 100%;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+:root[data-hud="classic"] .event-icon {
+  display: block;
+  width: 22px;
+  height: 22px;
+  color: var(--primary);
+  filter: var(--halo-drop);
+}
+
+:root[data-hud="classic"] #strip .lap .dim {
+  display: none;
+}
+
+:root[data-hud="classic"] .event-name {
+  display: inline;
+  font-size: var(--text-xl);
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--foreground);
+}
+
+:root[data-hud="classic"] #strip .lap b {
+  font-size: var(--text-2xl);
+}
+
+:root[data-hud="classic"] #strip > div:not(.lap) {
+  flex-direction: row;
+  gap: var(--space-1);
+  align-items: baseline;
+}
+
+:root[data-hud="classic"] #strip > div:not(.lap) b {
+  font-size: var(--text-md);
+}
+
+:root[data-hud="classic"] #strip[data-idle] .lap b {
+  display: none;
+}
+
+:root[data-hud="classic"] #restart-lap {
+  height: 24px;
+  width: 24px;
+  border: 0;
+  background: none;
+  filter: var(--halo-drop);
+}
+
+@media (pointer: fine) {
+  :root[data-hud="classic"] .dock-top .top-left {
+    display: none;
+  }
+
+  :root[data-hud="classic"] .actions {
+    position: fixed;
+    left: var(--inset-left);
+    bottom: var(--inset-bottom);
+    min-height: var(--key-row);
+    padding: 0;
+    gap: var(--space-1);
+  }
+}
+
+@media (pointer: coarse) {
+  :root[data-hud="classic"] #strip {
+    position: fixed;
+    top: var(--inset-top);
+    max-width: 36vw;
+  }
+}
+
+@media (pointer: fine) and (max-width: 600px) {
+  :root[data-hud="classic"] #strip {
+    position: fixed;
+    top: var(--inset-top);
+    max-width: calc(100vw - 2 * var(--inset));
+  }
+}
