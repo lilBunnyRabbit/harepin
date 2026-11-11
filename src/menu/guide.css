@@ -692,7 +692,7 @@
 }
 
 .guide-pics {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template: minmax(0, 1fr) auto / repeat(4, minmax(0, 1fr));
 }
 
 .guide-worlds {
@@ -701,7 +701,7 @@
 
 @media (max-width: 600px) {
   .guide-pics {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template: repeat(2, minmax(0, 1fr) auto) / repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -716,6 +716,13 @@
   border: 1px solid var(--set-line);
   background: var(--set-well);
   text-align: left;
+}
+
+.guide-pic {
+  display: grid;
+  grid-row: span 2;
+  grid-template-rows: subgrid;
+  row-gap: 0;
 }
 
 .guide-pic-art {
@@ -971,6 +978,10 @@
 
   .guide-where {
     display: none;
+  }
+
+  .guide-pic {
+    display: flex;
   }
 
   .guide-aid > span:last-child {
