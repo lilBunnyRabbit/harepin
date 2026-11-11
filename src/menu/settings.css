@@ -1006,7 +1006,39 @@
   font-weight: 500;
 }
 
-.row .settings-choice {
+.row:has(.row-words) {
+  padding-block: var(--space-3);
+}
+
+.row-words {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.row-effect {
+  display: grid;
+  gap: var(--space-1);
+  max-width: 56ch;
+  color: var(--set-dim);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  text-wrap: pretty;
+}
+
+.row-effect > span {
+  display: grid;
+  grid-template-columns: 3ch minmax(0, 1fr);
+  gap: var(--space-2);
+}
+
+.row-effect b {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.row :is(.settings-choice, .settings-switch) {
   flex: none;
 }
 

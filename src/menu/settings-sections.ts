@@ -3,7 +3,7 @@ import { keys_text, pad_text, type Bindable, type Bindings } from "../hud/bindin
 import { RumbleLevel } from "../hud/rumble";
 import { binding_rows } from "./binding-rows";
 import { pad_advanced } from "./settings-pad";
-import { el, icon, type Options, type Text } from "./setting-rows";
+import { el, icon, with_effect, type Options, type Text } from "./setting-rows";
 import { THEMES, choose_theme, current_theme, find_saved, find_theme, load_saved_themes } from "../theme/theme";
 import type { SettingsMenu } from "./page";
 import { CameraReturn, CameraView, DashPlace, MapCorner, SpeedoStyle, SpeedZoom, HudLayout, MapView, QualityMode, SteerSensitivity, TouchSteer, type QualityTier } from "./prefs";
@@ -413,12 +413,36 @@ function aid_preset(m: SettingsMenu): HTMLElement {
 function driving(m: SettingsMenu): HTMLElement[] {
   return [
     aid_preset(m),
-    m.rows.toggle("Traction control", while_driving(m, "tcs", "Cuts power when the rear wheels spin."), m.value("tcs")),
-    m.rows.toggle("Anti-lock brakes", while_driving(m, "abs", "Keeps steering under hard braking."), m.value("abs")),
-    m.rows.toggle("Steering assist", while_driving(m, "assist", "Counter-steers a slide for you. Off, catching a slide is up to you."), m.value("assist")),
-    m.rows.toggle("Stability", while_driving(m, "stability", "Damps a slide before it swings into a spin. Off, a slide can carry the car round."), m.value("stability")),
-    m.rows.toggle("Automatic gearbox", while_driving(m, "auto", "Shifts for you."), m.value("auto")),
-    m.rows.toggle("Ghost car", while_driving(m, "ghost", "Your best lap drives beside you."), m.value("ghost")),
+    with_effect(
+      m.rows.toggle("Traction control", while_driving(m, "tcs", "Cuts power when the rear wheels spin."), m.value("tcs")),
+      "Cuts power when the wheels spin, for clean launches.",
+      "More wheelspin, easier power slides.",
+    ),
+    with_effect(
+      m.rows.toggle("Anti-lock brakes", while_driving(m, "abs", "Keeps steering under hard braking."), m.value("abs")),
+      "Wheels never lock, so you can steer while braking.",
+      "Hard braking locks the wheels; the car slides on.",
+    ),
+    with_effect(
+      m.rows.toggle("Steering assist", while_driving(m, "assist", "Counter-steers a slide for you. Off, catching a slide is up to you."), m.value("assist")),
+      "Counter-steers a slide for you.",
+      "Catching a slide is up to you.",
+    ),
+    with_effect(
+      m.rows.toggle("Stability", while_driving(m, "stability", "Damps a slide before it swings into a spin. Off, a slide can carry the car round."), m.value("stability")),
+      "Damps a slide before it turns into a spin.",
+      "A slide can carry the car all the way round.",
+    ),
+    with_effect(
+      m.rows.toggle("Automatic gearbox", while_driving(m, "auto", "Shifts for you."), m.value("auto")),
+      "Shifts up and down for you.",
+      "You shift yourself and pick the gear.",
+    ),
+    with_effect(
+      m.rows.toggle("Ghost car", while_driving(m, "ghost", "Your best lap drives beside you."), m.value("ghost")),
+      "Your best lap drives beside you to race against.",
+      "Just you on the road.",
+    ),
   ];
 }
 
