@@ -23,6 +23,17 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.28.1",
+    date: "2026-11-11",
+    title: "Update chip",
+    changes: [
+      { kind: NEW, text: "An update chip shows on the drive screen too: tap Update ready to restart into the new version." },
+      { kind: IMPROVED, text: "The guide's tour cards have their own illustrations." },
+      { kind: IMPROVED, text: "Each driving assist says what turning it on or off does, right under its name." },
+      { kind: FIXED, text: "The loading screen no longer shifts, and settings fit narrow phones: choice rows wrap, and each section keeps its title." },
+    ],
+  },
+  {
     version: "0.28.0",
     date: "2026-11-11",
     title: "Create world",
