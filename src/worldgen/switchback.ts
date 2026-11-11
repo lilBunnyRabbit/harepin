@@ -1,5 +1,5 @@
 import { at, sample, WHOLE, type Grid } from "./field";
-import { length, smoothstep } from "./noise";
+import { length } from "./noise";
 import type { Path } from "./path";
 import { CELL, N, ORIGIN, ROAD_HALF, type Item, type RoadPoint } from "./types";
 
@@ -36,13 +36,17 @@ const RAIL_ROAD = ROAD_HALF + RAIL_HALF + 1.5;
 const RAIL_STEP = 3.2;
 /**
  * The ground under the stack stays within FACE_CUT of the nearest leg's height across the asphalt and climbs or falls
- * away from it no steeper than FACE_BANK, out to FACE_HOLD; past that it eases back to the hillside by FACE_FADE. The
- * legs climb at road grades up a face that rises far faster, so without it they run in cuts tens of metres deep.
+ * away from it no steeper than FACE_BANK until the bank meets the hillside. The legs climb at road grades up a face that
+ * rises far faster, so without it they run in cuts tens of metres deep.
  */
 const FACE_CUT = 1;
 const FACE_BANK = 1;
-const FACE_HOLD = 30;
-const FACE_FADE = 120;
+/**
+ * A bank that has not met the hillside by FACE_REACH would end in a wall there, so the ground moves at most FACE_TAPER
+ * per metre still to go: a slope no steeper than the hillside's plus FACE_TAPER. Banks on seeds swept so far meet it by 220 m.
+ */
+const FACE_REACH = 280;
+const FACE_TAPER = 0.5;
 /** Vertices this near a road point take its exact cone; the rest get it through the chamfer passes. */
 const FACE_SEED = ROAD_HALF + 2 * CELL;
 const DIAGONAL = CELL * Math.SQRT2;
@@ -248,11 +252,11 @@ export function shape_face(heights: Float32Array, points: readonly RoadPoint[], 
     z0 = Math.min(z0, p.z);
     z1 = Math.max(z1, p.z);
   }
-  const i0 = Math.max(0, Math.floor((x0 - FACE_FADE - ORIGIN) / CELL));
-  const i1 = Math.min(N, Math.ceil((x1 + FACE_FADE - ORIGIN) / CELL));
-  const j0 = Math.max(0, Math.floor((z0 - FACE_FADE - ORIGIN) / CELL));
-  const j1 = Math.min(N, Math.ceil((z1 + FACE_FADE - ORIGIN) / CELL));
-  if (i0 > i1 || j0 > j1) return;
+  const i0 = Math.max(0, Math.floor((x0 - FACE_REACH - ORIGIN) / CELL));
+  const i1 = Math.min(N, Math.ceil((x1 + FACE_REACH - ORIGIN) / CELL));
+  const j0 = Math.max(0, Math.floor((z0 - FACE_REACH - ORIGIN) / CELL));
+  const j1 = Math.min(N, Math.ceil((z1 + FACE_REACH - ORIGIN) / CELL));
+  if (i0 > i1 || j0 > j1 || i0 > grid.i1 || i1 < grid.i0 || j0 > grid.j1 || j1 < grid.j0) return;
   const w = i1 - i0 + 1;
   const size = w * (j1 - j0 + 1);
   const hi = new Float32Array(size).fill(Infinity);
@@ -303,10 +307,10 @@ export function shape_face(heights: Float32Array, points: readonly RoadPoint[], 
   for (let j = Math.max(j0, grid.j0); j <= Math.min(j1, grid.j1); j++)
     for (let i = Math.max(i0, grid.i0); i <= Math.min(i1, grid.i1); i++) {
       const l = (j - j0) * w + i - i0;
-      const weight = 1 - smoothstep(FACE_HOLD, FACE_FADE, dist[l]);
-      if (weight <= 0) continue;
+      const most = (FACE_REACH - dist[l]) * FACE_TAPER;
+      if (most <= 0) continue;
       const k = at(grid, i, j);
       const h = heights[k];
-      heights[k] = h + (Math.min(hi[l], Math.max(lo[l], h)) - h) * weight;
+      heights[k] = h + Math.min(most, Math.max(-most, Math.min(hi[l], Math.max(lo[l], h)) - h));
     }
 }
