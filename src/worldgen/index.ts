@@ -6,6 +6,7 @@ import { length } from "./noise";
 import { Lots } from "./lots";
 import { plan_canyon } from "./canyon";
 import { on_ice, plan_ice } from "./ice";
+import { in_lava } from "./lava";
 import { split_circuit, type Join } from "./graph";
 import { link_towns, way_toward, ways } from "./links";
 import { loop_heights, loop_path, road_points } from "./path";
@@ -16,7 +17,7 @@ import { scatter } from "./scatter";
 import { Stamp } from "./stamp";
 import { road_junctions } from "./road-layers";
 import { guard_rails, inside } from "./switchback";
-import { pan_floor, terrain, with_passes } from "./terrain";
+import { lava_pools, pan_floor, terrain, with_passes } from "./terrain";
 import { plan_trails } from "./trails";
 import { place_towns, town_streets } from "./towns";
 import { ISLAND, type Landmark, type Recipe } from "./recipe";
@@ -60,6 +61,7 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   const shape = with_passes(seed, recipe.terrain, planned.path);
   if (shape !== recipe.terrain) land = terrain(seed, shape);
   const { heights, road_dist } = land;
+  const lava = lava_pools(seed, shape);
   lap("terrain");
 
   const { stack } = planned;
@@ -198,7 +200,7 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   const trails = plan_trails(seed, land, stamp, canyon, towns, solids, recipe.road.canyon?.crossings);
   lap("trails");
 
-  const planner = new JumpPlanner(seed, land, towns, lots.occupied, solids, recipe.road.kickers, lakes);
+  const planner = new JumpPlanner(seed, land, towns, lots.occupied, solids, recipe.road.kickers, lakes, lava);
   if (trails.gap) planner.gap(trails.gap);
   planner.keep_off([...trails.trails.flatMap((t) => t.points), ...trails.ramp_out]);
   // Points of the switchback count as gates, so no kicker or chicane lands inside it.
@@ -228,7 +230,7 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   const routes = reverse ? [loop, ...streets.routes, ...offroad, reverse] : [loop, ...streets.routes, ...offroad];
   lap("routes");
 
-  const free = (x: number, z: number) => !lots.occupied[vertex(Math.round((x - ORIGIN) / CELL), Math.round((z - ORIGIN) / CELL))] && !towns.some((t) => length(t.x - x, t.z - z) < t.radius) && !jumps.blocks(x, z, 2) && !marks.blocks(x, z, 2) && !on_ice(lakes, x, z);
+  const free = (x: number, z: number) => !lots.occupied[vertex(Math.round((x - ORIGIN) / CELL), Math.round((z - ORIGIN) / CELL))] && !towns.some((t) => length(t.x - x, t.z - z) < t.radius) && !jumps.blocks(x, z, 2) && !marks.blocks(x, z, 2) && !on_ice(lakes, x, z) && !(lava.length && in_lava(lava, x, z, sample(heights, x, z)));
   const planted = plant(cuts, land, free);
   const trees: Tree[] = [...lots.out.trees, ...planted.trees];
   solids.push(...planted.solids);
@@ -242,6 +244,7 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
     // Whatever stands on a snowbank rides up on it; buildings keep their plateau, which the banks leave alone.
     for (const thing of [...jumps.items, ...trees, ...props, ...solids]) thing.y += sample(heights, thing.x, thing.z) - sample(bare, thing.x, thing.z);
   }
+  if (lava.length) stamp.lava(lava);
   lap("props");
 
   return { kind, deck: null, terrain: land, ground: { base: { kind: "terrain", seed, shape }, ops: stamp.ops }, graph, towns, lots: lot_list, buildings, props, parking, trees, solids, ramps: jumps.ramps, items: jumps.items, challenges: jumps.challenges, checkpoints, circuit, road, routes, canyon, timings };

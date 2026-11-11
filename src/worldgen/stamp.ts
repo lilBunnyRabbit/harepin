@@ -7,6 +7,7 @@ import { pad, type Crossing } from "./trails";
 import { town_level } from "./towns";
 import { shape_face } from "./switchback";
 import { freeze_vertex, type FrozenLake } from "./ice";
+import { lava_vertex, type LavaPool } from "./lava";
 import { snow_vertex, type Parting, type SnowKit } from "./snow";
 import { soak, water_index, type Water } from "./water";
 import { CELL, ORIGIN, ROAD_HALF, SHOULDER, SurfaceId, type Canyon, type RoadEdge, type RoadPoint, type Terrain, type Town } from "./types";
@@ -58,7 +59,8 @@ export type GroundOp =
   | { kind: "harden"; cuts: BiomeCuts; floor: number | null }
   | { kind: "water"; water: Water }
   | { kind: "snow"; kit: SnowKit; beach: number; parts: readonly Parting[] }
-  | { kind: "ice"; lakes: readonly FrozenLake[]; seed: number };
+  | { kind: "ice"; lakes: readonly FrozenLake[]; seed: number }
+  | { kind: "lava"; pools: readonly LavaPool[] };
 
 export type GroundBase = { kind: "terrain"; seed: number; shape: TerrainRecipe } | { kind: "flat"; height: number; road_dist: number };
 
@@ -102,6 +104,7 @@ export class Stamp {
     else if (op.kind === "water") this.water(op.water);
     else if (op.kind === "snow") this.snow(op.kit, op.beach, op.parts);
     else if (op.kind === "ice") this.ice(op.lakes, op.seed);
+    else if (op.kind === "lava") this.lava(op.pools);
     else this.harden(op.cuts, op.floor);
   }
 
@@ -143,6 +146,13 @@ export class Stamp {
     const { heights, surface } = this.terrain;
     const { grid } = this;
     for (let j = grid.j0; j <= grid.j1; j++) for (let i = grid.i0; i <= grid.i1; i++) freeze_vertex(lakes, seed, heights, surface, at(grid, i, j), ORIGIN + i * CELL, ORIGIN + j * CELL);
+  }
+
+  lava(pools: readonly LavaPool[]) {
+    this.log({ kind: "lava", pools });
+    const { heights, surface } = this.terrain;
+    const { grid } = this;
+    for (let j = grid.j0; j <= grid.j1; j++) for (let i = grid.i0; i <= grid.i1; i++) lava_vertex(pools, heights, surface, at(grid, i, j), ORIGIN + i * CELL, ORIGIN + j * CELL);
   }
 
   snow(kit: SnowKit, beach: number, parts: readonly Parting[]) {

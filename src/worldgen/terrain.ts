@@ -2,6 +2,7 @@ import { mulberry32, sub } from "../rng";
 import { at, cells, WHOLE, type Grid } from "./field";
 import { circle16, circle24, fbm, smoothstep } from "./noise";
 import { ISLAND, type CraterLayer, type DunesLayer, type PanLayer, type Power, type RangeLayer, type TerraceLayer, type TerrainLayer, type TerrainRecipe } from "./recipe";
+import type { LavaPool } from "./lava";
 import { CELL, N, ORIGIN, SIZE, type Terrain } from "./types";
 
 /** Share of the mask radius where the land starts fading to the edge height. */
@@ -206,6 +207,11 @@ export function pan_floor(seed: number, shape: TerrainRecipe): number | null {
   if (at < 0) return null;
   const { layer, level } = layers[at];
   return layer.kind === "pan" ? level + layer.blend * PAN_TOP : null;
+}
+
+/** A pool per crater that holds lava, over the crater's floor. */
+export function lava_pools(seed: number, shape: TerrainRecipe): LavaPool[] {
+  return seeded(seed, shape).flatMap(({ layer, level }) => (layer.kind === "crater" && layer.lava > 0 ? [{ x: 0, z: 0, radius: layer.radius, level: level + layer.lava }] : []));
 }
 
 /** The recipe's point layers folded in order over a height starting at 0. */

@@ -12,6 +12,7 @@ import { slice_tiles, TileStore, type Tile } from "../worldgen/tiles";
 import { kerb_marks, on_kerb_segment, type KerbMarks } from "./kerbs";
 import { CELL, ROAD_HALF, RouteKind, SurfaceId, type WorldKind } from "../worldgen/types";
 import { water_index, type WaterIndex } from "../worldgen/water";
+import type { LavaPool } from "../worldgen/lava";
 import type {
   Building,
   Challenge,
@@ -38,6 +39,8 @@ export type { Building, Checkpoint, Lot, ParkingLot, Prop, RoadPoint, Route, Sol
 /** Road distance under which the wheels are on asphalt: grip, `on_road` and the puffs all read this one edge. */
 const ON_ROAD = ROAD_HALF + 0.5;
 const SHOULDER_EDGE = ROAD_HALF + 3;
+/** A car centre this close over lava has a wheel in it: higher, it is jumping over and keeps going. */
+const LAVA_REACH = 2.5;
 const SOLID_CELL = 16;
 const ROAD_CELL = 32;
 const RESTITUTION = 1.25;
@@ -159,6 +162,8 @@ export class World implements Ground {
   readonly own_ground: Footing;
   private readonly fall_reset: boolean;
   private readonly water: WaterIndex | null;
+  /** Crater lava the scene draws; empty on kinds without it. */
+  readonly lava: readonly LavaPool[];
   /** The sea's level on a kind with ground; none on a deck-only kind. */
   private readonly sea: number;
   /** `footing` in water: rewritten per query, never kept. */
@@ -231,6 +236,8 @@ export class World implements Ground {
     this.fall_reset = KINDS[data.kind].fall_reset;
     const water = data.ground.ops.find((op) => op.kind === "water");
     this.water = water?.kind === "water" ? water_index(water.water) : null;
+    const lava = data.ground.ops.find((op) => op.kind === "lava");
+    this.lava = lava?.kind === "lava" ? lava.pools : [];
     this.sea = KINDS[data.kind].ground ? 0 : -Infinity;
     this.deck = data.deck && new DeckIndex(data.deck);
     this.tiles = new TileStore(extent(KINDS[data.kind].size), tiles);
@@ -334,8 +341,9 @@ export class World implements Ground {
     return top;
   }
 
-  /** Further under every deck near the car than FALL_DEPTH, on a kind whose decks reset a fall. */
+  /** Further under every deck near the car than FALL_DEPTH, on a kind whose decks reset a fall, or down in lava on any kind. */
   fallen(pos: Vector3): boolean {
+    if (this.surface(pos.x, pos.z) === SurfaceId.LAVA && pos.y < this.tiles.height(pos.x, pos.z) + LAVA_REACH) return true;
     return this.fall_reset && this.deck !== null && pos.y < this.deck.floor(pos.x, pos.z) - FALL_DEPTH;
   }
 

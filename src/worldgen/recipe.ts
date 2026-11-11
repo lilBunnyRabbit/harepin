@@ -44,7 +44,8 @@ export interface PeakLayer {
 /**
  * A crater in the middle of the map, rim `radius` metres out. Inside `floor` of the radius the ground lies flat, `depth`
  * metres under the mean height of the layers before it round the rim; the wall climbs back to the land at the rim, which
- * stands `lip` metres proud, easing to nothing `lip_width` metres either side of it.
+ * stands `lip` metres proud, easing to nothing `lip_width` metres either side of it. Lava fills the floor `lava` metres
+ * deep; 0 leaves it dry.
  */
 export interface CraterLayer {
   kind: "crater";
@@ -53,6 +54,7 @@ export interface CraterLayer {
   depth: number;
   lip: number;
   lip_width: number;
+  lava: number;
 }
 
 /** Cuts land above `base` into terraces `step` high, with risers `riser` of a step wide. */
@@ -451,7 +453,7 @@ export const VOLCANO: Recipe = {
     hills(30),
     ridges(10),
     { kind: "peak", height: 260, radius: 900, reach: 0 },
-    { kind: "crater", radius: 200, floor: 0.5, depth: 70, lip: 8, lip_width: 30 },
+    { kind: "crater", radius: 200, floor: 0.5, depth: 70, lip: 8, lip_width: 30, lava: 1 },
     shore(960, -9),
   ],
   biomes: {

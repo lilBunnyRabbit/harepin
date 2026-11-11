@@ -1,4 +1,5 @@
 import { on_ice, type FrozenLake } from "./ice";
+import { in_lava, type LavaPool } from "./lava";
 import { mulberry32, sub } from "../rng";
 import { sample, up, vertex } from "./field";
 import type { GapJump } from "./gap";
@@ -343,6 +344,7 @@ export class JumpPlanner {
     existing: Solid[],
     private readonly caps: RoadRecipe["kickers"] = ISLAND.road.kickers,
     private readonly lakes: readonly FrozenLake[] = [],
+    private readonly lava: readonly LavaPool[] = [],
   ) {
     this.next = mulberry32(sub(seed, "jumps"));
     for (const s of existing) this.taken.add({ x: s.x, z: s.z, r: s.kind === "circle" ? s.radius : length(s.hw, s.hd) });
@@ -374,7 +376,7 @@ export class JumpPlanner {
     if (Math.abs(x) > SIZE / 2 - 40 || Math.abs(z) > SIZE / 2 - 40) return false;
     if (this.height(x, z) < 3.5) return false;
     const k = vertex(Math.round((x - ORIGIN) / CELL), Math.round((z - ORIGIN) / CELL));
-    if (this.occupied[k] || on_ice(this.lakes, x, z)) return false;
+    if (this.occupied[k] || on_ice(this.lakes, x, z) || (this.lava.length > 0 && in_lava(this.lava, x, z, this.height(x, z)))) return false;
     return town_ok || !this.in_town(x, z, TOWN_CLEAR);
   }
 

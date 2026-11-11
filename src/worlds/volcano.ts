@@ -1,5 +1,6 @@
 import { roadside } from "../car/trackside";
-import { tones } from "../theme/palette";
+import { lava_lakes } from "../render/lava";
+import { mix, tones } from "../theme/palette";
 import { WorldKind } from "../worldgen/types";
 import { lap_facts, type WorldDef } from "./world-def";
 
@@ -9,16 +10,16 @@ export const volcano: WorldDef = {
   listed: false,
   mini: true,
   name: "Volcano",
-  pick: "Lap the crater rim of a volcano island",
-  note: "Crater rim and loose scree",
-  hero: "Free roam. Scree off the road is loose. Flags on the orange circuit start the challenges.",
+  pick: "Lap the rim of a volcano over its lava crater",
+  note: "Crater rim, lava and loose scree",
+  hero: "Free roam. Lava resets you, scree off the road is loose. Flags on the orange circuit start the challenges.",
   drawing: "Drawing the volcano…",
   map_label: "volcano",
   pads: false,
-  // Dark rock bounces a cool grey up under the car; ash haze pulls the fog in.
-  mood: { hemi_ground: tones.rock, fog_near: 60, fog_far: 1300 },
+  // The crater's lava throws a warm bounce up under the car; ash haze pulls the fog in.
+  mood: { hemi_ground: mix(tones.lava, tones.rock, 0.35), fog_near: 60, fog_far: 1300 },
   ground_puff: "grass",
   backdrop: "sky",
   facts: (f) => lap_facts(f, "rim lap"),
-  dress: (world) => [roadside(world)],
+  dress: (world) => [roadside(world), ...lava_lakes(world)],
 };

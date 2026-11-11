@@ -28,6 +28,7 @@ export const SNOW_KIT: SnowKit = {
     [SurfaceId.SNOW]: SurfaceId.SNOW,
     [SurfaceId.PACKED_SNOW]: SurfaceId.PACKED_SNOW,
     [SurfaceId.ICE]: SurfaceId.ICE,
+    [SurfaceId.LAVA]: SurfaceId.LAVA,
     [SurfaceId.SLUSH]: SurfaceId.SLUSH,
   },
   shore: SurfaceId.SLUSH,
