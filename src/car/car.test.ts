@@ -530,6 +530,37 @@ describe("rally off-road", () => {
   });
 });
 
+describe("crest landings", () => {
+  const up = new Vector3();
+  /** Most tilt (deg) from 4 s after leaving a crest at 72 km/h, 5 m/s up, with `spin` rad/s of pitch and roll, and whether it ends on its wheels. */
+  const launch = (spec: CarSpec, spin: [number, number, number]) => {
+    const car = new Car(spec);
+    car.place(0, 2, 0, 0);
+    car.vel.set(0, 5, 20);
+    car.ang.set(...spin);
+    let lowest = 1;
+    for (let t = 0; t < 4; t += DT) {
+      car.step(DT, idle, GROUNDS.grass);
+      lowest = Math.min(lowest, up.set(0, 1, 0).applyQuaternion(car.quat).y);
+    }
+    return { tilt: (Math.acos(Math.min(1, lowest)) * 180) / Math.PI, wheels: car.wheels.every((w) => w.contact) };
+  };
+
+  test("every car launched pitching or rolling lands on its wheels, never past 40 degrees", () => {
+    const failed: string[] = [];
+    for (const spec of Object.values(CARS))
+      for (const spin of [[1, 0, 0], [0, 0, 1.2], [-0.8, 0, -0.8]] as [number, number, number][]) {
+        const { tilt, wheels } = launch(spec, spin);
+        if (tilt > 40 || !wheels) failed.push(`${spec.id} ${spin}: ${tilt.toFixed(0)} deg${wheels ? "" : ", not on its wheels"}`);
+      }
+    expect(failed).toEqual([]);
+  });
+
+  test("a gentle crest still shows in the air: no car is levelled flat", () => {
+    expect(Object.values(CARS).filter((spec) => launch(spec, [0.4, 0, 0]).tilt < 3).map((spec) => spec.id)).toEqual([]);
+  });
+});
+
 describe("nitro", () => {
   const boosted = (): Car => {
     const car = new Car({ ...CARS.coupe, nitro: 10 });
