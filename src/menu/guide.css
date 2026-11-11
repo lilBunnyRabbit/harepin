@@ -969,6 +969,10 @@
     display: none;
   }
 
+  .guide-where {
+    display: none;
+  }
+
   .guide-aid > span:last-child {
     display: none;
   }
