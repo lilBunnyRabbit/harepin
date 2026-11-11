@@ -232,3 +232,5 @@ Each phase ships on its own. S ≈ a day, M ≈ 2-4 days.
 1. **Unlock numbers:** Club at 12 and Pro at 14 stars (of 21). OK, or another split?
 2. **Finals:** one long race (planned), or a mixed final of 2-3 stages back to back (A4 "longer mixed")? Stages need a stage runner: about M more.
 3. **Hit penalty:** +2 s per hit (gymkhana's cone value), or another number?
+
+**Owner picks (2026-11-11):** unlock 12 Club / 14 Pro stars · finals = one long race · hit penalty +2 s.
