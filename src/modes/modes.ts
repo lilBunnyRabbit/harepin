@@ -67,7 +67,7 @@ export class Modes {
   private readonly modes: Mode[];
   private current: Active | null = null;
   private lobby_lap: (() => boolean) | null = null;
-  private high = true;
+  private high = false;
   private abort: AbortController | null = null;
   private status_key = "";
   private notice_until = 0;
