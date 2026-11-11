@@ -25,10 +25,10 @@ export type Ground = (typeof Ground)[keyof typeof Ground];
  * What the wheels drive on, per vertex of the `surface` grid; each id has a grip row in its kind's `GripTable`. GRASS is the
  * kind's own ground (loose sand on the desert), every other id a surface laid over it. Stored in the grid: never renumber.
  */
-export const SurfaceId = { GRASS: 0, DIRT: 1, HARDPACK: 2, SCREE: 3, WET: 4, SNOW: 5, PACKED_SNOW: 6, ICE: 7, SLUSH: 8 } as const;
+export const SurfaceId = { GRASS: 0, DIRT: 1, HARDPACK: 2, SCREE: 3, WET: 4, SNOW: 5, PACKED_SNOW: 6, ICE: 7, SLUSH: 8, LAVA: 9 } as const;
 export type SurfaceId = (typeof SurfaceId)[keyof typeof SurfaceId];
 /** The ground row each laid surface paints, indexed by `SurfaceId`, so colour matches what the wheels feel; null keeps the biome's colour. */
-export const SURFACE_GROUND = [null, Ground.DIRT, Ground.PAN, null, Ground.DIRT, Ground.SNOW, Ground.PACKED_SNOW, Ground.ICE, Ground.SLUSH] as const satisfies Record<SurfaceId, Ground | null>;
+export const SURFACE_GROUND = [null, Ground.DIRT, Ground.PAN, null, Ground.DIRT, Ground.SNOW, Ground.PACKED_SNOW, Ground.ICE, Ground.SLUSH, Ground.DIRT] as const satisfies Record<SurfaceId, Ground | null>;
 /** Bump whenever `generate` makes a different island for the same seed: peers and saved records are matched on it. */
 export const WORLD_VERSION = 8;
 
