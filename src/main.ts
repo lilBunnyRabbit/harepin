@@ -39,7 +39,7 @@ import { WorldView, mesh_tones } from "./render/scene";
 import { clouds, sky } from "./render/sky";
 import { PadTimer } from "./world/sky-pads";
 import { Lighting } from "./render/lighting";
-import { CAMERA_RETURN_SECONDS, CameraView, type SettingsState } from "./menu/prefs";
+import { CAMERA_RETURN_SECONDS, CameraView, pad_settings, type SettingsState } from "./menu/prefs";
 import { load_settings, pin_pick, take_drive } from "./menu/prefs-store";
 import { read_saved_pick } from "./menu/saved-pick";
 import { MenuTab, invite_link } from "./menu/page";
@@ -277,6 +277,7 @@ function apply_settings(state: SettingsState) {
   input.touch.set_steer_mode(state.touch_steer);
   input.touch.set_sensitivity(state.steer_sensitivity);
   input.precision = state.precision_key;
+  input.pad_response = pad_settings(state);
   input.set_bindings(state.bindings);
   show_key_hints(state.bindings);
   chase.mode = state.camera === CameraView.COCKPIT ? 1 : 0;

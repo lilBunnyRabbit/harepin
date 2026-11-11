@@ -1,6 +1,7 @@
 import type { Controls } from "../car/car";
 import { BINDABLE, DEFAULT_BINDINGS, MENU_BUTTON, PRESSES, type Action, type Bindable, type Bindings, type Hold } from "./bindings";
 import { Touch } from "./touch";
+import { axis_value, DEFAULT_PAD_RESPONSE, type PadResponse } from "./pad-curve";
 import type { RumbleEffect } from "./rumble";
 
 /** A key or pad button caught for a binding; null when the capture ended without one (the menu closed). */
@@ -256,6 +257,7 @@ export class Input {
 
   rewind = false;
   precision = false;
+  pad_response: PadResponse = DEFAULT_PAD_RESPONSE;
 
   read(): { controls: Controls; actions: Action[] } {
     this.pad = navigator.getGamepads?.().find((p) => p && p.connected) ?? null;
@@ -291,11 +293,9 @@ export class Input {
         this.look.stick_x = x * scale;
         this.look.stick_y = y * scale;
       }
-      const raw = pad.axes[0] ?? 0;
-      const dead = Math.max(0, Math.abs(raw) - 0.08) / 0.92;
-      const stick = Math.sign(raw) * dead ** 1.4;
-      const rt = this.button(7)?.value ?? 0;
-      const lt = this.button(6)?.value ?? 0;
+      const stick = axis_value(pad.axes[0] ?? 0, this.pad_response.steer);
+      const rt = axis_value(this.button(7)?.value ?? 0, this.pad_response.throttle);
+      const lt = axis_value(this.button(6)?.value ?? 0, this.pad_response.brake);
       const handbrake = this.pad_down("handbrake");
       if (Math.abs(stick) > 0 || rt > 0.02 || lt > 0.02 || handbrake) {
         if (key_steer === 0) {

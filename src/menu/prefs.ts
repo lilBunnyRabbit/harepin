@@ -1,6 +1,7 @@
 import { SteerMode } from "../car/car";
 import { DEFAULT_BINDINGS, parse_bindings, type Bindings } from "../hud/bindings";
 import { RumbleLevel } from "../hud/rumble";
+import { pad_response, STEER_INNER, STEER_LINEARITY, STEER_OUTER, TRIGGER_INNER, TRIGGER_OUTER, type PadPercents, type PadResponse } from "../hud/pad-curve";
 import { guide_seen_on_load, seen_flag } from "./guide-rules";
 import { clean_name } from "../net/net";
 import { parse_last_seed, parse_last_world } from "./saved-pick";
@@ -93,6 +94,14 @@ export interface SettingsState {
   steer_sensitivity: SteerSensitivity;
   /** Pad rumble from tyre slip, rough ground, kerbs, landings and hits. */
   rumble: RumbleLevel;
+  /** Pad deadzones and steering linearity, 0..100 each; see `hud/pad-curve.ts`. */
+  pad_steer_inner: number;
+  pad_steer_outer: number;
+  pad_steer_linearity: number;
+  pad_throttle_inner: number;
+  pad_throttle_outer: number;
+  pad_brake_inner: number;
+  pad_brake_outer: number;
   camera: CameraView;
   camera_return: CameraReturn;
   speed_zoom: SpeedZoom;
@@ -131,6 +140,8 @@ const one_of = <T extends string | number>(values: readonly T[], fallback: T): F
 
 const flag = (fallback: boolean): Field<boolean> => ({ fallback, parse: (raw) => (typeof raw === "boolean" ? raw : fallback) });
 
+const percent = (fallback: number): Field<number> => ({ fallback, parse: (raw) => (typeof raw === "number" && Number.isFinite(raw) ? Math.min(100, Math.max(0, Math.round(raw))) : fallback) });
+
 const FIELDS: { [K in SettingKey]: Field<SettingsState[K]> } = {
   quality: one_of(Object.values(QualityMode), QualityMode.AUTO),
   name: { fallback: null, parse: (raw) => (typeof raw === "string" && raw.trim() ? clean_name(raw) : null) },
@@ -146,6 +157,13 @@ const FIELDS: { [K in SettingKey]: Field<SettingsState[K]> } = {
   touch_steer: one_of(Object.values(TouchSteer), TouchSteer.DRAG),
   steer_sensitivity: one_of(Object.values(SteerSensitivity), SteerSensitivity.MEDIUM),
   rumble: one_of(Object.values(RumbleLevel), RumbleLevel.SUBTLE),
+  pad_steer_inner: percent(STEER_INNER),
+  pad_steer_outer: percent(STEER_OUTER),
+  pad_steer_linearity: percent(STEER_LINEARITY),
+  pad_throttle_inner: percent(TRIGGER_INNER),
+  pad_throttle_outer: percent(TRIGGER_OUTER),
+  pad_brake_inner: percent(TRIGGER_INNER),
+  pad_brake_outer: percent(TRIGGER_OUTER),
   camera: one_of(Object.values(CameraView), CameraView.CHASE),
   camera_return: one_of(Object.values(CameraReturn), CameraReturn.SHORT),
   speed_zoom: one_of(Object.values(SpeedZoom), SpeedZoom.SUBTLE),
@@ -182,3 +200,15 @@ export function parse_settings(raw: unknown, played = false): SettingsState {
   if (typeof stored.stability !== "boolean") state.stability = state.assist;
   return state;
 }
+
+export const pad_percents = (s: SettingsState): PadPercents => ({
+  steer_inner: s.pad_steer_inner,
+  steer_outer: s.pad_steer_outer,
+  steer_linearity: s.pad_steer_linearity,
+  throttle_inner: s.pad_throttle_inner,
+  throttle_outer: s.pad_throttle_outer,
+  brake_inner: s.pad_brake_inner,
+  brake_outer: s.pad_brake_outer,
+});
+
+export const pad_settings = (s: SettingsState): PadResponse => pad_response(pad_percents(s));

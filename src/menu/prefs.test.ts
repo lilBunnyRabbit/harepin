@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { SteerMode } from "../car/car";
 import { DEFAULT_BINDINGS, rebind_key } from "../hud/bindings";
-import { DEFAULT_SETTINGS, parse_settings, type SettingsState } from "./prefs";
+import { DEFAULT_PAD_RESPONSE } from "../hud/pad-curve";
+import { DEFAULT_SETTINGS, pad_settings, parse_settings, type SettingsState } from "./prefs";
 
 describe("parse_settings", () => {
   test("nothing stored gives the defaults, with the guide seen only by a returning player", () => {
@@ -30,6 +31,13 @@ describe("parse_settings", () => {
       touch_steer: "buttons",
       steer_sensitivity: "low",
       rumble: "strong",
+      pad_steer_inner: 15,
+      pad_steer_outer: 90,
+      pad_steer_linearity: 50,
+      pad_throttle_inner: 5,
+      pad_throttle_outer: 80,
+      pad_brake_inner: 10,
+      pad_brake_outer: 95,
       camera: "cockpit",
       camera_return: "never",
       speed_zoom: "strong",
@@ -66,6 +74,20 @@ describe("parse_settings", () => {
     expect(parse_settings({ last_seed: -1 }).last_seed).toBeNull();
     expect(parse_settings({ last_seed: 1.5 }).last_seed).toBeNull();
     expect(parse_settings({ last_world: "moon" }).last_world).toBeNull();
+  });
+
+  test("saves from before the pad settings get the old fixed pad curve", () => {
+    const parsed = parse_settings({ tcs: false });
+    expect(pad_settings(parsed)).toEqual(DEFAULT_PAD_RESPONSE);
+    expect(pad_settings(parsed).steer).toEqual({ inner: 0.08, outer: 1, exponent: 1.4 });
+    expect(pad_settings(parsed).throttle).toEqual({ inner: 0, outer: 1, exponent: 1 });
+  });
+
+  test("pad percents clamp to 0..100 and round", () => {
+    expect(parse_settings({ pad_steer_inner: 140 }).pad_steer_inner).toBe(100);
+    expect(parse_settings({ pad_steer_outer: -5 }).pad_steer_outer).toBe(0);
+    expect(parse_settings({ pad_steer_linearity: 33.6 }).pad_steer_linearity).toBe(34);
+    expect(parse_settings({ pad_brake_inner: "10" }).pad_brake_inner).toBe(0);
   });
 
   test("names are cleaned, blank names roll a random one", () => {
