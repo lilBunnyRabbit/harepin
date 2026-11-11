@@ -72,6 +72,13 @@ const USEFUL_SLIP = 1.1;
  * pulled the car round a 3 m circle whose scrub held it near 10 km/h; at `USEFUL_SLIP` they still did below 20 km/h.
  */
 const DRIFT_REACH = 0.6;
+/**
+ * Front slip a held full key reaches past `grip_lock` at speed, in `peak_angle`: with the fronts held just under peak a
+ * full key felt stiff at 100-150 km/h. A little past peak turns tighter into a catchable push rather than a wall.
+ */
+const FULL_KEY_REACH = 0.15;
+/** Speeds (m/s) over which `FULL_KEY_REACH` opens, 90 to 150 km/h: below, power slides and donuts keep their lock. */
+const FULL_KEY_SPEEDS = [25, 41.7] as const;
 /** Speeds (m/s) where the useful-slip cap fades in and back out: below, parking keeps full lock; above, `grip_lock` rules. */
 const USEFUL_SPEEDS = [3, 6, 12, 16] as const;
 /** Body slip (rad) with the tail out against the held steer at which a power slide counts in full. */
@@ -104,8 +111,8 @@ interface KeyProfile {
 }
 
 const SMOOTH_KEYS: KeyProfile = {
-  attack: [[0, 0.08], [30, 0.15], [60, 0.3], [100, 0.39], [150, 0.7], [200, 0.76]],
-  release: [[0, 0.09], [30, 0.15], [60, 0.22], [100, 0.31], [150, 0.38], [200, 0.43]],
+  attack: [[0, 0.08], [30, 0.15], [60, 0.3], [100, 0.39], [150, 0.7], [200, 0.86], [250, 0.95]],
+  release: [[0, 0.09], [30, 0.15], [60, 0.22], [100, 0.31], [150, 0.38], [200, 0.5], [250, 0.56]],
   release_ease: 0.18,
   reverse: 2.5,
   tap: 0.05,
@@ -284,6 +291,15 @@ export function surface_grip(spec: CarSpec, surface: number, dirt: boolean): num
  */
 export function grip_lock(spec: CarSpec, speed: number): number {
   return (spec.wheelbase * GRAVITY * 1.05) / Math.max(1, speed * speed) + spec.peak_angle * 0.45;
+}
+
+/**
+ * Lock (rad) a full key adds past `grip_lock` at `speed` m/s, in proportion to the key cubed so a press held through
+ * reaches it and a short correction does not.
+ */
+function full_key_reach(spec: CarSpec, speed: number): number {
+  const [slow, fast] = FULL_KEY_SPEEDS;
+  return spec.peak_angle * FULL_KEY_REACH * Math.max(0, Math.min(1, (speed - slow) / (fast - slow)));
 }
 
 /**
@@ -610,7 +626,7 @@ export class Car {
     const cornering = grip_lock(spec, speed);
     const limit = Math.min(spec.lock, cornering + (spec.lock - cornering) * power_slide);
     const lock = this.assist ? limit : unassisted_lock(spec, limit, this.key_steer, slide);
-    let target = this.key_steer * lock;
+    let target = this.key_steer * lock + this.key_steer ** 3 * full_key_reach(spec, speed);
     if (this.assist && speed > 4 && local.z > 1) target += Math.sign(beta) * Math.max(0, Math.abs(beta) - 0.1) * 0.8 * (1 - power_slide);
     if (local.z > 1) {
       // Full lock at hairpin speed put the fronts at 20-27 degrees of slip, three times peak, and their scrub held the car
