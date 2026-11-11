@@ -23,7 +23,7 @@ const CAMERA = { speed_zoom: SpeedZoom.SUBTLE, camera_tilt: true };
 
 export const FEEL_TESTS: readonly FeelTest[] = [
   {
-    label: "Grip – Balanced",
+    label: "A",
     car: "Easy cruiser",
     settings: { ...BALANCED, ...SMOOTH, ...CAMERA },
     respawn: true,
@@ -31,7 +31,7 @@ export const FEEL_TESTS: readonly FeelTest[] = [
     feel: "the front grips, no scrub",
   },
   {
-    label: "Grip – Pro",
+    label: "B",
     car: "Easy cruiser",
     settings: { ...NO_AIDS, ...SMOOTH, ...CAMERA },
     respawn: true,
@@ -39,7 +39,7 @@ export const FEEL_TESTS: readonly FeelTest[] = [
     feel: "grips until you overdo it",
   },
   {
-    label: "Drift",
+    label: "C",
     car: "Drift",
     settings: { ...BALANCED, ...SMOOTH, ...CAMERA },
     respawn: true,
@@ -47,7 +47,7 @@ export const FEEL_TESTS: readonly FeelTest[] = [
     feel: "kicks out, catchable on full gas",
   },
   {
-    label: "Dirt",
+    label: "D",
     car: "Dirt rally",
     settings: { ...BALANCED, ...SMOOTH, ...CAMERA },
     respawn: true,
@@ -55,7 +55,7 @@ export const FEEL_TESTS: readonly FeelTest[] = [
     feel: "lively but catchable",
   },
   {
-    label: "Fast camera",
+    label: "E",
     car: "Maxed F1",
     settings: { ...BALANCED, ...SMOOTH, ...CAMERA },
     respawn: true,
@@ -63,7 +63,7 @@ export const FEEL_TESTS: readonly FeelTest[] = [
     feel: "a calm view that still follows the turn",
   },
   {
-    label: "Easy",
+    label: "F",
     car: "Easy cruiser",
     settings: { ...ALL_AIDS, ...SMOOTH, ...CAMERA },
     respawn: true,
