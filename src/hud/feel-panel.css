@@ -53,10 +53,12 @@
   color: var(--dim);
 }
 
-/* On a phone the right edge below the top row holds the pedals, so the panel hangs from the top instead. */
+/* On a phone the right edge holds the pedals and the left the minimap, so the panel hangs under the title instead. */
 @media (pointer: coarse) {
   .feel-panel {
-    top: calc(var(--inset-top) + 52px);
-    transform: none;
+    top: calc(var(--inset-top) + 72px);
+    right: auto;
+    left: 50%;
+    transform: translateX(-50%);
   }
 }
