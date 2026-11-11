@@ -3,7 +3,7 @@ import type { Size } from "../car/cars";
 import type { Look } from "../hud/input";
 import type { World } from "../world/world";
 import type { SpeedZoom } from "../menu/prefs";
-import { SPEED_ZOOM, Tilt, speed_fov, zoom_share } from "./camera-feel";
+import { GRAVITY, SPEED_ZOOM, Tilt, speed_fov, zoom_share } from "./camera-feel";
 
 const angle_diff = (a: number, b: number) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
 const DEG = Math.PI / 180;
@@ -57,7 +57,9 @@ export class ChaseCamera {
   speed_zoom: SpeedZoom = "subtle";
   /** Pitch and roll the chase view with the car's acceleration. */
   tilt_on = true;
-  private readonly tilt = new Tilt();
+  /** Rewind replays snapshots backwards, so its acceleration would tilt the view the wrong way. */
+  rewinding = false;
+  readonly tilt = new Tilt();
   private yaw = 0;
   private height = 0;
   private pull = 0;
@@ -171,7 +173,7 @@ export class ChaseCamera {
     this.zoom = Math.exp(Math.log(this.zoom) + (Math.log(this.aim_zoom) - Math.log(this.zoom)) * smooth);
   }
 
-  update(dt: number, car: CarPose, world: World, offroad: boolean, time: number, look: Look) {
+  update(dt: number, car: CarPose, world: Pick<World, "height">, offroad: boolean, time: number, look: Look) {
     const { camera } = this;
     const speed = car.vel.length();
     const step = Math.max(dt, 1e-3);
@@ -181,7 +183,9 @@ export class ChaseCamera {
     this.side.set(1, 0, 0).applyQuaternion(car.quat);
     this.accel.subVectors(car.vel, this.last_vel).divideScalar(step);
     this.last_vel.copy(car.vel);
-    this.tilt.update(dt, this.accel.dot(this.fwd), this.accel.dot(this.side), this.tilt_on && this.mode === 0 && !this.top);
+    // Felt g, not kinematic: in free fall the body feels nothing, so a nose-down jump does not lift the view.
+    this.accel.y += GRAVITY;
+    this.tilt.update(dt, this.accel.dot(this.fwd), this.accel.dot(this.side), this.tilt_on && !this.rewinding && this.mode === 0 && !this.top);
     const zoom = SPEED_ZOOM[this.speed_zoom];
     const share = zoom_share(zoom, speed);
     const heading = Math.atan2(this.fwd.x, this.fwd.z);
@@ -244,7 +248,7 @@ export class ChaseCamera {
   }
 
   /** `from` is the car's pivot height: under a crossover the camera keeps to the car's deck, not the one overhead. */
-  private ground(world: World, at: THREE.Vector3, from: number, last: number, dt: number): number {
+  private ground(world: Pick<World, "height">, at: THREE.Vector3, from: number, last: number, dt: number): number {
     const floor = world.height(at.x, at.z, from) + 0.9;
     return Number.isFinite(last) ? last + (floor - last) * Math.min(1, dt * 6) : floor;
   }

@@ -1,7 +1,7 @@
 import type { SpeedZoom } from "../menu/prefs";
 
 const DEG = Math.PI / 180;
-const G = 9.81;
+export const GRAVITY = 9.81;
 export const BASE_FOV = 64;
 // A teleport or a reset reads as one frame of huge acceleration; past this it is not a feel, it is a jump.
 const G_CLAMP = 1.5;
@@ -58,8 +58,8 @@ export class Tilt {
   /** `forward`, `left`: acceleration along the car's own axes, m/s². */
   update(dt: number, forward: number, left: number, on: boolean) {
     const g_ease = 1 - Math.exp(-dt * G_RATE);
-    this.g_forward += ((on ? clamp(forward / G, G_CLAMP) : 0) - this.g_forward) * g_ease;
-    this.g_left += ((on ? clamp(left / G, G_CLAMP) : 0) - this.g_left) * g_ease;
+    this.g_forward += ((on ? clamp(forward / GRAVITY, G_CLAMP) : 0) - this.g_forward) * g_ease;
+    this.g_left += ((on ? clamp(left / GRAVITY, G_CLAMP) : 0) - this.g_left) * g_ease;
     const ease = 1 - Math.exp(-dt * TILT_RATE);
     this.pitch += (clamp(this.g_forward * PITCH_PER_G, PITCH_MAX) - this.pitch) * ease;
     this.roll += (clamp(-this.g_left * ROLL_PER_G, ROLL_MAX) - this.roll) * ease;
