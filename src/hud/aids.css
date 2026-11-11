@@ -220,8 +220,10 @@
   opacity: 0.6;
 }
 
-:root[data-hud="classic"] .aid-key[data-aid="auto"] {
-  display: none;
+@media (pointer: fine) {
+  :root[data-hud="classic"] .aid-key[data-aid="auto"] {
+    display: none;
+  }
 }
 
 @media (pointer: fine) {
