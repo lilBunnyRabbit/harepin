@@ -82,33 +82,62 @@ describe("chase camera tilt feed", () => {
 });
 
 describe("chase camera follow", () => {
-  /** Peak view turn rate (rad/s) after 3 s and the car's final angle off the view, driving heading `at(t)` at `kmh` for 6 s. */
-  const follow = (kmh: number, at: (t: number) => number) => {
+  /** Drives `kmh` with the car turning at `rate(t)` rad/s; `each` sees the time, the view's heading and the car's. */
+  const follow = (kmh: number, seconds: number, rate: (t: number) => number, each: (t: number, view: number, heading: number, chase: ChaseCamera) => void) => {
     const r = rig();
     const up = new THREE.Vector3(0, 1, 0);
     const dir = new THREE.Vector3();
     const v = kmh / 3.6;
-    let t = 0;
-    let last = 0;
-    let peak = 0;
     let heading = 0;
-    for (let i = 0; i < 360; i++) {
-      t += 1 / 60;
-      heading = at(t);
+    for (let t = 1 / 60; t <= seconds; t += 1 / 60) {
+      heading += rate(t) / 60;
       r.car.vel.set(Math.sin(heading) * v, 0, Math.cos(heading) * v);
       r.car.quat.setFromAxisAngle(up, heading);
       r.frame(1 / 60);
-      const view = Math.atan2(r.chase.camera.getWorldDirection(dir).x, dir.z);
-      if (t > 3) peak = Math.max(peak, Math.abs(view - last) * 60);
-      last = view;
+      each(t, Math.atan2(r.chase.camera.getWorldDirection(dir).x, dir.z), heading, r.chase);
     }
-    return { peak, off: Math.abs(heading - last) };
   };
+  const off = (a: number, b: number) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
+  /** Turn rate of a lateral pull of `g` at `kmh`. */
+  const turn = (kmh: number, g: number) => (g * 9.81) / (kmh / 3.6);
 
-  test("a quick weave at speed barely turns the view, a hairpin is still followed", () => {
-    const w = 2 * Math.PI * 0.75;
-    const v = 80 / 3.6;
-    expect(follow(80, (t) => (w / v) * Math.sin(w * t)).peak).toBeLessThan(28 * DEG);
-    expect(follow(40, (t) => Math.min(t, 4) * 45 * DEG).off).toBeLessThan(13 * DEG);
+  test("a road weave turns the view at a third of the car's rate or less", () => {
+    for (const [kmh, g, hz] of [[80, 0.8, 0.75], [100, 0.8, 1], [130, 0.6, 1.5]]) {
+      const amp = turn(kmh, g);
+      let last = 0;
+      let peak = 0;
+      follow(kmh, 8, (t) => amp * Math.cos(2 * Math.PI * hz * t), (t, view) => {
+        if (t > 3) peak = Math.max(peak, Math.abs(off(view, last)) * 60);
+        last = view;
+      });
+      expect(peak / amp).toBeLessThan(0.34);
+    }
+  });
+
+  test("a held sweeper trails the car by under 3.5 degrees at any speed and grip", () => {
+    for (const [kmh, g] of [[300, 3.2], [100, 1]]) {
+      let lag = 0;
+      follow(kmh, 9, (t) => (t > 1 ? turn(kmh, g) : 0), (_, view, heading) => (lag = Math.abs(off(heading, view))));
+      expect(lag).toBeLessThan(3.5 * DEG);
+    }
+  });
+
+  test("the view does not swing past the car coming out of a turn", () => {
+    for (const [kmh, g, hold] of [[300, 3.2, 2], [100, 1, 1.5], [60, 1, 0.4]]) {
+      let past = 0;
+      follow(kmh, 7 + hold, (t) => (t > 1 && t <= 1 + hold ? turn(kmh, g) : 0), (t, view, heading) => {
+        if (t > 1 + hold) past = Math.max(past, off(view, heading));
+      });
+      expect(past).toBeLessThan(1 * DEG);
+    }
+  });
+
+  test("switching from the cockpit mid-turn starts the chase view behind the car", () => {
+    let worst = 0;
+    follow(200, 6, (t) => (t > 1 && t < 4 ? turn(200, 2) : 0), (t, view, heading, chase) => {
+      chase.mode = t < 4 ? 1 : 0;
+      if (t > 4.05) worst = Math.max(worst, Math.abs(off(heading, view)));
+    });
+    expect(worst).toBeLessThan(3 * DEG);
   });
 });

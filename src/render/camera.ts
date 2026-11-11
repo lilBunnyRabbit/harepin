@@ -26,8 +26,12 @@ const FOLLOW_RATE = 14;
 const PIVOT_RISE = 1.05;
 const LOOK_LEAD = 4;
 const YAW_RATE = 5;
-// Above ~32 km/h the yaw follow slows with speed, so its lag in a turn is bounded by grip, not time: a quick weave at speed barely turns the view, a hairpin is still followed.
-const YAW_RATE_SPEED = 44;
+// Above ~22 km/h the yaw follow slows with speed, so a quick weave at speed barely turns the view.
+const YAW_RATE_SPEED = 30;
+// The car's turn rate, low-passed: a weave's left and right average out, a held turn comes through.
+const TURN_SMOOTH_RATE = 0.7;
+// A held turn quickens the follow until the view trails the car by at most this, at any speed and grip; the follow stays first order, so it never swings past the car.
+const TURN_LAG = 3 * DEG;
 const RECENTER_SECONDS = 0.25;
 const ORBITED_YAW = 12 * DEG;
 const ORBITED_PITCH = 8 * DEG;
@@ -64,6 +68,8 @@ export class ChaseCamera {
   rewinding = false;
   readonly tilt = new Tilt();
   private yaw = 0;
+  private turn = 0;
+  private last_heading = 0;
   private height = 0;
   private pull = 0;
   private shake = 0;
@@ -98,7 +104,8 @@ export class ChaseCamera {
   constructor(readonly camera: THREE.PerspectiveCamera) {}
 
   snap(car: CarPose) {
-    this.yaw = heading_of(car.quat, this.fwd);
+    this.yaw = this.last_heading = heading_of(car.quat, this.fwd);
+    this.turn = 0;
     this.height = car.pos.y;
     this.orbit_yaw = this.aim_yaw = 0;
     this.orbit_pitch = this.aim_pitch = 0;
@@ -193,19 +200,24 @@ export class ChaseCamera {
     this.shake = Math.max(0, this.shake - dt * 2.5);
     const rumble = (offroad ? Math.min(1, speed / 20) * 0.008 : 0) + Math.max(0, speed - 50) * 0.0004 + this.shake * 0.2;
 
+    this.turn += (angle_diff(heading, this.last_heading) / step - this.turn) * Math.min(1, dt * TURN_SMOOTH_RATE);
+    this.last_heading = heading;
+    this.local.copy(car.vel).applyQuaternion(this.inverse.copy(car.quat).invert());
+    // Lead the yaw toward the direction of travel in a slide, so a drift shows the car's angle instead of hiding it.
+    const slide = speed > 6 && this.local.z > 0 ? Math.max(-0.6, Math.min(0.6, Math.atan2(this.local.x, this.local.z))) : 0;
+    // Up high the view stays nose-up when reversing, so the bay does not swing round under a parking car.
+    const reversing = !this.top && this.local.z < -2;
+    const desired = (reversing ? heading + Math.PI : heading) + slide * 0.55;
+    // Tracked in the cockpit too, so switching to the chase view does not swing in from where the car pointed when the cockpit was picked.
+    const yaw_rate = Math.max(Math.min(YAW_RATE, YAW_RATE_SPEED / Math.max(speed, 1)), Math.abs(this.turn) / TURN_LAG);
+    this.yaw += angle_diff(desired, this.yaw) * Math.min(1, dt * yaw_rate);
+
     if (this.mode === 1 && !this.top) {
       camera.position.copy(this.eye ?? HOOD).applyQuaternion(car.quat).add(car.pos);
       camera.up.set(0, 1, 0).applyQuaternion(car.quat);
       camera.lookAt(this.look.copy(camera.position).addScaledVector(this.fwd, 10));
       this.chase.copy(camera.position);
     } else {
-      this.local.copy(car.vel).applyQuaternion(this.inverse.copy(car.quat).invert());
-      // Lead the yaw toward the direction of travel in a slide, so a drift shows the car's angle instead of hiding it.
-      const slide = speed > 6 && this.local.z > 0 ? Math.max(-0.6, Math.min(0.6, Math.atan2(this.local.x, this.local.z))) : 0;
-      // Up high the view stays nose-up when reversing, so the bay does not swing round under a parking car.
-      const reversing = !this.top && this.local.z < -2;
-      const desired = (reversing ? heading + Math.PI : heading) + slide * 0.55;
-      this.yaw += angle_diff(desired, this.yaw) * Math.min(1, dt * Math.min(YAW_RATE, YAW_RATE_SPEED / Math.max(speed, 1)));
       this.height += (car.pos.y - this.height) * Math.min(1, dt * 6);
       this.pull += (Math.max(-1, Math.min(1, accel / 9)) - this.pull) * Math.min(1, dt * 3);
       const { length, height } = this.size;
