@@ -1,4 +1,6 @@
 import { DEFAULT_PARTS, STATS, build_spec, stat_range, stats, type Build, type Stats } from "../car/build";
+import { CLASS_LABELS, rating } from "../car/pi";
+import { class_badge } from "./class-badge";
 import { ease } from "./garage-stage";
 import { el } from "./setting-rows";
 
@@ -27,10 +29,12 @@ interface Meter {
 
 export class StatMeters {
   private readonly meters = new Map<keyof Stats, Meter>();
+  private readonly rating = el("div", "garage-rating");
+  private readonly rating_change = el("span", "garage-meter-change");
   private readonly calm = matchMedia("(prefers-reduced-motion: reduce)");
 
   constructor(panel: HTMLElement) {
-    panel.append(el("h3", "garage-panel-title", "Against stock"));
+    panel.append(this.rating, el("h3", "garage-panel-title", "Against stock"));
     const rows = el("div", "garage-meters");
     for (const key of STATS) {
       const value = el("span", "garage-meter-value");
@@ -53,6 +57,7 @@ export class StatMeters {
   }
 
   render(current: Build, shown: Build) {
+    this.render_rating(current, shown);
     const now = stats(build_spec(current));
     const next = stats(build_spec(shown));
     const stock = stats(build_spec({ ...shown, parts: DEFAULT_PARTS }));
@@ -77,6 +82,21 @@ export class StatMeters {
       }
       this.count(meter, fitted);
     }
+  }
+
+  private render_rating(current: Build, shown: Build) {
+    const fitted = rating(current);
+    const tried = rating(shown);
+    const stock = rating({ ...shown, parts: DEFAULT_PARTS });
+    if (tried.pi !== fitted.pi) {
+      this.rating_change.textContent = `→ ${tried.class === fitted.class ? "" : `${CLASS_LABELS[tried.class]} `}${tried.pi}`;
+      this.rating_change.dataset.trend = trend(tried.pi - fitted.pi);
+    } else {
+      const against = fitted.pi - stock.pi;
+      this.rating_change.textContent = against ? signed(against) : "";
+      this.rating_change.dataset.trend = trend(against);
+    }
+    this.rating.replaceChildren(el("span", "garage-meter-label", "Class"), class_badge(fitted), this.rating_change);
   }
 
   private count(meter: Meter, to: number) {

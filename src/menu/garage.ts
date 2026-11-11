@@ -6,6 +6,7 @@ import { livery_of } from "../car/livery";
 import { typing, type Nav } from "../hud/input";
 import { car_paints, color, decal_inks, rgba } from "../theme/palette";
 import { render_builds, save_build } from "./garage-builds";
+import { build_badge } from "./class-badge";
 import { BUILDS_TAB, GarageSection, TABS, type Item } from "./garage-items";
 import { StatMeters } from "./garage-meters";
 import { GarageStage } from "./garage-stage";
@@ -406,6 +407,7 @@ export class Garage {
             card.append(el("b", "garage-card-name", item.name(i)));
             const blurb = item.blurb(i);
             if (blurb) card.append(el("span", "garage-card-blurb", blurb));
+            if (item.kind === "car") card.append(build_badge(item.with(this.current, i)));
             return card;
           }),
         );

@@ -2,6 +2,7 @@ import { DEFAULT_BUILD, build_code, parse_build, type Build } from "../car/build
 import { BUILD_NAME_LENGTH, free_build_name, renamed, type SavedBuild } from "../car/builds";
 import { CARS, is_car } from "../car/cars";
 import { PRESETS } from "../car/presets";
+import { build_badge } from "./class-badge";
 import { icon } from "./garage-widgets";
 import { el } from "./setting-rows";
 
@@ -108,7 +109,7 @@ export function render_builds(rail: HTMLElement, view: BuildsView, actions: Buil
       const drop = button("", "delete-build", saved.name, "garage-mini");
       drop.setAttribute("aria-label", `Delete ${saved.name}`);
       drop.append(icon("delete"));
-      li.append(text, load, edit, drop);
+      li.append(text, ...(build ? [build_badge(build)] : []), load, edit, drop);
     }
     list.append(li);
   }
@@ -117,7 +118,8 @@ export function render_builds(rail: HTMLElement, view: BuildsView, actions: Buil
     const li = el("li", "garage-build garage-preset");
     const text = el("div", "garage-build-name");
     text.append(el("b", "", preset.name), el("small", "", preset.blurb));
-    li.append(text, preset.code === fitted ? el("span", "garage-tag", "On your car") : button("Load", "load-preset", String(i)));
+    const build = parse_build(preset.code);
+    li.append(text, ...(build ? [build_badge(build)] : []), preset.code === fitted ? el("span", "garage-tag", "On your car") : button("Load", "load-preset", String(i)));
     presets.append(li);
   });
   const head = (text: string) => el("h3", "garage-build-head", text);

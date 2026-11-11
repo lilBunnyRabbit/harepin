@@ -1,6 +1,7 @@
 import { SteerMode } from "../car/car";
 import { STATS, build_spec, parse_build, stats } from "../car/build";
 import { PRESETS as CAR_PRESETS } from "../car/presets";
+import { build_badge } from "./class-badge";
 import { STAT_NAMES, stat_rating } from "./garage-meters";
 import { AidPreset, preset_aids, preset_of, random_name, rolled_name } from "./guide-rules";
 import { generate_theme } from "../theme/random-theme";
@@ -499,7 +500,7 @@ export class Guide {
       const rated = stats(build_spec(build));
       const card = pressed(button("guide-car"), code === fitted);
       const head = el("span", "guide-car-head");
-      head.append(el("b", "", name));
+      head.append(el("b", "", name), build_badge(build));
       if (at === 0) head.append(el("span", "guide-badge", "Recommended"));
       const hint = STATS.filter((key) => key !== "braking").map((key) => `${STAT_NAMES[key]} ${stat_rating(key, rated[key])}`).join(" · ");
       card.append(head, el("span", "guide-car-blurb", blurb), el("span", "guide-car-stats", hint));

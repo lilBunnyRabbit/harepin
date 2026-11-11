@@ -1,0 +1,52 @@
+.class-badge {
+  --class: var(--info);
+  display: inline-flex;
+  flex: none;
+  align-items: stretch;
+  overflow: hidden;
+  border: 1.5px solid var(--class);
+  border-radius: var(--radius-sm);
+  background: var(--panel-well);
+  color: var(--foreground);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.class-badge[data-class="c"] {
+  --class: var(--success);
+}
+
+.class-badge[data-class="b"] {
+  --class: var(--warning);
+}
+
+.class-badge[data-class="a"] {
+  --class: var(--error);
+}
+
+.class-badge[data-class="s1"] {
+  --class: var(--accent);
+}
+
+.class-badge[data-class="s2"] {
+  --class: var(--secondary);
+}
+
+.class-badge[data-class="x"] {
+  --class: var(--primary);
+}
+
+.class-badge-letter {
+  min-width: 2.4ch;
+  padding: 0 var(--space-1);
+  background: color-mix(in oklch, var(--class) 35%, transparent);
+  text-align: center;
+}
+
+.class-badge-pi {
+  padding: 0 var(--space-1);
+}
