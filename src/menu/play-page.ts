@@ -2,6 +2,7 @@ import type { GoTo } from "../goals/goals";
 import { mainland_seed } from "../world/world-pick";
 import { WorldKind } from "../worldgen/types";
 import { MINIS, WORLDS } from "../worlds/worlds";
+import { career_card } from "./career-view";
 import { goals_card } from "./goals-view";
 import { MenuTab, type Menu, type MenuPage } from "./page";
 import { el, icon } from "./setting-rows";
@@ -99,7 +100,8 @@ export class PlayPage implements MenuPage {
       this.menu.close();
       this.menu.host.quit_mode();
     });
-    side.append(this.quit, this.drive(), minis, this.more(), goals_card(this.menu, this.go_to));
+    const { career } = this.menu.host;
+    side.append(this.quit, this.drive(), minis, this.more(), ...(career ? [career_card(this.menu, career)] : []), goals_card(this.menu, this.go_to));
     return side;
   }
 

@@ -108,14 +108,15 @@ export class Track {
   private readonly key: string;
 
   constructor(
-    mode: string,
+    /** `harepin:<scope>:<world_key>`: the mode id, or `career:<event id>` for an event apart from free play. */
+    readonly scope: string,
     seed: number,
     readonly ids: readonly string[],
     private readonly store: Store | null,
     kind: WorldKind = WorldKind.ISLAND,
     levels: readonly number[] = [],
   ) {
-    this.key = `harepin:${mode}:${world_key(seed, kind, levels)}`;
+    this.key = `harepin:${scope}:${world_key(seed, kind, levels)}`;
     this.runs_ = parse_runs(read_json(store, this.key));
   }
 

@@ -1,6 +1,7 @@
 import { typing, type Nav } from "../hud/input";
 import { clean_name } from "../net/net";
 import { GUIDE_PARAM, Guide, ROLLED_VISIT, type GuideStep } from "./guide";
+import { CareerPage } from "./career-view";
 import { GoalsPage } from "./goals-view";
 import { ModesPage } from "./modes-page";
 import { OnlinePage } from "./online-page";
@@ -122,6 +123,7 @@ export class Settings {
       new ModesPage(this.menu),
       new RoomPage(this.menu),
       new GoalsPage(this.menu, (to) => this.go_to(to)),
+      ...(host.career ? [new CareerPage(this.menu, host.career)] : []),
     ];
     this.guide = new Guide({
       state: () => this.current,

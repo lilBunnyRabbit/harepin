@@ -1,5 +1,7 @@
 import * as THREE from "three";
 import { Audio } from "./audio/audio";
+import { CAREER_PARAM, EVENT_PARAM, career_on, event_of, type CareerEvent } from "./career/career";
+import { Career, event_map } from "./career/career-store";
 import { ChaseCamera } from "./render/camera";
 import { Driver } from "./car/driver";
 import { Directory, load_lock } from "./net/directory";
@@ -40,7 +42,7 @@ import { clouds, sky } from "./render/sky";
 import { PadTimer } from "./world/sky-pads";
 import { Lighting } from "./render/lighting";
 import { CAMERA_RETURN_SECONDS, CameraView, pad_settings, type SettingsState } from "./menu/prefs";
-import { load_settings, pin_pick, take_drive } from "./menu/prefs-store";
+import { load_settings, mark_drive, pin_pick, take_drive } from "./menu/prefs-store";
 import { read_saved_pick } from "./menu/saved-pick";
 import { MenuTab, invite_link } from "./menu/page";
 import { Settings } from "./menu/settings";
@@ -54,13 +56,18 @@ import { start_lobby } from "./modes/lobby-start";
 import { WORLDS } from "./worlds/worlds";
 import { map_id, snow_of } from "./worldgen/kinds/kinds";
 import { world_look } from "./worlds/world-def";
-import { custom_code, pick_problem, read_pick } from "./worldgen/kinds/map-code";
+import { custom_code, map_code, pick_problem, read_pick } from "./worldgen/kinds/map-code";
 import { map_note } from "./menu/world-page";
 import { plain_map } from "./worldgen/kinds/kinds";
 import "./style.css";
 
 const params = new URLSearchParams(location.search);
 const room = clean_room(params.get("room")) ?? LOBBY_ROOM;
+const event = event_of(params.get(EVENT_PARAM));
+// Any peer on the map can call a lobby race, and that ends a mode run: an event link without a room of its own runs
+// alone in an unlisted room. The menu still names `room`, so the next world picked lands back in it.
+const solo = event !== null && !params.has("room");
+const net_room = solo ? `solo-${crypto.randomUUID().slice(0, 8)}` : room;
 const saved_pick = read_saved_pick();
 const pick = pick_world(params, room, saved_pick);
 pin_pick(params, saved_pick, pick);
@@ -139,7 +146,7 @@ if (world.tiles.streamed) {
 }
 
 const lock = load_lock(room);
-const net = new Net(room, seed, prefs.name ?? random_name, lock, map_id(built), BUILD.version, undefined, code);
+const net = new Net(net_room, seed, prefs.name ?? random_name, lock, map_id(built), BUILD.version, undefined, code);
 const country = own_country();
 net.set_country(prefs.show_country ? country : null);
 const directory = new Directory(
@@ -149,12 +156,13 @@ const directory = new Directory(
     ...(lobby.busy ? { racing: true } : {}),
     roster: net.roster(lobby.busy),
   }),
-  () => net.leader,
+  () => net.leader && !solo,
 );
 const chat = new Chat(net);
 chat.start();
 const build = load_build(params.get("car"));
 const mode_ids = MODES.map((mode) => mode.id);
+const career = career_on(params) ? new Career(local_store()) : null;
 const goals = new Goals(local_store(), mode_ids);
 goals.catch_up(() => proven(saved_entries(), { kind, build, cockpit: prefs.camera === CameraView.COCKPIT }, mode_ids));
 const race = new Race(world);
@@ -240,6 +248,8 @@ const settings = new Settings(document.body, {
   code,
   map_note: note,
   goals,
+  career,
+  start_event: (id) => start_event(id),
   name: () => net.name,
   quality_status: () => ({ tier: quality.tier_name, ratio: quality.ratio, bloom: quality.tier.bloom, shadow_size: quality.tier.shadow_size }),
   race_busy: () => lobby.busy,
@@ -346,6 +356,8 @@ const modes = new Modes(scene, world, SPAWN_INDEX, () => lobby.record, (x, z, he
 modes.bindings = () => settings.state.bindings;
 modes.cover = (wait) => area_fade.cover(wait);
 modes.on_finish = (mode) => goals.played(mode);
+modes.career = career;
+modes.start_event = (id) => start_event(id);
 hud.run_route = () => modes.route;
 modes.start();
 updater.start();
@@ -369,7 +381,7 @@ if (guide_step !== null) {
   clean.searchParams.delete(GUIDE_PARAM);
   window.history.replaceState(window.history.state, "", clean);
   settings.open_guide("look", guide_step === ROLLED_VISIT);
-} else if (!take_drive()) {
+} else if (!take_drive() && !event) {
   if (prefs.guide_seen) settings.open();
   else settings.open_guide();
 }
@@ -383,6 +395,23 @@ garage.on_change = (next) => {
   apply_car_settings(settings.state);
   input.touch.show_nitro(driver.car.nitro.fitted);
 };
+
+const on_this_map = (to: CareerEvent) => map_code(event_map(to)) === map_code(built);
+
+function start_event(id: string) {
+  const to = event_of(id);
+  if (!to) return;
+  if (!on_this_map(to)) {
+    mark_drive();
+    location.search = `?${new URLSearchParams({ [EVENT_PARAM]: to.id, [CAREER_PARAM]: "" })}`;
+    return;
+  }
+  settings.close();
+  modes.play_event(to);
+}
+// A map that fell back to its plain one would reload onto itself forever, so a load starts the event only where it landed.
+if (event && on_this_map(event)) modes.play_event(event);
+else if (event) goal_toasts.push("This event's map did not load", MAP_NOTE_MS);
 
 $("garage-btn").addEventListener("click", () => settings.open(MenuTab.GARAGE));
 $("modes-btn").addEventListener("click", () => settings.open("modes"));

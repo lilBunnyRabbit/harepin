@@ -1,4 +1,6 @@
 import type * as THREE from "three";
+import { next_event, spot_of, tier_line, tier_of, type CareerEvent } from "../career/career";
+import { event_track, type Career } from "../career/career-store";
 import { car_sized, type CarSpec } from "../car/cars";
 import { DEFAULT_BINDINGS, keys_text, type Bindings } from "../hud/bindings";
 import { $, format } from "../hud/hud";
@@ -13,7 +15,7 @@ import type { Driven, Finish, Level, ModeCtx, ModeDef, ModeRun, RouteRun } from 
 import { PARKING_MODE } from "./parking-mode";
 import { RACE_MODE } from "./race-mode";
 import { race_levels } from "./races";
-import { run_text, star_row } from "./result";
+import { line, run_text, star_row } from "./result";
 import { MAX_STARS, Track, local_store, type RaceRecord } from "./track";
 import "./modes.css";
 
@@ -28,6 +30,9 @@ const OPEN_GROUND = `Needs open ground: drive ${OPEN_WORLDS} for it`;
 const NO_GROUND_NOTICE = `Gymkhana, parking and gate hunts need open ground: drive ${OPEN_WORLDS} for them`;
 const TOO_BIG = "Too big for this mode";
 const STREAMED = "Modes are not on this world yet";
+const NO_EVENT = "This event is not on this map";
+const NEXT_LEVEL = "Next level";
+const NEXT_EVENT = "Next event";
 
 export interface LevelEntry {
   id: string;
@@ -59,6 +64,9 @@ interface Mode {
 interface Active {
   mode: Mode;
   level: Level;
+  /** The mode's own records, or the event's for a career run, which never writes free play's. */
+  track: Track;
+  event: CareerEvent | null;
   run: ModeRun | null;
   shown: boolean;
 }
@@ -88,6 +96,9 @@ export class Modes {
   /** Shows that a start waits on the rest of the world. */
   cover: (wait: Promise<void>) => Promise<void> = (wait) => wait;
   on_finish: ((mode: string) => void) | null = null;
+  career: Career | null = null;
+  /** Starts an event here, or reloads onto its map. */
+  start_event: ((id: string) => void) | null = null;
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -174,12 +185,25 @@ export class Modes {
     }
   }
 
+  /** The caller has checked this map is the event's. Career levels are all open: the mode's own unlock order is free play's. */
+  play_event(event: CareerEvent) {
+    const spot = spot_of(event);
+    const mode = this.modes.find((m) => m.def.id === event.mode);
+    const level = mode?.levels.find((l) => l.id === spot.level);
+    if (!mode || !level) return this.notice(NO_EVENT);
+    if (mode.def.needs_ground && !KINDS[this.world.kind].open_ground) return this.notice(NO_GROUND_NOTICE);
+    if (this.too_big(mode)) return this.notice(TOO_BIG);
+    if (this.race_busy()) return this.notice(mode.def.busy_notice);
+    this.clear();
+    this.begin(mode, level, event_track(event, local_store()), event);
+  }
+
   private too_big(mode: Mode): boolean {
     return mode.def.car_sized_only && !car_sized(this.spec());
   }
 
-  private begin(mode: Mode, level: Level) {
-    this.current = { mode, level, run: null, shown: false };
+  private begin(mode: Mode, level: Level, track = mode.track, event: CareerEvent | null = null) {
+    this.current = { mode, level, track, event, run: null, shown: false };
     this.launch(this.current);
   }
 
@@ -195,7 +219,7 @@ export class Modes {
       }, (error: unknown) => console.error(error));
       return;
     }
-    const run = active.mode.def.start(this.ctx(active.mode.track), active.level);
+    const run = active.mode.def.start(this.ctx(active.track), active.level);
     if (typeof run === "string") {
       this.clear();
       return this.notice(run);
@@ -257,6 +281,11 @@ export class Modes {
   private play_next() {
     const active = this.current;
     if (!active) return;
+    if (active.event) {
+      const next = this.career && next_event(this.career.stars, active.event);
+      if (next) this.start_event?.(next.id);
+      return;
+    }
     const ids = active.mode.levels.map((level) => level.id);
     const next = ids[ids.indexOf(active.level.id) + 1];
     if (next) this.play(next);
@@ -312,12 +341,26 @@ export class Modes {
     el.result_stars.setAttribute("aria-label", `${stars} of ${MAX_STARS} stars`);
     el.lines.replaceChildren(...finish.lines);
     el.note.hidden = true;
-    const index = levels.findIndex((level) => level.id === active.level.id);
-    el.next.hidden = index + 1 >= levels.length;
-    el.next.disabled = !track.is_open(levels[index + 1]?.id ?? "");
+    if (active.event) this.show_event(active.event, stars);
+    else {
+      const index = levels.findIndex((level) => level.id === active.level.id);
+      el.next.textContent = NEXT_LEVEL;
+      el.next.hidden = index + 1 >= levels.length;
+      el.next.disabled = !track.is_open(levels[index + 1]?.id ?? "");
+    }
     el.result.hidden = false;
     this.on_finish?.(active.mode.def.id);
     if (!finish.quiet) this.chime();
+  }
+
+  private show_event(event: CareerEvent, stars: number) {
+    const { el, career } = this;
+    if (!career) return;
+    career.record(event, stars);
+    el.lines.append(line("career", tier_line(career.stars, tier_of(event))));
+    el.next.textContent = NEXT_EVENT;
+    el.next.hidden = next_event(career.stars, event) === null;
+    el.next.disabled = false;
   }
 
   mode_list(): ModeEntry[] {

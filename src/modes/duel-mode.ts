@@ -7,15 +7,16 @@ import { DuelView } from "./duel-view";
 import type { Driven, Finish, ModeCtx, ModeDef, ModeRun } from "./mode";
 import { best_line, line, result_title } from "./result";
 
-const ghosts = new WeakMap<World, { id: string; ghost: Ghost }>();
+const ghosts = new WeakMap<World, { key: string; ghost: Ghost }>();
 
 function ghost_for(ctx: ModeCtx, id: string): Ghost {
   const { world } = ctx;
+  const key = `harepin:ghost:${ctx.track.scope}:${id}:${world.key}`;
   const kept = ghosts.get(world);
-  if (kept?.id === id) return kept.ghost;
+  if (kept?.key === key) return kept.ghost;
   kept?.ghost.dispose();
-  const ghost = new Ghost(ctx.scene, world.seed, `harepin:ghost:duel:${id}:${world.key}`);
-  ghosts.set(world, { id, ghost });
+  const ghost = new Ghost(ctx.scene, world.seed, key);
+  ghosts.set(world, { key, ghost });
   return ghost;
 }
 

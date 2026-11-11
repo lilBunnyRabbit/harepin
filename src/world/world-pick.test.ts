@@ -73,3 +73,9 @@ test("a custom map's query is its code alone; a plain map's is unchanged", () =>
   const back = new URLSearchParams(world_query("pals", 42, WorldKind.ISLAND, "1C000001A-E2"));
   expect(pick_world(back, "pals", none).code).toBe("1C000001A-E2");
 });
+
+test("an event link drives the event's map, its stand-in while it has one", () => {
+  expect(pick_world(url("event=r4"), "lobby", saved).code).toBe("1D0000005");
+  expect(pick_world(url("event=r7"), "lobby", saved).code).toBe("1S0000002");
+  expect(pick_world(url("event=zz9"), "lobby", saved).code).toBeNull();
+});
