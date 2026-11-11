@@ -8,6 +8,7 @@ import { TURN_SERVERS } from "./ice";
 import { READY_BURST, READY_GAP_MS, type ReadyMsg } from "./ready";
 import { WORLD_VERSION } from "../worldgen/types";
 import { MAX_SEED } from "./seed";
+import { clean_map_code } from "../worldgen/kinds/map-code";
 
 export { RateLimit };
 
@@ -38,10 +39,27 @@ export type CarPacket = { kind: "car"; state: CarState } | { kind: "unreadable" 
 export type ChatMsg = { text: string; t: number };
 
 /**
- * Sent to each peer as it joins, again when the sender's country setting changes. `world` is the sender's `world_id`,
- * `seed` its map seed, `country` its ISO code when shared; peers that predate it send none.
+ * Sent to each peer as it joins, again when the sender's country setting changes. `world` is the sender's `map_id`,
+ * `seed` its map seed, `country` its ISO code when shared; peers that predate it send none. `map` is the code of a
+ * custom map, absent on a plain one.
  */
-export type Hello = { protocol: number; version: string; world: number; seed: number; country?: string };
+export type Hello = { protocol: number; version: string; world: number; seed: number; country?: string; map?: string };
+
+export function make_hello(version: string, world: number, seed: number, map: string | null, country: string | null): Hello {
+  const hello: Hello = { protocol: PROTOCOL, version, world, seed };
+  if (country !== null) hello.country = country;
+  if (map !== null) hello.map = map;
+  return hello;
+}
+
+/**
+ * Same seed and `w`, and when both sides named a custom map, the same code: the 15-bit hash in `w` can collide, the
+ * code can't. A build from before map codes compares seed and `w` alone, which a custom map's `w` never matches.
+ */
+export function same_map(own: { seed: number; world: number; map: string | null }, peer: { seed: number; w?: number; map?: string }): boolean {
+  if (peer.seed !== own.seed || peer.w !== own.world) return false;
+  return own.map === null || peer.map === undefined || peer.map === own.map;
+}
 
 /** One player of a game, as its leader lists it in the directory. */
 export type RosterEntry = { name: string; country?: string; racing?: boolean };
@@ -209,6 +227,8 @@ export function sanitize_hello(raw: unknown): Hello | null {
   const hello: Hello = { protocol: h.protocol, version: h.version, world: h.world, seed: h.seed };
   const country = clean_country(h.country);
   if (country !== null) hello.country = country;
+  const map = clean_map_code(h.map);
+  if (map !== null) hello.map = map;
   return hello;
 }
 
@@ -273,6 +293,8 @@ export class Net {
     /** `package.json` version, sent in the hello. */
     readonly version = "0.0.0",
     join = joinRoom,
+    /** This map's code when it is a custom one, sent in the hello. */
+    readonly map: string | null = null,
   ) {
     this.name_ = clean_name(name);
     const password = lock?.password ?? null;
@@ -344,9 +366,7 @@ export class Net {
   }
 
   private get own_hello(): Hello {
-    const hello: Hello = { protocol: PROTOCOL, version: this.version, world: this.world, seed: this.seed };
-    if (this.country !== null) hello.country = this.country;
-    return hello;
+    return make_hello(this.version, this.world, this.seed, this.map, this.country);
   }
 
   /** Null hides it; peers already here hear the change. */
@@ -483,7 +503,7 @@ export class Net {
   private receive(state: CarState) {
     const now = performance.now();
     // The same seed on another world version is another island: racing on it would mean racing on different roads.
-    if (state.seed !== this.seed || state.w !== this.world) {
+    if (!same_map(this, { seed: state.seed, w: state.w, map: this.hellos.get(state.id)?.map })) {
       this.foreign.set(state.id, { name: state.name, seed: state.seed, world: state.w ?? 1, seen: now });
       this.remotes.delete(state.id);
       this.same_map.delete(state.id);

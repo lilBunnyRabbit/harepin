@@ -12,7 +12,7 @@ export interface Unlock {
 
 export function join_game(menu: Menu, target: Announce, password: string | null) {
   save_lock(target.room, password === null ? null : { password, asked: true });
-  menu.go(world_query(target.room, target.seed, kind_of_world(target.world)));
+  menu.go(world_query(target.room, target.seed, kind_of_world(target.world), target.map ?? null));
 }
 
 export function join_or_ask(menu: Menu, unlock: Unlock, target: Announce) {

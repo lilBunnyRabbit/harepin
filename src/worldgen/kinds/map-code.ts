@@ -1,19 +1,11 @@
 import { DEFAULT_KIND, WorldKind } from "../types";
 import { MAX_SEED, parse_seed } from "../../net/seed";
-import { KINDS } from "./kinds";
-import { normal_levels, parse_opts } from "./options";
-
-export interface MapSpec {
-  kind: WorldKind;
-  seed: number;
-  levels: readonly number[];
-}
+import { is_plain, KINDS, plain_map, type MapSpec } from "./kinds";
+import { CODE_CHARS as ALPHABET, normal_levels, overrides, parse_opts } from "./options";
 
 /** `newer`: made in a build that knows more presets, fields or levels; `bad`: not a map code at all. */
 export type MapRead = { ok: true; map: MapSpec } | { ok: false; why: "newer" | "bad" };
 
-/** Crockford base32: no I, L, O or U, so a code read out loud or copied by hand survives. */
-const ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 const FORMAT = "1";
 const SEED_CHARS = 7;
 const HEAD = 2 + SEED_CHARS;
@@ -38,15 +30,9 @@ function seed_chars(seed: number): string {
 }
 
 export function map_code({ kind, seed, levels }: MapSpec): string {
-  const { options } = KINDS[kind];
-  const overrides = options
-    .map((o, i) => ({ field: o.field, level: levels[i] ?? o.normal, normal: o.normal }))
-    .filter((o) => o.level !== o.normal)
-    .sort((a, b) => (a.field < b.field ? -1 : 1))
-    .map((o) => o.field + ALPHABET[o.level])
-    .join("");
+  const changed = overrides(KINDS[kind].options, levels);
   const head = `${FORMAT}${preset_char(kind)}${seed_chars(seed)}`;
-  return overrides ? `${head}${JOIN}${overrides}` : head;
+  return changed ? `${head}${JOIN}${changed}` : head;
 }
 
 function normalise(text: string): string {
@@ -89,4 +75,20 @@ export function parse_map_code(text: string, kind: WorldKind = DEFAULT_KIND): Ma
     levels[at] = level;
   }
   return { ok: true, map: { kind: preset.kind, seed, levels } };
+}
+
+/** A peer's or a URL's code: kept only as the canonical code of a map off its preset, which is the only kind sent. */
+export function clean_map_code(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const read = parse_map_code(raw);
+  return read.ok && !is_plain(read.map) && map_code(read.map) === raw ? raw : null;
+}
+
+/** The code a link or a hello carries: only a custom map's, so plain maps keep their old links and hellos. */
+export const custom_code = (map: MapSpec): string | null => (is_plain(map) ? null : map_code(map));
+
+/** The map a pick drives: its code when it reads, else the plain map of its seed and kind. */
+export function read_pick(pick: { seed: number; kind: WorldKind; code: string | null }): MapSpec {
+  const read = pick.code === null ? null : parse_map_code(pick.code, pick.kind);
+  return read?.ok ? read.map : plain_map(pick.kind, pick.seed);
 }

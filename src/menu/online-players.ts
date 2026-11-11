@@ -20,7 +20,7 @@ function place(player: Player): HTMLElement {
   const parts: (string | Node)[] = [];
   const { game } = player;
   if (player.country) parts.push(`${flag(player.country)} ${country_name(player.country)}`);
-  const map = `${WORLDS[kind_of_world(game.world)].name} ${game.seed}`;
+  const map = `${WORLDS[kind_of_world(game.world)].name} ${game.map ?? game.seed}`;
   if (game.room === LOBBY_ROOM) parts.push(`Free roam · ${map}`);
   else {
     const room = el("span", "players-room");

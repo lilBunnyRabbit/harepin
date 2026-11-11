@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { sky_layout, SKY } from "../sky";
 import { WorldKind } from "../types";
-import { clean_opts, KINDS, levels_of, world_key } from "./kinds";
+import { KINDS, world_key } from "./kinds";
 import { map_code, parse_map_code, PRESETS } from "./map-code";
 import { opts_code, parse_opts, tune } from "./options";
 import { MAX_SEED } from "../../net/seed";
@@ -11,9 +11,9 @@ test("the plain map keeps its key and an empty code", () => {
     const { options } = KINDS[kind];
     expect(opts_code(options, options.map((o) => o.normal))).toBe("");
   }
-  expect(world_key(42, WorldKind.ISLAND, "")).toBe("42:w7");
-  expect(world_key(42, WorldKind.ISLAND, "111111")).toBe("42:w7");
-  expect(world_key(42, WorldKind.ISLAND, "121111")).toBe("42:w7:121111");
+  expect(world_key(42, WorldKind.ISLAND, [])).toBe("42:w7");
+  expect(world_key(42, WorldKind.ISLAND, [1, 1, 1, 1, 1, 1])).toBe("42:w7");
+  expect(world_key(42, WorldKind.ISLAND, [1, 2, 1, 1, 1, 1])).toBe("42:w7:121111");
 });
 
 test("every code a kind has reads back to itself", () => {
@@ -25,16 +25,16 @@ test("every code a kind has reads back to itself", () => {
   }
 });
 
-test("malformed codes read as the plain map", () => {
-  for (const bad of ["9", "1111111111", "abc", "11111", "-11111", "1.1111"]) expect(clean_opts(WorldKind.ISLAND, bad)).toBe("");
-  expect(clean_opts(WorldKind.MAINLAND, "1")).toBe("");
+test("malformed option digits read as no levels", () => {
+  for (const bad of ["9", "1111111111", "abc", "11111", "-11111", "1.1111"]) expect(parse_opts(KINDS.island.options, bad)).toBeNull();
+  expect(parse_opts(KINDS.mainland.options, "1")).toBeNull();
 });
 
 test("the normal level leaves the recipe as it is", () => {
   const { options } = KINDS.island;
   const recipe = { n: 1 };
   expect(tune(recipe, [], [])).toBe(recipe);
-  expect(levels_of(WorldKind.ISLAND, "")).toEqual(options.map((o) => o.normal));
+  expect(parse_opts(options, "")).toEqual(options.map((o) => o.normal));
 });
 
 test("a sky option no layout of a seed can meet falls back to that seed's plain track, never another seed's", () => {

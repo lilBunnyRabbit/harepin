@@ -6,7 +6,9 @@ import { ALPINE } from "../recipe";
 import { crest_crossings, terrain } from "../terrain";
 import { town_level } from "../towns";
 import { WorldKind, parse_kind, type WorldData } from "../types";
-import { generate_world, KINDS, kind_of_world, world_id, world_key } from "./kinds";
+import { generate_world, is_plain, KINDS, kind_of_world, map_id, plain_map, world_id, world_key } from "./kinds";
+import { same_map } from "../../net/net";
+import { map_code } from "./map-code";
 
 /** Road points either side of a crest crossing, 2 m apart, that the pass must hold. */
 const PASS_REACH = 60;
@@ -114,4 +116,60 @@ test("unknown ids and names fall back to the island", () => {
   expect(parse_kind("sky")).toBe(WorldKind.SKY);
   expect(parse_kind("toString")).toBe(WorldKind.ISLAND);
   expect(parse_kind(null)).toBe(WorldKind.ISLAND);
+});
+
+test("a plain map of every kind keeps its id and records key; levels at normal are plain", () => {
+  const keys = Object.fromEntries(Object.values(WorldKind).map((kind) => [kind, [world_key(42, kind), map_id(plain_map(kind, 42))]]));
+  expect(keys).toEqual({ island: ["42:w7", 7], sky: ["42:sky3", 1003], desert: ["42:d2", 2002], mainland: ["42:m4", 3004], alpine: ["42:a2", 4002] });
+  for (const kind of Object.values(WorldKind)) {
+    const normal = KINDS[kind].options.map((o) => o.normal);
+    expect(world_key(42, kind, normal)).toBe(world_key(42, kind));
+    expect(world_key(42, kind, [])).toBe(world_key(42, kind));
+    expect(kind_of_world(map_id(plain_map(kind, 42)))).toBe(kind);
+  }
+});
+
+test("a custom map's w keeps its kind in the low bits, a never-zero 15-bit hash above, and stays a positive int", () => {
+  for (const kind of Object.values(WorldKind)) {
+    const { options } = KINDS[kind];
+    options.forEach((o, i) =>
+      o.labels.forEach((_, level) => {
+        if (level === o.normal) return;
+        const map = { kind, seed: 42, levels: options.map((p, j) => (j === i ? level : p.normal)) };
+        const w = map_id(map);
+        expect(w % 0x10000).toBe(world_id(kind));
+        expect(Math.floor(w / 0x10000)).toBeGreaterThan(0);
+        expect(Math.floor(w / 0x10000)).toBeLessThanOrEqual(0x7fff);
+        expect(w).toBeLessThan(2 ** 31);
+        expect(kind_of_world(w)).toBe(kind);
+        expect(world_key(42, kind, map.levels)).not.toBe(world_key(42, kind));
+      }),
+    );
+  }
+});
+
+test("an old build, which matches ids whole, sees a custom map as a foreign map on the plain kind", () => {
+  const w = map_id({ kind: WorldKind.SKY, seed: 42, levels: [2, 1, 1, 1, 1] });
+  const old_kind_of_world = (id: number) => Object.values(KINDS).find((def) => def.id === id)?.kind ?? WorldKind.ISLAND;
+  expect(Object.values(KINDS).some((def) => def.id === w)).toBe(false);
+  expect(old_kind_of_world(w)).toBe(WorldKind.ISLAND);
+  expect(w).not.toBe(world_id(WorldKind.SKY));
+});
+
+test("maps that share a w still meet as different maps by their codes", () => {
+  const { options } = KINDS.island;
+  let all: number[][] = [[]];
+  for (const o of options) all = all.flatMap((levels) => o.labels.map((_, level) => [...levels, level]));
+  const maps = all.map((levels) => ({ kind: WorldKind.ISLAND, seed: 42, levels })).filter((map) => !is_plain(map));
+  expect(new Set(maps.map(map_id)).size).toBe(maps.length);
+  // No seed-42 pair collides, so the collision is staged: a hash that matched would leave only the codes to differ.
+  const [a, b] = maps;
+  const w = map_id(a);
+  expect(same_map({ seed: 42, world: w, map: map_code(a) }, { seed: 42, w, map: map_code(b) })).toBe(false);
+  expect(same_map({ seed: 42, world: w, map: map_code(a) }, { seed: 42, w, map: map_code(a) })).toBe(true);
+});
+
+test("records keys: a map off only K2 knobs keeps its digit key", () => {
+  expect(world_key(42, WorldKind.DESERT, [2, 1, 0])).toBe("42:d2:210");
+  expect(world_key(42, WorldKind.SKY, [1, 1, 0, 1, 1])).toBe("42:sky3:11011");
 });

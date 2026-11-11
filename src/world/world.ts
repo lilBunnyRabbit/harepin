@@ -5,7 +5,7 @@ import { extent } from "../worldgen/chunk-grid";
 import { DeckIndex } from "../worldgen/deck";
 import { generate } from "../worldgen/index";
 import type { Footing, GripTable } from "../worldgen/kinds/kind-def";
-import { KINDS } from "../worldgen/kinds/kinds";
+import { KINDS, world_key } from "../worldgen/kinds/kinds";
 import { ramp_reach2, ramp_surface, spawn_blocks, type Surface } from "../worldgen/jumps";
 import { FALL_DEPTH } from "../worldgen/sky";
 import { slice_tiles, TileStore, type Tile } from "../worldgen/tiles";
@@ -149,6 +149,8 @@ function nearest(grid: Map<number, number[]>, x: number, z: number, at: (item: n
 
 export class World implements Ground {
   readonly kind: WorldKind;
+  /** `world_key` of this map: records, ghosts and races are saved under it. */
+  readonly key: string;
   readonly deck: DeckIndex | null;
   private readonly grips: GripTable;
   private readonly fall_reset: boolean;
@@ -214,8 +216,10 @@ export class World implements Ground {
     readonly seed = 0,
     data: WorldData = generate(seed),
     tiles: readonly Tile[] = slice_tiles(data.terrain),
+    readonly levels: readonly number[] = [],
   ) {
     this.kind = data.kind;
+    this.key = world_key(seed, data.kind, levels);
     this.grips = KINDS[data.kind].grip;
     this.fall_reset = KINDS[data.kind].fall_reset;
     const water = data.ground.ops.find((op) => op.kind === "water");

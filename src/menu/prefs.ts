@@ -6,6 +6,7 @@ import { guide_seen_on_load, seen_flag } from "./guide-rules";
 import { clean_name } from "../net/net";
 import { parse_last_seed, parse_last_world } from "./saved-pick";
 import type { WorldKind } from "../worldgen/types";
+import { clean_map_code, map_code, parse_map_code } from "../worldgen/kinds/map-code";
 
 export const QualityMode = {
   AUTO: "auto",
@@ -119,6 +120,10 @@ export interface SettingsState {
   /** The world the player last picked in the menu; a bare URL drives it again. Never set by an invite or a join. */
   last_world: WorldKind | null;
   last_seed: number | null;
+  /** The custom map picked with `last_world`, as its code; null for the plain map. */
+  last_map: string | null;
+  /** Maps the player named on the Create-world page, newest first. */
+  saved_maps: SavedMap[];
   /** The mainland map last driven, for Play's map and its Keep driving while the player is on a mini map. */
   last_mainland_seed: number | null;
   /** Set by Drive, Skip or the last step of the first-run guide; never by an invite link. */
@@ -127,6 +132,28 @@ export interface SettingsState {
   smooth_steer: boolean;
 }
 export type SettingKey = keyof SettingsState;
+
+export interface SavedMap {
+  name: string;
+  code: string;
+}
+
+export const SAVED_MAPS_MAX = 50;
+export const MAP_NAME_LENGTH = 32;
+
+function parse_saved_maps(raw: unknown): SavedMap[] {
+  if (!Array.isArray(raw)) return [];
+  const maps: SavedMap[] = [];
+  for (const entry of raw.slice(0, SAVED_MAPS_MAX)) {
+    if (!entry || typeof entry !== "object") continue;
+    const { name, code } = entry as Record<string, unknown>;
+    if (typeof name !== "string" || typeof code !== "string") continue;
+    const read = parse_map_code(code);
+    const clean = [...name.replace(/\p{C}/gu, "").trim()].slice(0, MAP_NAME_LENGTH).join("").trim();
+    if (clean && read.ok && map_code(read.map) === code) maps.push({ name: clean, code });
+  }
+  return maps;
+}
 
 interface Field<T> {
   fallback: T;
@@ -178,6 +205,8 @@ const FIELDS: { [K in SettingKey]: Field<SettingsState[K]> } = {
   show_country: flag(true),
   last_world: { fallback: null, parse: parse_last_world },
   last_seed: { fallback: null, parse: parse_last_seed },
+  last_map: { fallback: null, parse: clean_map_code },
+  saved_maps: { fallback: [], parse: parse_saved_maps },
   last_mainland_seed: { fallback: null, parse: parse_last_seed },
   guide_seen: { fallback: false, parse: seen_flag },
   smooth_steer: flag(true),

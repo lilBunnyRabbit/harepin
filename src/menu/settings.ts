@@ -16,6 +16,7 @@ import { Rows, el, icon, read, type RowHelp, type Text, type Value } from "./set
 import { WorldKind } from "../worldgen/types";
 import { GoTo, GoalId } from "../goals/goals";
 import { mainland_seed, world_query } from "../world/world-pick";
+import { custom_code } from "../worldgen/kinds/map-code";
 import { warm_pick } from "./warm";
 import { UpdateState } from "../version";
 import "./settings.css";
@@ -96,7 +97,7 @@ export class Settings {
       refresh: () => this.refresh(),
       close: () => this.close(),
       show: (section) => this.show(section),
-      drive: (seed, kind) => this.drive(seed, kind),
+      drive: (seed, kind, levels) => this.drive(seed, kind, levels),
       go: (query) => this.go(query),
     };
     this.settings_menu = {
@@ -434,13 +435,15 @@ export class Settings {
   }
 
   /** A world the player picked: remembered for the next bare load, then driven in this room. */
-  private drive(seed: number, kind: WorldKind) {
+  private drive(seed: number, kind: WorldKind, levels: readonly number[] = []) {
+    const code = custom_code({ seed, kind, levels });
     this.set("last_world", kind);
     this.set("last_seed", seed);
+    this.set("last_map", code);
     if (kind === WorldKind.MAINLAND) this.set("last_mainland_seed", seed);
     if (seed !== this.host.seed) this.host.goals.done(GoalId.NEW_MAP);
-    if (seed === this.host.seed && kind === this.host.kind) return this.close();
-    this.go(world_query(this.host.room, seed, kind));
+    if (seed === this.host.seed && kind === this.host.kind && code === this.host.code) return this.close();
+    this.go(world_query(this.host.room, seed, kind, code));
   }
 
   private go_to(to: GoTo) {

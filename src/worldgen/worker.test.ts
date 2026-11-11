@@ -79,7 +79,7 @@ function tile_checksum(tiles: Tile[]): string {
 test("the streamed world, once every chunk is in, equals a direct call", async () => {
   const direct = generate(SEED);
   const direct_chunks = build_chunks(direct, TONES);
-  const { data, chunks, tiles, order } = await from_worker({ seed: SEED, kind: "island", tones: TONES });
+  const { data, chunks, tiles, order } = await from_worker({ seed: SEED, kind: "island", code: null, tones: TONES });
   expect(chunk_checksum(chunks)).toBe(chunk_checksum(direct_chunks));
   expect(tiles.length).toBe(CHUNKS * CHUNKS);
   expect(tile_checksum(tiles)).toBe(tile_checksum(slice_tiles(direct.terrain)));
@@ -94,7 +94,7 @@ test("the streamed world, once every chunk is in, equals a direct call", async (
 
 test("the worker builds the sky track as a direct call does, with no terrain mesh", async () => {
   const direct = generate_world(SEED, "sky");
-  const { data, chunks, tiles } = await from_worker({ seed: SEED, kind: "sky", tones: TONES });
+  const { data, chunks, tiles } = await from_worker({ seed: SEED, kind: "sky", code: null, tones: TONES });
   expect(tiles.filter(Boolean).length).toBe(CHUNKS * CHUNKS);
   expect(data.kind).toBe("sky");
   expect(data.deck?.line).toEqual(direct.deck?.line);
@@ -104,5 +104,5 @@ test("the worker builds the sky track as a direct call does, with no terrain mes
 }, 30_000);
 
 test("a throw in the worker comes back as an error reply instead of a silent hang", async () => {
-  await expect(from_worker({ seed: SEED, kind: "nowhere" as WorldData["kind"], tones: TONES })).rejects.toThrow(/^error reply: /);
+  await expect(from_worker({ seed: SEED, kind: "nowhere" as WorldData["kind"], code: null, tones: TONES })).rejects.toThrow(/^error reply: /);
 }, 30_000);

@@ -3,6 +3,7 @@ import { World } from "../../src/world/world";
 import { extent } from "../../src/worldgen/chunk-grid";
 import { build_chunks } from "../../src/worldgen/chunks";
 import { generate_world, KINDS } from "../../src/worldgen/kinds/kinds";
+import { overrides } from "../../src/worldgen/kinds/options";
 import type { WorldKind } from "../../src/worldgen/types";
 import { streamed_digest, world_digest, type Digest } from "./digest";
 import { circuit_lap, drive_spurs, sky_lap, type Outcome } from "./drives";
@@ -18,7 +19,7 @@ export interface ProofJob {
   kind: WorldKind;
   seed: number;
   /** Map option code; empty for the plain map. */
-  opts?: string;
+  levels?: number[];
   /** World rules (land kinds only), on top of the digest. */
   checks: boolean;
   /** Spur drives and a circuit lap on a land kind, a lap on the sky track. */
@@ -39,9 +40,10 @@ export interface ProofResult {
 }
 
 self.onmessage = (event: MessageEvent<ProofJob>) => {
-  const { kind, seed, opts = "", checks, drives } = event.data;
+  const { kind, seed, levels = [], checks, drives } = event.data;
+  const opts = overrides(KINDS[kind].options, levels);
   const t0 = performance.now();
-  const data = generate_world(seed, kind, opts);
+  const data = generate_world(seed, kind, levels);
   const t1 = performance.now();
   // A streamed kind's plan has no grids to mesh whole; its digest builds every chunk from the plan instead.
   const streamed = !data.terrain.heights.length;

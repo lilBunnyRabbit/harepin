@@ -1,7 +1,7 @@
 import { CHUNK, chunk_corner } from "../worldgen/chunk-grid";
 import type { ChunkBuffers, MeshTones } from "../worldgen/chunks";
 import type { Tree } from "../worldgen/types";
-import type { WorldKind } from "../worldgen/types";
+import type { MapSpec } from "../worldgen/kinds/kinds";
 import type { WorkerReply, WorkerRequest } from "../worldgen/worker";
 import { World } from "./world";
 
@@ -10,6 +10,7 @@ const FOLLOW_STEP = 64;
 /** Milliseconds of each frame a streamed world spends handing arrived chunk meshes on; at least one goes per frame. */
 const ADD_BUDGET_MS = 3;
 import { WorldWorker, take_early } from "./world-worker";
+import type { WorldPick } from "./world-pick";
 
 export interface ChunkListener {
   /** `trees` null on a compact world, whose trees came with its plan. */
@@ -50,8 +51,8 @@ export class WorldStream {
   }
 
   /** Takes over the boot entry's worker when it was started for this world, else starts one. */
-  static open(seed: number, kind: WorldKind, tones: MeshTones): Promise<WorldStream> {
-    const worker = take_early(seed, kind) ?? WorldWorker.start(seed, kind);
+  static open(pick: WorldPick, map: MapSpec, tones: MeshTones): Promise<WorldStream> {
+    const worker = take_early(pick) ?? WorldWorker.start(pick);
     worker.post({ type: "tones", tones });
     return new Promise((resolve, reject) => {
       let stream: WorldStream | null = null;
@@ -65,7 +66,7 @@ export class WorldStream {
         if (event.type === "error") return fail(new Error(`world worker: ${event.message}`));
         const { reply } = event;
         if (reply.type === "plan") {
-          stream = new WorldStream(worker, new World(seed, reply.data, []));
+          stream = new WorldStream(worker, new World(map.seed, reply.data, [], map.levels));
           resolve(stream);
         } else if (reply.type === "error") fail(new Error(`world worker: ${reply.message}`));
         else stream?.receive(reply);

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { SteerMode } from "../car/car";
 import { DEFAULT_BINDINGS, rebind_key } from "../hud/bindings";
 import { DEFAULT_PAD_RESPONSE } from "../hud/pad-curve";
-import { DEFAULT_SETTINGS, pad_settings, parse_settings, type SettingsState } from "./prefs";
+import { DEFAULT_SETTINGS, SAVED_MAPS_MAX, pad_settings, parse_settings, type SettingsState } from "./prefs";
 
 describe("parse_settings", () => {
   test("nothing stored gives the defaults, with the guide seen only by a returning player", () => {
@@ -52,6 +52,8 @@ describe("parse_settings", () => {
       show_country: false,
       last_world: "sky",
       last_seed: 4294967295,
+      last_map: "1S3ZZZZZZ-A0",
+      saved_maps: [{ name: "Gap run", code: "1S3ZZZZZZ-A0" }, { name: "Plain", code: "1C000001A" }],
       last_mainland_seed: 12,
       guide_seen: false,
       smooth_steer: true,
@@ -74,6 +76,16 @@ describe("parse_settings", () => {
     expect(parse_settings({ last_seed: -1 }).last_seed).toBeNull();
     expect(parse_settings({ last_seed: 1.5 }).last_seed).toBeNull();
     expect(parse_settings({ last_world: "moon" }).last_world).toBeNull();
+    expect(parse_settings({ last_map: "1C000001A" }).last_map).toBeNull();
+    expect(parse_settings({ last_map: "1c000001a-e2" }).last_map).toBeNull();
+    expect(parse_settings({ last_map: "1Z000001A-E2" }).last_map).toBeNull();
+  });
+
+  test("saved maps keep only named entries with a canonical code, capped", () => {
+    const maps = [{ name: " Mine ", code: "1C000001A-E2" }, { name: "", code: "1C000001A" }, { name: "Lower", code: "1c000001a" }, { name: "Newer", code: "1Z000001A" }, "x", null];
+    expect(parse_settings({ saved_maps: maps }).saved_maps).toEqual([{ name: "Mine", code: "1C000001A-E2" }]);
+    expect(parse_settings({ saved_maps: Array(80).fill({ name: "a", code: "1C000001A" }) }).saved_maps).toHaveLength(SAVED_MAPS_MAX);
+    expect(parse_settings({ saved_maps: { name: "a" } }).saved_maps).toEqual([]);
   });
 
   test("saves from before the pad settings get the old fixed pad curve", () => {

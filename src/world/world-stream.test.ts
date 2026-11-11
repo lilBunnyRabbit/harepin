@@ -2,17 +2,18 @@
 import { expect, test } from "bun:test";
 import { CHUNK, CHUNKS } from "../worldgen/chunk-grid";
 import type { ChunkBuffers, MeshTones } from "../worldgen/chunks";
-import { ORIGIN } from "../worldgen/types";
+import { ORIGIN, type WorldKind } from "../worldgen/types";
 import { WorldStream } from "./world-stream";
 
 const BROKEN = {} as MeshTones;
+const pick = (seed: number, kind: WorldKind) => [{ seed, kind, code: null }, { seed, kind, levels: [] }] as const;
 
 test("a world that fails to generate rejects open instead of hanging", async () => {
-  await expect(WorldStream.open(0, "nowhere" as "island", BROKEN)).rejects.toThrow(/world worker/);
+  await expect(WorldStream.open(...pick(0, "nowhere" as WorldKind), BROKEN)).rejects.toThrow(/world worker/);
 }, 30_000);
 
 test("meshing that throws after the plan rejects every wait on a missing chunk", async () => {
-  const stream = await WorldStream.open(0, "island", BROKEN);
+  const stream = await WorldStream.open(...pick(0, "island"), BROKEN);
   await expect(stream.world.tiles.whole()).rejects.toThrow(/world worker/);
   await expect(stream.world.tiles.ensure(900, 900)).rejects.toThrow(/world worker/);
 }, 30_000);
@@ -20,7 +21,7 @@ test("meshing that throws after the plan rejects every wait on a missing chunk",
 test("a dropped chunk comes back on request with the same tile and mesh", async () => {
   const { MESH_TONES: TONES } = await import("../../scripts/proof/tones");
   const { checksum } = await import("../worldgen/checksum");
-  const stream = await WorldStream.open(3, "island", TONES);
+  const stream = await WorldStream.open(...pick(3, "island"), TONES);
   const meshes = new Map<number, string>();
   const mesh_sum = (c: ChunkBuffers) => checksum([...(c.terrain ? [c.terrain.positions, c.terrain.colors, c.terrain.index] : []), ...[c.road, c.buildings, c.parking].flatMap((p) => (p ? [p.positions, p.colors] : []))]);
   const again: string[] = [];
@@ -42,7 +43,7 @@ test("a dropped chunk comes back on request with the same tile and mesh", async 
 
 test("a wait on a dropped chunk asks for it again, and a reply asked for before a drop is thrown away", async () => {
   const { MESH_TONES } = await import("../../scripts/proof/tones");
-  const stream = await WorldStream.open(5, "island", MESH_TONES);
+  const stream = await WorldStream.open(...pick(5, "island"), MESH_TONES);
   await stream.world.tiles.whole();
   const index = 27;
   const x = ORIGIN + ((index % CHUNKS) + 0.5) * CHUNK;
@@ -60,7 +61,7 @@ test("a wait on a dropped chunk asks for it again, and a reply asked for before 
 
 test("a streamed world keeps only the chunks around the car, nearest first, and lets the far ones go", async () => {
   const { MESH_TONES } = await import("../../scripts/proof/tones");
-  const stream = await WorldStream.open(0, "mainland", MESH_TONES);
+  const stream = await WorldStream.open(...pick(0, "mainland"), MESH_TONES);
   const { tiles } = stream.world;
   const { ext } = tiles;
   const shown = new Set<number>();
@@ -108,7 +109,7 @@ test("a streamed world keeps only the chunks around the car, nearest first, and 
 
 test("a compact world keeps every chunk wherever the car goes", async () => {
   const { MESH_TONES } = await import("../../scripts/proof/tones");
-  const stream = await WorldStream.open(2, "island", MESH_TONES);
+  const stream = await WorldStream.open(...pick(2, "island"), MESH_TONES);
   await stream.world.tiles.whole();
   stream.follow(900, 900, 700);
   stream.follow(-900, -900, 700);

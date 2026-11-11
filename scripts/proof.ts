@@ -29,11 +29,10 @@ function option_jobs(): ProofJob[] {
   for (const def of Object.values(KINDS)) {
     if (!def.options.length) continue;
     const normal = def.options.map((o) => o.normal);
-    const code = (levels: number[]) => (levels.every((l, i) => l === normal[i]) ? "" : levels.join(""));
-    const add = (opts: string, seeds: number[]) => out.push(...seeds.map((seed) => ({ kind: def.kind, seed, opts, checks: true, drives: false })));
-    add("", OPTION_SEEDS);
-    def.options.forEach((o, i) => o.labels.forEach((_, level) => level !== o.normal && add(code(normal.map((l, j) => (j === i ? level : l))), OPTION_SEEDS)));
-    for (let k = 0; k < COMBOS; k++) add(code(def.options.map((o) => Math.floor(rng() * o.labels.length))), [Math.floor(rng() * 1000)]);
+    const add = (levels: number[], seeds: number[]) => out.push(...seeds.map((seed) => ({ kind: def.kind, seed, levels, checks: true, drives: false })));
+    add(normal, OPTION_SEEDS);
+    def.options.forEach((o, i) => o.labels.forEach((_, level) => level !== o.normal && add(normal.map((l, j) => (j === i ? level : l)), OPTION_SEEDS)));
+    for (let k = 0; k < COMBOS; k++) add(def.options.map((o) => Math.floor(rng() * o.labels.length)), [Math.floor(rng() * 1000)]);
   }
   return out;
 }

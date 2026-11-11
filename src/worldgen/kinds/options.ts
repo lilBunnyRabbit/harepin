@@ -6,6 +6,8 @@ export interface OptionDef {
   labels: readonly string[];
   /** The level that builds the kind as it was before options: `labels[normal]`. */
   normal: number;
+  /** A 0-31 slider: never part of a K2 records key, so K2 records keep theirs. */
+  slider?: boolean;
 }
 
 export interface Knob<R> extends OptionDef {
@@ -37,4 +39,17 @@ export function parse_opts(options: readonly OptionDef[], code: string): number[
   if (code.length !== options.length) return null;
   const levels = [...code].map(Number);
   return levels.every((level, i) => Number.isInteger(level) && level >= 0 && level < options[i].labels.length) ? levels : null;
+}
+
+/** Crockford base32: no I, L, O or U, so a code read out loud or copied by hand survives. */
+export const CODE_CHARS = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+
+/** Each level off normal as its field letter and level char, sorted by letter: one string per set of levels. */
+export function overrides(options: readonly OptionDef[], levels: readonly number[]): string {
+  return options
+    .map((o, i) => ({ field: o.field, level: levels[i] ?? o.normal, normal: o.normal }))
+    .filter((o) => o.level !== o.normal)
+    .sort((a, b) => (a.field < b.field ? -1 : 1))
+    .map((o) => o.field + CODE_CHARS[o.level])
+    .join("");
 }

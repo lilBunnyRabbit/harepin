@@ -26,7 +26,7 @@ function from_worker(request: MapRequest): Promise<MapData> {
 
 test("the map worker draws the same island as a direct call", async () => {
   const direct = map_data(generate(SEED), TONES);
-  expect(await from_worker({ seed: SEED, kind: "island", tones: TONES })).toEqual(direct);
+  expect(await from_worker({ seed: SEED, kind: "island", levels: [], tones: TONES })).toEqual(direct);
 }, 30_000);
 
 test("the map covers the island and draws the circuit through the start", () => {
@@ -47,7 +47,7 @@ test("the map covers the island and draws the circuit through the start", () => 
 });
 
 test("the sky track preview is a cloud backdrop with the circuit, its gaps, boost pads and checkpoints", async () => {
-  const map = await from_worker({ seed: SEED, kind: "sky", tones: TONES });
+  const map = await from_worker({ seed: SEED, kind: "sky", levels: [], tones: TONES });
   expect(map.kind).toBe("sky");
   expect(map.towns).toEqual([]);
   expect(map.lines.map((l) => l.kind)).toEqual(["circuit"]);

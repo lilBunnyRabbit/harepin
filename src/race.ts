@@ -1,5 +1,4 @@
 import type { World } from "./world/world";
-import { world_key } from "./worldgen/kinds/kinds";
 
 const BEST_KEY = "harepin:best";
 const SPLITS_KEY = "harepin:splits";
@@ -62,8 +61,8 @@ export class Race {
   private readonly splits_key: string;
 
   constructor(private world: World) {
-    this.best_key = `${BEST_KEY}:${world_key(world.seed, world.kind)}`;
-    this.splits_key = `${SPLITS_KEY}:${world_key(world.seed, world.kind)}`;
+    this.best_key = `${BEST_KEY}:${world.key}`;
+    this.splits_key = `${SPLITS_KEY}:${world.key}`;
     this.best = load<number | null>(this.best_key, is_time, null);
     this.best_splits = load(this.splits_key, is_splits, []);
   }

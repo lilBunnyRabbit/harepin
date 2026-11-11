@@ -2,6 +2,7 @@ import type { Planted } from "./biomes";
 import { chunk_corner, CHUNK, extent, type Extent } from "./chunk-grid";
 import { chunk_meshes, chunk_transfers, type ChunkBuffers, type MeshTones } from "./chunks";
 import { generate_world, KINDS } from "./kinds/kinds";
+import { read_pick } from "./kinds/map-code";
 import { TileMesher } from "./tile-mesher";
 import { slice_tile, tile_transfers, type Tile } from "./tiles";
 import { SPAWN_INDEX, type WorldData, type WorldKind } from "./types";
@@ -10,6 +11,7 @@ export interface GenRequest {
   type: "gen";
   seed: number;
   kind: WorldKind;
+  code: string | null;
 }
 
 /** The plan needs no colours, so it starts before the page has read its theme; chunks wait for these. */
@@ -67,8 +69,9 @@ function fail(error: unknown) {
   postMessage({ type: "error", message: error instanceof Error ? (error.stack ?? error.message) : String(error) } satisfies WorkerReply);
 }
 
-function open({ seed, kind }: GenRequest) {
-  const data = generate_world(seed, kind);
+function open(request: GenRequest) {
+  const { seed, kind, levels } = read_pick(request);
+  const data = generate_world(seed, kind, levels);
   const spawn = data.road.at(SPAWN_INDEX) ?? data.road[0];
   if (spawn) focus = [spawn.x, spawn.z];
   // The sim reads water depth from the plan's water op; every other op only rebuilds tiles, which stay in this worker.

@@ -2,7 +2,6 @@ import * as THREE from "three";
 import { Ghost } from "../car/ghost";
 import { format } from "../hud/hud";
 import type { World } from "../world/world";
-import { world_key } from "../worldgen/kinds/kinds";
 import { DUEL_LEVELS, DuelRun, DuelStatus, build_route, type DuelLevel, type Route } from "./duel";
 import { DuelView } from "./duel-view";
 import type { Driven, Finish, ModeCtx, ModeDef, ModeRun } from "./mode";
@@ -15,7 +14,7 @@ function ghost_for(ctx: ModeCtx, id: string): Ghost {
   const kept = ghosts.get(world);
   if (kept?.id === id) return kept.ghost;
   kept?.ghost.dispose();
-  const ghost = new Ghost(ctx.scene, world.seed, `harepin:ghost:duel:${id}:${world_key(world.seed, world.kind)}`);
+  const ghost = new Ghost(ctx.scene, world.seed, `harepin:ghost:duel:${id}:${world.key}`);
   ghosts.set(world, { id, ghost });
   return ghost;
 }

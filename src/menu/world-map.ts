@@ -102,7 +102,7 @@ export class WorldMap {
       console.warn("world map: generation failed", event.message);
       this.set_status(MapStatus.FAILED);
     });
-    const request: MapRequest = { seed, kind, tones: map_tones() };
+    const request: MapRequest = { seed, kind, levels: [], tones: map_tones() };
     worker.postMessage(request);
   }
 

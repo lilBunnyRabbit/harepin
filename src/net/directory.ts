@@ -5,6 +5,7 @@ import { MAX_SEED } from "./seed";
 import { TURN_SERVERS } from "./ice";
 import { WorldKind } from "../worldgen/types";
 import { world_id } from "../worldgen/kinds/kinds";
+import { clean_map_code } from "../worldgen/kinds/map-code";
 import { clean_country } from "./country";
 import { player_list, type Player } from "./players";
 
@@ -40,8 +41,10 @@ export type Announce = {
   players: number;
   locked: boolean;
   version: string;
-  /** `world_id` of the game's world kind; peers that predate it send none and are on the island. */
+  /** `map_id` of the game's map; peers that predate it send none and are on the island. */
   world?: number;
+  /** The code of a custom map; absent on a plain one. */
+  map?: string;
   /** In a lobby race, so not joinable until it ends; peers that predate it send none. */
   racing?: boolean;
   /** The game's players, its announcer first; peers that predate it send none and show as one row under `host`. */
@@ -93,6 +96,8 @@ export function sanitize_announce(raw: unknown): Announce | null {
   if (a.world !== undefined && (typeof a.world !== "number" || !Number.isInteger(a.world) || a.world < 1 || a.world > MAX_SEED)) return null;
   const announce: Announce = { room, seed: a.seed, host: clean_name(a.host), players: Math.min(a.players, MAX_PLAYERS), locked: a.locked, version: a.version };
   if (a.world !== undefined) announce.world = a.world;
+  const map = clean_map_code(a.map);
+  if (map !== null) announce.map = map;
   if (a.racing === true) announce.racing = true;
   if (Array.isArray(a.roster)) {
     const roster = a.roster.slice(0, MAX_ROSTER).map(sanitize_entry).filter((entry) => entry !== null);
@@ -112,7 +117,7 @@ function sanitize_entry(raw: unknown): RosterEntry | null {
   return entry;
 }
 
-const key_of = (a: Announce) => JSON.stringify([a.room, a.seed, a.world ?? world_id(WorldKind.ISLAND), a.locked, a.version]);
+const key_of = (a: Announce) => JSON.stringify([a.room, a.seed, a.world ?? world_id(WorldKind.ISLAND), a.locked, a.version, ...(a.map ? [a.map] : [])]);
 
 // One game has one elected announcer; if two claim the same game (a hand-over, or a spoof), the lowest peer id wins
 // whole, so host and player count always come from a single announce and every viewer shows the same row.

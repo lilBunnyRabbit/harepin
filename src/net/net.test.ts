@@ -1,6 +1,6 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import { RateLimit, WRONG_PASSWORD, clean_name, is_sdp_failure, leader_of, join_error_status, read_car, sanitize_chat, sanitize_event, sanitize_hello, sanitize_online, sanitize_ready, type CarState } from "./net";
+import { PROTOCOL, RateLimit, WRONG_PASSWORD, make_hello, same_map, clean_name, is_sdp_failure, leader_of, join_error_status, read_car, sanitize_chat, sanitize_event, sanitize_hello, sanitize_online, sanitize_ready, type CarState } from "./net";
 import { encode_car } from "./car-packet";
 import { parse_seed } from "./seed";
 
@@ -127,4 +127,26 @@ test("online count: a positive whole number, capped", () => {
   expect(sanitize_online({ online: 7 })).toEqual({ online: 7 });
   expect(sanitize_online({ online: 1e9 })).toEqual({ online: 9999 });
   for (const raw of [null, 3, {}, { online: 0 }, { online: -2 }, { online: 2.5 }, { online: "7" }, { online: Number.NaN }]) expect(sanitize_online(raw)).toBeNull();
+});
+
+test("a plain map's hello is byte-identical to the hello before map codes", () => {
+  expect(JSON.stringify(make_hello("0.11.0", 7, 42, null, null))).toBe(`{"protocol":${PROTOCOL},"version":"0.11.0","world":7,"seed":42}`);
+  expect(JSON.stringify(make_hello("0.11.0", 7, 42, null, "SI"))).toBe(`{"protocol":${PROTOCOL},"version":"0.11.0","world":7,"seed":42,"country":"SI"}`);
+  expect(make_hello("0.11.0", 7 + 0x10000, 42, "1C000001A-E2", null).map).toBe("1C000001A-E2");
+});
+
+test("hello: a map code is kept only as a custom map's canonical code", () => {
+  const hello = { protocol: 2, version: "0.11.0", world: 7 + 0x10000, seed: 42 };
+  expect(sanitize_hello({ ...hello, map: "1C000001A-E2" })).toEqual({ ...hello, map: "1C000001A-E2" });
+  for (const map of ["1C000001A", "1c000001a-e2", "1C000001A-E2E0", "1Z000001A-E2", "x".repeat(200), 7]) expect(sanitize_hello({ ...hello, map })).toEqual(hello);
+});
+
+test("same map: seed and w, then the codes when both named one", () => {
+  const own = { seed: 42, world: 7 + 3 * 0x10000, map: "1C000001A-E2" };
+  expect(same_map(own, { seed: 42, w: own.world, map: own.map })).toBe(true);
+  expect(same_map(own, { seed: 42, w: own.world })).toBe(true);
+  expect(same_map(own, { seed: 42, w: own.world, map: "1C000001A-E0" })).toBe(false);
+  expect(same_map(own, { seed: 43, w: own.world, map: own.map })).toBe(false);
+  expect(same_map(own, { seed: 42, w: 7 })).toBe(false);
+  expect(same_map({ seed: 42, world: 7, map: null }, { seed: 42, w: 7 })).toBe(true);
 });
