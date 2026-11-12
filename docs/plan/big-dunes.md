@@ -174,3 +174,5 @@ A rounded crest never gives air at sand speeds, as estimated. Off a sharp brink 
 | 4 | Height on the 2 km map | 80-150 m now, or wait for mainland for 300 m | **~120 m now** |
 
 **Owner picks (2026-11-12):** only off-road cars bash dunes (keep SAND_GRIP; others use packed lines) · rounded crests + built crest jumps first · own mini map, ~120 m dunes now; 300 m later as a mainland region.
+
+**Owner 2026-11-12 (redirect):** the point is off-road dune bashing. Make it much bigger, streamed like Mainland (6+ km feel); terrain generation stays simple; no roads needed (spawn + free roam). Many dunes of mixed size (small 5-15 m hops to big ones) with natural sharp crests as jumps, landings on the down-slope. Replaces the corridor-circuit design.
