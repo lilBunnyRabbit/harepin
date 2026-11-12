@@ -23,6 +23,14 @@ const PER_SIZE = 3;
 /** The S1 crest speeds, m/s, plus each car's own top speed up a 12 degree loose windward face: what it brings to a crest. */
 const SPEEDS = [15, 20, 25];
 const WINDWARD_CLIMB = grade_of(12);
+/** Crest jumps flat out, km/h, launched along the windward grade under the brink. */
+const JUMP_KMH = [60, 80, 95, 110];
+const GRAVITY = 9.81;
+/** Past the touchdown the car needs this many metres to land in, none of it climbing steeper than a big dune's windward. */
+const RUNOUT = 20;
+const LANDING_RISE = 0.2;
+/** Crests are noise-bent and fields overlap, so a few land short; this share of every size must land clear. */
+const CLEAR = 0.95;
 
 function shape_of(data: WorldData) {
   if (data.ground.base.kind !== "terrain") throw new Error("the dune sea is a terrain kind");
@@ -35,11 +43,11 @@ function wind_of(seed: number, data: WorldData) {
   return dune_wind(seed, dunes.seed);
 }
 
-test("the dune sea streams past the mainland's size, keyed bd13", async () => {
+test("the dune sea streams past the mainland's size, keyed bd14", async () => {
   const { KINDS, world_key } = await import("./kinds/kinds");
   expect(KINDS[WorldKind.BIG_DUNES].size).toBe(DUNE_SEA_SIZE);
   expect(EXT.side).toBeGreaterThan(extent(6144).side);
-  expect(world_key(42, WorldKind.BIG_DUNES)).toBe("42:bd13");
+  expect(world_key(42, WorldKind.BIG_DUNES)).toBe("42:bd14");
 });
 
 for (const seed of sweep(10))
@@ -103,6 +111,58 @@ function crests(seed: number, data: WorldData): { x: number; z: number; drop: nu
   }
   return out;
 }
+
+/** Metres past the crest where a point launched at `v` m/s along `lift` touches the ground ahead. */
+function touchdown(ahead: (d: number) => number, lift: number, v: number): number {
+  const vx = v / Math.hypot(1, lift);
+  const y0 = ahead(0);
+  for (let d = 0.5; d < 500; d += 0.5) {
+    const t = d / vx;
+    if (y0 + vx * lift * t - (GRAVITY * t * t) / 2 <= ahead(d)) return d;
+  }
+  return Infinity;
+}
+
+for (const seed of sweep(4))
+  test(`dune sea ${seed}: off ${CLEAR * 100}% of crests of every size at ${JUMP_KMH[0]}-${JUMP_KMH[JUMP_KMH.length - 1]} km/h the car lands with ${RUNOUT} m clear of the next dune face`, () => {
+    const data = generate_dune_sea(seed);
+    const height = land_height(seed, shape_of(data));
+    const { x: wx, z: wz } = wind_of(seed, data);
+    const along = (x: number, z: number) => (d: number) => height(x + wx * d, z + wz * d);
+    const crests = SIZES.map(() => 0);
+    const short = SIZES.map(() => 0);
+    const examples: string[] = [];
+    for (let line = 0; line < 30; line++) {
+      const x0 = ((line * 7919) % (PLAY * 1.4)) - PLAY * 0.7;
+      const z0 = ((line * 104729) % (PLAY * 1.4)) - PLAY * 0.7;
+      for (let s = -PLAY / 2; s < PLAY / 2; s++) {
+        const ahead = along(x0 + wx * s, z0 + wz * s);
+        if ((ahead(-5) - ahead(-7)) / 2 <= WINDWARD || (ahead(7) - ahead(5)) / 2 >= -SLIP) continue;
+        let top = 0;
+        for (let d = -6; d <= 6; d++) if (ahead(d) > ahead(top)) top = d;
+        const crest = along(x0 + wx * (s + top), z0 + wz * (s + top));
+        let floor = Infinity;
+        for (let a = 0; a < 300; a += 4) floor = Math.min(floor, crest(a));
+        const size = SIZES.findIndex((cap) => crest(0) - floor < cap);
+        const lift = Math.max(0, (crest(-3) - crest(-11)) / 8);
+        crests[size]++;
+        for (const kmh of JUMP_KMH) {
+          const d = touchdown(crest, lift, kmh / 3.6);
+          let rise = 0;
+          for (let e = d; e <= d + RUNOUT; e++) rise = Math.max(rise, (crest(e + 1) - crest(e - 1)) / 2);
+          if (rise <= LANDING_RISE) continue;
+          short[size]++;
+          examples.push(`${kmh} km/h off ${(x0 + wx * (s + top)).toFixed(0)},${(z0 + wz * (s + top)).toFixed(0)} lands ${d} m out on ${rise.toFixed(2)}`);
+          break;
+        }
+        s += 20;
+      }
+    }
+    for (let size = 0; size < SIZES.length; size++) {
+      expect(crests[size]).toBeGreaterThan(5);
+      if (short[size] > (1 - CLEAR) * crests[size]) throw new Error(`size ${size}: ${short[size]} of ${crests[size]} crests land short, e.g. ${examples.slice(0, 3).join("; ")}`);
+    }
+  });
 
 for (const seed of sweep(2))
   test(`dune sea ${seed}: every car coasting off a natural crest at 15-25 m/s, or at its own speed up a windward face, lands upright and never rolls`, () => {

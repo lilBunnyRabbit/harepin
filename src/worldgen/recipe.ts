@@ -524,7 +524,9 @@ const SLIP: DuneFace = { grade: 0.52, brink: 4, toe: 24, floor: 60 };
 
 /**
  * A streamed dune sea for dune bashing, no roads: big dunes, mid ones and 5-15 m hops, each band in fields that come and
- * go, so the sizes mix. Past the mask a dune wall closes it in. Height paints no scree, rock or snow.
+ * go, so the sizes mix. Each corridor runs long enough that a jump off the crest at 110 km/h lands before the next
+ * windward, and the hops bend less so their corridors keep that length. Past the mask a dune wall closes it in. Height
+ * paints no scree, rock or snow.
  */
 export const BIG_DUNES: Recipe = {
   ...DESERT,
@@ -536,8 +538,8 @@ export const BIG_DUNES: Recipe = {
       seed: 17,
       bands: [
         { wave: 900, height: 80, lee: 0, bend: 0.3, fields: false, face: { ...SLIP, toe: 40, floor: 150 } },
-        { wave: 260, height: 28, lee: 0, bend: 0.5, face: SLIP },
-        { wave: 80, height: 12, lee: 0, bend: 0.8, face: { ...SLIP, toe: 10, floor: 12 } },
+        { wave: 360, height: 28, lee: 0, bend: 0.5, face: { ...SLIP, floor: 120 } },
+        { wave: 160, height: 12, lee: 0, bend: 0.5, face: { ...SLIP, toe: 10, floor: 80 } },
       ],
     },
     { kind: "mask", radius: 3500, edge: 140, scale: 900, seed: 3, wobble: 0.3 },
