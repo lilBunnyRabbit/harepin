@@ -1,11 +1,11 @@
 import * as THREE from "three";
 import { Ghost } from "../car/ghost";
 import { format } from "../hud/hud";
-import type { World } from "../world/world";
-import { DUEL_LEVELS, DuelRun, DuelStatus, build_route, type DuelLevel, type Route } from "./duel";
-import { DuelView } from "./duel-view";
+import { ROAD_HALF, type World } from "../world/world";
+import { DUEL_LEAD, DUEL_LEVELS, DuelRun, DuelStatus, build_route, duel_gates, type DuelLevel, type Route } from "./duel";
 import type { Hits } from "./hits";
-import type { Driven, Finish, ModeCtx, ModeDef, ModeRun } from "./mode";
+import { CIRCUIT, turn_to, type Driven, type Finish, type ModeCtx, type ModeDef, type ModeRun, type RouteRun } from "./mode";
+import { RaceView } from "./race-view";
 import { best_line, line, penalty_text, result_title, time_lines } from "./result";
 import { grade, par_thresholds } from "./track";
 
@@ -23,42 +23,67 @@ function ghost_for(ctx: ModeCtx, id: string): Ghost {
 }
 
 class Duel implements ModeRun {
-  private readonly view: DuelView;
+  private readonly view: RaceView;
   private readonly run: DuelRun;
   private readonly ghost: Ghost;
   private readonly ghost_at = new THREE.Vector3();
   private result: Finish | null = null;
   private readonly hits: Hits | null;
+  readonly route: RouteRun;
 
   constructor(
     private readonly ctx: ModeCtx,
     route: Route,
   ) {
-    this.view = new DuelView(route, ctx.world);
+    const gates = duel_gates(route, ctx.world.checkpoints);
+    const circuit = ctx.world.routes.find((r) => r.id === CIRCUIT);
+    const line = route.points.slice(DUEL_LEAD);
+    this.view = new RaceView({ line, gates: gates.map((at) => at - DUEL_LEAD), route: { closed: false, gate_hw: circuit?.gate_hw ?? ROAD_HALF, closure: [] } }, ctx.world);
     ctx.scene.add(this.view.root);
     const ghost = ghost_for(ctx, route.level.id);
     this.ghost = ghost;
     ghost.start();
     // An event's own dev ghost races the player until their first finish replaces it.
     if (!ghost.has_best) void ctx.dev_ghost().then((lap) => lap && !ghost.has_best && ghost.use(lap));
-    this.run = new DuelRun(route);
+    this.run = new DuelRun(route, gates);
     this.hits = ctx.hits();
+    this.route = { id: CIRCUIT, gate: this.run.gate, later: this.later(), respawn: route.points[0] };
     ctx.spawn_on(route.points[0]);
   }
 
+  private later(): RouteRun["later"] {
+    const { route, gates, next } = this.run;
+    return gates.slice(next + 1).map((at) => route.points[at]);
+  }
+
   update(sim_dt: number, car: Driven): string | null {
-    const { run, ghost } = this;
+    const { run, ghost, view, ctx } = this;
     const was = run.status;
-    run.update(sim_dt * 1000, car.pos.x, car.pos.z);
+    const taken = run.update(sim_dt * 1000, car.pos.x, car.pos.z);
     this.hits?.update(sim_dt * 1000, run.status === DuelStatus.RUNNING || was === DuelStatus.RUNNING);
     const running = run.status === DuelStatus.RUNNING;
     if (running && sim_dt > 0) ghost.record(run.elapsed(), car);
     ghost.update(running ? run.elapsed() : null, this.ctx.camera.position);
+    view.update(sim_dt);
+    if (taken >= 0) {
+      this.route.respawn = run.route.points[run.gates[taken]];
+      this.route.later = this.later();
+      view.aim(run.next);
+      if (run.status !== DuelStatus.DONE) ctx.chime();
+    }
     if (was !== DuelStatus.DONE && run.status === DuelStatus.DONE) {
+      this.route.gate = null;
+      ctx.hide_hint();
+      view.guide(0, 0);
       ghost.record(run.elapsed(), car);
       this.finish();
       return null;
     }
+    const gate = run.gate;
+    this.route.gate = gate;
+    if (!gate) return null;
+    view.guide(Math.max(0, run.tracker.index - DUEL_LEAD), run.gates[run.next] - DUEL_LEAD);
+    ctx.hint(turn_to(car, gate.x, gate.z));
     const { level } = run.route;
     if (run.status === DuelStatus.READY) {
       const to_line = Math.max(0, Math.round(-run.route.at[Math.max(0, run.tracker.index)]));
@@ -102,6 +127,7 @@ class Duel implements ModeRun {
 export const DUEL_MODE: ModeDef<DuelLevel> = {
   id: "duel",
   name: "Ghost duel",
+  goal: "Drive the circuit from the start line and beat the ghost.",
   needs_ground: false,
   car_sized_only: false,
   busy_notice: "Leave the lobby race to duel your ghost",

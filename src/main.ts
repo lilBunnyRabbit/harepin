@@ -375,6 +375,7 @@ modes.bindings = () => settings.state.bindings;
 modes.ghosts = () => settings.state.ghost;
 modes.cover = (wait) => area_fade.cover(wait);
 modes.on_finish = (mode) => goals.played(mode);
+modes.toast = (text, label, hold) => hud.toast(text, label, hold);
 modes.career = career;
 modes.start_event = (id) => start_event(id);
 modes.pick_car = (title, limit, own, signal) =>
@@ -386,6 +387,7 @@ modes.save_car = (code) => {
   if (build) save_build(build);
 };
 hud.run_route = () => modes.route;
+hud.in_run = () => modes.active;
 modes.start();
 updater.start();
 const system_back = new SystemBack(
@@ -459,9 +461,12 @@ const lit = color(brand.accent);
 const unlit = color(tones.gate);
 const black = new THREE.Color(0, 0, 0);
 function update_gates(t: number) {
+  // In a mode run the arch lit is the run's next gate, when one stands there; the free lap's next would point elsewhere.
+  const target = modes.active ? (modes.route?.gate ?? null) : null;
   gate_views.forEach((g, i) => {
     if (!g) return;
-    const next = i === race.next;
+    const cp = world.checkpoints[i];
+    const next = modes.active ? target !== null && Math.hypot(cp.x - target.x, cp.z - target.z) < 1 : i === race.next;
     g.material.color.copy(next ? lit : unlit);
     g.material.emissive.copy(next ? lit : black).multiplyScalar(next ? 0.55 + Math.sin(t * 6) * 0.25 : 0);
   });

@@ -2,7 +2,7 @@ import { format } from "../hud/hud";
 import { HUNT_LEVELS, HuntRun, HuntStatus, build_hunt, type Hunt, type HuntLevel } from "./hunt";
 import type { Hits } from "./hits";
 import { HuntView } from "./hunt-view";
-import { turn_to, type Driven, type Finish, type ModeCtx, type ModeDef, type ModeRun } from "./mode";
+import { CIRCUIT, turn_to, type Driven, type Finish, type ModeCtx, type ModeDef, type ModeRun, type RouteRun } from "./mode";
 import { best_line, line, penalty_text, result_title, time_lines } from "./result";
 import { grade, par_thresholds } from "./track";
 
@@ -11,6 +11,8 @@ class GateHunt implements ModeRun {
   private readonly run: HuntRun;
   private result: Finish | null = null;
   private readonly hits: Hits | null;
+  readonly route: RouteRun = { id: CIRCUIT, gate: null, later: [] };
+  private aimed = -1;
 
   constructor(
     private readonly ctx: ModeCtx,
@@ -32,15 +34,22 @@ class GateHunt implements ModeRun {
       if (run.status !== HuntStatus.DONE) ctx.chime();
     }
     if (was !== HuntStatus.DONE && run.status === HuntStatus.DONE) {
+      this.route.gate = null;
+      this.route.later = [];
       ctx.hide_hint();
       this.finish();
       return null;
     }
     const next = run.nearest(car.pos.x, car.pos.z);
     view.aim(next);
+    if (next !== this.aimed || hit >= 0) {
+      this.aimed = next;
+      this.route.later = run.hunt.gates.filter((_, i) => i !== next && !run.found.has(i));
+    }
     view.update(sim_dt);
     const gate = run.hunt.gates[next];
     const { gates, level } = run.hunt;
+    this.route.gate = gate ?? null;
     if (!gate) return null;
     ctx.hint(turn_to(car, gate.x, gate.z));
     const doing = run.status === HuntStatus.READY ? "drive to start the clock" : `${format(run.elapsed())}${penalty_text(this.hits)}`;
@@ -75,6 +84,7 @@ class GateHunt implements ModeRun {
 export const HUNT_MODE: ModeDef<HuntLevel> = {
   id: "hunt",
   name: "Gate hunt",
+  goal: "Find every gate: the arrow points to the nearest one.",
   needs_ground: true,
   car_sized_only: false,
   busy_notice: "Leave the lobby race to hunt gates",

@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { brand } from "../theme/palette";
 import { item_geometry, item_material } from "../world/jumps";
+import { Beams } from "./beams";
 import { CHEVRON_VERTS, Marks, type Ground } from "./marks";
 import type { RaceCourse } from "./races";
 import type { RoutePoint } from "./route";
@@ -15,19 +16,27 @@ const LEAD_OPACITY = 0.85;
 /** Route points before a gate kept clear of arrowheads, so the gate band reads on its own. */
 const GATE_CLEAR = 3;
 
+/** What the view marks out: a race course, or a duel's stretch of the circuit with its own line and gates. */
+export interface Course {
+  line: readonly RoutePoint[];
+  gates: readonly number[];
+  route: Pick<RaceCourse["route"], "closed" | "gate_hw" | "closure">;
+}
+
 export class RaceView {
   private readonly marks: Marks;
   private readonly gates: THREE.Mesh[];
   private readonly dim: THREE.Material;
   private readonly lit: THREE.Material;
   private readonly closure: THREE.InstancedMesh;
+  private readonly beams: Beams;
   private readonly lead: THREE.Mesh;
   /** Line index of each arrowhead, ascending. */
   private readonly lead_at: number[];
   private lead_first = -1;
   private lead_end = -1;
 
-  constructor(course: RaceCourse, ground: Ground) {
+  constructor(course: Course, ground: Ground) {
     const { line, gates, route } = course;
     this.marks = new Marks(ground);
     this.dim = this.marks.paint(brand.accent, DIM);
@@ -35,6 +44,7 @@ export class RaceView {
     if (!route.closed) this.marks.across(line[0], route.gate_hw, LINE, this.marks.paint(brand.accent));
     const finish = this.marks.paint(brand.success);
     this.gates = gates.map((at, i) => (i === gates.length - 1 ? this.marks.across(line[at], route.gate_hw, LINE, finish) : this.marks.across(line[at], route.gate_hw, GATE, this.dim)));
+    this.beams = new Beams(this.marks, ground, gates.map((at) => line[at]));
     this.closure = this.cones(route.closure);
     this.root.add(this.closure);
     this.lead_at = spaced(line, LEAD_PITCH);
@@ -47,7 +57,7 @@ export class RaceView {
     this.guide(0, 0);
   }
 
-  private cones(closure: RaceCourse["route"]["closure"]): THREE.InstancedMesh {
+  private cones(closure: Course["route"]["closure"]): THREE.InstancedMesh {
     const meshes = new THREE.InstancedMesh(this.marks.track(item_geometry("cone")), this.marks.track(item_material("cone")), closure.length);
     meshes.castShadow = true;
     const matrix = new THREE.Matrix4();
@@ -66,6 +76,14 @@ export class RaceView {
       if (i < this.gates.length - 1) gate.material = i === next ? this.lit : this.dim;
       gate.visible = i >= next;
     });
+    this.beams.aim(next);
+    this.beams.groups.forEach((beam, i) => {
+      beam.visible = i >= next;
+    });
+  }
+
+  update(dt: number) {
+    this.beams.update(dt);
   }
 
   /** Shows the arrowheads past line index `from` up to the gate at line index `to`; `guide(0, 0)` hides them all. */

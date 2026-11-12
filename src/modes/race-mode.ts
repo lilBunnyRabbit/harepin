@@ -37,8 +37,13 @@ class Race implements ModeRun {
       this.ghost = new Ghost(ctx.scene, ctx.world.seed, DEV_GHOST_KEY);
       this.ghost.use(lap);
     });
-    this.route = { id: course.route.id, gate: this.run.gate, respawn: course.line[0] };
+    this.route = { id: course.route.id, gate: this.run.gate, later: this.later(0), respawn: course.line[0] };
     ctx.spawn_on(course.line[0]);
+  }
+
+  private later(next: number): RouteRun["later"] {
+    const { line, gates } = this.run.course;
+    return gates.slice(next + 1).map((at) => line[at]);
   }
 
   get holding(): boolean {
@@ -63,8 +68,10 @@ class Race implements ModeRun {
       this.ghost.visible = ctx.ghosts();
       this.ghost.update(run.status === RaceStatus.RUNNING ? run.elapsed() : null, ctx.camera.position);
     }
+    view.update(sim_dt);
     if (taken >= 0) {
       this.route.respawn = run.course.line[run.course.gates[taken]];
+      this.route.later = this.later(run.next);
       view.aim(run.next);
       if (run.status !== RaceStatus.DONE) ctx.chime();
     }
@@ -78,6 +85,7 @@ class Race implements ModeRun {
         this.run = new RaceRun(run.course, 0);
         this.route.respawn = run.course.line[0];
         view.aim(0);
+        this.route.later = this.later(0);
       }
       return null;
     }
@@ -125,6 +133,7 @@ class Race implements ModeRun {
 export const RACE_MODE: ModeDef<RaceLevel> = {
   id: "race",
   name: "Race",
+  goal: "Drive through each lit gate to the finish line.",
   needs_ground: false,
   car_sized_only: false,
   busy_notice: "Leave the lobby race to race solo",

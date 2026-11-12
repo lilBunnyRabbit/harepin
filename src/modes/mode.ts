@@ -8,6 +8,8 @@ import type { Hits } from "./hits";
 import type { RoutePoint } from "./route";
 
 export const NO_SITE = "No flat ground near the start on this map";
+// The map draws it for a run on a stretch of road that is no route of its own: a duel, a drift zone, a gate hunt.
+export const CIRCUIT = "circuit";
 
 export interface Driven {
   pos: THREE.Vector3;
@@ -63,8 +65,10 @@ export interface ModeCtx {
 export interface RouteRun {
   readonly id: string;
   gate: { x: number; z: number } | null;
-  /** Where a fall puts the car back: the last gate taken, the start before any. */
-  respawn: RoutePoint;
+  /** The run's other gates still to take, after `gate` in driving order, marked on the map. */
+  later: readonly { x: number; z: number }[];
+  /** Where a fall puts the car back: the last gate taken, the start before any; without one, where it last stood safely. */
+  respawn?: RoutePoint;
 }
 
 export interface ModeRun {
@@ -79,6 +83,8 @@ export interface ModeRun {
 export interface ModeDef<L extends Level = Level> {
   readonly id: string;
   readonly name: string;
+  /** One line said as a run starts: what to do to finish it. */
+  readonly goal: string;
   readonly needs_ground: boolean;
   /** Its bays, cone lanes and spin boxes are laid out for a car: a bigger vehicle can't play it. */
   readonly car_sized_only: boolean;

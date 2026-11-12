@@ -100,6 +100,7 @@ class Parking implements ModeRun {
 export const PARKING_MODE: ModeDef<ParkLevel> = {
   id: "parking",
   name: "Parking",
+  goal: "Park inside the marked bay and stop.",
   needs_ground: true,
   car_sized_only: true,
   busy_notice: "Leave the lobby race to park",

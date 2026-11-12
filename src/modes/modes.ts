@@ -35,6 +35,7 @@ const preset_code = (name: string): string | null => {
 export const MODES: readonly ModeDef[] = [RACE_MODE, GYMKHANA_MODE, PARKING_MODE, DRIFT_MODE, HUNT_MODE, DUEL_MODE];
 
 const NOTICE_MS = 2500;
+const GOAL_MS = 4000;
 const DEG = 180 / Math.PI;
 const OPEN_WORLDS = LISTED.filter((w) => KINDS[w.kind].open_ground).map((w) => `the ${w.map_label}`).join(" or ");
 const OPEN_GROUND = `Needs open ground: drive ${OPEN_WORLDS} for it`;
@@ -113,6 +114,8 @@ export class Modes {
   /** Shows that a start waits on the rest of the world. */
   cover: (wait: Promise<void>) => Promise<void> = (wait) => wait;
   on_finish: ((mode: string) => void) | null = null;
+  /** A short note over the HUD; a run says its goal on it as it starts. */
+  toast: ((text: string, label: string, hold: number) => void) | null = null;
   career: Career | null = null;
   /** Starts an event here, or reloads onto its map. */
   start_event: ((id: string) => void) | null = null;
@@ -369,6 +372,7 @@ export class Modes {
     }
     if (!run) return;
     active.run = run;
+    if (!this.lobby_lap) this.toast?.(active.mode.def.goal, active.event?.name ?? active.level.name, GOAL_MS);
     active.pi = active.event ? this.car_pi() : null;
     active.shown = false;
     this.el.result.hidden = true;

@@ -139,11 +139,11 @@ export class Driver {
 
   // Never the nearest road to where the car fell: that can be a later section, and a fall would be a shortcut. A route
   // run puts it back on its last gate; a lap on the circuit on the lap's last checkpoint; free driving where it last stood safely.
-  fall_back(route: { respawn: RoutePoint } | null) {
+  fall_back(route: { respawn?: RoutePoint } | null) {
     const { world, race, safe, car } = this;
     const lift = drop_height(car.spec, RIDE_HEIGHT);
-    if (route) {
-      const p = route.respawn;
+    const p = route?.respawn;
+    if (p) {
       return this.teleport(p.x, p.z, () => ({ x: p.x, y: world.height(p.x, p.z) + lift, z: p.z, heading: Math.atan2(p.tx, p.tz) }));
     }
     const near = world.nearest_road(safe.x, safe.z);

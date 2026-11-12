@@ -16,6 +16,7 @@ const plate = dark ? brand.background_darkest : brand.background_lighter;
 const INK = {
   road: rgba(brand.foreground, 0.5),
   checkpoint: rgba(brand.accent),
+  later: rgba(brand.accent, 0.45),
   remote: rgba(brand.secondary),
   // A derived light theme's cottontail is a pale tint of primary that vanished on the light disc; the speed has the same
   // swap to foreground.
@@ -288,13 +289,15 @@ export class Minimap {
   }
 
   /** `names`: each car's display name by id; a car missing from it shows the name it sent. */
-  full(car: Car, gate: Dot | null, remotes: Iterable<Remote>, names: ReadonlyMap<string, string>) {
+  full(car: Car, gate: Dot | null, later: readonly Dot[], remotes: Iterable<Remote>, names: ReadonlyMap<string, string>) {
     this.fit();
     const { ctx } = this;
     const view = this.drawn ?? { cx: 0, cz: 0, scale: (MAP * 1.05) / this.size };
     ctx.setTransform(this.ratio, 0, 0, this.ratio, 0, 0);
     ctx.clearRect(0, 0, MAP, MAP);
     ctx.drawImage(this.road_layer, 0, 0, MAP, MAP);
+    ctx.fillStyle = INK.later;
+    for (const mark of later) this.dot(full_x(view, mark.x), full_y(view, mark.z), this.disc ? 4 : 3);
     if (gate) {
       ctx.fillStyle = INK.checkpoint;
       this.dot(full_x(view, gate.x), full_y(view, gate.z), this.disc ? 6 : 4.5);
@@ -304,7 +307,7 @@ export class Minimap {
     this.north(0);
   }
 
-  close(car: Car, gate: Dot | null, remotes: Iterable<Remote>, names: ReadonlyMap<string, string>, now: number) {
+  close(car: Car, gate: Dot | null, later: readonly Dot[], remotes: Iterable<Remote>, names: ReadonlyMap<string, string>, now: number) {
     this.fit();
     const { ctx } = this;
     const heading = car.heading;
@@ -356,6 +359,13 @@ export class Minimap {
       const py = sin * dx + cos * dz + cy - MAP / 2;
       const edge = Math.min(1, EDGE / Math.hypot(px, py));
       this.car(MAP / 2 + px * edge, MAP / 2 + py * edge, names.get(remote.id) ?? remote.latest.name);
+    }
+    // Only the gate aimed at rides the rim: the later ones show once they are in reach.
+    ctx.fillStyle = INK.later;
+    for (const mark of later) {
+      const mx = cos * (mark.x - x) - sin * (mark.z - z) + cx - MAP / 2;
+      const my = sin * (mark.x - x) + cos * (mark.z - z) + cy - MAP / 2;
+      if (Math.hypot(mx, my) <= EDGE) this.dot(MAP / 2 + mx, MAP / 2 + my, this.disc ? 4 : 3);
     }
     if (gate) {
       const gx = cos * (gate.x - x) - sin * (gate.z - z) + cx - MAP / 2;

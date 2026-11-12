@@ -2,16 +2,18 @@ import { format } from "../hud/hud";
 import { ROAD_HALF } from "../world/world";
 import { ComboEnd, DRIFT_LEVELS, DriftRun, DriftStatus, LEAD, build_zone, drift_stars, type DriftLevel, type Zone } from "./drift";
 import { DriftView } from "./drift-view";
-import { body_of, type Driven, type Finish, type ModeCtx, type ModeDef, type ModeRun } from "./mode";
+import { CIRCUIT, body_of, type Driven, type Finish, type ModeCtx, type ModeDef, type ModeRun, type RouteRun } from "./mode";
 import { best_line, line, points, result_title } from "./result";
 
 const LOST_MS = 1500;
+const NONE: RouteRun["later"] = [];
 
 class Drift implements ModeRun {
   private readonly view: DriftView;
   private readonly run: DriftRun;
   private lost_at = -Infinity;
   private result: Finish | null = null;
+  readonly route: RouteRun;
 
   constructor(
     private readonly ctx: ModeCtx,
@@ -20,6 +22,7 @@ class Drift implements ModeRun {
     this.view = new DriftView(zone, ctx.world);
     ctx.scene.add(this.view.root);
     this.run = new DriftRun(zone, ctx.world.solids);
+    this.route = { id: CIRCUIT, gate: zone.points[LEAD], later: [zone.points[zone.points.length - 1]] };
     ctx.spawn_on(zone.points[0]);
   }
 
@@ -30,6 +33,11 @@ class Drift implements ModeRun {
     if (end === ComboEnd.LOST) this.lost_at = run.clock;
     if (was !== DriftStatus.DONE && run.status === DriftStatus.DONE) this.finish();
     const { level } = run.zone;
+    const stretch = run.zone.points;
+    this.view.aim(run.status === DriftStatus.READY ? 0 : 1);
+    this.view.update(sim_dt);
+    this.route.gate = run.status === DriftStatus.READY ? stretch[LEAD] : run.status === DriftStatus.DONE ? null : stretch[stretch.length - 1];
+    if (run.status !== DriftStatus.READY) this.route.later = NONE;
     const { combo } = run;
     if (run.status === DriftStatus.READY) return `${level.name} · zone in ${Math.round((LEAD - Math.max(0, run.tracker.index)) * 2)} m`;
     const live = combo.chain > 0 ? ` · ×${combo.mult} +${points(combo.chain)}` : run.clock - this.lost_at < LOST_MS ? " · wall, combo lost" : "";
@@ -71,6 +79,7 @@ class Drift implements ModeRun {
 export const DRIFT_MODE: ModeDef<DriftLevel> = {
   id: "drift",
   name: "Drift zones",
+  goal: "Hold slides from the start line to the finish line for points.",
   needs_ground: false,
   car_sized_only: false,
   busy_notice: "Leave the lobby race to drift",

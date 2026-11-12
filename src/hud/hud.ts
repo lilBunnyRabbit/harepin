@@ -85,6 +85,7 @@ const TOAST_MS = 1200;
 const NAMES_MS = 1000;
 /** The lobby's route id when no race is on; lap gates belong to it. */
 const CIRCUIT = "circuit";
+const NONE: readonly { x: number; z: number }[] = [];
 /** Driving this long above CALM_KMH lets the touch HUD (and the Minimal layout) fade back; stopping brings it back. */
 const CALM_MS = 3000;
 const CALM_KMH = 12;
@@ -131,6 +132,8 @@ export class Hud {
   private view: MapView = MapView.FULL;
   /** The route a mode run drives, if any; it wins over the lobby's. */
   run_route: () => RouteRun | null = () => null;
+  /** A mode run is on: the free lap's gate and panel step aside, even for a run with no route of its own. */
+  in_run: () => boolean = () => false;
   private toast_timer = 0;
   private players: PlayerRow[] = [];
   private results_key = "";
@@ -220,7 +223,7 @@ export class Hud {
     set_text(el.lap, format(race.started ? now - race.started : null));
     set_text(el.best, format(race.best));
     set_text(el.last, format(race.last));
-    set_hidden(el.gate, this.run_route() !== null || !race.gates);
+    set_hidden(el.gate, this.in_run() || !race.gates);
     set_text(el.cp, race.started ? `${race.next === 0 ? race.gates : race.next} / ${race.gates}` : "drive through the lit gate");
     el.strip.toggleAttribute("data-idle", !race.started);
     set_text(el.event_name, race.started ? "Lap" : "Free roam");
@@ -286,7 +289,8 @@ export class Hud {
     const run = this.run_route();
     const route = run ? run.id : this.lobby.route;
     // Lap gates are the circuit's; a run on any route brings its own.
-    const gate = run ? run.gate : route === CIRCUIT ? (this.world.checkpoints[this.race.next] ?? null) : null;
+    const gate = run ? run.gate : this.in_run() ? null : route === CIRCUIT ? (this.world.checkpoints[this.race.next] ?? null) : null;
+    const later = run ? run.later : NONE;
     this.draw_note(car, gate);
     if (this.view === MapView.FULL || this.view === MapView.CLOSE) this.map.show_route(route);
     if ((this.view === MapView.FULL || this.view === MapView.CLOSE) && now - this.names_at >= NAMES_MS) {
@@ -294,8 +298,8 @@ export class Hud {
       this.names.clear();
       for (const remote of this.net.remotes.values()) this.names.set(remote.id, this.net.display_name(remote));
     }
-    if (this.view === MapView.FULL) this.map.full(car, gate, this.net.remotes.values(), this.names);
-    else if (this.view === MapView.CLOSE) this.map.close(car, gate, this.net.remotes.values(), this.names, now);
+    if (this.view === MapView.FULL) this.map.full(car, gate, later, this.net.remotes.values(), this.names);
+    else if (this.view === MapView.CLOSE) this.map.close(car, gate, later, this.net.remotes.values(), this.names, now);
     else if (this.view === MapView.PACE) this.pace.update(car, route);
   }
 }

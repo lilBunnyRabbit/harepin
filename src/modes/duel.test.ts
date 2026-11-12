@@ -1,6 +1,6 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import { DUEL_LEAD, DUEL_LEVELS, DuelRun, DuelStatus, build_route } from "./duel";
+import { DUEL_LEAD, DUEL_LEVELS, DuelRun, DuelStatus, build_route, duel_gates } from "./duel";
 
 const ROAD = Array.from({ length: 2000 }, (_, i) => {
   const a = (i / 2000) * Math.PI * 2;
@@ -50,4 +50,28 @@ test("stars against par", () => {
   expect(run.stars()).toBe(3);
   run.ended = 13_000;
   expect(run.stars()).toBe(1);
+});
+
+test("gates: the circuit's checkpoints on the route, in driving order, then the finish", () => {
+  const route = build_route(5, ROAD, DUEL_LEVELS[2]);
+  const last = route.points.length - 1;
+  const on = [route.points[400], route.points[100]];
+  const off = { x: 1e5, z: 1e5 };
+  const gates = duel_gates(route, [...on, off, route.points[DUEL_LEAD + 1]]);
+  expect(gates).toEqual([100, 400, last]);
+  expect(duel_gates(route, [])).toEqual([last]);
+});
+
+test("run: takes each gate as the car reaches it", () => {
+  const route = build_route(5, ROAD, DUEL_LEVELS[0]);
+  const last = route.points.length - 1;
+  const run = new DuelRun(route, [100, 200, last]);
+  const taken: number[] = [];
+  for (let i = 0; i < route.points.length; i++) {
+    const gate = run.update(100, route.points[i].x, route.points[i].z);
+    if (gate >= 0) taken.push(gate);
+    if (i === 150) expect(run.gate).toEqual(route.points[200]);
+  }
+  expect(taken).toEqual([0, 1, 2]);
+  expect(run.gate).toBeNull();
 });

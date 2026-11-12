@@ -82,6 +82,7 @@ class Gymkhana implements ModeRun {
 export const GYMKHANA_MODE: ModeDef<GymLevel> = {
   id: "gymkhana",
   name: "Gymkhana",
+  goal: "Weave the cones, spin in the box, then stop in the box facing back.",
   needs_ground: true,
   car_sized_only: true,
   busy_notice: "Leave the lobby race to play gymkhana",
