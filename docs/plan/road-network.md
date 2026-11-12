@@ -1,6 +1,6 @@
 # Road network and a streamed world
 
-> **Status 2026-11-12 (v0.29.0):** 1a-1d, 2a, 2b and 3a shipped: real topology, junction patches (`worldgen/junction.ts`), inter-town local roads, routes from the graph, tiled physics, chunk streaming and the 6x6 km mainland. The plan/tile split (2c) came as `mainland.ts`, `mainland-network.ts` and `plan-grid.ts` rather than `plan.ts` / `tile.ts`. Open: the roundabout (1e), modes on the mainland (3b; `modes.ts` still blocks streamed worlds), and 10x10 km (4).
+> **Status 2026-11-12 (v0.29.0):** 1a-1d, 2a, 2b and 3a shipped: real topology, junction patches (`worldgen/junction.ts`), inter-town local roads, routes from the graph, tiled physics, chunk streaming and the 6x6 km mainland. The plan/tile split (2c) came as `mainland.ts`, `mainland-network.ts` and `plan-grid.ts` rather than `plan.ts` / `tile.ts`. Open: the roundabout (1e), modes on the mainland (3b; `modes.ts` still blocks streamed worlds), and 10x10 km (4). The `scratchpad/` files cited below sit in a local scratchpad, not in the repo.
 
 Round 1, 2026-11-10, v0.13.0 (`211faec`). This is a plan only: no code has been written. It covers two steps. First, today's ~2 km island gets a real road graph with junctions. Second, the game moves to a streamed world of about 6×6 km, and later perhaps about 10×10 km.
 
