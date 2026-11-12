@@ -85,8 +85,12 @@ const PACKED_TURN = 20;
 /** Chaikin passes that round the kinks where a leg meets a hairpin. */
 const PACKED_ROUND = 3;
 /** The bed's side trails lie this far either side of a packed line, metres. */
-const PACKED_BED = 3;
+export const PACKED_BED = 3;
 const PACKED_MAX = 4000;
+/** The crest jump's lane runs this far in from an end of the straights, metres. */
+const CREST_EDGE = 60;
+/** Window and passes of the box filter a crest lane's heights are smoothed with. */
+const CREST_SMOOTH = 4;
 const PACKED_SHARES = [1, 0.8, 0.6, 0.45, 0.35, 0.25, 0.18, 0.12, 0.06];
 
 export type Path = [number, number][];
@@ -318,6 +322,23 @@ export function packed_lines({ wx, wz, lo, hi, half }: Corridor, height: Height)
     const ys = limit_grade(path.map(([x, z]) => height(x, z)), run, PACKED_GRADE);
     return road_points(path, ys, false);
   });
+}
+
+/**
+ * The crest jump's lane: straight along the wind over the dune inside a corridor circuit, CREST_EDGE in from the end of
+ * the straights away from where `packed` turns over the crest, and the index of its highest point, the crest. Its heights
+ * are the ground's smoothed, so a run-up shaped to them throws no car off a ripple.
+ */
+export function crest_lane({ wx, wz, lo, hi, half }: Corridor, height: Height, packed: readonly RoadPoint[]): { lane: RoadPoint[]; crest: number } {
+  const top = packed.reduce((a, b) => (b.y > a.y ? b : a), packed[0]);
+  const turn = top ? top.z * wx - top.x * wz : 0;
+  const across = (turn > 0 ? -1 : 1) * (half - CREST_EDGE);
+  const path: Path = [];
+  for (let s = lo; s <= hi; s += PACKED_STEP) path.push([wx * s - wz * across, wz * s + wx * across]);
+  const lane = road_points(path, smooth(path.map(([x, z]) => height(x, z)), CREST_SMOOTH, CREST_SMOOTH, false), false);
+  let crest = 0;
+  for (let i = 1; i < lane.length; i++) if (lane[i].y > lane[crest].y) crest = i;
+  return { lane, crest };
 }
 
 /** A packed line as the three trails that lay its bed, side by side, so a car that runs wide stays on packed dirt. */

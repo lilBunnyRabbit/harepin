@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { sweep } from "../sweep";
 import { sample } from "./field";
+import { TRAIL_HALF, TRAIL_SHOULDER } from "./stamp";
 import { land_height, pan_floor } from "./terrain";
 import { generate_world } from "./kinds/kinds";
 import type { TerrainRecipe } from "./recipe";
@@ -14,7 +15,7 @@ const PLAY = 700;
 const PACKED_CLIMB = Math.tan((15 * Math.PI) / 180);
 const PACKED_RUN = 5;
 /** The bed's side trails and their shoulders reach this far from their own line, plus a cell for the central difference. */
-const DUG = 14;
+const DUG = TRAIL_HALF + TRAIL_SHOULDER + 4;
 
 test("a dune's lee face is steeper than its windward slope", () => {
   const height = land_height(3, FLAT);

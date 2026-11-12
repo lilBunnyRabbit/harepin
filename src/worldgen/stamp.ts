@@ -23,7 +23,7 @@ const STRIP_BLEND_MAX = 120;
 // under the surface mesh.
 const FLAT = 6;
 export const TRAIL_HALF = 4;
-const TRAIL_SHOULDER = 6;
+export const TRAIL_SHOULDER = 6;
 /** Dirt reaches this far past the trail half: the surface grid is read at the nearest vertex, up to CELL / 2 away. */
 const DIRT_MARGIN = 1.5;
 /**
@@ -541,6 +541,10 @@ export class Stamp {
     // heights pass near each other the bank stays as steep as one wedge, not a step between them.
     const lo = new Float32Array(heights.length).fill(-Infinity);
     const hi = new Float32Array(heights.length).fill(Infinity);
+    // Within `half` of a line the nearest stretch alone sets the height: a line falling faster than its banks lean
+    // would otherwise have its lower stretches drag its own bed down.
+    const near = new Float32Array(heights.length).fill(Infinity);
+    const level = new Float32Array(heights.length);
     const touched: number[] = [];
     for (const points of lines)
       for (let s = 0; s < points.length - 1; s++) {
@@ -567,10 +571,14 @@ export class Stamp {
             if (hi[k] === Infinity) touched.push(k);
             lo[k] = Math.max(lo[k], y - lean);
             hi[k] = Math.min(hi[k], y + lean);
+            if (d < near[k]) {
+              near[k] = d;
+              level[k] = y;
+            }
           }
       }
     for (const k of touched) {
-      const held = lo[k] > hi[k] ? (lo[k] + hi[k]) / 2 : Math.max(lo[k], Math.min(hi[k], heights[k]));
+      const held = near[k] <= half ? level[k] : lo[k] > hi[k] ? (lo[k] + hi[k]) / 2 : Math.max(lo[k], Math.min(hi[k], heights[k]));
       heights[k] += (held - heights[k]) * road_guard(road_dist[k]);
     }
   }

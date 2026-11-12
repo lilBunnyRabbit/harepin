@@ -7,7 +7,7 @@ import { seed_of } from "../rng";
 import { generate } from "./index";
 import { DECK_UNDER } from "./deck";
 import { gap_ramp, GAP_FAST, GAP_SLOW, LANDING_GRADE, LANDING_HALF, size_gap } from "./sky";
-import { GAP_V_MAX, GAP_V_MIN, gap_jump, type GapJump } from "./gap";
+import { DUNE_DECK_GRADE, DUNE_V_MAX, DUNE_V_MIN, dune_jump, GAP_V_MAX, GAP_V_MIN, gap_jump, type GapJump } from "./gap";
 import { apex, face_end, flight, GATE_CLEAR, GATE_RUNOUT, ramp_local, ramp_surface, ROAD_KICKER, RUN_DRIFT } from "./jumps";
 import { SPAWN_INDEX, type Ramp } from "./types";
 import { sweep } from "../sweep";
@@ -45,6 +45,8 @@ interface Jump {
   /** Where the car first came back down after a real flight, and how far it had drifted sideways by then. */
   touch: number;
   drift: number;
+  /** Speed (m/s) into the ground along its normal at that first touchdown. */
+  impact: number;
 }
 
 /** A sky-track gap jump along +z: deck to the lip, open air over the gap, then the landing and its sag back to level. */
@@ -77,7 +79,8 @@ function ground_gap(): Ground {
 function jump(r: Ramp, car: Car, speed: number, slip = 0, gas = 0, ground = ground_with(r)): Jump {
   const challenge = r.length + apex(r) * 0.85;
   const up = new Vector3();
-  const out: Jump = { toe: 0, at_challenge: NaN, sink: 0, upright: 1, air: 0, landed: 0, yaw: 0, heading: 0, touch: NaN, drift: NaN };
+  const out: Jump = { toe: 0, at_challenge: NaN, sink: 0, upright: 1, air: 0, landed: 0, yaw: 0, heading: 0, touch: NaN, drift: NaN, impact: NaN };
+  const normal = new Vector3();
   car.place(0, drop_height(car.spec, 1), -60, 0);
   car.vel.set(0, 0, speed);
   let last = car.pos.z;
@@ -98,7 +101,10 @@ function jump(r: Ramp, car: Car, speed: number, slip = 0, gas = 0, ground = grou
     out.upright = Math.min(out.upright, up.set(0, 1, 0).applyQuaternion(car.quat).y);
     if (out.air > 0.2 && car.wheels.some((w) => w.contact)) {
       out.yaw = Math.max(out.yaw, Math.abs(car.ang.y));
-      if (Number.isNaN(out.touch)) [out.touch, out.drift] = [car.pos.z, car.pos.x];
+      if (Number.isNaN(out.touch)) {
+        [out.touch, out.drift] = [car.pos.z, car.pos.x];
+        out.impact = Math.max(0, -car.vel.dot(ground.normal(car.pos.x, car.pos.z, normal)));
+      }
     }
     last = car.pos.z;
   }
@@ -257,3 +263,44 @@ for (const seed of sweep(100))
       }
     }
   }, 30_000);
+
+/** A dune crest along +z: level run-up to the lip at 0, then ground falling past it at the deck's grade, as the bank shapes it. */
+function ground_dune(g: GapJump): Ground {
+  const lip = g.takeoff.length;
+  const base = (z: number) => (z <= lip ? 0 : DUNE_DECK_GRADE * (z - lip));
+  const top = (x: number, z: number) => {
+    let best: { y: number; gx: number; gz: number } = { y: base(z), gx: 0, gz: z <= lip ? 0 : DUNE_DECK_GRADE };
+    for (const r of [g.takeoff, g.deck]) {
+      const s = ramp_surface(r, x, z);
+      if (s && s.y > best.y) best = s;
+    }
+    return best;
+  };
+  return {
+    height: (x, z) => top(x, z).y,
+    normal: (x, z, out) => {
+      const s = top(x, z);
+      return out.set(-s.gx, 1, -s.gz).normalize();
+    },
+    grip: () => 1,
+    roll: () => 1,
+  };
+}
+
+describe("dune crest jump at 360 Hz", () => {
+  const g = dune_jump(0, 0, 0, 0, 0, 1);
+  const ground = ground_dune(g);
+  const start = g.takeoff.length;
+  for (const [id, spec] of Object.entries(CARS))
+    test(`${id}: lands on the deck upright, under 9 m/s into it, from ${DUNE_V_MIN} to ${DUNE_V_MAX} m/s`, () => {
+      for (const speed of [DUNE_V_MIN, 18, 21, DUNE_V_MAX])
+        for (const gas of [0, 1]) {
+          const run = jump(g.takeoff, new Car(spec), speed, 0, gas, ground);
+          const where = `${speed} m/s (toe ${run.toe.toFixed(1)}), gas ${gas}`;
+          expect(run.touch, where).toBeGreaterThan(start);
+          expect(run.touch, where).toBeLessThan(start + g.deck.length);
+          expect(run.impact, where).toBeLessThan(9);
+          expect(run.upright, where).toBeGreaterThan(0.75);
+        }
+    }, 30_000);
+});

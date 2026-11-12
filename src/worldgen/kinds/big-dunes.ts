@@ -8,7 +8,7 @@ export const big_dunes = kind_def({
   kind: WorldKind.BIG_DUNES,
   base: 9000,
   tag: "bd",
-  version: 9,
+  version: 10,
   size: SIZE,
   ...land_kind(BIG_DUNES, [], WorldKind.BIG_DUNES),
   options: [],
