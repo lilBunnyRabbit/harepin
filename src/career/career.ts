@@ -75,7 +75,7 @@ export const TIERS: readonly Tier[] = [
       { id: "c3", name: "Ice box", mode: "gymkhana", level: "g4", map: "1T0000006", car: { cap: "b" }, tuned: "6:t3", stars: { two: 21680, three: 17344 } },
       { id: "c4", name: "Lake search", mode: "hunt", level: "h3", map: "1T0000006", car: { preset: "Mud basher" }, tuned: "6:t3", stars: { two: 71680, three: 57344 } },
       { id: "c5", name: "Winter reverse", mode: "race", level: "circuit-rev", map: "1C0000006-W1", car: { cap: "a" }, tuned: "6:w11:W1", stars: { two: 345000, three: 276000 }, ghost: true },
-      { id: "c6", name: "Mainland lap", mode: "race", level: "circuit", map: MAINLAND, car: { cap: "a" }, tuned: "475664083:m6", stars: { two: 728750, three: 583000 }, ghost: true },
+      { id: "c6", name: "Mainland sprint", mode: "race", level: "circuit-sprint", map: MAINLAND, car: { cap: "a" }, tuned: "475664083:m6", stars: { two: 323375, three: 258700 }, ghost: true },
       { id: "c7", name: "Rim to sea", mode: "race", level: "descent", map: "1V0000001", car: { cap: "a" }, tuned: "1:v5", stars: { two: 204750, three: 163800 }, ghost: true, final: true },
     ],
   },

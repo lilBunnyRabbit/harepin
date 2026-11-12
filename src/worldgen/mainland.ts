@@ -3,13 +3,15 @@ import { mainland_lots } from "./mainland-lots";
 import { mainland_network } from "./mainland-network";
 import { plan_grid, type PlanGrid } from "./plan-grid";
 import { MAINLAND, type Recipe } from "./recipe";
-import { circuit_route, heading } from "./routes";
+import { circuit_route, circuit_sprint, heading } from "./routes";
 import type { GroundOp } from "./stamp";
 import { land_height } from "./terrain";
 import { plan_water } from "./water";
 import { CELL, WorldKind, type Checkpoint, type RoadPoint, type WorldData } from "./types";
 
 const CHECKPOINTS = 16;
+/** Autopilot seconds the circuit sprint aims for: a lap runs near ten minutes, the sprint about four. */
+const SPRINT_S = 240;
 /** Metres a gate keeps from every road node: clear of junction patches and the kink where a link meets a town's street. */
 export const GATE_CLEAR = 60;
 
@@ -76,7 +78,8 @@ export function plan_mainland(seed: number, recipe: Recipe = MAINLAND): Mainland
     const p = road[gates[index]];
     return { x: p.x, y: p.y, z: p.z, heading: heading(p), index };
   }) : [];
-  const routes = road.length ? [circuit_route(road, checkpoints)] : [];
+  const sprint = road.length ? circuit_sprint(road, gates, checkpoints, SPRINT_S) : null;
+  const routes = road.length ? [circuit_route(road, checkpoints), ...(sprint ? [sprint] : [])] : [];
   lap("routes");
   const empty = new Float32Array(0);
   const data: WorldData = {

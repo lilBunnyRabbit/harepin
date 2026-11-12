@@ -118,6 +118,33 @@ export function reverse_circuit(circuit: Route, ramps: readonly Ramp[], share = 
   return { ...circuit, id: "circuit-rev", points, checkpoints, par_ms: par(points, true, share) };
 }
 
+/** Starts and ends on circuit gates, which keep clear of junctions; the slowest pace is the most cornering. */
+export function circuit_sprint(road: readonly RoadPoint[], gates: readonly number[], checkpoints: readonly Checkpoint[], seconds: number, share = PAR_SHARE): Route | null {
+  const count = gates.length;
+  if (count < 3) return null;
+  const stretch = (k: number, span: number) => {
+    const from = gates[k];
+    const to = gates[(k + span) % count];
+    return to > from ? road.slice(from, to + 1) : [...road.slice(from), ...road.slice(0, to + 1)];
+  };
+  let best: { k: number; span: number; points: RoadPoint[]; pace: number; off: number } | null = null;
+  for (let span = 1; span < count; span++) {
+    const runs = Array.from({ length: count }, (_, k) => {
+      const points = stretch(k, span);
+      const time = drive_time(points, false);
+      return { k, span, points, pace: time / run(points), time };
+    });
+    const off = Math.abs(runs.reduce((sum, r) => sum + r.time, 0) / count - seconds);
+    if (best && off > best.off) break;
+    const slowest = runs.reduce((a, b) => (b.pace > a.pace ? b : a));
+    best = { ...slowest, off };
+  }
+  if (!best) return null;
+  const { k, span, points } = best;
+  const checkpoints_on = Array.from({ length: span }, (_, i) => checkpoints[(k + 1 + i) % count]).map((c, index) => ({ ...c, index }));
+  return { id: "circuit-sprint", kind: RouteKind.SPRINT, closed: false, points, checkpoints: checkpoints_on, gate_hw: ROAD_HALF, length: run(points), par_ms: par(points, false, share), closure: [] };
+}
+
 class Atlas {
   readonly legs: Leg[] = [];
   readonly out = new Map<number, number[]>();

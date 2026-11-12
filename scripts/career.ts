@@ -36,8 +36,8 @@ const DUEL_SILVER = 1.1;
 const WRITE = process.argv.includes("--write");
 const ONLY = process.argv.slice(2).filter((a) => !a.startsWith("--"));
 const STEP_MS = DT * 1000;
-/** Seconds a drive may take: a lap of the mainland runs near ten minutes. */
-const DRIVE_LIMIT = 1200;
+/** Seconds a drive may take: the longest race runs near six minutes, and the slowest car in a class takes longer. */
+const DRIVE_LIMIT = 600;
 
 interface Drive {
   label: string;

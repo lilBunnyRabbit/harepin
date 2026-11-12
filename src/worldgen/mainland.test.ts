@@ -33,6 +33,23 @@ for (const seed of [...sweep(3), 3516535473])
   });
 
 for (const seed of sweep(3))
+  test(`mainland ${seed}: the circuit sprint is one run of the circuit, gate to gate, finishing on its last point`, () => {
+    const { data } = plan_mainland(seed);
+    const sprint = data.routes.find((r) => r.id === "circuit-sprint");
+    if (!sprint) throw new Error("no circuit sprint");
+    const on = (p: { x: number; z: number }) => data.road.findIndex((q) => q.x === p.x && q.z === p.z);
+    const from = on(sprint.points[0]);
+    sprint.points.forEach((p, i) => expect(on(p)).toBe((from + i) % data.road.length));
+    const gate = (p: { x: number; z: number }) => data.checkpoints.some((c) => c.x === p.x && c.z === p.z);
+    expect(gate(sprint.points[0])).toBe(true);
+    for (const c of sprint.checkpoints) expect(gate(c)).toBe(true);
+    const last = sprint.points[sprint.points.length - 1];
+    expect(sprint.checkpoints.at(-1)).toMatchObject({ x: last.x, z: last.z });
+    expect(sprint.closed).toBe(false);
+    expect(sprint.length).toBeLessThan(data.routes[0].length * 0.8);
+  });
+
+for (const seed of sweep(3))
   test(`mainland ${seed}: every pair of neighbouring tiles shares its border vertices bit for bit`, () => {
     const { data } = plan_mainland(seed);
     const tiles = Array.from({ length: EXT.side * EXT.side }, (_, index) => build_tile(data.ground, index, EXT));

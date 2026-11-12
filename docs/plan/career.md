@@ -129,7 +129,7 @@ Worlds: Island `C`, Winter island `C…-W1`, Dune sea `D`, Alpine `A`, Frozen la
 | c3 | Ice box | Frozen lakes | `1T0000006` | gymkhana `g4` | ≤ B |
 | c4 | Lake search | Frozen lakes | `1T0000006` | hunt `h3` | Mud basher |
 | c5 | Winter reverse | Winter island | `1C0000006-W1` (seed 3 in winter has no `circuit-rev`) | race `circuit-rev` | ≤ A |
-| c6 | Mainland lap | Mainland | `1M<MAINLAND_SEED>` | race `circuit` | ≤ A |
+| c6 | Mainland sprint | Mainland | `1M<MAINLAND_SEED>` | race `circuit-sprint` (round 4 M1: a ~4 min slice of the circuit, was the ~9.7 min lap) | ≤ A |
 | c7 | **Final: Rim to sea** | Volcano | `1V0000001` | race `descent` (on the real map since round 3, F1) | ≤ A |
 
 ### Pro (class S1-X)
@@ -148,7 +148,7 @@ Mix: race 7, gymkhana 3, parking 3, drift 2, hunt 3, duel 2 (the 3 finals are ra
 
 ### Stand-ins until each world ships
 
-Round 3: the finals need none now (r7 Sky Track, c7 Volcano, p7 Ice canyon). C7: c6 and p1 left their Island stand-ins (`1C0000008` race `street-2` / duel `v5`) for Mainland. c6 is re-tuned on the mainland lap; p1 has no owner marks there yet: until the owner's run sets them, `three` is the best bot finish and `two` is 10% over it (`scripts/career.ts`). No event is on a stand-in now.
+Round 3: the finals need none now (r7 Sky Track, c7 Volcano, p7 Ice canyon). C7: c6 and p1 left their Island stand-ins (`1C0000008` race `street-2` / duel `v5`) for Mainland. c6 runs the `circuit-sprint` slice of the mainland circuit (round 4 M1), re-tuned on it; p1 has no owner marks there yet: until the owner's run sets them, `three` is the best bot finish and `two` is 10% over it (`scripts/career.ts`). No event is on a stand-in now.
 
 A stand-in swap is a data change. Stars earned on a stand-in are kept. Its best time and ghost reset, the same as a version bump.
 
@@ -206,7 +206,7 @@ The link carries no ghost (too big for a URL: 8 floats per 100 ms).
 
 Each phase ships on its own. S ≈ a day, M ≈ 2-4 days.
 
-**Order since round 3 (R1, R2, L1, S1):** C0-C4 (built) → pre-release items → **release** → C5 → C6 → C7 → C8.
+**Order since round 3 (R1, R2, L1, S1):** C0-C4 (built) → pre-release items → **release** → C5 → C6 → C7. C8 share link is dropped for now (round 4 S1: "no share link for now").
 
 | Step | What | Status |
 |---|---|---|
@@ -227,8 +227,8 @@ Each phase ships on its own. S ≈ a day, M ≈ 2-4 days.
 | **C4** | Bot thresholds + dev ghosts + version test | `autolap.ts`, `races.ts`, `Ghost` | `scripts/career.ts`, ghost assets, ghost playback in race/duel events | M |
 | **C5** | Rewards + online tier badge: paint and badge on the metal ladder, decal from the final's world (W1, §1.4) | Garage rows, `Hello` optional field pattern (`country`) | `reward_paints`, three decals, badge art, `tier` on hello; unlock card on the result screen with "Try it in the garage" in the actions (paint or decal only) | M |
 | **C6** | Markers on compact worlds: tier-metal start flags with the event id, on minimap and world map, locked greyed, exact map code only (M1-M3, §4) | Challenge start flags, world map | Proximity trigger, marker icons | M |
-| **C7** | Modes on streamed worlds, then Mainland events + markers (L1: after C5 and C6) | `world.tiles.whole()` wait (`modes.ts:193`) | Lift the `STREAMED` block (`modes.ts:190`); sites near the start on a streamed world | M-L (*est.*, unverified) |
-| **C8** | Share link (S1: after release) | `invite_link` | Params + HUD target line | S |
+| **C7** | Modes on streamed worlds, then Mainland events + markers (L1: after C5 and C6) | `world.tiles.whole()` wait (`modes.ts:193`) | Lift the `STREAMED` block (`modes.ts:190`); sites near the start on a streamed world. Round 4 M1: c6 is the Mainland `circuit-sprint`, a point-to-point slice of the circuit (`circuit_sprint`, `worldgen/routes.ts`): the run of circuit gates whose autopilot time is nearest 4 min, from the gate where it is slowest, so the most cornering; start line, gates and finish are the circuit's own gates on the slice. On `1M0E5M3PK`: road 3265 to 551 (through the lap's start), 4.1 km, 7 gates, bot stars 258.7 s / 323.4 s | M-L (*est.*, unverified) |
+| ~~**C8**~~ | Share link: dropped for now (round 4 S1: "no share link for now") | `invite_link` | Params + HUD target line | S |
 | **Data** | Done: c7 on Volcano, p7 on Ice canyon (round 3); Rooftops dropped | - | Edit `map`, re-tune | S each |
 
 ## 8. Conflicts
