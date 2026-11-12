@@ -7,7 +7,7 @@ import "./update.css";
 declare const __HAREPIN_VERSION__: VersionInfo;
 export const BUILD: VersionInfo = __HAREPIN_VERSION__;
 
-const CHECK_EVERY_MS = 30 * 60 * 1000;
+const CHECK_EVERY_MS = 15 * 60 * 1000;
 const VISIBLE_CHECK_GAP_MS = 60 * 1000;
 const BUSY_POLL_MS = 1500;
 const TOAST_MS = 4000;
