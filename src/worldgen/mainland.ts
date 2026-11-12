@@ -10,8 +10,8 @@ import { plan_water } from "./water";
 import { CELL, WorldKind, type Checkpoint, type RoadPoint, type WorldData } from "./types";
 
 const CHECKPOINTS = 16;
-/** Autopilot seconds the circuit sprint aims for: a lap runs near ten minutes, the sprint about four. */
-const SPRINT_S = 240;
+/** Autopilot-model seconds the circuit sprint aims for: about four minutes at the owner's pace, near 1.75x faster than the model. */
+const SPRINT_S = 420;
 /** Metres a gate keeps from every road node: clear of junction patches and the kink where a link meets a town's street. */
 export const GATE_CLEAR = 60;
 

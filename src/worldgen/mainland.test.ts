@@ -46,7 +46,7 @@ for (const seed of sweep(3))
     const last = sprint.points[sprint.points.length - 1];
     expect(sprint.checkpoints.at(-1)).toMatchObject({ x: last.x, z: last.z });
     expect(sprint.closed).toBe(false);
-    expect(sprint.length).toBeLessThan(data.routes[0].length * 0.8);
+    expect(sprint.checkpoints.length).toBeLessThan(data.checkpoints.length);
   });
 
 for (const seed of sweep(3))

@@ -129,7 +129,7 @@ Worlds: Island `C`, Winter island `C…-W1`, Dune sea `D`, Alpine `A`, Frozen la
 | c3 | Ice box | Frozen lakes | `1T0000006` | gymkhana `g4` | ≤ B |
 | c4 | Lake search | Frozen lakes | `1T0000006` | hunt `h3` | Mud basher |
 | c5 | Winter reverse | Winter island | `1C0000006-W1` (seed 3 in winter has no `circuit-rev`) | race `circuit-rev` | ≤ A |
-| c6 | Mainland sprint | Mainland | `1M<MAINLAND_SEED>` | race `circuit-sprint` (round 4 M1: a ~4 min slice of the circuit, was the ~9.7 min lap) | ≤ A |
+| c6 | Mainland sprint | Mainland | `1M<MAINLAND_SEED>` | race `circuit-sprint` (round 4 M1: a ~4 min slice of the circuit at the owner's pace, 7.1 km, was the ~9.7 min lap; provisional stars from his 4.07 km run, no dev ghost: the bots take 7.4 min, until his ?tune run sets them) | ≤ A |
 | c7 | **Final: Rim to sea** | Volcano | `1V0000001` | race `descent` (on the real map since round 3, F1) | ≤ A |
 
 ### Pro (class S1-X)
