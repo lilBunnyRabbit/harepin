@@ -48,6 +48,10 @@ const SHOPFRONT_INSET = 0.8;
 const FACADE_OUT = 0.03;
 const PANE = 2.4;
 const MULLION = 0.2;
+const STOREY = 3.2;
+const WINDOW_LOW = 1;
+const WINDOW_HIGH = 2.1;
+const WINDOW_INSET = 0.6;
 const PAD_LIFT = 0.06;
 const LINE_LIFT = 0.09;
 const LINE_HALF = 0.06;
@@ -196,6 +200,27 @@ function shopfront(out: Builder, hw: number, hd: number) {
   }
 }
 
+/** One glass band per storey on every face, from `first` up; a tall block read as a blank slab without them. */
+function window_bands(out: Builder, hw: number, hd: number, height: number, first: number) {
+  const none: Rgb = [0, 0, 0];
+  const w = hw - WINDOW_INSET;
+  const d = hd - WINDOW_INSET;
+  const x = hw + FACADE_OUT;
+  const z = hd + FACADE_OUT;
+  for (let s = first; (s + 1) * STOREY <= height + WINDOW_LOW; s++) {
+    const y0 = s * STOREY + WINDOW_LOW;
+    const y1 = s * STOREY + WINDOW_HIGH;
+    if (w > 0) {
+      out.quad([-w, y0, z], [w, y0, z], [w, y1, z], [-w, y1, z], none);
+      out.quad([w, y0, -z], [-w, y0, -z], [-w, y1, -z], [w, y1, -z], none);
+    }
+    if (d > 0) {
+      out.quad([x, y0, d], [x, y0, -d], [x, y1, -d], [x, y1, d], none);
+      out.quad([-x, y0, -d], [-x, y0, d], [-x, y1, d], [-x, y1, -d], none);
+    }
+  }
+}
+
 export interface TownParts {
   buildings: readonly Building[];
   props: readonly Prop[];
@@ -223,7 +248,10 @@ export function town_builders(data: WorldData, parts: TownParts, tones: MeshTone
     const big = b.height + rise >= SMALL_BUILDING;
     const out = (big ? town.big : town.small).at(b);
     out.walls(b.hw, b.hd, -1, b.height, wall);
-    if (data.lots[b.lot].kind === "shop") shopfront((big ? town.glass_big : town.glass_small).at(b), b.hw, b.hd);
+    const shop = data.lots[b.lot].kind === "shop";
+    const glass = (big ? town.glass_big : town.glass_small).at(b);
+    if (shop) shopfront(glass, b.hw, b.hd);
+    window_bands(glass, b.hw, b.hd, b.height, shop ? 1 : 0);
     if (b.roof === Roof.GABLE || b.roof === Roof.STEEP) out.gable(b.hw, b.hd, b.height, rise, roof, wall);
     else if (b.roof === Roof.CROSS) out.at(turned(b)).gable(b.hd, b.hw, b.height, rise, roof, wall);
     else if (b.roof === Roof.HIP) {
