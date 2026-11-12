@@ -1,7 +1,8 @@
 import * as THREE from "three";
 import { Audio } from "./audio/audio";
-import { EVENT_PARAM, TUNE_PARAM, event_of, type CareerEvent } from "./career/career";
+import { EVENTS, EVENT_PARAM, TUNE_PARAM, event_of, type CareerEvent } from "./career/career";
 import { Career, event_map } from "./career/career-store";
+import { EventMarkers } from "./career/event-markers";
 import { ChaseCamera } from "./render/camera";
 import { Driver } from "./car/driver";
 import { Directory, load_lock } from "./net/directory";
@@ -304,6 +305,7 @@ const settings = new Settings(document.body, {
   lobby_record: () => modes.lobby_record(),
   race_routes: race_choices(world.routes),
   players: () => 1 + net.remotes.size,
+  map_markers: () => markers.map_markers,
   map_players: () => [
     { name: net.name, x: driver.car.pos.x, z: driver.car.pos.z, you: true },
     ...[...net.remotes.values()].map((r) => ({ name: net.display_name(r), x: r.latest.p[0], z: r.latest.p[2], you: false })),
@@ -449,6 +451,10 @@ function start_event(id: string) {
   settings.close();
   modes.play_event(to);
 }
+const markers = new EventMarkers(scene, career, params.has(TUNE_PARAM), (id) => start_event(id));
+$("toast").after(markers.card.el);
+markers.on_map = (list) => hud.set_markers(list);
+markers.place(world, SPAWN_INDEX, EVENTS.filter(on_this_map)).catch((error: unknown) => console.error(error));
 // A map that fell back to its plain one would reload onto itself forever, so a load starts the event only where it landed.
 if (event && on_this_map(event)) modes.play_event(event);
 else if (event) goal_toasts.push("This event's map did not load", MAP_NOTE_MS);
@@ -615,6 +621,7 @@ function frame(now: number) {
   update_gates(now / 1000);
   ghost.update(race.started && !modes.active ? now - race.started : null, camera.position);
   modes.update(stepped, car);
+  markers.update(car.pos.x, car.pos.z, !modes.active && !modes.holding && !lobby.busy);
   // Rewind, the garage and the countdown don't step the car, so a held boost would never let go of the flame.
   if (!simulated) car.nitro.cut();
   chase.top = modes.high_view;

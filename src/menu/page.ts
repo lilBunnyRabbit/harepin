@@ -2,6 +2,7 @@ import type { Caught } from "../hud/input";
 import type { DirectoryStatus, Server } from "../net/directory";
 import type { Player } from "../net/players";
 import type { Career } from "../career/career-store";
+import type { MapMarker } from "../career/markers";
 import type { Goals } from "../goals/goals";
 import type { ModeEntry } from "../modes/modes";
 import type { RaceChoice } from "../modes/races";
@@ -86,6 +87,8 @@ export interface SettingsHost {
   players(): number;
   /** You and the cars on this map, for the world map. */
   map_players(): MapPlayer[];
+  /** Career event starts on this map, for the world map. */
+  map_markers(): readonly MapMarker[];
   restart_lap(): void;
   /** Hands the next key or pad button press to `on` for a binding; null stops. */
   listen(on: ((caught: Caught | null) => void) | null): void;

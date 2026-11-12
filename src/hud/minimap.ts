@@ -1,4 +1,5 @@
 import type { Car } from "../car/car";
+import type { MapMarker } from "../career/markers";
 import type { Remote } from "../net/net";
 import type { RoadPoint, Route } from "../worldgen/types";
 
@@ -131,6 +132,7 @@ export class Minimap {
   private readonly bold: string;
 
   private readonly network: Line[];
+  private markers: readonly MapMarker[] = [];
   /** The floating HUD's disc look: the route bright over faint roads, and an N on the rim. */
   private disc = false;
 
@@ -223,6 +225,28 @@ export class Minimap {
     ctx.fillText("N", x, y);
   }
 
+  set_markers(markers: readonly MapMarker[]) {
+    this.markers = markers;
+  }
+
+  // A diamond, unlike every round mark, so an event start never reads as a gate or a car.
+  private marker(x: number, y: number, ink: string) {
+    const { ctx } = this;
+    const r = this.disc ? 6 : 4.5;
+    ctx.beginPath();
+    ctx.moveTo(x, y - r);
+    ctx.lineTo(x + r, y);
+    ctx.lineTo(x, y + r);
+    ctx.lineTo(x - r, y);
+    ctx.closePath();
+    ctx.fillStyle = ink;
+    ctx.lineWidth = 3;
+    ctx.lineJoin = "round";
+    ctx.strokeStyle = INK.gap;
+    ctx.stroke();
+    ctx.fill();
+  }
+
   set_disc(on: boolean) {
     if (on === this.disc) return;
     this.disc = on;
@@ -296,6 +320,7 @@ export class Minimap {
     ctx.setTransform(this.ratio, 0, 0, this.ratio, 0, 0);
     ctx.clearRect(0, 0, MAP, MAP);
     ctx.drawImage(this.road_layer, 0, 0, MAP, MAP);
+    for (const mark of this.markers) this.marker(full_x(view, mark.x), full_y(view, mark.z), mark.ink);
     ctx.fillStyle = INK.later;
     for (const mark of later) this.dot(full_x(view, mark.x), full_y(view, mark.z), this.disc ? 4 : 3);
     if (gate) {
@@ -350,6 +375,11 @@ export class Minimap {
       ctx.stroke();
     }
     ctx.setTransform(r, 0, 0, r, 0, 0);
+    for (const mark of this.markers) {
+      const mx = cos * (mark.x - x) - sin * (mark.z - z) + cx - MAP / 2;
+      const my = sin * (mark.x - x) + cos * (mark.z - z) + cy - MAP / 2;
+      if (Math.hypot(mx, my) <= EDGE) this.marker(MAP / 2 + mx, MAP / 2 + my, mark.ink);
+    }
     ctx.fillStyle = INK.remote;
     // Out of reach, a car rides the rim like the gate, so you still see which way they are.
     for (const remote of remotes) {

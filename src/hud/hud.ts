@@ -1,4 +1,5 @@
 import type { Car } from "../car/car";
+import type { MapMarker } from "../career/markers";
 import type { Lobby } from "../net/lobby";
 import type { Net } from "../net/net";
 import type { Race } from "../race";
@@ -161,6 +162,10 @@ export class Hud {
     this.el.rpm.parentElement?.style.setProperty("--rpm-hot", percent(HOT_RATIO));
     this.pace = new PaceCard(world.routes);
     canvas.after(this.pace.el);
+  }
+
+  set_markers(markers: readonly MapMarker[]) {
+    this.map.set_markers(markers);
   }
 
   set_layout(layout: HudLayout) {

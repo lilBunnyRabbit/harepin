@@ -11,6 +11,18 @@ const DEG = 180 / Math.PI;
 const AREA = park_footprint();
 const sites = new WeakMap<World, Site | null>();
 
+/** The world's one parking site, found once: every level and the career marker share it. */
+export function park_site(world: World, start_index: number): Site | null {
+  if (!sites.has(world)) sites.set(world, find_site(world, start_index, AREA));
+  return sites.get(world) ?? null;
+}
+
+/** Where a run of `level` puts the car on `site`. */
+export function park_start(site: Site, level: ParkLevel): { x: number; z: number; heading: number } {
+  const at = to_world(site, level.start.u, level.start.v);
+  return { x: at.x, z: at.z, heading: site.heading + level.start.heading };
+}
+
 class Parking implements ModeRun {
   private readonly view: ParkingView;
   private readonly unplace: () => void;
@@ -28,8 +40,8 @@ class Parking implements ModeRun {
     const solids = park_solids(site, level, (x, z) => world.height(x, z));
     this.unplace = world.place(solids);
     this.run = new ParkRun(site, level, solids);
-    const at = to_world(site, level.start.u, level.start.v);
-    ctx.spawn(at.x, at.z, site.heading + level.start.heading);
+    const at = park_start(site, level);
+    ctx.spawn(at.x, at.z, at.heading);
   }
 
   update(sim_dt: number, car: Driven): string {
@@ -107,8 +119,7 @@ export const PARKING_MODE: ModeDef<ParkLevel> = {
   high_view: true,
   levels: () => PARK_LEVELS,
   start(ctx, level) {
-    if (!sites.has(ctx.world)) sites.set(ctx.world, find_site(ctx.world, ctx.start_index, AREA));
-    const site = sites.get(ctx.world);
+    const site = park_site(ctx.world, ctx.start_index);
     return site ? new Parking(ctx, site, level) : NO_SITE;
   },
 };

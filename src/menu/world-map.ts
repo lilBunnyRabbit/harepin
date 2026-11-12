@@ -1,3 +1,4 @@
+import type { MapMarker } from "../career/markers";
 import { brand, linear, rgba, tones } from "../theme/palette";
 import { sky_tones } from "../render/sky";
 import { mesh_tones } from "../render/scene";
@@ -54,6 +55,7 @@ export class WorldMap {
   // Cars move on their own layer, so a 4 Hz refresh never repaints the terrain and roads under them.
   private readonly cars = document.createElement("canvas");
   private players: readonly MapPlayer[] = [];
+  private markers: readonly MapMarker[] = [];
   private at: MapAt | null = null;
   private readonly note = document.createElement("span");
   private worker: Worker | null = null;
@@ -81,6 +83,7 @@ export class WorldMap {
     this.wanted = { seed, kind, key };
     clearTimeout(this.timer);
     this.show_players([]);
+    this.show_markers([]);
     if (this.map && this.map_key === key) return this.draw();
     this.set_status(MapStatus.DRAWING);
     if (now) this.request(seed, kind, levels, key);
@@ -158,17 +161,29 @@ export class WorldMap {
     this.draw_players();
   }
 
+  /** Career event starts on the map being driven; empty on any other. */
+  show_markers(markers: readonly MapMarker[]) {
+    if (markers === this.markers || (!markers.length && !this.markers.length)) return;
+    this.markers = markers;
+    this.draw_players();
+  }
+
   private draw_players() {
     const { cars, at } = this;
     const ctx = cars.getContext("2d");
     if (!ctx) return;
     ctx.clearRect(0, 0, cars.width, cars.height);
-    if (!at || !this.players.length) return;
+    if (!at || (!this.players.length && !this.markers.length)) return;
     const ratio = devicePixelRatio;
     ctx.font = `600 ${12 * ratio}px ${getComputedStyle(this.root).fontFamily}`;
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
     ctx.lineJoin = "round";
+    for (const marker of this.markers) {
+      const [x, y] = at(marker.x, marker.z);
+      diamond(ctx, x, y, 7 * ratio, marker.ink);
+      label(ctx, marker.label, x, y, cars.width, ratio);
+    }
     // Others first, so your own marker always sits on top; it goes unlabelled, like the minimap's arrow.
     for (let pass = 0; pass < 2; pass++) {
       for (const player of this.players) {
@@ -179,16 +194,7 @@ export class WorldMap {
         ctx.fillStyle = player.you ? YOU : PLAYER;
         ctx.fill();
         stroke(ctx, null, CASING, 2 * ratio);
-        if (player.you) continue;
-        const label = player.name;
-        const width = ctx.measureText(label).width;
-        const right = x + 10 * ratio + width < cars.width;
-        const lx = right ? x + 10 * ratio : x - 10 * ratio - width;
-        ctx.lineWidth = 3 * ratio;
-        ctx.strokeStyle = CASING;
-        ctx.strokeText(label, lx, y);
-        ctx.fillStyle = LABEL;
-        ctx.fillText(label, lx, y);
+        if (!player.you) label(ctx, player.name, x, y, cars.width, ratio);
       }
     }
   }
@@ -278,6 +284,29 @@ function stroke(ctx: Ctx2D, path: Path2D | null, color: string, width: number) {
   ctx.lineWidth = width;
   if (path) ctx.stroke(path);
   else ctx.stroke();
+}
+
+function label(ctx: Ctx2D, text: string, x: number, y: number, side: number, ratio: number) {
+  const width = ctx.measureText(text).width;
+  const right = x + 10 * ratio + width < side;
+  const lx = right ? x + 10 * ratio : x - 10 * ratio - width;
+  ctx.lineWidth = 3 * ratio;
+  ctx.strokeStyle = CASING;
+  ctx.strokeText(text, lx, y);
+  ctx.fillStyle = LABEL;
+  ctx.fillText(text, lx, y);
+}
+
+function diamond(ctx: Ctx2D, x: number, y: number, r: number, color: string) {
+  ctx.beginPath();
+  ctx.moveTo(x, y - r);
+  ctx.lineTo(x + r, y);
+  ctx.lineTo(x, y + r);
+  ctx.lineTo(x - r, y);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+  stroke(ctx, null, CASING, 2 * r / 7);
 }
 
 function arrow(ctx: Ctx2D, [x, y]: [number, number], mark: MapMark, size: number, color: string) {

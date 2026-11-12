@@ -60,7 +60,9 @@ export class WorldPage implements MenuPage {
 
   private show_players() {
     if (document.hidden) return;
-    this.world_map.show_players(this.here ? this.menu.host.map_players() : []);
+    const { host } = this.menu;
+    this.world_map.show_players(this.here ? host.map_players() : []);
+    this.world_map.show_markers(this.here ? host.map_markers() : []);
   }
 
   build(): HTMLElement[] {

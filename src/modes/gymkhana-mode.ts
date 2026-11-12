@@ -8,6 +8,12 @@ import { grade, par_thresholds } from "./track";
 
 const sites = new WeakMap<World, Site | null>();
 
+/** The world's one gymkhana site, found once: every level and the career marker share it. */
+export function gym_site(world: World, start_index: number): Site | null {
+  if (!sites.has(world)) sites.set(world, find_site(world, start_index));
+  return sites.get(world) ?? null;
+}
+
 class Gymkhana implements ModeRun {
   private readonly view: GymkhanaView;
   private readonly run: GymRun;
@@ -88,8 +94,7 @@ export const GYMKHANA_MODE: ModeDef<GymLevel> = {
   busy_notice: "Leave the lobby race to play gymkhana",
   levels: () => LEVELS,
   start(ctx, level) {
-    if (!sites.has(ctx.world)) sites.set(ctx.world, find_site(ctx.world, ctx.start_index));
-    const site = sites.get(ctx.world);
+    const site = gym_site(ctx.world, ctx.start_index);
     return site ? new Gymkhana(ctx, build_course(ctx.world.seed, site, level)) : NO_SITE;
   },
 };

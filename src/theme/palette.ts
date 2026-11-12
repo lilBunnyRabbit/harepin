@@ -121,6 +121,11 @@ export const tones = {
   shop_glow: dark ? mix(brand.warning, brand.cottontail, 0.6) : mix(brand.background_darker, brand.background_lightest, 0.5),
 };
 
+/** Career tier metals, Rookie bronze, Club silver, Pro gold: the start flags and the tier's rewards (career.md §1.4). */
+export const tier_metals = [mix(brand.warning, brand.error, 0.55), mix(brand.foreground, brand.background_lightest, 0.6), brand.warning] as const;
+/** A marker or reward not open yet. */
+export const locked_tone = mix(brand.foreground, brand.background, 0.55);
+
 export const car_paints = [brand.primary, brand.secondary, brand.accent, brand.tertiary, brand.info, brand.cottontail, brand.error];
 
 // Dark themes have no neutral lighter than the paints (foreground sits at their lightness), so the light ink is lifted.
