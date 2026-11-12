@@ -419,7 +419,7 @@ if (prefs.name === null && matchMedia("(pointer: fine)").matches) settings.focus
 
 garage.on_save = () => goals.done(GoalId.BUILD);
 garage.on_change = (next) => {
-  for (const id of build_goals(next)) goals.done(id);
+  if (!modes.fitting) for (const id of build_goals(next)) goals.done(id);
   driver.swap(next, lobby.busy || modes.active);
   if (lobby.car_changed()) modes.exit();
   modes.car_changed();

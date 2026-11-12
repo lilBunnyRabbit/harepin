@@ -128,7 +128,7 @@ export class Modes {
   private pick: AbortController | null = null;
   /** The player's own car while an event runs on another one, put back when they leave the event. */
   private kept: string | null = null;
-  private fitting = false;
+  private fitting_ = false;
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -147,6 +147,11 @@ export class Modes {
       const track = new Track(def.id, world.seed, levels.map((level) => level.id), local_store(), world.kind, world.levels);
       return { def, levels, track };
     });
+  }
+
+  /** True while an event fits its car or gives the player's back: a garage change the player did not make. */
+  get fitting(): boolean {
+    return this.fitting_;
   }
 
   get active(): boolean {
@@ -281,11 +286,11 @@ export class Modes {
   }
 
   private fit(code: string, save: boolean) {
-    this.fitting = true;
+    this.fitting_ = true;
     try {
       this.fit_car?.(code, save);
     } finally {
-      this.fitting = false;
+      this.fitting_ = false;
     }
   }
 
@@ -319,7 +324,7 @@ export class Modes {
    * still comes back after it. Anything else makes the change their car; an event run it moves off its PI or its fit ends.
    */
   car_changed() {
-    if (this.fitting) return;
+    if (this.fitting_) return;
     const active = this.current?.run ? this.current : null;
     const event = active?.event ?? null;
     if (!active || !event) {
