@@ -145,7 +145,10 @@ export class WorldMap {
     this.drawn = { map, side };
     canvas.width = canvas.height = side;
     this.cars.width = this.cars.height = side;
-    this.at = paint_map(ctx, map, image, roads, side, ratio, getComputedStyle(this.root).fontFamily);
+    const at = paint_map(ctx, map, image, roads, side, ratio);
+    paint_marks(ctx, map, at, ratio);
+    paint_towns(ctx, map, at, side, ratio, getComputedStyle(this.root).fontFamily);
+    this.at = at;
     this.draw_players();
   }
 
@@ -204,8 +207,8 @@ export function road_ink(kind: WorldKind, levels: readonly number[]): RoadInk {
   return world_look(WORLDS[kind], snow_of({ kind, levels }) !== null).roads;
 }
 
-/** Paints the map's terrain, roads and marks onto a `side`-pixel square, with town names unless `font` is null; returns world metres to canvas pixels. */
-export function paint_map(ctx: Ctx2D, map: MapData, image: ImageBitmap, roads: RoadInk, side: number, ratio: number, font: string | null): MapAt {
+/** Paints the map's terrain and roads onto a `side`-pixel square; returns world metres to canvas pixels. */
+export function paint_map(ctx: Ctx2D, map: MapData, image: ImageBitmap, roads: RoadInk, side: number, ratio: number): MapAt {
   const scale = (side / MAP_SIDE) * ((MAP_SIDE - 1) / map.size);
   const at = (x: number, z: number): [number, number] => [(x + map.size / 2) * scale + side / MAP_SIDE / 2, (z + map.size / 2) * scale + side / MAP_SIDE / 2];
   ctx.imageSmoothingQuality = "high";
@@ -227,7 +230,10 @@ export function paint_map(ctx: Ctx2D, map: MapData, image: ImageBitmap, roads: R
     if (style.casing) stroke(ctx, path, CASING, (style.width + 2 * style.casing) * ratio);
     stroke(ctx, path, color, style.width * ratio);
   }
+  return at;
+}
 
+function paint_marks(ctx: Ctx2D, map: MapData, at: MapAt, ratio: number) {
   for (const jump of map.jumps) arrow(ctx, at(jump.x, jump.z), jump, 7 * ratio, JUMP);
   for (const pad of map.pads) arrow(ctx, at(pad.x, pad.z), pad, 6 * ratio, PAD);
   for (const checkpoint of map.checkpoints.slice(1)) {
@@ -245,8 +251,9 @@ export function paint_map(ctx: Ctx2D, map: MapData, image: ImageBitmap, roads: R
   stroke(ctx, start, CASING, 6 * ratio);
   stroke(ctx, start, START, 3 * ratio);
   arrow(ctx, [sx + map.start.fx * bar, sy + map.start.fz * bar], map.start, 8 * ratio, START);
+}
 
-  if (font === null) return at;
+function paint_towns(ctx: Ctx2D, map: MapData, at: MapAt, side: number, ratio: number, font: string) {
   ctx.font = `600 ${12 * ratio}px ${font}`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
@@ -260,7 +267,6 @@ export function paint_map(ctx: Ctx2D, map: MapData, image: ImageBitmap, roads: R
     ctx.fillStyle = LABEL;
     ctx.fillText(town.name, x, y);
   }
-  return at;
 }
 
 function map_tones(): MapTones {
