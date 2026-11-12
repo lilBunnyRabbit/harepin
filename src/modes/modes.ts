@@ -116,7 +116,6 @@ export class Modes {
   on_finish: ((mode: string) => void) | null = null;
   /** A short note over the HUD; a run says its goal on it as it starts. */
   toast: ((text: string, label: string, hold: number) => void) | null = null;
-  career: Career | null = null;
   /** Starts an event here, or reloads onto its map. */
   start_event: ((id: string) => void) | null = null;
   /** The step before a start that asks which car runs it: its code, or null when the player backs out. Events only for now. */
@@ -141,6 +140,7 @@ export class Modes {
     private readonly chime: () => void,
     private readonly camera: THREE.Camera,
     private readonly spec: () => CarSpec,
+    private readonly career: Career,
   ) {
     this.modes = MODES.map((def) => {
       const levels = def.levels(world);
@@ -230,7 +230,7 @@ export class Modes {
     const before = TIERS[TIERS.indexOf(tier) - 1];
     // `?tune` opens every tier so the owner can set the non-race stars before any are earnable.
     const tune = new URLSearchParams(location.search).has(TUNE_PARAM);
-    if (!this.career || (!tune && !tier_open(this.career.stars, tier))) return this.notice(`${tier.name} opens at ${tier.opens_at} ★ in ${before?.name ?? "the tier before"}`);
+    if (!tune && !tier_open(this.career.stars, tier)) return this.notice(`${tier.name} opens at ${tier.opens_at} ★ in ${before?.name ?? "the tier before"}`);
     if (mode.def.needs_ground && !KINDS[this.world.kind].open_ground) return this.notice(NO_GROUND_NOTICE);
     if (this.race_busy()) return this.notice(mode.def.busy_notice);
     if (this.pick) return;
@@ -441,7 +441,7 @@ export class Modes {
     const active = this.current;
     if (!active) return;
     if (active.event) {
-      const next = this.career && next_event(this.career.stars, active.event);
+      const next = next_event(this.career.stars, active.event);
       if (next) this.start_event?.(next.id);
       return;
     }
@@ -514,7 +514,6 @@ export class Modes {
 
   private show_event(event: CareerEvent, stars: number) {
     const { el, career } = this;
-    if (!career) return;
     career.record(event, stars);
     el.lines.append(line("career", tier_line(career.stars, tier_of(event))));
     el.next.textContent = NEXT_EVENT;

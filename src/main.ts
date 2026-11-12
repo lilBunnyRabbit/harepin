@@ -370,13 +370,12 @@ driver.place(driver.road_spot(start_index));
 const modes = new Modes(scene, world, SPAWN_INDEX, () => lobby.record, (x, z, heading) => {
   driver.park(x, z, heading);
   reset_lap();
-}, () => lobby.busy, () => audio.chime(), camera, () => driver.car.spec);
+}, () => lobby.busy, () => audio.chime(), camera, () => driver.car.spec, career);
 modes.bindings = () => settings.state.bindings;
 modes.ghosts = () => settings.state.ghost;
 modes.cover = (wait) => area_fade.cover(wait);
 modes.on_finish = (mode) => goals.played(mode);
 modes.toast = (text, label, hold) => hud.toast(text, label, hold);
-modes.career = career;
 modes.start_event = (id) => start_event(id);
 modes.pick_car = (title, limit, own, signal) =>
   pick_car(title, limit.cap ? limit_text(limit.cap) : "Any car", car_shelves(parse_build(own) ?? garage.build, load_builds(), limit), signal);
