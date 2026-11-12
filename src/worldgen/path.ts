@@ -89,8 +89,9 @@ export const PACKED_BED = 3;
 const PACKED_MAX = 4000;
 /** The crest jump's lane runs this far in from an end of the straights, metres. */
 const CREST_EDGE = 60;
-/** Window and passes of the box filter a crest lane's heights are smoothed with. */
-const CREST_SMOOTH = 4;
+/** The crest lane runs straight into the lip this far, metres, and zigzags this far in from the end of the straights. */
+const CREST_FINAL = 40;
+const CREST_BAND = 160;
 const PACKED_SHARES = [1, 0.8, 0.6, 0.45, 0.35, 0.25, 0.18, 0.12, 0.06];
 
 export type Path = [number, number][];
@@ -325,20 +326,54 @@ export function packed_lines({ wx, wz, lo, hi, half }: Corridor, height: Height)
 }
 
 /**
- * The crest jump's lane: straight along the wind over the dune inside a corridor circuit, CREST_EDGE in from the end of
- * the straights away from where `packed` turns over the crest, and the index of the toe of a lip `lip` metres long that
- * ends on its highest point. Its heights are the ground's smoothed, so a run-up shaped to them throws no car off a ripple.
+ * The crest jump's lane over the dune inside a corridor circuit, CREST_EDGE in from the end of the straights away from
+ * where `packed` turns over the crest. It ends on the toe of a lip `lip` metres long that ends on the crest: CREST_FINAL
+ * metres straight along the wind into the toe, and before that diagonals down the windward face, as the packed line
+ * climbs, so it holds PACKED_GRADE. They zigzag inside the outer CREST_BAND of the straights, clear of the packed line's
+ * own climb on the other side. The bend onto the straight caps the speed a car brings to the lip.
  */
 export function crest_lane({ wx, wz, lo, hi, half }: Corridor, height: Height, packed: readonly RoadPoint[], lip: number): { lane: RoadPoint[]; toe: number } {
   const top = packed.reduce((a, b) => (b.y > a.y ? b : a), packed[0]);
   const turn = top ? top.z * wx - top.x * wz : 0;
   const across = (turn > 0 ? -1 : 1) * (half - CREST_EDGE);
-  const path: Path = [];
-  for (let s = lo; s <= hi; s += PACKED_STEP) path.push([wx * s - wz * across, wz * s + wx * across]);
-  const lane = road_points(path, smooth(path.map(([x, z]) => height(x, z)), CREST_SMOOTH, CREST_SMOOTH, false), false);
-  let crest = 0;
-  for (let i = 1; i < lane.length; i++) if (lane[i].y > lane[crest].y) crest = i;
-  return { lane, toe: Math.max(0, crest - Math.round(lip / PACKED_STEP)) };
+  const at = (s: number, c: number): [number, number] => [wx * s - wz * c, wz * s + wx * c];
+  let crest = lo;
+  for (let s = lo; s <= hi; s += PACKED_STEP) if (height(...at(s, across)) > height(...at(crest, across))) crest = s;
+  const toe = crest - lip;
+  const local: [number, number][] = [];
+  for (let s = toe; s > toe - CREST_FINAL; s -= PACKED_STEP) local.push([s, across]);
+  let s = toe - CREST_FINAL;
+  let c = across;
+  let side = across > 0 ? -1 : 1;
+  const edge = half - PACKED_EDGE;
+  const inner = half - CREST_BAND;
+  const bend = circle24().slice(1, 12);
+  while (s > lo && local.length < PACKED_MAX) {
+    local.push([s, c]);
+    const here = height(...at(s, c));
+    const step = (share: number): [number, number] => [-PACKED_STEP * share, side * PACKED_STEP * Math.sqrt(1 - share * share)];
+    const fits = (share: number) => {
+      const [ds, dc] = step(share);
+      return [1, 2].every((k) => Math.abs(height(...at(s + ds * k, c + dc * k)) - here) <= PACKED_AIM * PACKED_STEP * k);
+    };
+    const [ds, dc] = step(PACKED_SHARES.find(fits) ?? 0);
+    if (Math.abs(c + dc) <= edge && Math.abs(c + dc) >= inner) {
+      s += ds;
+      c += dc;
+      continue;
+    }
+    for (const [cos, sin] of bend) local.push([s - PACKED_TURN * (1 - cos), c + side * PACKED_TURN * sin]);
+    s -= 2 * PACKED_TURN;
+    side = -side;
+  }
+  local.push([lo, c]);
+  local.reverse();
+  const path = resample(chaikin(local.map(([s, c]) => at(s, c)), PACKED_ROUND), PACKED_STEP, false);
+  const run = path.map(([x, z], i) => (i + 1 < path.length ? length(path[i + 1][0] - x, path[i + 1][1] - z) : 0));
+  const lane = road_points(path, limit_grade(path.map(([x, z]) => height(x, z)), run, PACKED_GRADE), false);
+  const end = lane.length - 1;
+  lane[end] = { ...lane[end], tx: wx, tz: wz };
+  return { lane, toe: end };
 }
 
 /** A packed line as the three trails that lay its bed, side by side, so a car that runs wide stays on packed dirt. */

@@ -224,7 +224,7 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   const trails = plan_trails(seed, land, stamp, canyon, towns, solids, recipe.road.canyon?.crossings);
   // A crest jump over the dune inside a corridor circuit: its lane packed up the windward face to a low lip on the crest,
   // the deck and run-out shaped into the slip face under it. Shaped after the packed line, so no bank of the line's can
-  // tilt the landing; its lane is painted before, so the packed bed stays the last trail stamp.
+  // tilt it; its lane is painted before, so the packed bed stays the last trail stamp.
   const packed = planned.corridor ? packed_lines(planned.corridor, (x, z) => sample(heights, x, z)) : [];
   const crest = planned.corridor ? crest_lane(planned.corridor, (x, z) => sample(heights, x, z), packed[0] ?? [], DUNE_LIP_RUN) : null;
   const toe = crest?.lane[crest.toe];
