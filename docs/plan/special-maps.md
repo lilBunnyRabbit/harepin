@@ -1,6 +1,6 @@
 # Special maps: Rooftops, Volcano, Ice canyon
 
-> **Status 2026-11-12 (v0.29.0):** Rooftops dropped for now (owner, below); its R1 code stays unlisted at `?world=rooftops`. Volcano V1-V3 built (crater rim circuit, lava that resets the car, the descent to the sea) and unlisted at `?world=volcano`. Ice canyon open.
+> **Status 2026-11-12 (v0.31.2):** Rooftops dropped for now (owner, below); its R1 code stays unlisted at `?world=rooftops`. Volcano V1-V3 built (crater rim circuit, lava that resets the car, the descent to the sea) and listed. Ice canyon I1-I2 built and listed: rim circuit on packed snow, hairpins down to a bare-ice bed, 1-3 frozen falls of 4 m per seed with kickers on packed-snow pads; the descent runs 0.8-1.3 km, shorter than the 1.5-2.5 km estimate.
 
 Round 1, 2026-11-11, at `ae0323e` (v0.28.1). Plan only. Nothing was run: no dev server, golden, proof or races. Every file:line comes from reading the code at `ae0323e`. Numbers marked *est.* are guesses until a script measures them.
 
