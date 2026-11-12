@@ -1,6 +1,6 @@
 # Big dunes: Sahara-style dune bashing
 
-> **Status 2026-11-12 (v0.29.0):** Open. S1 is measured (`scripts/dunes.ts`, `car.test.ts` "dune sand"), and the §2 and §3 tables carry its numbers.
+> **Status 2026-11-12 (v0.29.1):** Open. S1 is measured (`scripts/dunes.ts`, `car.test.ts` "dune sand"), and the §2 and §3 tables carry its numbers. S2 is built: `BIG_DUNES` (`recipe.ts`), kind `dunes` v1 (base 9000, preset `B`), unlisted, loads from `?world=dunes`. The big band alone peaks near 32°, but the dune sea's bands on top take the steepest cells to ~50° (M1 caps them). The loop road is stamped across the dunes, with cuts and fills up to ~80 m, until M2's corridor road lands. Not yet driven by the owner.
 
 Round 1, 2026-11-12, at `b442ceb`. Plan only. Nothing was run: no dev server, golden, races or car tests. Every file:line comes from reading the code at `b442ceb`. Numbers marked *est.* are hand calculations from the force model in `car.ts`. They hold only until a car test measures them (slice S1).
 

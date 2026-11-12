@@ -230,10 +230,6 @@ export interface RoadRecipe {
   /** Cut and fill banks wider than the fixed shoulder; null keeps the shoulder. */
   bank: Bank | null;
   descent?: DescentRecipe;
-  /** Par share of the circuit (both ways) over the autopilot estimate, fitted to scripts/races.ts; absent = the shared one. */
-  lap_par?: number;
-  /** False keeps the trails for free roam but races none of them: on the volcano's flank not every car finishes one. */
-  trail_races?: boolean;
 }
 
 export interface TownRecipe {
@@ -486,7 +482,7 @@ export const VOLCANO: Recipe = {
     items: { coast: "rock", meadow: "rock", forest: "log", upland: "rock" },
     ground: { coast: { cut: 0.55, above: Ground.SAND, below: Ground.DUNE, soft: 0 }, meadow: CINDER, forest: { cut: 0.6, above: Ground.DRY, below: Ground.FOREST, soft: 0.2 }, upland: CINDER },
   },
-  road: { loop: { radius: 205, swing: 30, min: 195, max: 235 }, straights: null, stacks: [], tongue: false, canyon: null, kickers: { road: 2, total: 6, big: 1 }, runup: { grade: 0.08, reach: 100 }, bank: { run: 3.75, reach: 64 }, descent: { stacks: [12, 13, 14], outlet: 2, tries: 16 }, lap_par: 1.2, trail_races: false },
+  road: { loop: { radius: 205, swing: 30, min: 195, max: 235 }, straights: null, stacks: [], tongue: false, canyon: null, kickers: { road: 2, total: 6, big: 1 }, runup: { grade: 0.08, reach: 100 }, bank: { run: 3.75, reach: 64 }, descent: { stacks: [12, 13, 14], outlet: 2, tries: 16 } },
   towns: { min: 0, max: 0, trees: false, pines: 1, block: { min: 35, span: 10 }, top: 60, layout: "grid", roofs: "flat", variety: false, exact: true },
   landmarks: [],
   scatter: [{ kind: PropKind.BOULDER, spacing: 50, odds: 0.1, biomes: ["meadow", "upland"], road_within: Infinity }],
