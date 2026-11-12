@@ -195,7 +195,8 @@ export function terrain_mesh(heights: Float32Array, all_colors: Float32Array, ro
         const p1 = edge[t + step][1] * side + edge[t + step][0];
         const s0 = skirt_start + e * side + t;
         const s1 = s0 + step;
-        index.push(p0, p1, s0, p1, s1, s0);
+        // The skirt vertex leads, carrying the raw colour, so both chunks of a seam shade their skirts alike.
+        index.push(s0, p0, p1, s0, p1, s1);
       }
     });
   };

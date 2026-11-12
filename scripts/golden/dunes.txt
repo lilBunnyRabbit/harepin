@@ -18,7 +18,7 @@
 0 canyon ca2689192ce2e663
 0 tiles 0ef0aad51d6706ad
 0 mesh_road bcd94d6333fcf8b5
-0 mesh_rest 348b28560f2e9264
+0 mesh_rest 2ecc5fcd12d4018c
 0 planted c3cf8b92a56b6c27
 0 map_pixels 3fbe5a95b7a45973
 0 map 1a5a9110c462d0be
@@ -42,7 +42,7 @@
 1 canyon ca2689192ce2e663
 1 tiles 525759d364d2ebb1
 1 mesh_road 1fd10d44072cf48b
-1 mesh_rest a81cc80879b06444
+1 mesh_rest a6c6ea1d25584610
 1 planted c3cf8b92a56b6c27
 1 map_pixels cc6db1719553fc34
 1 map 07e42dfb7cb5b20c
@@ -66,7 +66,7 @@
 2 canyon ca2689192ce2e663
 2 tiles 8f588f7aa87fa212
 2 mesh_road fdbdceec75b7eda4
-2 mesh_rest 3d6b719ece2f9c0f
+2 mesh_rest 57a8661345d48e94
 2 planted c3cf8b92a56b6c27
 2 map_pixels 541eb480e231f926
 2 map 1031a0037bec8fc4

@@ -108,10 +108,11 @@ test("a mainland chunk meshes the same whatever was built before it, and shades 
   expect(a.road?.positions.length).toBeGreaterThan(0);
   expect(Array.from(a.road?.positions ?? [])).toEqual(Array.from(b.road?.positions ?? []));
   expect(Array.from(a.terrain?.colors ?? [])).toEqual(Array.from(b.terrain?.colors ?? []));
+  // A seam's skirts are what both chunks draw from the shared border: the west one's high-x skirt, the east one's low-x.
   const west = walked.build(index - 1).chunk;
-  const last = TILE_SIDE - 1;
-  for (let k = 0; k < TILE_SIDE; k++)
-    for (let c = 0; c < 3; c++) expect(west.terrain?.colors[(k * TILE_SIDE + last) * 3 + c]).toBe(a.terrain?.colors[k * TILE_SIDE * 3 + c]);
+  const skirt = (edge: number, t: number) => (TILE_SIDE * TILE_SIDE + edge * TILE_SIDE + t) * 3;
+  for (let t = 0; t < TILE_SIDE; t++)
+    for (let c = 0; c < 3; c++) expect(west.terrain?.colors[skirt(1, t) + c]).toBe(a.terrain?.colors[skirt(3, TILE_SIDE - 1 - t) + c]);
 });
 
 test("a mainland chunk plants the same trees whatever was built before it, each from a lattice point of its own", async () => {
