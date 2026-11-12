@@ -110,7 +110,7 @@ export class Modes {
   /** Starts an event here, or reloads onto its map. */
   start_event: ((id: string) => void) | null = null;
   /** The step before a start that asks which car runs it: its code, or null when the player backs out. Events only for now. */
-  pick_car: ((title: string, limit: CarLimit, signal: AbortSignal) => Promise<string | null>) | null = null;
+  pick_car: ((title: string, limit: CarLimit, own: string, signal: AbortSignal) => Promise<string | null>) | null = null;
   /** Puts `code` on the car; unsaved, a reload brings back the player's own car. */
   fit_car: ((code: string, save: boolean) => void) | null = null;
   car_code: (() => string) | null = null;
@@ -222,8 +222,8 @@ export class Modes {
     this.clear();
     void this.event_car(event, mode).then((ready) => {
       if (!ready) return this.give_back();
-      if (this.too_big(mode)) return this.notice(TOO_BIG);
-      if (this.race_busy()) return this.notice(mode.def.busy_notice);
+      if (this.too_big(mode)) return this.refuse(TOO_BIG);
+      if (this.race_busy()) return this.refuse(mode.def.busy_notice);
       this.clear();
       this.begin(mode, level, event_track(event, local_store()), event);
     });
@@ -241,7 +241,8 @@ export class Modes {
     const pick = new AbortController();
     this.pick = pick;
     try {
-      const code = await this.pick_car(event.name, { cap: car.cap, car_sized_only: mode.def.car_sized_only }, pick.signal);
+      const own = this.kept ?? this.car_code?.() ?? "";
+      const code = await this.pick_car(event.name, { cap: car.cap, car_sized_only: mode.def.car_sized_only }, own, pick.signal);
       if (code === null) return false;
       this.wear(code);
       return true;
@@ -269,6 +270,13 @@ export class Modes {
     } finally {
       this.fitting = false;
     }
+  }
+
+  // A refused start leaves the event, so the player's car goes back on.
+  private refuse(text: string) {
+    this.clear();
+    this.give_back();
+    this.notice(text);
   }
 
   private wrong_car(event: CareerEvent | null): string | null {
@@ -302,8 +310,7 @@ export class Modes {
   private launch(active: Active) {
     // Mode sites and views read terrain anywhere on the map: a start before every chunk is in waits for the rest.
     if (this.world.tiles.streamed) {
-      this.clear();
-      return this.notice(STREAMED);
+      return this.refuse(STREAMED);
     }
     if (!this.world.tiles.complete) {
       void this.cover(this.world.tiles.whole()).then(() => {
@@ -313,13 +320,11 @@ export class Modes {
     }
     const over = this.wrong_car(active.event);
     if (over) {
-      this.clear();
-      return this.notice(over);
+      return this.refuse(over);
     }
     const run = active.mode.def.start(this.ctx(active.track, active.event), active.level);
     if (typeof run === "string") {
-      this.clear();
-      return this.notice(run);
+      return this.refuse(run);
     }
     if (!run) return;
     active.run = run;

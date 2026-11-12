@@ -49,7 +49,7 @@ export function car_shelves(current: Build, builds: readonly SavedBuild[], limit
       return build ? [choice(entry.name, sub(build, i), build)] : [];
     });
   const shelves: CarShelf[] = [
-    { head: "Your car", choices: [choice(CARS[current.car].name, "On your car now", current)] },
+    { head: "Your car", choices: [choice(CARS[current.car].name, "Your own car", current)] },
     { head: "My builds", choices: parsed(builds, (build) => CARS[build.car].name) },
     { head: "Presets", choices: parsed(PRESETS, (_, i) => PRESETS[i].blurb) },
   ];

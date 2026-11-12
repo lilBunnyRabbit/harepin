@@ -9,6 +9,7 @@ import { LOBBY_ROOM, clean_room } from "./net/room-name";
 import { own_country } from "./net/country";
 import { Chat } from "./net/chat";
 import { Skids, Smoke } from "./render/effects";
+import { parse_build } from "./car/build";
 import { load_builds } from "./car/builds";
 import { car_shelves, limit_text } from "./car/car-pick";
 import { pick_car } from "./menu/car-pick";
@@ -365,7 +366,8 @@ modes.cover = (wait) => area_fade.cover(wait);
 modes.on_finish = (mode) => goals.played(mode);
 modes.career = career;
 modes.start_event = (id) => start_event(id);
-modes.pick_car = (title, limit, signal) => pick_car(title, limit.cap ? limit_text(limit.cap) : "Any car", car_shelves(garage.build, load_builds(), limit), signal);
+modes.pick_car = (title, limit, own, signal) =>
+  pick_car(title, limit.cap ? limit_text(limit.cap) : "Any car", car_shelves(parse_build(own) ?? garage.build, load_builds(), limit), signal);
 modes.fit_car = (code, save) => garage.use_code(code, save);
 modes.car_code = () => garage.code;
 hud.run_route = () => modes.route;
