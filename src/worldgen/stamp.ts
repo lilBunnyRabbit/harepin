@@ -117,9 +117,33 @@ export class Stamp {
     carve(this.terrain.heights, canyon, this.grid);
   }
 
+  // A trail bank is shaped after the roads are laid: unguarded, it tilts any asphalt within its reach.
   face(points: readonly RoadPoint[], reach = FACE_REACH) {
     this.log({ kind: "face", points, reach });
-    shape_face(this.terrain.heights, points, this.grid, reach);
+    const { heights, road_dist } = this.terrain;
+    let x0 = Infinity;
+    let x1 = -Infinity;
+    let z0 = Infinity;
+    let z1 = -Infinity;
+    for (const p of points) {
+      x0 = Math.min(x0, p.x);
+      x1 = Math.max(x1, p.x);
+      z0 = Math.min(z0, p.z);
+      z1 = Math.max(z1, p.z);
+    }
+    const [i0, i1] = span_i(this.grid, x0 - reach, x1 + reach);
+    const [j0, j1] = span_j(this.grid, z0 - reach, z1 + reach);
+    const kept: number[] = [];
+    for (let j = j0; j <= j1; j++)
+      for (let i = i0; i <= i1; i++) {
+        const k = at(this.grid, i, j);
+        if (road_guard(road_dist[k]) < 1) kept.push(k, heights[k]);
+      }
+    shape_face(heights, points, this.grid, reach);
+    for (let n = 0; n < kept.length; n += 2) {
+      const k = kept[n];
+      heights[k] = kept[n + 1] + (heights[k] - kept[n + 1]) * road_guard(road_dist[k]);
+    }
   }
 
   pad(crossing: Crossing) {
@@ -424,11 +448,14 @@ export class Stamp {
           }
       }
     for (const k of touched) {
-      const guard = smoothstep(ROAD_HALF + FLAT, ROAD_HALF + SHOULDER, road_dist[k]);
-      heights[k] += (target[k] - heights[k]) * weight[k] * (1 - smoothstep(TRAIL_HALF, reach, dist[k])) * guard;
+      heights[k] += (target[k] - heights[k]) * weight[k] * (1 - smoothstep(TRAIL_HALF, reach, dist[k])) * road_guard(road_dist[k]);
       if (dist[k] <= TRAIL_HALF + DIRT_MARGIN) surface[k] = SurfaceId.DIRT;
     }
   }
+}
+
+function road_guard(road_dist: number): number {
+  return smoothstep(ROAD_HALF + FLAT, ROAD_HALF + SHOULDER, road_dist);
 }
 
 function within(outline: readonly { x: number; z: number }[], x: number, z: number): boolean {
