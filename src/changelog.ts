@@ -23,6 +23,16 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.30.0",
+    date: "2026-11-13",
+    title: "Smoother roads",
+    changes: [
+      { kind: IMPROVED, text: "Roads no longer tilt sideways near trail banks, and side roads meet the main road without steps. Records on Island, Dune sea, Mainland, Alpine and Frozen lakes start fresh." },
+      { kind: IMPROVED, text: "The automatic gearbox no longer hunts between gears on climbs or drops into the limiter mid-drift." },
+      { kind: IMPROVED, text: "My builds: delete asks Sure? first, and focus stays on the build you acted on." },
+    ],
+  },
+  {
     version: "0.29.1",
     date: "2026-11-12",
     title: "What's new card",
