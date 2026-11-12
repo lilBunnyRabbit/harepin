@@ -4,10 +4,9 @@ import { mix, tones } from "../theme/palette";
 import { WorldKind } from "../worldgen/types";
 import { lap_facts, type WorldDef } from "./world-def";
 
-// Unlisted while it is built: it loads from `?world=volcano` only.
 export const volcano: WorldDef = {
   kind: WorldKind.VOLCANO,
-  listed: false,
+  listed: true,
   mini: true,
   name: "Volcano",
   pick: "Lap the rim of a volcano over its lava crater",

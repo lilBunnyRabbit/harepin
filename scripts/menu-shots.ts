@@ -28,6 +28,8 @@ const SPOTS: Partial<Record<WorldKind, Spot>> = {
   mainland: {},
   alpine: { at: 1895 },
   tundra: {},
+  volcano: {},
+  dunes: {},
 };
 
 const args = process.argv.slice(2);

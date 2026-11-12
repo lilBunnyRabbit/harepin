@@ -3,14 +3,13 @@ import { tones } from "../theme/palette";
 import { WorldKind } from "../worldgen/types";
 import { lap_facts, shown, type WorldDef } from "./world-def";
 
-// Unlisted while it is built: it loads from `?world=dunes` only.
 export const big_dunes: WorldDef = {
   kind: WorldKind.BIG_DUNES,
-  listed: false,
+  listed: true,
   mini: true,
   name: "Big dunes",
   pick: "Dune bashing over sand mountains",
-  note: "120 m dunes, pans and outposts",
+  note: "120 m dunes for off-road cars",
   hero: "Free roam. Loose sand eats speed: only the off-road cars bash the dunes, the rest keep to the roads and pans.",
   drawing: "Drawing the big dunes…",
   map_label: "big dunes",

@@ -70,7 +70,9 @@ export class PlayPage implements MenuPage {
 
   build(): HTMLElement[] {
     const page = el("div", "play");
-    page.append(this.map(), this.side());
+    const minis = el("section", "play-group play-minis-group");
+    minis.append(el("h3", "play-head", "Mini maps"), this.minis());
+    page.append(this.map(), this.top(), minis, this.side());
     return [page];
   }
 
@@ -90,10 +92,8 @@ export class PlayPage implements MenuPage {
     return map;
   }
 
-  private side(): HTMLElement {
-    const side = el("div", "play-side");
-    const minis = el("section", "play-group");
-    minis.append(el("h3", "play-head", "Mini maps"), this.minis());
+  private top(): HTMLElement {
+    const top = el("div", "play-top");
     this.quit.type = "button";
     this.quit.hidden = true;
     this.quit.append(icon("icon-close"), this.quit_label);
@@ -101,8 +101,14 @@ export class PlayPage implements MenuPage {
       this.menu.close();
       this.menu.host.quit_mode();
     });
+    top.append(this.quit, this.drive());
+    return top;
+  }
+
+  private side(): HTMLElement {
+    const side = el("div", "play-side");
     const { career } = this.menu.host;
-    side.append(this.quit, this.drive(), minis, this.more(), ...(career ? [career_card(this.menu, career)] : []), goals_card(this.menu, this.go_to));
+    side.append(this.more(), ...(career ? [career_card(this.menu, career)] : []), goals_card(this.menu, this.go_to));
     return side;
   }
 
@@ -125,12 +131,10 @@ export class PlayPage implements MenuPage {
     for (const { kind, name, note } of MINIS) {
       const button = el("button", "play-mini");
       button.type = "button";
-      button.title = kind === host.kind ? "Keep driving here" : `Reloads room ${host.room} on ${name}`;
-      const words = el("span", "play-words");
-      words.append(el("b", "", name), el("span", "", note));
+      button.title = `${note}. ${kind === host.kind ? "Keep driving here" : `Reloads room ${host.room} on ${name}`}`;
       const custom = kind === host.kind && host.code !== null;
-      button.append(custom ? map_thumb({ seed: host.seed, kind, levels: host.levels }) : picture(kind), words);
-      if (kind === host.kind) words.prepend(el("span", "menu-tag", "You're here"));
+      button.append(custom ? map_thumb({ seed: host.seed, kind, levels: host.levels }) : picture(kind), el("b", "", name));
+      if (kind === host.kind) button.append(el("span", "menu-tag", "You're here"));
       button.addEventListener("click", () => this.menu.drive(host.seed, kind, kind === host.kind ? host.levels : undefined));
       list.append(button);
     }
