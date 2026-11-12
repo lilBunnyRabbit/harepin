@@ -88,9 +88,9 @@ export class Garage {
     return build_code(this.current);
   }
 
-  use_code(code: string) {
+  use_code(code: string, save = true) {
     const build = parse_build(code);
-    if (build) this.apply(build);
+    if (build) this.apply(build, save);
     if (this.is_open) this.refresh();
   }
 
@@ -291,12 +291,12 @@ export class Garage {
     this.act(nav);
   };
 
-  private apply(next: Build) {
+  private apply(next: Build, save = true) {
     const checked = parse_build(build_code(next));
     if (!checked || build_code(checked) === build_code(this.current)) return;
     this.current = checked;
     this.cursor = this.item.at(checked);
-    save_build(checked);
+    if (save) save_build(checked);
     this.on_change?.(checked);
   }
 

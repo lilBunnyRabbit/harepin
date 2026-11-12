@@ -3,7 +3,8 @@ import { TIERS, next_event, spot_of, tier_line, tier_of, tier_open, type CareerE
 import { event_track, type Career } from "../career/career-store";
 import { limit_text, within, type CarLimit } from "../car/car-pick";
 import { car_sized, type CarSpec } from "../car/cars";
-import type { CarClass } from "../car/pi";
+import { build_code, parse_build } from "../car/build";
+import { rating } from "../car/pi";
 import { PRESETS } from "../car/presets";
 import { DEFAULT_BINDINGS, keys_text, type Bindings } from "../hud/bindings";
 import { $, format } from "../hud/hud";
@@ -24,6 +25,11 @@ import { MAX_STARS, Track, local_store, type RaceRecord } from "./track";
 import "./modes.css";
 
 export type { Driven } from "./mode";
+
+const preset_code = (name: string): string | null => {
+  const build = parse_build(PRESETS.find((p) => p.name === name)?.code);
+  return build && build_code(build);
+};
 
 export const MODES: readonly ModeDef[] = [RACE_MODE, GYMKHANA_MODE, PARKING_MODE, DRIFT_MODE, HUNT_MODE, DUEL_MODE];
 
@@ -103,11 +109,15 @@ export class Modes {
   career: Career | null = null;
   /** Starts an event here, or reloads onto its map. */
   start_event: ((id: string) => void) | null = null;
-  /** The step before a start that asks which car runs it; resolves false when the player backs out. Events only for now. */
-  pick_car: ((title: string, limit: CarLimit, signal: AbortSignal) => Promise<boolean>) | null = null;
-  fit_car: ((code: string) => void) | null = null;
-  car_class: (() => CarClass) | null = null;
+  /** The step before a start that asks which car runs it: its code, or null when the player backs out. Events only for now. */
+  pick_car: ((title: string, limit: CarLimit, signal: AbortSignal) => Promise<string | null>) | null = null;
+  /** Puts `code` on the car; unsaved, a reload brings back the player's own car. */
+  fit_car: ((code: string, save: boolean) => void) | null = null;
+  car_code: (() => string) | null = null;
   private pick: AbortController | null = null;
+  /** The player's own car while an event runs on another one, put back when they leave the event. */
+  private kept: string | null = null;
+  private fitting = false;
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -148,6 +158,7 @@ export class Modes {
   /** Runs the lobby's race on `id` instead of the circuit; the lobby keeps the time, so there is no countdown or record here. */
   lobby_race(id: string, on_lap: () => boolean) {
     this.pick?.abort();
+    this.give_back();
     const route = this.world.routes.find((r) => r.id === id);
     const mode = this.modes.find((m) => m.def === RACE_MODE);
     if (!route || !mode) return;
@@ -191,6 +202,7 @@ export class Modes {
       if (!mode.track.is_open(id)) return;
       if (this.race_busy()) return this.notice(mode.def.busy_notice);
       this.clear();
+      this.give_back();
       return this.begin(mode, level);
     }
   }
@@ -209,7 +221,7 @@ export class Modes {
     if (this.pick) return;
     this.clear();
     void this.event_car(event, mode).then((ready) => {
-      if (!ready) return;
+      if (!ready) return this.give_back();
       if (this.too_big(mode)) return this.notice(TOO_BIG);
       if (this.race_busy()) return this.notice(mode.def.busy_notice);
       this.clear();
@@ -221,29 +233,58 @@ export class Modes {
   private async event_car(event: CareerEvent, mode: Mode): Promise<boolean> {
     const { car } = event;
     if ("preset" in car) {
-      const preset = PRESETS.find((p) => p.name === car.preset);
-      if (preset) this.fit_car?.(preset.code);
+      const code = preset_code(car.preset);
+      if (code) this.wear(code);
       return true;
     }
     if (!this.pick_car) return true;
     const pick = new AbortController();
     this.pick = pick;
     try {
-      return await this.pick_car(event.name, { cap: car.cap, car_sized_only: mode.def.car_sized_only }, pick.signal);
+      const code = await this.pick_car(event.name, { cap: car.cap, car_sized_only: mode.def.car_sized_only }, pick.signal);
+      if (code === null) return false;
+      this.wear(code);
+      return true;
     } finally {
       if (this.pick === pick) this.pick = null;
     }
   }
 
-  private over_cap(event: CareerEvent | null): string | null {
-    if (!event || !("cap" in event.car) || !this.car_class) return null;
-    const { cap } = event.car;
-    return within(this.car_class(), cap) ? null : `${event.name}: ${limit_text(cap)}`;
+  private wear(code: string) {
+    if (!this.fit_car || !this.car_code || code === this.car_code()) return;
+    this.kept ??= this.car_code();
+    this.fit(code, false);
   }
 
-  /** The garage can swap the car mid-run: an event run over its cap ends there. */
+  private give_back() {
+    const kept = this.kept;
+    this.kept = null;
+    if (kept !== null) this.fit(kept, true);
+  }
+
+  private fit(code: string, save: boolean) {
+    this.fitting = true;
+    try {
+      this.fit_car?.(code, save);
+    } finally {
+      this.fitting = false;
+    }
+  }
+
+  private wrong_car(event: CareerEvent | null): string | null {
+    if (!event || !this.car_code) return null;
+    const { car } = event;
+    const code = this.car_code();
+    if ("preset" in car) return code === preset_code(car.preset) ? null : `${event.name}: ${car.preset} only`;
+    const build = parse_build(code);
+    return !build || within(rating(build).class, car.cap) ? null : `${event.name}: ${limit_text(car.cap)}`;
+  }
+
+  /** A garage change the player made: their car from now on, and an event run it doesn't fit ends there. */
   car_changed() {
-    const why = this.current?.run ? this.over_cap(this.current.event) : null;
+    if (this.fitting) return;
+    this.kept = null;
+    const why = this.current?.run ? this.wrong_car(this.current.event) : null;
     if (!why) return;
     this.exit();
     this.notice(why);
@@ -270,7 +311,7 @@ export class Modes {
       }, (error: unknown) => console.error(error));
       return;
     }
-    const over = this.over_cap(active.event);
+    const over = this.wrong_car(active.event);
     if (over) {
       this.clear();
       return this.notice(over);
@@ -318,11 +359,15 @@ export class Modes {
     if (this.too_big(active.mode)) return this.notice(TOO_BIG);
     active.run?.dispose();
     active.run = null;
+    const car = active.event?.car;
+    const code = car && "preset" in car ? preset_code(car.preset) : null;
+    if (code) this.wear(code);
     this.launch(active);
   }
 
   exit() {
     this.clear();
+    this.give_back();
     this.el.status.hidden = true;
   }
 
