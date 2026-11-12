@@ -7,7 +7,7 @@ import { seed_of } from "../rng";
 import { generate } from "./index";
 import { DECK_UNDER } from "./deck";
 import { gap_ramp, GAP_FAST, GAP_SLOW, LANDING_GRADE, LANDING_HALF, size_gap } from "./sky";
-import { DUNE_DECK_GRADE, DUNE_V_MAX, DUNE_V_MIN, dune_jump, GAP_V_MAX, GAP_V_MIN, gap_jump, type GapJump } from "./gap";
+import { dune_jump_shape, DUNE_V_MAX, DUNE_V_MIN, dune_jump, GAP_V_MAX, GAP_V_MIN, gap_jump, type GapJump } from "./gap";
 import { apex, face_end, flight, GATE_CLEAR, GATE_RUNOUT, ramp_local, ramp_surface, ROAD_KICKER, RUN_DRIFT } from "./jumps";
 import { SPAWN_INDEX, type Ramp } from "./types";
 import { sweep } from "../sweep";
@@ -264,12 +264,18 @@ for (const seed of sweep(100))
     }
   }, 30_000);
 
-/** A dune crest along +z: level run-up to the lip at 0, then ground falling past it at the deck's grade, as the bank shapes it. */
+/** A dune crest along +z: level run-up to the lip at 0, then the deck's plane and the run-out as the jump's shaping lays them over a deep slip face. */
 function ground_dune(g: GapJump): Ground {
-  const lip = g.takeoff.length;
-  const base = (z: number) => (z <= lip ? 0 : DUNE_DECK_GRADE * (z - lip));
+  const shape = dune_jump_shape(g, () => -Infinity);
+  const base = (z: number) => {
+    if (z <= 0) return 0;
+    const next = shape.findIndex((p) => p.z > z);
+    const i = next < 0 ? shape.length - 2 : Math.max(0, next - 1);
+    const t = (z - shape[i].z) / (shape[i + 1].z - shape[i].z);
+    return shape[i].y + (shape[i + 1].y - shape[i].y) * t;
+  };
   const top = (x: number, z: number) => {
-    let best: { y: number; gx: number; gz: number } = { y: base(z), gx: 0, gz: z <= lip ? 0 : DUNE_DECK_GRADE };
+    let best: { y: number; gx: number; gz: number } = { y: base(z), gx: 0, gz: (base(z + 0.5) - base(z - 0.5)) / 1 };
     for (const r of [g.takeoff, g.deck]) {
       const s = ramp_surface(r, x, z);
       if (s && s.y > best.y) best = s;
@@ -287,6 +293,8 @@ function ground_dune(g: GapJump): Ground {
   };
 }
 
+const DUNE_V_OVER = 35;
+
 describe("dune crest jump at 360 Hz", () => {
   const g = dune_jump(0, 0, 0, 0, 0, 1);
   const ground = ground_dune(g);
@@ -301,6 +309,15 @@ describe("dune crest jump at 360 Hz", () => {
           expect(run.touch, where).toBeLessThan(start + g.deck.length);
           expect(run.impact, where).toBeLessThan(9);
           expect(run.upright, where).toBeGreaterThan(0.75);
+        }
+    }, 30_000);
+  // Past DUNE_V_MAX a car flies over the deck onto the run-out: harder, but still on its wheels.
+  for (const [id, spec] of Object.entries(CARS))
+    test(`${id}: overshoots the deck from ${DUNE_V_MAX} to ${DUNE_V_OVER} m/s and stays on its wheels`, () => {
+      for (const speed of [28, 31, DUNE_V_OVER])
+        for (const gas of [0, 1]) {
+          const run = jump(g.takeoff, new Car(spec), speed, 0, gas, ground);
+          expect(run.upright, `${speed} m/s (toe ${run.toe.toFixed(1)}), gas ${gas}`).toBeGreaterThan(0.75);
         }
     }, 30_000);
 });
