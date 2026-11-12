@@ -59,7 +59,7 @@ export const TIERS: readonly Tier[] = [
       { id: "r4", name: "Sand trail", mode: "race", level: "circuit", map: "1D0000005", car: { preset: "Dirt rally" }, tuned: "5:d4", stars: { two: 169000, three: 135200 }, ghost: true },
       { id: "r5", name: "Dune gates", mode: "hunt", level: "h1", map: "1D0000005", car: { cap: "c" }, tuned: "5:d4" },
       { id: "r6", name: "Cloud sprint", mode: "duel", level: "v1", map: "1S0000002", car: { cap: "c" }, tuned: "2:sky3", ghost: true },
-      { id: "r7", name: "Downtown", mode: "race", level: "circuit", map: "1R0000001", car: { cap: "c" }, tuned: "2:sky3", stars: { two: 256500, three: 205200 }, ghost: true, final: true, stand_in: { map: "1S0000002", level: "circuit" } },
+      { id: "r7", name: "Skyline", mode: "race", level: "circuit", map: "1S0000002", car: { cap: "c" }, tuned: "2:sky3", stars: { two: 256500, three: 205200 }, ghost: true, final: true },
     ],
   },
   {
@@ -73,7 +73,7 @@ export const TIERS: readonly Tier[] = [
       { id: "c4", name: "Lake search", mode: "hunt", level: "h3", map: "1T0000006", car: { preset: "Mud basher" }, tuned: "6:t3" },
       { id: "c5", name: "Winter reverse", mode: "race", level: "circuit-rev", map: "1C0000006-W1", car: { cap: "a" }, tuned: "6:w11:W1", stars: { two: 345000, three: 276000 }, ghost: true },
       { id: "c6", name: "Mainland lap", mode: "race", level: "circuit", map: MAINLAND, car: { cap: "a" }, tuned: "8:w11", stars: { two: 166000, three: 132800 }, ghost: true, stand_in: { map: "1C0000008", level: "street-2" } },
-      { id: "c7", name: "Rim to sea", mode: "race", level: "descent", map: "1V0000001", car: { cap: "a" }, tuned: "4:a4", stars: { two: 121875, three: 97500 }, ghost: true, final: true, stand_in: { map: "1A0000004", level: "street-2" } },
+      { id: "c7", name: "Rim to sea", mode: "race", level: "descent", map: "1V0000001", car: { cap: "a" }, tuned: "1:v5", stars: { two: 204750, three: 163800 }, ghost: true, final: true },
     ],
   },
   {
