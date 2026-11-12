@@ -1062,6 +1062,10 @@
     max-height: none;
   }
 
+  .garage-top {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .garage-rail {
     --garage-side: top;
     grid-row: 2;
