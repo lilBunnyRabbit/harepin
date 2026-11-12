@@ -74,6 +74,7 @@ const CORRIDOR_SNAP = 120;
 const CORRIDOR_SIDE = 6;
 
 export type Path = [number, number][];
+type Height = (x: number, z: number) => number;
 
 export function resample(dense: Path, step: number, closed: boolean): Path {
   const out: Path = [dense[0]];
@@ -194,12 +195,12 @@ function straighten(controls: Path, every: number) {
 }
 
 /** Middle of the lowest ground on the line from `from` along (ux, uz), `reach` metres either way. */
-function lowest_on(heights: Float32Array, from: [number, number], ux: number, uz: number, reach: number): number {
+function lowest_on(height: Height, from: [number, number], ux: number, uz: number, reach: number): number {
   const at: number[] = [];
   const ys: number[] = [];
   for (let s = -reach; s <= reach; s += CORRIDOR_STEP) {
     at.push(s);
-    ys.push(sample(heights, from[0] + ux * s, from[1] + uz * s));
+    ys.push(height(from[0] + ux * s, from[1] + uz * s));
   }
   const low = Math.min(...ys);
   const floor = at.filter((_, i) => ys[i] <= low + 0.5);
@@ -210,12 +211,12 @@ function lowest_on(heights: Float32Array, from: [number, number], ux: number, uz
  * Two straight sides in the corridors either side of the middle, across the wind, each control snapped to its
  * corridor's floor; at each end a half circle over the dune between them, where the dunes part for the road.
  */
-function corridor_controls(seed: number, heights: Float32Array, corridor: NonNullable<RoadRecipe["corridor"]>): Controls {
+function corridor_controls(seed: number, height: Height, corridor: NonNullable<RoadRecipe["corridor"]>): Controls {
   const { x: wx, z: wz } = dune_wind(seed, corridor.wind);
   const cx = -wz;
   const cz = wx;
   const ys: number[] = [];
-  for (let s = -CORRIDOR_SCAN; s <= CORRIDOR_SCAN; s += CORRIDOR_STEP) ys.push(sample(heights, wx * s, wz * s));
+  for (let s = -CORRIDOR_SCAN; s <= CORRIDOR_SCAN; s += CORRIDOR_STEP) ys.push(height(wx * s, wz * s));
   const span = CORRIDOR_APART / CORRIDOR_STEP;
   const floors: number[] = [];
   for (let i = 0; i < ys.length; i++) {
@@ -232,7 +233,7 @@ function corridor_controls(seed: number, heights: Float32Array, corridor: NonNul
   const [lo, hi] = floors.length > 1 ? [floors[a], floors[a + 1]] : [-CORRIDOR_APART, CORRIDOR_APART];
   const side = (s: number, across: number): [number, number] => {
     const from: [number, number] = [wx * s + cx * across, wz * s + cz * across];
-    const snap = lowest_on(heights, from, wx, wz, CORRIDOR_SNAP);
+    const snap = lowest_on(height, from, wx, wz, CORRIDOR_SNAP);
     return [from[0] + wx * snap, from[1] + wz * snap];
   };
   const mid = (lo + hi) / 2;
@@ -244,6 +245,11 @@ function corridor_controls(seed: number, heights: Float32Array, corridor: NonNul
   for (let k = 0; k <= CORRIDOR_SIDE; k++) points.push(side(hi, corridor.half - (2 * corridor.half * k) / CORRIDOR_SIDE));
   for (const [c, s] of turn) points.push([wx * (mid + r * c) + cx * (-corridor.half - r * s), wz * (mid + r * c) + cz * (-corridor.half - r * s)]);
   return { points, fixed: 0, fixed_count: 0, stack: null };
+}
+
+/** A corridor circuit laid out on `height`, which can be the land itself before it is drawn. */
+export function corridor_path(seed: number, height: Height, corridor: NonNullable<RoadRecipe["corridor"]>): Loop {
+  return { path: relaxed(corridor_controls(seed, height, corridor)).path, stack: null };
 }
 
 function loop_controls(seed: number, heights: Float32Array, summit: [number, number], shape: RoadRecipe): Controls {
@@ -417,7 +423,7 @@ export interface Loop {
 }
 
 export function loop_path(seed: number, heights: Float32Array, shape: RoadRecipe = ISLAND.road): Loop {
-  if (shape.corridor) return { path: relaxed(corridor_controls(seed, heights, shape.corridor)).path, stack: null };
+  if (shape.corridor) return corridor_path(seed, (x, z) => sample(heights, x, z), shape.corridor);
   const summit = highest(heights);
   let best: Loop = { path: [], stack: null };
   let best_radius = -Infinity;

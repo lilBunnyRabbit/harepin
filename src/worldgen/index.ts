@@ -10,19 +10,19 @@ import { on_ice, plan_ice } from "./ice";
 import { in_lava } from "./lava";
 import { split_circuit, type Join } from "./graph";
 import { link_towns, way_toward, ways } from "./links";
-import { loop_heights, loop_path, road_points } from "./path";
+import { corridor_path, loop_heights, loop_path, road_points } from "./path";
 import { circuit_route, descent_route, offroad_routes, reverse_circuit, street_routes } from "./routes";
 import { join_candidates, MIN_RADIUS, Router, SHAPE_GRADE, spur_need, spur_points, tightest, type Way } from "./route";
-import type { Path } from "./path";
+import type { Loop, Path } from "./path";
 import { scatter } from "./scatter";
 import { Stamp } from "./stamp";
 import { road_junctions } from "./road-layers";
 import { guard_rails, inside } from "./switchback";
-import { lava_pools, pan_floor, terrain, with_passes } from "./terrain";
+import { land_height, lava_pools, pan_floor, terrain, with_passes } from "./terrain";
 import { plan_trails } from "./trails";
 import { place_towns, town_streets } from "./towns";
 import { ISLAND, type Landmark, type Recipe } from "./recipe";
-import { CELL, ORIGIN, ROAD_HALF, SPAWN_INDEX, SPUR_HALF, WorldKind, type Checkpoint, type RoadEdge, type RoadGraph, type RoadNode, type RoadPoint, type Solid, type Tree, type WorldData } from "./types";
+import { CELL, ORIGIN, ROAD_HALF, SPAWN_INDEX, SPUR_HALF, WorldKind, type Checkpoint, type RoadEdge, type RoadGraph, type RoadNode, type RoadPoint, type Solid, type Terrain, type Tree, type WorldData } from "./types";
 
 const CHECKPOINTS = 12;
 const STACK_GATE = 5;
@@ -56,11 +56,18 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
     clock = now;
   };
 
-  let land = terrain(seed, recipe.terrain);
-  const planned = loop_path(seed, land.heights, recipe.road);
+  // A corridor circuit reads the land point by point, so the land is drawn once, gaps and all.
+  const corridor = recipe.road.corridor;
+  let land: Terrain | null = null;
+  let planned: Loop;
+  if (corridor) planned = corridor_path(seed, land_height(seed, recipe.terrain), corridor);
+  else {
+    land = terrain(seed, recipe.terrain);
+    planned = loop_path(seed, land.heights, recipe.road);
+  }
   // A range dips into a pass wherever the planned circuit crosses its crest, so the land is drawn again over the passes.
   const shape = with_passes(seed, recipe.terrain, planned.path);
-  if (shape !== recipe.terrain) land = terrain(seed, shape);
+  if (!land || shape !== recipe.terrain) land = terrain(seed, shape);
   const { heights, road_dist } = land;
   const lava = lava_pools(seed, shape);
   lap("terrain");
