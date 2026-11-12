@@ -65,7 +65,8 @@ let server: Awaited<ReturnType<typeof preview>> | null = null;
 let port = given_port === null ? PORT : Number(given_port);
 if (given_port === null) {
   const out_dir = join(ROOT, "node_modules", ".shots-dist");
-  await build({ root: ROOT, logLevel: "warn", build: { outDir: out_dir, emptyOutDir: true } });
+  // `review` mode keeps the review pages, which a production build drops.
+  await build({ root: ROOT, mode: "review", logLevel: "warn", build: { outDir: out_dir, emptyOutDir: true } });
   server = await preview({ root: ROOT, build: { outDir: out_dir }, preview: { port, strictPort: true }, logLevel: "warn" });
   port = PORT;
 }

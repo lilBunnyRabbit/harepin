@@ -12,7 +12,6 @@ import { SHEETS, type Sheet } from "./catalog";
 import { SHOWCASE_PARAM } from "./params";
 import { SHEET_LAYOUTS, type Tile } from "./showcase-tiles";
 import "../style.css";
-import "./showcase.css";
 
 const MIN_CELL = 280;
 const ASPECT = 0.62;
@@ -21,6 +20,11 @@ const FOV = 30;
 const MARGIN = 1.05;
 const GROUND_REACH = 1.25;
 const COMPOSER_SAMPLES = 4;
+// From the showcase chunk, not a CSS import, so none of it reaches the game's stylesheet.
+const SHEET_CSS = `
+html:has(canvas.showcase) body > :not(canvas.showcase) { display: none !important; }
+html:has(canvas.showcase), html:has(canvas.showcase) body { overflow: auto; height: auto; background: var(--background); }
+html body canvas.showcase { display: block; visibility: visible !important; }`;
 
 const params = new URLSearchParams(location.search);
 const asked = params.get(SHOWCASE_PARAM);
@@ -28,6 +32,7 @@ const sheet: Sheet = SHEETS.find((name) => name === asked) ?? "cars";
 const root = document.documentElement;
 root.dataset.review = "busy";
 document.getElementById("loading")?.remove();
+document.head.append(Object.assign(document.createElement("style"), { textContent: SHEET_CSS }));
 await document.fonts.ready;
 
 const layout = SHEET_LAYOUTS[sheet]();

@@ -8,7 +8,6 @@ import type { World } from "../world/world";
 import type { WorldStream } from "../world/world-stream";
 import { REPLAY_PARAM, TIME_PARAM, VIEW_PARAM } from "./params";
 import { view_of, type View } from "./viewpoints";
-import "./review.css";
 
 // Seconds of the lap driven before a held time, so the chase camera arrives in motion rather than snapped.
 const WARM_S = 2;
@@ -18,6 +17,8 @@ const VIEW_FRAMES = 30;
 const REPLAY_FRAMES = 2;
 const VEL_S = 0.05;
 const FRAME_MS = 1000 / 60;
+// From the review chunk, not a CSS import, so none of it reaches the game's stylesheet.
+const HIDE_HUD = "html[data-review] body * { visibility: hidden !important; } html[data-review] #app, html[data-review] #app canvas { visibility: visible !important; }";
 
 interface Pose {
   pos: THREE.Vector3;
@@ -76,12 +77,15 @@ export class Review {
   }
 
   private readonly on_hash = () => this.go(read_ask());
+  private readonly style = Object.assign(document.createElement("style"), { textContent: HIDE_HUD });
 
   start() {
+    document.head.append(this.style);
     addEventListener("hashchange", this.on_hash);
   }
 
   stop() {
+    this.style.remove();
     removeEventListener("hashchange", this.on_hash);
   }
 

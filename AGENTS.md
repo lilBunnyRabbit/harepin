@@ -39,7 +39,7 @@ One level of feature folders under `src/`. Each folder owns its modules, tests (
 | `render/` | renderer, composer, scene, lighting, effects, camera, quality tiers |
 | `audio/` | engine sound and worklet |
 | `theme/` | palette and themes |
-| `review/` | visual review for agents, linked from no menu (ships in the bundle, so `scripts/shots.ts` can shoot a preview): `?showcase` sheets, `?view=` viewpoints, `?replay=` ghost shots, and the catalog `scripts/shots.ts` reads |
+| `review/` | visual review for agents, in dev and `vite build --mode review` only (a production build drops it): `?showcase` sheets, `?view=` viewpoints, `?replay=` ghost shots, and the catalog `scripts/shots.ts` reads |
 
 `main.ts` is the composition root: it builds each feature and wires them; feature logic does not live there. `style.css` holds tokens, resets and base element styles, plus the few button rules that must load after the base `button:hover`; it is imported last in `main.ts`.
 

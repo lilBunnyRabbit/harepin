@@ -125,7 +125,7 @@ const note = map_note(pick_problem(pick), stream.fallback);
 const debug_at = (params.has("debug") && Math.trunc(Number(params.get("at")))) || 0;
 const chase = new ChaseCamera(camera);
 // `?view=` and `?replay=` (src/review): shots of the world with nothing driving, for reviewing how it looks.
-const review = review_wanted(params) ? await (await import("./review/review")).Review.open(world, chase) : null;
+const review = (import.meta.env.MODE === "review" || import.meta.env.DEV) && review_wanted(params) ? await (await import("./review/review")).Review.open(world, chase) : null;
 const start_index = review?.start_index ?? (debug_at || SPAWN_INDEX);
 const start_point = world.road[world.clear_spawn(start_index)];
 // `?debug&pose=x,y,z,tx,ty,tz` pins the camera at a point looking at another, for menu pictures.

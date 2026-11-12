@@ -8,7 +8,7 @@ Driving is for handling checks. To see how the game looks, an agent runs one com
 hq lock run -- node --experimental-strip-types scripts/shots.ts --out <dir>
 ```
 
-Node, not Bun: Playwright's browser pipe hangs under Bun. The script builds into `node_modules/.shots-dist`, serves it on :5397 and drives Chrome (`channel: "chrome"`) headless. It never touches a dev server you have running. Without `--out` it writes to a fresh `harepin-shots-<time>` folder under the OS temp dir, and prints the path of the folder's `index.html`.
+Node, not Bun: Playwright's browser pipe hangs under Bun. The script builds with `vite build --mode review` into `node_modules/.shots-dist`, serves it on :5397 and drives Chrome (`channel: "chrome"`) headless. It never touches a dev server you have running. Without `--out` it writes to a fresh `harepin-shots-<time>` folder under the OS temp dir, and prints the path of the folder's `index.html`.
 
 | Flag | Does |
 |---|---|
@@ -16,7 +16,7 @@ Node, not Bun: Playwright's browser pipe hangs under Bun. The script builds into
 | `--diff <old dir>` | After the run, compares every shot with the same file in an older run. Writes `diff.txt` (share of pixels changed, largest first) and puts the list at the top of `index.html` |
 | `--maps <code,…>` | World shots on these map codes only (default: every career map, plus the plain map of each land kind no event uses) |
 | `--replays <id,…>` | Replays of these career events only (default: every event with a dev ghost) |
-| `--port <n>` | Shoot a preview you already serve instead of building one |
+| `--port <n>` | Shoot a preview you already serve instead of building one; it must be a `--mode review` build |
 
 Every shot is taken four times: 1440x900 (DPR 1) and 844x390 (phone: touch, DPR 2, so the game picks its mobile quality tier), each in day (`Brand Light`) and dusk (`Brand Dark`). A full run (584 shots) takes about 7.5 minutes.
 
@@ -32,7 +32,7 @@ Open `index.html`. It has one section per group:
 
 ## The pages behind it
 
-The same URLs work by hand, in any browser, against `bun run dev` or a preview:
+The pages exist only in the dev server and in a `vite build --mode review` build. A production build drops them, so players never download them (`REVIEW_BUILD` in `src/review/params.ts`, tested inline where each one is imported). The same URLs work by hand against `bun run dev` or a review-mode preview:
 
 | URL | Shows |
 |---|---|

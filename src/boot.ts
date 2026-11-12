@@ -10,10 +10,12 @@ apply_theme(current_theme());
 // The game bundle takes over a second to evaluate on a phone; the world's plan generates meanwhile. main.ts picks the
 // world again with the full settings and takes this worker over only if both picks agree.
 const params = new URLSearchParams(location.search);
-const showcase = params.has(SHOWCASE_PARAM);
+// Tested inline, not through `REVIEW_BUILD`, so a production build drops the showcase chunk outright.
+const showcase = (import.meta.env.MODE === "review" || import.meta.env.DEV) && params.has(SHOWCASE_PARAM);
 if (!showcase) start_early(pick_world(params, clean_room(params.get("room")) ?? LOBBY_ROOM, read_saved_pick()));
 try {
-  await (showcase ? import("./review/showcase") : import("./main"));
+  if ((import.meta.env.MODE === "review" || import.meta.env.DEV) && showcase) await import("./review/showcase");
+  else await import("./main");
 } catch (error) {
   console.error(error);
   boot_failed();
