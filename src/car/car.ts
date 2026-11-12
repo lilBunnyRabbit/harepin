@@ -94,6 +94,18 @@ const USEFUL_SLIP = 1.1;
  */
 const DRIFT_REACH = 0.6;
 /**
+ * Wheelspin (in `peak_slip`) past which a held drift's rear tyres stop losing side grip to it. On the full ellipse a rear
+ * spinning at 0.5 kept 60% of its side grip: with the key held into the turn the tail swung from 25 to 37 degrees while the
+ * arc opened, and the car slid wide. Drive is left on the full ellipse, so the gas still sets the spin and the angle.
+ */
+const DRIFT_SIDE_SX = 2;
+/**
+ * Body slip (rad), about 15 to 30 degrees, over which `DRIFT_SIDE_SX` comes in. Under it the drift keeps the full ellipse:
+ * applied at every angle, the rear gripped up out of a 20 degree drift. A launch keeps it too, so the kick still swings
+ * round, and so does the steering assist, whose own countersteer holds the slide.
+ */
+const DRIFT_SIDE_SLIP = [0.26, 0.52] as const;
+/**
  * Front slip a held full key reaches past `grip_lock` at speed, in `peak_angle`: with the fronts held just under peak a
  * full key felt stiff at 100-150 km/h. A little past peak turns tighter into a catchable push rather than a wall.
  */
@@ -800,9 +812,13 @@ export class Car {
       w.compression = compression;
     }
 
+    const [side_from, side_to] = DRIFT_SIDE_SLIP;
+    const side_hold = this.launched || this.assist ? 0 : drift_steer * Math.max(0, Math.min(1, (Math.abs(beta) - side_from) / (side_to - side_from)));
+    const side_cap = side_hold > 0 ? DRIFT_SIDE_SX / side_hold : Infinity;
     for (const w of this.wheels) {
       const { axle, prev } = w;
       const other = this.wheels[w.pair];
+      const cap = axle.steer ? Infinity : side_cap;
       const inertia = w.driven ? driven_inertia : 1.4;
       const torque = w.driven ? (drive * axle.drive_share) / axle.wheels.length : 0;
       const brake_torque = brake * axle.brake * w.abs_factor + (axle.handbrake ? input.handbrake * spec.handbrake : 0) + (hold ? spec.hold : 0) + w.tcs_brake * Math.abs(torque);
@@ -873,7 +889,7 @@ export class Car {
       const roll = ground.roll(w.point.x, w.point.z);
       const rolling = v_long * spec.roll_resist;
       const fx = combined_x(sx, sy) * peak_x - rolling;
-      const fy = combined_y(sx, sy) * peak;
+      const fy = combined_y(Math.max(-cap, Math.min(cap, sx)), sy) * peak;
       w.slip = sx * peak_slip;
       const locking = this.abs && brake > 0.1 && w.slip < -this.abs_slip * w.peak && Math.abs(v_long) > 2;
       w.abs_factor = locking ? Math.max(0.2, w.abs_factor - 25 * dt) : Math.min(1, w.abs_factor + 12 * dt);

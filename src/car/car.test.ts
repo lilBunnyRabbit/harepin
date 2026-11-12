@@ -934,8 +934,8 @@ describe("power over with TCS on and the steering assist off", () => {
         // The driver's own hunting between keys, not a weave: before the damper the slide rang through 15 degrees.
         expect(held.sd).toBeLessThan(7);
         // From rest the slide is a walking-pace pivot on the driver's keys. Rolling, the angle the driver holds costs the speed:
-        // the auto countersteer kept a 30 degree aim near 25 degrees, and the car near its entry speed.
-        if (kmh > 0) expect(held.slowest).toBeGreaterThan(kmh * (aim === 20 ? 0.9 : 0.75));
+        // chasing 30 degrees, the key sits into the turn with the fronts scrubbing and the rears holding the arc.
+        if (kmh > 0) expect(held.slowest).toBeGreaterThan(kmh * (aim === 20 ? 0.9 : 0.65));
       }
   });
 

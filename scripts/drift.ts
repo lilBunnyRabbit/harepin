@@ -302,6 +302,95 @@ function wheel_table(ids: readonly string[]) {
     }
 }
 
+export interface Carve {
+  /** Radius (m) of the path the centre of mass drives over the held phase: distance over the velocity's turn. */
+  radius: number;
+  /** Body slip against the drift's side (deg) at the start and end of the held phase. */
+  from: number;
+  to: number;
+  /** km/h at the start and end of the held phase. */
+  kmh0: number;
+  kmh1: number;
+  /** Mean rear slip ratio and front slip angle past the front axle's course (deg, + into the turn) over the held phase. */
+  rear: number;
+  front: number;
+  spun: boolean;
+}
+
+/**
+ * Thrown at `kmh` 25 degrees out in a held drift, as a handbrake tap leaves it (so every variant starts alike), then `key`
+ * (+1 into the turn, 0, -1 countersteer) and `gas` held for `CARVE_SECONDS`: does the input carve the arc tighter, wider,
+ * or let it slide away?
+ */
+export function carve(spec: CarSpec, kmh: number, key: number, gas: number, aids = { tcs: true, assist: false, stability: true }): Carve {
+  const idle: Controls = { steer: 0, throttle: 0, brake: 0, handbrake: 0, analog: false };
+  const car: Car = new Car(spec);
+  Object.assign(car, aids, { abs: aids.tcs, auto: true, steer_mode: "smooth" });
+  car.park(0, 0, 0, flat);
+  for (let t = 0; t < 0.5; t += DT) car.step(DT, idle, flat);
+  car.parked = false;
+  const angle = (25 * Math.PI) / 180;
+  const v = kmh / 3.6;
+  // The drift's side, and the key into the turn, is +1; the key was countersteering a little to hold it.
+  car.vel.set(v * Math.sin(angle), 0, v * Math.cos(angle));
+  car.ang.set(0, (-0.8 * G) / v, 0);
+  const v_long = v * Math.cos(angle);
+  for (const w of car.wheels) w.omega = (v_long / spec.wheel.radius) * (w.driven ? 1.3 : 1);
+  const road_rpm = (gear: number) => ((v_long * 1.3) / spec.wheel.radius) * spec.gears[gear - 1] * spec.final * (60 / (2 * Math.PI));
+  car.gear = 1;
+  while (car.gear < spec.gears.length && road_rpm(car.gear) > spec.upshift * 0.9) car.gear++;
+  car["hold_side"] = 1;
+  car.key_steer = -0.3;
+  const local = new Vector3();
+  const deg = 180 / Math.PI;
+  const zf = spec.wheel.mounts[0][2];
+  const slip = () => {
+    local.copy(car.vel).applyQuaternion(car.quat.clone().invert());
+    return car.vel.length() < 1 ? 0 : Math.atan2(local.x, Math.abs(local.z)) * deg;
+  };
+  const r: Carve = { radius: 0, from: slip(), to: 0, kmh0: car.vel.length() * 3.6, kmh1: 0, rear: 0, front: 0, spun: false };
+  let travelled = 0;
+  let turned = 0;
+  let heading = Math.atan2(car.vel.x, car.vel.z);
+  let steps = 0;
+  for (let t = 0; t < CARVE_SECONDS; t += DT, steps++) {
+    car.step(DT, { ...idle, steer: key, throttle: gas }, flat);
+    const now = Math.atan2(car.vel.x, car.vel.z);
+    turned += Math.atan2(Math.sin(now - heading), Math.cos(now - heading));
+    heading = now;
+    travelled += car.vel.length() * DT;
+    const rears = car.wheels.filter((w) => w.driven && !w.axle.steer);
+    r.rear += rears.reduce((sum, w) => sum + w.slip, 0) / Math.max(1, rears.length);
+    local.copy(car.vel).applyQuaternion(car.quat.clone().invert());
+    r.front += (car.steer - Math.atan2(-(local.x + car.ang.y * zf), local.z)) * deg;
+    r.spun ||= Math.abs(slip()) > 100;
+  }
+  r.radius = travelled / Math.max(1e-6, Math.abs(turned));
+  r.to = slip();
+  r.kmh1 = car.vel.length() * 3.6;
+  r.rear /= steps;
+  r.front /= steps;
+  return r;
+}
+
+const CARVE_SECONDS = 1.5;
+
+function carve_table(ids: readonly string[]) {
+  const f = (n: number, d = 0) => (Number.isFinite(n) ? n.toFixed(d) : "-");
+  console.log(`thrown 25 deg out in a held drift, then key and gas held ${CARVE_SECONDS} s; TCS + stability on, Smooth keys`);
+  console.log("key: +1 into the turn, -1 countersteer. radius = path of the centre of mass; front = front slip past its course, + into the turn");
+  console.log("car      assist km/h  key  gas  radius m  slip deg  km/h       rear  front  spun");
+  for (const [id, spec] of drift_specs(ids))
+    for (const assist of [false, true])
+      for (const kmh of [60, 90])
+        for (const key of [1, 0, -1])
+          for (const gas of [1, 0.6, 0.3]) {
+            const r = carve(spec, kmh, key, gas, { tcs: true, assist, stability: true });
+            const cells = [f(r.radius).padStart(8), `${f(r.from)}->${f(r.to)}`.padStart(9), `${f(r.kmh0)}->${f(r.kmh1)}`.padStart(9), f(r.rear, 2).padStart(6), f(r.front, 1).padStart(6), String(r.spun).padStart(5)];
+            console.log(`${id.padEnd(8)} ${(assist ? "on" : "off").padEnd(6)} ${String(kmh).padStart(4)} ${String(key).padStart(4)} ${String(gas).padStart(4)} ${cells.join(" ")}`);
+          }
+}
+
 function catch_table(ids: readonly string[]) {
   const f = (n: number, d = 1) => (Number.isFinite(n) ? n.toFixed(d) : "-");
   console.log(`keyboard drifter on full gas, Smooth keys, Balanced aids (TCS + stability, steering assist off), ${CATCH_SECONDS} s; 0 km/h = full lock from rest to 30 deg, else a handbrake tap at full key`);
@@ -342,6 +431,10 @@ if (import.meta.main) {
   const ids = named ? [car_spec(named).id] : DRIFT_CARS;
   if (process.argv.includes("--launch")) {
     launch_table(named ? ids : DRIFT_CARS);
+    process.exit(0);
+  }
+  if (process.argv.includes("--carve")) {
+    carve_table(named ? ids : []);
     process.exit(0);
   }
   if (process.argv.includes("--wheel")) {
