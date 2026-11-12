@@ -577,6 +577,7 @@
     --garage-sheet-w: clamp(288px, 42vw, 360px);
     --garage-top-h: calc(var(--control-h) + 6px);
     --garage-card-h: 60px;
+    --garage-slot-h: 52px;
     --garage-gap: var(--space-3);
     --garage-strip-pad: 6px;
   }
@@ -633,7 +634,7 @@
   .garage-slot {
     grid-template-columns: minmax(0, 1fr);
     align-content: center;
-    min-height: 52px;
+    min-height: var(--garage-slot-h);
     padding: var(--space-1) var(--space-2);
   }
 
@@ -1045,6 +1046,8 @@
    keeps its row while hidden on My builds, so the meters hold still when the tab changes. */
 @media (orientation: portrait) and (max-width: 700px) {
   .garage {
+    /* Tall enough for a name and a two-line blurb, so the strip's row, and the car above it, keeps one height per tab. */
+    --garage-card-h: 68px;
     display: grid;
     grid-template-rows: auto auto minmax(0, 1fr) auto auto;
     gap: var(--space-3);
@@ -1066,13 +1069,16 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  /* Sized for the fullest tab (Performance: three rows of slots), so the car's row never changes between tabs. */
   .garage-rail {
     --garage-side: top;
     grid-row: 2;
+    height: calc(3 * var(--garage-slot-h) + 2 * var(--space-2) + 2px);
   }
 
   .garage[data-tab="builds"] .garage-rail {
     grid-row: 2 / 4;
+    height: auto;
   }
 
   /* The builds list takes the car's row; a sliver of car peeking round the panels reads as a glitch. */

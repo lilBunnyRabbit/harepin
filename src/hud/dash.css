@@ -493,6 +493,10 @@
 }
 
 @media (pointer: fine) and (max-height: 500px) {
+  :root[data-hud="classic"] {
+    --dial: 136px;
+  }
+
   :root[data-hud="classic"] #speed {
     font-size: 40px;
   }
