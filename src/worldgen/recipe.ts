@@ -88,17 +88,6 @@ export interface DuneFace {
   floor: number;
 }
 
-/**
- * Where the circuit crosses dunes `above` metres tall the dunes part: flat `width` metres either side of the crossing,
- * back to full height `ease` metres further out. `at` is filled from the planned circuit.
- */
-export interface DuneGaps {
-  above: number;
-  width: number;
-  ease: number;
-  at: readonly (readonly (readonly [number, number])[])[];
-}
-
 /** One wavelength of dunes: crests `wave` metres apart, `height` tall, the steep lee face taking `lee` of each wave. */
 export interface DuneBand {
   wave: number;
@@ -117,7 +106,6 @@ export interface DunesLayer {
   kind: "dunes";
   seed: number;
   bands: readonly DuneBand[];
-  gaps?: DuneGaps;
 }
 
 /**
@@ -272,16 +260,6 @@ export interface RoadRecipe {
   lap_par?: number;
   /** False keeps the trails for free roam but races none of them: on the volcano's flank not every car finishes one. */
   trail_races?: boolean;
-  /** False races no street routes: where a missed town corner puts a car in loose sand, not every car gets out. */
-  street_races?: boolean;
-  /** Car ids the circuit races (both ways) leave out. */
-  lap_excludes?: readonly string[];
-  /**
-   * Lays the circuit along two neighbouring corridors of the dunes, `half` metres either side of the middle, joined by
-   * a half circle over the dune between them at each end; replaces the ring. `wind` is the seed of the dune layer it
-   * reads the wind of.
-   */
-  corridor?: { half: number; wind: number };
 }
 
 export interface TownRecipe {
@@ -303,8 +281,6 @@ export interface TownRecipe {
   variety: boolean;
   /** Also test lot rectangles against each other and their corners' road_dist between vertices; false keeps the vertex test alone. */
   exact: boolean;
-  /** Only where the whole town lies on a pan's floor. */
-  pan?: boolean;
 }
 
 /** Rivers down the `count` biggest drainage basins, from where `head` plan cells drain into them; lakes in basins `depth` deep and `min`-`max` plan cells wide. */

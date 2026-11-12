@@ -11,24 +11,20 @@ import { on_ice, plan_ice } from "./ice";
 import { in_lava } from "./lava";
 import { split_circuit, type Join } from "./graph";
 import { link_towns, way_toward, ways } from "./links";
-import { corridor_path, crest_lane, loop_heights, loop_path, PACKED_BED, packed_bed, packed_lines, road_points } from "./path";
-import { DUNE_HALF, DUNE_LIP_RUN, dune_jump, dune_jump_shape } from "./gap";
+import { loop_heights, loop_path, road_points } from "./path";
 import { circuit_route, descent_route, offroad_routes, reverse_circuit, street_routes } from "./routes";
 import { join_candidates, MIN_RADIUS, Router, SHAPE_GRADE, spur_need, spur_points, tightest, type Way } from "./route";
-import type { Loop, Path } from "./path";
+import type { Path } from "./path";
 import { scatter } from "./scatter";
-import { Stamp, TRAIL_HALF } from "./stamp";
+import { Stamp } from "./stamp";
 import { road_junctions } from "./road-layers";
 import { guard_rails, inside } from "./switchback";
-import { land_height, lava_pools, pan_floor, terrain, with_passes } from "./terrain";
+import { lava_pools, pan_floor, terrain, with_passes } from "./terrain";
 import { plan_trails } from "./trails";
 import { place_towns, town_streets } from "./towns";
-import { ISLAND, type Bank, type Landmark, type Recipe } from "./recipe";
-import { CELL, ORIGIN, ROAD_HALF, SPAWN_INDEX, SPUR_HALF, WorldKind, type Checkpoint, type RoadEdge, type RoadGraph, type RoadNode, type RoadPoint, type Solid, type Terrain, type Tree, type WorldData } from "./types";
+import { ISLAND, type Landmark, type Recipe } from "./recipe";
+import { CELL, ORIGIN, ROAD_HALF, SPAWN_INDEX, SPUR_HALF, WorldKind, type Checkpoint, type RoadEdge, type RoadGraph, type RoadNode, type RoadPoint, type Solid, type Tree, type WorldData } from "./types";
 
-/** A packed bed is level out to its side trails' half width, then a bank holds the ground within 31 degrees of it. */
-const PACKED_HALF = PACKED_BED + TRAIL_HALF;
-const PACKED_BANK: Bank = { run: 1.67, reach: 220 };
 const CHECKPOINTS = 12;
 const STACK_GATE = 5;
 /** Spurs try joins at least this far outside the switchback first; one on its legs only when nothing else fits the grade. */
@@ -63,18 +59,11 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
     clock = now;
   };
 
-  // A corridor circuit reads the land point by point, so the land is drawn once, gaps and all.
-  const corridor = recipe.road.corridor;
-  let land: Terrain | null = null;
-  let planned: Loop;
-  if (corridor) planned = corridor_path(seed, land_height(seed, recipe.terrain), corridor);
-  else {
-    land = terrain(seed, recipe.terrain);
-    planned = loop_path(seed, land.heights, recipe.road);
-  }
+  let land = terrain(seed, recipe.terrain);
+  const planned = loop_path(seed, land.heights, recipe.road);
   // A range dips into a pass wherever the planned circuit crosses its crest, so the land is drawn again over the passes.
   const shape = with_passes(seed, recipe.terrain, planned.path);
-  if (!land || shape !== recipe.terrain) land = terrain(seed, shape);
+  if (shape !== recipe.terrain) land = terrain(seed, shape);
   const { heights, road_dist } = land;
   const lava = lava_pools(seed, shape);
   lap("terrain");
@@ -112,7 +101,7 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   stamp.edge(ring);
   lap("circuit");
 
-  const towns = place_towns(seed, heights, road, recipe.towns, recipe.towns.pan ? (pan_floor(seed, shape) ?? -Infinity) : null);
+  const towns = place_towns(seed, heights, road, recipe.towns);
   const gates = new Map<number, number>();
   for (const town of towns) {
     const streets = town_streets(seed, town, (x, z) => sample(heights, x, z), road, nodes.length, edges.length, recipe.towns);
@@ -237,28 +226,12 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   lap("checkpoints");
 
   const trails = plan_trails(seed, land, stamp, canyon, towns, solids, recipe.road.canyon?.crossings);
-  // A crest jump over the dune inside a corridor circuit: its lane packed up the windward face to a low lip on the crest,
-  // the deck and run-out shaped into the slip face under it. Shaped after the packed line, so no bank of the line's can
-  // tilt it; its lane is painted before, so the packed bed stays the last trail stamp.
-  const packed = planned.corridor ? packed_lines(planned.corridor, (x, z) => sample(heights, x, z)) : [];
-  const crest = planned.corridor ? crest_lane(planned.corridor, (x, z) => sample(heights, x, z), packed[0] ?? [], DUNE_LIP_RUN) : null;
-  const toe = crest?.lane[crest.toe];
-  const dune = toe ? dune_jump(0, toe.x, toe.y, toe.z, toe.tx, toe.tz) : null;
-  const landing = dune ? dune_jump_shape(dune, (x, z) => sample(heights, x, z)) : [];
-  const lane = crest && dune ? [...crest.lane.slice(0, crest.toe), ...landing] : [];
-  const runup = crest && dune ? crest.lane.slice(0, crest.toe + 1) : [];
-  if (lane.length) stamp.trail([{ points: lane, blend: () => 0 }]);
-  // Banked first, then the bed laid over it: each line's middle is the second of the last trail stamp's lines.
-  if (packed.length) stamp.bank(packed, PACKED_HALF, PACKED_BANK);
-  if (packed.length) stamp.trail(packed.flatMap((line) => packed_bed(line)).map((points) => ({ points, blend: () => 1 })));
-  if (landing.length) stamp.bank([runup, landing], DUNE_HALF, PACKED_BANK);
   lap("trails");
 
   const planner = new JumpPlanner(seed, land, towns, lots.occupied, solids, recipe.road.kickers, lakes, lava);
   if (trails.gap) planner.gap(trails.gap);
-  if (dune) planner.gap(dune);
   for (const jump of falls?.jumps ?? []) planner.gap(jump);
-  planner.keep_off([...trails.trails.flatMap((t) => t.points), ...trails.ramp_out, ...packed.flat(), ...lane, ...bed_line]);
+  planner.keep_off([...trails.trails.flatMap((t) => t.points), ...trails.ramp_out, ...bed_line]);
   // Points of the switchback count as gates, so no kicker or chicane lands inside it.
   const climb = stack ? road.filter((p, i) => i % STACK_GATE === 0 && inside(stack, p.x, p.z, 0)) : [];
   planner.circuit(road, [...checkpoints, ...nodes.filter((n) => n.kind === "junction"), road[(SPAWN_INDEX + road.length) % road.length], ...climb], recipe.road.runup);
@@ -279,8 +252,7 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   lap("jumps");
 
   const loop = circuit_route(road, checkpoints, recipe.road.lap_par);
-  if (recipe.road.lap_excludes) loop.excludes = recipe.road.lap_excludes;
-  const streets = recipe.road.street_races === false ? { routes: [], items: [] } : street_routes(graph, circuit, towns, heights, patched, jumps.ramps);
+  const streets = street_routes(graph, circuit, towns, heights, patched, jumps.ramps);
   jumps.items.push(...streets.items);
   const reverse = reverse_circuit(loop, jumps.ramps, recipe.road.lap_par);
   const offroad = recipe.road.trail_races === false ? [] : offroad_routes(trails.trails);
@@ -294,7 +266,7 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   const planted = plant(cuts, land, free);
   const trees: Tree[] = [...lots.out.trees, ...planted.trees];
   solids.push(...planted.solids);
-  const strewn = scatter(cuts, land, recipe.scatter, free, [...trails.trails.flatMap((t) => t.points), ...trails.ramp_out, ...packed.flat(), ...lane, ...bed_line]);
+  const strewn = scatter(cuts, land, recipe.scatter, free, [...trails.trails.flatMap((t) => t.points), ...trails.ramp_out, ...bed_line]);
   props.push(...strewn.props);
   solids.push(...strewn.solids);
   stamp.harden(cuts, pan_floor(seed, shape));

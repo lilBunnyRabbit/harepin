@@ -3,7 +3,6 @@ import { sample } from "./field";
 import { circle24, fbm, length } from "./noise";
 import { ISLAND, type RoadRecipe } from "./recipe";
 import { HAIRPIN_RADIUS, inside, switchback, type Switchback } from "./switchback";
-import { dune_wind } from "./terrain";
 import { CELL, N, ORIGIN, type RoadPoint } from "./types";
 
 const ROAD_MIN_RADIUS = 32;
@@ -64,35 +63,6 @@ const RELAX = 0.35;
 const RELAX_TRIES = 40;
 /** Nudges without a wider tightest bend before the attempt gives up: the pinch is not one a nudge can fix. */
 const RELAX_STALL = 4;
-/** A corridor's floor is the lowest ground this far along the wind from the middle line, sampled this often, metres. */
-const CORRIDOR_SCAN = 1200;
-const CORRIDOR_STEP = 8;
-/** Two corridors' floors lie at least this far apart along the wind; a straight side's controls snap this far to theirs. */
-const CORRIDOR_APART = 300;
-const CORRIDOR_SNAP = 120;
-/** Controls along each straight side. */
-const CORRIDOR_SIDE = 6;
-/** Point spacing along a packed line, metres. */
-const PACKED_STEP = 4;
-/** A packed line's steepest grade, 14 degrees: every car climbs 15 degrees of packed dirt (car.test.ts "dune sand"). */
-const PACKED_GRADE = 0.25;
-/** Its legs aim for this much of the ground's grade, so holding PACKED_GRADE cuts little. */
-const PACKED_AIM = 0.22;
-/** A line starts this far across from the straights' middle and turns back short of their ends by PACKED_EDGE; its turns have this radius, metres. */
-const PACKED_START = 40;
-const PACKED_EDGE = 30;
-const PACKED_TURN = 20;
-/** Chaikin passes that round the kinks where a leg meets a hairpin. */
-const PACKED_ROUND = 3;
-/** The bed's side trails lie this far either side of a packed line, metres. */
-export const PACKED_BED = 3;
-const PACKED_MAX = 4000;
-/** The crest jump's lane runs this far in from an end of the straights, metres. */
-const CREST_EDGE = 60;
-/** The crest lane runs straight into the lip this far, metres, and zigzags this far in from the end of the straights. */
-const CREST_FINAL = 40;
-const CREST_BAND = 160;
-const PACKED_SHARES = [1, 0.8, 0.6, 0.45, 0.35, 0.25, 0.18, 0.12, 0.06];
 
 export type Path = [number, number][];
 type Height = (x: number, z: number) => number;
@@ -213,174 +183,6 @@ function straighten(controls: Path, every: number) {
     const [bx, bz] = controls[(c + every) % n];
     for (let k = 1; k < every && c + k < n; k++) controls[c + k] = [ax + ((bx - ax) * k) / every, az + ((bz - az) * k) / every];
   }
-}
-
-/** Middle of the lowest ground on the line from `from` along (ux, uz), `reach` metres either way. */
-function lowest_on(height: Height, from: [number, number], ux: number, uz: number, reach: number): number {
-  const at: number[] = [];
-  const ys: number[] = [];
-  for (let s = -reach; s <= reach; s += CORRIDOR_STEP) {
-    at.push(s);
-    ys.push(height(from[0] + ux * s, from[1] + uz * s));
-  }
-  const low = Math.min(...ys);
-  const floor = at.filter((_, i) => ys[i] <= low + 0.5);
-  return (floor[0] + floor[floor.length - 1]) / 2;
-}
-
-/**
- * Two straight sides in the corridors either side of the middle, across the wind, each control snapped to its
- * corridor's floor; at each end a half circle over the dune between them, where the dunes part for the road.
- */
-function corridor_controls(seed: number, height: Height, corridor: NonNullable<RoadRecipe["corridor"]>): Controls & { corridor: Corridor } {
-  const { x: wx, z: wz } = dune_wind(seed, corridor.wind);
-  const cx = -wz;
-  const cz = wx;
-  const ys: number[] = [];
-  for (let s = -CORRIDOR_SCAN; s <= CORRIDOR_SCAN; s += CORRIDOR_STEP) ys.push(height(wx * s, wz * s));
-  const span = CORRIDOR_APART / CORRIDOR_STEP;
-  const floors: number[] = [];
-  for (let i = 0; i < ys.length; i++) {
-    if (ys.slice(Math.max(0, i - span), i + span + 1).some((y) => y < ys[i])) continue;
-    let j = i;
-    while (j + 1 < ys.length && ys[j + 1] <= ys[i] + 0.5) j++;
-    const s = -CORRIDOR_SCAN + ((i + j) / 2) * CORRIDOR_STEP;
-    i = j;
-    if (floors.length && s - floors[floors.length - 1] < CORRIDOR_APART) continue;
-    floors.push(s);
-  }
-  let a = 0;
-  for (let i = 1; i < floors.length - 1; i++) if (Math.abs(floors[i] + floors[i + 1]) < Math.abs(floors[a] + floors[a + 1])) a = i;
-  const [lo, hi] = floors.length > 1 ? [floors[a], floors[a + 1]] : [-CORRIDOR_APART, CORRIDOR_APART];
-  const side = (s: number, across: number): [number, number] => {
-    const from: [number, number] = [wx * s + cx * across, wz * s + cz * across];
-    const snap = lowest_on(height, from, wx, wz, CORRIDOR_SNAP);
-    return [from[0] + wx * snap, from[1] + wz * snap];
-  };
-  const mid = (lo + hi) / 2;
-  const r = (hi - lo) / 2;
-  const turn = circle24().slice(1, 12);
-  const points: Path = [];
-  for (let k = 0; k <= CORRIDOR_SIDE; k++) points.push(side(lo, -corridor.half + (2 * corridor.half * k) / CORRIDOR_SIDE));
-  for (const [c, s] of turn) points.push([wx * (mid - r * c) + cx * (corridor.half + r * s), wz * (mid - r * c) + cz * (corridor.half + r * s)]);
-  for (let k = 0; k <= CORRIDOR_SIDE; k++) points.push(side(hi, corridor.half - (2 * corridor.half * k) / CORRIDOR_SIDE));
-  for (const [c, s] of turn) points.push([wx * (mid + r * c) + cx * (-corridor.half - r * s), wz * (mid + r * c) + cz * (-corridor.half - r * s)]);
-  return { points, fixed: 0, fixed_count: 0, stack: null, corridor: { wx, wz, lo, hi, half: corridor.half } };
-}
-
-/** A corridor circuit laid out on `height`, which can be the land itself before it is drawn. */
-export function corridor_path(seed: number, height: Height, corridor: NonNullable<RoadRecipe["corridor"]>): Loop {
-  const controls = corridor_controls(seed, height, corridor);
-  return { path: relaxed(controls).path, stack: null, corridor: controls.corridor };
-}
-
-/**
- * A packed line across the dune inside a corridor circuit. It climbs the windward face on one long diagonal, turns over
- * the crest where the ground lies flattest, and comes down the slip face on one long diagonal back across the straights:
- * no hairpin on a face, so its grade holds without a cut. Each step leans along the wind as far as the ground, one and
- * two steps on, stays within PACKED_AIM; the heights are then held to PACKED_GRADE. One line: a second would cross it
- * at another height, and their banks would fight.
- */
-export function packed_lines({ wx, wz, lo, hi, half }: Corridor, height: Height): RoadPoint[][] {
-  const turn = circle24().slice(1, 12);
-  const edge = half - PACKED_EDGE;
-  return [1].map((first) => {
-    const at = (s: number, c: number): [number, number] => [wx * s - wz * c, wz * s + wx * c];
-    let s = lo;
-    let c = -first * PACKED_START;
-    let side = first;
-    let over = false;
-    const local: [number, number][] = [[s, c]];
-    const hairpin = () => {
-      for (const [cos, sin] of turn) local.push([s + PACKED_TURN * (1 - cos), c + side * PACKED_TURN * sin]);
-      s += 2 * PACKED_TURN;
-      side = -side;
-      local.push([s, c]);
-    };
-    while (s < hi && local.length < PACKED_MAX) {
-      const here = height(...at(s, c));
-      const step = (share: number): [number, number] => [PACKED_STEP * share, side * PACKED_STEP * Math.sqrt(1 - share * share)];
-      const fits = (share: number) => {
-        const [ds, dc] = step(share);
-        return [1, 2].every((k) => Math.abs(height(...at(s + ds * k, c + dc * k)) - here) <= PACKED_AIM * PACKED_STEP * k);
-      };
-      const [ds, dc] = step(PACKED_SHARES.find(fits) ?? 0);
-      if (!over && height(...at(s + PACKED_STEP, c)) < here) {
-        over = true;
-        hairpin();
-        continue;
-      }
-      if (Math.abs(c + dc) > edge) {
-        hairpin();
-        continue;
-      }
-      s += ds;
-      c += dc;
-      local.push([s, c]);
-    }
-    const path = resample(chaikin(local.map(([s, c]) => at(s, c)), PACKED_ROUND), PACKED_STEP, false);
-    const run = path.map(([x, z], i) => (i + 1 < path.length ? length(path[i + 1][0] - x, path[i + 1][1] - z) : 0));
-    const ys = limit_grade(path.map(([x, z]) => height(x, z)), run, PACKED_GRADE);
-    return road_points(path, ys, false);
-  });
-}
-
-/**
- * The crest jump's lane over the dune inside a corridor circuit, CREST_EDGE in from the end of the straights away from
- * where `packed` turns over the crest. It ends on the toe of a lip `lip` metres long that ends on the crest: CREST_FINAL
- * metres straight along the wind into the toe, and before that diagonals down the windward face, as the packed line
- * climbs, so it holds PACKED_GRADE. They zigzag inside the outer CREST_BAND of the straights, clear of the packed line's
- * own climb on the other side. The bend onto the straight caps the speed a car brings to the lip.
- */
-export function crest_lane({ wx, wz, lo, hi, half }: Corridor, height: Height, packed: readonly RoadPoint[], lip: number): { lane: RoadPoint[]; toe: number } {
-  const top = packed.reduce((a, b) => (b.y > a.y ? b : a), packed[0]);
-  const turn = top ? top.z * wx - top.x * wz : 0;
-  const across = (turn > 0 ? -1 : 1) * (half - CREST_EDGE);
-  const at = (s: number, c: number): [number, number] => [wx * s - wz * c, wz * s + wx * c];
-  let crest = lo;
-  for (let s = lo; s <= hi; s += PACKED_STEP) if (height(...at(s, across)) > height(...at(crest, across))) crest = s;
-  const toe = crest - lip;
-  const local: [number, number][] = [];
-  for (let s = toe; s > toe - CREST_FINAL; s -= PACKED_STEP) local.push([s, across]);
-  let s = toe - CREST_FINAL;
-  let c = across;
-  let side = across > 0 ? -1 : 1;
-  const edge = half - PACKED_EDGE;
-  const inner = half - CREST_BAND;
-  const bend = circle24().slice(1, 12);
-  while (s > lo && local.length < PACKED_MAX) {
-    local.push([s, c]);
-    const here = height(...at(s, c));
-    const step = (share: number): [number, number] => [-PACKED_STEP * share, side * PACKED_STEP * Math.sqrt(1 - share * share)];
-    const fits = (share: number) => {
-      const [ds, dc] = step(share);
-      return [1, 2].every((k) => Math.abs(height(...at(s + ds * k, c + dc * k)) - here) <= PACKED_AIM * PACKED_STEP * k);
-    };
-    const [ds, dc] = step(PACKED_SHARES.find(fits) ?? 0);
-    if (Math.abs(c + dc) <= edge && Math.abs(c + dc) >= inner) {
-      s += ds;
-      c += dc;
-      continue;
-    }
-    // A turn would end past the corridor and hook back over itself: the lane runs straight down from here instead.
-    if (s - 2 * PACKED_TURN < lo) break;
-    for (const [cos, sin] of bend) local.push([s - PACKED_TURN * (1 - cos), c + side * PACKED_TURN * sin]);
-    s -= 2 * PACKED_TURN;
-    side = -side;
-  }
-  local.push([lo, c]);
-  local.reverse();
-  const path = resample(chaikin(local.map(([s, c]) => at(s, c)), PACKED_ROUND), PACKED_STEP, false);
-  const run = path.map(([x, z], i) => (i + 1 < path.length ? length(path[i + 1][0] - x, path[i + 1][1] - z) : 0));
-  const lane = road_points(path, limit_grade(path.map(([x, z]) => height(x, z)), run, PACKED_GRADE), false);
-  const end = lane.length - 1;
-  lane[end] = { ...lane[end], tx: wx, tz: wz };
-  return { lane, toe: end };
-}
-
-/** A packed line as the three trails that lay its bed, side by side, so a car that runs wide stays on packed dirt. */
-export function packed_bed(line: readonly RoadPoint[]): RoadPoint[][] {
-  return [-PACKED_BED, 0, PACKED_BED].map((o) => line.map((q) => ({ ...q, x: q.x - q.tz * o, z: q.z + q.tx * o })));
 }
 
 function loop_controls(seed: number, heights: Float32Array, summit: [number, number], shape: RoadRecipe): Controls {
@@ -548,23 +350,12 @@ function relaxed({ points: controls, fixed, fixed_count, stack }: Controls): { p
   return { path, radius };
 }
 
-/** Where a corridor circuit runs: the wind, its two sides `lo` and `hi` metres along it, and half its straights. */
-export interface Corridor {
-  wx: number;
-  wz: number;
-  lo: number;
-  hi: number;
-  half: number;
-}
-
 export interface Loop {
   path: Path;
   stack: Switchback | null;
-  corridor?: Corridor;
 }
 
 export function loop_path(seed: number, heights: Float32Array, shape: RoadRecipe = ISLAND.road): Loop {
-  if (shape.corridor) return corridor_path(seed, (x, z) => sample(heights, x, z), shape.corridor);
   const summit = highest(heights);
   let best: Loop = { path: [], stack: null };
   let best_radius = -Infinity;
