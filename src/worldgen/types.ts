@@ -30,7 +30,7 @@ export type SurfaceId = (typeof SurfaceId)[keyof typeof SurfaceId];
 /** The ground row each laid surface paints, indexed by `SurfaceId`, so colour matches what the wheels feel; null keeps the biome's colour. */
 export const SURFACE_GROUND = [null, Ground.DIRT, Ground.PAN, null, Ground.DIRT, Ground.SNOW, Ground.PACKED_SNOW, Ground.ICE, Ground.SLUSH, Ground.DIRT] as const satisfies Record<SurfaceId, Ground | null>;
 /** Bump whenever `generate` makes a different island for the same seed: peers and saved records are matched on it. */
-export const WORLD_VERSION = 9;
+export const WORLD_VERSION = 10;
 
 /** Bump whenever `generate_sky` makes a different track for the same seed. */
 export const SKY_VERSION = 3;

@@ -10,6 +10,12 @@ const MAX_TILT = 0.06;
 const JUNCTION_CLEAR = 8;
 /** Hills at their top level: a trail cut there once shaped its bank across the circuit at 46%. */
 const STEEP_ISLAND = 49;
+/** A road's own grade plus what easing off a junction's flat band adds; a mouth stepping onto its road climbed 30-140%. */
+const MAX_MOUTH = 0.25;
+/** How far from each end a road is checked: a mouth's ease stays well inside it. */
+const MOUTH_RUN = 60;
+/** Its spurs once stepped 1-2 m onto their own height at the circuit's band. */
+const STEPPED_ISLAND = 2;
 const TIMEOUT = 300_000;
 
 /** Every road sample tilted past MAX_TILT across, as "edge id at x,z: tilt". */
@@ -31,10 +37,39 @@ function tilted(world: WorldData): string[] {
   return out;
 }
 
-test.skipIf(!FULL)("no road tilts across past a town plane's grade, on any kind", () => {
+/** Every rise past MAX_MOUTH along a road's first MOUTH_RUN metres from either end, as "edge id at x,z: grade". */
+function stepped(world: WorldData): string[] {
+  const out: string[] = [];
+  const height = (x: number, z: number) => sample(world.terrain.heights, x, z);
+  for (const edge of world.graph.edges) {
+    if (edge.closed) continue;
+    for (const points of [edge.points, edge.points.toReversed()]) {
+      let run = 0;
+      for (let i = 1; i < points.length && run < MOUTH_RUN; i++) {
+        const a = points[i - 1];
+        const b = points[i];
+        const len = Math.hypot(b.x - a.x, b.z - a.z);
+        run += len;
+        const grade = Math.abs(height(b.x, b.z) - height(a.x, a.z)) / len;
+        if (grade > MAX_MOUTH) out.push(`edge ${edge.id} at ${b.x.toFixed(0)},${b.z.toFixed(0)}: ${grade.toFixed(3)}`);
+      }
+    }
+  }
+  return out;
+}
+
+test.skipIf(!FULL)("no road tilts across past a town plane's grade or steps up at a junction mouth, on any kind", () => {
   const failed: string[] = [];
-  for (const kind of Object.values(WorldKind)) for (const seed of sweep(10)) failed.push(...tilted(generate_world(seed, kind)).map((at) => `${kind} ${seed} ${at}`));
+  for (const kind of Object.values(WorldKind))
+    for (const seed of sweep(10)) {
+      const world = generate_world(seed, kind);
+      failed.push(...[...tilted(world), ...stepped(world)].map((at) => `${kind} ${seed} ${at}`));
+    }
   expect(failed).toEqual([]);
+}, TIMEOUT);
+
+test("a road's mouth meets the band of the road it joins without a step", () => {
+  expect(stepped(generate_world(STEPPED_ISLAND, WorldKind.ISLAND))).toEqual([]);
 }, TIMEOUT);
 
 test("a trail's bank stops short of the asphalt it runs beside", () => {

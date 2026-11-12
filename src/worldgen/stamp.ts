@@ -31,6 +31,9 @@ const DIRT_MARGIN = 1.5;
  * (up to ROAD_HALF + SHOULDER), so where the patch field gives way to the edges' lies beyond what any rule sees.
  */
 const RIM_REACH = SHOULDER + CELL;
+/** Most grade a mouth's ease from an earlier road's band height back to its own profile adds on top of it, over at least MOUTH_EASE_MIN. */
+const MOUTH_GRADE = 0.03;
+const MOUTH_EASE_MIN = 16;
 const GROUP = 8;
 // Past the bound by more than float32 rounding, a skipped distance could not tie a kept one once stored.
 const BOUND_SLACK = 1e-6;
@@ -80,6 +83,9 @@ export class Stamp {
   private bound = new Float64Array(0);
   private bound_mark = new Int32Array(0);
   private pass = 0;
+  private readonly laid: RoadEdge[] = [];
+  /** Per laid edge, the x0, x1, z0, z1 box of each GROUP of its segments. */
+  private readonly laid_boxes: Float64Array[] = [];
 
   constructor(
     private readonly terrain: Terrain,
@@ -238,6 +244,8 @@ export class Stamp {
   // so the grids come out bit-identical to testing every segment over its whole box.
   edge(edge: RoadEdge, bank: Bank | null = null) {
     this.log({ kind: "edge", edge, bank });
+    const before = this.laid.length;
+    this.lay(edge);
     const { points, half } = edge;
     const reach = half + (bank ? Math.max(SHOULDER, bank.reach) : SHOULDER);
     const segments = edge.closed ? points.length : points.length - 1;
@@ -254,6 +262,7 @@ export class Stamp {
     const [ei0, ei1] = span_i(this.grid, left - reach, right + reach);
     const [ej0, ej1] = span_j(this.grid, low - reach, high + reach);
     if (ei0 > ei1 || ej0 > ej1) return;
+    const heights = this.mouths(edge, before);
     const boxes = new Int32Array(segments * 4);
     for (let s = 0; s < segments; s++) {
       const a = points[s];
@@ -304,11 +313,96 @@ export class Stamp {
           }
           for (let s = g; s < last; s++) {
             const o = s * 4;
-            if (i >= boxes[o] && i <= boxes[o + 1] && j >= boxes[o + 2] && j <= boxes[o + 3]) this.edge_vertex(edge, s, i, j, k);
+            if (i >= boxes[o] && i <= boxes[o + 1] && j >= boxes[o + 2] && j <= boxes[o + 3]) this.edge_vertex(edge, heights, s, i, j, k);
           }
         }
       }
     }
+  }
+
+  // An earlier edge's flat band keeps its height under a later edge's mouth, while the mouth's own profile climbs on and
+  // would stand a step at the band's rim. Each mouth instead meets the band's height at the rim and eases back to its
+  // own profile. Works from the edges alone, never the grids, so a replay over any tile shapes it the same.
+  private mouths(edge: RoadEdge, laid: number): Float64Array {
+    const { points } = edge;
+    const heights = Float64Array.from(points, (p) => p.y);
+    if (edge.closed) return heights;
+    const last = points.length - 1;
+    const along = new Float64Array(points.length);
+    for (let i = 1; i <= last; i++) {
+      const dx = points[i].x - points[i - 1].x;
+      const dz = points[i].z - points[i - 1].z;
+      along[i] = along[i - 1] + Math.sqrt(dx * dx + dz * dz);
+    }
+    // A road lying in a band end to end has one mouth, found from its start.
+    let start = -1;
+    for (const dir of [1, -1]) {
+      let rim = -1;
+      let band = 0;
+      for (let i = dir === 1 ? 0 : last; dir === 1 ? i <= last : i > start; i += dir) {
+        const h = this.band_height(laid, points[i].x, points[i].z);
+        if (h === null) break;
+        rim = i;
+        band = h;
+      }
+      if (dir === 1) start = rim;
+      if (rim < 0) continue;
+      const step = band - points[rim].y;
+      const from = dir === 1 ? along[rim] : along[last] - along[rim];
+      // smoothstep's steepest is 1.5 times its mean.
+      const ease = Math.max(CELL, Math.min(along[last] - from, Math.max(MOUTH_EASE_MIN, (1.5 * Math.abs(step)) / MOUTH_GRADE)));
+      for (let i = 0; i <= last; i++) heights[i] += step * (1 - smoothstep(0, ease, (dir === 1 ? along[i] : along[last] - along[i]) - from));
+    }
+    return heights;
+  }
+
+  private lay(edge: RoadEdge) {
+    const { points } = edge;
+    const segments = edge.closed ? points.length : points.length - 1;
+    const boxes = new Float64Array(Math.ceil(segments / GROUP) * 4);
+    for (let s = 0; s < segments; s++) {
+      const a = points[s];
+      const b = points[(s + 1) % points.length];
+      const o = Math.floor(s / GROUP) * 4;
+      if (s % GROUP === 0) boxes.set([Infinity, -Infinity, Infinity, -Infinity], o);
+      boxes[o] = Math.min(boxes[o], a.x, b.x);
+      boxes[o + 1] = Math.max(boxes[o + 1], a.x, b.x);
+      boxes[o + 2] = Math.min(boxes[o + 2], a.z, b.z);
+      boxes[o + 3] = Math.max(boxes[o + 3], a.z, b.z);
+    }
+    this.laid.push(edge);
+    this.laid_boxes.push(boxes);
+  }
+
+  /** The height of the nearest of the first `laid` edges whose flat band holds (x, z), or null past every band. */
+  private band_height(laid: number, x: number, z: number): number | null {
+    let best = ROAD_HALF + FLAT;
+    let height: number | null = null;
+    for (let e = 0; e < laid; e++) {
+      const { points, half, closed } = this.laid[e];
+      const boxes = this.laid_boxes[e];
+      const reach = best + half - ROAD_HALF;
+      const segments = closed ? points.length : points.length - 1;
+      for (let g = 0; g * 4 < boxes.length; g++) {
+        const o = g * 4;
+        if (x < boxes[o] - reach || x > boxes[o + 1] + reach || z < boxes[o + 2] - reach || z > boxes[o + 3] + reach) continue;
+        for (let s = g * GROUP; s < Math.min(segments, (g + 1) * GROUP); s++) {
+          const a = points[s];
+          const b = points[(s + 1) % points.length];
+          const dx = b.x - a.x;
+          const dz = b.z - a.z;
+          const t = Math.max(0, Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / (dx * dx + dz * dz || 1)));
+          const ox = x - (a.x + dx * t);
+          const oz = z - (a.z + dz * t);
+          const d = Math.sqrt(ox * ox + oz * oz) - half + ROAD_HALF;
+          if (d <= best) {
+            best = d;
+            height = a.y + (b.y - a.y) * t;
+          }
+        }
+      }
+    }
+    return height;
   }
 
   /** The distance below which `edge` would still write vertex k: past it the vertex keeps what it holds. */
@@ -351,7 +445,7 @@ export class Stamp {
     }
   }
 
-  private edge_vertex(edge: RoadEdge, s: number, i: number, j: number, k: number) {
+  private edge_vertex(edge: RoadEdge, heights: Float64Array, s: number, i: number, j: number, k: number) {
     const { road_dist } = this.terrain;
     const a = edge.points[s];
     const b = edge.points[(s + 1) % edge.points.length];
@@ -368,7 +462,7 @@ export class Stamp {
     const owned = this.edge_of[k] !== edge.id && this.owner_dist[k] <= ROAD_HALF + FLAT;
     if (d < this.owner_dist[k] && !owned) {
       this.owner_dist[k] = d;
-      this.road_height[k] = a.y + (b.y - a.y) * t;
+      this.road_height[k] = heights[s] + (heights[(s + 1) % edge.points.length] - heights[s]) * t;
       this.edge_of[k] = edge.id;
       this.street[k] = edge.kind === "street" ? 1 : 0;
     }

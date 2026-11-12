@@ -17,14 +17,14 @@ const winter = (kind: WorldKind) => KINDS[kind].options.map((o) => (o.field === 
 
 test("winter is a lettered field: its own records key and code, never a K2 digit", () => {
   const levels = winter(WorldKind.ISLAND);
-  expect(world_key(42, WorldKind.ISLAND, levels)).toBe("42:w9:W1");
+  expect(world_key(42, WorldKind.ISLAND, levels)).toBe("42:w10:W1");
   const code = map_code({ kind: WorldKind.ISLAND, seed: 42, levels });
   expect(code.endsWith("-W1")).toBe(true);
   const read = parse_map_code(code);
   expect(read.ok && read.map.levels).toEqual(levels);
   const k2 = parse_map_code("42-121111", WorldKind.ISLAND);
   expect(k2.ok && snow_of(k2.map)).toBeNull();
-  expect(world_key(42, WorldKind.ISLAND, KINDS.island.options.map((o, i) => (i === 1 ? 2 : o.normal)))).toBe("42:w9:121111");
+  expect(world_key(42, WorldKind.ISLAND, KINDS.island.options.map((o, i) => (i === 1 ? 2 : o.normal)))).toBe("42:w10:121111");
 });
 
 test("only a winter map lays the snow kit and drives on its grip", () => {
