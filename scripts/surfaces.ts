@@ -7,7 +7,7 @@ import { GROUNDS, type GroundName } from "./grounds";
 // bun scripts/surfaces.ts [car]: every tyre part on every ground row, flat ground, steering assist off for the corners.
 const CAR = car_spec(process.argv[2] ?? "coupe").id as CarId;
 const DT = 1 / 360;
-const SHOWN: GroundName[] = ["asphalt", "hardpack", "dirt", "grass", "sand"];
+const SHOWN: GroundName[] = ["asphalt", "hardpack", "dirt", "grass", "sand", "packed_snow", "ice"];
 const idle: Controls = { steer: 0, throttle: 0, brake: 0, handbrake: 0, analog: true };
 const KICK = 1.5;
 const local = new Vector3();

@@ -5,7 +5,7 @@ import { LandmarkPlanner } from "./landmarks";
 import { length } from "./noise";
 import { Lots } from "./lots";
 import { plan_canyon } from "./canyon";
-import { plan_descent } from "./descent";
+import { near_line, plan_descent } from "./descent";
 import { on_ice, plan_ice } from "./ice";
 import { in_lava } from "./lava";
 import { split_circuit, type Join } from "./graph";
@@ -40,6 +40,8 @@ const CHECKPOINT_CLEAR = 15;
 const GRID_BEHIND = 80;
 const GRID_AHEAD = 15;
 const CANYON_CLEAR = 30;
+/** Metres past a descent bed's level floor kept clear of trees and props. */
+const BED_CLEAR = 4;
 
 const LANDMARKS: Record<Landmark, (marks: LandmarkPlanner, roads: RoadEdge[]) => void> = {
   mast: (marks) => marks.mast(),
@@ -89,9 +91,14 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   if (stack) stamp.face(road.filter((p) => inside(stack, p.x, p.z, 0)));
   if (canyon) stamp.carve(canyon);
   const descent = recipe.road.descent ? plan_descent(seed, heights, road, recipe.road.descent, (at) => !keep(at)) : null;
+  const bed = recipe.road.descent?.bed;
+  // A bed takes the gully off the road: the road stops at the stack's foot and the race drives on down the bed. Banked
+  // before any road is laid, so the stack's end blends onto the bed instead of the bank easing off beside it.
+  const bed_line = descent && bed ? descent.points.slice(descent.from) : [];
   if (descent) {
     stamp.face(descent.points.filter((p) => inside(descent.stack, p.x, p.z, 0)));
     stamp.carve(descent.gully);
+    if (bed) stamp.bank([bed_line], bed.half, bed.bank);
   }
   const nodes: RoadNode[] = [];
   const edges: RoadEdge[] = [];
@@ -172,7 +179,8 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   // Roads between towns stay out of the canyon, where the trail's gap jump needs a clear run-up.
   if (canyon) router.keep_off(canyon.points, canyon.floor + canyon.wall + CANYON_CLEAR);
   if (descent) {
-    const { join, points } = descent;
+    const { join } = descent;
+    const points = bed ? descent.points.slice(0, descent.from + 1) : descent.points;
     const end = points[points.length - 1];
     nodes.push({ id: nodes.length, x: road[join].x, z: road[join].z, y: road[join].y, kind: "junction" }, { id: nodes.length + 1, x: end.x, z: end.z, y: end.y, kind: "end" });
     joins.push({ node: nodes.length - 2, at: join });
@@ -186,7 +194,8 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   const { patched } = road_junctions({ road, graph, circuit });
   for (const { patch } of patched) stamp.junction(patch.outline);
   stamp.blend();
-  const lakes = recipe.ice ? plan_ice(seed, land, graph, towns, recipe.ice) : [];
+  if (bed) stamp.paint([bed_line], bed.half, bed.surface);
+  const lakes = recipe.ice ? plan_ice(seed, land, graph, towns, recipe.ice, bed_line.map((p) => ({ x: p.x, z: p.z, half: bed?.half ?? 0 }))) : [];
   if (lakes.length) stamp.ice(lakes, seed);
   lap("stamp");
 
@@ -242,7 +251,7 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   const planner = new JumpPlanner(seed, land, towns, lots.occupied, solids, recipe.road.kickers, lakes, lava);
   if (trails.gap) planner.gap(trails.gap);
   if (dune) planner.gap(dune);
-  planner.keep_off([...trails.trails.flatMap((t) => t.points), ...trails.ramp_out, ...packed.flat(), ...lane]);
+  planner.keep_off([...trails.trails.flatMap((t) => t.points), ...trails.ramp_out, ...packed.flat(), ...lane, ...bed_line]);
   // Points of the switchback count as gates, so no kicker or chicane lands inside it.
   const climb = stack ? road.filter((p, i) => i % STACK_GATE === 0 && inside(stack, p.x, p.z, 0)) : [];
   planner.circuit(road, [...checkpoints, ...nodes.filter((n) => n.kind === "junction"), road[(SPAWN_INDEX + road.length) % road.length], ...climb], recipe.road.runup);
@@ -268,16 +277,17 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   jumps.items.push(...streets.items);
   const reverse = reverse_circuit(loop, jumps.ramps, recipe.road.lap_par);
   const offroad = recipe.road.trail_races === false ? [] : offroad_routes(trails.trails);
-  const sprint = descent ? [descent_route(descent.points)] : [];
+  const sprint = descent ? [descent_route(descent.points, recipe.road.descent?.par)] : [];
   if (recipe.road.descent?.excludes) for (const route of sprint) route.excludes = recipe.road.descent.excludes;
   const routes = reverse ? [loop, ...streets.routes, ...offroad, ...sprint, reverse] : [loop, ...streets.routes, ...offroad, ...sprint];
   lap("routes");
 
-  const free = (x: number, z: number) => !lots.occupied[vertex(Math.round((x - ORIGIN) / CELL), Math.round((z - ORIGIN) / CELL))] && !towns.some((t) => length(t.x - x, t.z - z) < t.radius) && !jumps.blocks(x, z, 2) && !marks.blocks(x, z, 2) && !on_ice(lakes, x, z) && !(lava.length && in_lava(lava, x, z, sample(heights, x, z)));
+  const on_bed = near_line(bed_line, (bed?.half ?? 0) + BED_CLEAR);
+  const free = (x: number, z: number) => !lots.occupied[vertex(Math.round((x - ORIGIN) / CELL), Math.round((z - ORIGIN) / CELL))] && !towns.some((t) => length(t.x - x, t.z - z) < t.radius) && !jumps.blocks(x, z, 2) && !marks.blocks(x, z, 2) && !on_ice(lakes, x, z) && !(lava.length && in_lava(lava, x, z, sample(heights, x, z))) && !on_bed(x, z);
   const planted = plant(cuts, land, free);
   const trees: Tree[] = [...lots.out.trees, ...planted.trees];
   solids.push(...planted.solids);
-  const strewn = scatter(cuts, land, recipe.scatter, free, [...trails.trails.flatMap((t) => t.points), ...trails.ramp_out, ...packed.flat(), ...lane]);
+  const strewn = scatter(cuts, land, recipe.scatter, free, [...trails.trails.flatMap((t) => t.points), ...trails.ramp_out, ...packed.flat(), ...lane, ...bed_line]);
   props.push(...strewn.props);
   solids.push(...strewn.solids);
   stamp.harden(cuts, pan_floor(seed, shape));

@@ -437,7 +437,7 @@ export function offroad_routes(trails: readonly Trail[]): Route[] {
 }
 
 /** One way down a road edge from its first point: a gate every GATE_SPACING metres, the finish on its last point. */
-export function descent_route(points: RoadPoint[]): Route {
+export function descent_route(points: RoadPoint[], share = PAR_SHARE): Route {
   const picked: number[] = [];
   let walked = 0;
   let since = 0;
@@ -453,5 +453,5 @@ export function descent_route(points: RoadPoint[]): Route {
   }
   picked.push(points.length - 1);
   const checkpoints = picked.map((i, index) => ({ x: points[i].x, y: points[i].y, z: points[i].z, heading: heading(points[i]), index }));
-  return { id: "descent", kind: RouteKind.SPRINT, closed: false, points, checkpoints, gate_hw: ROAD_HALF, length: total, par_ms: par(points, false), closure: [] };
+  return { id: "descent", kind: RouteKind.SPRINT, closed: false, points, checkpoints, gate_hw: ROAD_HALF, length: total, par_ms: par(points, false, share), closure: [] };
 }

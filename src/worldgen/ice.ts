@@ -32,9 +32,10 @@ const LAKE_CLEAR = 60;
 
 const outer = (lake: FrozenLake) => lake.radius * (1 + WOBBLE / 2) + SHORE;
 
-export function plan_ice(seed: number, land: Terrain, graph: RoadGraph, towns: readonly Town[], shape: IceRecipe): FrozenLake[] {
+/** `beds`: points of ground driven as a road that no road edge holds, each with its half width. */
+export function plan_ice(seed: number, land: Terrain, graph: RoadGraph, towns: readonly Town[], shape: IceRecipe, beds: readonly { x: number; z: number; half: number }[] = []): FrozenLake[] {
   const next = mulberry32(sub(seed, "ice"));
-  const points = graph.edges.flatMap((e) => e.points.map((p) => ({ x: p.x, z: p.z, half: e.half })));
+  const points = [...graph.edges.flatMap((e) => e.points.map((p) => ({ x: p.x, z: p.z, half: e.half }))), ...beds];
   const room = (x: number, z: number) => {
     let best = Infinity;
     for (const p of points) best = Math.min(best, Math.sqrt((p.x - x) * (p.x - x) + (p.z - z) * (p.z - z)) - p.half - ROAD_CLEAR);

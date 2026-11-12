@@ -1,5 +1,5 @@
 import type { Ground } from "../src/car/car";
-import { LAND_GRIP, SAND_GRIP, type Footing } from "../src/worldgen/kinds/kind-def";
+import { LAND_GRIP, SAND_GRIP, WINTER_GRIP, type Footing } from "../src/worldgen/kinds/kind-def";
 import { SurfaceId } from "../src/worldgen/types";
 
 /** Flat ground with one grip row everywhere. */
@@ -17,6 +17,8 @@ export const GROUNDS = {
   scree: footing_ground(LAND_GRIP.surfaces[SurfaceId.SCREE]),
   wet: footing_ground(LAND_GRIP.surfaces[SurfaceId.WET]),
   sand: footing_ground(SAND_GRIP.surfaces[SurfaceId.GRASS]),
+  packed_snow: footing_ground(WINTER_GRIP.surfaces[SurfaceId.PACKED_SNOW]),
+  ice: footing_ground(WINTER_GRIP.surfaces[SurfaceId.ICE]),
 } satisfies Record<string, Ground>;
 export type GroundName = keyof typeof GROUNDS;
 

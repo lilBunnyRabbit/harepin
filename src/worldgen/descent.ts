@@ -35,6 +35,8 @@ const RING_SKIP = 60;
 
 export interface Descent {
   join: number;
+  /** Index into `points` where the gully takes over from the stack. */
+  from: number;
   stack: Switchback;
   gully: Canyon;
   points: RoadPoint[];
@@ -114,15 +116,38 @@ export function plan_descent(seed: number, heights: Float32Array, ring: readonly
       if (!stack || !clear_of(ring, join, stack.points)) continue;
       const lead = stack.points.slice(-LEAD);
       for (const [c, s] of TURNS) {
-        const gully = plan_gully(seed + k, heights, lead, down[0] * c - down[1] * s, down[1] * c + down[0] * s, recipe.outlet, recipe.tries);
+        const gully = plan_gully(seed + k, heights, lead, down[0] * c - down[1] * s, down[1] * c + down[0] * s, recipe.outlet, recipe.tries, recipe.bed?.stride);
         if (!gully || !clear_of(ring, join, gully.points)) continue;
         const path = resample([...stack.points.slice(0, -LEAD), ...gully.points], STEP, false);
         const from = path.findIndex(([x, z]) => length(x - gully.points[0][0], z - gully.points[0][1]) < STEP);
         const ys = heights_of(heights, path, stack, gully, from, p.y);
         if (!ys) continue;
         const points = road_points(path, ys, false);
-        if (tightest(points) >= MIN_RADIUS) return { join, stack, gully, points };
+        if (tightest(points) >= MIN_RADIUS && tightest(points.slice(from)) >= (recipe.bed?.radius ?? 0)) return { join, from, stack, gully, points };
       }
     }
   return null;
+}
+
+const NEAR_CELL = 16;
+
+/** Whether (x, z) lies within `reach` of a point of `line`, binned on a grid so a whole-map sweep stays cheap. `reach` is at most NEAR_CELL. */
+export function near_line(line: readonly RoadPoint[], reach: number): (x: number, z: number) => boolean {
+  const cells = new Map<number, RoadPoint[]>();
+  const key = (i: number, j: number) => i * 4096 + j;
+  for (const p of line) {
+    const k = key(Math.floor(p.x / NEAR_CELL), Math.floor(p.z / NEAR_CELL));
+    const cell = cells.get(k);
+    if (cell) cell.push(p);
+    else cells.set(k, [p]);
+  }
+  return (x, z) => {
+    if (!cells.size) return false;
+    const i = Math.floor(x / NEAR_CELL);
+    const j = Math.floor(z / NEAR_CELL);
+    for (let dj = -1; dj <= 1; dj++)
+      for (let di = -1; di <= 1; di++)
+        for (const p of cells.get(key(i + di, j + dj)) ?? []) if ((p.x - x) * (p.x - x) + (p.z - z) * (p.z - z) < reach * reach) return true;
+    return false;
+  };
 }

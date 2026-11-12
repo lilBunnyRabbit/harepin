@@ -6,6 +6,8 @@ import { ROAD_HALF, World, type RoadPoint } from "../src/world/world";
 import { SurfaceId } from "../src/worldgen/types";
 
 export const DT = 1 / 360;
+/** Laid surfaces a race drives off the road: trail dirt, and the bare ice of a descent bed. Ice off a route is a frozen lake 20 m past the shoulder, which a run reaches only after counting time off the road already. */
+const TRACK: readonly SurfaceId[] = [SurfaceId.DIRT, SurfaceId.ICE];
 const RAMP_LOOK = 120;
 // Fastest pace on circuit kickers every seed's lap survives: past it the car lands with too little road left to brake
 // for the next bend, having had none in the air.
@@ -18,6 +20,9 @@ const GRAVITY = 9.81;
 const CORNER_LOOK = 90;
 const CORNER_SPAN = 5;
 const HAIRPIN_PACE = 15;
+/** Share of its cornering and braking plan the autopilot trusts over bare ice, and its top pace on it (m/s), as a driver eases off for it. */
+const ICE_PLAN = 0.4;
+const ICE_TOP = 25;
 /** Slip angle (rad) at which the autopilot is fully off the brake. */
 const SLIDE_LET_GO = 0.15;
 
@@ -41,7 +46,8 @@ function corner_pace(world: World, at: (i: number) => RoadPoint, index: number):
     const cross = Math.abs((b.x - a.x) * (c.z - a.z) - (b.z - a.z) * (c.x - a.x));
     if (cross === 0) continue;
     const radius = (Math.hypot(b.x - a.x, b.z - a.z) * Math.hypot(c.x - b.x, c.z - b.z) * Math.hypot(c.x - a.x, c.z - a.z)) / (2 * cross);
-    pace = Math.min(pace, Math.sqrt(corner_speed2(world, b, radius) + 2 * CORNER_BRAKE * k * 2));
+    const plan = world.surface(b.x, b.z) === SurfaceId.ICE ? ICE_PLAN : 1;
+    pace = Math.min(pace, Math.sqrt(plan * (corner_speed2(world, b, radius) + 2 * CORNER_BRAKE * k * 2)));
   }
   return pace;
 }
@@ -106,7 +112,7 @@ export function autolap(world: World, spec: CarSpec = COUPE, road: readonly Road
     // A driver comes off the brake once the tail steps out: braking on through a slide spins a light-tailed car downhill.
     const slide = speed > 5 ? Math.abs(Math.atan2(Math.sin(Math.atan2(car.vel.x, car.vel.z) - car.heading), Math.cos(Math.atan2(car.vel.x, car.vel.z) - car.heading))) : 0;
     const ease = Math.max(0, 1 - slide / SLIDE_LET_GO);
-    const target = Math.min(jump ? JUMP_PACE : Infinity, curve > 0.5 ? 20 : curve > 0.25 ? 30 : 42, pace);
+    const target = Math.min(jump ? JUMP_PACE : Infinity, curve > 0.5 ? 20 : curve > 0.25 ? 30 : 42, pace, world.surface(car.pos.x, car.pos.z) === SurfaceId.ICE ? ICE_TOP : Infinity);
     car.step(DT, { steer: airborne ? 0 : Math.max(-1, Math.min(1, -err * 3)), throttle: speed < target ? 1 : 0, brake: speed > target + (pace <= target ? 1 : 4) ? Math.min(0.5, (speed - target) / 10) * Math.max(0.2, 1 - Math.abs(err) * 4) * ease : 0, handbrake: 0, analog: true }, world);
     pads.step(DT, car, world);
     impact = Math.max(impact, world.collide(car));
@@ -120,7 +126,7 @@ export function autolap(world: World, spec: CarSpec = COUPE, road: readonly Road
     t += DT;
     const d = world.distance_to_road(car.pos.x, car.pos.z);
     worst = Math.max(worst, d);
-    if (d > 7 && world.surface(car.pos.x, car.pos.z) !== SurfaceId.DIRT) offroad += DT;
+    if (d > 7 && !TRACK.includes(world.surface(car.pos.x, car.pos.z))) offroad += DT;
     if (t > 5) slowest = Math.min(slowest, speed);
     if (!Number.isFinite(car.pos.x)) throw new Error("NaN");
     if (new Vector3(0, 1, 0).applyQuaternion(car.quat).y < 0.3) {

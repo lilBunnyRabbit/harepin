@@ -12,8 +12,9 @@ import { rooftops } from "./rooftops";
 import { sky } from "./sky";
 import { tundra } from "./tundra";
 import { volcano } from "./volcano";
+import { ice_canyon } from "./ice-canyon";
 
-export const KINDS: Record<WorldKind, KindDef> = { island, sky, desert, mainland, alpine, tundra, volcano, rooftops, dunes: big_dunes };
+export const KINDS: Record<WorldKind, KindDef> = { island, sky, desert, mainland, alpine, tundra, volcano, rooftops, dunes: big_dunes, icecanyon: ice_canyon };
 
 export interface MapSpec {
   kind: WorldKind;

@@ -20,6 +20,7 @@ const ALPINE = [...Array(arg("--alpine", 10)).keys()];
 const TUNDRA = [...Array(arg("--tundra", 10)).keys()];
 const VOLCANO = [...Array(arg("--volcano", 10)).keys()];
 const DUNES = [...Array(arg("--dunes", 10)).keys()];
+const ICE_CANYON = [...Array(arg("--icecanyon", 10)).keys()];
 const MAINLAND = [...Array(arg("--mainland", 3)).keys()];
 const DRIVES = !process.argv.includes("--no-drive");
 const ALL = process.argv.includes("--all");
@@ -52,8 +53,9 @@ const jobs: ProofJob[] = process.argv.includes("--options") ? option_jobs() : [
   ...TUNDRA.map((seed) => ({ kind: "tundra" as const, seed, checks: true, drives: DRIVES })),
   ...VOLCANO.map((seed) => ({ kind: "volcano" as const, seed, checks: true, drives: DRIVES })),
   ...DUNES.map((seed) => ({ kind: "dunes" as const, seed, checks: true, drives: DRIVES })),
+  ...ICE_CANYON.map((seed) => ({ kind: "icecanyon" as const, seed, checks: true, drives: DRIVES })),
 ];
-const golden: Record<WorldKind, Golden> = { island: read_golden("island"), sky: read_golden("sky"), desert: read_golden("desert"), mainland: read_golden("mainland"), alpine: read_golden("alpine"), tundra: read_golden("tundra"), volcano: read_golden("volcano"), rooftops: read_golden("rooftops"), dunes: read_golden("dunes") };
+const golden: Record<WorldKind, Golden> = { island: read_golden("island"), sky: read_golden("sky"), desert: read_golden("desert"), mainland: read_golden("mainland"), alpine: read_golden("alpine"), tundra: read_golden("tundra"), volcano: read_golden("volcano"), rooftops: read_golden("rooftops"), dunes: read_golden("dunes"), icecanyon: read_golden("icecanyon") };
 const size = pool_size(process.argv);
 const t0 = performance.now();
 const results = await run_pool<ProofJob, ProofResult>(new URL("./proof/worker.ts", import.meta.url), jobs, size, (r, done) =>

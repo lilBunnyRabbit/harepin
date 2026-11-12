@@ -120,15 +120,20 @@ export function plan_canyon(seed: number, heights: Float32Array, road: readonly 
   return null;
 }
 
-/** Like `plan_canyon`, but from the end of `lead`, which joins its start so the line leaves along it. */
-export function plan_gully(seed: number, heights: Float32Array, lead: Path, dx: number, dz: number, outlet: number, tries: number): Canyon | null {
+/**
+ * Like `plan_canyon`, but from the end of `lead`, which joins its start so the line leaves along it. Smoothing reads every
+ * `stride`th cell of the descent, so a wider stride sweeps it round in wider bends.
+ */
+export function plan_gully(seed: number, heights: Float32Array, lead: Path, dx: number, dz: number, outlet: number, tries: number, stride = 1): Canyon | null {
   const next = mulberry32(sub(seed, "gully"));
   const [x, z] = lead[lead.length - 1];
   for (let t = 0; t < tries; t++) {
     const coarse = descend(heights, x, z, dx, dz, seed + t, outlet);
     const end = coarse[coarse.length - 1];
     if (sample(heights, end[0], end[1]) >= outlet) continue;
-    const points = resample(chaikin([...lead.slice(0, -1), ...coarse], 3), STEP, false);
+    const kept = coarse.filter((_, i) => i % stride === 0 || i === coarse.length - 1);
+    // Strided, the lead is one straight leg too, so the turn off it rounds over the leg's length instead of its last step.
+    const points = resample(chaikin([...(stride > 1 ? [lead[0]] : lead.slice(0, -1)), ...kept], 3), STEP, false);
     if (run(points) > MAX_LENGTH) continue;
     return { points, depth: 7 + next() * 5, floor: 6 + next() * 4, wall: 6 + next() * 4 };
   }

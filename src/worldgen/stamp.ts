@@ -64,7 +64,8 @@ export type GroundOp =
   | { kind: "water"; water: Water }
   | { kind: "snow"; kit: SnowKit; beach: number; parts: readonly Parting[] }
   | { kind: "ice"; lakes: readonly FrozenLake[]; seed: number }
-  | { kind: "lava"; pools: readonly LavaPool[] };
+  | { kind: "lava"; pools: readonly LavaPool[] }
+  | { kind: "paint"; lines: readonly (readonly RoadPoint[])[]; half: number; surface: SurfaceId };
 
 export type GroundBase = { kind: "terrain"; seed: number; shape: TerrainRecipe } | { kind: "flat"; height: number; road_dist: number };
 
@@ -114,6 +115,7 @@ export class Stamp {
     else if (op.kind === "snow") this.snow(op.kit, op.beach, op.parts);
     else if (op.kind === "ice") this.ice(op.lakes, op.seed);
     else if (op.kind === "lava") this.lava(op.pools);
+    else if (op.kind === "paint") this.paint(op.lines, op.half, op.surface);
     else this.harden(op.cuts, op.floor);
   }
 
@@ -186,6 +188,31 @@ export class Stamp {
     const { heights, surface } = this.terrain;
     const { grid } = this;
     for (let j = grid.j0; j <= grid.j1; j++) for (let i = grid.i0; i <= grid.i1; i++) lava_vertex(pools, heights, surface, at(grid, i, j), ORIGIN + i * CELL, ORIGIN + j * CELL);
+  }
+
+  /** Lays `surface` within `half` metres of the lines and a cell past them, as far as a nearest-vertex read reaches. Surface only. */
+  paint(lines: readonly (readonly RoadPoint[])[], half: number, surface: SurfaceId) {
+    this.log({ kind: "paint", lines, half, surface });
+    const reach = half + CELL;
+    for (const points of lines)
+      for (let s = 0; s < points.length - 1; s++) {
+        const a = points[s];
+        const b = points[s + 1];
+        const [i0, i1] = span_i(this.grid, Math.min(a.x, b.x) - reach, Math.max(a.x, b.x) + reach);
+        const [j0, j1] = span_j(this.grid, Math.min(a.z, b.z) - reach, Math.max(a.z, b.z) + reach);
+        const dx = b.x - a.x;
+        const dz = b.z - a.z;
+        const len2 = dx * dx + dz * dz || 1;
+        for (let j = j0; j <= j1; j++)
+          for (let i = i0; i <= i1; i++) {
+            const px = ORIGIN + i * CELL;
+            const pz = ORIGIN + j * CELL;
+            const t = Math.max(0, Math.min(1, ((px - a.x) * dx + (pz - a.z) * dz) / len2));
+            const ox = px - (a.x + dx * t);
+            const oz = pz - (a.z + dz * t);
+            if (ox * ox + oz * oz <= reach * reach) this.terrain.surface[at(this.grid, i, j)] = surface;
+          }
+      }
   }
 
   snow(kit: SnowKit, beach: number, parts: readonly Parting[]) {
