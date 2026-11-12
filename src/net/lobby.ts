@@ -13,6 +13,8 @@ const RESULTS_MS = 30_000;
 const REQUEST_MS = 4000;
 // A timer, not the render loop: rAF stops in a background tab, and a ready player there would lapse.
 const READY_TICK_MS = 250;
+export const NOT_THIS_CAR = "Not raced in this car";
+export const SITTING_OUT = "Not raced in this car: you sit this race out";
 
 export interface Finisher {
   id: string;
@@ -41,10 +43,12 @@ export interface LobbyRoute {
   closed: boolean;
   /** Fastest physically possible lap, ms: a finish claimed under laps × this is dropped. */
   min_lap: number;
+  /** Car ids the route leaves out. */
+  excludes: readonly string[];
 }
 
-export function lobby_routes(routes: readonly Pick<Route, "id" | "closed" | "length">[]): Map<string, LobbyRoute> {
-  return new Map(routes.map((r) => [r.id, { closed: r.closed, min_lap: (r.length / MAX_SPEED) * 1000 }]));
+export function lobby_routes(routes: readonly Pick<Route, "id" | "closed" | "length" | "excludes">[]): Map<string, LobbyRoute> {
+  return new Map(routes.map((r) => [r.id, { closed: r.closed, min_lap: (r.length / MAX_SPEED) * 1000, excludes: r.excludes ?? [] }]));
 }
 
 /** Laps only mean something on a closed route; point to point is always one run. */
@@ -53,11 +57,17 @@ export function race_laps(route: LobbyRoute, laps: number): number {
 }
 
 // No referee: each client claims its own finish time, and a claim survives only if it is physically possible.
+// Route excludes are checked against this player's own car only: peers' cars are hostile data, missing from old builds
+// and can change mid-countdown, so a left-out player sits the race out instead of the leader refusing to start it.
 export class Lobby {
   state: LobbyState = { kind: "idle" };
   finishers: Finisher[] = [];
   on_start: (() => void) | null = null;
   on_unanswered: (() => void) | null = null;
+  /** A pick or a start this player's car is left out of. */
+  on_left_out: ((notice: string) => void) | null = null;
+  /** Id of the car this player drives. */
+  car: (() => string) | null = null;
   record: RaceRecord;
   private readonly record_key: string;
   private asked_until = 0;
@@ -103,6 +113,10 @@ export class Lobby {
   /** Readies for the next race with this call, or takes it back with null; ignored while a race runs. */
   set_ready(call: RaceCall | null, now = performance.now()) {
     if (this.busy) return;
+    if (call && this.left_out(call.route)) {
+      this.on_left_out?.(NOT_THIS_CAR);
+      call = null;
+    }
     if (!call && this.own_ready) this.cancel_until = now + READY_TTL_MS;
     this.own_ready = call;
     this.ready_due = 0;
@@ -110,7 +124,14 @@ export class Lobby {
 
   ready_status(now: number): ReadyStatus {
     const { net } = this;
-    return this.readies.status(this.own_ready, net.same_map.keys(), (id) => net.name_of(id), net.leader_id, net.id, now, net.electing);
+    const status = this.readies.status(this.own_ready, net.same_map.keys(), (id) => net.name_of(id), net.leader_id, net.id, now, net.electing);
+    return { ...status, left_out: status.next !== null && this.left_out(status.next.route) };
+  }
+
+  /** The route leaves out the car this player drives. */
+  left_out(route: string): boolean {
+    const car = this.car?.();
+    return car !== undefined && this.routes.get(route)?.excludes.includes(car) === true;
   }
 
   /** Route of the race in progress or just run; the circuit when idle. */
@@ -128,6 +149,7 @@ export class Lobby {
 
   call(laps: number, route = "circuit") {
     if (this.busy || !this.routes.has(route)) return;
+    if (this.left_out(route)) return this.on_left_out?.(NOT_THIS_CAR);
     if (this.leading) this.begin(laps, route);
     else {
       this.net.send_event({ kind: "request", laps, route });
@@ -190,13 +212,14 @@ export class Lobby {
   }
 
   private enter(race: number, route: string, laps: number, go: number) {
-    this.state = { kind: "countdown", race, route, laps, go, rivals: this.net.remotes.size };
     this.asked_until = 0;
-    this.finishers = [];
     this.own_ready = null;
     this.ready_due = Infinity;
     this.cancel_until = 0;
     this.readies.clear();
+    if (this.left_out(route)) return this.on_left_out?.(SITTING_OUT);
+    this.state = { kind: "countdown", race, route, laps, go, rivals: this.net.remotes.size };
+    this.finishers = [];
     this.on_start?.();
   }
 

@@ -172,11 +172,11 @@ export class OnlinePage implements MenuPage {
   }
 
   private ready_text(routes: readonly RaceChoice[]): string {
-    const { names, waiting, total, next, electing } = this.menu.host.ready_status();
+    const { names, waiting, total, next, electing, left_out } = this.menu.host.ready_status();
     if (total === 1) return electing ? "Looking for players in the room…" : "Ready starts the race when you're alone.";
     const who = names.length ? ` · ${names.join(", ")}` : "";
     const route = next && routes.find((r) => r.id === next.route);
-    const runs = route ? ` · next: ${route.name}${route.closed ? `, ${next.laps} lap${next.laps === 1 ? "" : "s"}` : ""}` : "";
+    const runs = route ? ` · next: ${route.name}${route.closed ? `, ${next.laps} lap${next.laps === 1 ? "" : "s"}` : ""}${left_out ? ", not raced in your car: you sit it out" : ""}` : "";
     return `${names.length}/${total} ready${who} · waiting for ${waiting.join(", ")}${runs}.`;
   }
 

@@ -245,6 +245,8 @@ lobby.on_start = () => {
   });
 };
 lobby.on_unanswered = () => hud.toast("No race leader answered");
+lobby.on_left_out = (notice) => hud.toast(notice);
+lobby.car = () => driver.car.spec.id;
 race.on_start = () => ghost.start();
 
 const updater = new Updater({ busy: () => lobby.busy || modes.active, menu_open: () => settings.is_open, show_notes: () => settings.open_changes() });

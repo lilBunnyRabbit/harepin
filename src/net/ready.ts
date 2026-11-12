@@ -29,6 +29,8 @@ export interface ReadyStatus {
   next: RaceCall | null;
   /** Just joined: players already in the room may not have been heard yet. */
   electing: boolean;
+  /** `next` runs on a route that leaves this player's car out. */
+  left_out: boolean;
 }
 
 export class ReadySet {
@@ -54,7 +56,7 @@ export class ReadySet {
     return true;
   }
 
-  status(own: RaceCall | null, present: Iterable<string>, name_of: (id: string) => string, leader: string, self: string, now: number, electing: boolean): ReadyStatus {
+  status(own: RaceCall | null, present: Iterable<string>, name_of: (id: string) => string, leader: string, self: string, now: number, electing: boolean): Omit<ReadyStatus, "left_out"> {
     const names = own ? ["you"] : [];
     const waiting = own ? [] : ["you"];
     let total = 1;

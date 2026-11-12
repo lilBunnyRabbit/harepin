@@ -1,6 +1,6 @@
 /// <reference types="bun" />
 import { afterEach, expect, spyOn, test } from "bun:test";
-import { COUNTDOWN_MS, Lobby, lobby_routes, race_laps } from "./lobby";
+import { COUNTDOWN_MS, Lobby, NOT_THIS_CAR, SITTING_OUT, lobby_routes, race_laps } from "./lobby";
 import { leader_of, type Net, type RaceEvent, type Sender } from "./net";
 import { READY_RESEND_MS, READY_TTL_MS, type ReadyMsg } from "./ready";
 
@@ -89,7 +89,7 @@ function lobby_on(id: string) {
   return { net, lobby };
 }
 
-const start = (race: number, start_at: number): RaceEvent => ({ kind: "start", race, laps: 1, start_at, route: "circuit" });
+const start = (race: number, start_at: number, route = "circuit"): RaceEvent => ({ kind: "start", race, laps: 1, start_at, route });
 
 test("only the leader's start counts, and the leader is the lowest same-map id even past the car cap", () => {
   const { net, lobby } = lobby_on("m");
@@ -203,7 +203,7 @@ test("the leader starts its own call once every present peer is ready; un-readyi
   net.hear_ready({ ready: true, laps: 5, route: "circuit" }, z);
   lobby.tick(performance.now());
   expect(lobby.state.kind).toBe("idle");
-  expect(lobby.ready_status(performance.now())).toEqual({ names: ["you", "z"], waiting: ["y"], total: 3, next: { laps: 2, route: "circuit" }, electing: false });
+  expect(lobby.ready_status(performance.now())).toEqual({ names: ["you", "z"], waiting: ["y"], total: 3, next: { laps: 2, route: "circuit" }, electing: false, left_out: false });
   net.hear_ready(READY, y);
   net.hear_ready({ ready: false }, z);
   lobby.tick(performance.now());
@@ -263,4 +263,60 @@ test("a new pick while ready is sent at once and is what the leader starts", () 
   net.hear_ready(READY, z);
   lobby.tick(performance.now());
   expect(lobby.state).toMatchObject({ kind: "countdown", laps: 5 });
+});
+
+const DUNES = lobby_routes([
+  { id: "circuit", closed: true, length: 4500, excludes: ["bus"] },
+  { id: "sprint-1", closed: false, length: 1800 },
+]);
+
+function driving(id: string, car: string) {
+  const net = new FakeNet(id);
+  const lobby = new Lobby(net as unknown as Net, DUNES, "test", null);
+  const notices: string[] = [];
+  lobby.car = () => car;
+  lobby.on_left_out = (notice) => notices.push(notice);
+  lobby.start();
+  started.push(lobby);
+  return { net, lobby, notices };
+}
+
+test("a peer whose car the route leaves out sits the leader's start out with a notice", () => {
+  const { net, lobby, notices } = driving("m", "bus");
+  const a = net.peer("a");
+  let starts = 0;
+  lobby.on_start = () => starts++;
+  lobby.set_ready({ laps: 2, route: "sprint-1" });
+  net.hear_ready({ ready: true, laps: 2, route: "circuit" }, a);
+  expect(lobby.ready_status(performance.now()).left_out).toBe(true);
+  net.hear(start(1, performance.now() + COUNTDOWN_MS), a);
+  expect(lobby.state.kind).toBe("idle");
+  expect(lobby.ready).toBe(false);
+  expect(starts).toBe(0);
+  expect(notices).toEqual([SITTING_OUT]);
+  net.hear(start(2, performance.now() + COUNTDOWN_MS, "sprint-1"), a);
+  expect(lobby.state).toMatchObject({ kind: "countdown", route: "sprint-1" });
+});
+
+test("a left-out car can't call or ready for that route; any other car can", () => {
+  const bus = driving("a", "bus");
+  bus.lobby.call(2, "circuit");
+  bus.lobby.set_ready({ laps: 2, route: "circuit" });
+  expect(bus.lobby.state.kind).toBe("idle");
+  expect(bus.lobby.ready).toBe(false);
+  expect(bus.net.sent).toEqual([]);
+  expect(bus.notices).toEqual([NOT_THIS_CAR, NOT_THIS_CAR]);
+
+  const coupe = driving("a", "coupe");
+  coupe.lobby.call(2, "circuit");
+  expect(coupe.lobby.state).toMatchObject({ kind: "countdown", route: "circuit" });
+  expect(coupe.notices).toEqual([]);
+});
+
+test("a leader in a left-out car still starts a peer's request, and sits it out", () => {
+  const { net, lobby, notices } = driving("a", "bus");
+  net.hear({ kind: "request", laps: 2, route: "circuit" }, net.peer("z"));
+  expect(net.sent[0]).toMatchObject({ kind: "start", route: "circuit" });
+  expect(lobby.state.kind).toBe("idle");
+  expect(notices).toEqual([SITTING_OUT]);
 });
