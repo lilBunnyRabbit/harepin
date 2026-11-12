@@ -1,6 +1,6 @@
 # Career ladder
 
-> **Status 2026-11-12 (release 0.32.0):** Public. Every load has the career: the Play card and the career page show for everyone; free play is unchanged. C0-C4 are in: 21 events, the store, the career page, `?event=` start, the Play card, finish line + Next event, the +2 s hit penalty, the car pick (the event's car is fitted unsaved and the player's car comes back on leaving), bot star times for race events, owner star marks for the 12 non-race events, and dev ghosts for race and duel events (precached by the PWA, `vite.config.ts`). `?tune` (old links `?career&tune` still work) opens every tier and adds Copy my times. `scripts/career-check.ts` checks every event runs on its map; `scripts/career.ts [ids] [--write]` tunes (ids as plain arguments, not `--event`).
+> **Status 2026-11-12 (next release after 0.33.2):** Public. Every load has the career: the Play card and the career page show for everyone; free play is unchanged. C0-C4 are in: 21 events, the store, the career page, `?event=` start, the Play card, finish line + Next event, the +2 s hit penalty, the car pick (the event's car is fitted unsaved and the player's car comes back on leaving), bot star times for race events, owner star marks for the 12 non-race events, and dev ghosts for race and duel events (precached by the PWA, `vite.config.ts`). `?tune` (old links `?career&tune` still work) opens every tier and adds Copy my times. `scripts/career-check.ts` checks every event runs on its map; `scripts/career.ts [ids] [--write]` tunes (ids as plain arguments, not `--event`).
 >
 > **Round 3 (2026-11-12, `docs/brainstorm/2026-11-13_harepin-career-v3.answers.md`):** done before release (R1, R2): c7 on the Volcano `descent` (F1); r7 on Sky Track as **Skyline** (F2, N1); p7 on the Ice canyon `descent` (F3); every mode grades by an event's own `stars`, drift in points (§5); the owner's runs set the non-race stars (D2, §1.3). Still on stand-ins: Mainland c6 / p1 on Island until C7 (L1). Next, in order: C5 rewards, C6 markers, C7 Mainland, C8 share link (§7).
 >
@@ -219,7 +219,7 @@ Each phase ships on its own. S ≈ a day, M ≈ 2-4 days.
 | Pre-release: r7 on Sky Track | Stays on `1S0000002`, named Skyline | Built |
 | Pre-release: drift point marks | Every mode grades through `ModeCtx.thresholds(own)`; drift in points (§5) | Built |
 | Pre-release: owner stars (D2) | Copy my times under `?tune` (§1.3); the owner's marks are in `career.ts` | Done |
-| Release | C0-C4 on for everyone: `?career` gate gone, dev ghosts precached | 0.32.0 |
+| Release | C0-C4 on for everyone: `?career` gate gone, dev ghosts precached | Next release after 0.33.2 |
 | Re-check (D1) | Unlocks 12 / 14 after the owner plays Rookie | Owner to confirm |
 
 | Phase | Ships | Reuse | New | Size |
