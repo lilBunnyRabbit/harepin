@@ -266,7 +266,7 @@ export class Modes {
       if (this.left_out(level.id)) return this.refuse(NOT_THIS_CAR);
       if (this.race_busy()) return this.refuse(mode.def.busy_notice);
       this.clear();
-      this.begin(mode, level, event_track(event, local_store()), event);
+      this.begin(mode, { ...level, name: event.name }, event_track(event, local_store()), event);
     });
   }
 
