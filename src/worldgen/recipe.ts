@@ -1,4 +1,5 @@
 import type { Biome, TreeRule } from "./biomes";
+import type { FallsRecipe } from "./falls";
 import type { IceRecipe } from "./ice";
 import { SNOW_KIT, type SnowKit } from "./snow";
 import { Ground, PropKind, SurfaceId, type ItemKind } from "./types";
@@ -242,7 +243,7 @@ export interface DescentRecipe {
    * The gully's bed as bare ground instead of road: level `half` metres either side of the line, held within `bank`,
    * laid as `surface`. The road stops where the gully takes over. Absent = road all the way down.
    */
-  bed?: { surface: SurfaceId; half: number; bank: Bank; radius: number; stride: number };
+  bed?: { surface: SurfaceId; half: number; bank: Bank; radius: number; stride: number; falls: FallsRecipe; pads: SurfaceId };
 }
 
 export interface RoadRecipe {
@@ -570,6 +571,6 @@ export const BIG_DUNES: Recipe = {
 export const ICE_CANYON: Recipe = {
   ...TUNDRA,
   terrain: [LIFT, ...TUNDRA.terrain.slice(1, 3), { kind: "peak", height: 100, radius: 1000, reach: 0 }, ...TUNDRA.terrain.slice(3)],
-  road: { loop: { radius: 230, swing: 30, min: 215, max: 260 }, straights: null, stacks: [], tongue: false, canyon: null, kickers: { road: 2, total: 6, big: 1 }, runup: { grade: 0.08, reach: 100 }, bank: { run: 3.75, reach: 64 }, descent: { stacks: [0, 2, 4], outlet: 20, tries: 16, bed: { surface: SurfaceId.ICE, half: 12, bank: { run: 1, reach: 24 }, radius: 30, stride: 3 }, excludes: ["bus", "formula"], par: 1.35 }, lap_par: 1.2, trail_races: false },
+  road: { loop: { radius: 230, swing: 30, min: 215, max: 260 }, straights: null, stacks: [], tongue: false, canyon: null, kickers: { road: 2, total: 6, big: 1 }, runup: { grade: 0.08, reach: 100 }, bank: { run: 3.75, reach: 64 }, descent: { stacks: [0, 2, 4], outlet: 20, tries: 16, bed: { surface: SurfaceId.ICE, half: 12, bank: { run: 1, reach: 24 }, radius: 30, stride: 3, falls: { count: 4, drop: 4 }, pads: SurfaceId.PACKED_SNOW }, excludes: ["bus", "formula"], par: 1.35 }, lap_par: 1.2, trail_races: false },
   towns: { ...TUNDRA.towns, min: 0, max: 0 },
 };

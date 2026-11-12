@@ -9,12 +9,19 @@ import { DECK_UNDER } from "./deck";
 import { gap_ramp, GAP_FAST, GAP_SLOW, LANDING_GRADE, LANDING_HALF, size_gap } from "./sky";
 import { dune_jump_shape, DUNE_V_MAX, DUNE_V_MIN, dune_jump, GAP_V_MAX, GAP_V_MIN, gap_jump, type GapJump } from "./gap";
 import { apex, face_end, flight, GATE_CLEAR, GATE_RUNOUT, ramp_local, ramp_surface, ROAD_KICKER, RUN_DRIFT } from "./jumps";
-import { SPAWN_INDEX, type Ramp } from "./types";
+import { FALL_V_MAX } from "./falls";
+import { ICE_CANYON } from "./recipe";
+import { WINTER_GRIP } from "./kinds/kind-def";
+import { SPAWN_INDEX, SurfaceId, type Ramp } from "./types";
 import { sweep } from "../sweep";
 
 const DT = 1 / 360;
 // Jump lines are planned for a car's wheelbase and length; a longer body leaves the lip later and flies lower.
 const CAR_SIZED = Object.entries(CARS).filter(([, spec]) => car_sized(spec));
+/** The ice canyon's falls; at 5 m and over the sturm lands a 30 m/s, 1.5 m/s slip run more than 0.15 rad off its heading. */
+const FALL_DROPS = [ICE_CANYON.road.descent?.bed?.falls.drop ?? 0];
+/** Slowest toe speed a frozen fall is checked at: under GAP_V_MIN the car comes down short of the deck, on the bed at its height. */
+const FALL_V_MIN = 16;
 const OVERSIZED = Object.entries(CARS).filter(([, spec]) => !car_sized(spec));
 const KICKER: Ramp = { id: 0, kind: "kicker", x: 0, y: 0, z: 0, fx: 0, fz: 1, hw: 2.6, length: 8, rise: 2, grade: 0, landing: 45, speed: 21 };
 const BIG: Ramp = { ...KICKER, kind: "big", hw: 3.2, length: 14, rise: 4, landing: 80, speed: 27 };
@@ -330,4 +337,51 @@ describe("dune crest jump at 360 Hz", () => {
             expect(run.upright, `${speed} m/s (toe ${run.toe.toFixed(1)}), gas ${gas}`).toBeGreaterThan(0.75);
           }
       }, 30_000);
+});
+
+/** A frozen fall along +z: packed snow up to the kicker's lip, the fall's face down `drop` under the gap, the deck past it. */
+function ground_fall(g: GapJump, drop: number): Ground {
+  const lip = g.takeoff.length;
+  const base = (z: number) => (z <= lip ? 0 : -drop * Math.min(1, (z - lip) / g.gap));
+  const top = (x: number, z: number) => {
+    let best: { y: number; gx: number; gz: number } = { y: base(z), gx: 0, gz: 0 };
+    for (const r of [g.takeoff, g.deck]) {
+      const s = ramp_surface(r, x, z);
+      if (s && s.y > best.y) best = s;
+    }
+    return best;
+  };
+  const { grip, roll, loose, firm } = WINTER_GRIP.surfaces[SurfaceId.PACKED_SNOW];
+  return {
+    height: (x, z) => top(x, z).y,
+    normal: (x, z, out) => {
+      const s = top(x, z);
+      return out.set(-s.gx, 1, -s.gz).normalize();
+    },
+    grip: () => grip,
+    roll: () => roll,
+    loose: () => loose,
+    dirt: () => firm,
+  };
+}
+
+describe("frozen fall jump on packed snow at 360 Hz", () => {
+  for (const drop of FALL_DROPS) {
+    const g = gap_jump(0, 0, 0, 0, 0, 1, drop, FALL_V_MAX);
+    const ground = ground_fall(g, drop);
+    for (const [id, spec] of CAR_SIZED)
+      test(`${id}, ${drop} m fall: lands upright and straight from ${FALL_V_MIN} to ${FALL_V_MAX} m/s`, () => {
+        for (const speed of [FALL_V_MIN, 19, GAP_V_MIN, 26, FALL_V_MAX])
+          for (const gas of [0, 1])
+            for (const slip of [0, 1.5]) {
+              const run = jump(g.takeoff, new Car(spec), speed, slip, gas, ground);
+              const where = `${speed} m/s (toe ${run.toe.toFixed(1)}), gas ${gas}, slip ${slip}`;
+              expect(run.touch, where).toBeLessThan(g.takeoff.length + g.gap + g.deck.length);
+              expect(run.upright, where).toBeGreaterThan(0.75);
+              expect(run.sink, where).toBeLessThan(0.05);
+              expect(run.yaw, where).toBeLessThan(0.35);
+              expect(Math.abs(run.heading), where).toBeLessThan(0.15);
+            }
+      }, 30_000);
+  }
 });

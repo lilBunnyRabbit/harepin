@@ -3,16 +3,21 @@ import { expect, test } from "bun:test";
 import { sweep } from "../sweep";
 import { generate_world } from "./kinds/kinds";
 import { WINTER_GRIP } from "./kinds/kind-def";
+import { ICE_CANYON } from "./recipe";
 import { HAIRPIN_RADIUS } from "./switchback";
-import { RouteKind, SPUR_GRADE, SurfaceId, WorldKind } from "./types";
+import { CELL, RouteKind, SPUR_GRADE, SurfaceId, WorldKind, type RoadPoint } from "./types";
 import { World } from "../world/world";
 
 const COAST = 6;
 const GRADE_RUN = 5;
-/** Route points either side of the road's end where the road's shoulder and the bed's ice meet. */
-const ROAD_END = 6;
+/** Route points either side of the road's end where its shoulder, blending over SHOULDER metres, meets the bed. */
+const ROAD_END = 10;
 /** Route points of bed at the least: 2 m apart. */
 const BED_MIN = 150;
+/** Packed snow under a frozen fall's run-up before the toe, and past the deck, metres. */
+const RUNUP = 30;
+const RUNOUT = 15;
+const BED_HALF = ICE_CANYON.road.descent?.bed?.half ?? 0;
 /** Most the bed's ground stands off the race line, metres. */
 const BED_LEVEL = 1.5;
 
@@ -42,7 +47,7 @@ for (const seed of sweep(10))
   });
 
 for (const seed of sweep(10))
-  test(`ice canyon ${seed}: the descent leaves the rim on packed snow and races on down a bare ice bed`, () => {
+  test(`ice canyon ${seed}: the descent leaves the rim on packed snow and races on down a bare ice bed over frozen falls`, () => {
     const data = generate_world(seed, WorldKind.ICE_CANYON);
     const world = new World(seed, data);
     const route = data.routes.find((r) => r.kind === RouteKind.SPRINT);
@@ -54,8 +59,18 @@ for (const seed of sweep(10))
     expect(road.points).toEqual(points.slice(0, foot + 1));
     expect(points.length - foot).toBeGreaterThan(BED_MIN);
     for (const p of points.slice(0, foot - ROAD_END)) expect(world.footing(p.x, p.z)).toBe(WINTER_GRIP.road);
+    const kickers = data.ramps.filter((r) => r.road);
+    expect(kickers.length).toBeGreaterThan(0);
+    // Along each kicker's axis from its toe: packed snow from the run-up to past the deck. The paint rounds off the pad's
+    // ends as wide as the bed, so between the two reaches either surface may show.
+    const pad = (p: RoadPoint, slack: number) =>
+      kickers.some((r) => {
+        const d = (p.x - r.x) * r.fx + (p.z - r.z) * r.fz;
+        return d > -RUNUP - slack && d < r.length + r.landing + RUNOUT + slack;
+      });
     for (const p of points.slice(foot + ROAD_END)) {
-      expect(world.surface(p.x, p.z)).toBe(SurfaceId.ICE);
-      expect(Math.abs(world.height(p.x, p.z) - p.y)).toBeLessThan(BED_LEVEL);
+      if (pad(p, -CELL)) expect(world.surface(p.x, p.z)).toBe(SurfaceId.PACKED_SNOW);
+      else if (!pad(p, BED_HALF + 2 * CELL)) expect(world.surface(p.x, p.z)).toBe(SurfaceId.ICE);
+      expect(Math.abs(world.tiles.height(p.x, p.z) - p.y), `${p.x}, ${p.z}`).toBeLessThan(BED_LEVEL);
     }
   });

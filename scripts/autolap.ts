@@ -6,8 +6,12 @@ import { ROAD_HALF, World, type RoadPoint } from "../src/world/world";
 import { SurfaceId } from "../src/worldgen/types";
 
 export const DT = 1 / 360;
-/** Laid surfaces a race drives off the road: trail dirt, and the bare ice of a descent bed. Ice off a route is a frozen lake 20 m past the shoulder, which a run reaches only after counting time off the road already. */
-const TRACK: readonly SurfaceId[] = [SurfaceId.DIRT, SurfaceId.ICE];
+/**
+ * Laid surfaces a race drives off the road: trail dirt, packed snow (a snowy trail, a frozen fall's pads), and the bare
+ * ice of a descent bed. Ice off a route is a frozen lake 20 m past the shoulder, which a run reaches only after counting
+ * time off the road already.
+ */
+const TRACK: readonly SurfaceId[] = [SurfaceId.DIRT, SurfaceId.PACKED_SNOW, SurfaceId.ICE];
 const RAMP_LOOK = 120;
 // Fastest pace on circuit kickers every seed's lap survives: past it the car lands with too little road left to brake
 // for the next bend, having had none in the air.
