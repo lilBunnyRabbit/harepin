@@ -77,7 +77,7 @@ export function dune_jump(id: number, x: number, y: number, z: number, fx: numbe
 /** The run-out past a dune jump's deck steepens over this far to RUNOUT_GRADE, then holds it down to the slip face. */
 const RUNOUT_TAPER = 40;
 const RUNOUT_GRADE = 0.55;
-const RUNOUT_EASE = 0.1;
+const RUNOUT_EASE = 0.25;
 const SHAPE_STEP = 4;
 const RUNOUT_MAX = 300;
 
@@ -100,7 +100,10 @@ export function dune_jump_shape(g: GapJump, ground: (x: number, z: number) => nu
   for (let d = end + SHAPE_STEP, k = 1; d < end + RUNOUT_MAX; d += SHAPE_STEP, k++) {
     const ramp = Math.min(1, (k * SHAPE_STEP) / RUNOUT_TAPER);
     y -= SHAPE_STEP * (-deck.grade + ((filling ? RUNOUT_GRADE : RUNOUT_EASE) + deck.grade) * ramp);
-    if (below(d, y) === filling) break;
+    if (below(d, y) === filling) {
+      at(d, ground(takeoff.x + takeoff.fx * d, takeoff.z + takeoff.fz * d));
+      break;
+    }
     at(d, y);
   }
   return out;

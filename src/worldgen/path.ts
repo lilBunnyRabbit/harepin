@@ -362,6 +362,8 @@ export function crest_lane({ wx, wz, lo, hi, half }: Corridor, height: Height, p
       c += dc;
       continue;
     }
+    // A turn would end past the corridor and hook back over itself: the lane runs straight down from here instead.
+    if (s - 2 * PACKED_TURN < lo) break;
     for (const [cos, sin] of bend) local.push([s - PACKED_TURN * (1 - cos), c + side * PACKED_TURN * sin]);
     s -= 2 * PACKED_TURN;
     side = -side;

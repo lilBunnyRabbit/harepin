@@ -265,10 +265,12 @@ for (const seed of sweep(100))
   }, 30_000);
 
 /** A dune crest along +z: level run-up to the lip at 0, then the deck's plane and the run-out as the jump's shaping lays them over a deep slip face. */
-function ground_dune(g: GapJump): Ground {
-  const shape = dune_jump_shape(g, () => -Infinity);
+function ground_dune(g: GapJump, face: (z: number) => number): Ground {
+  const shape = dune_jump_shape(g, (_x, z) => face(z));
+  const end = shape[shape.length - 1].z;
   const base = (z: number) => {
     if (z <= 0) return 0;
+    if (z > end) return face(z);
     const next = shape.findIndex((p) => p.z > z);
     const i = next < 0 ? shape.length - 2 : Math.max(0, next - 1);
     const t = (z - shape[i].z) / (shape[i + 1].z - shape[i].z);
@@ -295,9 +297,15 @@ function ground_dune(g: GapJump): Ground {
 
 const DUNE_V_OVER = 35;
 
+/** Slip faces past the lip: one falling away far below the deck, so the run-out fills down onto it; one rounded over the brink, at first falling slower than the deck, so the run-out cuts through before the face drops away. */
+const DUNE_FACES: [string, (z: number) => number][] = [
+  ["deep face", () => -1000],
+  ["rounded brink", (z) => (z < 135 ? -0.002 * z * z : -36.45 - 0.54 * (z - 135))],
+];
+
 describe("dune crest jump at 360 Hz", () => {
   const g = dune_jump(0, 0, 0, 0, 0, 1);
-  const ground = ground_dune(g);
+  const ground = ground_dune(g, DUNE_FACES[0][1]);
   const start = g.takeoff.length;
   for (const [id, spec] of Object.entries(CARS))
     test(`${id}: lands on the deck upright, under 9 m/s into it, from ${DUNE_V_MIN} to ${DUNE_V_MAX} m/s`, () => {
@@ -312,12 +320,14 @@ describe("dune crest jump at 360 Hz", () => {
         }
     }, 30_000);
   // Past DUNE_V_MAX a car flies over the deck onto the run-out: harder, but still on its wheels.
-  for (const [id, spec] of Object.entries(CARS))
-    test(`${id}: overshoots the deck from ${DUNE_V_MAX} to ${DUNE_V_OVER} m/s and stays on its wheels`, () => {
-      for (const speed of [28, 31, DUNE_V_OVER])
-        for (const gas of [0, 1]) {
-          const run = jump(g.takeoff, new Car(spec), speed, 0, gas, ground);
-          expect(run.upright, `${speed} m/s (toe ${run.toe.toFixed(1)}), gas ${gas}`).toBeGreaterThan(0.75);
-        }
-    }, 30_000);
+  for (const [face, height] of DUNE_FACES)
+    for (const [id, spec] of Object.entries(CARS))
+      test(`${face}, ${id}: from ${DUNE_V_MIN} to ${DUNE_V_OVER} m/s, deck and run-out keep it on its wheels`, () => {
+        const shaped = ground_dune(g, height);
+        for (const speed of [DUNE_V_MIN, 21, 28, 31, DUNE_V_OVER])
+          for (const gas of [0, 1]) {
+            const run = jump(g.takeoff, new Car(spec), speed, 0, gas, shaped);
+            expect(run.upright, `${speed} m/s (toe ${run.toe.toFixed(1)}), gas ${gas}`).toBeGreaterThan(0.75);
+          }
+      }, 30_000);
 });
