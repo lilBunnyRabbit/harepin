@@ -23,6 +23,15 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.30.1",
+    date: "2026-11-13",
+    title: "Level streets",
+    changes: [
+      { kind: FIXED, text: "Mainland town streets no longer dip where they cross other roads. Records on Island, Dune sea, Mainland, Alpine and Frozen lakes start fresh." },
+      { kind: IMPROVED, text: "Island builds faster again after the steep-trail fix." },
+    ],
+  },
+  {
     version: "0.30.0",
     date: "2026-11-13",
     title: "Smoother roads",
