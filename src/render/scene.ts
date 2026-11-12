@@ -305,8 +305,35 @@ export function ribbon(world: World, from: number, to: number, lift: number, sam
   return mesh;
 }
 
+// Phones run radial fog, worked out per vertex and interpolated: the sea needs vertices this close wherever the camera
+// can see it before the fog closes, so over the land and a fog reach past it. Further out every vertex is fully fogged.
+const SEA_CELL = 64;
+const SEA_REACH = 1024;
+
 export function water_mesh(size: number): THREE.Mesh {
-  const geometry = new THREE.PlaneGeometry(size * 4, size * 4, 1, 1).rotateX(-Math.PI / 2);
+  const edge = size / 2 + SEA_REACH;
+  const lines = [-size * 2];
+  for (let v = -edge; v <= edge; v += SEA_CELL) lines.push(v);
+  lines.push(size * 2);
+  const n = lines.length;
+  const positions = new Float32Array(n * n * 3);
+  const normals = new Float32Array(n * n * 3);
+  for (let j = 0; j < n; j++)
+    for (let i = 0; i < n; i++) {
+      positions.set([lines[i], 0, lines[j]], (j * n + i) * 3);
+      normals[(j * n + i) * 3 + 1] = 1;
+    }
+  const index: number[] = [];
+  for (let j = 0; j < n - 1; j++)
+    for (let i = 0; i < n - 1; i++) {
+      const a = j * n + i;
+      const c = a + n;
+      index.push(a, c, a + 1, a + 1, c, c + 1);
+    }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute("normal", new THREE.BufferAttribute(normals, 3));
+  geometry.setIndex(index);
   const mesh = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({ color: color(tones.water), transparent: true, opacity: 0.9 }));
   mesh.position.y = SEA_LEVEL;
   mesh.receiveShadow = true;
