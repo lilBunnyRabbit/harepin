@@ -519,6 +519,7 @@ export const VOLCANO: Recipe = {
 };
 
 /** Slip faces at 0.52, which the crests' bend and the land under them steepen to 35 degrees at most, creased sharp at the brink: a crest is a natural jump and its face the landing. */
+const ONE_SAND = { cut: 0.5, above: Ground.DUNE, below: Ground.DUNE, soft: 0 };
 const SLIP: DuneFace = { grade: 0.52, brink: 4, toe: 24, floor: 60 };
 
 /**
@@ -541,7 +542,12 @@ export const BIG_DUNES: Recipe = {
     },
     { kind: "mask", radius: 3500, edge: 140, scale: 900, seed: 3, wobble: 0.3 },
   ],
-  biomes: { ...DESERT.biomes, limits: { ...DESERT.biomes.limits, scree: { up: 0.8, height: 10_000 }, rock: { up: 0.7, height: 10_000 }, snow_line: 10_000 } },
+  biomes: {
+    ...DESERT.biomes,
+    limits: { ...DESERT.biomes.limits, scree: { up: 0.8, height: 10_000 }, rock: { up: 0.7, height: 10_000 }, snow_line: 10_000 },
+    // One sand tone everywhere: the desert's second tone patches an 8 km sea into camouflage, and only the shading draws the dunes.
+    ground: { coast: ONE_SAND, meadow: ONE_SAND, forest: ONE_SAND, upland: ONE_SAND },
+  },
   road: { ...DESERT.road, straights: null, canyon: null, kickers: { road: 0, total: 0, big: 0 } },
   towns: { ...DESERT.towns, min: 0, max: 0 },
   landmarks: [],

@@ -167,7 +167,7 @@ export class Minimap {
   // The road only changes with the race route and the theme is fixed per load, so the full map's road is stroked once per route and pixel ratio.
   private fit() {
     const ratio = devicePixelRatio;
-    if (ratio === this.ratio || !this.drawn) return;
+    if (ratio === this.ratio) return;
     this.ratio = ratio;
     const size = Math.round(MAP * ratio);
     this.canvas.width = size;
@@ -175,6 +175,8 @@ export class Minimap {
     this.road_layer = new OffscreenCanvas(size, size);
     const road = this.road_layer.getContext("2d");
     if (!road) throw new Error("minimap road layer has no 2d context");
+    // A world with no routes (the dune sea) still sizes the canvas: its map is the cars alone.
+    if (!this.drawn) return;
     road.scale(ratio, ratio);
     road.lineJoin = "round";
     road.strokeStyle = this.disc ? INK.faint : INK.road;
