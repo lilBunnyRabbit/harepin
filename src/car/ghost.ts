@@ -40,14 +40,39 @@ export function ghost_frame(out: number[], lap_ms: number, car: Pick<Car, "pos" 
 
 export const GHOST_EVERY_MS = EVERY_MS;
 
+function lap_span(lap: readonly number[], lap_ms: number): [number, number, number] {
+  let lo = 0;
+  let hi = lap.length / STRIDE - 1;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (lap[mid * STRIDE] <= lap_ms) lo = mid;
+    else hi = mid;
+  }
+  const i = lo * STRIDE;
+  const j = hi * STRIDE;
+  return [i, j, lap[j] > lap[i] ? Math.max(0, Math.min(1, (lap_ms - lap[i]) / (lap[j] - lap[i]))) : 0];
+}
+
+const from_quat = new THREE.Quaternion();
+const to_quat = new THREE.Quaternion();
+
+/** The lap's car at `lap_ms`, between its two nearest frames; false past the lap's end. */
+export function lap_pose(lap: readonly number[], lap_ms: number, pos: THREE.Vector3, quat: THREE.Quaternion): boolean {
+  if (lap_ms > lap[lap.length - STRIDE]) return false;
+  const [i, j, k] = lap_span(lap, lap_ms);
+  pos.set(lap[i + 1] + (lap[j + 1] - lap[i + 1]) * k, lap[i + 2] + (lap[j + 2] - lap[i + 2]) * k, lap[i + 3] + (lap[j + 3] - lap[i + 3]) * k);
+  from_quat.set(lap[i + 4], lap[i + 5], lap[i + 6], lap[i + 7]);
+  to_quat.set(lap[j + 4], lap[j + 5], lap[j + 6], lap[j + 7]);
+  quat.copy(from_quat.slerp(to_quat, k));
+  return true;
+}
+
 export class Ghost {
   visible = true;
   private recording: number[] = [];
   private best: number[] | null = null;
   private view: CarView;
   private readonly tint: THREE.MeshBasicMaterial;
-  private a = new THREE.Quaternion();
-  private b = new THREE.Quaternion();
 
   private readonly key: string;
   private readonly cap_ms: number;
@@ -125,34 +150,17 @@ export class Ghost {
   position(lap_ms: number, out: THREE.Vector3): THREE.Vector3 | null {
     const best = this.best;
     if (!best || lap_ms > best[best.length - STRIDE]) return null;
-    const [i, j, k] = this.span(best, lap_ms);
+    const [i, j, k] = lap_span(best, lap_ms);
     return out.set(best[i + 1] + (best[j + 1] - best[i + 1]) * k, best[i + 2] + (best[j + 2] - best[i + 2]) * k, best[i + 3] + (best[j + 3] - best[i + 3]) * k);
-  }
-
-  private span(best: number[], lap_ms: number): [number, number, number] {
-    let lo = 0;
-    let hi = best.length / STRIDE - 1;
-    while (hi - lo > 1) {
-      const mid = (lo + hi) >> 1;
-      if (best[mid * STRIDE] <= lap_ms) lo = mid;
-      else hi = mid;
-    }
-    const i = lo * STRIDE;
-    const j = hi * STRIDE;
-    return [i, j, best[j] > best[i] ? Math.max(0, Math.min(1, (lap_ms - best[i]) / (best[j] - best[i]))) : 0];
   }
 
   update(lap_ms: number | null, camera: THREE.Vector3) {
     const best = this.best;
     const root = this.view.root;
-    if (!best || lap_ms === null || !this.visible || !this.position(lap_ms, root.position)) {
+    if (!best || lap_ms === null || !this.visible || !lap_pose(best, lap_ms, root.position, root.quaternion)) {
       root.visible = false;
       return;
     }
-    const [i, j, k] = this.span(best, lap_ms);
-    this.a.set(best[i + 4], best[i + 5], best[i + 6], best[i + 7]);
-    this.b.set(best[j + 4], best[j + 5], best[j + 6], best[j + 7]);
-    root.quaternion.copy(this.a.slerp(this.b, k));
     const fade = camera_fade(root.position, camera);
     this.tint.opacity = GHOST_OPACITY * fade;
     root.visible = fade > 0;

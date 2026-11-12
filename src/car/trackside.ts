@@ -13,12 +13,12 @@ export interface Gate {
   material: THREE.MeshLambertMaterial;
 }
 
-interface GateKit {
+export interface GateKit {
   frame: THREE.BufferGeometry;
   checker: THREE.Mesh;
 }
 
-function gate_kit(): GateKit {
+export function gate_kit(): GateKit {
   const frame = merge(
     [-1, 1].map((side) => new THREE.BoxGeometry(0.7, 6.4, 0.7).translate(side * (ROAD_HALF + 1.7), 3.2, 0)),
     new THREE.BoxGeometry(ROAD_HALF * 2 + 3.4, 0.5, 0.5).translate(0, 6.2, 0),
@@ -33,17 +33,23 @@ function gate_kit(): GateKit {
   return { frame, checker: new THREE.Mesh(merge(...tiles), new THREE.MeshLambertMaterial({ vertexColors: true })) };
 }
 
-function gate(world: World, kit: GateKit, index: number): Gate {
-  const cp = world.checkpoints[index];
+/** A gate at the origin facing +z; the start line's carries the checker board. */
+export function gate_view(kit: GateKit, start: boolean): Gate {
   const group = new THREE.Group();
   const material = new THREE.MeshLambertMaterial({ color: color(tones.gate), emissive: new THREE.Color(0, 0, 0) });
   const mesh = new THREE.Mesh(kit.frame, material);
   mesh.castShadow = true;
   group.add(mesh);
-  if (index === 0) group.add(kit.checker);
-  group.position.set(cp.x, world.height(cp.x, cp.z), cp.z);
-  group.rotation.y = cp.heading;
+  if (start) group.add(kit.checker);
   return { group, material };
+}
+
+function gate(world: World, kit: GateKit, index: number): Gate {
+  const cp = world.checkpoints[index];
+  const view = gate_view(kit, index === 0);
+  view.group.position.set(cp.x, world.height(cp.x, cp.z), cp.z);
+  view.group.rotation.y = cp.heading;
+  return view;
 }
 
 export function gates(world: World): Gate[] {
