@@ -3,25 +3,41 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
-    <title>Harepin</title>
-    <meta name="description" content="A small driving game in your browser: an island to roam, a track in the sky, friends a link away." />
+    <title>Harepin – driving game in your browser</title>
+    <meta name="description" content="A low-poly driving game in your browser. Open worlds, a career, a tunable garage, shareable custom maps and online play over a link. Nothing to install." />
     <link rel="icon" href="./logo.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./apple-touch-icon-180x180.png" />
     <meta name="theme-color" content="#0b1519" />
     <link rel="canonical" href="https://lilbunnyrabbit.github.io/harepin/" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Harepin" />
-    <meta property="og:title" content="Harepin" />
-    <meta property="og:description" content="A small driving game in your browser: an island to roam, a track in the sky, friends a link away." />
+    <meta property="og:title" content="Harepin – driving game in your browser" />
+    <meta property="og:description" content="A low-poly driving game in your browser. Open worlds, a career, a tunable garage, shareable custom maps and online play over a link. Nothing to install." />
     <meta property="og:url" content="https://lilbunnyrabbit.github.io/harepin/" />
     <meta property="og:image" content="https://lilbunnyrabbit.github.io/harepin/og.jpg" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="Harepin: a fully tuned low-poly sports car with a big rear wing and its headlights on, on an island road at dusk" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Harepin" />
-    <meta name="twitter:description" content="An island to roam, a track in the sky, friends a link away." />
+    <meta name="twitter:title" content="Harepin – driving game in your browser" />
+    <meta name="twitter:description" content="A low-poly driving game in your browser. Open worlds, a career, a tunable garage, shareable custom maps and online play over a link. Nothing to install." />
     <meta name="twitter:image" content="https://lilbunnyrabbit.github.io/harepin/og.jpg" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "VideoGame",
+        "name": "Harepin",
+        "url": "https://lilbunnyrabbit.github.io/harepin/",
+        "description": "A low-poly driving game in your browser. Open worlds, a career, a tunable garage, shareable custom maps and online play over a link. Nothing to install.",
+        "image": "https://lilbunnyrabbit.github.io/harepin/og.jpg",
+        "genre": ["Racing", "Driving", "Open world"],
+        "gamePlatform": ["Web browser", "PWA"],
+        "applicationCategory": "Game",
+        "operatingSystem": "Any",
+        "playMode": ["SinglePlayer", "MultiPlayer"],
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" }
+      }
+    </script>
     <style>
       /* Here, not in style.css: the game bundle brings that sheet, and a failed boot never loads it. boot.ts sets the theme tokens. */
       html,
@@ -87,6 +103,7 @@
     <script defer src="https://cloud.umami.is/script.js" data-website-id="9bf1138d-addd-4d13-b01d-4bf98a424b51" data-domains="lilbunnyrabbit.github.io"></script>
   </head>
   <body>
+    <noscript>Harepin is a low-poly driving game that runs in your browser: open worlds, a career, a tunable garage, shareable custom maps and online play with friends over a link. Turn on JavaScript to play.</noscript>
     <svg class="sprite" aria-hidden="true">
       <symbol id="logo-mark" viewBox="-4 -6 208 188">
         <path d="M 180.78951,9.4642023 C 167.26793,35.862516 153.19234,51.171994 121.3308,74.909274 c -9.83885,7.33009 -20.56801,28.781376 -19.83643,53.665226 0.48749,16.58156 -1.19704,24.10166 16.50142,37.51644 10.04673,7.61505 24.84456,10.73078 37.73503,5.21428 9.15926,-3.91972 14.86134,-10.24668 13.85759,-12.07669 -10.05575,3.27975 -20.2675,4.2772 -31.63206,0.60045 -7.22358,-2.33703 -22.34681,-8.63089 -22.43956,-28.48702 -0.0519,-11.10019 5.77576,-23.5906 15.97731,-26.01239 5.65284,-1.34195 12.04702,-0.34048 13.55827,5.86571 -0.89118,-1.49479 -5.42011,-5.00853 -11.88232,-3.18133 -5.71991,1.61731 -11.0719,8.87864 -11.92516,16.26466 5.76133,5.52566 39.66171,12.5901 57.75466,-13.52407 13.38833,-19.323816 19.37298,-44.595936 20.20369,-68.581476 0.84632,-24.436568 -4.89214,-59.107171 -18.41373,-32.7088617 z"/>

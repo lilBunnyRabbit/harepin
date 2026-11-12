@@ -94,7 +94,7 @@ export default defineConfig(({ mode }) => {
           id: "harepin",
           name: "Harepin",
           short_name: "Harepin",
-          description: "Low-poly open-world driving in the browser.",
+          description: "A low-poly driving game in your browser. Open worlds, a career, a tunable garage, shareable custom maps and online play over a link. Nothing to install.",
           start_url: "./",
           scope: "./",
           display: "fullscreen",
