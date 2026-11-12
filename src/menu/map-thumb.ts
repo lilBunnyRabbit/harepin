@@ -12,22 +12,18 @@ const thumbs = new Map<string, Promise<string>>();
 // One generation at a time, so a long saved list never runs a worker per row at once.
 let queue: Promise<unknown> = Promise.resolve();
 
-const specs = new WeakMap<Element, MapSpec>();
-const watch = new IntersectionObserver((entries) => {
-  for (const entry of entries) {
-    if (!entry.isIntersecting) continue;
-    watch.unobserve(entry.target);
-    const img = entry.target as HTMLImageElement;
-    const spec = specs.get(img);
-    if (spec) void thumb_url(spec).then((url) => (img.src = url), (error: unknown) => console.warn("map thumb: generation failed", error));
-  }
-});
-
 export function map_thumb(spec: MapSpec): HTMLImageElement {
   const img = el("img", "map-thumb");
   img.alt = "";
   img.decoding = "async";
-  specs.set(img, spec);
+  const watch = new IntersectionObserver((entries) => {
+    if (!entries.some((entry) => entry.isIntersecting)) return;
+    watch.disconnect();
+    thumb_url(spec).then(
+      (url) => (img.src = url),
+      (error: unknown) => console.warn("map thumb: generation failed", error),
+    );
+  });
   watch.observe(img);
   return img;
 }
