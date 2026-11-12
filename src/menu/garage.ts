@@ -242,6 +242,12 @@ export class Garage {
     this.cursor = option;
     this.apply(this.item.with(this.current, option));
     this.refresh();
+    this.centre_fitted();
+  }
+
+  // A fitted card sits mid-strip, so a phone's narrow strip shows the options either side of it, not only those before.
+  private centre_fitted() {
+    this.strip.querySelector("[aria-pressed='true']")?.scrollIntoView({ block: "nearest", inline: "center", behavior: this.calm.matches ? "instant" : "smooth" });
   }
 
   private readonly click = (event: MouseEvent) => {
@@ -402,7 +408,8 @@ export class Garage {
     this.strip_head.replaceChildren(...head);
 
     const key = strip_key(item, this.tab, this.current);
-    if (key !== this.strip_key) {
+    const fresh = key !== this.strip_key;
+    if (fresh) {
       this.strip_key = key;
       this.strip.dataset.kind = item.kind;
       // A new slot's cards start from the strip's start, not the last slot's scroll, so the fitted one lands in view at once.
@@ -457,8 +464,9 @@ export class Garage {
       const i = Number(card.dataset.value);
       card.setAttribute("aria-pressed", String(i === fitted));
       card.classList.toggle("is-cursor", i === this.cursor);
-      if (i === this.cursor) card.scrollIntoView({ block: "nearest", inline: "nearest", behavior: this.calm.matches ? "instant" : "smooth" });
+      if (i === this.cursor && !fresh) card.scrollIntoView({ block: "nearest", inline: "nearest", behavior: this.calm.matches ? "instant" : "smooth" });
     }
+    if (fresh) this.centre_fitted();
   }
 
 
