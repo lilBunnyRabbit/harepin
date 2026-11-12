@@ -59,7 +59,9 @@ for (const seed of sweep(10))
     expect(road.points).toEqual(points.slice(0, foot + 1));
     expect(points.length - foot).toBeGreaterThan(BED_MIN);
     for (const p of points.slice(0, foot - ROAD_END)) expect(world.footing(p.x, p.z)).toBe(WINTER_GRIP.road);
-    const kickers = data.ramps.filter((r) => r.road);
+    // The falls' kickers stand on the bed; the circuit's own road kickers stand on the rim.
+    const bed = points.slice(foot);
+    const kickers = data.ramps.filter((r) => r.road && bed.some((p) => (p.x - r.x) ** 2 + (p.z - r.z) ** 2 < BED_HALF * BED_HALF));
     expect(kickers.length).toBeGreaterThan(0);
     // Along each kicker's axis from its toe: packed snow from the run-up to past the deck. The paint rounds off the pad's
     // ends as wide as the bed, so between the two reaches either surface may show.

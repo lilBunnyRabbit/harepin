@@ -8,7 +8,7 @@ export const ice_canyon = kind_def({
   kind: WorldKind.ICE_CANYON,
   base: 7000,
   tag: "ic",
-  version: 1,
+  version: 2,
   size: SIZE,
   ...land_kind(ICE_CANYON, [], WorldKind.ICE_CANYON),
   options: [],
