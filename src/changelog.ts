@@ -23,6 +23,19 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.35.0",
+    date: "2026-11-12",
+    title: "Rewards and flags",
+    changes: [
+      { kind: NEW, text: "Career rewards: 10 stars in a tier earn a metallic paint (bronze, silver, gold), all 21 earn a decal from the tier final's world, and finishing the final earns a tier badge." },
+      { kind: NEW, text: "Your tier badge shows on the career page, in the players list and above your car for other drivers." },
+      { kind: NEW, text: "Career start flags in the world: slow down at a flag to see the event, then tap Start or press restart. Flags show on the minimap and the map; locked events are grey." },
+      { kind: NEW, text: "Career events on Mainland: the Mainland lap and the Marathon duel now run on the real Mainland." },
+      { kind: IMPROVED, text: "The result screen shows what you just unlocked, with a button to try it in the garage." },
+      { kind: FIXED, text: "Repainting a borrowed event car no longer earns garage goals." },
+    ],
+  },
+  {
     version: "0.34.0",
     date: "2026-11-12",
     title: "Career",
