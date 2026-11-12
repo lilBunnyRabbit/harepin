@@ -17,5 +17,6 @@ export const big_dunes = kind_def({
   rails: false,
   ground: true,
   fall_reset: false,
+  reset_in_place: true,
   grip: SAND_GRIP,
 });

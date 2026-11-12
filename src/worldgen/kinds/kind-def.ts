@@ -51,6 +51,8 @@ export interface KindSpec {
   ground: boolean;
   /** Falling under the deck resets the car; false = it lands on the ground below. */
   fall_reset: boolean;
+  /** A free-driving reset rights the car where it stands: a world with no roads to put it back on. Absent = the nearest road or trail. */
+  reset_in_place?: boolean;
   grip: GripTable;
 }
 

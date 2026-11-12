@@ -71,6 +71,15 @@ for (const seed of sweep(10))
     expect(top - low).toBeGreaterThan(60);
   });
 
+test("a free-driving reset rights the car where it stands, kilometres from the spawn", () => {
+  const data = generate_dune_sea(0);
+  const world = new World(0, data, []);
+  const [x, z] = [1500, -900];
+  const index = chunk_of(x, z, EXT);
+  world.tiles.add(index, build_tile(data.ground, index, EXT));
+  expect(world.spawn_near(x, z, 0, -1)).toEqual({ x, y: world.height(x, z), z, heading: Math.PI });
+});
+
 function crests(seed: number, data: WorldData): { x: number; z: number; drop: number }[] {
   const height = land_height(seed, shape_of(data));
   const { x: wx, z: wz } = wind_of(seed, data);

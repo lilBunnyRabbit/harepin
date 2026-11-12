@@ -28,6 +28,7 @@ const NET_LABEL: Record<string, string> = {
 };
 
 const BLOCKED_NOTE = "Found a player, but the network blocked the connection (mobile data often does). Try the same Wi-Fi.";
+const NO_RACES = "No races on this map: it is all free roam.";
 
 export class OnlinePage implements MenuPage {
   readonly id = MenuTab.ONLINE;
@@ -144,7 +145,7 @@ export class OnlinePage implements MenuPage {
       ready_line.textContent = this.ready_text(routes);
       record.textContent = this.menu.host.lobby_record();
     });
-    const race_tile = info("race", "Lobby race", picker, lap_row, note, race_actions, ready_line, record);
+    const race_tile = routes.length ? info("race", "Lobby race", picker, lap_row, note, race_actions, ready_line, record) : info("race", "Lobby race", el("small", "menu-caption", NO_RACES));
 
     const fresh = tile("new", "New room", "A fresh code, a map, an optional password", icon("icon-dice"), () => this.menu.show("room"));
     return mosaic(MenuTab.ONLINE, room_tile, players_tile(this.menu), games, race_tile, fresh);

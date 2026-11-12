@@ -161,6 +161,7 @@ export class World implements Ground {
   /** The footing of the kind's own ground, untouched by any laid surface. */
   readonly own_ground: Footing;
   private readonly fall_reset: boolean;
+  private readonly reset_in_place: boolean;
   private readonly water: WaterIndex | null;
   /** Crater lava the scene draws; empty on kinds without it. */
   readonly lava: readonly LavaPool[];
@@ -235,6 +236,7 @@ export class World implements Ground {
     this.grips = snow?.grip ?? KINDS[data.kind].grip;
     this.own_ground = this.grips.surfaces[SurfaceId.GRASS];
     this.fall_reset = KINDS[data.kind].fall_reset;
+    this.reset_in_place = KINDS[data.kind].reset_in_place === true;
     const water = data.ground.ops.find((op) => op.kind === "water");
     this.water = water?.kind === "water" ? water_index(water.water) : null;
     const lava = data.ground.ops.find((op) => op.kind === "lava");
@@ -465,6 +467,7 @@ export class World implements Ground {
 
   /** Where a reset puts the car: the nearest point of any road (circuit, spur or street) or trail, facing along it the way `fx, fz` points. */
   spawn_near(x: number, z: number, fx: number, fz: number): Spawn {
+    if (this.reset_in_place) return { x, y: this.height(x, z), z, heading: Math.atan2(fx, fz) };
     const first_trail = this.graph.edges.length + 1;
     const lane = (packed: number) => Math.floor(packed / LANE_PACK);
     const point = (packed: number) => this.lanes[lane(packed)][packed % LANE_PACK];
