@@ -417,7 +417,7 @@ export class Modes {
 
   private go(active: Active, run: ModeRun) {
     active.run = run;
-    if (!this.lobby_lap) this.toast?.(active.mode.def.goal, active.event?.name ?? active.level.name, GOAL_MS);
+    if (!this.lobby_lap) this.toast?.(active.mode.def.goal, active.level.name, GOAL_MS);
     active.pi = active.event ? this.car_pi() : null;
     active.shown = false;
     this.el.result.hidden = true;
