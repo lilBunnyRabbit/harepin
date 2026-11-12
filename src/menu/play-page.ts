@@ -109,7 +109,7 @@ export class PlayPage implements MenuPage {
     const minis = el("div", "play-group");
     minis.append(el("h3", "play-head", "Mini maps"), this.minis());
     const { career } = this.menu.host;
-    side.append(minis, this.more(), ...(career ? [career_card(this.menu, career)] : []), goals_card(this.menu, this.go_to));
+    side.append(minis, this.more(), career_card(this.menu, career), goals_card(this.menu, this.go_to));
     return side;
   }
 

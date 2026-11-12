@@ -228,7 +228,7 @@ export class Modes {
     if (!mode || !level) return this.notice(NO_EVENT);
     const tier = tier_of(event);
     const before = TIERS[TIERS.indexOf(tier) - 1];
-    // `?career&tune` opens every tier so the owner can set the non-race stars before any are earnable.
+    // `?tune` opens every tier so the owner can set the non-race stars before any are earnable.
     const tune = new URLSearchParams(location.search).has(TUNE_PARAM);
     if (!this.career || (!tune && !tier_open(this.career.stars, tier))) return this.notice(`${tier.name} opens at ${tier.opens_at} ★ in ${before?.name ?? "the tier before"}`);
     if (mode.def.needs_ground && !KINDS[this.world.kind].open_ground) return this.notice(NO_GROUND_NOTICE);

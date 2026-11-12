@@ -40,8 +40,7 @@ export interface SettingsHost {
   /** Why this load is not on the map it was sent to: a code it can't read, or settings with no drivable build. */
   readonly map_note: string | null;
   readonly goals: Goals;
-  /** Null while the career is off for this load. */
-  readonly career: Career | null;
+  readonly career: Career;
   /** Starts a career event now on this map, or reloads onto its map. */
   start_event(id: string): void;
   name(): string;

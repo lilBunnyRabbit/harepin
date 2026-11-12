@@ -1,13 +1,9 @@
 import type { CarClass } from "../car/pi";
 import { SILVER_SHARE, type StarRun, type Thresholds } from "../modes/track";
 
-// Off in the release: a load turns it on with `?career`, and an event link carries it.
-export const CAREER_PARAM = "career";
 export const EVENT_PARAM = "event";
-// With `?career`, the career page offers "Copy my times": the owner's runs set the non-race events' stars.
+// `?tune` (old links: `?career&tune`) opens every tier and adds "Copy my times": the owner's runs set the non-race events' stars.
 export const TUNE_PARAM = "tune";
-
-export const career_on = (params: URLSearchParams) => params.has(CAREER_PARAM) || params.has(EVENT_PARAM);
 
 export interface Spot {
   map: string;

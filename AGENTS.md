@@ -31,7 +31,7 @@ One level of feature folders under `src/`. Each folder owns its modules, tests (
 | `worlds/` | UI side of each world kind: names, copy, facts, scene dressing |
 | `modes/` | game modes, one `<mode>-mode.ts` def + logic + view each; race routes and records |
 | `goals/` | first-steps goals and their toasts |
-| `career/` | career events and tiers; off in the release, on with `?career` or an `?event=` link |
+| `career/` | career events and tiers, store, dev ghosts; `?event=<id>` starts one, `?tune` opens every tier and adds Copy my times |
 | `net/` | P2P (trystero + BroadcastChannel): channels, lobby, directory, chat, remotes, heartbeat |
 | `menu/` | main menu shell (`settings.ts`), one file per page (Play, Create world, Online, room, modes, settings), prefs (`prefs.ts`), guide, garage, update card |
 | `hud/` | dash, minimap, touch, input and bindings, pace card, rumble |

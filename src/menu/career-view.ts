@@ -87,7 +87,7 @@ export class CareerPage implements MenuPage {
   constructor(
     private readonly menu: Menu,
     private readonly career: Career,
-    /** `?career&tune`: the owner sets the non-race events' stars from their own runs. */
+    /** `?tune`: the owner sets the non-race events' stars from their own runs. */
     private readonly tune: boolean,
   ) {}
 

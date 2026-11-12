@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { Audio } from "./audio/audio";
-import { CAREER_PARAM, EVENT_PARAM, TUNE_PARAM, career_on, event_of, type CareerEvent } from "./career/career";
+import { EVENT_PARAM, TUNE_PARAM, event_of, type CareerEvent } from "./career/career";
 import { Career, event_map } from "./career/career-store";
 import { ChaseCamera } from "./render/camera";
 import { Driver } from "./car/driver";
@@ -173,7 +173,7 @@ const chat = new Chat(net);
 chat.start();
 const build = load_build(params.get("car"));
 const mode_ids = MODES.map((mode) => mode.id);
-const career = career_on(params) ? new Career(local_store()) : null;
+const career = new Career(local_store());
 const goals = new Goals(local_store(), mode_ids);
 goals.catch_up(() => proven(saved_entries(), { kind, build, cockpit: prefs.camera === CameraView.COCKPIT }, mode_ids));
 const race = new Race(world);
@@ -435,7 +435,7 @@ function start_event(id: string) {
   if (!to) return;
   if (!on_this_map(to)) {
     mark_drive();
-    const query = new URLSearchParams({ [EVENT_PARAM]: to.id, [CAREER_PARAM]: "" });
+    const query = new URLSearchParams({ [EVENT_PARAM]: to.id });
     for (const kept of KEPT_ON_EVENT) {
       const value = params.get(kept);
       if (value !== null) query.set(kept, value);

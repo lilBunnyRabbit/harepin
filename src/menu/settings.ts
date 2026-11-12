@@ -124,7 +124,7 @@ export class Settings {
       new ModesPage(this.menu),
       new RoomPage(this.menu),
       new GoalsPage(this.menu, (to) => this.go_to(to)),
-      ...(host.career ? [new CareerPage(this.menu, host.career, new URLSearchParams(location.search).has(TUNE_PARAM))] : []),
+      new CareerPage(this.menu, host.career, new URLSearchParams(location.search).has(TUNE_PARAM)),
     ];
     this.guide = new Guide({
       state: () => this.current,
