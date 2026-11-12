@@ -11,7 +11,7 @@ import { livery_of, livery_parts, roof, type Livery } from "./livery";
 import { aero_of, aero_parts, kit_parts, rear_wing } from "./part-looks";
 import { STOCK_CALIPER, STOCK_TYRE, caliper_geometry, chrome_tone, wheel_geometry } from "./wheels";
 import { paint_finish, paint_lab, type Finish } from "./paint";
-import { brand, color, mix, tones } from "../theme/palette";
+import { brand, color, dark, mix, tones } from "../theme/palette";
 import type { Lab } from "../theme/theme";
 
 export interface CarView {
@@ -59,17 +59,26 @@ function split_tone(geometry: THREE.BufferGeometry, tone: THREE.Color): [THREE.B
   }) as [THREE.BufferGeometry, THREE.BufferGeometry];
 }
 
-// A studio strip from theme tokens: dark floor, one bright band at the horizon, pale sky above it. Without it a metal has
-// nothing to reflect and reads as flat dark paint.
-const SKY = mix(brand.foreground, brand.background_lightest, 0.4);
+// A studio strip from theme tokens, bottom to top: dark floor, a wide bright band just under the horizon, a dark gap,
+// then soft sky. Without it a metal has nothing to reflect and reads as flat dark paint. A camera a little above the car
+// sees upright faces (tail, doors) mirror the band and upward faces (deck, roof) mirror the gap and the sky over it, so
+// the faces split light and dark the other way round from a matte paint, which is what reads as metal.
+// Light themes' foreground is their darkest ink, so the band and the floor swap tokens there to keep the band bright.
+const BAND = dark ? brand.foreground : brand.background_lightest;
+const FLOOR = dark ? brand.background_darkest : mix(brand.foreground, brand.background_darkest, 0.55);
+const GAP = dark ? brand.background_dark : mix(brand.foreground, brand.background, 0.6);
+const SKY = dark ? mix(brand.foreground, brand.background_lightest, 0.4) : brand.background;
+const SOFT = mix(BAND, GAP, 0.5);
 const STRIP: [number, Lab][] = [
-  [0, brand.background_lighter],
-  [0.4, brand.background],
-  [0.5, brand.background_darkest],
-  [0.53, brand.foreground],
-  [0.58, brand.foreground],
-  [0.62, brand.background_dark],
-  [0.8, SKY],
+  [0, FLOOR],
+  [0.28, FLOOR],
+  [0.36, SOFT],
+  [0.4, BAND],
+  [0.48, BAND],
+  [0.53, GAP],
+  [0.58, GAP],
+  [0.66, SOFT],
+  [0.76, SKY],
   [1, SKY],
 ];
 const STRIP_ROWS = 64;

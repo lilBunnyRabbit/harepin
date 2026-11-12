@@ -9,7 +9,9 @@ export interface Finish {
   reflect: number;
 }
 
-const METAL: Finish = { metalness: 0.55, roughness: 0.15, reflect: 2 };
+// Mostly metal with a little blur: the paint's own colour tints what the strip reflects, so it reads as metal from the
+// chase camera, where a sharp mirror only showed the dark floor.
+const METAL: Finish = { metalness: 0.85, roughness: 0.28, reflect: 2.6 };
 
 // Career reward paints, Rookie bronze to Pro gold, in the tier metals. Kept out of `car_paints`: builds wrap their paint
 // by that list's length, so growing it would recolour saved cars.

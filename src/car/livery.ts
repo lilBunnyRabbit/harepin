@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { DECALS, type Build, type Decal } from "./build";
 import { paint_lab } from "./paint";
-import { NEUTRAL_INKS, color, decal_inks } from "../theme/palette";
+import { NEUTRAL_INKS, color, dark, decal_inks } from "../theme/palette";
 import type { Lab } from "../theme/theme";
 
 type Point = [number, number];
@@ -40,6 +40,12 @@ const STEP = 0.05;
 // A larger rise between samples is a different surface (windscreen base, deck lip), not a slope to follow.
 const JUMP = 0.2;
 const FLAT_ENOUGH = 0.15;
+// Career reward motifs repeat on the roof, the face the chase camera sees most: across this share of the body's width,
+// inset this share from each end of the roof, draped in triangles no longer than `DRAPE` so they follow its curve.
+const ROOF_WIDTH = 0.78;
+const ROOF_INSET = 0.06;
+const MIN_ROOF = 0.4;
+const DRAPE = 0.08;
 
 const SEGMENTS: Record<string, Point[]> = {
   a: [[0, 1], [1, 1]],
@@ -217,6 +223,74 @@ function strip(out: number[], roof: Roof, x0: number, x1: number, front: number,
   }
 }
 
+interface Run {
+  front: number;
+  rear: number;
+}
+
+/** The roof along the centre line: of the stretches of painted top between glass and steps, the highest one. */
+function top_run(over: Roof, front: number, rear: number): Run | null {
+  let best: (Run & { y: number }) | null = null;
+  let run: (Run & { y: number }) | null = null;
+  let last: number | null = null;
+  const close = () => {
+    if (run && run.front - run.rear >= MIN_ROOF && (!best || run.y > best.y)) best = run;
+    run = null;
+  };
+  for (let z = front; z >= rear; z -= STEP) {
+    const hit = over(0, z);
+    if (!hit || (last !== null && Math.abs(hit.y - last) > JUMP)) close();
+    last = hit ? hit.y : null;
+    if (!hit) continue;
+    if (run) {
+      run.rear = z;
+      run.y = Math.max(run.y, hit.y);
+    } else run = { front: z, rear: z, y: hit.y };
+  }
+  close();
+  return best;
+}
+
+type Tri = [THREE.Vector2, THREE.Vector2, THREE.Vector2];
+
+function split(tri: Tri): Tri[] {
+  const [a, b, c] = tri;
+  if (Math.max(a.distanceTo(b), b.distanceTo(c), c.distanceTo(a)) <= DRAPE) return [tri];
+  const ab2 = a.clone().add(b).multiplyScalar(0.5);
+  const bc2 = b.clone().add(c).multiplyScalar(0.5);
+  const ca2 = c.clone().add(a).multiplyScalar(0.5);
+  return [[a, ab2, ca2], [ab2, b, bc2], [ca2, bc2, c], [ab2, bc2, ca2]].flatMap((t) => split(t as Tri));
+}
+
+/** Polygons in (x, z), draped onto the painted top; a piece over glass or across a step is left out. */
+function on_roof(out: number[], polygons: Point[][], over: Roof, lift: number) {
+  const up = new THREE.Vector3(0, 1, 0);
+  for (const points of polygons) {
+    const flat = points.map(([x, z]) => new THREE.Vector2(x, z));
+    for (const [i, j, k] of THREE.ShapeUtils.triangulateShape(flat, []))
+      for (const tri of split([flat[i], flat[j], flat[k]])) {
+        const hits = tri.map((p) => over(p.x, p.y));
+        if (hits.some((hit) => !hit)) continue;
+        const ys = hits.map((hit) => hit!.y);
+        if (Math.max(...ys) - Math.min(...ys) > JUMP) continue;
+        const [a, b, c] = tri.map((p, n) => new THREE.Vector3(p.x, ys[n], p.y).addScaledVector(hits[n]!.normal, lift));
+        face(out, a, b, c, up);
+      }
+  }
+}
+
+function roof_layers(livery: Livery, panel: Panel, over: Roof, front: number, rear: number): Layers {
+  if (livery.decal !== "sky" && livery.decal !== "volcano" && livery.decal !== "ice") return { key: [], ink: [], mark: [] };
+  const run = top_run(over, front, rear);
+  if (!run) return { key: [], ink: [], mark: [] };
+  const length = run.front - run.rear;
+  const z0 = run.rear + length * ROOF_INSET;
+  const span = length * (1 - 2 * ROOF_INSET);
+  const width = panel.side * 2 * ROOF_WIDTH;
+  const ink = REWARD_MOTIFS[livery.decal].map((points) => points.map(([u, v]): Point => [(v - 0.5) * width, z0 + u * span]));
+  return { key: livery.key ? ink.map((p) => grow(p, KEY_WIDTH)) : [], ink, mark: [] };
+}
+
 function ring(z: number, y: number, radius: number, steps: number): Point[] {
   return Array.from({ length: steps }, (_, i): Point => [z + radius * Math.cos((i * 2 * Math.PI) / steps), y + radius * Math.sin((i * 2 * Math.PI) / steps)]);
 }
@@ -324,6 +398,9 @@ export function livery_parts(livery: Livery, panel: Panel, over: Roof, front: nu
     if (livery.key) strip(key, over, x0 - KEY_WIDTH, x1 + KEY_WIDTH, front, rear, KEY_LIFT);
     strip(ink, over, x0, x1, front, rear, INK_LIFT);
   }
+  const top = roof_layers(livery, panel, over, front, rear);
+  on_roof(key, top.key, over, KEY_LIFT);
+  on_roof(ink, top.ink, over, INK_LIFT);
   for (const side of [-1, 1]) {
     const layers = side_layers(livery, panel, side);
     on_side(key, layers.key, side, panel, KEY_LIFT);
@@ -340,26 +417,30 @@ export function livery_parts(livery: Livery, panel: Panel, over: Roof, front: nu
 
 const INK_CLASH = 0.1;
 const NEUTRAL_CONTRAST = 0.15;
+// Dusk lights the car from ahead, so the chase camera sees its paint in shade at about this share of its lightness: a
+// dark ink that clears the paint's token still sinks into it there.
+const DUSK_SHADE = 0.4;
 
 const distance = (a: Lab, b: Lab) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+const seen = (paint: Lab) => (dark ? paint[0] * DUSK_SHADE : paint[0]);
 
-function far_neutral(from: Lab): Lab {
+function far_neutral(from: number): Lab {
   const [light, dark_ink] = decal_inks;
-  return Math.abs(light[0] - from[0]) >= Math.abs(dark_ink[0] - from[0]) ? light : dark_ink;
+  return Math.abs(light[0] - from) >= Math.abs(dark_ink[0] - from) ? light : dark_ink;
 }
 
-/** Decal colours for a build: the chosen ink unless it would vanish on the paint, then the neutral that stands out. */
+/** Decal colours for a build: the chosen ink unless it would vanish on the paint as the light shows it, then the neutral that stands out. */
 export function livery_of(build: Build): Livery {
   const paint = paint_lab(build.paint);
   const chosen = decal_inks[build.ink % decal_inks.length];
   const neutral = build.ink % decal_inks.length < NEUTRAL_INKS;
-  const vanishes = neutral ? Math.abs(chosen[0] - paint[0]) < NEUTRAL_CONTRAST : distance(chosen, paint) < INK_CLASH;
-  const ink = vanishes ? far_neutral(paint) : chosen;
+  const vanishes = neutral ? Math.abs(chosen[0] - seen(paint)) < NEUTRAL_CONTRAST : distance(chosen, paint) < INK_CLASH;
+  const ink = vanishes ? far_neutral(seen(paint)) : chosen;
   return {
     decal: DECALS[build.decal] ?? "none",
     number: build.number,
     ink: color(ink),
-    key: neutral || vanishes ? null : color(far_neutral(paint)),
-    mark: color(far_neutral(ink)),
+    key: neutral || vanishes ? null : color(far_neutral(seen(paint))),
+    mark: color(far_neutral(ink[0])),
   };
 }
