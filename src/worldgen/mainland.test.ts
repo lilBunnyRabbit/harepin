@@ -113,6 +113,10 @@ test("a mainland chunk meshes the same whatever was built before it, and shades 
   const skirt = (edge: number, t: number) => (TILE_SIDE * TILE_SIDE + edge * TILE_SIDE + t) * 3;
   for (let t = 0; t < TILE_SIDE; t++)
     for (let c = 0; c < 3; c++) expect(west.terrain?.colors[skirt(1, t) + c]).toBe(a.terrain?.colors[skirt(3, TILE_SIDE - 1 - t) + c]);
+  // A face draws its first vertex's colour: every skirt face must lead with a skirt vertex, not an averaged surface one.
+  for (const { index, full } of [west.terrain, a.terrain].filter((t) => t !== null && t !== undefined))
+    for (let f = 0; f < full; f += 3)
+      if ([0, 1, 2].some((k) => index[f + k] >= TILE_SIDE * TILE_SIDE)) expect(index[f]).toBeGreaterThanOrEqual(TILE_SIDE * TILE_SIDE);
 });
 
 test("a mainland chunk plants the same trees whatever was built before it, each from a lattice point of its own", async () => {
