@@ -63,7 +63,7 @@ const leaf_dark = mix(brand.success, dark ? brand.background : brand.foreground,
 // Every dark theme's road floor, Brand Dark's included: at `background_darkest` the dusk road rendered near black past the
 // headlight, losing the hill shading and the skid marks, which stay at `background_darkest` below it. Still well under the
 // crowns (grass minus DUSK_CROWN_DROP), so asphalt stays the darkest ground.
-const DUSK_ASPHALT_FLOOR = 0.24;
+const DUSK_ASPHALT_FLOOR = 0.32;
 const asphalt = dark ? lighten(brand.background_darkest, Math.max(0, DUSK_ASPHALT_FLOOR - brand.background_darkest[0])) : mix(brand.foreground, brand.background_darkest, 0.62);
 
 // A share of the asphalt-to-foreground range, not a fixed L step: on near-black roads a fixed step still renders black.

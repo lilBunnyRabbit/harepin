@@ -39,7 +39,7 @@ const DUSK: MoodSpec = {
   hemi_intensity: 1.3,
   fog_near: 120,
   fog_far: 1300,
-  head_intensity: 5,
+  head_intensity: 7,
   head_range: 70,
   cloud_glow: 0.35,
   bloom: 0.6,
