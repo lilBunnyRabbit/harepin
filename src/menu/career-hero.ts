@@ -45,7 +45,7 @@ function track(stars: Stars, tier: Tier, have: number): HTMLElement {
     lock.append(icon("icon-lock"), `${next.name} opens at ${next.opens_at} ★`);
     words.append(lock);
   } else {
-    words.append(el("span", "career-hero-lock", have === max ? "Every event at 3 ★" : "Last tier"));
+    words.append(el("span", "career-hero-lock", have === max ? `Every ${tier.name} event at 3 ★` : "Last tier"));
   }
   const node = el("div", "career-hero-track");
   node.append(bar, words);
