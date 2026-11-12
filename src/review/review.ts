@@ -54,6 +54,7 @@ export class Review {
   private switching: Promise<void> | null = null;
   private key = "";
   private frames = 0;
+  private placing: Promise<void> = Promise.resolve();
   /** The asked shot is drawn: frames stop, so a screenshot taken any time after shows exactly it. */
   private shown = false;
   private readonly prev = new THREE.Vector3();
@@ -69,8 +70,8 @@ export class Review {
 
   static async open(world: World, chase: ChaseCamera): Promise<Review> {
     const review = new Review(world, chase, read_ask());
-    await review.load(review.ask);
     review.start();
+    await review.load(review.ask);
     return review;
   }
 
@@ -106,7 +107,10 @@ export class Review {
     this.shown = false;
     const switching = this.load(ask).then(async () => {
       const at = this.start_index;
-      if (this.ask === ask && this.view && at !== null) await this.place(at);
+      if (this.ask !== ask || !this.view || at === null) return;
+      // One teleport at a time: a newer view's place waits for the one still out, rather than being dropped by it.
+      this.placing = this.placing.then(() => (this.ask === ask ? this.place(at) : undefined));
+      await this.placing;
     });
     this.switching = switching;
     void switching.finally(() => {

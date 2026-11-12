@@ -652,7 +652,7 @@ function frame(time: number) {
   update_gates(now / 1000);
   ghost.update(race.started && !modes.active ? now - race.started : null, camera.position);
   modes.update(stepped, car);
-  markers.update(car.pos.x, car.pos.z, car.vel.length(), !modes.active && !modes.holding && !lobby.busy && !review);
+  markers.update(car.pos.x, car.pos.z, car.vel.length(), !modes.active && !modes.holding && !lobby.busy);
   // Rewind, the garage and the countdown don't step the car, so a held boost would never let go of the flame.
   if (!simulated) car.nitro.cut();
   chase.top = modes.high_view;
