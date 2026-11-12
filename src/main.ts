@@ -117,7 +117,7 @@ const { levels } = built;
 const code = custom_code(built);
 const note = map_note(pick_problem(pick), stream.fallback);
 // `?debug&at=<road index>` starts the car anywhere on the circuit, for checking a stretch of track by eye; a race run, such
-// as a descent event, starts at that index along its own route instead.
+// as a descent event, starts at that index along its own route instead. View only: the run still waits for its first gate.
 const debug_at = (params.has("debug") && Math.trunc(Number(params.get("at")))) || 0;
 const start_index = debug_at || SPAWN_INDEX;
 const start_point = world.road[world.clear_spawn(start_index)];
