@@ -2,7 +2,7 @@
 
 > **Status 2026-11-12 (v0.31.2):** Partly built, off in the release: it runs only with `?career` or an `?event=` link (`src/career/career.ts`). C0-C4 are in: 21 events, the store, the career page, `?event=` start, the Play card, finish line + Next event, the +2 s hit penalty, the car pick (the event's car is fitted unsaved and the player's car comes back on leaving), bot star times for race events and dev ghosts for race and duel events. `scripts/career-check.ts` checks every event runs on its map; `scripts/career.ts [ids] [--write]` tunes (ids as plain arguments, not `--event`).
 >
-> **Round 3 (2026-11-12, `docs/brainstorm/2026-11-13_harepin-career-v3.answers.md`):** release C0-C4 right after the pre-release items (R1, R2); C5 rewards, C6 markers, C7 Mainland and C8 share link follow, in that order (§7). Pre-release, built: the Club final c7 runs on the Volcano `descent` (F1); the Rookie final r7 stays on Sky Track as **Skyline** (F2, N1); every mode grades by an event's own `stars`, drift in points (§5); `?career&tune` adds **Copy my times** to the career page (D2, §1.3). Pre-release, open: the owner plays the 12 non-race events with `?career&tune`, copies the times, and they go into `career.ts` as each event's `stars` and `tuned`; then release. Still on stand-ins: the Pro final p7 on Frozen lakes until it moves to Ice canyon (F3, now listed), and Mainland c6 / p1 on Island until C7 (L1). Unlocks stay 12 / 14, re-checked after the owner plays Rookie (D1).
+> **Round 3 (2026-11-12, `docs/brainstorm/2026-11-13_harepin-career-v3.answers.md`):** release C0-C4 right after the pre-release items (R1, R2); C5 rewards, C6 markers, C7 Mainland and C8 share link follow, in that order (§7). Pre-release, built: the Club final c7 runs on the Volcano `descent` (F1); the Rookie final r7 stays on Sky Track as **Skyline** (F2, N1); every mode grades by an event's own `stars`, drift in points (§5); `?career&tune` adds **Copy my times** to the career page (D2, §1.3). Pre-release, open: the owner plays the 12 non-race events with `?career&tune`, copies the times, and they go into `career.ts` as each event's `stars` and `tuned`; then release. The Pro final p7 runs on the Ice canyon `descent` (F3, 0.32.0). Still on stand-ins: Mainland c6 / p1 on Island until C7 (L1). Unlocks stay 12 / 14, re-checked after the owner plays Rookie (D1).
 >
 > **When career ships:** the dev ghosts in `public/career/` (about 0.9 MB of JSON) are left out of the PWA precache on purpose while career is hidden; add them to `workbox.globPatterns` in `vite.config.ts` then, or events run without ghosts offline. Then drop the `?career` gate (`career_on`).
 
@@ -141,17 +141,16 @@ Worlds: Island `C`, Winter island `C…-W1`, Dune sea `D`, Alpine `A`, Frozen la
 | p4 | Island sweep | Island | `1C0000008` | hunt `h5` | ≤ S1 |
 | p5 | Ice parallel | Frozen lakes | `1T0000006` | parking `p7` | Drift |
 | p6 | Precision | Winter island | `1C0000009-W1` (seed 8 in winter has no gymkhana site) | gymkhana `g7` | ≤ S2 |
-| p7 | **Final: Riverbed** | Ice canyon | `1F…` (seed not picked) | race `riverbed` | ≤ S1 |
+| p7 | **Final: Riverbed** | Ice canyon | `1F0000001` | race `descent` (on the real map since 0.32.0, F3) | ≤ S1 |
 
 Mix: race 7, gymkhana 3, parking 3, drift 2, hunt 3, duel 2 (the 3 finals are races). Sky Track has no open ground (`open_ground: false`, `kinds/sky.ts:32`), so only race, drift and duel run there.
 
 ### Stand-ins until each world ships
 
-Round 3: r7 and c7 need none now. p7 keeps Frozen lakes until it moves (F3; Ice canyon is listed since `1a7239e`, so the move is a data change plus a re-tune). c6 and p1 keep Island until C7 (L1).
+Round 3: the finals need none now (r7 Sky Track, c7 Volcano, p7 Ice canyon). c6 and p1 keep Island until C7 (L1).
 
 | Event | Real | Blocked by | Stand-in |
 |---|---|---|---|
-| p7 | Ice canyon `riverbed` | Seed not picked, not tuned | Frozen lakes `1T0000006` race `circuit` |
 | c6, p1 | Mainland | Modes off on streamed worlds | Island `1C0000008` race `street-2` / duel `v5` |
 
 A stand-in swap is a data change. Stars earned on a stand-in are kept. Its best time and ghost reset, the same as a version bump.
@@ -215,6 +214,7 @@ Each phase ships on its own. S ≈ a day, M ≈ 2-4 days.
 | Step | What | Status |
 |---|---|---|
 | Pre-release: c7 on Volcano | `descent` on `1V0000001`, re-tuned (`1:v5`), new dev ghost | Built |
+| Pre-release: p7 on Ice canyon | `descent` on `1F0000001`, re-tuned (`1:ic5`), new dev ghost | Built |
 | Pre-release: r7 on Sky Track | Stays on `1S0000002`, named Skyline | Built |
 | Pre-release: drift point marks | Every mode grades through `ModeCtx.thresholds(own)`; drift in points (§5) | Built |
 | Pre-release: owner stars (D2) | Copy my times under `?career&tune` (§1.3) | Built. Owner plays the 12 non-race events, then paste |
@@ -232,14 +232,14 @@ Each phase ships on its own. S ≈ a day, M ≈ 2-4 days.
 | **C6** | Markers on compact worlds: tier-metal start flags with the event id, on minimap and world map, locked greyed, exact map code only (M1-M3, §4) | Challenge start flags, world map | Proximity trigger, marker icons | M |
 | **C7** | Modes on streamed worlds, then Mainland events + markers (L1: after C5 and C6) | `world.tiles.whole()` wait (`modes.ts:193`) | Lift the `STREAMED` block (`modes.ts:190`); sites near the start on a streamed world | M-L (*est.*, unverified) |
 | **C8** | Share link (S1: after release) | `invite_link` | Params + HUD target line | S |
-| **Data** | p7 moves to Ice canyon (F3: listed now); c7 moved to Volcano in round 3; Rooftops dropped | - | Edit `map`, re-tune | S each |
+| **Data** | Done: c7 on Volcano, p7 on Ice canyon (round 3); Rooftops dropped | - | Edit `map`, re-tune | S each |
 
 ## 8. Conflicts
 
 | # | With | Conflict | Proposal |
 |---|---|---|---|
 | 1 | `modes.ts:30,190` | Every mode refuses streamed worlds; Mainland is streamed (`tiles.ts:72`). F1 wants markers on Mainland, F3 wants Mainland events | Mainland events use Island stand-ins until C7 |
-| 2 | special-maps §6 | Volcano and Rooftops are unlisted; Ice canyon not started; the Volcano final needs a one-way route and checkpoint respawn (V3) | Stand-ins (§2). Round 3: Volcano listed first and Rooftops is dropped, so r7 stays on Sky Track and c7 runs on Volcano; Ice canyon is listed, p7 still on its stand-in |
+| 2 | special-maps §6 | Volcano and Rooftops are unlisted; Ice canyon not started; the Volcano final needs a one-way route and checkpoint respawn (V3) | Stand-ins (§2). Round 3: Volcano listed first and Rooftops is dropped, so r7 stays on Sky Track and c7 runs on Volcano; p7 runs on Ice canyon |
 | 3 | Answers B3/F5 vs questionnaire | The questionnaire planned assist and manual-gear rules | Dropped. No assist field in `CareerEvent` |
 | 4 | `palette.ts:124`, `livery.ts:300` | Paint index wraps by the paint list length: a reward paint appended to `car_paints` recolours saved builds | Separate reward list (§1.4) |
 | 5 | `drift.ts`, `gymkhana.ts`, `parking.ts`, `hunt.ts`, `duel.ts` | B5 wants bot-tuned stars; only race routes have a bot (`autolap.ts`) | Model par + hand tune for non-race events. A bot per mode is out of scope |
