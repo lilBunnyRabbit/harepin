@@ -2,10 +2,9 @@ import { roadside } from "../car/trackside";
 import { WorldKind } from "../worldgen/types";
 import { lap_facts, type WorldDef } from "./world-def";
 
-// Unlisted while it is built: it loads from `?world=icecanyon` only.
 export const ice_canyon: WorldDef = {
   kind: WorldKind.ICE_CANYON,
-  listed: false,
+  listed: true,
   mini: true,
   name: "Ice canyon",
   pick: "A frozen riverbed down from a snowy rim",
