@@ -376,3 +376,13 @@
 19 offroad-2 kaze
 19 offroad-2 formula
 19 offroad-2 bus
+volcano 0 descent bus
+volcano 1 descent bus
+volcano 2 descent bus
+volcano 3 descent bus
+volcano 4 descent bus
+volcano 5 descent bus
+volcano 6 descent bus
+volcano 7 descent bus
+volcano 8 descent bus
+volcano 9 descent bus
