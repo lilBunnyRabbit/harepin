@@ -16,7 +16,7 @@ Round 1, 2026-11-11, at `7c4f299` (v0.28.1). Plan only. Nothing was run. Every f
 - **Rules are two:** no rewind (modes already block it, `main.ts:490`) and a time penalty per hit. No assist rules at all.
 - **Finals run on Sky Track → Volcano → Ice canyon** (round 3: Rooftops is dropped for now). Until a map ships, its final runs on a stand-in (§2).
 - **Version bump:** the event follows the new world. Stars stay. Best times and ghosts reset by key, because `world_key` already carries the version. A unit test fails on every bump until the thresholds are re-tuned.
-- **Biggest blocker:** modes refuse to start on streamed worlds (`modes.ts:30,190`), and Mainland is streamed. Mainland events and markers wait for that (phase C7).
+- **Streamed worlds (C7, built):** race and duel run on Mainland (`ModeDef.streams`): the run is built, then the car goes down once the 3x3 chunks at its start are in (`tiles.ensure`), and its marks drape on the circuit's own height where a chunk is not in yet. Gymkhana, parking, hunt and drift still refuse streamed worlds: their sites and zones read terrain and solids far from the start. Mainland markers are still to come.
 
 ## 1. Data model
 
@@ -148,11 +148,7 @@ Mix: race 7, gymkhana 3, parking 3, drift 2, hunt 3, duel 2 (the 3 finals are ra
 
 ### Stand-ins until each world ships
 
-Round 3: the finals need none now (r7 Sky Track, c7 Volcano, p7 Ice canyon). c6 and p1 keep Island until C7 (L1).
-
-| Event | Real | Blocked by | Stand-in |
-|---|---|---|---|
-| c6, p1 | Mainland | Modes off on streamed worlds | Island `1C0000008` race `street-2` / duel `v5` |
+Round 3: the finals need none now (r7 Sky Track, c7 Volcano, p7 Ice canyon). C7: c6 and p1 left their Island stand-ins (`1C0000008` race `street-2` / duel `v5`) for Mainland. c6 is re-tuned on the mainland lap; p1 has no owner marks there yet, so the duel's par grades it until the owner's run sets them. No event is on a stand-in now.
 
 A stand-in swap is a data change. Stars earned on a stand-in are kept. Its best time and ghost reset, the same as a version bump.
 
@@ -239,7 +235,7 @@ Each phase ships on its own. S ≈ a day, M ≈ 2-4 days.
 
 | # | With | Conflict | Proposal |
 |---|---|---|---|
-| 1 | `modes.ts:30,190` | Every mode refuses streamed worlds; Mainland is streamed (`tiles.ts:72`). F1 wants markers on Mainland, F3 wants Mainland events | Mainland events use Island stand-ins until C7 |
+| 1 | `modes.ts:30,190` | Every mode refuses streamed worlds; Mainland is streamed (`tiles.ts:72`). F1 wants markers on Mainland, F3 wants Mainland events | Mainland events used Island stand-ins until C7. C7: race and duel run on streamed worlds, c6 and p1 are on Mainland |
 | 2 | special-maps §6 | Volcano and Rooftops are unlisted; Ice canyon not started; the Volcano final needs a one-way route and checkpoint respawn (V3) | Stand-ins (§2). Round 3: Volcano listed first and Rooftops is dropped, so r7 stays on Sky Track and c7 runs on Volcano; p7 runs on Ice canyon |
 | 3 | Answers B3/F5 vs questionnaire | The questionnaire planned assist and manual-gear rules | Dropped. No assist field in `CareerEvent` |
 | 4 | `palette.ts:124`, `livery.ts:300` | Paint index wraps by the paint list length: a reward paint appended to `car_paints` recolours saved builds | Separate reward list (§1.4) |

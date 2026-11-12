@@ -11,15 +11,19 @@ const { PRESETS } = await import("../src/car/presets");
 const { DUEL_LEVELS, DuelRun, DuelStatus, build_route } = await import("../src/modes/duel");
 const { RaceRun, RaceStatus, race_course } = await import("../src/modes/races");
 const { SILVER_SHARE } = await import("../src/modes/track");
+const { mesh_tones } = await import("../src/render/scene");
 const { World } = await import("../src/world/world");
+const { chunk_of } = await import("../src/worldgen/chunk-grid");
 const { build_world, world_key } = await import("../src/worldgen/kinds/kinds");
 const { parse_map_code } = await import("../src/worldgen/kinds/map-code");
+const { TileMesher } = await import("../src/worldgen/tile-mesher");
 const { DT, autolap } = await import("./autolap");
 type Build = import("../src/car/build").Build;
 type CareerEvent = import("../src/career/career").CareerEvent;
 type CarClass = import("../src/car/pi").CarClass;
 type World = import("../src/world/world").World;
 type RoadPoint = import("../src/world/world").RoadPoint;
+type TileMesher = import("../src/worldgen/tile-mesher").TileMesher;
 
 // Tunes race events from bot runs and records each race event's dev ghost (duels ship none: the owner's marks beat any bot) (plan: docs/plan/career.md §1.3, §3).
 // Race: `three` is the median finish of up to RUNS autolap drives at the class cap (each body tuned up to the cap, and presets
@@ -30,6 +34,8 @@ const RUNS = 5;
 const WRITE = process.argv.includes("--write");
 const ONLY = process.argv.slice(2).filter((a) => !a.startsWith("--"));
 const STEP_MS = DT * 1000;
+/** Seconds a drive may take: a lap of the mainland runs near ten minutes. */
+const DRIVE_LIMIT = 1200;
 
 interface Drive {
   label: string;
@@ -92,14 +98,35 @@ function drive(world: World, build: Build, line: readonly RoadPoint[], clock: { 
       last = t;
     }
     return done;
-  });
+  }, DRIVE_LIMIT);
   return { label: "", ms: done ? Math.round(clock.elapsed() ?? 0) : null, frames };
 }
 
-function race_drive(world: World, level: string, build: Build): Drive | null {
+// A streamed map's plan holds no tiles: the chunks a drive passes and their neighbours are built as the game streams them.
+function stream_in(world: World, mesher: TileMesher | null, line: readonly { x: number; z: number }[]) {
+  if (!mesher) return;
+  const { ext } = world.tiles;
+  const need = new Set<number>();
+  for (const p of line) {
+    const at = chunk_of(p.x, p.z, ext);
+    const ci = at % ext.side;
+    const cj = Math.floor(at / ext.side);
+    for (let j = Math.max(0, cj - 1); j <= Math.min(ext.side - 1, cj + 1); j++)
+      for (let i = Math.max(0, ci - 1); i <= Math.min(ext.side - 1, ci + 1); i++) need.add(j * ext.side + i);
+  }
+  for (const index of need) {
+    if (world.tiles.get(index)) continue;
+    const { tile, planted } = mesher.build(index);
+    world.tiles.add(index, tile);
+    world.plant(index, planted.solids);
+  }
+}
+
+function race_drive(world: World, mesher: TileMesher | null, level: string, build: Build): Drive | null {
   const route = world.routes.find((r) => r.id === level);
   if (!route) return null;
   const course = race_course(route);
+  stream_in(world, mesher, course.line);
   const unplace = world.place(route.closure);
   const run = new RaceRun(course, 0);
   const result = drive(world, build, course.line as RoadPoint[], {
@@ -110,10 +137,11 @@ function race_drive(world: World, level: string, build: Build): Drive | null {
   return result;
 }
 
-function duel_drive(world: World, level: string, build: Build): { drive: Drive; par: number } | null {
+function duel_drive(world: World, mesher: TileMesher | null, level: string, build: Build): { drive: Drive; par: number } | null {
   const duel = DUEL_LEVELS.find((l) => l.id === level);
   if (!duel) return null;
   const route = build_route(world.seed, world.road, duel, (index) => world.clear_spawn(index));
+  stream_in(world, mesher, route.points);
   const run = new DuelRun(route);
   const result = drive(world, build, route.points as RoadPoint[], {
     update: ({ x, z }) => (run.update(STEP_MS, x, z), run.status === DuelStatus.DONE),
@@ -132,13 +160,15 @@ for (const event of EVENTS) {
   const read = parse_map_code(spot.map);
   if (!read.ok) throw new Error(`${event.id}: map code ${read.why}`);
   const { seed, kind, levels } = read.map;
-  const world = new World(seed, build_world(seed, kind, levels).data, undefined, levels);
+  const data = build_world(seed, kind, levels).data;
+  const world = new World(seed, data, undefined, levels);
+  const mesher = world.tiles.streamed ? new TileMesher(data, world.tiles.ext, mesh_tones()) : null;
   const tuned = world_key(seed, kind, levels);
   const drives: Drive[] = [];
   let par: number | null = null;
   const wall = performance.now();
   for (const { label, build } of cars_for(event)) {
-    const run = event.mode === "race" ? race_drive(world, spot.level, build) : event.mode === "duel" ? duel_drive(world, spot.level, build) : null;
+    const run = event.mode === "race" ? race_drive(world, mesher, spot.level, build) : event.mode === "duel" ? duel_drive(world, mesher, spot.level, build) : null;
     if (!run) throw new Error(`${event.id}: ${event.mode} ${spot.level} has no bot drive`);
     const d = "drive" in run ? run.drive : run;
     if ("par" in run) par = run.par;

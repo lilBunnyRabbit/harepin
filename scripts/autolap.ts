@@ -72,9 +72,9 @@ export interface Lap {
 
 /**
  * Drives `road` from its first point; an open one (a street or offroad route) ends at its last point instead of wrapping.
- * `watch` sees the car after every physics step and ends the drive by returning true; with it the drive goes on until it does (or the time runs out).
+ * `watch` sees the car after every physics step and ends the drive by returning true; with it the drive goes on until it does (or `limit` seconds run out).
  */
-export function autolap(world: World, spec: CarSpec = COUPE, road: readonly RoadPoint[] = world.road, closed = true, watch?: (car: Car) => boolean): Lap {
+export function autolap(world: World, spec: CarSpec = COUPE, road: readonly RoadPoint[] = world.road, closed = true, watch?: (car: Car) => boolean, limit = 400): Lap {
   const car = new Car(spec);
   const n = road.length;
   const point_at = (i: number) => (closed ? road[((i % n) + n) % n] : road[Math.max(0, Math.min(n - 1, i))]);
@@ -93,7 +93,7 @@ export function autolap(world: World, spec: CarSpec = COUPE, road: readonly Road
   const toes: number[] = [];
   const behind = kickers.map(() => true);
   const end = watch ? Infinity : n - 10;
-  while (t < 400 && index < end) {
+  while (t < limit && index < end) {
     for (let k = index; k < index + 60 && (closed || k < n); k++) {
       const q = point_at(k);
       if ((q.x - car.pos.x) ** 2 + (q.z - car.pos.z) ** 2 < 100) index = Math.max(index, k);
