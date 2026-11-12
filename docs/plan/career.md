@@ -1,6 +1,10 @@
 # Career ladder
 
-> **Status 2026-11-12 (v0.29.0):** Partly built, off in the release: it runs only with `?career` or an `?event=` link (`src/career/career.ts`). C0-C4 are in: 21 events with stand-ins, the store, the career page, `?event=` start, the Play card, finish line + Next event, the +2 s hit penalty, the car pick (the event's car is fitted unsaved and the player's car comes back on leaving), bot star times for race events and dev ghosts for race and duel events. `scripts/career-check.ts` checks every event runs on its map; `scripts/career.ts [ids] [--write]` tunes (ids as plain arguments, not `--event`). Open: drift point overrides, hand-tuned non-race stars, rewards, markers, Mainland events, share link. When career ships: the dev ghosts in `public/career/` (about 0.9 MB of JSON) are left out of the PWA precache on purpose while career is hidden; add them to `workbox.globPatterns` in `vite.config.ts` then, or events run without ghosts offline. The Rooftops final (r7) stays on its Sky stand-in, because Rooftops is dropped for now.
+> **Status 2026-11-12 (v0.31.2):** Partly built, off in the release: it runs only with `?career` or an `?event=` link (`src/career/career.ts`). C0-C4 are in: 21 events, the store, the career page, `?event=` start, the Play card, finish line + Next event, the +2 s hit penalty, the car pick (the event's car is fitted unsaved and the player's car comes back on leaving), bot star times for race events and dev ghosts for race and duel events. `scripts/career-check.ts` checks every event runs on its map; `scripts/career.ts [ids] [--write]` tunes (ids as plain arguments, not `--event`).
+>
+> **Round 3 (2026-11-12, `docs/brainstorm/2026-11-13_harepin-career-v3.answers.md`):** release C0-C4 right after the pre-release items (R1, R2); C5 rewards, C6 markers, C7 Mainland and C8 share link follow, in that order (§7). Pre-release, built: the Club final c7 runs on the Volcano `descent` (F1); the Rookie final r7 stays on Sky Track as **Skyline** (F2, N1); every mode grades by an event's own `stars`, drift in points (§5); `?career&tune` adds **Copy my times** to the career page (D2, §1.3). Pre-release, open: the owner plays the 12 non-race events with `?career&tune`, copies the times, and they go into `career.ts` as each event's `stars` and `tuned`; then release. Still on stand-ins: the Pro final p7 on Frozen lakes until it moves to Ice canyon (F3, now listed), and Mainland c6 / p1 on Island until C7 (L1). Unlocks stay 12 / 14, re-checked after the owner plays Rookie (D1).
+>
+> **When career ships:** the dev ghosts in `public/career/` (about 0.9 MB of JSON) are left out of the PWA precache on purpose while career is hidden; add them to `workbox.globPatterns` in `vite.config.ts` then, or events run without ghosts offline. Then drop the `?career` gate (`career_on`).
 
 Round 1, 2026-11-11, at `7c4f299` (v0.28.1). Plan only. Nothing was run. Every file:line comes from reading the code at `7c4f299`. Inputs: `docs/brainstorm/2026-11-11_harepin-career-v2.answers.md` (final), `docs/plan/special-maps.md`, `docs/plan/biomes.md`.
 
@@ -9,7 +13,7 @@ Round 1, 2026-11-11, at `7c4f299` (v0.28.1). Plan only. Nothing was run. Every f
 - **An event is a mode level on a fixed map code, plus a car limit, rules and star thresholds.** No new mode. The career wraps `ModeDef.start` the way the Modes page does and keeps its own store.
 - **3 tiers × (6 events + 1 final) = 21 events.** A tier opens on a star total in the tier before it. Events play in any order.
 - **Rules are two:** no rewind (modes already block it, `main.ts:490`) and a time penalty per hit. No assist rules at all.
-- **Finals run on Rooftops → Volcano → Ice canyon**, in the order they ship. Until a map ships, its final runs on a stand-in (§3).
+- **Finals run on Sky Track → Volcano → Ice canyon** (round 3: Rooftops is dropped for now). Until a map ships, its final runs on a stand-in (§2).
 - **Version bump:** the event follows the new world. Stars stay. Best times and ghosts reset by key, because `world_key` already carries the version. A unit test fails on every bump until the thresholds are re-tuned.
 - **Biggest blocker:** modes refuse to start on streamed worlds (`modes.ts:30,190`), and Mainland is streamed. Mainland events and markers wait for that (phase C7).
 
@@ -68,13 +72,17 @@ interface Tier {
 | Thing | Rule |
 |---|---|
 | Event stars | 1 = finish. 2 = at or under `stars.two`. 3 = at or under `stars.three` (≥ for drift points). Penalties count |
-| Thresholds | Race events: `three` = the median bot time over 5 autolap runs at the class cap (`scripts/races.ts` + `autolap.ts`); `two` = `three` × 1.25 (`SILVER_SHARE`, `track.ts:5`). Other modes: no bot drives them, so `three` = the mode's model par (`par_for`, `hunt_par`, park `par_ms`, drift `gold`, duel `PAR_SPEED`), then hand-tuned |
+| Thresholds | Race events: `three` = the median bot time over 5 autolap runs at the class cap (`scripts/races.ts` + `autolap.ts`); `two` = `three` × 1.25 (`SILVER_SHARE`, `track.ts:5`). Other modes (D2): no bot drives them, so the owner plays each one. `three` = the owner's best run, `two` = × 1.25 (drift: points ÷ 1.25). Until an event has its own, the mode's model marks grade it (`par_for`, `hunt_par`, park `par_ms`, drift `silver`/`gold`, duel `PAR_SPEED`) |
+| Owner times | `?career&tune` shows **Copy my times** on the career page (`career-view.ts`). It copies JSON: for every non-race event with a best run, `{ stars: { two, three }, tuned }` (`owner_times`, `career-store.ts`; `owner_stars`, `career.ts`). Paste each into the event in `career.ts`. No new store: it reads the event's own best (§1.5), penalties counted. `tune` survives the `?event=` reload |
+| Grading | Every mode asks `ModeCtx.thresholds(own)` (`mode.ts`): the event's `stars` when `tuned` matches the world, else the mode's own marks. Parking grades by faults, time over par one of them, so an event's `three` only moves the par |
 | Tier stars | Sum of the best stars of its 7 events, max 21 |
 | Opens | Rookie at 0. Club at **12** Rookie stars. Pro at **14** Club stars |
 | Final | Opens with its tier. It counts toward the total like any event |
 | Order | Any (A5). Every event of an open tier is open |
 
 ### 1.4 Rewards
+
+Round 3 (W1): paint and badge follow a metal ladder, one metal per tier (Rookie bronze, Club silver, Pro gold), the same metal as the tier's start flags (§4). The decal comes from the world of the tier's final: Sky Track for Rookie, Volcano for Club, Ice canyon for Pro.
 
 | Reward | Earned by | Where it lands | Notes |
 |---|---|---|---|
@@ -97,7 +105,7 @@ Career runs do not write the mode's `Track` (`track.ts:111`): the rules and thre
 
 Seeds are placeholders from the golden range (`scripts/proof/golden-file.ts:7`). Phase C0 adds `scripts/career-check.ts`, which generates each map and fails when a level is missing: a seed without a canyon has no `offroad-*` route (`races.ts:24`), and gymkhana or parking can find no site (`NO_SITE`, `mode.ts:8`). Swap the seed when it fails.
 
-Worlds: Island `C`, Winter island `C…-W1`, Dune sea `D`, Alpine `A`, Frozen lakes `T`, Sky Track `S`, Mainland `M`. Rooftops `R`, Volcano `V`, Ice canyon (no char yet) host finals only.
+Worlds: Island `C`, Winter island `C…-W1`, Dune sea `D`, Alpine `A`, Frozen lakes `T`, Sky Track `S`, Mainland `M`, Volcano `V`, Ice canyon `F`. Rooftops `R` is dropped for now: the Rookie final stays on Sky Track (F2).
 
 ### Rookie (class D-C)
 
@@ -109,7 +117,7 @@ Worlds: Island `C`, Winter island `C…-W1`, Dune sea `D`, Alpine `A`, Frozen la
 | r4 | Sand trail | Dune sea | `1D0000005` | race `circuit` (no Dune sea seed 5-125 has an `offroad-*` route, per `career-check`) | Dirt rally |
 | r5 | Dune gates | Dune sea | `1D0000005` | hunt `h1` | ≤ C |
 | r6 | Cloud sprint | Sky Track | `1S0000002` | duel `v1` | ≤ C |
-| r7 | **Final: Downtown** | Rooftops | `1R0000001` | race `circuit` | ≤ C |
+| r7 | **Final: Skyline** | Sky Track | `1S0000002` | race `circuit` (the real final since round 3, F2; renamed from Downtown, N1) | ≤ C |
 
 ### Club (class B-A)
 
@@ -121,7 +129,7 @@ Worlds: Island `C`, Winter island `C…-W1`, Dune sea `D`, Alpine `A`, Frozen la
 | c4 | Lake search | Frozen lakes | `1T0000006` | hunt `h3` | Mud basher |
 | c5 | Winter reverse | Winter island | `1C0000006-W1` (seed 3 in winter has no `circuit-rev`) | race `circuit-rev` | ≤ A |
 | c6 | Mainland lap | Mainland | `1M<MAINLAND_SEED>` | race `circuit` | ≤ A |
-| c7 | **Final: Rim to sea** | Volcano | `1V0000001` | race (descent route) | ≤ A |
+| c7 | **Final: Rim to sea** | Volcano | `1V0000001` | race `descent` (on the real map since round 3, F1) | ≤ A |
 
 ### Pro (class S1-X)
 
@@ -133,17 +141,17 @@ Worlds: Island `C`, Winter island `C…-W1`, Dune sea `D`, Alpine `A`, Frozen la
 | p4 | Island sweep | Island | `1C0000008` | hunt `h5` | ≤ S1 |
 | p5 | Ice parallel | Frozen lakes | `1T0000006` | parking `p7` | Drift |
 | p6 | Precision | Winter island | `1C0000009-W1` (seed 8 in winter has no gymkhana site) | gymkhana `g7` | ≤ S2 |
-| p7 | **Final: Riverbed** | Ice canyon | (new preset char) | race (riverbed route) | ≤ S1 |
+| p7 | **Final: Riverbed** | Ice canyon | `1F…` (seed not picked) | race `riverbed` | ≤ S1 |
 
-Mix: race 7, gymkhana 3, parking 3, drift 2, hunt 3, duel 2 (the 3 finals are races). Sky Track and Rooftops have no open ground (`open_ground: false`, `kinds/sky.ts:32`, `kinds/rooftops.ts:17`), so only race, drift and duel run there.
+Mix: race 7, gymkhana 3, parking 3, drift 2, hunt 3, duel 2 (the 3 finals are races). Sky Track has no open ground (`open_ground: false`, `kinds/sky.ts:32`), so only race, drift and duel run there.
 
 ### Stand-ins until each world ships
 
-| Final | Real | Blocked by | Stand-in |
+Round 3: r7 and c7 need none now. p7 keeps Frozen lakes until it moves (F3; Ice canyon is listed since `1a7239e`, so the move is a data change plus a re-tune). c6 and p1 keep Island until C7 (L1).
+
+| Event | Real | Blocked by | Stand-in |
 |---|---|---|---|
-| r7 | Rooftops `circuit` | `listed: false` (`worlds/rooftops.ts:22`), R1-R4 | Sky Track `1S0000002` race `circuit` |
-| c7 | Volcano rim-to-sea | `listed: false` (`worlds/volcano.ts:10`), one-way route + checkpoint respawn (special-maps V3; `descent.ts` in flight) | Alpine `1A0000004` race `street-2` (Alpine has no canyon, so never an `offroad-*` route) |
-| p7 | Ice canyon riverbed | Not started (I1-I2, after V3) | Frozen lakes `1T0000006` race `circuit` |
+| p7 | Ice canyon `riverbed` | Seed not picked, not tuned | Frozen lakes `1T0000006` race `circuit` |
 | c6, p1 | Mainland | Modes off on streamed worlds | Island `1C0000008` race `street-2` / duel `v5` |
 
 A stand-in swap is a data change. Stars earned on a stand-in are kept. Its best time and ghost reset, the same as a version bump.
@@ -167,7 +175,7 @@ A stand-in swap is a data change. Stars earned on a stand-in are kept. Its best 
 | Play strip (D1) | Card beside Things to try: current tier, stars `n/21`, next 2 open events | `goals_card` slot on the Play side (`play-page.ts:102`), `star_row` (`result.ts:4`) | `career_card` |
 | Career page | 3 tiers, 7 rows each: name, world, mode, car limit badge, best stars, best time. Locked tiers show "12 ★ in Rookie" | Modes page list pattern (`ModesPage`, `modes-page.ts:11`; `ModeEntry`, `modes.ts:42`), `class_badge` | Page + `MenuTab` entry (`page.ts:16`) |
 | Start an event | Same map: start now. Other map: reload with `?event=<id>` | World switch by `location.replace` (`settings.ts:143`), `pick_world` (`world-pick.ts:36`) | `event` joins `URL_WORLD_PARAMS` (`world-pick.ts:27`); boot reads the event's map, `start_early` warms it (`boot.ts:12`) |
-| World markers (F1) | A post at each event's start on the map it belongs to. Drive into it: card "r1 First lap · Start". Shown only when the loaded map code equals the event's | Gate/post meshes in `cottontail` ("only on markers", `art-direction.md` #3), `world-map.ts` player markers (`:221`) for the map icon | Proximity trigger, marker list per map, map icons |
+| World markers (F1, round 3 M1-M3) | A start flag at each event's start, built like the challenge start flags, in the tier's metal (§1.4) and carrying the event id (M1). Drive into it: card "r1 First lap · Start". Shown on the minimap and the world map too; events of a locked tier show greyed, 3-star events still show (M2). Shown only when the loaded map code equals the event's exact code, options included (M3) | Gate/post meshes in `cottontail` ("only on markers", `art-direction.md` #3), `world-map.ts` player markers (`:221`) for the map icon | Proximity trigger, marker list per map, map icons |
 | Pick your car (F6) | Before start: your car, saved builds, presets. Over the cap = greyed with its class badge. A fixed preset skips the step | `rating()`, `build_badge` (`class-badge.ts:14`), saved builds (`garage-builds.ts:112`), `PRESETS` | The step itself (decided earlier, not built). One step for modes and events |
 | Finish card (D2) | Existing card + a line "Rookie 9/21 ★ · Club at 12" + **Next event** button | `show_result` (`modes.ts:306`), `line()` (`result.ts:17`), Next button (`mode-next`) | Career hook in `show_result`; Next = next unfinished event of the tier |
 | Things to try (D3) | Kept. "Play every mode" also counts career runs via `on_finish` (`modes.ts:319`, `goals.ts:113`) | All | - |
@@ -184,7 +192,7 @@ Already built as asked. `Combo.step` (`drift.ts:100`) adds `angle° × speed × 
 | Bank | Straight for 0.7 s banks the chain. A wall loses it | `drift.ts:13,101-116` |
 | Stars | `silver`/`gold` per metre of zone (`drift.ts:31-37`) | Career overrides with `stars.two/three` in points |
 
-Nothing new for drift events. They only need thresholds (hand-tuned: `scripts/drift.ts` is a physics bench, not a zone bot).
+Round 3 (R2): drift events take their own point marks. `DRIFT_MODE` grades through `ModeCtx.thresholds({ two: zone.silver, three: zone.gold })` (`drift-mode.ts`), so an event's `stars` (points, higher is better) replace the zone's per-metre marks. The values come from the owner's runs (Copy my times, §1.3): `three` = the owner's best score, `two` = that ÷ 1.25. `scripts/drift.ts` is a physics bench, not a zone bot, so no bot tunes them.
 
 ## 6. Share link (E3)
 
@@ -202,6 +210,17 @@ The link carries no ghost (too big for a URL: 8 floats per 100 ms).
 
 Each phase ships on its own. S ≈ a day, M ≈ 2-4 days.
 
+**Order since round 3 (R1, R2, L1, S1):** C0-C4 (built) → pre-release items → **release** → C5 → C6 → C7 → C8.
+
+| Step | What | Status |
+|---|---|---|
+| Pre-release: c7 on Volcano | `descent` on `1V0000001`, re-tuned (`1:v5`), new dev ghost | Built |
+| Pre-release: r7 on Sky Track | Stays on `1S0000002`, named Skyline | Built |
+| Pre-release: drift point marks | Every mode grades through `ModeCtx.thresholds(own)`; drift in points (§5) | Built |
+| Pre-release: owner stars (D2) | Copy my times under `?career&tune` (§1.3) | Built. Owner plays the 12 non-race events, then paste |
+| Release | C0-C4 on for everyone: drop the `?career` gate, precache the dev ghosts (status note) | After the owner's times |
+| Re-check (D1) | Unlocks 12 / 14 after the owner plays Rookie | After the owner's times |
+
 | Phase | Ships | Reuse | New | Size |
 |---|---|---|---|---|
 | **C0** | Data + store + career page + `?event=` start. Island / Dune / Alpine / Frozen lakes / Sky events, stand-ins for finals and Mainland. Mode thresholds as they are | `MODES`, mode levels, `parse_map_code`, `Track` helpers (`record`, `better`, `parse_runs`), Modes page list | `career.ts`, `career-store.ts`, page, URL param, `scripts/career-check.ts`, `career.test.ts` (ids unique, levels known, `tuned` matches) | M |
@@ -209,18 +228,18 @@ Each phase ships on its own. S ≈ a day, M ≈ 2-4 days.
 | **C2** | Rules: hit penalty; event star overrides | `HIT_MS`, `stars_for` | Contact counter in `World.hit`, `ModeCtx.hits()` | S |
 | **C3** | Pick-your-car step, class filter | `rating`, badges, builds, presets | The step | M |
 | **C4** | Bot thresholds + dev ghosts + version test | `autolap.ts`, `races.ts`, `Ghost` | `scripts/career.ts`, ghost assets, ghost playback in race/duel events | M |
-| **C5** | Rewards + online tier badge | Garage rows, `Hello` optional field pattern (`country`) | `reward_paints`, new decal, badge art, `tier` on hello | M |
-| **C6** | Island markers (compact world) | Posts, world map | Proximity trigger, marker icons | M |
-| **C7** | Modes on streamed worlds, then Mainland events + markers | `world.tiles.whole()` wait (`modes.ts:193`) | Lift the `STREAMED` block (`modes.ts:190`); sites near the start on a streamed world | M-L (*est.*, unverified) |
-| **C8** | Share link | `invite_link` | Params + HUD target line | S |
-| **Data** | Finals move to Rooftops, Volcano, Ice canyon as each is listed | - | Edit `map`, re-tune | S each |
+| **C5** | Rewards + online tier badge: paint and badge on the metal ladder, decal from the final's world (W1, §1.4) | Garage rows, `Hello` optional field pattern (`country`) | `reward_paints`, three decals, badge art, `tier` on hello | M |
+| **C6** | Markers on compact worlds: tier-metal start flags with the event id, on minimap and world map, locked greyed, exact map code only (M1-M3, §4) | Challenge start flags, world map | Proximity trigger, marker icons | M |
+| **C7** | Modes on streamed worlds, then Mainland events + markers (L1: after C5 and C6) | `world.tiles.whole()` wait (`modes.ts:193`) | Lift the `STREAMED` block (`modes.ts:190`); sites near the start on a streamed world | M-L (*est.*, unverified) |
+| **C8** | Share link (S1: after release) | `invite_link` | Params + HUD target line | S |
+| **Data** | p7 moves to Ice canyon (F3: listed now); c7 moved to Volcano in round 3; Rooftops dropped | - | Edit `map`, re-tune | S each |
 
 ## 8. Conflicts
 
 | # | With | Conflict | Proposal |
 |---|---|---|---|
 | 1 | `modes.ts:30,190` | Every mode refuses streamed worlds; Mainland is streamed (`tiles.ts:72`). F1 wants markers on Mainland, F3 wants Mainland events | Mainland events use Island stand-ins until C7 |
-| 2 | special-maps §6 | Volcano and Rooftops are unlisted; Ice canyon not started; the Volcano final needs a one-way route and checkpoint respawn (V3) | Stand-ins (§2). The order assumes Rooftops ships first, as special-maps plans. If Volcano lists first, swap r7/c7 maps (data only) |
+| 2 | special-maps §6 | Volcano and Rooftops are unlisted; Ice canyon not started; the Volcano final needs a one-way route and checkpoint respawn (V3) | Stand-ins (§2). Round 3: Volcano listed first and Rooftops is dropped, so r7 stays on Sky Track and c7 runs on Volcano; Ice canyon is listed, p7 still on its stand-in |
 | 3 | Answers B3/F5 vs questionnaire | The questionnaire planned assist and manual-gear rules | Dropped. No assist field in `CareerEvent` |
 | 4 | `palette.ts:124`, `livery.ts:300` | Paint index wraps by the paint list length: a reward paint appended to `car_paints` recolours saved builds | Separate reward list (§1.4) |
 | 5 | `drift.ts`, `gymkhana.ts`, `parking.ts`, `hunt.ts`, `duel.ts` | B5 wants bot-tuned stars; only race routes have a bot (`autolap.ts`) | Model par + hand tune for non-race events. A bot per mode is out of scope |
