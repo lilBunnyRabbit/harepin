@@ -70,14 +70,14 @@ const fillet = (y0: number, g1: number, g2: number, w: number, d: number) => y0 
  */
 function slip(band: DuneBand, face: DuneFace, t: number): [number, number] {
   const { wave, height } = band;
-  const { grade, brink, toe, floor } = face;
+  const { grade, brink, toe, floor, calm = floor - toe } = face;
   const run = wave - floor - height / grade;
   const rise = height / run;
   const crest = floor + run;
   const p = t * wave;
   const q = p < wave - toe / 2 ? p : p - wave;
   if (q < toe / 2) return [fillet((grade * toe) / 2, -grade, 0, toe, q + toe / 2), 1];
-  if (q < floor - toe / 2) return [0, smoothstep(floor - toe / 2, toe / 2, q)];
+  if (q < floor - toe / 2) return [0, smoothstep(toe / 2 + calm, toe / 2, q)];
   const lee = smoothstep(floor + run / 2, crest, q);
   if (q < floor + toe / 2) return [fillet(0, 0, rise, toe, q - floor + toe / 2), lee];
   if (q < crest - brink / 2) return [rise * (q - floor), lee];

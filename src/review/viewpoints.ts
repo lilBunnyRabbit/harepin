@@ -14,6 +14,14 @@ export interface View {
 const CLEAR = 4;
 /** An aerial stays this far inside the phone fog, so it frames land rather than haze. */
 const AERIAL_REACH = 560;
+/** A crest: rising at least `WINDWARD` over the `CREST_RUN` metres before it, falling at least `SLIP` over as many past its brink. */
+const WINDWARD = 0.08;
+const SLIP = 0.3;
+const CREST_RUN = 8;
+/** The crest view wants a dune at least this tall over the ground behind it, found this far downwind of the spawn at most. */
+const CREST_DROP = 15;
+const CREST_REACH = 480;
+const CREST_STEP = 4;
 
 type Plan = Pick<World, "road" | "towns" | "water_level" | "nearest_road" | "clear_spawn">;
 
@@ -59,8 +67,11 @@ export function plan_views(world: Plan): Partial<Record<ViewName, View>> {
   const middle = { x: centre[0], z: centre[2] };
   const spawn = world.clear_spawn(SPAWN_INDEX);
   const start = road[spawn];
+  const start_view: View = { at: spawn, from: [start.x - start.tx * 16, start.y + 6, start.z - start.tz * 16], to: [start.x + start.tx * 40, start.y + 1, start.z + start.tz * 40] };
+  // A road-less world's road is its spawn point alone: the views along it, above it and round it all collapse onto it.
+  if (road.length < 2) return { start: start_view };
   const views: Partial<Record<ViewName, View>> = {
-    start: { at: spawn, from: [start.x - start.tx * 16, start.y + 6, start.z - start.tz * 16], to: [start.x + start.tx * 40, start.y + 1, start.z + start.tz * 40] },
+    start: start_view,
     q1: along(world, spawn, 0.25),
     q2: along(world, spawn, 0.5),
     q3: along(world, spawn, 0.75),
@@ -91,9 +102,34 @@ export function plan_views(world: Plan): Partial<Record<ViewName, View>> {
   return views;
 }
 
+/**
+ * A road-less world's first dune downwind of the spawn, seen from its windward shoulder over the brink, down the slip face
+ * and on across the sand. The terrain streams in as the walk reads it, so this is worked out here, not in `plan_views`.
+ */
+async function crest_view(world: World): Promise<View | null> {
+  if (world.road.length > 1) return null;
+  const at = world.clear_spawn(SPAWN_INDEX);
+  const { x, z, tx, tz } = world.road[at];
+  const height = async (d: number) => {
+    await world.tiles.ensure(x + tx * d, z + tz * d);
+    return world.height(x + tx * d, z + tz * d);
+  };
+  for (let d = CREST_RUN; d < CREST_REACH; d += CREST_STEP) {
+    const top = await height(d);
+    const face = (await height(d + CREST_RUN * 1.5)) - (await height(d + CREST_RUN / 2));
+    if (top - (await height(d - CREST_RUN)) <= WINDWARD * CREST_RUN || face >= -SLIP * CREST_RUN) continue;
+    let floor = top;
+    for (let a = CREST_STEP; a <= CREST_REACH / 4; a += CREST_STEP) floor = Math.min(floor, await height(d + a));
+    if (top - floor < CREST_DROP) continue;
+    const [cx, cz] = [x + tx * d, z + tz * d];
+    return { at, from: [cx - tx * 30 + tz * 24, top + 8, cz - tz * 30 - tx * 24], to: [cx + tx * 140, floor, cz + tz * 140] };
+  }
+  return null;
+}
+
 export async function view_of(world: World, name: string): Promise<View | null> {
   const known = VIEWS.find((view) => view === name);
-  const view = known && plan_views(world)[known];
+  const view = known === "crest" ? await crest_view(world) : known && plan_views(world)[known];
   if (!view) return null;
   const [x, y, z] = view.from;
   await world.tiles.ensure(x, z);

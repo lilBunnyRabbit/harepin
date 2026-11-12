@@ -43,11 +43,11 @@ function wind_of(seed: number, data: WorldData) {
   return dune_wind(seed, dunes.seed);
 }
 
-test("the dune sea streams past the mainland's size, keyed bd14", async () => {
+test("the dune sea streams past the mainland's size, keyed bd15", async () => {
   const { KINDS, world_key } = await import("./kinds/kinds");
   expect(KINDS[WorldKind.BIG_DUNES].size).toBe(DUNE_SEA_SIZE);
   expect(EXT.side).toBeGreaterThan(extent(6144).side);
-  expect(world_key(42, WorldKind.BIG_DUNES)).toBe("42:bd14");
+  expect(world_key(42, WorldKind.BIG_DUNES)).toBe("42:bd15");
 });
 
 for (const seed of sweep(10))

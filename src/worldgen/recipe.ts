@@ -86,6 +86,8 @@ export interface DuneFace {
   brink: number;
   toe: number;
   floor: number;
+  /** Metres past the toe over which smaller bands stand back up in the corridor; absent = the whole corridor. */
+  calm?: number;
 }
 
 /** One wavelength of dunes: crests `wave` metres apart, `height` tall, the steep lee face taking `lee` of each wave. */
@@ -537,9 +539,9 @@ export const BIG_DUNES: Recipe = {
       kind: "dunes",
       seed: 17,
       bands: [
-        { wave: 900, height: 80, lee: 0, bend: 0.3, fields: false, face: { ...SLIP, toe: 40, floor: 150 } },
-        { wave: 360, height: 28, lee: 0, bend: 0.5, face: { ...SLIP, floor: 120 } },
-        { wave: 160, height: 12, lee: 0, bend: 0.5, face: { ...SLIP, toe: 10, floor: 80 } },
+        { wave: 2400, height: 80, lee: 0, bend: 0.3, fields: false, face: { ...SLIP, toe: 40, floor: 1650, calm: 300 } },
+        { wave: 360, height: 20, lee: 0, bend: 0.5, fields: false, face: { ...SLIP, floor: 120 } },
+        { wave: 160, height: 10, lee: 0, bend: 0.5, face: { ...SLIP, toe: 10, floor: 80 } },
       ],
     },
     { kind: "mask", radius: 3500, edge: 140, scale: 900, seed: 3, wobble: 0.3 },
