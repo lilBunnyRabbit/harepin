@@ -58,6 +58,23 @@ test("a river never stands deeper than its channel over the ground under it", ()
   }
 });
 
+test("a river mouth lays no water on the sea plane", async () => {
+  const { MESH_TONES } = await import("../../scripts/proof/tones");
+  const { TileMesher } = await import("./tile-mesher");
+  for (const seed of SEEDS) {
+    const { data, water } = planned(seed);
+    const mesher = new TileMesher(data, EXT, MESH_TONES);
+    const mouths = new Set(water.rivers.map((river) => chunk_of(river[river.length - 1].x, river[river.length - 1].z, EXT)));
+    for (const chunk of mouths) {
+      const positions = mesher.build(chunk).chunk.water?.positions ?? new Float32Array();
+      for (let t = 0; t < positions.length; t += 9) {
+        const top = Math.max(positions[t + 1], positions[t + 4], positions[t + 7]);
+        if (top <= 0) throw new Error(`seed ${seed}: water triangle at sea level by ${positions[t].toFixed(0)},${positions[t + 2].toFixed(0)}`);
+      }
+    }
+  }
+});
+
 test("river banks ease into the land without a step", () => {
   for (const seed of SEEDS) {
     const { data, water } = planned(seed);

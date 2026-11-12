@@ -33,6 +33,8 @@ export interface Built {
 
 /** Water quads span this many lattice cells: low-poly, and the banks rise fast enough to hide the overhang. */
 const WATER_STEP = 2;
+/** Height of the sea plane (`water_mesh`): a water quad no higher would lie on it, and the two see-through surfaces flicker. */
+const SEA = 0;
 
 const UP: VectorOut<number> = { set: (x, y, z) => y / Math.sqrt(x * x + y * y + z * z) };
 
@@ -137,7 +139,8 @@ export class TileMesher {
         const za = z0 + j * WATER_STEP * CELL;
         const xb = xa + WATER_STEP * CELL;
         const zb = za + WATER_STEP * CELL;
-        positions.push(xa, corner[0], za, xb, corner[2], zb, xb, corner[1], za, xa, corner[0], za, xa, corner[3], zb, xb, corner[2], zb);
+        if (Math.max(corner[0], corner[1], corner[2]) > SEA) positions.push(xa, corner[0], za, xb, corner[2], zb, xb, corner[1], za);
+        if (Math.max(corner[0], corner[2], corner[3]) > SEA) positions.push(xa, corner[0], za, xa, corner[3], zb, xb, corner[2], zb);
       }
     if (!positions.length) return undefined;
     const colors = new Float32Array(positions.length);
