@@ -5,12 +5,15 @@
 
 # Harepin
 
-A small low-poly driving game. Pick a car, drive an island at dusk, then take the track in the sky.
+A small low-poly driving game. Pick a car, roam a mainland of towns and open road, then try the mini maps.
 
-- **Two worlds.** An island with a road loop, villages, mountain hairpins and open ground to roam. Above it, a track of rails and decks in the sky.
+- **Mainland.** Six kilometres of towns, highways and long drives, streamed in around you as you drive. The open lobby meets here.
+- **Mini maps.** Island (towns, hills and a circuit), Sky Track (a toy circuit in the clouds with drops, rails, jumps and boost pads), Dune sea, Alpine pass and Frozen lakes.
+- **Create world.** Pick a world, then tune its circuit length and twist, hairpins, jumps, hills, ridges, dunes, trees, rocks, water and towns. Set Island, Dune sea or Alpine to Winter: snow on the land, packed-snow roads with snowbanks, frozen lakes and low grip. Every map is a short code or a link to share, with records of its own.
 - **Modes.** Race, Ghost duel, Gymkhana, Drift zones, Gate hunt and Parking, with levels and stars. Your best lap drives beside you as a ghost.
-- **Garage.** Body, paint and parts: engine, tyres, suspension, brakes. Save builds and see what each part changes against stock.
-- **Friends a link away.** Copy the invite link and whoever opens it lands in your room, on your map. No account, no server. Race, chat, see each other's cars.
+- **Garage.** Nine cars, from a hatchback to a city bus. Swap engine, tyres, aero, suspension, brakes, weight and nitro and watch the car's class (D to X) and performance index change. Start from a preset build, save your own and see what each part changes against stock.
+- **Assists.** Easy, Balanced or Pro, or set traction control, ABS, steering assist, stability and the gearbox one by one.
+- **Friends a link away.** Copy the invite link and whoever opens it lands in your room, on your map. Browse the games running right now, or lock a room with a password. No account, no server. Race, chat, see each other's cars.
 - **Any device.** Keyboard, gamepad, or touch on a phone or tablet held sideways. Install it as an app (PWA) and it runs offline.
 
 ## Why the name
@@ -41,9 +44,9 @@ bun run build              # static dist/
 
 `AGENTS.md` has the folder map, registries and code rules.
 
-URL params: `?room=friends` (default `lobby`), `?name=Ana`, `?world=sky`, `?seed=…`, `?theme=Brand%20Light`, `?quality=low` (no bloom, 1x pixel ratio). Quality also steps down on its own when frames run under 45 fps.
+URL params: `?room=friends` (default `lobby`), `?name=Ana`, `?world=sky` (`mainland`, `island`, `sky`, `desert`, `alpine`, `tundra`; with a room or seed and no `world`, the island), `?seed=…`, `?map=<map code>`, `?theme=Brand%20Light`, `?quality=low` (no bloom, 1x pixel ratio). Quality also steps down on its own when frames run under 45 fps.
 
-Default controls (rebindable in Settings): WASD/arrows, Space handbrake, Backspace rewind, R reset, L restart lap, C camera, F recenter, G best-lap ghost, V garage, H key list, Q/E shift, M auto gearbox, 1/2/3 toggle TCS/ABS/assist, T chat, Esc menu. Gamepad: RT/LT, stick, A handbrake, X rewind, Y reset, LB/RB shift.
+Default controls (rebindable in Settings): WASD/arrows, Space handbrake, Shift nitro, X precision steer, Backspace rewind, R reset, L restart lap, C camera, F recenter, G best-lap ghost, V garage, M world map, H key list, Q/E shift, 1/2/3/5 toggle TCS/ABS/steering assist/stability, 4 auto gearbox, T or Enter chat, Esc menu. Gamepad: RT/LT, left stick, A handbrake, B nitro, X rewind, Y reset, LB/RB shift, View camera, R3 recenter, Start menu.
 
 ## Hosting
 
@@ -55,11 +58,13 @@ Peer data is untrusted: `net.ts` takes the sender id from the WebRTC peer, shape
 
 ## How it's built
 
-- `src/car/car.ts`: the sim. Rigid body at 360 Hz, raycast suspension and anti-roll bars, normalised Pacejka tyres with combined slip, semi-implicit wheel spin, torque curve, gearbox, RWD/FWD/AWD per car, ABS, TCS, and an assist mode: speed-sensitive grip-limited steering lock, countersteer past 6° of slide, and a yaw damper that only fights yaw growing a slide.
-- `src/worldgen/`: pure world generation in a Web Worker: island heightfield and road, sky track rails. `src/world/` answers height, grip and collision queries at runtime.
+- `src/car/car.ts`: the sim. Rigid body at 360 Hz, raycast suspension and anti-roll bars, normalised Pacejka tyres with combined slip, semi-implicit wheel spin, torque curve, gearbox, RWD/FWD/AWD per car, a speed-sensitive steering lock that holds the front tyres at their grip limit, ABS, TCS, a steering assist that countersteers a slide, and stability: a yaw damper that only fights yaw growing a slide.
+- `src/worldgen/`: pure world generation in a Web Worker. Each world kind (`kinds/`) builds from a recipe of terrain, biomes, roads and towns, or from sky track rails and decks; map options and Winter tune that recipe, and a map code carries the kind, seed and options. The mainland is built in chunks as you drive. `src/world/` answers height, grip and collision queries at runtime; `src/worlds/` holds each world's names, copy and scene dressing.
 - `src/render/`: scene, dusk/day sky and clouds, effects, quality tiers, and a chase camera that leads into slides, pulls back under acceleration and shakes off-road and on impacts.
 - `src/net/`: trystero rooms, the binary car packet, lobby, chat and the room directory. Remotes are drawn slightly behind and interpolated. Cars are ghosts to each other.
 - `src/theme/`: the webos theme presets, applied as the same CSS custom properties webos uses. The HUD styles from them and the 3D scene reads each resolved token back. Dark themes drive at dusk, light themes in daytime.
+- `src/car/build.ts`, `pi.ts`, `presets.ts`: parts and what they change on the spec, the performance index and class from a simulated lap, and the preset builds.
+- `src/modes/`: one `<mode>-mode.ts` def per mode, with its logic and view beside it.
 - `src/car/ghost.ts`: records each lap and replays your best one as a translucent car.
 
 ## Why no physics engine
