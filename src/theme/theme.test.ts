@@ -2,7 +2,20 @@ import { describe, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { DEFAULT_GENERATE, generate_theme, type GenerateOptions } from "./random-theme";
-import { DEFAULT_DESKTOP, THEMES, TOKENS, derive_theme, find_theme, parse_saved_themes, theme_name_problem, with_saved, without_saved, type Theme } from "./theme";
+import {
+  DEFAULT_DESKTOP,
+  RETIRED_THEMES,
+  THEMES,
+  TOKENS,
+  derive_theme,
+  find_theme,
+  parse_saved_themes,
+  resolve_theme_name,
+  theme_name_problem,
+  with_saved,
+  without_saved,
+  type Theme,
+} from "./theme";
 
 // CSS.supports is browser-only; this stand-in accepts the colour syntaxes the themes use, so a junk value is refused.
 const supports = (value: string) => /^(oklch|color-mix|var)\(.*\)$/.test(value);
@@ -75,15 +88,37 @@ describe("saved themes", () => {
   });
 });
 
+describe("retired presets", () => {
+  test("Speed Reader is gone; Mid-tone Green, Monochrome Dark and Lavender Dream stay", () => {
+    expect(THEMES["Speed Reader Light"]).toBeUndefined();
+    expect(THEMES["Speed Reader Dark"]).toBeUndefined();
+    for (const name of ["Mid-tone Green", "Monochrome Dark", "Lavender Dream"]) expect(THEMES[name]).toBeDefined();
+  });
+
+  test("a retired choice falls back to the brand preset of the same scheme", () => {
+    expect(resolve_theme_name("Speed Reader Light", [])).toBe("Brand Light");
+    expect(resolve_theme_name("Speed Reader Dark", [])).toBe("Brand Dark");
+    for (const target of Object.values(RETIRED_THEMES)) expect(THEMES[target]).toBeDefined();
+  });
+
+  test("a live preset or saved theme resolves to itself; an unknown name to nothing", () => {
+    const saved = with_saved([], "Speed Reader Light", generated);
+    expect(resolve_theme_name("Monochrome Dark", [])).toBe("Monochrome Dark");
+    expect(resolve_theme_name("Speed Reader Light", saved)).toBe("Speed Reader Light");
+    expect(resolve_theme_name("Nope", [])).toBeUndefined();
+  });
+});
+
 // The owner's checkout layout; elsewhere the parity checks skip. Both webos modules import only types, so Bun runs them.
 const WEBOS = join(import.meta.dir, "../../../../orgs/lilbunnyrabbit/webos/src/lib/core/api/services/settings");
 const has_webos = existsSync(join(WEBOS, "themes.ts")) && existsSync(join(WEBOS, "random-theme.ts"));
 
 describe.skipIf(!has_webos)("webos parity", () => {
-  test("every preset matches webos, name, order and value", async () => {
+  test("every preset matches webos, name, order and value, retired ones aside", async () => {
     const { THEME_PRESETS } = (await import(join(WEBOS, "themes.ts"))) as { THEME_PRESETS: { name: string; theme: Theme }[] };
-    expect(Object.keys(THEMES)).toEqual(THEME_PRESETS.map((preset) => preset.name));
-    for (const preset of THEME_PRESETS) expect(THEMES[preset.name]).toEqual(preset.theme);
+    const kept = THEME_PRESETS.filter((preset) => !(preset.name in RETIRED_THEMES));
+    expect(Object.keys(THEMES)).toEqual(kept.map((preset) => preset.name));
+    for (const preset of kept) expect(THEMES[preset.name]).toEqual(preset.theme);
   });
 
   test("the generator gives the same themes as webos", async () => {

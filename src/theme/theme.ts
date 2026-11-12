@@ -145,9 +145,13 @@ export const THEMES: Record<string, Theme> = {
   "Terminal Green": preset(["oklch(0.0 0 0)", "oklch(0.85 0.22 145)", "oklch(0.75 0.25 145)", "oklch(0.65 0.2 145)", "oklch(0.8 0.28 85)"]),
   "High Visibility": preset(["oklch(0.98 0.005 80)", "oklch(0.15 0.01 280)", "oklch(0.45 0.35 260)", "oklch(0.5 0.3 30)", "oklch(0.4 0.32 340)"]),
   "Black & White": preset(["oklch(0.0 0 0)", "oklch(1.0 0 0)", "oklch(0.6 0 0)", "oklch(0.4 0 0)", "oklch(0.8 0 0)"]),
-  "Speed Reader Light": preset(["oklch(0.976 0.022 80.58)", "oklch(0.586 0.0467 242.26)", "oklch(0.75 0.0905 55.2)", "oklch(0.836 0.1393 129.45)", "oklch(0.679 0.1263 20.92)"]),
-  "Speed Reader Dark": preset(["oklch(0.278 0.0269 229.12)", "oklch(0.775 0.0171 95.16)", "oklch(0.863 0.0575 65.19)", "oklch(0.907 0.0926 128.53)", "oklch(0.803 0.078 18.92)"]),
   "While True": WHILE_TRUE,
+};
+
+// Still in webos, so the parity test skips them.
+export const RETIRED_THEMES: Record<string, string> = {
+  "Speed Reader Light": "Brand Light",
+  "Speed Reader Dark": "Brand Dark",
 };
 
 export const THEME_KEY = "harepin:theme";
@@ -235,13 +239,19 @@ export function find_theme(name: string, saved = load_saved_themes()): Theme | u
   return THEMES[name] ?? find_saved(saved, name)?.theme;
 }
 
+export function resolve_theme_name(name: string, saved: SavedTheme[]): string | undefined {
+  return find_theme(name, saved) ? name : RETIRED_THEMES[name];
+}
+
 export function current_theme(): string {
   const saved = load_saved_themes();
   const asked = new URLSearchParams(location.search).get("theme");
-  if (asked && find_theme(asked, saved)) return asked;
+  const from_url = asked && resolve_theme_name(asked, saved);
+  if (from_url) return from_url;
   try {
     const chosen = localStorage.getItem(THEME_KEY);
-    if (chosen && find_theme(chosen, saved)) return chosen;
+    const stored = chosen && resolve_theme_name(chosen, saved);
+    if (stored) return stored;
   } catch (error) {
     console.warn("theme: saved choice unreadable", error);
   }
