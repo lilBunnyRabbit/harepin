@@ -18,6 +18,7 @@ export class EventMarkers {
   private icons: readonly MapMarker[] = NONE;
   private shown: readonly MapMarker[] | null = null;
   private drawn = -1;
+  private readonly open = (marker: Marker) => marker_open(marker, this.career.stars, this.tune);
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -42,9 +43,8 @@ export class EventMarkers {
   }
 
   update(x: number, z: number, idle: boolean) {
-    const { view, career } = this;
+    const { view, career, open } = this;
     if (!view) return;
-    const open = (marker: Marker) => marker_open(marker, career.stars, this.tune);
     if (career.version !== this.drawn) {
       this.drawn = career.version;
       view.show(open);
