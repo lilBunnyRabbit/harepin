@@ -234,7 +234,7 @@ export function tree_kit(snowy: boolean): TreeKit {
 
 const crown_of = (kind: number) => (kind === TreeKind.SCRUB ? TreeKind.BROADLEAF : kind);
 
-export function tree_meshes({ trunk, crowns, bark, leaf, snowy }: TreeKit, here: readonly Tree[], order: Map<Tree, number> | null): THREE.InstancedMesh[] {
+export function tree_meshes({ trunk, crowns, bark, leaf, tone }: TreeKit, here: readonly Tree[], order: Map<Tree, number> | null): THREE.InstancedMesh[] {
   if (!here.length) return [];
   const m = new THREE.Matrix4();
   const q = new THREE.Quaternion();
