@@ -21,7 +21,7 @@ type CarClass = import("../src/car/pi").CarClass;
 type World = import("../src/world/world").World;
 type RoadPoint = import("../src/world/world").RoadPoint;
 
-// Tunes race events from bot runs and records each race and duel event's dev ghost (plan: docs/plan/career.md §1.3, §3).
+// Tunes race events from bot runs and records each race event's dev ghost (duels ship none: the owner's marks beat any bot) (plan: docs/plan/career.md §1.3, §3).
 // Race: `three` is the median finish of up to RUNS autolap drives at the class cap (each body tuned up to the cap, and presets
 // in it), `two` is three × SILVER_SHARE. Duel keeps its model par. The ghost is the slowest drive that still makes three
 // stars, so it shows the pace a 3-star run needs. Prints each event's `stars` and `tuned` to paste into career.ts.
@@ -157,7 +157,7 @@ for (const event of EVENTS) {
   const ghost = finished.filter((d) => (d.ms ?? Infinity) <= three).at(-1) ?? null;
   const stars = event.mode === "race" ? ` stars: { two: ${two}, three: ${three} },` : "";
   console.log(`${event.id} ${event.mode} ${spot.level} on ${spot.map}:${stars} tuned: "${tuned}"${ghost ? `, ghost: ${ghost.label} ${(ghost.ms ?? 0) / 1000}s` : ", no 3-star ghost"} | ${runs}`);
-  if (WRITE && ghost) {
+  if (WRITE && ghost && event.mode === "race") {
     const path = new URL(`../public/${ghost_path({ ...event, tuned })}`, import.meta.url);
     mkdirSync(new URL(".", path), { recursive: true });
     writeFileSync(path, JSON.stringify(round(ghost.frames)));
