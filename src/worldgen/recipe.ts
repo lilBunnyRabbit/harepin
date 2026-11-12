@@ -529,10 +529,10 @@ export const VOLCANO: Recipe = {
 };
 
 /**
- * 120 m dunes 850 m apart: a 200 m flat corridor, a 15 degree windward rise and a planar slip face at 0.56, which the
- * crests' bend steepens to about 33 degrees at most.
+ * 120 m dunes 850 m apart: a 200 m flat corridor, a 15 degree windward rise and a planar slip face at 0.54, which the
+ * crests' bend and the gaps' sides steepen to 33 degrees at most.
  */
-const BIG_DUNE: DuneBand = { wave: 850, height: 120, lee: 0.25, bend: 0.2, fields: false, face: { grade: 0.56, brink: 60, toe: 40, floor: 200 } };
+const BIG_DUNE: DuneBand = { wave: 850, height: 120, lee: 0.25, bend: 0.2, fields: false, face: { grade: 0.54, brink: 60, toe: 40, floor: 200 } };
 /** The dune sea's bands ride the big dunes this much lower, so stacked on a windward rise they stay under repose. */
 const RIPPLE = 0.6;
 
@@ -545,7 +545,7 @@ const SEA = DESERT.terrain.find((l): l is DunesLayer => l.kind === "dunes");
 export const BIG_DUNES: Recipe = {
   ...DESERT,
   terrain: DESERT.terrain.map((l) =>
-    l.kind === "dunes" ? { ...l, bands: [...l.bands.map((b) => ({ ...b, height: b.height * RIPPLE })), BIG_DUNE], gaps: { above: 20, width: 40, ease: 480, at: [] } } : l,
+    l.kind === "dunes" ? { ...l, bands: [...l.bands.map((b) => ({ ...b, height: b.height * RIPPLE })), BIG_DUNE], gaps: { above: 20, width: 40, ease: 600, at: [] } } : l,
   ),
   biomes: { ...DESERT.biomes, limits: { ...DESERT.biomes.limits, scree: { up: 0.8, height: 10_000 }, rock: { up: 0.7, height: 10_000 }, snow_line: 10_000 } },
   road: { ...DESERT.road, straights: null, canyon: null, kickers: { road: 0, total: 0, big: 0 }, corridor: { half: 280, wind: SEA?.seed ?? 0 }, street_races: false },

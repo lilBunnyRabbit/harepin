@@ -1,7 +1,9 @@
 import { expect, test } from "bun:test";
 import { sweep } from "../sweep";
 import { land_height, pan_floor } from "./terrain";
-import { BIG_DUNES, type TerrainRecipe } from "./recipe";
+import { generate_world } from "./kinds/kinds";
+import type { TerrainRecipe } from "./recipe";
+import { WorldKind } from "./types";
 
 const DUNE = { wave: 100, height: 10, lee: 0.2 };
 const FLAT: TerrainRecipe = [{ kind: "dunes", seed: 0, bands: [DUNE] }];
@@ -43,9 +45,12 @@ test("a pan fills its share of the map flat at one level and leaves higher groun
 });
 
 for (const seed of sweep(20))
-  test(`big dunes ${seed}: no ground inside the play area is steeper than the 34 degree repose, and crests stand 90 m over the pans`, () => {
-    const height = land_height(seed, BIG_DUNES.terrain);
-    const floor = pan_floor(seed, BIG_DUNES.terrain) ?? NaN;
+  test(`big dunes ${seed}: no ground inside the play area, before or after stamping, is steeper than the 34 degree repose, and crests stand 90 m over the pans`, () => {
+    const data = generate_world(seed, WorldKind.BIG_DUNES);
+    if (data.ground.base.kind !== "terrain") throw new Error("big dunes is a terrain kind");
+    const shape = data.ground.base.shape;
+    const height = land_height(seed, shape);
+    const floor = pan_floor(seed, shape) ?? NaN;
     const repose = Math.tan((34 * Math.PI) / 180);
     let steepest = 0;
     let top = -Infinity;
@@ -55,6 +60,17 @@ for (const seed of sweep(20))
         steepest = Math.max(steepest, Math.hypot(height(x + 2, z) - height(x - 2, z), height(x, z + 2) - height(x, z - 2)) / 4);
         top = Math.max(top, height(x, z));
       }
-    expect(steepest).toBeLessThan(repose * 1.03);
+    const { heights, cell, size } = data.terrain;
+    const n = Math.round(Math.sqrt(heights.length));
+    let stamped = 0;
+    for (let j = 1; j < n - 1; j++)
+      for (let i = 1; i < n - 1; i++) {
+        const x = i * cell - size / 2;
+        const z = j * cell - size / 2;
+        if (x * x + z * z > PLAY * PLAY) continue;
+        stamped = Math.max(stamped, Math.hypot(heights[j * n + i + 1] - heights[j * n + i - 1], heights[(j + 1) * n + i] - heights[(j - 1) * n + i]) / (2 * cell));
+      }
+    expect(steepest).toBeLessThan(repose);
+    expect(stamped).toBeLessThan(repose);
     expect(top - floor).toBeGreaterThan(90);
   }, 30_000);

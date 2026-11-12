@@ -13,6 +13,8 @@ const RING_REACH = 260;
 const TOWN_RELIEF = 18;
 /** On a pan-only recipe, the most a town's ground may stand over the pan floor: the pan's own eased rim, metres. */
 const PAN_RISE = 3;
+/** The pan check reaches this many radii out, so the pad's eased edge stays on the pan too and cuts no wall into a dune. */
+const PAN_REACH = 1.2;
 const TOWN_GRADE = 0.05;
 const TOWN_FLOOR = 4;
 export const CORE = 1.15;
@@ -115,7 +117,8 @@ export function place_towns(seed: number, heights: Float32Array, road: RoadPoint
       if (strip_gap(heights, x, z, radius, ux, uz, strip_band(shape)) > STRIP_GAP) continue;
     } else {
       const { low, high } = box_relief(heights, x, z, radius);
-      if (high - low > TOWN_RELIEF || low < 3 || (pan !== null && high > pan + PAN_RISE)) continue;
+      if (high - low > TOWN_RELIEF || low < 3) continue;
+      if (pan !== null && box_relief(heights, x, z, radius * PAN_REACH).high > pan + PAN_RISE) continue;
     }
     if (towns.some((t) => length(t.x - x, t.z - z) < t.radius + radius + TOWN_GAP)) continue;
     const ring = ring_distance(road, x, z);
