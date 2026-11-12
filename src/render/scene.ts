@@ -183,13 +183,14 @@ export class WorldView {
   }
 
   /** `fog_far` is where linear fog ends: a chunk past it at every angle the camera sees is pure fog, so it is not drawn. */
-  update(camera: THREE.PerspectiveCamera, fog_far: number) {
+  /** `time` in seconds turns the turbines. */
+  update(camera: THREE.PerspectiveCamera, fog_far: number, time: number) {
     const { x, z } = camera.position;
     // Phones fog on distance (`Lighting`), so nothing past `fog_far` is drawn and the streamed chunks cover the rest.
     const reach = fog_reach(camera, fog_far, this.mobile);
     const far_at = this.mobile ? MOBILE_FAR : FAR;
     this.jumps.cull(camera, fog_far);
-    this.landmarks.update(performance.now() / 1000);
+    this.landmarks.update(time);
     for (const view of this.views) {
       if (!view) continue;
       const dx = Math.max(view.x0 - x, 0, x - view.x0 - CHUNK);
@@ -212,7 +213,7 @@ export class WorldView {
   }
 }
 
-interface TreeKit {
+export interface TreeKit {
   trunk: THREE.BufferGeometry;
   crowns: THREE.BufferGeometry[];
   bark: THREE.Material;
@@ -220,7 +221,7 @@ interface TreeKit {
   snowy: boolean;
 }
 
-function tree_kit(snowy: boolean): TreeKit {
+export function tree_kit(snowy: boolean): TreeKit {
   return {
     snowy,
     trunk: new THREE.CylinderGeometry(0.25, 0.35, 2.2, 5).translate(0, 1.1, 0),
@@ -232,7 +233,7 @@ function tree_kit(snowy: boolean): TreeKit {
 
 const crown_of = (kind: number) => (kind === TreeKind.SCRUB ? TreeKind.BROADLEAF : kind);
 
-function tree_meshes({ trunk, crowns, bark, leaf, snowy }: TreeKit, here: readonly Tree[], order: Map<Tree, number> | null): THREE.InstancedMesh[] {
+export function tree_meshes({ trunk, crowns, bark, leaf, snowy }: TreeKit, here: readonly Tree[], order: Map<Tree, number> | null): THREE.InstancedMesh[] {
   if (!here.length) return [];
   const m = new THREE.Matrix4();
   const q = new THREE.Quaternion();

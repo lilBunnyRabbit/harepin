@@ -15,6 +15,7 @@ bun scripts/races.ts --changed  # race drives on routes whose golden digest move
 bun scripts/feel.ts        # handling scenarios
 bun scripts/autolap.ts     # autopilot lap; also scripts/crash.ts, scripts/offroad.ts
 node scripts/og/render.mjs # link-preview card public/og.jpg from scripts/og/og.html; capture.mjs <port> re-shoots hero.jpg from a vite preview
+node --experimental-strip-types scripts/shots.ts  # visual review: showcase sheets, world viewpoints, ghost replays at both screens, day and dusk; --diff <old dir> (docs/plan/visual-review.md)
 ```
 
 Run `typecheck` and `build` before every commit; what else a change runs is in [Tests](#tests).
@@ -38,6 +39,7 @@ One level of feature folders under `src/`. Each folder owns its modules, tests (
 | `render/` | renderer, composer, scene, lighting, effects, camera, quality tiers |
 | `audio/` | engine sound and worklet |
 | `theme/` | palette and themes |
+| `review/` | dev-only visual review: `?showcase` sheets, `?view=` viewpoints, `?replay=` ghost shots, and the catalog `scripts/shots.ts` reads |
 
 `main.ts` is the composition root: it builds each feature and wires them; feature logic does not live there. `style.css` holds tokens, resets and base element styles, plus the few button rules that must load after the base `button:hover`; it is imported last in `main.ts`.
 

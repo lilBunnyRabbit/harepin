@@ -3,6 +3,7 @@ import { parse_seed } from "../net/seed";
 import { seed_of } from "../rng";
 import { LOBBY_ROOM } from "../net/room-name";
 import { DEFAULT_KIND, WorldKind, parse_kind } from "../worldgen/types";
+import { REPLAY_PARAM } from "../review/params";
 
 export interface WorldPick {
   seed: number;
@@ -25,7 +26,7 @@ export const NEW_PLAYER_KIND: WorldKind = WorldKind.MAINLAND;
 /** The mainland a player drives before picking one: the same for everyone, so the open lobby meets there. */
 export const MAINLAND_SEED = seed_of(LOBBY_ROOM);
 
-const URL_WORLD_PARAMS = ["room", "seed", "world", "map", EVENT_PARAM];
+const URL_WORLD_PARAMS = ["room", "seed", "world", "map", EVENT_PARAM, REPLAY_PARAM];
 const K2_OPTS = /^\d{1,16}$/;
 
 export const names_world = (params: URLSearchParams) => URL_WORLD_PARAMS.some((param) => params.has(param));
@@ -37,7 +38,7 @@ export const names_world = (params: URLSearchParams) => URL_WORLD_PARAMS.some((p
 export function pick_world(params: URLSearchParams, room: string, saved: SavedPick): WorldPick {
   if (names_world(params)) {
     const seed = parse_seed(params.get("seed"));
-    const event = event_of(params.get(EVENT_PARAM));
+    const event = event_of(params.get(EVENT_PARAM) ?? params.get(REPLAY_PARAM));
     const map = params.get("map") ?? (event && spot_of(event).map);
     const opts = params.get("opts");
     // `opts` is the one-day K2 link: its digits ride as a K2 code on the seed and world beside it.

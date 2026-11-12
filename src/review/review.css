@@ -1,0 +1,8 @@
+html[data-review] body * {
+  visibility: hidden !important;
+}
+
+html[data-review] #app,
+html[data-review] #app canvas {
+  visibility: visible !important;
+}

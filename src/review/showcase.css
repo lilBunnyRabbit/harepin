@@ -1,0 +1,15 @@
+html:has(canvas.showcase) body > :not(canvas.showcase) {
+  display: none !important;
+}
+
+html:has(canvas.showcase),
+html:has(canvas.showcase) body {
+  overflow: auto;
+  height: auto;
+  background: var(--background);
+}
+
+html body canvas.showcase {
+  display: block;
+  visibility: visible !important;
+}

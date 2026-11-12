@@ -66,14 +66,16 @@ import { world_look } from "./worlds/world-def";
 import { custom_code, map_code, pick_problem, read_pick } from "./worldgen/kinds/map-code";
 import { map_note } from "./menu/world-page";
 import { plain_map } from "./worldgen/kinds/kinds";
+import { review_wanted } from "./review/params";
 import "./style.css";
 
 const params = new URLSearchParams(location.search);
 const room = clean_room(params.get("room")) ?? LOBBY_ROOM;
 const event = event_of(params.get(EVENT_PARAM));
 // Any peer on the map can call a lobby race, and that ends a mode run: an event link without a room of its own runs
-// alone in an unlisted room. The menu still names `room`, so the next world picked lands back in it.
-const solo = event !== null && !params.has("room");
+// alone in an unlisted room, as does a review shot, which no peer should drive into. The menu still names `room`, so
+// the next world picked lands back in it.
+const solo = (event !== null || review_wanted(params)) && !params.has("room");
 // getRandomValues, not randomUUID: the latter only exists in a secure context, and a phone on the LAN dev server is not one.
 const net_room = solo ? `solo-${[...crypto.getRandomValues(new Uint8Array(4))].map((b) => b.toString(16).padStart(2, "0")).join("")}` : room;
 // A room the player chose stays theirs across events; without one the event runs solo.
@@ -121,7 +123,10 @@ const note = map_note(pick_problem(pick), stream.fallback);
 // `?debug&at=<road index>` starts the car anywhere on the circuit, for checking a stretch of track by eye; a race run, such
 // as a descent event, starts at that index along its own route instead. View only: the run still waits for its first gate.
 const debug_at = (params.has("debug") && Math.trunc(Number(params.get("at")))) || 0;
-const start_index = debug_at || SPAWN_INDEX;
+const chase = new ChaseCamera(camera);
+// `?view=` and `?replay=` (src/review): shots of the world with nothing driving, for reviewing how it looks.
+const review = review_wanted(params) ? await (await import("./review/review")).Review.open(world, chase) : null;
+const start_index = review?.start_index ?? (debug_at || SPAWN_INDEX);
 const start_point = world.road[world.clear_spawn(start_index)];
 // `?debug&pose=x,y,z,tx,ty,tz` pins the camera at a point looking at another, for menu pictures.
 const pose = params.has("debug") ? (params.get("pose")?.split(",").map(Number) ?? []) : [];
@@ -181,10 +186,10 @@ const career = new Career(local_store());
 const goals = new Goals(local_store(), mode_ids);
 goals.catch_up(() => proven(saved_entries(), { kind, build, cockpit: prefs.camera === CameraView.COCKPIT }, mode_ids));
 const race = new Race(world);
-const chase = new ChaseCamera(camera);
 const pads = new PadTimer();
 const driver = new Driver(scene, light, world, race, pads, chase, build);
 driver.arrive = (x, z) => area_fade.cover(world.tiles.ensure(x, z));
+if (review) review.place = (index) => driver.place_road(index);
 
 const smoke = new Smoke(look.ground_puff);
 const skids = new Skids();
@@ -422,7 +427,7 @@ if (guide_step !== null) {
   clean.searchParams.delete(GUIDE_PARAM);
   window.history.replaceState(window.history.state, "", clean);
   settings.open_guide("look", guide_step === ROLLED_VISIT);
-} else if (!take_drive() && !event) {
+} else if (!take_drive() && !event && !review) {
   if (prefs.guide_seen) settings.open();
   else settings.open_guide();
 }
@@ -535,7 +540,7 @@ if (params.has("feel")) void import("./hud/feel-panel").then(({ feel_panel }) =>
 
 const DT = 1 / 360;
 let acc = 0;
-let last = performance.now();
+let last = review?.now ?? performance.now();
 /** The menu's blur sits over a scene that only turbines and gates animate while it holds the sim, so it redraws at this rate. */
 const MENU_DRAW_MS = 100;
 let last_draw = 0;
@@ -560,7 +565,14 @@ function near_miss(impact: number): { near: Near; touched: boolean } {
 // The online badge follows the career's stars: a finished final shows to peers at once.
 let rewarded = -1;
 
-function frame(now: number) {
+function frame(time: number) {
+  if (review?.waits(stream)) {
+    stream.follow(driver.car.pos.x, driver.car.pos.z, quality.tier.fog_far + quality.tier.stream_pad);
+    requestAnimationFrame(frame);
+    return;
+  }
+  // A review shot runs on its own frame clock, so what it shows never depends on how long the world took to stream.
+  const now = review?.now ?? time;
   if (career.version !== rewarded) {
     rewarded = career.version;
     net.set_tier(unlocks(career.stars).badge);
@@ -585,6 +597,10 @@ function frame(now: number) {
     goals.done(GoalId.REWIND);
     rewind_step(now);
     acc = 0;
+  } else if (review?.replaying) {
+    rewinding = false;
+    acc = 0;
+    review.drive(car, dt);
   } else if (lobby.state.kind === "countdown" || modes.holding || garage.is_open || menu_hold) {
     rewinding = false;
     acc = 0;
@@ -644,7 +660,7 @@ function frame(now: number) {
   driver.draw(!simulated, acc / DT, now);
   const offroad = !world.on_road(car.pos.x, car.pos.z);
   chase.update(dt, driver.drawn, world, offroad, now / 1000, input.look);
-  if (posed) {
+  if (!review?.aim(camera) && posed) {
     camera.position.set(pose[0], pose[1], pose[2]);
     camera.lookAt(pose[3], pose[4], pose[5]);
   }
@@ -673,12 +689,13 @@ function frame(now: number) {
   stream.follow(car.pos.x, car.pos.z, quality.tier.fog_far + quality.tier.stream_pad);
   // The dome is 2.4 km across and the mainland is wider, so it rides with the camera instead of the world origin.
   dome.position.copy(camera.position);
-  world_view.update(camera, quality.tier.fog_far);
+  world_view.update(camera, quality.tier.fog_far, now / 1000);
   // The garage covers the screen and draws the car with its own renderer; the next frame after it closes draws the world.
   if (!garage.is_open && (!menu_hold || now - last_draw >= MENU_DRAW_MS)) {
     last_draw = now;
     render.draw();
   }
+  review?.drawn(stream);
   render.check_size(now);
   requestAnimationFrame(frame);
 }

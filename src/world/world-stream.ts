@@ -110,6 +110,12 @@ export class WorldStream {
     }
   }
 
+  get settled(): boolean {
+    if (this.head < this.queued.length) return false;
+    for (let index = 0; index < this.pending.length; index++) if (this.pending[index] > this.stale[index]) return false;
+    return true;
+  }
+
   /** Lets chunk `index` go; its tile reads as missing until a wait on it or `request` brings it back. */
   drop(index: number) {
     this.world.tiles.drop(index);
