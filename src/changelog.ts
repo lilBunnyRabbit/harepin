@@ -24,7 +24,7 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 export const CHANGELOG: Release[] = [
   {
     version: "0.31.1",
-    date: "2026-11-13",
+    date: "2026-11-12",
     title: "Lava in view",
     changes: [
       { kind: IMPROVED, text: "The lava lake shows from the Volcano rim lap. Volcano records start fresh." },
@@ -32,7 +32,7 @@ export const CHANGELOG: Release[] = [
   },
   {
     version: "0.31.0",
-    date: "2026-11-13",
+    date: "2026-11-12",
     title: "Volcano and Big dunes",
     changes: [
       { kind: NEW, text: "Volcano: a lap round the crater rim above the lava, and a run of hairpins from the rim down to the sea." },
@@ -43,7 +43,7 @@ export const CHANGELOG: Release[] = [
   },
   {
     version: "0.30.2",
-    date: "2026-11-13",
+    date: "2026-11-12",
     title: "Map pictures",
     changes: [
       { kind: NEW, text: "Custom and saved maps show a top-down picture of their world." },
@@ -53,7 +53,7 @@ export const CHANGELOG: Release[] = [
   },
   {
     version: "0.30.1",
-    date: "2026-11-13",
+    date: "2026-11-12",
     title: "Level streets",
     changes: [
       { kind: FIXED, text: "Mainland town streets no longer dip where they cross other roads. Records on Island, Dune sea, Mainland, Alpine and Frozen lakes start fresh." },
@@ -62,7 +62,7 @@ export const CHANGELOG: Release[] = [
   },
   {
     version: "0.30.0",
-    date: "2026-11-13",
+    date: "2026-11-12",
     title: "Smoother roads",
     changes: [
       { kind: IMPROVED, text: "Roads no longer tilt sideways near trail banks, and side roads meet the main road without steps. Records on Island, Dune sea, Mainland, Alpine and Frozen lakes start fresh." },
