@@ -59,6 +59,7 @@ export type GroundOp =
   | { kind: "blend"; bank: Bank | null }
   | { kind: "pad"; crossing: Crossing }
   | { kind: "trail"; lines: { points: readonly RoadPoint[]; blend: number[] }[] }
+  | { kind: "bank"; lines: readonly (readonly RoadPoint[])[]; half: number; bank: Bank }
   | { kind: "harden"; cuts: BiomeCuts; floor: number | null }
   | { kind: "water"; water: Water }
   | { kind: "snow"; kit: SnowKit; beach: number; parts: readonly Parting[] }
@@ -108,6 +109,7 @@ export class Stamp {
     else if (op.kind === "blend") this.blend(op.bank);
     else if (op.kind === "pad") this.pad(op.crossing);
     else if (op.kind === "trail") this.trail(op.lines.map(({ points, blend }) => ({ points, blend: (i) => blend[i] })));
+    else if (op.kind === "bank") this.bank(op.lines, op.half, op.bank);
     else if (op.kind === "water") this.water(op.water);
     else if (op.kind === "snow") this.snow(op.kit, op.beach, op.parts);
     else if (op.kind === "ice") this.ice(op.lakes, op.seed);
@@ -523,6 +525,53 @@ export class Stamp {
       if (this.owner_dist[k] > ROAD_HALF + span) continue;
       const w = 1 - smoothstep(ROAD_HALF + FLAT, ROAD_HALF + span, this.owner_dist[k]);
       heights[k] += (this.road_height[k] - 0.05 - heights[k]) * w;
+    }
+  }
+
+  /**
+   * Brings the ground to the lines' heights: level `half` metres either side of a line, then held within a bank rising
+   * one metre per `bank.run` metres out, so a cut or fill meets the dune at that slope and no steeper. Height only: the
+   * surface and road distance stay.
+   */
+  bank(lines: readonly (readonly RoadPoint[])[], half: number, bank: Bank) {
+    this.log({ kind: "bank", lines, half, bank });
+    const { heights, road_dist } = this.terrain;
+    const reach = half + bank.reach;
+    // Every segment holds the ground inside its own wedge; the tightest of them wins, so where two stretches at different
+    // heights pass near each other the bank stays as steep as one wedge, not a step between them.
+    const lo = new Float32Array(heights.length).fill(-Infinity);
+    const hi = new Float32Array(heights.length).fill(Infinity);
+    const touched: number[] = [];
+    for (const points of lines)
+      for (let s = 0; s < points.length - 1; s++) {
+        const a = points[s];
+        const b = points[s + 1];
+        const [i0, i1] = span_i(this.grid, Math.min(a.x, b.x) - reach, Math.max(a.x, b.x) + reach);
+        const [j0, j1] = span_j(this.grid, Math.min(a.z, b.z) - reach, Math.max(a.z, b.z) + reach);
+        if (i0 > i1 || j0 > j1) continue;
+        const dx = b.x - a.x;
+        const dz = b.z - a.z;
+        const len2 = dx * dx + dz * dz || 1;
+        for (let j = j0; j <= j1; j++)
+          for (let i = i0; i <= i1; i++) {
+            const px = ORIGIN + i * CELL;
+            const pz = ORIGIN + j * CELL;
+            const t = Math.max(0, Math.min(1, ((px - a.x) * dx + (pz - a.z) * dz) / len2));
+            const ox = px - (a.x + dx * t);
+            const oz = pz - (a.z + dz * t);
+            const d = Math.sqrt(ox * ox + oz * oz);
+            if (d >= reach) continue;
+            const k = at(this.grid, i, j);
+            const y = a.y + (b.y - a.y) * t;
+            const lean = Math.max(0, d - half) / bank.run;
+            if (hi[k] === Infinity) touched.push(k);
+            lo[k] = Math.max(lo[k], y - lean);
+            hi[k] = Math.min(hi[k], y + lean);
+          }
+      }
+    for (const k of touched) {
+      const held = lo[k] > hi[k] ? (lo[k] + hi[k]) / 2 : Math.max(lo[k], Math.min(hi[k], heights[k]));
+      heights[k] += (held - heights[k]) * road_guard(road_dist[k]);
     }
   }
 

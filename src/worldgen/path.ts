@@ -84,10 +84,8 @@ const PACKED_EDGE = 30;
 const PACKED_TURN = 20;
 /** Chaikin passes that round the kinks where a leg meets a hairpin. */
 const PACKED_ROUND = 3;
-/** Bed half-width and bank reach either side of a packed line, metres, and the steepest its banks lean. */
+/** The bed's side trails lie this far either side of a packed line, metres. */
 const PACKED_BED = 3;
-const PACKED_BANK = 24;
-const BANK_GRADE = 0.62;
 const PACKED_MAX = 4000;
 const PACKED_SHARES = [1, 0.8, 0.6, 0.45, 0.35, 0.25, 0.18, 0.12, 0.06];
 
@@ -322,20 +320,9 @@ export function packed_lines({ wx, wz, lo, hi, half }: Corridor, height: Height)
   });
 }
 
-/**
- * A packed line as the trails that lay it: three side by side for a bed a car can run wide on, then on each side banks
- * every 4 m out, each held within BANK_GRADE of the bed's edge, so a cut or fill eases back into the dune instead of
- * standing as a wall.
- */
-export function packed_bed(line: readonly RoadPoint[], height: Height): { bed: RoadPoint[][]; banks: RoadPoint[][] } {
-  const at = (o: number) => line.map((q) => ({ ...q, x: q.x - q.tz * o, z: q.z + q.tx * o }));
-  const banks: RoadPoint[][] = [];
-  for (const side of [-1, 1])
-    for (let o = PACKED_BED + 4; o <= PACKED_BED + PACKED_BANK; o += 4) {
-      const reach = (o - PACKED_BED) * BANK_GRADE;
-      banks.push(at(side * o).map((q, i) => ({ ...q, y: line[i].y + Math.max(-reach, Math.min(reach, height(q.x, q.z) - line[i].y)) })));
-    }
-  return { bed: [-PACKED_BED, 0, PACKED_BED].map(at), banks };
+/** A packed line as the three trails that lay its bed, side by side, so a car that runs wide stays on packed dirt. */
+export function packed_bed(line: readonly RoadPoint[]): RoadPoint[][] {
+  return [-PACKED_BED, 0, PACKED_BED].map((o) => line.map((q) => ({ ...q, x: q.x - q.tz * o, z: q.z + q.tx * o })));
 }
 
 function loop_controls(seed: number, heights: Float32Array, summit: [number, number], shape: RoadRecipe): Controls {

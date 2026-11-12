@@ -21,9 +21,12 @@ import { guard_rails, inside } from "./switchback";
 import { land_height, lava_pools, pan_floor, terrain, with_passes } from "./terrain";
 import { plan_trails } from "./trails";
 import { place_towns, town_streets } from "./towns";
-import { ISLAND, type Landmark, type Recipe } from "./recipe";
+import { ISLAND, type Bank, type Landmark, type Recipe } from "./recipe";
 import { CELL, ORIGIN, ROAD_HALF, SPAWN_INDEX, SPUR_HALF, WorldKind, type Checkpoint, type RoadEdge, type RoadGraph, type RoadNode, type RoadPoint, type Solid, type Terrain, type Tree, type WorldData } from "./types";
 
+/** A packed bed is level out to its side trails' half width, then a bank holds the ground within 31 degrees of it. */
+const PACKED_HALF = 7;
+const PACKED_BANK: Bank = { run: 1.67, reach: 220 };
 const CHECKPOINTS = 12;
 const STACK_GATE = 5;
 /** Spurs try joins at least this far outside the switchback first; one on its legs only when nothing else fits the grade. */
@@ -219,10 +222,9 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
 
   const trails = plan_trails(seed, land, stamp, canyon, towns, solids, recipe.road.canyon?.crossings);
   const packed = planned.corridor ? packed_lines(planned.corridor, (x, z) => sample(heights, x, z)) : [];
-  // Banks first, then the bed over them as its own stamp: each line's middle is the second of the last stamp's lines.
-  const beds = packed.map((line) => packed_bed(line, (x, z) => sample(heights, x, z)));
-  if (beds.length) stamp.trail(beds.flatMap((b) => b.banks).map((points) => ({ points, blend: () => 1 })));
-  if (beds.length) stamp.trail(beds.flatMap((b) => b.bed).map((points) => ({ points, blend: () => 1 })));
+  // Banked first, then the bed laid over it: each line's middle is the second of the last trail stamp's lines.
+  if (packed.length) stamp.bank(packed, PACKED_HALF, PACKED_BANK);
+  if (packed.length) stamp.trail(packed.flatMap((line) => packed_bed(line)).map((points) => ({ points, blend: () => 1 })));
   lap("trails");
 
   const planner = new JumpPlanner(seed, land, towns, lots.occupied, solids, recipe.road.kickers, lakes, lava);

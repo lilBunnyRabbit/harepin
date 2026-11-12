@@ -13,7 +13,7 @@ const PLAY = 700;
 /** Packed dirt lines (planned at 14 degrees) climb at most 15 over any 20 m of their length: every car climbs that (car.test.ts "dune sand"). */
 const PACKED_CLIMB = Math.tan((15 * Math.PI) / 180);
 const PACKED_RUN = 5;
-/** A trail stamp reaches its line's half width plus its shoulder; one cell more for the slope's central difference. */
+/** The bed's side trails and their shoulders reach this far from their own line, plus a cell for the central difference. */
 const DUG = 14;
 
 test("a dune's lee face is steeper than its windward slope", () => {
@@ -68,11 +68,12 @@ for (const seed of sweep(20))
       }
     const { heights, cell, size } = data.terrain;
     const n = Math.round(Math.sqrt(heights.length));
-    const packed = data.ground.ops.flatMap((op) => (op.kind === "trail" ? op.lines : []));
-    // Cut and filled packed dirt stands steeper than loose sand's repose: the packed lines' own footprint is left out.
+    const last = data.ground.ops.findLast((op) => op.kind === "trail");
+    const bed = last?.kind === "trail" ? last.lines : [];
+    // The packed bed is cut level across a slope, so its own edge may stand past repose; its banks may not.
     const dug = new Uint8Array(heights.length);
     const reach = Math.ceil(DUG / cell);
-    for (const { points } of packed)
+    for (const { points } of bed)
       for (const q of points) {
         const ci = Math.round((q.x + size / 2) / cell);
         const cj = Math.round((q.z + size / 2) / cell);
@@ -89,10 +90,9 @@ for (const seed of sweep(20))
     expect(steepest).toBeLessThan(repose);
     expect(stamped).toBeLessThan(repose);
     expect(top - floor).toBeGreaterThan(90);
-    expect(packed.length).toBeGreaterThan(0);
+    expect(bed.length).toBeGreaterThan(0);
     let climb = 0;
-    const bed = data.ground.ops.findLast((op) => op.kind === "trail");
-    for (const { points } of bed?.kind === "trail" ? bed.lines.filter((_, i) => i % 3 === 1) : []) {
+    for (const { points } of bed.filter((_, i) => i % 3 === 1)) {
       const along = [0];
       for (let i = 1; i < points.length; i++) along.push(along[i - 1] + Math.hypot(points[i].x - points[i - 1].x, points[i].z - points[i - 1].z));
       for (let i = PACKED_RUN; i < points.length; i++) {
