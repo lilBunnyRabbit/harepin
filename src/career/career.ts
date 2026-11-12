@@ -85,7 +85,7 @@ export const TIERS: readonly Tier[] = [
     opens_at: 14,
     rewards: { paint: MAX_PAINT + 3, decal: "ice", badge: "Pro champ" },
     events: [
-      { id: "p1", name: "Marathon", mode: "duel", level: "v5", map: MAINLAND, car: { cap: "s2" }, tuned: "475664083:m6" },
+      { id: "p1", name: "Marathon", mode: "duel", level: "v5", map: MAINLAND, car: { cap: "s2" }, tuned: "475664083:m6", stars: { two: 212740, three: 193400 } },
       { id: "p2", name: "Exposed", mode: "race", level: "circuit", map: "1S0000007-F2", car: { cap: "x" }, tuned: "7:sky3:11112", stars: { two: 243000, three: 194400 }, ghost: true },
       { id: "p3", name: "Touge", mode: "drift", level: "d5", map: "1A0000009", car: { cap: "s1" }, tuned: "9:a4", stars: { two: 267, three: 334 } },
       { id: "p4", name: "Island sweep", mode: "hunt", level: "h5", map: "1C0000008", car: { cap: "s1" }, tuned: "8:w11", stars: { two: 246871, three: 197497 } },

@@ -148,7 +148,7 @@ Mix: race 7, gymkhana 3, parking 3, drift 2, hunt 3, duel 2 (the 3 finals are ra
 
 ### Stand-ins until each world ships
 
-Round 3: the finals need none now (r7 Sky Track, c7 Volcano, p7 Ice canyon). C7: c6 and p1 left their Island stand-ins (`1C0000008` race `street-2` / duel `v5`) for Mainland. c6 is re-tuned on the mainland lap; p1 has no owner marks there yet, so the duel's par grades it until the owner's run sets them. No event is on a stand-in now.
+Round 3: the finals need none now (r7 Sky Track, c7 Volcano, p7 Ice canyon). C7: c6 and p1 left their Island stand-ins (`1C0000008` race `street-2` / duel `v5`) for Mainland. c6 is re-tuned on the mainland lap; p1 has no owner marks there yet: until the owner's run sets them, `three` is the best bot finish and `two` is 10% over it (`scripts/career.ts`). No event is on a stand-in now.
 
 A stand-in swap is a data change. Stars earned on a stand-in are kept. Its best time and ghost reset, the same as a version bump.
 
