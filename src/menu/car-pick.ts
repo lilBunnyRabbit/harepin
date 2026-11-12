@@ -3,7 +3,7 @@ import { class_badge } from "./class-badge";
 import { el } from "./setting-rows";
 import "./car-pick.css";
 
-export function pick_car(title: string, limit: string, shelves: readonly CarShelf[]): Promise<string | null> {
+export function pick_car(title: string, limit: string, shelves: readonly CarShelf[], signal: AbortSignal): Promise<string | null> {
   return new Promise((done) => {
     let picked: string | null = null;
     const card = el("dialog", "car-pick");
@@ -53,7 +53,13 @@ export function pick_car(title: string, limit: string, shelves: readonly CarShel
     });
     // The car sits under the card: keys stay in it instead of steering.
     card.addEventListener("keydown", (event) => event.stopPropagation());
+    const abort = () => {
+      picked = null;
+      card.close();
+    };
+    signal.addEventListener("abort", abort, { once: true });
     card.addEventListener("close", () => {
+      signal.removeEventListener("abort", abort);
       card.remove();
       done(picked);
     });

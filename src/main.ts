@@ -11,6 +11,7 @@ import { Chat } from "./net/chat";
 import { Skids, Smoke } from "./render/effects";
 import { load_builds } from "./car/builds";
 import { car_shelves, limit_text } from "./car/car-pick";
+import { rating } from "./car/pi";
 import { pick_car } from "./menu/car-pick";
 import { Garage } from "./menu/garage";
 import { load_build } from "./menu/garage-builds";
@@ -365,12 +366,13 @@ modes.cover = (wait) => area_fade.cover(wait);
 modes.on_finish = (mode) => goals.played(mode);
 modes.career = career;
 modes.start_event = (id) => start_event(id);
-modes.pick_car = async (title, limit) => {
-  const code = await pick_car(title, limit.cap ? limit_text(limit.cap) : "Any car", car_shelves(garage.build, load_builds(), limit));
+modes.pick_car = async (title, limit, signal) => {
+  const code = await pick_car(title, limit.cap ? limit_text(limit.cap) : "Any car", car_shelves(garage.build, load_builds(), limit), signal);
   if (code !== null) garage.use_code(code);
   return code !== null;
 };
 modes.fit_car = (code) => garage.use_code(code);
+modes.car_class = () => rating(garage.build).class;
 hud.run_route = () => modes.route;
 modes.start();
 updater.start();
@@ -406,6 +408,7 @@ garage.on_save = () => goals.done(GoalId.BUILD);
 garage.on_change = (next) => {
   for (const id of build_goals(next)) goals.done(id);
   driver.swap(next, lobby.busy || modes.active);
+  modes.car_changed();
   apply_car_settings(settings.state);
   input.touch.show_nitro(driver.car.nitro.fitted);
 };

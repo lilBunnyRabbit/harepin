@@ -1,8 +1,9 @@
 import type * as THREE from "three";
 import { TIERS, next_event, spot_of, tier_line, tier_of, tier_open, type CareerEvent } from "../career/career";
 import { event_track, type Career } from "../career/career-store";
-import type { CarLimit } from "../car/car-pick";
+import { limit_text, within, type CarLimit } from "../car/car-pick";
 import { car_sized, type CarSpec } from "../car/cars";
+import type { CarClass } from "../car/pi";
 import { PRESETS } from "../car/presets";
 import { DEFAULT_BINDINGS, keys_text, type Bindings } from "../hud/bindings";
 import { $, format } from "../hud/hud";
@@ -103,9 +104,10 @@ export class Modes {
   /** Starts an event here, or reloads onto its map. */
   start_event: ((id: string) => void) | null = null;
   /** The step before a start that asks which car runs it; resolves false when the player backs out. Events only for now. */
-  pick_car: ((title: string, limit: CarLimit) => Promise<boolean>) | null = null;
+  pick_car: ((title: string, limit: CarLimit, signal: AbortSignal) => Promise<boolean>) | null = null;
   fit_car: ((code: string) => void) | null = null;
-  private picking = false;
+  car_class: (() => CarClass) | null = null;
+  private pick: AbortController | null = null;
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -140,11 +142,12 @@ export class Modes {
 
   /** A solo race counting down: the car stays on the line. */
   get holding(): boolean {
-    return this.picking || this.current?.run?.holding === true;
+    return this.pick !== null || this.current?.run?.holding === true;
   }
 
   /** Runs the lobby's race on `id` instead of the circuit; the lobby keeps the time, so there is no countdown or record here. */
   lobby_race(id: string, on_lap: () => boolean) {
+    this.pick?.abort();
     const route = this.world.routes.find((r) => r.id === id);
     const mode = this.modes.find((m) => m.def === RACE_MODE);
     if (!route || !mode) return;
@@ -203,7 +206,7 @@ export class Modes {
     if (!this.career || !tier_open(this.career.stars, tier)) return this.notice(`${tier.name} opens at ${tier.opens_at} ★ in ${before?.name ?? "the tier before"}`);
     if (mode.def.needs_ground && !KINDS[this.world.kind].open_ground) return this.notice(NO_GROUND_NOTICE);
     if (this.race_busy()) return this.notice(mode.def.busy_notice);
-    if (this.picking) return;
+    if (this.pick) return;
     this.clear();
     void this.event_car(event, mode).then((ready) => {
       if (!ready) return;
@@ -223,12 +226,27 @@ export class Modes {
       return true;
     }
     if (!this.pick_car) return true;
-    this.picking = true;
+    const pick = new AbortController();
+    this.pick = pick;
     try {
-      return await this.pick_car(event.name, { cap: car.cap, car_sized_only: mode.def.car_sized_only });
+      return await this.pick_car(event.name, { cap: car.cap, car_sized_only: mode.def.car_sized_only }, pick.signal);
     } finally {
-      this.picking = false;
+      if (this.pick === pick) this.pick = null;
     }
+  }
+
+  private over_cap(event: CareerEvent | null): string | null {
+    if (!event || !("cap" in event.car) || !this.car_class) return null;
+    const { cap } = event.car;
+    return within(this.car_class(), cap) ? null : `${event.name}: ${limit_text(cap)}`;
+  }
+
+  /** The garage can swap the car mid-run: an event run over its cap ends there. */
+  car_changed() {
+    const why = this.current?.run ? this.over_cap(this.current.event) : null;
+    if (!why) return;
+    this.exit();
+    this.notice(why);
   }
 
   private too_big(mode: Mode): boolean {
@@ -251,6 +269,11 @@ export class Modes {
         if (this.current === active && !active.run) this.launch(active);
       }, (error: unknown) => console.error(error));
       return;
+    }
+    const over = this.over_cap(active.event);
+    if (over) {
+      this.clear();
+      return this.notice(over);
     }
     const run = active.mode.def.start(this.ctx(active.track, active.event), active.level);
     if (typeof run === "string") {
