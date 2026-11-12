@@ -1,5 +1,6 @@
 import type { GoTo } from "../goals/goals";
 import { mainland_seed } from "../world/world-pick";
+import { rgba, tier_metals } from "../theme/palette";
 import { WorldKind } from "../worldgen/types";
 import { MINIS, WORLDS } from "../worlds/worlds";
 import { career_card } from "./career-view";
@@ -86,7 +87,11 @@ export class PlayPage implements MenuPage {
       item.style.setProperty("--swatch", `var(--${token})`);
       legend.append(item);
     }
-    legend.append(el("li", "play-soon", "Race events appear here soon"));
+    if (this.here) {
+      const events = el("li", "play-events", "Career events (grey: locked)");
+      events.style.setProperty("--swatch", rgba(tier_metals[0]));
+      legend.append(events);
+    }
     const map = el("div", "play-map");
     map.append(this.world_map.root, badge, legend);
     return map;

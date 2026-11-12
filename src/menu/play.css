@@ -53,19 +53,11 @@
   padding: var(--space-2) var(--space-3);
 }
 
-.world-legend .play-soon {
-  margin-left: auto;
-  font-style: italic;
-}
-
-.world-legend .play-soon::before {
-  display: none;
-}
-
-@media (max-width: 599px) {
-  .world-legend .play-soon {
-    display: none;
-  }
+/* A diamond, like the event icons on the map. */
+.world-legend .play-events::before {
+  border-radius: 1px;
+  rotate: 45deg;
+  scale: 0.85;
 }
 
 .play-top {
