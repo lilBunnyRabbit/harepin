@@ -40,12 +40,14 @@ const STEP = 0.05;
 // A larger rise between samples is a different surface (windscreen base, deck lip), not a slope to follow.
 const JUMP = 0.2;
 const FLAT_ENOUGH = 0.15;
-// Career reward motifs repeat on the roof, the face the chase camera sees most: across this share of the body's width,
-// inset this share from each end of the roof, draped in triangles no longer than `DRAPE` so they follow its curve.
+// Career reward motifs repeat on the roof and the tail, the faces the chase camera sees: on the roof across this share
+// of the body's width, inset this share from each end, draped in triangles no longer than `DRAPE` so they follow its curve.
 const ROOF_WIDTH = 0.78;
 const ROOF_INSET = 0.06;
 const MIN_ROOF = 0.4;
 const DRAPE = 0.08;
+const TAIL_INSET = 0.08;
+const TAIL_SCAN = 2;
 
 const SEGMENTS: Record<string, Point[]> = {
   a: [[0, 1], [1, 1]],
@@ -141,6 +143,38 @@ export function roof(shell: THREE.BufferGeometry, glass: THREE.Color): Roof {
       if (!best || y > best.y) best = { y, normal, glass };
     }
     return best && !best.glass ? best : null;
+  };
+}
+
+// Reuses `Hit`, so its `y` holds the surface's z. Glass or trim in front of the paint hides it, as `roof` does.
+export type Back = (x: number, y: number) => Hit | null;
+
+const FACING_BACK = 0.5;
+
+export function back(shell: THREE.BufferGeometry, paint_tone: THREE.Color): Back {
+  const position = shell.getAttribute("position");
+  const tone = shell.getAttribute("color");
+  const tris: { a: THREE.Vector3; b: THREE.Vector3; c: THREE.Vector3; normal: THREE.Vector3; painted: boolean }[] = [];
+  for (let i = 0; i < position.count; i += 3) {
+    const painted = Math.abs(tone.getX(i) - paint_tone.r) + Math.abs(tone.getY(i) - paint_tone.g) + Math.abs(tone.getZ(i) - paint_tone.b) < 1e-4;
+    const [a, b, c] = [i, i + 1, i + 2].map((k) => new THREE.Vector3().fromBufferAttribute(position, k));
+    const normal = new THREE.Vector3().crossVectors(b.clone().sub(a), c.clone().sub(a)).normalize();
+    if (Math.abs(normal.z) < FACING_BACK) continue;
+    if (normal.z > 0) normal.negate();
+    tris.push({ a, b, c, normal, painted });
+  }
+  return (x, y) => {
+    let best: (Hit & { painted: boolean }) | null = null;
+    for (const { a, b, c, normal, painted } of tris) {
+      const det = (b.y - c.y) * (a.x - c.x) + (c.x - b.x) * (a.y - c.y);
+      if (Math.abs(det) < 1e-9) continue;
+      const u = ((b.y - c.y) * (x - c.x) + (c.x - b.x) * (y - c.y)) / det;
+      const v = ((c.y - a.y) * (x - c.x) + (a.x - c.x) * (y - c.y)) / det;
+      if (u < -1e-6 || v < -1e-6 || u + v > 1 + 1e-6) continue;
+      const z = u * a.z + v * b.z + (1 - u - v) * c.z;
+      if (!best || z < best.y) best = { y: z, normal, painted };
+    }
+    return best && best.painted ? best : null;
   };
 }
 
@@ -262,33 +296,95 @@ function split(tri: Tri): Tri[] {
   return [[a, ab2, ca2], [ab2, b, bc2], [ca2, bc2, c], [ab2, bc2, ca2]].flatMap((t) => split(t as Tri));
 }
 
-/** Polygons in (x, z), draped onto the painted top; a piece over glass or across a step is left out. */
-function on_roof(out: number[], polygons: Point[][], over: Roof, lift: number) {
-  const up = new THREE.Vector3(0, 1, 0);
+interface Sampled {
+  at: THREE.Vector3;
+  normal: THREE.Vector3;
+  /** How far the surface sits along its facing, so a jump between samples reads as a step. */
+  depth: number;
+}
+
+type Sample = (a: number, b: number) => Sampled | null;
+
+const on_roof = (over: Roof): Sample => (x, z) => {
+  const hit = over(x, z);
+  return hit && { at: new THREE.Vector3(x, hit.y, z), normal: hit.normal, depth: hit.y };
+};
+
+const on_tail = (behind: Back): Sample => (x, y) => {
+  const hit = behind(x, y);
+  return hit && { at: new THREE.Vector3(x, y, hit.y), normal: hit.normal, depth: hit.y };
+};
+
+// A piece off the paint or across a step is left out, as stripes stop at the screen.
+function drape(out: number[], polygons: Point[][], sample: Sample, lift: number, facing: THREE.Vector3) {
   for (const points of polygons) {
-    const flat = points.map(([x, z]) => new THREE.Vector2(x, z));
+    const flat = points.map(([a, b]) => new THREE.Vector2(a, b));
     for (const [i, j, k] of THREE.ShapeUtils.triangulateShape(flat, []))
       for (const tri of split([flat[i], flat[j], flat[k]])) {
-        const hits = tri.map((p) => over(p.x, p.y));
+        const hits = tri.map((p) => sample(p.x, p.y));
         if (hits.some((hit) => !hit)) continue;
-        const ys = hits.map((hit) => hit!.y);
-        if (Math.max(...ys) - Math.min(...ys) > JUMP) continue;
-        const [a, b, c] = tri.map((p, n) => new THREE.Vector3(p.x, ys[n], p.y).addScaledVector(hits[n]!.normal, lift));
-        face(out, a, b, c, up);
+        const depths = hits.map((hit) => hit!.depth);
+        if (Math.max(...depths) - Math.min(...depths) > JUMP) continue;
+        const [a, b, c] = hits.map((hit) => hit!.at.clone().addScaledVector(hit!.normal, lift));
+        face(out, a, b, c, facing);
       }
   }
 }
 
+interface Box {
+  low: number;
+  high: number;
+  half: number;
+}
+
+function tail_box(behind: Back): Box | null {
+  const runs: { low: number; high: number }[] = [];
+  let last: number | null = null;
+  for (let y = 0; y <= TAIL_SCAN; y += STEP / 2) {
+    const hit = behind(0, y);
+    const run = runs[runs.length - 1];
+    if (hit && run && last !== null && Math.abs(hit.y - last) < JUMP) run.high = y;
+    else if (hit) runs.push({ low: y, high: y });
+    last = hit ? hit.y : null;
+  }
+  const tallest = runs.reduce<{ low: number; high: number } | null>((best, run) => (!best || run.high - run.low > best.high - best.low ? run : best), null);
+  if (!tallest || tallest.high - tallest.low < STEP) return null;
+  const mid = (tallest.low + tallest.high) / 2;
+  let half = 0;
+  while (half < TAIL_SCAN && behind(half + STEP / 2, mid) && behind(-half - STEP / 2, mid)) half += STEP / 2;
+  return half > 0 ? { ...tallest, half } : null;
+}
+
+const NO_LAYERS: Layers = { key: [], ink: [], mark: [] };
+
+function keyed_ink(livery: Livery, ink: Point[][]): Layers {
+  return { key: livery.key ? ink.map((p) => grow(p, KEY_WIDTH)) : [], ink, mark: [] };
+}
+
+function motif(livery: Livery): Point[][] | null {
+  return livery.decal === "sky" || livery.decal === "volcano" || livery.decal === "ice" ? REWARD_MOTIFS[livery.decal] : null;
+}
+
 function roof_layers(livery: Livery, panel: Panel, over: Roof, front: number, rear: number): Layers {
-  if (livery.decal !== "sky" && livery.decal !== "volcano" && livery.decal !== "ice") return { key: [], ink: [], mark: [] };
-  const run = top_run(over, front, rear);
-  if (!run) return { key: [], ink: [], mark: [] };
+  const shapes = motif(livery);
+  const run = shapes && top_run(over, front, rear);
+  if (!shapes || !run) return NO_LAYERS;
   const length = run.front - run.rear;
   const z0 = run.rear + length * ROOF_INSET;
   const span = length * (1 - 2 * ROOF_INSET);
   const width = panel.side * 2 * ROOF_WIDTH;
-  const ink = REWARD_MOTIFS[livery.decal].map((points) => points.map(([u, v]): Point => [(v - 0.5) * width, z0 + u * span]));
-  return { key: livery.key ? ink.map((p) => grow(p, KEY_WIDTH)) : [], ink, mark: [] };
+  return keyed_ink(livery, shapes.map((points) => points.map(([u, v]): Point => [(v - 0.5) * width, z0 + u * span])));
+}
+
+// On the tail u runs left to right as the chase camera sees it, which is toward -x.
+function tail_layers(livery: Livery, behind: Back): Layers {
+  const shapes = motif(livery);
+  const box = shapes && tail_box(behind);
+  if (!shapes || !box) return NO_LAYERS;
+  const width = box.half * 2 * (1 - 2 * TAIL_INSET);
+  const height = (box.high - box.low) * (1 - 2 * TAIL_INSET);
+  const low = box.low + (box.high - box.low) * TAIL_INSET;
+  return keyed_ink(livery, shapes.map((points) => points.map(([u, v]): Point => [(0.5 - u) * width, low + v * height])));
 }
 
 function ring(z: number, y: number, radius: number, steps: number): Point[] {
@@ -383,7 +479,7 @@ function side_layers(livery: Livery, panel: Panel, side: number): Layers {
   }
 }
 
-export function livery_parts(livery: Livery, panel: Panel, over: Roof, front: number, rear: number): THREE.BufferGeometry[] {
+export function livery_parts(livery: Livery, panel: Panel, over: Roof, behind: Back, front: number, rear: number): THREE.BufferGeometry[] {
   const width = panel.side * 2;
   const stripes: Point[] =
     livery.decal === "centre"
@@ -398,9 +494,14 @@ export function livery_parts(livery: Livery, panel: Panel, over: Roof, front: nu
     if (livery.key) strip(key, over, x0 - KEY_WIDTH, x1 + KEY_WIDTH, front, rear, KEY_LIFT);
     strip(ink, over, x0, x1, front, rear, INK_LIFT);
   }
+  const up = new THREE.Vector3(0, 1, 0);
+  const rearward = new THREE.Vector3(0, 0, -1);
   const top = roof_layers(livery, panel, over, front, rear);
-  on_roof(key, top.key, over, KEY_LIFT);
-  on_roof(ink, top.ink, over, INK_LIFT);
+  drape(key, top.key, on_roof(over), KEY_LIFT, up);
+  drape(ink, top.ink, on_roof(over), INK_LIFT, up);
+  const tail = tail_layers(livery, behind);
+  drape(key, tail.key, on_tail(behind), KEY_LIFT, rearward);
+  drape(ink, tail.ink, on_tail(behind), INK_LIFT, rearward);
   for (const side of [-1, 1]) {
     const layers = side_layers(livery, panel, side);
     on_side(key, layers.key, side, panel, KEY_LIFT);

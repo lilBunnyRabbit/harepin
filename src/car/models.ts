@@ -7,7 +7,7 @@ import { body_outline, cabin_parts, flares, side_panel, skirts } from "./body-sh
 import { DESIGNS } from "./designs";
 import { extrude, merge, parts, slab, taper, tint } from "./geometry";
 import { flame_mesh, lamps } from "./lights";
-import { livery_of, livery_parts, roof, type Livery } from "./livery";
+import { back, livery_of, livery_parts, roof, type Livery } from "./livery";
 import { aero_of, aero_parts, kit_parts, rear_wing } from "./part-looks";
 import { STOCK_CALIPER, STOCK_TYRE, caliper_geometry, chrome_tone, wheel_geometry } from "./wheels";
 import { paint_finish, paint_lab, type Finish } from "./paint";
@@ -143,7 +143,7 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
     parts(stripped ? [] : d.markers).map((g) => tint(g, color(brand.warning))),
     parts(stripped ? [] : d.chrome).map((g) => tint(g, chrome_tone())),
   );
-  const decals = livery && livery.decal !== "none" ? livery_parts(livery, side_panel(d, spec), roof(base, glass), nose, tail) : [];
+  const decals = livery && livery.decal !== "none" ? livery_parts(livery, side_panel(d, spec), roof(base, glass), back(base, paint), nose, tail) : [];
   const aero = aero_of(kit);
   const shell = merge(base, rear_wing(d, aero, paint, trim), aero_parts(d, spec, aero, paint, trim), kit_parts(d, kit, paint, trim), decals);
   const matte = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
