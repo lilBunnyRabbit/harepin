@@ -73,6 +73,10 @@ interface Outs {
 
 interface PieceDef {
   ground: boolean;
+  /** Low ground detail stays out of the shadow pass: its shadow is a sliver, its triangles would count twice. */
+  low: boolean;
+  /** Share of the spots a phone keeps; phones also run without the shadow pass. */
+  phone: number;
   place(world: World): Spot[];
   /** `world` is null on the review sheet's flat ground. */
   draw(out: Outs, spot: Spot, t: KitTones, world: World | null): void;
@@ -95,6 +99,7 @@ const SAMPLE_GAP = 3;
 /** The grate leans out over the slope below it, top this far downhill of its foot. */
 const FENCE_LEAN = 0.9;
 const FLAT = new Float32Array((N + 1) * (N + 1));
+const PHONE_SEED = 61;
 
 function boulders(world: World): Spot[] {
   return world.props.filter((p) => p.kind === PropKind.BOULDER).map((p) => ({ frame: { x: p.x, y: p.y, z: p.z, fx: Math.sin(p.angle), fz: Math.cos(p.angle) }, scale: p.scale, roll: p.angle }));
@@ -272,22 +277,25 @@ function poles(world: World): Spot[] {
 }
 
 const PIECES: Record<Piece, PieceDef> = {
-  [Piece.BASALT]: { ground: false, place: boulders, draw: basalt },
-  [Piece.SNOW_CAP]: { ground: false, place: boulders, draw: snow_cap },
+  [Piece.BASALT]: { ground: false, low: false, phone: 1, place: boulders, draw: basalt },
+  [Piece.SNOW_CAP]: { ground: false, low: false, phone: 1, place: boulders, draw: snow_cap },
   [Piece.VENT]: {
     ground: true,
+    low: false, phone: 0.5,
     place: (world) =>
       strew(world, { cell: 70, odds: 0.45, seed: 11, keep: (w, x, z, y, up) => up > 0.82 && y > 25 && w.distance_to_road(x, z) > ROAD_HALF + 14 }, 6),
     draw: vent,
   },
-  [Piece.POLE]: { ground: true, place: poles, draw: pole },
+  [Piece.POLE]: { ground: true, low: false, phone: 1, place: poles, draw: pole },
   [Piece.TRAIL_POLES]: {
     ground: true,
+    low: false, phone: 0.5,
     place: (world) => strew(world, { cell: 260, odds: 0.5, seed: 41, keep: (w, x, z) => w.distance_to_road(x, z) > 40 }, 0),
     draw: trail_poles,
   },
   [Piece.DRIFT]: {
     ground: true,
+    low: true, phone: 0.3,
     place: (world) => {
       const wind = hash(world.seed, 0, 53) * Math.PI;
       const fx = Math.sin(wind);
@@ -298,12 +306,14 @@ const PIECES: Record<Piece, PieceDef> = {
   },
   [Piece.SCREE]: {
     ground: true,
+    low: true, phone: 0.2,
     place: (world) =>
       strew(world, { cell: 30, odds: 0.55, seed: 23, keep: (w, x, z, y, up) => up < 0.92 && up > 0.45 && y > tree_line(w) - 40 && w.distance_to_road(x, z) > ROAD_HALF + 8 }, 3),
     draw: scree,
   },
   [Piece.FENCE]: {
     ground: true,
+    low: false, phone: 0,
     place: (world) =>
       strew(world, { cell: 70, odds: 0.6, seed: 37, keep: (w, x, z, y, up) => up < 0.88 && up > 0.5 && y > tree_line(w) - 20 && w.distance_to_road(x, z) > 40 }, 8).map((spot) =>
         downhill(world, spot),
@@ -314,12 +324,14 @@ const PIECES: Record<Piece, PieceDef> = {
 
 const body_material = () => new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide });
 
-function meshes(body: Builder[], glow_parts: Builder[]): THREE.Mesh[] {
+function meshes(body: Builder[], low: Builder[], glow_parts: Builder[]): THREE.Mesh[] {
   const out: THREE.Mesh[] = [];
-  const lit = soup(body);
-  if (lit) {
+  for (const [parts, cast] of [[body, true], [low, false]] as const) {
+    const lit = soup(parts);
+    if (!lit) continue;
     const mesh = new THREE.Mesh(soup_geometry(lit), body_material());
-    mesh.castShadow = mesh.receiveShadow = true;
+    mesh.castShadow = cast;
+    mesh.receiveShadow = true;
     out.push(mesh);
   }
   const hot = soup(glow_parts);
@@ -327,8 +339,8 @@ function meshes(body: Builder[], glow_parts: Builder[]): THREE.Mesh[] {
   return out;
 }
 
-/** One lit mesh and, with vents, one glow mesh: two draws at most for the whole kit. */
-export function kit_meshes(world: World, kit: readonly Piece[]): THREE.Mesh[] {
+/** A shadow-casting mesh, a low-detail mesh and, with vents, a glow mesh: three draws at most for the whole kit. */
+export function kit_meshes(world: World, kit: readonly Piece[], phone: boolean): THREE.Mesh[] {
   if (!kit.length) return [];
   const t = kit_tones();
   const height = (x: number, z: number) => world.height(x, z);
@@ -336,16 +348,19 @@ export function kit_meshes(world: World, kit: readonly Piece[]): THREE.Mesh[] {
   const hugging = new Builder(undefined, height);
   const glow_flat = new Builder();
   const glow_hugging = new Builder(undefined, height);
+  const low = new Builder(undefined, height);
   for (const piece of kit) {
     const def = PIECES[piece];
-    const out = def.ground ? { body: hugging, glow: glow_hugging } : { body: flat, glow: glow_flat };
-    for (const spot of def.place(world)) {
+    if (phone && def.phone === 0) continue;
+    const out = def.low ? { body: low, glow: glow_hugging } : def.ground ? { body: hugging, glow: glow_hugging } : { body: flat, glow: glow_flat };
+    const spots = def.place(world).filter((_, i) => !phone || hash(i, 0, PHONE_SEED) < def.phone);
+    for (const spot of spots) {
       out.body.at(spot.frame);
       out.glow.at(spot.frame);
       def.draw(out, spot, t, world);
     }
   }
-  return meshes([flat, hugging], [glow_flat, glow_hugging]);
+  return meshes([flat, hugging], [low], [glow_flat, glow_hugging]);
 }
 
 export function kit_sample(piece: Piece, snowy: boolean): THREE.Mesh[] {
@@ -357,5 +372,5 @@ export function kit_sample(piece: Piece, snowy: boolean): THREE.Mesh[] {
   if (!def.ground) landmark_mesh(body, { x: 0, y: 0, z: 0, angle: spot.roll, kind: PropKind.BOULDER, scale: 1 }, FLAT, mesh_tones(snowy).landmark);
   body.at(spot.frame);
   def.draw({ body, glow: glow_out }, spot, t, null);
-  return meshes([body], [glow_out]);
+  return meshes([body], [], [glow_out]);
 }

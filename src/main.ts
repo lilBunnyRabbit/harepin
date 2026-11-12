@@ -159,7 +159,7 @@ if (world.tiles.streamed) {
   stream.listen(world_view);
   void world.tiles.whole().then(() => {
     performance.mark("world:whole");
-    scene.add(...WORLDS[world.kind].dress(world), ...kit_meshes(world, WORLDS[world.kind].kit.pieces));
+    scene.add(...WORLDS[world.kind].dress(world), ...kit_meshes(world, WORLDS[world.kind].kit.pieces, quality.mobile));
     const all = gates(world);
     gate_views = all;
     for (const g of all) scene.add(g.group);
