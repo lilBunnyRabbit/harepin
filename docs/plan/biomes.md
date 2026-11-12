@@ -1,5 +1,7 @@
 # Biomes and the Create-world page
 
+> **Status 2026-11-12 (v0.29.0):** B0-B6 shipped: terrain layers, per-surface grip, Dune sea, Alpine pass, lakes and rivers, the snow kit (Frozen lakes and the Winter season on Island, Dune sea and Alpine), and map codes with the Create world page. The "Mini maps" rename shipped too. Open: B7 (Canyonlands, Tropical coast) and B8 (mainland regions). Golden seeds now cover every kind, the mainland with seeds 0-2 (`scripts/proof/golden-file.ts`).
+
 Round 1, 2026-11-10, at `28f3b04` (K2 map options landed; mainland tiles in flight in the working tree). Plan only, no code. Owner feedback (11-10): "dunes and main island are very similar". Owner wants Minecraft-style world creation: pick the biome and other settings.
 
 Owner decisions this plan builds on:

@@ -1,5 +1,7 @@
 # PWA plan
 
+> **Status 2026-11-12 (v0.29.0):** Shipped with `vite-plugin-pwa` generateSW, scope `./`, `id: "harepin"`, fullscreen and landscape (`vite.config.ts`). One change from the plan: updates use `registerType: "prompt"` and the in-game update card (`src/menu/update.ts`), not `autoUpdate`. Open: Inter still loads from Google Fonts, so offline play falls back to a system font.
+
 Harepin ships as a PWA at `https://lilbunnyrabbit.github.io/harepin/`. WebOS and Series Tracker live on the same origin, so they share Cache Storage, SW registrations, localStorage and IndexedDB with it. This plan checks for clashes (2026-11-08) and sets up Harepin to stay out of their way.
 
 ## What's already on the origin

@@ -1,5 +1,7 @@
 # Handling: improvements that keep the feel
 
+> **Status 2026-11-12 (v0.29.0):** Do-now items 1-3 shipped (Ackermann steering, no upshift on wheelspin, a speed-scaled key ramp), and item 6 shipped as the loose-surface curve (`Footing.loose` in `worldgen/kinds/kind-def.ts`). Stability later became its own assist (`Car.stability`). The other items were not rechecked one by one. `src/cars.ts` is now `src/car/cars.ts`.
+
 Status: research, 2026-11-08; no `src/` change. Numbers from a flagged scratchpad copy of `car.ts` (360 Hz, flat
 ground unless noted; defaults reproduce `bun scripts/feel.ts` / `bun run telemetry` exactly). Owner brief: "realistic
 but arcade, I like the feel now", so each item states its cost to the current feel.

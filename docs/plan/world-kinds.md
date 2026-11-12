@@ -1,5 +1,7 @@
 # World kinds: which maps to build, in what order, and how
 
+> **Status 2026-11-12 (v0.29.0):** K0, K1 (Dune sea), K2 (map options, now map codes), K4 (Alpine pass) and K5 (Winter on Island, Dune sea and Alpine) shipped, plus Frozen lakes, and the mainland (3a) without region recipes. Open: K3 test track, K6 giant room, K7 compact city, K8 streamed pass. Volcano was added later (`special-maps.md`); Rooftops is dropped for now.
+
 Round 1, 2026-11-10, v0.20.0 (`0a45e25`). This is a plan only. No code has been written. Owner direction (11-10): finish map generation before more race work. That means more complex, more polished maps and more *types* of map. Candidates: mountain pass, desert, test track, city, snow season, giant room, plus player map options.
 
 Every claim comes from reading the code at `0a45e25`. Nothing here was measured. Costs marked *est.* are scaled from the island numbers in `road-network.md` §1 (gen 307-905 ms, 718-799k tris, 24.8 MB of mesh).

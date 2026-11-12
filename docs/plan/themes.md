@@ -1,5 +1,7 @@
 # Themes: the webos system in Harepin
 
+> **Status 2026-11-12 (v0.29.0):** C and A shipped: the `desktop` token, `generate_theme` (`src/theme/random-theme.ts`), saved themes under `harepin:themes`, and a parity test against the webos checkout in `theme.test.ts` (skipped when that checkout is absent). B (shared package) not built.
+
 Research 2026-11-09. Plan only. Nothing is built, and no code changed.
 
 "The same theme generation and system as in webos" means three things webos has and Harepin lacks: the **theme generator** (`generate_theme`), **saved custom themes**, and webos's newer **`desktop` token and light/dark detection**. The 18 token names, the presets and `derive_theme` are already in Harepin, and they match webos value for value.

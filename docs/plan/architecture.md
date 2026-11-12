@@ -1,5 +1,7 @@
 # Open Road: architecture for v2 (seeded open world, towns, car types, chat, mobile, perf)
 
+> **Status 2026-11-12 (v0.29.0):** Shipped. Seeded worldgen in a worker, box solids, chunked meshes with LOD, car specs and builds, chat, touch controls and quality tiers all landed; WASM stayed out, as the verdict says. The flat `src/*.ts` files named below have since moved into feature folders (`src/car/car.ts`, `car/cars.ts`, `car/build.ts`, `car/models.ts`, `car/ghost.ts`, `menu/garage.ts`, `net/net.ts`, `net/chat.ts`, `net/remotes.ts`, `hud/hud.ts`, `hud/input.ts`, `hud/touch.ts`, `render/scene.ts`, `render/quality.ts`, `world/world.ts`, `world/buildings.ts`); see the folder map in `AGENTS.md`. "Open Road" was the working name of Harepin.
+
 Baseline `cb18d62`. Numbers measured headless in Bun on the dev desktop (2026-11-08), scratch bench, not committed.
 
 ## Measured baseline

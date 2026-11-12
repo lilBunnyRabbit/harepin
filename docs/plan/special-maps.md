@@ -1,5 +1,7 @@
 # Special maps: Rooftops, Volcano, Ice canyon
 
+> **Status 2026-11-12 (v0.29.0):** Rooftops dropped for now (owner, below); its R1 code stays unlisted at `?world=rooftops`. Volcano V1-V3 built (crater rim circuit, lava that resets the car, the descent to the sea) and unlisted at `?world=volcano`. Ice canyon open.
+
 Round 1, 2026-11-11, at `ae0323e` (v0.28.1). Plan only. Nothing was run: no dev server, golden, proof or races. Every file:line comes from reading the code at `ae0323e`. Numbers marked *est.* are guesses until a script measures them.
 
 The owner liked three special maps in the spirit of Sky Track:

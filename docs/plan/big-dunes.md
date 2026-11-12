@@ -1,5 +1,7 @@
 # Big dunes: Sahara-style dune bashing
 
+> **Status 2026-11-12 (v0.29.0):** Open. Planned with owner picks; no slice is built yet (no `BIG_DUNES` recipe in `worldgen/recipe.ts`).
+
 Round 1, 2026-11-12, at `b442ceb`. Plan only. Nothing was run: no dev server, golden, races or car tests. Every file:line comes from reading the code at `b442ceb`. Numbers marked *est.* are hand calculations from the force model in `car.ts`. They hold only until a car test measures them (slice S1).
 
 Owner idea: Sahara-style dune bashing. Huge sand mountains, off-roading over them, big jumps off crests.
