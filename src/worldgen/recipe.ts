@@ -525,10 +525,10 @@ const ONE_SAND = { cut: 0.5, above: Ground.DUNE, below: Ground.DUNE, soft: 0 };
 const SLIP: DuneFace = { grade: 0.52, brink: 4, toe: 24, floor: 60 };
 
 /**
- * A streamed dune sea for dune bashing, no roads: big dunes, mid ones and 5-15 m hops, each band in fields that come and
- * go, so the sizes mix. Each corridor runs long enough that a jump off the crest at 110 km/h lands before the next
- * windward, and the hops bend less so their corridors keep that length. Past the mask a dune wall closes it in. Height
- * paints no scree, rock or snow.
+ * A streamed dune sea for dune bashing, no roads: 20 m dunes everywhere, 5-15 m hops in fields that come and go, and an
+ * 80 m landmark ridge every 2.4 km, so most crests are mid-sized and the big ones stand out. Each corridor runs long
+ * enough that a jump off the crest at 110 km/h lands before the next windward, and the hops bend less so their corridors
+ * keep that length. Past the mask a dune wall closes it in. Height paints no scree, rock or snow.
  */
 export const BIG_DUNES: Recipe = {
   ...DESERT,
