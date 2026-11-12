@@ -23,6 +23,17 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.29.1",
+    date: "2026-11-12",
+    title: "What's new card",
+    changes: [
+      { kind: NEW, text: "After an update, a card shows what changed since the version you last played." },
+      { kind: IMPROVED, text: "The game checks for updates every 15 minutes." },
+      { kind: IMPROVED, text: "Create world fits phones held upright, and buttons on brand colours read clearly in light themes." },
+      { kind: FIXED, text: "Mainland river mouths no longer flicker against the sea, and on phone graphics the sea is blue near the shore instead of fog grey." },
+    ],
+  },
+  {
     version: "0.29.0",
     date: "2026-11-11",
     title: "Winter",
