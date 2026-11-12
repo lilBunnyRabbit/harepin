@@ -148,8 +148,8 @@ for (const seed of sweep(4))
         crests[size]++;
         for (const kmh of JUMP_KMH) {
           const d = touchdown(crest, lift, kmh / 3.6);
-          let rise = 0;
-          for (let e = d; e <= d + RUNOUT; e++) rise = Math.max(rise, (crest(e + 1) - crest(e - 1)) / 2);
+          let rise = d === Infinity ? Infinity : 0;
+          for (let e = d; rise !== Infinity && e <= d + RUNOUT; e++) rise = Math.max(rise, (crest(e + 1) - crest(e - 1)) / 2);
           if (rise <= LANDING_RISE) continue;
           short[size]++;
           examples.push(`${kmh} km/h off ${(x0 + wx * (s + top)).toFixed(0)},${(z0 + wz * (s + top)).toFixed(0)} lands ${d} m out on ${rise.toFixed(2)}`);
