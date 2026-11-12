@@ -72,7 +72,7 @@ class Duel implements ModeRun {
     const { track } = this.ctx;
     const time = Math.round(run.elapsed());
     const ms = time + (this.hits?.penalty_ms ?? 0);
-    const stars = stars_for(ms, par_ms);
+    const stars = stars_for(run.elapsed() + (this.hits?.penalty_ms ?? 0), par_ms);
     const before = track.runs[level.id];
     const recorded = track.record(level.id, { stars, ms });
     this.ghost.finish(recorded.improved);
