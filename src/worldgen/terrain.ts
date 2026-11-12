@@ -68,12 +68,12 @@ function dunes(layer: DunesLayer, seed: number, wx: number, wz: number, x: numbe
   for (let b = 0; b < layer.bands.length; b++) {
     const band = layer.bands[b];
     const s = seed + layer.seed + b * 31;
-    const bend = (fbm(across / (band.wave * DUNE_BEND_SCALE), along / (band.wave * DUNE_BEND_SCALE * 2), s, 3) - 0.5) * DUNE_BEND;
+    const bend = (fbm(across / (band.wave * DUNE_BEND_SCALE), along / (band.wave * DUNE_BEND_SCALE * 2), s, 3) - 0.5) * (band.bend ?? DUNE_BEND);
     const u = along / band.wave + bend;
     const t = u - Math.floor(u);
     const rise = 1 - band.lee;
     const profile = t < rise ? smoothstep(0, rise, t) : smoothstep(1, rise, t);
-    const field = smoothstep(DUNE_FIELD[0], DUNE_FIELD[1], fbm(x / (band.wave * DUNE_FIELD_SCALE), z / (band.wave * DUNE_FIELD_SCALE), s + 7, 3));
+    const field = band.fields === false ? 1 : smoothstep(DUNE_FIELD[0], DUNE_FIELD[1], fbm(x / (band.wave * DUNE_FIELD_SCALE), z / (band.wave * DUNE_FIELD_SCALE), s + 7, 3));
     h += profile * band.height * field;
   }
   return h;

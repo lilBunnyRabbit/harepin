@@ -80,6 +80,10 @@ export interface DuneBand {
   wave: number;
   height: number;
   lee: number;
+  /** Waves the crests bend by over noise; absent = the dune sea's. */
+  bend?: number;
+  /** False lays the band over the whole map instead of in fields that come and go. */
+  fields?: boolean;
 }
 
 /** Dune crests across a seeded wind, one of 16 headings: gentle windward slopes, steep lee faces, broken into fields by noise. */
@@ -482,4 +486,18 @@ export const VOLCANO: Recipe = {
   towns: { min: 0, max: 0, trees: false, pines: 1, block: { min: 35, span: 10 }, top: 60, layout: "grid", roofs: "flat", variety: false, exact: true },
   landmarks: [],
   scatter: [{ kind: PropKind.BOULDER, spacing: 50, odds: 0.1, biomes: ["meadow", "upland"], road_within: Infinity }],
+};
+
+/** Up to 120 m of dune over the dune sea's: its slip face peaks at 1.5 * 120 / (0.29 * 1000) = 0.62, the 32 degree repose. */
+const BIG_DUNE: DuneBand = { wave: 1000, height: 120, lee: 0.29, bend: 0.4, fields: false };
+
+/**
+ * The dune sea under one band of big dunes, for dune bashing. Height paints no scree, rock or snow, and sand faces stay
+ * sand: only ground past 53 degrees, a road cut, paints half-way to rock. No kickers: crest jumps want rules of their own.
+ */
+export const BIG_DUNES: Recipe = {
+  ...DESERT,
+  terrain: DESERT.terrain.map((l) => (l.kind === "dunes" ? { ...l, bands: [...l.bands, BIG_DUNE] } : l)),
+  biomes: { ...DESERT.biomes, limits: { ...DESERT.biomes.limits, scree: { up: 0.6, height: 10_000 }, rock: { up: 0.5, height: 10_000 }, snow_line: 10_000 } },
+  road: { ...DESERT.road, kickers: { road: 0, total: 0, big: 0 } },
 };

@@ -22,6 +22,7 @@ export const PRESETS: readonly { char: string; kind: WorldKind }[] = [
   { char: "T", kind: WorldKind.TUNDRA },
   { char: "V", kind: WorldKind.VOLCANO },
   { char: "R", kind: WorldKind.ROOFTOPS },
+  { char: "B", kind: WorldKind.BIG_DUNES },
 ];
 
 const preset_char = (kind: WorldKind) => PRESETS.find((p) => p.kind === kind)?.char ?? "";

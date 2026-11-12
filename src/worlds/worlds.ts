@@ -1,5 +1,6 @@
 import type { WorldKind } from "../worldgen/types";
 import { alpine } from "./alpine";
+import { big_dunes } from "./big-dunes";
 import { desert } from "./desert";
 import { island } from "./island";
 import { mainland } from "./mainland";
@@ -10,7 +11,7 @@ import { volcano } from "./volcano";
 import type { WorldDef } from "./world-def";
 
 /** In menu order. */
-export const WORLDS: Record<WorldKind, WorldDef> = { mainland, island, sky, desert, alpine, tundra, volcano, rooftops };
+export const WORLDS: Record<WorldKind, WorldDef> = { mainland, island, sky, desert, alpine, tundra, volcano, rooftops, dunes: big_dunes };
 
 /** The worlds a player can pick, in menu order. */
 export const LISTED = Object.values(WORLDS).filter((w) => w.listed);

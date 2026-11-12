@@ -1,6 +1,7 @@
 import { seed_of } from "../../rng";
 import { DEFAULT_KIND, type WorldData, type WorldKind } from "../types";
 import { alpine } from "./alpine";
+import { big_dunes } from "./big-dunes";
 import { desert } from "./desert";
 import { island } from "./island";
 import type { KindDef } from "./kind-def";
@@ -12,7 +13,7 @@ import { sky } from "./sky";
 import { tundra } from "./tundra";
 import { volcano } from "./volcano";
 
-export const KINDS: Record<WorldKind, KindDef> = { island, sky, desert, mainland, alpine, tundra, volcano, rooftops };
+export const KINDS: Record<WorldKind, KindDef> = { island, sky, desert, mainland, alpine, tundra, volcano, rooftops, dunes: big_dunes };
 
 export interface MapSpec {
   kind: WorldKind;

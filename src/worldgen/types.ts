@@ -38,7 +38,7 @@ export const SKY_VERSION = 3;
 /** Bump whenever `generate_sky` makes a different rooftop track for the same seed. */
 export const ROOFTOPS_VERSION = 1;
 
-export const WorldKind = { ISLAND: "island", SKY: "sky", DESERT: "desert", MAINLAND: "mainland", ALPINE: "alpine", TUNDRA: "tundra", ROOFTOPS: "rooftops", VOLCANO: "volcano" } as const;
+export const WorldKind = { ISLAND: "island", SKY: "sky", DESERT: "desert", MAINLAND: "mainland", ALPINE: "alpine", TUNDRA: "tundra", ROOFTOPS: "rooftops", VOLCANO: "volcano", BIG_DUNES: "dunes" } as const;
 export type WorldKind = (typeof WorldKind)[keyof typeof WorldKind];
 /** What a URL or save without a world, or with one this build doesn't know, drives. */
 export const DEFAULT_KIND: WorldKind = WorldKind.ISLAND;
