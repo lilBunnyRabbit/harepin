@@ -139,7 +139,8 @@ export class JumpsView {
     };
     for (const r of data.ramps) if (!r.deck) ramp_mesh(of(r.x, r.z), r, t);
     for (const c of data.challenges) challenge_mesh(of(c.x, c.z), c, t);
-    const material = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide });
+    // A frozen fall's deck lies on its bed, which is carved to the same plane: pulled forward like the road, it wins every frame.
+    const material = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
     for (const b of builders.values()) {
       const geometry = new THREE.BufferGeometry();
       geometry.setAttribute("position", new THREE.Float32BufferAttribute(b.positions, 3));
