@@ -8,7 +8,7 @@ export const mainland = kind_def({
   kind: WorldKind.MAINLAND,
   base: 3000,
   tag: "m",
-  version: 5,
+  version: 6,
   size: MAINLAND_SIZE,
   generate: generate_mainland,
   options: [],

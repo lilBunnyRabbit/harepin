@@ -9,7 +9,7 @@ export const tundra = kind_def({
   kind: WorldKind.TUNDRA,
   base: 5000,
   tag: "t",
-  version: 2,
+  version: 3,
   size: SIZE,
   ...land_kind(TUNDRA, TUNDRA_KNOBS, WorldKind.TUNDRA),
   options: TUNDRA_KNOBS,

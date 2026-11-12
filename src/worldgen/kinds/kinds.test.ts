@@ -27,13 +27,13 @@ function alpine(seed: number): WorldData {
 }
 
 test("ids and keys match what saved records and older peers use", () => {
-  expect(world_id(WorldKind.ISLAND)).toBe(10);
+  expect(world_id(WorldKind.ISLAND)).toBe(11);
   expect(world_id(WorldKind.SKY)).toBe(1003);
-  expect(world_key(42)).toBe("42:w10");
-  expect(world_key(42, WorldKind.ISLAND)).toBe("42:w10");
+  expect(world_key(42)).toBe("42:w11");
+  expect(world_key(42, WorldKind.ISLAND)).toBe("42:w11");
   expect(world_key(42, WorldKind.SKY)).toBe("42:sky3");
-  expect(world_id(WorldKind.DESERT)).toBe(2003);
-  expect(world_key(42, WorldKind.DESERT)).toBe("42:d3");
+  expect(world_id(WorldKind.DESERT)).toBe(2004);
+  expect(world_key(42, WorldKind.DESERT)).toBe("42:d4");
 });
 
 test("a land kind's world carries its own kind, so grip, mood and dressing follow it", () => {
@@ -122,7 +122,7 @@ test("unknown ids and names fall back to the island", () => {
 
 test("a plain map of every kind keeps its id and records key; levels at normal are plain", () => {
   const keys = Object.fromEntries(Object.values(WorldKind).map((kind) => [kind, [world_key(42, kind), map_id(plain_map(kind, 42))]]));
-  expect(keys).toEqual({ island: ["42:w10", 10], sky: ["42:sky3", 1003], desert: ["42:d3", 2003], mainland: ["42:m5", 3005], alpine: ["42:a3", 4003], tundra: ["42:t2", 5002], volcano: ["42:v3", 6003], rooftops: ["42:roof1", 8001], dunes: ["42:bd8", 9008] });
+  expect(keys).toEqual({ island: ["42:w11", 11], sky: ["42:sky3", 1003], desert: ["42:d4", 2004], mainland: ["42:m6", 3006], alpine: ["42:a4", 4004], tundra: ["42:t3", 5003], volcano: ["42:v3", 6003], rooftops: ["42:roof1", 8001], dunes: ["42:bd8", 9008] });
   for (const kind of Object.values(WorldKind)) {
     const normal = KINDS[kind].options.map((o) => o.normal);
     expect(world_key(42, kind, normal)).toBe(world_key(42, kind));
@@ -164,7 +164,7 @@ test("maps that share a w still meet as different maps by their codes", () => {
   for (const o of options) all = all.flatMap((levels) => o.labels.map((_, level) => [...levels, level]));
   const maps = all.map((levels) => ({ kind: WorldKind.ISLAND, seed: 42, levels })).filter((map) => !is_plain(map));
   expect(new Set(maps.map(map_id)).size).toBe(maps.length);
-  // No seed-42 pair collides under the w10 key (seed 1 has four), so the collision is staged: a hash that matched would leave only the codes to differ.
+  // No seed-42 pair collides under the w11 key (seed 1 has four), so the collision is staged: a hash that matched would leave only the codes to differ.
   const [a, b] = maps;
   const w = map_id(a);
   expect(same_map({ seed: 1, world: w, map: map_code(a) }, { seed: 1, w, map: map_code(b) })).toBe(false);
@@ -172,14 +172,14 @@ test("maps that share a w still meet as different maps by their codes", () => {
 });
 
 test("records keys: a map off only K2 knobs keeps its digit key", () => {
-  expect(world_key(42, WorldKind.DESERT, [2, 1, 0])).toBe("42:d3:210");
+  expect(world_key(42, WorldKind.DESERT, [2, 1, 0])).toBe("42:d4:210");
   expect(world_key(42, WorldKind.SKY, [1, 1, 0, 1, 1])).toBe("42:sky3:11011");
 });
 
 test("records keys: a slider off normal keys by the code's letters, never a K2 digit key", () => {
   const desert = KINDS.desert.options.map((o) => o.normal);
-  expect(world_key(42, WorldKind.DESERT, desert.map((l, i) => (i === 3 ? 0 : l)))).toBe("42:d3:H0");
-  expect(world_key(42, WorldKind.DESERT, desert.map((l, i) => (i === 0 ? 2 : i === 4 ? 31 : l)))).toBe("42:d3:DZJ2");
+  expect(world_key(42, WorldKind.DESERT, desert.map((l, i) => (i === 3 ? 0 : l)))).toBe("42:d4:H0");
+  expect(world_key(42, WorldKind.DESERT, desert.map((l, i) => (i === 0 ? 2 : i === 4 ? 31 : l)))).toBe("42:d4:DZJ2");
 });
 
 test("a slider's normal level is the kind's own value and its ends are the ranges it names", () => {
