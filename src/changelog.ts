@@ -23,6 +23,15 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.33.0",
+    date: "2026-11-12",
+    title: "Dune sea, rebuilt",
+    changes: [
+      { kind: NEW, text: "Big dunes is now an 8 km dune sea that loads around you: no roads, dunes from small hops to 80 m giants, and sharp crests that launch you. Off-road cars bash freely. Big dunes records start fresh." },
+      { kind: IMPROVED, text: "Reset on Big dunes puts the car back on its wheels where it is." },
+    ],
+  },
+  {
     version: "0.32.1",
     date: "2026-11-12",
     title: "Mini map chips",
