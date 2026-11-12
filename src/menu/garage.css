@@ -984,8 +984,10 @@
 
 .garage-build-tools {
   display: grid;
-  align-content: center;
-  gap: var(--space-1);
+  grid-template-columns: calc(var(--control-h) + var(--space-3));
+  align-content: space-between;
+  justify-items: center;
+  gap: var(--space-3);
   padding: var(--space-2) var(--space-2) var(--space-2) 0;
 }
 
@@ -1003,6 +1005,31 @@
 .garage-mini .garage-icon {
   width: 16px;
   height: 16px;
+}
+
+.garage .garage-mini[data-action="delete-build"]:not([data-armed]):is(:hover, :focus-visible) {
+  color: var(--error);
+}
+
+.garage-mini-sure {
+  display: none;
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.garage .garage-mini[data-armed] {
+  width: 100%;
+  border-color: var(--error);
+  background: color-mix(in oklch, var(--error) 18%, transparent);
+  color: var(--foreground);
+}
+
+.garage-mini[data-armed] .garage-icon {
+  display: none;
+}
+
+.garage-mini[data-armed] .garage-mini-sure {
+  display: block;
 }
 
 @media (orientation: landscape) and (max-height: 500px), (max-width: 700px) {

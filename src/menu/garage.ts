@@ -5,7 +5,7 @@ import { PRESETS } from "../car/presets";
 import { livery_of } from "../car/livery";
 import { typing, type Nav } from "../hud/input";
 import { car_paints, color, decal_inks, rgba } from "../theme/palette";
-import { render_builds, save_build } from "./garage-builds";
+import { confirm_tap, render_builds, save_build } from "./garage-builds";
 import { build_badge } from "./class-badge";
 import { BUILDS_TAB, GarageSection, TABS, type Item } from "./garage-items";
 import { strip_key } from "./garage-strip-key";
@@ -244,7 +244,11 @@ export class Garage {
     } else if (action === "cancel-rename") {
       this.renaming = null;
       this.refresh();
-    } else if (action === "delete-build" && value) this.store(without_build(this.builds, value));
+    } else if (action === "delete-build" && value) {
+      if (confirm_tap(target)) this.store(without_build(this.builds, value));
+      // main.ts blurs every clicked button; the armed one keeps focus so the second press lands on it.
+      else event.stopPropagation();
+    }
     else if (action === "copy-code") this.copy_code(target);
     else if (action === "item") {
       const item = TABS[this.tab].items(this.current).find((it) => it.id === value);

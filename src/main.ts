@@ -673,8 +673,9 @@ invite.addEventListener("click", async () => {
   invite.blur();
 });
 
+// The garage rail keeps focus so pad users stay on the row they acted on.
 document.addEventListener("click", (e) => {
-  if (e.target instanceof HTMLButtonElement) e.target.blur();
+  if (e.target instanceof HTMLButtonElement && !e.target.closest(".garage-rail")) e.target.blur();
 });
 
 $("loading").remove();

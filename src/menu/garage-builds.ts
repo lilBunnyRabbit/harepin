@@ -42,9 +42,36 @@ export interface BuildsActions {
   store(next: SavedBuild[] | null, field: HTMLInputElement): void;
 }
 
+const CONFIRM_MS = 3000;
+
+/** False on the first tap, which arms the button to read "Sure?" until ~3 s pass or focus leaves; true on a tap while armed. */
+export function confirm_tap(button: HTMLElement): boolean {
+  if (button.dataset.armed !== undefined) return true;
+  const label = button.getAttribute("aria-label") ?? "";
+  const disarm = () => {
+    clearTimeout(timer);
+    delete button.dataset.armed;
+    button.setAttribute("aria-label", label);
+    button.removeEventListener("blur", disarm);
+  };
+  const timer = setTimeout(disarm, CONFIRM_MS);
+  button.dataset.armed = "";
+  button.setAttribute("aria-label", `${label}: press again to confirm`);
+  button.addEventListener("blur", disarm);
+  return false;
+}
+
+const focus_key = (node: HTMLElement) => (node.dataset.action ?? node.getAttribute("name")) + (node.dataset.value ?? "");
+const focusables = (scope: HTMLElement) => [...scope.querySelectorAll<HTMLElement>("button, input")];
+
 export function render_builds(rail: HTMLElement, view: BuildsView, actions: BuildsActions) {
   const active = document.activeElement;
-  const kept = active instanceof HTMLElement && rail.contains(active) ? (active.dataset.action ?? active.getAttribute("name")) + (active.dataset.value ?? "") : null;
+  const inside = active instanceof HTMLElement && rail.contains(active) ? active : null;
+  const kept = inside && focus_key(inside);
+  const rows = () => [...rail.querySelectorAll<HTMLElement>(".garage-build")];
+  const row = inside?.closest<HTMLElement>(".garage-build");
+  const row_at = row ? rows().indexOf(row) : -1;
+  const from_rename = !!inside?.closest(".garage-rename");
 
   const field = (name: string, label: string, placeholder: string) => {
     const input = el("input", "garage-field");
@@ -114,7 +141,7 @@ export function render_builds(rail: HTMLElement, view: BuildsView, actions: Buil
       edit.append(icon("rename"));
       const drop = button("", "delete-build", saved.name, "garage-mini");
       drop.setAttribute("aria-label", `Delete ${saved.name}`);
-      drop.append(icon("delete"));
+      drop.append(icon("delete"), el("span", "garage-mini-sure", "Sure?"));
       const tools = el("div", "garage-build-tools");
       tools.append(edit, drop);
       li.append(card(saved.name, build ? CARS[build.car].name : "", saved.code, "load-build", saved.name), tools);
@@ -140,7 +167,16 @@ export function render_builds(rail: HTMLElement, view: BuildsView, actions: Buil
     head(view.builds.length ? "My builds" : "No builds saved yet"),
     list,
   );
-  if (!kept) return;
-  for (const node of rail.querySelectorAll<HTMLElement>("button, input"))
-    if ((node.dataset.action ?? node.getAttribute("name")) + (node.dataset.value ?? "") === kept) return node.focus({ focusVisible: true });
+  if (!inside) return;
+  const same = focusables(rail).find((node) => focus_key(node) === kept);
+  if (same) return same.focus({ focusVisible: true });
+  // The focused node went away (loaded, renamed, cancelled, deleted): stay on that row, else the next one, else the one before.
+  if (row_at < 0) return;
+  const now = rows();
+  const order = [...now.slice(row_at), ...now.slice(0, row_at).reverse()];
+  for (const candidate of order) {
+    const nodes = focusables(candidate);
+    const pick = (from_rename && candidate === now[row_at] && nodes.find((node) => node.dataset.action === "rename-build")) || nodes[0];
+    if (pick) return pick.focus({ focusVisible: true });
+  }
 }
