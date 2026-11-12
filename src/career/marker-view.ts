@@ -7,9 +7,9 @@ const POST = { width: 0.18, height: 4.4 };
 const FLAG = { width: 2.2, height: 1.3, depth: 0.06 };
 const TEXTURE = { width: 256, height: 152 };
 const CHECKS = 8;
-const RING = 0.35;
+const RING = 0.7;
 const LIFT = 0.08;
-const RING_OPACITY = 0.5;
+const RING_OPACITY = 0.65;
 
 // Which neutral is darker flips with the theme; the id takes the one far from its metal.
 const [INK_DARK, INK_LIGHT] = [brand.background_darkest, brand.foreground].sort((a, b) => a[0] - b[0]);

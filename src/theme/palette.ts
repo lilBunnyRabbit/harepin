@@ -60,9 +60,10 @@ const DUSK_CROWN_DROP = 0.06;
 const FOREST_FLOOR_DROP = 0.035;
 const grass = dark ? lighten(mix(brand.success, ground, 0.32), DUSK_GRASS_LIFT) : mix(brand.success, ground, 0.42);
 const leaf_dark = mix(brand.success, dark ? brand.background : brand.foreground, 0.28);
-// Brand Dark's road; on a darker ladder (generated or near-black themes) the dusk road rendered flat black, losing the
-// hill shading and the skid marks, which stay at `background_darkest` below it.
-const DUSK_ASPHALT_FLOOR = 0.15;
+// Every dark theme's road floor, Brand Dark's included: at `background_darkest` the dusk road rendered near black past the
+// headlight, losing the hill shading and the skid marks, which stay at `background_darkest` below it. Still well under the
+// crowns (grass minus DUSK_CROWN_DROP), so asphalt stays the darkest ground.
+const DUSK_ASPHALT_FLOOR = 0.24;
 const asphalt = dark ? lighten(brand.background_darkest, Math.max(0, DUSK_ASPHALT_FLOOR - brand.background_darkest[0])) : mix(brand.foreground, brand.background_darkest, 0.62);
 
 // A share of the asphalt-to-foreground range, not a fixed L step: on near-black roads a fixed step still renders black.
@@ -73,6 +74,8 @@ const above_asphalt = (share: number) => lighten(asphalt, (brand.foreground[0] -
 // warms it to tan; light sand then sits up at the pale surface end so it stays the lightest ground, and dirt a step under
 // it in the same hue, so shoulders and trails read as earth rather than olive.
 const warm = mix(brand.warning, brand.error, 0.45);
+// Snow under a dusk sky leans cold, so it never reads as the desert's sand in the same warm light.
+const DUSK_SNOW_LIFT = 0.05;
 
 export const tones = {
   // A toy track is one colour: the accent straight on deck and rails; underside and seams only darker in its own hue.
@@ -82,13 +85,14 @@ export const tones = {
   pad: lighten(brand.accent, 0.14),
   chevron: lighten(brand.accent, -0.16),
   grass,
-  grass_dry: mix(brand.warning, ground, dark ? 0.26 : 0.36),
+  grass_dry: dark ? mix(brand.warning, ground, 0.26) : mix(warm, ground, 0.36),
   // Forest floor sits a step under grass, not at crown value, so pines still read against the ground they stand on.
   forest_floor: lighten(grass, -FOREST_FLOOR_DROP),
   sand: dark ? mix(brand.warning, brand.foreground, 0.35) : mix(warm, brand.background_darkest, 0.35),
   dirt: dark ? mix(brand.warning, brand.background_darkest, 0.5) : mix(warm, brand.background_darkest, 0.6),
-  rock: dark ? brand.background_lightest : mix(brand.foreground, brand.background_darkest, 0.35),
-  snow: dark ? brand.foreground : brand.background_lightest,
+  // At dusk the lightest surface is still navy, so rocks read as holes; lifted toward the foreground they keep their facets.
+  rock: dark ? mix(brand.foreground, brand.background_lightest, 0.35) : mix(brand.foreground, brand.background_darkest, 0.35),
+  snow: dark ? lighten(mix(brand.foreground, brand.info, 0.85), DUSK_SNOW_LIFT) : brand.background_lightest,
   asphalt,
   skid: dark ? brand.background_darkest : brand.foreground,
   line: dark ? brand.foreground : brand.background_lightest,
@@ -110,11 +114,12 @@ export const tones = {
   head: dark ? mix(brand.foreground, brand.warning, 0.85) : brand.background_lightest,
   reflector: dark ? brand.cottontail : brand.background_lightest,
   beacon: brand.cottontail,
-  wall: mix(brand.foreground, ground, 0.6),
-  wall_warm: mix(brand.warning, brand.foreground, 0.35),
-  wall_cool: mix(brand.info, brand.foreground, 0.3),
+  // Day walls come from the pale end of the ladder: from the ink they sat under the asphalt and every town read black.
+  wall: dark ? mix(brand.foreground, ground, 0.6) : mix(brand.background_lighter, ground, 0.7),
+  wall_warm: dark ? mix(brand.warning, brand.foreground, 0.35) : mix(warm, brand.background_lighter, 0.35),
+  wall_cool: dark ? mix(brand.info, brand.foreground, 0.3) : mix(brand.info, brand.background_lighter, 0.3),
   roof: mix(brand.error, brand.background_darkest, 0.5),
-  roof_flat: dark ? brand.background_light : mix(brand.foreground, brand.background_darkest, 0.5),
+  roof_flat: dark ? brand.background_light : mix(brand.foreground, brand.background_darkest, 0.3),
   roof_slate: mix(brand.info, brand.background_darkest, 0.35),
   sidewalk: dark ? mix(brand.foreground, brand.background_lightest, 0.18) : mix(brand.foreground, brand.background_darkest, 0.35),
   shopfront: dark ? mix(brand.info, brand.background, 0.35) : mix(brand.info, brand.background_lightest, 0.4),
@@ -128,11 +133,13 @@ export const tones = {
 const BRONZE = mix(brand.warning, brand.error, 0.55);
 const LIGHT_BRONZE_DROP = 0.14;
 const LIGHT_GOLD = 0.7;
-const LIGHT_GOLD_LIFT = 0.1;
+const LIGHT_GOLD_LIFT = 0.16;
+// At dusk the warning alone sits next to the bronze as one more orange; toward the cottontail it reads pale gold.
+const DUSK_GOLD = 0.6;
 export const tier_metals = [
   dark ? mix(BRONZE, brand.background_darkest, 0.72) : lighten(BRONZE, -LIGHT_BRONZE_DROP),
   mix(brand.foreground, brand.background_lightest, 0.6),
-  dark ? brand.warning : lighten(mix(brand.warning, brand.error, LIGHT_GOLD), LIGHT_GOLD_LIFT),
+  dark ? mix(brand.warning, brand.cottontail, DUSK_GOLD) : lighten(mix(brand.warning, brand.error, LIGHT_GOLD), LIGHT_GOLD_LIFT),
 ] as const;
 /** A marker or reward not open yet. */
 export const locked_tone = mix(brand.foreground, brand.background, 0.55);

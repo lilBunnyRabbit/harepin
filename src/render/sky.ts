@@ -5,6 +5,9 @@ import { fbm, type World } from "../world/world";
 const FLOOR_PUFFS = 120;
 const FLOOR_REACH = 1000;
 const FLOOR_BELOW = 80;
+// In day light the floor's sunlit tops clipped to white and bloomed over the deck; the shaded puffs keep the sea's form.
+const FLOOR_DAY_GLOW = 0.15;
+const FLOOR_LIT = dark ? 0.35 : 0;
 
 export const SUN_DIR = new THREE.Vector3(-0.42, dark ? 0.17 : 0.55, 0.89).normalize();
 
@@ -32,6 +35,9 @@ export const sky_tones = dark
       cloud_lit: brand.background_lightest,
     };
 
+/** Luma cap for the sky dome and the cloud floor, set from the mood's bloom threshold: neither may bloom into a wash. */
+export const sky_ceiling = { value: 1 };
+
 export const FOG = color(mix(sky_tones.horizon_sun, sky_tones.horizon_away, 0.45));
 
 /** Luma of the sun disc: the one part of the sky that blooms. */
@@ -52,7 +58,7 @@ export function sky(): THREE.Object3D {
       horizon_away: { value: color(sky_tones.horizon_away) },
       sun_color: { value: glow(sky_tones.sun) },
       sun_dir: { value: SUN_DIR },
-      ceiling: { value: 1 },
+      ceiling: sky_ceiling,
     },
     vertexShader: `
       varying vec3 v_dir;
@@ -73,7 +79,7 @@ export function sky(): THREE.Object3D {
         float toward = flat_len > 1e-5 ? clamp(dot(d.xz / flat_len, normalize(sun_dir.xz)) * 0.5 + 0.5, 0.0, 1.0) : 0.5;
         vec3 horizon = mix(horizon_away, horizon_sun, pow(toward, 2.2));
         float h = max(d.y, 0.0);
-        vec3 c = mix(horizon, upper, smoothstep(0.0, 0.22, h));
+        vec3 c = mix(horizon, upper, smoothstep(0.0, 0.35, h));
         c = mix(c, zenith, smoothstep(0.18, 0.75, h));
         if (d.y < 0.0) c = horizon;
         float s = max(dot(d, sun_dir), 0.0);
@@ -109,9 +115,28 @@ export function sky(): THREE.Object3D {
   return group;
 }
 
-export function clouds(seed = 0): THREE.Object3D {
+/**
+ * A puff with a lit top and a shaded underside, per face so the facets stay flat: the vertex colour scales each
+ * instance's tint down to `cloud` below its middle, so a cloud reads as lit vapour rather than one solid tone.
+ */
+function puff_geometry(): THREE.BufferGeometry {
   const puff = new THREE.IcosahedronGeometry(1, 1);
-  const material = new THREE.MeshLambertMaterial({ flatShading: true, fog: false, transparent: true, opacity: 0.85, emissive: color(sky_tones.cloud_lit), emissiveIntensity: dark ? 0.08 : 0.55 });
+  const lit = color(sky_tones.cloud_lit);
+  const shade = color(sky_tones.cloud);
+  const under = [shade.r / Math.max(lit.r, 1e-4), shade.g / Math.max(lit.g, 1e-4), shade.b / Math.max(lit.b, 1e-4)].map((v) => Math.min(1, v));
+  const y = puff.getAttribute("position");
+  const colors = new Float32Array(y.count * 3);
+  for (let f = 0; f < y.count; f += 3) {
+    const tone = y.getY(f) + y.getY(f + 1) + y.getY(f + 2) >= 0 ? [1, 1, 1] : under;
+    for (let v = f; v < f + 3; v++) colors.set(tone, v * 3);
+  }
+  puff.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+  return puff;
+}
+
+export function clouds(seed = 0): THREE.Object3D {
+  const puff = puff_geometry();
+  const material = new THREE.MeshLambertMaterial({ flatShading: true, vertexColors: true, fog: false, transparent: true, opacity: 0.85, emissive: color(sky_tones.cloud_lit), emissiveIntensity: dark ? 0.08 : 0.55 });
   const count = 30 * 5;
   const mesh = new THREE.InstancedMesh(puff, material, count);
   const m = new THREE.Matrix4();
@@ -148,8 +173,15 @@ export function clouds(seed = 0): THREE.Object3D {
 export function cloud_floor(world: World): THREE.Object3D {
   const { road } = world;
   const low = Math.min(...road.map((p) => p.y));
-  const puff = new THREE.IcosahedronGeometry(1, 1);
-  const material = new THREE.MeshLambertMaterial({ flatShading: true, emissive: color(sky_tones.cloud_lit), emissiveIntensity: dark ? 0.08 : 0.55 });
+  const puff = puff_geometry();
+  const material = new THREE.MeshLambertMaterial({ flatShading: true, vertexColors: true, emissive: color(sky_tones.cloud_lit), emissiveIntensity: dark ? 0.08 : FLOOR_DAY_GLOW });
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.ceiling = sky_ceiling;
+    shader.fragmentShader = `uniform float ceiling;\n${shader.fragmentShader}`.replace(
+      "#include <opaque_fragment>",
+      "#include <opaque_fragment>\n  gl_FragColor.rgb *= min(1.0, ceiling / max(dot(gl_FragColor.rgb, vec3(0.299, 0.587, 0.114)), 1e-4));",
+    );
+  };
   const mesh = new THREE.InstancedMesh(puff, material, FLOOR_PUFFS);
   const m = new THREE.Matrix4();
   const q = new THREE.Quaternion();
@@ -168,7 +200,7 @@ export function cloud_floor(world: World): THREE.Object3D {
     q.setFromAxisAngle(axis, i * 1.7);
     s.set(size * 2, size * 0.45, size * 1.4);
     mesh.setMatrixAt(i, m.compose(p, q, s));
-    mesh.setColorAt(i, tint.copy(shade).lerp(lit, 0.35 + fbm(i, 4.5, seed + 85) * 0.5));
+    mesh.setColorAt(i, tint.copy(shade).lerp(lit, FLOOR_LIT + fbm(i, 4.5, seed + 85) * 0.5));
   }
   mesh.instanceMatrix.needsUpdate = true;
   if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;

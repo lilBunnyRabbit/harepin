@@ -75,7 +75,7 @@ export function mesh_tones(snowy = false): MeshTones {
     walls: [tones.wall, tones.wall_warm, tones.wall_cool].map(linear),
     roofs: [tones.roof, tones.roof_slate].map(linear),
     roof_flat: linear(tones.roof_flat),
-    landmark: { pale: linear(tones.post), band: linear(tones.roof), cap: linear(tones.trim), stone: linear(tones.rock), stone_shade: linear(lighten(tones.rock, -STONE_SHADE)), plant: linear(tones.leaf), plant_shade: linear(tones.leaf_dark) },
+    landmark: { pale: linear(tones.check_light), band: linear(tones.roof), cap: linear(tones.trim), stone: linear(tones.rock), stone_shade: linear(lighten(tones.rock, -STONE_SHADE)), plant: linear(tones.leaf), plant_shade: linear(tones.leaf_dark) },
     deck: { deck: linear(tones.deck), side: linear(tones.deck_side), rail: linear(tones.deck), joint: linear(tones.joint), pad: linear(tones.pad), chevron: linear(tones.chevron) },
   };
 }

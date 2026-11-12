@@ -6,7 +6,8 @@ import type { WorldFacts } from "../worldgen/facts";
 import type { MapLineKind } from "../worldgen/map";
 import type { WorldKind } from "../worldgen/types";
 import type { Lab } from "../theme/theme";
-import { brand, dark, tones } from "../theme/palette";
+import { brand, dark, mix, tones } from "../theme/palette";
+import { sky_tones } from "../render/sky";
 
 /** The UI half of a world kind: menu copy, map preview text and scene dressing. */
 export interface WorldDef {
@@ -60,9 +61,12 @@ const ROADS: RoadInk = { street: [tones.sidewalk, 1], local: [brand.foreground, 
 // Dusk snow is the foreground itself, so the roads take the opposite end of the ladder to stay on it.
 const snow_ink = dark ? brand.background_darkest : brand.foreground;
 
+// A warm dusk key turned snow mauve-brown, the desert's tone; a winter dusk is lit cold, from the sky's side.
+const WINTER_DUSK: MoodDelta = dark ? { key: mix(sky_tones.skylight, brand.foreground, 0.5), hemi_sky: mix(brand.info, brand.foreground, 0.35) } : {};
+
 /** Over any world's own look under the snow kit: a bright bounce off the snow, a low sun, cold air pulling the fog in. */
 const WINTER: Look = {
-  mood: { hemi_ground: tones.snow, sun_y: 0.3, fog_near: 90, fog_far: 1100 },
+  mood: { hemi_ground: tones.snow, sun_y: 0.3, fog_near: 90, fog_far: 1100, ...WINTER_DUSK },
   ground_puff: "snow",
   roads: { street: [snow_ink, 0.45], local: [snow_ink, 0.6], highway: [snow_ink, 0.8] },
 };

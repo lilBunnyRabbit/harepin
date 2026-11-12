@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { brand, color, dark, glow, mix, tones } from "../theme/palette";
-import { FOG, SUN_DIR, sky_tones } from "./sky";
+import { FOG, SUN_DIR, sky_ceiling, sky_tones } from "./sky";
 import type { Lab } from "../theme/theme";
 
 export interface MoodSpec {
@@ -23,8 +23,12 @@ export interface MoodSpec {
 // Near-flat falloff: an inverse-power light at the bumper outshines the sun by 10x on anything a few metres ahead and
 // clips it white with no tone mapping; the range cutoff and grazing angle on the road give the far fade instead.
 const HEAD_DECAY = 0.3;
-/** Brightest the sky may get around the sun, as a share of the bloom threshold. */
+/** Brightest the sky around the sun and the sky track's cloud floor may get, as a share of the bloom threshold. */
 const SKY_CEILING = 0.9;
+/** Half the side of the sun's shadow box, metres: the car's shadow keeps more texels per metre than a town-wide box gave. */
+const SHADOW_REACH = 28;
+/** PCF blur radius in shadow texels, so the car's shadow edge reads soft rather than stepped. */
+const SHADOW_SOFT = 2.5;
 
 const DUSK: MoodSpec = {
   sun_y: 0.26,
@@ -43,7 +47,7 @@ const DUSK: MoodSpec = {
 };
 
 /** What a world kind may shift over its theme's mood; the theme stays the main look control. */
-export type MoodDelta = Partial<Pick<MoodSpec, "sun_y" | "fog_near" | "fog_far" | "hemi_ground">>;
+export type MoodDelta = Partial<Pick<MoodSpec, "sun_y" | "key" | "hemi_sky" | "fog_near" | "fog_far" | "hemi_ground">>;
 
 const DAY: MoodSpec = {
   sun_y: 0.45,
@@ -80,6 +84,7 @@ export class Lighting {
   constructor(scene: THREE.Scene, mood: MoodDelta, radial = false) {
     const spec = (this.spec = { ...(dark ? DUSK : DAY), ...mood });
     this.bloom = { strength: spec.bloom, threshold: spec.bloom_threshold };
+    sky_ceiling.value = spec.bloom_threshold * SKY_CEILING;
     // The sky shader and clouds read SUN_DIR when built, so it is set before `sky()` and `clouds()` run.
     const flat = Math.hypot(SUN_DIR.x, SUN_DIR.z);
     const horizontal = Math.sqrt(1 - spec.sun_y * spec.sun_y);
@@ -89,16 +94,14 @@ export class Lighting {
     if (radial) THREE.ShaderChunk.fog_vertex = THREE.ShaderChunk.fog_vertex.replace("vFogDepth = - mvPosition.z;", "vFogDepth = length( mvPosition.xyz );");
     scene.add(new THREE.HemisphereLight(color(spec.hemi_sky), color(spec.hemi_ground), spec.hemi_intensity));
     this.sun = new THREE.DirectionalLight(color(spec.key), spec.key_intensity);
-    Object.assign(this.sun.shadow.camera, { left: -36, right: 36, top: 36, bottom: -36, near: 1, far: 900 });
+    Object.assign(this.sun.shadow.camera, { left: -SHADOW_REACH, right: SHADOW_REACH, top: SHADOW_REACH, bottom: -SHADOW_REACH, near: 1, far: 900 });
+    this.sun.shadow.radius = SHADOW_SOFT;
     this.sun.shadow.bias = -0.0002;
     this.sun.shadow.normalBias = 0.015;
     scene.add(this.sun, this.sun.target);
   }
 
   dress(sky: THREE.Object3D, clouds: THREE.Object3D): THREE.Object3D[] {
-    sky.traverse((o) => {
-      if (o instanceof THREE.Mesh && o.material instanceof THREE.ShaderMaterial && o.material.uniforms.ceiling) o.material.uniforms.ceiling.value = this.spec.bloom_threshold * SKY_CEILING;
-    });
     clouds.traverse((o) => {
       if (o instanceof THREE.Mesh && o.material instanceof THREE.MeshLambertMaterial) o.material.emissiveIntensity = this.spec.cloud_glow;
     });

@@ -2,12 +2,15 @@ import * as THREE from "three";
 import type { Design } from "./designs";
 import { merge, parts, tint } from "./geometry";
 import type { CarView } from "./models";
-import { brand, color, glow, tones } from "../theme/palette";
+import { brand, color, glow, lighten, tones } from "../theme/palette";
 
 // Brake emissive runs 0.5 at rest and 2.2 braking (`sync_car_view`, remotes): only the braking glow clears bloom.
 const BRAKE_GLOW = 0.5;
 
 const FLAME_LENGTH = 1;
+// A dusk theme's error is a light salmon; the lamp lens sits deeper so it reads red at rest, braking or not.
+const TAIL_L = 0.55;
+const tail = lighten(brand.error, Math.min(0, TAIL_L - brand.error[0]));
 
 export interface Lamps {
   heads: THREE.Mesh;
@@ -17,7 +20,7 @@ export interface Lamps {
 
 export function lamps(d: Design): Lamps {
   const head_material = new THREE.MeshLambertMaterial({ color: color(tones.head), emissive: glow(tones.head), emissiveIntensity: 1.2 });
-  const brake = new THREE.MeshLambertMaterial({ color: color(brand.error), emissive: glow(brand.error, BRAKE_GLOW), emissiveIntensity: 0.5 });
+  const brake = new THREE.MeshLambertMaterial({ color: color(tail), emissive: glow(tail, BRAKE_GLOW), emissiveIntensity: 0.5 });
   const heads = new THREE.Mesh(merge(parts(d.heads)), head_material);
   return { heads, tails: new THREE.Mesh(merge(parts(d.tails)), brake), brake };
 }
