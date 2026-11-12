@@ -277,6 +277,7 @@ function driving(id: string, initial: string) {
   const notices: string[] = [];
   lobby.car = () => car;
   lobby.on_notice = (notice) => notices.push(notice);
+  lobby.on_sit_out = () => notices.push(SITTING_OUT);
   lobby.start();
   started.push(lobby);
   return { net, lobby, notices, swap: (next: string) => (car = next) };
@@ -301,10 +302,12 @@ test("a peer whose car the route leaves out sits the leader's start out with a n
 
 test("a left-out car can't call or ready for that route; any other car can", () => {
   const bus = driving("a", "bus");
+  bus.net.peer("z");
   bus.lobby.call(2, "circuit");
+  bus.lobby.set_ready({ laps: 2, route: "sprint-1" });
   bus.lobby.set_ready({ laps: 2, route: "circuit" });
   expect(bus.lobby.state.kind).toBe("idle");
-  expect(bus.lobby.ready).toBe(false);
+  expect(bus.lobby.ready_status(performance.now()).next).toEqual({ laps: 2, route: "sprint-1" });
   expect(bus.net.sent).toEqual([]);
   expect(bus.notices).toEqual([NOT_THIS_CAR, NOT_THIS_CAR]);
 

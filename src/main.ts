@@ -23,7 +23,7 @@ import type { Action } from "./hud/bindings";
 import { Input, modal_open } from "./hud/input";
 import { Rumble, sense_drive, type RumbleSense } from "./hud/rumble";
 import { show_key_hints } from "./hud/key-hints";
-import { Lobby, lobby_routes } from "./net/lobby";
+import { Lobby, SITTING_OUT, lobby_routes } from "./net/lobby";
 import { MODES, Modes } from "./modes/modes";
 import { local_store } from "./modes/track";
 import { GoalId, Goals } from "./goals/goals";
@@ -246,6 +246,10 @@ lobby.on_start = () => {
 };
 lobby.on_unanswered = () => hud.toast("No race leader answered");
 lobby.on_notice = (notice) => hud.toast(notice);
+lobby.on_sit_out = () => {
+  settings.close();
+  hud.toast(SITTING_OUT);
+};
 lobby.car = () => driver.car.spec.id;
 race.on_start = () => ghost.start();
 
@@ -270,6 +274,7 @@ const settings = new Settings(document.body, {
     if (lobby.ready) lobby.set_ready({ laps, route });
   },
   ready_status: () => lobby.ready_status(performance.now()),
+  race_left_out: (route) => lobby.left_out(route),
   version: BUILD.version, changelog: () => updater.changelog_view(), update_state: () => updater.state,
   servers: () => directory.list(),
   servers_status: () => directory.status,

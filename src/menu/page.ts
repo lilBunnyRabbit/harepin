@@ -53,6 +53,8 @@ export interface SettingsHost {
   /** Re-sends a standing ready with a new pick; nothing when not ready. */
   repick_ready(laps: Laps, route: string): void;
   ready_status(): ReadyStatus;
+  /** The route leaves out the car being driven. */
+  race_left_out(route: string): boolean;
   readonly version: string;
   /** Every release, newest first: the What's new page. */
   changelog(): HTMLElement;

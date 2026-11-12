@@ -1,6 +1,7 @@
 import { DirectoryStatus, type Server } from "../net/directory";
 import { LOBBY_ROOM } from "../net/room-name";
 import { NETWORK_BLOCKED, TURNED_AWAY, WRONG_PASSWORD } from "../net/net";
+import { NOT_THIS_CAR } from "../net/lobby";
 import { el, icon } from "./setting-rows";
 import { world_query } from "../world/world-pick";
 import { WORLDS } from "../worlds/worlds";
@@ -129,11 +130,14 @@ export class OnlinePage implements MenuPage {
         button.setAttribute("aria-checked", String(loop ? this.menu.state().laps === count : count === 1));
         button.disabled = !loop && count !== 1;
       }
-      note.textContent = loop ? "Everyone in the room starts together." : "A to B routes are one run, start to finish.";
+      const left_out = this.menu.host.race_left_out(picked().route);
+      note.textContent = left_out ? NOT_THIS_CAR : loop ? "Everyone in the room starts together." : "A to B routes are one run, start to finish.";
       const busy = this.menu.host.race_busy();
       race.textContent = busy ? "Leave race" : "Start race";
+      race.disabled = !busy && left_out;
       const is_ready = this.menu.host.race_ready();
       ready.hidden = busy;
+      ready.disabled = !is_ready && left_out;
       ready.textContent = is_ready ? "Cancel ready" : "Ready";
       ready.setAttribute("aria-pressed", String(is_ready));
       ready_line.hidden = busy;

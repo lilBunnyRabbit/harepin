@@ -65,8 +65,10 @@ export class Lobby {
   finishers: Finisher[] = [];
   on_start: (() => void) | null = null;
   on_unanswered: (() => void) | null = null;
-  /** Something this player tried or was pulled into that didn't happen, as a line to show. */
+  /** A call or ready this player made that didn't happen, as a line to show. */
   on_notice: ((notice: string) => void) | null = null;
+  /** A race started, or this player's car changed, on a route that leaves the car out: this player sits it out. */
+  on_sit_out: (() => void) | null = null;
   /** Id of the car this player drives. */
   car: (() => string) | null = null;
   record: RaceRecord;
@@ -116,10 +118,7 @@ export class Lobby {
   /** Readies for the next race with this call, or takes it back with null; ignored while a race runs. */
   set_ready(call: RaceCall | null, now = performance.now()) {
     if (this.busy) return;
-    if (call && this.left_out(call.route)) {
-      this.on_notice?.(NOT_THIS_CAR);
-      call = null;
-    }
+    if (call && this.left_out(call.route)) return this.on_notice?.(NOT_THIS_CAR);
     if (!call && this.own_ready) this.cancel_until = now + READY_TTL_MS;
     this.own_ready = call;
     this.ready_due = 0;
@@ -169,7 +168,7 @@ export class Lobby {
   car_changed(): boolean {
     if (!this.busy || !this.left_out(this.route)) return false;
     this.leave();
-    this.on_notice?.(SITTING_OUT);
+    this.on_sit_out?.();
     return true;
   }
 
@@ -235,7 +234,7 @@ export class Lobby {
     this.readies.clear();
     if (this.left_out(route)) {
       this.out_until = go + laps * (this.routes.get(route)?.min_lap ?? 0);
-      return this.on_notice?.(SITTING_OUT);
+      return this.on_sit_out?.();
     }
     this.state = { kind: "countdown", race, route, laps, go, rivals: this.net.remotes.size };
     this.finishers = [];
