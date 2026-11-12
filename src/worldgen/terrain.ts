@@ -247,7 +247,8 @@ function apply(seeded: Seeded, seed: number, x: number, z: number, h: number): n
     case "crater": {
       const d = Math.sqrt(x * x + z * z);
       const lipped = h + layer.lip * (1 - smoothstep(0, layer.lip_width, Math.abs(d - layer.radius)));
-      return seeded.level + (lipped - seeded.level) * smoothstep(layer.radius * layer.floor, layer.radius, d);
+      const t = Math.max(0, Math.min(1, (d - layer.radius * layer.floor) / (layer.radius * (1 - layer.floor))));
+      return seeded.level + (lipped - seeded.level) * t * t;
     }
     case "terrace":
       return terraced(h, layer);
