@@ -23,6 +23,17 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.35.1",
+    date: "2026-11-12",
+    title: "Room to land",
+    changes: [
+      { kind: IMPROVED, text: "Big dunes: more room behind crest jumps, so a jump lands clear of the next dune." },
+      { kind: IMPROVED, text: "Career c6 is now the Mainland sprint: a 4 minute run over part of the Mainland circuit. Circuit sprint is also in free-play Race on Mainland." },
+      { kind: FIXED, text: "Coming back to the game no longer fails to load with the menu open." },
+      { kind: FIXED, text: "Jump decks no longer flicker against the ground." },
+    ],
+  },
+  {
     version: "0.35.0",
     date: "2026-11-12",
     title: "Rewards and flags",
