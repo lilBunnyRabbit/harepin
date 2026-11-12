@@ -1075,6 +1075,11 @@
     grid-row: 2 / 4;
   }
 
+  /* The builds list takes the car's row; a sliver of car peeking round the panels reads as a glitch. */
+  .garage[data-tab="builds"] .garage-canvas {
+    visibility: hidden;
+  }
+
   .garage-stats {
     grid-row: 4;
   }
