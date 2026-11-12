@@ -23,6 +23,16 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.30.2",
+    date: "2026-11-13",
+    title: "Map pictures",
+    changes: [
+      { kind: NEW, text: "Custom and saved maps show a top-down picture of their world." },
+      { kind: IMPROVED, text: "The garage fits phones held upright, and short desktop windows get a smaller map and speedometer." },
+      { kind: FIXED, text: "Picking the map you're on from Play keeps its Create world settings, and arrow keys stay inside the update card." },
+    ],
+  },
+  {
     version: "0.30.1",
     date: "2026-11-13",
     title: "Level streets",
