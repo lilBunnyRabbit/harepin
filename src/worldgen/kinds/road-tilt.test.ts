@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { sweep } from "../../sweep";
+import { FULL, sweep } from "../../sweep";
 import { sample } from "../field";
 import { WorldKind, type WorldData } from "../types";
 import { generate_world, KINDS } from "./kinds";
@@ -31,7 +31,7 @@ function tilted(world: WorldData): string[] {
   return out;
 }
 
-test("no road tilts across past a town plane's grade, on any kind", () => {
+test.skipIf(!FULL)("no road tilts across past a town plane's grade, on any kind", () => {
   const failed: string[] = [];
   for (const kind of Object.values(WorldKind)) for (const seed of sweep(10)) failed.push(...tilted(generate_world(seed, kind)).map((at) => `${kind} ${seed} ${at}`));
   expect(failed).toEqual([]);
