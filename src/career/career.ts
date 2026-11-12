@@ -42,7 +42,7 @@ export interface Tier {
   readonly name: string;
   readonly opens_at: number;
   readonly events: readonly CareerEvent[];
-  /** `paint`: the build paint index, past `MAX_PAINT`. `badge`: the letter on the tier's metal shield. */
+  /** `paint`: the build paint index, past `MAX_PAINT`. `badge`: placeholder text until the badge art lands. */
   readonly rewards: { readonly paint: number; readonly decal: Decal; readonly badge: string };
 }
 
@@ -53,7 +53,7 @@ export const TIERS: readonly Tier[] = [
     id: TierId.ROOKIE,
     name: "Rookie",
     opens_at: 0,
-    rewards: { paint: MAX_PAINT + 1, decal: "sky", badge: "R" },
+    rewards: { paint: MAX_PAINT + 1, decal: "sky", badge: "Rookie champ" },
     events: [
       { id: "r1", name: "First lap", mode: "race", level: "circuit", map: "1C0000003", car: { cap: "c" }, tuned: "3:w11", stars: { two: 334625, three: 267700 }, ghost: true },
       { id: "r2", name: "Cones", mode: "gymkhana", level: "g2", map: "1C0000003", car: { cap: "c" }, tuned: "3:w11", stars: { two: 56774, three: 45419 } },
@@ -68,7 +68,7 @@ export const TIERS: readonly Tier[] = [
     id: TierId.CLUB,
     name: "Club",
     opens_at: 12,
-    rewards: { paint: MAX_PAINT + 2, decal: "volcano", badge: "C" },
+    rewards: { paint: MAX_PAINT + 2, decal: "volcano", badge: "Club champ" },
     events: [
       { id: "c1", name: "Pass streets", mode: "race", level: "street-1", map: "1A0000004", car: { cap: "b" }, tuned: "4:a4", stars: { two: 123750, three: 99000 }, ghost: true },
       { id: "c2", name: "Mountain S", mode: "drift", level: "d2", map: "1A0000004", car: { preset: "Drift" }, tuned: "4:a4", stars: { two: 230, three: 287 } },
@@ -83,7 +83,7 @@ export const TIERS: readonly Tier[] = [
     id: TierId.PRO,
     name: "Pro",
     opens_at: 14,
-    rewards: { paint: MAX_PAINT + 3, decal: "ice", badge: "P" },
+    rewards: { paint: MAX_PAINT + 3, decal: "ice", badge: "Pro champ" },
     events: [
       { id: "p1", name: "Marathon", mode: "duel", level: "v5", map: MAINLAND, car: { cap: "s2" }, tuned: "475664083:m6" },
       { id: "p2", name: "Exposed", mode: "race", level: "circuit", map: "1S0000007-F2", car: { cap: "x" }, tuned: "7:sky3:11112", stars: { two: 243000, three: 194400 }, ghost: true },
