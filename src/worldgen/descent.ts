@@ -1,5 +1,6 @@
 import { mulberry32, sub } from "../rng";
 import { plan_gully } from "./canyon";
+import { plan_falls } from "./falls";
 import { sample } from "./field";
 import { length } from "./noise";
 import { limit_grade, resample, road_points, smooth, type Path } from "./path";
@@ -105,6 +106,8 @@ function heights_of(heights: Float32Array, path: Path, stack: Switchback, gully:
 export function plan_descent(seed: number, heights: Float32Array, ring: readonly RoadPoint[], recipe: DescentRecipe, free: (at: number) => boolean): Descent | null {
   const n = ring.length;
   const offset = Math.floor(mulberry32(sub(seed, "descent"))() * n);
+  // A bed with falls takes the first descent with room for one; a descent with none stands in only when no other fits.
+  let fallback: Descent | null = null;
   for (const count of recipe.stacks)
     for (let k = 0; k < TRIES; k++) {
       let join = (offset + Math.floor((k * n) / TRIES)) % n;
@@ -123,10 +126,13 @@ export function plan_descent(seed: number, heights: Float32Array, ring: readonly
         const ys = heights_of(heights, path, stack, gully, from, p.y);
         if (!ys) continue;
         const points = road_points(path, ys, false);
-        if (tightest(points) >= MIN_RADIUS && tightest(points.slice(from)) >= (recipe.bed?.radius ?? 0)) return { join, from, stack, gully, points };
+        if (tightest(points) < MIN_RADIUS || tightest(points.slice(from)) < (recipe.bed?.radius ?? 0)) continue;
+        const found = { join, from, stack, gully, points };
+        if (!recipe.bed || plan_falls(points.slice(from), recipe.bed.falls).jumps.length) return found;
+        fallback ??= found;
       }
     }
-  return null;
+  return fallback;
 }
 
 const NEAR_CELL = 16;
