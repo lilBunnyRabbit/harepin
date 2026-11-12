@@ -7,14 +7,24 @@ import "./updated-card.css";
 const SEEN_KEY = "harepin:seen-version";
 const MAX_RELEASES = 3;
 
-function read_seen(): string | null {
+interface Seen {
+  version: string | null;
+  returning: boolean;
+}
+
+function read_seen(): Seen {
   try {
-    return localStorage.getItem(SEEN_KEY);
+    const version = localStorage.getItem(SEEN_KEY);
+    const returning = Object.keys(localStorage).some((key) => key.startsWith("harepin:") && key !== SEEN_KEY);
+    return { version, returning };
   } catch (error) {
     console.warn("updated: last seen version unreadable", error);
-    return null;
+    return { version: null, returning: false };
   }
 }
+
+// Read when the bundle loads, before the boot writes its first keys: a new player has none yet.
+const BOOT_SEEN = read_seen();
 
 function write_seen(version: string) {
   try {
@@ -25,9 +35,11 @@ function write_seen(version: string) {
 }
 
 export function show_updated(show_notes: () => void): void {
-  const seen = read_seen();
+  const { version, returning } = BOOT_SEEN;
   write_seen(BUILD.version);
-  const releases = releases_since(CHANGELOG, seen, BUILD.version);
+  // A player from before this card has no seen version: show them the current release alone.
+  const seen = version ?? (returning ? null : BUILD.version);
+  const releases = seen === null ? CHANGELOG.slice(0, 1) : releases_since(CHANGELOG, seen, BUILD.version);
   if (releases.length === 0) return;
 
   const card = el("dialog", "updated");
@@ -36,7 +48,7 @@ export function show_updated(show_notes: () => void): void {
   const head = el("header", "updated-head");
   const title = el("h2", "", `Updated to v${BUILD.version}`);
   title.id = "updated-title";
-  const since = releases.length === 1 ? `From v${seen}` : `${releases.length} releases since v${seen}`;
+  const since = seen === null ? releases[0].title : releases.length === 1 ? `From v${seen}` : `${releases.length} releases since v${seen}`;
   head.append(title, el("p", "updated-since", since));
 
   const notes = el("div", "updated-notes");
