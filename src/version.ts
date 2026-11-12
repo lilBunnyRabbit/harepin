@@ -41,6 +41,12 @@ export function releases_since(log: Release[], seen: string | null, running: str
   return newer_releases(log, seen).filter((r) => compare_versions(r.version, running) <= 0);
 }
 
+/** A returning player with no seen version came from before the seen version was stored: the running release alone. */
+export function releases_on_boot(log: Release[], seen: string | null, returning: boolean, running: string): Release[] {
+  if (seen === null && returning) return log.filter((r) => r.version === running);
+  return releases_since(log, seen, running);
+}
+
 const is_record = (x: unknown): x is Record<string, unknown> => typeof x === "object" && x !== null;
 
 function parse_change(x: unknown): Change | null {

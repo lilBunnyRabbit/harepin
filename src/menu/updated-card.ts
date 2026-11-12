@@ -1,5 +1,5 @@
 import { CHANGELOG } from "../changelog";
-import { releases_since } from "../version";
+import { releases_on_boot } from "../version";
 import { el } from "./setting-rows";
 import { BUILD, release_view } from "./update";
 import "./updated-card.css";
@@ -26,20 +26,28 @@ function read_seen(): Seen {
 // Read when the bundle loads, before the boot writes its first keys: a new player has none yet.
 const BOOT_SEEN = read_seen();
 
-function write_seen(version: string) {
+function write_seen(version: string): boolean {
   try {
     localStorage.setItem(SEEN_KEY, version);
+    return true;
   } catch (error) {
     console.warn("updated: seen version not saved", error);
+    return false;
   }
+}
+
+let closed_now = false;
+
+/** The card just closed in this task: a system Back that closed it is not also a back for the menu. */
+export function card_closed_now(): boolean {
+  return closed_now;
 }
 
 export function show_updated(show_notes: () => void): void {
   const { version, returning } = BOOT_SEEN;
-  write_seen(BUILD.version);
-  // A player from before this card has no seen version: show them the current release alone.
-  const seen = version ?? (returning ? null : BUILD.version);
-  const releases = seen === null ? CHANGELOG.slice(0, 1) : releases_since(CHANGELOG, seen, BUILD.version);
+  // Unsaved, the card would come back on every boot.
+  if (!write_seen(BUILD.version)) return;
+  const releases = releases_on_boot(CHANGELOG, version, returning, BUILD.version);
   if (releases.length === 0) return;
 
   const card = el("dialog", "updated");
@@ -48,7 +56,7 @@ export function show_updated(show_notes: () => void): void {
   const head = el("header", "updated-head");
   const title = el("h2", "", `Updated to v${BUILD.version}`);
   title.id = "updated-title";
-  const since = seen === null ? releases[0].title : releases.length === 1 ? `From v${seen}` : `${releases.length} releases since v${seen}`;
+  const since = version === null ? "From an earlier version" : releases.length === 1 ? `From v${version}` : `${releases.length} releases since v${version}`;
   head.append(title, el("p", "updated-since", since));
 
   const notes = el("div", "updated-notes");
@@ -78,7 +86,12 @@ export function show_updated(show_notes: () => void): void {
   card.addEventListener("keydown", (event) => {
     if (!event.key.startsWith("Arrow")) event.stopPropagation();
   });
-  card.addEventListener("close", () => card.remove());
+  // A boot-time dialog shares the app's CloseWatcher group, so one Back closes both in the same task.
+  card.addEventListener("close", () => {
+    card.remove();
+    closed_now = true;
+    setTimeout(() => (closed_now = false));
+  });
   document.body.append(card);
   card.showModal();
 }

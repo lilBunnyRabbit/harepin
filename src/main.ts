@@ -47,7 +47,7 @@ import { read_saved_pick } from "./menu/saved-pick";
 import { MenuTab, invite_link } from "./menu/page";
 import { Settings } from "./menu/settings";
 import { BUILD, Updater, show_version } from "./menu/update";
-import { show_updated } from "./menu/updated-card";
+import { card_closed_now, show_updated } from "./menu/updated-card";
 import { pick_world } from "./world/world-pick";
 import { GUARD_STATE, SystemBack, type Watcher } from "./menu/system-back";
 import { SPAWN_INDEX } from "./world/world";
@@ -371,6 +371,7 @@ const system_back = new SystemBack(
     push_guard: () => window.history.pushState(GUARD_STATE, ""),
   },
   () => {
+    if (card_closed_now()) return;
     const popover = document.querySelector<HTMLElement>(":popover-open");
     if (settings.is_open) settings.back();
     else if (popover) popover.hidePopover();

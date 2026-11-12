@@ -2,7 +2,7 @@
 import { expect, test } from "bun:test";
 import pkg from "../package.json";
 import { CHANGELOG } from "./changelog";
-import { compare_versions, newer_releases, parse_version_file, releases_since } from "./version";
+import { compare_versions, newer_releases, parse_version_file, releases_on_boot, releases_since } from "./version";
 
 test("versions compare per part, numerically", () => {
   expect(compare_versions("0.2.0", "0.10.0")).toBeLessThan(0);
@@ -35,6 +35,13 @@ test("releases since the last seen version stop at the running one", () => {
   expect(releases_since(log, null, "0.3.1")).toEqual([]);
   expect(releases_since(log, "0.3.1", "0.3.1")).toEqual([]);
   expect(releases_since(log, "0.4.0", "0.3.1")).toEqual([]);
+});
+
+test("a returning player with no seen version gets the running release alone, a new player nothing", () => {
+  const log = ["0.4.0", "0.3.1", "0.3.0"].map((version) => ({ version, date: "2026-11-09", title: version, changes: [] }));
+  expect(releases_on_boot(log, null, true, "0.3.1").map((r) => r.version)).toEqual(["0.3.1"]);
+  expect(releases_on_boot(log, null, false, "0.3.1")).toEqual([]);
+  expect(releases_on_boot(log, "0.3.0", true, "0.3.1").map((r) => r.version)).toEqual(["0.3.1"]);
 });
 
 test("version.json is checked, not trusted", () => {
