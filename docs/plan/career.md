@@ -224,7 +224,7 @@ Each phase ships on its own. S ≈ a day, M ≈ 2-4 days.
 | 5 | `drift.ts`, `gymkhana.ts`, `parking.ts`, `hunt.ts`, `duel.ts` | B5 wants bot-tuned stars; only race routes have a bot (`autolap.ts`) | Model par + hand tune for non-race events. A bot per mode is out of scope |
 | 6 | `world.ts:607` | `rails` is true only on Sky and Rooftops; on land, guard rails are plain solids. "Rail hit" means nothing on land | The penalty counts any solid contact (§1.2) |
 | 7 | `track.ts:120` | Career and the Modes page play the same mode levels on the same map | Career keeps its own store. Free play keeps its own records |
-| 8 | `main.ts:63` | A world URL with no `room` drops into `LOBBY_ROOM`. An `?event=` link may land the player in the online lobby on a different map (unverified: whether lobby is online by default) | Check in C0. If yes, an event link runs solo |
+| 8 | `main.ts:63` | A world URL with no `room` drops into `LOBBY_ROOM`. An `?event=` link may land the player in the online lobby on a different map (unverified: whether lobby is online by default) | Checked in C0: yes, and a peer's race call ends the run. An event link without a room runs solo, in an unlisted room. An explicit room keeps the event non-solo, and `car` carries over |
 | 9 | `build.ts:189` | `DECALS` is append-only, and build codes carry its index. A reward decal can travel in a shared build code | Load it. Lock only hides it in the garage |
 
 ## 9. Open questions
