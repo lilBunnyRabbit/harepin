@@ -244,8 +244,8 @@ test("the lobby circuit gets as many road kickers as a typical seed", () => {
   expect(generate(seed_of("lobby")).ramps.filter((r) => r.road).length).toBeGreaterThanOrEqual(2);
 }, 30_000);
 
-test("no checkpoint, junction or spawn sits in a road kicker's run-out", () => {
-  for (const seed of sweep(100)) {
+for (const seed of sweep(100))
+  test(`seed ${seed}: no checkpoint, junction or spawn sits in a road kicker's run-out`, () => {
     const world = generate(seed);
     const { road } = world;
     const gates = [...world.checkpoints, ...world.graph.nodes.filter((n) => n.kind === "junction"), road[(SPAWN_INDEX + road.length) % road.length]];
@@ -256,5 +256,4 @@ test("no checkpoint, junction or spawn sits in a road kicker's run-out", () => {
         if (Math.abs(u) < RUN_DRIFT + GATE_CLEAR && v > end) expect(v - end).toBeGreaterThan(GATE_RUNOUT + GATE_CLEAR / 2);
       }
     }
-  }
-}, 120_000);
+  }, 30_000);
