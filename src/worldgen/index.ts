@@ -91,7 +91,7 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   stamp.edge(ring);
   lap("circuit");
 
-  const towns = place_towns(seed, heights, road, recipe.towns);
+  const towns = place_towns(seed, heights, road, recipe.towns, recipe.towns.pan ? pan_floor(seed, shape) : null);
   const gates = new Map<number, number>();
   for (const town of towns) {
     const streets = town_streets(seed, town, (x, z) => sample(heights, x, z), road, nodes.length, edges.length, recipe.towns);

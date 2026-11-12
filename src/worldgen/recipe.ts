@@ -289,6 +289,8 @@ export interface TownRecipe {
   variety: boolean;
   /** Also test lot rectangles against each other and their corners' road_dist between vertices; false keeps the vertex test alone. */
   exact: boolean;
+  /** Only where the whole town lies on a pan's floor. */
+  pan?: boolean;
 }
 
 /** Rivers down the `count` biggest drainage basins, from where `head` plan cells drain into them; lakes in basins `depth` deep and `min`-`max` plan cells wide. */
@@ -547,5 +549,5 @@ export const BIG_DUNES: Recipe = {
   ),
   biomes: { ...DESERT.biomes, limits: { ...DESERT.biomes.limits, scree: { up: 0.8, height: 10_000 }, rock: { up: 0.7, height: 10_000 }, snow_line: 10_000 } },
   road: { ...DESERT.road, straights: null, canyon: null, kickers: { road: 0, total: 0, big: 0 }, corridor: { half: 280, wind: SEA?.seed ?? 0 }, street_races: false },
-  towns: { ...DESERT.towns, min: 0, top: 10_000 },
+  towns: { ...DESERT.towns, min: 0, top: 10_000, pan: true },
 };
