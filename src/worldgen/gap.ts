@@ -14,6 +14,8 @@ const GAP_SHORT = 8;
 export const DECK_GRADE = -0.04;
 const DECK_TAIL = 20;
 const DECK_HW = 6;
+/** A dune jump's shaped ground is level this far either side of its axis: the deck's half width and a metre. */
+export const DUNE_HALF = DECK_HW + 1;
 const STEP = 0.25;
 
 export interface GapJump {

@@ -326,10 +326,10 @@ export function packed_lines({ wx, wz, lo, hi, half }: Corridor, height: Height)
 
 /**
  * The crest jump's lane: straight along the wind over the dune inside a corridor circuit, CREST_EDGE in from the end of
- * the straights away from where `packed` turns over the crest, and the index of its highest point, the crest. Its heights
- * are the ground's smoothed, so a run-up shaped to them throws no car off a ripple.
+ * the straights away from where `packed` turns over the crest, and the index of the toe of a lip `lip` metres long that
+ * ends on its highest point. Its heights are the ground's smoothed, so a run-up shaped to them throws no car off a ripple.
  */
-export function crest_lane({ wx, wz, lo, hi, half }: Corridor, height: Height, packed: readonly RoadPoint[]): { lane: RoadPoint[]; crest: number } {
+export function crest_lane({ wx, wz, lo, hi, half }: Corridor, height: Height, packed: readonly RoadPoint[], lip: number): { lane: RoadPoint[]; toe: number } {
   const top = packed.reduce((a, b) => (b.y > a.y ? b : a), packed[0]);
   const turn = top ? top.z * wx - top.x * wz : 0;
   const across = (turn > 0 ? -1 : 1) * (half - CREST_EDGE);
@@ -338,7 +338,7 @@ export function crest_lane({ wx, wz, lo, hi, half }: Corridor, height: Height, p
   const lane = road_points(path, smooth(path.map(([x, z]) => height(x, z)), CREST_SMOOTH, CREST_SMOOTH, false), false);
   let crest = 0;
   for (let i = 1; i < lane.length; i++) if (lane[i].y > lane[crest].y) crest = i;
-  return { lane, crest };
+  return { lane, toe: Math.max(0, crest - Math.round(lip / PACKED_STEP)) };
 }
 
 /** A packed line as the three trails that lay its bed, side by side, so a car that runs wide stays on packed dirt. */

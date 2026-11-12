@@ -11,7 +11,7 @@ import { in_lava } from "./lava";
 import { split_circuit, type Join } from "./graph";
 import { link_towns, way_toward, ways } from "./links";
 import { corridor_path, crest_lane, loop_heights, loop_path, PACKED_BED, packed_bed, packed_lines, road_points } from "./path";
-import { DUNE_LIP_RUN, dune_jump, dune_jump_shape } from "./gap";
+import { DUNE_HALF, DUNE_LIP_RUN, dune_jump, dune_jump_shape } from "./gap";
 import { circuit_route, descent_route, offroad_routes, reverse_circuit, street_routes } from "./routes";
 import { join_candidates, MIN_RADIUS, Router, SHAPE_GRADE, spur_need, spur_points, tightest, type Way } from "./route";
 import type { Loop, Path } from "./path";
@@ -27,10 +27,6 @@ import { CELL, ORIGIN, ROAD_HALF, SPAWN_INDEX, SPUR_HALF, WorldKind, type Checkp
 
 /** A packed bed is level out to its side trails' half width, then a bank holds the ground within 31 degrees of it. */
 const PACKED_HALF = PACKED_BED + TRAIL_HALF;
-/** A crest jump's shaped ground is level this far either side of its axis: the deck's half width and a metre. */
-const CREST_HALF = 7;
-/** Spacing of a crest lane's points, metres. */
-const CREST_STEP = 4;
 const PACKED_BANK: Bank = { run: 1.67, reach: 220 };
 const CHECKPOINTS = 12;
 const STACK_GATE = 5;
@@ -227,20 +223,20 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
 
   const trails = plan_trails(seed, land, stamp, canyon, towns, solids, recipe.road.canyon?.crossings);
   // A crest jump over the dune inside a corridor circuit: its lane packed up the windward face to a low lip on the crest,
-  // the deck and run-out shaped into the slip face under it. Shaped after the packed line, so the landing is exact where
-  // they cross; its lane is painted before, so the packed bed stays the last trail stamp.
+  // the deck and run-out shaped into the slip face under it. Shaped after the packed line, so no bank of the line's can
+  // tilt the landing; its lane is painted before, so the packed bed stays the last trail stamp.
   const packed = planned.corridor ? packed_lines(planned.corridor, (x, z) => sample(heights, x, z)) : [];
-  const crest = planned.corridor ? crest_lane(planned.corridor, (x, z) => sample(heights, x, z), packed[0] ?? []) : null;
-  const toe = crest ? crest.lane[crest.crest - Math.round(DUNE_LIP_RUN / CREST_STEP)] : undefined;
+  const crest = planned.corridor ? crest_lane(planned.corridor, (x, z) => sample(heights, x, z), packed[0] ?? [], DUNE_LIP_RUN) : null;
+  const toe = crest?.lane[crest.toe];
   const dune = toe ? dune_jump(0, toe.x, toe.y, toe.z, toe.tx, toe.tz) : null;
   const landing = dune ? dune_jump_shape(dune, (x, z) => sample(heights, x, z)) : [];
-  const lane = crest && dune ? [...crest.lane.slice(0, crest.crest - Math.round(DUNE_LIP_RUN / CREST_STEP)), ...landing] : [];
-  const runup = crest && dune ? crest.lane.slice(0, crest.crest - Math.round(DUNE_LIP_RUN / CREST_STEP) + 1) : [];
+  const lane = crest && dune ? [...crest.lane.slice(0, crest.toe), ...landing] : [];
+  const runup = crest && dune ? crest.lane.slice(0, crest.toe + 1) : [];
   if (lane.length) stamp.trail([{ points: lane, blend: () => 0 }]);
   // Banked first, then the bed laid over it: each line's middle is the second of the last trail stamp's lines.
   if (packed.length) stamp.bank(packed, PACKED_HALF, PACKED_BANK);
   if (packed.length) stamp.trail(packed.flatMap((line) => packed_bed(line)).map((points) => ({ points, blend: () => 1 })));
-  if (landing.length) stamp.bank([runup, landing], CREST_HALF, PACKED_BANK);
+  if (landing.length) stamp.bank([runup, landing], DUNE_HALF, PACKED_BANK);
   lap("trails");
 
   const planner = new JumpPlanner(seed, land, towns, lots.occupied, solids, recipe.road.kickers, lakes, lava);
