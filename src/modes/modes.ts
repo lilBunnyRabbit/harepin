@@ -1,5 +1,5 @@
 import type * as THREE from "three";
-import { TIERS, next_event, spot_of, tier_line, tier_of, tier_open, type CareerEvent } from "../career/career";
+import { TIERS, TUNE_PARAM, next_event, spot_of, tier_line, tier_of, tier_open, type CareerEvent } from "../career/career";
 import { event_track, type Career } from "../career/career-store";
 import { dev_ghost } from "../career/dev-ghost";
 import { limit_text, same_machine, within, type CarLimit } from "../car/car-pick";
@@ -225,7 +225,9 @@ export class Modes {
     if (!mode || !level) return this.notice(NO_EVENT);
     const tier = tier_of(event);
     const before = TIERS[TIERS.indexOf(tier) - 1];
-    if (!this.career || !tier_open(this.career.stars, tier)) return this.notice(`${tier.name} opens at ${tier.opens_at} ★ in ${before?.name ?? "the tier before"}`);
+    // `?career&tune` opens every tier so the owner can set the non-race stars before any are earnable.
+    const tune = new URLSearchParams(location.search).has(TUNE_PARAM);
+    if (!this.career || (!tune && !tier_open(this.career.stars, tier))) return this.notice(`${tier.name} opens at ${tier.opens_at} ★ in ${before?.name ?? "the tier before"}`);
     if (mode.def.needs_ground && !KINDS[this.world.kind].open_ground) return this.notice(NO_GROUND_NOTICE);
     if (this.race_busy()) return this.notice(mode.def.busy_notice);
     if (this.pick) return;

@@ -102,7 +102,7 @@ export class CareerPage implements MenuPage {
 
   private tier(tier: Tier): HTMLElement {
     const { stars } = this.career;
-    const open = tier_open(stars, tier);
+    const open = this.tune || tier_open(stars, tier);
     const before = TIERS[TIERS.indexOf(tier) - 1];
     const have = tier_stars(stars, tier);
     const section = el("section", "career-tier");
