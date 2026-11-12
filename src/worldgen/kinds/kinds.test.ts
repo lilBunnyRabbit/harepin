@@ -27,10 +27,10 @@ function alpine(seed: number): WorldData {
 }
 
 test("ids and keys match what saved records and older peers use", () => {
-  expect(world_id(WorldKind.ISLAND)).toBe(8);
+  expect(world_id(WorldKind.ISLAND)).toBe(9);
   expect(world_id(WorldKind.SKY)).toBe(1003);
-  expect(world_key(42)).toBe("42:w8");
-  expect(world_key(42, WorldKind.ISLAND)).toBe("42:w8");
+  expect(world_key(42)).toBe("42:w9");
+  expect(world_key(42, WorldKind.ISLAND)).toBe("42:w9");
   expect(world_key(42, WorldKind.SKY)).toBe("42:sky3");
   expect(world_id(WorldKind.DESERT)).toBe(2002);
   expect(world_key(42, WorldKind.DESERT)).toBe("42:d2");
@@ -122,7 +122,7 @@ test("unknown ids and names fall back to the island", () => {
 
 test("a plain map of every kind keeps its id and records key; levels at normal are plain", () => {
   const keys = Object.fromEntries(Object.values(WorldKind).map((kind) => [kind, [world_key(42, kind), map_id(plain_map(kind, 42))]]));
-  expect(keys).toEqual({ island: ["42:w8", 8], sky: ["42:sky3", 1003], desert: ["42:d2", 2002], mainland: ["42:m4", 3004], alpine: ["42:a2", 4002], tundra: ["42:t1", 5001], volcano: ["42:v2", 6002], rooftops: ["42:roof1", 8001] });
+  expect(keys).toEqual({ island: ["42:w9", 9], sky: ["42:sky3", 1003], desert: ["42:d2", 2002], mainland: ["42:m4", 3004], alpine: ["42:a2", 4002], tundra: ["42:t1", 5001], volcano: ["42:v2", 6002], rooftops: ["42:roof1", 8001] });
   for (const kind of Object.values(WorldKind)) {
     const normal = KINDS[kind].options.map((o) => o.normal);
     expect(world_key(42, kind, normal)).toBe(world_key(42, kind));
@@ -164,7 +164,7 @@ test("maps that share a w still meet as different maps by their codes", () => {
   for (const o of options) all = all.flatMap((levels) => o.labels.map((_, level) => [...levels, level]));
   const maps = all.map((levels) => ({ kind: WorldKind.ISLAND, seed: 1, levels })).filter((map) => !is_plain(map));
   expect(new Set(maps.map(map_id)).size).toBe(maps.length);
-  // No seed-1 pair collides under the w8 key (seed 42 has four), so the collision is staged: a hash that matched would leave only the codes to differ.
+  // No seed-1 pair collides under the w9 key (seed 42 has four), so the collision is staged: a hash that matched would leave only the codes to differ.
   const [a, b] = maps;
   const w = map_id(a);
   expect(same_map({ seed: 1, world: w, map: map_code(a) }, { seed: 1, w, map: map_code(b) })).toBe(false);
