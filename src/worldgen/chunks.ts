@@ -8,6 +8,7 @@ import { Builder, bounding_sphere, turned, type Rgb, type Sphere } from "./mesh"
 import { road_layers, type RoadTones } from "./road-layers";
 import { grid_ground, Roads, type Layer } from "./roads";
 import { deck_layers, type DeckTones } from "./sky-mesh";
+import { in_lava, type LavaPool } from "./lava";
 import { hash } from "./noise";
 import { ISLAND } from "./recipe";
 import { CELL, Ground, N, ORIGIN, PropKind, Roof, SURFACE_GROUND, type Building, type ParkingLot, type Prop, type WorldData } from "./types";
@@ -38,6 +39,8 @@ export function terrain_bases<T>(rows: Record<Ground, T>, half: (tone: T) => T, 
   bases[SNOW] = snow;
   return bases;
 }
+/** Crater wall this far over the lava glows with it. */
+const EMBER_RISE = 10;
 // Deep enough to hide the crack where a half-res chunk edge skips the odd vertices of its full-res neighbour.
 const SKIRT = 6;
 export const SMALL_BUILDING = 6;
@@ -96,16 +99,18 @@ function jitter(i: number, j: number): number {
 }
 
 /** Writes the colour of lattice vertex (i, j), cells counted from ORIGIN, at `colors[k * 3]`. */
-export function paint(colors: Float32Array, k: number, lut: Float32Array, cuts: BiomeCuts, i: number, j: number, y: number, ny: number, surface: number) {
+export function paint(colors: Float32Array, k: number, lut: Float32Array, cuts: BiomeCuts, i: number, j: number, y: number, ny: number, surface: number, lava: readonly LavaPool[] = []) {
   const x = ORIGIN + i * CELL;
   const z = ORIGIN + j * CELL;
-  const { beach, scree, rock, snow_line } = cuts.recipe.limits;
-  const row = y < beach ? Ground.SAND : ground_at(cuts, x, z, y);
+  const { beach, scree, rock, snow_line, bare } = cuts.recipe.limits;
+  const row = y < beach ? Ground.SAND : ground_at(cuts, x, z, y, false);
+  const stone = bare ? base_of(bare.rock) : ROCK;
   let base = base_of(row);
-  if (ny < scree.up || y > scree.height) base = ny < rock.up || y > rock.height ? ROCK : half_of(row);
+  if (ny < scree.up || y > scree.height) base = ny < rock.up || y > rock.height ? stone : bare ? base_of(bare.scree) : half_of(row);
   if (y > snow_line) base = SNOW;
   const laid = SURFACE_GROUND[surface];
-  if (laid !== null) base = ny < rock.up ? ROCK : base_of(laid);
+  if (laid !== null) base = ny < rock.up ? stone : base_of(laid);
+  if (lava.length && in_lava(lava, x, z, y - EMBER_RISE)) base = base_of(Ground.EMBER);
   const level = Math.min(JITTER_LEVELS - 1, Math.floor((jitter(i, j) + 0.5) * JITTER_LEVELS));
   const tone = (base * JITTER_LEVELS + level) * 3;
   colors[k * 3] = lut[tone];
@@ -116,11 +121,12 @@ export function paint(colors: Float32Array, k: number, lut: Float32Array, cuts: 
 export function terrain_colors(data: WorldData, lut: Float32Array): Float32Array {
   const { heights, seed, surface } = data.terrain;
   const cuts = biome_cuts(seed, heights, (KINDS[data.kind].recipe ?? ISLAND).biomes);
+  const lava = data.ground.ops.flatMap((op) => (op.kind === "lava" ? op.pools : []));
   const colors = new Float32Array((N + 1) * (N + 1) * 3);
   for (let j = 0; j <= N; j++)
     for (let i = 0; i <= N; i++) {
       const k = j * (N + 1) + i;
-      paint(colors, k, lut, cuts, i, j, heights[k], vertex_up(heights, i, j), surface[k]);
+      paint(colors, k, lut, cuts, i, j, heights[k], vertex_up(heights, i, j), surface[k], lava);
     }
   return colors;
 }
@@ -154,6 +160,18 @@ export function terrain_mesh(heights: Float32Array, all_colors: Float32Array, ro
   edges.forEach((edge, e) => edge.forEach(([i, j], t) => put(skirt_start + e * side + t, i, j, SKIRT)));
 
   const index: number[] = [];
+  const y = (v: number) => positions[v * 3 + 1];
+  // A face takes its first vertex's colour (`flat_colours`), each vertex leading at most two full-res faces: it carries the
+  // mean of their corners, so a face on a patch's edge or a slope's scree line gets a tone between, not a spike of either.
+  const corners = colors.slice();
+  const sum = new Float32Array(skirt_start * 3);
+  const led = new Uint8Array(skirt_start);
+  const face = (lead: number, p: number, q: number, mean: boolean) => {
+    index.push(lead, p, q);
+    if (!mean) return;
+    for (let ch = 0; ch < 3; ch++) sum[lead * 3 + ch] += corners[lead * 3 + ch] + corners[p * 3 + ch] + corners[q * 3 + ch];
+    led[lead] += 3;
+  };
   const surface = (step: number) => {
     for (let j = 0; j < CHUNK_CELLS; j += step)
       for (let i = 0; i < CHUNK_CELLS; i += step) {
@@ -161,7 +179,15 @@ export function terrain_mesh(heights: Float32Array, all_colors: Float32Array, ro
         const b = a + step;
         const c = a + step * side;
         const d = c + step;
-        index.push(a, c, b, b, c, d);
+        // The diagonal with the closer heights keeps a crease across the cell (road edge blend) one fold, not a sawtooth.
+        const mean = step === 1;
+        if (Math.abs(y(a) - y(d)) < Math.abs(y(b) - y(c))) {
+          face(d, a, c, mean);
+          face(b, a, d, mean);
+        } else {
+          face(b, a, c, mean);
+          face(d, b, c, mean);
+        }
       }
     edges.forEach((edge, e) => {
       for (let t = 0; t + step < side; t += step) {
@@ -174,6 +200,7 @@ export function terrain_mesh(heights: Float32Array, all_colors: Float32Array, ro
     });
   };
   surface(1);
+  for (let v = 0; v < skirt_start; v++) if (led[v]) for (let ch = 0; ch < 3; ch++) colors[v * 3 + ch] = sum[v * 3 + ch] / led[v];
   const full = index.length;
   surface(2);
   return { positions, colors, index: Uint16Array.from(index), full, sphere: bounding_sphere(positions.subarray(0, skirt_start * 3)) };

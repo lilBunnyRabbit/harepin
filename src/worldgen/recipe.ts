@@ -193,6 +193,8 @@ export interface GroundLimits {
   pan: Ground | null;
   /** The surface laid on ground over the scree height, where it paints half-way to rock and up; null lays none. */
   loose: SurfaceId | null;
+  /** Rows painted in place of half-way to rock and of rock; null paints those. */
+  bare: { scree: Ground; rock: Ground } | null;
 }
 
 export interface BiomeRecipe {
@@ -327,7 +329,7 @@ function shore(radius: number, edge: number): MaskLayer {
 
 const HARDPACK: BiomeRecipe["surfaces"] = { [Ground.DIRT]: SurfaceId.DIRT };
 const ZONES: ZoneRecipe = { coast: { top: 6, wobble: 5, scale: 90 }, bands: ["meadow", "forest", "upland"] };
-const LIMITS: GroundLimits = { beach: 2.2, scree: { up: 0.8, height: 120 }, rock: { up: 0.7, height: 135 }, snow_line: 165, tree_floor: 3, tree_line: 125, pan: null, loose: null };
+const LIMITS: GroundLimits = { beach: 2.2, scree: { up: 0.8, height: 120 }, rock: { up: 0.7, height: 135 }, snow_line: 165, tree_floor: 3, tree_line: 125, pan: null, loose: null, bare: null };
 
 export const ISLAND: Recipe = {
   terrain: [LIFT, hills(95), ridges(22), { kind: "peak", height: 150, radius: 430, reach: 220 }, shore(960, -9)],
@@ -429,7 +431,7 @@ export const ALPINE: Recipe = {
   biomes: {
     surfaces: HARDPACK,
     zones: { coast: { top: -1, wobble: 0, scale: 90 }, bands: ["forest", "meadow", "upland"] },
-    limits: { beach: -1, scree: { up: 0.72, height: 150 }, rock: { up: 0.6, height: 175 }, snow_line: 215, tree_floor: 3, tree_line: 155, pan: null, loose: SurfaceId.SCREE },
+    limits: { beach: -1, scree: { up: 0.72, height: 150 }, rock: { up: 0.6, height: 175 }, snow_line: 215, tree_floor: 3, tree_line: 155, pan: null, loose: SurfaceId.SCREE, bare: null },
     rules: {
       coast: BARE,
       forest: { start: 0.38, fill: 1.2, pine: 1, scrub: 0, extra: 1 },
@@ -485,7 +487,7 @@ export const TUNDRA: Recipe = {
   ice: { count: 5, radius: [60, 140], reach: 760 },
 };
 
-const CINDER: GroundRule = { cut: 0.5, above: Ground.UPLAND, below: Ground.DRY, soft: 0.2 };
+const CINDER: GroundRule = { cut: 0.5, above: Ground.ASH, below: Ground.CINDER, soft: 0.2 };
 
 /**
  * One cone filling the island, a crater in its top, the circuit round the rim and a hairpin road down the flank to the
@@ -504,7 +506,7 @@ export const VOLCANO: Recipe = {
   biomes: {
     surfaces: HARDPACK,
     zones: ZONES,
-    limits: { ...LIMITS, scree: { up: 0.8, height: 150 }, rock: { up: 0.7, height: 170 }, snow_line: 1000, tree_line: 110, loose: SurfaceId.SCREE },
+    limits: { ...LIMITS, scree: { up: 0.8, height: 150 }, rock: { up: 0.7, height: 170 }, snow_line: 1000, tree_line: 110, loose: SurfaceId.SCREE, bare: { scree: Ground.SCREE, rock: Ground.ASH } },
     rules: {
       coast: { start: 0.5, fill: 0.12, pine: 0.2, scrub: 0.6, extra: 0 },
       meadow: { start: 0.6, fill: 0.15, pine: 0.3, scrub: 0.6, extra: 0 },

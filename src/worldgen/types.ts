@@ -17,9 +17,9 @@ export const SPUR_GRADE = 0.12;
 export const SPAWN_INDEX = -40;
 /**
  * Ground surfaces, each with a LUT row of its own and one half-way to rock. DIRT is firm: trails, and hardpack a recipe lays.
- * SNOW and after are the snow kit's rows.
+ * SNOW to SLUSH are the snow kit's rows; ASH and after the volcano's.
  */
-export const Ground = { GRASS: 0, DRY: 1, SAND: 2, FOREST: 3, UPLAND: 4, DUNE: 5, DIRT: 6, PAN: 7, SNOW: 8, PACKED_SNOW: 9, ICE: 10, SLUSH: 11 } as const;
+export const Ground = { GRASS: 0, DRY: 1, SAND: 2, FOREST: 3, UPLAND: 4, DUNE: 5, DIRT: 6, PAN: 7, SNOW: 8, PACKED_SNOW: 9, ICE: 10, SLUSH: 11, ASH: 12, SCREE: 13, CINDER: 14, EMBER: 15 } as const;
 export type Ground = (typeof Ground)[keyof typeof Ground];
 /**
  * What the wheels drive on, per vertex of the `surface` grid; each id has a grip row in its kind's `GripTable`. GRASS is the

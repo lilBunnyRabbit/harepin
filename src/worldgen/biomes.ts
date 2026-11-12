@@ -108,10 +108,11 @@ export function tree_kind(cuts: BiomeCuts, biome: Biome, x: number, z: number, k
   return pick < rule.scrub ? TreeKind.SCRUB : pick < rule.scrub + rule.pine ? TreeKind.PINE : TreeKind.BROADLEAF;
 }
 
-export function ground_at(cuts: BiomeCuts, x: number, z: number, y: number): Ground {
+/** `frayed` speckles a patch's edge per vertex, which a blended vertex colour softened; a per-face colour reads it as confetti. */
+export function ground_at(cuts: BiomeCuts, x: number, z: number, y: number, frayed = true): Ground {
   const rule = cuts.recipe.ground[biome_at(cuts, x, z, y)];
   const patch = fbm(x / PATCH_SCALE, z / PATCH_SCALE, cuts.seed + PATCH_SEED, 3);
-  const fray = rule.soft ? (hash(x, z, cuts.seed + PATCH_SEED + 1) - 0.5) * rule.soft : 0;
+  const fray = frayed && rule.soft ? (hash(x, z, cuts.seed + PATCH_SEED + 1) - 0.5) * rule.soft : 0;
   return patch + fray > rule.cut ? rule.above : rule.below;
 }
 

@@ -22,6 +22,13 @@ const PAN_LIGHTEN = 0.12;
 const PACKED_GREY = 0.3;
 const ICE_BLUE = 0.55;
 const SLUSH_MUD = 0.35;
+/** Dunes are sand, a touch warmer than the beach so the two still part where they meet. */
+const DUNE_DIRT = 0.12;
+/** Volcano rows: ash on the rim, loose scree a lighter earth-grey under it, rusty cinder on the flank, the wall over the lava scorched red. */
+const ASH_DARK = 0.55;
+const SCREE_EARTH = 0.35;
+const CINDER_RUST = 0.35;
+const EMBER_SOOT = 0.45;
 // Scrub is a broadleaf crown squashed to a bush and sunk to the ground, so it costs no draw of its own.
 const SCRUB_SQUASH = 0.35;
 const SCRUB_SINK = 0.5;
@@ -48,13 +55,17 @@ function terrain_lut(): Float32Array {
     [Ground.SAND]: tones.sand,
     [Ground.FOREST]: tones.forest_floor,
     [Ground.UPLAND]: tones.grass_dry,
-    [Ground.DUNE]: mix(tones.sand, tones.grass_dry, 0.5),
+    [Ground.DUNE]: mix(tones.sand, tones.dirt, DUNE_DIRT),
     [Ground.DIRT]: tones.dirt,
     [Ground.PAN]: lighten(mix(tones.sand, tones.dirt, PAN_CLAY), PAN_LIGHTEN),
     [Ground.SNOW]: tones.snow,
     [Ground.PACKED_SNOW]: mix(tones.rock, tones.snow, PACKED_GREY),
     [Ground.ICE]: mix(tones.water, tones.snow, ICE_BLUE),
     [Ground.SLUSH]: mix(tones.dirt, tones.snow, SLUSH_MUD),
+    [Ground.ASH]: mix(tones.rock, tones.asphalt, ASH_DARK),
+    [Ground.SCREE]: mix(tones.rock, tones.dirt, SCREE_EARTH),
+    [Ground.CINDER]: mix(tones.dirt, tones.lava, CINDER_RUST),
+    [Ground.EMBER]: mix(tones.lava, tones.asphalt, EMBER_SOOT),
   };
   const bases = terrain_bases(surface, (t) => mix(tones.rock, t, 0.5), tones.rock, tones.snow);
   const lut = new Float32Array(bases.length * JITTER_LEVELS * 3);
@@ -81,6 +92,18 @@ export function mesh_tones(snowy = false): MeshTones {
   };
 }
 
+/** A face takes its first vertex's colour as it takes one normal: blended across a 4 m triangle, ground colours read airbrushed. */
+function flat_colours<M extends THREE.Material>(material: M): M {
+  material.onBeforeCompile = (shader, renderer) => {
+    // ANGLE on D3D11 emulates the default last-vertex convention with a geometry shader (terrain draw +60% measured); first is native.
+    const provoking = renderer.getContext().getExtension("WEBGL_provoking_vertex");
+    provoking?.provokingVertexWEBGL(provoking.FIRST_VERTEX_CONVENTION_WEBGL);
+    shader.vertexShader = shader.vertexShader.replace("#include <color_pars_vertex>", THREE.ShaderChunk.color_pars_vertex.replace("varying", "flat varying"));
+    shader.fragmentShader = shader.fragmentShader.replace("#include <color_pars_fragment>", THREE.ShaderChunk.color_pars_fragment.replace("varying", "flat varying"));
+  };
+  return material;
+}
+
 interface ChunkView {
   x0: number;
   z0: number;
@@ -102,7 +125,7 @@ export class WorldView {
   private readonly landmarks: LandmarksView;
   /** By chunk index; a chunk not added yet, or dropped, is a hole. */
   private readonly views: (ChunkView | undefined)[] = [];
-  private readonly terrain = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+  private readonly terrain = flat_colours(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
   private readonly road = [-2, -4].map((offset) => new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, polygonOffset: true, polygonOffsetFactor: offset, polygonOffsetUnits: offset, side: THREE.DoubleSide }));
   // The sea plane's look, so a river meets the sea in one tone; pulled forward so a mouth just over the sea wins its depth test every frame.
   private readonly water = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, transparent: true, opacity: 0.9, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });

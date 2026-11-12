@@ -23,8 +23,8 @@
 0 route:street-1 ee10454dc92c3d86
 0 route:street-2 fbe309fb835813ad
 0 mesh_road aad861be535dffc6
-0 mesh_rest a8ae9ba255fb736c
-0 map_pixels b005a601085f3287
+0 mesh_rest bee068b41f562ac0
+0 map_pixels 9ae016b585259887
 0 map d5e3b0d1957e95a8
 1 heights da6d3f18a93c8d6f
 1 road_dist a6e926d1325413a2
@@ -51,8 +51,8 @@
 1 route:street-1 046f2dd1125befc6
 1 route:street-2 4fc5b0c177e99fa4
 1 mesh_road a146066b4fa07b99
-1 mesh_rest e99a63d2ac363065
-1 map_pixels 6bc5719878f2ec14
+1 mesh_rest 55281f2489e109e9
+1 map_pixels 9afa0118f99158f8
 1 map 7ad2b069d3ee3522
 2 heights bb8b96b174ed009e
 2 road_dist e4f80185f661b463
@@ -77,8 +77,8 @@
 2 canyon ca2689192ce2e663
 2 route:circuit f9954261fe4ddeb6
 2 mesh_road d7aea809ca6a9ed9
-2 mesh_rest 389b3b561e947a5d
-2 map_pixels 6c30333e30a46adb
+2 mesh_rest d32bb8b0a1e3d1c9
+2 map_pixels c2ff61950e90fc3c
 2 map d259fd8a2033984b
 3 heights 7d25767951e9cb76
 3 road_dist 0654c322b898c2cf
@@ -103,8 +103,8 @@
 3 canyon ca2689192ce2e663
 3 route:circuit efe8f672ce91ea72
 3 mesh_road 2181bef1fcbec2ac
-3 mesh_rest fb9b195e8db9d2f7
-3 map_pixels 499c392b7ce14bdf
+3 mesh_rest 78f688c0f6a405a6
+3 map_pixels c00c006a88f4832a
 3 map 35fe1093c4bb22ca
 4 heights 614e39a432c43f1f
 4 road_dist 4795a1b5f47903b9
@@ -130,8 +130,8 @@
 4 route:circuit 788f6918131a5df7
 4 route:street-1 cc53b6a6f83b11dc
 4 mesh_road 9046b60a0878ee63
-4 mesh_rest 96079908a7d0c94b
-4 map_pixels 56983472d800aeb4
+4 mesh_rest 8ffd6cad83c1a476
+4 map_pixels f12cb01bea0ce503
 4 map d2e0315b1fba4d35
 5 heights 4360cce69edc4afe
 5 road_dist 0160d8c14f6e7404
@@ -156,8 +156,8 @@
 5 canyon ca2689192ce2e663
 5 route:circuit 285ed795c90cfa55
 5 mesh_road 724f63760a9145bd
-5 mesh_rest d6c25fc8b953992a
-5 map_pixels 42abe1481fc6fa36
+5 mesh_rest 5834c067313334be
+5 map_pixels b45282d511d9bec4
 5 map 9b92ca8281bc2c89
 6 heights d5cebed8201e3997
 6 road_dist ae6d74dc16612230
@@ -184,8 +184,8 @@
 6 route:street-1 e5ced6c2dfdfafdc
 6 route:street-2 8d7ccefa3cc8fe03
 6 mesh_road fd1df9c108c6f308
-6 mesh_rest 98214ebdce85a1cf
-6 map_pixels 911c37a573a30de9
+6 mesh_rest 75def976091ce48e
+6 map_pixels f4d61764343c3bcd
 6 map da8e63c294a0ca68
 7 heights 5684990f132af07d
 7 road_dist 589be2d23d699cb8
@@ -212,8 +212,8 @@
 7 route:street-1 dcc593707739eddc
 7 route:street-2 8f6a6de78bb078bc
 7 mesh_road 4c7828ba0dd0a41b
-7 mesh_rest 8ebaab806110594d
-7 map_pixels bb8e42375b50badf
+7 mesh_rest 07aac1a313d38b4f
+7 map_pixels 3fbd57256b664f10
 7 map d510d47c8e82f16b
 8 heights 9e3b200ce7b76774
 8 road_dist 7fc105d72d063277
@@ -240,8 +240,8 @@
 8 route:street-1 349d12b8b7757ac4
 8 route:street-2 b5024da22f09e20b
 8 mesh_road 10958bcd9cb62636
-8 mesh_rest 8ccd7dccb92ff2a5
-8 map_pixels b854745077d9bae3
+8 mesh_rest 3419683a3585395d
+8 map_pixels 269f9f91eb86800b
 8 map 4cb97fd12b93da02
 9 heights cbfab019458c11c4
 9 road_dist 987481aac8bc35db
@@ -268,6 +268,6 @@
 9 route:street-1 cb19fc8fe5bc3ff2
 9 route:street-2 54d0ec6980de10ae
 9 mesh_road adfde54b35e663d1
-9 mesh_rest 05d9ad8e7fdbf52a
-9 map_pixels ab81eba1e450b55d
+9 mesh_rest eddccf60105f1bed
+9 map_pixels aaa0745a0dca709e
 9 map 9fff48f878df8b39
