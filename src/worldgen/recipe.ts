@@ -542,28 +542,34 @@ export const VOLCANO: Recipe = {
   scatter: [{ kind: PropKind.BOULDER, spacing: 50, odds: 0.1, biomes: ["meadow", "upland"], road_within: Infinity }],
 };
 
-/**
- * 120 m dunes 850 m apart: a 200 m flat corridor, a 15 degree windward rise and a planar slip face at 0.54, which the
- * crests' bend and the gaps' sides steepen to 33 degrees at most.
- */
-const BIG_DUNE: DuneBand = { wave: 850, height: 120, lee: 0.25, bend: 0.2, fields: false, face: { grade: 0.54, brink: 60, toe: 40, floor: 200 } };
-/** The dune sea's bands ride the big dunes this much lower, so stacked on a windward rise they stay under repose. */
-const RIPPLE = 0.6;
+/** Slip faces at 0.52, which the crests' bend and the land under them steepen to 35 degrees at most, creased sharp at the brink: a crest is a natural jump and its face the landing. */
+const SLIP: DuneFace = { grade: 0.52, brink: 4, toe: 24, floor: 60 };
 
 /**
- * The dune sea under one band of big dunes, for dune bashing. The circuit runs two corridors and parts the dune between
- * them at each end. Height paints no scree, rock or snow. No kickers: crest jumps want rules of their own.
+ * A streamed dune sea for dune bashing, no roads: big dunes, mid ones and 5-15 m hops, each band in fields that come and
+ * go, so the sizes mix. Past the mask a dune wall closes it in. Height paints no scree, rock or snow.
  */
-const SEA = DESERT.terrain.find((l): l is DunesLayer => l.kind === "dunes");
-
 export const BIG_DUNES: Recipe = {
   ...DESERT,
-  terrain: DESERT.terrain.map((l) =>
-    l.kind === "dunes" ? { ...l, bands: [...l.bands.map((b) => ({ ...b, height: b.height * RIPPLE })), BIG_DUNE], gaps: { above: 20, width: 40, ease: 600, at: [] } } : l,
-  ),
+  terrain: [
+    LIFT,
+    { kind: "fbm", scale: 1400, seed: 7, octaves: 3, power: 2, amp: 40 },
+    {
+      kind: "dunes",
+      seed: 17,
+      bands: [
+        { wave: 900, height: 80, lee: 0, bend: 0.3, fields: false, face: { ...SLIP, toe: 40, floor: 150 } },
+        { wave: 260, height: 28, lee: 0, bend: 0.5, face: SLIP },
+        { wave: 80, height: 12, lee: 0, bend: 0.8, face: { ...SLIP, toe: 10, floor: 12 } },
+      ],
+    },
+    { kind: "mask", radius: 3500, edge: 140, scale: 900, seed: 3, wobble: 0.3 },
+  ],
   biomes: { ...DESERT.biomes, limits: { ...DESERT.biomes.limits, scree: { up: 0.8, height: 10_000 }, rock: { up: 0.7, height: 10_000 }, snow_line: 10_000 } },
-  road: { ...DESERT.road, straights: null, canyon: null, kickers: { road: 0, total: 0, big: 0 }, corridor: { half: 280, wind: SEA?.seed ?? 0 }, street_races: false, lap_excludes: ["bus"] },
-  towns: { ...DESERT.towns, min: 0, top: 10_000, pan: true },
+  road: { ...DESERT.road, straights: null, canyon: null, kickers: { road: 0, total: 0, big: 0 } },
+  towns: { ...DESERT.towns, min: 0, max: 0 },
+  landmarks: [],
+  scatter: [],
 };
 
 /**

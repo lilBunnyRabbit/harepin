@@ -1,21 +1,25 @@
 import "./fake-dom";
 
-// `bun scripts/stream.ts [seeds…]`: mainland plan, then every chunk built nearest the spawn first, as the worker streams them.
+// `bun scripts/stream.ts [--kind dunes] [seeds…]`: a streamed kind's plan (mainland by default), then every chunk built
+// nearest the spawn first, as the worker streams them.
 const { mesh_tones } = await import("../src/render/scene");
 const { extent } = await import("../src/worldgen/chunk-grid");
-const { plan_mainland, MAINLAND_SIZE } = await import("../src/worldgen/mainland");
+const { KINDS } = await import("../src/worldgen/kinds/kinds");
 const { TileMesher } = await import("../src/worldgen/tile-mesher");
 const { chunk_corner, CHUNK } = await import("../src/worldgen/chunk-grid");
 const { SPAWN_INDEX } = await import("../src/worldgen/types");
 
-const seeds = process.argv.slice(2).map(Number).filter(Number.isFinite);
+const at = process.argv.indexOf("--kind");
+const def = KINDS[(at >= 0 ? process.argv[at + 1] : "mainland") as keyof typeof KINDS];
+if (!def) throw new Error(`unknown kind: ${Object.keys(KINDS).join(", ")}`);
+const seeds = process.argv.slice(2).filter((_, i) => at < 0 || (i !== at - 2 && i !== at - 1)).map(Number).filter(Number.isFinite);
 const tones = mesh_tones();
-const ext = extent(MAINLAND_SIZE);
+const ext = extent(def.size);
 const pct = (sorted: number[], p: number) => sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))];
 
 for (const seed of seeds.length ? seeds : [0, 1, 2]) {
   const t0 = performance.now();
-  const { data } = plan_mainland(seed);
+  const data = def.generate(seed, []);
   const t1 = performance.now();
   const mesher = new TileMesher(data, ext, tones);
   const t2 = performance.now();

@@ -19,7 +19,6 @@ const CASES: [WorldKind, number[]][] = [
   [WorldKind.TUNDRA, [0, 1]],
   [WorldKind.VOLCANO, [0, 1]],
   [WorldKind.ICE_CANYON, [0, 1]],
-  [WorldKind.BIG_DUNES, [0, 1]],
   [WorldKind.SKY, [0]],
 ];
 

@@ -73,7 +73,7 @@ export class Race {
 
   update(x: number, z: number, now: number) {
     const cp = this.world.checkpoints[this.next];
-    if (Math.hypot(x - cp.x, z - cp.z) > GATE_RADIUS) return;
+    if (!cp || Math.hypot(x - cp.x, z - cp.z) > GATE_RADIUS) return;
     if (this.next === 0) {
       if (this.started) {
         const lap = now - this.started;

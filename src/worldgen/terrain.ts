@@ -66,8 +66,9 @@ function wind_of(seed: number, offset: number): { x: number; z: number } {
 const fillet = (y0: number, g1: number, g2: number, w: number, d: number) => y0 + g1 * d + ((g2 - g1) * d * d) / (2 * w);
 
 /**
- * Height and slip-face share (1 down the face, 0 up the windward side, eased across the fillets) `t` of a wave along a
- * band with a planar face. Every slope lies between the windward's and the face's, so the face never passes `grade`.
+ * Height and lee share `t` of a wave along a band with a planar face. Every slope lies between the windward's and the
+ * face's, so the face never passes `grade`. The share is 1 over the upper windward, the brink, the face and its toe, and
+ * eases to 0 across the corridor and up the lower windward, where smaller bands stand clear of the slip face.
  */
 function slip(band: DuneBand, face: DuneFace, t: number): [number, number] {
   const { wave, height } = band;
@@ -77,11 +78,12 @@ function slip(band: DuneBand, face: DuneFace, t: number): [number, number] {
   const crest = floor + run;
   const p = t * wave;
   const q = p < wave - toe / 2 ? p : p - wave;
-  if (q < toe / 2) return [fillet((grade * toe) / 2, -grade, 0, toe, q + toe / 2), smoothstep(toe / 2, -toe / 2, q)];
-  if (q < floor - toe / 2) return [0, 0];
-  if (q < floor + toe / 2) return [fillet(0, 0, rise, toe, q - floor + toe / 2), 0];
-  if (q < crest - brink / 2) return [rise * (q - floor), 0];
-  if (q < crest + brink / 2) return [fillet(height - (rise * brink) / 2, rise, -grade, brink, q - crest + brink / 2), smoothstep(crest - brink / 2, crest + brink / 2, q)];
+  if (q < toe / 2) return [fillet((grade * toe) / 2, -grade, 0, toe, q + toe / 2), 1];
+  if (q < floor - toe / 2) return [0, smoothstep(floor - toe / 2, toe / 2, q)];
+  const lee = smoothstep(floor + run / 2, crest, q);
+  if (q < floor + toe / 2) return [fillet(0, 0, rise, toe, q - floor + toe / 2), lee];
+  if (q < crest - brink / 2) return [rise * (q - floor), lee];
+  if (q < crest + brink / 2) return [fillet(height - (rise * brink) / 2, rise, -grade, brink, q - crest + brink / 2), lee];
   return [height - grade * (q - crest), 1];
 }
 
@@ -101,7 +103,8 @@ function off_line(line: readonly (readonly [number, number])[], x: number, z: nu
 }
 
 // Each wave rises over smoothstep to a sharp brink, then drops down the lee face, so the face stays a slope the mesh can draw.
-// Bands with a planar face go first: the bands without one lie down on its slip face.
+// Planar bands go first, the tallest at each point standing (summed, two slip faces would stack past repose), each
+// one's smaller bands lying down round its slip face; the bands without a face lie down on all of them.
 function dunes(layer: DunesLayer, seed: number, wx: number, wz: number, x: number, z: number): number {
   const along = x * wx + z * wz;
   const across = z * wx - x * wz;
@@ -112,15 +115,15 @@ function dunes(layer: DunesLayer, seed: number, wx: number, wz: number, x: numbe
       const band = layer.bands[b];
       if ((band.face === undefined) !== (pass === 1)) continue;
       const s = seed + layer.seed + b * 31;
-      const bend = (fbm(across / (band.wave * DUNE_BEND_SCALE), along / (band.wave * DUNE_BEND_SCALE * 2), s, 3) - 0.5) * (band.bend ?? DUNE_BEND);
-      // A planar band puts a corridor's middle half a wave either side of the map's middle, where a corridor circuit runs.
-      const anchor = band.face ? band.face.floor / (2 * band.wave) - 0.5 - (fbm(0, 0, s, 3) - 0.5) * (band.bend ?? DUNE_BEND) : 0;
-      const u = along / band.wave + bend + anchor;
-      const t = u - Math.floor(u);
       const field = band.fields === false ? 1 : smoothstep(DUNE_FIELD[0], DUNE_FIELD[1], fbm(x / (band.wave * DUNE_FIELD_SCALE), z / (band.wave * DUNE_FIELD_SCALE), s + 7, 3));
+      // Nothing to add and no calm to change: skipping it is exact, and spares the streamed tiles most of their noise.
+      if (field * calm === 0) continue;
+      const bend = (fbm(across / (band.wave * DUNE_BEND_SCALE), along / (band.wave * DUNE_BEND_SCALE * 2), s, 3) - 0.5) * (band.bend ?? DUNE_BEND);
+      const u = along / band.wave + bend;
+      const t = u - Math.floor(u);
       if (band.face) {
         const [y, lee] = slip(band, band.face, t);
-        h += y * field;
+        h = Math.max(h, y * field * calm);
         calm *= 1 - lee * field;
         continue;
       }

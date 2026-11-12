@@ -71,27 +71,33 @@ export interface Crest {
   impact: number;
   /** Most tilt of the body off the ground normal from touchdown on, deg. */
   tilt: number;
+  /** Within 30 degrees of the ground normal at the end, on all four wheels or not. */
+  upright: boolean;
   /** Upright on all four wheels at the end. */
   wheels: boolean;
+  /** Past 90 degrees off the ground normal at any point. */
+  rolled: boolean;
 }
 
 const up = new Vector3();
 const normal = new Vector3();
 const tilt_of = (car: Car) => (Math.acos(Math.min(1, up.set(0, 1, 0).applyQuaternion(car.quat).dot(normal))) * 180) / Math.PI;
 
-/** Coasting over the brink at about `speed` m/s from just short of it, then `SETTLE` s from touchdown. */
-export function crest(spec: CarSpec, brink: Brink, speed: number): Crest {
-  const ground = dune_ground(brink);
+/** Coasting along `heading` at about `speed` m/s over the brink at (x, z) from just short of it, then `SETTLE` s from touchdown. */
+export function coast(spec: CarSpec, ground: Ground, x: number, z: number, heading: number, speed: number): Crest {
+  const fx = Math.sin(heading);
+  const fz = Math.cos(heading);
   const car = new Car(spec);
-  car.park(0, -LEAD, 0, ground);
+  car.park(x - fx * LEAD, z - fz * LEAD, heading, ground);
   car.vel.copy(new Vector3(0, 0, 1).applyQuaternion(car.quat).multiplyScalar(speed));
   for (const w of car.wheels) w.omega = speed / spec.wheel.radius;
-  const out: Crest = { air: 0, impact: 0, tilt: 0, wheels: false };
+  const out: Crest = { air: 0, impact: 0, tilt: 0, upright: false, wheels: false, rolled: false };
   let flying = 0;
   let down = -1;
   for (let t = 0; t < 15 && (down < 0 || t - down < SETTLE); t += DT) {
     car.step(DT, idle, ground);
     ground.normal(car.pos.x, car.pos.z, normal);
+    if (tilt_of(car) > 90) out.rolled = true;
     if (car.wheels.every((w) => !w.contact)) {
       flying += DT;
       continue;
@@ -99,11 +105,17 @@ export function crest(spec: CarSpec, brink: Brink, speed: number): Crest {
     if (flying >= AIR && out.air === 0) out.impact = Math.max(0, -car.vel.dot(normal));
     out.air = Math.max(out.air, flying);
     flying = 0;
-    if (down < 0 && car.pos.z > 0 && (out.air > 0 || car.pos.z > RIDE)) down = t;
+    const past = (car.pos.x - x) * fx + (car.pos.z - z) * fz;
+    if (down < 0 && past > 0 && (out.air > 0 || past > RIDE)) down = t;
     if (down >= 0) out.tilt = Math.max(out.tilt, tilt_of(car));
   }
-  out.wheels = car.wheels.every((w) => w.contact) && tilt_of(car) < 30;
+  out.upright = tilt_of(car) < 30;
+  out.wheels = out.upright && car.wheels.every((w) => w.contact);
   return out;
+}
+
+export function crest(spec: CarSpec, brink: Brink, speed: number): Crest {
+  return coast(spec, dune_ground(brink), 0, 0, 0, speed);
 }
 
 export const CREST_SPEEDS = [15, 20, 25];

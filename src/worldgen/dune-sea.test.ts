@@ -1,0 +1,121 @@
+/// <reference types="bun" />
+import { expect, test } from "bun:test";
+import { CARS } from "../car/cars";
+import { sweep } from "../sweep";
+import { World } from "../world/world";
+import { climb_kmh, coast, grade_of, SAND } from "../../scripts/dunes";
+import { CHUNK, chunk_of, extent } from "./chunk-grid";
+import { DUNE_SEA_SIZE, generate_dune_sea } from "./dune-sea";
+import { build_tile } from "./ground";
+import { dune_wind, land_height } from "./terrain";
+import { WorldKind, type WorldData } from "./types";
+
+const EXT = extent(DUNE_SEA_SIZE);
+/** Inside the dune wall the mask raises round the sea. */
+const PLAY = 2200;
+const REPOSE = Math.tan((35 * Math.PI) / 180);
+/** A crest: rising at least this up to 6 m short of it, falling at least this 6 m past it. */
+const WINDWARD = 0.08;
+const SLIP = 0.3;
+/** Crests per drop to the ground past them: hops under 15 m, mid dunes, big ones over 40 m. */
+const SIZES = [15, 40, Infinity];
+const PER_SIZE = 3;
+/** The S1 crest speeds, m/s, plus each car's own top speed up a 12 degree loose windward face: what it brings to a crest. */
+const SPEEDS = [15, 20, 25];
+const WINDWARD_CLIMB = grade_of(12);
+
+function shape_of(data: WorldData) {
+  if (data.ground.base.kind !== "terrain") throw new Error("the dune sea is a terrain kind");
+  return data.ground.base.shape;
+}
+
+function wind_of(seed: number, data: WorldData) {
+  const dunes = shape_of(data).find((l) => l.kind === "dunes");
+  if (dunes?.kind !== "dunes") throw new Error("the dune sea has a dune layer");
+  return dune_wind(seed, dunes.seed);
+}
+
+test("the dune sea streams past the mainland's size, keyed bd13", async () => {
+  const { KINDS, world_key } = await import("./kinds/kinds");
+  expect(KINDS[WorldKind.BIG_DUNES].size).toBe(DUNE_SEA_SIZE);
+  expect(EXT.side).toBeGreaterThan(extent(6144).side);
+  expect(world_key(42, WorldKind.BIG_DUNES)).toBe("42:bd13");
+});
+
+for (const seed of sweep(10))
+  test(`dune sea ${seed}: no roads, a flat spawn facing downwind, nothing in the play area past repose, dunes from hops to 60 m+`, () => {
+    const data = generate_dune_sea(seed);
+    expect(data.road.length).toBe(1);
+    expect(data.graph.edges).toEqual([]);
+    expect(data.routes).toEqual([]);
+    expect(data.checkpoints).toEqual([]);
+    expect(data.ground.ops).toEqual([]);
+    const height = land_height(seed, shape_of(data));
+    const wind = wind_of(seed, data);
+    const spawn = data.road[0];
+    expect(Math.hypot(spawn.x, spawn.z)).toBeLessThan(PLAY / 2);
+    expect([spawn.tx, spawn.tz]).toEqual([wind.x, wind.z]);
+    expect(Math.abs(height(spawn.x + 8, spawn.z) - height(spawn.x - 8, spawn.z))).toBeLessThan(1.3);
+    expect(Math.abs(height(spawn.x, spawn.z + 8) - height(spawn.x, spawn.z - 8))).toBeLessThan(1.3);
+    let steepest = 0;
+    let low = Infinity;
+    let top = -Infinity;
+    for (let z = -PLAY; z <= PLAY; z += 12)
+      for (let x = -PLAY; x <= PLAY; x += 12) {
+        if (x * x + z * z > PLAY * PLAY) continue;
+        steepest = Math.max(steepest, Math.hypot(height(x + 2, z) - height(x - 2, z), height(x, z + 2) - height(x, z - 2)) / 4);
+        low = Math.min(low, height(x, z));
+        top = Math.max(top, height(x, z));
+      }
+    expect(steepest).toBeLessThan(REPOSE);
+    expect(top - low).toBeGreaterThan(60);
+  });
+
+function crests(seed: number, data: WorldData): { x: number; z: number; drop: number }[] {
+  const height = land_height(seed, shape_of(data));
+  const { x: wx, z: wz } = wind_of(seed, data);
+  const out: { x: number; z: number; drop: number }[] = [];
+  const size = (drop: number) => SIZES.findIndex((top) => drop < top);
+  const full = (at: number) => out.filter((c) => size(c.drop) === at).length >= PER_SIZE;
+  for (let k = 0; out.length < SIZES.length * PER_SIZE && k < 4000; k++) {
+    const x0 = ((k * 7919) % (PLAY * 1.6)) - PLAY * 0.8;
+    const z0 = ((k * 104729) % (PLAY * 1.6)) - PLAY * 0.8;
+    const grade = (x: number, z: number, d: number) => (height(x + wx * (d + 1), z + wz * (d + 1)) - height(x + wx * (d - 1), z + wz * (d - 1))) / 2;
+    for (let s = 0; s < 400; s++) {
+      const x = x0 + wx * s;
+      const z = z0 + wz * s;
+      if (grade(x, z, -6) <= WINDWARD || grade(x, z, 6) >= -SLIP) continue;
+      let floor = Infinity;
+      for (let a = 0; a < 300; a += 4) floor = Math.min(floor, height(x + wx * a, z + wz * a));
+      const drop = height(x, z) - floor;
+      if (!full(size(drop))) out.push({ x, z, drop });
+      break;
+    }
+  }
+  return out;
+}
+
+for (const seed of sweep(2))
+  test(`dune sea ${seed}: every car coasting off a natural crest at 15-25 m/s, or at its own speed up a windward face, lands upright and never rolls`, () => {
+    const data = generate_dune_sea(seed);
+    const world = new World(seed, data, []);
+    const { x: wx, z: wz } = wind_of(seed, data);
+    const found = crests(seed, data);
+    expect(found.length).toBe(SIZES.length * PER_SIZE);
+    for (const c of found)
+      for (let dz = -2; dz <= 2; dz++)
+        for (let dx = -2; dx <= 2; dx++) {
+          const index = chunk_of(c.x + dx * CHUNK, c.z + dz * CHUNK, EXT);
+          if (!world.tiles.get(index)) world.tiles.add(index, build_tile(data.ground, index, EXT));
+        }
+    const failed: string[] = [];
+    for (const spec of Object.values(CARS)) {
+      const own = climb_kmh(spec, WINDWARD_CLIMB, SAND) / 3.6;
+      for (const v of own > SPEEDS[SPEEDS.length - 1] ? [...SPEEDS, own] : SPEEDS)
+        for (const c of found) {
+          const run = coast(spec, world, c.x, c.z, Math.atan2(wx, wz), v);
+          if (run.rolled || !run.upright) failed.push(`${spec.id} ${v.toFixed(0)} m/s off ${c.x.toFixed(0)},${c.z.toFixed(0)} (${c.drop.toFixed(0)} m): ${run.air.toFixed(1)} s air, ${run.tilt.toFixed(0)} deg${run.rolled ? ", rolled" : ""}`);
+        }
+    }
+    expect(failed).toEqual([]);
+  }, 120_000);

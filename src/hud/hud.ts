@@ -220,7 +220,7 @@ export class Hud {
     set_text(el.lap, format(race.started ? now - race.started : null));
     set_text(el.best, format(race.best));
     set_text(el.last, format(race.last));
-    set_hidden(el.gate, this.run_route() !== null);
+    set_hidden(el.gate, this.run_route() !== null || !race.gates);
     set_text(el.cp, race.started ? `${race.next === 0 ? race.gates : race.next} / ${race.gates}` : "drive through the lit gate");
     el.strip.toggleAttribute("data-idle", !race.started);
     set_text(el.event_name, race.started ? "Lap" : "Free roam");
@@ -286,7 +286,7 @@ export class Hud {
     const run = this.run_route();
     const route = run ? run.id : this.lobby.route;
     // Lap gates are the circuit's; a run on any route brings its own.
-    const gate = run ? run.gate : route === CIRCUIT ? this.world.checkpoints[this.race.next] : null;
+    const gate = run ? run.gate : route === CIRCUIT ? (this.world.checkpoints[this.race.next] ?? null) : null;
     this.draw_note(car, gate);
     if (this.view === MapView.FULL || this.view === MapView.CLOSE) this.map.show_route(route);
     if ((this.view === MapView.FULL || this.view === MapView.CLOSE) && now - this.names_at >= NAMES_MS) {

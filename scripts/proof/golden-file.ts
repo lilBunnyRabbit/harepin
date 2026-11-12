@@ -4,7 +4,7 @@ import type { Digest } from "./digest";
 
 const seeds = (n: number) => [...Array(n).keys()];
 
-export const GOLDEN_SEEDS: Record<WorldKind, number[]> = { island: seeds(20), sky: seeds(10), desert: seeds(10), mainland: [0, 1, 2], alpine: seeds(10), tundra: seeds(10), volcano: seeds(10), rooftops: seeds(10), dunes: seeds(10), icecanyon: seeds(10) };
+export const GOLDEN_SEEDS: Record<WorldKind, number[]> = { island: seeds(20), sky: seeds(10), desert: seeds(10), mainland: [0, 1, 2], alpine: seeds(10), tundra: seeds(10), volcano: seeds(10), rooftops: seeds(10), dunes: [0, 1, 2], icecanyon: seeds(10) };
 
 /** seed -> part -> hash */
 export type Golden = Map<number, Map<string, string>>;
