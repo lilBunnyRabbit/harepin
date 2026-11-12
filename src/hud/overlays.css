@@ -1,4 +1,6 @@
 #toast {
+  /* The event card at a start flag hangs under it, so a toast never covers its Start. */
+  anchor-name: --toast;
   top: calc(var(--inset-top) + var(--bar-h) + var(--space-4));
   left: 50%;
   translate: -50% 0;

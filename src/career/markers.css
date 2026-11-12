@@ -1,8 +1,3 @@
-/* Under the toast's slot in every layout: a toast that fires at a flag would otherwise cover the Start button. */
-#toast {
-  anchor-name: --toast;
-}
-
 .event-card {
   position-anchor: --toast;
   top: calc(anchor(bottom) + var(--space-2));
