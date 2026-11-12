@@ -72,6 +72,8 @@ const CORRIDOR_APART = 300;
 const CORRIDOR_SNAP = 120;
 /** Controls along each straight side. */
 const CORRIDOR_SIDE = 6;
+/** Point spacing along a packed line, metres. */
+const PACKED_STEP = 4;
 
 export type Path = [number, number][];
 type Height = (x: number, z: number) => number;
@@ -211,7 +213,7 @@ function lowest_on(height: Height, from: [number, number], ux: number, uz: numbe
  * Two straight sides in the corridors either side of the middle, across the wind, each control snapped to its
  * corridor's floor; at each end a half circle over the dune between them, where the dunes part for the road.
  */
-function corridor_controls(seed: number, height: Height, corridor: NonNullable<RoadRecipe["corridor"]>): Controls {
+function corridor_controls(seed: number, height: Height, corridor: NonNullable<RoadRecipe["corridor"]>): Controls & { corridor: Corridor } {
   const { x: wx, z: wz } = dune_wind(seed, corridor.wind);
   const cx = -wz;
   const cz = wx;
@@ -244,12 +246,25 @@ function corridor_controls(seed: number, height: Height, corridor: NonNullable<R
   for (const [c, s] of turn) points.push([wx * (mid - r * c) + cx * (corridor.half + r * s), wz * (mid - r * c) + cz * (corridor.half + r * s)]);
   for (let k = 0; k <= CORRIDOR_SIDE; k++) points.push(side(hi, corridor.half - (2 * corridor.half * k) / CORRIDOR_SIDE));
   for (const [c, s] of turn) points.push([wx * (mid + r * c) + cx * (-corridor.half - r * s), wz * (mid + r * c) + cz * (-corridor.half - r * s)]);
-  return { points, fixed: 0, fixed_count: 0, stack: null };
+  return { points, fixed: 0, fixed_count: 0, stack: null, corridor: { wx, wz, lo, hi, half: corridor.half } };
 }
 
 /** A corridor circuit laid out on `height`, which can be the land itself before it is drawn. */
 export function corridor_path(seed: number, height: Height, corridor: NonNullable<RoadRecipe["corridor"]>): Loop {
-  return { path: relaxed(corridor_controls(seed, height, corridor)).path, stack: null };
+  const controls = corridor_controls(seed, height, corridor);
+  return { path: relaxed(controls).path, stack: null, corridor: controls.corridor };
+}
+
+/**
+ * Packed lines straight across the dune inside a corridor circuit, from one corridor to the other at a quarter of each
+ * side in from its ends: up the windward face, over the crest and down the slip face, on the ground as it lies.
+ */
+export function packed_lines({ wx, wz, lo, hi, half }: Corridor, height: Height): RoadPoint[][] {
+  return [-half / 2, half / 2].map((across) => {
+    const path: Path = [];
+    for (let s = lo; s <= hi; s += PACKED_STEP) path.push([wx * s - wz * across, wz * s + wx * across]);
+    return road_points(path, path.map(([x, z]) => height(x, z)), false);
+  });
 }
 
 function loop_controls(seed: number, heights: Float32Array, summit: [number, number], shape: RoadRecipe): Controls {
@@ -417,9 +432,19 @@ function relaxed({ points: controls, fixed, fixed_count, stack }: Controls): { p
   return { path, radius };
 }
 
+/** Where a corridor circuit runs: the wind, its two sides `lo` and `hi` metres along it, and half its straights. */
+export interface Corridor {
+  wx: number;
+  wz: number;
+  lo: number;
+  hi: number;
+  half: number;
+}
+
 export interface Loop {
   path: Path;
   stack: Switchback | null;
+  corridor?: Corridor;
 }
 
 export function loop_path(seed: number, heights: Float32Array, shape: RoadRecipe = ISLAND.road): Loop {

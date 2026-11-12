@@ -10,7 +10,7 @@ import { on_ice, plan_ice } from "./ice";
 import { in_lava } from "./lava";
 import { split_circuit, type Join } from "./graph";
 import { link_towns, way_toward, ways } from "./links";
-import { corridor_path, loop_heights, loop_path, road_points } from "./path";
+import { corridor_path, loop_heights, loop_path, packed_lines, road_points } from "./path";
 import { circuit_route, descent_route, offroad_routes, reverse_circuit, street_routes } from "./routes";
 import { join_candidates, MIN_RADIUS, Router, SHAPE_GRADE, spur_need, spur_points, tightest, type Way } from "./route";
 import type { Loop, Path } from "./path";
@@ -98,7 +98,7 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   stamp.edge(ring);
   lap("circuit");
 
-  const towns = place_towns(seed, heights, road, recipe.towns, recipe.towns.pan ? pan_floor(seed, shape) : null);
+  const towns = place_towns(seed, heights, road, recipe.towns, recipe.towns.pan ? (pan_floor(seed, shape) ?? -Infinity) : null);
   const gates = new Map<number, number>();
   for (const town of towns) {
     const streets = town_streets(seed, town, (x, z) => sample(heights, x, z), road, nodes.length, edges.length, recipe.towns);
@@ -218,11 +218,14 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   lap("checkpoints");
 
   const trails = plan_trails(seed, land, stamp, canyon, towns, solids, recipe.road.canyon?.crossings);
+  // Laid on the ground as it lies: only the surface turns to packed dirt.
+  const packed = planned.corridor ? packed_lines(planned.corridor, (x, z) => sample(heights, x, z)) : [];
+  if (packed.length) stamp.trail(packed.map((points) => ({ points, blend: () => 0 })));
   lap("trails");
 
   const planner = new JumpPlanner(seed, land, towns, lots.occupied, solids, recipe.road.kickers, lakes, lava);
   if (trails.gap) planner.gap(trails.gap);
-  planner.keep_off([...trails.trails.flatMap((t) => t.points), ...trails.ramp_out]);
+  planner.keep_off([...trails.trails.flatMap((t) => t.points), ...trails.ramp_out, ...packed.flat()]);
   // Points of the switchback count as gates, so no kicker or chicane lands inside it.
   const climb = stack ? road.filter((p, i) => i % STACK_GATE === 0 && inside(stack, p.x, p.z, 0)) : [];
   planner.circuit(road, [...checkpoints, ...nodes.filter((n) => n.kind === "junction"), road[(SPAWN_INDEX + road.length) % road.length], ...climb], recipe.road.runup);
@@ -255,7 +258,7 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   const planted = plant(cuts, land, free);
   const trees: Tree[] = [...lots.out.trees, ...planted.trees];
   solids.push(...planted.solids);
-  const strewn = scatter(cuts, land, recipe.scatter, free, [...trails.trails.flatMap((t) => t.points), ...trails.ramp_out]);
+  const strewn = scatter(cuts, land, recipe.scatter, free, [...trails.trails.flatMap((t) => t.points), ...trails.ramp_out, ...packed.flat()]);
   props.push(...strewn.props);
   solids.push(...strewn.solids);
   stamp.harden(cuts, pan_floor(seed, shape));
