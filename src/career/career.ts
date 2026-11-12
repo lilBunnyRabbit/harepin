@@ -1,9 +1,11 @@
 import type { CarClass } from "../car/pi";
-import type { Thresholds } from "../modes/track";
+import { SILVER_SHARE, type StarRun, type Thresholds } from "../modes/track";
 
 // Off in the release: a load turns it on with `?career`, and an event link carries it.
 export const CAREER_PARAM = "career";
 export const EVENT_PARAM = "event";
+// With `?career`, the career page offers "Copy my times": the owner's runs set the non-race events' stars.
+export const TUNE_PARAM = "tune";
 
 export const career_on = (params: URLSearchParams) => params.has(CAREER_PARAM) || params.has(EVENT_PARAM);
 
@@ -23,7 +25,7 @@ export interface CareerEvent {
   readonly car: { cap: CarClass } | { preset: string };
   /** `world_key` of the map it runs on now: `career.test.ts` fails when a generator bump moves it, until re-tuned. */
   readonly tuned: string;
-  /** Ms, from bot runs on `tuned` (`scripts/career.ts`); without them the mode's own par grades the run. */
+  /** Ms (drift: points, higher is better). Race: bot runs on `tuned` (`scripts/career.ts`); the rest: the owner's run (`owner_stars`). Without them the mode's own marks grade the run. */
   readonly stars?: Thresholds;
   /** A 3-star dev ghost ships at `ghost_path`, recorded on `tuned`. */
   readonly ghost?: true;
@@ -163,4 +165,13 @@ export function parse_stars(raw: unknown): Record<string, number> {
   if (!held || typeof held !== "object" || Array.isArray(held)) return stars;
   for (const [id, value] of Object.entries(held)) if (Number.isInteger(value) && (value as number) >= 1 && (value as number) <= MAX_EVENT_STARS) stars[id] = value as number;
   return stars;
+}
+
+/** Star marks from the owner's best run: 3 stars = that run, 2 stars a quarter slower, or for drift a quarter fewer points. */
+export function owner_stars(event: CareerEvent, run: StarRun): Thresholds {
+  if (event.mode === "drift") {
+    const three = Math.round(run.score ?? 0);
+    return { two: Math.round(three / SILVER_SHARE), three };
+  }
+  return { two: Math.round(run.ms * SILVER_SHARE), three: run.ms };
 }

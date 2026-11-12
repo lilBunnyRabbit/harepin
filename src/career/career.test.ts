@@ -12,7 +12,7 @@ import { SILVER_SHARE, type Store } from "../modes/track";
 import { world_key } from "../worldgen/kinds/kinds";
 import { parse_map_code } from "../worldgen/kinds/map-code";
 import { EVENTS, TIERS, current_tier, event_of, ghost_path, next_event, parse_stars, spot_of, suggested, tier_line, tier_open, type Stars } from "./career";
-import { CAREER_KEY, Career, event_map, event_track } from "./career-store";
+import { CAREER_KEY, Career, event_map, event_track, owner_times } from "./career-store";
 
 const LEVEL_IDS: Record<string, readonly { id: string }[]> = {
   gymkhana: GYMKHANA_LEVELS,
@@ -117,4 +117,19 @@ test("career keeps the best stars and its own best times apart from free play", 
   expect(new Career(store).best(r1)).toEqual({ stars: 2, ms: 90_000 });
   expect(Object.keys(store.data).filter((key) => key.startsWith("harepin:race:"))).toEqual([]);
   expect(Object.keys(store.data)).toContain(`harepin:career:r1:${r1.tuned}`);
+});
+
+test("Copy my times turns the best run of each played non-race event into its stars", () => {
+  const store = memory();
+  const at = (id: string) => event_of(id) ?? EVENTS[0];
+  for (const [id, run] of [
+    ["r1", { stars: 3, ms: 200_000 }],
+    ["r2", { stars: 3, ms: 40_000 }],
+    ["c2", { stars: 2, ms: 30_000, score: 1500 }],
+  ] as const)
+    event_track(at(id), store).record(spot_of(at(id)).level, run);
+  expect(JSON.parse(owner_times(new Career(store)))).toEqual({
+    r2: { stars: { two: 50_000, three: 40_000 }, tuned: at("r2").tuned },
+    c2: { stars: { two: 1200, three: 1500 }, tuned: at("c2").tuned },
+  });
 });

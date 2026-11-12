@@ -1,12 +1,13 @@
 import { CLASS_LABELS } from "../car/pi";
 import { MAX_EVENT_STARS, TIERS, current_tier, suggested, tier_max, tier_open, tier_stars, type CareerEvent, type Tier } from "../career/career";
-import { event_map, type Career } from "../career/career-store";
+import { event_map, owner_times, type Career } from "../career/career-store";
 import { MODES } from "../modes/modes";
 import { run_text } from "../modes/result";
 import { plain_map, snow_of } from "../worldgen/kinds/kinds";
 import { WORLDS } from "../worlds/worlds";
 import { MenuTab, type Menu, type MenuPage } from "./page";
 import { el, icon } from "./setting-rows";
+import { copy_action } from "./widgets";
 import "./career.css";
 
 const SUGGESTED = 2;
@@ -86,6 +87,8 @@ export class CareerPage implements MenuPage {
   constructor(
     private readonly menu: Menu,
     private readonly career: Career,
+    /** `?career&tune`: the owner sets the non-race events' stars from their own runs. */
+    private readonly tune: boolean,
   ) {}
 
   build(): HTMLElement[] {
@@ -93,7 +96,8 @@ export class CareerPage implements MenuPage {
   }
 
   on_show() {
-    this.root.replaceChildren(...TIERS.map((tier) => this.tier(tier)));
+    const times = this.tune ? [copy_action("Copy my times", owner_times(this.career))] : [];
+    this.root.replaceChildren(...times, ...TIERS.map((tier) => this.tier(tier)));
   }
 
   private tier(tier: Tier): HTMLElement {

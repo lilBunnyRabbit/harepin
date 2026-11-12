@@ -42,8 +42,8 @@ export interface ModeCtx {
   race_busy(): boolean;
   /** A career event's hit counter for the run, fresh per call; null in free play, which has no hit penalty. */
   hits(): Hits | null;
-  /** The star times a run is graded on: a career event's own, else the mode's par. */
-  thresholds(par_ms: number): Thresholds;
+  /** The star marks a run is graded on: a career event's own when tuned on this world, else `own`, the mode's (ms, or points for drift). */
+  thresholds(own: Thresholds): Thresholds;
   /** A career event's shipped 3-star ghost lap; null in free play or when it has none. */
   dev_ghost(): Promise<number[] | null>;
   /** The player's ghost setting. */

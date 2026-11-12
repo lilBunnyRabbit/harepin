@@ -4,6 +4,7 @@ import { GymRun, HIT_MS, LEVELS, MISS_MS, RunStatus, Step, build_course, find_si
 import { GymkhanaView } from "./gymkhana-view";
 import { NO_SITE, body_of, type Driven, type Finish, type ModeCtx, type ModeDef, type ModeRun } from "./mode";
 import { best_line, line, result_title } from "./result";
+import { grade, par_thresholds } from "./track";
 
 const sites = new WeakMap<World, Site | null>();
 
@@ -50,8 +51,9 @@ class Gymkhana implements ModeRun {
   private finish(level: GymLevel) {
     const { run } = this;
     const { track } = this.ctx;
-    const stars = run.stars();
+    const par = this.ctx.thresholds(par_thresholds(run.course.par_ms));
     const ms = Math.round(run.total());
+    const stars = grade(run.total(), par);
     const recorded = track.record(level.id, { stars, ms });
     this.result = {
       title: result_title(level.name, recorded),
@@ -62,7 +64,7 @@ class Gymkhana implements ModeRun {
         line(`cones ×${run.hits}`, `+${(run.hits * HIT_MS) / 1000} s`),
         line(`missed ×${run.misses}`, `+${(run.misses * MISS_MS) / 1000} s`),
         line("total", format(ms)),
-        line("par", format(run.course.par_ms)),
+        line("par", format(par.three)),
         best_line(track.runs[level.id]),
       ],
     };

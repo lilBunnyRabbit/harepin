@@ -22,7 +22,7 @@ import { PARKING_MODE } from "./parking-mode";
 import { RACE_MODE } from "./race-mode";
 import { race_levels } from "./races";
 import { line, run_text, star_row } from "./result";
-import { MAX_STARS, Track, local_store, par_thresholds, type RaceRecord } from "./track";
+import { MAX_STARS, Track, local_store, type RaceRecord } from "./track";
 import "./modes.css";
 
 export type { Driven } from "./mode";
@@ -386,7 +386,7 @@ export class Modes {
       race_busy: () => this.race_busy(),
       hits: () => (event ? new Hits(() => world.contacts) : null),
       // Tuned on another world version, an event's times and ghost no longer fit its road: the mode's par grades it, no ghost.
-      thresholds: (par_ms) => (tuned && event?.stars) || par_thresholds(par_ms),
+      thresholds: (own) => (tuned && event?.stars) || own,
       dev_ghost: () => (tuned && event?.ghost ? dev_ghost(event) : Promise.resolve(null)),
       ghosts: () => this.ghosts(),
       high: () => this.high,

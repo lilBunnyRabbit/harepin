@@ -6,7 +6,7 @@ import { turn_to, type Driven, type Finish, type ModeCtx, type ModeDef, type Mod
 import { COUNTDOWN_MS, RaceRun, RaceStatus, race_course, race_levels, type RaceCourse, type RaceLevel } from "./races";
 import { RaceView } from "./race-view";
 import { best_line, line, penalty_text, result_title, time_lines } from "./result";
-import { grade } from "./track";
+import { grade, par_thresholds } from "./track";
 
 // Never written: the dev ghost is read from the shipped asset, and a race keeps no ghost of the player's own.
 const DEV_GHOST_KEY = "harepin:ghost:career-dev";
@@ -100,7 +100,7 @@ class Race implements ModeRun {
     const { par_ms, length } = run.course.route;
     const time = Math.round(run.elapsed());
     const ms = time + (this.hits?.penalty_ms ?? 0);
-    const par = this.ctx.thresholds(par_ms);
+    const par = this.ctx.thresholds(par_thresholds(par_ms));
     const stars = grade(run.elapsed() + (this.hits?.penalty_ms ?? 0), par);
     const recorded = track.record(level.id, { stars, ms });
     this.result = {

@@ -1,6 +1,6 @@
 import { format } from "../hud/hud";
 import { ROAD_HALF } from "../world/world";
-import { ComboEnd, DRIFT_LEVELS, DriftRun, DriftStatus, LEAD, build_zone, type DriftLevel, type Zone } from "./drift";
+import { ComboEnd, DRIFT_LEVELS, DriftRun, DriftStatus, LEAD, build_zone, drift_stars, type DriftLevel, type Zone } from "./drift";
 import { DriftView } from "./drift-view";
 import { body_of, type Driven, type Finish, type ModeCtx, type ModeDef, type ModeRun } from "./mode";
 import { best_line, line, points, result_title } from "./result";
@@ -41,7 +41,8 @@ class Drift implements ModeRun {
     const { zone, combo } = run;
     const { level } = zone;
     const { track } = this.ctx;
-    const stars = run.stars();
+    const marks = this.ctx.thresholds({ two: zone.silver, three: zone.gold });
+    const stars = drift_stars(combo.score, { silver: marks.two, gold: marks.three });
     const score = Math.round(combo.score);
     const recorded = track.record(level.id, { stars, ms: Math.max(1, Math.round(run.elapsed())), score });
     this.result = {
@@ -52,7 +53,7 @@ class Drift implements ModeRun {
         line("best chain", points(combo.best_chain)),
         line("walls", String(combo.lost)),
         line("time", format(run.elapsed())),
-        line("★★ / ★★★", `${points(zone.silver)} / ${points(zone.gold)}`),
+        line("★★ / ★★★", `${points(marks.two)} / ${points(marks.three)}`),
         best_line(track.runs[level.id]),
       ],
     };

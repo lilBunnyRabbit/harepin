@@ -1,6 +1,7 @@
 import { modal_open, typing, type Nav } from "../hud/input";
 import { clean_name } from "../net/net";
 import { GUIDE_PARAM, Guide, ROLLED_VISIT, type GuideStep } from "./guide";
+import { TUNE_PARAM } from "../career/career";
 import { CareerPage } from "./career-view";
 import { GoalsPage } from "./goals-view";
 import { ModesPage } from "./modes-page";
@@ -123,7 +124,7 @@ export class Settings {
       new ModesPage(this.menu),
       new RoomPage(this.menu),
       new GoalsPage(this.menu, (to) => this.go_to(to)),
-      ...(host.career ? [new CareerPage(this.menu, host.career)] : []),
+      ...(host.career ? [new CareerPage(this.menu, host.career, new URLSearchParams(location.search).has(TUNE_PARAM))] : []),
     ];
     this.guide = new Guide({
       state: () => this.current,

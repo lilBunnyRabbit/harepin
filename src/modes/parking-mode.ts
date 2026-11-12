@@ -2,9 +2,10 @@ import { format } from "../hud/hud";
 import type { World } from "../world/world";
 import { find_site, to_world, type Site } from "./gymkhana";
 import { NO_SITE, body_of, pose_of, type Driven, type Finish, type ModeCtx, type ModeDef, type ModeRun } from "./mode";
-import { PARK_LEVELS, ParkRun, ParkStatus, Verdict, park_footprint, park_solids, type ParkLevel } from "./parking";
+import { PARK_LEVELS, ParkRun, ParkStatus, Verdict, park_footprint, park_solids, park_stars, type ParkLevel } from "./parking";
 import { ParkingView } from "./parking-view";
 import { best_line, line, result_title } from "./result";
+import { par_thresholds } from "./track";
 
 const DEG = 180 / Math.PI;
 const AREA = park_footprint();
@@ -65,8 +66,10 @@ class Parking implements ModeRun {
     const { run } = this;
     const { level } = run;
     const { track } = this.ctx;
-    const stars = run.stars();
     const result = run.result();
+    // Parking grades by faults, time over par one of them, so an event moves only the par.
+    const par = this.ctx.thresholds(par_thresholds(level.par_ms)).three;
+    const stars = park_stars(result, par);
     const ms = Math.round(result.ms);
     const recorded = track.record(level.id, { stars, ms });
     this.result = {
@@ -75,7 +78,7 @@ class Parking implements ModeRun {
       quiet: true,
       lines: [
         line("time", format(ms)),
-        line("par", format(level.par_ms)),
+        line("par", format(par)),
         line("touches", String(result.touches)),
         line("angle", `${(result.angle * DEG).toFixed(1)}°`),
         line("off centre", `${result.offset.toFixed(2)} m`),

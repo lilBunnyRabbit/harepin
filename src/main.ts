@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { Audio } from "./audio/audio";
-import { CAREER_PARAM, EVENT_PARAM, career_on, event_of, type CareerEvent } from "./career/career";
+import { CAREER_PARAM, EVENT_PARAM, TUNE_PARAM, career_on, event_of, type CareerEvent } from "./career/career";
 import { Career, event_map } from "./career/career-store";
 import { ChaseCamera } from "./render/camera";
 import { Driver } from "./car/driver";
@@ -75,7 +75,7 @@ const solo = event !== null && !params.has("room");
 // getRandomValues, not randomUUID: the latter only exists in a secure context, and a phone on the LAN dev server is not one.
 const net_room = solo ? `solo-${[...crypto.getRandomValues(new Uint8Array(4))].map((b) => b.toString(16).padStart(2, "0")).join("")}` : room;
 // A room the player chose stays theirs across events; without one the event runs solo.
-const KEPT_ON_EVENT = ["room", "car"];
+const KEPT_ON_EVENT = ["room", "car", TUNE_PARAM];
 const saved_pick = read_saved_pick();
 const pick = pick_world(params, room, saved_pick);
 pin_pick(params, saved_pick, pick);
