@@ -1,10 +1,11 @@
 # Career ladder
 
-> **Status 2026-11-12 (v0.31.2):** Partly built, off in the release: it runs only with `?career` or an `?event=` link (`src/career/career.ts`). C0-C4 are in: 21 events, the store, the career page, `?event=` start, the Play card, finish line + Next event, the +2 s hit penalty, the car pick (the event's car is fitted unsaved and the player's car comes back on leaving), bot star times for race events and dev ghosts for race and duel events. `scripts/career-check.ts` checks every event runs on its map; `scripts/career.ts [ids] [--write]` tunes (ids as plain arguments, not `--event`).
+> **Status 2026-11-12 (release 0.32.0):** Public. Every load has the career: the Play card and the career page show for everyone; free play is unchanged. C0-C4 are in: 21 events, the store, the career page, `?event=` start, the Play card, finish line + Next event, the +2 s hit penalty, the car pick (the event's car is fitted unsaved and the player's car comes back on leaving), bot star times for race events, owner star marks for the 12 non-race events, and dev ghosts for race and duel events (precached by the PWA, `vite.config.ts`). `?tune` (old links `?career&tune` still work) opens every tier and adds Copy my times. `scripts/career-check.ts` checks every event runs on its map; `scripts/career.ts [ids] [--write]` tunes (ids as plain arguments, not `--event`).
 >
-> **Round 3 (2026-11-12, `docs/brainstorm/2026-11-13_harepin-career-v3.answers.md`):** release C0-C4 right after the pre-release items (R1, R2); C5 rewards, C6 markers, C7 Mainland and C8 share link follow, in that order (§7). Pre-release, built: the Club final c7 runs on the Volcano `descent` (F1); the Rookie final r7 stays on Sky Track as **Skyline** (F2, N1); every mode grades by an event's own `stars`, drift in points (§5); `?career&tune` adds **Copy my times** to the career page (D2, §1.3). Pre-release, open: the owner plays the 12 non-race events with `?career&tune`, copies the times, and they go into `career.ts` as each event's `stars` and `tuned`; then release. The Pro final p7 runs on the Ice canyon `descent` (F3, 0.32.0). Still on stand-ins: Mainland c6 / p1 on Island until C7 (L1). Unlocks stay 12 / 14, re-checked after the owner plays Rookie (D1).
+> **Round 3 (2026-11-12, `docs/brainstorm/2026-11-13_harepin-career-v3.answers.md`):** done before release (R1, R2): c7 on the Volcano `descent` (F1); r7 on Sky Track as **Skyline** (F2, N1); p7 on the Ice canyon `descent` (F3); every mode grades by an event's own `stars`, drift in points (§5); the owner's runs set the non-race stars (D2, §1.3). Still on stand-ins: Mainland c6 / p1 on Island until C7 (L1). Next, in order: C5 rewards, C6 markers, C7 Mainland, C8 share link (§7).
 >
-> **When career ships:** the dev ghosts in `public/career/` (about 0.9 MB of JSON) are left out of the PWA precache on purpose while career is hidden; add them to `workbox.globPatterns` in `vite.config.ts` then, or events run without ghosts offline. Then drop the `?career` gate (`career_on`).
+> **Known follow-ups:** c2's drift marks (287 / 230 points) were played before `e248368` (no automatic countersteer with the assist off): redo them if they prove off. The duel dev ghosts (r6 24.4 s, p1 120.1 s) are bot laps slower than the owner's 3-star times: they are only the first opponent, so `career.test.ts` checks 3-star pace for race ghosts only. Unlocks stay 12 / 14; the owner re-checks them now that he has played Rookie (D1).
+
 
 Round 1, 2026-11-11, at `7c4f299` (v0.28.1). Plan only. Nothing was run. Every file:line comes from reading the code at `7c4f299`. Inputs: `docs/brainstorm/2026-11-11_harepin-career-v2.answers.md` (final), `docs/plan/special-maps.md`, `docs/plan/biomes.md`.
 
@@ -217,9 +218,9 @@ Each phase ships on its own. S ≈ a day, M ≈ 2-4 days.
 | Pre-release: p7 on Ice canyon | `descent` on `1F0000001`, re-tuned (`1:ic5`), new dev ghost | Built |
 | Pre-release: r7 on Sky Track | Stays on `1S0000002`, named Skyline | Built |
 | Pre-release: drift point marks | Every mode grades through `ModeCtx.thresholds(own)`; drift in points (§5) | Built |
-| Pre-release: owner stars (D2) | Copy my times under `?career&tune` (§1.3) | Built. Owner plays the 12 non-race events, then paste |
-| Release | C0-C4 on for everyone: drop the `?career` gate, precache the dev ghosts (status note) | After the owner's times |
-| Re-check (D1) | Unlocks 12 / 14 after the owner plays Rookie | After the owner's times |
+| Pre-release: owner stars (D2) | Copy my times under `?tune` (§1.3); the owner's marks are in `career.ts` | Done |
+| Release | C0-C4 on for everyone: `?career` gate gone, dev ghosts precached | 0.32.0 |
+| Re-check (D1) | Unlocks 12 / 14 after the owner plays Rookie | Owner to confirm |
 
 | Phase | Ships | Reuse | New | Size |
 |---|---|---|---|---|
