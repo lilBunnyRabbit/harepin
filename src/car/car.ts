@@ -106,6 +106,12 @@ const DRIFT_SIDE_SX = 2;
  */
 const DRIFT_SIDE_SLIP = [0.26, 0.52] as const;
 /**
+ * Share of the gap between sliding and peak side grip a held drift's rears keep past their peak, with the steering assist
+ * off and `Car.drift_full_lock`. At sliding grip, with the fronts biting, lifting to 0.3 gas left a 90 km/h drift at 35
+ * degrees rather than bringing it in (17 at 0.8), and a 20 degree drift weaved.
+ */
+const DRIFT_REAR_BITE = 0.8;
+/**
  * Front slip a held full key reaches past `grip_lock` at speed, in `peak_angle`: with the fronts held just under peak a
  * full key felt stiff at 100-150 km/h. A little past peak turns tighter into a catchable push rather than a wall.
  */
@@ -454,11 +460,11 @@ export class Car {
   private centred = 0;
   steer_mode: SteerMode = SteerMode.SNAP;
   /**
-   * Feel A/B, `?feel` only: with the steering assist off, a slide opens full lock into the turn as well as against it. Off,
-   * the key into the turn stops at the grip-limited lock: 6-9 degrees in a 60-90 km/h drift. On, it reaches full lock, but
-   * the fronts scrub and a shallow drift stalls near 10 degrees.
+   * With the steering assist off, a slide opens full lock into the turn as well as against it, and a held drift past
+   * walking pace bites: the fronts never scrub past their useful slip into the turn and the rears keep `DRIFT_REAR_BITE`.
+   * Off (`?feel` only) is the old feel: the key into the turn stops at the grip-limited lock, 6-9 degrees in a 60-90 km/h drift.
    */
-  drift_full_lock = false;
+  drift_full_lock = true;
   /** Idle hold latched on: it keeps braking at any speed until a pedal or the wheel is touched. */
   parked = false;
   readonly nitro: Nitro;
@@ -823,6 +829,8 @@ export class Car {
     const [side_from, side_to] = DRIFT_SIDE_SLIP;
     const side_hold = this.launched || this.assist ? 0 : drift_steer * Math.max(0, Math.min(1, (Math.abs(beta) - side_from) / (side_to - side_from)));
     const side_cap = side_hold > 0 ? DRIFT_SIDE_SX / side_hold : Infinity;
+    // At walking pace the slide is a pivot on the rears' spin: gripped up there, a launch from rest held 1.6 s, not 5.
+    const drift_bite = this.assist || !this.drift_full_lock ? 0 : drift_steer * (1 - walking);
     for (const w of this.wheels) {
       const { axle, prev } = w;
       const other = this.wheels[w.pair];
@@ -857,12 +865,20 @@ export class Car {
       // Along body up, a pitched body pushed itself sideways and a car in neutral rolled off on the flat.
       body.apply(force.copy(w.normal).multiplyScalar(load), w.point);
 
-      steer_q.setFromAxisAngle(Y, -w.angle);
+      point_vel.crossVectors(ang, lever).add(vel);
+      let tyre_angle = w.angle;
+      if (drift_bite > 0 && axle.steer && this.hold_side !== 0) {
+        // Held into the turn past its useful slip, a front bites as at that slip: the wheel shows full lock, the tyre
+        // does not scrub. At full lock it sat 50-60 degrees past its course and the drift ran wide.
+        tmp2.copy(point_vel).applyQuaternion(inv);
+        const useful = Math.atan2(-tmp2.x, tmp2.z) + this.hold_side * USEFUL_SLIP * spec.peak_angle;
+        if (this.hold_side * w.angle > this.hold_side * useful) tyre_angle = w.angle + (useful - w.angle) * drift_bite;
+      }
+      steer_q.setFromAxisAngle(Y, -tyre_angle);
       wheel_fwd.set(0, 0, 1).applyQuaternion(steer_q).applyQuaternion(quat);
       wheel_fwd.addScaledVector(w.normal, -wheel_fwd.dot(w.normal)).normalize();
       lat.crossVectors(w.normal, wheel_fwd).normalize();
 
-      point_vel.crossVectors(ang, lever).add(vel);
       const v_long = point_vel.dot(wheel_fwd);
       const v_lat = point_vel.dot(lat);
       const denom = Math.max(Math.abs(v_long), 2);
@@ -897,7 +913,10 @@ export class Car {
       const roll = ground.roll(w.point.x, w.point.z);
       const rolling = v_long * spec.roll_resist;
       const fx = combined_x(sx, sy) * peak_x - rolling;
-      const fy = combined_y(Math.max(-cap, Math.min(cap, sx)), sy) * peak;
+      const side_sx = Math.max(-cap, Math.min(cap, sx));
+      let fy = combined_y(side_sx, sy) * peak;
+      const sliding = Math.hypot(side_sx, sy);
+      if (drift_bite > 0 && !axle.steer && sliding > 1) fy += ((sy / sliding) * peak - fy) * DRIFT_REAR_BITE * drift_bite;
       w.slip = sx * peak_slip;
       const locking = this.abs && brake > 0.1 && w.slip < -this.abs_slip * w.peak && Math.abs(v_long) > 2;
       w.abs_factor = locking ? Math.max(0.2, w.abs_factor - 25 * dt) : Math.min(1, w.abs_factor + 12 * dt);

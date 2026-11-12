@@ -186,3 +186,30 @@ and on road the sim is byte-identical (`feel.ts coupe` diff is empty). The muscl
 `rear_grip` goes from 1.04 to 1.08 (slide hold 1.3 to 2.0 s, still under the Kaze; power-on 37.8° to 35.2°; 0-100
 6.05 to 5.86 s). Test: `car.test.ts` "grass drag", all cars, a 0.03 rad/s yaw kick at 20 s. It fails on the old code
 (coupe heading 0.55 rad) and passes now. It probably helps item 7 (grass braking) too; not measured.
+
+### Drift bite under full lock (2026-11-12)
+
+Owner drove the Drift preset with the `?feel` "Full lock in drift" toggle: prefers it on, but "it barely grabs the road
+while drifting". Full lock into the turn put the fronts 50-60° past their course, deep into sliding grip, with much of
+their force pointing backwards: the arc opened and the drift stalled.
+
+Now the default (`Car.drift_full_lock = true`, the `?feel` checkbox is the off-switch to the old grip-limited wheel). In
+a held drift past walking pace, steering assist off: a front held into the turn past `USEFUL_SLIP` bites as at that
+slip (the wheel still shows full lock), and the rears keep `DRIFT_REAR_BITE` (0.8) of the gap from sliding to peak
+side grip. At walking pace neither applies: gripped up, a launch from rest held 1.6 s instead of 5.
+
+`bun scripts/drift.ts --carve` (thrown 25° out, key and gas held 1.5 s), key into the turn:
+
+| km/h, gas | grip lock (old default) | full lock, no bite (fe82541) | now |
+|---|---|---|---|
+| 60, 1 | 35 m, 25→26°, 55 km/h | 37 m, 25→23°, 53 | **30 m**, 25→25°, 59 |
+| 60, 0.3 | 33 m, 25→21° | 34 m, 25→17° | **28 m**, 25→21° |
+| 90, 1 | 78 m, 25→26°, 85 km/h | 91 m, 25→22°, 81 | **65 m**, 25→25°, 88 |
+| 90, 0.3 | 73 m, 25→19° | 80 m, 25→3° | **62 m**, 25→17° |
+
+Straight wheel (key 0): 36 m / 70 m, unchanged. `--catch`, Drift preset, aim 20° held s (60 / 75 / 90 / 130 km/h):
+4.34 / 4.71 / 4.48 / 4.00 grip lock, 1.06 / 4.07 / 1.09 / 1.15 full lock, 3.95 / 4.54 / 4.18 / 3.87 now (sd 4.7 /
+3.7 / 4.5 / 6.1, was 3.9 / 3.2 / 3.9 / 5.5). Aim 30°, slowest km/h: 41 / 58 / 73 / 106 grip lock, 53 / 69 / 84 / 118
+now. Cost: let go at 130 km/h, aim 20°, straightens in 2.56 s (2.34 grip lock, 2.50 full lock); 60-90 km/h 1.9-2.0 s
+(1.7-1.8 grip lock). From rest unchanged. Assist on, `telemetry.ts` and `feel.ts` assist-on rows byte-identical;
+`feel.ts` lift-off with the assist off drops 1.7-4.2° (hatch, rally, formula) from the full lock opening into the turn.

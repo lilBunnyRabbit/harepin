@@ -5,7 +5,7 @@ import { DEFAULT_BUILD, DEFAULT_PARTS, apply_build, parse_build } from "./build"
 import { Car, SteerMode, drop_height, grip_lock, ride_height, unassisted_lock, type Controls, type Ground } from "./car";
 import { CARS, car_sized, is_car, type CarId, type CarSpec } from "./cars";
 import { PRESETS } from "./presets";
-import { catch_drift, wheel_trace } from "../../scripts/drift";
+import { carve, catch_drift, wheel_trace } from "../../scripts/drift";
 import { donut } from "../../scripts/donut";
 import { hairpin_pull } from "../../scripts/hairpin";
 import { Counter, arc, flick, hairpin, lane_change, lift_off, power_over, slalom, swerve, tap, type PowerOver } from "../../scripts/keys";
@@ -933,9 +933,9 @@ describe("power over with TCS on and the steering assist off", () => {
         expect(held.spun).toBe(false);
         // The driver's own hunting between keys, not a weave: before the damper the slide rang through 15 degrees.
         expect(held.sd).toBeLessThan(7);
-        // From rest the slide is a walking-pace pivot on the driver's keys. Rolling, the angle the driver holds costs the speed:
-        // chasing 30 degrees, the key sits into the turn with the fronts scrubbing and the rears holding the arc.
-        if (kmh > 0) expect(held.slowest).toBeGreaterThan(kmh * (aim === 20 ? 0.9 : 0.65));
+        // From rest the slide is a walking-pace pivot on the driver's keys. Rolling, the angle the driver holds costs some speed:
+        // chasing 30 degrees the key sits into the turn at full lock. With the fronts scrubbing there it fell to 0.65.
+        if (kmh > 0) expect(held.slowest).toBeGreaterThan(kmh * (aim === 20 ? 0.9 : 0.8));
       }
   });
 
@@ -943,10 +943,11 @@ describe("power over with TCS on and the steering assist off", () => {
     const build = parse_build(PRESETS.find((preset) => preset.name === "Drift")?.code);
     if (!build) throw new Error("no Drift preset");
     const spec = apply_build(CARS[build.car], build);
-    for (const kmh of [0, 60, 90, 130]) for (const aim of [20, 30]) expect(catch_drift(spec, kmh, aim, 1.5).straight).toBeLessThan(2.5);
+    // At 130 a 20 degree drift let go swings back out to 13 degrees first: 2.34 s with the grip-limited lock, 2.50 at full lock, 2.56 biting.
+    for (const kmh of [0, 60, 90, 130]) for (const aim of [20, 30]) expect(catch_drift(spec, kmh, aim, 1.5).straight).toBeLessThan(kmh === 130 ? 2.6 : 2.5);
   });
 
-  test("the Drift preset with the steering assist off: a key held into the turn mid-drift at 60-90 km/h stops at the grip-limited lock, and at full lock with the drift full-lock feel toggle", () => {
+  test("the Drift preset with the steering assist off: a key held into the turn mid-drift at 60-90 km/h reaches full lock, and stops at the grip-limited lock with the drift full-lock feel toggle off", () => {
     const build = parse_build(PRESETS.find((preset) => preset.name === "Drift")?.code);
     if (!build) throw new Error("no Drift preset");
     const spec = apply_build(CARS[build.car], build);
@@ -960,6 +961,23 @@ describe("power over with TCS on and the steering assist off", () => {
         else expect(into).toBeLessThan(10);
         expect(counter).toBeLessThan(-lock * 0.95);
       }
+  });
+
+  test("the Drift preset with the steering assist off: full lock into the turn mid-drift at 60-90 km/h holds the angle and carves tighter than a straight wheel, and lifting brings the tail in", () => {
+    const build = parse_build(PRESETS.find((preset) => preset.name === "Drift")?.code);
+    if (!build) throw new Error("no Drift preset");
+    const spec = apply_build(CARS[build.car], build);
+    const aids = { tcs: true, assist: false, stability: true };
+    for (const kmh of [60, 90]) {
+      const into = carve(spec, kmh, 1, 1, aids);
+      const lifted = carve(spec, kmh, 1, 0.3, aids);
+      // With the fronts scrubbing at full lock the arc opened past the straight wheel's: 78 to 91 m at 90 km/h.
+      expect(into.radius).toBeLessThan(carve(spec, kmh, 0, 1, aids).radius);
+      expect(into.to).toBeGreaterThan(20);
+      expect(into.kmh1).toBeGreaterThan(kmh * 0.95);
+      expect(into.spun).toBe(false);
+      expect(lifted.to).toBeLessThan(into.to - 3);
+    }
   });
 
   test("on its roof with no wheel on the ground, a held drift's damper leaves the yaw alone", () => {

@@ -325,8 +325,8 @@ const settings = new Settings(document.body, {
 directory.start();
 new Presence({ net, elsewhere: () => directory.elsewhere(), watch: (on) => directory.watch(on), toast: (text) => hud.toast(text), open_online: () => settings.open(MenuTab.ONLINE) }).start();
 
-// Feel A/B from the `?feel` panel, never saved: off is the shipped behaviour.
-let drift_full_lock = false;
+// Feel A/B from the `?feel` panel, never saved: on is the shipped behaviour, off the old grip-limited drift wheel.
+let drift_full_lock = true;
 
 function apply_car_settings(state: SettingsState) {
   Object.assign(driver.car, { tcs: state.tcs, abs: state.abs, assist: state.assist, stability: state.stability, auto: state.auto, steer_mode: state.steer_mode, drift_full_lock });

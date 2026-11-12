@@ -295,7 +295,7 @@ function wheel_table(ids: readonly string[]) {
   console.log("against = seconds the wheels point against the held key by over 1 deg and are not turning back to it");
   for (const [id, spec] of drift_specs(ids))
     for (const kmh of [60, 90]) {
-      const r = wheel_trace(spec, kmh, { tcs: true, assist: false, stability: false, drift_full_lock: process.argv.includes("--full-lock") });
+      const r = wheel_trace(spec, kmh, { tcs: true, assist: false, stability: false, drift_full_lock: !process.argv.includes("--grip-lock") });
       console.log(`${id} ${kmh} km/h  against ${r.against.toFixed(2)} s`);
       console.log("     t  key  wheel deg  slip deg  hold");
       for (const row of r.rows) console.log(`${row.t.toFixed(1).padStart(6)} ${String(row.key).padStart(4)} ${row.steer.toFixed(1).padStart(10)} ${row.slip.toFixed(0).padStart(9)} ${String(row.hold).padStart(5)}`);
