@@ -59,7 +59,10 @@ class Race implements ModeRun {
     const was = run.status;
     const taken = run.update(run.countdown > 0 ? wall : sim_dt * 1000, car.pos.x, car.pos.z);
     this.hits?.update(sim_dt * 1000, run.status === RaceStatus.RUNNING || was === RaceStatus.RUNNING);
-    this.ghost?.update(run.status === RaceStatus.RUNNING ? run.elapsed() : null, ctx.camera.position);
+    if (this.ghost) {
+      this.ghost.visible = ctx.ghosts();
+      this.ghost.update(run.status === RaceStatus.RUNNING ? run.elapsed() : null, ctx.camera.position);
+    }
     if (taken >= 0) {
       this.route.respawn = run.course.line[run.course.gates[taken]];
       view.aim(run.next);

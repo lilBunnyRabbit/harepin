@@ -1,4 +1,4 @@
-import { build_code, build_spec, parse_build, type Build } from "./build";
+import { SLOT_NAMES, build_code, build_spec, parse_build, type Build } from "./build";
 import type { SavedBuild } from "./builds";
 import { CARS, car_sized } from "./cars";
 import { CLASS_FLOORS, CLASS_LABELS, rating, type CarClass, type Rating } from "./pi";
@@ -26,6 +26,9 @@ export interface CarShelf {
 const rank = (name: CarClass) => CLASS_FLOORS.findIndex(([floor]) => floor === name);
 
 export const within = (name: CarClass, cap: CarClass) => rank(name) <= rank(cap);
+
+// Paint, decal, ink and number change the look only: the same body and parts drive the same.
+export const same_machine = (a: Build, b: Build) => a.car === b.car && SLOT_NAMES.every((slot) => a.parts[slot] === b.parts[slot]);
 
 export const limit_text = (cap: CarClass) => `Class ${CLASS_LABELS[cap]} or below`;
 

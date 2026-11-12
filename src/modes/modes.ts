@@ -2,7 +2,7 @@ import type * as THREE from "three";
 import { TIERS, next_event, spot_of, tier_line, tier_of, tier_open, type CareerEvent } from "../career/career";
 import { event_track, type Career } from "../career/career-store";
 import { dev_ghost } from "../career/dev-ghost";
-import { limit_text, within, type CarLimit } from "../car/car-pick";
+import { limit_text, same_machine, within, type CarLimit } from "../car/car-pick";
 import { car_sized, type CarSpec } from "../car/cars";
 import { build_code, parse_build } from "../car/build";
 import { rating } from "../car/pi";
@@ -80,6 +80,8 @@ interface Active {
   event: CareerEvent | null;
   run: ModeRun | null;
   shown: boolean;
+  /** An event run's PI at its start: a garage change that moves it ends the run, a new look does not. */
+  pi: number | null;
 }
 
 export class Modes {
@@ -104,6 +106,7 @@ export class Modes {
   };
 
   bindings: () => Bindings = () => DEFAULT_BINDINGS;
+  ghosts: () => boolean = () => true;
   /** Shows that a start waits on the rest of the world. */
   cover: (wait: Promise<void>) => Promise<void> = (wait) => wait;
   on_finish: ((mode: string) => void) | null = null;
@@ -284,17 +287,35 @@ export class Modes {
     if (!event || !this.car_code) return null;
     const { car } = event;
     const code = this.car_code();
-    if ("preset" in car) return code === preset_code(car.preset) ? null : `${event.name}: ${car.preset} only`;
     const build = parse_build(code);
-    return !build || within(rating(build).class, car.cap) ? null : `${event.name}: ${limit_text(car.cap)}`;
+    if (!build) return null;
+    if ("preset" in car) {
+      const preset = parse_build(preset_code(car.preset));
+      return !preset || same_machine(build, preset) ? null : `${event.name}: ${car.preset} only`;
+    }
+    return within(rating(build).class, car.cap) ? null : `${event.name}: ${limit_text(car.cap)}`;
   }
 
-  /** A garage change the player made: their car from now on, and an event run it doesn't fit ends there. */
+  private car_pi(): number | null {
+    const build = parse_build(this.car_code?.());
+    return build && rating(build).pi;
+  }
+
+  /**
+   * A garage change the player made. A new look keeps an event run going on the event's car, and the player's own car
+   * still comes back after it. Anything else makes the change their car; an event run it moves off its PI or its fit ends.
+   */
   car_changed() {
     if (this.fitting) return;
-    this.kept = null;
-    const why = this.current?.run ? this.wrong_car(this.current.event) : null;
+    const active = this.current?.run ? this.current : null;
+    const event = active?.event ?? null;
+    if (!active || !event) {
+      this.kept = null;
+      return;
+    }
+    const why = this.wrong_car(event) ?? (this.car_pi() === active.pi ? null : `${event.name}: car changed mid-run`);
     if (!why) return;
+    this.kept = null;
     this.exit();
     this.notice(why);
   }
@@ -304,7 +325,7 @@ export class Modes {
   }
 
   private begin(mode: Mode, level: Level, track = mode.track, event: CareerEvent | null = null) {
-    this.current = { mode, level, track, event, run: null, shown: false };
+    this.current = { mode, level, track, event, run: null, shown: false, pi: null };
     this.launch(this.current);
   }
 
@@ -329,6 +350,7 @@ export class Modes {
     }
     if (!run) return;
     active.run = run;
+    active.pi = active.event ? this.car_pi() : null;
     active.shown = false;
     this.el.result.hidden = true;
   }
@@ -349,6 +371,7 @@ export class Modes {
       // Tuned on another world version, an event's times and ghost no longer fit its road: the mode's par grades it, no ghost.
       thresholds: (par_ms) => (tuned && event?.stars) || par_thresholds(par_ms),
       dev_ghost: () => (tuned && event?.ghost ? dev_ghost(event) : Promise.resolve(null)),
+      ghosts: () => this.ghosts(),
       high: () => this.high,
       key_of: (action) => keys_text(this.bindings()[action]),
       spawn,

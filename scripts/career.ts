@@ -2,7 +2,7 @@ import "./fake-dom";
 import { mkdirSync, writeFileSync } from "node:fs";
 
 const { EVENTS, ghost_path, spot_of } = await import("../src/career/career");
-const { DEFAULT_BUILD, DEFAULT_PARTS, build_code, build_spec, parse_build } = await import("../src/car/build");
+const { DEFAULT_BUILD, DEFAULT_PARTS, SLOTS, SLOT_NAMES, build_code, build_spec, parse_build } = await import("../src/car/build");
 const { within } = await import("../src/car/car-pick");
 const { CARS } = await import("../src/car/cars");
 const { GHOST_EVERY_MS, ghost_frame } = await import("../src/car/ghost");
@@ -17,11 +17,12 @@ const { parse_map_code } = await import("../src/worldgen/kinds/map-code");
 const { DT, autolap } = await import("./autolap");
 type Build = import("../src/car/build").Build;
 type CareerEvent = import("../src/career/career").CareerEvent;
+type CarClass = import("../src/car/pi").CarClass;
 type World = import("../src/world/world").World;
 type RoadPoint = import("../src/world/world").RoadPoint;
 
 // Tunes race events from bot runs and records each race and duel event's dev ghost (plan: docs/plan/career.md §1.3, §3).
-// Race: `three` is the median finish of up to RUNS autolap drives at the class cap (the fastest stock cars and presets
+// Race: `three` is the median finish of up to RUNS autolap drives at the class cap (each body tuned up to the cap, and presets
 // in it), `two` is three × SILVER_SHARE. Duel keeps its model par. The ghost is the slowest drive that still makes three
 // stars, so it shows the pace a 3-star run needs. Prints each event's `stars` and `tuned` to paste into career.ts.
 // `bun scripts/career.ts [ids…] [--write]`: --write saves the ghosts to public/career/.
@@ -36,18 +37,42 @@ interface Drive {
   frames: number[];
 }
 
+// Each body tuned as close under the cap as one part swap at a time gets it, so every cap has a field of real cars.
+function capped(stock: Build, cap: CarClass): Build | null {
+  if (!within(rating(stock).class, cap)) return null;
+  let best = stock;
+  let best_pi = rating(stock).pi;
+  for (;;) {
+    let next: Build | null = null;
+    for (const slot of SLOT_NAMES)
+      for (let i = 0; i < SLOTS[slot].parts.length; i++) {
+        const tried = { ...best, parts: { ...best.parts, [slot]: i } };
+        const rated = rating(tried);
+        if (rated.pi > best_pi && within(rated.class, cap)) {
+          next = tried;
+          best_pi = rated.pi;
+        }
+      }
+    if (!next) return best;
+    best = next;
+  }
+}
+
 function cars_for(event: CareerEvent): { label: string; build: Build }[] {
   const { car } = event;
   if ("preset" in car) {
     const build = parse_build(PRESETS.find((p) => p.name === car.preset)?.code);
     return build ? [{ label: car.preset, build }] : [];
   }
-  const stock = Object.keys(CARS).map((id) => ({ label: id, build: { ...DEFAULT_BUILD, car: id as Build["car"], parts: { ...DEFAULT_PARTS } } }));
+  const bodies = Object.keys(CARS).flatMap((id) => {
+    const build = capped({ ...DEFAULT_BUILD, car: id as Build["car"], parts: { ...DEFAULT_PARTS } }, car.cap);
+    return build ? [{ label: `${id} ${rating(build).pi}`, build }] : [];
+  });
   const presets = PRESETS.flatMap((p) => {
     const build = parse_build(p.code);
     return build ? [{ label: p.name, build }] : [];
   });
-  return [...stock, ...presets]
+  return [...bodies, ...presets]
     .map((entry) => ({ ...entry, pi: rating(entry.build).pi, class: rating(entry.build).class }))
     .filter((entry) => within(entry.class, car.cap))
     .sort((a, b) => b.pi - a.pi)

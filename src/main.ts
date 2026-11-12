@@ -362,6 +362,7 @@ const modes = new Modes(scene, world, SPAWN_INDEX, () => lobby.record, (x, z, he
   reset_lap();
 }, () => lobby.busy, () => audio.chime(), camera, () => driver.car.spec);
 modes.bindings = () => settings.state.bindings;
+modes.ghosts = () => settings.state.ghost;
 modes.cover = (wait) => area_fade.cover(wait);
 modes.on_finish = (mode) => goals.played(mode);
 modes.career = career;

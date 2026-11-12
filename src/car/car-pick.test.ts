@@ -1,7 +1,7 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
 import { DEFAULT_BUILD, build_code, parse_build } from "./build";
-import { car_shelves, within } from "./car-pick";
+import { car_shelves, same_machine, within } from "./car-pick";
 import { CarClass, rating } from "./pi";
 import { PRESETS } from "./presets";
 
@@ -42,4 +42,11 @@ test("a cap greys every car over it and keeps it listed; no saved builds drops t
 test("a mode laid out for cars greys the bus even under the cap", () => {
   const shelves = car_shelves(DEFAULT_BUILD, [], { cap: null, car_sized_only: true });
   expect(shelves[1].choices.find((c) => c.title === "Party bus")?.blocked).toBe("Too big for this mode");
+});
+
+test("a new look is the same machine; a part or a body swap is not", () => {
+  const cruiser = preset("Easy cruiser");
+  expect(same_machine(cruiser, { ...cruiser, paint: 3, decal: 2, ink: 1, number: 42 })).toBe(true);
+  expect(same_machine(cruiser, { ...cruiser, parts: { ...cruiser.parts, engine: cruiser.parts.engine + 1 } })).toBe(false);
+  expect(same_machine(cruiser, { ...cruiser, car: "coupe" })).toBe(false);
 });

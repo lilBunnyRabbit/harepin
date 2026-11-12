@@ -46,6 +46,8 @@ export interface ModeCtx {
   thresholds(par_ms: number): Thresholds;
   /** A career event's shipped 3-star ghost lap; null in free play or when it has none. */
   dev_ghost(): Promise<number[] | null>;
+  /** The player's ghost setting. */
+  ghosts(): boolean;
   high(): boolean;
   /** The keys bound to `action` now, as the player reads them; empty when none. */
   key_of(action: Bindable): string;
