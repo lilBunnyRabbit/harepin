@@ -885,19 +885,26 @@ describe("power over with TCS on and the steering assist off", () => {
   });
 
   for (const spec of [DRIFT_SETUP, CARS.coupe, CARS.muscle, CARS.kaze, CARS.formula])
-    test(`${spec.id}${spec === DRIFT_SETUP ? " (drift setup)" : ""}: easing pad gas or stick mid-slide, from rest or a rolling tap, the wheels stay on the stick's side: nothing countersteers for the driver`, () => {
-      for (const from of [0, 15])
+    test(`${spec.id}${spec === DRIFT_SETUP ? " (drift setup)" : ""}: easing pad gas or stick mid-slide eases out of it with the steering assist, never steering into the turn or pivoting; without it, from rest or a rolling tap, the wheels stay on the stick's side`, () => {
+      // The rolling tap kicks only with the assist off.
+      for (const [assist, from] of [[true, 0], [false, 0], [false, 15]] as const)
       for (const eased of [0.85, 0.7, 0.6])
         for (const which of ["steer", "throttle"] as const) {
-          const car = rolling(spec, from);
+          const car = rolling(spec, from, assist);
           if (from > 0) expect(tap(car)).toBe(true);
           run(car, from > 0 ? 1.5 : 2.5, () => ({ ...kick, analog: true }));
+          let into = -Infinity;
           let against = -Infinity;
           for (let t = 0; t < 1.5; t += DT) {
             car.step(DT, { ...kick, analog: true, [which]: eased }, flat);
+            if (Math.abs(tail(car)) > 10) into = Math.max(into, car.steer);
             against = Math.max(against, -car.steer);
           }
-          expect(against).toBeLessThan(0);
+          if (assist) {
+            // A few degrees into the turn is the front axle's own course in the tight arc the slide leaves behind.
+            expect(into).toBeLessThan(0.175);
+            expect(car.vel.length() * 3.6).toBeGreaterThan(15);
+          } else expect(against).toBeLessThan(0);
         }
     });
 
