@@ -59,7 +59,7 @@
   gap: 2px;
 }
 
-.unlock-card b {
+.unlock-text b {
   font-size: var(--text-md);
   font-weight: 600;
   text-wrap: balance;

@@ -225,7 +225,7 @@ Each phase ships on its own. S ≈ a day, M ≈ 2-4 days.
 | **C2** | Rules: hit penalty; event star overrides | `HIT_MS`, `stars_for` | Contact counter in `World.hit`, `ModeCtx.hits()` | S |
 | **C3** | Pick-your-car step, class filter | `rating`, badges, builds, presets | The step | M |
 | **C4** | Bot thresholds + dev ghosts + version test | `autolap.ts`, `races.ts`, `Ghost` | `scripts/career.ts`, ghost assets, ghost playback in race/duel events | M |
-| **C5** | Rewards + online tier badge: paint and badge on the metal ladder, decal from the final's world (W1, §1.4) | Garage rows, `Hello` optional field pattern (`country`) | `reward_paints`, three decals, badge art, `tier` on hello | M |
+| **C5** | Rewards + online tier badge: paint and badge on the metal ladder, decal from the final's world (W1, §1.4) | Garage rows, `Hello` optional field pattern (`country`) | `reward_paints`, three decals, badge art, `tier` on hello; unlock card on the result screen with "Try it in the garage" in the actions (paint or decal only) | M |
 | **C6** | Markers on compact worlds: tier-metal start flags with the event id, on minimap and world map, locked greyed, exact map code only (M1-M3, §4) | Challenge start flags, world map | Proximity trigger, marker icons | M |
 | **C7** | Modes on streamed worlds, then Mainland events + markers (L1: after C5 and C6) | `world.tiles.whole()` wait (`modes.ts:193`) | Lift the `STREAMED` block (`modes.ts:190`); sites near the start on a streamed world | M-L (*est.*, unverified) |
 | **C8** | Share link (S1: after release) | `invite_link` | Params + HUD target line | S |
