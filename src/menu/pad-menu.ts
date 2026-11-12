@@ -216,6 +216,8 @@ export class PadMenu {
 
   private overlay(): Layer | null {
     const { settings, chat } = this.host;
+    const modal = document.querySelector<HTMLDialogElement>("dialog:modal");
+    if (modal) return { roots: [modal], back: () => modal.close(), first: () => modal.querySelector<HTMLElement>("[autofocus]") ?? first_of(modal) };
     if (settings.is_open)
       return {
         roots: [settings.panel],
@@ -265,6 +267,7 @@ export class PadMenu {
   }
 
   private close_all() {
+    document.querySelector<HTMLDialogElement>("dialog:modal")?.close();
     this.host.settings.close();
     if (this.host.chat.is_open && this.chat_panel.contains(document.activeElement)) this.host.chat.close();
     this.close_hud();

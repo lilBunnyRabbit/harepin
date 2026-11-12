@@ -47,6 +47,7 @@ import { read_saved_pick } from "./menu/saved-pick";
 import { MenuTab, invite_link } from "./menu/page";
 import { Settings } from "./menu/settings";
 import { BUILD, Updater, show_version } from "./menu/update";
+import { show_updated } from "./menu/updated-card";
 import { pick_world } from "./world/world-pick";
 import { GUARD_STATE, SystemBack, type Watcher } from "./menu/system-back";
 import { SPAWN_INDEX } from "./world/world";
@@ -667,6 +668,7 @@ document.addEventListener("click", (e) => {
 });
 
 $("loading").remove();
+show_updated(() => settings.open_changes());
 performance.mark("world:first");
 requestAnimationFrame(frame);
 settings.warm();

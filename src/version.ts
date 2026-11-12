@@ -35,6 +35,12 @@ export function newer_releases(notes: Release[], running: string): Release[] {
   return notes.filter((r) => compare_versions(r.version, running) > 0).sort((a, b) => compare_versions(b.version, a.version));
 }
 
+/** What changed since the version the player last ran, newest first; nothing on a first visit or the same version. */
+export function releases_since(log: Release[], seen: string | null, running: string): Release[] {
+  if (seen === null || compare_versions(running, seen) <= 0) return [];
+  return newer_releases(log, seen).filter((r) => compare_versions(r.version, running) <= 0);
+}
+
 const is_record = (x: unknown): x is Record<string, unknown> => typeof x === "object" && x !== null;
 
 function parse_change(x: unknown): Change | null {

@@ -45,7 +45,7 @@ function change_list(release: Release): HTMLUListElement {
   return list;
 }
 
-function release_view(release: Release, fresh: boolean): HTMLElement {
+export function release_view(release: Release, fresh: boolean): HTMLElement {
   const section = el("section", "changelog-release");
   const line = el("p", "changelog-line");
   line.append(el("b", "", `v${release.version}`), el("span", "", release.title));
