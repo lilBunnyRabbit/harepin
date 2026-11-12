@@ -1,6 +1,6 @@
 # Big dunes: Sahara-style dune bashing
 
-> **Status 2026-11-12 (v0.29.0):** Open. Planned with owner picks; no slice is built yet (no `BIG_DUNES` recipe in `worldgen/recipe.ts`).
+> **Status 2026-11-12 (v0.29.0):** Open. S1 is measured (`scripts/dunes.ts`, `car.test.ts` "dune sand"), and the §2 and §3 tables carry its numbers.
 
 Round 1, 2026-11-12, at `b442ceb`. Plan only. Nothing was run: no dev server, golden, races or car tests. Every file:line comes from reading the code at `b442ceb`. Numbers marked *est.* are hand calculations from the force model in `car.ts`. They hold only until a car test measures them (slice S1).
 
@@ -72,23 +72,27 @@ The model reads per wheel, from `car.ts:302-304`, `:841` and `:890`:
 
 This leaves out weight transfer (helps RWD, hurts FWD), TCS, engine power, cos θ and the loose curve's shape. All numbers are *est.*
 
-| Car | Drive, offroad | Traction (grade) | Drag (grade per m/s) | Max speed up 12° | Up 15° | Up 20° | Up a 32° slip face |
-|---|---|---|---|---|---|---|---|
-| Rally | AWD, 0.8 | ~1.0 | 0.0027 | power-limited | power-limited | power-limited | **yes** |
-| Raijin | AWD, 0.3 | 0.92 | 0.0080 | power-limited | power-limited | ~250 km/h | **yes**, ~120 km/h |
-| Sturm | RWD (60% rear), 0 | 0.58 | 0.0121 | 109 km/h | 93 km/h | 64 km/h | no |
-| Muscle | RWD, 0 | 0.43 | 0.0107 | 73 km/h | 55 km/h | 23 km/h | no |
-| Bus | RWD, 0.2 | 0.41 | 0.0107 | 65 km/h | 46 km/h | 14 km/h | no |
-| Coupe | RWD, 0 | 0.42 | 0.0130 | 58 km/h | 43 km/h | 16 km/h | no |
-| Kaze | RWD (47% rear), 0 | 0.39 | 0.0121 | 52 km/h | 35 km/h | 7 km/h | no |
-| Hatch | FWD, 0 | 0.42 (less with transfer) | 0.0168 | 44 km/h | 32 km/h | 11 km/h | no |
-| **Formula** | RWD, −0.5 | 0.40 | 0.0352 | **19 km/h** | **13 km/h** | **3 km/h** | no. Also 0.18 m ride height |
+**Measured (S1, `bun scripts/dunes.ts`):** km/h up the face after 30 s flat out from rest, aids on. Loose sand is the `SAND_GRIP` GRASS row (`roll: 28`), packed is its DIRT row. `car.test.ts` "dune sand" asserts the readings below.
+
+| Car | Drive, offroad | Loose 12° | 15° | 20° | 32° | Packed 12° | 15° | 20° | 32° |
+|---|---|---|---|---|---|---|---|---|---|
+| Rally | AWD, 0.8 | 142 | 129 | 110 | **72** | 166 | 151 | 131 | 91 |
+| Raijin | AWD, 0.3 | 108 | 98 | 81 | 3 (stalls) | 164 | 151 | 124 | 82 |
+| Sturm | RWD (60% rear), 0 | 65 | 65 | 35 | 0 | 67 | 66 | 66 | 0 |
+| Muscle | RWD, 0 | 62 | 43 | 0 | 0 | 170 | 153 | 111 | 0 |
+| Coupe | RWD, 0 | 56 | 38 | 2 | 0 | 168 | 151 | 117 | 0 |
+| Kaze | RWD (47% rear), 0 | 48 | 33 | 0 | 0 | 149 | 129 | 89 | 0 |
+| Bus | RWD, 0.2 | 25 | 26 | 0 | 0 | 41 | 27 | 3 | 0 |
+| Hatch | FWD, 0 | 25 | 14 | 0 | 0 | 87 | 79 | 0 | 0 |
+| **Formula** | RWD, −0.5 | **20** | **14** | **0** | 0 | 259 | 245 | 215 | 0 |
+
+The estimate had Raijin up the loose slip face at ~120 km/h: it stalls there. Sturm hunts 1st-2nd up any grade at ~66 km/h, packed or loose. On a 20° packed face the Hatch and Bus stop.
 
 | Reading | Consequence |
 |---|---|
 | Sand drag, not slope, decides it | Coupe on flat loose sand at 30 m/s decelerates at ~0.39 g *est.* Momentum dies, so "carry speed up the dune" does not work on `SAND_GRIP` |
-| On trail dirt (`DIRT` roll 1, grip 0.84) | Coupe traction ~0.51 (27°) with no drag. Every car climbs a 12° packed line |
-| Can't bash | Formula (stalls), Hatch and Kaze (crawl past 15°). The slip face is AWD-only |
+| On trail dirt (`DIRT` roll 1, grip 0.84) | No drag. Every car climbs a 12° packed line at ≥ 40 km/h (Bus 41, Sturm 67, the rest ≥ 87) |
+| Can't bash | Formula, Hatch and Bus (≤ 26 km/h from 12°). Every RWD car stops at 20°. The loose slip face is Rally-only |
 
 ## 3. Crests
 
@@ -97,6 +101,17 @@ This leaves out weight transfer (helps RWD, hurts FWD), TCS, engine power, cos �
 | **Smooth** (today's smoothstep lee) | It leaves the ground only when `v² > g·R`, with R = w²/(6H) at the brink | H 100 m, 34° max face: R ≈ 82 m, so lift-off needs **> 28 m/s (102 km/h)**. Up to ~34 m/s it rides the face. At 40 m/s it touches 165 m out, 83 m down, with ~18 m/s into the face (like a 16 m fall) | Below 28 m/s: yes, no air at all. Sand speeds (≤ 20 m/s for most cars) never get there. Above 34 m/s: no |
 | **Sharp** (real dune, 1-cell crease) | Leaves horizontally at any speed and lands on a planar 32° face at `x = 2sv²/g` | 15 m/s: 2.0 s air, 19 m down, 8.2 m/s into the face. 20 m/s: 2.6 s, 35 m, 10.9 m/s. 25 m/s: 3.3 s, 54 m, 13.6 m/s. If the face is shorter than that drop, the car overshoots onto flat: `sqrt(2gH)` | Tested envelope: 2-4 m drops at 22-40 m/s on near-flat decks (`jumps.test.ts:141-143` `DROPS`, sky 2 m, rooftops 2-4 m), so ≤ 9 m/s into the deck. 15 m/s off a sharp brink sits at that edge. 20 m/s+ is untested |
 | **Built crest jump** | A lip on the crest, then a `gap_jump` landing bench cut into the slip face (`gap.ts:35`, `drop` param, `DECK_GRADE` −0.04), then the face below | Sized for 22-40 m/s (`GAP_V_MIN/MAX`, `gap.ts:5-7`). Drops ≤ 4 m are tested. `gap.ts:11-13` records that a deck as steep as the descent let fast cars fly far and bottom out | Yes, inside the tested drops. It needs a **packed run-up**: on loose sand no RWD car reaches 22 m/s up 12° |
+
+**Measured (S1, `bun scripts/dunes.ts`):** a 120 m dune on loose sand, coasting over the brink. Smooth is the smoothstep band S2 uses (wave 1000 m, lee 0.29, face peaks at 32°). Sharp is a 14° windward ramp creased onto a planar 32° face. Cells: air s / m/s into the face / most tilt off the face, deg.
+
+| Brink | 15 m/s | 20 m/s | 25 m/s | On its wheels |
+|---|---|---|---|---|
+| Smooth, every car | 0 / 0 / ≤ 2 | 0 / 0 / ≤ 2 | 0 / 0 / ≤ 2 | all |
+| Sharp, Hatch / Coupe / Muscle / Kaze | 1.9-2.0 / 7.6-8.5 / 11-22 | 2.9 / 10.3-11.4 / 21-28 | 3.8 / 13.5-14.2 / 24-29 | all |
+| Sharp, Rally / Raijin / Sturm | 1.9-2.0 / 5.6-6.1 / 20-25 | 2.9-3.0 / 8.9-9.7 / 24-29 | 3.8 / 12.4-13.3 / 26-29 | all |
+| Sharp, Formula / Bus | 1.9-2.0 / 6.1-6.4 / 6-8 | 2.9-3.0 / 8.6-8.9 / 3-8 | 3.8-4.0 / 11.3-11.4 / 7-10 | all |
+
+A rounded crest never gives air at sand speeds, as estimated. Off a sharp brink every car lands upright. The estimated 33° nose slap does not happen: tilt stays ≤ 29°. Air runs ~10-15% past the estimate. Impact speed matches it, so 20 m/s and up is still past the tested ≤ 9 m/s.
 
 | Air settle fact | Where | Effect on a slip face |
 |---|---|---|

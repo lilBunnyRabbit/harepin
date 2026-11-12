@@ -9,7 +9,8 @@ import { catch_drift } from "../../scripts/drift";
 import { donut } from "../../scripts/donut";
 import { hairpin_pull } from "../../scripts/hairpin";
 import { Counter, arc, flick, hairpin, lane_change, lift_off, power_over, slalom, swerve, tap, type PowerOver } from "../../scripts/keys";
-import { GROUNDS } from "../../scripts/grounds";
+import { GROUNDS, slope as tilted } from "../../scripts/grounds";
+import { Brink, CREST_SPEEDS, PACKED, SAND, climb_kmh, crest, grade_of } from "../../scripts/dunes";
 
 const flat: Ground = { height: () => 0, normal: (_x, _z, out) => out.set(0, 1, 0), grip: () => 1, roll: () => 1 };
 const DT = 1 / 360;
@@ -250,7 +251,7 @@ describe("grass drag", () => {
 });
 
 describe("parking", () => {
-  const slope = (grade: number): Ground => ({ ...flat, height: (_x, z) => z * grade, normal: (_x, _z, out) => out.set(0, 1, -grade).normalize() });
+  const slope = (grade: number): Ground => tilted(grade, flat);
 
   for (const [label, controls, grade] of [
     ["idle hold on 20%", idle, 0.2],
@@ -337,7 +338,7 @@ test("dropped at drop_height for a mode start or a reset, every car settles with
 });
 
 describe("park and idle hold", () => {
-  const slope = (grade: number): Ground => ({ ...flat, height: (_x, z) => z * grade, normal: (_x, _z, out) => out.set(0, 1, -grade).normalize() });
+  const slope = (grade: number): Ground => tilted(grade, flat);
 
   for (const heading of [0, Math.PI / 2, Math.PI]) {
     test(`park() on a 30% slope lands without sliding (heading ${heading.toFixed(2)})`, () => {
@@ -568,6 +569,36 @@ describe("crest landings", () => {
   test("a gentle crest still shows in the air: no car is levelled flat", () => {
     expect(Object.values(CARS).filter((spec) => launch(spec, [0.4, 0, 0]).tilt < 3).map((spec) => spec.id)).toEqual([]);
   });
+});
+
+describe("dune sand", () => {
+  const ids = (pass: (spec: CarSpec) => boolean) => Object.values(CARS).filter(pass).map((spec) => spec.id);
+
+  test("up a 15 degree windward face of loose sand only the all-wheel-drive cars hold 90 km/h", () => {
+    expect(ids((spec) => climb_kmh(spec, grade_of(15), SAND) >= 90)).toEqual(["rally", "raijin"]);
+  }, 30_000);
+
+  test("only the rally climbs a 32 degree slip face of loose sand", () => {
+    expect(ids((spec) => climb_kmh(spec, grade_of(32), SAND) >= 20)).toEqual(["rally"]);
+  }, 30_000);
+
+  test("every car climbs a 12 degree packed line at 40 km/h or more", () => {
+    expect(ids((spec) => climb_kmh(spec, grade_of(12), PACKED) < 40)).toEqual([]);
+  }, 30_000);
+
+  test("over a rounded crest at 15-25 m/s no car leaves the ground", () => {
+    expect(ids((spec) => CREST_SPEEDS.some((v) => crest(spec, Brink.SMOOTH, v).air > 0))).toEqual([]);
+  }, 30_000);
+
+  test("off a sharp brink at 15-25 m/s every car lands on the slip face on its wheels, under 35 degrees off it", () => {
+    const failed: string[] = [];
+    for (const spec of Object.values(CARS))
+      for (const v of CREST_SPEEDS) {
+        const c = crest(spec, Brink.SHARP, v);
+        if (c.air < 1 || c.tilt > 35 || !c.wheels) failed.push(`${spec.id} ${v} m/s: ${c.air.toFixed(1)} s air, ${c.tilt.toFixed(0)} deg${c.wheels ? "" : ", not on its wheels"}`);
+      }
+    expect(failed).toEqual([]);
+  }, 30_000);
 });
 
 describe("nitro", () => {

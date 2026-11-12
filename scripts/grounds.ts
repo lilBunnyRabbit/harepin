@@ -20,6 +20,13 @@ export const GROUNDS = {
 } satisfies Record<string, Ground>;
 export type GroundName = keyof typeof GROUNDS;
 
+/** `ground` tilted to climb `grade` along +z. */
+export const slope = (grade: number, ground: Ground = GROUNDS.asphalt): Ground => ({
+  ...ground,
+  height: (_x, z) => z * grade,
+  normal: (_x, _z, out) => out.set(0, 1, -grade).normalize(),
+});
+
 /** The ground named after `--ground` on the command line, or `fallback`. */
 export function ground_arg(fallback: Ground): Ground {
   const at = process.argv.indexOf("--ground");
