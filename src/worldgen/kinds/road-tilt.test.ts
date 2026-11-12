@@ -61,8 +61,6 @@ function tilted(world: WorldData): string[] {
 /** Every rise past MAX_MOUTH along a road's first MOUTH_RUN metres from either end, as "edge id at x,z: grade". */
 function stepped(world: WorldData): string[] {
   const out: string[] = [];
-  // Mainland stamps streets by id, so a local laid first holds a street crossing it: those dips predate the mouths.
-  if (world.kind === WorldKind.MAINLAND) return out;
   const height = ground(world);
   for (const edge of world.graph.edges) {
     if (edge.closed) continue;

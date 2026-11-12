@@ -39,13 +39,16 @@ export function plan_mainland(seed: number, recipe: Recipe = MAINLAND): Mainland
   const water = recipe.water ? plan_water(grid, recipe.water, graph.edges, towns, land_height(seed, recipe.terrain)) : null;
   lap("water");
   // Water first, so towns and roads level over its channels: a road crossing a river is a ford at grade.
-  // Then stamp order as the island's: plateaus, then the circuit, then every other edge by id, then one blend.
+  // Then plateaus, every street, the circuit's links, every other link by id, and one blend. Streets go first: the
+  // circuit runs through towns, and a link laid before the streets it leaves never eases its mouth onto them.
   const on_circuit = new Set(circuit);
+  const links = graph.edges.filter((e) => e.kind !== "street");
   const ops: GroundOp[] = [
     ...(water ? [{ kind: "water", water } satisfies GroundOp] : []),
     ...towns.map((town): GroundOp => ({ kind: "plateau", town })),
-    ...circuit.map((id): GroundOp => ({ kind: "edge", edge: graph.edges[id], bank: recipe.road.bank })),
-    ...graph.edges.filter((e) => !on_circuit.has(e.id)).map((edge): GroundOp => ({ kind: "edge", edge, bank: recipe.road.bank })),
+    ...[...graph.edges.filter((e) => e.kind === "street"), ...circuit.map((id) => graph.edges[id]).filter((e) => e.kind !== "street"), ...links.filter((e) => !on_circuit.has(e.id))].map(
+      (edge): GroundOp => ({ kind: "edge", edge, bank: recipe.road.bank }),
+    ),
     { kind: "blend", bank: recipe.road.bank },
   ];
   const town = mainland_lots(seed, recipe, graph, towns, circuit, road, ops, water);

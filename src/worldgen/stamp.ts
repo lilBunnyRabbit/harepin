@@ -336,6 +336,8 @@ export class Stamp {
       const dz = points[i].z - points[i - 1].z;
       along[i] = along[i - 1] + Math.sqrt(dx * dx + dz * dz);
     }
+    // Inside a band each point takes the band's own height: a later road owns its asphalt off the earlier one's.
+    const banded = new Float64Array(points.length).fill(NaN);
     const rim = (from: number, dir: number, stop: number) => {
       let at = -1;
       let band = 0;
@@ -344,6 +346,7 @@ export class Stamp {
         if (h === null) break;
         at = i;
         band = h;
+        banded[i] = h;
       }
       return { at, band };
     };
@@ -362,6 +365,7 @@ export class Stamp {
       const ease = Math.max(CELL, Math.min(gap, Math.max(MOUTH_EASE_MIN, (1.5 * Math.abs(step)) / MOUTH_GRADE)));
       for (let i = 0; i <= last; i++) heights[i] += step * (1 - smoothstep(0, ease, run(i)));
     }
+    for (let i = 0; i <= last; i++) if (!Number.isNaN(banded[i])) heights[i] = banded[i];
     return heights;
   }
 
@@ -421,8 +425,9 @@ export class Stamp {
 
   /** The distance below which `edge` would still write vertex k: past it the vertex keeps what it holds. */
   private held(edge: RoadEdge, k: number): number {
-    const owned = this.edge_of[k] !== edge.id && this.owner_dist[k] <= ROAD_HALF + FLAT;
-    return owned ? this.terrain.road_dist[k] : Math.max(this.terrain.road_dist[k], this.owner_dist[k]);
+    const held = this.edge_of[k] !== edge.id && this.owner_dist[k] <= ROAD_HALF + FLAT;
+    if (!held) return Math.max(this.terrain.road_dist[k], this.owner_dist[k]);
+    return this.owner_dist[k] > ROAD_HALF ? Math.max(this.terrain.road_dist[k], ROAD_HALF) : this.terrain.road_dist[k];
   }
 
   // Each vertex's bound: what it holds, or the nearest of every GROUP-th segment whose box covers it when nearer.
@@ -473,8 +478,10 @@ export class Stamp {
     const oz = pz - (a.z + dz * t);
     const d = Math.sqrt(ox * ox + oz * oz) - edge.half + ROAD_HALF;
     if (d < road_dist[k]) road_dist[k] = d;
-    const owned = this.edge_of[k] !== edge.id && this.owner_dist[k] <= ROAD_HALF + FLAT;
-    if (d < this.owner_dist[k] && !owned) {
+    // An earlier edge's band holds the vertex, except where it is only that edge's shoulder and this edge's asphalt: a
+    // road passing close by another would otherwise dip to the other's height in the middle of its own surface.
+    const held = this.edge_of[k] !== edge.id && this.owner_dist[k] <= ROAD_HALF + FLAT && !(d <= ROAD_HALF && this.owner_dist[k] > ROAD_HALF);
+    if (d < this.owner_dist[k] && !held) {
       this.owner_dist[k] = d;
       this.road_height[k] = heights[s] + (heights[(s + 1) % edge.points.length] - heights[s]) * t;
       this.edge_of[k] = edge.id;
