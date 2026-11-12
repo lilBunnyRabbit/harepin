@@ -253,7 +253,8 @@ export class Modes {
     this.pick = pick;
     try {
       const own = this.kept ?? this.car_code?.() ?? "";
-      const code = await this.pick_car(event.name, { cap: car.cap, car_sized_only: mode.def.car_sized_only }, own, pick.signal);
+      const excludes = this.world.routes.find((r) => r.id === spot_of(event).level)?.excludes;
+      const code = await this.pick_car(event.name, { cap: car.cap, car_sized_only: mode.def.car_sized_only, excludes }, own, pick.signal);
       if (code === null) return false;
       this.wear(code);
       return true;
