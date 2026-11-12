@@ -23,6 +23,23 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.36.0",
+    date: "2026-11-12",
+    title: "New light",
+    changes: [
+      { kind: IMPROVED, text: "Drifting with steering assist off: the wheel now turns fully into the turn, and a held drift grips and tightens instead of sliding wide. The feel panel can switch it off." },
+      { kind: NEW, text: "Each land has its own props: charred trees, basalt and glowing vents on the Volcano; snow poles, drifts and capped boulders in the snow; scree and snow fences in the Alps." },
+      { kind: IMPROVED, text: "A new look: the road reads at dusk under brighter headlights, snow stays cool at dusk, dunes are sand in daylight, towns have pale walls and windows, and Sky Track no longer washes out in the day." },
+      { kind: IMPROVED, text: "Ground colours sit per face, and the saw-tooth edges beside roads are gone." },
+      { kind: IMPROVED, text: "Reward paints shine like real metal, and reward decals show on the roof and tail where you can see them while driving." },
+      { kind: IMPROVED, text: "Big dunes are mostly smaller, with a few tall ridges as landmarks." },
+      { kind: IMPROVED, text: "Career c6 Mainland sprint is a full 7 km run with new star times." },
+      { kind: IMPROVED, text: "New players start in a blue car that stands out from the grass." },
+      { kind: FIXED, text: "Volcano lava shows and glows again, and driving into it resets the car." },
+      { kind: FIXED, text: "Hovering paints in the garage no longer shifts the list." },
+    ],
+  },
+  {
     version: "0.35.1",
     date: "2026-11-12",
     title: "Room to land",
