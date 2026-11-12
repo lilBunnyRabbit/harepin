@@ -67,13 +67,13 @@ export const TIERS: readonly Tier[] = [
     name: "Club",
     opens_at: 12,
     events: [
-      { id: "c1", name: "Pass streets", mode: "race", level: "street-1", map: "1A0000004", car: { cap: "b" }, tuned: "4:a3", stars: { two: 124000, three: 99200 }, ghost: true },
+      { id: "c1", name: "Pass streets", mode: "race", level: "street-1", map: "1A0000004", car: { cap: "b" }, tuned: "4:a3", stars: { two: 123750, three: 99000 }, ghost: true },
       { id: "c2", name: "Mountain S", mode: "drift", level: "d2", map: "1A0000004", car: { preset: "Drift" }, tuned: "4:a3" },
       { id: "c3", name: "Ice box", mode: "gymkhana", level: "g4", map: "1T0000006", car: { cap: "b" }, tuned: "6:t2" },
       { id: "c4", name: "Lake search", mode: "hunt", level: "h3", map: "1T0000006", car: { preset: "Mud basher" }, tuned: "6:t2" },
       { id: "c5", name: "Winter reverse", mode: "race", level: "circuit-rev", map: "1C0000006-W1", car: { cap: "a" }, tuned: "6:w10:W1", stars: { two: 345000, three: 276000 }, ghost: true },
       { id: "c6", name: "Mainland lap", mode: "race", level: "circuit", map: MAINLAND, car: { cap: "a" }, tuned: "8:w10", stars: { two: 166000, three: 132800 }, ghost: true, stand_in: { map: "1C0000008", level: "street-2" } },
-      { id: "c7", name: "Rim to sea", mode: "race", level: "descent", map: "1V0000001", car: { cap: "a" }, tuned: "4:a3", stars: { two: 122000, three: 97600 }, ghost: true, final: true, stand_in: { map: "1A0000004", level: "street-2" } },
+      { id: "c7", name: "Rim to sea", mode: "race", level: "descent", map: "1V0000001", car: { cap: "a" }, tuned: "4:a3", stars: { two: 121875, three: 97500 }, ghost: true, final: true, stand_in: { map: "1A0000004", level: "street-2" } },
     ],
   },
   {
