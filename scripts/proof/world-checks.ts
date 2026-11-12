@@ -3,7 +3,7 @@ import { sample } from "../../src/worldgen/field";
 import { BYPASS, challenge_outer, challenge_pieces, DECK_DRIFT, face_end, flight, GATE_CLEAR, ITEMS, ramp_local, ramp_world, RUN_DRIFT } from "../../src/worldgen/jumps";
 import { spur_edges } from "../../src/worldgen/graph";
 import { APPROACH } from "../../src/worldgen/route";
-import { SPAWN_INDEX, SPUR_GRADE, ROAD_HALF, type Challenge, type Ramp, type RoadEdge, type RoadPoint, type Solid, type WorldData } from "../../src/worldgen/types";
+import { RouteKind, SPAWN_INDEX, SPUR_GRADE, ROAD_HALF, type Challenge, type Ramp, type RoadEdge, type RoadPoint, type Solid, type WorldData } from "../../src/worldgen/types";
 import { ASPHALT, LAYER } from "./tones";
 
 const GROUND = 0.3;
@@ -123,15 +123,28 @@ function check_jumps(data: WorldData, fail: (what: string) => void) {
     const wide = r.hw + r.rise;
     const lip = r.length + r.rise;
     if (r.road) {
-      const n = data.road.length;
-      const toe = data.road.reduce((best, p, i) => (Math.hypot(p.x - r.x, p.z - r.z) < Math.hypot(data.road[best].x - r.x, data.road[best].z - r.z) ? i : best), 0);
-      for (let k = -RUNUP; k < n; k++) {
-        const p = data.road[(toe + k + n) % n];
+      const { line, closed, toe, step, circuit } = carrier(data, r);
+      const name = circuit ? "the circuit" : "its trail";
+      const n = line.length;
+      const end = r.length + r.landing;
+      let along = 0;
+      for (let k = -RUNUP; Math.abs(k) < n; k++) {
+        const i = toe + k * step;
+        if (!closed && (i < 0 || i >= n)) {
+          if (k > 0) return fail(`${at} runs off the end of ${name}`);
+          continue;
+        }
+        const p = line[(i + n) % n];
+        if (k > 0) {
+          const q = line[(i - step + n) % n];
+          along += Math.hypot(p.x - q.x, p.z - q.z);
+        }
         const [u, v] = ramp_local(r, p.x, p.z);
-        if (v > r.length + r.landing) break;
+        if (v > end) break;
         if (v < -RUNUP) continue;
-        if (Math.abs(u) > (v >= 0 && v <= face_end(r) ? DECK_DRIFT : RUN_DRIFT) + 0.1) return fail(`${at} leaves the circuit ${Math.abs(u).toFixed(1)} m off its line`);
-        if (gates.some((c) => Math.hypot(c.x - p.x, c.z - p.z) < GATE_CLEAR - 1)) return fail(`${at} runs through a checkpoint or the start grid`);
+        if (Math.abs(u) > (v >= 0 && v <= face_end(r) ? DECK_DRIFT : RUN_DRIFT) + 0.1) return fail(`${at} leaves ${name} ${Math.abs(u).toFixed(1)} m off its line`);
+        if (circuit && gates.some((c) => Math.hypot(c.x - p.x, c.z - p.z) < GATE_CLEAR - 1)) return fail(`${at} runs through a checkpoint or the start grid`);
+        if (along > end + RUNUP) return fail(`${at} leaves ${name} before its landing ends`);
       }
     } else
       for (let v = 0; v <= lip; v += 1)
@@ -178,6 +191,19 @@ function check_jumps(data: WorldData, fail: (what: string) => void) {
     if (!item.light) fail(`${item.kind} at ${item.x.toFixed(0)},${item.z.toFixed(0)} sits on the road`);
     else if (gates.some((c) => Math.hypot(c.x - item.x, c.z - item.z) < GATE_CLEAR - 1)) fail(`${item.kind} at ${item.x.toFixed(0)},${item.z.toFixed(0)} sits on the road at a checkpoint or the start grid`);
   }
+}
+
+// The canyon gap takeoff is a road ramp laid on a trail, not on the circuit.
+function carrier(data: WorldData, r: Ramp): { line: readonly RoadPoint[]; closed: boolean; toe: number; step: 1 | -1; circuit: boolean } {
+  const lines = [{ line: data.road, closed: true, circuit: true }, ...data.routes.filter((route) => route.kind === RouteKind.OFFROAD).map((route) => ({ line: route.points, closed: route.closed, circuit: false }))];
+  let best = { ...lines[0], toe: 0, d: Infinity };
+  for (const l of lines)
+    l.line.forEach((p, i) => {
+      const d = Math.hypot(p.x - r.x, p.z - r.z);
+      if (d < best.d) best = { ...l, toe: i, d };
+    });
+  const p = best.line[best.toe];
+  return { ...best, step: p.tx * r.fx + p.tz * r.fz < 0 ? -1 : 1 };
 }
 
 /** One side of the challenge has open, solid-free ground a car can drive round on. */
