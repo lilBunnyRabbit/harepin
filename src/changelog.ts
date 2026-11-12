@@ -23,6 +23,17 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.31.0",
+    date: "2026-11-13",
+    title: "Volcano and Big dunes",
+    changes: [
+      { kind: NEW, text: "Volcano: a lap round the crater rim above the lava, and a run of hairpins from the rim down to the sea." },
+      { kind: NEW, text: "Big dunes: 120 m dunes for off-road cars, packed lines every car can climb, and crest jumps." },
+      { kind: IMPROVED, text: "Mini maps sit in a picture strip under the Mainland map." },
+      { kind: FIXED, text: "Online races sit out a player whose car the route leaves out, instead of starting them." },
+    ],
+  },
+  {
     version: "0.30.2",
     date: "2026-11-13",
     title: "Map pictures",
