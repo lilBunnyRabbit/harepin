@@ -230,6 +230,10 @@ export interface RoadRecipe {
   /** Cut and fill banks wider than the fixed shoulder; null keeps the shoulder. */
   bank: Bank | null;
   descent?: DescentRecipe;
+  /** Par share of the circuit (both ways) over the autopilot estimate, fitted to scripts/races.ts; absent = the shared one. */
+  lap_par?: number;
+  /** False keeps the trails for free roam but races none of them: on the volcano's flank not every car finishes one. */
+  trail_races?: boolean;
 }
 
 export interface TownRecipe {
@@ -482,22 +486,25 @@ export const VOLCANO: Recipe = {
     items: { coast: "rock", meadow: "rock", forest: "log", upland: "rock" },
     ground: { coast: { cut: 0.55, above: Ground.SAND, below: Ground.DUNE, soft: 0 }, meadow: CINDER, forest: { cut: 0.6, above: Ground.DRY, below: Ground.FOREST, soft: 0.2 }, upland: CINDER },
   },
-  road: { loop: { radius: 205, swing: 30, min: 195, max: 235 }, straights: null, stacks: [], tongue: false, canyon: null, kickers: { road: 2, total: 6, big: 1 }, runup: { grade: 0.08, reach: 100 }, bank: { run: 3.75, reach: 64 }, descent: { stacks: [12, 13, 14], outlet: 2, tries: 16 } },
+  road: { loop: { radius: 205, swing: 30, min: 195, max: 235 }, straights: null, stacks: [], tongue: false, canyon: null, kickers: { road: 2, total: 6, big: 1 }, runup: { grade: 0.08, reach: 100 }, bank: { run: 3.75, reach: 64 }, descent: { stacks: [12, 13, 14], outlet: 2, tries: 16 }, lap_par: 1.2, trail_races: false },
   towns: { min: 0, max: 0, trees: false, pines: 1, block: { min: 35, span: 10 }, top: 60, layout: "grid", roofs: "flat", variety: false, exact: true },
   landmarks: [],
   scatter: [{ kind: PropKind.BOULDER, spacing: 50, odds: 0.1, biomes: ["meadow", "upland"], road_within: Infinity }],
 };
 
-/** Up to 120 m of dune over the dune sea's: its slip face peaks at 1.5 * 120 / (0.29 * 1000) = 0.62, the 32 degree repose. */
+/**
+ * Up to 120 m of dune over the dune sea's. Alone its slip face peaks at 1.5 * 120 / (0.29 * 1000) = 0.62, the 32 degree
+ * repose; the dune sea's bands riding on it take the steepest cells to ~50 degrees until the face is capped.
+ */
 const BIG_DUNE: DuneBand = { wave: 1000, height: 120, lee: 0.29, bend: 0.4, fields: false };
 
 /**
- * The dune sea under one band of big dunes, for dune bashing. Height paints no scree, rock or snow, and sand faces stay
- * sand: only ground past 53 degrees, a road cut, paints half-way to rock. No kickers: crest jumps want rules of their own.
+ * The dune sea under one band of big dunes, for dune bashing: height paints no scree, rock or snow. No kickers: crest
+ * jumps want rules of their own.
  */
 export const BIG_DUNES: Recipe = {
   ...DESERT,
   terrain: DESERT.terrain.map((l) => (l.kind === "dunes" ? { ...l, bands: [...l.bands, BIG_DUNE] } : l)),
-  biomes: { ...DESERT.biomes, limits: { ...DESERT.biomes.limits, scree: { up: 0.6, height: 10_000 }, rock: { up: 0.5, height: 10_000 }, snow_line: 10_000 } },
+  biomes: { ...DESERT.biomes, limits: { ...DESERT.biomes.limits, scree: { up: 0.8, height: 10_000 }, rock: { up: 0.7, height: 10_000 }, snow_line: 10_000 } },
   road: { ...DESERT.road, kickers: { road: 0, total: 0, big: 0 } },
 };

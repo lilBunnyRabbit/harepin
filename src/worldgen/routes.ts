@@ -101,21 +101,21 @@ function par(points: readonly RoadPoint[], closed: boolean, share = PAR_SHARE): 
 export const heading = (p: { tx: number; tz: number }) => Math.atan2(p.tx, p.tz);
 
 /** The race loop as a route: the circuit's own gates, the start line moved to the end as the finish. */
-export function circuit_route(road: readonly RoadPoint[], checkpoints: readonly Checkpoint[]): Route {
+export function circuit_route(road: readonly RoadPoint[], checkpoints: readonly Checkpoint[], share = PAR_SHARE): Route {
   const lap = run(road) + length(road[0].x - road[road.length - 1].x, road[0].z - road[road.length - 1].z);
   const gates = [...checkpoints.slice(1), checkpoints[0]].map((c, index) => ({ ...c, index }));
-  return { id: "circuit", kind: RouteKind.CIRCUIT, closed: true, points: [...road], checkpoints: gates, gate_hw: ROAD_HALF, length: lap, par_ms: par(road, true), closure: [] };
+  return { id: "circuit", kind: RouteKind.CIRCUIT, closed: true, points: [...road], checkpoints: gates, gate_hw: ROAD_HALF, length: lap, par_ms: par(road, true, share), closure: [] };
 }
 
 /** The circuit driven the other way from the same start line; a road kicker would face backwards, so only a loop with none gets one. */
-export function reverse_circuit(circuit: Route, ramps: readonly Ramp[]): Route | null {
+export function reverse_circuit(circuit: Route, ramps: readonly Ramp[], share = PAR_SHARE): Route | null {
   if (ramps.some((r) => r.road && circuit.points.some((p) => length(p.x - r.x, p.z - r.z) < ROAD_HALF))) return null;
   const [start, ...rest] = circuit.points;
   const points = [start, ...rest.reverse()].map((p) => ({ ...p, tx: -p.tx, tz: -p.tz }));
   const gates = circuit.checkpoints.slice(0, -1).reverse();
   const finish = circuit.checkpoints[circuit.checkpoints.length - 1];
   const checkpoints = [...gates, finish].map((c, index) => ({ ...c, heading: c.heading + Math.PI, index }));
-  return { ...circuit, id: "circuit-rev", points, checkpoints, par_ms: par(points, true) };
+  return { ...circuit, id: "circuit-rev", points, checkpoints, par_ms: par(points, true, share) };
 }
 
 class Atlas {

@@ -8,7 +8,7 @@ export const volcano = kind_def({
   kind: WorldKind.VOLCANO,
   base: 6000,
   tag: "v",
-  version: 2,
+  version: 3,
   size: SIZE,
   ...land_kind(VOLCANO, [], WorldKind.VOLCANO),
   options: [],
