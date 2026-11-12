@@ -424,18 +424,6 @@ const system_back = new SystemBack(
   },
 );
 system_back.start();
-const guide_step = params.get(GUIDE_PARAM);
-if (guide_step !== null) {
-  const clean = new URL(location.href);
-  clean.searchParams.delete(GUIDE_PARAM);
-  window.history.replaceState(window.history.state, "", clean);
-  settings.open_guide("look", guide_step === ROLLED_VISIT);
-} else if (!take_drive() && !event && !review) {
-  if (prefs.guide_seen) settings.open();
-  else settings.open_guide();
-}
-// Typing a name on a phone would raise the keyboard over the menu, so only a mouse and keyboard get the cursor.
-if (prefs.name === null && matchMedia("(pointer: fine)").matches) settings.focus_name();
 
 garage.on_save = () => goals.done(GoalId.BUILD);
 garage.on_change = (next) => {
@@ -473,6 +461,19 @@ markers.place(world, SPAWN_INDEX, EVENTS.filter(on_this_map)).catch((error: unkn
 // A map that fell back to its plain one would reload onto itself forever, so a load starts the event only where it landed.
 if (event && on_this_map(event)) modes.play_event(event);
 else if (event) goal_toasts.push("This event's map did not load", MAP_NOTE_MS);
+// After `markers`: the Play page reads its map markers as soon as the menu opens.
+const guide_step = params.get(GUIDE_PARAM);
+if (guide_step !== null) {
+  const clean = new URL(location.href);
+  clean.searchParams.delete(GUIDE_PARAM);
+  window.history.replaceState(window.history.state, "", clean);
+  settings.open_guide("look", guide_step === ROLLED_VISIT);
+} else if (!take_drive() && !event && !review) {
+  if (prefs.guide_seen) settings.open();
+  else settings.open_guide();
+}
+// Typing a name on a phone would raise the keyboard over the menu, so only a mouse and keyboard get the cursor.
+if (prefs.name === null && matchMedia("(pointer: fine)").matches) settings.focus_name();
 
 $("garage-btn").addEventListener("click", () => settings.open(MenuTab.GARAGE));
 $("modes-btn").addEventListener("click", () => settings.open("modes"));

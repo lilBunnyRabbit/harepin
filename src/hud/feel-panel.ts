@@ -63,7 +63,11 @@ export function feel_panel(host: FeelHost) {
   const full_lock = document.createElement("input");
   full_lock.type = "checkbox";
   full_lock.tabIndex = -1;
-  full_lock.addEventListener("change", () => host.drift_full_lock(full_lock.checked));
+  full_lock.addEventListener("change", () => {
+    host.drift_full_lock(full_lock.checked);
+    // A focused checkbox counts as typing, so driving keys would stop and Space would toggle it.
+    full_lock.blur();
+  });
   toggle.append(full_lock, "Full lock in drift");
   root.append(strip, note, toggle);
   document.body.append(root);
