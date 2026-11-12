@@ -32,6 +32,7 @@ const BANK_CUT = 12;
 const BANK_CAP = BANK_FLAT + BANK_CUT * BANK_RUN;
 /** Ground up to this far over the water reads as wet shore. */
 export const WET_RISE = 0.6;
+export const SEA_LEVEL = 0;
 const BUCKET = 32;
 const NONE = -Infinity;
 

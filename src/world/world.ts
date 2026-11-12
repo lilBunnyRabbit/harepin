@@ -11,7 +11,7 @@ import { FALL_DEPTH } from "../worldgen/sky";
 import { slice_tiles, TileStore, type Tile } from "../worldgen/tiles";
 import { kerb_marks, on_kerb_segment, type KerbMarks } from "./kerbs";
 import { CELL, ROAD_HALF, RouteKind, SurfaceId, type WorldKind } from "../worldgen/types";
-import { water_index, type WaterIndex } from "../worldgen/water";
+import { SEA_LEVEL, water_index, type WaterIndex } from "../worldgen/water";
 import type { LavaPool } from "../worldgen/lava";
 import type {
   Building,
@@ -238,7 +238,7 @@ export class World implements Ground {
     this.water = water?.kind === "water" ? water_index(water.water) : null;
     const lava = data.ground.ops.find((op) => op.kind === "lava");
     this.lava = lava?.kind === "lava" ? lava.pools : [];
-    this.sea = KINDS[data.kind].ground ? 0 : -Infinity;
+    this.sea = KINDS[data.kind].ground ? SEA_LEVEL : -Infinity;
     this.deck = data.deck && new DeckIndex(data.deck);
     this.tiles = new TileStore(extent(KINDS[data.kind].size), tiles);
     this.road = data.road;

@@ -8,6 +8,7 @@ import { CHUNK } from "../worldgen/chunk-grid";
 import { fog_reach } from "./lighting";
 import { Ground, JITTER_LEVELS, terrain_bases, type ChunkBuffers, type MeshTones } from "../worldgen/chunks";
 import { TreeKind } from "../worldgen/biomes";
+import { SEA_LEVEL } from "../worldgen/water";
 import { crown_tone } from "./crowns";
 import type { Lab } from "../theme/theme";
 
@@ -98,8 +99,8 @@ export class WorldView {
   private readonly views: (ChunkView | undefined)[] = [];
   private readonly terrain = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
   private readonly road = [-2, -4].map((offset) => new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, polygonOffset: true, polygonOffsetFactor: offset, polygonOffsetUnits: offset, side: THREE.DoubleSide }));
-  // The sea plane's look, so a river meets the sea in one tone.
-  private readonly water = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, transparent: true, opacity: 0.9 });
+  // The sea plane's look, so a river meets the sea in one tone; pulled forward so a mouth just over the sea wins its depth test every frame.
+  private readonly water = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, transparent: true, opacity: 0.9, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
   private readonly tree_kit: TreeKit;
   private readonly tree_lists: Map<number, Tree[]>;
   private readonly tree_order: Map<Tree, number>;
@@ -307,7 +308,7 @@ export function ribbon(world: World, from: number, to: number, lift: number, sam
 export function water_mesh(size: number): THREE.Mesh {
   const geometry = new THREE.PlaneGeometry(size * 4, size * 4, 1, 1).rotateX(-Math.PI / 2);
   const mesh = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({ color: color(tones.water), transparent: true, opacity: 0.9 }));
-  mesh.position.y = 0;
+  mesh.position.y = SEA_LEVEL;
   mesh.receiveShadow = true;
   return mesh;
 }

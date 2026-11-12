@@ -7,7 +7,7 @@ import { MAINLAND_SIZE, plan_mainland } from "./mainland";
 import { MAINLAND } from "./recipe";
 import { TILE_SIDE } from "./tiles";
 import { CELL, ORIGIN } from "./types";
-import { water_index, type Water } from "./water";
+import { SEA_LEVEL, water_index, type Water } from "./water";
 
 const EXT = extent(MAINLAND_SIZE);
 const SEEDS = [0, 1, 2, 3, 4];
@@ -69,7 +69,7 @@ test("a river mouth lays no water on the sea plane", async () => {
       const positions = mesher.build(chunk).chunk.water?.positions ?? new Float32Array();
       for (let t = 0; t < positions.length; t += 9) {
         const top = Math.max(positions[t + 1], positions[t + 4], positions[t + 7]);
-        if (top <= 0) throw new Error(`seed ${seed}: water triangle at sea level by ${positions[t].toFixed(0)},${positions[t + 2].toFixed(0)}`);
+        if (top <= SEA_LEVEL) throw new Error(`seed ${seed}: water triangle at sea level by ${positions[t].toFixed(0)},${positions[t + 2].toFixed(0)}`);
       }
     }
   }
