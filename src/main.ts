@@ -647,11 +647,12 @@ function frame(time: number) {
   }
 
   // A mode spawns the car anywhere, the circuit start included: its lap clock would count that as a lap.
-  if (!modes.active) race.update(car.pos.x, car.pos.z, now);
+  // A review replay is a dev ghost driving, not the player: it never sets a lap record.
+  if (!modes.active && !review) race.update(car.pos.x, car.pos.z, now);
   update_gates(now / 1000);
   ghost.update(race.started && !modes.active ? now - race.started : null, camera.position);
   modes.update(stepped, car);
-  markers.update(car.pos.x, car.pos.z, car.vel.length(), !modes.active && !modes.holding && !lobby.busy);
+  markers.update(car.pos.x, car.pos.z, car.vel.length(), !modes.active && !modes.holding && !lobby.busy && !review);
   // Rewind, the garage and the countdown don't step the car, so a held boost would never let go of the flame.
   if (!simulated) car.nitro.cut();
   chase.top = modes.high_view;

@@ -65,13 +65,23 @@ export class Review {
     private ask: Ask,
   ) {
     this.mark("busy");
-    addEventListener("hashchange", () => this.go(read_ask()));
   }
 
   static async open(world: World, chase: ChaseCamera): Promise<Review> {
     const review = new Review(world, chase, read_ask());
     await review.load(review.ask);
+    review.start();
     return review;
+  }
+
+  private readonly on_hash = () => this.go(read_ask());
+
+  start() {
+    addEventListener("hashchange", this.on_hash);
+  }
+
+  stop() {
+    removeEventListener("hashchange", this.on_hash);
   }
 
   get start_index(): number | null {
@@ -96,7 +106,7 @@ export class Review {
     this.shown = false;
     const switching = this.load(ask).then(async () => {
       const at = this.start_index;
-      if (this.view && at !== null) await this.place(at);
+      if (this.ask === ask && this.view && at !== null) await this.place(at);
     });
     this.switching = switching;
     void switching.finally(() => {
@@ -104,22 +114,28 @@ export class Review {
     });
   }
 
+  // A newer ask that lands first wins: an older load finishing after it changes nothing.
   private async load(ask: Ask) {
-    this.key = ask_key(ask);
-    this.view = null;
     if (ask.view !== null) {
+      const view = await view_of(this.world, ask.view);
+      if (this.ask !== ask) return;
+      this.key = ask_key(ask);
       this.lap = null;
-      this.view = await view_of(this.world, ask.view);
-      if (!this.view) this.mark(`missing:${ask.view}`);
+      this.view = view;
+      if (!view) this.mark(`missing:${ask.view}`);
       return;
     }
     const event = event_of(ask.replay);
-    this.lap = event ? await dev_ghost(event) : null;
-    if (!this.lap) {
+    const lap = event ? await dev_ghost(event) : null;
+    if (this.ask !== ask) return;
+    this.key = ask_key(ask);
+    this.view = null;
+    this.lap = lap;
+    if (!lap) {
       this.mark(`missing:${ask.replay}`);
       return;
     }
-    const end = this.lap[this.lap.length - STRIDE] / 1000;
+    const end = lap[lap.length - STRIDE] / 1000;
     this.held = ask.at === null ? null : Math.min(ask.at, end);
     this.time = this.held === null ? 0 : Math.max(0, this.held - WARM_S);
     this.snap = true;
@@ -181,6 +197,7 @@ export class Review {
   }
 
   private mark(state: string) {
+    if (document.documentElement.dataset.review === state) return;
     document.documentElement.dataset.review = state;
   }
 }
