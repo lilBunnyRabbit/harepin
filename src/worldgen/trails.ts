@@ -549,6 +549,7 @@ function route_trails(seed: number, p: Planner, marks: ReturnType<typeof waypoin
   const used = new Set<string>();
   // The legs to and from the gap see only the base grid, so one that two options share is routed once.
   const cache = new Map<string, Path | null>();
+  const steep = new Set<string>();
   for (const window of WINDOWS) {
     const options: { start: Point; shoulder: Point | null; finish: Point; guess: number }[] = [];
     for (const start of marks.starts) {
@@ -574,16 +575,19 @@ function route_trails(seed: number, p: Planner, marks: ReturnType<typeof waypoin
       const legs: [Point, Point][] = cross ? [[option.start, a], [b, option.shoulder ?? option.finish]] : [[option.start, option.shoulder ?? option.finish]];
       if (option.shoulder) legs.push([option.shoulder, option.finish]);
       const found: Path[] = [];
+      let chain = "";
       for (const [from, to] of legs) {
         const fresh = found.length === 0 || (cross !== null && found.length === 1);
-        const memo = `${from}>${to}`;
-        const leg = fresh && cache.has(memo) ? (cache.get(memo) ?? null) : steep_leg(p.route(from, to, fresh ? p.blocked : blocked), p.land, cross);
-        if (fresh) cache.set(memo, leg);
+        // A later leg routes around the ones before it, so it is keyed by them too.
+        chain = fresh ? `${chain}|${from}>${to}` : `${chain}|${from}>${to}+`;
+        const memo = fresh ? `${from}>${to}` : chain;
+        const leg = cache.has(memo) ? (cache.get(memo) ?? null) : steep_leg(p.route(from, to, fresh ? p.blocked : blocked), p.land, cross);
+        cache.set(memo, leg);
         if (!leg) break;
         found.push(leg);
         for (const [x, z] of leg) p.block_disc(x, z, GRID, blocked);
       }
-      if (found.length < legs.length) continue;
+      if (found.length < legs.length || steep.has(chain)) continue;
       if (cross) {
         const into = found[0][found[0].length - 2];
         const out = found[1][1];
@@ -597,7 +601,10 @@ function route_trails(seed: number, p: Planner, marks: ReturnType<typeof waypoin
       const line = resample(chaikin(unkink(path, (i) => first >= 0 && i >= first && i <= first + straight.length - 1), 3), STEP, false);
       const metres = run(line);
       if (metres[metres.length - 1] < window.min || metres[metres.length - 1] > window.max) continue;
-      if (too_steep(line, p.land, cross)) continue;
+      if (too_steep(line, p.land, cross)) {
+        steep.add(chain);
+        continue;
+      }
       plans.push({ path: line });
       used.add(id);
       break;

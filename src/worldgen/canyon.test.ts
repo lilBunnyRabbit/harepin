@@ -40,7 +40,7 @@ test("the trail's canyon gap stays open: no bank or trail stamp fills the slot u
     if (!takeoff || !landing) continue;
     const x = (takeoff.x + takeoff.fx * takeoff.length + landing.x) / 2;
     const z = (takeoff.z + takeoff.fz * takeoff.length + landing.z) / 2;
-    expect(sample(world.terrain.heights, x, z)).toBeLessThan(landing.y - 4);
+    expect(sample(world.terrain.heights, x, z)).toBeLessThan(landing.y - 5);
   }
 }, 120_000);
 
