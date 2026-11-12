@@ -73,6 +73,7 @@ export class Ghost {
   private best: number[] | null = null;
   private view: CarView;
   private readonly tint: THREE.MeshBasicMaterial;
+  private readonly turn = new THREE.Quaternion();
 
   private readonly key: string;
   private readonly cap_ms: number;
@@ -148,10 +149,7 @@ export class Ghost {
   }
 
   position(lap_ms: number, out: THREE.Vector3): THREE.Vector3 | null {
-    const best = this.best;
-    if (!best || lap_ms > best[best.length - STRIDE]) return null;
-    const [i, j, k] = lap_span(best, lap_ms);
-    return out.set(best[i + 1] + (best[j + 1] - best[i + 1]) * k, best[i + 2] + (best[j + 2] - best[i + 2]) * k, best[i + 3] + (best[j + 3] - best[i + 3]) * k);
+    return this.best && lap_pose(this.best, lap_ms, out, this.turn) ? out : null;
   }
 
   update(lap_ms: number | null, camera: THREE.Vector3) {
