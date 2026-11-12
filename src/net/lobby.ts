@@ -1,4 +1,5 @@
 import { add_race, placing, local_store, parse_race_record, read_json, write_json, type RaceRecord, type Store } from "../modes/track";
+import { parse_build } from "../car/build";
 import type { Net, RaceEvent, Sender } from "./net";
 import type { Route } from "../worldgen/types";
 import { READY_RESEND_MS, READY_TTL_MS, ReadySet, type RaceCall, type ReadyStatus } from "./ready";
@@ -30,7 +31,7 @@ interface Running {
   laps: number;
   /** Local `performance.now()` ms when the countdown ends. */
   go: number;
-  /** Peers in the room when the race began; wins and podiums count against them (see `placing`). */
+  /** Peers in the room when the race began, less those whose car the route leaves out; wins and podiums count against them (see `placing`). */
   rivals: number;
 }
 
@@ -236,7 +237,7 @@ export class Lobby {
       this.out_until = go + laps * (this.routes.get(route)?.min_lap ?? 0);
       return this.on_sit_out?.();
     }
-    this.state = { kind: "countdown", race, route, laps, go, rivals: this.net.remotes.size };
+    this.state = { kind: "countdown", race, route, laps, go, rivals: this.rivals(route) };
     this.finishers = [];
     this.on_start?.();
   }
@@ -265,6 +266,15 @@ export class Lobby {
         break;
       }
     }
+  }
+
+  // Read off peers' car packets, so a peer could fake its car: that only shapes this player's own record. A peer with no
+  // build code (an old build) counts.
+  private rivals(route: string): number {
+    const excludes = this.routes.get(route)?.excludes ?? [];
+    let rivals = 0;
+    for (const remote of this.net.remotes.values()) if (!excludes.includes(parse_build(remote.latest.b ?? "")?.car ?? "")) rivals++;
+    return rivals;
   }
 
   private add(finisher: Finisher) {

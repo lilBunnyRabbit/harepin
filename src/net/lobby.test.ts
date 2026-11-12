@@ -1,6 +1,7 @@
 /// <reference types="bun" />
 import { afterEach, expect, spyOn, test } from "bun:test";
 import { COUNTDOWN_MS, Lobby, NOT_THIS_CAR, RACE_RUNNING, SITTING_OUT, lobby_routes, race_laps } from "./lobby";
+import { DEFAULT_BUILD, build_code } from "../car/build";
 import { leader_of, type Net, type RaceEvent, type Sender } from "./net";
 import { READY_RESEND_MS, READY_TTL_MS, type ReadyMsg } from "./ready";
 
@@ -23,7 +24,7 @@ const MIN_LAP = ROUTES.get("circuit")?.min_lap ?? 0;
 
 class FakeNet {
   readonly name = "Me";
-  readonly remotes = new Map<string, Sender>();
+  readonly remotes = new Map<string, Sender & { latest: { b?: string } }>();
   readonly same_map = new Map<string, number>();
   readonly sent: RaceEvent[] = [];
   readonly readies: ReadyMsg[] = [];
@@ -38,8 +39,8 @@ class FakeNet {
     return leader_of(this.id, this.same_map.keys());
   }
 
-  peer(id: string, offset = 0): Sender {
-    const sender = { id, name: id, offset };
+  peer(id: string, offset = 0, b?: string): Sender {
+    const sender = { id, name: id, offset, latest: { b } };
     this.remotes.set(id, sender);
     this.same_map.set(id, 0);
     return sender;
@@ -353,4 +354,29 @@ test("swapping into a left-out car mid-race leaves the race; any other swap does
   expect(lobby.car_changed()).toBe(true);
   expect(lobby.state.kind).toBe("idle");
   expect(notices).toEqual([SITTING_OUT]);
+});
+
+test("a peer whose car the route leaves out isn't a rival, so racing alone beside it is no win", () => {
+  const { net, lobby } = driving("a", "coupe");
+  net.peer("z", 0, build_code({ ...DEFAULT_BUILD, car: "bus" }));
+  net.peer("y");
+  lobby.call(1, "circuit");
+  expect(lobby.state).toMatchObject({ kind: "countdown", rivals: 1 });
+  lobby.leave();
+  net.remotes.delete("y");
+  net.same_map.delete("y");
+  lobby.call(1, "circuit");
+  if (lobby.state.kind !== "countdown") throw new Error("race not started");
+  expect(lobby.state.rivals).toBe(0);
+  lobby.update(lobby.state.go);
+  const clock = spyOn(performance, "now").mockReturnValue(lobby.state.go + MIN_LAP + 1000);
+  try {
+    lobby.lap(performance.now());
+  } finally {
+    clock.mockRestore();
+  }
+  expect(lobby.record.wins).toBe(0);
+  lobby.leave();
+  lobby.call(1, "sprint-1");
+  expect(lobby.state).toMatchObject({ kind: "countdown", rivals: 1 });
 });
