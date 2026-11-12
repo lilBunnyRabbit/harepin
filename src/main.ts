@@ -232,6 +232,7 @@ async function restart_lap() {
 }
 function restart_action() {
   if (modes.active) modes.restart();
+  else if (markers.start_here()) return;
   else if (lobby.busy) hud.toast("Lobby race is running");
   else void restart_lap();
 }
@@ -630,7 +631,7 @@ function frame(now: number) {
   update_gates(now / 1000);
   ghost.update(race.started && !modes.active ? now - race.started : null, camera.position);
   modes.update(stepped, car);
-  markers.update(car.pos.x, car.pos.z, !modes.active && !modes.holding && !lobby.busy);
+  markers.update(car.pos.x, car.pos.z, car.vel.length(), !modes.active && !modes.holding && !lobby.busy);
   // Rewind, the garage and the countdown don't step the car, so a held boost would never let go of the flame.
   if (!simulated) car.nitro.cut();
   chase.top = modes.high_view;
