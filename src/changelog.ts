@@ -23,6 +23,18 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.34.0",
+    date: "2026-11-12",
+    title: "Career",
+    changes: [
+      { kind: NEW, text: "Career: 21 events in three tiers, Rookie, Club and Pro, across every world. Earn stars to open the next tier; each tier ends with a final on Sky Track, the Volcano descent and Ice canyon." },
+      { kind: NEW, text: "Pick your car before an event: events cap the class or hand you a preset, and your own car comes back afterwards." },
+      { kind: NEW, text: "Race events have a 3-star ghost to chase. Every hit on a wall or rail adds 2 seconds, and there is no rewind." },
+      { kind: IMPROVED, text: "Each event says its goal when it starts, and route events light the next gate." },
+      { kind: IMPROVED, text: "Drifting with steering assist off: hold the turn key in a drift and the line tightens instead of washing wide; ease the gas to straighten." },
+    ],
+  },
+  {
     version: "0.33.2",
     date: "2026-11-12",
     title: "Hands on the wheel",
