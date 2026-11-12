@@ -6,7 +6,7 @@ import { surface_grip as tyre_share } from "./car";
 import { LAND_GRIP, SAND_GRIP } from "../worldgen/kinds/kind-def";
 import { SurfaceId } from "../worldgen/types";
 
-const with_parts = (parts: Partial<Build["parts"]>, rest: Partial<Omit<Build, "parts">> = {}): Build => ({ ...DEFAULT_BUILD, car: "coupe", ...rest, parts: { ...DEFAULT_PARTS, ...parts } });
+const with_parts = (parts: Partial<Build["parts"]>, rest: Partial<Omit<Build, "parts">> = {}): Build => ({ ...DEFAULT_BUILD, car: "coupe", paint: 0, ...rest, parts: { ...DEFAULT_PARTS, ...parts } });
 
 test("codes round-trip", () => {
   const build = with_parts({ aero: 2, suspension: 0, engine: 1 }, { car: "rally", paint: 12, decal: 3 });
@@ -50,7 +50,7 @@ test("career reward paints and decals ride build codes past the old ranges", () 
 });
 
 test("codes from before decal ink, number and the new slots still parse", () => {
-  expect(build_code(DEFAULT_BUILD)).toBe("hatch.0.0.2.1.0");
+  expect(build_code(DEFAULT_BUILD)).toBe("hatch.4.0.2.1.0");
   expect(parse_build("kaze.3.1.0.2.0")).toEqual(with_parts({ suspension: 2 }, { car: "kaze", paint: 3, decal: 1 }));
   expect(parse_build("coupe.3.1.2.1.0")).toEqual(with_parts({ aero: 2 }, { paint: 3, decal: 1 }));
   expect(parse_build("coupe.3.1.2.1.0.4.12")).toEqual(with_parts({ aero: 2 }, { paint: 3, decal: 1, ink: 4, number: 12 }));

@@ -195,8 +195,8 @@ export const MAX_DECAL = DECALS.length - 1;
 export const MAX_INK = 8;
 export const MAX_NUMBER = 99;
 export const DEFAULT_PARTS: Record<Slot, number> = { engine: 0, tyres: 0, aero: 0, suspension: 1, brakes: 0, weight: 0, bias: 1, nitro: 0 };
-// A new player's car. The wing's rear grip takes the stock hatch's lift-off tuck at 80 km/h from 16 to 4 degrees of slip.
-export const DEFAULT_BUILD: Build = { car: "hatch", paint: 0, decal: 0, ink: 0, number: 7, parts: { ...DEFAULT_PARTS, aero: 2 } };
+// A new player's car, in the info paint: blue stands clear of grass, dirt and sand in both themes. The wing's rear grip takes the stock hatch's lift-off tuck at 80 km/h from 16 to 4 degrees of slip.
+export const DEFAULT_BUILD: Build = { car: "hatch", paint: 4, decal: 0, ink: 0, number: 7, parts: { ...DEFAULT_PARTS, aero: 2 } };
 
 const HEAD: readonly Slot[] = ["aero", "suspension", "engine"];
 const TAIL = SLOT_NAMES.filter((slot) => !HEAD.includes(slot));
