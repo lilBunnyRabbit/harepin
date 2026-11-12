@@ -65,7 +65,9 @@ export class PlayPage implements MenuPage {
   }
 
   private show_players() {
-    if (!document.hidden) this.world_map.show_players(this.menu.host.map_players());
+    if (document.hidden) return;
+    this.world_map.show_players(this.menu.host.map_players());
+    this.world_map.show_markers(this.menu.host.map_markers());
   }
 
   build(): HTMLElement[] {

@@ -1,6 +1,7 @@
 import type * as THREE from "three";
 import { rgba } from "../theme/palette";
 import type { World } from "../world/world";
+import { chunk_of } from "../worldgen/chunk-grid";
 import { KINDS } from "../worldgen/kinds/kinds";
 import type { CareerEvent } from "./career";
 import type { Career } from "./career-store";
@@ -16,7 +17,10 @@ export class EventMarkers {
   readonly card: MarkerCard;
   on_map: ((markers: readonly MapMarker[]) => void) | null = null;
   private markers: readonly Marker[] = [];
-  private view: MarkerView | null = null;
+  /** One per marker, built once the ground under it is in; null until then. */
+  private views: (MarkerView | null)[] = [];
+  private world: World | null = null;
+  private placed = false;
   private icons: readonly MapMarker[] = NONE;
   private shown: readonly MapMarker[] | null = null;
   private drawn = -1;
@@ -40,13 +44,15 @@ export class EventMarkers {
     return true;
   }
 
-  // A streamed world gets none until its modes run (career.md C7).
+  // A compact world's gymkhana and parking sites read terrain anywhere, so its flags wait for the whole map. A streamed
+  // world runs only route modes, whose starts need no terrain: each flag goes up once the chunk under it streams in.
   async place(world: World, start_index: number, events: readonly CareerEvent[]) {
-    if (world.tiles.streamed || !events.length) return;
-    await world.tiles.whole();
+    if (!events.length) return;
+    if (!world.tiles.streamed) await world.tiles.whole();
     this.markers = event_markers(world, start_index, events, KINDS[world.kind].open_ground);
-    this.view = new MarkerView(this.markers, (x, z) => world.height(x, z));
-    this.scene.add(this.view.root);
+    this.views = this.markers.map(() => null);
+    this.world = world;
+    this.placed = true;
   }
 
   get map_markers(): readonly MapMarker[] {
@@ -55,15 +61,16 @@ export class EventMarkers {
 
   /** `speed` in m/s. */
   update(x: number, z: number, speed: number, idle: boolean) {
-    const { view, career, open } = this;
-    if (!view) return;
+    const { career, open, views, world } = this;
+    if (!this.placed || !world) return;
+    for (let i = 0; i < views.length; i++) if (!views[i]) views[i] = this.raise(world, i);
     if (career.version !== this.drawn) {
       this.drawn = career.version;
-      view.show(open);
+      for (const view of views) view?.show(open);
       this.icons = this.markers.map((m) => ({ label: m.event.id, x: m.x, z: m.z, ink: rgba(marker_tone(m, open(m))) }));
       this.shown = null;
     }
-    view.root.visible = idle;
+    for (const view of views) if (view) view.root.visible = idle;
     const icons = idle ? this.icons : NONE;
     if (icons !== this.shown) {
       this.shown = icons;
@@ -74,8 +81,19 @@ export class EventMarkers {
     this.card.show(at, at !== null && open(at), career.stars);
   }
 
+  // A dropped chunk keeps its flag: the ground it stands on never changes, and it sits out in the fog by then.
+  private raise(world: World, i: number): MarkerView | null {
+    const marker = this.markers[i];
+    const { tiles } = world;
+    if (tiles.streamed && !tiles.get(chunk_of(marker.x, marker.z, tiles.ext))) return null;
+    const view = new MarkerView([marker], (x, z) => world.height(x, z));
+    view.show(this.open);
+    this.scene.add(view.root);
+    return view;
+  }
+
   dispose() {
-    this.view?.dispose();
-    this.view = null;
+    for (const view of this.views) view?.dispose();
+    this.views = [];
   }
 }
