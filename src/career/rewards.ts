@@ -1,10 +1,9 @@
 import { DECALS } from "../car/build";
+import type { TierBadge } from "../net/net";
 import { TIERS, tier_max, tier_stars, type Stars, type Tier } from "./career";
 
 export const PAINT_STARS = 10;
 
-// Sent online as `Hello.tier`: the highest tier whose final is finished.
-export type TierBadge = 1 | 2 | 3;
 
 export interface Unlocks {
   paints: readonly number[];

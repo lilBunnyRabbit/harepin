@@ -1,5 +1,5 @@
 import type { Announce, Server } from "./directory";
-import type { Tier } from "./net";
+import type { TierBadge } from "./net";
 
 const GOOD_PING_MS = 100;
 const OK_PING_MS = 250;
@@ -16,7 +16,7 @@ export interface Player {
   key: string;
   name: string;
   country: string | null;
-  tier: Tier | null;
+  tier: TierBadge | null;
   racing: boolean;
   /** Round trip to the game's announcer in ms; null for this game or while not linked to it. */
   ping: number | null;

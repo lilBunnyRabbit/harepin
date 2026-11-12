@@ -43,13 +43,13 @@ export type ChatMsg = { text: string; t: number };
  * `seed` its map seed, `country` its ISO code when shared; peers that predate it send none. `map` is the code of a
  * custom map, absent on a plain one. `tier` is the sender's career badge (`rewards.ts`), absent until a final is finished.
  */
-export type Hello = { protocol: number; version: string; world: number; seed: number; country?: string; map?: string; tier?: Tier };
+export type Hello = { protocol: number; version: string; world: number; seed: number; country?: string; map?: string; tier?: TierBadge };
 
-export type Tier = 1 | 2 | 3;
+export type TierBadge = 1 | 2 | 3;
 
-export const clean_tier = (raw: unknown): Tier | null => (raw === 1 || raw === 2 || raw === 3 ? raw : null);
+export const clean_tier = (raw: unknown): TierBadge | null => (raw === 1 || raw === 2 || raw === 3 ? raw : null);
 
-export function make_hello(version: string, world: number, seed: number, map: string | null, country: string | null, tier: Tier | null = null): Hello {
+export function make_hello(version: string, world: number, seed: number, map: string | null, country: string | null, tier: TierBadge | null = null): Hello {
   const hello: Hello = { protocol: PROTOCOL, version, world, seed };
   if (country !== null) hello.country = country;
   if (map !== null) hello.map = map;
@@ -67,7 +67,7 @@ export function same_map(own: { seed: number; world: number; map: string | null 
 }
 
 /** One player of a game, as its leader lists it in the directory. */
-export type RosterEntry = { name: string; country?: string; tier?: Tier; racing?: boolean };
+export type RosterEntry = { name: string; country?: string; tier?: TierBadge; racing?: boolean };
 
 /**
  * `start_at` is in the sender's `performance.now()` clock; receivers shift it by their `Sender.offset`. `route` is a
@@ -288,7 +288,7 @@ export class Net {
   private had_peer = false;
   private readonly blocked = new BlockedWatch();
   private country: string | null = null;
-  private tier: Tier | null = null;
+  private tier: TierBadge | null = null;
 
   /** `lock` locks the room: peers without the same password fail the trystero handshake and never connect. */
   constructor(
@@ -385,7 +385,7 @@ export class Net {
   }
 
   /** The career badge this player shows online; peers already here hear the change. */
-  set_tier(tier: Tier | null) {
+  set_tier(tier: TierBadge | null) {
     if (tier === this.tier) return;
     this.tier = tier;
     this.hello.send(this.own_hello);
@@ -399,7 +399,7 @@ export class Net {
 
   /** This map's players for the directory, this player first: names as they sent them, countries and tiers from their hellos. */
   roster(racing: boolean): RosterEntry[] {
-    const entry = (name: string, country: string | null | undefined, tier: Tier | null | undefined): RosterEntry => ({ name, ...(country ? { country } : {}), ...(tier ? { tier } : {}), ...(racing ? { racing } : {}) });
+    const entry = (name: string, country: string | null | undefined, tier: TierBadge | null | undefined): RosterEntry => ({ name, ...(country ? { country } : {}), ...(tier ? { tier } : {}), ...(racing ? { racing } : {}) });
     return [entry(this.name, this.country, this.tier), ...[...this.same_map].map(([id, sighting]) => entry(sighting.name, this.hellos.get(id)?.country, this.hellos.get(id)?.tier))];
   }
 
