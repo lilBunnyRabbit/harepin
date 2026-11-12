@@ -4,7 +4,8 @@
   --garage-rail-w: 300px;
   --garage-stats-w: 300px;
   --garage-head: calc(var(--control-h) + 10px);
-  --garage-bottom-h: 156px;
+  --garage-key-h: 22px;
+  --garage-bottom-h: 158px;
   --garage-side-top: calc(var(--inset-top) + var(--garage-head) + var(--space-4));
   --garage-side-h: calc(100% - var(--garage-side-top) - var(--space-4) - var(--garage-bottom-h) - var(--inset-bottom));
   --inset-top: var(--space-4);
@@ -316,6 +317,8 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  /* Sized to the Fit key a preview adds, so hovering a card never changes the band above the strip. */
+  height: var(--garage-key-h);
   color: var(--dim);
   font-weight: 600;
 }
@@ -333,6 +336,8 @@
   justify-content: safe center;
   gap: var(--space-2);
   width: 100%;
+  /* A scroller's automatic minimum is 0, so the grid would squeeze it whenever the band runs out; it keeps its cards' height. */
+  min-height: min-content;
   padding: 6px;
   overflow-x: auto;
   scrollbar-width: none;
@@ -558,8 +563,8 @@
 .garage-key {
   display: inline-grid;
   place-items: center;
-  min-width: 22px;
-  height: 22px;
+  min-width: var(--garage-key-h);
+  height: var(--garage-key-h);
   padding: 0 6px;
   border-radius: var(--radius-full);
   border: 1px solid var(--line-strong);
