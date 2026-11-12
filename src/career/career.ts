@@ -20,8 +20,8 @@ export interface CareerEvent {
   readonly name: string;
   readonly mode: string;
   readonly level: string;
-  /** The map it belongs on; null while that world is not made yet, so `stand_in` runs it. */
-  readonly map: string | null;
+  /** The map it belongs on; `stand_in` runs it until that map can host the mode. */
+  readonly map: string;
   readonly car: { cap: CarClass } | { preset: string };
   /** `world_key` of the map it runs on now: `career.test.ts` fails when a generator bump moves it, until re-tuned. */
   readonly tuned: string;
@@ -105,7 +105,6 @@ export const tier_of = (event: CareerEvent): Tier => TIERS.find((tier) => tier.e
 
 export function spot_of(event: CareerEvent): Spot {
   if (event.stand_in) return event.stand_in;
-  if (event.map === null) throw new Error(`career event ${event.id} has no map and no stand-in`);
   return { map: event.map, level: event.level };
 }
 

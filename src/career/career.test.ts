@@ -45,7 +45,7 @@ test("every event's level is one its mode has, on a map code that reads", () => 
     const spot = spot_of(event);
     expect([event.id, known_level(event.mode, spot.level)]).toEqual([event.id, true]);
     expect([event.id, parse_map_code(spot.map).ok]).toEqual([event.id, true]);
-    if (event.map !== null) expect([event.id, parse_map_code(event.map).ok]).toEqual([event.id, true]);
+    expect([event.id, parse_map_code(event.map).ok]).toEqual([event.id, true]);
     if ("preset" in event.car) expect(PRESETS.map((p) => p.name)).toContain(event.car.preset);
   }
 });
