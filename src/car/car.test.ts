@@ -885,21 +885,19 @@ describe("power over with TCS on and the steering assist off", () => {
   });
 
   for (const spec of [DRIFT_SETUP, CARS.coupe, CARS.muscle, CARS.kaze, CARS.formula])
-    test(`${spec.id}${spec === DRIFT_SETUP ? " (drift setup)" : ""}: easing pad gas or stick mid-slide, from rest or a rolling tap, eases out of it, never steering into the turn or pivoting`, () => {
+    test(`${spec.id}${spec === DRIFT_SETUP ? " (drift setup)" : ""}: easing pad gas or stick mid-slide, from rest or a rolling tap, the wheels stay on the stick's side: nothing countersteers for the driver`, () => {
       for (const from of [0, 15])
       for (const eased of [0.85, 0.7, 0.6])
         for (const which of ["steer", "throttle"] as const) {
           const car = rolling(spec, from);
           if (from > 0) expect(tap(car)).toBe(true);
           run(car, from > 0 ? 1.5 : 2.5, () => ({ ...kick, analog: true }));
-          let into = -Infinity;
+          let against = -Infinity;
           for (let t = 0; t < 1.5; t += DT) {
             car.step(DT, { ...kick, analog: true, [which]: eased }, flat);
-            if (Math.abs(tail(car)) > 10) into = Math.max(into, car.steer);
+            against = Math.max(against, -car.steer);
           }
-          // A few degrees into the turn is the front axle's own course in the tight arc the slide leaves behind.
-          expect(into).toBeLessThan(0.175);
-          expect(car.vel.length() * 3.6).toBeGreaterThan(15);
+          expect(against).toBeLessThan(0);
         }
     });
 
@@ -928,7 +926,9 @@ describe("power over with TCS on and the steering assist off", () => {
         expect(held.spun).toBe(false);
         // The driver's own hunting between keys, not a weave: before the damper the slide rang through 15 degrees.
         expect(held.sd).toBeLessThan(7);
-        expect(held.slowest).toBeGreaterThan(Math.max(25, kmh * 0.9));
+        // From rest the slide is a walking-pace pivot on the driver's keys. Rolling, the angle the driver holds costs the speed:
+        // the auto countersteer kept a 30 degree aim near 25 degrees, and the car near its entry speed.
+        if (kmh > 0) expect(held.slowest).toBeGreaterThan(kmh * (aim === 20 ? 0.9 : 0.75));
       }
   });
 
@@ -957,16 +957,21 @@ describe("power over with TCS on and the steering assist off", () => {
   });
 
   for (const spec of [DRIFT_SETUP, ...RWD.filter((id) => id !== "sturm").map((id) => CARS[id])])
-    test(`${spec.id}${spec === DRIFT_SETUP ? " (drift setup)" : ""}: a held power slide from rest on full lock and full gas carries speed instead of pivoting`, () => {
-      const car = rolling(spec, 0);
-      run(car, 2, () => kick);
-      let out = 0;
-      let steps = 0;
-      for (let t = 0; t < 4; t += DT, steps++) {
-        car.step(DT, kick, flat);
-        out += tail(car);
+    test(`${spec.id}${spec === DRIFT_SETUP ? " (drift setup)" : ""}: a held power slide from rest on full lock and full gas carries speed with the steering assist; without it the wheels stay on the key`, () => {
+      for (const assist of [true, false]) {
+        const car = rolling(spec, 0, assist);
+        run(car, 2, () => kick);
+        let out = 0;
+        let steps = 0;
+        let against = -Infinity;
+        for (let t = 0; t < 4; t += DT, steps++) {
+          car.step(DT, kick, flat);
+          out += tail(car);
+          against = Math.max(against, -car.steer);
+        }
+        if (assist) expect(car.vel.length() * 3.6).toBeGreaterThan(25);
+        else expect(against).toBeLessThan(0);
+        expect(out / steps).toBeGreaterThan(15);
       }
-      expect(car.vel.length() * 3.6).toBeGreaterThan(25);
-      expect(out / steps).toBeGreaterThan(15);
     });
 });

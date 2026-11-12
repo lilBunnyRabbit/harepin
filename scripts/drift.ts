@@ -249,6 +249,59 @@ export function catch_drift(spec: CarSpec, kmh: number, aim: number, let_go = In
   return r;
 }
 
+export interface WheelTrace {
+  /** Seconds a held key had the front wheels pointing the other way, past 1 degree, and not turning back: an automatic countersteer. */
+  against: number;
+  rows: { t: number; key: number; steer: number; slip: number; hold: number }[];
+}
+
+/**
+ * The c2 handbrake drift with steering assist and stability off, TCS on: rolling at `kmh`, 0.4 s of full key on the gas,
+ * a 0.3 s handbrake tap, then binary keys on full gas, `KEYS` in turn. Logs the wheel angle against the key held.
+ */
+export function wheel_trace(spec: CarSpec, kmh: number, aids = { tcs: true, assist: false, stability: false }): WheelTrace {
+  const idle: Controls = { steer: 0, throttle: 0, brake: 0, handbrake: 0, analog: false };
+  const car: Car = new Car(spec);
+  Object.assign(car, aids, { abs: aids.tcs, steer_mode: "smooth" });
+  car.park(0, 0, 0, flat);
+  for (let t = 0; t < 0.5; t += DT) car.step(DT, idle, flat);
+  for (let t = 0; t < 15 && car.vel.length() * 3.6 < kmh; t += DT) car.step(DT, { ...idle, throttle: 1 }, flat);
+  for (let t = 0; t < 1; t += DT) car.step(DT, { ...idle, throttle: Math.max(0, Math.min(1, (kmh - car.vel.length() * 3.6) * 0.15 + 0.3)) }, flat);
+  for (let t = 0; t < 0.4; t += DT) car.step(DT, { ...idle, steer: 1, throttle: 1 }, flat);
+  for (let t = 0; t < 0.3; t += DT) car.step(DT, { ...idle, steer: 1, handbrake: 1 }, flat);
+  const local = new Vector3();
+  const out: WheelTrace = { against: 0, rows: [] };
+  const deg = 180 / Math.PI;
+  let next = 0;
+  for (let t = 0; t < KEYS.length * KEY_SECONDS; t += DT) {
+    const key = KEYS[Math.floor(t / KEY_SECONDS)];
+    const was = car.steer;
+    car.step(DT, { ...idle, steer: key, throttle: 1 }, flat);
+    if (key * car.steer * deg < -1 && key * (car.steer - was) <= 0) out.against += DT;
+    if (t >= next) {
+      next += 0.1;
+      local.copy(car.vel).applyQuaternion(car.quat.clone().invert());
+      out.rows.push({ t, key, steer: car.steer * deg, slip: Math.atan2(local.x, Math.abs(local.z)) * deg, hold: car["hold_side"] });
+    }
+  }
+  return out;
+}
+
+const KEYS = [1, -1, 1, 1, -1, -1] as const;
+const KEY_SECONDS = 0.5;
+
+function wheel_table(ids: readonly string[]) {
+  console.log(`handbrake drift, TCS on, steering assist + stability off, Smooth keys, full gas; keys ${KEYS.join(" ")} for ${KEY_SECONDS} s each`);
+  console.log("against = seconds the wheels point against the held key by over 1 deg and are not turning back to it");
+  for (const [id, spec] of drift_specs(ids))
+    for (const kmh of [60, 90]) {
+      const r = wheel_trace(spec, kmh);
+      console.log(`${id} ${kmh} km/h  against ${r.against.toFixed(2)} s`);
+      console.log("     t  key  wheel deg  slip deg  hold");
+      for (const row of r.rows) console.log(`${row.t.toFixed(1).padStart(6)} ${String(row.key).padStart(4)} ${row.steer.toFixed(1).padStart(10)} ${row.slip.toFixed(0).padStart(9)} ${String(row.hold).padStart(5)}`);
+    }
+}
+
 function catch_table(ids: readonly string[]) {
   const f = (n: number, d = 1) => (Number.isFinite(n) ? n.toFixed(d) : "-");
   console.log(`keyboard drifter on full gas, Smooth keys, Balanced aids (TCS + stability, steering assist off), ${CATCH_SECONDS} s; 0 km/h = full lock from rest to 30 deg, else a handbrake tap at full key`);
@@ -289,6 +342,10 @@ if (import.meta.main) {
   const ids = named ? [car_spec(named).id] : DRIFT_CARS;
   if (process.argv.includes("--launch")) {
     launch_table(named ? ids : DRIFT_CARS);
+    process.exit(0);
+  }
+  if (process.argv.includes("--wheel")) {
+    wheel_table(named ? ids : []);
     process.exit(0);
   }
   if (process.argv.includes("--catch")) {

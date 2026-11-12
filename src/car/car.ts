@@ -682,14 +682,16 @@ export class Car {
       const near = Math.max(course - reach, Math.min(course + reach, target));
       // Without the assist the clamp only takes lock off: turning the wheels towards the course on its own is the countersteer.
       const kept = this.assist ? near : Math.sign(target) * Math.max(0, Math.min(Math.abs(target), Math.sign(target) * near));
-      // A launched slide under traction control keeps the fronts on the course at any speed, with the assist off too: it is
-      // the launch's own countersteer, as its yaw hold is, and what lets the slide carry speed rather than pivot.
+      // A launched or held slide under traction control keeps the fronts on the course at any speed: the assist's countersteer,
+      // and what lets the slide carry speed rather than pivot. Without the assist the wheels follow the key alone: held into
+      // a handbrake drift they turned 14 degrees the other way.
+      const course_steer = this.assist ? drift_steer : 0;
       const on_course = Math.max(course - DRIFT_REACH * spec.peak_angle, Math.min(course + DRIFT_REACH * spec.peak_angle, target));
       const loose = target + (kept - target) * (1 - power_slide);
-      target = loose + (on_course - loose) * drift_steer;
+      target = loose + (on_course - loose) * course_steer;
       // Fading, the wheels still never point further into the turn than the held course: blended with the full lock the
       // stick asks for, an eased kaze steered 17 degrees into the turn and the tail swung out again.
-      if (this.hold_side !== 0 && drift_steer > 0) target = this.hold_side * Math.min(this.hold_side * target, this.hold_side * on_course);
+      if (this.hold_side !== 0 && course_steer > 0) target = this.hold_side * Math.min(this.hold_side * target, this.hold_side * on_course);
     }
     target = Math.max(-spec.lock, Math.min(spec.lock, target));
     // At speed the ramped key input moves slower than either limit; at parking speed this keeps the old keyboard feel.
