@@ -23,6 +23,21 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.29.0",
+    date: "2026-11-11",
+    title: "Winter",
+    changes: [
+      { kind: NEW, text: "Winter: set Season to Winter in Create world for Island, Dune sea or Alpine. Snow on the ground, packed-snow roads with snowbanks, frozen lakes and low grip. Winter has its own records and map codes." },
+      { kind: NEW, text: "Frozen lakes: a new mini map of white flats, frozen lakes to drift on, pine bands and small hamlets." },
+      { kind: IMPROVED, text: "Drifting: a handbrake tap at full lock then full gas holds a slide you can catch with countersteer, at any speed. The slide no longer weaves or bleeds speed, and letting go of the keys straightens the car." },
+      { kind: IMPROVED, text: "Steep off-road trails are graded so every car can climb them. Island records start fresh." },
+      { kind: IMPROVED, text: "The mainland builds faster as you drive." },
+      { kind: IMPROVED, text: "New pictures for every mini map, and roads on the world map stay readable on snow." },
+      { kind: IMPROVED, text: "My builds cards show the full name, and the whole card loads the build." },
+      { kind: IMPROVED, text: "Click the gear to switch between automatic and manual, and parking starts in the normal camera." },
+    ],
+  },
+  {
     version: "0.28.1",
     date: "2026-11-11",
     title: "Update chip",
