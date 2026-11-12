@@ -238,16 +238,16 @@ export class Garage {
     this.refresh();
   }
 
-  private fit(option: number) {
+  private fit(option: number, centre = true) {
     this.cursor = option;
     this.apply(this.item.with(this.current, option));
     this.refresh();
-    this.centre_fitted();
+    if (centre) this.centre_fitted(this.calm.matches ? "instant" : "smooth");
   }
 
   // A fitted card sits mid-strip, so a phone's narrow strip shows the options either side of it, not only those before.
-  private centre_fitted() {
-    this.strip.querySelector("[aria-pressed='true']")?.scrollIntoView({ block: "nearest", inline: "center", behavior: this.calm.matches ? "instant" : "smooth" });
+  private centre_fitted(behavior: ScrollBehavior) {
+    this.strip.querySelector("[aria-pressed='true']")?.scrollIntoView({ block: "nearest", inline: "center", behavior });
   }
 
   private readonly click = (event: MouseEvent) => {
@@ -276,7 +276,10 @@ export class Garage {
     else if (action === "item") {
       const item = this.items().find((it) => it.id === value);
       if (item) this.select(item);
-    } else if (action === "option") this.fit(n);
+    } else if (action === "option") {
+      // A mouse click leaves the strip still: sliding it would put another card under the pointer and preview that one.
+      this.fit(n, !(event instanceof PointerEvent && event.pointerType === "mouse"));
+    }
     else if (action === "step") this.fit((this.cursor + n + MAX_NUMBER + 1) % (MAX_NUMBER + 1));
   };
 
@@ -412,7 +415,7 @@ export class Garage {
     if (fresh) {
       this.strip_key = key;
       this.strip.dataset.kind = item.kind;
-      // A new slot's cards start from the strip's start, not the last slot's scroll, so the fitted one lands in view at once.
+      // A new slot's cards start from the strip's start, not the last slot's scroll; the fitted one is then centred at once.
       this.strip.scrollLeft = 0;
       if (item.kind === "number") {
         const card = el("div", "garage-card garage-stepper");
@@ -466,7 +469,7 @@ export class Garage {
       card.classList.toggle("is-cursor", i === this.cursor);
       if (i === this.cursor && !fresh) card.scrollIntoView({ block: "nearest", inline: "nearest", behavior: this.calm.matches ? "instant" : "smooth" });
     }
-    if (fresh) this.centre_fitted();
+    if (fresh) this.centre_fitted("instant");
   }
 
 
