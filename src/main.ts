@@ -3,6 +3,7 @@ import { Audio } from "./audio/audio";
 import { EVENTS, EVENT_PARAM, TUNE_PARAM, event_of, type CareerEvent } from "./career/career";
 import { Career, event_map } from "./career/career-store";
 import { EventMarkers } from "./career/event-markers";
+import { unlocks } from "./career/rewards";
 import { ChaseCamera } from "./render/camera";
 import { Driver } from "./car/driver";
 import { Directory, load_lock } from "./net/directory";
@@ -192,6 +193,7 @@ scene.add(smoke.mesh, skids.mesh);
 const garage_stage = document.createElement("div");
 garage_stage.className = "menu-garage";
 const garage = new Garage(garage_stage, build);
+garage.rewards = () => unlocks(career.stars);
 const input = new Input($("touch"), render.renderer.domElement);
 const rumble = new Rumble();
 const rumble_sense: RumbleSense = { scrub: 0, speed: 0, loose: 0, kerb: 0, airborne: false, vy: 0, impact: 0, x: 0, y: 0, z: 0 };
@@ -550,7 +552,14 @@ function near_miss(impact: number): { near: Near; touched: boolean } {
   return ghost && pass?.close ? { near: ghost.id, touched: pass.touched } : { near: null, touched: impact > 0 };
 }
 
+// The online badge follows the career's stars: a finished final shows to peers at once.
+let rewarded = -1;
+
 function frame(now: number) {
+  if (career.version !== rewarded) {
+    rewarded = career.version;
+    net.set_tier(unlocks(career.stars).badge);
+  }
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
   // Before any HUD write this frame: the size read would otherwise force a layout.
