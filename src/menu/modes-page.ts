@@ -61,8 +61,8 @@ export class ModesPage implements MenuPage {
     mode.levels.forEach((level, i) => {
       const tile = el("button", "modes-level");
       tile.type = "button";
-      const locked = level.open ? "" : `Finish ${mode.levels[i - 1]?.name ?? "the level before"} to open it.`;
-      tile.disabled = !level.open || mode.blocked !== null;
+      const locked = level.blocked ?? (level.open ? "" : `Finish ${mode.levels[i - 1]?.name ?? "the level before"} to open it.`);
+      tile.disabled = !level.open || mode.blocked !== null || level.blocked !== null;
       tile.append(el("small", "modes-n", `Level ${i + 1}`), el("b", "", level.name));
       if (level.length !== null && level.par_ms !== null) tile.append(el("small", "modes-meta", `${(level.length / 1000).toFixed(1)} km · par ${minutes(level.par_ms)}`));
       const foot = el("span", "modes-foot");

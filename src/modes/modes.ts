@@ -40,6 +40,7 @@ const OPEN_WORLDS = LISTED.filter((w) => KINDS[w.kind].open_ground).map((w) => `
 const OPEN_GROUND = `Needs open ground: drive ${OPEN_WORLDS} for it`;
 const NO_GROUND_NOTICE = `Gymkhana, parking and gate hunts need open ground: drive ${OPEN_WORLDS} for them`;
 const TOO_BIG = "Too big for this mode";
+const NOT_THIS_CAR = "Not raced in this car";
 const STREAMED = "Modes are not on this world yet";
 const NO_EVENT = "This event is not on this map";
 const NEXT_LEVEL = "Next level";
@@ -55,6 +56,8 @@ export interface LevelEntry {
   /** Race routes only: metres, and the par time in ms. */
   length: number | null;
   par_ms: number | null;
+  /** Why the car being driven can't run it; null when it can. */
+  blocked: string | null;
 }
 
 export interface ModeEntry {
@@ -528,6 +531,7 @@ export class Modes {
             open: track.is_open(level.id),
             length: route?.length ?? null,
             par_ms: route?.par_ms ?? null,
+            blocked: route?.excludes?.includes(this.spec().id) ? NOT_THIS_CAR : null,
           };
         }),
       }));

@@ -327,6 +327,8 @@ export interface Route {
   par_ms: number;
   /** Cones across the roads the route passes, placed only while it is raced. */
   closure: Extract<Solid, { kind: "circle" }>[];
+  /** Car ids it is not raced in: too slow or too big for it, so the race menu blocks it for them. */
+  excludes?: readonly string[];
 }
 
 /**

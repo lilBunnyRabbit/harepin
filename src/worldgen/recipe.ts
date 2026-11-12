@@ -234,6 +234,8 @@ export interface DescentRecipe {
   stacks: readonly number[];
   outlet: number;
   tries: number;
+  /** Car ids the descent race leaves out. */
+  excludes?: readonly string[];
 }
 
 export interface RoadRecipe {
@@ -262,6 +264,8 @@ export interface RoadRecipe {
   trail_races?: boolean;
   /** False races no street routes: where a missed town corner puts a car in loose sand, not every car gets out. */
   street_races?: boolean;
+  /** Car ids the circuit races (both ways) leave out. */
+  lap_excludes?: readonly string[];
   /**
    * Lays the circuit along two neighbouring corridors of the dunes, `half` metres either side of the middle, joined by
    * a half circle over the dune between them at each end; replaces the ring. `wind` is the seed of the dune layer it
@@ -522,7 +526,7 @@ export const VOLCANO: Recipe = {
     items: { coast: "rock", meadow: "rock", forest: "log", upland: "rock" },
     ground: { coast: { cut: 0.55, above: Ground.SAND, below: Ground.DUNE, soft: 0 }, meadow: CINDER, forest: { cut: 0.6, above: Ground.DRY, below: Ground.FOREST, soft: 0.2 }, upland: CINDER },
   },
-  road: { loop: { radius: 205, swing: 30, min: 195, max: 235 }, straights: null, stacks: [], tongue: false, canyon: null, kickers: { road: 2, total: 6, big: 1 }, runup: { grade: 0.08, reach: 100 }, bank: { run: 3.75, reach: 64 }, descent: { stacks: [12, 13, 14], outlet: 2, tries: 16 }, lap_par: 1.2, trail_races: false },
+  road: { loop: { radius: 205, swing: 30, min: 195, max: 235 }, straights: null, stacks: [], tongue: false, canyon: null, kickers: { road: 2, total: 6, big: 1 }, runup: { grade: 0.08, reach: 100 }, bank: { run: 3.75, reach: 64 }, descent: { stacks: [12, 13, 14], outlet: 2, tries: 16, excludes: ["bus"] }, lap_par: 1.2, trail_races: false },
   towns: { min: 0, max: 0, trees: false, pines: 1, block: { min: 35, span: 10 }, top: 60, layout: "grid", roofs: "flat", variety: false, exact: true },
   landmarks: [],
   scatter: [{ kind: PropKind.BOULDER, spacing: 50, odds: 0.1, biomes: ["meadow", "upland"], road_within: Infinity }],
@@ -548,6 +552,6 @@ export const BIG_DUNES: Recipe = {
     l.kind === "dunes" ? { ...l, bands: [...l.bands.map((b) => ({ ...b, height: b.height * RIPPLE })), BIG_DUNE], gaps: { above: 20, width: 40, ease: 600, at: [] } } : l,
   ),
   biomes: { ...DESERT.biomes, limits: { ...DESERT.biomes.limits, scree: { up: 0.8, height: 10_000 }, rock: { up: 0.7, height: 10_000 }, snow_line: 10_000 } },
-  road: { ...DESERT.road, straights: null, canyon: null, kickers: { road: 0, total: 0, big: 0 }, corridor: { half: 280, wind: SEA?.seed ?? 0 }, street_races: false },
+  road: { ...DESERT.road, straights: null, canyon: null, kickers: { road: 0, total: 0, big: 0 }, corridor: { half: 280, wind: SEA?.seed ?? 0 }, street_races: false, lap_excludes: ["bus"] },
   towns: { ...DESERT.towns, min: 0, top: 10_000, pan: true },
 };

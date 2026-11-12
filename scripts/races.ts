@@ -45,7 +45,7 @@ for (const seed of SEEDS) {
     driven++;
     const line = route.closed ? [...route.points, route.points[0]] : route.points;
     const unplace = world.place(route.closure);
-    const rows = Object.values(CARS).map((spec) => {
+    const rows = Object.values(CARS).filter((spec) => !route.excludes?.includes(spec.id)).map((spec) => {
       const lap = autolap(world, spec, line, false);
       const done = lap.index >= line.length - 10 && !lap.flipped;
       const over = lap.t * 1000 > route.par_ms;

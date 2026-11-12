@@ -1,33 +1,3 @@
-dunes 0 circuit bus
-dunes 0 circuit-rev bus
-dunes 1 circuit bus
-dunes 1 circuit-rev bus
-dunes 2 circuit bus
-dunes 2 circuit-rev bus
-dunes 3 circuit bus
-dunes 3 circuit-rev bus
-dunes 4 circuit bus
-dunes 4 circuit-rev bus
-dunes 5 circuit bus
-dunes 5 circuit-rev bus
-dunes 6 circuit bus
-dunes 6 circuit-rev bus
-dunes 7 circuit bus
-dunes 7 circuit-rev bus
-dunes 8 circuit bus
-dunes 8 circuit-rev bus
-dunes 9 circuit bus
-dunes 9 circuit-rev bus
-volcano 0 descent bus
-volcano 1 descent bus
-volcano 2 descent bus
-volcano 3 descent bus
-volcano 4 descent bus
-volcano 5 descent bus
-volcano 6 descent bus
-volcano 7 descent bus
-volcano 8 descent bus
-volcano 9 descent bus
 0 circuit bus
 0 street-1 hatch
 0 street-1 coupe

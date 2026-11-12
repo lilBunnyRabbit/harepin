@@ -20,7 +20,7 @@
 0 road cf6dbcaa83cd2e71
 0 canyon ca2689192ce2e663
 0 route:circuit 61b871b37b2fefe0
-0 route:descent 88c22d1eb95d45cd
+0 route:descent 605c6a1b83370b06
 0 route:circuit-rev abdc94c0e1010e40
 0 mesh_road 2825a9f23987b8fc
 0 mesh_rest 8a4d902922b96d87
@@ -48,7 +48,7 @@
 1 road b454676273ddaaad
 1 canyon ca2689192ce2e663
 1 route:circuit 705494a75ebb85a1
-1 route:descent f7ad0c41158be8b7
+1 route:descent 488e38435963047e
 1 route:circuit-rev 6ec557fc16b54062
 1 mesh_road 3c5f9e97585fde91
 1 mesh_rest e08e1b545d7b7028
@@ -76,7 +76,7 @@
 2 road a814ced2d4e6e050
 2 canyon ca2689192ce2e663
 2 route:circuit 0dbafbbc63cc5b17
-2 route:descent 42fddeccae12473e
+2 route:descent 2a868f493f7a16af
 2 route:circuit-rev 1fcb332623003e1f
 2 mesh_road c57c6b3defc11126
 2 mesh_rest 6f54deec79126331
@@ -104,7 +104,7 @@
 3 road 4256888824cc5f35
 3 canyon ca2689192ce2e663
 3 route:circuit 3d9c7e782f7fd472
-3 route:descent 883c229a403e9563
+3 route:descent 4e1d1d795c2bd600
 3 route:circuit-rev fcdaa232f96e5c4b
 3 mesh_road ccde7828f5ad26ae
 3 mesh_rest 68c2aaf04ecd07e4
@@ -132,7 +132,7 @@
 4 road f277fa36b2d75f91
 4 canyon ca2689192ce2e663
 4 route:circuit cc66a3b47f6aca14
-4 route:descent af2dc1c8b8988b18
+4 route:descent 35abc55f9b57458f
 4 route:circuit-rev 93bf7062e3703534
 4 mesh_road 756bbb5c3a93d7a1
 4 mesh_rest aa6b41e36591ed7f
@@ -160,7 +160,7 @@
 5 road cf6f22b16e6a10b3
 5 canyon ca2689192ce2e663
 5 route:circuit 3d490dc16ae66642
-5 route:descent a253cec913ab7d4a
+5 route:descent abf03eeff6e9bd81
 5 route:circuit-rev 3807d142ce60ad09
 5 mesh_road 5cac2b9abdb82540
 5 mesh_rest 5d91066359a7d1ed
@@ -188,7 +188,7 @@
 6 road 30881202daa80461
 6 canyon ca2689192ce2e663
 6 route:circuit 91cfd2a8532d213a
-6 route:descent c31f84e7ee2b5356
+6 route:descent 4eb7725aac9f8740
 6 route:circuit-rev fc77ba38e626fd67
 6 mesh_road 575b76682cf467b4
 6 mesh_rest a29953d198481562
@@ -216,7 +216,7 @@
 7 road 6910938b3f333784
 7 canyon ca2689192ce2e663
 7 route:circuit 67eabec0a4d37ad7
-7 route:descent 3bdcab07496fa609
+7 route:descent 5fb4e83140830c0f
 7 route:circuit-rev 018fcb7c84bee71f
 7 mesh_road 0bb4421008945847
 7 mesh_rest 2f7ad15f3ddc0d77
@@ -244,7 +244,7 @@
 8 road e5c0fc2195345b2f
 8 canyon ca2689192ce2e663
 8 route:circuit fa28295f8baf3e0e
-8 route:descent 2e313a3b46a693b9
+8 route:descent 2497a575451e635e
 8 route:circuit-rev 73951ddab7f4556c
 8 mesh_road 9ee3b5db2fc96fb1
 8 mesh_rest f30def9bdb441d69
@@ -272,7 +272,7 @@
 9 road 2efb4f64baa8105b
 9 canyon ca2689192ce2e663
 9 route:circuit e3b9199e322ddfc6
-9 route:descent 172f4bc5d5053eaa
+9 route:descent fbe87e438d95deab
 9 route:circuit-rev 00dd44892e5c6b83
 9 mesh_road 2c45c876e4127db5
 9 mesh_rest d23ee2c149a5fab5
