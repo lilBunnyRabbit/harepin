@@ -208,6 +208,7 @@ export class Modes {
       if (!level) continue;
       if (mode.def.needs_ground && !KINDS[this.world.kind].open_ground) return this.notice(NO_GROUND_NOTICE);
       if (this.too_big(mode)) return this.notice(TOO_BIG);
+      if (this.left_out(id)) return this.notice(NOT_THIS_CAR);
       if (!mode.track.is_open(id)) return;
       if (this.race_busy()) return this.notice(mode.def.busy_notice);
       this.clear();
@@ -232,6 +233,7 @@ export class Modes {
     void this.event_car(event, mode).then((ready) => {
       if (!ready) return this.give_back();
       if (this.too_big(mode)) return this.refuse(TOO_BIG);
+      if (this.left_out(level.id)) return this.refuse(NOT_THIS_CAR);
       if (this.race_busy()) return this.refuse(mode.def.busy_notice);
       this.clear();
       this.begin(mode, level, event_track(event, local_store()), event);
@@ -333,6 +335,11 @@ export class Modes {
     return mode.def.car_sized_only && !car_sized(this.spec());
   }
 
+  /** The level is a route the car being driven is not raced in. */
+  private left_out(id: string): boolean {
+    return this.world.routes.find((r) => r.id === id)?.excludes?.includes(this.spec().id) === true;
+  }
+
   private begin(mode: Mode, level: Level, track = mode.track, event: CareerEvent | null = null) {
     this.current = { mode, level, track, event, run: null, shown: false, pi: null };
     this.launch(this.current);
@@ -399,6 +406,7 @@ export class Modes {
     if (!active) return;
     if (this.lobby_lap) return this.notice("Lobby race is running");
     if (this.too_big(active.mode)) return this.notice(TOO_BIG);
+    if (this.left_out(active.level.id)) return this.notice(NOT_THIS_CAR);
     active.run?.dispose();
     active.run = null;
     const car = active.event?.car;
@@ -490,7 +498,7 @@ export class Modes {
       const index = levels.findIndex((level) => level.id === active.level.id);
       el.next.textContent = NEXT_LEVEL;
       el.next.hidden = index + 1 >= levels.length;
-      el.next.disabled = !track.is_open(levels[index + 1]?.id ?? "");
+      el.next.disabled = !track.is_open(levels[index + 1]?.id ?? "") || this.left_out(levels[index + 1]?.id ?? "");
     }
     el.result.hidden = false;
     this.on_finish?.(active.mode.def.id);
@@ -531,7 +539,7 @@ export class Modes {
             open: track.is_open(level.id),
             length: route?.length ?? null,
             par_ms: route?.par_ms ?? null,
-            blocked: route?.excludes?.includes(this.spec().id) ? NOT_THIS_CAR : null,
+            blocked: this.left_out(level.id) ? NOT_THIS_CAR : null,
           };
         }),
       }));
