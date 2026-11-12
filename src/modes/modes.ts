@@ -156,6 +156,11 @@ export class Modes {
     return this.fitting_;
   }
 
+  /** True while an event runs on a car it lent the player: a new look on it is not the player's own car. */
+  get borrowed(): boolean {
+    return this.kept !== null;
+  }
+
   get active(): boolean {
     return (this.current?.run ?? null) !== null;
   }

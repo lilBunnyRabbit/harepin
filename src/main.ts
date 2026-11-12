@@ -422,10 +422,11 @@ if (prefs.name === null && matchMedia("(pointer: fine)").matches) settings.focus
 
 garage.on_save = () => goals.done(GoalId.BUILD);
 garage.on_change = (next) => {
-  if (!modes.fitting) for (const id of build_goals(next)) goals.done(id);
   driver.swap(next, lobby.busy || modes.active);
   if (lobby.car_changed()) modes.exit();
   modes.car_changed();
+  // After `car_changed`, which settles whether the change stays on a borrowed event car or becomes the player's own.
+  if (!modes.fitting && !modes.borrowed) for (const id of build_goals(next)) goals.done(id);
   apply_car_settings(settings.state);
   input.touch.show_nitro(driver.car.nitro.fitted);
 };
