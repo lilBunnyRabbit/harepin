@@ -1,0 +1,161 @@
+.car-pick {
+  width: min(560px, calc(100vw - 2 * var(--inset)));
+  max-width: none;
+  max-height: min(760px, calc(100dvh - 2 * var(--inset)));
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+  color: var(--foreground);
+  box-shadow: var(--panel-shadow);
+  font-size: var(--text-md);
+  overflow: hidden;
+}
+
+.car-pick[open] {
+  display: flex;
+}
+
+.car-pick::backdrop {
+  background: color-mix(in oklch, var(--background-darkest) 55%, transparent);
+}
+
+.car-pick-box {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  width: 100%;
+  min-height: 0;
+  padding: var(--space-6);
+}
+
+.car-pick-head {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.car-pick-head h2 {
+  margin: 0;
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.car-pick-limit {
+  margin: 0;
+  font: 400 var(--text-sm) var(--font-mono);
+  color: var(--dim);
+}
+
+.car-pick-list {
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.car-pick-shelf-head {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.car-pick-shelf-head:first-child {
+  margin-top: 0;
+}
+
+.car-pick-shelf {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.car-pick .car-pick-car {
+  display: grid;
+  justify-content: stretch;
+  justify-items: start;
+  gap: var(--space-1);
+  width: 100%;
+  height: auto;
+  padding: var(--space-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--panel-well);
+  color: var(--foreground);
+  font-weight: 400;
+  text-align: start;
+  white-space: normal;
+}
+
+.car-pick .car-pick-car:enabled:hover {
+  border-color: var(--line-strong);
+}
+
+.car-pick .car-pick-car:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.car-pick .car-pick-car:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.car-pick-name {
+  max-width: 100%;
+  font-size: var(--text-lg);
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.car-pick-sub {
+  font-size: var(--text-sm);
+  color: var(--dim);
+}
+
+.car-pick-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  margin-top: var(--space-1);
+}
+
+.car-pick-why,
+.car-pick-tag {
+  margin-left: auto;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--dim);
+}
+
+.car-pick-foot {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.car-pick .car-pick-back {
+  height: 40px;
+  padding: 0 var(--space-6);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--panel-raised);
+  color: var(--foreground);
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+@media (max-height: 480px) {
+  .car-pick-box {
+    gap: var(--space-4);
+    padding: var(--space-5);
+  }
+}

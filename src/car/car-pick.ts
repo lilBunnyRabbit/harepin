@@ -1,0 +1,57 @@
+import { build_code, build_spec, parse_build, type Build } from "./build";
+import type { SavedBuild } from "./builds";
+import { CARS, car_sized } from "./cars";
+import { CLASS_FLOORS, CLASS_LABELS, rating, type CarClass, type Rating } from "./pi";
+import { PRESETS } from "./presets";
+
+export interface CarLimit {
+  cap: CarClass | null;
+  car_sized_only: boolean;
+}
+
+export interface CarChoice {
+  title: string;
+  sub: string;
+  code: string;
+  rating: Rating;
+  fitted: boolean;
+  blocked: string | null;
+}
+
+export interface CarShelf {
+  head: string;
+  choices: CarChoice[];
+}
+
+const rank = (name: CarClass) => CLASS_FLOORS.findIndex(([floor]) => floor === name);
+
+export const within = (name: CarClass, cap: CarClass) => rank(name) <= rank(cap);
+
+export const limit_text = (cap: CarClass) => `Class ${CLASS_LABELS[cap]} or below`;
+
+function blocked(build: Build, rated: Rating, limit: CarLimit): string | null {
+  if (limit.cap && !within(rated.class, limit.cap)) return `Over ${CLASS_LABELS[limit.cap]}`;
+  if (limit.car_sized_only && !car_sized(build_spec(build))) return "Too big for this mode";
+  return null;
+}
+
+// Cars the limit rules out stay listed, greyed with their badge, so the player sees what to change in the garage.
+export function car_shelves(current: Build, builds: readonly SavedBuild[], limit: CarLimit): CarShelf[] {
+  const fitted = build_code(current);
+  const choice = (title: string, sub: string, build: Build): CarChoice => {
+    const rated = rating(build);
+    const code = build_code(build);
+    return { title, sub, code, rating: rated, fitted: code === fitted, blocked: blocked(build, rated, limit) };
+  };
+  const parsed = (list: readonly { name: string; code: string }[], sub: (build: Build, i: number) => string) =>
+    list.flatMap((entry, i) => {
+      const build = parse_build(entry.code);
+      return build ? [choice(entry.name, sub(build, i), build)] : [];
+    });
+  const shelves: CarShelf[] = [
+    { head: "Your car", choices: [choice(CARS[current.car].name, "On your car now", current)] },
+    { head: "My builds", choices: parsed(builds, (build) => CARS[build.car].name) },
+    { head: "Presets", choices: parsed(PRESETS, (_, i) => PRESETS[i].blurb) },
+  ];
+  return shelves.filter((shelf) => shelf.choices.length);
+}

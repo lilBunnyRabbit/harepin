@@ -1,7 +1,9 @@
 import type * as THREE from "three";
 import { TIERS, next_event, spot_of, tier_line, tier_of, tier_open, type CareerEvent } from "../career/career";
 import { event_track, type Career } from "../career/career-store";
+import type { CarLimit } from "../car/car-pick";
 import { car_sized, type CarSpec } from "../car/cars";
+import { PRESETS } from "../car/presets";
 import { DEFAULT_BINDINGS, keys_text, type Bindings } from "../hud/bindings";
 import { $, format } from "../hud/hud";
 import type { World } from "../world/world";
@@ -100,6 +102,10 @@ export class Modes {
   career: Career | null = null;
   /** Starts an event here, or reloads onto its map. */
   start_event: ((id: string) => void) | null = null;
+  /** The step before a start that asks which car runs it; resolves false when the player backs out. Events only for now. */
+  pick_car: ((title: string, limit: CarLimit) => Promise<boolean>) | null = null;
+  fit_car: ((code: string) => void) | null = null;
+  private picking = false;
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -134,7 +140,7 @@ export class Modes {
 
   /** A solo race counting down: the car stays on the line. */
   get holding(): boolean {
-    return this.current?.run?.holding === true;
+    return this.picking || this.current?.run?.holding === true;
   }
 
   /** Runs the lobby's race on `id` instead of the circuit; the lobby keeps the time, so there is no countdown or record here. */
@@ -196,10 +202,33 @@ export class Modes {
     const before = TIERS[TIERS.indexOf(tier) - 1];
     if (!this.career || !tier_open(this.career.stars, tier)) return this.notice(`${tier.name} opens at ${tier.opens_at} ★ in ${before?.name ?? "the tier before"}`);
     if (mode.def.needs_ground && !KINDS[this.world.kind].open_ground) return this.notice(NO_GROUND_NOTICE);
-    if (this.too_big(mode)) return this.notice(TOO_BIG);
     if (this.race_busy()) return this.notice(mode.def.busy_notice);
+    if (this.picking) return;
     this.clear();
-    this.begin(mode, level, event_track(event, local_store()), event);
+    void this.event_car(event, mode).then((ready) => {
+      if (!ready) return;
+      if (this.too_big(mode)) return this.notice(TOO_BIG);
+      if (this.race_busy()) return this.notice(mode.def.busy_notice);
+      this.clear();
+      this.begin(mode, level, event_track(event, local_store()), event);
+    });
+  }
+
+  // A fixed preset goes on with no step; a class cap asks, with the cars over it greyed.
+  private async event_car(event: CareerEvent, mode: Mode): Promise<boolean> {
+    const { car } = event;
+    if ("preset" in car) {
+      const preset = PRESETS.find((p) => p.name === car.preset);
+      if (preset) this.fit_car?.(preset.code);
+      return true;
+    }
+    if (!this.pick_car) return true;
+    this.picking = true;
+    try {
+      return await this.pick_car(event.name, { cap: car.cap, car_sized_only: mode.def.car_sized_only });
+    } finally {
+      this.picking = false;
+    }
   }
 
   private too_big(mode: Mode): boolean {
