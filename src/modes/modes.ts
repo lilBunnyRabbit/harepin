@@ -2,6 +2,8 @@ import type * as THREE from "three";
 import { TIERS, TUNE_PARAM, next_event, spot_of, tier_line, tier_of, tier_open, type CareerEvent } from "../career/career";
 import { event_track, type Career } from "../career/career-store";
 import { dev_ghost } from "../career/dev-ghost";
+import { earned, type Reward } from "../career/rewards";
+import { unlock_card } from "../career/unlock-card";
 import { limit_text, same_machine, within, type CarLimit } from "../car/car-pick";
 import { car_sized, type CarSpec } from "../car/cars";
 import { build_code, parse_build } from "../car/build";
@@ -46,6 +48,7 @@ const TOO_BIG = "Too big for this mode";
 const NOT_THIS_CAR = "Not raced in this car";
 const STREAMED = "This mode is not on this world yet";
 const NO_EVENT = "This event is not on this map";
+const NO_GROUND_LOAD = "The ground at the start did not load";
 const NEXT_LEVEL = "Next level";
 const NEXT_EVENT = "Next event";
 
@@ -108,6 +111,7 @@ export class Modes {
     result_stars: $("mode-result-stars"),
     lines: $("mode-result-lines"),
     note: $("mode-result-note"),
+    unlock: $("mode-result-unlock"),
     retry: $("mode-retry", HTMLButtonElement),
     next: $("mode-next", HTMLButtonElement),
     exit: $("mode-exit", HTMLButtonElement),
@@ -124,6 +128,8 @@ export class Modes {
   toast: ((text: string, label: string, hold: number) => void) | null = null;
   /** Starts an event here, or reloads onto its map. */
   start_event: ((id: string) => void) | null = null;
+  /** Opens the garage with a reward the run just earned tried on. */
+  try_reward: ((reward: Reward) => void) | null = null;
   /** The step before a start that asks which car runs it: its code, or null when the player backs out. Events only for now. */
   pick_car: ((title: string, limit: CarLimit, own: string, signal: AbortSignal) => Promise<string | null>) | null = null;
   /** Puts `code` on the car; unsaved, a reload brings back the player's own car. */
@@ -403,6 +409,7 @@ export class Modes {
     }, (error: unknown) => {
       run.dispose();
       console.error(error);
+      if (this.current === active && active.starting === run) this.refuse(NO_GROUND_LOAD);
     });
   }
 
@@ -541,6 +548,7 @@ export class Modes {
     el.result_stars.setAttribute("aria-label", `${stars} of ${MAX_STARS} stars`);
     el.lines.replaceChildren(...finish.lines);
     el.note.hidden = true;
+    el.unlock.replaceChildren();
     if (active.event) this.show_event(active.event, stars);
     else {
       const index = levels.findIndex((level) => level.id === active.level.id);
@@ -555,7 +563,10 @@ export class Modes {
 
   private show_event(event: CareerEvent, stars: number) {
     const { el, career } = this;
+    const before = career.stars;
     career.record(event, stars);
+    const won = earned(before, career.stars, tier_of(event));
+    if (won.length) el.unlock.append(unlock_card(won, (reward) => this.try_reward?.(reward)));
     el.lines.append(line("career", tier_line(career.stars, tier_of(event))));
     el.next.textContent = NEXT_EVENT;
     el.next.hidden = next_event(career.stars, event) === null;
