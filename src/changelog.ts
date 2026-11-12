@@ -23,6 +23,14 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.32.1",
+    date: "2026-11-12",
+    title: "Mini map chips",
+    changes: [
+      { kind: IMPROVED, text: "Mini maps are back beside the Mainland map as small chips, and the one you're on gets a border instead of a tag." },
+    ],
+  },
+  {
     version: "0.32.0",
     date: "2026-11-12",
     title: "Ice canyon",
