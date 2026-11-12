@@ -1,7 +1,7 @@
 import * as THREE from "three";
-import { DECALS, DEFAULT_BUILD, MAX_PAINT, REWARD_PAINTS, type Build } from "../car/build";
-import { CARS, is_car } from "../car/cars";
-import { build_view } from "../car/models";
+import { DECALS, DEFAULT_BUILD, MAX_PAINT, REWARD_PAINTS, build_spec, type Build } from "../car/build";
+import { CARS, is_car, type CarId } from "../car/cars";
+import { build_view, rest_wheels } from "../car/models";
 import { gate_kit, gate_view } from "../car/trackside";
 import { TIERS } from "../career/career";
 import { MarkerView } from "../career/marker-view";
@@ -58,7 +58,11 @@ const prop_material = new THREE.MeshLambertMaterial({ vertexColors: true, flatSh
 const CAR_IDS = Object.keys(CARS).filter(is_car);
 
 function car(build: Partial<Build>): THREE.Object3D {
-  const view = build_view({ ...DEFAULT_BUILD, ...build });
+  const full = { ...DEFAULT_BUILD, ...build };
+  const spec = build_spec(full);
+  const view = build_view(full, spec);
+  // A fresh view's wheels sit at the car's origin until the sim places them; rest them on their mounts.
+  rest_wheels(view, spec);
   const box = new THREE.Box3().setFromObject(view.root);
   view.root.position.y = -box.min.y;
   const holder = new THREE.Group();
@@ -68,10 +72,15 @@ function car(build: Partial<Build>): THREE.Object3D {
 
 const paint_name = (paint: number) => (paint > MAX_PAINT ? `${METALS[paint - MAX_PAINT - 1]} metallic` : `paint ${paint}`);
 
-function cars(): SheetLayout {
-  const tiles = CAR_IDS.flatMap((id) => TURNTABLE.map(([angle, yaw, pitch]) => ({ label: `${id} · ${angle}`, object: car({ car: id }), ground: tones.asphalt, yaw, pitch })));
+function turntable(ids: readonly CarId[]): SheetLayout {
+  const tiles = ids.flatMap((id) => TURNTABLE.map(([angle, yaw, pitch]) => ({ label: `${id} · ${angle}`, object: car({ car: id }), ground: tones.asphalt, yaw, pitch })));
   return { tiles, columns: TURNTABLE.length, same_scale: true };
 }
+
+// The bus is three cars long, so on one scale with it every other car is a thumbnail.
+const BIG = new Set<CarId>(["bus"]);
+const cars = () => turntable(CAR_IDS);
+const lineup = () => turntable(CAR_IDS.filter((id) => !BIG.has(id)));
 
 function paints(): SheetLayout {
   const indices = [...car_paints.keys(), ...Array.from({ length: REWARD_PAINTS }, (_, i) => MAX_PAINT + 1 + i)];
@@ -158,4 +167,4 @@ function track(): SheetLayout {
   return { tiles, columns: null, same_scale: false };
 }
 
-export const SHEET_LAYOUTS: Record<Sheet, () => SheetLayout> = { cars, paints, decals, biomes, track };
+export const SHEET_LAYOUTS: Record<Sheet, () => SheetLayout> = { cars, lineup, paints, decals, biomes, track };
