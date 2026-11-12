@@ -1,6 +1,7 @@
 import { cloud_floor } from "../render/sky";
 import { WorldKind } from "../worldgen/types";
 import { lap_facts, shown, type WorldDef } from "./world-def";
+import { PLAIN_KIT } from "../render/prop-kit";
 
 export const sky: WorldDef = {
   kind: WorldKind.SKY,
@@ -18,4 +19,5 @@ export const sky: WorldDef = {
   backdrop: "sky",
   facts: (f) => [...lap_facts(f, "track"), [shown(f, (f) => String(f.gaps)), f?.gaps === 1 ? "gap to fly over" : "gaps to fly over"]],
   dress: (world) => [cloud_floor(world)],
+  kit: PLAIN_KIT,
 };

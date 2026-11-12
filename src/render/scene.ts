@@ -10,6 +10,7 @@ import { Ground, JITTER_LEVELS, terrain_bases, type ChunkBuffers, type MeshTones
 import { TreeKind } from "../worldgen/biomes";
 import { SEA_LEVEL } from "../worldgen/water";
 import { crown_tone } from "./crowns";
+import { charred_kit, type TreeLook } from "./snags";
 import type { Lab } from "../theme/theme";
 
 const JITTER_LIGHTNESS = 0.035;
@@ -114,9 +115,9 @@ export class WorldView {
 
   private readonly streamed: boolean;
 
-  constructor(world: World, private readonly mobile: boolean) {
+  constructor(world: World, private readonly mobile: boolean, trees: TreeLook) {
     this.streamed = world.tiles.streamed;
-    this.tree_kit = tree_kit(world.snowy);
+    this.tree_kit = trees === "charred" ? charred_kit() : tree_kit(world.snowy);
     this.tree_lists = by_chunk(world.trees, world.tiles.ext);
     this.tree_order = new Map(world.trees.map((tree, i) => [tree, i]));
     this.town_kit = new TownChunks(world);
@@ -218,12 +219,12 @@ export interface TreeKit {
   crowns: THREE.BufferGeometry[];
   bark: THREE.Material;
   leaf: THREE.Material;
-  snowy: boolean;
+  tone(kind: TreeKind, shade: number): Lab;
 }
 
 export function tree_kit(snowy: boolean): TreeKit {
   return {
-    snowy,
+    tone: (kind, shade) => crown_tone(kind, shade, snowy),
     trunk: new THREE.CylinderGeometry(0.25, 0.35, 2.2, 5).translate(0, 1.1, 0),
     crowns: [new THREE.ConeGeometry(2.1, 6, 6).translate(0, 4.6, 0), new THREE.IcosahedronGeometry(2.4, 0).translate(0, 4.2, 0)],
     bark: new THREE.MeshLambertMaterial({ color: color(tones.trunk), flatShading: true }),
@@ -257,7 +258,7 @@ export function tree_meshes({ trunk, crowns, bark, leaf, snowy }: TreeKit, here:
     const crown = kinds[crown_of(tree.kind)];
     const slot = filled[crown_of(tree.kind)]++;
     crown.setMatrixAt(slot, m);
-    const [r, g, b] = linear(crown_tone(tree.kind as TreeKind, shade, snowy));
+    const [r, g, b] = linear(tone(tree.kind as TreeKind, shade));
     crown.setColorAt(slot, tint.setRGB(r, g, b));
   });
   trunks.count = trunk_count;

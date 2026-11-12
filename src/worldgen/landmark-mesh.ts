@@ -70,7 +70,7 @@ function ring(sides: number, r: number, k: number, phase: number): [number, numb
   return [Math.cos(a) * r, Math.sin(a) * r];
 }
 
-function prism(out: Builder, sides: number, r0: number, r1: number, y0: number, y1: number, rgb: Rgb, phase = 0, shade?: Rgb, cx = 0, cz = 0) {
+export function prism(out: Builder, sides: number, r0: number, r1: number, y0: number, y1: number, rgb: Rgb, phase = 0, shade?: Rgb, cx = 0, cz = 0) {
   for (let k = 0; k < sides; k++) {
     const [ax0, az0] = ring(sides, r0, k, phase);
     const [bx0, bz0] = ring(sides, r0, k + 1, phase);
@@ -186,7 +186,7 @@ function tank(out: Builder, base: number, t: LandmarkTones) {
 }
 
 /** Both faces of a thin flat part: fan blades, braces and the tail vane are seen from either side. */
-function plate(out: Builder, a: V3, b: V3, c: V3, d: V3, rgb: Rgb) {
+export function plate(out: Builder, a: V3, b: V3, c: V3, d: V3, rgb: Rgb) {
   out.quad(a, b, c, d, rgb);
   out.quad(d, c, b, a, rgb);
 }

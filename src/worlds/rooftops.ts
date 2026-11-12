@@ -4,6 +4,7 @@ import type { World } from "../world/world";
 import { STREET_BELOW } from "../worldgen/rooftops";
 import { WorldKind } from "../worldgen/types";
 import { lap_facts, shown, type WorldDef } from "./world-def";
+import { PLAIN_KIT } from "../render/prop-kit";
 
 const STREET_REACH = 3000;
 
@@ -33,4 +34,5 @@ export const rooftops: WorldDef = {
   backdrop: "sky",
   facts: (f) => [...lap_facts(f, "loop"), [shown(f, (f) => String(f.gaps)), f?.gaps === 1 ? "gap to jump" : "gaps to jump"]],
   dress: (world) => [street(world)],
+  kit: PLAIN_KIT,
 };

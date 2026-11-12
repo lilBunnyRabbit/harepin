@@ -3,6 +3,7 @@ import { lava_lakes } from "../render/lava";
 import { mix, tones } from "../theme/palette";
 import { WorldKind } from "../worldgen/types";
 import { lap_facts, type WorldDef } from "./world-def";
+import { Piece } from "../render/prop-kit";
 
 export const volcano: WorldDef = {
   kind: WorldKind.VOLCANO,
@@ -21,4 +22,5 @@ export const volcano: WorldDef = {
   backdrop: "sky",
   facts: (f) => lap_facts(f, "rim lap"),
   dress: (world) => [roadside(world), ...lava_lakes(world)],
+  kit: { trees: "charred", pieces: [Piece.BASALT, Piece.VENT] },
 };

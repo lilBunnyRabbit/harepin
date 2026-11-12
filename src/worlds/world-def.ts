@@ -1,5 +1,6 @@
 import type * as THREE from "three";
 import type { GroundPuff } from "../render/effects";
+import type { Kit } from "../render/prop-kit";
 import type { MoodDelta } from "../render/lighting";
 import type { World } from "../world/world";
 import type { WorldFacts } from "../worldgen/facts";
@@ -39,6 +40,7 @@ export interface WorldDef {
   backdrop: "sky" | "indoor";
   /** Scene pieces beyond the world view, sky and clouds. */
   dress(world: World): THREE.Object3D[];
+  kit: Kit;
 }
 
 export const shown = (f: WorldFacts | null, value: (f: WorldFacts) => string) => (f ? value(f) : "…");

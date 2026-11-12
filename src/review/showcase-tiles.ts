@@ -5,7 +5,9 @@ import { build_view, rest_wheels } from "../car/models";
 import { gate_kit, gate_view } from "../car/trackside";
 import { TIERS } from "../career/career";
 import { MarkerView } from "../career/marker-view";
+import { kit_sample } from "../render/prop-kit";
 import { mesh_tones, tree_kit, tree_meshes } from "../render/scene";
+import { charred_kit, type TreeLook } from "../render/snags";
 import { brand, car_paints, color, mix, tones } from "../theme/palette";
 import type { Lab } from "../theme/theme";
 import { LandmarksView } from "../world/landmarks";
@@ -92,10 +94,10 @@ function decals(): SheetLayout {
   return { tiles, columns: DECALS.length / 2, same_scale: false };
 }
 
-function trees(kind: TreeKind, snowy: boolean): THREE.Object3D {
+function trees(kind: TreeKind, snowy: boolean, look: TreeLook): THREE.Object3D {
   const group = new THREE.Group();
   const here: Tree[] = TREE_SPOTS.map(([x, z, scale]) => ({ x, y: 0, z, scale, kind }));
-  group.add(...tree_meshes(tree_kit(snowy), here, null));
+  group.add(...tree_meshes(look === "charred" ? charred_kit() : tree_kit(snowy), here, null));
   return group;
 }
 
@@ -133,10 +135,12 @@ function biomes(): SheetLayout {
     const snowy = snow_of(plain_map(def.kind, 1)) !== null;
     const growing = tree_kinds(recipe);
     const ground = snowy ? tones.snow : growing.length ? tones.grass : tones.sand;
-    for (const kind of growing) tiles.push({ label: `${def.kind} · ${TREE_NAMES[kind]}`, object: trees(kind, snowy), ground, ...FRONT_34 });
+    const kit = WORLDS[def.kind].kit;
+    for (const kind of growing) tiles.push({ label: `${def.kind} · ${TREE_NAMES[kind]}`, object: trees(kind, snowy, kit.trees), ground, ...FRONT_34 });
     const props = new Set([...recipe.landmarks.map((landmark) => LANDMARK_PROPS[landmark]), ...recipe.scatter.map((rule) => rule.kind)]);
     for (const kind of props) tiles.push({ label: `${def.kind} · ${kind.replace("_", " ")}`, object: prop(kind, snowy), ground, ...FRONT_34 });
   }
+    for (const piece of kit.pieces) tiles.push({ label: `${def.kind} · ${piece.replace("_", " ")}`, object: new THREE.Group().add(...kit_sample(piece, snowy)), ground, ...FRONT_34 });
   return { tiles, columns: null, same_scale: false };
 }
 

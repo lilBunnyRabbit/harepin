@@ -2,6 +2,7 @@ import { roadside } from "../car/trackside";
 import { water_mesh } from "../render/scene";
 import { WorldKind } from "../worldgen/types";
 import { lap_facts, shown, type WorldDef } from "./world-def";
+import { PLAIN_KIT } from "../render/prop-kit";
 
 export const island: WorldDef = {
   kind: WorldKind.ISLAND,
@@ -19,4 +20,5 @@ export const island: WorldDef = {
   backdrop: "sky",
   facts: (f) => [...lap_facts(f, "circuit"), [shown(f, (f) => String(f.towns)), "towns"]],
   dress: (world) => [roadside(world), water_mesh(world.tiles.ext.size)],
+  kit: PLAIN_KIT,
 };

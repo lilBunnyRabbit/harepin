@@ -1,6 +1,7 @@
 import { roadside } from "../car/trackside";
 import { WorldKind } from "../worldgen/types";
 import { lap_facts, shown, type WorldDef } from "./world-def";
+import { Piece } from "../render/prop-kit";
 
 export const tundra: WorldDef = {
   kind: WorldKind.TUNDRA,
@@ -18,4 +19,5 @@ export const tundra: WorldDef = {
   backdrop: "sky",
   facts: (f) => [...lap_facts(f, "circuit"), [shown(f, (f) => String(f.towns)), f?.towns === 1 ? "hamlet" : "hamlets"]],
   dress: (world) => [roadside(world)],
+  kit: { trees: "green", pieces: [Piece.SNOW_CAP, Piece.POLE, Piece.TRAIL_POLES, Piece.DRIFT] },
 };

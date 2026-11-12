@@ -44,6 +44,7 @@ import { Race } from "./race";
 import { Remotes } from "./net/remotes";
 import { Render } from "./render/render";
 import { WorldView, mesh_tones } from "./render/scene";
+import { kit_meshes } from "./render/prop-kit";
 import { clouds, sky } from "./render/sky";
 import { PadTimer } from "./world/sky-pads";
 import { Lighting } from "./render/lighting";
@@ -134,7 +135,7 @@ const posed = pose.length === 6 && pose.every(Number.isFinite);
 // The spawn chunks build while the rest of the game sets up; nothing before `driver.place` reads terrain.
 const spawn_ready = world.tiles.ensure(start_point.x, start_point.z);
 
-const world_view = new WorldView(world, quality.mobile);
+const world_view = new WorldView(world, quality.mobile, WORLDS[world.kind].kit.trees);
 const dome = sky();
 scene.add(...(WORLDS[world.kind].backdrop === "sky" ? light.dress(dome, clouds(world.seed)) : []), world_view.root);
 let gate_views: readonly (Gate | undefined)[] = [];
@@ -158,7 +159,7 @@ if (world.tiles.streamed) {
   stream.listen(world_view);
   void world.tiles.whole().then(() => {
     performance.mark("world:whole");
-    scene.add(...WORLDS[world.kind].dress(world));
+    scene.add(...WORLDS[world.kind].dress(world), ...kit_meshes(world, WORLDS[world.kind].kit.pieces));
     const all = gates(world);
     gate_views = all;
     for (const g of all) scene.add(g.group);

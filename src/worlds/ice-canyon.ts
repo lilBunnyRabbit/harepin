@@ -1,6 +1,7 @@
 import { roadside } from "../car/trackside";
 import { WorldKind } from "../worldgen/types";
 import { lap_facts, type WorldDef } from "./world-def";
+import { Piece } from "../render/prop-kit";
 
 export const ice_canyon: WorldDef = {
   kind: WorldKind.ICE_CANYON,
@@ -18,4 +19,5 @@ export const ice_canyon: WorldDef = {
   backdrop: "sky",
   facts: (f) => lap_facts(f, "rim lap"),
   dress: (world) => [roadside(world)],
+  kit: { trees: "green", pieces: [Piece.SNOW_CAP, Piece.POLE, Piece.TRAIL_POLES, Piece.DRIFT] },
 };

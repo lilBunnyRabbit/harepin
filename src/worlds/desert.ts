@@ -2,6 +2,7 @@ import { roadside } from "../car/trackside";
 import { tones } from "../theme/palette";
 import { WorldKind } from "../worldgen/types";
 import { lap_facts, shown, type WorldDef } from "./world-def";
+import { PLAIN_KIT } from "../render/prop-kit";
 
 export const desert: WorldDef = {
   kind: WorldKind.DESERT,
@@ -20,4 +21,5 @@ export const desert: WorldDef = {
   backdrop: "sky",
   facts: (f) => [...lap_facts(f, "circuit"), [shown(f, (f) => String(f.towns)), f?.towns === 1 ? "outpost" : "outposts"]],
   dress: (world) => [roadside(world)],
+  kit: PLAIN_KIT,
 };

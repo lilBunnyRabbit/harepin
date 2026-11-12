@@ -2,6 +2,7 @@ import { DUNE_SEA_SIZE } from "../worldgen/dune-sea";
 import { tones } from "../theme/palette";
 import { WorldKind } from "../worldgen/types";
 import type { WorldDef } from "./world-def";
+import { PLAIN_KIT } from "../render/prop-kit";
 
 export const big_dunes: WorldDef = {
   kind: WorldKind.BIG_DUNES,
@@ -19,4 +20,5 @@ export const big_dunes: WorldDef = {
   backdrop: "sky",
   facts: () => [[`${(DUNE_SEA_SIZE / 1000).toFixed(0)} km`, "of sand across"]],
   dress: () => [],
+  kit: PLAIN_KIT,
 };
