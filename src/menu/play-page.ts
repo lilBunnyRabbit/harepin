@@ -134,7 +134,10 @@ export class PlayPage implements MenuPage {
       button.title = `${note}. ${kind === host.kind ? "Keep driving here" : `Reloads room ${host.room} on ${name}`}`;
       const custom = kind === host.kind && host.code !== null;
       button.append(custom ? map_thumb({ seed: host.seed, kind, levels: host.levels }) : picture(kind), el("b", "", name));
-      if (kind === host.kind) button.append(el("span", "menu-tag", "You're here"));
+      if (kind === host.kind) {
+        button.setAttribute("aria-current", "true");
+        button.append(el("span", "menu-tag", "You're here"));
+      }
       button.addEventListener("click", () => this.menu.drive(host.seed, kind, kind === host.kind ? host.levels : undefined));
       list.append(button);
     }

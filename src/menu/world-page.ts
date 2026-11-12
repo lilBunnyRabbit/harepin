@@ -158,7 +158,7 @@ export class WorldPage implements MenuPage {
         set_hint(FALLBACK, true);
       }
       facts.replaceChildren(
-        ...WORLDS[this.chosen.kind].facts(map ? map.facts : null).map(([value, label]) => {
+        ...WORLDS[this.chosen.kind].facts(map ? map.facts : null).filter(([value]) => value !== "0").map(([value, label]) => {
           const item = el("div");
           item.append(el("dt", "", label), el("dd", "", value));
           return item;

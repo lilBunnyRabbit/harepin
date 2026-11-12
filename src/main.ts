@@ -119,6 +119,9 @@ const note = map_note(pick_problem(pick), stream.fallback);
 // `?debug&at=<road index>` starts the car anywhere on the circuit, for checking a stretch of track by eye.
 const start_index = (params.has("debug") && Number(params.get("at"))) || SPAWN_INDEX;
 const start_point = world.road[world.clear_spawn(start_index)];
+// `?debug&pose=x,y,z,tx,ty,tz` pins the camera at a point looking at another, for menu pictures.
+const pose = params.has("debug") ? (params.get("pose")?.split(",").map(Number) ?? []) : [];
+const posed = pose.length === 6 && pose.every(Number.isFinite);
 // The spawn chunks build while the rest of the game sets up; nothing before `driver.place` reads terrain.
 const spawn_ready = world.tiles.ensure(start_point.x, start_point.z);
 
@@ -612,6 +615,10 @@ function frame(now: number) {
   driver.draw(!simulated, acc / DT, now);
   const offroad = !world.on_road(car.pos.x, car.pos.z);
   chase.update(dt, driver.drawn, world, offroad, now / 1000, input.look);
+  if (posed) {
+    camera.position.set(pose[0], pose[1], pose[2]);
+    camera.lookAt(pose[3], pose[4], pose[5]);
+  }
   recenter.toggleAttribute("data-shown", chase.orbited);
   light.follow(car.pos);
 

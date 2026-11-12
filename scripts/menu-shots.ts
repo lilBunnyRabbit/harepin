@@ -18,6 +18,8 @@ interface Spot {
   /** Road index the car starts on; omitted, the regular spawn. */
   at?: number;
   orbit?: [number, number];
+  /** A fixed camera in world metres, looking from `from` at `to`; overrides the chase view and any orbit. */
+  camera?: { from: [number, number, number]; to: [number, number, number] };
 }
 
 // A kind missing here gets no pictures from a bare run; name it on the command line to shoot it at its spawn.
@@ -28,7 +30,7 @@ const SPOTS: Partial<Record<WorldKind, Spot>> = {
   mainland: {},
   alpine: { at: 1895 },
   tundra: {},
-  volcano: {},
+  volcano: { camera: { from: [250, 300, 60], to: [-10, 180, -10] } },
   dunes: {},
 };
 
@@ -60,6 +62,10 @@ async function shoot(kind: WorldKind, spot: Spot) {
   if (spot.at !== undefined) {
     query.set("debug", "");
     query.set("at", String(spot.at));
+  }
+  if (spot.camera) {
+    query.set("debug", "");
+    query.set("pose", [...spot.camera.from, ...spot.camera.to].join(","));
   }
   await page.goto(`http://localhost:${port}/?${query}`);
   await page.locator("#loading").waitFor({ state: "detached", timeout: 60_000 });
