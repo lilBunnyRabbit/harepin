@@ -62,13 +62,14 @@ test("race events carry bot-tuned star times, silver a quarter over gold", () =>
   for (const event of EVENTS.filter((e) => e.mode === "race")) expect([event.id, event.stars?.two]).toEqual([event.id, Math.round((event.stars?.three ?? NaN) * SILVER_SHARE)]);
 });
 
-test("every event with a dev ghost ships it for the world it was tuned on, finishing in three-star time", () => {
+// Race ghosts are the bot lap the stars came from. Duel ghosts are only the first opponent: the owner's runs set duel stars, faster than any bot.
+test("every event with a dev ghost ships it for the world it was tuned on; a race ghost finishes in three-star time", () => {
   for (const event of EVENTS.filter((e) => e.ghost)) {
     const file = new URL(`../../public/${ghost_path(event)}`, import.meta.url);
     expect([event.id, existsSync(file)]).toEqual([event.id, true]);
     const lap: unknown = JSON.parse(readFileSync(file, "utf8"));
     expect([event.id, is_lap(lap)]).toEqual([event.id, true]);
-    if (event.stars && is_lap(lap)) expect(lap[lap.length - 8]).toBeLessThanOrEqual(event.stars.three);
+    if (event.mode === "race" && event.stars && is_lap(lap)) expect(lap[lap.length - 8]).toBeLessThanOrEqual(event.stars.three);
   }
 });
 
