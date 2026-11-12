@@ -4,7 +4,7 @@
 
 Round 1, 2026-11-09. This is an audit plus a plan, and nothing is built yet. It covers seeds 0, 1, 2, 3 and 7 on v0.5.1 (worktree state on the same day, with `jumps.ts` mid-edit by another coder).
 
-Evidence lives in `C:\Users\Andra\AppData\Local\Temp\claude\7b7af39d18cf6668\bb083546-0056-4804-9143-4bb5fcb02143\scratchpad\world\`:
+Evidence lives in a local scratchpad:
 
 - `map-seed{0,1,2,7}.png`: top-down renders drawn straight from `generate(seed)` with `map.ts` in the same folder. Yellow is the circuit, orange the spurs, grey the streets, red the buildings, magenta the road kickers, cyan the big hill ramps and white the checkpoints.
 - `s{0,2,7}-*.png`: in-game shots at driving height, with the camera orbited and zoomed out.
