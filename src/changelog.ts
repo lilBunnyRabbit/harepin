@@ -23,6 +23,15 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.32.0",
+    date: "2026-11-12",
+    title: "Ice canyon",
+    changes: [
+      { kind: NEW, text: "Ice canyon: a hairpin road down into a frozen riverbed, with frozen falls to jump on packed snow." },
+      { kind: IMPROVED, text: "The Speed Reader themes are gone; if you used one, you now get the Brand theme of the same brightness." },
+    ],
+  },
+  {
     version: "0.31.2",
     date: "2026-11-12",
     title: "Dates",
