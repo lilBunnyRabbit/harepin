@@ -44,7 +44,7 @@ export function pad_advanced(m: SettingsMenu): HTMLElement[] {
   const shown = el("span", "row-link pad-fold");
   const text = el("span", "", "Deadzones, linearity");
   shown.append(text, icon("icon-steer-right"));
-  const head = m.rows.action("Advanced controller", "Gamepad deadzones and steering response, as in Forza Horizon. Keyboard and touch are not affected.", shown, () => {
+  const head = m.rows.action("Advanced controller", "Gamepad deadzones and steering response. Keyboard and touch are not affected.", shown, () => {
     open = !open;
     head.setAttribute("aria-expanded", String(open));
     for (const row of rows) row.hidden = !open;

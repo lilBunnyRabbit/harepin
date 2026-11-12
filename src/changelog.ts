@@ -55,7 +55,7 @@ export const CHANGELOG: Release[] = [
     changes: [
       { kind: NEW, text: "Create world: pick a preset, tune hills, trees, dunes, rocks, ridges, water and town size, save your maps and share them as a short code or link. Every combination builds a drivable world." },
       { kind: NEW, text: "Mainland towns have buildings, street lights and parked cars." },
-      { kind: NEW, text: "New HUD: filled cards for the map and the speedometer, a clean ring gauge (or a Forza-style bar in Settings), four clickable assist switches, and the map in the bottom left or top right." },
+      { kind: NEW, text: "New HUD: filled cards for the map and the speedometer, a clean ring gauge (or a bar gauge in Settings), four clickable assist switches, and the map in the bottom left or top right." },
       { kind: IMPROVED, text: "Drifting: full lock and full gas from a stop kicks a slide you can hold on full gas, and it keeps its speed. While rolling, tap the handbrake at full lock and floor it." },
       { kind: IMPROVED, text: "Steering: a full key turns a little tighter at speed, and fast cars build and release steering more smoothly." },
       { kind: IMPROVED, text: "Island and Alpine hairpins climb the hillside on U-turns instead of cutting into it. Records on those maps start fresh." },
