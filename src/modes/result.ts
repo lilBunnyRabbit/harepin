@@ -1,4 +1,5 @@
 import { format } from "../hud/hud";
+import type { Hits } from "./hits";
 import { MAX_STARS, type StarRun } from "./track";
 
 export function star_row(stars: number): HTMLSpanElement {
@@ -31,4 +32,11 @@ export function best_line(best: StarRun | undefined): HTMLElement {
 
 export function result_title(name: string, record: { improved: boolean; first: boolean }): string {
   return `${name}${record.improved && !record.first ? " · new best" : ""}`;
+}
+
+export const penalty_text = (hits: Hits | null) => (hits?.count ? ` (+${hits.penalty_ms / 1000} s)` : "");
+
+export function time_lines(ms: number, hits: Hits | null): HTMLElement[] {
+  if (!hits) return [line("time", format(ms))];
+  return [line("time", format(ms)), line(`hits ×${hits.count}`, `+${hits.penalty_ms / 1000} s`), line("total", format(ms + hits.penalty_ms))];
 }

@@ -1,9 +1,11 @@
 import { format } from "../hud/hud";
 import { WORLDS } from "../worlds/worlds";
+import type { Hits } from "./hits";
 import { turn_to, type Driven, type Finish, type ModeCtx, type ModeDef, type ModeRun, type RouteRun } from "./mode";
 import { COUNTDOWN_MS, RaceRun, RaceStatus, race_course, race_levels, type RaceCourse, type RaceLevel } from "./races";
 import { RaceView } from "./race-view";
-import { best_line, line, result_title } from "./result";
+import { best_line, line, penalty_text, result_title, time_lines } from "./result";
+import { stars_for } from "./track";
 
 class Race implements ModeRun {
   private readonly view: RaceView;
@@ -11,6 +13,7 @@ class Race implements ModeRun {
   private run: RaceRun;
   private clock = 0;
   private result: Finish | null = null;
+  private readonly hits: Hits | null;
   readonly route: RouteRun;
 
   constructor(
@@ -22,6 +25,7 @@ class Race implements ModeRun {
     ctx.scene.add(this.view.root);
     this.unplace = ctx.world.place(course.route.closure);
     this.run = new RaceRun(course, ctx.lobby_lap() ? 0 : COUNTDOWN_MS);
+    this.hits = ctx.hits();
     this.route = { id: course.route.id, gate: this.run.gate, respawn: course.line[0] };
     ctx.spawn_on(course.line[0]);
   }
@@ -43,6 +47,7 @@ class Race implements ModeRun {
     this.clock = now;
     const was = run.status;
     const taken = run.update(run.countdown > 0 ? wall : sim_dt * 1000, car.pos.x, car.pos.z);
+    this.hits?.update(sim_dt * 1000, run.status === RaceStatus.RUNNING || was === RaceStatus.RUNNING);
     if (taken >= 0) {
       this.route.respawn = run.course.line[run.course.gates[taken]];
       view.aim(run.next);
@@ -71,20 +76,21 @@ class Race implements ModeRun {
     const { name } = this.level;
     if (run.status === RaceStatus.READY) return `${name} · ${Math.ceil(run.countdown / 1000)}`;
     const doing = run.missed ? "missed a gate, go back" : `gate ${run.next + 1}/${gates.length}`;
-    return `${name} · ${format(run.elapsed())} · ${doing}`;
+    return `${name} · ${format(run.elapsed())}${penalty_text(this.hits)} · ${doing}`;
   }
 
   private finish() {
     const { run, level } = this;
     const { track } = this.ctx;
     const { par_ms, length } = run.course.route;
-    const stars = run.stars();
-    const ms = Math.round(run.elapsed());
+    const time = Math.round(run.elapsed());
+    const ms = time + (this.hits?.penalty_ms ?? 0);
+    const stars = stars_for(ms, par_ms);
     const recorded = track.record(level.id, { stars, ms });
     this.result = {
       title: result_title(level.name, recorded),
       stars,
-      lines: [line("time", format(ms)), line("length", `${(length / 1000).toFixed(1)} km`), line("par", format(par_ms)), best_line(track.runs[level.id])],
+      lines: [...time_lines(time, this.hits), line("length", `${(length / 1000).toFixed(1)} km`), line("par", format(par_ms)), best_line(track.runs[level.id])],
     };
   }
 

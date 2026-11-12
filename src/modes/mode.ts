@@ -4,6 +4,7 @@ import type { World } from "../world/world";
 import type { Body, Pose } from "./gymkhana";
 import type { Track } from "./track";
 import type { Bindable } from "../hud/bindings";
+import type { Hits } from "./hits";
 import type { RoutePoint } from "./route";
 
 export const NO_SITE = "No flat ground near the start on this map";
@@ -39,6 +40,8 @@ export interface ModeCtx {
   /** Set while a lobby race runs on a route of its own: called at each lap's end, true while laps remain. */
   lobby_lap(): (() => boolean) | null;
   race_busy(): boolean;
+  /** A career event's hit counter for the run, fresh per call; null in free play, which has no hit penalty. */
+  hits(): Hits | null;
   high(): boolean;
   /** The keys bound to `action` now, as the player reads them; empty when none. */
   key_of(action: Bindable): string;

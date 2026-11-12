@@ -4,8 +4,10 @@ import { format } from "../hud/hud";
 import type { World } from "../world/world";
 import { DUEL_LEVELS, DuelRun, DuelStatus, build_route, type DuelLevel, type Route } from "./duel";
 import { DuelView } from "./duel-view";
+import type { Hits } from "./hits";
 import type { Driven, Finish, ModeCtx, ModeDef, ModeRun } from "./mode";
-import { best_line, line, result_title } from "./result";
+import { best_line, line, penalty_text, result_title, time_lines } from "./result";
+import { stars_for } from "./track";
 
 const ghosts = new WeakMap<World, { key: string; ghost: Ghost }>();
 
@@ -26,6 +28,7 @@ class Duel implements ModeRun {
   private readonly ghost: Ghost;
   private readonly ghost_at = new THREE.Vector3();
   private result: Finish | null = null;
+  private readonly hits: Hits | null;
 
   constructor(
     private readonly ctx: ModeCtx,
@@ -36,6 +39,7 @@ class Duel implements ModeRun {
     this.ghost = ghost_for(ctx, route.level.id);
     this.ghost.start();
     this.run = new DuelRun(route);
+    this.hits = ctx.hits();
     ctx.spawn_on(route.points[0]);
   }
 
@@ -43,6 +47,7 @@ class Duel implements ModeRun {
     const { run, ghost } = this;
     const was = run.status;
     run.update(sim_dt * 1000, car.pos.x, car.pos.z);
+    this.hits?.update(sim_dt * 1000, run.status === DuelStatus.RUNNING || was === DuelStatus.RUNNING);
     const running = run.status === DuelStatus.RUNNING;
     if (running && sim_dt > 0) ghost.record(run.elapsed(), car);
     ghost.update(running ? run.elapsed() : null, this.ctx.camera.position);
@@ -58,15 +63,16 @@ class Duel implements ModeRun {
     }
     const gap = run.gap(ghost.position(run.elapsed(), this.ghost_at));
     const versus = gap === null ? (ghost.has_best ? "ghost finished" : "no ghost yet") : `${gap >= 0 ? "ahead" : "behind"} ${Math.abs(Math.round(gap))} m`;
-    return `${level.name} · ${format(run.elapsed())} · ${versus}`;
+    return `${level.name} · ${format(run.elapsed())}${penalty_text(this.hits)} · ${versus}`;
   }
 
   private finish() {
     const { run } = this;
     const { level, par_ms } = run.route;
     const { track } = this.ctx;
-    const stars = run.stars();
-    const ms = Math.round(run.elapsed());
+    const time = Math.round(run.elapsed());
+    const ms = time + (this.hits?.penalty_ms ?? 0);
+    const stars = stars_for(ms, par_ms);
     const before = track.runs[level.id];
     const recorded = track.record(level.id, { stars, ms });
     this.ghost.finish(recorded.improved);
@@ -74,7 +80,7 @@ class Duel implements ModeRun {
     this.result = {
       title: result_title(level.name, recorded),
       stars,
-      lines: [line("time", format(ms)), line("vs ghost", versus), line("par", format(par_ms)), best_line(track.runs[level.id])],
+      lines: [...time_lines(time, this.hits), line("vs ghost", versus), line("par", format(par_ms)), best_line(track.runs[level.id])],
     };
   }
 

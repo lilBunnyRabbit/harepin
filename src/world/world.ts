@@ -172,6 +172,7 @@ export class World implements Ground {
   private last: Footing | null = null;
   private last_x = NaN;
   private last_z = NaN;
+  private contacts_ = 0;
   /** Terrain heights, `road_dist` and surface, one tile per chunk. */
   readonly tiles: TileStore;
   /** The race circuit, in driving order; gates and the ghost follow it. */
@@ -385,6 +386,11 @@ export class World implements Ground {
   /** On a road surface, whatever grip the kind gives it: where `footing` is the road row. */
   on_road(x: number, z: number): boolean {
     return this.distance_to_road(x, z) < ON_ROAD;
+  }
+
+  /** Solid contacts the car moved into since load, rail glides and bounces alike: the career hit penalty counts from it. */
+  get contacts(): number {
+    return this.contacts_;
   }
 
   /** Where the circuit's kerbs are drawn, worked out on first use: the mesh and the tyres read the same marks. */
@@ -604,7 +610,9 @@ export class World implements Ground {
     } else if (pos.y > solid.y + solid.height) return 0;
     const contact = circle_contact(solid, pos.x + fx * offset, pos.z + fz * offset, spec.radius, -fx * Math.sign(offset || 1), -fz * Math.sign(offset || 1));
     if (!contact) return 0;
-    return KINDS[this.kind].rails && solid.kind === "box" ? this.glide(car, contact) : this.resolve(car, contact, fx * offset, fz * offset);
+    const impact = KINDS[this.kind].rails && solid.kind === "box" ? this.glide(car, contact) : this.resolve(car, contact, fx * offset, fz * offset);
+    if (impact > 0) this.contacts_++;
+    return impact;
   }
 
   // A sky rail redirects instead of bouncing: the into-rail velocity goes, the rest runs on along the rail with a loss

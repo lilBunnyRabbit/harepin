@@ -11,6 +11,7 @@ import { DRIFT_MODE } from "./drift-mode";
 import { DUEL_MODE } from "./duel-mode";
 import { GYMKHANA_MODE } from "./gymkhana-mode";
 import { HUNT_MODE } from "./hunt-mode";
+import { Hits } from "./hits";
 import type { Driven, Finish, Level, ModeCtx, ModeDef, ModeRun, RouteRun } from "./mode";
 import { PARKING_MODE } from "./parking-mode";
 import { RACE_MODE } from "./race-mode";
@@ -222,7 +223,7 @@ export class Modes {
       }, (error: unknown) => console.error(error));
       return;
     }
-    const run = active.mode.def.start(this.ctx(active.track), active.level);
+    const run = active.mode.def.start(this.ctx(active.track, active.event), active.level);
     if (typeof run === "string") {
       this.clear();
       return this.notice(run);
@@ -233,7 +234,7 @@ export class Modes {
     this.el.result.hidden = true;
   }
 
-  private ctx(track: Track): ModeCtx {
+  private ctx(track: Track, event: CareerEvent | null): ModeCtx {
     const { scene, world, start_index, camera } = this;
     const spawn = (x: number, z: number, heading: number) => this.park(x, z, heading);
     return {
@@ -244,6 +245,7 @@ export class Modes {
       track,
       lobby_lap: () => this.lobby_lap,
       race_busy: () => this.race_busy(),
+      hits: () => (event ? new Hits(() => world.contacts) : null),
       high: () => this.high,
       key_of: (action) => keys_text(this.bindings()[action]),
       spawn,

@@ -128,6 +128,18 @@ function describe_glide() {
     expect(r.into).toBeLessThan(0);
     expect(r.kept).toBeLessThan(0.85);
   });
+
+  test("a rail glide and a wall bounce both count as solid contacts; a pass beneath a raised bar does not", () => {
+    const sky_before = sky.contacts;
+    hit(sky, Math.PI / 3);
+    expect(sky.contacts).toBeGreaterThan(sky_before);
+    const world = world_with(bar(3, 3.35));
+    hit(world, Math.PI / 3);
+    const after_wall = world.contacts;
+    expect(after_wall).toBeGreaterThan(0);
+    world.collide(car_at(GROUND + 0.5));
+    expect(world.contacts).toBe(after_wall);
+  });
 }
 
 test("a tyre feels a kerb only where one is drawn: inside a circuit bend, never on a straight or the outside", () => {
