@@ -74,11 +74,12 @@ function open(request: GenRequest) {
   const { data, fallback } = build_world(seed, kind, levels);
   const spawn = data.road.at(SPAWN_INDEX) ?? data.road[0];
   if (spawn) focus = [spawn.x, spawn.z];
-  // The sim reads water depth from the plan's water op; every other op only rebuilds tiles, which stay in this worker.
+  // The sim reads water depth from the plan's water op, and the scene and the sim the lava pools from its lava op; every
+  // other op only rebuilds tiles, which stay in this worker.
   const empty = { heights: new Float32Array(0), road_dist: new Float32Array(0), surface: new Uint8Array(0) };
   // A streamed world's trees and solids come with the chunk they stand in, so physics only holds what is built.
   const kept = data.terrain.heights.length ? {} : { trees: [], solids: [] };
-  postMessage({ type: "plan", fallback, data: { ...data, ...kept, terrain: { ...data.terrain, ...empty }, ground: { ...data.ground, ops: data.ground.ops.filter((op) => op.kind === "water") } } } satisfies WorkerReply);
+  postMessage({ type: "plan", fallback, data: { ...data, ...kept, terrain: { ...data.terrain, ...empty }, ground: { ...data.ground, ops: data.ground.ops.filter((op) => op.kind === "water" || op.kind === "lava") } } } satisfies WorkerReply);
   plan = { data, kind };
   mesh();
 }

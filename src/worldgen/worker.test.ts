@@ -103,6 +103,13 @@ test("the worker builds the sky track as a direct call does, with no terrain mes
   expect(chunks.every((c) => c.terrain === null && c.road)).toBe(true);
 }, 30_000);
 
+test("the volcano's plan keeps its lava pools, which the scene draws and the sim resets on", async () => {
+  const pools = (data: WorldData) => data.ground.ops.flatMap((op) => (op.kind === "lava" ? op.pools : []));
+  const { data } = await from_worker({ seed: SEED, kind: "volcano", code: null, tones: TONES });
+  expect(pools(data).length).toBeGreaterThan(0);
+  expect(pools(data)).toEqual(pools(generate_world(SEED, "volcano")));
+}, 60_000);
+
 test("a throw in the worker comes back as an error reply instead of a silent hang", async () => {
   await expect(from_worker({ seed: SEED, kind: "nowhere" as WorldData["kind"], code: null, tones: TONES })).rejects.toThrow(/^error reply: /);
 }, 30_000);
