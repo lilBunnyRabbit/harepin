@@ -186,6 +186,10 @@
   border-radius: var(--radius-sm);
 }
 
+.play-mini .map-thumb {
+  object-fit: contain;
+}
+
 .play-words .menu-tag {
   position: static;
   justify-self: start;

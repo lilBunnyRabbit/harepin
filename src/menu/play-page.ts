@@ -131,7 +131,7 @@ export class PlayPage implements MenuPage {
       const custom = kind === host.kind && host.code !== null;
       button.append(custom ? map_thumb({ seed: host.seed, kind, levels: host.levels }) : picture(kind), words);
       if (kind === host.kind) words.prepend(el("span", "menu-tag", "You're here"));
-      button.addEventListener("click", () => this.menu.drive(host.seed, kind));
+      button.addEventListener("click", () => this.menu.drive(host.seed, kind, kind === host.kind ? host.levels : undefined));
       list.append(button);
     }
     return list;
