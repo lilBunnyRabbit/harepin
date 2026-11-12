@@ -38,7 +38,7 @@ class Duel implements ModeRun {
     const gates = duel_gates(route, ctx.world.checkpoints);
     const circuit = ctx.world.routes.find((r) => r.id === CIRCUIT);
     const line = route.points.slice(DUEL_LEAD);
-    this.view = new RaceView({ line, gates: gates.map((at) => at - DUEL_LEAD), route: { closed: false, gate_hw: circuit?.gate_hw ?? ROAD_HALF, closure: [] } }, ctx.world);
+    this.view = new RaceView({ line, gates: gates.map((at) => at - DUEL_LEAD), route: { closed: false, gate_hw: circuit?.gate_hw ?? ROAD_HALF, closure: [] } }, ctx.ground);
     ctx.scene.add(this.view.root);
     const ghost = ghost_for(ctx, route.level.id);
     this.ghost = ghost;
@@ -131,6 +131,7 @@ export const DUEL_MODE: ModeDef<DuelLevel> = {
   needs_ground: false,
   car_sized_only: false,
   busy_notice: "Leave the lobby race to duel your ghost",
+  streams: true,
   levels: () => DUEL_LEVELS,
   start(ctx, level) {
     const { world } = ctx;

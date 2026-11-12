@@ -27,7 +27,7 @@ class Race implements ModeRun {
     private readonly level: RaceLevel,
     course: RaceCourse,
   ) {
-    this.view = new RaceView(course, ctx.world);
+    this.view = new RaceView(course, ctx.ground);
     ctx.scene.add(this.view.root);
     this.unplace = ctx.world.place(course.route.closure);
     this.run = new RaceRun(course, ctx.lobby_lap() ? 0 : COUNTDOWN_MS);
@@ -138,6 +138,7 @@ export const RACE_MODE: ModeDef<RaceLevel> = {
   needs_ground: false,
   car_sized_only: false,
   busy_notice: "Leave the lobby race to race solo",
+  streams: true,
   levels: (world) => race_levels(world.routes, WORLDS[world.kind].map_label),
   start(ctx, level) {
     const route = ctx.world.routes.find((r) => r.id === level.id);

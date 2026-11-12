@@ -12,7 +12,7 @@ type MapSpec = import("../src/worldgen/kinds/kinds").MapSpec;
 type World = import("../src/world/world").World;
 
 // Generates each career event's map and checks its mode level runs there: the route exists, the kind has open ground
-// for modes that need it, gymkhana and parking find a site near the start, the world is not streamed. Prints each
+// for modes that need it, gymkhana and parking find a site near the start, a streamed world only for modes that run on one. Prints each
 // event's `tuned` key. `--suggest N` tries the next N seeds of the same preset and options for every failing event.
 const at = process.argv.indexOf("--suggest");
 const SUGGEST = at >= 0 ? Number(process.argv[at + 1] ?? 20) : 0;
@@ -36,7 +36,7 @@ function problem(map: MapSpec, mode_id: string, level: string): string | null {
   if (!def) return `no mode ${mode_id}`;
   if (def.needs_ground && !KINDS[map.kind].open_ground) return `${map.kind} has no open ground`;
   const world = world_of(map);
-  if (world.tiles.streamed) return "streamed world: modes refuse it";
+  if (world.tiles.streamed && !def.streams) return "streamed world: the mode refuses it";
   if (!def.levels(world).some((l) => l.id === level)) return `no level ${level} (has ${def.levels(world).map((l) => l.id).join(" ")})`;
   if (mode_id === "gymkhana" && !find_site(world, SPAWN_INDEX)) return "no gymkhana site";
   if (mode_id === "parking" && !find_site(world, SPAWN_INDEX, PARK_AREA)) return "no parking site";

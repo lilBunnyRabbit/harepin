@@ -10,6 +10,7 @@ import { PRESETS } from "../car/presets";
 import { DEFAULT_BINDINGS, keys_text, type Bindings } from "../hud/bindings";
 import { $, format } from "../hud/hud";
 import type { World } from "../world/world";
+import { chunk_of } from "../worldgen/chunk-grid";
 import { KINDS } from "../worldgen/kinds/kinds";
 import { LISTED, WORLDS } from "../worlds/worlds";
 import { DRIFT_MODE } from "./drift-mode";
@@ -17,6 +18,7 @@ import { DUEL_MODE } from "./duel-mode";
 import { GYMKHANA_MODE } from "./gymkhana-mode";
 import { HUNT_MODE } from "./hunt-mode";
 import { Hits } from "./hits";
+import type { Ground } from "./marks";
 import type { Driven, Finish, Level, ModeCtx, ModeDef, ModeRun, RouteRun } from "./mode";
 import { PARKING_MODE } from "./parking-mode";
 import { RACE_MODE } from "./race-mode";
@@ -42,7 +44,7 @@ const OPEN_GROUND = `Needs open ground: drive ${OPEN_WORLDS} for it`;
 const NO_GROUND_NOTICE = `Gymkhana, parking and gate hunts need open ground: drive ${OPEN_WORLDS} for them`;
 const TOO_BIG = "Too big for this mode";
 const NOT_THIS_CAR = "Not raced in this car";
-const STREAMED = "Modes are not on this world yet";
+const STREAMED = "This mode is not on this world yet";
 const NO_EVENT = "This event is not on this map";
 const NEXT_LEVEL = "Next level";
 const NEXT_EVENT = "Next event";
@@ -83,6 +85,8 @@ interface Active {
   track: Track;
   event: CareerEvent | null;
   run: ModeRun | null;
+  /** On a streamed world, the run built and waiting for the chunks at its start; a later launch or a clear replaces it. */
+  starting: ModeRun | null;
   shown: boolean;
   /** An event run's PI at its start: a garage change that moves it ends the run, a new look does not. */
   pi: number | null;
@@ -359,17 +363,18 @@ export class Modes {
   }
 
   private begin(mode: Mode, level: Level, track = mode.track, event: CareerEvent | null = null) {
-    this.current = { mode, level, track, event, run: null, shown: false, pi: null };
+    this.current = { mode, level, track, event, run: null, starting: null, shown: false, pi: null };
     this.launch(this.current);
   }
 
   private launch(active: Active) {
-    // Mode sites and views read terrain anywhere on the map: a start before every chunk is in waits for the rest.
-    if (this.world.tiles.streamed) {
+    const { tiles } = this.world;
+    if (tiles.streamed && !active.mode.def.streams) {
       return this.refuse(STREAMED);
     }
-    if (!this.world.tiles.complete) {
-      void this.cover(this.world.tiles.whole()).then(() => {
+    // Mode sites and views read terrain anywhere on a compact map: a start before every chunk is in waits for the rest.
+    if (!tiles.streamed && !tiles.complete) {
+      void this.cover(tiles.whole()).then(() => {
         if (this.current === active && !active.run) this.launch(active);
       }, (error: unknown) => console.error(error));
       return;
@@ -378,11 +383,30 @@ export class Modes {
     if (over) {
       return this.refuse(over);
     }
-    const run = active.mode.def.start(this.ctx(active.track, active.event), active.level);
+    // A streamed world holds only the chunks round the car: the run is built first, and the car goes down on its start
+    // once the chunks there are in.
+    let spot = null as { x: number; z: number; heading: number } | null;
+    const hold = tiles.streamed ? (x: number, z: number, heading: number) => (spot = { x, z, heading }) : null;
+    const run = active.mode.def.start(this.ctx(active.track, active.event, hold), active.level);
     if (typeof run === "string") {
       return this.refuse(run);
     }
     if (!run) return;
+    if (!spot) return this.go(active, run);
+    const { x, z, heading } = spot;
+    active.starting = run;
+    void this.cover(tiles.ensure(x, z)).then(() => {
+      if (this.current !== active || active.starting !== run) return run.dispose();
+      active.starting = null;
+      this.park(x, z, heading);
+      this.go(active, run);
+    }, (error: unknown) => {
+      run.dispose();
+      console.error(error);
+    });
+  }
+
+  private go(active: Active, run: ModeRun) {
     active.run = run;
     if (!this.lobby_lap) this.toast?.(active.mode.def.goal, active.event?.name ?? active.level.name, GOAL_MS);
     active.pi = active.event ? this.car_pi() : null;
@@ -390,13 +414,17 @@ export class Modes {
     this.el.result.hidden = true;
   }
 
-  private ctx(track: Track, event: CareerEvent | null): ModeCtx {
+  /** `hold`: takes the run's start in place of parking the car on it. */
+  private ctx(track: Track, event: CareerEvent | null, hold: ((x: number, z: number, heading: number) => void) | null): ModeCtx {
     const { scene, world, start_index, camera } = this;
-    const spawn = (x: number, z: number, heading: number) => this.park(x, z, heading);
+    const spawn = hold ?? ((x: number, z: number, heading: number) => this.park(x, z, heading));
+    const { tiles } = world;
+    const ground: Ground = tiles.streamed ? { height: (x, z) => (tiles.get(chunk_of(x, z, tiles.ext)) ? world.height(x, z) : world.nearest_road(x, z).y) } : world;
     const tuned = event?.tuned === world.key;
     return {
       scene,
       world,
+      ground,
       start_index,
       route_at: this.route_at,
       camera,
@@ -545,7 +573,7 @@ export class Modes {
         name: def.name,
         stars: track.stars,
         max: levels.length * MAX_STARS,
-        blocked: streamed ? STREAMED : def.needs_ground && !ground ? OPEN_GROUND : def.car_sized_only && !fits ? TOO_BIG : null,
+        blocked: streamed && !def.streams ? STREAMED : def.needs_ground && !ground ? OPEN_GROUND : def.car_sized_only && !fits ? TOO_BIG : null,
         levels: levels.map((level) => {
           const run = track.runs[level.id];
           const route = this.world.routes.find((r) => r.id === level.id);

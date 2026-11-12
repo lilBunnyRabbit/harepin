@@ -5,6 +5,7 @@ import type { Body, Pose } from "./gymkhana";
 import type { Thresholds, Track } from "./track";
 import type { Bindable } from "../hud/bindings";
 import type { Hits } from "./hits";
+import type { Ground } from "./marks";
 import type { RoutePoint } from "./route";
 
 export const NO_SITE = "No flat ground near the start on this map";
@@ -36,6 +37,8 @@ export interface Finish {
 export interface ModeCtx {
   readonly scene: THREE.Scene;
   readonly world: World;
+  /** What a run's marks drape on: the world, or on a streamed world the circuit's own height where a chunk is not in yet. */
+  readonly ground: Ground;
   readonly start_index: number;
   /** `?debug&at=`: the point along its route a race run starts on; 0 is the start line. */
   readonly route_at: number;
@@ -92,6 +95,8 @@ export interface ModeDef<L extends Level = Level> {
   readonly car_sized_only: boolean;
   readonly busy_notice: string;
   readonly high_view?: boolean;
+  /** Runs on a streamed world: it reads terrain only where the car is, so the chunks at its start are all it waits on. */
+  readonly streams?: boolean;
   levels(world: World): readonly L[];
   /** A run, a status line saying why it can't start, or null to do nothing. */
   start(ctx: ModeCtx, level: L): ModeRun | string | null;
