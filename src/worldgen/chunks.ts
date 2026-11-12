@@ -8,7 +8,7 @@ import { Builder, bounding_sphere, turned, type Rgb, type Sphere } from "./mesh"
 import { road_layers, type RoadTones } from "./road-layers";
 import { grid_ground, Roads, type Layer } from "./roads";
 import { deck_layers, type DeckTones } from "./sky-mesh";
-import { in_lava, type LavaPool } from "./lava";
+import type { LavaPool } from "./lava";
 import { hash } from "./noise";
 import { ISLAND } from "./recipe";
 import { CELL, Ground, N, ORIGIN, PropKind, Roof, SURFACE_GROUND, type Building, type ParkingLot, type Prop, type WorldData } from "./types";
@@ -41,6 +41,11 @@ export function terrain_bases<T>(rows: Record<Ground, T>, half: (tone: T) => T, 
 }
 /** Crater wall this far over the lava glows with it. */
 const EMBER_RISE = 10;
+/**
+ * Metres of height the glow fades over, centred on EMBER_RISE. A hard cut lands on whole lattice vertices and steps round
+ * the crater; a fade a few cells wide leaves each face a share by its height, so the band's edge follows the slope.
+ */
+const EMBER_FADE = 6;
 // Deep enough to hide the crack where a half-res chunk edge skips the odd vertices of its full-res neighbour.
 const SKIRT = 6;
 export const SMALL_BUILDING = 6;
@@ -110,12 +115,19 @@ export function paint(colors: Float32Array, k: number, lut: Float32Array, cuts: 
   if (y > snow_line) base = SNOW;
   const laid = SURFACE_GROUND[surface];
   if (laid !== null) base = ny < rock.up ? stone : base_of(laid);
-  if (lava.length && in_lava(lava, x, z, y - EMBER_RISE)) base = base_of(Ground.EMBER);
+  const glow = ember(lava, x, z, y);
   const level = Math.min(JITTER_LEVELS - 1, Math.floor((jitter(i, j) + 0.5) * JITTER_LEVELS));
   const tone = (base * JITTER_LEVELS + level) * 3;
-  colors[k * 3] = lut[tone];
-  colors[k * 3 + 1] = lut[tone + 1];
-  colors[k * 3 + 2] = lut[tone + 2];
+  const hot = (base_of(Ground.EMBER) * JITTER_LEVELS + level) * 3;
+  for (let ch = 0; ch < 3; ch++) colors[k * 3 + ch] = lut[tone + ch] + (lut[hot + ch] - lut[tone + ch]) * glow;
+}
+
+/** How far the crater wall at (x, z, y) has taken the lava's glow: 1 low over the pool, 0 above the fade. */
+function ember(pools: readonly LavaPool[], x: number, z: number, y: number): number {
+  let glow = 0;
+  for (const p of pools)
+    if ((p.x - x) * (p.x - x) + (p.z - z) * (p.z - z) < p.radius * p.radius) glow = Math.max(glow, Math.min(1, Math.max(0, (p.level + EMBER_RISE - y) / EMBER_FADE + 0.5)));
+  return glow;
 }
 
 export function terrain_colors(data: WorldData, lut: Float32Array): Float32Array {
