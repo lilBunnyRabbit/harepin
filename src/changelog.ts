@@ -23,6 +23,14 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.31.2",
+    date: "2026-11-12",
+    title: "Dates",
+    changes: [
+      { kind: FIXED, text: "Release dates in What's new are right again." },
+    ],
+  },
+  {
     version: "0.31.1",
     date: "2026-11-12",
     title: "Lava in view",
