@@ -1,4 +1,5 @@
 import type { Announce, Server } from "./directory";
+import type { Tier } from "./net";
 
 const GOOD_PING_MS = 100;
 const OK_PING_MS = 250;
@@ -15,6 +16,7 @@ export interface Player {
   key: string;
   name: string;
   country: string | null;
+  tier: Tier | null;
   racing: boolean;
   /** Round trip to the game's announcer in ms; null for this game or while not linked to it. */
   ping: number | null;
@@ -34,7 +36,7 @@ export function player_list(games: readonly Server[], pings: ReadonlyMap<string,
     const roster = (game.here ? own?.roster : game.roster) ?? [{ name: game.host }];
     const ping = game.here ? null : (pings.get(game.peer) ?? null);
     roster.forEach((entry, i) =>
-      players.push({ key: `${game.key}#${i}`, name: entry.name, country: entry.country ?? null, racing: entry.racing ?? game.racing ?? false, ping, you: game.here && i === 0, game }),
+      players.push({ key: `${game.key}#${i}`, name: entry.name, country: entry.country ?? null, tier: entry.tier ?? null, racing: entry.racing ?? game.racing ?? false, ping, you: game.here && i === 0, game }),
     );
   }
   return players;

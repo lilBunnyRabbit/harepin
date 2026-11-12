@@ -173,7 +173,7 @@ const LIMITS: Partial<Record<Field, [number, number]>> = { offroad: [-1, 1] };
 
 export interface Build {
   car: CarId;
-  /** Index into theme `car_paints`, wrapped by the length there. */
+  /** Index into theme `car_paints`, wrapped by the length there; past `MAX_PAINT`, a career reward paint (`paint_lab`). */
   paint: number;
   /** Index into `DECALS`. */
   decal: number;
@@ -186,7 +186,10 @@ export interface Build {
 }
 
 export const MAX_PAINT = 15;
-export const DECALS = ["none", "centre", "twin", "side", "number", "flames", "slash", "checker", "rabbit"] as const;
+/** Career reward paints, one per tier, at `MAX_PAINT + 1` on: past the wrapped range, so no saved build changes colour. */
+export const REWARD_PAINTS = 3;
+// Append-only: build codes carry the index. The last three are career rewards, one per tier.
+export const DECALS = ["none", "centre", "twin", "side", "number", "flames", "slash", "checker", "rabbit", "sky", "volcano", "ice"] as const;
 export type Decal = (typeof DECALS)[number];
 export const MAX_DECAL = DECALS.length - 1;
 export const MAX_INK = 8;
@@ -200,7 +203,7 @@ const TAIL = SLOT_NAMES.filter((slot) => !HEAD.includes(slot));
 
 // Ink and number, then the tail slots, ride as optional tails, so a build that keeps their defaults has the code it had
 // before them and older peers still read it.
-const CODE = new RegExp(`^(${Object.keys(CARS).join("|")})\\.(\\d{1,2})\\.(\\d)\\.(\\d)\\.(\\d)\\.(\\d)(?:\\.(\\d)\\.(\\d{1,2})((?:\\.\\d){0,${TAIL.length}}))?$`);
+const CODE = new RegExp(`^(${Object.keys(CARS).join("|")})\\.(\\d{1,2})\\.(\\d{1,2})\\.(\\d)\\.(\\d)\\.(\\d)(?:\\.(\\d)\\.(\\d{1,2})((?:\\.\\d){0,${TAIL.length}}))?$`);
 
 export function build_code(build: Build): string {
   const code = `${build.car}.${build.paint}.${build.decal}.${HEAD.map((slot) => build.parts[slot]).join(".")}`;
@@ -218,7 +221,7 @@ export function parse_build(code: unknown): Build | null {
   const decal = Number(m[3]);
   const ink = m[7] === undefined ? DEFAULT_BUILD.ink : Number(m[7]);
   const number = m[8] === undefined ? DEFAULT_BUILD.number : Number(m[8]);
-  if (paint > MAX_PAINT || decal > MAX_DECAL || ink > MAX_INK || number > MAX_NUMBER) return null;
+  if (paint > MAX_PAINT + REWARD_PAINTS || decal > MAX_DECAL || ink > MAX_INK || number > MAX_NUMBER) return null;
   const tail = m[9] ? m[9].slice(1).split(".").map(Number) : [];
   const parts = { ...DEFAULT_PARTS };
   HEAD.forEach((slot, i) => (parts[slot] = Number(m[4 + i])));

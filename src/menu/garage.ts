@@ -4,7 +4,9 @@ import { CARS } from "../car/cars";
 import { PRESETS } from "../car/presets";
 import { livery_of } from "../car/livery";
 import { modal_open, typing, type Nav } from "../hud/input";
-import { car_paints, color, decal_inks, rgba } from "../theme/palette";
+import { paint_lab } from "../car/paint";
+import { NO_UNLOCKS, type Unlocks } from "../career/rewards";
+import { color, decal_inks, rgba } from "../theme/palette";
 import { confirm_tap, render_builds, save_build } from "./garage-builds";
 import { build_badge } from "./class-badge";
 import { BUILDS_TAB, GarageSection, TABS, type Item } from "./garage-items";
@@ -31,6 +33,8 @@ export class Garage {
   /** The garage is the menu's Garage tab: LB / RB and Back belong to the menu. */
   on_tab: ((step: number) => void) | null = null;
   on_back: (() => void) | null = null;
+  /** Career rewards earned: the garage lists only these of the reward paints and decals. */
+  rewards: () => Unlocks = () => NO_UNLOCKS;
   private builds: SavedBuild[] = load_builds();
   private renaming: string | null = null;
   private readonly root = el("div", "garage");
@@ -48,7 +52,7 @@ export class Garage {
   private readonly stats = new StatMeters(this.panel);
   private strip_key = "";
   private tab = 1;
-  private item: Item = TABS[1].items(DEFAULT_BUILD)[0];
+  private item: Item = TABS[1].items(DEFAULT_BUILD, NO_UNLOCKS)[0];
   private cursor = 0;
   private readonly calm = matchMedia("(prefers-reduced-motion: reduce)");
 
@@ -106,7 +110,7 @@ export class Garage {
     this.strip.addEventListener("pointerleave", this.unhover);
     addEventListener("keydown", this.key);
     addEventListener("resize", this.resized);
-    const items = TABS[this.tab].items(this.current);
+    const items = this.items();
     this.item = items.find((item) => item.id === this.item.id) ?? items[0] ?? this.item;
     this.builds = load_builds();
     this.cursor = this.item.at(this.current);
@@ -141,7 +145,7 @@ export class Garage {
     if (nav === "sub_prev" || nav === "sub_next") return this.switch_tab(this.tab + (nav === "sub_prev" ? -1 : 1));
     if (nav === "alt") return this.save_build("");
     if (this.tab === BUILDS_TAB) return this.builds_focus(nav);
-    const items = TABS[this.tab].items(this.current);
+    const items = this.items();
     const index = Math.max(0, items.findIndex((item) => item.id === this.item.id));
     if (nav === "up" || nav === "down") this.select(items[(index + (nav === "up" ? -1 : 1) + items.length) % items.length]);
     else if (nav === "left" || nav === "right") {
@@ -154,7 +158,7 @@ export class Garage {
   private switch_tab(tab: number) {
     this.tab = (tab + TABS.length) % TABS.length;
     this.renaming = null;
-    const first = TABS[this.tab].items(this.current)[0];
+    const first = this.items()[0];
     if (first) this.select(first);
     else this.refresh();
     this.resized();
@@ -249,7 +253,7 @@ export class Garage {
     }
     else if (action === "copy-code") this.copy_code(target);
     else if (action === "item") {
-      const item = TABS[this.tab].items(this.current).find((it) => it.id === value);
+      const item = this.items().find((it) => it.id === value);
       if (item) this.select(item);
     } else if (action === "option") this.fit(n);
     else if (action === "step") this.fit((this.cursor + n + MAX_NUMBER + 1) % (MAX_NUMBER + 1));
@@ -297,6 +301,8 @@ export class Garage {
     const checked = parse_build(build_code(next));
     if (!checked || build_code(checked) === build_code(this.current)) return;
     this.current = checked;
+    // Paint and decal options list the fitted value even when it is a reward not earned, so they change with the build.
+    this.item = this.items().find((item) => item.id === this.item.id) ?? this.item;
     this.cursor = this.item.at(checked);
     if (save) save_build(checked);
     this.on_change?.(checked);
@@ -305,6 +311,10 @@ export class Garage {
   /** The build the screen shows: the fitted one with the cursor's option tried on. */
   private get shown(): Build {
     return this.cursor === this.item.at(this.current) ? this.current : this.item.with(this.current, this.cursor);
+  }
+
+  private items(): Item[] {
+    return TABS[this.tab].items(this.current, this.rewards());
   }
 
   private refresh() {
@@ -338,7 +348,7 @@ export class Garage {
 
   private render_rail() {
     this.rail.replaceChildren(
-      ...TABS[this.tab].items(this.current).map((item) => {
+      ...this.items().map((item) => {
         const button = el("button", "garage-slot");
         button.type = "button";
         button.dataset.action = "item";
@@ -364,7 +374,7 @@ export class Garage {
     const item = this.item;
     const fitted = item.at(this.current);
     const livery = livery_of(shown);
-    this.strip.style.setProperty("--decal-paint", rgba(car_paints[shown.paint % car_paints.length]));
+    this.strip.style.setProperty("--decal-paint", rgba(paint_lab(shown.paint)));
     this.strip.style.setProperty("--decal-ink", livery.ink.getStyle());
     this.strip.style.setProperty("--decal-mark", livery.mark.getStyle());
     this.strip.style.setProperty("--decal-key", livery.key ? livery.key.getStyle() : "transparent");
@@ -403,10 +413,10 @@ export class Garage {
             card.dataset.value = String(i);
             if (item.kind === "paint" || item.kind === "ink") {
               const swatch = el("i", "garage-swatch");
-              swatch.style.background = rgba((item.kind === "paint" ? car_paints : decal_inks)[i]);
+              swatch.style.background = rgba(item.kind === "paint" ? paint_lab(item.with(this.current, i).paint) : decal_inks[i]);
               card.append(swatch);
             }
-            if (item.kind === "decal") card.append(decal_tile(DECALS[i]));
+            if (item.kind === "decal") card.append(decal_tile(DECALS[item.with(this.current, i).decal]));
             const name = el("b", "garage-card-name", item.name(i));
             if (item.kind === "car") {
               const head = el("span", "garage-card-head");

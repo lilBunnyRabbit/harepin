@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { DECALS, type Build, type Decal } from "./build";
-import { NEUTRAL_INKS, car_paints, color, decal_inks } from "../theme/palette";
+import { paint_lab } from "./paint";
+import { NEUTRAL_INKS, color, decal_inks } from "../theme/palette";
 import type { Lab } from "../theme/theme";
 
 type Point = [number, number];
@@ -60,6 +61,14 @@ export const SLASH: Point[][] = [
   [[0.2, 0.06], [0.44, 0.06], [0.8, 0.94], [0.56, 0.94]],
   [[0.06, 0.06], [0.14, 0.06], [0.5, 0.94], [0.42, 0.94]],
 ];
+
+// Placeholder career reward decals until their art lands: plain full-length stripes, one more per tier.
+const band = (v: number): Point[] => [[0, v], [1, v], [1, v + 0.1], [0, v + 0.1]];
+export const REWARD_STRIPES: Record<"sky" | "volcano" | "ice", Point[][]> = {
+  sky: [band(0.45)],
+  volcano: [band(0.3), band(0.6)],
+  ice: [band(0.2), band(0.45), band(0.7)],
+};
 
 export function roof(shell: THREE.BufferGeometry, glass: THREE.Color): Roof {
   if (shell.index) throw new Error("roof: shell must be non-indexed");
@@ -221,6 +230,10 @@ function side_layers(livery: Livery, panel: Panel, side: number): Layers {
       return keyed(SIDE_BAND.map(at));
     case "slash":
       return keyed(SLASH.map(at));
+    case "sky":
+    case "volcano":
+    case "ice":
+      return keyed(REWARD_STRIPES[livery.decal].map(at));
     case "flames":
       return keyed([at(FLAME)]);
     case "number": {
@@ -297,7 +310,7 @@ function far_neutral(from: Lab): Lab {
 
 /** Decal colours for a build: the chosen ink unless it would vanish on the paint, then the neutral that stands out. */
 export function livery_of(build: Build): Livery {
-  const paint = car_paints[build.paint % car_paints.length];
+  const paint = paint_lab(build.paint);
   const chosen = decal_inks[build.ink % decal_inks.length];
   const neutral = build.ink % decal_inks.length < NEUTRAL_INKS;
   const vanishes = neutral ? Math.abs(chosen[0] - paint[0]) < NEUTRAL_CONTRAST : distance(chosen, paint) < INK_CLASH;

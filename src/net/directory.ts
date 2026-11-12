@@ -1,5 +1,5 @@
 import { joinRoom, type Room } from "trystero";
-import { APP_ID, RateLimit, clean_name, type RoomLock, type RosterEntry } from "./net";
+import { APP_ID, RateLimit, clean_name, clean_tier, type RoomLock, type RosterEntry } from "./net";
 import { DIRECTORY_ROOM, ROOM_LENGTH, clean_room } from "./room-name";
 import { MAX_SEED } from "./seed";
 import { TURN_SERVERS } from "./ice";
@@ -113,6 +113,8 @@ function sanitize_entry(raw: unknown): RosterEntry | null {
   const entry: RosterEntry = { name: clean_name(e.name) };
   const country = clean_country(e.country);
   if (country !== null) entry.country = country;
+  const tier = clean_tier(e.tier);
+  if (tier !== null) entry.tier = tier;
   if (e.racing === true) entry.racing = true;
   return entry;
 }

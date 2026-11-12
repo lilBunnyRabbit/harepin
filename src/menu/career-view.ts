@@ -1,6 +1,7 @@
 import { CLASS_LABELS } from "../car/pi";
 import { MAX_EVENT_STARS, TIERS, current_tier, suggested, tier_max, tier_open, tier_stars, type CareerEvent, type Tier } from "../career/career";
 import { event_map, owner_times, type Career } from "../career/career-store";
+import { badge_open } from "../career/rewards";
 import { MODES } from "../modes/modes";
 import { run_text } from "../modes/result";
 import { plain_map, snow_of } from "../worldgen/kinds/kinds";
@@ -109,6 +110,7 @@ export class CareerPage implements MenuPage {
     section.toggleAttribute("data-locked", !open);
     const head = el("div", "career-head");
     head.append(el("h3", "", tier.name), el("span", "goals-count", `${have} / ${tier_max(tier)} ★`), bar(have, tier_max(tier)));
+    if (badge_open(stars, tier)) head.append(el("span", "career-badge", tier.rewards.badge));
     if (!open && before) {
       const lock = el("span", "career-lock");
       lock.append(icon("icon-lock"), el("span", "", `${tier.opens_at} ★ in ${before.name}`));

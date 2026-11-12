@@ -10,7 +10,8 @@ import { flame_mesh, lamps } from "./lights";
 import { livery_of, livery_parts, roof, type Livery } from "./livery";
 import { aero_of, aero_parts, kit_parts, rear_wing } from "./part-looks";
 import { STOCK_CALIPER, STOCK_TYRE, caliper_geometry, chrome_tone, wheel_geometry } from "./wheels";
-import { brand, car_paints, color, tones } from "../theme/palette";
+import { paint_lab } from "./paint";
+import { brand, color, tones } from "../theme/palette";
 
 export interface CarView {
   root: THREE.Group;
@@ -30,7 +31,7 @@ export interface CarView {
 }
 
 export function build_view(build: Build, spec: CarSpec = build_spec(build)): CarView {
-  return car_view(color(car_paints[build.paint % car_paints.length]), spec, build.parts, livery_of(build));
+  return car_view(color(paint_lab(build.paint)), spec, build.parts, livery_of(build));
 }
 
 // Paint, trim, glass and decals are baked into vertex colours so the whole shell is one draw; a repaint rebuilds the view.

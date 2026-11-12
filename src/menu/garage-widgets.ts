@@ -1,5 +1,5 @@
 import type { Decal } from "../car/build";
-import { FLAME, SIDE_BAND, SLASH } from "../car/livery";
+import { FLAME, REWARD_STRIPES, SIDE_BAND, SLASH } from "../car/livery";
 import { el } from "./setting-rows";
 
 const SVG = "http://www.w3.org/2000/svg";
@@ -82,6 +82,10 @@ function decal_marks(decal: Decal): SVGElement[] {
       return SIDE_BAND.map((band) => svg("path", { ...ink, d: path_of(door(band)) }));
     case "slash":
       return SLASH.map((band) => svg("path", { ...ink, d: path_of(door(band)) }));
+    case "sky":
+    case "volcano":
+    case "ice":
+      return REWARD_STRIPES[decal].map((band) => svg("path", { ...ink, d: path_of(door(band)) }));
     case "flames":
       return [svg("path", { ...ink, d: path_of(door(FLAME)) })];
     case "number":

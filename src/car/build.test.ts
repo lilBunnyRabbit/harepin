@@ -1,6 +1,6 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import { DEFAULT_BUILD, DEFAULT_PARTS, SLOTS, SLOT_NAMES, STATS, apply_build, build_code, build_spec, parse_build, stat_range, stats, type Build } from "./build";
+import { DECALS, DEFAULT_BUILD, DEFAULT_PARTS, MAX_PAINT, REWARD_PAINTS, SLOTS, SLOT_NAMES, STATS, apply_build, build_code, build_spec, parse_build, stat_range, stats, type Build } from "./build";
 import { CARS, COUPE, HATCH, RALLY, car_sized, type CarId, type CarSpec } from "./cars";
 import { surface_grip as tyre_share } from "./car";
 import { LAND_GRIP, SAND_GRIP } from "../worldgen/kinds/kind-def";
@@ -40,6 +40,15 @@ test("new slots ride a tail that is left off at their defaults", () => {
   expect(build_code(with_parts({ bias: 2 }))).toBe("coupe.0.0.0.1.0.0.7.0.0.0.2");
 });
 
+test("career reward paints and decals ride build codes past the old ranges", () => {
+  expect(DECALS.slice(0, 9)).toEqual(["none", "centre", "twin", "side", "number", "flames", "slash", "checker", "rabbit"]);
+  const reward = with_parts({}, { car: "muscle", paint: MAX_PAINT + REWARD_PAINTS, decal: DECALS.length - 1, ink: 8, number: 99 });
+  expect(build_code(reward)).toBe(`muscle.${MAX_PAINT + REWARD_PAINTS}.${DECALS.length - 1}.0.1.0.8.99`);
+  expect(parse_build(build_code(reward))).toEqual(reward);
+  expect(parse_build(build_code({ ...reward, paint: MAX_PAINT + REWARD_PAINTS + 1 }))).toBeNull();
+  expect(parse_build(build_code({ ...reward, decal: DECALS.length }))).toBeNull();
+});
+
 test("codes from before decal ink, number and the new slots still parse", () => {
   expect(build_code(DEFAULT_BUILD)).toBe("hatch.0.0.2.1.0");
   expect(parse_build("kaze.3.1.0.2.0")).toEqual(with_parts({ suspension: 2 }, { car: "kaze", paint: 3, decal: 1 }));
@@ -67,8 +76,8 @@ test("off-grammar codes are rejected", () => {
     "van.0.0.0.1.0",
     "coupe.0.0.0.1",
     "coupe.0.0.0.1.0.0",
-    "coupe.16.0.0.1.0",
-    "coupe.0.9.0.1.0",
+    "coupe.19.0.0.1.0",
+    "coupe.0.12.0.1.0",
     "coupe.0.1.0.1.0.9.7",
     "coupe.0.1.0.1.0.0.100",
     "coupe.0.1.0.1.0.0",
