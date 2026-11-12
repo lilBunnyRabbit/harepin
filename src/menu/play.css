@@ -280,11 +280,22 @@
 }
 
 @media (max-height: 500px) {
+  /* The page scrolls instead of the side column, and the strip spans the bottom: every card sits where it shows, so
+     the pad's Down walks the side cards and then the strip. */
   .play {
-    grid-template-columns: minmax(0, 4fr) minmax(0, 5fr);
+    grid-template:
+      "map top" auto
+      "map side" auto
+      "minis minis" auto
+      / minmax(0, 4fr) minmax(0, 5fr);
     gap: var(--space-3);
-    height: max(220px, calc(100dvh - var(--inset-top) - var(--inset-bottom) - 96px));
+    height: auto;
     min-height: 0;
+  }
+
+  .play-side {
+    min-height: auto;
+    overflow: visible;
   }
 
   .play-badge .menu-eyebrow,
