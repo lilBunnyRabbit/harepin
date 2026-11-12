@@ -1,7 +1,7 @@
 .unlock-card {
   display: grid;
   gap: var(--space-3);
-  padding: var(--space-3) var(--space-3) var(--space-4);
+  padding: var(--space-3);
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   background: var(--panel-well);
@@ -70,33 +70,30 @@
   font-size: var(--text-xs);
 }
 
-.unlock-card button {
-  justify-self: center;
-}
-
 #mode-result-unlock:empty {
   display: none;
 }
 
-/* A phone in landscape has room for one more row between the top dock and the speedo: the rewards shrink to their
-   pictures beside the button, names stay in each picture's title. */
+/* A phone in landscape has little height between the top dock and the speedo: the rewards shrink to one row of
+   pictures, names stay in each picture's title. */
 @media (pointer: coarse) {
   .unlock-card {
     display: flex;
+    justify-content: center;
     align-items: center;
     gap: var(--space-3);
-    padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+    padding: 0;
+    border: 0;
+    background: none;
   }
 
   .unlock-card ul {
-    flex: none;
     grid-auto-columns: auto;
-    justify-content: start;
     gap: var(--space-2);
   }
 
   .unlock-card li {
-    grid-template-rows: 28px;
+    grid-template-rows: 24px;
   }
 
   .unlock-card .unlock-text {
@@ -104,23 +101,16 @@
   }
 
   .unlock-card .decal-tile {
-    width: 48px;
+    width: 44px;
   }
 
   .unlock-card .career-badge {
-    font-size: var(--text-lg);
+    font-size: var(--text-md);
   }
 
   .unlock-card .garage-swatch {
-    width: 24px;
-    height: 24px;
+    width: 20px;
+    height: 20px;
     margin: 0;
-  }
-
-  .unlock-card button {
-    flex: none;
-    min-height: 0;
-    height: var(--control-h);
-    margin-left: auto;
   }
 }

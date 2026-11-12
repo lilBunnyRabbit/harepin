@@ -42,6 +42,9 @@ export interface Reward {
 
 const OPENS: Record<RewardKind, (stars: Stars, tier: Tier) => boolean> = { paint: paint_open, decal: decal_open, badge: badge_open };
 
+/** The reward a garage can try on; a badge has no garage option. */
+export const garage_reward = (rewards: readonly Reward[]): Reward | null => rewards.find((reward) => reward.kind !== "badge") ?? null;
+
 /** What a run moved from locked to earned in `tier`, in garage order: paint, decal, badge. */
 export const earned = (before: Stars, after: Stars, tier: Tier): Reward[] =>
   (Object.keys(OPENS) as RewardKind[]).filter((kind) => !OPENS[kind](before, tier) && OPENS[kind](after, tier)).map((kind) => ({ kind, tier }));

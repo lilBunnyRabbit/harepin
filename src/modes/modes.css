@@ -89,6 +89,7 @@ body:has(#mode-result:not([hidden])) #mode-hint {
   display: grid;
   gap: var(--space-3);
   min-width: 280px;
+  max-width: calc(100vw - 2 * var(--inset));
   padding: var(--space-5);
   background: var(--panel);
   box-shadow: var(--panel-shadow);
@@ -158,6 +159,7 @@ body:has(#mode-result:not([hidden])) #mode-status {
 }
 
 #mode-result .room-actions {
+  flex-wrap: wrap;
   justify-content: center;
   margin: 0;
 }

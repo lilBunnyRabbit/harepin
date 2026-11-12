@@ -122,8 +122,18 @@ export const tones = {
 };
 
 /** Career tier metals, Rookie bronze, Club silver, Pro gold: the start flags and the tier's rewards (career.md §1.4). */
-// Bronze sits a ladder step darker than its orange mix, so it never reads as the orange race gates.
-export const tier_metals = [mix(mix(brand.warning, brand.error, 0.55), brand.background_darkest, 0.72), mix(brand.foreground, brand.background_lightest, 0.6), brand.warning] as const;
+// Bronze sits darker than its orange mix, so it never reads as the orange race gates; a light theme's darkest background
+// is pale, so there it drops in lightness instead. Light themes' warning is olive, so their gold leans on error and
+// lifts a step until it reads as gold, clear of the bronze.
+const BRONZE = mix(brand.warning, brand.error, 0.55);
+const LIGHT_BRONZE_DROP = 0.14;
+const LIGHT_GOLD = 0.7;
+const LIGHT_GOLD_LIFT = 0.1;
+export const tier_metals = [
+  dark ? mix(BRONZE, brand.background_darkest, 0.72) : lighten(BRONZE, -LIGHT_BRONZE_DROP),
+  mix(brand.foreground, brand.background_lightest, 0.6),
+  dark ? brand.warning : lighten(mix(brand.warning, brand.error, LIGHT_GOLD), LIGHT_GOLD_LIFT),
+] as const;
 /** A marker or reward not open yet. */
 export const locked_tone = mix(brand.foreground, brand.background, 0.55);
 

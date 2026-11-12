@@ -29,8 +29,7 @@ function title(reward: Reward): string {
   return badge_text((TIERS.indexOf(tier) + 1) as TierBadge);
 }
 
-/** The rewards a run just earned; the button tries the first garage one on, a badge alone has none. */
-export function unlock_card(rewards: Reward[], try_on: (reward: Reward) => void): HTMLElement {
+export function unlock_card(rewards: Reward[]): HTMLElement {
   const card = document.createElement("section");
   card.className = "unlock-card";
   card.setAttribute("aria-label", "Unlocked");
@@ -54,13 +53,5 @@ export function unlock_card(rewards: Reward[], try_on: (reward: Reward) => void)
     list.append(row);
   }
   card.append(head, list);
-  const target = rewards.find((reward) => reward.kind !== "badge");
-  if (target) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.textContent = "Try it in the garage";
-    button.addEventListener("click", () => try_on(target));
-    card.append(button);
-  }
   return card;
 }

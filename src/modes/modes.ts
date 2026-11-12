@@ -2,7 +2,7 @@ import type * as THREE from "three";
 import { TIERS, TUNE_PARAM, next_event, spot_of, tier_line, tier_of, tier_open, type CareerEvent } from "../career/career";
 import { event_track, type Career } from "../career/career-store";
 import { dev_ghost } from "../career/dev-ghost";
-import { earned, type Reward } from "../career/rewards";
+import { earned, garage_reward, type Reward } from "../career/rewards";
 import { unlock_card } from "../career/unlock-card";
 import { limit_text, same_machine, within, type CarLimit } from "../car/car-pick";
 import { car_sized, type CarSpec } from "../car/cars";
@@ -113,6 +113,7 @@ export class Modes {
     unlock: $("mode-result-unlock"),
     retry: $("mode-retry", HTMLButtonElement),
     next: $("mode-next", HTMLButtonElement),
+    try_on: $("mode-try", HTMLButtonElement),
     exit: $("mode-exit", HTMLButtonElement),
   };
 
@@ -129,6 +130,8 @@ export class Modes {
   start_event: ((id: string) => void) | null = null;
   /** Opens the garage with a reward the run just earned tried on. */
   try_reward: ((reward: Reward) => void) | null = null;
+  /** The garage reward the shown result just earned, for its Try it button. */
+  private reward: Reward | null = null;
   /** The step before a start that asks which car runs it: its code, or null when the player backs out. Events only for now. */
   pick_car: ((title: string, limit: CarLimit, own: string, signal: AbortSignal) => Promise<string | null>) | null = null;
   /** Puts `code` on the car; unsaved, a reload brings back the player's own car. */
@@ -217,6 +220,7 @@ export class Modes {
     const { signal } = this.abort;
     this.el.retry.addEventListener("click", () => this.restart(), { signal });
     this.el.next.addEventListener("click", () => this.play_next(), { signal });
+    this.el.try_on.addEventListener("click", () => this.reward && this.try_reward?.(this.reward), { signal });
     this.el.exit.addEventListener("click", () => this.exit(), { signal });
   }
 
@@ -547,6 +551,8 @@ export class Modes {
     el.lines.replaceChildren(...finish.lines);
     el.note.hidden = true;
     el.unlock.replaceChildren();
+    this.reward = null;
+    el.try_on.hidden = true;
     if (active.event) this.show_event(active.event, stars);
     else {
       const index = levels.findIndex((level) => level.id === active.level.id);
@@ -564,7 +570,9 @@ export class Modes {
     const before = career.stars;
     career.record(event, stars);
     const won = earned(before, career.stars, tier_of(event));
-    if (won.length) el.unlock.append(unlock_card(won, (reward) => this.try_reward?.(reward)));
+    if (won.length) el.unlock.append(unlock_card(won));
+    this.reward = garage_reward(won);
+    el.try_on.hidden = this.reward === null;
     el.lines.append(line("career", tier_line(career.stars, tier_of(event))));
     el.next.textContent = NEXT_EVENT;
     el.next.hidden = next_event(career.stars, event) === null;
