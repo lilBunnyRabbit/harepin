@@ -111,8 +111,24 @@
   }
 }
 
-/* A mode run brings its own clock and gates, so its status line takes the event title's place. */
+/* A mode run brings its own clock and gates, so its status line takes the event title's place, but restart must stay in reach. */
 :root[data-hud="classic"] body:has(#mode-status:not([hidden])) #strip {
+  position: fixed;
+  top: anchor(--actions top);
+  bottom: anchor(--actions bottom);
+  left: calc(anchor(--actions right) + var(--space-2));
+  right: auto;
+  translate: none;
+  width: auto;
+  height: auto;
+  min-height: 0;
+  max-width: none;
+  margin: 0;
+  align-items: center;
+  padding: 0 var(--space-2);
+}
+
+:root[data-hud="classic"] body:has(#mode-status:not([hidden])) #strip > div {
   display: none;
 }
 
