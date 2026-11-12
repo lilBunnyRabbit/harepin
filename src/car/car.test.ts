@@ -1,6 +1,6 @@
 /// <reference types="bun" />
 import { describe, expect, test } from "bun:test";
-import { Vector3 } from "three";
+import { Quaternion, Vector3 } from "three";
 import { DEFAULT_BUILD, DEFAULT_PARTS, apply_build, parse_build } from "./build";
 import { Car, SteerMode, drop_height, grip_lock, ride_height, unassisted_lock, type Controls, type Ground } from "./car";
 import { CARS, car_sized, is_car, type CarId, type CarSpec } from "./cars";
@@ -601,6 +601,52 @@ describe("dune sand", () => {
   }, 30_000);
 });
 
+describe("auto box", () => {
+  const full: Controls = { ...idle, throttle: 1, analog: true };
+
+  test("flat out from rest up a 5-20 degree face of asphalt, packed or loose sand, no car shifts back down within a second of an upshift", () => {
+    const hunts: string[] = [];
+    for (const spec of Object.values(CARS))
+      for (const [name, ground] of [["asphalt", GROUNDS.asphalt], ["packed", PACKED], ["sand", SAND]] as const)
+        for (const degrees of [5, 12, 20]) {
+          const hill = tilted(grade_of(degrees), ground);
+          const car = new Car(spec);
+          car.park(0, 0, 0, hill);
+          let gear = car.gear;
+          let up = -Infinity;
+          for (let t = 0; t < 20; t += DT) {
+            car.step(DT, full, hill);
+            if (car.gear > gear) up = t;
+            else if (car.gear < gear && t - up < 1) hunts.push(`${spec.id} ${name} ${degrees} deg: ${gear}-${car.gear} at ${kmh(car).toFixed(0)} km/h`);
+            gear = car.gear;
+          }
+        }
+    expect(hunts).toEqual([]);
+  }, 60_000);
+
+  test("thrown into a 50 degree slide at 90 km/h with the rears spinning, full gas and TCS off, it holds its gear rather than dropping onto the limiter", () => {
+    for (const id of ["sturm", "hatch"] as const) {
+      const spec = CARS[id];
+      const car = new Car(spec);
+      Object.assign(car, { tcs: false, assist: false, stability: false });
+      car.park(0, 0, 0, flat);
+      run(car, 0.5, () => idle);
+      const v = 25;
+      const angle = (50 * Math.PI) / 180;
+      car.vel.set(v * Math.sin(angle), 0, v * Math.cos(angle));
+      car.ang.set(0, -8 / v, 0);
+      for (const w of car.wheels) w.omega = ((v * Math.cos(angle)) / spec.wheel.radius) * (w.driven ? 1.3 : 1);
+      car.gear = 2;
+      let lowest = car.gear;
+      for (let t = 0; t < 0.5; t += DT) {
+        car.step(DT, full, flat);
+        lowest = Math.min(lowest, car.gear);
+      }
+      expect(lowest).toBe(2);
+    }
+  });
+});
+
 describe("nitro", () => {
   const boosted = (): Car => {
     const car = new Car({ ...CARS.coupe, nitro: 10 });
@@ -890,6 +936,23 @@ describe("power over with TCS on and the steering assist off", () => {
     if (!build) throw new Error("no Drift preset");
     const spec = apply_build(CARS[build.car], build);
     for (const kmh of [0, 60, 90, 130]) for (const aim of [20, 30]) expect(catch_drift(spec, kmh, aim, 1.5).straight).toBeLessThan(2.5);
+  });
+
+  test("on its roof with no wheel on the ground, a held drift's damper leaves the yaw alone", () => {
+    const twins = [true, false].map((tcs) => {
+      const car = rolling(CARS.coupe, 0);
+      car.stability = false;
+      run(car, 1.5, () => kick);
+      expect(car.launched).toBe(true);
+      car.tcs = tcs;
+      car.quat.premultiply(new Quaternion().setFromAxisAngle(ahead.set(0, 0, 1).applyQuaternion(car.quat), Math.PI));
+      car.pos.y = 0.3;
+      car.ang.y = 1;
+      return car;
+    });
+    for (const car of twins) car.step(DT, kick, flat);
+    expect(twins[0].wheels.some((w) => w.contact)).toBe(false);
+    expect(twins[0].ang.y).toBe(twins[1].ang.y);
   });
 
   for (const spec of [DRIFT_SETUP, ...RWD.filter((id) => id !== "sturm").map((id) => CARS[id])])

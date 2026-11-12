@@ -37,6 +37,8 @@ export const CAR_BODY = { mass: COUPE.mass, yaw_inertia: COUPE.inertia[1] };
 const GRAVITY = 9.81;
 const SPIN_SLIP = 0.15;
 const TCS_SLIP = 0.14;
+/** Share over the downshift line the next gear must land at, past the coast the grade explains: loose ground drags more. */
+const SHIFT_MARGIN = 0.02;
 /** Wheel slip (locking) past which ABS eases the brake, on asphalt; loose ground scales it by `Wheel.peak`. */
 const ABS_SLIP = 0.1;
 /** Below this speed (m/s) traction control works per wheel and per axle; faster, braking one side yaws the car. */
@@ -704,9 +706,15 @@ export class Car {
       const road_rpm = Math.abs((vf / radius) * ratio * 60) / (2 * Math.PI);
       // Spinning wheels read as high rpm; upshifting on them, then downshifting on road speed, makes the box hunt.
       const spinning = driven.some((w) => w.slip > SPIN_SLIP) && road_rpm < spec.redline - 200;
+      // The next gear judged where it lands: at road speed after the shift's coast up the grade. On wheel rpm, wheelspin
+      // and the coast put the Sturm's 2nd, 9% over its downshift line, under it, and it hunted 1st-2nd up every dune.
+      const landing = (Math.abs(vf - GRAVITY * forward.y * spec.shift_time) / radius) * Math.abs(this.ratio(this.gear + 1)) * (60 / (2 * Math.PI));
+      // A slide spins the driven wheels far past road speed, and the engine turns with them: judged on road speed at a
+      // big drift angle, the box dropped a gear and put the engine on the limiter.
+      const turning = Math.max(road_rpm, wheel_rpm);
       if (wheel_rpm > spec.upshift && this.gear < spec.gears.length) {
-        if (!spinning) this.shift(1);
-      } else if (road_rpm < spec.downshift && this.gear > 1 && road_rpm * (spec.gears[this.gear - 2] / spec.gears[this.gear - 1]) < spec.upshift - 600) this.shift(-1);
+        if (!spinning && landing >= spec.downshift * (1 + SHIFT_MARGIN)) this.shift(1);
+      } else if (turning < spec.downshift && this.gear > 1 && turning * (spec.gears[this.gear - 2] / spec.gears[this.gear - 1]) < spec.upshift - 600) this.shift(-1);
     }
 
     let max_slip = 0;
@@ -890,7 +898,8 @@ export class Car {
       body.force.addScaledVector(wheel_fwd, -rolling * (roll - 1) * (1 - spec.offroad));
     }
 
-    let airborne = this.wheels.every((w) => !w.contact);
+    const on_wheels = this.wheels.some((w) => w.contact);
+    let airborne = !on_wheels;
     for (const corner of this.corners) {
       const p = mount.copy(corner).applyQuaternion(quat).add(pos);
       const depth = ground.height(p.x, p.z, p.y) - p.y;
@@ -922,8 +931,9 @@ export class Car {
     if ((this.stability || spinning > 0) && excess > 0 && input.handbrake < 0.1 && Math.sign(ang.y) === Math.sign(slide)) {
       body.torque.y -= ang.y * spec.inertia[1] * Math.min(1, excess * 6) * 3.5 * spec.assist_yaw * damp;
     }
-    // In the air there is no slip angle to hold; damped there it cancelled the yaw a slide carries over a jump.
-    if (!this.assist && this.hold_side !== 0 && this.tcs && spec.drive === "rwd" && speed > 1 && !airborne) {
+    // In the air, or on the body with no wheel down, there is no tyre slip angle to hold; damped in the air it cancelled the
+    // yaw a slide carries over a jump.
+    if (!this.assist && this.hold_side !== 0 && this.tcs && spec.drive === "rwd" && speed > 1 && on_wheels) {
       // Yaw against the velocity's own turn rate is the slip angle changing; damping that, not yaw, leaves the arc alone.
       const swing = ang.y - tmp.crossVectors(vel, body.force).y / (spec.mass * speed * speed);
       const [damp_from, damp_to] = DRIFT_DAMP_SLIP;
