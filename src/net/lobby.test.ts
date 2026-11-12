@@ -1,6 +1,6 @@
 /// <reference types="bun" />
 import { afterEach, expect, spyOn, test } from "bun:test";
-import { COUNTDOWN_MS, Lobby, NOT_THIS_CAR, SITTING_OUT, lobby_routes, race_laps } from "./lobby";
+import { COUNTDOWN_MS, Lobby, NOT_THIS_CAR, RACE_RUNNING, SITTING_OUT, lobby_routes, race_laps } from "./lobby";
 import { leader_of, type Net, type RaceEvent, type Sender } from "./net";
 import { READY_RESEND_MS, READY_TTL_MS, type ReadyMsg } from "./ready";
 
@@ -270,15 +270,16 @@ const DUNES = lobby_routes([
   { id: "sprint-1", closed: false, length: 1800 },
 ]);
 
-function driving(id: string, car: string) {
+function driving(id: string, initial: string) {
+  let car = initial;
   const net = new FakeNet(id);
   const lobby = new Lobby(net as unknown as Net, DUNES, "test", null);
   const notices: string[] = [];
   lobby.car = () => car;
-  lobby.on_left_out = (notice) => notices.push(notice);
+  lobby.on_notice = (notice) => notices.push(notice);
   lobby.start();
   started.push(lobby);
-  return { net, lobby, notices };
+  return { net, lobby, notices, swap: (next: string) => (car = next) };
 }
 
 test("a peer whose car the route leaves out sits the leader's start out with a notice", () => {
@@ -317,6 +318,36 @@ test("a leader in a left-out car still starts a peer's request, and sits it out"
   const { net, lobby, notices } = driving("a", "bus");
   net.hear({ kind: "request", laps: 2, route: "circuit" }, net.peer("z"));
   expect(net.sent[0]).toMatchObject({ kind: "start", route: "circuit" });
+  expect(lobby.state.kind).toBe("idle");
+  expect(notices).toEqual([SITTING_OUT]);
+
+  const sent = net.sent.length;
+  net.hear({ kind: "request", laps: 1, route: "sprint-1" }, net.peer("y"));
+  lobby.call(1, "sprint-1");
+  expect(net.sent.length).toBe(sent);
+  expect(notices).toEqual([SITTING_OUT, RACE_RUNNING]);
+  const start_at = (net.sent[0] as { start_at: number }).start_at;
+  const clock = spyOn(performance, "now").mockReturnValue(start_at + 2 * (DUNES.get("circuit")?.min_lap ?? 0));
+  try {
+    lobby.call(1, "sprint-1");
+    expect(lobby.state).toMatchObject({ kind: "countdown", route: "sprint-1" });
+  } finally {
+    clock.mockRestore();
+  }
+});
+
+test("swapping into a left-out car mid-race leaves the race; any other swap doesn't", () => {
+  const { net, lobby, notices, swap } = driving("m", "coupe");
+  const a = net.peer("a");
+  net.hear(start(1, performance.now() + COUNTDOWN_MS, "sprint-1"), a);
+  swap("bus");
+  expect(lobby.car_changed()).toBe(false);
+  lobby.leave();
+  swap("coupe");
+  net.hear(start(2, performance.now() + COUNTDOWN_MS), a);
+  expect(lobby.car_changed()).toBe(false);
+  swap("bus");
+  expect(lobby.car_changed()).toBe(true);
   expect(lobby.state.kind).toBe("idle");
   expect(notices).toEqual([SITTING_OUT]);
 });

@@ -15,6 +15,7 @@ const REQUEST_MS = 4000;
 const READY_TICK_MS = 250;
 export const NOT_THIS_CAR = "Not raced in this car";
 export const SITTING_OUT = "Not raced in this car: you sit this race out";
+export const RACE_RUNNING = "Lobby race is running";
 
 export interface Finisher {
   id: string;
@@ -64,8 +65,8 @@ export class Lobby {
   finishers: Finisher[] = [];
   on_start: (() => void) | null = null;
   on_unanswered: (() => void) | null = null;
-  /** A pick or a start this player's car is left out of. */
-  on_left_out: ((notice: string) => void) | null = null;
+  /** Something this player tried or was pulled into that didn't happen, as a line to show. */
+  on_notice: ((notice: string) => void) | null = null;
   /** Id of the car this player drives. */
   car: (() => string) | null = null;
   record: RaceRecord;
@@ -80,6 +81,8 @@ export class Lobby {
   /** Until when a cancel keeps being resent: a lost one would leave this player counted ready till the TTL. */
   private cancel_until = 0;
   private ready_timer: ReturnType<typeof setInterval> | undefined;
+  /** A race this player sat out can't end before this; a leader starts nothing new till then, or it splits the room. */
+  private out_until = 0;
 
   constructor(
     private net: Net,
@@ -114,7 +117,7 @@ export class Lobby {
   set_ready(call: RaceCall | null, now = performance.now()) {
     if (this.busy) return;
     if (call && this.left_out(call.route)) {
-      this.on_left_out?.(NOT_THIS_CAR);
+      this.on_notice?.(NOT_THIS_CAR);
       call = null;
     }
     if (!call && this.own_ready) this.cancel_until = now + READY_TTL_MS;
@@ -149,12 +152,25 @@ export class Lobby {
 
   call(laps: number, route = "circuit") {
     if (this.busy || !this.routes.has(route)) return;
-    if (this.left_out(route)) return this.on_left_out?.(NOT_THIS_CAR);
+    if (this.left_out(route)) return this.on_notice?.(NOT_THIS_CAR);
+    if (this.leading && this.sitting_out) return this.on_notice?.(RACE_RUNNING);
     if (this.leading) this.begin(laps, route);
     else {
       this.net.send_event({ kind: "request", laps, route });
       this.asked_until = performance.now() + REQUEST_MS;
     }
+  }
+
+  private get sitting_out(): boolean {
+    return performance.now() < this.out_until;
+  }
+
+  /** Leaves a race the car just swapped in is left out of; true when it did. */
+  car_changed(): boolean {
+    if (!this.busy || !this.left_out(this.route)) return false;
+    this.leave();
+    this.on_notice?.(SITTING_OUT);
+    return true;
   }
 
   leave() {
@@ -203,7 +219,7 @@ export class Lobby {
 
   private begin(laps: number, route: string) {
     const known = this.routes.get(route);
-    if (!known) return;
+    if (!known || this.sitting_out) return;
     const race = Math.floor(Math.random() * 0x7fffffff);
     const go = performance.now() + COUNTDOWN_MS;
     const run = race_laps(known, laps);
@@ -217,7 +233,10 @@ export class Lobby {
     this.ready_due = Infinity;
     this.cancel_until = 0;
     this.readies.clear();
-    if (this.left_out(route)) return this.on_left_out?.(SITTING_OUT);
+    if (this.left_out(route)) {
+      this.out_until = go + laps * (this.routes.get(route)?.min_lap ?? 0);
+      return this.on_notice?.(SITTING_OUT);
+    }
     this.state = { kind: "countdown", race, route, laps, go, rivals: this.net.remotes.size };
     this.finishers = [];
     this.on_start?.();

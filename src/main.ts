@@ -245,7 +245,7 @@ lobby.on_start = () => {
   });
 };
 lobby.on_unanswered = () => hud.toast("No race leader answered");
-lobby.on_left_out = (notice) => hud.toast(notice);
+lobby.on_notice = (notice) => hud.toast(notice);
 lobby.car = () => driver.car.spec.id;
 race.on_start = () => ghost.start();
 
@@ -412,6 +412,7 @@ garage.on_save = () => goals.done(GoalId.BUILD);
 garage.on_change = (next) => {
   for (const id of build_goals(next)) goals.done(id);
   driver.swap(next, lobby.busy || modes.active);
+  if (lobby.car_changed()) modes.exit();
   modes.car_changed();
   apply_car_settings(settings.state);
   input.touch.show_nitro(driver.car.nitro.fitted);
