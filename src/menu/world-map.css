@@ -362,6 +362,12 @@
   font-weight: 700;
 }
 
+:root[data-scheme="light"] .settings .map-drive:not(:disabled) {
+  border: 1px solid var(--primary);
+  background: var(--set-raised);
+  color: var(--foreground);
+}
+
 .settings .map-drive:disabled {
   background: var(--set-raised);
   color: var(--set-dim);
@@ -477,6 +483,24 @@
   }
 }
 
+@media (max-width: 600px) {
+  .map-page {
+    grid-template: "map" auto "about" auto "actions" auto "side" auto / minmax(0, 1fr);
+    gap: var(--space-4);
+    height: auto;
+  }
+
+  .map-side {
+    gap: var(--space-6);
+    overflow: visible;
+  }
+
+  .map-preview .world-map {
+    width: 100%;
+    height: auto;
+  }
+}
+
 @media (orientation: landscape) and (max-height: 500px) {
   .map-page {
     gap: var(--space-2) var(--space-4);
@@ -549,4 +573,17 @@
 .settings[data-view="page"] .settings-page[data-section="world"] {
   max-width: none;
   height: 100%;
+}
+
+@media (max-width: 600px) {
+  .settings[data-view="page"] .settings-page[data-section="world"] {
+    height: auto;
+  }
+}
+
+@media (max-width: 380px) {
+  .map-facts {
+    display: grid;
+    grid-template-columns: auto auto;
+  }
 }
