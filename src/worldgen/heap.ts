@@ -54,7 +54,11 @@ export class Heap {
 
   private swap(a: number, b: number) {
     const { keys, items } = this;
-    [keys[a], keys[b]] = [keys[b], keys[a]];
-    [items[a], items[b]] = [items[b], items[a]];
+    const key = keys[a];
+    keys[a] = keys[b];
+    keys[b] = key;
+    const item = items[a];
+    items[a] = items[b];
+    items[b] = item;
   }
 }

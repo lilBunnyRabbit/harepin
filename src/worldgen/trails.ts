@@ -251,6 +251,8 @@ class Planner {
     const goal = key(b[0], b[1]);
     const cost = new Float64Array(G * G).fill(Infinity);
     const came = new Int32Array(G * G).fill(-1);
+    // Weighted A* can reach a cell again cheaper and expand it twice; a stale entry at the cost it was expanded at relaxes nothing.
+    const expanded = new Float64Array(G * G).fill(NaN);
     const heap = new Heap();
     cost[start] = 0;
     heap.push(start, 0);
@@ -259,6 +261,8 @@ class Planner {
     while (heap.size) {
       const k = heap.pop();
       if (k === goal) break;
+      if (expanded[k] === cost[k]) continue;
+      expanded[k] = cost[k];
       const i = k % G;
       const j = Math.floor(k / G);
       for (let dj = -1; dj <= 1; dj++)
