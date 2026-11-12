@@ -25,10 +25,19 @@ export interface Store {
   setItem(key: string, value: string): void;
 }
 
-export function stars_for(ms: number, par: number): number {
-  if (ms <= par) return 3;
-  return ms <= par * SILVER_SHARE ? 2 : 1;
+export interface Thresholds {
+  two: number;
+  three: number;
 }
+
+export const par_thresholds = (par: number): Thresholds => ({ two: par * SILVER_SHARE, three: par });
+
+export function grade(ms: number, { two, three }: Thresholds): number {
+  if (ms <= three) return 3;
+  return ms <= two ? 2 : 1;
+}
+
+export const stars_for = (ms: number, par: number) => grade(ms, par_thresholds(par));
 
 export function better(a: StarRun | undefined, b: StarRun): boolean {
   if (!a) return true;

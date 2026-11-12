@@ -7,7 +7,7 @@ import { DuelView } from "./duel-view";
 import type { Hits } from "./hits";
 import type { Driven, Finish, ModeCtx, ModeDef, ModeRun } from "./mode";
 import { best_line, line, penalty_text, result_title, time_lines } from "./result";
-import { stars_for } from "./track";
+import { grade } from "./track";
 
 const ghosts = new WeakMap<World, { key: string; ghost: Ghost }>();
 
@@ -36,8 +36,11 @@ class Duel implements ModeRun {
   ) {
     this.view = new DuelView(route, ctx.world);
     ctx.scene.add(this.view.root);
-    this.ghost = ghost_for(ctx, route.level.id);
-    this.ghost.start();
+    const ghost = ghost_for(ctx, route.level.id);
+    this.ghost = ghost;
+    ghost.start();
+    // An event's own dev ghost races the player until their first finish replaces it.
+    if (!ghost.has_best) void ctx.dev_ghost().then((lap) => lap && !ghost.has_best && ghost.use(lap));
     this.run = new DuelRun(route);
     this.hits = ctx.hits();
     ctx.spawn_on(route.points[0]);
@@ -72,7 +75,8 @@ class Duel implements ModeRun {
     const { track } = this.ctx;
     const time = Math.round(run.elapsed());
     const ms = time + (this.hits?.penalty_ms ?? 0);
-    const stars = stars_for(run.elapsed() + (this.hits?.penalty_ms ?? 0), par_ms);
+    const par = this.ctx.thresholds(par_ms);
+    const stars = grade(run.elapsed() + (this.hits?.penalty_ms ?? 0), par);
     const before = track.runs[level.id];
     const recorded = track.record(level.id, { stars, ms });
     this.ghost.finish(recorded.improved);
@@ -80,7 +84,7 @@ class Duel implements ModeRun {
     this.result = {
       title: result_title(level.name, recorded),
       stars,
-      lines: [...time_lines(time, this.hits), line("vs ghost", versus), line("par", format(par_ms)), best_line(track.runs[level.id])],
+      lines: [...time_lines(time, this.hits), line("vs ghost", versus), line("par", format(par.three)), best_line(track.runs[level.id])],
     };
   }
 

@@ -11,7 +11,7 @@ const EVERY_MS = 100;
 const GHOST_OPACITY = 0.32;
 const GHOST_ORDER = 10;
 
-function is_lap(value: unknown): value is number[] {
+export function is_lap(value: unknown): value is number[] {
   if (!Array.isArray(value) || value.length < STRIDE || value.length % STRIDE !== 0) return false;
   if (!value.every((v) => typeof v === "number" && Number.isFinite(v))) return false;
   for (let i = STRIDE; i < value.length; i += STRIDE) if (value[i] < value[i - STRIDE]) return false;
@@ -38,6 +38,15 @@ function load(key: string): number[] | null {
   console.warn("ghost: saved lap has the wrong shape, ignoring it");
   return null;
 }
+
+// The ghost is always drawn as a stock coupe, so a bigger body is recorded at the coupe's ride height: a bus lap's ghost
+// runs on the road instead of floating a metre up.
+export function ghost_frame(out: number[], lap_ms: number, car: Pick<Car, "pos" | "quat" | "spec">) {
+  const y = car_sized(car.spec) ? car.pos.y : car.pos.y - (ride_height(car.spec) - ride_height(COUPE));
+  out.push(lap_ms, car.pos.x, y, car.pos.z, car.quat.x, car.quat.y, car.quat.z, car.quat.w);
+}
+
+export const GHOST_EVERY_MS = EVERY_MS;
 
 export class Ghost {
   visible = true;
@@ -89,13 +98,15 @@ export class Ghost {
     return this.best !== null;
   }
 
-  // The ghost is always drawn as a stock coupe, so a bigger body is recorded at the coupe's ride height: a bus lap's ghost
-  // runs on the road instead of floating a metre up.
+  /** Races a lap made elsewhere, such as a shipped dev ghost, until a run of the player's own replaces it. */
+  use(lap: number[]) {
+    this.best = lap;
+  }
+
   record(lap_ms: number, car: Pick<Car, "pos" | "quat" | "spec">) {
     const last = this.recording.length ? this.recording[this.recording.length - STRIDE] : -Infinity;
     if (lap_ms - last < EVERY_MS || lap_ms > this.cap_ms) return;
-    const y = car_sized(car.spec) ? car.pos.y : car.pos.y - (ride_height(car.spec) - ride_height(COUPE));
-    this.recording.push(lap_ms, car.pos.x, y, car.pos.z, car.quat.x, car.quat.y, car.quat.z, car.quat.w);
+    ghost_frame(this.recording, lap_ms, car);
   }
 
   rewind_to(lap_ms: number) {

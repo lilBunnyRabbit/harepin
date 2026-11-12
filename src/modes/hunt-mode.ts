@@ -4,7 +4,7 @@ import type { Hits } from "./hits";
 import { HuntView } from "./hunt-view";
 import { turn_to, type Driven, type Finish, type ModeCtx, type ModeDef, type ModeRun } from "./mode";
 import { best_line, line, penalty_text, result_title, time_lines } from "./result";
-import { stars_for } from "./track";
+import { grade } from "./track";
 
 class GateHunt implements ModeRun {
   private readonly view: HuntView;
@@ -53,12 +53,13 @@ class GateHunt implements ModeRun {
     const { track } = this.ctx;
     const time = Math.round(run.elapsed());
     const ms = time + (this.hits?.penalty_ms ?? 0);
-    const stars = stars_for(run.elapsed() + (this.hits?.penalty_ms ?? 0), par_ms);
+    const par = this.ctx.thresholds(par_ms);
+    const stars = grade(run.elapsed() + (this.hits?.penalty_ms ?? 0), par);
     const recorded = track.record(level.id, { stars, ms });
     this.result = {
       title: result_title(level.name, recorded),
       stars,
-      lines: [...time_lines(time, this.hits), line("gates", String(gates.length)), line("par", format(par_ms)), best_line(track.runs[level.id])],
+      lines: [...time_lines(time, this.hits), line("gates", String(gates.length)), line("par", format(par.three)), best_line(track.runs[level.id])],
     };
   }
 

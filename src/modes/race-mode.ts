@@ -1,3 +1,4 @@
+import { Ghost } from "../car/ghost";
 import { format } from "../hud/hud";
 import { WORLDS } from "../worlds/worlds";
 import type { Hits } from "./hits";
@@ -5,7 +6,10 @@ import { turn_to, type Driven, type Finish, type ModeCtx, type ModeDef, type Mod
 import { COUNTDOWN_MS, RaceRun, RaceStatus, race_course, race_levels, type RaceCourse, type RaceLevel } from "./races";
 import { RaceView } from "./race-view";
 import { best_line, line, penalty_text, result_title, time_lines } from "./result";
-import { stars_for } from "./track";
+import { grade } from "./track";
+
+// Never written: the dev ghost is read from the shipped asset, and a race keeps no ghost of the player's own.
+const DEV_GHOST_KEY = "harepin:ghost:career-dev";
 
 class Race implements ModeRun {
   private readonly view: RaceView;
@@ -14,6 +18,8 @@ class Race implements ModeRun {
   private clock = 0;
   private result: Finish | null = null;
   private readonly hits: Hits | null;
+  private ghost: Ghost | null = null;
+  private disposed = false;
   readonly route: RouteRun;
 
   constructor(
@@ -26,6 +32,11 @@ class Race implements ModeRun {
     this.unplace = ctx.world.place(course.route.closure);
     this.run = new RaceRun(course, ctx.lobby_lap() ? 0 : COUNTDOWN_MS);
     this.hits = ctx.hits();
+    void ctx.dev_ghost().then((lap) => {
+      if (!lap || this.disposed) return;
+      this.ghost = new Ghost(ctx.scene, ctx.world.seed, DEV_GHOST_KEY);
+      this.ghost.use(lap);
+    });
     this.route = { id: course.route.id, gate: this.run.gate, respawn: course.line[0] };
     ctx.spawn_on(course.line[0]);
   }
@@ -48,6 +59,7 @@ class Race implements ModeRun {
     const was = run.status;
     const taken = run.update(run.countdown > 0 ? wall : sim_dt * 1000, car.pos.x, car.pos.z);
     this.hits?.update(sim_dt * 1000, run.status === RaceStatus.RUNNING || was === RaceStatus.RUNNING);
+    this.ghost?.update(run.status === RaceStatus.RUNNING ? run.elapsed() : null, ctx.camera.position);
     if (taken >= 0) {
       this.route.respawn = run.course.line[run.course.gates[taken]];
       view.aim(run.next);
@@ -85,12 +97,13 @@ class Race implements ModeRun {
     const { par_ms, length } = run.course.route;
     const time = Math.round(run.elapsed());
     const ms = time + (this.hits?.penalty_ms ?? 0);
-    const stars = stars_for(run.elapsed() + (this.hits?.penalty_ms ?? 0), par_ms);
+    const par = this.ctx.thresholds(par_ms);
+    const stars = grade(run.elapsed() + (this.hits?.penalty_ms ?? 0), par);
     const recorded = track.record(level.id, { stars, ms });
     this.result = {
       title: result_title(level.name, recorded),
       stars,
-      lines: [...time_lines(time, this.hits), line("length", `${(length / 1000).toFixed(1)} km`), line("par", format(par_ms)), best_line(track.runs[level.id])],
+      lines: [...time_lines(time, this.hits), line("length", `${(length / 1000).toFixed(1)} km`), line("par", format(par.three)), best_line(track.runs[level.id])],
     };
   }
 
@@ -99,6 +112,8 @@ class Race implements ModeRun {
   }
 
   dispose() {
+    this.disposed = true;
+    this.ghost?.dispose();
     this.unplace();
     this.view.dispose();
   }

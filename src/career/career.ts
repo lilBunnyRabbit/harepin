@@ -1,4 +1,5 @@
 import type { CarClass } from "../car/pi";
+import type { Thresholds } from "../modes/track";
 
 // Off in the release: a load turns it on with `?career`, and an event link carries it.
 export const CAREER_PARAM = "career";
@@ -22,6 +23,10 @@ export interface CareerEvent {
   readonly car: { cap: CarClass } | { preset: string };
   /** `world_key` of the map it runs on now: `career.test.ts` fails when a generator bump moves it, until re-tuned. */
   readonly tuned: string;
+  /** Ms, from bot runs on `tuned` (`scripts/career.ts`); without them the mode's own par grades the run. */
+  readonly stars?: Thresholds;
+  /** A 3-star dev ghost ships at `ghost_path`, recorded on `tuned`. */
+  readonly ghost?: true;
   readonly final?: true;
   readonly stand_in?: Spot;
 }
@@ -90,6 +95,9 @@ export const TIERS: readonly Tier[] = [
 export const EVENTS: readonly CareerEvent[] = TIERS.flatMap((tier) => tier.events);
 
 export const event_of = (id: string | null): CareerEvent | null => EVENTS.find((event) => event.id === id) ?? null;
+
+// The key's colons can't go in a file name on every system.
+export const ghost_path = (event: CareerEvent) => `career/${event.id}.${event.tuned.replaceAll(":", "-")}.json`;
 
 export const tier_of = (event: CareerEvent): Tier => TIERS.find((tier) => tier.events.includes(event)) ?? TIERS[0];
 

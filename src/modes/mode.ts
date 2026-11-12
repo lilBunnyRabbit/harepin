@@ -2,7 +2,7 @@ import type * as THREE from "three";
 import type { CarSpec } from "../car/cars";
 import type { World } from "../world/world";
 import type { Body, Pose } from "./gymkhana";
-import type { Track } from "./track";
+import type { Thresholds, Track } from "./track";
 import type { Bindable } from "../hud/bindings";
 import type { Hits } from "./hits";
 import type { RoutePoint } from "./route";
@@ -42,6 +42,10 @@ export interface ModeCtx {
   race_busy(): boolean;
   /** A career event's hit counter for the run, fresh per call; null in free play, which has no hit penalty. */
   hits(): Hits | null;
+  /** The star times a run is graded on: a career event's own, else the mode's par. */
+  thresholds(par_ms: number): Thresholds;
+  /** A career event's shipped 3-star ghost lap; null in free play or when it has none. */
+  dev_ghost(): Promise<number[] | null>;
   high(): boolean;
   /** The keys bound to `action` now, as the player reads them; empty when none. */
   key_of(action: Bindable): string;

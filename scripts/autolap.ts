@@ -5,7 +5,7 @@ import { PadTimer } from "../src/world/sky-pads";
 import { ROAD_HALF, World, type RoadPoint } from "../src/world/world";
 import { SurfaceId } from "../src/worldgen/types";
 
-const DT = 1 / 360;
+export const DT = 1 / 360;
 const RAMP_LOOK = 120;
 // Fastest pace on circuit kickers every seed's lap survives: past it the car lands with too little road left to brake
 // for the next bend, having had none in the air.
@@ -60,8 +60,11 @@ export interface Lap {
   toes: number[];
 }
 
-/** Drives `road` from its first point; an open one (a street or offroad route) ends at its last point instead of wrapping. */
-export function autolap(world: World, spec: CarSpec = COUPE, road: readonly RoadPoint[] = world.road, closed = true): Lap {
+/**
+ * Drives `road` from its first point; an open one (a street or offroad route) ends at its last point instead of wrapping.
+ * `watch` sees the car after every physics step and ends the drive by returning true; with it the drive goes on until it does (or the time runs out).
+ */
+export function autolap(world: World, spec: CarSpec = COUPE, road: readonly RoadPoint[] = world.road, closed = true, watch?: (car: Car) => boolean): Lap {
   const car = new Car(spec);
   const n = road.length;
   const point_at = (i: number) => (closed ? road[((i % n) + n) % n] : road[Math.max(0, Math.min(n - 1, i))]);
@@ -79,8 +82,9 @@ export function autolap(world: World, spec: CarSpec = COUPE, road: readonly Road
   }).filter(({ ramp, at }) => Math.hypot(road[at].x - ramp.x, road[at].z - ramp.z) < ROAD_HALF);
   const toes: number[] = [];
   const behind = kickers.map(() => true);
-  while (t < 400 && index < n - 10) {
-    for (let k = index; k < index + 60; k++) {
+  const end = watch ? Infinity : n - 10;
+  while (t < 400 && index < end) {
+    for (let k = index; k < index + 60 && (closed || k < n); k++) {
       const q = point_at(k);
       if ((q.x - car.pos.x) ** 2 + (q.z - car.pos.z) ** 2 < 100) index = Math.max(index, k);
     }
@@ -106,6 +110,7 @@ export function autolap(world: World, spec: CarSpec = COUPE, road: readonly Road
     car.step(DT, { steer: airborne ? 0 : Math.max(-1, Math.min(1, -err * 3)), throttle: speed < target ? 1 : 0, brake: speed > target + (pace <= target ? 1 : 4) ? Math.min(0.5, (speed - target) / 10) * Math.max(0.2, 1 - Math.abs(err) * 4) * ease : 0, handbrake: 0, analog: true }, world);
     pads.step(DT, car, world);
     impact = Math.max(impact, world.collide(car));
+    if (watch?.(car)) break;
     kickers.forEach(({ ramp }, k) => {
       const along = (car.pos.x - ramp.x) * ramp.fx + (car.pos.z - ramp.z) * ramp.fz;
       const across = Math.abs((car.pos.x - ramp.x) * ramp.fz - (car.pos.z - ramp.z) * ramp.fx);

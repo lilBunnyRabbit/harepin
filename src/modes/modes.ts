@@ -1,6 +1,7 @@
 import type * as THREE from "three";
 import { TIERS, next_event, spot_of, tier_line, tier_of, tier_open, type CareerEvent } from "../career/career";
 import { event_track, type Career } from "../career/career-store";
+import { dev_ghost } from "../career/dev-ghost";
 import { limit_text, within, type CarLimit } from "../car/car-pick";
 import { car_sized, type CarSpec } from "../car/cars";
 import { build_code, parse_build } from "../car/build";
@@ -21,7 +22,7 @@ import { PARKING_MODE } from "./parking-mode";
 import { RACE_MODE } from "./race-mode";
 import { race_levels } from "./races";
 import { line, run_text, star_row } from "./result";
-import { MAX_STARS, Track, local_store, type RaceRecord } from "./track";
+import { MAX_STARS, Track, local_store, par_thresholds, type RaceRecord } from "./track";
 import "./modes.css";
 
 export type { Driven } from "./mode";
@@ -344,6 +345,8 @@ export class Modes {
       lobby_lap: () => this.lobby_lap,
       race_busy: () => this.race_busy(),
       hits: () => (event ? new Hits(() => world.contacts) : null),
+      thresholds: (par_ms) => event?.stars ?? par_thresholds(par_ms),
+      dev_ghost: () => (event?.ghost ? dev_ghost(event) : Promise.resolve(null)),
       high: () => this.high,
       key_of: (action) => keys_text(this.bindings()[action]),
       spawn,
