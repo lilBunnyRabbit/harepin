@@ -283,7 +283,8 @@ export function contrast(a: Lab, b: Lab): number {
 }
 
 export function on_fill(read: Record<Token, Lab>, fill: Token): Token {
-  return contrast(read[fill], read.background_darkest) >= contrast(read[fill], read.background_lightest) ? "background_darkest" : "background_lightest";
+  const candidates: Token[] = ["background_darkest", "background_lightest", "foreground"];
+  return candidates.reduce((best, token) => (contrast(read[fill], read[token]) > contrast(read[fill], read[best]) ? token : best));
 }
 
 export type Lab = [number, number, number];
