@@ -70,9 +70,10 @@ export class PlayPage implements MenuPage {
 
   build(): HTMLElement[] {
     const page = el("div", "play");
-    const minis = el("section", "play-group play-minis-group");
+    // A div, not a section: the pad's nearest() keeps focus inside a section, which hid the strip from Drive.
+    const minis = el("div", "play-group play-minis-group");
     minis.append(el("h3", "play-head", "Mini maps"), this.minis());
-    page.append(this.map(), this.top(), minis, this.side());
+    page.append(this.map(), this.top(), this.side(), minis);
     return [page];
   }
 
