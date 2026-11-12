@@ -33,7 +33,8 @@ export function map_thumb(spec: MapSpec): HTMLImageElement {
 
 /** Reuses the big preview's generation, so a map saved from it needs no second one. */
 export function keep_thumb(spec: MapSpec, map: MapData) {
-  spares.set(map_code(spec), map);
+  const code = map_code(spec);
+  if (![...thumbs.keys()].some((key) => key.startsWith(`${code}@`))) spares.set(code, map);
 }
 
 function thumb_url(spec: MapSpec, side: number): Promise<string> {
