@@ -19,6 +19,7 @@ import { Builder } from "../worldgen/mesh";
 import type { Landmark, Recipe } from "../worldgen/recipe";
 import { soup } from "../worldgen/chunks";
 import { N, PropKind, type Prop, type Tree } from "../worldgen/types";
+import { WORLDS } from "../worlds/worlds";
 import type { Sheet } from "./catalog";
 
 export interface Tile {
@@ -139,8 +140,8 @@ function biomes(): SheetLayout {
     for (const kind of growing) tiles.push({ label: `${def.kind} · ${TREE_NAMES[kind]}`, object: trees(kind, snowy, kit.trees), ground, ...FRONT_34 });
     const props = new Set([...recipe.landmarks.map((landmark) => LANDMARK_PROPS[landmark]), ...recipe.scatter.map((rule) => rule.kind)]);
     for (const kind of props) tiles.push({ label: `${def.kind} · ${kind.replace("_", " ")}`, object: prop(kind, snowy), ground, ...FRONT_34 });
-  }
     for (const piece of kit.pieces) tiles.push({ label: `${def.kind} · ${piece.replace("_", " ")}`, object: new THREE.Group().add(...kit_sample(piece, snowy)), ground, ...FRONT_34 });
+  }
   return { tiles, columns: null, same_scale: false };
 }
 
