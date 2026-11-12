@@ -325,8 +325,11 @@ const settings = new Settings(document.body, {
 directory.start();
 new Presence({ net, elsewhere: () => directory.elsewhere(), watch: (on) => directory.watch(on), toast: (text) => hud.toast(text), open_online: () => settings.open(MenuTab.ONLINE) }).start();
 
+// Feel A/B from the `?feel` panel, never saved: off is the shipped behaviour.
+let drift_full_lock = false;
+
 function apply_car_settings(state: SettingsState) {
-  Object.assign(driver.car, { tcs: state.tcs, abs: state.abs, assist: state.assist, stability: state.stability, auto: state.auto, steer_mode: state.steer_mode });
+  Object.assign(driver.car, { tcs: state.tcs, abs: state.abs, assist: state.assist, stability: state.stability, auto: state.auto, steer_mode: state.steer_mode, drift_full_lock });
 }
 
 function apply_settings(state: SettingsState) {
@@ -536,7 +539,15 @@ const ACTIONS: Record<Action, () => void> = {
   settings: () => settings.open(),
   menu: () => pad_menu.toggle(),
 };
-if (params.has("feel")) void import("./hud/feel-panel").then(({ feel_panel }) => feel_panel({ set: (key, value) => settings.set(key, value), use_car: (code) => garage.use_code(code), respawn: ACTIONS.reset }));
+if (params.has("feel")) void import("./hud/feel-panel").then(({ feel_panel }) => feel_panel({
+  set: (key, value) => settings.set(key, value),
+  use_car: (code) => garage.use_code(code),
+  respawn: ACTIONS.reset,
+  drift_full_lock: (on) => {
+    drift_full_lock = on;
+    apply_car_settings(settings.state);
+  },
+}));
 
 const DT = 1 / 360;
 let acc = 0;

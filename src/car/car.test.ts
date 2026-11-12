@@ -5,7 +5,7 @@ import { DEFAULT_BUILD, DEFAULT_PARTS, apply_build, parse_build } from "./build"
 import { Car, SteerMode, drop_height, grip_lock, ride_height, unassisted_lock, type Controls, type Ground } from "./car";
 import { CARS, car_sized, is_car, type CarId, type CarSpec } from "./cars";
 import { PRESETS } from "./presets";
-import { catch_drift } from "../../scripts/drift";
+import { catch_drift, wheel_trace } from "../../scripts/drift";
 import { donut } from "../../scripts/donut";
 import { hairpin_pull } from "../../scripts/hairpin";
 import { Counter, arc, flick, hairpin, lane_change, lift_off, power_over, slalom, swerve, tap, type PowerOver } from "../../scripts/keys";
@@ -944,6 +944,22 @@ describe("power over with TCS on and the steering assist off", () => {
     if (!build) throw new Error("no Drift preset");
     const spec = apply_build(CARS[build.car], build);
     for (const kmh of [0, 60, 90, 130]) for (const aim of [20, 30]) expect(catch_drift(spec, kmh, aim, 1.5).straight).toBeLessThan(2.5);
+  });
+
+  test("the Drift preset with the steering assist off: a key held into the turn mid-drift at 60-90 km/h stops at the grip-limited lock, and at full lock with the drift full-lock feel toggle", () => {
+    const build = parse_build(PRESETS.find((preset) => preset.name === "Drift")?.code);
+    if (!build) throw new Error("no Drift preset");
+    const spec = apply_build(CARS[build.car], build);
+    const lock = (spec.lock * 180) / Math.PI;
+    for (const kmh of [60, 90])
+      for (const drift_full_lock of [false, true]) {
+        const rows = wheel_trace(spec, kmh, { tcs: true, assist: false, stability: false, drift_full_lock }).rows;
+        const into = Math.max(...rows.filter((row) => row.key === 1 && Math.abs(row.slip) > 12).map((row) => row.steer));
+        const counter = Math.min(...rows.filter((row) => row.key === -1).map((row) => row.steer));
+        if (drift_full_lock) expect(into).toBeGreaterThan(lock * 0.95);
+        else expect(into).toBeLessThan(10);
+        expect(counter).toBeLessThan(-lock * 0.95);
+      }
   });
 
   test("on its roof with no wheel on the ground, a held drift's damper leaves the yaw alone", () => {

@@ -118,7 +118,7 @@ const USEFUL_SPEEDS = [3, 6, 12, 16] as const;
 const SLIDE_OUT = 0.1;
 /** Speeds (m/s) over which a power slide stops counting: the slide assists keep catching the car above them. */
 const SLIDE_SPEEDS = [12, 16] as const;
-/** Body slip (rad) against the held steer over which an unassisted countersteer blends to full lock. */
+/** Body slip (rad) against the held steer over which an unassisted countersteer blends to full lock (either way with `both`). */
 const COUNTER_SLIP = [0.1, 0.2] as const;
 const STEER_RATE = 9;
 const KEY_RAMP = 0.2;
@@ -348,11 +348,12 @@ function key_reach(key: number): number {
  * Lock (rad) with the steer assist off, `limit` the grip-limited lock, `steer` the held stick and `slide` the body slip
  * (rad). Into a turn it is the grip-limited lock, as with the assist: the wider speed-cut lock it had put the fronts at
  * four to six times their peak slip, and a held key pushed wide and scrubbed speed. A countersteer opens it to full
- * lock: capped, the fronts could not reach their course past 30 degrees of body slip and a power slide spun.
+ * lock: capped, the fronts could not reach their course past 30 degrees of body slip and a power slide spun. With `both`
+ * the key into the turn opens it too (`Car.drift_full_lock`).
  */
-export function unassisted_lock(spec: CarSpec, limit: number, steer: number, slide: number): number {
+export function unassisted_lock(spec: CarSpec, limit: number, steer: number, slide: number, both = false): number {
   const [from, to] = COUNTER_SLIP;
-  const counter = Math.max(0, Math.min(1, (Math.sign(steer) * slide - from) / (to - from)));
+  const counter = Math.max(0, Math.min(1, ((both ? Math.abs(slide) : Math.sign(steer) * slide) - from) / (to - from)));
   return limit + (spec.lock - limit) * counter;
 }
 
@@ -452,6 +453,12 @@ export class Car {
   /** Seconds the stick has sat near centre; a held drift ends past `LET_GO_TIME`. */
   private centred = 0;
   steer_mode: SteerMode = SteerMode.SNAP;
+  /**
+   * Feel A/B, `?feel` only: with the steering assist off, a slide opens full lock into the turn as well as against it. Off,
+   * the key into the turn stops at the grip-limited lock: 6-9 degrees in a 60-90 km/h drift. On, it reaches full lock, but
+   * the fronts scrub and a shallow drift stalls near 10 degrees.
+   */
+  drift_full_lock = false;
   /** Idle hold latched on: it keeps braking at any speed until a pedal or the wheel is touched. */
   parked = false;
   readonly nitro: Nitro;
@@ -678,7 +685,7 @@ export class Car {
     const drift_steer = !this.tcs || spec.drive !== "rwd" ? 0 : this.launched ? 1 : this.hold_side !== 0 ? tail_left : 0;
     const cornering = grip_lock(spec, speed);
     const limit = Math.min(spec.lock, cornering + (spec.lock - cornering) * power_slide);
-    const lock = this.assist ? limit : unassisted_lock(spec, limit, this.key_steer, slide);
+    const lock = this.assist ? limit : unassisted_lock(spec, limit, this.key_steer, slide, this.drift_full_lock);
     let target = this.key_steer * lock + (input.analog ? this.key_steer : key_reach(this.key_steer)) * full_key_reach(spec, speed);
     if (this.assist && speed > 4 && local.z > 1) target += Math.sign(beta) * Math.max(0, Math.abs(beta) - 0.1) * 0.8 * (1 - power_slide);
     if (local.z > 1) {
@@ -687,7 +694,8 @@ export class Car {
       const course = Math.atan2(-(local.x + ang.dot(up) * this.steer_z), local.z);
       const [on_from, on_to, off_from, off_to] = USEFUL_SPEEDS;
       const fade = Math.max((on_to - speed) / (on_to - on_from), (speed - off_from) / (off_to - off_from));
-      const free = spec.lock * Math.max(0, Math.min(1, fade));
+      // Opened into the turn, a full lock of slack still held a drift's key at 34 degrees, its course 15 degrees out.
+      const free = this.drift_full_lock && !this.assist && fade >= 1 ? Infinity : spec.lock * Math.max(0, Math.min(1, fade));
       const reach = USEFUL_SLIP * spec.peak_angle + free;
       // In a power slide the front axle's course swings with the tail, and pulling the fronts after it straightened them
       // under a player holding full lock.

@@ -48,6 +48,18 @@
   color: var(--on-accent);
 }
 
+.feel-toggle {
+  display: flex;
+  align-self: stretch;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  cursor: pointer;
+}
+
 .feel-note p {
   margin: 2px var(--space-1) var(--space-1);
   color: var(--dim);

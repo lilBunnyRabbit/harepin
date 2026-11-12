@@ -6,6 +6,8 @@ export interface FeelHost {
   set: <K extends SettingKey>(key: K, value: SettingsState[K]) => void;
   use_car: (code: string) => void;
   respawn: () => void;
+  /** With the steering assist off, a drift's key into the turn reaches full lock (`Car.drift_full_lock`). */
+  drift_full_lock: (on: boolean) => void;
 }
 
 function fold(label: string, open: boolean): [HTMLDetailsElement, HTMLElement] {
@@ -56,6 +58,13 @@ export function feel_panel(host: FeelHost) {
     note.open = true;
   };
   strip.append(...buttons);
-  root.append(strip, note);
+  const toggle = document.createElement("label");
+  toggle.className = "feel-toggle";
+  const full_lock = document.createElement("input");
+  full_lock.type = "checkbox";
+  full_lock.tabIndex = -1;
+  full_lock.addEventListener("change", () => host.drift_full_lock(full_lock.checked));
+  toggle.append(full_lock, "Full lock in drift");
+  root.append(strip, note, toggle);
   document.body.append(root);
 }
