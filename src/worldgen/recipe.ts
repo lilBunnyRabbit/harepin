@@ -75,7 +75,6 @@ export interface MaskLayer {
   wobble: number;
 }
 
-/** One wavelength of dunes: crests `wave` metres apart, `height` tall, the steep lee face taking `lee` of each wave. */
 /**
  * A slip face at repose: straight down at `grade` from a brink rounded over `brink` metres to a toe, then `floor`
  * metres of flat interdune corridor and a straight windward rise; the corridor's ends are rounded over `toe` metres, so
@@ -99,6 +98,7 @@ export interface DuneGaps {
   at: readonly (readonly (readonly [number, number])[])[];
 }
 
+/** One wavelength of dunes: crests `wave` metres apart, `height` tall, the steep lee face taking `lee` of each wave. */
 export interface DuneBand {
   wave: number;
   height: number;
@@ -538,12 +538,14 @@ const RIPPLE = 0.6;
  * The dune sea under one band of big dunes, for dune bashing. The circuit runs two corridors and parts the dune between
  * them at each end. Height paints no scree, rock or snow. No kickers: crest jumps want rules of their own.
  */
+const SEA = DESERT.terrain.find((l): l is DunesLayer => l.kind === "dunes");
+
 export const BIG_DUNES: Recipe = {
   ...DESERT,
   terrain: DESERT.terrain.map((l) =>
     l.kind === "dunes" ? { ...l, bands: [...l.bands.map((b) => ({ ...b, height: b.height * RIPPLE })), BIG_DUNE], gaps: { above: 20, width: 40, ease: 480, at: [] } } : l,
   ),
   biomes: { ...DESERT.biomes, limits: { ...DESERT.biomes.limits, scree: { up: 0.8, height: 10_000 }, rock: { up: 0.7, height: 10_000 }, snow_line: 10_000 } },
-  road: { ...DESERT.road, straights: null, canyon: null, kickers: { road: 0, total: 0, big: 0 }, corridor: { half: 280, wind: 17 }, lap_par: 1.4, street_races: false },
+  road: { ...DESERT.road, straights: null, canyon: null, kickers: { road: 0, total: 0, big: 0 }, corridor: { half: 280, wind: SEA?.seed ?? 0 }, lap_par: 1.4, street_races: false },
   towns: { ...DESERT.towns, min: 0, top: 10_000 },
 };
