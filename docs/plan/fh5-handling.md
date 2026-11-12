@@ -1,5 +1,7 @@
 # FH5 handling vs Harepin
 
+> **Status 2026-11-12 (v0.29.0):** Research, mostly acted on. Shipped from the top 10: 1 (the SMOOTH key profile with a fast reversal), 2 (`feel.ts` defaults to SMOOTH; `scripts/keys.ts`), 3 (PI and classes D-X, rated from a simulated lap in `car/pi.ts` rather than from `stats()`), 4 (Stability is its own assist), 5 (camera tilt, off by default), 6 (`hud/rumble.ts`), 7 (`air_settle` per car), 8 (`hud/pad-curve.ts`), 9 (`Footing.loose`). Open: 10 (free-roam skill chain).
+
 Owner ask: "Forza Horizon 5 handles keyboard+mouse really well, find out how." Scope then widened to every part of FH5 car handling that could help us. This doc covers keyboard steering in depth first, then the rest, and ends with a ranked top 10.
 
 Research date 2026-11-11. Repo state: `main` working tree, car physics as of `b930d2e`.

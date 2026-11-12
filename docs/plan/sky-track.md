@@ -1,5 +1,7 @@
 # Sky Track: a toy-style circuit floating in the sky
 
+> **Status 2026-11-12 (v0.29.0):** Shipped as Sky Track: phases 1-3, then round 2 (twisty layouts, crossovers with clearance, rail glide; `SKY_VERSION` 3). `scripts/bank.ts` and `scripts/sky-gen.ts` were never added; `scripts/sky-seeds.ts` covers the seeds. Point-to-point on the sky track and the phase-4 lobby-race tuning were not rechecked.
+
 Round 1, 2026-11-09, on `f419707` (v0.7.0). Plan only. No code was changed, nothing was run, and every number below comes from reading the code or from simple maths. Numbers that still need a run are marked (unverified).
 
 The owner asked for a world type in the spirit of Forza Horizon's Hot Wheels expansion: a toy-style track floating in the sky, with jumps, banked curves and drops, and probably no loops. It must be an **original** design: no Hot Wheels name, logo, orange track or flame livery anywhere.

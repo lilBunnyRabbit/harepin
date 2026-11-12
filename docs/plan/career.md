@@ -1,5 +1,7 @@
 # Career ladder
 
+> **Status 2026-11-12 (v0.29.0):** Partly built, off in the release: it runs only with `?career` or an `?event=` link (`src/career/career.ts`). C0 (21 events with stand-ins, the store, the career page, `?event=` start) and the Play card are in; the bot check is `scripts/career-check.ts`, not `scripts/career.ts`. The rest (Next event, hit rule, car pick, dev ghosts, rewards, markers, Mainland events, share link) is open. The Rooftops final (r7) stays on its Sky stand-in, because Rooftops is dropped for now.
+
 Round 1, 2026-11-11, at `7c4f299` (v0.28.1). Plan only. Nothing was run. Every file:line comes from reading the code at `7c4f299`. Inputs: `docs/brainstorm/2026-11-11_harepin-career-v2.answers.md` (final), `docs/plan/special-maps.md`, `docs/plan/biomes.md`.
 
 ## TL;DR
