@@ -118,6 +118,8 @@ export class Modes {
   /** Puts `code` on the car; unsaved, a reload brings back the player's own car. */
   fit_car: ((code: string, save: boolean) => void) | null = null;
   car_code: (() => string) | null = null;
+  /** Writes `code` as the saved car without fitting it. */
+  save_car: ((code: string) => void) | null = null;
   private pick: AbortController | null = null;
   /** The player's own car while an event runs on another one, put back when they leave the event. */
   private kept: string | null = null;
@@ -314,7 +316,11 @@ export class Modes {
       return;
     }
     const why = this.wrong_car(event) ?? (this.car_pi() === active.pi ? null : `${event.name}: car changed mid-run`);
-    if (!why) return;
+    if (!why) {
+      // The garage saved the repainted event car; the player's own stays the saved one, for a reload mid-run.
+      if (this.kept !== null) this.save_car?.(this.kept);
+      return;
+    }
     this.kept = null;
     this.exit();
     this.notice(why);

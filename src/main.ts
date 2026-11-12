@@ -14,7 +14,7 @@ import { load_builds } from "./car/builds";
 import { car_shelves, limit_text } from "./car/car-pick";
 import { pick_car } from "./menu/car-pick";
 import { Garage } from "./menu/garage";
-import { load_build } from "./menu/garage-builds";
+import { load_build, save_build } from "./menu/garage-builds";
 import { Ghost } from "./car/ghost";
 import { Heartbeat } from "./net/heartbeat";
 import { $, Hud } from "./hud/hud";
@@ -371,6 +371,10 @@ modes.pick_car = (title, limit, own, signal) =>
   pick_car(title, limit.cap ? limit_text(limit.cap) : "Any car", car_shelves(parse_build(own) ?? garage.build, load_builds(), limit), signal);
 modes.fit_car = (code, save) => garage.use_code(code, save);
 modes.car_code = () => garage.code;
+modes.save_car = (code) => {
+  const build = parse_build(code);
+  if (build) save_build(build);
+};
 hud.run_route = () => modes.route;
 modes.start();
 updater.start();
