@@ -124,7 +124,7 @@ function check_jumps(data: WorldData, fail: (what: string) => void) {
     const lip = r.length + r.rise;
     if (r.road) {
       const { line, closed, toe, step, circuit } = carrier(data, r);
-      const name = circuit ? "the circuit" : "its trail";
+      const name = circuit ? "the circuit" : "its route";
       const n = line.length;
       const end = r.length + r.landing;
       let along = 0;
@@ -195,7 +195,7 @@ function check_jumps(data: WorldData, fail: (what: string) => void) {
 
 // The canyon gap takeoff is a road ramp laid on a trail, not on the circuit.
 function carrier(data: WorldData, r: Ramp): { line: readonly RoadPoint[]; closed: boolean; toe: number; step: 1 | -1; circuit: boolean } {
-  const lines = [{ line: data.road, closed: true, circuit: true }, ...data.routes.filter((route) => route.kind === RouteKind.OFFROAD).map((route) => ({ line: route.points, closed: route.closed, circuit: false }))];
+  const lines = [{ line: data.road, closed: true, circuit: true }, ...data.routes.filter((route) => route.kind === RouteKind.OFFROAD || route.kind === RouteKind.SPRINT).map((route) => ({ line: route.points, closed: route.closed, circuit: false }))];
   let best = { ...lines[0], toe: 0, d: Infinity };
   for (const l of lines)
     l.line.forEach((p, i) => {

@@ -37,9 +37,11 @@ function along(points: readonly RoadPoint[]): number[] {
   return out;
 }
 
-function axis(points: readonly RoadPoint[], from: number, to: number): [number, number] | null {
-  const a = points[from];
-  const b = points[to];
+// Along the chord from the toe to the lip, so the line holds the kicker's face as the world check asks; the rest of the
+// window stays within STRAIGHT of that axis.
+function axis(points: readonly RoadPoint[], from: number, toe: number, lip: number, to: number): [number, number] | null {
+  const a = points[toe];
+  const b = points[lip];
   const len = length(b.x - a.x, b.z - a.z);
   if (len === 0) return null;
   const fx = (b.x - a.x) / len;
@@ -70,7 +72,7 @@ export function plan_falls(bed: readonly RoadPoint[], recipe: FallsRecipe): Fall
   for (let i = index_at(ENDS, 0); windows.length < recipe.count && run[i] + RUNUP + end + RUNOUT < total - ENDS; ) {
     const toe = index_at(run[i] + RUNUP, i);
     const to = index_at(run[i] + RUNUP + end + RUNOUT, toe);
-    const dir = axis(bed, i, to);
+    const dir = axis(bed, i, toe, index_at(run[toe] + lip, toe), to);
     if (!dir) {
       i++;
       continue;
