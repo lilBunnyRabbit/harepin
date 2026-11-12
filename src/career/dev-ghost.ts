@@ -1,4 +1,4 @@
-import { is_lap } from "../car/ghost";
+import { is_lap } from "../car/ghost-cap";
 import { ghost_path, type CareerEvent } from "./career";
 
 const laps = new Map<string, Promise<number[] | null>>();

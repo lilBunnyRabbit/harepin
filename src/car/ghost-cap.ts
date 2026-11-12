@@ -7,3 +7,13 @@ const SLOW_LAP_MPS = 8;
 export function lap_cap_ms(length_m: number): number {
   return Math.max(MIN_CAP_MS, (length_m / SLOW_LAP_MPS) * 1000);
 }
+
+/** Floats per recorded frame: ms, position, quaternion. */
+export const STRIDE = 8;
+
+export function is_lap(value: unknown): value is number[] {
+  if (!Array.isArray(value) || value.length < STRIDE || value.length % STRIDE !== 0) return false;
+  if (!value.every((v) => typeof v === "number" && Number.isFinite(v))) return false;
+  for (let i = STRIDE; i < value.length; i += STRIDE) if (value[i] < value[i - STRIDE]) return false;
+  return true;
+}

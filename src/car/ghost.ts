@@ -4,19 +4,13 @@ import { COUPE, car_sized } from "./cars";
 import { camera_fade, car_view, dispose_car_view, rest_wheels, type CarView } from "./models";
 import { brand, color } from "../theme/palette";
 import { world_key } from "../worldgen/kinds/kinds";
-import { lap_cap_ms } from "./ghost-cap";
+import { STRIDE, is_lap, lap_cap_ms } from "./ghost-cap";
 
-const STRIDE = 8;
+
 const EVERY_MS = 100;
 const GHOST_OPACITY = 0.32;
 const GHOST_ORDER = 10;
 
-export function is_lap(value: unknown): value is number[] {
-  if (!Array.isArray(value) || value.length < STRIDE || value.length % STRIDE !== 0) return false;
-  if (!value.every((v) => typeof v === "number" && Number.isFinite(v))) return false;
-  for (let i = STRIDE; i < value.length; i += STRIDE) if (value[i] < value[i - STRIDE]) return false;
-  return true;
-}
 
 function load(key: string): number[] | null {
   let saved: string | null;

@@ -1,4 +1,6 @@
 import { expect, test } from "bun:test";
+import { existsSync, readFileSync } from "node:fs";
+import { is_lap } from "../car/ghost-cap";
 import { PRESETS } from "../car/presets";
 import { DRIFT_LEVELS } from "../modes/drift";
 import { DUEL_LEVELS } from "../modes/duel";
@@ -6,10 +8,10 @@ import { LEVELS as GYMKHANA_LEVELS } from "../modes/gymkhana";
 import { HUNT_LEVELS } from "../modes/hunt";
 import { PARK_LEVELS } from "../modes/parking";
 import { race_levels } from "../modes/races";
-import type { Store } from "../modes/track";
+import { SILVER_SHARE, type Store } from "../modes/track";
 import { world_key } from "../worldgen/kinds/kinds";
 import { parse_map_code } from "../worldgen/kinds/map-code";
-import { EVENTS, TIERS, current_tier, event_of, next_event, parse_stars, spot_of, suggested, tier_line, tier_open, type Stars } from "./career";
+import { EVENTS, TIERS, current_tier, event_of, ghost_path, next_event, parse_stars, spot_of, suggested, tier_line, tier_open, type Stars } from "./career";
 import { CAREER_KEY, Career, event_map, event_track } from "./career-store";
 
 const LEVEL_IDS: Record<string, readonly { id: string }[]> = {
@@ -53,6 +55,23 @@ test("every event's thresholds were tuned on the world it runs on now", () => {
   for (const event of EVENTS) {
     const { seed, kind, levels } = event_map(event);
     expect([event.id, event.tuned]).toEqual([event.id, world_key(seed, kind, levels)]);
+  }
+});
+
+test("race events carry bot-tuned star times, silver a quarter over gold; only timed modes carry any", () => {
+  for (const event of EVENTS) {
+    if (event.mode === "race") expect([event.id, event.stars?.two]).toEqual([event.id, Math.round((event.stars?.three ?? NaN) * SILVER_SHARE)]);
+    if (event.stars) expect([event.id, ["race", "hunt", "duel"].includes(event.mode)]).toEqual([event.id, true]);
+  }
+});
+
+test("every event with a dev ghost ships it for the world it was tuned on, finishing in three-star time", () => {
+  for (const event of EVENTS.filter((e) => e.ghost)) {
+    const file = new URL(`../../public/${ghost_path(event)}`, import.meta.url);
+    expect([event.id, existsSync(file)]).toEqual([event.id, true]);
+    const lap: unknown = JSON.parse(readFileSync(file, "utf8"));
+    expect([event.id, is_lap(lap)]).toEqual([event.id, true]);
+    if (event.stars && is_lap(lap)) expect(lap[lap.length - 8]).toBeLessThanOrEqual(event.stars.three);
   }
 });
 
