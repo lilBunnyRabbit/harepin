@@ -35,7 +35,7 @@ for (const seed of [...sweep(3), 3516535473])
 for (const seed of sweep(3))
   test(`mainland ${seed}: the circuit sprint is one run of the circuit, gate to gate, finishing on its last point`, () => {
     const { data } = plan_mainland(seed);
-    const sprint = data.routes.find((r) => r.id === "circuit-sprint");
+    const sprint = data.routes.find((r) => r.id === "sprint");
     if (!sprint) throw new Error("no circuit sprint");
     const on = (p: { x: number; z: number }) => data.road.findIndex((q) => q.x === p.x && q.z === p.z);
     const from = on(sprint.points[0]);

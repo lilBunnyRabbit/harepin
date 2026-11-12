@@ -142,7 +142,7 @@ export function circuit_sprint(road: readonly RoadPoint[], gates: readonly numbe
   if (!best) return null;
   const { k, span, points } = best;
   const checkpoints_on = Array.from({ length: span }, (_, i) => checkpoints[(k + 1 + i) % count]).map((c, index) => ({ ...c, index }));
-  return { id: "circuit-sprint", kind: RouteKind.SPRINT, closed: false, points, checkpoints: checkpoints_on, gate_hw: ROAD_HALF, length: run(points), par_ms: par(points, false, share), closure: [] };
+  return { id: "sprint", kind: RouteKind.SPRINT, closed: false, points, checkpoints: checkpoints_on, gate_hw: ROAD_HALF, length: run(points), par_ms: par(points, false, share), closure: [] };
 }
 
 class Atlas {
