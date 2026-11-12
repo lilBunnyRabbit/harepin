@@ -261,6 +261,29 @@ export const token_var = (token: Token) => `--${token.replaceAll("_", "-")}`;
 export function apply_theme(name: string) {
   const theme = find_theme(name) ?? THEMES[DEFAULT_THEME];
   for (const token of TOKENS) document.documentElement.style.setProperty(token_var(token), theme[token]);
+  const read = read_tokens();
+  for (const fill of ON_FILLS) document.documentElement.style.setProperty(`--on-${fill}`, `var(${token_var(on_fill(read, fill))})`);
+}
+
+const ON_FILLS = ["primary", "accent", "cottontail"] as const;
+
+function luminance([L, a, b]: Lab): number {
+  const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3;
+  const m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3;
+  const s = (L - 0.0894841775 * a - 1.291485548 * b) ** 3;
+  const R = 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
+  const G = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
+  const B = -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s;
+  return 0.2126 * R + 0.7152 * G + 0.0722 * B;
+}
+
+export function contrast(a: Lab, b: Lab): number {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+export function on_fill(read: Record<Token, Lab>, fill: Token): Token {
+  return contrast(read[fill], read.background_darkest) >= contrast(read[fill], read.background_lightest) ? "background_darkest" : "background_lightest";
 }
 
 export type Lab = [number, number, number];

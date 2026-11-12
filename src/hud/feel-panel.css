@@ -45,7 +45,7 @@
 
 .feel-strip button[aria-pressed="true"] {
   background: var(--accent);
-  color: var(--on-primary);
+  color: var(--on-accent);
 }
 
 .feel-note p {
