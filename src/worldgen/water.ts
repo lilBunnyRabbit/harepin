@@ -66,7 +66,7 @@ function flood(grid: PlanGrid) {
   for (let k = 0; k < m * m; k++) {
     const i = k % m;
     const j = (k - i) / m;
-    if (h[k] < 0 || i === 0 || j === 0 || i === m - 1 || j === m - 1) {
+    if (h[k] < SEA_LEVEL || i === 0 || j === 0 || i === m - 1 || j === m - 1) {
       filled[k] = h[k];
       queued[k] = 1;
       heap.push(k, h[k]);
@@ -284,7 +284,7 @@ export function plan_water(grid: PlanGrid, shape: WaterRecipe, edges: readonly R
   const lakes: number[] = [];
   const seen = new Uint8Array(m * m);
   for (let k = 0; k < m * m && lakes.length < shape.lakes.count; k++) {
-    if (seen[k] || filled[k] - h[k] <= 0 || h[k] < 0) continue;
+    if (seen[k] || filled[k] - h[k] <= 0 || h[k] < SEA_LEVEL) continue;
     const members: number[] = [];
     const stack = [k];
     seen[k] = 1;
@@ -319,7 +319,7 @@ export function plan_water(grid: PlanGrid, shape: WaterRecipe, edges: readonly R
   }
 
   const mouths: number[] = [];
-  for (let k = 0; k < m * m; k++) if (h[k] >= 0 && parent[k] >= 0 && h[parent[k]] < 0 && area[k] >= shape.rivers.head) mouths.push(k);
+  for (let k = 0; k < m * m; k++) if (h[k] >= SEA_LEVEL && parent[k] >= 0 && h[parent[k]] < SEA_LEVEL && area[k] >= shape.rivers.head) mouths.push(k);
   mouths.sort((a, b) => area[b] - area[a] || a - b);
   const children = new Int32Array(m * m).fill(-1);
   // Upstream step: the neighbour draining here with the most area above it, ties to the lower index.
@@ -344,7 +344,7 @@ export function plan_water(grid: PlanGrid, shape: WaterRecipe, edges: readonly R
     const peak = area[mouth];
     const path = stem.reverse().map((v): RiverPoint => {
       const share = Math.sqrt(Math.min(1, area[v] / peak));
-      return { x: px(v), z: pz(v), level: 0, half: top[0] + (top[1] - top[0]) * share, depth: shape.rivers.depth[0] + (shape.rivers.depth[1] - shape.rivers.depth[0]) * share };
+      return { x: px(v), z: pz(v), level: SEA_LEVEL, half: top[0] + (top[1] - top[0]) * share, depth: shape.rivers.depth[0] + (shape.rivers.depth[1] - shape.rivers.depth[0]) * share };
     });
     const river = channel(resample(soften(soften(path))), height);
     if (!river) continue;
