@@ -1,5 +1,5 @@
 import { CLASS_LABELS } from "../car/pi";
-import { MAX_EVENT_STARS, TIERS, current_tier, suggested, tier_max, tier_open, tier_stars, type CareerEvent, type Tier } from "../career/career";
+import { MAX_EVENT_STARS, TIERS, tier_max, tier_open, tier_stars, type CareerEvent, type Tier } from "../career/career";
 import { event_map, owner_times, type Career } from "../career/career-store";
 import { tier_badge } from "../career/badge";
 import { badge_open } from "../career/rewards";
@@ -13,18 +13,16 @@ import { el, icon } from "./setting-rows";
 import { copy_action } from "./widgets";
 import "./career.css";
 
-const SUGGESTED = 2;
-
-function world_label(event: CareerEvent): string {
+export function world_label(event: CareerEvent): string {
   const map = event_map(event);
   const name = WORLDS[map.kind].name;
   const winter = snow_of(map) !== null && snow_of(plain_map(map.kind, map.seed)) === null;
   return winter ? `Winter ${name.toLowerCase()}` : name;
 }
 
-const mode_name = (event: CareerEvent) => MODES.find((mode) => mode.id === event.mode)?.name ?? event.mode;
+export const mode_name = (event: CareerEvent) => MODES.find((mode) => mode.id === event.mode)?.name ?? event.mode;
 
-function car_limit(event: CareerEvent): HTMLElement {
+export function car_limit(event: CareerEvent): HTMLElement {
   if ("preset" in event.car) return el("span", "career-preset", event.car.preset);
   const badge = el("span", "class-badge");
   badge.dataset.class = event.car.cap;
@@ -46,39 +44,13 @@ function bar(done: number, of: number): HTMLElement {
   return node;
 }
 
-function keep_drawn(menu: Menu, career: Career, draw: () => void) {
+export function keep_drawn(menu: Menu, career: Career, draw: () => void) {
   let drawn = -1;
   menu.sync(() => {
     if (career.version === drawn) return;
     drawn = career.version;
     draw();
   });
-}
-
-export function career_card(menu: Menu, career: Career): HTMLElement {
-  const card = el("div", "menu-tile goals-card career-card");
-  keep_drawn(menu, career, () => {
-    const tier = current_tier(career.stars);
-    const have = tier_stars(career.stars, tier);
-    const head = el("div", "goals-head");
-    const all = el("button", "goals-all");
-    all.type = "button";
-    all.dataset.section = "career";
-    all.append(el("span", "", "All events"), icon("icon-back"));
-    head.append(el("span", "menu-eyebrow", `Career · ${tier.name}`), el("span", "goals-count", `${have} / ${tier_max(tier)} ★`), bar(have, tier_max(tier)), all);
-    const next = el("div", "goals-next career-next");
-    for (const event of suggested(career.stars, SUGGESTED)) {
-      const pick = el("button", "goals-pick");
-      pick.type = "button";
-      const words = el("span", "goals-words");
-      words.append(el("b", "", event.name), el("span", "", `${mode_name(event)} · ${world_label(event)}`));
-      pick.append(words, el("span", "goals-go", "Go"));
-      pick.addEventListener("click", () => menu.host.start_event(event.id));
-      next.append(pick);
-    }
-    card.replaceChildren(head, next);
-  });
-  return card;
 }
 
 export class CareerPage implements MenuPage {

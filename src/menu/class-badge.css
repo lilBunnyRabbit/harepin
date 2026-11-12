@@ -23,6 +23,12 @@
   --class-edge: var(--primary);
 }
 
+.class-badge > * {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .class-badge-letter {
   min-width: 2.4ch;
   padding: 0 var(--space-1);

@@ -3,7 +3,7 @@ import { mainland_seed } from "../world/world-pick";
 import { rgba, tier_metals } from "../theme/palette";
 import { WorldKind } from "../worldgen/types";
 import { MINIS, WORLDS } from "../worlds/worlds";
-import { career_card } from "./career-view";
+import { career_hero } from "./career-hero";
 import { goals_card } from "./goals-view";
 import { MenuTab, type Menu, type MenuPage } from "./page";
 import { el, icon } from "./setting-rows";
@@ -106,7 +106,7 @@ export class PlayPage implements MenuPage {
       this.menu.close();
       this.menu.host.quit_mode();
     });
-    top.append(this.quit, this.drive());
+    top.append(this.quit, career_hero(this.menu, this.menu.host.career));
     return top;
   }
 
@@ -115,21 +115,17 @@ export class PlayPage implements MenuPage {
     // A div, not a section: the pad's nearest() keeps focus inside a section, which hid the mini maps from Drive.
     const minis = el("div", "play-group");
     minis.append(el("h3", "play-head", "Mini maps"), this.minis());
-    const { career } = this.menu.host;
-    side.append(minis, this.more(), career_card(this.menu, career), goals_card(this.menu, this.go_to));
+    side.append(this.drive(), minis, this.more(), goals_card(this.menu, this.go_to));
     return side;
   }
 
   private drive(): HTMLElement {
-    const title = el("div", "play-title");
-    title.append(el("b", "", WORLDS[MAINLAND].name), el("span", "", WORLDS[MAINLAND].pick));
-    const go = el("button", "play-go", this.here ? "Keep driving" : "Drive Mainland");
-    go.type = "button";
-    go.addEventListener("click", () => this.menu.drive(this.seed, MAINLAND));
-    const row = el("div", "play-actions");
-    row.append(go);
-    const card = el("div", "play-drive");
-    card.append(title, row);
+    const title = el("span", "play-words");
+    title.append(el("span", "menu-eyebrow", "Free drive"), el("b", "", WORLDS[MAINLAND].name));
+    const card = el("button", "play-drive");
+    card.type = "button";
+    card.append(title, el("span", "play-free", this.here ? "Keep driving" : "Drive Mainland"));
+    card.addEventListener("click", () => this.menu.drive(this.seed, MAINLAND));
     return card;
   }
 
