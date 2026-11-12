@@ -1,6 +1,6 @@
 # Art direction
 
-> **Status 2026-11-12 (v0.29.0):** Mostly shipped: smaller smoke, golden-hour sun for dark themes (lighting A), lit cloud tones, a warmer headlight, the reworked HUD and a speed FOV kick are in `render/` and `hud/`. Open: the car outline (#11) and phone FXAA (#12). The other items were not rechecked one by one. The screenshots sit in a local scratchpad, not in the repo.
+> **Status 2026-11-12 (v0.29.0):** Shipped: 1 (smaller, shorter smoke), 2 (lighting A, golden hour), 3 (dusk value ladder, softer edge line), 5 (headlight), 6 (HUD reworked in 0.28.0), 7 (light HUD surface on `background_lighter`), 9 (skid tone and fade), 10 (phones fog at 700 m), 13 (lit cloud tone), 14 (speed FOV kick), 15 (asphalt gap between kerb and edge line). Open: 4 (the first car paint is still `primary`), 8 (the loading screen is still a bare mark and "Building island…"), 11 (car outline), 12 (phone FXAA). The screenshots sit in a local scratchpad, not in the repo.
 
 Round 1, 2026-11-08. Direction only, nothing built. Screenshots (1600x900 and 844x390 @2x; Brand Dark, Brand Light, Warm Sunset, Forest Night) in `C:\Users\Andra\AppData\Local\Temp\claude\7b7af39d18cf6668\bb083546-0056-4804-9143-4bb5fcb02143\scratchpad\shots\`: `{dark,light,sunset,forest}-{1-start,2-drive,3-slide,4-after}.png`, `{dark,light}-phone-1-start.png`.
 

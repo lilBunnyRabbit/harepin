@@ -1,6 +1,6 @@
 # Handling: improvements that keep the feel
 
-> **Status 2026-11-12 (v0.29.0):** Do-now items 1-3 shipped (Ackermann steering, no upshift on wheelspin, a speed-scaled key ramp), and item 6 shipped as the loose-surface curve (`Footing.loose` in `worldgen/kinds/kind-def.ts`). Stability later became its own assist (`Car.stability`). The other items were not rechecked one by one. `src/cars.ts` is now `src/car/cars.ts`.
+> **Status 2026-11-12 (v0.29.0):** Shipped: 1 (Ackermann steering), 2 (no upshift on wheelspin), 3 (speed-scaled key ramp, now `SMOOTH_KEYS` in `car.ts`), 6 (loose-surface curve, `Footing.loose` in `worldgen/kinds/kind-def.ts`), 8 (TCS relaxes in a handbrake or launched slide, `DRIFT_TCS_SLIP` / `HELD_TCS_SLIP`). Stability later became its own assist (`Car.stability`). Not adopted: 4 (the yaw-damper threshold stays 0.2 rad; held drifts bypass stability instead). Open, no trace in `car.ts`: 5 (lift-off tuck), 7 (grass braking), 9 (shift feedback), 10 (the grip-lock margin is still a fixed `0.45 · peak_angle`). `src/cars.ts` is now `src/car/cars.ts`.
 
 Status: research, 2026-11-08; no `src/` change. Numbers from a flagged scratchpad copy of `car.ts` (360 Hz, flat
 ground unless noted; defaults reproduce `bun scripts/feel.ts` / `bun run telemetry` exactly). Owner brief: "realistic

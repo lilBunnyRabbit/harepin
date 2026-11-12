@@ -1,6 +1,6 @@
 # World generation: from blob loop to an island worth driving
 
-> **Status 2026-11-12 (v0.29.0):** Items 1-6 shipped: the circuit with character, landmarks, biomes, the island shape, offroad routes with the canyon and gap jump, and street routes. Records are keyed by world version. Open: points of interest at trail ends (7). The cuts (8) were not rechecked. Rivers came later anyway, with `biomes.md` B4. The evidence images sit in a local scratchpad, not in the repo.
+> **Status 2026-11-12 (v0.29.0):** Shipped: 1-6 (the circuit with character, landmarks, biomes, the island shape, offroad routes with the canyon and gap jump, street routes), and records keyed by world version. Open: 7 (points of interest at trail ends; no quarry or lookout). Dropped: the cuts in 8, except the debug counters: `JumpPlanner.open()`, `open_items()`, the cone chicanes and up to 4 road kickers all stay (`worldgen/jumps.ts`, `recipe.ts`). Rivers came later anyway, with `biomes.md` B4. The evidence images sit in a local scratchpad, not in the repo.
 
 Round 1, 2026-11-09. This is an audit plus a plan, and nothing is built yet. It covers seeds 0, 1, 2, 3 and 7 on v0.5.1 (worktree state on the same day, with `jumps.ts` mid-edit by another coder).
 
