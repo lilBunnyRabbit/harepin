@@ -23,6 +23,15 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.33.2",
+    date: "2026-11-12",
+    title: "Hands on the wheel",
+    changes: [
+      { kind: IMPROVED, text: "With steering assist off, the front wheels follow only your input in a drift: no automatic countersteer. Assist on keeps the help." },
+      { kind: IMPROVED, text: "Ghost duels show light-beam gates and the next gate on the minimap, like races." },
+    ],
+  },
+  {
     version: "0.33.1",
     date: "2026-11-12",
     title: "Tuning",
