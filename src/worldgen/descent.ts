@@ -104,10 +104,18 @@ function heights_of(heights: Float32Array, path: Path, stack: Switchback, gully:
  * the fewest hairpins the recipe lists that bring it low enough for the gully to hold a road's grade.
  */
 export function plan_descent(seed: number, heights: Float32Array, ring: readonly RoadPoint[], recipe: DescentRecipe, free: (at: number) => boolean): Descent | null {
+  for (let attempt = 0; attempt < (recipe.attempts ?? 1); attempt++) {
+    const found = attempt_descent(seed, attempt, heights, ring, recipe, free);
+    if (found) return found;
+  }
+  return null;
+}
+
+// Attempt 0 draws as the descent always has; each later one salts the joins and the gullies afresh.
+function attempt_descent(seed: number, attempt: number, heights: Float32Array, ring: readonly RoadPoint[], recipe: DescentRecipe, free: (at: number) => boolean): Descent | null {
   const n = ring.length;
-  const offset = Math.floor(mulberry32(sub(seed, "descent"))() * n);
-  // A bed with falls takes the first descent with room for one; a descent with none stands in only when no other fits.
-  let fallback: Descent | null = null;
+  const offset = Math.floor(mulberry32(sub(seed, attempt ? `descent:${attempt}` : "descent"))() * n);
+  const gully_seed = attempt ? sub(seed, `gully:${attempt}`) : seed;
   for (const count of recipe.stacks)
     for (let k = 0; k < TRIES; k++) {
       let join = (offset + Math.floor((k * n) / TRIES)) % n;
@@ -119,7 +127,7 @@ export function plan_descent(seed: number, heights: Float32Array, ring: readonly
       if (!stack || !clear_of(ring, join, stack.points)) continue;
       const lead = stack.points.slice(-LEAD);
       for (const [c, s] of TURNS) {
-        const gully = plan_gully(seed + k, heights, lead, down[0] * c - down[1] * s, down[1] * c + down[0] * s, recipe.outlet, recipe.tries, recipe.bed?.stride);
+        const gully = plan_gully(gully_seed + k, heights, lead, down[0] * c - down[1] * s, down[1] * c + down[0] * s, recipe.outlet, recipe.tries, recipe.bed?.stride);
         if (!gully || !clear_of(ring, join, gully.points)) continue;
         const path = resample([...stack.points.slice(0, -LEAD), ...gully.points], STEP, false);
         const from = path.findIndex(([x, z]) => length(x - gully.points[0][0], z - gully.points[0][1]) < STEP);
@@ -127,12 +135,11 @@ export function plan_descent(seed: number, heights: Float32Array, ring: readonly
         if (!ys) continue;
         const points = road_points(path, ys, false);
         if (tightest(points) < MIN_RADIUS || tightest(points.slice(from)) < (recipe.bed?.radius ?? 0)) continue;
-        const found = { join, from, stack, gully, points };
-        if (!recipe.bed || plan_falls(points.slice(from), recipe.bed.falls).jumps.length) return found;
-        fallback ??= found;
+        // A bed with falls takes only a descent with room for one.
+        if (!recipe.bed || plan_falls(points.slice(from), recipe.bed.falls).jumps.length) return { join, from, stack, gully, points };
       }
     }
-  return fallback;
+  return null;
 }
 
 const NEAR_CELL = 16;

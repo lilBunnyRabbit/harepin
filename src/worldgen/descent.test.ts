@@ -77,9 +77,9 @@ for (const seed of sweep(10))
     }
   });
 
-// Seeds whose first descent had no straight stretch for a fall: the planner moves on to one that has.
-for (const seed of [16, 18])
-  test(`ice canyon ${seed}: the bed gets a frozen fall even where the first descent has no room for one`, () => {
+// 16 and 18: the first descent had no straight stretch for a fall; 34: no descent of the first attempt had one.
+for (const seed of new Set([16, 18, 34, ...sweep(100)]))
+  test(`ice canyon ${seed}: the bed gets a frozen fall`, () => {
     const data = generate_world(seed, WorldKind.ICE_CANYON);
     const route = data.routes.find((r) => r.kind === RouteKind.SPRINT);
     const road = data.graph.edges.find((e) => !e.closed && e.kind === "highway");
