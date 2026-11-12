@@ -29,6 +29,10 @@ const ROAD_SNOW = 0.35;
 const LANE_WIDTH = 3;
 const FAR = 600;
 const MOBILE_FAR = 200;
+// Phones run radial fog, worked out per vertex and interpolated: the sea needs vertices this close wherever the camera
+// can see it before the fog closes, so over the land and a fog reach past it. Further out every vertex is fully fogged.
+const SEA_CELL = 64;
+const SEA_REACH = 1024;
 const MOBILE_TREES = 300;
 function jitter(i: number, j: number): number {
   const h = Math.sin(i * 127.1 + j * 311.7) * 43758.5453;
@@ -304,11 +308,6 @@ export function ribbon(world: World, from: number, to: number, lift: number, sam
   mesh.receiveShadow = true;
   return mesh;
 }
-
-// Phones run radial fog, worked out per vertex and interpolated: the sea needs vertices this close wherever the camera
-// can see it before the fog closes, so over the land and a fog reach past it. Further out every vertex is fully fogged.
-const SEA_CELL = 64;
-const SEA_REACH = 1024;
 
 export function water_mesh(size: number): THREE.Mesh {
   const edge = size / 2 + SEA_REACH;
