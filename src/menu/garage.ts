@@ -246,8 +246,6 @@ export class Garage {
       this.refresh();
     } else if (action === "delete-build" && value) {
       if (confirm_tap(target)) this.store(without_build(this.builds, value));
-      // main.ts blurs every clicked button; the armed one keeps focus so the second press lands on it.
-      else event.stopPropagation();
     }
     else if (action === "copy-code") this.copy_code(target);
     else if (action === "item") {
