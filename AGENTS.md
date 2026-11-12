@@ -126,5 +126,5 @@ No base archives for identity proofs: the committed goldens are the base. A swee
 - `index.html:10` hard-codes `theme-color` `#0b1519` (`main.ts` appends a second one from the theme at runtime).
 - The car contact-shadow blob is painted in raw white. Fine as an alpha mask; say so or use `alphaMap`.
 - Imports mix `import * as THREE` (36 modules) with named imports (`car.ts`): pick one.
-- `theme.ts` mirrors webos `themes.ts` by hand, with no check that they still match.
+- `theme.ts` and `random-theme.ts` mirror webos by hand; `theme.test.ts` checks parity only when the webos checkout sits beside this repo, and skips elsewhere.
 - `scripts/*.ts` print numbers and throw only on NaN; nothing fails when handling regresses beyond `car.test.ts`.
