@@ -10,8 +10,9 @@ import { flame_mesh, lamps } from "./lights";
 import { livery_of, livery_parts, roof, type Livery } from "./livery";
 import { aero_of, aero_parts, kit_parts, rear_wing } from "./part-looks";
 import { STOCK_CALIPER, STOCK_TYRE, caliper_geometry, chrome_tone, wheel_geometry } from "./wheels";
-import { paint_lab } from "./paint";
-import { brand, color, tones } from "../theme/palette";
+import { paint_finish, paint_lab, type Finish } from "./paint";
+import { brand, color, mix, tones } from "../theme/palette";
+import type { Lab } from "../theme/theme";
 
 export interface CarView {
   root: THREE.Group;
@@ -31,11 +32,84 @@ export interface CarView {
 }
 
 export function build_view(build: Build, spec: CarSpec = build_spec(build)): CarView {
-  return car_view(color(paint_lab(build.paint)), spec, build.parts, livery_of(build));
+  return car_view(color(paint_lab(build.paint)), spec, build.parts, livery_of(build), paint_finish(build.paint));
+}
+
+const TONE_MATCH = 1e-4;
+
+// Faces in `tone`, then the rest: a metal paint takes its own lit material, while trim, glass and decals stay matte.
+function split_tone(geometry: THREE.BufferGeometry, tone: THREE.Color): [THREE.BufferGeometry, THREE.BufferGeometry] {
+  const position = geometry.getAttribute("position");
+  const colors = geometry.getAttribute("color");
+  const out: [number[], number[]][] = [[[], []], [[], []]];
+  for (let i = 0; i < position.count; i += 3) {
+    const match = Math.abs(colors.getX(i) - tone.r) + Math.abs(colors.getY(i) - tone.g) + Math.abs(colors.getZ(i) - tone.b) < TONE_MATCH;
+    const [p, c] = out[match ? 0 : 1];
+    for (let k = i; k < i + 3; k++) {
+      p.push(position.getX(k), position.getY(k), position.getZ(k));
+      c.push(colors.getX(k), colors.getY(k), colors.getZ(k));
+    }
+  }
+  return out.map(([p, c]) => {
+    const part = new THREE.BufferGeometry();
+    part.setAttribute("position", new THREE.Float32BufferAttribute(p, 3));
+    part.setAttribute("color", new THREE.Float32BufferAttribute(c, 3));
+    part.computeVertexNormals();
+    return part;
+  }) as [THREE.BufferGeometry, THREE.BufferGeometry];
+}
+
+// A studio strip from theme tokens: dark floor, one bright band at the horizon, pale sky above it. Without it a metal has
+// nothing to reflect and reads as flat dark paint.
+const SKY = mix(brand.foreground, brand.background_lightest, 0.4);
+const STRIP: [number, Lab][] = [
+  [0, brand.background_lighter],
+  [0.4, brand.background],
+  [0.5, brand.background_darkest],
+  [0.53, brand.foreground],
+  [0.58, brand.foreground],
+  [0.62, brand.background_dark],
+  [0.8, SKY],
+  [1, SKY],
+];
+const STRIP_ROWS = 64;
+let strip: THREE.DataTexture | null = null;
+
+function studio(): THREE.DataTexture {
+  if (strip) return strip;
+  const data = new Float32Array(STRIP_ROWS * 4);
+  const tone = new THREE.Color();
+  for (let row = 0; row < STRIP_ROWS; row++) {
+    const v = row / (STRIP_ROWS - 1);
+    const next = STRIP.findIndex(([at]) => at >= v);
+    const [a, from] = STRIP[Math.max(0, next - 1)];
+    const [b, to] = STRIP[next];
+    tone.copy(color(from)).lerp(color(to), b > a ? (v - a) / (b - a) : 0);
+    data.set([tone.r, tone.g, tone.b, 1], row * 4);
+  }
+  strip = new THREE.DataTexture(data, 1, STRIP_ROWS, THREE.RGBAFormat, THREE.FloatType);
+  strip.mapping = THREE.EquirectangularReflectionMapping;
+  strip.magFilter = THREE.LinearFilter;
+  strip.needsUpdate = true;
+  return strip;
+}
+
+function metal_hull(painted: THREE.BufferGeometry, finish: Finish): THREE.Mesh {
+  const material = new THREE.MeshStandardMaterial({
+    vertexColors: true,
+    flatShading: true,
+    metalness: finish.metalness,
+    roughness: finish.roughness,
+    envMap: studio(),
+    envMapIntensity: finish.reflect,
+  });
+  const mesh = new THREE.Mesh(painted, material);
+  mesh.castShadow = true;
+  return mesh;
 }
 
 // Paint, trim, glass and decals are baked into vertex colours so the whole shell is one draw; a repaint rebuilds the view.
-export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<Slot, number> = DEFAULT_PARTS, livery: Livery | null = null): CarView {
+export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<Slot, number> = DEFAULT_PARTS, livery: Livery | null = null, finish: Finish | null = null): CarView {
   const d = DESIGNS[spec.body.style];
   const root = new THREE.Group();
   const body = new THREE.Group();
@@ -63,9 +137,12 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
   const decals = livery && livery.decal !== "none" ? livery_parts(livery, side_panel(d, spec), roof(base, glass), nose, tail) : [];
   const aero = aero_of(kit);
   const shell = merge(base, rear_wing(d, aero, paint, trim), aero_parts(d, spec, aero, paint, trim), kit_parts(d, kit, paint, trim), decals);
-  const hull = new THREE.Mesh(shell, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
+  const matte = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+  const [painted, rest] = finish ? split_tone(shell, paint) : [null, shell];
+  const hull = new THREE.Mesh(rest, matte);
   hull.castShadow = true;
-  const halo = d.halo ? new THREE.Mesh(merge(parts(d.halo).map((g) => tint(g, trim))), hull.material) : null;
+  if (painted && finish) body.add(metal_hull(painted, finish));
+  const halo = d.halo ? new THREE.Mesh(merge(parts(d.halo).map((g) => tint(g, trim))), matte) : null;
   if (halo) {
     halo.castShadow = true;
     body.add(halo);

@@ -64,8 +64,7 @@
   text-transform: uppercase;
 }
 
-.career-final,
-.career-badge {
+.career-final {
   margin-left: var(--space-2);
   padding: 1px var(--space-2);
   border-radius: var(--radius-full);
@@ -75,8 +74,9 @@
   vertical-align: middle;
 }
 
-.career-badge {
+.career-head .career-badge {
   margin-left: auto;
+  font-size: var(--text-lg);
 }
 
 .career-preset {

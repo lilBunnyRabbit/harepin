@@ -431,6 +431,17 @@
   margin-bottom: var(--space-1);
   border-radius: 50%;
   border: 2px solid var(--line-strong);
+  background: var(--swatch);
+}
+
+/* Reward metals: the same lit and shaded facets as the car's metal sheen. */
+.garage-swatch[data-metal] {
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--swatch) 70%, var(--background-lightest)) 42%,
+    var(--swatch) 42% 70%,
+    color-mix(in oklab, var(--swatch) 78%, var(--background-darkest)) 70%
+  );
 }
 
 .garage-card .decal-tile {

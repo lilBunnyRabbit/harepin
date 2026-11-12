@@ -385,6 +385,10 @@ modes.cover = (wait) => area_fade.cover(wait);
 modes.on_finish = (mode) => goals.played(mode);
 modes.toast = (text, label, hold) => hud.toast(text, label, hold);
 modes.start_event = (id) => start_event(id);
+modes.try_reward = (reward) => {
+  settings.open(MenuTab.GARAGE);
+  garage.try_reward(reward);
+};
 modes.pick_car = (title, limit, own, signal) =>
   pick_car(title, limit.cap ? limit_text(limit.cap) : "Any car", car_shelves(parse_build(own) ?? garage.build, load_builds(), limit), signal);
 modes.fit_car = (code, save) => garage.use_code(code, save);

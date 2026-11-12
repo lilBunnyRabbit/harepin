@@ -14,6 +14,8 @@ const RING_OPACITY = 0.5;
 // Which neutral is darker flips with the theme; the id takes the one far from its metal.
 const [INK_DARK, INK_LIGHT] = [brand.background_darkest, brand.foreground].sort((a, b) => a[0] - b[0]);
 
+export const metal_ink = (metal: Lab): Lab => (metal[0] > 0.6 ? INK_DARK : INK_LIGHT);
+
 export const marker_tone = (marker: Marker, open: boolean): Lab => (open ? tier_metals[marker.tier] : locked_tone);
 
 interface Flag {
@@ -37,7 +39,7 @@ function paint(canvas: HTMLCanvasElement, id: string, metal: Lab, font: string) 
       ctx.fillStyle = rgba((row + col) % 2 ? tones.check_dark : tones.check_light);
       ctx.fillRect(col * size, row * size * 0.5, size, size * 0.5);
     }
-  ctx.fillStyle = rgba(metal[0] > 0.6 ? INK_DARK : INK_LIGHT);
+  ctx.fillStyle = rgba(metal_ink(metal));
   ctx.font = `800 ${Math.round(height * 0.55)}px ${font}`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";

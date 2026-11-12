@@ -4,8 +4,8 @@ import { CARS } from "../car/cars";
 import { PRESETS } from "../car/presets";
 import { livery_of } from "../car/livery";
 import { modal_open, typing, type Nav } from "../hud/input";
-import { paint_lab } from "../car/paint";
-import { NO_UNLOCKS, type Unlocks } from "../career/rewards";
+import { paint_finish, paint_lab } from "../car/paint";
+import { NO_UNLOCKS, type Reward, type Unlocks } from "../career/rewards";
 import { color, decal_inks, rgba } from "../theme/palette";
 import { confirm_tap, render_builds, save_build } from "./garage-builds";
 import { build_badge } from "./class-badge";
@@ -116,6 +116,21 @@ export class Garage {
     this.cursor = this.item.at(this.current);
     this.stage.start(this.item.view);
     this.refresh();
+    this.resized();
+  }
+
+  /** On the open garage: a career reward tried on the car, not fitted. A badge has no garage option. */
+  try_reward(reward: Reward) {
+    if (!this.is_open || reward.kind === "badge") return;
+    const paint = reward.kind === "paint";
+    const section = paint ? GarageSection.PAINT : GarageSection.BODY;
+    const value = paint ? reward.tier.rewards.paint : DECALS.indexOf(reward.tier.rewards.decal);
+    this.tab = TABS.findIndex((tab) => tab.section === section);
+    const item = this.items().find((it) => it.id === reward.kind);
+    if (!item) return this.refresh();
+    this.select(item);
+    const option = item.values?.indexOf(value) ?? value;
+    if (option >= 0) this.preview(option);
     this.resized();
   }
 
@@ -413,7 +428,9 @@ export class Garage {
             card.dataset.value = String(i);
             if (item.kind === "paint" || item.kind === "ink") {
               const swatch = el("i", "garage-swatch");
-              swatch.style.background = rgba(item.kind === "paint" ? paint_lab(item.with(this.current, i).paint) : decal_inks[i]);
+              const paint = item.with(this.current, i).paint;
+              swatch.style.setProperty("--swatch", rgba(item.kind === "paint" ? paint_lab(paint) : decal_inks[i]));
+              swatch.toggleAttribute("data-metal", item.kind === "paint" && paint_finish(paint) !== null);
               card.append(swatch);
             }
             if (item.kind === "decal") card.append(decal_tile(DECALS[item.with(this.current, i).decal]));

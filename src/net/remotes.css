@@ -16,3 +16,10 @@
   color: var(--secondary);
   white-space: nowrap;
 }
+
+.label:has(.career-badge) {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding-left: var(--space-1);
+}

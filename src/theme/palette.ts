@@ -122,7 +122,8 @@ export const tones = {
 };
 
 /** Career tier metals, Rookie bronze, Club silver, Pro gold: the start flags and the tier's rewards (career.md §1.4). */
-export const tier_metals = [mix(brand.warning, brand.error, 0.55), mix(brand.foreground, brand.background_lightest, 0.6), brand.warning] as const;
+// Bronze sits a ladder step darker than its orange mix, so it never reads as the orange race gates.
+export const tier_metals = [mix(mix(brand.warning, brand.error, 0.55), brand.background_darkest, 0.72), mix(brand.foreground, brand.background_lightest, 0.6), brand.warning] as const;
 /** A marker or reward not open yet. */
 export const locked_tone = mix(brand.foreground, brand.background, 0.55);
 

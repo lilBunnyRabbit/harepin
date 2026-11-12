@@ -1,10 +1,10 @@
 import { DECALS, MAX_NUMBER, MAX_PAINT, SLOTS, SLOT_NAMES, WHOLE_CAR, part_of, slot_view, type Build, type Decal, type Slot, type SlotView } from "../car/build";
 import { CARS, is_car } from "../car/cars";
 import { TIERS } from "../career/career";
-import { REWARD_DECALS, type Unlocks } from "../career/rewards";
+import { REWARD_DECALS, reward_paint_name, type Unlocks } from "../career/rewards";
 import { NEUTRAL_INKS, car_paints, decal_inks } from "../theme/palette";
 
-const DECAL_NAMES: Record<Decal, string> = {
+export const DECAL_NAMES: Record<Decal, string> = {
   none: "None",
   centre: "Centre stripe",
   twin: "Twin stripes",
@@ -14,9 +14,9 @@ const DECAL_NAMES: Record<Decal, string> = {
   slash: "Slash",
   checker: "Checker",
   rabbit: "Rabbit",
-  sky: "Sky stripe",
-  volcano: "Volcano stripes",
-  ice: "Ice stripes",
+  sky: "Chevrons",
+  volcano: "Cracks",
+  ice: "Shards",
 };
 
 const SIDE_VIEW: SlotView = { yaw: -0.87 };
@@ -124,7 +124,7 @@ function paint_item(build: Build, unlocks: Unlocks): Item {
     with: (b, i) => ({ ...b, paint: values[i] }),
     name: (i) => {
       const tier = TIERS.find((t) => t.rewards.paint === values[i]);
-      return tier ? `${tier.name} paint` : `Paint ${values[i] + 1}`;
+      return tier ? reward_paint_name(tier) : `Paint ${values[i] + 1}`;
     },
     blurb: () => "",
   };

@@ -1,0 +1,126 @@
+.unlock-card {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-3) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--panel-well);
+}
+
+.unlock-card h3 {
+  margin: 0;
+  text-align: center;
+  color: var(--dim);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.unlock-card ul {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.unlock-card li {
+  display: grid;
+  grid-template-rows: 40px auto;
+  justify-items: center;
+  align-items: center;
+  gap: var(--space-2);
+  text-align: center;
+  --decal-glass: var(--background-darkest);
+  --decal-key: transparent;
+}
+
+:root[data-scheme="light"] .unlock-card li {
+  --decal-glass: var(--foreground);
+}
+
+.unlock-card li > :first-child {
+  margin: 0;
+}
+
+.unlock-card .decal-tile {
+  width: 64px;
+}
+
+.unlock-card .career-badge {
+  font-size: var(--text-2xl);
+}
+
+.unlock-card .unlock-text {
+  display: grid;
+  gap: 2px;
+}
+
+.unlock-card b {
+  font-size: var(--text-md);
+  font-weight: 600;
+  text-wrap: balance;
+}
+
+.unlock-card small {
+  color: var(--dim);
+  font-size: var(--text-xs);
+}
+
+.unlock-card button {
+  justify-self: center;
+}
+
+#mode-result-unlock:empty {
+  display: none;
+}
+
+/* A phone in landscape has room for one more row between the top dock and the speedo: the rewards shrink to their
+   pictures beside the button, names stay in each picture's title. */
+@media (pointer: coarse) {
+  .unlock-card {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+  }
+
+  .unlock-card ul {
+    flex: none;
+    grid-auto-columns: auto;
+    justify-content: start;
+    gap: var(--space-2);
+  }
+
+  .unlock-card li {
+    grid-template-rows: 28px;
+  }
+
+  .unlock-card .unlock-text {
+    display: none;
+  }
+
+  .unlock-card .decal-tile {
+    width: 48px;
+  }
+
+  .unlock-card .career-badge {
+    font-size: var(--text-lg);
+  }
+
+  .unlock-card .garage-swatch {
+    width: 24px;
+    height: 24px;
+    margin: 0;
+  }
+
+  .unlock-card button {
+    flex: none;
+    min-height: 0;
+    height: var(--control-h);
+    margin-left: auto;
+  }
+}

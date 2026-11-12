@@ -1,0 +1,35 @@
+/* A two-facet metal shield, lit left and shaded right like the scene's flat-shaded metal; the rim is the metal a shade
+   down so it holds on any surface. Size follows the font, so a name label and the unlock card share one shape. */
+.career-badge {
+  --badge-h: 1.5em;
+  --shield: polygon(50% 0, 100% 16%, 100% 54%, 84% 80%, 50% 100%, 16% 80%, 0 54%, 0 16%);
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: calc(var(--badge-h) * 0.84);
+  height: var(--badge-h);
+  vertical-align: middle;
+  clip-path: var(--shield);
+  background: color-mix(in oklab, var(--metal) 70%, var(--background-darkest));
+}
+
+.career-badge::before {
+  content: "";
+  position: absolute;
+  inset: 9%;
+  clip-path: var(--shield);
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--metal) 72%, var(--background-lightest)) 50%,
+    var(--metal) 50%
+  );
+}
+
+.career-badge b {
+  position: relative;
+  color: var(--metal-ink);
+  font-size: calc(var(--badge-h) * 0.5);
+  font-weight: 700;
+  line-height: 1;
+}

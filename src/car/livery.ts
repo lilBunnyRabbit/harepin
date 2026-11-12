@@ -62,12 +62,52 @@ export const SLASH: Point[][] = [
   [[0.06, 0.06], [0.14, 0.06], [0.5, 0.94], [0.42, 0.94]],
 ];
 
-// Placeholder career reward decals until their art lands: plain full-length stripes, one more per tier.
-const band = (v: number): Point[] => [[0, v], [1, v], [1, v + 0.1], [0, v + 0.1]];
-export const REWARD_STRIPES: Record<"sky" | "volcano" | "ice", Point[][]> = {
-  sky: [band(0.45)],
-  volcano: [band(0.3), band(0.6)],
-  ice: [band(0.2), band(0.45), band(0.7)],
+// Career reward motifs, one per tier final's world: Sky Track chevrons, Volcano lava cracks, Ice canyon frost shards bursting from one point.
+// Points are door space like the decals above: u rear to front, v sill to window line. Shards are drawn in square space
+// and squashed by SQUARE, about the door's length over its height, so they keep their angles.
+const SQUARE = 4.5;
+
+function chevron(u: number, low: number, high: number): Point[] {
+  const thick = 0.09;
+  const depth = 0.12;
+  const mid = (low + high) / 2;
+  return [[u, low], [u + thick, low], [u + thick + depth, mid], [u + thick, high], [u, high], [u + depth, mid]];
+}
+
+/** A crack along `line`, `half` thick at each point, across v when it runs lengthwise and across u when it rises. */
+function crack(line: Point[], half: readonly number[], across: 0 | 1): Point[] {
+  const side = (s: number) => line.map(([u, v], i): Point => (across ? [u, v + s * half[i]] : [u + s * half[i], v]));
+  const ring = [...side(1), ...side(-1).reverse()];
+  return ring.filter(([u, v], i) => {
+    const [pu, pv] = ring[(i - 1 + ring.length) % ring.length];
+    return u !== pu || v !== pv;
+  });
+}
+
+function shard(u: number, v: number, tilt: number, length: number, width: number): Point[] {
+  const along = (t: number, off: number): Point => {
+    const x = Math.sin(tilt) * t + Math.cos(tilt) * off;
+    const y = Math.cos(tilt) * t - Math.sin(tilt) * off;
+    return [u + x / SQUARE, v + y];
+  };
+  return [along(0, 0), along(length * 0.4, width), along(length, 0), along(length * 0.4, -width)];
+}
+
+const FISSURE: Point[] = [[0.04, 0.2], [0.17, 0.15], [0.3, 0.25], [0.44, 0.16], [0.58, 0.26], [0.72, 0.15], [0.86, 0.23], [0.96, 0.19]];
+const FISSURE_HALF = [0, 0.06, 0.09, 0.1, 0.1, 0.09, 0.06, 0];
+const BRANCHES: Point[][] = [
+  [[0.3, 0.25], [0.26, 0.42], [0.31, 0.56], [0.27, 0.72]],
+  [[0.58, 0.26], [0.62, 0.45], [0.57, 0.6]],
+  [[0.72, 0.15], [0.76, 0.33], [0.73, 0.48], [0.78, 0.62], [0.75, 0.8]],
+];
+const taper = (line: Point[], base: number) => line.map((_, i) => base * (1 - i / (line.length - 1)));
+
+export const REWARD_MOTIFS: Record<"sky" | "volcano" | "ice", Point[][]> = {
+  sky: [chevron(0.24, 0.28, 0.72), chevron(0.42, 0.18, 0.82), chevron(0.6, 0.08, 0.92)],
+  volcano: [crack(FISSURE, FISSURE_HALF, 1), ...BRANCHES.map((line) => crack(line, taper(line, 0.03), 0))],
+  ice: [
+    [1.5, 2.6, 0.16], [1.3, 2.1, 0.15], [1.05, 1.5, 0.14], [0.75, 1, 0.12], [1.65, 1.5, 0.1],
+  ].map(([tilt, length, width]) => shard(0.06, 0.2, tilt, length, width)),
 };
 
 export function roof(shell: THREE.BufferGeometry, glass: THREE.Color): Roof {
@@ -233,7 +273,7 @@ function side_layers(livery: Livery, panel: Panel, side: number): Layers {
     case "sky":
     case "volcano":
     case "ice":
-      return keyed(REWARD_STRIPES[livery.decal].map(at));
+      return keyed(REWARD_MOTIFS[livery.decal].map(at));
     case "flames":
       return keyed([at(FLAME)]);
     case "number": {

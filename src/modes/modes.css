@@ -82,6 +82,7 @@ body:has(#mode-result:not([hidden])) #mode-hint {
 }
 
 #mode-result {
+  z-index: 1;
   top: 50%;
   left: 50%;
   translate: -50% -50%;

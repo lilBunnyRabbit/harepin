@@ -2,7 +2,7 @@ import { DirectoryStatus } from "../net/directory";
 import { LOBBY_ROOM } from "../net/room-name";
 import { country_name, flag } from "../net/country";
 import { ping_class, type Player } from "../net/players";
-import { badge_text } from "../career/rewards";
+import { tier_badge } from "../career/badge";
 import { el, icon } from "./setting-rows";
 import { kind_of_world } from "../worldgen/kinds/kinds";
 import { WORLDS } from "../worlds/worlds";
@@ -21,7 +21,6 @@ function place(player: Player): HTMLElement {
   const parts: (string | Node)[] = [];
   const { game } = player;
   if (player.country) parts.push(`${flag(player.country)} ${country_name(player.country)}`);
-  if (player.tier) parts.push(badge_text(player.tier));
   const map = `${WORLDS[kind_of_world(game.world)].name} ${game.map ?? game.seed}`;
   if (game.room === LOBBY_ROOM) parts.push(`Free roam · ${map}`);
   else {
@@ -54,7 +53,9 @@ export function players_tile(menu: Menu): HTMLElement {
   const row = (player: Player): HTMLLIElement => {
     const li = el("li", "servers-row");
     const name = el("div", "servers-name");
-    name.append(el("b", "", player.name), place(player));
+    const who = el("b", "", player.name);
+    if (player.tier) who.append(" ", tier_badge(player.tier));
+    name.append(who, place(player));
     const ping = el("span", "players-ping");
     pings.set(player.key, ping);
     li.append(name, ping);

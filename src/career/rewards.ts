@@ -4,7 +4,6 @@ import { TIERS, tier_max, tier_stars, type Stars, type Tier } from "./career";
 
 export const PAINT_STARS = 10;
 
-
 export interface Unlocks {
   paints: readonly number[];
   decals: readonly number[];
@@ -28,4 +27,21 @@ export function unlocks(stars: Stars): Unlocks {
 
 export const REWARD_DECALS: readonly number[] = TIERS.map((tier) => DECALS.indexOf(tier.rewards.decal));
 
-export const badge_text = (badge: TierBadge) => TIERS[badge - 1].rewards.badge;
+export const badge_text = (badge: TierBadge) => `${TIERS[badge - 1].name} champion`;
+
+const METALS = ["Bronze", "Silver", "Gold"];
+
+export const reward_paint_name = (tier: Tier) => `${METALS[TIERS.indexOf(tier)]} metallic`;
+
+export type RewardKind = "paint" | "decal" | "badge";
+
+export interface Reward {
+  kind: RewardKind;
+  tier: Tier;
+}
+
+const OPENS: Record<RewardKind, (stars: Stars, tier: Tier) => boolean> = { paint: paint_open, decal: decal_open, badge: badge_open };
+
+/** What a run moved from locked to earned in `tier`, in garage order: paint, decal, badge. */
+export const earned = (before: Stars, after: Stars, tier: Tier): Reward[] =>
+  (Object.keys(OPENS) as RewardKind[]).filter((kind) => !OPENS[kind](before, tier) && OPENS[kind](after, tier)).map((kind) => ({ kind, tier }));

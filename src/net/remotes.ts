@@ -6,7 +6,8 @@ import { chunk_of } from "../worldgen/chunk-grid";
 import { show_flame } from "../car/lights";
 import { build_view, camera_fade, dispose_car_view, rest_wheels, type CarView } from "../car/models";
 import type { World } from "../world/world";
-import type { CarState, Net, Remote } from "./net";
+import { tier_badge } from "../career/badge";
+import type { CarState, Net, Remote, TierBadge } from "./net";
 import "./remotes.css";
 
 interface RemoteView {
@@ -18,6 +19,8 @@ interface RemoteView {
   materials: THREE.Material[];
   shadow: ContactShadow;
   label: HTMLElement;
+  name: HTMLElement;
+  tier: TierBadge | null;
   /** Name label height over the car origin, metres. */
   above: number;
   spin: number;
@@ -131,11 +134,13 @@ export class Remotes {
       this.scene.add(view.root);
       const label = document.createElement("div");
       label.className = "label";
+      const name = document.createElement("span");
+      label.append(name);
       this.labels.append(label);
       const shadow = contact_shadow();
       fit_contact_shadow(shadow, spec);
       this.scene.add(shadow.mesh);
-      rv = { code, built: now, spec, view, materials, shadow, label, above: ABOVE * oversize(spec).height, spin: 0 };
+      rv = { code, built: now, spec, view, materials, shadow, label, name, tier: null, above: ABOVE * oversize(spec).height, spin: 0 };
       this.views.set(remote.id, rv);
     }
     const t = this.net.render_time(remote);
@@ -183,9 +188,15 @@ export class Remotes {
     this.screen.y += rv.above;
     this.screen.project(camera);
     const visible = this.screen.z < 1 && root.position.distanceTo(camera.position) < 400;
-    rv.label.style.display = visible ? "block" : "none";
+    rv.label.style.display = visible ? "" : "none";
     if (visible) {
-      rv.label.textContent = this.net.display_name(remote);
+      const name = this.net.display_name(remote);
+      if (rv.name.textContent !== name) rv.name.textContent = name;
+      const tier = this.net.hellos.get(remote.id)?.tier ?? null;
+      if (tier !== rv.tier) {
+        rv.tier = tier;
+        rv.label.replaceChildren(...(tier ? [tier_badge(tier)] : []), rv.name);
+      }
       rv.label.style.transform = `translate(${((this.screen.x + 1) / 2) * innerWidth}px, ${((1 - this.screen.y) / 2) * innerHeight}px) translate(-50%, -100%)`;
     }
   }
