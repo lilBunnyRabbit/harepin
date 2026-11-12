@@ -25,14 +25,16 @@ One level of feature folders under `src/`. Each folder owns its modules, tests (
 
 | Folder | Owns |
 |---|---|
-| `car/` | physics (`car.ts`, `rigid-body.ts`, `axles.ts`), specs (`cars.ts`), parts (`build.ts`, `builds.ts`), 3D models and livery, driver session, rewind, ghost |
-| `world/` | runtime world queries (`world.ts`: height, normal, grip, collide), ramps, buildings, landmarks |
-| `worldgen/` | pure generation, runs in a Web Worker: no DOM, no THREE. `kinds/` holds the worker side of each world kind |
+| `car/` | physics (`car.ts`, `rigid-body.ts`, `axles.ts`), specs (`cars.ts`), parts (`build.ts`, `builds.ts`), rating and class (`pi.ts`), preset builds (`presets.ts`), nitro, 3D models and livery, driver session, rewind, ghost |
+| `world/` | runtime world queries (`world.ts`: height, normal, grip, collide), the boot world pick (`world-pick.ts`), mainland chunk streaming (`world-stream.ts`), jumps, kerbs, buildings, landmarks, sky pads, water, lava |
+| `worldgen/` | pure generation, runs in a Web Worker: no DOM, no THREE. `kinds/` holds the worker side of each world kind, its map options (`options.ts`, `land-knobs.ts`) and map codes (`map-code.ts`) |
 | `worlds/` | UI side of each world kind: names, copy, facts, scene dressing |
-| `modes/` | game modes, one `<mode>-mode.ts` def + logic + view each |
+| `modes/` | game modes, one `<mode>-mode.ts` def + logic + view each; race routes and records |
+| `goals/` | first-steps goals and their toasts |
+| `career/` | career events and tiers; off in the release, on with `?career` or an `?event=` link |
 | `net/` | P2P (trystero + BroadcastChannel): channels, lobby, directory, chat, remotes, heartbeat |
-| `menu/` | main menu shell (`settings.ts`), one file per page, prefs (`prefs.ts`), guide, garage |
-| `hud/` | dash, minimap, touch, input |
+| `menu/` | main menu shell (`settings.ts`), one file per page (Play, Create world, Online, room, modes, settings), prefs (`prefs.ts`), guide, garage, update card |
+| `hud/` | dash, minimap, touch, input and bindings, pace card, rumble |
 | `render/` | renderer, composer, scene, lighting, effects, camera, quality tiers |
 | `audio/` | engine sound and worklet |
 | `theme/` | palette and themes |
@@ -44,7 +46,7 @@ One level of feature folders under `src/`. Each folder owns its modules, tests (
 Every kind of thing we add has a registry. Adding one touches its own files plus one registry line; the compiler lists anything missing.
 
 - **Game mode:** `src/modes/<mode>-mode.ts` exports a `ModeDef` (`mode.ts`); logic and view in their own files beside it. Add it to `MODES` in `modes.ts`. `needs_ground` decides whether it runs on Sky.
-- **World kind:** a `WorldKind` value in `worldgen/types.ts`, then four pieces. Worker side: `worldgen/kinds/<kind>.ts` exports `kind_def({ … })` (`kinds/kind-def.ts`: `base`/`tag`/`version` derive `id` and `key()`, plus `generate`, `recipe`, `open_ground`, `rails`, `ground`, `fall_reset`, `grip`) and goes in `KINDS`. A land kind's `generate` is `generate(seed, RECIPE, kind)` with its own `Recipe` (`worldgen/recipe.ts`: terrain shape, biome tree rules, items and ground rows, road, towns, landmarks); a recipe is part of the kind's version, so changing a value bumps `version`. UI side: `worlds/<kind>.ts` (copy, facts, `mood` deltas over the theme, `ground_puff`, `backdrop`, `dress`) in `WORLDS`. Images: `public/menu/<kind>.webp` and `<kind>-map.webp`. The Play tab shows every kind's tile in its one `worlds` area. A kind's `base`, `tag` and `version` key saved records: never change them for an existing kind except as a deliberate version bump.
+- **World kind:** a `WorldKind` value in `worldgen/types.ts`, then four pieces. Worker side: `worldgen/kinds/<kind>.ts` exports `kind_def({ … })` (`kinds/kind-def.ts`: `base`/`tag`/`version` derive `id` and `key()`, plus `size`, `generate`, `options`, `recipe`, `open_ground`, `rails`, `ground`, `fall_reset`, `grip`, and optional `clamp`, `drivable`, `tuned`) and goes in `KINDS` (`kinds/kinds.ts`). A land kind spreads `land_kind(RECIPE, KNOBS, kind)` (`kinds/land-kind.ts`: `generate`, `clamp`, `tuned`, `drivable`) over its own `Recipe` (`worldgen/recipe.ts`: terrain shape, biome tree rules, items and ground rows, road, towns, landmarks, snow) and knob list (`kinds/land-knobs.ts`); a recipe is part of the kind's version, so changing a value bumps `version`. Map codes: one preset char per kind in `PRESETS` (`kinds/map-code.ts`), append-only like the knobs' field letters. UI side: `worlds/<kind>.ts` (`listed`, `mini`, copy, facts, `mood` deltas over the theme, `ground_puff`, `backdrop`, `dress`) in `WORLDS`. Images: `public/menu/<kind>.webp` and `<kind>-map.webp`. Play shows the mainland and every listed `mini` kind (`MINIS` in `worlds/worlds.ts`); an unlisted kind loads only from `?world=`. A kind's `base`, `tag` and `version` key saved records: never change them for an existing kind except as a deliberate version bump.
 - **Car:** a `CarSpec` in `car/cars.ts` added to `CARS`, plus its body design (`Record<BodyStyle, …>` makes a missing one a type error). Axles come from the spec through `axles_of`; don't index wheels by number.
 - **Part:** an entry in `SLOTS` in `car/build.ts`.
 - **Setting:** a field on `SettingsState` and its entry in `FIELDS` in `menu/prefs.ts` (the mapped type rejects a missing one), then its row in the section builder in `menu/settings-sections.ts`. Reset picks the key up from the row.
@@ -71,7 +73,7 @@ Several agents often work in this repo at once.
 - No allocations in the 360 Hz physics step or the per-frame loop: hoist scratch vectors, no closures, `filter`, spreads or object literals per call.
 - The DOM is written only when a value changes; read layout before writing, never after.
 - A change that claims identical output proves it: `car.test.ts` bit-exact and `scripts/telemetry.ts` / `scripts/feel.ts` byte-identical for physics; `bun scripts/golden.ts --check` for worldgen and meshes.
-- Generated world output is keyed by `WORLD_VERSION` / `SKY_VERSION` (`worldgen/types.ts`). Changing what `generate_world` returns needs a bump, which resets every player's records for that kind.
+- Generated world output is keyed by each kind's `version` in `worldgen/kinds/<kind>.ts` (the island's is `WORLD_VERSION`, the sky's `SKY_VERSION` in `worldgen/types.ts`). Changing what `generate_world` returns for a kind needs a bump, which resets every player's records for that kind.
 
 ## Rules
 
@@ -121,9 +123,8 @@ No base archives for identity proofs: the committed goldens are the base. A swee
 
 ## Differs today
 
-- `src/style.css` hard-codes Brand Dark's OKLCH values: a second copy of `theme.ts` that will drift.
-- `index.html:8` hard-codes `theme-color` `#1a2329` (`main.ts` overwrites it at runtime).
+- `index.html:10` hard-codes `theme-color` `#0b1519` (`main.ts` appends a second one from the theme at runtime).
 - The car contact-shadow blob is painted in raw white. Fine as an alpha mask; say so or use `alphaMap`.
-- Imports mix `import * as THREE` (25 modules) with named imports (`car.ts`): pick one.
+- Imports mix `import * as THREE` (36 modules) with named imports (`car.ts`): pick one.
 - `theme.ts` mirrors webos `themes.ts` by hand, with no check that they still match.
 - `scripts/*.ts` print numbers and throw only on NaN; nothing fails when handling regresses beyond `car.test.ts`.
