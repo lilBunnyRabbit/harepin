@@ -61,7 +61,7 @@
   line-height: 18px;
   text-align: center;
   font-variant-numeric: tabular-nums;
-  color: var(--background-darkest);
+  color: var(--on-primary);
   background: var(--primary);
   pointer-events: none;
 }
@@ -229,7 +229,7 @@
 }
 
 #chat-form button {
-  color: var(--background-darkest);
+  color: var(--on-primary);
   background: var(--primary);
   border-color: var(--primary);
 }

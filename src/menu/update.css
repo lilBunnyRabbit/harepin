@@ -139,7 +139,7 @@ body:has(> .settings:not([hidden])) .update-toast,
   padding: 2px var(--space-2);
   border-radius: var(--radius-full);
   background: var(--primary);
-  color: var(--background-darkest);
+  color: var(--on-primary);
   font-size: var(--text-2xs);
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -194,7 +194,7 @@ body:has(> .settings:not([hidden])) .update-toast,
   padding: 0 var(--space-5);
   border-radius: var(--radius-md);
   background: var(--primary);
-  color: var(--background-darkest);
+  color: var(--on-primary);
   font-size: var(--text-md);
   font-weight: 700;
 }
@@ -244,7 +244,7 @@ body:has(> .settings:not([hidden])) .update-toast,
 .drive-update[data-state="ready"] {
   border-color: var(--primary);
   background: var(--primary);
-  color: var(--background-darkest);
+  color: var(--on-primary);
 }
 
 :root[data-scheme="light"] .drive-update[data-state="ready"] {

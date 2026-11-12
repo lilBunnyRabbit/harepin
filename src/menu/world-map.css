@@ -357,15 +357,9 @@
   height: 52px;
   border-radius: var(--radius-md);
   background: var(--primary);
-  color: var(--background-darkest);
+  color: var(--on-primary);
   font-size: var(--text-xl);
   font-weight: 700;
-}
-
-:root[data-scheme="light"] .settings .map-drive:not(:disabled) {
-  border: 1px solid var(--primary);
-  background: var(--set-raised);
-  color: var(--foreground);
 }
 
 .settings .map-drive:disabled {

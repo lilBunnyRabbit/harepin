@@ -114,7 +114,7 @@
 
 .guide-step.done .guide-n {
   background: var(--primary);
-  color: var(--background-darkest);
+  color: var(--on-primary);
 }
 
 :root[data-scheme="light"] .guide-step.done .guide-n {
@@ -329,7 +329,7 @@
   padding: 0 var(--space-5);
   border-radius: var(--radius-md);
   background: var(--primary);
-  color: var(--background-darkest);
+  color: var(--on-primary);
   font-size: var(--text-xl);
   font-weight: 700;
 }

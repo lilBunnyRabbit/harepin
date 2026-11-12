@@ -60,9 +60,11 @@
   --panel-well: var(--background-darker);
   --panel-raised: var(--background-lightest);
   --panel-shadow: 0 24px 64px color-mix(in oklch, var(--background-darkest) 50%, transparent);
+  --on-primary: var(--background-darkest);
 }
 
 :root[data-scheme="light"] {
+  --on-primary: var(--background-lightest);
   --surface: color-mix(in oklch, var(--background-lighter) 94%, transparent);
   --line: color-mix(in oklch, var(--foreground) 16%, transparent);
   --dim: color-mix(in oklch, var(--foreground) 72%, transparent);

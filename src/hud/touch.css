@@ -106,7 +106,7 @@
 
 .touch-buttons button[data-held] {
   background: var(--accent);
-  color: var(--background-darkest);
+  color: var(--on-primary);
 }
 
 /* The pedals' hit area: the whole lower right below the top buttons, out to the edges. The pedal keys under it are the
@@ -189,7 +189,7 @@
 
 .touch-key[data-held] {
   background: var(--accent);
-  color: var(--background-darkest);
+  color: var(--on-primary);
 }
 
 .touch-key[hidden] {
@@ -239,7 +239,7 @@
 }
 
 #touch .nitro-key[data-boost] {
-  color: var(--background-darkest);
+  color: var(--on-primary);
   text-shadow: none;
 }
 
@@ -290,7 +290,7 @@
   .touch-buttons button[data-held] {
     background: var(--accent);
     border-color: var(--accent);
-    color: var(--background-darkest);
+    color: var(--on-primary);
     text-shadow: none;
   }
 
