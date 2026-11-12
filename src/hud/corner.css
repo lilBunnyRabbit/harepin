@@ -459,3 +459,11 @@
     --dial: 224px;
   }
 }
+
+/* A short desk window, a phone-sized browser: the corner cards shrink so the road and the event title stay clear. */
+@media (pointer: fine) and (max-height: 500px) {
+  :root[data-hud="classic"] {
+    --map-disc: 136px;
+    --dial: 136px;
+  }
+}

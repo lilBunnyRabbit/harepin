@@ -3,7 +3,7 @@ import { free_build_name, load_builds, store_builds, with_build, without_build, 
 import { CARS } from "../car/cars";
 import { PRESETS } from "../car/presets";
 import { livery_of } from "../car/livery";
-import { typing, type Nav } from "../hud/input";
+import { modal_open, typing, type Nav } from "../hud/input";
 import { car_paints, color, decal_inks, rgba } from "../theme/palette";
 import { confirm_tap, render_builds, save_build } from "./garage-builds";
 import { build_badge } from "./class-badge";
@@ -286,7 +286,7 @@ export class Garage {
 
   private readonly key = (event: KeyboardEvent) => {
     const nav = KEY_NAV[event.code];
-    if (!nav || event.repeat || event.altKey || event.ctrlKey || event.metaKey) return;
+    if (!nav || event.repeat || event.altKey || event.ctrlKey || event.metaKey || modal_open()) return;
     if (typing(event.target) && (nav !== "accept" || this.tab === BUILDS_TAB)) return;
     event.preventDefault();
     this.root.dataset.input = "keys";

@@ -175,6 +175,9 @@ const PAD_NAV: [number, Nav][] = [
 
 export const typing = (target: EventTarget | null) => target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement;
 
+/** A modal dialog (the update card) is up: menu moves walk its controls, not the page behind it. */
+export const modal_open = () => document.querySelector("dialog:modal") !== null;
+
 export class Input {
   private keys = new Set<string>();
   private readonly key_binds = new Map<string, Bindable>();

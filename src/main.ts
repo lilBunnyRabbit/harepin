@@ -20,7 +20,7 @@ import { Heartbeat } from "./net/heartbeat";
 import { $, Hud } from "./hud/hud";
 import { Presence } from "./hud/presence";
 import type { Action } from "./hud/bindings";
-import { Input } from "./hud/input";
+import { Input, modal_open } from "./hud/input";
 import { Rumble, sense_drive, type RumbleSense } from "./hud/rumble";
 import { show_key_hints } from "./hud/key-hints";
 import { Lobby, lobby_routes } from "./net/lobby";
@@ -531,7 +531,7 @@ function frame(now: number) {
   // Before any HUD write this frame: the size read would otherwise force a layout.
   render.fit(app);
   const { controls, actions } = input.read();
-  if (garage.is_open) garage.navigate(input.nav);
+  if (garage.is_open && !modal_open()) garage.navigate(input.nav);
   else pad_menu.navigate(input.nav);
   for (const action of actions) ACTIONS[action]();
   const car = driver.car;

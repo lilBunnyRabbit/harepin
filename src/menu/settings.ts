@@ -1,4 +1,4 @@
-import { typing, type Nav } from "../hud/input";
+import { modal_open, typing, type Nav } from "../hud/input";
 import { clean_name } from "../net/net";
 import { GUIDE_PARAM, Guide, ROLLED_VISIT, type GuideStep } from "./guide";
 import { CareerPage } from "./career-view";
@@ -625,8 +625,8 @@ export class Settings {
     }
     if (typing(event.target)) return;
     const arrow = ARROW_NAV[event.key];
-    // The garage drives its own arrows and Enter: left / right try parts on the car.
-    if (arrow && this.section !== MenuTab.GARAGE) {
+    // The garage drives its own arrows and Enter: left / right try parts on the car. A modal over it takes them back.
+    if (arrow && (this.section !== MenuTab.GARAGE || modal_open())) {
       event.preventDefault();
       return this.on_nav?.(arrow);
     }

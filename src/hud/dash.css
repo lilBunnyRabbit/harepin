@@ -492,6 +492,12 @@
   }
 }
 
+@media (pointer: fine) and (max-height: 500px) {
+  :root[data-hud="classic"] #speed {
+    font-size: 40px;
+  }
+}
+
 /* Bar speedometer, Forza Horizon's way: a huge thin speed with the gear small at its left and the unit at its top right,
    the revs one long bar under it with the red zone a block at the end, the aid switches under that. The card keeps the
    ring's width, so it still mirrors the map. */
