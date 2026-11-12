@@ -76,3 +76,14 @@ for (const seed of sweep(10))
       expect(Math.abs(world.tiles.height(p.x, p.z) - p.y), `${p.x}, ${p.z}`).toBeLessThan(BED_LEVEL);
     }
   });
+
+// Seeds whose first descent had no straight stretch for a fall: the planner moves on to one that has.
+for (const seed of [16, 18])
+  test(`ice canyon ${seed}: the bed gets a frozen fall even where the first descent has no room for one`, () => {
+    const data = generate_world(seed, WorldKind.ICE_CANYON);
+    const route = data.routes.find((r) => r.kind === RouteKind.SPRINT);
+    const road = data.graph.edges.find((e) => !e.closed && e.kind === "highway");
+    if (!route || !road) throw new Error("no descent");
+    const bed = route.points.slice(road.points.length - 1);
+    expect(data.ramps.filter((r) => r.road && bed.some((p) => (p.x - r.x) ** 2 + (p.z - r.z) ** 2 < BED_HALF * BED_HALF)).length).toBeGreaterThan(0);
+  });
