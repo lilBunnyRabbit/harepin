@@ -1,9 +1,12 @@
 import { expect, test } from "bun:test";
+import { sweep } from "../sweep";
 import { land_height, pan_floor } from "./terrain";
-import type { TerrainRecipe } from "./recipe";
+import { BIG_DUNES, type TerrainRecipe } from "./recipe";
 
 const DUNE = { wave: 100, height: 10, lee: 0.2 };
 const FLAT: TerrainRecipe = [{ kind: "dunes", seed: 0, bands: [DUNE] }];
+/** Inside the dune wall the mask raises round the map's edge. */
+const PLAY = 700;
 
 test("a dune's lee face is steeper than its windward slope", () => {
   const height = land_height(3, FLAT);
@@ -38,3 +41,20 @@ test("a pan fills its share of the map flat at one level and leaves higher groun
   expect(flat / count).toBeGreaterThan(0.15);
   expect(flat / count).toBeLessThan(0.3);
 });
+
+for (const seed of sweep(20))
+  test(`big dunes ${seed}: no ground inside the play area is steeper than the 34 degree repose, and crests stand 90 m over the pans`, () => {
+    const height = land_height(seed, BIG_DUNES.terrain);
+    const floor = pan_floor(seed, BIG_DUNES.terrain) ?? NaN;
+    const repose = Math.tan((34 * Math.PI) / 180);
+    let steepest = 0;
+    let top = -Infinity;
+    for (let z = -PLAY; z <= PLAY; z += 8)
+      for (let x = -PLAY; x <= PLAY; x += 8) {
+        if (x * x + z * z > PLAY * PLAY) continue;
+        steepest = Math.max(steepest, Math.hypot(height(x + 2, z) - height(x - 2, z), height(x, z + 2) - height(x, z - 2)) / 4);
+        top = Math.max(top, height(x, z));
+      }
+    expect(steepest).toBeLessThan(repose * 1.03);
+    expect(top - floor).toBeGreaterThan(90);
+  }, 30_000);

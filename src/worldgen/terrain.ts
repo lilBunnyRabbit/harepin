@@ -1,7 +1,7 @@
 import { mulberry32, sub } from "../rng";
 import { at, cells, WHOLE, type Grid } from "./field";
 import { circle16, circle24, fbm, smoothstep } from "./noise";
-import { ISLAND, type CraterLayer, type DunesLayer, type PanLayer, type Power, type RangeLayer, type TerraceLayer, type TerrainLayer, type TerrainRecipe } from "./recipe";
+import { ISLAND, type CraterLayer, type DuneBand, type DuneFace, type DunesLayer, type PanLayer, type Power, type RangeLayer, type TerraceLayer, type TerrainLayer, type TerrainRecipe } from "./recipe";
 import type { LavaPool } from "./lava";
 import { CELL, N, ORIGIN, SIZE, type Terrain } from "./types";
 
@@ -13,6 +13,8 @@ const DUNE_BEND = 1.6;
 /** Dune fields come and go over noise this many waves across; between the cuts a field fades in. */
 const DUNE_FIELD_SCALE = 4;
 const DUNE_FIELD = [0.4, 0.6] as const;
+/** A dune gap's line keeps every this-many path points: path points are 2 m apart, the gap's ease hundreds. */
+const GAP_STEP = 25;
 /** Spacing of the coarse sample a pan's level is drawn from, metres. */
 const PAN_SAMPLE = 64;
 /** Height over the pan level, as a share of its blend, still counted as pan floor. */
@@ -60,23 +62,77 @@ function wind_of(seed: number, offset: number): { x: number; z: number } {
   return { x, z };
 }
 
+// A parabola from slope g1 to g2 over w metres, d metres in from height y0: the fillet that rounds a corner.
+const fillet = (y0: number, g1: number, g2: number, w: number, d: number) => y0 + g1 * d + ((g2 - g1) * d * d) / (2 * w);
+
+/**
+ * Height and slip-face share (1 down the face, 0 up the windward side, eased across the fillets) `t` of a wave along a
+ * band with a planar face. Every slope lies between the windward's and the face's, so the face never passes `grade`.
+ */
+function slip(band: DuneBand, face: DuneFace, t: number): [number, number] {
+  const { wave, height } = band;
+  const { grade, brink, toe, floor } = face;
+  const run = wave - floor - height / grade;
+  const rise = height / run;
+  const crest = floor + run;
+  const p = t * wave;
+  const q = p < wave - toe / 2 ? p : p - wave;
+  if (q < toe / 2) return [fillet((grade * toe) / 2, -grade, 0, toe, q + toe / 2), smoothstep(toe / 2, -toe / 2, q)];
+  if (q < floor - toe / 2) return [0, 0];
+  if (q < floor + toe / 2) return [fillet(0, 0, rise, toe, q - floor + toe / 2), 0];
+  if (q < crest - brink / 2) return [rise * (q - floor), 0];
+  if (q < crest + brink / 2) return [fillet(height - (rise * brink) / 2, rise, -grade, brink, q - crest + brink / 2), smoothstep(crest - brink / 2, crest + brink / 2, q)];
+  return [height - grade * (q - crest), 1];
+}
+
+function off_line(line: readonly (readonly [number, number])[], x: number, z: number): number {
+  let best = Infinity;
+  for (let i = 1; i < line.length; i++) {
+    const [ax, az] = line[i - 1];
+    const dx = line[i][0] - ax;
+    const dz = line[i][1] - az;
+    const len2 = dx * dx + dz * dz || 1;
+    const s = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / len2));
+    const ox = x - ax - dx * s;
+    const oz = z - az - dz * s;
+    best = Math.min(best, ox * ox + oz * oz);
+  }
+  return Math.sqrt(best);
+}
+
 // Each wave rises over smoothstep to a sharp brink, then drops down the lee face, so the face stays a slope the mesh can draw.
+// Bands with a planar face go first: the bands without one lie down on its slip face.
 function dunes(layer: DunesLayer, seed: number, wx: number, wz: number, x: number, z: number): number {
   const along = x * wx + z * wz;
   const across = z * wx - x * wz;
   let h = 0;
-  for (let b = 0; b < layer.bands.length; b++) {
-    const band = layer.bands[b];
-    const s = seed + layer.seed + b * 31;
-    const bend = (fbm(across / (band.wave * DUNE_BEND_SCALE), along / (band.wave * DUNE_BEND_SCALE * 2), s, 3) - 0.5) * (band.bend ?? DUNE_BEND);
-    const u = along / band.wave + bend;
-    const t = u - Math.floor(u);
-    const rise = 1 - band.lee;
-    const profile = t < rise ? smoothstep(0, rise, t) : smoothstep(1, rise, t);
-    const field = band.fields === false ? 1 : smoothstep(DUNE_FIELD[0], DUNE_FIELD[1], fbm(x / (band.wave * DUNE_FIELD_SCALE), z / (band.wave * DUNE_FIELD_SCALE), s + 7, 3));
-    h += profile * band.height * field;
-  }
-  return h;
+  let calm = 1;
+  for (let pass = 0; pass < 2; pass++)
+    for (let b = 0; b < layer.bands.length; b++) {
+      const band = layer.bands[b];
+      if ((band.face === undefined) !== (pass === 1)) continue;
+      const s = seed + layer.seed + b * 31;
+      const bend = (fbm(across / (band.wave * DUNE_BEND_SCALE), along / (band.wave * DUNE_BEND_SCALE * 2), s, 3) - 0.5) * (band.bend ?? DUNE_BEND);
+      // A planar band puts a corridor's middle half a wave either side of the map's middle, where a corridor circuit runs.
+      const anchor = band.face ? band.face.floor / (2 * band.wave) - 0.5 - (fbm(0, 0, s, 3) - 0.5) * (band.bend ?? DUNE_BEND) : 0;
+      const u = along / band.wave + bend + anchor;
+      const t = u - Math.floor(u);
+      const field = band.fields === false ? 1 : smoothstep(DUNE_FIELD[0], DUNE_FIELD[1], fbm(x / (band.wave * DUNE_FIELD_SCALE), z / (band.wave * DUNE_FIELD_SCALE), s + 7, 3));
+      if (band.face) {
+        const [y, lee] = slip(band, band.face, t);
+        h += y * field;
+        calm *= 1 - lee * field;
+        continue;
+      }
+      const rise = 1 - band.lee;
+      const profile = t < rise ? smoothstep(0, rise, t) : smoothstep(1, rise, t);
+      h += profile * band.height * field * calm;
+    }
+  const gaps = layer.gaps;
+  if (!gaps) return h;
+  let dip = 0;
+  for (const line of gaps.at) dip = Math.max(dip, 1 - smoothstep(gaps.width, gaps.width + gaps.ease, off_line(line, x, z)));
+  return h * (1 - dip);
 }
 
 // Quadratic smooth max of the height and the level: flat under level - blend, the height itself over level + blend.
@@ -120,12 +176,48 @@ export function crest_crossings(seed: number, layer: RangeLayer, path: readonly 
   return out;
 }
 
-/** The shape with each range's passes where the closed `path` crosses its crest; the shape itself when it has no range. */
+/** The wind of the dune layer seeded `layer_seed`, for planners that lay out along it. */
+export function dune_wind(seed: number, layer_seed: number): { x: number; z: number } {
+  return wind_of(seed, layer_seed);
+}
+
+/** The stretches of the closed `path` over dunes standing `above` metres or more, each from its first such point to its last. */
+export function dune_crossings(seed: number, layer: DunesLayer, path: readonly (readonly [number, number])[], above: number): [number, number][][] {
+  const { x: wx, z: wz } = wind_of(seed, layer.seed);
+  const bare: DunesLayer = { ...layer, gaps: undefined };
+  const high = path.map(([x, z]) => dunes(bare, seed, wx, wz, x, z) >= above);
+  const n = path.length;
+  const start = high.findIndex((h, i) => !h && high[(i + 1) % n]);
+  if (start < 0) return [];
+  const out: [number, number][][] = [];
+  let line: [number, number][] | null = null;
+  for (let k = 1; k <= n; k++) {
+    const i = (start + k) % n;
+    if (high[i]) {
+      line ??= [];
+      if (line.length === 0 || k % GAP_STEP === 0) line.push([path[i][0], path[i][1]]);
+      continue;
+    }
+    if (!line) continue;
+    const last = path[(i - 1 + n) % n];
+    line.push([last[0], last[1]]);
+    out.push(line);
+    line = null;
+  }
+  return out;
+}
+
+/**
+ * The shape with each range's passes where the closed `path` crosses its crest and each gapped dune layer's gaps where
+ * it crosses its dunes; the shape itself when it has neither.
+ */
 export function with_passes(seed: number, shape: TerrainRecipe, path: readonly (readonly [number, number])[]): TerrainRecipe {
-  if (!shape.some((layer) => layer.kind === "range")) return shape;
-  return shape.map((layer) =>
-    layer.kind === "range" ? { ...layer, saddle: { ...layer.saddle, at: crest_crossings(seed, layer, path).map((c) => c.along) } } : layer,
-  );
+  if (!shape.some((layer) => layer.kind === "range" || (layer.kind === "dunes" && layer.gaps))) return shape;
+  return shape.map((layer) => {
+    if (layer.kind === "range") return { ...layer, saddle: { ...layer.saddle, at: crest_crossings(seed, layer, path).map((c) => c.along) } };
+    if (layer.kind === "dunes" && layer.gaps) return { ...layer, gaps: { ...layer.gaps, at: dune_crossings(seed, layer, path, layer.gaps.above) } };
+    return layer;
+  });
 }
 
 /** A layer with what it draws from the seed once: the peak's position, the dunes' wind or range's heading, or the pan's or crater's level. */

@@ -76,10 +76,35 @@ export interface MaskLayer {
 }
 
 /** One wavelength of dunes: crests `wave` metres apart, `height` tall, the steep lee face taking `lee` of each wave. */
+/**
+ * A slip face at repose: straight down at `grade` from a brink rounded over `brink` metres to a toe, then `floor`
+ * metres of flat interdune corridor and a straight windward rise; the corridor's ends are rounded over `toe` metres, so
+ * `floor` is at least `toe`. Smaller bands lie down on the slip face, as ripples do on a real one.
+ */
+export interface DuneFace {
+  grade: number;
+  brink: number;
+  toe: number;
+  floor: number;
+}
+
+/**
+ * Where the circuit crosses dunes `above` metres tall the dunes part: flat `width` metres either side of the crossing,
+ * back to full height `ease` metres further out. `at` is filled from the planned circuit.
+ */
+export interface DuneGaps {
+  above: number;
+  width: number;
+  ease: number;
+  at: readonly (readonly (readonly [number, number])[])[];
+}
+
 export interface DuneBand {
   wave: number;
   height: number;
+  /** Share of the wave the smoothstep lee face takes; a `face` sets its own from height and grade. */
   lee: number;
+  face?: DuneFace;
   /** Waves the crests bend by over noise; absent = the dune sea's. */
   bend?: number;
   /** False lays the band over the whole map instead of in fields that come and go. */
@@ -91,6 +116,7 @@ export interface DunesLayer {
   kind: "dunes";
   seed: number;
   bands: readonly DuneBand[];
+  gaps?: DuneGaps;
 }
 
 /**
@@ -234,6 +260,14 @@ export interface RoadRecipe {
   lap_par?: number;
   /** False keeps the trails for free roam but races none of them: on the volcano's flank not every car finishes one. */
   trail_races?: boolean;
+  /** False races no street routes: where a missed town corner puts a car in loose sand, not every car gets out. */
+  street_races?: boolean;
+  /**
+   * Lays the circuit along two neighbouring corridors of the dunes, `half` metres either side of the middle, joined by
+   * a half circle over the dune between them at each end; replaces the ring. `wind` is the seed of the dune layer it
+   * reads the wind of.
+   */
+  corridor?: { half: number; wind: number };
 }
 
 export interface TownRecipe {
@@ -493,18 +527,23 @@ export const VOLCANO: Recipe = {
 };
 
 /**
- * Up to 120 m of dune over the dune sea's. Alone its slip face peaks at 1.5 * 120 / (0.29 * 1000) = 0.62, the 32 degree
- * repose; the dune sea's bands riding on it take the steepest cells to ~50 degrees until the face is capped.
+ * 120 m dunes 850 m apart: a 200 m flat corridor, a 15 degree windward rise and a planar slip face at 0.56, which the
+ * crests' bend steepens to about 33 degrees at most.
  */
-const BIG_DUNE: DuneBand = { wave: 1000, height: 120, lee: 0.29, bend: 0.4, fields: false };
+const BIG_DUNE: DuneBand = { wave: 850, height: 120, lee: 0.25, bend: 0.2, fields: false, face: { grade: 0.56, brink: 60, toe: 40, floor: 200 } };
+/** The dune sea's bands ride the big dunes this much lower, so stacked on a windward rise they stay under repose. */
+const RIPPLE = 0.6;
 
 /**
- * The dune sea under one band of big dunes, for dune bashing: height paints no scree, rock or snow. No kickers: crest
- * jumps want rules of their own.
+ * The dune sea under one band of big dunes, for dune bashing. The circuit runs two corridors and parts the dune between
+ * them at each end. Height paints no scree, rock or snow. No kickers: crest jumps want rules of their own.
  */
 export const BIG_DUNES: Recipe = {
   ...DESERT,
-  terrain: DESERT.terrain.map((l) => (l.kind === "dunes" ? { ...l, bands: [...l.bands, BIG_DUNE] } : l)),
+  terrain: DESERT.terrain.map((l) =>
+    l.kind === "dunes" ? { ...l, bands: [...l.bands.map((b) => ({ ...b, height: b.height * RIPPLE })), BIG_DUNE], gaps: { above: 20, width: 40, ease: 480, at: [] } } : l,
+  ),
   biomes: { ...DESERT.biomes, limits: { ...DESERT.biomes.limits, scree: { up: 0.8, height: 10_000 }, rock: { up: 0.7, height: 10_000 }, snow_line: 10_000 } },
-  road: { ...DESERT.road, kickers: { road: 0, total: 0, big: 0 } },
+  road: { ...DESERT.road, straights: null, canyon: null, kickers: { road: 0, total: 0, big: 0 }, corridor: { half: 280, wind: 17 }, lap_par: 1.4, street_races: false },
+  towns: { ...DESERT.towns, min: 0, top: 10_000 },
 };

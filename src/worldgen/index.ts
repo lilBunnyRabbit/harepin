@@ -236,7 +236,7 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   lap("jumps");
 
   const loop = circuit_route(road, checkpoints, recipe.road.lap_par);
-  const streets = street_routes(graph, circuit, towns, heights, patched, jumps.ramps);
+  const streets = recipe.road.street_races === false ? { routes: [], items: [] } : street_routes(graph, circuit, towns, heights, patched, jumps.ramps);
   jumps.items.push(...streets.items);
   const reverse = reverse_circuit(loop, jumps.ramps, recipe.road.lap_par);
   const offroad = recipe.road.trail_races === false ? [] : offroad_routes(trails.trails);

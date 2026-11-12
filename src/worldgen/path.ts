@@ -3,6 +3,7 @@ import { sample } from "./field";
 import { circle24, fbm, length } from "./noise";
 import { ISLAND, type RoadRecipe } from "./recipe";
 import { HAIRPIN_RADIUS, inside, switchback, type Switchback } from "./switchback";
+import { dune_wind } from "./terrain";
 import { CELL, N, ORIGIN, type RoadPoint } from "./types";
 
 const ROAD_MIN_RADIUS = 32;
@@ -63,6 +64,14 @@ const RELAX = 0.35;
 const RELAX_TRIES = 40;
 /** Nudges without a wider tightest bend before the attempt gives up: the pinch is not one a nudge can fix. */
 const RELAX_STALL = 4;
+/** A corridor's floor is the lowest ground this far along the wind from the middle line, sampled this often, metres. */
+const CORRIDOR_SCAN = 1200;
+const CORRIDOR_STEP = 8;
+/** Two corridors' floors lie at least this far apart along the wind; a straight side's controls snap this far to theirs. */
+const CORRIDOR_APART = 300;
+const CORRIDOR_SNAP = 120;
+/** Controls along each straight side. */
+const CORRIDOR_SIDE = 6;
 
 export type Path = [number, number][];
 
@@ -182,6 +191,59 @@ function straighten(controls: Path, every: number) {
     const [bx, bz] = controls[(c + every) % n];
     for (let k = 1; k < every && c + k < n; k++) controls[c + k] = [ax + ((bx - ax) * k) / every, az + ((bz - az) * k) / every];
   }
+}
+
+/** Middle of the lowest ground on the line from `from` along (ux, uz), `reach` metres either way. */
+function lowest_on(heights: Float32Array, from: [number, number], ux: number, uz: number, reach: number): number {
+  const at: number[] = [];
+  const ys: number[] = [];
+  for (let s = -reach; s <= reach; s += CORRIDOR_STEP) {
+    at.push(s);
+    ys.push(sample(heights, from[0] + ux * s, from[1] + uz * s));
+  }
+  const low = Math.min(...ys);
+  const floor = at.filter((_, i) => ys[i] <= low + 0.5);
+  return (floor[0] + floor[floor.length - 1]) / 2;
+}
+
+/**
+ * Two straight sides in the corridors either side of the middle, across the wind, each control snapped to its
+ * corridor's floor; at each end a half circle over the dune between them, where the dunes part for the road.
+ */
+function corridor_controls(seed: number, heights: Float32Array, corridor: NonNullable<RoadRecipe["corridor"]>): Controls {
+  const { x: wx, z: wz } = dune_wind(seed, corridor.wind);
+  const cx = -wz;
+  const cz = wx;
+  const ys: number[] = [];
+  for (let s = -CORRIDOR_SCAN; s <= CORRIDOR_SCAN; s += CORRIDOR_STEP) ys.push(sample(heights, wx * s, wz * s));
+  const span = CORRIDOR_APART / CORRIDOR_STEP;
+  const floors: number[] = [];
+  for (let i = 0; i < ys.length; i++) {
+    if (ys.slice(Math.max(0, i - span), i + span + 1).some((y) => y < ys[i])) continue;
+    let j = i;
+    while (j + 1 < ys.length && ys[j + 1] <= ys[i] + 0.5) j++;
+    const s = -CORRIDOR_SCAN + ((i + j) / 2) * CORRIDOR_STEP;
+    i = j;
+    if (floors.length && s - floors[floors.length - 1] < CORRIDOR_APART) continue;
+    floors.push(s);
+  }
+  let a = 0;
+  for (let i = 1; i < floors.length - 1; i++) if (Math.abs(floors[i] + floors[i + 1]) < Math.abs(floors[a] + floors[a + 1])) a = i;
+  const [lo, hi] = floors.length > 1 ? [floors[a], floors[a + 1]] : [-CORRIDOR_APART, CORRIDOR_APART];
+  const side = (s: number, across: number): [number, number] => {
+    const from: [number, number] = [wx * s + cx * across, wz * s + cz * across];
+    const snap = lowest_on(heights, from, wx, wz, CORRIDOR_SNAP);
+    return [from[0] + wx * snap, from[1] + wz * snap];
+  };
+  const mid = (lo + hi) / 2;
+  const r = (hi - lo) / 2;
+  const turn = circle24().slice(1, 12);
+  const points: Path = [];
+  for (let k = 0; k <= CORRIDOR_SIDE; k++) points.push(side(lo, -corridor.half + (2 * corridor.half * k) / CORRIDOR_SIDE));
+  for (const [c, s] of turn) points.push([wx * (mid - r * c) + cx * (corridor.half + r * s), wz * (mid - r * c) + cz * (corridor.half + r * s)]);
+  for (let k = 0; k <= CORRIDOR_SIDE; k++) points.push(side(hi, corridor.half - (2 * corridor.half * k) / CORRIDOR_SIDE));
+  for (const [c, s] of turn) points.push([wx * (mid + r * c) + cx * (-corridor.half - r * s), wz * (mid + r * c) + cz * (-corridor.half - r * s)]);
+  return { points, fixed: 0, fixed_count: 0, stack: null };
 }
 
 function loop_controls(seed: number, heights: Float32Array, summit: [number, number], shape: RoadRecipe): Controls {
@@ -355,6 +417,7 @@ export interface Loop {
 }
 
 export function loop_path(seed: number, heights: Float32Array, shape: RoadRecipe = ISLAND.road): Loop {
+  if (shape.corridor) return { path: relaxed(corridor_controls(seed, heights, shape.corridor)).path, stack: null };
   const summit = highest(heights);
   let best: Loop = { path: [], stack: null };
   let best_radius = -Infinity;
