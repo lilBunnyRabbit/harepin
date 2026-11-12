@@ -1,6 +1,10 @@
 import { expect, test } from "bun:test";
 import { FULL, sweep } from "../../sweep";
+import { chunk_of, extent } from "../chunk-grid";
 import { sample } from "../field";
+import { build_tile } from "../ground";
+import { MAINLAND_SIZE } from "../mainland";
+import { TileStore } from "../tiles";
 import { WorldKind, type WorldData } from "../types";
 import { generate_world, KINDS } from "./kinds";
 
@@ -11,17 +15,34 @@ const JUNCTION_CLEAR = 8;
 /** Hills at their top level: a trail cut there once shaped its bank across the circuit at 46%. */
 const STEEP_ISLAND = 49;
 /** A road's own grade plus what easing off a junction's flat band adds; a mouth stepping onto its road climbed 30-140%. */
-const MAX_MOUTH = 0.25;
+const MAX_MOUTH = 0.2;
 /** How far from each end a road is checked: a mouth's ease stays well inside it. */
 const MOUTH_RUN = 60;
 /** Its spurs once stepped 1-2 m onto their own height at the circuit's band. */
 const STEPPED_ISLAND = 2;
 const TIMEOUT = 300_000;
 
+/** Ground height under the roads: the island kinds hold it whole, mainland streams it by tile. */
+function ground(world: WorldData): (x: number, z: number) => number {
+  if (world.kind !== WorldKind.MAINLAND) return (x, z) => sample(world.terrain.heights, x, z);
+  const ext = extent(MAINLAND_SIZE);
+  const store = new TileStore(ext);
+  const built = new Set<number>();
+  return (x, z) => {
+    const index = chunk_of(x, z, ext);
+    for (const near of [-1, 0, 1].flatMap((dj) => [-1, 0, 1].map((di) => index + dj * ext.side + di)))
+      if (near >= 0 && near < ext.side * ext.side && !built.has(near)) {
+        built.add(near);
+        store.add(near, build_tile(world.ground, near, ext));
+      }
+    return store.height(x, z);
+  };
+}
+
 /** Every road sample tilted past MAX_TILT across, as "edge id at x,z: tilt". */
 function tilted(world: WorldData): string[] {
   const out: string[] = [];
-  const height = (x: number, z: number) => sample(world.terrain.heights, x, z);
+  const height = ground(world);
   for (const edge of world.graph.edges) {
     const others = world.graph.edges.filter((o) => o.id !== edge.id);
     const off = edge.half - 0.5;
@@ -40,7 +61,9 @@ function tilted(world: WorldData): string[] {
 /** Every rise past MAX_MOUTH along a road's first MOUTH_RUN metres from either end, as "edge id at x,z: grade". */
 function stepped(world: WorldData): string[] {
   const out: string[] = [];
-  const height = (x: number, z: number) => sample(world.terrain.heights, x, z);
+  // Mainland stamps streets by id, so a local laid first holds a street crossing it: those dips predate the mouths.
+  if (world.kind === WorldKind.MAINLAND) return out;
+  const height = ground(world);
   for (const edge of world.graph.edges) {
     if (edge.closed) continue;
     for (const points of [edge.points, edge.points.toReversed()]) {

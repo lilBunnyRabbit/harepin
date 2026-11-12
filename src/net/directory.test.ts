@@ -143,9 +143,9 @@ test("admission: past 24 links, watchers make room for browsers and never take m
 
 test("a plain game's announce and row key are what they were before map codes; a custom map rides beside and splits", () => {
   const plain = { ...announce, world: world_id(WorldKind.ISLAND) };
-  expect(JSON.stringify(sanitize_announce(plain))).toBe('{"room":"lobby","seed":42,"host":"Alice","players":2,"locked":false,"version":"0.5.1","world":9}');
-  expect(group_servers([["a", plain]], null)[0].key).toBe(JSON.stringify(["lobby", 42, 9, false, "0.5.1"]));
-  const custom = { ...plain, world: 9 + 5 * 0x10000 };
+  expect(JSON.stringify(sanitize_announce(plain))).toBe('{"room":"lobby","seed":42,"host":"Alice","players":2,"locked":false,"version":"0.5.1","world":10}');
+  expect(group_servers([["a", plain]], null)[0].key).toBe(JSON.stringify(["lobby", 42, 10, false, "0.5.1"]));
+  const custom = { ...plain, world: 10 + 5 * 0x10000 };
   expect(sanitize_announce({ ...custom, map: "1C000001A-E2" })?.map).toBe("1C000001A-E2");
   for (const map of ["1C000001A", "1c000001a-e2", "1Z000001A-E2", 42]) expect(sanitize_announce({ ...custom, map })).not.toHaveProperty("map");
   const rows = group_servers([["a", { ...custom, map: "1C000001A-E2" }], ["b", { ...custom, map: "1C000001A-E0" }]], null);

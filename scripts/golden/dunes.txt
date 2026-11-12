@@ -214,7 +214,7 @@
 7 mesh_rest caec0cd6c907f5e1
 7 map_pixels 1b94d0e7fd57e427
 7 map 8df9e39ff023c239
-8 heights 203a0681beed98d5
+8 heights f427f7f44b8a86e9
 8 road_dist 9d46c61e190df236
 8 surface c5cf44c2878ec25c
 8 terrain 8b9a6ebfd4cd724e
@@ -237,9 +237,9 @@
 8 canyon ca2689192ce2e663
 8 route:circuit 39a021494c126175
 8 route:circuit-rev af1d33b9506513eb
-8 mesh_road 2185458c22d64688
-8 mesh_rest 4450a6b548f247af
-8 map_pixels 70732f7bb83a1f89
+8 mesh_road 0fa066af11d2773b
+8 mesh_rest a4942ac2671a9af4
+8 map_pixels c3c5cdcf7edb4c8d
 8 map 79c35ea6d0190350
 9 heights dbcd829dd38df322
 9 road_dist 1b0666db94889ea4

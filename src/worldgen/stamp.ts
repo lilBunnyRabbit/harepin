@@ -86,6 +86,7 @@ export class Stamp {
   private readonly laid: RoadEdge[] = [];
   /** Per laid edge, the x0, x1, z0, z1 box of each GROUP of its segments. */
   private readonly laid_boxes: Float64Array[] = [];
+  private readonly towns: Town[] = [];
 
   constructor(
     private readonly terrain: Terrain,
@@ -198,6 +199,7 @@ export class Stamp {
 
   plateau(town: Town) {
     this.log({ kind: "plateau", town });
+    this.towns.push(town);
     if (town.band !== undefined) return this.strip_plateau(town, town.band);
     const { heights } = this.terrain;
     const full = town.core + PLATEAU_EDGE;
@@ -334,24 +336,31 @@ export class Stamp {
       const dz = points[i].z - points[i - 1].z;
       along[i] = along[i - 1] + Math.sqrt(dx * dx + dz * dz);
     }
-    // A road lying in a band end to end has one mouth, found from its start.
-    let start = -1;
-    for (const dir of [1, -1]) {
-      let rim = -1;
+    const rim = (from: number, dir: number, stop: number) => {
+      let at = -1;
       let band = 0;
-      for (let i = dir === 1 ? 0 : last; dir === 1 ? i <= last : i > start; i += dir) {
+      for (let i = from; i !== stop; i += dir) {
         const h = this.band_height(laid, points[i].x, points[i].z);
         if (h === null) break;
-        rim = i;
+        at = i;
         band = h;
       }
-      if (dir === 1) start = rim;
-      if (rim < 0) continue;
-      const step = band - points[rim].y;
-      const from = dir === 1 ? along[rim] : along[last] - along[rim];
+      return { at, band };
+    };
+    // A road lying in a band end to end has one mouth, found from its start.
+    const head = rim(0, 1, last + 1);
+    const tail = rim(last, -1, head.at);
+    // Each ease ends at the other mouth's rim, so neither moves the height the other meets.
+    const mouths = [
+      { ...head, run: (i: number) => along[i] - along[head.at], gap: along[tail.at < 0 ? last : tail.at] - along[head.at] },
+      { ...tail, run: (i: number) => along[tail.at] - along[i], gap: along[tail.at] - along[Math.max(head.at, 0)] },
+    ];
+    for (const { at, band, run, gap } of mouths) {
+      if (at < 0) continue;
+      const step = band - points[at].y;
       // smoothstep's steepest is 1.5 times its mean.
-      const ease = Math.max(CELL, Math.min(along[last] - from, Math.max(MOUTH_EASE_MIN, (1.5 * Math.abs(step)) / MOUTH_GRADE)));
-      for (let i = 0; i <= last; i++) heights[i] += step * (1 - smoothstep(0, ease, (dir === 1 ? along[i] : along[last] - along[i]) - from));
+      const ease = Math.max(CELL, Math.min(gap, Math.max(MOUTH_EASE_MIN, (1.5 * Math.abs(step)) / MOUTH_GRADE)));
+      for (let i = 0; i <= last; i++) heights[i] += step * (1 - smoothstep(0, ease, run(i)));
     }
     return heights;
   }
@@ -378,6 +387,7 @@ export class Stamp {
   private band_height(laid: number, x: number, z: number): number | null {
     let best = ROAD_HALF + FLAT;
     let height: number | null = null;
+    let street = false;
     for (let e = 0; e < laid; e++) {
       const { points, half, closed } = this.laid[e];
       const boxes = this.laid_boxes[e];
@@ -398,11 +408,15 @@ export class Stamp {
           if (d <= best) {
             best = d;
             height = a.y + (b.y - a.y) * t;
+            street = this.laid[e].kind === "street";
           }
         }
       }
     }
-    return height;
+    if (height === null || !street || !this.towns.length) return height;
+    // A street's band is its town's plateau, which tilts across the street.
+    const town = this.towns.reduce((a, b) => ((b.x - x) ** 2 + (b.z - z) ** 2 < (a.x - x) ** 2 + (a.z - z) ** 2 ? b : a));
+    return town_level(town, x, z);
   }
 
   /** The distance below which `edge` would still write vertex k: past it the vertex keeps what it holds. */
