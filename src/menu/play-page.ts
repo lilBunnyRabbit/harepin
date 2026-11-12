@@ -70,10 +70,7 @@ export class PlayPage implements MenuPage {
 
   build(): HTMLElement[] {
     const page = el("div", "play");
-    // A div, not a section: the pad's nearest() keeps focus inside a section, which hid the strip from Drive.
-    const minis = el("div", "play-group play-minis-group");
-    minis.append(el("h3", "play-head", "Mini maps"), this.minis());
-    page.append(this.map(), this.top(), this.side(), minis);
+    page.append(this.map(), this.top(), this.side());
     return [page];
   }
 
@@ -108,8 +105,11 @@ export class PlayPage implements MenuPage {
 
   private side(): HTMLElement {
     const side = el("div", "play-side");
+    // A div, not a section: the pad's nearest() keeps focus inside a section, which hid the mini maps from Drive.
+    const minis = el("div", "play-group");
+    minis.append(el("h3", "play-head", "Mini maps"), this.minis());
     const { career } = this.menu.host;
-    side.append(this.more(), ...(career ? [career_card(this.menu, career)] : []), goals_card(this.menu, this.go_to));
+    side.append(minis, this.more(), ...(career ? [career_card(this.menu, career)] : []), goals_card(this.menu, this.go_to));
     return side;
   }
 
@@ -132,13 +132,10 @@ export class PlayPage implements MenuPage {
     for (const { kind, name, note } of MINIS) {
       const button = el("button", "play-mini");
       button.type = "button";
-      button.title = `${note}. ${kind === host.kind ? "Keep driving here" : `Reloads room ${host.room} on ${name}`}`;
+      button.title = `${note}. ${kind === host.kind ? "You're here: keep driving" : `Reloads room ${host.room} on ${name}`}`;
       const custom = kind === host.kind && host.code !== null;
       button.append(custom ? map_thumb({ seed: host.seed, kind, levels: host.levels }) : picture(kind), el("b", "", name));
-      if (kind === host.kind) {
-        button.setAttribute("aria-current", "true");
-        button.append(el("span", "menu-tag", "You're here"));
-      }
+      if (kind === host.kind) button.setAttribute("aria-current", "true");
       button.addEventListener("click", () => this.menu.drive(host.seed, kind, kind === host.kind ? host.levels : undefined));
       list.append(button);
     }
