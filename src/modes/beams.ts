@@ -33,8 +33,7 @@ export class Beams {
 
   update(dt: number) {
     this.time += dt;
-    this.materials.forEach((material, i) => {
-      material.opacity = i === this.target ? LIT + Math.sin(this.time * 4) * PULSE : DIM;
-    });
+    const { materials } = this;
+    for (let i = 0; i < materials.length; i++) materials[i].opacity = i === this.target ? LIT + Math.sin(this.time * 4) * PULSE : DIM;
   }
 }
