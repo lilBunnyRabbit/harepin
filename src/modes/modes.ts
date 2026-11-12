@@ -109,6 +109,8 @@ export class Modes {
     exit: $("mode-exit", HTMLButtonElement),
   };
 
+  /** `?debug&at=`: the point along its route a race run starts on. */
+  route_at = 0;
   bindings: () => Bindings = () => DEFAULT_BINDINGS;
   ghosts: () => boolean = () => true;
   /** Shows that a start waits on the rest of the world. */
@@ -391,6 +393,7 @@ export class Modes {
       scene,
       world,
       start_index,
+      route_at: this.route_at,
       camera,
       track,
       lobby_lap: () => this.lobby_lap,

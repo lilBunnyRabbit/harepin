@@ -116,8 +116,10 @@ const built = stream.fallback ? plain_map(kind, seed) : map;
 const { levels } = built;
 const code = custom_code(built);
 const note = map_note(pick_problem(pick), stream.fallback);
-// `?debug&at=<road index>` starts the car anywhere on the circuit, for checking a stretch of track by eye.
-const start_index = (params.has("debug") && Number(params.get("at"))) || SPAWN_INDEX;
+// `?debug&at=<road index>` starts the car anywhere on the circuit, for checking a stretch of track by eye; a race run, such
+// as a descent event, starts at that index along its own route instead.
+const debug_at = (params.has("debug") && Math.trunc(Number(params.get("at")))) || 0;
+const start_index = debug_at || SPAWN_INDEX;
 const start_point = world.road[world.clear_spawn(start_index)];
 // `?debug&pose=x,y,z,tx,ty,tz` pins the camera at a point looking at another, for menu pictures.
 const pose = params.has("debug") ? (params.get("pose")?.split(",").map(Number) ?? []) : [];
@@ -371,6 +373,7 @@ const modes = new Modes(scene, world, SPAWN_INDEX, () => lobby.record, (x, z, he
   driver.park(x, z, heading);
   reset_lap();
 }, () => lobby.busy, () => audio.chime(), camera, () => driver.car.spec, career);
+modes.route_at = Math.max(0, debug_at);
 modes.bindings = () => settings.state.bindings;
 modes.ghosts = () => settings.state.ghost;
 modes.cover = (wait) => area_fade.cover(wait);

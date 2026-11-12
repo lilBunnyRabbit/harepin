@@ -37,8 +37,9 @@ class Race implements ModeRun {
       this.ghost = new Ghost(ctx.scene, ctx.world.seed, DEV_GHOST_KEY);
       this.ghost.use(lap);
     });
-    this.route = { id: course.route.id, gate: this.run.gate, later: this.later(0), respawn: course.line[0] };
-    ctx.spawn_on(course.line[0]);
+    const start = course.line[Math.min(ctx.route_at, course.line.length - 1)];
+    this.route = { id: course.route.id, gate: this.run.gate, later: this.later(0), respawn: start };
+    ctx.spawn_on(start);
   }
 
   private later(next: number): RouteRun["later"] {

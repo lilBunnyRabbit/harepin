@@ -37,6 +37,8 @@ export interface ModeCtx {
   readonly scene: THREE.Scene;
   readonly world: World;
   readonly start_index: number;
+  /** `?debug&at=`: the point along its route a race run starts on; 0 is the start line. */
+  readonly route_at: number;
   readonly camera: THREE.Camera;
   readonly track: Track;
   /** Set while a lobby race runs on a route of its own: called at each lap's end, true while laps remain. */
