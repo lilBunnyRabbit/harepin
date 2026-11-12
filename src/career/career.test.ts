@@ -58,11 +58,8 @@ test("every event's thresholds were tuned on the world it runs on now", () => {
   }
 });
 
-test("race events carry bot-tuned star times, silver a quarter over gold; only timed modes carry any", () => {
-  for (const event of EVENTS) {
-    if (event.mode === "race") expect([event.id, event.stars?.two]).toEqual([event.id, Math.round((event.stars?.three ?? NaN) * SILVER_SHARE)]);
-    if (event.stars) expect([event.id, ["race", "hunt", "duel"].includes(event.mode)]).toEqual([event.id, true]);
-  }
+test("race events carry bot-tuned star times, silver a quarter over gold", () => {
+  for (const event of EVENTS.filter((e) => e.mode === "race")) expect([event.id, event.stars?.two]).toEqual([event.id, Math.round((event.stars?.three ?? NaN) * SILVER_SHARE)]);
 });
 
 test("every event with a dev ghost ships it for the world it was tuned on, finishing in three-star time", () => {

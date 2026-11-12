@@ -78,9 +78,10 @@ class Duel implements ModeRun {
     const par = this.ctx.thresholds(par_ms);
     const stars = grade(run.elapsed() + (this.hits?.penalty_ms ?? 0), par);
     const before = track.runs[level.id];
+    const against = before?.ms ?? this.ghost.best_ms;
     const recorded = track.record(level.id, { stars, ms });
     this.ghost.finish(recorded.improved);
-    const versus = !before ? "new ghost" : `${ms <= before.ms ? "−" : "+"}${(Math.abs(before.ms - ms) / 1000).toFixed(2)} s`;
+    const versus = against === null ? "new ghost" : `${ms <= against ? "−" : "+"}${(Math.abs(against - ms) / 1000).toFixed(2)} s`;
     this.result = {
       title: result_title(level.name, recorded),
       stars,

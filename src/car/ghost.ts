@@ -6,11 +6,9 @@ import { brand, color } from "../theme/palette";
 import { world_key } from "../worldgen/kinds/kinds";
 import { STRIDE, is_lap, lap_cap_ms } from "./ghost-cap";
 
-
 const EVERY_MS = 100;
 const GHOST_OPACITY = 0.32;
 const GHOST_ORDER = 10;
-
 
 function load(key: string): number[] | null {
   let saved: string | null;
@@ -90,6 +88,11 @@ export class Ghost {
 
   get has_best(): boolean {
     return this.best !== null;
+  }
+
+  /** The raced lap's time, null without one. */
+  get best_ms(): number | null {
+    return this.best ? this.best[this.best.length - STRIDE] : null;
   }
 
   /** Races a lap made elsewhere, such as a shipped dev ghost, until a run of the player's own replaces it. */

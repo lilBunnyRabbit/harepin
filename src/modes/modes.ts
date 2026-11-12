@@ -336,6 +336,7 @@ export class Modes {
   private ctx(track: Track, event: CareerEvent | null): ModeCtx {
     const { scene, world, start_index, camera } = this;
     const spawn = (x: number, z: number, heading: number) => this.park(x, z, heading);
+    const tuned = event?.tuned === world.key;
     return {
       scene,
       world,
@@ -345,8 +346,9 @@ export class Modes {
       lobby_lap: () => this.lobby_lap,
       race_busy: () => this.race_busy(),
       hits: () => (event ? new Hits(() => world.contacts) : null),
-      thresholds: (par_ms) => event?.stars ?? par_thresholds(par_ms),
-      dev_ghost: () => (event?.ghost ? dev_ghost(event) : Promise.resolve(null)),
+      // Tuned on another world version, an event's times and ghost no longer fit its road: the mode's par grades it, no ghost.
+      thresholds: (par_ms) => (tuned && event?.stars) || par_thresholds(par_ms),
+      dev_ghost: () => (tuned && event?.ghost ? dev_ghost(event) : Promise.resolve(null)),
       high: () => this.high,
       key_of: (action) => keys_text(this.bindings()[action]),
       spawn,
