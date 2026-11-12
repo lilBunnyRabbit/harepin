@@ -915,7 +915,7 @@ describe("power over with TCS on and the steering assist off", () => {
     }
   });
 
-  test("the Drift preset: a handbrake-entered drift at 60-90 km/h, or a launch from rest, is held 3 s and more with countersteer and full gas on Smooth keys, without weaving or losing speed", () => {
+  test("the Drift preset: a handbrake-entered drift at 60-90 km/h, or a launch from rest, is held 3 s and more with countersteer and full gas on Smooth keys, without weaving; rolling, it keeps most of its speed", () => {
     const build = parse_build(PRESETS.find((preset) => preset.name === "Drift")?.code);
     if (!build) throw new Error("no Drift preset");
     const spec = apply_build(CARS[build.car], build);
