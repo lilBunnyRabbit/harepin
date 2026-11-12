@@ -198,6 +198,17 @@
   color: var(--set-dim);
 }
 
+.map-thumb {
+  background: var(--set-well);
+}
+
+.map-saved-code .map-thumb {
+  flex: none;
+  width: 36px;
+  aspect-ratio: 1;
+  border-radius: var(--radius-sm);
+}
+
 .map-saved-code > span {
   overflow: hidden;
   text-overflow: ellipsis;

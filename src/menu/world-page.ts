@@ -1,5 +1,6 @@
 import { el, icon } from "./setting-rows";
 import { WorldMap } from "./world-map";
+import { keep_thumb, map_thumb } from "./map-thumb";
 import type { MapData } from "../worldgen/map";
 import type { WorldKind } from "../worldgen/types";
 import { KINDS, plain_map, type MapSpec } from "../worldgen/kinds/kinds";
@@ -164,7 +165,11 @@ export class WorldPage implements MenuPage {
         }),
       );
     };
-    this.world_map.on_ready = show_facts;
+    let ready: MapData | null = null;
+    this.world_map.on_ready = (map) => {
+      ready = map;
+      show_facts(map);
+    };
 
     // Every kind's rows are built once and shown with their kind, so switching worlds never piles up row syncs.
     const tune_rows: { kind: WorldKind; more: boolean; row: HTMLElement }[] = [];
@@ -233,10 +238,11 @@ export class WorldPage implements MenuPage {
             this.menu.set("saved_maps", maps.filter((_, i) => i !== index));
             show_saved();
           });
+          const read = parse_map_code(map.code);
           const control = el("span", "map-saved-code");
+          if (read.ok) control.append(map_thumb(read.map));
           control.append(el("span", "", map.code), remove);
           return rows.action(map.name, `Load ${map.name}: ${map.code}`, control, () => {
-            const read = parse_map_code(map.code);
             if (read.ok) choose(read.map, true);
           });
         }),
@@ -246,6 +252,7 @@ export class WorldPage implements MenuPage {
       const label = [...name.value.replace(/\p{C}/gu, "").trim()].slice(0, MAP_NAME_LENGTH).join("").trim();
       if (!label) return name.focus();
       const code = map_code(this.chosen);
+      if (ready) keep_thumb(this.chosen, ready);
       const others = this.menu.state().saved_maps.filter((m) => m.name !== label);
       this.menu.set("saved_maps", [{ name: label, code }, ...others].slice(0, SAVED_MAPS_MAX));
       name.value = "";
@@ -272,6 +279,7 @@ export class WorldPage implements MenuPage {
       boost.hidden = !WORLDS[kind].pads;
       show_rows();
       show_facts(null);
+      ready = null;
       this.menu.refresh();
       this.world_map.show(seed, kind, now, levels);
     };

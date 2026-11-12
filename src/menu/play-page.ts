@@ -8,6 +8,7 @@ import { MenuTab, type Menu, type MenuPage } from "./page";
 import { el, icon } from "./setting-rows";
 import { picture } from "./widgets";
 import { WorldMap } from "./world-map";
+import { map_thumb } from "./map-thumb";
 import "./play.css";
 
 const PLAYERS_MS = 250;
@@ -127,7 +128,8 @@ export class PlayPage implements MenuPage {
       button.title = kind === host.kind ? "Keep driving here" : `Reloads room ${host.room} on ${name}`;
       const words = el("span", "play-words");
       words.append(el("b", "", name), el("span", "", note));
-      button.append(picture(kind), words);
+      const custom = kind === host.kind && host.code !== null;
+      button.append(custom ? map_thumb({ seed: host.seed, kind, levels: host.levels }) : picture(kind), words);
       if (kind === host.kind) words.prepend(el("span", "menu-tag", "You're here"));
       button.addEventListener("click", () => this.menu.drive(host.seed, kind));
       list.append(button);
