@@ -37,24 +37,23 @@ interface Drive {
   frames: number[];
 }
 
-// Each body tuned as close under the cap as one part swap at a time gets it, so every cap has a field of real cars.
+// Each body tuned as close under the cap as one part swap at a time gets it, so every cap has a field of real cars: a
+// body over the cap first sheds its biggest PI part by part until it fits.
+function swaps(build: Build): Build[] {
+  return SLOT_NAMES.flatMap((slot) => SLOTS[slot].parts.map((_, i) => ({ ...build, parts: { ...build.parts, [slot]: i } })));
+}
+
 function capped(stock: Build, cap: CarClass): Build | null {
-  if (!within(rating(stock).class, cap)) return null;
   let best = stock;
-  let best_pi = rating(stock).pi;
+  while (!within(rating(best).class, cap)) {
+    const slower = swaps(best).reduce((low, b) => (rating(b).pi < rating(low).pi ? b : low), best);
+    if (slower === best) return null;
+    best = slower;
+  }
   for (;;) {
-    let next: Build | null = null;
-    for (const slot of SLOT_NAMES)
-      for (let i = 0; i < SLOTS[slot].parts.length; i++) {
-        const tried = { ...best, parts: { ...best.parts, [slot]: i } };
-        const rated = rating(tried);
-        if (rated.pi > best_pi && within(rated.class, cap)) {
-          next = tried;
-          best_pi = rated.pi;
-        }
-      }
-    if (!next) return best;
-    best = next;
+    const faster = swaps(best).filter((b) => within(rating(b).class, cap)).reduce((top, b) => (rating(b).pi > rating(top).pi ? b : top), best);
+    if (faster === best) return best;
+    best = faster;
   }
 }
 
