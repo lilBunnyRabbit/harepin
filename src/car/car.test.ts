@@ -582,8 +582,9 @@ describe("dune sand", () => {
     expect(ids((spec) => climb_kmh(spec, grade_of(32), SAND) >= 20)).toEqual(["rally"]);
   }, 30_000);
 
-  test("every car climbs a 12 degree packed line at 40 km/h or more", () => {
+  test("every car climbs a 12 degree packed line at 40 km/h or more, and a 15 degree one at 20", () => {
     expect(ids((spec) => climb_kmh(spec, grade_of(12), PACKED) < 40)).toEqual([]);
+    expect(ids((spec) => climb_kmh(spec, grade_of(15), PACKED) < 20)).toEqual([]);
   }, 30_000);
 
   test("over a rounded crest at 15-25 m/s no car leaves the ground", () => {

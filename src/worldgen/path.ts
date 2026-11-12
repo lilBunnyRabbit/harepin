@@ -74,6 +74,22 @@ const CORRIDOR_SNAP = 120;
 const CORRIDOR_SIDE = 6;
 /** Point spacing along a packed line, metres. */
 const PACKED_STEP = 4;
+/** A packed line's steepest grade, 14 degrees: every car climbs 15 degrees of packed dirt (car.test.ts "dune sand"). */
+const PACKED_GRADE = 0.25;
+/** Its legs aim for this much of the ground's grade, so holding PACKED_GRADE cuts little. */
+const PACKED_AIM = 0.22;
+/** A line starts this far across from the straights' middle and turns back short of their ends by PACKED_EDGE; its turns have this radius, metres. */
+const PACKED_START = 40;
+const PACKED_EDGE = 30;
+const PACKED_TURN = 20;
+/** Chaikin passes that round the kinks where a leg meets a hairpin. */
+const PACKED_ROUND = 3;
+/** Bed half-width and bank reach either side of a packed line, metres, and the steepest its banks lean. */
+const PACKED_BED = 3;
+const PACKED_BANK = 24;
+const BANK_GRADE = 0.62;
+const PACKED_MAX = 4000;
+const PACKED_SHARES = [1, 0.8, 0.6, 0.45, 0.35, 0.25, 0.18, 0.12, 0.06];
 
 export type Path = [number, number][];
 type Height = (x: number, z: number) => number;
@@ -256,15 +272,70 @@ export function corridor_path(seed: number, height: Height, corridor: NonNullabl
 }
 
 /**
- * Packed lines straight across the dune inside a corridor circuit, from one corridor to the other at a quarter of each
- * side in from its ends: up the windward face, over the crest and down the slip face, on the ground as it lies.
+ * A packed line across the dune inside a corridor circuit. It climbs the windward face on one long diagonal, turns over
+ * the crest where the ground lies flattest, and comes down the slip face on one long diagonal back across the straights:
+ * no hairpin on a face, so its grade holds without a cut. Each step leans along the wind as far as the ground, one and
+ * two steps on, stays within PACKED_AIM; the heights are then held to PACKED_GRADE. One line: a second would cross it
+ * at another height, and their banks would fight.
  */
 export function packed_lines({ wx, wz, lo, hi, half }: Corridor, height: Height): RoadPoint[][] {
-  return [-half / 2, half / 2].map((across) => {
-    const path: Path = [];
-    for (let s = lo; s <= hi; s += PACKED_STEP) path.push([wx * s - wz * across, wz * s + wx * across]);
-    return road_points(path, path.map(([x, z]) => height(x, z)), false);
+  const turn = circle24().slice(1, 12);
+  const edge = half - PACKED_EDGE;
+  return [1].map((first) => {
+    const at = (s: number, c: number): [number, number] => [wx * s - wz * c, wz * s + wx * c];
+    let s = lo;
+    let c = -first * PACKED_START;
+    let side = first;
+    let over = false;
+    const local: [number, number][] = [[s, c]];
+    const hairpin = () => {
+      for (const [cos, sin] of turn) local.push([s + PACKED_TURN * (1 - cos), c + side * PACKED_TURN * sin]);
+      s += 2 * PACKED_TURN;
+      side = -side;
+      local.push([s, c]);
+    };
+    while (s < hi && local.length < PACKED_MAX) {
+      const here = height(...at(s, c));
+      const step = (share: number): [number, number] => [PACKED_STEP * share, side * PACKED_STEP * Math.sqrt(1 - share * share)];
+      const fits = (share: number) => {
+        const [ds, dc] = step(share);
+        return [1, 2].every((k) => Math.abs(height(...at(s + ds * k, c + dc * k)) - here) <= PACKED_AIM * PACKED_STEP * k);
+      };
+      const [ds, dc] = step(PACKED_SHARES.find(fits) ?? 0);
+      if (!over && height(...at(s + PACKED_STEP, c)) < here) {
+        over = true;
+        hairpin();
+        continue;
+      }
+      if (Math.abs(c + dc) > edge) {
+        hairpin();
+        continue;
+      }
+      s += ds;
+      c += dc;
+      local.push([s, c]);
+    }
+    const path = resample(chaikin(local.map(([s, c]) => at(s, c)), PACKED_ROUND), PACKED_STEP, false);
+    const run = path.map(([x, z], i) => (i + 1 < path.length ? length(path[i + 1][0] - x, path[i + 1][1] - z) : 0));
+    const ys = limit_grade(path.map(([x, z]) => height(x, z)), run, PACKED_GRADE);
+    return road_points(path, ys, false);
   });
+}
+
+/**
+ * A packed line as the trails that lay it: three side by side for a bed a car can run wide on, then on each side banks
+ * every 4 m out, each held within BANK_GRADE of the bed's edge, so a cut or fill eases back into the dune instead of
+ * standing as a wall.
+ */
+export function packed_bed(line: readonly RoadPoint[], height: Height): { bed: RoadPoint[][]; banks: RoadPoint[][] } {
+  const at = (o: number) => line.map((q) => ({ ...q, x: q.x - q.tz * o, z: q.z + q.tx * o }));
+  const banks: RoadPoint[][] = [];
+  for (const side of [-1, 1])
+    for (let o = PACKED_BED + 4; o <= PACKED_BED + PACKED_BANK; o += 4) {
+      const reach = (o - PACKED_BED) * BANK_GRADE;
+      banks.push(at(side * o).map((q, i) => ({ ...q, y: line[i].y + Math.max(-reach, Math.min(reach, height(q.x, q.z) - line[i].y)) })));
+    }
+  return { bed: [-PACKED_BED, 0, PACKED_BED].map(at), banks };
 }
 
 function loop_controls(seed: number, heights: Float32Array, summit: [number, number], shape: RoadRecipe): Controls {

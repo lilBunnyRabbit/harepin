@@ -10,7 +10,7 @@ import { on_ice, plan_ice } from "./ice";
 import { in_lava } from "./lava";
 import { split_circuit, type Join } from "./graph";
 import { link_towns, way_toward, ways } from "./links";
-import { corridor_path, loop_heights, loop_path, packed_lines, road_points } from "./path";
+import { corridor_path, loop_heights, loop_path, packed_bed, packed_lines, road_points } from "./path";
 import { circuit_route, descent_route, offroad_routes, reverse_circuit, street_routes } from "./routes";
 import { join_candidates, MIN_RADIUS, Router, SHAPE_GRADE, spur_need, spur_points, tightest, type Way } from "./route";
 import type { Loop, Path } from "./path";
@@ -218,9 +218,11 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   lap("checkpoints");
 
   const trails = plan_trails(seed, land, stamp, canyon, towns, solids, recipe.road.canyon?.crossings);
-  // Laid on the ground as it lies: only the surface turns to packed dirt.
   const packed = planned.corridor ? packed_lines(planned.corridor, (x, z) => sample(heights, x, z)) : [];
-  if (packed.length) stamp.trail(packed.map((points) => ({ points, blend: () => 0 })));
+  // Banks first, then the bed over them as its own stamp: each line's middle is the second of the last stamp's lines.
+  const beds = packed.map((line) => packed_bed(line, (x, z) => sample(heights, x, z)));
+  if (beds.length) stamp.trail(beds.flatMap((b) => b.banks).map((points) => ({ points, blend: () => 1 })));
+  if (beds.length) stamp.trail(beds.flatMap((b) => b.bed).map((points) => ({ points, blend: () => 1 })));
   lap("trails");
 
   const planner = new JumpPlanner(seed, land, towns, lots.occupied, solids, recipe.road.kickers, lakes, lava);
