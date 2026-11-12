@@ -23,7 +23,7 @@ export function world_label(event: CareerEvent): string {
 export const mode_name = (event: CareerEvent) => MODES.find((mode) => mode.id === event.mode)?.name ?? event.mode;
 
 export function car_limit(event: CareerEvent): HTMLElement {
-  if ("preset" in event.car) return el("span", "career-preset", event.car.preset);
+  if ("preset" in event.car) return el("span", "career-preset", `${event.car.preset} car`);
   const badge = el("span", "class-badge");
   badge.dataset.class = event.car.cap;
   badge.setAttribute("aria-label", `Class ${CLASS_LABELS[event.car.cap]} or lower`);
