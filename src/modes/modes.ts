@@ -669,7 +669,7 @@ export class Modes {
         el.note.textContent = STAGE_NEEDS_STAR;
         el.note.hidden = false;
       }
-    } else if (active.play) this.show_play(active.play, stars);
+    } else if (active.play) this.show_play(active.play, stars, cup?.total);
     else if (active.event) this.show_event(active.event, stars);
     else {
       const index = levels.findIndex((level) => level.id === active.level.id);
@@ -696,9 +696,9 @@ export class Modes {
     el.next.disabled = false;
   }
 
-  private show_play(play: RunPlay, stars: number) {
+  private show_play(play: RunPlay, stars: number, total?: number) {
     const { el } = this;
-    el.lines.append(...play.finish(stars));
+    el.lines.append(...play.finish(stars, total));
     el.next.textContent = play.next?.label ?? NEXT_EVENT;
     el.next.hidden = play.next === null;
     el.next.disabled = false;

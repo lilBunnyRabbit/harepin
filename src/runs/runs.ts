@@ -178,7 +178,7 @@ export function iso_week(date: string): string {
   return `${year}-W${String(week).padStart(2, "0")}`;
 }
 
-/** The Monday an ISO week starts on; null for a week that doesn't exist (`2026-W53`). */
+/** The Monday an ISO week starts on; null for a week that doesn't exist (`2025-W53`). */
 export function week_start(week: string): string | null {
   const match = WEEK.exec(week);
   if (!match) return null;

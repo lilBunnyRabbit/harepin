@@ -277,3 +277,8 @@ export function run_track(pick: RunPick, levels: readonly string[], store: Store
 export function weekly_best(pick: RunPick, store: Store | null): number | null {
   return run_track(pick, [], store, pick.seed, pick.kind, []).runs[CUP_RECORD]?.score ?? null;
 }
+
+/** The points a finished weekly pays season stars on: its best total in its own week, else the cup just run (`total`). */
+export function week_points(pick: RunPick, best: number, total: number, started: string): number {
+  return pick.date === iso_week(started) ? best : total;
+}

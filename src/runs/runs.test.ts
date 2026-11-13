@@ -1,3 +1,4 @@
+import "../../scripts/fake-dom";
 import { expect, test } from "bun:test";
 import { DRIFT_LEVELS } from "../modes/drift";
 import { DUEL_LEVELS } from "../modes/duel";
@@ -10,7 +11,7 @@ import type { Store } from "../modes/track";
 import { pick_world } from "../world/world-pick";
 import { stage_text } from "../menu/runs/run-text";
 import { CUP_RECORD, MAX_STAGES, MIN_STAGES } from "../modes/championship";
-import { FREE_CAP, Runs, RUNS_KEY, parse_runs_save, run_track, weekly_best } from "./runs-store";
+import { FREE_CAP, Runs, RUNS_KEY, parse_runs_save, run_track, week_points, weekly_best } from "./runs-store";
 import {
   Difficulty,
   FALLBACK,
@@ -346,4 +347,10 @@ test("a weekly's best total is read off its records on the plain map", () => {
   run_track(pick, [], store, pick.seed, pick.kind, []).record(CUP_RECORD, { stars: 2, ms: 1, score: 22 });
   expect(weekly_best(pick, store)).toBe(22);
   expect(weekly_best(weekly("2026-W47"), store)).toBeNull();
+});
+
+test("an old week pays on the cup just run, its own week on the best total", () => {
+  const pick = weekly("2026-W46");
+  expect(week_points(pick, 30, 9, "2026-11-13")).toBe(30);
+  expect(week_points(pick, 30, 9, "2026-11-20")).toBe(9);
 });

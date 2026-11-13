@@ -7,7 +7,7 @@ import { world_key } from "../worldgen/kinds/kinds";
 import { map_code } from "../worldgen/kinds/map-code";
 import { daily_key } from "./daily-board";
 import { probe } from "./run-world";
-import { FREE_CAP, run_track, type Runs } from "./runs-store";
+import { FREE_CAP, run_track, week_points, type Runs } from "./runs-store";
 import { RunSource, daily, new_seed, played, random, resolve, resolve_stages, scale, type_of, type RunPick } from "./runs";
 
 /** A Runs pick as `Modes` plays it: an event's car rules, its own records, the mode's marks scaled, season stars on finish. */
@@ -17,8 +17,8 @@ export interface RunPlay {
   /** Laps of a closed route the race runs; 1 elsewhere. */
   readonly laps: number;
   grade(own: Thresholds): Thresholds;
-  /** Records the finish; the lines it adds to the result card. */
-  finish(stars: number): HTMLElement[];
+  /** Records the finish; the lines it adds to the result card. `total`: a championship's points. */
+  finish(stars: number, total?: number): HTMLElement[];
   readonly next: { readonly label: string; go(): void } | null;
 }
 
@@ -60,17 +60,18 @@ export function run_play(pick: RunPick, world: World, runs: Runs, start_run: (id
     track,
     laps: resolved.mode === "race" && world.routes.find((route) => route.id === resolved.level)?.closed ? pick.laps : 1,
     grade: (own) => scale(own, pick.difficulty),
-    finish(cup_stars) {
+    finish(cup_stars, cup_total = 0) {
       if (cup_stars < 1) return [];
-      // A weekly's season stars come off its best total, which the runner has just recorded.
-      const points = stages ? (track.runs[CUP_RECORD]?.score ?? 0) : 0;
+      // A weekly's season stars come off its best total, which the runner has just recorded; an old week's off this cup.
+      const top = track.runs[CUP_RECORD]?.score ?? 0;
+      const points = stages ? week_points(pick, top, cup_total, started) : 0;
       const stars = stages ? week_stars(points, stages.length) : cup_stars;
       const { gain, capped } = runs.record(pick, stars, started);
       const best = track.runs[resolved.level];
       if (pick.source === RunSource.DAILY && pick.date === runs.today && best) runs.post_daily({ k: daily_key(pick.date, event.map, resolved.level, world.key), ms: best.ms, ...(best.score === undefined ? {} : { score: best.score }) });
       const total = `${runs.stars} ★`;
       const season = line("season", gain ? `+${gain} ★ · ${total}` : capped ? `Today's ${FREE_CAP} ★ are in · ${total}` : total);
-      return stages ? [line("week", `${stars} / ${WEEK_STARS} ★ · best ${points_text(points)}`), season] : [season];
+      return stages ? [line("week", `${stars} / ${WEEK_STARS} ★ · ${points === top ? "best " : ""}${points_text(points)}`), season] : [season];
     },
     next: pick.source === RunSource.RANDOM ? { label: "New run", go: () => start_run(random(new_seed()).id) } : null,
   };
