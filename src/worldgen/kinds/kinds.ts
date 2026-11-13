@@ -13,8 +13,9 @@ import { sky } from "./sky";
 import { tundra } from "./tundra";
 import { volcano } from "./volcano";
 import { ice_canyon } from "./ice-canyon";
+import { velodrome } from "./velodrome";
 
-export const KINDS: Record<WorldKind, KindDef> = { island, sky, desert, mainland, alpine, tundra, volcano, rooftops, dunes: big_dunes, icecanyon: ice_canyon };
+export const KINDS: Record<WorldKind, KindDef> = { island, sky, desert, mainland, alpine, tundra, volcano, rooftops, dunes: big_dunes, icecanyon: ice_canyon, velodrome };
 
 export interface MapSpec {
   kind: WorldKind;

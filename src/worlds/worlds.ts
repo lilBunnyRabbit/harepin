@@ -9,10 +9,11 @@ import { sky } from "./sky";
 import { tundra } from "./tundra";
 import { volcano } from "./volcano";
 import { ice_canyon } from "./ice-canyon";
+import { velodrome } from "./velodrome";
 import type { WorldDef } from "./world-def";
 
 /** In menu order. */
-export const WORLDS: Record<WorldKind, WorldDef> = { mainland, island, sky, desert, alpine, tundra, volcano, rooftops, dunes: big_dunes, icecanyon: ice_canyon };
+export const WORLDS: Record<WorldKind, WorldDef> = { mainland, island, sky, desert, alpine, tundra, volcano, rooftops, dunes: big_dunes, icecanyon: ice_canyon, velodrome };
 
 /** The worlds a player can pick, in menu order. */
 export const LISTED = Object.values(WORLDS).filter((w) => w.listed);

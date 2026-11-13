@@ -41,6 +41,10 @@ const MAX_CLIMB = 0.1;
 const MAX_DROP = 0.25;
 const EASE = 15;
 const BANK_RATE = (1.2 * Math.PI) / 180;
+/** Roll-in of a bowl (rad/m): at BANK_RATE a 55° bowl would take 46 m to roll in, most of a 180° bowl at 40 m. */
+const BOWL_RATE = (1.8 * Math.PI) / 180;
+/** Kick at the middle of a bowl: held this long at its bank, rolled in and out at BOWL_RATE. */
+const KICK_HOLD = 16;
 const START_AHEAD = 60;
 /** Flat straight before the start line: the grid spawns 80 m back on it. */
 const START_BEHIND = 120;
@@ -99,9 +103,21 @@ export interface SkyRecipe {
   length: readonly [number, number];
   /** Lays the banked run: the race level over the most banked half of the lap. */
   banked: boolean;
+  /** Velodrome bowls: one per lap, or one per lobe of a figure-eight; null lays none and draws nothing for them. */
+  bowls: Bowls | null;
+  /** Car ids no route of the track is raced in. */
+  excludes: readonly string[];
 }
 
-export const SKY: SkyRecipe = { kind: WorldKind.SKY, profile: "free", roofs: false, odds: { eight: 0.3, helix: 0.45, hairpin: 0.35 }, gaps: 2, pads: MAX_PADS, open: [0.15, 0.3], length: [2400, 5200], banked: true };
+/** Each bowl draws its turn, radius and bank (rad, metres) inside these, and a kick steeper than its bank at its middle. */
+export interface Bowls {
+  angle: readonly [number, number];
+  radius: readonly [number, number];
+  bank: readonly [number, number];
+  kick: readonly [number, number];
+}
+
+export const SKY: SkyRecipe = { kind: WorldKind.SKY, profile: "free", roofs: false, odds: { eight: 0.3, helix: 0.45, hairpin: 0.35 }, gaps: 2, pads: MAX_PADS, open: [0.15, 0.3], length: [2400, 5200], banked: true, bowls: null, excludes: [] };
 
 interface Turn {
   angle: number;
@@ -118,6 +134,9 @@ interface PlanPiece {
   min: number;
   stretch: boolean;
   helix: boolean;
+  bowl: boolean;
+  /** Bank (rad) held for KICK_HOLD at the middle of a bowl; 0 for none. */
+  kick: number;
 }
 
 interface Pose {
@@ -166,11 +185,23 @@ function arc(t: Turn): PlanPiece {
   const ease = Math.max(EASE, Math.abs(t.bank) / (BANK_RATE * 0.95));
   const radius = Math.max(t.radius, (ease * 1.2) / Math.abs(t.angle));
   const curve = Math.sign(t.angle) / radius;
-  return { kind: "arc", length: t.angle / curve + ease, curve, ease, bank: t.bank, min: 0, stretch: false, helix: false };
+  return { kind: "arc", length: t.angle / curve + ease, curve, ease, bank: t.bank, min: 0, stretch: false, helix: false, bowl: false, kick: 0 };
 }
 
 function straight(length: number, min: number, stretch = true): PlanPiece {
-  return { kind: "straight", length, curve: 0, ease: 0, bank: 0, min, stretch, helix: false };
+  return { kind: "straight", length, curve: 0, ease: 0, bank: 0, min, stretch, helix: false, bowl: false, kick: 0 };
+}
+
+/** A bowl turning `sign` way, banked into the turn and rolled in at BOWL_RATE. */
+function bowl(rng: () => number, bowls: Bowls, sign: number): PlanPiece {
+  const draw = ([lo, hi]: readonly [number, number]) => lo + rng() * (hi - lo);
+  const angle = sign * draw(bowls.angle);
+  const radius = draw(bowls.radius);
+  const bank = -sign * draw(bowls.bank);
+  const kick = -sign * draw(bowls.kick);
+  const ease = Math.max(EASE, Math.abs(bank) / BOWL_RATE);
+  const curve = sign / radius;
+  return { kind: "arc", length: angle / curve + ease, curve, ease, bank, min: 0, stretch: false, helix: false, bowl: true, kick };
 }
 
 function hairpin(rng: () => number, angle: number): Turn {
@@ -231,25 +262,32 @@ function skeleton(rng: () => number, total: number, hairpin_odds: number): Turn[
 }
 
 // Heading closes only if the turning totals 2π per lap: 0 for a figure-eight, plus 2π for a helix coil.
-function draw_layout(rng: () => number, odds: SkyRecipe["odds"]): PlanPiece[] | null {
+// A bowl takes its turn out of its lobe's share before the skeleton splits the rest, then sits among that lobe's turns.
+function draw_layout(rng: () => number, { odds, bowls }: SkyRecipe): PlanPiece[] | null {
   const eight = rng() < odds.eight;
   const coil = rng() < odds.helix ? (rng() < 0.5 ? 1 : -1) : 0;
   const helix_angle = coil * (2 * Math.PI + HELIX_EXTRA[0] + rng() * (HELIX_EXTRA[1] - HELIX_EXTRA[0]));
   const need = (eight ? 0 : 2 * Math.PI) + coil * 2 * Math.PI - helix_angle;
-  let turns: Turn[] | null;
+  const lobe = (total: number): PlanPiece[] | null => {
+    const b = bowls && bowl(rng, bowls, Math.sign(total) || 1);
+    const turns = skeleton(rng, total - (b ? turn_angle(b) : 0), odds.hairpin)?.map(arc);
+    if (turns && b) turns.splice(Math.floor(rng() * (turns.length + 1)), 0, b);
+    return turns ?? null;
+  };
+  let turns: PlanPiece[] | null;
   if (eight) {
     const lefts = Math.PI * (1.2 + rng() * 0.8);
-    const a = skeleton(rng, lefts, odds.hairpin);
-    const b = skeleton(rng, need - lefts, odds.hairpin);
+    const a = lobe(lefts);
+    const b = lobe(need - lefts);
     turns = a && b ? [...a, ...b] : null;
-  } else turns = skeleton(rng, need, odds.hairpin);
+  } else turns = lobe(need);
   if (!turns) return null;
   const last = turns.length - 1;
   const jump_at = Math.floor(rng() * last);
   const helix_at = coil ? Math.floor(rng() * last) : -1;
   const pieces: PlanPiece[] = [straight(START_AHEAD + rng() * 60, START_AHEAD)];
   turns.forEach((t, i) => {
-    pieces.push(arc(t));
+    pieces.push(t);
     if (i === last) {
       pieces.push(straight(START_BEHIND + rng() * 80, START_BEHIND));
       return;
@@ -377,7 +415,10 @@ interface Sample {
 function bank_at(p: PlanPiece, s: number): number {
   if (p.kind !== "arc" || p.bank === 0) return 0;
   const f = Math.min(1, s / p.ease, (p.length - s) / p.ease);
-  return p.bank * f;
+  if (p.kick === 0) return p.bank * f;
+  const roll = Math.abs(p.kick - p.bank) / BOWL_RATE;
+  const k = Math.max(0, Math.min(1, 1 - (Math.abs(s - p.length / 2) - KICK_HOLD / 2) / roll));
+  return p.bank * f + (p.kick - p.bank) * k;
 }
 
 function sample_layout(pieces: PlanPiece[]): { samples: Sample[]; length: number; error: number } {
@@ -799,7 +840,7 @@ function zones_fit(zones: Zone[], helices: readonly Helix[], length: number): bo
 export function sky_layout(seed: number, recipe: SkyRecipe = SKY, plain: SkyRecipe = SKY): SkyLayout {
   for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
     const rng = mulberry32(sub(seed, `${recipe.kind}:${attempt}`));
-    const pieces = draw_layout(rng, recipe.odds);
+    const pieces = draw_layout(rng, recipe);
     if (!pieces) continue;
     const { samples, length, error } = sample_layout(pieces);
     if (length < recipe.length[0] || length > recipe.length[1]) continue;
@@ -812,6 +853,8 @@ export function sky_layout(seed: number, recipe: SkyRecipe = SKY, plain: SkyReci
     const twist = twistiness(samples.map((p) => ({ x: p.x, z: p.z, tx: Math.sin(p.h), tz: Math.cos(p.h) })));
     if (!twisty(twist)) continue;
     const pairs = close_pairs(samples, length);
+    // A bowl's high edge stands as tall as a crossover's clearance: nothing passes over or under one.
+    if (recipe.bowls && pairs.some((pair) => pair.some((i) => pieces[samples[i].piece].bowl))) continue;
     const zones = zones_of(samples, pairs);
     const helices = helices_of(pieces);
     if (!zones_fit(zones, helices, length)) continue;
@@ -1007,6 +1050,7 @@ export function generate_sky(seed: number, recipe: SkyRecipe = SKY, plain: SkyRe
 
   const circuit = circuit_route(road, checkpoints);
   const banked = built.banked && circuit_banked(road, samples.map((p) => Math.abs(p.bank)), at, checkpoints, BANKED_S, (k) => launches.has(k), BANKED_PAR);
+  const routes = banked ? [circuit, banked] : [circuit];
 
   const roofs = built.roofs ? roof_buildings(seed, line, samples.map((p) => p.h)) : { lots: [], buildings: [] };
   const heights = new Float32Array((N + 1) * (N + 1)).fill(ABYSS);
@@ -1030,7 +1074,7 @@ export function generate_sky(seed: number, recipe: SkyRecipe = SKY, plain: SkyRe
     checkpoints,
     circuit: [0],
     road,
-    routes: banked ? [circuit, banked] : [circuit],
+    routes: built.excludes.length ? routes.map((r) => ({ ...r, excludes: built.excludes })) : routes,
     canyon: null,
     timings: [[built.kind, performance.now() - t0]],
   };
