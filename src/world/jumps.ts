@@ -115,6 +115,12 @@ interface Loose {
   moving: boolean;
 }
 
+function touches(car: Car, fx: number, fz: number, at: THREE.Vector3, r: number): boolean {
+  const circles = car.spec.circles;
+  for (let i = 0; i < circles.length; i++) if (Math.hypot(car.pos.x + fx * circles[i] - at.x, car.pos.z + fz * circles[i] - at.z) < r) return true;
+  return false;
+}
+
 export class JumpsView {
   readonly root = new THREE.Group();
   private readonly chunks: THREE.Mesh[] = [];
@@ -123,6 +129,7 @@ export class JumpsView {
   private readonly side = new Map<number, number>();
   private readonly m = new THREE.Matrix4();
   private readonly s = new THREE.Vector3(1, 1, 1);
+  private readonly event: JumpEvent = { clean: null };
   private readonly q = new THREE.Quaternion();
 
   constructor(
@@ -184,7 +191,8 @@ export class JumpsView {
   update(dt: number, car: Car): JumpEvent {
     this.knock(car);
     this.fly(dt);
-    return { clean: this.watch(car) };
+    this.event.clean = this.watch(car);
+    return this.event;
   }
 
   bonked(x: number, z: number): boolean {
@@ -202,7 +210,7 @@ export class JumpsView {
     for (const l of this.loose) {
       if (l.moving || Math.abs(l.pos.y - car.pos.y) > 2.5) continue;
       const r = ITEMS[l.item.kind].r * l.item.scale + car.spec.radius;
-      if (!car.spec.circles.some((o) => Math.hypot(car.pos.x + fx * o - l.pos.x, car.pos.z + fz * o - l.pos.z) < r)) continue;
+      if (!touches(car, fx, fz, l.pos, r)) continue;
       const ax = l.pos.x - car.pos.x;
       const az = l.pos.z - car.pos.z;
       const away = Math.hypot(ax, az) || 1;
@@ -215,13 +223,12 @@ export class JumpsView {
   }
 
   private fly(dt: number) {
-    const turn = new THREE.Quaternion();
     for (const l of this.loose) {
       if (!l.moving) continue;
       l.vel.y -= GRAVITY * dt;
       l.pos.addScaledVector(l.vel, dt);
       const angle = l.spin.length() * dt;
-      if (angle > 0) l.quat.premultiply(turn.setFromAxisAngle(this.s.copy(l.spin).normalize(), angle));
+      if (angle > 0) l.quat.premultiply(this.q.setFromAxisAngle(this.s.copy(l.spin).normalize(), angle));
       const ground = this.height(l.pos.x, l.pos.z);
       if (l.pos.y < ground) {
         l.pos.y = ground;
