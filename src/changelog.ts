@@ -23,6 +23,16 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.40.0",
+    date: "2026-11-13",
+    title: "Seasons",
+    changes: [
+      { kind: NEW, text: "Seasons: four weeks long, earn season stars in Runs for titles and a name tag tint other players see." },
+      { kind: NEW, text: "Daily board: the online lobby lists today's daily times and scores of the players around you." },
+      { kind: NEW, text: "Weekly cup: a 3-stage championship on one map each week, up to 5 season stars." },
+    ],
+  },
+  {
     version: "0.39.0",
     date: "2026-11-13",
     title: "Elite complete",
