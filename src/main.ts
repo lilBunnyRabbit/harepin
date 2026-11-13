@@ -474,7 +474,9 @@ if (guide_step !== null) {
 // Typing a name on a phone would raise the keyboard over the menu, so only a mouse and keyboard get the cursor.
 if (prefs.name === null && matchMedia("(pointer: fine)").matches) settings.focus_name();
 
-$("garage-btn").addEventListener("click", () => settings.open(MenuTab.GARAGE));
+// In a class-capped event the car button and its key pick the event's car; the garage stays in the menu.
+const open_car = () => (modes.can_change_car ? void modes.change_car() : settings.open(MenuTab.GARAGE));
+$("garage-btn").addEventListener("click", open_car);
 $("settings-btn").addEventListener("click", () => settings.open(MenuTab.SETTINGS));
 $("career-btn").addEventListener("click", () => settings.open("career"));
 $("modes-btn").addEventListener("click", () => settings.open("modes"));
@@ -537,7 +539,7 @@ const ACTIONS: Record<Action, () => void> = {
   ghost: () => toggle_aid("ghost"),
   help: () => settings.open_keys(),
   map: () => settings.open("world"),
-  garage: () => settings.open(MenuTab.GARAGE),
+  garage: open_car,
   settings: () => settings.open(),
   menu: () => pad_menu.toggle(),
 };

@@ -7,7 +7,7 @@ import { unlock_card } from "../career/unlock-card";
 import { limit_text, same_machine, within, type CarLimit } from "../car/car-pick";
 import { car_sized, type CarSpec } from "../car/cars";
 import { build_code, parse_build } from "../car/build";
-import { rating } from "../car/pi";
+import { rating, type CarClass } from "../car/pi";
 import { PRESETS } from "../car/presets";
 import { DEFAULT_BINDINGS, keys_text, type Bindings } from "../hud/bindings";
 import { $, format } from "../hud/hud";
@@ -115,6 +115,7 @@ export class Modes {
     retry: $("mode-retry", HTMLButtonElement),
     next: $("mode-next", HTMLButtonElement),
     try_on: $("mode-try", HTMLButtonElement),
+    car: $("mode-car", HTMLButtonElement),
     exit: $("mode-exit", HTMLButtonElement),
   };
 
@@ -222,6 +223,7 @@ export class Modes {
     this.el.retry.addEventListener("click", () => this.restart(), { signal });
     this.el.next.addEventListener("click", () => this.play_next(), { signal });
     this.el.try_on.addEventListener("click", () => this.reward && this.try_reward?.(this.reward), { signal });
+    this.el.car.addEventListener("click", () => void this.change_car(), { signal });
     this.el.exit.addEventListener("click", () => this.exit(), { signal });
   }
 
@@ -280,21 +282,43 @@ export class Modes {
       return true;
     }
     if (!this.pick_car) return true;
+    const code = await this.ask_car(event, car.cap, mode);
+    if (code === null) {
+      // A cancelled pick must not reopen on reload, so the event leaves the URL; map params stay.
+      const url = new URL(location.href);
+      url.searchParams.delete(EVENT_PARAM);
+      history.replaceState(history.state, "", url);
+      return false;
+    }
+    this.wear(code);
+    return true;
+  }
+
+  /** A class-capped event under way, mid-run or on its result: its car can change, which starts the run over. */
+  get can_change_car(): boolean {
+    const car = this.current?.event?.car;
+    return car !== undefined && "cap" in car && this.pick_car !== null;
+  }
+
+  /** Asks again which car runs the event; a pick restarts the run on it, a cancel leaves the run and the car as they were. */
+  async change_car() {
+    const active = this.current;
+    const car = active?.event?.car;
+    if (!active?.event || !car || !("cap" in car) || this.pick) return;
+    const code = await this.ask_car(active.event, car.cap, active.mode);
+    if (code === null || this.current !== active) return;
+    this.wear(code);
+    this.restart();
+  }
+
+  private async ask_car(event: CareerEvent, cap: CarClass, mode: Mode): Promise<string | null> {
+    if (!this.pick_car) return null;
     const pick = new AbortController();
     this.pick = pick;
     try {
       const own = this.kept ?? this.car_code?.() ?? "";
       const excludes = this.world.routes.find((r) => r.id === spot_of(event).level)?.excludes;
-      const code = await this.pick_car(event.name, { cap: car.cap, car_sized_only: mode.def.car_sized_only, excludes }, own, pick.signal);
-      if (code === null) {
-        // A cancelled pick must not reopen on reload, so the event leaves the URL; map params stay.
-        const url = new URL(location.href);
-        url.searchParams.delete(EVENT_PARAM);
-        history.replaceState(history.state, "", url);
-        return false;
-      }
-      this.wear(code);
-      return true;
+      return await this.pick_car(event.name, { cap, car_sized_only: mode.def.car_sized_only, excludes }, own, pick.signal);
     } finally {
       if (this.pick === pick) this.pick = null;
     }
@@ -560,6 +584,7 @@ export class Modes {
     el.unlock.replaceChildren();
     this.reward = null;
     el.try_on.hidden = true;
+    el.car.hidden = !this.can_change_car;
     if (active.event) this.show_event(active.event, stars);
     else {
       const index = levels.findIndex((level) => level.id === active.level.id);

@@ -1,0 +1,170 @@
+import "../../scripts/fake-dom";
+import { afterAll, beforeEach, expect, test } from "bun:test";
+import { parse_build, build_code } from "../car/build";
+import { within } from "../car/car-pick";
+import { CARS, car_sized } from "../car/cars";
+import { rating } from "../car/pi";
+import { PRESETS } from "../car/presets";
+import { EVENTS } from "../career/career";
+import { Career } from "../career/career-store";
+import { WorldKind } from "../worldgen/types";
+import { GYMKHANA_MODE } from "./gymkhana-mode";
+import { Modes } from "./modes";
+
+class FakeElement {
+  hidden = false;
+  disabled = false;
+  textContent = "";
+  readonly style = { setProperty() {} };
+  private readonly clicks: (() => void)[] = [];
+  addEventListener(type: string, listener: () => void) {
+    if (type === "click") this.clicks.push(listener);
+  }
+  click() {
+    for (const listener of this.clicks) listener();
+  }
+  replaceChildren() {}
+  append() {}
+  setAttribute() {}
+}
+class FakeButton extends FakeElement {}
+
+// The result card's elements, made as Modes asks for them; ids under mode- that are not the card's text are its buttons.
+const elements = new Map<string, FakeElement>();
+const doc = document as unknown as Record<string, unknown>;
+const fakes = { HTMLElement: FakeElement, HTMLButtonElement: FakeButton, history: { state: null, replaceState() {} } };
+const added = Object.keys(fakes).filter((key) => !(key in globalThis));
+Object.assign(globalThis, fakes);
+doc.getElementById = (id: string) => {
+  if (!elements.has(id)) elements.set(id, id.startsWith("mode-") && !id.startsWith("mode-result") ? new FakeButton() : new FakeElement());
+  return elements.get(id);
+};
+const gymkhana_start = GYMKHANA_MODE.start;
+afterAll(() => {
+  GYMKHANA_MODE.start = gymkhana_start;
+  delete doc.getElementById;
+  for (const key of added) Reflect.deleteProperty(globalThis, key);
+});
+
+const capped = EVENTS.find((e) => e.mode === "gymkhana" && "cap" in e.car)!;
+const preset = { ...capped, car: { preset: PRESETS[0].name } };
+const cap = "cap" in capped.car ? capped.car.cap : "c";
+const cruiser = PRESETS.map((p) => parse_build(p.code)).find((b) => b && within(rating(b).class, cap) && car_sized(CARS[b.car]))!;
+const [OWN, FIRST, SECOND] = [1, 2, 3].map((number) => build_code({ ...cruiser, number }));
+
+interface Rig {
+  modes: Modes;
+  starts: string[];
+  disposed: number;
+  car: string;
+  saved: string[];
+  answer: (code: string | null) => void;
+  asked: number;
+}
+
+function rig(): Rig {
+  const world = { kind: WorldKind.ISLAND, seed: 1, key: "k", levels: [], routes: [], ramps: [], tiles: { streamed: false, complete: true } };
+  const r = { starts: [], disposed: 0, car: OWN, saved: [], answer: () => {}, asked: 0 } as unknown as Rig;
+  r.modes = new Modes(
+    {} as never,
+    world as never,
+    0,
+    () => ({ best: {}, wins: 0, podiums: 0 }),
+    () => {},
+    () => false,
+    () => {},
+    {} as never,
+    () => CARS[parse_build(r.car)!.car],
+    new Career(null),
+  );
+  const { modes } = r;
+  modes.car_code = () => r.car;
+  modes.fit_car = (code, save) => {
+    r.car = code;
+    if (save) r.saved.push(code);
+  };
+  modes.pick_car = () => {
+    r.asked++;
+    return new Promise((done) => (r.answer = done));
+  };
+  GYMKHANA_MODE.start = () => {
+    r.starts.push(r.car);
+    return { update: () => null, finished: () => null, dispose: () => void r.disposed++ };
+  };
+  modes.start();
+  return r;
+}
+
+const settle = () => new Promise((done) => setTimeout(done, 0));
+
+async function in_event(r: Rig, pick: string) {
+  r.modes.play_event(capped);
+  await settle();
+  r.answer(pick);
+  await settle();
+}
+
+beforeEach(() => elements.clear());
+
+test("picking another car mid-event restarts the run on it", async () => {
+  const r = rig();
+  await in_event(r, FIRST);
+  expect(r.starts).toEqual([FIRST]);
+  expect(r.modes.can_change_car).toBe(true);
+
+  const change = r.modes.change_car();
+  expect(r.modes.holding).toBe(true);
+  r.answer(SECOND);
+  await change;
+  expect(r.starts).toEqual([FIRST, SECOND]);
+  expect(r.disposed).toBe(1);
+  expect(r.modes.active).toBe(true);
+  expect(r.modes.holding).toBe(false);
+
+  r.modes.exit();
+  expect(r.car).toBe(OWN);
+  expect(r.saved).toEqual([OWN]);
+});
+
+test("cancelling the change keeps the car and the run", async () => {
+  const r = rig();
+  await in_event(r, FIRST);
+  const change = r.modes.change_car();
+  r.answer(null);
+  await change;
+  expect(r.starts).toEqual([FIRST]);
+  expect(r.disposed).toBe(0);
+  expect(r.car).toBe(FIRST);
+  expect(r.modes.active).toBe(true);
+});
+
+test("picking the player's own car back restarts on it and leaves it on after the event", async () => {
+  const r = rig();
+  await in_event(r, FIRST);
+  const change = r.modes.change_car();
+  r.answer(OWN);
+  await change;
+  expect(r.starts).toEqual([FIRST, OWN]);
+  r.modes.exit();
+  expect(r.car).toBe(OWN);
+});
+
+test("the result card's Change car button opens the pick", async () => {
+  const r = rig();
+  await in_event(r, FIRST);
+  elements.get("mode-car")!.click();
+  expect(r.asked).toBe(2);
+  r.answer(SECOND);
+  await settle();
+  expect(r.starts).toEqual([FIRST, SECOND]);
+});
+
+test("a preset event and free play offer no car change", async () => {
+  const r = rig();
+  expect(r.modes.can_change_car).toBe(false);
+  r.modes.play_event(preset);
+  await settle();
+  expect(r.modes.can_change_car).toBe(false);
+  await r.modes.change_car();
+  expect(r.asked).toBe(0);
+});
