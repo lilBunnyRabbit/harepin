@@ -375,6 +375,6 @@
   :root[data-hud] #recenter {
     top: auto;
     bottom: 0;
-    right: calc(100% + var(--space-2));
+    right: calc(100% + var(--space-3));
   }
 }
