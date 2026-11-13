@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { tier_badge } from "../../career/badge";
   import { country_name, flag } from "../../net/country";
   import type { Announce } from "../../net/directory";
   import { ping_class, type Player } from "../../net/players";
@@ -12,6 +11,7 @@
   import Row from "../ui/Row.svelte";
   import RowList from "../ui/RowList.svelte";
   import SectionHead from "../ui/SectionHead.svelte";
+  import TierBadge from "../ui/TierBadge.svelte";
   import type { PageProps } from "../ui/svelte-page.svelte";
   import Dot from "./Dot.svelte";
   import { join_game } from "./join";
@@ -69,7 +69,7 @@
           <Row label={player.name} help={place(player)}>
             {#snippet control()}
               <span class="players-end">
-                {#if player.tier}<span class="players-tier" {@attach (node) => node.replaceChildren(tier_badge(player.tier!))}></span>{/if}
+                {#if player.tier}<span class="players-tier"><TierBadge tier={player.tier} /></span>{/if}
                 {#if !player.game.here}
                   <span class="players-ping"><Dot tone={TONE[ping_class(player.ping)]}>{player.ping === null ? "–" : `${player.ping} ms`}</Dot></span>
                 {/if}

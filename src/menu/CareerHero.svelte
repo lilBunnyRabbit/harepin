@@ -1,8 +1,7 @@
 <script lang="ts">
   import { EVENTS, MAX_EVENT_STARS, TIERS, current_tier, suggested, tier_max, tier_of, tier_open, tier_stars, type CareerEvent, type Stars } from "../career/career";
   import { event_map } from "../career/career-store";
-  import { tier_badge } from "../career/badge";
-  import type { TierBadge } from "../net/net";
+  import type { TierBadge as TierId } from "../net/net";
   import CarLimit from "./CarLimit.svelte";
   import { event_note } from "./career-text";
   import Button from "./ui/Button.svelte";
@@ -10,6 +9,7 @@
   import Icon from "./ui/Icon.svelte";
   import Link from "./ui/Link.svelte";
   import Progress from "./ui/Progress.svelte";
+  import TierBadge from "./ui/TierBadge.svelte";
   import { preview } from "./widgets";
 
   interface Props {
@@ -37,18 +37,12 @@
   const picks = $derived(up_next(stars));
   const next = $derived(picks.at(0));
 
-  function shield(node: HTMLElement) {
-    const badge = tier_badge((TIERS.indexOf(tier) + 1) as TierBadge);
-    badge.removeAttribute("title");
-    badge.setAttribute("aria-hidden", "true");
-    node.replaceChildren(badge);
-  }
 </script>
 
 <Card>
   <div class="hero">
     <div class="head">
-      <span class="shield" {@attach shield}></span>
+      <span class="shield"><TierBadge tier={(TIERS.indexOf(tier) + 1) as TierId} decorative /></span>
       <span class="tier">
         <span class="eyebrow">Career</span>
         <b>{tier.name}</b>

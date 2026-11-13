@@ -1,10 +1,9 @@
 <script lang="ts">
   import { MAX_EVENT_STARS, TIERS, tier_max, tier_open, tier_stars, type Tier } from "../career/career";
   import { owner_times } from "../career/career-store";
-  import { tier_badge } from "../career/badge";
   import { badge_open } from "../career/rewards";
   import { run_text } from "../modes/result";
-  import type { TierBadge } from "../net/net";
+  import type { TierBadge as TierId } from "../net/net";
   import CarLimit from "./CarLimit.svelte";
   import { event_note } from "./career-text";
   import Badge from "./ui/Badge.svelte";
@@ -15,6 +14,7 @@
   import Row from "./ui/Row.svelte";
   import RowList from "./ui/RowList.svelte";
   import SectionHead from "./ui/SectionHead.svelte";
+  import TierBadge from "./ui/TierBadge.svelte";
   import type { PageProps } from "./ui/svelte-page.svelte";
   import { COPIED_MS } from "./widgets";
 
@@ -39,9 +39,6 @@
     setTimeout(() => (copied = ""), COPIED_MS);
   }
 
-  const shield = (tier: Tier) => (node: HTMLElement) => {
-    node.replaceChildren(tier_badge((TIERS.indexOf(tier) + 1) as TierBadge));
-  };
 </script>
 
 <div class="career">
@@ -60,7 +57,7 @@
             {#if !open && before}
               <span class="lock"><Icon name="icon-lock" />{tier.opens_at} ★ in {before.name}</span>
             {:else if badge_open(live.stars, tier)}
-              <span class="shield" {@attach shield(tier)}></span>
+              <span class="shield"><TierBadge tier={(TIERS.indexOf(tier) + 1) as TierId} /></span>
             {/if}
           {/snippet}
         </SectionHead>

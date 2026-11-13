@@ -23,6 +23,7 @@ import Slider from "./Slider.svelte";
 import Stepper from "./Stepper.svelte";
 import Tabs from "./Tabs.svelte";
 import TextField from "./TextField.svelte";
+import TierBadge from "./TierBadge.svelte";
 import Tile from "./Tile.svelte";
 import Toggle from "./Toggle.svelte";
 
@@ -151,6 +152,16 @@ describe("ui components", () => {
     expect(html(Badge, { tone: "primary", children: text("New") })).toContain('data-tone="primary"');
     const badge = html(ClassBadge, { rating: { pi: 512, class: "b" } });
     expect(badge).toContain('aria-label="Class B, PI 512"');
+  });
+
+  test("TierBadge names its tier unless it is decorative", () => {
+    const out = html(TierBadge, { tier: 1 });
+    expect(out).toContain('role="img"');
+    expect(out).toMatch(/aria-label="[^"]+"/);
+    expect(out).toContain("--metal:");
+    const quiet = html(TierBadge, { tier: 1, decorative: true });
+    expect(quiet).toContain('aria-hidden="true"');
+    expect(quiet).not.toContain("role=");
   });
 
   test("Chip toggles carry aria-pressed and status chips a dot", () => {
