@@ -84,7 +84,7 @@
       <div class="map-tag">
         <SectionHead eyebrow={here ? "You are here" : "Main world"} title={`Mainland ${seed}`} />
       </div>
-      <div class="legend"><MapLegend items={legend} /></div>
+      <div class="legend"><MapLegend items={legend} stack /></div>
     </WorldMap>
   </div>
 
@@ -166,8 +166,10 @@
     left: var(--space-4);
   }
 
+  /* A corner card, not a full-width strip: the island sits centred, so the corners are open sea. */
   .legend {
-    inset: auto var(--space-4) var(--space-4);
+    inset: auto auto var(--space-4) var(--space-4);
+    max-width: calc(100% - 2 * var(--space-4));
   }
 
   .column {

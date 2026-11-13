@@ -74,11 +74,12 @@
 
 .settings[data-view="page"] .settings-body,
 .settings[data-view="menu"] .settings-body {
+  /* Room for the focus ring of the outer tiles (2px outline, 2px offset), which the scroller would otherwise cut. */
+  --focus-room: var(--space-1);
   overflow-y: auto;
   border-radius: var(--radius-lg);
-  /* Room for the focus ring of the outer tiles, which the scroller would otherwise cut. */
-  padding: 6px;
-  margin: -6px -6px 0;
+  padding: var(--focus-room);
+  margin: calc(-1 * var(--focus-room)) calc(-1 * var(--focus-room)) 0;
 }
 
 /* A column page (goals, new room) centres its panel, and its Back and title line up over that panel, not the screen. */

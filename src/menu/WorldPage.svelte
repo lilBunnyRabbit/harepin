@@ -538,9 +538,10 @@
       aspect-ratio: 1;
     }
 
+    /* Down over the scroller's focus-ring padding, so no strip of the page shows under the bar. */
     .drive-bar {
       position: sticky;
-      bottom: 0;
+      bottom: calc(-1 * var(--focus-room, 0px));
       padding-block: var(--space-4);
       border-top: 1px solid var(--set-line);
       background: var(--set-panel);

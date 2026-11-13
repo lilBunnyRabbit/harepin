@@ -15,7 +15,7 @@
 
 <header class="ui-head">
   <div class="ui-text">
-    {#if eyebrow}<span class="ui-eyebrow">{eyebrow}</span>{/if}
+    {#if eyebrow}<span class="ui-eyebrow" class:ui-over={title}>{eyebrow}</span>{/if}
     {#if title}
       <svelte:element this={`h${level}`} class="ui-title" data-role={role}>
         {title}
@@ -72,8 +72,9 @@
     flex: none;
   }
 
+  /* Short screens drop an eyebrow over a title; an eyebrow on its own is the group's label and stays. */
   @media (max-height: 500px) {
-    .ui-eyebrow {
+    .ui-over {
       display: none;
     }
   }

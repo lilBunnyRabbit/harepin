@@ -10,12 +10,13 @@
 <script lang="ts">
   interface Props {
     items: readonly LegendItem[];
+    stack?: boolean;
   }
 
-  let { items }: Props = $props();
+  let { items, stack = false }: Props = $props();
 </script>
 
-<ul class="legend">
+<ul class="legend" class:stack>
   {#each items as item (item.label)}
     <li class:diamond={item.diamond} style:--swatch={item.swatch}>{item.label}</li>
   {/each}
@@ -31,6 +32,10 @@
     list-style: none;
     color: var(--set-dim);
     font-size: var(--text-sm);
+  }
+
+  .stack {
+    flex-direction: column;
   }
 
   li {
