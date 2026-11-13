@@ -23,6 +23,18 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.36.1",
+    date: "2026-11-13",
+    title: "Career first",
+    changes: [
+      { kind: NEW, text: "The Play page leads with your career: your tier, stars toward the next tier, the next event and a Continue career button." },
+      { kind: IMPROVED, text: "Restart a career or mode run any time: the restart button stays on screen during runs, and the menu has Restart next to Quit." },
+      { kind: IMPROVED, text: "Volcano lava glows hot orange-red, and the crater wall fades into it." },
+      { kind: IMPROVED, text: "Desert highlands read as sand in daylight." },
+      { kind: IMPROVED, text: "Events with a set car show it as a car, for example Drift car." },
+    ],
+  },
+  {
     version: "0.36.0",
     date: "2026-11-12",
     title: "New light",
