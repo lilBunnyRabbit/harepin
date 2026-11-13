@@ -4,6 +4,8 @@
 >
 > **Round 3 (2026-11-12, `docs/brainstorm/2026-11-13_harepin-career-v3.answers.md`):** done before release (R1, R2): c7 on the Volcano `descent` (F1); r7 on Sky Track as **Skyline** (F2, N1); p7 on the Ice canyon `descent` (F3); every mode grades by an event's own `stars`, drift in points (§5); the owner's runs set the non-race stars (D2, §1.3). Still on stand-ins: Mainland c6 / p1 on Island until C7 (L1). Next, in order: C5 rewards, C6 markers, C7 Mainland (§7); C8 share link is dropped for now (round 4 S1).
 >
+> **Round 4 (2026-11-13, `docs/brainstorm/2026-11-13_harepin-career-v4.answers.md`):** planned in §10, not built: Elite and Legend tiers of 12 events each (3★ = owner +3%), new event kinds, a Runs view for daily / weekly / endless runs with a season track, rewards up to a Legend car. Build order V1-V10 (§10.7), Elite batch 1 first.
+>
 > **Known follow-ups:** c2's drift marks (287 / 230 points) were played before `e248368` (no automatic countersteer with the assist off): redo them if they prove off. Unlocks stay 12 / 14; the owner re-checks them now that he has played Rookie (D1).
 
 
@@ -252,3 +254,181 @@ Each phase ships on its own. S ≈ a day, M ≈ 2-4 days.
 3. **Hit penalty:** +2 s per hit (gymkhana's cone value), or another number?
 
 **Owner picks (2026-11-11):** unlock 12 Club / 14 Pro stars · finals = one long race · hit penalty +2 s.
+
+## 10. v4: Elite, Legend and Runs (round 4)
+
+Round 4, 2026-11-13, at `9b585db`. Plan only. Nothing was run: no `career-check`, no tune, no golden. Every file:line comes from reading the code at `9b585db`. Inputs: `docs/brainstorm/2026-11-13_harepin-career-v4.answers.md` (owner answers plus "Claude's picks") and §1-§9 above. Seeds in the rosters are placeholders until `scripts/career-check.ts` passes them. Sizes: S ≈ a day, M ≈ 2-4 days, L ≈ a week or more.
+
+### 10.1 TL;DR
+
+- **Two hand-made tiers after Pro: Elite and Legend, 12 events each** (A2, A3). Elite ships in two batches (E1, Claude's pick): batch 1 = 7 events on worlds and modes that exist today; batch 2 = 5 events on the new kinds, ending in a special-map final (C2).
+- **3★ = the owner's run +3%** (A4) for every Elite and Legend event, races included. Bots stop setting race stars in these tiers; they only record ghosts.
+- **Endless events live in their own "Runs" view** (B1 note): daily, weekly championship, endless random, plus the season track. They earn season stars, never career stars (B2). Online, the lobby shows a daily board carried peer to peer in the hello (B3), no `PROTOCOL` bump.
+- **New kinds** (C1): drift chain (S), speed trap (S-M), jump distance (M), championship (M), Mainland road trip (M), banked run (M), wall-ride (L). Maybe: elimination vs ghosts (M), endurance (L).
+- **Rewards** (D1, D2): platinum (Elite) and carbon (Legend) paint, a decal from each final's world, titles and name tags online, one special car for Legend (L). Car parts: own brainstorm later; unlocks are a pure function of stars, so old players get them retroactively for free.
+- **The UI already counts from data** (`tier_max` in `career-view.ts:86`, `career-hero.ts:28`). What hard-codes three tiers or 21 stars: `TierBadge = 1 | 2 | 3` (`net.ts:48,50`), the three-entry metal lists (`palette.ts:172`, `rewards.ts:32`, `review/showcase-tiles.ts:50`), `REWARD_PAINTS = 3` (`build.ts:190`) and the tests (`career.test.ts:38,83`, `rewards.test.ts:20-47`). §10.8.
+
+### 10.2 Structure
+
+| Tier | Events | Opens at | Classes | 3★ / 2★ | Final |
+|---|---|---|---|---|---|
+| Rookie | 7 | 0 | D-C | as today (§1.3) | Sky Track |
+| Club | 7 | 12 Rookie ★ | B-A | as today | Volcano |
+| Pro | 7 | 14 Club ★ | S1-X | as today | Ice canyon |
+| **Elite** | 12 (7 + 5) | **16 Pro ★** of 21 (*proposed*) | mixed: S1-X plus down-class events | owner × 1.03; 2★ = 3★ × 1.25 | Big dunes (batch 2) |
+| **Legend** | 12 | **27 Elite ★** of 36 (*proposed*) | mixed: X and the Legend car | owner × 1.03; 2★ = 3★ × 1.25 | new special map (owner pick, §10.4) |
+
+| Rule | Change | Code |
+|---|---|---|
+| Tier ids | `TierId` gains `ELITE: "elite"`, `LEGEND: "legend"` | `career.ts:33` |
+| Event ids | `e1`-`e12`, `l1`-`l12`; batch 2 adds `e8`-`e12`, the final is `e12`. Stable forever (store key) | `career.ts:16` |
+| Star margin | New `Tier.margin`: 1 for Rookie-Pro, `1.03` for Elite and Legend. `owner_stars`: `three = round(ms × margin)`, `two = round(three × SILVER_SHARE)`; drift `three = round(points / margin)` | `career.ts:172` |
+| Copy my times | `owner_times` skips race events today. For a tier with `margin > 1`, race events go in too | `career-store.ts:47-50` |
+| Tune script | `scripts/career.ts` still drives Elite / Legend races, but only for the ghost (`--write`); it stops printing their `stars`. The shipped ghost becomes the bot drive nearest the owner's 3★ | `scripts/career.ts:184-189` |
+| Paint unlock | `PAINT_STARS = 10` is absolute: 10 of 36 is cheap. New `Tier.rewards.paint_at`: 10 for the old tiers, 18 for Elite and Legend | `rewards.ts:5,15` |
+| Unlock while Elite grows | Legend opens at 27, which batch 1 (21 max) cannot reach: harmless, Legend ships after batch 2 | `tier_open`, `career.ts:121` |
+
+#### Elite batch 1 (7 events, existing worlds and modes)
+
+Uses levels the career does not use yet (`offroad-2`, `g6`, `p8`, `d4`, `h4`, `v4`) and the rim circuits of Volcano and Ice canyon, which host only finals now.
+
+| id | Name | World | Map code (placeholder) | Mode / level | Car |
+|---|---|---|---|---|---|
+| e1 | Crater ring | Volcano | `1V0000002` | race `circuit` | ≤ S1 |
+| e2 | Long trail | Island | `1C0000011` (needs a canyon: `offroad-*` exists only on such seeds, `races.ts:24`) | race `offroad-2` | Dirt rally |
+| e3 | Tight garage | Dune sea | `1D0000007` | parking `p8` (Tight garage, `parking.ts:180`) | ≤ S1 (*verify* every capped body passes `car_sized_only`) |
+| e4 | Rim drift | Ice canyon | `1F0000002` | drift `d4` | Drift |
+| e5 | Ash gates | Volcano | `1V0000002` | hunt `h4` | ≤ S2 |
+| e6 | Down-class duel | Sky Track | `1S0000011` | duel `v4` | ≤ B (a slow car on a long duel) |
+| e7 | Frozen slalom | Frozen lakes | `1T0000008` | gymkhana `g6` | ≤ S1 |
+
+Mix: race 2, parking, drift, hunt, duel, gymkhana. No Mainland: the road trip covers it in Legend. No final in batch 1, so no decal and no badge until batch 2 (risk 4).
+
+#### Elite batch 2 (5 events, new kinds)
+
+| id | Name | World | Mode / level | Car | Needs |
+|---|---|---|---|---|---|
+| e8 | Drift chain | Alpine `1A0000009` | drift `d5` with `chain` | Drift | Drift chain (S) |
+| e9 | Speed traps | Sky Track `1S0000002` | race `circuit` + traps | ≤ X | Speed trap (S-M) |
+| e10 | Long jump | Island `1C0000003` | jump `j2` | ≤ S2 | Jump distance (M) |
+| e11 | Island cup | Island `1C0000008` | championship: 3 races on one map | ≤ S1 | Championship (M) |
+| e12 | **Final: Dune crossing** | Big dunes `1B…` | race `crossing` | ≤ X | Big dunes route (M-L, §10.4) |
+
+Legend's 12 get drafted once batch 2 ships: road trip, banked run, the reused kinds at harder levels and caps, the maybes if built, and the Legend final. No roster now.
+
+### 10.3 New event kinds
+
+Each kind is a `ModeDef` (`mode.ts:88`) or a level flag on one, so the career, `?event=`, markers and the Modes page pick it up the usual way. A new mode also needs a start pose in `STARTS` (`markers.ts:30`) for its world marker.
+
+| Kind | Reuse | New mode code | Worldgen | HUD | Size |
+|---|---|---|---|---|---|
+| **Drift chain** | Drift zone + `Combo.step` (`drift.ts:100`), `best_chain` (`drift.ts:123`), chain-lost cue | `DriftLevel.chain?: true`: the score is the one chain; a bank (`drift.ts:117`) or a wall ends the run | none | "Chain lost: run over" | **S** |
+| **Speed trap** | Race route + `RaceRun` (`races.ts`), car speed (`pose_of`, `mode.ts:106`), the points-higher-better grading drift uses (§5) | Trap gates on the route's longest straights (inverse of `bendiest`, `route.ts:31`); score = sum of km/h through each trap; the finish is still required | none: picked at run start | Trap flash "214 km/h", running total | **S-M** |
+| **Jump distance** | Ramps `KICKER` / `BIG` / `ROAD_KICKER` (`worldgen/jumps.ts:36-41`), the wheel-contact airborne test (`world/jumps.ts:256`, `car.ts:775-781`), Island and Dune sea ramp sets | `JUMP_MODE`: the ramp nearest the start, distance from lip to first wheel contact, best of N tries in a time window; levels `j1`-`j3` by ramp kind; graded in metres, higher is better | none on compact worlds; Big dunes crests carry no ramp records (later) | Distance readout, landing mark (`marks.ts`) | **M** |
+| **Championship** | Race and duel defs, the `next_event` flow, finish card + Next (`modes.ts`), a `Track` per stage | Stage runner: 3-5 runs back to back on one map, points per stage from its stars (3★ = 10, 2★ = 6, 1★ = 3, *proposed*), total graded by marks. One map only: a cross-map stage would reload (`?event=`) mid-run | none | "Stage 2/3 · 16 pts", standings on the card | **M** |
+| **Mainland road trip** | Race `streams` (`mode.ts:99`), mainland graph + towns (`mainland.ts:39`), `trace` over a graph (`routes.ts:265`), the `circuit_sprint` gate pattern (`routes.ts:122`), chunk stream-in (`scripts/career.ts:108`) | none: race level `trip` | `trip_route`: the farthest town pair over the graph, gates every `GATE_SPACING`. Adds a route to Mainland: **kind version bump m6 → m7** (risk 8) | Route on the map (`RouteRun.later`) exists | **M** |
+| **Banked run** | Sky deck bank per sample (`sky.ts:103,371`), helices (`sky.ts:255`), the `circuit_sprint` slice idea | none: race level `banked` | The slice of the sky circuit with the most bank (sum of abs bank), as the Mainland sprint picks the most cornering. Sky version bump (risk 8) | none new | **M** |
+| **Wall-ride** | Deck renderer and rails (`kinds/sky.ts`, `rails: true`) | none | Sky banks stop near 0.52 rad (`sky.ts:221`); a wall needs past-vertical pieces and physics checked on them: a new deck piece, or the Legend final map | none | **L** |
+| Elimination vs ghosts (maybe) | `Ghost` playback (`ghost.ts:70`); `scripts/career.ts` already drives up to 5 cars per event (`RUNS`, `:34`) | Ship every finished bot drive as a ghost, not only the 3★ one; a multi-lap race (the lobby-lap path, `race-mode.ts:56`) drops the last ghost each lap | none | Position, "out" call | **M** |
+| Endurance (maybe) | Race laps | **No tyre or grip wear model exists** (no wear state in `src/car`): new car state, its feel tuned, pit or no pit | none | Wear meter | **L** |
+
+### 10.4 Finals (C2)
+
+| Tier | Final map | State today | Work |
+|---|---|---|---|
+| Elite | **Big dunes** (`B`, kind `dunes` v15) | Listed, streamed, no roads, routes or gates (`big-dunes.md` status) | A `crossing` route: gates crest to crest across the dune sea, laid by the generator; race already streams. Kind bump bd15 → bd16, records reset. Decal "dunes" |
+| Legend | **Owner pick** | - | (a) Rooftops revived: the R1 code exists unlisted (`worlds/rooftops.ts:23`), dropped 2026-11-12 (`special-maps.md` status). (b) A new banked / wall-ride map, which gives wall-ride (L) its home. Recommended: (b) |
+
+### 10.5 Rewards
+
+| Reward | Elite | Legend | Reuse | New |
+|---|---|---|---|---|
+| Paint (at `paint_at`) | Platinum metallic | Carbon | `reward_paints` past `MAX_PAINT` (`paint.ts:18-25`), `tier_metals` (`palette.ts:172`) | Platinum is one more Lab metal: S. **Carbon is a weave, not a colour**: `paint_lab` returns one Lab plus a `METAL` flag, so carbon needs a finish in `livery.ts`: M |
+| Decal (36/36) | "dunes" | the Legend final's world | `DECALS`, append-only (`build.ts:192`); `REWARD_DECALS` (`rewards.ts:28`) | Two decal designs |
+| Badge / title | "Elite champion" | "Legend champion" | `badge_text` (`rewards.ts:30`), `tier` on `Hello` (`net.ts:46`), shield (`badge.ts:8`) | `TierBadge` 1-5, two shield metals |
+| Name tag online | Platinum frame | Carbon frame | Name label + roster `tier` (`net.ts:70,402`) | Tag style per tier; no new hello field (the tier carries it) |
+| Special car | - | One car (D2) | table below | L |
+| Car parts | later | later | `unlocks(stars)` is pure on stars (`rewards.ts:19`) | Own brainstorm. Retroactive is free: a player past a tier already holds its stars |
+
+**What a new car costs** (the Legend car):
+
+| Piece | Where | Size |
+|---|---|---|
+| Spec: mass, inertia, drive, gears, grip, engine `sound` | `cars.ts` (one spec, e.g. `FORMULA` at `cars.ts:386`), `BodyStyle` (`cars.ts:2`), `CARS` (`cars.ts:630`) | M |
+| Model | One style entry in `designs.ts` (e.g. `formula` at `designs.ts:431`), `models.ts` | M |
+| Build code | The `CODE` regex reads `Object.keys(CARS)` (`build.ts:206`): nothing to add. An older build cannot read the new code (risk 14) | - |
+| PI and class | `rating()` (`pi.ts`), sample builds in `scripts/pi.ts` | S |
+| Handling pass | `scripts/feel.ts`, `handling.ts`, `drift.ts` (`DRIFT_CARS`, `scripts/drift.ts:105`), autolap | S-M |
+| Preset | `PRESETS` (`presets.ts:9-14`) | S |
+| Lock | Hidden in the garage and the car pick until earned, like reward decals (`garage-items.ts:75`) | S |
+| Bot field | `cars_for` takes every body in `CARS` (`scripts/career.ts:68`): exclude locked cars, or every race median drifts | S |
+
+### 10.6 Runs view: endless events
+
+| Stream | Seed | Picks | Stars | Board |
+|---|---|---|---|---|
+| Daily | UTC date (`YYYY-MM-DD`), so every peer agrees | One (kind, mode, level, cap) from a vetted combo list, map seed from the date. On `NO_SITE` (`mode.ts:8`) or a missing level, fall back to that seed's `circuit` race, which every compact land kind has | 1-3 by the mode's own marks (`ModeCtx.thresholds(own)` with no event stars): no owner run exists | Yes (below) |
+| Weekly championship | ISO week | 3-5 daily-style picks on one map, run by the championship runner | Points → 0-5 season stars | No (later) |
+| Endless random | Random per run | Same picker | 1-3 by mode marks; **season stars capped at 10 a day** against farming | No |
+
+| Piece | Reuse | New | Size |
+|---|---|---|---|
+| Runs view | Career page list pattern (`career-view.ts`), `MenuTab` | Tab "Runs": today's daily, this week's cup, an Endless button, the season bar | M |
+| Picker | `parse_map_code`, mode `levels(world)`, the `STREAMED` refusal (`modes.ts:49,382`) | `runs.ts`: `daily(date)`, `weekly(week)`, `random()`; the combo list vetted by `scripts/runs-check.ts`, like `career-check` | S-M |
+| Start | The `?event=` reload path | `?run=daily:2026-11-13` (or `weekly:2026-W46`, `random:<seed>`), same flow as `EVENT_PARAM` | S |
+| Store | `read_json` / `write_json`, a `Track` per key | `harepin:runs` = `{ season, stars, days: {date: ★}, weeks: {week: ★} }`; best times `harepin:run:<date>:<world_key>` | S |
+| Season | - | 4-week seasons (*proposed*); a step every 15 stars; rewards: season title and name tag tint from a fixed set. No decal per season: `DECALS` is append-only forever | M |
+
+**Daily board, peer to peer (B3)**
+
+| Item | Plan |
+|---|---|
+| Carrier | Optional `daily?: { k: string; ms: number }` on `Hello`, built like `country` / `tier` (`net.ts:46-56`); `k` = date + map code + level + `world_key`. Re-sent on a new best, the `set_tier` pattern (`net.ts:388`) |
+| Validation | `sanitize_hello` gains a `clean_daily` (`net.ts:228-240`). Older peers rebuild the hello field by field, so they drop it |
+| `PROTOCOL` | **No bump** (stays 2, `net.ts:157`): an optional field, same as `tier` |
+| Board | The lobby room (`LOBBY_ROOM`, `room-name.ts:3`) roster plus a local cache of entries seen today; rows whose `k` differs (other build, other pick) are hidden |
+| Limits | Only peers seen this session or cached; no server, so a time can be spoofed. Fine for a casual board |
+
+### 10.7 Build phases
+
+Ordered by E1 (Elite batch 1 first), then by what unblocks the most.
+
+| Phase | Ships | Reuse | New | Size |
+|---|---|---|---|---|
+| **V1** | Elite batch 1: tier plumbing, 7 events, platinum paint | `TIERS`, `owner_stars`, `owner_times`, markers, career page | `TierId` + 2, `Tier.margin`, `paint_at`, `TierBadge` 1-5, platinum in `tier_metals` / `METALS` / `REWARD_PAINTS`, races in Copy my times, tests off 7 / 21, `career-check` on the 7 seeds, owner tune | M |
+| **V2** | Drift chain, speed trap | `Combo`, race routes, points grading | Level flag, trap run, HUD flash | S + S-M |
+| **V3** | Jump distance | Ramps, airborne test, marks | `JUMP_MODE`, levels, readout | M |
+| **V4** | Championship runner; Elite final on Big dunes; Elite batch 2 (e8-e12); dunes decal, Elite badge and title | Race streaming, stage flow | Runner, `crossing` route (bd16), decal art, shield | M-L |
+| **V5** | Runs view: daily, endless, weekly cup | Mode marks, the `?event=` flow, the championship runner | `runs.ts`, `?run=`, `harepin:runs`, Runs tab, `runs-check` | M |
+| **V6** | Season track + daily board in the lobby | The optional hello field pattern | Season bar and rewards, `daily` on the hello, board UI | M |
+| **V7** | Mainland road trip, banked run | Race streams, graph `trace`, sky bank data | `trip` (m7), `banked` (sky bump), re-tune c6 / p1 / r6 / r7 / p2 | M + M |
+| **V8** | Legend tier: 12 events, final map, carbon finish, Legend title | Everything above | Final map (owner pick), carbon finish in `livery.ts`, roster | L |
+| **V9** | Legend car | The car pipeline | §10.5 table | L |
+| **V10** (maybe) | Elimination vs ghosts; endurance | Ghosts, bot drives | Multi-ghost assets; wear model | M; L |
+| Later | Car parts brainstorm, unlocked retroactively by stars | `unlocks(stars)` | Parts | - |
+
+### 10.8 Conflicts and risks
+
+| # | With | Conflict | Proposal |
+|---|---|---|---|
+| 1 | `net.ts:48,50` | `TierBadge = 1 \| 2 \| 3`; `clean_tier` drops 4 and 5 | Widen to 1-5. Older peers drop the field and show no badge; nothing breaks. No `PROTOCOL` bump |
+| 2 | `build.ts:190,224` | `parse_build` rejects `paint > MAX_PAINT + REWARD_PAINTS` and `decal > MAX_DECAL`: a platinum build code fails on an older build, in a shared code and in `CarState.b` | Accept: a newer code reads as newer, like map codes. Set `REWARD_PAINTS` to 5 in V1 so Legend's slot exists early |
+| 3 | `palette.ts:172`, `rewards.ts:32`, `review/showcase-tiles.ts:50`, `markers.ts:71`, `badge.css` | Three-entry metal lists indexed by tier | One five-entry list in `palette.ts`, metal names beside it, used by every caller |
+| 4 | `rewards.ts:15-16` | Rewards are derived, never stored: `decal_open` = stars ≥ `tier_max`. A tier that grows from 21 to 36 would re-lock a decal already shown | Elite has no decal and no badge until batch 2 (`rewards` fields optional); after that a tier never grows |
+| 5 | `career.test.ts:38,83`, `rewards.test.ts:20-47` | Assert 7 events per tier and "21 of 21" | Assert each tier against its own `events.length` / `tier_max` |
+| 6 | `changelog.ts:58,71` | Text says 21 events, three tiers | History: leave it; new entries say the new numbers |
+| 7 | `career-store.ts:50` | Copy my times skips races | Include races when `tier.margin > 1` |
+| 8 | Kind versions, `career.test.ts:54` | Road trip (Mainland), banked (Sky) and crossing (Big dunes) add routes: kind versions bump, `world_key` moves, the `tuned` of c6, p1, r6, r7, p2 fails the test, free-play records and ghosts reset by key | One bump per kind per release; re-tune the same day (`scripts/career.ts`, Copy my times) |
+| 9 | `scripts/career.ts:68` | A new car joins every bot field and shifts race medians | Exclude locked cars from `cars_for` |
+| 10 | `modes.ts:382,593` | Only race and duel stream: jump distance and speed trap stay off Mainland until they set `streams` | Batch 2 keeps them on compact worlds |
+| 11 | `harepin:career` (`career-store.ts:7`) | Save format | No change: new ids are new keys; `parse_stars` takes any id (`career.ts:162`) |
+| 12 | Daily seed | Local midnight differs per peer | UTC date |
+| 13 | Daily picks across builds | Two builds may pick different events for one date | The board key carries `world_key` + level (§10.6) |
+| 14 | `CARS` + build codes | An older build cannot read the Legend car's code | As 2: the peer on the older build gets a bad `b` |
+
+### 10.9 Open questions
+
+1. **Unlocks:** Elite at 16 Pro stars, Legend at 27 Elite stars?
+2. **Legend final map:** Rooftops revived, or a new banked / wall-ride map (recommended)?
+3. **Season:** 4 weeks, title and name tag tint only?
+4. **Championship points:** 10 / 6 / 3 per stage by stars, or by time against the stage marks?
