@@ -3,7 +3,7 @@ import { expect, test } from "bun:test";
 import { generate_world, plain_map } from "../worldgen/kinds/kinds";
 import { WorldKind, type Route } from "../worldgen/types";
 import { straights } from "./route";
-import { GATE_REACH, RaceRun, RaceStatus, TRAP_CLEAR, TRAP_GAP, TRAP_SPAN, TrapRun, gate_shown, race_choices, race_course, race_levels, trap_points } from "./races";
+import { GATE_REACH, RaceRun, RaceStatus, TRAP_BACK, TRAP_CLEAR, TRAP_GAP, TRAP_SPAN, TrapRun, gate_shown, race_choices, race_course, race_levels, trap_points } from "./races";
 
 const N = 1000;
 const POINTS = Array.from({ length: N }, (_, i) => {
@@ -123,25 +123,26 @@ function bent() {
   return road;
 }
 
-test("speed trap: one trap at the far end of each of the longest straights, in order", () => {
+test("speed trap: one trap near the far end of each of the longest straights, short of the bend, in order", () => {
   const line = bent();
   expect(straights(line).map((s) => [s.from, s.to])).toEqual([
     [0, 200],
     [250, 450],
     [500, 599],
   ]);
-  expect(trap_points(line, [])).toEqual([200, 450, 599 - TRAP_CLEAR]);
-  expect(trap_points(line, [], 2)).toEqual([200, 450]);
+  expect(trap_points(line, [])).toEqual([200 - TRAP_BACK, 450 - TRAP_BACK, 599 - TRAP_BACK]);
+  expect(trap_points(line, [], 2)).toEqual([200 - TRAP_BACK, 450 - TRAP_BACK]);
 });
 
 test("speed trap: a trap on a gate moves back up the straight, off the gate's band", () => {
-  expect(trap_points(bent(), [150, 451, 599])).toEqual([200, 451 - TRAP_CLEAR, 599 - TRAP_CLEAR]);
+  expect(trap_points(bent(), [150, 441, 599])).toEqual([200 - TRAP_BACK, 441 - TRAP_CLEAR, 599 - TRAP_BACK]);
 });
 
-test("speed trap: a straight ending near the start line holds no trap; the next longest takes its place", () => {
+test("speed trap: a straight ending near the start line holds no trap; a short lap still fills to three", () => {
   const line = bent().slice(170);
-  expect(trap_points(line, [], 3)).toEqual([30, 280, 429 - TRAP_CLEAR]);
-  expect(trap_points(line, [28], 2)).toEqual([280, 429 - TRAP_CLEAR]);
+  expect(straights(line)[2]).toMatchObject({ from: 0, to: 30 });
+  expect(trap_points(line, [], 2)).toEqual([280 - TRAP_BACK, 429 - TRAP_BACK]);
+  expect(trap_points(line, [], 3)).toEqual([80 + TRAP_SPAN / 2, 280 - TRAP_BACK, 429 - TRAP_BACK]);
 });
 
 test("speed trap: km/h through each trap adds up; one passed wide or skipped scores 0", () => {
@@ -191,7 +192,7 @@ test("speed trap: fewer straights than traps fills up from the gentlest stretch,
   const gates = [600, 1199];
   const at = trap_points(line, gates);
   expect(at.length).toBe(3);
-  expect(at).toContain(400);
+  expect(at).toContain(400 - TRAP_BACK);
   expect(at[0]).toBeGreaterThanOrEqual(TRAP_GAP);
   for (let i = 1; i < at.length; i++) expect(at[i] - at[i - 1]).toBeGreaterThanOrEqual(TRAP_GAP);
   for (const i of at) for (const gate of gates) expect(Math.abs(i - gate)).toBeGreaterThanOrEqual(TRAP_CLEAR);

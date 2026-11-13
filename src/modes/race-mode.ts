@@ -4,7 +4,7 @@ import { WORLDS } from "../worlds/worlds";
 import type { Hits } from "./hits";
 import { turn_to, type Driven, type Finish, type ModeCtx, type ModeDef, type ModeRun, type RouteRun } from "./mode";
 import { drift_stars } from "./drift";
-import { COUNTDOWN_MS, RaceRun, RaceStatus, TrapRun, race_course, race_levels, trap_points, type RaceCourse, type RaceLevel } from "./races";
+import { COUNTDOWN_MS, RaceRun, RaceStatus, TrapRun, kmh, race_course, race_levels, trap_points, type RaceCourse, type RaceLevel } from "./races";
 import { RaceView } from "./race-view";
 import { best_line, line, penalty_text, result_title, time_lines } from "./result";
 import { SILVER_SHARE, grade, par_thresholds } from "./track";
@@ -74,9 +74,9 @@ class Race implements ModeRun {
     this.hits?.update(sim_dt * 1000, run.status === RaceStatus.RUNNING || was === RaceStatus.RUNNING);
     if (this.traps && (run.status === RaceStatus.RUNNING || was === RaceStatus.RUNNING)) {
       const passed = this.traps.next;
-      const kmh = this.traps.update(run.tracker.index, run.tracker.offset, Math.hypot(car.vel.x, car.vel.z));
-      if (kmh !== null) {
-        this.flash = { kmh, at: now };
+      const through = this.traps.update(run.tracker.index, run.tracker.offset, Math.hypot(car.vel.x, car.vel.z));
+      if (through !== null) {
+        this.flash = { kmh: through, at: now };
         view.trap_passed(passed);
       }
     }
@@ -121,8 +121,8 @@ class Race implements ModeRun {
   private trap_text(now: number): string {
     const { traps, flash } = this;
     if (!traps) return "";
-    const total = ` · ${traps.total} km/h total`;
-    if (flash && now - flash.at < FLASH_MS) return ` · ${flash.kmh ? `${flash.kmh} km/h` : "trap missed"}${total}`;
+    const total = ` · ${kmh(traps.total)} total`;
+    if (flash && now - flash.at < FLASH_MS) return ` · ${flash.kmh ? kmh(flash.kmh) : "trap missed"}${total}`;
     return ` · trap ${Math.min(traps.next + 1, traps.at.length)}/${traps.at.length}${total}`;
   }
 
@@ -157,11 +157,11 @@ class Race implements ModeRun {
       title: result_title(level.name, recorded),
       stars,
       lines: [
-        line("traps", traps.kmh.map((kmh) => `${kmh}`).join(" · ") + " km/h"),
-        line("total", `${score} km/h`),
+        line("traps", traps.kmh.map(kmh).join(" · ")),
+        line("total", kmh(score)),
         ...time_lines(Math.round(this.run.elapsed()), this.hits),
-        line("★★ / ★★★", `${marks.two} / ${marks.three}`),
-        best_line(track.runs[level.id]),
+        line("★★ / ★★★", `${kmh(marks.two)} / ${kmh(marks.three)}`),
+        best_line(track.runs[level.id], kmh),
       ],
     };
   }
@@ -186,6 +186,7 @@ export const RACE_MODE: ModeDef<RaceLevel> = {
   car_sized_only: false,
   busy_notice: "Leave the lobby race to race solo",
   streams: true,
+  score_text: kmh,
   levels: (world) => race_levels(world.routes, WORLDS[world.kind].map_label, world.tiles.streamed),
   start(ctx, level) {
     const route = ctx.world.routes.find((r) => r.id === (level.trap ?? level.id));

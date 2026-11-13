@@ -163,15 +163,20 @@ const TRAP_FROM = 25;
 /** Route points a trap keeps off a gate, so the two bands never lie on one another. */
 export const TRAP_CLEAR = 4;
 const KMH = 3.6;
+/** A speed trap score as it reads: the only race runs that carry one. */
+export const kmh = (score: number) => `${Math.round(score)} km/h`;
 
-/** Route points of road a fallback trap ends: the window it is ranked on, and how far apart two straights' traps keep. */
+/** Route points a trap sits back from a straight's end: the end is where the bend starts. */
+export const TRAP_BACK = 10;
+/** Route points of road a fallback trap is centred on: the window it is ranked on, and how far apart two straights' traps keep. */
 export const TRAP_SPAN = 40;
 /** Route points a fallback trap keeps from every other trap and from the start line: it never doubles one up, nor times a car still pulling away. */
 export const TRAP_GAP = 150;
 
 /**
- * Line indices of the speed traps, in driving order: the far end of each of the line's longest straights, off its gates.
- * A line with fewer straights than `count` (sweepers merge into one) fills up from its gentlest stretches, spaced apart.
+ * Line indices of the speed traps, in driving order: near the far end of each of the line's longest straights, short of
+ * the bend and off its gates. A line with fewer straights than `count` (sweepers merge into one) fills up from the middle
+ * of its gentlest stretches, spaced apart.
  */
 export function trap_points(line: readonly RoutePoint[], gates: readonly number[], count = TRAPS): number[] {
   const picked: number[] = [];
@@ -183,12 +188,14 @@ export function trap_points(line: readonly RoutePoint[], gates: readonly number[
     picked.push(at);
     return true;
   };
-  for (const { from, to } of straights(line)) place(from, to, TRAP_SPAN, TRAP_FROM);
+  for (const { from, to } of straights(line)) place(from, Math.max(from + ((to - from) >> 1), to - TRAP_BACK), TRAP_SPAN, TRAP_FROM);
   if (picked.length < count) {
     const windows: [number, number][] = [];
     for (let start = 0; start + TRAP_SPAN <= line.length; start++) windows.push([start, bend(line, start, TRAP_SPAN)]);
     windows.sort((a, b) => a[1] - b[1]);
-    for (const [start] of windows) place(start, start + TRAP_SPAN - 1, TRAP_GAP, TRAP_GAP);
+    for (const [start] of windows) place(start, start + (TRAP_SPAN >> 1), TRAP_GAP, TRAP_GAP);
+    // A lap too short to space them all that far still gets its traps, as close as two straights' traps may sit.
+    for (const [start] of windows) place(start, start + (TRAP_SPAN >> 1), TRAP_SPAN, TRAP_FROM);
   }
   return picked.sort((a, b) => a - b);
 }
