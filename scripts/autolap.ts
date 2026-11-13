@@ -20,6 +20,11 @@ const JUMP_PACE = 32;
 const CORNER_GRIP = 4.5;
 const CORNER_BRAKE = 2.5;
 const GRAVITY = 9.81;
+// The sky track's steepest bank. A velodrome bowl is planned as if it were this steep: about the bowl's neutral speed,
+// where the load stays inside every suspension's travel; the friction limit of a 55° bank is past what most cars can carry.
+const PLAN_BANK = 0.52;
+/** Speed (m/s) per extra road point of aim in a bowl, against 3 elsewhere: a long aim cuts down the bank. */
+const BOWL_LOOK = 9;
 /** Road points ahead the autopilot reads for bends; past it any car stops from top speed for a hairpin. */
 const CORNER_LOOK = 90;
 const CORNER_SPAN = 5;
@@ -30,10 +35,14 @@ const ICE_TOP = 25;
 /** Slip angle (rad) at which the autopilot is fully off the brake. */
 const SLIDE_LET_GO = 0.15;
 
+function deck_bank(world: World, p: { x: number; y: number; z: number }): number {
+  const hit = world.deck?.surface(p.x, p.z, p.y + 1);
+  return world.deck && hit ? Math.abs(world.deck.at(hit.index, 5)) : 0;
+}
+
 /** Square of the fastest steady speed round `radius` at `p`: a sky-track bank adds its share of gravity to the grip. */
 function corner_speed2(world: World, p: { x: number; y: number; z: number }, radius: number): number {
-  const hit = world.deck?.surface(p.x, p.z, p.y + 1);
-  const bank = world.deck && hit ? Math.abs(world.deck.at(hit.index, 5)) : 0;
+  const bank = Math.min(PLAN_BANK, deck_bank(world, p));
   if (bank === 0) return CORNER_GRIP * radius;
   const mu = CORNER_GRIP / GRAVITY;
   const tan = Math.tan(bank);
@@ -55,6 +64,8 @@ function corner_pace(world: World, at: (i: number) => RoadPoint, index: number):
   }
   return pace;
 }
+
+const normal = new Vector3();
 
 export interface Lap {
   t: number;
@@ -100,8 +111,10 @@ export function autolap(world: World, spec: CarSpec = COUPE, road: readonly Road
     }
     const speed = car.vel.length();
     const pace = corner_pace(world, point_at, index);
-    // `index` already runs up to 10 m ahead of the car; in a hairpin a longer aim point cuts across the inside.
-    const ahead = point_at(index + (pace < HAIRPIN_PACE ? 0 : 6) + Math.floor(speed / 3));
+    // `index` already runs up to 10 m ahead of the car; in a hairpin a longer aim point cuts across the inside, and in a
+    // bowl the inside is down the bank, into the low rail.
+    const bowl = deck_bank(world, car.pos) > PLAN_BANK;
+    const ahead = point_at(index + (pace < HAIRPIN_PACE || bowl ? 0 : 6) + Math.floor(speed / (bowl ? BOWL_LOOK : 3)));
     const want = Math.atan2(ahead.x - car.pos.x, ahead.z - car.pos.z);
     const err = Math.atan2(Math.sin(want - car.heading), Math.cos(want - car.heading));
     const far = point_at(index + 40);
@@ -133,7 +146,9 @@ export function autolap(world: World, spec: CarSpec = COUPE, road: readonly Road
     if (d > 7 && !TRACK.includes(world.surface(car.pos.x, car.pos.z))) offroad += DT;
     if (t > 5) slowest = Math.min(slowest, speed);
     if (!Number.isFinite(car.pos.x)) throw new Error("NaN");
-    if (new Vector3(0, 1, 0).applyQuaternion(car.quat).y < 0.3) {
+    // A bowl's kick tilts a car on all four wheels past where world up would call it flipped.
+    const up = new Vector3(0, 1, 0).applyQuaternion(car.quat);
+    if ((bowl ? up.dot(world.normal(car.pos.x, car.pos.z, normal, car.pos.y)) : up.y) < 0.3) {
       flipped = true;
       break;
     }
