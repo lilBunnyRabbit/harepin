@@ -92,7 +92,7 @@ function paints(): SheetLayout {
 
 function decals(): SheetLayout {
   const tiles = CAR_IDS.flatMap((id) => DECALS.map((decal, index) => ({ label: `${id} · ${decal}`, object: car({ car: id, decal: index }), ground: tones.asphalt, yaw: 40, pitch: 30 })));
-  return { tiles, columns: DECALS.length / 2, same_scale: false };
+  return { tiles, columns: DECALS.length, same_scale: false };
 }
 
 function trees(kind: TreeKind, snowy: boolean, look: TreeLook): THREE.Object3D {

@@ -107,13 +107,12 @@ export const TIERS: readonly Tier[] = [
       { id: "p7", name: "Riverbed", mode: "race", level: "descent", map: "1F0000001", car: { cap: "s1" }, tuned: "1:ic5", stars: { two: 111875, three: 89500 }, ghost: true, final: true },
     ],
   },
-  // Batches 1 and 2 of 12: the final (e12, Big dunes) waits for its route, so no decal until the tier stops growing (career.md §10.2).
   {
     id: TierId.ELITE,
     name: "Elite",
     opens_at: 16,
     margin: 1.03,
-    rewards: { paint: MAX_PAINT + 4, paint_at: 18, badge: "E" },
+    rewards: { paint: MAX_PAINT + 4, paint_at: 18, decal: "dunes", badge: "E" },
     events: [
       { id: "e1", name: "Crater ring", mode: "race", level: "circuit", map: "1V0000002", car: { cap: "s1" }, tuned: "2:v5", stars: { two: 71375, three: 57100 }, ghost: true },
       { id: "e2", name: "Long trail", mode: "race", level: "offroad-2", map: "1C0000011", car: { preset: "Dirt rally" }, tuned: "33:w11", stars: { two: 293250, three: 234600 }, ghost: true },
@@ -139,6 +138,7 @@ export const TIERS: readonly Tier[] = [
           { mode: "duel", level: "v3", stars: { two: 91875, three: 73500 } },
         ],
       },
+      { id: "e12", name: "Dune crossing", mode: "race", level: "crossing", map: "1B0000004", car: { cap: "x" }, tuned: "4:bd16", stars: { two: 230125, three: 184100 }, ghost: true, final: true },
     ],
   },
 ];

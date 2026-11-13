@@ -35,7 +35,7 @@ function memory(seed: Record<string, string> = {}): Store & { data: Record<strin
 const all = (stars: number, ids: readonly string[]): Stars => Object.fromEntries(ids.map((id) => [id, stars]));
 const ids_of = (tier: number) => TIERS[tier].events.map((event) => event.id);
 
-// A tier still growing has no final yet, and no decal: the decal waits for the tier's max to stop moving.
+// A tier still growing (Legend, later) has no final yet, and no decal: the decal waits for the tier's max to stop moving.
 test("event ids are unique and every finished tier ends in its one final", () => {
   expect(new Set(EVENTS.map((event) => event.id)).size).toBe(EVENTS.length);
   for (const tier of TIERS) {

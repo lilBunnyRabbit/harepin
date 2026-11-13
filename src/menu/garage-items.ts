@@ -17,6 +17,7 @@ export const DECAL_NAMES: Record<Decal, string> = {
   sky: "Chevrons",
   volcano: "Cracks",
   ice: "Shards",
+  dunes: "Ridges",
 };
 
 const SIDE_VIEW: SlotView = { yaw: -0.87 };

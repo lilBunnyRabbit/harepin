@@ -9,8 +9,8 @@ const all_of = (tier: (typeof TIERS)[number], stars: number) => tier.events.map(
 
 test("each tier hands out its own paint past MAX_PAINT and its own appended decal", () => {
   expect(TIERS.map((tier) => tier.rewards.paint)).toEqual(Array.from({ length: REWARD_PAINTS }, (_, i) => MAX_PAINT + 1 + i));
-  expect(TIERS.map((tier) => tier.rewards.decal)).toEqual(["sky", "volcano", "ice", undefined]);
-  expect(REWARD_DECALS).toEqual([9, 10, 11]);
+  expect(TIERS.map((tier) => tier.rewards.decal)).toEqual(["sky", "volcano", "ice", "dunes"]);
+  expect(REWARD_DECALS).toEqual([9, 10, 11, 12]);
   expect(TIERS.map(reward_paint_name)).toEqual(["Bronze metallic", "Silver metallic", "Gold metallic", "Platinum metallic"]);
 });
 
@@ -35,7 +35,9 @@ test("the badge is the highest tier whose final is finished", () => {
   expect(unlocks(with_stars(["r7", 1])).badge).toBe(1);
   expect(unlocks(with_stars(["r7", 1], ["c7", 1])).badge).toBe(2);
   expect(unlocks(with_stars(["c7", 2])).badge).toBe(2);
+  expect(unlocks(with_stars(["r7", 1], ["e12", 1])).badge).toBe(4);
   expect(badge_text(2)).toBe("Club champion");
+  expect(badge_text(4)).toBe("Elite champion");
 });
 
 test("a run reports only the rewards it moved from locked to earned", () => {
@@ -48,7 +50,7 @@ test("a run reports only the rewards it moved from locked to earned", () => {
   expect(kinds({}, with_stars(...all_of(rookie, 3)))).toEqual(["paint", "decal", "badge"]);
 });
 
-test("a growing tier opens its paint late and holds no decal", () => {
+test("Elite opens its paint at its own paint stars, its dunes decal at all of its stars", () => {
   const full = with_stars(...all_of(elite, 3));
   expect(elite.rewards.paint_at).toBe(18);
   const short = elite.rewards.paint_at - 1 - elite.events.length;
@@ -56,7 +58,8 @@ test("a growing tier opens its paint late and holds no decal", () => {
   expect(tier_stars(below, elite)).toBe(elite.rewards.paint_at - 1);
   expect(unlocks(below).paints).toEqual([]);
   expect(unlocks(full).paints).toEqual([elite.rewards.paint]);
-  expect(unlocks(full).decals).toEqual([]);
-  expect(unlocks(full).badge).toBeNull();
-  expect(earned({}, full, elite).map((reward) => reward.kind)).toEqual(["paint"]);
+  expect(unlocks({ ...full, e1: 2 }).decals).toEqual([]);
+  expect(unlocks(full).decals).toEqual([DECALS.indexOf("dunes")]);
+  expect(unlocks(full).badge).toBe(4);
+  expect(earned({}, full, elite).map((reward) => reward.kind)).toEqual(["paint", "decal", "badge"]);
 });

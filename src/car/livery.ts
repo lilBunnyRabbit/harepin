@@ -70,7 +70,8 @@ export const SLASH: Point[][] = [
   [[0.06, 0.06], [0.14, 0.06], [0.5, 0.94], [0.42, 0.94]],
 ];
 
-// Career reward motifs, one per tier final's world: Sky Track chevrons, Volcano lava cracks, Ice canyon frost shards bursting from one point.
+// Career reward motifs, one per tier final's world: Sky Track chevrons, Volcano lava cracks, Ice canyon frost shards bursting
+// from one point, Big dunes ridges climbing a long windward to a crest and dropping down a short slip face toward the front.
 // Points are door space like the decals above: u rear to front, v sill to window line. Shards are drawn in square space
 // and squashed by SQUARE, about the door's length over its height, so they keep their angles.
 const SQUARE = 4.5;
@@ -110,12 +111,26 @@ const BRANCHES: Point[][] = [
 ];
 const taper = (line: Point[], base: number) => line.map((_, i) => base * (1 - i / (line.length - 1)));
 
-export const REWARD_MOTIFS: Record<"sky" | "volcano" | "ice", Point[][]> = {
+const RIDGE_CREST = 0.8;
+const RIDGE_HALF = 0.065;
+
+/** A dune ridge from (u, v), `long` along the door, crest `high` above its toes, as a band thinning to both toes. */
+function ridge(u: number, v: number, long: number, high: number): Point[] {
+  const windward = Array.from({ length: 7 }, (_, i) => (i / 6) * RIDGE_CREST);
+  const t = [...windward, (RIDGE_CREST + 1) / 2, 1];
+  // The windward still climbs at the brink, so the crest reads sharp, not rounded.
+  const rise = (at: number) => (at <= RIDGE_CREST ? (at / RIDGE_CREST) * (1.4 - (0.4 * at) / RIDGE_CREST) : (1 - at) / (1 - RIDGE_CREST));
+  const line = t.map((at): Point => [u + at * long, v + rise(at) * high]);
+  return crack(line, t.map((at) => RIDGE_HALF * Math.sqrt(Math.sin(at * Math.PI))), 1);
+}
+
+export const REWARD_MOTIFS: Record<Extract<Decal, "sky" | "volcano" | "ice" | "dunes">, Point[][]> = {
   sky: [chevron(0.24, 0.28, 0.72), chevron(0.42, 0.18, 0.82), chevron(0.6, 0.08, 0.92)],
   volcano: [crack(FISSURE, FISSURE_HALF, 1), ...BRANCHES.map((line) => crack(line, taper(line, 0.03), 0))],
   ice: [
     [1.5, 2.6, 0.16], [1.3, 2.1, 0.15], [1.05, 1.5, 0.14], [0.75, 1, 0.12], [1.65, 1.5, 0.1],
   ].map(([tilt, length, width]) => shard(0.06, 0.2, tilt, length, width)),
+  dunes: [ridge(0.04, 0.08, 0.56, 0.22), ridge(0.56, 0.32, 0.4, 0.26), ridge(0.1, 0.6, 0.5, 0.24)],
 };
 
 export function roof(shell: THREE.BufferGeometry, glass: THREE.Color): Roof {
@@ -362,7 +377,7 @@ function keyed_ink(livery: Livery, ink: Point[][]): Layers {
 }
 
 function motif(livery: Livery): Point[][] | null {
-  return livery.decal === "sky" || livery.decal === "volcano" || livery.decal === "ice" ? REWARD_MOTIFS[livery.decal] : null;
+  return livery.decal in REWARD_MOTIFS ? REWARD_MOTIFS[livery.decal as keyof typeof REWARD_MOTIFS] : null;
 }
 
 function roof_layers(livery: Livery, panel: Panel, over: Roof, front: number, rear: number): Layers {
@@ -443,6 +458,7 @@ function side_layers(livery: Livery, panel: Panel, side: number): Layers {
     case "sky":
     case "volcano":
     case "ice":
+    case "dunes":
       return keyed(REWARD_MOTIFS[livery.decal].map(at));
     case "flames":
       return keyed([at(FLAME)]);
