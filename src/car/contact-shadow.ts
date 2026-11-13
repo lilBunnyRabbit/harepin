@@ -45,9 +45,10 @@ export function contact_shadow(): ContactShadow {
     blendSrc: THREE.DstColorFactor,
     blendDst: THREE.OneMinusSrcAlphaFactor,
     depthWrite: false,
-    // Units only: a slope factor grows without bound as the patch turns edge-on to a low camera, and pulled it in front
-    // of the tyres' lower half.
+    // The slope factor only ties the road marks' (scene.ts), with the lift and units to win: it grows without bound as the
+    // patch turns edge-on to a low camera, and at -8 pulled it in front of the tyres' lower half.
     polygonOffset: true,
+    polygonOffsetFactor: -4,
     polygonOffsetUnits: -8,
   });
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 5.0).rotateX(-Math.PI / 2), material);
