@@ -43,11 +43,11 @@ function wind_of(seed: number, data: WorldData) {
   return dune_wind(seed, dunes.seed);
 }
 
-test("the dune sea streams past the mainland's size, keyed bd15", async () => {
+test("the dune sea streams past the mainland's size, keyed bd16", async () => {
   const { KINDS, world_key } = await import("./kinds/kinds");
   expect(KINDS[WorldKind.BIG_DUNES].size).toBe(DUNE_SEA_SIZE);
   expect(EXT.side).toBeGreaterThan(extent(6144).side);
-  expect(world_key(42, WorldKind.BIG_DUNES)).toBe("42:bd15");
+  expect(world_key(42, WorldKind.BIG_DUNES)).toBe("42:bd16");
 });
 
 for (const seed of sweep(10))
@@ -55,7 +55,7 @@ for (const seed of sweep(10))
     const data = generate_dune_sea(seed);
     expect(data.road.length).toBe(1);
     expect(data.graph.edges).toEqual([]);
-    expect(data.routes).toEqual([]);
+    expect(data.routes.map((r) => r.id)).toEqual(["crossing"]);
     expect(data.checkpoints).toEqual([]);
     expect(data.ground.ops).toEqual([]);
     const height = land_height(seed, shape_of(data));
@@ -77,6 +77,38 @@ for (const seed of sweep(10))
       }
     expect(steepest).toBeLessThan(REPOSE);
     expect(top - low).toBeGreaterThan(60);
+  });
+
+/** The crossing never climbs anything steeper than a windward with a hop on it: no slip face, 6 m at a time. */
+const CROSSING_CLIMB = 0.35;
+const CROSSING_GATES = 460;
+
+for (const seed of sweep(10))
+  test(`dune sea ${seed}: the crossing runs one way downwind inside the play area, up no slip face, a gate on crests at most ${CROSSING_GATES} m apart, the finish on a crest`, () => {
+    const data = generate_dune_sea(seed);
+    const [route] = data.routes;
+    const wind = wind_of(seed, data);
+    const { points, checkpoints } = route;
+    expect(route.closed).toBe(false);
+    expect(route.length).toBeGreaterThan(2500);
+    expect(route.length).toBeLessThan(3800);
+    expect(route.par_ms).toBeGreaterThan(0);
+    for (let i = 0; i < points.length; i++) {
+      const p = points[i];
+      expect(Math.hypot(p.x, p.z)).toBeLessThan(PLAY);
+      expect([p.tx, p.tz]).toEqual([wind.x, wind.z]);
+      if (i >= 3) expect((p.y - points[i - 3].y) / Math.hypot(p.x - points[i - 3].x, p.z - points[i - 3].z)).toBeLessThan(CROSSING_CLIMB);
+    }
+    const finish = points[points.length - 1];
+    expect(checkpoints[checkpoints.length - 1]).toMatchObject({ x: finish.x, z: finish.z });
+    const height = land_height(seed, shape_of(data));
+    expect(height(finish.x - wind.x * 6, finish.z - wind.z * 6)).toBeLessThan(finish.y);
+    expect(height(finish.x + wind.x * 12, finish.z + wind.z * 12)).toBeLessThan(finish.y - 0.3 * 6);
+    let from: { x: number; z: number } = points[0];
+    for (const gate of checkpoints) {
+      expect(Math.hypot(gate.x - from.x, gate.z - from.z)).toBeLessThan(CROSSING_GATES);
+      from = gate;
+    }
   });
 
 test("a free-driving reset rights the car where it stands, kilometres from the spawn", () => {

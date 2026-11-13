@@ -34,6 +34,7 @@ const LEVELS: readonly LevelDef[] = [
   { id: "descent", name: "Rim to sea", brings: () => "One way off the crater rim: down the hairpins and the gully to the sea." },
   { id: "sprint", name: "Circuit sprint", brings: (place) => `The twistiest stretch of the ${place} circuit, one way from a standing start.` },
   { id: "circuit-rev", name: "Circuit reversed", brings: () => "The circuit the wrong way round: every corner is new." },
+  { id: "crossing", name: "Dune crossing", brings: () => "One way downwind across the dune sea, crest to crest, to the tallest dune at the far end." },
 ];
 
 /** After every race; compact worlds only, as a streamed world's chunks are not read for the straights (risk 10). */

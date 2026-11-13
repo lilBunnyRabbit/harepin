@@ -482,3 +482,10 @@ export function descent_route(points: RoadPoint[], share = PAR_SHARE): Route {
   const checkpoints = picked.map((i, index) => ({ x: points[i].x, y: points[i].y, z: points[i].z, heading: heading(points[i]), index }));
   return { id: "descent", kind: RouteKind.SPRINT, closed: false, points, checkpoints, gate_hw: ROAD_HALF, length: total, par_ms: par(points, false, share), closure: [] };
 }
+
+/** One way along `points` through a gate at each of `gates` (point indices, in order), the finish on its last point. */
+export function crossing_route(points: RoadPoint[], gates: readonly number[], gate_hw: number, share: number): Route {
+  const picked = [...gates.filter((i) => i > 0 && i < points.length - 1), points.length - 1];
+  const checkpoints = picked.map((i, index) => ({ x: points[i].x, y: points[i].y, z: points[i].z, heading: heading(points[i]), index }));
+  return { id: "crossing", kind: RouteKind.OFFROAD, closed: false, points, checkpoints, gate_hw, length: run(points), par_ms: par(points, false, share), closure: [] };
+}
