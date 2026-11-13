@@ -146,6 +146,7 @@
   .ui-clamp {
     display: -webkit-box;
     overflow: hidden;
+    white-space: normal;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: var(--clamp);
     line-clamp: var(--clamp);
