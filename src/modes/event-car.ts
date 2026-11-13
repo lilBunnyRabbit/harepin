@@ -15,7 +15,7 @@ export interface CarHooks {
   save_car: ((code: string) => void) | null;
 }
 
-export const preset_code = (name: string): string | null => {
+const preset_code = (name: string): string | null => {
   const build = parse_build(PRESETS.find((p) => p.name === name)?.code);
   return build && build_code(build);
 };
@@ -98,7 +98,7 @@ export class EventCar {
     if (code) this.wear(code);
   }
 
-  wear(code: string) {
+  private wear(code: string) {
     const { fit_car, car_code } = this.hooks;
     if (!fit_car || !car_code || code === car_code()) return;
     this.kept ??= car_code();
