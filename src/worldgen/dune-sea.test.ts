@@ -81,7 +81,18 @@ for (const seed of sweep(10))
 
 /** The crossing never climbs anything steeper than a windward with a hop on it: no slip face, 6 m at a time. */
 const CROSSING_CLIMB = 0.35;
-const CROSSING_GATES = 460;
+const CROSSING_GATES = 450;
+
+function longest_gap(data: WorldData): number {
+  const [route] = data.routes;
+  let from: { x: number; z: number } = route.points[0];
+  let longest = 0;
+  for (const gate of route.checkpoints) {
+    longest = Math.max(longest, Math.hypot(gate.x - from.x, gate.z - from.z));
+    from = gate;
+  }
+  return longest;
+}
 
 for (const seed of sweep(10))
   test(`dune sea ${seed}: the crossing runs one way downwind inside the play area, up no slip face, a gate on crests at most ${CROSSING_GATES} m apart, the finish on a crest`, () => {
@@ -105,12 +116,13 @@ for (const seed of sweep(10))
     const height = land_height(seed, shape_of(data));
     expect(height(finish.x - wind.x * 6, finish.z - wind.z * 6)).toBeLessThan(finish.y);
     expect(height(finish.x + wind.x * 12, finish.z + wind.z * 12)).toBeLessThan(finish.y - 0.3 * 6);
-    let from: { x: number; z: number } = points[0];
-    for (const gate of checkpoints) {
-      expect(Math.hypot(gate.x - from.x, gate.z - from.z)).toBeLessThan(CROSSING_GATES);
-      from = gate;
-    }
+    expect(longest_gap(data)).toBeLessThan(CROSSING_GATES + 0.01);
   });
+
+test(`dune sea 0-40: the crossing fills every stretch past ${CROSSING_GATES} m with evenly spaced gates`, () => {
+  const over = [...Array(41).keys()].filter((seed) => longest_gap(generate_dune_sea(seed)) >= CROSSING_GATES + 0.01);
+  expect(over).toEqual([]);
+});
 
 test("a free-driving reset rights the car where it stands, kilometres from the spawn", () => {
   const data = generate_dune_sea(0);

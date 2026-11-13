@@ -79,16 +79,19 @@ export function crossing(height: Height, wind: { x: number; z: number }): Route 
   const gap = GATE_GAP / CROSSING_STEP;
   const fill = GATE_FILL / CROSSING_STEP;
   const gates: number[] = [];
+  const fill_to = (to: number) => {
+    const before = gates.at(-1) ?? 0;
+    const parts = Math.ceil((to - before) / fill);
+    for (let k = 1; k < parts; k++) gates.push(before + Math.round(((to - before) * k) / parts));
+  };
   const last = points.length - 1;
   for (let i = gap; i <= last - gap; i++) {
     if (!crest_at(ys, i + start)) continue;
-    const before = gates.at(-1) ?? 0;
-    if (i - before < gap) continue;
-    if (i - before > fill) gates.push(before + Math.round((i - before) / 2));
+    if (i - (gates.at(-1) ?? 0) < gap) continue;
+    fill_to(i);
     gates.push(i);
   }
-  const before = gates.at(-1) ?? 0;
-  if (last - before > fill) gates.push(before + Math.round((last - before) / 2));
+  fill_to(last);
   return crossing_route(points, gates, CROSSING_GATE_HW, CROSSING_SHARE, CROSSING_EXCLUDES);
 }
 
