@@ -61,7 +61,7 @@ export interface RunTypeDef {
   readonly caps: readonly CarClass[];
 }
 
-const { ISLAND, SKY, DESERT, ALPINE, TUNDRA, VOLCANO, ICE_CANYON } = WorldKind;
+const { ISLAND, SKY, DESERT, ALPINE, TUNDRA, VOLCANO, ICE_CANYON, MAINLAND } = WorldKind;
 const COMPACT: readonly WorldKind[] = [ISLAND, SKY, DESERT, ALPINE, TUNDRA, VOLCANO, ICE_CANYON];
 const GROUND: readonly WorldKind[] = [ISLAND, DESERT, ALPINE, TUNDRA, VOLCANO, ICE_CANYON];
 const ROAD_CAPS: readonly CarClass[] = [CarClass.C, CarClass.B, CarClass.A, CarClass.S1, CarClass.S2];
@@ -82,7 +82,7 @@ export const RUN_TYPES: readonly RunTypeDef[] = [
     id: RunType.RACE,
     name: "Race",
     mode: "race",
-    levels: ["circuit", "circuit-rev", "street-1", "street-2", "offroad-1", "offroad-2", "descent"],
+    levels: ["circuit", "circuit-rev", "sprint", "trip", "street-1", "street-2", "offroad-1", "offroad-2", "descent", "banked"],
     choice: {
       label: LENGTH,
       options: [
@@ -91,7 +91,7 @@ export const RUN_TYPES: readonly RunTypeDef[] = [
         { id: "long", label: "Long", band: [3500, Infinity] },
       ],
     },
-    kinds: COMPACT,
+    kinds: [...COMPACT, MAINLAND],
     caps: ROAD_CAPS,
   },
   { id: RunType.DRIFT, name: "Drift", mode: "drift", levels: ["d1", "d2", "d3", "d4", "d5"], choice: lengths(["d1", "d2"], ["d3"], ["d4", "d5"]), kinds: COMPACT, caps: TIGHT_CAPS },

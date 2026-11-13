@@ -3,7 +3,8 @@ import { mainland_lots } from "./mainland-lots";
 import { mainland_network } from "./mainland-network";
 import { plan_grid, type PlanGrid } from "./plan-grid";
 import { MAINLAND, type Recipe } from "./recipe";
-import { circuit_route, circuit_sprint, heading } from "./routes";
+import { road_junctions } from "./road-layers";
+import { circuit_route, circuit_sprint, heading, trip_route } from "./routes";
 import type { GroundOp } from "./stamp";
 import { land_height } from "./terrain";
 import { plan_water } from "./water";
@@ -79,7 +80,8 @@ export function plan_mainland(seed: number, recipe: Recipe = MAINLAND): Mainland
     return { x: p.x, y: p.y, z: p.z, heading: heading(p), index };
   }) : [];
   const sprint = road.length ? circuit_sprint(road, gates, checkpoints, SPRINT_S) : null;
-  const routes = road.length ? [circuit_route(road, checkpoints), ...(sprint ? [sprint] : [])] : [];
+  const trip = trip_route(graph, circuit, towns, road_junctions({ road, graph, circuit }).patched);
+  const routes = [...(road.length ? [circuit_route(road, checkpoints), ...(sprint ? [sprint] : [])] : []), ...(trip ? [trip] : [])];
   lap("routes");
   const empty = new Float32Array(0);
   const data: WorldData = {

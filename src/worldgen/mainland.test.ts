@@ -12,8 +12,8 @@ const EXT = extent(MAINLAND_SIZE);
 
 test("mainland ids and keys sit in their own thousand", async () => {
   const { world_id, world_key } = await import("./kinds/kinds");
-  expect(world_id("mainland")).toBe(3006);
-  expect(world_key(42, "mainland")).toBe("42:m6");
+  expect(world_id("mainland")).toBe(3007);
+  expect(world_key(42, "mainland")).toBe("42:m7");
 });
 
 test("the mainland is land in the middle and sea at its border", () => {
@@ -47,6 +47,25 @@ for (const seed of sweep(3))
     expect(sprint.checkpoints.at(-1)).toMatchObject({ x: last.x, z: last.z });
     expect(sprint.closed).toBe(false);
     expect(sprint.checkpoints.length).toBeLessThan(data.checkpoints.length);
+  });
+
+for (const seed of sweep(3))
+  test(`mainland ${seed}: the road trip runs one way from one town to another, its gates in order along it`, () => {
+    const { data } = plan_mainland(seed);
+    const trip = data.routes.find((r) => r.id === "trip");
+    if (!trip) throw new Error("no road trip");
+    const town_at = (p: { x: number; z: number }) => data.towns.find((t) => Math.hypot(t.x - p.x, t.z - p.z) <= t.radius + 1);
+    const from = town_at(trip.points[0]);
+    const to = town_at(trip.points[trip.points.length - 1]);
+    expect(from).toBeDefined();
+    expect(to).toBeDefined();
+    expect(from).not.toBe(to);
+    expect(trip.closed).toBe(false);
+    const on = (p: { x: number; z: number }) => trip.points.findIndex((q) => q.x === p.x && q.z === p.z);
+    const at = trip.checkpoints.map(on);
+    at.forEach((s, i) => (i ? expect(s).toBeGreaterThan(at[i - 1]) : expect(s).toBeGreaterThan(0)));
+    expect(at.at(-1)).toBe(trip.points.length - 1);
+    trip.checkpoints.forEach((c, i) => i && expect(Math.hypot(c.x - trip.checkpoints[i - 1].x, c.z - trip.checkpoints[i - 1].z)).toBeLessThan(500));
   });
 
 for (const seed of sweep(3))

@@ -66,7 +66,8 @@ for (const seed of SEEDS) {
     // A world with no road (the dune sea) races over open ground: there is no road to stay on.
     const roadless = world.road.length < 2;
     const rows = Object.values(CARS).filter((spec) => !route.excludes?.includes(spec.id)).map((spec) => {
-      const lap = autolap(world, spec, line, false);
+      // Past par the run fails anyway; a road trip runs longer than the autopilot's default limit.
+      const lap = autolap(world, spec, line, false, undefined, Math.max(400, route.par_ms / 1000));
       const done = lap.index >= line.length - 10 && !lap.flipped;
       const over = lap.t * 1000 > route.par_ms;
       const run = `${WORLD === WorldKind.ISLAND ? "" : `${WORLD} `}${seed} ${route.id} ${spec.id}`;

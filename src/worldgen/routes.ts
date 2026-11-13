@@ -223,12 +223,12 @@ class Atlas {
     return Math.abs(p.tx * q.tz - p.tz * q.tx) > CORNER_SIN;
   }
 
-  /** Cheapest legs from `start` to `end` with corners rewarded, off legs of the `banned` kind; never doubles straight back along a piece. */
-  search(start: number, end: number, banned: LegKind | null): number[] | null {
+  /** Cheapest legs from `start` to `end`, metres times `weight` less `bonus` a corner (an infinite weight bans a leg); never doubles straight back along a piece. */
+  search(start: number, end: number, weight: (leg: Leg) => number, bonus: number): number[] | null {
     const cost = new Float64Array(this.legs.length).fill(Infinity);
     const prev = new Int32Array(this.legs.length).fill(-1);
     const done = new Uint8Array(this.legs.length);
-    for (const l of this.out.get(start) ?? []) if (this.legs[l].kind !== banned) cost[l] = this.legs[l].length * WEIGHT[this.legs[l].kind];
+    for (const l of this.out.get(start) ?? []) cost[l] = this.legs[l].length * weight(this.legs[l]);
     for (;;) {
       let best = -1;
       for (let l = 0; l < this.legs.length; l++) if (!done[l] && cost[l] < Infinity && (best < 0 || cost[l] < cost[best])) best = l;
@@ -242,8 +242,8 @@ class Atlas {
       }
       for (const l of this.out.get(leg.to) ?? []) {
         const next = this.legs[l];
-        if (done[l] || next.piece === leg.piece || next.kind === banned) continue;
-        const c = cost[best] + next.length * WEIGHT[next.kind] - (this.corner(leg, next) ? TURN_BONUS : 0);
+        if (done[l] || next.piece === leg.piece) continue;
+        const c = cost[best] + next.length * weight(next) - (this.corner(leg, next) ? bonus : 0);
         if (c < cost[l]) {
           cost[l] = c;
           prev[l] = best;
@@ -393,7 +393,7 @@ export function street_routes(graph: RoadGraph, circuit: readonly number[], town
       const end = farthest(graph, atlas.town_nodes.get(b.id) ?? [], atlas.gates.get(b.id) ?? 0);
       // The way round the circuit stays a candidate beside the one the roads between towns open up.
       for (const banned of [null, "local"] as const) {
-        const legs = atlas.search(start, end, banned);
+        const legs = atlas.search(start, end, (leg) => (leg.kind === banned ? Infinity : WEIGHT[leg.kind]), TURN_BONUS);
         const found = legs && trace(atlas, legs, [a.id, b.id]);
         if (found && !candidates.some((c) => c.legs.join() === found.legs.join())) candidates.push(found);
       }
@@ -430,6 +430,28 @@ export function street_routes(graph: RoadGraph, circuit: readonly number[], town
     closure: closure(atlas, c, heights),
   }));
   return { routes, items };
+}
+
+/** The town pair farthest apart by road, the shortest way between them gated as the town-to-town routes are. */
+export function trip_route(graph: RoadGraph, circuit: readonly number[], towns: readonly Town[], junctions: readonly Junction[]): Route | null {
+  const atlas = new Atlas(graph, circuit, towns, junctions);
+  const linked = towns.filter((t) => (atlas.town_nodes.get(t.id)?.length ?? 0) > 1);
+  let best: Candidate | null = null;
+  for (const a of linked)
+    for (const b of linked) {
+      if (b.id <= a.id) continue;
+      const from = atlas.town_nodes.get(a.id) ?? [];
+      const to = atlas.town_nodes.get(b.id) ?? [];
+      const start = farthest(graph, from, to[0]);
+      const end = farthest(graph, to, start);
+      const legs = atlas.search(start, end, () => 1, 0);
+      const found = legs && trace(atlas, legs, [a.id, b.id]);
+      if (found && (!best || found.length > best.length)) best = found;
+    }
+  if (!best) return null;
+  const { legs, points, checkpoints } = best;
+  const share = Math.max(...legs.map((l) => LEG_PAR[atlas.legs[l].kind]));
+  return { id: "trip", kind: RouteKind.STREET, closed: false, points, checkpoints, gate_hw: ROAD_HALF, length: best.length, par_ms: par(points, false, share), closure: [] };
 }
 
 /** Each trail as a point-to-point race: a gate every TRAIL_GATES metres, one before the gap and one where the ramp-out joins. */

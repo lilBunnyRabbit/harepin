@@ -87,7 +87,7 @@ export const TIERS: readonly Tier[] = [
       { id: "c3", name: "Ice box", mode: "gymkhana", level: "g4", map: "1T0000006", car: { cap: "b" }, tuned: "6:t3", stars: { two: 21680, three: 17344 } },
       { id: "c4", name: "Lake search", mode: "hunt", level: "h3", map: "1T0000006", car: { preset: "Mud basher" }, tuned: "6:t3", stars: { two: 71680, three: 57344 } },
       { id: "c5", name: "Winter reverse", mode: "race", level: "circuit-rev", map: "1C0000006-W1", car: { cap: "a" }, tuned: "6:w11:W1", stars: { two: 345000, three: 276000 }, ghost: true },
-      { id: "c6", name: "Mainland sprint", mode: "race", level: "sprint", map: MAINLAND, car: { cap: "a" }, tuned: "475664083:m6", stars: { two: 314500, three: 251600 } },
+      { id: "c6", name: "Mainland sprint", mode: "race", level: "sprint", map: MAINLAND, car: { cap: "a" }, tuned: "475664083:m7", stars: { two: 314500, three: 251600 } },
       { id: "c7", name: "Rim to sea", mode: "race", level: "descent", map: "1V0000001", car: { cap: "a" }, tuned: "1:v5", stars: { two: 204750, three: 163800 }, ghost: true, final: true },
     ],
   },
@@ -98,7 +98,7 @@ export const TIERS: readonly Tier[] = [
     margin: 1,
     rewards: { paint: MAX_PAINT + 3, paint_at: 10, decal: "ice", badge: "P" },
     events: [
-      { id: "p1", name: "Marathon", mode: "duel", level: "v5", map: MAINLAND, car: { cap: "s2" }, tuned: "475664083:m6", stars: { two: 212740, three: 193400 } },
+      { id: "p1", name: "Marathon", mode: "duel", level: "v5", map: MAINLAND, car: { cap: "s2" }, tuned: "475664083:m7", stars: { two: 212740, three: 193400 } },
       { id: "p2", name: "Exposed", mode: "race", level: "circuit", map: "1S0000007-F2", car: { cap: "x" }, tuned: "7:sky3:11112", stars: { two: 243000, three: 194400 }, ghost: true },
       { id: "p3", name: "Touge", mode: "drift", level: "d5", map: "1A0000009", car: { cap: "s1" }, tuned: "9:a4", stars: { two: 267, three: 334 } },
       { id: "p4", name: "Island sweep", mode: "hunt", level: "h5", map: "1C0000008", car: { cap: "s1" }, tuned: "8:w11", stars: { two: 246871, three: 197497 } },

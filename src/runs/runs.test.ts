@@ -38,7 +38,7 @@ import {
   type RunProbe,
 } from "./runs";
 
-const ROUTES = ["circuit", "circuit-rev", "street-1", "street-2", "offroad-1", "offroad-2", "descent", "sprint"];
+const ROUTES = ["circuit", "circuit-rev", "street-1", "street-2", "offroad-1", "offroad-2", "descent", "sprint", "trip", "banked"];
 const MODE_LEVELS: Record<string, readonly string[]> = {
   race: race_levels(ROUTES.map((id) => ({ id })), "island").map((l) => l.id),
   drift: DRIFT_LEVELS.map((l) => l.id),
@@ -55,6 +55,13 @@ test("every run type names real levels of its mode, and its choices narrow to th
     for (const option of type.choice?.options ?? []) for (const level of option.levels ?? []) expect(type.levels).toContain(level);
     expect(type.kinds.length).toBeGreaterThan(0);
   }
+});
+
+test("the race type runs on the mainland, its sprint and road trip among its levels", () => {
+  const race = RUN_TYPES.find((t) => t.id === RunType.RACE);
+  expect(race?.kinds).toContain("mainland");
+  expect(race?.levels).toContain("sprint");
+  expect(race?.levels).toContain("trip");
 });
 
 test("a daily is the same pick for a date, and its param reads back to it", () => {
