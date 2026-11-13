@@ -43,6 +43,11 @@ One level of feature folders under `src/`. Each folder owns its modules, tests (
 | `theme/` | palette and themes |
 | `review/` | visual review for agents, in dev and `vite build --mode review` only (a production build drops it): `?showcase` sheets, `?view=` viewpoints, `?replay=` ghost shots, and the catalog `scripts/shots.ts` reads |
 
+Championships and seasons:
+
+- A career event or weekly with `stages` (3-5, `MIN_STAGES`/`MAX_STAGES`) runs as a `Cup` (`modes/championship.ts`): each stage grades on its own marks, its stars score `STAGE_POINTS`, and the best total keeps under `CUP_RECORD` in the event's store. Every stage must be on the event's own map; a stand-in never runs one.
+- A season is 28 UTC days (`SEASON_DAYS`, `season_of` in `runs/runs.ts`). Runs earn season stars (`runs/runs-store.ts`, free runs capped by `FREE_CAP` a day); every `SEASON_STEP` stars opens the next `SEASON_TRACK` reward (`runs/season.ts`), a fixed list the same each season. Tints keep for good, titles carry their season number. Rewards ride to peers as a `NameTag`, sanitized like any peer data.
+
 `main.ts` is the composition root: it builds each feature and wires them; feature logic does not live there. `style.css` holds tokens, resets and base element styles, plus the few button rules that must load after the base `button:hover`; it is imported last in `main.ts`.
 
 ## Svelte
@@ -63,8 +68,6 @@ Menu pages port from DOM-building classes to Svelte 5 components (plan: `docs/pl
 Every kind of thing we add has a registry. Adding one touches its own files plus one registry line; the compiler lists anything missing.
 
 - **Game mode:** `src/modes/<mode>-mode.ts` exports a `ModeDef` (`mode.ts`); logic and view in their own files beside it. Add it to `MODES` in `modes.ts`. `needs_ground` decides whether it runs on Sky.
-- **Championship:** a career event or weekly with `stages` (3-5, `MIN_STAGES`/`MAX_STAGES`) runs as a `Cup` (`modes/championship.ts`): each stage grades on its own marks, its stars score `STAGE_POINTS`, and the best total keeps under `CUP_RECORD` in the event's store. Every stage must be on the event's own map; a stand-in never runs one.
-- **Season:** 28 UTC days (`SEASON_DAYS`, `season_of` in `runs/runs.ts`). Runs earn season stars (`runs/runs-store.ts`, free runs capped by `FREE_CAP` a day); every `SEASON_STEP` stars opens the next `SEASON_TRACK` reward (`runs/season.ts`), a fixed list the same each season. Tints keep for good, titles carry their season number. Rewards ride to peers as a `NameTag`, sanitized like any peer data.
 - **World kind:** a `WorldKind` value in `worldgen/types.ts`, then four pieces. Worker side: `worldgen/kinds/<kind>.ts` exports `kind_def({ … })` (`kinds/kind-def.ts`: `base`/`tag`/`version` derive `id` and `key()`, plus `size`, `generate`, `options`, `recipe`, `open_ground`, `rails`, `ground`, `fall_reset`, `grip`, and optional `clamp`, `drivable`, `tuned`) and goes in `KINDS` (`kinds/kinds.ts`). A land kind spreads `land_kind(RECIPE, KNOBS, kind)` (`kinds/land-kind.ts`: `generate`, `clamp`, `tuned`, `drivable`) over its own `Recipe` (`worldgen/recipe.ts`: terrain shape, biome tree rules, items and ground rows, road, towns, landmarks, snow) and knob list (`kinds/land-knobs.ts`); a recipe is part of the kind's version, so changing a value bumps `version`. Map codes: one preset char per kind in `PRESETS` (`kinds/map-code.ts`), append-only like the knobs' field letters. UI side: `worlds/<kind>.ts` (`listed`, `mini`, copy, facts, `mood` deltas over the theme, `ground_puff`, `backdrop`, `dress`) in `WORLDS`. Images: `public/menu/<kind>.webp` and `<kind>-map.webp`. Play shows the mainland and every listed `mini` kind (`MINIS` in `worlds/worlds.ts`); an unlisted kind loads only from `?world=`. A kind's `base`, `tag` and `version` key saved records: never change them for an existing kind except as a deliberate version bump.
 - **Car:** a `CarSpec` in `car/cars.ts` added to `CARS`, plus its body design (`Record<BodyStyle, …>` makes a missing one a type error). Axles come from the spec through `axles_of`; don't index wheels by number.
 - **Part:** an entry in `SLOTS` in `car/build.ts`.
