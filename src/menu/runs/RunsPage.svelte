@@ -1,6 +1,9 @@
 <script lang="ts">
-  import { FREE_CAP } from "../../runs/runs-store";
-  import { daily, new_seed, random } from "../../runs/runs";
+  import { WEEK_STARS } from "../../modes/championship";
+  import { points_text } from "../../modes/result";
+  import { local_store } from "../../modes/track";
+  import { FREE_CAP, weekly_best } from "../../runs/runs-store";
+  import { daily, iso_week, new_seed, random, type_of, weekly } from "../../runs/runs";
   import Button from "../ui/Button.svelte";
   import Card from "../ui/Card.svelte";
   import ClassBadge from "../ui/ClassBadge.svelte";
@@ -12,7 +15,7 @@
   import type { PageProps } from "../ui/svelte-page.svelte";
   import RunBuilder from "./RunBuilder.svelte";
   import SeasonBar from "./SeasonBar.svelte";
-  import { car_text, pick_text, star_text } from "./run-text";
+  import { car_text, pick_text, star_text, world_name } from "./run-text";
 
   let { menu, live }: PageProps = $props();
 
@@ -31,6 +34,12 @@
   const season_id = $derived(live.live(() => runs.season));
   const free = $derived(FREE_CAP - live.live(() => runs.free_left));
   const stars = $derived(star_text(got));
+  const week = $derived(iso_week(today));
+  const cup = $derived(weekly(week));
+  const cup_stages = $derived((cup.stages ?? []).map((stage) => type_of(stage.type).name));
+  const week_got = $derived(live.live(() => runs.weekly(week)));
+  const week_stars = $derived(star_text(week_got, WEEK_STARS));
+  const week_best = $derived(live.live(() => weekly_best(cup, local_store())));
 
   let view = $state<View>("today");
 </script>
@@ -54,6 +63,23 @@
               </span>
             {/snippet}
           </Row>
+          <Row label={`Weekly championship · ${world_name(cup.kind)}`} help={`${cup_stages.length} stages on one map, the same for everyone until Sunday`}>
+            {#snippet detail()}
+              <span class="stages">
+                {#each cup_stages as name, i (i)}<span class="stage"><b>{i + 1}</b>{name}</span>{/each}
+              </span>
+            {/snippet}
+            {#snippet control()}
+              <span class="end">
+                <span class="facts">
+                  {#if "cap" in cup.car}<ClassBadge cap={cup.car.cap} />{:else}<span class="preset">{car_text(cup.car)}</span>{/if}
+                  <span class="best">{week_best === null ? "No finish" : `Best ${points_text(week_best)}`}</span>
+                  <span class="star-row" aria-label={`${week_got} of ${WEEK_STARS} stars this week`}>{week_stars.on}<i>{week_stars.off}</i></span>
+                </span>
+                <Button size="sm" variant="primary" aria-label="Go: this week's championship" onclick={() => host.start_run(cup.id)}>Go</Button>
+              </span>
+            {/snippet}
+          </Row>
           <Row label="Endless" help="A new event on a new map every run: any mode, any world">
             {#snippet control()}
               <Button size="sm" aria-label="Go: endless run" onclick={() => host.start_run(random(new_seed()).id)}>Go</Button>
@@ -70,7 +96,7 @@
             <span class="cap-label"><span>Endless and built runs today</span><b>{free} / {FREE_CAP} ★</b></span>
             <Progress value={free} max={FREE_CAP} label={`${free} of ${FREE_CAP} season stars from endless and built runs today`} />
           </div>
-          <p class="dim">The daily's stars count on top of the cap.</p>
+          <p class="dim">The daily's and the weekly's stars count on top of the cap.</p>
         </div>
       </Card>
     </div>
@@ -136,6 +162,37 @@
     display: flex;
     align-items: center;
     gap: var(--space-4);
+  }
+
+  .stages {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+  }
+
+  .stage {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    color: var(--foreground);
+    font-size: var(--text-sm);
+    white-space: nowrap;
+  }
+
+  .stage b {
+    color: var(--set-dim);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .best {
+    color: var(--set-dim);
+    font-size: var(--text-sm);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
   }
 
   .preset {

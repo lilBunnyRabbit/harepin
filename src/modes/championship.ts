@@ -33,6 +33,18 @@ export function cup_stars(total: number, { two, three }: Thresholds): number {
   return total > 0 ? 1 : 0;
 }
 
+/** Season stars a weekly's best total earns. */
+export const WEEK_STARS = 5;
+// Percent of the most points (every stage on 3★) for 2★ to 5★; a finished cup holds at least 30%, every stage on 1★.
+const WEEK_PERCENT: readonly number[] = [45, 60, 75, 90];
+
+/** A weekly championship's points as 0-5 season stars (career.md §10.6): any points 1★, then by share of the most. */
+export function week_stars(total: number, stages: number): number {
+  if (total <= 0 || stages <= 0) return 0;
+  const max = stages * MAX_POINTS;
+  return 1 + WEEK_PERCENT.filter((at) => total * 100 >= at * max).length;
+}
+
 export const cup_status = (index: number, stages: number, total: number) => `Stage ${index + 1}/${stages} · ${total} pts`;
 
 /** A championship under way: the stage being run and each stage's best stars, a retry keeping the better one. */

@@ -1,9 +1,10 @@
+import { CUP_RECORD } from "../modes/championship";
 import { Track, read_json, write_json, type Store } from "../modes/track";
 import { clean_daily, type DailyTime } from "../net/daily";
 import { NAME_LENGTH } from "../net/room-name";
 import type { WorldKind } from "../worldgen/types";
 import { daily_order, key_date, type BoardEntry } from "./daily-board";
-import { Difficulty, RunSource, season_of, utc_date, type RunPick } from "./runs";
+import { Difficulty, RunSource, iso_week, season_of, utc_date, type RunPick } from "./runs";
 import { clean_tint, clean_title, reached, type NameTag } from "./season";
 
 export const RUNS_KEY = "harepin:runs";
@@ -15,6 +16,8 @@ interface RunsSave {
   stars: number;
   /** Daily stars by UTC date, this season. */
   days: Record<string, number>;
+  /** Weekly championship stars (0-5) by ISO week, this season. */
+  weeks: Record<string, number>;
   /** Season stars from endless and built runs by UTC date, today's held to `FREE_CAP`. */
   free: Record<string, number>;
 }
@@ -76,13 +79,13 @@ export function parse_runs_keep(raw: unknown, today: string): RunsKeep {
 }
 
 export function parse_runs_save(raw: unknown, season: string): RunsSave {
-  const fresh = { season, stars: 0, days: {}, free: {} };
+  const fresh = { season, stars: 0, days: {}, weeks: {}, free: {} };
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return fresh;
   const save = raw as Record<string, unknown>;
   // A new season starts from nothing; the old one's dates can't count toward it.
   if (save.season !== season) return fresh;
   const stars = Number.isInteger(save.stars) && (save.stars as number) > 0 ? (save.stars as number) : 0;
-  return { season, stars, days: counts(save.days), free: counts(save.free) };
+  return { season, stars, days: counts(save.days), weeks: counts(save.weeks), free: counts(save.free) };
 }
 
 export interface RunGain {
@@ -145,13 +148,18 @@ export class Runs {
     return this.current.days[date] ?? 0;
   }
 
+  weekly(week: string): number {
+    return this.current.weeks[week] ?? 0;
+  }
+
   get free_left(): number {
     return Math.max(0, FREE_CAP - (this.current.free[this.today] ?? 0));
   }
 
   /**
-   * A daily started on its own date earns up to its stars once, by that date even when it ends past midnight; anything
-   * else, an old daily included, draws on today's free cap. `started`: the UTC date the run began.
+   * A daily started on its own date earns up to its stars once, by that date even when it ends past midnight; a weekly
+   * started in its own week likewise by the week. Anything else, an old daily or weekly included, draws on today's free
+   * cap. `started`: the UTC date the run began.
    */
   record(pick: RunPick, stars: number, started = this.today): RunGain {
     const save = this.current;
@@ -162,6 +170,10 @@ export class Runs {
       const day = pick.date;
       gain = Math.max(0, stars - (save.days[day] ?? 0));
       if (gain) save.days = { ...save.days, [day]: stars };
+    } else if (pick.source === RunSource.WEEKLY && pick.date === iso_week(started)) {
+      const week = pick.date;
+      gain = Math.max(0, stars - (save.weeks[week] ?? 0));
+      if (gain) save.weeks = { ...save.weeks, [week]: stars };
     } else {
       gain = Math.min(stars, this.free_left);
       capped = gain < stars;
@@ -238,10 +250,18 @@ export class Runs {
   }
 }
 
-/** A run's best times: per date for a daily, `harepin:run:<date>:<world_key>`; else per map, lap count and difficulty, `harepin:run[:l<laps>][:<difficulty>]:<world_key>`. */
-export function run_track(pick: RunPick, level: string, store: Store | null, seed: number, kind: WorldKind, levels: readonly number[]): Track {
+/**
+ * A run's best times: per date for a daily, `harepin:run:<date>:<world_key>`, per ISO week for a weekly (its stages and
+ * `CUP_RECORD`); else per map, lap count and difficulty, `harepin:run[:l<laps>][:<difficulty>]:<world_key>`.
+ */
+export function run_track(pick: RunPick, levels: readonly string[], store: Store | null, seed: number, kind: WorldKind, map_levels: readonly number[]): Track {
   const laps = pick.laps > 1 ? `:l${pick.laps}` : "";
   const difficulty = pick.difficulty === Difficulty.NORMAL ? "" : `:${pick.difficulty}`;
   const scope = pick.date ? `run:${pick.date}` : `run${laps}${difficulty}`;
-  return new Track(scope, seed, [level], store, kind, levels);
+  return new Track(scope, seed, levels, store, kind, map_levels);
+}
+
+/** A weekly's best championship total so far, off its records on the plain map it runs on; null before a finish. */
+export function weekly_best(pick: RunPick, store: Store | null): number | null {
+  return run_track(pick, [], store, pick.seed, pick.kind, []).runs[CUP_RECORD]?.score ?? null;
 }

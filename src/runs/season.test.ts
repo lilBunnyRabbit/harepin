@@ -75,7 +75,7 @@ test("the additions ride beside the season's fields: an old save parses, a new o
   const runs = new Runs(store, () => new Date("2026-11-13T12:00:00Z"));
   runs.wear({});
   const saved = JSON.parse(store.getItem(RUNS_KEY) ?? "{}");
-  expect(parse_runs_save(saved, SEASON)).toEqual(old);
+  expect(parse_runs_save(saved, SEASON)).toEqual({ ...old, weeks: {} });
   expect(parse_runs_keep({ owned: ["accent", "x", 3, "ace.1"], wear: { title: "<b>" }, board: [] }, "2026-11-13").owned).toEqual(["accent", "ace.1"]);
 });
 

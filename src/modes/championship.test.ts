@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { EVENTS, type CareerEvent } from "../career/career";
 import { event_track } from "../career/career-store";
-import { Cup, MAX_STAGES, MIN_STAGES, cup_marks, cup_stars, cup_status, stage_points } from "./championship";
+import { Cup, MAX_STAGES, MIN_STAGES, cup_marks, cup_stars, cup_status, stage_points, week_stars } from "./championship";
 
 const STAGES = [
   { mode: "race", level: "circuit" },
@@ -78,4 +78,9 @@ test("every championship event has 3-5 stages, the first its own mode and level"
     expect([event.id, stages[0]?.mode, stages[0]?.level]).toEqual([event.id, event.mode, event.level]);
     expect([event.id, event.stand_in]).toEqual([event.id, undefined]);
   }
+});
+
+test("a weekly's points map to 0-5 season stars by share of the most", () => {
+  expect([0, 9, 13, 14, 17, 18, 22, 23, 26, 27, 30].map((total) => week_stars(total, 3))).toEqual([0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5]);
+  expect([15, 22, 23, 30, 37, 38, 44, 45, 50].map((total) => week_stars(total, 5))).toEqual([1, 1, 2, 3, 3, 4, 4, 5, 5]);
 });

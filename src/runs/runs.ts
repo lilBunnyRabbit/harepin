@@ -10,6 +10,7 @@ export const RUN_PARAM = "run";
 
 export const RunSource = {
   DAILY: "daily",
+  WEEKLY: "weekly",
   RANDOM: "random",
   CUSTOM: "custom",
 } as const;
@@ -135,9 +136,16 @@ export interface RunOptions {
 
 export const ANY_OPTIONS: RunOptions = { type: null, kind: null, choice: null, difficulty: Difficulty.NORMAL, car: null, laps: 1 };
 
+/** One stage of a weekly: a type and its levels in the order tried, as a daily picks them. */
+export interface RunStage {
+  readonly type: RunType;
+  readonly levels: readonly string[];
+}
+
 export interface RunPick {
   readonly id: string;
   readonly source: RunSource;
+  /** A daily's UTC date, a weekly's ISO week (`2026-W46`). */
   readonly date: string | null;
   readonly type: RunType;
   readonly kind: WorldKind;
@@ -148,6 +156,8 @@ export interface RunPick {
   readonly car: RunCar;
   readonly difficulty: Difficulty;
   readonly laps: number;
+  /** A weekly's championship stages on the one map, the first also in `type` and `levels`; null for a single run. */
+  readonly stages: readonly RunStage[] | null;
 }
 
 const SEEDS = 1_000_000;
@@ -155,6 +165,29 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/;
 export const ANY = "any";
 
 export const utc_date = (now: Date): string => now.toISOString().slice(0, 10);
+
+const WEEK = /^(\d{4})-W(\d{2})$/;
+
+/** The ISO week a UTC date falls in, `2026-W46`: weeks start on Monday, and week 1 holds the year's first Thursday. */
+export function iso_week(date: string): string {
+  const at = Date.parse(`${date}T00:00:00Z`);
+  const monday_based = (new Date(at).getUTCDay() + 6) % 7;
+  const thursday = new Date(at + (3 - monday_based) * DAY_MS);
+  const year = thursday.getUTCFullYear();
+  const week = 1 + Math.floor((thursday.getTime() - Date.UTC(year, 0, 1)) / DAY_MS / 7);
+  return `${year}-W${String(week).padStart(2, "0")}`;
+}
+
+/** The Monday an ISO week starts on; null for a week that doesn't exist (`2026-W53`). */
+export function week_start(week: string): string | null {
+  const match = WEEK.exec(week);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const jan4 = Date.UTC(year, 0, 4);
+  const monday = jan4 - ((new Date(jan4).getUTCDay() + 6) % 7) * DAY_MS + (Number(match[2]) - 1) * 7 * DAY_MS;
+  const start = utc_date(new Date(monday));
+  return iso_week(start) === week ? start : null;
+}
 
 function shuffled<T>(items: readonly T[], rng: () => number): T[] {
   const out = [...items];
@@ -167,7 +200,7 @@ function shuffled<T>(items: readonly T[], rng: () => number): T[] {
 
 const draw = <T>(items: readonly T[], rng: () => number): T => items[Math.floor(rng() * items.length)];
 
-function roll(options: RunOptions, rng: () => number): Omit<RunPick, "id" | "source" | "date"> {
+function roll(options: RunOptions, rng: () => number): Omit<RunPick, "id" | "source" | "date" | "stages"> {
   // A world picked with the type left to the dice draws only types that run there.
   const hosts = options.kind ? RUN_TYPES.filter((t) => options.kind !== null && t.kinds.includes(options.kind)) : RUN_TYPES;
   const rolled_type = draw(hosts.length ? hosts : RUN_TYPES, rng).id;
@@ -186,15 +219,47 @@ function roll(options: RunOptions, rng: () => number): Omit<RunPick, "id" | "sou
 }
 
 export function daily(date: string): RunPick {
-  return { id: `${RunSource.DAILY}:${date}`, source: RunSource.DAILY, date, ...roll(ANY_OPTIONS, mulberry32(seed_of(`daily:${date}`))) };
+  return { id: `${RunSource.DAILY}:${date}`, source: RunSource.DAILY, date, stages: null, ...roll(ANY_OPTIONS, mulberry32(seed_of(`daily:${date}`))) };
+}
+
+/** Stages a weekly runs, as the championship runner takes them (`MIN_STAGES`, `MAX_STAGES` in modes/championship.ts). */
+export const WEEKLY_STAGES = { min: 3, max: 5 } as const;
+
+/** A week's championship: one map, 3-5 types that run on its kind, each with its levels shuffled, one car rule for all. */
+export function weekly(week: string): RunPick {
+  const rng = mulberry32(seed_of(`weekly:${week}`));
+  const kind = draw(COMPACT, rng);
+  const seed = 1 + Math.floor(rng() * (SEEDS - 1));
+  const count = WEEKLY_STAGES.min + Math.floor(rng() * (WEEKLY_STAGES.max - WEEKLY_STAGES.min + 1));
+  const types = shuffled(
+    RUN_TYPES.filter((type) => type.kinds.includes(kind)),
+    rng,
+  ).slice(0, count);
+  const stages = types.map((type) => ({ type: type.id, levels: shuffled(type.levels, rng) }));
+  const caps = ROAD_CAPS.filter((cap) => types.every((type) => type.caps.includes(cap)));
+  const cap = draw(caps, rng);
+  return {
+    id: `${RunSource.WEEKLY}:${week}`,
+    source: RunSource.WEEKLY,
+    date: week,
+    type: stages[0].type,
+    kind,
+    seed,
+    levels: stages[0].levels,
+    band: null,
+    car: { cap },
+    difficulty: Difficulty.NORMAL,
+    laps: 1,
+    stages,
+  };
 }
 
 export function random(seed: number): RunPick {
-  return { id: `${RunSource.RANDOM}:${seed.toString(36)}`, source: RunSource.RANDOM, date: null, ...roll(ANY_OPTIONS, mulberry32(seed)) };
+  return { id: `${RunSource.RANDOM}:${seed.toString(36)}`, source: RunSource.RANDOM, date: null, stages: null, ...roll(ANY_OPTIONS, mulberry32(seed)) };
 }
 
 export function custom(options: RunOptions, seed: number): RunPick {
-  return { id: `${RunSource.CUSTOM}:${options_code(options, seed)}`, source: RunSource.CUSTOM, date: null, ...roll(options, mulberry32(seed)) };
+  return { id: `${RunSource.CUSTOM}:${options_code(options, seed)}`, source: RunSource.CUSTOM, date: null, stages: null, ...roll(options, mulberry32(seed)) };
 }
 
 export const new_seed = () => Math.floor(Math.random() * SEEDS);
@@ -253,6 +318,7 @@ export function run_of(param: string | null): RunPick | null {
   const source = param.slice(0, at);
   const rest = param.slice(at + 1);
   if (source === RunSource.DAILY) return real_date(rest) ? daily(rest) : null;
+  if (source === RunSource.WEEKLY) return week_start(rest) ? weekly(rest) : null;
   if (source === RunSource.RANDOM) {
     const seed = parseInt(rest, 36);
     return /^[0-9a-z]+$/.test(rest) && Number.isSafeInteger(seed) ? random(seed) : null;
@@ -278,6 +344,19 @@ export interface Resolved {
 }
 
 export const FALLBACK = { mode: "race", level: "circuit" } as const;
+
+/**
+ * A weekly's stages on the built map. One that finds no level becomes the circuit race, or is dropped when the cup
+ * already has it; `scripts/runs-check.ts` vets coming weeks so neither happens.
+ */
+export function resolve_stages(pick: RunPick, probe: RunProbe): Resolved[] {
+  const out: Resolved[] = [];
+  for (const stage of pick.stages ?? [pick]) {
+    const got = resolve({ ...pick, type: stage.type, levels: stage.levels, stages: null }, probe);
+    if (!out.some((have) => have.mode === got.mode && have.level === got.level)) out.push(got);
+  }
+  return out;
+}
 
 const off_band = (length: number | null, [low, high]: readonly [number, number]) => (length === null ? Infinity : length < low ? low - length : length > high ? length - high : 0);
 

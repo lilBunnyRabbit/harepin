@@ -8,22 +8,29 @@ import { PARK_LEVELS } from "../modes/parking";
 import { race_levels } from "../modes/races";
 import type { Store } from "../modes/track";
 import { pick_world } from "../world/world-pick";
-import { FREE_CAP, Runs, RUNS_KEY, parse_runs_save, run_track } from "./runs-store";
+import { CUP_RECORD, MAX_STAGES, MIN_STAGES } from "../modes/championship";
+import { FREE_CAP, Runs, RUNS_KEY, parse_runs_save, run_track, weekly_best } from "./runs-store";
 import {
   Difficulty,
   FALLBACK,
   RUN_TYPES,
+  RunSource,
+  WEEKLY_STAGES,
   RunType,
   custom,
   daily,
   options_code,
   parse_options,
+  iso_week,
   random,
   resolve,
+  resolve_stages,
   run_of,
   scale,
   season_days_left,
   season_of,
+  week_start,
+  weekly,
   type RunPick,
   type RunProbe,
 } from "./runs";
@@ -91,7 +98,7 @@ test("bad run params read as no run", () => {
     "daily",
     "daily:2026-13-45",
     "daily:yesterday",
-    "weekly:2026-W46",
+    "weekly:2026-W54",
     "random:",
     "random:-1",
     "custom:race",
@@ -208,7 +215,7 @@ test("a new season starts the stars over; a bad save reads as empty", () => {
   store.setItem(RUNS_KEY, "{not json");
   expect(new Runs(store, () => now).stars).toBe(0);
   expect(parse_runs_save({ season: "x", stars: 5 }, "y").stars).toBe(0);
-  expect(parse_runs_save({ season: "y", stars: -2, days: { a: 1.5 }, free: [] }, "y")).toEqual({ season: "y", stars: 0, days: {}, free: {} });
+  expect(parse_runs_save({ season: "y", stars: -2, days: { a: 1.5 }, free: [] }, "y")).toEqual({ season: "y", stars: 0, days: {}, weeks: {}, free: {} });
 });
 
 test("a run link picks its plain map before the kinds load; a map param wins over it", () => {
@@ -243,10 +250,93 @@ test("a daily started before midnight UTC keeps its stars for its own date", () 
 
 test("relaxed, normal and hard runs keep separate bests", () => {
   const store = new MemStore();
-  const at = (difficulty: Difficulty, laps = 1) => run_track(custom({ type: RunType.RACE, kind: "island", choice: null, difficulty, car: null, laps }, 5), "circuit", store, 5, "island", []);
+  const at = (difficulty: Difficulty, laps = 1) => run_track(custom({ type: RunType.RACE, kind: "island", choice: null, difficulty, car: null, laps }, 5), ["circuit"], store, 5, "island", []);
   at(Difficulty.HARD).record("circuit", { stars: 3, ms: 1000 });
   expect(at(Difficulty.HARD).runs.circuit?.ms).toBe(1000);
   expect(at(Difficulty.NORMAL).runs.circuit).toBeUndefined();
   expect(at(Difficulty.RELAXED).runs.circuit).toBeUndefined();
   expect(at(Difficulty.HARD, 3).runs.circuit).toBeUndefined();
+});
+
+test("ISO weeks start on Monday; week 1 holds the year's first Thursday", () => {
+  expect(iso_week("2026-11-13")).toBe("2026-W46");
+  expect(iso_week("2026-11-09")).toBe("2026-W46");
+  expect(iso_week("2026-11-15")).toBe("2026-W46");
+  expect(iso_week("2026-11-16")).toBe("2026-W47");
+  expect(iso_week("2021-01-01")).toBe("2020-W53");
+  expect(iso_week("2024-12-30")).toBe("2025-W01");
+  expect(week_start("2026-W46")).toBe("2026-11-09");
+  expect(week_start("2025-W01")).toBe("2024-12-30");
+  expect(week_start("2026-W53")).toBe("2026-12-28");
+  for (const bad of ["2025-W53", "2026-W00", "2026-W4", "2026W46", "2026-w46"]) expect(week_start(bad)).toBeNull();
+});
+
+test("a weekly is one map with 3-5 stages of types that run there, one car rule, and its param reads back", () => {
+  expect(WEEKLY_STAGES).toEqual({ min: MIN_STAGES, max: MAX_STAGES });
+  const a = weekly("2026-W46");
+  expect(a.id).toBe("weekly:2026-W46");
+  expect(a.source).toBe(RunSource.WEEKLY);
+  expect(weekly("2026-W46")).toEqual(a);
+  expect(run_of(a.id)).toEqual(a);
+  for (const bad of ["weekly:2025-W53", "weekly:2026-W4", "weekly:2026-11-13"]) expect(run_of(bad)).toBeNull();
+  const counts = new Set<number>();
+  for (let w = 1; w <= 52; w++) {
+    const pick = weekly(`2026-W${String(w).padStart(2, "0")}`);
+    const stages = pick.stages ?? [];
+    counts.add(stages.length);
+    expect(stages.length).toBeGreaterThanOrEqual(MIN_STAGES);
+    expect(stages.length).toBeLessThanOrEqual(MAX_STAGES);
+    expect(new Set(stages.map((s) => s.type)).size).toBe(stages.length);
+    expect(pick.type).toBe(stages[0].type);
+    for (const stage of stages) {
+      const type = RUN_TYPES.find((t) => t.id === stage.type);
+      expect(type?.kinds).toContain(pick.kind);
+      expect("cap" in pick.car && type?.caps.includes(pick.car.cap)).toBe(true);
+      expect([...stage.levels].sort()).toEqual([...(type?.levels ?? [])].sort());
+    }
+  }
+  expect(counts.size).toBe(3);
+});
+
+test("a weekly's stages resolve on the map; a stage with no level becomes the circuit race once", () => {
+  const pick: RunPick = {
+    ...weekly("2026-W46"),
+    stages: [
+      { type: RunType.DRIFT, levels: ["d3", "d1"] },
+      { type: RunType.PARKING, levels: ["p1"] },
+      { type: RunType.GYMKHANA, levels: ["g1"] },
+      { type: RunType.TRAP, levels: ["trap"] },
+    ],
+  };
+  const map = probe({ drift: ["d1", "d2"], race: ["circuit", "trap"] });
+  expect(resolve_stages(pick, map)).toEqual([
+    { mode: "drift", level: "d1", fallback: false },
+    { ...FALLBACK, fallback: true },
+    { mode: "race", level: "trap", fallback: false },
+  ]);
+});
+
+test("a weekly earns its 0-5 stars once in its own week; an old one draws on the free cap", () => {
+  const store = new MemStore();
+  const runs = new Runs(store, () => new Date("2026-11-13T10:00:00Z"));
+  const week = weekly("2026-W46");
+  expect(runs.record(week, 3)).toEqual({ gain: 3, capped: false });
+  expect(runs.record(week, 2)).toEqual({ gain: 0, capped: false });
+  expect(runs.record(week, 5)).toEqual({ gain: 2, capped: false });
+  expect(runs.weekly("2026-W46")).toBe(5);
+  expect(runs.free_left).toBe(FREE_CAP);
+  expect(runs.record(weekly("2026-W45"), 4)).toEqual({ gain: 4, capped: false });
+  expect(runs.free_left).toBe(FREE_CAP - 4);
+  expect(runs.stars).toBe(9);
+  expect(new Runs(store, () => new Date("2026-11-15T23:00:00Z")).weekly("2026-W46")).toBe(5);
+  expect(parse_runs_save({ season: "y", stars: 2, days: {}, free: {} }, "y").weeks).toEqual({});
+});
+
+test("a weekly's best total is read off its records on the plain map", () => {
+  const store = new MemStore();
+  const pick = weekly("2026-W46");
+  expect(weekly_best(pick, store)).toBeNull();
+  run_track(pick, [], store, pick.seed, pick.kind, []).record(CUP_RECORD, { stars: 2, ms: 1, score: 22 });
+  expect(weekly_best(pick, store)).toBe(22);
+  expect(weekly_best(weekly("2026-W47"), store)).toBeNull();
 });
