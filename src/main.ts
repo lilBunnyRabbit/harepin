@@ -564,6 +564,22 @@ for (const chip of document.querySelectorAll<HTMLButtonElement>("button[data-aid
   });
 document.getElementById("gear")?.addEventListener("click", () => toggle_aid("auto"));
 
+const light_chips = document.querySelectorAll<HTMLButtonElement>("button[data-lights]");
+function show_lights() {
+  for (const chip of light_chips) chip.setAttribute("aria-pressed", String(driver.view.lights));
+}
+function toggle_lights() {
+  hud.toast(driver.toggle_lights() ? "Lights on" : "Lights off");
+  show_lights();
+}
+for (const chip of light_chips)
+  chip.addEventListener("click", () => {
+    chip.blur();
+    toggle_lights();
+  });
+// The car is rebuilt with dusk-or-day lights on every swap, so the chips re-read it whenever their menu opens.
+for (const id of ["aids", "hud-sheet"]) document.getElementById(id)?.addEventListener("beforetoggle", show_lights);
+
 function shift(step: 1 | -1) {
   if (settings.state.auto) hud.toast("Manual gearbox");
   settings.set("auto", false);
@@ -574,7 +590,7 @@ const ACTIONS: Record<Action, () => void> = {
   reset: () => (modes.active ? modes.restart() : driver.reset(lobby.busy && lobby.route === "circuit")),
   restart: () => restart_action(),
   recenter: () => chase.recenter(),
-  lights: () => hud.toast(driver.toggle_lights() ? "Lights on" : "Lights off"),
+  lights: () => toggle_lights(),
   camera: () => {
     if (modes.parking) modes.toggle_view();
     else settings.set("camera", settings.state.camera === CameraView.CHASE ? CameraView.COCKPIT : CameraView.CHASE);
