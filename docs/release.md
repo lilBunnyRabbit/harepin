@@ -14,7 +14,7 @@ It does, in order:
 4. Runs the checks side by side, each timed: `tsc --noEmit`, `check:svelte`, `vite build` and `bun test` on the picked test files (below). `full` runs those tests with `FULL=1`, started once tsc, svelte-check and the build are done, and adds `golden.ts --check` and `proof.ts --jobs 3` when the diff touches `src/worldgen`, `src/world`, `src/car` or `scripts/golden`. A failed check prints its `(fail)` lines and the last 40 lines of its output.
 5. Prints a table of steps and seconds, the clone path and the release sha. It exits non-zero when any step failed.
 
-Only the tests for what changed run. The diff is taken from the last release (the nearer of the last tag and the last `chore: release` commit before `<ref>`). A test file is picked when it sits in the folder of a changed file, or imports a changed module by a relative path (direct imports only). `src/version.test.ts` always runs. The picked files are printed before the checks. `--all-tests` runs the whole suite instead, as does a ref with no earlier release.
+Only the tests for what changed run. The diff is taken from the last release (the nearer of the last tag and the last `chore: release` commit before `<ref>`). A test file is picked when it sits in the folder of a changed file, or imports a changed module by a relative path (direct imports only). `src/version.test.ts` always runs. The picked files are printed before the checks. `--all-tests` runs the whole suite instead, as does a ref with no earlier release. Tests run with `--timeout 60000`: several car and audio tests take 3-4 s alone, and next to the builds they pass bun's 5 s default.
 
 It never pushes. Push `rel` from the clone it prints once the table is green.
 
