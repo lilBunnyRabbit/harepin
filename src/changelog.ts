@@ -23,6 +23,19 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.38.0",
+    date: "2026-11-13",
+    title: "New ways to drive",
+    changes: [
+      { kind: NEW, text: "Runs: a daily event, endless random events and an event builder. Pick the type, world, length, laps, difficulty and car, then generate a map and share it by link. Runs earn season stars, up to 10 a day." },
+      { kind: NEW, text: "Three new event types: drift chain (one chain, lose it and the run ends), speed trap (your speed through traps on the straights adds up) and jump distance (longest flight off a ramp)." },
+      { kind: NEW, text: "Change car mid-event: in a career event with a class limit, the car button or the result card reopens the car pick and restarts the run." },
+      { kind: IMPROVED, text: "The car pick groups cars by class, side by side on wide screens, with Your car, Recommended and Fitted tags and a link to the garage." },
+      { kind: IMPROVED, text: "The garage paint and part strip has arrows on desktop." },
+      { kind: FIXED, text: "Metallic paints no longer blow out to white under a low sun." },
+    ],
+  },
+  {
     version: "0.37.2",
     date: "2026-11-14",
     title: "Chip in",
