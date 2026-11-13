@@ -3,7 +3,7 @@ import { empty_lots, Lots, type TownLots } from "./lots";
 import { length } from "./noise";
 import type { Recipe } from "./recipe";
 import type { Junction } from "./road-layers";
-import { Stamp, type GroundOp } from "./stamp";
+import { Stamp, type EdgeShapes, type GroundOp } from "./stamp";
 import { terrain } from "./terrain";
 import { CELL, ORIGIN, SIDEWALK, type RoadGraph, type Town } from "./types";
 import { water_index, type Water } from "./water";
@@ -81,12 +81,13 @@ export function mainland_lots(seed: number, recipe: Recipe, graph: RoadGraph, to
   });
   const level = water && water_index(water);
   const wet = level && ((x: number, z: number) => level.level(x, z));
+  const shapes: EdgeShapes = new Map();
   for (const town of towns) {
     const streets = graph.edges.filter((edge) => edge.kind === "street" && towns.find((t) => length(t.x - edge.points[0].x, t.z - edge.points[0].z) <= t.radius + 1) === town);
     if (!streets.length) continue;
     const grid = window_of(town);
     const land = terrain(seed, recipe.terrain, grid);
-    const stamp = new Stamp(land, grid, false);
+    const stamp = new Stamp(land, grid, false, shapes);
     for (const op of ops) stamp.replay(op);
     const lots = new Lots(seed, land, stamp, recipe.towns, grid, out, new Set(circuit));
     const near = outlines.filter((o) => o.x1 >= ORIGIN + grid.i0 * CELL && o.x0 <= ORIGIN + grid.i1 * CELL && o.z1 >= ORIGIN + grid.j0 * CELL && o.z0 <= ORIGIN + grid.j1 * CELL);

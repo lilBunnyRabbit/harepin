@@ -109,17 +109,17 @@ interface Rect {
   fz: number;
 }
 
+function reach(r: Rect, ax: number, az: number): number {
+  return (Math.abs(r.fz * ax - r.fx * az) * r.w + Math.abs(r.fx * ax + r.fz * az) * r.d) / 2;
+}
+
+function parted(a: Rect, b: Rect, ax: number, az: number): boolean {
+  return Math.abs((b.x - a.x) * ax + (b.z - a.z) * az) >= reach(a, ax, az) + reach(b, ax, az);
+}
+
+// Runs for every placed lot against every candidate, so it allocates nothing.
 function apart(a: Rect, b: Rect): boolean {
-  for (const [ax, az] of [
-    [a.fz, -a.fx],
-    [a.fx, a.fz],
-    [b.fz, -b.fx],
-    [b.fx, b.fz],
-  ]) {
-    const reach = (r: Rect) => (Math.abs(r.fz * ax - r.fx * az) * r.w + Math.abs(r.fx * ax + r.fz * az) * r.d) / 2;
-    if (Math.abs((b.x - a.x) * ax + (b.z - a.z) * az) >= reach(a) + reach(b)) return true;
-  }
-  return false;
+  return parted(a, b, a.fz, -a.fx) || parted(a, b, a.fx, a.fz) || parted(a, b, b.fz, -b.fx) || parted(a, b, b.fx, b.fz);
 }
 
 export function empty_lots(): TownLots {
@@ -168,7 +168,8 @@ export class Lots {
       if (this.sample(heights, px, pz) < 3) return false;
       if (this.shape.exact && this.sample(road_dist, px, pz) <= STREET_CLEAR) return false;
     }
-    if (this.shape.exact && !this.placed.every((o) => apart(o, { x, z, w, d, fx, fz }))) return false;
+    const rect = { x, z, w, d, fx, fz };
+    if (this.shape.exact && !this.placed.every((o) => apart(o, rect))) return false;
     const level = (k: number) => street[k] === 1 || owner_dist[k] > ROAD_HALF + SHOULDER;
     if (!this.scan(x, z, w + CELL * 2, d + CELL * 2, fx, fz, level)) return false;
     return this.scan(x, z, w, d, fx, fz, (k) => !this.occupied[k] && road_dist[k] > STREET_CLEAR);

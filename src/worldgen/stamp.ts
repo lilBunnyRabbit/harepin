@@ -74,6 +74,18 @@ export interface GroundPlan {
   ops: GroundOp[];
 }
 
+/** What an edge op works out from the edges alone, the same over every window a replay covers. */
+export interface EdgeShape {
+  /** How many edges were laid before it; a replay with another count works its own out. */
+  laid: number;
+  heights: Float64Array;
+  /** Per segment, its x0, x1, z0, z1 box. */
+  boxes: Float64Array;
+}
+
+/** Edge shapes one set of replays shares, so each is worked out once rather than once per window. */
+export type EdgeShapes = Map<RoadEdge, EdgeShape>;
+
 export class Stamp {
   private readonly road_height: Float32Array;
   readonly owner_dist: Float32Array;
@@ -94,6 +106,7 @@ export class Stamp {
     private readonly terrain: Terrain,
     private readonly grid: Grid = WHOLE,
     private readonly record = true,
+    private readonly shapes: EdgeShapes | null = null,
   ) {
     this.road_height = new Float32Array(terrain.heights.length);
     this.edge_of = new Int32Array(terrain.heights.length).fill(-1);
@@ -293,13 +306,11 @@ export class Stamp {
     const [ei0, ei1] = span_i(this.grid, left - reach, right + reach);
     const [ej0, ej1] = span_j(this.grid, low - reach, high + reach);
     if (ei0 > ei1 || ej0 > ej1) return;
-    const heights = this.mouths(edge, before);
+    const { heights, boxes: world } = this.shape(edge, before, segments);
     const boxes = new Int32Array(segments * 4);
     for (let s = 0; s < segments; s++) {
-      const a = points[s];
-      const b = points[(s + 1) % points.length];
-      const [i0, i1] = span_i(this.grid, Math.min(a.x, b.x) - reach, Math.max(a.x, b.x) + reach);
-      const [j0, j1] = span_j(this.grid, Math.min(a.z, b.z) - reach, Math.max(a.z, b.z) + reach);
+      const [i0, i1] = span_i(this.grid, world[s * 4] - reach, world[s * 4 + 1] + reach);
+      const [j0, j1] = span_j(this.grid, world[s * 4 + 2] - reach, world[s * 4 + 3] + reach);
       boxes[s * 4] = i0;
       boxes[s * 4 + 1] = i1;
       boxes[s * 4 + 2] = j0;
@@ -342,13 +353,39 @@ export class Stamp {
             const ox = Math.max(x0 - ORIGIN - i * CELL, 0, ORIGIN + i * CELL - x1);
             if (ox * ox + oz * oz > radius * radius) continue;
           }
+          const px = ORIGIN + i * CELL;
           for (let s = g; s < last; s++) {
             const o = s * 4;
-            if (i >= boxes[o] && i <= boxes[o + 1] && j >= boxes[o + 2] && j <= boxes[o + 3]) this.edge_vertex(edge, heights, s, i, j, k);
+            if (i < boxes[o] || i > boxes[o + 1] || j < boxes[o + 2] || j > boxes[o + 3]) continue;
+            // The group's skip, per segment: a segment's box lies inside its group's, so the same bound holds.
+            if (radius > 0) {
+              const sx = Math.max(world[o] - px, 0, px - world[o + 1]);
+              const sz = Math.max(world[o + 2] - pz, 0, pz - world[o + 3]);
+              if (sx * sx + sz * sz > radius * radius) continue;
+            }
+            this.edge_vertex(edge, heights, s, i, j, k);
           }
         }
       }
     }
+  }
+
+  private shape(edge: RoadEdge, laid: number, segments: number): EdgeShape {
+    const known = this.shapes?.get(edge);
+    if (known && known.laid === laid) return known;
+    const { points } = edge;
+    const boxes = new Float64Array(segments * 4);
+    for (let s = 0; s < segments; s++) {
+      const a = points[s];
+      const b = points[(s + 1) % points.length];
+      boxes[s * 4] = Math.min(a.x, b.x);
+      boxes[s * 4 + 1] = Math.max(a.x, b.x);
+      boxes[s * 4 + 2] = Math.min(a.z, b.z);
+      boxes[s * 4 + 3] = Math.max(a.z, b.z);
+    }
+    const shape = { laid, heights: this.mouths(edge, laid), boxes };
+    this.shapes?.set(edge, shape);
+    return shape;
   }
 
   // An earlier edge's flat band keeps its height under a later edge's mouth, while the mouth's own profile climbs on and
