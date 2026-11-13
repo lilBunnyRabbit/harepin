@@ -34,13 +34,15 @@ export class SupportPage implements MenuPage {
 
   constructor(private readonly menu: Menu) {}
 
+  private readonly device = short_agent(navigator.userAgent, navigator.maxTouchPoints);
+
   private fields(): IssueFields {
     const { host } = this.menu;
     const device = detect_device();
     const tier = host.quality_status().tier;
     return {
       version: host.version,
-      device: short_agent(navigator.userAgent),
+      device: this.device,
       input: DEVICES.find(([id]) => id === device)?.[1] ?? device,
       map: host.code ?? `${host.kind} ${host.seed}`,
       graphics: this.menu.state().quality === QualityMode.AUTO ? `auto, ${tier}` : tier,
@@ -86,10 +88,13 @@ export class SupportPage implements MenuPage {
       return { kind, link };
     });
 
+    let last: IssueFields | null = null;
     this.menu.sync(() => {
       const fields = this.fields();
-      for (const [key, value] of values) value.textContent = fields[key];
+      if (last && FIELD_LABELS.every(([key]) => fields[key] === last?.[key])) return;
+      for (const [key, value] of values) if (fields[key] !== last?.[key]) value.textContent = fields[key];
       for (const { kind, link } of links) link.href = issue_link(kind.template, fields);
+      last = fields;
     });
 
     const page = el("div", "support-page");

@@ -1,7 +1,7 @@
 name: Idea or improvement
 description: Something you'd like added or changed.
 title: "[Idea] "
-labels: [idea]
+labels: [enhancement]
 body:
   - type: textarea
     id: description

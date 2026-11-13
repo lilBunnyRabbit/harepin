@@ -28,8 +28,10 @@ const BROWSERS: [RegExp, string][] = [
   [/Version\/(\d+).*Safari/, "Safari"],
 ];
 
-export function short_agent(agent: string): string {
-  const os = OS.find(([test]) => test.test(agent))?.[1] ?? "Unknown OS";
+/** iPadOS asks for desktop sites and reports itself as a Mac; only the touch points give it away. */
+export function short_agent(agent: string, touch_points = 0): string {
+  let os = OS.find(([test]) => test.test(agent))?.[1] ?? "Unknown OS";
+  if (os === "macOS" && touch_points > 1) os = "iPadOS";
   for (const [test, name] of BROWSERS) {
     const found = agent.match(test);
     if (found) return `${os}, ${name} ${found[1]}`;
