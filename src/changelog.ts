@@ -23,6 +23,19 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.37.0",
+    date: "2026-11-14",
+    title: "Elite",
+    changes: [
+      { kind: NEW, text: "Career Elite tier: seven new events for drivers with 16 Pro stars, with tighter star times and a platinum paint to earn." },
+      { kind: IMPROVED, text: "The whole menu is rebuilt: one set of buttons, rows and cards, roomier rows, and pages that fit phones in landscape and portrait." },
+      { kind: IMPROVED, text: "Settings show what each driving aid does when on and when off, and long help text scrolls instead of being cut off." },
+      { kind: IMPROVED, text: "Online and room pages no longer clip on narrow phones, and the first-run guide fits a phone screen." },
+      { kind: IMPROVED, text: "Worlds load faster and driving makes less garbage, so frame times stay steadier on phones." },
+      { kind: FIXED, text: "The Play map fills its panel on phones in landscape." },
+    ],
+  },
+  {
     version: "0.36.2",
     date: "2026-11-13",
     title: "Tell me",
