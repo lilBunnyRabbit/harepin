@@ -4,7 +4,7 @@ import { EVENTS, EVENT_PARAM, TUNE_PARAM, current_tier, event_of, type CareerEve
 import { CareerButton } from "./career/career-button";
 import { Career, event_map } from "./career/career-store";
 import { EventMarkers } from "./career/event-markers";
-import { unlocks } from "./career/rewards";
+import { badge_open, unlocks } from "./career/rewards";
 import { ChaseCamera } from "./render/camera";
 import { Driver } from "./car/driver";
 import { Directory, load_lock } from "./net/directory";
@@ -593,7 +593,8 @@ function frame(time: number) {
   if (career.version !== rewarded) {
     rewarded = career.version;
     net.set_tier(unlocks(career.stars).badge);
-    career_button.show(current_tier(career.stars));
+    const tier = current_tier(career.stars);
+    career_button.show(tier, badge_open(career.stars, tier));
   }
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;

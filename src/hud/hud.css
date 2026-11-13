@@ -128,6 +128,22 @@
   padding: 0 var(--space-2);
 }
 
+/* A narrow phone with the online chip leaves no room before the touch buttons, so restart tucks under them. */
+@media (pointer: coarse) {
+  :root[data-hud="classic"] body:has(#mode-status:not([hidden])) #strip {
+    right: calc(anchor(--touch-buttons left) + var(--space-2));
+    width: fit-content;
+    position-try-fallbacks: --restart-under-touch;
+  }
+}
+
+@position-try --restart-under-touch {
+  top: calc(anchor(--touch-buttons bottom) + var(--space-2));
+  bottom: auto;
+  left: auto;
+  right: anchor(--touch-buttons right);
+}
+
 :root[data-hud="classic"] body:has(#mode-status:not([hidden])) #strip > div {
   display: none;
 }

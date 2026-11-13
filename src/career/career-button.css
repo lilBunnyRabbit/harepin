@@ -2,3 +2,16 @@
 #career-btn .career-badge {
   --badge-h: calc(var(--icon-size) + 4px);
 }
+
+/* Not yet won: an outline in the bar's own neutrals, so it reads as a goal rather than a trophy. */
+#career-btn .career-badge.muted {
+  background: var(--dim);
+}
+
+#career-btn .career-badge.muted::before {
+  background: var(--surface);
+}
+
+#career-btn .career-badge.muted b {
+  color: var(--foreground);
+}
