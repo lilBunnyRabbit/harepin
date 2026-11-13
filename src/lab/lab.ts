@@ -4,10 +4,12 @@ import type { CarSpec } from "../car/cars";
 import { CLASS_LABELS } from "../car/pi";
 import { BUILD } from "../menu/update";
 import type { LabSpot } from "../worldgen/lab";
+import { answer_of, answers_key, read_answers } from "./answers";
 import { export_block, type Answers, type Device } from "./export";
 import { INLINE, read_code } from "./pack-code";
-import { resolve_pack, type Aids, type Pack, type Resolved } from "./pack";
+import { resolve_pack, type Aids, type Pack, type Question, type Resolved } from "./pack";
 import { PACKS } from "./packs";
+import { show_overlay } from "./lab-view.svelte";
 import { Recorder, type Metrics } from "./recorder";
 
 export interface LabHost {
@@ -17,6 +19,12 @@ export interface LabHost {
   place(spot: LabSpot, current: () => boolean): Promise<void>;
   car(): Car;
   toast(text: string): void;
+}
+
+/** What the overlay hears: any change to show, and a trial that ended (goal met or stopped) to show the results of. */
+export interface LabWatch {
+  changed(): void;
+  ended(index: number): void;
 }
 
 export type TrialStatus = "new" | "running" | "done" | "stopped";
@@ -33,7 +41,7 @@ export async function load_pack(id: string): Promise<Pack> {
   return (await load()).default;
 }
 
-// Until the overlay lands these keys walk the pack (next, previous, restart) and copy the export block.
+// Shortcuts beside the overlay: next, previous, restart, and copy the export block.
 const KEYS: Record<string, number> = { "]": 1, "[": -1, "\\": 0 };
 const COPY_KEY = "=";
 
@@ -45,7 +53,8 @@ function device(): Device {
 export class Lab {
   readonly trials: readonly Resolved[];
   readonly results: TrialResult[];
-  readonly answers: Answers = {};
+  answers: Answers = {};
+  watch: LabWatch | null = null;
   private index = -1;
   private recorder: Recorder | null = null;
   private ticket = 0;
@@ -62,7 +71,17 @@ export class Lab {
     return this.trials[this.index] ?? null;
   }
 
+  get at(): number {
+    return this.index;
+  }
+
+  /** The current trial counts as running once it has started measuring. */
+  status(index: number): TrialStatus {
+    return index === this.index && this.recorder?.started ? "running" : this.results[index].status;
+  }
+
   start() {
+    this.answers = this.load_answers();
     addEventListener("keydown", this.on_key);
   }
 
@@ -92,6 +111,7 @@ export class Lab {
     if (!current()) return;
     this.recorder = new Recorder(r.lane, r.trial.goal);
     this.recorder.placed(this.host.car());
+    this.watch?.changed();
     this.host.toast(`Trial ${index + 1}/${this.trials.length} ${r.trial.id}: ${r.trial.try} (${CLASS_LABELS[r.class]} ${r.pi})`);
   }
 
@@ -99,15 +119,32 @@ export class Lab {
   step(dt: number, car: Car, input: Controls) {
     const recorder = this.recorder;
     if (!recorder) return;
+    const started = recorder.started;
     recorder.step(dt, car, input);
     if (recorder.done) {
       this.finish("done");
-      this.host.toast(`${this.trials[this.index].trial.id} done: ${this.index + 1 < this.trials.length ? "] for the next trial" : "pack done"}`);
-    }
+      this.watch?.ended(this.index);
+    } else if (!started && recorder.started) this.watch?.changed();
   }
 
   placed(car: Car) {
     this.recorder?.placed(car);
+  }
+
+  /** Stop: the trial keeps what it measured and its results card opens. */
+  end_trial() {
+    if (this.index < 0) return;
+    this.finish("stopped");
+    this.watch?.ended(this.index);
+  }
+
+  answer(trial: string, question: Question, value: unknown) {
+    const checked = answer_of(question, value);
+    const row = (this.answers[trial] ??= {});
+    if (checked === null) delete row[question.id];
+    else row[question.id] = checked;
+    this.save_answers();
+    this.watch?.changed();
   }
 
   /** A running trial goes in with what it has measured so far. */
@@ -116,13 +153,16 @@ export class Lab {
     return export_block(this.pack, this.trials, results, this.answers, BUILD.version, device(), new Date());
   }
 
-  async copy() {
+  /** False when the browser refused the clipboard. */
+  async copy(): Promise<boolean> {
     try {
       await navigator.clipboard.writeText(this.export());
       this.host.toast("Lab results copied");
+      return true;
     } catch (error) {
       console.warn("lab: clipboard refused", error);
       this.host.toast("Copy refused by the browser");
+      return false;
     }
   }
 
@@ -132,12 +172,32 @@ export class Lab {
     // Left before driving: whatever an earlier attempt measured stands.
     if (recorder.started) this.results[this.index] = { status, metrics: recorder.metrics() };
     this.recorder = null;
+    this.watch?.changed();
+  }
+
+  private load_answers(): Answers {
+    try {
+      const raw = sessionStorage.getItem(answers_key(this.pack));
+      return raw === null ? {} : read_answers(this.pack, JSON.parse(raw));
+    } catch (error) {
+      console.warn("lab: stored answers dropped", error);
+      return {};
+    }
+  }
+
+  private save_answers() {
+    try {
+      sessionStorage.setItem(answers_key(this.pack), JSON.stringify(this.answers));
+    } catch (error) {
+      console.warn("lab: answers not stored", error);
+    }
   }
 }
 
 export async function open_lab(id: string, host: LabHost): Promise<Lab> {
   const lab = new Lab(await load_pack(id), host);
   lab.start();
+  show_overlay(lab);
   await lab.begin(0);
   return lab;
 }

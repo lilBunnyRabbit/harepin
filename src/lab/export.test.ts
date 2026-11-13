@@ -30,3 +30,11 @@ test("the export block reads like docs/lab.md says", () => {
   expect(lines[5]).toMatch(/^#trial run hatch\.4\.0\.2\.1\.0 spec#[0-9a-f]{8} pi\d+[A-Z0-9]+ runway\/asphalt run skipped$/);
   expect(lines[6]).toBe("#end 1/2 trials");
 });
+
+test("float noise prints as 0", () => {
+  const trials = resolve_pack(pack);
+  const quiet: Metrics = { ...metrics, lat_peak: 1.66e-16, lat_mean: 5.3e-17, slip_peak: 3.7e-15 };
+  const block = export_block(pack, trials, [{ status: "done", metrics: quiet }, { status: "new", metrics: null }], {}, "0.41.1", { input: "keys", width: 1, height: 1 }, new Date(0));
+  expect(block).toContain(" latg=0/0 ");
+  expect(block).toContain(" slip=0/11.2 ");
+});

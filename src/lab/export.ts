@@ -14,7 +14,10 @@ export interface Device {
 /** Answers per trial id, question id to a value; `note` is quoted free text. */
 export type Answers = Record<string, Record<string, string | number>>;
 
-const short = (v: number) => String(Number(v.toPrecision(3)));
+/** Below this a number is float noise (a straight run's slip and lateral g), printed as 0, not as `3.7e-15`. */
+const NOISE = 1e-6;
+
+const short = (v: number) => (Math.abs(v) < NOISE ? "0" : String(Number(v.toPrecision(3))));
 
 function mods_text(mods: readonly Mod[] = []): string {
   const parts: string[] = [];
@@ -34,13 +37,13 @@ function goal_text(goal: Goal): string {
 
 const pair = (a: number, b: number) => `${Number.isNaN(a) ? "-" : short(a)}/${Number.isNaN(b) ? "-" : short(b)}`;
 
-/** Fixed key order; a key whose numbers the trial never measured is left out. */
-function metrics_text(m: Metrics): string {
-  const out: string[] = [`time=${short(m.time)}`];
+/** Key and value text in a fixed order; a key whose numbers the trial never measured is left out. */
+export function metric_pairs(m: Metrics): [key: string, text: string][] {
+  const out: [string, string][] = [["time", short(m.time)]];
   const put = (key: string, v: number, text = short(v)) => {
-    if (!Number.isNaN(v)) out.push(`${key}=${text}`);
+    if (!Number.isNaN(v)) out.push([key, text]);
   };
-  if (m.laps.length) out.push(`lap=${m.laps.map(short).join(",")}`);
+  if (m.laps.length) out.push(["lap", m.laps.map(short).join(",")]);
   put("seg", m.segment);
   put("latg", m.lat_peak, pair(m.lat_peak, m.lat_mean));
   put("ring", m.ring_kmh);
@@ -63,8 +66,10 @@ function metrics_text(m: Metrics): string {
   put("thr", m.throttle);
   put("hb", m.handbrake);
   put("rev", m.reversals);
-  return out.join(" ");
+  return out;
 }
+
+const metrics_text = (m: Metrics) => metric_pairs(m).map(([key, text]) => `${key}=${text}`).join(" ");
 
 const quote = (text: string) => JSON.stringify(text.replace(/\s+/g, " ").trim());
 

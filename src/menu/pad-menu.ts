@@ -216,7 +216,7 @@ export class PadMenu {
   }
 
   private hud(): Layer {
-    const roots = [document.querySelector(".update-toast"), $("mode-result"), document.querySelector(".dock-top .top-left"), document.querySelector(".actions"), document.querySelector(".assists"), $("restart-lap"), $("online-chip")].filter((root) => root !== null);
+    const roots = [document.querySelector(".update-toast"), $("mode-result"), document.querySelector(".lab-strip"), document.querySelector(".dock-top .top-left"), document.querySelector(".actions"), document.querySelector(".assists"), $("restart-lap"), $("online-chip")].filter((root) => root !== null);
     return { roots, back: () => this.close_hud(), first: () => first_of(...roots) };
   }
 
@@ -280,7 +280,8 @@ export class PadMenu {
   }
 
   private card_waiting(): boolean {
-    return [$("mode-result"), document.querySelector(".update-toast")].some((card) => card instanceof HTMLElement && card.checkVisibility());
+    // The feel lab's strip waits the whole session: Start reaches its Trials, Retry and Stop, and the menu button beside them.
+    return [$("mode-result"), document.querySelector(".update-toast"), document.querySelector(".lab-strip")].some((card) => card instanceof HTMLElement && card.checkVisibility());
   }
 
   private rotated(): boolean {

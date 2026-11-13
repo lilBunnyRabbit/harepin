@@ -411,6 +411,7 @@ const modes = new Modes(scene, world, SPAWN_INDEX, () => lobby.record, (x, z, he
   // The lab runs no mode: a mode's records and stars would key to the lab world, and its spawns fight the trial's.
 }, () => lobby.busy || lab_id !== null, () => audio.chime(), camera, () => driver.car.spec, career);
 modes.route_at = Math.max(0, debug_at);
+if (lab_id !== null) modes.closed = "Not in the lab: the lab keeps no records or stars";
 modes.bindings = () => settings.state.bindings;
 modes.ghosts = () => settings.state.ghost;
 modes.cover = (wait) => area_fade.cover(wait);
@@ -518,7 +519,7 @@ if (guide_step !== null) {
   clean.searchParams.delete(GUIDE_PARAM);
   window.history.replaceState(window.history.state, "", clean);
   settings.open_guide("look", guide_step === ROLLED_VISIT);
-} else if (!take_drive() && !event && !run && !review) {
+} else if (!take_drive() && !event && !run && !review && lab_id === null) {
   if (prefs.guide_seen) settings.open();
   else settings.open_guide();
 }
@@ -726,7 +727,8 @@ function frame(time: number) {
   const car = driver.car;
 
   lobby.update(now);
-  const menu_hold = (settings.is_open || hud_sheet.open) && net.remotes.size === 0;
+  // A lab card holds the trial under it, as the menu does: the clock and the car wait for the answers.
+  const menu_hold = (settings.is_open || hud_sheet.open || (lab !== null && modal_open())) && net.remotes.size === 0;
   let stepped = 0;
   let simulated = false;
   let impact = 0;

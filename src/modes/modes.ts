@@ -159,6 +159,8 @@ export class Modes implements CarHooks {
   try_reward: ((reward: Reward) => void) | null = null;
   /** The garage reward the shown result just earned, for its Try it button. */
   private reward: Reward | null = null;
+  /** Why no mode runs on this world at all, shown on each; null when they can. */
+  closed: string | null = null;
   pick_car: CarHooks["pick_car"] = null;
   fit_car: CarHooks["fit_car"] = null;
   car_code: CarHooks["car_code"] = null;
@@ -664,7 +666,7 @@ export class Modes implements CarHooks {
         name: def.name,
         stars: track.stars,
         max: levels.length * MAX_STARS,
-        blocked: streamed && !def.streams ? STREAMED : def.needs_ground && !ground ? OPEN_GROUND : def.car_sized_only && !fits ? TOO_BIG : null,
+        blocked: this.closed ?? (streamed && !def.streams ? STREAMED : def.needs_ground && !ground ? OPEN_GROUND : def.car_sized_only && !fits ? TOO_BIG : null),
         levels: levels.map((level) => {
           const run = track.runs[level.id];
           const route = this.world.routes.find((r) => r.id === level.id);
