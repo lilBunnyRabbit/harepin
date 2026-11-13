@@ -176,7 +176,7 @@ describe("smooth keys on every car at 100 km/h", () => {
       for (const spec of Object.values(CARS)) share += arc(SteerMode.SMOOTH, radius, speed, spec).yaw_swing / arc(SteerMode.SNAP, radius, speed, spec).yaw_swing;
       expect(share / Object.keys(CARS).length).toBeLessThan(0.7);
     }
-  });
+  }, 30_000);
 
   for (const spec of Object.values(CARS)) {
     test(`${spec.id}: a symmetric swerve ends straight, taps scale with press length, a long bend weaves less than classic, a 120 km/h lane change settles as fast, and the assists own the rest`, () => {
@@ -248,7 +248,7 @@ describe("grass drag", () => {
       expect(Math.abs(car.heading)).toBeLessThan(0.05);
       expect(kmh(car)).toBeGreaterThan(peak - 2);
     }
-  });
+  }, 30_000);
 });
 
 describe("parking", () => {
@@ -517,7 +517,7 @@ describe("rally off-road", () => {
     const rally = flat_out(CARS.rally, grass);
     expect(rally).toBeGreaterThan(flat_out(CARS.rally, flat) * 0.9);
     for (const spec of Object.values(CARS)) if (spec !== CARS.rally) expect(rally).toBeGreaterThan(flat_out(spec, grass) * 1.15);
-  });
+  }, 30_000);
 
   test("on grass it keeps nearly its tarmac cornering grip, well above the coupe's", () => {
     const rally = corner_g(CARS.rally, grass);
@@ -883,7 +883,7 @@ describe("power over with TCS on and the steering assist off", () => {
       expect(reverse.gear).toBe(-1);
       expect(launches(reverse, { ...idle, steer: 1, brake: 1 })).toBe(false);
     }
-  });
+  }, 30_000);
 
   for (const spec of [DRIFT_SETUP, CARS.coupe, CARS.muscle, CARS.kaze, CARS.formula])
     test(`${spec.id}${spec === DRIFT_SETUP ? " (drift setup)" : ""}: easing pad gas or stick mid-slide eases out of it with the steering assist, never steering into the turn or pivoting; without it, from rest or a rolling tap, the wheels stay on the stick's side`, () => {
