@@ -22,6 +22,7 @@
   .ui-toggle {
     --w: 40px;
     --h: 24px;
+    --inset: 2px;
     position: relative;
     flex: none;
     width: var(--w);
@@ -41,8 +42,8 @@
 
   .ui-knob {
     position: absolute;
-    top: var(--space-0);
-    left: var(--space-0);
+    top: var(--inset);
+    left: var(--inset);
     width: calc(var(--h) - 6px);
     height: calc(var(--h) - 6px);
     border-radius: 50%;
