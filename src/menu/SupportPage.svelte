@@ -40,7 +40,7 @@
 
 <div class="support-page">
   <Card class="support-about">
-    <SectionHead eyebrow="Work in progress" title="Harepin is still being built" />
+    <SectionHead eyebrow="Work in progress" title="Harepin is still being built" role="page" />
     <p class="support-note">
       I'm still tuning how the cars feel, how fast it runs and how the worlds get built, so things will change and some will
       break. If something feels off, tell me. I read every report.

@@ -6,17 +6,18 @@
     title?: string;
     count?: number | string;
     level?: 2 | 3 | 4;
+    role?: "card" | "page";
     action?: Snippet;
   }
 
-  let { eyebrow, title, count, level = 3, action }: Props = $props();
+  let { eyebrow, title, count, level = 3, role = "card", action }: Props = $props();
 </script>
 
 <header class="ui-head">
   <div class="ui-text">
     {#if eyebrow}<span class="ui-eyebrow">{eyebrow}</span>{/if}
     {#if title}
-      <svelte:element this={`h${level}`} class="ui-title">
+      <svelte:element this={`h${level}`} class="ui-title" data-role={role}>
         {title}
         {#if count !== undefined}<span class="ui-count">{count}</span>{/if}
       </svelte:element>
@@ -55,6 +56,10 @@
     font-weight: 700;
     line-height: 1.2;
     text-wrap: balance;
+  }
+
+  [data-role="page"] {
+    font-size: var(--text-2xl);
   }
 
   .ui-count {
