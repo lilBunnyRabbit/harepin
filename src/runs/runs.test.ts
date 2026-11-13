@@ -231,10 +231,6 @@ test("a daily date must read back as itself", () => {
   expect(run_of("daily:2028-02-29")).not.toBeNull();
 });
 
-test("the race type offers the sprint", () => {
-  expect(RUN_TYPES.find((t) => t.id === RunType.RACE)?.levels).toContain("sprint");
-});
-
 test("a daily started before midnight UTC keeps its stars for its own date", () => {
   const store = new MemStore();
   const runs = new Runs(store, () => new Date("2026-11-14T00:05:00Z"));

@@ -12,7 +12,7 @@ type RunProbe = import("../src/runs/runs").RunProbe;
 // Vets the Runs combo list (`RUN_TYPES` in src/runs/runs.ts) the way career-check vets events: every type on every
 // kind it lists, over `--seeds N` seeds, must find one of its levels (else the run falls back to the map's circuit
 // race), and that circuit must exist. A choice (length, ramp) a kind never offers is reported, not failed: its type's
-// other levels stand in, and so is a level a kind never has (race `sprint` is Mainland's, off the compact kinds). Then `--days N` dailies from today (UTC) are picked and resolved as a player would get them.
+// other levels stand in, and so is a level a kind never has. Then `--days N` dailies from today (UTC) are picked and resolved as a player would get them.
 const arg = (name: string, fallback: number) => {
   const at = process.argv.indexOf(name);
   return at >= 0 ? Number(process.argv[at + 1]) : fallback;

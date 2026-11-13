@@ -81,7 +81,7 @@ export const RUN_TYPES: readonly RunTypeDef[] = [
     id: RunType.RACE,
     name: "Race",
     mode: "race",
-    levels: ["circuit", "circuit-rev", "sprint", "street-1", "street-2", "offroad-1", "offroad-2", "descent"],
+    levels: ["circuit", "circuit-rev", "street-1", "street-2", "offroad-1", "offroad-2", "descent"],
     choice: {
       label: LENGTH,
       options: [
