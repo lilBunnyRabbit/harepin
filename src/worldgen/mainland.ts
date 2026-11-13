@@ -56,7 +56,8 @@ export function plan_mainland(seed: number, recipe: Recipe = MAINLAND): Mainland
     ),
     { kind: "blend", bank: recipe.road.bank },
   ];
-  const town = mainland_lots(seed, recipe, graph, towns, circuit, road, ops, water);
+  const { patched } = road_junctions({ road, graph, circuit });
+  const town = mainland_lots(seed, recipe, graph, towns, circuit, patched, ops, water);
   lap("lots");
   const clear = (p: RoadPoint) => graph.nodes.every((node) => (node.x - p.x) ** 2 + (node.z - p.z) ** 2 >= GATE_CLEAR * GATE_CLEAR);
   // The first gate is the start line at road[0]; each other one takes the clear sample nearest its even slot, after the gate before.
@@ -82,7 +83,7 @@ export function plan_mainland(seed: number, recipe: Recipe = MAINLAND): Mainland
     return { x: p.x, y: p.y, z: p.z, heading: heading(p), index };
   }) : [];
   const sprint = road.length ? circuit_sprint(road, gates, checkpoints, SPRINT_S) : null;
-  const trip = trip_route(graph, circuit, towns, road_junctions({ road, graph, circuit }).patched);
+  const trip = trip_route(graph, circuit, towns, patched);
   const routes = [...(road.length ? [circuit_route(road, checkpoints), ...(sprint ? [sprint] : [])] : []), ...(trip ? [trip] : [])].map((r) => ({ ...r, excludes: EXCLUDES }));
   lap("routes");
   const empty = new Float32Array(0);

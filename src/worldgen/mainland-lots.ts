@@ -2,10 +2,10 @@ import { at, type Grid } from "./field";
 import { empty_lots, Lots, type TownLots } from "./lots";
 import { length } from "./noise";
 import type { Recipe } from "./recipe";
-import { road_junctions } from "./road-layers";
+import type { Junction } from "./road-layers";
 import { Stamp, type GroundOp } from "./stamp";
 import { terrain } from "./terrain";
-import { CELL, ORIGIN, SIDEWALK, type RoadGraph, type RoadPoint, type Town } from "./types";
+import { CELL, ORIGIN, SIDEWALK, type RoadGraph, type Town } from "./types";
 import { water_index, type Water } from "./water";
 
 const WINDOW_PAD = 48;
@@ -72,9 +72,9 @@ function block(occupied: Uint8Array, grid: Grid, heights: Float32Array, outlines
  * Every town's lots, each planned over a window of the ground rebuilt from the plan's ops: the same heights and road
  * distances its tiles get, so a lot never depends on which chunks happen to be built.
  */
-export function mainland_lots(seed: number, recipe: Recipe, graph: RoadGraph, towns: readonly Town[], circuit: number[], road: RoadPoint[], ops: readonly GroundOp[], water: Water | null): TownLots {
+export function mainland_lots(seed: number, recipe: Recipe, graph: RoadGraph, towns: readonly Town[], circuit: number[], junctions: readonly Junction[], ops: readonly GroundOp[], water: Water | null): TownLots {
   const out = empty_lots();
-  const outlines: Outline[] = road_junctions({ road, graph, circuit }).patched.map(({ patch }) => {
+  const outlines: Outline[] = junctions.map(({ patch }) => {
     const xs = patch.outline.map((p) => p.x);
     const zs = patch.outline.map((p) => p.z);
     return { points: patch.outline, x0: Math.min(...xs) - PATCH_CLEAR, z0: Math.min(...zs) - PATCH_CLEAR, x1: Math.max(...xs) + PATCH_CLEAR, z1: Math.max(...zs) + PATCH_CLEAR };

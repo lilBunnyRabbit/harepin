@@ -1,4 +1,5 @@
 import { sample } from "./field";
+import { Heap } from "./heap";
 import { CONE_HEIGHT, CONE_RADIUS } from "./jumps";
 import { length } from "./noise";
 import type { Junction } from "./road-layers";
@@ -12,6 +13,8 @@ const RING_COST = 1.4;
 const TURN_BONUS = 20;
 /** Metres a corner adds to the road trip's cost: of the ways between its towns it takes the one with fewest tight town turns. */
 const TRIP_CORNER = 60;
+/** Metres of float drift allowed between a trace's length and its reach, summed in another order. */
+const REACH_SLACK = 1e-6;
 /** |sin| of the angle between two street legs above which their joint counts as a corner. */
 const CORNER_SIN = 0.7;
 /** Strict window first; a seed whose towns fit none of it races the best of the loose one rather than not at all. */
@@ -264,10 +267,19 @@ class Atlas {
     const cost = new Float64Array(this.legs.length).fill(Infinity);
     const prev = new Int32Array(this.legs.length).fill(-1);
     const done = new Uint8Array(this.legs.length);
-    for (const l of this.out.get(start) ?? []) cost[l] = this.legs[l].length * weight(this.legs[l]);
+    // Stale entries stay queued and are skipped: pops come cheapest first, ties to the lower leg.
+    const queue = new Heap();
+    for (const l of this.out.get(start) ?? []) {
+      cost[l] = this.legs[l].length * weight(this.legs[l]);
+      if (cost[l] < Infinity) queue.push(l, cost[l]);
+    }
     for (;;) {
       let best = -1;
-      for (let l = 0; l < this.legs.length; l++) if (!done[l] && cost[l] < Infinity && (best < 0 || cost[l] < cost[best])) best = l;
+      while (queue.size && best < 0) {
+        const key = queue.least;
+        const l = queue.pop();
+        if (!done[l] && key === cost[l]) best = l;
+      }
       if (best < 0) return null;
       done[best] = 1;
       const leg = this.legs[best];
@@ -283,6 +295,7 @@ class Atlas {
         if (c < cost[l]) {
           cost[l] = c;
           prev[l] = best;
+          queue.push(l, c);
         }
       }
     }
@@ -380,6 +393,20 @@ function through(from: RoadPoint, node: { x: number; y: number; z: number }, to:
 }
 
 const fits = (c: Candidate, w: (typeof WINDOWS)[number]) => c.turns >= w.turns && c.length >= w.min && c.length <= w.max;
+
+/** Metres along `legs` with every junction gap walked through its node: no trace of them, bent or not, runs longer. */
+function reach(atlas: Atlas, legs: readonly number[]): number {
+  let total = 0;
+  legs.forEach((l, k) => {
+    const leg = atlas.legs[l];
+    total += leg.length;
+    if (k === 0) return;
+    const last = atlas.legs[legs[k - 1]].points.at(-1) ?? leg.points[0];
+    const node = atlas.graph.nodes[leg.from];
+    total += length(node.x - last.x, node.z - last.z) + length(leg.points[0].x - node.x, leg.points[0].z - node.z);
+  });
+  return total;
+}
 
 function farthest(graph: RoadGraph, nodes: readonly number[], from: number): number {
   const a = graph.nodes[from];
@@ -495,7 +522,7 @@ export function street_routes(graph: RoadGraph, circuit: readonly number[], town
 export function trip_route(graph: RoadGraph, circuit: readonly number[], towns: readonly Town[], junctions: readonly Junction[]): Route | null {
   const atlas = new Atlas(graph, circuit, towns, junctions);
   const linked = towns.filter((t) => (atlas.town_nodes.get(t.id)?.length ?? 0) > 1);
-  let best: Candidate | null = null;
+  const ways: { legs: number[]; pair: [number, number]; reach: number; order: number }[] = [];
   for (const a of linked)
     for (const b of linked) {
       if (b.id <= a.id) continue;
@@ -504,9 +531,20 @@ export function trip_route(graph: RoadGraph, circuit: readonly number[], towns: 
       const start = farthest(graph, from, to[0]);
       const end = farthest(graph, to, start);
       const legs = atlas.search(start, end, () => 1, -TRIP_CORNER);
-      const found = legs && trace(atlas, legs, [a.id, b.id], through);
-      if (found && (!best || found.length > best.length)) best = found;
+      if (legs) ways.push({ legs, pair: [a.id, b.id], reach: reach(atlas, legs), order: ways.length });
     }
+  // A trace is never longer than its reach, so tracing longest reach first stops once no way left can beat the best.
+  ways.sort((p, q) => q.reach - p.reach || p.order - q.order);
+  let best: Candidate | null = null;
+  let best_order = Infinity;
+  for (const way of ways) {
+    if (best && way.reach + REACH_SLACK < best.length) break;
+    const found = trace(atlas, way.legs, way.pair, through);
+    if (found && (!best || found.length > best.length || (found.length === best.length && way.order < best_order))) {
+      best = found;
+      best_order = way.order;
+    }
+  }
   if (!best) return null;
   const { legs, points, checkpoints } = best;
   const share = Math.max(...legs.map((l) => LEG_PAR[atlas.legs[l].kind]));
