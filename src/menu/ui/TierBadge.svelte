@@ -6,15 +6,17 @@
   interface Props {
     tier: TierBadge;
     decorative?: boolean;
+    dim?: boolean;
   }
 
-  let { tier, decorative = false }: Props = $props();
+  let { tier, decorative = false, dim = false }: Props = $props();
 
   const look = $derived(tier_look(tier));
 </script>
 
 <span
   class="career-badge"
+  class:ui-dim={dim}
   style:--metal={look.metal}
   style:--metal-ink={look.ink}
   style:--weave={look.weave}
@@ -26,3 +28,10 @@
 >
   <b>{look.letter}</b>
 </span>
+
+<style>
+  .ui-dim {
+    filter: grayscale(1);
+    opacity: 0.45;
+  }
+</style>

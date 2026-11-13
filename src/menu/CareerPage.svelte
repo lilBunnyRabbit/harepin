@@ -1,30 +1,30 @@
 <script lang="ts">
-  import { MAX_EVENT_STARS, TIERS, tier_max, tier_open, tier_stars, type Tier } from "../career/career";
+  import { TIERS, current_tier, type CareerEvent } from "../career/career";
+  import { career_total, goals, tier_views } from "../career/career-model";
   import { owner_times } from "../career/career-store";
-  import { badge_open } from "../career/rewards";
-  import type { TierBadge as TierId } from "../net/net";
-  import CarLimit from "./CarLimit.svelte";
-  import { best_text, event_note } from "./career-text";
-  import Badge from "./ui/Badge.svelte";
+  import CareerGoals from "./CareerGoals.svelte";
+  import CareerProfile from "./CareerProfile.svelte";
+  import CareerSpine from "./CareerSpine.svelte";
+  import TrophyCase from "./TrophyCase.svelte";
   import Button from "./ui/Button.svelte";
-  import Card from "./ui/Card.svelte";
-  import Icon from "./ui/Icon.svelte";
-  import Progress from "./ui/Progress.svelte";
-  import Row from "./ui/Row.svelte";
-  import RowList from "./ui/RowList.svelte";
-  import SectionHead from "./ui/SectionHead.svelte";
-  import TierBadge from "./ui/TierBadge.svelte";
   import type { PageProps } from "./ui/svelte-page.svelte";
   import { COPIED_MS } from "./widgets";
 
   interface Props extends PageProps {
-    /** `?tune`: the owner sets the non-race events' stars from their own runs. */
+    /** `?tune`: every tier plays as open, and the owner copies their own runs' times. */
     tune: boolean;
   }
 
   let { menu, live, tune }: Props = $props();
 
+  const GOALS = 3;
+
   const career = $derived(menu.host.career);
+  const views = $derived(tier_views(live.stars, tune));
+  const here = $derived(views[TIERS.indexOf(current_tier(live.stars))]);
+  const total = $derived(career_total(live.stars));
+  const aims = $derived(goals(live.stars).slice(0, GOALS));
+  const start = (event: CareerEvent) => menu.host.start_event(event.id);
   let copied = $state("");
 
   async function copy_times() {
@@ -32,134 +32,81 @@
       await navigator.clipboard.writeText(owner_times(career));
       copied = "Copied";
     } catch (error) {
-      console.warn("settings: clipboard refused", error);
+      console.warn("career: clipboard refused", error);
       copied = "Copy failed";
     }
     setTimeout(() => (copied = ""), COPIED_MS);
   }
-
 </script>
 
-<div class="career">
-  {#if tune}
-    <div class="tune"><Button onclick={copy_times}>{copied || "Copy my times"}</Button></div>
-  {/if}
+<div class="cr-page">
+  <aside class="cr-me" aria-label="Your career">
+    <CareerProfile {here} {total} />
+    {#if aims.length}
+      <section class="cr-next" aria-label="Next up">
+        <h3>Next up</h3>
+        <CareerGoals goals={aims} onstart={start} />
+      </section>
+    {/if}
+    {#if tune}<div><Button onclick={copy_times}>{copied || "Copy my times"}</Button></div>{/if}
+  </aside>
 
-  {#each TIERS as tier, index (tier.id)}
-    {@const open = tune || tier_open(live.stars, tier)}
-    {@const have = tier_stars(live.stars, tier)}
-    {@const before = TIERS[index - 1]}
-    <Card list label={tier.name}>
-      <div class="head">
-        <SectionHead title={tier.name} count={`${have} / ${tier_max(tier)} ★`}>
-          {#snippet action()}
-            {#if !open && before}
-              <span class="lock"><Icon name="icon-lock" />{tier.opens_at} ★ in {before.name}</span>
-            {:else if badge_open(live.stars, tier)}
-              <span class="shield"><TierBadge tier={(TIERS.indexOf(tier) + 1) as TierId} /></span>
-            {/if}
-          {/snippet}
-        </SectionHead>
-        <Progress value={have} max={tier_max(tier)} label={`${have} of ${tier_max(tier)} stars in ${tier.name}`} />
-      </div>
-      <div class:locked={!open}>
-      <RowList divided label={`${tier.name} events`}>
-        {#each tier.events as event (event.id)}
-          {@const got = live.stars[event.id] ?? 0}
-          {@const best = live.live(() => career.best(event))}
-          <Row label={event.name} help={`${event.id.toUpperCase()} · ${event_note(event)}`}>
-            {#snippet control()}
-              <span class="end">
-                <span class="facts">
-                  {#if event.final}<Badge>Final</Badge>{/if}
-                  <CarLimit {event} />
-                  <span class="result">
-                    <span class="star-row" aria-label={`${got} of ${MAX_EVENT_STARS} stars`}>{"★".repeat(got)}<i>{"★".repeat(MAX_EVENT_STARS - got)}</i></span>
-                    {#if best}<small>{best_text(event, best)}</small>{/if}
-                  </span>
-                </span>
-                <Button size="sm" disabled={!open} aria-label={`Go: ${event.name}`} onclick={() => menu.host.start_event(event.id)}>Go</Button>
-              </span>
-            {/snippet}
-          </Row>
-        {/each}
-      </RowList>
-      </div>
-    </Card>
-  {/each}
+  <section class="cr-path" aria-label="Career path">
+    <CareerSpine {views} {menu} {live} />
+  </section>
+
+  <div class="cr-case"><TrophyCase {views} /></div>
 </div>
 
 <style>
-  .career {
+  .cr-page {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 480px), 1fr));
+    grid-template-columns: minmax(0, 1fr) 21rem;
+    grid-template-areas: "path me" "path case" "path .";
+    grid-template-rows: auto auto 1fr;
     align-items: start;
-    gap: var(--space-5);
+    gap: var(--space-6) var(--space-8);
   }
 
-  .tune {
-    grid-column: 1 / -1;
+  h3 {
+    margin: 0;
+    font-size: var(--text-xl);
   }
 
-  .head {
+  .cr-me {
+    grid-area: me;
+    display: grid;
+    gap: var(--space-6);
+  }
+
+  .cr-next {
     display: grid;
     gap: var(--space-3);
-    padding: var(--space-4) var(--space-4) var(--space-2);
   }
 
-  .lock {
-    --icon-size: var(--text-lg);
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-2);
-    color: var(--set-dim);
-    font-size: var(--text-md);
-    font-weight: 600;
+  .cr-path {
+    grid-area: path;
+    min-width: 0;
   }
 
-  .shield {
-    display: flex;
-    font-size: var(--text-lg);
+  .cr-case {
+    grid-area: case;
   }
 
-  .end,
-  .facts {
-    display: flex;
-    align-items: center;
-    gap: var(--space-4);
-  }
+  @media (max-width: 1000px), (max-height: 500px) {
+    .cr-page {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-areas: "me" "path" "case";
+      grid-template-rows: none;
+      gap: var(--space-6);
+    }
 
-  .result {
-    display: grid;
-    justify-items: end;
-    min-width: 5.5em;
-    font-variant-numeric: tabular-nums;
-  }
+    .cr-me {
+      gap: var(--space-3);
+    }
 
-  .result small {
-    color: var(--set-dim);
-    font-size: var(--text-sm);
-  }
-
-  .star-row {
-    color: var(--accent);
-    letter-spacing: 0.15em;
-  }
-
-  .star-row i {
-    color: var(--line-strong);
-    font-style: normal;
-  }
-
-  .locked {
-    opacity: 0.6;
-  }
-
-  @media (max-width: 600px) {
-    .facts {
-      flex-direction: column;
-      align-items: end;
-      gap: var(--space-1);
+    .cr-next h3 {
+      display: none;
     }
   }
 </style>
