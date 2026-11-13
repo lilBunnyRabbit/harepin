@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { color, dark, glow, tones } from "../theme/palette";
+import { cast_instanced } from "../render/shadow-depth";
 import { beacons, rotor_hub } from "../worldgen/landmark-mesh";
 import { ROTOR_RADIUS } from "../worldgen/landmarks";
 import { PropKind, type Prop } from "../worldgen/types";
@@ -60,7 +61,7 @@ export class LandmarksView {
         )
       : null;
     if (this.rotors) {
-      this.rotors.castShadow = true;
+      cast_instanced(this.rotors);
       this.root.add(this.rotors);
     }
     this.lamp = new THREE.MeshLambertMaterial({

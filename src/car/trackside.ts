@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { merge, tint } from "./geometry";
 import { brand, color, tones } from "../theme/palette";
 import { ribbon, ribbon_material } from "../render/scene";
+import { cast_instanced } from "../render/shadow-depth";
 import { ROAD_HALF, World } from "../world/world";
 import { chunk_of } from "../worldgen/chunk-grid";
 import { KERB_OUT } from "../worldgen/road-layers";
@@ -114,7 +115,7 @@ export function roadside(world: World, marks: KerbMarks = world.kerbs, kit: Road
       n++;
     }
   }
-  posts.castShadow = true;
+  cast_instanced(posts);
   group.add(posts, caps);
   return group;
 }

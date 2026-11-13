@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import type { Car } from "../car/car";
 import { oversize } from "../car/cars";
+import { cast_instanced } from "../render/shadow-depth";
 import { brand, dark, linear, mix, tones } from "../theme/palette";
 import { CHUNK, chunk_of, type Extent } from "../worldgen/chunk-grid";
 import { challenge_outer, challenge_pieces, CONE_HEIGHT, CONE_RADIUS, GRAVITY, ITEMS, PIECE_DEPTH, ramp_extent, ramp_lift } from "../worldgen/jumps";
@@ -165,7 +166,7 @@ export class JumpsView {
         mesh.setMatrixAt(slot, this.m.compose(pos, quat, this.s.setScalar(item.scale)));
         if (item.light) this.loose.push({ item, mesh, slot, pos, vel: new THREE.Vector3(), quat, spin: new THREE.Vector3(), moving: false });
       });
-      mesh.castShadow = true;
+      cast_instanced(mesh);
       mesh.receiveShadow = true;
       mesh.computeBoundingSphere();
       this.instanced.push(mesh);

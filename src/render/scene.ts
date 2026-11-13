@@ -10,6 +10,7 @@ import { Ground, JITTER_LEVELS, terrain_bases, type ChunkBuffers, type MeshTones
 import { TreeKind } from "../worldgen/biomes";
 import { SEA_LEVEL } from "../worldgen/water";
 import { crown_tone } from "./crowns";
+import { cast_instanced } from "./shadow-depth";
 import { charred_kit, type TreeLook } from "./snags";
 import type { Lab } from "../theme/theme";
 
@@ -288,7 +289,7 @@ export function tree_meshes({ trunk, crowns, bark, leaf, tone }: TreeKit, here: 
   kinds.forEach((mesh, kind) => (mesh.count = filled[kind]));
   const meshes = [trunks, ...kinds].filter((mesh) => mesh.count > 0);
   for (const mesh of meshes) {
-    mesh.castShadow = true;
+    cast_instanced(mesh);
     mesh.receiveShadow = true;
     mesh.computeBoundingSphere();
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;

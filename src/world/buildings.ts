@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { car_paints, color, dark, glow, tones } from "../theme/palette";
+import { cast_instanced } from "../render/shadow-depth";
 import type { World } from "./world";
 import { chunk_of, type Extent } from "../worldgen/chunk-grid";
 import type { ChunkBuffers, Soup } from "../worldgen/chunks";
@@ -80,7 +81,7 @@ export function parked_cars(cars: ParkedCar[], shape: THREE.BufferGeometry, mate
     mesh.setMatrixAt(i, m.compose(p.set(car.x, car.y, car.z), q.setFromAxisAngle(up, car.heading), s));
     mesh.setColorAt(i, car.paint);
   });
-  mesh.castShadow = true;
+  cast_instanced(mesh);
   mesh.receiveShadow = true;
   mesh.instanceMatrix.needsUpdate = true;
   if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
@@ -107,7 +108,7 @@ function street_lights(props: Prop[], parts: [THREE.BufferGeometry, THREE.Materi
     const mesh = new THREE.InstancedMesh(geometry, material, Math.max(1, props.length));
     mesh.count = props.length;
     props.forEach((prop, i) => mesh.setMatrixAt(i, m.compose(p.set(prop.x, prop.y, prop.z), q.setFromAxisAngle(up, prop.angle), s)));
-    mesh.castShadow = true;
+    cast_instanced(mesh);
     mesh.instanceMatrix.needsUpdate = true;
     return mesh;
   });

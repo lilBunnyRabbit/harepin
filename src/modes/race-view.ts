@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { brand } from "../theme/palette";
 import { item_geometry, item_material } from "../world/jumps";
+import { cast_instanced } from "../render/shadow-depth";
 import { Beams } from "./beams";
 import { CHEVRON_VERTS, Marks, type Ground } from "./marks";
 import type { RaceCourse } from "./races";
@@ -59,7 +60,7 @@ export class RaceView {
 
   private cones(closure: Course["route"]["closure"]): THREE.InstancedMesh {
     const meshes = new THREE.InstancedMesh(this.marks.track(item_geometry("cone")), this.marks.track(item_material("cone")), closure.length);
-    meshes.castShadow = true;
+    cast_instanced(meshes);
     const matrix = new THREE.Matrix4();
     closure.forEach((solid, i) => {
       meshes.setMatrixAt(i, matrix.makeTranslation(solid.x, solid.y, solid.z));

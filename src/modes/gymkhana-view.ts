@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { cast_instanced } from "../render/shadow-depth";
 import { brand, color, tones } from "../theme/palette";
 import { CONE_RADIUS, to_world, type Box, type Course, type Hit } from "./gymkhana";
 import { Marks, type Ground } from "./marks";
@@ -38,7 +39,7 @@ export class GymkhanaView {
     const geometry = this.marks.track(new THREE.ConeGeometry(CONE_RADIUS, CONE_HEIGHT, 10).translate(0, CONE_HEIGHT / 2, 0));
     const material = this.marks.track(new THREE.MeshLambertMaterial({ color: color(brand.warning) }));
     this.cones = new THREE.InstancedMesh(geometry, material, course.cones.length);
-    this.cones.castShadow = true;
+    cast_instanced(this.cones);
     course.cones.forEach((cone, index) => {
       const { x, z } = to_world(course.site, cone.u, cone.v);
       const at = new THREE.Vector3(x, ground.height(x, z), z);
