@@ -17,6 +17,7 @@ export const desert: WorldDef = {
   pads: false,
   // Sand throws a warm bounce up under the car, and blown dust pulls a close haze in over the crests.
   mood: { hemi_ground: tones.sand, fog_near: 60, fog_far: 950 },
+  upland: tones.desert_upland,
   ground_puff: "dust",
   backdrop: "sky",
   facts: (f) => [...lap_facts(f, "circuit"), [shown(f, (f) => String(f.towns)), f?.towns === 1 ? "outpost" : "outposts"]],
