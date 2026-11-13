@@ -9,7 +9,6 @@ import type { WorldKind } from "../worldgen/types";
 import { WORLDS } from "../worlds/worlds";
 import { world_look, type RoadInk } from "../worlds/world-def";
 import { snow_of } from "../worldgen/kinds/kinds";
-import "./world-map.css";
 
 const DEBOUNCE_MS = 300;
 
@@ -38,8 +37,8 @@ const YOU = rgba(brand.cottontail);
 type Ctx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 type MapAt = (x: number, z: number) => [number, number];
 
-const MapStatus = { DRAWING: "drawing", READY: "ready", FAILED: "failed" } as const;
-type MapStatus = (typeof MapStatus)[keyof typeof MapStatus];
+export const MapStatus = { DRAWING: "drawing", READY: "ready", FAILED: "failed" } as const;
+export type MapStatus = (typeof MapStatus)[keyof typeof MapStatus];
 
 /** A car on the map, in world metres. */
 export interface MapPlayer {
@@ -49,16 +48,19 @@ export interface MapPlayer {
   you: boolean;
 }
 
+/** Draws a world's map onto the canvases `WorldMap.svelte` attaches; the component shows `status`, `note` and `edge`. */
 export class WorldMap {
-  readonly root = document.createElement("div");
+  status = $state<MapStatus>(MapStatus.DRAWING);
+  note = $state("");
+  /** The raster's corner is open water, so a frame wider than the square map continues the sea instead of a band. */
+  edge = $state<string | null>(null);
   on_ready: ((map: MapData) => void) | null = null;
-  private readonly canvas = document.createElement("canvas");
+  private canvas: HTMLCanvasElement | null = null;
   // Cars move on their own layer, so a 4 Hz refresh never repaints the terrain and roads under them.
-  private readonly cars = document.createElement("canvas");
+  private cars: HTMLCanvasElement | null = null;
   private players: readonly MapPlayer[] = [];
   private markers: readonly MapMarker[] = [];
   private at: MapAt | null = null;
-  private readonly note = document.createElement("span");
   private worker: Worker | null = null;
   private timer = 0;
   private wanted: { seed: number; kind: WorldKind; key: string } | null = null;
@@ -69,13 +71,16 @@ export class WorldMap {
   // What the canvas holds: showing the same map at the same size again only repaints the cars.
   private drawn: { map: MapData; side: number } | null = null;
 
-  constructor() {
-    this.root.className = "world-map";
-    this.canvas.setAttribute("role", "img");
-    this.note.className = "world-map-note";
-    this.cars.className = "world-map-cars";
-    this.cars.setAttribute("aria-hidden", "true");
-    this.root.append(this.canvas, this.cars, this.note);
+  attach(canvas: HTMLCanvasElement, cars: HTMLCanvasElement) {
+    this.canvas = canvas;
+    this.cars = cars;
+    this.drawn = null;
+    this.draw();
+  }
+
+  detach() {
+    this.canvas = this.cars = null;
+    this.drawn = null;
   }
 
   /** Draws `seed`'s world, after a pause unless `now`, so typing a seed or dragging a slider does not generate every step. */
@@ -124,22 +129,21 @@ export class WorldMap {
     this.map = map;
     this.roads = roads;
     this.map_key = key;
-    // The raster's corner is open water, so a frame wider than the square map continues the sea instead of a band.
     const [r, g, b] = map.pixels;
-    this.root.style.setProperty("--map-edge", `rgb(${r} ${g} ${b})`);
+    this.edge = `rgb(${r} ${g} ${b})`;
     if (key === this.wanted?.key) this.draw();
   }
 
   private set_status(status: MapStatus) {
-    this.root.dataset.status = status;
+    this.status = status;
     const drawing = this.wanted ? WORLDS[this.wanted.kind].drawing : "";
-    this.note.textContent = status === MapStatus.DRAWING ? drawing : status === MapStatus.FAILED ? "Preview failed" : "";
+    this.note = status === MapStatus.DRAWING ? drawing : status === MapStatus.FAILED ? "Preview failed" : "";
   }
 
   private draw() {
-    const { map, image, roads, canvas } = this;
-    const ctx = canvas.getContext("2d");
-    if (!map || !image || !roads || !ctx) return;
+    const { map, image, roads, canvas, cars } = this;
+    const ctx = canvas?.getContext("2d");
+    if (!map || !image || !roads || !canvas || !cars || !ctx) return;
     this.set_status(MapStatus.READY);
     this.on_ready?.(map);
     canvas.setAttribute("aria-label", `Map of ${WORLDS[map.kind].map_label} ${map.seed}`);
@@ -148,10 +152,10 @@ export class WorldMap {
     if (this.drawn?.map === map && this.drawn.side === side) return this.draw_players();
     this.drawn = { map, side };
     canvas.width = canvas.height = side;
-    this.cars.width = this.cars.height = side;
+    cars.width = cars.height = side;
     const at = paint_map(ctx, map, image, roads, side, ratio);
     paint_marks(ctx, map, at, ratio);
-    paint_towns(ctx, map, at, side, ratio, getComputedStyle(this.root).fontFamily);
+    paint_towns(ctx, map, at, side, ratio, getComputedStyle(canvas).fontFamily);
     this.at = at;
     this.draw_players();
   }
@@ -171,12 +175,12 @@ export class WorldMap {
 
   private draw_players() {
     const { cars, at } = this;
-    const ctx = cars.getContext("2d");
-    if (!ctx) return;
+    const ctx = cars?.getContext("2d");
+    if (!cars || !ctx) return;
     ctx.clearRect(0, 0, cars.width, cars.height);
     if (!at || (!this.players.length && !this.markers.length)) return;
     const ratio = devicePixelRatio;
-    ctx.font = `600 ${12 * ratio}px ${getComputedStyle(this.root).fontFamily}`;
+    ctx.font = `600 ${12 * ratio}px ${getComputedStyle(cars).fontFamily}`;
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
     ctx.lineJoin = "round";

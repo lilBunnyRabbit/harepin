@@ -2,7 +2,7 @@ import { el } from "./setting-rows";
 
 export const COPIED_MS = 2000;
 
-const preview = (name: string) => `${import.meta.env.BASE_URL}menu/${name}.webp`;
+export const preview = (name: string) => `${import.meta.env.BASE_URL}menu/${name}.webp`;
 
 export function random_seed() {
   return Math.floor(Math.random() * 0x7fffffff);

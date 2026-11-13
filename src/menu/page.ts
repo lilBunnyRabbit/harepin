@@ -12,7 +12,7 @@ import type { Rows } from "./setting-rows";
 import { world_query } from "../world/world-pick";
 import { DEFAULT_KIND } from "../worldgen/types";
 import type { WorldKind } from "../worldgen/types";
-import type { MapPlayer } from "./world-map";
+import type { MapPlayer } from "./world-map.svelte";
 import type { Laps, QualityTier, SettingKey, SettingsState } from "./prefs";
 
 export const MenuTab = {

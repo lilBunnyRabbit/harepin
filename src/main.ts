@@ -66,7 +66,7 @@ import { WORLDS } from "./worlds/worlds";
 import { map_id, snow_of } from "./worldgen/kinds/kinds";
 import { world_look } from "./worlds/world-def";
 import { custom_code, map_code, pick_problem, read_pick } from "./worldgen/kinds/map-code";
-import { map_note } from "./menu/world-page";
+import { map_note } from "./menu/map-note";
 import { plain_map } from "./worldgen/kinds/kinds";
 import { review_wanted } from "./review/params";
 import "./style.css";

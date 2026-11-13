@@ -16,8 +16,8 @@ import { picture } from "./widgets";
 import SettingsPage from "./settings-tab/SettingsPage.svelte";
 import { SettingsNav } from "./settings-tab/nav.svelte";
 import { CHANGES } from "./settings-tab/sections";
-import { PlayPage } from "./play-page";
-import { WorldPage } from "./world-page";
+import PlayPage from "./PlayPage.svelte";
+import WorldPage from "./WorldPage.svelte";
 import { Rows, el, icon } from "./setting-rows";
 import { WorldKind } from "../worldgen/types";
 import { GoTo, GoalId } from "../goals/goals";
@@ -92,7 +92,7 @@ export class Settings {
       () => this.current,
     );
     this.page_list = [
-      new PlayPage(this.menu, (to) => this.go_to(to)),
+      svelte_page(this.menu, { id: MenuTab.PLAY, label: "Play" }, PlayPage, { go_to: (to: GoTo) => this.go_to(to) }),
       {
         id: MenuTab.GARAGE,
         label: "Garage",
@@ -103,7 +103,7 @@ export class Settings {
       svelte_page(this.menu, { id: MenuTab.ONLINE, label: "Online" }, OnlinePage),
       svelte_page(this.menu, { id: MenuTab.SETTINGS, label: "Settings" }, SettingsPage, { nav: this.nav, open_guide: () => this.open_guide() }),
       svelte_page(this.menu, { id: MenuTab.SUPPORT, label: "Support" }, SupportPage),
-      new WorldPage(this.menu),
+      svelte_page(this.menu, { id: "world", label: "Create world", parent: MenuTab.PLAY }, WorldPage),
       new ModesPage(this.menu),
       svelte_page(this.menu, { id: "room", label: "New room", parent: MenuTab.ONLINE }, RoomPage),
       svelte_page(this.menu, { id: "goals", label: "Things to try", parent: MenuTab.PLAY }, GoalsPage, { go: (to: GoTo) => this.go_to(to) }),
