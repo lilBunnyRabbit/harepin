@@ -11,6 +11,8 @@ import { RunSource, new_seed, random, resolve, scale, type_of, type RunPick } fr
 export interface RunPlay {
   readonly event: CareerEvent;
   readonly track: Track;
+  /** Laps of a closed route the race runs; 1 elsewhere. */
+  readonly laps: number;
   grade(own: Thresholds): Thresholds;
   /** Records the finish; the lines it adds to the result card. */
   finish(stars: number): HTMLElement[];
@@ -20,7 +22,8 @@ export interface RunPlay {
 const SOURCE_NAMES: Record<RunSource, string> = { daily: "Daily", random: "Endless", custom: "Built run" };
 
 export function run_name(pick: RunPick, fallback = false): string {
-  return `${SOURCE_NAMES[pick.source]} · ${fallback ? "Race" : type_of(pick.type).name}`;
+  const laps = pick.laps > 1 && !fallback ? ` · ${pick.laps} laps` : "";
+  return `${SOURCE_NAMES[pick.source]} · ${fallback ? "Race" : type_of(pick.type).name}${laps}`;
 }
 
 export function run_play(pick: RunPick, world: World, runs: Runs, start_run: (id: string) => void): RunPlay {
@@ -37,6 +40,7 @@ export function run_play(pick: RunPick, world: World, runs: Runs, start_run: (id
   return {
     event,
     track: run_track(pick, resolved.level, local_store(), world.seed, world.kind, world.levels),
+    laps: resolved.mode === "race" && world.routes.find((route) => route.id === resolved.level)?.closed ? pick.laps : 1,
     grade: (own) => scale(own, pick.difficulty),
     finish(stars) {
       if (stars < 1) return [];

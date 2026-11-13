@@ -33,7 +33,6 @@ import "./menu.css";
 
 const MENU_TABS: [MenuTab, string][] = [
   [MenuTab.PLAY, "Play"],
-  [MenuTab.RUNS, "Runs"],
   [MenuTab.GARAGE, "Garage"],
   [MenuTab.ONLINE, "Online"],
   [MenuTab.SETTINGS, "Settings"],
@@ -95,7 +94,6 @@ export class Settings {
     );
     this.page_list = [
       svelte_page(this.menu, { id: MenuTab.PLAY, label: "Play" }, PlayPage, { go_to: (to: GoTo) => this.go_to(to) }),
-      svelte_page(this.menu, { id: MenuTab.RUNS, label: "Runs" }, RunsPage),
       svelte_page(this.menu, { id: MenuTab.GARAGE, label: "Garage" }, GaragePage, { garage: host.garage }),
       svelte_page(this.menu, { id: MenuTab.ONLINE, label: "Online" }, OnlinePage),
       svelte_page(this.menu, { id: MenuTab.SETTINGS, label: "Settings" }, SettingsPage, { nav: this.nav, open_guide: () => this.open_guide() }),
@@ -104,6 +102,7 @@ export class Settings {
       svelte_page(this.menu, { id: "modes", label: "Modes", parent: MenuTab.PLAY, layout: "fill" }, ModesPage),
       svelte_page(this.menu, { id: "room", label: "New room", parent: MenuTab.ONLINE }, RoomPage),
       svelte_page(this.menu, { id: "goals", label: "Things to try", parent: MenuTab.PLAY }, GoalsPage, { go: (to: GoTo) => this.go_to(to) }),
+      svelte_page(this.menu, { id: "runs", label: "Runs", parent: MenuTab.PLAY, layout: "wide" }, RunsPage),
       svelte_page(this.menu, { id: "career", label: "Career", parent: MenuTab.PLAY, layout: "wide" }, CareerPage, { tune: new URLSearchParams(location.search).has(TUNE_PARAM) }),
     ];
     this.guide = new Guide({

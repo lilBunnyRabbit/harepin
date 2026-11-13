@@ -50,6 +50,8 @@ export interface ModeCtx {
   race_busy(): boolean;
   /** A career event's hit counter for the run, fresh per call; null in free play, which has no hit penalty. */
   hits(): Hits | null;
+  /** Laps a solo race runs on a closed route: a built run's choice, else 1. Its marks grade the whole run. */
+  readonly laps: number;
   /** The star marks a run is graded on: a career event's own when tuned on this world, else `own`, the mode's (ms, or points for drift). */
   thresholds(own: Thresholds): Thresholds;
   /** A career event's shipped 3-star ghost lap; null in free play or when it has none. */

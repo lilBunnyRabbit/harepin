@@ -2,7 +2,7 @@
   import { CarClass } from "../../car/pi";
   import { limit_text } from "../../car/car-pick";
   import { PRESETS } from "../../car/presets";
-  import { ANY, Difficulty, RUN_TYPES, car_code, custom, new_seed, parse_car, type RunOptions, type RunPick, type RunType } from "../../runs/runs";
+  import { ANY, Difficulty, LAPS, RUN_TYPES, RunType, car_code, custom, new_seed, parse_car, type RunOptions, type RunPick } from "../../runs/runs";
   import type { WorldKind } from "../../worldgen/types";
   import type { Menu } from "../page";
   import Button from "../ui/Button.svelte";
@@ -32,6 +32,7 @@
     normal: "The mode's own star marks",
     hard: "Star marks tightened: 10% less time, or more points",
   };
+  const LAP_OPTIONS: Option<number>[] = LAPS.map((n) => ({ value: n, label: n === 1 ? "1 lap" : `${n} laps` }));
   const TYPES: Option<string>[] = [{ value: ANY, label: "Any type" }, ...RUN_TYPES.map((type) => ({ value: type.id, label: type.name }))];
   const ALL_KINDS = [...new Set(RUN_TYPES.flatMap((type) => type.kinds))];
   const CARS: Option<string>[] = [
@@ -45,6 +46,7 @@
   let choice = $state<string>(ANY);
   let difficulty = $state<Difficulty>(Difficulty.NORMAL);
   let car = $state<string>(ANY);
+  let laps = $state(1);
   let built = $state.raw<RunPick | null>(null);
   let copied = $state("");
 
@@ -59,6 +61,7 @@
     choice: choice === ANY ? null : choice,
     difficulty,
     car: parse_car(car) ?? null,
+    laps: def?.id === RunType.RACE ? laps : 1,
   });
 
   // A type that can't run on the picked world, or has no such option, drops back to Any for it.
@@ -105,6 +108,11 @@
           {#snippet control()}<Segmented options={choices} bind:value={choice} label={def.choice?.label ?? ""} onchange={changed} />{/snippet}
         </Row>
       {/if}
+      {#if def?.id === RunType.RACE}
+        <Row label="Laps" help={laps > 1 ? "Circuits only, star marks for the whole run" : "One run of any route"} stack>
+          {#snippet control()}<Segmented options={LAP_OPTIONS} bind:value={laps} label="Laps" onchange={changed} />{/snippet}
+        </Row>
+      {/if}
       <Row label="Difficulty" help={DIFFICULTY_HELP[difficulty]} stack>
         {#snippet control()}<Segmented options={DIFFICULTIES} bind:value={difficulty} label="Difficulty" onchange={changed} />{/snippet}
       </Row>
@@ -121,7 +129,7 @@
     <Card list label="Your event">
       <div class="head"><SectionHead eyebrow="Your event" title={pick_text(built)} /></div>
       <RowList label="Your event">
-        <Row label={car_text(built.car)} help={`${DIFFICULTIES.find((d) => d.value === built?.difficulty)?.label} star marks · season stars within today's cap`} />
+        <Row label={car_text(built.car)} help={`${built.laps > 1 ? `${built.laps} laps · ` : ""}${DIFFICULTIES.find((d) => d.value === built?.difficulty)?.label} star marks · season stars within today's cap`} />
       </RowList>
       <div class="actions">
         <Button icon="icon-share" onclick={() => built && copy_link(built)}>{copied || "Copy link"}</Button>

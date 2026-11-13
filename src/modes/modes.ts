@@ -476,6 +476,7 @@ export class Modes {
       track,
       lobby_lap: () => this.lobby_lap,
       race_busy: () => this.race_busy(),
+      laps: play?.laps ?? 1,
       hits: () => (event ? new Hits(() => world.contacts) : null),
       // Tuned on another world version, an event's times and ghost no longer fit its road: the mode's par grades it, no ghost.
       thresholds: (own) => (play ? play.grade(own) : (tuned && event?.stars) || own),

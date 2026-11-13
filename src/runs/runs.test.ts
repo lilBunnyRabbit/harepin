@@ -59,7 +59,7 @@ test("a daily is the same pick for a date, and its param reads back to it", () =
 test("random and custom picks round-trip through their param", () => {
   const r = random(123456);
   expect(run_of(r.id)).toEqual(r);
-  const options = { type: RunType.JUMP, kind: null, choice: "big", difficulty: Difficulty.HARD, car: { preset: "Dirt rally" } };
+  const options = { type: RunType.JUMP, kind: null, choice: "big", difficulty: Difficulty.HARD, car: { preset: "Dirt rally" }, laps: 1 };
   const c = custom(options, 98765);
   expect(c.id).toBe(`custom:${options_code(options, 98765)}`);
   expect(run_of(c.id)).toEqual(c);
@@ -73,14 +73,14 @@ test("random and custom picks round-trip through their param", () => {
 test("a custom pick keeps every fixed choice; the kind only when the type runs there", () => {
   for (const type of RUN_TYPES) {
     for (const kind of type.kinds) {
-      const pick = custom({ type: type.id, kind, choice: null, difficulty: Difficulty.NORMAL, car: { cap: "b" } }, 7);
+      const pick = custom({ type: type.id, kind, choice: null, difficulty: Difficulty.NORMAL, car: { cap: "b" }, laps: 1 }, 7);
       expect(pick.type).toBe(type.id);
       expect(pick.kind).toBe(kind);
       expect(pick.car).toEqual({ cap: "b" });
       expect([...pick.levels].sort()).toEqual([...type.levels].sort());
     }
   }
-  const sky_hunt = custom({ type: RunType.HUNT, kind: "sky", choice: null, difficulty: Difficulty.NORMAL, car: null }, 7);
+  const sky_hunt = custom({ type: RunType.HUNT, kind: "sky", choice: null, difficulty: Difficulty.NORMAL, car: null, laps: 1 }, 7);
   expect(sky_hunt.kind).not.toBe("sky");
 });
 
@@ -95,12 +95,26 @@ test("bad run params read as no run", () => {
     "random:",
     "random:-1",
     "custom:race",
-    "custom:race.island.huge.normal.any.1",
-    "custom:race.island.any.normal.p-nope.1",
-    "custom:nope.any.any.normal.any.1",
+    "custom:race.island.huge.1.normal.any.1",
+    "custom:race.island.any.1.normal.p-nope.1",
+    "custom:nope.any.any.1.normal.any.1",
+    "custom:race.island.any.4.normal.any.1",
+    "custom:race.island.any.normal.any.1",
   ];
   for (const param of bad) expect(run_of(param)).toBeNull();
-  expect(parse_options("any.any.any.normal.any.zz")).not.toBeNull();
+  expect(parse_options("any.any.any.1.normal.any.zz")).not.toBeNull();
+});
+
+test("a race over laps keeps to the circuits and reads the length band off the whole run", () => {
+  const pick = custom({ type: RunType.RACE, kind: "island", choice: "long", difficulty: Difficulty.NORMAL, car: null, laps: 3 }, 11);
+  expect([...pick.levels].sort()).toEqual(["circuit", "circuit-rev"]);
+  expect(pick.laps).toBe(3);
+  expect(run_of(pick.id)).toEqual(pick);
+  expect(custom({ type: RunType.DRIFT, kind: null, choice: null, difficulty: Difficulty.NORMAL, car: null, laps: 3 }, 11).laps).toBe(1);
+  const routes = probe({ race: ["circuit", "street-1"] }, { circuit: 1300, "street-1": 2400 });
+  const medium = pick_of(RunType.RACE, ["street-1", "circuit"], [2000, 3500]);
+  expect(resolve(medium, routes).level).toBe("street-1");
+  expect(resolve({ ...medium, laps: 2 }, routes).level).toBe("circuit");
 });
 
 const probe = (levels: Record<string, string[]>, lengths: Record<string, number> = {}): RunProbe => ({

@@ -18,7 +18,6 @@ import type { Laps, QualityTier, SettingKey, SettingsState } from "./prefs";
 
 export const MenuTab = {
   PLAY: "play",
-  RUNS: "runs",
   GARAGE: "garage",
   ONLINE: "online",
   SETTINGS: "settings",

@@ -5,6 +5,7 @@
   import { WorldKind } from "../worldgen/types";
   import { MINIS, WORLDS } from "../worlds/worlds";
   import CareerHero from "./CareerHero.svelte";
+  import RunsCard from "./runs/RunsCard.svelte";
   import MapLegend, { type LegendItem } from "./MapLegend.svelte";
   import WorldMap from "./WorldMap.svelte";
   import GoalsCard from "./GoalsCard.svelte";
@@ -98,6 +99,8 @@
       {/if}
 
       <CareerHero stars={live.stars} onstart={(id) => host.start_event(id)} onall={() => menu.show("career")} />
+
+      <RunsCard {menu} {live} />
 
       <Card variant="well">
         <SectionHead eyebrow="Free drive" title={WORLDS[MAINLAND].name}>

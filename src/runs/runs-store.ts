@@ -98,8 +98,8 @@ export class Runs {
   }
 }
 
-/** A run's best times: per date for a daily, `harepin:run:<date>:<world_key>`; else per map, `harepin:run:<world_key>`. */
+/** A run's best times: per date for a daily, `harepin:run:<date>:<world_key>`; else per map and lap count, `harepin:run[:l<laps>]:<world_key>`. */
 export function run_track(pick: RunPick, level: string, store: Store | null, seed: number, kind: WorldKind, levels: readonly number[]): Track {
-  const scope = pick.date ? `run:${pick.date}` : "run";
+  const scope = pick.date ? `run:${pick.date}` : pick.laps > 1 ? `run:l${pick.laps}` : "run";
   return new Track(scope, seed, [level], store, kind, levels);
 }

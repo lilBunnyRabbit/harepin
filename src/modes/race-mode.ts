@@ -26,6 +26,10 @@ class Race implements ModeRun {
   private disposed = false;
   private readonly traps: TrapRun | null;
   private flash: { kmh: number; at: number } | null = null;
+  /** A solo run over laps: the lap under way, and the time of the laps before it. */
+  private readonly laps: number;
+  private lap = 1;
+  private banked = 0;
   readonly route: RouteRun;
 
   constructor(
@@ -38,6 +42,7 @@ class Race implements ModeRun {
     ctx.scene.add(this.view.root);
     this.unplace = ctx.world.place(course.route.closure);
     this.run = new RaceRun(course, ctx.lobby_lap() ? 0 : COUNTDOWN_MS);
+    this.laps = ctx.lobby_lap() || !course.route.closed ? 1 : Math.max(1, ctx.laps);
     this.hits = ctx.hits();
     void ctx.dev_ghost().then((lap) => {
       if (!lap || this.disposed) return;
@@ -95,14 +100,14 @@ class Race implements ModeRun {
       this.route.gate = null;
       ctx.hide_hint();
       view.guide(0, 0);
-      if (!lobby_lap) this.finish();
+      if (!lobby_lap && this.lap < this.laps) {
+        this.banked += run.elapsed();
+        this.lap++;
+        ctx.chime();
+        this.next_lap();
+      } else if (!lobby_lap) this.finish();
       else if (!lobby_lap()) ctx.exit();
-      else {
-        this.run = new RaceRun(run.course, 0);
-        this.route.respawn = run.course.line[0];
-        view.aim(0);
-        this.route.later = this.later(0);
-      }
+      else this.next_lap();
       return null;
     }
     // A finished run keeps updating behind the result card, with no gate left to aim at.
@@ -115,7 +120,20 @@ class Race implements ModeRun {
     const { name } = this.level;
     if (run.status === RaceStatus.READY) return `${name} · ${Math.ceil(run.countdown / 1000)}`;
     const doing = run.missed ? "missed a gate, go back" : `gate ${run.next + 1}/${gates.length}`;
-    return `${name} · ${format(run.elapsed())}${penalty_text(this.hits)} · ${doing}${this.trap_text(now)}`;
+    const lap = this.laps > 1 ? ` · lap ${this.lap}/${this.laps}` : "";
+    return `${name} · ${format(this.elapsed())}${lap}${penalty_text(this.hits)} · ${doing}${this.trap_text(now)}`;
+  }
+
+  private next_lap() {
+    const { course } = this.run;
+    this.run = new RaceRun(course, 0);
+    this.route.respawn = course.line[0];
+    this.view.aim(0);
+    this.route.later = this.later(0);
+  }
+
+  private elapsed(): number {
+    return this.banked + this.run.elapsed();
   }
 
   private trap_text(now: number): string {
@@ -130,16 +148,17 @@ class Race implements ModeRun {
     const { run, level } = this;
     const { track } = this.ctx;
     const { par_ms, length } = run.course.route;
-    const time = Math.round(run.elapsed());
+    const { laps } = this;
+    const time = Math.round(this.elapsed());
     const ms = time + (this.hits?.penalty_ms ?? 0);
-    const par = this.ctx.thresholds(par_thresholds(par_ms));
-    const stars = grade(run.elapsed() + (this.hits?.penalty_ms ?? 0), par);
+    const par = this.ctx.thresholds(par_thresholds(par_ms * laps));
+    const stars = grade(this.elapsed() + (this.hits?.penalty_ms ?? 0), par);
     if (this.traps) return this.trap_finish(ms);
     const recorded = track.record(level.id, { stars, ms });
     this.result = {
       title: result_title(level.name, recorded),
       stars,
-      lines: [...time_lines(time, this.hits), line("length", `${(length / 1000).toFixed(1)} km`), line("par", format(par.three)), best_line(track.runs[level.id])],
+      lines: [...time_lines(time, this.hits), line("length", `${((length * laps) / 1000).toFixed(1)} km${laps > 1 ? ` · ${laps} laps` : ""}`), line("par", format(par.three)), best_line(track.runs[level.id])],
     };
   }
 

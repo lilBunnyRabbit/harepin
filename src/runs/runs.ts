@@ -35,6 +35,10 @@ export const Difficulty = {
 } as const;
 export type Difficulty = (typeof Difficulty)[keyof typeof Difficulty];
 
+/** Lap counts the builder offers; more than one keeps a race on the map's closed circuits. */
+export const LAPS = [1, 2, 3, 5] as const;
+const CIRCUITS = ["circuit", "circuit-rev"];
+
 export const DIFFICULTY_SCALE: Record<Difficulty, number> = { relaxed: 1.15, normal: 1, hard: 0.9 };
 
 export interface RunChoice {
@@ -125,9 +129,11 @@ export interface RunOptions {
   choice: string | null;
   difficulty: Difficulty;
   car: RunCar | null;
+  /** Race only. */
+  laps: number;
 }
 
-export const ANY_OPTIONS: RunOptions = { type: null, kind: null, choice: null, difficulty: Difficulty.NORMAL, car: null };
+export const ANY_OPTIONS: RunOptions = { type: null, kind: null, choice: null, difficulty: Difficulty.NORMAL, car: null, laps: 1 };
 
 export interface RunPick {
   readonly id: string;
@@ -141,6 +147,7 @@ export interface RunPick {
   readonly band: readonly [number, number] | null;
   readonly car: RunCar;
   readonly difficulty: Difficulty;
+  readonly laps: number;
 }
 
 const SEEDS = 1_000_000;
@@ -171,7 +178,9 @@ function roll(options: RunOptions, rng: () => number): Omit<RunPick, "id" | "sou
   // The choice's levels go first; the type's others stand in on a map without them.
   const narrowed = choice?.levels ? [...order.filter((level) => choice.levels?.includes(level)), ...order.filter((level) => !choice.levels?.includes(level))] : order;
   const cap = draw(type.caps, rng);
-  return { type: type.id, kind, seed, levels: narrowed, band: choice?.band ?? null, car: options.car ?? { cap }, difficulty: options.difficulty };
+  const laps = type.id === RunType.RACE ? options.laps : 1;
+  const levels = laps > 1 ? narrowed.filter((level) => CIRCUITS.includes(level)) : narrowed;
+  return { type: type.id, kind, seed, levels, band: choice?.band ?? null, car: options.car ?? { cap }, difficulty: options.difficulty, laps };
 }
 
 export function daily(date: string): RunPick {
@@ -203,15 +212,17 @@ export function parse_car(text: string): RunCar | null | undefined {
   return preset ? { preset: preset.name } : undefined;
 }
 
-/** `type.kind.choice.difficulty.car.seed`: what a custom run's link carries, so a friend gets the same map and event. */
+/** `type.kind.choice.laps.difficulty.car.seed`: what a custom run's link carries, so a friend gets the same map and event. */
 export function options_code(options: RunOptions, seed: number): string {
-  return [options.type ?? ANY, options.kind ?? ANY, options.choice ?? ANY, options.difficulty, car_code(options.car), seed.toString(36)].join(".");
+  return [options.type ?? ANY, options.kind ?? ANY, options.choice ?? ANY, options.laps, options.difficulty, car_code(options.car), seed.toString(36)].join(".");
 }
 
 export function parse_options(code: string): { options: RunOptions; seed: number } | null {
   const parts = code.split(".");
-  if (parts.length !== 6) return null;
-  const [type, kind, choice, difficulty, car, seed_text] = parts;
+  if (parts.length !== 7) return null;
+  const [type, kind, choice, laps_text, difficulty, car, seed_text] = parts;
+  const laps = Number(laps_text);
+  if (!(LAPS as readonly number[]).includes(laps)) return null;
   const def = RUN_TYPES.find((t) => t.id === type);
   if (type !== ANY && !def) return null;
   if (kind !== ANY && !(Object.values(WorldKind) as string[]).includes(kind)) return null;
@@ -221,7 +232,7 @@ export function parse_options(code: string): { options: RunOptions; seed: number
   const seed = parseInt(seed_text, 36);
   if (rule === undefined || !/^[0-9a-z]+$/.test(seed_text) || !Number.isSafeInteger(seed)) return null;
   return {
-    options: { type: def?.id ?? null, kind: kind === ANY ? null : (kind as WorldKind), choice: choice === ANY ? null : choice, difficulty: difficulty as Difficulty, car: rule },
+    options: { type: def?.id ?? null, kind: kind === ANY ? null : (kind as WorldKind), choice: choice === ANY ? null : choice, difficulty: difficulty as Difficulty, car: rule, laps },
     seed,
   };
 }
@@ -265,9 +276,13 @@ export function resolve(pick: RunPick, probe: RunProbe): Resolved {
   const { mode } = type_of(pick.type);
   const have = probe.levels(mode);
   const found = pick.levels.filter((level) => have.includes(level));
-  const { band } = pick;
-  // No map is rebuilt for a length: the route nearest the band stands in when none falls inside it.
-  if (band) found.sort((a, b) => off_band(probe.length(a), band) - off_band(probe.length(b), band));
+  const { band, laps } = pick;
+  const total = (level: string) => {
+    const length = probe.length(level);
+    return length === null ? null : length * laps;
+  };
+  // No map is rebuilt for a length: the route nearest the band stands in when none falls inside it. Laps count in it.
+  if (band) found.sort((a, b) => off_band(total(a), band) - off_band(total(b), band));
   return found.length ? { mode, level: found[0], fallback: false } : { ...FALLBACK, fallback: true };
 }
 
