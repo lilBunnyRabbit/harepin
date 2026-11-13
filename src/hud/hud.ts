@@ -38,8 +38,12 @@ function svg(id: string): SVGElement {
   return el;
 }
 
-function set_text(el: HTMLElement, text: string) {
-  if (el.textContent !== text) el.textContent = text;
+// Writing the lone text node's data instead of replacing it: a node swap schedules a `:has()` invalidation that dirties the whole document.
+export function set_text(el: HTMLElement, text: string) {
+  const node = el.firstChild;
+  if (node instanceof Text && node === el.lastChild) {
+    if (node.data !== text) node.data = text;
+  } else if (el.textContent !== text) el.textContent = text;
 }
 
 function set_data(el: HTMLElement | SVGElement, key: string, value: string) {

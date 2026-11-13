@@ -8,6 +8,7 @@ import { build_view, camera_fade, dispose_car_view, rest_wheels, type CarView } 
 import type { World } from "../world/world";
 import { tier_badge } from "../career/badge";
 import { title_text } from "../runs/season";
+import { set_text } from "../hud/hud";
 import type { CarState, Net, Remote, TierBadge } from "./net";
 import "./remotes.css";
 
@@ -203,7 +204,7 @@ export class Remotes {
     rv.label.style.display = visible ? "" : "none";
     if (visible) {
       const name = this.net.display_name(remote);
-      if (rv.name.textContent !== name) rv.name.textContent = name;
+      set_text(rv.name, name);
       const hello = this.net.hellos.get(remote.id);
       const tier = hello?.tier ?? null;
       const tag = `${hello?.tag?.title ?? ""}|${hello?.tag?.tint ?? ""}`;

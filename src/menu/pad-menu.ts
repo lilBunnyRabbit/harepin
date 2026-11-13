@@ -11,6 +11,8 @@ const OVERLAP_PX = 4;
 const SIDE_WEIGHT = 2;
 /** Share of the visible height one up or down press scrolls a focused block taller than its scroller. */
 const SCROLL_STEP = 0.4;
+// Mirrors the query that shows #rotate in overlays.css, so the check needs no style read.
+const ROTATE_QUERY = "(orientation: portrait) and (pointer: coarse)";
 
 type Direction = "up" | "down" | "left" | "right";
 
@@ -121,7 +123,7 @@ function settle(el: Element | null) {
 export class PadMenu {
   private hud_open = false;
   private last: HTMLElement | null = null;
-  private readonly rotate = $("rotate");
+  private readonly rotate = matchMedia(ROTATE_QUERY);
   private readonly chat_panel = $("chat-panel");
 
   constructor(private readonly host: PadMenuHost) {}
@@ -149,6 +151,7 @@ export class PadMenu {
   }
 
   navigate(presses: readonly Nav[]) {
+    if (presses.length === 0 && !this.hud_open) return;
     if (this.rotated()) return;
     this.keep_hud();
     const layer = this.layer();
@@ -281,6 +284,6 @@ export class PadMenu {
   }
 
   private rotated(): boolean {
-    return this.rotate.checkVisibility();
+    return this.rotate.matches;
   }
 }

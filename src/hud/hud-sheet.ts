@@ -1,4 +1,4 @@
-import { $ } from "./hud";
+import { $, set_text } from "./hud";
 import "./phone.css";
 
 export type SheetAction = "reset" | "camera";
@@ -51,7 +51,7 @@ export class HudSheet {
   update() {
     if (!this.open) return;
     const title = this.online() ? "Menu" : "Paused";
-    if (this.title.textContent !== title) this.title.textContent = title;
+    set_text(this.title, title);
   }
 
   private fill() {

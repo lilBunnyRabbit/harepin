@@ -20,7 +20,7 @@ export class StuckPrompt {
       return;
     }
     this.timer.update(dt, speed, pushing);
-    this.el.hidden = !this.timer.stuck;
-    this.rewind.hidden = !can_rewind;
+    if (this.el.hidden !== !this.timer.stuck) this.el.hidden = !this.timer.stuck;
+    if (this.rewind.hidden !== !can_rewind) this.rewind.hidden = !can_rewind;
   }
 }
