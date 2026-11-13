@@ -41,8 +41,9 @@
     menu.refresh();
   }
 
+  // On an A to B route the only open option is 1: it stands for the run, not for the laps a loop remembers.
   function pick_laps(count: Laps) {
-    live.set("laps", count);
+    if (loop) live.set("laps", count);
     repick();
   }
 

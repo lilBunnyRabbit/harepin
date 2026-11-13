@@ -32,8 +32,11 @@
   <span class="ui-text">
     <span class="ui-title">{title}</span>
     {#if meta}<small class="ui-meta" class:ui-clamp={clamp !== undefined} style:--clamp={clamp}>{meta}</small>{/if}
-    {@render children?.()}
-    {#if reason}<small class="ui-reason">{@render reason()}</small>{/if}
+    {#if reason}
+      <span class="ui-foot">{@render children?.()}<small class="ui-reason">{@render reason()}</small></span>
+    {:else}
+      {@render children?.()}
+    {/if}
   </span>
 </button>
 
@@ -77,8 +80,10 @@
     cursor: default;
   }
 
+  /* :global so the dim reaches content the caller passes in, which carries the caller's scope class. */
   .ui-tile:disabled > :not(.ui-text),
-  .ui-tile:disabled .ui-text > :not(.ui-reason) {
+  .ui-tile:disabled .ui-text > :global(:not(.ui-foot)),
+  .ui-tile:disabled .ui-foot > :global(:not(.ui-reason)) {
     opacity: 0.45;
   }
 
@@ -91,7 +96,15 @@
     font-size: var(--text-sm);
     font-weight: 600;
     line-height: 1.4;
+  }
+
+  .ui-foot {
+    display: flex;
     margin-top: var(--space-1);
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1) var(--space-2);
+    min-width: 0;
   }
 
   .ui-thumb {

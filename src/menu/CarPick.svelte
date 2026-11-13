@@ -39,7 +39,7 @@
             <li>
               {#snippet why()}{choice.blocked}{/snippet}
               <Tile title={choice.title} meta={choice.sub} disabled={choice.blocked !== null} reason={choice.blocked ? why : undefined} onclick={() => pick(choice.code)}>
-                <span class="meta">
+                <span class="meta" class:lift={!choice.blocked}>
                   <ClassBadge rating={choice.rating} />
                   {#if choice.fitted}<span class="why">Fitted</span>{/if}
                 </span>
@@ -83,6 +83,10 @@
     display: flex;
     align-items: center;
     gap: var(--space-2);
+  }
+
+  /* A blocked car's row sits in the tile's foot, which already has this gap above it. */
+  .lift {
     margin-top: var(--space-1);
   }
 

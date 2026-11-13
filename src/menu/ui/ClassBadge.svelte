@@ -4,13 +4,14 @@
   // A car shows its rating; an event's limit shows the top class it lets in, with "max" where the PI goes.
   type Props = ({ rating: Rating; cap?: never } | { cap: CarClass; rating?: never }) & { size?: "md" | "lg" };
 
-  let { rating, cap, size = "md" }: Props = $props();
+  const props: Props = $props();
 
-  const cls = $derived(rating?.class ?? cap!);
+  const rating = $derived(props.rating);
+  const cls = $derived(props.rating ? props.rating.class : props.cap);
   const letter = $derived(CLASS_LABELS[cls]);
 </script>
 
-<span class="ui-class-badge" data-class={cls} data-size={size} aria-label={rating ? `Class ${letter}, PI ${rating.pi}` : `Class ${letter} or lower`}>
+<span class="ui-class-badge" data-class={cls} data-size={props.size ?? "md"} aria-label={rating ? `Class ${letter}, PI ${rating.pi}` : `Class ${letter} or lower`}>
   <b class="ui-letter">{letter}</b>
   <span class="ui-pi">{rating ? rating.pi : "max"}</span>
 </span>
