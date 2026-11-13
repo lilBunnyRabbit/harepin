@@ -26,8 +26,10 @@ const CREST_RUN = 6;
 const GATE_GAP = 100;
 const GATE_FILL = 450;
 const CROSSING_GATE_HW = 10;
-// Fitted to scripts/races.ts --world dunes: loose sand drags every car far under drive_time's road pace, the slowest most.
-const CROSSING_SHARE = 3.7;
+/** Formula bodies crawl on loose sand: a stock one takes over 5 minutes to cross, a tuned one over 10. */
+const CROSSING_EXCLUDES = ["formula"];
+// Fitted to scripts/races.ts --world dunes: loose sand drags every car far under drive_time's road pace, the bus most.
+const CROSSING_SHARE = 3.2;
 
 type Height = (x: number, z: number) => number;
 
@@ -87,7 +89,7 @@ export function crossing(height: Height, wind: { x: number; z: number }): Route 
   }
   const before = gates.at(-1) ?? 0;
   if (last - before > fill) gates.push(before + Math.round((last - before) / 2));
-  return crossing_route(points, gates, CROSSING_GATE_HW, CROSSING_SHARE);
+  return crossing_route(points, gates, CROSSING_GATE_HW, CROSSING_SHARE, CROSSING_EXCLUDES);
 }
 
 /**

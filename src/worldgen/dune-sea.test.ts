@@ -93,6 +93,7 @@ for (const seed of sweep(10))
     expect(route.length).toBeGreaterThan(2500);
     expect(route.length).toBeLessThan(3800);
     expect(route.par_ms).toBeGreaterThan(0);
+    expect(route.excludes).toEqual(["formula"]);
     for (let i = 0; i < points.length; i++) {
       const p = points[i];
       expect(Math.hypot(p.x, p.z)).toBeLessThan(PLAY);
