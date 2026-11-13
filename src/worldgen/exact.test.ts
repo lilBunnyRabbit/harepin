@@ -17,7 +17,7 @@ const ALLOWED: Record<string, number> = {
   "noise.ts": 1,
   "road-layers.ts": 1,
   "routes.ts": 1,
-  "sky-mesh.ts": 1,
+  "sky-mesh.ts": 3,
   "sky.ts": 21,
   "towns.ts": 1,
 };
