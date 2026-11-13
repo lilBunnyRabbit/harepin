@@ -22,7 +22,6 @@ export const DUEL_LEVELS: readonly DuelLevel[] = [
   { id: "v4", name: "Long run", brings: "Two kilometres: stay ahead of the ghost.", points: 1000 },
   { id: "v5", name: "Marathon", brings: "Most of the circuit in one go.", points: 1500 },
 ];
-export const DUEL_IDS = DUEL_LEVELS.map((level) => level.id);
 
 export interface Route {
   level: DuelLevel;

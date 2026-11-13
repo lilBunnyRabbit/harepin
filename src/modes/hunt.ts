@@ -35,7 +35,6 @@ export const HUNT_LEVELS: readonly HuntLevel[] = [
   { id: "h4", name: "Wide search", brings: "Eight gates spread further out.", gates: 8, spread: 620, wild: 0.4 },
   { id: "h5", name: "Island sweep", brings: "Ten gates across the island, half off road.", gates: 10, spread: 820, wild: 0.5 },
 ];
-export const HUNT_IDS = HUNT_LEVELS.map((level) => level.id);
 
 export interface Point {
   x: number;

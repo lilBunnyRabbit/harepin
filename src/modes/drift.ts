@@ -36,7 +36,6 @@ export const DRIFT_LEVELS: readonly DriftLevel[] = [
   { id: "d4", name: "Big angle", brings: "Higher targets: more angle, more speed.", points: 240, silver_per_m: 3, gold_per_m: 6 },
   { id: "d5", name: "Touge", brings: "The bendiest stretch of the island, end to end.", points: 300, silver_per_m: 3.5, gold_per_m: 7 },
 ];
-export const DRIFT_IDS = DRIFT_LEVELS.map((level) => level.id);
 
 export interface Zone {
   level: DriftLevel;

@@ -1,6 +1,6 @@
 import { Vector3 } from "three";
 import type { Ground } from "../car/car";
-import { COUPE, type CarSpec } from "../car/cars";
+import type { CarSpec } from "../car/cars";
 import { extent } from "../worldgen/chunk-grid";
 import { DeckIndex } from "../worldgen/deck";
 import { generate } from "../worldgen/index";
@@ -537,18 +537,9 @@ export class World implements Ground {
     this.live--;
   }
 
-  collide(car: Collider): number;
-  /** Positional form for callers not yet passing the car; collides as a COUPE. */
-  collide(pos: Vector3, vel: Vector3, ang: Vector3, heading: number): number;
-  collide(first: Collider | Vector3, vel?: Vector3, ang?: Vector3, heading?: number): number {
-    if (!(first instanceof Vector3)) return this.collide_car(first);
-    if (!vel || !ang || heading === undefined) throw new Error("collide: positional form needs pos, vel, ang, heading");
-    return this.collide_car({ pos: first, vel, ang, heading, spec: COUPE });
-  }
-
   // The car is circles along its heading (nose and tail) so a corner clip spins it instead of stopping it dead; the
   // push and the yaw kick come from the same impulse applied at that circle's offset from the centre of mass.
-  private collide_car(car: Collider): number {
+  collide(car: Collider): number {
     const { pos, spec } = car;
     let impact = 0;
     const fx = Math.sin(car.heading);

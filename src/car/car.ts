@@ -33,7 +33,6 @@ export interface Controls {
 export const SteerMode = { SNAP: "snap", HOLD: "hold", SMOOTH: "smooth" } as const;
 export type SteerMode = (typeof SteerMode)[keyof typeof SteerMode];
 
-export const CAR_BODY = { mass: COUPE.mass, yaw_inertia: COUPE.inertia[1] };
 const GRAVITY = 9.81;
 const SPIN_SLIP = 0.15;
 const TCS_SLIP = 0.14;
