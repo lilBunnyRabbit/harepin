@@ -74,16 +74,19 @@ export interface GroundPlan {
   ops: GroundOp[];
 }
 
-/** What an edge op works out from the edges alone, the same over every window a replay covers. */
+/** What an edge op works out from the ops replayed before it, never the grids: the same over every window. */
 export interface EdgeShape {
-  /** How many edges were laid before it; a replay with another count works its own out. */
+  /** How many edges were laid before it: a guard, not a key, since the heights hang on every op before it. */
   laid: number;
   heights: Float64Array;
   /** Per segment, its x0, x1, z0, z1 box. */
   boxes: Float64Array;
 }
 
-/** Edge shapes one set of replays shares, so each is worked out once rather than once per window. */
+/**
+ * Edge shapes worked out once and reused by every window. One map per op list: every Stamp sharing it must replay the
+ * same ops.
+ */
 export type EdgeShapes = Map<RoadEdge, EdgeShape>;
 
 export class Stamp {
@@ -97,6 +100,8 @@ export class Stamp {
   private bound = new Float64Array(0);
   private bound_mark = new Int32Array(0);
   private pass = 0;
+  /** Reused for every edge when no `shapes` map is shared, so a tile build allocates no shape per edge. */
+  private readonly scratch: EdgeShape = { laid: 0, heights: new Float64Array(0), boxes: new Float64Array(0) };
   private readonly laid: RoadEdge[] = [];
   /** Per laid edge, the x0, x1, z0, z1 box of each GROUP of its segments. */
   private readonly laid_boxes: Float64Array[] = [];
@@ -374,7 +379,9 @@ export class Stamp {
     const known = this.shapes?.get(edge);
     if (known && known.laid === laid) return known;
     const { points } = edge;
-    const boxes = new Float64Array(segments * 4);
+    const { scratch } = this;
+    if (!this.shapes && scratch.boxes.length < segments * 4) scratch.boxes = new Float64Array(segments * 4);
+    const boxes = this.shapes ? new Float64Array(segments * 4) : scratch.boxes;
     for (let s = 0; s < segments; s++) {
       const a = points[s];
       const b = points[(s + 1) % points.length];
@@ -383,8 +390,14 @@ export class Stamp {
       boxes[s * 4 + 2] = Math.min(a.z, b.z);
       boxes[s * 4 + 3] = Math.max(a.z, b.z);
     }
-    const shape = { laid, heights: this.mouths(edge, laid), boxes };
-    this.shapes?.set(edge, shape);
+    const heights = this.mouths(edge, laid);
+    if (!this.shapes) {
+      scratch.laid = laid;
+      scratch.heights = heights;
+      return scratch;
+    }
+    const shape = { laid, heights, boxes };
+    this.shapes.set(edge, shape);
     return shape;
   }
 
