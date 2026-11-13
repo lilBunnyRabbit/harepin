@@ -35,4 +35,10 @@ describe("short_agent", () => {
   ])("%s", (agent, short) => {
     expect(short_agent(agent)).toBe(short);
   });
+
+  test("a Mac with a touch screen is an iPad asking for desktop sites", () => {
+    const agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Safari/605.1.15";
+    expect(short_agent(agent, 5)).toBe("iPadOS, Safari 18");
+    expect(short_agent(agent, 0)).toBe("macOS, Safari 18");
+  });
 });

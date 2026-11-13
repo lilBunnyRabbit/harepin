@@ -27,6 +27,7 @@ export interface PadMenuHost {
   settings: Settings;
   chat: Chat;
   garage_open(): boolean;
+  notice(text: string): void;
 }
 
 function candidates(roots: Element[]): HTMLElement[] {
@@ -190,6 +191,8 @@ export class PadMenu {
       return;
     }
     if (target instanceof HTMLInputElement && target.type !== "submit" && target.type !== "button") return;
+    // A pad press is not user activation, so a new-tab link would be popup-blocked; the ring stays for a tap or click.
+    if (target instanceof HTMLAnchorElement && target.target === "_blank") return this.host.notice("Tap or click the link to open GitHub");
     const play = layer.roots[0] === this.host.settings.panel || !this.overlay();
     target.click();
     const opened = target instanceof HTMLButtonElement ? (target.popoverTargetElement ?? document.getElementById(target.getAttribute("aria-controls") ?? "")) : null;
