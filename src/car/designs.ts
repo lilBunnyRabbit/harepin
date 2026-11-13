@@ -517,5 +517,5 @@ export const DESIGNS: Record<BodyStyle, Design> = {
     panel: { rear: -1.08, front: -0.16, low: 0.14, high: 0.4, side: 0.64 },
     eye: [0.7, 0.84],
   },
-};
   fujin: FUJIN_DESIGN,
+};
