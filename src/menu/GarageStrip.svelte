@@ -332,11 +332,17 @@
     }
   }
 
-  /* Ends wide enough that an arrow sits over the padding, never over the first or last card. After the narrow layout,
-     which a small desktop window takes too. */
+  /* Ends wide enough that an arrow sits over them, never over the first or last card. After the narrow layout, which a
+     small desktop window takes too. The far end is a spacer, not padding: an overflowing flex row drops its end padding
+     from the scroll width. */
   @media (pointer: fine) {
     .garage-cards {
-      padding-inline: calc(var(--control-h) + var(--space-1));
+      padding-inline: calc(var(--control-h) + var(--space-1)) 0;
+    }
+
+    .garage-cards::after {
+      content: "";
+      flex: 0 0 calc(var(--control-h) + var(--space-1) - var(--space-2));
     }
   }
 </style>
