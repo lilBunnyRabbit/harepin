@@ -276,7 +276,7 @@ Round 4, 2026-11-13, at `9b585db`. Plan only. Nothing was run: no `career-check`
 | Club | 7 | 12 Rookie ★ | B-A | as today | Volcano |
 | Pro | 7 | 14 Club ★ | S1-X | as today | Ice canyon |
 | **Elite** | 12 (7 + 5) | **16 Pro ★** of 21 (*proposed*) | mixed: S1-X plus down-class events | owner × 1.03; 2★ = 3★ × 1.25 | Big dunes (batch 2) |
-| **Legend** | 12 | **27 Elite ★** of 36 (*proposed*) | mixed: X and the Legend car | owner × 1.03; 2★ = 3★ × 1.25 | new special map (owner pick, §10.4) |
+| **Legend** | 12 | **27 Elite ★** of 36 | mixed: mostly X, down-class events at S2, S1, A and B (owner, 11-13) | owner × 1.03; 2★ = 3★ × 1.25 | new wall-ride map (owner, 11-13, §10.4) |
 
 | Rule | Change | Code |
 |---|---|---|
@@ -318,7 +318,7 @@ As shipped: **e8 runs `d6`**, because the chain is its own level (`drift.ts:40`,
 
 Legend's 12: below.
 
-#### Legend roster (draft, awaiting owner approval)
+#### Legend roster (approved 2026-11-13)
 
 Drafted 2026-11-13 at `85cd537` from what ships today. Every map, level and championship stage below passed the `career-check` rules (level listed on the map, open ground, gymkhana / parking site near the start, streamed only for race and duel), run on a copy of `scripts/career-check.ts` over this list, since the real script reads `EVENTS`. `tuned` is the key on that run. 3★ = owner × 1.03 for every event, races too (§10.2).
 
@@ -362,7 +362,7 @@ Each kind is a `ModeDef` (`mode.ts:88`) or a level flag on one, so the career, `
 | Tier | Final map | State today | Work |
 |---|---|---|---|
 | Elite | **Big dunes** (`B`, kind `dunes` v15) | Listed, streamed, no roads, routes or gates (`big-dunes.md` status) | A `crossing` route: gates crest to crest across the dune sea, laid by the generator; race already streams. Kind bump bd15 → bd16, records reset. Decal "dunes" |
-| Legend | **Owner pick** | - | (a) Rooftops revived: the R1 code exists unlisted (`worlds/rooftops.ts:23`), dropped 2026-11-12 (`special-maps.md` status). (b) A new banked / wall-ride map, which gives wall-ride (L) its home. Recommended: (b) |
+| Legend | **A new banked / wall-ride map** (owner, 2026-11-13; Rooftops revived was the other option) | Its own quest (t140) | The map gives wall-ride (L) its home; the Legend decal and `l12` land with it |
 
 ### 10.5 Rewards
 
@@ -454,7 +454,7 @@ Ordered by E1 (Elite batch 1 first), then by what unblocks the most.
 ### 10.9 Open questions
 
 1. **Unlocks:** Elite at 16 Pro stars, Legend at 27 Elite stars?
-2. **Legend final map:** Rooftops revived, or a new banked / wall-ride map (recommended)?
+2. **Legend final map:** decided 2026-11-13: a new banked / wall-ride map, not Rooftops revived.
 3. **Season:** 4 weeks, title and name tag tint only?
 4. **Championship points:** 10 / 6 / 3 per stage by stars, or by time against the stage marks? Decided: by stars. A 0★ stage cannot advance: the result card offers Retry stage ("A stage needs 1★ to go on"), so a finished championship has a star on every stage.
 
