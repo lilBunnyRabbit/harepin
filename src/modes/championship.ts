@@ -63,15 +63,19 @@ export class Cup {
     return this.best.reduce<number>((sum, stars) => sum + stage_points(stars ?? 0), 0);
   }
 
-  /** The last stage has a result: the total stands, and Next leaves the championship. */
-  get done(): boolean {
-    return this.index_ === this.stages.length - 1 && this.best[this.index_] !== null;
+  /** The stage has a star: a 0★ stage is retried, never passed (career.md §10.9 Q4, decided). */
+  get cleared(): boolean {
+    return (this.best[this.index_] ?? 0) >= 1;
   }
 
-  /** 0 until done, and 0 when any stage finished without a star (career.md §10.9 Q4, decided). */
+  /** The last stage is cleared: the total stands, and Next leaves the championship. */
+  get done(): boolean {
+    return this.index_ === this.stages.length - 1 && this.cleared;
+  }
+
+  /** 0 until done. */
   get stars(): number {
-    if (!this.done || this.best.some((stars) => (stars ?? 0) < 1)) return 0;
-    return cup_stars(this.total, this.marks);
+    return this.done ? cup_stars(this.total, this.marks) : 0;
   }
 
   get status(): string {
@@ -83,7 +87,7 @@ export class Cup {
   }
 
   advance(): boolean {
-    if (this.best[this.index_] === null || this.index_ + 1 >= this.stages.length) return false;
+    if (!this.cleared || this.index_ + 1 >= this.stages.length) return false;
     this.index_++;
     return true;
   }

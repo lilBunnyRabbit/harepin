@@ -228,9 +228,16 @@ test("a championship runs its stages back to back: Next goes on, a retry keeps t
   expect(r.starts).toEqual(["g1", "g2"]);
   expect(status.dataset.cup).toBe("Stage 2/3 · 10 pts");
 
+  finish(0);
+  expect(next.textContent).toBe("Retry stage");
+  expect(elements.get("mode-result-note")!.textContent).toBe("A stage needs 1★ to go on");
+  next.click();
+  expect(r.starts).toEqual(["g1", "g2", "g2"]);
+  expect(status.dataset.cup).toBe("Stage 2/3 · 10 pts");
+
   finish(1);
   elements.get("mode-retry")!.click();
-  expect(r.starts).toEqual(["g1", "g2", "g2"]);
+  expect(r.starts).toEqual(["g1", "g2", "g2", "g2"]);
   finish(2);
   next.click();
   expect(status.dataset.cup).toBe("Stage 3/3 · 16 pts");

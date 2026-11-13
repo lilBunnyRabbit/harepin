@@ -62,6 +62,8 @@ const NO_EVENT = "This event is not on this map";
 const NEXT_LEVEL = "Next level";
 const NEXT_EVENT = "Next event";
 const NEXT_STAGE = "Next stage";
+const RETRY_STAGE = "Retry stage";
+const STAGE_NEEDS_STAR = "A stage needs 1★ to go on";
 
 export interface LevelEntry {
   id: string;
@@ -570,6 +572,7 @@ export class Modes {
   private play_next() {
     const active = this.current;
     if (!active) return;
+    if (active.cup && !active.cup.cup.cleared) return this.restart();
     if (active.cup && !active.cup.cup.done) return this.next_stage(active, active.cup);
     if (active.play) return active.play.next?.go();
     if (active.event) {
@@ -654,9 +657,13 @@ export class Modes {
     el.standings.hidden = !active.cup;
     if (active.cup) this.show_standings(active.cup);
     if (cup && !cup.done) {
-      el.next.textContent = NEXT_STAGE;
+      el.next.textContent = cup.cleared ? NEXT_STAGE : RETRY_STAGE;
       el.next.hidden = false;
       el.next.disabled = false;
+      if (!cup.cleared) {
+        el.note.textContent = STAGE_NEEDS_STAR;
+        el.note.hidden = false;
+      }
     } else if (active.play) this.show_play(active.play, stars);
     else if (active.event) this.show_event(active.event, stars);
     else {
