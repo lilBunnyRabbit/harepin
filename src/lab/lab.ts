@@ -1,0 +1,110 @@
+import type { Build } from "../car/build";
+import type { Car, Controls } from "../car/car";
+import type { CarSpec } from "../car/cars";
+import { CLASS_LABELS } from "../car/pi";
+import type { LabSpot } from "../worldgen/lab";
+import { INLINE, read_code } from "./pack-code";
+import { resolve_pack, type Aids, type Pack, type Resolved } from "./pack";
+import { PACKS } from "./packs";
+import { Recorder, type Metrics } from "./recorder";
+
+export interface LabHost {
+  /** Drives `spec` drawn as `build`, with the player's aids under the trial's. Never writes the garage build. */
+  drive(build: Build, spec: CarSpec, aids: Aids): void;
+  place(spot: LabSpot): Promise<void>;
+  car(): Car;
+  toast(text: string): void;
+}
+
+export type TrialStatus = "new" | "running" | "done" | "stopped";
+
+export interface TrialResult {
+  status: TrialStatus;
+  metrics: Metrics | null;
+}
+
+export async function load_pack(id: string): Promise<Pack> {
+  if (id.startsWith(INLINE)) return read_code(id);
+  const load = PACKS[id];
+  if (!load) throw new Error(`no lab pack "${id}", expected one of ${Object.keys(PACKS).join(", ")} or ${INLINE}<code>`);
+  return (await load()).default;
+}
+
+// Until the overlay lands these keys walk the pack: next, previous, restart.
+const KEYS: Record<string, number> = { "]": 1, "[": -1, "\\": 0 };
+
+export class Lab {
+  readonly trials: readonly Resolved[];
+  readonly results: TrialResult[];
+  private index = -1;
+  private recorder: Recorder | null = null;
+
+  constructor(
+    readonly pack: Pack,
+    private readonly host: LabHost,
+  ) {
+    this.trials = resolve_pack(pack);
+    this.results = this.trials.map(() => ({ status: "new", metrics: null }));
+  }
+
+  get current(): Resolved | null {
+    return this.trials[this.index] ?? null;
+  }
+
+  start() {
+    addEventListener("keydown", this.on_key);
+  }
+
+  stop() {
+    removeEventListener("keydown", this.on_key);
+  }
+
+  private readonly on_key = (event: KeyboardEvent) => {
+    const step = KEYS[event.key];
+    if (step === undefined || event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+    const next = Math.max(0, Math.min(this.trials.length - 1, this.index + step));
+    void this.begin(next);
+  };
+
+  async begin(index: number) {
+    this.finish("stopped");
+    const r = this.trials[index];
+    this.index = index;
+    this.recorder = null;
+    this.host.drive(r.build, r.spec, r.trial.aids ?? {});
+    await this.host.place(r.lane.spawn);
+    this.recorder = new Recorder(r.lane, r.trial.goal);
+    this.recorder.placed(this.host.car());
+    this.results[index] = { status: "running", metrics: null };
+    this.host.toast(`Trial ${index + 1}/${this.trials.length} ${r.trial.id}: ${r.trial.try} (${CLASS_LABELS[r.class]} ${r.pi})`);
+  }
+
+  /** Every physics step, after the car's. */
+  step(dt: number, car: Car, input: Controls) {
+    const recorder = this.recorder;
+    if (!recorder) return;
+    recorder.step(dt, car, input);
+    if (recorder.done) {
+      this.finish("done");
+      this.host.toast(`${this.trials[this.index].trial.id} done: ${this.index + 1 < this.trials.length ? "] for the next trial" : "pack done"}`);
+    }
+  }
+
+  placed(car: Car) {
+    this.recorder?.placed(car);
+  }
+
+  private finish(status: "done" | "stopped") {
+    const recorder = this.recorder;
+    if (!recorder || this.index < 0) return;
+    this.results[this.index] = { status, metrics: recorder.metrics() };
+    this.recorder = null;
+  }
+}
+
+export async function open_lab(id: string, host: LabHost): Promise<Lab> {
+  const lab = new Lab(await load_pack(id), host);
+  lab.start();
+  await lab.begin(0);
+  return lab;
+}

@@ -60,7 +60,8 @@ import { MenuTab, invite_link } from "./menu/page";
 import { Settings } from "./menu/settings";
 import { BUILD, Updater, show_version } from "./menu/update";
 import { card_closed_now, show_updated } from "./menu/updated-card";
-import { pick_world } from "./world/world-pick";
+import { LAB_PARAM, pick_world } from "./world/world-pick";
+import type { Lab } from "./lab/lab";
 import { GUARD_STATE, SystemBack, type Watcher } from "./menu/system-back";
 import { SPAWN_INDEX } from "./world/world";
 import { WorldStream } from "./world/world-stream";
@@ -82,10 +83,11 @@ const params = new URLSearchParams(location.search);
 const room = clean_room(params.get("room")) ?? LOBBY_ROOM;
 const event = event_of(params.get(EVENT_PARAM));
 const run = event ? null : run_of(params.get(RUN_PARAM));
+const lab_id = params.get(LAB_PARAM);
 // Any peer on the map can call a lobby race, and that ends a mode run: an event link without a room of its own runs
 // alone in an unlisted room, as does a review shot, which no peer should drive into. The menu still names `room`, so
 // the next world picked lands back in it.
-const solo = (event !== null || run !== null || review_wanted(params)) && !params.has("room");
+const solo = (event !== null || run !== null || lab_id !== null || review_wanted(params)) && !params.has("room");
 // getRandomValues, not randomUUID: the latter only exists in a secure context, and a phone on the LAN dev server is not one.
 const net_room = solo ? `solo-${[...crypto.getRandomValues(new Uint8Array(4))].map((b) => b.toString(16).padStart(2, "0")).join("")}` : room;
 // A room the player chose stays theirs across events; without one the event runs solo.
@@ -281,7 +283,7 @@ lobby.on_sit_out = () => {
 lobby.car = () => driver.car.spec.id;
 race.on_start = () => ghost.start();
 
-const updater = new Updater({ busy: () => lobby.busy || modes.active, menu_open: () => settings.is_open, show_notes: () => settings.open_changes() });
+const updater = new Updater({ busy: () => lobby.busy || modes.active || lab_id !== null, menu_open: () => settings.is_open, show_notes: () => settings.open_changes() });
 const settings = new Settings(document.body, {
   room,
   seed,
@@ -619,6 +621,31 @@ if (params.has("feel")) void import("./hud/feel-panel").then(({ feel_panel }) =>
   },
 }));
 
+// `?lab=<pack>`: the feel lab loads on demand and drives trial cars that never touch the garage build.
+let lab: Lab | null = null;
+if (lab_id !== null)
+  void import("./lab/lab")
+    .then(({ open_lab }) =>
+      open_lab(lab_id, {
+        drive: (build, spec, aids) => {
+          driver.swap(build, false, spec);
+          apply_car_settings({ ...settings.state, ...aids });
+          input.touch.show_nitro(driver.car.nitro.fitted);
+        },
+        place: async (spot) => {
+          await driver.arrive(spot.x, spot.z);
+          driver.park(spot.x, spot.z, spot.heading);
+        },
+        car: () => driver.car,
+        toast: (text) => hud.toast(text),
+      }),
+    )
+    .then((opened) => (lab = opened))
+    .catch((error: unknown) => {
+      console.error(error);
+      hud.toast(`Lab: ${error instanceof Error ? error.message : String(error)}`);
+    });
+
 const DT = 1 / 360;
 let acc = 0;
 let last = review?.now ?? performance.now();
@@ -631,7 +658,10 @@ let last_draw = 0;
 new Heartbeat(net, garage, driver, race, seed).start();
 let stuck = 0;
 const stuck_prompt = new StuckPrompt();
-driver.placed = () => stuck_prompt.clear();
+driver.placed = () => {
+  stuck_prompt.clear();
+  lab?.placed(driver.car);
+};
 let rewinding = false;
 
 const NEAR_GAP = 1.2;
@@ -721,6 +751,7 @@ function frame(time: number) {
       pads.step(DT, car, world);
       stepped += DT;
       impact = Math.max(impact, world.collide(car));
+      lab?.step(DT, car, controls);
       acc -= DT;
     }
     const { near, touched } = near_miss(impact);
@@ -757,8 +788,8 @@ function frame(time: number) {
   hud_sheet.update();
 
   // A mode spawns the car anywhere, the circuit start included: its lap clock would count that as a lap.
-  // A review replay is a dev ghost driving, not the player: it never sets a lap record.
-  if (!modes.active && !review) race.update(car.pos.x, car.pos.z, now);
+  // A review replay is a dev ghost driving, not the player: it never sets a lap record; nor does the lab, which keys none.
+  if (!modes.active && !review && lab_id === null) race.update(car.pos.x, car.pos.z, now);
   update_gates(now / 1000);
   ghost.update(race.started && !modes.active ? now - race.started : null, camera.position);
   modes.update(stepped, car);
