@@ -29,6 +29,15 @@
   box-shadow: inset 0 0 0 2px var(--tag-tint, transparent);
 }
 
+/* A Legend's tag is framed in its carbon twill; the season tint still rings inside it. */
+.label[data-weave] {
+  padding-block: 0;
+  border: 2px solid transparent;
+  background:
+    linear-gradient(var(--surface), var(--surface)) padding-box,
+    repeating-linear-gradient(45deg, var(--metal) 0 3px, color-mix(in oklab, var(--metal) 35%, var(--weave)) 3px 6px) border-box;
+}
+
 .label:has(.label-title) {
   display: flex;
   align-items: center;

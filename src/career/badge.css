@@ -26,6 +26,18 @@
   );
 }
 
+/* Legend's carbon: the twill its paint wears under the same lit and shaded facets. The resin stripe sits halfway to the tow so
+   the letter holds over them. */
+.career-badge[data-weave]::before {
+  background:
+    linear-gradient(90deg, color-mix(in oklab, var(--background-lightest) 22%, transparent) 50%, transparent 50%),
+    repeating-linear-gradient(
+      45deg,
+      var(--metal) 0 0.12em,
+      color-mix(in oklab, var(--metal) 45%, var(--weave)) 0.12em 0.24em
+    );
+}
+
 .career-badge b {
   position: relative;
   color: var(--metal-ink);

@@ -17,6 +17,8 @@
   class="career-badge"
   style:--metal={look.metal}
   style:--metal-ink={look.ink}
+  style:--weave={look.weave}
+  data-weave={look.weave ? "" : undefined}
   role={decorative ? undefined : "img"}
   aria-label={decorative ? undefined : look.text}
   aria-hidden={decorative || undefined}

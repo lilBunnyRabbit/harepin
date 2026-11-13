@@ -6,7 +6,7 @@ import { chunk_of } from "../worldgen/chunk-grid";
 import { show_flame } from "../car/lights";
 import { build_view, camera_fade, dispose_car_view, rest_wheels, type CarView } from "../car/models";
 import type { World } from "../world/world";
-import { tier_badge } from "../career/badge";
+import { tier_badge, tier_look } from "../career/badge";
 import { title_text } from "../runs/season";
 import { set_text } from "../hud/hud";
 import type { CarState, Net, Remote, TierBadge } from "./net";
@@ -216,6 +216,12 @@ export class Remotes {
         rv.label.replaceChildren(...(tier ? [tier_badge(tier)] : []), rv.name, ...shown);
         if (hello?.tag?.tint) rv.label.style.setProperty("--tag-tint", `var(--${hello.tag.tint})`);
         else rv.label.style.removeProperty("--tag-tint");
+        const look = tier ? tier_look(tier) : null;
+        if (look?.weave) {
+          rv.label.dataset.weave = "";
+          rv.label.style.setProperty("--metal", look.metal);
+          rv.label.style.setProperty("--weave", look.weave);
+        } else delete rv.label.dataset.weave;
       }
       rv.label.style.transform = `translate(${((this.screen.x + 1) / 2) * innerWidth}px, ${((1 - this.screen.y) / 2) * innerHeight}px) translate(-50%, -100%)`;
     }
