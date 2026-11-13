@@ -8,6 +8,8 @@ export interface Stage {
   readonly stars?: Thresholds;
 }
 
+/** The id a championship's best total keeps in its event store, beside each stage's level. */
+export const CUP_RECORD = "cup";
 export const MIN_STAGES = 3;
 export const MAX_STAGES = 5;
 /** Points by a stage's stars (career.md §10.3, proposed): 1★ 3, 2★ 6, 3★ 10. */
@@ -66,8 +68,10 @@ export class Cup {
     return this.index_ === this.stages.length - 1 && this.best[this.index_] !== null;
   }
 
+  /** 0 until done, and 0 when any stage finished without a star (career.md §10.9 Q4, decided). */
   get stars(): number {
-    return this.done ? cup_stars(this.total, this.marks) : 0;
+    if (!this.done || this.best.some((stars) => (stars ?? 0) < 1)) return 0;
+    return cup_stars(this.total, this.marks);
   }
 
   get status(): string {

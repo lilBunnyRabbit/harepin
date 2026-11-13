@@ -19,7 +19,7 @@ import { DRIFT_MODE } from "./drift-mode";
 import { DUEL_MODE } from "./duel-mode";
 import { GYMKHANA_MODE } from "./gymkhana-mode";
 import { HUNT_MODE } from "./hunt-mode";
-import { Cup, stage_points, type Stage } from "./championship";
+import { CUP_RECORD, Cup, stage_points, type Stage } from "./championship";
 import { JUMP_MODE } from "./jump-mode";
 import { Hits } from "./hits";
 import type { Ground } from "./marks";
@@ -276,8 +276,11 @@ export class Modes {
 
   /** The caller has checked this map is the event's. Career levels are all open: the mode's own unlock order is free play's. */
   play_event(event: CareerEvent, play: RunPlay | null = null) {
+    // A stand-in runs one level on another map; a championship's stages name their levels on its own map only.
+    if (event.stages && event.stand_in) return this.notice(NO_EVENT);
     const legs = this.legs(event.stages ?? [{ mode: event.mode, level: spot_of(event).level, name: event.name }]);
     if (!legs) return this.notice(NO_EVENT);
+    if (this.world.tiles.streamed && legs.some((leg) => !leg.mode.def.streams)) return this.notice(STREAMED);
     const [{ mode, level }] = legs;
     const tier = tier_of(event);
     const before = TIERS[TIERS.indexOf(tier) - 1];
@@ -386,11 +389,13 @@ export class Modes {
     }
   }
 
-  // A refused start leaves the event, so the player's car goes back on.
-  private refuse(text: string) {
+  // A refused start leaves the event, so the player's car goes back on; a championship says where it ended.
+  private refuse(text: string, active: Active | null = null) {
+    const cup = active?.cup?.cup;
+    const ended = cup && cup.index > 0 ? ` · championship over at stage ${cup.index + 1}/${cup.stages.length}, ${cup.total} pts` : "";
     this.clear();
     this.give_back();
-    this.notice(text);
+    this.notice(`${text}${ended}`);
   }
 
   private wrong_car(event: CareerEvent | null): string | null {
@@ -451,7 +456,7 @@ export class Modes {
   private launch(active: Active) {
     const { tiles } = this.world;
     if (tiles.streamed && !active.mode.def.streams) {
-      return this.refuse(STREAMED);
+      return this.refuse(STREAMED, active);
     }
     // Mode sites and views read terrain anywhere on a compact map: a start before every chunk is in waits for the rest.
     if (!tiles.streamed && !tiles.complete) {
@@ -462,7 +467,7 @@ export class Modes {
     }
     const over = this.wrong_car(active.event);
     if (over) {
-      return this.refuse(over);
+      return this.refuse(over, active);
     }
     // A streamed world holds only the chunks round the car: the run is built first, and the car goes down on its start
     // once the chunks there are in.
@@ -470,7 +475,7 @@ export class Modes {
     const hold = tiles.streamed ? (x: number, z: number, heading: number) => (spot = { x, z, heading }) : null;
     const run = active.mode.def.start(this.ctx(active.track, graded(active), hold, active.play), active.level);
     if (typeof run === "string") {
-      return this.refuse(run);
+      return this.refuse(run, active);
     }
     if (!run) return;
     if (!spot) return this.go(active, run);
@@ -634,6 +639,8 @@ export class Modes {
     const { levels, track } = active.mode;
     const cup = active.cup?.cup ?? null;
     cup?.score(finish.stars);
+    // No time of its own: a championship ranks by its points, which the career page shows.
+    if (cup?.done && cup.stars) active.track.record(CUP_RECORD, { stars: cup.stars, ms: 1, score: cup.total });
     const stars = cup?.done ? cup.stars : finish.stars;
     el.title.textContent = cup?.done && active.event ? `${active.event.name} · ${cup.total} pts` : finish.title;
     el.result_stars.replaceChildren(star_row(stars));

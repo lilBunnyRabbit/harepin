@@ -1,4 +1,4 @@
-import type { Stage } from "../modes/championship";
+import { CUP_RECORD, type Stage } from "../modes/championship";
 import { Track, read_json, write_json, type StarRun, type Store, type Thresholds } from "../modes/track";
 import { world_key, type MapSpec } from "../worldgen/kinds/kinds";
 import { parse_map_code } from "../worldgen/kinds/map-code";
@@ -39,8 +39,8 @@ export class Career {
     return true;
   }
 
-  /** `level`: a championship stage's; the event's own when absent. */
-  best(event: CareerEvent, level = spot_of(event).level): StarRun | undefined {
+  /** `level`: a championship stage's; absent, the event's own run, a championship's best total. */
+  best(event: CareerEvent, level = event.stages ? CUP_RECORD : spot_of(event).level): StarRun | undefined {
     return event_track(event, this.store).runs[level];
   }
 }

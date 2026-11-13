@@ -202,6 +202,10 @@ test("a championship runs its stages back to back: Next goes on, a retry keeps t
   };
   const cup = { ...capped, id: "cup-test", name: "Cup", level: "g1", stars: undefined, stages: [{ mode: "gymkhana", level: "g1" }, { mode: "gymkhana", level: "g2" }, { mode: "gymkhana", level: "g3" }] };
   const career = (r.modes as unknown as { career: Career }).career;
+  const saved: Record<string, string> = {};
+  const store = { getItem: (key: string) => saved[key] ?? null, setItem: (key: string, value: string) => void (saved[key] = value) };
+  const kept = globalThis.localStorage;
+  globalThis.localStorage = store as Storage;
   const status = elements.get("mode-status") ?? (document.getElementById("mode-status") as unknown as FakeElement);
   const next = elements.get("mode-next")!;
   const finish = (stars: number) => {
@@ -235,7 +239,39 @@ test("a championship runs its stages back to back: Next goes on, a retry keeps t
   expect(elements.get("mode-result-title")!.textContent).toBe("Cup · 26 pts");
   expect(next.textContent).toBe("Next event");
   expect(career.stars["cup-test"]).toBe(3);
+  globalThis.localStorage = kept;
+  expect(new Career(store).best(cup)).toEqual({ stars: 3, ms: 1, score: 26 });
   expect(r.car).toBe(FIRST);
   r.modes.exit();
   expect(status.dataset.cup).toBeUndefined();
+});
+
+const stages = [{ mode: "gymkhana", level: "g1" }, { mode: "gymkhana", level: "g2" }, { mode: "gymkhana", level: "g3" }];
+
+test("a championship with a stand-in, or with a stage its streamed world refuses, does not start", async () => {
+  const r = rig();
+  r.modes.play_event({ ...capped, id: "cup-in", level: "g1", stages, stand_in: { map: "1C0000004", level: "g1" } });
+  const streamed = rig();
+  (streamed.modes as unknown as { world: { tiles: { streamed: boolean } } }).world.tiles.streamed = true;
+  streamed.modes.play_event({ ...capped, id: "cup-far", level: "g1", stages });
+  await settle();
+  expect([r.asked, r.starts, streamed.asked, streamed.starts]).toEqual([0, [], 0, []]);
+  expect(elements.get("mode-result-note")!.textContent).toBe("This mode is not on this world yet");
+});
+
+test("a stage that refuses to start mid-championship says the championship ended and its points", async () => {
+  const r = rig();
+  GYMKHANA_MODE.start = (_ctx, level) => {
+    r.starts.push(level.id);
+    return level.id === "g2" ? "No room here" : { update: () => null, finished: () => ({ title: level.name, stars: 3, lines: [] }), dispose: () => {} };
+  };
+  r.modes.play_event({ ...capped, id: "cup-break", level: "g1", stages });
+  await settle();
+  r.answer(FIRST);
+  await settle();
+  r.modes.update(0, {} as never);
+  elements.get("mode-next")!.click();
+  expect(r.starts).toEqual(["g1", "g2"]);
+  expect(r.modes.active).toBe(false);
+  expect(elements.get("mode-status")!.textContent).toBe("No room here · championship over at stage 2/3, 10 pts");
 });

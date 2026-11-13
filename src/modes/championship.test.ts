@@ -48,11 +48,15 @@ test("a retry keeps the stage's better result", () => {
   expect(cup.total).toBe(10);
 });
 
-test("a 0-star stage still moves the championship on", () => {
+test("a 0-star stage still moves the championship on, but the championship then grades 0 stars", () => {
   const cup = new Cup(STAGES);
   cup.score(0);
   expect(cup.total).toBe(0);
   expect(cup.advance()).toBe(true);
+  cup.score(3);
+  cup.advance();
+  cup.score(3);
+  expect([cup.done, cup.total, cup.stars]).toEqual([true, 20, 0]);
 });
 
 test("cup_status reads as the HUD line", () => {
@@ -69,5 +73,6 @@ test("every championship event has 3-5 stages, the first its own mode and level"
     const stages = event.stages ?? [];
     expect([event.id, stages.length >= MIN_STAGES && stages.length <= MAX_STAGES]).toEqual([event.id, true]);
     expect([event.id, stages[0]?.mode, stages[0]?.level]).toEqual([event.id, event.mode, event.level]);
+    expect([event.id, event.stand_in]).toEqual([event.id, undefined]);
   }
 });

@@ -58,7 +58,7 @@ for (const event of EVENTS) {
   const stages = event.stages ?? [{ mode: event.mode, level: spot.level }];
   const problems = (on: MapSpec) => stages.map((stage) => problem(on, stage.mode, stage.level));
   const whys = problems(map);
-  const why = whys.find((w) => w !== null) ?? null;
+  const why = event.stages && event.stand_in ? "a championship takes no stand-in" : (whys.find((w) => w !== null) ?? null);
   const key = world_key(map.seed, map.kind, map.levels);
   const stale = event.tuned === key ? "" : ` tuned "${event.tuned}" != "${key}"`;
   const what = event.stages ? `championship of ${stages.length}` : `${event.mode} ${spot.level}`;
