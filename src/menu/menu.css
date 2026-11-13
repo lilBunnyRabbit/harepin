@@ -567,6 +567,15 @@
   .menu-room {
     display: none;
   }
+
+  .menu-tabs {
+    justify-self: stretch;
+  }
+
+  .settings .menu-tab {
+    flex: 1 1 auto;
+    padding: 0 var(--space-2);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

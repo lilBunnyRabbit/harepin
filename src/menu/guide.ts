@@ -36,7 +36,7 @@ const Device = {
 } as const;
 type Device = (typeof Device)[keyof typeof Device];
 
-const DEVICES: [Device, string][] = [
+export const DEVICES: [Device, string][] = [
   [Device.KEYBOARD, "Keyboard"],
   [Device.PAD, "Controller"],
   [Device.TOUCH, "Touch"],
@@ -124,7 +124,7 @@ export interface GuideHost {
   reload_on_look(rolled: boolean): void;
 }
 
-function detect(): Device {
+export function detect_device(): Device {
   if (matchMedia("(pointer: coarse)").matches) return Device.TOUCH;
   if (navigator.getGamepads().some((pad) => pad?.connected)) return Device.PAD;
   return Device.KEYBOARD;
@@ -147,7 +147,7 @@ export class Guide {
   readonly panel = el("section", "guide-panel");
   readonly skip_button = button("guide-skip", "Skip guide");
   private step = 0;
-  private found: Device = detect();
+  private found: Device = detect_device();
   private device: Device = this.found;
   private world: WorldKind;
   private readonly name_input = el("input", "guide-name");

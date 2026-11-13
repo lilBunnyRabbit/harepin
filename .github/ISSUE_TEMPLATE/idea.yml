@@ -1,0 +1,41 @@
+name: Idea or improvement
+description: Something you'd like added or changed.
+title: "[Idea] "
+labels: [idea]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Your idea
+      description: What you'd like, and what it would make better for you.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Filled in when you open this from the game's Support tab. Otherwise it's at the bottom of Settings.
+      placeholder: "0.36.0"
+  - type: input
+    id: device
+    attributes:
+      label: Device and browser
+      placeholder: "Windows, Chrome 131"
+  - type: input
+    id: input
+    attributes:
+      label: Input
+      description: Keyboard, controller or touch.
+      placeholder: "keyboard"
+  - type: input
+    id: map
+    attributes:
+      label: Map
+      description: The map code, or the world and seed.
+      placeholder: "island 1"
+  - type: input
+    id: graphics
+    attributes:
+      label: Graphics tier
+      description: High, medium or low (Settings, Graphics).
+      placeholder: "high"

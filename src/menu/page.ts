@@ -20,6 +20,7 @@ export const MenuTab = {
   GARAGE: "garage",
   ONLINE: "online",
   SETTINGS: "settings",
+  SUPPORT: "support",
 } as const;
 export type MenuTab = (typeof MenuTab)[keyof typeof MenuTab];
 

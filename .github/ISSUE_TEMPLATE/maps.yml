@@ -1,0 +1,44 @@
+name: Maps and worlds
+description: Map generation, roads, terrain, spawns, a place that looks or drives wrong.
+title: "[Map] "
+labels: [maps]
+body:
+  - type: markdown
+    attributes:
+      value: The map code below lets me load the exact same world you were on.
+  - type: textarea
+    id: description
+    attributes:
+      label: What's wrong with the map
+      description: Where it is (near the spawn, a landmark, the world map) and what's off about it. A screenshot helps.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Filled in when you open this from the game's Support tab. Otherwise it's at the bottom of Settings.
+      placeholder: "0.36.0"
+  - type: input
+    id: device
+    attributes:
+      label: Device and browser
+      placeholder: "Windows, Chrome 131"
+  - type: input
+    id: input
+    attributes:
+      label: Input
+      description: Keyboard, controller or touch.
+      placeholder: "keyboard"
+  - type: input
+    id: map
+    attributes:
+      label: Map
+      description: The map code, or the world and seed.
+      placeholder: "island 1"
+  - type: input
+    id: graphics
+    attributes:
+      label: Graphics tier
+      description: High, medium or low (Settings, Graphics).
+      placeholder: "high"

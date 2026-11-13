@@ -1,0 +1,44 @@
+name: Driving feel
+description: Handling, grip, steering, drifting, the camera, how the car sits on the road.
+title: "[Feel] "
+labels: [feel]
+body:
+  - type: markdown
+    attributes:
+      value: I'm still tuning how every car drives, so this kind of feedback helps a lot.
+  - type: textarea
+    id: description
+    attributes:
+      label: What felt off
+      description: Which car, what you were doing (corner, jump, drift, braking) and what you expected it to feel like.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Filled in when you open this from the game's Support tab. Otherwise it's at the bottom of Settings.
+      placeholder: "0.36.0"
+  - type: input
+    id: device
+    attributes:
+      label: Device and browser
+      placeholder: "Windows, Chrome 131"
+  - type: input
+    id: input
+    attributes:
+      label: Input
+      description: Keyboard, controller or touch.
+      placeholder: "keyboard"
+  - type: input
+    id: map
+    attributes:
+      label: Map
+      description: The map code, or the world and seed.
+      placeholder: "island 1"
+  - type: input
+    id: graphics
+    attributes:
+      label: Graphics tier
+      description: High, medium or low (Settings, Graphics).
+      placeholder: "high"

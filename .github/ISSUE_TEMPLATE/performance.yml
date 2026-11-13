@@ -1,0 +1,41 @@
+name: Performance
+description: Low frame rate, stutter, long loads, heat or battery drain.
+title: "[Performance] "
+labels: [performance]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: What runs slow
+      description: When it happens (loading, driving, the menu, online), and roughly how bad (fps, seconds).
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Filled in when you open this from the game's Support tab. Otherwise it's at the bottom of Settings.
+      placeholder: "0.36.0"
+  - type: input
+    id: device
+    attributes:
+      label: Device and browser
+      placeholder: "Windows, Chrome 131"
+  - type: input
+    id: input
+    attributes:
+      label: Input
+      description: Keyboard, controller or touch.
+      placeholder: "keyboard"
+  - type: input
+    id: map
+    attributes:
+      label: Map
+      description: The map code, or the world and seed.
+      placeholder: "island 1"
+  - type: input
+    id: graphics
+    attributes:
+      label: Graphics tier
+      description: High, medium or low (Settings, Graphics).
+      placeholder: "high"
