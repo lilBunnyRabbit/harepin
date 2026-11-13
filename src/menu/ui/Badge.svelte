@@ -3,7 +3,7 @@
 
   interface Props {
     kind?: "tag" | "count";
-    tone?: "neutral" | "primary" | "accent" | "success" | "info";
+    tone?: "neutral" | "primary" | "accent" | "success" | "info" | "warning";
     children: Snippet;
   }
 
@@ -56,5 +56,10 @@
   [data-tone="info"] {
     background: color-mix(in oklch, var(--info) 24%, transparent);
     color: var(--info);
+  }
+
+  [data-tone="warning"] {
+    background: color-mix(in oklch, var(--warning) 24%, transparent);
+    color: var(--warning);
   }
 </style>

@@ -7,6 +7,7 @@
     /** Holds a `RowList`: the rows bring their own padding. */
     list?: boolean;
     label?: string;
+    selected?: boolean;
     class?: string;
     children: Snippet;
   }
@@ -52,6 +53,11 @@
 
   .ui-tile:hover {
     border-color: var(--line-strong);
+  }
+
+  .ui-tile[aria-pressed="true"] {
+    border-color: var(--primary);
+    box-shadow: inset 0 0 0 1px var(--primary);
   }
 
   .ui-tile:focus-visible {

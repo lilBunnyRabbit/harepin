@@ -1,4 +1,5 @@
 <script lang="ts" generics="T extends string">
+  import Icon from "./Icon.svelte";
   import type { Tab } from "./types";
 
   interface Props {
@@ -6,10 +7,18 @@
     value: T;
     variant?: "nav" | "section" | "steps";
     label: string;
+    /** `steps` only: earlier steps show a check instead of their number. */
+    done?: boolean;
+    /** At phone width: tighter tab padding; in `steps`, the steps other than the current one show just their number. */
+    compact?: boolean;
+    /** The track takes the full width and the tabs share it, a long label ellipsizing instead of scrolling the track. */
+    fill?: boolean;
     onchange?: (id: T) => void;
   }
 
-  let { items, value = $bindable(), variant = "section", label, onchange }: Props = $props();
+  let { items, value = $bindable(), variant = "section", label, done = false, compact = false, fill = false, onchange }: Props = $props();
+
+  const current = $derived(items.findIndex((item) => item.id === value));
 
   function pick(id: T) {
     value = id;
@@ -17,11 +26,14 @@
   }
 </script>
 
-<nav class="ui-tabs" data-variant={variant} aria-label={label}>
+<nav class="ui-tabs" class:ui-compact={compact} class:ui-fill={fill} data-variant={variant} aria-label={label}>
   {#each items as item, index (item.id)}
     <button type="button" class="ui-tab" aria-current={item.id === value} onclick={() => pick(item.id)}>
-      {#if variant === "steps"}<span class="ui-step">{index + 1}</span>{/if}
-      {item.label}
+      {#if variant === "steps"}
+        {@const passed = done && index < current}
+        <span class="ui-step" class:ui-passed={passed}>{#if passed}<Icon name="icon-check" />{:else}{index + 1}{/if}</span>
+      {/if}
+      {#if compact || fill}<span class="ui-tab-label">{item.label}</span>{:else}{item.label}{/if}
     </button>
   {/each}
 </nav>
@@ -98,6 +110,47 @@
   .ui-tab[aria-current="true"] .ui-step {
     background: var(--primary);
     color: var(--on-primary);
+  }
+
+  .ui-fill {
+    width: 100%;
+  }
+
+  .ui-fill .ui-tab {
+    flex: 1 1 0;
+    justify-content: center;
+    min-width: 0;
+  }
+
+  .ui-fill .ui-tab-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .ui-step.ui-passed {
+    --icon-size: var(--text-lg);
+    box-shadow: inset 0 0 0 1px var(--primary);
+    color: var(--primary);
+  }
+
+  @media (max-width: 600px) {
+    .ui-compact .ui-tab,
+    [data-variant="nav"].ui-compact .ui-tab {
+      padding: 0 var(--space-3);
+    }
+
+    [data-variant="steps"].ui-compact .ui-tab:not([aria-current="true"]) {
+      padding: 0 var(--space-1);
+    }
+
+    [data-variant="steps"].ui-compact .ui-tab:not([aria-current="true"]) .ui-step {
+      margin-left: 0;
+    }
+
+    [data-variant="steps"].ui-compact .ui-tab:not([aria-current="true"]) .ui-tab-label {
+      display: none;
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {
