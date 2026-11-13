@@ -12,6 +12,7 @@ import { aero_of, aero_parts, kit_parts, rear_wing } from "./part-looks";
 import { STOCK_CALIPER, STOCK_TYRE, caliper_geometry, chrome_tone, wheel_geometry } from "./wheels";
 import { paint_finish, paint_lab, type Finish } from "./paint";
 import { brand, color, dark, mix, tones } from "../theme/palette";
+import { sky_ceiling } from "../render/sky";
 import type { Lab } from "../theme/theme";
 
 export interface CarView {
@@ -82,6 +83,8 @@ const STRIP: [number, Lab][] = [
   [1, SKY],
 ];
 const STRIP_ROWS = 64;
+/** Share of the ceiling a metal face reaches before its highlight starts to roll off. */
+const SHEEN_KNEE = "0.55";
 let strip: THREE.DataTexture | null = null;
 
 function studio(): THREE.DataTexture {
@@ -112,6 +115,20 @@ function metal_hull(painted: THREE.BufferGeometry, finish: Finish): THREE.Mesh {
     envMap: studio(),
     envMapIntensity: finish.reflect,
   });
+  // A flat face at the low sun's mirror angle (roof, deck from behind) lights whole at the specular peak, far over 1, and
+  // with no tone mapping clipped white and bloomed. Rolling luma off under the bloom-safe ceiling keeps faces ordered.
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.ceiling = sky_ceiling;
+    shader.fragmentShader = `uniform float ceiling;\n${shader.fragmentShader}`.replace(
+      "#include <opaque_fragment>",
+      `#include <opaque_fragment>
+  float luma = max(dot(gl_FragColor.rgb, vec3(0.299, 0.587, 0.114)), 1e-4);
+  float knee = ceiling * ${SHEEN_KNEE};
+  float rolled = luma <= knee ? luma : knee + (ceiling - knee) * (1.0 - exp((knee - luma) / (ceiling - knee)));
+  gl_FragColor.rgb *= rolled / luma;
+  gl_FragColor.rgb /= max(1.0, max(gl_FragColor.r, max(gl_FragColor.g, gl_FragColor.b)));`,
+    );
+  };
   const mesh = new THREE.Mesh(painted, material);
   mesh.castShadow = true;
   return mesh;
