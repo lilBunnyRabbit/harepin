@@ -12,6 +12,7 @@ import { SEA_LEVEL } from "../worldgen/water";
 import { crown_tone } from "./crowns";
 import { charred_kit, type TreeLook } from "./snags";
 import type { Lab } from "../theme/theme";
+import { WorldKind } from "../worldgen/types";
 
 const JITTER_LIGHTNESS = 0.035;
 const STONE_SHADE = 0.06;
@@ -48,13 +49,13 @@ function jitter(i: number, j: number): number {
 }
 
 // Jitter is quantised so each tone converts OKLab to linear once per level, not per vertex; 64 levels is ~0.0003 L error.
-function terrain_lut(): Float32Array {
+function terrain_lut(kind: WorldKind | null): Float32Array {
   const surface: Record<Ground, Lab> = {
     [Ground.GRASS]: tones.grass,
     [Ground.DRY]: mix(tones.grass, tones.grass_dry, 0.55),
     [Ground.SAND]: tones.sand,
     [Ground.FOREST]: tones.forest_floor,
-    [Ground.UPLAND]: tones.grass_dry,
+    [Ground.UPLAND]: kind === WorldKind.DESERT ? tones.desert_upland : tones.grass_dry,
     [Ground.DUNE]: mix(tones.sand, tones.dirt, DUNE_DIRT),
     [Ground.DIRT]: tones.dirt,
     [Ground.PAN]: lighten(mix(tones.sand, tones.dirt, PAN_CLAY), PAN_LIGHTEN),
@@ -76,9 +77,9 @@ function terrain_lut(): Float32Array {
   return lut;
 }
 
-export function mesh_tones(snowy = false): MeshTones {
+export function mesh_tones(snowy = false, kind: WorldKind | null = null): MeshTones {
   return {
-    terrain: terrain_lut(),
+    terrain: terrain_lut(kind),
     asphalt: linear(snowy ? mix(tones.snow, tones.asphalt, ROAD_SNOW) : tones.asphalt),
     water: linear(tones.water),
     sidewalk: linear(tones.sidewalk),

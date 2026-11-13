@@ -74,6 +74,12 @@ const above_asphalt = (share: number) => lighten(asphalt, (brand.foreground[0] -
 // warms it to tan; light sand then sits up at the pale surface end so it stays the lightest ground, and dirt a step under
 // it in the same hue, so shoulders and trails read as earth rather than olive.
 const warm = mix(brand.warning, brand.error, 0.45);
+const grass_dry = dark ? mix(brand.warning, ground, 0.26) : mix(warm, ground, 0.36);
+const sand = dark ? mix(brand.warning, brand.foreground, 0.35) : mix(warm, brand.background_darkest, 0.35);
+// The lava pool glows at a fixed luma, so its tone sets only the hue and how saturated it stays. Dusk tokens are pastel:
+// scaled up to the glow they clipped to pale peach; pulled down in L with the same chroma they keep a hot orange-red.
+// Brand Light's error is deep already, and its warning olive, so noon lava leans on the error. The ground keeps `lava`.
+const DUSK_LAVA_DROP = 0.3;
 // Snow under a dusk sky leans cold, so it never reads as the desert's sand in the same warm light.
 const DUSK_SNOW_LIFT = 0.05;
 
@@ -85,10 +91,13 @@ export const tones = {
   pad: lighten(brand.accent, 0.14),
   chevron: lighten(brand.accent, -0.16),
   grass,
-  grass_dry: dark ? mix(brand.warning, ground, 0.26) : mix(warm, ground, 0.36),
+  grass_dry,
+  // The desert's second ground between the dunes: dry grass at noon read olive in a sand sea, so it is sand there. At dusk
+  // the dry tone already reads as shaded earth a step under the dunes.
+  desert_upland: dark ? grass_dry : sand,
   // Forest floor sits a step under grass, not at crown value, so pines still read against the ground they stand on.
   forest_floor: lighten(grass, -FOREST_FLOOR_DROP),
-  sand: dark ? mix(brand.warning, brand.foreground, 0.35) : mix(warm, brand.background_darkest, 0.35),
+  sand,
   dirt: dark ? mix(brand.warning, brand.background_darkest, 0.5) : mix(warm, brand.background_darkest, 0.6),
   // At dusk the lightest surface is still navy, so rocks read as holes; lifted toward the foreground they keep their facets.
   rock: dark ? mix(brand.foreground, brand.background_lightest, 0.35) : mix(brand.foreground, brand.background_darkest, 0.35),
@@ -102,6 +111,7 @@ export const tones = {
   leaf_dark: dark ? lighten(leaf_dark, grass[0] - DUSK_CROWN_DROP - leaf_dark[0]) : leaf_dark,
   trunk: mix(brand.warning, brand.background_darkest, 0.25),
   lava: mix(brand.error, brand.warning, 0.6),
+  lava_glow: dark ? lighten(mix(brand.error, brand.warning, 0.8), -DUSK_LAVA_DROP) : mix(brand.error, brand.warning, 0.85),
   cone: warm,
   glass: dark ? brand.background_darkest : brand.foreground,
   tyre: dark ? above_asphalt(DUSK_TYRE_STEP) : mix(brand.foreground, brand.background_darkest, 0.8),

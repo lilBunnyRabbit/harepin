@@ -205,7 +205,7 @@ export function map_worker(): Worker {
 }
 
 export function map_request(seed: number, kind: WorldKind, levels: readonly number[]): MapRequest {
-  return { seed, kind, levels, tones: map_tones() };
+  return { seed, kind, levels, tones: map_tones(kind) };
 }
 
 /** Snow worlds draw their roads in the winter ink. */
@@ -275,8 +275,8 @@ function paint_towns(ctx: Ctx2D, map: MapData, at: MapAt, side: number, ratio: n
   }
 }
 
-function map_tones(): MapTones {
-  return { terrain: mesh_tones().terrain, water: linear(tones.water), cloud: linear(sky_tones.cloud), lava: linear(tones.lava) };
+function map_tones(kind: WorldKind): MapTones {
+  return { terrain: mesh_tones(false, kind).terrain, water: linear(tones.water), cloud: linear(sky_tones.cloud), lava: linear(tones.lava) };
 }
 
 function stroke(ctx: Ctx2D, path: Path2D | null, color: string, width: number) {

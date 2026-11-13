@@ -103,7 +103,7 @@ for (const event of UNLOCK_EVENTS) addEventListener(event, unlock_audio);
 // The renderer needs only the world's kind, so it sets up while the worker plans the world.
 const snowy = snow_of(map) !== null;
 const look = world_look(WORLDS[kind], snowy);
-const opening = WorldStream.open(pick, map, mesh_tones(snowy));
+const opening = WorldStream.open(pick, map, mesh_tones(snowy, kind));
 const quality = new Quality(params, prefs.quality);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(64, innerWidth / innerHeight, 0.1, 5000);
