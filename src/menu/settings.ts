@@ -3,7 +3,7 @@ import { clean_name } from "../net/net";
 import { GUIDE_PARAM, Guide, ROLLED_VISIT, type GuideStep } from "./guide/guide.svelte";
 import { TUNE_PARAM } from "../career/career";
 import { CareerPage } from "./career-view";
-import { GoalsPage } from "./goals-view";
+import GoalsPage from "./GoalsPage.svelte";
 import { ModesPage } from "./modes-page";
 import { OnlinePage } from "./online-page";
 import { RoomPage } from "./room-page";
@@ -127,7 +127,7 @@ export class Settings {
       new WorldPage(this.menu),
       new ModesPage(this.menu),
       new RoomPage(this.menu),
-      new GoalsPage(this.menu, (to) => this.go_to(to)),
+      svelte_page(this.menu, { id: "goals", label: "Things to try", parent: MenuTab.PLAY }, GoalsPage, { go: (to: GoTo) => this.go_to(to) }),
       new CareerPage(this.menu, host.career, new URLSearchParams(location.search).has(TUNE_PARAM)),
     ];
     this.guide = new Guide({
