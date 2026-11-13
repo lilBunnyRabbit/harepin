@@ -187,7 +187,7 @@ export interface Build {
 
 export const MAX_PAINT = 15;
 /** Career reward paints, one per tier, at `MAX_PAINT + 1` on: past the wrapped range, so no saved build changes colour. */
-export const REWARD_PAINTS = 3;
+export const REWARD_PAINTS = 4;
 // Append-only: build codes carry the index. The last three are career rewards, one per tier.
 export const DECALS = ["none", "centre", "twin", "side", "number", "flames", "slash", "checker", "rabbit", "sky", "volcano", "ice"] as const;
 export type Decal = (typeof DECALS)[number];

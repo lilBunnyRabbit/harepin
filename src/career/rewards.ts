@@ -2,8 +2,6 @@ import { DECALS } from "../car/build";
 import type { TierBadge } from "../net/net";
 import { TIERS, tier_max, tier_stars, type Stars, type Tier } from "./career";
 
-export const PAINT_STARS = 10;
-
 export interface Unlocks {
   paints: readonly number[];
   decals: readonly number[];
@@ -12,26 +10,27 @@ export interface Unlocks {
 
 export const NO_UNLOCKS: Unlocks = { paints: [], decals: [], badge: null };
 
-export const paint_open = (stars: Stars, tier: Tier) => tier_stars(stars, tier) >= PAINT_STARS;
-export const decal_open = (stars: Stars, tier: Tier) => tier_stars(stars, tier) >= tier_max(tier);
+export const paint_open = (stars: Stars, tier: Tier) => tier_stars(stars, tier) >= tier.rewards.paint_at;
+export const decal_open = (stars: Stars, tier: Tier) => tier.rewards.decal !== undefined && tier_stars(stars, tier) >= tier_max(tier);
 export const badge_open = (stars: Stars, tier: Tier) => tier.events.some((event) => event.final && (stars[event.id] ?? 0) > 0);
 
 export function unlocks(stars: Stars): Unlocks {
   const badge = TIERS.findLastIndex((tier) => badge_open(stars, tier));
   return {
     paints: TIERS.filter((tier) => paint_open(stars, tier)).map((tier) => tier.rewards.paint),
-    decals: TIERS.filter((tier) => decal_open(stars, tier)).map((tier) => DECALS.indexOf(tier.rewards.decal)),
+    decals: TIERS.flatMap((tier) => (tier.rewards.decal && decal_open(stars, tier) ? [DECALS.indexOf(tier.rewards.decal)] : [])),
     badge: badge < 0 ? null : ((badge + 1) as TierBadge),
   };
 }
 
-export const REWARD_DECALS: readonly number[] = TIERS.map((tier) => DECALS.indexOf(tier.rewards.decal));
+export const REWARD_DECALS: readonly number[] = TIERS.flatMap(({ rewards: { decal } }) => (decal ? [DECALS.indexOf(decal)] : []));
 
 export const badge_text = (badge: TierBadge) => `${TIERS[badge - 1].name} champion`;
 
-const METALS = ["Bronze", "Silver", "Gold"];
+/** One per tier, in the order of palette `tier_metals`. */
+export const TIER_METAL_NAMES = ["Bronze", "Silver", "Gold", "Platinum"] as const;
 
-export const reward_paint_name = (tier: Tier) => `${METALS[TIERS.indexOf(tier)]} metallic`;
+export const reward_paint_name = (tier: Tier) => `${TIER_METAL_NAMES[TIERS.indexOf(tier)]} metallic`;
 
 export type RewardKind = "paint" | "decal" | "badge";
 

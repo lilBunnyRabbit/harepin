@@ -141,12 +141,12 @@ test("hello: a map code is kept only as a custom map's canonical code", () => {
   for (const map of ["1C000001A", "1c000001a-e2", "1C000001A-E2E0", "1Z000001A-E2", "x".repeat(200), 7]) expect(sanitize_hello({ ...hello, map })).toEqual(hello);
 });
 
-test("hello: the career tier rides along only as 1, 2 or 3", () => {
+test("hello: the career tier rides along only as 1 to 4", () => {
   expect(make_hello("0.11.0", 7, 42, null, null, 2).tier).toBe(2);
   expect(JSON.stringify(make_hello("0.11.0", 7, 42, null, null, null))).toBe(`{"protocol":${PROTOCOL},"version":"0.11.0","world":7,"seed":42}`);
   const hello = { protocol: 2, version: "0.11.0", world: 7, seed: 42 };
-  expect(sanitize_hello({ ...hello, tier: 3 })).toEqual({ ...hello, tier: 3 });
-  for (const tier of [0, 4, 1.5, "1", null]) expect(sanitize_hello({ ...hello, tier })).toEqual(hello);
+  expect(sanitize_hello({ ...hello, tier: 4 })).toEqual({ ...hello, tier: 4 });
+  for (const tier of [0, 5, 1.5, "1", null]) expect(sanitize_hello({ ...hello, tier })).toEqual(hello);
 });
 
 test("same map: seed and w, then the codes when both named one", () => {

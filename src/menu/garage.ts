@@ -124,7 +124,7 @@ export class Garage {
     if (!this.is_open || reward.kind === "badge") return;
     const paint = reward.kind === "paint";
     const section = paint ? GarageSection.PAINT : GarageSection.BODY;
-    const value = paint ? reward.tier.rewards.paint : DECALS.indexOf(reward.tier.rewards.decal);
+    const value = paint ? reward.tier.rewards.paint : DECALS.indexOf(reward.tier.rewards.decal ?? "none");
     this.tab = TABS.findIndex((tab) => tab.section === section);
     const item = this.items().find((it) => it.id === reward.kind);
     if (!item) return this.refresh();

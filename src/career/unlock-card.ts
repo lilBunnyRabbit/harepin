@@ -14,7 +14,7 @@ const KIND_LABEL: Record<Reward["kind"], string> = { paint: "Paint", decal: "Dec
 function look(reward: Reward): Element {
   const { tier } = reward;
   if (reward.kind === "badge") return tier_badge((TIERS.indexOf(tier) + 1) as TierBadge);
-  if (reward.kind === "decal") return decal_tile(tier.rewards.decal);
+  if (reward.kind === "decal") return decal_tile(tier.rewards.decal ?? "none");
   const swatch = document.createElement("i");
   swatch.className = "garage-swatch";
   swatch.dataset.metal = "";
@@ -25,7 +25,7 @@ function look(reward: Reward): Element {
 function title(reward: Reward): string {
   const { tier } = reward;
   if (reward.kind === "paint") return reward_paint_name(tier);
-  if (reward.kind === "decal") return DECAL_NAMES[tier.rewards.decal];
+  if (reward.kind === "decal") return DECAL_NAMES[tier.rewards.decal ?? "none"];
   return badge_text((TIERS.indexOf(tier) + 1) as TierBadge);
 }
 

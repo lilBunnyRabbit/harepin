@@ -11,7 +11,7 @@ import { race_levels } from "../modes/races";
 import { SILVER_SHARE, type Store } from "../modes/track";
 import { world_key } from "../worldgen/kinds/kinds";
 import { parse_map_code } from "../worldgen/kinds/map-code";
-import { EVENTS, TIERS, current_tier, event_of, ghost_path, next_event, parse_stars, spot_of, suggested, tier_line, tier_open, type Stars } from "./career";
+import { EVENTS, TIERS, current_tier, event_of, ghost_path, next_event, parse_stars, spot_of, suggested, tier_line, tier_max, tier_open, type Stars } from "./career";
 import { CAREER_KEY, Career, event_map, event_track, owner_times } from "./career-store";
 
 const LEVEL_IDS: Record<string, readonly { id: string }[]> = {
@@ -32,11 +32,12 @@ function memory(seed: Record<string, string> = {}): Store & { data: Record<strin
 const all = (stars: number, ids: readonly string[]): Stars => Object.fromEntries(ids.map((id) => [id, stars]));
 const ids_of = (tier: number) => TIERS[tier].events.map((event) => event.id);
 
-test("event ids are unique and every tier is six events and a final", () => {
+// A tier still growing has no final yet, and no decal: the decal waits for the tier's max to stop moving.
+test("event ids are unique and every finished tier ends in its one final", () => {
   expect(new Set(EVENTS.map((event) => event.id)).size).toBe(EVENTS.length);
   for (const tier of TIERS) {
-    expect(tier.events.length).toBe(7);
-    expect(tier.events.map((event) => event.final === true)).toEqual([false, false, false, false, false, false, true]);
+    const finals = tier.events.map((event) => event.final === true);
+    expect([tier.id, finals]).toEqual([tier.id, tier.events.map((_, i) => tier.rewards.decal !== undefined && i === tier.events.length - 1)]);
   }
 });
 
@@ -80,8 +81,16 @@ test("Club opens at 12 Rookie stars, Pro at 14 Club stars", () => {
   expect(tier_open(twelve, TIERS[1])).toBe(true);
   expect(current_tier(twelve).id).toBe("club");
   expect(tier_open({ ...twelve, ...all(2, ids_of(1)) }, TIERS[2])).toBe(true);
-  expect(tier_line(eleven, TIERS[0])).toBe("Rookie 11/21 ★ · Club at 12");
-  expect(tier_line(twelve, TIERS[0])).toBe("Rookie 12/21 ★ · Club open");
+  expect(tier_line(eleven, TIERS[0])).toBe(`Rookie 11/${tier_max(TIERS[0])} ★ · Club at 12`);
+  expect(tier_line(twelve, TIERS[0])).toBe(`Rookie 12/${tier_max(TIERS[0])} ★ · Club open`);
+});
+
+test("Elite opens at 16 Pro stars", () => {
+  const pro = ids_of(2);
+  const fifteen = { ...all(2, pro.slice(0, 6)), [pro[6]]: 3 };
+  expect(tier_open(fifteen, TIERS[3])).toBe(false);
+  expect(tier_open({ ...fifteen, [pro[0]]: 3 }, TIERS[3])).toBe(true);
+  expect(tier_line(fifteen, TIERS[2])).toBe(`Pro 15/${tier_max(TIERS[2])} ★ · Elite at 16`);
 });
 
 test("next event is the next unplayed one in the tier, wrapping, then the next open tier", () => {
@@ -119,17 +128,21 @@ test("career keeps the best stars and its own best times apart from free play", 
   expect(Object.keys(store.data)).toContain(`harepin:career:r1:${r1.tuned}`);
 });
 
-test("Copy my times turns the best run of each played non-race event into its stars", () => {
+test("Copy my times turns the best run of each played event into its stars, races only in a tier with a margin", () => {
   const store = memory();
   const at = (id: string) => event_of(id) ?? EVENTS[0];
   for (const [id, run] of [
     ["r1", { stars: 3, ms: 200_000 }],
     ["r2", { stars: 3, ms: 40_000 }],
     ["c2", { stars: 2, ms: 30_000, score: 1500 }],
+    ["e1", { stars: 3, ms: 100_000 }],
+    ["e4", { stars: 3, ms: 60_000, score: 1030 }],
   ] as const)
     event_track(at(id), store).record(spot_of(at(id)).level, run);
   expect(JSON.parse(owner_times(new Career(store)))).toEqual({
     r2: { stars: { two: 50_000, three: 40_000 }, tuned: at("r2").tuned },
     c2: { stars: { two: 1200, three: 1500 }, tuned: at("c2").tuned },
+    e1: { stars: { two: 128_750, three: 103_000 }, tuned: at("e1").tuned },
+    e4: { stars: { two: 800, three: 1000 }, tuned: at("e4").tuned },
   });
 });

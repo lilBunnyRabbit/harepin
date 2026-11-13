@@ -159,7 +159,7 @@ export const tones = {
   shop_glow: dark ? mix(brand.warning, brand.cottontail, 0.6) : mix(brand.background_darker, brand.background_lightest, 0.5),
 };
 
-/** Career tier metals, Rookie bronze, Club silver, Pro gold: the start flags and the tier's rewards (career.md §1.4). */
+/** Career tier metals, Rookie bronze, Club silver, Pro gold, Elite platinum: the start flags and the tier's rewards (career.md §1.4). */
 // Bronze sits darker than its orange mix, so it never reads as the orange race gates; a light theme's darkest background
 // is pale, so there it drops in lightness instead. Light themes' warning is olive, so their gold leans on error and
 // lifts a step until it reads as gold, clear of the bronze.
@@ -169,10 +169,16 @@ const LIGHT_GOLD = 0.7;
 const LIGHT_GOLD_LIFT = 0.16;
 // At dusk the warning alone sits next to the bronze as one more orange; toward the cottontail it reads pale gold.
 const DUSK_GOLD = 0.6;
+const SILVER = mix(brand.foreground, brand.background_lightest, 0.6);
+// Platinum is silver gone cool: at dusk a lifted near-white, clear above the silver; on a pale theme it keeps silver's
+// lightness, as a lighter one fades into the background, and the cool tint alone sets it apart.
+const PLATINUM_COOL = 0.35;
+const DUSK_PLATINUM_LIFT = 0.12;
 export const tier_metals = [
   dark ? mix(BRONZE, brand.background_darkest, 0.72) : lighten(BRONZE, -LIGHT_BRONZE_DROP),
-  mix(brand.foreground, brand.background_lightest, 0.6),
+  SILVER,
   dark ? mix(brand.warning, brand.cottontail, DUSK_GOLD) : lighten(mix(brand.warning, brand.error, LIGHT_GOLD), LIGHT_GOLD_LIFT),
+  dark ? lighten(mix(brand.info, brand.foreground, PLATINUM_COOL), DUSK_PLATINUM_LIFT) : mix(brand.info, SILVER, PLATINUM_COOL),
 ] as const;
 /** A marker or reward not open yet. */
 export const locked_tone = mix(brand.foreground, brand.background, 0.55);

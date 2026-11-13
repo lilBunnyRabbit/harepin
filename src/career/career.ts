@@ -34,6 +34,8 @@ export const TierId = {
   ROOKIE: "rookie",
   CLUB: "club",
   PRO: "pro",
+  ELITE: "elite",
+  LEGEND: "legend",
 } as const;
 export type TierId = (typeof TierId)[keyof typeof TierId];
 
@@ -41,9 +43,14 @@ export interface Tier {
   readonly id: TierId;
   readonly name: string;
   readonly opens_at: number;
+  /** 3 stars = the owner's run (race: the bot median) times this; above 1 the owner's run earns 3 stars with room. */
+  readonly margin: number;
   readonly events: readonly CareerEvent[];
-  /** `paint`: the build paint index, past `MAX_PAINT`. `badge`: the letter on the tier's metal shield. */
-  readonly rewards: { readonly paint: number; readonly decal: Decal; readonly badge: string };
+  /**
+   * `paint`: the build paint index, past `MAX_PAINT`, earned at `paint_at` stars in the tier. `decal`: earned at the
+   * tier's max; none while the tier can still grow. `badge`: the letter on the tier's metal shield.
+   */
+  readonly rewards: { readonly paint: number; readonly paint_at: number; readonly decal?: Decal; readonly badge: string };
 }
 
 const MAINLAND = "1M0E5M3PK";
@@ -53,7 +60,8 @@ export const TIERS: readonly Tier[] = [
     id: TierId.ROOKIE,
     name: "Rookie",
     opens_at: 0,
-    rewards: { paint: MAX_PAINT + 1, decal: "sky", badge: "R" },
+    margin: 1,
+    rewards: { paint: MAX_PAINT + 1, paint_at: 10, decal: "sky", badge: "R" },
     events: [
       { id: "r1", name: "First lap", mode: "race", level: "circuit", map: "1C0000003", car: { cap: "c" }, tuned: "3:w11", stars: { two: 334625, three: 267700 }, ghost: true },
       { id: "r2", name: "Cones", mode: "gymkhana", level: "g2", map: "1C0000003", car: { cap: "c" }, tuned: "3:w11", stars: { two: 56774, three: 45419 } },
@@ -68,7 +76,8 @@ export const TIERS: readonly Tier[] = [
     id: TierId.CLUB,
     name: "Club",
     opens_at: 12,
-    rewards: { paint: MAX_PAINT + 2, decal: "volcano", badge: "C" },
+    margin: 1,
+    rewards: { paint: MAX_PAINT + 2, paint_at: 10, decal: "volcano", badge: "C" },
     events: [
       { id: "c1", name: "Pass streets", mode: "race", level: "street-1", map: "1A0000004", car: { cap: "b" }, tuned: "4:a4", stars: { two: 123750, three: 99000 }, ghost: true },
       { id: "c2", name: "Mountain S", mode: "drift", level: "d2", map: "1A0000004", car: { preset: "Drift" }, tuned: "4:a4", stars: { two: 230, three: 287 } },
@@ -83,7 +92,8 @@ export const TIERS: readonly Tier[] = [
     id: TierId.PRO,
     name: "Pro",
     opens_at: 14,
-    rewards: { paint: MAX_PAINT + 3, decal: "ice", badge: "P" },
+    margin: 1,
+    rewards: { paint: MAX_PAINT + 3, paint_at: 10, decal: "ice", badge: "P" },
     events: [
       { id: "p1", name: "Marathon", mode: "duel", level: "v5", map: MAINLAND, car: { cap: "s2" }, tuned: "475664083:m6", stars: { two: 212740, three: 193400 } },
       { id: "p2", name: "Exposed", mode: "race", level: "circuit", map: "1S0000007-F2", car: { cap: "x" }, tuned: "7:sky3:11112", stars: { two: 243000, three: 194400 }, ghost: true },
@@ -92,6 +102,23 @@ export const TIERS: readonly Tier[] = [
       { id: "p5", name: "Ice parallel", mode: "parking", level: "p7", map: "1T0000006", car: { preset: "Dirt rally" }, tuned: "6:t3", stars: { two: 21066, three: 16853 } },
       { id: "p6", name: "Precision", mode: "gymkhana", level: "g7", map: "1C0000009-W1", car: { cap: "s2" }, tuned: "9:w11:W1", stars: { two: 55608, three: 44486 } },
       { id: "p7", name: "Riverbed", mode: "race", level: "descent", map: "1F0000001", car: { cap: "s1" }, tuned: "1:ic5", stars: { two: 111875, three: 89500 }, ghost: true, final: true },
+    ],
+  },
+  // Batch 1 of 12: no final yet, so no decal until the tier stops growing (career.md §10.2).
+  {
+    id: TierId.ELITE,
+    name: "Elite",
+    opens_at: 16,
+    margin: 1.03,
+    rewards: { paint: MAX_PAINT + 4, paint_at: 18, badge: "E" },
+    events: [
+      { id: "e1", name: "Crater ring", mode: "race", level: "circuit", map: "1V0000002", car: { cap: "s1" }, tuned: "2:v5", stars: { two: 71375, three: 57100 }, ghost: true },
+      { id: "e2", name: "Long trail", mode: "race", level: "offroad-2", map: "1C0000011", car: { preset: "Dirt rally" }, tuned: "33:w11", stars: { two: 293250, three: 234600 }, ghost: true },
+      { id: "e3", name: "Tight garage", mode: "parking", level: "p8", map: "1D0000007", car: { cap: "s1" }, tuned: "7:d4" },
+      { id: "e4", name: "Rim drift", mode: "drift", level: "d4", map: "1F0000002", car: { preset: "Drift" }, tuned: "2:ic5" },
+      { id: "e5", name: "Ash gates", mode: "hunt", level: "h4", map: "1V0000002", car: { cap: "s2" }, tuned: "2:v5" },
+      { id: "e6", name: "Down-class duel", mode: "duel", level: "v4", map: "1S0000011", car: { cap: "b" }, tuned: "33:sky3", stars: { two: 89540, three: 81400 } },
+      { id: "e7", name: "Frozen slalom", mode: "gymkhana", level: "g6", map: "1T0000008", car: { cap: "s1" }, tuned: "8:t3" },
     ],
   },
 ];
@@ -168,11 +195,13 @@ export function parse_stars(raw: unknown): Record<string, number> {
   return stars;
 }
 
-/** Star marks from the owner's best run: 3 stars = that run, 2 stars a quarter slower, or for drift a quarter fewer points. */
+/** Star marks from the owner's best run: 3 stars = that run eased by the tier's margin, 2 stars a quarter slower, or for drift a quarter fewer points. */
 export function owner_stars(event: CareerEvent, run: StarRun): Thresholds {
+  const { margin } = tier_of(event);
   if (event.mode === "drift") {
-    const three = Math.round(run.score ?? 0);
+    const three = Math.round((run.score ?? 0) / margin);
     return { two: Math.round(three / SILVER_SHARE), three };
   }
-  return { two: Math.round(run.ms * SILVER_SHARE), three: run.ms };
+  const three = Math.round(run.ms * margin);
+  return { two: Math.round(three * SILVER_SHARE), three };
 }

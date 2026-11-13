@@ -4,6 +4,7 @@ import { CARS, is_car, type CarId } from "../car/cars";
 import { build_view, rest_wheels } from "../car/models";
 import { gate_kit, gate_view } from "../car/trackside";
 import { TIERS } from "../career/career";
+import { reward_paint_name } from "../career/rewards";
 import { MarkerView } from "../career/marker-view";
 import { kit_sample } from "../render/prop-kit";
 import { mesh_tones, tree_kit, tree_meshes } from "../render/scene";
@@ -47,7 +48,6 @@ const TURNTABLE: readonly [string, number, number][] = [
 ];
 const FRONT_34 = { yaw: 35, pitch: 14 };
 const SHOWROOM = "coupe";
-const METALS = ["Bronze", "Silver", "Gold"];
 const LANDMARK_PROPS: Record<Landmark, PropKind> = { mast: PropKind.MAST, lighthouse: PropKind.LIGHTHOUSE, turbines: PropKind.TURBINE, arch: PropKind.ARCH };
 const ARCH_HALF = 10;
 const TREE_SPOTS: readonly [number, number, number][] = [
@@ -73,7 +73,7 @@ function car(build: Partial<Build>): THREE.Object3D {
   return holder;
 }
 
-const paint_name = (paint: number) => (paint > MAX_PAINT ? `${METALS[paint - MAX_PAINT - 1]} metallic` : `paint ${paint}`);
+const paint_name = (paint: number) => (paint > MAX_PAINT ? reward_paint_name(TIERS[paint - MAX_PAINT - 1]) : `paint ${paint}`);
 
 function turntable(ids: readonly CarId[]): SheetLayout {
   const tiles = ids.flatMap((id) => TURNTABLE.map(([angle, yaw, pitch]) => ({ label: `${id} · ${angle}`, object: car({ car: id }), ground: tones.asphalt, yaw, pitch })));

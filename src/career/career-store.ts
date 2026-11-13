@@ -1,7 +1,7 @@
 import { Track, read_json, write_json, type StarRun, type Store, type Thresholds } from "../modes/track";
 import { world_key, type MapSpec } from "../worldgen/kinds/kinds";
 import { parse_map_code } from "../worldgen/kinds/map-code";
-import { EVENTS, owner_stars, parse_stars, spot_of, type CareerEvent, type Stars } from "./career";
+import { EVENTS, owner_stars, parse_stars, spot_of, tier_of, type CareerEvent, type Stars } from "./career";
 
 // No world version in the key: stars outlive a generator bump, unlike times and ghosts.
 export const CAREER_KEY = "harepin:career";
@@ -43,11 +43,11 @@ export class Career {
   }
 }
 
-/** "Copy my times": each non-race event's `stars` and `tuned` from the player's best run, to paste into `career.ts`. */
+/** "Copy my times": each event's `stars` and `tuned` from the player's best run, to paste into `career.ts`. Races only in tiers with a margin: elsewhere bots set them. */
 export function owner_times(career: Career): string {
   const times: Record<string, { stars: Thresholds; tuned: string }> = {};
   for (const event of EVENTS) {
-    const best = event.mode === "race" ? undefined : career.best(event);
+    const best = event.mode === "race" && tier_of(event).margin <= 1 ? undefined : career.best(event);
     if (!best) continue;
     const { seed, kind, levels } = event_map(event);
     times[event.id] = { stars: owner_stars(event, best), tuned: world_key(seed, kind, levels) };
