@@ -8,12 +8,24 @@ Nothing in the lab touches the game around it: no records, ghosts, stars or goal
 
 | Link | What loads |
 |---|---|
-| `/?lab=<id>` | the committed pack `src/lab/packs/<id>.ts` (`?lab=demo` is the sample) |
+| `/?lab=<id>` | the committed pack `src/lab/packs/<id>.ts` (`?lab=demo` is the sample, `?lab=first-look` the first real session) |
 | `/?lab=~<code>` | an inline pack carried in the link itself: no deploy needed |
 
-Works on the live site and in dev; no menu entry, like `?tune`. The lab world (`lab` kind, unlisted) loads, the car goes to the first trial's station and a toast names the trial, its try line and the car's class and PI.
+Works on the live site and in dev; no menu entry, like `?tune`. The lab world (`lab` kind, unlisted) loads, the car goes to the first trial's station and the pack card opens instead of the menu or the first-visit guide. Modes are off in the lab: the Modes page shows each one as "Not in the lab", and no lobby race starts.
 
-Until the overlay lands (plan phase 4) the keyboard drives the pack:
+## The overlay
+
+| Piece | What it shows | Controls |
+|---|---|---|
+| Pack card (trial list) | title, rev, trials driven, brief; one tile per trial: id, car, class and PI, station/lane, goal, status `To do` / `Running` / `Done` / `Stopped` | tap or A on a tile starts that trial; Start (or Back to trial); Copy results |
+| Strip (top, where the lap strip sits) | `Lab n/N`, the trial id, goal, status | Trials, Retry, Stop and rate |
+| Results card | after a trial's goal or Stop: the trial's feel line, the questions, then every metric it measured | Trials, Copy, Previous, Retry, Next |
+
+The cards are modal and hold the sim like the menu does. A 1-5 scale is five big buttons, never a slider; a note is one optional line (400 characters at most). Answers save on every change to `sessionStorage` under `harepin.lab.<pack>.r<rev>`, so a reload keeps them (only answers: the numbers of a reloaded run are gone, its trials export as `skipped`). Stored answers are checked against the pack on load; anything that does not fit is dropped.
+
+Pad: Start opens the strip (and the HUD bar beside it), the d-pad walks the buttons, A presses; in a card up/down moves between questions, left/right along a scale, B closes it. When the browser refuses the clipboard, the pack card shows the block in a box to select and copy by hand.
+
+Keys stay as shortcuts while no card has focus:
 
 | Key | Does |
 |---|---|
@@ -117,7 +129,9 @@ trials: [
 ]
 ```
 
-(`src/lab/packs/demo.ts` holds these; today they rate 626 A, 647 A, 664 A, 680 A: a turbo alone does not reach S2.) Weight reduction is `add: { mass: -n }`, wider slicks `scale: { mu, rear_grip }`, big aero `add: { downforce, drag }`. A boost curve that rises with rpm is a lab car whose `torque` table is edited by hand.
+(`src/lab/packs/demo.ts` holds these; today they rate 626 A, 647 A, 664 A, 680 A: a turbo alone does not reach S2.) Weight reduction is `add: { mass: -n }`, wider slicks `scale: { mu, rear_grip }`, big aero `add: { downforce, drag }`.
+
+Boost curves (lead's call, for now): a turbo whose torque rises with rpm is a lab car with a hand-edited `torque` table, not a new mod field or a `CarSpec` change. A `torque` mod only scales the whole curve; a different shape needs that lab car until a turbo stage is worth landing as a car-physics task.
 
 ### Inline packs
 
@@ -131,7 +145,7 @@ An inline pack is untrusted: `read_pack` checks every field, holds a lab car's `
 
 ## The export block
 
-`=` copies it (the overlay's Copy will too). Line-based so two runs diff line by line and survive a chat app:
+The overlay's Copy (or `=`) copies it, answers and note included. Line-based so two runs diff line by line and survive a chat app:
 
 ```
 #lab demo r1 v0.41.1 2026-11-13T23:14Z keys 1440x900
@@ -205,4 +219,7 @@ Metric keys (numbers keep 3 significant digits):
 | `src/lab/export.ts` | the export block |
 | `src/lab/lab.ts` | trial flow, keys, Copy; lazy-loaded by `main.ts` on `?lab` |
 
-Still to build (plan phases 4-6): the Svelte overlay (pack card, trial list, HUD strip, results and question card, answers kept per pack and rev in `sessionStorage`), more packs and shared lab cars, and `scripts/lab.ts` (`--check`, sim baselines as an ` sim` line, `--promote <trial>`).
+| `src/lab/answers.ts` | questions per trial, answer checks, the stored-answers reader |
+| `src/lab/lab-view.svelte.ts`, `LabOverlay.svelte`, `TrialList.svelte`, `ResultCard.svelte`, `Scale.svelte` | the overlay: strip, pack card, results and question card |
+
+Still to build (plan phases 5-6): more packs and shared lab cars, and `scripts/lab.ts` (`--check`, sim baselines as an ` sim` line, `--promote <trial>`).
