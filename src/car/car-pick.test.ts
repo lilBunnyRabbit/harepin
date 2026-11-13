@@ -80,12 +80,25 @@ test("a new look is the same machine; a part or a body swap is not", () => {
   expect(same_machine(cruiser, { ...cruiser, car: "coupe" })).toBe(false);
 });
 
-test("under a cap the strongest allowed car is recommended, ties included; no cap recommends nothing", () => {
+test("under a cap one car is recommended, the strongest allowed; no cap recommends nothing", () => {
   const capped = choices(car_shelves(DEFAULT_BUILD, [], { cap: CarClass.C, car_sized_only: false }));
   const open = capped.filter((c) => c.blocked === null);
   const top = Math.max(...open.map((c) => c.rating.pi));
-  expect(capped.filter((c) => c.recommended).map((c) => c.rating.pi)).toEqual(open.filter((c) => c.rating.pi === top).map(() => top));
+  expect(capped.filter((c) => c.recommended).map((c) => c.rating.pi)).toEqual([top]);
   expect(capped.some((c) => c.recommended && c.blocked !== null)).toBe(false);
   const free = choices(car_shelves(DEFAULT_BUILD, [], { cap: null, car_sized_only: false }));
   expect(free.some((c) => c.recommended)).toBe(false);
+});
+
+test("a tie at the top recommends one car, the player's own first", () => {
+  const maxed = PRESETS.find((p) => p.name === "Maxed F1")?.code ?? "";
+  const twin = { name: "Ultimate F1", code: maxed.replace(/^formula\.\d+/, "formula.2") };
+  const capped = choices(car_shelves(DEFAULT_BUILD, [twin], { cap: CarClass.X, car_sized_only: false }));
+  const top = capped.filter((c) => c.rating.pi === Math.max(...capped.map((o) => o.rating.pi)));
+  expect(top.length).toBeGreaterThan(1);
+  expect(capped.filter((c) => c.recommended).map((c) => c.title)).toEqual(["Ultimate F1"]);
+  const own = parse_build(maxed);
+  if (!own) throw new Error("no Maxed F1");
+  const mine = choices(car_shelves({ ...own, paint: 9 }, [twin], { cap: CarClass.X, car_sized_only: false }));
+  expect(mine.filter((c) => c.recommended).map((c) => c.own)).toEqual([true]);
 });

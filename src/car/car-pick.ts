@@ -15,12 +15,13 @@ export interface CarChoice {
   title: string;
   sub: string;
   code: string;
+  build: Build;
   rating: Rating;
   fitted: boolean;
   /** The player's own car, the one the garage saved. */
   own: boolean;
   blocked: string | null;
-  /** Under a class cap: the strongest car it allows, ties included. */
+  /** Under a class cap: the one car to take, the strongest it allows; a tie goes to the player's own, then the fitted one. */
   recommended: boolean;
 }
 
@@ -55,7 +56,7 @@ export function car_shelves(current: Build, builds: readonly SavedBuild[], limit
   const choice = (title: string, sub: string, build: Build, own = false): CarChoice => {
     const rated = rating(build);
     const code = build_code(build);
-    return { title, sub, code, rating: rated, fitted: code === fitted, own, blocked: blocked(build, rated, limit), recommended: false };
+    return { title, sub, code, build, rating: rated, fitted: code === fitted, own, blocked: blocked(build, rated, limit), recommended: false };
   };
   const parsed = (list: readonly { name: string; code: string }[], sub: (build: Build, i: number) => string) =>
     list.flatMap((entry, i) => {
@@ -68,7 +69,9 @@ export function car_shelves(current: Build, builds: readonly SavedBuild[], limit
   if (limit.cap) {
     const open = all.filter((c) => c.blocked === null);
     const top = Math.max(...open.map((c) => c.rating.pi));
-    for (const c of open) c.recommended = c.rating.pi === top;
+    const best = open.filter((c) => c.rating.pi === top);
+    const pick = best.find((c) => c.own) ?? best.find((c) => c.fitted) ?? best[0];
+    if (pick) pick.recommended = true;
   }
   const shelves = [...CLASS_FLOORS]
     .reverse()

@@ -144,6 +144,11 @@ describe("ui components", () => {
     expect(html(Tile, { title: "Island", current: true })).toContain('aria-current="true"');
     const off = html(Tile, { title: "Maxed F1", disabled: true, reason: text("Over C") });
     expect(off).toMatch(/<small class="ui-reason[^"]*"><span>Over C<\/span>/);
+    const card = html(Tile, { title: "Hatch", aside: text("C 422"), detail: text("Drive FWD") });
+    expect(card).toContain("data-detail");
+    expect(card).toMatch(/class="ui-title-row[^"]*"><span class="ui-title[^"]*">Hatch<\/span><span>C 422<\/span>/);
+    expect(card).toMatch(/<span class="ui-detail[^"]*"><span>Drive FWD<\/span>/);
+    expect(html(Tile, { title: "Hatch" })).not.toContain("data-detail");
   });
 
   test("SectionHead renders the eyebrow and a title at its level", () => {
