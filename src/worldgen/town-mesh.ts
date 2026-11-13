@@ -2,7 +2,7 @@ import type { MeshTones } from "./chunks";
 import { roof_rise } from "./lots";
 import { turned, type Builder, type Frame, type Rgb, type V3 } from "./mesh";
 import { hash } from "./noise";
-import { FLOOR, HEDGE_TOP, PARAPET, SHOP_FLOOR, hedge_runs } from "./town-style";
+import { FLOOR, HEDGE_TOP, PARAPET, PLINTH_OUT, PLINTH_TOP, SHOP_FLOOR, hedge_runs } from "./town-style";
 import { Roof, type Building, type Detail, type Lot } from "./types";
 
 export interface TownTones {
@@ -119,7 +119,7 @@ function clock(out: Builder, glass: Builder, b: Building, tones: MeshTones) {
   const { hw, hd, height: h } = b;
   const town = tones.town;
   out.walls(hw, hd, -1, h, town.walls[0]);
-  box(out, hw + 0.5, hd + 0.5, -1, 1.2, tones.roof_flat);
+  box(out, hw + PLINTH_OUT, hd + PLINTH_OUT, -1, PLINTH_TOP, tones.roof_flat);
   out.walls(hw + 0.2, hd + 0.2, h - 0.5, h, town.trim);
   out.hip(hw, hd, h, roof_rise(b), tones.roofs[0]);
   for (const [y0, y1, w] of [
@@ -144,7 +144,8 @@ export function dress_building(out: Builder, glass: Builder, b: Building, detail
   else clock(out, glass, b, tones);
 }
 
-export function dress_lot(pads: Builder, out: Builder, lot: Lot, tones: MeshTones) {
+/** `ground` stands each hedge run on the terrain under its middle, where its solid stands. */
+export function dress_lot(pads: Builder, out: Builder, lot: Lot, tones: MeshTones, ground: (x: number, z: number) => number) {
   const hw = lot.w / 2;
   const hd = lot.d / 2;
   const { pave, square, hedge } = tones.town;
@@ -155,6 +156,9 @@ export function dress_lot(pads: Builder, out: Builder, lot: Lot, tones: MeshTone
   } else if (lot.ground === "paved") pads.quad([-hw, PAD_LIFT, hd + PAD_OUT], [hw, PAD_LIFT, hd + PAD_OUT], [hw, PAD_LIFT, -hd], [-hw, PAD_LIFT, -hd], pave);
   else if (lot.ground === "yard") {
     pads.quad([-PATH_HALF, PAD_LIFT, hd + PAD_OUT], [PATH_HALF, PAD_LIFT, hd + PAD_OUT], [PATH_HALF, PAD_LIFT, hd + PAD_OUT - PATH_LONG], [-PATH_HALF, PAD_LIFT, hd + PAD_OUT - PATH_LONG], pave);
-    for (const run of hedge_runs(lot)) box(out.at(shift(lot, run.x, run.z)), run.hw, run.hd, -0.6, HEDGE_TOP, hedge);
+    for (const run of hedge_runs(lot)) {
+      const at = shift(lot, run.x, run.z);
+      box(out.at({ ...at, y: ground(at.x, at.z) }), run.hw, run.hd, -0.6, HEDGE_TOP, hedge);
+    }
   }
 }

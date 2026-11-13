@@ -10,6 +10,9 @@ const HEDGE_INSET = 0.5;
 const HEDGE_HALF = 0.35;
 const GATE_HALF = 1;
 export const HEDGE_TOP = 1;
+/** The clock tower's plinth reaches this far past the tower on every side, this high above its base. */
+export const PLINTH_OUT = 0.5;
+export const PLINTH_TOP = 1.2;
 
 export interface Plot {
   /** Null leaves the lot open: a car park, or a garden where it is too shallow for one. */

@@ -16,11 +16,14 @@ const EAVE = 0.3;
 export class Builder {
   readonly positions: number[] = [];
   readonly colors: number[] = [];
+  /** One weight per vertex, 1 where its colour is in `facade`: kept only when a builder is given one. */
+  readonly fills: number[] = [];
 
   /** With `ground`, every vertex sits `ly` above the terrain under it instead of above the frame's y. */
   constructor(
     private frame: Frame = { x: 0, y: 0, z: 0, fx: 0, fz: 1 },
     private readonly ground?: (x: number, z: number) => number,
+    readonly facade?: ReadonlySet<Rgb>,
   ) {}
 
   get vertices() {
@@ -38,6 +41,7 @@ export class Builder {
     const pz = z - fx * lx + fz * lz;
     this.positions.push(px, (this.ground ? this.ground(px, pz) : y) + ly, pz);
     this.colors.push(rgb[0], rgb[1], rgb[2]);
+    if (this.facade) this.fills.push(this.facade.has(rgb) ? 1 : 0);
   }
 
   tri(a: V3, b: V3, c: V3, rgb: Rgb) {

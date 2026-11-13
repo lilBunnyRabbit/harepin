@@ -93,7 +93,8 @@ export interface ChunkBuffers {
   /** Surface vertices first, then `marks`, which draw with a stronger polygon offset. */
   road: (Soup & { surface: number }) | null;
   /** Buildings of SMALL_BUILDING and up come first: a far chunk draws only the first `big` vertices. */
-  buildings: (Soup & { big: number }) | null;
+  /** `fill` (high-street towns only): 255 on a facade vertex, whose colour keeps a share in shade, 0 elsewhere. */
+  buildings: (Soup & { big: number; fill?: Uint8Array<ArrayBuffer> }) | null;
   glass: { positions: Float32Array<ArrayBuffer>; big: number; sphere: Sphere } | null;
   parking: Soup | null;
   /** Lake and river surface; left out where a chunk holds none, and on kinds that plan no water. */
@@ -273,11 +274,13 @@ export interface TownParts {
 /** Town meshes keyed by `key(x, z)`, each part placed by its own position; `ground` drapes the parking pads. */
 export function town_builders(data: WorldData, parts: TownParts, tones: MeshTones, ground: (x: number, z: number) => number, key_of: (x: number, z: number) => number): Map<number, Town> {
   const towns = new Map<number, Town>();
+  const { walls, trim, door } = tones.town;
+  const facade = KINDS[data.kind].recipe?.towns.style === "high_street" ? new Set([...walls, trim, door]) : undefined;
   const of = (x: number, z: number) => {
     const key = key_of(x, z);
     let town = towns.get(key);
     if (!town) {
-      town = { big: new Builder(), small: new Builder(), glass_big: new Builder(), glass_small: new Builder(), parking: new Builder(undefined, ground) };
+      town = { big: new Builder(undefined, undefined, facade), small: new Builder(undefined, undefined, facade), glass_big: new Builder(), glass_small: new Builder(), parking: new Builder(undefined, ground) };
       towns.set(key, town);
     }
     return town;
@@ -307,7 +310,7 @@ export function town_builders(data: WorldData, parts: TownParts, tones: MeshTone
     } else out.top(b.hw, b.hd, b.height, tones.roof_flat);
   }
   for (const prop of parts.props) if (prop.kind !== PropKind.STREET_LIGHT) landmark_mesh(of(prop.x, prop.z).big, prop, data.terrain.heights, tones.landmark);
-  for (const lot of parts.lots) if (lot.ground) dress_lot(of(lot.x, lot.z).parking, of(lot.x, lot.z).small, lot, tones);
+  for (const lot of parts.lots) if (lot.ground) dress_lot(of(lot.x, lot.z).parking, of(lot.x, lot.z).small, lot, tones, ground);
   for (const lot of parts.parking) {
     const frame = data.lots[lot.lot];
     const out = of(frame.x, frame.z).parking.at(frame);
@@ -326,7 +329,7 @@ export function town_meshes(town: Town | undefined): Pick<ChunkBuffers, "buildin
   const buildings = town && soup([town.big, town.small]);
   const glass = town && soup([town.glass_big, town.glass_small]);
   return {
-    buildings: town && buildings ? { ...buildings, big: town.big.vertices } : null,
+    buildings: town && buildings ? { ...buildings, big: town.big.vertices, ...(town.big.facade && { fill: fills([town.big, town.small]) }) } : null,
     glass: town && glass ? { positions: glass.positions, sphere: glass.sphere, big: town.glass_big.vertices } : null,
     parking: (town && soup([town.parking])) ?? null,
   };
@@ -336,6 +339,13 @@ export function soup(layers: Layer[]): Soup | null {
   const positions = packed(layers.map((l) => l.positions));
   if (!positions.length) return null;
   return { positions, colors: packed(layers.map((l) => l.colors)), sphere: bounding_sphere(positions) };
+}
+
+function fills(builders: Builder[]): Uint8Array<ArrayBuffer> {
+  const out = new Uint8Array(builders.reduce((sum, b) => sum + b.fills.length, 0));
+  let at = 0;
+  for (const b of builders) for (const w of b.fills) out[at++] = w * 255;
+  return out;
 }
 
 function packed(parts: number[][]): Float32Array<ArrayBuffer> {
@@ -404,6 +414,7 @@ export function chunk_transfers(chunks: ChunkBuffers[]): ArrayBuffer[] {
   for (const c of chunks) {
     if (c.terrain) out.push(c.terrain.positions.buffer, c.terrain.colors.buffer, c.terrain.index.buffer);
     for (const part of [c.road, c.buildings, c.parking, c.water]) if (part) out.push(part.positions.buffer, part.colors.buffer);
+    if (c.buildings?.fill) out.push(c.buildings.fill.buffer);
     if (c.glass) out.push(c.glass.positions.buffer);
   }
   return out;

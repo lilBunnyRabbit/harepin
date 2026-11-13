@@ -134,7 +134,6 @@ export function by_chunk<T extends { x: number; z: number }>(items: T[], ext: Ex
   return out;
 }
 
-/** Builds a chunk's town objects when it arrives: parked cars stand on its terrain, which arrives with it. */
 // Lambert leaves a wall facing away from the sun near black, so one box read as two materials: each face keeps this
 // share of its own colour in shade. Glass keeps more, or a shaded window reads as a grey panel.
 const WALL_FILL = dark ? 0.1 : 0.18;
@@ -144,9 +143,25 @@ function shade_fill<M extends THREE.Material>(material: M, share: number): M {
   material.onBeforeCompile = (shader) => {
     shader.fragmentShader = shader.fragmentShader.replace("#include <emissivemap_fragment>", `#include <emissivemap_fragment>\ntotalEmissiveRadiance += diffuseColor.rgb * ${share.toFixed(2)};`);
   };
+  material.customProgramCacheKey = () => `shade_fill:${share}`;
   return material;
 }
 
+// The town soup also holds roofs, awnings, hedges and landmarks: only facade vertices (the chunk's `fill`) keep the share.
+function facade_fill<M extends THREE.Material>(material: M, share: number): M {
+  material.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nattribute float fill;\nvarying float v_fill;")
+      .replace("#include <color_vertex>", "#include <color_vertex>\nv_fill = fill;");
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", "#include <common>\nvarying float v_fill;")
+      .replace("#include <emissivemap_fragment>", `#include <emissivemap_fragment>\ntotalEmissiveRadiance += diffuseColor.rgb * ${share.toFixed(2)} * v_fill;`);
+  };
+  material.customProgramCacheKey = () => `facade_fill:${share}`;
+  return material;
+}
+
+/** Builds a chunk's town objects when it arrives: parked cars stand on its terrain, which arrives with it. */
 export class TownChunks {
   private readonly building = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
   private readonly glass = new THREE.MeshLambertMaterial({ color: color(tones.shopfront), emissive: color(tones.shop_glow), emissiveIntensity: GLASS_GLOW, flatShading: true });
@@ -159,7 +174,7 @@ export class TownChunks {
 
   constructor(private readonly world: World) {
     if (KINDS[world.kind].recipe?.towns.style === "high_street") {
-      shade_fill(this.building, WALL_FILL);
+      facade_fill(this.building, WALL_FILL);
       shade_fill(this.glass, GLASS_FILL);
     }
     this.cars = by_chunk(parked_spots(world), world.tiles.ext);
@@ -174,7 +189,9 @@ export class TownChunks {
     const near: THREE.Object3D[] = [];
     const ranged: [THREE.BufferGeometry, number][] = [];
     if (chunk.buildings) {
-      const mesh = new THREE.Mesh(soup_geometry(chunk.buildings), this.building);
+      const geometry = soup_geometry(chunk.buildings);
+      if (chunk.buildings.fill) geometry.setAttribute("fill", new THREE.BufferAttribute(chunk.buildings.fill, 1, true));
+      const mesh = new THREE.Mesh(geometry, this.building);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       objects.push(mesh);

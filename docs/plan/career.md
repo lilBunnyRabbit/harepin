@@ -324,7 +324,7 @@ Drafted 2026-11-13 at `85cd537` from what ships today. Every map, level and cham
 
 | id | Name | World | Map code | Mode / level | Car | Harder than its Elite cousin because | `tuned` |
 |---|---|---|---|---|---|---|---|
-| l1 | Coast to coast | Mainland | `1M0E5M3PK` | race `trip` (8.1 km) | ≤ S1 | No Elite event on Mainland; cousin c6 Mainland sprint (A). The longest route in the game, streamed, town to town over open road: one mistake in 8 km costs the +3% | `475664083:m7` |
+| l1 | Coast to coast | Mainland | `1M0E5M3PK` | race `trip` (8.1 km) | ≤ S1 | No Elite event on Mainland; cousin c6 Mainland sprint (A). The longest route in the game, streamed, town to town over open road: one mistake in 8 km costs the +3% | `475664083:m8` |
 | l2 | Black ice | Frozen lakes | `1T0000006` | gymkhana `g7` | ≤ X | e7 Frozen slalom is `g6` ≤ S1. `g7` has ten cones and the smallest boxes, with X power on ice | `6:t3` |
 | l3 | Pit garage | Volcano | `1V0000002` | parking `p8` | Maxed F1 | e3 Tight garage is `p8` ≤ S1. The formula is long and twitchy on throttle, reversing across a full aisle (*verify* it can make the door) | `2:v5` |
 | l4 | Glass chain | Ice canyon | `1F0000002` | drift `d6` | Drift | e8 Drift chain is `d6` on Alpine tarmac. Same one-chain rule on ice, between canyon walls that end the run on a touch | `2:ic5` |

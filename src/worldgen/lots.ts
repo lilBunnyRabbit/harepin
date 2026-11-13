@@ -5,7 +5,7 @@ import type { TownRecipe } from "./recipe";
 import { heading, prop_solids } from "./scatter";
 import type { Stamp } from "./stamp";
 import { on_core } from "./towns";
-import { HEDGE_TOP, hedge_runs, high_street_plot, house_shape, row_shape, type Plot, type Shape } from "./town-style";
+import { FLOOR, HEDGE_TOP, PLINTH_OUT, PLINTH_TOP, SHOP_FLOOR, hedge_runs, high_street_plot, house_shape, row_shape, type Plot, type Shape } from "./town-style";
 import {
   CELL,
   ORIGIN,
@@ -43,8 +43,6 @@ const LOT_SLIDE = 3;
 const BLOCK_SHARE = 0.3;
 /** Share of yardless outpost lots whose first prop is a wind pump instead of a water tank. */
 const PUMP_ODDS = 0.12;
-const FLOOR = 3.2;
-const SHOP_FLOOR = 3.6;
 const TREE_HEIGHT = 6;
 const TREE_RADIUS = 0.35;
 const BAY_W = 2.6;
@@ -259,7 +257,7 @@ export class Lots {
           return true;
         });
         const reach = length(x - town.x, z - town.z) / town.radius;
-        const kind = high ? high_kind(plot, d, r(7)) : lot_kind(reach, r(3), d);
+        const kind = high ? high_kind(plot, d, r(8)) : lot_kind(reach, r(3), d);
         const lot: Lot = { id: this.out.lots.length, town: town.id, edge: edge.id, side, x, y: this.sample(heights, x, z), z, w, d, fx: -ox, fz: -oz, angle: Math.atan2(-ox, -oz), kind };
         this.out.lots.push(lot);
         const index = Math.max(0, Math.min(edge.points.length - 1, Math.round((along / len) * (edge.points.length - 1))));
@@ -426,7 +424,9 @@ export class Lots {
         });
         const lot: Lot = { id: this.out.lots.length, town: town.id, edge: -1, side: 1, x, y: this.sample(this.terrain.heights, x, z), z, w: s, d: s, fx, fz, angle: town.angle + (sj * Math.PI) / 2, kind: "plaza", ground: "plaza" };
         this.out.lots.push(lot);
-        this.raise(lot, { hw: CLOCK.half, hd: CLOCK.half, floors: 0, height: CLOCK.height, front: 0, roof: Roof.SPIRE }, { form: "clock", floors: 0, tint: 0 });
+        const tower = this.raise(lot, { hw: CLOCK.half, hd: CLOCK.half, floors: 0, height: CLOCK.height, front: 0, roof: Roof.SPIRE }, { form: "clock", floors: 0, tint: 0 });
+        const plinth = CLOCK.half + PLINTH_OUT;
+        this.out.solids.push({ kind: "box", x: tower.x, y: tower.y, z: tower.z, hw: plinth, hd: plinth, cos: lot.fz, sin: lot.fx, height: PLINTH_TOP });
         for (const [cx, cz] of [
           [1, 1],
           [-1, 1],
