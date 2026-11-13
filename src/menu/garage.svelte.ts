@@ -45,6 +45,8 @@ export class Garage {
   input = $state<GarageInput>("keys");
   centred = $state(0);
   private opened = $state(false);
+  // `rewards` reads career stars outside the runes, so each open bumps this to relist reward paints and decals.
+  private relist = $state(0);
   private view: GarageView | null = null;
   private stage: GarageStage | null = null;
 
@@ -65,6 +67,7 @@ export class Garage {
   }
 
   get items(): Item[] {
+    void this.relist;
     return TABS[this.tab].items(this.current, this.rewards());
   }
 
@@ -94,6 +97,7 @@ export class Garage {
   open() {
     if (this.opened) return;
     this.opened = true;
+    this.relist++;
     this.input = navigator.getGamepads?.().some((pad) => pad?.connected) ? "pad" : "keys";
     addEventListener("keydown", this.key);
     addEventListener("resize", this.resized);
@@ -114,6 +118,7 @@ export class Garage {
 
   try_reward(reward: Reward) {
     if (!this.opened || reward.kind === "badge") return;
+    this.relist++;
     const paint = reward.kind === "paint";
     const section = paint ? "paint" : "body";
     const value = paint ? reward.tier.rewards.paint : DECALS.indexOf(reward.tier.rewards.decal ?? "none");

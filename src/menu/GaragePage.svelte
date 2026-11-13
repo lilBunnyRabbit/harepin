@@ -58,7 +58,7 @@
     <div class="garage-name"><SectionHead title={CARS[garage.shown.car].name} level={2} /></div>
     <div class="garage-sections">
       <span class="garage-step-hint"><GarageHint keys={["prev"]} /></span>
-      <Tabs items={SECTIONS} value={section} label="Garage sections" onchange={(id) => garage.switch_tab(TABS.findIndex((tab) => tab.section === id))} />
+      <Tabs items={SECTIONS} value={section} label="Garage sections" compact onchange={(id) => garage.switch_tab(TABS.findIndex((tab) => tab.section === id))} />
       <span class="garage-step-hint"><GarageHint keys={["next"]} /></span>
     </div>
   </header>
@@ -334,7 +334,7 @@
 
   @media (orientation: portrait) and (max-width: 700px) {
     .garage {
-      --garage-inset: var(--space-4);
+      --garage-inset: var(--space-3);
       grid-template:
         "top" auto
         "rail" auto
@@ -355,10 +355,6 @@
 
     .garage-top {
       grid-template-columns: minmax(0, 1fr);
-    }
-
-    .garage-sections :global(.ui-tab) {
-      padding-inline: var(--space-2);
     }
 
     .garage-rail {
