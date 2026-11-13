@@ -3,6 +3,7 @@
   import { issue_link, short_agent, type IssueFields } from "./issue-link";
   import { QualityMode } from "./prefs";
   import Card from "./ui/Card.svelte";
+  import Icon from "./ui/Icon.svelte";
   import Row from "./ui/Row.svelte";
   import RowList from "./ui/RowList.svelte";
   import SectionHead from "./ui/SectionHead.svelte";
@@ -14,6 +15,12 @@
     { template: "maps.yml", icon: "icon-globe", title: "Maps and worlds", note: "Roads, terrain, spawns, a spot that looks wrong" },
     { template: "performance.yml", icon: "icon-gauge", title: "Performance", note: "Low frame rate, stutter, long loads" },
     { template: "idea.yml", icon: "icon-idea", title: "Idea or improvement", note: "Something you'd like added or changed" },
+  ];
+
+  const FUNDING = [
+    { title: "GitHub", icon: "icon-brand-github", note: "Sponsor monthly or once", href: "https://github.com/sponsors/lilBunnyRabbit" },
+    { title: "Coffee", icon: "icon-brand-buymeacoffee", note: "Buy me a coffee", href: "https://buymeacoffee.com/lilBunnyRabbit" },
+    { title: "PayPal", icon: "icon-brand-paypal", note: "Any amount", href: "https://www.paypal.me/ThelilBunnyRabbit" },
   ];
 
   const FIELD_LABELS: [keyof IssueFields, string][] = [
@@ -47,6 +54,22 @@
     </p>
   </Card>
 
+  <Card class="support-back">
+    <SectionHead eyebrow="Totally optional" title="Like Harepin?" />
+    <p class="support-note">Harepin is free and stays free. If it gave you a good drive and you'd like to chip in, it helps me keep building it. Thank you either way.</p>
+    <nav class="support-funds" aria-label="Chip in">
+      {#each FUNDING as fund (fund.href)}
+        <a class="support-fund" href={fund.href} target="_blank" rel="noopener">
+          <Icon name={fund.icon} />
+          <span class="support-fund-text">
+            <b>{fund.title}</b>
+            <small>{fund.note}</small>
+          </span>
+        </a>
+      {/each}
+    </nav>
+  </Card>
+
   <Card class="support-list" list>
     <RowList nav label="Open a GitHub issue">
       {#each KINDS as kind (kind.template)}
@@ -70,13 +93,70 @@
 <style>
   .support-page {
     display: grid;
-    grid-template: "about list" auto "sent list" 1fr / minmax(0, 1fr) minmax(0, 1.25fr);
+    grid-template: "about list" auto "back list" auto "sent list" 1fr / minmax(0, 1fr) minmax(0, 1.25fr);
     align-items: start;
     gap: var(--space-5);
   }
 
   .support-page > :global(.support-about) {
     grid-area: about;
+  }
+
+  .support-page > :global(.support-back) {
+    grid-area: back;
+    border-color: var(--secondary);
+    background: color-mix(in oklch, var(--secondary) 10%, var(--set-panel));
+  }
+
+  .support-funds {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--space-3);
+  }
+
+  .support-fund {
+    --icon-size: var(--text-xl);
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: 64px;
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid color-mix(in oklch, var(--secondary) 55%, transparent);
+    border-radius: var(--radius-md);
+    background: color-mix(in oklch, var(--secondary) 14%, var(--set-panel));
+    color: var(--foreground);
+    text-decoration: none;
+  }
+
+  .support-fund:hover {
+    border-color: var(--secondary);
+    background: color-mix(in oklch, var(--secondary) 26%, var(--set-panel));
+  }
+
+  .support-fund:focus-visible {
+    outline: 2px solid var(--secondary);
+    outline-offset: 2px;
+  }
+
+  .support-fund > :global(svg) {
+    flex: none;
+    color: var(--secondary);
+  }
+
+  .support-fund-text {
+    display: grid;
+    gap: var(--space-0);
+    min-width: 0;
+  }
+
+  .support-fund-text b {
+    font-size: var(--text-lg);
+    font-weight: 600;
+  }
+
+  .support-fund-text small {
+    color: var(--set-dim);
+    font-size: var(--text-sm);
   }
 
   .support-page > :global(.support-list) {
@@ -133,7 +213,7 @@
 
   @media (max-width: 600px) {
     .support-page {
-      grid-template: "about" "list" "sent" / minmax(0, 1fr);
+      grid-template: "about" "back" "list" "sent" / minmax(0, 1fr);
     }
   }
 </style>
