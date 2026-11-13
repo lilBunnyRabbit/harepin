@@ -28,7 +28,7 @@ import { PARKING_MODE } from "./parking-mode";
 import type { RunPlay } from "../runs/run-play";
 import { RUN_PARAM } from "../runs/runs";
 import { RACE_MODE } from "./race-mode";
-import { race_levels } from "./races";
+import { level_route, race_levels } from "./races";
 import { line, run_text, star_row } from "./result";
 import { MAX_STARS, Track, local_store, type RaceRecord } from "./track";
 import "./modes.css";
@@ -362,7 +362,7 @@ export class Modes {
     this.pick = pick;
     try {
       const own = this.kept ?? this.car_code?.() ?? "";
-      const excludes = legs.flatMap((leg) => this.world.routes.find((r) => r.id === leg.level.id)?.excludes ?? []);
+      const excludes = legs.flatMap((leg) => this.excludes(leg.level.id));
       const car_sized_only = legs.some((leg) => leg.mode.def.car_sized_only);
       return await this.pick_car(event.name, { cap, car_sized_only, excludes: excludes.length ? excludes : undefined }, own, pick.signal);
     } finally {
@@ -447,7 +447,12 @@ export class Modes {
 
   /** The level is a route the car being driven is not raced in. */
   private left_out(id: string): boolean {
-    return this.world.routes.find((r) => r.id === id)?.excludes?.includes(this.spec().id) === true;
+    return this.excludes(id).includes(this.spec().id);
+  }
+
+  private excludes(id: string): readonly string[] {
+    const route = level_route(this.world.routes, id);
+    return this.world.routes.find((r) => r.id === route)?.excludes ?? [];
   }
 
   private begin(mode: Mode, level: Level, track = mode.track, event: CareerEvent | null = null, play: RunPlay | null = null, cup: CupRun | null = null) {

@@ -53,6 +53,11 @@ export function race_levels(routes: readonly { id: string }[], place: string, st
   return [...races, ...traps];
 }
 
+/** The route a race level runs on: a speed trap level runs on another route, so its flag and excludes are that route's. */
+export function level_route(routes: readonly { id: string }[], level: string): string {
+  return race_levels(routes, "").find((l) => l.id === level)?.trap ?? level;
+}
+
 export interface RaceChoice {
   id: string;
   name: string;

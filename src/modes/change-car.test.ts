@@ -9,6 +9,7 @@ import { EVENTS } from "../career/career";
 import { Career } from "../career/career-store";
 import { WorldKind } from "../worldgen/types";
 import { GYMKHANA_MODE } from "./gymkhana-mode";
+import type { CarLimit } from "../car/car-pick";
 import { Modes } from "./modes";
 
 class FakeElement {
@@ -65,10 +66,11 @@ interface Rig {
   saved: string[];
   answer: (code: string | null) => void;
   asked: number;
+  limit: CarLimit | null;
 }
 
-function rig(): Rig {
-  const world = { kind: WorldKind.ISLAND, seed: 1, key: "k", levels: [], routes: [], ramps: [], tiles: { streamed: false, complete: true } };
+function rig(routes: readonly unknown[] = []): Rig {
+  const world = { kind: WorldKind.ISLAND, seed: 1, key: "k", levels: [], routes, ramps: [], tiles: { streamed: false, complete: true } };
   const r = { starts: [], disposed: 0, car: OWN, saved: [], answer: () => {}, asked: 0 } as unknown as Rig;
   r.modes = new Modes(
     {} as never,
@@ -88,8 +90,9 @@ function rig(): Rig {
     r.car = code;
     if (save) r.saved.push(code);
   };
-  modes.pick_car = () => {
+  modes.pick_car = (_, limit) => {
     r.asked++;
+    r.limit = limit;
     return new Promise((done) => (r.answer = done));
   };
   GYMKHANA_MODE.start = () => {
@@ -281,4 +284,12 @@ test("a stage that refuses to start mid-championship says the championship ended
   expect(r.starts).toEqual(["g1", "g2"]);
   expect(r.modes.active).toBe(false);
   expect(elements.get("mode-status")!.textContent).toBe("No room here · championship over at stage 2/3, 10 pts");
+});
+
+test("a speed trap event leaves out the cars its circuit excludes", async () => {
+  const r = rig([{ id: "circuit", closed: true, points: [], checkpoints: [], excludes: ["bus"] }]);
+  r.modes.play_event({ ...capped, mode: "race", level: "trap" });
+  await settle();
+  expect(r.asked).toBe(1);
+  expect(r.limit?.excludes).toEqual(["bus"]);
 });

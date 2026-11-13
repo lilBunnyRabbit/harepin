@@ -9,7 +9,7 @@ const { GHOST_EVERY_MS, ghost_frame } = await import("../src/car/ghost");
 const { rating } = await import("../src/car/pi");
 const { PRESETS } = await import("../src/car/presets");
 const { DUEL_LEVELS, DuelRun, DuelStatus, build_route } = await import("../src/modes/duel");
-const { RaceRun, RaceStatus, TrapRun, race_course, race_levels, trap_points } = await import("../src/modes/races");
+const { RaceRun, RaceStatus, TrapRun, level_route, race_course, race_levels, trap_points } = await import("../src/modes/races");
 const { SILVER_SHARE } = await import("../src/modes/track");
 const { mesh_tones } = await import("../src/render/scene");
 const { World } = await import("../src/world/world");
@@ -203,7 +203,7 @@ for (const event of EVENTS) {
   for (const unit of todo) {
     const drives: Drive[] = [];
     const wall = performance.now();
-    for (const { label, build } of cars_for(event, world.routes.find((r) => r.id === unit.level)?.excludes)) {
+    for (const { label, build } of cars_for(event, world.routes.find((r) => r.id === level_route(world.routes, unit.level))?.excludes)) {
       const run = unit.mode === "race" ? race_drive(world, mesher, unit.level, build) : unit.mode === "duel" ? duel_drive(world, mesher, unit.level, build) : null;
       if (!run) throw new Error(`${unit.name}: ${unit.mode} ${unit.level} has no bot drive`);
       drives.push({ ...run, label });
