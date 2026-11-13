@@ -132,6 +132,11 @@
   display: none;
 }
 
+/* A mode run never starts the lap, so the strip stays idle and the calm fade would hide the button outright. */
+:root[data-hud="classic"][data-calm] body:has(#mode-status:not([hidden])) #strip {
+  opacity: 0.3;
+}
+
 :root[data-hud="classic"] #mode-status {
   top: var(--inset-top);
   font-size: var(--text-xl);
