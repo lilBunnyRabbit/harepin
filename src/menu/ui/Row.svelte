@@ -42,14 +42,15 @@
 
 <style>
   .ui-row {
-    --row-h: 56px;
+    --row-h: 72px;
+    --lead-size: 22px;
     display: flex;
     align-items: center;
     gap: var(--space-4);
     width: 100%;
     min-height: var(--row-h);
     height: auto;
-    padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
+    padding: var(--space-4);
     border: 0;
     border-radius: var(--radius-md);
     background: none;
@@ -77,6 +78,7 @@
   }
 
   .ui-lead {
+    --icon-size: var(--lead-size);
     display: flex;
     flex: none;
     color: var(--primary);
@@ -91,7 +93,7 @@
 
   .ui-label {
     color: var(--foreground);
-    font-size: var(--text-lg);
+    font-size: var(--text-xl);
     font-weight: 600;
     line-height: 1.3;
   }
@@ -111,7 +113,7 @@
 
   @media (pointer: coarse) {
     .ui-row {
-      --row-h: 64px;
+      --row-h: 80px;
     }
   }
 </style>

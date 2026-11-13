@@ -208,7 +208,7 @@ Rhythm rules:
 
 - **Page:** the gap between cards is `--space-5`, at every width. Online and support move up from 16 to 20.
 - **Card:** padding is `--space-5`. At short or phone widths it is `--space-4`, never less. A card never sits inside another card: the page-view `.settings-page` loses its panel when its child is a panel.
-- **Row:** min height 56 desktop and 64 touch (today's 50 on touch is tighter than desktop). Padding is `--space-2` vertical and `--space-4` start / `--space-3` end. All list rows share it: settings, server, support, career, goals and keys.
+- **Row:** min height 72 desktop and 80 touch, never tighter than today's support rows (owner: generous spacing, more room, never tighter). Padding is `--space-4` all round, `--space-4` between icon, text and end. All list rows share it: settings, server, support, career, goals and keys.
 - **Label to control:** `--space-2`. **Label to help line:** `--space-0`.
 
 ### Sizes
@@ -233,7 +233,8 @@ The `--text-*` tokens stay. Each role gets one token, one weight and one trackin
 | Eyebrow (section label, uppercase) | `--text-xs` | 11 | 700 | 0.08em | 1.2 | 10/0.08 (`menu.css:411`), 10/0.06 (`guide.css:180`, `menu.css:420`), 11/0.08 (`car-pick.css:59`, `garage.css:845`), 12/0.08 (`settings.css:900`, `play.css:220`) |
 | Meta, help line, caption | `--text-sm` | 12 | 400 | 0 | 1.4 | already mostly |
 | Body | `--text-md` | 13 | 400 | 0 | 1.45 | `.settings` base |
-| Label, control text, list title | `--text-lg` | 14 | 600 | 0 | 1.3 | row label 14/500, settings-label 14/600, play-words 14/700, garage 12-14/600 |
+| Label, control text | `--text-lg` | 14 | 600 | 0 | 1.3 | row label 14/500, settings-label 14/600, play-words 14/700, garage 12-14/600 |
+| List row title | `--text-xl` | 16 | 600 | 0 | 1.3 | support row 16/600; rows never shrink below it |
 | Card title | `--text-xl` | 16 | 700 | 0 | 1.2 | settings-title 16/600, mode-result 16/600, career-head 16/700, set-tab 16/600 |
 | Page and dialog title | `--text-2xl` | 20 | 700 | 0 | 1.2 | support, car pick, updated, set-help 20/700, the last at −0.011em |
 | Display (one per screen) | `--text-3xl` *(new)* | 28 | 700 | 0 | 1.1 | raw 28 px in `career-hero.css:27`, `guide.css:156`, `guide.css:279`, `menu.css:475`; 26 in `career-hero.css:17` |
@@ -284,7 +285,7 @@ Each component owns its CSS in the Svelte file and reads only tokens. The "repla
 | `Slider` | `value`, `min`, `max`, `format` | Track 6, thumb 18 / 24, value `--font-mono` `--text-md` 700, `min-width: 4ch` | `.settings-range`, `.row-slider`, `.settings-volume` |
 | `Stepper` | `options`, `value` (the arrows plus dots row) | Arrows = `IconButton` sm, value `--text-md` 600 | `.row-step`, `.row-step-value`, `.row-dots` |
 | `Select` / `TextField` | `label`, `help`, `mono` | `--control-h`, `--text-lg` 400 (mono for codes), `--radius-sm`, `--set-soft` fill | `.settings-input`, `.settings-select`, `.garage-field`, `.guide-name`, `.map-code`, `.map-name`, `.menu-name input` |
-| `Row` | `label`, `help`, `control` slot, `href` (chevron), `custom` | min-h 56 / 64; pad `--space-2` `--space-3` `--space-2` `--space-4`; label `--text-lg` 600, help `--text-sm`; `--radius-md` hover fill; focus ring only on `:focus-visible` (T9) | `.row`, `.settings-row`, `.career-row`, `.goals-row`, `.servers-row`, `.support-row`, `.settings-keys tr` |
+| `Row` | `label`, `help`, `control` slot, `href` (chevron), `custom` | min-h 72 / 80; pad `--space-4`; leading icon 22; label `--text-xl` 600, help `--text-sm`; `--radius-md` hover fill; focus ring only on `:focus-visible` (T9) | `.row`, `.settings-row`, `.career-row`, `.goals-row`, `.servers-row`, `.support-row`, `.settings-keys tr` |
 | `RowList` | `divided` (rule between rows) or `gap` | gap `--space-1` | `.set-rows`, `.career-list`, `.goals-list`, `.servers-list`, `.menu-scroll` |
 | `Card` | `well` / `panel` / `raised`; `as="button"` makes a tile | pad `--space-5` (short: `--space-4`); `--radius-lg`; border `--set-line`. Never nested: a `Card` in a `Card` drops to `Section`. | `.menu-tile`, `.menu-info`, `.goals-card`, `.career-hero`, `.career-tier`, `.support-about`, `.support-sent`, `.set-help`, `.play-drive`, `.settings-page` (page view), `.guide-card`, `.updated-notes` |
 | `Tile` | `thumb` (image), `icon`; `size`: `sm` (mini map) / `md` (link) | One height per size; title `--text-lg` 600, meta `--text-sm` | `.play-mini`, `.play-link`, `.guide-tile`, `.guide-world`, `.map-world`, `.modes-level`, `.car-pick-car`, `.garage-card`, `.garage-build-load` |
