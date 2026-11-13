@@ -28,6 +28,7 @@ export function run_name(pick: RunPick, fallback = false): string {
 
 export function run_play(pick: RunPick, world: World, runs: Runs, start_run: (id: string) => void): RunPlay {
   const resolved = resolve(pick, probe(world));
+  const started = runs.today;
   const event: CareerEvent = {
     id: pick.id,
     name: run_name(pick, resolved.fallback),
@@ -44,7 +45,7 @@ export function run_play(pick: RunPick, world: World, runs: Runs, start_run: (id
     grade: (own) => scale(own, pick.difficulty),
     finish(stars) {
       if (stars < 1) return [];
-      const { gain, capped } = runs.record(pick, stars);
+      const { gain, capped } = runs.record(pick, stars, started);
       const total = `${runs.stars} ★`;
       return [line("season", gain ? `+${gain} ★ · ${total}` : capped ? `Today's ${FREE_CAP} ★ are in · ${total}` : total)];
     },

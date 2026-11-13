@@ -1,6 +1,6 @@
 import { Track, read_json, write_json, type Store } from "../modes/track";
 import type { WorldKind } from "../worldgen/types";
-import { RunSource, season_of, utc_date, type RunPick } from "./runs";
+import { Difficulty, RunSource, season_of, utc_date, type RunPick } from "./runs";
 
 export const RUNS_KEY = "harepin:runs";
 /** Season stars a day from endless and built runs, against farming; the daily's own stars come on top. */
@@ -76,15 +76,19 @@ export class Runs {
     return Math.max(0, FREE_CAP - (this.current.free[this.today] ?? 0));
   }
 
-  /** Today's daily earns up to its stars once; anything else, an old daily included, draws on today's free cap. */
-  record(pick: RunPick, stars: number): RunGain {
+  /**
+   * A daily started on its own date earns up to its stars once, by that date even when it ends past midnight; anything
+   * else, an old daily included, draws on today's free cap. `started`: the UTC date the run began.
+   */
+  record(pick: RunPick, stars: number, started = this.today): RunGain {
     const save = this.current;
     const today = this.today;
     let gain: number;
     let capped = false;
-    if (pick.source === RunSource.DAILY && pick.date === today) {
-      gain = Math.max(0, stars - (save.days[today] ?? 0));
-      if (gain) save.days = { ...save.days, [today]: stars };
+    if (pick.source === RunSource.DAILY && pick.date === started) {
+      const day = pick.date;
+      gain = Math.max(0, stars - (save.days[day] ?? 0));
+      if (gain) save.days = { ...save.days, [day]: stars };
     } else {
       gain = Math.min(stars, this.free_left);
       capped = gain < stars;
@@ -98,8 +102,10 @@ export class Runs {
   }
 }
 
-/** A run's best times: per date for a daily, `harepin:run:<date>:<world_key>`; else per map and lap count, `harepin:run[:l<laps>]:<world_key>`. */
+/** A run's best times: per date for a daily, `harepin:run:<date>:<world_key>`; else per map, lap count and difficulty, `harepin:run[:l<laps>][:<difficulty>]:<world_key>`. */
 export function run_track(pick: RunPick, level: string, store: Store | null, seed: number, kind: WorldKind, levels: readonly number[]): Track {
-  const scope = pick.date ? `run:${pick.date}` : pick.laps > 1 ? `run:l${pick.laps}` : "run";
+  const laps = pick.laps > 1 ? `:l${pick.laps}` : "";
+  const difficulty = pick.difficulty === Difficulty.NORMAL ? "" : `:${pick.difficulty}`;
+  const scope = pick.date ? `run:${pick.date}` : `run${laps}${difficulty}`;
   return new Track(scope, seed, [level], store, kind, levels);
 }

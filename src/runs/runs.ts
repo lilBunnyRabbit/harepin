@@ -81,7 +81,7 @@ export const RUN_TYPES: readonly RunTypeDef[] = [
     id: RunType.RACE,
     name: "Race",
     mode: "race",
-    levels: ["circuit", "circuit-rev", "street-1", "street-2", "offroad-1", "offroad-2", "descent"],
+    levels: ["circuit", "circuit-rev", "sprint", "street-1", "street-2", "offroad-1", "offroad-2", "descent"],
     choice: {
       label: LENGTH,
       options: [
@@ -168,7 +168,9 @@ function shuffled<T>(items: readonly T[], rng: () => number): T[] {
 const draw = <T>(items: readonly T[], rng: () => number): T => items[Math.floor(rng() * items.length)];
 
 function roll(options: RunOptions, rng: () => number): Omit<RunPick, "id" | "source" | "date"> {
-  const rolled_type = draw(RUN_TYPES, rng).id;
+  // A world picked with the type left to the dice draws only types that run there.
+  const hosts = options.kind ? RUN_TYPES.filter((t) => options.kind !== null && t.kinds.includes(options.kind)) : RUN_TYPES;
+  const rolled_type = draw(hosts.length ? hosts : RUN_TYPES, rng).id;
   const type = type_of(options.type ?? rolled_type);
   const rolled_kind = draw(type.kinds, rng);
   const kind = options.kind && type.kinds.includes(options.kind) ? options.kind : rolled_kind;
@@ -237,13 +239,20 @@ export function parse_options(code: string): { options: RunOptions; seed: number
   };
 }
 
+// Date.parse rolls 2026-02-30 over to March: only a date that reads back as itself is one.
+function real_date(text: string): boolean {
+  if (!DATE.test(text)) return false;
+  const at = new Date(`${text}T00:00:00Z`);
+  return !Number.isNaN(at.getTime()) && utc_date(at) === text;
+}
+
 export function run_of(param: string | null): RunPick | null {
   if (!param) return null;
   const at = param.indexOf(":");
   if (at < 0) return null;
   const source = param.slice(0, at);
   const rest = param.slice(at + 1);
-  if (source === RunSource.DAILY) return DATE.test(rest) && !Number.isNaN(Date.parse(rest)) ? daily(rest) : null;
+  if (source === RunSource.DAILY) return real_date(rest) ? daily(rest) : null;
   if (source === RunSource.RANDOM) {
     const seed = parseInt(rest, 36);
     return /^[0-9a-z]+$/.test(rest) && Number.isSafeInteger(seed) ? random(seed) : null;

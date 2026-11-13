@@ -61,6 +61,15 @@ export interface MapData {
   checkpoints: MapMark[];
   start: MapMark;
   facts: WorldFacts;
+  /** Race routes by id: a built run names its route and length before the world loads. */
+  routes: MapRoute[];
+}
+
+export interface MapRoute {
+  id: string;
+  /** Metres, one lap for a closed route. */
+  length: number;
+  closed: boolean;
 }
 
 /** `terrain` is the game's terrain LUT and `water` a linear RGB tone, both from the main thread's palette. */
@@ -194,6 +203,7 @@ export function map_data(data: WorldData, tones: MapTones): MapData {
     checkpoints: data.checkpoints.map((c) => ({ x: c.x, z: c.z, fx: Math.sin(c.heading), fz: Math.cos(c.heading), length: 0 })),
     start: { x: start.x, z: start.z, fx: start.tx, fz: start.tz, length: 0 },
     facts: world_facts(data),
+    routes: data.routes.map(({ id, length, closed }) => ({ id, length, closed })),
   };
 }
 

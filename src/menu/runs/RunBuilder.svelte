@@ -3,6 +3,8 @@
   import { limit_text } from "../../car/car-pick";
   import { PRESETS } from "../../car/presets";
   import { ANY, Difficulty, LAPS, RUN_TYPES, RunType, car_code, custom, new_seed, parse_car, type RunOptions, type RunPick } from "../../runs/runs";
+  import { plain_map } from "../../worldgen/kinds/kinds";
+  import type { MapData } from "../../worldgen/map";
   import type { WorldKind } from "../../worldgen/types";
   import type { Menu } from "../page";
   import Button from "../ui/Button.svelte";
@@ -14,6 +16,8 @@
   import Select from "../ui/Select.svelte";
   import type { Option } from "../ui/types";
   import { COPIED_MS } from "../widgets";
+  import { map_request, map_worker } from "../world-map.svelte";
+  import { band_text, route_text } from "../../runs/run-route";
   import { car_text, pick_text, run_link, world_name } from "./run-text";
 
   interface Props {
@@ -36,7 +40,7 @@
   const TYPES: Option<string>[] = [{ value: ANY, label: "Any type" }, ...RUN_TYPES.map((type) => ({ value: type.id, label: type.name }))];
   const ALL_KINDS = [...new Set(RUN_TYPES.flatMap((type) => type.kinds))];
   const CARS: Option<string>[] = [
-    { value: ANY, label: "Any car" },
+    { value: ANY, label: "Random class" },
     ...Object.values(CarClass).map((cap) => ({ value: cap, label: limit_text(cap) })),
     ...PRESETS.map((preset) => ({ value: car_code({ preset: preset.name }), label: `${preset.name} car` })),
   ];
@@ -49,6 +53,21 @@
   let laps = $state(1);
   let built = $state.raw<RunPick | null>(null);
   let copied = $state("");
+  let route = $state<string | null>(null);
+
+  // A race's route is the map's: its plan is generated off the main thread, as the world map's is, to name it here.
+  $effect(() => {
+    const pick = built;
+    route = null;
+    if (!pick || (pick.type !== RunType.RACE && pick.type !== RunType.TRAP)) return;
+    const worker = map_worker();
+    worker.addEventListener("message", (event: MessageEvent<MapData>) => {
+      worker.terminate();
+      route = route_text(pick, event.data.routes);
+    });
+    worker.postMessage(map_request(pick.seed, pick.kind, plain_map(pick.kind, pick.seed).levels));
+    return () => worker.terminate();
+  });
 
   const def = $derived(RUN_TYPES.find((t) => t.id === type) ?? null);
   const kinds = $derived(def?.kinds ?? ALL_KINDS);
@@ -116,7 +135,7 @@
       <Row label="Difficulty" help={DIFFICULTY_HELP[difficulty]} stack>
         {#snippet control()}<Segmented options={DIFFICULTIES} bind:value={difficulty} label="Difficulty" onchange={changed} />{/snippet}
       </Row>
-      <Row label="Car" help="A class limit lets you pick your car; a preset car is lent for the run" stack>
+      <Row label="Car" help="A class limit lets you pick your car; a preset car is lent; Random class rolls a limit" stack>
         {#snippet control()}<Select options={CARS} bind:value={car} label="Car" onchange={changed} />{/snippet}
       </Row>
     </RowList>
@@ -128,8 +147,11 @@
   {#if built}
     <Card list label="Your event">
       <div class="head"><SectionHead eyebrow="Your event" title={pick_text(built)} /></div>
-      <RowList label="Your event">
-        <Row label={car_text(built.car)} help={`${built.laps > 1 ? `${built.laps} laps · ` : ""}${DIFFICULTIES.find((d) => d.value === built?.difficulty)?.label} star marks · season stars within today's cap`} />
+      <RowList divided label="Your event">
+        {#if built.type === RunType.RACE || built.type === RunType.TRAP}
+          <Row label={route ?? "Finding the route…"} help={band_text(built) ?? (built.laps > 1 ? `${built.laps} laps` : "Route of the map")} />
+        {/if}
+        <Row label={car_text(built.car)} help={`${DIFFICULTIES.find((d) => d.value === built?.difficulty)?.label} star marks · season stars within today's cap`} />
       </RowList>
       <div class="actions">
         <Button icon="icon-share" onclick={() => built && copy_link(built)}>{copied || "Copy link"}</Button>

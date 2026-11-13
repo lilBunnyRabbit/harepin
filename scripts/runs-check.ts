@@ -12,7 +12,7 @@ type RunProbe = import("../src/runs/runs").RunProbe;
 // Vets the Runs combo list (`RUN_TYPES` in src/runs/runs.ts) the way career-check vets events: every type on every
 // kind it lists, over `--seeds N` seeds, must find one of its levels (else the run falls back to the map's circuit
 // race), and that circuit must exist. A choice (length, ramp) a kind never offers is reported, not failed: its type's
-// other levels stand in. Then `--days N` dailies from today (UTC) are picked and resolved as a player would get them.
+// other levels stand in, and so is a level a kind never has (race `sprint` is Mainland's, off the compact kinds). Then `--days N` dailies from today (UTC) are picked and resolved as a player would get them.
 const arg = (name: string, fallback: number) => {
   const at = process.argv.indexOf(name);
   return at >= 0 ? Number(process.argv[at + 1]) : fallback;
@@ -43,6 +43,7 @@ for (const kind of kinds) {
   const falls = new Map<string, number>();
   const misses = new Map<string, number>();
   let no_circuit = 0;
+  const seen = new Set<string>();
   for (const seed of seeds) {
     const { probe: here } = load(kind, seed);
     if (!here.levels("race").includes("circuit")) no_circuit++;
@@ -50,6 +51,7 @@ for (const kind of kinds) {
       const pick = { ...daily("2026-01-01"), type: type.id, kind, seed, levels: type.levels, band: null };
       if (resolve(pick, here).fallback) falls.set(type.id, (falls.get(type.id) ?? 0) + 1);
       const have = here.levels(type.mode);
+      for (const level of type.levels) if (have.includes(level)) seen.add(`${type.id} ${level}`);
       for (const option of type.choice?.options ?? []) {
         if (option.levels && !option.levels.some((level) => have.includes(level))) misses.set(`${type.id} ${option.id}`, (misses.get(`${type.id} ${option.id}`) ?? 0) + 1);
       }
@@ -60,6 +62,7 @@ for (const kind of kinds) {
   const notes = [
     ...types.flatMap((type) => (falls.get(type.id) ? [`${type.id} falls back ${falls.get(type.id)}/${seeds.length}${bad.includes(type) ? " FAIL" : ""}`] : [])),
     ...[...misses].map(([what, n]) => `${what} missing ${n}/${seeds.length}`),
+    ...types.flatMap((type) => type.levels.filter((level) => !seen.has(`${type.id} ${level}`)).map((level) => `${type.id} ${level} never`)),
     ...(no_circuit ? [`no circuit ${no_circuit}/${seeds.length} FAIL`] : []),
   ];
   console.log(`${WORLDS[kind].name}: ${types.length} types${notes.length ? ` | ${notes.join(", ")}` : " | ok"}`);

@@ -8,7 +8,7 @@ import { PARK_LEVELS } from "../modes/parking";
 import { race_levels } from "../modes/races";
 import type { Store } from "../modes/track";
 import { pick_world } from "../world/world-pick";
-import { FREE_CAP, Runs, RUNS_KEY, parse_runs_save } from "./runs-store";
+import { FREE_CAP, Runs, RUNS_KEY, parse_runs_save, run_track } from "./runs-store";
 import {
   Difficulty,
   FALLBACK,
@@ -216,4 +216,41 @@ test("a run link picks its plain map before the kinds load; a map param wins ove
   const saved = { last_seed: null, last_world: null, last_map: null, played: true };
   expect(pick_world(new URLSearchParams({ run: pick.id }), "lobby", saved)).toEqual({ seed: pick.seed, kind: pick.kind, code: null });
   expect(pick_world(new URLSearchParams({ run: pick.id, map: "1C0000003" }), "lobby", saved).code).toBe("1C0000003");
+});
+
+test("a world picked with the type left open draws only types that run there", () => {
+  for (let seed = 0; seed < 60; seed++) {
+    const pick = custom({ type: null, kind: "sky", choice: null, difficulty: Difficulty.NORMAL, car: null, laps: 1 }, seed);
+    expect(pick.kind).toBe("sky");
+    expect(RUN_TYPES.find((t) => t.id === pick.type)?.kinds).toContain("sky");
+  }
+});
+
+test("a daily date must read back as itself", () => {
+  for (const bad of ["daily:2026-02-30", "daily:2026-02-29", "daily:2026-04-31", "daily:2026-00-10"]) expect(run_of(bad)).toBeNull();
+  expect(run_of("daily:2028-02-29")).not.toBeNull();
+});
+
+test("the race type offers the sprint", () => {
+  expect(RUN_TYPES.find((t) => t.id === RunType.RACE)?.levels).toContain("sprint");
+});
+
+test("a daily started before midnight UTC keeps its stars for its own date", () => {
+  const store = new MemStore();
+  const runs = new Runs(store, () => new Date("2026-11-14T00:05:00Z"));
+  expect(runs.record(daily("2026-11-13"), 2, "2026-11-13")).toEqual({ gain: 2, capped: false });
+  expect(runs.daily("2026-11-13")).toBe(2);
+  expect(runs.free_left).toBe(FREE_CAP);
+  expect(runs.record(daily("2026-11-13"), 3, "2026-11-14")).toEqual({ gain: 3, capped: false });
+  expect(runs.free_left).toBe(FREE_CAP - 3);
+});
+
+test("relaxed, normal and hard runs keep separate bests", () => {
+  const store = new MemStore();
+  const at = (difficulty: Difficulty, laps = 1) => run_track(custom({ type: RunType.RACE, kind: "island", choice: null, difficulty, car: null, laps }, 5), "circuit", store, 5, "island", []);
+  at(Difficulty.HARD).record("circuit", { stars: 3, ms: 1000 });
+  expect(at(Difficulty.HARD).runs.circuit?.ms).toBe(1000);
+  expect(at(Difficulty.NORMAL).runs.circuit).toBeUndefined();
+  expect(at(Difficulty.RELAXED).runs.circuit).toBeUndefined();
+  expect(at(Difficulty.HARD, 3).runs.circuit).toBeUndefined();
 });
