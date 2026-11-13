@@ -246,7 +246,7 @@ export function parse_build(code: unknown): Build | null {
   return { car: m[1], paint, decal, ink, number, parts };
 }
 
-function fold(mods: Mod[], field: Field, base: number): number {
+function fold(mods: readonly Mod[], field: Field, base: number): number {
   let value = base;
   for (const mod of mods) value *= mod.scale?.[field] ?? 1;
   for (const mod of mods) value += mod.add?.[field] ?? 0;
@@ -256,8 +256,22 @@ function fold(mods: Mod[], field: Field, base: number): number {
 
 const is_numeric = (spec: CarSpec, field: keyof CarSpec): field is NumericField => typeof spec[field] === "number" && field !== "awd_split";
 
+/** Every field a `Mod` can name: the spec's numbers and the derived ones. */
+export function is_field(spec: CarSpec, name: string): name is Field {
+  return name in DERIVED || (name in spec && is_numeric(spec, name as keyof CarSpec));
+}
+
+const DERIVED: Record<keyof Derived, true> = { torque: true, inertia: true, rest: true, cog: true, nitro: true, grip_dirt: true, grip_grass: true };
+
+/** The parts' mods a build folds, in slot order. */
+export const build_mods = (parts: Record<Slot, number>): Mod[] => SLOT_NAMES.map((slot) => part_of(slot, parts[slot]).mod);
+
 export function apply_build(base: CarSpec, build: Build): CarSpec {
-  const mods = SLOT_NAMES.map((slot) => part_of(slot, build.parts[slot]).mod);
+  return apply_mods(base, build_mods(build.parts));
+}
+
+/** Folds `mods` over `base` the way parts fold: scales, then adds, then the limits. */
+export function apply_mods(base: CarSpec, mods: readonly Mod[]): CarSpec {
   const at = (field: Field, value: number) => fold(mods, field, value);
   const spec = { ...base };
   for (const field of Object.keys(base) as (keyof CarSpec)[]) if (is_numeric(base, field)) spec[field] = at(field, base[field]);

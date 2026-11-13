@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { build_spec, type Build } from "./build";
 import type { ChaseCamera } from "../render/camera";
 import { Car, drop_height } from "./car";
-import { oversize, type Size } from "./cars";
+import { oversize, type CarSpec, type Size } from "./cars";
 import type { Lighting } from "../render/lighting";
 import { dark } from "../theme/palette";
 import { contact_shadow, fit_contact_shadow, place_contact_shadow } from "./contact-shadow";
@@ -185,10 +185,11 @@ export class Driver {
     }
   }
 
-  swap(build: Build, timed: boolean) {
+  /** `spec` stands in for the build's own (the feel lab's overrides); the build still draws the car. */
+  swap(build: Build, timed: boolean, spec: CarSpec = build_spec(build)) {
     const { pos, heading } = this.car;
     const tank = this.car.nitro;
-    this.car = new Car(build_spec(build));
+    this.car = new Car(spec);
     this.car.nitro.carry(tank, timed);
     this.pads.clear();
     this.car.park(pos.x, pos.z, heading, this.world);
