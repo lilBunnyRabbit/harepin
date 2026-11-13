@@ -33,6 +33,7 @@
     --tile-h: 80px;
     display: flex;
     align-items: center;
+    justify-content: flex-start;
     gap: var(--space-3);
     min-width: 0;
     height: var(--tile-h);

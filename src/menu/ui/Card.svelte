@@ -11,11 +11,11 @@
     children: Snippet;
   }
 
-  let { variant = "panel", onclick, list = false, label, class: extra, children }: Props = $props();
+  let { variant = "panel", onclick, list = false, label, selected, class: extra, children }: Props = $props();
 </script>
 
 {#if onclick}
-  <button type="button" class={["ui-card", "ui-tile", extra]} data-variant={variant} aria-label={label} {onclick}>{@render children()}</button>
+  <button type="button" class={["ui-card", "ui-tile", extra]} data-variant={variant} aria-label={label} aria-pressed={selected} {onclick}>{@render children()}</button>
 {:else}
   <section class={["ui-card", extra]} class:ui-list={list} data-variant={variant} aria-label={label}>{@render children()}</section>
 {/if}
@@ -42,6 +42,8 @@
   }
 
   .ui-tile {
+    justify-content: flex-start;
+    align-items: stretch;
     height: auto;
     font: inherit;
     text-align: left;
