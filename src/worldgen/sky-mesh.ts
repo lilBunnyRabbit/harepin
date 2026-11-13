@@ -12,6 +12,12 @@ const CAP = 6;
 // The rail is one face leaning out from the deck edge to its top outer edge and one outer face: a flat top or a lip
 // caught the light as a strip of its own and stepped wherever the grade or the bank changed.
 const RAIL_WIDE = 0.3;
+// A bank rolling in tilts the deck's two edges apart between samples, and the quad folds along its diagonal by about
+// twist / sample length: on a bowl's roll a 1.3 m twist creased 19° and read as a fan of light and dark slivers. Past the
+// sky track's steepest roll-in (0.67 m, kept whole so its mesh stays as it was) top and underside split across their width
+// into strips of STRIP_TWIST each, a crease under 3° (an underside left whole would fold up through the split top).
+const SKY_TWIST = 0.7;
+const STRIP_TWIST = 0.1;
 /** Track joints every SEGMENT metres: a seam plate SEAM long, a step darker; side faces drew as black bars from the chase camera. */
 const SEGMENT = 9;
 const SEAM = 0.25;
@@ -79,8 +85,16 @@ export function deck_layers(deck: Deck, tones: DeckTones, chunk_of: (x: number, 
     const layer = surface[chunk_of(f(i, 0), f(i, 2))];
     const h = f(i, 6);
     const hj = f(j, 6);
-    quad(layer, tones.deck, at(i, -h, 0), at(i, h, 0), at(j, hj, 0), at(j, -hj, 0));
-    quad(layer, tones.side, at(i, -h - RAIL_WIDE, -THICK), at(j, -hj - RAIL_WIDE, -THICK), at(j, hj + RAIL_WIDE, -THICK), at(i, h + RAIL_WIDE, -THICK));
+    const twist = Math.abs(Math.tan(f(j, 5)) - Math.tan(f(i, 5))) * 2 * Math.max(h, hj);
+    const strips = twist > SKY_TWIST ? Math.ceil(twist / STRIP_TWIST) : 1;
+    const under = h + RAIL_WIDE;
+    const under_j = hj + RAIL_WIDE;
+    for (let k = 0; k < strips; k++) {
+      const a = -1 + (2 * k) / strips;
+      const b = -1 + (2 * (k + 1)) / strips;
+      quad(layer, tones.deck, at(i, a * h, 0), at(i, b * h, 0), at(j, b * hj, 0), at(j, a * hj, 0));
+      quad(layer, tones.side, at(i, a * under, -THICK), at(j, a * under_j, -THICK), at(j, b * under_j, -THICK), at(i, b * under, -THICK));
+    }
     for (const side of [-1, 1]) {
       const outer_i = side * (h + RAIL_WIDE);
       const outer_j = side * (hj + RAIL_WIDE);
