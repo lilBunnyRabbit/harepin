@@ -87,7 +87,7 @@ export function export_block(pack: Pack, trials: readonly Resolved[], results: r
       lines.push(` m ${metrics_text(result.metrics)}`);
     }
     const given = answers[trial.id] ?? {};
-    const scales = Object.entries(given).filter(([id]) => id !== "note");
+    const scales = Object.entries(given).filter(([id, v]) => id !== "note" && (typeof v === "number" || v.trim()));
     if (scales.length) lines.push(` a ${scales.map(([id, v]) => `${id}=${typeof v === "number" ? v : quote(v)}`).join(" ")}`);
     if (typeof given.note === "string" && given.note.trim()) lines.push(` n ${quote(given.note)}`);
   });

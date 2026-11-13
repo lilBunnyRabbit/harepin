@@ -22,7 +22,7 @@ const pack: Pack = {
 test("stored answers keep only known trials, questions and values they take", () => {
   const raw = { a: { grip: 4, note: "fine", extra: 1 }, b: { vs: "better", grip: 3 }, gone: { grip: 2 } };
   expect(read_answers(pack, raw)).toEqual({ a: { grip: 4, note: "fine" }, b: { vs: "better" } });
-  expect(read_answers(pack, { a: { grip: 6, note: "  " }, b: { vs: "much" } })).toEqual({});
+  expect(read_answers(pack, { a: { grip: 6, note: "" }, b: { vs: "much" } })).toEqual({});
   expect(read_answers(pack, { a: { grip: 2.5 } })).toEqual({});
   expect(read_answers(pack, null)).toEqual({});
   expect(read_answers(pack, "x")).toEqual({});

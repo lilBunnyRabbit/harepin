@@ -19,6 +19,8 @@
   const now = $derived(view.read(() => (at < 0 ? null : { r: lab.trials[at], status: lab.status(at) })));
   const shown = $derived(view.screen);
   const result = $derived(shown?.kind === "result" ? shown.index : null);
+  const live = $derived(view.read(() => lab.live));
+  const resume_label = $derived(!live ? (at < 0 ? "Start" : "Retry trial") : now?.status === "new" ? "Start" : "Back to trial");
   const driven = $derived(view.read(() => lab.trials.filter((_, i) => lab.status(i) !== "new").length));
 
   function go(index: number) {
@@ -29,6 +31,14 @@
   // A dialog closed by the screen moving on fires its close too: only the one still shown clears it.
   function close(kind: "list" | "result") {
     if (view.screen?.kind === kind) view.screen = null;
+    // A closed dialog hands focus back to the strip button that opened it, where Space would press it again.
+    const back = document.activeElement;
+    if (back instanceof HTMLElement && back.closest(".lab-strip")) back.blur();
+  }
+
+  function resume() {
+    if (live) view.screen = null;
+    else go(Math.max(0, at));
   }
 </script>
 
@@ -53,7 +63,7 @@
   {#snippet actions()}
     <div class="lab-actions">
       <Button icon="icon-share" onclick={() => view.copy()}>Copy results</Button>
-      <Button variant="primary" icon="icon-play" onclick={() => go(Math.max(0, at))}>{now && now.status !== "new" ? "Back to trial" : "Start"}</Button>
+      <Button variant="primary" icon="icon-play" onclick={resume}>{resume_label}</Button>
     </div>
   {/snippet}
 </Dialog>

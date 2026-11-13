@@ -38,8 +38,10 @@ export function show_overlay(lab: Lab): LabView {
   const target = document.createElement("div");
   target.className = "lab-overlay";
   (document.querySelector(".dock-top") ?? document.body).append(target);
-  // Keys typed into a card stay in it instead of steering or opening the menu.
-  target.addEventListener("keydown", (event) => event.stopPropagation());
+  // Keys typed into a card stay in it instead of steering or opening the menu; the strip lets them through to drive.
+  target.addEventListener("keydown", (event) => {
+    if (event.target instanceof Element && event.target.closest("dialog")) event.stopPropagation();
+  });
   mount(LabOverlay, { target, props: { view } });
   return view;
 }

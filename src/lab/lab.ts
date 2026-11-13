@@ -75,6 +75,11 @@ export class Lab {
     return this.index;
   }
 
+  /** The current trial is still measuring (or waiting for its first throttle): going back to it must not restart it. */
+  get live(): boolean {
+    return this.recorder !== null;
+  }
+
   /** The current trial counts as running once it has started measuring. */
   status(index: number): TrialStatus {
     return index === this.index && this.recorder?.started ? "running" : this.results[index].status;
@@ -134,7 +139,8 @@ export class Lab {
   /** Stop: the trial keeps what it measured and its results card opens. */
   end_trial() {
     if (this.index < 0) return;
-    this.finish("stopped");
+    // Before the first throttle there is nothing to stop: the card opens and the trial keeps waiting.
+    if (this.recorder?.started) this.finish("stopped");
     this.watch?.ended(this.index);
   }
 

@@ -15,8 +15,8 @@ export function answer_of(question: Question, value: unknown): string | number |
   if (question.kind === "scale") return Number.isInteger(value) && (value as number) >= SCALE_MIN && (value as number) <= SCALE_MAX ? (value as number) : null;
   if (typeof value !== "string") return null;
   if (question.kind === "pick") return question.options.includes(value) ? value : null;
-  const text = value.slice(0, TEXT_MAX);
-  return text.trim() ? text : null;
+  // Kept as typed, blanks too: dropping a lone space would wipe the field under the cursor. The export skips blanks.
+  return value ? value.slice(0, TEXT_MAX) : null;
 }
 
 /** Stored answers are untrusted: only known trials and questions with values they take survive. */
