@@ -1,3 +1,4 @@
+import "../../../scripts/fake-dom";
 import { describe, expect, test } from "bun:test";
 import { createRawSnippet, type Component } from "svelte";
 import { render } from "svelte/server";
@@ -117,6 +118,9 @@ describe("ui components", () => {
     expect(plain).toMatch(/^<div class="ui-row/);
     expect(plain).toContain("Glow on lights");
     expect(plain).toContain("switch");
+    const tagged = html(Row, { label: "lobby", badge: text("lock") });
+    expect(tagged).toMatch(/<span class="ui-label[^"]*">lobby<span class="ui-badge[^"]*"><span>lock<\/span>/);
+    expect(html(Row, { label: "lobby" })).not.toContain("ui-badge");
   });
 
   test("RowList is a nav when asked", () => {

@@ -66,10 +66,10 @@
       <RowList divided label="Players online">
         {#each players as player (player.key)}
           {@const label = tag(player)}
-          <Row label={player.name} help={place(player)}>
+          {#snippet tier()}{#if player.tier}<TierBadge tier={player.tier} />{/if}{/snippet}
+          <Row label={player.name} help={place(player)} badge={player.tier ? tier : undefined}>
             {#snippet control()}
               <span class="players-end">
-                {#if player.tier}<span class="players-tier"><TierBadge tier={player.tier} /></span>{/if}
                 {#if !player.game.here}
                   <span class="players-ping"><Dot tone={TONE[ping_class(player.ping)]}>{player.ping === null ? "–" : `${player.ping} ms`}</Dot></span>
                 {/if}
@@ -99,10 +99,6 @@
     display: flex;
     align-items: center;
     gap: var(--space-3);
-  }
-
-  .players-tier {
-    display: flex;
   }
 
   .players-ping {

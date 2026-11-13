@@ -3,6 +3,7 @@
   import Badge from "../ui/Badge.svelte";
   import Button from "../ui/Button.svelte";
   import Card from "../ui/Card.svelte";
+  import Icon from "../ui/Icon.svelte";
   import Row from "../ui/Row.svelte";
   import RowList from "../ui/RowList.svelte";
   import SectionHead from "../ui/SectionHead.svelte";
@@ -23,6 +24,8 @@
   }
 </script>
 
+{#snippet lock()}<span class="games-lock" role="img" aria-label="Locked"><Icon name="icon-lock" /></span>{/snippet}
+
 <!-- The players card says why the list is empty; an empty card here would only repeat it. -->
 {#if servers.length}
   <Card class="online-games">
@@ -33,7 +36,7 @@
       <div class="games-well">
         <RowList divided label="Games running">
           {#each servers as server (server.key)}
-            <Row label={server.room} help={`${server.host} · map ${server.seed}`} icon={server.locked ? "icon-lock" : "icon-globe"}>
+            <Row label={server.room} help={`${server.host} · map ${server.seed}`} icon="icon-globe" badge={server.locked ? lock : undefined}>
               {#snippet control()}
                 <span class="games-end">
                   <span class="games-count">{server.players} {server.players === 1 ? "player" : "players"}</span>
@@ -66,6 +69,12 @@
     display: flex;
     align-items: center;
     gap: var(--space-3);
+  }
+
+  .games-lock {
+    --icon-size: var(--text-lg);
+    display: flex;
+    color: var(--set-dim);
   }
 
   .games-count {

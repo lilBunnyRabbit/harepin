@@ -11,17 +11,18 @@
     onclick?: () => void;
     control?: Snippet;
     detail?: Snippet;
+    badge?: Snippet;
     /** Phones put the control under the label, at full width. */
     stack?: boolean;
   }
 
-  let { label, help, icon, href, external = false, onclick, control, detail, stack = false }: Props = $props();
+  let { label, help, icon, href, external = false, onclick, control, detail, badge, stack = false }: Props = $props();
 </script>
 
 {#snippet text()}
   {#if icon}<span class="ui-lead"><Icon name={icon} /></span>{/if}
   <span class="ui-text">
-    <span class="ui-label">{label}</span>
+    <span class="ui-label">{label}{#if badge}<span class="ui-badge">{@render badge()}</span>{/if}</span>
     {#if help}<small class="ui-help">{help}</small>{/if}
     {#if detail}<span class="ui-help">{@render detail()}</span>{/if}
   </span>
@@ -100,6 +101,13 @@
     font-size: var(--text-xl);
     font-weight: 600;
     line-height: 1.3;
+  }
+
+  .ui-badge {
+    display: inline-flex;
+    align-items: center;
+    margin-left: var(--space-2);
+    vertical-align: middle;
   }
 
   .ui-help {
