@@ -23,7 +23,19 @@ export class Render {
   private readonly debug: boolean;
   private debug_overlay: HTMLPreElement | null = null;
   private debug_at = 0;
-  private fitted = "";
+  private width = 0;
+  private height = 0;
+  private fitted_width = 0;
+  private fitted_height = 0;
+  private fitted_ratio = 0;
+  private observed: HTMLElement | null = null;
+  // Read in the observer, where layout is fresh, so the frame never forces one; it also fires on resizes a window
+  // resize event misses (tab opened in the background, snapped window, zoom while hidden).
+  private readonly observer = new ResizeObserver(() => {
+    if (!this.observed) return;
+    this.width = this.observed.clientWidth;
+    this.height = this.observed.clientHeight;
+  });
   private size_report = "";
   private render_report = "";
 
@@ -72,15 +84,25 @@ export class Render {
     return this.quality.tier.bloom && !this.bisect.has("nocomposer");
   }
 
-  // CSS owns the canvas size; this only matches the drawing buffer to it. Polled every frame because a resize event can
-  // be missed (tab opened in the background, snapped window, zoom while hidden) and would leave the buffer stale.
-  fit(app: HTMLElement) {
-    const width = app.clientWidth;
-    const height = app.clientHeight;
+  /** Follows `app`'s size; `fit` matches the drawing buffer to the last size seen. */
+  start(app: HTMLElement) {
+    this.observed = app;
+    this.observer.observe(app);
+  }
+
+  stop() {
+    this.observer.disconnect();
+    this.observed = null;
+  }
+
+  // CSS owns the canvas size; this only matches the drawing buffer to it, and to a quality tier's pixel ratio.
+  fit() {
+    const { width, height } = this;
     const ratio = this.quality.ratio;
-    const key = `${width}x${height}@${ratio}`;
-    if (key === this.fitted || !width || !height) return;
-    this.fitted = key;
+    if ((width === this.fitted_width && height === this.fitted_height && ratio === this.fitted_ratio) || !width || !height) return;
+    this.fitted_width = width;
+    this.fitted_height = height;
+    this.fitted_ratio = ratio;
     this.renderer.setPixelRatio(ratio);
     this.renderer.setSize(width, height, false);
     this.composer.setPixelRatio(ratio);

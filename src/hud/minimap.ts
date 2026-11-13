@@ -37,6 +37,8 @@ const CLOSE_SCALE = 0.7;
 const CLOSE_TURN_LAG = 0.12;
 const PIECE = 32;
 const EDGE = MAP / 2 - 6;
+/** CSS px square the N and its halo are drawn into once. */
+const NORTH_BOX = 24;
 
 /** Full map: the world x/z at its centre and px per metre. */
 interface FullView {
@@ -126,6 +128,8 @@ export class Minimap {
   private drawn: Drawn | null = null;
   private wanted = "";
   private cache = new Map<string, Drawn>();
+  // Setting `font` and drawing text resolves the font against the canvas's style every frame, after the HUD's DOM writes.
+  private north_mark: OffscreenCanvas | null = null;
   private turn = Number.NaN;
   private last = 0;
   private readonly font: string;
@@ -172,6 +176,7 @@ export class Minimap {
     const ratio = devicePixelRatio;
     if (ratio === this.ratio) return;
     this.ratio = ratio;
+    this.north_mark = null;
     const size = Math.round(MAP * ratio);
     this.canvas.width = size;
     this.canvas.height = size;
@@ -210,10 +215,23 @@ export class Minimap {
   // `turn`: how far north sits clockwise from the top of the map.
   private north(turn: number) {
     if (!this.disc) return;
-    const { ctx } = this;
     const r = MAP / 2 - 13;
     const x = MAP / 2 + Math.sin(turn) * r;
     const y = MAP / 2 - Math.cos(turn) * r;
+    this.north_mark ??= this.draw_north();
+    this.ctx.drawImage(this.north_mark, x - NORTH_BOX / 2, y - NORTH_BOX / 2, NORTH_BOX, NORTH_BOX);
+  }
+
+  private draw_north(): OffscreenCanvas {
+    const mark = new OffscreenCanvas(Math.round(NORTH_BOX * this.ratio), Math.round(NORTH_BOX * this.ratio));
+    const ctx = mark.getContext("2d");
+    if (!ctx) throw new Error("minimap north mark has no 2d context");
+    // A mark drawn before the web font arrives would keep the fallback face: draw it again once the font is in.
+    if (!document.fonts.check(this.bold))
+      void document.fonts.load(this.bold).then(() => {
+        if (this.north_mark === mark) this.north_mark = null;
+      });
+    ctx.scale(this.ratio, this.ratio);
     ctx.font = this.bold;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -221,8 +239,9 @@ export class Minimap {
     ctx.lineWidth = 3;
     ctx.strokeStyle = INK.halo;
     ctx.fillStyle = INK.north;
-    ctx.strokeText("N", x, y);
-    ctx.fillText("N", x, y);
+    ctx.strokeText("N", NORTH_BOX / 2, NORTH_BOX / 2);
+    ctx.fillText("N", NORTH_BOX / 2, NORTH_BOX / 2);
+    return mark;
   }
 
   set_markers(markers: readonly MapMarker[]) {
