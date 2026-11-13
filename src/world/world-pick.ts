@@ -4,6 +4,7 @@ import { seed_of } from "../rng";
 import { LOBBY_ROOM } from "../net/room-name";
 import { DEFAULT_KIND, WorldKind, parse_kind } from "../worldgen/types";
 import { replay_of } from "../review/params";
+import { RUN_PARAM, run_of } from "../runs/runs";
 
 export interface WorldPick {
   seed: number;
@@ -26,7 +27,7 @@ export const NEW_PLAYER_KIND: WorldKind = WorldKind.MAINLAND;
 /** The mainland a player drives before picking one: the same for everyone, so the open lobby meets there. */
 export const MAINLAND_SEED = seed_of(LOBBY_ROOM);
 
-const URL_WORLD_PARAMS = ["room", "seed", "world", "map", EVENT_PARAM];
+const URL_WORLD_PARAMS = ["room", "seed", "world", "map", EVENT_PARAM, RUN_PARAM];
 const K2_OPTS = /^\d{1,16}$/;
 
 export const names_world = (params: URLSearchParams) => URL_WORLD_PARAMS.some((param) => params.has(param)) || replay_of(params) !== null;
@@ -40,6 +41,9 @@ export function pick_world(params: URLSearchParams, room: string, saved: SavedPi
     const seed = parse_seed(params.get("seed"));
     const event = event_of(params.get(EVENT_PARAM) ?? replay_of(params));
     const map = params.get("map") ?? (event && spot_of(event).map);
+    // A run's map is the plain map of its kind and seed: no code to read before the kinds load.
+    const run = map === null ? run_of(params.get(RUN_PARAM)) : null;
+    if (run) return { seed: run.seed, kind: run.kind, code: null };
     const opts = params.get("opts");
     // `opts` is the one-day K2 link: its digits ride as a K2 code on the seed and world beside it.
     const code = map !== null ? map : seed !== null && opts !== null && K2_OPTS.test(opts) ? `${seed}-${opts}` : null;

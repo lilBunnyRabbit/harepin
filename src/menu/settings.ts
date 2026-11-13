@@ -6,6 +6,7 @@ import { TUNE_PARAM } from "../career/career";
 import CareerPage from "./CareerPage.svelte";
 import GoalsPage from "./GoalsPage.svelte";
 import ModesPage from "./ModesPage.svelte";
+import RunsPage from "./runs/RunsPage.svelte";
 import OnlinePage from "./online/OnlinePage.svelte";
 import RoomPage from "./online/RoomPage.svelte";
 import GaragePage from "./GaragePage.svelte";
@@ -32,6 +33,7 @@ import "./menu.css";
 
 const MENU_TABS: [MenuTab, string][] = [
   [MenuTab.PLAY, "Play"],
+  [MenuTab.RUNS, "Runs"],
   [MenuTab.GARAGE, "Garage"],
   [MenuTab.ONLINE, "Online"],
   [MenuTab.SETTINGS, "Settings"],
@@ -93,6 +95,7 @@ export class Settings {
     );
     this.page_list = [
       svelte_page(this.menu, { id: MenuTab.PLAY, label: "Play" }, PlayPage, { go_to: (to: GoTo) => this.go_to(to) }),
+      svelte_page(this.menu, { id: MenuTab.RUNS, label: "Runs" }, RunsPage),
       svelte_page(this.menu, { id: MenuTab.GARAGE, label: "Garage" }, GaragePage, { garage: host.garage }),
       svelte_page(this.menu, { id: MenuTab.ONLINE, label: "Online" }, OnlinePage),
       svelte_page(this.menu, { id: MenuTab.SETTINGS, label: "Settings" }, SettingsPage, { nav: this.nav, open_guide: () => this.open_guide() }),

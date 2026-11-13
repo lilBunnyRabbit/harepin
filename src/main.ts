@@ -4,6 +4,9 @@ import { EVENTS, EVENT_PARAM, TUNE_PARAM, current_tier, event_of, type CareerEve
 import { CareerButton } from "./career/career-button";
 import { Career, event_map } from "./career/career-store";
 import { EventMarkers } from "./career/event-markers";
+import { RUN_PARAM, run_of, type RunPick } from "./runs/runs";
+import { Runs } from "./runs/runs-store";
+import { run_play } from "./runs/run-play";
 import { badge_open, unlocks } from "./career/rewards";
 import { ChaseCamera } from "./render/camera";
 import { Driver } from "./car/driver";
@@ -74,10 +77,11 @@ import "./style.css";
 const params = new URLSearchParams(location.search);
 const room = clean_room(params.get("room")) ?? LOBBY_ROOM;
 const event = event_of(params.get(EVENT_PARAM));
+const run = event ? null : run_of(params.get(RUN_PARAM));
 // Any peer on the map can call a lobby race, and that ends a mode run: an event link without a room of its own runs
 // alone in an unlisted room, as does a review shot, which no peer should drive into. The menu still names `room`, so
 // the next world picked lands back in it.
-const solo = (event !== null || review_wanted(params)) && !params.has("room");
+const solo = (event !== null || run !== null || review_wanted(params)) && !params.has("room");
 // getRandomValues, not randomUUID: the latter only exists in a secure context, and a phone on the LAN dev server is not one.
 const net_room = solo ? `solo-${[...crypto.getRandomValues(new Uint8Array(4))].map((b) => b.toString(16).padStart(2, "0")).join("")}` : room;
 // A room the player chose stays theirs across events; without one the event runs solo.
@@ -185,6 +189,7 @@ chat.start();
 const build = load_build(params.get("car"));
 const mode_ids = MODES.map((mode) => mode.id);
 const career = new Career(local_store());
+const runs = new Runs(local_store());
 const goals = new Goals(local_store(), mode_ids);
 goals.catch_up(() => proven(saved_entries(), { kind, build, cockpit: prefs.camera === CameraView.COCKPIT }, mode_ids));
 const race = new Race(world);
@@ -278,6 +283,8 @@ const settings = new Settings(document.body, {
   goals,
   career,
   start_event: (id) => start_event(id),
+  runs,
+  start_run: (id) => start_run(id),
   name: () => net.name,
   quality_status: () => ({ tier: quality.tier_name, ratio: quality.ratio, bloom: quality.tier.bloom, shadow_size: quality.tier.shadow_size }),
   race_busy: () => lobby.busy,
@@ -397,7 +404,7 @@ modes.try_reward = (reward) => {
   garage.try_reward(reward);
 };
 modes.pick_car = (title, limit, own, signal) =>
-  pick_car(title, limit.cap ? limit_text(limit.cap) : "Any car", car_shelves(parse_build(own) ?? garage.build, load_builds(), limit, garage.code), signal, () => settings.open(MenuTab.GARAGE));
+  pick_car(title, limit.cap ? limit_text(limit.cap) : "Any car", car_shelves(parse_build(own) ?? garage.build, load_builds(), limit), signal);
 modes.fit_car = (code, save) => garage.use_code(code, save);
 modes.car_code = () => garage.code;
 modes.save_car = (code) => {
@@ -453,6 +460,30 @@ function start_event(id: string) {
   settings.close();
   modes.play_event(to);
 }
+// A run's map is the plain map of its kind and seed (world-pick.ts).
+const run_on_map = (to: RunPick) => map_code(built) === map_code(plain_map(to.kind, to.seed));
+
+function start_run(id: string) {
+  const to = run_of(id);
+  if (!to) return;
+  if (!run_on_map(to)) {
+    mark_drive();
+    const query = new URLSearchParams({ [RUN_PARAM]: to.id });
+    for (const kept of KEPT_ON_EVENT) {
+      const value = params.get(kept);
+      if (value !== null) query.set(kept, value);
+    }
+    location.search = `?${query}`;
+    return;
+  }
+  settings.close();
+  play_run(to);
+}
+
+function play_run(to: RunPick) {
+  const play = run_play(to, world, runs, (next) => start_run(next));
+  modes.play_event(play.event, play);
+}
 const markers = new EventMarkers(scene, career, params.has(TUNE_PARAM), (id) => start_event(id));
 $("toast").after(markers.card.el);
 markers.on_map = (list) => hud.set_markers(list);
@@ -460,6 +491,8 @@ markers.place(world, SPAWN_INDEX, EVENTS.filter(on_this_map)).catch((error: unkn
 // A map that fell back to its plain one would reload onto itself forever, so a load starts the event only where it landed.
 if (event && on_this_map(event)) modes.play_event(event);
 else if (event) goal_toasts.push("This event's map did not load", MAP_NOTE_MS);
+if (run && run_on_map(run)) play_run(run);
+else if (run) goal_toasts.push("This run's map did not load", MAP_NOTE_MS);
 // After `markers`: the Play page reads its map markers as soon as the menu opens.
 const guide_step = params.get(GUIDE_PARAM);
 if (guide_step !== null) {
@@ -467,7 +500,7 @@ if (guide_step !== null) {
   clean.searchParams.delete(GUIDE_PARAM);
   window.history.replaceState(window.history.state, "", clean);
   settings.open_guide("look", guide_step === ROLLED_VISIT);
-} else if (!take_drive() && !event && !review) {
+} else if (!take_drive() && !event && !run && !review) {
   if (prefs.guide_seen) settings.open();
   else settings.open_guide();
 }

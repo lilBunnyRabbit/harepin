@@ -24,6 +24,8 @@ import { Hits } from "./hits";
 import type { Ground } from "./marks";
 import type { Driven, Finish, Level, ModeCtx, ModeDef, ModeRun, RouteRun } from "./mode";
 import { PARKING_MODE } from "./parking-mode";
+import type { RunPlay } from "../runs/run-play";
+import { RUN_PARAM } from "../runs/runs";
 import { RACE_MODE } from "./race-mode";
 import { race_levels } from "./races";
 import { line, run_text, star_row } from "./result";
@@ -87,6 +89,8 @@ interface Active {
   /** The mode's own records, or the event's for a career run, which never writes free play's. */
   track: Track;
   event: CareerEvent | null;
+  /** A Runs pick: its marks, records and season stars in place of the career's. */
+  play: RunPlay | null;
   run: ModeRun | null;
   /** On a streamed world, the run built and waiting for the chunks at its start; a later launch or a clear replaces it. */
   starting: ModeRun | null;
@@ -249,7 +253,7 @@ export class Modes {
   }
 
   /** The caller has checked this map is the event's. Career levels are all open: the mode's own unlock order is free play's. */
-  play_event(event: CareerEvent) {
+  play_event(event: CareerEvent, play: RunPlay | null = null) {
     const spot = spot_of(event);
     const mode = this.modes.find((m) => m.def.id === event.mode);
     const level = mode?.levels.find((l) => l.id === spot.level);
@@ -258,7 +262,7 @@ export class Modes {
     const before = TIERS[TIERS.indexOf(tier) - 1];
     // `?tune` opens every tier so the owner can set the non-race stars before any are earnable.
     const tune = new URLSearchParams(location.search).has(TUNE_PARAM);
-    if (!tune && !tier_open(this.career.stars, tier)) return this.notice(`${tier.name} opens at ${tier.opens_at} ★ in ${before?.name ?? "the tier before"}`);
+    if (!play && !tune && !tier_open(this.career.stars, tier)) return this.notice(`${tier.name} opens at ${tier.opens_at} ★ in ${before?.name ?? "the tier before"}`);
     if (mode.def.needs_ground && !KINDS[this.world.kind].open_ground) return this.notice(NO_GROUND_NOTICE);
     if (this.race_busy()) return this.notice(mode.def.busy_notice);
     if (this.pick) return;
@@ -269,7 +273,7 @@ export class Modes {
       if (this.left_out(level.id)) return this.refuse(NOT_THIS_CAR);
       if (this.race_busy()) return this.refuse(mode.def.busy_notice);
       this.clear();
-      this.begin(mode, { ...level, name: event.name }, event_track(event, local_store()), event);
+      this.begin(mode, { ...level, name: event.name }, play?.track ?? event_track(event, local_store()), event, play);
     });
   }
 
@@ -287,6 +291,7 @@ export class Modes {
       // A cancelled pick must not reopen on reload, so the event leaves the URL; map params stay.
       const url = new URL(location.href);
       url.searchParams.delete(EVENT_PARAM);
+      url.searchParams.delete(RUN_PARAM);
       history.replaceState(history.state, "", url);
       return false;
     }
@@ -402,8 +407,8 @@ export class Modes {
     return this.world.routes.find((r) => r.id === id)?.excludes?.includes(this.spec().id) === true;
   }
 
-  private begin(mode: Mode, level: Level, track = mode.track, event: CareerEvent | null = null) {
-    this.current = { mode, level, track, event, run: null, starting: null, shown: false, pi: null };
+  private begin(mode: Mode, level: Level, track = mode.track, event: CareerEvent | null = null, play: RunPlay | null = null) {
+    this.current = { mode, level, track, event, play, run: null, starting: null, shown: false, pi: null };
     this.launch(this.current);
   }
 
@@ -427,7 +432,7 @@ export class Modes {
     // once the chunks there are in.
     let spot = null as { x: number; z: number; heading: number } | null;
     const hold = tiles.streamed ? (x: number, z: number, heading: number) => (spot = { x, z, heading }) : null;
-    const run = active.mode.def.start(this.ctx(active.track, active.event, hold), active.level);
+    const run = active.mode.def.start(this.ctx(active.track, active.event, hold, active.play), active.level);
     if (typeof run === "string") {
       return this.refuse(run);
     }
@@ -455,7 +460,7 @@ export class Modes {
   }
 
   /** `hold`: takes the run's start in place of parking the car on it. */
-  private ctx(track: Track, event: CareerEvent | null, hold: ((x: number, z: number, heading: number) => void) | null): ModeCtx {
+  private ctx(track: Track, event: CareerEvent | null, hold: ((x: number, z: number, heading: number) => void) | null, play: RunPlay | null): ModeCtx {
     const { scene, world, start_index, camera } = this;
     const spawn = hold ?? ((x: number, z: number, heading: number) => this.park(x, z, heading));
     const { tiles } = world;
@@ -473,7 +478,7 @@ export class Modes {
       race_busy: () => this.race_busy(),
       hits: () => (event ? new Hits(() => world.contacts) : null),
       // Tuned on another world version, an event's times and ghost no longer fit its road: the mode's par grades it, no ghost.
-      thresholds: (own) => (tuned && event?.stars) || own,
+      thresholds: (own) => (play ? play.grade(own) : (tuned && event?.stars) || own),
       dev_ghost: () => (tuned && event?.ghost ? dev_ghost(event) : Promise.resolve(null)),
       ghosts: () => this.ghosts(),
       high: () => this.high,
@@ -521,6 +526,7 @@ export class Modes {
   private play_next() {
     const active = this.current;
     if (!active) return;
+    if (active.play) return active.play.next?.go();
     if (active.event) {
       const next = next_event(this.career.stars, active.event);
       if (next) this.start_event?.(next.id);
@@ -585,7 +591,8 @@ export class Modes {
     this.reward = null;
     el.try_on.hidden = true;
     el.car.hidden = !this.can_change_car;
-    if (active.event) this.show_event(active.event, stars);
+    if (active.play) this.show_play(active.play, stars);
+    else if (active.event) this.show_event(active.event, stars);
     else {
       const index = levels.findIndex((level) => level.id === active.level.id);
       el.next.textContent = NEXT_LEVEL;
@@ -608,6 +615,14 @@ export class Modes {
     el.lines.append(line("career", tier_line(career.stars, tier_of(event))));
     el.next.textContent = NEXT_EVENT;
     el.next.hidden = next_event(career.stars, event) === null;
+    el.next.disabled = false;
+  }
+
+  private show_play(play: RunPlay, stars: number) {
+    const { el } = this;
+    el.lines.append(...play.finish(stars));
+    el.next.textContent = play.next?.label ?? NEXT_EVENT;
+    el.next.hidden = play.next === null;
     el.next.disabled = false;
   }
 

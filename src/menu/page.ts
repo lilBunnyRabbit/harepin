@@ -2,6 +2,7 @@ import type { Caught } from "../hud/input";
 import type { DirectoryStatus, Server } from "../net/directory";
 import type { Player } from "../net/players";
 import type { Career } from "../career/career-store";
+import type { Runs } from "../runs/runs-store";
 import type { MapMarker } from "../career/markers";
 import type { Goals } from "../goals/goals";
 import type { Garage } from "./garage.svelte";
@@ -17,6 +18,7 @@ import type { Laps, QualityTier, SettingKey, SettingsState } from "./prefs";
 
 export const MenuTab = {
   PLAY: "play",
+  RUNS: "runs",
   GARAGE: "garage",
   ONLINE: "online",
   SETTINGS: "settings",
@@ -45,6 +47,9 @@ export interface SettingsHost {
   readonly career: Career;
   /** Starts a career event now on this map, or reloads onto its map. */
   start_event(id: string): void;
+  readonly runs: Runs;
+  /** Starts a `?run=` pick now on this map, or reloads onto its map. */
+  start_run(id: string): void;
   name(): string;
   quality_status(): QualityStatus;
   race_busy(): boolean;
