@@ -48,6 +48,17 @@ let plan: { data: WorldData; kind: WorldKind } | null = null;
 let tones: MeshTones | null = null;
 const left: number[] = [];
 let pumping = false;
+// A message to itself is a task like setTimeout(0), without the 4 ms clamp nested timers get after five levels.
+const tick = new MessageChannel();
+let woken: (() => void) | null = null;
+tick.port1.onmessage = () => woken?.();
+
+function next_task() {
+  return new Promise<void>((next) => {
+    woken = next;
+    tick.port2.postMessage(null);
+  });
+}
 
 function nearest(ext: Extent): number {
   let best = 0;
@@ -112,7 +123,7 @@ async function pump() {
   pumping = true;
   // A turn of the event loop before each chunk lets a focus or a batch of chunk requests reorder what is left.
   for (;;) {
-    await new Promise((next) => setTimeout(next, 0));
+    await next_task();
     if (!left.length) break;
     const index = nearest(world.ext);
     const { tile, chunk, planted } = world.build(index);
