@@ -6,12 +6,14 @@
     open: boolean;
     title: string;
     subtitle?: string;
+    /** Widens to hold side-by-side columns on a wide screen; a phone gets the full width either way. */
+    wide?: boolean;
     onclose?: () => void;
     actions?: Snippet;
     children: Snippet;
   }
 
-  let { open = $bindable(), title, subtitle, onclose, actions, children }: Props = $props();
+  let { open = $bindable(), title, subtitle, wide = false, onclose, actions, children }: Props = $props();
 
   const uid = $props.id();
   let dialog = $state<HTMLDialogElement>();
@@ -34,7 +36,7 @@
   }
 </script>
 
-<dialog bind:this={dialog} class="ui-dialog" aria-labelledby={`${uid}-title`} onclose={closed}>
+<dialog bind:this={dialog} class="ui-dialog" data-wide={wide || undefined} aria-labelledby={`${uid}-title`} onclose={closed}>
   <header class="ui-head">
     <h2 class="ui-title" id={`${uid}-title`}>{title}</h2>
     {#if subtitle}<p class="ui-subtitle">{subtitle}</p>{/if}
@@ -58,6 +60,10 @@
     box-shadow: var(--panel-shadow);
     font-size: var(--text-md);
     overflow: hidden;
+  }
+
+  .ui-dialog[data-wide] {
+    width: min(1120px, calc(100vw - 2 * var(--inset)));
   }
 
   .ui-dialog[open] {

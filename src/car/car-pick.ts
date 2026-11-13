@@ -17,13 +17,18 @@ export interface CarChoice {
   code: string;
   rating: Rating;
   fitted: boolean;
+  /** The player's own car, the one the garage saved. */
+  own: boolean;
   blocked: string | null;
   /** Under a class cap: the strongest car it allows, ties included. */
   recommended: boolean;
 }
 
+/** One class's cars; `open` when the limit lets any of them in. */
 export interface CarShelf {
+  class: CarClass;
   head: string;
+  open: boolean;
   choices: CarChoice[];
 }
 
@@ -43,28 +48,34 @@ function blocked(build: Build, rated: Rating, limit: CarLimit): string | null {
   return null;
 }
 
-// Cars the limit rules out stay listed, greyed with their badge, so the player sees what to change in the garage.
+// One shelf per class that has a car, strongest first, with the classes the limit lets in ahead of the rest. Cars the
+// limit rules out stay listed, greyed with their badge, so the player sees what to change in the garage.
 export function car_shelves(current: Build, builds: readonly SavedBuild[], limit: CarLimit): CarShelf[] {
   const fitted = build_code(current);
-  const choice = (title: string, sub: string, build: Build): CarChoice => {
+  const choice = (title: string, sub: string, build: Build, own = false): CarChoice => {
     const rated = rating(build);
     const code = build_code(build);
-    return { title, sub, code, rating: rated, fitted: code === fitted, blocked: blocked(build, rated, limit), recommended: false };
+    return { title, sub, code, rating: rated, fitted: code === fitted, own, blocked: blocked(build, rated, limit), recommended: false };
   };
   const parsed = (list: readonly { name: string; code: string }[], sub: (build: Build, i: number) => string) =>
     list.flatMap((entry, i) => {
       const build = parse_build(entry.code);
       return build ? [choice(entry.name, sub(build, i), build)] : [];
     });
-  const shelves: CarShelf[] = [
-    { head: "Your car", choices: [choice(CARS[current.car].name, "Your own car", current)] },
-    { head: "My builds", choices: parsed(builds, (build) => CARS[build.car].name) },
-    { head: "Presets", choices: parsed(PRESETS, (_, i) => PRESETS[i].blurb) },
-  ];
+  const listed = [choice(CARS[current.car].name, "", current, true), ...parsed(builds, (build) => CARS[build.car].name), ...parsed(PRESETS, (_, i) => PRESETS[i].blurb)];
+  // A saved build or preset the player already drives is their own car's tile, not a second one.
+  const all = listed.filter((c, i) => listed.findIndex((other) => other.code === c.code) === i);
   if (limit.cap) {
-    const open = shelves.flatMap((shelf) => shelf.choices).filter((c) => c.blocked === null);
+    const open = all.filter((c) => c.blocked === null);
     const top = Math.max(...open.map((c) => c.rating.pi));
     for (const c of open) c.recommended = c.rating.pi === top;
   }
-  return shelves.filter((shelf) => shelf.choices.length);
+  const shelves = [...CLASS_FLOORS]
+    .reverse()
+    .map(([name]): CarShelf => {
+      const choices = all.filter((c) => c.rating.class === name).sort((a, b) => Number(a.blocked !== null) - Number(b.blocked !== null) || Number(b.own) - Number(a.own) || b.rating.pi - a.rating.pi);
+      return { class: name, head: `Class ${CLASS_LABELS[name]}`, open: choices.some((c) => c.blocked === null), choices };
+    })
+    .filter((shelf) => shelf.choices.length);
+  return [...shelves.filter((shelf) => shelf.open), ...shelves.filter((shelf) => !shelf.open)];
 }
