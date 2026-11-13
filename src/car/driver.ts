@@ -45,6 +45,8 @@ export class Driver {
   /** Resolves once the ground around (x, z) is in; a teleport reads its height only after. */
   arrive: (x: number, z: number) => Promise<void> = (x, z) => this.world.tiles.ensure(x, z);
   private teleporting = false;
+  /** After every placement: a reset, a teleport, a mode or lap restart. */
+  placed = () => {};
   /** The last spot the car stood safely on a road, and the way it was going there. */
   private readonly safe = { x: 0, z: 0, fx: 0, fz: 1 };
 
@@ -92,6 +94,7 @@ export class Driver {
     this.pads.clear();
     this.chase.size = this.size;
     this.chase.snap(this.car);
+    this.placed();
   }
 
   /** At rest on the ground under (x, z), tilted to its slope: a level drop onto a steep site can roll the car. */
@@ -101,6 +104,7 @@ export class Driver {
     this.pads.clear();
     this.chase.size = this.size;
     this.chase.snap(this.car);
+    this.placed();
   }
 
   road_spot(index: number, reverse = false): Spawn {

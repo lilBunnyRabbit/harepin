@@ -75,6 +75,7 @@ import { plain_map } from "./worldgen/kinds/kinds";
 import { review_wanted } from "./review/params";
 import { HudSheet } from "./hud/hud-sheet";
 import { StuckPrompt } from "./hud/stuck-prompt";
+import { pushing } from "./hud/stuck";
 import "./style.css";
 
 const params = new URLSearchParams(location.search);
@@ -210,8 +211,10 @@ garage.rewards = () => unlocks(career.stars);
 const input = new Input($("touch"), render.renderer.domElement);
 const rumble = new Rumble();
 const rumble_sense: RumbleSense = { scrub: 0, speed: 0, loose: 0, kerb: 0, airborne: false, vy: 0, impact: 0, x: 0, y: 0, z: 0 };
-input.blocked = () => garage.is_open || settings.is_open || pad_menu.is_open;
-chat.blocked = () => garage.is_open || settings.is_open;
+const hud_sheet = new HudSheet(() => net.remotes.size > 0, (action) => ACTIONS[action]());
+hud_sheet.on_open = () => input.hold_pad();
+input.blocked = () => garage.is_open || settings.is_open || pad_menu.is_open || hud_sheet.open;
+chat.blocked = () => garage.is_open || settings.is_open || hud_sheet.open;
 input.touch.start();
 input.touch.show_nitro(driver.car.nitro.fitted);
 input.mouse.start();
@@ -251,6 +254,7 @@ function restart_action() {
 }
 $("restart-lap").addEventListener("click", (event) => {
   (event.currentTarget as HTMLElement).blur();
+  if (hud_sheet.open) return;
   restart_action();
 });
 lobby.on_start = () => {
@@ -583,7 +587,7 @@ const ACTIONS: Record<Action, () => void> = {
   map: () => settings.open("world"),
   garage: open_car,
   settings: () => settings.open(),
-  menu: () => pad_menu.toggle(),
+  menu: () => (hud_sheet.open ? hud_sheet.close() : pad_menu.toggle()),
 };
 if (params.has("feel")) void import("./hud/feel-panel").then(({ feel_panel }) => feel_panel({
   set: (key, value) => settings.set(key, value),
@@ -604,8 +608,8 @@ let last_draw = 0;
 
 new Heartbeat(net, garage, driver, race, seed).start();
 let stuck = 0;
-const hud_sheet = new HudSheet(() => net.remotes.size > 0);
 const stuck_prompt = new StuckPrompt();
+driver.placed = () => stuck_prompt.clear();
 let rewinding = false;
 
 const NEAR_GAP = 1.2;
@@ -714,7 +718,9 @@ function frame(time: number) {
     void driver.reset(lobby.busy && lobby.route === "circuit");
     stuck = 0;
   }
-  stuck_prompt.update(simulated ? dt : 0, car.vel.length(), controls.throttle > 0.3 || controls.brake > 0.3, driver.rewind.can_step && !lobby.busy && !modes.active, rewinding);
+  if (lobby.state.kind === "countdown") stuck_prompt.clear();
+  else stuck_prompt.update(simulated ? dt : 0, car.vel.length(), pushing(controls.throttle, controls.brake, car.gear, car.auto), driver.rewind.can_step && !lobby.busy && !modes.active, rewinding);
+  hud_sheet.update();
 
   // A mode spawns the car anywhere, the circuit start included: its lap clock would count that as a lap.
   // A review replay is a dev ghost driving, not the player: it never sets a lap record.

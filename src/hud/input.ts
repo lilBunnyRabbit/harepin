@@ -356,6 +356,12 @@ export class Input {
     return { controls, actions };
   }
 
+  // A panel can open and close between two reads, which the blocked edge in `read` never sees.
+  hold_pad() {
+    const pad = navigator.getGamepads?.().find((p) => p && p.connected);
+    pad?.buttons.forEach((b, i) => b.pressed && this.held.add(i));
+  }
+
   // Buttons already down when the capture starts (the A that opened it) count only once let go and pressed again.
   private catch_pad(pad: Gamepad): Caught | null {
     if (this.catch_fresh) {

@@ -201,8 +201,12 @@
 }
 
 @media (pointer: coarse) {
-  :root {
+  /* Above style.css's own coarse :root, which loads after this sheet. */
+  :root[data-hud] {
     --map-size: 88px;
+  }
+
+  :root {
     --phone-hand-h: 40px;
     --phone-brake-h: min(96px, 25vh);
     --phone-gas-h: calc(var(--phone-brake-h) + var(--phone-hand-h) + var(--space-2));
@@ -351,15 +355,16 @@
     height: var(--phone-hand-h);
   }
 
-  :root[data-hud="classic"] .bottom-right,
-  :root[data-hud="classic"][data-dash] .bottom-right {
-    bottom: calc(var(--inset-bottom) + var(--phone-gas-h) + var(--space-3));
-    right: var(--inset-right);
-    left: auto;
+  :root[data-hud] .bottom-right,
+  :root[data-hud][data-dash] .bottom-right {
+    inset: auto var(--inset-right) calc(var(--inset-bottom) + var(--phone-gas-h) + var(--space-3)) auto;
     translate: none;
+    width: var(--pedals);
+  }
+
+  :root[data-hud="classic"] .bottom-right {
     grid-template-columns: 1fr auto;
     column-gap: var(--space-2);
-    width: var(--pedals);
   }
 
   :root[data-hud="classic"] #speed {
