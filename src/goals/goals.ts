@@ -52,7 +52,7 @@ export const GOALS: readonly Goal[] = [
   { id: GoalId.BUILD, title: "Save a build", hint: "Keep a car you like under a name in the garage's Builds", go: GoTo.GARAGE },
   { id: GoalId.LAP, title: "Finish a lap", hint: "Drive through every gate on the circuit back to the start", go: GoTo.DRIVE },
   { id: GoalId.BEST, title: "Beat your best lap", hint: "Your ghost drives your best line: pass it", go: GoTo.DRIVE },
-  { id: GoalId.MODES, title: "Play every mode", hint: "Finish one run each of race, gymkhana, parking, drift, gate hunt and ghost duel", go: GoTo.MODES },
+  { id: GoalId.MODES, title: "Play every mode", hint: "Finish one run each of race, gymkhana, parking, drift, gate hunt, ghost duel and jump distance", go: GoTo.MODES },
   { id: GoalId.REWIND, title: "Rewind a mistake", hint: "Hold {key} to run time back", go: GoTo.DRIVE, key: "rewind" },
   { id: GoalId.CAMERA, title: "Try another camera", hint: "Press {key} for the cockpit view", go: GoTo.CAMERA, key: "camera" },
   { id: GoalId.FRIEND, title: "Drive with a friend", hint: "Join a room, or send your invite link and wait for them here", go: GoTo.ONLINE },

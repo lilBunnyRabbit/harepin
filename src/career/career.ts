@@ -195,10 +195,10 @@ export function parse_stars(raw: unknown): Record<string, number> {
   return stars;
 }
 
-/** Star marks from the owner's best run: 3 stars = that run eased by the tier's margin, 2 stars a quarter slower, or for drift a quarter fewer points. */
+/** Star marks from the owner's best run: 3 stars = that run eased by the tier's margin, 2 stars a quarter slower, or for a scored run (drift points, jump metres) a quarter less. */
 export function owner_stars(event: CareerEvent, run: StarRun): Thresholds {
   const { margin } = tier_of(event);
-  if (event.mode === "drift") {
+  if (run.score !== undefined) {
     const three = Math.round((run.score ?? 0) / margin);
     return { two: Math.round(three / SILVER_SHARE), three };
   }

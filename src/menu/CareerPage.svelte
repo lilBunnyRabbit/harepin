@@ -2,10 +2,9 @@
   import { MAX_EVENT_STARS, TIERS, tier_max, tier_open, tier_stars, type Tier } from "../career/career";
   import { owner_times } from "../career/career-store";
   import { badge_open } from "../career/rewards";
-  import { run_text } from "../modes/result";
   import type { TierBadge as TierId } from "../net/net";
   import CarLimit from "./CarLimit.svelte";
-  import { event_note } from "./career-text";
+  import { best_text, event_note } from "./career-text";
   import Badge from "./ui/Badge.svelte";
   import Button from "./ui/Button.svelte";
   import Card from "./ui/Card.svelte";
@@ -76,7 +75,7 @@
                   <CarLimit {event} />
                   <span class="result">
                     <span class="star-row" aria-label={`${got} of ${MAX_EVENT_STARS} stars`}>{"★".repeat(got)}<i>{"★".repeat(MAX_EVENT_STARS - got)}</i></span>
-                    {#if best}<small>{run_text(best)}</small>{/if}
+                    {#if best}<small>{best_text(event, best)}</small>{/if}
                   </span>
                 </span>
                 <Button size="sm" disabled={!open} aria-label={`Go: ${event.name}`} onclick={() => menu.host.start_event(event.id)}>Go</Button>

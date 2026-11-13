@@ -17,7 +17,7 @@
   const minis = new Intl.ListFormat("en", { type: "conjunction" }).format(MINIS.map((world) => world.name));
   const TOUR = [
     { art: null, title: "Mainland", text: `Six kilometres of towns and open road, where the lobby meets. Mini maps: ${minis}.`, where: "Play" },
-    { art: Scene.MODES, title: "Modes", text: "Race, gymkhana, parking, drift, hunt, duel. Stars and best times for each.", where: "Play, Modes" },
+    { art: Scene.MODES, title: "Modes", text: "Race, gymkhana, parking, drift, hunt, duel, jump. Stars and best times for each.", where: "Play, Modes" },
     { art: Scene.GARAGE, title: "Garage", text: "Switch cars, from a hatchback to a city bus. Swap engine, tyres and paint, save builds.", where: "Garage" },
     { art: Scene.FRIENDS, title: "Friends", text: "Send a link and friends drive your map with you. Race the lobby.", where: "Online" },
   ];

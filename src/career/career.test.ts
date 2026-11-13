@@ -11,7 +11,7 @@ import { race_levels } from "../modes/races";
 import { SILVER_SHARE, type Store } from "../modes/track";
 import { world_key } from "../worldgen/kinds/kinds";
 import { parse_map_code } from "../worldgen/kinds/map-code";
-import { EVENTS, TIERS, current_tier, event_of, ghost_path, next_event, parse_stars, spot_of, suggested, tier_line, tier_max, tier_open, type Stars } from "./career";
+import { EVENTS, TIERS, current_tier, event_of, ghost_path, next_event, owner_stars, parse_stars, spot_of, suggested, tier_line, tier_max, tier_open, type Stars } from "./career";
 import { CAREER_KEY, Career, event_map, event_track, owner_times } from "./career-store";
 
 const LEVEL_IDS: Record<string, readonly { id: string }[]> = {
@@ -145,4 +145,10 @@ test("Copy my times turns the best run of each played event into its stars, race
     e1: { stars: { two: 128_750, three: 103_000 }, tuned: at("e1").tuned },
     e4: { stars: { two: 800, three: 1000 }, tuned: at("e4").tuned },
   });
+});
+
+test("owner marks: a scored run is higher-is-better, a timed one lower", () => {
+  const event = { ...TIERS[0].events[0], mode: "jump", level: "j1" };
+  expect(owner_stars(event, { stars: 3, ms: 60000, score: 40 })).toEqual({ two: Math.round(40 / SILVER_SHARE), three: 40 });
+  expect(owner_stars({ ...event, mode: "race" }, { stars: 3, ms: 60000 })).toEqual({ two: Math.round(60000 * SILVER_SHARE), three: 60000 });
 });
