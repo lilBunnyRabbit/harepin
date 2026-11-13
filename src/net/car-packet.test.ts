@@ -106,8 +106,18 @@ test("forward compatible: trailing bytes and unknown flag bits from a later buil
   longer.set(good);
   longer.fill(0xff, good.length);
   expect(decode_car(longer, "x")).toEqual(decode_car(good, "x"));
-  const flagged = with_byte(good, (v) => v.setUint8(53, 0xfc | 1));
+  const flagged = with_byte(good, (v) => v.setUint8(53, 0xf8 | 1));
   expect([decode_car(flagged, "x")?.brake, decode_car(flagged, "x")?.boost]).toEqual([true, false]);
+});
+
+test("lights off rides a flag bit; a peer that predates it sends none and reads as lit", () => {
+  expect(decode_car(bytes_of({ ...state, lights: false }), "x")?.lights).toBe(false);
+  expect(decode_car(bytes_of({ ...state, lights: true }), "x")?.lights).toBe(true);
+  const old = bytes_of({ ...state, lights: undefined });
+  expect(old[53] & 4).toBe(0);
+  expect(decode_car(old, "x")?.lights).toBe(true);
+  const dark = decode_car(bytes_of({ ...state, lights: false, brake: true, boost: true }), "x");
+  expect([dark?.brake, dark?.boost, dark?.lights]).toEqual([true, true, false]);
 });
 
 test("a best lap that fails the check reads as none, not a dropped packet", () => {

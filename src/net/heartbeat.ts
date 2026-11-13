@@ -49,6 +49,7 @@ export class Heartbeat {
       steer: car.steer,
       brake: car.braking > 0.05,
       boost: car.nitro.boosting,
+      lights: this.driver.view.lights,
       best: race.best,
     };
     net.send(state);

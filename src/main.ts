@@ -574,6 +574,7 @@ const ACTIONS: Record<Action, () => void> = {
   reset: () => (modes.active ? modes.restart() : driver.reset(lobby.busy && lobby.route === "circuit")),
   restart: () => restart_action(),
   recenter: () => chase.recenter(),
+  lights: () => hud.toast(driver.toggle_lights() ? "Lights on" : "Lights off"),
   camera: () => {
     if (modes.parking) modes.toggle_view();
     else settings.set("camera", settings.state.camera === CameraView.CHASE ? CameraView.COCKPIT : CameraView.CHASE);

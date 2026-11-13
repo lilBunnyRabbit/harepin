@@ -6,7 +6,7 @@ import { COUPE, type CarSpec } from "./cars";
 import { body_outline, cabin_parts, flares, side_panel, skirts } from "./body-shell";
 import { DESIGNS } from "./designs";
 import { extrude, merge, parts, slab, taper, tint } from "./geometry";
-import { flame_mesh, lamps } from "./lights";
+import { flame_mesh, lamps, popup, set_lights, type HeadMesh, type Popup } from "./lights";
 import { back, livery_of, livery_parts, roof, type Livery } from "./livery";
 import { aero_of, aero_parts, kit_parts, rear_wing } from "./part-looks";
 import { STOCK_CALIPER, STOCK_TYRE, caliper_geometry, chrome_tone, wheel_geometry } from "./wheels";
@@ -24,7 +24,11 @@ export interface CarView {
   steered: boolean[];
   brake: THREE.MeshLambertMaterial;
   /** Headlamp lenses; hidden from the hood camera, which sits right behind them. */
-  heads: THREE.Mesh;
+  heads: HeadMesh;
+  /** Headlamps on; set through `set_lights`, which also dims `heads` and swings `popup`. */
+  lights: boolean;
+  /** Pop-up lamp pods, null on fixed lamps. */
+  popup: Popup | null;
   /** Cockpit halo, hidden from the hood camera with `heads`; null on closed bodies. */
   halo: THREE.Mesh | null;
   /** Hood camera point in car space, or null for the camera's default. */
@@ -179,8 +183,9 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
   }
 
   const { heads, tails, brake } = lamps(d);
+  const pods = popup(d, heads, paint, matte);
   const flame = flame_mesh(d);
-  body.add(hull, heads, tails, flame);
+  body.add(hull, pods?.pivot ?? heads, tails, flame);
   root.add(body);
 
   const tyre = part_of("tyres", kit.tyres).look?.tyre ?? STOCK_TYRE;
@@ -201,7 +206,9 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
     return steer;
   });
   const steered = wheel_axles.map((axle) => axles[axle].steer);
-  return { root, body, wheels, steered, brake, heads, halo, eye: d.eye ? new THREE.Vector3(0, body.position.y + d.eye[1], d.eye[0]) : null, flame };
+  const view = { root, body, wheels, steered, brake, heads, lights: true, popup: pods, halo, eye: d.eye ? new THREE.Vector3(0, body.position.y + d.eye[1], d.eye[0]) : null, flame };
+  set_lights(view, true);
+  return view;
 }
 
 export function sync_car_view(view: CarView, car: Car) {

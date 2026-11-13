@@ -33,6 +33,8 @@ export type CarState = {
   brake: boolean;
   /** Nitro firing; absent from peers that predate it. */
   boost?: boolean;
+  /** Headlamps on; absent from peers that predate the switch, whose lamps are always on. */
+  lights?: boolean;
   best: number | null;
 };
 

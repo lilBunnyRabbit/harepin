@@ -13,6 +13,8 @@ const VEL_SCALE = 64;
 const STEER_SCALE = 127;
 const BRAKE = 1;
 const BOOST = 2;
+// Set for lamps off, so a peer that predates the switch reads as lit, as its lamps always are.
+const DARK = 4;
 
 const T = 0;
 const BEST = 8;
@@ -49,7 +51,7 @@ const int16 = (x: number) => Math.max(-32767, Math.min(32767, Math.round(x))) ||
 
 /**
  * Fixed layout, little-endian: t f64, best f64 (0 = none), p 3×f32, q 4×i16 (unit), v 3×i16 (1/64 m/s), seed u32,
- * w u32, paint u16, steer i8, flags u8 (brake, boost), then name and build as a length byte and UTF-8.
+ * w u32, paint u16, steer i8, flags u8 (brake, boost, dark), then name and build as a length byte and UTF-8.
  * Append-only within a protocol: a new field goes after the build and a new flag takes a free bit, and decoders ignore
  * both. Reordering or resizing a field needs a `PROTOCOL` bump.
  */
@@ -67,7 +69,7 @@ export function encode_car(state: CarState): Uint8Array<ArrayBuffer> {
   view.setUint32(W, state.w ?? 1, true);
   view.setUint16(PAINT, state.paint, true);
   view.setInt8(STEER, Math.max(-STEER_SCALE, Math.min(STEER_SCALE, Math.round(state.steer * STEER_SCALE))) || 0);
-  view.setUint8(FLAG, (state.brake ? BRAKE : 0) | (state.boost ? BOOST : 0));
+  view.setUint8(FLAG, (state.brake ? BRAKE : 0) | (state.boost ? BOOST : 0) | (state.lights === false ? DARK : 0));
   bytes[CAR_HEADER] = name.length;
   bytes.set(name, CAR_HEADER + 1);
   bytes[CAR_HEADER + 1 + name.length] = build.length;
@@ -127,6 +129,7 @@ export function decode_car(raw: unknown, id: string): CarState | null {
     steer: steer / STEER_SCALE,
     brake: (flags & BRAKE) !== 0,
     boost: (flags & BOOST) !== 0,
+    lights: (flags & DARK) === 0,
     best: best > 0 && best <= MAX_BEST ? best : null,
   };
 }

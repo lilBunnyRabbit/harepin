@@ -125,6 +125,15 @@ describe("parse_bindings", () => {
     expect(parse_bindings(JSON.parse(JSON.stringify(bindings)))).toEqual(bindings);
   });
 
+  test("a table saved before the lights switch gets N and D-pad up; a key already taken stays with its owner", () => {
+    const saved = Object.fromEntries(BINDABLE.filter((action) => action !== "lights").map((action) => [action, DEFAULT_BINDINGS[action]]));
+    expect(parse_bindings(saved).lights).toEqual({ keys: ["KeyN"], pad: 12 });
+    const taken = parse_bindings({ ...saved, ghost: { keys: ["KeyN"], pad: 12 } });
+    expect(taken.ghost).toEqual({ keys: ["KeyN"], pad: 12 });
+    expect(taken.lights).toEqual({ keys: [], pad: null });
+    expect(rebind_key(taken, "lights", "KeyK").bindings.lights.keys).toEqual(["KeyK"]);
+  });
+
   test("unknown actions are dropped, bad entries take their default", () => {
     const parsed = parse_bindings({ fly: { keys: ["KeyZ"], pad: 2 }, reset: { keys: "KeyR" }, camera: { keys: ["KeyK"], pad: 99 }, ghost: { keys: [7], pad: null } });
     expect(parsed).not.toHaveProperty("fly");

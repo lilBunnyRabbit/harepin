@@ -1,7 +1,7 @@
 export const HOLDS = ["throttle", "brake", "steer_left", "steer_right", "handbrake", "nitro", "precision", "rewind"] as const;
 export type Hold = (typeof HOLDS)[number];
 
-export const PRESSES = ["reset", "restart", "shift_up", "shift_down", "auto", "tcs", "abs", "assist", "stability", "camera", "recenter", "ghost", "garage", "help", "map"] as const;
+export const PRESSES = ["reset", "restart", "shift_up", "shift_down", "auto", "tcs", "abs", "assist", "stability", "camera", "recenter", "lights", "ghost", "garage", "help", "map"] as const;
 export type Press = (typeof PRESSES)[number];
 
 /** Settings (Esc) and menu (Start) keep their menu role and never enter the binding table. */
@@ -45,6 +45,7 @@ export const BIND_INFO: Record<Bindable, BindInfo> = {
   stability: { label: "Stability" },
   camera: { label: "Camera" },
   recenter: { label: "Recenter camera" },
+  lights: { label: "Headlights" },
   ghost: { label: "Ghost car" },
   garage: { label: "Garage" },
   help: { label: "Key list" },
@@ -71,6 +72,7 @@ export const DEFAULT_BINDINGS: Bindings = {
   stability: { keys: ["Digit5"], pad: null },
   camera: { keys: ["KeyC"], pad: 8 },
   recenter: { keys: ["KeyF"], pad: 11 },
+  lights: { keys: ["KeyN"], pad: 12 },
   ghost: { keys: ["KeyG"], pad: null },
   garage: { keys: ["KeyV"], pad: null },
   help: { keys: ["KeyH"], pad: null },

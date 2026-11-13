@@ -79,6 +79,7 @@ export class Lighting {
   readonly sun: THREE.DirectionalLight;
   readonly bloom: { strength: number; threshold: number };
   private readonly spec: MoodSpec;
+  private headlight: THREE.SpotLight | null = null;
 
   /** `radial` fogs on distance instead of view depth, so a phone's streamed chunks cover all the fog leaves visible. */
   constructor(scene: THREE.Scene, mood: MoodDelta, radial = false) {
@@ -108,11 +109,17 @@ export class Lighting {
     return [sky, clouds];
   }
 
-  mount(car_root: THREE.Object3D) {
-    const headlight = new THREE.SpotLight(glow(tones.head), this.spec.head_intensity, this.spec.head_range, 0.42, 0.55, HEAD_DECAY);
+  mount(car_root: THREE.Object3D, on: boolean) {
+    const headlight = (this.headlight = new THREE.SpotLight(glow(tones.head), 0, this.spec.head_range, 0.42, 0.55, HEAD_DECAY));
     headlight.position.set(0, 0.1, 2.0);
     headlight.target.position.set(0, -1.2, 14);
     car_root.add(headlight, headlight.target);
+    this.beam(on);
+  }
+
+  // Dimmed rather than hidden: a hidden light changes the scene's light count, which recompiles every shader.
+  beam(on: boolean) {
+    if (this.headlight) this.headlight.intensity = on ? this.spec.head_intensity : 0;
   }
 
   follow(at: THREE.Vector3) {

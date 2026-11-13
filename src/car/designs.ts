@@ -96,6 +96,11 @@ export interface Design {
   slabs?: Slab[];
   /** Narrows the body behind z `from` to `share` of its width at the tail. */
   taper?: { from: number; share: number };
+  /**
+   * Pop-up lamps: `pods` in paint, modelled shut, and `heads` swing about the hinge line at [z, y] by `lift` radians
+   * while the lights are on. Positive lift raises what sits ahead of the hinge.
+   */
+  popups?: { pods: Part[]; hinge: Point; lift: number };
 }
 
 const MIRROR: Triple = [0.16, 0.1, 0.18];
