@@ -41,6 +41,7 @@ One level of feature folders under `src/`. Each folder owns its modules, tests (
 | `render/` | renderer, composer, scene, lighting, effects, camera, quality tiers |
 | `audio/` | engine sound and worklet |
 | `theme/` | palette and themes |
+| `lab/` | the feel lab, hidden, on `?lab=<pack>` or `?lab=~<code>`: packs of trials, trial resolve to a spec, the per-step recorder and the export block. How it works, how to write a pack and promote a winner: [docs/lab.md](docs/lab.md) |
 | `review/` | visual review for agents, in dev and `vite build --mode review` only (a production build drops it): `?showcase` sheets, `?view=` viewpoints, `?replay=` ghost shots, and the catalog `scripts/shots.ts` reads |
 
 Championships and seasons:
@@ -73,6 +74,7 @@ Every kind of thing we add has a registry. Adding one touches its own files plus
 - **Part:** an entry in `SLOTS` in `car/build.ts`.
 - **Setting:** a field on `SettingsState` and its entry in `FIELDS` in `menu/prefs.ts` (the mapped type rejects a missing one), then its row in the section builder in `menu/settings-sections.ts`. Reset picks the key up from the row.
 - **Menu page:** a Svelte component taking `PageProps`, one `svelte_page(…)` line in `page_list` in `menu/settings.ts` ([Svelte](#svelte)). Pages not yet ported are classes implementing `MenuPage` (`menu/page.ts`, optional `on_show` / `on_hide`).
+- **Lab pack:** `src/lab/packs/<id>.ts` default-exports a `Pack` (`lab/pack.ts`), plus one line in `PACKS` (`lab/packs.ts`); a lab station or lane is data in `worldgen/lab.ts`. See [docs/lab.md](docs/lab.md).
 - **Net message:** one `this.link.channel(name, sanitize, limit?, accept?)` line in `net/net.ts` and its sanitizer. New fields on an existing message are optional; never rename or remove a wire field. Bump `PROTOCOL` when old peers can't play with new ones; peers send it in `hello`. The binary `car` packet (`net/car-packet.ts`) is append-only: new fields go at the end and new flag bits are optional, both ignored by older decoders; reordering or resizing a field bumps `PROTOCOL`.
 
 ## Working in parallel
