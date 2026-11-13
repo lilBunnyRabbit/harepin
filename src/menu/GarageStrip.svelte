@@ -202,7 +202,8 @@
     border-color: var(--set-line);
     background: var(--set-raised);
     box-shadow: var(--panel-shadow);
-    animation: linear both;
+    animation-timing-function: linear;
+    animation-fill-mode: both;
     animation-timeline: --garage-strip;
   }
 

@@ -77,5 +77,6 @@ export function car_shelves(current: Build, builds: readonly SavedBuild[], limit
       return { class: name, head: `Class ${CLASS_LABELS[name]}`, open: choices.some((c) => c.blocked === null), choices };
     })
     .filter((shelf) => shelf.choices.length);
-  return [...shelves.filter((shelf) => shelf.open), ...shelves.filter((shelf) => !shelf.open)];
+  // Closed classes nearest the cap first: the one a small garage change would open comes next to the open ones.
+  return [...shelves.filter((shelf) => shelf.open), ...shelves.filter((shelf) => !shelf.open).reverse()];
 }
