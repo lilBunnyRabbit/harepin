@@ -127,13 +127,13 @@ Run what the change needs, nothing more:
 
 | Change | Proof |
 |---|---|
-| Every commit | `typecheck` + `bun run test` (fast); + `check:svelte` when a `.svelte` file changed |
+| Every commit | `typecheck` + `bun run test <changed folders>` (only the tests for what changed, not the whole suite); + `check:svelte` when a `.svelte` file changed |
 | Touches generation (`worldgen/`, meshing, map) | + `bun scripts/golden.ts --check`. Output meant to change: run `bun scripts/golden.ts` and commit `scripts/golden/` with the change, so review sees which parts moved |
 | Car physics | `car.test.ts` + `scripts/telemetry.ts` / `scripts/feel.ts` byte-identical, nothing else |
 | Routes or race logic | `bun scripts/races.ts --changed` only; it fails only on runs missing from `scripts/golden/races-baseline.txt` and lists fixed ones. A change meant to move them: `bun scripts/races.ts --baseline` and commit the file |
 | Generation hot path | one `bun scripts/proof.ts --no-drive --jobs 1` timing table; no repeated medians |
 | Visual | screenshots, one theme unless the change is about themes, about 4 shots at most |
-| Release | `bun run test:full` + `bun scripts/proof.ts` |
+| Release | `bun scripts/release.ts <ref> <version> --auto-level` (docs/release.md): picks the tests for what changed since the last release; FULL=1, golden and proof only when worldgen, world or car physics changed. The whole suite only with `--all-tests` |
 
 No base archives for identity proofs: the committed goldens are the base. A sweep test takes its seeds from `sweep(n)` (`src/sweep.ts`), so the fast run stays fast.
 
