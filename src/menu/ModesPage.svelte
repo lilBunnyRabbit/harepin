@@ -73,15 +73,20 @@
             onpointerenter={() => (hovered = { name: level.name, text: locked || level.brings })}
             onfocusin={() => (hovered = { name: level.name, text: locked || level.brings })}
           >
-            <Tile title={level.name} meta={meta(level, i)} disabled={!level.open || mode.blocked !== null || level.blocked !== null} onclick={() => play(level.id)}>
-              <span class="foot">
-                {#if level.open}
+            {#snippet lock()}<Icon name="icon-lock" />Finish {mode.levels[i - 1]?.name}{/snippet}
+            <Tile
+              title={level.name}
+              meta={meta(level, i)}
+              disabled={!level.open || mode.blocked !== null || level.blocked !== null}
+              reason={level.open ? undefined : lock}
+              onclick={() => play(level.id)}
+            >
+              {#if level.open}
+                <span class="foot">
                   <span class="star-row" aria-label={`${level.stars} of ${MAX_STARS} stars`}>{"★".repeat(level.stars)}<i>{"★".repeat(Math.max(0, MAX_STARS - level.stars))}</i></span>
                   {#if level.best}<small>{level.best}</small>{:else}<Badge tone="success">New</Badge>{/if}
-                {:else}
-                  <span class="lock"><Icon name="icon-lock" />Finish {mode.levels[i - 1]?.name}</span>
-                {/if}
-              </span>
+                </span>
+              {/if}
             </Tile>
           </div>
         {/each}
@@ -152,12 +157,6 @@
   .star-row i {
     color: var(--line-strong);
     font-style: normal;
-  }
-
-  .lock {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-1);
   }
 
   .blocked {

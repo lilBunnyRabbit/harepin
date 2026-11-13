@@ -12,21 +12,28 @@
     variant?: "card" | "nav";
     /** Lines the meta shows before it ends in an ellipsis; unset, it wraps freely. */
     clamp?: number;
+    /** Unset on a plain action tile, so it carries no aria-pressed. */
     selected?: boolean;
+    /** A place link marking where the player is now: aria-current, drawn like a pick. */
+    current?: boolean;
     disabled?: boolean;
+    /** Why a disabled tile is off: it stays at full contrast while the rest of the tile dims. */
+    reason?: Snippet;
+    tooltip?: string;
     onclick?: () => void;
     children?: Snippet;
   }
 
-  let { title, meta, thumb, icon, size = "md", variant = "card", clamp, selected = false, disabled = false, onclick, children }: Props = $props();
+  let { title, meta, thumb, icon, size = "md", variant = "card", clamp, selected, current = false, disabled = false, reason, tooltip, onclick, children }: Props = $props();
 </script>
 
-<button type="button" class="ui-tile" data-size={size} data-variant={variant} aria-pressed={selected} {disabled} {onclick}>
+<button type="button" class="ui-tile" data-size={size} data-variant={variant} aria-pressed={selected} aria-current={current || undefined} title={tooltip} {disabled} {onclick}>
   {#if thumb}<img class="ui-thumb" src={thumb} alt="" loading="lazy" />{:else if icon}<span class="ui-thumb ui-icon"><Icon name={icon} /></span>{/if}
   <span class="ui-text">
     <span class="ui-title">{title}</span>
     {#if meta}<small class="ui-meta" class:ui-clamp={clamp !== undefined} style:--clamp={clamp}>{meta}</small>{/if}
     {@render children?.()}
+    {#if reason}<small class="ui-reason">{@render reason()}</small>{/if}
   </span>
 </button>
 
@@ -57,7 +64,7 @@
     border-color: var(--line-strong);
   }
 
-  .ui-tile[aria-pressed="true"] {
+  .ui-tile:is([aria-pressed="true"], [aria-current="true"]) {
     border-color: var(--primary);
   }
 
@@ -67,8 +74,24 @@
   }
 
   .ui-tile:disabled {
-    opacity: 0.45;
     cursor: default;
+  }
+
+  .ui-tile:disabled > :not(.ui-text),
+  .ui-tile:disabled .ui-text > :not(.ui-reason) {
+    opacity: 0.45;
+  }
+
+  .ui-reason {
+    --icon-size: var(--text-md);
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    color: var(--foreground);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    line-height: 1.4;
+    margin-top: var(--space-1);
   }
 
   .ui-thumb {

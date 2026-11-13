@@ -37,10 +37,11 @@
         <ol>
           {#each shelf.choices as choice (choice.code)}
             <li>
-              <Tile title={choice.title} meta={choice.sub} disabled={choice.blocked !== null} onclick={() => pick(choice.code)}>
+              {#snippet why()}{choice.blocked}{/snippet}
+              <Tile title={choice.title} meta={choice.sub} disabled={choice.blocked !== null} reason={choice.blocked ? why : undefined} onclick={() => pick(choice.code)}>
                 <span class="meta">
                   <ClassBadge rating={choice.rating} />
-                  {#if choice.blocked}<span class="why">{choice.blocked}</span>{:else if choice.fitted}<span class="why">Fitted</span>{/if}
+                  {#if choice.fitted}<span class="why">Fitted</span>{/if}
                 </span>
               </Tile>
             </li>

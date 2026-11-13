@@ -138,6 +138,12 @@ describe("ui components", () => {
     expect(out).toContain("Seed 4");
     expect(out).toContain('aria-pressed="true"');
     expect(out).toContain('src="menu/island.webp"');
+    const action = html(Tile, { title: "Modes", tooltip: "Races, drift" });
+    expect(action).not.toContain("aria-pressed");
+    expect(action).toContain('title="Races, drift"');
+    expect(html(Tile, { title: "Island", current: true })).toContain('aria-current="true"');
+    const off = html(Tile, { title: "Maxed F1", disabled: true, reason: text("Over C") });
+    expect(off).toMatch(/<small class="ui-reason[^"]*"><span>Over C<\/span>/);
   });
 
   test("SectionHead renders the eyebrow and a title at its level", () => {

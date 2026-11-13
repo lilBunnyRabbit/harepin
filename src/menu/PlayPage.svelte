@@ -111,13 +111,14 @@
       <div class="group">
         <SectionHead eyebrow="Mini maps" />
         <div class="minis">
-          {#each MINIS as { kind, name } (kind)}
+          {#each MINIS as { kind, name, note } (kind)}
             {@const current = kind === host.kind}
             <Tile
               size="sm"
               title={name}
               thumb={current && host.code !== null ? (custom_thumb ?? preview(kind)) : preview(kind)}
-              selected={current}
+              {current}
+              tooltip={`${note}. ${current ? "You're here: keep driving" : `Reloads room ${host.room} on ${name}`}`}
               onclick={() => menu.drive(host.seed, kind, current ? host.levels : undefined)}
             />
           {/each}
