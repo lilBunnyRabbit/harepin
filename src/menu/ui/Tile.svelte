@@ -10,20 +10,22 @@
     size?: "sm" | "md";
     /** `nav`: a side-nav item, flat until picked; on phones and short screens it stacks into a rail icon over its title. */
     variant?: "card" | "nav";
+    /** Lines the meta shows before it ends in an ellipsis; unset, it wraps freely. */
+    clamp?: number;
     selected?: boolean;
     disabled?: boolean;
     onclick?: () => void;
     children?: Snippet;
   }
 
-  let { title, meta, thumb, icon, size = "md", variant = "card", selected = false, disabled = false, onclick, children }: Props = $props();
+  let { title, meta, thumb, icon, size = "md", variant = "card", clamp, selected = false, disabled = false, onclick, children }: Props = $props();
 </script>
 
 <button type="button" class="ui-tile" data-size={size} data-variant={variant} aria-pressed={selected} {disabled} {onclick}>
   {#if thumb}<img class="ui-thumb" src={thumb} alt="" loading="lazy" />{:else if icon}<span class="ui-thumb ui-icon"><Icon name={icon} /></span>{/if}
   <span class="ui-text">
     <span class="ui-title">{title}</span>
-    {#if meta}<small class="ui-meta">{meta}</small>{/if}
+    {#if meta}<small class="ui-meta" class:ui-clamp={clamp !== undefined} style:--clamp={clamp}>{meta}</small>{/if}
     {@render children?.()}
   </span>
 </button>
@@ -103,6 +105,14 @@
     color: var(--set-dim);
     font-size: var(--text-sm);
     line-height: 1.4;
+  }
+
+  .ui-clamp {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: var(--clamp);
+    line-clamp: var(--clamp);
   }
 
   [data-variant="nav"] {
