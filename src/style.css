@@ -19,12 +19,14 @@
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Hack", ui-monospace, monospace;
 
+  --space-0: 2px;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
   --space-5: 20px;
   --space-6: 24px;
+  --space-8: 32px;
 
   --radius-xs: 6px;
   --radius-sm: 8px;
@@ -39,8 +41,11 @@
   --text-lg: 14px;
   --text-xl: 16px;
   --text-2xl: 20px;
+  --text-3xl: 28px;
 
   --control-h: 32px;
+  --control-h-sm: 28px;
+  --control-h-lg: 44px;
   --icon-size: 18px;
   --bar-h: 56px;
 
@@ -72,7 +77,8 @@
 
 @media (pointer: coarse) {
   :root {
-    --control-h: 40px;
+    --control-h-sm: 36px;
+    --control-h-lg: 52px;
     --icon-size: 20px;
     --bar-h: 0px;
     --inset: 12px;
