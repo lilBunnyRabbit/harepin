@@ -1,3 +1,37 @@
+mainland 0 circuit bus
+mainland 0 sprint bus
+mainland 0 trip hatch
+mainland 0 trip coupe
+mainland 0 trip muscle
+mainland 0 trip rally
+mainland 0 trip kaze
+mainland 0 trip sturm
+mainland 0 trip raijin
+mainland 0 trip formula
+mainland 0 trip bus
+mainland 1 circuit bus
+mainland 1 sprint hatch
+mainland 1 sprint bus
+mainland 1 trip hatch
+mainland 1 trip coupe
+mainland 1 trip muscle
+mainland 1 trip rally
+mainland 1 trip kaze
+mainland 1 trip sturm
+mainland 1 trip raijin
+mainland 1 trip formula
+mainland 1 trip bus
+mainland 2 circuit bus
+mainland 2 sprint bus
+mainland 2 trip hatch
+mainland 2 trip coupe
+mainland 2 trip muscle
+mainland 2 trip rally
+mainland 2 trip kaze
+mainland 2 trip sturm
+mainland 2 trip raijin
+mainland 2 trip formula
+mainland 2 trip bus
 0 circuit bus
 0 street-1 bus
 0 street-2 bus
