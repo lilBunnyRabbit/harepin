@@ -249,15 +249,20 @@
   }
 }
 
-/* At the short window's 136px dial, full-padded switches overrun the card. */
+/* The 136px dial has no room for key hints, which a rebind can make several characters long (`L Shift`). */
 @media (pointer: fine) and (max-height: 500px) {
   :root[data-hud="classic"] .assists {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-1);
   }
 
   :root[data-hud="classic"] .aid-key {
     gap: var(--space-1);
     padding: 0 var(--space-1);
+  }
+
+  :root[data-hud="classic"] .aid-key[data-key]:not([data-key=""])::after {
+    content: none;
   }
 }
 
