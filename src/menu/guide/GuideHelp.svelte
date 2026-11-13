@@ -31,7 +31,7 @@
   }
 </script>
 
-<GuideLayout title="How much help?" lede="Aids keep the car tidy while you learn. Turn any of them off later.">
+<GuideLayout title="How much help?" lede="Aids keep the car tidy while you learn. Turn any of them off later." visual_on_short={false}>
   {#snippet copy()}
     <div class="guide-aids" role="group" aria-label="Driving aids">
       {#each presets as option (option.preset)}
@@ -87,11 +87,8 @@
 
   @media (max-height: 500px) {
     .guide-aids {
-      gap: var(--space-2);
-    }
-
-    .guide-aid-text {
-      display: none;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--space-3);
     }
   }
 </style>
