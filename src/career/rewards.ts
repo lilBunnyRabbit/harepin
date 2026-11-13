@@ -27,10 +27,19 @@ export const REWARD_DECALS: readonly number[] = TIERS.flatMap(({ rewards: { deca
 
 export const badge_text = (badge: TierBadge) => `${TIERS[badge - 1].name} champion`;
 
-/** One per tier, in the order of palette `tier_metals`. */
-export const TIER_METAL_NAMES = ["Bronze", "Silver", "Gold", "Platinum"] as const;
+/** One per tier, in the order of palette `tier_metals`; `metallic` false for a finish that is no metal (Legend's carbon weave). */
+export const TIER_METAL_NAMES: readonly { name: string; metallic: boolean }[] = [
+  { name: "Bronze", metallic: true },
+  { name: "Silver", metallic: true },
+  { name: "Gold", metallic: true },
+  { name: "Platinum", metallic: true },
+  { name: "Carbon", metallic: false },
+];
 
-export const reward_paint_name = (tier: Tier) => `${TIER_METAL_NAMES[TIERS.indexOf(tier)]} metallic`;
+export function reward_paint_name(tier: Tier): string {
+  const { name, metallic } = TIER_METAL_NAMES[TIERS.indexOf(tier)];
+  return metallic ? `${name} metallic` : name;
+}
 
 export type RewardKind = "paint" | "decal" | "badge";
 

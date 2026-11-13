@@ -99,6 +99,15 @@ test("Elite opens at 16 Pro stars", () => {
   expect(tier_line(fifteen, TIERS[2])).toBe(`Pro 15/${tier_max(TIERS[2])} ★ · Elite at 16`);
 });
 
+test("Legend opens at 27 Elite stars", () => {
+  const elite = ids_of(3);
+  const twenty_six = { ...all(2, elite), [elite[0]]: 3, [elite[1]]: 3 };
+  expect(tier_open(twenty_six, TIERS[4])).toBe(false);
+  expect(tier_open({ ...twenty_six, [elite[2]]: 3 }, TIERS[4])).toBe(true);
+  expect(tier_line(twenty_six, TIERS[3])).toBe(`Elite 26/${tier_max(TIERS[3])} ★ · Legend at 27`);
+  expect(tier_line(twenty_six, TIERS[4])).toBe(`Legend 0/${tier_max(TIERS[4])} ★`);
+});
+
 test("next event is the next unplayed one in the tier, wrapping, then the next open tier", () => {
   const r = (id: string) => event_of(id) ?? EVENTS[0];
   expect(next_event({}, r("r1"))?.id).toBe("r2");

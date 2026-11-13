@@ -141,6 +141,41 @@ export const TIERS: readonly Tier[] = [
       { id: "e12", name: "Dune crossing", mode: "race", level: "crossing", map: "1B0000004", car: { cap: "x" }, tuned: "4:bd16", stars: { two: 230125, three: 184100 }, ghost: true, final: true },
     ],
   },
+  {
+    id: TierId.LEGEND,
+    name: "Legend",
+    opens_at: 27,
+    margin: 1.03,
+    rewards: { paint: MAX_PAINT + 5, paint_at: 18, badge: "L" },
+    events: [
+      { id: "l1", name: "Coast to coast", mode: "race", level: "trip", map: MAINLAND, car: { cap: "s1" }, tuned: "475664083:m7", stars: { two: 639375, three: 511500 } },
+      { id: "l2", name: "Black ice", mode: "gymkhana", level: "g7", map: "1T0000006", car: { cap: "x" }, tuned: "6:t3" },
+      { id: "l3", name: "Pit garage", mode: "parking", level: "p8", map: "1V0000002", car: { preset: "Maxed F1" }, tuned: "2:v5" },
+      { id: "l4", name: "Glass chain", mode: "drift", level: "d6", map: "1F0000002", car: { preset: "Drift" }, tuned: "2:ic5" },
+      { id: "l5", name: "Ash sweep", mode: "hunt", level: "h5", map: "1V0000002", car: { cap: "a" }, tuned: "2:v5" },
+      { id: "l6", name: "High banks", mode: "race", level: "banked", map: "1S0000007-F2Q2", car: { cap: "x" }, tuned: "7:sky4:12112", stars: { two: 131500, three: 105200 } },
+      { id: "l7", name: "Road kicker", mode: "jump", level: "j3", map: "1A0000009", car: { cap: "x" }, tuned: "9:a4" },
+      { id: "l8", name: "Canyon traps", mode: "race", level: "trap", map: "1F0000001", car: { cap: "x" }, tuned: "1:ic5" },
+      { id: "l9", name: "Mountain marathon", mode: "duel", level: "v5", map: "1A0000004", car: { cap: "b" }, tuned: "4:a4", stars: { two: 151375, three: 121100 } },
+      { id: "l10", name: "Wrong way round", mode: "race", level: "circuit-rev", map: "1C0000011", car: { cap: "x" }, tuned: "33:w11", stars: { two: 349500, three: 279600 } },
+      {
+        id: "l11",
+        name: "Legend cup",
+        mode: "race",
+        level: "street-2",
+        map: "1D0000007",
+        car: { cap: "s2" },
+        tuned: "7:d4",
+        stages: [
+          { mode: "race", level: "street-2", stars: { two: 137875, three: 110300 } },
+          { mode: "gymkhana", level: "g7" },
+          { mode: "drift", level: "d4" },
+          { mode: "jump", level: "j3" },
+          { mode: "duel", level: "v5", stars: { two: 127125, three: 101700 } },
+        ],
+      },
+    ],
+  },
 ];
 
 export const EVENTS: readonly CareerEvent[] = TIERS.flatMap((tier) => tier.events);

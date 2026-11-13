@@ -49,9 +49,9 @@ export type ChatMsg = { text: string; t: number };
  */
 export type Hello = { protocol: number; version: string; world: number; seed: number; country?: string; map?: string; tier?: TierBadge; tag?: NameTag; daily?: DailyTime };
 
-export type TierBadge = 1 | 2 | 3 | 4;
+export type TierBadge = 1 | 2 | 3 | 4 | 5;
 
-export const clean_tier = (raw: unknown): TierBadge | null => (raw === 1 || raw === 2 || raw === 3 || raw === 4 ? raw : null);
+export const clean_tier = (raw: unknown): TierBadge | null => (raw === 1 || raw === 2 || raw === 3 || raw === 4 || raw === 5 ? raw : null);
 
 export function make_hello(
   version: string,
