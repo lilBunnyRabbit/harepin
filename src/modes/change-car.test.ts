@@ -5,12 +5,13 @@ import { within } from "../car/car-pick";
 import { CARS, car_sized } from "../car/cars";
 import { rating } from "../car/pi";
 import { PRESETS } from "../car/presets";
-import { EVENTS } from "../career/career";
+import { EVENTS, spot_of } from "../career/career";
 import { Career } from "../career/career-store";
 import { WorldKind } from "../worldgen/types";
 import { GYMKHANA_MODE } from "./gymkhana-mode";
 import type { CarLimit } from "../car/car-pick";
 import { Modes } from "./modes";
+import type { ModeCtx } from "./mode";
 import { held_car } from "./event-car";
 
 class FakeElement {
@@ -196,12 +197,27 @@ test("a preset event and free play offer no car change", async () => {
   expect(r.asked).toBe(0);
 });
 
-test("a run naming a reward car's preset lends a player without the car the starter car instead", async () => {
+test("a run naming a reward car's preset is practice on the starter car for a player without the car", async () => {
   const r = rig();
   const fujin = { ...capped, car: { preset: "Fujin prototype" } };
-  r.modes.play_event(fujin);
-  await settle();
-  expect(r.starts).toEqual([build_code(parse_build(PRESETS[0].code)!)]);
+  const start = GYMKHANA_MODE.start;
+  const ctxs: ModeCtx[] = [];
+  GYMKHANA_MODE.start = (ctx, level) => (ctxs.push(ctx), start(ctx, level));
+  const set_item = localStorage.setItem;
+  let writes = 0;
+  localStorage.setItem = () => void writes++;
+  try {
+    r.modes.play_event(fujin);
+    await settle();
+    expect(r.starts).toEqual([build_code(parse_build(PRESETS[0].code)!)]);
+    const [ctx] = ctxs;
+    expect(ctx.hits()).toBeNull();
+    ctx.track.record(spot_of(fujin).level, { stars: 3, ms: 1000 });
+    expect(writes).toBe(0);
+    expect(r.modes.can_change_car).toBe(false);
+  } finally {
+    localStorage.setItem = set_item;
+  }
   expect(held_car(fujin, ["fujin"])).toBe(fujin);
   expect(held_car(preset, [])).toBe(preset);
 });

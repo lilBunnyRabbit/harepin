@@ -51,7 +51,7 @@ const OPEN_GROUND = `Needs open ground: drive ${OPEN_WORLDS} for it`;
 const NO_GROUND_NOTICE = `Gymkhana, parking and gate hunts need open ground: drive ${OPEN_WORLDS} for them`;
 const TOO_BIG = "Too big for this mode";
 const NOT_THIS_CAR = "Not raced in this car";
-const LENT_CAR = `That car is a career reward: this run lends you the ${PRESETS[0].name}`;
+const LENT_CAR = `Practice: that car is a career reward, so the ${PRESETS[0].name} runs it and no times or stars keep`;
 const STREAMED = "This mode is not on this world yet";
 const NO_EVENT = "This event is not on this map";
 const NEXT_LEVEL = "Next level";
@@ -289,9 +289,13 @@ export class Modes implements CarHooks {
       if (legs.some((leg) => this.left_out(leg.level.id))) return this.refuse(NOT_THIS_CAR);
       if (this.race_busy()) return this.refuse(mode.def.busy_notice);
       this.clear();
+      // On a lent car the link's run is practice: free play on a track that stores nothing, so no time or star lands on the link.
+      if (event !== asked) {
+        this.begin(mode, level, event_track(event, null));
+        return this.notice(LENT_CAR);
+      }
       const cup = event.stages ? { cup: new Cup(event.stages, event.stars), legs } : null;
       this.begin(mode, level, play?.track ?? event_track(event, local_store()), event, play, cup);
-      if (event !== asked) this.notice(LENT_CAR);
     });
   }
 

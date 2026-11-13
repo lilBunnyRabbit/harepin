@@ -385,7 +385,7 @@ Each kind is a `ModeDef` (`mode.ts:88`) or a level flag on one, so the career, `
 | PI and class | `rating()` (`pi.ts`), sample builds in `scripts/pi.ts` | S |
 | Handling pass | `scripts/feel.ts`, `handling.ts`, `drift.ts` (`DRIFT_CARS`, `scripts/drift.ts:105`), autolap | S-M |
 | Preset | `PRESETS` (`presets.ts`): "Fujin prototype", listed only once the car is held (`preset_open` / `open_presets`, `rewards.ts`) | S |
-| Lock | Hidden in the garage, the car pick, the guide's car step and the Runs builder until earned (`car_open`, `rewards.ts`). `PRESETS` keeps it, so a peer's run code still reads; a locked player who opens one runs on the starter car (`held_car`, `event-car.ts`) | S |
+| Lock | Hidden in the garage, the car pick, the guide's car step and the Runs builder until earned (`car_open`, `rewards.ts`). `PRESETS` keeps it, so a peer's run code still reads; a locked player who opens one practises it on the starter car, keeping no time or star (`held_car`, `event-car.ts`; `play_event` in `modes.ts`) | S |
 | Garage bars | `stat_range(PLAIN_CARS)`: the bars span the plain cars only, so the reward car never shrinks theirs and clamps at the top | S |
 | Bot field | `cars_for` skips `REWARD_CARS` (`scripts/career.ts`), so no race median drifts | S |
 | Routes | Trails exclude it (`TRAIL_EXCLUDES`, `routes.ts`): slicks run off every trail line, as formula does on the dune crossing | S |
