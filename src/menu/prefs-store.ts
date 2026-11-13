@@ -1,6 +1,6 @@
 import { BUILD_KEY } from "./garage-builds";
 import { THEME_KEY } from "../theme/theme";
-import { DEFAULT_SETTINGS, parse_settings, type SettingKey, type SettingsState } from "./prefs";
+import { DEFAULT_SETTINGS, parse_settings, type SettingsState } from "./prefs";
 import { SETTINGS_KEY } from "./saved-pick";
 import { names_world, type SavedPick, type WorldPick } from "../world/world-pick";
 
@@ -36,10 +36,6 @@ function with_overrides(saved: SettingsState, params: URLSearchParams): Settings
 export function pin_pick(params: URLSearchParams, saved: SavedPick, { seed, kind }: WorldPick) {
   if (saved.last_world !== null || names_world(params)) return;
   write_saved({ ...read_saved(), last_world: kind, last_seed: seed });
-}
-
-export function save_setting<K extends SettingKey>(key: K, value: SettingsState[K]) {
-  write_saved({ ...read_saved(), [key]: value });
 }
 
 export function load_settings(params = new URLSearchParams(location.search)): SettingsState {
