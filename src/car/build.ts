@@ -191,6 +191,21 @@ export const REWARD_PAINTS = 5;
 // Append-only: build codes carry the index. From `sky` on, career rewards, one per tier final.
 export const DECALS = ["none", "centre", "twin", "side", "number", "flames", "slash", "checker", "rabbit", "sky", "volcano", "ice", "dunes"] as const;
 export type Decal = (typeof DECALS)[number];
+export const DECAL_NAMES: Record<Decal, string> = {
+  none: "None",
+  centre: "Centre stripe",
+  twin: "Twin stripes",
+  side: "Side stripe",
+  number: "Number",
+  flames: "Flames",
+  slash: "Slash",
+  checker: "Checker",
+  rabbit: "Rabbit",
+  sky: "Chevrons",
+  volcano: "Cracks",
+  ice: "Shards",
+  dunes: "Ridges",
+};
 export const MAX_DECAL = DECALS.length - 1;
 export const MAX_INK = 8;
 export const MAX_NUMBER = 99;

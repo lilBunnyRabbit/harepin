@@ -1,5 +1,5 @@
+import { DECAL_NAMES } from "../car/build";
 import { paint_lab } from "../car/paint";
-import { DECAL_NAMES } from "../menu/garage-items";
 import { decal_tile } from "../menu/garage-widgets";
 import type { TierBadge } from "../net/net";
 import { rgba } from "../theme/palette";

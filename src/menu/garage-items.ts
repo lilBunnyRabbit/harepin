@@ -1,24 +1,8 @@
-import { DECALS, MAX_NUMBER, MAX_PAINT, SLOTS, SLOT_NAMES, WHOLE_CAR, part_of, slot_view, type Build, type Decal, type Slot, type SlotView } from "../car/build";
+import { DECALS, DECAL_NAMES, MAX_NUMBER, MAX_PAINT, SLOTS, SLOT_NAMES, WHOLE_CAR, part_of, slot_view, type Build, type Decal, type Slot, type SlotView } from "../car/build";
 import { CARS, is_car } from "../car/cars";
 import { TIERS } from "../career/career";
 import { REWARD_DECALS, reward_paint_name, type Unlocks } from "../career/rewards";
 import { NEUTRAL_INKS, car_paints, decal_inks } from "../theme/palette";
-
-export const DECAL_NAMES: Record<Decal, string> = {
-  none: "None",
-  centre: "Centre stripe",
-  twin: "Twin stripes",
-  side: "Side stripe",
-  number: "Number",
-  flames: "Flames",
-  slash: "Slash",
-  checker: "Checker",
-  rabbit: "Rabbit",
-  sky: "Chevrons",
-  volcano: "Cracks",
-  ice: "Shards",
-  dunes: "Ridges",
-};
 
 const SIDE_VIEW: SlotView = { yaw: -0.87 };
 /** Slots shown under Body: the parts you see first on the car. Every other slot lands under Performance. */
