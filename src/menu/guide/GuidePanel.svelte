@@ -46,7 +46,7 @@
     gap: var(--space-5);
     height: 100%;
     min-height: 0;
-    padding: var(--space-8) var(--space-8) var(--space-6);
+    padding: var(--space-6);
     border: 1px solid var(--set-line);
     border-radius: var(--radius-lg);
     background: var(--set-panel);
@@ -89,82 +89,6 @@
 
     .guide-foot {
       padding-top: var(--space-3);
-    }
-  }
-
-  :global {
-    .settings:not([data-view="guide"]) :is(.guide-rail, .guide-host, .guide-skip),
-    .settings[data-view="guide"] .settings-panel :is(.menu-tabs, .settings-head, .settings-body, .menu-room, .menu-close) {
-      display: none;
-    }
-
-    .settings[data-view="guide"] {
-      background: none;
-    }
-
-    .settings[data-view="guide"]::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background: color-mix(in oklch, var(--background-darkest) 72%, transparent);
-      backdrop-filter: blur(8px);
-    }
-
-    :root[data-scheme="light"] .settings[data-view="guide"]::before {
-      background: color-mix(in oklch, var(--background-lighter) 78%, transparent);
-    }
-
-    /* The rail and panel sit centred below the top bar when they fit. The spacer rows give way first, the top one down
-       to the usual gap, so a short window keeps the block at the top and the panel shrinks into its own scroll. */
-    .settings[data-view="guide"] .settings-panel {
-      inset: var(--inset-top) var(--inset-right) var(--inset-bottom) var(--inset-left);
-      width: auto;
-      max-width: 1280px;
-      margin: 0 auto;
-      border: 0;
-      background: none;
-      box-shadow: none;
-      overflow: visible;
-      grid-template:
-        "top" auto
-        "." minmax(var(--space-5), 1fr)
-        "tabs" auto
-        "." var(--space-5)
-        "body" minmax(0, 640px)
-        "." minmax(0, 1fr)
-        / minmax(0, 1fr);
-      gap: 0;
-    }
-
-    .settings[data-view="guide"] .settings-panel .menu-top {
-      display: flex;
-    }
-
-    .guide-rail {
-      grid-area: tabs;
-      justify-self: start;
-      max-width: 100%;
-      min-width: 0;
-    }
-
-    .guide-host {
-      grid-area: body;
-      min-height: 0;
-    }
-
-    .guide-skip {
-      display: flex;
-    }
-
-    @media (max-height: 500px) {
-      .settings[data-view="guide"] .settings-panel {
-        grid-template: "tabs top" auto "body body" minmax(0, 1fr) / minmax(0, 1fr) auto;
-        gap: var(--space-3);
-      }
-
-      .settings[data-view="guide"] .settings-panel :is(.menu-brand, .menu-name) {
-        display: none;
-      }
     }
   }
 </style>

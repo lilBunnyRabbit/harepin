@@ -3,6 +3,7 @@ import type { GoTo } from "../goals/goals";
 import GoalsCard from "./GoalsCard.svelte";
 import type { Menu } from "./page";
 import { menu_state } from "./ui/svelte-page.svelte";
+import "./career-goals.css";
 
 export function goals_card(menu: Menu, go: (to: GoTo) => void): HTMLElement {
   const slot = document.createElement("div");

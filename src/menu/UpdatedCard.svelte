@@ -46,7 +46,8 @@
 
 <div class="updated" bind:this={frame}>
   <Dialog bind:open title={`Updated to v${version}`} subtitle={since} onclose={closed}>
-    <div class="updated-notes">
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+    <div class="updated-notes" tabindex="0" role="region" aria-label="Release notes">
       {#each releases as release (release.version)}<ReleaseNotes {release} />{/each}
     </div>
     {#snippet actions()}
@@ -73,5 +74,10 @@
     padding: var(--space-4);
     border-radius: var(--radius-md);
     background: var(--set-well);
+  }
+
+  .updated-notes:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: -2px;
   }
 </style>

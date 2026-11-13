@@ -28,14 +28,14 @@
   <Progress value={done} max={GOALS.length} label="Things tried" />
   {#if next}
     <div class="goals-next">
-      <span class="goals-words">
+      <span class="goals-text">
         <b>{next.title}</b>
         <small>{hint_of(next, live.prefs.bindings)}</small>
       </span>
       <Button size="sm" aria-label={`Go: ${next.title}`} onclick={() => go(next.go)}>Go</Button>
     </div>
   {:else}
-    <p class="goals-all"><Icon name="icon-check" />All {done} tried: you've seen everything Harepin has.</p>
+    <p class="goals-finished"><Icon name="icon-check" />All {done} tried: you've seen everything Harepin has.</p>
   {/if}
 </Card>
 
@@ -46,27 +46,27 @@
     gap: var(--space-4);
   }
 
-  .goals-words {
+  .goals-text {
     display: grid;
     flex: 1;
     gap: var(--space-0);
     min-width: 0;
   }
 
-  .goals-words b {
+  .goals-text b {
     font-size: var(--text-lg);
     font-weight: 600;
     line-height: 1.3;
   }
 
-  .goals-words small {
+  .goals-text small {
     color: var(--set-dim);
     font-size: var(--text-sm);
     line-height: 1.4;
     text-wrap: pretty;
   }
 
-  .goals-all {
+  .goals-finished {
     display: flex;
     align-items: center;
     gap: var(--space-2);

@@ -53,6 +53,6 @@
     position: absolute;
     right: var(--space-4);
     bottom: var(--space-4);
-    width: min(55%, 240px);
+    width: 55%;
   }
 </style>

@@ -5,6 +5,7 @@ import { DEFAULT_SETTINGS, type SettingKey, type SettingsState } from "../prefs"
 import GuidePanel from "./GuidePanel.svelte";
 import GuideSkip from "./GuideSkip.svelte";
 import GuideSteps from "./GuideSteps.svelte";
+import "./guide-shell.css";
 
 export const GUIDE_STEPS = [
   { id: "you", label: "You", title: "Welcome to Harepin" },

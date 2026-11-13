@@ -36,7 +36,7 @@
     <Progress value={done} max={GOALS.length} label="Things tried" />
     <p class="goals-lead">Nothing here is locked. These are the things Harepin has, in no particular order.</p>
     {#if done === GOALS.length}
-      <p class="goals-all"><Icon name="icon-check" />All {done} tried: you've seen everything Harepin has.</p>
+      <p class="goals-finished"><Icon name="icon-check" />All {done} tried: you've seen everything Harepin has.</p>
     {/if}
   </div>
   <RowList divided label="Things to try">
@@ -75,7 +75,7 @@
     text-wrap: pretty;
   }
 
-  .goals-all {
+  .goals-finished {
     display: flex;
     align-items: center;
     gap: var(--space-2);
