@@ -15,7 +15,7 @@ export function event_map(event: CareerEvent): MapSpec {
 /** The event's own best-time store, `harepin:career:<id>:<world_key>`, apart from the mode's free-play one. */
 export function event_track(event: CareerEvent, store: Store | null): Track {
   const { seed, kind, levels } = event_map(event);
-  return new Track(`career:${event.id}`, seed, [spot_of(event).level], store, kind, levels);
+  return new Track(`career:${event.id}`, seed, event.stages?.map((stage) => stage.level) ?? [spot_of(event).level], store, kind, levels);
 }
 
 export class Career {
@@ -47,7 +47,7 @@ export class Career {
 export function owner_times(career: Career): string {
   const times: Record<string, { stars: Thresholds; tuned: string }> = {};
   for (const event of EVENTS) {
-    const best = event.mode === "race" && tier_of(event).margin <= 1 ? undefined : career.best(event);
+    const best = event.stages || (event.mode === "race" && tier_of(event).margin <= 1) ? undefined : career.best(event);
     if (!best) continue;
     const { seed, kind, levels } = event_map(event);
     times[event.id] = { stars: owner_stars(event, best), tuned: world_key(seed, kind, levels) };

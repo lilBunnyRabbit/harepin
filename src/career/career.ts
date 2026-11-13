@@ -1,5 +1,6 @@
 import { MAX_PAINT, type Decal } from "../car/build";
 import type { CarClass } from "../car/pi";
+import type { Stage } from "../modes/championship";
 import { SILVER_SHARE, type StarRun, type Thresholds } from "../modes/track";
 
 export const EVENT_PARAM = "event";
@@ -28,6 +29,8 @@ export interface CareerEvent {
   readonly ghost?: true;
   readonly final?: true;
   readonly stand_in?: Spot;
+  /** A championship: run back to back on `map`, the first being `mode` and `level`. `stars` then grade the total points. */
+  readonly stages?: readonly Stage[];
 }
 
 export const TierId = {

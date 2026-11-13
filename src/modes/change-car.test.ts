@@ -15,6 +15,8 @@ class FakeElement {
   hidden = false;
   disabled = false;
   textContent = "";
+  className = "";
+  readonly dataset: Record<string, string> = {};
   readonly style = { setProperty() {} };
   private readonly clicks: (() => void)[] = [];
   addEventListener(type: string, listener: () => void) {
@@ -40,8 +42,11 @@ doc.getElementById = (id: string) => {
   return elements.get(id);
 };
 const gymkhana_start = GYMKHANA_MODE.start;
+const create = doc.createElement;
+doc.createElement = () => new FakeElement();
 afterAll(() => {
   GYMKHANA_MODE.start = gymkhana_start;
+  doc.createElement = create;
   delete doc.getElementById;
   for (const key of added) Reflect.deleteProperty(globalThis, key);
 });
@@ -185,4 +190,52 @@ test("a preset event and free play offer no car change", async () => {
   expect(r.modes.can_change_car).toBe(false);
   await r.modes.change_car();
   expect(r.asked).toBe(0);
+});
+
+test("a championship runs its stages back to back: Next goes on, a retry keeps the better stage, the total grades the event", async () => {
+  const r = rig();
+  const finishes: (number | null)[] = [];
+  GYMKHANA_MODE.start = (_ctx, level) => {
+    r.starts.push(level.id);
+    const at = r.starts.length - 1;
+    return { update: () => null, finished: () => (finishes[at] === undefined || finishes[at] === null ? null : { title: level.name, stars: finishes[at]!, lines: [] }), dispose: () => void r.disposed++ };
+  };
+  const cup = { ...capped, id: "cup-test", name: "Cup", level: "g1", stars: undefined, stages: [{ mode: "gymkhana", level: "g1" }, { mode: "gymkhana", level: "g2" }, { mode: "gymkhana", level: "g3" }] };
+  const career = (r.modes as unknown as { career: Career }).career;
+  const status = elements.get("mode-status") ?? (document.getElementById("mode-status") as unknown as FakeElement);
+  const next = elements.get("mode-next")!;
+  const finish = (stars: number) => {
+    finishes[r.starts.length - 1] = stars;
+    r.modes.update(0, {} as never);
+  };
+
+  r.modes.play_event(cup);
+  await settle();
+  r.answer(FIRST);
+  await settle();
+  expect(r.starts).toEqual(["g1"]);
+  expect(status.dataset.cup).toBe("Stage 1/3 · 0 pts");
+
+  finish(3);
+  expect(next.textContent).toBe("Next stage");
+  expect(next.hidden).toBe(false);
+  expect(career.stars["cup-test"]).toBeUndefined();
+  next.click();
+  expect(r.starts).toEqual(["g1", "g2"]);
+  expect(status.dataset.cup).toBe("Stage 2/3 · 10 pts");
+
+  finish(1);
+  elements.get("mode-retry")!.click();
+  expect(r.starts).toEqual(["g1", "g2", "g2"]);
+  finish(2);
+  next.click();
+  expect(status.dataset.cup).toBe("Stage 3/3 · 16 pts");
+
+  finish(3);
+  expect(elements.get("mode-result-title")!.textContent).toBe("Cup · 26 pts");
+  expect(next.textContent).toBe("Next event");
+  expect(career.stars["cup-test"]).toBe(3);
+  expect(r.car).toBe(FIRST);
+  r.modes.exit();
+  expect(status.dataset.cup).toBeUndefined();
 });

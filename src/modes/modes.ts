@@ -19,6 +19,7 @@ import { DRIFT_MODE } from "./drift-mode";
 import { DUEL_MODE } from "./duel-mode";
 import { GYMKHANA_MODE } from "./gymkhana-mode";
 import { HUNT_MODE } from "./hunt-mode";
+import { Cup, stage_points, type Stage } from "./championship";
 import { JUMP_MODE } from "./jump-mode";
 import { Hits } from "./hits";
 import type { Ground } from "./marks";
@@ -33,6 +34,13 @@ import { MAX_STARS, Track, local_store, type RaceRecord } from "./track";
 import "./modes.css";
 
 export type { Driven } from "./mode";
+
+/** A championship stage grades on its own marks, never the championship's points, and has no ghost of its own yet. */
+function graded({ event, cup }: Active): CareerEvent | null {
+  if (!event || !cup) return event;
+  const { mode, level, stars } = cup.cup.stage;
+  return { ...event, mode, level, stars, ghost: undefined };
+}
 
 const preset_code = (name: string): string | null => {
   const build = parse_build(PRESETS.find((p) => p.name === name)?.code);
@@ -53,6 +61,7 @@ const STREAMED = "This mode is not on this world yet";
 const NO_EVENT = "This event is not on this map";
 const NEXT_LEVEL = "Next level";
 const NEXT_EVENT = "Next event";
+const NEXT_STAGE = "Next stage";
 
 export interface LevelEntry {
   id: string;
@@ -83,6 +92,17 @@ interface Mode {
   track: Track;
 }
 
+interface Leg {
+  mode: Mode;
+  level: Level;
+}
+
+/** A championship's stages, each found on this world before the first starts. */
+interface CupRun {
+  cup: Cup;
+  legs: readonly Leg[];
+}
+
 interface Active {
   mode: Mode;
   level: Level;
@@ -91,6 +111,7 @@ interface Active {
   event: CareerEvent | null;
   /** A Runs pick: its marks, records and season stars in place of the career's. */
   play: RunPlay | null;
+  cup: CupRun | null;
   run: ModeRun | null;
   /** On a streamed world, the run built and waiting for the chunks at its start; a later launch or a clear replaces it. */
   starting: ModeRun | null;
@@ -114,6 +135,7 @@ export class Modes {
     title: $("mode-result-title"),
     result_stars: $("mode-result-stars"),
     lines: $("mode-result-lines"),
+    standings: $("mode-result-standings"),
     note: $("mode-result-note"),
     unlock: $("mode-result-unlock"),
     retry: $("mode-retry", HTMLButtonElement),
@@ -254,31 +276,42 @@ export class Modes {
 
   /** The caller has checked this map is the event's. Career levels are all open: the mode's own unlock order is free play's. */
   play_event(event: CareerEvent, play: RunPlay | null = null) {
-    const spot = spot_of(event);
-    const mode = this.modes.find((m) => m.def.id === event.mode);
-    const level = mode?.levels.find((l) => l.id === spot.level);
-    if (!mode || !level) return this.notice(NO_EVENT);
+    const legs = this.legs(event.stages ?? [{ mode: event.mode, level: spot_of(event).level, name: event.name }]);
+    if (!legs) return this.notice(NO_EVENT);
+    const [{ mode, level }] = legs;
     const tier = tier_of(event);
     const before = TIERS[TIERS.indexOf(tier) - 1];
     // `?tune` opens every tier so the owner can set the non-race stars before any are earnable.
     const tune = new URLSearchParams(location.search).has(TUNE_PARAM);
     if (!play && !tune && !tier_open(this.career.stars, tier)) return this.notice(`${tier.name} opens at ${tier.opens_at} ★ in ${before?.name ?? "the tier before"}`);
-    if (mode.def.needs_ground && !KINDS[this.world.kind].open_ground) return this.notice(NO_GROUND_NOTICE);
+    if (legs.some((leg) => leg.mode.def.needs_ground) && !KINDS[this.world.kind].open_ground) return this.notice(NO_GROUND_NOTICE);
     if (this.race_busy()) return this.notice(mode.def.busy_notice);
     if (this.pick) return;
     this.clear();
-    void this.event_car(event, mode).then((ready) => {
+    void this.event_car(event, legs).then((ready) => {
       if (!ready) return this.give_back();
-      if (this.too_big(mode)) return this.refuse(TOO_BIG);
-      if (this.left_out(level.id)) return this.refuse(NOT_THIS_CAR);
+      if (legs.some((leg) => this.too_big(leg.mode))) return this.refuse(TOO_BIG);
+      if (legs.some((leg) => this.left_out(leg.level.id))) return this.refuse(NOT_THIS_CAR);
       if (this.race_busy()) return this.refuse(mode.def.busy_notice);
       this.clear();
-      this.begin(mode, { ...level, name: event.name }, play?.track ?? event_track(event, local_store()), event, play);
+      const cup = event.stages ? { cup: new Cup(event.stages, event.stars), legs } : null;
+      this.begin(mode, level, play?.track ?? event_track(event, local_store()), event, play, cup);
     });
   }
 
+  private legs(stages: readonly Stage[]): Leg[] | null {
+    const legs: Leg[] = [];
+    for (const stage of stages) {
+      const mode = this.modes.find((m) => m.def.id === stage.mode);
+      const level = mode?.levels.find((l) => l.id === stage.level);
+      if (!mode || !level) return null;
+      legs.push({ mode, level: { ...level, name: stage.name ?? level.name } });
+    }
+    return legs;
+  }
+
   // A fixed preset goes on with no step; a class cap asks, with the cars over it greyed.
-  private async event_car(event: CareerEvent, mode: Mode): Promise<boolean> {
+  private async event_car(event: CareerEvent, legs: readonly Leg[]): Promise<boolean> {
     const { car } = event;
     if ("preset" in car) {
       const code = preset_code(car.preset);
@@ -286,7 +319,7 @@ export class Modes {
       return true;
     }
     if (!this.pick_car) return true;
-    const code = await this.ask_car(event, car.cap, mode);
+    const code = await this.ask_car(event, car.cap, legs);
     if (code === null) {
       // A cancelled pick must not reopen on reload, so the event leaves the URL; map params stay.
       const url = new URL(location.href);
@@ -310,7 +343,7 @@ export class Modes {
     const active = this.current;
     const car = active?.event?.car;
     if (!active?.event || !car || !("cap" in car) || this.pick) return;
-    const code = await this.ask_car(active.event, car.cap, active.mode);
+    const code = await this.ask_car(active.event, car.cap, active.cup?.legs ?? [active]);
     if (code === null || this.current !== active) return;
     // The player's own car back on is no longer a loan: their garage edits stay theirs, and its build goals count again.
     if (code === this.kept) this.give_back();
@@ -318,14 +351,15 @@ export class Modes {
     this.restart();
   }
 
-  private async ask_car(event: CareerEvent, cap: CarClass, mode: Mode): Promise<string | null> {
+  private async ask_car(event: CareerEvent, cap: CarClass, legs: readonly Leg[]): Promise<string | null> {
     if (!this.pick_car) return null;
     const pick = new AbortController();
     this.pick = pick;
     try {
       const own = this.kept ?? this.car_code?.() ?? "";
-      const excludes = this.world.routes.find((r) => r.id === spot_of(event).level)?.excludes;
-      return await this.pick_car(event.name, { cap, car_sized_only: mode.def.car_sized_only, excludes }, own, pick.signal);
+      const excludes = legs.flatMap((leg) => this.world.routes.find((r) => r.id === leg.level.id)?.excludes ?? []);
+      const car_sized_only = legs.some((leg) => leg.mode.def.car_sized_only);
+      return await this.pick_car(event.name, { cap, car_sized_only, excludes: excludes.length ? excludes : undefined }, own, pick.signal);
     } finally {
       if (this.pick === pick) this.pick = null;
     }
@@ -409,8 +443,8 @@ export class Modes {
     return this.world.routes.find((r) => r.id === id)?.excludes?.includes(this.spec().id) === true;
   }
 
-  private begin(mode: Mode, level: Level, track = mode.track, event: CareerEvent | null = null, play: RunPlay | null = null) {
-    this.current = { mode, level, track, event, play, run: null, starting: null, shown: false, pi: null };
+  private begin(mode: Mode, level: Level, track = mode.track, event: CareerEvent | null = null, play: RunPlay | null = null, cup: CupRun | null = null) {
+    this.current = { mode, level, track, event, play, cup, run: null, starting: null, shown: false, pi: null };
     this.launch(this.current);
   }
 
@@ -434,7 +468,7 @@ export class Modes {
     // once the chunks there are in.
     let spot = null as { x: number; z: number; heading: number } | null;
     const hold = tiles.streamed ? (x: number, z: number, heading: number) => (spot = { x, z, heading }) : null;
-    const run = active.mode.def.start(this.ctx(active.track, active.event, hold, active.play), active.level);
+    const run = active.mode.def.start(this.ctx(active.track, graded(active), hold, active.play), active.level);
     if (typeof run === "string") {
       return this.refuse(run);
     }
@@ -459,6 +493,7 @@ export class Modes {
     active.pi = active.event ? this.car_pi() : null;
     active.shown = false;
     this.el.result.hidden = true;
+    if (active.cup) this.el.status.dataset.cup = active.cup.cup.status;
   }
 
   /** `hold`: takes the run's start in place of parking the car on it. */
@@ -523,12 +558,14 @@ export class Modes {
     this.lobby_lap = null;
     this.el.hint.hidden = true;
     this.el.result.hidden = true;
+    delete this.el.status.dataset.cup;
     this.status_key = "";
   }
 
   private play_next() {
     const active = this.current;
     if (!active) return;
+    if (active.cup && !active.cup.cup.done) return this.next_stage(active, active.cup);
     if (active.play) return active.play.next?.go();
     if (active.event) {
       const next = next_event(this.career.stars, active.event);
@@ -538,6 +575,17 @@ export class Modes {
     const ids = active.mode.levels.map((level) => level.id);
     const next = ids[ids.indexOf(active.level.id) + 1];
     if (next) this.play(next);
+  }
+
+  private next_stage(active: Active, cup: CupRun) {
+    const leg = cup.legs[cup.cup.index + 1];
+    if (!leg) return;
+    if (this.race_busy()) return this.notice(leg.mode.def.busy_notice);
+    if (this.too_big(leg.mode)) return this.notice(TOO_BIG);
+    if (this.left_out(leg.level.id)) return this.notice(NOT_THIS_CAR);
+    if (!cup.cup.advance()) return;
+    this.clear();
+    this.begin(leg.mode, leg.level, active.track, active.event, active.play, cup);
   }
 
   update(sim_dt: number, car: Driven) {
@@ -583,9 +631,11 @@ export class Modes {
 
   private show_result(finish: Finish, active: Active) {
     const { el } = this;
-    const { stars } = finish;
     const { levels, track } = active.mode;
-    el.title.textContent = finish.title;
+    const cup = active.cup?.cup ?? null;
+    cup?.score(finish.stars);
+    const stars = cup?.done ? cup.stars : finish.stars;
+    el.title.textContent = cup?.done && active.event ? `${active.event.name} · ${cup.total} pts` : finish.title;
     el.result_stars.replaceChildren(star_row(stars));
     el.result_stars.setAttribute("aria-label", `${stars} of ${MAX_STARS} stars`);
     el.lines.replaceChildren(...finish.lines);
@@ -594,7 +644,13 @@ export class Modes {
     this.reward = null;
     el.try_on.hidden = true;
     el.car.hidden = !this.can_change_car;
-    if (active.play) this.show_play(active.play, stars);
+    el.standings.hidden = !active.cup;
+    if (active.cup) this.show_standings(active.cup);
+    if (cup && !cup.done) {
+      el.next.textContent = NEXT_STAGE;
+      el.next.hidden = false;
+      el.next.disabled = false;
+    } else if (active.play) this.show_play(active.play, stars);
     else if (active.event) this.show_event(active.event, stars);
     else {
       const index = levels.findIndex((level) => level.id === active.level.id);
@@ -627,6 +683,31 @@ export class Modes {
     el.next.textContent = play.next?.label ?? NEXT_EVENT;
     el.next.hidden = play.next === null;
     el.next.disabled = false;
+  }
+
+  private show_standings({ cup, legs }: CupRun) {
+    const rows = legs.map((leg, i) => {
+      const stars = cup.results[i];
+      const row = document.createElement("li");
+      row.dataset.now = String(i === cup.index);
+      const place = document.createElement("span");
+      place.className = "dim";
+      place.textContent = String(i + 1);
+      const name = document.createElement("span");
+      name.textContent = leg.level.name;
+      const score = document.createElement("b");
+      score.textContent = stars === null ? "--" : `${stage_points(stars)} pts`;
+      row.append(place, name, score, stars === null ? document.createElement("span") : star_row(stars));
+      return row;
+    });
+    const total = document.createElement("li");
+    total.className = "cup-total";
+    const label = document.createElement("span");
+    label.textContent = "Total";
+    const sum = document.createElement("b");
+    sum.textContent = `${cup.total} pts`;
+    total.append(label, sum);
+    this.el.standings.replaceChildren(...rows, total);
   }
 
   mode_list(): ModeEntry[] {
