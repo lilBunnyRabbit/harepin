@@ -41,6 +41,17 @@ test("a level takes the clear ramp of its kind nearest the start, run-up behind 
   }
 });
 
+test("a big ramp's two-star mark sits well short of its three-star one", () => {
+  for (const kind of [WorldKind.DESERT, WorldKind.ALPINE, WorldKind.VOLCANO])
+    for (let seed = 1; seed <= 4; seed++) {
+      const world = world_of(kind, seed);
+      const jump = jump_at(world, SPAWN_INDEX, big);
+      if (!jump) continue;
+      expect(jump.marks.two).toBeGreaterThan(0);
+      expect(jump.marks.three - jump.marks.two).toBeGreaterThanOrEqual(8);
+    }
+}, 120_000);
+
 test("stars by metres, higher is better", () => {
   const marks = { two: 20, three: 30 };
   expect([0, 5, 20, 29.9, 30, 50].map((m) => jump_stars(m, marks))).toEqual([0, 1, 2, 2, 3, 3]);
