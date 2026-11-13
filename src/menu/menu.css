@@ -77,7 +77,8 @@
   /* Room for the focus ring of the outer tiles (2px outline, 2px offset), which the scroller would otherwise cut. */
   --focus-room: var(--space-1);
   overflow-y: auto;
-  border-radius: var(--radius-lg);
+  /* Scrolls on the compositor, off the busy game thread. A rounded corner here would put it back on the main thread. */
+  will-change: scroll-position;
   padding: var(--focus-room);
   margin: calc(-1 * var(--focus-room)) calc(-1 * var(--focus-room)) 0;
 }

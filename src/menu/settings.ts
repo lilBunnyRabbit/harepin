@@ -1,4 +1,5 @@
 import { flushSync } from "svelte";
+import { set_text } from "../hud/hud";
 import { modal_open, typing, type Nav } from "../hud/input";
 import { clean_name } from "../net/net";
 import { GUIDE_PARAM, Guide, ROLLED_VISIT, type GuideStep } from "./guide/guide.svelte";
@@ -278,7 +279,7 @@ export class Settings {
     const room = el("span", "menu-chip menu-room");
     const here = el("small");
     room.append(el("span", "menu-live"), el("span", "", `Room ${this.host.room}`), here);
-    this.syncs.push(() => (here.textContent = `· ${this.host.players()} here`));
+    this.syncs.push(() => set_text(here, `· ${this.host.players()} here`));
     const leave = el("button", "menu-close");
     leave.type = "button";
     leave.dataset.action = "close";
