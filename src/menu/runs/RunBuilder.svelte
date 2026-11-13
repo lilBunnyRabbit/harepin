@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from "svelte";
   import { CarClass } from "../../car/pi";
   import { limit_text } from "../../car/car-pick";
   import { PRESETS } from "../../car/presets";
@@ -96,8 +97,13 @@
     built = null;
   }
 
-  function generate() {
+  let event_card: HTMLElement | undefined = $state();
+
+  async function generate() {
     built = custom(options, new_seed());
+    await tick();
+    // On a phone the card lands below the fold, so Generate would only change its own label.
+    event_card?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }
 
   async function copy_link(pick: RunPick) {
@@ -145,11 +151,12 @@
   </Card>
 
   {#if built}
+    <div class="event" bind:this={event_card}>
     <Card list label="Your event">
       <div class="head"><SectionHead eyebrow="Your event" title={pick_text(built)} /></div>
       <RowList divided label="Your event">
         {#if built.type === RunType.RACE || built.type === RunType.TRAP}
-          <Row label={route ?? "Finding the route…"} help={band_text(built) ?? (built.laps > 1 ? `${built.laps} laps` : "Route of the map")} />
+          <Row label={route ?? "Finding the route…"} help={built.laps > 1 ? `${built.laps} laps · circuits only, the nearest one stands in` : (band_text(built) ?? "Route of the map")} />
         {/if}
         <Row label={car_text(built.car)} help={`${DIFFICULTIES.find((d) => d.value === built?.difficulty)?.label} star marks · season stars within today's cap`} />
       </RowList>
@@ -158,6 +165,7 @@
         <Button variant="primary" onclick={() => built && menu.host.start_run(built.id)}>Go</Button>
       </div>
     </Card>
+    </div>
   {/if}
 </div>
 
