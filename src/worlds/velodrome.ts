@@ -20,4 +20,5 @@ export const velodrome: WorldDef = {
   facts: (f) => lap_facts(f, "track"),
   dress: (world) => [cloud_floor(world)],
   kit: PLAIN_KIT,
+  wall_view: (20 * Math.PI) / 180,
 };

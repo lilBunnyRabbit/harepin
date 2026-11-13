@@ -39,6 +39,14 @@ const ORBITED_ZOOM = 0.15;
 const TOP_BACK = 9;
 const TOP_RISE = 15;
 const TOP_LEAD = 5;
+// Past `wall_bank` the view leans with the deck, all the way once the bank is this much steeper.
+const WALL_SPAN = 20 * DEG;
+// Eased, so faceted deck normals and a bowl's roll-in turn the view smoothly instead of snapping it.
+const WALL_NORMAL_RATE = 6;
+const WALL_LEAN_RATE = 4;
+// Below this the lean counts as gone and the view is world-up again, exactly as without it.
+const WALL_LEAN_MIN = 1e-3;
+const UP = new THREE.Vector3(0, 1, 0);
 
 /** The car as drawn this frame: interpolated between physics steps, so the camera never follows the step rhythm. */
 export interface CarPose {
@@ -67,6 +75,8 @@ export class ChaseCamera {
   /** Rewind replays snapshots backwards, so its acceleration would tilt the view the wrong way. */
   rewinding = false;
   readonly tilt = new Tilt();
+  /** Deck bank, radians, past which the chase view rolls with the deck; Infinity keeps it level to world up. */
+  wall_bank = Infinity;
   private yaw = 0;
   private turn = 0;
   private last_heading = 0;
@@ -84,6 +94,12 @@ export class ChaseCamera {
   private readonly fwd = new THREE.Vector3();
   private readonly local = new THREE.Vector3();
   private readonly inverse = new THREE.Quaternion();
+  /** Share of the deck's roll the view takes, 0 level to 1 upright on the deck. */
+  private lean = 0;
+  private readonly deck_normal = new THREE.Vector3(0, 1, 0);
+  private readonly probe = new THREE.Vector3();
+  private readonly deck_up = new THREE.Vector3();
+  private readonly lean_quat = new THREE.Quaternion();
   /** Seconds a released mouse look holds once the car moves, before easing back behind it. */
   return_delay = 1.5;
   invert_y = false;
@@ -118,6 +134,8 @@ export class ChaseCamera {
     this.chase.set(car.pos.x - Math.sin(this.yaw) * 7 * length, car.pos.y + 2.5 * height, car.pos.z - Math.cos(this.yaw) * 7 * length);
     this.camera.position.copy(this.chase);
     this.floor = this.orbit_floor = -Infinity;
+    this.lean = 0;
+    this.deck_normal.copy(UP);
   }
 
   /** Whether the chase view is looked away from straight behind the car, by orbit or zoom. */
@@ -182,7 +200,7 @@ export class ChaseCamera {
     this.zoom = Math.exp(Math.log(this.zoom) + (Math.log(this.aim_zoom) - Math.log(this.zoom)) * smooth);
   }
 
-  update(dt: number, car: CarPose, world: Pick<World, "height">, offroad: boolean, time: number, look: Look) {
+  update(dt: number, car: CarPose, world: Pick<World, "height" | "normal">, offroad: boolean, time: number, look: Look) {
     const { camera } = this;
     const speed = car.vel.length();
     const step = Math.max(dt, 1e-3);
@@ -242,12 +260,17 @@ export class ChaseCamera {
       const azimuth = Math.atan2(ox, oz) + this.orbit_yaw;
       const elevation = Math.atan2(oy, flat) + this.orbit_pitch;
       camera.position.set(car.pos.x + Math.sin(azimuth) * Math.cos(elevation) * dist, pivot_y + Math.sin(elevation) * dist, car.pos.z + Math.cos(azimuth) * Math.cos(elevation) * dist);
-      this.orbit_floor = this.ground(world, camera.position, pivot_y, this.orbit_floor, dt);
-      camera.position.y = Math.max(camera.position.y, this.orbit_floor);
-      camera.up.set(0, 1, 0);
       const yaw = this.yaw + this.orbit_yaw;
       const lead = (this.top ? TOP_LEAD : LOOK_LEAD) * length;
       this.look.set(car.pos.x + Math.sin(yaw) * lead, pivot_y, car.pos.z + Math.cos(yaw) * lead);
+      camera.up.set(0, 1, 0);
+      if (this.wall_bank !== Infinity && this.lean_to_deck(dt, world, car.pos, pivot_y)) {
+        camera.position.sub(car.pos).applyQuaternion(this.lean_quat).add(car.pos);
+        this.look.sub(car.pos).applyQuaternion(this.lean_quat).add(car.pos);
+        camera.up.copy(this.deck_up);
+      }
+      this.orbit_floor = this.ground(world, camera.position, pivot_y, this.orbit_floor, dt);
+      camera.position.y = Math.max(camera.position.y, this.orbit_floor);
       camera.lookAt(this.look);
       camera.rotateX(this.tilt.pitch);
     }
@@ -258,6 +281,21 @@ export class ChaseCamera {
     }
     camera.fov += (speed_fov(zoom, speed, this.boost) - camera.fov) * Math.min(1, dt * 3);
     camera.updateProjectionMatrix();
+  }
+
+  /** Eases the lean toward the deck under the car and sets `lean_quat` to world up turned that far; false while the view stays level. */
+  private lean_to_deck(dt: number, world: Pick<World, "normal">, at: THREE.Vector3, from: number): boolean {
+    const normal = world.normal(at.x, at.z, this.probe, from);
+    this.deck_normal.lerp(normal, 1 - Math.exp(-dt * WALL_NORMAL_RATE)).normalize();
+    const bank = Math.acos(Math.min(1, this.deck_normal.y));
+    const t = Math.max(0, Math.min(1, (bank - this.wall_bank) / WALL_SPAN));
+    const goal = t * t * (3 - 2 * t);
+    this.lean += (goal - this.lean) * (1 - Math.exp(-dt * WALL_LEAN_RATE));
+    if (goal === 0 && this.lean < WALL_LEAN_MIN) this.lean = 0;
+    if (this.lean === 0) return false;
+    this.deck_up.copy(UP).lerp(this.deck_normal, this.lean).normalize();
+    this.lean_quat.setFromUnitVectors(UP, this.deck_up);
+    return true;
   }
 
   /** `from` is the car's pivot height: under a crossover the camera keeps to the car's deck, not the one overhead. */

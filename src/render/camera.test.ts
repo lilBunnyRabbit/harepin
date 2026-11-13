@@ -3,10 +3,12 @@ import * as THREE from "three";
 import type { Look } from "../hud/input";
 import { ChaseCamera, type CarPose } from "./camera";
 
-const FLAT = { height: () => 0 };
+type Ground = Parameters<ChaseCamera["update"]>[2];
+
+const FLAT: Ground = { height: () => 0, normal: (_x, _z, out) => out.set(0, 1, 0) };
 const STILL: Look = { dx: 0, dy: 0, zoom: 0, pinch: 0, dragging: false, stick_x: 0, stick_y: 0 };
 
-function rig() {
+function rig(world: Ground = FLAT) {
   const chase = new ChaseCamera(new THREE.PerspectiveCamera(64, 16 / 9, 0.1, 1000));
   const car: CarPose = { pos: new THREE.Vector3(), quat: new THREE.Quaternion(), vel: new THREE.Vector3(0, 0, 30) };
   chase.snap(car);
@@ -14,7 +16,7 @@ function rig() {
   const frame = (dt: number) => {
     car.pos.addScaledVector(car.vel, dt);
     time += dt;
-    chase.update(dt, car, FLAT, false, time, STILL);
+    chase.update(dt, car, world, false, time, STILL);
   };
   return { chase, car, frame };
 }
@@ -138,6 +140,47 @@ describe("chase camera follow", () => {
       chase.mode = t < 4 ? 1 : 0;
       if (t > 4.05) worst = Math.max(worst, Math.abs(off(heading, view)));
     });
+    expect(worst).toBeLessThan(3 * DEG);
+  });
+});
+
+describe("chase camera on a wall", () => {
+  let bank = 0;
+  /** A deck rising toward -x at `bank`, the car driving +z along it. */
+  const WALL: Ground = { height: () => -10, normal: (_x, _z, out) => out.set(Math.sin(bank), Math.cos(bank), 0) };
+  const up_off = (r: ReturnType<typeof rig>) => r.chase.camera.up.angleTo(new THREE.Vector3(Math.sin(bank), Math.cos(bank), 0));
+
+  test("a world without a wall bank, or on the flat, drives the view exactly as before", () => {
+    const plain = rig();
+    const walled = rig();
+    walled.chase.wall_bank = 35 * DEG;
+    drive(3, 60, new THREE.Vector3(-4, 0, 3), plain);
+    drive(3, 60, new THREE.Vector3(-4, 0, 3), walled);
+    expect(walled.chase.camera.position.toArray()).toEqual(plain.chase.camera.position.toArray());
+    expect(walled.chase.camera.quaternion.toArray()).toEqual(plain.chase.camera.quaternion.toArray());
+  });
+
+  test("an ordinary bank keeps the view level", () => {
+    bank = 30 * DEG;
+    const r = rig(WALL);
+    r.chase.wall_bank = 35 * DEG;
+    drive(3, 60, new THREE.Vector3(), r);
+    expect(r.chase.camera.up.toArray()).toEqual([0, 1, 0]);
+  });
+
+  test("a steep wall stands the view on the deck, without a snap", () => {
+    bank = 0;
+    const r = rig(WALL);
+    r.chase.wall_bank = 35 * DEG;
+    drive(0.5, 60, new THREE.Vector3(), r);
+    bank = 65 * DEG;
+    const up = new THREE.Vector3(0, 1, 0);
+    let worst = 0;
+    drive(4, 60, new THREE.Vector3(), r, () => {
+      worst = Math.max(worst, up.angleTo(r.chase.camera.up));
+      up.copy(r.chase.camera.up);
+    });
+    expect(up_off(r)).toBeLessThan(1 * DEG);
     expect(worst).toBeLessThan(3 * DEG);
   });
 });

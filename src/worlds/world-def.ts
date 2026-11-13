@@ -43,6 +43,8 @@ export interface WorldDef {
   /** Scene pieces beyond the world view, sky and clouds. */
   dress(world: World): THREE.Object3D[];
   kit: Kit;
+  /** Deck bank, radians, past which the chase view rolls with the deck so the car reads upright on a wall; unset keeps the view level. */
+  wall_view?: number;
 }
 
 export const shown = (f: WorldFacts | null, value: (f: WorldFacts) => string) => (f ? value(f) : "…");
