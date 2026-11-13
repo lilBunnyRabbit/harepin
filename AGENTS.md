@@ -1,11 +1,12 @@
 # Harepin: agent guide
 
-Vite + TypeScript + Three.js driving game, no framework, no server. Code style follows the owner's webos repo (`~/dev/orgs/lilbunnyrabbit/webos`, `docs/CONVENTIONS.md`), minus everything Svelte-specific.
+Vite + TypeScript + Three.js driving game, no server. The game is plain TypeScript; the menu is moving to Svelte 5 page by page ([Svelte](#svelte)). Code style follows the owner's webos repo (`~/dev/orgs/lilbunnyrabbit/webos`, `docs/CONVENTIONS.md`).
 
 ## Commands
 
 ```sh
 bun run typecheck          # tsc --noEmit, must stay at 0 errors
+bun run check:svelte       # svelte-check on .svelte / .svelte.ts (tools/svelte-check, pinned to TypeScript 6)
 bun run build              # static dist/
 bun run telemetry          # scripts/telemetry.ts: 0-100, top speed, braking, skidpad
 bun test                   # fast: seed sweeps take seeds 0-4; `bun run test:full` (FULL=1) sweeps every seed
@@ -43,6 +44,19 @@ One level of feature folders under `src/`. Each folder owns its modules, tests (
 
 `main.ts` is the composition root: it builds each feature and wires them; feature logic does not live there. `style.css` holds tokens, resets and base element styles, plus the few button rules that must load after the base `button:hover`; it is imported last in `main.ts`.
 
+## Svelte
+
+Menu pages port from DOM-building classes to Svelte 5 components (plan: `docs/plan/svelte-ui.md`). Runes only: `svelte.config.js` sets `runes: true`, so legacy syntax fails to compile.
+
+- `$state`, `$derived`, `$props`, `$effect`, `$bindable` and snippets. No stores, no `export let`, no `$:`, no `on:event` (use `onclick`), no slots (use `children` / named snippets).
+- `<script lang="ts">`, an `interface Props` for `$props()`. Theme tokens only; no px in a component except a size the scale names.
+- Shared components live in `src/menu/ui/` (PascalCase `.svelte`); pages build from them, not from raw controls. Their classes carry a `ui-` prefix: the old global CSS styles bare `.row`, `.label`, `.title` and would leak into a scoped `.row`.
+- A page is a component taking `PageProps` (`menu`, `live`, `shown`), registered in `page_list` (`menu/settings.ts`) with `svelte_page(menu, { id, label, parent? }, Component, extra?)` from `ui/svelte-page.svelte.ts`. It mounts on the page's first build.
+- State the vanilla code still writes is read through `live` (`ui/menu-state.svelte.ts`): `live.prefs`, `live.stars`, `live.car` are pulled on each menu refresh; `live.live(() => host.getter())` inside a `$derived` re-reads a host getter on refresh; `live.set(key, value)` writes a setting.
+- Layout stays CSS (breakpoints from the plan's table, literal media queries); never measure or lay out in JS.
+- Tests: `bun test` compiles `.svelte` for the server (`scripts/svelte-test.ts`, preloaded by `bunfig.toml`), so a component test renders with `render` from `svelte/server` and asserts on the HTML (`ui/components.test.ts`). No DOM in tests.
+- `tsc` types every `.svelte` import loosely; `bun run check:svelte` is what checks component props, so run it with `typecheck`.
+
 ## Adding things
 
 Every kind of thing we add has a registry. Adding one touches its own files plus one registry line; the compiler lists anything missing.
@@ -52,7 +66,7 @@ Every kind of thing we add has a registry. Adding one touches its own files plus
 - **Car:** a `CarSpec` in `car/cars.ts` added to `CARS`, plus its body design (`Record<BodyStyle, â€¦>` makes a missing one a type error). Axles come from the spec through `axles_of`; don't index wheels by number.
 - **Part:** an entry in `SLOTS` in `car/build.ts`.
 - **Setting:** a field on `SettingsState` and its entry in `FIELDS` in `menu/prefs.ts` (the mapped type rejects a missing one), then its row in the section builder in `menu/settings-sections.ts`. Reset picks the key up from the row.
-- **Menu page:** a class implementing `MenuPage` (`menu/page.ts`, optional `on_show` / `on_hide`), one line in `page_list` in `menu/settings.ts`.
+- **Menu page:** a Svelte component taking `PageProps`, one `svelte_page(…)` line in `page_list` in `menu/settings.ts` ([Svelte](#svelte)). Pages not yet ported are classes implementing `MenuPage` (`menu/page.ts`, optional `on_show` / `on_hide`).
 - **Net message:** one `this.link.channel(name, sanitize, limit?, accept?)` line in `net/net.ts` and its sanitizer. New fields on an existing message are optional; never rename or remove a wire field. Bump `PROTOCOL` when old peers can't play with new ones; peers send it in `hello`. The binary `car` packet (`net/car-packet.ts`) is append-only: new fields go at the end and new flag bits are optional, both ignored by older decoders; reordering or resizing a field bumps `PROTOCOL`.
 
 ## Working in parallel
@@ -113,7 +127,7 @@ Run what the change needs, nothing more:
 
 | Change | Proof |
 |---|---|
-| Every commit | `typecheck` + `bun test` (fast) |
+| Every commit | `typecheck` + `bun test` (fast); + `check:svelte` when a `.svelte` file changed |
 | Touches generation (`worldgen/`, meshing, map) | + `bun scripts/golden.ts --check`. Output meant to change: run `bun scripts/golden.ts` and commit `scripts/golden/` with the change, so review sees which parts moved |
 | Car physics | `car.test.ts` + `scripts/telemetry.ts` / `scripts/feel.ts` byte-identical, nothing else |
 | Routes or race logic | `bun scripts/races.ts --changed` only; it fails only on runs missing from `scripts/golden/races-baseline.txt` and lists fixed ones. A change meant to move them: `bun scripts/races.ts --baseline` and commit the file |
