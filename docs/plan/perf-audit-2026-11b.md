@@ -65,3 +65,16 @@ Later, owner call: tree batching, `road_layers` binning, `:global` cleanup (ques
 ## Sources
 
 Scripts in `.t133/` (untracked): `measure2.ts`, `probe3.ts`, `cpu.ts`, `stages.ts`, `dead.ts`, `fnsize.ts`, `msg-size.ts`.
+
+## Follow-up: what dirties style every frame (t138)
+
+Caching the minimap "N" moved the forced recalc to `PadMenu.rotated()` instead of removing it. CDP traces with invalidation tracking, prod build, phone 844x390@3, mainland seed 1:
+
+- `set_text` (`src/hud/hud.ts:42`) replaces the text node of `#speed` (and gear, map distance). Each replacement schedules a `:has()` invalidation on `body`/`html` that marks the whole document dirty: about 22% of the 4x-throttled main thread. Writing `Text.data` instead: lifecycle recalc 1226 → 200 ms per 5 s.
+- `#rpm-fill` has `transition: width 40ms linear` (`src/hud/dash.css:97`) and its width is written every frame (`hud.ts:208`), so a transition is always running and dirties style before each rAF. About 2% plus a layout per frame.
+- `PadMenu.rotated()` (`src/menu/pad-menu.ts:284`) calls `checkVisibility` every frame from `navigate()` (`src/main.ts:673`), even with no presses: it pays the forced flush. `#rotate` shows only under `(orientation: portrait) and (pointer: coarse)` (`src/hud/overlays.css:130`), so a `matchMedia` list answers the same with no style read.
+- `src/hud/stuck-prompt.ts:22` writes `hidden` every frame.
+
+Both fixes together: 153 → 233 frames in the same 5 s throttled run.
+
+Fixes (t139): `set_text` writes `firstChild.data` when the element holds one text node, else `textContent`; same at `hud-sheet.ts:54` and `net/remotes.ts:206`. Drop the `#rpm-fill` transition. `rotated()` reads one `MediaQueryList`. `navigate` returns early with no presses and the bar closed. `stuck-prompt` writes `hidden` only on change.
