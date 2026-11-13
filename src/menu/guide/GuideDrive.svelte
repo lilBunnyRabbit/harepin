@@ -28,10 +28,6 @@
     gap: var(--space-3);
   }
 
-  .guide-worlds > :global(.ui-tile) {
-    justify-content: flex-start;
-  }
-
   @media (max-width: 1100px) {
     .guide-worlds {
       grid-template-columns: repeat(2, minmax(0, 1fr));

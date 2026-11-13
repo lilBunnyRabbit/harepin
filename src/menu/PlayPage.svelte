@@ -88,7 +88,7 @@
     </WorldMap>
   </div>
 
-  <ScrollArea class="side" label="Play">
+  <ScrollArea label="Play">
     <div class="column">
       {#if running !== null}
         <div class="run">
@@ -168,10 +168,6 @@
 
   .legend {
     inset: auto var(--space-4) var(--space-4);
-  }
-
-  .play > :global(.side) {
-    grid-area: side;
   }
 
   .column {

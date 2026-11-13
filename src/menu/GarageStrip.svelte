@@ -141,7 +141,7 @@
               data-cursor={option.index === garage.cursor || undefined}
               onpointerdown={(event) => (pointer = event.pointerType)}
             >
-              <Tile title={option.name} meta={option.blurb || undefined} selected={option.index === fitted} onclick={() => pick(option.index)}>
+              <Tile title={option.name} meta={option.blurb || undefined} clamp={2} selected={option.index === fitted} onclick={() => pick(option.index)}>
                 {#if option.rating}<span class="garage-badge"><ClassBadge rating={option.rating} /></span>{/if}
                 {#if option.swatch}<i class="garage-swatch" data-metal={option.metal || undefined} style:--swatch={option.swatch}></i>{/if}
                 {#if item.kind === "decal"}<DecalTile decal={option.decal} number={shown.number} />{/if}
@@ -214,15 +214,6 @@
   [data-kind="decal"] .garage-option {
     flex: 0 0 128px;
     min-width: 0;
-  }
-
-  .garage-option :global(.ui-meta) {
-    display: -webkit-box;
-    white-space: normal;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    overflow: hidden;
   }
 
   .garage-badge {
