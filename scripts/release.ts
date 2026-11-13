@@ -219,15 +219,14 @@ if (installs.every((r) => r.ok)) {
   ];
   const checks: Promise<StepResult>[] = [...builds];
   // Several car and audio tests take 3-4 s alone; next to the builds they pass bun's 5 s default and fail as timeouts.
-  const test_cmd = ["bun", "test", "--timeout", "60000", ...tests.map((f) => `./${f}`)];
+  const test_cmd = ["bun", "test", "--timeout", "30000", ...tests.map((f) => `./${f}`)];
   const test_name = all_tests ? "bun test (all)" : `bun test (${tests.length} files)`;
-  if (level === Level.FULL) {
-    if (world_changed) {
-      checks.push(step("golden --check", ["bun", "scripts/golden.ts", "--check"], dir));
-      checks.push(step("proof --jobs 3", ["bun", "scripts/proof.ts", "--jobs", "3"], dir));
-    } else console.log("golden and proof skipped: no world, car or golden change");
-    checks.push(Promise.all(builds).then(() => step(`FULL=1 ${test_name}`, test_cmd, dir, { FULL: "1" })));
-  } else checks.push(step(test_name, test_cmd, dir));
+  if (level === Level.FULL && world_changed) {
+    checks.push(step("golden --check", ["bun", "scripts/golden.ts", "--check"], dir));
+    checks.push(step("proof --jobs 3", ["bun", "scripts/proof.ts", "--jobs", "3"], dir));
+  } else if (level === Level.FULL) console.log("golden and proof skipped: no world, car or golden change");
+  if (world_changed) checks.push(Promise.all(builds).then(() => step(`FULL=1 ${test_name}`, test_cmd, dir, { FULL: "1" })));
+  else checks.push(step(test_name, test_cmd, dir));
   timings.push(...(await Promise.all(checks)));
 }
 

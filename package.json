@@ -10,7 +10,8 @@
     "check:svelte": "bun tools/svelte-check/node_modules/svelte-check/bin/svelte-check --tsconfig tools/svelte-check/tsconfig.json --fail-on-warnings",
     "preview": "vite preview",
     "telemetry": "bun scripts/telemetry.ts",
-    "test:full": "FULL=1 bun test",
+    "test": "bun test --timeout 30000",
+    "test:full": "FULL=1 bun test --timeout 30000",
     "pwa-assets": "pwa-assets-generator"
   },
   "dependencies": {
