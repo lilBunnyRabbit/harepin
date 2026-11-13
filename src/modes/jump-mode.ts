@@ -9,7 +9,7 @@ const NO_RAMP = "No ramp of this kind on this map";
 export function jump_at(world: World, start_index: number, level: JumpLevel): Jump | null {
   const n = world.road.length;
   const at = world.road[((start_index % n) + n) % n];
-  return at ? build_jump(world.ramps, at, world, level) : null;
+  return at ? build_jump(world.ramps, at, world, level, world.challenges) : null;
 }
 
 class JumpDistance implements ModeRun {
@@ -91,7 +91,7 @@ export const JUMP_MODE: ModeDef<JumpLevel> = {
   car_sized_only: false,
   busy_notice: "Leave the lobby race to jump",
   score_text: metres,
-  levels: (world) => jump_levels(world.ramps),
+  levels: (world) => jump_levels(world.ramps, world.challenges),
   start: (ctx, level) => {
     const jump = jump_at(ctx.world, ctx.start_index, level);
     return jump ? new JumpDistance(ctx, jump) : NO_RAMP;

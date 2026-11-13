@@ -25,6 +25,8 @@ export interface Level {
   id: string;
   name: string;
   brings: string;
+  /** Said as its run starts in place of the mode's goal. */
+  goal?: string;
 }
 
 export interface Finish {

@@ -7,7 +7,8 @@ import { best_line, line, points, result_title } from "./result";
 
 const LOST_MS = 1500;
 const NONE: RouteRun["later"] = [];
-const BROKE: Partial<Record<ComboEnd, string>> = { [ComboEnd.LOST]: "Chain lost: run over", [ComboEnd.BANKED]: "Chain banked: run over" };
+// A chain level's run ends the step its chain does, so the reason goes on the result card: the status line is gone by then.
+const BROKE: Partial<Record<ComboEnd, string>> = { [ComboEnd.LOST]: "hit a wall", [ComboEnd.BANKED]: "straightened up" };
 
 class Drift implements ModeRun {
   private readonly view: DriftView;
@@ -41,8 +42,6 @@ class Drift implements ModeRun {
     if (run.status !== DriftStatus.READY) this.route.later = NONE;
     const { combo } = run;
     if (run.status === DriftStatus.READY) return `${level.name} · zone in ${Math.round((LEAD - Math.max(0, run.tracker.index)) * 2)} m`;
-    const broke = BROKE[run.broke];
-    if (broke) return `${level.name} · ${broke}`;
     const live = combo.chain > 0 ? ` · ×${combo.mult} +${points(combo.chain)}` : run.clock - this.lost_at < LOST_MS ? " · wall, combo lost" : "";
     return `${level.name} · ${points(combo.score)} pts${live}`;
   }
@@ -56,10 +55,12 @@ class Drift implements ModeRun {
     const stars = drift_stars(combo.score, { silver: marks.two, gold: marks.three });
     const score = Math.round(combo.score);
     const recorded = track.record(level.id, { stars, ms: Math.max(1, Math.round(run.elapsed())), score });
+    const broke = BROKE[run.broke];
     this.result = {
       title: run.timed_out ? `${level.name} · time up` : run.broke === ComboEnd.LOST ? `${level.name} · chain lost` : result_title(level.name, recorded),
       stars,
       lines: [
+        ...(broke ? [line("run over", broke)] : []),
         line("score", points(score)),
         ...(level.chain ? [] : [line("best chain", points(combo.best_chain)), line("walls", String(combo.lost))]),
         line("time", format(run.elapsed())),

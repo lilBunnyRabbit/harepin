@@ -1,13 +1,13 @@
 import "../../scripts/fake-dom";
 import { expect, test } from "bun:test";
 import { Car } from "../car/car";
-import { COUPE } from "../car/cars";
+import { DEFAULT_BUILD, build_spec } from "../car/build";
 import { event_markers } from "../career/markers";
 import { World } from "../world/world";
 import { ramp_world } from "../worldgen/jumps";
 import { build_world } from "../worldgen/kinds/kinds";
 import { SPAWN_INDEX, WorldKind } from "../worldgen/types";
-import { JUMP_LEVELS, JumpEvent, JumpRun, SETTLE_MS, TRIES, WINDOW_MS, build_jump, jump_levels, jump_stars, type Jump, type JumpPose } from "./jump";
+import { JUMP_LEVELS, JumpEvent, JumpRun, SETTLE_MS, TRIES, WINDOW_MS, build_jump, jump_levels, jump_stars, landing_blocked, nearest_ramp, type Jump, type JumpPose } from "./jump";
 import { jump_at } from "./jump-mode";
 import { airborne } from "./mode";
 
@@ -16,20 +16,21 @@ const desert = world_of(WorldKind.DESERT, 2);
 const [kicker, big, road] = JUMP_LEVELS;
 
 test("levels: one per ramp kind the map has, none on a map without ramps", () => {
-  expect(jump_levels(desert.ramps).map((l) => l.id)).toEqual(["j1", "j2", "j3"]);
-  expect(jump_levels(world_of(WorldKind.ISLAND, 2).ramps).map((l) => l.id)).toEqual(["j2", "j3"]);
-  expect(jump_levels(world_of(WorldKind.SKY, 1).ramps)).toEqual([]);
+  const island = world_of(WorldKind.ISLAND, 2);
+  expect(jump_levels(desert.ramps, desert.challenges).map((l) => l.id)).toEqual(["j1", "j2", "j3"]);
+  expect(jump_levels(island.ramps, []).map((l) => l.id)).toEqual(["j2", "j3"]);
+  expect(jump_levels(world_of(WorldKind.SKY, 1).ramps, [])).toEqual([]);
 });
 
-test("a level takes the ramp of its kind nearest the start, run-up behind it", () => {
+test("a level takes the clear ramp of its kind nearest the start, run-up behind it", () => {
   const at = { x: 0, z: 0 };
   for (const level of JUMP_LEVELS) {
-    const jump = build_jump(desert.ramps, at, desert, level);
+    const jump = build_jump(desert.ramps, at, desert, level, desert.challenges);
     if (!jump) throw new Error(`no ${level.id}`);
     const { ramp } = jump;
     expect(level === road ? ramp.road : !ramp.road).toBe(true);
     expect(ramp.kind).toBe(level === big ? "big" : "kicker");
-    for (const other of desert.ramps.filter((r) => r.kind === ramp.kind && !!r.road === !!ramp.road))
+    for (const other of desert.ramps.filter((r) => r.kind === ramp.kind && !!r.road === !!ramp.road && !landing_blocked(r, desert.challenges)))
       expect(Math.hypot(other.x, other.z)).toBeGreaterThanOrEqual(Math.hypot(ramp.x, ramp.z));
     expect(Math.hypot(jump.start.x - ramp.x, jump.start.z - ramp.z)).toBeCloseTo(30, 5);
     expect(jump.marks.two).toBeGreaterThan(0);
@@ -57,7 +58,7 @@ function fly(run: JumpRun, distance: number): JumpEvent[] {
 }
 
 const desert_kicker = () => {
-  const jump = build_jump(desert.ramps, { x: 0, z: 0 }, desert, kicker);
+  const jump = build_jump(desert.ramps, { x: 0, z: 0 }, desert, kicker, desert.challenges);
   if (!jump) throw new Error("no kicker");
   return jump;
 };
@@ -119,10 +120,10 @@ test("the window ends the run, but not mid-flight", () => {
   expect(run.best?.metres).toBe(12);
 });
 
-test("a road car flat out from the start flies off the lip for two stars", () => {
+test("the starter car flat out from the start flies off the lip for two stars", () => {
   const jump = jump_at(desert, SPAWN_INDEX, kicker);
   if (!jump) throw new Error("no kicker");
-  const car = new Car(COUPE);
+  const car = new Car(build_spec(DEFAULT_BUILD));
   const heading = Math.atan2(jump.start.tx, jump.start.tz);
   car.park(jump.start.x, jump.start.z, heading, desert);
   const run = new JumpRun(jump);
@@ -137,6 +138,19 @@ test("a road car flat out from the start flies off the lip for two stars", () =>
   expect(landed).toBe(true);
   expect(run.best?.metres).toBeGreaterThanOrEqual(jump.marks.two);
   expect(run.best?.metres).toBeLessThan(jump.marks.three + 20);
+});
+
+test("a jump never runs on a ramp with a wall or bar over its flight line: it caps the flight and stops a short landing", () => {
+  const world = world_of(WorldKind.DESERT, 4);
+  const at = world.road.at(SPAWN_INDEX);
+  const blind = at && nearest_ramp(world.ramps, at, kicker, []);
+  const jump = jump_at(world, SPAWN_INDEX, kicker);
+  if (!at || !blind || !jump) throw new Error("no kicker");
+  expect(landing_blocked(blind, world.challenges)).toBe(true);
+  expect(jump.ramp).not.toBe(blind);
+  expect(landing_blocked(jump.ramp, world.challenges)).toBe(false);
+  const walled = world.ramps.filter((r) => landing_blocked(r, world.challenges));
+  expect(jump_levels(walled, world.challenges)).toEqual([]);
 });
 
 test("a jump event's marker stands at its run-up", () => {

@@ -312,7 +312,9 @@ export class Modes {
     if (!active?.event || !car || !("cap" in car) || this.pick) return;
     const code = await this.ask_car(active.event, car.cap, active.mode);
     if (code === null || this.current !== active) return;
-    this.wear(code);
+    // The player's own car back on is no longer a loan: their garage edits stay theirs, and its build goals count again.
+    if (code === this.kept) this.give_back();
+    else this.wear(code);
     this.restart();
   }
 
@@ -453,7 +455,7 @@ export class Modes {
 
   private go(active: Active, run: ModeRun) {
     active.run = run;
-    if (!this.lobby_lap) this.toast?.(active.mode.def.goal, active.level.name, GOAL_MS);
+    if (!this.lobby_lap) this.toast?.(active.level.goal ?? active.mode.def.goal, active.level.name, GOAL_MS);
     active.pi = active.event ? this.car_pi() : null;
     active.shown = false;
     this.el.result.hidden = true;

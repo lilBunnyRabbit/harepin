@@ -165,10 +165,23 @@
   top: calc(anchor(bottom) + var(--space-2));
 }
 
+/* Touch: the aid switches (about 300 px of them, see aids.css) share this row at the top left, so the line keeps as clear of
+   them on its right as on its left and wraps; a phone too narrow for that drops it under them. */
 @media (pointer: coarse) {
   :root[data-hud="classic"] #mode-status {
     top: calc(var(--inset-top) + var(--control-h) + var(--space-2));
+    max-width: calc(100vw - 2 * (var(--inset-left) + 300px + var(--space-3)));
     font-size: var(--text-lg);
+    white-space: normal;
+    text-align: center;
+    text-wrap: balance;
+  }
+}
+
+@media (pointer: coarse) and (max-width: 760px) {
+  :root[data-hud="classic"] #mode-status {
+    top: calc(var(--inset-top) + var(--control-h) + 4 * var(--space-1) + 44px + var(--space-2));
+    max-width: calc(100vw - 2 * var(--inset-left));
   }
 }
 

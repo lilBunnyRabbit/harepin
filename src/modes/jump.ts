@@ -1,5 +1,5 @@
-import { flight, face_end, ramp_world, RIDE, RUNUP } from "../worldgen/jumps";
-import type { Ramp } from "../worldgen/types";
+import { challenge_pieces, flight, face_end, ramp_world, RIDE, RUNUP } from "../worldgen/jumps";
+import type { Challenge, Ramp } from "../worldgen/types";
 import type { Ground } from "./marks";
 import type { Level } from "./mode";
 import type { RoutePoint } from "./route";
@@ -33,22 +33,32 @@ const BEACHED_SPEED = 1;
 const BEACHED_MS = 1500;
 const MARK_STEP = 0.25;
 const MARK_SLACK = 40;
-// Toe speeds the marks are flown at (m/s). Two stars: what a road car carries from the start's 30 m run-up onto a kicker.
+// Toe speeds the marks are flown at (m/s). Two stars: what the starter hatch carries from the start's 30 m run-up onto a
+// kicker, uphill run-ups included.
 // Three: a run-up longer than the start gives, backed up for, and never past the ramp's own design speed.
-const SILVER_TOE = 15;
+const SILVER_TOE = 9;
 const GOLD_TOE = 22;
 
 const kind_of = (r: Ramp): JumpKind | null => (r.deck ? null : r.road ? JumpKind.ROAD : r.kind === "big" ? JumpKind.BIG : r.kind === "kicker" ? JumpKind.KICKER : null);
 
-export function jump_levels(ramps: readonly Ramp[]): JumpLevel[] {
-  return JUMP_LEVELS.filter((level) => ramps.some((r) => kind_of(r) === level.kind));
+export function jump_levels(ramps: readonly Ramp[], challenges: readonly Challenge[]): JumpLevel[] {
+  return JUMP_LEVELS.filter((level) => ramps.some((r) => kind_of(r) === level.kind && !landing_blocked(r, challenges)));
 }
 
-export function nearest_ramp(ramps: readonly Ramp[], at: { x: number; z: number }, level: JumpLevel): Ramp | null {
+// Lower than this over the middle of a challenge's gap, a piece stops a car that lands short of it and rolls on.
+const HEADROOM = 2;
+
+/** A wall, a bar or a low hoop over the ramp's flight line: it caps a flight that misses its gap, and a short landing drives into it. */
+export function landing_blocked(r: Ramp, challenges: readonly Challenge[]): boolean {
+  return challenges.some((c) => c.ramp === r.id && challenge_pieces(c).some((p) => Math.abs(p.lx) < p.hw && p.bottom < HEADROOM));
+}
+
+/** The nearest ramp of the level's kind with a clear landing. */
+export function nearest_ramp(ramps: readonly Ramp[], at: { x: number; z: number }, level: JumpLevel, challenges: readonly Challenge[]): Ramp | null {
   let best: Ramp | null = null;
   let best_d = Infinity;
   for (const r of ramps) {
-    if (kind_of(r) !== level.kind) continue;
+    if (kind_of(r) !== level.kind || landing_blocked(r, challenges)) continue;
     const d = Math.hypot(r.x - at.x, r.z - at.z);
     if (d < best_d) {
       best = r;
@@ -81,8 +91,8 @@ export interface Jump {
   marks: Thresholds;
 }
 
-export function build_jump(ramps: readonly Ramp[], at: { x: number; z: number }, ground: Ground, level: JumpLevel): Jump | null {
-  const ramp = nearest_ramp(ramps, at, level);
+export function build_jump(ramps: readonly Ramp[], at: { x: number; z: number }, ground: Ground, level: JumpLevel, challenges: readonly Challenge[]): Jump | null {
+  const ramp = nearest_ramp(ramps, at, level, challenges);
   if (!ramp) return null;
   const three = Math.round(reach(ramp, Math.min(ramp.speed, GOLD_TOE), ground));
   const two = Math.min(three - 1, Math.round(reach(ramp, Math.min(ramp.speed, SILVER_TOE), ground)));

@@ -14,6 +14,7 @@ export interface RaceLevel {
   brings: string;
   /** A speed trap level: the route it runs on. The score is the km/h through its traps, the finish still required. */
   trap?: string;
+  goal?: string;
 }
 
 interface LevelDef {
@@ -40,12 +41,14 @@ const TRAP_LEVELS: readonly (LevelDef & { route: string })[] = [
   { id: "trap", name: "Speed trap", route: "circuit", brings: (place) => `Radar traps on the ${place} circuit's longest straights: every km/h through them scores, then over the line.` },
 ];
 
+const TRAP_GOAL = "Hit each radar trap flat out, then drive through the gates to the finish line.";
+
 const listed = (routes: readonly { id: string }[]) => LEVELS.filter((level) => routes.some((r) => r.id === level.id));
 
 export function race_levels(routes: readonly { id: string }[], place: string, streamed = false): RaceLevel[] {
   const races = listed(routes).map(({ id, name, brings }) => ({ id, name, brings: brings(place) }));
   if (streamed) return races;
-  const traps = TRAP_LEVELS.filter((level) => routes.some((r) => r.id === level.route)).map(({ id, name, brings, route }) => ({ id, name, brings: brings(place), trap: route }));
+  const traps = TRAP_LEVELS.filter((level) => routes.some((r) => r.id === level.route)).map(({ id, name, brings, route }) => ({ id, name, brings: brings(place), trap: route, goal: TRAP_GOAL }));
   return [...races, ...traps];
 }
 

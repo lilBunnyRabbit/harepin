@@ -119,9 +119,10 @@ class Race implements ModeRun {
     ctx.hint(turn_to(car, gate.x, gate.z));
     const { name } = this.level;
     if (run.status === RaceStatus.READY) return `${name} · ${Math.ceil(run.countdown / 1000)}`;
-    const doing = run.missed ? "missed a gate, go back" : `gate ${run.next + 1}/${gates.length}`;
+    // A speed trap shows its traps in place of the gates: both run its line under the touch chips.
+    const doing = run.missed ? "missed a gate, go back" : (this.trap_text(now) ?? `gate ${run.next + 1}/${gates.length}`);
     const lap = this.laps > 1 ? ` · lap ${this.lap}/${this.laps}` : "";
-    return `${name} · ${format(this.elapsed())}${lap}${penalty_text(this.hits)} · ${doing}${this.trap_text(now)}`;
+    return `${name} · ${format(this.elapsed())}${lap}${penalty_text(this.hits)} · ${doing}`;
   }
 
   private next_lap() {
@@ -136,12 +137,12 @@ class Race implements ModeRun {
     return this.banked + this.run.elapsed();
   }
 
-  private trap_text(now: number): string {
+  private trap_text(now: number): string | null {
     const { traps, flash } = this;
-    if (!traps) return "";
-    const total = ` · ${kmh(traps.total)} total`;
-    if (flash && now - flash.at < FLASH_MS) return ` · ${flash.kmh ? kmh(flash.kmh) : "trap missed"}${total}`;
-    return ` · trap ${Math.min(traps.next + 1, traps.at.length)}/${traps.at.length}${total}`;
+    if (!traps) return null;
+    const total = `${kmh(traps.total)} total`;
+    if (flash && now - flash.at < FLASH_MS) return `${flash.kmh ? kmh(flash.kmh) : "trap missed"} · ${total}`;
+    return `trap ${Math.min(traps.next + 1, traps.at.length)}/${traps.at.length} · ${total}`;
   }
 
   private finish() {
@@ -166,6 +167,7 @@ class Race implements ModeRun {
     const { level, traps } = this;
     if (!traps) return;
     const { track } = this.ctx;
+    const { par_ms, length } = this.run.course.route;
     const three = traps.at.length * TRAP_KMH;
     const marks = this.ctx.thresholds({ two: Math.round(three / SILVER_SHARE), three });
     const score = traps.total;
@@ -179,6 +181,8 @@ class Race implements ModeRun {
         line("traps", traps.kmh.map(kmh).join(" · ")),
         line("total", kmh(score)),
         ...time_lines(Math.round(this.run.elapsed()), this.hits),
+        line("length", `${((length * this.laps) / 1000).toFixed(1)} km`),
+        line("par", format(par_thresholds(par_ms * this.laps).three)),
         line("★★ / ★★★", `${kmh(marks.two)} / ${kmh(marks.three)}`),
         best_line(track.runs[level.id], kmh),
       ],

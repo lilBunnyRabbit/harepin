@@ -149,6 +149,24 @@ test("picking the player's own car back restarts on it and leaves it on after th
   expect(r.car).toBe(OWN);
 });
 
+test("picking the player's own car back ends the loan: a repaint on it stays after the event", async () => {
+  const r = rig();
+  r.modes.save_car = (code) => r.saved.push(code);
+  await in_event(r, FIRST);
+  expect(r.modes.borrowed).toBe(true);
+  const change = r.modes.change_car();
+  r.answer(OWN);
+  await change;
+  expect(r.modes.borrowed).toBe(false);
+  const repainted = build_code({ ...parse_build(OWN)!, paint: parse_build(OWN)!.paint + 1 });
+  r.car = repainted;
+  const before = r.saved.length;
+  r.modes.car_changed();
+  r.modes.exit();
+  expect(r.car).toBe(repainted);
+  expect(r.saved.slice(before)).not.toContain(OWN);
+});
+
 test("the result card's Change car button opens the pick", async () => {
   const r = rig();
   await in_event(r, FIRST);
