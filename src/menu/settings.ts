@@ -19,7 +19,7 @@ import { SettingsNav } from "./settings-tab/nav.svelte";
 import { CHANGES } from "./settings-tab/sections";
 import PlayPage from "./PlayPage.svelte";
 import WorldPage from "./WorldPage.svelte";
-import { Rows, el, icon } from "./setting-rows";
+import { el, icon } from "./dom";
 import { WorldKind } from "../worldgen/types";
 import { GoTo, GoalId } from "../goals/goals";
 import { mainland_seed, world_query } from "../world/world-pick";
@@ -64,7 +64,6 @@ export class Settings {
   private saved: SettingsState;
   private timer = 0;
   private section: string = MenuTab.PLAY;
-  private readonly rows = new Rows();
   private readonly menu: Menu;
   private readonly page_list: MenuPage[];
   private readonly nav: SettingsNav;
@@ -78,7 +77,6 @@ export class Settings {
     this.saved = read_saved();
     this.menu = {
       host,
-      rows: this.rows,
       state: () => this.current,
       set: (key, value) => this.set(key, value),
       sync: (run) => this.syncs.push(run),
@@ -433,7 +431,6 @@ export class Settings {
 
   private refresh() {
     for (const sync of this.syncs) sync();
-    this.rows.refresh();
     this.root.toggleAttribute("data-pad", navigator.getGamepads().some((pad) => pad?.connected));
   }
 

@@ -1,7 +1,7 @@
 import type { Chat } from "../net/chat";
 import { $ } from "../hud/hud";
 import type { Nav } from "../hud/input";
-import { ADJUST_EVENT } from "./setting-rows";
+import { ADJUST_EVENT } from "./dom";
 import type { Settings } from "./settings";
 
 // Controls inside a menu row carry tabindex -1: the row holds focus and they stay click targets only.

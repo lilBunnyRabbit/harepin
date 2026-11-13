@@ -1,4 +1,4 @@
-import { el } from "./setting-rows";
+import { el } from "./dom";
 
 export const COPIED_MS = 2000;
 
@@ -15,26 +15,6 @@ export function picture(name: string, contain = false): HTMLImageElement {
   img.decoding = "async";
   if (contain) img.dataset.fit = "contain";
   return img;
-}
-
-export function action(label: string, run: (button: HTMLButtonElement) => void): HTMLButtonElement {
-  const button = el("button", "settings-action", label);
-  button.type = "button";
-  button.addEventListener("click", () => run(button));
-  return button;
-}
-
-export function copy_action(label: string, link: string): HTMLButtonElement {
-  return action(label, async (button) => {
-    try {
-      await navigator.clipboard.writeText(link);
-      button.textContent = "Copied";
-    } catch (error) {
-      console.warn("settings: clipboard refused", error);
-      button.textContent = "Copy failed";
-    }
-    setTimeout(() => (button.textContent = label), COPIED_MS);
-  });
 }
 
 export function invalid(input: HTMLInputElement, message: string) {

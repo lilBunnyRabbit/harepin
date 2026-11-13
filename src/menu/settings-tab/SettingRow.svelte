@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
   import type { Attachment } from "svelte/attachments";
-  import { ADJUST_EVENT } from "../setting-rows";
+  import { ADJUST_EVENT } from "../dom";
   import Row from "../ui/Row.svelte";
   import { use_nav, type Help } from "./nav.svelte";
 

@@ -9,7 +9,6 @@ import type { ModeEntry } from "../modes/modes";
 import type { RaceChoice } from "../modes/races";
 import type { ReadyStatus } from "../net/ready";
 import type { UpdateState } from "../version";
-import type { Rows } from "./setting-rows";
 import { world_query } from "../world/world-pick";
 import { DEFAULT_KIND } from "../worldgen/types";
 import type { WorldKind } from "../worldgen/types";
@@ -96,7 +95,6 @@ export interface SettingsHost {
 
 export interface Menu {
   readonly host: SettingsHost;
-  readonly rows: Rows;
   state(): SettingsState;
   set<K extends SettingKey>(key: K, value: SettingsState[K]): void;
   /** Runs on every refresh: live text, checked states. */
