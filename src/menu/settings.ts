@@ -7,7 +7,8 @@ import { GoalsPage } from "./goals-view";
 import { ModesPage } from "./modes-page";
 import { OnlinePage } from "./online-page";
 import { RoomPage } from "./room-page";
-import { SupportPage } from "./support-page";
+import SupportPage from "./SupportPage.svelte";
+import { svelte_page } from "./ui/svelte-page.svelte";
 import { MenuTab, type Menu, type MenuPage, type SettingsHost, type SettingsMenu } from "./page";
 import { DEFAULT_SETTINGS, type SettingKey, type SettingsState } from "./prefs";
 import { mark_drive, read_saved, write_saved } from "./prefs-store";
@@ -122,7 +123,7 @@ export class Settings {
       },
       new OnlinePage(this.menu),
       { id: MenuTab.SETTINGS, label: "Settings", build: () => this.settings_page(), on_show: () => this.show_sub(this.sub) },
-      new SupportPage(this.menu),
+      svelte_page(this.menu, { id: MenuTab.SUPPORT, label: "Support" }, SupportPage),
       new WorldPage(this.menu),
       new ModesPage(this.menu),
       new RoomPage(this.menu),
