@@ -51,6 +51,11 @@
     gap: var(--space-4);
   }
 
+  .guide-cars > :global(.ui-card) {
+    align-items: stretch;
+    justify-content: flex-start;
+  }
+
   .guide-cars > :global(.ui-card.guide-picked) {
     border-color: var(--primary);
     box-shadow: inset 0 0 0 1px var(--primary);

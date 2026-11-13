@@ -58,6 +58,8 @@
   .guide-art {
     position: relative;
     display: block;
+    min-height: 0;
+    overflow: hidden;
     aspect-ratio: 16 / 10;
     background: var(--set-well);
   }
@@ -78,6 +80,8 @@
 
   .guide-words {
     display: grid;
+    flex: 1;
+    align-content: start;
     gap: var(--space-1);
     padding: var(--space-3) var(--space-4) var(--space-4);
     border-top: 1px solid var(--set-line);
@@ -120,7 +124,7 @@
     }
 
     .guide-art {
-      aspect-ratio: 16 / 9;
+      aspect-ratio: 5 / 2;
     }
 
     .guide-words {

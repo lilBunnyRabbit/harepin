@@ -71,6 +71,10 @@
     gap: var(--space-3);
   }
 
+  .guide-tiles > :global(.ui-tile) {
+    justify-content: flex-start;
+  }
+
   .guide-swatch {
     display: flex;
     align-items: center;
