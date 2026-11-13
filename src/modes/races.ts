@@ -1,5 +1,5 @@
 import type { Route } from "../worldgen/types";
-import { RouteTracker, straights, type RoutePoint } from "./route";
+import { RouteTracker, bend, straights, type RoutePoint } from "./route";
 import { stars_for } from "./track";
 
 /** Route points past its gate a car may get and still take it; past that the gate was skipped. */
@@ -164,18 +164,33 @@ const TRAP_FROM = 25;
 export const TRAP_CLEAR = 4;
 const KMH = 3.6;
 
-/** Line indices of the speed traps, in driving order: the far end of each of the line's longest straights, off its gates. */
+/** Route points of road a fallback trap ends: the window it is ranked on, and how far apart two straights' traps keep. */
+export const TRAP_SPAN = 40;
+/** Route points a fallback trap keeps from every other trap and from the start line: it never doubles one up, nor times a car still pulling away. */
+export const TRAP_GAP = 150;
+
+/**
+ * Line indices of the speed traps, in driving order: the far end of each of the line's longest straights, off its gates.
+ * A line with fewer straights than `count` (sweepers merge into one) fills up from its gentlest stretches, spaced apart.
+ */
 export function trap_points(line: readonly RoutePoint[], gates: readonly number[], count = TRAPS): number[] {
-  const clear = (at: number) => gates.every((gate) => Math.abs(gate - at) >= TRAP_CLEAR);
-  return straights(line)
-    .map(({ from, to }) => {
-      let at = Math.min(to, line.length - 1 - TRAP_CLEAR);
-      for (const gate of gates) if (Math.abs(gate - at) < TRAP_CLEAR) at = gate - TRAP_CLEAR;
-      return at >= from && at >= TRAP_FROM && clear(at) ? at : -1;
-    })
-    .filter((at) => at >= 0)
-    .slice(0, count)
-    .sort((a, b) => a - b);
+  const picked: number[] = [];
+  const place = (from: number, to: number, gap: number, first: number) => {
+    let at = Math.min(to, line.length - 1 - TRAP_CLEAR);
+    for (const gate of gates) if (Math.abs(gate - at) < TRAP_CLEAR) at = gate - TRAP_CLEAR;
+    const fits = at >= from && at >= first && gates.every((gate) => Math.abs(gate - at) >= TRAP_CLEAR) && picked.every((p) => Math.abs(p - at) >= gap);
+    if (!fits || picked.length >= count) return false;
+    picked.push(at);
+    return true;
+  };
+  for (const { from, to } of straights(line)) place(from, to, TRAP_SPAN, TRAP_FROM);
+  if (picked.length < count) {
+    const windows: [number, number][] = [];
+    for (let start = 0; start + TRAP_SPAN <= line.length; start++) windows.push([start, bend(line, start, TRAP_SPAN)]);
+    windows.sort((a, b) => a[1] - b[1]);
+    for (const [start] of windows) place(start, start + TRAP_SPAN - 1, TRAP_GAP, TRAP_GAP);
+  }
+  return picked.sort((a, b) => a - b);
 }
 
 /** The traps of a speed trap run, in order: a trap passed off the line, or skipped, scores 0. */

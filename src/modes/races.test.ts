@@ -1,8 +1,9 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import type { Route } from "../worldgen/types";
+import { generate_world, plain_map } from "../worldgen/kinds/kinds";
+import { WorldKind, type Route } from "../worldgen/types";
 import { straights } from "./route";
-import { GATE_REACH, RaceRun, RaceStatus, TRAP_CLEAR, TrapRun, gate_shown, race_choices, race_course, race_levels, trap_points } from "./races";
+import { GATE_REACH, RaceRun, RaceStatus, TRAP_CLEAR, TRAP_GAP, TRAP_SPAN, TrapRun, gate_shown, race_choices, race_course, race_levels, trap_points } from "./races";
 
 const N = 1000;
 const POINTS = Array.from({ length: N }, (_, i) => {
@@ -140,7 +141,7 @@ test("speed trap: a trap on a gate moves back up the straight, off the gate's ba
 test("speed trap: a straight ending near the start line holds no trap; the next longest takes its place", () => {
   const line = bent().slice(170);
   expect(trap_points(line, [], 3)).toEqual([30, 280, 429 - TRAP_CLEAR]);
-  expect(trap_points(line, [28], 3)).toEqual([280, 429 - TRAP_CLEAR]);
+  expect(trap_points(line, [28], 2)).toEqual([280, 429 - TRAP_CLEAR]);
 });
 
 test("speed trap: km/h through each trap adds up; one passed wide or skipped scores 0", () => {
@@ -167,4 +168,44 @@ test("speed trap: the course still needs its finish, the traps ride along", () =
   expect(run.status).toBe(RaceStatus.DONE);
   expect(traps.at.length).toBeGreaterThan(0);
   expect(traps.kmh).toEqual(traps.at.map(() => 180));
+});
+
+// One straight, then a long sweeper too curved to count as one: the sweeper fills the other traps.
+function sweeper() {
+  const road = [];
+  let x = 0;
+  let z = 0;
+  let heading = 0;
+  for (let i = 0; i < 1200; i++) {
+    if (i > 400) heading += 0.04;
+    road.push({ x, z, tx: Math.sin(heading), tz: Math.cos(heading) });
+    x += Math.sin(heading) * 2;
+    z += Math.cos(heading) * 2;
+  }
+  return road;
+}
+
+test("speed trap: fewer straights than traps fills up from the gentlest stretch, spaced and off the gates", () => {
+  const line = sweeper();
+  expect(straights(line).length).toBe(1);
+  const gates = [600, 1199];
+  const at = trap_points(line, gates);
+  expect(at.length).toBe(3);
+  expect(at).toContain(400);
+  expect(at[0]).toBeGreaterThanOrEqual(TRAP_GAP);
+  for (let i = 1; i < at.length; i++) expect(at[i] - at[i - 1]).toBeGreaterThanOrEqual(TRAP_GAP);
+  for (const i of at) for (const gate of gates) expect(Math.abs(i - gate)).toBeGreaterThanOrEqual(TRAP_CLEAR);
+});
+
+// Sky seed 11's circuit is two straights, one of them 2.7 km of sweepers: the third trap comes from the fallback.
+test("speed trap: three traps on Sky seed 11's circuit", () => {
+  const map = plain_map(WorldKind.SKY, 11);
+  const route = generate_world(map.seed, map.kind, map.levels).routes.find((r) => r.id === "circuit")!;
+  const course = race_course(route);
+  expect(straights(course.line).length).toBeLessThan(3);
+  const at = trap_points(course.line, course.gates);
+  expect(at.length).toBe(3);
+  expect(at[0]).toBeGreaterThanOrEqual(25);
+  for (let i = 1; i < at.length; i++) expect(at[i] - at[i - 1]).toBeGreaterThanOrEqual(TRAP_SPAN);
+  for (const i of at) for (const gate of course.gates) expect(Math.abs(i - gate)).toBeGreaterThanOrEqual(TRAP_CLEAR);
 });
