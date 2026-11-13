@@ -218,7 +218,8 @@ if (installs.every((r) => r.ok)) {
     step("vite build", ["bun", "run", "build"], dir),
   ];
   const checks: Promise<StepResult>[] = [...builds];
-  const test_cmd = ["bun", "test", ...tests.map((f) => `./${f}`)];
+  // Several car and audio tests take 3-4 s alone; next to the builds they pass bun's 5 s default and fail as timeouts.
+  const test_cmd = ["bun", "test", "--timeout", "60000", ...tests.map((f) => `./${f}`)];
   const test_name = all_tests ? "bun test (all)" : `bun test (${tests.length} files)`;
   if (level === Level.FULL) {
     if (world_changed) {
