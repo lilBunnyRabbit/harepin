@@ -25,7 +25,8 @@ type World = import("../src/world/world").World;
 type RoadPoint = import("../src/world/world").RoadPoint;
 type TileMesher = import("../src/worldgen/tile-mesher").TileMesher;
 
-// Tunes race events from bot runs and records each race event's dev ghost (duels ship none: the owner's marks beat any bot) (plan: docs/plan/career.md §1.3, §3).
+// Tunes race events, and a championship's race and duel stages, from bot runs and records each race event's dev ghost (duels
+// and stages ship none: the owner's marks beat any bot) (plan: docs/plan/career.md §1.3, §3, §10.3).
 // Race: `three` is the median finish of up to RUNS autolap drives at the class cap (each body tuned up to the cap, and presets
 // in it), `two` is three × SILVER_SHARE. Duel, until the owner's run sets its marks: `three` is the best bot finish, `two` three ×
 // DUEL_SILVER, or SILVER_SHARE in a tier with a margin, as the owner's marks there use. `three` is eased by the tier's margin: in Elite the bots stand in for the owner's run until Copy my times
@@ -154,9 +155,26 @@ function duel_drive(world: World, mesher: TileMesher | null, level: string, buil
 const round = (frames: number[]) => frames.map((v, i) => (i % 8 === 0 ? v : i % 8 < 4 ? Math.round(v * 100) / 100 : Math.round(v * 1000) / 1000));
 const median = (sorted: number[]) => sorted[Math.floor((sorted.length - 1) / 2)];
 
+const BOT_MODES = ["race", "duel"];
+
+interface Unit {
+  name: string;
+  mode: string;
+  level: string;
+  /** Only an event's own race ships a ghost; championship stages run without one. */
+  ghost: boolean;
+}
+
+// A championship's bots drive each of its race and duel stages on the one map; the rest take the owner's run.
+function units(event: CareerEvent): Unit[] {
+  if (!event.stages) return [{ name: event.id, mode: event.mode, level: spot_of(event).level, ghost: event.mode === "race" }];
+  return event.stages.flatMap((stage, i) => (BOT_MODES.includes(stage.mode) ? [{ name: `${event.id} stage ${i + 1}`, mode: stage.mode, level: stage.level, ghost: false }] : []));
+}
+
 let failed = 0;
 for (const event of EVENTS) {
-  if (ONLY.length ? !ONLY.includes(event.id) : event.mode !== "race" && event.mode !== "duel") continue;
+  const todo = units(event).filter((unit) => BOT_MODES.includes(unit.mode));
+  if (ONLY.length ? !ONLY.includes(event.id) : !todo.length) continue;
   const spot = spot_of(event);
   const read = parse_map_code(spot.map);
   if (!read.ok) throw new Error(`${event.id}: map code ${read.why}`);
@@ -165,31 +183,34 @@ for (const event of EVENTS) {
   const world = new World(seed, data, undefined, levels);
   const mesher = world.tiles.streamed ? new TileMesher(data, world.tiles.ext, mesh_tones()) : null;
   const tuned = world_key(seed, kind, levels);
-  const drives: Drive[] = [];
-  const wall = performance.now();
-  for (const { label, build } of cars_for(event)) {
-    const run = event.mode === "race" ? race_drive(world, mesher, spot.level, build) : event.mode === "duel" ? duel_drive(world, mesher, spot.level, build) : null;
-    if (!run) throw new Error(`${event.id}: ${event.mode} ${spot.level} has no bot drive`);
-    drives.push({ ...run, label });
-    console.error(`  ${event.id} ${label}: ${run.ms === null ? "DNF" : `${run.ms} ms`} (${((performance.now() - wall) / 1000).toFixed(0)} s wall)`);
-  }
-  const finished = drives.filter((d) => d.ms !== null).sort((a, b) => (a.ms ?? 0) - (b.ms ?? 0));
-  const runs = drives.map((d) => `${d.label} ${d.ms === null ? "DNF" : `${(d.ms / 1000).toFixed(1)}s`}`).join(", ");
-  if (!finished.length) {
-    failed++;
-    console.log(`${event.id} ${event.mode} ${spot.level} on ${spot.map}: no bot finished | ${runs}`);
-    continue;
-  }
-  const race = event.mode === "race";
-  const three = Math.ceil(((race ? median(finished.map((d) => d.ms ?? 0)) : (finished[0].ms ?? 0)) * tier_of(event).margin) / 100) * 100;
-  const two = Math.round(three * (race || tier_of(event).margin > 1 ? SILVER_SHARE : DUEL_SILVER));
-  const ghost = finished.filter((d) => (d.ms ?? Infinity) <= three).at(-1) ?? null;
-  const stars = ` stars: { two: ${two}, three: ${three} },`;
-  console.log(`${event.id} ${event.mode} ${spot.level} on ${spot.map}:${stars} tuned: "${tuned}"${ghost ? `, ghost: ${ghost.label} ${(ghost.ms ?? 0) / 1000}s` : ", no 3-star ghost"} | ${runs}`);
-  if (WRITE && ghost && event.mode === "race") {
-    const path = new URL(`../public/${ghost_path({ ...event, tuned })}`, import.meta.url);
-    mkdirSync(new URL(".", path), { recursive: true });
-    writeFileSync(path, JSON.stringify(round(ghost.frames)));
+  for (const unit of todo) {
+    const drives: Drive[] = [];
+    const wall = performance.now();
+    for (const { label, build } of cars_for(event)) {
+      const run = unit.mode === "race" ? race_drive(world, mesher, unit.level, build) : unit.mode === "duel" ? duel_drive(world, mesher, unit.level, build) : null;
+      if (!run) throw new Error(`${unit.name}: ${unit.mode} ${unit.level} has no bot drive`);
+      drives.push({ ...run, label });
+      console.error(`  ${unit.name} ${label}: ${run.ms === null ? "DNF" : `${run.ms} ms`} (${((performance.now() - wall) / 1000).toFixed(0)} s wall)`);
+    }
+    const finished = drives.filter((d) => d.ms !== null).sort((a, b) => (a.ms ?? 0) - (b.ms ?? 0));
+    const runs = drives.map((d) => `${d.label} ${d.ms === null ? "DNF" : `${(d.ms / 1000).toFixed(1)}s`}`).join(", ");
+    if (!finished.length) {
+      failed++;
+      console.log(`${unit.name} ${unit.mode} ${unit.level} on ${spot.map}: no bot finished | ${runs}`);
+      continue;
+    }
+    const race = unit.mode === "race";
+    const three = Math.ceil(((race ? median(finished.map((d) => d.ms ?? 0)) : (finished[0].ms ?? 0)) * tier_of(event).margin) / 100) * 100;
+    const two = Math.round(three * (race || tier_of(event).margin > 1 ? SILVER_SHARE : DUEL_SILVER));
+    const ghost = unit.ghost ? (finished.filter((d) => (d.ms ?? Infinity) <= three).at(-1) ?? null) : null;
+    const stars = ` stars: { two: ${two}, three: ${three} },`;
+    const ghost_note = unit.ghost ? (ghost ? `, ghost: ${ghost.label} ${(ghost.ms ?? 0) / 1000}s` : ", no 3-star ghost") : "";
+    console.log(`${unit.name} ${unit.mode} ${unit.level} on ${spot.map}:${stars} tuned: "${tuned}"${ghost_note} | ${runs}`);
+    if (WRITE && ghost) {
+      const path = new URL(`../public/${ghost_path({ ...event, tuned })}`, import.meta.url);
+      mkdirSync(new URL(".", path), { recursive: true });
+      writeFileSync(path, JSON.stringify(round(ghost.frames)));
+    }
   }
 }
 if (failed) process.exitCode = 1;

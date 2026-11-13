@@ -1,3 +1,4 @@
+import type { Stage } from "../modes/championship";
 import { Track, read_json, write_json, type StarRun, type Store, type Thresholds } from "../modes/track";
 import { world_key, type MapSpec } from "../worldgen/kinds/kinds";
 import { parse_map_code } from "../worldgen/kinds/map-code";
@@ -38,19 +39,36 @@ export class Career {
     return true;
   }
 
-  best(event: CareerEvent): StarRun | undefined {
-    return event_track(event, this.store).runs[spot_of(event).level];
+  /** `level`: a championship stage's; the event's own when absent. */
+  best(event: CareerEvent, level = spot_of(event).level): StarRun | undefined {
+    return event_track(event, this.store).runs[level];
   }
 }
 
-/** "Copy my times": each event's `stars` and `tuned` from the player's best run, to paste into `career.ts`. Races only in tiers with a margin: elsewhere bots set them. */
-export function owner_times(career: Career): string {
-  const times: Record<string, { stars: Thresholds; tuned: string }> = {};
-  for (const event of EVENTS) {
-    const best = event.stages || (event.mode === "race" && tier_of(event).margin <= 1) ? undefined : career.best(event);
-    if (!best) continue;
+type OwnerTimes = { stars: Thresholds; tuned: string } | { stages: Stage[]; tuned: string };
+
+/**
+ * "Copy my times": each event's `stars` and `tuned` from the player's best run, to paste into `career.ts`; a
+ * championship's whole `stages`, each played stage's `stars` from its run. Races only in tiers with a margin: elsewhere bots set them.
+ */
+export function owner_times(career: Career, events: readonly CareerEvent[] = EVENTS): string {
+  const times: Record<string, OwnerTimes> = {};
+  const bots = (event: CareerEvent, mode: string) => mode === "race" && tier_of(event).margin <= 1;
+  for (const event of events) {
     const { seed, kind, levels } = event_map(event);
-    times[event.id] = { stars: owner_stars(event, best), tuned: world_key(seed, kind, levels) };
+    const tuned = world_key(seed, kind, levels);
+    if (event.stages) {
+      let played = false;
+      const stages = event.stages.map((stage) => {
+        const best = bots(event, stage.mode) ? undefined : career.best(event, stage.level);
+        played ||= best !== undefined;
+        return best ? { ...stage, stars: owner_stars(event, best) } : stage;
+      });
+      if (played) times[event.id] = { stages, tuned };
+      continue;
+    }
+    const best = bots(event, event.mode) ? undefined : career.best(event);
+    if (best) times[event.id] = { stars: owner_stars(event, best), tuned };
   }
   return JSON.stringify(times, null, 2);
 }

@@ -11,7 +11,7 @@ const { SPAWN_INDEX } = await import("../src/worldgen/types");
 type MapSpec = import("../src/worldgen/kinds/kinds").MapSpec;
 type World = import("../src/world/world").World;
 
-// Generates each career event's map and checks its mode level runs there: the route exists, the kind has open ground
+// Generates each career event's map and checks its mode level runs there, every stage's for a championship: the route exists, the kind has open ground
 // for modes that need it, gymkhana and parking find a site near the start, a streamed world only for modes that run on one. Prints each
 // event's `tuned` key. `--suggest N` tries the next N seeds of the same preset and options for every failing event.
 const at = process.argv.indexOf("--suggest");
@@ -54,15 +54,21 @@ for (const event of EVENTS) {
     continue;
   }
   const map = read.map;
-  const why = problem(map, event.mode, spot.level);
+  // A championship runs every stage on the one map: each stage's level must be there.
+  const stages = event.stages ?? [{ mode: event.mode, level: spot.level }];
+  const problems = (on: MapSpec) => stages.map((stage) => problem(on, stage.mode, stage.level));
+  const whys = problems(map);
+  const why = whys.find((w) => w !== null) ?? null;
   const key = world_key(map.seed, map.kind, map.levels);
   const stale = event.tuned === key ? "" : ` tuned "${event.tuned}" != "${key}"`;
-  console.log(`${event.id} ${event.mode} ${spot.level} on ${spot.map}${event.stand_in ? " (stand-in)" : ""}: ${why ?? "ok"} | tuned "${key}"${stale ? " STALE" : ""}`);
+  const what = event.stages ? `championship of ${stages.length}` : `${event.mode} ${spot.level}`;
+  console.log(`${event.id} ${what} on ${spot.map}${event.stand_in ? " (stand-in)" : ""}: ${why ?? "ok"} | tuned "${key}"${stale ? " STALE" : ""}`);
+  if (event.stages) stages.forEach((stage, i) => console.log(`  stage ${i + 1} ${stage.mode} ${stage.level}: ${whys[i] ?? "ok"}`));
   if (why || stale) failed++;
   if (!why || !SUGGEST) continue;
   for (let seed = map.seed + 1; seed <= map.seed + SUGGEST; seed++) {
     const other = { ...map, seed };
-    if (problem(other, event.mode, spot.level)) continue;
+    if (problems(other).some((w) => w !== null)) continue;
     console.log(`  try ${map_code(other)} (tuned "${world_key(seed, map.kind, map.levels)}")`);
     break;
   }

@@ -147,6 +147,23 @@ test("Copy my times turns the best run of each played event into its stars, race
   });
 });
 
+test("Copy my times gives a championship its whole stages, each played stage's marks from its run", () => {
+  const store = memory();
+  const stages = [
+    { mode: "race", level: "circuit" },
+    { mode: "duel", level: "v1", stars: { two: 9, three: 8 } },
+    { mode: "drift", level: "d2" },
+  ];
+  const cup = { ...TIERS[0].events[0], id: "cup", stages };
+  const track = event_track(cup, store);
+  track.record("circuit", { stars: 3, ms: 200_000 });
+  track.record("d2", { stars: 3, ms: 30_000, score: 1500 });
+  expect(JSON.parse(owner_times(new Career(store), [cup, TIERS[0].events[1]]))).toEqual({
+    cup: { stages: [stages[0], stages[1], { ...stages[2], stars: { two: 1200, three: 1500 } }], tuned: cup.tuned },
+  });
+  expect(owner_times(new Career(memory()), [cup])).toBe("{}");
+});
+
 test("owner marks: a scored run is higher-is-better, a timed one lower", () => {
   const event = { ...TIERS[0].events[0], mode: "jump", level: "j1" };
   expect(owner_stars(event, { stars: 3, ms: 60000, score: 40 })).toEqual({ two: Math.round(40 / SILVER_SHARE), three: 40 });
