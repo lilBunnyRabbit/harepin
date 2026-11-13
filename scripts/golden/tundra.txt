@@ -237,7 +237,7 @@
 8 route:circuit f49f99572f972068
 8 route:street-1 be9876f4a4b2c920
 8 route:street-2 a5ceeec8b8ef25b9
-8 route:offroad-1 235af03e853595c4
+8 route:offroad-1 f25a8d7840e586bf
 8 mesh_road 8761c81471cc3140
 8 mesh_rest 5902c5a696f42ee7
 8 map_pixels bb2eabc19e3730a5
