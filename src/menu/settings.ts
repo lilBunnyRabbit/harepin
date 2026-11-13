@@ -5,8 +5,8 @@ import { TUNE_PARAM } from "../career/career";
 import { CareerPage } from "./career-view";
 import GoalsPage from "./GoalsPage.svelte";
 import { ModesPage } from "./modes-page";
-import { OnlinePage } from "./online-page";
-import { RoomPage } from "./room-page";
+import OnlinePage from "./online/OnlinePage.svelte";
+import RoomPage from "./online/RoomPage.svelte";
 import SupportPage from "./SupportPage.svelte";
 import { svelte_page } from "./ui/svelte-page.svelte";
 import { MenuTab, type Menu, type MenuPage, type SettingsHost, type SettingsMenu } from "./page";
@@ -121,12 +121,12 @@ export class Settings {
         on_show: () => host.show_garage(true),
         on_hide: () => host.show_garage(false),
       },
-      new OnlinePage(this.menu),
+      svelte_page(this.menu, { id: MenuTab.ONLINE, label: "Online" }, OnlinePage),
       { id: MenuTab.SETTINGS, label: "Settings", build: () => this.settings_page(), on_show: () => this.show_sub(this.sub) },
       svelte_page(this.menu, { id: MenuTab.SUPPORT, label: "Support" }, SupportPage),
       new WorldPage(this.menu),
       new ModesPage(this.menu),
-      new RoomPage(this.menu),
+      svelte_page(this.menu, { id: "room", label: "New room", parent: MenuTab.ONLINE }, RoomPage),
       svelte_page(this.menu, { id: "goals", label: "Things to try", parent: MenuTab.PLAY }, GoalsPage, { go: (to: GoTo) => this.go_to(to) }),
       new CareerPage(this.menu, host.career, new URLSearchParams(location.search).has(TUNE_PARAM)),
     ];
