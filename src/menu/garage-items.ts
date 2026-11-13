@@ -165,3 +165,8 @@ export const TABS: Tab[] = [
 ];
 
 export const BUILDS_TAB = TABS.findIndex((tab) => tab.section === GarageSection.BUILDS);
+
+const SLOT_ICONS = new Set(["engine", "tyres", "aero", "suspension", "brakes", "weight", "bias", "nitro", "decal", "number", "ink"]);
+
+/** The sprite icon for a slot or option kind. */
+export const slot_icon = (id: string) => (id === "car" || id === "paint" ? `icon-${id}` : `icon-slot-${SLOT_ICONS.has(id) ? id : "part"}`);

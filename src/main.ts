@@ -16,7 +16,7 @@ import { parse_build } from "./car/build";
 import { load_builds } from "./car/builds";
 import { car_shelves, limit_text } from "./car/car-pick";
 import { pick_car } from "./menu/car-pick";
-import { Garage } from "./menu/garage";
+import { Garage } from "./menu/garage.svelte";
 import { load_build, save_build } from "./menu/garage-builds";
 import { Ghost } from "./car/ghost";
 import { Heartbeat } from "./net/heartbeat";
@@ -197,9 +197,7 @@ const smoke = new Smoke(look.ground_puff);
 const skids = new Skids();
 scene.add(smoke.mesh, skids.mesh);
 
-const garage_stage = document.createElement("div");
-garage_stage.className = "menu-garage";
-const garage = new Garage(garage_stage, build);
+const garage = new Garage(build);
 garage.rewards = () => unlocks(career.stars);
 const input = new Input($("touch"), render.renderer.domElement);
 const rumble = new Rumble();
@@ -300,8 +298,7 @@ const settings = new Settings(document.body, {
   net_status: () => net.status,
   peers: () => net.peers,
   version_peers: () => ({ older: net.older_peers, newer: net.newer_peers }),
-  garage_stage,
-  show_garage: (on) => (on ? garage.open() : garage.close()),
+  garage,
   car_code: () => garage.code,
   use_car: (code) => garage.use_code(code),
   mode_list: () => modes.mode_list(),

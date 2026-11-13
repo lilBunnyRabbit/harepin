@@ -159,6 +159,13 @@ describe("ui components", () => {
     expect(out).toMatch(/class="ui-mark[^"]*ui-passed/);
   });
 
+  test("Progress ghost stops the fill at the lower value and marks a loss", () => {
+    const out = html(Progress, { value: 6, ghost: 4, max: 10, label: "Grip" });
+    expect(out).toContain("width: 40%");
+    expect(out).toContain('data-trend="down"');
+    expect(html(Progress, { value: 6, max: 10, label: "Grip" })).not.toContain("ui-ghost");
+  });
+
   test("Dialog renders its title, body and actions", () => {
     const out = html(Dialog, { open: false, title: "Pick a car", subtitle: "Up to B", children: text("cars"), actions: text("Drive") });
     expect(out).toMatch(/<h2[^>]*>Pick a car</);

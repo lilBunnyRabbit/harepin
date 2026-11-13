@@ -7,6 +7,7 @@ import GoalsPage from "./GoalsPage.svelte";
 import ModesPage from "./ModesPage.svelte";
 import OnlinePage from "./online/OnlinePage.svelte";
 import RoomPage from "./online/RoomPage.svelte";
+import GaragePage from "./GaragePage.svelte";
 import SupportPage from "./SupportPage.svelte";
 import { svelte_page } from "./ui/svelte-page.svelte";
 import { MenuTab, type Menu, type MenuPage, type SettingsHost } from "./page";
@@ -93,13 +94,7 @@ export class Settings {
     );
     this.page_list = [
       svelte_page(this.menu, { id: MenuTab.PLAY, label: "Play" }, PlayPage, { go_to: (to: GoTo) => this.go_to(to) }),
-      {
-        id: MenuTab.GARAGE,
-        label: "Garage",
-        build: () => [host.garage_stage],
-        on_show: () => host.show_garage(true),
-        on_hide: () => host.show_garage(false),
-      },
+      svelte_page(this.menu, { id: MenuTab.GARAGE, label: "Garage" }, GaragePage, { garage: host.garage }),
       svelte_page(this.menu, { id: MenuTab.ONLINE, label: "Online" }, OnlinePage),
       svelte_page(this.menu, { id: MenuTab.SETTINGS, label: "Settings" }, SettingsPage, { nav: this.nav, open_guide: () => this.open_guide() }),
       svelte_page(this.menu, { id: MenuTab.SUPPORT, label: "Support" }, SupportPage),

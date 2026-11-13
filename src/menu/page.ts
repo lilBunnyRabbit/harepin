@@ -4,6 +4,7 @@ import type { Player } from "../net/players";
 import type { Career } from "../career/career-store";
 import type { MapMarker } from "../career/markers";
 import type { Goals } from "../goals/goals";
+import type { Garage } from "./garage.svelte";
 import type { ModeEntry } from "../modes/modes";
 import type { RaceChoice } from "../modes/races";
 import type { ReadyStatus } from "../net/ready";
@@ -74,9 +75,7 @@ export interface SettingsHost {
   peers(): number;
   /** Room peers whose cars this build can't show, by which side is out of date. */
   version_peers(): { older: number; newer: number };
-  /** The garage's own element: the Garage tab shows it, and `show_garage` starts and stops it with the tab. */
-  readonly garage_stage: HTMLElement;
-  show_garage(on: boolean): void;
+  readonly garage: Garage;
   car_code(): string;
   use_car(code: string): void;
   mode_list(): ModeEntry[];

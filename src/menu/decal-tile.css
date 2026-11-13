@@ -1,0 +1,66 @@
+.decal-tile {
+  display: block;
+  height: auto;
+  aspect-ratio: 64 / 23;
+}
+
+.decal-body {
+  fill: var(--decal-paint);
+}
+
+.decal-glass,
+.decal-wheel {
+  fill: var(--decal-glass);
+}
+
+.decal-ink {
+  fill: var(--decal-ink);
+  stroke: var(--decal-key);
+  stroke-width: 0.7;
+  paint-order: stroke;
+}
+
+.decal-line {
+  fill: none;
+  stroke: var(--decal-ink);
+}
+
+.decal-gap {
+  fill: none;
+  stroke: var(--decal-paint);
+}
+
+.decal-back {
+  fill: var(--decal-mark);
+}
+
+.decal-check {
+  fill: var(--decal-ink);
+}
+
+.decal-number {
+  fill: var(--decal-mark);
+  font-size: 5px;
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+.garage-swatch {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--line-strong);
+  background: var(--swatch);
+}
+
+/* Reward metals: the same lit and shaded facets as the car's metal sheen. */
+.garage-swatch[data-metal] {
+  background: linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--swatch) 70%, var(--background-lightest)) 42%,
+    var(--swatch) 42% 70%,
+    color-mix(in oklab, var(--swatch) 78%, var(--background-darkest)) 70%
+  );
+}
