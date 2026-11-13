@@ -172,4 +172,13 @@ function track(): SheetLayout {
   return { tiles, columns: null, same_scale: false };
 }
 
-export const SHEET_LAYOUTS: Record<Sheet, () => SheetLayout> = { cars, lineup, paints, decals, biomes, track };
+// Legend's carbon is drawn in the shader over each face's own box plane: every body, from both ends.
+function carbons(): SheetLayout {
+  const paint = MAX_PAINT + REWARD_PAINTS;
+  const tiles = CAR_IDS.filter((id) => !BIG.has(id)).flatMap((id) =>
+    [FRONT_34, { yaw: 150, pitch: 18 }].map((angle, i) => ({ label: `${id} · ${i ? "rear" : "front"}`, object: car({ car: id, paint }), ground: tones.asphalt, ...angle })),
+  );
+  return { tiles, columns: 4, same_scale: false };
+}
+
+export const SHEET_LAYOUTS: Record<Sheet, () => SheetLayout> = { cars, lineup, paints, decals, biomes, track, carbon: carbons };

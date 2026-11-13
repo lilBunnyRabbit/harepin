@@ -11,6 +11,7 @@ import { back, livery_of, livery_parts, roof, type Livery } from "./livery";
 import { aero_of, aero_parts, kit_parts, rear_wing } from "./part-looks";
 import { STOCK_CALIPER, STOCK_TYRE, caliper_geometry, chrome_tone, wheel_geometry } from "./wheels";
 import { paint_finish, paint_lab, type Finish } from "./paint";
+import { weave_key, weave_shader } from "./carbon";
 import { brand, color, dark, mix, tones } from "../theme/palette";
 import { sky_ceiling } from "../render/sky";
 import type { Lab } from "../theme/theme";
@@ -117,7 +118,10 @@ function metal_hull(painted: THREE.BufferGeometry, finish: Finish): THREE.Mesh {
   });
   // A flat face at the low sun's mirror angle (roof, deck from behind) lights whole at the specular peak, far over 1, and
   // with no tone mapping clipped white and bloomed. Rolling luma off under the bloom-safe ceiling keeps faces ordered.
+  const weave = finish.weave;
+  if (weave) material.customProgramCacheKey = () => weave_key(weave);
   material.onBeforeCompile = (shader) => {
+    if (weave) weave_shader(shader, weave);
     shader.uniforms.ceiling = sky_ceiling;
     shader.fragmentShader = `uniform float ceiling;\n${shader.fragmentShader}`.replace(
       "#include <opaque_fragment>",

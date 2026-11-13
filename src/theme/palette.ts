@@ -159,7 +159,16 @@ export const tones = {
   shop_glow: dark ? mix(brand.warning, brand.cottontail, 0.6) : mix(brand.background_darker, brand.background_lightest, 0.5),
 };
 
-/** Career tier metals, Rookie bronze, Club silver, Pro gold, Elite platinum: the start flags and the tier's rewards (career.md §1.4). */
+// Light themes' darkest background is pale, so their carbon weaves from the foreground ink, a step under the trim.
+const CARBON_DROP = dark ? 0.04 : 0.18;
+// Dusk lights the car from ahead, so a darker thread sank into the resin on every face the chase camera sees.
+const CARBON_THREAD = 0.58;
+/** Legend's carbon: the resin between tows, and the tow catching light. */
+export const carbon = {
+  base: lighten(dark ? brand.background_darkest : brand.foreground, -CARBON_DROP),
+  thread: dark ? mix(brand.foreground, brand.background_darkest, CARBON_THREAD) : mix(brand.foreground, brand.background_darkest, 0.85),
+} as const;
+/** Career tier metals, Rookie bronze, Club silver, Pro gold, Elite platinum, Legend graphite (its carbon's tow): the start flags and the tier's rewards (career.md §1.4). */
 // Bronze sits darker than its orange mix, so it never reads as the orange race gates; a light theme's darkest background
 // is pale, so there it drops in lightness instead. Light themes' warning is olive, so their gold leans on error and
 // lifts a step until it reads as gold, clear of the bronze.
@@ -179,6 +188,7 @@ export const tier_metals = [
   SILVER,
   dark ? mix(brand.warning, brand.cottontail, DUSK_GOLD) : lighten(mix(brand.warning, brand.error, LIGHT_GOLD), LIGHT_GOLD_LIFT),
   dark ? lighten(mix(brand.info, brand.foreground, PLATINUM_COOL), DUSK_PLATINUM_LIFT) : mix(brand.info, SILVER, PLATINUM_COOL),
+  carbon.thread,
 ] as const;
 /** A marker or reward not open yet. */
 export const locked_tone = mix(brand.foreground, brand.background, 0.55);

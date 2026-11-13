@@ -76,7 +76,7 @@ test("off-grammar codes are rejected", () => {
     "van.0.0.0.1.0",
     "coupe.0.0.0.1",
     "coupe.0.0.0.1.0.0",
-    "coupe.20.0.0.1.0",
+    "coupe.21.0.0.1.0",
     `coupe.0.${DECALS.length}.0.1.0`,
     "coupe.0.1.0.1.0.9.7",
     "coupe.0.1.0.1.0.0.100",
