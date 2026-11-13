@@ -181,6 +181,35 @@ test("every seed gets gap jumps, each with a checkpoint on the flat before its r
   }
 });
 
+test("the banked run is one stretch of the lap, gate to gate, starting clear of a gap's run-up, with the most bank of its gate count", () => {
+  for (const world of worlds) {
+    const banked = world.routes.find((r) => r.id === "banked");
+    if (!banked) throw new Error("no banked run");
+    const line = world.deck?.line;
+    if (!line) throw new Error("sky world without a deck");
+    const n = world.road.length;
+    const on = (p: { x: number; z: number }) => world.road.findIndex((q) => q.x === p.x && q.z === p.z);
+    const from = on(banked.points[0]);
+    banked.points.forEach((p, i) => expect(on(p)).toBe((from + i) % n));
+    const gates = world.checkpoints.map(on);
+    expect(gates).toContain(from);
+    for (const c of banked.checkpoints) expect(gates).toContain(on(c));
+    expect(banked.checkpoints.at(-1)).toMatchObject({ x: banked.points.at(-1)?.x, z: banked.points.at(-1)?.z });
+    expect(banked.closed).toBe(false);
+    for (const r of world.ramps) expect(Math.hypot(r.x - banked.points[0].x, r.z - banked.points[0].z)).toBeGreaterThan(80);
+    const bank = (start: number) => {
+      const k = gates.indexOf(start);
+      const to = gates[(k + banked.checkpoints.length) % gates.length];
+      let sum = 0;
+      for (let i = start; i !== to; i = (i + 1) % n) sum += Math.abs(line[i * DECK_STRIDE + 5]);
+      return sum;
+    };
+    expect(bank(from)).toBeGreaterThan(0);
+    const starts = gates.filter((g) => world.ramps.every((r) => Math.hypot(r.x - world.road[g].x, r.z - world.road[g].z) > 80));
+    for (const g of starts) expect(bank(g)).toBeLessThanOrEqual(bank(from) + 1e-9);
+  }
+});
+
 test("open sections drop a rail on 15-30% of the lap, only on straights and wide flat arcs, clear of banks and jumps", () => {
   const { span } = size_gap();
   for (const world of worlds) {

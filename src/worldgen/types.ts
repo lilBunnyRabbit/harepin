@@ -33,7 +33,7 @@ export const SURFACE_GROUND = [null, Ground.DIRT, Ground.PAN, null, Ground.DIRT,
 export const WORLD_VERSION = 11;
 
 /** Bump whenever `generate_sky` makes a different track for the same seed. */
-export const SKY_VERSION = 3;
+export const SKY_VERSION = 4;
 
 /** Bump whenever `generate_sky` makes a different rooftop track for the same seed. */
 export const ROOFTOPS_VERSION = 1;

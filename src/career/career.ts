@@ -71,8 +71,8 @@ export const TIERS: readonly Tier[] = [
       { id: "r3", name: "Bay", mode: "parking", level: "p1", map: "1C0000003", car: { preset: "Easy cruiser" }, tuned: "3:w11", stars: { two: 6098, three: 4878 } },
       { id: "r4", name: "Sand trail", mode: "race", level: "circuit", map: "1D0000005", car: { preset: "Dirt rally" }, tuned: "5:d4", stars: { two: 169000, three: 135200 }, ghost: true },
       { id: "r5", name: "Dune gates", mode: "hunt", level: "h1", map: "1D0000005", car: { cap: "c" }, tuned: "5:d4", stars: { two: 45990, three: 36792 } },
-      { id: "r6", name: "Cloud sprint", mode: "duel", level: "v1", map: "1S0000002", car: { cap: "c" }, tuned: "2:sky3", stars: { two: 24684, three: 19747 } },
-      { id: "r7", name: "Skyline", mode: "race", level: "circuit", map: "1S0000002", car: { cap: "c" }, tuned: "2:sky3", stars: { two: 256500, three: 205200 }, ghost: true, final: true },
+      { id: "r6", name: "Cloud sprint", mode: "duel", level: "v1", map: "1S0000002", car: { cap: "c" }, tuned: "2:sky4", stars: { two: 24684, three: 19747 } },
+      { id: "r7", name: "Skyline", mode: "race", level: "circuit", map: "1S0000002", car: { cap: "c" }, tuned: "2:sky4", stars: { two: 256500, three: 205200 }, ghost: true, final: true },
     ],
   },
   {
@@ -99,7 +99,7 @@ export const TIERS: readonly Tier[] = [
     rewards: { paint: MAX_PAINT + 3, paint_at: 10, decal: "ice", badge: "P" },
     events: [
       { id: "p1", name: "Marathon", mode: "duel", level: "v5", map: MAINLAND, car: { cap: "s2" }, tuned: "475664083:m7", stars: { two: 212740, three: 193400 } },
-      { id: "p2", name: "Exposed", mode: "race", level: "circuit", map: "1S0000007-F2", car: { cap: "x" }, tuned: "7:sky3:11112", stars: { two: 243000, three: 194400 }, ghost: true },
+      { id: "p2", name: "Exposed", mode: "race", level: "circuit", map: "1S0000007-F2", car: { cap: "x" }, tuned: "7:sky4:11112", stars: { two: 243000, three: 194400 }, ghost: true },
       { id: "p3", name: "Touge", mode: "drift", level: "d5", map: "1A0000009", car: { cap: "s1" }, tuned: "9:a4", stars: { two: 267, three: 334 } },
       { id: "p4", name: "Island sweep", mode: "hunt", level: "h5", map: "1C0000008", car: { cap: "s1" }, tuned: "8:w11", stars: { two: 246871, three: 197497 } },
       { id: "p5", name: "Ice parallel", mode: "parking", level: "p7", map: "1T0000006", car: { preset: "Dirt rally" }, tuned: "6:t3", stars: { two: 21066, three: 16853 } },
@@ -119,10 +119,10 @@ export const TIERS: readonly Tier[] = [
       { id: "e3", name: "Tight garage", mode: "parking", level: "p8", map: "1D0000007", car: { cap: "s1" }, tuned: "7:d4" },
       { id: "e4", name: "Rim drift", mode: "drift", level: "d4", map: "1F0000002", car: { preset: "Drift" }, tuned: "2:ic5" },
       { id: "e5", name: "Ash gates", mode: "hunt", level: "h4", map: "1V0000002", car: { cap: "s2" }, tuned: "2:v5" },
-      { id: "e6", name: "Down-class duel", mode: "duel", level: "v4", map: "1S0000011", car: { cap: "b" }, tuned: "33:sky3", stars: { two: 101750, three: 81400 } },
+      { id: "e6", name: "Down-class duel", mode: "duel", level: "v4", map: "1S0000011", car: { cap: "b" }, tuned: "33:sky4", stars: { two: 101750, three: 81400 } },
       { id: "e7", name: "Frozen slalom", mode: "gymkhana", level: "g6", map: "1T0000008", car: { cap: "s1" }, tuned: "8:t3" },
       { id: "e8", name: "Drift chain", mode: "drift", level: "d6", map: "1A0000009", car: { preset: "Drift" }, tuned: "9:a4" },
-      { id: "e9", name: "Speed traps", mode: "race", level: "trap", map: "1S0000002", car: { cap: "x" }, tuned: "2:sky3" },
+      { id: "e9", name: "Speed traps", mode: "race", level: "trap", map: "1S0000002", car: { cap: "x" }, tuned: "2:sky4" },
       { id: "e10", name: "Long jump", mode: "jump", level: "j2", map: "1C0000003", car: { cap: "s2" }, tuned: "3:w11" },
       {
         id: "e11",

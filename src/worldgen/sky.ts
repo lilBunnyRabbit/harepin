@@ -1,6 +1,6 @@
 import { mulberry32, sub } from "../rng";
 import { flight, RIDE, ROAD_KICKER } from "./jumps";
-import { circuit_route } from "./routes";
+import { circuit_banked, circuit_route } from "./routes";
 import { roof_buildings } from "./rooftops";
 import { CELL, DECK_STRIDE, N, ROAD_HALF, SIZE, WorldKind, type Checkpoint, type DeckPiece, type OpenSection, type Ramp, type RoadPoint, type Solid, type WorldData } from "./types";
 
@@ -50,6 +50,10 @@ const STRETCH_MAX = 420;
 const CLOSE_SLACK = 2;
 const CLOSE_SWEEPS = 300;
 const CHECKPOINT_GAP = 300;
+/** Autopilot-model seconds the banked run aims for: about half a lap. */
+const BANKED_S = 90;
+/** Par over the autopilot model, fitted to scripts/races.ts: at 1.15 the bus finished over par from the standing start. */
+const BANKED_PAR = 1.25;
 /** Flat deck before a gap's toe: a checkpoint JUMP_GATE before it, then the run-up. */
 const JUMP_BEFORE = 70;
 const JUMP_GATE = 60;
@@ -93,9 +97,11 @@ export interface SkyRecipe {
   /** Share of the lap without a rail on one or both sides. */
   open: readonly [number, number];
   length: readonly [number, number];
+  /** Lays the banked run: the race level over the most banked half of the lap. */
+  banked: boolean;
 }
 
-export const SKY: SkyRecipe = { kind: WorldKind.SKY, profile: "free", roofs: false, odds: { eight: 0.3, helix: 0.45, hairpin: 0.35 }, gaps: 2, pads: MAX_PADS, open: [0.15, 0.3], length: [2400, 5200] };
+export const SKY: SkyRecipe = { kind: WorldKind.SKY, profile: "free", roofs: false, odds: { eight: 0.3, helix: 0.45, hairpin: 0.35 }, gaps: 2, pads: MAX_PADS, open: [0.15, 0.3], length: [2400, 5200], banked: true };
 
 interface Turn {
   angle: number;
@@ -970,8 +976,11 @@ export function generate_sky(seed: number, recipe: SkyRecipe = SKY, plain: SkyRe
   const in_jump = (s: number) => toes.some((t) => s > t - JUMP_GATE - 1 && s < t + jump.span);
   const eligible = (i: number) => samples[i].bank === 0 && pieces[samples[i].piece].kind === "straight" && line[i * DECK_STRIDE + 7] === 1 && !in_jump(samples[i].s) && !stacked(samples[i].s);
   const checkpoints: Checkpoint[] = [];
+  const at: number[] = [];
+  const launches = new Set<number>();
   const add_checkpoint = (i: number) => {
     const p = road[i];
+    at.push(i);
     checkpoints.push({ x: p.x, y: p.y, z: p.z, heading: Math.atan2(p.tx, p.tz), index: checkpoints.length });
     for (const side of [-1, 1]) {
       const off = side * (ROAD_HALF + GATE_POST);
@@ -983,6 +992,7 @@ export function generate_sky(seed: number, recipe: SkyRecipe = SKY, plain: SkyRe
   for (let i = 1; i < n; i++) {
     const s = samples[i].s;
     if (gates.some((g) => s >= g && samples[i - 1].s < g)) {
+      launches.add(checkpoints.length);
       add_checkpoint(i);
       last = i;
       continue;
@@ -994,6 +1004,9 @@ export function generate_sky(seed: number, recipe: SkyRecipe = SKY, plain: SkyRe
       last = i;
     }
   }
+
+  const circuit = circuit_route(road, checkpoints);
+  const banked = built.banked && circuit_banked(road, samples.map((p) => Math.abs(p.bank)), at, checkpoints, BANKED_S, (k) => launches.has(k), BANKED_PAR);
 
   const roofs = built.roofs ? roof_buildings(seed, line, samples.map((p) => p.h)) : { lots: [], buildings: [] };
   const heights = new Float32Array((N + 1) * (N + 1)).fill(ABYSS);
@@ -1017,7 +1030,7 @@ export function generate_sky(seed: number, recipe: SkyRecipe = SKY, plain: SkyRe
     checkpoints,
     circuit: [0],
     road,
-    routes: [circuit_route(road, checkpoints)],
+    routes: banked ? [circuit, banked] : [circuit],
     canyon: null,
     timings: [[built.kind, performance.now() - t0]],
   };

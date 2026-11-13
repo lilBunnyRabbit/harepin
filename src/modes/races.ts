@@ -33,6 +33,7 @@ const LEVELS: readonly LevelDef[] = [
   { id: "offroad-2", name: "Long trail", brings: () => "The longer way across, on dirt." },
   { id: "descent", name: "Rim to sea", brings: () => "One way off the crater rim: down the hairpins and the gully to the sea." },
   { id: "sprint", name: "Circuit sprint", brings: (place) => `The twistiest stretch of the ${place} circuit, one way from a standing start.` },
+  { id: "banked", name: "Banked run", brings: (place) => `The most banked stretch of the ${place} circuit, one way from a standing start.` },
   { id: "circuit-rev", name: "Circuit reversed", brings: () => "The circuit the wrong way round: every corner is new." },
   { id: "trip", name: "Road trip", brings: (place) => `From town to town across the ${place}: the two farthest apart by road, one way.` },
   { id: "crossing", name: "Dune crossing", brings: () => "One way downwind across the dune sea, crest to crest, to the tallest dune at the far end." },

@@ -118,8 +118,17 @@ export function reverse_circuit(circuit: Route, ramps: readonly Ramp[], share = 
   return { ...circuit, id: "circuit-rev", points, checkpoints, par_ms: par(points, true, share) };
 }
 
-/** Starts and ends on circuit gates, which keep clear of junctions; the slowest pace is the most cornering. */
-export function circuit_sprint(road: readonly RoadPoint[], gates: readonly number[], checkpoints: readonly Checkpoint[], seconds: number, share = PAR_SHARE): Route | null {
+interface Slice {
+  /** Index into the circuit's gates of the start. */
+  k: number;
+  /** Gates the slice runs to; the last is its finish. */
+  span: number;
+  points: RoadPoint[];
+  time: number;
+}
+
+/** Every gate-to-gate stretch of the circuit over the one span whose mean autopilot time is nearest `seconds`. */
+function circuit_slices(road: readonly RoadPoint[], gates: readonly number[], seconds: number): Slice[] | null {
   const count = gates.length;
   if (count < 3) return null;
   const stretch = (k: number, span: number) => {
@@ -127,22 +136,47 @@ export function circuit_sprint(road: readonly RoadPoint[], gates: readonly numbe
     const to = gates[(k + span) % count];
     return to > from ? road.slice(from, to + 1) : [...road.slice(from), ...road.slice(0, to + 1)];
   };
-  let best: { k: number; span: number; points: RoadPoint[]; pace: number; off: number } | null = null;
+  let best: { slices: Slice[]; off: number } | null = null;
   for (let span = 1; span < count; span++) {
-    const runs = Array.from({ length: count }, (_, k) => {
+    const slices = Array.from({ length: count }, (_, k) => {
       const points = stretch(k, span);
-      const time = drive_time(points, false);
-      return { k, span, points, pace: time / run(points), time };
+      return { k, span, points, time: drive_time(points, false) };
     });
-    const off = Math.abs(runs.reduce((sum, r) => sum + r.time, 0) / count - seconds);
+    const off = Math.abs(slices.reduce((sum, r) => sum + r.time, 0) / count - seconds);
     if (best && off > best.off) break;
-    const slowest = runs.reduce((a, b) => (b.pace > a.pace ? b : a));
-    best = { ...slowest, off };
+    best = { slices, off };
   }
-  if (!best) return null;
-  const { k, span, points } = best;
+  return best?.slices ?? null;
+}
+
+function slice_route(id: string, { k, span, points }: Slice, checkpoints: readonly Checkpoint[], share: number): Route {
+  const count = checkpoints.length;
   const checkpoints_on = Array.from({ length: span }, (_, i) => checkpoints[(k + 1 + i) % count]).map((c, index) => ({ ...c, index }));
-  return { id: "sprint", kind: RouteKind.SPRINT, closed: false, points, checkpoints: checkpoints_on, gate_hw: ROAD_HALF, length: run(points), par_ms: par(points, false, share), closure: [] };
+  return { id, kind: RouteKind.SPRINT, closed: false, points, checkpoints: checkpoints_on, gate_hw: ROAD_HALF, length: run(points), par_ms: par(points, false, share), closure: [] };
+}
+
+/** Starts and ends on circuit gates, which keep clear of junctions; the slowest pace is the most cornering. */
+export function circuit_sprint(road: readonly RoadPoint[], gates: readonly number[], checkpoints: readonly Checkpoint[], seconds: number, share = PAR_SHARE): Route | null {
+  const slices = circuit_slices(road, gates, seconds);
+  if (!slices) return null;
+  const pace = (r: Slice) => r.time / run(r.points);
+  return slice_route("sprint", slices.reduce((a, b) => (pace(b) > pace(a) ? b : a)), checkpoints, share);
+}
+
+/**
+ * The circuit sprint's slices, picked by the most bank instead: the sum of `bank` (|bank| per road point) along it. A
+ * gate `launch` marks never starts one: a standing start there can't make the gap after it. Null on a lap with no bank.
+ */
+export function circuit_banked(road: readonly RoadPoint[], bank: readonly number[], gates: readonly number[], checkpoints: readonly Checkpoint[], seconds: number, launch: (k: number) => boolean, share = PAR_SHARE): Route | null {
+  const slices = circuit_slices(road, gates, seconds)?.filter((r) => !launch(r.k));
+  if (!slices?.length) return null;
+  const banked = (r: Slice) => {
+    let sum = 0;
+    for (let i = 0; i < r.points.length; i++) sum += bank[(gates[r.k] + i) % road.length];
+    return sum;
+  };
+  const best = slices.reduce((a, b) => (banked(b) > banked(a) ? b : a));
+  return banked(best) > 0 ? slice_route("banked", best, checkpoints, share) : null;
 }
 
 class Atlas {
