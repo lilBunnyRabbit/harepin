@@ -4,7 +4,7 @@ import { GUIDE_PARAM, Guide, ROLLED_VISIT, type GuideStep } from "./guide/guide.
 import { TUNE_PARAM } from "../career/career";
 import { CareerPage } from "./career-view";
 import GoalsPage from "./GoalsPage.svelte";
-import { ModesPage } from "./modes-page";
+import ModesPage from "./ModesPage.svelte";
 import OnlinePage from "./online/OnlinePage.svelte";
 import RoomPage from "./online/RoomPage.svelte";
 import SupportPage from "./SupportPage.svelte";
@@ -104,7 +104,7 @@ export class Settings {
       svelte_page(this.menu, { id: MenuTab.SETTINGS, label: "Settings" }, SettingsPage, { nav: this.nav, open_guide: () => this.open_guide() }),
       svelte_page(this.menu, { id: MenuTab.SUPPORT, label: "Support" }, SupportPage),
       svelte_page(this.menu, { id: "world", label: "Create world", parent: MenuTab.PLAY }, WorldPage),
-      new ModesPage(this.menu),
+      svelte_page(this.menu, { id: "modes", label: "Modes", parent: MenuTab.PLAY }, ModesPage),
       svelte_page(this.menu, { id: "room", label: "New room", parent: MenuTab.ONLINE }, RoomPage),
       svelte_page(this.menu, { id: "goals", label: "Things to try", parent: MenuTab.PLAY }, GoalsPage, { go: (to: GoTo) => this.go_to(to) }),
       new CareerPage(this.menu, host.career, new URLSearchParams(location.search).has(TUNE_PARAM)),
