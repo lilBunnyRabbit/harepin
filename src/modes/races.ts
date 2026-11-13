@@ -166,14 +166,15 @@ const KMH = 3.6;
 
 /** Line indices of the speed traps, in driving order: the far end of each of the line's longest straights, off its gates. */
 export function trap_points(line: readonly RoutePoint[], gates: readonly number[], count = TRAPS): number[] {
+  const clear = (at: number) => gates.every((gate) => Math.abs(gate - at) >= TRAP_CLEAR);
   return straights(line)
-    .filter(({ from, to }) => to >= TRAP_FROM && from < line.length - 1 - TRAP_CLEAR)
-    .slice(0, count)
     .map(({ from, to }) => {
       let at = Math.min(to, line.length - 1 - TRAP_CLEAR);
       for (const gate of gates) if (Math.abs(gate - at) < TRAP_CLEAR) at = gate - TRAP_CLEAR;
-      return Math.max(from, at);
+      return at >= from && at >= TRAP_FROM && clear(at) ? at : -1;
     })
+    .filter((at) => at >= 0)
+    .slice(0, count)
     .sort((a, b) => a - b);
 }
 

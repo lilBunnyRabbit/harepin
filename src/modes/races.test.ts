@@ -137,6 +137,12 @@ test("speed trap: a trap on a gate moves back up the straight, off the gate's ba
   expect(trap_points(bent(), [150, 451, 599])).toEqual([200, 451 - TRAP_CLEAR, 599 - TRAP_CLEAR]);
 });
 
+test("speed trap: a straight ending near the start line holds no trap; the next longest takes its place", () => {
+  const line = bent().slice(170);
+  expect(trap_points(line, [], 3)).toEqual([30, 280, 429 - TRAP_CLEAR]);
+  expect(trap_points(line, [28], 3)).toEqual([280, 429 - TRAP_CLEAR]);
+});
+
 test("speed trap: km/h through each trap adds up; one passed wide or skipped scores 0", () => {
   const traps = new TrapRun([100, 200, 300], 6);
   expect(traps.update(99, 0, 50)).toBeNull();
