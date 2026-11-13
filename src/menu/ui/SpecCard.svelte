@@ -54,9 +54,11 @@
 
 <style>
   .ui-spec-card {
-    --spec-class-w: calc(2 * var(--control-h-sm));
-    --spec-meter-w: calc(2 * var(--control-h-sm));
-    --spec-meter-h: var(--control-h-lg);
+    /* Spacing tokens, not control heights: those grow on touch and would squeeze the text column. */
+    --spec-class-w: calc(var(--space-8) + var(--space-6));
+    --spec-meter-w: calc(var(--space-8) + var(--space-6));
+    --spec-meter-h: calc(var(--space-8) + var(--space-3));
+    --spec-edge: 1.5px;
     container-type: inline-size;
     display: block;
     width: 100%;
@@ -108,7 +110,7 @@
     justify-items: center;
     align-self: stretch;
     width: var(--spec-class-w);
-    border: 1.5px solid var(--dim);
+    border: var(--spec-edge) solid var(--dim);
     border-radius: var(--radius-sm);
     background: var(--set-well);
     font-family: var(--font-mono);
@@ -138,10 +140,12 @@
     min-width: 0;
   }
 
+  /* The tag drops under the title rather than cutting it short. */
   .ui-spec-title-row {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: var(--space-2);
+    gap: var(--space-0) var(--space-2);
     min-width: 0;
   }
 
@@ -156,7 +160,9 @@
 
   .ui-spec-tag {
     display: flex;
-    flex: none;
+    max-width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
     font-size: var(--text-sm);
     font-weight: 700;
   }
@@ -223,11 +229,8 @@
     white-space: nowrap;
   }
 
-  @container (width < 360px) {
-    .ui-spec-title-row {
-      flex-wrap: wrap;
-    }
-
+  /* Class block, three meters and their gaps take about 300px; below this the text column would drop under 140px. */
+  @container (width < 440px) {
     .ui-spec-body {
       grid-template:
         "class text" auto
@@ -244,8 +247,8 @@
 
   @media (max-height: 500px) {
     .ui-spec-card {
-      --spec-class-w: var(--control-h-lg);
-      --spec-meter-h: var(--control-h-sm);
+      --spec-class-w: calc(var(--space-8) + var(--space-3));
+      --spec-meter-h: calc(var(--space-6) + var(--space-1));
       padding: var(--space-2) var(--space-3) var(--space-2) var(--space-2);
     }
 

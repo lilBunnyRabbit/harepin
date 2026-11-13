@@ -49,7 +49,7 @@
     }),
   );
 
-  // A load swaps Load for its tag and a delete drops the row: focus stays on that row, else the next, else the one before.
+  // A delete drops the row: focus stays on that row, else the next, else the one before.
   async function keep_place(event: Event, action: () => void) {
     const from = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
     const rows = () => [...(sheet?.querySelectorAll<HTMLElement>(".garage-build") ?? [])];

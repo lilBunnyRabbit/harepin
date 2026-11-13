@@ -153,7 +153,7 @@
                     {#snippet tag()}
                       {#if choice.blocked}<span class="pick-reason">{choice.blocked}</span>
                       {:else if choice.recommended}<Badge tone="primary">Recommended</Badge>
-                      {:else if choice.own}<Badge>Your car</Badge>{/if}
+                      {:else if choice.own}<span class="pick-own"><Badge>Your car</Badge></span>{/if}
                     {/snippet}
                     <SpecCard
                       title={choice.title}
@@ -338,6 +338,11 @@
 
   .pick-reason {
     color: var(--foreground);
+  }
+
+  /* The neutral badge is the card's own fill; the well tone makes it read as a tag. */
+  .pick-own :global(.ui-badge) {
+    background: var(--set-well);
   }
 
   /* Short screens, a phone on its side: a class lays its cards out in a row, so one shows whole without the dialog
