@@ -1,9 +1,11 @@
 import { EVENT_PARAM, type CareerEvent } from "../career/career";
 import { build_code, parse_build } from "../car/build";
 import { limit_text, same_machine, within, type CarLimit } from "../car/car-pick";
+import type { CarId } from "../car/cars";
 import { rating, type CarClass } from "../car/pi";
 import { PRESETS } from "../car/presets";
 import { RUN_PARAM } from "../runs/runs";
+import { preset_open } from "../career/rewards";
 
 export interface CarHooks {
   /** The step before a start that asks which car runs it: its code, or null when the player backs out. Events only for now. */
@@ -19,6 +21,15 @@ const preset_code = (name: string): string | null => {
   const build = parse_build(PRESETS.find((p) => p.name === name)?.code);
   return build && build_code(build);
 };
+
+// A run code may name any preset: one on a reward car the player has not earned runs on the starter car instead.
+/** `event` as this player runs it, `held` the reward cars they hold: the same object when nothing changes. */
+export function held_car(event: CareerEvent, held: readonly CarId[]): CareerEvent {
+  const { car } = event;
+  const preset = "preset" in car ? PRESETS.find((p) => p.name === car.preset) : undefined;
+  if (!preset || preset_open(preset, held)) return event;
+  return { ...event, car: { preset: PRESETS[0].name } };
+}
 
 /** The car an event runs on: a fixed preset or a pick under its class cap, lent over the player's own until they leave. */
 export class EventCar {

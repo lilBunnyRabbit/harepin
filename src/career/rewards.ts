@@ -1,5 +1,6 @@
-import { DECALS } from "../car/build";
+import { DECALS, parse_build } from "../car/build";
 import { CARS, is_car, type CarId } from "../car/cars";
+import { PRESETS, type Preset } from "../car/presets";
 import type { TierBadge } from "../net/net";
 import { TIERS, tier_max, tier_stars, type Stars, type Tier } from "./career";
 
@@ -35,6 +36,14 @@ export const REWARD_CARS: readonly CarId[] = TIERS.flatMap(({ rewards: { car } }
 
 /** Every car open from the start: the garage's list, and the cars its stat bars span so a reward car never shrinks theirs. */
 export const PLAIN_CARS: readonly CarId[] = Object.keys(CARS).filter(is_car).filter((id) => !REWARD_CARS.includes(id));
+
+/** A preset on a reward car lists only for a player holding the car (`Unlocks.cars`); `PRESETS` keeps it, so a peer's run code still reads. */
+export function preset_open(preset: Preset, held: readonly CarId[]): boolean {
+  const car = parse_build(preset.code)?.car;
+  return car !== undefined && (!REWARD_CARS.includes(car) || held.includes(car));
+}
+
+export const open_presets = (held: readonly CarId[]): readonly Preset[] => PRESETS.filter((preset) => preset_open(preset, held));
 
 export const badge_text = (badge: TierBadge) => `${TIERS[badge - 1].name} champion`;
 

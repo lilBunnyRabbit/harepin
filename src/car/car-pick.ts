@@ -2,7 +2,7 @@ import { SLOT_NAMES, build_code, build_spec, parse_build, type Build } from "./b
 import type { SavedBuild } from "./builds";
 import { CARS, car_sized } from "./cars";
 import { CLASS_FLOORS, CLASS_LABELS, rating, type CarClass, type Rating } from "./pi";
-import { PRESETS } from "./presets";
+import type { Preset } from "./presets";
 
 export interface CarLimit {
   cap: CarClass | null;
@@ -51,8 +51,8 @@ function blocked(build: Build, rated: Rating, limit: CarLimit): string | null {
 
 // One shelf per class that has a car, strongest first, with the classes the limit lets in ahead of the rest. Cars the
 // limit rules out stay listed, greyed with their badge, so the player sees what to change in the garage.
-/** `fitted`: the code of the car on now, which mid-event is the event's car rather than `current`, the player's own. */
-export function car_shelves(current: Build, builds: readonly SavedBuild[], limit: CarLimit, fitted = build_code(current)): CarShelf[] {
+/** `presets`: the ones this player may pick. `fitted`: the code of the car on now, which mid-event is the event's car rather than `current`, the player's own. */
+export function car_shelves(current: Build, builds: readonly SavedBuild[], presets: readonly Preset[], limit: CarLimit, fitted = build_code(current)): CarShelf[] {
   const choice = (title: string, sub: string, build: Build, own = false): CarChoice => {
     const rated = rating(build);
     const code = build_code(build);
@@ -63,7 +63,7 @@ export function car_shelves(current: Build, builds: readonly SavedBuild[], limit
       const build = parse_build(entry.code);
       return build ? [choice(entry.name, sub(build, i), build)] : [];
     });
-  const listed = [choice(CARS[current.car].name, "", current, true), ...parsed(builds, (build) => CARS[build.car].name), ...parsed(PRESETS, (_, i) => PRESETS[i].blurb)];
+  const listed = [choice(CARS[current.car].name, "", current, true), ...parsed(builds, (build) => CARS[build.car].name), ...parsed(presets, (_, i) => presets[i].blurb)];
   // A saved build or preset the player already drives is their own car's tile, not a second one.
   const all = listed.filter((c, i) => listed.findIndex((other) => other.code === c.code) === i);
   if (limit.cap) {

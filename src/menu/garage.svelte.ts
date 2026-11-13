@@ -1,7 +1,7 @@
 import { tick } from "svelte";
 import { DECALS, DEFAULT_BUILD, MAX_NUMBER, build_code, parse_build, type Build } from "../car/build";
 import { free_build_name, load_builds, store_builds, with_build, without_build, type SavedBuild } from "../car/builds";
-import { CARS } from "../car/cars";
+import { CARS, type CarId } from "../car/cars";
 import { PRESETS } from "../car/presets";
 import { NO_UNLOCKS, type Reward, type Unlocks } from "../career/rewards";
 import { modal_open, typing, type Nav } from "../hud/input";
@@ -69,6 +69,12 @@ export class Garage {
   get items(): Item[] {
     void this.relist;
     return TABS[this.tab].items(this.current, this.rewards());
+  }
+
+  /** Reward cars the player holds: a preset on one lists only then. */
+  get held_cars(): readonly CarId[] {
+    void this.relist;
+    return this.rewards().cars;
   }
 
   get on_builds(): boolean {

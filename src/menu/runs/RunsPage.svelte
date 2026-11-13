@@ -103,7 +103,7 @@
       </Card>
     </div>
   {:else}
-    <RunBuilder {menu} />
+    <RunBuilder {menu} {live} />
   {/if}
 </div>
 

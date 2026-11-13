@@ -8,7 +8,7 @@ import { RUN_PARAM, run_of, type RunPick } from "./runs/runs";
 import { Runs } from "./runs/runs-store";
 import { daily_want, run_play } from "./runs/run-play";
 import { board_rows } from "./runs/daily-board";
-import { badge_open, unlocks } from "./career/rewards";
+import { badge_open, open_presets, unlocks } from "./career/rewards";
 import { ChaseCamera } from "./render/camera";
 import { Driver } from "./car/driver";
 import { Directory, load_lock } from "./net/directory";
@@ -419,7 +419,7 @@ modes.try_reward = (reward) => {
   garage.try_reward(reward);
 };
 modes.pick_car = (title, limit, own, signal) =>
-  pick_car(title, limit.cap ? limit_text(limit.cap) : "Any car", car_shelves(parse_build(own) ?? garage.build, load_builds(), limit, garage.code), signal, () => settings.open(MenuTab.GARAGE));
+  pick_car(title, limit.cap ? limit_text(limit.cap) : "Any car", car_shelves(parse_build(own) ?? garage.build, load_builds(), open_presets(unlocks(career.stars).cars), limit, garage.code), signal, () => settings.open(MenuTab.GARAGE));
 modes.fit_car = (code, save) => garage.use_code(code, save);
 modes.car_code = () => garage.code;
 modes.save_car = (code) => {

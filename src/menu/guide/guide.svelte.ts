@@ -1,4 +1,5 @@
 import { flushSync, mount } from "svelte";
+import type { CarId } from "../../car/cars";
 import { WorldKind } from "../../worldgen/types";
 import { Device, detect_device } from "../device";
 import { DEFAULT_SETTINGS, type SettingKey, type SettingsState } from "../prefs";
@@ -27,6 +28,8 @@ export interface GuideHost {
   set<K extends SettingKey>(key: K, value: SettingsState[K]): void;
   name(): string;
   car_code(): string;
+  /** Reward cars the player holds: a preset on one lists only then. */
+  held_cars(): readonly CarId[];
   use_car(code: string): void;
   readonly kind: WorldKind;
   picture(name: string): HTMLImageElement;
@@ -44,12 +47,14 @@ export class GuideState {
   rolled_visit = $state(false);
   prefs = $state.raw<SettingsState>(DEFAULT_SETTINGS);
   car = $state("");
+  held = $state.raw<readonly CarId[]>([]);
 
   constructor(readonly host: GuideHost) {
     this.device = this.found;
     this.world = host.kind;
     this.prefs = host.state();
     this.car = host.car_code();
+    this.held = host.held_cars();
   }
 
   get id(): GuideStep {
@@ -113,6 +118,7 @@ export class Guide {
     guide.world = guide.host.kind;
     guide.prefs = guide.host.state();
     guide.car = guide.host.car_code();
+    guide.held = guide.host.held_cars();
     guide.open = true;
     guide.go(GUIDE_STEPS.findIndex(({ id }) => id === step));
   }

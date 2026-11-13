@@ -5,6 +5,7 @@
   import { CARS } from "../car/cars";
   import { rating, type Rating } from "../car/pi";
   import { PRESETS } from "../car/presets";
+  import { preset_open } from "../career/rewards";
   import { car_facts, type CarFacts } from "./car-facts";
   import CarFactsLine from "./CarFactsLine.svelte";
   import type { Garage } from "./garage.svelte";
@@ -44,6 +45,7 @@
   );
   const presets = $derived(
     PRESETS.flatMap((preset, index) => {
+      if (!preset_open(preset, garage.held_cars)) return [];
       const parsed = parse_build(preset.code);
       return parsed ? [{ ...preset, index, rating: rating(parsed), facts: car_facts(parsed) }] : [];
     }),

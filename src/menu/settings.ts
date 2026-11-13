@@ -4,6 +4,7 @@ import { modal_open, typing, type Nav } from "../hud/input";
 import { clean_name } from "../net/net";
 import { GUIDE_PARAM, Guide, ROLLED_VISIT, type GuideStep } from "./guide/guide.svelte";
 import { TUNE_PARAM } from "../career/career";
+import { unlocks } from "../career/rewards";
 import CareerPage from "./CareerPage.svelte";
 import GoalsPage from "./GoalsPage.svelte";
 import ModesPage from "./ModesPage.svelte";
@@ -113,6 +114,7 @@ export class Settings {
       kind: host.kind,
       picture: (name) => picture(name),
       car_code: () => host.car_code(),
+      held_cars: () => unlocks(host.career.stars).cars,
       use_car: (code) => host.use_car(code),
       skip: () => this.end_guide(),
       drive: (kind) => {

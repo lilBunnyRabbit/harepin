@@ -2,10 +2,11 @@ import type * as THREE from "three";
 import { TIERS, TUNE_PARAM, next_event, spot_of, tier_line, tier_of, tier_open, type CareerEvent } from "../career/career";
 import { event_track, type Career } from "../career/career-store";
 import { dev_ghost } from "../career/dev-ghost";
-import { earned, garage_reward, type Reward } from "../career/rewards";
+import { earned, garage_reward, unlocks, type Reward } from "../career/rewards";
 import { unlock_card } from "../career/unlock-card";
 import type { CarLimit } from "../car/car-pick";
 import { car_sized, type CarSpec } from "../car/cars";
+import { PRESETS } from "../car/presets";
 import type { CarClass } from "../car/pi";
 import { DEFAULT_BINDINGS, keys_text, type Bindings } from "../hud/bindings";
 import { $, format } from "../hud/hud";
@@ -15,7 +16,7 @@ import { KINDS } from "../worldgen/kinds/kinds";
 import { LISTED, WORLDS } from "../worlds/worlds";
 import { DRIFT_MODE } from "./drift-mode";
 import { DUEL_MODE } from "./duel-mode";
-import { EventCar, type CarHooks } from "./event-car";
+import { EventCar, held_car, type CarHooks } from "./event-car";
 import { GYMKHANA_MODE } from "./gymkhana-mode";
 import { HUNT_MODE } from "./hunt-mode";
 import { CUP_RECORD, Cup, stage_points, type Stage } from "./championship";
@@ -50,6 +51,7 @@ const OPEN_GROUND = `Needs open ground: drive ${OPEN_WORLDS} for it`;
 const NO_GROUND_NOTICE = `Gymkhana, parking and gate hunts need open ground: drive ${OPEN_WORLDS} for them`;
 const TOO_BIG = "Too big for this mode";
 const NOT_THIS_CAR = "Not raced in this car";
+const LENT_CAR = `That car is a career reward: this run lends you the ${PRESETS[0].name}`;
 const STREAMED = "This mode is not on this world yet";
 const NO_EVENT = "This event is not on this map";
 const NEXT_LEVEL = "Next level";
@@ -264,7 +266,8 @@ export class Modes implements CarHooks {
   }
 
   /** The caller has checked this map is the event's. Career levels are all open: the mode's own unlock order is free play's. */
-  play_event(event: CareerEvent, play: RunPlay | null = null) {
+  play_event(asked: CareerEvent, play: RunPlay | null = null) {
+    const event = held_car(asked, unlocks(this.career.stars).cars);
     // A stand-in runs one level on another map; a championship's stages name their levels on its own map only.
     if (event.stages && event.stand_in) return this.notice(NO_EVENT);
     const legs = this.legs(event.stages ?? [{ mode: event.mode, level: spot_of(event).level, name: event.name }]);
@@ -288,6 +291,7 @@ export class Modes implements CarHooks {
       this.clear();
       const cup = event.stages ? { cup: new Cup(event.stages, event.stars), legs } : null;
       this.begin(mode, level, play?.track ?? event_track(event, local_store()), event, play, cup);
+      if (event !== asked) this.notice(LENT_CAR);
     });
   }
 

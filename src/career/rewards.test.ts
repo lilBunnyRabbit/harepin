@@ -1,7 +1,8 @@
 import { expect, test } from "bun:test";
 import { DECALS, MAX_PAINT, REWARD_PAINTS } from "../car/build";
 import { TIERS, tier_stars, type Stars } from "./career";
-import { NO_UNLOCKS, REWARD_CARS, REWARD_DECALS, badge_text, earned, garage_reward, reward_paint_name, unlocks } from "./rewards";
+import { PRESETS } from "../car/presets";
+import { NO_UNLOCKS, PLAIN_CARS, REWARD_CARS, REWARD_DECALS, badge_text, earned, garage_reward, open_presets, reward_paint_name, unlocks } from "./rewards";
 
 const [rookie, , , elite, legend] = TIERS;
 const with_stars = (...picks: [string, number][]): Stars => Object.fromEntries(picks);
@@ -82,4 +83,14 @@ test("Legend's car comes with its badge: a star on the final, not every star", (
   expect(unlocks(with_stars(...all_of(legend, 3).filter(([id]) => id !== final.id))).cars).toEqual([]);
   expect(unlocks(with_stars([final.id, 1])).cars).toEqual(["fujin"]);
   expect(garage_reward(earned({}, with_stars([final.id, 1]), legend))?.kind).toBe("car");
+});
+
+test("a reward car's preset lists only once the player holds the car, and the garage lists no reward car as plain", () => {
+  const final = legend.events.find((event) => event.final)!;
+  const names = (stars: Stars) => open_presets(unlocks(stars).cars).map((preset) => preset.name);
+  expect(PLAIN_CARS).not.toContain("fujin");
+  expect(PRESETS.map((preset) => preset.name)).toContain("Fujin prototype");
+  expect(names({})).not.toContain("Fujin prototype");
+  expect(names({})).toHaveLength(PRESETS.length - 1);
+  expect(names(with_stars([final.id, 1]))).toEqual(PRESETS.map((preset) => preset.name));
 });

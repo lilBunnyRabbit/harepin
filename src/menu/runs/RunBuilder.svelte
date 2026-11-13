@@ -2,12 +2,13 @@
   import { tick } from "svelte";
   import { CarClass } from "../../car/pi";
   import { limit_text } from "../../car/car-pick";
-  import { PRESETS } from "../../car/presets";
+  import { open_presets, unlocks } from "../../career/rewards";
   import { ANY, Difficulty, LAPS, RUN_TYPES, RunType, car_code, custom, new_seed, parse_car, type RunOptions, type RunPick } from "../../runs/runs";
   import { plain_map } from "../../worldgen/kinds/kinds";
   import type { MapData } from "../../worldgen/map";
   import type { WorldKind } from "../../worldgen/types";
   import type { Menu } from "../page";
+  import type { MenuState } from "../ui/menu-state.svelte";
   import Button from "../ui/Button.svelte";
   import Card from "../ui/Card.svelte";
   import Row from "../ui/Row.svelte";
@@ -23,9 +24,10 @@
 
   interface Props {
     menu: Menu;
+    live: MenuState;
   }
 
-  let { menu }: Props = $props();
+  let { menu, live }: Props = $props();
 
   const DIFFICULTIES: Option<Difficulty>[] = [
     { value: Difficulty.RELAXED, label: "Relaxed" },
@@ -40,11 +42,11 @@
   const LAP_OPTIONS: Option<number>[] = LAPS.map((n) => ({ value: n, label: n === 1 ? "1 lap" : `${n} laps` }));
   const TYPES: Option<string>[] = [{ value: ANY, label: "Any type" }, ...RUN_TYPES.map((type) => ({ value: type.id, label: type.name }))];
   const ALL_KINDS = [...new Set(RUN_TYPES.flatMap((type) => type.kinds))];
-  const CARS: Option<string>[] = [
+  const CARS: Option<string>[] = $derived([
     { value: ANY, label: "Random class" },
     ...Object.values(CarClass).map((cap) => ({ value: cap, label: limit_text(cap) })),
-    ...PRESETS.map((preset) => ({ value: car_code({ preset: preset.name }), label: `${preset.name} car` })),
-  ];
+    ...open_presets(unlocks(live.stars).cars).map((preset) => ({ value: car_code({ preset: preset.name }), label: `${preset.name} car` })),
+  ]);
 
   let type = $state<string>(ANY);
   let kind = $state<string>(ANY);

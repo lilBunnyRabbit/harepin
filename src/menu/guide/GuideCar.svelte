@@ -1,7 +1,7 @@
 <script lang="ts">
   import { STATS, build_spec, parse_build, stats } from "../../car/build";
   import { rating } from "../../car/pi";
-  import { PRESETS } from "../../car/presets";
+  import { open_presets } from "../../career/rewards";
   import { STAT_NAMES, stat_rating } from "../garage-meters";
   import Badge from "../ui/Badge.svelte";
   import Card from "../ui/Card.svelte";
@@ -15,7 +15,7 @@
 
   let { guide }: Props = $props();
 
-  const cars = PRESETS.flatMap(({ name, blurb, code }) => {
+  const cars = $derived(open_presets(guide.held).flatMap(({ name, blurb, code }) => {
     const build = parse_build(code);
     if (!build) return [];
     const rated = stats(build_spec(build));
@@ -23,7 +23,7 @@
       .map((key) => `${STAT_NAMES[key]} ${stat_rating(key, rated[key])}`)
       .join(" · ");
     return [{ name, blurb, code, hint, rating: rating(build) }];
-  });
+  }));
 </script>
 
 <GuideLayout title="Pick a car" lede="A ready-made build to start in. Swap any part later in the Garage.">

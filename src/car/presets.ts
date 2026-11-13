@@ -11,5 +11,6 @@ export const PRESETS: readonly Preset[] = [
   { name: "Dirt rally", blurb: "Rally car on rally tyres and lifted springs", code: "rally.4.2.0.4.1.0.7.3" },
   { name: "Mud basher", blurb: "AWD Raijin on mud tyres, lifted, best on grass", code: "raijin.2.3.0.4.1.0.7.5" },
   { name: "Drift", blurb: "Rear-drive Muscle, drift suspension, rear brake bias. With assists off, a launch from rest spins into a donut", code: "muscle.1.5.0.3.1.0.7.0.0.0.2" },
+  { name: "Fujin prototype", blurb: "The Legend reward: hybrid prototype with every top part and the race kit", code: "fujin.6.4.4.2.2.0.1.2.2.2.1.2" },
   { name: "Party bus", blurb: "The bus with a race engine and a big nitro tank", code: "bus.3.0.0.1.2.0.7.0.1.0.1.2" },
 ];

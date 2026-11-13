@@ -11,6 +11,7 @@ import { WorldKind } from "../worldgen/types";
 import { GYMKHANA_MODE } from "./gymkhana-mode";
 import type { CarLimit } from "../car/car-pick";
 import { Modes } from "./modes";
+import { held_car } from "./event-car";
 
 class FakeElement {
   hidden = false;
@@ -193,6 +194,16 @@ test("a preset event and free play offer no car change", async () => {
   expect(r.modes.can_change_car).toBe(false);
   await r.modes.change_car();
   expect(r.asked).toBe(0);
+});
+
+test("a run naming a reward car's preset lends a player without the car the starter car instead", async () => {
+  const r = rig();
+  const fujin = { ...capped, car: { preset: "Fujin prototype" } };
+  r.modes.play_event(fujin);
+  await settle();
+  expect(r.starts).toEqual([build_code(parse_build(PRESETS[0].code)!)]);
+  expect(held_car(fujin, ["fujin"])).toBe(fujin);
+  expect(held_car(preset, [])).toBe(preset);
 });
 
 test("a championship runs its stages back to back: Next goes on, a retry keeps the better stage, the total grades the event", async () => {
