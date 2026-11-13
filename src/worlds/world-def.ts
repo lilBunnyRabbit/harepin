@@ -34,6 +34,8 @@ export interface WorldDef {
   facts(f: WorldFacts | null): [string, string][];
   /** Merged over the theme's mood. */
   mood: MoodDelta;
+  /** The upland ground's tone; dry grass when unset. */
+  upland?: Lab;
   /** Tint of the dust the open ground throws. */
   ground_puff: GroundPuff;
   /** "sky" adds the sky dome and ring clouds; "indoor" adds neither. */
