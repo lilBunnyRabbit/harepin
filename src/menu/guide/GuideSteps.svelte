@@ -19,7 +19,7 @@
 </script>
 
 <div class="guide-steps" bind:this={rail}>
-  <Tabs {items} value={guide.id} variant="steps" label="Guide steps" onchange={(id: GuideStep) => guide.go(GUIDE_STEPS.findIndex((step) => step.id === id))} />
+  <Tabs {items} value={guide.id} variant="steps" done compact label="Guide steps" onchange={(id: GuideStep) => guide.go(GUIDE_STEPS.findIndex((step) => step.id === id))} />
 </div>
 
 <style>

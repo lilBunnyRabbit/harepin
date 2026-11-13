@@ -30,7 +30,7 @@
   {#snippet copy()}
     <div class="guide-cars" role="group" aria-label="Cars">
       {#each cars as car, at (car.code)}
-        <Card class={car.code === guide.car ? "guide-pick guide-picked" : "guide-pick"} onclick={() => guide.use_car(car.code)}>
+        <Card selected={car.code === guide.car} onclick={() => guide.use_car(car.code)}>
           <span class="guide-car-head">
             <b class="guide-car-name">{car.name}</b>
             <ClassBadge rating={car.rating} />
@@ -49,16 +49,6 @@
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: var(--space-4);
-  }
-
-  .guide-cars > :global(.ui-card) {
-    align-items: stretch;
-    justify-content: flex-start;
-  }
-
-  .guide-cars > :global(.ui-card.guide-picked) {
-    border-color: var(--primary);
-    box-shadow: inset 0 0 0 1px var(--primary);
   }
 
   .guide-car-head {

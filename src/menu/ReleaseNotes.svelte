@@ -12,7 +12,7 @@
   const KINDS = {
     [ChangeKind.NEW]: { label: "New", tone: "success" },
     [ChangeKind.IMPROVED]: { label: "Improved", tone: "info" },
-    [ChangeKind.FIXED]: { label: "Fixed", tone: "neutral" },
+    [ChangeKind.FIXED]: { label: "Fixed", tone: "warning" },
   } as const;
 </script>
 

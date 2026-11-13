@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Aids } from "../guide-rules";
   import Progress from "../ui/Progress.svelte";
-  import { AID_LIGHTS } from "./guide-text";
+  import GuideLights from "./GuideLights.svelte";
 
   interface Props {
     aids: Aids;
@@ -17,9 +17,7 @@
     <span class="guide-gear">3</span>
   </div>
   <Progress value={46} max={100} label="Revs" />
-  <span class="guide-lights">
-    {#each AID_LIGHTS as [key, label] (key)}<i class:guide-on={aids[key]}>{label}</i>{/each}
-  </span>
+  <GuideLights {aids} />
 </div>
 
 <style>
@@ -60,42 +58,5 @@
     font-family: var(--font-mono);
     font-size: var(--text-xl);
     font-weight: 700;
-  }
-
-  .guide-lights {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-1) var(--space-3);
-    color: var(--set-dim);
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-
-  .guide-lights i {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-1);
-    font-style: normal;
-  }
-
-  .guide-lights i::before {
-    content: "";
-    width: var(--space-2);
-    height: var(--space-2);
-    border: 1.5px solid var(--line-strong);
-    border-radius: var(--radius-full);
-    box-sizing: border-box;
-  }
-
-  .guide-lights .guide-on {
-    color: var(--foreground);
-  }
-
-  .guide-lights .guide-on::before {
-    border-color: var(--success);
-    background: var(--success);
   }
 </style>
