@@ -186,15 +186,6 @@
     color: var(--foreground);
   }
 
-  :global(.settings[data-view="page"] .settings-page[data-section="modes"]) {
-    max-width: none;
-    height: 100%;
-    padding: 0;
-    border: 0;
-    background: none;
-    overflow: visible;
-  }
-
   @media (max-width: 600px) {
     .bar {
       flex-direction: column;

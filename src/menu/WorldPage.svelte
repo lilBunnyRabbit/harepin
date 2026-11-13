@@ -499,11 +499,6 @@
     gap: var(--space-1);
   }
 
-  :global(.settings[data-view="page"] .settings-page[data-section="world"]) {
-    max-width: none;
-    height: 100%;
-  }
-
   @media (max-width: 1100px) {
     .world {
       grid-template:
@@ -549,10 +544,6 @@
       padding-block: var(--space-4);
       border-top: 1px solid var(--set-line);
       background: var(--set-panel);
-    }
-
-    :global(.settings[data-view="page"] .settings-page[data-section="world"]) {
-      height: auto;
     }
   }
 

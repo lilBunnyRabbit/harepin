@@ -1,4 +1,4 @@
-import { mount } from "svelte";
+import { flushSync, mount } from "svelte";
 import { WorldKind } from "../../worldgen/types";
 import { Device, detect_device } from "../device";
 import { DEFAULT_SETTINGS, type SettingKey, type SettingsState } from "../prefs";
@@ -123,13 +123,16 @@ export class Guide {
     this.guide.open = false;
   }
 
+  // Both are pad and key moves: the pad focuses the new step's first control right after, so the step renders now.
   back(): boolean {
     if (this.guide.step === 0) return false;
     this.guide.go(this.guide.step - 1);
+    flushSync();
     return true;
   }
 
   step_by(step: number) {
     this.guide.go(this.guide.step + step);
+    flushSync();
   }
 }

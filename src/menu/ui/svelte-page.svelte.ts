@@ -1,5 +1,5 @@
 import { mount, unmount, type Component } from "svelte";
-import type { Menu, MenuPage, MenuTab } from "../page";
+import type { Menu, MenuPage, MenuTab, PageLayout } from "../page";
 import { MenuState } from "./menu-state.svelte";
 
 export interface PageProps {
@@ -12,6 +12,7 @@ export interface PageMeta {
   id: string;
   label: string;
   parent?: MenuTab;
+  layout?: PageLayout;
 }
 
 export interface SveltePage extends MenuPage {

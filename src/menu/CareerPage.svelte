@@ -156,13 +156,6 @@
     opacity: 0.6;
   }
 
-  :global(.settings[data-view="page"] .settings-page[data-section="career"]) {
-    max-width: none;
-    padding: 0;
-    border: 0;
-    background: none;
-  }
-
   @media (max-width: 600px) {
     .facts {
       flex-direction: column;

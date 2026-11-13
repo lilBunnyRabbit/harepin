@@ -55,6 +55,7 @@
   align-items: center;
   gap: var(--space-1);
   height: var(--control-h);
+  margin-left: calc(-1 * var(--space-2));
   padding: 0 var(--space-3) 0 var(--space-2);
   border-radius: var(--radius-sm);
   font-weight: 600;
@@ -80,13 +81,22 @@
   margin: -6px -6px 0;
 }
 
-.settings[data-view="page"] .settings-page {
+/* A column page (goals, new room) centres its panel, and its Back and title line up over that panel, not the screen. */
+.settings[data-layout="column"] :is(.settings-head, .settings-page) {
+  width: 100%;
   max-width: 720px;
-  margin: 0 auto;
+  margin-inline: auto;
+}
+
+.settings:is([data-layout="column"], [data-layout="fill-panel"]) .settings-page {
   padding: var(--space-4);
   border-radius: var(--radius-lg);
   border: 1px solid var(--set-line);
   background: var(--set-panel);
+}
+
+.settings:is([data-layout="fill"], [data-layout="fill-panel"]) .settings-page {
+  height: 100%;
 }
 
 .menu-top {
@@ -319,12 +329,13 @@
     padding: 0 var(--space-4);
   }
 
-  .settings[data-view="page"] .settings-page {
-    padding: var(--space-4);
-  }
 }
 
 @media (max-width: 600px) {
+  .settings[data-layout="fill-panel"] .settings-page {
+    height: auto;
+  }
+
   .menu-room {
     display: none;
   }

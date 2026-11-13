@@ -1,3 +1,4 @@
+import { flushSync } from "svelte";
 import { modal_open, typing, type Nav } from "../hud/input";
 import { clean_name } from "../net/net";
 import { GUIDE_PARAM, Guide, ROLLED_VISIT, type GuideStep } from "./guide/guide.svelte";
@@ -96,11 +97,11 @@ export class Settings {
       svelte_page(this.menu, { id: MenuTab.ONLINE, label: "Online" }, OnlinePage),
       svelte_page(this.menu, { id: MenuTab.SETTINGS, label: "Settings" }, SettingsPage, { nav: this.nav, open_guide: () => this.open_guide() }),
       svelte_page(this.menu, { id: MenuTab.SUPPORT, label: "Support" }, SupportPage),
-      svelte_page(this.menu, { id: "world", label: "Create world", parent: MenuTab.PLAY }, WorldPage),
-      svelte_page(this.menu, { id: "modes", label: "Modes", parent: MenuTab.PLAY }, ModesPage),
+      svelte_page(this.menu, { id: "world", label: "Create world", parent: MenuTab.PLAY, layout: "fill-panel" }, WorldPage),
+      svelte_page(this.menu, { id: "modes", label: "Modes", parent: MenuTab.PLAY, layout: "fill" }, ModesPage),
       svelte_page(this.menu, { id: "room", label: "New room", parent: MenuTab.ONLINE }, RoomPage),
       svelte_page(this.menu, { id: "goals", label: "Things to try", parent: MenuTab.PLAY }, GoalsPage, { go: (to: GoTo) => this.go_to(to) }),
-      svelte_page(this.menu, { id: "career", label: "Career", parent: MenuTab.PLAY }, CareerPage, { tune: new URLSearchParams(location.search).has(TUNE_PARAM) }),
+      svelte_page(this.menu, { id: "career", label: "Career", parent: MenuTab.PLAY, layout: "wide" }, CareerPage, { tune: new URLSearchParams(location.search).has(TUNE_PARAM) }),
     ];
     this.guide = new Guide({
       state: () => this.current,
@@ -383,11 +384,15 @@ export class Settings {
     for (const [id, tab] of this.menu_tabs) tab.setAttribute("aria-current", String(id === section));
     for (const [id, page] of this.pages) page.hidden = id !== section;
     const shown = this.page_of(section);
+    if (shown?.parent) this.root.dataset.layout = shown.layout ?? "column";
+    else delete this.root.dataset.layout;
     this.title.textContent = shown?.parent ? shown.label : "Settings";
     this.body.scrollTop = 0;
     for (const page of this.page_list) if (page !== shown) page.on_hide?.();
     shown?.on_show?.();
     this.refresh();
+    // The pad focuses the page's first control right after this returns: a page mounted just now binds its rows in effects.
+    flushSync();
   }
 
   private page_of(section: string): MenuPage | undefined {

@@ -107,11 +107,20 @@ export interface Menu {
   go(query: Record<string, string>): void;
 }
 
+/**
+ * How a full-screen page sits under its Back and title. `column`: a centred panel, the head over it. `wide`: full width,
+ * no panel, as tall as its content. `fill`: full width, no panel, the screen's height. `fill-panel`: the screen in one
+ * panel, as tall as its content on a phone.
+ */
+export type PageLayout = "column" | "wide" | "fill" | "fill-panel";
+
 export interface MenuPage {
   readonly id: string;
   readonly label: string;
   /** Set on a full-screen page: Back returns to this tab and the header shows `label`. */
   readonly parent?: MenuTab;
+  /** A full-screen page's layout; `column` when unset. */
+  readonly layout?: PageLayout;
   build(): HTMLElement[];
   on_show?(): void;
   on_hide?(): void;
