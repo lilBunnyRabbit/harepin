@@ -141,6 +141,7 @@
     color: var(--set-dim);
     font-size: var(--text-sm);
     line-height: 1.4;
+    white-space: normal;
   }
 
   .ui-clamp {

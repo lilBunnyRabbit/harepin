@@ -38,7 +38,7 @@
           {#each shelf.choices as choice (choice.code)}
             <li>
               {#snippet why()}{choice.blocked}{/snippet}
-              <Tile title={choice.title} meta={choice.sub} disabled={choice.blocked !== null} reason={choice.blocked ? why : undefined} onclick={() => pick(choice.code)}>
+              <Tile title={choice.title} meta={choice.sub} clamp={2} disabled={choice.blocked !== null} reason={choice.blocked ? why : undefined} onclick={() => pick(choice.code)}>
                 <span class="meta" class:lift={!choice.blocked}>
                   <ClassBadge rating={choice.rating} />
                   {#if choice.fitted}<span class="why">Fitted</span>{/if}

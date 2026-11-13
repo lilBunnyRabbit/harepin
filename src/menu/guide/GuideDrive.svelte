@@ -15,7 +15,7 @@
   {#snippet copy()}
     <div class="guide-worlds" role="group" aria-label="Maps">
       {#each LISTED as world (world.kind)}
-        <Tile title={world.name} meta={world.note} thumb={guide.host.picture(world.kind).src} selected={world.kind === guide.world} onclick={() => (guide.world = world.kind)} />
+        <Tile title={world.name} meta={world.note} clamp={2} thumb={guide.host.picture(world.kind).src} selected={world.kind === guide.world} onclick={() => (guide.world = world.kind)} />
       {/each}
     </div>
   {/snippet}

@@ -176,7 +176,7 @@
         {@render head("Pick a world")}
         <div class="worlds" role="radiogroup" aria-label="World">
           {#each LISTED as { kind, name, pick } (kind)}
-            <Tile title={name} meta={pick} thumb={preview(kind)} selected={kind === chosen.kind} onclick={() => choose(plain_map(kind, chosen.seed), true)} />
+            <Tile title={name} meta={pick} clamp={2} thumb={preview(kind)} selected={kind === chosen.kind} onclick={() => choose(plain_map(kind, chosen.seed), true)} />
           {/each}
         </div>
 
