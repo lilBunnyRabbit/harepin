@@ -9,7 +9,7 @@ bun run typecheck          # tsc --noEmit, must stay at 0 errors
 bun run check:svelte       # svelte-check on .svelte / .svelte.ts (tools/svelte-check, pinned to TypeScript 6)
 bun run build              # static dist/
 bun run telemetry          # scripts/telemetry.ts: 0-100, top speed, braking, skidpad
-bun test                   # fast: seed sweeps take seeds 0-4; `bun run test:full` (FULL=1) sweeps every seed
+bun run test               # fast: seed sweeps take seeds 0-4; `bun run test:full` (FULL=1) sweeps every seed
 bun scripts/golden.ts      # rewrite scripts/golden/*.txt; --check diffs generated worlds against them
 bun scripts/proof.ts       # every world check, drive, golden diff and gen timing, one pass per seed, all cores
 bun scripts/races.ts --changed  # race drives on routes whose golden digest moved, plus three canaries
@@ -121,13 +121,13 @@ Semver, and `package.json` `version` is the only source. The build stamps it int
 
 ## Tests
 
-`bun test` for pure logic, `*.test.ts` beside the module, no fakes for what can run for real; `bun test src/<folder>` runs one feature. A module that needs a fake (a trystero room) takes it as a parameter rather than through a process-wide `mock.module`. Sim behaviour is checked by asserting on the `scripts/*.ts` numbers. Rendering is checked by eye in the browser: one headless browser at a time, against a `vite preview` of a build when others are editing the tree.
+`bun run test` for pure logic, `*.test.ts` beside the module, no fakes for what can run for real; `bun run test src/<folder>` runs one feature. A module that needs a fake (a trystero room) takes it as a parameter rather than through a process-wide `mock.module`. Sim behaviour is checked by asserting on the `scripts/*.ts` numbers. Rendering is checked by eye in the browser: one headless browser at a time, against a `vite preview` of a build when others are editing the tree.
 
 Run what the change needs, nothing more:
 
 | Change | Proof |
 |---|---|
-| Every commit | `typecheck` + `bun test` (fast); + `check:svelte` when a `.svelte` file changed |
+| Every commit | `typecheck` + `bun run test` (fast); + `check:svelte` when a `.svelte` file changed |
 | Touches generation (`worldgen/`, meshing, map) | + `bun scripts/golden.ts --check`. Output meant to change: run `bun scripts/golden.ts` and commit `scripts/golden/` with the change, so review sees which parts moved |
 | Car physics | `car.test.ts` + `scripts/telemetry.ts` / `scripts/feel.ts` byte-identical, nothing else |
 | Routes or race logic | `bun scripts/races.ts --changed` only; it fails only on runs missing from `scripts/golden/races-baseline.txt` and lists fixed ones. A change meant to move them: `bun scripts/races.ts --baseline` and commit the file |

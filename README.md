@@ -35,7 +35,7 @@ There is no game server.
 bun install
 bun run dev                # http://localhost:5173
 bun run typecheck
-bun test
+bun run test
 bun run telemetry          # 0-100, top speed, braking, skidpad
 bun scripts/feel.ts        # handling scenarios: step steer, lift-off, power-on, handbrake, trail brake, slopes
 bun scripts/autolap.ts     # autopilot lap of the island road

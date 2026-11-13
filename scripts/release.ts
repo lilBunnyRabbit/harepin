@@ -11,7 +11,9 @@ type Level = (typeof Level)[keyof typeof Level];
 const KINDS = { new: "NEW", improved: "IMPROVED", fixed: "FIXED" } as const;
 type Kind = keyof typeof KINDS;
 
-const FULL_PATHS = ["src/worldgen/", "src/world/", "src/car/", "scripts/golden"];
+const FULL_PATHS = ["src/worldgen/", "src/world/", "scripts/golden"];
+// Render-only car files (models, livery, paint, part looks, wheels, lights) change no handling, so they stay hotfix.
+const CAR_PHYSICS = ["car", "rigid-body", "axles", "cars", "build", "presets", "driver", "nitro", "pi"].map((name) => `src/car/${name}.ts`);
 const VERSION_TEST = "src/version.test.ts";
 
 interface Args {
@@ -176,12 +178,12 @@ git(dir, "checkout", "--quiet", "-b", "rel", sha);
 timings.push({ name: "clone", ok: true, secs: (performance.now() - t) / 1000, output: "" });
 
 const since = changed_since(dir, sha);
-const world_hits = since.files.filter((f) => FULL_PATHS.some((p) => f.startsWith(p)));
+const world_hits = since.files.filter((f) => FULL_PATHS.some((p) => f.startsWith(p)) || CAR_PHYSICS.includes(f));
 const world_changed = !since.base || world_hits.length > 0;
 let level = args.level ?? Level.HOTFIX;
 if (args.auto_level) {
   level = world_changed ? Level.FULL : Level.HOTFIX;
-  const why = !since.base ? "no earlier release" : world_hits.length ? `touches ${world_hits.slice(0, 5).join(", ")}${world_hits.length > 5 ? ` and ${world_hits.length - 5} more` : ""}` : "no world, car or golden change";
+  const why = !since.base ? "no earlier release" : world_hits.length ? `touches ${world_hits.slice(0, 5).join(", ")}${world_hits.length > 5 ? ` and ${world_hits.length - 5} more` : ""}` : "no world, car physics or golden change";
   console.log(`auto level: ${level} (since ${since.base?.slice(0, 7) ?? "the start"}: ${why})`);
 }
 const all_tests = args.all_tests || !since.base;
@@ -221,11 +223,12 @@ if (installs.every((r) => r.ok)) {
   // Several car and audio tests take 3-4 s alone; next to the builds they pass bun's 5 s default and fail as timeouts.
   const test_cmd = ["bun", "test", "--timeout", "30000", ...tests.map((f) => `./${f}`)];
   const test_name = all_tests ? "bun test (all)" : `bun test (${tests.length} files)`;
-  if (level === Level.FULL && world_changed) {
+  const full = level === Level.FULL && world_changed;
+  if (full) {
     checks.push(step("golden --check", ["bun", "scripts/golden.ts", "--check"], dir));
     checks.push(step("proof --jobs 3", ["bun", "scripts/proof.ts", "--jobs", "3"], dir));
-  } else if (level === Level.FULL) console.log("golden and proof skipped: no world, car or golden change");
-  if (world_changed) checks.push(Promise.all(builds).then(() => step(`FULL=1 ${test_name}`, test_cmd, dir, { FULL: "1" })));
+  } else if (level === Level.FULL) console.log("golden and proof skipped: no world, car physics or golden change");
+  if (full) checks.push(Promise.all(builds).then(() => step(`FULL=1 ${test_name}`, test_cmd, dir, { FULL: "1" })));
   else checks.push(step(test_name, test_cmd, dir));
   timings.push(...(await Promise.all(checks)));
 }
