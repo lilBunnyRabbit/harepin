@@ -121,6 +121,18 @@ export const RUN_TYPES: readonly RunTypeDef[] = [
 
 export const type_of = (id: RunType): RunTypeDef => RUN_TYPES.find((type) => type.id === id) ?? RUN_TYPES[0];
 
+/** The first date whose daily, and the first week (by its Monday) whose weekly, picks from RUN_TYPES as it stands now. */
+const PICKS_FROM = "2026-11-14";
+/**
+ * RUN_TYPES as dailies and weeklies before PICKS_FROM were picked from. A pick shuffles a type's levels and draws from
+ * its kinds, so a level or kind added under a live date would reshuffle that day's daily and that week's cup on deploy.
+ */
+const PICKS_BEFORE: readonly RunTypeDef[] = RUN_TYPES.map((type) =>
+  type.id === RunType.RACE ? { ...type, levels: ["circuit", "circuit-rev", "street-1", "street-2", "offroad-1", "offroad-2", "descent"], kinds: COMPACT } : type,
+);
+
+const picks_on = (date: string): readonly RunTypeDef[] => (date < PICKS_FROM ? PICKS_BEFORE : RUN_TYPES);
+
 export type RunCar = { cap: CarClass } | { preset: string };
 
 /** The event builder's picks; null leaves a choice to the dice. */
@@ -200,11 +212,12 @@ function shuffled<T>(items: readonly T[], rng: () => number): T[] {
 
 const draw = <T>(items: readonly T[], rng: () => number): T => items[Math.floor(rng() * items.length)];
 
-function roll(options: RunOptions, rng: () => number): Omit<RunPick, "id" | "source" | "date" | "stages"> {
+function roll(options: RunOptions, rng: () => number, types = RUN_TYPES): Omit<RunPick, "id" | "source" | "date" | "stages"> {
   // A world picked with the type left to the dice draws only types that run there.
-  const hosts = options.kind ? RUN_TYPES.filter((t) => options.kind !== null && t.kinds.includes(options.kind)) : RUN_TYPES;
-  const rolled_type = draw(hosts.length ? hosts : RUN_TYPES, rng).id;
-  const type = type_of(options.type ?? rolled_type);
+  const hosts = options.kind ? types.filter((t) => options.kind !== null && t.kinds.includes(options.kind)) : types;
+  const rolled_type = draw(hosts.length ? hosts : types, rng).id;
+  const id = options.type ?? rolled_type;
+  const type = types.find((t) => t.id === id) ?? types[0];
   const rolled_kind = draw(type.kinds, rng);
   const kind = options.kind && type.kinds.includes(options.kind) ? options.kind : rolled_kind;
   const seed = 1 + Math.floor(rng() * (SEEDS - 1));
@@ -219,7 +232,7 @@ function roll(options: RunOptions, rng: () => number): Omit<RunPick, "id" | "sou
 }
 
 export function daily(date: string): RunPick {
-  return { id: `${RunSource.DAILY}:${date}`, source: RunSource.DAILY, date, stages: null, ...roll(ANY_OPTIONS, mulberry32(seed_of(`daily:${date}`))) };
+  return { id: `${RunSource.DAILY}:${date}`, source: RunSource.DAILY, date, stages: null, ...roll(ANY_OPTIONS, mulberry32(seed_of(`daily:${date}`)), picks_on(date)) };
 }
 
 /** Stages a weekly runs, as the championship runner takes them (`MIN_STAGES`, `MAX_STAGES` in modes/championship.ts). */
@@ -232,7 +245,7 @@ export function weekly(week: string): RunPick {
   const seed = 1 + Math.floor(rng() * (SEEDS - 1));
   const count = WEEKLY_STAGES.min + Math.floor(rng() * (WEEKLY_STAGES.max - WEEKLY_STAGES.min + 1));
   const types = shuffled(
-    RUN_TYPES.filter((type) => type.kinds.includes(kind)),
+    picks_on(week_start(week) ?? PICKS_FROM).filter((type) => type.kinds.includes(kind)),
     rng,
   ).slice(0, count);
   const stages = types.map((type) => ({ type: type.id, levels: shuffled(type.levels, rng) }));

@@ -32,6 +32,7 @@ import {
   scale,
   season_days_left,
   season_of,
+  utc_date,
   week_start,
   weekly,
   type RunPick,
@@ -71,6 +72,23 @@ test("a daily is the same pick for a date, and its param reads back to it", () =
   expect(a.id).toBe("daily:2026-11-13");
   const week = ["2026-11-13", "2026-11-14", "2026-11-15", "2026-11-16", "2026-11-17"].map((d) => daily(d));
   expect(new Set(week.map((p) => `${p.type}:${p.kind}:${p.seed}`)).size).toBe(week.length);
+});
+
+// Picked by 0.40, before the race type gained Mainland, sprint, trip and banked: a deploy must not reshuffle them.
+test("a past daily and weekly keep the pick they had before the race type grew", () => {
+  expect(daily("2026-11-09")).toMatchObject({ type: "race", kind: "icecanyon", seed: 289002, levels: ["offroad-2", "circuit", "descent", "street-1", "offroad-1", "circuit-rev", "street-2"], car: { cap: "s1" } });
+  expect(weekly("2026-W46")).toMatchObject({
+    kind: "sky",
+    seed: 550466,
+    car: { cap: "c" },
+    stages: [
+      { type: "trap", levels: ["trap"] },
+      { type: "duel", levels: ["v3", "v4", "v5", "v2", "v1"] },
+      { type: "race", levels: ["street-2", "circuit-rev", "offroad-1", "descent", "offroad-2", "street-1", "circuit"] },
+    ],
+  });
+  const ahead = Array.from({ length: 90 }, (_, i) => daily(utc_date(new Date(Date.UTC(2026, 10, 14 + i)))));
+  expect(ahead.some((p) => p.type === RunType.RACE && p.levels.includes("trip"))).toBe(true);
 });
 
 test("random and custom picks round-trip through their param", () => {
@@ -291,7 +309,7 @@ test("a weekly is one map with 3-5 stages of types that run there, one car rule,
   for (const bad of ["weekly:2025-W53", "weekly:2026-W4", "weekly:2026-11-13"]) expect(run_of(bad)).toBeNull();
   const counts = new Set<number>();
   for (let w = 1; w <= 52; w++) {
-    const pick = weekly(`2026-W${String(w).padStart(2, "0")}`);
+    const pick = weekly(`2027-W${String(w).padStart(2, "0")}`);
     const stages = pick.stages ?? [];
     counts.add(stages.length);
     expect(stages.length).toBeGreaterThanOrEqual(MIN_STAGES);
