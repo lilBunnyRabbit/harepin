@@ -249,6 +249,18 @@
   }
 }
 
+/* At the short window's 136px dial, full-padded switches overrun the card. */
+@media (pointer: fine) and (max-height: 500px) {
+  :root[data-hud="classic"] .assists {
+    gap: var(--space-1);
+  }
+
+  :root[data-hud="classic"] .aid-key {
+    gap: var(--space-1);
+    padding: 0 var(--space-1);
+  }
+}
+
 /* Touch: the steer zone (left 45%) and the pedal zone (right 45%) leave no room beside the readout, so the switches sit
    in a row under the button panel, a deliberate reach rather than where a resting thumb lands; each keeps a 44 px
    target with its chip drawn smaller inside it. */

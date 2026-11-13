@@ -584,6 +584,17 @@
   }
 }
 
+/* Gear, unit and gaps don't scale with the dial, so at 136px they and a 3ch speed overrun the card. */
+@media (pointer: fine) and (max-height: 500px) {
+  :root[data-hud="classic"][data-speedo="bar"] .bottom-right {
+    column-gap: var(--space-1);
+  }
+
+  :root[data-hud="classic"][data-speedo="bar"] #speed {
+    font-size: calc(var(--dial) * 0.26);
+  }
+}
+
 /* Touch: the ring would crowd the car and the pedals, so the phone gets a slim readout along the bottom, ending just
    left of the pedals so it stays clear of the steer hint, the revs a bar beneath it. */
 @media (pointer: coarse) {
