@@ -1,7 +1,10 @@
 /// <reference types="vite-plugin-pwa/client" />
+import { mount, unmount } from "svelte";
 import { registerSW } from "virtual:pwa-register";
-import { CHANGELOG, ChangeKind, type Release } from "../changelog";
-import { UpdateState, compare_versions, newer_releases, parse_version_file, type RemoteVersion, type VersionInfo } from "../version";
+import { UpdateState, compare_versions, parse_version_file, type RemoteVersion, type VersionInfo } from "../version";
+import Changelog from "./Changelog.svelte";
+import UpdateToast from "./UpdateToast.svelte";
+import { UpdateView } from "./update-view.svelte";
 import "./update.css";
 
 declare const __HAREPIN_VERSION__: VersionInfo;
@@ -15,12 +18,6 @@ const TOAST_MS = 4000;
 const RELOAD_TIMEOUT_MS = 6000;
 const UPDATE_PARAM = "__upd";
 
-const KIND_LABEL: Record<ChangeKind, string> = {
-  [ChangeKind.NEW]: "New",
-  [ChangeKind.IMPROVED]: "Improved",
-  [ChangeKind.FIXED]: "Fixed",
-};
-
 export interface UpdateHost {
   /** A lobby race or gymkhana run: no toast and no reload until it ends. */
   busy(): boolean;
@@ -33,26 +30,6 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, class_name = "", text
   if (class_name) node.className = class_name;
   if (text) node.textContent = text;
   return node;
-}
-
-function change_list(release: Release): HTMLUListElement {
-  const list = el("ul", "update-changes");
-  for (const change of release.changes) {
-    const item = el("li");
-    item.append(el("span", `update-kind update-kind-${change.kind}`, KIND_LABEL[change.kind]), el("span", "", change.text));
-    list.append(item);
-  }
-  return list;
-}
-
-export function release_view(release: Release, fresh: boolean): HTMLElement {
-  const section = el("section", "changelog-release");
-  const line = el("p", "changelog-line");
-  line.append(el("b", "", `v${release.version}`), el("span", "", release.title));
-  if (fresh) line.append(el("span", "changelog-fresh", "New"));
-  line.append(el("time", "", release.date));
-  section.append(line, change_list(release));
-  return section;
 }
 
 export function show_version(parent: HTMLElement): void {
@@ -95,8 +72,8 @@ export class Updater {
   private waiting = false;
   private coming = false;
   private applying = false;
-  private readonly pending = el("div", "changelog-pending");
-  private readonly toast = el("button", "update-toast");
+  private readonly view = new UpdateView();
+  private toast: ReturnType<typeof mount> | null = null;
   private readonly chip = new UpdateChip("drive-update");
   private check_timer = 0;
   private toast_wait = 0;
@@ -105,10 +82,6 @@ export class Updater {
   private last_check = 0;
 
   constructor(private readonly host: UpdateHost) {
-    this.pending.hidden = true;
-    this.toast.type = "button";
-    this.toast.hidden = true;
-    this.toast.append(el("b", "", "Update ready"), el("span", "", "· what's new"));
     this.chip.root.addEventListener("click", () => {
       if (this.state !== UpdateState.READY) return this.host.show_notes();
       this.request_apply((text) => this.chip.show(UpdateState.READY, text));
@@ -121,13 +94,11 @@ export class Updater {
   }
 
   changelog_view(): HTMLElement {
-    const page = el("div", "changelog-page");
-    const body = el("div", "changelog");
-    // Focusable so the pad can scroll a list taller than the screen.
-    body.tabIndex = 0;
-    body.append(el("p", "changelog-build", `You have v${BUILD.version} · ${BUILD.commit}`));
-    for (const release of CHANGELOG) body.append(release_view(release, false));
-    page.append(this.pending, body);
+    const page = el("div");
+    const say = (text: string) => {
+      if (this.view.pending) this.view.pending.status = text;
+    };
+    mount(Changelog, { target: page, props: { view: this.view, build: BUILD, onapply: () => this.request_apply(say) } });
     return page;
   }
 
@@ -148,8 +119,8 @@ export class Updater {
     });
     this.check_timer = window.setInterval(this.check, CHECK_EVERY_MS);
     document.addEventListener("visibilitychange", this.on_visible);
-    this.toast.addEventListener("click", this.open_notes);
-    document.body.append(this.toast, this.chip.root);
+    this.toast = mount(UpdateToast, { target: document.body, props: { view: this.view, onopen: this.open_notes } });
+    document.body.append(this.chip.root);
   }
 
   stop(): void {
@@ -158,8 +129,8 @@ export class Updater {
     clearInterval(this.apply_wait);
     clearTimeout(this.toast_timer);
     document.removeEventListener("visibilitychange", this.on_visible);
-    this.toast.removeEventListener("click", this.open_notes);
-    this.toast.remove();
+    if (this.toast) void unmount(this.toast);
+    this.toast = null;
     this.chip.root.remove();
   }
 
@@ -213,38 +184,27 @@ export class Updater {
   }
 
   private show_toast(): void {
-    this.toast.hidden = false;
+    this.view.toast = true;
     clearTimeout(this.toast_timer);
     this.toast_timer = window.setTimeout(() => this.hide_toast(), TOAST_MS);
   }
 
   private hide_toast(): void {
     clearTimeout(this.toast_timer);
-    this.toast.hidden = true;
+    this.view.toast = false;
   }
 
   private show_pending(remote: RemoteVersion | null): void {
     if (this.applying) return;
-    const head = el("div", "changelog-update");
-    const text = el("div", "changelog-update-text");
-    const status = el("p", "", `${remote ? `v${BUILD.version} → v${remote.version}` : `You have v${BUILD.version}`} · the game reloads`);
-    text.append(el("b", "", "Update ready"), status);
-    const now = el("button", "changelog-update-now", "Update now");
-    now.type = "button";
-    now.addEventListener("click", () => {
-      now.disabled = true;
-      this.request_apply((text) => (status.textContent = text));
-    });
-    head.append(text, now);
-    const notes = remote ? newer_releases(remote.notes, BUILD.version) : [];
-    this.pending.replaceChildren(head, ...notes.map((release) => release_view(release, true)));
-    this.pending.hidden = false;
+    const status = `${remote ? `v${BUILD.version} → v${remote.version}` : `You have v${BUILD.version}`} · the game reloads`;
+    this.view.pending = { remote, status, applying: false };
   }
 
   private request_apply(say: (text: string) => void): void {
     if (this.applying) return;
     this.applying = true;
     this.chip.root.disabled = true;
+    if (this.view.pending) this.view.pending.applying = true;
     if (this.host.busy()) say("Updating when this run ends");
     clearInterval(this.apply_wait);
     this.apply_wait = this.when_idle(() => {

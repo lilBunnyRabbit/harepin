@@ -1,8 +1,8 @@
+import { mount, unmount } from "svelte";
 import { CHANGELOG } from "../changelog";
 import { releases_on_boot } from "../version";
-import { el } from "./setting-rows";
-import { BUILD, release_view } from "./update";
-import "./updated-card.css";
+import { BUILD } from "./update";
+import UpdatedCard from "./UpdatedCard.svelte";
 
 const SEEN_KEY = "harepin:seen-version";
 const MAX_RELEASES = 3;
@@ -50,48 +50,25 @@ export function show_updated(show_notes: () => void): void {
   const releases = releases_on_boot(CHANGELOG, version, returning, BUILD.version);
   if (releases.length === 0) return;
 
-  const card = el("dialog", "updated");
-  card.setAttribute("aria-labelledby", "updated-title");
-  const box = el("div", "updated-box");
-  const head = el("header", "updated-head");
-  const title = el("h2", "", `Updated to v${BUILD.version}`);
-  title.id = "updated-title";
   const since = version === null ? "From an earlier version" : releases.length === 1 ? `From v${version}` : `${releases.length} releases since v${version}`;
-  head.append(title, el("p", "updated-since", since));
-
-  const notes = el("div", "updated-notes");
-  notes.tabIndex = 0;
-  notes.append(...releases.slice(0, MAX_RELEASES).map((release) => release_view(release, false)));
-
-  const foot = el("footer", "updated-foot");
-  const more = el("button", "updated-more", "Full notes");
-  more.type = "button";
-  const ok = el("button", "updated-ok", "Got it");
-  ok.type = "button";
-  ok.autofocus = true;
-  foot.append(more, ok);
-
-  box.append(head, notes, foot);
-  card.append(box);
-  ok.addEventListener("click", () => card.close());
-  more.addEventListener("click", () => {
-    card.close();
-    show_notes();
+  const target = document.createElement("div");
+  document.body.append(target);
+  const card = mount(UpdatedCard, {
+    target,
+    props: {
+      version: BUILD.version,
+      since,
+      releases: releases.slice(0, MAX_RELEASES),
+      onnotes: show_notes,
+      // A boot-time dialog shares the app's CloseWatcher group, so one Back closes both in the same task.
+      onclosed: () => {
+        closed_now = true;
+        setTimeout(() => {
+          closed_now = false;
+          void unmount(card);
+          target.remove();
+        });
+      },
+    },
   });
-  // The box fills the dialog edge to edge, so a click on the dialog itself is the backdrop.
-  card.addEventListener("click", (event) => {
-    if (event.target === card) card.close();
-  });
-  // Esc closes the card only; the menu behind keeps its page. Arrows go on to the menu's pad navigation.
-  card.addEventListener("keydown", (event) => {
-    if (!event.key.startsWith("Arrow")) event.stopPropagation();
-  });
-  // A boot-time dialog shares the app's CloseWatcher group, so one Back closes both in the same task.
-  card.addEventListener("close", () => {
-    card.remove();
-    closed_now = true;
-    setTimeout(() => (closed_now = false));
-  });
-  document.body.append(card);
-  card.showModal();
 }
