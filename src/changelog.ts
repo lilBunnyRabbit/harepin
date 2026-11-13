@@ -23,6 +23,14 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.37.2",
+    date: "2026-11-14",
+    title: "Chip in",
+    changes: [
+      { kind: NEW, text: "A Sponsor button in the menu, if you'd like to support Harepin. Totally optional: the game stays free." },
+    ],
+  },
+  {
     version: "0.37.1",
     date: "2026-11-14",
     title: "Pick a car",
