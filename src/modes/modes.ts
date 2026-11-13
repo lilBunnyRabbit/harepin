@@ -50,7 +50,7 @@ const OPEN_WORLDS = LISTED.filter((w) => KINDS[w.kind].open_ground).map((w) => `
 const OPEN_GROUND = `Needs open ground: drive ${OPEN_WORLDS} for it`;
 const NO_GROUND_NOTICE = `Gymkhana, parking and gate hunts need open ground: drive ${OPEN_WORLDS} for them`;
 const TOO_BIG = "Too big for this mode";
-const NOT_THIS_CAR = "Not raced in this car";
+const NOT_THIS_CAR = "This car can't race here";
 const LENT_CAR = `Practice: that car is a career reward, so the ${PRESETS[0].name} runs it and no times or stars keep`;
 const STREAMED = "This mode is not on this world yet";
 const NO_EVENT = "This event is not on this map";

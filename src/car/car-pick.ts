@@ -45,7 +45,7 @@ export const limit_text = (cap: CarClass) => `Class ${CLASS_LABELS[cap]} or belo
 function blocked(build: Build, rated: Rating, limit: CarLimit): string | null {
   if (limit.cap && !within(rated.class, limit.cap)) return `Over ${CLASS_LABELS[limit.cap]}`;
   if (limit.car_sized_only && !car_sized(build_spec(build))) return "Too big for this mode";
-  if (limit.excludes?.includes(build.car)) return "Not raced in this car";
+  if (limit.excludes?.includes(build.car)) return `${CARS[build.car].name} can't race here`;
   return null;
 }
 

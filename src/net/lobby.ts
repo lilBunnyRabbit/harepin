@@ -14,8 +14,8 @@ const RESULTS_MS = 30_000;
 const REQUEST_MS = 4000;
 // A timer, not the render loop: rAF stops in a background tab, and a ready player there would lapse.
 const READY_TICK_MS = 250;
-export const NOT_THIS_CAR = "Not raced in this car";
-export const SITTING_OUT = "Not raced in this car: you sit this race out";
+export const NOT_THIS_CAR = "This car can't race here";
+export const SITTING_OUT = "This car can't race here: you sit this race out";
 export const RACE_RUNNING = "Lobby race is running";
 
 export interface Finisher {
