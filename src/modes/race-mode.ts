@@ -3,13 +3,17 @@ import { format } from "../hud/hud";
 import { WORLDS } from "../worlds/worlds";
 import type { Hits } from "./hits";
 import { turn_to, type Driven, type Finish, type ModeCtx, type ModeDef, type ModeRun, type RouteRun } from "./mode";
-import { COUNTDOWN_MS, RaceRun, RaceStatus, race_course, race_levels, type RaceCourse, type RaceLevel } from "./races";
+import { drift_stars } from "./drift";
+import { COUNTDOWN_MS, RaceRun, RaceStatus, TrapRun, race_course, race_levels, trap_points, type RaceCourse, type RaceLevel } from "./races";
 import { RaceView } from "./race-view";
 import { best_line, line, penalty_text, result_title, time_lines } from "./result";
-import { grade, par_thresholds } from "./track";
+import { SILVER_SHARE, grade, par_thresholds } from "./track";
 
 // Never written: the dev ghost is read from the shipped asset, and a race keeps no ghost of the player's own.
 const DEV_GHOST_KEY = "harepin:ghost:career-dev";
+/** A speed trap's 3-star mark per trap, km/h; career events bring their own. */
+const TRAP_KMH = 180;
+const FLASH_MS = 1500;
 
 class Race implements ModeRun {
   private readonly view: RaceView;
@@ -20,6 +24,8 @@ class Race implements ModeRun {
   private readonly hits: Hits | null;
   private ghost: Ghost | null = null;
   private disposed = false;
+  private readonly traps: TrapRun | null;
+  private flash: { kmh: number; at: number } | null = null;
   readonly route: RouteRun;
 
   constructor(
@@ -27,7 +33,8 @@ class Race implements ModeRun {
     private readonly level: RaceLevel,
     course: RaceCourse,
   ) {
-    this.view = new RaceView(course, ctx.ground);
+    this.traps = level.trap ? new TrapRun(trap_points(course.line), course.route.gate_hw) : null;
+    this.view = new RaceView(course, ctx.ground, this.traps?.at);
     ctx.scene.add(this.view.root);
     this.unplace = ctx.world.place(course.route.closure);
     this.run = new RaceRun(course, ctx.lobby_lap() ? 0 : COUNTDOWN_MS);
@@ -65,6 +72,14 @@ class Race implements ModeRun {
     const was = run.status;
     const taken = run.update(run.countdown > 0 ? wall : sim_dt * 1000, car.pos.x, car.pos.z);
     this.hits?.update(sim_dt * 1000, run.status === RaceStatus.RUNNING || was === RaceStatus.RUNNING);
+    if (this.traps && (run.status === RaceStatus.RUNNING || was === RaceStatus.RUNNING)) {
+      const passed = this.traps.next;
+      const kmh = this.traps.update(run.tracker.index, run.tracker.offset, Math.hypot(car.vel.x, car.vel.z));
+      if (kmh !== null) {
+        this.flash = { kmh, at: now };
+        view.trap_passed(passed);
+      }
+    }
     if (this.ghost) {
       this.ghost.visible = ctx.ghosts();
       this.ghost.update(run.status === RaceStatus.RUNNING ? run.elapsed() : null, ctx.camera.position);
@@ -100,7 +115,15 @@ class Race implements ModeRun {
     const { name } = this.level;
     if (run.status === RaceStatus.READY) return `${name} · ${Math.ceil(run.countdown / 1000)}`;
     const doing = run.missed ? "missed a gate, go back" : `gate ${run.next + 1}/${gates.length}`;
-    return `${name} · ${format(run.elapsed())}${penalty_text(this.hits)} · ${doing}`;
+    return `${name} · ${format(run.elapsed())}${penalty_text(this.hits)} · ${doing}${this.trap_text(now)}`;
+  }
+
+  private trap_text(now: number): string {
+    const { traps, flash } = this;
+    if (!traps) return "";
+    const total = ` · ${traps.total} km/h total`;
+    if (flash && now - flash.at < FLASH_MS) return ` · ${flash.kmh ? `${flash.kmh} km/h` : "trap missed"}${total}`;
+    return ` · trap ${Math.min(traps.next + 1, traps.at.length)}/${traps.at.length}${total}`;
   }
 
   private finish() {
@@ -111,11 +134,34 @@ class Race implements ModeRun {
     const ms = time + (this.hits?.penalty_ms ?? 0);
     const par = this.ctx.thresholds(par_thresholds(par_ms));
     const stars = grade(run.elapsed() + (this.hits?.penalty_ms ?? 0), par);
+    if (this.traps) return this.trap_finish(ms);
     const recorded = track.record(level.id, { stars, ms });
     this.result = {
       title: result_title(level.name, recorded),
       stars,
       lines: [...time_lines(time, this.hits), line("length", `${(length / 1000).toFixed(1)} km`), line("par", format(par.three)), best_line(track.runs[level.id])],
+    };
+  }
+
+  private trap_finish(ms: number) {
+    const { level, traps } = this;
+    if (!traps) return;
+    const { track } = this.ctx;
+    const three = traps.at.length * TRAP_KMH;
+    const marks = this.ctx.thresholds({ two: Math.round(three / SILVER_SHARE), three });
+    const score = traps.total;
+    const stars = drift_stars(score, { silver: marks.two, gold: marks.three });
+    const recorded = track.record(level.id, { stars, ms, score });
+    this.result = {
+      title: result_title(level.name, recorded),
+      stars,
+      lines: [
+        line("traps", traps.kmh.map((kmh) => `${kmh}`).join(" · ") + " km/h"),
+        line("total", `${score} km/h`),
+        ...time_lines(Math.round(this.run.elapsed()), this.hits),
+        line("★★ / ★★★", `${marks.two} / ${marks.three}`),
+        best_line(track.runs[level.id]),
+      ],
     };
   }
 
@@ -139,9 +185,9 @@ export const RACE_MODE: ModeDef<RaceLevel> = {
   car_sized_only: false,
   busy_notice: "Leave the lobby race to race solo",
   streams: true,
-  levels: (world) => race_levels(world.routes, WORLDS[world.kind].map_label),
+  levels: (world) => race_levels(world.routes, WORLDS[world.kind].map_label, world.tiles.streamed),
   start(ctx, level) {
-    const route = ctx.world.routes.find((r) => r.id === level.id);
+    const route = ctx.world.routes.find((r) => r.id === (level.trap ?? level.id));
     return route ? new Race(ctx, level, race_course(route)) : null;
   },
 };

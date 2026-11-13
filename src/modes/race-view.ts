@@ -9,6 +9,7 @@ import type { RoutePoint } from "./route";
 
 const LINE = 2;
 const GATE = 4;
+const TRAP = 3;
 const DIM = 0.3;
 /** Metres between the arrowheads that lead the way to the next gate. */
 const LEAD_PITCH = 10;
@@ -27,6 +28,7 @@ export interface Course {
 export class RaceView {
   private readonly marks: Marks;
   private readonly gates: THREE.Mesh[];
+  private readonly traps: THREE.Mesh[];
   private readonly dim: THREE.Material;
   private readonly lit: THREE.Material;
   private readonly closure: THREE.InstancedMesh;
@@ -38,7 +40,8 @@ export class RaceView {
   private lead_end = -1;
   private readonly closed: boolean;
 
-  constructor(course: Course, ground: Ground) {
+  /** `traps`: line indices of a speed trap run's traps, banded across the road until passed. */
+  constructor(course: Course, ground: Ground, traps: readonly number[] = []) {
     const { line, gates, route } = course;
     this.closed = route.closed;
     this.marks = new Marks(ground);
@@ -47,6 +50,8 @@ export class RaceView {
     if (!route.closed) this.marks.across(line[0], route.gate_hw, LINE, this.marks.paint(brand.accent));
     const finish = this.marks.paint(brand.success);
     this.gates = gates.map((at, i) => (i === gates.length - 1 ? this.marks.across(line[at], route.gate_hw, LINE, finish) : this.marks.across(line[at], route.gate_hw, GATE, this.dim)));
+    const trap = this.marks.paint(brand.warning);
+    this.traps = traps.map((at) => this.marks.across(line[at], route.gate_hw, TRAP, trap));
     this.beams = new Beams(this.marks, ground, gates.map((at) => line[at]));
     this.closure = this.cones(route.closure);
     this.root.add(this.closure);
@@ -85,6 +90,11 @@ export class RaceView {
     this.beams.groups.forEach((beam, i) => {
       beam.visible = gate_shown(i, next, count, closed);
     });
+  }
+
+  trap_passed(i: number) {
+    const trap = this.traps[i];
+    if (trap) trap.visible = false;
   }
 
   update(dt: number) {

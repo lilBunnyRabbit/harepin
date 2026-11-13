@@ -29,9 +29,18 @@ export function bend(road: readonly RoutePoint[], start: number, count: number):
 }
 
 export function bendiest(road: readonly RoutePoint[], count: number, keep: number, stride = 8): number[] {
+  return ranked(road, count, keep, stride, -1);
+}
+
+/** The inverse of `bendiest`: the starts of the `keep` least-turning stretches of `count` points, none overlapping. */
+export function straightest(road: readonly RoutePoint[], count: number, keep: number, stride = 8): number[] {
+  return ranked(road, count, keep, stride, 1);
+}
+
+function ranked(road: readonly RoutePoint[], count: number, keep: number, stride: number, order: 1 | -1): number[] {
   const scored: [number, number][] = [];
   for (let start = 0; start < road.length; start += stride) scored.push([start, bend(road, start, count)]);
-  scored.sort((a, b) => b[1] - a[1]);
+  scored.sort((a, b) => order * (a[1] - b[1]));
   const picked: number[] = [];
   const apart = (a: number, b: number) => {
     const d = Math.abs(a - b) % road.length;

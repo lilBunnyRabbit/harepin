@@ -22,7 +22,7 @@ const LEVEL_IDS: Record<string, readonly { id: string }[]> = {
   duel: DUEL_LEVELS,
 };
 
-const known_level = (mode: string, level: string) => (mode === "race" ? race_levels([{ id: level }], "").length === 1 : (LEVEL_IDS[mode]?.some((l) => l.id === level) ?? false));
+const known_level = (mode: string, level: string) => (mode === "race" ? race_levels([{ id: level }], "").some((l) => l.id === level) : (LEVEL_IDS[mode]?.some((l) => l.id === level) ?? false));
 
 function memory(seed: Record<string, string> = {}): Store & { data: Record<string, string> } {
   const data = { ...seed };

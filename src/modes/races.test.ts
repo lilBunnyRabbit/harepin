@@ -1,7 +1,7 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
 import type { Route } from "../worldgen/types";
-import { GATE_REACH, RaceRun, RaceStatus, gate_shown, race_choices, race_course, race_levels } from "./races";
+import { GATE_REACH, RaceRun, RaceStatus, TRAP_SPAN, TrapRun, gate_shown, race_choices, race_course, race_levels, trap_points } from "./races";
 
 const N = 1000;
 const POINTS = Array.from({ length: N }, (_, i) => {
@@ -85,7 +85,7 @@ test("view: a circuit's finish, on the start line under the car, shows only once
 });
 
 test("levels follow the progression order and list only routes the seed made", () => {
-  expect(race_levels([{ id: "street-2" }, { id: "street-1" }, { id: "circuit" }], "island").map((l) => l.id)).toEqual(["circuit", "street-1", "street-2"]);
+  expect(race_levels([{ id: "street-2" }, { id: "street-1" }, { id: "circuit" }], "island").map((l) => l.id)).toEqual(["circuit", "street-1", "street-2", "trap"]);
   expect(race_levels([{ id: "street-9" }], "island")).toEqual([]);
   expect(race_levels([{ id: "circuit" }], "mainland")[0].brings).toBe("One lap of the mainland circuit from a standing start.");
 });
@@ -95,4 +95,66 @@ test("lobby choices carry name, length and whether laps apply", () => {
     { id: "circuit", name: "Circuit", length: 4500, closed: true },
     { id: "street-1", name: "Town to town", length: 1800, closed: false },
   ]);
+});
+
+test("speed trap: a level on the circuit after every race, on compact worlds only", () => {
+  const trap = race_levels([{ id: "circuit" }], "island").find((l) => l.trap);
+  expect(trap).toMatchObject({ id: "trap", trap: "circuit" });
+  expect(race_levels([{ id: "street-1" }], "island").some((l) => l.trap)).toBe(false);
+  expect(race_levels([{ id: "circuit" }], "mainland", true).map((l) => l.id)).toEqual(["circuit"]);
+  expect(race_choices([{ id: "circuit", length: 4500, closed: true }]).map((c) => c.id)).toEqual(["circuit"]);
+});
+
+// Straight, then a long steady bend, then straight again: the traps sit at the far end of the straights.
+function bent(n = 600) {
+  const road = [];
+  let x = 0;
+  let z = 0;
+  for (let i = 0; i < n; i++) {
+    const heading = i < 200 ? 0 : i < 400 ? ((i - 200) / 200) * Math.PI : Math.PI;
+    const tx = Math.sin(heading);
+    const tz = Math.cos(heading);
+    road.push({ x, z, tx, tz });
+    x += tx * 2;
+    z += tz * 2;
+  }
+  return road;
+}
+
+test("speed trap: traps at the end of the longest straights, in order, clear of the start and finish", () => {
+  const line = bent();
+  const at = trap_points(line);
+  expect(at.length).toBe(3);
+  expect(at).toEqual([...at].sort((a, b) => a - b));
+  for (const i of at) {
+    expect(i).toBeGreaterThan(25);
+    expect(i).toBeLessThan(line.length - 1);
+    const start = i - TRAP_SPAN + 1;
+    expect(start < 200 - TRAP_SPAN || start >= 400).toBe(true);
+  }
+});
+
+test("speed trap: km/h through each trap adds up; one passed wide or skipped scores 0", () => {
+  const traps = new TrapRun([100, 200, 300], 6);
+  expect(traps.update(99, 0, 50)).toBeNull();
+  expect(traps.update(100, 0, 50)).toBe(180);
+  expect(traps.update(150, 0, 50)).toBeNull();
+  expect(traps.update(201, 20, 60)).toBeNull();
+  expect(traps.update(200 + GATE_REACH + 1, 20, 60)).toBe(0);
+  expect(traps.update(301, 1, 59.5)).toBe(214);
+  expect(traps.update(400, 0, 80)).toBeNull();
+  expect(traps.kmh).toEqual([180, 0, 214]);
+  expect(traps.total).toBe(394);
+});
+
+test("speed trap: the course still needs its finish, the traps ride along", () => {
+  const course = race_course(route(true));
+  const run = new RaceRun(course, 0);
+  const traps = new TrapRun(trap_points(course.line), course.route.gate_hw);
+  for (const p of course.line) {
+    run.update(100, p.x, p.z);
+    traps.update(run.tracker.index, run.tracker.offset, 50);
+  }
+  expect(run.status).toBe(RaceStatus.DONE);
+  expect(traps.kmh).toEqual([180, 180, 180]);
 });

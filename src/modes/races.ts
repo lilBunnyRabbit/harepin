@@ -1,5 +1,5 @@
 import type { Route } from "../worldgen/types";
-import { RouteTracker, type RoutePoint } from "./route";
+import { RouteTracker, straightest, type RoutePoint } from "./route";
 import { stars_for } from "./track";
 
 /** Route points past its gate a car may get and still take it; past that the gate was skipped. */
@@ -12,6 +12,8 @@ export interface RaceLevel {
   id: string;
   name: string;
   brings: string;
+  /** A speed trap level: the route it runs on. The score is the km/h through its traps, the finish still required. */
+  trap?: string;
 }
 
 interface LevelDef {
@@ -33,10 +35,18 @@ const LEVELS: readonly LevelDef[] = [
   { id: "circuit-rev", name: "Circuit reversed", brings: () => "The circuit the wrong way round: every corner is new." },
 ];
 
+/** After every race; compact worlds only, as a streamed world's chunks are not read for the straights (risk 10). */
+const TRAP_LEVELS: readonly (LevelDef & { route: string })[] = [
+  { id: "trap", name: "Speed trap", route: "circuit", brings: (place) => `Radar traps on the ${place} circuit's longest straights: every km/h through them scores, then over the line.` },
+];
+
 const listed = (routes: readonly { id: string }[]) => LEVELS.filter((level) => routes.some((r) => r.id === level.id));
 
-export function race_levels(routes: readonly { id: string }[], place: string): RaceLevel[] {
-  return listed(routes).map(({ id, name, brings }) => ({ id, name, brings: brings(place) }));
+export function race_levels(routes: readonly { id: string }[], place: string, streamed = false): RaceLevel[] {
+  const races = listed(routes).map(({ id, name, brings }) => ({ id, name, brings: brings(place) }));
+  if (streamed) return races;
+  const traps = TRAP_LEVELS.filter((level) => routes.some((r) => r.id === level.route)).map(({ id, name, brings, route }) => ({ id, name, brings: brings(place), trap: route }));
+  return [...races, ...traps];
 }
 
 export interface RaceChoice {
@@ -145,4 +155,48 @@ export class RaceRun {
  */
 export function gate_shown(i: number, next: number, count: number, closed: boolean): boolean {
   return closed && i === count - 1 ? i === next : i >= next;
+}
+
+export const TRAPS = 3;
+/** Route points of straight a trap sits at the end of. */
+export const TRAP_SPAN = 40;
+/** Route points from the start line kept clear of traps: a standing start is no speed run. */
+const TRAP_FROM = 25;
+const KMH = 3.6;
+
+/** Line indices of the speed traps, in driving order: the far end of each of the line's longest straights. */
+export function trap_points(line: readonly RoutePoint[], count = TRAPS, span = TRAP_SPAN): number[] {
+  return straightest(line, span, line.length, 4)
+    .filter((start) => start >= TRAP_FROM && start + span < line.length - 1)
+    .slice(0, count)
+    .map((start) => start + span - 1)
+    .sort((a, b) => a - b);
+}
+
+/** The traps of a speed trap run, in order: a trap passed off the line, or skipped, scores 0. */
+export class TrapRun {
+  next = 0;
+  /** Km/h through each trap passed so far, rounded. */
+  readonly kmh: number[] = [];
+
+  constructor(
+    readonly at: readonly number[],
+    private readonly gate_hw: number,
+  ) {}
+
+  get total(): number {
+    return this.kmh.reduce((sum, kmh) => sum + kmh, 0);
+  }
+
+  /** The km/h through the trap passed this step, 0 for one missed, or null. `speed` in m/s. */
+  update(index: number, offset: number, speed: number): number | null {
+    const at = this.at[this.next];
+    if (at === undefined || index < at) return null;
+    const missed = index > at + GATE_REACH;
+    if (!missed && offset > this.gate_hw + GATE_SLACK) return null;
+    const kmh = missed ? 0 : Math.round(speed * KMH);
+    this.kmh.push(kmh);
+    this.next++;
+    return kmh;
+  }
 }

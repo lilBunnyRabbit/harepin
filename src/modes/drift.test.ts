@@ -160,3 +160,51 @@ test("runs rank by stars, then score, and the score survives a save", () => {
   expect(better({ stars: 2, ms: 5000, score: 950 }, { stars: 2, ms: 1000, score: 900 })).toBe(false);
   expect(parse_runs({ d1: { stars: 2, ms: 10, score: 400 }, d2: { stars: 2, ms: 10, score: -1 } })).toEqual({ d1: { stars: 2, ms: 10, score: 400 } });
 });
+
+const chain_level = DRIFT_LEVELS.find((level) => level.chain);
+
+test("chain: one level holds the flag; held end to end, the score is the one chain", () => {
+  expect(chain_level?.id).toBe("d6");
+  const zone = build_zone(7, wiggly(), chain_level!);
+  const run = new DriftRun(zone, []);
+  for (let i = 0; i < zone.points.length; i++) {
+    const p = zone.points[i];
+    run.update(100, { x: p.x, z: p.z, heading: Math.atan2(p.tx, p.tz) + 30 * DEG, vx: p.tx * 18, vz: p.tz * 18 }, BODY, 6);
+  }
+  expect(run.status).toBe(DriftStatus.DONE);
+  expect(run.broke).toBe(ComboEnd.NONE);
+  expect(run.combo.score).toBe(run.combo.best_chain);
+});
+
+test("chain: straightening up banks the chain and ends the run there", () => {
+  const zone = build_zone(7, wiggly(), chain_level!);
+  const run = new DriftRun(zone, []);
+  let i = 0;
+  const drive = (angle: number) => {
+    const p = zone.points[i++];
+    return run.update(100, { x: p.x, z: p.z, heading: Math.atan2(p.tx, p.tz) + angle, vx: p.tx * 18, vz: p.tz * 18 }, BODY, 6);
+  };
+  while (i < LEAD + 20) drive(30 * DEG);
+  const scored = run.combo.chain;
+  expect(scored).toBeGreaterThan(0);
+  while (run.status !== DriftStatus.DONE) drive(0);
+  expect(run.broke).toBe(ComboEnd.BANKED);
+  expect(i).toBeLessThan(zone.points.length);
+  expect(run.combo.score).toBe(scored);
+  expect(run.timed_out).toBe(false);
+});
+
+test("chain: a wall loses the chain and ends the run with nothing", () => {
+  const zone = build_zone(7, wiggly(), chain_level!);
+  const p = zone.points[LEAD + 10];
+  const tree: Solid = { kind: "circle", x: p.x, y: 0, z: p.z, radius: 0.5, height: 5 };
+  const run = new DriftRun(zone, [tree]);
+  for (let i = LEAD; i <= LEAD + 10; i++) {
+    const q = zone.points[i];
+    run.update(100, { x: q.x, z: q.z, heading: Math.atan2(q.tx, q.tz) + 30 * DEG, vx: q.tx * 18, vz: q.tz * 18 }, BODY, 6);
+  }
+  expect(run.status).toBe(DriftStatus.DONE);
+  expect(run.broke).toBe(ComboEnd.LOST);
+  expect(run.combo.score).toBe(0);
+  expect(run.stars()).toBe(0);
+});

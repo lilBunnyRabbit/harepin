@@ -7,6 +7,7 @@ import { best_line, line, points, result_title } from "./result";
 
 const LOST_MS = 1500;
 const NONE: RouteRun["later"] = [];
+const BROKE: Partial<Record<ComboEnd, string>> = { [ComboEnd.LOST]: "Chain lost: run over", [ComboEnd.BANKED]: "Chain banked: run over" };
 
 class Drift implements ModeRun {
   private readonly view: DriftView;
@@ -40,6 +41,8 @@ class Drift implements ModeRun {
     if (run.status !== DriftStatus.READY) this.route.later = NONE;
     const { combo } = run;
     if (run.status === DriftStatus.READY) return `${level.name} · zone in ${Math.round((LEAD - Math.max(0, run.tracker.index)) * 2)} m`;
+    const broke = BROKE[run.broke];
+    if (broke) return `${level.name} · ${broke}`;
     const live = combo.chain > 0 ? ` · ×${combo.mult} +${points(combo.chain)}` : run.clock - this.lost_at < LOST_MS ? " · wall, combo lost" : "";
     return `${level.name} · ${points(combo.score)} pts${live}`;
   }
@@ -54,12 +57,11 @@ class Drift implements ModeRun {
     const score = Math.round(combo.score);
     const recorded = track.record(level.id, { stars, ms: Math.max(1, Math.round(run.elapsed())), score });
     this.result = {
-      title: run.timed_out ? `${level.name} · time up` : result_title(level.name, recorded),
+      title: run.timed_out ? `${level.name} · time up` : run.broke === ComboEnd.LOST ? `${level.name} · chain lost` : result_title(level.name, recorded),
       stars,
       lines: [
         line("score", points(score)),
-        line("best chain", points(combo.best_chain)),
-        line("walls", String(combo.lost)),
+        ...(level.chain ? [] : [line("best chain", points(combo.best_chain)), line("walls", String(combo.lost))]),
         line("time", format(run.elapsed())),
         line("★★ / ★★★", `${points(marks.two)} / ${points(marks.three)}`),
         best_line(track.runs[level.id]),

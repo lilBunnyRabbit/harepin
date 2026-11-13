@@ -27,6 +27,8 @@ export interface DriftLevel {
   points: number;
   silver_per_m: number;
   gold_per_m: number;
+  /** The score is one chain: banking it or losing it to a wall ends the run. */
+  chain?: true;
 }
 
 export const DRIFT_LEVELS: readonly DriftLevel[] = [
@@ -35,6 +37,7 @@ export const DRIFT_LEVELS: readonly DriftLevel[] = [
   { id: "d3", name: "Long chain", brings: "A longer zone: keep the combo alive.", points: 200, silver_per_m: 2.5, gold_per_m: 5 },
   { id: "d4", name: "Big angle", brings: "Higher targets: more angle, more speed.", points: 240, silver_per_m: 3, gold_per_m: 6 },
   { id: "d5", name: "Touge", brings: "The bendiest stretch of the island, end to end.", points: 300, silver_per_m: 3.5, gold_per_m: 7 },
+  { id: "d6", name: "One chain", brings: "One slide end to end: straighten up or touch a wall and the run is over.", points: 200, silver_per_m: 4, gold_per_m: 8, chain: true },
 ];
 
 export interface Zone {
@@ -145,6 +148,8 @@ export class DriftRun {
   started = 0;
   ended = 0;
   timed_out = false;
+  /** On a chain level, how the chain ended the run before the zone's end; NONE otherwise. */
+  broke: ComboEnd = ComboEnd.NONE;
   readonly combo = new Combo();
   readonly tracker: RouteTracker;
   private readonly solids: readonly Solid[];
@@ -195,9 +200,10 @@ export class DriftRun {
     const speed = Math.hypot(pose.vx, pose.vz);
     const end = this.combo.step(dt_ms, slip(pose), speed, forward && this.tracker.offset <= road_half + ROAD_SLACK, wall);
     const out_of_time = this.clock - this.started >= this.zone.max_ms;
-    if (index >= last || out_of_time) {
+    if (this.zone.level.chain && end !== ComboEnd.NONE) this.broke = end;
+    if (index >= last || out_of_time || this.broke !== ComboEnd.NONE) {
       this.combo.bank();
-      this.timed_out = out_of_time && index < last;
+      this.timed_out = out_of_time && index < last && this.broke === ComboEnd.NONE;
       this.status = DriftStatus.DONE;
       this.ended = this.clock;
     }
