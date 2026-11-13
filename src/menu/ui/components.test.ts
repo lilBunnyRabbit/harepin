@@ -156,6 +156,9 @@ describe("ui components", () => {
     expect(html(Badge, { tone: "primary", children: text("New") })).toContain('data-tone="primary"');
     const badge = html(ClassBadge, { rating: { pi: 512, class: "b" } });
     expect(badge).toContain('aria-label="Class B, PI 512"');
+    const cap = html(ClassBadge, { cap: "c" });
+    expect(cap).toContain('aria-label="Class C or lower"');
+    expect(cap).toMatch(/>max</);
   });
 
   test("TierBadge names its tier unless it is decorative", () => {

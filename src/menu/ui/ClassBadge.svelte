@@ -1,19 +1,18 @@
 <script lang="ts">
-  import { CLASS_LABELS, type Rating } from "../../car/pi";
+  import { CLASS_LABELS, type CarClass, type Rating } from "../../car/pi";
 
-  interface Props {
-    rating: Rating;
-    size?: "md" | "lg";
-  }
+  // A car shows its rating; an event's limit shows the top class it lets in, with "max" where the PI goes.
+  type Props = ({ rating: Rating; cap?: never } | { cap: CarClass; rating?: never }) & { size?: "md" | "lg" };
 
-  let { rating, size = "md" }: Props = $props();
+  let { rating, cap, size = "md" }: Props = $props();
 
-  const letter = $derived(CLASS_LABELS[rating.class]);
+  const cls = $derived(rating?.class ?? cap!);
+  const letter = $derived(CLASS_LABELS[cls]);
 </script>
 
-<span class="ui-class-badge" data-class={rating.class} data-size={size} aria-label={`Class ${letter}, PI ${rating.pi}`}>
+<span class="ui-class-badge" data-class={cls} data-size={size} aria-label={rating ? `Class ${letter}, PI ${rating.pi}` : `Class ${letter} or lower`}>
   <b class="ui-letter">{letter}</b>
-  <span class="ui-pi">{rating.pi}</span>
+  <span class="ui-pi">{rating ? rating.pi : "max"}</span>
 </span>
 
 <style>
