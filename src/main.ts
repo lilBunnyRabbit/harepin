@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { Audio } from "./audio/audio";
+import { Audio, type SoundFrame } from "./audio/audio";
 import { EVENTS, EVENT_PARAM, TUNE_PARAM, current_tier, event_of, type CareerEvent } from "./career/career";
 import { CareerButton } from "./career/career-button";
 import { Career, event_map } from "./career/career-store";
@@ -121,6 +121,7 @@ const light = new Lighting(scene, look.mood, quality.mobile);
 const render = new Render(params, quality, scene, camera, light);
 const app = $("app");
 render.mount(app);
+render.start(app);
 render.apply_quality();
 const area_fade = new AreaFade(app);
 const stream = await opening;
@@ -537,13 +538,14 @@ const black = new THREE.Color(0, 0, 0);
 function update_gates(t: number) {
   // In a mode run the arch lit is the run's next gate, when one stands there; the free lap's next would point elsewhere.
   const target = modes.active ? (modes.route?.gate ?? null) : null;
-  gate_views.forEach((g, i) => {
-    if (!g) return;
+  for (let i = 0; i < gate_views.length; i++) {
+    const g = gate_views[i];
+    if (!g) continue;
     const cp = world.checkpoints[i];
     const next = modes.active ? target !== null && Math.hypot(cp.x - target.x, cp.z - target.z) < 1 : i === race.next;
     g.material.color.copy(next ? lit : unlit);
     g.material.emissive.copy(next ? lit : black).multiplyScalar(next ? 0.55 + Math.sin(t * 6) * 0.25 : 0);
-  });
+  }
 }
 
 const TOGGLE_LABEL = { tcs: "TCS", abs: "ABS", assist: "Steering assist", stability: "Stability", ghost: "Ghost" } as const;
@@ -614,15 +616,28 @@ let rewinding = false;
 
 const NEAR_GAP = 1.2;
 const NEAR_PEER = 4;
-/** Something close this frame, and whether the pass touched it (a crash, or driving through a ghost peer). */
+const up_scratch = new THREE.Vector3();
+const sound: SoundFrame = { rpm: 0, throttle: 0, scrub: 0, speed: 0, offroad: false, sound: driver.car.spec.sound, redline: 0, boost: false };
+const miss: { near: Near; touched: boolean } = { near: null, touched: false };
+/** Something close this frame, and whether the pass touched it (a crash, or driving through a ghost peer). Reused each frame. */
 function near_miss(impact: number): { near: Near; touched: boolean } {
   const car = driver.car;
-  if (!car.nitro.fitted) return { near: null, touched: false };
+  miss.near = null;
+  miss.touched = false;
+  if (!car.nitro.fitted) return miss;
+  miss.touched = impact > 0;
   const solid = world.grazes(car, NEAR_GAP);
-  if (solid) return { near: solid, touched: impact > 0 };
+  if (solid) {
+    miss.near = solid;
+    return miss;
+  }
   const ghost = remotes.nearest(car.pos);
   const pass = ghost ? peer_pass(ghost.distance, NEAR_PEER) : null;
-  return ghost && pass?.close ? { near: ghost.id, touched: pass.touched } : { near: null, touched: impact > 0 };
+  if (ghost && pass?.close) {
+    miss.near = ghost.id;
+    miss.touched = pass.touched;
+  }
+  return miss;
 }
 
 // The online badge follows the career's stars: a finished final shows to peers at once.
@@ -652,8 +667,7 @@ function frame(time: number) {
   }
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
-  // Before any HUD write this frame: the size read would otherwise force a layout.
-  render.fit(app);
+  render.fit();
   const { controls, actions } = input.read();
   if (garage.is_open && !modal_open()) garage.navigate(input.nav);
   else pad_menu.navigate(input.nav);
@@ -705,7 +719,7 @@ function frame(time: number) {
     if (race.started) ghost.record(now - race.started, car);
   }
 
-  const upright = new THREE.Vector3(0, 1, 0).applyQuaternion(car.quat).y;
+  const upright = up_scratch.set(0, 1, 0).applyQuaternion(car.quat).y;
   if (world.fallen(car.pos)) {
     void driver.fall_back(modes.route);
     stuck = 0;
@@ -753,7 +767,15 @@ function frame(time: number) {
 
   const speed = car.vel.length();
   const scrub = car.scrub * Math.min(1, speed / 6) * (offroad ? 0.3 : 1);
-  audio.update({ rpm: car.rpm, throttle: car.throttle, scrub, speed, offroad, sound: car.spec.sound, redline: car.spec.redline, boost: car.nitro.boosting });
+  sound.rpm = car.rpm;
+  sound.throttle = car.throttle;
+  sound.scrub = scrub;
+  sound.speed = speed;
+  sound.offroad = offroad;
+  sound.sound = car.spec.sound;
+  sound.redline = car.spec.redline;
+  sound.boost = car.nitro.boosting;
+  audio.update(sound);
   // Off behind any menu, a lobby keeps driving with one open; a held sim (rewind, countdown) has no drive to feel.
   if (simulated && !input.blocked()) {
     const effect = rumble.update(now, dt, sense_drive(rumble_sense, car, world, impact));

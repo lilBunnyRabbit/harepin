@@ -104,9 +104,11 @@ export class Smoke {
         this.emit(w.point, car.vel, tint, size, life);
       }
     });
+    let alive = false;
     for (let i = 0; i < PUFFS; i++) {
       const p = this.puffs[i];
       if (p.age >= p.life) continue;
+      alive = true;
       p.age += dt;
       p.pos.addScaledVector(p.vel, dt);
       p.vel.multiplyScalar(1 - dt * 1.8);
@@ -116,6 +118,8 @@ export class Smoke {
       this.q.setFromAxisAngle(UP, p.spin + t * 2);
       this.mesh.setMatrixAt(i, this.matrix.compose(p.pos, this.q, this.s.setScalar(scale)));
     }
+    // A puff's last update writes its zero scale, so once none is left the buffers already hold what they should.
+    if (!alive) return;
     this.mesh.instanceMatrix.needsUpdate = true;
     if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
   }

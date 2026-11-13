@@ -21,7 +21,8 @@ function on_pad(deck: DeckIndex, p: Vector3): boolean {
   const hit = deck.surface(p.x, p.z, p.y);
   if (!hit || Math.abs(hit.u) > PAD_HALF) return false;
   const s = deck.at(hit.index, 8);
-  return deck.deck.pads.some((pad) => s >= pad.s0 && s <= pad.s1);
+  for (const pad of deck.deck.pads) if (s >= pad.s0 && s <= pad.s1) return true;
+  return false;
 }
 
 /**
@@ -37,8 +38,16 @@ export class PadTimer {
   step(dt: number, car: Pick<Car, "quat" | "vel" | "wheels">, world: Pick<World, "deck">): void {
     const deck = world.deck;
     if (!deck || !deck.deck.pads.length) return;
-    const grounded = car.wheels.some((w) => w.contact);
-    const on = car.wheels.some((w) => w.contact && on_pad(deck, w.point));
+    let grounded = false;
+    let on = false;
+    for (const w of car.wheels) {
+      if (!w.contact) continue;
+      grounded = true;
+      if (on_pad(deck, w.point)) {
+        on = true;
+        break;
+      }
+    }
     if (on && !this.on) this.left = PAD_TIME;
     this.on = on;
     if (this.left <= 0) return;

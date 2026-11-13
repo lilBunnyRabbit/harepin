@@ -34,6 +34,11 @@ const ABOVE = 2.2;
 const REBUILD_GAP_MS = 1000;
 
 // Peers that predate build codes only send a paint index; they show as a stock coupe in that paint.
+interface Nearest {
+  id: string;
+  distance: number;
+}
+
 interface Resolved {
   build: Build;
   code: string;
@@ -83,6 +88,7 @@ function translucent_view(build: Build, spec: CarSpec): { view: CarView; materia
 
 export class Remotes {
   private views = new Map<string, RemoteView>();
+  private readonly near: Nearest = { id: "", distance: 0 };
   private q0 = new THREE.Quaternion();
   private q1 = new THREE.Quaternion();
   private p1 = new THREE.Vector3();
@@ -96,14 +102,17 @@ export class Remotes {
     private world: World,
   ) {}
 
-  /** The peer car nearest `to` where it is drawn (interpolated), and how far away it is in metres. */
-  nearest(to: THREE.Vector3): { id: string; distance: number } | null {
-    let best: { id: string; distance: number } | null = null;
+  /** The peer car nearest `to` where it is drawn (interpolated), and how far away it is in metres. The result is reused by the next call. */
+  nearest(to: THREE.Vector3): Readonly<Nearest> | null {
+    let found = false;
     for (const [id, rv] of this.views) {
       const distance = rv.view.root.position.distanceTo(to);
-      if (!best || distance < best.distance) best = { id, distance };
+      if (found && distance >= this.near.distance) continue;
+      found = true;
+      this.near.id = id;
+      this.near.distance = distance;
     }
-    return best;
+    return found ? this.near : null;
   }
 
   update(dt: number, camera: THREE.Camera, me: THREE.Vector3) {
