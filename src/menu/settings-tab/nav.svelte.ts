@@ -1,4 +1,4 @@
-import { getContext, setContext, tick, type Snippet } from "svelte";
+import { flushSync, getContext, setContext, tick, type Snippet } from "svelte";
 import { DEFAULT_SETTINGS, type SettingKey, type SettingsState } from "../prefs";
 import { CHANGES, DEEP, SECTIONS, list_help } from "./sections";
 
@@ -73,10 +73,12 @@ export class SettingsNav {
     this.help = help;
   }
 
-  show(id: string) {
+  show(id: string, flush = true) {
     const sub = SUBS.get(id);
     if (!sub) return;
+    // The pad focuses the new section's first row right after this returns, so its rows must already be visible.
     this.sub = id;
+    if (flush) flushSync();
     void tick().then(() => {
       if (this.sub !== id) return;
       this.list?.parentElement?.scrollTo({ top: 0 });

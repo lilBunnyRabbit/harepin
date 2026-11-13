@@ -7,7 +7,7 @@
   interface Props {
     label: string;
     help: string | (() => string);
-    value: T;
+    value: T | null;
     options: readonly Option<T>[];
     onchange: (value: T) => void;
     visual?: Snippet;

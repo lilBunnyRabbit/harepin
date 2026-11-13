@@ -3,7 +3,8 @@
 
   interface Props {
     options: readonly Option<T>[];
-    value: T;
+    /** null: no option picked, as for a custom mix that matches none. */
+    value: T | null;
     label: string;
     disabled?: boolean;
     tabindex?: number;

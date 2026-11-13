@@ -38,7 +38,7 @@
 <ChoiceRow
   label="Preset"
   help="Sets the five aids below in one go. Easy looks after grip, brakes and slides. Balanced keeps traction and ABS, so a sharp turn at speed slides. Pro turns everything off (on touch the gearbox stays automatic). Change any toggle for your own mix."
-  value={preset_of(live.prefs, touch()) as AidPreset}
+  value={preset_of(live.prefs, touch())}
   options={PRESETS}
   onchange={preset}
 />

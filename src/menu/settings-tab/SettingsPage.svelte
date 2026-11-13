@@ -46,7 +46,7 @@
   const help = $derived(nav.help);
 
   $effect(() => {
-    if (shown) untrack(() => nav.show(nav.sub));
+    if (shown) untrack(() => nav.show(nav.sub, false));
   });
 </script>
 
@@ -99,11 +99,15 @@
   </div>
 
   <aside class="set-help" aria-live="polite">
-    {#if help}
-      <SectionHead title={help.title} level={4} />
-      <p class="set-help-text">{help.text()}</p>
-      {#if help.visual}<div class="set-help-visual">{@render help.visual()}</div>{/if}
-    {/if}
+    <ScrollArea class="set-help-scroll">
+      {#if help}
+        <div class="set-help-body">
+          <SectionHead title={help.title} level={4} />
+          <p class="set-help-text">{help.text()}</p>
+          {#if help.visual}<div class="set-help-visual">{@render help.visual()}</div>{/if}
+        </div>
+      {/if}
+    </ScrollArea>
   </aside>
 
   <div class="set-legend">
@@ -207,12 +211,15 @@
     grid-area: help;
     display: flex;
     flex-direction: column;
-    gap: var(--space-3);
     min-height: 0;
-    padding: var(--space-6);
-    overflow-y: auto;
-    scrollbar-width: none;
     border-left: 1px solid var(--set-line);
+  }
+
+  .set-help-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-6);
   }
 
   .set-help-text {
@@ -255,11 +262,17 @@
     }
 
     .set-help {
-      gap: var(--space-1);
-      max-height: 9rem;
-      padding: var(--space-3) var(--space-5);
       border-top: 1px solid var(--set-line);
       border-left: 0;
+    }
+
+    .set-help > :global(.set-help-scroll) {
+      max-height: 9rem;
+    }
+
+    .set-help-body {
+      gap: var(--space-1);
+      padding: var(--space-3) var(--space-5);
     }
 
     .set-help-text {
@@ -310,19 +323,26 @@
       padding: 0 var(--space-2) var(--space-3);
     }
 
-    .set-help {
-      max-height: 6rem;
-      padding: var(--space-2) var(--space-4);
+    .set-help > :global(.set-help-scroll) {
+      max-height: none;
     }
-  }
 
-  @media (max-width: 400px) {
+    .set-help-body {
+      padding: var(--space-2) var(--space-4) var(--space-3);
+    }
+
     .set-reset-long {
       display: none;
     }
 
     .set-reset-short {
       display: inline;
+    }
+  }
+
+  @media (max-height: 500px) {
+    .set-help > :global(.set-help-scroll) {
+      max-height: 5rem;
     }
   }
 </style>
