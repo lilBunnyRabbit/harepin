@@ -22,15 +22,23 @@
     tooltip?: string;
     onclick?: () => void;
     children?: Snippet;
+    /** A block under the text across the tile's full width, such as a car's spec sheet; the tile then stacks top down. */
+    detail?: Snippet;
+    /** Small content at the title's end, such as a class badge; the title gives way to it. */
+    aside?: Snippet;
   }
 
-  let { title, meta, thumb, icon, size = "md", variant = "card", clamp, selected, current = false, disabled = false, reason, tooltip, onclick, children }: Props = $props();
+  let { title, meta, thumb, icon, size = "md", variant = "card", clamp, selected, current = false, disabled = false, reason, tooltip, onclick, children, detail, aside }: Props = $props();
 </script>
 
-<button type="button" class="ui-tile" data-size={size} data-variant={variant} aria-pressed={selected} aria-current={current || undefined} title={tooltip} {disabled} {onclick}>
+<button type="button" class="ui-tile" data-size={size} data-variant={variant} data-detail={detail ? "" : undefined} aria-pressed={selected} aria-current={current || undefined} title={tooltip} {disabled} {onclick}>
   {#if thumb}<img class="ui-thumb" src={thumb} alt="" loading="lazy" />{:else if icon}<span class="ui-thumb ui-icon"><Icon name={icon} /></span>{/if}
   <span class="ui-text">
-    <span class="ui-title">{title}</span>
+    {#if aside}
+      <span class="ui-title-row"><span class="ui-title">{title}</span>{@render aside()}</span>
+    {:else}
+      <span class="ui-title">{title}</span>
+    {/if}
     {#if meta}<small class="ui-meta" class:ui-clamp={clamp !== undefined} style:--clamp={clamp}>{meta}</small>{/if}
     {#if reason}
       <span class="ui-foot">{@render children?.()}<small class="ui-reason">{@render reason()}</small></span>
@@ -38,6 +46,7 @@
       {@render children?.()}
     {/if}
   </span>
+  {#if detail}<span class="ui-detail">{@render detail()}</span>{/if}
 </button>
 
 <style>
@@ -138,6 +147,14 @@
     white-space: nowrap;
   }
 
+  .ui-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    min-width: 0;
+  }
+
   .ui-meta {
     color: var(--set-dim);
     font-size: var(--text-sm);
@@ -152,6 +169,30 @@
     -webkit-box-orient: vertical;
     -webkit-line-clamp: var(--clamp);
     line-clamp: var(--clamp);
+  }
+
+  [data-detail] {
+    flex-direction: column;
+    height: auto;
+    align-items: stretch;
+    gap: var(--space-3);
+    padding: var(--space-4);
+  }
+
+  /* One row of tags: a spec card keeps one height, so a long row clips instead of wrapping. */
+  [data-detail] .ui-foot {
+    min-height: var(--space-5);
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+
+  [data-detail] .ui-reason {
+    flex: none;
+  }
+
+  .ui-detail {
+    display: grid;
+    min-width: 0;
   }
 
   [data-variant="nav"] {
