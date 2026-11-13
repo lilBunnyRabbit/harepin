@@ -23,6 +23,16 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.41.0",
+    date: "2026-11-13",
+    title: "Road trip",
+    changes: [
+      { kind: NEW, text: "Mainland road trip: race between the two towns farthest apart. Sprint and road trip are in the event builder too." },
+      { kind: NEW, text: "Banked run on Sky Track: the most-banked stretch of the circuit." },
+      { kind: IMPROVED, text: "Phone HUD: only driving controls stay on screen; everything else lives in one menu. A Rewind / Reset prompt shows when you're stuck." },
+    ],
+  },
+  {
     version: "0.40.1",
     date: "2026-11-13",
     title: "Pick a car",
