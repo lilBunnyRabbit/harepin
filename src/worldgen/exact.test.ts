@@ -12,6 +12,8 @@ const ALLOWED: Record<string, number> = {
   "index.ts": 2,
   "landmark-mesh.ts": 4,
   "landmarks.ts": 2,
+  // The lab is one hand-laid layout driven solo: no peer ever compares it, so its arcs keep sin and cos.
+  "lab.ts": 16,
   "lots.ts": 2,
   "map.ts": 4,
   "noise.ts": 1,
