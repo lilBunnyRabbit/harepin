@@ -318,8 +318,8 @@
   font-size: 24px;
 }
 
-/* Centred, the strip meets the button bar below 1440px; there it keeps the Classic spot. */
-@media (pointer: fine) and (min-width: 1440px) {
+/* Centred, the strip meets the button bar below 1600px; there it keeps the Classic spot. */
+@media (pointer: fine) and (min-width: 1600px) {
   :root[data-hud="racing"] #strip {
     left: 50%;
     translate: -50% 0;

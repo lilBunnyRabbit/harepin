@@ -2,6 +2,7 @@ import { keys_text, type Bindable, type Bindings } from "./bindings";
 
 const HINTS: [string, string, Bindable][] = [
   ["#restart-lap", "Restart lap", "restart"],
+  ["#garage-btn", "Garage", "garage"],
   ["#recenter", "Recenter camera", "recenter"],
   ['.aid-key[data-aid="tcs"]', "Traction control", "tcs"],
   ['.aid-key[data-aid="abs"]', "ABS", "abs"],
