@@ -55,7 +55,9 @@ const ENTRY_W = 6;
 const PARKED = { w: 1.9, l: 4.5, h: 1.4 };
 const LIGHT_EVERY = 30;
 const LIGHT_HEIGHT = 6;
-const STREET_TREE_EVERY = 12;
+// Phones pay for every town tree: at one a side every 12 m and two a garden a town frame cost a third more.
+const STREET_TREE_EVERY = 15;
+const BACK_TREE_ODDS = 0.5;
 const CLOCK = { half: 2.6, height: 15 };
 /** A spire climbs this many times its half width. */
 const SPIRE_PITCH = 2.7;
@@ -372,7 +374,7 @@ export class Lots {
       this.out.solids.push({ kind: "box", x, y: this.sample(this.terrain.heights, x, z), z, hw: run.hw, hd: run.hd, cos: lot.fz, sin: lot.fx, height: HEDGE_TOP });
     }
     const back = shape.front - shape.hd + lot.d / 2;
-    const trees = back > 4 ? 1 + Math.floor(hash(lot.id, 1, this.seed + 74) * 2) : 0;
+    const trees = back > 4 && hash(lot.id, 1, this.seed + 74) < BACK_TREE_ODDS ? 1 : 0;
     for (let i = 0; i < trees; i++) {
       const [x, z] = local_to_world(lot, (hash(lot.id, 2 + i, this.seed + 74) - 0.5) * (lot.w - 4), -lot.d / 2 + 1.5 + hash(lot.id, 4 + i, this.seed + 74) * (back - 3));
       this.tree(x, z, hash(lot.id, 6 + i, this.seed + 74));
@@ -391,13 +393,13 @@ export class Lots {
     const b = edge.points[edge.points.length - 1];
     const len = length(b.x - a.x, b.z - a.z);
     const { tx, tz } = a;
-    for (let u = CORNER_CLEAR + STREET_TREE_EVERY / 2, n = 0; u < len - CORNER_CLEAR - 4; u += STREET_TREE_EVERY, n++)
-      for (const side of [-1, 1]) {
-        const x = a.x + tx * u - tz * side * (half + 1.1);
-        const z = a.z + tz * u + tx * side * (half + 1.1);
-        if (this.occupied[this.vertex_at(x, z)] || this.sample(this.terrain.road_dist, x, z) < ROAD_HALF + 0.5) continue;
-        this.street_tree(x, z, hash(edge.id, n * 2 + side, this.seed + 77));
-      }
+    for (let u = CORNER_CLEAR + STREET_TREE_EVERY / 2, n = 0; u < len - CORNER_CLEAR - 4; u += STREET_TREE_EVERY, n++) {
+      const side = n % 2 ? 1 : -1;
+      const x = a.x + tx * u - tz * side * (half + 1.1);
+      const z = a.z + tz * u + tx * side * (half + 1.1);
+      if (this.occupied[this.vertex_at(x, z)] || this.sample(this.terrain.road_dist, x, z) < ROAD_HALF + 0.5) continue;
+      this.street_tree(x, z, hash(edge.id, n, this.seed + 77));
+    }
   }
 
   /** A paved square on a block beside the town's centre crossing, a clock tower in its middle; a town with no room for one goes without. */
