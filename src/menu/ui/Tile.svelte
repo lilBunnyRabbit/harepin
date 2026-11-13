@@ -8,16 +8,18 @@
     thumb?: string;
     icon?: string;
     size?: "sm" | "md";
+    /** `nav`: a side-nav item, flat until picked; on phones and short screens it stacks into a rail icon over its title. */
+    variant?: "card" | "nav";
     selected?: boolean;
     disabled?: boolean;
     onclick?: () => void;
     children?: Snippet;
   }
 
-  let { title, meta, thumb, icon, size = "md", selected = false, disabled = false, onclick, children }: Props = $props();
+  let { title, meta, thumb, icon, size = "md", variant = "card", selected = false, disabled = false, onclick, children }: Props = $props();
 </script>
 
-<button type="button" class="ui-tile" data-size={size} aria-pressed={selected} {disabled} {onclick}>
+<button type="button" class="ui-tile" data-size={size} data-variant={variant} aria-pressed={selected} {disabled} {onclick}>
   {#if thumb}<img class="ui-thumb" src={thumb} alt="" loading="lazy" />{:else if icon}<span class="ui-thumb ui-icon"><Icon name={icon} /></span>{/if}
   <span class="ui-text">
     <span class="ui-title">{title}</span>
@@ -100,5 +102,65 @@
     color: var(--set-dim);
     font-size: var(--text-sm);
     line-height: 1.4;
+  }
+
+  [data-variant="nav"] {
+    flex: none;
+    border-color: transparent;
+    background: none;
+  }
+
+  [data-variant="nav"]:hover:not(:disabled) {
+    border-color: transparent;
+    background: color-mix(in oklch, var(--set-raised) 50%, transparent);
+  }
+
+  [data-variant="nav"][aria-pressed="true"] {
+    border-color: var(--set-line);
+    background: var(--set-raised);
+  }
+
+  [data-variant="nav"] .ui-icon {
+    background: none;
+    color: var(--set-dim);
+  }
+
+  [data-variant="nav"][aria-pressed="true"] .ui-icon {
+    color: var(--primary);
+  }
+
+  [data-variant="nav"] .ui-meta {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  @media (max-height: 500px), (max-width: 600px) {
+    [data-variant="nav"] {
+      flex-direction: column;
+      justify-content: center;
+      gap: var(--space-1);
+      height: auto;
+      padding: var(--space-2) var(--space-1);
+    }
+
+    [data-variant="nav"] .ui-thumb {
+      height: auto;
+      aspect-ratio: auto;
+    }
+
+    [data-variant="nav"] .ui-text {
+      justify-items: center;
+      width: 100%;
+    }
+
+    [data-variant="nav"] .ui-title {
+      max-width: 100%;
+      font-size: var(--text-xs);
+    }
+
+    [data-variant="nav"] .ui-meta {
+      display: none;
+    }
   }
 </style>

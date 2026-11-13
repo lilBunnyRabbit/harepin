@@ -6,10 +6,11 @@
     value: T;
     label: string;
     disabled?: boolean;
+    tabindex?: number;
     onchange?: (value: T) => void;
   }
 
-  let { options, value = $bindable(), label, disabled = false, onchange }: Props = $props();
+  let { options, value = $bindable(), label, disabled = false, tabindex, onchange }: Props = $props();
 
   function pick(next: T) {
     value = next;
@@ -19,7 +20,7 @@
 
 <div class="ui-segmented" role="radiogroup" aria-label={label}>
   {#each options as option (option.value)}
-    <button type="button" class="ui-segment" role="radio" aria-checked={option.value === value} {disabled} onclick={() => pick(option.value)}>{option.label}</button>
+    <button type="button" class="ui-segment" role="radio" aria-checked={option.value === value} {disabled} {tabindex} onclick={() => pick(option.value)}>{option.label}</button>
   {/each}
 </div>
 

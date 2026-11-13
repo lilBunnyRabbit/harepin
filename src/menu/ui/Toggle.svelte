@@ -3,10 +3,11 @@
     checked: boolean;
     label: string;
     disabled?: boolean;
+    tabindex?: number;
     onchange?: (checked: boolean) => void;
   }
 
-  let { checked = $bindable(), label, disabled = false, onchange }: Props = $props();
+  let { checked = $bindable(), label, disabled = false, tabindex, onchange }: Props = $props();
 
   function flip() {
     checked = !checked;
@@ -14,7 +15,7 @@
   }
 </script>
 
-<button type="button" class="ui-toggle" role="switch" aria-checked={checked} aria-label={label} {disabled} onclick={flip}>
+<button type="button" class="ui-toggle" role="switch" aria-checked={checked} aria-label={label} {disabled} {tabindex} onclick={flip}>
   <span class="ui-knob"></span>
 </button>
 

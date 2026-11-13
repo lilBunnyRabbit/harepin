@@ -10,9 +10,12 @@
     external?: boolean;
     onclick?: () => void;
     control?: Snippet;
+    detail?: Snippet;
+    /** Phones put the control under the label, at full width. */
+    stack?: boolean;
   }
 
-  let { label, help, icon, href, external = false, onclick, control }: Props = $props();
+  let { label, help, icon, href, external = false, onclick, control, detail, stack = false }: Props = $props();
 </script>
 
 {#snippet text()}
@@ -20,6 +23,7 @@
   <span class="ui-text">
     <span class="ui-label">{label}</span>
     {#if help}<small class="ui-help">{help}</small>{/if}
+    {#if detail}<span class="ui-help">{@render detail()}</span>{/if}
   </span>
 {/snippet}
 
@@ -34,7 +38,7 @@
     <span class="ui-end"><Icon name="icon-back" flip /></span>
   </button>
 {:else}
-  <div class="ui-row">
+  <div class="ui-row" class:ui-stack={stack}>
     {@render text()}
     {#if control}<span class="ui-control">{@render control()}</span>{/if}
   </div>
@@ -114,6 +118,21 @@
   @media (pointer: coarse) {
     .ui-row {
       --row-h: 80px;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .ui-stack {
+      flex-wrap: wrap;
+      row-gap: var(--space-3);
+    }
+
+    .ui-stack .ui-control {
+      flex: 1 0 100%;
+    }
+
+    .ui-stack .ui-control > :global(*) {
+      flex: 1;
     }
   }
 </style>

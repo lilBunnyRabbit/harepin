@@ -6,15 +6,19 @@
     options: readonly Option<T>[];
     value: T;
     label: string;
+    wrap?: boolean;
+    /** Past this many options the dots stop reading as a position and become a smear, so they hide. */
+    max_dots?: number;
+    tabindex?: number;
     onchange?: (value: T) => void;
   }
 
-  let { options, value = $bindable(), label, onchange }: Props = $props();
+  let { options, value = $bindable(), label, wrap = false, max_dots = Infinity, tabindex, onchange }: Props = $props();
 
   const index = $derived(options.findIndex((option) => option.value === value));
 
   function step(by: number) {
-    const next = options[index + by];
+    const next = options[wrap ? (index + by + options.length) % options.length : index + by];
     if (!next) return;
     value = next.value;
     onchange?.(next.value);
@@ -22,14 +26,16 @@
 </script>
 
 <div class="ui-stepper" role="group" aria-label={label}>
-  <IconButton icon="icon-back" label="Previous" size="sm" disabled={index <= 0} onclick={() => step(-1)} />
+  <IconButton icon="icon-back" label="Previous" size="sm" {tabindex} disabled={!wrap && index <= 0} onclick={() => step(-1)} />
   <div class="ui-middle">
     <span class="ui-value" aria-live="polite">{options[index]?.label ?? ""}</span>
-    <span class="ui-dots" aria-hidden="true">
-      {#each options as option, at (option.value)}<span class="ui-dot" class:ui-on={at === index}></span>{/each}
-    </span>
+    {#if options.length <= max_dots}
+      <span class="ui-dots" aria-hidden="true">
+        {#each options as option, at (option.value)}<span class="ui-dot" class:ui-on={at === index}></span>{/each}
+      </span>
+    {/if}
   </div>
-  <IconButton icon="icon-back" label="Next" size="sm" flip disabled={index >= options.length - 1} onclick={() => step(1)} />
+  <IconButton icon="icon-back" label="Next" size="sm" flip {tabindex} disabled={!wrap && index >= options.length - 1} onclick={() => step(1)} />
 </div>
 
 <style>

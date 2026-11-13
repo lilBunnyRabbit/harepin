@@ -7,16 +7,17 @@
     label: string;
     format?: (value: number) => string;
     disabled?: boolean;
+    tabindex?: number;
     onchange?: (value: number) => void;
   }
 
-  let { value = $bindable(), min, max, step = 1, label, format = String, disabled = false, onchange }: Props = $props();
+  let { value = $bindable(), min, max, step = 1, label, format = String, disabled = false, tabindex, onchange }: Props = $props();
 
   const fill = $derived(`${((value - min) / (max - min)) * 100}%`);
 </script>
 
 <div class="ui-slider">
-  <input type="range" class="ui-range" {min} {max} {step} {disabled} aria-label={label} style:--fill={fill} bind:value oninput={() => onchange?.(value)} />
+  <input type="range" class="ui-range" {min} {max} {step} {disabled} {tabindex} aria-label={label} style:--fill={fill} bind:value oninput={() => onchange?.(value)} />
   <output class="ui-value">{format(value)}</output>
 </div>
 
