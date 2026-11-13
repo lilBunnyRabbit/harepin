@@ -369,6 +369,8 @@ export interface Ramp {
   back?: number;
   /** A sky-track lip built into the deck: listed for map marks, spawn blocks and autolap, never ridden as a wedge. */
   deck?: true;
+  /** A kicker whose run-up from the start is too steep for the starter car to take off; see `mark_steep_runups`. */
+  steep?: true;
 }
 
 export const ItemKind = { CONE: "cone", BARREL: "barrel", HAY: "hay", LOG: "log", ROCK: "rock", BARRIER: "barrier" } as const;

@@ -91,7 +91,7 @@ export const JUMP_MODE: ModeDef<JumpLevel> = {
   car_sized_only: false,
   busy_notice: "Leave the lobby race to jump",
   score_text: metres,
-  levels: (world) => jump_levels(world.ramps, world.challenges, world),
+  levels: (world) => jump_levels(world.ramps, world.challenges),
   start: (ctx, level) => {
     const jump = jump_at(ctx.world, ctx.start_index, level);
     return jump ? new JumpDistance(ctx, jump) : NO_RAMP;
