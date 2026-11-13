@@ -72,6 +72,7 @@ export const SLASH: Point[][] = [
 
 // Career reward motifs, one per tier final's world: Sky Track chevrons, Volcano lava cracks, Ice canyon frost shards bursting
 // from one point, Big dunes ridges climbing a long windward to a crest and dropping down a short slip face toward the front.
+// Velodrome lane lines through a banked bend: along the sill, then swept up to the window line.
 // Points are door space like the decals above: u rear to front, v sill to window line. Shards are drawn in square space
 // and squashed by SQUARE, about the door's length over its height, so they keep their angles.
 const SQUARE = 4.5;
@@ -124,13 +125,33 @@ function ridge(u: number, v: number, long: number, high: number): Point[] {
   return crack(line, t.map((at) => RIDGE_HALF * Math.sqrt(Math.sin(at * Math.PI))), 1);
 }
 
-export const REWARD_MOTIFS: Record<Extract<Decal, "sky" | "volcano" | "ice" | "dunes">, Point[][]> = {
+// Offsets along the normal in the door's real proportions, so a band keeps its width as it turns.
+function stroke(line: Point[], half: number): Point[] {
+  const flat = line.map(([u, v]): Point => [u * SQUARE, v]);
+  const side = (s: number) =>
+    flat.map(([x, y], i): Point => {
+      const [ax, ay] = flat[Math.max(0, i - 1)];
+      const [bx, by] = flat[Math.min(flat.length - 1, i + 1)];
+      const length = Math.hypot(bx - ax, by - ay) || 1;
+      return [(x - (s * half * (by - ay)) / length) / SQUARE, y + (s * half * (bx - ax)) / length];
+    });
+  return [...side(1), ...side(-1).reverse()];
+}
+
+const arc = (steps: number, at: (t: number) => Point) => Array.from({ length: steps + 1 }, (_, i) => at(i / steps));
+
+function lane(u0: number, v0: number, u1: number, v1: number, half: number): Point[] {
+  return stroke(arc(10, (t) => [u0 + (u1 - u0) * Math.sin((t * Math.PI) / 2), v1 - (v1 - v0) * Math.cos((t * Math.PI) / 2)]), half);
+}
+
+export const REWARD_MOTIFS: Record<Extract<Decal, "sky" | "volcano" | "ice" | "dunes" | "velodrome">, Point[][]> = {
   sky: [chevron(0.24, 0.28, 0.72), chevron(0.42, 0.18, 0.82), chevron(0.6, 0.08, 0.92)],
   volcano: [crack(FISSURE, FISSURE_HALF, 1), ...BRANCHES.map((line) => crack(line, taper(line, 0.03), 0))],
   ice: [
     [1.5, 2.6, 0.16], [1.3, 2.1, 0.15], [1.05, 1.5, 0.14], [0.75, 1, 0.12], [1.65, 1.5, 0.1],
   ].map(([tilt, length, width]) => shard(0.06, 0.2, tilt, length, width)),
   dunes: [ridge(0.04, 0.08, 0.56, 0.22), ridge(0.56, 0.32, 0.4, 0.26), ridge(0.1, 0.6, 0.5, 0.24)],
+  velodrome: [lane(0.06, 0.1, 0.94, 0.92, 0.065), lane(0.24, 0.34, 0.8, 0.92, 0.05), lane(0.42, 0.56, 0.68, 0.92, 0.04)],
 };
 
 export function roof(shell: THREE.BufferGeometry, glass: THREE.Color): Roof {
@@ -459,6 +480,7 @@ function side_layers(livery: Livery, panel: Panel, side: number): Layers {
     case "volcano":
     case "ice":
     case "dunes":
+    case "velodrome":
       return keyed(REWARD_MOTIFS[livery.decal].map(at));
     case "flames":
       return keyed([at(FLAME)]);

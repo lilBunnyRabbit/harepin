@@ -1,4 +1,5 @@
 import { MAX_PAINT, type Decal } from "../car/build";
+import type { CarId } from "../car/cars";
 import type { CarClass } from "../car/pi";
 import type { Stage } from "../modes/championship";
 import { SILVER_SHARE, type StarRun, type Thresholds } from "../modes/track";
@@ -51,9 +52,10 @@ export interface Tier {
   readonly events: readonly CareerEvent[];
   /**
    * `paint`: the build paint index, past `MAX_PAINT`, earned at `paint_at` stars in the tier. `decal`: earned at the
-   * tier's max; none while the tier can still grow. `badge`: the letter on the tier's metal shield.
+   * tier's max; none while the tier can still grow. `badge`: the letter on the tier's metal shield. `car`: a car only
+   * this tier gives.
    */
-  readonly rewards: { readonly paint: number; readonly paint_at: number; readonly decal?: Decal; readonly badge: string };
+  readonly rewards: { readonly paint: number; readonly paint_at: number; readonly decal?: Decal; readonly badge: string; readonly car?: CarId };
 }
 
 const MAINLAND = "1M0E5M3PK";
@@ -146,7 +148,7 @@ export const TIERS: readonly Tier[] = [
     name: "Legend",
     opens_at: 27,
     margin: 1.03,
-    rewards: { paint: MAX_PAINT + 5, paint_at: 18, badge: "L" },
+    rewards: { paint: MAX_PAINT + 5, paint_at: 18, decal: "velodrome", badge: "L", car: "fujin" },
     events: [
       { id: "l1", name: "Coast to coast", mode: "race", level: "trip", map: MAINLAND, car: { cap: "s1" }, tuned: "475664083:m7", stars: { two: 639375, three: 511500 } },
       { id: "l2", name: "Black ice", mode: "gymkhana", level: "g7", map: "1T0000006", car: { cap: "x" }, tuned: "6:t3" },

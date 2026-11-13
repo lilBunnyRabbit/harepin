@@ -189,7 +189,7 @@ export const MAX_PAINT = 15;
 /** Career reward paints, one per tier, at `MAX_PAINT + 1` on: past the wrapped range, so no saved build changes colour. */
 export const REWARD_PAINTS = 5;
 // Append-only: build codes carry the index. From `sky` on, career rewards, one per tier final.
-export const DECALS = ["none", "centre", "twin", "side", "number", "flames", "slash", "checker", "rabbit", "sky", "volcano", "ice", "dunes"] as const;
+export const DECALS = ["none", "centre", "twin", "side", "number", "flames", "slash", "checker", "rabbit", "sky", "volcano", "ice", "dunes", "velodrome"] as const;
 export type Decal = (typeof DECALS)[number];
 export const DECAL_NAMES: Record<Decal, string> = {
   none: "None",
@@ -205,6 +205,7 @@ export const DECAL_NAMES: Record<Decal, string> = {
   volcano: "Cracks",
   ice: "Shards",
   dunes: "Ridges",
+  velodrome: "Lanes",
 };
 export const MAX_DECAL = DECALS.length - 1;
 export const MAX_INK = 8;

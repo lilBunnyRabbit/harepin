@@ -48,6 +48,7 @@ function decal_marks(decal: Decal): DecalShape[] {
     case "volcano":
     case "ice":
     case "dunes":
+    case "velodrome":
       return REWARD_MOTIFS[decal].map((band) => ink(path_of(door(band))));
     case "flames":
       return [ink(path_of(door(FLAME)))];

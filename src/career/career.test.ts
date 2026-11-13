@@ -36,7 +36,7 @@ const all = (stars: number, ids: readonly string[]): Stars => Object.fromEntries
 const ids_of = (tier: number) => TIERS[tier].events.map((event) => event.id);
 
 // A tier still growing has no final yet, and no decal: the decal waits for the tier's max to stop moving. A final can ship
-// before its decal (Legend's art comes later).
+// before its decal.
 test("event ids are unique and a tier's one final ends it", () => {
   expect(new Set(EVENTS.map((event) => event.id)).size).toBe(EVENTS.length);
   for (const tier of TIERS) {
