@@ -342,7 +342,7 @@
 
   @media (max-height: 500px) {
     .set-help > :global(.set-help-scroll) {
-      max-height: 5rem;
+      max-height: 3rem;
     }
   }
 </style>
