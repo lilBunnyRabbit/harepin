@@ -2,7 +2,9 @@ import type { Build } from "../car/build";
 import type { Car, Controls } from "../car/car";
 import type { CarSpec } from "../car/cars";
 import { CLASS_LABELS } from "../car/pi";
+import { BUILD } from "../menu/update";
 import type { LabSpot } from "../worldgen/lab";
+import { export_block, type Answers, type Device } from "./export";
 import { INLINE, read_code } from "./pack-code";
 import { resolve_pack, type Aids, type Pack, type Resolved } from "./pack";
 import { PACKS } from "./packs";
@@ -30,12 +32,19 @@ export async function load_pack(id: string): Promise<Pack> {
   return (await load()).default;
 }
 
-// Until the overlay lands these keys walk the pack: next, previous, restart.
+// Until the overlay lands these keys walk the pack (next, previous, restart) and copy the export block.
 const KEYS: Record<string, number> = { "]": 1, "[": -1, "\\": 0 };
+const COPY_KEY = "=";
+
+function device(): Device {
+  const input = navigator.getGamepads().some((pad) => pad !== null) ? "pad" : matchMedia("(pointer: coarse)").matches ? "touch" : "keys";
+  return { input, width: innerWidth, height: innerHeight };
+}
 
 export class Lab {
   readonly trials: readonly Resolved[];
   readonly results: TrialResult[];
+  readonly answers: Answers = {};
   private index = -1;
   private recorder: Recorder | null = null;
 
@@ -60,8 +69,10 @@ export class Lab {
   }
 
   private readonly on_key = (event: KeyboardEvent) => {
+    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+    if (event.key === COPY_KEY) return void this.copy();
     const step = KEYS[event.key];
-    if (step === undefined || event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+    if (step === undefined) return;
     const next = Math.max(0, Math.min(this.trials.length - 1, this.index + step));
     void this.begin(next);
   };
@@ -92,6 +103,22 @@ export class Lab {
 
   placed(car: Car) {
     this.recorder?.placed(car);
+  }
+
+  /** A running trial goes in with what it has measured so far. */
+  export(): string {
+    const results = this.results.map((r, i) => (i === this.index && this.recorder ? { status: r.status, metrics: this.recorder.metrics() } : r));
+    return export_block(this.pack, this.trials, results, this.answers, BUILD.version, device(), new Date());
+  }
+
+  async copy() {
+    try {
+      await navigator.clipboard.writeText(this.export());
+      this.host.toast("Lab results copied");
+    } catch (error) {
+      console.warn("lab: clipboard refused", error);
+      this.host.toast("Copy refused by the browser");
+    }
   }
 
   private finish(status: "done" | "stopped") {
