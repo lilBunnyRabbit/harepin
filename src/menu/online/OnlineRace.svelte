@@ -8,8 +8,6 @@
   import type { PageProps } from "../ui/svelte-page.svelte";
   import Tile from "../ui/Tile.svelte";
 
-  const LAP_OPTIONS = LAPS.map((count) => ({ value: count, label: String(count) }));
-
   let { menu, live }: Omit<PageProps, "shown"> = $props();
 
   const routes = $derived(menu.host.race_routes);
@@ -18,6 +16,8 @@
   const route = $derived(routes.find((r) => r.id === route_id) ?? routes[0]);
   const loop = $derived(route?.closed !== false);
   const laps = $derived<Laps>(loop ? live.prefs.laps : 1);
+  // An A to B route is one run: 1 stays picked and the other counts wait for a loop.
+  const lap_options = $derived(LAPS.map((count) => ({ value: count, label: String(count), disabled: !loop && count !== 1 })));
   const left_out = $derived(live.live(() => menu.host.race_left_out(route?.id ?? "circuit")));
   const busy = $derived(live.live(() => menu.host.race_busy()));
   const ready = $derived(live.live(() => menu.host.race_ready()));
@@ -86,7 +86,7 @@
     </div>
     <div class="race-laps">
       <span>Laps</span>
-      <Segmented options={LAP_OPTIONS} value={laps} label="Laps" disabled={!loop} onchange={pick_laps} />
+      <Segmented options={lap_options} value={laps} label="Laps" onchange={pick_laps} />
     </div>
     <small class="race-dim">{note}</small>
     <div class="race-actions">

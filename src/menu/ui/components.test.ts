@@ -72,6 +72,12 @@ describe("ui components", () => {
     expect(out).toMatch(/aria-checked="true"[^>]*>3 laps/);
   });
 
+  test("Segmented disables one option and keeps the rest", () => {
+    const out = html(Segmented, { options: [{ value: 1, label: "1" }, { value: 3, label: "3", disabled: true }], value: 1, label: "Laps" });
+    expect(out).toMatch(/aria-checked="true"(?![^>]*disabled)[^>]*>1</);
+    expect(out).toMatch(/aria-checked="false"[^>]*disabled[^>]*>3</);
+  });
+
   test("Toggle is a switch with its state", () => {
     expect(html(Toggle, { checked: true, label: "Bloom" })).toContain('aria-checked="true"');
     expect(html(Toggle, { checked: false, label: "Bloom" })).toContain('role="switch"');

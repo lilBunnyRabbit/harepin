@@ -21,7 +21,7 @@
 
 <div class="ui-segmented" role="radiogroup" aria-label={label}>
   {#each options as option (option.value)}
-    <button type="button" class="ui-segment" role="radio" aria-checked={option.value === value} {disabled} {tabindex} onclick={() => pick(option.value)}>{option.label}</button>
+    <button type="button" class="ui-segment" role="radio" aria-checked={option.value === value} disabled={disabled || option.disabled} {tabindex} onclick={() => pick(option.value)}>{option.label}</button>
   {/each}
 </div>
 

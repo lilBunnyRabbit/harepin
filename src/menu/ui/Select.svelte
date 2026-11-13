@@ -17,7 +17,7 @@
 <label class="ui-field">
   {#if show_label}<span class="ui-label">{label}</span>{/if}
   <select class="ui-select" aria-label={show_label ? undefined : label} {disabled} bind:value onchange={() => onchange?.(value)}>
-    {#each options as option (option.value)}<option value={option.value}>{option.label}</option>{/each}
+    {#each options as option (option.value)}<option value={option.value} disabled={option.disabled}>{option.label}</option>{/each}
   </select>
   {#if help}<small class="ui-help">{help}</small>{/if}
 </label>
