@@ -74,11 +74,13 @@
           <Row label={event.name} help={`${event.id.toUpperCase()} · ${event_note(event)}`}>
             {#snippet control()}
               <span class="end">
-                {#if event.final}<Badge>Final</Badge>{/if}
-                <CarLimit {event} />
-                <span class="result">
-                  <span class="star-row" aria-label={`${got} of ${MAX_EVENT_STARS} stars`}>{"★".repeat(got)}<i>{"★".repeat(MAX_EVENT_STARS - got)}</i></span>
-                  {#if best}<small>{run_text(best)}</small>{/if}
+                <span class="facts">
+                  {#if event.final}<Badge>Final</Badge>{/if}
+                  <CarLimit {event} />
+                  <span class="result">
+                    <span class="star-row" aria-label={`${got} of ${MAX_EVENT_STARS} stars`}>{"★".repeat(got)}<i>{"★".repeat(MAX_EVENT_STARS - got)}</i></span>
+                    {#if best}<small>{run_text(best)}</small>{/if}
+                  </span>
                 </span>
                 <Button size="sm" disabled={!open} aria-label={`Go: ${event.name}`} onclick={() => menu.host.start_event(event.id)}>Go</Button>
               </span>
@@ -124,7 +126,8 @@
     font-size: var(--text-lg);
   }
 
-  .end {
+  .end,
+  .facts {
     display: flex;
     align-items: center;
     gap: var(--space-4);
@@ -164,10 +167,10 @@
   }
 
   @media (max-width: 600px) {
-    .end {
+    .facts {
       flex-direction: column;
       align-items: end;
-      gap: var(--space-2);
+      gap: var(--space-1);
     }
   }
 </style>

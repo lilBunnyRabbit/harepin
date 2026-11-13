@@ -214,7 +214,7 @@
     }
   }
 
-  @media (orientation: portrait) {
+  @media (orientation: portrait), (max-width: 1100px) and (min-height: 501px) {
     .play {
       grid-template:
         "map" min(56dvh, calc(100vw - 2 * var(--space-4)))

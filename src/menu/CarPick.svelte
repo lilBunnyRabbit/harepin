@@ -86,7 +86,6 @@
   }
 
   .why {
-    margin-left: auto;
     color: var(--set-dim);
     font-size: var(--text-sm);
     font-weight: 600;
