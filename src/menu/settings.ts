@@ -2,7 +2,7 @@ import { modal_open, typing, type Nav } from "../hud/input";
 import { clean_name } from "../net/net";
 import { GUIDE_PARAM, Guide, ROLLED_VISIT, type GuideStep } from "./guide/guide.svelte";
 import { TUNE_PARAM } from "../career/career";
-import { CareerPage } from "./career-view";
+import CareerPage from "./CareerPage.svelte";
 import GoalsPage from "./GoalsPage.svelte";
 import ModesPage from "./ModesPage.svelte";
 import OnlinePage from "./online/OnlinePage.svelte";
@@ -107,7 +107,7 @@ export class Settings {
       svelte_page(this.menu, { id: "modes", label: "Modes", parent: MenuTab.PLAY }, ModesPage),
       svelte_page(this.menu, { id: "room", label: "New room", parent: MenuTab.ONLINE }, RoomPage),
       svelte_page(this.menu, { id: "goals", label: "Things to try", parent: MenuTab.PLAY }, GoalsPage, { go: (to: GoTo) => this.go_to(to) }),
-      new CareerPage(this.menu, host.career, new URLSearchParams(location.search).has(TUNE_PARAM)),
+      svelte_page(this.menu, { id: "career", label: "Career", parent: MenuTab.PLAY }, CareerPage, { tune: new URLSearchParams(location.search).has(TUNE_PARAM) }),
     ];
     this.guide = new Guide({
       state: () => this.current,
