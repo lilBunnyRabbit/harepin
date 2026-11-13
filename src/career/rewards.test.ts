@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { DECALS, MAX_PAINT, REWARD_PAINTS } from "../car/build";
-import { TIERS, type Stars } from "./career";
+import { TIERS, tier_stars, type Stars } from "./career";
 import { NO_UNLOCKS, REWARD_DECALS, badge_text, earned, reward_paint_name, unlocks } from "./rewards";
 
 const [rookie, , , elite] = TIERS;
@@ -51,7 +51,10 @@ test("a run reports only the rewards it moved from locked to earned", () => {
 test("a growing tier opens its paint late and holds no decal", () => {
   const full = with_stars(...all_of(elite, 3));
   expect(elite.rewards.paint_at).toBe(18);
-  expect(unlocks(with_stars(...all_of(elite, 2), ["e1", 3], ["e2", 3], ["e3", 3])).paints).toEqual([]);
+  const short = elite.rewards.paint_at - 1 - elite.events.length;
+  const below = with_stars(...elite.events.map((event, i): [string, number] => [event.id, i < short ? 2 : 1]));
+  expect(tier_stars(below, elite)).toBe(elite.rewards.paint_at - 1);
+  expect(unlocks(below).paints).toEqual([]);
   expect(unlocks(full).paints).toEqual([elite.rewards.paint]);
   expect(unlocks(full).decals).toEqual([]);
   expect(unlocks(full).badge).toBeNull();

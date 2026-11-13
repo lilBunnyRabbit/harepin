@@ -6,6 +6,7 @@ import { DRIFT_LEVELS } from "../modes/drift";
 import { DUEL_LEVELS } from "../modes/duel";
 import { LEVELS as GYMKHANA_LEVELS } from "../modes/gymkhana";
 import { HUNT_LEVELS } from "../modes/hunt";
+import { JUMP_LEVELS } from "../modes/jump";
 import { PARK_LEVELS } from "../modes/parking";
 import { race_levels } from "../modes/races";
 import { SILVER_SHARE, type Store } from "../modes/track";
@@ -20,9 +21,11 @@ const LEVEL_IDS: Record<string, readonly { id: string }[]> = {
   drift: DRIFT_LEVELS,
   hunt: HUNT_LEVELS,
   duel: DUEL_LEVELS,
+  jump: JUMP_LEVELS,
 };
 
-const known_level = (mode: string, level: string) => (mode === "race" ? race_levels([{ id: level }], "").some((l) => l.id === level) : (LEVEL_IDS[mode]?.some((l) => l.id === level) ?? false));
+// A speed trap level runs on the circuit, so the circuit stands in for the map's routes.
+const known_level = (mode: string, level: string) => (mode === "race" ? race_levels([{ id: level }, { id: "circuit" }], "").some((l) => l.id === level) : (LEVEL_IDS[mode]?.some((l) => l.id === level) ?? false));
 
 function memory(seed: Record<string, string> = {}): Store & { data: Record<string, string> } {
   const data = { ...seed };
@@ -45,6 +48,7 @@ test("every event's level is one its mode has, on a map code that reads", () => 
   for (const event of EVENTS) {
     const spot = spot_of(event);
     expect([event.id, known_level(event.mode, spot.level)]).toEqual([event.id, true]);
+    for (const stage of event.stages ?? []) expect([event.id, stage.mode, known_level(stage.mode, stage.level)]).toEqual([event.id, stage.mode, true]);
     expect([event.id, parse_map_code(spot.map).ok]).toEqual([event.id, true]);
     expect([event.id, parse_map_code(event.map).ok]).toEqual([event.id, true]);
     if ("preset" in event.car) expect(PRESETS.map((p) => p.name)).toContain(event.car.preset);
@@ -60,7 +64,9 @@ test("every event's thresholds were tuned on the world it runs on now", () => {
 });
 
 test("race events carry bot-tuned star times, silver a quarter over gold", () => {
-  for (const event of EVENTS.filter((e) => e.mode === "race")) expect([event.id, event.stars?.two]).toEqual([event.id, Math.round((event.stars?.three ?? NaN) * SILVER_SHARE)]);
+  // A speed trap is scored, not timed: Copy my times sets it from the owner's run.
+  const races = EVENTS.flatMap((e) => (e.stages ? e.stages.map((stage) => ({ id: e.id, ...stage })) : [e])).filter((e) => e.mode === "race" && e.level !== "trap");
+  for (const event of races) expect([event.id, event.stars?.two]).toEqual([event.id, Math.round((event.stars?.three ?? NaN) * SILVER_SHARE)]);
 });
 
 test("every event with a dev ghost ships it for the world it was tuned on, finishing in three-star time", () => {

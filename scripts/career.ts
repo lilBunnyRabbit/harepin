@@ -9,7 +9,7 @@ const { GHOST_EVERY_MS, ghost_frame } = await import("../src/car/ghost");
 const { rating } = await import("../src/car/pi");
 const { PRESETS } = await import("../src/car/presets");
 const { DUEL_LEVELS, DuelRun, DuelStatus, build_route } = await import("../src/modes/duel");
-const { RaceRun, RaceStatus, race_course } = await import("../src/modes/races");
+const { RaceRun, RaceStatus, TrapRun, race_course, race_levels, trap_points } = await import("../src/modes/races");
 const { SILVER_SHARE } = await import("../src/modes/track");
 const { mesh_tones } = await import("../src/render/scene");
 const { World } = await import("../src/world/world");
@@ -43,7 +43,16 @@ const DRIVE_LIMIT = 600;
 interface Drive {
   label: string;
   ms: number | null;
+  /** A speed trap's km/h total: it grades the drive, higher is better. */
+  score?: number;
   frames: number[];
+}
+
+interface Moving {
+  x: number;
+  z: number;
+  /** m/s over the ground. */
+  speed: number;
 }
 
 // Each body tuned as close under the cap as one part swap at a time gets it, so every cap has a field of real cars: a
@@ -66,7 +75,7 @@ function capped(stock: Build, cap: CarClass): Build | null {
   }
 }
 
-function cars_for(event: CareerEvent): { label: string; build: Build }[] {
+function cars_for(event: CareerEvent, excludes: readonly string[] = []): { label: string; build: Build }[] {
   const { car } = event;
   if ("preset" in car) {
     const build = parse_build(PRESETS.find((p) => p.name === car.preset)?.code);
@@ -82,19 +91,19 @@ function cars_for(event: CareerEvent): { label: string; build: Build }[] {
   });
   return [...bodies, ...presets]
     .map((entry) => ({ ...entry, pi: rating(entry.build).pi, class: rating(entry.build).class }))
-    .filter((entry) => within(entry.class, car.cap))
+    .filter((entry) => within(entry.class, car.cap) && !excludes.includes(entry.build.car))
     .sort((a, b) => b.pi - a.pi)
     .filter((entry, i, all) => all.findIndex((other) => build_code(other.build) === build_code(entry.build)) === i)
     .slice(0, RUNS);
 }
 
 // The game's own run clocks the drive, so the time and the ghost line up with what a player sees.
-function drive(world: World, build: Build, line: readonly RoadPoint[], clock: { update(car: { x: number; z: number }): boolean; elapsed(): number | null }): Drive {
+function drive(world: World, build: Build, line: readonly RoadPoint[], clock: { update(car: Moving): boolean; elapsed(): number | null }): Drive {
   const frames: number[] = [];
   let last = -Infinity;
   let done = false;
   autolap(world, build_spec(build), line, false, (car) => {
-    done = clock.update({ x: car.pos.x, z: car.pos.z });
+    done = clock.update({ x: car.pos.x, z: car.pos.z, speed: Math.hypot(car.vel.x, car.vel.z) });
     const t = clock.elapsed();
     if (t !== null && t - last >= GHOST_EVERY_MS) {
       ghost_frame(frames, Math.round(t), car);
@@ -125,19 +134,27 @@ function stream_in(world: World, mesher: TileMesher | null, line: readonly { x: 
   }
 }
 
+// A speed trap level drives its route's race and times the traps as the game does: the run so far, and the step it ends.
 function race_drive(world: World, mesher: TileMesher | null, level: string, build: Build): Drive | null {
-  const route = world.routes.find((r) => r.id === level);
+  const trap = race_levels(world.routes, "").find((l) => l.id === level)?.trap;
+  const route = world.routes.find((r) => r.id === (trap ?? level));
   if (!route) return null;
   const course = race_course(route);
   stream_in(world, mesher, course.line);
   const unplace = world.place(route.closure);
   const run = new RaceRun(course, 0);
+  const traps = trap ? new TrapRun(trap_points(course.line, course.gates), route.gate_hw) : null;
   const result = drive(world, build, course.line as RoadPoint[], {
-    update: ({ x, z }) => (run.update(STEP_MS, x, z), run.status === RaceStatus.DONE),
+    update: ({ x, z, speed }) => {
+      const was = run.status;
+      run.update(STEP_MS, x, z);
+      if (traps && (run.status === RaceStatus.RUNNING || was === RaceStatus.RUNNING)) traps.update(run.tracker.index, run.tracker.offset, speed);
+      return run.status === RaceStatus.DONE;
+    },
     elapsed: () => (run.status === RaceStatus.READY ? null : run.elapsed()),
   });
   unplace();
-  return result;
+  return traps ? { ...result, score: traps.total } : result;
 }
 
 function duel_drive(world: World, mesher: TileMesher | null, level: string, build: Build): Drive | null {
@@ -186,25 +203,30 @@ for (const event of EVENTS) {
   for (const unit of todo) {
     const drives: Drive[] = [];
     const wall = performance.now();
-    for (const { label, build } of cars_for(event)) {
+    for (const { label, build } of cars_for(event, world.routes.find((r) => r.id === unit.level)?.excludes)) {
       const run = unit.mode === "race" ? race_drive(world, mesher, unit.level, build) : unit.mode === "duel" ? duel_drive(world, mesher, unit.level, build) : null;
       if (!run) throw new Error(`${unit.name}: ${unit.mode} ${unit.level} has no bot drive`);
       drives.push({ ...run, label });
       console.error(`  ${unit.name} ${label}: ${run.ms === null ? "DNF" : `${run.ms} ms`} (${((performance.now() - wall) / 1000).toFixed(0)} s wall)`);
     }
     const finished = drives.filter((d) => d.ms !== null).sort((a, b) => (a.ms ?? 0) - (b.ms ?? 0));
-    const runs = drives.map((d) => `${d.label} ${d.ms === null ? "DNF" : `${(d.ms / 1000).toFixed(1)}s`}`).join(", ");
+    const runs = drives.map((d) => `${d.label} ${d.ms === null ? "DNF" : `${(d.ms / 1000).toFixed(1)}s${d.score === undefined ? "" : ` ${d.score} km/h`}`}`).join(", ");
     if (!finished.length) {
       failed++;
       console.log(`${unit.name} ${unit.mode} ${unit.level} on ${spot.map}: no bot finished | ${runs}`);
       continue;
     }
     const race = unit.mode === "race";
-    const three = Math.ceil(((race ? median(finished.map((d) => d.ms ?? 0)) : (finished[0].ms ?? 0)) * tier_of(event).margin) / 100) * 100;
-    const two = Math.round(three * (race || tier_of(event).margin > 1 ? SILVER_SHARE : DUEL_SILVER));
-    const ghost = unit.ghost ? (finished.filter((d) => (d.ms ?? Infinity) <= three).at(-1) ?? null) : null;
+    const { margin } = tier_of(event);
+    const scored = finished.every((d) => d.score !== undefined);
+    // A trap total grades higher-is-better, as `owner_stars` does a scored run: the median eased down by the margin.
+    const three = scored
+      ? Math.round(median(finished.map((d) => d.score ?? 0).sort((a, b) => b - a)) / margin)
+      : Math.ceil(((race ? median(finished.map((d) => d.ms ?? 0)) : (finished[0].ms ?? 0)) * margin) / 100) * 100;
+    const two = scored ? Math.round(three / SILVER_SHARE) : Math.round(three * (race || margin > 1 ? SILVER_SHARE : DUEL_SILVER));
+    const ghost = unit.ghost && !scored ? (finished.filter((d) => (d.ms ?? Infinity) <= three).at(-1) ?? null) : null;
     const stars = ` stars: { two: ${two}, three: ${three} },`;
-    const ghost_note = unit.ghost ? (ghost ? `, ghost: ${ghost.label} ${(ghost.ms ?? 0) / 1000}s` : ", no 3-star ghost") : "";
+    const ghost_note = unit.ghost && !scored ? (ghost ? `, ghost: ${ghost.label} ${(ghost.ms ?? 0) / 1000}s` : ", no 3-star ghost") : "";
     console.log(`${unit.name} ${unit.mode} ${unit.level} on ${spot.map}:${stars} tuned: "${tuned}"${ghost_note} | ${runs}`);
     if (WRITE && ghost) {
       const path = new URL(`../public/${ghost_path({ ...event, tuned })}`, import.meta.url);

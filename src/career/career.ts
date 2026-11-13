@@ -107,7 +107,7 @@ export const TIERS: readonly Tier[] = [
       { id: "p7", name: "Riverbed", mode: "race", level: "descent", map: "1F0000001", car: { cap: "s1" }, tuned: "1:ic5", stars: { two: 111875, three: 89500 }, ghost: true, final: true },
     ],
   },
-  // Batch 1 of 12: no final yet, so no decal until the tier stops growing (career.md §10.2).
+  // Batches 1 and 2 of 12: the final (e12, Big dunes) waits for its route, so no decal until the tier stops growing (career.md §10.2).
   {
     id: TierId.ELITE,
     name: "Elite",
@@ -122,6 +122,23 @@ export const TIERS: readonly Tier[] = [
       { id: "e5", name: "Ash gates", mode: "hunt", level: "h4", map: "1V0000002", car: { cap: "s2" }, tuned: "2:v5" },
       { id: "e6", name: "Down-class duel", mode: "duel", level: "v4", map: "1S0000011", car: { cap: "b" }, tuned: "33:sky3", stars: { two: 101750, three: 81400 } },
       { id: "e7", name: "Frozen slalom", mode: "gymkhana", level: "g6", map: "1T0000008", car: { cap: "s1" }, tuned: "8:t3" },
+      { id: "e8", name: "Drift chain", mode: "drift", level: "d6", map: "1A0000009", car: { preset: "Drift" }, tuned: "9:a4" },
+      { id: "e9", name: "Speed traps", mode: "race", level: "trap", map: "1S0000002", car: { cap: "x" }, tuned: "2:sky3" },
+      { id: "e10", name: "Long jump", mode: "jump", level: "j2", map: "1C0000003", car: { cap: "s2" }, tuned: "3:w11" },
+      {
+        id: "e11",
+        name: "Island cup",
+        mode: "race",
+        level: "circuit",
+        map: "1C0000008",
+        car: { cap: "s1" },
+        tuned: "8:w11",
+        stages: [
+          { mode: "race", level: "circuit", stars: { two: 349000, three: 279200 } },
+          { mode: "jump", level: "j1" },
+          { mode: "duel", level: "v3", stars: { two: 91875, three: 73500 } },
+        ],
+      },
     ],
   },
 ];

@@ -15,8 +15,8 @@ const world = new World(map.seed, build_world(map.seed, map.kind, map.levels).da
 const markers = event_markers(world, SPAWN_INDEX, here, KINDS[map.kind].open_ground);
 
 test("every event on the map gets a flag, none in another's reach", () => {
-  expect(here.map((event) => event.id)).toEqual(["r1", "r2", "r3"]);
-  expect(markers.map((m) => m.event.id)).toEqual(["r1", "r2", "r3"]);
+  expect(here.map((event) => event.id)).toEqual(["r1", "r2", "r3", "e10"]);
+  expect(markers.map((m) => m.event.id)).toEqual(["r1", "r2", "r3", "e10"]);
   for (const a of markers) for (const b of markers) if (a !== b) expect(Math.hypot(a.x - b.x, a.z - b.z)).toBeGreaterThan(MARKER_REACH * 2);
 });
 

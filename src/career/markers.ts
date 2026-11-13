@@ -4,6 +4,7 @@ import { gym_site } from "../modes/gymkhana-mode";
 import { JUMP_LEVELS } from "../modes/jump";
 import { jump_at } from "../modes/jump-mode";
 import { PARK_LEVELS } from "../modes/parking";
+import { race_levels } from "../modes/races";
 import { park_site, park_start } from "../modes/parking-mode";
 import type { World } from "../world/world";
 import { ROAD_HALF } from "../worldgen/types";
@@ -30,7 +31,11 @@ const along = (p: { x: number; z: number; tx: number; tz: number } | undefined):
 
 // What each mode's `start` spawns the car on, worked out without starting a run.
 const STARTS: Record<string, StartAt> = {
-  race: (world, _, level) => along(world.routes.find((r) => r.id === level)?.points[0]),
+  race: (world, _, level) => {
+    // A speed trap level runs on another route: its flag stands at that route's start.
+    const route = race_levels(world.routes, "").find((l) => l.id === level)?.trap ?? level;
+    return along(world.routes.find((r) => r.id === route)?.points[0]);
+  },
   gymkhana: (world, start_index) => gym_site(world, start_index),
   parking: (world, start_index, level) => {
     const site = park_site(world, start_index);
