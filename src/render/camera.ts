@@ -231,6 +231,9 @@ export class ChaseCamera {
     const yaw_rate = Math.min(YAW_RATE, Math.max(YAW_RATE_SPEED / Math.max(speed, 1), Math.abs(this.turn) / TURN_LAG));
     this.yaw += angle_diff(desired, this.yaw) * Math.min(1, dt * yaw_rate);
 
+    // Eased in the cockpit too, so switching back to the chase view does not start rolled to a deck left behind.
+    const leaning = this.wall_bank !== Infinity && this.lean_to_deck(dt, world, car.pos, car.pos.y + PIVOT_RISE * this.size.height);
+
     if (this.mode === 1 && !this.top) {
       camera.position.copy(this.eye ?? HOOD).applyQuaternion(car.quat).add(car.pos);
       camera.up.set(0, 1, 0).applyQuaternion(car.quat);
@@ -264,7 +267,7 @@ export class ChaseCamera {
       const lead = (this.top ? TOP_LEAD : LOOK_LEAD) * length;
       this.look.set(car.pos.x + Math.sin(yaw) * lead, pivot_y, car.pos.z + Math.cos(yaw) * lead);
       camera.up.set(0, 1, 0);
-      if (this.wall_bank !== Infinity && this.lean_to_deck(dt, world, car.pos, pivot_y)) {
+      if (leaning) {
         camera.position.sub(car.pos).applyQuaternion(this.lean_quat).add(car.pos);
         this.look.sub(car.pos).applyQuaternion(this.lean_quat).add(car.pos);
         camera.up.copy(this.deck_up);
