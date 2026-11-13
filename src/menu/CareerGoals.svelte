@@ -21,12 +21,14 @@
       <div class="gl-top">
         {#if goal.reward}
           <RewardMark reward={goal.reward} index={goal.view.index} />
-        {:else}
+        {:else if goal.kind === "gate"}
           <span class="gl-gate"><TierBadge tier={(goal.view.index + 2) as TierId} decorative dim /></span>
+        {:else}
+          <span class="gl-gate gl-chase" aria-hidden="true">★</span>
         {/if}
         <span class="gl-text"><b>{goal.title}</b><small>{goal.detail}</small></span>
       </div>
-      {#if goal.key !== "badge"}<Progress value={goal.have} max={goal.of} label={goal.detail} />{/if}
+      {#if goal.kind !== "badge"}<Progress value={goal.have} max={goal.of} label={goal.detail} />{/if}
       {#if goal.event}
         {@const event = goal.event}
         <Button size="sm" variant={i === 0 ? "primary" : undefined} onclick={() => onstart(event)}>Play {event.name}</Button>
@@ -95,6 +97,10 @@
     border-radius: var(--radius-md);
     background: var(--set-well);
     font-size: var(--text-2xl);
+  }
+
+  .gl-chase {
+    color: var(--accent);
   }
 
   @media (max-height: 500px) {

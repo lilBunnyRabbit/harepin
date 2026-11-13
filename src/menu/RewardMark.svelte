@@ -13,22 +13,21 @@
   interface Props {
     reward: RewardView;
     index: number;
-    size?: "md" | "lg";
   }
 
-  let { reward, index, size = "md" }: Props = $props();
+  let { reward, index }: Props = $props();
 
   const lab = $derived(tier_metals[index]);
   const weave = $derived(paint_finish(TIERS[index].rewards.paint)?.weave ?? null);
 </script>
 
-<span class="rw-mark" class:rw-got={reward.got} data-size={size}>
+<span class="rw-mark" class:rw-got={reward.got}>
   {#if reward.kind === "paint"}
     <i class="garage-swatch" data-metal={weave ? undefined : true} data-carbon={weave ? true : undefined} style:--swatch={rgba(lab)} style:--swatch-base={weave ? rgba(weave.base) : undefined}></i>
   {:else if reward.kind === "decal" && reward.decal}
     <span class="rw-decal" style:--decal-paint={rgba(lab)} style:--decal-ink={rgba(metal_ink(lab))} style:--decal-mark={rgba(metal_ink(lab))} style:--decal-glass="var(--background-darkest)"><DecalTile decal={reward.decal} number={7} /></span>
   {:else}
-    <span class="rw-badge"><TierBadge tier={(index + 1) as TierId} decorative dim={!reward.got} /></span>
+    <span class="rw-badge"><TierBadge tier={(index + 1) as TierId} decorative /></span>
   {/if}
   {#if !reward.got}<span class="rw-lock"><Icon name="icon-lock" /></span>{/if}
 </span>
@@ -44,15 +43,6 @@
     height: var(--mark);
     border-radius: var(--radius-md);
     background: var(--set-well);
-  }
-
-  [data-size="lg"] {
-    --mark: 4rem;
-  }
-
-  [data-size="lg"] .garage-swatch {
-    width: 2.25rem;
-    height: 2.25rem;
   }
 
   .rw-mark:not(.rw-got) > :not(.rw-lock) {

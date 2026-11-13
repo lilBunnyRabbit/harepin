@@ -1,7 +1,8 @@
 <script lang="ts">
   import { TIERS, current_tier, type CareerEvent } from "../career/career";
-  import { career_total, goals, tier_views } from "../career/career-model";
+  import { career_total, goals, tier_views, trophy_count } from "../career/career-model";
   import { owner_times } from "../career/career-store";
+  import CareerDone from "./CareerDone.svelte";
   import CareerGoals from "./CareerGoals.svelte";
   import CareerProfile from "./CareerProfile.svelte";
   import CareerSpine from "./CareerSpine.svelte";
@@ -17,13 +18,12 @@
 
   let { menu, live, tune }: Props = $props();
 
-  const GOALS = 3;
-
   const career = $derived(menu.host.career);
   const views = $derived(tier_views(live.stars, tune));
   const here = $derived(views[TIERS.indexOf(current_tier(live.stars))]);
   const total = $derived(career_total(live.stars));
-  const aims = $derived(goals(live.stars).slice(0, GOALS));
+  const aims = $derived(goals(live.stars));
+  const trophies = $derived(trophy_count(views));
   const start = (event: CareerEvent) => menu.host.start_event(event.id);
   let copied = $state("");
 
@@ -47,12 +47,14 @@
         <h3>Next up</h3>
         <CareerGoals goals={aims} onstart={start} />
       </section>
+    {:else}
+      <CareerDone {here} {trophies} />
     {/if}
     {#if tune}<div><Button onclick={copy_times}>{copied || "Copy my times"}</Button></div>{/if}
   </aside>
 
   <section class="cr-path" aria-label="Career path">
-    <CareerSpine {views} {menu} {live} />
+    <CareerSpine {views} {menu} {live} {tune} />
   </section>
 
   <div class="cr-case"><TrophyCase {views} /></div>

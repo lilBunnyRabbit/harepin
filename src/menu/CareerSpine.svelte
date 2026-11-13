@@ -19,9 +19,10 @@
     views: TierView[];
     menu: PageProps["menu"];
     live: PageProps["live"];
+    tune: boolean;
   }
 
-  let { views, menu, live }: Props = $props();
+  let { views, menu, live, tune }: Props = $props();
 
   const career = $derived(menu.host.career);
   const start = (event: CareerEvent) => menu.host.start_event(event.id);
@@ -38,7 +39,7 @@
     <div class="sp-text">
       {#if event.final}<span class="sp-eyebrow">{view.tier.name} final · wins the badge</span>{/if}
       <b>{event.name}</b>
-      <span class="sp-note">{event_note(event)}</span>
+      <span class="sp-note">{tune ? `${event.id.toUpperCase()} · ` : ""}{event_note(event)}</span>
     </div>
     <div class="sp-car"><CarLimit {event} /></div>
     <div class="sp-meta">
