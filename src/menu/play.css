@@ -94,7 +94,16 @@
   font-weight: 700;
 }
 
-.settings .play-quit[hidden] {
+.play-run {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.settings .play-run > .play-quit {
+  flex: 1;
+}
+
+.play-run[hidden] {
   display: none;
 }
 

@@ -32,7 +32,8 @@ export class PlayPage implements MenuPage {
   readonly label = "Play";
   private readonly world_map = new WorldMap();
   private players_timer = 0;
-  private readonly quit = el("button", "play-quit");
+  private readonly run = el("div", "play-run");
+  private readonly restart_label = el("span");
   private readonly quit_label = el("span");
 
   constructor(
@@ -50,7 +51,8 @@ export class PlayPage implements MenuPage {
 
   on_show() {
     const running = this.menu.host.mode_running();
-    this.quit.hidden = running === null;
+    this.run.hidden = running === null;
+    this.restart_label.textContent = `Restart ${running ?? ""}`;
     this.quit_label.textContent = `Quit ${running ?? ""}`;
     this.world_map.show(this.seed, MAINLAND, true);
     clearInterval(this.players_timer);
@@ -99,14 +101,23 @@ export class PlayPage implements MenuPage {
 
   private top(): HTMLElement {
     const top = el("div", "play-top");
-    this.quit.type = "button";
-    this.quit.hidden = true;
-    this.quit.append(icon("icon-close"), this.quit_label);
-    this.quit.addEventListener("click", () => {
+    const restart = el("button", "play-quit");
+    restart.type = "button";
+    restart.append(icon("icon-restart"), this.restart_label);
+    restart.addEventListener("click", () => {
+      this.menu.close();
+      this.menu.host.restart_lap();
+    });
+    const quit = el("button", "play-quit");
+    quit.type = "button";
+    quit.append(icon("icon-close"), this.quit_label);
+    quit.addEventListener("click", () => {
       this.menu.close();
       this.menu.host.quit_mode();
     });
-    top.append(this.quit, career_hero(this.menu, this.menu.host.career));
+    this.run.hidden = true;
+    this.run.append(restart, quit);
+    top.append(this.run, career_hero(this.menu, this.menu.host.career));
     return top;
   }
 
