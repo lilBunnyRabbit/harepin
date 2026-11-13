@@ -13,7 +13,8 @@ export function star_row(stars: number): HTMLSpanElement {
 }
 
 export const points = (score: number) => Math.round(score).toLocaleString("en-US");
-export const run_text = (run: StarRun) => (run.score === undefined ? format(run.ms) : `${points(run.score)} pts`);
+export const points_text = (score: number) => `${points(score)} pts`;
+export const run_text = (run: StarRun, score_text = points_text) => (run.score === undefined ? format(run.ms) : score_text(run.score));
 
 export function line(label: string, ...value: (string | Node)[]): HTMLElement {
   const row = document.createElement("div");
@@ -26,8 +27,8 @@ export function line(label: string, ...value: (string | Node)[]): HTMLElement {
   return row;
 }
 
-export function best_line(best: StarRun | undefined): HTMLElement {
-  return line("best", ...(best ? [`${run_text(best)} `, star_row(best.stars)] : ["--"]));
+export function best_line(best: StarRun | undefined, score_text = points_text): HTMLElement {
+  return line("best", ...(best ? [`${run_text(best, score_text)} `, star_row(best.stars)] : ["--"]));
 }
 
 export function result_title(name: string, record: { improved: boolean; first: boolean }): string {

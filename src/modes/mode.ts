@@ -18,6 +18,7 @@ export interface Driven {
   quat: THREE.Quaternion;
   readonly heading: number;
   readonly spec: CarSpec;
+  readonly wheels: readonly { readonly contact: boolean }[];
 }
 
 export interface Level {
@@ -97,6 +98,8 @@ export interface ModeDef<L extends Level = Level> {
   readonly high_view?: boolean;
   /** Runs on a streamed world: it reads terrain only where the car is, so the chunks at its start are all it waits on. */
   readonly streams?: boolean;
+  /** How a scored run's points read; drift's bare points when absent. */
+  readonly score_text?: (score: number) => string;
   levels(world: World): readonly L[];
   /** A run, a status line saying why it can't start, or null to do nothing. */
   start(ctx: ModeCtx, level: L): ModeRun | string | null;
@@ -106,6 +109,8 @@ export interface ModeDef<L extends Level = Level> {
 export function pose_of(car: Driven): Pose {
   return { x: car.pos.x, z: car.pos.z, heading: car.heading, speed: Math.hypot(car.vel.x, car.vel.z) };
 }
+
+export const airborne = (car: Driven) => car.wheels.every((w) => !w.contact);
 
 export function body_of(spec: CarSpec): Body {
   return { circles: spec.circles, radius: spec.radius, length: spec.body.length, width: spec.body.width };

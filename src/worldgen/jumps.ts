@@ -16,7 +16,7 @@ export const RIDE = 0.5;
 // Share of the lip's vertical speed the car keeps: the suspension soaks up the rest. Fitted on every car at 360 Hz.
 const LAUNCH_KEEP = 0.91;
 
-const RUNUP = 30;
+export const RUNUP = 30;
 const ROADSIDE_OFFSET = 18;
 const FLAT_BELOW = 1.2;
 const LANDING_UP = 0.85;

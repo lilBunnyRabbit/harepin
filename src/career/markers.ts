@@ -1,6 +1,8 @@
 import { DRIFT_LEVELS, build_zone } from "../modes/drift";
 import { DUEL_LEVELS, build_route } from "../modes/duel";
 import { gym_site } from "../modes/gymkhana-mode";
+import { JUMP_LEVELS } from "../modes/jump";
+import { jump_at } from "../modes/jump-mode";
 import { PARK_LEVELS } from "../modes/parking";
 import { park_site, park_start } from "../modes/parking-mode";
 import type { World } from "../world/world";
@@ -43,6 +45,10 @@ const STARTS: Record<string, StartAt> = {
   duel: (world, _, level) => {
     const duel = DUEL_LEVELS.find((l) => l.id === level);
     return duel ? along(build_route(world.seed, world.road, duel, (index) => world.clear_spawn(index)).points[0]) : null;
+  },
+  jump: (world, start_index, level) => {
+    const jump = JUMP_LEVELS.find((l) => l.id === level);
+    return jump ? along(jump_at(world, start_index, jump)?.start) : null;
   },
 };
 

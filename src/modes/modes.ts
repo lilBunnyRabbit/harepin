@@ -19,6 +19,7 @@ import { DRIFT_MODE } from "./drift-mode";
 import { DUEL_MODE } from "./duel-mode";
 import { GYMKHANA_MODE } from "./gymkhana-mode";
 import { HUNT_MODE } from "./hunt-mode";
+import { JUMP_MODE } from "./jump-mode";
 import { Hits } from "./hits";
 import type { Ground } from "./marks";
 import type { Driven, Finish, Level, ModeCtx, ModeDef, ModeRun, RouteRun } from "./mode";
@@ -36,7 +37,7 @@ const preset_code = (name: string): string | null => {
   return build && build_code(build);
 };
 
-export const MODES: readonly ModeDef[] = [RACE_MODE, GYMKHANA_MODE, PARKING_MODE, DRIFT_MODE, HUNT_MODE, DUEL_MODE];
+export const MODES: readonly ModeDef[] = [RACE_MODE, GYMKHANA_MODE, PARKING_MODE, DRIFT_MODE, HUNT_MODE, DUEL_MODE, JUMP_MODE];
 
 const NOTICE_MS = 2500;
 const GOAL_MS = 4000;
@@ -605,7 +606,7 @@ export class Modes {
             name: level.name,
             brings: level.brings,
             stars: run?.stars ?? 0,
-            best: run ? run_text(run) : null,
+            best: run ? run_text(run, def.score_text) : null,
             open: track.is_open(level.id),
             length: route?.length ?? null,
             par_ms: route?.par_ms ?? null,
