@@ -14,7 +14,6 @@ export class MenuState {
 
   constructor(private readonly menu: Menu) {
     this.pull();
-    menu.sync(() => this.pull());
   }
 
   /** Reads a host getter so a `$derived` over it reruns on every refresh; equal results stop there. */
@@ -27,10 +26,10 @@ export class MenuState {
     this.menu.set(key, value);
   }
 
-  private pull() {
+  readonly pull = () => {
     this.prefs = this.menu.state();
     this.stars = this.menu.host.career.stars;
     this.car = this.menu.host.car_code();
     this.tick++;
-  }
+  };
 }

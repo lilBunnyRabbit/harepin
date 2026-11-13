@@ -42,7 +42,7 @@
     top: 50%;
     width: var(--track-h);
     height: var(--track-h);
-    border: 2px solid var(--set-panel);
+    border: var(--space-0) solid var(--set-panel);
     border-radius: var(--radius-full);
     background: var(--line-strong);
     translate: -50% -50%;

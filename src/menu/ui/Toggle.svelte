@@ -41,8 +41,8 @@
 
   .ui-knob {
     position: absolute;
-    top: 2px;
-    left: 2px;
+    top: var(--space-0);
+    left: var(--space-0);
     width: calc(var(--h) - 6px);
     height: calc(var(--h) - 6px);
     border-radius: 50%;

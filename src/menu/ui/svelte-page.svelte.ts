@@ -25,12 +25,15 @@ export function menu_state(menu: Menu): MenuState {
   let live = states.get(menu);
   if (!live) {
     live = new MenuState(menu);
+    menu.sync(live.pull);
     states.set(menu, live);
   }
   return live;
 }
 
-export function svelte_page<E extends object = object>(menu: Menu, meta: PageMeta, component: Component<PageProps & E>, extra = {} as E): SveltePage {
+export function svelte_page(menu: Menu, meta: PageMeta, component: Component<PageProps>): SveltePage;
+export function svelte_page<E extends object>(menu: Menu, meta: PageMeta, component: Component<PageProps & E>, extra: E): SveltePage;
+export function svelte_page(menu: Menu, meta: PageMeta, component: Component<PageProps>, extra: object = {}): SveltePage {
   let shown = $state(false);
   let instance: Record<string, unknown> | null = null;
   return {
