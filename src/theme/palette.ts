@@ -156,6 +156,11 @@ export const tones = {
   roof_slate: mix(brand.info, brand.background_darkest, 0.35),
   sidewalk: dark ? mix(brand.foreground, brand.background_lightest, 0.18) : mix(brand.foreground, brand.background_darkest, 0.35),
   shopfront: dark ? mix(brand.info, brand.background, 0.35) : mix(brand.info, brand.background_lightest, 0.4),
+  square: dark ? mix(brand.foreground, brand.background_lightest, 0.32) : mix(brand.background_lighter, ground, 0.45),
+  wall_rose: dark ? mix(brand.error, brand.foreground, 0.3) : mix(brand.error, brand.background_lighter, 0.26),
+  wall_sage: dark ? mix(brand.success, brand.foreground, 0.3) : mix(brand.success, brand.background_lighter, 0.26),
+  wall_trim: dark ? mix(brand.foreground, ground, 0.8) : brand.background_lighter,
+  awning_green: mix(brand.success, brand.background_darkest, 0.5),
   shop_glow: dark ? mix(brand.warning, brand.cottontail, 0.6) : mix(brand.background_darker, brand.background_lightest, 0.5),
 };
 

@@ -140,7 +140,7 @@ export interface Town {
   block: number;
 }
 
-export type LotKind = "house" | "shop" | "parking" | "garden" | "empty";
+export type LotKind = "house" | "shop" | "parking" | "garden" | "empty" | "plaza";
 
 /** Lot-local frame: +z faces the street (`fx`, `fz` in world), +x runs along it. */
 export interface Lot {
@@ -157,6 +157,17 @@ export interface Lot {
   fz: number;
   angle: number;
   kind: LotKind;
+  /** What a high-street town lays on the lot: paving to the kerb, a square, or a garden path behind a hedge. */
+  ground?: "paved" | "plaza" | "yard";
+}
+
+export type BuildingForm = "row" | "house" | "clock";
+
+export interface Detail {
+  form: BuildingForm;
+  floors: number;
+  /** 0-1, picks the wall tone. */
+  tint: number;
 }
 
 export interface Building {
@@ -172,10 +183,12 @@ export interface Building {
   height: number;
   style: number;
   roof: Roof;
+  /** A high-street town's building: meshed with windows, doors and trim instead of the plain box. */
+  detail?: Detail;
 }
 
 /** GABLE ridge runs along local x, CROSS along local z, HIP slopes on all four sides. */
-export const Roof = { FLAT: "flat", GABLE: "gable", CROSS: "cross", HIP: "hip", STEEP: "steep" } as const;
+export const Roof = { FLAT: "flat", GABLE: "gable", CROSS: "cross", HIP: "hip", STEEP: "steep", SPIRE: "spire" } as const;
 export type Roof = (typeof Roof)[keyof typeof Roof];
 
 export const PropKind = {

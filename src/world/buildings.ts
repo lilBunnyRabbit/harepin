@@ -6,6 +6,7 @@ import type { World } from "./world";
 import { chunk_of, type Extent } from "../worldgen/chunk-grid";
 import type { ChunkBuffers, Soup } from "../worldgen/chunks";
 import { Builder, type Rgb, type Sphere } from "../worldgen/mesh";
+import { KINDS } from "../worldgen/kinds/kinds";
 import { hash } from "../worldgen/noise";
 import { PropKind, type Prop } from "../worldgen/types";
 
@@ -134,6 +135,18 @@ export function by_chunk<T extends { x: number; z: number }>(items: T[], ext: Ex
 }
 
 /** Builds a chunk's town objects when it arrives: parked cars stand on its terrain, which arrives with it. */
+// Lambert leaves a wall facing away from the sun near black, so one box read as two materials: each face keeps this
+// share of its own colour in shade. Glass keeps more, or a shaded window reads as a grey panel.
+const WALL_FILL = dark ? 0.1 : 0.18;
+const GLASS_FILL = dark ? 0.1 : 0.5;
+
+function shade_fill<M extends THREE.Material>(material: M, share: number): M {
+  material.onBeforeCompile = (shader) => {
+    shader.fragmentShader = shader.fragmentShader.replace("#include <emissivemap_fragment>", `#include <emissivemap_fragment>\ntotalEmissiveRadiance += diffuseColor.rgb * ${share.toFixed(2)};`);
+  };
+  return material;
+}
+
 export class TownChunks {
   private readonly building = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
   private readonly glass = new THREE.MeshLambertMaterial({ color: color(tones.shopfront), emissive: color(tones.shop_glow), emissiveIntensity: GLASS_GLOW, flatShading: true });
@@ -145,6 +158,10 @@ export class TownChunks {
   private readonly lights: Map<number, Prop[]>;
 
   constructor(private readonly world: World) {
+    if (KINDS[world.kind].recipe?.towns.style === "high_street") {
+      shade_fill(this.building, WALL_FILL);
+      shade_fill(this.glass, GLASS_FILL);
+    }
     this.cars = by_chunk(parked_spots(world), world.tiles.ext);
     this.lights = by_chunk(world.props.filter((p) => p.kind === PropKind.STREET_LIGHT), world.tiles.ext);
   }

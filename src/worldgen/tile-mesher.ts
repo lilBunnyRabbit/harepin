@@ -10,7 +10,7 @@ import { road_junctions, road_layers, type Junctions } from "./road-layers";
 import { Roads } from "./roads";
 import { land_height } from "./terrain";
 import { TILE_SIDE, TileStore, type Tile, type VectorOut } from "./tiles";
-import { CELL, type Building, type ParkingLot, type Prop, type Solid, type Tree, type WorldData } from "./types";
+import { CELL, type Building, type Lot, type ParkingLot, type Prop, type Solid, type Tree, type WorldData } from "./types";
 import { SEA_LEVEL, water_index, type WaterIndex } from "./water";
 import { bounding_sphere } from "./mesh";
 
@@ -18,6 +18,7 @@ import { bounding_sphere } from "./mesh";
 const CACHE = 160;
 
 interface ChunkTown {
+  lots: Lot[];
   buildings: Building[];
   props: Prop[];
   parking: ParkingLot[];
@@ -64,9 +65,10 @@ export class TileMesher {
     const town = (x: number, z: number) => {
       const key = chunk_of(x, z, ext);
       let parts = this.towns.get(key);
-      if (!parts) this.towns.set(key, (parts = { buildings: [], props: [], parking: [], trees: [], solids: [] }));
+      if (!parts) this.towns.set(key, (parts = { lots: [], buildings: [], props: [], parking: [], trees: [], solids: [] }));
       return parts;
     };
+    for (const lot of data.lots) if (lot.ground) town(lot.x, lot.z).lots.push(lot);
     for (const b of data.buildings) town(b.x, b.z).buildings.push(b);
     for (const p of data.props) town(p.x, p.z).props.push(p);
     for (const lot of data.parking) town(data.lots[lot.lot].x, data.lots[lot.lot].z).parking.push(lot);

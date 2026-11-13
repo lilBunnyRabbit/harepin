@@ -12,8 +12,8 @@ const EXT = extent(MAINLAND_SIZE);
 
 test("mainland ids and keys sit in their own thousand", async () => {
   const { world_id, world_key } = await import("./kinds/kinds");
-  expect(world_id("mainland")).toBe(3007);
-  expect(world_key(42, "mainland")).toBe("42:m7");
+  expect(world_id("mainland")).toBe(3008);
+  expect(world_key(42, "mainland")).toBe("42:m8");
 });
 
 test("the mainland is land in the middle and sea at its border", () => {
@@ -273,3 +273,15 @@ for (const seed of sweep(2))
     for (const k of [index + EXT.side + 1, index - 1, index - EXT.side, index + 1]) around.build(k);
     expect(digest(around.build(index))).toEqual(alone);
   }, 120_000);
+
+test("a mainland town lines its main street with paved shop rows, and most towns keep a square with a clock tower", () => {
+  const { data } = plan_mainland(0);
+  const squares = data.lots.filter((lot) => lot.kind === "plaza");
+  expect(squares.length).toBeGreaterThan(data.towns.length / 2);
+  for (const town of data.towns) expect(squares.filter((lot) => lot.town === town.id).length).toBeLessThanOrEqual(1);
+  expect(data.buildings.filter((b) => b.detail?.form === "clock").map((b) => data.lots[b.lot].kind)).toEqual(squares.map(() => "plaza"));
+  const rows = data.buildings.filter((b) => b.detail?.form === "row");
+  expect(rows.length).toBeGreaterThan(data.towns.length * 4);
+  for (const b of rows) expect(data.lots[b.lot].ground).toBe("paved");
+  for (const b of data.buildings) expect(b.detail).toBeDefined();
+});

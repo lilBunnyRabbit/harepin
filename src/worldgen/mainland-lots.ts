@@ -92,6 +92,7 @@ export function mainland_lots(seed: number, recipe: Recipe, graph: RoadGraph, to
     const lots = new Lots(seed, land, stamp, recipe.towns, grid, out, new Set(circuit));
     const near = outlines.filter((o) => o.x1 >= ORIGIN + grid.i0 * CELL && o.x0 <= ORIGIN + grid.i1 * CELL && o.z1 >= ORIGIN + grid.j0 * CELL && o.z0 <= ORIGIN + grid.j1 * CELL);
     block(lots.occupied, grid, land.heights, near, wet);
+    if (recipe.towns.style === "high_street") lots.square(town);
     for (const edge of streets) lots.street(edge, town);
   }
   return out;

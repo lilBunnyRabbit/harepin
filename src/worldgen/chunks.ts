@@ -4,6 +4,7 @@ import { sample, vertex_up } from "./field";
 import { KINDS } from "./kinds/kinds";
 import { landmark_mesh, type LandmarkTones } from "./landmark-mesh";
 import { roof_rise } from "./lots";
+import { dress_building, dress_lot, type TownTones } from "./town-mesh";
 import { Builder, bounding_sphere, turned, type Rgb, type Sphere } from "./mesh";
 import { road_layers, type RoadTones } from "./road-layers";
 import { grid_ground, Roads, type Layer } from "./roads";
@@ -11,7 +12,7 @@ import { deck_layers, type DeckTones } from "./sky-mesh";
 import type { LavaPool } from "./lava";
 import { hash } from "./noise";
 import { ISLAND } from "./recipe";
-import { CELL, Ground, N, ORIGIN, PropKind, Roof, SURFACE_GROUND, type Building, type ParkingLot, type Prop, type WorldData } from "./types";
+import { CELL, Ground, N, ORIGIN, PropKind, Roof, SURFACE_GROUND, type Building, type Lot, type ParkingLot, type Prop, type WorldData } from "./types";
 
 const CHUNK_CELLS = CHUNK / CELL;
 export const JITTER_LEVELS = 64;
@@ -72,6 +73,7 @@ export interface MeshTones extends RoadTones {
   walls: Rgb[];
   roofs: Rgb[];
   roof_flat: Rgb;
+  town: TownTones;
   landmark: LandmarkTones;
   deck: DeckTones;
 }
@@ -262,6 +264,7 @@ function window_bands(out: Builder, hw: number, hd: number, height: number, firs
 }
 
 export interface TownParts {
+  lots: readonly Lot[];
   buildings: readonly Building[];
   props: readonly Prop[];
   parking: readonly ParkingLot[];
@@ -287,6 +290,10 @@ export function town_builders(data: WorldData, parts: TownParts, tones: MeshTone
     const town = of(b.x, b.z);
     const big = b.height + rise >= SMALL_BUILDING;
     const out = (big ? town.big : town.small).at(b);
+    if (b.detail) {
+      dress_building(out, big ? town.glass_big : town.glass_small, b, b.detail, tones, seed);
+      continue;
+    }
     out.walls(b.hw, b.hd, -1, b.height, wall);
     const shop = data.lots[b.lot].kind === "shop";
     const glass = (big ? town.glass_big : town.glass_small).at(b);
@@ -300,6 +307,7 @@ export function town_builders(data: WorldData, parts: TownParts, tones: MeshTone
     } else out.top(b.hw, b.hd, b.height, tones.roof_flat);
   }
   for (const prop of parts.props) if (prop.kind !== PropKind.STREET_LIGHT) landmark_mesh(of(prop.x, prop.z).big, prop, data.terrain.heights, tones.landmark);
+  for (const lot of parts.lots) if (lot.ground) dress_lot(of(lot.x, lot.z).parking, of(lot.x, lot.z).small, lot, tones);
   for (const lot of parts.parking) {
     const frame = data.lots[lot.lot];
     const out = of(frame.x, frame.z).parking.at(frame);

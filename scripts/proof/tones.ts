@@ -25,6 +25,7 @@ export const MESH_TONES: MeshTones = {
     [0.3, 0.8, 0.4],
   ],
   roof_flat: [0.5, 0.5, 0.1],
+  town: { pave: [0.31, 0, 0], square: [0.32, 0, 0], hedge: [0.33, 0, 0], awnings: [[0.34, 0, 0]], trim: [0.35, 0, 0], door: [0.36, 0, 0], walls: [[0.37, 0, 0]] },
   landmark: { pale: [0.11, 0, 0], band: [0.12, 0, 0], cap: [0.13, 0, 0], stone: [0.14, 0, 0], stone_shade: [0.15, 0, 0], plant: [0.16, 0, 0], plant_shade: [0.17, 0, 0] },
   deck: { deck: [0.21, 0, 0], side: [0.22, 0, 0], rail: [0.23, 0, 0], joint: [0.24, 0, 0], pad: [0.25, 0, 0], chevron: [0.26, 0, 0] },
 };
