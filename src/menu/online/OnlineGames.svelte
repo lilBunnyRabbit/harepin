@@ -74,4 +74,12 @@
     font-size: var(--text-sm);
     white-space: nowrap;
   }
+
+  @media (max-width: 600px) {
+    .games-end {
+      flex-direction: column;
+      align-items: flex-end;
+      gap: var(--space-2);
+    }
+  }
 </style>
