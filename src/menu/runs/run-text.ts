@@ -1,4 +1,7 @@
 import { limit_text } from "../../car/car-pick";
+import { MODES } from "../../modes/modes";
+import { points_text } from "../../modes/result";
+import { format } from "../../hud/hud";
 import { type_of, type RunCar, type RunPick } from "../../runs/runs";
 import { RewardKind, tint_label, title_text, type SeasonReward } from "../../runs/season";
 import type { WorldKind } from "../../worldgen/types";
@@ -20,3 +23,9 @@ export const reward_text = (reward: SeasonReward) => (reward.kind === RewardKind
 
 /** A kept reward code as the player reads it: `S1 Ace`, `Info tint`. */
 export const code_text = (code: string) => title_text(code) ?? `${tint_label(code)} tint`;
+
+/** A daily board entry in its mode's own unit: km/h, metres or points when it scores, else its time. */
+export function daily_text(mode: string, { ms, score }: { ms: number; score?: number }): string {
+  if (score === undefined) return format(ms);
+  return (MODES.find((m) => m.id === mode)?.score_text ?? points_text)(score);
+}

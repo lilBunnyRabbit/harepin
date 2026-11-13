@@ -102,6 +102,25 @@ test("board rows: this room over the cache, the fastest first, other picks hidde
   ]);
 });
 
+test("a points daily ranks by score, higher first, and keeps a peer's best score", () => {
+  const rows = board_rows(K, { name: "Me", k: K, ms: 90_000, score: 1500 }, [{ name: "Ana", k: K, ms: 99_000, score: 2100 }], [
+    { name: "Ana", k: K, ms: 50_000, score: 900 },
+    { name: "Cy", k: K, ms: 40_000, score: 700 },
+  ]);
+  expect(rows.map((r) => [r.name, r.score])).toEqual([
+    ["Ana", 2100],
+    ["Me", 1500],
+    ["Cy", 700],
+  ]);
+  const runs = new Runs(new MemStore(), () => new Date("2026-11-13T10:00:00Z"));
+  expect(runs.post_daily({ k: K, ms: 90_000, score: 1500 })).toBe(true);
+  expect(runs.post_daily({ k: K, ms: 10_000, score: 1400 })).toBe(false);
+  expect(runs.post_daily({ k: K, ms: 95_000, score: 1600 })).toBe(true);
+  runs.see_dailies([{ name: "Ana", k: K, ms: 99_000, score: 2100 }]);
+  runs.see_dailies([{ name: "Ana", k: K, ms: 1_000, score: 2000 }]);
+  expect(runs.seen_dailies).toEqual([{ name: "Ana", k: K, ms: 99_000, score: 2100 }]);
+});
+
 test("today's own best and the peers seen stay for the day, then clear", () => {
   const store = new MemStore();
   let now = new Date("2026-11-13T10:00:00Z");

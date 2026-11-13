@@ -1,7 +1,7 @@
 import { Track, read_json, write_json, type Store } from "../modes/track";
 import { clean_daily, type DailyTime } from "../net/daily";
 import type { WorldKind } from "../worldgen/types";
-import { key_date, type BoardEntry } from "./daily-board";
+import { daily_order, key_date, type BoardEntry } from "./daily-board";
 import { Difficulty, RunSource, season_of, utc_date, type RunPick } from "./runs";
 import { clean_tint, clean_title, reached, type NameTag } from "./season";
 
@@ -209,7 +209,7 @@ export class Runs {
   post_daily(time: DailyTime): boolean {
     const board = this.board;
     if (key_date(time.k) !== board.date) return false;
-    if (board.own?.k === time.k && board.own.ms <= time.ms) return false;
+    if (board.own?.k === time.k && daily_order(board.own, time) <= 0) return false;
     board.own = time;
     this.version++;
     this.write();
@@ -227,9 +227,9 @@ export class Runs {
     for (const entry of entries) {
       if (key_date(entry.k) !== board.date || !entry.name || entry.name.length > NAME_MAX) continue;
       const at = board.seen.findIndex((seen) => seen.name === entry.name && seen.k === entry.k);
-      if (at >= 0 && board.seen[at].ms <= entry.ms) continue;
+      if (at >= 0 && daily_order(board.seen[at], entry) <= 0) continue;
       if (at < 0 && board.seen.length >= SEEN_MAX) continue;
-      const next = { name: entry.name, k: entry.k, ms: entry.ms };
+      const next: BoardEntry = { name: entry.name, k: entry.k, ms: entry.ms, ...(entry.score === undefined ? {} : { score: entry.score }) };
       board.seen = at >= 0 ? board.seen.map((seen, i) => (i === at ? next : seen)) : [...board.seen, next];
       changed = true;
     }

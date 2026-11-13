@@ -6,6 +6,7 @@ import type { Player } from "../../net/players";
 import type { Menu } from "../page";
 import { DEFAULT_SETTINGS } from "../prefs";
 import type { MenuState } from "../ui/menu-state.svelte";
+import { daily_text } from "../runs/run-text";
 import SeasonBar from "../runs/SeasonBar.svelte";
 import DailyBoard from "./DailyBoard.svelte";
 import OnlineGames from "./OnlineGames.svelte";
@@ -92,6 +93,13 @@ describe("online cards", () => {
     for (const text of ["1. Ana", "0:59.000", "2. Me", "You", "Seen earlier today", "Run today's daily"]) expect(html).toContain(text);
     const empty = render(DailyBoard, { props: setup({ runs: { ...runs, own_daily: null }, daily_board: () => [] }) }).body;
     expect(empty).toContain("No times yet today.");
+  });
+
+  test("a scored daily shows in its mode's unit; a timed one as a time", () => {
+    expect(daily_text("race", { ms: 61_000 })).toBe("1:01.000");
+    expect(daily_text("race", { ms: 61_000, score: 212.4 })).toBe("212 km/h");
+    expect(daily_text("drift", { ms: 61_000, score: 1840 })).toBe("1,840 pts");
+    expect(daily_text("jump", { ms: 61_000, score: 42.5 })).toContain("m");
   });
 
   test("the season bar names its steps and the next one", () => {

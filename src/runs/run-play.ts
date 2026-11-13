@@ -56,7 +56,7 @@ export function run_play(pick: RunPick, world: World, runs: Runs, start_run: (id
       if (stars < 1) return [];
       const { gain, capped } = runs.record(pick, stars, started);
       const best = track.runs[resolved.level];
-      if (pick.source === RunSource.DAILY && pick.date === runs.today && best) runs.post_daily({ k: daily_key(pick.date, event.map, resolved.level, world.key), ms: best.ms });
+      if (pick.source === RunSource.DAILY && pick.date === runs.today && best) runs.post_daily({ k: daily_key(pick.date, event.map, resolved.level, world.key), ms: best.ms, ...(best.score === undefined ? {} : { score: best.score }) });
       const total = `${runs.stars} ★`;
       return [line("season", gain ? `+${gain} ★ · ${total}` : capped ? `Today's ${FREE_CAP} ★ are in · ${total}` : total)];
     },

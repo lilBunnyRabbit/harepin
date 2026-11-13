@@ -176,6 +176,8 @@ test("hello: a bad daily or tag drops alone; the rest of the hello stays", () =>
   ];
   for (const daily of bad_dailies) expect(sanitize_hello({ ...hello, daily })).toEqual(hello);
   expect(sanitize_hello({ ...hello, daily: { ...DAILY, extra: 1 } })).toEqual({ ...hello, daily: DAILY });
+  expect(sanitize_hello({ ...hello, daily: { ...DAILY, score: 1840 } })).toEqual({ ...hello, daily: { ...DAILY, score: 1840 } });
+  for (const score of [-1, NaN, Infinity, "9", 1e12, null]) expect(sanitize_hello({ ...hello, daily: { ...DAILY, score } })).toEqual(hello);
   expect(sanitize_hello({ ...hello, tag: { title: "king.1", tint: "#f00" } })).toEqual(hello);
 });
 
