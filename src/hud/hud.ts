@@ -180,8 +180,9 @@ export class Hud {
   }
 
   /** A short note that fades on its own, for a setting changed by key; `label` is an optional line above it. */
-  toast(text: string, label = "", hold = TOAST_MS) {
+  toast(text: string, label = "", hold = TOAST_MS, road_only = false) {
     const { toast } = this.el;
+    toast.toggleAttribute("data-road", road_only);
     this.el.toast_text.textContent = text;
     this.el.toast_label.textContent = label;
     toast.dataset.shown = "";

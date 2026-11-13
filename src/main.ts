@@ -393,7 +393,7 @@ modes.bindings = () => settings.state.bindings;
 modes.ghosts = () => settings.state.ghost;
 modes.cover = (wait) => area_fade.cover(wait);
 modes.on_finish = (mode) => goals.played(mode);
-modes.toast = (text, label, hold) => hud.toast(text, label, hold);
+modes.toast = (text, label, hold) => hud.toast(text, label, hold, true);
 modes.start_event = (id) => start_event(id);
 modes.try_reward = (reward) => {
   settings.open(MenuTab.GARAGE);

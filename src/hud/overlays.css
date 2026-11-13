@@ -20,6 +20,11 @@
   transition-duration: 0.1s;
 }
 
+/* A run's goal is for the road: over the pause menu it covered Restart, so it waits out the menu. */
+body:has(> .settings:not([hidden])) #toast[data-road] {
+  opacity: 0;
+}
+
 #banner {
   position: fixed;
   top: 18%;
