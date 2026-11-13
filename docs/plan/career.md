@@ -284,7 +284,7 @@ Round 4, 2026-11-13, at `9b585db`. Plan only. Nothing was run: no `career-check`
 | Event ids | `e1`-`e12`, `l1`-`l12`; batch 2 adds `e8`-`e12`, the final is `e12`. Stable forever (store key) | `career.ts:16` |
 | Star margin | New `Tier.margin`: 1 for Rookie-Pro, `1.03` for Elite and Legend. `owner_stars`: `three = round(ms × margin)`, `two = round(three × SILVER_SHARE)`; drift `three = round(points / margin)` | `career.ts:172` |
 | Copy my times | `owner_times` skips race events today. For a tier with `margin > 1`, race events go in too | `career-store.ts:47-50` |
-| Tune script | `scripts/career.ts` still drives Elite / Legend races, but only for the ghost (`--write`); it stops printing their `stars`. The shipped ghost becomes the bot drive nearest the owner's 3★ | `scripts/career.ts:184-189` |
+| Tune script | `scripts/career.ts` still drives Elite / Legend races, but only for the ghost (`--write`); it stops printing their `stars`. The shipped ghost becomes the bot drive nearest the owner's 3★. Tune flow for a race event: the owner plays it, Copy my times, the stars go into `career.ts`, **then rerun `bun scripts/career.ts <id> --write`** so the ghost is picked against those 3★, not the old ones | `scripts/career.ts:184-189` |
 | Paint unlock | `PAINT_STARS = 10` is absolute: 10 of 36 is cheap. New `Tier.rewards.paint_at`: 10 for the old tiers, 18 for Elite and Legend | `rewards.ts:5,15` |
 | Unlock while Elite grows | Legend opens at 27, which batch 1 (21 max) cannot reach: harmless, Legend ships after batch 2 | `tier_open`, `career.ts:121` |
 
@@ -308,11 +308,13 @@ Mix: race 2, parking, drift, hunt, duel, gymkhana. No Mainland: the road trip co
 
 | id | Name | World | Mode / level | Car | Needs |
 |---|---|---|---|---|---|
-| e8 | Drift chain | Alpine `1A0000009` | drift `d5` with `chain` | Drift | Drift chain (S) |
+| e8 | Drift chain | Alpine `1A0000009` | drift `d6` One chain (shipped; planned as `d5` with `chain`) | Drift | Drift chain (S) |
 | e9 | Speed traps | Sky Track `1S0000002` | race `circuit` + traps | ≤ X | Speed trap (S-M) |
 | e10 | Long jump | Island `1C0000003` | jump `j2` | ≤ S2 | Jump distance (M) |
-| e11 | Island cup | Island `1C0000008` | championship: 3 races on one map | ≤ S1 | Championship (M) |
+| e11 | Island cup | Island `1C0000008` | championship: race `circuit` + jump `j1` + duel `v3` (shipped; planned as 3 races) | ≤ S1 | Championship (M) |
 | e12 | **Final: Dune crossing** | Big dunes `1B…` | race `crossing` | ≤ X | Big dunes route (M-L, §10.4) |
+
+As shipped: **e8 runs `d6`**, because the chain is its own level (`drift.ts:40`, a 200-point zone) and `d5` Touge stays the banked free-play run unchanged. **e11 runs race + jump + duel**, not three races: the stage runner takes any mode, and three kinds on one map make each stage a different skill instead of three laps of similar routes.
 
 Legend's 12 get drafted once batch 2 ships: road trip, banked run, the reused kinds at harder levels and caps, the maybes if built, and the Legend final. No roster now.
 
@@ -431,7 +433,7 @@ Ordered by E1 (Elite batch 1 first), then by what unblocks the most.
 1. **Unlocks:** Elite at 16 Pro stars, Legend at 27 Elite stars?
 2. **Legend final map:** Rooftops revived, or a new banked / wall-ride map (recommended)?
 3. **Season:** 4 weeks, title and name tag tint only?
-4. **Championship points:** 10 / 6 / 3 per stage by stars, or by time against the stage marks?
+4. **Championship points:** 10 / 6 / 3 per stage by stars, or by time against the stage marks? Decided: by stars. A 0★ stage cannot advance: the result card offers Retry stage ("A stage needs 1★ to go on"), so a finished championship has a star on every stage.
 
 ### 10.10 Event builder (owner ask, 11-14)
 
