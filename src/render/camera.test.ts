@@ -183,4 +183,17 @@ describe("chase camera on a wall", () => {
     expect(up_off(r)).toBeLessThan(1 * DEG);
     expect(worst).toBeLessThan(3 * DEG);
   });
+
+  test("a wall left behind in the cockpit does not roll the chase view on the way back", () => {
+    bank = 65 * DEG;
+    const r = rig(WALL);
+    r.chase.wall_bank = 35 * DEG;
+    drive(3, 60, new THREE.Vector3(), r);
+    r.chase.mode = 1;
+    bank = 0;
+    drive(2, 60, new THREE.Vector3(), r);
+    r.chase.mode = 0;
+    drive(1 / 60, 60, new THREE.Vector3(), r);
+    expect(r.chase.camera.up.angleTo(new THREE.Vector3(0, 1, 0))).toBeLessThan(1 * DEG);
+  });
 });
