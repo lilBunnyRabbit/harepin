@@ -4,10 +4,10 @@ import { Car } from "../car/car";
 import { DEFAULT_BUILD, build_spec } from "../car/build";
 import { event_markers } from "../career/markers";
 import { World } from "../world/world";
-import { ramp_world } from "../worldgen/jumps";
+import { ramp_world, runup_too_steep } from "../worldgen/jumps";
 import { build_world } from "../worldgen/kinds/kinds";
 import { SPAWN_INDEX, WorldKind } from "../worldgen/types";
-import { JUMP_LEVELS, JumpEvent, JumpRun, SETTLE_MS, TRIES, WINDOW_MS, build_jump, jump_levels, jump_stars, landing_blocked, nearest_ramp, runup_too_steep, type Jump, type JumpPose } from "./jump";
+import { JUMP_LEVELS, JumpEvent, JumpRun, SETTLE_MS, TRIES, WINDOW_MS, build_jump, jump_levels, jump_stars, landing_blocked, nearest_ramp, type Jump, type JumpPose } from "./jump";
 import { jump_at } from "./jump-mode";
 import { airborne } from "./mode";
 
@@ -20,9 +20,9 @@ const flat = { height: () => 0 };
 
 test("levels: one per ramp kind the map has, none on a map without ramps", () => {
   const island = world_of(WorldKind.ISLAND, 2);
-  expect(jump_levels(desert.ramps, desert.challenges, desert).map((l) => l.id)).toEqual(["j1", "j2", "j3"]);
-  expect(jump_levels(island.ramps, [], flat).map((l) => l.id)).toEqual(["j2", "j3"]);
-  expect(jump_levels(world_of(WorldKind.SKY, 1).ramps, [], flat)).toEqual([]);
+  expect(jump_levels(desert.ramps, desert.challenges).map((l) => l.id)).toEqual(["j1", "j2", "j3"]);
+  expect(jump_levels(island.ramps, []).map((l) => l.id)).toEqual(["j2", "j3"]);
+  expect(jump_levels(world_of(WorldKind.SKY, 1).ramps, [])).toEqual([]);
 });
 
 test("a level takes the clear ramp of its kind nearest the start, run-up behind it", () => {
@@ -157,27 +157,38 @@ test("the starter car flat out from the start flies off the lip for two stars", 
 test("a jump never runs on a ramp with a wall or bar over its flight line: it caps the flight and stops a short landing", () => {
   const world = world_of(WorldKind.DESERT, 4);
   const at = world.road.at(SPAWN_INDEX);
-  const blind = at && nearest_ramp(world.ramps, at, kicker, [], flat);
+  const blind = at && nearest_ramp(world.ramps.map(({ steep: _, ...r }) => r), at, kicker, []);
   const jump = jump_at(world, SPAWN_INDEX, kicker);
   if (!at || !blind || !jump) throw new Error("no kicker");
   expect(landing_blocked(blind, world.challenges)).toBe(true);
   expect(jump.ramp).not.toBe(blind);
   expect(landing_blocked(jump.ramp, world.challenges)).toBe(false);
   const walled = world.ramps.filter((r) => landing_blocked(r, world.challenges));
-  expect(jump_levels(walled, world.challenges, flat)).toEqual([]);
+  expect(jump_levels(walled, world.challenges)).toEqual([]);
 });
 
 test("a kicker whose run-up climbs too steeply for the starter car to take off is no jump level", () => {
   const world = world_of(WorldKind.ISLAND, 6);
   const at = world.road.at(SPAWN_INDEX);
-  const steep = at && nearest_ramp(world.ramps, at, kicker, [], flat);
+  const steep = at && nearest_ramp(world.ramps.map(({ steep: _, ...r }) => r), at, kicker, []);
   if (!steep) throw new Error("no kicker");
   expect(runup_too_steep(steep, world)).toBe(true);
   expect(runup_too_steep(steep, flat)).toBe(false);
-  expect(jump_levels([steep], [], world)).toEqual([]);
+  expect(world.ramps.find((r) => r.id === steep.id)?.steep).toBe(true);
+  expect(jump_levels(world.ramps.filter((r) => r.id === steep.id), [])).toEqual([]);
   const jump = jump_at(desert, SPAWN_INDEX, kicker);
   if (!jump) throw new Error("no kicker");
   expect(runup_too_steep(jump.ramp, desert)).toBe(false);
+});
+
+test("jump levels come from the map's plan, not from the chunks a browser has streamed in so far", () => {
+  const { data } = build_world(8, WorldKind.ISLAND);
+  const whole = new World(8, data);
+  const bare = new World(8, data, []);
+  expect(jump_levels(whole.ramps, whole.challenges).map((l) => l.id)).toEqual(["j1", "j2", "j3"]);
+  expect(jump_levels(bare.ramps, bare.challenges)).toEqual(jump_levels(whole.ramps, whole.challenges));
+  for (const w of [whole, desert, world_of(WorldKind.ALPINE, 3), world_of(WorldKind.SKY, 1)])
+    for (const r of w.ramps.filter((r) => !r.deck)) expect(r.steep === true).toBe(runup_too_steep(r, w));
 });
 
 test("a jump event's marker stands at its run-up", () => {

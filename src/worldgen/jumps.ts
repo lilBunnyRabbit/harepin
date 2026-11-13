@@ -117,6 +117,40 @@ export function ramp_surface(r: Ramp, x: number, z: number): Surface | null {
   return { y: r.y + r.grade * v + ramp_lift(r, u, v), gx: dv * r.fx + du * r.fz, gz: dv * r.fz - du * r.fx };
 }
 
+// The starter hatch flat out from the start never leaves a kicker's lip past either: run-ups climbing more than this from the
+// start to the toe, or any 5 m of them steeper than this grade (headless sim, five world kinds, six seeds each).
+const RUNUP_CLIMB = 2.5;
+const RUNUP_GRADE = 0.2;
+const GRADE_STEP = 5;
+
+/** A kicker whose run-up from the start climbs too much for the starter car to reach the speed a takeoff needs. Big ramps want a backed-up run anyway. */
+export function runup_too_steep(r: Ramp, ground: { height(x: number, z: number): number }): boolean {
+  if (r.kind === "big") return false;
+  const h = (v: number) => ground.height(...ramp_world(r, 0, v));
+  if (h(0) - h(-RUNUP) > RUNUP_CLIMB) return true;
+  for (let v = -RUNUP; v < 0; v += GRADE_STEP) if (h(v + GRADE_STEP) - h(v) > RUNUP_GRADE * GRADE_STEP) return true;
+  return false;
+}
+
+/**
+ * Marks `steep` on the kickers a starter car cannot take off from, read off the finished grid with every ramp on it as the
+ * sim rides them. Done once on the plan, so a browser that holds only some chunks yet lists the same jumps as Node.
+ */
+export function mark_steep_runups(heights: Float32Array, ramps: readonly Ramp[]) {
+  const wedges = ramps.filter((r) => !r.deck);
+  const ground = {
+    height(x: number, z: number) {
+      let top = sample(heights, x, z);
+      for (const w of wedges) {
+        const s = ramp_surface(w, x, z);
+        if (s && s.y > top) top = s.y;
+      }
+      return top;
+    },
+  };
+  for (const r of wedges) if (runup_too_steep(r, ground)) r.steep = true;
+}
+
 /** Where the face past the lip meets the base line again. */
 export function face_end(r: Ramp): number {
   return r.length + r.rise / (r.back ?? BACK);

@@ -1,6 +1,6 @@
 import { biome_cuts, item_kind, plant } from "./biomes";
 import { sample, vertex } from "./field";
-import { ITEMS, JumpPlanner } from "./jumps";
+import { ITEMS, JumpPlanner, mark_steep_runups } from "./jumps";
 import { LandmarkPlanner } from "./landmarks";
 import { length } from "./noise";
 import { Lots } from "./lots";
@@ -279,5 +279,6 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   if (lava.length) stamp.lava(lava);
   lap("props");
 
+  mark_steep_runups(land.heights, jumps.ramps);
   return { kind, deck: null, terrain: land, ground: { base: { kind: "terrain", seed, shape }, ops: stamp.ops }, graph, towns, lots: lot_list, buildings, props, parking, trees, solids, ramps: jumps.ramps, items: jumps.items, challenges: jumps.challenges, checkpoints, circuit, road, routes, canyon, timings };
 }

@@ -42,8 +42,8 @@ const GOLD_TOE = 22;
 
 const kind_of = (r: Ramp): JumpKind | null => (r.deck ? null : r.road ? JumpKind.ROAD : r.kind === "big" ? JumpKind.BIG : r.kind === "kicker" ? JumpKind.KICKER : null);
 
-export function jump_levels(ramps: readonly Ramp[], challenges: readonly Challenge[], ground: Ground): JumpLevel[] {
-  return JUMP_LEVELS.filter((level) => ramps.some((r) => kind_of(r) === level.kind && usable(r, challenges, ground)));
+export function jump_levels(ramps: readonly Ramp[], challenges: readonly Challenge[]): JumpLevel[] {
+  return JUMP_LEVELS.filter((level) => ramps.some((r) => kind_of(r) === level.kind && usable(r, challenges)));
 }
 
 // Lower than this over the middle of a challenge's gap, a piece stops a car that lands short of it and rolls on.
@@ -54,29 +54,14 @@ export function landing_blocked(r: Ramp, challenges: readonly Challenge[]): bool
   return challenges.some((c) => c.ramp === r.id && challenge_pieces(c).some((p) => Math.abs(p.lx) < p.hw && p.bottom < HEADROOM));
 }
 
-// The starter hatch flat out from the start never leaves a kicker's lip past either: run-ups climbing more than this from the
-// start to the toe, or any 5 m of them steeper than this grade (headless sim, five world kinds, six seeds each).
-const RUNUP_CLIMB = 2.5;
-const RUNUP_GRADE = 0.2;
-const GRADE_STEP = 5;
+const usable = (r: Ramp, challenges: readonly Challenge[]) => !landing_blocked(r, challenges) && !r.steep;
 
-/** A kicker whose run-up from the start climbs too much for the starter car to reach the speed a takeoff needs. Big ramps want a backed-up run anyway. */
-export function runup_too_steep(r: Ramp, ground: Ground): boolean {
-  if (r.kind === "big") return false;
-  const h = (v: number) => ground.height(...ramp_world(r, 0, v));
-  if (h(0) - h(-RUNUP) > RUNUP_CLIMB) return true;
-  for (let v = -RUNUP; v < 0; v += GRADE_STEP) if (h(v + GRADE_STEP) - h(v) > RUNUP_GRADE * GRADE_STEP) return true;
-  return false;
-}
-
-const usable = (r: Ramp, challenges: readonly Challenge[], ground: Ground) => !landing_blocked(r, challenges) && !runup_too_steep(r, ground);
-
-/** The nearest ramp of the level's kind with a clear landing and a run-up the starter car can take. */
-export function nearest_ramp(ramps: readonly Ramp[], at: { x: number; z: number }, level: JumpLevel, challenges: readonly Challenge[], ground: Ground): Ramp | null {
+/** The nearest ramp of the level's kind with a clear landing and a run-up the starter car can take (`Ramp.steep`, marked on the plan). */
+export function nearest_ramp(ramps: readonly Ramp[], at: { x: number; z: number }, level: JumpLevel, challenges: readonly Challenge[]): Ramp | null {
   let best: Ramp | null = null;
   let best_d = Infinity;
   for (const r of ramps) {
-    if (kind_of(r) !== level.kind || !usable(r, challenges, ground)) continue;
+    if (kind_of(r) !== level.kind || !usable(r, challenges)) continue;
     const d = Math.hypot(r.x - at.x, r.z - at.z);
     if (d < best_d) {
       best = r;
@@ -110,7 +95,7 @@ export interface Jump {
 }
 
 export function build_jump(ramps: readonly Ramp[], at: { x: number; z: number }, ground: Ground, level: JumpLevel, challenges: readonly Challenge[]): Jump | null {
-  const ramp = nearest_ramp(ramps, at, level, challenges, ground);
+  const ramp = nearest_ramp(ramps, at, level, challenges);
   if (!ramp) return null;
   const three = reach(ramp, Math.min(ramp.speed, GOLD_TOE), ground);
   const two = reach(ramp, Math.min(ramp.speed, ramp.kind === "big" ? BIG_SILVER_TOE : SILVER_TOE), ground);
