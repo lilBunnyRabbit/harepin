@@ -432,3 +432,16 @@ Ordered by E1 (Elite batch 1 first), then by what unblocks the most.
 2. **Legend final map:** Rooftops revived, or a new banked / wall-ride map (recommended)?
 3. **Season:** 4 weeks, title and name tag tint only?
 4. **Championship points:** 10 / 6 / 3 per stage by stars, or by time against the stage marks?
+
+### 10.10 Event builder (owner ask, 11-14)
+
+Owner: "the user picks the type, some options for each event, then the map and the event is generated". Decided 11-14: it ships inside V5, as a tab of the Runs view, and V5 moves ahead of V4.
+
+| Step | Plan |
+|---|---|
+| Type | race (circuit, sprint), drift, drift chain, speed trap, jump, hunt, gymkhana, parking, duel: every mode with levels on compact worlds |
+| Options | World kind or random; length (short / medium / long, races); laps (circuits); difficulty (star marks scaled: relaxed / normal / hard); car: class cap or a preset; ramp kind (jump) |
+| Generate | Seeded: a random map seed of the picked kind; the mode's `levels(world)` filtered by the options; reroll the seed (bounded tries) on `NO_SITE` or no matching level. Same picker as Endless random (`runs.ts`), with the choices in place of dice |
+| Stars | The mode's own marks (`thresholds`), scaled by difficulty. Season stars, never career stars |
+| Share | `?run=custom:<code>`: the code packs type, options and seed, so a friend gets the same map and event |
+| Store | Best per `world_key` + level, as other runs |
