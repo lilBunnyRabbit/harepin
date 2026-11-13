@@ -427,7 +427,7 @@ Ordered by E1 (Elite batch 1 first), then by what unblocks the most.
 | **V5** | Runs view: daily, endless, weekly cup | Mode marks, the `?event=` flow, the championship runner | `runs.ts`, `?run=`, `harepin:runs`, Runs tab, `runs-check` | M |
 | **V6** | Season track + daily board in the lobby | The optional hello field pattern | Season bar and rewards, `daily` on the hello, board UI | M |
 | **V7** | Mainland road trip, banked run | Race streams, graph `trace`, sky bank data | `trip` (m7), `banked` (sky bump), re-tune c6 / p1 / r6 / r7 / p2 | M + M |
-| **V8** | Legend tier: 12 events, final map, carbon finish, Legend title | Everything above | Final map (owner pick), carbon finish in `livery.ts`, roster | L |
+| **V8** | Legend tier: 12 events, final map, carbon finish, Legend title | Everything above | Wall-ride final map (t140), carbon finish in `livery.ts`, roster | L |
 | **V9** | Legend car | The car pipeline | §10.5 table | L |
 | **V10** (maybe) | Elimination vs ghosts; endurance | Ghosts, bot drives | Multi-ghost assets; wear model | M; L |
 | Later | Car parts brainstorm, unlocked retroactively by stars | `unlocks(stars)` | Parts | - |
@@ -453,7 +453,7 @@ Ordered by E1 (Elite batch 1 first), then by what unblocks the most.
 
 ### 10.9 Open questions
 
-1. **Unlocks:** Elite at 16 Pro stars, Legend at 27 Elite stars?
+1. **Unlocks:** Elite at 16 Pro stars, Legend at 27 Elite stars? Legend at 27 decided 2026-11-13 (owner, with the roster).
 2. **Legend final map:** decided 2026-11-13: a new banked / wall-ride map, not Rooftops revived.
 3. **Season:** 4 weeks, title and name tag tint only?
 4. **Championship points:** 10 / 6 / 3 per stage by stars, or by time against the stage marks? Decided: by stars. A 0★ stage cannot advance: the result card offers Retry stage ("A stage needs 1★ to go on"), so a finished championship has a star on every stage.
