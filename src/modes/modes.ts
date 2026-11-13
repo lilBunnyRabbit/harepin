@@ -1,5 +1,5 @@
 import type * as THREE from "three";
-import { TIERS, TUNE_PARAM, next_event, spot_of, tier_line, tier_of, tier_open, type CareerEvent } from "../career/career";
+import { EVENT_PARAM, TIERS, TUNE_PARAM, next_event, spot_of, tier_line, tier_of, tier_open, type CareerEvent } from "../career/career";
 import { event_track, type Career } from "../career/career-store";
 import { dev_ghost } from "../career/dev-ghost";
 import { earned, garage_reward, type Reward } from "../career/rewards";
@@ -285,7 +285,13 @@ export class Modes {
       const own = this.kept ?? this.car_code?.() ?? "";
       const excludes = this.world.routes.find((r) => r.id === spot_of(event).level)?.excludes;
       const code = await this.pick_car(event.name, { cap: car.cap, car_sized_only: mode.def.car_sized_only, excludes }, own, pick.signal);
-      if (code === null) return false;
+      if (code === null) {
+        // A cancelled pick must not reopen on reload, so the event leaves the URL; map params stay.
+        const url = new URL(location.href);
+        url.searchParams.delete(EVENT_PARAM);
+        history.replaceState(history.state, "", url);
+        return false;
+      }
       this.wear(code);
       return true;
     } finally {
