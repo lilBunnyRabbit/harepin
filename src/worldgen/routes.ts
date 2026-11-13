@@ -45,6 +45,8 @@ const TOE_GATE = 20;
 const TRAIL_GATE_HW = 8;
 // Fitted to scripts/races.ts: dirt grip, bumps and the run-up to the gap cost every car time drive_time does not see.
 const OFFROAD_SHARE = 1.5;
+/** Fujin's slicks and splitter run off a trail's line: scripts/races.ts stops or flags it on every trail. */
+const TRAIL_EXCLUDES = ["fujin"];
 
 type LegKind = "street" | "spur" | "local" | "ring";
 
@@ -578,7 +580,7 @@ export function offroad_routes(trails: readonly Trail[]): Route[] {
     }
     picked.push(points.length - 1);
     const checkpoints = picked.map((i, index) => ({ x: points[i].x, y: points[i].y, z: points[i].z, heading: heading(points[i]), index }));
-    return { id: trail.id, kind: RouteKind.OFFROAD, closed: false, points, checkpoints, gate_hw: TRAIL_GATE_HW, length: run(points), par_ms: par(points, false, OFFROAD_SHARE), closure: [] };
+    return { id: trail.id, kind: RouteKind.OFFROAD, closed: false, points, checkpoints, gate_hw: TRAIL_GATE_HW, length: run(points), par_ms: par(points, false, OFFROAD_SHARE), closure: [], excludes: TRAIL_EXCLUDES };
   });
 }
 
