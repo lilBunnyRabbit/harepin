@@ -1,16 +1,15 @@
 <script lang="ts">
-  import { SLOTS, build_spec, stats, type Stats } from "../car/build";
-  import type { CarChoice, CarShelf } from "../car/car-pick";
+  import type { CarShelf } from "../car/car-pick";
   import { CLASS_LABELS } from "../car/pi";
-  import { STAT_NAMES, bar_of, stat_rating } from "./garage-meters";
+  import { car_facts } from "./car-facts";
+  import CarFactsLine from "./CarFactsLine.svelte";
+  import Badge from "./ui/Badge.svelte";
   import Button from "./ui/Button.svelte";
-  import ClassBadge from "./ui/ClassBadge.svelte";
   import Dialog from "./ui/Dialog.svelte";
   import IconButton from "./ui/IconButton.svelte";
-  import Progress from "./ui/Progress.svelte";
   import ScrollArea from "./ui/ScrollArea.svelte";
   import SectionHead from "./ui/SectionHead.svelte";
-  import Tile from "./ui/Tile.svelte";
+  import SpecCard from "./ui/SpecCard.svelte";
 
   interface Props {
     title: string;
@@ -22,8 +21,6 @@
 
   let { title, limit, shelves, onpick, ongarage }: Props = $props();
 
-  const METERS: readonly (keyof Stats)[] = ["power", "grip", "top_speed"];
-  const KG = new Intl.NumberFormat("en", { maximumFractionDigits: 0 });
   const calm = matchMedia("(prefers-reduced-motion: reduce)");
 
   let open = $state(true);
@@ -31,17 +28,6 @@
   let garage = false;
   let strip = $state<HTMLElement | null>(null);
   let shown = $state<ReadonlySet<string>>(new Set());
-
-  function facts(choice: CarChoice) {
-    const spec = build_spec(choice.build);
-    const now = stats(spec);
-    return {
-      drive: spec.drive.toUpperCase(),
-      tyres: SLOTS.tyres.parts[choice.build.parts.tyres]?.name ?? "Street",
-      weight: `${KG.format(spec.mass)} kg`,
-      meters: METERS.map((key) => ({ key, value: stat_rating(key, now[key]), bar: bar_of(key, now[key]) * 100 })),
-    };
-  }
 
   const scroller = () => strip?.closest<HTMLElement>(".ui-scroll");
   // The strip snaps to class columns, or to single cards where a short screen lays a class out in a row.
@@ -68,7 +54,7 @@
   // A frame late: the dialog's showModal runs after this effect, and a closed dialog has no layout to scroll.
   $effect(() => {
     if (!strip) return;
-    const tile = strip.querySelector<HTMLElement>("[data-fitted] .ui-tile");
+    const tile = strip.querySelector<HTMLElement>("[data-fitted] .ui-spec-card");
     const frame = requestAnimationFrame(() => {
       const target = snaps().find((el) => tile && el.contains(tile));
       if (target) go(target, "instant");
@@ -161,46 +147,25 @@
               <SectionHead eyebrow={shelf.head} />
               <ol>
                 {#each shelf.choices as choice (choice.code)}
-                  {@const spec = facts(choice)}
+                  {@const facts = car_facts(choice.build)}
                   <li data-fitted={choice.fitted || undefined}>
-                    {#snippet why()}{choice.blocked}{/snippet}
-                    {#snippet badge()}<ClassBadge rating={choice.rating} />{/snippet}
-                    {#snippet sheet()}
-                      <dl class="pick-facts">
-                        <div><dt>Drive</dt><dd>{spec.drive}</dd></div>
-                        <div><dt>Tyres</dt><dd>{spec.tyres}</dd></div>
-                        <div><dt>Weight</dt><dd>{spec.weight}</dd></div>
-                      </dl>
-                      <p class="pick-line">{spec.drive} · {spec.tyres} · {spec.weight}</p>
-                      <div class="pick-meters">
-                        {#each spec.meters as meter (meter.key)}
-                          <div class="pick-meter">
-                            <span class="pick-label">{STAT_NAMES[meter.key]}</span>
-                            <span class="pick-value">{meter.value}</span>
-                            <div class="pick-bar"><Progress value={meter.bar} max={100} label={STAT_NAMES[meter.key]} /></div>
-                          </div>
-                        {/each}
-                      </div>
+                    {#snippet line()}<CarFactsLine {facts} />{/snippet}
+                    {#snippet tag()}
+                      {#if choice.blocked}<span class="pick-reason">{choice.blocked}</span>
+                      {:else if choice.recommended}<Badge tone="primary">Recommended</Badge>
+                      {:else if choice.own}<Badge>Your car</Badge>{/if}
                     {/snippet}
-                    <Tile
+                    <SpecCard
                       title={choice.title}
                       meta={choice.sub || "Your garage build"}
-                      clamp={1}
+                      rating={choice.rating}
+                      meters={facts.meters}
+                      facts={line}
+                      tag={choice.blocked || choice.recommended || choice.own ? tag : undefined}
                       selected={choice.fitted}
                       disabled={choice.blocked !== null}
-                      reason={choice.blocked ? why : undefined}
-                      detail={sheet}
-                      aside={badge}
                       onclick={() => pick(choice.code)}
-                    >
-                      {#if !choice.blocked || choice.own || choice.fitted}
-                        <span class="pick-tags" class:lift={!choice.blocked}>
-                          {#if choice.own}<span class="own">Your car</span>{/if}
-                          {#if choice.recommended}<span class="rec">Recommended</span>{/if}
-                          {#if choice.fitted}<span class="why">Fitted</span>{/if}
-                        </span>
-                      {/if}
-                    </Tile>
+                    />
                   </li>
                 {/each}
               </ol>
@@ -219,6 +184,8 @@
 
 <style>
   .pick {
+    --pick-shelf: 500px;
+    --pick-row-card: 480px;
     display: grid;
     gap: var(--space-5);
     timeline-scope: --car-strip;
@@ -352,14 +319,14 @@
 
   .shelf {
     display: grid;
-    flex: 0 0 min(320px, calc(100% - var(--space-8)));
+    flex: 0 0 min(var(--pick-shelf), calc(100% - var(--space-8)));
     gap: var(--space-3);
     scroll-snap-align: start;
   }
 
   ol {
     display: grid;
-    gap: var(--space-3);
+    gap: var(--space-2);
     margin: 0;
     padding: 0;
     list-style: none;
@@ -369,107 +336,12 @@
     display: grid;
   }
 
-  /* Sized for a tag even when a car has none, so every card keeps one height. */
-  .pick-tags {
-    display: flex;
-    height: var(--space-5);
-    flex-wrap: nowrap;
-    align-items: center;
-    gap: var(--space-2);
-    min-width: 0;
-    overflow: hidden;
-    white-space: nowrap;
-  }
-
-  /* A blocked car's row sits in the tile's foot, which already has this gap above it. */
-  .lift {
-    margin-top: var(--space-1);
-  }
-
-  .rec {
-    padding: 0 var(--space-2);
-    border-radius: var(--radius-sm);
-    background: var(--primary);
-    color: var(--on-primary);
-    font-size: var(--text-sm);
-    font-weight: 700;
-  }
-
-  .own {
-    padding: 0 var(--space-2);
-    border: 1px solid var(--set-line);
-    border-radius: var(--radius-sm);
+  .pick-reason {
     color: var(--foreground);
-    font-size: var(--text-sm);
-    font-weight: 700;
   }
 
-  .why {
-    color: var(--set-dim);
-    font-size: var(--text-sm);
-    font-weight: 600;
-  }
-
-  .pick-facts,
-  .pick-meters {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--space-3);
-    margin: 0;
-  }
-
-  .pick-facts {
-    padding-top: var(--space-3);
-    border-top: 1px solid var(--set-line);
-  }
-
-  .pick-meters {
-    margin-top: var(--space-3);
-  }
-
-  dt,
-  .pick-label {
-    overflow: hidden;
-    color: var(--set-dim);
-    font-size: var(--text-xs);
-    font-weight: 600;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  dd {
-    overflow: hidden;
-    margin: 0;
-    font-size: var(--text-md);
-    font-weight: 600;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .pick-meter {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: baseline;
-    column-gap: var(--space-1);
-  }
-
-  .pick-value {
-    font-family: var(--font-mono);
-    font-size: var(--text-md);
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .pick-bar {
-    grid-column: 1 / -1;
-    margin-top: var(--space-1);
-  }
-  .pick-line {
-    display: none;
-  }
-
-  /* Short screens, a phone on its side: a class lays its cards out in a row and each card is compact, so one shows
-     whole without the dialog scrolling. */
+  /* Short screens, a phone on its side: a class lays its cards out in a row, so one shows whole without the dialog
+     scrolling. */
   @media (max-height: 500px) {
     .pick {
       gap: var(--space-3);
@@ -486,41 +358,8 @@
     }
 
     li {
-      flex: 0 0 280px;
+      flex: 0 0 var(--pick-row-card);
       scroll-snap-align: start;
-    }
-
-    li :global(.ui-tile[data-detail]) {
-      gap: var(--space-2);
-      padding: var(--space-3);
-    }
-
-    .pick-facts {
-      display: none;
-    }
-
-    .pick-line {
-      display: block;
-      overflow: hidden;
-      margin: 0;
-      padding-top: var(--space-2);
-      border-top: 1px solid var(--set-line);
-      font-size: var(--text-sm);
-      font-weight: 600;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .pick-meters {
-      margin-top: var(--space-2);
-    }
-
-    .pick-bar {
-      margin-top: var(--space-0);
-    }
-
-    .pick-bar :global(.ui-progress) {
-      --track-h: var(--space-1);
     }
   }
 </style>

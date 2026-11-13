@@ -3,14 +3,16 @@
   import { build_code, parse_build } from "../car/build";
   import { BUILD_NAME_LENGTH, free_build_name, renamed } from "../car/builds";
   import { CARS } from "../car/cars";
-  import { rating } from "../car/pi";
+  import { rating, type Rating } from "../car/pi";
   import { PRESETS } from "../car/presets";
+  import { car_facts, type CarFacts } from "./car-facts";
+  import CarFactsLine from "./CarFactsLine.svelte";
   import type { Garage } from "./garage.svelte";
   import Badge from "./ui/Badge.svelte";
   import Button from "./ui/Button.svelte";
-  import ClassBadge from "./ui/ClassBadge.svelte";
   import IconButton from "./ui/IconButton.svelte";
   import SectionHead from "./ui/SectionHead.svelte";
+  import SpecCard from "./ui/SpecCard.svelte";
   import TextField from "./ui/TextField.svelte";
   import { COPIED_MS } from "./widgets";
 
@@ -35,15 +37,15 @@
   const fitted = $derived(build_code(garage.current));
   const name_hint = $derived(free_build_name(garage.builds, CARS[garage.current.car].name));
   const saved = $derived(
-    garage.builds.map((build) => {
+    garage.builds.flatMap((build) => {
       const parsed = parse_build(build.code);
-      return { ...build, sub: parsed ? CARS[parsed.car].name : "", rating: parsed ? rating(parsed) : null };
+      return parsed ? [{ ...build, sub: CARS[parsed.car].name, rating: rating(parsed), facts: car_facts(parsed) }] : [];
     }),
   );
   const presets = $derived(
-    PRESETS.map((preset, index) => {
+    PRESETS.flatMap((preset, index) => {
       const parsed = parse_build(preset.code);
-      return { ...preset, index, rating: parsed ? rating(parsed) : null };
+      return parsed ? [{ ...preset, index, rating: rating(parsed), facts: car_facts(parsed) }] : [];
     }),
   );
 
@@ -119,19 +121,19 @@
   }
 </script>
 
-{#snippet entry(title: string, sub: string, build_code_of: string, entry_rating: ReturnType<typeof rating> | null, load: (event: Event) => void)}
-  <div class="garage-build-text">
-    <b class="garage-build-title">{title}</b>
-    {#if sub}<small class="garage-build-sub">{sub}</small>{/if}
-  </div>
-  <div class="garage-build-meta">
-    {#if entry_rating}<ClassBadge rating={entry_rating} />{/if}
-    {#if build_code_of === fitted}
-      <span class="garage-build-go"><Badge tone="primary">On your car</Badge></span>
-    {:else}
-      <span class="garage-build-go"><Button onclick={load} aria-label={`Load ${title}`}>Load</Button></span>
-    {/if}
-  </div>
+{#snippet entry(title: string, sub: string, build_code_of: string, entry_rating: Rating, facts: CarFacts, load: (event: Event) => void)}
+  {#snippet line()}<CarFactsLine {facts} />{/snippet}
+  {#snippet on_car()}<Badge tone="primary">On your car</Badge>{/snippet}
+  <SpecCard
+    {title}
+    meta={sub}
+    rating={entry_rating}
+    meters={facts.meters}
+    facts={line}
+    tag={build_code_of === fitted ? on_car : undefined}
+    selected={build_code_of === fitted}
+    onclick={load}
+  />
 {/snippet}
 
 <div class="garage-group">
@@ -172,7 +174,7 @@
   <ol class="garage-builds">
     {#each presets as preset (preset.index)}
       <li class="garage-build">
-        {@render entry(preset.name, preset.blurb, preset.code, preset.rating, (event) => keep_place(event, () => garage.load_preset(preset.index)))}
+        {@render entry(preset.name, preset.blurb, preset.code, preset.rating, preset.facts, (event) => keep_place(event, () => garage.load_preset(preset.index)))}
       </li>
     {/each}
   </ol>
@@ -199,7 +201,7 @@
             <Button variant="quiet" onclick={(event) => keep_place(event, () => (garage.renaming = null))}>Cancel</Button>
           </form>
         {:else}
-          {@render entry(build.name, build.sub, build.code, build.rating, (event) => keep_place(event, () => garage.load(build.code)))}
+          {@render entry(build.name, build.sub, build.code, build.rating, build.facts, (event) => keep_place(event, () => garage.load(build.code)))}
           <div class="garage-build-tools">
             <IconButton icon="icon-edit" label={`Rename ${build.name}`} data-rename onclick={() => start_rename(build.name)} />
             {#if armed === build.name}
@@ -258,58 +260,18 @@
   .garage-build {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: var(--space-3);
-    padding: var(--space-3);
-    border: 1px solid var(--set-line);
-    border-radius: var(--radius-md);
-    background: var(--set-well);
+    align-items: start;
+    gap: var(--space-2);
   }
 
   .garage-build:has(.garage-rename) {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .garage-build-text {
-    display: grid;
-    grid-column: 1 / -1;
-    gap: var(--space-0);
-    min-width: 0;
-  }
-
-  .garage-build-title {
-    font-size: var(--text-lg);
-    font-weight: 600;
-    line-height: 1.3;
-    overflow-wrap: anywhere;
-  }
-
-  .garage-build-sub {
-    color: var(--set-dim);
-    font-size: var(--text-sm);
-    line-height: 1.4;
-    text-wrap: pretty;
-  }
-
-  .garage-build-meta {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    min-width: 0;
-  }
-
-  .garage-build-go {
-    display: flex;
-    margin-left: auto;
-  }
-
   .garage-build-tools {
     display: flex;
+    flex-direction: column;
     gap: var(--space-1);
-  }
-
-  .garage-build:not(:has(.garage-build-tools)) .garage-build-meta {
-    grid-column: 1 / -1;
   }
 
   .garage-rename {

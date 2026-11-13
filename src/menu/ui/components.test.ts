@@ -21,6 +21,7 @@ import SectionHead from "./SectionHead.svelte";
 import Segmented from "./Segmented.svelte";
 import Select from "./Select.svelte";
 import Slider from "./Slider.svelte";
+import SpecCard from "./SpecCard.svelte";
 import Stepper from "./Stepper.svelte";
 import Tabs from "./Tabs.svelte";
 import TextField from "./TextField.svelte";
@@ -149,6 +150,18 @@ describe("ui components", () => {
     expect(card).toMatch(/class="ui-title-row[^"]*"><span class="ui-title[^"]*">Hatch<\/span><span>C 422<\/span>/);
     expect(card).toMatch(/<span class="ui-detail[^"]*"><span>Drive FWD<\/span>/);
     expect(html(Tile, { title: "Hatch" })).not.toContain("data-detail");
+  });
+
+  test("SpecCard shows the class, meters and tag, and stays pressable only when open", () => {
+    const props = { title: "Drift", meta: "Rear-drive Muscle", rating: { class: "b", pi: 559 } as const, meters: [{ key: "power", label: "Power", value: 30, bar: 30 }], facts: text("RWD") };
+    const out = html(SpecCard, { ...props, selected: true, tag: text("Recommended") });
+    expect(out).toContain('aria-pressed="true"');
+    expect(out).toMatch(/<b[^>]*>B<\/b>\s*<small[^>]*>559<\/small>/);
+    expect(out).toContain('role="meter" aria-label="Power" aria-valuenow="30"');
+    expect(out).toContain("height: 30%");
+    expect(out).toMatch(/class="ui-spec-tag[^"]*"><span>Recommended<\/span>/);
+    expect(html(SpecCard, { ...props, disabled: true })).toContain("disabled");
+    expect(html(SpecCard, props)).not.toContain("ui-spec-tag");
   });
 
   test("SectionHead renders the eyebrow and a title at its level", () => {

@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { CARS } from "../car/cars";
+  import { car_facts } from "./car-facts";
+  import CarFactsLine from "./CarFactsLine.svelte";
   import type { Garage } from "./garage.svelte";
   import GarageBuilds from "./GarageBuilds.svelte";
   import GarageHint from "./GarageHint.svelte";
@@ -28,6 +30,7 @@
   let bottom: HTMLElement;
 
   const section = $derived(TABS[garage.tab].section);
+  const facts = $derived(car_facts(garage.shown));
   const items = $derived(garage.items);
   const slots = $derived(items.map((item) => ({ id: item.id, label: item.label })));
 
@@ -55,7 +58,10 @@
   <canvas class="garage-canvas" bind:this={canvas}></canvas>
 
   <header class="garage-top" bind:this={top}>
-    <div class="garage-name"><SectionHead title={CARS[garage.shown.car].name} level={2} /></div>
+    <div class="garage-name">
+      <SectionHead title={CARS[garage.shown.car].name} level={2} />
+      <span class="garage-facts"><CarFactsLine {facts} words /></span>
+    </div>
     <div class="garage-sections">
       <span class="garage-step-hint"><GarageHint keys={["prev"]} /></span>
       <Tabs items={SECTIONS} value={section} label="Garage sections" compact onchange={(id) => garage.switch_tab(TABS.findIndex((tab) => tab.section === id))} />
@@ -162,7 +168,16 @@
   }
 
   .garage-name {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2) var(--space-5);
     min-width: 0;
+  }
+
+  .garage-facts {
+    display: flex;
+    min-width: 0;
+    color: var(--set-dim);
   }
 
   .garage-sections {
