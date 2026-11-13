@@ -48,7 +48,7 @@
     justify-content: flex-start;
     gap: var(--space-3);
     min-width: 0;
-    height: var(--tile-h);
+    min-height: var(--tile-h);
     padding: var(--space-2);
     border: 1px solid var(--set-line);
     border-radius: var(--radius-md);
@@ -73,7 +73,8 @@
 
   .ui-tile:focus-visible {
     outline: 2px solid var(--primary);
-    outline-offset: 2px;
+    /* Inset: a scrolling list (the car pick) clips anything drawn outside the tile. */
+    outline-offset: -1px;
   }
 
   .ui-tile:disabled {
@@ -109,7 +110,7 @@
 
   .ui-thumb {
     flex: none;
-    height: 100%;
+    height: calc(var(--tile-h) - 2 * var(--space-2) - 2px);
     aspect-ratio: 1;
     border-radius: var(--radius-sm);
     object-fit: cover;

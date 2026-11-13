@@ -1,10 +1,14 @@
-.settings {
+/* :root, not .settings: dialogs like the car pick open over the game, outside the menu, and use the same ui tiles. */
+:root {
   --set-panel: var(--panel);
   --set-well: var(--panel-well);
   --set-raised: var(--panel-raised);
   --set-soft: color-mix(in oklch, var(--set-well) 60%, var(--set-panel));
   --set-line: var(--line);
   --set-dim: var(--dim);
+}
+
+.settings {
   position: fixed;
   inset: 0;
   z-index: 30;
