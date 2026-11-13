@@ -50,8 +50,8 @@ function blocked(build: Build, rated: Rating, limit: CarLimit): string | null {
 
 // One shelf per class that has a car, strongest first, with the classes the limit lets in ahead of the rest. Cars the
 // limit rules out stay listed, greyed with their badge, so the player sees what to change in the garage.
-export function car_shelves(current: Build, builds: readonly SavedBuild[], limit: CarLimit): CarShelf[] {
-  const fitted = build_code(current);
+/** `fitted`: the code of the car on now, which mid-event is the event's car rather than `current`, the player's own. */
+export function car_shelves(current: Build, builds: readonly SavedBuild[], limit: CarLimit, fitted = build_code(current)): CarShelf[] {
   const choice = (title: string, sub: string, build: Build, own = false): CarChoice => {
     const rated = rating(build);
     const code = build_code(build);

@@ -331,4 +331,12 @@
       max-width: none;
     }
   }
+
+  /* Ends wide enough that an arrow sits over the padding, never over the first or last card. After the narrow layout,
+     which a small desktop window takes too. */
+  @media (pointer: fine) {
+    .garage-cards {
+      padding-inline: calc(var(--control-h) + var(--space-1));
+    }
+  }
 </style>

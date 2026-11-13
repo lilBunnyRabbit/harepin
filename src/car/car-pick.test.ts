@@ -37,6 +37,13 @@ test("one shelf per class that has cars, strongest first, each holding only its 
   expect(all.every((c) => c.blocked === null)).toBe(true);
 });
 
+test("Fitted marks the car on now, which mid-event is not the player's own", () => {
+  const rally = build_code(preset("Dirt rally"));
+  const all = choices(car_shelves(DEFAULT_BUILD, [], { cap: null, car_sized_only: false }, rally));
+  expect(all.filter((c) => c.fitted).map((c) => c.code)).toEqual([rally]);
+  expect(all.find((c) => c.own)?.fitted).toBe(false);
+});
+
 test("a saved build or preset the player already drives shows once, as their own car", () => {
   const rally = preset("Dirt rally");
   const all = choices(car_shelves(rally, [{ name: "Rally", code: build_code(rally) }], { cap: null, car_sized_only: false }));

@@ -397,7 +397,7 @@ modes.try_reward = (reward) => {
   garage.try_reward(reward);
 };
 modes.pick_car = (title, limit, own, signal) =>
-  pick_car(title, limit.cap ? limit_text(limit.cap) : "Any car", car_shelves(parse_build(own) ?? garage.build, load_builds(), limit), signal, () => settings.open(MenuTab.GARAGE));
+  pick_car(title, limit.cap ? limit_text(limit.cap) : "Any car", car_shelves(parse_build(own) ?? garage.build, load_builds(), limit, garage.code), signal, () => settings.open(MenuTab.GARAGE));
 modes.fit_car = (code, save) => garage.use_code(code, save);
 modes.car_code = () => garage.code;
 modes.save_car = (code) => {
