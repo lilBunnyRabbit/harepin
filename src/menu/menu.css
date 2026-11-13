@@ -870,3 +870,7 @@
     padding: var(--space-2) var(--space-3);
   }
 }
+
+.svelte-page {
+  display: contents;
+}
