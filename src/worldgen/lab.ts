@@ -250,7 +250,7 @@ function lay_out(): Layout {
     const x_end = x0 + (legs - 1) * 2 * r;
     line.push([x_end, 300]);
     lane(surface, line, ROAD_HALF);
-    return { name: surface, surface, spawn: spot(x0, 304, 0, 1), start: { x: x0, z: z0, fx: 0, fz: 1, hw: ROAD_HALF }, finish: { x: x_end, z: z0, fx: 0, fz: -1, hw: ROAD_HALF }, path: { points: line.filter((_, i) => i % 8 === 0), half: ROAD_HALF } };
+    return { name: surface, surface, spawn: spot(x0, 304, 0, 1), start: { x: x0, z: z0, fx: 0, fz: 1, hw: ROAD_HALF }, finish: { x: x_end, z: z0, fx: 0, fz: -1, hw: ROAD_HALF }, path: { points: line, half: ROAD_HALF } };
   };
   station(StationId.HAIRPIN, [hairpins(LabSurface.ASPHALT, -320), hairpins(LabSurface.DIRT, -200)]);
 

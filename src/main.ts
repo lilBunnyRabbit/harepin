@@ -299,7 +299,7 @@ const settings = new Settings(document.body, {
   name: () => net.name,
   quality_status: () => ({ tier: quality.tier_name, ratio: quality.ratio, bloom: quality.tier.bloom, shadow_size: quality.tier.shadow_size }),
   race_busy: () => lobby.busy,
-  toggle_race: (laps, route) => (lobby.busy ? lobby.leave() : lobby.call(laps, route)),
+  toggle_race: (laps, route) => (lobby.busy ? lobby.leave() : lab_id === null ? lobby.call(laps, route) : hud.toast("No races in the lab")),
   race_ready: () => lobby.ready,
   toggle_ready: (laps, route) => lobby.set_ready(lobby.ready ? null : { laps, route }),
   repick_ready: (laps, route) => {
@@ -408,7 +408,8 @@ driver.place(driver.road_spot(start_index));
 const modes = new Modes(scene, world, SPAWN_INDEX, () => lobby.record, (x, z, heading) => {
   driver.park(x, z, heading);
   reset_lap();
-}, () => lobby.busy, () => audio.chime(), camera, () => driver.car.spec, career);
+  // The lab runs no mode: a mode's records and stars would key to the lab world, and its spawns fight the trial's.
+}, () => lobby.busy || lab_id !== null, () => audio.chime(), camera, () => driver.car.spec, career);
 modes.route_at = Math.max(0, debug_at);
 modes.bindings = () => settings.state.bindings;
 modes.ghosts = () => settings.state.ghost;
@@ -731,7 +732,7 @@ function frame(time: number) {
   let impact = 0;
   if (input.rewind && driver.rewind.can_step && !lobby.busy && !modes.active) {
     rewinding = true;
-    goals.done(GoalId.REWIND);
+    if (lab_id === null) goals.done(GoalId.REWIND);
     rewind_step(now);
     acc = 0;
   } else if (review?.replaying) {

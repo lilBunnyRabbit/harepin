@@ -67,7 +67,7 @@ export interface Metrics {
  */
 export class Recorder {
   private t = 0;
-  private started = false;
+  private moving = false;
   private readonly lap_times = new Float64Array(MAX_LAPS);
   private lap_count = 0;
   private wind = 0;
@@ -129,10 +129,14 @@ export class Recorder {
 
   /** The car was put back (reset, rewind, lava): counted, and the gates and winding start over from where it stands. */
   placed(car: Car) {
-    if (this.started) this.resets++;
+    if (this.moving) this.resets++;
     this.prev_x = car.pos.x;
     this.prev_z = car.pos.z;
     this.last_angle = this.angle(car.pos.x, car.pos.z);
+  }
+
+  get started(): boolean {
+    return this.moving;
   }
 
   get done(): boolean {
@@ -147,14 +151,14 @@ export class Recorder {
   step(dt: number, car: Car, input: Controls) {
     const { pos, vel, ang } = car;
     const speed = Math.hypot(vel.x, vel.z);
-    if (!this.started) {
+    if (!this.moving) {
       if (input.throttle <= 0 && speed < 0.5) {
         this.prev_x = pos.x;
         this.prev_z = pos.z;
         this.last_angle = this.angle(pos.x, pos.z);
         return;
       }
-      this.started = true;
+      this.moving = true;
       this.launch_at = speed < 1 ? 0 : NaN;
     }
     this.t += dt;

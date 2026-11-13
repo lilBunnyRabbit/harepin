@@ -47,6 +47,7 @@ export class Lab {
   readonly answers: Answers = {};
   private index = -1;
   private recorder: Recorder | null = null;
+  private ticket = 0;
 
   constructor(
     readonly pack: Pack,
@@ -82,8 +83,11 @@ export class Lab {
     const r = this.trials[index];
     this.index = index;
     this.recorder = null;
+    const ticket = ++this.ticket;
     this.host.drive(r.build, r.spec, r.trial.aids ?? {});
     await this.host.place(r.lane.spawn);
+    // A later `begin` started while this one waited for its ground: that trial owns the car now.
+    if (ticket !== this.ticket) return;
     this.recorder = new Recorder(r.lane, r.trial.goal);
     this.recorder.placed(this.host.car());
     this.results[index] = { status: "running", metrics: null };
@@ -107,7 +111,7 @@ export class Lab {
 
   /** A running trial goes in with what it has measured so far. */
   export(): string {
-    const results = this.results.map((r, i) => (i === this.index && this.recorder ? { status: r.status, metrics: this.recorder.metrics() } : r));
+    const results = this.results.map((r, i) => (i === this.index && this.recorder?.started ? { status: r.status, metrics: this.recorder.metrics() } : r));
     return export_block(this.pack, this.trials, results, this.answers, BUILD.version, device(), new Date());
   }
 
@@ -124,7 +128,7 @@ export class Lab {
   private finish(status: "done" | "stopped") {
     const recorder = this.recorder;
     if (!recorder || this.index < 0) return;
-    this.results[this.index] = { status, metrics: recorder.metrics() };
+    this.results[this.index] = recorder.started ? { status, metrics: recorder.metrics() } : { status: "new", metrics: null };
     this.recorder = null;
   }
 }
