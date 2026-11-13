@@ -90,6 +90,11 @@
     pointer = "";
   }
 
+  function page(dir: -1 | 1) {
+    const scroller = list?.closest<HTMLElement>(".ui-scroll");
+    scroller?.scrollBy({ left: dir * scroller.clientWidth * 0.8, behavior: motion() });
+  }
+
   function typed(event: Event) {
     const value = event.currentTarget instanceof HTMLInputElement ? event.currentTarget.value : number;
     const digits = value.replace(/\D/g, "");
@@ -152,6 +157,10 @@
       {/if}
     {/key}
   </ScrollArea>
+  {#if item.kind !== "number"}
+    <IconButton class="garage-arrow garage-prev" icon="icon-back" label="Scroll back" tabindex={-1} onclick={() => page(-1)} />
+    <IconButton class="garage-arrow garage-next" icon="icon-back" flip label="Scroll on" tabindex={-1} onclick={() => page(1)} />
+  {/if}
 </div>
 
 <style>
@@ -172,8 +181,72 @@
   }
 
   .garage-strip {
+    position: relative;
     width: 100%;
     min-width: 0;
+    timeline-scope: --garage-strip;
+  }
+
+  .garage-strip :global(.ui-scroll) {
+    scroll-timeline: --garage-strip inline;
+  }
+
+  /* CSS only, like the ScrollArea fade: the strip's scroll timeline shows the arrows and greys the one at an end. With
+     nothing to scroll the timeline is inactive, so they stay hidden; a browser without scroll timelines never shows them. */
+  .garage-strip :global(.garage-arrow) {
+    position: absolute;
+    top: 50%;
+    z-index: 1;
+    translate: 0 -50%;
+    visibility: hidden;
+    border-color: var(--set-line);
+    background: var(--set-raised);
+    box-shadow: var(--panel-shadow);
+    animation: linear both;
+    animation-timeline: --garage-strip;
+  }
+
+  .garage-strip :global(.garage-prev) {
+    left: 0;
+    animation-name: garage-arrow-in;
+    animation-range: 0 var(--space-6);
+  }
+
+  .garage-strip :global(.garage-next) {
+    right: 0;
+    animation-name: garage-arrow-out;
+    animation-range: calc(100% - var(--space-6)) 100%;
+  }
+
+  @keyframes garage-arrow-in {
+    from {
+      visibility: visible;
+      opacity: 0.35;
+      cursor: default;
+    }
+    to {
+      visibility: visible;
+      opacity: 1;
+    }
+  }
+
+  @keyframes garage-arrow-out {
+    from {
+      visibility: visible;
+      opacity: 1;
+    }
+    to {
+      visibility: visible;
+      opacity: 0.35;
+      cursor: default;
+    }
+  }
+
+  /* A finger swipes the strip; the arrows are for a mouse. */
+  @media (pointer: coarse) {
+    .garage-strip :global(.garage-arrow) {
+      display: none;
+    }
   }
 
   .garage-cards {
@@ -181,7 +254,7 @@
     justify-content: safe center;
     gap: var(--space-2);
     margin: 0;
-    /* Holds the cursor ring (outline plus offset) clear of the scroll clip. */
+    /* The ends sit clear of the edge fades and the arrows over them. */
     padding: var(--space-1) var(--space-6);
     list-style: none;
     touch-action: pan-x;
@@ -195,9 +268,10 @@
     border-radius: var(--radius-md);
   }
 
+  /* Inset over the tile's edge: drawn outside it, the ring was clipped top and bottom by the scroller. */
   .garage-option[data-cursor] {
     outline: 2px solid var(--primary);
-    outline-offset: 2px;
+    outline-offset: -2px;
   }
 
   [data-kind="car"] .garage-option {
