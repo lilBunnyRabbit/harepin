@@ -7,6 +7,7 @@ import { show_flame } from "../car/lights";
 import { build_view, camera_fade, dispose_car_view, rest_wheels, type CarView } from "../car/models";
 import type { World } from "../world/world";
 import { tier_badge } from "../career/badge";
+import { title_text } from "../runs/season";
 import type { CarState, Net, Remote, TierBadge } from "./net";
 import "./remotes.css";
 
@@ -21,6 +22,8 @@ interface RemoteView {
   label: HTMLElement;
   name: HTMLElement;
   tier: TierBadge | null;
+  /** The season tag shown, as `title|tint`. */
+  tag: string;
   /** Name label height over the car origin, metres. */
   above: number;
   spin: number;
@@ -140,7 +143,7 @@ export class Remotes {
       const shadow = contact_shadow();
       fit_contact_shadow(shadow, spec);
       this.scene.add(shadow.mesh);
-      rv = { code, built: now, spec, view, materials, shadow, label, name, tier: null, above: ABOVE * oversize(spec).height, spin: 0 };
+      rv = { code, built: now, spec, view, materials, shadow, label, name, tier: null, tag: "", above: ABOVE * oversize(spec).height, spin: 0 };
       this.views.set(remote.id, rv);
     }
     const t = this.net.render_time(remote);
@@ -192,10 +195,17 @@ export class Remotes {
     if (visible) {
       const name = this.net.display_name(remote);
       if (rv.name.textContent !== name) rv.name.textContent = name;
-      const tier = this.net.hellos.get(remote.id)?.tier ?? null;
-      if (tier !== rv.tier) {
+      const hello = this.net.hellos.get(remote.id);
+      const tier = hello?.tier ?? null;
+      const tag = `${hello?.tag?.title ?? ""}|${hello?.tag?.tint ?? ""}`;
+      if (tier !== rv.tier || tag !== rv.tag) {
         rv.tier = tier;
-        rv.label.replaceChildren(...(tier ? [tier_badge(tier)] : []), rv.name);
+        rv.tag = tag;
+        const title = hello?.tag?.title ? title_text(hello.tag.title) : null;
+        const shown = title ? [Object.assign(document.createElement("small"), { className: "label-title", textContent: title })] : [];
+        rv.label.replaceChildren(...(tier ? [tier_badge(tier)] : []), rv.name, ...shown);
+        if (hello?.tag?.tint) rv.label.style.setProperty("--tag-tint", `var(--${hello.tag.tint})`);
+        else rv.label.style.removeProperty("--tag-tint");
       }
       rv.label.style.transform = `translate(${((this.screen.x + 1) / 2) * innerWidth}px, ${((1 - this.screen.y) / 2) * innerHeight}px) translate(-50%, -100%)`;
     }

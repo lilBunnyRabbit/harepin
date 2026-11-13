@@ -149,6 +149,43 @@ test("hello: the career tier rides along only as 1 to 4", () => {
   for (const tier of [0, 5, 1.5, "1", null]) expect(sanitize_hello({ ...hello, tier })).toEqual(hello);
 });
 
+const DAILY = { k: "2026-11-13|1C0000003|circuit|3:w11", ms: 61_234 };
+
+test("hello: today's daily and the season tag round-trip, absent when unset, no PROTOCOL bump", () => {
+  expect(PROTOCOL).toBe(2);
+  const sent = make_hello("0.11.0", 7, 42, null, null, null, { title: "ace.1", tint: "info" }, DAILY);
+  expect(sanitize_hello(JSON.parse(JSON.stringify(sent)))).toEqual(sent);
+  expect(sent.daily).toEqual(DAILY);
+  const plain = make_hello("0.11.0", 7, 42, null, null);
+  expect(JSON.stringify(plain)).toBe(`{"protocol":${PROTOCOL},"version":"0.11.0","world":7,"seed":42}`);
+  expect(sanitize_hello(plain)).toEqual(plain);
+});
+
+test("hello: a bad daily or tag drops alone; the rest of the hello stays", () => {
+  const hello = { protocol: 2, version: "0.11.0", world: 7, seed: 42 };
+  const bad_dailies = [
+    { k: DAILY.k, ms: 0 },
+    { k: DAILY.k, ms: Infinity },
+    { k: DAILY.k, ms: "1" },
+    { k: "today|a|b|c", ms: 1 },
+    { k: "2026-11-13|a|b", ms: 1 },
+    { k: `2026-11-13|${"x".repeat(200)}|b|c`, ms: 1 },
+    { k: "2026-11-13|a\u0007|b|c", ms: 1 },
+    [DAILY.k, 1],
+    "x",
+  ];
+  for (const daily of bad_dailies) expect(sanitize_hello({ ...hello, daily })).toEqual(hello);
+  expect(sanitize_hello({ ...hello, daily: { ...DAILY, extra: 1 } })).toEqual({ ...hello, daily: DAILY });
+  expect(sanitize_hello({ ...hello, tag: { title: "king.1", tint: "#f00" } })).toEqual(hello);
+});
+
+test("hello: an older peer's hello has no daily and no tag, and stays whole", () => {
+  const old = { protocol: 2, version: "0.10.0", world: 7, seed: 42, country: "SI", tier: 2 as const };
+  const hello = sanitize_hello(old);
+  expect(hello).toEqual(old);
+  expect([hello?.daily, hello?.tag]).toEqual([undefined, undefined]);
+});
+
 test("same map: seed and w, then the codes when both named one", () => {
   const own = { seed: 42, world: 7 + 3 * 0x10000, map: "1C000001A-E2" };
   expect(same_map(own, { seed: 42, w: own.world, map: own.map })).toBe(true);

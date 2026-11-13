@@ -3,6 +3,7 @@
   import Row from "../ui/Row.svelte";
   import RowList from "../ui/RowList.svelte";
   import type { PageProps } from "../ui/svelte-page.svelte";
+  import DailyBoard from "./DailyBoard.svelte";
   import OnlineGames from "./OnlineGames.svelte";
   import OnlinePlayers from "./OnlinePlayers.svelte";
   import OnlineRace from "./OnlineRace.svelte";
@@ -21,6 +22,7 @@
   <div class="online-col">
     <OnlineRoom {menu} {live} />
     <OnlineRace {menu} {live} />
+    <DailyBoard {menu} {live} />
   </div>
   <div class="online-col">
     <OnlinePlayers {menu} {live} />
@@ -68,12 +70,16 @@
       order: 3;
     }
 
-    .online-page :global(.online-games) {
+    .online-page :global(.daily-board) {
       order: 4;
     }
 
-    .online-page :global(.online-new) {
+    .online-page :global(.online-games) {
       order: 5;
+    }
+
+    .online-page :global(.online-new) {
+      order: 6;
     }
   }
 </style>

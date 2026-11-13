@@ -6,6 +6,8 @@ import type { Player } from "../../net/players";
 import type { Menu } from "../page";
 import { DEFAULT_SETTINGS } from "../prefs";
 import type { MenuState } from "../ui/menu-state.svelte";
+import SeasonBar from "../runs/SeasonBar.svelte";
+import DailyBoard from "./DailyBoard.svelte";
 import OnlineGames from "./OnlineGames.svelte";
 import OnlinePlayers from "./OnlinePlayers.svelte";
 import OnlineRace from "./OnlineRace.svelte";
@@ -77,5 +79,24 @@ describe("online cards", () => {
     const { menu, live } = setup({});
     const html = render(RoomPage, { props: { menu, live, shown: true } }).body;
     for (const label of ["Room name", "Password", "Map code", "Create room"]) expect(html).toContain(label);
+  });
+
+  test("the daily board ranks today's times and says when there are none", () => {
+    const runs = { today: "2026-11-13", own_daily: { k: "k", ms: 61_000 } };
+    const rows = [
+      { name: "Ana", ms: 59_000, you: false, here: true },
+      { name: "Me", ms: 61_000, you: true, here: true },
+      { name: "Cy", ms: 70_000, you: false, here: false },
+    ];
+    const html = render(DailyBoard, { props: setup({ runs, daily_board: () => rows }) }).body;
+    for (const text of ["1. Ana", "0:59.000", "2. Me", "You", "Seen earlier today", "Run today's daily"]) expect(html).toContain(text);
+    const empty = render(DailyBoard, { props: setup({ runs: { ...runs, own_daily: null }, daily_board: () => [] }) }).body;
+    expect(empty).toContain("No times yet today.");
+  });
+
+  test("the season bar names its steps and the next one", () => {
+    const html = render(SeasonBar, { props: { stars: 31, season: "2026-10-26", today: "2026-11-13" } }).body;
+    for (const text of ["Season 1", "31 ★", "Accent tint", "S1 Regular", "Next: Info tint at 45 ★"]) expect(html).toContain(text);
+    expect(render(SeasonBar, { props: { stars: 500, season: "2026-10-26", today: "2026-11-13", compact: true } }).body).toContain("Every step reached");
   });
 });

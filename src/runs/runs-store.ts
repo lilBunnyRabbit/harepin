@@ -1,6 +1,9 @@
 import { Track, read_json, write_json, type Store } from "../modes/track";
+import { clean_daily, type DailyTime } from "../net/daily";
 import type { WorldKind } from "../worldgen/types";
+import { key_date, type BoardEntry } from "./daily-board";
 import { Difficulty, RunSource, season_of, utc_date, type RunPick } from "./runs";
+import { clean_tint, clean_title, reached, type NameTag } from "./season";
 
 export const RUNS_KEY = "harepin:runs";
 /** Season stars a day from endless and built runs, against farming; the daily's own stars come on top. */
@@ -22,6 +25,55 @@ const counts = (raw: unknown): Record<string, number> => {
   return out;
 };
 
+/** Kept past the season, beside its fields in the save: the rewards reached, the tag worn, today's daily board. */
+interface RunsKeep {
+  /** Reward codes (`season.ts`). */
+  owned: string[];
+  wear: NameTag;
+  board: DailyBoard;
+}
+
+interface DailyBoard {
+  date: string;
+  own: DailyTime | null;
+  seen: BoardEntry[];
+}
+
+// Against a flood of names in a busy room.
+export const SEEN_MAX = 50;
+const NAME_MAX = 40;
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+const real_season = (raw: unknown): raw is string => typeof raw === "string" && DATE.test(raw) && !Number.isNaN(Date.parse(raw)) && season_of(raw) === raw;
+
+function parse_board(raw: unknown, today: string): DailyBoard {
+  const board: DailyBoard = { date: today, own: null, seen: [] };
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return board;
+  const { date, own, seen } = raw as Record<string, unknown>;
+  if (date !== today) return board;
+  const mine = clean_daily(own);
+  if (mine && key_date(mine.k) === today) board.own = mine;
+  if (Array.isArray(seen))
+    for (const entry of seen.slice(0, SEEN_MAX)) {
+      const time = clean_daily(entry);
+      const name = (entry as Record<string, unknown> | null)?.name;
+      if (time && key_date(time.k) === today && typeof name === "string" && name && name.length <= NAME_MAX) board.seen.push({ name, ...time });
+    }
+  return board;
+}
+
+export function parse_runs_keep(raw: unknown, today: string): RunsKeep {
+  const save = raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
+  const owned = Array.isArray(save.owned) ? save.owned.filter((code): code is string => clean_tint(code) !== null || clean_title(code) !== null) : [];
+  const worn = save.wear && typeof save.wear === "object" ? (save.wear as Record<string, unknown>) : {};
+  const wear: NameTag = {};
+  const title = clean_title(worn.title);
+  const tint = clean_tint(worn.tint);
+  if (title) wear.title = title;
+  if (tint) wear.tint = tint;
+  return { owned: [...new Set(owned)], wear, board: parse_board(save.board, today) };
+}
+
 export function parse_runs_save(raw: unknown, season: string): RunsSave {
   const fresh = { season, stars: 0, days: {}, free: {} };
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return fresh;
@@ -41,13 +93,29 @@ export interface RunGain {
 
 export class Runs {
   private save: RunsSave;
+  private readonly keep: RunsKeep;
   version = 0;
 
   constructor(
     private readonly store: Store | null,
     private readonly now: () => Date = () => new Date(),
   ) {
-    this.save = parse_runs_save(read_json(store, RUNS_KEY), season_of(this.today));
+    const raw = read_json(store, RUNS_KEY);
+    this.save = parse_runs_save(raw, season_of(this.today));
+    this.keep = parse_runs_keep(raw, this.today);
+    // A season that ended while the game was closed still pays out the steps it reached.
+    const last = (raw as Record<string, unknown> | null)?.season;
+    if (real_season(last) && last !== this.save.season && this.fold(parse_runs_save(raw, last))) this.write();
+  }
+
+  private write() {
+    write_json(this.store, RUNS_KEY, { ...this.save, ...this.keep });
+  }
+
+  private fold(save: RunsSave): boolean {
+    const fresh = reached(save.stars, save.season).filter((code) => !this.keep.owned.includes(code));
+    if (fresh.length) this.keep.owned = [...this.keep.owned, ...fresh];
+    return fresh.length > 0;
   }
 
   get today(): string {
@@ -56,7 +124,11 @@ export class Runs {
 
   private get current(): RunsSave {
     const season = season_of(this.today);
-    if (this.save.season !== season) this.save = parse_runs_save(null, season);
+    if (this.save.season !== season) {
+      const ended = this.fold(this.save);
+      this.save = parse_runs_save(null, season);
+      if (ended) this.write();
+    }
     return this.save;
   }
 
@@ -96,9 +168,72 @@ export class Runs {
     }
     if (!gain) return { gain, capped };
     save.stars += gain;
+    this.fold(save);
     this.version++;
-    write_json(this.store, RUNS_KEY, save);
+    this.write();
     return { gain, capped };
+  }
+
+  get owned(): readonly string[] {
+    this.fold(this.current);
+    return this.keep.owned;
+  }
+
+  /** What the player wears, less anything it doesn't own (a save edited by hand). */
+  get tag(): NameTag | null {
+    const owned = this.owned;
+    const tag: NameTag = {};
+    const { title, tint } = this.keep.wear;
+    if (title && owned.includes(title)) tag.title = title;
+    if (tint && owned.includes(tint)) tag.tint = tint;
+    return tag.title || tag.tint ? tag : null;
+  }
+
+  wear(tag: NameTag) {
+    this.keep.wear = { ...(tag.title ? { title: tag.title } : {}), ...(tag.tint ? { tint: tag.tint } : {}) };
+    this.version++;
+    this.write();
+  }
+
+  private get board(): DailyBoard {
+    const today = this.today;
+    if (this.keep.board.date !== today) this.keep.board = { date: today, own: null, seen: [] };
+    return this.keep.board;
+  }
+
+  get own_daily(): DailyTime | null {
+    return this.board.own;
+  }
+
+  /** A finish of today's daily, kept and sent to peers when it beats the best on its key. */
+  post_daily(time: DailyTime): boolean {
+    const board = this.board;
+    if (key_date(time.k) !== board.date) return false;
+    if (board.own?.k === time.k && board.own.ms <= time.ms) return false;
+    board.own = time;
+    this.version++;
+    this.write();
+    return true;
+  }
+
+  get seen_dailies(): readonly BoardEntry[] {
+    return this.board.seen;
+  }
+
+  /** Peers' times join the cache, the best per name and key, so the board outlives the session. */
+  see_dailies(entries: readonly BoardEntry[]) {
+    const board = this.board;
+    let changed = false;
+    for (const entry of entries) {
+      if (key_date(entry.k) !== board.date || !entry.name || entry.name.length > NAME_MAX) continue;
+      const at = board.seen.findIndex((seen) => seen.name === entry.name && seen.k === entry.k);
+      if (at >= 0 && board.seen[at].ms <= entry.ms) continue;
+      if (at < 0 && board.seen.length >= SEEN_MAX) continue;
+      const next = { name: entry.name, k: entry.k, ms: entry.ms };
+      board.seen = at >= 0 ? board.seen.map((seen, i) => (i === at ? next : seen)) : [...board.seen, next];
+      changed = true;
+    }
+    if (changed) this.write();
   }
 }
 

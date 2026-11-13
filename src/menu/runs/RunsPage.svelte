@@ -1,6 +1,6 @@
 <script lang="ts">
   import { FREE_CAP } from "../../runs/runs-store";
-  import { daily, new_seed, random, season_days_left } from "../../runs/runs";
+  import { daily, new_seed, random } from "../../runs/runs";
   import Button from "../ui/Button.svelte";
   import Card from "../ui/Card.svelte";
   import ClassBadge from "../ui/ClassBadge.svelte";
@@ -11,6 +11,7 @@
   import Tabs from "../ui/Tabs.svelte";
   import type { PageProps } from "../ui/svelte-page.svelte";
   import RunBuilder from "./RunBuilder.svelte";
+  import SeasonBar from "./SeasonBar.svelte";
   import { car_text, pick_text, star_text } from "./run-text";
 
   let { menu, live }: PageProps = $props();
@@ -27,8 +28,8 @@
   const pick = $derived(daily(today));
   const got = $derived(live.live(() => runs.daily(today)));
   const season = $derived(live.live(() => runs.stars));
+  const season_id = $derived(live.live(() => runs.season));
   const free = $derived(FREE_CAP - live.live(() => runs.free_left));
-  const days = $derived(season_days_left(today));
   const stars = $derived(star_text(got));
 
   let view = $state<View>("today");
@@ -63,8 +64,8 @@
 
       <Card label="Season">
         <div class="season">
-          <SectionHead title="Season" count={`${season} ★`} />
-          <p class="dim">Ends in {days} {days === 1 ? "day" : "days"}. Runs earn season stars, never career stars.</p>
+          <SeasonBar stars={season} season={season_id} {today} />
+          <p class="dim">Runs earn season stars, never career stars. Wear a title or tint on your name tag in Settings, Online.</p>
           <div class="cap">
             <span class="cap-label"><span>Endless and built runs today</span><b>{free} / {FREE_CAP} ★</b></span>
             <Progress value={free} max={FREE_CAP} label={`${free} of ${FREE_CAP} season stars from endless and built runs today`} />

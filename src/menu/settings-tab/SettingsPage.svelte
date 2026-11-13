@@ -89,7 +89,7 @@
       <section class="set-list" aria-label="Camera" hidden={nav.sub !== "camera"} bind:this={nav.lists.camera}><CameraSection {live} /></section>
       <section class="set-list" aria-label="Controls" hidden={nav.sub !== "controls"} bind:this={nav.lists.controls}><ControlsSection {live} /></section>
       <section class="set-list" aria-label="Audio" hidden={nav.sub !== "audio"} bind:this={nav.lists.audio}><AudioSection {live} /></section>
-      <section class="set-list" aria-label="Online" hidden={nav.sub !== "net"} bind:this={nav.lists.net}><OnlineSection {live} /></section>
+      <section class="set-list" aria-label="Online" hidden={nav.sub !== "net"} bind:this={nav.lists.net}><OnlineSection {menu} {live} /></section>
       <section class="set-list" aria-label={DEEP[0].label} hidden={nav.sub !== "creator"} bind:this={nav.lists.creator}><ThemeCreate /></section>
       <section class="set-list" aria-label={DEEP[1].label} hidden={nav.sub !== "themes"} bind:this={nav.lists.themes}><SavedThemes /></section>
       <section class="set-list" aria-label={DEEP[2].label} hidden={nav.sub !== "keys"} bind:this={nav.lists.keys}><KeyList {live} /></section>

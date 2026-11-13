@@ -4,11 +4,13 @@ import { Link, type Channel } from "./channel";
 import { RateLimit } from "./rate-limit";
 import { BlockedWatch } from "./blocked";
 import { clean_country } from "./country";
+import { clean_daily, type DailyTime } from "./daily";
 import { TURN_SERVERS } from "./ice";
 import { READY_BURST, READY_GAP_MS, type ReadyMsg } from "./ready";
 import { WORLD_VERSION } from "../worldgen/types";
 import { MAX_SEED } from "./seed";
 import { clean_map_code } from "../worldgen/kinds/map-code";
+import { clean_tag, type NameTag } from "../runs/season";
 
 export { RateLimit };
 
@@ -42,18 +44,30 @@ export type ChatMsg = { text: string; t: number };
  * Sent to each peer as it joins, again when the sender's country setting changes. `world` is the sender's `map_id`,
  * `seed` its map seed, `country` its ISO code when shared; peers that predate it send none. `map` is the code of a
  * custom map, absent on a plain one. `tier` is the sender's career badge (`rewards.ts`), absent until a final is finished.
+ * `tag` is the season title and tint the sender wears; `daily` its best time on today's daily, re-sent on a new best.
  */
-export type Hello = { protocol: number; version: string; world: number; seed: number; country?: string; map?: string; tier?: TierBadge };
+export type Hello = { protocol: number; version: string; world: number; seed: number; country?: string; map?: string; tier?: TierBadge; tag?: NameTag; daily?: DailyTime };
 
 export type TierBadge = 1 | 2 | 3 | 4;
 
 export const clean_tier = (raw: unknown): TierBadge | null => (raw === 1 || raw === 2 || raw === 3 || raw === 4 ? raw : null);
 
-export function make_hello(version: string, world: number, seed: number, map: string | null, country: string | null, tier: TierBadge | null = null): Hello {
+export function make_hello(
+  version: string,
+  world: number,
+  seed: number,
+  map: string | null,
+  country: string | null,
+  tier: TierBadge | null = null,
+  tag: NameTag | null = null,
+  daily: DailyTime | null = null,
+): Hello {
   const hello: Hello = { protocol: PROTOCOL, version, world, seed };
   if (country !== null) hello.country = country;
   if (map !== null) hello.map = map;
   if (tier !== null) hello.tier = tier;
+  if (tag !== null) hello.tag = tag;
+  if (daily !== null) hello.daily = daily;
   return hello;
 }
 
@@ -236,6 +250,10 @@ export function sanitize_hello(raw: unknown): Hello | null {
   if (map !== null) hello.map = map;
   const tier = clean_tier(h.tier);
   if (tier !== null) hello.tier = tier;
+  const tag = clean_tag(h.tag);
+  if (tag !== null) hello.tag = tag;
+  const daily = clean_daily(h.daily);
+  if (daily !== null) hello.daily = daily;
   return hello;
 }
 
@@ -289,6 +307,8 @@ export class Net {
   private readonly blocked = new BlockedWatch();
   private country: string | null = null;
   private tier: TierBadge | null = null;
+  private tag: NameTag | null = null;
+  private daily: DailyTime | null = null;
 
   /** `lock` locks the room: peers without the same password fail the trystero handshake and never connect. */
   constructor(
@@ -374,7 +394,7 @@ export class Net {
   }
 
   private get own_hello(): Hello {
-    return make_hello(this.version, this.world, this.seed, this.map, this.country, this.tier);
+    return make_hello(this.version, this.world, this.seed, this.map, this.country, this.tier, this.tag, this.daily);
   }
 
   /** Null hides it; peers already here hear the change. */
@@ -389,6 +409,28 @@ export class Net {
     if (tier === this.tier) return;
     this.tier = tier;
     this.hello.send(this.own_hello);
+  }
+
+  set_tag(tag: NameTag | null) {
+    if (tag?.title === this.tag?.title && tag?.tint === this.tag?.tint) return;
+    this.tag = tag;
+    this.hello.send(this.own_hello);
+  }
+
+  set_daily(daily: DailyTime | null) {
+    if (daily?.k === this.daily?.k && daily?.ms === this.daily?.ms) return;
+    this.daily = daily;
+    this.hello.send(this.own_hello);
+  }
+
+  /** Room peers' daily times, on any map, by the name their cars last sent. */
+  dailies(): { name: string; k: string; ms: number }[] {
+    const out: { name: string; k: string; ms: number }[] = [];
+    for (const [id, hello] of this.hellos) {
+      const name = this.same_map.get(id)?.name ?? this.foreign.get(id)?.name;
+      if (hello.daily && name) out.push({ name, ...hello.daily });
+    }
+    return out;
   }
 
   private check_blocked() {

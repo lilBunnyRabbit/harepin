@@ -6,7 +6,8 @@ import { Career, event_map } from "./career/career-store";
 import { EventMarkers } from "./career/event-markers";
 import { RUN_PARAM, run_of, type RunPick } from "./runs/runs";
 import { Runs } from "./runs/runs-store";
-import { run_play } from "./runs/run-play";
+import { daily_want, run_play } from "./runs/run-play";
+import { board_rows } from "./runs/daily-board";
 import { badge_open, unlocks } from "./career/rewards";
 import { ChaseCamera } from "./render/camera";
 import { Driver } from "./car/driver";
@@ -305,6 +306,12 @@ const settings = new Settings(document.body, {
   net_status: () => net.status,
   peers: () => net.peers,
   version_peers: () => ({ older: net.older_peers, newer: net.newer_peers }),
+  daily_board: () => {
+    const peers = net.dailies();
+    runs.see_dailies(peers);
+    const own = runs.own_daily;
+    return board_rows(own?.k ?? daily_want(runs.today), own && { name: net.name, ...own }, peers, runs.seen_dailies);
+  },
   garage,
   car_code: () => garage.code,
   use_car: (code) => garage.use_code(code),
@@ -612,6 +619,8 @@ function near_miss(impact: number): { near: Near; touched: boolean } {
 
 // The online badge follows the career's stars: a finished final shows to peers at once.
 let rewarded = -1;
+// The season tag and today's daily best follow the runs save: a new best reaches peers at once.
+let runs_sent = -1;
 const career_button = new CareerButton();
 
 function frame(time: number) {
@@ -627,6 +636,11 @@ function frame(time: number) {
     net.set_tier(unlocks(career.stars).badge);
     const tier = current_tier(career.stars);
     career_button.show(tier, badge_open(career.stars, tier));
+  }
+  if (runs.version !== runs_sent) {
+    runs_sent = runs.version;
+    net.set_tag(runs.tag);
+    net.set_daily(runs.own_daily);
   }
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;

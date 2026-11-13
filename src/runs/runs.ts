@@ -313,6 +313,12 @@ export function season_of(date: string): string {
   return utc_date(new Date(SEASON_EPOCH + Math.floor(days / SEASON_DAYS) * SEASON_DAYS * DAY_MS));
 }
 
+// Seasons count from the one Runs shipped in.
+const FIRST_SEASON = Date.UTC(2026, 9, 26);
+
+/** A season's number for titles, 1 for the first: `season` is a `season_of` date. */
+export const season_number = (season: string): number => Math.round((Date.parse(season) - FIRST_SEASON) / (SEASON_DAYS * DAY_MS)) + 1;
+
 export function season_days_left(date: string): number {
   return SEASON_DAYS - Math.round((Date.parse(date) - Date.parse(season_of(date))) / DAY_MS);
 }

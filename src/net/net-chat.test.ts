@@ -120,6 +120,32 @@ test("same-browser tabs swap hellos without WebRTC; a legacy tab is greeted once
   ]);
 });
 
+test("a new daily best re-sends the hello to the room; peers' dailies list by name, an old peer's none", () => {
+  const { net, hear, sent } = net_on(7);
+  const daily = { k: "2026-11-13|1C0000003|circuit|3:w11", ms: 61_000 };
+  net.set_daily(daily);
+  net.set_daily({ ...daily });
+  net.set_tag({ title: "ace.1" });
+  const hellos = sent.filter((s) => s.name === "hello");
+  expect(hellos.map((s) => [s.target, (s.data as { daily?: unknown }).daily])).toEqual([
+    [undefined, daily],
+    [undefined, daily],
+  ]);
+  expect((hellos[1].data as { tag?: unknown }).tag).toEqual({ title: "ace.1" });
+  const hello = { protocol: PROTOCOL, version: "0.11.0", world: 1, seed: 7 };
+  hear("hello", { ...hello, daily: { ...daily, ms: 59_000 } }, "ana");
+  hear("car", car(7, "Ana"), "ana");
+  hear("hello", { ...hello, daily }, "far");
+  hear("car", car(99, "Far"), "far");
+  hear("hello", hello, "old");
+  hear("car", car(7, "Old"), "old");
+  hear("hello", { ...hello, daily }, "nameless");
+  expect(net.dailies()).toEqual([
+    { name: "Ana", ...daily, ms: 59_000 },
+    { name: "Far", ...daily },
+  ]);
+});
+
 test("a peer on another protocol shows as older or newer, never as a car, until it speaks ours", () => {
   const { net, hear } = net_on(7);
   hear("car", json_car(7, "Old"), "old");
