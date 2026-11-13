@@ -1,14 +1,12 @@
 import type * as THREE from "three";
-import { EVENT_PARAM, TIERS, TUNE_PARAM, next_event, spot_of, tier_line, tier_of, tier_open, type CareerEvent } from "../career/career";
+import { TIERS, TUNE_PARAM, next_event, spot_of, tier_line, tier_of, tier_open, type CareerEvent } from "../career/career";
 import { event_track, type Career } from "../career/career-store";
 import { dev_ghost } from "../career/dev-ghost";
 import { earned, garage_reward, type Reward } from "../career/rewards";
 import { unlock_card } from "../career/unlock-card";
-import { limit_text, same_machine, within, type CarLimit } from "../car/car-pick";
+import type { CarLimit } from "../car/car-pick";
 import { car_sized, type CarSpec } from "../car/cars";
-import { build_code, parse_build } from "../car/build";
-import { rating, type CarClass } from "../car/pi";
-import { PRESETS } from "../car/presets";
+import type { CarClass } from "../car/pi";
 import { DEFAULT_BINDINGS, keys_text, type Bindings } from "../hud/bindings";
 import { $, format } from "../hud/hud";
 import type { World } from "../world/world";
@@ -17,6 +15,7 @@ import { KINDS } from "../worldgen/kinds/kinds";
 import { LISTED, WORLDS } from "../worlds/worlds";
 import { DRIFT_MODE } from "./drift-mode";
 import { DUEL_MODE } from "./duel-mode";
+import { EventCar, type CarHooks } from "./event-car";
 import { GYMKHANA_MODE } from "./gymkhana-mode";
 import { HUNT_MODE } from "./hunt-mode";
 import { CUP_RECORD, Cup, stage_points, type Stage } from "./championship";
@@ -26,7 +25,6 @@ import type { Ground } from "./marks";
 import type { Driven, Finish, Level, ModeCtx, ModeDef, ModeRun, RouteRun } from "./mode";
 import { PARKING_MODE } from "./parking-mode";
 import type { RunPlay } from "../runs/run-play";
-import { RUN_PARAM } from "../runs/runs";
 import { RACE_MODE } from "./race-mode";
 import { level_route, race_levels } from "./races";
 import { line, run_text, star_row } from "./result";
@@ -41,11 +39,6 @@ function graded({ event, cup }: Active): CareerEvent | null {
   const { mode, level, stars } = cup.cup.stage;
   return { ...event, mode, level, stars, ghost: undefined };
 }
-
-const preset_code = (name: string): string | null => {
-  const build = parse_build(PRESETS.find((p) => p.name === name)?.code);
-  return build && build_code(build);
-};
 
 export const MODES: readonly ModeDef[] = [RACE_MODE, GYMKHANA_MODE, PARKING_MODE, DRIFT_MODE, HUNT_MODE, DUEL_MODE, JUMP_MODE];
 
@@ -122,7 +115,7 @@ interface Active {
   pi: number | null;
 }
 
-export class Modes {
+export class Modes implements CarHooks {
   private readonly modes: Mode[];
   private current: Active | null = null;
   private lobby_lap: (() => boolean) | null = null;
@@ -162,17 +155,11 @@ export class Modes {
   try_reward: ((reward: Reward) => void) | null = null;
   /** The garage reward the shown result just earned, for its Try it button. */
   private reward: Reward | null = null;
-  /** The step before a start that asks which car runs it: its code, or null when the player backs out. Events only for now. */
-  pick_car: ((title: string, limit: CarLimit, own: string, signal: AbortSignal) => Promise<string | null>) | null = null;
-  /** Puts `code` on the car; unsaved, a reload brings back the player's own car. */
-  fit_car: ((code: string, save: boolean) => void) | null = null;
-  car_code: (() => string) | null = null;
-  /** Writes `code` as the saved car without fitting it. */
-  save_car: ((code: string) => void) | null = null;
-  private pick: AbortController | null = null;
-  /** The player's own car while an event runs on another one, put back when they leave the event. */
-  private kept: string | null = null;
-  private fitting_ = false;
+  pick_car: CarHooks["pick_car"] = null;
+  fit_car: CarHooks["fit_car"] = null;
+  car_code: CarHooks["car_code"] = null;
+  save_car: CarHooks["save_car"] = null;
+  private readonly car = new EventCar(this);
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -195,12 +182,12 @@ export class Modes {
 
   /** True while an event fits its car or gives the player's back: a garage change the player did not make. */
   get fitting(): boolean {
-    return this.fitting_;
+    return this.car.fitting;
   }
 
   /** True while an event runs on a car it lent the player: a new look on it is not the player's own car. */
   get borrowed(): boolean {
-    return this.kept !== null;
+    return this.car.borrowed;
   }
 
   get active(): boolean {
@@ -218,13 +205,13 @@ export class Modes {
 
   /** A solo race counting down: the car stays on the line. */
   get holding(): boolean {
-    return this.pick !== null || this.current?.run?.holding === true;
+    return this.car.picking || this.current?.run?.holding === true;
   }
 
   /** Runs the lobby's race on `id` instead of the circuit; the lobby keeps the time, so there is no countdown or record here. */
   lobby_race(id: string, on_lap: () => boolean) {
-    this.pick?.abort();
-    this.give_back();
+    this.car.cancel_pick();
+    this.car.give_back();
     const route = this.world.routes.find((r) => r.id === id);
     const mode = this.modes.find((m) => m.def === RACE_MODE);
     if (!route || !mode) return;
@@ -271,7 +258,7 @@ export class Modes {
       if (!mode.track.is_open(id)) return;
       if (this.race_busy()) return this.notice(mode.def.busy_notice);
       this.clear();
-      this.give_back();
+      this.car.give_back();
       return this.begin(mode, level);
     }
   }
@@ -291,10 +278,10 @@ export class Modes {
     if (!play && !tune && !tier_open(this.career.stars, tier)) return this.notice(`${tier.name} opens at ${tier.opens_at} ★ in ${before?.name ?? "the tier before"}`);
     if (legs.some((leg) => leg.mode.def.needs_ground) && !KINDS[this.world.kind].open_ground) return this.notice(NO_GROUND_NOTICE);
     if (this.race_busy()) return this.notice(mode.def.busy_notice);
-    if (this.pick) return;
+    if (this.car.picking) return;
     this.clear();
-    void this.event_car(event, legs).then((ready) => {
-      if (!ready) return this.give_back();
+    void this.car.ready(event, (cap) => this.limit(cap, legs)).then((ready) => {
+      if (!ready) return this.car.give_back();
       if (legs.some((leg) => this.too_big(leg.mode))) return this.refuse(TOO_BIG);
       if (legs.some((leg) => this.left_out(leg.level.id))) return this.refuse(NOT_THIS_CAR);
       if (this.race_busy()) return this.refuse(mode.def.busy_notice);
@@ -315,80 +302,28 @@ export class Modes {
     return legs;
   }
 
-  // A fixed preset goes on with no step; a class cap asks, with the cars over it greyed.
-  private async event_car(event: CareerEvent, legs: readonly Leg[]): Promise<boolean> {
-    const { car } = event;
-    if ("preset" in car) {
-      const code = preset_code(car.preset);
-      if (code) this.wear(code);
-      return true;
-    }
-    if (!this.pick_car) return true;
-    const code = await this.ask_car(event, car.cap, legs);
-    if (code === null) {
-      // A cancelled pick must not reopen on reload, so the event leaves the URL; map params stay.
-      const url = new URL(location.href);
-      url.searchParams.delete(EVENT_PARAM);
-      url.searchParams.delete(RUN_PARAM);
-      history.replaceState(history.state, "", url);
-      return false;
-    }
-    this.wear(code);
-    return true;
-  }
-
   /** A class-capped event under way, mid-run or on its result: its car can change, which starts the run over. */
   get can_change_car(): boolean {
     const car = this.current?.event?.car;
-    return car !== undefined && "cap" in car && this.pick_car !== null;
+    return car !== undefined && "cap" in car && this.car.can_pick;
   }
 
   /** Asks again which car runs the event; a pick restarts the run on it, a cancel leaves the run and the car as they were. */
   async change_car() {
     const active = this.current;
     const car = active?.event?.car;
-    if (!active?.event || !car || !("cap" in car) || this.pick) return;
-    const code = await this.ask_car(active.event, car.cap, active.cup?.legs ?? [active]);
+    if (!active?.event || !car || !("cap" in car) || this.car.picking) return;
+    const code = await this.car.ask(active.event.name, this.limit(car.cap, active.cup?.legs ?? [active]));
     if (code === null || this.current !== active) return;
     // The player's own car back on is no longer a loan: their garage edits stay theirs, and its build goals count again.
-    if (code === this.kept) this.give_back();
-    else this.wear(code);
+    this.car.swap(code);
     this.restart();
   }
 
-  private async ask_car(event: CareerEvent, cap: CarClass, legs: readonly Leg[]): Promise<string | null> {
-    if (!this.pick_car) return null;
-    const pick = new AbortController();
-    this.pick = pick;
-    try {
-      const own = this.kept ?? this.car_code?.() ?? "";
-      const excludes = legs.flatMap((leg) => this.excludes(leg.level.id));
-      const car_sized_only = legs.some((leg) => leg.mode.def.car_sized_only);
-      return await this.pick_car(event.name, { cap, car_sized_only, excludes: excludes.length ? excludes : undefined }, own, pick.signal);
-    } finally {
-      if (this.pick === pick) this.pick = null;
-    }
-  }
-
-  private wear(code: string) {
-    if (!this.fit_car || !this.car_code || code === this.car_code()) return;
-    this.kept ??= this.car_code();
-    this.fit(code, false);
-  }
-
-  private give_back() {
-    const kept = this.kept;
-    this.kept = null;
-    if (kept !== null) this.fit(kept, true);
-  }
-
-  private fit(code: string, save: boolean) {
-    this.fitting_ = true;
-    try {
-      this.fit_car?.(code, save);
-    } finally {
-      this.fitting_ = false;
-    }
+  private limit(cap: CarClass, legs: readonly Leg[]): CarLimit {
+    const excludes = legs.flatMap((leg) => this.excludes(leg.level.id));
+    const car_sized_only = legs.some((leg) => leg.mode.def.car_sized_only);
+    return { cap, car_sized_only, excludes: excludes.length ? excludes : undefined };
   }
 
   // A refused start leaves the event, so the player's car goes back on; a championship says where it ended.
@@ -396,26 +331,8 @@ export class Modes {
     const cup = active?.cup?.cup;
     const ended = cup && cup.index > 0 ? ` · championship over at stage ${cup.index + 1}/${cup.stages.length}, ${cup.total} pts` : "";
     this.clear();
-    this.give_back();
+    this.car.give_back();
     this.notice(`${text}${ended}`);
-  }
-
-  private wrong_car(event: CareerEvent | null): string | null {
-    if (!event || !this.car_code) return null;
-    const { car } = event;
-    const code = this.car_code();
-    const build = parse_build(code);
-    if (!build) return null;
-    if ("preset" in car) {
-      const preset = parse_build(preset_code(car.preset));
-      return !preset || same_machine(build, preset) ? null : `${event.name}: ${car.preset} only`;
-    }
-    return within(rating(build).class, car.cap) ? null : `${event.name}: ${limit_text(car.cap)}`;
-  }
-
-  private car_pi(): number | null {
-    const build = parse_build(this.car_code?.());
-    return build && rating(build).pi;
   }
 
   /**
@@ -423,20 +340,19 @@ export class Modes {
    * still comes back after it. Anything else makes the change their car; an event run it moves off its PI or its fit ends.
    */
   car_changed() {
-    if (this.fitting_) return;
+    if (this.car.fitting) return;
     const active = this.current?.run ? this.current : null;
     const event = active?.event ?? null;
     if (!active || !event) {
-      this.kept = null;
+      this.car.release();
       return;
     }
-    const why = this.wrong_car(event) ?? (this.car_pi() === active.pi ? null : `${event.name}: car changed mid-run`);
+    const why = this.car.wrong(event) ?? (this.car.pi() === active.pi ? null : `${event.name}: car changed mid-run`);
     if (!why) {
-      // The garage saved the repainted event car; the player's own stays the saved one, for a reload mid-run.
-      if (this.kept !== null) this.save_car?.(this.kept);
+      this.car.save_kept();
       return;
     }
-    this.kept = null;
+    this.car.release();
     this.exit();
     this.notice(why);
   }
@@ -472,7 +388,7 @@ export class Modes {
       }, (error: unknown) => console.error(error));
       return;
     }
-    const over = this.wrong_car(active.event);
+    const over = this.car.wrong(active.event);
     if (over) {
       return this.refuse(over, active);
     }
@@ -502,7 +418,7 @@ export class Modes {
   private go(active: Active, run: ModeRun) {
     active.run = run;
     if (!this.lobby_lap) this.toast?.(active.level.goal ?? active.mode.def.goal, active.level.name, GOAL_MS);
-    active.pi = active.event ? this.car_pi() : null;
+    active.pi = active.event ? this.car.pi() : null;
     active.shown = false;
     this.el.result.hidden = true;
     if (active.cup) this.el.status.dataset.cup = active.cup.cup.status;
@@ -552,15 +468,13 @@ export class Modes {
     if (this.left_out(active.level.id)) return this.notice(NOT_THIS_CAR);
     active.run?.dispose();
     active.run = null;
-    const car = active.event?.car;
-    const code = car && "preset" in car ? preset_code(car.preset) : null;
-    if (code) this.wear(code);
+    this.car.wear_preset(active.event);
     this.launch(active);
   }
 
   exit() {
     this.clear();
-    this.give_back();
+    this.car.give_back();
     this.el.status.hidden = true;
   }
 
