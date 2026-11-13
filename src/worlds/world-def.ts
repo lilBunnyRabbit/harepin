@@ -2,6 +2,7 @@ import type * as THREE from "three";
 import type { GroundPuff } from "../render/effects";
 import type { Kit } from "../render/prop-kit";
 import type { MoodDelta } from "../render/lighting";
+import type { DeckLook } from "../render/scene";
 import type { World } from "../world/world";
 import type { WorldFacts } from "../worldgen/facts";
 import type { MapLineKind } from "../worldgen/map";
@@ -36,6 +37,8 @@ export interface WorldDef {
   mood: MoodDelta;
   /** The upland ground's tone; dry grass when unset. */
   upland?: Lab;
+  /** A deck kind's own track tones; the toy track's accent when unset. */
+  deck?: DeckLook;
   /** Tint of the dust the open ground throws. */
   ground_puff: GroundPuff;
   /** "sky" adds the sky dome and ring clouds; "indoor" adds neither. */

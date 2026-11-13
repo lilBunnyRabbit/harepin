@@ -77,7 +77,10 @@ function terrain_lut(upland: Lab): Float32Array {
   return lut;
 }
 
-export function mesh_tones(snowy = false, upland: Lab = tones.grass_dry): MeshTones {
+export type DeckLook = Record<keyof MeshTones["deck"], Lab>;
+const DECK: DeckLook = { deck: tones.deck, side: tones.deck_side, rail: tones.deck, joint: tones.joint, pad: tones.pad, chevron: tones.chevron };
+
+export function mesh_tones(snowy = false, upland: Lab = tones.grass_dry, deck: DeckLook = DECK): MeshTones {
   return {
     terrain: terrain_lut(upland),
     asphalt: linear(snowy ? mix(tones.snow, tones.asphalt, ROAD_SNOW) : tones.asphalt),
@@ -89,7 +92,7 @@ export function mesh_tones(snowy = false, upland: Lab = tones.grass_dry): MeshTo
     roofs: [tones.roof, tones.roof_slate].map(linear),
     roof_flat: linear(tones.roof_flat),
     landmark: { pale: linear(tones.check_light), band: linear(tones.roof), cap: linear(tones.trim), stone: linear(tones.rock), stone_shade: linear(lighten(tones.rock, -STONE_SHADE)), plant: linear(tones.leaf), plant_shade: linear(tones.leaf_dark) },
-    deck: { deck: linear(tones.deck), side: linear(tones.deck_side), rail: linear(tones.deck), joint: linear(tones.joint), pad: linear(tones.pad), chevron: linear(tones.chevron) },
+    deck: { deck: linear(deck.deck), side: linear(deck.side), rail: linear(deck.rail), joint: linear(deck.joint), pad: linear(deck.pad), chevron: linear(deck.chevron) },
   };
 }
 

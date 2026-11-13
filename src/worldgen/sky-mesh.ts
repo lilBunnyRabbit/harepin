@@ -16,8 +16,8 @@ const RAIL_WIDE = 0.3;
 // twist / sample length: on a bowl's roll a 1.3 m twist creased 19° and read as a fan of light and dark slivers. Past the
 // sky track's steepest roll-in (0.67 m, kept whole so its mesh stays as it was) top and underside split across their width
 // into strips of STRIP_TWIST each, a crease under 3° (an underside left whole would fold up through the split top).
-const SKY_TWIST = 0.7;
-const STRIP_TWIST = 0.1;
+export const SKY_TWIST = 0.7;
+export const STRIP_TWIST = 0.1;
 /** Track joints every SEGMENT metres: a seam plate SEAM long, a step darker; side faces drew as black bars from the chase camera. */
 const SEGMENT = 9;
 const SEAM = 0.25;

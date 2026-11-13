@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { brand, color, dark, glow, mix } from "../theme/palette";
+import type { Lab } from "../theme/theme";
 import { fbm, type World } from "../world/world";
 
 const FLOOR_PUFFS = 120;
@@ -119,10 +120,8 @@ export function sky(): THREE.Object3D {
  * A puff with a lit top and a shaded underside, per face so the facets stay flat: the vertex colour scales each
  * instance's tint down to `cloud` below its middle, so a cloud reads as lit vapour rather than one solid tone.
  */
-function puff_geometry(): THREE.BufferGeometry {
+function puff_geometry(lit = color(sky_tones.cloud_lit), shade = color(sky_tones.cloud)): THREE.BufferGeometry {
   const puff = new THREE.IcosahedronGeometry(1, 1);
-  const lit = color(sky_tones.cloud_lit);
-  const shade = color(sky_tones.cloud);
   const under = [shade.r / Math.max(lit.r, 1e-4), shade.g / Math.max(lit.g, 1e-4), shade.b / Math.max(lit.b, 1e-4)].map((v) => Math.min(1, v));
   const y = puff.getAttribute("position");
   const colors = new Float32Array(y.count * 3);
@@ -170,11 +169,13 @@ export function clouds(seed = 0): THREE.Object3D {
 }
 
 /** A sea of puffs under the sky track, spread over its bounds; unlike the ring clouds it takes fog, so it fades out below. */
-export function cloud_floor(world: World): THREE.Object3D {
+export function cloud_floor(world: World, lit_tone: Lab = sky_tones.cloud_lit, shade_tone: Lab = sky_tones.cloud): THREE.Object3D {
   const { road } = world;
   const low = Math.min(...road.map((p) => p.y));
-  const puff = puff_geometry();
-  const material = new THREE.MeshLambertMaterial({ flatShading: true, vertexColors: true, emissive: color(sky_tones.cloud_lit), emissiveIntensity: dark ? 0.08 : FLOOR_DAY_GLOW });
+  const lit = color(lit_tone);
+  const shade = color(shade_tone);
+  const puff = puff_geometry(lit, shade);
+  const material = new THREE.MeshLambertMaterial({ flatShading: true, vertexColors: true, emissive: lit, emissiveIntensity: dark ? 0.08 : FLOOR_DAY_GLOW });
   material.onBeforeCompile = (shader) => {
     shader.uniforms.ceiling = sky_ceiling;
     shader.fragmentShader = `uniform float ceiling;\n${shader.fragmentShader}`.replace(
@@ -188,8 +189,6 @@ export function cloud_floor(world: World): THREE.Object3D {
   const s = new THREE.Vector3();
   const p = new THREE.Vector3();
   const tint = new THREE.Color();
-  const lit = color(sky_tones.cloud_lit);
-  const shade = color(sky_tones.cloud);
   const axis = new THREE.Vector3(0, 1, 0);
   const seed = world.seed;
   for (let i = 0; i < FLOOR_PUFFS; i++) {

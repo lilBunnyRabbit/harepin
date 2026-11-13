@@ -6,7 +6,7 @@ import type { WorldKind } from "../worldgen/types";
 export const SHEETS = ["cars", "lineup", "paints", "decals", "biomes", "track", "carbon"] as const;
 export type Sheet = (typeof SHEETS)[number];
 
-export const VIEWS = ["start", "q1", "q2", "q3", "overlook", "shore", "town", "aerial", "crest"] as const;
+export const VIEWS = ["start", "q1", "q2", "q3", "overlook", "shore", "town", "aerial", "crest", "bowl", "rim"] as const;
 export type ViewName = (typeof VIEWS)[number];
 
 const PLAIN_SEED = 1;

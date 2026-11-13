@@ -1,5 +1,5 @@
 import { SPAWN_INDEX, type World } from "../world/world";
-import type { RoadPoint } from "../worldgen/types";
+import { DECK_STRIDE, type RoadPoint } from "../worldgen/types";
 import { VIEWS, type ViewName } from "./catalog";
 
 type V3 = [number, number, number];
@@ -127,9 +127,23 @@ async function crest_view(world: World): Promise<View | null> {
   return null;
 }
 
+/** A deck world's steepest bank: `bowl` looks up its wall from the low edge, `rim` down into it from over the top. */
+function bank_view(world: World, name: "bowl" | "rim"): View | null {
+  const line = world.deck?.deck.line;
+  if (!line) return null;
+  let i = 0;
+  for (let k = 0; k < line.length; k += DECK_STRIDE) if (line[k + 7] && Math.abs(line[k + 5]) > Math.abs(line[i + 5])) i = k;
+  const [x, y, z, tx, tz, bank, half] = line.subarray(i, i + 7);
+  const side = Math.sign(bank);
+  const rise = half * Math.tan(Math.abs(bank));
+  const at = index_of(world, x, z);
+  const off = (along: number, out: number, up: number): V3 => [x + tx * along + tz * side * out, y + up, z + tz * along - tx * side * out];
+  return name === "bowl" ? { at, from: off(-34, -half - 1, 5 - rise), to: off(8, half * 0.4, rise * 0.3) } : { at, from: off(-44, half + 16, rise + 14), to: off(14, -half * 0.3, -rise * 0.4) };
+}
+
 export async function view_of(world: World, name: string): Promise<View | null> {
   const known = VIEWS.find((view) => view === name);
-  const view = known === "crest" ? await crest_view(world) : known && plan_views(world)[known];
+  const view = known === "crest" ? await crest_view(world) : known === "bowl" || known === "rim" ? bank_view(world, known) : known && plan_views(world)[known];
   if (!view) return null;
   const [x, y, z] = view.from;
   await world.tiles.ensure(x, z);
