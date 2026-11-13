@@ -34,7 +34,7 @@ import { build_goals, proven, saved_entries } from "./goals/catch-up";
 import { ToastQueue } from "./goals/toast-queue";
 import { race_choices } from "./modes/races";
 import { ChunkTrackside, gates, type Gate } from "./car/trackside";
-import { GUIDE_PARAM, ROLLED_VISIT } from "./menu/guide";
+import { GUIDE_PARAM, ROLLED_VISIT } from "./menu/guide/guide.svelte";
 import { kept_random_name } from "./menu/guide-rules";
 import { PadMenu } from "./menu/pad-menu";
 import { Net, WRONG_PASSWORD } from "./net/net";

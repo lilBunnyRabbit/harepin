@@ -1,6 +1,6 @@
 import { modal_open, typing, type Nav } from "../hud/input";
 import { clean_name } from "../net/net";
-import { GUIDE_PARAM, Guide, ROLLED_VISIT, type GuideStep } from "./guide";
+import { GUIDE_PARAM, Guide, ROLLED_VISIT, type GuideStep } from "./guide/guide.svelte";
 import { TUNE_PARAM } from "../career/career";
 import { CareerPage } from "./career-view";
 import { GoalsPage } from "./goals-view";

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { DEVICES, detect_device } from "./guide";
+  import { DEVICES, detect_device } from "./device";
   import { issue_link, short_agent, type IssueFields } from "./issue-link";
   import { QualityMode } from "./prefs";
   import Card from "./ui/Card.svelte";

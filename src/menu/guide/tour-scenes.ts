@@ -1,5 +1,3 @@
-import { svg } from "./garage-widgets";
-
 type Shape = [tag: "path" | "rect" | "circle" | "ellipse", part: string, attributes: Record<string, string | number>];
 
 export const TourArt = {
@@ -11,7 +9,7 @@ export type TourArt = (typeof TourArt)[keyof typeof TourArt];
 
 // The art fits the card whole; scenery runs this far past the frame so a wide or tall card shows more world, not bands.
 const FAR = 400;
-const VIEW = "8 24 144 92";
+export const VIEW_BOX = "8 24 144 92";
 const HORIZON = 78;
 
 const OUTDOORS: Shape[] = [
@@ -98,14 +96,8 @@ const FRIENDS: Shape[] = [
   ["rect", "link", { x: 113, y: 48, width: 16, height: 8, rx: 4 }],
 ];
 
-const SCENES: Record<TourArt, Shape[]> = {
+export const SCENES: Record<TourArt, Shape[]> = {
   [TourArt.MODES]: MODES,
   [TourArt.GARAGE]: GARAGE,
   [TourArt.FRIENDS]: FRIENDS,
 };
-
-export function tour_art(scene: TourArt): SVGSVGElement {
-  const node = svg("svg", { viewBox: VIEW, "aria-hidden": "true", class: "tour-art" });
-  for (const [tag, part, attributes] of SCENES[scene]) node.append(svg(tag, { ...attributes, class: `art-${part}` }));
-  return node;
-}
