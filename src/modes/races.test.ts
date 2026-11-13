@@ -1,7 +1,7 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
 import type { Route } from "../worldgen/types";
-import { GATE_REACH, RaceRun, RaceStatus, race_choices, race_course, race_levels } from "./races";
+import { GATE_REACH, RaceRun, RaceStatus, gate_shown, race_choices, race_course, race_levels } from "./races";
 
 const N = 1000;
 const POINTS = Array.from({ length: N }, (_, i) => {
@@ -72,6 +72,16 @@ test("run: a gate passed wide or skipped stays next until the car comes back for
   for (let i = 195; i < 210; i++) run.update(100, course.line[i].x, course.line[i].z);
   expect(run.next).toBe(1);
   expect(run.missed).toBe(false);
+});
+
+test("view: a circuit's finish, on the start line under the car, shows only once it is the next gate", () => {
+  const shown = (next: number, closed: boolean) => [0, 1, 2, 3].filter((i) => gate_shown(i, next, 4, closed));
+  expect(shown(0, true)).toEqual([0, 1, 2]);
+  expect(shown(2, true)).toEqual([2]);
+  expect(shown(3, true)).toEqual([3]);
+  expect(shown(4, true)).toEqual([]);
+  expect(shown(0, false)).toEqual([0, 1, 2, 3]);
+  expect(shown(3, false)).toEqual([3]);
 });
 
 test("levels follow the progression order and list only routes the seed made", () => {

@@ -138,3 +138,11 @@ export class RaceRun {
     return taken;
   }
 }
+
+/**
+ * Whether gate `i` of `count` shows while gate `next` is the one to take. A circuit's finish sits on its start line,
+ * right under the car at the start, so it waits until it is the next gate.
+ */
+export function gate_shown(i: number, next: number, count: number, closed: boolean): boolean {
+  return closed && i === count - 1 ? i === next : i >= next;
+}

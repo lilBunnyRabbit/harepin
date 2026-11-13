@@ -4,7 +4,7 @@ import { item_geometry, item_material } from "../world/jumps";
 import { cast_instanced } from "../render/shadow-depth";
 import { Beams } from "./beams";
 import { CHEVRON_VERTS, Marks, type Ground } from "./marks";
-import type { RaceCourse } from "./races";
+import { gate_shown, type RaceCourse } from "./races";
 import type { RoutePoint } from "./route";
 
 const LINE = 2;
@@ -36,9 +36,11 @@ export class RaceView {
   private readonly lead_at: number[];
   private lead_first = -1;
   private lead_end = -1;
+  private readonly closed: boolean;
 
   constructor(course: Course, ground: Ground) {
     const { line, gates, route } = course;
+    this.closed = route.closed;
     this.marks = new Marks(ground);
     this.dim = this.marks.paint(brand.accent, DIM);
     this.lit = this.marks.paint(brand.accent);
@@ -73,13 +75,15 @@ export class RaceView {
   }
 
   aim(next: number) {
+    const { closed } = this;
+    const count = this.gates.length;
     this.gates.forEach((gate, i) => {
-      if (i < this.gates.length - 1) gate.material = i === next ? this.lit : this.dim;
-      gate.visible = i >= next;
+      if (i < count - 1) gate.material = i === next ? this.lit : this.dim;
+      gate.visible = gate_shown(i, next, count, closed);
     });
     this.beams.aim(next);
     this.beams.groups.forEach((beam, i) => {
-      beam.visible = i >= next;
+      beam.visible = gate_shown(i, next, count, closed);
     });
   }
 
