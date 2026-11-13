@@ -28,6 +28,9 @@ const LIP_SIDE = 2;
 const MIN_TAKEOFF = 6;
 // More than this in one frame is no flight but a reset: the try is void.
 const MAX_STEP = 10;
+// A car beached on the lip has every wheel off the ground but goes nowhere: past this long at a crawl it counts as down.
+const BEACHED_SPEED = 1;
+const BEACHED_MS = 1500;
 const MARK_STEP = 0.25;
 const MARK_SLACK = 40;
 const SILVER_SPEED = 0.8;
@@ -121,6 +124,7 @@ export class JumpRun {
   best: Landing | null = null;
   flying: number | null = null;
   private landed_at: number | null = null;
+  private crawl_ms = 0;
   private last: { x: number; z: number; airborne: boolean } | null = null;
 
   constructor(readonly jump: Jump) {}
@@ -151,7 +155,8 @@ export class JumpRun {
         return JumpEvent.VOID;
       }
       const d = Math.max(0, past_lip(ramp, pose.x, pose.z));
-      if (pose.airborne) {
+      this.crawl_ms = Math.hypot(pose.vx, pose.vz) < BEACHED_SPEED ? this.crawl_ms + dt_ms : 0;
+      if (pose.airborne && this.crawl_ms < BEACHED_MS) {
         this.flying = d;
         return JumpEvent.NONE;
       }
@@ -168,6 +173,7 @@ export class JumpRun {
     const forward = pose.vx * ramp.fx + pose.vz * ramp.fz;
     if (Math.abs(u) > ramp.hw + LIP_SIDE || v < ramp.length - LIP_BEHIND || v > ramp.length + LIP_AHEAD || forward < MIN_TAKEOFF) return JumpEvent.NONE;
     this.flying = Math.max(0, v - ramp.length);
+    this.crawl_ms = 0;
     return JumpEvent.TAKEOFF;
   }
 

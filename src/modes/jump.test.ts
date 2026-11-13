@@ -146,3 +146,15 @@ test("a jump event's marker stands at its run-up", () => {
   if (!marker || !jump) throw new Error("no marker");
   expect(Math.hypot(marker.x - jump.start.x, marker.z - jump.start.z)).toBeLessThan(12);
 });
+
+test("a car beached on the lip, wheels in the air, still ends its try", () => {
+  const run = new JumpRun(desert_kicker());
+  const { jump } = run;
+  const lip = jump.ramp.length;
+  run.update(10, along(jump, lip - 1, false));
+  expect(run.update(10, along(jump, lip + 1, true))).toBe(JumpEvent.TAKEOFF);
+  let event: JumpEvent = JumpEvent.NONE;
+  for (let t = 0; t < 2000 && event === JumpEvent.NONE; t += 100) event = run.update(100, along(jump, lip + 1.5, true, 0, 0));
+  expect(event).toBe(JumpEvent.LANDED);
+  expect(run.best?.metres).toBe(1.5);
+});
