@@ -23,6 +23,17 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.36.2",
+    date: "2026-11-13",
+    title: "Tell me",
+    changes: [
+      { kind: NEW, text: "A Support tab: Harepin is still being built, so report bugs, driving feel, maps, performance or ideas straight to GitHub, with your version and device filled in." },
+      { kind: NEW, text: "Settings and your career shield sit in the top bar while you drive. The shield turns to metal once you win the tier's final." },
+      { kind: IMPROVED, text: "Ice parallel hands you the Dirt rally car, so parking on ice is doable." },
+      { kind: FIXED, text: "Lava keeps its orange-red glow in every dusk theme." },
+    ],
+  },
+  {
     version: "0.36.1",
     date: "2026-11-13",
     title: "Career first",
