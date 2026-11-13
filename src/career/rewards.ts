@@ -1,5 +1,5 @@
 import { DECALS } from "../car/build";
-import type { CarId } from "../car/cars";
+import { CARS, is_car, type CarId } from "../car/cars";
 import type { TierBadge } from "../net/net";
 import { TIERS, tier_max, tier_stars, type Stars, type Tier } from "./career";
 
@@ -32,6 +32,9 @@ export function unlocks(stars: Stars): Unlocks {
 export const REWARD_DECALS: readonly number[] = TIERS.flatMap(({ rewards: { decal } }) => (decal ? [DECALS.indexOf(decal)] : []));
 
 export const REWARD_CARS: readonly CarId[] = TIERS.flatMap(({ rewards: { car } }) => (car ? [car] : []));
+
+/** Every car open from the start: the garage's list, and the cars its stat bars span so a reward car never shrinks theirs. */
+export const PLAIN_CARS: readonly CarId[] = Object.keys(CARS).filter(is_car).filter((id) => !REWARD_CARS.includes(id));
 
 export const badge_text = (badge: TierBadge) => `${TIERS[badge - 1].name} champion`;
 

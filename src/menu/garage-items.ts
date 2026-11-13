@@ -1,7 +1,7 @@
 import { DECALS, DECAL_NAMES, MAX_NUMBER, MAX_PAINT, SLOTS, SLOT_NAMES, WHOLE_CAR, part_of, slot_view, type Build, type Decal, type Slot, type SlotView } from "../car/build";
 import { CARS, is_car, type CarId } from "../car/cars";
 import { TIERS } from "../career/career";
-import { REWARD_CARS, REWARD_DECALS, reward_paint_name, type Unlocks } from "../career/rewards";
+import { PLAIN_CARS, REWARD_DECALS, reward_paint_name, type Unlocks } from "../career/rewards";
 import { NEUTRAL_INKS, car_paints, decal_inks } from "../theme/palette";
 
 const SIDE_VIEW: SlotView = { yaw: -0.87 };
@@ -50,8 +50,6 @@ function listed<T>(base: readonly T[], earned: readonly T[], fitted: T): T[] {
 
 /** The car item's build value for a car: what its `values` hold. */
 export const car_value = (id: CarId | undefined) => (id ? CAR_IDS.indexOf(id) : -1);
-
-const PLAIN_CARS = CAR_IDS.filter((id) => !REWARD_CARS.includes(id));
 
 function car_item(build: Build, unlocks: Unlocks): Item {
   const cars = listed(PLAIN_CARS, unlocks.cars, build.car);

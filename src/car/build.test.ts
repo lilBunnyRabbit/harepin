@@ -5,6 +5,7 @@ import { CARS, COUPE, HATCH, RALLY, car_sized, type CarId, type CarSpec } from "
 import { surface_grip as tyre_share } from "./car";
 import { LAND_GRIP, SAND_GRIP } from "../worldgen/kinds/kind-def";
 import { SurfaceId } from "../worldgen/types";
+import { PLAIN_CARS } from "../career/rewards";
 
 const with_parts = (parts: Partial<Build["parts"]>, rest: Partial<Omit<Build, "parts">> = {}): Build => ({ ...DEFAULT_BUILD, car: "coupe", paint: 0, ...rest, parts: { ...DEFAULT_PARTS, ...parts } });
 
@@ -309,7 +310,7 @@ test("a bigger nitro tank holds more boost and weighs more", () => {
 
 test("stats rise with the parts that should raise them and stay inside the range", () => {
   const stock = stats(COUPE);
-  const { low, high } = stat_range();
+  const { low, high } = stat_range(PLAIN_CARS);
   expect(stats(build_spec(with_parts({ engine: 2 }))).power).toBeGreaterThan(stock.power);
   expect(stats(build_spec(with_parts({ weight: 2 }))).power).toBeGreaterThan(stock.power);
   expect(stats(build_spec(with_parts({ tyres: 1 }))).grip).toBeGreaterThan(stock.grip);
@@ -320,7 +321,7 @@ test("stats rise with the parts that should raise them and stay inside the range
     const s = stats(CARS[car]);
     expect(s.top_speed * 3.6).toBeGreaterThan(car_sized(CARS[car]) ? 150 : 80);
     expect(s.top_speed * 3.6).toBeLessThan(330);
-    if (car_sized(CARS[car]))
+    if (car_sized(CARS[car]) && PLAIN_CARS.includes(car))
       for (const key of STATS) {
         expect(s[key]).toBeLessThanOrEqual(high[key]);
         expect(s[key]).toBeGreaterThanOrEqual(low[key]);
