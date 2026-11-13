@@ -7,7 +7,7 @@ import type { World } from "../world/world";
  * that an orange-red fits without clipping its red channel, which washed the pool to peach. Lights and fog never reach it,
  * or an aerial view sees a brown haze.
  */
-const LAVA_GLOW = 0.4;
+export const LAVA_GLOW = 0.4;
 const SEGMENTS = 48;
 
 /** A flat glowing disc over each crater's lava; the crater wall hides the part past the floor. */

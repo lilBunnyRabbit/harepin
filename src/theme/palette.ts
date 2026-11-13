@@ -4,7 +4,8 @@ import { apply_theme, current_theme, read_tokens, type Lab } from "./theme";
 export const theme_name = current_theme();
 apply_theme(theme_name);
 export const brand = read_tokens();
-export const dark = brand.background[0] < 0.55;
+export const dusk_of = (background: Lab) => background[0] < 0.55;
+export const dark = dusk_of(brand.background);
 // Native controls follow the palette's polarity, as in webos; the scene keeps its own cut above, so a mid-tone background
 // with dark text (Red & Black) drives at dusk with light form controls.
 document.documentElement.style.colorScheme = brand.foreground[0] < brand.background[0] ? "light" : "dark";
@@ -17,16 +18,35 @@ export function lighten(a: Lab, by: number): Lab {
   return [a[0] + by, a[1], a[2]];
 }
 
-export function linear([L, a, b]: Lab): [number, number, number] {
+function unclamped_linear([L, a, b]: Lab): [number, number, number] {
   const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3;
   const m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3;
   const s = (L - 0.0894841775 * a - 1.291485548 * b) ** 3;
-  const clamp = (v: number) => Math.max(0, Math.min(1, v));
   return [
-    clamp(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s),
-    clamp(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s),
-    clamp(-0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s),
+    4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+    -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+    -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s,
   ];
+}
+
+export function linear(lab: Lab): [number, number, number] {
+  const clamp = (v: number) => Math.max(0, Math.min(1, v));
+  const [r, g, b] = unclamped_linear(lab);
+  return [clamp(r), clamp(g), clamp(b)];
+}
+
+/** `lab` with its chroma cut until it fits sRGB: past the edge `linear` clips per channel, which shifts the hue. */
+function in_gamut(lab: Lab): Lab {
+  const scaled = (k: number): Lab => [lab[0], lab[1] * k, lab[2] * k];
+  const fits = (k: number) => unclamped_linear(scaled(k)).every((c) => c >= 0 && c <= 1);
+  if (fits(1)) return lab;
+  let [lo, hi] = [0, 1];
+  for (let i = 0; i < 20; i++) {
+    const k = (lo + hi) / 2;
+    if (fits(k)) lo = k;
+    else hi = k;
+  }
+  return scaled(lo);
 }
 
 export function color(lab: Lab): Color {
@@ -77,9 +97,12 @@ const warm = mix(brand.warning, brand.error, 0.45);
 const grass_dry = dark ? mix(brand.warning, ground, 0.26) : mix(warm, ground, 0.36);
 const sand = dark ? mix(brand.warning, brand.foreground, 0.35) : mix(warm, brand.background_darkest, 0.35);
 // The lava pool glows at a fixed luma, so its tone sets only the hue and how saturated it stays. Dusk tokens are pastel:
-// scaled up to the glow they clipped to pale peach; pulled down in L with the same chroma they keep a hot orange-red.
+// scaled up to the glow they clipped to pale peach; pulled down in L they keep a hot orange-red. A theme whose tokens sit
+// low already drops out of gamut there and clipped to pure red, so its chroma is cut to fit instead.
 // Brand Light's error is deep already, and its warning olive, so noon lava leans on the error. The ground keeps `lava`.
 const DUSK_LAVA_DROP = 0.3;
+export const dusk_lava_glow = (error: Lab, warning: Lab) => in_gamut(lighten(mix(error, warning, 0.8), -DUSK_LAVA_DROP));
+export const noon_lava_glow = (error: Lab, warning: Lab) => mix(error, warning, 0.85);
 // Snow under a dusk sky leans cold, so it never reads as the desert's sand in the same warm light.
 const DUSK_SNOW_LIFT = 0.05;
 
@@ -111,7 +134,7 @@ export const tones = {
   leaf_dark: dark ? lighten(leaf_dark, grass[0] - DUSK_CROWN_DROP - leaf_dark[0]) : leaf_dark,
   trunk: mix(brand.warning, brand.background_darkest, 0.25),
   lava: mix(brand.error, brand.warning, 0.6),
-  lava_glow: dark ? lighten(mix(brand.error, brand.warning, 0.8), -DUSK_LAVA_DROP) : mix(brand.error, brand.warning, 0.85),
+  lava_glow: dark ? dusk_lava_glow(brand.error, brand.warning) : noon_lava_glow(brand.error, brand.warning),
   cone: warm,
   glass: dark ? brand.background_darkest : brand.foreground,
   tyre: dark ? above_asphalt(DUSK_TYRE_STEP) : mix(brand.foreground, brand.background_darkest, 0.8),
