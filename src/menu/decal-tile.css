@@ -55,6 +55,11 @@
   background: var(--swatch);
 }
 
+/* Legend carbon: the twill the car wears, its tows in the paint over the resin between them. */
+.garage-swatch[data-carbon] {
+  background: repeating-linear-gradient(45deg, var(--swatch) 0 3px, color-mix(in oklab, var(--swatch) 35%, var(--swatch-base)) 3px 6px);
+}
+
 /* Reward metals: the same lit and shaded facets as the car's metal sheen. */
 .garage-swatch[data-metal] {
   background: linear-gradient(

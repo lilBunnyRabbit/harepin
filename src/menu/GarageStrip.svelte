@@ -37,7 +37,7 @@
         blurb: item.blurb(index),
         rating: item.kind === "car" ? rating(build) : null,
         swatch: item.kind === "paint" ? rgba(paint_lab(build.paint)) : item.kind === "ink" ? rgba(decal_inks[index]) : null,
-        metal: item.kind === "paint" && paint_finish(build.paint) !== null,
+        finish: item.kind === "paint" ? paint_finish(build.paint) : null,
         decal: DECALS[build.decal],
       };
     }),
@@ -148,7 +148,13 @@
             >
               <Tile title={option.name} meta={option.blurb || undefined} clamp={2} selected={option.index === fitted} onclick={() => pick(option.index)}>
                 {#if option.rating}<span class="garage-badge"><ClassBadge rating={option.rating} /></span>{/if}
-                {#if option.swatch}<i class="garage-swatch" data-metal={option.metal || undefined} style:--swatch={option.swatch}></i>{/if}
+                {#if option.swatch}<i
+                    class="garage-swatch"
+                    data-metal={(option.finish && !option.finish.weave) || undefined}
+                    data-carbon={option.finish?.weave ? true : undefined}
+                    style:--swatch={option.swatch}
+                    style:--swatch-base={option.finish?.weave ? rgba(option.finish.weave.base) : undefined}
+                  ></i>{/if}
                 {#if item.kind === "decal"}<DecalTile decal={option.decal} number={shown.number} />{/if}
               </Tile>
             </li>
