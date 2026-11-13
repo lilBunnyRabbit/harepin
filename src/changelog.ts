@@ -23,6 +23,16 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.41.1",
+    date: "2026-11-13",
+    title: "Smoother on phones",
+    changes: [
+      { kind: IMPROVED, text: "Smoother driving on phones: the dashboard no longer makes the browser restyle the whole page every frame" },
+      { kind: IMPROVED, text: "Mainland builds faster when you load it" },
+      { kind: FIXED, text: "Restart and Quit buttons on the Play tab no longer spill off the card for long mode names" },
+    ],
+  },
+  {
     version: "0.41.0",
     date: "2026-11-13",
     title: "Road trip",
