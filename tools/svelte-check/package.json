@@ -1,0 +1,9 @@
+{
+  "name": "harepin-svelte-check",
+  "private": true,
+  "description": "svelte-check pinned to TypeScript 6; the app itself uses TypeScript 7, which svelte-check does not load yet.",
+  "devDependencies": {
+    "svelte-check": "4.7.8",
+    "typescript": "6.0.3"
+  }
+}
