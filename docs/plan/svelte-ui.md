@@ -267,7 +267,7 @@ Today there are 20 distinct media conditions across 14 files: `max-width` 380 / 
 |---|---|---|
 | narrow | `(max-width: 1100px)` | Settings help moves under the list, **wrapping, not truncated**. The play side column drops below the map. |
 | phone | `(max-width: 600px)` | Single column everywhere: guide, modes, online, world, settings (rail stays). |
-| short | `(max-height: 500px)` | Landscape phone: tabs share the top row, the page body scrolls as one, eyebrows hide. |
+| short | `(max-height: 500px)` | Landscape phone: tabs share the top row, the page body scrolls as one, an eyebrow over a title hides. An eyebrow on its own stays: it is the label of the group under it (garage builds, car pick shelves, guide fields). |
 | coarse | `(pointer: coarse)` | Sizes only (`--control-h` 44, `--control-h-lg` 52, row 64). No layout change. |
 
 ## Component inventory
@@ -289,7 +289,7 @@ Each component owns its CSS in the Svelte file and reads only tokens. The "repla
 | `RowList` | `divided` (rule between rows) or `gap` | gap `--space-1` | `.set-rows`, `.career-list`, `.goals-list`, `.servers-list`, `.menu-scroll` |
 | `Card` | `well` / `panel` / `raised`; `as="button"` makes a tile | pad `--space-5` (short: `--space-4`); `--radius-lg`; border `--set-line`. Never nested: a `Card` in a `Card` drops to `Section`. | `.menu-tile`, `.menu-info`, `.goals-card`, `.career-hero`, `.career-tier`, `.support-about`, `.support-sent`, `.set-help`, `.play-drive`, `.settings-page` (page view), `.guide-card`, `.updated-notes` |
 | `Tile` | `thumb` (image), `icon`; `size`: `sm` (mini map) / `md` (link) | One height per size; title `--text-lg` 600, meta `--text-sm` | `.play-mini`, `.play-link`, `.guide-tile`, `.guide-world`, `.map-world`, `.modes-level`, `.car-pick-car`, `.garage-card`, `.garage-build-load` |
-| `SectionHead` | `eyebrow`, `title`, `count`, `action` (`Link`) | Eyebrow role from the type table; title is the card-title role | `.menu-eyebrow`, `.guide-eyebrow`, `.set-title`, `.car-pick-shelf-head`, `.garage-build-head`, `.garage-panel-title`, `.play-head`, `.goals-head`, `.career-head` |
+| `SectionHead` | `eyebrow`, `title`, `count`, `action` (`Link`) | Eyebrow role from the type table; title is the card-title role. Short screens hide the eyebrow only when a title follows it | `.menu-eyebrow`, `.guide-eyebrow`, `.set-title`, `.car-pick-shelf-head`, `.garage-build-head`, `.garage-panel-title`, `.play-head`, `.goals-head`, `.career-head` |
 | `PageHead` | `title`, `back` | Back = `Button quiet` with chevron; the title is the page-title role; **aligned to the body column** (S3) | `.settings-head`, `.settings-back`, `.settings-title` |
 | `Badge` | `tag` (Final, NEW, RECOMMENDED, New/Improved release kinds; filled pill), `count` (unread) | `--text-xs` 700, pad `--space-0` `--space-2`, `--radius-full`; kind colours fixed per meaning | `.career-final`, `.menu-tag`, modes NEW text, `.update-kind`, `.servers-tag`, guide recommended |
 | `ClassBadge` | `cls`, `pi`, `cap` | Unchanged look (`class-badge.css`): `--text-sm` mono 700, `--radius-sm`. One size in lists, `lg` in the garage head only | `.class-badge` |
