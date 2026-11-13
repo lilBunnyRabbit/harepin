@@ -358,7 +358,7 @@
     }
 
     .garage-sections :global(.ui-tab) {
-      padding-inline: var(--space-3);
+      padding-inline: var(--space-2);
     }
 
     .garage-rail {
