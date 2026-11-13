@@ -26,6 +26,12 @@ export class HudSheet {
       const action = tile.dataset.act as SheetAction;
       tile.addEventListener("click", () => act(action));
     }
+    // A tap on the backdrop targets the sheet itself; closing on click, after the finger lifts, leaves no touch for the pedals.
+    this.sheet.addEventListener("click", (e) => {
+      if (e.target !== this.sheet) return;
+      const r = this.sheet.getBoundingClientRect();
+      if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) this.close();
+    });
     this.sheet.addEventListener("beforetoggle", (e) => {
       if (e.newState !== "open") return;
       this.fill();
