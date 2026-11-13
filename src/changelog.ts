@@ -23,6 +23,17 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.39.0",
+    date: "2026-11-13",
+    title: "Elite complete",
+    changes: [
+      { kind: NEW, text: "Elite is complete: five more events (a drift chain, speed traps, a long jump, the Island cup championship and the Dune crossing final on Big dunes)." },
+      { kind: NEW, text: "Championships: several stages on one map, points per stage, standings on the result card. A stage needs 1 star to go on." },
+      { kind: NEW, text: "Win the Elite final for the platinum E shield, and earn every Elite star for the Ridges decal." },
+      { kind: FIXED, text: "Jump events no longer depend on how fast the map loads." },
+    ],
+  },
+  {
     version: "0.38.0",
     date: "2026-11-13",
     title: "New ways to drive",
