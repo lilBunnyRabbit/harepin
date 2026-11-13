@@ -16,8 +16,8 @@ const RAIL_WIDE = 0.3;
 // twist / sample length: on a bowl's roll a 1.3 m twist creased 19° and read as a fan of light and dark slivers. Past the
 // sky track's steepest roll-in (0.67 m, kept whole so its mesh stays as it was) top and underside split across their width
 // into strips of STRIP_TWIST each, a crease under 3° (an underside left whole would fold up through the split top).
-export const SKY_TWIST = 0.7;
-export const STRIP_TWIST = 0.1;
+const SKY_TWIST = 0.7;
+const STRIP_TWIST = 0.1;
 /** Track joints every SEGMENT metres: a seam plate SEAM long, a step darker; side faces drew as black bars from the chase camera. */
 const SEGMENT = 9;
 const SEAM = 0.25;
@@ -62,6 +62,12 @@ function quad(layer: DeckLayer, rgb: Rgb, a: V, b: V, c: V, d: V) {
   push(layer, rgb, a, b, c, a, c, d);
 }
 
+/** Strips the deck between two samples splits into across its width; paint laid on the deck has to split the same way. */
+export function deck_strips(bank: number, bank_next: number, half: number, half_next: number): number {
+  const twist = Math.abs(Math.tan(bank_next) - Math.tan(bank)) * 2 * Math.max(half, half_next);
+  return twist > SKY_TWIST ? Math.ceil(twist / STRIP_TWIST) : 1;
+}
+
 export function deck_layers(deck: Deck, tones: DeckTones, chunk_of: (x: number, z: number) => number, surface: DeckLayer[], marks: DeckLayer[]) {
   const line = deck.line;
   const n = line.length / DECK_STRIDE;
@@ -85,8 +91,7 @@ export function deck_layers(deck: Deck, tones: DeckTones, chunk_of: (x: number, 
     const layer = surface[chunk_of(f(i, 0), f(i, 2))];
     const h = f(i, 6);
     const hj = f(j, 6);
-    const twist = Math.abs(Math.tan(f(j, 5)) - Math.tan(f(i, 5))) * 2 * Math.max(h, hj);
-    const strips = twist > SKY_TWIST ? Math.ceil(twist / STRIP_TWIST) : 1;
+    const strips = deck_strips(f(i, 5), f(j, 5), h, hj);
     const under = h + RAIL_WIDE;
     const under_j = hj + RAIL_WIDE;
     for (let k = 0; k < strips; k++) {

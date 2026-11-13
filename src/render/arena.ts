@@ -6,6 +6,22 @@ import { DECK_STRIDE, DECK_THICK, type Deck } from "../worldgen/types";
 /** A prop keeps this far, in metres along the lap, from deck it does not belong to: a crossover's other deck runs through it otherwise. */
 const OWN_REACH = 90;
 const PYLON_DEEP = 260;
+const PYLON_WIDE = 2.6;
+/** The beam a pylon carries the deck on: this much wider than the deck, this deep, this long down the track. */
+const BEAM = { over: 2, deep: 2.4, long: 2.2 };
+const PYLON_ROOM = 2;
+
+const MAST_PITCH = 32;
+/** A mast stands this far outside the deck's high edge, its head this far over the edge's top. */
+const MAST_OUT = 5;
+const MAST_OVER = 13;
+const MAST_ROOM = 3;
+const POST = { wide: 0.7, tall: 60 };
+/** The lamp frame leans down at the deck, set back toward it from the post. */
+const HEAD = { wide: 7.2, high: 2.6, deep: 0.5, tilt: -0.5, back: 1.2 };
+const LAMP = { rows: 2, cols: 4, wide: 1.3, high: 0.8, deep: 0.2, pitch_x: 1.7, pitch_y: 1.1, back: 1.5 };
+// At the bloom threshold, not over it: a tier with no bloom clipped a brighter lamp to a plain white grid.
+const LAMP_LUMA = 1;
 
 export interface Bowl {
   from: number;
@@ -116,19 +132,21 @@ export function masts(deck: Deck, tones: MastTones, min_bank: number): THREE.Obj
   const posts = new Boxes();
   const lamps = new Boxes();
   const post = color(tones.post);
-  const lamp = glow(tones.lamp, 1.5);
+  const lamp = glow(tones.lamp, LAMP_LUMA);
+  const lean = [Math.sin(-HEAD.tilt), Math.cos(HEAD.tilt)];
   for (const bowl of track.bowls(min_bank)) {
-    for (const i of track.steps(bowl, 32)) {
-      const e = track.edge(i, bowl.side, 5);
-      if (!track.clear(i, e.x, e.z, 3)) continue;
-      const top = e.y + 13;
-      posts.add(post, e.x, top - 30, e.z, 0.7, 60, 0.7, e.yaw);
-      posts.add(post, e.x - e.ox * 1.2, top, e.z - e.oz * 1.2, 7.2, 2.6, 0.5, e.yaw, -0.5);
-      for (let row = 0; row < 2; row++) {
-        for (let col = 0; col < 4; col++) {
-          const across = (col - 1.5) * 1.7;
-          const up = (row - 0.5) * 1.1;
-          lamps.add(lamp, e.x - e.ox * (1.5 + up * 0.48) + e.oz * across, top + up * 0.88 - 0.14, e.z - e.oz * (1.5 + up * 0.48) - e.ox * across, 1.3, 0.8, 0.2, e.yaw, -0.5);
+    for (const i of track.steps(bowl, MAST_PITCH)) {
+      const e = track.edge(i, bowl.side, MAST_OUT);
+      if (!track.clear(i, e.x, e.z, MAST_ROOM)) continue;
+      const top = e.y + MAST_OVER;
+      posts.add(post, e.x, top - POST.tall / 2, e.z, POST.wide, POST.tall, POST.wide, e.yaw);
+      posts.add(post, e.x - e.ox * HEAD.back, top, e.z - e.oz * HEAD.back, HEAD.wide, HEAD.high, HEAD.deep, e.yaw, HEAD.tilt);
+      for (let row = 0; row < LAMP.rows; row++) {
+        for (let col = 0; col < LAMP.cols; col++) {
+          const across = (col - (LAMP.cols - 1) / 2) * LAMP.pitch_x;
+          const up = (row - (LAMP.rows - 1) / 2) * LAMP.pitch_y;
+          const back = LAMP.back + up * lean[0];
+          lamps.add(lamp, e.x - e.ox * back + e.oz * across, top + up * lean[1] + (HEAD.back - LAMP.back) * lean[0], e.z - e.oz * back - e.ox * across, LAMP.wide, LAMP.high, LAMP.deep, e.yaw, HEAD.tilt);
         }
       }
     }
@@ -146,11 +164,11 @@ export function pylons(deck: Deck, tone: Lab, pitch: number): THREE.Object3D {
     next = track.f(i, 8) + pitch;
     const x = track.f(i, 0);
     const z = track.f(i, 2);
-    if (!track.clear(i, x, z, 2)) continue;
+    if (!track.clear(i, x, z, PYLON_ROOM)) continue;
     const y = track.f(i, 1) - DECK_THICK;
     const yaw = Math.atan2(track.f(i, 3), track.f(i, 4));
-    boxes.add(c, x, y - 1.2, z, track.f(i, 6) * 2 + 2, 2.4, 2.2, yaw + Math.PI / 2);
-    boxes.add(c, x, y - PYLON_DEEP / 2, z, 2.6, PYLON_DEEP, 2.6, yaw);
+    boxes.add(c, x, y - BEAM.deep / 2, z, track.f(i, 6) * 2 + BEAM.over, BEAM.deep, BEAM.long, yaw + Math.PI / 2);
+    boxes.add(c, x, y - PYLON_DEEP / 2, z, PYLON_WIDE, PYLON_DEEP, PYLON_WIDE, yaw);
   }
   return boxes.mesh(plain());
 }

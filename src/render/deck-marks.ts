@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { linear } from "../theme/palette";
 import type { Lab } from "../theme/theme";
-import { SKY_TWIST, STRIP_TWIST } from "../worldgen/sky-mesh";
+import { deck_strips } from "../worldgen/sky-mesh";
 import { DECK_STRIDE, type Deck } from "../worldgen/types";
 
 const LIFT = 0.03;
@@ -53,8 +53,7 @@ export function deck_marks(deck: Deck, bands: readonly DeckBand[], where: (bank:
     if (!f(i, 7) || !f(j, 7) || f(j, 8) < f(i, 8)) continue;
     const bank = (f(i, 5) + f(j, 5)) / 2;
     if (!where(bank)) continue;
-    const twist = Math.abs(Math.tan(f(j, 5)) - Math.tan(f(i, 5))) * 2 * Math.max(f(i, 6), f(j, 6));
-    const strips = twist > SKY_TWIST ? Math.ceil(twist / STRIP_TWIST) : 1;
+    const strips = deck_strips(f(i, 5), f(j, 5), f(i, 6), f(j, 6));
     const s0 = f(i, 8);
     const s1 = f(j, 8);
     for (const [order, band] of bands.entries()) {
