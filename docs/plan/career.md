@@ -384,9 +384,13 @@ Each kind is a `ModeDef` (`mode.ts:88`) or a level flag on one, so the career, `
 | Build code | The `CODE` regex reads `Object.keys(CARS)` (`build.ts:206`): nothing to add. An older build cannot read the new code (risk 14) | - |
 | PI and class | `rating()` (`pi.ts`), sample builds in `scripts/pi.ts` | S |
 | Handling pass | `scripts/feel.ts`, `handling.ts`, `drift.ts` (`DRIFT_CARS`, `scripts/drift.ts:105`), autolap | S-M |
-| Preset | `PRESETS` (`presets.ts:9-14`) | S |
-| Lock | Hidden in the garage and the car pick until earned, like reward decals (`garage-items.ts:75`) | S |
-| Bot field | `cars_for` takes every body in `CARS` (`scripts/career.ts:68`): exclude locked cars, or every race median drifts | S |
+| Preset | `PRESETS` (`presets.ts`): "Fujin prototype", listed only once the car is held (`preset_open` / `open_presets`, `rewards.ts`) | S |
+| Lock | Hidden in the garage, the car pick, the guide's car step and the Runs builder until earned (`car_open`, `rewards.ts`). `PRESETS` keeps it, so a peer's run code still reads; a locked player who opens one runs on the starter car (`held_car`, `event-car.ts`) | S |
+| Garage bars | `stat_range(PLAIN_CARS)`: the bars span the plain cars only, so the reward car never shrinks theirs and clamps at the top | S |
+| Bot field | `cars_for` skips `REWARD_CARS` (`scripts/career.ts`), so no race median drifts | S |
+| Routes | Trails exclude it (`TRAIL_EXCLUDES`, `routes.ts`): slicks run off every trail line, as formula does on the dune crossing | S |
+
+**Built (V9):** Fujin, a closed-wheel hybrid prototype, is the Legend reward. It unlocks with the Legend badge: a star on the Legend final (`car_open`). Existing cars' physics are unchanged.
 
 ### 10.6 Runs view: endless events
 
@@ -428,7 +432,7 @@ Ordered by E1 (Elite batch 1 first), then by what unblocks the most.
 | **V6** | Season track + daily board in the lobby | The optional hello field pattern | Season bar and rewards, `daily` on the hello, board UI | M |
 | **V7** | Mainland road trip, banked run | Race streams, graph `trace`, sky bank data | `trip` (m7), `banked` (sky bump), re-tune c6 / p1 / r6 / r7 / p2 | M + M |
 | **V8** | Legend tier: 12 events, final map, carbon finish, Legend title | Everything above | Wall-ride final map (t140), carbon finish in `livery.ts`, roster | L |
-| **V9** | Legend car | The car pipeline | §10.5 table | L |
+| **V9** (built) | Legend car: Fujin, unlocked by the Legend badge, preset hidden until held | The car pipeline | §10.5 table | L |
 | **V10** (maybe) | Elimination vs ghosts; endurance | Ghosts, bot drives | Multi-ghost assets; wear model | M; L |
 | Later | Car parts brainstorm, unlocked retroactively by stars | `unlocks(stars)` | Parts | - |
 
