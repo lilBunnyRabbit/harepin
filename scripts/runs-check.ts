@@ -1,6 +1,6 @@
 import "./fake-dom";
 
-const { RUN_TYPES, WEEKLY_STAGES, daily, iso_week, resolve, resolve_stages, type_of, weekly } = await import("../src/runs/runs");
+const { RUN_TYPES, WEEKLY_STAGES, daily, iso_week, played, resolve, resolve_stages, type_of, weekly } = await import("../src/runs/runs");
 const { MODES } = await import("../src/modes/modes");
 const { probe } = await import("../src/runs/run-world");
 const { World } = await import("../src/world/world");
@@ -92,7 +92,7 @@ for (let at = 0; at < WEEKS; at++) {
   const pick = weekly(week);
   const { world, probe: here } = load(pick.kind, pick.seed);
   const stages = pick.stages ?? [];
-  const resolved = resolve_stages(pick, here);
+  const resolved = played(resolve_stages(pick, here));
   const falls = stages.filter((stage) => resolve({ ...pick, ...stage, stages: null }, here).fallback).map((stage) => `${type_of(stage.type).name} falls back`);
   week_falls += falls.length;
   const problems = [

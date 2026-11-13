@@ -8,7 +8,7 @@ import { map_code } from "../worldgen/kinds/map-code";
 import { daily_key } from "./daily-board";
 import { probe } from "./run-world";
 import { FREE_CAP, run_track, type Runs } from "./runs-store";
-import { RunSource, daily, new_seed, random, resolve, resolve_stages, scale, type_of, type RunPick } from "./runs";
+import { RunSource, daily, new_seed, played, random, resolve, resolve_stages, scale, type_of, type RunPick } from "./runs";
 
 /** A Runs pick as `Modes` plays it: an event's car rules, its own records, the mode's marks scaled, season stars on finish. */
 export interface RunPlay {
@@ -38,7 +38,10 @@ export function daily_want(date: string): string {
 
 export function run_play(pick: RunPick, world: World, runs: Runs, start_run: (id: string) => void): RunPlay {
   const here = probe(world);
-  const stages = pick.stages ? resolve_stages(pick, here).map(({ mode, level }) => ({ mode, level })) : null;
+  const plan = pick.stages && pick.date ? resolve_stages(pick, here) : null;
+  // The Runs row names what the map really plays from here on, a stand-in circuit race included.
+  if (plan && pick.date) runs.plan_week(pick.date, plan);
+  const stages = plan && played(plan).map(({ mode, level }) => ({ mode, level }));
   const resolved = stages ? { ...stages[0], fallback: false } : resolve(pick, here);
   const started = runs.today;
   const event: CareerEvent = {

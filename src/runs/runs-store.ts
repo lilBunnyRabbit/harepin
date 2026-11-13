@@ -4,7 +4,7 @@ import { clean_daily, type DailyTime } from "../net/daily";
 import { NAME_LENGTH } from "../net/room-name";
 import type { WorldKind } from "../worldgen/types";
 import { daily_order, key_date, type BoardEntry } from "./daily-board";
-import { Difficulty, RunSource, iso_week, season_of, utc_date, type RunPick } from "./runs";
+import { Difficulty, RunSource, iso_week, season_of, utc_date, type Resolved, type RunPick } from "./runs";
 import { clean_tint, clean_title, reached, type NameTag } from "./season";
 
 export const RUNS_KEY = "harepin:runs";
@@ -98,6 +98,8 @@ export interface RunGain {
 export class Runs {
   private save: RunsSave;
   private readonly keep: RunsKeep;
+  // Not saved: a weekly's stages as its built map resolves them, known this session once the map has loaded.
+  private readonly plans = new Map<string, readonly (Resolved | null)[]>();
   version = 0;
 
   constructor(
@@ -150,6 +152,16 @@ export class Runs {
 
   weekly(week: string): number {
     return this.current.weeks[week] ?? 0;
+  }
+
+  /** The weekly's stages as its map resolved them, aligned with `pick.stages`; null until that map has loaded. */
+  week_plan(week: string): readonly (Resolved | null)[] | null {
+    return this.plans.get(week) ?? null;
+  }
+
+  plan_week(week: string, plan: readonly (Resolved | null)[]) {
+    this.plans.set(week, plan);
+    this.version++;
   }
 
   get free_left(): number {

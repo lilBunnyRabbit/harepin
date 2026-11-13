@@ -8,6 +8,7 @@ import { PARK_LEVELS } from "../modes/parking";
 import { race_levels } from "../modes/races";
 import type { Store } from "../modes/track";
 import { pick_world } from "../world/world-pick";
+import { stage_text } from "../menu/runs/run-text";
 import { CUP_RECORD, MAX_STAGES, MIN_STAGES } from "../modes/championship";
 import { FREE_CAP, Runs, RUNS_KEY, parse_runs_save, run_track, weekly_best } from "./runs-store";
 import {
@@ -24,6 +25,7 @@ import {
   iso_week,
   random,
   resolve,
+  played,
   resolve_stages,
   run_of,
   scale,
@@ -309,11 +311,16 @@ test("a weekly's stages resolve on the map; a stage with no level becomes the ci
     ],
   };
   const map = probe({ drift: ["d1", "d2"], race: ["circuit", "trap"] });
-  expect(resolve_stages(pick, map)).toEqual([
-    { mode: "drift", level: "d1", fallback: false },
-    { ...FALLBACK, fallback: true },
-    { mode: "race", level: "trap", fallback: false },
-  ]);
+  const plan = resolve_stages(pick, map);
+  expect(plan).toEqual([{ mode: "drift", level: "d1", fallback: false }, { ...FALLBACK, fallback: true }, null, { mode: "race", level: "trap", fallback: false }]);
+  expect(played(plan).map((stage) => stage.level)).toEqual(["d1", "circuit", "trap"]);
+  expect(stage_text(RunType.PARKING, plan[1] ?? undefined)).toBe("Race (no parking here)");
+  expect(stage_text(RunType.DRIFT, plan[0] ?? undefined)).toBe("Drift");
+  expect(stage_text(RunType.JUMP, undefined)).toBe("Jump");
+  const runs = new Runs(new MemStore(), () => new Date("2026-11-13T10:00:00Z"));
+  expect(runs.week_plan("2026-W46")).toBeNull();
+  runs.plan_week("2026-W46", plan);
+  expect(runs.week_plan("2026-W46")).toEqual(plan);
 });
 
 test("a weekly earns its 0-5 stars once in its own week; an old one draws on the free cap", () => {

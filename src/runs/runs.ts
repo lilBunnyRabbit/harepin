@@ -346,17 +346,19 @@ export interface Resolved {
 export const FALLBACK = { mode: "race", level: "circuit" } as const;
 
 /**
- * A weekly's stages on the built map. One that finds no level becomes the circuit race, or is dropped when the cup
- * already has it; `scripts/runs-check.ts` vets coming weeks so neither happens.
+ * A weekly's stages on the built map, one per planned stage. One that finds no level becomes the circuit race, or is
+ * dropped (null) when the cup already has it; `scripts/runs-check.ts` counts both over coming weeks.
  */
-export function resolve_stages(pick: RunPick, probe: RunProbe): Resolved[] {
-  const out: Resolved[] = [];
+export function resolve_stages(pick: RunPick, probe: RunProbe): (Resolved | null)[] {
+  const out: (Resolved | null)[] = [];
   for (const stage of pick.stages ?? [pick]) {
     const got = resolve({ ...pick, type: stage.type, levels: stage.levels, stages: null }, probe);
-    if (!out.some((have) => have.mode === got.mode && have.level === got.level)) out.push(got);
+    out.push(out.some((have) => have?.mode === got.mode && have.level === got.level) ? null : got);
   }
   return out;
 }
+
+export const played = (stages: readonly (Resolved | null)[]): Resolved[] => stages.filter((stage) => stage !== null);
 
 const off_band = (length: number | null, [low, high]: readonly [number, number]) => (length === null ? Infinity : length < low ? low - length : length > high ? length - high : 0);
 

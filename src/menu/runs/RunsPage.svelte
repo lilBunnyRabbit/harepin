@@ -3,7 +3,7 @@
   import { points_text } from "../../modes/result";
   import { local_store } from "../../modes/track";
   import { FREE_CAP, weekly_best } from "../../runs/runs-store";
-  import { daily, iso_week, new_seed, random, type_of, weekly } from "../../runs/runs";
+  import { daily, iso_week, new_seed, random, weekly } from "../../runs/runs";
   import Button from "../ui/Button.svelte";
   import Card from "../ui/Card.svelte";
   import ClassBadge from "../ui/ClassBadge.svelte";
@@ -15,7 +15,7 @@
   import type { PageProps } from "../ui/svelte-page.svelte";
   import RunBuilder from "./RunBuilder.svelte";
   import SeasonBar from "./SeasonBar.svelte";
-  import { car_text, pick_text, star_text, world_name } from "./run-text";
+  import { car_text, pick_text, stage_text, star_text, world_name } from "./run-text";
 
   let { menu, live }: PageProps = $props();
 
@@ -36,7 +36,9 @@
   const stars = $derived(star_text(got));
   const week = $derived(iso_week(today));
   const cup = $derived(weekly(week));
-  const cup_stages = $derived((cup.stages ?? []).map((stage) => type_of(stage.type).name));
+  const plan = $derived(live.live(() => runs.week_plan(week)));
+  // Planned types until the weekly's map has loaded, then what it really plays; a dropped stage leaves the list.
+  const cup_stages = $derived((cup.stages ?? []).flatMap((stage, i) => (plan && plan[i] === null ? [] : [stage_text(stage.type, plan?.[i] ?? undefined)])));
   const week_got = $derived(live.live(() => runs.weekly(week)));
   const week_stars = $derived(star_text(week_got, WEEK_STARS));
   const week_best = $derived(live.live(() => weekly_best(cup, local_store())));

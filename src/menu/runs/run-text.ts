@@ -2,7 +2,7 @@ import { limit_text } from "../../car/car-pick";
 import { MODES } from "../../modes/modes";
 import { points_text } from "../../modes/result";
 import { format } from "../../hud/hud";
-import { type_of, type RunCar, type RunPick } from "../../runs/runs";
+import { type_of, type Resolved, type RunCar, type RunPick, type RunType } from "../../runs/runs";
 import { RewardKind, tint_label, title_text, type SeasonReward } from "../../runs/season";
 import type { WorldKind } from "../../worldgen/types";
 import { WORLDS } from "../../worlds/worlds";
@@ -10,6 +10,12 @@ import { WORLDS } from "../../worlds/worlds";
 export const world_name = (kind: WorldKind) => WORLDS[kind].name;
 
 export const car_text = (car: RunCar) => ("cap" in car ? limit_text(car.cap) : `${car.preset} car`);
+
+/** A weekly stage as the Runs row names it: its type, or the circuit race standing in where the map has none. */
+export function stage_text(type: RunType, resolved: Resolved | undefined): string {
+  const name = type_of(type).name;
+  return resolved?.fallback ? `Race (no ${name.toLowerCase()} here)` : name;
+}
 
 export const pick_text = (pick: RunPick) => `${type_of(pick.type).name} · ${world_name(pick.kind)}`;
 
