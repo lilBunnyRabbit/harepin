@@ -11,7 +11,8 @@
 
   let { menu, live }: Omit<PageProps, "shown"> = $props();
 
-  const rows = $derived(live.live(() => menu.host.daily_board()));
+  const board = $derived(live.live(() => menu.host.daily_board()));
+  const rows = $derived(board.rows);
   const today = $derived(live.live(() => menu.host.runs.today));
   const played = $derived(live.live(() => menu.host.runs.own_daily !== null));
   const pick = $derived(daily(today));
@@ -42,6 +43,7 @@
   {:else}
     <p class="board-empty">No times yet today.</p>
   {/if}
+  {#if board.hidden}<p class="board-note">{board.hidden} from other versions of today's daily hidden</p>{/if}
   <div class="board-go"><Button size="sm" onclick={() => menu.host.start_run(pick.id)}>Run today's daily</Button></div>
 </Card>
 

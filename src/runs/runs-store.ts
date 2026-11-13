@@ -1,5 +1,6 @@
 import { Track, read_json, write_json, type Store } from "../modes/track";
 import { clean_daily, type DailyTime } from "../net/daily";
+import { NAME_LENGTH } from "../net/room-name";
 import type { WorldKind } from "../worldgen/types";
 import { daily_order, key_date, type BoardEntry } from "./daily-board";
 import { Difficulty, RunSource, season_of, utc_date, type RunPick } from "./runs";
@@ -41,8 +42,8 @@ interface DailyBoard {
 
 // Against a flood of names in a busy room.
 export const SEEN_MAX = 50;
-const NAME_MAX = 40;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
+const name_fits = (name: string) => name.length > 0 && [...name].length <= NAME_LENGTH;
 
 const real_season = (raw: unknown): raw is string => typeof raw === "string" && DATE.test(raw) && !Number.isNaN(Date.parse(raw)) && season_of(raw) === raw;
 
@@ -57,7 +58,7 @@ function parse_board(raw: unknown, today: string): DailyBoard {
     for (const entry of seen.slice(0, SEEN_MAX)) {
       const time = clean_daily(entry);
       const name = (entry as Record<string, unknown> | null)?.name;
-      if (time && key_date(time.k) === today && typeof name === "string" && name && name.length <= NAME_MAX) board.seen.push({ name, ...time });
+      if (time && key_date(time.k) === today && typeof name === "string" && name_fits(name)) board.seen.push({ name, ...time });
     }
   return board;
 }
@@ -225,7 +226,7 @@ export class Runs {
     const board = this.board;
     let changed = false;
     for (const entry of entries) {
-      if (key_date(entry.k) !== board.date || !entry.name || entry.name.length > NAME_MAX) continue;
+      if (key_date(entry.k) !== board.date || !name_fits(entry.name)) continue;
       const at = board.seen.findIndex((seen) => seen.name === entry.name && seen.k === entry.k);
       if (at >= 0 && daily_order(board.seen[at], entry) <= 0) continue;
       if (at < 0 && board.seen.length >= SEEN_MAX) continue;

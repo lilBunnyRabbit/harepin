@@ -91,7 +91,7 @@ test("the board key: no level matches any level, anything else must match", () =
 });
 
 test("board rows: this room over the cache, the fastest first, other picks hidden", () => {
-  const rows = board_rows(K, { name: "Me", k: K, ms: 61_000 }, [{ name: "Ana", k: K, ms: 60_000 }, { name: "Bo", k: OTHER_LEVEL, ms: 1 }], [
+  const { rows } = board_rows(K, { name: "Me", k: K, ms: 61_000 }, [{ name: "Ana", k: K, ms: 60_000 }, { name: "Bo", k: OTHER_LEVEL, ms: 1 }], [
     { name: "Ana", k: K, ms: 59_000 },
     { name: "Cy", k: K, ms: 70_000 },
   ]);
@@ -103,7 +103,7 @@ test("board rows: this room over the cache, the fastest first, other picks hidde
 });
 
 test("a points daily ranks by score, higher first, and keeps a peer's best score", () => {
-  const rows = board_rows(K, { name: "Me", k: K, ms: 90_000, score: 1500 }, [{ name: "Ana", k: K, ms: 99_000, score: 2100 }], [
+  const { rows } = board_rows(K, { name: "Me", k: K, ms: 90_000, score: 1500 }, [{ name: "Ana", k: K, ms: 99_000, score: 2100 }], [
     { name: "Ana", k: K, ms: 50_000, score: 900 },
     { name: "Cy", k: K, ms: 40_000, score: 700 },
   ]);
@@ -119,6 +119,33 @@ test("a points daily ranks by score, higher first, and keeps a peer's best score
   runs.see_dailies([{ name: "Ana", k: K, ms: 99_000, score: 2100 }]);
   runs.see_dailies([{ name: "Ana", k: K, ms: 1_000, score: 2000 }]);
   expect(runs.seen_dailies).toEqual([{ name: "Ana", k: K, ms: 99_000, score: 2100 }]);
+});
+
+test("scored and timed rows never rank together: the odd ones drop, so the order can't cycle", () => {
+  const want = daily_key("2026-11-13", "1C0000003", "", "3:w11");
+  const a = { name: "A", k: K, ms: 50_000, score: 2000 };
+  const e = { name: "E", k: K, ms: 40_000 };
+  const b = { name: "B", k: K, ms: 30_000, score: 1000 };
+  const board = board_rows(want, null, [a, e, b], []);
+  expect([board.rows.map((r) => r.name), board.hidden]).toEqual([["A", "B"], 1]);
+  expect(board_rows(want, null, [b, e, a], []).rows.map((r) => r.name)).toEqual(["A", "B"]);
+  const timed = board_rows(K, { name: "Me", k: K, ms: 45_000 }, [a, e, b], []);
+  expect([timed.rows.map((r) => r.name), timed.hidden]).toEqual([["E", "Me"], 2]);
+});
+
+test("before today's daily is run, only the biggest level group shows, the rest counted hidden", () => {
+  const want = daily_key("2026-11-13", "1C0000003", "", "3:w11");
+  const board = board_rows(want, null, [{ name: "Ana", k: K, ms: 60_000 }, { name: "Bo", k: OTHER_LEVEL, ms: 1 }], [{ name: "Cy", k: K, ms: 70_000 }]);
+  expect([board.rows.map((r) => r.name), board.hidden]).toEqual([["Ana", "Cy"], 1]);
+});
+
+test("cached names count code points, as clean_name does", () => {
+  const runs = new Runs(new MemStore(), () => new Date("2026-11-13T10:00:00Z"));
+  runs.see_dailies([
+    { name: "🐰".repeat(24), k: K, ms: 1000 },
+    { name: "🐰".repeat(25), k: K, ms: 1000 },
+  ]);
+  expect(runs.seen_dailies.map((e) => [...e.name].length)).toEqual([24]);
 });
 
 test("today's own best and the peers seen stay for the day, then clear", () => {

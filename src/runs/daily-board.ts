@@ -32,16 +32,38 @@ export interface BoardRow {
   here: boolean;
 }
 
-export function board_rows(want: string, own: BoardEntry | null, peers: readonly BoardEntry[], cached: readonly BoardEntry[]): BoardRow[] {
-  const rows = new Map<string, BoardRow>();
+export interface Board {
+  rows: BoardRow[];
+  /** Entries left out as another version of today's daily: another level, or scored where this one is timed. */
+  hidden: number;
+}
+
+/**
+ * Rows on `want`, the best per name. Without a level in `want` (today's daily not run yet) levels can differ, so only
+ * the biggest group by full key shows. A score ranks only against scores, so rows scored unlike the board (this
+ * player's own entry, else most rows) are left out: mixing them makes the order cyclic.
+ */
+export function board_rows(want: string, own: BoardEntry | null, peers: readonly BoardEntry[], cached: readonly BoardEntry[]): Board {
+  const mine = own && same_daily(want, own.k) ? own : null;
+  const best = new Map<string, BoardEntry & { here: boolean }>();
+  const take = (entry: BoardEntry, here: boolean) => {
+    if (!same_daily(mine?.k ?? want, entry.k)) return;
+    const id = JSON.stringify([entry.k, entry.name]);
+    const old = best.get(id);
+    best.set(id, old && daily_order(old, entry) <= 0 ? { ...old, here: old.here || here } : { ...entry, here: here || (old?.here ?? false) });
+  };
+  for (const entry of cached) take(entry, false);
+  for (const entry of peers) take(entry, true);
+  const all = [...best.values()];
+  const groups = new Map<string, number>();
+  for (const entry of all) groups.set(entry.k, (groups.get(entry.k) ?? 0) + 1);
+  const biggest = [...groups].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))[0]?.[0];
+  const key = mine?.k ?? biggest;
+  const group = all.filter((entry) => entry.k === key);
+  const scored = mine ? mine.score !== undefined : group.filter((entry) => entry.score !== undefined).length * 2 > group.length;
+  const kept = group.filter((entry) => (entry.score !== undefined) === scored);
   const row = ({ name, ms, score }: BoardEntry, you: boolean, here: boolean): BoardRow => ({ name, ms, ...(score === undefined ? {} : { score }), you, here });
-  for (const entry of cached) if (same_daily(want, entry.k)) rows.set(entry.name, row(entry, false, false));
-  for (const entry of peers) {
-    if (!same_daily(want, entry.k)) continue;
-    const old = rows.get(entry.name);
-    rows.set(entry.name, old && daily_order(old, entry) <= 0 ? { ...old, here: true } : row(entry, false, true));
-  }
-  const list = [...rows.values()];
-  if (own && same_daily(want, own.k)) list.push(row(own, true, true));
-  return list.sort(daily_order);
+  const rows = kept.map((entry) => row(entry, false, entry.here));
+  if (mine) rows.push(row(mine, true, true));
+  return { rows: rows.sort(daily_order), hidden: all.length - kept.length };
 }

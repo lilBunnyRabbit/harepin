@@ -3,7 +3,7 @@ import type { DirectoryStatus, Server } from "../net/directory";
 import type { Player } from "../net/players";
 import type { Career } from "../career/career-store";
 import type { Runs } from "../runs/runs-store";
-import type { BoardRow } from "../runs/daily-board";
+import type { Board } from "../runs/daily-board";
 import type { MapMarker } from "../career/markers";
 import type { Goals } from "../goals/goals";
 import type { Garage } from "./garage.svelte";
@@ -80,7 +80,7 @@ export interface SettingsHost {
   /** Room peers whose cars this build can't show, by which side is out of date. */
   version_peers(): { older: number; newer: number };
   /** Today's daily times: room peers' and the ones cached today, on this build's pick, the fastest first. */
-  daily_board(): BoardRow[];
+  daily_board(): Board;
   readonly garage: Garage;
   car_code(): string;
   use_car(code: string): void;

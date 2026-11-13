@@ -89,10 +89,11 @@ describe("online cards", () => {
       { name: "Me", ms: 61_000, you: true, here: true },
       { name: "Cy", ms: 70_000, you: false, here: false },
     ];
-    const html = render(DailyBoard, { props: setup({ runs, daily_board: () => rows }) }).body;
-    for (const text of ["1. Ana", "0:59.000", "2. Me", "You", "Seen earlier today", "Run today's daily"]) expect(html).toContain(text);
-    const empty = render(DailyBoard, { props: setup({ runs: { ...runs, own_daily: null }, daily_board: () => [] }) }).body;
+    const html = render(DailyBoard, { props: setup({ runs, daily_board: () => ({ rows, hidden: 2 }) }) }).body;
+    for (const text of ["1. Ana", "0:59.000", "2. Me", "You", "Seen earlier today", "Run today's daily", "2 from other versions"]) expect(html).toContain(text);
+    const empty = render(DailyBoard, { props: setup({ runs: { ...runs, own_daily: null }, daily_board: () => ({ rows: [], hidden: 0 }) }) }).body;
     expect(empty).toContain("No times yet today.");
+    expect(empty).not.toContain("other versions");
   });
 
   test("a scored daily shows in its mode's unit; a timed one as a time", () => {

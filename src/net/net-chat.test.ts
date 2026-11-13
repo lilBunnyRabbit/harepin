@@ -126,10 +126,13 @@ test("a new daily best re-sends the hello to the room; peers' dailies list by na
   net.set_daily(daily);
   net.set_daily({ ...daily });
   net.set_tag({ title: "ace.1" });
+  net.set_daily({ ...daily, score: 900 });
+  net.set_daily({ ...daily, score: 900 });
   const hellos = sent.filter((s) => s.name === "hello");
   expect(hellos.map((s) => [s.target, (s.data as { daily?: unknown }).daily])).toEqual([
     [undefined, daily],
     [undefined, daily],
+    [undefined, { ...daily, score: 900 }],
   ]);
   expect((hellos[1].data as { tag?: unknown }).tag).toEqual({ title: "ace.1" });
   const hello = { protocol: PROTOCOL, version: "0.11.0", world: 1, seed: 7 };

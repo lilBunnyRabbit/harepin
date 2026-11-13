@@ -2,6 +2,8 @@ export const DIRECTORY_ROOM = "harepin-directory";
 /** The open room a bare link lands in: free roam on whatever map the player picked. */
 export const LOBBY_ROOM = "lobby";
 export const ROOM_LENGTH = 32;
+/** Player names, in code points (`clean_name`). */
+export const NAME_LENGTH = 24;
 
 export function clean_room(raw: unknown): string | null {
   if (typeof raw !== "string") return null;

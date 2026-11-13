@@ -5,6 +5,7 @@ import { RateLimit } from "./rate-limit";
 import { BlockedWatch } from "./blocked";
 import { clean_country } from "./country";
 import { clean_daily, type DailyTime } from "./daily";
+import { NAME_LENGTH } from "./room-name";
 import { TURN_SERVERS } from "./ice";
 import { READY_BURST, READY_GAP_MS, type ReadyMsg } from "./ready";
 import { WORLD_VERSION } from "../worldgen/types";
@@ -148,7 +149,6 @@ export const NETWORK_BLOCKED = "network blocked";
 const TIMEOUT = 4000;
 const MAX_REMOTES = 16;
 const MIN_GAP_MS = 25;
-const NAME_LENGTH = 24;
 const CHAT_LENGTH = 140;
 // Stricter than what peers accept, so network jitter bunching two sends together never gets a legit message dropped.
 const OWN_CHAT_GAP_MS = 900;
@@ -418,7 +418,7 @@ export class Net {
   }
 
   set_daily(daily: DailyTime | null) {
-    if (daily?.k === this.daily?.k && daily?.ms === this.daily?.ms) return;
+    if (daily?.k === this.daily?.k && daily?.ms === this.daily?.ms && daily?.score === this.daily?.score) return;
     this.daily = daily;
     this.hello.send(this.own_hello);
   }
