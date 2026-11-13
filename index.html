@@ -115,6 +115,10 @@
         <circle cx="7" cy="16.5" r="2.2" />
         <circle cx="17" cy="16.5" r="2.2" />
       </symbol>
+      <symbol id="icon-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+        <circle cx="12" cy="12" r="3" />
+      </symbol>
       <symbol id="icon-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
         <path d="M4 7h16M4 12h16M4 17h16" />
       </symbol>
@@ -270,8 +274,10 @@
         </div>
       </div>
       <div class="hud actions">
-        <button type="button" id="garage-btn" class="icon-button" aria-label="Garage" title="Garage"><svg aria-hidden="true"><use href="#icon-car" /></svg></button>
         <button type="button" id="menu-btn" class="icon-button" aria-label="Menu" title="Menu (Esc)"><svg aria-hidden="true"><use href="#icon-menu" /></svg></button>
+        <button type="button" id="garage-btn" class="icon-button" aria-label="Garage" title="Garage"><svg aria-hidden="true"><use href="#icon-car" /></svg></button>
+        <button type="button" id="settings-btn" class="icon-button" aria-label="Settings" title="Settings"><svg aria-hidden="true"><use href="#icon-settings" /></svg></button>
+        <button type="button" id="career-btn" class="icon-button" aria-label="Career" title="Career"></button>
         <button type="button" id="chat-btn" class="icon-button" aria-label="Chat" title="Chat (T)" aria-expanded="false" aria-controls="chat-panel"><svg aria-hidden="true"><use href="#icon-chat" /></svg><span id="chat-unread" class="badge" hidden></span></button>
         <button type="button" id="modes-btn" aria-label="Modes" title="Modes"><svg aria-hidden="true"><use href="#icon-modes" /></svg><span>Modes</span></button>
         <button type="button" id="aids-btn" popovertarget="aids" aria-label="Driving aids" title="Driving aids"><svg aria-hidden="true"><use href="#icon-aids" /></svg></button>

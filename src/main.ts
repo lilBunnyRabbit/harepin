@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { Audio } from "./audio/audio";
-import { EVENTS, EVENT_PARAM, TUNE_PARAM, event_of, type CareerEvent } from "./career/career";
+import { EVENTS, EVENT_PARAM, TUNE_PARAM, current_tier, event_of, type CareerEvent } from "./career/career";
+import { CareerButton } from "./career/career-button";
 import { Career, event_map } from "./career/career-store";
 import { EventMarkers } from "./career/event-markers";
 import { unlocks } from "./career/rewards";
@@ -477,6 +478,8 @@ if (guide_step !== null) {
 if (prefs.name === null && matchMedia("(pointer: fine)").matches) settings.focus_name();
 
 $("garage-btn").addEventListener("click", () => settings.open(MenuTab.GARAGE));
+$("settings-btn").addEventListener("click", () => settings.open(MenuTab.SETTINGS));
+$("career-btn").addEventListener("click", () => settings.open("career"));
 $("modes-btn").addEventListener("click", () => settings.open("modes"));
 
 function rewind_step(now: number) {
@@ -577,6 +580,7 @@ function near_miss(impact: number): { near: Near; touched: boolean } {
 
 // The online badge follows the career's stars: a finished final shows to peers at once.
 let rewarded = -1;
+const career_button = new CareerButton();
 
 function frame(time: number) {
   if (review?.waits(stream)) {
@@ -589,6 +593,7 @@ function frame(time: number) {
   if (career.version !== rewarded) {
     rewarded = career.version;
     net.set_tier(unlocks(career.stars).badge);
+    career_button.show(current_tier(career.stars));
   }
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;

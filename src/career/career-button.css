@@ -1,0 +1,4 @@
+/* Taller than the line icons beside it, so the tier letter stays legible. */
+#career-btn .career-badge {
+  --badge-h: calc(var(--icon-size) + 4px);
+}
