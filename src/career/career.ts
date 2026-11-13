@@ -117,7 +117,7 @@ export const TIERS: readonly Tier[] = [
       { id: "e3", name: "Tight garage", mode: "parking", level: "p8", map: "1D0000007", car: { cap: "s1" }, tuned: "7:d4" },
       { id: "e4", name: "Rim drift", mode: "drift", level: "d4", map: "1F0000002", car: { preset: "Drift" }, tuned: "2:ic5" },
       { id: "e5", name: "Ash gates", mode: "hunt", level: "h4", map: "1V0000002", car: { cap: "s2" }, tuned: "2:v5" },
-      { id: "e6", name: "Down-class duel", mode: "duel", level: "v4", map: "1S0000011", car: { cap: "b" }, tuned: "33:sky3", stars: { two: 89540, three: 81400 } },
+      { id: "e6", name: "Down-class duel", mode: "duel", level: "v4", map: "1S0000011", car: { cap: "b" }, tuned: "33:sky3", stars: { two: 101750, three: 81400 } },
       { id: "e7", name: "Frozen slalom", mode: "gymkhana", level: "g6", map: "1T0000008", car: { cap: "s1" }, tuned: "8:t3" },
     ],
   },

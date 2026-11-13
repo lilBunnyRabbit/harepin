@@ -28,7 +28,7 @@ type TileMesher = import("../src/worldgen/tile-mesher").TileMesher;
 // Tunes race events from bot runs and records each race event's dev ghost (duels ship none: the owner's marks beat any bot) (plan: docs/plan/career.md §1.3, §3).
 // Race: `three` is the median finish of up to RUNS autolap drives at the class cap (each body tuned up to the cap, and presets
 // in it), `two` is three × SILVER_SHARE. Duel, until the owner's run sets its marks: `three` is the best bot finish, `two` three ×
-// DUEL_SILVER. `three` is eased by the tier's margin: in Elite the bots stand in for the owner's run until Copy my times
+// DUEL_SILVER, or SILVER_SHARE in a tier with a margin, as the owner's marks there use. `three` is eased by the tier's margin: in Elite the bots stand in for the owner's run until Copy my times
 // replaces it. The ghost is the slowest drive that still makes three stars, so it shows the pace a 3-star run needs. Prints each event's `stars` and `tuned` to paste into career.ts.
 // `bun scripts/career.ts [ids…] [--write]`: --write saves the ghosts to public/career/.
 const RUNS = 5;
@@ -182,7 +182,7 @@ for (const event of EVENTS) {
   }
   const race = event.mode === "race";
   const three = Math.ceil(((race ? median(finished.map((d) => d.ms ?? 0)) : (finished[0].ms ?? 0)) * tier_of(event).margin) / 100) * 100;
-  const two = Math.round(three * (race ? SILVER_SHARE : DUEL_SILVER));
+  const two = Math.round(three * (race || tier_of(event).margin > 1 ? SILVER_SHARE : DUEL_SILVER));
   const ghost = finished.filter((d) => (d.ms ?? Infinity) <= three).at(-1) ?? null;
   const stars = ` stars: { two: ${two}, three: ${three} },`;
   console.log(`${event.id} ${event.mode} ${spot.level} on ${spot.map}:${stars} tuned: "${tuned}"${ghost ? `, ghost: ${ghost.label} ${(ghost.ms ?? 0) / 1000}s` : ", no 3-star ghost"} | ${runs}`);
