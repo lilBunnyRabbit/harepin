@@ -12,6 +12,7 @@ import { GYMKHANA_MODE } from "./gymkhana-mode";
 import type { CarLimit } from "../car/car-pick";
 import { Modes } from "./modes";
 import type { ModeCtx } from "./mode";
+import type { RunPlay } from "../runs/run-play";
 import { held_car } from "./event-car";
 
 class FakeElement {
@@ -207,16 +208,18 @@ test("a run naming a reward car's preset is practice on the starter car for a pl
   let writes = 0;
   localStorage.setItem = () => void writes++;
   try {
-    r.modes.play_event(fujin);
+    r.modes.play_event(fujin, { laps: 3 } as RunPlay);
     await settle();
     expect(r.starts).toEqual([build_code(parse_build(PRESETS[0].code)!)]);
     const [ctx] = ctxs;
     expect(ctx.hits()).toBeNull();
+    expect(ctx.laps).toBe(3);
     ctx.track.record(spot_of(fujin).level, { stars: 3, ms: 1000 });
     expect(writes).toBe(0);
     expect(r.modes.can_change_car).toBe(false);
   } finally {
     localStorage.setItem = set_item;
+    GYMKHANA_MODE.start = start;
   }
   expect(held_car(fujin, ["fujin"])).toBe(fujin);
   expect(held_car(preset, [])).toBe(preset);

@@ -109,6 +109,8 @@ interface Active {
   /** A Runs pick: its marks, records and season stars in place of the career's. */
   play: RunPlay | null;
   cup: CupRun | null;
+  /** Laps a solo race runs: a built run's choice, kept when it plays as practice without its pick. */
+  laps: number;
   run: ModeRun | null;
   /** On a streamed world, the run built and waiting for the chunks at its start; a later launch or a clear replaces it. */
   starting: ModeRun | null;
@@ -291,7 +293,7 @@ export class Modes implements CarHooks {
       this.clear();
       // On a lent car the link's run is practice: free play on a track that stores nothing, so no time or star lands on the link.
       if (event !== asked) {
-        this.begin(mode, level, event_track(event, null));
+        this.begin(mode, level, event_track(event, null), null, null, null, play?.laps);
         return this.notice(LENT_CAR);
       }
       const cup = event.stages ? { cup: new Cup(event.stages, event.stars), legs } : null;
@@ -379,8 +381,8 @@ export class Modes implements CarHooks {
     return this.world.routes.find((r) => r.id === route)?.excludes ?? [];
   }
 
-  private begin(mode: Mode, level: Level, track = mode.track, event: CareerEvent | null = null, play: RunPlay | null = null, cup: CupRun | null = null) {
-    this.current = { mode, level, track, event, play, cup, run: null, starting: null, shown: false, pi: null };
+  private begin(mode: Mode, level: Level, track = mode.track, event: CareerEvent | null = null, play: RunPlay | null = null, cup: CupRun | null = null, laps = play?.laps ?? 1) {
+    this.current = { mode, level, track, event, play, cup, laps, run: null, starting: null, shown: false, pi: null };
     this.launch(this.current);
   }
 
@@ -404,7 +406,7 @@ export class Modes implements CarHooks {
     // once the chunks there are in.
     let spot = null as { x: number; z: number; heading: number } | null;
     const hold = tiles.streamed ? (x: number, z: number, heading: number) => (spot = { x, z, heading }) : null;
-    const run = active.mode.def.start(this.ctx(active.track, graded(active), hold, active.play), active.level);
+    const run = active.mode.def.start(this.ctx(active.track, graded(active), hold, active.play, active.laps), active.level);
     if (typeof run === "string") {
       return this.refuse(run, active);
     }
@@ -433,7 +435,7 @@ export class Modes implements CarHooks {
   }
 
   /** `hold`: takes the run's start in place of parking the car on it. */
-  private ctx(track: Track, event: CareerEvent | null, hold: ((x: number, z: number, heading: number) => void) | null, play: RunPlay | null): ModeCtx {
+  private ctx(track: Track, event: CareerEvent | null, hold: ((x: number, z: number, heading: number) => void) | null, play: RunPlay | null, laps: number): ModeCtx {
     const { scene, world, start_index, camera } = this;
     const spawn = hold ?? ((x: number, z: number, heading: number) => this.park(x, z, heading));
     const { tiles } = world;
@@ -449,7 +451,7 @@ export class Modes implements CarHooks {
       track,
       lobby_lap: () => this.lobby_lap,
       race_busy: () => this.race_busy(),
-      laps: play?.laps ?? 1,
+      laps,
       hits: () => (event ? new Hits(() => world.contacts) : null),
       // Tuned on another world version, an event's times and ghost no longer fit its road: the mode's par grades it, no ghost.
       thresholds: (own) => (play ? play.grade(own) : (tuned && event?.stars) || own),
