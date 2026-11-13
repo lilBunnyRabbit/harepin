@@ -107,7 +107,7 @@ export class Remotes {
     let found = false;
     for (const [id, rv] of this.views) {
       const distance = rv.view.root.position.distanceTo(to);
-      if (found && distance >= this.near.distance) continue;
+      if (found && !(distance < this.near.distance)) continue;
       found = true;
       this.near.id = id;
       this.near.distance = distance;

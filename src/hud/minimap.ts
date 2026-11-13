@@ -219,7 +219,10 @@ export class Minimap {
     const x = MAP / 2 + Math.sin(turn) * r;
     const y = MAP / 2 - Math.cos(turn) * r;
     this.north_mark ??= this.draw_north();
-    this.ctx.drawImage(this.north_mark, x - NORTH_BOX / 2, y - NORTH_BOX / 2, NORTH_BOX, NORTH_BOX);
+    // Snapped to device pixels: a bitmap drawn between them is resampled and blurs.
+    const left = Math.round((x - NORTH_BOX / 2) * this.ratio) / this.ratio;
+    const top = Math.round((y - NORTH_BOX / 2) * this.ratio) / this.ratio;
+    this.ctx.drawImage(this.north_mark, left, top, NORTH_BOX, NORTH_BOX);
   }
 
   private draw_north(): OffscreenCanvas {
