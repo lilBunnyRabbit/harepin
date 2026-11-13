@@ -34,9 +34,10 @@ const BEACHED_MS = 1500;
 const MARK_STEP = 0.25;
 const MARK_SLACK = 40;
 // Toe speeds the marks are flown at (m/s). Two stars: what the starter hatch carries from the start's 30 m run-up onto a
-// kicker, uphill run-ups included.
+// kicker, uphill run-ups included; a big ramp, backed up for anyway, wants a faster run for two.
 // Three: a run-up longer than the start gives, backed up for, and never past the ramp's own design speed.
 const SILVER_TOE = 9;
+const BIG_SILVER_TOE = 15;
 const GOLD_TOE = 22;
 
 const kind_of = (r: Ramp): JumpKind | null => (r.deck ? null : r.road ? JumpKind.ROAD : r.kind === "big" ? JumpKind.BIG : r.kind === "kicker" ? JumpKind.KICKER : null);
@@ -53,7 +54,6 @@ export function landing_blocked(r: Ramp, challenges: readonly Challenge[]): bool
   return challenges.some((c) => c.ramp === r.id && challenge_pieces(c).some((p) => Math.abs(p.lx) < p.hw && p.bottom < HEADROOM));
 }
 
-/** The nearest ramp of the level's kind with a clear landing and a run-up the starter car can take. */
 // The starter hatch flat out from the start never leaves a kicker's lip past either: run-ups climbing more than this from the
 // start to the toe, or any 5 m of them steeper than this grade (headless sim, five world kinds, six seeds each).
 const RUNUP_CLIMB = 2.5;
@@ -71,6 +71,7 @@ export function runup_too_steep(r: Ramp, ground: Ground): boolean {
 
 const usable = (r: Ramp, challenges: readonly Challenge[], ground: Ground) => !landing_blocked(r, challenges) && !runup_too_steep(r, ground);
 
+/** The nearest ramp of the level's kind with a clear landing and a run-up the starter car can take. */
 export function nearest_ramp(ramps: readonly Ramp[], at: { x: number; z: number }, level: JumpLevel, challenges: readonly Challenge[], ground: Ground): Ramp | null {
   let best: Ramp | null = null;
   let best_d = Infinity;
@@ -90,14 +91,14 @@ const point = (r: Ramp, v: number): RoutePoint => {
   return { x, z, tx: r.fx, tz: r.fz };
 };
 
-/** Metres past the lip where a car leaving the toe at `speed` comes down, by the worldgen's own flight line. */
-export function reach(r: Ramp, speed: number, ground: Ground): number {
+/** Metres past the lip where a car leaving the toe at `speed` comes down, by the worldgen's own flight line; null when it lands nowhere in range. */
+export function reach(r: Ramp, speed: number, ground: Ground): number | null {
   const from = face_end(r) - r.length;
   for (let d = from; d < from + r.landing + MARK_SLACK; d += MARK_STEP) {
     const [x, z] = ramp_world(r, 0, r.length + d);
     if (flight(r, speed, d) - RIDE <= ground.height(x, z)) return d;
   }
-  return from + r.landing + MARK_SLACK;
+  return null;
 }
 
 export interface Jump {
@@ -111,9 +112,11 @@ export interface Jump {
 export function build_jump(ramps: readonly Ramp[], at: { x: number; z: number }, ground: Ground, level: JumpLevel, challenges: readonly Challenge[]): Jump | null {
   const ramp = nearest_ramp(ramps, at, level, challenges, ground);
   if (!ramp) return null;
-  const three = Math.round(reach(ramp, Math.min(ramp.speed, GOLD_TOE), ground));
-  const two = Math.min(three - 1, Math.round(reach(ramp, Math.min(ramp.speed, SILVER_TOE), ground)));
-  return { level, ramp, start: point(ramp, -RUNUP), lip: point(ramp, ramp.length), marks: { two, three } };
+  const three = reach(ramp, Math.min(ramp.speed, GOLD_TOE), ground);
+  const two = reach(ramp, Math.min(ramp.speed, ramp.kind === "big" ? BIG_SILVER_TOE : SILVER_TOE), ground);
+  if (three === null || two === null) return null;
+  const marks = { three: Math.round(three), two: Math.min(Math.round(three) - 1, Math.round(two)) };
+  return { level, ramp, start: point(ramp, -RUNUP), lip: point(ramp, ramp.length), marks };
 }
 
 export function past_lip(r: Ramp, x: number, z: number): number {
