@@ -50,3 +50,13 @@ test("a new look is the same machine; a part or a body swap is not", () => {
   expect(same_machine(cruiser, { ...cruiser, parts: { ...cruiser.parts, engine: cruiser.parts.engine + 1 } })).toBe(false);
   expect(same_machine(cruiser, { ...cruiser, car: "coupe" })).toBe(false);
 });
+
+test("under a cap the strongest allowed car is recommended, ties included; no cap recommends nothing", () => {
+  const capped = car_shelves(DEFAULT_BUILD, [], { cap: CarClass.C, car_sized_only: false }).flatMap((s) => s.choices);
+  const open = capped.filter((c) => c.blocked === null);
+  const top = Math.max(...open.map((c) => c.rating.pi));
+  expect(capped.filter((c) => c.recommended).map((c) => c.rating.pi)).toEqual(open.filter((c) => c.rating.pi === top).map(() => top));
+  expect(capped.some((c) => c.recommended && c.blocked !== null)).toBe(false);
+  const free = car_shelves(DEFAULT_BUILD, [], { cap: null, car_sized_only: false }).flatMap((s) => s.choices);
+  expect(free.some((c) => c.recommended)).toBe(false);
+});

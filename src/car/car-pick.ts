@@ -18,6 +18,8 @@ export interface CarChoice {
   rating: Rating;
   fitted: boolean;
   blocked: string | null;
+  /** Under a class cap: the strongest car it allows, ties included. */
+  recommended: boolean;
 }
 
 export interface CarShelf {
@@ -47,7 +49,7 @@ export function car_shelves(current: Build, builds: readonly SavedBuild[], limit
   const choice = (title: string, sub: string, build: Build): CarChoice => {
     const rated = rating(build);
     const code = build_code(build);
-    return { title, sub, code, rating: rated, fitted: code === fitted, blocked: blocked(build, rated, limit) };
+    return { title, sub, code, rating: rated, fitted: code === fitted, blocked: blocked(build, rated, limit), recommended: false };
   };
   const parsed = (list: readonly { name: string; code: string }[], sub: (build: Build, i: number) => string) =>
     list.flatMap((entry, i) => {
@@ -59,5 +61,10 @@ export function car_shelves(current: Build, builds: readonly SavedBuild[], limit
     { head: "My builds", choices: parsed(builds, (build) => CARS[build.car].name) },
     { head: "Presets", choices: parsed(PRESETS, (_, i) => PRESETS[i].blurb) },
   ];
+  if (limit.cap) {
+    const open = shelves.flatMap((shelf) => shelf.choices).filter((c) => c.blocked === null);
+    const top = Math.max(...open.map((c) => c.rating.pi));
+    for (const c of open) c.recommended = c.rating.pi === top;
+  }
   return shelves.filter((shelf) => shelf.choices.length);
 }
