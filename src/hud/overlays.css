@@ -9,6 +9,8 @@
   font-weight: 600;
   white-space: nowrap;
   pointer-events: none;
+  /* Above the menu panel (.settings, 30): a pad press in the menu answers with a toast. */
+  z-index: 31;
   opacity: 0;
   transition: opacity 0.3s;
 }
