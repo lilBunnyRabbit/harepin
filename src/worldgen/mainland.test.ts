@@ -68,6 +68,12 @@ for (const seed of sweep(3))
     trip.checkpoints.forEach((c, i) => i && expect(Math.hypot(c.x - trip.checkpoints[i - 1].x, c.z - trip.checkpoints[i - 1].z)).toBeLessThan(500));
   });
 
+test("no Mainland race takes the Party bus", () => {
+  const { data } = plan_mainland(0);
+  expect(data.routes.map((r) => r.id)).toEqual(["circuit", "sprint", "trip"]);
+  for (const route of data.routes) expect(route.excludes).toEqual(["bus"]);
+});
+
 for (const seed of sweep(3))
   test(`mainland ${seed}: every pair of neighbouring tiles shares its border vertices bit for bit`, () => {
     const { data } = plan_mainland(seed);

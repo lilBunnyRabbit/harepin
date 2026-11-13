@@ -10,6 +10,8 @@ const SPUR_COST = 1;
 const RING_COST = 1.4;
 /** Metres a square street corner takes off a route's cost, so the search zigzags through town instead of cutting an L. */
 const TURN_BONUS = 20;
+/** Metres a corner adds to the road trip's cost: of the ways between its towns it takes the one with fewest tight town turns. */
+const TRIP_CORNER = 60;
 /** |sin| of the angle between two street legs above which their joint counts as a corner. */
 const CORNER_SIN = 0.7;
 /** Strict window first; a seed whose towns fit none of it races the best of the loose one rather than not at all. */
@@ -296,7 +298,9 @@ interface Candidate {
   pair: [number, number];
 }
 
-function trace(atlas: Atlas, legs: number[], pair: [number, number]): Candidate | null {
+type Bend = (from: RoadPoint, node: { x: number; y: number; z: number }, to: RoadPoint) => RoadPoint[];
+
+function trace(atlas: Atlas, legs: number[], pair: [number, number], bend: Bend = fillet): Candidate | null {
   const nodes = [atlas.legs[legs[0]].from, ...legs.map((l) => atlas.legs[l].to)];
   if (new Set(nodes).size !== nodes.length) return null;
   const points: RoadPoint[] = [];
@@ -330,7 +334,7 @@ function trace(atlas: Atlas, legs: number[], pair: [number, number]): Candidate 
       return;
     }
     points.length -= into;
-    points.push(...fillet(points[points.length - 1], atlas.graph.nodes[leg.from], leg.points[out]), ...leg.points.slice(out));
+    points.push(...bend(points[points.length - 1], atlas.graph.nodes[leg.from], leg.points[out]), ...leg.points.slice(out));
   });
   gate(points[points.length - 1]);
   return { legs, points, checkpoints: gates.map((g, index) => ({ ...g, index })), turns, length: run(points), pair };
@@ -354,6 +358,24 @@ function fillet(from: RoadPoint, node: { x: number; y: number; z: number }, to: 
       tz: tz / len,
     });
   }
+  return out;
+}
+
+/**
+ * The way through a patched junction straight over its node, as the streets' centrelines run. A car turning in off a
+ * long road cuts a fillet's corner over the inside curb; cutting the node's corner it stays on the junction's paving.
+ */
+function through(from: RoadPoint, node: { x: number; y: number; z: number }, to: RoadPoint): RoadPoint[] {
+  const out: RoadPoint[] = [];
+  for (const [a, b] of [[from, node], [node, to]] as const) {
+    const metres = length(b.x - a.x, b.z - a.z) || 1;
+    const steps = Math.max(1, Math.round(metres / FILLET_STEP));
+    for (let s = 1; s <= steps; s++) {
+      const t = s / steps;
+      out.push({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, z: a.z + (b.z - a.z) * t, tx: (b.x - a.x) / metres, tz: (b.z - a.z) / metres });
+    }
+  }
+  out.pop();
   return out;
 }
 
@@ -466,7 +488,10 @@ export function street_routes(graph: RoadGraph, circuit: readonly number[], town
   return { routes, items };
 }
 
-/** The town pair farthest apart by road, the shortest way between them gated as the town-to-town routes are. */
+/**
+ * The town pair farthest apart by road, the shortest way between them (each corner TRIP_CORNER metres longer) gated as
+ * the town-to-town routes are, its line straight over patched junctions.
+ */
 export function trip_route(graph: RoadGraph, circuit: readonly number[], towns: readonly Town[], junctions: readonly Junction[]): Route | null {
   const atlas = new Atlas(graph, circuit, towns, junctions);
   const linked = towns.filter((t) => (atlas.town_nodes.get(t.id)?.length ?? 0) > 1);
@@ -478,8 +503,8 @@ export function trip_route(graph: RoadGraph, circuit: readonly number[], towns: 
       const to = atlas.town_nodes.get(b.id) ?? [];
       const start = farthest(graph, from, to[0]);
       const end = farthest(graph, to, start);
-      const legs = atlas.search(start, end, () => 1, 0);
-      const found = legs && trace(atlas, legs, [a.id, b.id]);
+      const legs = atlas.search(start, end, () => 1, -TRIP_CORNER);
+      const found = legs && trace(atlas, legs, [a.id, b.id], through);
       if (found && (!best || found.length > best.length)) best = found;
     }
   if (!best) return null;

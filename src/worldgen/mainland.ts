@@ -15,6 +15,8 @@ const CHECKPOINTS = 16;
 const SPRINT_S = 420;
 /** Metres a gate keeps from every road node: clear of junction patches and the kink where a link meets a town's street. */
 export const GATE_CLEAR = 60;
+/** Cars no Mainland race takes: the Party bus runs off the road at town corners and over par on every route. */
+const EXCLUDES: readonly string[] = ["bus"];
 
 export const MAINLAND_SIZE = 6144;
 /** Plan grid spacing: towns, routing and the world map read land this coarse; tiles rebuild it on the 4 m lattice. */
@@ -81,7 +83,7 @@ export function plan_mainland(seed: number, recipe: Recipe = MAINLAND): Mainland
   }) : [];
   const sprint = road.length ? circuit_sprint(road, gates, checkpoints, SPRINT_S) : null;
   const trip = trip_route(graph, circuit, towns, road_junctions({ road, graph, circuit }).patched);
-  const routes = [...(road.length ? [circuit_route(road, checkpoints), ...(sprint ? [sprint] : [])] : []), ...(trip ? [trip] : [])];
+  const routes = [...(road.length ? [circuit_route(road, checkpoints), ...(sprint ? [sprint] : [])] : []), ...(trip ? [trip] : [])].map((r) => ({ ...r, excludes: EXCLUDES }));
   lap("routes");
   const empty = new Float32Array(0);
   const data: WorldData = {
