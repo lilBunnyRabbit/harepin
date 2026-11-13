@@ -607,6 +607,8 @@ let acc = 0;
 let last = review?.now ?? performance.now();
 /** The menu's blur sits over a scene that only turbines and gates animate while it holds the sim, so it redraws at this rate. */
 const MENU_DRAW_MS = 100;
+/** With peers the sim keeps running under the menu; behind its blur half of a 60 Hz redraw is enough. */
+const COVERED_DRAW_MS = 30;
 let last_draw = 0;
 
 new Heartbeat(net, garage, driver, race, seed).start();
@@ -784,14 +786,16 @@ function frame(time: number) {
   } else rumble.reset(now);
 
   if (input.touch.nitro && car.nitro.fill <= 0) input.touch.tank_empty();
-  hud.update(car, now, rewinding);
+  // The menu covers the HUD, so its writes and the minimap wait for the frame the menu closes on.
+  if (!settings.is_open) hud.update(car, now, rewinding);
   if (quality.adapt(dt)) render.apply_quality();
   stream.follow(car.pos.x, car.pos.z, quality.tier.fog_far + quality.tier.stream_pad);
   // The dome is 2.4 km across and the mainland is wider, so it rides with the camera instead of the world origin.
   dome.position.copy(camera.position);
   world_view.update(camera, quality.tier.fog_far, now / 1000);
   // The garage covers the screen and draws the car with its own renderer; the next frame after it closes draws the world.
-  if (!garage.is_open && (!menu_hold || now - last_draw >= MENU_DRAW_MS)) {
+  const draw_ms = menu_hold ? MENU_DRAW_MS : settings.is_open ? COVERED_DRAW_MS : 0;
+  if (!garage.is_open && (!draw_ms || now - last_draw >= draw_ms)) {
     last_draw = now;
     render.draw();
   }
