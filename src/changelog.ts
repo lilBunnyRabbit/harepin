@@ -23,6 +23,15 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.37.1",
+    date: "2026-11-14",
+    title: "Pick a car",
+    changes: [
+      { kind: FIXED, text: "The car pick before an event shows its cars as cards again, instead of bare text." },
+      { kind: IMPROVED, text: "The event's class limit stands out at the top of the car pick, and the strongest car that fits is marked Recommended." },
+    ],
+  },
+  {
     version: "0.37.0",
     date: "2026-11-14",
     title: "Elite",
