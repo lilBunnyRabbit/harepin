@@ -43,21 +43,41 @@
     };
   }
 
-  const column = (name: string) => strip?.querySelector<HTMLElement>(`[data-shelf="${name}"]`);
   const scroller = () => strip?.closest<HTMLElement>(".ui-scroll");
+  // The strip snaps to class columns, or to single cards where a short screen lays a class out in a row.
+  const snaps = () => [...(strip?.querySelectorAll<HTMLElement>("[data-shelf], [data-shelf] li") ?? [])].filter((el) => getComputedStyle(el).scrollSnapAlign !== "none");
+  const offset = (box: HTMLElement, el: HTMLElement) => box.scrollLeft + el.getBoundingClientRect().left - box.getBoundingClientRect().left;
+
+  // A target past the scroll end would leave a column cut at the left edge: the last start that fits is taken
+  // instead, as long as the target still shows whole.
+  function go(el: HTMLElement, behavior: ScrollBehavior) {
+    const box = scroller();
+    if (!box) return;
+    const max = box.scrollWidth - box.clientWidth;
+    let left = offset(box, el);
+    if (left > max) {
+      const end = left + el.getBoundingClientRect().width;
+      const fits = snaps()
+        .map((snap) => offset(box, snap))
+        .filter((start) => start <= max && start + box.clientWidth >= end);
+      left = fits.length ? Math.max(...fits) : max;
+    }
+    box.scrollTo({ left, behavior });
+  }
 
   // A frame late: the dialog's showModal runs after this effect, and a closed dialog has no layout to scroll.
   $effect(() => {
     if (!strip) return;
     const tile = strip.querySelector<HTMLElement>("[data-fitted] .ui-tile");
     const frame = requestAnimationFrame(() => {
-      const name = tile?.closest<HTMLElement>("[data-shelf]")?.dataset.shelf;
-      if (name) jump(name, "instant");
+      const target = snaps().find((el) => tile && el.contains(tile));
+      if (target) go(target, "instant");
       if (tile && !tile.matches(":disabled")) tile.focus({ preventScroll: true, focusVisible: matchMedia("(pointer: fine)").matches });
     });
     return () => cancelAnimationFrame(frame);
   });
 
+  // A class lights when most of it shows, or when it fills most of the strip, as a long row of cards does.
   $effect(() => {
     const root = scroller();
     if (!strip || !root) return;
@@ -67,12 +87,13 @@
         for (const entry of entries) {
           const name = entry.target instanceof HTMLElement ? entry.target.dataset.shelf : undefined;
           if (!name) continue;
-          if (entry.intersectionRatio >= 0.6) seen.add(name);
+          const width = entry.rootBounds?.width ?? Infinity;
+          if (entry.intersectionRatio >= 0.6 || entry.intersectionRect.width >= width * 0.6) seen.add(name);
           else seen.delete(name);
         }
         shown = new Set(seen);
       },
-      { root, threshold: 0.6 },
+      { root, threshold: [0, 0.2, 0.4, 0.6, 0.8, 1] },
     );
     for (const el of strip.querySelectorAll("[data-shelf]")) watch.observe(el);
     return () => watch.disconnect();
@@ -80,18 +101,19 @@
 
   const motion = (): ScrollBehavior => (calm.matches ? "instant" : "smooth");
 
-  // scrollIntoView would also scroll the dialog body, which on a short screen hides the chips above the strip.
-  function jump(name: string, behavior = motion()) {
-    const box = scroller();
-    const target = column(name);
-    if (!box || !target) return;
-    const pad = parseFloat(getComputedStyle(box).scrollPaddingInlineStart) || 0;
-    box.scrollTo({ left: box.scrollLeft + target.getBoundingClientRect().left - box.getBoundingClientRect().left - pad, behavior });
+  function jump(name: string) {
+    const el = strip?.querySelector<HTMLElement>(`[data-shelf="${name}"]`);
+    if (el) go(el, motion());
   }
 
+  // One snap stop per press: the next column, or the next card in a short screen's row.
   function page(dir: -1 | 1) {
     const box = scroller();
-    box?.scrollBy({ left: dir * box.clientWidth * 0.8, behavior: motion() });
+    if (!box) return;
+    const starts = snaps().map((el) => offset(box, el));
+    const now = box.scrollLeft;
+    const next = dir > 0 ? starts.find((start) => start > now + 1) : starts.findLast((start) => start < now - 1);
+    box.scrollTo({ left: next ?? (dir > 0 ? box.scrollWidth : 0), behavior: motion() });
   }
 
   export function close() {
@@ -132,7 +154,7 @@
     </div>
 
     <div class="strip">
-      <ScrollArea axis="x" label="Cars by class">
+      <ScrollArea axis="x" fade={false} label="Cars by class">
         <div class="classes" bind:this={strip}>
           {#each shelves as shelf (shelf.class)}
             <section class="shelf" data-shelf={shelf.class}>
@@ -149,6 +171,7 @@
                         <div><dt>Tyres</dt><dd>{spec.tyres}</dd></div>
                         <div><dt>Weight</dt><dd>{spec.weight}</dd></div>
                       </dl>
+                      <p class="pick-line">{spec.drive} · {spec.tyres} · {spec.weight}</p>
                       <div class="pick-meters">
                         {#each spec.meters as meter (meter.key)}
                           <div class="pick-meter">
@@ -318,7 +341,6 @@
 
   .strip :global(.ui-scroll) {
     scroll-snap-type: x mandatory;
-    scroll-padding-inline: var(--space-6);
     scroll-timeline: --car-strip inline;
   }
 
@@ -441,5 +463,64 @@
   .pick-bar {
     grid-column: 1 / -1;
     margin-top: var(--space-1);
+  }
+  .pick-line {
+    display: none;
+  }
+
+  /* Short screens, a phone on its side: a class lays its cards out in a row and each card is compact, so one shows
+     whole without the dialog scrolling. */
+  @media (max-height: 500px) {
+    .pick {
+      gap: var(--space-3);
+    }
+
+    .shelf {
+      flex: none;
+      gap: var(--space-2);
+      scroll-snap-align: none;
+    }
+
+    ol {
+      display: flex;
+    }
+
+    li {
+      flex: 0 0 280px;
+      scroll-snap-align: start;
+    }
+
+    li :global(.ui-tile[data-detail]) {
+      gap: var(--space-2);
+      padding: var(--space-3);
+    }
+
+    .pick-facts {
+      display: none;
+    }
+
+    .pick-line {
+      display: block;
+      overflow: hidden;
+      margin: 0;
+      padding-top: var(--space-2);
+      border-top: 1px solid var(--set-line);
+      font-size: var(--text-sm);
+      font-weight: 600;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .pick-meters {
+      margin-top: var(--space-2);
+    }
+
+    .pick-bar {
+      margin-top: var(--space-0);
+    }
+
+    .pick-bar :global(.ui-progress) {
+      --track-h: var(--space-1);
+    }
   }
 </style>
