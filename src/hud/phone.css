@@ -1,0 +1,375 @@
+#hud-menu-btn {
+  position: absolute;
+  top: var(--inset-top);
+  left: var(--inset-left);
+  width: var(--control-h);
+  height: var(--control-h);
+  padding: 0;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--foreground);
+}
+
+#hud-menu-btn svg {
+  width: 22px;
+  height: 22px;
+}
+
+.unread-dot {
+  display: none;
+  position: absolute;
+  top: var(--space-1);
+  right: var(--space-1);
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--surface);
+  background: var(--primary);
+}
+
+:root:has(#chat-unread:not([hidden])) .unread-dot {
+  display: block;
+}
+
+#stuck-prompt {
+  position: absolute;
+  top: calc(var(--inset-top) + 2 * var(--control-h));
+  left: 50%;
+  translate: -50% 0;
+  display: flex;
+  gap: var(--space-2);
+}
+
+#stuck-prompt[hidden],
+#stuck-prompt button[hidden] {
+  display: none;
+}
+
+#stuck-prompt button {
+  height: var(--control-h);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: var(--text-md);
+}
+
+#stuck-prompt .stuck-reset,
+#stuck-prompt button[data-held] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+#hud-sheet {
+  position: fixed;
+  inset: var(--inset-top) auto auto var(--inset-left);
+  width: min(460px, calc(100vw - var(--inset-left) - var(--inset-right)));
+  max-height: calc(100dvh - var(--inset-top) - var(--inset-bottom));
+  margin: 0;
+  padding: var(--space-4);
+  overflow-y: auto;
+  pointer-events: auto;
+  touch-action: pan-y;
+  color: var(--foreground);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--background-lighter);
+  box-shadow: var(--panel-shadow);
+}
+
+#hud-sheet:popover-open {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+#hud-sheet::backdrop {
+  background: color-mix(in oklch, var(--background-darkest) 55%, transparent);
+}
+
+.sheet-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding-left: var(--space-1);
+}
+
+.sheet-head h2,
+.sheet-label {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.sheet-head button {
+  margin-left: auto;
+  border-color: var(--line);
+  background: var(--background-light);
+}
+
+.sheet-tiles {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--space-2);
+}
+
+#hud-sheet .sheet-tile {
+  position: relative;
+  flex-direction: column;
+  gap: var(--space-1);
+  height: auto;
+  min-height: 68px;
+  padding: var(--space-2) var(--space-1);
+  font-size: var(--text-xs);
+  line-height: 1.2;
+  white-space: normal;
+  text-align: center;
+  border-radius: var(--radius-md);
+  border-color: var(--line);
+  background: var(--background-light);
+}
+
+#hud-sheet .sheet-tile[hidden] {
+  display: none;
+}
+
+.sheet-tile svg,
+.sheet-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.sheet-icon {
+  display: grid;
+  place-items: center;
+}
+
+.sheet-icon > * {
+  width: 100%;
+  height: 100%;
+}
+
+#hud-sheet .sheet-resume {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.sheet-label {
+  padding-left: var(--space-1);
+  margin-bottom: calc(-1 * var(--space-2));
+}
+
+.sheet-aids {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+#hud-sheet .sheet-aid {
+  gap: var(--space-2);
+  height: 36px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-full);
+  border-color: var(--line);
+  background: var(--background-light);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.sheet-aid::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--success);
+}
+
+#hud-sheet .sheet-aid[aria-pressed="false"] {
+  color: var(--dim);
+}
+
+.sheet-aid[aria-pressed="false"]::before {
+  background: var(--line-strong);
+}
+
+@media (pointer: coarse) {
+  :root {
+    --map-size: 88px;
+    --phone-hand-h: 40px;
+    --phone-brake-h: min(96px, 25vh);
+    --phone-gas-h: calc(var(--phone-brake-h) + var(--phone-hand-h) + var(--space-2));
+    --phone-slot: calc(var(--control-h) + var(--space-2));
+    --phone-centre: calc(100vw - 2 * (max(var(--inset-left), var(--inset-right)) + 3 * var(--phone-slot) + var(--space-3)));
+  }
+
+  :root[data-hud] :is(.actions, .dock-break, .assists, #online-chip) {
+    display: none;
+  }
+
+  /* Centred by margins, not a translate: a transform would trap the fixed restart button inside the strip. */
+  :root[data-hud] #strip {
+    position: fixed;
+    top: var(--inset-top);
+    bottom: auto;
+    left: 0;
+    right: 0;
+    translate: none;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: var(--space-3);
+    width: fit-content;
+    height: var(--control-h);
+    min-height: 0;
+    max-width: var(--phone-centre);
+    margin: 0 auto;
+    padding: 0 var(--space-4);
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  :root[data-hud] #strip > div {
+    flex-direction: row;
+    flex-basis: auto;
+    align-items: baseline;
+    gap: var(--space-1);
+    min-width: 0;
+  }
+
+  :root[data-hud] #strip > div:is(:nth-child(2), :nth-child(3)) {
+    display: none;
+  }
+
+  :root[data-hud] #strip .lap {
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  :root[data-hud] #gate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Restart and rewind sit beside the menu button: an anchor to the strip or the mode status, both later in the page,
+     would not resolve. */
+  :root[data-hud] #restart-lap {
+    position: fixed;
+    top: var(--inset-top);
+    left: calc(var(--inset-left) + var(--phone-slot));
+    width: var(--control-h);
+    height: var(--control-h);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+  }
+
+  :root[data-hud] #mode-status {
+    anchor-name: --top-centre, --mode-status;
+    top: var(--inset-top);
+    left: 50%;
+    translate: -50% 0;
+    max-width: var(--phone-centre);
+    padding: calc((var(--control-h) - 1lh) / 2 - 1px) var(--space-4);
+    font-size: var(--text-lg);
+    line-height: 1.4;
+    white-space: normal;
+    text-align: center;
+    text-wrap: balance;
+  }
+
+  /* A mode run brings its own status line in the strip's place; restart stays. */
+  :root[data-hud] body:has(#mode-status:not([hidden])) #strip {
+    display: contents;
+  }
+
+  :root[data-hud] body:has(#mode-status:not([hidden])) #strip > div {
+    display: none;
+  }
+
+  :root[data-hud] .touch-buttons {
+    top: var(--inset-top);
+    left: calc(var(--inset-left) + 2 * var(--phone-slot));
+    right: auto;
+  }
+
+  :root[data-hud] body:has(#mode-status:not([hidden])) .touch-buttons {
+    display: none;
+  }
+
+  #touch .touch-buttons button {
+    width: var(--control-h);
+    min-width: 0;
+    height: var(--control-h);
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    text-shadow: none;
+  }
+
+  :root[data-hud] .top-right {
+    top: var(--inset-top);
+    right: var(--inset-right);
+  }
+
+  :root[data-hud="classic"] #map-note:not([hidden]) {
+    position: absolute;
+    left: 50%;
+    bottom: var(--space-2);
+    translate: -50% 0;
+    padding: 0 var(--space-2);
+    white-space: nowrap;
+    border-radius: var(--radius-full);
+    background: var(--surface);
+  }
+
+  :root[data-hud="classic"] .top-right:has(#map-note:not([hidden])) #minimap {
+    border-radius: inherit;
+  }
+
+  .touch-pedal-zone {
+    top: calc(var(--inset-top) + var(--map-panel) + var(--space-2));
+  }
+
+  .pedal {
+    height: var(--phone-brake-h);
+  }
+
+  .pedal.throttle {
+    height: var(--phone-gas-h);
+  }
+
+  .touch-brake .touch-key {
+    height: var(--phone-hand-h);
+  }
+
+  :root[data-hud="classic"] .bottom-right,
+  :root[data-hud="classic"][data-dash] .bottom-right {
+    bottom: calc(var(--inset-bottom) + var(--phone-gas-h) + var(--space-3));
+    right: var(--inset-right);
+    left: auto;
+    translate: none;
+    grid-template-columns: 1fr auto;
+    column-gap: var(--space-2);
+    width: var(--pedals);
+  }
+
+  :root[data-hud="classic"] #speed {
+    min-width: 0;
+    font-size: 32px;
+  }
+
+  :root[data-hud] #recenter {
+    top: auto;
+    bottom: 0;
+    right: calc(100% + var(--space-2));
+  }
+}

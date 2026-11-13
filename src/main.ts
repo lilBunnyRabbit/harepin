@@ -73,6 +73,8 @@ import { custom_code, map_code, pick_problem, read_pick } from "./worldgen/kinds
 import { map_note } from "./menu/map-note";
 import { plain_map } from "./worldgen/kinds/kinds";
 import { review_wanted } from "./review/params";
+import { HudSheet } from "./hud/hud-sheet";
+import { StuckPrompt } from "./hud/stuck-prompt";
 import "./style.css";
 
 const params = new URLSearchParams(location.search);
@@ -602,6 +604,8 @@ let last_draw = 0;
 
 new Heartbeat(net, garage, driver, race, seed).start();
 let stuck = 0;
+const hud_sheet = new HudSheet(() => net.remotes.size > 0);
+const stuck_prompt = new StuckPrompt();
 let rewinding = false;
 
 const NEAR_GAP = 1.2;
@@ -653,7 +657,7 @@ function frame(time: number) {
   const car = driver.car;
 
   lobby.update(now);
-  const menu_hold = settings.is_open && net.remotes.size === 0;
+  const menu_hold = (settings.is_open || hud_sheet.open) && net.remotes.size === 0;
   let stepped = 0;
   let simulated = false;
   let impact = 0;
@@ -710,6 +714,7 @@ function frame(time: number) {
     void driver.reset(lobby.busy && lobby.route === "circuit");
     stuck = 0;
   }
+  stuck_prompt.update(simulated ? dt : 0, car.vel.length(), controls.throttle > 0.3 || controls.brake > 0.3, driver.rewind.can_step && !lobby.busy && !modes.active, rewinding);
 
   // A mode spawns the car anywhere, the circuit start included: its lap clock would count that as a lap.
   // A review replay is a dev ghost driving, not the player: it never sets a lap record.
