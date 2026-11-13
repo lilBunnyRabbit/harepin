@@ -21,7 +21,7 @@
 0 mesh_rest 2ecc5fcd12d4018c
 0 planted c3cf8b92a56b6c27
 0 map_pixels 3fbe5a95b7a45973
-0 map 1a5a9110c462d0be
+0 map 6674994cedff2456
 1 kind c5028568df421964
 1 deck ca2689192ce2e663
 1 terrain 1202126801976314
@@ -45,7 +45,7 @@
 1 mesh_rest a6c6ea1d25584610
 1 planted c3cf8b92a56b6c27
 1 map_pixels cc6db1719553fc34
-1 map 07e42dfb7cb5b20c
+1 map 6bdfcf66f8f2477c
 2 kind c5028568df421964
 2 deck ca2689192ce2e663
 2 terrain e52226c610924df1
@@ -69,4 +69,4 @@
 2 mesh_rest 57a8661345d48e94
 2 planted c3cf8b92a56b6c27
 2 map_pixels 541eb480e231f926
-2 map 1031a0037bec8fc4
+2 map ce090f9e43d40e06
