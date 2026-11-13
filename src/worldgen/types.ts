@@ -23,12 +23,13 @@ export const Ground = { GRASS: 0, DRY: 1, SAND: 2, FOREST: 3, UPLAND: 4, DUNE: 5
 export type Ground = (typeof Ground)[keyof typeof Ground];
 /**
  * What the wheels drive on, per vertex of the `surface` grid; each id has a grip row in its kind's `GripTable`. GRASS is the
- * kind's own ground (loose sand on the desert), every other id a surface laid over it. Stored in the grid: never renumber.
+ * kind's own ground (loose sand on the desert), every other id a surface laid over it. SAND is dune sand laid on any kind's
+ * ground, so grass and dune sand can sit side by side (the lab). Stored in the grid: never renumber.
  */
-export const SurfaceId = { GRASS: 0, DIRT: 1, HARDPACK: 2, SCREE: 3, WET: 4, SNOW: 5, PACKED_SNOW: 6, ICE: 7, SLUSH: 8, LAVA: 9 } as const;
+export const SurfaceId = { GRASS: 0, DIRT: 1, HARDPACK: 2, SCREE: 3, WET: 4, SNOW: 5, PACKED_SNOW: 6, ICE: 7, SLUSH: 8, LAVA: 9, SAND: 10 } as const;
 export type SurfaceId = (typeof SurfaceId)[keyof typeof SurfaceId];
 /** The ground row each laid surface paints, indexed by `SurfaceId`, so colour matches what the wheels feel; null keeps the biome's colour. */
-export const SURFACE_GROUND = [null, Ground.DIRT, Ground.PAN, null, Ground.DIRT, Ground.SNOW, Ground.PACKED_SNOW, Ground.ICE, Ground.SLUSH, Ground.DIRT] as const satisfies Record<SurfaceId, Ground | null>;
+export const SURFACE_GROUND = [null, Ground.DIRT, Ground.PAN, null, Ground.DIRT, Ground.SNOW, Ground.PACKED_SNOW, Ground.ICE, Ground.SLUSH, Ground.DIRT, Ground.DUNE] as const satisfies Record<SurfaceId, Ground | null>;
 /** Bump whenever `generate` makes a different island for the same seed: peers and saved records are matched on it. */
 export const WORLD_VERSION = 11;
 
@@ -41,7 +42,7 @@ export const ROOFTOPS_VERSION = 1;
 /** Bump whenever `generate_sky` makes a different velodrome track for the same seed. */
 export const VELODROME_VERSION = 1;
 
-export const WorldKind = { ISLAND: "island", SKY: "sky", DESERT: "desert", MAINLAND: "mainland", ALPINE: "alpine", TUNDRA: "tundra", ROOFTOPS: "rooftops", VOLCANO: "volcano", BIG_DUNES: "dunes", ICE_CANYON: "icecanyon", VELODROME: "velodrome" } as const;
+export const WorldKind = { ISLAND: "island", SKY: "sky", DESERT: "desert", MAINLAND: "mainland", ALPINE: "alpine", TUNDRA: "tundra", ROOFTOPS: "rooftops", VOLCANO: "volcano", BIG_DUNES: "dunes", ICE_CANYON: "icecanyon", VELODROME: "velodrome", LAB: "lab" } as const;
 export type WorldKind = (typeof WorldKind)[keyof typeof WorldKind];
 /** What a URL or save without a world, or with one this build doesn't know, drives. */
 export const DEFAULT_KIND: WorldKind = WorldKind.ISLAND;

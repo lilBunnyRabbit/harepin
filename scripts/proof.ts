@@ -55,7 +55,7 @@ const jobs: ProofJob[] = process.argv.includes("--options") ? option_jobs() : [
   ...DUNES.map((seed) => ({ kind: "dunes" as const, seed, checks: true, drives: false })),
   ...ICE_CANYON.map((seed) => ({ kind: "icecanyon" as const, seed, checks: true, drives: DRIVES })),
 ];
-const golden: Record<WorldKind, Golden> = { island: read_golden("island"), sky: read_golden("sky"), desert: read_golden("desert"), mainland: read_golden("mainland"), alpine: read_golden("alpine"), tundra: read_golden("tundra"), volcano: read_golden("volcano"), rooftops: read_golden("rooftops"), dunes: read_golden("dunes"), icecanyon: read_golden("icecanyon"), velodrome: read_golden("velodrome") };
+const golden: Record<WorldKind, Golden> = { island: read_golden("island"), sky: read_golden("sky"), desert: read_golden("desert"), mainland: read_golden("mainland"), alpine: read_golden("alpine"), tundra: read_golden("tundra"), volcano: read_golden("volcano"), rooftops: read_golden("rooftops"), dunes: read_golden("dunes"), icecanyon: read_golden("icecanyon"), velodrome: read_golden("velodrome"), lab: read_golden("lab") };
 const size = pool_size(process.argv);
 const t0 = performance.now();
 const results = await run_pool<ProofJob, ProofResult>(new URL("./proof/worker.ts", import.meta.url), jobs, size, (r, done) =>
