@@ -1,0 +1,5 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": { "lib": ["ES2023", "DOM", "DOM.Iterable"], "types": ["vite/client", "svelte", "bun"] },
+  "include": ["../../src/**/*.svelte", "../../src/**/*.svelte.ts", "../../src/menu/ui/*.ts"]
+}

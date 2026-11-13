@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { defineConfig, loadEnv, type Plugin } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
+import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { BRAND_INK } from "./pwa-assets.config";
 import { CHANGELOG } from "./src/changelog";
 import type { RemoteVersion, VersionInfo } from "./src/version";
@@ -78,6 +79,7 @@ export default defineConfig(({ mode }) => {
       ],
     },
     plugins: [
+      svelte(),
       version_file(),
       preload_game(),
       VitePWA({
