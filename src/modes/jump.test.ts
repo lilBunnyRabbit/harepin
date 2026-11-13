@@ -119,7 +119,7 @@ test("the window ends the run, but not mid-flight", () => {
   expect(run.best?.metres).toBe(12);
 });
 
-test("a car driven flat out from the start flies off the lip and is measured", () => {
+test("a road car flat out from the start flies off the lip for two stars", () => {
   const jump = jump_at(desert, SPAWN_INDEX, kicker);
   if (!jump) throw new Error("no kicker");
   const car = new Car(COUPE);
@@ -135,7 +135,7 @@ test("a car driven flat out from the start flies off the lip and is measured", (
     landed = run.update(DT * 1000, { x: car.pos.x, z: car.pos.z, vx: car.vel.x, vz: car.vel.z, airborne: airborne(car) }) === JumpEvent.LANDED;
   }
   expect(landed).toBe(true);
-  expect(run.best?.metres).toBeGreaterThan(10);
+  expect(run.best?.metres).toBeGreaterThanOrEqual(jump.marks.two);
   expect(run.best?.metres).toBeLessThan(jump.marks.three + 20);
 });
 

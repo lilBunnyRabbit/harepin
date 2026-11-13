@@ -110,7 +110,10 @@ export function pose_of(car: Driven): Pose {
   return { x: car.pos.x, z: car.pos.z, heading: car.heading, speed: Math.hypot(car.vel.x, car.vel.z) };
 }
 
-export const airborne = (car: Driven) => car.wheels.every((w) => !w.contact);
+export function airborne(car: Driven): boolean {
+  for (const wheel of car.wheels) if (wheel.contact) return false;
+  return true;
+}
 
 export function body_of(spec: CarSpec): Body {
   return { circles: spec.circles, radius: spec.radius, length: spec.body.length, width: spec.body.width };

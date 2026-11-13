@@ -1,5 +1,5 @@
 import type { World } from "../world/world";
-import { JumpEvent, JumpRun, TRIES, build_jump, jump_levels, jump_stars, metres, type Jump, type JumpLevel } from "./jump";
+import { JumpEvent, JumpRun, TRIES, build_jump, jump_levels, jump_stars, metres, type Jump, type JumpLevel, type JumpPose } from "./jump";
 import { JumpView } from "./jump-view";
 import { CIRCUIT, airborne, type Driven, type Finish, type ModeCtx, type ModeDef, type ModeRun, type RouteRun } from "./mode";
 import { best_line, line, result_title } from "./result";
@@ -16,6 +16,7 @@ class JumpDistance implements ModeRun {
   private readonly view: JumpView;
   private readonly run: JumpRun;
   private result: Finish | null = null;
+  private readonly pose: JumpPose = { x: 0, z: 0, vx: 0, vz: 0, airborne: false };
   readonly route: RouteRun;
 
   constructor(
@@ -32,7 +33,13 @@ class JumpDistance implements ModeRun {
   update(sim_dt: number, car: Driven): string {
     const { run, jump } = this;
     const { name } = jump.level;
-    const event = run.update(sim_dt * 1000, { x: car.pos.x, z: car.pos.z, vx: car.vel.x, vz: car.vel.z, airborne: airborne(car) });
+    const { pose } = this;
+    pose.x = car.pos.x;
+    pose.z = car.pos.z;
+    pose.vx = car.vel.x;
+    pose.vz = car.vel.z;
+    pose.airborne = airborne(car);
+    const event = run.update(sim_dt * 1000, pose);
     if (event === JumpEvent.LANDED) {
       const last = run.tries[run.tries.length - 1];
       this.view.land(last, last === run.best);

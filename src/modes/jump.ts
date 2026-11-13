@@ -1,4 +1,4 @@
-import { flight, face_end, ramp_local, ramp_world, RIDE, RUNUP } from "../worldgen/jumps";
+import { flight, face_end, ramp_world, RIDE, RUNUP } from "../worldgen/jumps";
 import type { Ramp } from "../worldgen/types";
 import type { Ground } from "./marks";
 import type { Level } from "./mode";
@@ -14,7 +14,7 @@ export interface JumpLevel extends Level {
 
 export const JUMP_LEVELS: readonly JumpLevel[] = [
   { id: "j1", name: "Kicker", brings: "The off-road kicker nearest the start: find the speed for a long flight.", kind: JumpKind.KICKER },
-  { id: "j2", name: "Big air", brings: "The big ramp: a longer run-up for a lot more air.", kind: JumpKind.BIG },
+  { id: "j2", name: "Big air", brings: "The big ramp: back up past the start for the speed it wants.", kind: JumpKind.BIG },
   { id: "j3", name: "Road kicker", brings: "The circuit's own kicker, taken at racing pace.", kind: JumpKind.ROAD },
 ];
 
@@ -33,7 +33,10 @@ const BEACHED_SPEED = 1;
 const BEACHED_MS = 1500;
 const MARK_STEP = 0.25;
 const MARK_SLACK = 40;
-const SILVER_SPEED = 0.8;
+// Toe speeds the marks are flown at (m/s). Two stars: what a road car carries from the start's 30 m run-up onto a kicker.
+// Three: a run-up longer than the start gives, backed up for, and never past the ramp's own design speed.
+const SILVER_TOE = 15;
+const GOLD_TOE = 22;
 
 const kind_of = (r: Ramp): JumpKind | null => (r.deck ? null : r.road ? JumpKind.ROAD : r.kind === "big" ? JumpKind.BIG : r.kind === "kicker" ? JumpKind.KICKER : null);
 
@@ -81,14 +84,16 @@ export interface Jump {
 export function build_jump(ramps: readonly Ramp[], at: { x: number; z: number }, ground: Ground, level: JumpLevel): Jump | null {
   const ramp = nearest_ramp(ramps, at, level);
   if (!ramp) return null;
-  const three = Math.round(reach(ramp, ramp.speed, ground));
-  const two = Math.min(three - 1, Math.round(reach(ramp, ramp.speed * SILVER_SPEED, ground)));
+  const three = Math.round(reach(ramp, Math.min(ramp.speed, GOLD_TOE), ground));
+  const two = Math.min(three - 1, Math.round(reach(ramp, Math.min(ramp.speed, SILVER_TOE), ground)));
   return { level, ramp, start: point(ramp, -RUNUP), lip: point(ramp, ramp.length), marks: { two, three } };
 }
 
 export function past_lip(r: Ramp, x: number, z: number): number {
-  return ramp_local(r, x, z)[1] - r.length;
+  return (x - r.x) * r.fx + (z - r.z) * r.fz - r.length;
 }
+
+const across = (r: Ramp, x: number, z: number) => (x - r.x) * r.fz - (z - r.z) * r.fx;
 
 export function jump_stars(metres: number, { two, three }: Thresholds): number {
   if (metres >= three) return MAX_STARS;
@@ -125,7 +130,10 @@ export class JumpRun {
   flying: number | null = null;
   private landed_at: number | null = null;
   private crawl_ms = 0;
-  private last: { x: number; z: number; airborne: boolean } | null = null;
+  private seen = false;
+  private last_x = 0;
+  private last_z = 0;
+  private last_airborne = false;
 
   constructor(readonly jump: Jump) {}
 
@@ -140,8 +148,12 @@ export class JumpRun {
   update(dt_ms: number, pose: JumpPose): JumpEvent {
     if (this.done) return JumpEvent.NONE;
     this.clock += dt_ms;
-    const last = this.last;
-    this.last = { x: pose.x, z: pose.z, airborne: pose.airborne };
+    const seen = this.seen;
+    const { last_x, last_z, last_airborne } = this;
+    this.seen = true;
+    this.last_x = pose.x;
+    this.last_z = pose.z;
+    this.last_airborne = pose.airborne;
     if (this.landed_at !== null) {
       if (this.clock - this.landed_at < SETTLE_MS) return JumpEvent.NONE;
       this.landed_at = null;
@@ -150,7 +162,7 @@ export class JumpRun {
     }
     const { ramp } = this.jump;
     if (this.flying !== null) {
-      if (last && Math.hypot(pose.x - last.x, pose.z - last.z) > MAX_STEP) {
+      if (seen && Math.hypot(pose.x - last_x, pose.z - last_z) > MAX_STEP) {
         this.flying = null;
         return JumpEvent.VOID;
       }
@@ -168,8 +180,9 @@ export class JumpRun {
       return JumpEvent.LANDED;
     }
     if (this.clock >= WINDOW_MS) return this.end(true);
-    if (!pose.airborne || !last || last.airborne) return JumpEvent.NONE;
-    const [u, v] = ramp_local(ramp, pose.x, pose.z);
+    if (!pose.airborne || !seen || last_airborne) return JumpEvent.NONE;
+    const u = across(ramp, pose.x, pose.z);
+    const v = past_lip(ramp, pose.x, pose.z) + ramp.length;
     const forward = pose.vx * ramp.fx + pose.vz * ramp.fz;
     if (Math.abs(u) > ramp.hw + LIP_SIDE || v < ramp.length - LIP_BEHIND || v > ramp.length + LIP_AHEAD || forward < MIN_TAKEOFF) return JumpEvent.NONE;
     this.flying = Math.max(0, v - ramp.length);
