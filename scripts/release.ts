@@ -1,9 +1,9 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { join, posix, resolve } from "node:path";
 
 const USAGE =
-  'usage: bun scripts/release.ts <ref> <version> (--level hotfix|full | --auto-level) [--title "..."] [--change new|improved|fixed:"..."]... [--dir <path>]';
+  'usage: bun scripts/release.ts <ref> <version> (--level hotfix|full | --auto-level) [--title "..."] [--change new|improved|fixed:"..."]... [--all-tests] [--dir <path>]';
 
 const Level = { HOTFIX: "hotfix", FULL: "full" } as const;
 type Level = (typeof Level)[keyof typeof Level];
@@ -12,12 +12,14 @@ const KINDS = { new: "NEW", improved: "IMPROVED", fixed: "FIXED" } as const;
 type Kind = keyof typeof KINDS;
 
 const FULL_PATHS = ["src/worldgen/", "src/world/", "src/car/", "scripts/golden"];
+const VERSION_TEST = "src/version.test.ts";
 
 interface Args {
   ref: string;
   version: string;
   level: Level | null;
   auto_level: boolean;
+  all_tests: boolean;
   title: string;
   changes: { kind: Kind; text: string }[];
   dir: string | null;
@@ -37,7 +39,7 @@ function fail(message: string): never {
 
 function parse_args(argv: string[]): Args {
   const positional: string[] = [];
-  const args: Args = { ref: "", version: "", level: null, auto_level: false, title: "Fixes", changes: [], dir: null };
+  const args: Args = { ref: "", version: "", level: null, auto_level: false, all_tests: false, title: "Fixes", changes: [], dir: null };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const value = () => argv[++i] ?? fail(`${a} needs a value\n${USAGE}`);
@@ -46,6 +48,7 @@ function parse_args(argv: string[]): Args {
       if (level !== Level.HOTFIX && level !== Level.FULL) fail(`--level is hotfix or full, got ${level}`);
       args.level = level;
     } else if (a === "--auto-level") args.auto_level = true;
+    else if (a === "--all-tests") args.all_tests = true;
     else if (a === "--title") args.title = value();
     else if (a === "--dir") args.dir = resolve(value());
     else if (a === "--change") {
@@ -93,12 +96,22 @@ function last_release(cwd: string, ref: string): string | null {
   return git_try(cwd, "merge-base", "--is-ancestor", tag_sha, commit) !== null ? commit : tag_sha;
 }
 
-function auto_level(cwd: string, ref: string): { level: Level; base: string | null; hits: string[] } {
+function changed_since(cwd: string, ref: string): { base: string | null; files: string[] } {
   const base = last_release(cwd, ref);
-  if (!base) return { level: Level.FULL, base, hits: ["no earlier release"] };
-  const files = git(cwd, "diff", "--name-only", base, ref).split("\n").filter(Boolean);
-  const hits = files.filter((f) => FULL_PATHS.some((p) => f.startsWith(p)));
-  return { level: hits.length ? Level.FULL : Level.HOTFIX, base, hits };
+  return { base, files: base ? git(cwd, "diff", "--name-only", base, ref).split("\n").filter(Boolean) : [] };
+}
+
+function pick_tests(cwd: string, changed: string[]): string[] {
+  const changed_set = new Set(changed);
+  const folders = new Set(changed.map((f) => posix.dirname(f)));
+  const imports = (test: string) =>
+    [...readFileSync(join(cwd, test), "utf8").matchAll(/(?:from|import\()\s*["'](\.{1,2}\/[^"']+)["']/g)].map((m) => posix.join(posix.dirname(test), m[1]));
+  const hits = (module: string) => ["", ".ts", ".svelte.ts", "/index.ts"].some((ext) => changed_set.has(module + ext));
+  const picked = git(cwd, "ls-files", "*.test.ts")
+    .split("\n")
+    .filter(Boolean)
+    .filter((test) => folders.has(posix.dirname(test)) || imports(test).some(hits));
+  return [...new Set([VERSION_TEST, ...picked])].sort();
 }
 
 function bump_package(dir: string, version: string): string {
@@ -162,13 +175,22 @@ if (git_try(dir, "cat-file", "-e", `${sha}^{commit}`) === null) git(dir, "fetch"
 git(dir, "checkout", "--quiet", "-b", "rel", sha);
 timings.push({ name: "clone", ok: true, secs: (performance.now() - t) / 1000, output: "" });
 
+const since = changed_since(dir, sha);
+const world_hits = since.files.filter((f) => FULL_PATHS.some((p) => f.startsWith(p)));
+const world_changed = !since.base || world_hits.length > 0;
 let level = args.level ?? Level.HOTFIX;
 if (args.auto_level) {
-  const auto = auto_level(dir, sha);
-  level = auto.level;
-  const why = auto.hits.length ? `touches ${auto.hits.slice(0, 5).join(", ")}${auto.hits.length > 5 ? ` and ${auto.hits.length - 5} more` : ""}` : "no world, car or golden change";
-  console.log(`auto level: ${level} (since ${auto.base?.slice(0, 7) ?? "the start"}: ${why})`);
+  level = world_changed ? Level.FULL : Level.HOTFIX;
+  const why = !since.base ? "no earlier release" : world_hits.length ? `touches ${world_hits.slice(0, 5).join(", ")}${world_hits.length > 5 ? ` and ${world_hits.length - 5} more` : ""}` : "no world, car or golden change";
+  console.log(`auto level: ${level} (since ${since.base?.slice(0, 7) ?? "the start"}: ${why})`);
 }
+const all_tests = args.all_tests || !since.base;
+const tests = all_tests ? [] : pick_tests(dir, since.files);
+console.log(
+  all_tests
+    ? `tests: the whole suite (${args.all_tests ? "--all-tests" : "no earlier release"})`
+    : `tests: ${tests.length} files for ${since.files.length} changed since ${since.base?.slice(0, 7)}\n${tests.map((f) => `  ${f}`).join("\n")}`,
+);
 
 t = performance.now();
 const previous = bump_package(dir, args.version);
@@ -190,21 +212,29 @@ const installs = await Promise.all([
 timings.push(...installs);
 
 if (installs.every((r) => r.ok)) {
-  const checks: Promise<StepResult>[] = [
+  const builds = [
     step("tsc --noEmit", ["bun", "run", "typecheck"], dir),
     step("check:svelte", ["bun", "run", "check:svelte"], dir),
-    step("FULL=1 bun test", ["bun", "test"], dir, { FULL: "1" }),
     step("vite build", ["bun", "run", "build"], dir),
   ];
+  const checks: Promise<StepResult>[] = [...builds];
+  const test_cmd = ["bun", "test", ...tests.map((f) => `./${f}`)];
+  const test_name = all_tests ? "bun test (all)" : `bun test (${tests.length} files)`;
   if (level === Level.FULL) {
-    checks.push(step("golden --check", ["bun", "scripts/golden.ts", "--check"], dir));
-    checks.push(step("proof --jobs 3", ["bun", "scripts/proof.ts", "--jobs", "3"], dir));
-  }
+    if (world_changed) {
+      checks.push(step("golden --check", ["bun", "scripts/golden.ts", "--check"], dir));
+      checks.push(step("proof --jobs 3", ["bun", "scripts/proof.ts", "--jobs", "3"], dir));
+    } else console.log("golden and proof skipped: no world, car or golden change");
+    checks.push(Promise.all(builds).then(() => step(`FULL=1 ${test_name}`, test_cmd, dir, { FULL: "1" })));
+  } else checks.push(step(test_name, test_cmd, dir));
   timings.push(...(await Promise.all(checks)));
 }
 
 const failed = timings.filter((r) => !r.ok);
-for (const r of failed) console.log(`\n--- ${r.name} (last 40 lines) ---\n${tail(r.output)}`);
+for (const r of failed) {
+  const fails = r.output.split(/\r?\n/).filter((line) => line.startsWith("(fail)"));
+  console.log(`\n--- ${r.name} (last 40 lines) ---\n${fails.length ? `${fails.join("\n")}\n...\n` : ""}${tail(r.output)}`);
+}
 
 const width = Math.max(...timings.map((r) => r.name.length));
 console.log(`\n${"step".padEnd(width)}  result   secs`);
