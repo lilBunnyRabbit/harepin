@@ -69,7 +69,6 @@
     border-color: transparent;
     background: var(--primary);
     color: var(--on-primary);
-    font-weight: 700;
   }
 
   [data-variant="primary"]:hover:not(:disabled) {
