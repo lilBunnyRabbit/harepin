@@ -180,7 +180,7 @@ class Race implements ModeRun {
       lines: [
         line("traps", traps.kmh.map(kmh).join(" · ")),
         line("total", kmh(score)),
-        ...time_lines(Math.round(this.run.elapsed()), this.hits),
+        ...time_lines(Math.round(this.elapsed()), this.hits),
         line("length", `${((length * this.laps) / 1000).toFixed(1)} km`),
         line("par", format(par_thresholds(par_ms * this.laps).three)),
         line("★★ / ★★★", `${kmh(marks.two)} / ${kmh(marks.three)}`),
