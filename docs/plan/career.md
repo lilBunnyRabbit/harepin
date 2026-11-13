@@ -316,7 +316,30 @@ Mix: race 2, parking, drift, hunt, duel, gymkhana. No Mainland: the road trip co
 
 As shipped: **e8 runs `d6`**, because the chain is its own level (`drift.ts:40`, a 200-point zone) and `d5` Touge stays the banked free-play run unchanged. **e11 runs race + jump + duel**, not three races: the stage runner takes any mode, and three kinds on one map make each stage a different skill instead of three laps of similar routes.
 
-Legend's 12 get drafted once batch 2 ships: road trip, banked run, the reused kinds at harder levels and caps, the maybes if built, and the Legend final. No roster now.
+Legend's 12: below.
+
+#### Legend roster (draft, awaiting owner approval)
+
+Drafted 2026-11-13 at `85cd537` from what ships today. Every map, level and championship stage below passed the `career-check` rules (level listed on the map, open ground, gymkhana / parking site near the start, streamed only for race and duel), run on a copy of `scripts/career-check.ts` over this list, since the real script reads `EVENTS`. `tuned` is the key on that run. 3★ = owner × 1.03 for every event, races too (§10.2).
+
+| id | Name | World | Map code | Mode / level | Car | Harder than its Elite cousin because | `tuned` |
+|---|---|---|---|---|---|---|---|
+| l1 | Coast to coast | Mainland | `1M0E5M3PK` | race `trip` (8.1 km) | ≤ S1 | No Elite event on Mainland; cousin c6 Mainland sprint (A). The longest route in the game, streamed, town to town over open road: one mistake in 8 km costs the +3% | `475664083:m7` |
+| l2 | Black ice | Frozen lakes | `1T0000006` | gymkhana `g7` | ≤ X | e7 Frozen slalom is `g6` ≤ S1. `g7` has ten cones and the smallest boxes, with X power on ice | `6:t3` |
+| l3 | Pit garage | Volcano | `1V0000002` | parking `p8` | Maxed F1 | e3 Tight garage is `p8` ≤ S1. The formula is long and twitchy on throttle, reversing across a full aisle (*verify* it can make the door) | `2:v5` |
+| l4 | Glass chain | Ice canyon | `1F0000002` | drift `d6` | Drift | e8 Drift chain is `d6` on Alpine tarmac. Same one-chain rule on ice, between canyon walls that end the run on a touch | `2:ic5` |
+| l5 | Ash sweep | Volcano | `1V0000002` | hunt `h5` | ≤ S1 | e5 Ash gates is `h4` (8 gates) ≤ S2. Ten gates, half off road, one class down | `2:v5` |
+| l6 | High banks | Sky Track | `1S0000007-F2Q2` | race `banked` (2.3 km) | ≤ X | e9 Speed traps runs Sky at normal options. Twist Wild (more helices, more bank) and Open sections Exposed (no rail on stretches), flat out | `7:sky4:12112` |
+| l7 | Road kicker | Alpine | `1A0000009` | jump `j3` | ≤ X | e10 Long jump is `j2` (big ramp, back up for speed) ≤ S2. The circuit's kicker at racing pace: run-up and landing are the mountain road | `9:a4` |
+| l8 | Canyon traps | Ice canyon | `1F0000001` | race `trap` | ≤ X | e9 Speed traps is on Sky decks. Ice grip and canyon walls: exits onto the trap straights are where the km/h is lost | `1:ic5` |
+| l9 | Mountain marathon | Alpine | `1A0000004` | duel `v5` | ≤ B | e6 Down-class duel is `v4` (2 km) ≤ B. `v5` is most of the circuit, same slow class, mountain roads | `4:a4` |
+| l10 | Wrong way round | Island | `1C0000011` | race `circuit-rev` (5.9 km) | ≤ X | e1 Crater ring is `circuit` ≤ S1; e2 runs this seed's dirt. Every corner new, at X pace | `33:w11` |
+| l11 | Legend cup | Dune sea | `1D0000007` | championship, 5 stages: race `street-2`, gymkhana `g7`, drift `d4`, jump `j3`, duel `v5` | ≤ S2 | e11 Island cup is 3 stages (`circuit`, `j1`, `v3`) ≤ S1. `MAX_STAGES`, each at its mode's hardest or near-hardest level, five skills in one sitting | `7:d4` |
+| l12 | **Final** | Wall-ride map (t140) | - | race on its route | ≤ X | The tier final on the new map; lands with that quest | - |
+
+Mix: race 4 (`trip`, `banked`, `trap`, `circuit-rev`), gymkhana, parking, drift chain, hunt, jump, duel, championship, final. Worlds: Mainland, Frozen lakes, Volcano 2, Ice canyon 2, Sky, Alpine 2, Island, Dune sea, plus the final. Caps: X ×5, S2, S1 ×2, B, presets Maxed F1 and Drift. No Big dunes: it is Elite's final and streams, so only race and duel run there.
+
+Tuning: every event by the owner's run + 3% (Copy my times, races included per §10.2); the races l1, l6, l10 then get their ghost from `scripts/career.ts <id> --write`.
 
 ### 10.3 New event kinds
 
