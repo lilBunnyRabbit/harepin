@@ -13,7 +13,8 @@ import { Recorder, type Metrics } from "./recorder";
 export interface LabHost {
   /** Drives `spec` drawn as `build`, with the player's aids under the trial's. Never writes the garage build. */
   drive(build: Build, spec: CarSpec, aids: Aids): void;
-  place(spot: LabSpot): Promise<void>;
+  /** Puts the car on `spot` once its ground is in, unless `current` has gone false by then. */
+  place(spot: LabSpot, current: () => boolean): Promise<void>;
   car(): Car;
   toast(text: string): void;
 }
@@ -85,12 +86,12 @@ export class Lab {
     this.recorder = null;
     const ticket = ++this.ticket;
     this.host.drive(r.build, r.spec, r.trial.aids ?? {});
-    await this.host.place(r.lane.spawn);
     // A later `begin` started while this one waited for its ground: that trial owns the car now.
-    if (ticket !== this.ticket) return;
+    const current = () => ticket === this.ticket;
+    await this.host.place(r.lane.spawn, current);
+    if (!current()) return;
     this.recorder = new Recorder(r.lane, r.trial.goal);
     this.recorder.placed(this.host.car());
-    this.results[index] = { status: "running", metrics: null };
     this.host.toast(`Trial ${index + 1}/${this.trials.length} ${r.trial.id}: ${r.trial.try} (${CLASS_LABELS[r.class]} ${r.pi})`);
   }
 
@@ -111,7 +112,7 @@ export class Lab {
 
   /** A running trial goes in with what it has measured so far. */
   export(): string {
-    const results = this.results.map((r, i) => (i === this.index && this.recorder?.started ? { status: r.status, metrics: this.recorder.metrics() } : r));
+    const results = this.results.map((r, i): TrialResult => (i === this.index && this.recorder?.started ? { status: "running", metrics: this.recorder.metrics() } : r));
     return export_block(this.pack, this.trials, results, this.answers, BUILD.version, device(), new Date());
   }
 
@@ -128,7 +129,8 @@ export class Lab {
   private finish(status: "done" | "stopped") {
     const recorder = this.recorder;
     if (!recorder || this.index < 0) return;
-    this.results[this.index] = recorder.started ? { status, metrics: recorder.metrics() } : { status: "new", metrics: null };
+    // Left before driving: whatever an earlier attempt measured stands.
+    if (recorder.started) this.results[this.index] = { status, metrics: recorder.metrics() };
     this.recorder = null;
   }
 }

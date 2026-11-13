@@ -382,7 +382,7 @@ function apply_settings(state: SettingsState) {
 }
 
 settings.on_change = (state, key) => {
-  if (key === "camera") goals.done(GoalId.CAMERA);
+  if (key === "camera" && lab_id === null) goals.done(GoalId.CAMERA);
   if (key === "quality") {
     quality.set_mode(state.quality);
     render.apply_quality();
@@ -633,9 +633,9 @@ if (lab_id !== null)
           apply_car_settings({ ...settings.state, ...aids });
           input.touch.show_nitro(driver.car.nitro.fitted);
         },
-        place: async (spot) => {
+        place: async (spot, current) => {
           await driver.arrive(spot.x, spot.z);
-          driver.park(spot.x, spot.z, spot.heading);
+          if (current()) driver.park(spot.x, spot.z, spot.heading);
         },
         car: () => driver.car,
         toast: (text) => hud.toast(text),
