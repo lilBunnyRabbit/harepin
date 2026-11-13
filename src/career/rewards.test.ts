@@ -66,12 +66,12 @@ test("Elite opens its paint at its own paint stars, its dunes decal at all of it
   expect(earned({}, full, elite).map((reward) => reward.kind)).toEqual(["paint", "decal", "badge"]);
 });
 
-test("Legend opens its paint at its own paint stars and holds no decal or badge until its final ships", () => {
+test("Legend opens its paint at its own paint stars and its badge at its final, with no decal until that art ships", () => {
   const full = with_stars(...all_of(legend, 3));
   expect(legend.rewards.paint_at).toBe(18);
   expect(tier_stars(full, legend)).toBe(legend.events.length * 3);
   expect(unlocks(full).paints).toEqual([legend.rewards.paint]);
   expect(unlocks(full).decals).toEqual([]);
-  expect(unlocks(full).badge).toBeNull();
-  expect(earned({}, full, legend).map((reward) => reward.kind)).toEqual(["paint"]);
+  expect(unlocks(full).badge).toBe(5);
+  expect(earned({}, full, legend).map((reward) => reward.kind)).toEqual(["paint", "badge"]);
 });

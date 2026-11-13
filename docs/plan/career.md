@@ -335,7 +335,7 @@ Drafted 2026-11-13 at `85cd537` from what ships today. Every map, level and cham
 | l9 | Mountain marathon | Alpine | `1A0000004` | duel `v5` | ≤ B | e6 Down-class duel is `v4` (2 km) ≤ B. `v5` is most of the circuit, same slow class, mountain roads | `4:a4` |
 | l10 | Wrong way round | Island | `1C0000011` | race `circuit-rev` (5.9 km) | ≤ X | e1 Crater ring is `circuit` ≤ S1; e2 runs this seed's dirt. Every corner new, at X pace | `33:w11` |
 | l11 | Legend cup | Dune sea | `1D0000007` | championship, 5 stages: race `street-2`, gymkhana `g7`, drift `d4`, jump `j3`, duel `v5` | ≤ S2 | e11 Island cup is 3 stages (`circuit`, `j1`, `v3`) ≤ S1. `MAX_STAGES`, each at its mode's hardest or near-hardest level, five skills in one sitting | `7:d4` |
-| l12 | **Final** | Wall-ride map (t140) | - | race on its route | ≤ X | The tier final on the new map; lands with that quest | - |
+| l12 | **Velodrome final** | Velodrome | `1W0000004` | race `circuit` (3.8 km) | ≤ X | The tier final on the new map: two 45-55° bowls with 66-69° kicks. Bus excluded by the route | `4:velo1` |
 
 Mix: race 4 (`trip`, `banked`, `trap`, `circuit-rev`), gymkhana, parking, drift chain, hunt, jump, duel, championship, final. Worlds: Mainland, Frozen lakes, Volcano 2, Ice canyon 2, Sky, Alpine 2, Island, Dune sea, plus the final. Caps: X ×6 (with the final), S2, S1, A, B, presets Maxed F1 and Drift. No Big dunes: it is Elite's final and streams, so only race and duel run there.
 

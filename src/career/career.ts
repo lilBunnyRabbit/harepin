@@ -174,6 +174,7 @@ export const TIERS: readonly Tier[] = [
           { mode: "duel", level: "v5", stars: { two: 127125, three: 101700 } },
         ],
       },
+      { id: "l12", name: "Velodrome final", mode: "race", level: "circuit", map: "1W0000004", car: { cap: "x" }, tuned: "4:velo1", stars: { two: 189000, three: 151200 }, ghost: true, final: true },
     ],
   },
 ];

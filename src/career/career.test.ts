@@ -35,12 +35,14 @@ function memory(seed: Record<string, string> = {}): Store & { data: Record<strin
 const all = (stars: number, ids: readonly string[]): Stars => Object.fromEntries(ids.map((id) => [id, stars]));
 const ids_of = (tier: number) => TIERS[tier].events.map((event) => event.id);
 
-// A tier still growing (Legend, later) has no final yet, and no decal: the decal waits for the tier's max to stop moving.
-test("event ids are unique and every finished tier ends in its one final", () => {
+// A tier still growing has no final yet, and no decal: the decal waits for the tier's max to stop moving. A final can ship
+// before its decal (Legend's art comes later).
+test("event ids are unique and a tier's one final ends it", () => {
   expect(new Set(EVENTS.map((event) => event.id)).size).toBe(EVENTS.length);
   for (const tier of TIERS) {
-    const finals = tier.events.map((event) => event.final === true);
-    expect([tier.id, finals]).toEqual([tier.id, tier.events.map((_, i) => tier.rewards.decal !== undefined && i === tier.events.length - 1)]);
+    const finals = tier.events.flatMap((event, i) => (event.final ? [i] : []));
+    const finished = finals.length > 0 || tier.rewards.decal !== undefined;
+    expect([tier.id, finals]).toEqual([tier.id, finished ? [tier.events.length - 1] : []]);
   }
 });
 
