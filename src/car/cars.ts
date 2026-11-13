@@ -1,5 +1,5 @@
 export type Drive = "rwd" | "fwd" | "awd";
-export type BodyStyle = "hatch" | "coupe" | "muscle" | "rally" | "kaze" | "formula" | "sturm" | "raijin" | "bus";
+export type BodyStyle = "hatch" | "coupe" | "muscle" | "rally" | "kaze" | "formula" | "fujin" | "sturm" | "raijin" | "bus";
 export type Triple = [number, number, number];
 
 /** Engine voice; the limiter cuts in just under `redline`. */
@@ -106,6 +106,7 @@ export type CarId = BodyStyle;
 // Floor and roll hoop of the formula car against its centre of mass: its collision corners and its bar band.
 const FORMULA_FLOOR = 0.34;
 const FORMULA_TOP = 0.55;
+const FUJIN_FLOOR = 0.25;
 
 function corners(half_width: number, low: number, high: number, half_length: number): Triple[] {
   return [-half_width, half_width].flatMap((x) => [low, high].flatMap((y) => [-half_length, half_length].map((z): Triple => [x, y, z])));
@@ -441,6 +442,62 @@ export const FORMULA: CarSpec = {
   sound: { cylinders: 10, pulses: [1, 0.97, 1, 0.96, 1, 0.98, 1, 0.97, 1, 0.96], jitter: 0.03, pulse_ms: 0.4, formants: [380, 1100, 3000], shift: 0.6, muffler: [2200, 9000], drive: 1.6, rasp: 0.3, intake: 0.9, crackle: 0.1, turbo: 0 },
 };
 
+// Closed-wheel hybrid prototype, the Legend reward: the formula's grip and more top speed in a heavier, calmer car.
+// A front motor takes 40% of the drive, so it launches and exits corners planted where the formula spins its rears.
+export const FUJIN: CarSpec = {
+  ...FORMULA,
+  id: "fujin",
+  name: "Fujin",
+  mass: 930,
+  inertia: [1500, 1750, 380],
+  drive: "awd",
+  awd_split: 0.4,
+  // The origin sits FUJIN_FLOOR over the floor, so the default bar band holds for it.
+  wheel: { radius: 0.34, rest: 0.17, mounts: mounts(0.86, 0.08, 1.45, 1.35) },
+  wheelbase: 2.8,
+  lock: 0.5,
+  spring: 120000,
+  damper: 10500,
+  arb_front: 20000,
+  arb_rear: 15000,
+  mu: 1.38,
+  rear_grip: 1.06,
+  peak_slip: 0.16,
+  idle: 1500,
+  redline: 9000,
+  upshift: 8700,
+  downshift: 5200,
+  gears: [2.9, 2.2, 1.75, 1.45, 1.22, 1.05, 0.92],
+  final: 3.85,
+  driveline: 0.9,
+  engine_inertia: 0.08,
+  shift_time: 0.07,
+  torque: [
+    [0, 280],
+    [2000, 410],
+    [4000, 560],
+    [6000, 650],
+    [7500, 630],
+    [8700, 535],
+    [9500, 450],
+  ],
+  brake_front: 2700,
+  brake_rear: 1700,
+  handbrake: 1500,
+  hold: 1300,
+  drag: 0.36,
+  downforce: 3.7,
+  ground_effect: 0.8,
+  roll_resist: 2.6,
+  offroad: -0.6,
+  band: COUPE.band,
+  circles: [1.3, -1.3],
+  radius: 1.05,
+  corners: corners(0.98, -FUJIN_FLOOR, 0.62, 2.33),
+  body: { length: 4.8, width: 2.0, height: 1.16, style: "fujin" },
+  sound: { cylinders: 6, pulses: [1, 0.94, 1, 0.96, 1, 0.93], jitter: 0.04, pulse_ms: 0.5, formants: [300, 900, 2600], shift: 0.55, muffler: [1800, 8000], drive: 1.8, rasp: 0.4, intake: 0.9, crackle: 0.15, turbo: 1 },
+};
+
 function shifted(list: Triple[], dz: number): Triple[] {
   return list.map(([x, y, z]): Triple => [x, y, z + dz]);
 }
@@ -627,7 +684,7 @@ export const BUS: CarSpec = {
   sound: { cylinders: 6, pulses: [1, 0.92, 1, 0.94, 1, 0.9], jitter: 0.12, pulse_ms: 2.6, formants: [70, 210, 560], shift: 0.12, muffler: [300, 1300], drive: 2.4, rasp: 0.45, intake: 0.3, crackle: 0.05, turbo: 1 },
 };
 
-export const CARS: Record<CarId, CarSpec> = { hatch: HATCH, coupe: COUPE, muscle: MUSCLE, rally: RALLY, kaze: KAZE, sturm: STURM, raijin: RAIJIN, formula: FORMULA, bus: BUS };
+export const CARS: Record<CarId, CarSpec> = { hatch: HATCH, coupe: COUPE, muscle: MUSCLE, rally: RALLY, kaze: KAZE, sturm: STURM, raijin: RAIJIN, formula: FORMULA, fujin: FUJIN, bus: BUS };
 
 export interface Size {
   length: number;

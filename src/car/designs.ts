@@ -1,6 +1,7 @@
 import type { BodyStyle, Triple } from "./cars";
 import type { Panel } from "./livery";
 import type { Token } from "../theme/theme";
+import { FUJIN_DESIGN } from "./fujin-design";
 import type { Part, Point } from "./geometry";
 
 export interface Cabin {
@@ -512,3 +513,4 @@ export const DESIGNS: Record<BodyStyle, Design> = {
     eye: [0.7, 0.84],
   },
 };
+  fujin: FUJIN_DESIGN,
