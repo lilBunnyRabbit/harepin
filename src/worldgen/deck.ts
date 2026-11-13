@@ -106,23 +106,30 @@ export class DeckIndex {
     return i;
   }
 
-  /** Nearest sample of every section within LEVEL_REACH of a point in a stacked cell; null outside one. */
-  private levels(x: number, z: number): readonly number[] | null {
+  /**
+   * Nearest sample of every section within LEVEL_REACH of a point in a stacked cell, written to `picks`; returns how
+   * many, or -1 outside a stacked cell. Overwrites instead of truncating: truncating an array frees its storage.
+   */
+  private levels(x: number, z: number): number {
     const cx = Math.floor(x / CELL);
     const cz = Math.floor(z / CELL);
-    if (!this.stacked.has(key(cx, cz))) return null;
+    if (!this.stacked.has(key(cx, cz))) return -1;
     const picks = this.picks;
-    picks.length = 0;
+    let n = 0;
     for (let dz = -1; dz <= 1; dz++)
-      for (let dx = -1; dx <= 1; dx++)
-        for (const j of this.grid.get(key(cx + dx, cz + dz)) ?? []) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const list = this.grid.get(key(cx + dx, cz + dz));
+        if (!list) continue;
+        for (const j of list) {
           const d = this.dist(j, x, z);
           if (d > LEVEL_REACH * LEVEL_REACH) continue;
-          const k = picks.findIndex((p) => this.same_section(p, j));
-          if (k < 0) picks.push(j);
+          let k = 0;
+          while (k < n && !this.same_section(picks[k], j)) k++;
+          if (k === n) picks[n++] = j;
           else if (d < this.dist(picks[k], x, z)) picks[k] = j;
         }
-    return picks;
+      }
+    return n;
   }
 
   /**
@@ -130,11 +137,12 @@ export class DeckIndex {
    * `y`). The returned object is reused across calls.
    */
   surface(x: number, z: number, y?: number): DeckHit | null {
-    const picks = this.levels(x, z);
-    if (!picks) return this.probe(this.nearest(x, z), x, z, y);
+    const count = this.levels(x, z);
+    if (count < 0) return this.probe(this.nearest(x, z), x, z, y);
     let best = -1;
     let top = -Infinity;
-    for (const i of picks) {
+    for (let k = 0; k < count; k++) {
+      const i = this.picks[k];
       const hit = this.probe(i, x, z, y);
       if (hit && hit.y > top) [best, top] = [i, hit.y];
     }
@@ -146,7 +154,8 @@ export class DeckIndex {
   /** Centreline height of the lowest deck near the point: a car this far under every deck has fallen. */
   floor(x: number, z: number): number {
     let y = this.at(this.nearest(x, z), 1);
-    for (const i of this.levels(x, z) ?? []) y = Math.min(y, this.at(i, 1));
+    const count = this.levels(x, z);
+    for (let k = 0; k < count; k++) y = Math.min(y, this.at(this.picks[k], 1));
     return y;
   }
 

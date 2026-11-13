@@ -82,6 +82,16 @@ function grid_key(cx: number, cz: number) {
   return (cx + 1000) * 4096 + (cz + 1000);
 }
 
+/** Written in place by `circle_contact`, read before the next call. */
+const contact: Contact = { nx: 0, nz: 0, depth: 0 };
+
+function touch(nx: number, nz: number, depth: number): Contact {
+  contact.nx = nx;
+  contact.nz = nz;
+  contact.depth = depth;
+  return contact;
+}
+
 /** (bx, bz) is the way back out when the circle centre sits on the solid's own centre and has no direction to offer. */
 function circle_contact(solid: Solid, px: number, pz: number, radius: number, bx: number, bz: number): Contact | null {
   const ox = px - solid.x;
@@ -90,8 +100,8 @@ function circle_contact(solid: Solid, px: number, pz: number, radius: number, bx
     const d = Math.sqrt(ox * ox + oz * oz);
     const min = radius + solid.radius;
     if (d >= min) return null;
-    if (d < 1e-3) return { nx: bx, nz: bz, depth: min - d };
-    return { nx: ox / d, nz: oz / d, depth: min - d };
+    if (d < 1e-3) return touch(bx, bz, min - d);
+    return touch(ox / d, oz / d, min - d);
   }
   const { cos, sin, hw, hd } = solid;
   const lx = ox * cos - oz * sin;
@@ -118,7 +128,7 @@ function circle_contact(solid: Solid, px: number, pz: number, radius: number, bx
     nlz = Math.sign(lz) || 1;
     depth = hd - Math.abs(lz) + radius;
   }
-  return { nx: nlx * cos + nlz * sin, nz: -nlx * sin + nlz * cos, depth };
+  return touch(nlx * cos + nlz * sin, -nlx * sin + nlz * cos, depth);
 }
 
 function solid_reach(solid: Solid): number {
@@ -543,7 +553,12 @@ export class World implements Ground {
     let impact = 0;
     const fx = Math.sin(car.heading);
     const fz = Math.cos(car.heading);
-    for (const offset of spec.circles) for (const solid of this.near(pos.x + fx * offset, pos.z + fz * offset)) impact = Math.max(impact, this.hit(car, solid, offset, fx, fz));
+    const circles = spec.circles;
+    for (let c = 0; c < circles.length; c++) {
+      const offset = circles[c];
+      const count = this.near(pos.x + fx * offset, pos.z + fz * offset);
+      for (let i = 0; i < count; i++) impact = Math.max(impact, this.hit(car, this.nearby[i], offset, fx, fz));
+    }
     return impact;
   }
 
@@ -555,16 +570,20 @@ export class World implements Ground {
     for (const offset of spec.circles) {
       const px = pos.x + fx * offset;
       const pz = pos.z + fz * offset;
-      for (const solid of this.near(px, pz)) if (pos.y <= solid.y + solid.height && circle_contact(solid, px, pz, spec.radius + gap, fx, fz)) return solid;
+      const count = this.near(px, pz);
+      for (let i = 0; i < count; i++) {
+        const solid = this.nearby[i];
+        if (pos.y <= solid.y + solid.height && circle_contact(solid, px, pz, spec.radius + gap, fx, fz)) return solid;
+      }
     }
     return null;
   }
 
-  // Runs per collision circle every sim step, so it refills one array instead of allocating a list or a callback.
-  // Two passes keep baked solids ahead of placed ones, the order collisions resolve in.
-  private near(px: number, pz: number): readonly Solid[] {
+  // Runs per collision circle every sim step, so it overwrites `nearby` and returns its count: truncating an array to
+  // refill it frees its storage. Two passes keep baked solids ahead of placed ones, the order collisions resolve in.
+  private near(px: number, pz: number): number {
     const found = this.nearby;
-    found.length = 0;
+    let n = 0;
     const cx = Math.floor(px / SOLID_CELL);
     const cz = Math.floor(pz / SOLID_CELL);
     const stamp = ++this.query;
@@ -577,13 +596,13 @@ export class World implements Ground {
           if (index >= baked) break;
           if (this.seen[index] === stamp) continue;
           this.seen[index] = stamp;
-          found.push(this.solids[index]);
+          found[n++] = this.solids[index];
         }
       }
-    if (this.live === 0) return found;
-    const first = found.length;
+    if (this.live === 0) return n;
+    const first = n;
     const slots = this.nearby_slots;
-    slots.length = 0;
+    let placed = 0;
     for (let dz = -1; dz <= 1; dz++)
       for (let dx = -1; dx <= 1; dx++) {
         const list = this.solid_grid.get(grid_key(cx + dx, cz + dz));
@@ -592,9 +611,8 @@ export class World implements Ground {
           const solid = this.slots[index];
           if (index < baked || this.seen[index] === stamp || !solid) continue;
           this.seen[index] = stamp;
-          let at = slots.length;
-          slots.push(index);
-          found.push(solid);
+          let at = placed++;
+          n++;
           for (; at > 0 && this.placed_at[slots[at - 1]] > this.placed_at[index]; at--) {
             slots[at] = slots[at - 1];
             found[first + at] = found[first + at - 1];
@@ -603,7 +621,7 @@ export class World implements Ground {
           found[first + at] = solid;
         }
       }
-    return found;
+    return n;
   }
 
   private hit(car: Collider, solid: Solid, offset: number, fx: number, fz: number): number {
