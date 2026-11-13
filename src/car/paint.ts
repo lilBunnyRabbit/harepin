@@ -1,7 +1,7 @@
 import { MAX_PAINT } from "./build";
 import { car_paints, carbon, tier_metals } from "../theme/palette";
 import type { Lab } from "../theme/theme";
-import { WeavePattern, type Weave } from "./carbon";
+import type { Weave } from "./carbon";
 
 export interface Finish {
   metalness: number;
@@ -15,7 +15,7 @@ export interface Finish {
 // chase camera, where a sharp mirror only showed the dark floor.
 const METAL: Finish = { metalness: 0.85, roughness: 0.28, reflect: 2.6, weave: null };
 // A 2x2 twill in tows far wider than real ones: at chase distance a real tow is under a pixel and the weave fades to grey.
-const CARBON: Finish = { metalness: 0.1, roughness: 0.45, reflect: 0.9, weave: { pattern: WeavePattern.TWILL, tow: 0.07, sheen: 0.55, ...carbon } };
+const CARBON: Finish = { metalness: 0.1, roughness: 0.45, reflect: 0.9, weave: { tow: 0.07, sheen: 0.55, ...carbon } };
 interface RewardPaint {
   lab: Lab;
   finish: Finish;

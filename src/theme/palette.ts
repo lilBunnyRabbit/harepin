@@ -163,10 +163,11 @@ export const tones = {
 const CARBON_DROP = dark ? 0.04 : 0.18;
 // Dusk lights the car from ahead, so a darker thread sank into the resin on every face the chase camera sees.
 const CARBON_THREAD = 0.58;
+const LIGHT_CARBON_THREAD = 0.85;
 /** Legend's carbon: the resin between tows, and the tow catching light. */
 export const carbon = {
   base: lighten(dark ? brand.background_darkest : brand.foreground, -CARBON_DROP),
-  thread: dark ? mix(brand.foreground, brand.background_darkest, CARBON_THREAD) : mix(brand.foreground, brand.background_darkest, 0.85),
+  thread: dark ? mix(brand.foreground, brand.background_darkest, CARBON_THREAD) : mix(brand.foreground, brand.background_darkest, LIGHT_CARBON_THREAD),
 } as const;
 /** Career tier metals, Rookie bronze, Club silver, Pro gold, Elite platinum, Legend graphite (its carbon's tow): the start flags and the tier's rewards (career.md §1.4). */
 // Bronze sits darker than its orange mix, so it never reads as the orange race gates; a light theme's darkest background
