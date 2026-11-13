@@ -9,14 +9,16 @@ import OnlinePage from "./online/OnlinePage.svelte";
 import RoomPage from "./online/RoomPage.svelte";
 import SupportPage from "./SupportPage.svelte";
 import { svelte_page } from "./ui/svelte-page.svelte";
-import { MenuTab, type Menu, type MenuPage, type SettingsHost, type SettingsMenu } from "./page";
-import { DEFAULT_SETTINGS, type SettingKey, type SettingsState } from "./prefs";
+import { MenuTab, type Menu, type MenuPage, type SettingsHost } from "./page";
+import type { SettingKey, SettingsState } from "./prefs";
 import { mark_drive, read_saved, write_saved } from "./prefs-store";
 import { picture } from "./widgets";
-import { settings_sections } from "./settings-sections";
+import SettingsPage from "./settings-tab/SettingsPage.svelte";
+import { SettingsNav } from "./settings-tab/nav.svelte";
+import { CHANGES } from "./settings-tab/sections";
 import { PlayPage } from "./play-page";
 import { WorldPage } from "./world-page";
-import { Rows, el, icon, read, type RowHelp, type Text, type Value } from "./setting-rows";
+import { Rows, el, icon } from "./setting-rows";
 import { WorldKind } from "../worldgen/types";
 import { GoTo, GoalId } from "../goals/goals";
 import { mainland_seed, world_query } from "../world/world-pick";
@@ -25,15 +27,6 @@ import { warm_pick } from "./warm";
 import { UpdateChip } from "./update";
 import "./settings.css";
 import "./menu.css";
-
-interface SubPage {
-  label: string;
-  parent: string | null;
-  keys: readonly SettingKey[];
-  tab: HTMLButtonElement | null;
-  list: HTMLElement;
-  help: Text;
-}
 
 const MENU_TABS: [MenuTab, string][] = [
   [MenuTab.PLAY, "Play"],
@@ -49,9 +42,6 @@ const View = {
   GUIDE: "guide",
 } as const;
 type View = (typeof View)[keyof typeof View];
-
-/** The What's new page: a settings page with no section tab, opened from the version line. */
-const CHANGES = "changes";
 
 const STATUS_MS = 1000;
 
@@ -74,17 +64,9 @@ export class Settings {
   private timer = 0;
   private section: string = MenuTab.PLAY;
   private readonly rows = new Rows();
-  private readonly subs = new Map<string, SubPage>();
-  private sub = "graphics";
-  private help: RowHelp | null = null;
-  private readonly help_title = el("b", "set-help-title");
-  private readonly help_text = el("p", "set-help-text");
-  private readonly help_visual = el("div", "set-help-visual");
   private readonly menu: Menu;
   private readonly page_list: MenuPage[];
-  private readonly settings_menu: SettingsMenu;
-  /** The section being built: `value` records its keys, which Reset section puts back. */
-  private recording: SettingKey[] | null = null;
+  private readonly nav: SettingsNav;
   private readonly guide: Guide;
 
   constructor(
@@ -105,13 +87,10 @@ export class Settings {
       drive: (seed, kind, levels) => this.drive(seed, kind, levels),
       go: (query) => this.go(query),
     };
-    this.settings_menu = {
-      ...this.menu,
-      value: (key) => this.value(key),
-      show_sub: (id) => this.show_sub(id),
-      reload: (param) => this.reload(param),
-      redraw_help: () => this.render_help(),
-    };
+    this.nav = new SettingsNav(
+      (key, value) => this.set(key, value),
+      () => this.current,
+    );
     this.page_list = [
       new PlayPage(this.menu, (to) => this.go_to(to)),
       {
@@ -122,7 +101,7 @@ export class Settings {
         on_hide: () => host.show_garage(false),
       },
       svelte_page(this.menu, { id: MenuTab.ONLINE, label: "Online" }, OnlinePage),
-      { id: MenuTab.SETTINGS, label: "Settings", build: () => this.settings_page(), on_show: () => this.show_sub(this.sub) },
+      svelte_page(this.menu, { id: MenuTab.SETTINGS, label: "Settings" }, SettingsPage, { nav: this.nav, open_guide: () => this.open_guide() }),
       svelte_page(this.menu, { id: MenuTab.SUPPORT, label: "Support" }, SupportPage),
       new WorldPage(this.menu),
       new ModesPage(this.menu),
@@ -200,10 +179,9 @@ export class Settings {
 
   /** The menu, on Play unless a section is named. */
   open(section: string = MenuTab.PLAY) {
-    if (!this.pages.has(section)) this.build_page(MenuTab.SETTINGS);
-    if (this.subs.has(section)) {
+    if (this.nav.has(section)) {
       this.section = MenuTab.SETTINGS;
-      this.sub = section;
+      this.nav.show(section);
     } else if (this.pages.has(section)) this.section = section;
     if (this.is_open) return this.show(this.section);
     this.attach();
@@ -258,15 +236,15 @@ export class Settings {
   /** The open tab's page. */
   page(): HTMLElement {
     if (this.guide_open) return this.guide.panel;
-    if (this.section === MenuTab.SETTINGS) return this.subs.get(this.sub)?.list ?? this.body;
+    if (this.section === MenuTab.SETTINGS) return this.nav.list ?? this.body;
     return this.pages.get(this.section) ?? this.body;
   }
 
   /** One level up: a page or a settings section returns to its tab, a tab closes the menu. */
   back() {
     if (this.guide_open) return void this.guide.back();
-    const deep = this.section === MenuTab.SETTINGS ? this.subs.get(this.sub)?.parent : null;
-    if (deep) return this.show_sub(deep);
+    const deep = this.section === MenuTab.SETTINGS ? this.nav.parent() : null;
+    if (deep) return this.nav.show(deep);
     const parent = this.page_of(this.section)?.parent;
     if (parent) this.show(parent);
     else this.close();
@@ -286,13 +264,6 @@ export class Settings {
     write_saved(this.saved);
     this.refresh();
     this.on_change?.(this.current, key);
-  }
-
-  private reload(param: string) {
-    const params = new URLSearchParams(location.search);
-    params.delete(param);
-    const search = params.toString();
-    location.replace(`${location.pathname}${search ? `?${search}` : ""}${location.hash}`);
   }
 
   private build() {
@@ -457,156 +428,17 @@ export class Settings {
     location.search = `?${new URLSearchParams(query)}`;
   }
 
-  private value<K extends SettingKey>(key: K): Value<SettingsState[K]> {
-    if (this.recording && !this.recording.includes(key)) this.recording.push(key);
-    return { get: () => this.current[key], set: (value) => this.set(key, value) };
-  }
-
-  private settings_page(): HTMLElement[] {
-    const { sections, deep } = settings_sections(this.settings_menu);
-
-    const nav = el("nav", "set-nav");
-    nav.setAttribute("aria-label", "Settings sections");
-    const foot = el("div", "set-foot");
-    const changes = () => {
-      const button = el("button", "set-changes", "What's new");
-      button.type = "button";
-      button.dataset.sub = CHANGES;
-      return button;
-    };
-    const foot_changes = changes();
-    const guide = el("button", "set-changes", "Guide");
-    guide.type = "button";
-    guide.title = "The first-run guide, with your current choices";
-    guide.addEventListener("click", () => this.open_guide());
-    foot.append(el("span", "", `v${this.host.version}`), guide, foot_changes);
-
-    const back = el("button", "set-crumb");
-    back.type = "button";
-    back.dataset.action = "back";
-    const back_label = el("span");
-    back.append(icon("icon-back"), back_label);
-    const title = el("h3", "set-title");
-    const reset = el("button", "set-reset");
-    reset.type = "button";
-    reset.setAttribute("aria-label", "Reset section");
-    reset.append(icon("icon-restart"), el("span", "", "Reset section"));
-    reset.addEventListener("click", () => this.alt());
-    const head = el("div", "set-head");
-    head.append(back, title, changes(), reset);
-    const main = el("div", "set-main");
-    main.append(head);
-
-    for (const section of sections) {
-      const tab = el("button", "set-tab");
-      tab.type = "button";
-      tab.dataset.sub = section.id;
-      const summary = el("small");
-      this.syncs.push(() => (summary.textContent = section.summary()));
-      tab.append(icon(section.icon), el("b", "", section.label), summary);
-      nav.append(tab);
-      const keys: SettingKey[] = [];
-      this.recording = keys;
-      const list = this.sub_list(section.id, section.label, section.rows());
-      this.recording = null;
-      main.append(list);
-      this.subs.set(section.id, { label: section.label, parent: null, keys, tab, list, help: "" });
-    }
-    for (const page of deep) {
-      const list = this.sub_list(page.id, page.label, page.rows());
-      main.append(list);
-      this.subs.set(page.id, { label: page.label, parent: page.parent, keys: [], tab: null, list, help: page.help });
-    }
-    const changes_list = this.sub_list(CHANGES, "What's new", [this.host.changelog()]);
-    main.append(changes_list);
-    this.subs.set(CHANGES, { label: "What's new", parent: null, keys: [], tab: foot_changes, list: changes_list, help: "Every release, newest first." });
-    nav.append(foot);
-
-    const help = el("aside", "set-help");
-    help.setAttribute("aria-live", "polite");
-    help.append(this.help_title, this.help_text, this.help_visual);
-
-    const legend = el("div", "set-legend");
-    for (const [glyphs, text] of [
-      [["A"], "Select"],
-      [["B"], "Back"],
-      [["Y"], "Reset section"],
-      [["LT", "RT"], "Section"],
-      [["LB", "RB"], "Tab"],
-    ] as const) {
-      const hint = el("span");
-      for (const glyph of glyphs) hint.append(el("kbd", glyph.length === 1 ? "pad-glyph pad-face" : "pad-glyph", glyph));
-      hint.append(text);
-      legend.append(hint);
-    }
-
-    this.syncs.push(() => {
-      const sub = this.subs.get(this.sub);
-      const parent = sub?.parent ? this.subs.get(sub.parent) : null;
-      back.hidden = !parent;
-      back_label.textContent = parent?.label ?? "";
-      title.textContent = sub?.label ?? "";
-      reset.hidden = !sub?.keys.length;
-    });
-    this.rows.on_focus = (row_help) => {
-      this.help = row_help;
-      this.render_help();
-    };
-
-    const root = el("div", "set");
-    root.append(nav, main, help, legend);
-    return [root];
-  }
-
-  private sub_list(id: string, label: string, rows: HTMLElement[]): HTMLElement {
-    const list = el("section", "set-list");
-    list.dataset.sub = id;
-    list.setAttribute("aria-label", label);
-    list.hidden = true;
-    list.append(...rows);
-    return list;
-  }
-
-  private show_sub(id: string) {
-    const sub = this.subs.get(id);
-    if (!sub) return;
-    this.sub = id;
-    const top = sub.parent ?? id;
-    for (const [key, { tab, list }] of this.subs) {
-      list.hidden = key !== id;
-      tab?.setAttribute("aria-current", String(key === top));
-    }
-    sub.list.scrollTop = 0;
-    this.help = this.rows.help_of(sub.list.querySelector(".row")) ?? { title: sub.label, text: sub.help };
-    this.refresh();
-  }
-
   step_sub(step: number) {
-    if (this.section !== MenuTab.SETTINGS) return;
-    const tops = [...this.subs].filter(([id, sub]) => sub.parent === null && id !== CHANGES).map(([id]) => id);
-    const from = this.subs.get(this.sub)?.parent ?? this.sub;
-    this.show_sub(tops[(tops.indexOf(from) + step + tops.length) % tops.length]);
+    if (this.section === MenuTab.SETTINGS) this.nav.step(step);
   }
 
   alt() {
-    if (this.section !== MenuTab.SETTINGS) return;
-    const sub = this.subs.get(this.sub);
-    if (!sub) return;
-    for (const key of sub.keys) this.set(key, DEFAULT_SETTINGS[key]);
-  }
-
-  private render_help() {
-    const help = this.help;
-    this.help_title.textContent = help?.title ?? "";
-    this.help_text.textContent = help ? read(help.text) : "";
-    const visual = help?.visual?.() ?? null;
-    this.help_visual.replaceChildren(...(visual ? [visual] : []));
+    if (this.section === MenuTab.SETTINGS) this.nav.reset();
   }
 
   private refresh() {
     for (const sync of this.syncs) sync();
     this.rows.refresh();
-    this.render_help();
     this.root.toggleAttribute("data-pad", navigator.getGamepads().some((pad) => pad?.connected));
   }
 
@@ -617,7 +449,6 @@ export class Settings {
     if (!button) return;
     if (button.dataset.action === "close") return this.close();
     if (button.dataset.action === "back") return this.back();
-    if (button.dataset.sub) return this.show_sub(button.dataset.sub);
     const section = button.dataset.section;
     if (!section) return;
     this.show(section);

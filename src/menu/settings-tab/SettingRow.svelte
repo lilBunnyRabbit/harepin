@@ -9,6 +9,7 @@
     label: string;
     help: string | (() => string);
     line?: string;
+    detail?: Snippet;
     visual?: Snippet;
     adjust?: (by: number) => void;
     accept?: () => void;
@@ -22,7 +23,7 @@
     children?: Snippet;
   }
 
-  let { label, help, line, visual, adjust, accept, custom = false, hidden = false, stack = false, only, expanded, waiting = false, onleave, children }: Props = $props();
+  let { label, help, line, detail, visual, adjust, accept, custom = false, hidden = false, stack = false, only, expanded, waiting = false, onleave, children }: Props = $props();
 
   const nav = use_nav();
   const row_help: Help = {
@@ -37,10 +38,9 @@
 
   const control = (target: EventTarget | null) => target instanceof Element && target.closest("button, input, select, a, label, form") !== null;
 
-  // The row holds focus, not its controls, so the pad and arrow keys move row by row and left / right change the value.
+  // The row holds focus, not its controls (they take tabindex -1), so the pad and arrow keys move row by row and left / right change the value.
   const frame: Attachment<HTMLElement> = (node) => {
     nav.register(node, row_help);
-    if (!custom) for (const inner of node.querySelectorAll<HTMLElement>("button, input, select, a")) inner.tabIndex = -1;
     if (!adjust) return;
     const on = (event: Event) => adjust((event as CustomEvent<number>).detail);
     node.addEventListener(ADJUST_EVENT, on);
@@ -63,7 +63,6 @@
 <!-- svelte-ignore a11y_no_noninteractive_tabindex: the row is the focus stop the pad and arrow keys walk, its controls are click targets only -->
 <div
   class="set-row"
-  class:set-stack={stack}
   class:set-custom={custom}
   class:set-accept={accept !== undefined}
   data-set-row
@@ -80,7 +79,7 @@
   onfocusout={onleave}
   {@attach frame}
 >
-  <Row {label} help={line} control={children} />
+  <Row {label} help={line} {detail} {stack} control={children} />
 </div>
 
 <style>
@@ -111,10 +110,6 @@
     box-shadow: inset 0 0 0 1px var(--primary);
   }
 
-  .set-row :global(.ui-help) {
-    max-width: 56ch;
-  }
-
   @media (pointer: fine) {
     [data-only="touch"] {
       display: none;
@@ -124,21 +119,6 @@
   @media (pointer: coarse) {
     [data-only="desk"] {
       display: none;
-    }
-  }
-
-  @media (max-width: 600px) {
-    .set-stack :global(.ui-row) {
-      flex-wrap: wrap;
-      row-gap: var(--space-3);
-    }
-
-    .set-stack :global(.ui-control) {
-      flex: 1 0 100%;
-    }
-
-    .set-stack :global(.ui-control > *) {
-      flex: 1;
     }
   }
 </style>

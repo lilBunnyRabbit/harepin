@@ -25,7 +25,8 @@
   <span data-kind="pad">Gamepad</span>
 </div>
 {#each KEYS as [what, keyboard, pad, touch] (what)}
-  <SettingRow label={what} help={() => list_help(live.prefs.bindings)} line={touch ? `Touch: ${touch}` : undefined} stack>
+  {#snippet on_touch()}<span class="set-touch">Touch: {touch}</span>{/snippet}
+  <SettingRow label={what} help={() => list_help(live.prefs.bindings)} detail={touch ? on_touch : undefined} stack>
     <span class="set-keys-row">
       {@render cell(shown(keyboard, live.prefs.bindings), "keys")}
       {@render cell(shown(pad, live.prefs.bindings), "pad")}
@@ -82,7 +83,7 @@
   }
 
   @media (pointer: fine) {
-    .set-keys :global(.ui-help) {
+    .set-touch {
       display: none;
     }
   }

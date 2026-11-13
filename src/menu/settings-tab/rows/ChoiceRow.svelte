@@ -28,5 +28,5 @@
   adjust={(by) => onchange(options[Math.max(0, Math.min(options.length - 1, at + by))].value)}
   accept={() => onchange(options[(at + 1) % options.length].value)}
 >
-  <Segmented {options} {value} {label} {onchange} />
+  <Segmented {options} {value} {label} tabindex={-1} {onchange} />
 </SettingRow>

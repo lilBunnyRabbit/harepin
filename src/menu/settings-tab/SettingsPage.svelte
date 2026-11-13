@@ -58,6 +58,7 @@
         meta={summary(section.id, live.prefs, tier, theme)}
         icon={section.icon}
         size="sm"
+        variant="nav"
         selected={nav.top() === section.id}
         onclick={() => nav.show(section.id)}
       />
@@ -134,36 +135,6 @@
     overflow-y: auto;
     scrollbar-width: none;
     background: var(--set-well);
-  }
-
-  .set-nav > :global(.ui-tile) {
-    flex: none;
-    border-color: transparent;
-    background: none;
-  }
-
-  .set-nav > :global(.ui-tile:hover) {
-    background: color-mix(in oklch, var(--set-raised) 50%, transparent);
-  }
-
-  .set-nav > :global(.ui-tile[aria-pressed="true"]) {
-    border-color: var(--set-line);
-    background: var(--set-raised);
-  }
-
-  .set-nav :global(.ui-tile .ui-thumb) {
-    background: none;
-    color: var(--set-dim);
-  }
-
-  .set-nav :global(.ui-tile[aria-pressed="true"] .ui-thumb) {
-    color: var(--primary);
-  }
-
-  .set-nav :global(.ui-tile .ui-meta) {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
   .set-foot {
@@ -311,30 +282,6 @@
       padding: var(--space-2) var(--space-1);
     }
 
-    .set-nav > :global(.ui-tile) {
-      flex-direction: column;
-      justify-content: center;
-      gap: var(--space-1);
-      height: auto;
-      padding: var(--space-2) var(--space-1);
-    }
-
-    .set-nav :global(.ui-tile .ui-thumb) {
-      height: auto;
-      aspect-ratio: auto;
-    }
-
-    .set-nav :global(.ui-tile .ui-text) {
-      justify-items: center;
-      width: 100%;
-    }
-
-    .set-nav :global(.ui-tile .ui-title) {
-      max-width: 100%;
-      font-size: var(--text-xs);
-    }
-
-    .set-nav :global(.ui-tile .ui-meta),
     .set-version,
     .set-legend {
       display: none;

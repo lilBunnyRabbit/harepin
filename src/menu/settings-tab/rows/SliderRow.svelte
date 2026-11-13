@@ -19,7 +19,7 @@
 
 <SettingRow {label} {help} stack adjust={(by) => onchange(Math.max(min, Math.min(max, value + by * step)))} accept={() => {}}>
   <span class="set-slider">
-    <Slider {value} {min} {max} {step} {label} {disabled} format={(now) => `${Math.round(now)}${unit}`} {onchange} />
+    <Slider {value} {min} {max} {step} {label} {disabled} tabindex={-1} format={(now) => `${Math.round(now)}${unit}`} {onchange} />
   </span>
 </SettingRow>
 

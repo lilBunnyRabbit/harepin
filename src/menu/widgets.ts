@@ -24,12 +24,6 @@ export function action(label: string, run: (button: HTMLButtonElement) => void):
   return button;
 }
 
-export function stat(label: string, value: string): HTMLElement {
-  const node = el("span", "settings-stat");
-  node.append(el("span", "", label), el("b", "", value));
-  return node;
-}
-
 export function copy_action(label: string, link: string): HTMLButtonElement {
   return action(label, async (button) => {
     try {

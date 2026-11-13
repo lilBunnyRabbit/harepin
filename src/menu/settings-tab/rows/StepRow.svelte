@@ -26,7 +26,7 @@
 <SettingRow {label} {help} {visual} adjust={step} accept={accept ?? (() => step(1))}>
   <span class="set-step">
     {@render children?.()}
-    <Stepper {options} {value} {label} {onchange} />
+    <Stepper {options} {value} {label} wrap max_dots={8} tabindex={-1} {onchange} />
   </span>
 </SettingRow>
 
