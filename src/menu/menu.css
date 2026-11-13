@@ -241,6 +241,27 @@
   }
 }
 
+.settings .menu-sponsor {
+  gap: var(--space-2);
+  height: var(--control-h);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--secondary);
+  background: color-mix(in oklch, var(--secondary) 18%, var(--set-panel));
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.settings .menu-sponsor:hover {
+  background: color-mix(in oklch, var(--secondary) 30%, var(--set-panel));
+}
+
+.menu-sponsor svg {
+  flex: none;
+  width: var(--icon-size);
+  height: var(--icon-size);
+  color: var(--secondary);
+}
+
 .settings .menu-close {
   width: var(--control-h);
   height: var(--control-h);

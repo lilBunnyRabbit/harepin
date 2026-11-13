@@ -283,7 +283,12 @@ export class Settings {
     leave.setAttribute("aria-label", "Back to driving");
     leave.title = "Back to driving (Esc)";
     leave.append(icon("icon-close"));
-    top.append(brand, name_chip, update_chip.root, room, leave);
+    const sponsor = el("button", "menu-chip menu-sponsor");
+    sponsor.type = "button";
+    sponsor.dataset.section = MenuTab.SUPPORT;
+    sponsor.title = "Like Harepin? Chip in if you want to";
+    sponsor.append(icon("icon-heart"), el("span", "", "Sponsor"));
+    top.append(brand, name_chip, update_chip.root, room, sponsor, leave);
 
     const menu_nav = el("nav", "menu-tabs");
     menu_nav.setAttribute("aria-label", "Menu");
