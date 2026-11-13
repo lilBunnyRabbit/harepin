@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { DECALS, MAX_PAINT, REWARD_PAINTS } from "../car/build";
 import { TIERS, tier_stars, type Stars } from "./career";
-import { NO_UNLOCKS, REWARD_DECALS, badge_text, earned, reward_paint_name, unlocks } from "./rewards";
+import { NO_UNLOCKS, REWARD_CARS, REWARD_DECALS, badge_text, earned, garage_reward, reward_paint_name, unlocks } from "./rewards";
 
 const [rookie, , , elite, legend] = TIERS;
 const with_stars = (...picks: [string, number][]): Stars => Object.fromEntries(picks);
@@ -73,5 +73,13 @@ test("Legend opens its paint at its own paint stars and its velodrome decal and 
   expect(unlocks({ ...full, l1: 2 }).decals).not.toContain(DECALS.indexOf("velodrome"));
   expect(unlocks(full).decals).toContain(DECALS.indexOf("velodrome"));
   expect(unlocks(full).badge).toBe(5);
-  expect(earned({}, full, legend).map((reward) => reward.kind)).toEqual(["paint", "decal", "badge"]);
+  expect(earned({}, full, legend).map((reward) => reward.kind)).toEqual(["car", "paint", "decal", "badge"]);
+});
+
+test("Legend's car comes with its badge: a star on the final, not every star", () => {
+  const final = legend.events.find((event) => event.final)!;
+  expect(REWARD_CARS).toEqual(["fujin"]);
+  expect(unlocks(with_stars(...all_of(legend, 3).filter(([id]) => id !== final.id))).cars).toEqual([]);
+  expect(unlocks(with_stars([final.id, 1])).cars).toEqual(["fujin"]);
+  expect(garage_reward(earned({}, with_stars([final.id, 1]), legend))?.kind).toBe("car");
 });

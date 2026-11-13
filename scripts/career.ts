@@ -2,6 +2,7 @@ import "./fake-dom";
 import { mkdirSync, writeFileSync } from "node:fs";
 
 const { EVENTS, ghost_path, spot_of, tier_of } = await import("../src/career/career");
+const { REWARD_CARS } = await import("../src/career/rewards");
 const { DEFAULT_BUILD, DEFAULT_PARTS, SLOTS, SLOT_NAMES, build_code, build_spec, parse_build } = await import("../src/car/build");
 const { within } = await import("../src/car/car-pick");
 const { CARS } = await import("../src/car/cars");
@@ -81,8 +82,9 @@ function cars_for(event: CareerEvent, excludes: readonly string[] = []): { label
     const build = parse_build(PRESETS.find((p) => p.name === car.preset)?.code);
     return build ? [{ label: car.preset, build }] : [];
   }
-  const bodies = Object.keys(CARS).flatMap((id) => {
-    const build = capped({ ...DEFAULT_BUILD, car: id as Build["car"], parts: { ...DEFAULT_PARTS } }, car.cap);
+  // A car the career gives is in no garage while its stars are still being earned, so it sets no marks.
+  const bodies = (Object.keys(CARS) as Build["car"][]).filter((id) => !REWARD_CARS.includes(id)).flatMap((id) => {
+    const build = capped({ ...DEFAULT_BUILD, car: id, parts: { ...DEFAULT_PARTS } }, car.cap);
     return build ? [{ label: `${id} ${rating(build).pi}`, build }] : [];
   });
   const presets = PRESETS.flatMap((p) => {

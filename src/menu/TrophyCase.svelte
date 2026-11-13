@@ -9,7 +9,7 @@
 
   let { views }: Props = $props();
 
-  const KINDS: readonly RewardKind[] = ["paint", "decal", "badge"];
+  const KINDS: readonly RewardKind[] = ["paint", "decal", "badge", "car"];
 </script>
 
 <section class="tc-case" aria-label="Trophy case">

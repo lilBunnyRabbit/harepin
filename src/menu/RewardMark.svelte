@@ -26,6 +26,8 @@
     <i class="garage-swatch" data-metal={weave ? undefined : true} data-carbon={weave ? true : undefined} style:--swatch={rgba(lab)} style:--swatch-base={weave ? rgba(weave.base) : undefined}></i>
   {:else if reward.kind === "decal" && reward.decal}
     <span class="rw-decal" style:--decal-paint={rgba(lab)} style:--decal-ink={rgba(metal_ink(lab))} style:--decal-mark={rgba(metal_ink(lab))} style:--decal-glass="var(--background-darkest)"><DecalTile decal={reward.decal} number={7} /></span>
+  {:else if reward.kind === "car"}
+    <span class="rw-car"><Icon name="icon-car" /></span>
   {:else}
     <span class="rw-badge"><TierBadge tier={(index + 1) as TierId} decorative /></span>
   {/if}
@@ -56,6 +58,11 @@
   .rw-badge {
     display: flex;
     font-size: calc(var(--mark) * 0.5);
+  }
+
+  .rw-car {
+    --icon-size: calc(var(--mark) * 0.6);
+    display: flex;
   }
 
   .rw-lock {

@@ -1,5 +1,7 @@
 import { DECAL_NAMES } from "../car/build";
+import { CARS } from "../car/cars";
 import { paint_lab } from "../car/paint";
+import { icon } from "../menu/dom";
 import { decal_tile } from "../menu/garage-widgets";
 import type { TierBadge } from "../net/net";
 import { rgba } from "../theme/palette";
@@ -9,12 +11,13 @@ import { metal_ink } from "./marker-view";
 import { badge_text, reward_paint_name, type Reward } from "./rewards";
 import "./unlock-card.css";
 
-const KIND_LABEL: Record<Reward["kind"], string> = { paint: "Paint", decal: "Decal", badge: "Badge" };
+const KIND_LABEL: Record<Reward["kind"], string> = { car: "Car", paint: "Paint", decal: "Decal", badge: "Badge" };
 
 function look(reward: Reward): Element {
   const { tier } = reward;
   if (reward.kind === "badge") return tier_badge((TIERS.indexOf(tier) + 1) as TierBadge);
   if (reward.kind === "decal") return decal_tile(tier.rewards.decal ?? "none");
+  if (reward.kind === "car") return icon("icon-car");
   const swatch = document.createElement("i");
   swatch.className = "garage-swatch";
   swatch.dataset.metal = "";
@@ -24,6 +27,7 @@ function look(reward: Reward): Element {
 
 function title(reward: Reward): string {
   const { tier } = reward;
+  if (reward.kind === "car") return tier.rewards.car ? CARS[tier.rewards.car].name : "";
   if (reward.kind === "paint") return reward_paint_name(tier);
   if (reward.kind === "decal") return DECAL_NAMES[tier.rewards.decal ?? "none"];
   return badge_text((TIERS.indexOf(tier) + 1) as TierBadge);

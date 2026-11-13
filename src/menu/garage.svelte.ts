@@ -6,7 +6,7 @@ import { PRESETS } from "../car/presets";
 import { NO_UNLOCKS, type Reward, type Unlocks } from "../career/rewards";
 import { modal_open, typing, type Nav } from "../hud/input";
 import { save_build } from "./garage-builds";
-import { BUILDS_TAB, TABS, type Item } from "./garage-items";
+import { BUILDS_TAB, TABS, car_value, type Item } from "./garage-items";
 import { GarageStage } from "./garage-stage";
 import { strip_key } from "./garage-strip-key";
 
@@ -121,7 +121,8 @@ export class Garage {
     this.relist++;
     const paint = reward.kind === "paint";
     const section = paint ? "paint" : "body";
-    const value = paint ? reward.tier.rewards.paint : DECALS.indexOf(reward.tier.rewards.decal ?? "none");
+    const { rewards } = reward.tier;
+    const value = paint ? rewards.paint : reward.kind === "car" ? car_value(rewards.car) : DECALS.indexOf(rewards.decal ?? "none");
     this.tab = TABS.findIndex((tab) => tab.section === section);
     const item = this.items.find((it) => it.id === reward.kind);
     if (item) {

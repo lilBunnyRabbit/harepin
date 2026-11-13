@@ -50,6 +50,11 @@
   width: 64px;
 }
 
+.unlock-card li > svg {
+  width: var(--text-2xl);
+  height: var(--text-2xl);
+}
+
 .unlock-card .career-badge {
   font-size: var(--text-2xl);
 }

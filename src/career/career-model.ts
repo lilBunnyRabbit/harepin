@@ -1,6 +1,7 @@
 import { DECAL_NAMES, type Decal } from "../car/build";
+import { CARS } from "../car/cars";
 import { MAX_EVENT_STARS, TIERS, current_tier, suggested, tier_max, tier_open, tier_stars, type CareerEvent, type Stars, type Tier } from "./career";
-import { badge_open, badge_text, decal_open, paint_open, reward_paint_name, type RewardKind } from "./rewards";
+import { badge_open, badge_text, car_open, decal_open, paint_open, reward_paint_name, type RewardKind } from "./rewards";
 import type { TierBadge } from "../net/net";
 
 export type TierState = "passed" | "current" | "locked";
@@ -10,7 +11,7 @@ export interface RewardView {
   name: string;
   how: string;
   got: boolean;
-  /** Stars still missing; null for the badge, which the final wins. */
+  /** Stars still missing; null for the badge and the car, which the final wins. */
   need: number | null;
   decal?: Decal;
 }
@@ -47,7 +48,7 @@ export const GOALS = 3;
 
 // The final waits behind the near star goals, so a fresh career opens on its first event and not the tier's hardest; the
 // decal (every star in the tier) is the farthest of all.
-const GOAL_ORDER: Record<GoalKind, number> = { gate: 0, paint: 0, badge: 1, decal: 2, chase: 3 };
+const GOAL_ORDER: Record<GoalKind, number> = { gate: 0, paint: 0, badge: 1, car: 1, decal: 2, chase: 3 };
 
 function rewards_of(stars: Stars, tier: Tier, have: number, max: number, final: CareerEvent | null): RewardView[] {
   const list: RewardView[] = [
@@ -56,7 +57,10 @@ function rewards_of(stars: Stars, tier: Tier, have: number, max: number, final: 
   const { decal } = tier.rewards;
   if (decal) list.push({ kind: "decal", name: `${DECAL_NAMES[decal]} decal`, how: `All ${max} ★`, got: decal_open(stars, tier), need: max - have, decal });
   const badge = badge_text((TIERS.indexOf(tier) + 1) as TierBadge);
-  list.push({ kind: "badge", name: badge, how: final ? `Win ${final.name}` : "Win the final", got: badge_open(stars, tier), need: null });
+  const how = final ? `Win ${final.name}` : "Win the final";
+  list.push({ kind: "badge", name: badge, how, got: badge_open(stars, tier), need: null });
+  const { car } = tier.rewards;
+  if (car) list.push({ kind: "car", name: CARS[car].name, how, got: car_open(stars, tier), need: null });
   return list;
 }
 
@@ -95,7 +99,8 @@ function reward_goals(view: TierView): Goal[] {
   const list: Goal[] = [];
   const { tier, have } = view;
   for (const reward of view.rewards) {
-    if (reward.got) continue;
+    // The car comes with the badge, so the badge's goal on the final already stands for it.
+    if (reward.got || reward.kind === "car") continue;
     if (reward.need === null) list.push({ key: `badge:${tier.id}`, kind: "badge", title: `${reward.name} badge`, detail: reward.how, need: 1, have: 0, of: 1, event: view.final, reward, view });
     else list.push({ key: `${reward.kind}:${tier.id}`, kind: reward.kind, title: reward.name, detail: `${reward.need} more ★ in ${tier.name}`, need: reward.need, have, of: have + reward.need, event: null, reward, view });
   }

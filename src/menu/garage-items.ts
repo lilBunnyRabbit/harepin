@@ -1,7 +1,7 @@
 import { DECALS, DECAL_NAMES, MAX_NUMBER, MAX_PAINT, SLOTS, SLOT_NAMES, WHOLE_CAR, part_of, slot_view, type Build, type Decal, type Slot, type SlotView } from "../car/build";
-import { CARS, is_car } from "../car/cars";
+import { CARS, is_car, type CarId } from "../car/cars";
 import { TIERS } from "../career/career";
-import { REWARD_DECALS, reward_paint_name, type Unlocks } from "../career/rewards";
+import { REWARD_CARS, REWARD_DECALS, reward_paint_name, type Unlocks } from "../career/rewards";
 import { NEUTRAL_INKS, car_paints, decal_inks } from "../theme/palette";
 
 const SIDE_VIEW: SlotView = { yaw: -0.87 };
@@ -42,25 +42,34 @@ const part_item = (slot: Slot): Item => ({
 const PART_ITEMS = new Map(SLOT_NAMES.map((slot) => [slot, part_item(slot)]));
 const part_items = (slots: readonly Slot[]) => slots.flatMap((slot) => PART_ITEMS.get(slot) ?? []);
 
-const CAR_ITEM: Item = {
-  id: "car",
-  label: "Car",
-  kind: "car",
-  view: WHOLE_CAR,
-  count: CAR_IDS.length,
-  at: (b) => CAR_IDS.indexOf(b.car),
-  with: (b, i) => ({ ...b, car: CAR_IDS[i] }),
-  name: (i) => CARS[CAR_IDS[i]].name,
-  blurb: (i) => {
-    const spec = CARS[CAR_IDS[i]];
-    return `${spec.drive.toUpperCase()} · ${Math.round(spec.mass)} kg`;
-  },
-};
-
 // Rewards not earned yet stay off the strip; one a loaded build code already wears stays on it.
-function listed(base: readonly number[], earned: readonly number[], fitted: number): number[] {
+function listed<T>(base: readonly T[], earned: readonly T[], fitted: T): T[] {
   const values = [...base, ...earned];
   return values.includes(fitted) ? values : [...values, fitted];
+}
+
+/** The car item's build value for a car: what its `values` hold. */
+export const car_value = (id: CarId | undefined) => (id ? CAR_IDS.indexOf(id) : -1);
+
+const PLAIN_CARS = CAR_IDS.filter((id) => !REWARD_CARS.includes(id));
+
+function car_item(build: Build, unlocks: Unlocks): Item {
+  const cars = listed(PLAIN_CARS, unlocks.cars, build.car);
+  return {
+    id: "car",
+    label: "Car",
+    kind: "car",
+    view: WHOLE_CAR,
+    count: cars.length,
+    values: cars.map(car_value),
+    at: (b) => cars.indexOf(b.car),
+    with: (b, i) => ({ ...b, car: cars[i] }),
+    name: (i) => CARS[cars[i]].name,
+    blurb: (i) => {
+      const spec = CARS[cars[i]];
+      return `${spec.drive.toUpperCase()} · ${Math.round(spec.mass)} kg`;
+    },
+  };
 }
 
 const PLAIN_DECALS = DECALS.map((_, i) => i).filter((i) => !REWARD_DECALS.includes(i));
@@ -143,7 +152,7 @@ interface Tab {
 }
 
 export const TABS: Tab[] = [
-  { section: GarageSection.BODY, label: "Body", items: (b, u) => [CAR_ITEM, ...part_items(BODY_SLOTS), decal_item(b, u), ...(DECALS[b.decal] === "number" ? [NUMBER_ITEM] : [])] },
+  { section: GarageSection.BODY, label: "Body", items: (b, u) => [car_item(b, u),...part_items(BODY_SLOTS), decal_item(b, u), ...(DECALS[b.decal] === "number" ? [NUMBER_ITEM] : [])] },
   { section: GarageSection.PERFORMANCE, label: "Performance", items: () => part_items(SLOT_NAMES.filter((slot) => !BODY_SLOTS.includes(slot))) },
   { section: GarageSection.PAINT, label: "Paint", items: (b, u) => [paint_item(b, u), ...(DECALS[b.decal] === "none" ? [] : [INK_ITEM])] },
   { section: GarageSection.BUILDS, label: "My builds", items: () => [] },
