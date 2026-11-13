@@ -1,0 +1,52 @@
+name: Bug
+description: Something broke, glitched or doesn't work like it should.
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for reporting. The more exact the steps, the faster I can fix it.
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to get it again
+      placeholder: |
+        1. Drive to ...
+        2. Press ...
+        3. See ...
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Filled in when you open this from the game's Support tab. Otherwise it's at the bottom of Settings.
+      placeholder: "0.36.0"
+  - type: input
+    id: device
+    attributes:
+      label: Device and browser
+      placeholder: "Windows, Chrome 131"
+  - type: input
+    id: input
+    attributes:
+      label: Input
+      description: Keyboard, controller or touch.
+      placeholder: "keyboard"
+  - type: input
+    id: map
+    attributes:
+      label: Map
+      description: The map code, or the world and seed.
+      placeholder: "island 1"
+  - type: input
+    id: graphics
+    attributes:
+      label: Graphics tier
+      description: High, medium or low (Settings, Graphics).
+      placeholder: "high"
