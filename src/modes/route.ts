@@ -29,18 +29,9 @@ export function bend(road: readonly RoutePoint[], start: number, count: number):
 }
 
 export function bendiest(road: readonly RoutePoint[], count: number, keep: number, stride = 8): number[] {
-  return ranked(road, count, keep, stride, -1);
-}
-
-/** The inverse of `bendiest`: the starts of the `keep` least-turning stretches of `count` points, none overlapping. */
-export function straightest(road: readonly RoutePoint[], count: number, keep: number, stride = 8): number[] {
-  return ranked(road, count, keep, stride, 1);
-}
-
-function ranked(road: readonly RoutePoint[], count: number, keep: number, stride: number, order: 1 | -1): number[] {
   const scored: [number, number][] = [];
   for (let start = 0; start < road.length; start += stride) scored.push([start, bend(road, start, count)]);
-  scored.sort((a, b) => order * (a[1] - b[1]));
+  scored.sort((a, b) => b[1] - a[1]);
   const picked: number[] = [];
   const apart = (a: number, b: number) => {
     const d = Math.abs(a - b) % road.length;
@@ -51,6 +42,36 @@ function ranked(road: readonly RoutePoint[], count: number, keep: number, stride
     if (picked.length >= keep) break;
   }
   return picked;
+}
+
+/** Turn per metre past which a straight ends: a bend tighter than about 70 m of radius. */
+const STRAIGHT_TURN = 0.015;
+
+export interface Straight {
+  from: number;
+  to: number;
+  /** Metres. */
+  length: number;
+}
+
+/** The inverse of `bendiest`: every straight of an open run of points, the longest first, measured in metres. */
+export function straights(line: readonly RoutePoint[]): Straight[] {
+  const found: Straight[] = [];
+  let from = 0;
+  let length = 0;
+  for (let i = 1; i < line.length; i++) {
+    const a = line[i - 1];
+    const b = line[i];
+    const step = Math.hypot(b.x - a.x, b.z - a.z);
+    const turn = Math.abs(wrap(Math.atan2(b.tx, b.tz) - Math.atan2(a.tx, a.tz)));
+    if (step > 0 && turn / step > STRAIGHT_TURN) {
+      if (i - 1 > from) found.push({ from, to: i - 1, length });
+      from = i;
+      length = 0;
+    } else length += step;
+  }
+  if (line.length - 1 > from) found.push({ from, to: line.length - 1, length });
+  return found.sort((a, b) => b.length - a.length);
 }
 
 // Searches only near the last point, so a stretch of road that doubles back past the car never steals the match.

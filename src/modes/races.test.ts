@@ -1,7 +1,8 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
 import type { Route } from "../worldgen/types";
-import { GATE_REACH, RaceRun, RaceStatus, TRAP_SPAN, TrapRun, gate_shown, race_choices, race_course, race_levels, trap_points } from "./races";
+import { straights } from "./route";
+import { GATE_REACH, RaceRun, RaceStatus, TRAP_CLEAR, TrapRun, gate_shown, race_choices, race_course, race_levels, trap_points } from "./races";
 
 const N = 1000;
 const POINTS = Array.from({ length: N }, (_, i) => {
@@ -105,13 +106,13 @@ test("speed trap: a level on the circuit after every race, on compact worlds onl
   expect(race_choices([{ id: "circuit", length: 4500, closed: true }]).map((c) => c.id)).toEqual(["circuit"]);
 });
 
-// Straight, then a long steady bend, then straight again: the traps sit at the far end of the straights.
-function bent(n = 600) {
+// Three straights of 200, 200 and 100 points joined by two tight half turns.
+function bent() {
   const road = [];
   let x = 0;
   let z = 0;
-  for (let i = 0; i < n; i++) {
-    const heading = i < 200 ? 0 : i < 400 ? ((i - 200) / 200) * Math.PI : Math.PI;
+  for (let i = 0; i < 600; i++) {
+    const heading = i < 200 ? 0 : i < 250 ? ((i - 200) / 50) * Math.PI : i < 450 ? Math.PI : i < 500 ? Math.PI + ((i - 450) / 50) * Math.PI : 0;
     const tx = Math.sin(heading);
     const tz = Math.cos(heading);
     road.push({ x, z, tx, tz });
@@ -121,17 +122,19 @@ function bent(n = 600) {
   return road;
 }
 
-test("speed trap: traps at the end of the longest straights, in order, clear of the start and finish", () => {
+test("speed trap: one trap at the far end of each of the longest straights, in order", () => {
   const line = bent();
-  const at = trap_points(line);
-  expect(at.length).toBe(3);
-  expect(at).toEqual([...at].sort((a, b) => a - b));
-  for (const i of at) {
-    expect(i).toBeGreaterThan(25);
-    expect(i).toBeLessThan(line.length - 1);
-    const start = i - TRAP_SPAN + 1;
-    expect(start < 200 - TRAP_SPAN || start >= 400).toBe(true);
-  }
+  expect(straights(line).map((s) => [s.from, s.to])).toEqual([
+    [0, 200],
+    [250, 450],
+    [500, 599],
+  ]);
+  expect(trap_points(line, [])).toEqual([200, 450, 599 - TRAP_CLEAR]);
+  expect(trap_points(line, [], 2)).toEqual([200, 450]);
+});
+
+test("speed trap: a trap on a gate moves back up the straight, off the gate's band", () => {
+  expect(trap_points(bent(), [150, 451, 599])).toEqual([200, 451 - TRAP_CLEAR, 599 - TRAP_CLEAR]);
 });
 
 test("speed trap: km/h through each trap adds up; one passed wide or skipped scores 0", () => {
@@ -150,11 +153,12 @@ test("speed trap: km/h through each trap adds up; one passed wide or skipped sco
 test("speed trap: the course still needs its finish, the traps ride along", () => {
   const course = race_course(route(true));
   const run = new RaceRun(course, 0);
-  const traps = new TrapRun(trap_points(course.line), course.route.gate_hw);
+  const traps = new TrapRun(trap_points(course.line, course.gates), course.route.gate_hw);
   for (const p of course.line) {
     run.update(100, p.x, p.z);
     traps.update(run.tracker.index, run.tracker.offset, 50);
   }
   expect(run.status).toBe(RaceStatus.DONE);
-  expect(traps.kmh).toEqual([180, 180, 180]);
+  expect(traps.at.length).toBeGreaterThan(0);
+  expect(traps.kmh).toEqual(traps.at.map(() => 180));
 });

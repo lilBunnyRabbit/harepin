@@ -33,7 +33,7 @@ class Race implements ModeRun {
     private readonly level: RaceLevel,
     course: RaceCourse,
   ) {
-    this.traps = level.trap ? new TrapRun(trap_points(course.line), course.route.gate_hw) : null;
+    this.traps = level.trap ? new TrapRun(trap_points(course.line, course.gates), course.route.gate_hw) : null;
     this.view = new RaceView(course, ctx.ground, this.traps?.at);
     ctx.scene.add(this.view.root);
     this.unplace = ctx.world.place(course.route.closure);
@@ -150,7 +150,8 @@ class Race implements ModeRun {
     const three = traps.at.length * TRAP_KMH;
     const marks = this.ctx.thresholds({ two: Math.round(three / SILVER_SHARE), three });
     const score = traps.total;
-    const stars = drift_stars(score, { silver: marks.two, gold: marks.three });
+    // The finish is the run: crossing it is a star even with every trap missed.
+    const stars = Math.max(1, drift_stars(score, { silver: marks.two, gold: marks.three }));
     const recorded = track.record(level.id, { stars, ms, score });
     this.result = {
       title: result_title(level.name, recorded),

@@ -1,5 +1,5 @@
 import type { Route } from "../worldgen/types";
-import { RouteTracker, straightest, type RoutePoint } from "./route";
+import { RouteTracker, straights, type RoutePoint } from "./route";
 import { stars_for } from "./track";
 
 /** Route points past its gate a car may get and still take it; past that the gate was skipped. */
@@ -158,18 +158,22 @@ export function gate_shown(i: number, next: number, count: number, closed: boole
 }
 
 export const TRAPS = 3;
-/** Route points of straight a trap sits at the end of. */
-export const TRAP_SPAN = 40;
 /** Route points from the start line kept clear of traps: a standing start is no speed run. */
 const TRAP_FROM = 25;
+/** Route points a trap keeps off a gate, so the two bands never lie on one another. */
+export const TRAP_CLEAR = 4;
 const KMH = 3.6;
 
-/** Line indices of the speed traps, in driving order: the far end of each of the line's longest straights. */
-export function trap_points(line: readonly RoutePoint[], count = TRAPS, span = TRAP_SPAN): number[] {
-  return straightest(line, span, line.length, 4)
-    .filter((start) => start >= TRAP_FROM && start + span < line.length - 1)
+/** Line indices of the speed traps, in driving order: the far end of each of the line's longest straights, off its gates. */
+export function trap_points(line: readonly RoutePoint[], gates: readonly number[], count = TRAPS): number[] {
+  return straights(line)
+    .filter(({ from, to }) => to >= TRAP_FROM && from < line.length - 1 - TRAP_CLEAR)
     .slice(0, count)
-    .map((start) => start + span - 1)
+    .map(({ from, to }) => {
+      let at = Math.min(to, line.length - 1 - TRAP_CLEAR);
+      for (const gate of gates) if (Math.abs(gate - at) < TRAP_CLEAR) at = gate - TRAP_CLEAR;
+      return Math.max(from, at);
+    })
     .sort((a, b) => a - b);
 }
 
