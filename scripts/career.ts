@@ -34,6 +34,8 @@ type TileMesher = import("../src/worldgen/tile-mesher").TileMesher;
 // replaces it. The ghost is the slowest drive that still makes three stars, so it shows the pace a 3-star run needs. Prints each event's `stars` and `tuned` to paste into career.ts.
 // `bun scripts/career.ts [ids…] [--write]`: --write saves the ghosts to public/career/.
 const RUNS = 5;
+// Cars added after the marks were set: their drives would join the fields and move the medians every star is graded on.
+const LATER_CARS: readonly string[] = ["tsumuji"];
 const DUEL_SILVER = 1.1;
 const WRITE = process.argv.includes("--write");
 const ONLY = process.argv.slice(2).filter((a) => !a.startsWith("--"));
@@ -93,7 +95,7 @@ function cars_for(event: CareerEvent, excludes: readonly string[] = []): { label
   });
   return [...bodies, ...presets]
     .map((entry) => ({ ...entry, pi: rating(entry.build).pi, class: rating(entry.build).class }))
-    .filter((entry) => within(entry.class, car.cap) && !excludes.includes(entry.build.car))
+    .filter((entry) => within(entry.class, car.cap) && !excludes.includes(entry.build.car) && !LATER_CARS.includes(entry.build.car))
     .sort((a, b) => b.pi - a.pi)
     .filter((entry, i, all) => all.findIndex((other) => build_code(other.build) === build_code(entry.build)) === i)
     .slice(0, RUNS);
