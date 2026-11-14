@@ -37,3 +37,27 @@ test("lights switch the headlamp glow, swing pop-up pods and leave the tail lamp
   expect(pods?.pivot.rotation.x).toBe(0);
   dispose_car_view(view);
 });
+
+test("suspension arms swing so their outer end rides with the wheel, and sit as drawn at rest", async () => {
+  const THREE = await import("three");
+  const { build_view, dispose_car_view, rest_wheels, sync_car_view } = await import("./models");
+  const { Car, rest_reach } = await import("./car");
+  const spec = CARS.sajin;
+  const view = build_view({ ...DEFAULT_BUILD, car: "sajin" }, spec);
+  const car = new Car(spec);
+  const lift = [0.12, -0.05, 0.2, 0];
+  car.wheels.forEach((w, i) => (w.reach = rest_reach(spec) - lift[i]));
+  sync_car_view(view, car);
+  const end = new THREE.Vector3();
+  view.arms.forEach((arm, i) => {
+    expect(arm).not.toBeNull();
+    if (!arm) return;
+    const [x, , z] = spec.wheel.mounts[i];
+    end.set(x - arm.group.position.x, 0, z - arm.group.position.z).applyQuaternion(arm.group.quaternion);
+    expect(end.y).toBeCloseTo(lift[i], 6);
+  });
+  rest_wheels(view, spec);
+  for (const arm of view.arms) expect(arm?.group.quaternion.w).toBe(1);
+  dispose_car_view(view);
+  expect(build_view(DEFAULT_BUILD).arms.every((arm) => arm === null)).toBe(true);
+});
