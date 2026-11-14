@@ -1,5 +1,6 @@
 import type { EngineSound } from "../car/cars";
 import engine_worklet from "./engine.worklet.ts?worker&url";
+import { NITRO, rush_target, type RushTarget } from "./nitro-sound";
 
 export interface SoundFrame {
   rpm: number;
@@ -50,8 +51,10 @@ export class Audio {
   private wind: GainNode | null = null;
   private wind_filter: BiquadFilterNode | null = null;
   private gravel: GainNode | null = null;
-  private hiss: GainNode | null = null;
-  private boosting = false;
+  private rush: GainNode | null = null;
+  private boost_since: number | null = null;
+  private last_whoosh = -Infinity;
+  private readonly rush_aim: RushTarget = { level: 0, tau: 1 };
   private last_rpm = 0;
 
   private gain(): number {
@@ -149,12 +152,13 @@ export class Audio {
     this.gravel.gain.value = 0;
     looped(ctx, this.noise).connect(rumble).connect(this.gravel).connect(master);
 
-    const hiss_tone = ctx.createBiquadFilter();
-    hiss_tone.type = "highpass";
-    hiss_tone.frequency.value = 2400;
-    this.hiss = ctx.createGain();
-    this.hiss.gain.value = 0;
-    looped(ctx, this.noise).connect(hiss_tone).connect(this.hiss).connect(master);
+    const rush_tone = ctx.createBiquadFilter();
+    rush_tone.type = "lowpass";
+    rush_tone.frequency.value = NITRO.rush_hz;
+    rush_tone.Q.value = NITRO.rush_q;
+    this.rush = ctx.createGain();
+    this.rush.gain.value = 0;
+    looped(ctx, this.noise).connect(rush_tone).connect(this.rush).connect(master);
   }
 
   private build_engine(ctx: AudioContext, master: GainNode) {
@@ -195,10 +199,12 @@ export class Audio {
     this.wind_filter.frequency.setTargetAtTime(150 + speed * 9, t, 0.1);
     this.wind.gain.setTargetAtTime(Math.min(0.22, (speed / 70) ** 2 * 0.22), t, 0.1);
     this.gravel.gain.setTargetAtTime(offroad ? Math.min(0.5, speed / 25) * 0.5 : 0, t, 0.08);
-    // Fast attack and a slower tail: the whoosh lands with the button and trails off after it.
-    this.hiss?.gain.setTargetAtTime(boost ? 0.16 : 0, t, boost ? 0.03 : 0.18);
-    if (boost && !this.boosting) this.whoosh();
-    this.boosting = boost;
+    if (boost && this.boost_since === null) {
+      this.boost_since = t;
+      if (t - this.last_whoosh >= NITRO.whoosh_gap) this.whoosh();
+    } else if (!boost) this.boost_since = null;
+    const aim = rush_target(this.boost_since === null ? null : t - this.boost_since, this.rush_aim);
+    this.rush?.gain.setTargetAtTime(aim.level, t, aim.tau);
     if (this.last_rpm - rpm > 1200 && throttle > 0.3) this.blip(0.05);
     this.last_rpm = rpm;
   }
@@ -223,20 +229,23 @@ export class Audio {
     const { ctx, master, noise } = this;
     if (!ctx || !master || !noise) return;
     const now = ctx.currentTime;
+    this.last_whoosh = now;
+    const [low, high, settle] = NITRO.whoosh_hz;
     const source = ctx.createBufferSource();
     source.buffer = noise;
     const filter = ctx.createBiquadFilter();
     filter.type = "bandpass";
-    filter.Q.value = 1.5;
-    filter.frequency.setValueAtTime(350, now);
-    filter.frequency.exponentialRampToValueAtTime(2600, now + 0.35);
+    filter.Q.value = NITRO.whoosh_q;
+    filter.frequency.setValueAtTime(low, now);
+    filter.frequency.exponentialRampToValueAtTime(high, now + NITRO.whoosh_rise);
+    filter.frequency.exponentialRampToValueAtTime(settle, now + NITRO.whoosh_time);
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.35, now + 0.06);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
+    gain.gain.exponentialRampToValueAtTime(NITRO.whoosh_peak, now + NITRO.whoosh_attack);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + NITRO.whoosh_time);
     source.connect(filter).connect(gain).connect(master);
     source.start();
-    source.stop(now + 0.5);
+    source.stop(now + NITRO.whoosh_time + 0.05);
   }
 
   impact(strength: number) {
