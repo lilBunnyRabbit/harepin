@@ -900,7 +900,7 @@ document.addEventListener("click", (e) => {
 });
 
 $("loading").remove();
-show_updated(() => settings.open_changes());
+show_updated(updater.open_notes);
 performance.mark("world:first");
 requestAnimationFrame(frame);
 settings.warm();

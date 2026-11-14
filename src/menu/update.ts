@@ -83,7 +83,7 @@ export class Updater {
 
   constructor(private readonly host: UpdateHost) {
     this.chip.root.addEventListener("click", () => {
-      if (this.state !== UpdateState.READY) return this.host.show_notes();
+      if (this.state !== UpdateState.READY) return this.open_notes();
       this.request_apply((text) => this.chip.show(UpdateState.READY, text));
     });
   }
@@ -119,7 +119,7 @@ export class Updater {
     });
     this.check_timer = window.setInterval(this.check, CHECK_EVERY_MS);
     document.addEventListener("visibilitychange", this.on_visible);
-    this.toast = mount(UpdateToast, { target: document.body, props: { view: this.view, onopen: this.open_notes } });
+    this.toast = mount(UpdateToast, { target: document.body, props: { view: this.view, onopen: () => this.open_notes() } });
     document.body.append(this.chip.root);
   }
 
@@ -151,7 +151,9 @@ export class Updater {
     if (document.visibilityState === "visible" && Date.now() - this.last_check > VISIBLE_CHECK_GAP_MS) this.check();
   };
 
-  private readonly open_notes = (): void => {
+  /** The Updates page, on the story of `version` or on the list when null. */
+  readonly open_notes = (version: string | null = null): void => {
+    this.view.reading = version;
     this.hide_toast();
     this.host.show_notes();
   };

@@ -3,9 +3,12 @@ import { render } from "svelte/server";
 import { PLAIN_CARS, REWARD_CARS } from "../career/rewards";
 import { ChangeKind, DRAFT_HIGHLIGHTS, TEASE, type Highlight, type Release } from "../changelog";
 import { parse_version_file } from "../version";
+import Changelog from "./Changelog.svelte";
+import ReleaseStories from "./ReleaseStories.svelte";
 import ReleaseStory from "./ReleaseStory.svelte";
 import UpdatedCard from "./UpdatedCard.svelte";
 import { story_of } from "./release-story";
+import { UpdateView } from "./update-view.svelte";
 
 const { NEW, IMPROVED } = ChangeKind;
 const release = (highlights?: Highlight[]): Release => ({ version: "9.9.9", date: "2026-11-14", title: "Big one", changes: [{ kind: NEW, text: "One" }], highlights });
@@ -76,4 +79,35 @@ test("the story page holds a place for a car still to land and lazy-loads the be
 test("a build that knows no highlights still reads version.json", () => {
   const file = { version: "9.9.9", commit: "abc1234", built: 1, notes: [release(HIGHLIGHTS)] };
   expect(parse_version_file(JSON.parse(JSON.stringify(file)))?.notes[0].changes.length).toBe(1);
+});
+
+const versioned = (version: string, highlights?: Highlight[]): Release => ({ ...release(highlights), version, title: `Release ${version}` });
+const updates = (releases: Release[], reading: string | null = null) => {
+  const view = new UpdateView();
+  view.reading = reading;
+  return render(Changelog, { props: { view, build: { version: "9.9.9", commit: "abc1234", built: 0 }, onapply: () => undefined, releases } }).body;
+};
+
+test("the Updates page lists every release with a story, the newest one leading with its banner", () => {
+  const { body } = render(ReleaseStories, { props: { releases: [versioned("9.9.9"), versioned("9.9.8", HIGHLIGHTS), versioned("9.9.7"), versioned("9.9.6", HIGHLIGHTS)], onopen: () => undefined } });
+  expect(body.match(/See what's new</g)?.length).toBe(2);
+  expect(body).toMatch(/<h3[^>]*>Release 9\.9\.8</);
+  expect(body).toMatch(/>Two new cars\.<\/b> Lede\./);
+  expect(body).toMatch(/aria-label="See what[^"]*new in v9.9.6"/);
+  expect(body).not.toContain("9.9.7");
+  expect(body.match(/class="banner svelte-/g)?.length).toBe(1);
+});
+
+test("the Updates page shows the list until a story is open, then that story alone", () => {
+  const releases = [versioned("9.9.9", HIGHLIGHTS), versioned("9.9.8", HIGHLIGHTS), versioned("9.9.7")];
+  const list = updates(releases);
+  expect(list).toContain("See what's new");
+  expect(list).toContain("You have v9.9.9");
+  expect(list).not.toContain("Also new");
+  const older = updates(releases, "9.9.8");
+  expect(older).toContain("All updates");
+  expect(older).toMatch(/<h3[^>]*>Release 9\.9\.8</);
+  expect(older).not.toContain("You have v9.9.9");
+  expect(updates([], "9.9.8")).not.toContain("All updates");
+  expect(render(ReleaseStories, { props: { releases: [versioned("9.9.7")], onopen: () => undefined } }).body).not.toContain("See what's new");
 });

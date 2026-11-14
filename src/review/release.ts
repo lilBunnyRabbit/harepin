@@ -1,8 +1,10 @@
 import { mount } from "svelte";
 import { CHANGELOG, DRAFT_HIGHLIGHTS, type Release } from "../changelog";
+import Changelog from "../menu/Changelog.svelte";
 import ReleaseStory from "../menu/ReleaseStory.svelte";
 import UpdatedCard from "../menu/UpdatedCard.svelte";
 import { story_of } from "../menu/release-story";
+import { UpdateView } from "../menu/update-view.svelte";
 import { RELEASE_PARAM } from "./params";
 import "../style.css";
 import "../menu/settings.css";
@@ -25,6 +27,10 @@ const target = document.createElement("div");
 target.className = "review-release";
 document.body.append(target);
 const story = story_of(release);
-if (new URLSearchParams(location.search).get(RELEASE_PARAM) === "page" && story) mount(ReleaseStory, { target, props: { release, story } });
+const wanted = new URLSearchParams(location.search).get(RELEASE_PARAM);
+// The Updates page with two stories on it: the draft's, and the same story on an older release for the list below it.
+const releases = [release, { ...CHANGELOG[1], highlights: DRAFT_HIGHLIGHTS }, ...CHANGELOG.slice(2)];
+if (wanted === "page" && story) mount(ReleaseStory, { target, props: { release, story } });
+else if (wanted === "updates") mount(Changelog, { target, props: { view: new UpdateView(), build: { version: release.version, commit: "review", built: 0 }, onapply: () => undefined, releases } });
 else mount(UpdatedCard, { target, props: { version: release.version, since: "From v0.41.0", releases: [release], onnotes: () => undefined, onclosed: () => undefined } });
 root.dataset.review = "shown";

@@ -2,7 +2,7 @@
 // `vite build --mode review` (or dev) build: import sites test `REVIEW_BUILD` inline, so a production build drops them.
 export const REVIEW_BUILD = import.meta.env.MODE === "review" || import.meta.env.DEV;
 export const SHOWCASE_PARAM = "showcase";
-/** `?release=card|page`: the updated card or the Release notes page, wearing the draft story. */
+/** `?release=card|page|updates`: the updated card, the story page or the Updates page, wearing the draft story. */
 export const RELEASE_PARAM = "release";
 export const VIEW_PARAM = "view";
 export const REPLAY_PARAM = "replay";

@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { CHANGELOG } from "../changelog";
+  import { CHANGELOG, type Release } from "../changelog";
   import { newer_releases, type VersionInfo } from "../version";
   import ReleaseNotes from "./ReleaseNotes.svelte";
+  import ReleaseStories from "./ReleaseStories.svelte";
   import ReleaseStory from "./ReleaseStory.svelte";
   import { story_of } from "./release-story";
   import Button from "./ui/Button.svelte";
@@ -12,12 +13,13 @@
     view: UpdateView;
     build: VersionInfo;
     onapply: () => void;
+    releases?: readonly Release[];
   }
 
-  let { view, build, onapply }: Props = $props();
+  let { view, build, onapply, releases = CHANGELOG }: Props = $props();
 
-  // The running release's story leads the page; an older release shows its notes alone.
-  const story = story_of(CHANGELOG[0]);
+  const reading = $derived(releases.find((release) => release.version === view.reading));
+  const story = $derived(reading ? story_of(reading) : null);
   const fresh = $derived(view.pending?.remote ? newer_releases(view.pending.remote.notes, build.version) : []);
 </script>
 
@@ -36,9 +38,16 @@
   {/if}
   <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
   <div class="changelog" tabindex="0" role="region" aria-label="Release notes">
-    {#if story}<ReleaseStory release={CHANGELOG[0]} {story} />{/if}
-    <p class="changelog-build">You have v{build.version} · {build.commit}</p>
-    {#each CHANGELOG as release (release.version)}<ReleaseNotes {release} />{/each}
+    {#if reading && story}
+      <div class="changelog-back" {@attach (node) => node.querySelector("button")?.focus()}>
+        <Button variant="quiet" size="sm" icon="icon-back" onclick={() => (view.reading = null)}>All updates</Button>
+      </div>
+      <ReleaseStory release={reading} {story} />
+    {:else}
+      <ReleaseStories {releases} onopen={(version) => (view.reading = version)} />
+      <p class="changelog-build">You have v{build.version} · {build.commit}</p>
+      {#each releases as release (release.version)}<ReleaseNotes {release} />{/each}
+    {/if}
   </div>
 </div>
 
@@ -86,6 +95,10 @@
 
   .changelog:focus-visible {
     box-shadow: inset 0 0 0 2px var(--primary);
+  }
+
+  .changelog-back {
+    display: flex;
   }
 
   .changelog-build {

@@ -12,7 +12,8 @@
     version: string;
     since: string;
     releases: readonly Release[];
-    onnotes: () => void;
+    /** Opens the Updates page, on this release's story or on the list when null. */
+    onnotes: (version: string | null) => void;
     onclosed: () => void;
   }
 
@@ -22,7 +23,7 @@
   const story = $derived(releases.length ? story_of(releases[0]) : null);
 
   let open = $state(true);
-  let notes = false;
+  let notes: string | null | false = false;
   let frame = $state<HTMLElement>();
 
   // Esc closes the card only, so the menu behind keeps its page; arrows go on to the menu's pad navigation.
@@ -46,7 +47,7 @@
 
   function closed() {
     onclosed();
-    if (notes) onnotes();
+    if (notes !== false) onnotes(notes);
   }
 </script>
 
@@ -72,7 +73,7 @@
           size="lg"
           class="updated-more"
           onclick={() => {
-            notes = true;
+            notes = releases[0].version;
             open = false;
           }}>See what's new</Button
         >
@@ -88,7 +89,7 @@
       {#snippet actions()}
         <Link
           onclick={() => {
-            notes = true;
+            notes = null;
             open = false;
           }}>Full notes</Link
         >

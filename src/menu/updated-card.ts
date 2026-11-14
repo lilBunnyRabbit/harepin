@@ -43,7 +43,7 @@ export function card_closed_now(): boolean {
   return closed_now;
 }
 
-export function show_updated(show_notes: () => void): void {
+export function show_updated(show_notes: (version: string | null) => void): void {
   const { version, returning } = BOOT_SEEN;
   // Unsaved, the card would come back on every boot.
   if (!write_seen(BUILD.version)) return;
