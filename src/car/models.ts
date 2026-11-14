@@ -1,14 +1,14 @@
 import * as THREE from "three";
 import { axle_index, axles_of } from "./axles";
 import { rest_reach, type Car } from "./car";
-import { DEFAULT_PARTS, build_spec, part_of, type Build, type Slot } from "./build";
-import { COUPE, type CarSpec } from "./cars";
-import { body_pieces, body_slabs, cabin_parts, flares, on_glass, sculpt, side_panel, skirts, wells } from "./body-shell";
+import { DEFAULT_PARTS, build_spec, part_of, type Build, type Look, type Slot } from "./build";
+import { COUPE, type CarSpec, type Triple } from "./cars";
+import { body_pieces, body_slabs, cabin_parts, flares, on_glass, sculpt, sculpt_factor, side_panel, skirts, wells } from "./body-shell";
 import { DETAILS } from "./car-details";
 import { detail_look, type DetailLook } from "./detail-looks";
 import { CAR_ORDER } from "./contact-shadow";
 import { DESIGNS, type Design } from "./designs";
-import { extrude, merge, parts, side_part, taper, tint } from "./geometry";
+import { extrude, merge, parts, side_part, tail_at, taper, tint } from "./geometry";
 import { lamps, popup, snap_lights, type HeadMesh, type Popup } from "./lights";
 import { back, livery_of, livery_parts, roof, type Livery } from "./livery";
 import { nitro_flame, type Jet } from "./nitro-look";
@@ -168,7 +168,53 @@ export function fitted_design(spec: CarSpec, kit: Record<Slot, number>, paint: T
   const stock = DESIGNS[spec.body.style];
   const fitted = aero_of(kit).skirts && stock.kit ? { ...stock, ...stock.kit } : stock;
   const detail = detail_look(DETAILS[spec.body.style], kit, paint, trim);
-  return { d: { ...fitted, heads: [...fitted.heads, ...detail.heads], ...detail.outlet }, detail };
+  // Generic tailpipes leave the fitted shell's own tail face, which a kit sets further back than the stock body's.
+  const [x, y, z] = fitted.exhaust;
+  const exhaust: Triple = [x, y, Math.min(z, tail_at(fitted.outline, y))];
+  return { d: { ...fitted, exhaust, heads: [...fitted.heads, ...detail.heads], ...detail.outlet }, detail };
+}
+
+// A tyre's outer face stays this far inside the body side or arch lip over it.
+const TYRE_TUCK = 0.005;
+
+/**
+ * The tyre look per design axle (front, rear): a wider tyre option narrowed to what the body covers at that axle, and
+ * never under the design's own tyre.
+ */
+function fitted_tyres(d: Design, spec: CarSpec, tyre: Required<Look>["tyre"]): Required<Look>["tyre"][] {
+  const axles = axles_of(spec);
+  return [0, 1].map((slot) => {
+    const room = axles
+      .filter((_, i) => Math.min(i, 1) === slot)
+      .map((axle) => 2 * ((d.width / 2) * sculpt_factor(d, spec.wheel.radius, axle.z) + d.arches.out - TYRE_TUCK - Math.abs(spec.wheel.mounts[axle.wheels[0]][0])));
+    return { ...tyre, width: Math.min(tyre.width, Math.max(1, Math.min(...room) / d.tyre[slot])) };
+  });
+}
+
+const WALL_REACH = 1e-3;
+const WALL_LEAN = 0.5;
+
+/**
+ * The body and its raised slabs in paint, with the walls of bare wheel openings in trim: with no lip round them they face the camera from the
+ * front and catch the light as a pale band.
+ */
+function painted_shell(shell: THREE.BufferGeometry[], d: Design, spec: CarSpec, paint: THREE.Color, trim: THREE.Color): THREE.BufferGeometry {
+  const painted = tint(merge(shell), paint);
+  if (d.arches.steps === 0 || d.arches.flare > 0) return painted;
+  const position = painted.getAttribute("position");
+  const colors = painted.getAttribute("color");
+  const reach = spec.wheel.radius + d.arches.gap + WALL_REACH;
+  const axles = axles_of(spec).map(({ z }) => z);
+  const in_arch = (v: number) => axles.some((z) => Math.hypot(position.getZ(v) - z, position.getY(v) - spec.wheel.radius) < reach);
+  const [a, b, c, normal] = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
+  for (let i = 0; i < position.count; i += 3) {
+    if (!in_arch(i) || !in_arch(i + 1) || !in_arch(i + 2)) continue;
+    a.fromBufferAttribute(position, i);
+    normal.subVectors(b.fromBufferAttribute(position, i + 1), a).cross(c.fromBufferAttribute(position, i + 2).sub(a)).normalize();
+    if (Math.abs(normal.x) > WALL_LEAN) continue;
+    for (let v = i; v < i + 3; v++) colors.setXYZ(v, trim.r, trim.g, trim.b);
+  }
+  return painted;
 }
 
 // Paint, trim, glass and decals are baked into vertex colours so the whole shell is one draw; a repaint rebuilds the view.
@@ -187,14 +233,15 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
   const nose = d.outline[0][0];
   const tail = d.outline[d.outline.length - 1][0];
   const tyre = part_of("tyres", kit.tyres).look?.tyre ?? (d.tread ? { ...STOCK_TYRE, tread: d.tread } : STOCK_TYRE);
+  const fitted = fitted_tyres(d, spec, tyre);
   const shell_body = merge(body_pieces(d, spec).map((piece) => extrude(piece, d.width)));
   const cabin = merge(cabin_parts(d.cabin, paint, glass));
   const hull_base = merge(
-    tint(d.taper ? taper(shell_body, d.taper.from, tail, d.taper.share) : shell_body, paint),
+    painted_shell([d.taper ? taper(shell_body, d.taper.from, tail, d.taper.share) : shell_body, ...body_slabs(d, spec)], d, spec, paint, trim),
     flares(d, spec).map((g) => tint(g, arch_tone)),
-    wells(d, spec, tyre.width).map((g) => tint(g, trim)),
-    body_slabs(d, spec).map((g) => tint(g, paint)),
-    (kit_skirts(d, aero) ? [] : skirts(d, spec, 0.03, 0.09)).map((g) => tint(g, trim)),
+    wells(d, spec, Math.max(...fitted.map((look) => look.width))).map((g) => tint(g, trim)),
+    // The sill strip runs between wheel openings: a body without them (a tub, pontoons, a cage) has no sill to trim.
+    (d.arches.steps === 0 || kit_skirts(d, aero) ? [] : skirts(d, spec, 0.03, 0.09)).map((g) => tint(g, trim)),
     parts([...d.paint, ...(d.mirror?.paint ?? [])]).map((g) => tint(g, paint)),
     parts([...d.trim, ...(d.mirror?.trim ?? [])]).map((g) => tint(g, trim)),
     parts(livery && livery.decal !== "none" ? [] : (d.stripes ?? [])).map((g) => tint(g, trim)),
@@ -222,8 +269,8 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
 
   const caliper = part_of("brakes", kit.brakes).look?.caliper ?? (d.caliper ? { ...STOCK_CALIPER, tone: d.caliper } : STOCK_CALIPER);
   const axles = axles_of(spec);
-  const tyres = [0, 1].map((axle) => wheel_geometry(spec.wheel.radius, d.tyre[axle], d.rim, tyre));
-  const brakes = [0, 1].map((axle) => brake_geometry(spec.wheel.radius, d.tyre[axle], d.rim, tyre, caliper));
+  const tyres = [0, 1].map((axle) => wheel_geometry(spec.wheel.radius, d.tyre[axle], d.rim, fitted[axle]));
+  const brakes = [0, 1].map((axle) => brake_geometry(spec.wheel.radius, d.tyre[axle], d.rim, fitted[axle], caliper));
   const wheel_material = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
   const wheel_axles = spec.wheel.mounts.map((_, i) => axle_index(axles, i));
   const wheels = wheel_axles.map((axle, i) => {
