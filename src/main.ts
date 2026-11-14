@@ -670,7 +670,7 @@ let rewinding = false;
 const NEAR_GAP = 1.2;
 const NEAR_PEER = 4;
 const up_scratch = new THREE.Vector3();
-const sound: SoundFrame = { rpm: 0, throttle: 0, scrub: 0, speed: 0, offroad: false, sound: driver.car.spec.sound, redline: 0, boost: false };
+const sound: SoundFrame = { rpm: 0, throttle: 0, scrub: 0, speed: 0, offroad: false, sound: driver.car.spec.sound, redline: 0, boost: false, held: false };
 const miss: { near: Near; touched: boolean } = { near: null, touched: false };
 /** Something close this frame, and whether the pass touched it (a crash, or driving through a ghost peer). Reused each frame. */
 function near_miss(impact: number): { near: Near; touched: boolean } {
@@ -832,6 +832,7 @@ function frame(time: number) {
   sound.sound = car.spec.sound;
   sound.redline = car.spec.redline;
   sound.boost = car.nitro.boosting;
+  sound.held = false;
   audio.update(held ? idle_sound(sound, car.spec.idle) : sound);
   // Off behind any menu, a lobby keeps driving with one open; a held sim (rewind, countdown) has no drive to feel.
   if (simulated && !input.blocked()) {
