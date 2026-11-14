@@ -281,7 +281,7 @@ export function wheel_trace(spec: CarSpec, kmh: number, aids: Pick<Car, "tcs" | 
     if (t >= next) {
       next += 0.1;
       local.copy(car.vel).applyQuaternion(car.quat.clone().invert());
-      out.rows.push({ t, key, steer: car.steer * deg, slip: Math.atan2(local.x, Math.abs(local.z)) * deg, hold: car["hold_side"] });
+      out.rows.push({ t, key, steer: car.steer * deg, slip: Math.atan2(local.x, Math.abs(local.z)) * deg, hold: car.steering.hold_side });
     }
   }
   return out;
@@ -339,7 +339,7 @@ export function carve(spec: CarSpec, kmh: number, key: number, gas: number, aids
   const road_rpm = (gear: number) => ((v_long * 1.3) / spec.wheel.radius) * spec.gears[gear - 1] * spec.final * (60 / (2 * Math.PI));
   car.gear = 1;
   while (car.gear < spec.gears.length && road_rpm(car.gear) > spec.upshift * 0.9) car.gear++;
-  car["hold_side"] = 1;
+  car.steering.hold_side = 1;
   car.key_steer = -0.3;
   const local = new Vector3();
   const deg = 180 / Math.PI;
