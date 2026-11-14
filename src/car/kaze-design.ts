@@ -9,7 +9,7 @@ const TAIL = tail_end(OUTLINE, 0.79, 0.22, 0.92, [{ size: [0.46, 0.14, 0.05], at
 
 const STOCK_ARCHES: Arches = { gap: 0.06, steps: 6, flare: 0.06, out: 0.04, reach: 0.04, tone: "paint" };
 // The kit's bolt-on arches stand out past the stock sill line and take the wide tyres.
-const WIDE_ARCHES: Arches = { gap: 0.07, steps: 6, flare: 0.08, out: 0.1, reach: 0.04, tone: "paint" };
+const WIDE_ARCHES: Arches = { gap: 0.085, steps: 6, flare: 0.08, out: 0.1, reach: 0.04, tone: "paint" };
 
 // A ducktail grown out of the hatch, then a trim plane on two short painted legs standing in it.
 const LIP: Slab = { points: [[-1.9, 0.93], [-2.15, 1.0], [-2.17, 0.97], [-2.12, 0.88]], from: 0, to: 0.9 };

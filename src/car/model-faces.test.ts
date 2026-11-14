@@ -2,7 +2,7 @@
 import "../../scripts/fake-dom";
 import { expect, test } from "bun:test";
 import * as THREE from "three";
-import { DECALS, DEFAULT_BUILD, DEFAULT_PARTS, SLOTS, SLOT_NAMES, type Build } from "./build";
+import { DECALS, DEFAULT_BUILD, DEFAULT_PARTS, SLOTS, SLOT_NAMES, type Build, type Part } from "./build";
 import { CARS, type CarId } from "./cars";
 import type { Point } from "./geometry";
 
@@ -160,6 +160,85 @@ test("every wheel opening stays open over its tyre, on every car and kit", async
     }
   expect(found).toEqual([]);
 }, 120_000);
+
+const WHEEL_SKIN = 0.002;
+const WHEEL_STEP = 0.015;
+// A steered tyre may lay its inner sidewall on an arm; this far under the tread the arm never shows through it.
+const ARM_TREAD = 0.05;
+
+const TYRES: readonly Part[] = SLOTS.tyres.parts;
+const SUSPENSIONS: readonly Part[] = SLOTS.suspension.parts;
+const best = (parts: readonly Part[], score: (part: Part) => number) => parts.reduce((top, part, i) => (score(part) > score(parts[top]) ? i : top), 0);
+const WIDE_TYRE = best(TYRES, (part) => part.look?.tyre?.width ?? 1);
+const SMALL_RIM = best(TYRES, (part) => -(part.look?.tyre?.rim ?? 1));
+const MOST_LOCK = best(SUSPENSIONS, (part) => part.mod.scale?.lock ?? 1);
+
+test("no body part or arm stands in a tyre, straight or at full lock, on every car, kit and tyre", async () => {
+  const { build_view, dispose_car_view, rest_wheels } = await import("./models");
+  const { build_spec, part_of } = await import("./build");
+  const { DESIGNS } = await import("./designs");
+  const { aero_of } = await import("./part-looks");
+  const { axle_index, axles_of } = await import("./axles");
+  const found = new Map<string, { depth: number; at: string }>();
+  const p = new THREE.Vector3();
+  const box = new THREE.Box3();
+  // The wide tyre on every kit for the body; the stock and the smallest rim once more for the arms, which no kit moves.
+  const fits = [...SLOTS.aero.parts.keys()].map((aero) => ({ aero, tyres: WIDE_TYRE })).concat([0, SMALL_RIM].map((tyres) => ({ aero: 0, tyres })));
+  for (const car of Object.keys(CARS) as CarId[])
+    for (const { aero, tyres } of fits) {
+      const build: Build = { ...DEFAULT_BUILD, car, parts: { ...DEFAULT_PARTS, aero, tyres, suspension: MOST_LOCK } };
+      const spec = build_spec(build);
+      const stock = DESIGNS[spec.body.style];
+      const kit = aero_of(build.parts).skirts === true && stock.kit !== undefined;
+      const d = kit ? { ...stock, ...stock.kit } : stock;
+      const look = part_of("tyres", tyres).look?.tyre ?? { width: 1, rim: 1 };
+      const view = build_view(build, spec);
+      rest_wheels(view, spec);
+      view.root.updateMatrixWorld(true);
+      const arm_faces = view.arms.map((arm) => (arm ? body_faces(arm.group, view.root) : []));
+      for (const arm of view.arms) arm?.group.removeFromParent();
+      const shell = body_faces(view.body, view.root);
+      const axles = axles_of(spec);
+      const radius = spec.wheel.radius;
+      const disc = radius * d.rim.size * look.rim;
+      // The skin a low bonnet keeps over a capped opening stands in the tyre top, inside the raised wing that covers it.
+      const covered = (x: number, y: number, z: number) => (d.slabs ?? []).some((s) => Math.abs(x) >= s.from && Math.abs(x) <= s.to && inside(s.points, z, y - view.body.position.y));
+      spec.wheel.mounts.forEach(([mx], w) => {
+        // The car is mirrored: its left wheels stand for both sides.
+        if (mx < 0) return;
+        const centre = view.wheels[w].position;
+        const half = (d.tyre[Math.min(axle_index(axles, w), 1)] * look.width) / 2;
+        const near = (faces: Face[]) => faces.filter((face) => box.setFromPoints([face.a, face.b, face.c]).distanceToPoint(centre) < Math.hypot(radius, half));
+        const check = (faces: Face[], angle: number, arm: boolean) => {
+          const [cos, sin] = [Math.cos(angle), Math.sin(angle)];
+          const key = `${car}${kit ? " kit" : ""}, wheel ${w}${angle ? " at full lock" : ""}: ${arm ? "an arm" : "the body"} stands in the tyre`;
+          for (const face of faces) {
+            const n = Math.ceil(Math.max(face.a.distanceTo(face.b), face.b.distanceTo(face.c), face.c.distanceTo(face.a)) / WHEEL_STEP);
+            for (let i = 0; i <= n; i++)
+              for (let j = 0; i + j <= n; j++) {
+                p.set(0, 0, 0).addScaledVector(face.a, i / n).addScaledVector(face.b, j / n).addScaledVector(face.c, (n - i - j) / n);
+                if (!arm && covered(p.x, p.y, p.z)) continue;
+                p.sub(centre);
+                const across = p.x * cos - p.z * sin;
+                const spoke = Math.hypot(p.y, p.x * sin + p.z * cos);
+                const depth = Math.min(half - Math.abs(across), radius - spoke);
+                if (depth <= WHEEL_SKIN) continue;
+                // An arm ends in the rim, on the car's side of the wheel.
+                if (arm && across <= 0 && (angle === 0 ? spoke < disc : radius - spoke > ARM_TREAD)) continue;
+                if (depth > (found.get(key)?.depth ?? 0)) found.set(key, { depth, at: p.add(centre).toArray().map((x) => x.toFixed(3)).join(", ") });
+              }
+          }
+        };
+        const [body_near, arm_near] = [near(shell), near(arm_faces[w])];
+        for (const angle of view.steered[w] ? [0, spec.lock, -spec.lock] : [0]) {
+          check(body_near, angle, false);
+          check(arm_near, angle, true);
+        }
+      });
+      dispose_car_view(view);
+    }
+  expect([...found].map(([key, { depth, at }]) => `${key} by ${(depth * 1000).toFixed(0)} mm at [${at}]`)).toEqual([]);
+}, 240_000);
 
 // An arm end this close to the axle line, inside the wheel, is on the hub.
 const HUB = 0.06;

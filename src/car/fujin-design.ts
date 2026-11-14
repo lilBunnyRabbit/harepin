@@ -4,7 +4,7 @@ import { arc, type Part, type Point } from "./geometry";
 const SILL = 0.16;
 const WHEEL = 0.34;
 // The steered tyre's corner sweeps 0.37 m from the hub at full lock; the arch stands clear of it.
-const ARCH = 0.4;
+const ARCH = 0.41;
 const FRONT_AXLE = 1.45;
 const REAR_AXLE = -1.35;
 
@@ -70,7 +70,7 @@ export const FUJIN_DESIGN: Design = {
   ],
   markers: [{ size: [0.05, 0.05, 0.04], at: [0.38, 0.33, 2.3] }],
   chrome: [],
-  tyre: [0.3, 0.36],
+  tyre: [0.28, 0.36],
   rim: { size: 0.74, spokes: 5, tone: "light", lip: 0.14, spoke: 0.07 },
   deck: [-2.2, 1.1],
   hood: [-1.2, 0.8],
