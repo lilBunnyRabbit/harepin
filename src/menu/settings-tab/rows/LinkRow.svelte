@@ -15,9 +15,9 @@
 </script>
 
 <SettingRow {label} {help} {hidden} {expanded} accept={open}>
-  <span class="set-link" class:set-open={expanded}>
+  <span class="set-link">
     <span>{value}</span>
-    <Icon name="icon-back" flip />
+    <span class="set-chevron" class:set-open={expanded}><Icon name="icon-back" /></span>
   </span>
 </SettingRow>
 
@@ -32,16 +32,18 @@
     text-align: right;
   }
 
-  .set-link :global(.ui-icon) {
+  .set-chevron {
+    display: flex;
+    rotate: 180deg;
     transition: rotate 160ms ease;
   }
 
-  .set-open :global(.ui-icon) {
+  .set-chevron.set-open {
     rotate: -90deg;
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .set-link :global(.ui-icon) {
+    .set-chevron {
       transition: none;
     }
   }

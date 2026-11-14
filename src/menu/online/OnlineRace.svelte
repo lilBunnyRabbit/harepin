@@ -87,7 +87,7 @@
     </div>
     <div class="race-laps">
       <span>Laps</span>
-      <Segmented options={lap_options} value={laps} label="Laps" onchange={pick_laps} />
+      <span class="race-laps-pick"><Segmented options={lap_options} value={laps} label="Laps" onchange={pick_laps} /></span>
     </div>
     <small class="race-dim">{note}</small>
     <div class="race-actions">
@@ -120,7 +120,8 @@
     font-weight: 600;
   }
 
-  .race-laps > :global(.ui-segmented) {
+  .race-laps-pick {
+    display: grid;
     flex: 0 1 240px;
   }
 
