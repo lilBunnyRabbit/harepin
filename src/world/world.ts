@@ -10,6 +10,7 @@ import { ramp_reach2, ramp_surface, spawn_blocks, type Surface } from "../worldg
 import { FALL_DEPTH } from "../worldgen/sky";
 import { slice_tiles, TileStore, type Tile } from "../worldgen/tiles";
 import { kerb_marks, on_kerb_segment, type KerbMarks } from "./kerbs";
+import { road_junctions } from "../worldgen/road-layers";
 import { CELL, ROAD_HALF, RouteKind, SurfaceId, type WorldKind } from "../worldgen/types";
 import { LIFT } from "../worldgen/lifts";
 import { drawn_roads, paved_lots, paving_lift, road_lift, type DrawnRoad, type PavedLot } from "./drawn-lift";
@@ -222,6 +223,8 @@ export class World implements Ground {
   private paved: PavedLot[] | null = null;
   /** Built with the world, never on a frame: the first wheel on a road would pay for the whole network. */
   private readonly drawn: (DrawnRoad | undefined)[];
+  /** Where the circuit's kerbs are drawn: the mesh and the tyres read the same marks. Built with the world, like `drawn`, from the same junctions. */
+  readonly kerbs: KerbMarks;
   private readonly lane_point = (packed: number): RoadPoint => this.lanes[Math.floor(packed / LANE_PACK)][packed % LANE_PACK];
   private readonly road_grid = new Map<number, number[]>();
   /** Lane 0 is the circuit as `road`, then every other edge at its id + 1, then the trails. */
@@ -238,7 +241,6 @@ export class World implements Ground {
   /** Ramps a car rides as wedges, with `ramp_reach2` so a height query skips the far ones. */
   private readonly wedges: { ramp: Ramp; reach2: number }[];
   private query = 0;
-  private kerb_marks: KerbMarks | null = null;
 
   /** `data` is `generate(seed)`, passed in when a worker already ran it; `tiles` empty when they stream in after. */
   constructor(
@@ -290,7 +292,9 @@ export class World implements Ground {
       if (list) list.push(index);
       else this.road_grid.set(key, [index]);
     });
-    this.drawn = drawn_roads(data);
+    const junctions = road_junctions(data);
+    this.drawn = drawn_roads(data, junctions);
+    this.kerbs = kerb_marks(data, junctions);
     this.lanes = [this.road, ...this.graph.edges.map((e) => (this.circuit.includes(e.id) ? [] : e.points)), ...this.trails.map((t) => t.points)];
     this.lanes.forEach((points, lane) =>
       points.forEach((p, index) => {
@@ -430,11 +434,6 @@ export class World implements Ground {
   /** Solid contacts the car moved into since load, rail glides and bounces alike: the career hit penalty counts from it. */
   get contacts(): number {
     return this.contacts_;
-  }
-
-  /** Where the circuit's kerbs are drawn, worked out on first use: the mesh and the tyres read the same marks. */
-  get kerbs(): KerbMarks {
-    return (this.kerb_marks ??= kerb_marks(this));
   }
 
   /** On a drawn kerb: the inside of a circuit bend, between the road edge and the kerb's outer edge. */
