@@ -44,40 +44,37 @@ export const STRAIGHT: Place = { id: "straight", station: "runway", lane: "aspha
 export const PINS: Place = { id: "pins", station: "hairpin", lane: "asphalt", goal: { kind: "run" }, try: "power hard out of each hairpin" };
 export const SWEEP: Place = { id: "sweep", station: "sweeper", lane: "r200", goal: { kind: "run" }, try: "the sweeper as fast as it holds" };
 
-export function trial(car: Tested, place: Place, v: Variant): Trial {
+const lab_key = (car: Tested, engine: Engine) => `${car}-${engine}`;
+
+function trial(car: Tested, place: Place, v: Variant): Trial {
   const mods = Object.values(v.parts);
-  const drive = v.engine ? { car: `${LAB_CAR}${car}-${v.engine}`, mods: lab_mods(v) } : { car: code(car, v), mods: mods.length ? mods : undefined };
+  const drive = v.engine ? { car: `${LAB_CAR}${lab_key(car, v.engine)}`, mods: lab_mods(v) } : { car: code(car, v), mods: mods.length ? mods : undefined };
   return { id: `${car}-${place.id}-${v.id}`, ...drive, station: place.station, lane: place.lane, goal: place.goal, try: place.try, feel: v.feel };
 }
 
-/** Each place's variants in order, every one starting from today's best so `vs` reads against the baseline. */
-export const ladder = (car: Tested, plan: [Place, Variant[]][]): Trial[] => plan.flatMap(([place, variants]) => variants.map((v) => trial(car, place, v)));
-
 const OPEN: LabCar["parts"] = { suspension: 2, brakes: 2, bias: 1, nitro: 2 };
-const STAGES: Record<Engine, [string, Boost]> = { turbo: ["turbo", TURBO_BOOST], twin: ["twin turbo", TWIN_BOOST] };
+const STAGES: Record<Engine, [stage: string, boost: Boost]> = { turbo: ["turbo", TURBO_BOOST], twin: ["twin turbo", TWIN_BOOST] };
 
-function lab_cars(trials: readonly Trial[]): Record<string, LabCar> {
-  const keys = [...new Set(trials.flatMap((t) => (t.car.startsWith(LAB_CAR) ? [t.car.slice(LAB_CAR.length)] : [])))];
-  return Object.fromEntries(
-    keys.map((key) => {
-      const [car, engine] = key.split("-") as [Tested, Engine];
-      const [stage, boost] = STAGES[engine];
-      return [key, { ...turbo_car(car, stage, boost), parts: OPEN }];
-    }),
-  );
+function lab_cars(car: Tested, variants: readonly Variant[]): Record<string, LabCar> {
+  const engines = new Set(variants.flatMap((v) => (v.engine ? [v.engine] : [])));
+  return Object.fromEntries([...engines].map((engine) => [lab_key(car, engine), { ...turbo_car(car, ...STAGES[engine]), parts: OPEN }]));
 }
 
 const POWER: Question = { kind: "scale", id: "power", label: "Power", low: "flat", high: "more than the tyres can use" };
 const WORTH: Question = { kind: "pick", id: "worth", label: "Worth the class jump", options: ["no", "unsure", "yes"] };
 const BASELINE = "Each tile shows the PI and class: is the jump worth it? Leave vs and worth blank on a baseline.";
 
-// One question list for every trial: per-trial lists push a pack past an inline code's size.
-export const top_tier_pack = (id: string, title: string, brief: string, trials: Trial[]): Pack => ({
-  id,
-  rev: 1,
-  title,
-  brief: `${brief} ${BASELINE}`,
-  cars: lab_cars(trials),
-  trials,
-  ask: [GRIP, POWER, PRED, FUN, VS, WORTH, NOTE],
-});
+export type Plan = [Place, Variant[]][];
+
+/** Each place's variants in order, the first today's best so `vs` reads against the baseline. One question list for every trial: per-trial lists push a pack past an inline code's size. */
+export function top_tier_pack(id: string, title: string, brief: string, car: Tested, plan: Plan): Pack {
+  return {
+    id,
+    rev: 1,
+    title,
+    brief: `${brief} ${BASELINE}`,
+    cars: lab_cars(car, plan.flatMap(([, variants]) => variants)),
+    trials: plan.flatMap(([place, variants]) => variants.map((v) => trial(car, place, v))),
+    ask: [GRIP, POWER, PRED, FUN, VS, WORTH, NOTE],
+  };
+}
