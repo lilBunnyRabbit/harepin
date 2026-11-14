@@ -167,6 +167,7 @@
     color: var(--foreground);
     font-family: var(--font-mono);
     font-size: var(--text-sm);
+    line-height: 1;
   }
 
   .set-foot :global(.set-pill:hover:not(:disabled)) {
