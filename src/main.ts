@@ -307,7 +307,7 @@ const settings = new Settings(document.body, {
   },
   ready_status: () => lobby.ready_status(performance.now()),
   race_left_out: (route) => lobby.left_out(route),
-  version: BUILD.version, changelog: () => updater.changelog_view(), update_state: () => updater.state,
+  version: BUILD.version, changelog: () => updater.changelog_view(), show_updates: () => updater.open_notes(), update_state: () => updater.state,
   servers: () => directory.list(),
   servers_status: () => directory.status,
   password_failed: () => net.status === WRONG_PASSWORD,

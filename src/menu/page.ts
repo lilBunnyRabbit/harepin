@@ -64,6 +64,8 @@ export interface SettingsHost {
   readonly version: string;
   /** Every release, newest first: the What's new page. */
   changelog(): HTMLElement;
+  /** What's new on its list of releases, never on a story left open. */
+  show_updates(): void;
   /** A new version is downloading or waits on What's new: the top bar shows its chip. */
   update_state(): UpdateState;
   servers(): Server[];

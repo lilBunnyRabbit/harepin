@@ -273,7 +273,7 @@ export class Settings {
     name_chip.title = "Your name: everyone in the room sees it";
     name_chip.append(this.name_field(), icon("icon-edit"));
     const update_chip = new UpdateChip("menu-chip menu-update");
-    update_chip.root.addEventListener("click", () => this.open_changes());
+    update_chip.root.addEventListener("click", () => this.host.show_updates());
     this.syncs.push(() => {
       const state = this.host.update_state();
       if (update_chip.root.dataset.state !== state) update_chip.show(state);
