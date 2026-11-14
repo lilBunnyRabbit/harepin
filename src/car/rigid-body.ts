@@ -5,6 +5,8 @@ const lever = new Vector3();
 const moment = new Vector3();
 const inv = new Quaternion();
 
+export const GRAVITY = 9.81;
+
 export class RigidBody {
   readonly pos = new Vector3();
   readonly quat = new Quaternion();

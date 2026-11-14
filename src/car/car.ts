@@ -1,8 +1,14 @@
 import { Quaternion, Vector3 } from "three";
 import { axle_index, axles_of, type Axle } from "./axles";
 import { COUPE, type CarSpec } from "./cars";
+import { curve_at } from "./curve";
 import { NITRO_TORQUE, Nitro, type NitroSense } from "./nitro";
-import { RigidBody } from "./rigid-body";
+import { GRAVITY, RigidBody } from "./rigid-body";
+import { SteerMode, Steering } from "./steering";
+import { spin_free, suspend, tyre } from "./tyre";
+
+export { SteerMode, grip_lock, unassisted_lock } from "./steering";
+export { surface_grip } from "./tyre";
 
 export interface Ground {
   /** `y`, when given, is the height the query comes from; a ground with stacked surfaces answers the one below it. */
@@ -25,15 +31,6 @@ export interface Controls {
   nitro?: boolean;
 }
 
-/**
- * How keyboard steering behaves: `snap` ramps to full lock and springs back to centre, `hold` leaves the wheel where it
- * is and lets it self-centre as the car rolls, `smooth` asks for a share of the grip-limited turn rate that a tap nudges
- * and a held key builds.
- */
-export const SteerMode = { SNAP: "snap", HOLD: "hold", SMOOTH: "smooth" } as const;
-export type SteerMode = (typeof SteerMode)[keyof typeof SteerMode];
-
-const GRAVITY = 9.81;
 const SPIN_SLIP = 0.15;
 const TCS_SLIP = 0.14;
 /** Share over the downshift line the next gear must land at, past the coast the grade explains: loose ground drags more. */
@@ -44,19 +41,6 @@ const ABS_SLIP = 0.1;
 const TCS_LOW_SPEED = 15;
 /** Weight of a driven rear's sideways slip in traction control's slip: at 1.4 it cuts in at 0.9 of the peak slip angle. */
 const TCS_LATERAL = 1.4;
-/** Power-slide intent (walking pace × gas × held key) past which a launch may spin up the rear and swing the tail out. */
-const DRIFT_INTENT = 0.9;
-/**
- * Speed (m/s), about 30 km/h, under which a handbrake tap at full lock kicks a power slide while rolling. Faster, the tap
- * and full gas hold the slide the handbrake threw rather than launch one, so the gas still can't kick a slow corner.
- */
-const DRIFT_START = 8.5;
-/** Seconds after a rolling handbrake tap in which full gas and full lock still launch, so the gas may follow the tap. */
-const TAP_WINDOW = 0.6;
-/** Body slip (rad) against the key over which a launched slide's hold fades out once the launch has ended. */
-const HOLD_FADE = [0.03, 0.15] as const;
-/** Seconds after leaving rest on the gas that full key still counts as a launch, so the gas may go down first. */
-const LAUNCH_WINDOW = 0.75;
 /** Traction control's slip in a launched power slide: about four times peak, enough wheelspin to break the rear loose. */
 const DRIFT_TCS_SLIP = 0.5;
 /**
@@ -77,21 +61,6 @@ const DRIFT_DAMP = 4;
  * the tail out at its old pace. Any other swing is damped at every angle: gated too, the catch snapped past straight.
  */
 const DRIFT_DAMP_SLIP = [0.15, 0.35] as const;
-/** Yaw rate (rad/s) under which a caught drift lets go once the tail is in: dropped at straight, it swung on into a spin. */
-const DRIFT_CALM = 0.3;
-/**
- * Seconds the stick sits under `LET_GO_STEER` before a held drift ends, the FH way: let go and the car straightens. Short
- * enough that a real let-go reads at once, long enough that keyboard taps through centre mid-drift keep it.
- */
-const LET_GO_TIME = 0.3;
-const LET_GO_STEER = 0.3;
-/** Front slip angle the steer assist allows, in `peak_angle`: past peak a tyre only scrubs speed. */
-const USEFUL_SLIP = 1.1;
-/**
- * Front slip angle past the front axle's course in a launched power slide, in `peak_angle`. At full lock the fronts
- * pulled the car round a 3 m circle whose scrub held it near 10 km/h; at `USEFUL_SLIP` they still did below 20 km/h.
- */
-const DRIFT_REACH = 0.6;
 /**
  * Wheelspin (in `peak_slip`) past which a held drift's rear tyres stop losing side grip to it. On the full ellipse a rear
  * spinning at 0.5 kept 60% of its side grip: with the key held into the turn the tail swung from 25 to 37 degrees while the
@@ -104,140 +73,7 @@ const DRIFT_SIDE_SX = 2;
  * round, and so does the steering assist, whose own countersteer holds the slide.
  */
 const DRIFT_SIDE_SLIP = [0.26, 0.52] as const;
-/**
- * Share of the gap between sliding and peak side grip a held drift's rears keep past their peak, with the steering assist
- * off and `Car.drift_full_lock`. At sliding grip, with the fronts biting, lifting to 0.3 gas left a 90 km/h drift at 35
- * degrees rather than bringing it in (17 at 0.8), and a 20 degree drift weaved.
- */
-const DRIFT_REAR_BITE = 0.8;
-/**
- * Front slip a held full key reaches past `grip_lock` at speed, in `peak_angle`: with the fronts held just under peak a
- * full key felt stiff at 100-150 km/h. A little past peak turns tighter into a catchable push rather than a wall.
- */
-const FULL_KEY_REACH = 0.15;
-/** Speeds (m/s) over which `FULL_KEY_REACH` opens, 90 to 150 km/h: below, power slides and donuts keep their lock. */
-const FULL_KEY_SPEEDS = [25, 41.7] as const;
-/** Speeds (m/s) where the useful-slip cap fades in and back out: below, parking keeps full lock; above, `grip_lock` rules. */
-const USEFUL_SPEEDS = [3, 6, 12, 16] as const;
-/** Body slip (rad) with the tail out against the held steer at which a power slide counts in full. */
-const SLIDE_OUT = 0.1;
-/** Speeds (m/s) over which a power slide stops counting: the slide assists keep catching the car above them. */
-const SLIDE_SPEEDS = [12, 16] as const;
-/** Body slip (rad) against the held steer over which an unassisted countersteer blends to full lock (either way with `both`). */
-const COUNTER_SLIP = [0.1, 0.2] as const;
-const STEER_RATE = 9;
-const KEY_RAMP = 0.2;
-const KEY_RAMP_MIN = 0.03;
-const KEY_RAMP_SPEED = 30;
-const KEY_RETURN = 2.5;
-const HOLD_TIME = 0.4;
-/** A keyboard steer filter: the key is a virtual stick that moves at these rates. */
-interface KeyProfile {
-  /** Seconds from the tap share to full key, linear, by speed (km/h) with linear steps between rows. */
-  attack: readonly (readonly [kmh: number, s: number])[];
-  /** Seconds from full key back to none once it is let go, by speed (km/h). */
-  release: readonly (readonly [kmh: number, s: number])[];
-  /**
-   * Shape of the release: the key unwinds at a rate in proportion to `key + release_ease`. Small lets a full key go
-   * fast and a small one gently, so short gaps between presses keep a correction rather than dropping it.
-   */
-  release_ease: number;
-  /** Rate multiplier, on the attack, for the opposite key: through centre and on until it meets a fresh press's ramp. */
-  reverse: number;
-  /** Share of full key a fresh press applies on its first step. */
-  tap: number;
-}
-
-const SMOOTH_KEYS: KeyProfile = {
-  attack: [[0, 0.08], [30, 0.15], [60, 0.3], [100, 0.39], [150, 0.7], [200, 0.86], [250, 0.95]],
-  release: [[0, 0.09], [30, 0.15], [60, 0.22], [100, 0.31], [150, 0.38], [200, 0.5], [250, 0.56]],
-  release_ease: 0.18,
-  reverse: 2.5,
-  tap: 0.05,
-};
-// Released, a held wheel centres over this many metres rolled: 0.5 s at 100 km/h, about 25 s of creeping at 2 km/h.
-const HOLD_CENTRE_DISTANCE = 14;
-// The slip model is viscous below its 2 m/s floor, so a locked wheel still creeps under any steady force (a slope);
-// a pinned contact patch with a load-scaled spring and damper gives it real static friction.
-const STICK_SPEED = 0.2;
-const STICK_SPRING = 25;
-const STICK_DAMPER = 2.2;
-// Bearing drag on a wheel in the air, per second. It was 0.1% a step, 30% a second at 360 Hz, so after a long jump every
-// wheel landed turning half the car's speed: past peak slip, with little lateral grip left.
-const AIR_SPIN_DRAG = 0.02;
 const DROP_CLEAR = 0.05;
-
-// Normalised magic formula: peak at s = 1, sliding grip sin(C·π/2) ≈ 65% of peak.
-const MF_C = 1.55;
-const MF_B = Math.tan(Math.PI / (2 * MF_C));
-// Its tail kept falling to that 65%, so a car thrown fully sideways glided; real tyres slide at 70-80% of peak, so past
-// SLIDE_S the patch slides outright at SLIDE_GRIP.
-const SLIDE_GRIP = 0.76;
-const SLIDE_S = Math.tan((Math.PI - Math.asin(SLIDE_GRIP)) / MF_C) / MF_B;
-// Loose ground: the share of its peak a road tyre (`offroad` 0) keeps sliding on fully loose ground. Gravel and grass
-// roll under the tread rather than tearing it, so a slide keeps most of the grip and stays catchable.
-const LOOSE_SLIDE = 0.86;
-/** Sliding share `offroad` 1 adds on loose ground: knobbly tread digs in; slicks (below 0) lose it. */
-const LOOSE_BITE = 0.09;
-
-// Module scratch rather than a returned object: the step runs at 360 Hz per wheel and must not allocate.
-let curve_c = MF_C;
-let curve_b = MF_B;
-let curve_s = SLIDE_S;
-let curve_spread = 1;
-let curve_cap = 1;
-/** Where the bounded curve peaks, in `s`: under 1 once the stock tyre's asphalt curve cuts the loose one off before its own peak. */
-let curve_peak = 1;
-
-// `share` (from `surface_grip`) and `road` (the stock tyres' `mu` over this tyre's) bound the loose curve by
-// the stock tyre's asphalt curve at the same slip. Unbound, wider and slower to fall past the peak, it kept more of a
-// high-share tyre's grip in a slide than asphalt does, and locked stops and launches off the road beat the road.
-function shape(loose: number, offroad: number, share: number, road: number) {
-  if (loose <= 0) {
-    curve_c = MF_C;
-    curve_b = MF_B;
-    curve_s = SLIDE_S;
-    curve_spread = 1;
-    curve_peak = 1;
-    return;
-  }
-  curve_cap = road / share;
-  const slide = LOOSE_SLIDE + LOOSE_BITE * Math.max(-1, Math.min(1, offroad));
-  // With this C the magic formula falls from its peak towards `slide` and never under it.
-  const c = (2 * (Math.PI - Math.asin(slide))) / Math.PI;
-  // The peak moves out to keep asphalt's cornering stiffness: softer, a 120 km/h keyboard lane change on dirt took a
-  // second longer to settle; stiffer, the peak sat at asphalt's slip and nothing felt broader.
-  const spread = (c * Math.tan(Math.PI / (2 * c))) / (MF_C * MF_B);
-  curve_c = MF_C + (c - MF_C) * loose;
-  curve_b = Math.tan(Math.PI / (2 * curve_c));
-  const floor = SLIDE_GRIP + (slide - SLIDE_GRIP) * loose;
-  curve_s = floor > Math.sin((curve_c * Math.PI) / 2) + 1e-6 ? Math.tan((Math.PI - Math.asin(floor)) / curve_c) / curve_b : Infinity;
-  curve_spread = 1 + (spread - 1) * loose;
-  curve_peak = bound_peak();
-}
-
-// The loose curve rises to its peak at s = 1 while the bound, past its own peak at 1 / spread, falls: the bounded
-// curve peaks where they cross, or on the bound's peak when the loose curve is already over it there.
-function bound_peak(): number {
-  if (bound_at(1) >= 1) return 1;
-  let lo = 1 / curve_spread;
-  if (loose_at(lo) >= bound_at(lo)) return lo;
-  let hi = 1;
-  for (let i = 0; i < 14; i++) {
-    const mid = (lo + hi) / 2;
-    if (loose_at(mid) < bound_at(mid)) lo = mid;
-    else hi = mid;
-  }
-  return (lo + hi) / 2;
-}
-
-function bound_at(s: number): number {
-  return curve_cap * Math.sin(MF_C * Math.atan(MF_B * s * curve_spread));
-}
-
-function loose_at(s: number): number {
-  return Math.sin(curve_c * Math.atan(curve_b * s));
-}
 
 // Each front points at the rear-axle turn centre, so at full lock inner and outer stop fighting each other.
 /** Road wheel angle, radians, of the wheel mounted at `x` (positive on the left) for the car's `steer`. */
@@ -324,100 +160,14 @@ export class Wheel {
   }
 }
 
-function curve_at(curve: readonly (readonly [number, number])[], x: number): number {
-  for (let i = 1; i < curve.length; i++) {
-    const x1 = curve[i][0];
-    if (x <= x1) {
-      const y1 = curve[i][1];
-      const x0 = curve[i - 1][0];
-      const y0 = curve[i - 1][1];
-      return y0 + ((y1 - y0) * (x - x0)) / (x1 - x0);
-    }
-  }
-  return curve[curve.length - 1][1];
-}
-
-/**
- * Share of `spec.mu` a tyre grips with on ground of row grip `surface`, `dirt` on a trail. The loss `offroad` shrugs off
- * is capped at asphalt's, and the tyre's own loose-ground bite (`grip_dirt`, `grip_grass`) goes on top: capped
- * together, an off-road tyre's tarmac penalty followed it onto the dirt and the rally car's stock tyres outgripped its
- * rally tyres there. The parts keep bite × their `mu` scale at or under 1, so loose ground never outgrips road tyres on the road.
- */
-export function surface_grip(spec: CarSpec, surface: number, dirt: boolean): number {
-  const bite = surface < 1 ? ((dirt ? spec.grip_dirt : spec.grip_grass) ?? 1) : 1;
-  return Math.max(0, Math.min(1, surface + (1 - surface) * spec.offroad)) * bite;
-}
-
-/**
- * Lock (rad) at `speed` m/s that a grip-limited corner needs: kinematic L/R plus front-minus-rear slip, which is small
- * because body slip already loads the fronts. Past it the fronts go over peak, lose yaw damping and the car wallows.
- */
-export function grip_lock(spec: CarSpec, speed: number): number {
-  return (spec.wheelbase * GRAVITY * 1.05) / Math.max(1, speed * speed) + spec.peak_angle * 0.45;
-}
-
-/**
- * Lock (rad) a full key adds past `grip_lock` at `speed` m/s. Keys take it in along `key_reach`, a stick linearly.
- */
-function full_key_reach(spec: CarSpec, speed: number): number {
-  const slow = FULL_KEY_SPEEDS[0];
-  const fast = FULL_KEY_SPEEDS[1];
-  return spec.peak_angle * FULL_KEY_REACH * Math.max(0, Math.min(1, (speed - slow) / (fast - slow)));
-}
-
-/**
- * Share of `full_key_reach` a key held at `key` (-1..1) asks for: a smoothstep, flat at both ends, so the wheel meets and
- * leaves full lock no faster than the plain lock alone moves it. The key cubed it replaced was steepest at full key, and
- * the wheel swung into the extra lock and off it quicker than before.
- */
-function key_reach(key: number): number {
-  const size = Math.min(1, Math.abs(key));
-  return Math.sign(key) * size * size * (3 - 2 * size);
-}
-
-/**
- * Lock (rad) with the steer assist off, `limit` the grip-limited lock, `steer` the held stick and `slide` the body slip
- * (rad). Into a turn it is the grip-limited lock, as with the assist: the wider speed-cut lock it had put the fronts at
- * four to six times their peak slip, and a held key pushed wide and scrubbed speed. A countersteer opens it to full
- * lock: capped, the fronts could not reach their course past 30 degrees of body slip and a power slide spun. With `both`
- * the key into the turn opens it too (`Car.drift_full_lock`).
- */
-export function unassisted_lock(spec: CarSpec, limit: number, steer: number, slide: number, both = false): number {
-  const from = COUNTER_SLIP[0];
-  const to = COUNTER_SLIP[1];
-  const counter = Math.max(0, Math.min(1, ((both ? Math.abs(slide) : Math.sign(steer) * slide) - from) / (to - from)));
-  return limit + (spec.lock - limit) * counter;
-}
-
-function magic(s: number): number {
-  const y = Math.sin(curve_c * Math.atan(curve_b * Math.max(-curve_s, Math.min(curve_s, s))));
-  if (curve_spread === 1) return y;
-  const road = s * curve_spread;
-  return Math.min(y, curve_cap * Math.sin(MF_C * Math.atan(MF_B * Math.max(-SLIDE_S, Math.min(SLIDE_S, road)))));
-}
-
-function combined_x(sx: number, sy: number): number {
-  const s = Math.hypot(sx, sy);
-  return s < 1e-6 ? curve_c * curve_b * sx : (magic(s) * sx) / s;
-}
-
-function combined_y(sx: number, sy: number): number {
-  const s = Math.hypot(sx, sy);
-  return s < 1e-6 ? curve_c * curve_b * sy : (magic(s) * sy) / s;
-}
-
-const up = new Vector3();
 const down = new Vector3();
 const forward = new Vector3();
 const mount = new Vector3();
-const wheel_fwd = new Vector3();
-const lat = new Vector3();
 const lever = new Vector3();
 const point_vel = new Vector3();
 const force = new Vector3();
 const tmp = new Vector3();
 const tmp2 = new Vector3();
-const inv = new Quaternion();
 const steer_q = new Quaternion();
 const Y = new Vector3(0, 1, 0);
 
@@ -458,7 +208,11 @@ function ray_gap(ground: Ground, t: number): number {
 }
 
 /** What one step's phases hand on to the later ones; each field is written before any later phase reads it. */
-interface StepFrame {
+export interface StepFrame {
+  /** The car's up axis in the world. */
+  readonly up: Vector3;
+  /** World to car frame. */
+  readonly inv: Quaternion;
   speed: number;
   /** Velocity along the car's nose, m/s. */
   vf: number;
@@ -490,11 +244,12 @@ export class Car {
   readonly wheels: Wheel[];
   private readonly driven: Wheel[];
   private readonly corners: Vector3[];
-  private readonly steer_z: number;
   private readonly sense: NitroSense = { slide: 0, speed: 0, airborne: false };
   // NaN, not 0: a field first set to a small integer changes the object's shape the first time it takes a fraction, and
   // every phase that reads it deopts. Left at 0, one late fraction deopted every phase 139 s into a test drive.
   private readonly frame: StepFrame = {
+    up: new Vector3(),
+    inv: new Quaternion(),
     speed: NaN,
     vf: NaN,
     pedal: NaN,
@@ -533,22 +288,7 @@ export class Car {
   throttle = 0;
   /** Keyboard steer after the speed-scaled ramp, -1..1; follows the stick directly for analog input. */
   key_steer = 0;
-  /** Smooth keys: the steer input on the last step, so a fresh press is told from a held or reversed one. */
-  private key_input = 0;
-  /** Smooth keys: seconds the steer key has been held in its current direction. */
-  private key_press = 0;
-  /** Side (sign of the key) of the power slide asked for since the steer was last let go; 0 with none. */
-  private slide_side = 0;
-  /** Side (sign of the held key) of a power slide launched from rest and still asked for; 0 with none. */
-  private launch_side = 0;
-  /** Seconds since the car left rest with the gas down, held since; Infinity when it was not, or the gas came up. */
-  private launch_age = Infinity;
-  /** Side of the launched slide whose hold is still fading out after gas or stick eased the launch off; 0 with none. */
-  private hold_side = 0;
-  /** Seconds since a rolling handbrake tap at full lock; Infinity with none. */
-  private tap_age = Infinity;
-  /** Seconds the stick has sat near centre; a held drift ends past `LET_GO_TIME`. */
-  private centred = 0;
+  readonly steering: Steering;
   steer_mode: SteerMode = SteerMode.SNAP;
   /**
    * With the steering assist off, a slide opens full lock into the turn as well as against it, and a held drift past
@@ -568,7 +308,7 @@ export class Car {
       const axle = this.axles[axle_index(this.axles, i)];
       return new Wheel(new Vector3(x, y, z), axle, axle.wheels[0] === i ? axle.wheels[1] : axle.wheels[0], x > 0, spec);
     });
-    this.steer_z = this.axles.find((a) => a.steer)?.z ?? 0;
+    this.steering = new Steering(this.axles.find((a) => a.steer)?.z ?? 0);
     this.driven = this.wheels.filter((w) => w.driven);
     this.corners = spec.corners.map(([x, y, z]) => new Vector3(x, y, z));
     this.rpm = spec.idle;
@@ -599,8 +339,7 @@ export class Car {
     this.rpm = this.spec.idle;
     this.steer = 0;
     this.key_steer = 0;
-    this.key_input = 0;
-    this.key_press = 0;
+    this.steering.release_keys();
     this.forget_slide();
     this.shifting = 0;
     for (const w of this.wheels) {
@@ -629,17 +368,12 @@ export class Car {
 
   /** A power slide launched from rest is under way: traction control lets the rear spin up. */
   get launched(): boolean {
-    return this.launch_side !== 0;
+    return this.steering.launched;
   }
 
   /** Drops the slide the driver was asking for, for a car put somewhere new or rewound. */
   forget_slide() {
-    this.slide_side = 0;
-    this.launch_side = 0;
-    this.launch_age = Infinity;
-    this.hold_side = 0;
-    this.tap_age = Infinity;
-    this.centred = 0;
+    this.steering.forget_slide();
   }
 
   get heading(): number {
@@ -669,14 +403,14 @@ export class Car {
   // step kept falling out of its top tier and boxed every float, 3 KB a step two minutes in. Phases run in the old order.
   step(dt: number, input: Controls, ground: Ground) {
     const { body, frame } = this;
-    up.set(0, 1, 0).applyQuaternion(body.quat);
-    down.copy(up).negate();
+    frame.up.set(0, 1, 0).applyQuaternion(body.quat);
+    down.copy(frame.up).negate();
     forward.set(0, 0, 1).applyQuaternion(body.quat);
     frame.vf = body.vel.dot(forward);
     frame.speed = body.vel.length();
 
     this.pedals(input);
-    this.steer_wheel(dt, input);
+    this.steering.step(this, frame, dt, input);
     this.gearbox(dt);
     const max_drag = this.traction(dt);
     this.engine(dt, input, max_drag);
@@ -706,157 +440,6 @@ export class Car {
     frame.brake = brake;
     frame.hold = this.parked || (idle_now && speed < 1);
     this.braking = brake;
-  }
-
-  private steer_wheel(dt: number, input: Controls) {
-    const frame = this.frame;
-    const speed = frame.speed;
-    inv.copy(this.body.quat).invert();
-    const local = tmp.copy(this.body.vel).applyQuaternion(inv);
-    frame.slide = speed > 5 ? Math.atan2(-local.x, Math.abs(local.z)) : 0;
-    this.ramp_keys(dt, input, speed);
-    this.drift_intent(dt, input, local);
-    this.aim(dt, input, local);
-  }
-
-  // A key is full stick at once, which at speed makes every tap a full-lock flick; ramp it like a thumb would.
-  private ramp_keys(dt: number, input: Controls, speed: number) {
-    if (input.analog) this.key_steer = input.steer;
-    else if (this.steer_mode === SteerMode.HOLD) {
-      // Hands off, the caster turns the wheel back only as the car rolls: parked it stays put, at speed it centres fast.
-      if (input.steer === 0) {
-        const step = (speed * dt) / HOLD_CENTRE_DISTANCE;
-        this.key_steer -= Math.sign(this.key_steer) * Math.min(Math.abs(this.key_steer), step);
-      } else {
-        const step = ((input.steer * this.key_steer < 0 ? KEY_RETURN : 1) / HOLD_TIME) * dt;
-        this.key_steer += Math.max(-step, Math.min(step, input.steer - this.key_steer));
-      }
-    } else if (this.steer_mode === SteerMode.SMOOTH) {
-      const keys = SMOOTH_KEYS;
-      const kmh = speed * 3.6;
-      const held = this.key_steer;
-      const want = input.steer;
-      const size = Math.abs(want);
-      this.key_press = want * this.key_input > 0 ? this.key_press + dt : want === 0 ? 0 : dt;
-      const attack = curve_at(keys.attack, kmh) / (1 - keys.tap);
-      // Where a press held this long would sit had it started at centre: the opposite key catches the wheel up to it.
-      const ramp = size * Math.min(1, keys.tap + this.key_press / attack);
-      if (want * held < 0 || (want !== 0 && Math.abs(held) < ramp)) {
-        const from = this.key_input === 0 && want * held >= 0 ? Math.sign(want) * Math.max(Math.abs(held), keys.tap * size) : held;
-        const step = (keys.reverse / attack) * dt;
-        this.key_steer = from + Math.max(-step, Math.min(step, Math.sign(want) * ramp - from));
-      } else if (size > Math.abs(held)) {
-        this.key_steer = Math.sign(want) * Math.min(size, Math.abs(held) + dt / attack);
-      } else {
-        const decay = curve_at(keys.release, kmh) / Math.log((1 + keys.release_ease) / keys.release_ease);
-        const step = ((Math.abs(held) + keys.release_ease) * dt) / decay;
-        this.key_steer += Math.max(-step, Math.min(step, want - held));
-      }
-      this.key_input = want;
-    } else {
-      const full = KEY_RAMP * Math.min(1, speed / KEY_RAMP_SPEED) + KEY_RAMP_MIN;
-      const back = input.steer === 0 || input.steer * this.key_steer < 0;
-      const step = ((back ? KEY_RETURN : 1) / full) * dt;
-      this.key_steer += Math.max(-step, Math.min(step, input.steer - this.key_steer));
-    }
-  }
-
-  /** The slide the driver asks for, from `local`, the car's velocity in its own frame: `power_slide` and `drift_steer`. */
-  private drift_intent(dt: number, input: Controls, local: Vector3) {
-    const { spec, frame } = this;
-    const { speed, pedal, brake } = frame;
-    const beta = Math.atan2(-local.x, Math.abs(local.z));
-    const slow = SLIDE_SPEEDS[0];
-    const fast = SLIDE_SPEEDS[1];
-    const walking = Math.max(0, Math.min(1, (fast - speed) / (fast - slow)));
-    // Steer held into the turn on the gas with the tail out, at walking pace: a deliberate power slide or a donut. The assists
-    // that catch a slide at speed (grip lock, countersteer, yaw damping) would straighten the wheels and stop it.
-    const tail_out = Math.max(0, Math.min(1, (-Math.sign(this.key_steer) * beta) / SLIDE_OUT));
-    // The countersteer that catches a slide is full key the other way at full gas too: until the steer is let go it
-    // catches rather than asking for the mirror slide, which swung the tail past straight into a spin.
-    if (Math.abs(input.steer) < 0.05) this.slide_side = 0;
-    const rear_drive = spec.drive !== "fwd" && this.gear >= 1 ? walking * Math.min(1, pedal) : 0;
-    const side = Math.sign(this.key_steer);
-    const intent = (this.slide_side === -side ? 0 : rear_drive) * Math.abs(this.key_steer);
-    if (intent > DRIFT_INTENT) this.slide_side = side;
-    const power_slide = intent * tail_out;
-    // The launch reads the held key, not the filtered wheel: a keyboard wheel still ramping, or the gas down first, had the
-    // car past walking speed before the wheel got there.
-    // Rolling, a handbrake tap at full lock kicks it, the Forza way: keys and touch buttons are always full, so no gas
-    // pattern tells a drift from a slow corner. TCS on and the assist off, as from rest; all-wheel drive stalled in it.
-    const tapped = this.tcs && !this.assist && spec.drive === "rwd" && this.gear >= 1 && input.handbrake > 0.5 && Math.abs(input.steer) > DRIFT_INTENT;
-    this.tap_age = tapped ? 0 : this.tap_age + dt;
-    const kicks = speed < DRIFT_START;
-    this.launch_age = pedal > 0.1 && speed < 1 ? 0 : pedal <= 0.1 ? Infinity : this.launch_age + dt;
-    const held = Math.sign(input.steer);
-    const asked = (this.slide_side === -held ? 0 : rear_drive) * Math.abs(input.steer);
-    if (asked <= DRIFT_INTENT || held !== this.launch_side) this.launch_side = 0;
-    if (asked > DRIFT_INTENT && (this.launch_age < LAUNCH_WINDOW || (kicks && this.tap_age < TAP_WINDOW))) this.launch_side = held;
-    if (this.launch_side !== 0) this.slide_side = this.launch_side;
-    // All-wheel drive pulls its own nose along the course; held there too it came out of the slide at 45 km/h, where
-    // the opposite key is a full-lock turn the other way rather than a catch.
-    // Once gas or stick eases the launch off, the hold stays while the tail is still out on the launched side and fades as
-    // it comes in: cut there, the wheels swung from countersteer to lock and the car pivoted down to walking pace.
-    const fade_from = HOLD_FADE[0];
-    const fade_to = HOLD_FADE[1];
-    if (this.launched) this.hold_side = this.launch_side;
-    // Faster, the tap's slide is the drift: its side is the way the tail went, as the key may already be countersteering.
-    else if (!kicks && this.tap_age < TAP_WINDOW && pedal > DRIFT_INTENT && Math.abs(beta) > fade_from) this.hold_side = -Math.sign(beta);
-    const tail_left = Math.max(0, Math.min(1, (-(this.hold_side || side) * beta - fade_from) / (fade_to - fade_from)));
-    // With the steering assist off, the countersteer key is the catch, not the end: dropping the hold for it put traction
-    // control back at 0.14, the gas went to its floor and the car slowed and gripped up mid-slide. Letting go ends it.
-    this.centred = Math.abs(input.steer) < LET_GO_STEER ? this.centred + dt : 0;
-    const let_go = this.assist ? this.hold_side !== held || this.hold_side !== side : this.centred >= LET_GO_TIME;
-    // Braking or reversing out of it is no drift: held on, the loose TCS let the car reverse at full lock to 41 km/h.
-    const swung = tail_left === 0 && (Math.abs(this.body.ang.y) < DRIFT_CALM || this.assist);
-    if (!this.launched && (let_go || swung || this.gear < 1 || brake > 0.1 || local.z < 0)) this.hold_side = 0;
-    frame.beta = beta;
-    frame.walking = walking;
-    frame.power_slide = power_slide;
-    frame.drift_steer = !this.tcs || spec.drive !== "rwd" ? 0 : this.launched ? 1 : this.hold_side !== 0 ? tail_left : 0;
-  }
-
-  /** Turns the wheel towards the lock the key and the slide ask for, from `local`, the car's velocity in its own frame. */
-  private aim(dt: number, input: Controls, local: Vector3) {
-    const { spec, frame } = this;
-    const { speed, slide, beta, power_slide, drift_steer } = frame;
-    const cornering = grip_lock(spec, speed);
-    const limit = Math.min(spec.lock, cornering + (spec.lock - cornering) * power_slide);
-    const lock = this.assist ? limit : unassisted_lock(spec, limit, this.key_steer, slide, this.drift_full_lock);
-    let target = this.key_steer * lock + (input.analog ? this.key_steer : key_reach(this.key_steer)) * full_key_reach(spec, speed);
-    if (this.assist && speed > 4 && local.z > 1) target += Math.sign(beta) * Math.max(0, Math.abs(beta) - 0.1) * 0.8 * (1 - power_slide);
-    if (local.z > 1) {
-      // Full lock at hairpin speed put the fronts at 20-27 degrees of slip, three times peak, and their scrub held the car
-      // at walking pace under full throttle. Keep them within reach of peak around the way the front axle is moving.
-      const course = Math.atan2(-(local.x + this.body.ang.dot(up) * this.steer_z), local.z);
-      const on_from = USEFUL_SPEEDS[0];
-      const on_to = USEFUL_SPEEDS[1];
-      const off_from = USEFUL_SPEEDS[2];
-      const off_to = USEFUL_SPEEDS[3];
-      const fade = Math.max((on_to - speed) / (on_to - on_from), (speed - off_from) / (off_to - off_from));
-      // Opened into the turn, a full lock of slack still held a drift's key at 34 degrees, its course 15 degrees out.
-      const free = this.drift_full_lock && !this.assist && fade >= 1 ? Infinity : spec.lock * Math.max(0, Math.min(1, fade));
-      const reach = USEFUL_SLIP * spec.peak_angle + free;
-      // In a power slide the front axle's course swings with the tail, and pulling the fronts after it straightened them
-      // under a player holding full lock.
-      const near = Math.max(course - reach, Math.min(course + reach, target));
-      // Without the assist the clamp only takes lock off: turning the wheels towards the course on its own is the countersteer.
-      const kept = this.assist ? near : Math.sign(target) * Math.max(0, Math.min(Math.abs(target), Math.sign(target) * near));
-      // A launched or held slide under traction control keeps the fronts on the course at any speed: the assist's countersteer,
-      // and what lets the slide carry speed rather than pivot. Without the assist the wheels follow the key alone: held into
-      // a handbrake drift they turned 14 degrees the other way.
-      const course_steer = this.assist ? drift_steer : 0;
-      const on_course = Math.max(course - DRIFT_REACH * spec.peak_angle, Math.min(course + DRIFT_REACH * spec.peak_angle, target));
-      const loose = target + (kept - target) * (1 - power_slide);
-      target = loose + (on_course - loose) * course_steer;
-      // Fading, the wheels still never point further into the turn than the held course: blended with the full lock the
-      // stick asks for, an eased kaze steered 17 degrees into the turn and the tail swung out again.
-      if (this.hold_side !== 0 && course_steer > 0) target = this.hold_side * Math.min(this.hold_side * target, this.hold_side * on_course);
-    }
-    target = Math.max(-spec.lock, Math.min(spec.lock, target));
-    // At speed the ramped key input moves slower than either limit; at parking speed this keeps the old keyboard feel.
-    const rate = input.analog ? STEER_RATE : Math.max(1.6, lock * 6) * (input.steer === 0 ? 1.6 : 1);
-    this.steer += Math.max(-rate * dt, Math.min(rate * dt, target - this.steer));
   }
 
   private gearbox(dt: number) {
@@ -999,127 +582,9 @@ export class Car {
       const inertia = w.driven ? driven_inertia : 1.4;
       const torque = w.driven ? (drive * axle.drive_share) / axle.wheels.length : 0;
       const brake_torque = brake * axle.brake * w.abs_factor + (axle.handbrake ? input.handbrake * spec.handbrake : 0) + (hold ? spec.hold : 0) + w.tcs_brake * Math.abs(torque);
-      if (!w.contact) this.spin_free(w, dt, torque, brake_torque, inertia);
-      else this.tyre(w, dt, ground, torque, brake_torque, inertia, this.suspend(w, dt, ground));
+      if (!w.contact) spin_free(this, frame, w, dt, torque, brake_torque, inertia);
+      else tyre(this, frame, w, dt, ground, torque, brake_torque, inertia, suspend(this, frame, w, dt, ground));
     }
-  }
-
-  private spin_free(w: Wheel, dt: number, torque: number, brake_torque: number, inertia: number) {
-    const vf = this.frame.vf;
-    let omega = w.omega + (dt * torque) / inertia;
-    const cut = (dt * brake_torque) / inertia;
-    omega -= Math.sign(omega) * Math.min(Math.abs(omega), cut);
-    w.omega = omega * (1 - AIR_SPIN_DRAG * dt);
-    w.spin += w.omega * dt;
-    // Wheel speed against the car's, as on the ground, so traction control still sees a wheel revving free in the
-    // air; unchecked it lands spinning far past peak slip with no lateral grip left.
-    w.slip = (w.omega * this.spec.wheel.radius - vf) / Math.max(Math.abs(vf), 2);
-    w.abs = false;
-    w.abs_factor = 1;
-    w.anchored = false;
-  }
-
-  /** Pushes the body up off a wheel's spring, damper, anti-roll bar and bump stop; returns the wheel's load. */
-  private suspend(w: Wheel, dt: number, ground: Ground): number {
-    const { spec, body } = this;
-    const rest = spec.wheel.rest;
-    const other = this.wheels[w.pair];
-    let suspension = spec.spring * w.compression + (spec.damper * (w.compression - w.prev)) / dt;
-    suspension += w.axle.arb * (w.compression - other.compression);
-    if (w.compression > rest) suspension += spec.bump * (w.compression - rest);
-    suspension = Math.max(0, Math.min(spec.strut_max, suspension));
-    lever.copy(w.point).sub(body.pos);
-    ground.normal(w.point.x, w.point.z, w.normal, w.point.y);
-    const load = suspension * Math.max(0, up.dot(w.normal));
-    w.load = load;
-    // Along body up, a pitched body pushed itself sideways and a car in neutral rolled off on the flat.
-    body.apply(force.copy(w.normal).multiplyScalar(load), w.point);
-    return load;
-  }
-
-  /** A wheel on the ground: its spin against the tyre's grip, ABS, the static anchor and the tyre's force on the body. */
-  private tyre(w: Wheel, dt: number, ground: Ground, torque: number, brake_torque: number, inertia: number, load: number) {
-    const { spec, body, frame } = this;
-    const { brake, drift_bite } = frame;
-    const radius = spec.wheel.radius;
-    const axle = w.axle;
-    const cap = axle.steer ? Infinity : frame.side_cap;
-    point_vel.crossVectors(body.ang, lever).add(body.vel);
-    let tyre_angle = w.angle;
-    if (drift_bite > 0 && axle.steer && this.hold_side !== 0) {
-      // Held into the turn past its useful slip, a front bites as at that slip: the wheel shows full lock, the tyre
-      // does not scrub. At full lock it sat 50-60 degrees past its course and the drift ran wide.
-      tmp2.copy(point_vel).applyQuaternion(inv);
-      const useful = Math.atan2(-tmp2.x, tmp2.z) + this.hold_side * USEFUL_SLIP * spec.peak_angle;
-      if (this.hold_side * w.angle > this.hold_side * useful) tyre_angle = w.angle + (useful - w.angle) * drift_bite;
-    }
-    steer_q.setFromAxisAngle(Y, -tyre_angle);
-    wheel_fwd.set(0, 0, 1).applyQuaternion(steer_q).applyQuaternion(body.quat);
-    wheel_fwd.addScaledVector(w.normal, -wheel_fwd.dot(w.normal)).normalize();
-    lat.crossVectors(w.normal, wheel_fwd).normalize();
-
-    const v_long = point_vel.dot(wheel_fwd);
-    const v_lat = point_vel.dot(lat);
-    const denom = Math.max(Math.abs(v_long), 2);
-    const surface = ground.grip(w.point.x, w.point.z);
-    const grip = surface_grip(spec, surface, surface < 1 && !!ground.dirt?.(w.point.x, w.point.z));
-    shape(ground.loose?.(w.point.x, w.point.z) ?? 0, spec.offroad, grip, frame.stock);
-    // Tyre force grows ever slower with load and tops out at half `load_fade`; past that it stays flat. Left as a
-    // parabola it fell to nothing at `load_fade` and reversed above it, which a hard landing reaches.
-    const bite = Math.min(load, spec.load_fade / 2);
-    const peak = spec.mu * axle.grip * grip * bite * (1 - bite / spec.load_fade);
-    // Over the same denominator as the longitudinal slip, so the combined force points against the patch's slip
-    // velocity. As an angle it stopped at 90 degrees while wheelspin over a 2 m/s floor did not: a rear spinning fully
-    // sideways put nearly all its grip into drive and the car glided on the fronts.
-    const sy = -v_lat / denom / Math.tan(spec.peak_angle) / curve_spread;
-    const peak_slip = spec.peak_slip * curve_spread;
-    w.peak = curve_spread * curve_peak;
-
-    // Semi-implicit wheel spin: linearise the tyre's longitudinal force around the current slip so a stiff tyre
-    // can't overshoot within one step; past the peak the slope clamps to 0 and wheelspin runs free.
-    const sx0 = (w.omega * radius - v_long) / denom / peak_slip;
-    const peak_x = brake > 0.05 && sx0 * v_long < 0 ? peak * spec.brake_grip : peak;
-    const fx0 = combined_x(sx0, sy) * peak_x;
-    const k = Math.max(0, ((combined_x(sx0 + 1e-3, sy) * peak_x - fx0) / 1e-3) * (radius / (denom * peak_slip)));
-    const stiff = 1 + (dt * radius * k) / inertia;
-    let omega = (w.omega + (dt / inertia) * (torque - radius * fx0 + radius * k * w.omega)) / stiff;
-    const cut = (dt * brake_torque) / inertia / stiff;
-    omega -= Math.sign(omega) * Math.min(Math.abs(omega), cut);
-    w.omega = omega;
-    w.spin += omega * dt;
-
-    const sx = (omega * radius - v_long) / denom / peak_slip;
-    const roll = ground.roll(w.point.x, w.point.z);
-    const rolling = v_long * spec.roll_resist;
-    const fx = combined_x(sx, sy) * peak_x - rolling;
-    const side_sx = Math.max(-cap, Math.min(cap, sx));
-    let fy = combined_y(side_sx, sy) * peak;
-    const sliding = Math.hypot(side_sx, sy);
-    if (drift_bite > 0 && !axle.steer && sliding > 1) fy += ((sy / sliding) * peak - fy) * DRIFT_REAR_BITE * drift_bite;
-    w.slip = sx * peak_slip;
-    const locking = this.abs && brake > 0.1 && w.slip < -this.abs_slip * w.peak && Math.abs(v_long) > 2;
-    w.abs_factor = locking ? Math.max(0.2, w.abs_factor - 25 * dt) : Math.min(1, w.abs_factor + 12 * dt);
-    w.abs = w.abs_factor < 0.95;
-    w.lateral = Math.abs(sy);
-
-    force.copy(wheel_fwd).multiplyScalar(fx).addScaledVector(lat, fy);
-    const held = brake_torque > 0 && omega === 0;
-    if (!held) w.anchored = false;
-    else if (!w.anchored && Math.hypot(v_long, v_lat) < STICK_SPEED) {
-      w.anchored = true;
-      w.anchor.copy(w.point);
-    }
-    if (w.anchored) {
-      tmp2.copy(w.point).sub(w.anchor);
-      tmp2.addScaledVector(w.normal, -tmp2.dot(w.normal)).multiplyScalar(-STICK_SPRING * load);
-      tmp2.addScaledVector(wheel_fwd, -v_long * STICK_DAMPER * load).addScaledVector(lat, -v_lat * STICK_DAMPER * load);
-      if (tmp2.length() > peak) w.anchored = false;
-      else force.copy(tmp2);
-    }
-    body.apply(force, w.point);
-    // Grass drag acts at the centre of mass: at the contact patch it pitched load off the rear, and at full throttle on grass
-    // the unloaded rear lost straight-line yaw stability, so the car circled while TCS cut the power.
-    body.force.addScaledVector(wheel_fwd, -rolling * (roll - 1) * (1 - spec.offroad));
   }
 
   /** Pushes the body out of the ground at each corner the hull sinks in at; returns whether the car is still in the air. */
@@ -1167,12 +632,12 @@ export class Car {
     }
     // In the air, or on the body with no wheel down, there is no tyre slip angle to hold; damped in the air it cancelled the
     // yaw a slide carries over a jump.
-    if (!this.assist && this.hold_side !== 0 && this.tcs && spec.drive === "rwd" && speed > 1 && on_wheels) {
+    if (!this.assist && this.steering.hold_side !== 0 && this.tcs && spec.drive === "rwd" && speed > 1 && on_wheels) {
       // Yaw against the velocity's own turn rate is the slip angle changing; damping that, not yaw, leaves the arc alone.
       const swing = ang.y - tmp.crossVectors(vel, body.force).y / (spec.mass * speed * speed);
       const damp_from = DRIFT_DAMP_SLIP[0];
       const damp_to = DRIFT_DAMP_SLIP[1];
-      const settle = Math.sign(swing) !== -this.hold_side ? 1 : held_drift * Math.max(0, Math.min(1, (Math.abs(beta) - damp_from) / (damp_to - damp_from)));
+      const settle = Math.sign(swing) !== -this.steering.hold_side ? 1 : held_drift * Math.max(0, Math.min(1, (Math.abs(beta) - damp_from) / (damp_to - damp_from)));
       body.torque.y -= swing * spec.inertia[1] * DRIFT_DAMP * Math.min(1, pedal) * settle;
     }
   }
@@ -1181,7 +646,7 @@ export class Car {
   private aero(dt: number, airborne: boolean) {
     const { spec, body, frame } = this;
     const { vel, ang } = body;
-    const { speed, vf } = frame;
+    const { speed, vf, up } = frame;
     if (airborne && spec.air_settle > 0) {
       // Crests launch the car off whichever wheel leaves last, so it takes off spinning; bleed pitch and roll and level it
       // in the air so it lands on its wheels. Yaw is left alone so a slide carries through the jump.
