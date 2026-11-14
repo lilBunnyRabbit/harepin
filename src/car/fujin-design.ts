@@ -1,5 +1,6 @@
+import { gurney, plane } from "./design-parts";
 import type { Design, Slab, Wing } from "./designs";
-import { arc, type Part, type Point } from "./geometry";
+import { arc, type Point } from "./geometry";
 
 const SILL = 0.16;
 const WHEEL = 0.34;
@@ -12,7 +13,7 @@ const REAR_AXLE = -1.35;
 const PONTOON_FROM = 0.5;
 const PONTOON_WALL = 0.525;
 const PONTOON_SIDE: Point[] = [
-  [2.3, SILL], [2.36, 0.24], [2.33, 0.38], [2.1, 0.6], [1.8, 0.77], [1.45, 0.81], [1.1, 0.78], [0.8, 0.62], [0.6, 0.54],
+  [2.3, SILL], [2.36, 0.22], [2.32, 0.3], [2.1, 0.6], [1.8, 0.77], [1.45, 0.81], [1.1, 0.78], [0.8, 0.62], [0.6, 0.54],
   [-0.5, 0.54], [-0.8, 0.66], [-1.1, 0.8], [-1.45, 0.84], [-2.0, 0.8], [-2.3, 0.74], [-2.34, 0.66], [-2.34, 0.3], [-2.26, SILL],
 ];
 // The tub is lower than the wheels, so the arches are cut in the pontoons beside it, not in the body outline.
@@ -21,33 +22,37 @@ const PONTOON: Point[] = [
   ...arc(REAR_AXLE, WHEEL, ARCH, SILL, 7),
   ...arc(FRONT_AXLE, WHEEL, ARCH, SILL, 7),
 ];
-const FIN: Point[] = [[-0.45, 0.98], [-2.3, 0.9], [-2.3, 0.6], [-0.45, 0.6]];
-const ENDPLATE: Point[] = [[-1.8, 0.8], [-1.98, 1.16], [-2.46, 1.16], [-2.46, 0.72], [-2.3, 0.7]];
+const HALF = 1.0;
+const SPAN = 0.97;
+const TAIL: Point = [-2.34, 0.62];
 
-const plane = (chord: number, tilt: number): Part => ({ size: [0.985, 0.04, chord], at: [0.4925, 1.1, -2.2], tilt: [tilt, 0, 0] });
-const flap = (chord: number, y: number, z: number, tilt: number): Part => ({ size: [0.985, 0.03, chord], at: [0.4925, y, z], tilt: [tilt, 0, 0] });
+// One endplate per wing, grown out of the pontoon's tail: its top edge climbs from `lead`, runs level over the last plane to `rear`,
+// and its trailing edge runs down into the tail face.
+const endplate = (lead: Point, rear: Point): Slab => ({ points: [[-1.74, 0.76], lead, [rear[0] + 0.22, rear[1]], rear, TAIL, [-2.2, 0.6]], from: SPAN, to: HALF });
+// The engine cover's fin runs from the roof scoop into the main plane, so the wing stands on the body at its centre too.
+const fin = ([z, y]: Point): Slab => ({ points: [[-0.45, 1.085], [z + 0.12, y], [z - 0.06, y], [-2.3, 0.6], [-0.45, 0.6]], from: 0, to: 0.016 });
 
-// The endplates grow with the flaps, so no flap stands over or behind its plate.
-const plate = (top: number, rear: number): Slab => ({ points: [[-2.0, 1.14], [-2.06, top], [rear, top], [rear, 1.0], [-2.44, 0.9]], from: 0.97, to: 1.0 });
+function wing(at: Point, chord: number, tilt: number, lead: Point, rear: Point, flaps: Point[][] = []): Wing {
+  const main = plane(at, chord, 0.045, tilt);
+  return { paint: [], trim: [], lips: [endplate(lead, rear), fin(at)], stands: [main, ...flaps].map((points) => ({ points, from: 0, to: SPAN })) };
+}
 
+const RACE_FLAP = plane([-2.43, 1.255], 0.19, 0.035, 0.55);
 const WINGS: Wing[] = [
-  { paint: [], trim: [plane(0.38, 0.1)] },
-  { paint: [], trim: [plane(0.38, 0.12), flap(0.14, 1.16, -2.4, 0.5)], lips: [plate(1.23, -2.5)] },
-  { paint: [], trim: [plane(0.42, 0.16), flap(0.2, 1.18, -2.41, 0.7)], lips: [plate(1.28, -2.52)] },
-  { paint: [], trim: [plane(0.44, 0.2), flap(0.22, 1.19, -2.42, 0.8), flap(0.16, 1.27, -2.5, 1.05)], lips: [plate(1.37, -2.58)] },
+  wing([-2.16, 1.1], 0.4, 0.1, [-1.93, 1.13], [-2.42, 1.19]),
+  wing([-2.14, 1.1], 0.38, 0.12, [-1.92, 1.13], [-2.46, 1.26], [plane([-2.375, 1.185], 0.13, 0.03, 0.5)]),
+  wing([-2.15, 1.13], 0.42, 0.14, [-1.915, 1.155], [-2.5, 1.315], [plane([-2.405, 1.23], 0.16, 0.03, 0.55)]),
+  wing([-2.16, 1.15], 0.44, 0.16, [-1.92, 1.175], [-2.54, 1.38], [RACE_FLAP, gurney(RACE_FLAP, 0.03)]),
 ];
 
-const SPLITTER: Part = { size: [1.004, 0.03, 0.34], at: [0.502, 0.15, 2.28] };
+const NOSE = 2.36;
+// A wedge under the chin: thin at its leading edge, its top face rising into the nose, its floor fading out ahead of the arch.
+const splitter = (reach: number): Slab => ({ points: [[NOSE + reach, 0.13], [NOSE + reach, 0.15], [2.34, 0.2], [1.9, 0.2], [1.9, 0.16], [2.2, 0.13]], from: 0, to: 1.004 });
+const FENCE: Slab = { points: [[NOSE + 0.2, 0.14], [NOSE + 0.02, 0.3], [2.1, 0.3], [2.1, 0.14]], from: 0.97, to: 1.03 };
 const FRONTS: Wing[] = [
-  { paint: [], trim: [SPLITTER] },
-  { paint: [], trim: [{ size: [1.004, 0.03, 0.44], at: [0.502, 0.15, 2.33] }] },
-  {
-    paint: [],
-    trim: [
-      { size: [1.004, 0.03, 0.5], at: [0.502, 0.15, 2.36] },
-      { size: [0.16, 0.02, 0.2], at: [1.04, 0.32, 2.2] },
-    ],
-  },
+  { paint: [], trim: [], stands: [splitter(0.07)] },
+  { paint: [], trim: [], stands: [splitter(0.14)] },
+  { paint: [], trim: [], stands: [splitter(0.2), FENCE] },
 ];
 
 export const FUJIN_DESIGN: Design = {
@@ -66,11 +71,9 @@ export const FUJIN_DESIGN: Design = {
   slabs: [
     { points: PONTOON_SIDE, from: PONTOON_FROM, to: PONTOON_WALL },
     { points: PONTOON, from: PONTOON_WALL, to: 1.0 },
-    { points: FIN, from: 0, to: 0.016 },
-    { points: ENDPLATE, from: 0.97, to: 1.0 },
   ],
   pods: { radius: ARCH, steps: 7, from: PONTOON_WALL },
-  heads: [{ size: [0.1, 0.27, 0.04], at: [0.78, 0.5, 2.225], tilt: [-0.8, 0, 0] }],
+  heads: [{ size: [0.1, 0.27, 0.04], at: [0.78, 0.465, 2.22], tilt: [-0.63, 0, 0] }],
   tails: [{ size: [0.07, 0.3, 0.04], at: [0.9, 0.48, -2.345] }],
   paint: [{ size: [0.14, 0.08, 0.14], at: [0.72, 0.8, 0.95] }],
   trim: [
@@ -79,7 +82,7 @@ export const FUJIN_DESIGN: Design = {
     { size: [0.5, 0.2, 0.04], at: [0.25, 0.3, -2.3] },
     { size: [0.1, 0.1, 0.3], at: [0.05, 1.05, -0.35] },
   ],
-  markers: [{ size: [0.05, 0.05, 0.04], at: [0.38, 0.33, 2.3] }],
+  markers: [{ size: [0.1, 0.03, 0.02], at: [0.78, 0.26, 2.345], tilt: [-0.46, 0, 0] }],
   chrome: [],
   tyre: [0.28, 0.36],
   rim: { size: 0.74, spokes: 5, tone: "light", lip: 0.14, spoke: 0.07 },
