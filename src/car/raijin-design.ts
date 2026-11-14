@@ -1,4 +1,4 @@
-import { mirror, tail_end } from "./design-parts";
+import { endplate, gurney, hoop, leg, mirror, plane, tail_end } from "./design-parts";
 import type { Cabin, Design, Section, Slab, Wing } from "./designs";
 import type { Triple } from "./cars";
 import type { Point } from "./geometry";
@@ -17,21 +17,27 @@ const CABIN: Cabin = {
 const TAIL = tail_end(OUTLINE, 0.99, 0.12, 0.9, [{ size: [0.42, 0.09, 0.05], at: [0.67, 0.99, 0] }], null, 0.6);
 const PIPE: Triple = [0.5, 0.33, -2.4];
 const DECK = 1.105;
-const leg = (front: number, y: number, top: number, from: number, to: number): Slab => ({ points: [[front, DECK], [top, y], [top - 0.18, y + 0.01], [-2.39, DECK]], from, to });
-// The saloon's own boot wing in paint on a leg near each end, then a trim plane on plate uprights with painted endplates.
+const HALF = 0.88;
+const slab_of = (points: Point[], from: number, to: number): Slab => ({ points, from, to });
+// The saloon's own boot wing: a plane between two pedestals that stand on the deck's outer edges and wrap its ends.
+const BOOT = plane([-2.23, 1.27], 0.26, 0.045, 0.06);
+const TALL = plane([-2.24, 1.34], 0.3, 0.045, 0.08);
+const pedestal = (profile: Point[], front: number): Slab => slab_of(hoop(profile, [front, DECK], [-2.39, DECK]), 0.795, HALF);
+// Past that a trim plane on swept plate uprights, a painted endplate outside each end.
+const GT = plane([-2.27, 1.45], 0.34, 0.05, 0.1);
+const RACE = plane([-2.3, 1.6], 0.4, 0.055, 0.12);
+const SPAN = 0.855;
+const bolt_on = (profile: Point[], front: number, above: number, below: number): Wing => ({
+  paint: [],
+  trim: [],
+  lips: [slab_of(endplate(profile, above, below), SPAN, HALF)],
+  stands: [slab_of(profile, 0, SPAN), slab_of(gurney(profile, 0.025), 0, SPAN), slab_of(leg(profile, [front, DECK], [-2.34, DECK]), 0.43, 0.46)],
+});
 const WINGS: Wing[] = [
-  { paint: [{ size: [0.8, 0.045, 0.24], at: [0.4, 1.3, -2.26], tilt: [0.06, 0, 0] }], trim: [], lips: [leg(-2.06, 1.3, -2.17, 0.64, 0.73)] },
-  { paint: [{ size: [0.82, 0.045, 0.28], at: [0.41, 1.35, -2.27], tilt: [0.08, 0, 0] }], trim: [], lips: [leg(-2.04, 1.35, -2.17, 0.64, 0.73)] },
-  {
-    paint: [{ size: [0.025, 0.18, 0.38], at: [0.8725, 1.45, -2.28], tilt: [0.1, 0, 0] }],
-    trim: [{ size: [0.86, 0.04, 0.32], at: [0.43, 1.44, -2.27], tilt: [0.1, 0, 0] }],
-    stands: [leg(-2.0, 1.43, -2.18, 0.4, 0.435)],
-  },
-  {
-    paint: [{ size: [0.025, 0.24, 0.46], at: [0.9025, 1.61, -2.33], tilt: [0.12, 0, 0] }],
-    trim: [{ size: [0.89, 0.045, 0.38], at: [0.445, 1.6, -2.32], tilt: [0.12, 0, 0] }],
-    stands: [leg(-1.98, 1.59, -2.22, 0.4, 0.435)],
-  },
+  { paint: [], trim: [], lips: [slab_of(BOOT, 0, 0.795), pedestal(BOOT, -2.0)] },
+  { paint: [], trim: [], lips: [slab_of(TALL, 0, 0.795), pedestal(TALL, -1.98)], stands: [slab_of(gurney(TALL, 0.025), 0, 0.795)] },
+  bolt_on(GT, -2.04, 0.05, 0.09),
+  bolt_on(RACE, -2.0, 0.07, 0.13),
 ];
 const NOSE_LEAN = 0.27;
 const HOOD_FALL = 0.126;
@@ -48,12 +54,12 @@ export const RAIJIN_DESIGN: Design = {
   paint: mirror(CABIN, SECTION.shoulder),
   trim: [
     { size: [0.46, 0.3, 0.05], at: [0.23, 0.55, 2.085], tilt: [NOSE_LEAN, 0, 0] },
-    { size: [0.28, 0.02, 0.3], at: [0.14, 0.915, 1.5], tilt: [HOOD_FALL, 0, 0] },
+    { size: [0.2, 0.03, 0.34], at: [0.46, 0.929, 1.4], tilt: [HOOD_FALL, 0, 0] },
     { size: [0.3, 0.17, 0.05], at: [PIPE[0], PIPE[1], -2.39], tilt: [-0.46, 0, 0] },
     ...TAIL.trim,
   ],
   markers: [],
-  chrome: [...TAIL.chrome, { size: [0.12, 0.12, 0.1], at: [PIPE[0], PIPE[1] + 0.01, -2.4], round: true }],
+  chrome: [...TAIL.chrome, { size: [0.12, 0.12, 0.1], at: [PIPE[0], PIPE[1], -2.4], round: true }],
   tyre: [0.28, 0.28],
   rim: { size: 0.72, spokes: 5, tone: "metal", spoke: 0.09 },
   round: 12,
