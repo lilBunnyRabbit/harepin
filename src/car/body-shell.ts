@@ -16,12 +16,13 @@ const MIN_FLARE = 0.025;
 const FLARE_STEP = 0.005;
 // A well ends this far short of its tyre's inner face, tread blocks included.
 const WELL_CLEAR = 0.04;
+const VISOR_PROUD = 0.02;
 
 export function cabin_parts(c: Cabin, paint: THREE.Color, glass: THREE.Color): THREE.BufferGeometry[] {
   const ys = c.points.map(([, y]) => y);
   const base = Math.min(...ys);
   const top = Math.max(...ys);
-  if (c.helmet) return [lean(tint(extrude(c.points, c.width), glass), base, top, c.tumble)];
+  if (c.helmet) return [tint(extrude(c.points, c.width), paint), ...(c.visor ? [tint(extrude(c.visor, c.width + VISOR_PROUD), glass)] : [])].map((g) => lean(g, base, top, c.tumble));
   const floor = c.floor ?? [];
   const outline = [...c.points, ...floor];
   const glazed = inset(outline, [...c.frame, ...floor.map(() => c.frame[c.frame.length - 1])]);
@@ -32,6 +33,11 @@ export function cabin_parts(c: Cabin, paint: THREE.Color, glass: THREE.Color): T
     ...windows.map((w) => tint(extrude(w, c.width + 0.02), glass)),
     ...c.screens.map(([edge, pillar]) => tint(extrude(screen(c.points, edge, Math.max(0.05, pillar * 0.6)), c.width - 2 * pillar), glass)),
   ].map((g) => lean(g, base, top, c.tumble));
+}
+
+export function on_glass(c: Cabin, geometries: THREE.BufferGeometry[]): THREE.BufferGeometry[] {
+  const ys = c.points.map(([, y]) => y);
+  return geometries.map((g) => lean(g, Math.min(...ys), Math.max(...ys), c.tumble));
 }
 
 /** The wheel opening the body cuts round the axle at `z`, from the rear end of its floor over the top to the front. */

@@ -26,6 +26,8 @@ export interface Cabin {
   floor?: Point[];
   /** An open cockpit's driver: the whole shape is a helmet in the glass tone, with no frame or screens. */
   helmet?: boolean;
+  /** A helmet's visor, as a profile standing proud of the helmet's face. */
+  visor?: Point[];
 }
 
 /** A side profile [z, y] extruded between two distances from the centre, mirrored: wing bulges and haunches. */
@@ -146,6 +148,45 @@ export interface Design {
    * while the lights are on. Positive lift raises what sits ahead of the hinge.
    */
   popups?: { pods: Part[]; shells?: Slab[]; bezels?: Part[]; hinge: Point; lift: number };
+}
+
+/** What a build must have fitted for a detail to show: `base` is every build. */
+export type Fit = "base" | "lip" | "wing" | "street" | "race" | "tuned" | "race_engine" | "light" | "stripped" | "knobbly" | "nitro" | "drift" | "lifted";
+
+export type Swap = "bulge" | "pipes" | "diffuser" | "bonnet" | "tips";
+
+/** Tuner parts a build wears once the part `on` is fitted, until the part `until` takes their place; one list per tone. */
+export interface Detail {
+  on: Fit;
+  until?: Fit;
+  /** Why it is there, for the review table. */
+  cue: string;
+  paint?: Part[];
+  trim?: Part[];
+  chrome?: Part[];
+  warning?: Part[];
+  red?: Part[];
+  bright?: Part[];
+  accent?: Part[];
+  /** Extra lit lamps. */
+  heads?: Part[];
+  /** Profiles in paint and in trim. */
+  lips?: Slab[];
+  stands?: Slab[];
+  /** Bare panels: paint rubbed back toward trim. */
+  bare?: Part[];
+  /** Lying on the cabin glass and leaned with it: bars in chrome, slats in paint, a banner in the light tone. */
+  cage?: Part[];
+  louvres?: Part[];
+  banner?: Part[];
+  /** Radians the wheels lean in at the top. */
+  camber?: number;
+  /** Generic part looks this takes the place of. */
+  swaps?: Swap[];
+  /** Blue nitro tips on the pipes this detail brings, drawn with a nitro tank in place of the stock tips. */
+  tips?: Part[];
+  /** Where a rear-facing tailpipe moves to, for the nitro flame. */
+  exhaust?: Triple;
 }
 
 export type Kit = Partial<Pick<Design, "arches" | "slabs" | "heads" | "tails" | "paint" | "trim" | "markers" | "chrome" | "tyre" | "rim" | "caliper">>;
@@ -331,8 +372,8 @@ export const DESIGNS: Record<BodyStyle, Design> = {
       { size: [0.17, 0.15, 0.04], at: [0.52, 0.6, 2.56] },
     ],
     tails: MUSCLE_TAIL.tails,
-    paint: [mirror(MUSCLE_CABIN, 0.05, MIRROR, MUSCLE_SECTION.shoulder), { size: [0.4, 0.1, 0.56], at: [0.2, 0.895, 1.2], tilt: [HOOD_FALL, 0, 0] }],
-    trim: [{ size: [0.9, 0.26, 0.04], at: [0.45, 0.6, 2.55] }, { size: [0.34, 0.06, 0.02], at: [0.17, 0.895, 1.485] }, ...MUSCLE_TAIL.trim],
+    paint: [mirror(MUSCLE_CABIN, 0.05, MIRROR, MUSCLE_SECTION.shoulder)],
+    trim: [{ size: [0.9, 0.26, 0.04], at: [0.45, 0.6, 2.55] }, ...MUSCLE_TAIL.trim],
     stripes: [
       { size: [0.12, 0.012, 0.86], at: [0.12, 0.825, 2.02], tilt: [HOOD_FALL, 0, 0] },
       { size: [0.12, 0.012, 0.64], at: [0.12, 0.873, 0.58], tilt: [HOOD_FALL, 0, 0] },
@@ -398,15 +439,6 @@ export const DESIGNS: Record<BodyStyle, Design> = {
     ],
     kit: {
       arches: { gap: 0.09, steps: 6, flare: 0.09, out: 0.1, reach: 0.04, tone: "trim" },
-      heads: [RALLY_HEAD, { size: [0.15, 0.15, 0.04], at: [0.13, 0.85, 2.0], round: true }, { size: [0.15, 0.15, 0.04], at: [0.37, 0.85, 2.0], round: true }],
-      paint: [RALLY_MIRROR, on_roof({ size: [0.2, 0.08, 0.34], at: [0.1, 1.45, 0.2] })],
-      trim: [
-        ...RALLY_BUMPERS,
-        ...RALLY_TAIL.trim,
-        { size: [0.52, 0.18, 0.1], at: [0.26, 0.84, 1.94] },
-        on_roof({ size: [0.16, 0.05, 0.02], at: [0.08, 1.455, 0.375] }),
-        { size: [0.3, 0.3, 0.03], at: [0.8, 0.25, -1.8] },
-      ],
       tyre: [0.3, 0.3],
       rim: { size: 0.62, spokes: 6, tone: "light", spoke: 0.07 },
     },
@@ -463,7 +495,7 @@ export const DESIGNS: Record<BodyStyle, Design> = {
     width: 0.44,
     section: FORMULA_SECTION,
     sill: 0.1,
-    cabin: { points: [[0.8, 0.54], [0.83, 0.7], [0.76, 0.8], [0.62, 0.82], [0.52, 0.75], [0.5, 0.54]], width: 0.26, tumble: 0.3, frame: [], screens: [], helmet: true },
+    cabin: { points: [[0.8, 0.54], [0.83, 0.7], [0.76, 0.8], [0.62, 0.82], [0.52, 0.75], [0.5, 0.54]], width: 0.26, tumble: 0.3, frame: [], screens: [], helmet: true, visor: [[0.842, 0.68], [0.797, 0.765], [0.66, 0.765], [0.66, 0.68]] },
     arches: { gap: 0, steps: 0, flare: 0, out: 0, reach: 0, tone: "trim" },
     heads: [{ size: [0.05, 0.035, 0.14], at: [0.21, 0.38, 1.75], tilt: [0.18, 0, 0] }],
     tails: [{ size: [0.07, 0.08, 0.03], at: [0.035, 0.22, -2.135] }],

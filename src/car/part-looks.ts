@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { part_of, type Look, type Slot } from "./build";
 import type { CarSpec } from "./cars";
-import type { Design, Slab, Wing } from "./designs";
+import type { Design, Slab, Swap, Wing } from "./designs";
 import { box, extrude, face_at, parts, slab, tint, top_at, type Point } from "./geometry";
 import { skirts } from "./body-shell";
 import { nitro_parts } from "./nitro-look";
@@ -61,7 +61,7 @@ export function rear_wing(d: Design, aero: Required<Look>["aero"], paint: THREE.
 /** The aero kit's deep skirts, which take the stock sill strip's place; a body without arches keeps its strip. */
 export const kit_skirts = (d: Design, aero: Required<Look>["aero"]) => aero.skirts === true && d.arches.steps > 0;
 
-export function aero_parts(d: Design, spec: CarSpec, aero: Required<Look>["aero"], paint: THREE.Color, trim: THREE.Color): THREE.BufferGeometry[] {
+export function aero_parts(d: Design, spec: CarSpec, aero: Required<Look>["aero"], paint: THREE.Color, trim: THREE.Color, swaps: ReadonlySet<Swap> = new Set()): THREE.BufferGeometry[] {
   const out: THREE.BufferGeometry[] = [];
   const [nose, low] = d.outline[0];
   const front = aero.front ? FRONT_LEVEL[aero.front] : 0;
@@ -78,7 +78,7 @@ export function aero_parts(d: Design, spec: CarSpec, aero: Required<Look>["aero"
     }
   }
   if (kit_skirts(d, aero)) out.push(...skirts(d, spec, 0.07, 0.16).map((g) => tint(g, paint)));
-  if (aero.diffuser) {
+  if (aero.diffuser && !swaps.has("diffuser")) {
     const [tail, bottom] = d.outline[d.outline.length - 1];
     // Inside the widest tyre the rear wheels take, so the plate never reaches into their openings.
     const inner = Math.abs(spec.wheel.mounts[spec.wheel.mounts.length - 1][0]) - d.tyre[1] * WIDEST_TYRE / 2 - 0.01;
@@ -102,11 +102,11 @@ function panel(outline: Point[], from: number, to: number, width: number): THREE
 }
 
 /** Engine bulge or scoop and tailpipes, and the bare panels of a weight-stripped car. */
-export function kit_parts(d: Design, kit: Record<Slot, number>, paint: THREE.Color, trim: THREE.Color): THREE.BufferGeometry[] {
+export function kit_parts(d: Design, kit: Record<Slot, number>, paint: THREE.Color, trim: THREE.Color, swaps: ReadonlySet<Swap> = new Set()): THREE.BufferGeometry[] {
   const out: THREE.BufferGeometry[] = [];
   const base = d.cabin.points[0][0];
   const nose = d.outline[0][0];
-  if (kit.weight > 0) {
+  if (kit.weight > 0 && !swaps.has("bonnet")) {
     const bare = paint.clone().lerp(trim, 0.75);
     out.push(tint(panel(d.outline, base + 0.05, base + (nose - base) * 0.85, d.width * 0.72), bare));
     const rear = d.cabin.points[d.cabin.points.length - 1][0] - 0.05;
@@ -119,20 +119,20 @@ export function kit_parts(d: Design, kit: Record<Slot, number>, paint: THREE.Col
     const tilt = hood_tilt(d, z);
     const [stock_w, h, l] = engine === 1 ? [0.56, 0.045, 0.7] : [0.5, 0.11, 0.6];
     const w = stock_w * Math.min(1, d.width / BULGE_BODY);
-    out.push(tint(new THREE.BoxGeometry(w, h, l).translate(0, h / 2, 0).rotateX(tilt).translate(0, y, z), paint));
-    if (engine > 1) out.push(tint(new THREE.BoxGeometry(w * 0.8, h * 0.6, 0.02).translate(0, h * 0.5, l / 2 + 0.005).rotateX(tilt).translate(0, y, z), trim));
+    if (!swaps.has("bulge")) out.push(tint(new THREE.BoxGeometry(w, h, l).translate(0, h / 2, 0).rotateX(tilt).translate(0, y, z), paint));
+    if (engine > 1 && !swaps.has("bulge")) out.push(tint(new THREE.BoxGeometry(w * 0.8, h * 0.6, 0.02).translate(0, h * 0.5, l / 2 + 0.005).rotateX(tilt).translate(0, y, z), trim));
     const [x, py, pz] = d.exhaust;
     const central = x === 0;
     const r = (engine === 1 ? 0.045 : 0.052) * (central ? 1.4 : 1);
     const xs = central || engine === 1 ? [x] : [x - 0.065, x + 0.065];
     const chrome = chrome_tone();
-    for (const side of central ? [1] : [-1, 1])
+    for (const side of swaps.has("pipes") ? [] : central ? [1] : [-1, 1])
       for (const at of xs) {
         out.push(tint(new THREE.CylinderGeometry(r, r, 0.22, 8).rotateX(Math.PI / 2).translate(side * at, py, pz - 0.05), chrome));
         out.push(tint(new THREE.CylinderGeometry(r * 0.65, r * 0.65, 0.22, 8).rotateX(Math.PI / 2).translate(side * at, py, pz - 0.056), trim));
       }
   }
   const bottle = part_of("nitro", kit.nitro).look?.bottle;
-  if (bottle) out.push(...nitro_parts(d, bottle, engine > 1, trim));
+  if (bottle && !swaps.has("tips")) out.push(...nitro_parts(d, bottle, engine > 1, trim));
   return out;
 }

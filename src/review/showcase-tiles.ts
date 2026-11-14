@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { DECALS, DEFAULT_BUILD, MAX_PAINT, REWARD_PAINTS, build_spec, type Build } from "../car/build";
+import { DECALS, DEFAULT_BUILD, DEFAULT_PARTS, MAX_PAINT, REWARD_PAINTS, SLOT_NAMES, SLOTS, build_spec, part_of, type Build, type Slot } from "../car/build";
 import { CARS, is_car, type CarId } from "../car/cars";
 import { build_view, rest_wheels } from "../car/models";
 import { gate_kit, gate_view } from "../car/trackside";
@@ -40,12 +40,17 @@ export interface SheetLayout {
   same_scale: boolean;
 }
 
-const TURNTABLE: readonly [string, number, number][] = [
+const ALL_ANGLES: readonly [string, number, number][] = [
   ["3/4 front", 35, 12],
   ["side", 90, 5],
   ["3/4 rear", 150, 14],
   ["top", 25, 60],
+  ["chase", 180, 11],
 ];
+const url = new URLSearchParams(location.search);
+const TURNTABLE = (url.get("angles") ?? "0,1,2,3").split(",").map((i) => ALL_ANGLES[Number(i)]);
+const ONLY = url.get("cars")?.split(",") ?? null;
+const PAINT = url.has("paint") ? Number(url.get("paint")) : undefined;
 const FRONT_34 = { yaw: 35, pitch: 14 };
 const SHOWROOM = "coupe";
 const LANDMARK_PROPS: Record<Landmark, PropKind> = { mast: PropKind.MAST, lighthouse: PropKind.LIGHTHOUSE, turbines: PropKind.TURBINE, arch: PropKind.ARCH };
@@ -75,7 +80,36 @@ function car(build: Partial<Build>): THREE.Object3D {
 
 const paint_name = (paint: number) => (paint > MAX_PAINT ? reward_paint_name(TIERS[paint - MAX_PAINT - 1]) : `paint ${paint}`);
 
-function turntable(ids: readonly CarId[]): SheetLayout {
+const part_index = (slot: Slot, name: string) => SLOTS[slot].parts.findIndex((part) => part.name === name);
+const TIER_PARTS: [string, Partial<Record<Slot, number>>][] = [
+  ["stock", {}],
+  ["mid", { engine: 1, tyres: 1, aero: 3, brakes: 1, weight: 1, nitro: 1 }],
+  ["max", { engine: 2, tyres: 2, aero: 4, brakes: 2, weight: 2, nitro: 2, suspension: part_index("suspension", "Race") }],
+];
+const DRIFT = { suspension: part_index("suspension", "Drift") };
+const GRAVEL: Partial<Record<Slot, number>>[] = [{ tyres: part_index("tyres", "All-terrain") }, { tyres: part_index("tyres", "Rally"), suspension: part_index("suspension", "Sport") }];
+const SAND = { tyres: part_index("tyres", "Mud-terrain"), suspension: part_index("suspension", "Lifted") };
+// How each kind of car is normally built: gravel tyres on the rally car, drift suspension on the drift cars, sand tyres on the buggy.
+const TIER_OWN: Partial<Record<CarId, Partial<Record<Slot, number>>[]>> = { rally: GRAVEL, sajin: [SAND, SAND], kaze: [DRIFT, DRIFT], tsumuji: [DRIFT, DRIFT] };
+const SHORT: Record<Slot, string> = { engine: "engine", tyres: "tyres", aero: "aero", suspension: "susp", brakes: "brakes", weight: "weight", bias: "bias", nitro: "nitro" };
+const fitted = (kit: Record<Slot, number>) =>
+  SLOT_NAMES.filter((slot) => kit[slot] !== DEFAULT_PARTS[slot])
+    .map((slot) => `${SHORT[slot]} ${part_of(slot, kit[slot]).name}`)
+    .join(", ");
+
+function tier_sheet(ids: readonly CarId[]): SheetLayout {
+  const tiles = ids.flatMap((id) =>
+    TIER_PARTS.flatMap(([name, parts], tier) => {
+      const kit = { ...DEFAULT_PARTS, ...parts, ...(tier > 0 ? TIER_OWN[id]?.[tier - 1] : {}) };
+      return TURNTABLE.map(([angle, yaw, pitch]) => ({ label: tier === 0 ? `${id} · stock · ${angle}` : `${id} · ${name} · ${angle} · ${fitted(kit)}`, object: car({ car: id, parts: kit, ...(PAINT === undefined ? {} : { paint: PAINT }) }), ground: tones.asphalt, yaw, pitch }));
+    }),
+  );
+  return { tiles, columns: TURNTABLE.length, same_scale: true };
+}
+
+function turntable(all: readonly CarId[]): SheetLayout {
+  const ids = all.filter((id) => !ONLY || ONLY.includes(id));
+  if (url.has("tiers")) return tier_sheet(ids);
   const tiles = ids.flatMap((id) => TURNTABLE.map(([angle, yaw, pitch]) => ({ label: `${id} · ${angle}`, object: car({ car: id }), ground: tones.asphalt, yaw, pitch })));
   return { tiles, columns: TURNTABLE.length, same_scale: true };
 }
@@ -83,7 +117,7 @@ function turntable(ids: readonly CarId[]): SheetLayout {
 // The bus is three cars long, so on one scale with it every other car is a thumbnail.
 const BIG = new Set<CarId>(["bus"]);
 const cars = () => turntable(CAR_IDS);
-const lineup = () => turntable(CAR_IDS.filter((id) => !BIG.has(id)));
+const lineup = () => turntable(CAR_IDS.filter((id) => !BIG.has(id) || ONLY !== null));
 
 function paints(): SheetLayout {
   const indices = [...car_paints.keys(), ...Array.from({ length: REWARD_PAINTS }, (_, i) => MAX_PAINT + 1 + i)];

@@ -3,7 +3,9 @@ import { axle_index, axles_of } from "./axles";
 import { rest_reach, type Car } from "./car";
 import { DEFAULT_PARTS, build_spec, part_of, type Build, type Slot } from "./build";
 import { COUPE, type CarSpec } from "./cars";
-import { body_pieces, cabin_parts, flares, notch, sculpt, side_panel, skirts, wells } from "./body-shell";
+import { body_pieces, cabin_parts, flares, notch, on_glass, sculpt, side_panel, skirts, wells } from "./body-shell";
+import { DETAILS } from "./car-details";
+import { detail_look } from "./detail-looks";
 import { CAR_ORDER } from "./contact-shadow";
 import { DESIGNS } from "./designs";
 import { extrude, merge, parts, side_part, slab, taper, tint } from "./geometry";
@@ -162,7 +164,9 @@ function metal_hull(painted: THREE.BufferGeometry, finish: Finish): THREE.Mesh {
 export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<Slot, number> = DEFAULT_PARTS, livery: Livery | null = null, finish: Finish | null = null): CarView {
   const aero = aero_of(kit);
   const stock = DESIGNS[spec.body.style];
-  const d = aero.skirts && stock.kit ? { ...stock, ...stock.kit } : stock;
+  const fitted = aero.skirts && stock.kit ? { ...stock, ...stock.kit } : stock;
+  const detail = detail_look(DETAILS[spec.body.style], kit, paint, color(tones.trim));
+  const d = { ...fitted, heads: [...fitted.heads, ...detail.heads], exhaust: detail.exhaust ?? fitted.exhaust };
   const root = new THREE.Group();
   root.renderOrder = CAR_ORDER;
   const body = new THREE.Group();
@@ -192,7 +196,7 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
   // Decals are laid on the body as drawn, cabin included, then sculpted with it; the cabin itself keeps its width.
   const base = merge(hull_base, cabin);
   const decals = livery && livery.decal !== "none" ? livery_parts(livery, side_panel(d, spec), roof(base, glass), back(base, paint), nose, tail) : [];
-  const shell = merge(sculpt(merge(hull_base, rear_wing(d, aero, paint, trim), aero_parts(d, spec, aero, paint, trim), kit_parts(d, kit, paint, trim), decals), d), cabin);
+  const shell = merge(sculpt(merge(hull_base, rear_wing(d, aero, paint, trim), aero_parts(d, spec, aero, paint, trim, detail.swaps), kit_parts(d, kit, paint, trim, detail.swaps), detail.body, decals), d), cabin, on_glass(d.cabin, detail.glass));
   const matte = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
   const [painted, rest] = finish ? split_tone(shell, paint) : [null, shell];
   const hull = new THREE.Mesh(rest, matte);
@@ -214,8 +218,9 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
   const calipers = [0, 1].map((axle) => caliper_geometry(spec.wheel.radius, d.tyre[axle], d.rim, tyre, caliper));
   const wheel_material = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
   const wheel_axles = spec.wheel.mounts.map((_, i) => axle_index(axles, i));
-  const wheels = wheel_axles.map((axle) => {
+  const wheels = wheel_axles.map((axle, i) => {
     const steer = new THREE.Group();
+    steer.rotation.z = Math.sign(spec.wheel.mounts[i][0]) * detail.camber;
     const spin = new THREE.Group();
     const mesh = new THREE.Mesh(tyres[Math.min(axle, 1)], wheel_material);
     mesh.castShadow = true;

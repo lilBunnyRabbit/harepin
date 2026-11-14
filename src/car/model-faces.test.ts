@@ -209,6 +209,9 @@ test("no body part or arm stands in a tyre, straight or at full lock, on every c
         const centre = view.wheels[w].position;
         const half = (d.tyre[Math.min(axle_index(axles, w), 1)] * look.width) / 2;
         const near = (faces: Face[]) => faces.filter((face) => box.setFromPoints([face.a, face.b, face.c]).distanceToPoint(centre) < Math.hypot(radius, half));
+        // A detail's camber leans the wheel in its own frame, under the steering: the tyre is tested as it stands.
+        const camber = view.wheels[w].rotation.z;
+        const [lean_cos, lean_sin] = [Math.cos(camber), Math.sin(camber)];
         const check = (faces: Face[], angle: number, arm: boolean) => {
           const [cos, sin] = [Math.cos(angle), Math.sin(angle)];
           const key = `${car}${kit ? " kit" : ""}, wheel ${w}${angle ? " at full lock" : ""}: ${arm ? "an arm" : "the body"} stands in the tyre`;
@@ -219,8 +222,9 @@ test("no body part or arm stands in a tyre, straight or at full lock, on every c
                 p.set(0, 0, 0).addScaledVector(face.a, i / n).addScaledVector(face.b, j / n).addScaledVector(face.c, (n - i - j) / n);
                 if (!arm && covered(p.x, p.y, p.z)) continue;
                 p.sub(centre);
-                const across = p.x * cos - p.z * sin;
-                const spoke = Math.hypot(p.y, p.x * sin + p.z * cos);
+                const turned = p.x * cos - p.z * sin;
+                const across = turned * lean_cos + p.y * lean_sin;
+                const spoke = Math.hypot(p.y * lean_cos - turned * lean_sin, p.x * sin + p.z * cos);
                 const depth = Math.min(half - Math.abs(across), radius - spoke);
                 if (depth <= WHEEL_SKIN) continue;
                 // An arm ends in the rim, on the car's side of the wheel.
