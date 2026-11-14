@@ -54,6 +54,15 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.43.1",
+    date: "2026-11-14",
+    title: "Pop-ups",
+    changes: [
+      { kind: IMPROVED, text: "Tsumuji's pop-up headlights swing open and shut, and the beam waits until they're up" },
+      { kind: FIXED, text: "Ghost cars sit on the road surface too" },
+    ],
+  },
+  {
     version: "0.43.0",
     date: "2026-11-14",
     title: "Built to show",
