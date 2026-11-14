@@ -17,6 +17,14 @@ const FLARE_STEP = 0.005;
 // A well ends this far short of its tyre's inner face, tread blocks included.
 const WELL_CLEAR = 0.04;
 const VISOR_PROUD = 0.02;
+// The kit band: its top over the sill, its depth, how far it sinks into the body side and stands proud of the arch lips.
+const KIT_TOP = 0.045;
+const KIT_DEEP = 0.16;
+const KIT_SINK = 0.01;
+const KIT_PROUD = 0.012;
+const KIT_MIN = 0.06;
+const KIT_STUB = 0.05;
+const KIT_CHIN = 0.1;
 
 export function cabin_parts(c: Cabin, paint: THREE.Color, glass: THREE.Color): THREE.BufferGeometry[] {
   const ys = c.points.map(([, y]) => y);
@@ -105,8 +113,25 @@ export function flares(d: Design, spec: CarSpec): THREE.BufferGeometry[] {
   return openings.flatMap(({ z, opening }) => {
     const lip = ring(z, opening, flare).map(([lz, ly], i): Point => [lz, Math.max(opening[i][1], Math.min(ly, body_top(lz)))]);
     const lifted = [...lip, ...opening.reverse()].map(([pz, py]): Point => [pz, Math.max(py, d.sill + FLARE_PROUD)]);
-    return flat_pieces(d, lifted).flatMap((piece) => slab(piece, edge - d.arches.reach, edge + d.arches.out).map((g) => uncut(g, d)));
+    const top = Math.max(...lifted.map(([, ly]) => ly));
+    return slab(lifted, edge - d.arches.reach, edge + d.arches.out).map((g) => flat_side(g, d, top));
   });
+}
+
+/**
+ * Widens `geometry` so that, once sculpted with the body, its side runs straight from the sill to `top` instead of
+ * folding at the belt: an arch lip keeps one flat face across the body's crease.
+ */
+function flat_side(geometry: THREE.BufferGeometry, d: Design, top: number): THREE.BufferGeometry {
+  if (!d.section) return geometry;
+  const position = geometry.getAttribute("position");
+  for (let i = 0; i < position.count; i++) {
+    const [y, z] = [position.getY(i), position.getZ(i)];
+    const [low, high] = [sculpt_factor(d, d.sill, z), sculpt_factor(d, top, z)];
+    const share = Math.max(0, Math.min(1, (y - d.sill) / (top - d.sill)));
+    position.setX(i, (position.getX(i) * (low + (high - low) * share)) / sculpt_factor(d, y, z));
+  }
+  return geometry;
 }
 
 /** Body length between the front and rear arches, `reach` short of each axle: [front, rear]. */
@@ -119,6 +144,33 @@ export function skirts(d: Design, spec: CarSpec, thick: number, deep: number): T
   const reach = spec.wheel.radius + d.arches.gap + d.arches.flare;
   const [front, rear] = wheel_span(spec, reach);
   return parts([{ size: [thick, deep, front - rear], at: [d.width / 2 - 0.01 + thick / 2, d.sill + 0.045 - deep / 2, (front + rear) / 2] }]);
+}
+
+/** Bottom of the aero kit's band, which a front lip or splitter sits on. */
+export const kit_floor = (d: Design) => d.sill + KIT_TOP - KIT_DEEP;
+
+/**
+ * The aero kit's lower band: deep skirts between the wheel openings, run on past them to the nose and the tail and closed
+ * by a chin under the nose. It stands just proud of the arch lips, so each lip's feet sink into it and the kit reads as one piece.
+ */
+export function kit_band(d: Design, spec: CarSpec): THREE.BufferGeometry[] {
+  const reach = spec.wheel.radius + d.arches.gap;
+  const top = d.sill + KIT_TOP;
+  const low = kit_floor(d);
+  const inner = d.width / 2 - KIT_SINK;
+  const outer = d.width / 2 + Math.max(KIT_MIN, d.arches.out + KIT_PROUD);
+  const nose = d.outline[0][0];
+  const tail = d.outline[d.outline.length - 1][0];
+  const ends = [nose, ...axles_of(spec).flatMap(({ z }) => [z + reach, z - reach]), tail];
+  const strips: THREE.BufferGeometry[] = [];
+  for (let i = 0; i + 1 < ends.length; i += 2) {
+    const [from, to] = [ends[i], ends[i + 1]];
+    if (from - to < KIT_STUB) continue;
+    const strip: Point[] = [[from, low], [from, top], [to, top], [to, low]];
+    strips.push(...flat_pieces(d, strip).flatMap((piece) => slab(piece, inner, outer).map((g) => uncut(g, d))));
+  }
+  const chin: Point[] = [[nose, low], [nose, top], [nose - KIT_CHIN, top], [nose - KIT_CHIN, low]];
+  return [...strips, extrude(chin, 2 * outer)];
 }
 
 export function side_panel(d: Design, spec: CarSpec): Panel {

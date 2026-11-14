@@ -2,7 +2,7 @@ import type { BodyStyle, Triple } from "./cars";
 import type { Panel } from "./livery";
 import type { Token } from "../theme/theme";
 import { FUJIN_DESIGN } from "./fujin-design";
-import { MIRROR, mirror, on_cabin, rod, tail_end } from "./design-parts";
+import { mirror, on_cabin, rod, tail_end } from "./design-parts";
 import { KAZE_DESIGN } from "./kaze-design";
 import { RAIJIN_DESIGN } from "./raijin-design";
 import { SAJIN_DESIGN } from "./sajin-design";
@@ -197,7 +197,7 @@ export type Kit = Partial<Pick<Design, "arches" | "slabs" | "heads" | "tails" | 
 const COUPE_OUTLINE: Point[] = [[2.27, 0.3], [2.35, 0.42], [2.33, 0.54], [2.1, 0.63], [0.95, 0.84], [-2.1, 0.93], [-2.3, 0.9], [-2.34, 0.8], [-2.34, 0.5], [-2.27, 0.3]];
 const COUPE_SECTION: Section = { belt: [0.62, 0.8], shoulder: 0.15, tuck: 0.04, nose: [0.2, 0.55], tail: [0.12, 0.5] };
 const COUPE_CABIN: Cabin = { points: [[0.95, 0.84], [0.2, 1.17], [-0.4, 1.2], [-0.8, 1.16], [-2.0, 0.927]], width: 1.56, tumble: 0.2, frame: [0.06, 0.04, 0.04, 0.1, 0.04], screens: [[0, 0.08], [3, 0.14]], split: [-0.42, 0.08] };
-const COUPE_ARCHES: Arches = { gap: 0.065, steps: 6, flare: 0.06, out: 0.06, reach: 0.04, tone: "paint" };
+const COUPE_ARCHES: Arches = { gap: 0.065, steps: 7, flare: 0.06, out: 0.06, reach: 0.04, tone: "paint" };
 // A lip grown out of the hatch, then a hoop whose legs sweep up from the deck corners into the plane.
 const COUPE_LIP: Slab = { points: [[-2.02, 0.915], [-2.37, 1.0], [-2.39, 0.97], [-2.33, 0.86]], from: 0, to: 0.9 };
 const COUPE_WINGS: Wing[] = [
@@ -219,7 +219,7 @@ const COUPE_TAIL = tail_end(COUPE_OUTLINE, 0.74, 0.2, 0.93, [{ size: [0.56, 0.12
 const HATCH_OUTLINE: Point[] = [[1.9, 0.3], [1.96, 0.46], [1.95, 0.68], [1.86, 0.77], [1.0, 0.88], [-1.82, 0.93], [-1.95, 0.93], [-1.98, 0.62], [-1.93, 0.3]];
 const HATCH_SECTION: Section = { belt: [0.7, 0.76], shoulder: 0.1, tuck: 0.04, nose: [0.14, 0.31], tail: [0.07, 0.13] };
 const HATCH_CABIN: Cabin = { points: [[1.0, 0.88], [0.3, 1.3], [-1.28, 1.33], [-1.84, 0.93]], width: 1.5, tumble: 0.14, frame: [0.06, 0.05, 0.14, 0.04], screens: [[0, 0.08], [2, 0.12]], split: [-0.25, 0.1] };
-const HATCH_ARCHES: Arches = { gap: 0.055, steps: 6, flare: 0.07, out: 0.06, reach: 0.04, tone: "trim" };
+const HATCH_ARCHES: Arches = { gap: 0.055, steps: 7, flare: 0.07, out: 0.06, reach: 0.04, tone: "trim" };
 const HATCH_TAIL = tail_end(HATCH_OUTLINE, 0.72, 0.34, 0.84, [{ size: [0.18, 0.3, 0.05], at: [0.72, 0.72, 0] }], { half: 0.54, y: 0.84 }, 0.68);
 const on_hatch = (part: Part): Part => on_cabin(part, HATCH_SECTION.shoulder);
 
@@ -227,7 +227,7 @@ const on_hatch = (part: Part): Part => on_cabin(part, HATCH_SECTION.shoulder);
 const MUSCLE_OUTLINE: Point[] = [[2.44, 0.28], [2.5, 0.4], [2.56, 0.72], [2.5, 0.8], [0.2, 0.88], [-1.1, 0.88], [-1.7, 0.96], [-2.42, 0.97], [-2.52, 0.92], [-2.5, 0.5], [-2.44, 0.28]];
 const MUSCLE_SECTION: Section = { belt: [0.76, 0.78], shoulder: 0.14, tuck: 0.04, nose: [0.06, 0.4], tail: [0.1, 0.5] };
 const MUSCLE_CABIN: Cabin = { points: [[0.2, 0.88], [-0.4, 1.23], [-1.25, 1.25], [-1.7, 0.88]], width: 1.5, tumble: 0.22, frame: [0.08, 0.05, 0.2, 0.05], screens: [[0, 0.08], [2, 0.16]], split: [-0.85, 0.06] };
-const MUSCLE_ARCHES: Arches = { gap: 0.07, steps: 6, flare: 0.06, out: 0.08, reach: 0.04, tone: "paint" };
+const MUSCLE_ARCHES: Arches = { gap: 0.07, steps: 7, flare: 0.06, out: 0.08, reach: 0.04, tone: "paint" };
 const MUSCLE_TAIL = tail_end(MUSCLE_OUTLINE, 0.76, 0.19, 0.9, [{ size: [0.82, 0.13, 0.04], at: [0.44, 0.76, 0] }], null, 0.54);
 const HOOD_FALL = 0.035;
 
@@ -244,7 +244,7 @@ const RALLY_CABIN: Cabin = {
 };
 const RALLY_TAIL = tail_end(RALLY_OUTLINE, 0.8, 0.26, 0.88, [{ size: [0.15, 0.26, 0.05], at: [0.78, 0.8, 0] }], null, 0.8);
 const RALLY_HEAD: Part = { size: [0.3, 0.14, 0.05], at: [0.62, 0.6, 2.105] };
-const RALLY_MIRROR = mirror(RALLY_CABIN, 0.85, MIRROR, RALLY_SECTION.shoulder);
+const RALLY_MIRROR = mirror(RALLY_CABIN, RALLY_SECTION.shoulder);
 const RALLY_BUMPERS: Part[] = [
   { size: [0.52, 0.14, 0.05], at: [0.26, 0.47, 2.08] },
   { size: [0.9, 0.12, 0.06], at: [0.45, 0.45, -1.855] },
@@ -301,7 +301,7 @@ export const DESIGNS: Record<BodyStyle, Design> = {
     arches: COUPE_ARCHES,
     heads: [{ size: [0.42, 0.07, 0.05], at: [0.6, 0.48, 2.335] }],
     tails: COUPE_TAIL.tails,
-    paint: [mirror(COUPE_CABIN, 0.7, MIRROR, COUPE_SECTION.shoulder)],
+    paint: mirror(COUPE_CABIN, COUPE_SECTION.shoulder),
     trim: [
       { size: [0.34, 0.07, 0.05], at: [0.17, 0.48, 2.33] },
       { size: [0.94, 0.12, 0.08], at: [0.47, 0.356, 2.3] },
@@ -331,7 +331,7 @@ export const DESIGNS: Record<BodyStyle, Design> = {
     arches: HATCH_ARCHES,
     heads: [{ size: [0.34, 0.16, 0.05], at: [0.56, 0.6, 1.95] }],
     tails: HATCH_TAIL.tails,
-    paint: [mirror(HATCH_CABIN, 0.8, MIRROR, HATCH_SECTION.shoulder)],
+    paint: mirror(HATCH_CABIN, HATCH_SECTION.shoulder),
     trim: [
       { size: [0.25, 0.12, 0.05], at: [0.125, 0.6, 1.95] },
       { size: [0.88, 0.14, 0.1], at: [0.44, 0.38, 1.93] },
@@ -375,7 +375,7 @@ export const DESIGNS: Record<BodyStyle, Design> = {
       { size: [0.17, 0.15, 0.04], at: [0.52, 0.6, 2.56] },
     ],
     tails: MUSCLE_TAIL.tails,
-    paint: [mirror(MUSCLE_CABIN, 0.05, MIRROR, MUSCLE_SECTION.shoulder)],
+    paint: mirror(MUSCLE_CABIN, MUSCLE_SECTION.shoulder),
     trim: [{ size: [0.9, 0.26, 0.04], at: [0.45, 0.6, 2.55] }, ...MUSCLE_TAIL.trim],
     stripes: [
       { size: [0.12, 0.012, 0.86], at: [0.12, 0.825, 2.02], tilt: [HOOD_FALL, 0, 0] },
@@ -415,10 +415,10 @@ export const DESIGNS: Record<BodyStyle, Design> = {
     sill: 0.38,
     cabin: RALLY_CABIN,
     section: RALLY_SECTION,
-    arches: { gap: 0.07, steps: 6, flare: 0.07, out: 0.05, reach: 0.04, tone: "trim" },
+    arches: { gap: 0.07, steps: 7, flare: 0.07, out: 0.05, reach: 0.04, tone: "trim" },
     heads: [RALLY_HEAD],
     tails: RALLY_TAIL.tails,
-    paint: [RALLY_MIRROR],
+    paint: RALLY_MIRROR,
     trim: [...RALLY_BUMPERS, ...RALLY_TAIL.trim],
     markers: [],
     chrome: RALLY_TAIL.chrome,
@@ -441,7 +441,7 @@ export const DESIGNS: Record<BodyStyle, Design> = {
       },
     ],
     kit: {
-      arches: { gap: 0.09, steps: 6, flare: 0.09, out: 0.1, reach: 0.04, tone: "trim" },
+      arches: { gap: 0.09, steps: 7, flare: 0.09, out: 0.1, reach: 0.04, tone: "trim" },
       tyre: [0.3, 0.3],
       rim: { size: 0.62, spokes: 6, tone: "light", spoke: 0.07 },
     },
@@ -462,7 +462,7 @@ export const DESIGNS: Record<BodyStyle, Design> = {
       split: [3.95, 0.14],
       glass_to: -5.5,
     },
-    arches: { gap: 0.06, steps: 6, flare: 0.04, out: 0.02, reach: 0.04, tone: "trim" },
+    arches: { gap: 0.06, steps: 7, flare: 0.04, out: 0.02, reach: 0.04, tone: "trim" },
     heads: [{ size: [0.34, 0.16, 0.05], at: [0.9, 0.62, 5.92] }],
     tails: BUS_TAIL.tails,
     paint: [

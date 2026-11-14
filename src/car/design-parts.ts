@@ -2,8 +2,6 @@ import type { Triple } from "./cars";
 import type { Cabin } from "./designs";
 import { tail_at, type Part, type Point } from "./geometry";
 
-export const MIRROR: Triple = [0.16, 0.1, 0.18];
-
 const PROUD = 0.012;
 const LAMP_DEPTH = 0.04;
 const PLATE: Triple = [0.17, 0.1, 0.02];
@@ -47,14 +45,24 @@ export function on_cabin(part: Part, shoulder: number): Part {
   return { ...part, size: [part.size[0] / (1 - shoulder), part.size[1], part.size[2]], at: [part.at[0] / (1 - shoulder), part.at[1], part.at[2]] };
 }
 
-/** A door mirror on the cabin's base edge at `z`, standing off the leaned side glass. */
-export function mirror(cabin: Cabin, z: number, size: Triple, shoulder: number): Part {
-  const [[z0, y0], [z1, y1]] = cabin.points;
-  const y = y0 + ((y1 - y0) * (z0 - z)) / (z0 - z1);
+const MIRROR_BACK = 0.2;
+const MIRROR_UP = 0.06;
+const MIRROR_SWEEP = 0.3;
+const MIRROR_HOUSING: Triple = [0.14, 0.09, 0.05];
+const MIRROR_ARM: Triple = [0.1, 0.035, 0.045];
+
+/** A door mirror at the front corner of the side glass: a slim housing swept back, on a short arm out of the pillar foot. */
+export function mirror(cabin: Cabin, shoulder: number): Part[] {
+  const [z0, y0] = cabin.points[0];
   const ys = cabin.points.map(([, py]) => py);
   const low = Math.min(...ys);
+  const y = y0 + MIRROR_UP;
+  const z = z0 - MIRROR_BACK;
   const half = (cabin.width / 2) * (1 - (cabin.tumble * (y - low)) / (Math.max(...ys) - low));
-  return on_cabin({ size, at: [half + size[0] / 2 - 0.015, y, z] }, shoulder);
+  const reach = MIRROR_ARM[0] - 0.03;
+  const arm: Part = { size: MIRROR_ARM, at: [half + MIRROR_ARM[0] / 2 - 0.03, y - 0.02, z] };
+  const housing: Part = { size: MIRROR_HOUSING, at: [half + reach + MIRROR_HOUSING[0] / 2 - 0.02, y, z - 0.01], tilt: [0, MIRROR_SWEEP, 0] };
+  return [arm, housing].map((part) => on_cabin(part, shoulder));
 }
 
 /** A bar from `a` to `b` on the left side, `thick` tall and `wide` across. */

@@ -3,7 +3,7 @@ import { part_of, type Look, type Slot } from "./build";
 import type { CarSpec } from "./cars";
 import type { Design, Slab, Swap, Wing } from "./designs";
 import { box, extrude, face_at, parts, slab, tint, top_at, type Point } from "./geometry";
-import { skirts } from "./body-shell";
+import { kit_band, kit_floor } from "./body-shell";
 import { nitro_parts } from "./nitro-look";
 import { chrome_tone } from "./wheels";
 
@@ -63,21 +63,24 @@ export const kit_skirts = (d: Design, aero: Required<Look>["aero"]) => aero.skir
 
 export function aero_parts(d: Design, spec: CarSpec, aero: Required<Look>["aero"], paint: THREE.Color, trim: THREE.Color, swaps: ReadonlySet<Swap> = new Set()): THREE.BufferGeometry[] {
   const out: THREE.BufferGeometry[] = [];
-  const [nose, low] = d.outline[0];
+  const kitted = kit_skirts(d, aero);
+  const nose = d.outline[0][0];
+  // On the kit's band where there is one, so the piece is its bottom edge instead of a plate in its face.
+  const low = kitted ? kit_floor(d) + 0.025 : d.outline[0][1];
   const front = aero.front ? FRONT_LEVEL[aero.front] : 0;
   if (d.fronts) {
     out.push(...own_wing(d.fronts[Math.min(front, d.fronts.length - 1)], paint, trim));
   } else if (front > 0) {
     const splitter = front > 1;
     const reach = splitter ? 0.16 : 0.08;
-    out.push(tint(box(d.width * (splitter ? 0.98 : 0.88), splitter ? 0.035 : 0.03, 0.2 + reach, 0, low - 0.01, nose - 0.1 + reach / 2), splitter ? trim : paint));
+    out.push(tint(box(d.width * (splitter || kitted ? 0.98 : 0.88), splitter ? 0.035 : 0.03, 0.2 + reach, 0, low - 0.01, nose - 0.1 + reach / 2), splitter ? trim : paint));
     if (splitter) {
-      const y = low + 0.17;
+      const y = d.outline[0][1] + 0.17;
       const z = face_at(d.outline, y);
       for (const side of [-1, 1]) out.push(tint(box(0.18, 0.016, 0.14, side * (d.width / 2 - 0.12), y, z + 0.03), trim));
     }
   }
-  if (kit_skirts(d, aero)) out.push(...skirts(d, spec, 0.07, 0.16).map((g) => tint(g, paint)));
+  if (kitted) out.push(...kit_band(d, spec).map((g) => tint(g, paint)));
   if (aero.diffuser && !swaps.has("diffuser")) {
     const [tail, bottom] = d.outline[d.outline.length - 1];
     // Inside the widest tyre the rear wheels take, so the plate never reaches into their openings.

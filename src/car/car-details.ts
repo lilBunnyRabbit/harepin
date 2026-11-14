@@ -119,7 +119,7 @@ const TSUMUJI: Detail[] = [
 const STURM_LIP = 0.85 + 0.15 + 0.004;
 const STURM_RING = 0.34 + 0.085 - 0.004 + 0.035;
 const STURM_ARCH_LOW = Math.asin((sturm.sill - 0.34) / (0.34 + 0.085));
-const sturm_bolts = (z: number) => arch_bolts(STURM_LIP, z, 0.34, STURM_RING, STURM_ARCH_LOW, 6, 0.055);
+const sturm_bolts = (z: number) => arch_bolts(STURM_LIP, z, 0.34, STURM_RING, STURM_ARCH_LOW, sturm.arches.steps, 0.055);
 const STURM: Detail[] = [
   { on: "street", cue: "Four bolt heads on each bolt-on arch", bright: [...sturm_bolts(1.362), ...sturm_bolts(-0.908)] },
   { on: "street", cue: "Banner across the top of the windscreen", banner: [screen_band(sturm.cabin, 0, 0.7, 0.98, 0.6)] },

@@ -18,8 +18,8 @@ const PONTOON_SIDE: Point[] = [
 // The tub is lower than the wheels, so the arches are cut in the pontoons beside it, not in the body outline.
 const PONTOON: Point[] = [
   ...PONTOON_SIDE,
-  ...arc(REAR_AXLE, WHEEL, ARCH, SILL, 6),
-  ...arc(FRONT_AXLE, WHEEL, ARCH, SILL, 6),
+  ...arc(REAR_AXLE, WHEEL, ARCH, SILL, 7),
+  ...arc(FRONT_AXLE, WHEEL, ARCH, SILL, 7),
 ];
 const FIN: Point[] = [[-0.45, 0.98], [-2.3, 0.9], [-2.3, 0.6], [-0.45, 0.6]];
 const ENDPLATE: Point[] = [[-1.8, 0.8], [-1.98, 1.16], [-2.46, 1.16], [-2.46, 0.72], [-2.3, 0.7]];
@@ -66,7 +66,7 @@ export const FUJIN_DESIGN: Design = {
     { points: FIN, from: 0, to: 0.016 },
     { points: ENDPLATE, from: 0.97, to: 1.0 },
   ],
-  pods: { radius: ARCH, steps: 6, from: PONTOON_WALL },
+  pods: { radius: ARCH, steps: 7, from: PONTOON_WALL },
   heads: [{ size: [0.1, 0.27, 0.04], at: [0.78, 0.5, 2.225], tilt: [-0.8, 0, 0] }],
   tails: [{ size: [0.07, 0.3, 0.04], at: [0.9, 0.48, -2.345] }],
   paint: [{ size: [0.14, 0.08, 0.14], at: [0.72, 0.8, 0.95] }],
