@@ -313,9 +313,11 @@ export class Wheel {
 
 function curve_at(curve: readonly (readonly [number, number])[], x: number): number {
   for (let i = 1; i < curve.length; i++) {
-    const [x1, y1] = curve[i];
+    const x1 = curve[i][0];
     if (x <= x1) {
-      const [x0, y0] = curve[i - 1];
+      const y1 = curve[i][1];
+      const x0 = curve[i - 1][0];
+      const y0 = curve[i - 1][1];
       return y0 + ((y1 - y0) * (x - x0)) / (x1 - x0);
     }
   }
@@ -345,7 +347,8 @@ export function grip_lock(spec: CarSpec, speed: number): number {
  * Lock (rad) a full key adds past `grip_lock` at `speed` m/s. Keys take it in along `key_reach`, a stick linearly.
  */
 function full_key_reach(spec: CarSpec, speed: number): number {
-  const [slow, fast] = FULL_KEY_SPEEDS;
+  const slow = FULL_KEY_SPEEDS[0];
+  const fast = FULL_KEY_SPEEDS[1];
   return spec.peak_angle * FULL_KEY_REACH * Math.max(0, Math.min(1, (speed - slow) / (fast - slow)));
 }
 
@@ -367,7 +370,8 @@ function key_reach(key: number): number {
  * the key into the turn opens it too (`Car.drift_full_lock`).
  */
 export function unassisted_lock(spec: CarSpec, limit: number, steer: number, slide: number, both = false): number {
-  const [from, to] = COUNTER_SLIP;
+  const from = COUNTER_SLIP[0];
+  const to = COUNTER_SLIP[1];
   const counter = Math.max(0, Math.min(1, ((both ? Math.abs(slide) : Math.sign(steer) * slide) - from) / (to - from)));
   return limit + (spec.lock - limit) * counter;
 }
@@ -416,6 +420,22 @@ function tcs_spin(w: Wheel, low: boolean, peak_slip: number): number {
 // it on any ground. Scaled with the peak instead, as ABS is, a wide loose curve spun the rally car up and launched slower.
 function tcs_slip(w: Wheel, peak_slip: number): number {
   return w.slip - peak_slip * (w.peak - 1);
+}
+
+function omega_sum(wheels: readonly Wheel[]): number {
+  let sum = 0;
+  for (let i = 0; i < wheels.length; i++) sum += wheels[i].omega;
+  return sum;
+}
+
+function any_slipping(wheels: readonly Wheel[], slip: number): boolean {
+  for (let i = 0; i < wheels.length; i++) if (wheels[i].slip > slip) return true;
+  return false;
+}
+
+function any_contact(wheels: readonly Wheel[]): boolean {
+  for (let i = 0; i < wheels.length; i++) if (wheels[i].contact) return true;
+  return false;
 }
 
 /** Height of the ray from `mount` along `down`, `t` metres out, above the ground under it. */
@@ -648,7 +668,8 @@ export class Car {
       this.key_steer += Math.max(-step, Math.min(step, input.steer - this.key_steer));
     }
     const beta = Math.atan2(-local.x, Math.abs(local.z));
-    const [slow, fast] = SLIDE_SPEEDS;
+    const slow = SLIDE_SPEEDS[0];
+    const fast = SLIDE_SPEEDS[1];
     const walking = Math.max(0, Math.min(1, (fast - speed) / (fast - slow)));
     // Steer held into the turn on the gas with the tail out, at walking pace: a deliberate power slide or a donut. The assists
     // that catch a slide at speed (grip lock, countersteer, yaw damping) would straighten the wheels and stop it.
@@ -678,7 +699,8 @@ export class Car {
     // the opposite key is a full-lock turn the other way rather than a catch.
     // Once gas or stick eases the launch off, the hold stays while the tail is still out on the launched side and fades as
     // it comes in: cut there, the wheels swung from countersteer to lock and the car pivoted down to walking pace.
-    const [fade_from, fade_to] = HOLD_FADE;
+    const fade_from = HOLD_FADE[0];
+    const fade_to = HOLD_FADE[1];
     if (this.launched) this.hold_side = this.launch_side;
     // Faster, the tap's slide is the drift: its side is the way the tail went, as the key may already be countersteering.
     else if (!kicks && this.tap_age < TAP_WINDOW && pedal > DRIFT_INTENT && Math.abs(beta) > fade_from) this.hold_side = -Math.sign(beta);
@@ -700,7 +722,10 @@ export class Car {
       // Full lock at hairpin speed put the fronts at 20-27 degrees of slip, three times peak, and their scrub held the car
       // at walking pace under full throttle. Keep them within reach of peak around the way the front axle is moving.
       const course = Math.atan2(-(local.x + ang.dot(up) * this.steer_z), local.z);
-      const [on_from, on_to, off_from, off_to] = USEFUL_SPEEDS;
+      const on_from = USEFUL_SPEEDS[0];
+      const on_to = USEFUL_SPEEDS[1];
+      const off_from = USEFUL_SPEEDS[2];
+      const off_to = USEFUL_SPEEDS[3];
       const fade = Math.max((on_to - speed) / (on_to - on_from), (speed - off_from) / (off_to - off_from));
       // Opened into the turn, a full lock of slack still held a drift's key at 34 degrees, its course 15 degrees out.
       const free = this.drift_full_lock && !this.assist && fade >= 1 ? Infinity : spec.lock * Math.max(0, Math.min(1, fade));
@@ -727,7 +752,7 @@ export class Car {
     this.steer += Math.max(-rate * dt, Math.min(rate * dt, target - this.steer));
 
     const driven = this.driven;
-    const wheel_omega = driven.reduce((sum, w) => sum + w.omega, 0) / driven.length;
+    const wheel_omega = omega_sum(driven) / driven.length;
     const ratio = this.ratio();
     const wheel_rpm = Math.abs((wheel_omega * ratio * 60) / (2 * Math.PI));
 
@@ -735,7 +760,7 @@ export class Car {
     if (this.auto && this.gear >= 1 && this.shifting <= 0) {
       const road_rpm = Math.abs((vf / radius) * ratio * 60) / (2 * Math.PI);
       // Spinning wheels read as high rpm; upshifting on them, then downshifting on road speed, makes the box hunt.
-      const spinning = driven.some((w) => w.slip > SPIN_SLIP) && road_rpm < spec.redline - 200;
+      const spinning = any_slipping(driven, SPIN_SLIP) && road_rpm < spec.redline - 200;
       // The next gear judged where it lands: at road speed after the shift's coast up the grade. On wheel rpm, wheelspin
       // and the coast put the Sturm's 2nd, 9% over its downshift line, under it, and it hunted 1st-2nd up every dune.
       const landing = (Math.abs(vf - GRAVITY * forward.y * spec.shift_time) / radius) * Math.abs(this.ratio(this.gear + 1)) * (60 / (2 * Math.PI));
@@ -755,7 +780,8 @@ export class Car {
     // brake exist to keep the tail in, and they cut the gas before it could step out.
     const sideways = low && !this.launched && drift_steer === 0;
     const slip_limit = this.launched && drift_steer === 0 ? DRIFT_TCS_SLIP : TCS_SLIP + (HELD_TCS_SLIP - TCS_SLIP) * drift_steer;
-    for (const w of this.wheels) {
+    for (let i = 0; i < this.wheels.length; i++) {
+      const w = this.wheels[i];
       if (!w.driven) continue;
       // An axle spins when both its wheels do; one spinning alone, like the unloaded inner wheel in a tight turn, is
       // braked instead, as a brake-based TCS does. Cutting the engine for it starved the loaded wheel and the car bogged.
@@ -766,7 +792,7 @@ export class Car {
       if (!w.contact) max_drag = Math.max(max_drag, -w.slip);
     }
     // On the ground some torque always gets through so a stuck car can still crawl out; in the air there is no grip to save.
-    const floor = driven.every((w) => !w.contact) ? 0 : 0.15;
+    const floor = any_contact(driven) ? 0.15 : 0;
     if (acting && max_slip > slip_limit) this.tcs_factor = Math.max(floor, this.tcs_factor - 9 * dt);
     else this.tcs_factor = Math.min(1, this.tcs_factor + 2.5 * dt);
     const gas = pedal * (this.tcs ? this.tcs_factor : 1);
@@ -774,7 +800,7 @@ export class Car {
 
     const launch = this.gear !== 0 ? spec.idle + gas * spec.launch_rpm : spec.idle + gas * (spec.redline - spec.idle);
     const rpm = Math.max(wheel_rpm, launch);
-    const grounded = this.wheels.some((w) => w.contact);
+    const grounded = any_contact(this.wheels);
     // First gear is grip-bound: boost there only spins the wheels, and spinning wheels hold the auto box off its upshift.
     // Mid-shift and on the limiter no torque reaches the wheels, so nothing burns either.
     const drives = this.gear >= 2 && this.shifting <= 0 && rpm < spec.redline;
@@ -801,7 +827,8 @@ export class Car {
     // A tyre part's grip over stock tyres counts on asphalt only: off it the curve stays under the stock tyre's on the road.
     const stock = (spec.stock_mu ?? spec.mu) / spec.mu;
     const reach = rest + radius;
-    for (const w of this.wheels) {
+    for (let i = 0; i < this.wheels.length; i++) {
+      const w = this.wheels[i];
       mount.copy(w.mount).applyQuaternion(quat).add(pos);
       let t = reach;
       w.contact = false;
@@ -828,12 +855,14 @@ export class Car {
       w.compression = compression;
     }
 
-    const [side_from, side_to] = DRIFT_SIDE_SLIP;
+    const side_from = DRIFT_SIDE_SLIP[0];
+    const side_to = DRIFT_SIDE_SLIP[1];
     const side_hold = this.launched || this.assist ? 0 : drift_steer * Math.max(0, Math.min(1, (Math.abs(beta) - side_from) / (side_to - side_from)));
     const side_cap = side_hold > 0 ? DRIFT_SIDE_SX / side_hold : Infinity;
     // At walking pace the slide is a pivot on the rears' spin: gripped up there, a launch from rest held 1.6 s, not 5.
     const drift_bite = this.assist || !this.drift_full_lock ? 0 : drift_steer * (1 - walking);
-    for (const w of this.wheels) {
+    for (let i = 0; i < this.wheels.length; i++) {
+      const w = this.wheels[i];
       const { axle, prev } = w;
       const other = this.wheels[w.pair];
       const cap = axle.steer ? Infinity : side_cap;
@@ -945,9 +974,10 @@ export class Car {
       body.force.addScaledVector(wheel_fwd, -rolling * (roll - 1) * (1 - spec.offroad));
     }
 
-    const on_wheels = this.wheels.some((w) => w.contact);
+    const on_wheels = any_contact(this.wheels);
     let airborne = !on_wheels;
-    for (const corner of this.corners) {
+    for (let i = 0; i < this.corners.length; i++) {
+      const corner = this.corners[i];
       const p = mount.copy(corner).applyQuaternion(quat).add(pos);
       const depth = ground.height(p.x, p.z, p.y) - p.y;
       if (depth <= 0) continue;
@@ -967,7 +997,8 @@ export class Car {
     // handbrake bypasses it so slides can still be started on purpose.
     // A launched slide past a drift's angle is a spin in the making: the momentum carried it round with the gas already cut.
     // That hold belongs to the launch, not to stability: without it a launch with stability off pirouetted the AWD cars.
-    const [hold_from, hold_to] = DRIFT_HOLD;
+    const hold_from = DRIFT_HOLD[0];
+    const hold_to = DRIFT_HOLD[1];
     // With the steering assist off the held drift is the driver's, and stability gives way to it as to a launch: at speed it
     // damped the handbrake's slide away before the gas could hold it. The assist's own countersteer catches the rest.
     const held_drift = this.assist ? 0 : drift_steer;
@@ -983,7 +1014,8 @@ export class Car {
     if (!this.assist && this.hold_side !== 0 && this.tcs && spec.drive === "rwd" && speed > 1 && on_wheels) {
       // Yaw against the velocity's own turn rate is the slip angle changing; damping that, not yaw, leaves the arc alone.
       const swing = ang.y - tmp.crossVectors(vel, body.force).y / (spec.mass * speed * speed);
-      const [damp_from, damp_to] = DRIFT_DAMP_SLIP;
+      const damp_from = DRIFT_DAMP_SLIP[0];
+      const damp_to = DRIFT_DAMP_SLIP[1];
       const settle = Math.sign(swing) !== -this.hold_side ? 1 : held_drift * Math.max(0, Math.min(1, (Math.abs(beta) - damp_from) / (damp_to - damp_from)));
       body.torque.y -= swing * spec.inertia[1] * DRIFT_DAMP * Math.min(1, pedal) * settle;
     }
@@ -996,7 +1028,7 @@ export class Car {
       ang.addScaledVector(tmp, -Math.min(1, spec.air_settle * dt)).addScaledVector(level, dt);
     }
     body.force.addScaledVector(vel, -spec.drag * speed);
-    const lift = this.wheels.some((w) => w.contact) ? 1 : 1 - spec.ground_effect;
+    const lift = any_contact(this.wheels) ? 1 : 1 - spec.ground_effect;
     const press = spec.downforce * lift * vf * vf;
     body.force.addScaledVector(up, -press);
     // Downforce ahead of the centre of mass pitches the nose onto its springs, so the front tyres carry more of it.
