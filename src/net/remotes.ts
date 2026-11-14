@@ -136,17 +136,29 @@ export class Remotes {
     const { build, code } = build_of(remote.latest);
     let rv = this.views.get(remote.id);
     const now = performance.now();
+    const t = this.net.render_time(remote);
+    const snaps = remote.snapshots;
+    let a = snaps[0];
+    let b = snaps[snaps.length - 1];
+    for (let i = snaps.length - 1; i > 0; i--)
+      if (snaps[i - 1].at <= t) {
+        a = snaps[i - 1];
+        b = snaps[i];
+        break;
+      }
+    // The lamps start from the same delayed state the frame draws, or a fresh view would swing to catch up with it.
+    const lights = b.state.lights ?? true;
     if (rv && rv.code !== code && now - rv.built >= REBUILD_GAP_MS) {
       this.scene.remove(rv.view.root);
       dispose_car_view(rv.view);
       const spec = build_spec(build);
-      Object.assign(rv, { code, spec, built: now, above: ABOVE * oversize(spec).height }, translucent_view(build, spec, remote.latest.lights ?? true));
+      Object.assign(rv, { code, spec, built: now, above: ABOVE * oversize(spec).height }, translucent_view(build, spec, lights));
       fit_contact_shadow(rv.shadow, spec);
       this.scene.add(rv.view.root);
     }
     if (!rv) {
       const spec = build_spec(build);
-      const { view, materials } = translucent_view(build, spec, remote.latest.lights ?? true);
+      const { view, materials } = translucent_view(build, spec, lights);
       this.scene.add(view.root);
       const label = document.createElement("div");
       label.className = "label";
@@ -159,16 +171,6 @@ export class Remotes {
       rv = { code, built: now, spec, view, materials, shadow, label, name, tier: null, tag: "", above: ABOVE * oversize(spec).height, spin: 0, heading: 0 };
       this.views.set(remote.id, rv);
     }
-    const t = this.net.render_time(remote);
-    const snaps = remote.snapshots;
-    let a = snaps[0];
-    let b = snaps[snaps.length - 1];
-    for (let i = snaps.length - 1; i > 0; i--)
-      if (snaps[i - 1].at <= t) {
-        a = snaps[i - 1];
-        b = snaps[i];
-        break;
-      }
     const root = rv.view.root;
     if (t >= b.at) {
       const ahead = Math.min(250, t - b.at) / 1000;
@@ -197,7 +199,7 @@ export class Remotes {
     const turned = Math.atan2(Math.sin(heading - rv.heading), Math.cos(heading - rv.heading));
     rv.heading = heading;
     show_flame(rv.view, s.boost === true, now / 1000, dt > 0 ? turned / dt : 0);
-    if (rv.view.lights !== (s.lights ?? true)) set_lights(rv.view, s.lights ?? true);
+    if (rv.view.lights !== lights) set_lights(rv.view, lights);
     swing_popups(rv.view, now / 1000);
     // Remote cars are ghosts with no collision, so one sitting inside yours fades out instead of hiding your car.
     const opacity = Math.min(Math.max(0.22, Math.min(1, (root.position.distanceTo(me) - 3) / 9)), camera_fade(root.position, camera.position));

@@ -67,7 +67,7 @@
         <div class="cars-acts">
           <IconButton icon="icon-recenter" label="Reset view" title="Reset view" onclick={() => viewer.reset()} />
           <Button size="sm" variant={viewer.auto ? "primary" : "secondary"} aria-pressed={viewer.auto} onclick={() => (viewer.auto = !viewer.auto)}>Spin</Button>
-          <Button size="sm" variant={viewer.lights ? "primary" : "secondary"} aria-pressed={viewer.lights} onclick={() => viewer.toggle_lights()}>Lights</Button>
+          <Button size="sm" variant={viewer.lamps ? "primary" : "secondary"} aria-pressed={viewer.lamps} onclick={() => viewer.toggle_lights()}>Lights</Button>
           <Button size="sm" variant={viewer.pinning ? "primary" : "secondary"} icon="icon-edit" aria-pressed={viewer.pinning} onclick={() => (viewer.pinning ? viewer.cancel_pin() : (viewer.pinning = true))}>Pin</Button>
           <IconButton icon={viewer.panel ? "icon-close" : "icon-chat"} label={viewer.panel ? "Hide panel" : "Show notes"} title={viewer.panel ? "Hide panel" : "Show notes"} onclick={() => (viewer.panel = !viewer.panel)} />
         </div>

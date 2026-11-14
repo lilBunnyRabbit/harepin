@@ -71,6 +71,24 @@ test("a view round-trips through its URL", () => {
   expect(note_query(first, true)).toBe(`${query.replace(/,3$/, ",1")}&shot`);
 });
 
+test("lamps ride the URL and the block as an appended field, and old ones without it still read", () => {
+  const dark: ViewState = { ...view, lamps: false };
+  const query = view_query(dark);
+  expect(query).toBe("?cars=sturm&p=aero4&b=sturm.4.0.4.1.0&cam=35,14,7.212,0,0.6,0,30&steer=0.5&light=dusk&lamps=0");
+  expect(read_asked(new URLSearchParams(query), "hatch").view).toEqual(dark);
+  expect(read_asked(new URLSearchParams(view_query({ ...view, lamps: true })), "hatch").view.lamps).toBe(true);
+  expect(read_asked(new URLSearchParams(`${query.replace("lamps=0", "lamps=x")}`), "hatch").view.lamps).toBeUndefined();
+  const lit: Notes = { "sturm/aero4": [{ text: "shut", pin: [0.1, 0.2, 0.3], view: dark }] };
+  const block = export_block(lit, "0", { width: 1, height: 1 }, new Date(0));
+  expect(block).toContain(" light=dusk pin=0.1,0.2,0.3 lamps=0\n");
+  expect(read_block(block).map((note) => note.view)).toEqual([dark]);
+  expect(read_block(block.replace("lamps=0", "lamps=2"))).toEqual([]);
+  const [old] = read_block(export_block(notes, "0", { width: 1, height: 1 }, new Date(0), "sturm"));
+  expect(old.view.lamps).toBeUndefined();
+  expect(parse_notes(JSON.parse(JSON.stringify(lit)))).toEqual(lit);
+  expect(parse_notes({ "sturm/aero4": [{ text: "x", pin: null, view: { ...view, lamps: "on" } }] })).toEqual({});
+});
+
 test("a bad URL falls back piece by piece", () => {
   const asked = read_asked(new URLSearchParams("?cars=nope&b=junk&cam=1,2&steer=9&light=noon&pin=1,2"), "hatch");
   expect(asked.view).toEqual({ car: "hatch", steer: 1 });

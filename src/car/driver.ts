@@ -6,7 +6,7 @@ import { oversize, type CarSpec, type Size } from "./cars";
 import type { Lighting } from "../render/lighting";
 import { dark } from "../theme/palette";
 import { contact_shadow, fit_contact_shadow, place_contact_shadow } from "./contact-shadow";
-import { set_lights, show_flame, snap_lights, swing_popups } from "./lights";
+import { lamps_lit, set_lights, show_flame, snap_lights, swing_popups } from "./lights";
 import { build_view, dispose_car_view, sync_car_view, type CarView } from "./models";
 import type { NitroSnapshot } from "./nitro";
 import type { Race } from "../race";
@@ -209,7 +209,7 @@ export class Driver {
   toggle_lights(): boolean {
     const on = !this.view.lights;
     set_lights(this.view, on);
-    this.light.beam(on);
+    this.light.beam(lamps_lit(this.view));
     return on;
   }
 
@@ -235,7 +235,7 @@ export class Driver {
     drawn.vel.copy(car.vel);
     sync_car_view(view, car);
     show_flame(view, car.nitro.boosting, now / 1000, car.ang.y);
-    swing_popups(view, now / 1000);
+    if (swing_popups(view, now / 1000)) this.light.beam(lamps_lit(view));
     view.root.position.copy(drawn.pos);
     view.root.position.y += this.drawn_lift();
     view.root.quaternion.copy(drawn.quat);

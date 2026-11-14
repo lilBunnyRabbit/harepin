@@ -27,6 +27,8 @@ export interface ViewState {
   steer: number;
   light: Light;
   cam: Cam;
+  /** Headlamps on; absent on views saved before the toggle, which drew them on. */
+  lamps?: boolean;
 }
 
 export const PITCH_MIN = -5;
@@ -86,6 +88,9 @@ export function parse_triple(text: string | null): Triple | null {
   return n.map((v) => round(v, 3)) as Triple;
 }
 
+export const lamps_text = (on: boolean) => (on ? "1" : "0");
+export const parse_lamps = (text: string | null | undefined): boolean | null => (text === "1" ? true : text === "0" ? false : null);
+
 export const is_light = (v: unknown): v is Light => v === Light.DAY || v === Light.DUSK;
 export const is_preset_id = (v: unknown): v is string => typeof v === "string" && PRESET_ID.test(v);
 
@@ -99,7 +104,10 @@ export function checked_view(x: unknown): ViewState | null {
   if (typeof cam !== "object" || cam === null || !Array.isArray(cam.target) || cam.target.length !== 3) return null;
   const { yaw, pitch, dist, fov, target } = cam;
   if (!finite(yaw) || !finite(pitch) || !finite(dist) || !finite(fov) || !target.every(finite)) return null;
-  return settled_view({ car: v.car, preset: v.preset, code: v.code as string, steer: v.steer, light: v.light, cam: { yaw, pitch, dist, fov, target: target as Triple } });
+  if (v.lamps !== undefined && typeof v.lamps !== "boolean") return null;
+  const view: ViewState = { car: v.car, preset: v.preset, code: v.code as string, steer: v.steer, light: v.light, cam: { yaw, pitch, dist, fov, target: target as Triple } };
+  if (v.lamps !== undefined) view.lamps = v.lamps;
+  return settled_view(view);
 }
 
 export interface ShotPin {
@@ -113,7 +121,7 @@ export interface Asked {
     shot: boolean;
 }
 
-/** `?cars=<car>&p=<preset>&b=<build>&cam=<yaw,pitch,dist,tx,ty,tz,fov>&steer=<-1..1>&light=day|dusk[&pin=x,y,z,n][&shot]`. */
+/** `?cars=<car>&p=<preset>&b=<build>&cam=<yaw,pitch,dist,tx,ty,tz,fov>&steer=<-1..1>&light=day|dusk[&lamps=0|1][&pin=x,y,z,n][&shot]`. */
 export function read_asked(params: URLSearchParams, fallback: CarId): Asked {
   const asked_car = params.get(CARS_PARAM) ?? "";
   const build = parse_build(params.get("b"));
@@ -128,6 +136,8 @@ export function read_asked(params: URLSearchParams, fallback: CarId): Asked {
   if (params.has("steer") && Number.isFinite(steer)) view.steer = round(clamp(steer, -1, 1), 2);
   const light = params.get("light");
   if (is_light(light)) view.light = light;
+  const lamps = parse_lamps(params.get("lamps"));
+  if (lamps !== null) view.lamps = lamps;
   const pin_parts = params.get("pin")?.split(",") ?? [];
   const pin_at = parse_triple(pin_parts.slice(0, 3).join(","));
   const n = Number(pin_parts[3] ?? 1);
@@ -138,11 +148,14 @@ export function filled_view(asked: Asked["view"], cam: Cam, light: Light, paint:
   const presets = viewer_presets(asked.car);
   const preset = presets.find((p) => p.id === asked.preset) ?? presets[0];
   const code = asked.code ?? build_code(viewer_build(asked.car, preset, paint));
-  return settled_view({ car: asked.car, preset: asked.preset ?? preset.id, code, steer: asked.steer ?? 0, light, cam: asked.cam ?? cam });
+  const view: ViewState = { car: asked.car, preset: asked.preset ?? preset.id, code, steer: asked.steer ?? 0, light, cam: asked.cam ?? cam };
+  if (asked.lamps !== undefined) view.lamps = asked.lamps;
+  return settled_view(view);
 }
 
 export function view_query(view: ViewState, pin: ShotPin | null = null): string {
   const params = new URLSearchParams({ [CARS_PARAM]: view.car, p: view.preset, b: view.code, cam: cam_text(view.cam), steer: String(view.steer), light: view.light });
+  if (view.lamps !== undefined) params.set("lamps", lamps_text(view.lamps));
   if (pin) params.set("pin", [...pin.at, pin.n].join(","));
   return `?${params}`.replaceAll("%2C", ",");
 }

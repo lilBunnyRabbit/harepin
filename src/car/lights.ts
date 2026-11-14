@@ -81,10 +81,15 @@ export function swing_popups(view: CarView, time: number): boolean {
   return true;
 }
 
+/** Whether the headlamps shine: on, and their pods (if any) far enough open. */
+export function lamps_lit(view: CarView): boolean {
+  return view.lights && (!view.popup || view.popup.open >= POPUP_LIT);
+}
+
 function pose_lamps(view: CarView) {
   const { popup } = view;
   if (popup) popup.pivot.rotation.x = -popup.lift * popup_ease(popup.open);
-  view.heads.material.emissiveIntensity = view.lights && (!popup || popup.open >= POPUP_LIT) ? HEAD_GLOW : 0;
+  view.heads.material.emissiveIntensity = lamps_lit(view) ? HEAD_GLOW : 0;
 }
 
 const SWAY_STEP = 0.1;

@@ -1,7 +1,7 @@
 import { parse_build } from "../car/build";
 import { is_car, type CarId, type Triple } from "../car/cars";
 import { checked_note, pin_numbers, type Note, type Notes } from "./notes";
-import { cam_text, is_light, is_preset_id, parse_cam, parse_triple, view_query, type ShotPin } from "./view-state";
+import { cam_text, is_light, is_preset_id, lamps_text, parse_cam, parse_lamps, parse_triple, view_query, type ShotPin, type ViewState } from "./view-state";
 
 export interface Screen {
   width: number;
@@ -14,6 +14,7 @@ function note_lines(note: Note, n: number | null): string[] {
   const { view } = note;
   const fields = [`cam=${cam_text(view.cam)}`, `steer=${view.steer}`, `light=${view.light}`];
   if (note.pin) fields.push(`pin=${note.pin.join(",")}`);
+  if (view.lamps !== undefined) fields.push(`lamps=${lamps_text(view.lamps)}`);
   return [` c ${n ?? "-"} ${view.code} ${fields.join(" ")}`, ` n ${JSON.stringify(note.text)}`];
 }
 
@@ -96,7 +97,11 @@ function read_c(car: CarId, preset: string, number: string, code: string, rest: 
   if (!cam || !is_light(light) || !Number.isFinite(steer)) return null;
   const pin: Triple | null = fields.has("pin") ? parse_triple(fields.get("pin") ?? null) : null;
   if (fields.has("pin") && !pin) return null;
-  return { pin, n: number === "-" ? null : Number(number), view: { car, preset, code, steer, light, cam } };
+  const lamps = parse_lamps(fields.get("lamps"));
+  if (fields.has("lamps") && lamps === null) return null;
+  const view: ViewState = { car, preset, code, steer, light, cam };
+  if (lamps !== null) view.lamps = lamps;
+  return { pin, n: number === "-" ? null : Number(number), view };
 }
 
 export function note_query(note: ReadNote, shot = false): string {

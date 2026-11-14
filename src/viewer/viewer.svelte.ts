@@ -33,7 +33,6 @@ export class Viewer {
   picked = $state<number | null>(null);
   draft = $state("");
   panel = $state(true);
-  lights = $state(true);
   /** The block when the browser refused the clipboard, shown to copy by hand. */
   refused = $state<string | null>(null);
   copied = $state<string | null>(null);
@@ -61,6 +60,7 @@ export class Viewer {
     this.cam_asked = asked.view.cam !== undefined;
     this.notes = load_notes();
     this.view = $state(fill(this.frame_box, stage.aspect));
+    stage.lights(this.lamps);
     this.frame_box = stage.show(this.view.code) ?? this.frame_box;
     this.input = new OrbitInput(stage.canvas, {
       cam: () => this.view.cam,
@@ -135,10 +135,15 @@ export class Viewer {
     this.write_url();
   }
 
+  get lamps(): boolean {
+    return this.view.lamps ?? true;
+  }
+
   toggle_lights() {
-    this.lights = !this.lights;
-    this.stage.lights(this.lights);
+    this.view = { ...this.view, lamps: !this.lamps };
+    this.stage.lights(this.lamps);
     this.dirty = true;
+    this.write_url();
   }
 
   private set_build(car: CarId, preset: ViewerPreset, paint: number, reframe: boolean) {
@@ -152,6 +157,7 @@ export class Viewer {
 
   private apply() {
     this.frame_box = this.stage.show(this.view.code) ?? this.frame_box;
+    this.stage.lights(this.lamps);
     this.stage.steer(this.view.steer);
     this.marks();
     this.write_url();
@@ -245,7 +251,7 @@ export class Viewer {
       this.relight(note.view.light, note.view);
       return;
     }
-    this.view = { ...this.view, code: note.view.code, steer: note.view.steer };
+    this.view = { ...this.view, code: note.view.code, steer: note.view.steer, lamps: note.view.lamps };
     this.apply();
     this.fly_to(note.view.cam);
   }
