@@ -54,6 +54,19 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.44.0",
+    date: "2026-11-14",
+    title: "Market towns",
+    changes: [
+      { kind: NEW, text: "Mainland towns are rebuilt around a market street and a square with a clock tower, with rows of pitched-roof houses, market stalls and car parks at the edges. Mainland records reset" },
+      { kind: IMPROVED, text: "Races between Mainland towns drive down the market street" },
+      { kind: IMPROVED, text: "Fewer draw calls for trees, smoother on busy maps" },
+      { kind: IMPROVED, text: "Less stutter in the first minutes of a drive" },
+      { kind: FIXED, text: "Tyres and event markings sit on the road surface instead of floating or sinking" },
+      { kind: IMPROVED, text: "New Dunes and Mainland menu pictures" },
+    ],
+  },
+  {
     version: "0.43.2",
     date: "2026-11-14",
     title: "Hold and spin",
