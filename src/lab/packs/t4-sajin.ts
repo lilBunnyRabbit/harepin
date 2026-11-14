@@ -1,5 +1,5 @@
 import { CARS, type CarSpec } from "../../car/cars";
-import { FUN, LANDING, NOTE, PRED, VS_BASELINE } from "../ask";
+import { LANDING, NOTE, PRED, VS_BASELINE } from "../ask";
 import { LAB_CAR, type Goal, type Pack, type Question, type Trial } from "../pack";
 
 const TODAY = "sajin.4.0.0.1.0";
@@ -31,7 +31,7 @@ interface Place {
 const ROLL: Question = { kind: "scale", id: "roll", label: "Body roll", low: "tips onto two wheels", high: "sits flat" };
 const SOFT: Question = { kind: "scale", id: "soft", label: "Soft buggy feel", low: "stiff road car", high: "soft, long travel" };
 const SAJIN: Question = { kind: "pick", id: "char", label: "Still feels like the Sajin", options: ["lost it", "unsure", "yes"] };
-const ASK: Question[] = [ROLL, SOFT, PRED, FUN, VS_BASELINE, SAJIN, NOTE];
+const ASK: Question[] = [ROLL, SOFT, PRED, VS_BASELINE, SAJIN, NOTE];
 
 const PLACES: Place[] = [
   {
@@ -43,7 +43,7 @@ const PLACES: Place[] = [
     old: "the tall Sajin: notice how far the body leans and pitches in the air and whether the landing tips it onto a side",
     today: "today's Sajin: notice whether it still soaks the landing on its long travel or lands flatter and harder",
     question: "Off a kicker, does today's Sajin land without tipping, and still soak it up?",
-    ask: [LANDING, ...ASK],
+    ask: [ROLL, SOFT, LANDING, VS_BASELINE, SAJIN, NOTE],
   },
   {
     id: "dirt",
