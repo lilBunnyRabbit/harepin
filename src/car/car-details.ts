@@ -123,7 +123,7 @@ const KAZE: Detail[] = [
   },
   { on: "stripped", until: "street", cue: "Rear bumper off: a bash bar on two stays", trim: [centred(1.72, 0.3, 0.03, 0.46, kaze_tail - 0.012)], chrome: bash_bar(1.5, 0.5, kaze_tail) },
   // The kit's tail is its shell: no backing panel, and the bar ends short of the tow strap.
-  { on: "stripped", with: "street", cue: "A bash bar on two stays over the kit's tail valance", chrome: bash_bar(1.1, 0.4, kaze_kit_tail) },
+  { on: "stripped", with: "street", cue: "A bash bar on two stays over the kit's tail valance", chrome: bash_bar(1, 0.36, kaze_kit_tail) },
 ];
 
 const TSUMUJI: Detail[] = [
