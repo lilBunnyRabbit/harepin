@@ -19,7 +19,7 @@ test("a plaza lifts its paving and more its square, in the lot's turned frame, a
 test("a tyre stands on the road it is on: the circuit, a street, a spur, and the paint on each", () => {
   const { data } = build_world(1, WorldKind.ISLAND);
   const world = new World(1, data);
-  const roads = drawn_roads(data, world.tiles.ext);
+  const roads = drawn_roads(data);
   const across = (p: RoadPoint, q: RoadPoint, u: number) => world.drawn_lift((p.x + q.x) / 2 - p.tz * u, (p.z + q.z) / 2 + p.tx * u);
   const seen = new Set<number>();
   for (const road of roads) {

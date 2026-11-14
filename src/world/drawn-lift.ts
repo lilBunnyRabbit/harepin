@@ -1,6 +1,5 @@
-import type { Extent } from "../worldgen/chunk-grid";
 import { LIFT } from "../worldgen/lifts";
-import { on_paint, road_junctions, road_layout, type Paint, type RoadData } from "../worldgen/road-layers";
+import { on_paint, road_junctions, road_paint, type Paint, type RoadData } from "../worldgen/road-layers";
 import { lot_paving, type Paving } from "../worldgen/town-mesh";
 import type { Lot, ParkingLot, RoadPoint } from "../worldgen/types";
 
@@ -13,10 +12,10 @@ export interface DrawnRoad {
 }
 
 /** Every drawn road by the world's lane number: the circuit at 0, then each other edge at its id + 1. */
-export function drawn_roads(data: RoadData, ext: Extent): (DrawnRoad | undefined)[] {
-  const layout = road_layout(data, road_junctions(data), ext);
-  const roads: (DrawnRoad | undefined)[] = [{ points: data.road, closed: true, lift: LIFT.ring, paint: layout.paint }];
-  for (const { street, edge, paint } of layout.edges) roads[edge.id + 1] = { points: edge.points, closed: false, lift: street ? LIFT.street : LIFT.spur, paint };
+export function drawn_roads(data: RoadData): (DrawnRoad | undefined)[] {
+  const { ring, edges } = road_paint(data, road_junctions(data));
+  const roads: (DrawnRoad | undefined)[] = [{ points: data.road, closed: true, lift: LIFT.ring, paint: ring }];
+  for (const { street, edge, paint } of edges) roads[edge.id + 1] = { points: edge.points, closed: false, lift: street ? LIFT.street : LIFT.spur, paint };
   return roads;
 }
 
