@@ -27,6 +27,12 @@ const HEAD_DECAY = 0.3;
 const SKY_CEILING = 0.9;
 /** Half the side of the sun's shadow box, metres: the car's shadow keeps more texels per metre than a town-wide box gave. */
 const SHADOW_REACH = 28;
+/**
+ * Lowest the sun stands for its shadow, as the height of its unit direction. A shadow texel smears along the light by
+ * 1 / sin of the angle the light meets the ground at: the dusk sun (15 degrees) on a slope falling away from it met the
+ * ground at a few degrees and dragged the car's shadow metres downhill in jagged streaks. The shading keeps the true sun.
+ */
+const SHADOW_SUN_Y = 0.6;
 /** PCF blur radius in shadow texels, so the car's shadow edge reads soft rather than stepped. */
 const SHADOW_SOFT = 2.5;
 
@@ -80,6 +86,9 @@ export class Lighting {
   readonly bloom: { strength: number; threshold: number };
   private readonly spec: MoodSpec;
   private headlight: THREE.SpotLight | null = null;
+  /** Where the shadow is cast from: the sun's bearing, never lower than `SHADOW_SUN_Y`. */
+  private readonly shadow_dir = new THREE.Vector3();
+  private readonly shadow_from = new THREE.Object3D();
 
   /** `radial` fogs on distance instead of view depth, so a phone's streamed chunks cover all the fog leaves visible. */
   constructor(scene: THREE.Scene, mood: MoodDelta, radial = false) {
@@ -100,6 +109,13 @@ export class Lighting {
     this.sun.shadow.bias = -0.0002;
     this.sun.shadow.normalBias = 0.015;
     scene.add(this.sun, this.sun.target);
+    const shadow_y = Math.max(spec.sun_y, SHADOW_SUN_Y);
+    const shadow_flat = Math.sqrt(1 - shadow_y * shadow_y);
+    this.shadow_dir.set((SUN_DIR.x / horizontal) * shadow_flat, shadow_y, (SUN_DIR.z / horizontal) * shadow_flat);
+    const { sun, shadow_from } = this;
+    const update = sun.shadow.updateMatrices.bind(sun.shadow);
+    // three reads only the light's world position and its target here; the stand-in carries the raised position.
+    sun.shadow.updateMatrices = () => update(Object.assign(shadow_from, { target: sun.target }) as unknown as THREE.DirectionalLight);
   }
 
   dress(sky: THREE.Object3D, clouds: THREE.Object3D): THREE.Object3D[] {
@@ -125,5 +141,7 @@ export class Lighting {
   follow(at: THREE.Vector3) {
     this.sun.position.copy(at).addScaledVector(SUN_DIR, 400);
     this.sun.target.position.copy(at);
+    this.shadow_from.position.copy(at).addScaledVector(this.shadow_dir, 400);
+    this.shadow_from.updateMatrixWorld();
   }
 }
