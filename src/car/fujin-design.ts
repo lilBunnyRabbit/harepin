@@ -23,32 +23,44 @@ const PONTOON: Point[] = [
   ...arc(FRONT_AXLE, WHEEL, ARCH, SILL, 7),
 ];
 const HALF = 1.0;
-const SPAN = 0.97;
 const TAIL: Point = [-2.34, 0.62];
+const FOOT: Point = [-1.74, 0.76];
+// The fin's root is as thick as this and flush with the pontoon side; the plate stands in its middle.
+const ROOT = 0.94;
+const PLATE: Point = [0.955, 0.985];
+const ROOT_SHARE = 0.5;
+const lerp = (a: Point, b: Point, t: number): Point => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
 
-// One endplate per wing, grown out of the pontoon's tail: its top edge climbs from `lead`, runs level over the last plane to `rear`,
-// and its trailing edge runs down into the tail face.
-const endplate = (lead: Point, rear: Point): Slab => ({ points: [[-1.74, 0.76], lead, [rear[0] + 0.22, rear[1]], rear, TAIL, [-2.2, 0.6]], from: SPAN, to: HALF });
-// The engine cover's fin runs from the roof scoop into the main plane, so the wing stands on the body at its centre too.
-const fin = ([z, y]: Point): Slab => ({ points: [[-0.45, 1.085], [z + 0.12, y], [z - 0.06, y], [-2.3, 0.6], [-0.45, 0.6]], from: 0, to: 0.016 });
+// One tail fin per wing, grown out of the pontoon's tail: its top edge climbs from `lead`, runs level over the last plane to `rear`,
+// and its trailing edge runs down into the tail face. The lower half is the pontoon running on up, the upper a thin plate out of it.
+function fin(lead: Point, rear: Point): Slab[] {
+  const low: Point = [-2.2, 0.6];
+  return [
+    { points: [FOOT, lerp(FOOT, lead, ROOT_SHARE), lerp(TAIL, rear, ROOT_SHARE), TAIL, low], from: ROOT, to: HALF },
+    { points: [FOOT, lead, [rear[0] + 0.22, rear[1]], rear, TAIL, low], from: PLATE[0], to: PLATE[1] },
+  ];
+}
 
 function wing(at: Point, chord: number, tilt: number, lead: Point, rear: Point, flaps: Point[][] = []): Wing {
   const main = plane(at, chord, 0.045, tilt);
-  return { paint: [], trim: [], lips: [endplate(lead, rear), fin(at)], stands: [main, ...flaps].map((points) => ({ points, from: 0, to: SPAN })) };
+  return { paint: [], trim: [], lips: fin(lead, rear), stands: [main, ...flaps].map((points) => ({ points, from: 0, to: PLATE[0] })) };
 }
 
-const RACE_FLAP = plane([-2.43, 1.255], 0.19, 0.035, 0.55);
+const RACE_FLAP = plane([-2.42, 1.215], 0.19, 0.035, 0.55);
 const WINGS: Wing[] = [
   wing([-2.16, 1.1], 0.4, 0.1, [-1.93, 1.13], [-2.42, 1.19]),
-  wing([-2.14, 1.1], 0.38, 0.12, [-1.92, 1.13], [-2.46, 1.26], [plane([-2.375, 1.185], 0.13, 0.03, 0.5)]),
-  wing([-2.15, 1.13], 0.42, 0.14, [-1.915, 1.155], [-2.5, 1.315], [plane([-2.405, 1.23], 0.16, 0.03, 0.55)]),
-  wing([-2.16, 1.15], 0.44, 0.16, [-1.92, 1.175], [-2.54, 1.38], [RACE_FLAP, gurney(RACE_FLAP, 0.03)]),
+  wing([-2.14, 1.1], 0.38, 0.12, [-1.92, 1.13], [-2.46, 1.25], [plane([-2.375, 1.18], 0.13, 0.03, 0.5)]),
+  wing([-2.15, 1.11], 0.42, 0.14, [-1.915, 1.14], [-2.5, 1.29], [plane([-2.405, 1.205], 0.16, 0.03, 0.55)]),
+  wing([-2.16, 1.12], 0.44, 0.16, [-1.92, 1.15], [-2.54, 1.33], [RACE_FLAP, gurney(RACE_FLAP, 0.03)]),
 ];
 
 const NOSE = 2.36;
+// Inside the pontoon's outer face, so the body hides all of it but the blade ahead of the nose and under the sill.
+const EDGE = 0.996;
 // A wedge under the chin: thin at its leading edge, its top face rising into the nose, its floor fading out ahead of the arch.
-const splitter = (reach: number): Slab => ({ points: [[NOSE + reach, 0.13], [NOSE + reach, 0.15], [2.34, 0.2], [1.9, 0.2], [1.9, 0.16], [2.2, 0.13]], from: 0, to: 1.004 });
-const FENCE: Slab = { points: [[NOSE + 0.2, 0.14], [NOSE + 0.02, 0.3], [2.1, 0.3], [2.1, 0.14]], from: 0.97, to: 1.03 };
+const splitter = (reach: number): Slab => ({ points: [[NOSE + reach, 0.13], [NOSE + reach, 0.15], [2.34, 0.2], [1.9, 0.2], [1.9, 0.16], [2.2, 0.13]], from: 0, to: EDGE });
+// The race splitter's ends turn up into the pontoon nose.
+const FENCE: Slab = { points: [[NOSE + 0.2, 0.15], [NOSE + 0.2, 0.19], [2.33, 0.3], [2.3, 0.3], [2.3, 0.15]], from: EDGE - 0.03, to: EDGE };
 const FRONTS: Wing[] = [
   { paint: [], trim: [], stands: [splitter(0.07)] },
   { paint: [], trim: [], stands: [splitter(0.14)] },
