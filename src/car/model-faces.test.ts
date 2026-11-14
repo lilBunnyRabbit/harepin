@@ -310,3 +310,68 @@ test("no wheel opening shows the far wheel through the body", async () => {
   }
   expect(found).toEqual([]);
 });
+
+// Sight lines leave the tyre's inner sidewall this far inside it, over the hub, toward the far side of the car.
+const SIGHT_SKIN = 0.005;
+const SIGHT_SPOKE = 0.85;
+const SIGHT_SPOTS = [-60, -30, 0, 30, 60];
+const SIGHT_RISES = [20, 40, 60, 80];
+const SIGHT_TURNS = [-60, -30, 0, 30, 60];
+const RAD = Math.PI / 180;
+
+function blocked(faces: Face[], from: THREE.Vector3, along: THREE.Vector3): boolean {
+  const [ab, ac, h, s, q] = [0, 0, 0, 0, 0].map(() => new THREE.Vector3());
+  return faces.some((face) => {
+    ab.subVectors(face.b, face.a);
+    ac.subVectors(face.c, face.a);
+    h.crossVectors(along, ac);
+    const det = ab.dot(h);
+    if (Math.abs(det) < 1e-12) return false;
+    const u = s.subVectors(from, face.a).dot(h) / det;
+    if (u < 0 || u > 1) return false;
+    const v = along.dot(q.crossVectors(s, ab)) / det;
+    return v >= 0 && u + v <= 1 && ac.dot(q) / det > 0;
+  });
+}
+
+test("no fender that covers its tyre shows it from over the body, on every car and kit", async () => {
+  const { build_view, dispose_car_view, rest_wheels } = await import("./models");
+  const { build_spec } = await import("./build");
+  const { DESIGNS } = await import("./designs");
+  const { aero_of } = await import("./part-looks");
+  const { axle_index, axles_of } = await import("./axles");
+  const found: string[] = [];
+  const from = new THREE.Vector3();
+  const along = new THREE.Vector3();
+  const up = new THREE.Vector3(0, 1, 0);
+  for (const car of Object.keys(CARS) as CarId[])
+    for (const [k, build] of looks(car).filter(([name]) => name.startsWith("kit"))) {
+      const spec = build_spec(build);
+      const stock = DESIGNS[spec.body.style];
+      const d = aero_of(build.parts).skirts && stock.kit ? { ...stock, ...stock.kit } : stock;
+      const view = build_view(build, spec);
+      rest_wheels(view, spec);
+      view.root.updateMatrixWorld(true);
+      const faces = body_faces(view.body, view.root);
+      const axles = axles_of(spec);
+      const radius = spec.wheel.radius;
+      spec.wheel.mounts.forEach(([mx], w) => {
+        if (mx < 0) return;
+        const centre = view.wheels[w].position;
+        const x = mx - d.tyre[Math.min(axle_index(axles, w), 1)] / 2 - SIGHT_SKIN;
+        // An open wheel, or a tyre standing outside its arch, is meant to show.
+        if (!blocked(faces, from.set(x, centre.y + radius, centre.z), up)) return;
+        let seen = 0;
+        for (const spot of SIGHT_SPOTS)
+          for (const rise of SIGHT_RISES)
+            for (const turn of SIGHT_TURNS) {
+              from.set(x, centre.y + SIGHT_SPOKE * radius * Math.cos(spot * RAD), centre.z + SIGHT_SPOKE * radius * Math.sin(spot * RAD));
+              along.set(-Math.cos(rise * RAD) * Math.cos(turn * RAD), Math.sin(rise * RAD), Math.cos(rise * RAD) * Math.sin(turn * RAD));
+              if (!blocked(faces, from, along)) seen++;
+            }
+        if (seen > 0) found.push(`${car} ${k}, wheel ${w}: ${seen} sight lines reach the tyre over the body`);
+      });
+      dispose_car_view(view);
+    }
+  expect(found).toEqual([]);
+}, 120_000);

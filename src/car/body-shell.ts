@@ -47,14 +47,17 @@ export function body_outline(d: Design, spec: CarSpec): Point[] {
 
 /**
  * A block filling each wheel opening between the tyres' inner faces, a steered pair's swept to full lock: the body is
- * cut right across, and without it an arch shows the far wheel. `tyre_width` scales the design's tyres.
+ * cut right across, and without it an arch shows the far wheel. A pod's well runs from the slab face that closes it to its own tyre.
+ * `tyre_width` scales the design's tyres.
  */
 export function wells(d: Design, spec: CarSpec, tyre_width: number): THREE.BufferGeometry[] {
-  if (d.arches.steps === 0) return [];
+  const pods = d.pods;
+  if (d.arches.steps === 0 && !pods) return [];
   return axles_of(spec).flatMap((axle, i) => {
     const half = (d.tyre[Math.min(i, 1)] * tyre_width) / 2;
     const swept = axle.steer ? half * Math.cos(spec.lock) + spec.wheel.radius * Math.sin(spec.lock) : half;
     const inner = Math.abs(spec.wheel.mounts[axle.wheels[0]][0]) - swept - WELL_CLEAR;
+    if (pods) return inner > pods.from ? slab(arc(axle.z, spec.wheel.radius, pods.radius, d.sill, pods.steps), pods.from, inner) : [];
     return inner > 0 ? [extrude(arch_opening(d, spec, axle.z), 2 * inner)] : [];
   });
 }

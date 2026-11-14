@@ -8,10 +8,16 @@ const ARCH = 0.41;
 const FRONT_AXLE = 1.45;
 const REAR_AXLE = -1.35;
 
-// The tub is lower than the wheels, so the arches are cut in the pontoons beside it, not in the body outline.
-const PONTOON: Point[] = [
+// The pontoon's wall on the tub: uncut, so no arch shows its tyre over the tub. It ends short of a steered wide tyre.
+const PONTOON_FROM = 0.5;
+const PONTOON_WALL = 0.525;
+const PONTOON_SIDE: Point[] = [
   [2.3, SILL], [2.36, 0.24], [2.33, 0.38], [2.1, 0.6], [1.8, 0.77], [1.45, 0.81], [1.1, 0.78], [0.8, 0.62], [0.6, 0.54],
   [-0.5, 0.54], [-0.8, 0.66], [-1.1, 0.8], [-1.45, 0.84], [-2.0, 0.8], [-2.3, 0.74], [-2.34, 0.66], [-2.34, 0.3], [-2.26, SILL],
+];
+// The tub is lower than the wheels, so the arches are cut in the pontoons beside it, not in the body outline.
+const PONTOON: Point[] = [
+  ...PONTOON_SIDE,
   ...arc(REAR_AXLE, WHEEL, ARCH, SILL, 6),
   ...arc(FRONT_AXLE, WHEEL, ARCH, SILL, 6),
 ];
@@ -55,10 +61,12 @@ export const FUJIN_DESIGN: Design = {
   },
   arches: { gap: 0, steps: 0, flare: 0, out: 0, reach: 0, tone: "paint" },
   slabs: [
-    { points: PONTOON, from: 0.5, to: 1.0 },
+    { points: PONTOON_SIDE, from: PONTOON_FROM, to: PONTOON_WALL },
+    { points: PONTOON, from: PONTOON_WALL, to: 1.0 },
     { points: FIN, from: 0, to: 0.016 },
     { points: ENDPLATE, from: 0.97, to: 1.0 },
   ],
+  pods: { radius: ARCH, steps: 6, from: PONTOON_WALL },
   heads: [{ size: [0.1, 0.27, 0.04], at: [0.78, 0.5, 2.225], tilt: [-0.8, 0, 0] }],
   tails: [{ size: [0.07, 0.3, 0.04], at: [0.9, 0.48, -2.345] }],
   paint: [{ size: [0.14, 0.08, 0.14], at: [0.72, 0.8, 0.95] }],

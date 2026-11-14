@@ -124,6 +124,11 @@ export interface Design {
   caliper?: Token;
   /** Raised profiles on the body sides in paint, such as front wings standing above a low bonnet. */
   slabs?: Slab[];
+  /**
+   * Wheel openings cut in the slabs beside a body lower than its wheels, not in its outline: their radius and facets,
+   * and the distance from the centre of the slab face that closes them, where each one's well starts.
+   */
+  pods?: { radius: number; steps: number; from: number };
   /** Narrows the body behind z `from` to `share` of its width at the tail. */
   taper?: { from: number; share: number };
   /** A chamfered shoulder above the belt line, a tuck below it, and nose and tail pinched in plan. */

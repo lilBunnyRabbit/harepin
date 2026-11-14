@@ -28,6 +28,7 @@ The owner's favourite was the round-4 hatch: a thin lip that follows the wheel o
 - The opening and its lip are six even facets, the same angle as the 12-sided wheels. The lip keeps one width all the way round and on both axles; under a low bonnet the whole lip narrows instead of thinning at the top.
 - Every opening clears its tyre at full steering lock with the widest tyre the car can fit. A kit that needs more room gets a wider gap or a narrower front tyre.
 - The car reads solid: a dark well closes each opening between the tyres, so no arch shows the far wheel.
+- A wheel pod beside a low body (Fujin) keeps a body-colour wall on the body side, so no tyre shows over the bonnet; its dark well sits behind that wall.
 - Open-wheel cars: suspension arms run from the body side (never over its top) to the hub centre, and no arm, floor or wing shows through a tyre. `model-faces.test.ts` checks all of this.
 
 ## Spoilers and wings
