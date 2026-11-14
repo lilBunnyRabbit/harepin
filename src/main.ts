@@ -839,6 +839,7 @@ function frame(time: number) {
   if (input.touch.nitro && car.nitro.fill <= 0) input.touch.tank_empty();
   // The menu covers the HUD, so its writes and the minimap wait for the frame the menu closes on.
   if (!settings.is_open) hud.update(car, now, rewinding);
+  lab?.frame();
   if (quality.adapt(dt)) render.apply_quality();
   stream.follow(car.pos.x, car.pos.z, quality.tier.fog_far + quality.tier.stream_pad);
   // The dome is 2.4 km across and the mainland is wider, so it rides with the camera instead of the world origin.

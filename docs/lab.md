@@ -8,7 +8,7 @@ Nothing in the lab touches the game around it: no records, ghosts, stars or goal
 
 | Link | What loads |
 |---|---|
-| `/?lab=<id>` | the committed pack `src/lab/packs/<id>.ts` (`?lab=demo` is the sample, `?lab=first-look` the first real session) |
+| `/?lab=<id>` | the committed pack `src/lab/packs/<id>.ts` (`?lab=demo` is the sample, `?lab=first-look` the first real session, `?lab=t1-surfaces` the stock coupe on every skidpad and runway lane, `?lab=t2-drift` the Drift preset on the drift circle, eight and hairpins with three mods) |
 | `/?lab=~<code>` | an inline pack carried in the link itself: no deploy needed |
 
 Works on the live site and in dev; no menu entry, like `?tune`. The lab world (`lab` kind, unlisted) loads, the car goes to the first trial's station and the pack card opens instead of the menu or the first-visit guide. Modes are off in the lab: the Modes page shows each one as "Not in the lab", and no lobby race starts.
@@ -17,11 +17,11 @@ Works on the live site and in dev; no menu entry, like `?tune`. The lab world (`
 
 | Piece | What it shows | Controls |
 |---|---|---|
-| Pack card (trial list) | title, rev, trials driven, brief; one tile per trial: id, car, class and PI, station/lane, goal, status `To do` / `Running` / `Done` / `Stopped` | tap or A on a tile starts that trial; Start (or Back to trial); Copy results |
-| Strip (top, where the lap strip sits) | `Lab n/N`, the trial id, goal, status | Trials, Retry, Stop and rate |
+| Pack card (trial list) | title, rev, trials driven, brief; one tile per trial: id, car, class and PI, station/lane, goal, status `To do` / `Running` / `Done` / `Stopped` | tap or A on a tile starts that trial; Start (or Back to trial); Copy results; Leave lab (the same link without `?lab`: the game as usual, the tab's stored answers and numbers kept for the next visit) |
+| Strip (top, where the lap strip sits) | `Lab n/N`, the trial id, goal, status; while a trial measures, a second line of live numbers: goal progress (`Lap 2/3`, `41 s left`, `Gate 1/2`, `Brake from 60`), lateral g, speed, slip angle. Each is rewritten only when its shown digits change | Trials, Retry, Stop and rate |
 | Results card | after a trial's goal or Stop: the trial's feel line, the questions, then every metric it measured | Trials, Copy, Previous, Retry, Next |
 
-The cards are modal and hold the sim like the menu does. A 1-5 scale is five big buttons, never a slider; a note is one optional line (400 characters at most). Answers save on every change to `sessionStorage` under `harepin.lab.<pack>.r<rev>`, so a reload keeps them (only answers: the numbers of a reloaded run are gone, its trials export as `skipped`). Stored answers are checked against the pack on load; anything that does not fit is dropped.
+The cards are modal and hold the sim like the menu does. A 1-5 scale is five big buttons, never a slider; a note is one optional line (400 characters at most). Answers save on every change to `sessionStorage` under `harepin.lab.<pack>.r<rev>`, and each trial's numbers when it ends (goal or Stop) under `harepin.lab.<pack>.r<rev>.results`, so a reload keeps both. A trial still running at the reload loses that attempt and keeps its last finished one. Both are checked against the pack on load: answers that do not fit are dropped, and so are numbers whose `spec#` no longer matches the trial (a deploy moved the car) or whose fields do not check out.
 
 Pad: Start opens the strip (and the HUD bar beside it), the d-pad walks the buttons, A presses; in a card up/down moves between questions, left/right along a scale, B closes it. When the browser refuses the clipboard, the pack card shows the block in a box to select and copy by hand.
 
@@ -66,10 +66,10 @@ One file per pack in `src/lab/packs/<id>.ts`, default export, plus one line in `
 import type { Pack } from "../pack";
 
 const pack: Pack = {
-  id: "t1-surfaces",           // same as the file and the PACKS key
+  id: "hatch-ice",             // same as the file and the PACKS key
   rev: 1,                      // bump on every edit: the export carries it
-  title: "Surfaces",
-  brief: "The hatch on every skidpad.",
+  title: "Hatch on ice",
+  brief: "The hatch on the ice pad.",
   cars: { /* lab-only cars, see below */ },
   trials: [
     {
@@ -101,7 +101,7 @@ export default pack;
 | `try`, `feel` | what to do and what to feel for |
 | `ask` | questions for this trial, else the pack's |
 
-Questions: `scale` (1-5 with `low`/`high` ends), `pick` (`options`), `text`. The clock starts at the first throttle or movement after the trial places the car.
+Questions: `scale` (1-5 with `low`/`high` ends), `pick` (`options`), `text`. `src/lab/ask.ts` holds the plan's set: `ASK` (grip, predictability, fun, note) and `with_station_asks(trials)`, which gives each trial those plus drift ease on the drift, eight, skidpad and hairpin stations, landing on the kickers, and "vs last trial" (worse / same / better) when the trial before ran the same station. Group a pack's trials by station so that last one asks. The clock starts at the first throttle or movement after the trial places the car.
 
 ### Lab cars (unreleased cars and parts)
 
@@ -218,8 +218,9 @@ Metric keys (numbers keep 3 significant digits):
 | `src/lab/recorder.ts` | per-step metrics, no allocation in `step` |
 | `src/lab/export.ts` | the export block |
 | `src/lab/lab.ts` | trial flow, keys, Copy; lazy-loaded by `main.ts` on `?lab` |
-
 | `src/lab/answers.ts` | questions per trial, answer checks, the stored-answers reader |
+| `src/lab/ask.ts` | the shared questions and `with_station_asks` |
+| `src/lab/results-store.ts` | the stored-numbers writer and reader |
 | `src/lab/lab-view.svelte.ts`, `LabOverlay.svelte`, `TrialList.svelte`, `ResultCard.svelte`, `Scale.svelte` | the overlay: strip, pack card, results and question card |
 
-Still to build (plan phases 5-6): more packs and shared lab cars, and `scripts/lab.ts` (`--check`, sim baselines as an ` sim` line, `--promote <trial>`).
+Still to build (plan phases 5-6): shared lab cars (Tsumuji, Sajin), and `scripts/lab.ts` (`--check`, sim baselines as an ` sim` line, `--promote <trial>`).

@@ -13,6 +13,27 @@ export function goal_label(goal: Goal): string {
   return "Free";
 }
 
+/**
+ * What the strip's goal reading shows, as one whole number: the text is only rebuilt when it moves. Laps done, whole
+ * seconds left or driven, gates crossed; a stop has nothing to count down.
+ */
+export function progress_key(goal: Goal, laps: number, gates: number, time: number): number {
+  if (goal.kind === "laps") return Math.min(laps + 1, goal.laps);
+  if (goal.kind === "time") return Math.max(0, Math.ceil(goal.seconds - time));
+  if (goal.kind === "run") return gates;
+  if (goal.kind === "free") return Math.floor(time);
+  return 0;
+}
+
+/** `gate_count` is how many of a start and a finish gate the lane has. */
+export function progress_text(goal: Goal, key: number, gate_count: number): string {
+  if (goal.kind === "laps") return `Lap ${key}/${goal.laps}`;
+  if (goal.kind === "time") return `${key} s left`;
+  if (goal.kind === "run") return `Gate ${key}/${gate_count}`;
+  if (goal.kind === "free") return `${key} s`;
+  return `Brake from ${goal.from_kmh}`;
+}
+
 export const METRIC_LABEL: Record<string, string> = {
   time: "Time s",
   lap: "Laps s",

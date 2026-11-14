@@ -22,7 +22,7 @@ const AIR_MIN = 0.2;
 const BOUNCE_WINDOW = 0.5;
 const STOP_FROM = 30 / KMH;
 const STOPPED = 0.5 / KMH;
-const MAX_LAPS = 32;
+export const MAX_LAPS = 32;
 const DEG = 180 / Math.PI;
 
 const local = new Vector3();
@@ -121,6 +121,8 @@ export class Recorder {
   private handbrake_t = 0;
   private reversals = 0;
   private finished = false;
+  private lat_now = 0;
+  private slip_now = 0;
 
   constructor(
     private readonly lane: LabLane,
@@ -143,9 +145,28 @@ export class Recorder {
     return this.finished;
   }
 
-  /** Laps, seconds or segment so far, for the HUD. */
-  get progress(): { time: number; laps: number; segment: boolean } {
-    return { time: this.t, laps: this.lap_count, segment: !Number.isNaN(this.seg_time) };
+  /** Seconds driven since the first throttle. */
+  get time(): number {
+    return this.t;
+  }
+
+  get laps(): number {
+    return this.lap_count;
+  }
+
+  /** Gates crossed so far: the start, then the finish. */
+  get gates(): number {
+    return Number.isNaN(this.seg_time) ? (Number.isNaN(this.seg_start) ? 0 : 1) : 2;
+  }
+
+  /** Lateral g this step, anywhere on the lane. */
+  get lateral(): number {
+    return this.lat_now;
+  }
+
+  /** Body slip this step, degrees. */
+  get slip(): number {
+    return this.slip_now;
   }
 
   step(dt: number, car: Car, input: Controls) {
@@ -167,14 +188,16 @@ export class Recorder {
     this.top = Math.max(this.top, forward);
     if (!Number.isNaN(this.launch_at) && Number.isNaN(this.to_100) && forward * KMH >= 100) this.to_100 = t - this.launch_at;
 
+    this.lat_now = Math.abs(ang.y * speed) / G;
     this.ring(t, pos.x, pos.z, speed, ang.y);
-    this.gates(t, pos.x, pos.z);
+    this.cross(t, pos.x, pos.z);
     this.prev_x = pos.x;
     this.prev_z = pos.z;
 
     inverse.copy(car.quat).invert();
     local.copy(vel).applyQuaternion(inverse);
     const slip = speed > 2 ? Math.abs(Math.atan2(-local.x, local.z)) : 0;
+    this.slip_now = slip * DEG;
     this.slip_peak = Math.max(this.slip_peak, slip);
     const drifting = speed > MIN_SPEED && slip >= MIN_ANGLE && slip <= MAX_ANGLE;
     if (slip >= MIN_ANGLE) {
@@ -287,7 +310,7 @@ export class Recorder {
     this.ring_t++;
   }
 
-  private gates(t: number, x: number, z: number) {
+  private cross(t: number, x: number, z: number) {
     const { start, finish } = this.lane;
     if (start && Number.isNaN(this.seg_time) && this.crossed(start, x, z)) this.seg_start = t;
     if (finish && !Number.isNaN(this.seg_start) && Number.isNaN(this.seg_time) && this.crossed(finish, x, z)) this.seg_time = t - this.seg_start;

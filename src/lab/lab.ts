@@ -11,6 +11,7 @@ import { resolve_pack, type Aids, type Pack, type Question, type Resolved } from
 import { PACKS } from "./packs";
 import { show_overlay } from "./lab-view.svelte";
 import { Recorder, type Metrics } from "./recorder";
+import { read_results, results_json, results_key } from "./results-store";
 
 export interface LabHost {
   /** Drives `spec` drawn as `build`, with the player's aids under the trial's. Never writes the garage build. */
@@ -25,6 +26,8 @@ export interface LabHost {
 export interface LabWatch {
   changed(): void;
   ended(index: number): void;
+  /** Every drawn frame; `recorder` is null between trials. */
+  frame(recorder: Recorder | null, car: Car): void;
 }
 
 export type TrialStatus = "new" | "running" | "done" | "stopped";
@@ -52,7 +55,7 @@ function device(): Device {
 
 export class Lab {
   readonly trials: readonly Resolved[];
-  readonly results: TrialResult[];
+  results: TrialResult[];
   answers: Answers = {};
   watch: LabWatch | null = null;
   private index = -1;
@@ -86,7 +89,8 @@ export class Lab {
   }
 
   start() {
-    this.answers = this.load_answers();
+    this.answers = this.load(answers_key(this.pack), (raw) => read_answers(this.pack, raw), {});
+    this.results = this.load(results_key(this.pack), (raw) => read_results(this.trials, raw), this.results);
     addEventListener("keydown", this.on_key);
   }
 
@@ -132,6 +136,10 @@ export class Lab {
     } else if (!started && recorder.started) this.watch?.changed();
   }
 
+  frame() {
+    this.watch?.frame(this.recorder, this.host.car());
+  }
+
   placed(car: Car) {
     this.recorder?.placed(car);
   }
@@ -149,7 +157,7 @@ export class Lab {
     const row = (this.answers[trial] ??= {});
     if (checked === null) delete row[question.id];
     else row[question.id] = checked;
-    this.save_answers();
+    this.save(answers_key(this.pack), JSON.stringify(this.answers));
     this.watch?.changed();
   }
 
@@ -176,26 +184,30 @@ export class Lab {
     const recorder = this.recorder;
     if (!recorder || this.index < 0) return;
     // Left before driving: whatever an earlier attempt measured stands.
-    if (recorder.started) this.results[this.index] = { status, metrics: recorder.metrics() };
+    if (recorder.started) {
+      this.results[this.index] = { status, metrics: recorder.metrics() };
+      this.save(results_key(this.pack), results_json(this.trials, this.results));
+    }
     this.recorder = null;
     this.watch?.changed();
   }
 
-  private load_answers(): Answers {
+  // A reload or a crash mid-pack keeps what was answered and driven; storage that refuses only loses that.
+  private load<T>(key: string, read: (raw: unknown) => T, empty: T): T {
     try {
-      const raw = sessionStorage.getItem(answers_key(this.pack));
-      return raw === null ? {} : read_answers(this.pack, JSON.parse(raw));
+      const raw = sessionStorage.getItem(key);
+      return raw === null ? empty : read(JSON.parse(raw));
     } catch (error) {
-      console.warn("lab: stored answers dropped", error);
-      return {};
+      console.warn(`lab: stored ${key} dropped`, error);
+      return empty;
     }
   }
 
-  private save_answers() {
+  private save(key: string, json: string) {
     try {
-      sessionStorage.setItem(answers_key(this.pack), JSON.stringify(this.answers));
+      sessionStorage.setItem(key, json);
     } catch (error) {
-      console.warn("lab: answers not stored", error);
+      console.warn(`lab: ${key} not stored`, error);
     }
   }
 }

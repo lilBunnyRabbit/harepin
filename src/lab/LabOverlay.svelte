@@ -46,6 +46,14 @@
   <span class="lab-now">
     <b>Lab {at + 1}/{count}</b>
     {#if now}<span class="lab-id">{now.r.trial.id}</span><span class="lab-goal">{goal_label(now.r.trial.goal)} · {STATUS_LABEL[now.status]}</span>{/if}
+    {#if view.measuring}
+      <span class="lab-live" aria-label="Live numbers">
+        <span>{view.readout.goal}</span>
+        <span title="Lateral g">{view.readout.lat}</span>
+        <span title="Speed">{view.readout.speed}</span>
+        <span title="Slip angle">{view.readout.slip}</span>
+      </span>
+    {/if}
   </span>
   <IconButton icon="icon-menu" label="Trials" title="Trials" onclick={() => (view.screen = { kind: "list" })} />
   <IconButton icon="icon-restart" label="Retry trial" title="Retry (\)" disabled={at < 0} onclick={() => go(at)} />
@@ -62,6 +70,7 @@
   {/if}
   {#snippet actions()}
     <div class="lab-actions">
+      <Button icon="icon-close" onclick={() => view.leave()}>Leave lab</Button>
       <Button icon="icon-share" onclick={() => view.copy()}>Copy results</Button>
       <Button variant="primary" icon="icon-play" onclick={resume}>{resume_label}</Button>
     </div>
@@ -116,6 +125,13 @@
   .lab-goal {
     color: var(--dim);
     font-size: var(--text-sm);
+  }
+
+  .lab-live {
+    display: flex;
+    flex-basis: 100%;
+    gap: var(--space-3);
+    font-variant-numeric: tabular-nums;
   }
 
   .lab-actions {

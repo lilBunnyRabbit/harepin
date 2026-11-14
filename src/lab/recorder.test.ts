@@ -70,6 +70,9 @@ describe("recorder", () => {
     expect(m.ring_kmh).toBeCloseTo(v * 3.6, 6);
     expect(m.offs).toBe(0);
     expect(rec.done).toBe(true);
+    expect(rec.laps).toBe(2);
+    expect(rec.lateral).toBeCloseTo((v * v) / (r * 9.81), 6);
+    expect(rec.slip).toBeLessThan(1);
   });
 
   test("a gate pair times the segment and a lane path counts offs", () => {
@@ -85,5 +88,6 @@ describe("recorder", () => {
     const m = rec.metrics();
     expect(m.segment).toBeCloseTo(4, 1);
     expect(m.offs).toBe(1);
+    expect(rec.gates).toBe(2);
   });
 });
