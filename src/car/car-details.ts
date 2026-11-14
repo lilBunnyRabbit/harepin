@@ -10,8 +10,8 @@ const UPRIGHT = Math.PI / 2;
 
 const CAMBER = 0.1;
 
-const hatch_cannon = pipe(0, 0.37, -2.02, 0.19, 0.46, true);
-const hatch_twin = pipe(0.115, 0.37, -2.02, 0.17, 0.46);
+const hatch_cannon = pipe(0, 0.36, -1.98, 0.12, 0.3, true);
+const hatch_twin = pipe(0.09, 0.36, -1.98, 0.1, 0.3);
 const HATCH: Detail[] = [
   {
     on: "street",
@@ -26,8 +26,8 @@ const HATCH: Detail[] = [
   { on: "stripped", cue: "Bolt-in cage: a cross in the hatch glass", cage: [screen_bar(hatch.cabin, 2, [-0.45, 0.2], [0.45, 0.8])] },
 ];
 
-const coupe_bazooka = pipe(0.55, 0.31, -2.38, 0.14, 0.4);
-const coupe_twin = pipe(0.55, 0.31, -2.42, 0.19, 0.5);
+const coupe_bazooka = pipe(0.55, 0.31, -2.34, 0.1, 0.34);
+const coupe_twin = pipe(0.55, 0.31, -2.36, 0.13, 0.4);
 const COUPE: Detail[] = [
   { on: "nitro", cue: "Underglow tube under each sill", accent: [{ size: [0.07, 0.05, 1.56], at: [0.93, 0.15, 0] }] },
   { on: "tuned", until: "race_engine", cue: "A long bazooka pipe each side", chrome: [coupe_bazooka.chrome], trim: [coupe_bazooka.trim], tips: [coupe_bazooka.tip], swaps: ["pipes"], ...coupe_bazooka.outlet },
