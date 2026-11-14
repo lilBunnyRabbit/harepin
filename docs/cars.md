@@ -13,6 +13,7 @@ One registry, `ASSETS` in `viewer/assets.ts` (label, group, seeded), with how ea
 | `wing` | part | `rear_wing` for the build's aero level |
 | `aero` | part | `aero_parts`: front lip or splitter, the kit's skirt band, diffuser |
 | `arches` | part | `flares`: the arch lips or the kit's arches |
+| `mirror` | part | `Design.mirror` of the fitted design (the kit's on a kit): housing in paint, arm or stalk and glass face in trim |
 | `building` | world | a building of the generated world, through `town_builders` and the town materials: terraces, houses, clock towers, plain blocks |
 | `ground` | world | a market square (stalls, benches, paving) or a garden wall lot, through `town_builders` |
 | `ramp` | world | a jump ramp of the generated world, through `JumpsView` |

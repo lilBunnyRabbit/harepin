@@ -6,6 +6,7 @@ export const AssetKind = {
   WING: "wing",
   AERO: "aero",
   ARCHES: "arches",
+  MIRROR: "mirror",
   BUILDING: "building",
   GROUND: "ground",
   RAMP: "ramp",
@@ -30,6 +31,7 @@ export const ASSETS: Record<AssetKind, AssetDef> = {
   wing: { label: "Rear wing", group: AssetGroup.PART, seeded: false },
   aero: { label: "Aero kit", group: AssetGroup.PART, seeded: false },
   arches: { label: "Arches", group: AssetGroup.PART, seeded: false },
+  mirror: { label: "Mirrors", group: AssetGroup.PART, seeded: false },
   building: { label: "Building", group: AssetGroup.WORLD, seeded: true },
   ground: { label: "Square or yard", group: AssetGroup.WORLD, seeded: true },
   ramp: { label: "Jump ramp", group: AssetGroup.WORLD, seeded: true },
@@ -39,7 +41,7 @@ export const ASSETS: Record<AssetKind, AssetDef> = {
 };
 
 export const ASSET_KINDS = Object.keys(ASSETS) as AssetKind[];
-export type PartKind = "wheel" | "wing" | "aero" | "arches";
+export type PartKind = "wheel" | "wing" | "aero" | "arches" | "mirror";
 export type WorldAssetKind = "building" | "ground" | "ramp" | "tree" | "prop" | "piece";
 
 export interface PartAsset {

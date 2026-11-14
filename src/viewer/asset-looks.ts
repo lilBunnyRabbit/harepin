@@ -6,7 +6,7 @@ import { flares, sculpt } from "../car/body-shell";
 import { DETAILS } from "../car/car-details";
 import { detail_look } from "../car/detail-looks";
 import type { Design } from "../car/designs";
-import { merge, tint } from "../car/geometry";
+import { merge, parts, tint } from "../car/geometry";
 import { build_view, dispose_car_view, fitted_design, rest_wheels } from "../car/models";
 import { paint_lab } from "../car/paint";
 import { aero_of, aero_parts, rear_wing } from "../car/part-looks";
@@ -139,6 +139,7 @@ export const ASSET_LOOKS: Record<AssetKind, AssetLook> = {
   wing: { ...PARTS, build: part((f) => rear_wing(f.d, aero_of(f.build.parts), f.paint, f.trim)) },
   aero: { ...PARTS, build: part((f) => aero_parts(f.d, f.spec, aero_of(f.build.parts), f.paint, f.trim, detail_look(DETAILS[f.spec.body.style], f.build.parts, f.paint, f.trim).swaps)) },
   arches: { ...PARTS, build: part((f) => flares(f.d, f.spec).map((g) => tint(g, f.d.arches.tone === "paint" ? f.paint : f.trim))) },
+  mirror: { ...PARTS, build: part((f) => [...parts(f.d.mirror?.paint ?? []).map((g) => tint(g, f.paint)), ...parts(f.d.mirror?.trim ?? []).map((g) => tint(g, f.trim))]) },
   building: {
     worlds: land_worlds,
     items: (world, seed) => building_picks(world_data(world, seed)),
