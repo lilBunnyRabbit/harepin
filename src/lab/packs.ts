@@ -7,5 +7,9 @@ export const PACKS: Record<string, () => Promise<{ default: Pack }>> = {
   "t1a-pads": () => import("./packs/t1a-pads"),
   "t1b-brakes": () => import("./packs/t1b-brakes"),
   "t2-drift": () => import("./packs/t2-drift"),
-  "t3-top-tier": () => import("./packs/t3-top-tier"),
+  "t3a-sturm-power": () => import("./packs/t3a-sturm-power"),
+  "t3b-sturm-grip": () => import("./packs/t3b-sturm-grip"),
+  "t3c-raijin": () => import("./packs/t3c-raijin"),
+  "t3d-kaze": () => import("./packs/t3d-kaze"),
+  "t3e-muscle": () => import("./packs/t3e-muscle"),
 };

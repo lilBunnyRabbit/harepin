@@ -37,7 +37,6 @@ describe("packs", () => {
 // Packs written before the session caps (docs/plan/feel-lab-v2.md 6.1); each must still be over, so the list can't rot.
 const OVER_BUDGET: Record<string, string> = {
   "t2-drift": "12 trials, under the time cap: left as is",
-  "t3-top-tier": "33 trials, written before the caps on a parallel branch: split into sessions before the owner drives it",
 };
 
 describe("session budget", () => {

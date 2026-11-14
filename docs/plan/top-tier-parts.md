@@ -1,6 +1,6 @@
 # Top-tier parts
 
-Quest `top-tier-parts`: road cars stop at S1 (Sturm 710) or A. The goal is new parts past today's best so every road car has a path to at least S2, while Formula and Fujin keep X. Phase 1, this doc: the candidate parts as lab-only definitions (`src/lab/cars/top-tier.ts`), the pack that drives them (`?lab=t3-top-tier`), the ratings they reach, and what promoting them needs. Nothing here touches `car.ts` or `SLOTS`.
+Quest `top-tier-parts`: road cars stop at S1 (Sturm 710) or A. The goal is new parts past today's best so every road car has a path to at least S2, while Formula and Fujin keep X. Phase 1, this doc: the candidate parts as lab-only definitions (`src/lab/cars/top-tier.ts`), the packs that drive them (`?lab=t3a-sturm-power` to `t3e-muscle`), the ratings they reach, and what promoting them needs. Nothing here touches `car.ts` or `SLOTS`.
 
 ## Why it takes big parts
 
@@ -73,7 +73,7 @@ Not at S2 with every part: rally (796, 4 short), hatch, tsumuji and sajin (A to 
 
 ## The pack
 
-`?lab=t3-top-tier` (`src/lab/packs/t3-top-tier.ts`), 33 trials. The Sturm takes each part on its own where it shows: skidpad (best, slicks, full), runway (best, supercharger, turbo, twin turbo, full), hairpins (best, twin turbo, carbon shell, full), the r = 200 sweeper (best, GT kit, full). Raijin, Kaze and Muscle go best then full on the skidpad, the runway and the hairpins. Questions on every trial: grip, power, predictability, fun, vs last trial, worth the class jump, note. One list for all: per-trial lists put the pack past an inline code's 32 000 characters.
+33 trials in five sessions under the lab caps, built in `src/lab/packs/top-tier.ts`: `t3a-sturm-power` (9), `t3b-sturm-grip` (6), `t3c-raijin`, `t3d-kaze`, `t3e-muscle` (6 each). The Sturm takes each part on its own where it shows: skidpad (best, slicks, full), runway (best, supercharger, turbo, twin turbo, full), hairpins (best, twin turbo, carbon shell, full), the r = 200 sweeper (best, GT kit, full). Raijin, Kaze and Muscle go best then full on the skidpad, the runway and the hairpins. Questions on every trial: grip, power, predictability, fun, vs last trial, worth the class jump, note. One list for all: per-trial lists put the pack past an inline code's 32 000 characters.
 
 Turbo trials drive lab cars `lab:<car>-twin` and `lab:sturm-turbo`: stock engine, tyres, aero and weight plus race suspension, race brakes and big nitro, with the trial's mods supplying the rest. Their bodies draw without the race kit or slicks, since a lab car draws its `parts`, not its mods.
 
@@ -104,6 +104,6 @@ Parts that need `car.ts`, a car-physics task with its own `car.test.ts` proof:
 
 ## Next
 
-1. Owner drives `?lab=t3-top-tier`, pastes the export.
+1. Owner drives `?lab=t3a-sturm-power` to `?lab=t3e-muscle`, pastes each export.
 2. Retune the part numbers from it (rev 2), decide the weak cars' path and the turbo-curve field.
 3. Promote: parts into `SLOTS`, the boost field if chosen, looks, bot re-tune with `scripts/career.ts`, `bun scripts/races.ts --changed`, release.

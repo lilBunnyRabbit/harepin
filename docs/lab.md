@@ -8,7 +8,7 @@ Nothing in the lab touches the game around it: no records, ghosts, stars or goal
 
 | Link | What loads |
 |---|---|
-| `/?lab=<id>` | the committed pack `src/lab/packs/<id>.ts` (`?lab=demo` is the sample, `?lab=first-look` the first real session, `?lab=t1a-pads` and `?lab=t1b-brakes` the stock coupe on ten skidpad and ten runway lanes, `?lab=t2-drift` the Drift preset on the drift circle, eight and hairpins with three mods, `?lab=t3-top-tier` the candidate top-tier parts on Sturm, Raijin, Kaze and Muscle, `docs/plan/top-tier-parts.md`) |
+| `/?lab=<id>` | the committed pack `src/lab/packs/<id>.ts` (`?lab=demo` is the sample, `?lab=first-look` the first real session, `?lab=t1a-pads` and `?lab=t1b-brakes` the stock coupe on ten skidpad and ten runway lanes, `?lab=t2-drift` the Drift preset on the drift circle, eight and hairpins with three mods, `?lab=t3a-sturm-power` and `?lab=t3b-sturm-grip` the candidate top-tier engines and grip parts on the Sturm, `?lab=t3c-raijin`, `?lab=t3d-kaze` and `?lab=t3e-muscle` today's best against every top part on each, `docs/plan/top-tier-parts.md`) |
 | `/?lab=~<code>` | an inline pack carried in the link itself: no deploy needed |
 
 Works on the live site and in dev; no menu entry, like `?tune`. The lab world (`lab` kind, unlisted) loads, the car goes to the first trial's station and the pack card opens instead of the menu or the first-visit guide. Modes are off in the lab: the Modes page shows each one as "Not in the lab", and no lobby race starts.
@@ -129,7 +129,7 @@ trials: [
 ]
 ```
 
-(`src/lab/packs/demo.ts` holds these; today they rate 626 A, 647 A, 664 A, 680 A: a turbo alone does not reach S2. The real candidates, turbo curves on lab cars included, are `src/lab/cars/top-tier.ts` and `?lab=t3-top-tier`.) Weight reduction is `add: { mass: -n }`, wider slicks `scale: { mu, rear_grip }`, big aero `add: { downforce, drag }`.
+(`src/lab/packs/demo.ts` holds these; today they rate 626 A, 647 A, 664 A, 680 A: a turbo alone does not reach S2. The real candidates, turbo curves on lab cars included, are `src/lab/cars/top-tier.ts` and the `t3` packs.) Weight reduction is `add: { mass: -n }`, wider slicks `scale: { mu, rear_grip }`, big aero `add: { downforce, drag }`.
 
 Boost curves (lead's call, for now): a turbo whose torque rises with rpm is a lab car with a hand-edited `torque` table, not a new mod field or a `CarSpec` change. A `torque` mod only scales the whole curve; a different shape needs that lab car until a turbo stage is worth landing as a car-physics task.
 
