@@ -80,6 +80,8 @@ async function run_pack(id: string): Promise<number> {
   return errors.length || over_budget(b) ? 1 : 0;
 }
 
+const num = (v: number, digits: number) => (Number.isNaN(v) ? "-" : v.toFixed(digits));
+
 const COLUMNS = ["setup", "ground", "spec#", "PI", "0-100 s", "top km/h", "100-0 m", "skidpad g", "turn-in ms", "lift-off °", "power-on °", "flick °", "kick 220 s"];
 
 async function run_matrix(car?: string): Promise<number> {
@@ -102,7 +104,7 @@ async function run_matrix(car?: string): Promise<number> {
     const pi = rated.get(setup.id) ?? `${spec_pi(spec)} ${CLASS_LABELS[class_of(spec_pi(spec))]}`;
     rated.set(setup.id, pi);
     const t = r.traits;
-    const cells = [setup.id, ground, spec_hash(spec), pi, t.t100.toFixed(2), t.top.toFixed(0), t.stop.toFixed(1), t.g.toFixed(2), (t.turn * 1000).toFixed(0), t.lift.toFixed(1), t.pwr.toFixed(1), t.hb.toFixed(0), t.kick.toFixed(2)];
+    const cells = [setup.id, ground, spec_hash(spec), pi, t.t100.toFixed(2), t.top.toFixed(0), num(t.stop, 1), t.g.toFixed(2), (t.turn * 1000).toFixed(0), t.lift.toFixed(1), t.pwr.toFixed(1), t.hb.toFixed(0), num(t.kick, 2)];
     console.log(`| ${cells.join(" | ")} |`);
   });
   const errors = failed(results, (i) => `${rows[i].setup.id} ${rows[i].ground}`);

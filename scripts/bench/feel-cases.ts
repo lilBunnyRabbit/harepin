@@ -127,16 +127,18 @@ export function handbrake_flick(rig: Rig): { turned: number; settle: number; upr
   return { turned, settle, upright: upright(car) };
 }
 
-export function yaw_kick(rig: Rig): { settle: number; slip: number } {
+/** `kmh` is the speed at the kick: under 220 when the car never got there in 30 s. */
+export function yaw_kick(rig: Rig): { settle: number; slip: number; kmh: number } {
   const ground = rig.ground ?? FLAT;
   const car = fresh(rig);
   get_to(car, 220, ground);
+  const at = kmh(car);
   car.ang.y = 0.3;
   let settle = -1;
   run(car, 3, () => cruise(car, 220), ground, (t) => {
     if (settle < 0 && Math.abs(car.ang.y) < 0.02) settle = t;
   });
-  return { settle, slip: slip_angle(car) };
+  return { settle, slip: slip_angle(car), kmh: at };
 }
 
 export function trail_brake(rig: Rig): { slip: number; stopped: number } {

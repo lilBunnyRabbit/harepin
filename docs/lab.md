@@ -222,7 +222,7 @@ Pack output, one block per trial in the export's shape and key order, so a ` sim
 - Keys steer with the trial's `aids.steer_mode` (Smooth by default); every other aid is the scenario's own, not the trial's.
 - `d` is the delta against the base: `--base`, else the pack's first trial on the same station. A trial with nothing in common with its base prints no `d`.
 - `est` and the `#end` budget come from `src/lab/budget.ts`: a lap or run per station (skidpad laps grow by `sqrt(1 / grip)` on low grip), a time goal's seconds, 45 s per card. Caps: 10 trials and 20 minutes; `pack.test.ts` holds every committed pack to them except the two written before them (`t1-surfaces`, `t2-drift`).
-- Numbers that never happened print as the scenario's limit: `0-100=20` never reached 100 km/h, the matrix's `kick` -1 never settled.
+- A car that never reaches the speed a number is named after gets no number: no `stop` key on the sim line and `-` in the matrix's 100-0 and kick columns. `0-100=20` is the 20 s limit (never reached 100 km/h); the matrix's `kick` -1 never settled.
 
 The matrix (`scripts/lab/setups.ts`): per car its families (`stock`, `grip`, `aero`, `drift`, `dirt`, `max`, built from parts by name), every shipped preset of the car, and on the coupe a sweep of each tyre and aero part. `stock` and `dirt` also run on dirt, grass, sand, packed snow and ice. The bus is left out. Columns: spec hash, PI and class, 0-100, top, 100-0, skidpad g, step-steer t90, lift-off slip, power-on slip (2nd, TCS off), handbrake flick degrees, yaw kick settle at 220 km/h.
 

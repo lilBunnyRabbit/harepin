@@ -18,14 +18,17 @@ function preset_parts(name: string): Record<Slot, number> {
 }
 
 /** Each family asks one question of a car (docs/plan/feel-lab-v2.md 3); parts by name, so a reordered slot can't move them. */
-const FAMILIES: Record<Family, Parts | (() => Record<Slot, number>)> = {
+const FAMILIES: Record<Family, Parts> = {
   stock: {},
   grip: GRIP,
   aero: { ...GRIP, aero: "Race kit" },
   drift: { suspension: "Drift", engine: "Tuned", bias: "Rear" },
   dirt: { tyres: "Rally", suspension: "Lifted", engine: "Tuned" },
-  max: () => preset_parts("Maxed F1"),
+  max: {},
 };
+
+/** `max` is each car's own shipped top build. */
+const MAX_PRESETS: Partial<Record<CarId, string>> = { formula: "Maxed F1", fujin: "Fujin prototype" };
 
 /** Which families each car is held to. The bus is out (decision O6). */
 const COVERAGE: Partial<Record<CarId, Family[]>> = {
@@ -61,11 +64,14 @@ function part_index(slot: Slot, name: string): number {
   return at;
 }
 
-function parts_of(family: Family): Record<Slot, number> {
-  const def = FAMILIES[family];
-  if (typeof def === "function") return def();
+function parts_of(family: Family, car: CarId): Record<Slot, number> {
+  if (family === Family.MAX) {
+    const name = MAX_PRESETS[car];
+    if (!name) throw new Error(`${car} has no max preset`);
+    return preset_parts(name);
+  }
   const parts = { ...DEFAULT_PARTS };
-  for (const [slot, name] of Object.entries(def) as [Slot, string][]) parts[slot] = part_index(slot, name);
+  for (const [slot, name] of Object.entries(FAMILIES[family]) as [Slot, string][]) parts[slot] = part_index(slot, name);
   return parts;
 }
 
@@ -78,7 +84,7 @@ export function setups(car?: CarId): Setup[] {
     if (car && id !== car) continue;
     for (const family of families) {
       const grounds: GroundName[] = family === "stock" || family === "dirt" ? ["asphalt", ...LOOSE] : ["asphalt"];
-      out.push({ id: `${id}.${family}`, car: id, code: code_of(id, parts_of(family)), grounds });
+      out.push({ id: `${id}.${family}`, car: id, code: code_of(id, parts_of(family, id)), grounds });
     }
     for (const preset of PRESETS) {
       const build = parse_build(preset.code);

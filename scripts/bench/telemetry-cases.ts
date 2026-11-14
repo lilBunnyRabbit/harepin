@@ -13,8 +13,8 @@ export interface Telemetry {
   loads: number[];
   launch: { tcs: boolean; t100: number; gear: number }[];
   top: { kmh: number; gear: number; rpm: number };
-  /** 100-0 km/h stopping distance, metres. */
-  stop: { abs: boolean; m: number }[];
+  /** Stopping distance, metres, from `from` km/h: 100 unless the car never got there in 20 s. */
+  stop: { abs: boolean; m: number; from: number }[];
   skidpad: { steer: number; g: number; kmh: number; upright: number }[];
   best_g: number;
   flick: { yaw: number; t: number; upright: number };
@@ -60,8 +60,9 @@ export function telemetry(spec: CarSpec, ground: Ground = FLAT): Telemetry {
     car.abs = abs;
     run(20, () => ({ ...idle, throttle: 1 }), () => kmh() >= 100);
     const from = car.pos.z;
+    const from_kmh = kmh();
     run(10, () => ({ ...idle, brake: 1 }), () => kmh() <= 0.5);
-    stop.push({ abs, m: car.pos.z - from });
+    stop.push({ abs, m: car.pos.z - from, from: from_kmh });
   }
   car.abs = true;
 

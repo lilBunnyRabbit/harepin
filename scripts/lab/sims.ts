@@ -11,6 +11,9 @@ export const STOP_FROM_KMH = 100;
 
 export type SimValues = [key: string, value: number][];
 
+/** A stop that started under `STOP_FROM_KMH` (the car never got there) is no 100-0 number; float slack on the trigger. */
+const reached = (kmh: number) => kmh >= STOP_FROM_KMH - 1;
+
 export interface Sim {
   values: SimValues;
   /** The ground the scenarios drove on: the lane's, or asphalt where a scenario only runs there. */
@@ -40,11 +43,8 @@ const turns: StationSim = {
 const straight: StationSim = {
   run: (rig) => {
     const t = telemetry(rig.spec, rig.ground);
-    return [
-      ["0-100", t.launch[0].t100],
-      ["stop", t.stop[0].m],
-      ["top", t.top.kmh],
-    ];
+    const stop: SimValues = reached(t.stop[0].from) ? [["stop", t.stop[0].m]] : [];
+    return [["0-100", t.launch[0].t100], ...stop, ["top", t.top.kmh]];
   },
 };
 
@@ -89,6 +89,10 @@ export function trial_sim(spec: CarSpec, station: StationId, surface: LabSurface
   return { values, ground };
 }
 
+const KICK_KMH = 220;
+// The cruise controller that brings the car up to the kick settles a couple of km/h short of its target.
+const KICK_REACHED = 0.95;
+
 export interface Traits {
   t100: number;
   top: number;
@@ -101,22 +105,23 @@ export interface Traits {
   pwr: number;
   /** Degrees turned by a 0.45 s handbrake flick at 70 km/h. */
   hb: number;
-  /** Seconds a 0.3 rad/s yaw kick at 220 km/h takes to settle; -1 when it never does or the car never gets there. */
+  /** Seconds a 0.3 rad/s yaw kick at 220 km/h takes to settle; -1 when it never does, NaN when the car never gets to 220. */
   kick: number;
 }
 
 export function traits(spec: CarSpec, ground: GroundName): Traits {
   const rig: feel.Rig = { spec, mode: SteerMode.SMOOTH, ground: GROUNDS[ground] };
   const t = telemetry(spec, rig.ground);
+  const kick = feel.yaw_kick(rig);
   return {
     t100: t.launch[0].t100,
     top: t.top.kmh,
-    stop: t.stop[0].m,
+    stop: reached(t.stop[0].from) ? t.stop[0].m : Number.NaN,
     g: t.best_g,
     turn: feel.step_steer(rig).t90,
     lift: feel.lift_off(rig, true),
     pwr: feel.power_on(rig, false).slip,
     hb: feel.handbrake_flick(rig).turned,
-    kick: feel.yaw_kick(rig).settle,
+    kick: kick.kmh >= KICK_KMH * KICK_REACHED ? kick.settle : Number.NaN,
   };
 }
