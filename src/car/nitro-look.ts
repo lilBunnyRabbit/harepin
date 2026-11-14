@@ -3,7 +3,7 @@ import type { Look } from "./build";
 import type { Triple } from "./cars";
 import { sculpt_factor } from "./body-shell";
 import type { Design } from "./designs";
-import { box, merge, tint } from "./geometry";
+import { merge, tint } from "./geometry";
 import { brand, color, mix, tones } from "../theme/palette";
 
 type Bottle = Required<Look>["bottle"];
@@ -24,11 +24,22 @@ const BACK: Triple = [0, 0, -1];
 
 const pipe_sides = (d: Design) => (d.exhaust[0] === 0 ? [1] : [-1, 1]);
 
-export function nitro_parts(d: Design, bottle: Bottle, twin_pipes: boolean, trim: THREE.Color): THREE.BufferGeometry[] {
+/** Radius of a tailpipe the engine upgrades fit: fatter for the race engine and for one central pipe. */
+export const pipe_radius = (engine: number, central: boolean) => (engine > 1 ? 0.052 : 0.045) * (central ? 1.4 : 1);
+/** Where a pair of race-engine pipes sit either side of the design's `exhaust`. */
+export const PIPE_PAIR = 0.065;
+
+const SLEEVE_GIRTH = 1.3;
+const SLEEVE = 0.07;
+
+/** A blue sleeve round the end of each tailpipe the engine has fitted (one where the car has none), in place of a box over them all. */
+export function nitro_parts(d: Design, bottle: Bottle, engine: number, trim: THREE.Color): THREE.BufferGeometry[] {
   const [x, y, z] = d.exhaust;
-  const w = (twin_pipes && x !== 0 ? 0.3 : 0.17) * bottle.size;
-  const h = 0.14 * bottle.size;
-  return pipe_sides(d).flatMap((side) => [tint(box(w, h, 0.07, side * x, y, z - 0.115), color(brand.info)), tint(box(w - 0.05, h - 0.05, 0.02, side * x, y, z - 0.145), trim)]);
+  const central = x === 0;
+  const r = pipe_radius(engine, central) * SLEEVE_GIRTH * bottle.size;
+  const xs = central || engine < 2 ? [x] : [x - PIPE_PAIR, x + PIPE_PAIR];
+  const ring = (radius: number, length: number, at: number, back: number) => new THREE.CylinderGeometry(radius, radius, length, 8).rotateX(Math.PI / 2).translate(at, y, z - back);
+  return pipe_sides(d).flatMap((side) => xs.flatMap((at) => [tint(ring(r, SLEEVE, side * at, 0.115), color(brand.info)), tint(ring(r * 0.65, 0.02, side * at, 0.145), trim)]));
 }
 
 function shade(geometry: THREE.BufferGeometry, tone: THREE.Color, alpha: number): THREE.BufferGeometry {

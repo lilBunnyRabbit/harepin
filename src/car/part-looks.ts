@@ -4,7 +4,7 @@ import type { CarSpec } from "./cars";
 import type { Design, Slab, Swap, Wing } from "./designs";
 import { box, extrude, face_at, parts, slab, tint, top_at, type Point } from "./geometry";
 import { fitted_slab, kit_band, kit_floor } from "./body-shell";
-import { nitro_parts } from "./nitro-look";
+import { PIPE_PAIR, nitro_parts, pipe_radius } from "./nitro-look";
 import { chrome_tone } from "./wheels";
 
 const WINGS = [
@@ -130,8 +130,8 @@ export function kit_parts(d: Design, kit: Record<Slot, number>, paint: THREE.Col
     if (engine > 1 && !swaps.has("bulge")) out.push(tint(new THREE.BoxGeometry(w * 0.8, h * 0.6, 0.02).translate(0, h * 0.5, l / 2 + 0.005).rotateX(tilt).translate(0, y, z), trim));
     const [x, py, pz] = d.exhaust;
     const central = x === 0;
-    const r = (engine === 1 ? 0.045 : 0.052) * (central ? 1.4 : 1);
-    const xs = central || engine === 1 ? [x] : [x - 0.065, x + 0.065];
+    const r = pipe_radius(engine, central);
+    const xs = central || engine === 1 ? [x] : [x - PIPE_PAIR, x + PIPE_PAIR];
     const chrome = chrome_tone();
     for (const side of swaps.has("pipes") ? [] : central ? [1] : [-1, 1])
       for (const at of xs) {
@@ -140,6 +140,6 @@ export function kit_parts(d: Design, kit: Record<Slot, number>, paint: THREE.Col
       }
   }
   const bottle = part_of("nitro", kit.nitro).look?.bottle;
-  if (bottle && !swaps.has("tips")) out.push(...nitro_parts(d, bottle, engine > 1, trim));
+  if (bottle && !swaps.has("tips")) out.push(...nitro_parts(d, bottle, engine, trim));
   return out;
 }
