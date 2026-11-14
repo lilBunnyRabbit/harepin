@@ -13,6 +13,8 @@ export interface Part {
   round?: boolean;
   /** Drawn once as given instead of mirrored: an offset tow hook, a single side pipe. */
   one?: boolean;
+  /** A pod instead of a box: the full `size` at its rear face, its front end drawn in to a blunt nose. */
+  pod?: boolean;
 }
 
 export function merge(...parts: (THREE.BufferGeometry | THREE.BufferGeometry[])[]): THREE.BufferGeometry {
@@ -114,9 +116,34 @@ export function slab(points: Point[], from: number, to: number): THREE.BufferGeo
   return [-1, 1].map((side) => extrude(points, to - from).translate((side * (from + to)) / 2, 0, 0));
 }
 
+// A pod keeps its full section over this share of its length, then draws in to this share of it at the nose.
+const POD_STRAIGHT = 0.3;
+const POD_NOSE = 0.45;
+
+/** A box `w` by `h` by `d` whose front end is chamfered on all four sides: a mirror housing, a scoop, a lamp pod. */
+export function pod(w: number, h: number, d: number): THREE.BufferGeometry {
+  const ring = (z: number, k: number): THREE.Vector3[] => [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([x, y]) => new THREE.Vector3((x * w * k) / 2, (y * h * k) / 2, z));
+  const rings = [ring(-d / 2, 1), ring(-d / 2 + d * POD_STRAIGHT, 1), ring(d / 2, POD_NOSE)];
+  const quads: THREE.Vector3[][] = [rings[0], rings[rings.length - 1]];
+  for (let r = 0; r + 1 < rings.length; r++) for (let i = 0; i < 4; i++) quads.push([rings[r][i], rings[r][(i + 1) % 4], rings[r + 1][(i + 1) % 4], rings[r + 1][i]]);
+  const position: number[] = [];
+  const centre = new THREE.Vector3();
+  const normal = new THREE.Vector3();
+  for (const [a, b, c, e] of quads) {
+    // Every face of this convex shape turns away from its centre, the origin.
+    const out = normal.subVectors(b, a).cross(centre.subVectors(c, a)).dot(a) > 0;
+    for (const v of out ? [a, b, c, a, c, e] : [a, c, b, a, e, c]) position.push(v.x, v.y, v.z);
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(position, 3));
+  geometry.setAttribute("uv", new THREE.Float32BufferAttribute(new Float32Array((position.length / 3) * 2), 2));
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
 /** One side of a mirrored part: `side` 1 is the left one as drawn, -1 its mirror. */
-export function side_part({ size, at: [x, y, z], tilt: [rx, ry, rz] = [0, 0, 0], round }: Part, side: number): THREE.BufferGeometry {
-  return (round ? new THREE.CylinderGeometry(size[0] / 2, size[0] / 2, size[2], 8).rotateX(Math.PI / 2) : new THREE.BoxGeometry(...size))
+export function side_part({ size, at: [x, y, z], tilt: [rx, ry, rz] = [0, 0, 0], round, pod: nosed }: Part, side: number): THREE.BufferGeometry {
+  return (round ? new THREE.CylinderGeometry(size[0] / 2, size[0] / 2, size[2], 8).rotateX(Math.PI / 2) : nosed ? pod(...size) : new THREE.BoxGeometry(...size))
     .rotateX(rx)
     .rotateY(side * ry)
     .rotateZ(side * rz)

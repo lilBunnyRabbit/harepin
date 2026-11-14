@@ -49,19 +49,22 @@ const MIRROR_BACK = 0.2;
 const MIRROR_UP = 0.06;
 const MIRROR_SWEEP = 0.3;
 
-const DOOR_HEAD: Triple = [0.15, 0.095, 0.06];
-const STALK_HEAD: Triple = [0.11, 0.075, 0.07];
+// Housings are pods, [across, tall, deep]: the glass fills the rear face, the shell draws in to a blunt nose ahead of it.
+const DOOR_HEAD: Triple = [0.17, 0.11, 0.12];
+const STALK_HEAD: Triple = [0.12, 0.085, 0.11];
+const TALL_HEAD: Triple = [0.16, 0.34, 0.11];
 const STALK_SWEEP = 0.15;
 const GLASS_RIM = 0.03;
 const GLASS_DEPTH = 0.008;
 const MOUNT_SINK = 0.03;
 const TOP_RISE = 0.09;
+const HUNG_ARMS = 0.26;
 
 /** A housing at `at`, its outer end swept back by `sweep`, and the glass on its rear face. */
 function mirror_head(at: Triple, size: Triple, sweep: number): [Part, Part] {
   const back = size[2] / 2 + 0.002;
   return [
-    { size, at, tilt: [0, sweep, 0] },
+    { size, at, tilt: [0, sweep, 0], pod: true },
     { size: [size[0] - GLASS_RIM, size[1] - GLASS_RIM, GLASS_DEPTH], at: [at[0] - back * Math.sin(sweep), at[1], at[2] - back * Math.cos(sweep)], tilt: [0, sweep, 0] },
   ];
 }
@@ -75,11 +78,11 @@ export function glass_corner(cabin: Cabin, up = MIRROR_UP, back = MIRROR_BACK): 
   return [(cabin.width / 2) * (1 - (cabin.tumble * (y - low)) / (Math.max(...ys) - low)), y, z0 - back];
 }
 
-/** A road car's mirror: a flat arm out of the body side at `base`, a wide swept housing on its end. */
+/** A road car's mirror: a flat arm out of the body side at `base` into the foot of a wide swept housing. */
 export function door_mirror([x, y, z]: Triple): Mirror {
-  const at: Triple = [x + 0.13, y + 0.015, z - 0.02];
+  const at: Triple = [x + 0.14, y + 0.025, z - 0.02];
   const [housing, glass] = mirror_head(at, DOOR_HEAD, MIRROR_SWEEP);
-  return { paint: [housing], trim: [rod([x - MOUNT_SINK, y - 0.01, z], [at[0] - 0.03, at[1] - 0.02, at[2]], 0.035, 0.05), glass] };
+  return { paint: [housing], trim: [rod([x - MOUNT_SINK, y - 0.01, z - 0.01], [at[0] - 0.04, at[1] - 0.03, at[2] - 0.01], 0.035, 0.06), glass] };
 }
 
 /** A race car's mirror: a small pod on a thin stalk, standing out of a body side at `base` or up from the surface at `base` on a wing top. */
@@ -91,13 +94,12 @@ export function stalk_mirror([x, y, z]: Triple, mount: "side" | "top"): Mirror {
   return { paint: [housing], trim: [rod(foot, [at[0] - (side ? 0.02 : 0), at[1] - 0.03, at[2]], 0.022, 0.03), glass] };
 }
 
-const TALL_HEAD: Triple = [0.15, 0.36, 0.06];
-
-/** A bus or truck mirror: an arm out of the body corner at `base`, a tall housing hung from its end. */
+/** A bus or truck mirror: two arms out of the body corner at `base` and under it, a tall housing held between their ends. */
 export function hung_mirror([x, y, z]: Triple): Mirror {
   const end: Triple = [x + 0.25, y, z + 0.04];
-  const [housing, glass] = mirror_head([end[0], y - TALL_HEAD[1] / 2 + 0.03, end[2]], TALL_HEAD, STALK_SWEEP);
-  return { paint: [housing], trim: [rod([x - MOUNT_SINK, y, z], end, 0.04, 0.05), glass] };
+  const [housing, glass] = mirror_head([end[0], y - HUNG_ARMS / 2, end[2]], TALL_HEAD, STALK_SWEEP);
+  const arm = (drop: number) => rod([x - MOUNT_SINK, y - drop, z], [end[0] - 0.02, y - drop, end[2]], 0.035, 0.045);
+  return { paint: [housing], trim: [arm(0), arm(HUNG_ARMS), glass] };
 }
 
 /** A mirror drawn above the belt of a body whose shoulder narrows it, widened to come out as drawn. */
