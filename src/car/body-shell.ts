@@ -24,7 +24,7 @@ const KIT_SINK = 0.01;
 const KIT_PROUD = 0.012;
 const KIT_MIN = 0.06;
 const KIT_STUB = 0.05;
-const KIT_CHIN = 0.1;
+const KIT_CHIN = 0.12;
 
 export function cabin_parts(c: Cabin, paint: THREE.Color, glass: THREE.Color): THREE.BufferGeometry[] {
   const ys = c.points.map(([, y]) => y);
@@ -151,7 +151,7 @@ export const kit_floor = (d: Design) => d.sill + KIT_TOP - KIT_DEEP;
 
 /**
  * The aero kit's lower band: deep skirts between the wheel openings, run on past them to the nose and the tail and closed
- * by a chin under the nose. It stands just proud of the arch lips, so each lip's feet sink into it and the kit reads as one piece.
+ * across both ends. It stands just proud of the arch lips, so each lip's feet sink into it and the kit reads as one piece.
  */
 export function kit_band(d: Design, spec: CarSpec): THREE.BufferGeometry[] {
   const reach = spec.wheel.radius + d.arches.gap;
@@ -169,8 +169,8 @@ export function kit_band(d: Design, spec: CarSpec): THREE.BufferGeometry[] {
     const strip: Point[] = [[from, low], [from, top], [to, top], [to, low]];
     strips.push(...flat_pieces(d, strip).flatMap((piece) => slab(piece, inner, outer).map((g) => uncut(g, d))));
   }
-  const chin: Point[] = [[nose, low], [nose, top], [nose - KIT_CHIN, top], [nose - KIT_CHIN, low]];
-  return [...strips, extrude(chin, 2 * outer)];
+  const across = (from: number, to: number) => extrude([[from, low], [from, top], [to, top], [to, low]], 2 * outer);
+  return [...strips, across(nose, nose - KIT_CHIN), across(tail + KIT_CHIN, tail)];
 }
 
 export function side_panel(d: Design, spec: CarSpec): Panel {

@@ -42,8 +42,8 @@ function wing(level: number, d: Design, paint: THREE.Color, trim: THREE.Color): 
   if (level > 2) out.push(tint(new THREE.BoxGeometry(span, 0.035, 0.2).rotateX(0.55).translate(0, y + lift + 0.09, z - 0.04 - chord / 2), paint));
   for (const side of [-1, 1]) {
     out.push(tint(box(0.06, y + lift - foot, 0.14, side * width * 0.32, (y + lift + foot) / 2, z), trim));
-    if (level === 2) out.push(tint(box(0.04, 0.2, 0.48, (side * span) / 2, y + lift, z - 0.04), trim));
-    if (level > 2) out.push(tint(box(0.03, 0.24, chord + 0.11, (side * span) / 2, y + lift + 0.05, z - 0.085), trim));
+    if (level === 2) out.push(tint(box(0.04, 0.2, 0.48, side * (span / 2 + 0.02), y + lift, z - 0.04), trim));
+    if (level > 2) out.push(tint(box(0.03, 0.24, chord + 0.11, side * (span / 2 + 0.015), y + lift + 0.05, z - 0.085), trim));
   }
   return out;
 }
@@ -82,7 +82,8 @@ export function aero_parts(d: Design, spec: CarSpec, aero: Required<Look>["aero"
   }
   if (kitted) out.push(...kit_band(d, spec).map((g) => tint(g, paint)));
   if (aero.diffuser && !swaps.has("diffuser")) {
-    const [tail, bottom] = d.outline[d.outline.length - 1];
+    const tail = d.outline[d.outline.length - 1][0];
+    const bottom = kitted ? kit_floor(d) : d.outline[d.outline.length - 1][1];
     // Inside the widest tyre the rear wheels take, so the plate never reaches into their openings.
     const inner = Math.abs(spec.wheel.mounts[spec.wheel.mounts.length - 1][0]) - d.tyre[1] * WIDEST_TYRE / 2 - 0.01;
     const span = Math.min(d.width * 0.82, 2 * inner);
