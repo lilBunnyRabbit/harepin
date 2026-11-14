@@ -217,6 +217,8 @@ const COUPE_WINGS: Wing[] = [
 ];
 // The kit is the shell: 8 cm wider a side over deeper sills, its chin and tail valance drawn in the outline. The shoulder
 // grows by what the body widens, so the body top, and the cabin and wings on it, stay where they were.
+const COUPE_TAIL = tail_end(COUPE_OUTLINE, 0.74, 0.2, 0.93, [{ size: [0.56, 0.12, 0.05], at: [0.58, 0.74, 0] }], { half: 0.32, y: 0.74 }, 0.55);
+const COUPE_GRILLE: Part = { size: [0.34, 0.07, 0.05], at: [0.17, 0.48, 2.33] };
 const COUPE_WIDE = 2.04;
 const COUPE_WIDE_SHOULDER = 1 - (1.88 * (1 - COUPE_SECTION.shoulder)) / COUPE_WIDE;
 const COUPE_KIT: Kit = {
@@ -227,9 +229,10 @@ const COUPE_KIT: Kit = {
   arches: { ...COUPE_ARCHES, gap: 0.075, flare: 0.05, out: 0.03 },
   tyre: [0.32, 0.36],
   paint: mirror(COUPE_CABIN, COUPE_WIDE_SHOULDER),
+  // The bumper bars sit on the kit's upright valances: the rear one stands proud of the tail face.
+  trim: [COUPE_GRILLE, { size: [1.0, 0.12, 0.08], at: [0.5, 0.356, 2.31] }, { size: [1.0, 0.12, 0.08], at: [0.5, 0.356, -2.312] }, ...COUPE_TAIL.trim],
   wings: COUPE_WINGS.map((wing) => widen_wing(wing, (1 - COUPE_SECTION.shoulder) / (1 - COUPE_WIDE_SHOULDER))),
 };
-const COUPE_TAIL = tail_end(COUPE_OUTLINE, 0.74, 0.2, 0.93, [{ size: [0.56, 0.12, 0.05], at: [0.58, 0.74, 0] }], { half: 0.32, y: 0.74 }, 0.55);
 
 const HATCH_OUTLINE: Point[] = [[1.9, 0.3], [1.96, 0.46], [1.95, 0.68], [1.86, 0.77], [1.0, 0.88], [-1.82, 0.93], [-1.95, 0.93], [-1.98, 0.62], [-1.93, 0.3]];
 const HATCH_SECTION: Section = { belt: [0.7, 0.76], shoulder: 0.1, tuck: 0.04, nose: [0.14, 0.31], tail: [0.07, 0.13] };
@@ -361,7 +364,7 @@ export const DESIGNS: Record<BodyStyle, Design> = {
     tails: COUPE_TAIL.tails,
     paint: mirror(COUPE_CABIN, COUPE_SECTION.shoulder),
     trim: [
-      { size: [0.34, 0.07, 0.05], at: [0.17, 0.48, 2.33] },
+      COUPE_GRILLE,
       { size: [0.94, 0.12, 0.08], at: [0.47, 0.356, 2.3] },
       { size: [0.94, 0.12, 0.08], at: [0.47, 0.356, -2.3] },
       ...COUPE_TAIL.trim,
@@ -370,7 +373,6 @@ export const DESIGNS: Record<BodyStyle, Design> = {
     chrome: COUPE_TAIL.chrome,
     tyre: [0.28, 0.3],
     rim: { size: 0.68, spokes: 6, tone: "metal", lip: 0.18 },
-    round: 12,
     deck: [-2.14, 0.93],
     wings: COUPE_WINGS,
     hood: [1.5, 0.74],
@@ -397,7 +399,6 @@ export const DESIGNS: Record<BodyStyle, Design> = {
     chrome: HATCH_TAIL.chrome,
     tyre: [0.24, 0.24],
     rim: { size: 0.64, spokes: 5, tone: "metal", spoke: 0.07 },
-    round: 12,
     deck: [-1.3, 1.37],
     hood: [1.35, 0.8],
     exhaust: [0.5, 0.32, -1.92],
@@ -431,7 +432,6 @@ export const DESIGNS: Record<BodyStyle, Design> = {
     chrome: [{ size: [1.0, 0.12, 0.12], at: [0.5, 0.36, 2.5] }, { size: [1.0, 0.12, 0.12], at: [0.5, 0.36, -2.5] }, ...MUSCLE_TAIL.chrome],
     tyre: [0.3, 0.42],
     rim: { size: 0.64, spokes: 5, tone: "metal", lip: 0.22, spoke: 0.08 },
-    round: 12,
     deck: [-2.2, 0.965],
     wings: MUSCLE_WINGS,
     hood: [1.95, 0.82],
@@ -456,7 +456,6 @@ export const DESIGNS: Record<BodyStyle, Design> = {
     chrome: RALLY_TAIL.chrome,
     tyre: [0.24, 0.24],
     rim: { size: 0.58, spokes: 5, tone: "metal", spoke: 0.07 },
-    round: 12,
     deck: [-1.22, 1.36],
     hood: [1.6, 0.84],
     exhaust: [0.55, 0.4, -1.85],
@@ -512,7 +511,6 @@ export const DESIGNS: Record<BodyStyle, Design> = {
     hood: [-5.4, 3.02],
     eye: [6.05, 2.3],
     exhaust: [0.8, 0.42, -6.16],
-    round: 12,
   },
   formula: {
     outline: [[FORMULA_NOSE, 0.2], [2.32, 0.27], [2.1, 0.34], [1.3, 0.5], [0.98, 0.6], [0.9, 0.56], [0.42, 0.56], [0.3, 0.68], [-0.2, 0.7], [-1.2, 0.5], [-1.85, 0.38], [-2.0, 0.36], [-2.0, 0.12]],
@@ -558,7 +556,6 @@ export const DESIGNS: Record<BodyStyle, Design> = {
     ],
     panel: { rear: -0.86, front: -0.2, low: 0.16, high: 0.4, side: 0.66 },
     eye: [0.7, 0.84],
-    round: 12,
   },
   fujin: FUJIN_DESIGN,
   sajin: SAJIN_DESIGN,
