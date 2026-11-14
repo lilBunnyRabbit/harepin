@@ -50,7 +50,7 @@ export function detail_look(details: Detail[], kit: Record<Slot, number>, paint:
   const bare = paint.clone().lerp(trim, 0.75);
   const on_glass = (list: Part[] | undefined, tone: THREE.Color) => look.glass.push(...parts(list ?? []).map((g) => tint(g, tone)));
   for (const detail of details) {
-    if (!fits.has(detail.on) || (detail.until && fits.has(detail.until))) continue;
+    if (!fits.has(detail.on) || (detail.with && !fits.has(detail.with)) || (detail.until && fits.has(detail.until))) continue;
     add(detail.paint, paint);
     add(detail.trim, trim);
     add(detail.chrome, chrome);

@@ -37,10 +37,16 @@ const COUPE: Detail[] = [
 
 const MUSCLE_HOOD_Z = 1.2;
 const HOOD_FALL = 0.035;
-const MUSCLE_PIPE: Part = { size: [0.13, 0.13, 1.56], at: [1.07, 0.2, 0] };
-const MUSCLE_TIP: Part = { size: [0.16, 0.16, 0.1], at: [1.07, 0.2, -0.74] };
-// Out past the rear tyre right behind the pipe's end.
-const MUSCLE_JET = outlet([1.07, 0.2, -0.79], [Math.SQRT1_2, 0, -Math.SQRT1_2]);
+// A slim pipe tucked under the sill's outer edge, ending ahead of the rear tyre: one row for the stock body, one for the kit's wider, deeper shell.
+const muscle_pipe = (x: number, y: number) => ({
+  chrome: [{ size: [0.09, 0.09, 1.5], at: [x, y, 0.02] }] satisfies Part[],
+  trim: [{ size: [0.06, 0.06, 0.02], at: [x, y, -0.735] }] satisfies Part[],
+  tips: [{ size: [0.11, 0.11, 0.08], at: [x, y, -0.7] }] satisfies Part[],
+  // Out past the rear tyre right behind the pipe's end.
+  ...outlet([x, y, -0.74], [Math.SQRT1_2, 0, -Math.SQRT1_2]),
+});
+const MUSCLE_PIPE = muscle_pipe(1.0, 0.245);
+const MUSCLE_KIT_PIPE = muscle_pipe(1.11, 0.155);
 const BLOWER_TOP = top_at(muscle.outline, MUSCLE_HOOD_Z) + 0.13;
 const MUSCLE: Detail[] = [
   {
@@ -50,7 +56,8 @@ const MUSCLE: Detail[] = [
     paint: [{ size: [0.4, 0.1, 0.56], at: [0.2, 0.895, MUSCLE_HOOD_Z], tilt: [0.035, 0, 0] }],
     trim: [{ size: [0.34, 0.06, 0.02], at: [0.17, 0.895, 1.485] }],
   },
-  { on: "tuned", cue: "Chrome side pipes along the sills, in place of tailpipes", chrome: [MUSCLE_PIPE], trim: [{ size: [0.09, 0.09, 0.02], at: [1.07, 0.2, -0.785] }], tips: [MUSCLE_TIP], swaps: ["pipes", "bulge"], ...MUSCLE_JET },
+  { on: "tuned", until: "street", cue: "Chrome side pipes under the sills, in place of tailpipes", ...MUSCLE_PIPE, swaps: ["pipes", "bulge"] },
+  { on: "tuned", with: "street", cue: "The side pipes under the kit's wider sills", ...MUSCLE_KIT_PIPE, swaps: ["pipes", "bulge"] },
   {
     on: "street",
     cue: "Rear window louvres",
@@ -72,10 +79,11 @@ const MUSCLE: Detail[] = [
   },
 ];
 
-const rally_flap = (z: number): Part => ({ size: [0.32, 0.3, 0.035], at: [0.81, 0.25, z] });
+// Hung from the back edge of each wheel opening, as wide as the tyre in front of it.
+const rally_flap = (axle: number): Part => ({ size: [0.28, 0.3, 0.035], at: [0.82, 0.27, axle - 0.45] });
 const on_rally_roof = (part: Part): Part => ({ ...part, size: [part.size[0] / 0.9, part.size[1], part.size[2]], at: [part.at[0] / 0.9, part.at[1], part.at[2]] });
 const RALLY: Detail[] = [
-  { on: "knobbly", cue: "Red mudflaps behind all four wheels, with gravel tyres", red: [rally_flap(0.72), rally_flap(-1.82)] },
+  { on: "knobbly", cue: "Red mudflaps behind all four wheels, with gravel tyres", red: [rally_flap(1.27), rally_flap(-1.27)] },
   {
     on: "street",
     cue: "Roof scoop",
