@@ -54,6 +54,20 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.43.0",
+    date: "2026-11-14",
+    title: "Built to show",
+    changes: [
+      { kind: NEW, text: "Cars wear details that grow with the parts you fit, in each car's own tuning style" },
+      { kind: NEW, text: "Nitro flames leave the pipes the way they point" },
+      { kind: FIXED, text: "Tyres sit on the road surface instead of sinking into it, and off-road tread stays inside the tyre" },
+      { kind: FIXED, text: "Skid marks no longer draw over the cars" },
+      { kind: FIXED, text: "Sajin no longer rolls over on bumps" },
+      { kind: IMPROVED, text: "Settings: the version is a pill that opens What's new, next to the Guide" },
+      { kind: NEW, text: "Feel lab: Sajin before-and-after pack" },
+    ],
+  },
+  {
     version: "0.42.4",
     date: "2026-11-14",
     title: "Lab briefs",
