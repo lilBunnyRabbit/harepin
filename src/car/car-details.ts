@@ -139,10 +139,10 @@ const STURM: Detail[] = [
 
 const raijin_tail = tail_at(raijin.outline, 0.47);
 const RAIJIN: Detail[] = [
-  { on: "tuned", cue: "Front-mount intercooler filling the grille", bright: [centred(0.72, 0.15, 0.014, 0.494, 2.102, 0.27)] },
-  { on: "race", cue: "A canard at each end of the bumper bar", trim: [{ size: [0.2, 0.02, 0.16], at: [0.9, 0.36, 2.19] }] },
+  { on: "tuned", cue: "Front-mount intercooler filling the grille", bright: [centred(0.72, 0.13, 0.014, 0.56, 2.11, 0.27)] },
+  { on: "race", cue: "A canard at each end of the bumper bar", trim: [{ size: [0.2, 0.02, 0.16], at: [0.8, 0.36, 2.17] }] },
   { on: "street", cue: "Red tow hook on the rear bumper", red: [{ size: [0.05, 0.15, 0.16], at: [0.26, 0.47, raijin_tail - 0.05], one: true }] },
-  { on: "race", cue: "Diffuser end fences under the bumper", trim: [{ size: [0.03, 0.14, 0.4], at: [0.78, 0.24, raijin_tail - 0.1] }] },
+  { on: "race", cue: "Diffuser end fences under the bumper", trim: [{ size: [0.03, 0.14, 0.4], at: [0.78, 0.24, raijin_tail + 0.15] }] },
 ];
 
 const FORMULA: Detail[] = [
