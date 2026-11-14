@@ -42,7 +42,7 @@ export const RAIJIN_DESIGN: Design = {
   sill: 0.26,
   cabin: CABIN,
   section: SECTION,
-  arches: { gap: 0.055, steps: 8, flare: 0.06, out: 0.07, reach: 0.04, tone: "paint" },
+  arches: { gap: 0.055, steps: 6, flare: 0.06, out: 0.07, reach: 0.04, tone: "paint" },
   heads: [{ size: [0.36, 0.09, 0.05], at: [0.62, 0.72, 2.13], tilt: [NOSE_LEAN, 0, 0] }],
   tails: TAIL.tails,
   paint: [mirror(CABIN, 0.62, [0.18, 0.12, 0.16], SECTION.shoulder)],
@@ -62,7 +62,7 @@ export const RAIJIN_DESIGN: Design = {
   exhaust: PIPE,
   wings: WINGS,
   kit: {
-    arches: { gap: 0.055, steps: 8, flare: 0.08, out: 0.1, reach: 0.04, tone: "paint" },
+    arches: { gap: 0.055, steps: 6, flare: 0.08, out: 0.1, reach: 0.04, tone: "paint" },
     tyre: [0.34, 0.34],
     rim: { size: 0.8, spokes: 5, tone: "bronze", spoke: 0.1 },
     caliper: "warning",

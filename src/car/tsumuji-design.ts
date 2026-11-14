@@ -9,8 +9,8 @@ const SECTION: Section = { belt: [0.7, 0.72], shoulder: 0.1, tuck: 0.04, nose: [
 const CABIN: Cabin = { points: [[0.62, 0.82], [0.22, 1.17], [-0.2, 1.22], [-0.66, 1.2], [-1.18, 0.825]], width: 1.4, tumble: 0.22, frame: [0.05, 0.035, 0.035, 0.09, 0.035], screens: [[0, 0.07], [3, 0.12]] };
 const TAIL = tail_end(OUTLINE, 0.57, 0.14, 0.72, [{ size: [0.3, 0.1, 0.05], at: [0.5, 0.57, 0] }], null, 0.57);
 
-const STOCK_ARCHES: Arches = { gap: 0.05, steps: 8, flare: 0.05, out: 0.04, reach: 0.04, tone: "paint" };
-const WIDE_ARCHES: Arches = { gap: 0.06, steps: 8, flare: 0.07, out: 0.09, reach: 0.04, tone: "paint" };
+const STOCK_ARCHES: Arches = { gap: 0.05, steps: 6, flare: 0.05, out: 0.04, reach: 0.04, tone: "paint" };
+const WIDE_ARCHES: Arches = { gap: 0.06, steps: 6, flare: 0.07, out: 0.09, reach: 0.04, tone: "paint" };
 
 // Pop-up lamps, drawn shut: a wedge whose top is the lid lying in the bonnet and whose face hangs inside the body, cut so
 // it stands upright on the bonnet once the wedge has swung up by LIFT about the lid's rear edge.

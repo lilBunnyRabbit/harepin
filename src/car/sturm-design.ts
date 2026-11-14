@@ -19,8 +19,8 @@ const tail = (half: number) => tail_end(OUTLINE, 0.57, 0.14, half, [{ size: [hal
 const TAIL = tail(HIP);
 const WIDE_TAIL = tail(WIDE_HIP);
 
-const STOCK_ARCHES: Arches = { gap: 0.06, steps: 8, flare: 0.05, out: 0.07, reach: 0.04, tone: "paint" };
-const WIDE_ARCHES: Arches = { gap: 0.08, steps: 8, flare: 0.07, out: 0.15, reach: 0.04, tone: "paint" };
+const STOCK_ARCHES: Arches = { gap: 0.06, steps: 6, flare: 0.05, out: 0.07, reach: 0.04, tone: "paint" };
+const WIDE_ARCHES: Arches = { gap: 0.08, steps: 6, flare: 0.07, out: 0.15, reach: 0.04, tone: "paint" };
 
 const FENDER: Point[] = [[2.12, 0.48], [2.16, 0.6], [2.08, 0.74], [1.92, 0.82], [1.3, 0.84], [0.6, 0.8], [0.6, 0.5]];
 const HAUNCH: Point[] = [[-0.1, 0.72], [-0.3, 0.87], [-0.6, 0.94], [-1.15, 0.94], [-1.55, 0.84], [-1.83, 0.69], [-1.875, 0.62], [-1.84, 0.56]];

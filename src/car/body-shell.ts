@@ -11,6 +11,9 @@ const PANEL_ROOF = 0.05;
 // The flare's opening and floor sit this far inside the body's arch cut and sill, or they share a plane and flicker.
 const FLARE_PROUD = 0.004;
 const ARCH_SKIN = 0.025;
+// A lip narrows in these steps to fit under a low bonnet or deck, and no further than this.
+const MIN_FLARE = 0.025;
+const FLARE_STEP = 0.005;
 
 export function cabin_parts(c: Cabin, paint: THREE.Color, glass: THREE.Color): THREE.BufferGeometry[] {
   const ys = c.points.map(([, y]) => y);
@@ -58,18 +61,22 @@ export function notch(points: Point[], d: Design, spec: CarSpec): Point[][] {
   return pieces;
 }
 
-/** A lip round each wheel opening, kept under the body top so it never stands over a low bonnet or deck. */
+/** A lip round each wheel opening, the same width all the way round and on every axle: the widest that stays under the body top. */
 export function flares(d: Design, spec: CarSpec): THREE.BufferGeometry[] {
   if (d.arches.flare <= 0) return [];
-  const inner = spec.wheel.radius + d.arches.gap;
+  const inner = spec.wheel.radius + d.arches.gap - FLARE_PROUD;
   const y = spec.wheel.radius;
   const edge = d.width / 2;
   const body_top = (at: number) => Math.max(top_at(d.outline, at), ...(d.slabs ?? []).map((s) => top_at(s.points, at)));
-  return axles_of(spec).flatMap(({ z }) => {
-    const opening = arc(z, y, inner - FLARE_PROUD, d.sill, d.arches.steps);
-    const lip = arc(z, y, inner + d.arches.flare, d.sill, d.arches.steps).map(([lz, ly], i): Point => [lz, Math.max(opening[i][1], Math.min(ly, body_top(lz)))]);
+  const openings = axles_of(spec).map(({ z }) => ({ z, opening: arc(z, y, inner, d.sill, d.arches.steps) }));
+  // Each lip vertex stands straight out from its opening vertex, so every facet keeps the opening's angle.
+  const ring = (z: number, opening: Point[], flare: number) => opening.map(([oz, oy]): Point => [z + ((oz - z) * (inner + flare)) / inner, y + ((oy - y) * (inner + flare)) / inner]);
+  let flare = d.arches.flare;
+  while (flare > MIN_FLARE && openings.some(({ z, opening }) => ring(z, opening, flare).some(([lz, ly]) => ly > body_top(lz)))) flare -= FLARE_STEP;
+  return openings.flatMap(({ z, opening }) => {
+    const lip = ring(z, opening, flare).map(([lz, ly], i): Point => [lz, Math.max(opening[i][1], Math.min(ly, body_top(lz)))]);
     const lifted = [...lip, ...opening.reverse()].map(([pz, py]): Point => [pz, Math.max(py, d.sill + FLARE_PROUD)]);
-    return slab(lifted, edge - d.arches.reach, edge + d.arches.out);
+    return flat_pieces(d, lifted).flatMap((piece) => slab(piece, edge - d.arches.reach, edge + d.arches.out).map((g) => uncut(g, d)));
   });
 }
 
@@ -96,9 +103,8 @@ export function side_panel(d: Design, spec: CarSpec): Panel {
   return { rear, front, low: d.sill + PANEL_FLOOR, high, side: d.width / 2 };
 }
 
-/** The body outline cut at the belt and at the ends of the pinched nose and tail, so every sculpted face stays flat. */
-export function body_pieces(d: Design, spec: CarSpec): Point[][] {
-  const outline = body_outline(d, spec);
+/** A side profile cut at the belt and at the ends of the pinched nose and tail, so every sculpted face stays flat. */
+function flat_pieces(d: Design, outline: Point[]): Point[][] {
   const s = d.section;
   if (!s) return [outline];
   const nose = d.outline[0][0];
@@ -113,6 +119,36 @@ export function body_pieces(d: Design, spec: CarSpec): Point[][] {
     ...split(piece, [-1, 0], front).flatMap((mid) => split(mid, [1, 0], -rear)),
     ...(s.tail[1] > 0 ? split(piece, [-1, 0], rear) : []),
   ]);
+}
+
+const ON_CUT = 1e-6;
+
+/** `geometry` less the walls `flat_pieces` left between its pieces, which lie buried in the part on the body's own cuts. */
+function uncut(geometry: THREE.BufferGeometry, d: Design): THREE.BufferGeometry {
+  const s = d.section;
+  if (!s) return geometry;
+  const nose = d.outline[0][0];
+  const tail = d.outline[d.outline.length - 1][0];
+  const slope = (s.belt[1] - s.belt[0]) / (tail - nose);
+  const cuts = [(z: number, y: number) => y - s.belt[0] - slope * (z - nose), (z: number) => z - (nose - s.nose[1]), (z: number) => z - (tail + s.tail[1])];
+  const position = geometry.getAttribute("position");
+  const kept: number[] = [];
+  for (let i = 0; i < position.count; i += 3)
+    if (!cuts.some((cut) => [i, i + 1, i + 2].every((v) => Math.abs(cut(position.getZ(v), position.getY(v))) < ON_CUT))) kept.push(i, i + 1, i + 2);
+  const out = new THREE.BufferGeometry();
+  for (const [name, attribute] of Object.entries(geometry.attributes)) {
+    const size = attribute.itemSize;
+    const values = new Float32Array(kept.length * size);
+    kept.forEach((v, k) => {
+      for (let c = 0; c < size; c++) values[k * size + c] = attribute.getComponent(v, c);
+    });
+    out.setAttribute(name, new THREE.BufferAttribute(values, size));
+  }
+  return out;
+}
+
+export function body_pieces(d: Design, spec: CarSpec): Point[][] {
+  return flat_pieces(d, body_outline(d, spec));
 }
 
 /** Share of its x a point keeps on a sculpted body: the shoulder over the belt, the tuck under it, the pinched ends. */
