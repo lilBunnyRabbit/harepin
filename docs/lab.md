@@ -189,6 +189,16 @@ Metric keys (numbers keep 3 significant digits):
 | `resets` | count | placements after the trial started |
 | `lock`, `thr`, `hb` | share | time at full lock, full throttle, handbrake |
 | `rev` | per s | steer reversals: tells a twitchy car from a driver sawing at it |
+| `yawover` | ratio | yaw peak over its value 2 s after a steer step or reversal, minus 1 (feel's step steer overshoot) |
+| `us` | ratio | steer angle over `wheelbase / R` on the ring band: above 1 pushes |
+| `pwr` | ° | peak slip within 1.5 s of throttle past 0.8 with steer past 0.3 (feel's power on) |
+| `lift` | ° | peak slip within 1.5 s of a throttle drop from 0.25 to under 0.1 above 0.5 g (feel's lift-off) |
+| `bdev` | ° | heading change over a straight stop from 30 km/h |
+| `trail` | ° | peak slip braking past 0.3 with steer past 0.2 (feel's trail brake) |
+| `entry` | s | slip past 10° to past 25° |
+| `pitch` | rad/s | peak pitch rate in the 0.3 s after a touchdown |
+| `xslip` | ° | peak slip within 0.5 s of the tyre curve under a front wheel changing: loose-to-sealed seams only |
+| `yawsd` | rad/s / input | yaw-rate RMS and steer RMS above 200 km/h |
 
 ## Sim before the owner drives: `scripts/lab.ts`
 
@@ -256,11 +266,11 @@ Not built yet: `lab.ts diff` between sessions (P5), `lab.ts gate` (P6).
 | `src/lab/pack.ts` | `Pack`, `Trial`, `LabCar`, `resolve_trial` (spec, hash, PI, class, lane) |
 | `src/lab/pack-code.ts` | inline codes and the untrusted-pack reader |
 | `src/lab/packs.ts`, `src/lab/packs/*.ts` | registry and packs |
-| `src/lab/recorder.ts` | per-step metrics, no allocation in `step` |
+| `src/lab/recorder.ts`, `src/lab/traits.ts` | per-step metrics, no allocation in `step`; the per-trait folds and their tests against the headless scenarios |
 | `src/lab/export.ts` | the export block |
 | `src/lab/lab.ts` | trial flow, keys, Copy; lazy-loaded by `main.ts` on `?lab` |
 | `src/lab/answers.ts` | questions per trial, answer checks, the stored-answers reader |
-| `src/lab/ask.ts` | the shared questions and `with_station_asks` |
+| `src/lab/ask.ts` | the shared questions, `with_station_asks`, one scale per trait (`TRAIT_ASK`, `trait_asks`) |
 | `src/lab/results-store.ts` | the stored-numbers writer and reader |
 | `src/lab/lab-view.svelte.ts`, `LabOverlay.svelte`, `TrialList.svelte`, `ResultCard.svelte`, `Scale.svelte` | the overlay: strip, pack card, results and question card |
 

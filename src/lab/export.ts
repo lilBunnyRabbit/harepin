@@ -67,6 +67,16 @@ export function metric_pairs(m: Metrics): [key: string, text: string][] {
   put("thr", m.throttle);
   put("hb", m.handbrake);
   put("rev", m.reversals);
+  put("yawover", m.yaw_over);
+  put("us", m.understeer);
+  put("pwr", m.power_slip);
+  put("lift", m.lift_slip);
+  put("bdev", m.brake_dev);
+  put("trail", m.trail_slip);
+  put("entry", m.entry);
+  put("pitch", m.land_pitch);
+  put("xslip", m.seam_slip);
+  put("yawsd", m.yaw_sd, pair(m.yaw_sd, m.steer_sd));
   return out;
 }
 

@@ -11,6 +11,8 @@ export const NOTE: Question = { kind: "text", id: "note", label: "Note" };
 
 export const ASK: Question[] = [GRIP, PRED, FUN, NOTE];
 
+export const MAX_TRAIT_SCALES = 3;
+
 const DRIFT_STATIONS: ReadonlySet<StationId> = new Set<StationId>([StationId.DRIFT, StationId.EIGHT, StationId.SKIDPAD, StationId.HAIRPIN]);
 const LANDING_STATIONS: ReadonlySet<StationId> = new Set<StationId>([StationId.KICKER]);
 
@@ -31,4 +33,42 @@ export function with_station_asks(trials: Trial[]): Trial[] {
       NOTE,
     ],
   }));
+}
+
+/** One question per handling trait (plan feel-lab-v2 4): a session judges one trait and asks at most 3 of these plus the note. */
+export const Trait = {
+  TURN_IN: "turn_in",
+  BALANCE: "balance",
+  POWER: "power",
+  LIFT: "lift",
+  BRAKING: "braking",
+  ENTRY: "entry",
+  HOLD: "hold",
+  EXIT: "exit",
+  LANDING: "landing",
+  SEAMS: "seams",
+  TOP: "top",
+} as const;
+export type Trait = (typeof Trait)[keyof typeof Trait];
+
+const trait_scale = (id: string, label: string, low: string, high: string): Question => ({ kind: "scale", id, label, low, high });
+
+export const TRAIT_ASK: Record<Trait, Question> = {
+  turn_in: trait_scale("turn", "Turn-in", "lazy", "darty"),
+  balance: trait_scale("bal", "Mid-corner balance", "pushes", "rotates"),
+  power: trait_scale("pwr", "Power oversteer", "none", "snaps"),
+  lift: trait_scale("lift", "Lift-off", "none", "snaps"),
+  braking: trait_scale("brake", "Braking", "wanders", "straight"),
+  entry: trait_scale("entry", "Drift entry", "won't go", "easy"),
+  hold: trait_scale("hold", "Drift hold", "can't hold", "holds"),
+  exit: trait_scale("exit", "Drift exit", "spins", "catches"),
+  landing: LANDING,
+  seams: trait_scale("seam", "Surface changes", "jolts", "smooth"),
+  top: trait_scale("top", "Top-speed stability", "nervous", "planted"),
+};
+
+/** A one-trait session's questions: the named traits' scales (3 at most) and the note. */
+export function trait_asks(...traits: Trait[]): Question[] {
+  if (traits.length > MAX_TRAIT_SCALES) throw new Error(`a session asks at most ${MAX_TRAIT_SCALES} scales, got ${traits.length}`);
+  return [...traits.map((t) => TRAIT_ASK[t]), NOTE];
 }

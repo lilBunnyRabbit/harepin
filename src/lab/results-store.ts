@@ -35,6 +35,17 @@ const FIELDS: Record<keyof Metrics, true> = {
   throttle: true,
   handbrake: true,
   reversals: true,
+  yaw_over: true,
+  understeer: true,
+  power_slip: true,
+  lift_slip: true,
+  brake_dev: true,
+  trail_slip: true,
+  entry: true,
+  land_pitch: true,
+  seam_slip: true,
+  yaw_sd: true,
+  steer_sd: true,
 };
 
 interface Stored {
