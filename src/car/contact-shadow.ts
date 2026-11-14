@@ -29,10 +29,11 @@ export interface ContactShadow {
 }
 
 const RIDE = 0.5;
-// The patch draws in the opaque pass after the ground (order 0) and before the cars (`CAR_ORDER`): it writes no depth, so
-// a tyre dipping under its plane still covers it, and every see-through mesh (the nitro jet) comes after it.
-const SHADOW_ORDER = 1;
-export const CAR_ORDER = SHADOW_ORDER + 1;
+// Ground decals (this patch, the skid marks) draw in the opaque pass after the ground (order 0) and before the cars
+// (`CAR_ORDER`): they write no depth, so a tyre dipping under their plane still covers them, and every see-through mesh
+// (the nitro jet) comes after them.
+export const DECAL_ORDER = 1;
+export const CAR_ORDER = DECAL_ORDER + 1;
 
 // The sun's shadow lands metres away at a low sun and blurs out, so without a dark patch right under the body the car
 // reads as hovering; this is that patch, tinted from the theme rather than black. It multiplies what is under it: a plain
@@ -56,7 +57,7 @@ export function contact_shadow(): ContactShadow {
     polygonOffsetUnits: -8,
   });
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 5.0).rotateX(-Math.PI / 2), material);
-  mesh.renderOrder = SHADOW_ORDER;
+  mesh.renderOrder = DECAL_ORDER;
   return { mesh, material, strength, ride: RIDE };
 }
 

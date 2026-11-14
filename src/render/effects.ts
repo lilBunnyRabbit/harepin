@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { Car } from "../car/car";
+import { DECAL_ORDER } from "../car/contact-shadow";
 import { brand, color, dark, mix, tones } from "../theme/palette";
 import { FOG } from "./sky";
 import type { World } from "../world/world";
@@ -157,8 +158,14 @@ export class Skids {
     geometry.setAttribute("laid", this.laid_attribute);
     const material = new THREE.MeshBasicMaterial({
       color: color(SKID_TONE),
-      transparent: true,
+      // Laid 10 cm up to clear the ground between points, a mark drawn after the cars covered their tyres and sills from a
+      // low camera. Drawn with the contact patch, before the cars, it blends as normal but in the opaque pass, where
+      // NormalBlending would turn blending off.
+      transparent: false,
       opacity: dark ? 0.6 : 0.4,
+      blending: THREE.CustomBlending,
+      blendSrc: THREE.SrcAlphaFactor,
+      blendDst: THREE.OneMinusSrcAlphaFactor,
       depthWrite: false,
       polygonOffset: true,
       polygonOffsetFactor: -6,
@@ -181,6 +188,7 @@ export class Skids {
     };
     this.mesh = new THREE.Mesh(geometry, material);
     this.mesh.frustumCulled = false;
+    this.mesh.renderOrder = DECAL_ORDER;
   }
 
   update(car: Car, world: World) {
