@@ -19,27 +19,37 @@ const SWAY_KEY = "nitro-jet";
 const GIRTH_FLICKER = 0.15;
 const LENGTH_FLICKER = 0.25;
 /** A pipe's end, where the flame starts, lies this far past its `exhaust` point along its `jet`. */
-export const PIPE_REACH = 0.16;
+export const PIPE_REACH = 0.09;
+/** Length of a tailpipe the engine upgrades fit: most of it lies inside the tail. */
+export const PIPE_LENGTH = 0.18;
 const BACK: Triple = [0, 0, -1];
 
 const pipe_sides = (d: Design) => (d.exhaust[0] === 0 ? [1] : [-1, 1]);
 
-/** Radius of a tailpipe the engine upgrades fit: fatter for the race engine and for one central pipe. */
-export const pipe_radius = (engine: number, central: boolean) => (engine > 1 ? 0.052 : 0.045) * (central ? 1.4 : 1);
+// Pipes are sized for a saloon's tail; a narrower body (the formula's gearbox) scales them down, and no further than this.
+const PIPE_BODY = 1.7;
+const PIPE_MIN = 0.6;
+
+/** Radius of a tailpipe the engine upgrades fit to a body `width` across: fatter for the race engine and for one central pipe. */
+export const pipe_radius = (engine: number, central: boolean, width: number) => (engine > 1 ? 0.05 : 0.044) * (central ? 1.3 : 1) * Math.max(PIPE_MIN, Math.min(1, width / PIPE_BODY));
 /** Where a pair of race-engine pipes sit either side of the design's `exhaust`. */
 export const PIPE_PAIR = 0.065;
 
-const SLEEVE_GIRTH = 1.3;
-const SLEEVE = 0.07;
+// The sleeve is this much fatter than its pipe, this long on the small tank, and ends this far past the pipe's end.
+const SLEEVE_GIRTH = 1.18;
+const SLEEVE = 0.05;
+const SLEEVE_PROUD = 0.008;
 
 /** A blue sleeve round the end of each tailpipe the engine has fitted (one where the car has none), in place of a box over them all. */
 export function nitro_parts(d: Design, bottle: Bottle, engine: number, trim: THREE.Color): THREE.BufferGeometry[] {
   const [x, y, z] = d.exhaust;
   const central = x === 0;
-  const r = pipe_radius(engine, central) * SLEEVE_GIRTH * bottle.size;
+  const r = pipe_radius(engine, central, d.width) * SLEEVE_GIRTH;
   const xs = central || engine < 2 ? [x] : [x - PIPE_PAIR, x + PIPE_PAIR];
+  const end = PIPE_REACH + SLEEVE_PROUD;
+  const length = SLEEVE * bottle.size;
   const ring = (radius: number, length: number, at: number, back: number) => new THREE.CylinderGeometry(radius, radius, length, 8).rotateX(Math.PI / 2).translate(at, y, z - back);
-  return pipe_sides(d).flatMap((side) => xs.flatMap((at) => [tint(ring(r, SLEEVE, side * at, 0.115), color(brand.info)), tint(ring(r * 0.65, 0.02, side * at, 0.145), trim)]));
+  return pipe_sides(d).flatMap((side) => xs.flatMap((at) => [tint(ring(r, length, side * at, end - length / 2), color(brand.info)), tint(ring(r * 0.65, 0.02, side * at, end - 0.005), trim)]));
 }
 
 function shade(geometry: THREE.BufferGeometry, tone: THREE.Color, alpha: number): THREE.BufferGeometry {

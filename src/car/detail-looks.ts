@@ -49,6 +49,7 @@ export function detail_look(details: Detail[], kit: Record<Slot, number>, paint:
   const add = (list: Part[] | undefined, tone: THREE.Color) => look.body.push(...parts(list ?? []).map((g) => tint(g, tone)));
   const bare = paint.clone().lerp(trim, 0.75);
   const on_glass = (list: Part[] | undefined, tone: THREE.Color) => look.glass.push(...parts(list ?? []).map((g) => tint(g, tone)));
+  const hood: Part[] = [];
   for (const detail of details) {
     if (!fits.has(detail.on) || (detail.with && !fits.has(detail.with)) || (detail.until && fits.has(detail.until))) continue;
     add(detail.paint, paint);
@@ -60,6 +61,7 @@ export function detail_look(details: Detail[], kit: Record<Slot, number>, paint:
     add(detail.accent, color(brand.accent));
     look.body.push(...shapes(detail.lips).map((g) => tint(g, paint)), ...shapes(detail.stands).map((g) => tint(g, trim)));
     add(detail.bare, bare);
+    hood.push(...(detail.hood ?? []));
     if (detail.tips && fits.has("nitro")) {
       add(detail.tips, color(brand.info));
       look.swaps.add("tips");
@@ -72,5 +74,6 @@ export function detail_look(details: Detail[], kit: Record<Slot, number>, paint:
     for (const swap of detail.swaps ?? []) look.swaps.add(swap);
     if (detail.exhaust) look.outlet = { exhaust: detail.exhaust, jet: detail.jet };
   }
+  add(hood, kit.weight > 0 && !look.swaps.has("bonnet") ? bare : paint);
   return look;
 }

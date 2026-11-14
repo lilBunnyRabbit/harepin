@@ -1,6 +1,6 @@
 import type { Triple } from "./cars";
 import type { Cabin, Mirror, Slab, Wing } from "./designs";
-import { tail_at, type Part, type Point } from "./geometry";
+import { face_at, tail_at, type Part, type Point } from "./geometry";
 
 const PROUD = 0.012;
 const LAMP_DEPTH = 0.04;
@@ -64,7 +64,7 @@ const HUNG_ARMS = 0.26;
 function mirror_head(at: Triple, size: Triple, sweep: number): [Part, Part] {
   const back = size[2] / 2 + 0.002;
   return [
-    { size, at, tilt: [0, sweep, 0], pod: true },
+    { size, at, tilt: [0, sweep, 0], shape: "pod" },
     { size: [size[0] - GLASS_RIM, size[1] - GLASS_RIM, GLASS_DEPTH], at: [at[0] - back * Math.sin(sweep), at[1], at[2] - back * Math.cos(sweep)], tilt: [0, sweep, 0] },
   ];
 }
@@ -119,6 +119,23 @@ export function rod(a: Triple, b: Triple, thick: number, wide = thick): Part {
   const dz = b[2] - a[2];
   const length = Math.hypot(dx, dy, dz);
   return { size: [wide, thick, length], at: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2], tilt: [-Math.asin(dy / length), Math.atan2(dx, dz), 0] };
+}
+
+const CANARD = 0.24;
+const CANARD_MIN = 0.12;
+const CANARD_CLEAR = 0.06;
+
+/**
+ * A dive plane on the bumper corner: a blade standing `out` from the body side `half` from the centre, from just behind
+ * the nose face at height `y` back and up, ending clear of the wheel opening that starts at z `arch`. Cut and sculpted
+ * with the body, its root stays on the body side. None where the nose is too short for one.
+ */
+export function canard(outline: Point[], half: number, y: number, arch: number, out = 0.05): Slab[] {
+  const z = face_at(outline, y) - 0.07;
+  const length = Math.min(CANARD, z - arch - CANARD_CLEAR);
+  if (length < CANARD_MIN) return [];
+  const rise = (0.063 * length) / CANARD;
+  return [{ points: [[z, y + 0.012], [z - length, y + 0.012 + rise], [z - length, y - 0.006 + rise], [z, y - 0.012]], from: half - 0.02, to: half + out }];
 }
 
 const NOSE_SHARE = 0.3;

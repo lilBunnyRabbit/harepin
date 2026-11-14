@@ -13,8 +13,11 @@ export interface Part {
   round?: boolean;
   /** Drawn once as given instead of mirrored: an offset tow hook, a single side pipe. */
   one?: boolean;
-  /** A pod instead of a box: the full `size` at its rear face, its front end drawn in to a blunt nose. */
-  pod?: boolean;
+  /**
+   * A shape other than a box, in the box's `size`. `pod`: the full section at its rear face, the front end drawn in to a blunt
+   * nose. `wedge`: the full height at its front face, the top running down to nothing at the rear and the sides leaning in.
+   */
+  shape?: "pod" | "wedge";
 }
 
 export function merge(...parts: (THREE.BufferGeometry | THREE.BufferGeometry[])[]): THREE.BufferGeometry {
@@ -119,20 +122,20 @@ export function slab(points: Point[], from: number, to: number): THREE.BufferGeo
 // A pod keeps its full section over this share of its length, then draws in to this share of it at the nose.
 const POD_STRAIGHT = 0.3;
 const POD_NOSE = 0.45;
+// A wedge's top is this share of its width at the front, its tail this share.
+const WEDGE_TOP = 0.84;
+const WEDGE_TAIL = 0.7;
 
-/** A box `w` by `h` by `d` whose front end is chamfered on all four sides: a mirror housing, a scoop, a lamp pod. */
-export function pod(w: number, h: number, d: number): THREE.BufferGeometry {
-  const ring = (z: number, k: number): THREE.Vector3[] => [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([x, y]) => new THREE.Vector3((x * w * k) / 2, (y * h * k) / 2, z));
-  const rings = [ring(-d / 2, 1), ring(-d / 2 + d * POD_STRAIGHT, 1), ring(d / 2, POD_NOSE)];
-  const quads: THREE.Vector3[][] = [rings[0], rings[rings.length - 1]];
-  for (let r = 0; r + 1 < rings.length; r++) for (let i = 0; i < 4; i++) quads.push([rings[r][i], rings[r][(i + 1) % 4], rings[r + 1][(i + 1) % 4], rings[r + 1][i]]);
+/** A convex solid from its flat faces, each a ring of corners in either winding. */
+function solid(faces: THREE.Vector3[][]): THREE.BufferGeometry {
+  const corners = faces.flat();
+  const centre = corners.reduce((sum, v) => sum.add(v), new THREE.Vector3()).divideScalar(corners.length);
   const position: number[] = [];
-  const centre = new THREE.Vector3();
-  const normal = new THREE.Vector3();
-  for (const [a, b, c, e] of quads) {
-    // Every face of this convex shape turns away from its centre, the origin.
-    const out = normal.subVectors(b, a).cross(centre.subVectors(c, a)).dot(a) > 0;
-    for (const v of out ? [a, b, c, a, c, e] : [a, c, b, a, e, c]) position.push(v.x, v.y, v.z);
+  const [edge, normal, from] = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
+  for (const face of faces) {
+    const [a, b, c] = face;
+    const out = normal.subVectors(b, a).cross(edge.subVectors(c, a)).dot(from.subVectors(a, centre)) > 0;
+    for (let i = 1; i + 1 < face.length; i++) for (const v of out ? [a, face[i], face[i + 1]] : [a, face[i + 1], face[i]]) position.push(v.x, v.y, v.z);
   }
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(position, 3));
@@ -141,9 +144,26 @@ export function pod(w: number, h: number, d: number): THREE.BufferGeometry {
   return geometry;
 }
 
+/** A box `w` by `h` by `d` whose front end is chamfered on all four sides: a mirror housing, a lamp pod. */
+export function pod(w: number, h: number, d: number): THREE.BufferGeometry {
+  const ring = (z: number, k: number): THREE.Vector3[] => [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([x, y]) => new THREE.Vector3((x * w * k) / 2, (y * h * k) / 2, z));
+  const rings = [ring(-d / 2, 1), ring(-d / 2 + d * POD_STRAIGHT, 1), ring(d / 2, POD_NOSE)];
+  const faces = [rings[0], rings[rings.length - 1]];
+  for (let r = 0; r + 1 < rings.length; r++) for (let i = 0; i < 4; i++) faces.push([rings[r][i], rings[r][(i + 1) % 4], rings[r + 1][(i + 1) % 4], rings[r + 1][i]]);
+  return solid(faces);
+}
+
+/** A scoop grown out of the panel under it: `h` tall at its front face, its top running down to the panel `d` behind. */
+export function wedge(w: number, h: number, d: number): THREE.BufferGeometry {
+  const at = (x: number, y: number, z: number) => new THREE.Vector3((x * w) / 2, (y * h) / 2, (z * d) / 2);
+  const [fl, fr, tl, tr, rl, rr] = [at(-1, -1, 1), at(1, -1, 1), at(-WEDGE_TOP, 1, 1), at(WEDGE_TOP, 1, 1), at(-WEDGE_TAIL, -1, -1), at(WEDGE_TAIL, -1, -1)];
+  return solid([[fl, fr, tr, tl], [tl, tr, rr, rl], [fl, tl, rl], [fr, tr, rr], [fl, fr, rr, rl]]);
+}
+
 /** One side of a mirrored part: `side` 1 is the left one as drawn, -1 its mirror. */
-export function side_part({ size, at: [x, y, z], tilt: [rx, ry, rz] = [0, 0, 0], round, pod: nosed }: Part, side: number): THREE.BufferGeometry {
-  return (round ? new THREE.CylinderGeometry(size[0] / 2, size[0] / 2, size[2], 8).rotateX(Math.PI / 2) : nosed ? pod(...size) : new THREE.BoxGeometry(...size))
+export function side_part({ size, at: [x, y, z], tilt: [rx, ry, rz] = [0, 0, 0], round, shape }: Part, side: number): THREE.BufferGeometry {
+  const drawn = round ? new THREE.CylinderGeometry(size[0] / 2, size[0] / 2, size[2], 8).rotateX(Math.PI / 2) : shape === "pod" ? pod(...size) : shape === "wedge" ? wedge(...size) : new THREE.BoxGeometry(...size);
+  return drawn
     .rotateX(rx)
     .rotateY(side * ry)
     .rotateZ(side * rz)
