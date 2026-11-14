@@ -42,6 +42,8 @@ const SHOULDER_EDGE = ROAD_HALF + 3;
 /** A car centre this close over lava has a wheel in it: higher, it is jumping over and keeps going. */
 const LAVA_REACH = 2.5;
 const SOLID_CELL = 16;
+/** Metres of slack on the reject in `collide`, far past rounding, so it never skips a solid `circle_contact` would touch. */
+const REACH_SLACK = 1e-3;
 const ROAD_CELL = 32;
 const RESTITUTION = 1.25;
 /** Share of planar speed a sky rail takes per unit sine of the angle into it: a head-on hit keeps 88%, a 10° graze 98%. */
@@ -547,8 +549,19 @@ export class World implements Ground {
     const circles = spec.circles;
     for (let c = 0; c < circles.length; c++) {
       const offset = circles[c];
-      const count = this.near(pos.x + fx * offset, pos.z + fz * offset);
-      for (let i = 0; i < count; i++) impact = Math.max(impact, this.hit(car, this.nearby[i], offset, fx, fz));
+      const count = this.near(Math.floor((pos.x + fx * offset) / SOLID_CELL), Math.floor((pos.z + fz * offset) / SOLID_CELL));
+      for (let i = 0; i < count; i++) {
+        // A conservative reject before `hit`, written inline: the step runs past V8's inlining budget, so every double
+        // handed to a call is boxed, and most listed solids sit well clear of the car. A push moves `pos`: read it again.
+        const solid = this.nearby[i];
+        const ox = pos.x + fx * offset - solid.x;
+        const oz = pos.z + fz * offset - solid.z;
+        if (solid.kind === "circle") {
+          const reach = spec.radius + solid.radius + REACH_SLACK;
+          if (ox * ox + oz * oz >= reach * reach) continue;
+        } else if (Math.abs(ox * solid.cos - oz * solid.sin) >= solid.hw + spec.radius + REACH_SLACK || Math.abs(ox * solid.sin + oz * solid.cos) >= solid.hd + spec.radius + REACH_SLACK) continue;
+        impact = Math.max(impact, this.hit(car, solid, offset, fx, fz));
+      }
     }
     return impact;
   }
@@ -561,7 +574,7 @@ export class World implements Ground {
     for (const offset of spec.circles) {
       const px = pos.x + fx * offset;
       const pz = pos.z + fz * offset;
-      const count = this.near(px, pz);
+      const count = this.near(Math.floor(px / SOLID_CELL), Math.floor(pz / SOLID_CELL));
       for (let i = 0; i < count; i++) {
         const solid = this.nearby[i];
         if (pos.y <= solid.y + solid.height && circle_contact(solid, px, pz, spec.radius + gap, fx, fz)) return solid;
@@ -572,18 +585,18 @@ export class World implements Ground {
 
   // Runs per collision circle every sim step, so it overwrites `nearby` and returns its count: truncating an array to
   // refill it frees its storage. Two passes keep baked solids ahead of placed ones, the order collisions resolve in.
-  private near(px: number, pz: number): number {
+  // Takes the solid cell, not a point: whole numbers cross the call unboxed.
+  private near(cx: number, cz: number): number {
     const found = this.nearby;
     let n = 0;
-    const cx = Math.floor(px / SOLID_CELL);
-    const cz = Math.floor(pz / SOLID_CELL);
     const stamp = ++this.query;
     const baked = this.solids.length;
     for (let dz = -1; dz <= 1; dz++)
       for (let dx = -1; dx <= 1; dx++) {
         const list = this.solid_grid.get(grid_key(cx + dx, cz + dz));
         if (!list) continue;
-        for (const index of list) {
+        for (let k = 0; k < list.length; k++) {
+          const index = list[k];
           if (index >= baked) break;
           if (this.seen[index] === stamp) continue;
           this.seen[index] = stamp;
@@ -598,7 +611,8 @@ export class World implements Ground {
       for (let dx = -1; dx <= 1; dx++) {
         const list = this.solid_grid.get(grid_key(cx + dx, cz + dz));
         if (!list) continue;
-        for (const index of list) {
+        for (let k = 0; k < list.length; k++) {
+          const index = list[k];
           const solid = this.slots[index];
           if (index < baked || this.seen[index] === stamp || !solid) continue;
           this.seen[index] = stamp;
