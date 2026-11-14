@@ -3,7 +3,7 @@ import { axle_index, axles_of } from "./axles";
 import { rest_reach, type Car } from "./car";
 import { DEFAULT_PARTS, build_spec, part_of, type Build, type Slot } from "./build";
 import { COUPE, type CarSpec } from "./cars";
-import { body_pieces, cabin_parts, flares, sculpt, side_panel, skirts } from "./body-shell";
+import { body_pieces, cabin_parts, flares, notch, sculpt, side_panel, skirts } from "./body-shell";
 import { CAR_ORDER } from "./contact-shadow";
 import { DESIGNS } from "./designs";
 import { extrude, merge, parts, slab, taper, tint } from "./geometry";
@@ -166,7 +166,7 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
   const hull_base = merge(
     tint(d.taper ? taper(shell_body, d.taper.from, tail, d.taper.share) : shell_body, paint),
     flares(d, spec).map((g) => tint(g, arch_tone)),
-    (d.slabs ?? []).flatMap((slab_part) => slab(slab_part.points, slab_part.from, slab_part.to)).map((g) => tint(g, paint)),
+    (d.slabs ?? []).flatMap((part) => notch(part.points, d, spec).flatMap((piece) => slab(piece, part.from, part.to))).map((g) => tint(g, paint)),
     (kit_skirts(d, aero) ? [] : skirts(d, spec, 0.03, 0.09)).map((g) => tint(g, trim)),
     parts(d.paint).map((g) => tint(g, paint)),
     parts(d.trim).map((g) => tint(g, trim)),

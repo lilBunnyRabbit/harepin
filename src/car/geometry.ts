@@ -146,21 +146,54 @@ export function top_at(outline: Point[], z: number): number {
   return top;
 }
 
-/** Keeps the side of the line a-b (given as [z, y], y as a function of z) above it (`keep` 1) or below it (-1). */
-export function clip_line(points: Point[], a: Point, b: Point, keep: number): Point[] {
-  const over = ([z, y]: Point) => (y - (a[1] + ((b[1] - a[1]) * (z - a[0])) / (b[0] - a[0]))) * keep;
-  const out: Point[] = [];
-  points.forEach((p, i) => {
-    const q = points[(i + 1) % points.length];
-    const dp = over(p);
-    const dq = over(q);
-    if (dp >= 0) out.push(p);
-    if (dp >= 0 !== dq >= 0) {
-      const t = dp / (dp - dq);
-      out.push([p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t]);
+interface Crossing {
+  at: Point;
+  along: number;
+  chain: number;
+  leaving: boolean;
+}
+
+/**
+ * The pieces of a simple polygon where `n·p + c > 0`, one ring per separate region. Unlike `clip`, a cut across a
+ * notch (a wheel arch reaching over the belt) yields two pieces instead of one bridged along the cut line.
+ */
+export function split(points: Point[], n: Point, c: number): Point[][] {
+  const side = points.map(([z, y]) => n[0] * z + n[1] * y + c);
+  if (side.every((s) => s > 0)) return [points];
+  const start = side.findIndex((s) => s <= 0);
+  const chains: Point[][] = [];
+  const crossings: Crossing[] = [];
+  for (let k = 0; k < points.length; k++) {
+    const i = (start + k) % points.length;
+    const j = (i + 1) % points.length;
+    const [p, q] = [points[i], points[j]];
+    if (side[i] > 0) chains[chains.length - 1].push(p);
+    if (side[i] > 0 === side[j] > 0) continue;
+    const t = side[i] / (side[i] - side[j]);
+    const at: Point = [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t];
+    const leaving = side[i] > 0;
+    if (leaving) chains[chains.length - 1].push(at);
+    else chains.push([at]);
+    crossings.push({ at, along: at[1] * n[0] - at[0] * n[1], chain: chains.length - 1, leaving });
+  }
+  crossings.sort((x, y) => x.along - y.along);
+  // Sorted along the line, crossings pair into the stretches inside the polygon; each joins a chain's exit to an entry.
+  const next: number[] = [];
+  for (let i = 0; i + 1 < crossings.length; i += 2) {
+    const [out, back] = crossings[i].leaving ? [crossings[i], crossings[i + 1]] : [crossings[i + 1], crossings[i]];
+    next[out.chain] = back.chain;
+  }
+  const done = new Set<number>();
+  const rings: Point[][] = [];
+  chains.forEach((_, first) => {
+    const ring: Point[] = [];
+    for (let at = first; !done.has(at); at = next[at]) {
+      done.add(at);
+      ring.push(...chains[at]);
     }
+    if (ring.length >= 3) rings.push(ring);
   });
-  return out;
+  return rings;
 }
 
 /** Rearmost z of the outline at height y: the tail face, as `face_at` gives the nose. */

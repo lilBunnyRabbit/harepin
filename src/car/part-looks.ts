@@ -15,6 +15,8 @@ const WINGS = [
 
 // Under the 12 mm hood stripes and vents a design stands proud, so they stay on the bare panel instead of sharing its top.
 const BARE_LIFT = 0.009;
+/** The widest tyre look a part can fit, against the design's tyre width. */
+const WIDEST_TYRE = 1.32;
 
 /** How far a bolt-on wing's legs sink into the deck, so they meet it where it falls away from `deck`. */
 const LEG_SINK = 0.06;
@@ -78,7 +80,9 @@ export function aero_parts(d: Design, spec: CarSpec, aero: Required<Look>["aero"
   if (kit_skirts(d, aero)) out.push(...skirts(d, spec, 0.07, 0.16).map((g) => tint(g, paint)));
   if (aero.diffuser) {
     const [tail, bottom] = d.outline[d.outline.length - 1];
-    const span = d.width * 0.82;
+    // Inside the widest tyre the rear wheels take, so the plate never reaches into their openings.
+    const inner = Math.abs(spec.wheel.mounts[spec.wheel.mounts.length - 1][0]) - d.tyre[1] * WIDEST_TYRE / 2 - 0.01;
+    const span = Math.min(d.width * 0.82, 2 * inner);
     const kick = (g: THREE.BufferGeometry) => tint(g.rotateX(0.2).translate(0, bottom + 0.03, tail + 0.1), trim);
     out.push(kick(new THREE.BoxGeometry(span, 0.025, 0.46)));
     for (const x of [-0.42, -0.16, 0.16, 0.42]) out.push(kick(new THREE.BoxGeometry(0.02, 0.1, 0.42).translate(x * span, -0.05, 0)));

@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { axles_of } from "./axles";
 import type { CarSpec } from "./cars";
 import type { Cabin, Design } from "./designs";
-import { arc, clip, clip_line, extrude, inset, lean, parts, screen, slab, tint, top_at, type Point } from "./geometry";
+import { arc, clip, extrude, inset, lean, parts, screen, slab, split, tint, top_at, type Point } from "./geometry";
 import type { Panel } from "./livery";
 
 const PANEL_MARGIN = 0.06;
@@ -10,6 +10,7 @@ const PANEL_FLOOR = 0.08;
 const PANEL_ROOF = 0.05;
 // The flare's opening and floor sit this far inside the body's arch cut and sill, or they share a plane and flicker.
 const FLARE_PROUD = 0.004;
+const ARCH_SKIN = 0.025;
 
 export function cabin_parts(c: Cabin, paint: THREE.Color, glass: THREE.Color): THREE.BufferGeometry[] {
   const ys = c.points.map(([, y]) => y);
@@ -24,10 +25,37 @@ export function cabin_parts(c: Cabin, paint: THREE.Color, glass: THREE.Color): T
   ].map((g) => lean(g, base, top, c.tumble));
 }
 
+/** The wheel opening the body cuts round the axle at `z`, from the rear end of its floor over the top to the front. */
+export function arch_opening(d: Design, spec: CarSpec, z: number): Point[] {
+  // An arch reaching over a low bonnet (the slabs stand above it) stays under the outline, or the outline crosses itself.
+  const under = ([az, ay]: Point): Point => [az, Math.min(ay, top_at(d.outline, az) - ARCH_SKIN)];
+  return arc(z, spec.wheel.radius, spec.wheel.radius + d.arches.gap, d.sill, d.arches.steps).map(under);
+}
+
 export function body_outline(d: Design, spec: CarSpec): Point[] {
+  return [...d.outline, ...axles_of(spec).reverse().flatMap((a) => arch_opening(d, spec, a.z))];
+}
+
+/** `points` less every wheel opening, so a slab standing over a wheel never closes over its tyre. */
+export function notch(points: Point[], d: Design, spec: CarSpec): Point[][] {
+  if (d.arches.steps === 0) return [points];
   const radius = spec.wheel.radius + d.arches.gap;
-  const y = spec.wheel.radius;
-  return [...d.outline, ...axles_of(spec).reverse().flatMap((a) => arc(a.z, y, radius, d.sill, d.arches.steps))];
+  let pieces = [points];
+  for (const { z } of axles_of(spec)) {
+    const opening = arc(z, spec.wheel.radius, radius, d.sill, d.arches.steps);
+    const kept: Point[][] = [];
+    // The opening is convex: what lies outside it is the union of what lies past each edge, taken in turn.
+    opening.forEach((p, i) => {
+      const q = opening[(i + 1) % opening.length];
+      const n: Point = [q[1] - p[1], p[0] - q[0]];
+      const out = n[0] * (z - p[0]) + n[1] * (spec.wheel.radius - p[1]) > 0 ? -1 : 1;
+      const c = -(n[0] * p[0] + n[1] * p[1]);
+      kept.push(...pieces.flatMap((piece) => split(piece, [n[0] * out, n[1] * out], c * out)));
+      pieces = pieces.flatMap((piece) => split(piece, [-n[0] * out, -n[1] * out], -c * out));
+    });
+    pieces = kept;
+  }
+  return pieces;
 }
 
 /** A lip round each wheel opening, kept under the body top so it never stands over a low bonnet or deck. */
@@ -75,14 +103,16 @@ export function body_pieces(d: Design, spec: CarSpec): Point[][] {
   if (!s) return [outline];
   const nose = d.outline[0][0];
   const tail = d.outline[d.outline.length - 1][0];
-  const a: Point = [nose, s.belt[0]];
-  const b: Point = [tail, s.belt[1]];
+  const slope = (s.belt[1] - s.belt[0]) / (tail - nose);
+  const above = (keep: number) => split(outline, [-slope * keep, keep], (slope * nose - s.belt[0]) * keep);
   const front = nose - s.nose[1];
   const rear = tail + s.tail[1];
-  const halves = s.shoulder > 0 || s.tuck > 0 ? [clip_line(outline, a, b, -1), clip_line(outline, a, b, 1)] : [outline];
-  return halves
-    .flatMap((piece) => [s.nose[1] > 0 ? clip(piece, front, 1) : [], clip(clip(piece, front, -1), rear, 1), s.tail[1] > 0 ? clip(piece, rear, -1) : []])
-    .filter((piece) => piece.length >= 3);
+  const halves = s.shoulder > 0 || s.tuck > 0 ? [...above(-1), ...above(1)] : [outline];
+  return halves.flatMap((piece) => [
+    ...(s.nose[1] > 0 ? split(piece, [1, 0], -front) : []),
+    ...split(piece, [-1, 0], front).flatMap((mid) => split(mid, [1, 0], -rear)),
+    ...(s.tail[1] > 0 ? split(piece, [-1, 0], rear) : []),
+  ]);
 }
 
 /** Share of its x a point keeps on a sculpted body: the shoulder over the belt, the tuck under it, the pinched ends. */
