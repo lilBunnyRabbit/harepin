@@ -3,6 +3,7 @@ import { build_spec, parse_build } from "../car/build";
 import { axles_of } from "../car/axles";
 import { CARS } from "../car/cars";
 import { LAB_STATIONS } from "../worldgen/lab";
+import { budget, MAX_SECONDS, MAX_TRIALS, over_budget } from "./budget";
 import { LAB_CAR, resolve_pack, resolve_trial, type Pack } from "./pack";
 import { pack_code, read_code, read_pack } from "./pack-code";
 import { PACKS } from "./packs";
@@ -30,6 +31,31 @@ describe("packs", () => {
 
   test.each(packs)("%s round-trips through an inline code", (_, pack) => {
     expect(read_code(pack_code(pack))).toEqual(JSON.parse(JSON.stringify(pack)));
+  });
+});
+
+// Packs written before the session caps (docs/plan/feel-lab-v2.md 6.1); each must still be over, so the list can't rot.
+const OVER_BUDGET: Record<string, string> = {
+  "t1-surfaces": "22 trials, about 26 min: split into pads and brakes if it has not been driven",
+  "t2-drift": "12 trials, under the time cap: left as is",
+};
+
+describe("session budget", () => {
+  test.each(packs)("%s fits the trial and time caps", (id, pack) => {
+    const b = budget(resolve_pack(pack));
+    expect(Number.isFinite(b.total)).toBe(true);
+    if (id in OVER_BUDGET) return expect(over_budget(b)).toBe(true);
+    expect(b.trials).toBeLessThanOrEqual(MAX_TRIALS);
+    expect(b.total).toBeLessThanOrEqual(MAX_SECONDS);
+  });
+
+  test("every exempt pack exists", () => {
+    for (const id of Object.keys(OVER_BUDGET)) expect(Object.keys(PACKS)).toContain(id);
+  });
+
+  test("a lap on low grip takes longer than on asphalt", () => {
+    const pad = (lane: string): Pack => ({ ...base, trials: [{ ...base.trials[0], station: "skidpad", lane, goal: { kind: "laps", laps: 2 } }] });
+    expect(budget(resolve_pack(pad("ice"))).drive).toBeGreaterThan(budget(resolve_pack(pad("asphalt"))).drive);
   });
 });
 

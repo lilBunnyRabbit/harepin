@@ -18,9 +18,9 @@ export type Answers = Record<string, Record<string, string | number>>;
 /** Below this a number is float noise (a straight run's slip and lateral g), printed as 0, not as `3.7e-15`. */
 const NOISE = 1e-6;
 
-const short = (v: number) => (Math.abs(v) < NOISE ? "0" : String(Number(v.toPrecision(3))));
+export const short = (v: number) => (Math.abs(v) < NOISE ? "0" : String(Number(v.toPrecision(3))));
 
-function mods_text(mods: readonly Mod[] = []): string {
+export function mods_text(mods: readonly Mod[] = []): string {
   const parts: string[] = [];
   for (const mod of mods) {
     for (const [field, v] of Object.entries(mod.scale ?? {})) parts.push(`${field}*${short(v)}`);
@@ -29,7 +29,7 @@ function mods_text(mods: readonly Mod[] = []): string {
   return parts.length ? ` ${parts.map((p) => `+${p}`).join(" ")}` : "";
 }
 
-function goal_text(goal: Goal): string {
+export function goal_text(goal: Goal): string {
   if (goal.kind === "laps") return `laps${goal.laps}`;
   if (goal.kind === "time") return `time${goal.seconds}`;
   if (goal.kind === "stop") return `stop${goal.from_kmh}`;

@@ -190,6 +190,44 @@ Metric keys (numbers keep 3 significant digits):
 | `lock`, `thr`, `hb` | share | time at full lock, full throttle, handbrake |
 | `rev` | per s | steer reversals: tells a twitchy car from a driver sawing at it |
 
+## Sim before the owner drives: `scripts/lab.ts`
+
+Run it on every pack before sending the link (plan `docs/plan/feel-lab-v2.md`). It runs the headless scenarios for each trial's station on its lane's ground, across all cores (`--jobs n` to cap).
+
+```sh
+bun scripts/lab.ts <pack>                   # sim lines, deltas, drive time; exit 1 on a failed sim or a pack over budget
+bun scripts/lab.ts <pack> --base <trial>    # deltas against one trial instead of the first trial per station
+hq lock run -- bun scripts/lab.ts matrix [car]   # the car x setup matrix as a markdown table, all cars about 30 s
+```
+
+Pack output, one block per trial in the export's shape and key order, so a ` sim` line sits beside the owner's ` m` line:
+
+```
+#sim demo r1 base first trial per station
+#trial sturm-turbo1 sturm.4.0.2.1.2 +torque*1.15 +mass+10 spec#7a22f86b pi647A runway/asphalt run est 0m20s
+ sim 0-100=3.82 stop=28.5@100 top=303
+ d 0-100=-0.103 stop=+0.104 top=+10.9 vs sturm-race
+#end 8 trials, drive 5m09s + cards 6m00s = 11m09s
+```
+
+| Station | Scenarios (`scripts/lab/sims.ts`) | Keys |
+|---|---|---|
+| skidpad, sweeper, lava | telemetry's skidpad (best steady g at 70 km/h), feel's lift-off mid corner, assists on | `latg`, `slip` |
+| slalom, hairpin | feel's power on mid corner (TCS on), step steer t90 | `slip`, `lag` |
+| drift, eight | `catch_drift` from 60 km/h aiming 30°, and its let-go time | `slip` (peak), `held`, `rec` |
+| runway, oval, brake | telemetry: 0-100 TCS on, 100-0 ABS on, top speed | `0-100`, `stop@100`, `top` |
+| hub, hill, grid, kicker | none yet (` sim -`): landings and seams need the bot on the lab world (plan P2b), the hill a sloped scenario | |
+
+- Scenarios run on the flat ground named after the lane surface (`scripts/grounds.ts`, every lab surface has one). The drift scenarios only drive asphalt; their line ends `on asphalt` when the lane is another surface.
+- Keys steer with the trial's `aids.steer_mode` (Smooth by default); every other aid is the scenario's own, not the trial's.
+- `d` is the delta against the base: `--base`, else the pack's first trial on the same station. A trial with nothing in common with its base prints no `d`.
+- `est` and the `#end` budget come from `src/lab/budget.ts`: a lap or run per station (skidpad laps grow by `sqrt(1 / grip)` on low grip), a time goal's seconds, 45 s per card. Caps: 10 trials and 20 minutes; `pack.test.ts` holds every committed pack to them except the two written before them (`t1-surfaces`, `t2-drift`).
+- Numbers that never happened print as the scenario's limit: `0-100=20` never reached 100 km/h, the matrix's `kick` -1 never settled.
+
+The matrix (`scripts/lab/setups.ts`): per car its families (`stock`, `grip`, `aero`, `drift`, `dirt`, `max`, built from parts by name), every shipped preset of the car, and on the coupe a sweep of each tyre and aero part. `stock` and `dirt` also run on dirt, grass, sand, packed snow and ice. The bus is left out. Columns: spec hash, PI and class, 0-100, top, 100-0, skidpad g, step-steer t90, lift-off slip, power-on slip (2nd, TCS off), handbrake flick degrees, yaw kick settle at 220 km/h.
+
+Not built yet: the handling golden (`lab.ts golden`, P3), `lab.ts diff` between sessions (P5), `lab.ts promote` (P6).
+
 ## Reading results
 
 - Diff only like against like: same pack id and `r`. A changed `spec#` with the same trial id means the physics moved (a deploy changed the car); compare the numbers with that in mind.
@@ -223,4 +261,8 @@ Metric keys (numbers keep 3 significant digits):
 | `src/lab/results-store.ts` | the stored-numbers writer and reader |
 | `src/lab/lab-view.svelte.ts`, `LabOverlay.svelte`, `TrialList.svelte`, `ResultCard.svelte`, `Scale.svelte` | the overlay: strip, pack card, results and question card |
 
-Still to build (plan phases 5-6): shared lab cars (Tsumuji, Sajin), and `scripts/lab.ts` (`--check`, sim baselines as an ` sim` line, `--promote <trial>`).
+| `src/lab/budget.ts` | drive time per trial and the session caps |
+| `scripts/lab.ts`, `scripts/lab/*.ts` | sim lines per trial, the setup matrix, their worker pool |
+| `scripts/bench/feel-cases.ts`, `scripts/bench/telemetry-cases.ts` | the feel and telemetry scenarios as functions on a `CarSpec`; `scripts/feel.ts` and `telemetry.ts` print them |
+
+Still to build: shared lab cars (Tsumuji, Sajin), and the rest of `scripts/lab.ts` (golden, diff, promote; `docs/plan/feel-lab-v2.md` 10).
