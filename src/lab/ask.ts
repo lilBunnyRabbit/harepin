@@ -14,11 +14,14 @@ export const ASK: Question[] = [GRIP, PRED, FUN, NOTE];
 const DRIFT_STATIONS: ReadonlySet<StationId> = new Set<StationId>([StationId.DRIFT, StationId.EIGHT, StationId.SKIDPAD, StationId.HAIRPIN]);
 const LANDING_STATIONS: ReadonlySet<StationId> = new Set<StationId>([StationId.KICKER]);
 
-/** The plan's questions per station: drift ease where a slide is the point, landing on the kickers, and "vs last trial" when the trial before ran the same station. */
+/**
+ * The plan's questions per station: drift ease where a slide is the point, landing on the kickers, and "vs last trial"
+ * when the trial before ran the same station. A trial that names its own questions keeps them.
+ */
 export function with_station_asks(trials: Trial[]): Trial[] {
   return trials.map((trial, i) => ({
     ...trial,
-    ask: [
+    ask: trial.ask ?? [
       GRIP,
       PRED,
       FUN,

@@ -13,3 +13,8 @@ test("drift ease where sliding is the point, landing on the kickers, vs last onl
     ["grip", "pred", "fun", "note"],
   ]);
 });
+
+test("a trial's own questions stand", () => {
+  const own = { ...trial("a", "skidpad"), ask: [{ kind: "text" as const, id: "note", label: "Note" }] };
+  expect(with_station_asks([own])[0].ask).toEqual(own.ask);
+});
