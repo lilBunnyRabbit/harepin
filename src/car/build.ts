@@ -32,7 +32,7 @@ export interface Look {
   caliper?: { size: number; tone?: Token };
   /** Nitrous bottle length against the small tank's, and a second bottle beside it. */
   bottle?: { size: number; twin?: boolean };
-  /** Rear wing level (1 lip, 2 wing, 3 the biggest; a design's own wing list keeps its top wing past its end), a front lip or deeper splitter, side skirts and a rear diffuser. */
+  /** Rear wing level (1 lip, 2 wing, 3 the biggest; a design's own wing list keeps its top wing past its end), a front lip or deeper splitter, side skirts (and with them the design's bolt-on wide body, `Design.kit`) and a rear diffuser. */
   aero?: { wing: number; front?: "lip" | "splitter"; skirts?: boolean; diffuser?: boolean };
 }
 

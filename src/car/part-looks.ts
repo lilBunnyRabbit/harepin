@@ -1,17 +1,19 @@
 import * as THREE from "three";
 import { part_of, type Look, type Slot } from "./build";
 import type { CarSpec } from "./cars";
-import type { Design, Wing } from "./designs";
-import { box, extrude, face_at, parts, tint, top_at, type Point } from "./geometry";
+import type { Design, Slab, Wing } from "./designs";
+import { box, extrude, face_at, parts, slab, tint, top_at, type Point } from "./geometry";
 import { skirts } from "./body-shell";
 import { chrome_tone } from "./wheels";
-import { brand, color } from "../theme/palette";
 
 const WINGS = [
-  { lift: 0.24, span: 0.92, thick: 0.05, chord: 0.36 },
-  { lift: 0.4, span: 1, thick: 0.07, chord: 0.44 },
-  { lift: 0.42, span: 1.04, thick: 0.08, chord: 0.52 },
+  { lift: 0.24, span: 0.86, thick: 0.05, chord: 0.36 },
+  { lift: 0.4, span: 0.92, thick: 0.07, chord: 0.44 },
+  { lift: 0.42, span: 0.96, thick: 0.08, chord: 0.52 },
 ];
+
+/** How far a bolt-on wing's legs sink into the deck, so they meet it where it falls away from `deck`. */
+const LEG_SINK = 0.06;
 
 const NO_AERO: Required<Look>["aero"] = { wing: 0 };
 const FRONT_LEVEL = { lip: 1, splitter: 2 } as const;
@@ -20,21 +22,20 @@ const FRONT_LEVEL = { lip: 1, splitter: 2 } as const;
 const BULGE_BODY = 1.7;
 
 function own_wing(own: Wing, paint: THREE.Color, trim: THREE.Color): THREE.BufferGeometry[] {
-  return [...parts(own.paint).map((g) => tint(g, paint)), ...parts(own.trim).map((g) => tint(g, trim))];
+  const shapes = (list: Slab[] = []) => list.flatMap((s) => slab(s.points, s.from, s.to));
+  return [...parts(own.paint), ...shapes(own.lips)].map((g) => tint(g, paint)).concat([...parts(own.trim), ...shapes(own.stands)].map((g) => tint(g, trim)));
 }
 
 function wing(level: number, d: Design, paint: THREE.Color, trim: THREE.Color): THREE.BufferGeometry[] {
   const { width, deck: [z, y] } = d;
-  if (level === 0) {
-    if (!d.ducktail) return [];
-    return [tint(box(1.6, 0.05, 0.3, 0, y + 0.13, z), paint), ...[-1, 1].map((side) => tint(box(0.06, 0.13, 0.12, side * 0.6, y + 0.065, z + 0.02), trim))];
-  }
+  if (level === 0) return [];
   const { lift, span: share, thick, chord } = WINGS[Math.min(level, WINGS.length) - 1];
   const span = width * share;
+  const foot = top_at(d.outline, z) - LEG_SINK;
   const out = [tint(box(span, thick, chord, 0, y + lift, z - 0.04), paint)];
   if (level > 2) out.push(tint(new THREE.BoxGeometry(span, 0.035, 0.2).rotateX(0.55).translate(0, y + lift + 0.09, z - 0.04 - chord / 2), paint));
   for (const side of [-1, 1]) {
-    out.push(tint(box(0.06, lift, 0.14, side * width * 0.32, y + lift / 2, z), trim));
+    out.push(tint(box(0.06, y + lift - foot, 0.14, side * width * 0.32, (y + lift + foot) / 2, z), trim));
     if (level === 2) out.push(tint(box(0.04, 0.2, 0.48, (side * span) / 2, y + lift, z - 0.04), trim));
     if (level > 2) out.push(tint(box(0.03, 0.24, chord + 0.1, (side * span) / 2, y + lift + 0.05, z - 0.09), trim));
   }
@@ -64,7 +65,7 @@ export function aero_parts(d: Design, spec: CarSpec, aero: Required<Look>["aero"
     if (splitter) {
       const y = low + 0.17;
       const z = face_at(d.outline, y);
-      for (const side of [-1, 1]) out.push(tint(new THREE.BoxGeometry(0.18, 0.016, 0.14).rotateZ(side * 0.3).translate(side * (d.width / 2 - 0.12), y, z + 0.03), trim));
+      for (const side of [-1, 1]) out.push(tint(box(0.18, 0.016, 0.14, side * (d.width / 2 - 0.12), y, z + 0.03), trim));
     }
   }
   if (aero.skirts && d.arches.steps > 0) out.push(...skirts(d, spec, 0.07, 0.16).map((g) => tint(g, paint)));
@@ -119,21 +120,6 @@ export function kit_parts(d: Design, kit: Record<Slot, number>, paint: THREE.Col
         out.push(tint(new THREE.CylinderGeometry(r, r, 0.22, 8).rotateX(Math.PI / 2).translate(side * at, py, pz - 0.05), chrome));
         out.push(tint(new THREE.CylinderGeometry(r * 0.65, r * 0.65, 0.22, 8).rotateX(Math.PI / 2).translate(side * at, py, pz - 0.056), trim));
       }
-  }
-  const bottle = part_of("nitro", kit.nitro).look?.bottle;
-  if (bottle && d.bottles !== "inside") {
-    const rear = d.cabin.points[d.cabin.points.length - 1][0];
-    const tail = d.outline[d.outline.length - 1][0];
-    const r = 0.065 * bottle.size;
-    const z = typeof d.bottles === "number" ? d.bottles : (rear + tail) / 2;
-    const y = top_at(d.outline, z) + r;
-    const length = 0.46 * bottle.size;
-    const tank = color(brand.info);
-    const chrome = chrome_tone();
-    for (const dz of bottle.twin ? [-r * 1.1, r * 1.1] : [0]) {
-      out.push(tint(new THREE.CylinderGeometry(r, r, length, 10).rotateZ(Math.PI / 2).translate(0, y, z + dz), tank));
-      out.push(tint(new THREE.CylinderGeometry(r * 0.45, r * 0.6, 0.08, 8).rotateZ(Math.PI / 2).translate(length / 2 + 0.04, y, z + dz), chrome));
-    }
   }
   return out;
 }

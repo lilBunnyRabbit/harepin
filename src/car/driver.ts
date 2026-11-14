@@ -230,7 +230,6 @@ export class Driver {
     view.root.position.copy(drawn.pos);
     view.root.quaternion.copy(drawn.quat);
     view.heads.visible = chase.mode !== 1 || chase.top;
-    if (view.halo) view.halo.visible = view.heads.visible;
     chase.eye = view.eye;
     chase.size = this.size;
     place_contact_shadow(this.shadow, drawn.pos.x, drawn.pos.y, drawn.pos.z, car.heading, this.world);
