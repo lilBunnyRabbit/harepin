@@ -4,6 +4,7 @@ import { apply_theme, current_theme } from "./theme/theme";
 import { pick_world } from "./world/world-pick";
 import { start_early } from "./world/world-worker";
 import { RELEASE_PARAM, SHOWCASE_PARAM } from "./review/params";
+import { CARS_PARAM } from "./viewer/params";
 
 // The loading screen, and the failure note if the bundle never arrives, wear the player's theme from the first frame.
 apply_theme(current_theme());
@@ -13,10 +14,12 @@ const params = new URLSearchParams(location.search);
 // Tested inline, not through `REVIEW_BUILD`, so a production build drops the showcase chunk outright.
 const showcase = (import.meta.env.MODE === "review" || import.meta.env.DEV) && params.has(SHOWCASE_PARAM);
 const release = (import.meta.env.MODE === "review" || import.meta.env.DEV) && params.has(RELEASE_PARAM);
-if (!showcase && !release) start_early(pick_world(params, clean_room(params.get("room")) ?? LOBBY_ROOM, read_saved_pick()));
+const cars = params.has(CARS_PARAM);
+if (!showcase && !release && !cars) start_early(pick_world(params, clean_room(params.get("room")) ?? LOBBY_ROOM, read_saved_pick()));
 try {
   if ((import.meta.env.MODE === "review" || import.meta.env.DEV) && showcase) await import("./review/showcase");
   else if ((import.meta.env.MODE === "review" || import.meta.env.DEV) && release) await import("./review/release");
+  else if (cars) await import("./viewer/viewer");
   else await import("./main");
 } catch (error) {
   console.error(error);

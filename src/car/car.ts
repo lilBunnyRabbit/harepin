@@ -239,6 +239,16 @@ function loose_at(s: number): number {
   return Math.sin(curve_c * Math.atan(curve_b * s));
 }
 
+// Each front points at the rear-axle turn centre, so at full lock inner and outer stop fighting each other.
+/** Road wheel angle, radians, of the wheel mounted at `x` (positive on the left) for the car's `steer`. */
+export function ackermann(steer: number, wheelbase: number, x: number): number {
+  if (Math.abs(steer) < 1e-4) return steer;
+  const centre = wheelbase / Math.tan(Math.abs(steer));
+  const half = Math.abs(x);
+  const inner = steer > 0 !== x > 0;
+  return Math.sign(steer) * Math.atan(wheelbase / (centre + (inner ? -half : half)));
+}
+
 /** Suspension reach with the car parked on flat ground, for views that have no sim behind them. */
 export function rest_reach(spec: CarSpec): number {
   return spec.wheel.rest + spec.wheel.radius - static_sag(spec);
@@ -563,15 +573,8 @@ export class Car {
     this.shifting = this.spec.shift_time;
   }
 
-  // Each front points at the rear-axle turn centre, so at full lock inner and outer stop fighting each other.
   private ackermann(w: Wheel): number {
-    const steer = this.steer;
-    if (Math.abs(steer) < 1e-4) return steer;
-    const { wheelbase } = this.spec;
-    const centre = wheelbase / Math.tan(Math.abs(steer));
-    const half = Math.abs(w.mount.x);
-    const inner = steer > 0 !== w.left;
-    return Math.sign(steer) * Math.atan(wheelbase / (centre + (inner ? -half : half)));
+    return ackermann(this.steer, this.spec.wheelbase, w.mount.x);
   }
 
   private ratio(gear = this.gear): number {

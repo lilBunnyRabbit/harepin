@@ -43,6 +43,7 @@ One level of feature folders under `src/`. Each folder owns its modules, tests (
 | `theme/` | palette and themes |
 | `lab/` | the feel lab, hidden, on `?lab=<pack>` or `?lab=~<code>`: packs of trials, trial resolve to a spec, the per-step recorder and the export block. How it works, how to write a pack and promote a winner: [docs/lab.md](docs/lab.md) |
 | `review/` | visual review for agents, in dev and `vite build --mode review` only (a production build drops it): `?showcase` sheets, `?view=` viewpoints, `?replay=` ghost shots, and the catalog `scripts/shots.ts` reads |
+| `viewer/` | the car viewer, hidden, on `?cars` (ships in production): real car models on a stage, orbit, per-build notes and pins, Copy export block; `scripts/car-view.ts` shoots a block's views. [docs/cars.md](docs/cars.md) |
 
 Championships and seasons:
 
