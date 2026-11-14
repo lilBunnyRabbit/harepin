@@ -8,6 +8,8 @@ import type { Panel } from "./livery";
 const PANEL_MARGIN = 0.06;
 const PANEL_FLOOR = 0.08;
 const PANEL_ROOF = 0.05;
+// The flare's opening and floor sit this far inside the body's arch cut and sill, or they share a plane and flicker.
+const FLARE_PROUD = 0.004;
 
 export function cabin_parts(c: Cabin, paint: THREE.Color, glass: THREE.Color): THREE.BufferGeometry[] {
   const ys = c.points.map(([, y]) => y);
@@ -36,9 +38,10 @@ export function flares(d: Design, spec: CarSpec): THREE.BufferGeometry[] {
   const edge = d.width / 2;
   const body_top = (at: number) => Math.max(top_at(d.outline, at), ...(d.slabs ?? []).map((s) => top_at(s.points, at)));
   return axles_of(spec).flatMap(({ z }) => {
-    const opening = arc(z, y, inner, d.sill, d.arches.steps);
+    const opening = arc(z, y, inner - FLARE_PROUD, d.sill, d.arches.steps);
     const lip = arc(z, y, inner + d.arches.flare, d.sill, d.arches.steps).map(([lz, ly], i): Point => [lz, Math.max(opening[i][1], Math.min(ly, body_top(lz)))]);
-    return slab([...lip, ...opening.reverse()], edge - d.arches.reach, edge + d.arches.out);
+    const lifted = [...lip, ...opening.reverse()].map(([pz, py]): Point => [pz, Math.max(py, d.sill + FLARE_PROUD)]);
+    return slab(lifted, edge - d.arches.reach, edge + d.arches.out);
   });
 }
 

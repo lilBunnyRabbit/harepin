@@ -13,6 +13,9 @@ const WINGS = [
   { lift: 0.42, span: 0.96, thick: 0.08, chord: 0.52 },
 ];
 
+// Under the 12 mm hood stripes and vents a design stands proud, so they stay on the bare panel instead of sharing its top.
+const BARE_LIFT = 0.009;
+
 /** How far a bolt-on wing's legs sink into the deck, so they meet it where it falls away from `deck`. */
 const LEG_SINK = 0.06;
 
@@ -38,7 +41,7 @@ function wing(level: number, d: Design, paint: THREE.Color, trim: THREE.Color): 
   for (const side of [-1, 1]) {
     out.push(tint(box(0.06, y + lift - foot, 0.14, side * width * 0.32, (y + lift + foot) / 2, z), trim));
     if (level === 2) out.push(tint(box(0.04, 0.2, 0.48, (side * span) / 2, y + lift, z - 0.04), trim));
-    if (level > 2) out.push(tint(box(0.03, 0.24, chord + 0.1, (side * span) / 2, y + lift + 0.05, z - 0.09), trim));
+    if (level > 2) out.push(tint(box(0.03, 0.24, chord + 0.11, (side * span) / 2, y + lift + 0.05, z - 0.085), trim));
   }
   return out;
 }
@@ -86,7 +89,7 @@ function hood_tilt(d: Design, z: number): number {
 
 function panel(outline: Point[], from: number, to: number, width: number): THREE.BufferGeometry {
   const zs = Array.from({ length: 7 }, (_, i) => from + ((to - from) * i) / 6);
-  const top = zs.map((z): Point => [z, top_at(outline, z) + 0.012]);
+  const top = zs.map((z): Point => [z, top_at(outline, z) + BARE_LIFT]);
   const under = [...zs].reverse().map((z): Point => [z, top_at(outline, z) - 0.02]);
   return extrude([...top, ...under], width);
 }

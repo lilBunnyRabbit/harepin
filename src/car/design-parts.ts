@@ -7,6 +7,8 @@ export const MIRROR: Triple = [0.16, 0.1, 0.18];
 const PROUD = 0.012;
 const LAMP_DEPTH = 0.04;
 const PLATE: Triple = [0.17, 0.1, 0.02];
+// The panel stands this far past `half` and `h`, so a body side or lamp that ends there never shares its face.
+const SEAT = 0.004;
 
 export interface TailEnd {
   trim: Part[];
@@ -31,7 +33,7 @@ export function tail_end(outline: Point[], y: number, h: number, half: number, l
   const on_panel = Math.abs(plate_y - y) < h / 2;
   const plate_face = on_panel ? panel_back : tail_face(outline, plate_y - 0.05, plate_y + 0.05)[0];
   return {
-    trim: [{ size: [half, h, thick], at: [half / 2, y, panel_back + thick / 2] }],
+    trim: [{ size: [half + SEAT, h + 2 * SEAT, thick], at: [(half + SEAT) / 2, y, panel_back + thick / 2] }],
     tails: [
       ...lamps.map((lamp): Part => ({ ...lamp, size: [lamp.size[0], lamp.size[1], LAMP_DEPTH], at: [lamp.at[0], lamp.at[1], lamp_z] })),
       ...(bar ? [{ size: [bar.half, bar.h ?? 0.035, LAMP_DEPTH], at: [bar.half / 2, bar.y, lamp_z] } satisfies Part] : []),

@@ -204,7 +204,7 @@ const SIDEPOD: Point[] = [[-0.14, 0.22], [-0.1, 0.48], [-0.45, 0.5], [-0.85, 0.4
 // The rear wing stands over the back of the rear wheels: each endplate is wide at the planes and narrows to a foot on
 // the beam, which ties both to the tail.
 const RACE_ENDPLATE: Slab = { points: [[-1.58, 1.04], [-2.12, 1.04], [-2.12, 0.39], [-1.96, 0.39], [-1.9, 0.7], [-1.64, 0.8]], from: 0.485, to: 0.515 };
-const RACE_BEAM: Part = { size: [0.485, 0.035, 0.18], at: [0.2425, 0.41, -2.02] };
+const RACE_BEAM: Part = { size: [0.485, 0.035, 0.18], at: [0.2425, 0.414, -2.02] };
 const race_plane = (chord: number, tilt: number): Part => ({ size: [0.485, 0.04, chord], at: [0.2425, 0.9, -1.82], tilt: [tilt, 0, 0] });
 const race_flap = (chord: number, tilt: number): Part => ({ size: [0.485, 0.03, chord], at: [0.2425, 0.985, -2.02], tilt: [tilt, 0, 0] });
 const race_wing = (plane: Part, flap: Part): Wing => ({ paint: [], trim: [RACE_BEAM, plane, flap], lips: [RACE_ENDPLATE] });
@@ -229,8 +229,8 @@ export const DESIGNS: Record<BodyStyle, Design> = {
     paint: [mirror(COUPE_CABIN, 0.7, MIRROR, COUPE_SECTION.shoulder)],
     trim: [
       { size: [0.34, 0.07, 0.05], at: [0.17, 0.48, 2.33] },
-      { size: [0.94, 0.12, 0.08], at: [0.47, 0.36, 2.3] },
-      { size: [0.94, 0.12, 0.08], at: [0.47, 0.36, -2.3] },
+      { size: [0.94, 0.12, 0.08], at: [0.47, 0.356, 2.3] },
+      { size: [0.94, 0.12, 0.08], at: [0.47, 0.356, -2.3] },
       ...COUPE_TAIL.trim,
     ],
     markers: [],
@@ -403,7 +403,7 @@ export const DESIGNS: Record<BodyStyle, Design> = {
       { size: [0.06, 0.32, 0.14], at: [1.5, 2.28, 5.55] },
       { size: [0.26, 0.04, 0.04], at: [1.36, 2.46, 5.58] },
       { size: [0.8, 0.2, 2.6], at: [0.4, 3.12, -1.4] },
-      ...[2.6, 1.3, 0, -1.3, -2.6, -5.1].map((z): Part => ({ size: [0.03, 1.38, 0.1], at: [1.252, 1.92, z] })),
+      ...[2.6, 1.3, 0, -1.3, -2.6, -5.1].map((z): Part => ({ size: [0.03, 1.38, 0.1], at: [1.255, 1.92, z] })),
     ],
     trim: [
       { size: [0.03, 2.2, 1.1], at: [1.258, 1.5, 4.75] },
@@ -466,7 +466,7 @@ export const DESIGNS: Record<BodyStyle, Design> = {
       { paint: [], trim: [nose_flap(0.17, 0.205, 0.3), nose_flap(0.12, 0.265, 0.45)] },
     ],
     slabs: [
-      { points: SIDEPOD, from: 0.21, to: 0.66 },
+      { points: SIDEPOD, from: 0.2, to: 0.66 },
       { points: SPINE, from: 0, to: 0.07 },
     ],
     panel: { rear: -0.86, front: -0.2, low: 0.16, high: 0.4, side: 0.66 },

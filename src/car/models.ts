@@ -165,7 +165,7 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
     tint(d.taper ? taper(shell_body, d.taper.from, tail, d.taper.share) : shell_body, paint),
     flares(d, spec).map((g) => tint(g, arch_tone)),
     (d.slabs ?? []).flatMap((slab_part) => slab(slab_part.points, slab_part.from, slab_part.to)).map((g) => tint(g, paint)),
-    skirts(d, spec, 0.03, 0.09).map((g) => tint(g, trim)),
+    (aero.skirts ? [] : skirts(d, spec, 0.03, 0.09)).map((g) => tint(g, trim)),
     parts(d.paint).map((g) => tint(g, paint)),
     parts(d.trim).map((g) => tint(g, trim)),
     parts(livery && livery.decal !== "none" ? [] : (d.stripes ?? [])).map((g) => tint(g, trim)),
