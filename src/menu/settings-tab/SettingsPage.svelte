@@ -52,21 +52,24 @@
 
 <div class="set">
   <nav class="set-nav" aria-label="Settings sections">
-    {#each SECTIONS as section (section.id)}
-      <Tile
-        title={section.label}
-        meta={summary(section.id, live.prefs, tier, theme)}
-        icon={section.icon}
-        size="sm"
-        variant="nav"
-        selected={nav.top() === section.id}
-        onclick={() => nav.show(section.id)}
-      />
-    {/each}
+    <div class="set-tiles">
+      {#each SECTIONS as section (section.id)}
+        <Tile
+          title={section.label}
+          meta={summary(section.id, live.prefs, tier, theme)}
+          icon={section.icon}
+          size="sm"
+          variant="nav"
+          selected={nav.top() === section.id}
+          onclick={() => nav.show(section.id)}
+        />
+      {/each}
+    </div>
     <div class="set-foot">
-      <span class="set-version">v{menu.host.version}</span>
-      <Button variant="quiet" size="sm" title="The first-run guide, with your current choices" onclick={open_guide}>Guide</Button>
-      <Button variant="quiet" size="sm" aria-current={nav.sub === CHANGES} onclick={() => nav.show(CHANGES)}>What's new</Button>
+      <Button variant="quiet" size="sm" class="set-link" aria-current={nav.sub === CHANGES} onclick={() => nav.show(CHANGES)}>
+        What's new<span class="set-version">v{menu.host.version}</span>
+      </Button>
+      <Button variant="quiet" size="sm" class="set-link" title="The first-run guide, with your current choices" onclick={open_guide}>Guide</Button>
     </div>
   </nav>
 
@@ -131,6 +134,14 @@
 
   .set-nav {
     grid-area: nav;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--set-well);
+  }
+
+  .set-tiles {
     display: flex;
     flex-direction: column;
     gap: var(--space-2);
@@ -138,29 +149,45 @@
     padding: var(--space-4) var(--space-3);
     overflow-y: auto;
     scrollbar-width: none;
-    background: var(--set-well);
   }
 
   .set-foot {
     display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-1) var(--space-2);
-    margin-top: auto;
-    padding: var(--space-3) var(--space-1) 0;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-3);
+    border-top: 1px solid var(--set-line);
+  }
+
+  .set-foot :global(.set-link) {
+    justify-content: space-between;
+    gap: var(--space-3);
+    width: 100%;
+    height: var(--control-h);
+    padding: 0 var(--space-3);
+    color: var(--foreground);
+  }
+
+  .set-foot :global(.set-link:hover:not(:disabled)) {
+    background: color-mix(in oklch, var(--set-raised) 50%, transparent);
+  }
+
+  .set-foot :global(.set-link[aria-current="true"]) {
+    border-color: var(--set-line);
+    background: var(--set-raised);
   }
 
   .set-version {
-    padding-right: var(--space-1);
-    color: var(--set-dim);
+    padding: var(--space-0) var(--space-2);
+    border-radius: var(--radius-full);
+    background: var(--set-raised);
     font-family: var(--font-mono);
     font-size: var(--text-xs);
+    font-weight: 600;
   }
 
-  .set-foot :global(.ui-button[aria-current="true"]) {
-    color: var(--foreground);
-    text-decoration: underline 2px;
-    text-underline-offset: 4px;
+  .set-foot :global(.set-link[aria-current="true"] .set-version) {
+    background: var(--set-well);
   }
 
   .set-main {
@@ -291,8 +318,16 @@
     }
 
     .set-nav {
+      display: flex;
+      flex-direction: column;
       gap: var(--space-1);
       padding: var(--space-2) var(--space-1);
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+
+    .set-tiles {
+      display: contents;
     }
 
     .set-version,
@@ -301,17 +336,16 @@
     }
 
     .set-foot {
-      flex-direction: column;
-      align-items: stretch;
+      margin-top: var(--space-1);
       padding: var(--space-2) 0 0;
     }
 
-    .set-foot :global(.ui-button) {
+    .set-foot :global(.set-link) {
+      justify-content: center;
       height: auto;
       min-height: var(--control-h-sm);
-      padding: var(--space-1);
+      padding: var(--space-1) 0;
       font-size: var(--text-xs);
-      white-space: normal;
     }
 
     .set-head {
