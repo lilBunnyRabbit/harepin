@@ -3,7 +3,7 @@ import { DEFAULT_BUILD, build_code, build_spec, parse_build, type Build } from "
 import { oversize, type CarSpec } from "../car/cars";
 import { contact_shadow, fit_contact_shadow, place_contact_shadow, type ContactShadow } from "../car/contact-shadow";
 import { chunk_of } from "../worldgen/chunk-grid";
-import { set_lights, show_flame, swing_popups } from "../car/lights";
+import { set_lights, show_flame, snap_lights, swing_popups } from "../car/lights";
 import { build_view, camera_fade, dispose_car_view, rest_wheels, type CarView } from "../car/models";
 import type { World } from "../world/world";
 import { tier_badge, tier_look } from "../career/badge";
@@ -69,9 +69,10 @@ function build_of(state: CarState): Resolved {
 }
 
 // Each remote gets its own material copies so its fade never touches another car.
-function translucent_view(build: Build, spec: CarSpec): { view: CarView; materials: THREE.Material[] } {
+function translucent_view(build: Build, spec: CarSpec, lights: boolean): { view: CarView; materials: THREE.Material[] } {
   const view = build_view(build, spec);
   rest_wheels(view, spec);
+  snap_lights(view, lights);
   const copies = new Map<THREE.Material, THREE.Material>();
   view.root.traverse((object) => {
     // The flame stays additive with no depth write; a faded copy would turn it into a see-through solid.
@@ -139,13 +140,13 @@ export class Remotes {
       this.scene.remove(rv.view.root);
       dispose_car_view(rv.view);
       const spec = build_spec(build);
-      Object.assign(rv, { code, spec, built: now, above: ABOVE * oversize(spec).height }, translucent_view(build, spec));
+      Object.assign(rv, { code, spec, built: now, above: ABOVE * oversize(spec).height }, translucent_view(build, spec, remote.latest.lights ?? true));
       fit_contact_shadow(rv.shadow, spec);
       this.scene.add(rv.view.root);
     }
     if (!rv) {
       const spec = build_spec(build);
-      const { view, materials } = translucent_view(build, spec);
+      const { view, materials } = translucent_view(build, spec, remote.latest.lights ?? true);
       this.scene.add(view.root);
       const label = document.createElement("div");
       label.className = "label";
