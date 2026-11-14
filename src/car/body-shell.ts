@@ -264,10 +264,23 @@ function folded_slab(points: Point[], from: number, to: number, cuts: Cut[]): TH
 /**
  * A slab cut where the body side folds: at the belt, where the nose and tail pinch start, and at the crest over the body
  * top. Its side then bends with the body's, so a lip as wide as the body stays on the body side instead of bridging the
- * bend and standing proud of it.
+ * bend and standing proud of it. A `straight` slab skips the pinch folds and keeps one width instead.
  */
 export function fitted_slab(d: Design, s: Slab): THREE.BufferGeometry[] {
-  return folded_slab(s.points, s.from, s.to, [...folds(d), ...crest(d)]);
+  const anchor = s.straight;
+  if (anchor === undefined) return folded_slab(s.points, s.from, s.to, [...folds(d), ...crest(d)]);
+  const cuts = [...folds(d), ...crest(d)].filter(({ n }) => n[1] !== 0);
+  return folded_slab(s.points, s.from, s.to, cuts).map((g) => unpinched(g, d, anchor));
+}
+
+/** Widens `geometry` so that, once sculpted with the body, it is as wide along its whole length as the body is at z `anchor`. */
+function unpinched(geometry: THREE.BufferGeometry, d: Design, anchor: number): THREE.BufferGeometry {
+  const position = geometry.getAttribute("position");
+  for (let i = 0; i < position.count; i++) {
+    const y = position.getY(i);
+    position.setX(i, (position.getX(i) * sculpt_factor(d, y, anchor)) / sculpt_factor(d, y, position.getZ(i)));
+  }
+  return geometry;
 }
 
 /** The design's raised side profiles, each less the wheel openings and cut where the body side folds. */

@@ -40,6 +40,11 @@ export interface Slab {
   points: Point[];
   from: number;
   to: number;
+  /**
+   * A z whose body width the whole slab keeps, so it stands straight in plan instead of bending where the nose or tail
+   * pinch starts: a swept wing riser that crosses the fold. It still leans with the shoulder.
+   */
+  straight?: number;
 }
 
 export interface Arches {
@@ -193,6 +198,8 @@ export interface Detail {
   stands?: Slab[];
   /** Bare panels: paint rubbed back toward trim. */
   bare?: Part[];
+  /** Grown out of the bonnet, in its tone: paint, or bare on a lightened car whose bonnet is. */
+  hood?: Part[];
   /** Lying on the cabin glass and leaned with it: bars in chrome, slats in paint, a banner in the light tone. */
   cage?: Part[];
   louvres?: Part[];
