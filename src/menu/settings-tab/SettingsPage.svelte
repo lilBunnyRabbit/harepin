@@ -66,10 +66,10 @@
       {/each}
     </div>
     <div class="set-foot">
-      <Button variant="quiet" size="sm" class="set-link" aria-current={nav.sub === CHANGES} onclick={() => nav.show(CHANGES)}>
-        What's new<span class="set-version">v{menu.host.version}</span>
+      <Button variant="quiet" size="sm" class="set-pill" title="What's new" aria-label={`What's new in v${menu.host.version}`} aria-current={nav.sub === CHANGES} onclick={() => nav.show(CHANGES)}>
+        <span class="set-dot"></span>v{menu.host.version}
       </Button>
-      <Button variant="quiet" size="sm" class="set-link" title="The first-run guide, with your current choices" onclick={open_guide}>Guide</Button>
+      <Button variant="quiet" size="sm" class="set-guide" title="The first-run guide, with your current choices" onclick={open_guide}>Guide</Button>
     </div>
   </nav>
 
@@ -153,41 +153,44 @@
 
   .set-foot {
     display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
-    padding: var(--space-3);
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-4);
     border-top: 1px solid var(--set-line);
   }
 
-  .set-foot :global(.set-link) {
-    justify-content: space-between;
-    gap: var(--space-3);
-    width: 100%;
-    height: var(--control-h);
-    padding: 0 var(--space-3);
+  .set-foot :global(.set-pill) {
+    border-color: var(--line-strong);
+    border-radius: var(--radius-full);
+    background: var(--set-raised);
+    color: var(--foreground);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+  }
+
+  .set-foot :global(.set-pill:hover:not(:disabled)) {
+    border-color: var(--primary);
+  }
+
+  .set-foot :global(.set-pill[aria-current="true"]) {
+    border-color: var(--primary);
+  }
+
+  .set-dot {
+    flex: none;
+    width: var(--space-2);
+    height: var(--space-2);
+    border-radius: var(--radius-full);
+    background: var(--primary);
+  }
+
+  .set-foot :global(.set-guide) {
     color: var(--foreground);
   }
 
-  .set-foot :global(.set-link:hover:not(:disabled)) {
-    background: color-mix(in oklch, var(--set-raised) 50%, transparent);
-  }
-
-  .set-foot :global(.set-link[aria-current="true"]) {
-    border-color: var(--set-line);
+  .set-foot :global(.set-guide:hover:not(:disabled)) {
     background: var(--set-raised);
-  }
-
-  .set-version {
-    padding: var(--space-0) var(--space-2);
-    border-radius: var(--radius-full);
-    background: var(--set-raised);
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
-    font-weight: 600;
-  }
-
-  .set-foot :global(.set-link[aria-current="true"] .set-version) {
-    background: var(--set-well);
   }
 
   .set-main {
@@ -330,18 +333,20 @@
       display: contents;
     }
 
-    .set-version,
+    .set-dot,
     .set-legend {
       display: none;
     }
 
     .set-foot {
+      flex-direction: column;
+      align-items: stretch;
+      gap: var(--space-1);
       margin-top: var(--space-1);
       padding: var(--space-2) 0 0;
     }
 
-    .set-foot :global(.set-link) {
-      justify-content: center;
+    .set-foot :global(.ui-button) {
       height: auto;
       min-height: var(--control-h-sm);
       padding: var(--space-1) 0;
