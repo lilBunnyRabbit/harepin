@@ -27,7 +27,8 @@ The owner's favourite was the round-4 hatch: a thin lip that follows the wheel o
 - Black trim only where the reference has plastic arches (hatch, rally). Body colour everywhere else.
 - The opening and its lip are six even facets, the same angle as the 12-sided wheels. The lip keeps one width all the way round and on both axles; under a low bonnet the whole lip narrows instead of thinning at the top.
 - Every opening clears its tyre at full steering lock with the widest tyre the car can fit. A kit that needs more room gets a wider gap or a narrower front tyre.
-- Open-wheel cars: suspension arms run from the body to the hub centre, and no arm, floor or wing shows through a tyre. `model-faces.test.ts` checks all of this.
+- The car reads solid: a dark well closes each opening between the tyres, so no arch shows the far wheel.
+- Open-wheel cars: suspension arms run from the body side (never over its top) to the hub centre, and no arm, floor or wing shows through a tyre. `model-faces.test.ts` checks all of this.
 
 ## Spoilers and wings
 

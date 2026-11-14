@@ -24,6 +24,8 @@ export interface Cabin {
   glass_to?: number;
   /** Base points from the tail forward, under the body top: they lift a base that would cross a wheel opening. */
   floor?: Point[];
+  /** An open cockpit's driver: the whole shape is a helmet in the glass tone, with no frame or screens. */
+  helmet?: boolean;
 }
 
 /** A side profile [z, y] extruded between two distances from the centre, mirrored: wing bulges and haunches. */
@@ -224,11 +226,12 @@ const race_plane = (chord: number, tilt: number): Part => ({ size: [0.485, 0.04,
 const race_flap = (chord: number, tilt: number): Part => ({ size: [0.485, 0.03, chord], at: [0.2425, 0.985, -2.02], tilt: [tilt, 0, 0] });
 const race_wing = (plane: Part, flap: Part): Wing => ({ paint: [], trim: [RACE_BEAM, plane, flap], lips: [RACE_ENDPLATE] });
 
-// A lower wishbone at hub height and an upper one over it, both square to the car: a raked leg would run through the
-// tyre at full lock. Each ends inside the rim.
-const wishbones = (z: number, body: number, hub: number): Arm => ({
-  pivot: [body, 0.33, z],
-  trim: [rod([body, 0.33, z], [hub, 0.33, z], 0.025, 0.1), rod([body, 0.43, z], [hub - 0.02, 0.42, z], 0.025, 0.07)],
+const FORMULA_HUB = 0.33;
+// Two legs from the chassis side, `high` and `low` on it, to the hub centre, both square to the car: a raked leg would
+// run through the tyre at full lock. They start inside the chassis side and end inside the rim.
+const wishbones = (z: number, side: number, high: number, low: number, hub: number): Arm => ({
+  pivot: [side, FORMULA_HUB, z],
+  trim: [high, low].map((y) => rod([side, y, z], [hub, FORMULA_HUB, z], 0.025, 0.08)),
   markers: [],
 });
 
@@ -455,7 +458,7 @@ export const DESIGNS: Record<BodyStyle, Design> = {
     width: 0.44,
     section: FORMULA_SECTION,
     sill: 0.1,
-    cabin: { points: [[0.78, 0.6], [0.8, 0.72], [0.74, 0.82], [0.6, 0.84], [0.52, 0.78], [0.5, 0.6]], width: 0.2, tumble: 0.2, frame: [0.02, 0.02, 0.05, 0.12, 0.14, 0.1], screens: [[1, 0.03]] },
+    cabin: { points: [[0.8, 0.54], [0.83, 0.7], [0.76, 0.8], [0.62, 0.82], [0.52, 0.75], [0.5, 0.54]], width: 0.26, tumble: 0.3, frame: [], screens: [], helmet: true },
     arches: { gap: 0, steps: 0, flare: 0, out: 0, reach: 0, tone: "trim" },
     heads: [{ size: [0.05, 0.035, 0.14], at: [0.21, 0.38, 1.75], tilt: [0.18, 0, 0] }],
     tails: [{ size: [0.07, 0.08, 0.03], at: [0.035, 0.22, -2.135] }],
@@ -477,7 +480,7 @@ export const DESIGNS: Record<BodyStyle, Design> = {
     hood: [-0.6, 0.62],
     exhaust: [0, 0.34, -1.98],
     taper: { from: -0.3, share: 0.42 },
-    arms: [wishbones(1.6, 0.1, 0.66), wishbones(-1.45, 0.06, 0.61)],
+    arms: [wishbones(1.6, 0.16, 0.4, 0.25, 0.7), wishbones(-1.45, 0.1, 0.4, 0.22, 0.66)],
     wings: [
       race_wing(race_plane(0.3, 0.1), race_flap(0.12, 0.4)),
       race_wing(race_plane(0.32, 0.14), race_flap(0.15, 0.5)),

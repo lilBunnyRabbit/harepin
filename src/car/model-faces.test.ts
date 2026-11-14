@@ -243,10 +243,12 @@ test("no body part or arm stands in a tyre, straight or at full lock, on every c
 // An arm end this close to the axle line, inside the wheel, is on the hub.
 const HUB = 0.06;
 
-test("every suspension arm runs from the body to its wheel's hub", async () => {
+test("every suspension arm runs from the body side to its wheel's hub", async () => {
   const { build_view, dispose_car_view, rest_wheels } = await import("./models");
   const { build_spec } = await import("./build");
   const { DESIGNS } = await import("./designs");
+  const { sculpt_factor } = await import("./body-shell");
+  const { top_at } = await import("./geometry");
   const { axle_index, axles_of } = await import("./axles");
   const found: string[] = [];
   for (const car of Object.keys(CARS) as CarId[]) {
@@ -264,6 +266,45 @@ test("every suspension arm runs from the body to its wheel's hub", async () => {
       const points = body_faces(arm.group, view.root).flatMap((face) => [face.a, face.b, face.c]);
       if (!points.some((q) => Math.abs(q.x) >= inner && Math.abs(q.x) <= Math.abs(centre.x) && Math.hypot(q.y - centre.y, q.z - centre.z) < HUB)) found.push(`${car} wheel ${w}: no arm reaches the hub`);
       if (!points.some((q) => Math.abs(q.x) < d.width / 2)) found.push(`${car} wheel ${w}: no arm reaches the body`);
+      const tail = d.outline[d.outline.length - 1][0];
+      const taper = (z: number) => (d.taper ? 1 - (1 - d.taper.share) * Math.max(0, Math.min(1, (d.taper.from - z) / (d.taper.from - tail))) : 1);
+      const over = points.filter((q) => {
+        const y = q.y - view.body.position.y;
+        return q.z > tail && q.z < d.outline[0][0] && Math.abs(q.x) < (d.width / 2) * sculpt_factor(d, y, q.z) * taper(q.z) && y > top_at(d.outline, q.z);
+      });
+      if (over.length > 0) found.push(`${car} wheel ${w}: an arm lies over the top of the body`);
+      const off = points.filter((q) => Math.abs(q.x) >= inner && Math.hypot(q.y - centre.y, q.z - centre.z) >= HUB);
+      if (off.length > 0) found.push(`${car} wheel ${w}: an arm meets the wheel off its hub`);
+    });
+    dispose_car_view(view);
+  }
+  expect(found).toEqual([]);
+});
+
+test("no wheel opening shows the far wheel through the body", async () => {
+  const { build_view, dispose_car_view, rest_wheels } = await import("./models");
+  const { build_spec } = await import("./build");
+  const { DESIGNS } = await import("./designs");
+  const { axle_index, axles_of } = await import("./axles");
+  const found: string[] = [];
+  for (const car of Object.keys(CARS) as CarId[]) {
+    const build: Build = { ...DEFAULT_BUILD, car };
+    const spec = build_spec(build);
+    const d = DESIGNS[spec.body.style];
+    if (d.arches.steps === 0) continue;
+    const view = build_view(build, spec);
+    rest_wheels(view, spec);
+    view.root.updateMatrixWorld(true);
+    const faces = body_faces(view.body, view.root);
+    const axles = axles_of(spec);
+    spec.wheel.mounts.forEach(([mx], w) => {
+      if (mx < 0) return;
+      const centre = view.wheels[w].position;
+      const inner = mx - d.tyre[Math.min(axle_index(axles, w), 1)] / 2;
+      // A wall between the tyres, across the upper half of the opening: a high sill hides the lower half.
+      const y = centre.y + spec.wheel.radius / 2;
+      const wall = faces.some((face) => Math.abs(face.normal.x) > 0.5 && [face.a, face.b, face.c].every((p) => Math.abs(p.x) < inner) && inside([face.a, face.b, face.c].map((p): Point => [p.z, p.y]), centre.z, y));
+      if (!wall) found.push(`${car} wheel ${w}: the opening is hollow from side to side`);
     });
     dispose_car_view(view);
   }

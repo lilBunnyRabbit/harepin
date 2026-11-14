@@ -14,11 +14,14 @@ const ARCH_SKIN = 0.025;
 // A lip narrows in these steps to fit under a low bonnet or deck, and no further than this.
 const MIN_FLARE = 0.025;
 const FLARE_STEP = 0.005;
+// A well ends this far short of its tyre's inner face, tread blocks included.
+const WELL_CLEAR = 0.04;
 
 export function cabin_parts(c: Cabin, paint: THREE.Color, glass: THREE.Color): THREE.BufferGeometry[] {
   const ys = c.points.map(([, y]) => y);
   const base = Math.min(...ys);
   const top = Math.max(...ys);
+  if (c.helmet) return [lean(tint(extrude(c.points, c.width), glass), base, top, c.tumble)];
   const floor = c.floor ?? [];
   const outline = [...c.points, ...floor];
   const glazed = inset(outline, [...c.frame, ...floor.map(() => c.frame[c.frame.length - 1])]);
@@ -40,6 +43,20 @@ export function arch_opening(d: Design, spec: CarSpec, z: number): Point[] {
 
 export function body_outline(d: Design, spec: CarSpec): Point[] {
   return [...d.outline, ...axles_of(spec).reverse().flatMap((a) => arch_opening(d, spec, a.z))];
+}
+
+/**
+ * A block filling each wheel opening between the tyres' inner faces, a steered pair's swept to full lock: the body is
+ * cut right across, and without it an arch shows the far wheel. `tyre_width` scales the design's tyres.
+ */
+export function wells(d: Design, spec: CarSpec, tyre_width: number): THREE.BufferGeometry[] {
+  if (d.arches.steps === 0) return [];
+  return axles_of(spec).flatMap((axle, i) => {
+    const half = (d.tyre[Math.min(i, 1)] * tyre_width) / 2;
+    const swept = axle.steer ? half * Math.cos(spec.lock) + spec.wheel.radius * Math.sin(spec.lock) : half;
+    const inner = Math.abs(spec.wheel.mounts[axle.wheels[0]][0]) - swept - WELL_CLEAR;
+    return inner > 0 ? [extrude(arch_opening(d, spec, axle.z), 2 * inner)] : [];
+  });
 }
 
 /** `points` less every wheel opening, so a slab standing over a wheel never closes over its tyre. */
