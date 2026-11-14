@@ -3,7 +3,7 @@ import { part_of, type Look, type Slot } from "./build";
 import type { CarSpec } from "./cars";
 import type { Design, Slab, Swap, Wing } from "./designs";
 import { box, extrude, face_at, parts, slab, tint, top_at, type Point } from "./geometry";
-import { kit_band, kit_floor } from "./body-shell";
+import { fitted_slab, kit_band, kit_floor } from "./body-shell";
 import { nitro_parts } from "./nitro-look";
 import { chrome_tone } from "./wheels";
 
@@ -27,8 +27,8 @@ const FRONT_LEVEL = { lip: 1, splitter: 2 } as const;
 // Engine bulges are sized for a saloon hood; a narrower body (the formula's engine cover) scales them down to fit.
 const BULGE_BODY = 1.7;
 
-function own_wing(own: Wing, paint: THREE.Color, trim: THREE.Color): THREE.BufferGeometry[] {
-  const shapes = (list: Slab[] = []) => list.flatMap((s) => slab(s.points, s.from, s.to));
+function own_wing(d: Design, own: Wing, paint: THREE.Color, trim: THREE.Color): THREE.BufferGeometry[] {
+  const shapes = (list: Slab[] = []) => list.flatMap((s) => fitted_slab(d, s));
   return [...parts(own.paint), ...shapes(own.lips)].map((g) => tint(g, paint)).concat([...parts(own.trim), ...shapes(own.stands)].map((g) => tint(g, trim)));
 }
 
@@ -55,7 +55,7 @@ export function aero_of(kit: Record<Slot, number>): Required<Look>["aero"] {
 /** The design's own rear wing for this level, or a bolt-on one on `deck`. */
 export function rear_wing(d: Design, aero: Required<Look>["aero"], paint: THREE.Color, trim: THREE.Color): THREE.BufferGeometry[] {
   // A level past the design's list keeps its biggest wing, so new aero parts never bolt a second one on.
-  return d.wings ? own_wing(d.wings[Math.min(aero.wing, d.wings.length - 1)], paint, trim) : wing(aero.wing, d, paint, trim);
+  return d.wings ? own_wing(d, d.wings[Math.min(aero.wing, d.wings.length - 1)], paint, trim) : wing(aero.wing, d, paint, trim);
 }
 
 /**
@@ -72,7 +72,7 @@ export function aero_parts(d: Design, spec: CarSpec, aero: Required<Look>["aero"
   const low = kitted ? kit_floor(d) + 0.025 : d.outline[0][1];
   const front = aero.front ? FRONT_LEVEL[aero.front] : 0;
   if (d.fronts) {
-    out.push(...own_wing(d.fronts[Math.min(front, d.fronts.length - 1)], paint, trim));
+    out.push(...own_wing(d, d.fronts[Math.min(front, d.fronts.length - 1)], paint, trim));
   } else if (front > 0) {
     const splitter = front > 1;
     const reach = splitter ? 0.16 : 0.08;

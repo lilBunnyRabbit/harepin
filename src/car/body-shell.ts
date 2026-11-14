@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { axles_of } from "./axles";
 import type { CarSpec } from "./cars";
-import type { Cabin, Design } from "./designs";
+import type { Cabin, Design, Slab } from "./designs";
 import { arc, clip, extrude, inset, lean, parts, screen, slab, split, tint, top_at, type Point } from "./geometry";
 import type { Panel } from "./livery";
 
@@ -241,6 +241,14 @@ function uncut(geometry: THREE.BufferGeometry, d: Design): THREE.BufferGeometry 
     out.setAttribute(name, new THREE.BufferAttribute(values, size));
   }
   return out;
+}
+
+/**
+ * A slab cut where the body is: at the belt and where the nose and tail pinch start. Its side then bends with the body's,
+ * so a lip as wide as the body stays on the body side instead of bridging the bend and standing proud of it.
+ */
+export function fitted_slab(d: Design, s: Slab): THREE.BufferGeometry[] {
+  return flat_pieces(d, s.points).flatMap((piece) => slab(piece, s.from, s.to).map((g) => uncut(g, d)));
 }
 
 export function body_pieces(d: Design, spec: CarSpec): Point[][] {

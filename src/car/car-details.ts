@@ -113,7 +113,7 @@ const KAZE: Detail[] = [
 const TSUMUJI: Detail[] = [
   { on: "base", cue: "Clean bonnet: no bulge and no bare panel round the pop-ups", swaps: ["bulge", "bonnet"] },
   { on: "drift", cue: "Drift stance: negative camber", camber: CAMBER },
-  { on: "light", cue: "Roll hoop behind the seats, seen through the rear screen", cage: [screen_bar(tsumuji.cabin, 3, [0.4, 0.15], [0.4, 0.95]), screen_bar(tsumuji.cabin, 3, [0, 0.15], [0.4, 0.15])] },
+  { on: "light", cue: "Roll hoop behind the seats, seen through the rear screen", cage: [screen_bar(tsumuji.cabin, 3, [0.4, 0.15], [0.4, 0.95]), screen_bar(tsumuji.cabin, 3, [0, 0.15], [0.425, 0.15])] },
 ];
 
 const STURM_LIP = 0.85 + 0.15 + 0.004;
