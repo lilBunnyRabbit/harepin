@@ -8,11 +8,13 @@ mainland 1 sprint hatch
 0 offroad-1 kaze
 0 offroad-1 sturm
 0 offroad-1 formula
+0 offroad-1 tsumuji
 0 offroad-1 bus
 0 offroad-2 hatch
 0 offroad-2 muscle
 0 offroad-2 kaze
 0 offroad-2 formula
+0 offroad-2 tsumuji
 0 offroad-2 bus
 0 circuit-rev bus
 0 circuit-rev sajin
@@ -47,6 +49,7 @@ mainland 1 sprint hatch
 5 offroad-1 sturm
 5 offroad-1 raijin
 5 offroad-1 formula
+5 offroad-1 tsumuji
 5 offroad-1 bus
 5 offroad-1 sajin
 5 offroad-2 hatch
@@ -57,6 +60,7 @@ mainland 1 sprint hatch
 5 offroad-2 sturm
 5 offroad-2 raijin
 5 offroad-2 formula
+5 offroad-2 tsumuji
 5 offroad-2 bus
 5 offroad-2 sajin
 6 circuit bus
@@ -67,6 +71,7 @@ mainland 1 sprint hatch
 6 offroad-1 rally
 6 offroad-1 raijin
 6 offroad-1 formula
+6 offroad-1 tsumuji
 6 offroad-1 bus
 6 offroad-1 sajin
 6 offroad-2 coupe
@@ -74,6 +79,7 @@ mainland 1 sprint hatch
 6 offroad-2 kaze
 6 offroad-2 sturm
 6 offroad-2 formula
+6 offroad-2 tsumuji
 6 offroad-2 bus
 6 offroad-2 sajin
 6 circuit-rev bus
@@ -138,6 +144,7 @@ mainland 1 sprint hatch
 11 offroad-1 kaze
 11 offroad-1 sturm
 11 offroad-1 raijin
+11 offroad-1 tsumuji
 11 offroad-1 bus
 11 offroad-1 sajin
 11 offroad-2 hatch
@@ -148,6 +155,7 @@ mainland 1 sprint hatch
 11 offroad-2 sturm
 11 offroad-2 raijin
 11 offroad-2 formula
+11 offroad-2 tsumuji
 11 offroad-2 bus
 11 offroad-2 sajin
 12 circuit bus
@@ -166,6 +174,7 @@ mainland 1 sprint hatch
 14 street-1 hatch
 14 street-1 rally
 14 street-1 raijin
+14 street-1 fujin
 14 street-1 bus
 14 street-1 sajin
 14 street-2 bus
@@ -188,8 +197,10 @@ mainland 1 sprint hatch
 16 offroad-1 sturm
 16 offroad-1 raijin
 16 offroad-1 formula
+16 offroad-1 tsumuji
 16 offroad-1 bus
 16 offroad-1 sajin
+16 offroad-2 tsumuji
 16 offroad-2 bus
 16 circuit-rev bus
 17 circuit bus
