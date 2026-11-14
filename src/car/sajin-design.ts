@@ -7,8 +7,7 @@ const NOSE = 2.04;
 const SILL = 0.44;
 const HALF = 0.475;
 // The tub narrows to half its width from the cowl to the nose tip, the cage, arms and wheels aside.
-// The tail's pinch has a length and no share: a wing slab behind the tub is dropped by the shell's cuts when the length is 0.
-const SECTION: Section = { belt: [0.6, 0.6], shoulder: 0, tuck: 0, nose: [0.5, 1.14], tail: [0, 0.06] };
+const SECTION: Section = { belt: [0.6, 0.6], shoulder: 0, tuck: 0, nose: [0.5, 1.14], tail: [0, 0] };
 
 /** Share of its x a point at z keeps once the nose is pinched; parts drawn there are widened by it to come out as drawn. */
 function keep(z: number): number {

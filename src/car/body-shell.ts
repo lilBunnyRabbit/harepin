@@ -77,7 +77,7 @@ export function wells(d: Design, spec: CarSpec, tyre_width: number): THREE.Buffe
 }
 
 /** `points` less every wheel opening, so a slab standing over a wheel never closes over its tyre. */
-export function notch(points: Point[], d: Design, spec: CarSpec): Point[][] {
+function notch(points: Point[], d: Design, spec: CarSpec): Point[][] {
   if (d.arches.steps === 0) return [points];
   const radius = spec.wheel.radius + d.arches.gap;
   let pieces = [points];
@@ -115,7 +115,7 @@ export function flares(d: Design, spec: CarSpec): THREE.BufferGeometry[] {
     const lifted = [...lip, ...opening.reverse()].map(([pz, py]): Point => [pz, Math.max(py, d.sill + FLARE_PROUD)]);
     const top = Math.max(...lifted.map(([, ly]) => ly));
     // A flat side that would sink into a body bulging at the belt follows the body's crease instead.
-    if (bulge(d, z, top) * edge > d.arches.out / 2) return flat_pieces(d, lifted).flatMap((piece) => slab(piece, edge - d.arches.reach, edge + d.arches.out).map((g) => uncut(g, d)));
+    if (bulge(d, z, top) * edge > d.arches.out / 2) return folded_slab(lifted, edge - d.arches.reach, edge + d.arches.out, folds(d));
     return slab(lifted, edge - d.arches.reach, edge + d.arches.out).map((g) => flat_side(g, d, top));
   });
 }
@@ -182,7 +182,7 @@ export function kit_band(d: Design, spec: CarSpec): THREE.BufferGeometry[] {
     const [from, to] = [ends[i], ends[i + 1]];
     if (from - to < KIT_STUB) continue;
     const strip: Point[] = [[from, low], [from, top], [to, top], [to, low]];
-    strips.push(...flat_pieces(d, strip).flatMap((piece) => slab(piece, inner, outer).map((g) => uncut(g, d))));
+    strips.push(...folded_slab(strip, inner, outer, folds(d)));
   }
   const across = (from: number, to: number) => extrude([[from, low], [from, top], [to, top], [to, low]], 2 * outer);
   return [...strips, across(nose, nose - KIT_CHIN), across(tail + KIT_CHIN, tail)];
@@ -199,38 +199,49 @@ export function side_panel(d: Design, spec: CarSpec): Panel {
   return { rear, front, low: d.sill + PANEL_FLOOR, high, side: d.width / 2 };
 }
 
-/** A side profile cut at the belt and at the ends of the pinched nose and tail, so every sculpted face stays flat. */
-function flat_pieces(d: Design, outline: Point[]): Point[][] {
+/** A line across a side profile: `n[0] * z + n[1] * y + c` is 0 on it. */
+interface Cut {
+  n: Point;
+  c: number;
+}
+
+/** Where the section folds the body side: along the belt and where the pinched nose and tail start. An end without a pinch has no fold. */
+function folds(d: Design): Cut[] {
   const s = d.section;
-  if (!s) return [outline];
+  if (!s) return [];
   const nose = d.outline[0][0];
   const tail = d.outline[d.outline.length - 1][0];
   const slope = (s.belt[1] - s.belt[0]) / (tail - nose);
-  const above = (keep: number) => split(outline, [-slope * keep, keep], (slope * nose - s.belt[0]) * keep);
-  const front = nose - s.nose[1];
-  const rear = tail + s.tail[1];
-  const halves = s.shoulder > 0 || s.tuck > 0 ? [...above(-1), ...above(1)] : [outline];
-  return halves.flatMap((piece) => [
-    ...(s.nose[1] > 0 ? split(piece, [1, 0], -front) : []),
-    ...split(piece, [-1, 0], front).flatMap((mid) => split(mid, [1, 0], -rear)),
-    ...(s.tail[1] > 0 ? split(piece, [-1, 0], rear) : []),
-  ]);
+  return [
+    ...(s.shoulder > 0 || s.tuck > 0 ? [{ n: [-slope, 1] satisfies Point, c: slope * nose - s.belt[0] }] : []),
+    ...(s.nose[1] > 0 ? [{ n: [1, 0] satisfies Point, c: s.nose[1] - nose }] : []),
+    ...(s.tail[1] > 0 ? [{ n: [1, 0] satisfies Point, c: -tail - s.tail[1] }] : []),
+  ];
+}
+
+/** The fold above the body top, where the shoulder has done leaning in: only a part standing over the body crosses it. */
+function crest(d: Design): Cut[] {
+  const s = d.section;
+  if (!s || s.shoulder <= 0) return [];
+  const [belt] = folds(d);
+  const rise = Math.max(...d.outline.map(([, y]) => y)) - Math.max(...s.belt);
+  return [{ n: belt.n, c: belt.c - rise }];
+}
+
+/** A side profile cut along `cuts`, so every sculpted face stays flat. */
+function flat_pieces(outline: Point[], cuts: Cut[]): Point[][] {
+  return cuts.reduce((pieces, { n, c }) => pieces.flatMap((piece) => [...split(piece, n, c), ...split(piece, [-n[0], -n[1]], -c)]), [outline]);
 }
 
 const ON_CUT = 1e-6;
 
 /** `geometry` less the walls `flat_pieces` left between its pieces, which lie buried in the part on the body's own cuts. */
-function uncut(geometry: THREE.BufferGeometry, d: Design): THREE.BufferGeometry {
-  const s = d.section;
-  if (!s) return geometry;
-  const nose = d.outline[0][0];
-  const tail = d.outline[d.outline.length - 1][0];
-  const slope = (s.belt[1] - s.belt[0]) / (tail - nose);
-  const cuts = [(z: number, y: number) => y - s.belt[0] - slope * (z - nose), (z: number) => z - (nose - s.nose[1]), (z: number) => z - (tail + s.tail[1])];
+function uncut(geometry: THREE.BufferGeometry, cuts: Cut[]): THREE.BufferGeometry {
+  if (!cuts.length) return geometry;
   const position = geometry.getAttribute("position");
   const kept: number[] = [];
   for (let i = 0; i < position.count; i += 3)
-    if (!cuts.some((cut) => [i, i + 1, i + 2].every((v) => Math.abs(cut(position.getZ(v), position.getY(v))) < ON_CUT))) kept.push(i, i + 1, i + 2);
+    if (!cuts.some(({ n, c }) => [i, i + 1, i + 2].every((v) => Math.abs(n[0] * position.getZ(v) + n[1] * position.getY(v) + c) < ON_CUT))) kept.push(i, i + 1, i + 2);
   const out = new THREE.BufferGeometry();
   for (const [name, attribute] of Object.entries(geometry.attributes)) {
     const size = attribute.itemSize;
@@ -243,16 +254,27 @@ function uncut(geometry: THREE.BufferGeometry, d: Design): THREE.BufferGeometry 
   return out;
 }
 
+/** `points` between two distances from the centre, cut along `cuts` and with the walls between its pieces taken out. */
+function folded_slab(points: Point[], from: number, to: number, cuts: Cut[]): THREE.BufferGeometry[] {
+  return flat_pieces(points, cuts).flatMap((piece) => slab(piece, from, to).map((g) => uncut(g, cuts)));
+}
+
 /**
- * A slab cut where the body is: at the belt and where the nose and tail pinch start. Its side then bends with the body's,
- * so a lip as wide as the body stays on the body side instead of bridging the bend and standing proud of it.
+ * A slab cut where the body side folds: at the belt, where the nose and tail pinch start, and at the crest over the body
+ * top. Its side then bends with the body's, so a lip as wide as the body stays on the body side instead of bridging the
+ * bend and standing proud of it.
  */
 export function fitted_slab(d: Design, s: Slab): THREE.BufferGeometry[] {
-  return flat_pieces(d, s.points).flatMap((piece) => slab(piece, s.from, s.to).map((g) => uncut(g, d)));
+  return folded_slab(s.points, s.from, s.to, [...folds(d), ...crest(d)]);
+}
+
+/** The design's raised side profiles, each less the wheel openings and cut where the body side folds. */
+export function body_slabs(d: Design, spec: CarSpec): THREE.BufferGeometry[] {
+  return (d.slabs ?? []).flatMap((part) => notch(part.points, d, spec).flatMap((piece) => fitted_slab(d, { ...part, points: piece })));
 }
 
 export function body_pieces(d: Design, spec: CarSpec): Point[][] {
-  return flat_pieces(d, body_outline(d, spec));
+  return flat_pieces(body_outline(d, spec), folds(d));
 }
 
 /** Share of its x a point keeps on a sculpted body: the shoulder over the belt, the tuck under it, the pinched ends. */

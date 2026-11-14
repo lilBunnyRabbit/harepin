@@ -3,12 +3,12 @@ import { axle_index, axles_of } from "./axles";
 import { rest_reach, type Car } from "./car";
 import { DEFAULT_PARTS, build_spec, part_of, type Build, type Slot } from "./build";
 import { COUPE, type CarSpec } from "./cars";
-import { body_pieces, cabin_parts, flares, notch, on_glass, sculpt, side_panel, skirts, wells } from "./body-shell";
+import { body_pieces, body_slabs, cabin_parts, flares, on_glass, sculpt, side_panel, skirts, wells } from "./body-shell";
 import { DETAILS } from "./car-details";
 import { detail_look, type DetailLook } from "./detail-looks";
 import { CAR_ORDER } from "./contact-shadow";
 import { DESIGNS, type Design } from "./designs";
-import { extrude, merge, parts, side_part, slab, taper, tint } from "./geometry";
+import { extrude, merge, parts, side_part, taper, tint } from "./geometry";
 import { lamps, popup, snap_lights, type HeadMesh, type Popup } from "./lights";
 import { back, livery_of, livery_parts, roof, type Livery } from "./livery";
 import { nitro_flame, type Jet } from "./nitro-look";
@@ -193,7 +193,7 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
     tint(d.taper ? taper(shell_body, d.taper.from, tail, d.taper.share) : shell_body, paint),
     flares(d, spec).map((g) => tint(g, arch_tone)),
     wells(d, spec, tyre.width).map((g) => tint(g, trim)),
-    (d.slabs ?? []).flatMap((part) => notch(part.points, d, spec).flatMap((piece) => slab(piece, part.from, part.to))).map((g) => tint(g, paint)),
+    body_slabs(d, spec).map((g) => tint(g, paint)),
     (kit_skirts(d, aero) ? [] : skirts(d, spec, 0.03, 0.09)).map((g) => tint(g, trim)),
     parts([...d.paint, ...(d.mirror?.paint ?? [])]).map((g) => tint(g, paint)),
     parts([...d.trim, ...(d.mirror?.trim ?? [])]).map((g) => tint(g, trim)),

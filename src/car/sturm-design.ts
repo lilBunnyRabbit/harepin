@@ -1,6 +1,6 @@
 import { cabin_mirror, endplate, glass_corner, gurney, leg, plane, tail_end } from "./design-parts";
 import type { Arches, Cabin, Design, Kit, Section, Slab, Wing } from "./designs";
-import { split, type Part, type Point } from "./geometry";
+import type { Part, Point } from "./geometry";
 
 const HALF = 0.99;
 const KIT_HALF = 1.06;
@@ -40,12 +40,7 @@ const MIRROR_AT = glass_corner(CABIN, 0.185, 0.26);
 const STOCK_ARCHES: Arches = { gap: 0.07, steps: 7, flare: 0.05, out: 0.045, reach: 0.04, tone: "paint" };
 const KIT_ARCHES: Arches = { gap: 0.08, steps: 7, flare: 0.05, out: 0.03, reach: 0.04, tone: "paint" };
 
-/** A profile cut where the section folds the body side (belt, crest, the start of each pinched end), so each piece's end stays one flat face. */
-function folded(points: Point[]): Point[][] {
-  const cuts: [Point, number][] = [[[0, 1], BELT], [[0, 1], CREST], [[1, 0], OUTLINE[0][0] - NOSE_PINCH], [[1, 0], OUTLINE[OUTLINE.length - 1][0] + TAIL_PINCH]];
-  return cuts.reduce((pieces, [n, at]) => pieces.flatMap((piece) => [...split(piece, n, -at), ...split(piece, [-n[0], -n[1]], at)]), [points]);
-}
-const grown = (points: Point[], from: number, to: number): Slab[] => folded(points).map((piece) => ({ points: piece, from, to }));
+const grown = (points: Point[], from: number, to: number): Slab[] => [{ points, from, to }];
 
 // Each front wing stands over the low bonnet from the lamp to the screen foot, its side the body side run on up.
 const WING_WALL = 0.56;
