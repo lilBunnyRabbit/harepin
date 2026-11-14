@@ -30,7 +30,8 @@ const SPOTS: Partial<Record<WorldKind, Spot>> = {
   alpine: { at: 1895 },
   tundra: {},
   volcano: { camera: { from: [250, 300, 60], to: [-10, 180, -10] } },
-  dunes: { camera: { from: [-300, 120, -600], to: [0, 60, -780] } },
+  // On the brink of the 80 m ridge upwind of the spawn, along it and into the sun: the lit windward side, the slip face in shade.
+  dunes: { camera: { from: [260, 100.6, 349], to: [-160, 98, 573] } },
   icecanyon: { camera: { from: [560, 78, 140], to: [410, 46, 236] } },
   velodrome: {},
 };
