@@ -1,5 +1,5 @@
 import type { Triple } from "./cars";
-import type { Cabin } from "./designs";
+import type { Cabin, Slab } from "./designs";
 import { tail_at, type Part, type Point } from "./geometry";
 
 const PROUD = 0.012;
@@ -72,4 +72,78 @@ export function rod(a: Triple, b: Triple, thick: number, wide = thick): Part {
   const dz = b[2] - a[2];
   const length = Math.hypot(dx, dy, dz);
   return { size: [wide, thick, length], at: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2], tilt: [-Math.asin(dy / length), Math.atan2(dx, dz), 0] };
+}
+
+const NOSE_SHARE = 0.3;
+
+/** A wing plane's side profile: `chord` long about `at` [z, y], its tail raised by `tilt` radians; front top, rear top, rear bottom, front bottom. */
+export function plane(at: Point, chord: number, thick: number, tilt: number): Point[] {
+  const [cos, sin] = [Math.cos(tilt), Math.sin(tilt)];
+  const on = (along: number, up: number): Point => [at[0] + along * cos + up * sin, at[1] - along * sin + up * cos];
+  const [front, rear] = [chord / 2, -chord / 2];
+  return [on(front, (thick / 2) * NOSE_SHARE), on(rear, thick / 2), on(rear, -thick / 2), on(front, (-thick / 2) * NOSE_SHARE)];
+}
+
+/** An endplate round a plane's profile, standing `above` and `below` it at the tail and half that at the nose: the plane ends on its inner face. */
+export function endplate(profile: Point[], above: number, below: number, lead = 0.02): Point[] {
+  const zs = profile.map(([z]) => z);
+  const ys = profile.map(([, y]) => y);
+  const [front, rear, low, high] = [Math.max(...zs) + lead, Math.min(...zs) - lead, Math.min(...ys), Math.max(...ys)];
+  return [[front, low - below / 2], [front, high + above / 2], [rear, high + above], [rear, low - below]];
+}
+
+/** A side plate swept up from the deck at `front` over a plane's end and down to `rear`, so plane and legs are one hoop. */
+export function hoop(profile: Point[], front: Point, rear: Point): Point[] {
+  return [front, profile[0], profile[1], profile[2], rear];
+}
+
+/** A leg from its foot on the deck, `front` to `rear`, to a head inside a plane's profile. */
+export function leg(profile: Point[], front: Point, rear: Point): Point[] {
+  const mid = (a: Point, b: Point, t: number): Point => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+  const [nose, tail] = [mid(profile[0], profile[3], 0.5), mid(profile[1], profile[2], 0.5)];
+  return [front, mid(nose, tail, 0.3), mid(nose, tail, 0.7), rear];
+}
+
+/** A strip standing `tall` on a plane's trailing edge. */
+export function gurney(profile: Point[], tall: number, deep = 0.03): Point[] {
+  const [, [z, y], [low_z, low_y]] = profile;
+  return [[z + deep, y - 0.005], [z + deep, y + tall], [z, y + tall], [low_z, low_y]];
+}
+
+const ROOF_SINK = 0.012;
+const ROOF_PROUD = 0.004;
+
+export interface RoofLip {
+  /** The wedge grown out of the roof's rear edge. */
+  lip: Slab;
+  /** A fence at each end of it, standing on the screen pillar behind the roof edge and hanging `drop` under the tip. */
+  fence: (drop: number, above?: number) => Slab;
+  /** Half the roof's width at its rear edge, as a slab distance. */
+  half: number;
+  /** The roof's rear edge and the lip's tip, [z, y]. */
+  edge: Point;
+  tip: Point;
+}
+
+/**
+ * A roof spoiler as one wedge: it leaves the roof `start` ahead of the rear edge that ends cabin edge `edge`, runs `reach`
+ * past it and rises `kick` there, `thick` at the tip, and is as wide as the roof.
+ */
+export function roof_lip(cabin: Cabin, shoulder: number, edge: number, start: number, reach: number, kick: number, thick: number): RoofLip {
+  const [fz, fy] = cabin.points[edge];
+  const [rz, ry] = cabin.points[edge + 1];
+  const [sz, sy] = cabin.points[edge + 2];
+  const ys = cabin.points.map(([, y]) => y);
+  const half = ((cabin.width / 2) * (1 - cabin.tumble) + ROOF_PROUD) / (1 - shoulder);
+  const length = Math.hypot(fz - rz, fy - ry);
+  const root: Point = [rz + ((fz - rz) * start) / length, ry + ((fy - ry) * start) / length - ROOF_SINK];
+  const tip: Point = [rz - reach, ry + kick];
+  const lip: Slab = { points: [root, tip, [tip[0] + 0.012, tip[1] - thick], [rz + 0.03, ry - thick - 0.03]], from: 0, to: half };
+  const top = (z: number) => root[1] + ((tip[1] - root[1]) * (root[0] - z)) / (root[0] - tip[0]);
+  const fence = (drop: number, above = 0.03): Slab => {
+    const low = Math.max(Math.min(...ys), tip[1] - drop);
+    const on_screen: Point = [rz + ((sz - rz) * (ry - low)) / (ry - sy) - 0.02, low];
+    return { points: [[rz - 0.02, top(rz - 0.02) + above * 0.6], [tip[0] - 0.015, tip[1] + above], [tip[0] - 0.015, tip[1] - drop], on_screen], from: half - 0.03 / (1 - shoulder), to: half };
+  };
+  return { lip, fence, half, edge: [rz, ry], tip };
 }

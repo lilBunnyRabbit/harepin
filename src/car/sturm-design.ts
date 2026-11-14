@@ -40,7 +40,7 @@ const WINGS: Wing[] = [
   { paint: [], trim: [], lips: [WHALETAIL] },
   { paint: [], trim: [], lips: [TRAY] },
   {
-    paint: [{ size: [0.03, 0.26, 0.5], at: [0.93, 1.3, -1.9], tilt: [0.1, 0, 0] }],
+    paint: [{ size: [0.03, 0.26, 0.5], at: [0.945, 1.3, -1.9], tilt: [0.1, 0, 0] }],
     trim: [{ size: [0.93, 0.045, 0.42], at: [0.465, 1.29, -1.89], tilt: [0.1, 0, 0] }],
     lips: [WHALETAIL],
     stands: [{ points: [[-1.46, 0.88], [-1.76, 1.275], [-1.96, 1.295], [-1.9, 0.84]], from: 0.4, to: 0.44 }],

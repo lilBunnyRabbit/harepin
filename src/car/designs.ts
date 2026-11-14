@@ -2,7 +2,7 @@ import type { BodyStyle, Triple } from "./cars";
 import type { Panel } from "./livery";
 import type { Token } from "../theme/theme";
 import { FUJIN_DESIGN } from "./fujin-design";
-import { mirror, on_cabin, rod, tail_end } from "./design-parts";
+import { endplate, gurney, hoop, leg, mirror, plane, rod, roof_lip, tail_end } from "./design-parts";
 import { KAZE_DESIGN } from "./kaze-design";
 import { RAIJIN_DESIGN } from "./raijin-design";
 import { SAJIN_DESIGN } from "./sajin-design";
@@ -198,21 +198,19 @@ const COUPE_OUTLINE: Point[] = [[2.27, 0.3], [2.35, 0.42], [2.33, 0.54], [2.1, 0
 const COUPE_SECTION: Section = { belt: [0.62, 0.8], shoulder: 0.15, tuck: 0.04, nose: [0.2, 0.55], tail: [0.12, 0.5] };
 const COUPE_CABIN: Cabin = { points: [[0.95, 0.84], [0.2, 1.17], [-0.4, 1.2], [-0.8, 1.16], [-2.0, 0.927]], width: 1.56, tumble: 0.2, frame: [0.06, 0.04, 0.04, 0.1, 0.04], screens: [[0, 0.08], [3, 0.14]], split: [-0.42, 0.08] };
 const COUPE_ARCHES: Arches = { gap: 0.065, steps: 7, flare: 0.06, out: 0.06, reach: 0.04, tone: "paint" };
-// A lip grown out of the hatch, then a hoop whose legs sweep up from the deck corners into the plane.
-const COUPE_LIP: Slab = { points: [[-2.02, 0.915], [-2.37, 1.0], [-2.39, 0.97], [-2.33, 0.86]], from: 0, to: 0.9 };
+const COUPE_HALF = 0.944;
+const COUPE_PLANE = 0.86;
+// A lip grown out of the hatch across the whole tail, then a hoop: side plates swept up from the deck corners round the plane's ends.
+const COUPE_LIP: Slab = { points: [[-2.02, 0.922], [-2.36, 0.985], [-2.37, 0.955], [-2.3, 0.88]], from: 0, to: COUPE_HALF };
+const COUPE_DUCKTAIL: Slab = { points: [[-1.99, 0.922], [-2.4, 1.05], [-2.415, 1.02], [-2.3, 0.88]], from: 0, to: COUPE_HALF };
+const COUPE_HOOP = plane([-2.25, 1.14], 0.3, 0.05, 0.1);
+const COUPE_RACE = plane([-2.29, 1.31], 0.36, 0.055, 0.12);
+const coupe_plates = (profile: Point[], front: number): Slab => ({ points: hoop(profile, [front, 0.915], [-2.32, 0.86]), from: COUPE_PLANE, to: COUPE_HALF });
 const COUPE_WINGS: Wing[] = [
   { paint: [], trim: [], lips: [COUPE_LIP] },
-  { paint: [], trim: [], lips: [{ points: [[-2.0, 0.915], [-2.4, 1.07], [-2.42, 1.04], [-2.33, 0.86]], from: 0, to: 0.9 }] },
-  {
-    paint: [{ size: [0.9, 0.05, 0.3], at: [0.45, 1.1, -2.22], tilt: [0.08, 0, 0] }],
-    trim: [{ size: [0.8, 0.035, 0.05], at: [0.4, 1.15, -2.36], tilt: [0.08, 0, 0] }],
-    lips: [{ points: [[-2.02, 0.91], [-2.08, 1.115], [-2.38, 1.14], [-2.33, 0.88]], from: 0.8, to: 0.92 }],
-  },
-  {
-    paint: [],
-    trim: [{ size: [0.82, 0.055, 0.34], at: [0.41, 1.3, -2.27], tilt: [0.1, 0, 0] }],
-    lips: [COUPE_LIP, { points: [[-2.0, 0.91], [-2.12, 1.31], [-2.44, 1.345], [-2.33, 0.88]], from: 0.82, to: 0.92 }],
-  },
+  { paint: [], trim: [], lips: [COUPE_DUCKTAIL] },
+  { paint: [], trim: [], lips: [{ points: COUPE_HOOP, from: 0, to: COUPE_PLANE }, coupe_plates(COUPE_HOOP, -1.98)], stands: [{ points: gurney(COUPE_HOOP, 0.03), from: 0, to: COUPE_PLANE }] },
+  { paint: [], trim: [], lips: [COUPE_LIP, coupe_plates(COUPE_RACE, -1.94)], stands: [{ points: COUPE_RACE, from: 0, to: COUPE_PLANE }] },
 ];
 const COUPE_TAIL = tail_end(COUPE_OUTLINE, 0.74, 0.2, 0.93, [{ size: [0.56, 0.12, 0.05], at: [0.58, 0.74, 0] }], { half: 0.32, y: 0.74 }, 0.55);
 
@@ -221,7 +219,15 @@ const HATCH_SECTION: Section = { belt: [0.7, 0.76], shoulder: 0.1, tuck: 0.04, n
 const HATCH_CABIN: Cabin = { points: [[1.0, 0.88], [0.3, 1.3], [-1.28, 1.33], [-1.84, 0.93]], width: 1.5, tumble: 0.14, frame: [0.06, 0.05, 0.14, 0.04], screens: [[0, 0.08], [2, 0.12]], split: [-0.25, 0.1] };
 const HATCH_ARCHES: Arches = { gap: 0.055, steps: 7, flare: 0.07, out: 0.06, reach: 0.04, tone: "trim" };
 const HATCH_TAIL = tail_end(HATCH_OUTLINE, 0.72, 0.34, 0.84, [{ size: [0.18, 0.3, 0.05], at: [0.72, 0.72, 0] }], { half: 0.54, y: 0.84 }, 0.68);
-const on_hatch = (part: Part): Part => on_cabin(part, HATCH_SECTION.shoulder);
+const hatch_lip = (reach: number, kick: number) => roof_lip(HATCH_CABIN, HATCH_SECTION.shoulder, 1, 0.3, reach, kick, 0.04);
+const HATCH_LIPS = [hatch_lip(0.14, 0.01), hatch_lip(0.24, 0.03), hatch_lip(0.32, 0.05), hatch_lip(0.42, 0.08)];
+// The roof runs on into a spoiler that grows with each level, the last two fenced at the ends.
+const HATCH_WINGS: Wing[] = [
+  { paint: [], trim: [], lips: [HATCH_LIPS[0].lip] },
+  { paint: [], trim: [], lips: [HATCH_LIPS[1].lip] },
+  { paint: [], trim: [], lips: [HATCH_LIPS[2].lip, HATCH_LIPS[2].fence(0.12)] },
+  { paint: [], trim: [], lips: [HATCH_LIPS[3].lip, HATCH_LIPS[3].fence(0.2)] },
+];
 
 // The hood is level and the deck kicks up behind the door, so the cabin base sinks into the haunch at its tail.
 const MUSCLE_OUTLINE: Point[] = [[2.44, 0.28], [2.5, 0.4], [2.56, 0.72], [2.5, 0.8], [0.2, 0.88], [-1.1, 0.88], [-1.7, 0.96], [-2.42, 0.97], [-2.52, 0.92], [-2.5, 0.5], [-2.44, 0.28]];
@@ -230,6 +236,25 @@ const MUSCLE_CABIN: Cabin = { points: [[0.2, 0.88], [-0.4, 1.23], [-1.25, 1.25],
 const MUSCLE_ARCHES: Arches = { gap: 0.07, steps: 7, flare: 0.06, out: 0.08, reach: 0.04, tone: "paint" };
 const MUSCLE_TAIL = tail_end(MUSCLE_OUTLINE, 0.76, 0.19, 0.9, [{ size: [0.82, 0.13, 0.04], at: [0.44, 0.76, 0] }], null, 0.54);
 const HOOD_FALL = 0.035;
+const MUSCLE_HALF = 0.994;
+const MUSCLE_PLANE = 0.9;
+// A lip grown out of the boot lid across the whole tail, then a pedestal wing on two legs, the last with endplates.
+const MUSCLE_LIP: Slab = { points: [[-2.2, 0.962], [-2.56, 1.04], [-2.575, 1.01], [-2.5, 0.9]], from: 0, to: MUSCLE_HALF };
+const MUSCLE_DUCKTAIL: Slab = { points: [[-2.14, 0.962], [-2.6, 1.1], [-2.615, 1.07], [-2.5, 0.9]], from: 0, to: MUSCLE_HALF };
+const MUSCLE_PEDESTAL = plane([-2.33, 1.14], 0.34, 0.05, 0.12);
+const MUSCLE_RACE = plane([-2.35, 1.22], 0.4, 0.055, 0.14);
+const muscle_legs = (profile: Point[]): Slab => ({ points: leg(profile, [-2.16, 0.95], [-2.46, 0.95]), from: 0.54, to: 0.62 });
+const MUSCLE_WINGS: Wing[] = [
+  { paint: [], trim: [], lips: [MUSCLE_LIP] },
+  { paint: [], trim: [], lips: [MUSCLE_DUCKTAIL] },
+  { paint: [], trim: [], lips: [{ points: MUSCLE_PEDESTAL, from: 0, to: MUSCLE_PLANE }, muscle_legs(MUSCLE_PEDESTAL)] },
+  {
+    paint: [],
+    trim: [],
+    lips: [{ points: MUSCLE_RACE, from: 0, to: MUSCLE_PLANE }, muscle_legs(MUSCLE_RACE), { points: endplate(MUSCLE_RACE, 0.04, 0.09), from: MUSCLE_PLANE, to: MUSCLE_PLANE + 0.03 }],
+    stands: [{ points: gurney(MUSCLE_RACE, 0.035), from: 0, to: MUSCLE_PLANE }],
+  },
+];
 
 // A supermini: the short bonnet runs into a raked screen, and the belt climbs to a steep tailgate close behind the wheels.
 const RALLY_OUTLINE: Point[] = [[2.02, 0.38], [2.1, 0.5], [2.1, 0.68], [2.0, 0.76], [1.2, 0.92], [-1.6, 1.05], [-1.82, 0.92], [-1.88, 0.6], [-1.82, 0.38]];
@@ -249,7 +274,23 @@ const RALLY_BUMPERS: Part[] = [
   { size: [0.52, 0.14, 0.05], at: [0.26, 0.47, 2.08] },
   { size: [0.9, 0.12, 0.06], at: [0.45, 0.45, -1.855] },
 ];
-const on_roof = (part: Part): Part => on_cabin(part, RALLY_SECTION.shoulder);
+const rally_lip = (reach: number, kick: number) => roof_lip(RALLY_CABIN, RALLY_SECTION.shoulder, 2, 0.3, reach, kick, 0.04);
+const RALLY_LIPS = [rally_lip(0.12, 0), rally_lip(0.2, 0.02), rally_lip(0.28, 0.04)];
+const RALLY_TOP = rally_lip(0.4, 0.05);
+const RALLY_PLANE = plane([RALLY_TOP.edge[0] - 0.215, RALLY_TOP.edge[1] + 0.2], 0.36, 0.05, 0.16);
+const RALLY_PLATE = 0.03 / (1 - RALLY_SECTION.shoulder);
+// The roof runs on into a spoiler, fenced at the third level; the last stands a second plane over it between two plates.
+const RALLY_WINGS: Wing[] = [
+  { paint: [], trim: [], lips: [RALLY_LIPS[0].lip] },
+  { paint: [], trim: [], lips: [RALLY_LIPS[1].lip] },
+  { paint: [], trim: [], lips: [RALLY_LIPS[2].lip, RALLY_LIPS[2].fence(0.14)] },
+  {
+    paint: [],
+    trim: [],
+    lips: [{ ...RALLY_TOP.lip, to: RALLY_TOP.half - RALLY_PLATE }, { points: RALLY_PLANE, from: 0, to: RALLY_TOP.half - RALLY_PLATE }],
+    stands: [{ ...RALLY_TOP.fence(0.16, 0.32), from: RALLY_TOP.half - RALLY_PLATE }],
+  },
+];
 
 const FORMULA_NOSE = 2.3;
 // The nose narrows to half its width over its last 0.9 m, wings and wishbones aside.
@@ -346,18 +387,7 @@ export const DESIGNS: Record<BodyStyle, Design> = {
     deck: [-1.3, 1.37],
     hood: [1.35, 0.8],
     exhaust: [0.5, 0.32, -1.92],
-    wings: [
-      { paint: [on_hatch({ size: [0.62, 0.04, 0.22], at: [0.31, 1.335, -1.36], tilt: [0.05, 0, 0] })], trim: [] },
-      { paint: [on_hatch({ size: [0.62, 0.045, 0.32], at: [0.31, 1.34, -1.4], tilt: [0.1, 0, 0] })], trim: [] },
-      {
-        paint: [on_hatch({ size: [0.62, 0.05, 0.4], at: [0.31, 1.355, -1.45], tilt: [0.12, 0, 0] }), on_hatch({ size: [0.03, 0.16, 0.36], at: [0.605, 1.3, -1.45] })],
-        trim: [],
-      },
-      {
-        paint: [on_hatch({ size: [0.63, 0.05, 0.5], at: [0.315, 1.385, -1.5], tilt: [0.14, 0, 0] }), on_hatch({ size: [0.03, 0.26, 0.5], at: [0.615, 1.29, -1.5] })],
-        trim: [],
-      },
-    ],
+    wings: HATCH_WINGS,
     kit: {
       arches: { ...HATCH_ARCHES, gap: 0.065, flare: 0.09, out: 0.1 },
       tyre: [0.28, 0.28],
@@ -389,19 +419,7 @@ export const DESIGNS: Record<BodyStyle, Design> = {
     rim: { size: 0.64, spokes: 5, tone: "metal", lip: 0.22, spoke: 0.08 },
     round: 12,
     deck: [-2.2, 0.965],
-    wings: [
-      { paint: [{ size: [0.9, 0.04, 0.22], at: [0.45, 0.995, -2.38], tilt: [0.35, 0, 0] }], trim: [] },
-      { paint: [{ size: [0.9, 0.05, 0.3], at: [0.45, 1.01, -2.36], tilt: [0.45, 0, 0] }], trim: [] },
-      { paint: [{ size: [0.92, 0.05, 0.34], at: [0.46, 1.1, -2.3], tilt: [0.12, 0, 0] }, { size: [0.08, 0.14, 0.2], at: [0.6, 1.03, -2.28] }], trim: [] },
-      {
-        paint: [
-          { size: [0.94, 0.06, 0.4], at: [0.47, 1.17, -2.3], tilt: [0.14, 0, 0] },
-          { size: [0.08, 0.22, 0.24], at: [0.6, 1.06, -2.28] },
-          { size: [0.03, 0.16, 0.44], at: [0.925, 1.13, -2.3], tilt: [0.14, 0, 0] },
-        ],
-        trim: [{ size: [0.94, 0.05, 0.03], at: [0.47, 1.245, -2.5] }],
-      },
-    ],
+    wings: MUSCLE_WINGS,
     hood: [1.95, 0.82],
     exhaust: [0.5, 0.26, -2.44],
     kit: {
@@ -428,18 +446,7 @@ export const DESIGNS: Record<BodyStyle, Design> = {
     deck: [-1.22, 1.36],
     hood: [1.6, 0.84],
     exhaust: [0.55, 0.4, -1.85],
-    wings: [
-      { paint: [on_roof({ size: [0.63, 0.04, 0.2], at: [0.315, 1.36, -1.29], tilt: [-0.02, 0, 0] })], trim: [] },
-      { paint: [on_roof({ size: [0.63, 0.045, 0.3], at: [0.315, 1.365, -1.33], tilt: [0.06, 0, 0] })], trim: [] },
-      {
-        paint: [on_roof({ size: [0.63, 0.045, 0.36], at: [0.315, 1.38, -1.38], tilt: [0.1, 0, 0] }), on_roof({ size: [0.03, 0.2, 0.36], at: [0.625, 1.3, -1.38] })],
-        trim: [],
-      },
-      {
-        paint: [on_roof({ size: [0.63, 0.045, 0.36], at: [0.315, 1.38, -1.38], tilt: [0.1, 0, 0] }), on_roof({ size: [0.65, 0.06, 0.52], at: [0.325, 1.5, -1.52], tilt: [0.16, 0, 0] })],
-        trim: [on_roof({ size: [0.03, 0.34, 0.56], at: [0.64, 1.39, -1.5] })],
-      },
-    ],
+    wings: RALLY_WINGS,
     kit: {
       arches: { gap: 0.09, steps: 7, flare: 0.09, out: 0.1, reach: 0.04, tone: "trim" },
       tyre: [0.3, 0.3],

@@ -1,4 +1,4 @@
-import type { Design, Wing } from "./designs";
+import type { Design, Slab, Wing } from "./designs";
 import { arc, type Part, type Point } from "./geometry";
 
 const SILL = 0.16;
@@ -27,11 +27,14 @@ const ENDPLATE: Point[] = [[-1.8, 0.8], [-1.98, 1.16], [-2.46, 1.16], [-2.46, 0.
 const plane = (chord: number, tilt: number): Part => ({ size: [0.985, 0.04, chord], at: [0.4925, 1.1, -2.2], tilt: [tilt, 0, 0] });
 const flap = (chord: number, y: number, z: number, tilt: number): Part => ({ size: [0.985, 0.03, chord], at: [0.4925, y, z], tilt: [tilt, 0, 0] });
 
+// The endplates grow with the flaps, so no flap stands over or behind its plate.
+const plate = (top: number, rear: number): Slab => ({ points: [[-2.0, 1.14], [-2.06, top], [rear, top], [rear, 1.0], [-2.44, 0.9]], from: 0.97, to: 1.0 });
+
 const WINGS: Wing[] = [
   { paint: [], trim: [plane(0.38, 0.1)] },
-  { paint: [], trim: [plane(0.38, 0.12), flap(0.14, 1.16, -2.4, 0.5)] },
-  { paint: [], trim: [plane(0.42, 0.16), flap(0.2, 1.18, -2.41, 0.7)] },
-  { paint: [], trim: [plane(0.44, 0.2), flap(0.22, 1.19, -2.42, 0.8), flap(0.16, 1.27, -2.5, 1.05)] },
+  { paint: [], trim: [plane(0.38, 0.12), flap(0.14, 1.16, -2.4, 0.5)], lips: [plate(1.23, -2.5)] },
+  { paint: [], trim: [plane(0.42, 0.16), flap(0.2, 1.18, -2.41, 0.7)], lips: [plate(1.28, -2.52)] },
+  { paint: [], trim: [plane(0.44, 0.2), flap(0.22, 1.19, -2.42, 0.8), flap(0.16, 1.27, -2.5, 1.05)], lips: [plate(1.37, -2.58)] },
 ];
 
 const SPLITTER: Part = { size: [1.004, 0.03, 0.34], at: [0.502, 0.15, 2.28] };
