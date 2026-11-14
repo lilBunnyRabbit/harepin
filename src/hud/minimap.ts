@@ -229,7 +229,7 @@ export class Minimap {
     // Snapped to device pixels: a bitmap drawn between them is resampled and blurs.
     const left = Math.round((x - NORTH_BOX / 2) * this.ratio) / this.ratio;
     const top = Math.round((y - NORTH_BOX / 2) * this.ratio) / this.ratio;
-    this.ctx.drawImage(this.north_mark, left, top, NORTH_BOX, NORTH_BOX);
+    this.ctx.drawImage(this.north_mark, left, top, this.north_mark.width / this.ratio, this.north_mark.height / this.ratio);
   }
 
   private draw_north(): OffscreenCanvas {
@@ -310,7 +310,7 @@ export class Minimap {
     const start = x > MAP / 2 ? x - 6 - width + LABEL_PAD : x + 6 - LABEL_PAD;
     const left = Math.round(start * this.ratio) / this.ratio;
     const top = Math.round((y - LABEL_HEIGHT / 2) * this.ratio) / this.ratio;
-    ctx.drawImage(mark, left, top, width, LABEL_HEIGHT);
+    ctx.drawImage(mark, left, top, width, mark.height / this.ratio);
   }
 
   // Same reason as the N: text drawn on the HUD canvas resolves its font against the page's style every frame.
