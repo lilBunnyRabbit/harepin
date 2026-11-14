@@ -1,5 +1,5 @@
 import type { Triple } from "./cars";
-import { endplate, leg, plane, rod } from "./design-parts";
+import { endplate, leg, plane, rod, stalk_mirror } from "./design-parts";
 import type { Arm, Design, Section, Wing } from "./designs";
 import type { Part, Point } from "./geometry";
 
@@ -76,6 +76,10 @@ const ARMS: Arm[] = [
   { pivot: [0.33, 0.52, 1.5], trim: [rod([0.27, 0.52, 1.62], HUB_FRONT, 0.055), rod([0.36, 0.52, 1.38], HUB_FRONT, 0.055), FRONT_COIL[0]], markers: [FRONT_COIL[1]] },
   { pivot: [0.46, 0.52, -0.5], trim: [rod([0.46, 0.52, -0.5], AXLE_REAR, 0.11, 0.07), rod(AXLE_REAR, HUB_REAR, 0.07), REAR_COIL[0]], markers: [REAR_COIL[1]] },
 ];
+// A stalk mirror out of each front cage bar, its pod at the driver's eye height. The stalk's foot lies 8 cm under and 2 cm
+// ahead of its base, so the base is set that far off the bar for the foot to end inside it.
+const MIRROR_FOOT = lerp(PILLAR_FOOT, ROOF_FRONT, 0.3);
+const MIRROR = stalk_mirror([MIRROR_FOOT[0] + BAR / 2, MIRROR_FOOT[1] + 0.08, MIRROR_FOOT[2] - 0.02], "side");
 const SEAT: Part = { size: [0.3, 0.42, 0.1], at: [0.22, 0.97, -0.3], tilt: [0.12, 0, 0] };
 const ENGINE: Part = { size: [0.26, 0.3, 0.74], at: [0.13, 0.66, -1.13] };
 const TRIM: Part[] = [...CAGE, SEAT, ENGINE];
@@ -125,6 +129,7 @@ export const SAJIN_DESIGN: Design = {
   arches: { gap: 0, steps: 0, flare: 0, out: 0, reach: 0, tone: "paint" },
   heads: HEADS,
   tails: [{ size: [0.18, 0.06, 0.04], at: [0.2, 0.84, -1.9] }],
+  mirror: MIRROR,
   paint: [ROOF],
   trim: TRIM,
   markers: [],

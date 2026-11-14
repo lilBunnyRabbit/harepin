@@ -1,4 +1,4 @@
-import { endplate, gurney, leg, mirror, plane, tail_end } from "./design-parts";
+import { cabin_mirror, endplate, glass_corner, gurney, leg, plane, tail_end } from "./design-parts";
 import type { Arches, Cabin, Design, Kit, Section, Slab, Wing } from "./designs";
 import { split, type Part, type Point } from "./geometry";
 
@@ -33,6 +33,9 @@ const CABIN: Cabin = {
   // The fastback's base runs from the tail to the screen through the rear wheel openings; this keeps it over them.
   floor: [[-1.0, 0.82]],
 };
+
+// The mirror stands over the hip crest, where the body side has done leaning in: lower, the lean would shear its housing.
+const MIRROR_AT = glass_corner(CABIN, 0.185, 0.26);
 
 const STOCK_ARCHES: Arches = { gap: 0.07, steps: 7, flare: 0.05, out: 0.045, reach: 0.04, tone: "paint" };
 const KIT_ARCHES: Arches = { gap: 0.08, steps: 7, flare: 0.05, out: 0.03, reach: 0.04, tone: "paint" };
@@ -79,7 +82,8 @@ function shell(outline: Point[], half: number, shoulder: number, front: Part[]) 
   const tail = tail_end(outline, 0.57, 0.14, half, [{ size: [half, 0.1, 0.04], at: [half / 2, 0.57, 0] }], null, 0.42);
   return {
     slabs: grown(FENDER, WING_WALL, half),
-    paint: [...mirror(CABIN, lean(shoulder, CABIN.points[0][1] + 0.06)), WALL],
+    mirror: cabin_mirror(CABIN, shoulder, MIRROR_AT),
+    paint: [WALL],
     trim: [...front, { size: [half + 0.01, 0.1, 0.05], at: [(half + 0.01) / 2, 0.3, -1.95] } satisfies Part, ...tail.trim],
     tails: tail.tails,
     chrome: tail.chrome,

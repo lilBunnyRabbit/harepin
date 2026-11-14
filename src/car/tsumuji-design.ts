@@ -1,5 +1,5 @@
 import { sculpt_factor } from "./body-shell";
-import { endplate, gurney, leg, mirror, plane, tail_end, widen_wing } from "./design-parts";
+import { cabin_mirror, endplate, gurney, leg, plane, tail_end, widen_wing } from "./design-parts";
 import type { Arches, Cabin, Design, Kit, Section, Slab, Wing } from "./designs";
 import { top_at, type Part, type Point } from "./geometry";
 
@@ -45,7 +45,6 @@ const WINGS: Wing[] = [
   },
 ];
 
-const PAINT: Part[] = mirror(CABIN, SECTION.shoulder);
 const MOUTH: Part = { size: [0.34, 0.1, 0.04], at: [0.17, 0.36, 1.956] };
 const TRIM: Part[] = [MOUTH, ...TAIL.trim];
 
@@ -74,7 +73,8 @@ const BODY = {
   arches: STOCK_ARCHES,
   heads: [],
   tails: TAIL.tails,
-  paint: PAINT,
+  mirror: cabin_mirror(CABIN, SECTION.shoulder),
+  paint: [],
   trim: TRIM,
   markers: [{ size: [0.17, 0.05, 0.04], at: [0.56, 0.48, 1.946] }],
   chrome: TAIL.chrome,
@@ -100,7 +100,7 @@ const SHELL = {
   sill: 0.17,
   section: { ...SECTION, belt: [0.76, 0.72], shoulder: WIDE_SHOULDER, tuck: 0 },
   arches: { ...STOCK_ARCHES, gap: 0.06, flare: 0.045, out: 0.03 },
-  paint: mirror(CABIN, WIDE_SHOULDER),
+  mirror: cabin_mirror(CABIN, WIDE_SHOULDER),
   trim: [{ size: [0.44, 0.11, 0.04], at: [0.22, 0.36, 1.982] }, ...TAIL.trim],
   markers: [{ size: [0.17, 0.05, 0.04], at: [0.56, 0.44, 1.978] }],
   tyre: [0.25, 0.27],

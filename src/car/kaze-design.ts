@@ -1,4 +1,4 @@
-import { endplate, gurney, leg, mirror, plane, tail_end, widen_wing } from "./design-parts";
+import { cabin_mirror, endplate, gurney, leg, plane, tail_end, widen_wing } from "./design-parts";
 import type { Arches, Cabin, Design, Kit, Section, Slab, Wing } from "./designs";
 import type { Part, Point } from "./geometry";
 
@@ -28,7 +28,6 @@ const WINGS: Wing[] = [
   },
 ];
 
-const PAINT: Part[] = mirror(CABIN, SECTION.shoulder);
 const REAR_VALANCE: Part = { size: [0.9, 0.14, 0.04], at: [0.45, 0.37, -2.11] };
 
 // The kit is the shell: 7 cm wider a side over deeper sills, with a deep upright bumper and a tail valance drawn in the outline.
@@ -53,7 +52,7 @@ const KIT: Kit = {
   section: { ...SECTION, shoulder: WIDE_SHOULDER, tuck: 0 },
   // As big as fits under the bonnet, in one more facet: the deeper sill would otherwise stretch each one into the wide tyre at full lock.
   arches: { ...STOCK_ARCHES, gap: 0.08, steps: 8, flare: 0.05, out: 0.03 },
-  paint: mirror(CABIN, WIDE_SHOULDER),
+  mirror: cabin_mirror(CABIN, WIDE_SHOULDER),
   trim: [{ size: [0.62, 0.14, 0.04], at: [0.3, 0.4, 2.042] }, { ...REAR_VALANCE, at: [0.45, 0.37, -2.14] }, ...TAIL.trim],
   tyre: [0.34, 0.38],
   rim: { size: 0.66, spokes: 5, tone: "metal", lip: 0.2, spoke: 0.08 },
@@ -69,7 +68,8 @@ export const KAZE_DESIGN: Design = {
   arches: STOCK_ARCHES,
   heads: [{ size: [0.36, 0.05, 0.3], at: [0.62, 0.685, 1.8], tilt: [0.2, 0, 0] }],
   tails: TAIL.tails,
-  paint: PAINT,
+  mirror: cabin_mirror(CABIN, SECTION.shoulder),
+  paint: [],
   trim: [{ size: [0.52, 0.11, 0.04], at: [0.25, 0.45, 1.992] }, REAR_VALANCE, ...TAIL.trim],
   markers: [],
   chrome: TAIL.chrome,

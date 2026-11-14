@@ -75,7 +75,7 @@ export const FUJIN_DESIGN: Design = {
   pods: { radius: ARCH, steps: 7, from: PONTOON_WALL },
   heads: [{ size: [0.1, 0.27, 0.04], at: [0.78, 0.465, 2.22], tilt: [-0.63, 0, 0] }],
   tails: [{ size: [0.07, 0.3, 0.04], at: [0.9, 0.48, -2.345] }],
-  mirror: stalk_mirror([0.76, 0.63, 0.95], "top"),
+  mirror: stalk_mirror([0.76, 0.71, 0.95], "top"),
   paint: [],
   trim: [
     { size: [0.02, 0.2, 0.36], at: [0.995, 0.38, 0.74] },
