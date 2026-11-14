@@ -150,6 +150,7 @@ function trial(v: unknown, path: string): Trial {
     goal: goal(o.goal, `${path}.goal`),
     try: text(o.try, `${path}.try`),
     feel: text(o.feel, `${path}.feel`),
+    ...(o.question !== undefined ? { question: text(o.question, `${path}.question`) } : {}),
     ...(ask ? { ask } : {}),
     ...(o.base === true ? { base: true as const } : {}),
   };
@@ -164,6 +165,7 @@ export function read_pack(v: unknown): Pack {
     rev: num(o.rev, "pack.rev"),
     title: text(o.title, "pack.title"),
     brief: text(o.brief, "pack.brief"),
+    ...(o.aim !== undefined ? { aim: text(o.aim, "pack.aim") } : {}),
     ...(cars ? { cars } : {}),
     trials: list(o.trials, "pack.trials", trial),
     ask: list(o.ask, "pack.ask", question),

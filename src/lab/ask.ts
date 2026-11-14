@@ -7,6 +7,7 @@ export const FUN: Question = { kind: "scale", id: "fun", label: "Fun", low: "a c
 export const DRIFT: Question = { kind: "scale", id: "drift", label: "Drift ease", low: "won't slide or won't hold", high: "easy to start and hold" };
 export const LANDING: Question = { kind: "scale", id: "land", label: "Landing", low: "bounces or flips", high: "plants" };
 export const VS: Question = { kind: "pick", id: "vs", label: "vs last trial", options: ["worse", "same", "better"] };
+export const VS_BASELINE: Question = { ...VS, label: "vs the baseline" };
 export const NOTE: Question = { kind: "text", id: "note", label: "Note" };
 
 export const ASK: Question[] = [GRIP, PRED, FUN, NOTE];

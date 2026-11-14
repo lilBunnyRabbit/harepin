@@ -5,6 +5,7 @@
   import { goal_label, STATUS_LABEL } from "./lab-text";
   import type { LabView } from "./lab-view.svelte";
   import ResultCard from "./ResultCard.svelte";
+  import TrialBrief from "./TrialBrief.svelte";
   import TrialList from "./TrialList.svelte";
 
   interface Props {
@@ -19,17 +20,19 @@
   const now = $derived(view.read(() => (at < 0 ? null : { r: lab.trials[at], status: lab.status(at) })));
   const shown = $derived(view.screen);
   const result = $derived(shown?.kind === "result" ? shown.index : null);
+  const briefed = $derived(shown?.kind === "brief" ? shown.index : null);
   const live = $derived(view.read(() => lab.live));
   const resume_label = $derived(!live ? (at < 0 ? "Start" : "Retry trial") : now?.status === "new" ? "Start" : "Back to trial");
   const driven = $derived(view.read(() => lab.trials.filter((_, i) => lab.status(i) !== "new").length));
 
-  function go(index: number) {
-    view.screen = null;
+  /** A new trial opens on its brief; a retry goes straight back to driving. */
+  function go(index: number, brief = true) {
+    view.screen = brief ? { kind: "brief", index } : null;
     void lab.begin(index);
   }
 
   // A dialog closed by the screen moving on fires its close too: only the one still shown clears it.
-  function close(kind: "list" | "result") {
+  function close(kind: "list" | "brief" | "result") {
     if (view.screen?.kind === kind) view.screen = null;
     // A closed dialog hands focus back to the strip button that opened it, where Space would press it again.
     const back = document.activeElement;
@@ -37,8 +40,8 @@
   }
 
   function resume() {
-    if (live) view.screen = null;
-    else go(Math.max(0, at));
+    if (live) view.screen = now?.status === "new" ? { kind: "brief", index: at } : null;
+    else go(Math.max(0, at), now?.status !== "new");
   }
 </script>
 
@@ -56,7 +59,8 @@
     {/if}
   </span>
   <IconButton icon="icon-menu" label="Trials" title="Trials" onclick={() => (view.screen = { kind: "list" })} />
-  <IconButton icon="icon-restart" label="Retry trial" title="Retry (\)" disabled={at < 0} onclick={() => go(at)} />
+  <IconButton icon="icon-idea" label="Trial brief" title="What this trial tests" disabled={at < 0} onclick={() => (view.screen = { kind: "brief", index: at })} />
+  <IconButton icon="icon-restart" label="Retry trial" title="Retry (\)" disabled={at < 0} onclick={() => go(at, false)} />
   <IconButton icon="icon-check" label="Stop and rate" title="Stop and rate" disabled={at < 0} onclick={() => lab.end_trial()} />
 </div>
 
@@ -77,6 +81,18 @@
   {/snippet}
 </Dialog>
 
+{#if briefed !== null}
+  <Dialog open={true} title={`Trial ${briefed + 1}/${count} · ${lab.shown[briefed].label}`} subtitle={lab.pack.title} wide onclose={() => close("brief")}>
+    <TrialBrief {view} index={briefed} />
+    {#snippet actions()}
+      <div class="lab-actions">
+        <Button icon="icon-menu" onclick={() => (view.screen = { kind: "list" })}>Trials</Button>
+        <Button variant="primary" icon="icon-play" autofocus onclick={() => (view.screen = null)}>Drive</Button>
+      </div>
+    {/snippet}
+  </Dialog>
+{/if}
+
 {#if result !== null}
   {@const r = lab.trials[result]}
   <Dialog open={true} title={`${result + 1}/${count} ${lab.shown[result].label}`} subtitle={`${lab.shown[result].open ? `${r.spec.name} · ` : ""}${r.trial.station}/${r.lane.name} · ${view.read(() => STATUS_LABEL[lab.status(result)])}`} wide onclose={() => close("result")}>
@@ -86,7 +102,7 @@
         <Button icon="icon-menu" onclick={() => (view.screen = { kind: "list" })}>Trials</Button>
         <Button icon="icon-share" onclick={() => view.copy()}>Copy</Button>
         <Button icon="icon-back" disabled={result === 0} onclick={() => go(result - 1)}>Previous</Button>
-        <Button icon="icon-restart" onclick={() => go(result)}>Retry</Button>
+        <Button icon="icon-restart" onclick={() => go(result, false)}>Retry</Button>
         <Button variant="primary" icon="icon-play" disabled={result + 1 >= count} onclick={() => go(result + 1)}>Next</Button>
       </div>
     {/snippet}
