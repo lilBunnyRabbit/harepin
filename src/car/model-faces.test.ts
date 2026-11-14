@@ -163,3 +163,33 @@ test("every wheel opening stays open over its tyre, on every car and kit", async
     }
   expect(found).toEqual([]);
 }, 120_000);
+
+// An arm end this close to the axle line, inside the wheel, is on the hub.
+const HUB = 0.06;
+
+test("every suspension arm runs from the body to its wheel's hub", async () => {
+  const { build_view, dispose_car_view, rest_wheels } = await import("./models");
+  const { build_spec } = await import("./build");
+  const { DESIGNS } = await import("./designs");
+  const { axle_index, axles_of } = await import("./axles");
+  const found: string[] = [];
+  for (const car of Object.keys(CARS) as CarId[]) {
+    const build: Build = { ...DEFAULT_BUILD, car };
+    const spec = build_spec(build);
+    const d = DESIGNS[spec.body.style];
+    const view = build_view(build, spec);
+    rest_wheels(view, spec);
+    view.root.updateMatrixWorld(true);
+    const axles = axles_of(spec);
+    view.arms.forEach((arm, w) => {
+      if (!arm) return;
+      const centre = view.wheels[w].position;
+      const inner = Math.abs(centre.x) - d.tyre[Math.min(axle_index(axles, w), 1)] / 2;
+      const points = body_faces(arm.group, view.root).flatMap((face) => [face.a, face.b, face.c]);
+      if (!points.some((q) => Math.abs(q.x) >= inner && Math.abs(q.x) <= Math.abs(centre.x) && Math.hypot(q.y - centre.y, q.z - centre.z) < HUB)) found.push(`${car} wheel ${w}: no arm reaches the hub`);
+      if (!points.some((q) => Math.abs(q.x) < d.width / 2)) found.push(`${car} wheel ${w}: no arm reaches the body`);
+    });
+    dispose_car_view(view);
+  }
+  expect(found).toEqual([]);
+});

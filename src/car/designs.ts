@@ -2,7 +2,7 @@ import type { BodyStyle, Triple } from "./cars";
 import type { Panel } from "./livery";
 import type { Token } from "../theme/theme";
 import { FUJIN_DESIGN } from "./fujin-design";
-import { MIRROR, mirror, on_cabin, tail_end } from "./design-parts";
+import { MIRROR, mirror, on_cabin, rod, tail_end } from "./design-parts";
 import { KAZE_DESIGN } from "./kaze-design";
 import { RAIJIN_DESIGN } from "./raijin-design";
 import { SAJIN_DESIGN } from "./sajin-design";
@@ -221,6 +221,14 @@ const RACE_BEAM: Part = { size: [0.485, 0.035, 0.18], at: [0.2425, 0.414, -2.02]
 const race_plane = (chord: number, tilt: number): Part => ({ size: [0.485, 0.04, chord], at: [0.2425, 0.9, -1.82], tilt: [tilt, 0, 0] });
 const race_flap = (chord: number, tilt: number): Part => ({ size: [0.485, 0.03, chord], at: [0.2425, 0.985, -2.02], tilt: [tilt, 0, 0] });
 const race_wing = (plane: Part, flap: Part): Wing => ({ paint: [], trim: [RACE_BEAM, plane, flap], lips: [RACE_ENDPLATE] });
+
+// A lower wishbone at hub height and an upper one over it, both square to the car: a raked leg would run through the
+// tyre at full lock. Each ends inside the rim.
+const wishbones = (z: number, body: number, hub: number): Arm => ({
+  pivot: [body, 0.33, z],
+  trim: [rod([body, 0.33, z], [hub, 0.33, z], 0.025, 0.1), rod([body, 0.43, z], [hub - 0.02, 0.42, z], 0.025, 0.07)],
+  markers: [],
+});
 
 // Every front wing element stays ahead of the steered tyre, whose corner sweeps to z 1.97 at full lock.
 const NOSE_FLAP_Z = 2.09;
@@ -451,13 +459,12 @@ export const DESIGNS: Record<BodyStyle, Design> = {
     tails: [{ size: [0.07, 0.08, 0.03], at: [0.035, 0.22, -2.135] }],
     paint: [on_nose({ size: [0.03, 0.18, 0.38], at: [0.915, 0.2, 2.19] })],
     trim: [
-      { size: [0.62, 0.04, 2.5], at: [0.31, 0.115, -0.25] },
+      { size: [0.62, 0.04, 2.16], at: [0.31, 0.115, -0.08] },
+      { size: [0.5, 0.04, 0.34], at: [0.25, 0.115, -1.33] },
       on_nose({ size: [0.9, 0.035, 0.34], at: [0.45, 0.14, 2.17] }),
       on_nose({ size: [0.04, 0.1, 0.12], at: [0.07, 0.19, 2.2] }),
       { size: [0.03, 0.52, 0.16], at: [0.015, 0.64, -1.84] },
       { size: [0.36, 0.18, 0.03], at: [0.44, 0.36, -0.118], tilt: [-0.15, 0, 0] },
-      on_nose({ size: [0.48, 0.025, 0.07], at: [0.45, 0.42, 1.6], tilt: [0, 0, -0.2] }),
-      { size: [0.48, 0.025, 0.07], at: [0.45, 0.42, -1.45], tilt: [0, 0, -0.2] },
       { size: [0.08, 0.12, 0.24], at: [0.04, 0.22, -2.0] },
     ],
     markers: [],
@@ -468,6 +475,7 @@ export const DESIGNS: Record<BodyStyle, Design> = {
     hood: [-0.6, 0.62],
     exhaust: [0, 0.34, -1.98],
     taper: { from: -0.3, share: 0.42 },
+    arms: [wishbones(1.6, 0.1, 0.66), wishbones(-1.45, 0.06, 0.61)],
     wings: [
       race_wing(race_plane(0.3, 0.1), race_flap(0.12, 0.4)),
       race_wing(race_plane(0.32, 0.14), race_flap(0.15, 0.5)),

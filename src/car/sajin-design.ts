@@ -1,4 +1,5 @@
 import type { Triple } from "./cars";
+import { rod } from "./design-parts";
 import type { Arm, Design, Section, Wing } from "./designs";
 import type { Part, Point } from "./geometry";
 
@@ -15,15 +16,6 @@ function keep(z: number): number {
 }
 
 const on_nose = (part: Part): Part => ({ ...part, size: [part.size[0] / keep(part.at[2]), part.size[1], part.size[2]], at: [part.at[0] / keep(part.at[2]), part.at[1], part.at[2]] });
-
-// The arms swing with the wheels outside the sculpted hull, so they are drawn where they end up.
-function rod(a: Triple, b: Triple, thick: number, wide = thick): Part {
-  const dx = b[0] - a[0];
-  const dy = b[1] - a[1];
-  const dz = b[2] - a[2];
-  const length = Math.hypot(dx, dy, dz);
-  return { size: [wide, thick, length], at: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2], tilt: [-Math.asin(dy / length), Math.atan2(dx, dz), 0] };
-}
 
 const tube = (from: Triple, to: Triple, thick: number): Part => rod([from[0] / keep(from[2]), from[1], from[2]], [to[0] / keep(to[2]), to[1], to[2]], thick);
 
@@ -42,6 +34,8 @@ const TAIL: Triple = [0.36, 0.84, -1.86];
 const TAIL_LOW: Triple = [0.36, 0.5, -1.86];
 const HUB_FRONT: Triple = [0.74, 0.41, 1.5];
 const HUB_REAR: Triple = [0.7, 0.43, -1.3];
+// The trailing arm ends inside the widest rear tyre's inner face; a stub axle runs on from it to the hub.
+const AXLE_REAR: Triple = [0.56, 0.43, -1.3];
 
 const CAGE: Part[] = [
   tube(COWL, ROOF_FRONT, BAR),
@@ -55,11 +49,12 @@ const CAGE: Part[] = [
   across(TAIL, BAR),
   across(TAIL_LOW, BAR),
 ];
+// The arms swing with the wheels outside the sculpted hull, so they are drawn where they end up.
 const FRONT_COIL = coil([0.63, 0.46, 1.5], [0.33, 0.84, 1.48]);
-const REAR_COIL = coil([0.63, 0.5, -1.24], lerp(ROOF_REAR, TAIL, 0.49));
+const REAR_COIL = coil([0.58, 0.5, -1.24], lerp(ROOF_REAR, TAIL, 0.49));
 const ARMS: Arm[] = [
-  { pivot: [0.33, 0.52, 1.5], trim: [rod([0.27, 0.52, 1.8], HUB_FRONT, 0.055), rod([0.39, 0.52, 1.2], HUB_FRONT, 0.055), FRONT_COIL[0]], markers: [FRONT_COIL[1]] },
-  { pivot: [0.46, 0.52, -0.5], trim: [rod([0.46, 0.52, -0.5], HUB_REAR, 0.11, 0.07), REAR_COIL[0]], markers: [REAR_COIL[1]] },
+  { pivot: [0.33, 0.52, 1.5], trim: [rod([0.27, 0.52, 1.62], HUB_FRONT, 0.055), rod([0.36, 0.52, 1.38], HUB_FRONT, 0.055), FRONT_COIL[0]], markers: [FRONT_COIL[1]] },
+  { pivot: [0.46, 0.52, -0.5], trim: [rod([0.46, 0.52, -0.5], AXLE_REAR, 0.11, 0.07), rod(AXLE_REAR, HUB_REAR, 0.07), REAR_COIL[0]], markers: [REAR_COIL[1]] },
 ];
 const SEAT: Part = { size: [0.3, 0.42, 0.1], at: [0.22, 0.97, -0.3], tilt: [0.12, 0, 0] };
 const ENGINE: Part = { size: [0.26, 0.3, 0.74], at: [0.13, 0.66, -1.13] };

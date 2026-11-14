@@ -56,3 +56,12 @@ export function mirror(cabin: Cabin, z: number, size: Triple, shoulder: number):
   const half = (cabin.width / 2) * (1 - (cabin.tumble * (y - low)) / (Math.max(...ys) - low));
   return on_cabin({ size, at: [half + size[0] / 2 - 0.015, y, z] }, shoulder);
 }
+
+/** A bar from `a` to `b` on the left side, `thick` tall and `wide` across. */
+export function rod(a: Triple, b: Triple, thick: number, wide = thick): Part {
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  const dz = b[2] - a[2];
+  const length = Math.hypot(dx, dy, dz);
+  return { size: [wide, thick, length], at: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2], tilt: [-Math.asin(dy / length), Math.atan2(dx, dz), 0] };
+}
