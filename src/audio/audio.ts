@@ -200,8 +200,10 @@ export class Audio {
     this.wind.gain.setTargetAtTime(Math.min(0.22, (speed / 70) ** 2 * 0.22), t, 0.1);
     this.gravel.gain.setTargetAtTime(offroad ? Math.min(0.5, speed / 25) * 0.5 : 0, t, 0.08);
     if (boost && this.boost_since === null) {
-      this.boost_since = t;
-      if (t - this.last_whoosh >= NITRO.whoosh_gap) this.whoosh();
+      const fresh = t - this.last_whoosh >= NITRO.whoosh_gap;
+      // A quick re-tap skips the swell too, so tapping the button can't pump the rush.
+      this.boost_since = fresh ? t : t - NITRO.rush_settle_at;
+      if (fresh) this.whoosh();
     } else if (!boost) this.boost_since = null;
     const aim = rush_target(this.boost_since === null ? null : t - this.boost_since, this.rush_aim);
     this.rush?.gain.setTargetAtTime(aim.level, t, aim.tau);
