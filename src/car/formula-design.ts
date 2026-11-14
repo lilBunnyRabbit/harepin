@@ -29,12 +29,22 @@ const race_wing = (plane: Part, flap: Part): Wing => ({ paint: [], trim: [RACE_B
 // On the cockpit side, level with the driver's eyes.
 const FORMULA_MIRROR = stalk_mirror([0.21, 0.6, 0.74], "side");
 
-// The floor follows the car over it: a keel under the tub, full width only under the sidepods, narrowing to the gearbox.
-const FORMULA_FLOOR: Part[] = [
-  { size: [0.27, 0.04, 1.14], at: [0.135, 0.115, 0.43] },
-  { size: [0.68, 0.04, 0.98], at: [0.34, 0.115, -0.61] },
-  { size: [0.4, 0.04, 0.5], at: [0.2, 0.115, -1.33] },
-];
+const FORMULA_OUTLINE: Point[] = [[FORMULA_NOSE, 0.2], [2.32, 0.27], [2.1, 0.34], [1.3, 0.5], [0.98, 0.6], [0.9, 0.56], [0.42, 0.56], [0.3, 0.68], [-0.2, 0.7], [-1.2, 0.5], [-1.85, 0.38], [-2.0, 0.36], [-2.0, 0.12]];
+const [NOSE_FOOT, TAIL_FOOT] = [FORMULA_OUTLINE[0], FORMULA_OUTLINE[FORMULA_OUTLINE.length - 1]];
+const under = (z: number) => TAIL_FOOT[1] + ((NOSE_FOOT[1] - TAIL_FOOT[1]) * (z - TAIL_FOOT[0])) / (NOSE_FOOT[0] - TAIL_FOOT[0]);
+const FLOOR_THICK = 0.035;
+const FLOOR_SEAT = 0.008;
+const floor_strip = (from: number, to: number, front: number, rear: number): Part => {
+  const y = (z: number) => under(z) + FLOOR_SEAT - FLOOR_THICK / 2;
+  const x = (from + to) / 2;
+  return rod([x, y(front), front], [x, y(rear), rear], FLOOR_THICK, to - from);
+};
+// One plate on the tub's own underside, with nothing hung under the nose: it starts at the sidepod inlets, runs full
+// width to the rear tyres and on between them to the gearbox.
+const FORMULA_FLOOR: Part[] = [floor_strip(0, 0.44, 0.02, -1.6), floor_strip(0.44, 0.68, 0.02, -1.1)];
+// The front wing's main plane runs through the nose foot, so the nose stands on it without pylons.
+const NOSE_PLANE_Z = 2.17;
+const NOSE_PLANE_Y = under(NOSE_PLANE_Z) - 0.003;
 const FORMULA_HUB = 0.33;
 // Two legs from the chassis side, `high` and `low` on it, to the hub centre, both square to the car: a raked leg would
 // run through the tyre at full lock. They start inside the chassis side and end inside the rim.
@@ -46,23 +56,22 @@ const wishbones = (z: number, side: number, high: number, low: number, hub: numb
 
 // Every front wing element stays ahead of the steered tyre, whose corner sweeps to z 1.97 at full lock.
 const NOSE_FLAP_Z = 2.09;
-const nose_flap = (chord: number, y: number, tilt: number): Part => on_nose({ size: [0.6, 0.03, chord], at: [0.6, y, NOSE_FLAP_Z], tilt: [tilt, 0, 0] });
+const nose_flap = (chord: number, lift: number, tilt: number): Part => on_nose({ size: [0.6, 0.03, chord], at: [0.6, NOSE_PLANE_Y + lift, NOSE_FLAP_Z], tilt: [tilt, 0, 0] });
 
 export const FORMULA_DESIGN: Design = {
-  outline: [[FORMULA_NOSE, 0.2], [2.32, 0.27], [2.1, 0.34], [1.3, 0.5], [0.98, 0.6], [0.9, 0.56], [0.42, 0.56], [0.3, 0.68], [-0.2, 0.7], [-1.2, 0.5], [-1.85, 0.38], [-2.0, 0.36], [-2.0, 0.12]],
+  outline: FORMULA_OUTLINE,
   width: 0.44,
   section: FORMULA_SECTION,
-  sill: 0.1,
+  sill: 0.225,
   cabin: { points: [[0.8, 0.54], [0.83, 0.7], [0.76, 0.8], [0.62, 0.82], [0.52, 0.75], [0.5, 0.54]], width: 0.26, tumble: 0.3, frame: [], screens: [], helmet: true, visor: [[0.842, 0.68], [0.797, 0.765], [0.66, 0.765], [0.66, 0.68]] },
   arches: { gap: 0, steps: 0, flare: 0, out: 0, reach: 0, tone: "trim" },
   heads: [{ size: [0.05, 0.035, 0.14], at: [0.21, 0.38, 1.75], tilt: [0.18, 0, 0] }],
   tails: [{ size: [0.07, 0.08, 0.03], at: [0.035, 0.22, -2.135] }],
   mirror: FORMULA_MIRROR,
-  paint: [on_nose({ size: [0.03, 0.18, 0.38], at: [0.915, 0.2, 2.19] })],
+  paint: [on_nose({ size: [0.03, 0.2, 0.38], at: [0.915, NOSE_PLANE_Y + 0.05, 2.19] })],
   trim: [
     ...FORMULA_FLOOR,
-    on_nose({ size: [0.9, 0.035, 0.34], at: [0.45, 0.14, 2.17] }),
-    on_nose({ size: [0.04, 0.1, 0.12], at: [0.07, 0.19, 2.2] }),
+    on_nose({ size: [0.9, 0.035, 0.34], at: [0.45, NOSE_PLANE_Y, NOSE_PLANE_Z] }),
     { size: [0.03, 0.52, 0.16], at: [0.015, 0.64, -1.84] },
     { size: [0.36, 0.18, 0.03], at: [0.44, 0.36, -0.118], tilt: [-0.15, 0, 0] },
     { size: [0.08, 0.12, 0.24], at: [0.04, 0.22, -2.0] },
@@ -82,9 +91,9 @@ export const FORMULA_DESIGN: Design = {
     race_wing(race_plane(0.36, 0.18), race_flap(0.18, 0.6)),
   ],
   fronts: [
-    { paint: [], trim: [nose_flap(0.14, 0.2, 0.2)] },
-    { paint: [], trim: [nose_flap(0.17, 0.205, 0.3)] },
-    { paint: [], trim: [nose_flap(0.17, 0.205, 0.3), nose_flap(0.12, 0.265, 0.45)] },
+    { paint: [], trim: [nose_flap(0.14, 0.06, 0.2)] },
+    { paint: [], trim: [nose_flap(0.17, 0.065, 0.3)] },
+    { paint: [], trim: [nose_flap(0.17, 0.065, 0.3), nose_flap(0.12, 0.125, 0.45)] },
   ],
   slabs: [
     { points: SIDEPOD, from: 0.2, to: 0.66 },
