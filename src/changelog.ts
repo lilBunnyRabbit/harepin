@@ -54,6 +54,23 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.42.0",
+    date: "2026-11-14",
+    title: "Fresh metal",
+    changes: [
+      { kind: NEW, text: "Legend tier: 12 events ending in the Velodrome final, with carbon paint, the Lanes decal and the Legend champion badge to earn" },
+      { kind: NEW, text: "Two new cars: Tsumuji, a light drift hardtop with pop-up headlights, and Sajin, a sand buggy built for the dunes" },
+      { kind: NEW, text: "A reward car waits for Legend champions" },
+      { kind: IMPROVED, text: "Every car restyled: a stock body plus four aero kits to bolt on, a new nitro flame and a softer nitro sound" },
+      { kind: NEW, text: "Career page: your rank, next goals and every tier's rewards on one page" },
+      { kind: NEW, text: "Mainland towns rebuilt with main streets and a clock-tower square. Mainland records and ghosts start fresh" },
+      { kind: NEW, text: "Headlights switch on any car (N, D-pad up, or the aids and phone menus); players online see them" },
+      { kind: IMPROVED, text: "Car pick and garage cards show drive and tyre icons, and the garage switches cars faster" },
+      { kind: IMPROVED, text: "Smoother menus on phones" },
+      { kind: FIXED, text: "HUD buttons no longer overlap the map or spill off the dash, and the car shadow no longer cuts across the tyres" },
+    ],
+  },
+  {
     version: "0.41.1",
     date: "2026-11-13",
     title: "Smoother on phones",
