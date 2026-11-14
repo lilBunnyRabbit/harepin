@@ -211,6 +211,7 @@ export class Settings {
     if (!this.is_open) return;
     if (this.guide_open) this.mark_guide_seen();
     this.guide.stop();
+    this.host.updates_closed();
     this.root.hidden = true;
     this.root.removeEventListener("click", this.click);
     removeEventListener("keydown", this.key);

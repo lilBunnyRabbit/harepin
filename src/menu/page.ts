@@ -66,6 +66,8 @@ export interface SettingsHost {
   changelog(): HTMLElement;
   /** What's new on its list of releases, never on a story left open. */
   show_updates(): void;
+  /** The menu closed: What's new opens on its list next time. */
+  updates_closed(): void;
   /** A new version is downloading or waits on What's new: the top bar shows its chip. */
   update_state(): UpdateState;
   servers(): Server[];

@@ -151,6 +151,10 @@ export class Updater {
     if (document.visibilityState === "visible" && Date.now() - this.last_check > VISIBLE_CHECK_GAP_MS) this.check();
   };
 
+  close_notes(): void {
+    this.view.reading = null;
+  }
+
   /** The Updates page, on the story of `version` or on the list when null. */
   readonly open_notes = (version: string | null = null): void => {
     this.view.reading = version;
