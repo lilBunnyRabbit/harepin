@@ -66,9 +66,9 @@ function screen_of(cabin: Cabin, edge: number): Screen {
   return { at: (x, share) => [x, a[1] + u[1] * share * length + out[1], a[0] + u[0] * share * length + out[0]], length, tilt: Math.atan2(-u[1], u[0]) };
 }
 
-export function screen_bar(cabin: Cabin, edge: number, from: Point, to: Point, thick = 0.05): Part {
+export function screen_bar(cabin: Cabin, edge: number, from: Point, to: Point, thick = 0.05, tall = 0.03): Part {
   const screen = screen_of(cabin, edge);
-  return rod(screen.at(from[0], from[1]), screen.at(to[0], to[1]), 0.03, thick);
+  return rod(screen.at(from[0], from[1]), screen.at(to[0], to[1]), tall, thick);
 }
 
 export function screen_band(cabin: Cabin, edge: number, from: number, to: number, half: number): Part {

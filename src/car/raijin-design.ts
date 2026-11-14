@@ -47,7 +47,7 @@ function tail_of(outline: Point[], k: number) {
 // Grille, a vent each side of the engine bulge, an intake row in the front bar and one strip in the rear bar that holds both pipes.
 function trim_of(tail: ReturnType<typeof tail_of>, nose: number, bumper: number, k: number): Part[] {
   return [
-    { size: [0.46, 0.23, 0.05], at: [0.23, 0.585, 2.094], tilt: [NOSE_LEAN, 0, 0] },
+    { size: [0.46, 0.23, 0.05], at: [0.23, 0.585, 2.072], tilt: [NOSE_LEAN, 0, 0] },
     { size: [0.2, 0.03, 0.34], at: [0.46, 0.929, 1.4], tilt: [HOOD_FALL, 0, 0] },
     { size: [0.5, 0.07, 0.04], at: [0.25, 0.335, nose - INSET] },
     { size: [0.17 * k, 0.07, 0.04], at: [0.7 * k, 0.335, nose - INSET] },
