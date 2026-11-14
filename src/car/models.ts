@@ -6,7 +6,7 @@ import { COUPE, type CarSpec } from "./cars";
 import { body_pieces, cabin_parts, flares, notch, sculpt, side_panel, skirts } from "./body-shell";
 import { CAR_ORDER } from "./contact-shadow";
 import { DESIGNS } from "./designs";
-import { extrude, merge, parts, slab, taper, tint } from "./geometry";
+import { extrude, merge, parts, side_part, slab, taper, tint } from "./geometry";
 import { lamps, popup, set_lights, type HeadMesh, type Popup } from "./lights";
 import { back, livery_of, livery_parts, roof, type Livery } from "./livery";
 import { nitro_flame, type Jet } from "./nitro-look";
@@ -18,10 +18,23 @@ import { brand, color, dark, mix, tones } from "../theme/palette";
 import { sky_ceiling } from "../render/sky";
 import type { Lab } from "../theme/theme";
 
+/** A suspension arm hinged on the body, swung so its outer end follows its wheel. */
+export interface ArmSwing {
+  group: THREE.Group;
+  /** Hinge direction in body space; a positive turn about it lifts the wheel end. */
+  axis: THREE.Vector3;
+  /** Metres in plan from the hinge to the wheel centre. */
+  reach: number;
+  /** The wheel's suspension reach where the arm sits as drawn. */
+  rest: number;
+}
+
 export interface CarView {
   root: THREE.Group;
   body: THREE.Group;
   wheels: THREE.Group[];
+  /** Per wheel, its swinging arm, or null on a body that draws none. */
+  arms: (ArmSwing | null)[];
   /** Per wheel, whether it turns with the steering. */
   steered: boolean[];
   brake: THREE.MeshLambertMaterial;
@@ -193,7 +206,7 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
   body.add(hull, pods?.pivot ?? heads, tails, flame);
   root.add(body);
 
-  const tyre = part_of("tyres", kit.tyres).look?.tyre ?? STOCK_TYRE;
+  const tyre = part_of("tyres", kit.tyres).look?.tyre ?? (d.tread ? { ...STOCK_TYRE, tread: d.tread } : STOCK_TYRE);
   const caliper = part_of("brakes", kit.brakes).look?.caliper ?? (d.caliper ? { ...STOCK_CALIPER, tone: d.caliper } : STOCK_CALIPER);
   const axles = axles_of(spec);
   const tyres = [0, 1].map((axle) => wheel_geometry(spec.wheel.radius, d.tyre[axle], d.rim, tyre, d.round));
@@ -211,7 +224,28 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
     return steer;
   });
   const steered = wheel_axles.map((axle) => axles[axle].steer);
-  const view = { root, body, wheels, steered, brake, heads, lights: true, popup: pods, eye: d.eye ? new THREE.Vector3(0, body.position.y + d.eye[1], d.eye[0]) : null, flame, jet, sway_at: 0 };
+  const arm_rest = rest_reach(spec);
+  const arms = spec.wheel.mounts.map(([mx, , mz], i): ArmSwing | null => {
+    const arm = d.arms?.[wheel_axles[i]];
+    if (!arm) return null;
+    const side = Math.sign(mx);
+    const [px, py, pz] = arm.pivot;
+    const geometry = merge(
+      arm.trim.map((part) => tint(side_part(part, side), trim)),
+      (stripped ? [] : arm.markers).map((part) => tint(side_part(part, side), color(brand.warning))),
+    ).translate(-side * px, -py, -pz);
+    const mesh = new THREE.Mesh(geometry, matte);
+    mesh.castShadow = true;
+    const group = new THREE.Group();
+    group.position.set(side * px, py, pz);
+    group.add(mesh);
+    body.add(group);
+    const dx = mx - side * px;
+    const dz = mz - pz;
+    const reach = Math.hypot(dx, dz);
+    return { group, axis: new THREE.Vector3(-dz / reach, 0, dx / reach), reach, rest: arm_rest };
+  });
+  const view = { root, body, wheels, arms, steered, brake, heads, lights: true, popup: pods, eye: d.eye ? new THREE.Vector3(0, body.position.y + d.eye[1], d.eye[0]) : null, flame, jet, sway_at: 0 };
   set_lights(view, true);
   return view;
 }
@@ -224,6 +258,8 @@ export function sync_car_view(view: CarView, car: Car) {
     g.position.set(w.mount.x, w.mount.y - (w.reach - car.spec.wheel.radius), w.mount.z);
     g.rotation.y = -w.angle;
     g.children[0].rotation.x = w.spin;
+    const arm = view.arms[i];
+    if (arm) arm.group.quaternion.setFromAxisAngle(arm.axis, Math.asin(Math.max(-1, Math.min(1, (arm.rest - w.reach) / arm.reach))));
   });
   view.brake.emissiveIntensity = car.braking > 0.05 ? 2.2 : 0.5;
 }
@@ -234,6 +270,7 @@ export function rest_wheels(view: CarView, spec: CarSpec = COUPE) {
     const [x, y, z] = spec.wheel.mounts[i];
     wheel.position.set(x, y - drop, z);
   });
+  for (const arm of view.arms) arm?.group.quaternion.identity();
 }
 
 // Ghost and remote cars have no collision, so one can pass right through the camera and fill the view.

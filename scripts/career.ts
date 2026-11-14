@@ -35,7 +35,7 @@ type TileMesher = import("../src/worldgen/tile-mesher").TileMesher;
 // `bun scripts/career.ts [ids…] [--write]`: --write saves the ghosts to public/career/.
 const RUNS = 5;
 // Cars added after the marks were set: their drives would join the fields and move the medians every star is graded on.
-const LATER_CARS: readonly string[] = ["tsumuji"];
+const LATER_CARS: readonly string[] = ["tsumuji", "sajin"];
 const DUEL_SILVER = 1.1;
 const WRITE = process.argv.includes("--write");
 const ONLY = process.argv.slice(2).filter((a) => !a.startsWith("--"));

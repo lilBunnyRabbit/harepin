@@ -1,5 +1,5 @@
 export type Drive = "rwd" | "fwd" | "awd";
-export type BodyStyle = "hatch" | "coupe" | "muscle" | "rally" | "kaze" | "formula" | "fujin" | "sturm" | "raijin" | "bus" | "tsumuji";
+export type BodyStyle = "hatch" | "coupe" | "muscle" | "rally" | "kaze" | "formula" | "fujin" | "sturm" | "raijin" | "bus" | "tsumuji" | "sajin";
 export type Triple = [number, number, number];
 
 /** Engine voice; the limiter cuts in just under `redline`. */
@@ -735,7 +735,78 @@ export const TSUMUJI: CarSpec = {
   sound: { cylinders: 4, pulses: [1, 0.9, 0.98, 0.92], jitter: 0.06, pulse_ms: 1.3, formants: [190, 600, 1700], shift: 0.3, muffler: [900, 3600], drive: 1.6, rasp: 0.4, intake: 0.7, crackle: 0.2, turbo: 0 },
 };
 
-export const CARS: Record<CarId, CarSpec> = { hatch: HATCH, coupe: COUPE, muscle: MUSCLE, rally: RALLY, kaze: KAZE, sturm: STURM, raijin: RAIJIN, formula: FORMULA, fujin: FUJIN, tsumuji: TSUMUJI, bus: BUS };
+// Sand buggy: rear engine, rear-biased four-wheel drive, 0.5 m of soft travel and knobbly tyres that shrug off loose ground. On tarmac the
+// tall, soft body rolls and the tread squirms, so it gives up grip to every road car there.
+const SAJIN_FLOOR = 0.29;
+const SAJIN_TOP = 0.89;
+
+export const SAJIN: CarSpec = {
+  ...COUPE,
+  id: "sajin",
+  name: "Sajin",
+  mass: 950,
+  drive: "awd",
+  awd_split: 0.25,
+  inertia: [1500, 1500, 520],
+  wheel: {
+    radius: 0.43,
+    rest: 0.51,
+    mounts: [
+      [0.85, 0.1, 1.5],
+      [-0.85, 0.1, 1.5],
+      [0.87, 0.1, -1.3],
+      [-0.87, 0.1, -1.3],
+    ],
+  },
+  wheelbase: 2.8,
+  lock: 0.62,
+  spring: 18000,
+  damper: 1800,
+  arb_front: 5000,
+  arb_rear: 4000,
+  mu: 1.0,
+  rear_grip: 1.06,
+  peak_slip: 0.13,
+  peak_angle: 0.11,
+  idle: 1000,
+  launch_rpm: 3500,
+  redline: 8000,
+  upshift: 7700,
+  downshift: 3800,
+  gears: [2.8, 1.95, 1.48, 1.18, 0.98],
+  reverse: 3.0,
+  final: 6.6,
+  engine_inertia: 0.1,
+  shift_time: 0.14,
+  torque: [
+    [0, 140],
+    [1000, 160],
+    [2500, 205],
+    [3500, 250],
+    [5000, 265],
+    [6500, 255],
+    [7500, 228],
+    [8500, 185],
+  ],
+  brake_front: 1900,
+  brake_rear: 1300,
+  brake_grip: 1.15,
+  handbrake: 2000,
+  hold: 1300,
+  drag: 0.9,
+  downforce: 0.3,
+  roll_resist: 2.4,
+  offroad: 0.85,
+  air_settle: 4,
+  band: [SAJIN_FLOOR, SAJIN_TOP],
+  circles: [1.05, -0.88],
+  radius: 1.07,
+  corners: shifted(corners(1.07, -SAJIN_FLOOR, SAJIN_TOP, 2.03), 0.08),
+  body: { length: 4.2, width: 2.14, height: 1.6, style: "sajin" },
+  sound: { cylinders: 3, pulses: [1, 0.9, 0.96], jitter: 0.1, pulse_ms: 1.2, formants: [160, 480, 1500], shift: 0.35, muffler: [700, 3200], drive: 2.8, rasp: 0.8, intake: 0.8, crackle: 0.5, turbo: 1 },
+};
+
+export const CARS: Record<CarId, CarSpec> = { hatch: HATCH, coupe: COUPE, muscle: MUSCLE, rally: RALLY, kaze: KAZE, sturm: STURM, raijin: RAIJIN, formula: FORMULA, fujin: FUJIN, tsumuji: TSUMUJI, bus: BUS, sajin: SAJIN };
 
 export interface Size {
   length: number;

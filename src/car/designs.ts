@@ -5,6 +5,7 @@ import { FUJIN_DESIGN } from "./fujin-design";
 import { MIRROR, mirror, on_cabin, tail_end } from "./design-parts";
 import { KAZE_DESIGN } from "./kaze-design";
 import { RAIJIN_DESIGN } from "./raijin-design";
+import { SAJIN_DESIGN } from "./sajin-design";
 import { STURM_DESIGN } from "./sturm-design";
 import { TSUMUJI_DESIGN } from "./tsumuji-design";
 import type { Part, Point } from "./geometry";
@@ -66,6 +67,13 @@ export interface Section {
   tail: Point;
 }
 
+/** A suspension arm and its coilover, drawn on the left wheel at rest; it swings about a hinge through `pivot` that runs square to the wheel in plan. */
+export interface Arm {
+  pivot: Triple;
+  trim: Part[];
+  markers: Part[];
+}
+
 /** Endplates in paint, planes in trim. */
 export interface Wing {
   paint: Part[];
@@ -118,6 +126,10 @@ export interface Design {
   section?: Section;
   /** Tyre and rim sides; 8 when unset. */
   round?: number;
+  /** Knobs on the stock tyre, as a scale on their size; none when unset. */
+  tread?: number;
+  /** Per axle, front first: arms that follow their wheels up and down. */
+  arms?: Arm[];
   /** The bolt-on wide body an aero kit with skirts fits: each field given replaces the stock one. */
   kit?: Kit;
   /**
@@ -475,5 +487,6 @@ export const DESIGNS: Record<BodyStyle, Design> = {
     round: 12,
   },
   fujin: FUJIN_DESIGN,
+  sajin: SAJIN_DESIGN,
   tsumuji: TSUMUJI_DESIGN,
 };

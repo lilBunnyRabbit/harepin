@@ -112,16 +112,17 @@ export function slab(points: Point[], from: number, to: number): THREE.BufferGeo
   return [-1, 1].map((side) => extrude(points, to - from).translate((side * (from + to)) / 2, 0, 0));
 }
 
+/** One side of a mirrored part: `side` 1 is the left one as drawn, -1 its mirror. */
+export function side_part({ size, at: [x, y, z], tilt: [rx, ry, rz] = [0, 0, 0], round }: Part, side: number): THREE.BufferGeometry {
+  return (round ? new THREE.CylinderGeometry(size[0] / 2, size[0] / 2, size[2], 8).rotateX(Math.PI / 2) : new THREE.BoxGeometry(...size))
+    .rotateX(rx)
+    .rotateY(side * ry)
+    .rotateZ(side * rz)
+    .translate(side * x, y, z);
+}
+
 export function parts(list: Part[]): THREE.BufferGeometry[] {
-  return list.flatMap(({ size, at: [x, y, z], tilt: [rx, ry, rz] = [0, 0, 0], round }) =>
-    [-1, 1].map((side) =>
-      (round ? new THREE.CylinderGeometry(size[0] / 2, size[0] / 2, size[2], 8).rotateX(Math.PI / 2) : new THREE.BoxGeometry(...size))
-        .rotateX(rx)
-        .rotateY(side * ry)
-        .rotateZ(side * rz)
-        .translate(side * x, y, z),
-    ),
-  );
+  return list.flatMap((part) => [-1, 1].map((side) => side_part(part, side)));
 }
 
 export function face_at(outline: Point[], y: number): number {

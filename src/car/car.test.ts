@@ -166,6 +166,7 @@ const OLD_SMOOTH_LANE_SETTLE: Record<CarId, number> = {
   formula: 2.53,
   fujin: 0,
   tsumuji: 0,
+  sajin: 0,
   bus: Infinity,
 };
 
@@ -577,11 +578,11 @@ describe("dune sand", () => {
   const ids = (pass: (spec: CarSpec) => boolean) => Object.values(CARS).filter(pass).map((spec) => spec.id);
 
   test("up a 15 degree windward face of loose sand only the all-wheel-drive cars hold 90 km/h", () => {
-    expect(ids((spec) => climb_kmh(spec, grade_of(15), SAND) >= 90)).toEqual(["rally", "raijin"]);
+    expect(ids((spec) => climb_kmh(spec, grade_of(15), SAND) >= 90)).toEqual(["rally", "raijin", "sajin"]);
   }, 30_000);
 
-  test("only the rally climbs a 32 degree slip face of loose sand", () => {
-    expect(ids((spec) => climb_kmh(spec, grade_of(32), SAND) >= 20)).toEqual(["rally"]);
+  test("only the rally and the buggy climb a 32 degree slip face of loose sand", () => {
+    expect(ids((spec) => climb_kmh(spec, grade_of(32), SAND) >= 20)).toEqual(["rally", "sajin"]);
   }, 30_000);
 
   test("every car climbs a 12 degree packed line at 40 km/h or more, and a 15 degree one at 20", () => {
