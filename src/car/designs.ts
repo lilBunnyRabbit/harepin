@@ -2,7 +2,7 @@ import type { BodyStyle, Triple } from "./cars";
 import type { Panel } from "./livery";
 import type { Token } from "../theme/theme";
 import { FUJIN_DESIGN } from "./fujin-design";
-import { endplate, gurney, hoop, leg, mirror, plane, rod, roof_lip, tail_end, widen_wing } from "./design-parts";
+import { cabin_mirror, endplate, gurney, hoop, hung_mirror, leg, plane, rod, roof_lip, stalk_mirror, tail_end, widen_wing } from "./design-parts";
 import { KAZE_DESIGN } from "./kaze-design";
 import { RAIJIN_DESIGN } from "./raijin-design";
 import { SAJIN_DESIGN } from "./sajin-design";
@@ -221,6 +221,8 @@ const COUPE_TAIL = tail_end(COUPE_OUTLINE, 0.74, 0.2, 0.93, [{ size: [0.56, 0.12
 const COUPE_GRILLE: Part = { size: [0.34, 0.07, 0.05], at: [0.17, 0.48, 2.33] };
 const COUPE_WIDE = 2.04;
 const COUPE_WIDE_SHOULDER = 1 - (1.88 * (1 - COUPE_SECTION.shoulder)) / COUPE_WIDE;
+const COUPE_MIRROR = cabin_mirror(COUPE_CABIN, COUPE_SECTION.shoulder);
+const COUPE_WIDE_MIRROR = cabin_mirror(COUPE_CABIN, COUPE_WIDE_SHOULDER);
 const COUPE_KIT: Kit = {
   outline: [[2.3, 0.19], [2.37, 0.25], [2.35, 0.42], [2.33, 0.54], [2.1, 0.63], [0.95, 0.84], [-2.1, 0.93], [-2.3, 0.9], [-2.34, 0.8], [-2.34, 0.25], [-2.28, 0.19]],
   width: COUPE_WIDE,
@@ -228,9 +230,9 @@ const COUPE_KIT: Kit = {
   section: { ...COUPE_SECTION, belt: [0.69, 0.8], shoulder: COUPE_WIDE_SHOULDER, tuck: 0 },
   arches: { ...COUPE_ARCHES, gap: 0.075, flare: 0.05, out: 0.03 },
   tyre: [0.32, 0.36],
-  paint: mirror(COUPE_CABIN, COUPE_WIDE_SHOULDER),
+  paint: COUPE_WIDE_MIRROR.paint,
   // The bumper bars sit on the kit's upright valances: the rear one stands proud of the tail face.
-  trim: [COUPE_GRILLE, { size: [1.0, 0.12, 0.08], at: [0.5, 0.356, 2.31] }, { size: [1.0, 0.12, 0.08], at: [0.5, 0.356, -2.312] }, ...COUPE_TAIL.trim],
+  trim: [COUPE_GRILLE, { size: [1.0, 0.12, 0.08], at: [0.5, 0.356, 2.31] }, { size: [1.0, 0.12, 0.08], at: [0.5, 0.356, -2.312] }, ...COUPE_TAIL.trim, ...COUPE_WIDE_MIRROR.trim],
   wings: COUPE_WINGS.map((wing) => widen_wing(wing, (1 - COUPE_SECTION.shoulder) / (1 - COUPE_WIDE_SHOULDER))),
 };
 
@@ -239,6 +241,7 @@ const HATCH_SECTION: Section = { belt: [0.7, 0.76], shoulder: 0.1, tuck: 0.04, n
 const HATCH_CABIN: Cabin = { points: [[1.0, 0.88], [0.3, 1.3], [-1.28, 1.33], [-1.84, 0.93]], width: 1.5, tumble: 0.14, frame: [0.06, 0.05, 0.14, 0.04], screens: [[0, 0.08], [2, 0.12]], split: [-0.25, 0.1] };
 const HATCH_ARCHES: Arches = { gap: 0.055, steps: 7, flare: 0.07, out: 0.06, reach: 0.04, tone: "trim" };
 const HATCH_TAIL = tail_end(HATCH_OUTLINE, 0.72, 0.34, 0.84, [{ size: [0.18, 0.3, 0.05], at: [0.72, 0.72, 0] }], { half: 0.54, y: 0.84 }, 0.68);
+const HATCH_MIRROR = cabin_mirror(HATCH_CABIN, HATCH_SECTION.shoulder);
 const hatch_lip = (reach: number, kick: number) => roof_lip(HATCH_CABIN, HATCH_SECTION.shoulder, 1, 0.3, reach, kick, 0.04);
 const HATCH_LIPS = [hatch_lip(0.14, 0.01), hatch_lip(0.24, 0.03), hatch_lip(0.32, 0.05), hatch_lip(0.42, 0.08)];
 // The roof runs on into a spoiler that grows with each level, the last two fenced at the ends.
@@ -256,6 +259,7 @@ const MUSCLE_CABIN: Cabin = { points: [[0.2, 0.88], [-0.4, 1.23], [-1.25, 1.25],
 const MUSCLE_ARCHES: Arches = { gap: 0.07, steps: 7, flare: 0.06, out: 0.08, reach: 0.04, tone: "paint" };
 const MUSCLE_TAIL = tail_end(MUSCLE_OUTLINE, 0.76, 0.19, 0.9, [{ size: [0.82, 0.13, 0.04], at: [0.44, 0.76, 0] }], null, 0.54);
 const HOOD_FALL = 0.035;
+const MUSCLE_MIRROR = cabin_mirror(MUSCLE_CABIN, MUSCLE_SECTION.shoulder);
 const MUSCLE_HALF = 0.994;
 const MUSCLE_PLANE = 0.9;
 // A lip grown out of the boot lid across the whole tail, then a pedestal wing on two legs, the last with endplates.
@@ -289,7 +293,7 @@ const RALLY_CABIN: Cabin = {
 };
 const RALLY_TAIL = tail_end(RALLY_OUTLINE, 0.8, 0.26, 0.88, [{ size: [0.15, 0.26, 0.05], at: [0.78, 0.8, 0] }], null, 0.8);
 const RALLY_HEAD: Part = { size: [0.3, 0.14, 0.05], at: [0.62, 0.6, 2.105] };
-const RALLY_MIRROR = mirror(RALLY_CABIN, RALLY_SECTION.shoulder);
+const RALLY_MIRROR = cabin_mirror(RALLY_CABIN, RALLY_SECTION.shoulder);
 const RALLY_BUMPERS: Part[] = [
   { size: [0.52, 0.14, 0.05], at: [0.26, 0.47, 2.08] },
   { size: [0.9, 0.12, 0.06], at: [0.45, 0.45, -1.855] },
@@ -336,6 +340,9 @@ const race_plane = (chord: number, tilt: number): Part => ({ size: [0.485, 0.04,
 const race_flap = (chord: number, tilt: number): Part => ({ size: [0.485, 0.03, chord], at: [0.2425, 0.985, -2.02], tilt: [tilt, 0, 0] });
 const race_wing = (plane: Part, flap: Part): Wing => ({ paint: [], trim: [RACE_BEAM, plane, flap], lips: [RACE_ENDPLATE] });
 
+// On the cockpit side, level with the driver's eyes.
+const FORMULA_MIRROR = stalk_mirror([0.21, 0.6, 0.74], "side");
+
 const FORMULA_HUB = 0.33;
 // Two legs from the chassis side, `high` and `low` on it, to the hub centre, both square to the car: a raked leg would
 // run through the tyre at full lock. They start inside the chassis side and end inside the rim.
@@ -350,6 +357,7 @@ const NOSE_FLAP_Z = 2.09;
 const nose_flap = (chord: number, y: number, tilt: number): Part => on_nose({ size: [0.6, 0.03, chord], at: [0.6, y, NOSE_FLAP_Z], tilt: [tilt, 0, 0] });
 
 const BUS_OUTLINE: Point[] = [[5.84, 0.35], [5.9, 0.46], [5.92, 0.98], [5.88, 1.15], [-6.12, 1.15], [-6.16, 1.0], [-6.16, 0.46], [-6.1, 0.35]];
+const BUS_MIRROR = hung_mirror([1.25, 2.62, 5.72]);
 const BUS_TAIL = tail_end(BUS_OUTLINE, 0.78, 0.5, 1.2, [{ size: [0.16, 0.46, 0.05], at: [1.08, 0.78, 0] }], { half: 1.0, y: 0.84, h: 0.05 }, 0.66);
 
 export const DESIGNS: Record<BodyStyle, Design> = {
@@ -362,12 +370,13 @@ export const DESIGNS: Record<BodyStyle, Design> = {
     arches: COUPE_ARCHES,
     heads: [{ size: [0.42, 0.07, 0.05], at: [0.6, 0.48, 2.335] }],
     tails: COUPE_TAIL.tails,
-    paint: mirror(COUPE_CABIN, COUPE_SECTION.shoulder),
+    paint: COUPE_MIRROR.paint,
     trim: [
       COUPE_GRILLE,
       { size: [0.94, 0.12, 0.08], at: [0.47, 0.356, 2.3] },
       { size: [0.94, 0.12, 0.08], at: [0.47, 0.356, -2.3] },
       ...COUPE_TAIL.trim,
+      ...COUPE_MIRROR.trim,
     ],
     markers: [],
     chrome: COUPE_TAIL.chrome,
@@ -388,12 +397,13 @@ export const DESIGNS: Record<BodyStyle, Design> = {
     arches: HATCH_ARCHES,
     heads: [{ size: [0.34, 0.16, 0.05], at: [0.56, 0.6, 1.95] }],
     tails: HATCH_TAIL.tails,
-    paint: mirror(HATCH_CABIN, HATCH_SECTION.shoulder),
+    paint: HATCH_MIRROR.paint,
     trim: [
       { size: [0.25, 0.12, 0.05], at: [0.125, 0.6, 1.95] },
       { size: [0.88, 0.14, 0.1], at: [0.44, 0.38, 1.93] },
       { size: [0.88, 0.14, 0.1], at: [0.44, 0.38, -1.95] },
       ...HATCH_TAIL.trim,
+      ...HATCH_MIRROR.trim,
     ],
     markers: [],
     chrome: HATCH_TAIL.chrome,
@@ -420,8 +430,8 @@ export const DESIGNS: Record<BodyStyle, Design> = {
       { size: [0.17, 0.15, 0.04], at: [0.52, 0.6, 2.56] },
     ],
     tails: MUSCLE_TAIL.tails,
-    paint: mirror(MUSCLE_CABIN, MUSCLE_SECTION.shoulder),
-    trim: [{ size: [0.9, 0.26, 0.04], at: [0.45, 0.6, 2.55] }, ...MUSCLE_TAIL.trim],
+    paint: MUSCLE_MIRROR.paint,
+    trim: [{ size: [0.9, 0.26, 0.04], at: [0.45, 0.6, 2.55] }, ...MUSCLE_TAIL.trim, ...MUSCLE_MIRROR.trim],
     stripes: [
       { size: [0.12, 0.012, 0.86], at: [0.12, 0.825, 2.02], tilt: [HOOD_FALL, 0, 0] },
       { size: [0.12, 0.012, 0.64], at: [0.12, 0.873, 0.58], tilt: [HOOD_FALL, 0, 0] },
@@ -450,8 +460,8 @@ export const DESIGNS: Record<BodyStyle, Design> = {
     arches: { gap: 0.07, steps: 7, flare: 0.07, out: 0.05, reach: 0.04, tone: "trim" },
     heads: [RALLY_HEAD],
     tails: RALLY_TAIL.tails,
-    paint: RALLY_MIRROR,
-    trim: [...RALLY_BUMPERS, ...RALLY_TAIL.trim],
+    paint: RALLY_MIRROR.paint,
+    trim: [...RALLY_BUMPERS, ...RALLY_TAIL.trim, ...RALLY_MIRROR.trim],
     markers: [],
     chrome: RALLY_TAIL.chrome,
     tyre: [0.24, 0.24],
@@ -486,8 +496,7 @@ export const DESIGNS: Record<BodyStyle, Design> = {
     heads: [{ size: [0.34, 0.16, 0.05], at: [0.9, 0.62, 5.92] }],
     tails: BUS_TAIL.tails,
     paint: [
-      { size: [0.06, 0.32, 0.14], at: [1.5, 2.28, 5.55] },
-      { size: [0.26, 0.04, 0.04], at: [1.36, 2.46, 5.58] },
+      ...BUS_MIRROR.paint,
       { size: [0.8, 0.2, 2.6], at: [0.4, 3.12, -1.4] },
       ...[2.6, 1.3, 0, -1.3, -2.6, -5.1].map((z): Part => ({ size: [0.03, 1.38, 0.1], at: [1.255, 1.92, z] })),
     ],
@@ -497,6 +506,7 @@ export const DESIGNS: Record<BodyStyle, Design> = {
       { size: [1.26, 0.24, 0.1], at: [0.63, 0.44, 5.9] },
       { size: [1.26, 0.24, 0.1], at: [0.63, 0.44, -6.16] },
       ...BUS_TAIL.trim,
+      ...BUS_MIRROR.trim,
     ],
     stripes: [{ size: [0.02, 0.08, 11.6], at: [1.256, 1.21, -0.1] }],
     markers: [{ size: [0.86, 0.2, 0.04], at: [0.43, 2.72, 5.79] }],
@@ -521,7 +531,7 @@ export const DESIGNS: Record<BodyStyle, Design> = {
     arches: { gap: 0, steps: 0, flare: 0, out: 0, reach: 0, tone: "trim" },
     heads: [{ size: [0.05, 0.035, 0.14], at: [0.21, 0.38, 1.75], tilt: [0.18, 0, 0] }],
     tails: [{ size: [0.07, 0.08, 0.03], at: [0.035, 0.22, -2.135] }],
-    paint: [on_nose({ size: [0.03, 0.18, 0.38], at: [0.915, 0.2, 2.19] })],
+    paint: [on_nose({ size: [0.03, 0.18, 0.38], at: [0.915, 0.2, 2.19] }), ...FORMULA_MIRROR.paint],
     trim: [
       { size: [0.62, 0.04, 2.16], at: [0.31, 0.115, -0.08] },
       { size: [0.5, 0.04, 0.34], at: [0.25, 0.115, -1.33] },
@@ -530,6 +540,7 @@ export const DESIGNS: Record<BodyStyle, Design> = {
       { size: [0.03, 0.52, 0.16], at: [0.015, 0.64, -1.84] },
       { size: [0.36, 0.18, 0.03], at: [0.44, 0.36, -0.118], tilt: [-0.15, 0, 0] },
       { size: [0.08, 0.12, 0.24], at: [0.04, 0.22, -2.0] },
+      ...FORMULA_MIRROR.trim,
     ],
     markers: [],
     chrome: [],

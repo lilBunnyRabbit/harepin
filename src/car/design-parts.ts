@@ -51,18 +51,79 @@ const MIRROR_SWEEP = 0.3;
 const MIRROR_HOUSING: Triple = [0.14, 0.09, 0.05];
 const MIRROR_ARM: Triple = [0.1, 0.035, 0.045];
 
-/** A door mirror at the front corner of the side glass: a slim housing swept back, on a short arm out of the pillar foot. */
+/** A door mirror with no glass face, all in paint. Design files moving to `cabin_mirror` drop this. */
 export function mirror(cabin: Cabin, shoulder: number): Part[] {
-  const [z0, y0] = cabin.points[0];
-  const ys = cabin.points.map(([, py]) => py);
-  const low = Math.min(...ys);
-  const y = y0 + MIRROR_UP;
-  const z = z0 - MIRROR_BACK;
-  const half = (cabin.width / 2) * (1 - (cabin.tumble * (y - low)) / (Math.max(...ys) - low));
+  const [half, y, z] = glass_corner(cabin);
   const reach = MIRROR_ARM[0] - 0.03;
   const arm: Part = { size: MIRROR_ARM, at: [half + MIRROR_ARM[0] / 2 - 0.03, y - 0.02, z] };
   const housing: Part = { size: MIRROR_HOUSING, at: [half + reach + MIRROR_HOUSING[0] / 2 - 0.02, y, z - 0.01], tilt: [0, MIRROR_SWEEP, 0] };
   return [arm, housing].map((part) => on_cabin(part, shoulder));
+}
+
+/** A mirror by tone: the housing in paint, its arm or stalk and the glass face in trim. */
+export interface Mirror {
+  paint: Part[];
+  trim: Part[];
+}
+
+const DOOR_HEAD: Triple = [0.15, 0.095, 0.06];
+const STALK_HEAD: Triple = [0.11, 0.075, 0.07];
+const STALK_SWEEP = 0.15;
+const GLASS_RIM = 0.03;
+const GLASS_DEPTH = 0.008;
+const MOUNT_SINK = 0.03;
+
+/** A housing at `at`, its outer end swept back by `sweep`, and the glass on its rear face. */
+function mirror_head(at: Triple, size: Triple, sweep: number): [Part, Part] {
+  const back = size[2] / 2 + 0.002;
+  return [
+    { size, at, tilt: [0, sweep, 0] },
+    { size: [size[0] - GLASS_RIM, size[1] - GLASS_RIM, GLASS_DEPTH], at: [at[0] - back * Math.sin(sweep), at[1], at[2] - back * Math.cos(sweep)], tilt: [0, sweep, 0] },
+  ];
+}
+
+/** The front corner of the side glass on the leaned cabin side, where a door mirror mounts: [x, y, z]. */
+export function glass_corner(cabin: Cabin): Triple {
+  const [z0, y0] = cabin.points[0];
+  const ys = cabin.points.map(([, py]) => py);
+  const low = Math.min(...ys);
+  const y = y0 + MIRROR_UP;
+  return [(cabin.width / 2) * (1 - (cabin.tumble * (y - low)) / (Math.max(...ys) - low)), y, z0 - MIRROR_BACK];
+}
+
+/** A road car's mirror: a flat arm out of the body side at `base`, a wide swept housing on its end. */
+export function door_mirror([x, y, z]: Triple): Mirror {
+  const at: Triple = [x + 0.13, y + 0.015, z - 0.02];
+  const [housing, glass] = mirror_head(at, DOOR_HEAD, MIRROR_SWEEP);
+  return { paint: [housing], trim: [rod([x - MOUNT_SINK, y - 0.01, z], [at[0] - 0.03, at[1] - 0.02, at[2]], 0.035, 0.05), glass] };
+}
+
+/** A race car's mirror: a small pod on a thin stalk, standing out of a body side at `base` or up from a wing top. */
+export function stalk_mirror([x, y, z]: Triple, mount: "side" | "top"): Mirror {
+  const side = mount === "side";
+  const at: Triple = side ? [x + 0.16, y + 0.07, z - 0.03] : [x + 0.03, y + 0.17, z - 0.03];
+  const [housing, glass] = mirror_head(at, STALK_HEAD, STALK_SWEEP);
+  const foot: Triple = side ? [x - MOUNT_SINK, y - 0.08, z + 0.02] : [x, y - MOUNT_SINK, z];
+  return { paint: [housing], trim: [rod(foot, [at[0] - (side ? 0.02 : 0), at[1] - 0.03, at[2]], 0.022, 0.03), glass] };
+}
+
+const TALL_HEAD: Triple = [0.15, 0.36, 0.06];
+
+/** A bus or truck mirror: an arm out of the body corner at `base`, a tall housing hung from its end. */
+export function hung_mirror([x, y, z]: Triple): Mirror {
+  const end: Triple = [x + 0.25, y, z + 0.04];
+  const [housing, glass] = mirror_head([end[0], y - TALL_HEAD[1] / 2 + 0.03, end[2]], TALL_HEAD, STALK_SWEEP);
+  return { paint: [housing], trim: [rod([x - MOUNT_SINK, y, z], end, 0.04, 0.05), glass] };
+}
+
+/** A mirror drawn above the belt of a body whose shoulder narrows it, widened to come out as drawn. */
+export function on_shoulder(mirror: Mirror, shoulder: number): Mirror {
+  return { paint: mirror.paint.map((part) => on_cabin(part, shoulder)), trim: mirror.trim.map((part) => on_cabin(part, shoulder)) };
+}
+
+/** A door mirror at the front corner of the cabin's side glass. */
+export function cabin_mirror(cabin: Cabin, shoulder: number): Mirror {
+  return on_shoulder(door_mirror(glass_corner(cabin)), shoulder);
 }
 
 /** A bar from `a` to `b` on the left side, `thick` tall and `wide` across. */
