@@ -5,7 +5,7 @@ import { car_paints } from "../theme/palette";
 import { export_block } from "./export";
 import type { WorldKind } from "../worldgen/types";
 import { ASSET_LOOKS } from "./asset-looks";
-import { ASSETS, AssetKind, is_part, type Asset, type WorldAsset } from "./assets";
+import { ASSETS, AssetKind, is_part, is_seed, type Asset, type WorldAsset } from "./assets";
 import { load_notes, MAX_NOTES, NOTE_LENGTH, pin_numbers, store_notes, type Note, type Notes } from "./notes";
 import { OrbitInput, PadButton } from "./orbit-input";
 import { blend_cam, snap_cam, SNAPS, type Frame, type Snap } from "./orbit";
@@ -170,7 +170,7 @@ export class Viewer {
 
   pick_seed(seed: number) {
     const at = this.world;
-    if (at && ASSETS[at.kind].seeded && Number.isInteger(seed) && seed >= 0 && seed !== at.seed) this.set_asset(this.world_asset(at.kind, at.world, seed, at.item), true);
+    if (at && ASSETS[at.kind].seeded && is_seed(seed) && seed !== at.seed) this.set_asset(this.world_asset(at.kind, at.world, seed, at.item), true);
   }
 
   toggle_on() {
