@@ -19,7 +19,7 @@ test("every part of every slot builds a car view on every car", async () => {
 test("lights switch the headlamp glow, swing pop-up pods and leave the tail lamps running", async () => {
   const THREE = await import("three");
   const { build_view, dispose_car_view } = await import("./models");
-  const { popup, set_lights } = await import("./lights");
+  const { popup, set_lights, snap_lights, swing_popups } = await import("./lights");
   const { DESIGNS } = await import("./designs");
   const view = build_view(DEFAULT_BUILD);
   const [glow, tail] = [view.heads.material.emissiveIntensity, view.brake.emissiveIntensity];
@@ -31,10 +31,21 @@ test("lights switch the headlamp glow, swing pop-up pods and leave the tail lamp
   const design: Design = { ...DESIGNS.coupe, popups: { pods: [{ size: [0.3, 0.1, 0.3], at: [0.6, 0.7, 1.9] }], hinge: [1.75, 0.72], lift: 0.6 } };
   const pods = popup(design, view.heads, new THREE.Color(), new THREE.Color(), view.heads.material);
   expect(pods?.pivot.children).toContain(view.heads);
-  set_lights({ ...view, popup: pods }, true);
+  const popped = { ...view, popup: pods };
+  snap_lights(popped, true);
   expect(pods?.pivot.rotation.x).toBeCloseTo(-0.6);
-  set_lights({ ...view, popup: pods }, false);
-  expect(pods?.pivot.rotation.x).toBe(0);
+  set_lights(popped, false);
+  expect([pods?.pivot.rotation.x, view.heads.material.emissiveIntensity]).toEqual([-0.6, 0]);
+  swing_popups(popped, 10);
+  expect(swing_popups(popped, 10.1)).toBe(true);
+  expect(pods?.pivot.rotation.x).toBeGreaterThan(-0.6);
+  for (let t = 10.2; t < 11; t += 0.1) swing_popups(popped, t);
+  expect([pods?.pivot.rotation.x, swing_popups(popped, 11)]).toEqual([-0, false]);
+  set_lights(popped, true);
+  swing_popups(popped, 11.1);
+  expect(view.heads.material.emissiveIntensity).toBe(0);
+  for (let t = 11.2; t < 12; t += 0.1) swing_popups(popped, t);
+  expect([pods?.pivot.rotation.x, view.heads.material.emissiveIntensity]).toEqual([-0.6, glow]);
   dispose_car_view(view);
 });
 

@@ -3,9 +3,13 @@ import type { Design } from "./designs";
 import { merge, parts, slab, tint } from "./geometry";
 import type { CarView } from "./models";
 import { flame_sway } from "./nitro-look";
+import { POPUP_LIT, popup_ease, popup_step } from "./popup-swing";
 import { brand, color, glow, lighten, tones } from "../theme/palette";
 
 const HEAD_GLOW = 1.2;
+
+// The longest step a swing takes, so the first frame after a stall or a hidden tab does not jump the pods.
+const SWING_STEP = 0.1;
 
 // Brake emissive runs 0.5 at rest and 2.2 braking (`sync_car_view`, remotes): only the braking glow clears bloom.
 const BRAKE_GLOW = 0.5;
@@ -34,6 +38,10 @@ export interface Popup {
   pivot: THREE.Group;
   /** `Design.popups.lift`. */
   lift: number;
+  /** How far through its swing, 0 shut to 1 open, linear in time; the pose eases it through `popup_ease`. */
+  open: number;
+  /** Time in seconds `swing_popups` last moved the pods. */
+  at: number;
 }
 
 /** The pods and `heads` hung on the design's hinge, or null for fixed lamps. */
@@ -46,14 +54,37 @@ export function popup(d: Design, heads: HeadMesh, paint: THREE.Color, trim: THRE
   pod.castShadow = true;
   for (const part of [pod, heads]) part.position.set(0, -y, -z);
   pivot.add(pod, heads);
-  return { pivot, lift };
+  return { pivot, lift, open: 0, at: 0 };
 }
 
-/** Headlamp glow and pop-up pods; tail lamps keep running and braking either way. */
+/** Headlamps on or off; pop-up pods then swing there through `swing_popups`. Tail lamps keep running and braking either way. */
 export function set_lights(view: CarView, on: boolean) {
   view.lights = on;
-  view.heads.material.emissiveIntensity = on ? HEAD_GLOW : 0;
-  if (view.popup) view.popup.pivot.rotation.x = on ? -view.popup.lift : 0;
+  pose_lamps(view);
+}
+
+/** `set_lights` with the pods already where it sends them: a fresh car, not a switch the player sees. */
+export function snap_lights(view: CarView, on: boolean) {
+  if (view.popup) view.popup.open = on ? 1 : 0;
+  set_lights(view, on);
+}
+
+/** Moves pop-up pods toward `view.lights`; `time` in seconds. True while they are still swinging. */
+export function swing_popups(view: CarView, time: number): boolean {
+  const { popup } = view;
+  if (!popup) return false;
+  const dt = Math.min(SWING_STEP, Math.max(0, time - popup.at));
+  popup.at = time;
+  if (popup.open === (view.lights ? 1 : 0)) return false;
+  popup.open = popup_step(popup.open, view.lights, dt);
+  pose_lamps(view);
+  return true;
+}
+
+function pose_lamps(view: CarView) {
+  const { popup } = view;
+  if (popup) popup.pivot.rotation.x = -popup.lift * popup_ease(popup.open);
+  view.heads.material.emissiveIntensity = view.lights && (!popup || popup.open >= POPUP_LIT) ? HEAD_GLOW : 0;
 }
 
 const SWAY_STEP = 0.1;

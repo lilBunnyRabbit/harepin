@@ -33,6 +33,7 @@ export class Viewer {
   picked = $state<number | null>(null);
   draft = $state("");
   panel = $state(true);
+  lights = $state(true);
   /** The block when the browser refused the clipboard, shown to copy by hand. */
   refused = $state<string | null>(null);
   copied = $state<string | null>(null);
@@ -132,6 +133,12 @@ export class Viewer {
     this.stage.steer(this.view.steer);
     this.dirty = true;
     this.write_url();
+  }
+
+  toggle_lights() {
+    this.lights = !this.lights;
+    this.stage.lights(this.lights);
+    this.dirty = true;
   }
 
   private set_build(car: CarId, preset: ViewerPreset, paint: number, reframe: boolean) {
@@ -295,6 +302,7 @@ export class Viewer {
       this.view = { ...this.view, cam: { ...this.view.cam, yaw: wrap_yaw(this.view.cam.yaw + AUTO_DEG_S * dt) } };
       this.dirty = true;
     }
+    if (this.stage.swing(now / 1000)) this.dirty = true;
     if (!this.dirty) return;
     this.dirty = false;
     this.stage.render(this.view.cam);

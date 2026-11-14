@@ -9,7 +9,7 @@ import { detail_look } from "./detail-looks";
 import { CAR_ORDER } from "./contact-shadow";
 import { DESIGNS } from "./designs";
 import { extrude, merge, parts, side_part, slab, taper, tint } from "./geometry";
-import { lamps, popup, set_lights, type HeadMesh, type Popup } from "./lights";
+import { lamps, popup, snap_lights, type HeadMesh, type Popup } from "./lights";
 import { back, livery_of, livery_parts, roof, type Livery } from "./livery";
 import { nitro_flame, type Jet } from "./nitro-look";
 import { aero_of, aero_parts, kit_parts, kit_skirts, rear_wing } from "./part-looks";
@@ -42,7 +42,7 @@ export interface CarView {
   brake: THREE.MeshLambertMaterial;
   /** Headlamp lenses; hidden from the hood camera, which sits right behind them. */
   heads: HeadMesh;
-  /** Headlamps on; set through `set_lights`, which also dims `heads` and swings `popup`. */
+  /** Headlamps on; set through `set_lights`, which also dims `heads`; `swing_popups` swings `popup` after it. */
   lights: boolean;
   /** Pop-up lamp pods, null on fixed lamps. */
   popup: Popup | null;
@@ -252,7 +252,7 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
     return { group, axis: new THREE.Vector3(-dz / reach, 0, dx / reach), reach, rest: arm_rest };
   });
   const view = { root, body, wheels, arms, steered, brake, heads, lights: true, popup: pods, eye: d.eye ? new THREE.Vector3(0, body.position.y + d.eye[1], d.eye[0]) : null, flame, jet, sway_at: 0 };
-  set_lights(view, true);
+  snap_lights(view, true);
   return view;
 }
 

@@ -7,6 +7,7 @@ import { build_spec, parse_build } from "../car/build";
 import { ackermann, ride_height } from "../car/car";
 import type { CarSpec, Triple } from "../car/cars";
 import { contact_shadow, fit_contact_shadow } from "../car/contact-shadow";
+import { set_lights, snap_lights, swing_popups } from "../car/lights";
 import { build_view, dispose_car_view, rest_wheels, type CarView } from "../car/models";
 import { Lighting } from "../render/lighting";
 import { sanitise_bloom } from "../render/postfx";
@@ -96,6 +97,7 @@ export class Stage {
   private view: CarView | null = null;
   private spec: CarSpec | null = null;
   private code = "";
+  private lamps = true;
 
   constructor(params: URLSearchParams) {
     const quality = new Quality(params, "high");
@@ -143,6 +145,7 @@ export class Stage {
       const spec = build_spec(build);
       const view = build_view(build, spec);
       rest_wheels(view, spec);
+      snap_lights(view, this.lamps);
       view.root.position.y = ride_height(spec);
       view.root.traverse((node) => {
         if (node instanceof THREE.Mesh) node.castShadow = true;
@@ -169,6 +172,17 @@ export class Stage {
     if (!view || !spec) return;
     const steer = share * spec.lock;
     view.wheels.forEach((wheel, i) => (wheel.rotation.y = view.steered[i] ? -ackermann(steer, spec.wheelbase, spec.wheel.mounts[i][0]) : 0));
+  }
+
+  /** Headlamps on or off; pop-up pods swing there over the next frames of `swing`. */
+  lights(on: boolean) {
+    this.lamps = on;
+    if (this.view) set_lights(this.view, on);
+  }
+
+  /** Steps pop-up pods; `time` in seconds. True while they still move, so the frame needs drawing. */
+  swing(time: number): boolean {
+    return this.view ? swing_popups(this.view, time) : false;
   }
 
   mark(pins: readonly PinMark[]) {

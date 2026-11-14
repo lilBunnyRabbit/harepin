@@ -3,7 +3,7 @@ import { DEFAULT_BUILD, build_code, build_spec, parse_build, type Build } from "
 import { oversize, type CarSpec } from "../car/cars";
 import { contact_shadow, fit_contact_shadow, place_contact_shadow, type ContactShadow } from "../car/contact-shadow";
 import { chunk_of } from "../worldgen/chunk-grid";
-import { set_lights, show_flame } from "../car/lights";
+import { set_lights, show_flame, swing_popups } from "../car/lights";
 import { build_view, camera_fade, dispose_car_view, rest_wheels, type CarView } from "../car/models";
 import type { World } from "../world/world";
 import { tier_badge, tier_look } from "../career/badge";
@@ -197,6 +197,7 @@ export class Remotes {
     rv.heading = heading;
     show_flame(rv.view, s.boost === true, now / 1000, dt > 0 ? turned / dt : 0);
     if (rv.view.lights !== (s.lights ?? true)) set_lights(rv.view, s.lights ?? true);
+    swing_popups(rv.view, now / 1000);
     // Remote cars are ghosts with no collision, so one sitting inside yours fades out instead of hiding your car.
     const opacity = Math.min(Math.max(0.22, Math.min(1, (root.position.distanceTo(me) - 3) / 9)), camera_fade(root.position, camera.position));
     root.visible = opacity > 0;
