@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from "svelte";
   import { build_spec, parse_build } from "../car/build";
   import { CARS, type CarId } from "../car/cars";
   import { paint_lab } from "../car/paint";
@@ -46,7 +47,8 @@
     host.prepend(viewer.stage.canvas);
     const observer = new ResizeObserver(([entry]) => viewer.resized(entry.contentRect.width, entry.contentRect.height));
     observer.observe(host);
-    viewer.start();
+    // start() reads the view; tracked, every camera move would rerun this, re-mount the canvas and drop the drag's pointer capture.
+    untrack(() => viewer.start());
     return () => {
       observer.disconnect();
       viewer.stop();

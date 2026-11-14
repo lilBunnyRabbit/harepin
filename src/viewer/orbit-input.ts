@@ -48,6 +48,7 @@ export class OrbitInput {
     this.element.addEventListener("pointerdown", this.on_down);
     this.element.addEventListener("pointermove", this.on_move);
     this.element.addEventListener("lostpointercapture", this.on_up);
+    this.element.addEventListener("pointercancel", this.on_cancel);
     this.element.addEventListener("wheel", this.on_wheel, { passive: false });
     this.element.addEventListener("contextmenu", this.on_menu);
   }
@@ -56,6 +57,7 @@ export class OrbitInput {
     this.element.removeEventListener("pointerdown", this.on_down);
     this.element.removeEventListener("pointermove", this.on_move);
     this.element.removeEventListener("lostpointercapture", this.on_up);
+    this.element.removeEventListener("pointercancel", this.on_cancel);
     this.element.removeEventListener("wheel", this.on_wheel);
     this.element.removeEventListener("contextmenu", this.on_menu);
     clearTimeout(this.wheel_timer);
@@ -101,6 +103,13 @@ export class OrbitInput {
       if (this.moved) this.hooks.settled();
       this.moved = false;
     }
+  };
+
+  // The browser took the gesture: drop the pointer without a tap, before lostpointercapture follows.
+  private readonly on_cancel = (event: PointerEvent) => {
+    if (!this.down.delete(event.pointerId) || this.down.size > 0) return;
+    if (this.moved) this.hooks.settled();
+    this.moved = false;
   };
 
   private readonly on_wheel = (event: WheelEvent) => {
