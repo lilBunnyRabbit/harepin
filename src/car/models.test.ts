@@ -29,7 +29,7 @@ test("lights switch the headlamp glow, swing pop-up pods and leave the tail lamp
   set_lights(view, true);
   expect(view.heads.material.emissiveIntensity).toBe(glow);
   const design: Design = { ...DESIGNS.coupe, popups: { pods: [{ size: [0.3, 0.1, 0.3], at: [0.6, 0.7, 1.9] }], hinge: [1.75, 0.72], lift: 0.6 } };
-  const pods = popup(design, view.heads, new THREE.Color(), view.heads.material);
+  const pods = popup(design, view.heads, new THREE.Color(), new THREE.Color(), view.heads.material);
   expect(pods?.pivot.children).toContain(view.heads);
   set_lights({ ...view, popup: pods }, true);
   expect(pods?.pivot.rotation.x).toBeCloseTo(-0.6);

@@ -187,7 +187,7 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
   const { heads, tails, brake } = lamps(d);
   sculpt(heads.geometry, d);
   sculpt(tails.geometry, d);
-  const pods = popup(d, heads, paint, matte);
+  const pods = popup(d, heads, paint, trim, matte);
   const jet = { sway: { value: 0 }, flicker: { value: 0 } };
   const flame = nitro_flame(d, jet);
   body.add(hull, pods?.pivot ?? heads, tails, flame);

@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import type { Design } from "./designs";
-import { merge, parts, tint } from "./geometry";
+import { merge, parts, slab, tint } from "./geometry";
 import type { CarView } from "./models";
 import { flame_sway } from "./nitro-look";
 import { brand, color, glow, lighten, tones } from "../theme/palette";
@@ -37,12 +37,12 @@ export interface Popup {
 }
 
 /** The pods and `heads` hung on the design's hinge, or null for fixed lamps. */
-export function popup(d: Design, heads: HeadMesh, paint: THREE.Color, material: THREE.Material): Popup | null {
+export function popup(d: Design, heads: HeadMesh, paint: THREE.Color, trim: THREE.Color, material: THREE.Material): Popup | null {
   if (!d.popups) return null;
-  const { pods, hinge: [z, y], lift } = d.popups;
+  const { pods, shells = [], bezels = [], hinge: [z, y], lift } = d.popups;
   const pivot = new THREE.Group();
   pivot.position.set(0, y, z);
-  const pod = new THREE.Mesh(merge(parts(pods).map((g) => tint(g, paint))), material);
+  const pod = new THREE.Mesh(merge([...parts(pods), ...shells.flatMap((s) => slab(s.points, s.from, s.to))].map((g) => tint(g, paint)), parts(bezels).map((g) => tint(g, trim))), material);
   pod.castShadow = true;
   for (const part of [pod, heads]) part.position.set(0, -y, -z);
   pivot.add(pod, heads);

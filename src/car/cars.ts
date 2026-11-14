@@ -1,5 +1,5 @@
 export type Drive = "rwd" | "fwd" | "awd";
-export type BodyStyle = "hatch" | "coupe" | "muscle" | "rally" | "kaze" | "formula" | "fujin" | "sturm" | "raijin" | "bus";
+export type BodyStyle = "hatch" | "coupe" | "muscle" | "rally" | "kaze" | "formula" | "fujin" | "sturm" | "raijin" | "bus" | "tsumuji";
 export type Triple = [number, number, number];
 
 /** Engine voice; the limiter cuts in just under `redline`. */
@@ -684,7 +684,58 @@ export const BUS: CarSpec = {
   sound: { cylinders: 6, pulses: [1, 0.92, 1, 0.94, 1, 0.9], jitter: 0.12, pulse_ms: 2.6, formants: [70, 210, 560], shift: 0.12, muffler: [300, 1300], drive: 2.4, rasp: 0.45, intake: 0.3, crackle: 0.05, turbo: 1 },
 };
 
-export const CARS: Record<CarId, CarSpec> = { hatch: HATCH, coupe: COUPE, muscle: MUSCLE, rally: RALLY, kaze: KAZE, sturm: STURM, raijin: RAIJIN, formula: FORMULA, fujin: FUJIN, bus: BUS };
+// A light hardtop that slides on momentum: even weight, a short wheelbase, lots of lock and little power. A lift mid
+// corner swings the tail in on engine braking; the early upshift keeps a 90 km/h lift in 3rd, where that rotation stays
+// catchable. The drag keeps it the slowest car in a straight line.
+export const TSUMUJI: CarSpec = {
+  ...HATCH,
+  id: "tsumuji",
+  name: "Tsumuji",
+  mass: 980,
+  inertia: [1300, 1350, 360],
+  drive: "rwd",
+  wheel: { radius: 0.3, rest: 0.32, mounts: mounts(0.74, 0.12, 1.15, 1.12) },
+  wheelbase: 2.27,
+  lock: 0.72,
+  spring: 25000,
+  damper: 2000,
+  arb_front: 13000,
+  arb_rear: 6500,
+  mu: 1.1,
+  rear_grip: 1.03,
+  peak_angle: 0.1,
+  idle: 900,
+  redline: 7200,
+  upshift: 6300,
+  downshift: 3200,
+  gears: [3.14, 1.89, 1.33, 1.0, 0.81],
+  reverse: 3.76,
+  final: 4.3,
+  engine_inertia: 0.09,
+  torque: [
+    [0, 70],
+    [1000, 95],
+    [2500, 125],
+    [4000, 138],
+    [5500, 140],
+    [6500, 131],
+    [7200, 115],
+    [8000, 90],
+  ],
+  brake_front: 1700,
+  brake_rear: 800,
+  handbrake: 1700,
+  hold: 1100,
+  drag: 0.42,
+  downforce: 0.5,
+  circles: [1.0, -1.0],
+  radius: 0.92,
+  corners: corners(0.84, -0.3, 0.7, 1.97),
+  body: { length: 3.95, width: 1.68, height: 1.22, style: "tsumuji" },
+  sound: { cylinders: 4, pulses: [1, 0.9, 0.98, 0.92], jitter: 0.06, pulse_ms: 1.3, formants: [190, 600, 1700], shift: 0.3, muffler: [900, 3600], drive: 1.6, rasp: 0.4, intake: 0.7, crackle: 0.2, turbo: 0 },
+};
+
+export const CARS: Record<CarId, CarSpec> = { hatch: HATCH, coupe: COUPE, muscle: MUSCLE, rally: RALLY, kaze: KAZE, sturm: STURM, raijin: RAIJIN, formula: FORMULA, fujin: FUJIN, tsumuji: TSUMUJI, bus: BUS };
 
 export interface Size {
   length: number;

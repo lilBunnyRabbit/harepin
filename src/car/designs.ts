@@ -6,6 +6,7 @@ import { MIRROR, mirror, on_cabin, tail_end } from "./design-parts";
 import { KAZE_DESIGN } from "./kaze-design";
 import { RAIJIN_DESIGN } from "./raijin-design";
 import { STURM_DESIGN } from "./sturm-design";
+import { TSUMUJI_DESIGN } from "./tsumuji-design";
 import type { Part, Point } from "./geometry";
 
 export interface Cabin {
@@ -120,10 +121,10 @@ export interface Design {
   /** The bolt-on wide body an aero kit with skirts fits: each field given replaces the stock one. */
   kit?: Kit;
   /**
-   * Pop-up lamps: `pods` in paint, modelled shut, and `heads` swing about the hinge line at [z, y] by `lift` radians
+   * Pop-up lamps: `pods` and the `shells` profiles in paint and `bezels` in trim, modelled shut, and `heads` swing about the hinge line at [z, y] by `lift` radians
    * while the lights are on. Positive lift raises what sits ahead of the hinge.
    */
-  popups?: { pods: Part[]; hinge: Point; lift: number };
+  popups?: { pods: Part[]; shells?: Slab[]; bezels?: Part[]; hinge: Point; lift: number };
 }
 
 export type Kit = Partial<Pick<Design, "arches" | "slabs" | "heads" | "tails" | "paint" | "trim" | "markers" | "chrome" | "tyre" | "rim" | "caliper">>;
@@ -474,4 +475,5 @@ export const DESIGNS: Record<BodyStyle, Design> = {
     round: 12,
   },
   fujin: FUJIN_DESIGN,
+  tsumuji: TSUMUJI_DESIGN,
 };
