@@ -205,15 +205,17 @@ interface Cut {
   c: number;
 }
 
-/** Where the section folds the body side: along the belt and where the pinched nose and tail start. An end without a pinch has no fold. */
+/** Where the section folds the body side: along the belt, where the tuck under a sloping belt is spent, and where the pinched nose and tail start. An end without a pinch has no fold. */
 function folds(d: Design): Cut[] {
   const s = d.section;
   if (!s) return [];
   const nose = d.outline[0][0];
   const tail = d.outline[d.outline.length - 1][0];
   const slope = (s.belt[1] - s.belt[0]) / (tail - nose);
+  const belt = { n: [-slope, 1] satisfies Point, c: slope * nose - s.belt[0] };
   return [
-    ...(s.shoulder > 0 || s.tuck > 0 ? [{ n: [-slope, 1] satisfies Point, c: slope * nose - s.belt[0] }] : []),
+    ...(s.shoulder > 0 || s.tuck > 0 ? [belt] : []),
+    ...(s.tuck > 0 && slope !== 0 ? [{ n: belt.n, c: belt.c + Math.min(...s.belt) - d.sill }] : []),
     ...(s.nose[1] > 0 ? [{ n: [1, 0] satisfies Point, c: s.nose[1] - nose }] : []),
     ...(s.tail[1] > 0 ? [{ n: [1, 0] satisfies Point, c: -tail - s.tail[1] }] : []),
   ];
@@ -274,23 +276,32 @@ export function body_slabs(d: Design, spec: CarSpec): THREE.BufferGeometry[] {
 }
 
 export function body_pieces(d: Design, spec: CarSpec): Point[][] {
-  return flat_pieces(body_outline(d, spec), folds(d));
+  return flat_pieces(body_outline(d, spec), [...folds(d), ...crest(d)]);
 }
 
-/** Share of its x a point keeps on a sculpted body: the shoulder over the belt, the tuck under it, the pinched ends. */
+/**
+ * Share of its x a point keeps on a sculpted body: the shoulder over the belt, the tuck under it, the pinched ends.
+ * The shares add, so the factor is linear in y and z between the folds and every flat face stays flat; a pinch runs on
+ * past the outline's first and last point to the body's real end, so no face of a proud bumper folds there.
+ */
 export function sculpt_factor(d: Design, y: number, z: number): number {
   const s = d.section;
   if (!s) return 1;
   const nose = d.outline[0][0];
   const tail = d.outline[d.outline.length - 1][0];
-  const top = Math.max(...d.outline.map(([, oy]) => oy));
+  let [top, front_end, rear_end] = [-Infinity, nose, tail];
+  for (const [oz, oy] of d.outline) {
+    top = Math.max(top, oy);
+    front_end = Math.max(front_end, oz);
+    rear_end = Math.min(rear_end, oz);
+  }
   const rise = top - Math.max(...s.belt);
   const drop = Math.min(...s.belt) - d.sill;
   const belt = s.belt[0] + ((s.belt[1] - s.belt[0]) * (nose - z)) / (nose - tail);
   const side = y > belt ? s.shoulder * Math.min(1, (y - belt) / rise) : s.tuck * Math.min(1, (belt - y) / drop);
-  const front = s.nose[1] > 0 ? Math.max(0, Math.min(1, (z - (nose - s.nose[1])) / s.nose[1])) : 0;
-  const back = s.tail[1] > 0 ? Math.max(0, Math.min(1, (tail + s.tail[1] - z) / s.tail[1])) : 0;
-  return (1 - side) * (1 - s.nose[0] * front - s.tail[0] * back);
+  const front = s.nose[1] > 0 ? Math.max(0, Math.min(front_end, z) - (nose - s.nose[1])) / s.nose[1] : 0;
+  const back = s.tail[1] > 0 ? Math.max(0, tail + s.tail[1] - Math.max(rear_end, z)) / s.tail[1] : 0;
+  return 1 - side - s.nose[0] * front - s.tail[0] * back;
 }
 
 export function sculpt(geometry: THREE.BufferGeometry, d: Design): THREE.BufferGeometry {

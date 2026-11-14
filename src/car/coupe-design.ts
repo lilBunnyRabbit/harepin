@@ -57,8 +57,8 @@ export const COUPE_DESIGN: Design = {
   paint: [],
   trim: [
     COUPE_GRILLE,
-    { size: [0.94, 0.12, 0.08], at: [0.47, 0.356, 2.3] },
-    { size: [0.94, 0.12, 0.08], at: [0.47, 0.356, -2.3] },
+    { size: [0.93, 0.12, 0.08], at: [0.465, 0.356, 2.3] },
+    { size: [0.93, 0.12, 0.08], at: [0.465, 0.356, -2.3] },
     ...COUPE_TAIL.trim,
   ],
   markers: [],
