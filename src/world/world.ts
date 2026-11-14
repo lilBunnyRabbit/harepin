@@ -12,7 +12,7 @@ import { slice_tiles, TileStore, type Tile } from "../worldgen/tiles";
 import { kerb_marks, on_kerb_segment, type KerbMarks } from "./kerbs";
 import { CELL, ROAD_HALF, RouteKind, SurfaceId, type WorldKind } from "../worldgen/types";
 import { LIFT } from "../worldgen/lifts";
-import { paved_lots, paving_lift, type PavedLot } from "./drawn-lift";
+import { drawn_roads, paved_lots, paving_lift, road_lift, type DrawnRoad, type PavedLot } from "./drawn-lift";
 import { SEA_LEVEL, water_index, type WaterIndex } from "../worldgen/water";
 import type { LavaPool } from "../worldgen/lava";
 import type {
@@ -220,6 +220,8 @@ export class World implements Ground {
   private readonly nearby: Solid[] = [];
   private readonly nearby_slots: number[] = [];
   private paved: PavedLot[] | null = null;
+  private drawn: (DrawnRoad | undefined)[] | null = null;
+  private readonly lane_point = (packed: number): RoadPoint => this.lanes[Math.floor(packed / LANE_PACK)][packed % LANE_PACK];
   private readonly road_grid = new Map<number, number[]>();
   /** Lane 0 is the circuit as `road`, then every other edge at its id + 1, then the trails. */
   private readonly lanes: readonly (readonly RoadPoint[])[];
@@ -390,8 +392,15 @@ export class World implements Ground {
    */
   drawn_lift(x: number, z: number, y?: number): number {
     if (this.height(x, z, y) > this.tiles.height(x, z)) return 0;
-    const road = LIFT.ring * Math.max(0, Math.min(1, (ON_ROAD - this.tiles.road_dist(x, z)) / (ON_ROAD - ROAD_HALF)));
-    return Math.max(road, paving_lift((this.paved ??= paved_lots(this.lots, this.parking)), x, z));
+    const on = Math.max(0, Math.min(1, (ON_ROAD - this.tiles.road_dist(x, z)) / (ON_ROAD - ROAD_HALF)));
+    return Math.max(on > 0 ? on * this.road_lift(x, z) : 0, paving_lift((this.paved ??= paved_lots(this.lots, this.parking)), x, z));
+  }
+
+  /** The lift of the road nearest (`x`, `z`), whichever kind it is, or of the paint on it there. */
+  private road_lift(x: number, z: number): number {
+    const packed = nearest(this.lane_grid, x, z, this.lane_point);
+    const road = packed < 0 ? undefined : (this.drawn ??= drawn_roads(this, this.tiles.ext))[Math.floor(packed / LANE_PACK)];
+    return road ? road_lift(road, packed % LANE_PACK, x, z) : LIFT.ring;
   }
 
   distance_to_road(x: number, z: number): number {

@@ -1,6 +1,35 @@
+import type { Extent } from "../worldgen/chunk-grid";
 import { LIFT } from "../worldgen/lifts";
+import { on_paint, road_junctions, road_layout, type Paint, type RoadData } from "../worldgen/road-layers";
 import { lot_paving, type Paving } from "../worldgen/town-mesh";
-import type { Lot, ParkingLot } from "../worldgen/types";
+import type { Lot, ParkingLot, RoadPoint } from "../worldgen/types";
+
+/** One drawn road: the lift its asphalt is laid at and the paint on it. */
+export interface DrawnRoad {
+  points: readonly RoadPoint[];
+  closed: boolean;
+  lift: number;
+  paint: Paint;
+}
+
+/** Every drawn road by the world's lane number: the circuit at 0, then each other edge at its id + 1. */
+export function drawn_roads(data: RoadData, ext: Extent): (DrawnRoad | undefined)[] {
+  const layout = road_layout(data, road_junctions(data), ext);
+  const roads: (DrawnRoad | undefined)[] = [{ points: data.road, closed: true, lift: LIFT.ring, paint: layout.paint }];
+  for (const { street, edge, paint } of layout.edges) roads[edge.id + 1] = { points: edge.points, closed: false, lift: street ? LIFT.street : LIFT.spur, paint };
+  return roads;
+}
+
+/** How far the road drawn at (`x`, `z`) stands over the terrain, by its point `i` nearest there: its asphalt, or the paint on it. */
+export function road_lift(road: DrawnRoad, i: number, x: number, z: number): number {
+  const p = road.points[i];
+  const dx = x - p.x;
+  const dz = z - p.z;
+  const n = road.points.length;
+  let s = dx * p.tx + dz * p.tz >= 0 ? i : i - 1;
+  if (road.closed) s = (s + n) % n;
+  return s >= 0 && s < road.paint.centre.length && on_paint(road.paint, s, dz * p.tx - dx * p.tz) ? LIFT.mark : road.lift;
+}
 
 /** Paving laid in one lot's frame, with the radius that holds all of it for a quick miss. */
 export interface PavedLot {
