@@ -81,6 +81,13 @@ test("every event with a dev ghost ships it for the world it was tuned on, finis
   }
 });
 
+test("every event's world has its menu picture", () => {
+  for (const event of EVENTS) {
+    const { kind } = event_map(event);
+    expect([event.id, existsSync(new URL(`../../public/menu/${kind}.webp`, import.meta.url))]).toEqual([event.id, true]);
+  }
+});
+
 test("Club opens at 12 Rookie stars, Pro at 14 Club stars", () => {
   const rookie = ids_of(0);
   const eleven = { ...all(2, rookie.slice(0, 5)), [rookie[5]]: 1 };

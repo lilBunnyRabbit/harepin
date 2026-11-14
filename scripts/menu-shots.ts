@@ -33,6 +33,7 @@ const SPOTS: Partial<Record<WorldKind, Spot>> = {
   volcano: { camera: { from: [250, 300, 60], to: [-10, 180, -10] } },
   dunes: { camera: { from: [-300, 120, -600], to: [0, 60, -780] } },
   icecanyon: { camera: { from: [560, 78, 140], to: [410, 46, 236] } },
+  velodrome: {},
 };
 
 const args = process.argv.slice(2);
