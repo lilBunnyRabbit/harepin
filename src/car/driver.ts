@@ -6,7 +6,7 @@ import { oversize, type CarSpec, type Size } from "./cars";
 import type { Lighting } from "../render/lighting";
 import { dark } from "../theme/palette";
 import { contact_shadow, fit_contact_shadow, place_contact_shadow } from "./contact-shadow";
-import { set_lights, show_flame, snap_lights, swing_popups } from "./lights";
+import { set_lights, show_flame } from "./lights";
 import { build_view, dispose_car_view, sync_car_view, type CarView } from "./models";
 import type { NitroSnapshot } from "./nitro";
 import type { Race } from "../race";
@@ -66,7 +66,7 @@ export class Driver {
     fit_contact_shadow(this.shadow, this.car.spec);
     scene.add(this.view.root);
     scene.add(this.shadow.mesh);
-    snap_lights(this.view, dark);
+    set_lights(this.view, dark);
     light.mount(this.view.root, dark);
     const body: RewindPart<CarFrame> = {
       snapshot: () => {
@@ -199,7 +199,7 @@ export class Driver {
     this.scene.remove(this.view.root);
     dispose_car_view(this.view);
     this.view = build_view(build, this.car.spec);
-    snap_lights(this.view, lights);
+    set_lights(this.view, lights);
     this.scene.add(this.view.root);
     this.light.mount(this.view.root, lights);
     sync_car_view(this.view, this.car);
@@ -235,7 +235,6 @@ export class Driver {
     drawn.vel.copy(car.vel);
     sync_car_view(view, car);
     show_flame(view, car.nitro.boosting, now / 1000, car.ang.y);
-    swing_popups(view, now / 1000);
     view.root.position.copy(drawn.pos);
     view.root.position.y += this.drawn_lift();
     view.root.quaternion.copy(drawn.quat);
