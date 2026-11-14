@@ -1,4 +1,4 @@
-import { gurney, plane } from "./design-parts";
+import { gurney, plane, stalk_mirror } from "./design-parts";
 import type { Design, Slab, Wing } from "./designs";
 import { arc, type Point } from "./geometry";
 
@@ -75,7 +75,8 @@ export const FUJIN_DESIGN: Design = {
   pods: { radius: ARCH, steps: 7, from: PONTOON_WALL },
   heads: [{ size: [0.1, 0.27, 0.04], at: [0.78, 0.465, 2.22], tilt: [-0.63, 0, 0] }],
   tails: [{ size: [0.07, 0.3, 0.04], at: [0.9, 0.48, -2.345] }],
-  paint: [{ size: [0.14, 0.08, 0.14], at: [0.72, 0.8, 0.95] }],
+  mirror: stalk_mirror([0.76, 0.63, 0.95], "top"),
+  paint: [],
   trim: [
     { size: [0.02, 0.2, 0.36], at: [0.995, 0.38, 0.74] },
     { size: [0.3, 0.012, 0.5], at: [0.75, 0.545, 0.0] },

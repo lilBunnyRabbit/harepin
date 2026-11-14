@@ -1,4 +1,4 @@
-import { endplate, gurney, hoop, leg, mirror, plane, tail_end } from "./design-parts";
+import { cabin_mirror, endplate, gurney, hoop, leg, plane, tail_end } from "./design-parts";
 import type { Cabin, Design, Section, Slab, Wing } from "./designs";
 import type { Triple } from "./cars";
 import type { Point } from "./geometry";
@@ -51,7 +51,8 @@ export const RAIJIN_DESIGN: Design = {
   arches: { gap: 0.07, steps: 7, flare: 0.06, out: 0.07, reach: 0.04, tone: "paint" },
   heads: [{ size: [0.36, 0.09, 0.05], at: [0.62, 0.72, 2.13], tilt: [NOSE_LEAN, 0, 0] }],
   tails: TAIL.tails,
-  paint: mirror(CABIN, SECTION.shoulder),
+  mirror: cabin_mirror(CABIN, SECTION.shoulder),
+  paint: [],
   trim: [
     { size: [0.46, 0.3, 0.05], at: [0.23, 0.55, 2.085], tilt: [NOSE_LEAN, 0, 0] },
     { size: [0.2, 0.03, 0.34], at: [0.46, 0.929, 1.4], tilt: [HOOD_FALL, 0, 0] },
@@ -62,7 +63,6 @@ export const RAIJIN_DESIGN: Design = {
   chrome: [...TAIL.chrome, { size: [0.12, 0.12, 0.1], at: [PIPE[0], PIPE[1], -2.4], round: true }],
   tyre: [0.28, 0.28],
   rim: { size: 0.72, spokes: 5, tone: "metal", spoke: 0.09 },
-  round: 12,
   deck: [-2.2, 1.12],
   hood: [1.45, 0.92],
   exhaust: PIPE,
