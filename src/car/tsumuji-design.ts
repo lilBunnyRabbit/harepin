@@ -1,5 +1,5 @@
 import { sculpt_factor } from "./body-shell";
-import { mirror, tail_end } from "./design-parts";
+import { endplate, gurney, leg, mirror, plane, tail_end } from "./design-parts";
 import type { Arches, Cabin, Design, Section, Slab, Wing } from "./designs";
 import { top_at, type Part, type Point } from "./geometry";
 
@@ -28,17 +28,22 @@ const face = POD_LENGTH * (Math.sin(LIFT - slope) + Math.cos(LIFT - slope) * Mat
 const face_foot: Point = [lid_front[0] - face * Math.sin(LIFT), lid_front[1] - face * Math.cos(LIFT)];
 const POD: Slab = { points: [lid_front, hinge, face_foot], from: POD_X - POD_WIDTH / 2, to: POD_X + POD_WIDTH / 2 };
 
-// A lip grown out of the boot lid, then a ducktail, then a trim plane on two painted legs swept up out of the ducktail.
-const LIP: Slab = { points: [[-1.66, 0.776], [-1.97, 0.77], [-1.99, 0.74], [-1.93, 0.65]], from: 0, to: 0.76 };
-const DUCKTAIL: Slab = { points: [[-1.56, 0.787], [-2.01, 0.85], [-2.03, 0.82], [-1.93, 0.65]], from: 0, to: 0.76 };
+const HALF = 0.844;
+const SPAN = 0.74;
+// A lip grown out of the boot lid across the whole tail, then a ducktail, then a trim plane on two painted legs swept up out of the ducktail.
+// Each has a vertex where the tail's pinch ends, z -1.9, so its ends keep to the body side.
+const LIP: Slab = { points: [[-1.66, 0.776], [-1.9, 0.771], [-1.97, 0.77], [-1.99, 0.74], [-1.93, 0.65], [-1.9, 0.664]], from: 0, to: HALF };
+const DUCKTAIL: Slab = { points: [[-1.56, 0.787], [-1.9, 0.835], [-2.01, 0.85], [-2.03, 0.82], [-1.93, 0.65], [-1.9, 0.661]], from: 0, to: HALF };
+const RACE = plane([-1.86, 1.07], 0.3, 0.05, 0.1);
 const WINGS: Wing[] = [
   { paint: [], trim: [] },
   { paint: [], trim: [], lips: [LIP] },
   { paint: [], trim: [], lips: [DUCKTAIL] },
   {
-    paint: [{ size: [0.03, 0.13, 0.32], at: [0.815, 1.07, -1.89], tilt: [0.1, 0, 0] }],
-    trim: [{ size: [0.8, 0.045, 0.28], at: [0.4, 1.06, -1.88], tilt: [0.1, 0, 0] }],
-    lips: [DUCKTAIL, { points: [[-1.58, 0.78], [-1.78, 1.05], [-1.95, 1.065], [-1.92, 0.83]], from: 0.42, to: 0.52 }],
+    paint: [],
+    trim: [],
+    lips: [DUCKTAIL, { points: leg(RACE, [-1.62, 0.785], [-1.86, 0.82]), from: 0.42, to: 0.5 }, { points: endplate(RACE, 0.03, 0.06), from: SPAN, to: SPAN + 0.03 }],
+    stands: [{ points: RACE, from: 0, to: SPAN }, { points: gurney(RACE, 0.025), from: 0, to: SPAN }],
   },
 ];
 
