@@ -241,3 +241,7 @@ Order: P1, P2, P3 before `t3-lineup` ships (the lineup needs O1 targets and sim 
 - The golden makes every intended car change a two-file commit. That is the point, but a tuning sweep across 11 cars becomes 11 commits; acceptable, it is the "one car per commit" rule.
 - Recorder per-step cost: ten new folds at 360 Hz. Same rule as v1: preallocated fields, no allocation; check frame time on the phone once P4 lands.
 - `docs/plan/handling.md`'s measured table is already stale; once the golden exists, that table should point at it rather than hold numbers.
+
+### Owner picks, 2026-11-14
+
+O1 yes (lead drafts `docs/car-feel.md`, owner ticks) · O2 blind on for variant groups, off for lineups · O3 commit `scripts/golden/handling.txt` · O4 pastes in `docs/lab/sessions/` · O5 hold marks under 2%, re-tune above · O6 bus out of the matrix · O7 ask per case. Next: P3-P6.
