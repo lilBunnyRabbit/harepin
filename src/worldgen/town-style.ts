@@ -30,9 +30,10 @@ export interface Plot {
 }
 
 /** `near` runs 0 at the town centre to 1 at its edge; `main` is the street through the centre along the town axis. */
-export function high_street_plot(near: number, main: boolean, r1: number, r2: number, open: number): Plot {
-  if (near < (main ? TERRACE_REACH_MAIN : TERRACE_REACH_LANE)) return { form: "terrace", wide: 6 + r1 * 4, deep: 12 + r2 * 3, min_w: 5.5, gap: 0, share: 0.45 };
-  if (open < 0.08) return { form: null, wide: 12 + r1 * 6, deep: 14 + r2 * 4, min_w: 10, gap: 1, share: 0.45 };
+export function high_street_plot(near: number, main: boolean, parks: { edge: number; lane: number }, r1: number, r2: number, open: number): Plot {
+  const terraced = near < (main ? TERRACE_REACH_MAIN : TERRACE_REACH_LANE);
+  if (open < (!terraced ? parks.edge : main ? 0 : parks.lane)) return { form: null, wide: 13 + r1 * 6, deep: 15 + r2 * 4, min_w: 10.5, gap: 1, share: 0.45 };
+  if (terraced) return { form: "terrace", wide: 6 + r1 * 4, deep: 12 + r2 * 3, min_w: 5.5, gap: 0, share: 0.45 };
   return { form: "house", wide: 11 + r1 * 4, deep: 15 + r2 * 6, min_w: 9.5, gap: 1, share: 0.47 };
 }
 

@@ -96,7 +96,7 @@ function unit(p: RoadPoint, q: RoadPoint): Way {
 
 // A link leaves along a free axis of the town's grid, square to its streets, so its port gets a clean T or L patch
 // instead of a shallow wedge no patch fits.
-function door(graph: RoadGraph, town: Town, toward: Town): Door {
+function door(graph: RoadGraph, town: Town, toward: Town, gate: number): Door {
   const axes: Way[] = [
     { x: town.ux, z: town.uz },
     { x: -town.ux, z: -town.uz },
@@ -110,7 +110,8 @@ function door(graph: RoadGraph, town: Town, toward: Town): Door {
     const arms = arm_ways(graph, node);
     for (const way of axes) {
       if (arms.some((a) => a.x * way.x + a.z * way.z > SQUARE)) continue;
-      const d = length(node.x + way.x * APPROACH - toward.x, node.z + way.z * APPROACH - toward.z);
+      const main = Math.abs((node.x - town.x) * town.uz - (node.z - town.z) * town.ux) < 1 && Math.abs(way.x * town.ux + way.z * town.uz) > SQUARE;
+      const d = length(node.x + way.x * APPROACH - toward.x, node.z + way.z * APPROACH - toward.z) + (main ? 0 : gate);
       if (d < best_d) {
         best_d = d;
         best = { node, way };
@@ -146,8 +147,9 @@ export function mainland_network(seed: number, grid: PlanGrid, shape: TownRecipe
   const router = new Router(height, NO_RING, towns, grid.ext);
   const links: Link[] = [];
   for (const { a, b, tree } of town_pairs(towns)) {
-    const start = door(graph, a, b);
-    const end = door(graph, b, a);
+    const gate = shape.plan?.gate ?? 0;
+    const start = door(graph, a, b, gate);
+    const end = door(graph, b, a, gate);
     const from = start.node;
     const to = end.node;
     const [sx, sz] = out_of(start);

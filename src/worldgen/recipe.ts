@@ -276,6 +276,10 @@ export interface TownPlan {
   cross: number;
   /** Half width of every street but the main one, metres; under STREET_HALF it carries no paint. */
   lane: number;
+  /** Metres a road to another town goes out of its way to leave by an end of the main street, so races drive it past the square. */
+  gate: number;
+  /** Share of lots left open as car parks: `edge` past the terraces, `lane` among the terraces on a lane, behind the main street's. */
+  parks: { edge: number; lane: number };
 }
 
 export interface TownRecipe {
@@ -423,7 +427,7 @@ export const DESERT: Recipe = {
 export const MAINLAND: Recipe = {
   ...ISLAND,
   terrain: [LIFT, hills(110), ridges(26), { kind: "peak", height: 240, radius: 1100, reach: 1400 }, shore(2900, -9)],
-  towns: { min: 10, max: 16, trees: true, pines: 0.5, block: { min: 45, span: 25 }, top: 60, layout: "grid", roofs: "mixed", variety: true, exact: true, style: "high_street", plan: { rows: 1, reach: 1, cross: 0.72, lane: 3 } },
+  towns: { min: 10, max: 16, trees: true, pines: 0.5, block: { min: 45, span: 25 }, top: 60, layout: "grid", roofs: "mixed", variety: true, exact: true, style: "high_street", plan: { rows: 1, reach: 1, cross: 0.72, lane: 3, gate: 150, parks: { edge: 0.3, lane: 0.06 } } },
   road: { ...ISLAND.road, bank: { run: 3.75, reach: 64 } },
   water: { rivers: { count: 3, head: 120, width: [3, 11], depth: [1.2, 2.6] }, lakes: { count: 4, depth: 2, min: 4, max: 400 } },
 };

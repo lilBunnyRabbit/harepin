@@ -117,6 +117,7 @@ interface Character {
   tone: number | null;
 }
 
+const NO_PARKS = { edge: 0, lane: 0 };
 const PLAIN: Character = { wide: 1, floors: 0, taller: 0, tone: null };
 
 function character(seed: number, town: Town): Character {
@@ -238,7 +239,7 @@ export class Lots {
         const r = (k: number) => hash(edge.id * 8 + (side + 1) * 2, n, this.seed + k);
         const back = half + FRONT_GAP + LOT_MIN_D / 2;
         const near = length(a.x + tx * (u + LOT_MIN_D / 2) + ox * back - town.x, a.z + tz * (u + LOT_MIN_D / 2) + oz * back - town.z) / town.radius;
-        const plot = high ? high_street_plot(near, main, r(1), r(2), r(3)) : plain_plot(r(1), r(2), look.wide);
+        const plot = high ? high_street_plot(near, main, this.shape.plan?.parks ?? NO_PARKS, r(1), r(2), r(3)) : plain_plot(r(1), r(2), look.wide);
         if (u + plot.min_w > len - CORNER_CLEAR) break;
         const room = inner ? (span - 2 * (half + FRONT_GAP)) * plot.share : Infinity;
         const wide = Math.min(plot.wide, len - CORNER_CLEAR - u);

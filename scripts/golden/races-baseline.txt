@@ -1,12 +1,3 @@
-mainland 0 trip hatch
-mainland 0 trip coupe
-mainland 0 trip rally
-mainland 0 trip kaze
-mainland 0 trip raijin
-mainland 0 trip formula
-mainland 0 trip fujin
-mainland 0 trip tsumuji
-mainland 0 trip sajin
 mainland 1 trip hatch
 mainland 1 trip coupe
 mainland 1 trip muscle
@@ -16,11 +7,7 @@ mainland 1 trip raijin
 mainland 1 trip formula
 mainland 1 trip fujin
 mainland 1 trip tsumuji
-mainland 1 trip sajin
 mainland 2 trip hatch
-mainland 2 trip coupe
-mainland 2 trip kaze
-mainland 2 trip tsumuji
 0 circuit bus
 0 street-1 bus
 0 street-2 bus

@@ -331,7 +331,13 @@ function edge_line(a: Arm, arc_a: readonly number[], m_a: number, from_a: number
       { ...r, wx, wz },
     ];
   }
-  for (let k = m_a; k >= 0; k--) if (arc_a[k] > from_a || (corner.kind === "walk" && k === 0)) own(a, k, 1);
+  // Straight through on unequal widths the asphalt tapers out from the wider rim at the node: the line leaves from
+  // there too, instead of stepping across to the narrower arm's rim.
+  const pa = a.points[0];
+  const pb = b.points[0];
+  const straight = corner.kind === "walk" && Math.abs(pa.tx * pb.tz - pa.tz * pb.tx) < SAME;
+  const at_node = (arm: Arm, other: Arm, k: number) => corner.kind === "walk" && k === 0 && !(straight && arm.half < other.half);
+  for (let k = m_a; k >= 0; k--) if (arc_a[k] > from_a || at_node(a, b, k)) own(a, k, 1);
   if (corner.kind === "fillet") {
     const curve = fillet(a, arc_a, b, arc_b, corner);
     for (let q = 0; q < curve.length; q++) {
@@ -343,7 +349,7 @@ function edge_line(a: Arm, arc_a: readonly number[], m_a: number, from_a: number
   }
   const from_b = corner.kind === "fillet" ? corner.at_j : 0;
   for (let k = 0; k <= m_b; k++) {
-    if (!(arc_b[k] > from_b || (corner.kind === "walk" && k === 0))) continue;
+    if (!(arc_b[k] > from_b || at_node(b, a, k))) continue;
     const e = rim(b, k, -1);
     const last = out[out.length - 1];
     if (last && last.x === e.x && last.z === e.z) continue;
