@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { Look } from "./build";
+import { sculpt_factor } from "./body-shell";
 import type { Design } from "./designs";
 import { box, merge, tint } from "./geometry";
 import { brand, color, mix, tones } from "../theme/palette";
@@ -13,7 +14,9 @@ const JET_ALPHA = 0.85;
 const SWAY_PER_YAW = 0.2;
 const SWAY_MAX = 0.22;
 const SWAY_RATE = 7;
-const SWAY_KEY = "nitro-sway";
+const SWAY_KEY = "nitro-jet";
+const GIRTH_FLICKER = 0.15;
+const LENGTH_FLICKER = 0.25;
 
 const pipe_sides = (d: Design) => (d.exhaust[0] === 0 ? [1] : [-1, 1]);
 
@@ -24,20 +27,33 @@ export function nitro_parts(d: Design, bottle: Bottle, twin_pipes: boolean, trim
   return pipe_sides(d).flatMap((side) => [tint(box(w, h, 0.07, side * x, y, z - 0.115), color(brand.info)), tint(box(w - 0.05, h - 0.05, 0.02, side * x, y, z - 0.145), trim)]);
 }
 
-function shade(geometry: THREE.BufferGeometry, tone: THREE.Color, alpha: number): THREE.BufferGeometry {
+function shade(geometry: THREE.BufferGeometry, x: number, y: number, tone: THREE.Color, alpha: number): THREE.BufferGeometry {
   const flat = geometry.index ? geometry.toNonIndexed() : geometry;
-  const colors = new Float32Array(flat.getAttribute("position").count * 4);
-  for (let i = 0; i < colors.length; i += 4) colors.set([tone.r, tone.g, tone.b, alpha], i);
+  const count = flat.getAttribute("position").count;
+  const colors = new Float32Array(count * 4);
+  const nozzle = new Float32Array(count * 2);
+  for (let i = 0; i < count; i++) {
+    colors.set([tone.r, tone.g, tone.b, alpha], i * 4);
+    nozzle.set([x, y], i * 2);
+  }
   flat.setAttribute("color", new THREE.BufferAttribute(colors, 4));
+  flat.setAttribute("nozzle", new THREE.BufferAttribute(nozzle, 2));
   return flat;
 }
 
 const cone = (r: number, length: number, x: number, y: number, tone: THREE.Color, alpha: number) =>
-  shade(new THREE.ConeGeometry(r, length, 8).rotateX(-Math.PI / 2).translate(x, y, -length / 2), tone, alpha);
-const bead = (r: number, length: number, x: number, y: number, z: number, tone: THREE.Color) => shade(new THREE.OctahedronGeometry(1).scale(r, r, length / 2).translate(x, y, z), tone, 1);
+  shade(new THREE.ConeGeometry(r, length, 8).rotateX(-Math.PI / 2).translate(x, y, -length / 2), x, y, tone, alpha);
+const bead = (r: number, length: number, x: number, y: number, z: number, tone: THREE.Color) => shade(new THREE.OctahedronGeometry(1).scale(r, r, length / 2).translate(x, y, z), x, y, tone, 1);
 
-export function nitro_flame(d: Design, sway: THREE.IUniform<number>): THREE.Mesh {
-  const [x, y, z] = d.exhaust;
+/** The jet's uniforms: `sway` bends its tail sideways, `flicker` (-1 to 1) pulses its length and girth. */
+export interface Jet {
+  sway: THREE.IUniform<number>;
+  flicker: THREE.IUniform<number>;
+}
+
+export function nitro_flame(d: Design, jet: Jet): THREE.Mesh {
+  const [pipe, y, z] = d.exhaust;
+  const x = pipe * sculpt_factor(d, y, z);
   const info = color(brand.info);
   const core = color(tones.head);
   const mid = color(mix(brand.info, tones.head, 0.5));
@@ -51,8 +67,17 @@ export function nitro_flame(d: Design, sway: THREE.IUniform<number>): THREE.Mesh
   const material = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false });
   material.customProgramCacheKey = () => SWAY_KEY;
   material.onBeforeCompile = (shader) => {
-    shader.uniforms.sway = sway;
-    shader.vertexShader = `uniform float sway;\n${shader.vertexShader}`.replace("#include <begin_vertex>", "#include <begin_vertex>\n  transformed.x += sway * transformed.z * transformed.z;");
+    shader.uniforms.sway = jet.sway;
+    shader.uniforms.flicker = jet.flicker;
+    // Every change grows from the nozzle, where z is 0 and the jet is anchored: girth about the pipe's axis, length
+    // along -z, and the bend with the square of the distance behind it.
+    shader.vertexShader = `uniform float sway;\nuniform float flicker;\nattribute vec2 nozzle;\n${shader.vertexShader}`.replace(
+      "#include <begin_vertex>",
+      `#include <begin_vertex>
+  transformed.xy = nozzle + (transformed.xy - nozzle) * (1.0 + ${GIRTH_FLICKER} * flicker);
+  transformed.z *= ${1 - LENGTH_FLICKER} + ${LENGTH_FLICKER} * flicker;
+  transformed.x += sway * transformed.z * transformed.z;`,
+    );
   };
   const mesh = new THREE.Mesh(merge(shapes), material);
   mesh.position.z = z - 0.16;

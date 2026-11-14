@@ -60,11 +60,11 @@ const SWAY_STEP = 0.1;
 
 /** Shows or hides the nitro flame; `time` in seconds drives its flicker, `yaw_rate` in rad/s (positive turning left) its sway. */
 export function show_flame(view: CarView, on: boolean, time: number, yaw_rate: number) {
-  const { flame, sway } = view;
+  const { flame } = view;
+  const { sway, flicker } = view.jet;
   flame.visible = on;
   if (on) {
-    const flicker = Math.sin(time * 61) * Math.sin(time * 23 + 1);
-    flame.scale.set(1 + 0.15 * flicker, 1 + 0.15 * flicker, 0.75 + 0.25 * flicker);
+    flicker.value = Math.sin(time * 61) * Math.sin(time * 23 + 1);
     sway.value = flame_sway(sway.value, yaw_rate, Math.min(SWAY_STEP, Math.max(0, time - view.sway_at)));
   } else sway.value = 0;
   view.sway_at = time;
