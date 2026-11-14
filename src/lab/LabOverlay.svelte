@@ -45,7 +45,7 @@
 <div class="hud lab-strip" role="group" aria-label="Feel lab">
   <span class="lab-now">
     <b>Lab {at + 1}/{count}</b>
-    {#if now}<span class="lab-id">{now.r.trial.id}</span><span class="lab-goal">{goal_label(now.r.trial.goal)} · {STATUS_LABEL[now.status]}</span>{/if}
+    {#if now}<span class="lab-id">{lab.shown[at].label}</span><span class="lab-goal">{goal_label(now.r.trial.goal)} · {STATUS_LABEL[now.status]}</span>{/if}
     {#if view.measuring}
       <span class="lab-live" aria-label="Live numbers">
         <span>{view.readout.goal}</span>
@@ -79,7 +79,7 @@
 
 {#if result !== null}
   {@const r = lab.trials[result]}
-  <Dialog open={true} title={`${result + 1}/${count} ${r.trial.id}`} subtitle={`${r.spec.name} · ${r.trial.station}/${r.lane.name} · ${view.read(() => STATUS_LABEL[lab.status(result)])}`} wide onclose={() => close("result")}>
+  <Dialog open={true} title={`${result + 1}/${count} ${lab.shown[result].label}`} subtitle={`${lab.shown[result].open ? `${r.spec.name} · ` : ""}${r.trial.station}/${r.lane.name} · ${view.read(() => STATUS_LABEL[lab.status(result)])}`} wide onclose={() => close("result")}>
     <ResultCard {view} index={result} />
     {#snippet actions()}
       <div class="lab-actions">

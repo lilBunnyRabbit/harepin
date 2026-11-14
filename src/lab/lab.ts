@@ -5,6 +5,7 @@ import { CLASS_LABELS } from "../car/pi";
 import { BUILD } from "../menu/update";
 import type { LabSpot } from "../worldgen/lab";
 import { answer_of, answers_key, read_answers } from "./answers";
+import { shown_trials, type Shown } from "./blind";
 import { export_block, type Answers, type Device } from "./export";
 import { INLINE, read_code } from "./pack-code";
 import { resolve_pack, type Aids, type Pack, type Question, type Resolved } from "./pack";
@@ -55,6 +56,7 @@ function device(): Device {
 
 export class Lab {
   readonly trials: readonly Resolved[];
+  readonly shown: readonly Shown[];
   results: TrialResult[];
   answers: Answers = {};
   watch: LabWatch | null = null;
@@ -67,6 +69,7 @@ export class Lab {
     private readonly host: LabHost,
   ) {
     this.trials = resolve_pack(pack);
+    this.shown = shown_trials(pack);
     this.results = this.trials.map(() => ({ status: "new", metrics: null }));
   }
 
@@ -121,7 +124,8 @@ export class Lab {
     this.recorder = new Recorder(r.lane, r.trial.goal);
     this.recorder.placed(this.host.car());
     this.watch?.changed();
-    this.host.toast(`Trial ${index + 1}/${this.trials.length} ${r.trial.id}: ${r.trial.try} (${CLASS_LABELS[r.class]} ${r.pi})`);
+    const shown = this.shown[index];
+    this.host.toast(`Trial ${index + 1}/${this.trials.length} ${shown.label}: ${r.trial.try}${shown.open ? ` (${CLASS_LABELS[r.class]} ${r.pi})` : ""}`);
   }
 
   /** Every physics step, after the car's. */

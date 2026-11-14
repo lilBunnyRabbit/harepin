@@ -8,6 +8,7 @@ import { resolve_pack, spec_hash, type Resolved } from "../src/lab/pack";
 import { PACKS } from "../src/lab/packs";
 import { pool_size, run_pool } from "./proof/pool";
 import type { GroundName } from "./grounds";
+import { diff_files } from "./lab/diff";
 import { diff_handling, golden_line, read_handling, write_handling, type Moved } from "./lab/handling-golden";
 import { setups, type Setup } from "./lab/setups";
 import { STOP_FROM_KMH, type SimValues } from "./lab/sims";
@@ -143,8 +144,13 @@ async function run_golden(check: boolean): Promise<Moved[] | null> {
   return moved;
 }
 
-async function main(command: string, arg?: string): Promise<number> {
+async function main(command: string, arg?: string, other?: string): Promise<number> {
   if (command === "matrix") return run_matrix(arg);
+  if (command === "diff") {
+    if (!arg || !other) throw new Error("usage: bun scripts/lab.ts diff <old paste> <new paste>");
+    for (const line of diff_files(arg, other)) console.log(line);
+    return 0;
+  }
   if (command === "golden") {
     const moved = await run_golden(process.argv.includes("--check"));
     return moved === null || moved.length ? 1 : 0;
@@ -152,9 +158,9 @@ async function main(command: string, arg?: string): Promise<number> {
   return run_pack(command);
 }
 
-const [command, arg] = args;
+const [command, arg, other] = args;
 if (!command) {
-  console.error("usage: bun scripts/lab.ts <pack> [--base <trial>] | matrix [car] | golden [--check]   [--jobs n]");
+  console.error("usage: bun scripts/lab.ts <pack> [--base <trial>] | matrix [car] | golden [--check] | diff <old> <new>   [--jobs n]");
   process.exit(1);
 }
-process.exit(await main(command, arg));
+process.exit(await main(command, arg, other));

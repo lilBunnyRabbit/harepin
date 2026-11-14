@@ -13,17 +13,17 @@
   let { view, onpick }: Props = $props();
 
   const lab = $derived(view.lab);
-  const rows = $derived(view.read(() => lab.trials.map((r, i) => ({ r, status: lab.status(i), current: i === lab.at }))));
+  const rows = $derived(view.read(() => lab.trials.map((r, i) => ({ r, shown: lab.shown[i], status: lab.status(i), current: i === lab.at }))));
 </script>
 
 <p class="lab-brief">{lab.pack.brief}</p>
 <ol class="lab-trials">
-  {#each rows as { r, status, current }, i (r.trial.id)}
+  {#each rows as { r, shown, status, current }, i (r.trial.id)}
     <li>
       <Tile
         size="sm"
-        title={`${i + 1}. ${r.trial.id}`}
-        meta={`${r.spec.name} ${CLASS_LABELS[r.class]} ${r.pi} · ${r.trial.station}/${r.lane.name} · ${goal_label(r.trial.goal)}`}
+        title={`${i + 1}. ${shown.label}`}
+        meta={`${shown.open ? `${r.spec.name} ${CLASS_LABELS[r.class]} ${r.pi} · ` : ""}${r.trial.station}/${r.lane.name} · ${goal_label(r.trial.goal)}`}
         selected={current}
         onclick={() => onpick(i)}
       >

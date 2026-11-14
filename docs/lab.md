@@ -100,6 +100,9 @@ export default pack;
 | `goal` | `laps` (turns of the lane's ring), `time` (seconds driven), `stop` (a brake stop from at least 90% of `from_kmh`), `run` (start to finish gate), `free` (never ends) |
 | `try`, `feel` | what to do and what to feel for |
 | `ask` | questions for this trial, else the pack's |
+| `base` | starts a group: the trials after it, up to the next base, read against it |
+
+A pack with `blind: true` (decision O2: variant groups yes, lineups no) shows each group as `A` (the base), then `B`, `C` in an order seeded by the pack id and rev, with the base's feel line and no car, class or PI; every variant also asks `vs A` (worse / same / better, id `vsbase`). The export keeps the real ids. Write the base's `feel` neutral: it is the line every variant shows. Trials before the first base are shown as usual.
 
 Questions: `scale` (1-5 with `low`/`high` ends), `pick` (`options`), `text`. `src/lab/ask.ts` holds the plan's set: `ASK` (grip, predictability, fun, note) and `with_station_asks(trials)`, which gives each trial those plus drift ease on the drift, eight, skidpad and hairpin stations, landing on the kickers, and "vs last trial" (worse / same / better) when the trial before ran the same station. Group a pack's trials by station so that last one asks. The clock starts at the first throttle or movement after the trial places the car.
 
@@ -239,7 +242,7 @@ The matrix (`scripts/lab/setups.ts`): per car its families (`stock`, `grip`, `ae
 
 The handling golden is the car proof: `golden --check` lists every row that moved and the fields in it (`spec`, `pi`, a trait). A change to one car that moves another car's row is wrong. Targets per car: `docs/car-feel.md`.
 
-Not built yet: `lab.ts diff` between sessions (P5), `lab.ts gate` (P6).
+Pastes go in `docs/lab/sessions/` (its README); `bun scripts/lab.ts diff <old> <new>` compares two. Not built yet: `lab.ts gate` (P6).
 
 ## Reading results
 

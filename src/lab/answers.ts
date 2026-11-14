@@ -1,3 +1,4 @@
+import { with_vs_base } from "./blind";
 import type { Answers } from "./export";
 import type { Pack, Question, Trial } from "./pack";
 
@@ -6,7 +7,7 @@ export const SCALE_MAX = 5;
 /** A note is one line; a paste longer than this is cut, not refused. */
 export const TEXT_MAX = 400;
 
-export const questions_of = (pack: Pack, trial: Trial): readonly Question[] => trial.ask ?? pack.ask;
+export const questions_of = (pack: Pack, trial: Trial): readonly Question[] => with_vs_base(pack, trial, trial.ask ?? pack.ask);
 
 /** Per pack and rev: answers given to an older rev rate a different pack. */
 export const answers_key = (pack: Pack) => `harepin.lab.${pack.id}.r${pack.rev}`;

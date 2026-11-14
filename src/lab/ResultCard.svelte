@@ -25,7 +25,7 @@
 
 <div class="lab-result">
   <section class="lab-questions" aria-label="Your take">
-    <p class="lab-feel">{r.trial.feel}</p>
+    <p class="lab-feel">{lab.shown[index].feel}</p>
     {#each questions as q (q.id)}
       {#if q.kind === "scale"}
         <Scale label={q.label} low={q.low} high={q.high} value={scale_of(given[q.id])} onchange={(v) => lab.answer(r.trial.id, q, v)} />
