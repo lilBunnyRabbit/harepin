@@ -7,7 +7,8 @@ import { TIERS } from "../career/career";
 import { reward_paint_name } from "../career/rewards";
 import { MarkerView } from "../career/marker-view";
 import { kit_sample } from "../render/prop-kit";
-import { mesh_tones, tree_kit, tree_meshes } from "../render/scene";
+import { mesh_tones, tree_kit } from "../render/scene";
+import { TreeBatch } from "../render/tree-batch";
 import { charred_kit, type TreeLook } from "../render/snags";
 import { brand, car_paints, color, mix, tones } from "../theme/palette";
 import type { Lab } from "../theme/theme";
@@ -134,7 +135,9 @@ function decals(): SheetLayout {
 function trees(kind: TreeKind, snowy: boolean, look: TreeLook): THREE.Object3D {
   const group = new THREE.Group();
   const here: Tree[] = TREE_SPOTS.map(([x, z, scale]) => ({ x, y: 0, z, scale, kind }));
-  group.add(...tree_meshes(look === "charred" ? charred_kit() : tree_kit(snowy), here, null));
+  const batch = new TreeBatch(look === "charred" ? charred_kit() : tree_kit(snowy), here.length);
+  batch.plant(here, null);
+  group.add(...batch.meshes);
   return group;
 }
 
