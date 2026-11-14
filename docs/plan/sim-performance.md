@@ -9,7 +9,7 @@ Machine: i7-8700K (6 cores, 12 threads), Windows 11. Runtimes: Bun 1.3.0 (JavaSc
 ## Answer first
 
 - Half the field step is ground height queries, not tyre maths: 64 `ground.height` calls per car per step. The branchy tyre and assist code is not the main cost.
-- WebAssembly runs `Car.step` (with its ground) **1.5-1.8x** faster than JS in every engine. JS↔WASM calls and pose copies cost almost nothing (5-9 ns a call, 0.03 µs a car).
+- WebAssembly runs `Car.step` (with its ground) **1.5-1.8x** faster than JS in every engine. JS↔WASM calls and pose copies cost almost nothing (5-9 ns a call, 0.02 µs a car, within run-to-run noise).
 - A worker takes **88-90%** of the sim's main-thread time off the main thread, at 1x and 4x throttle alike. One round trip per frame costs 40 µs at 1x and 0.35 ms at 4x.
 - The JS physics is **not** bit-identical across engines today. JSC and V8 differ on step 0, and so do two V8 versions (Node 22 and Chrome 157). A seeded 7-car race finishes in a different order in Bun and in Node.
 - The WASM port gives the same bits in all four runtimes. The reason is its own maths library, not WebAssembly. With that maths swapped into `Math.*`, the **JS** physics also gives the same bits in JSC and V8. Determinism needs a deterministic maths module, not WASM.
@@ -21,7 +21,7 @@ Island seed 0, first circuit, 7 coupes driven by `Field`, 720 warm-up steps, the
 
 Plain `Field.step`: **80 µs/step in Bun, 79 µs in Node**, about 11.4 µs per car. For comparison, `ai-racers.md` §4 measured 20 µs per car on an open-loop drive that weaved off the road into more solids. On the line, a car costs about half that.
 
-Split, measured with `performance.now()` marks in a copy of `car.ts`. The marks add about 15% overhead, so read the shares:
+Split, measured with `performance.now()` marks in a copy of `car.ts`. The marks add about 24% (99 µs against the plain 80), so read the shares:
 
 | part | µs/step, 7 cars (Bun) | share |
 |---|---|---|
@@ -73,7 +73,7 @@ Bench: each runtime runs both sides on the same `SpikeGround` heightfield built 
 | **speedup, 7 cars** | **1.49x** | **1.83x** | **1.78x** | **1.61x** |
 | empty WASM call | 8.1 ns | 5.2 ns | 5.2 ns | 9.0 ns |
 
-- Call and copy overhead does not matter. One call per car and one call for all cars cost the same. Copying pos, quat, vel and ang into the JS `Car` adds about 0.02 µs.
+- Call and copy overhead does not matter. One call per car and one call for all cars cost the same. Copying pos, quat, vel and ang into the JS `Car` adds about 0.02 µs per car (-0.01 to 0.05 across runtimes, within noise).
 - A WASM build that imports the host's `Math.sin` and friends (bit-identical to the JS, see §3) runs at 4.2 µs/car in Node, against 3.5 µs/car with its own maths.
 - On the real `World` the JS car costs 11.4 µs in the field, against 5.8 µs on the spike ground. The real ground costs about as much as the rest of the step. A WASM physics would have to own the whole ground (tiles, ramps, decks, water, footing), or it would cross the boundary 60+ times per car per step.
 - Projected saving for 7 cars on desktop: about 15-20 µs/step, 6-7 ms of CPU a second. That is real, but the worker in §4 takes about 40 ms a second off the main thread.
@@ -148,7 +148,7 @@ Prototype: the branch's `Field` (world, 7 AI cars, awareness, contact) runs in a
 | port | step + full world ground + collide + contact: estimate ~1500 lines of AS | Field and World built in the worker, poses back | estimate 300-400 lines (fdlibm port of 7 functions), one import swap |
 | physics sources | two, unless JS physics is deleted and Bun tests, scripts and the game all call WASM | one | one |
 | new dependency | AssemblyScript compiler (owner's call) | none | none |
-| records and ghosts | ghosts are poses, unaffected; physics moves by ulps, so `car.test` and telemetry rebaseline | unaffected | same as WASM: ulp moves, rebaseline once, then the same everywhere |
+| records and ghosts | ghosts are poses, unaffected; physics moves by ulps, so `car.test` and telemetry rebaseline | unaffected | sim: ulp moves, rebaseline once. Worldgen too: golden output moves, so every kind bumps `version` and its records reset |
 
 Two physics sources are the worst option: every tuning change made twice, and drift between them that only a lockstep diff would catch. Going WASM means deleting the JS physics, and losing three.js types, closures and readable stack traces in the hottest code. 1.5-1.8x does not pay for that today.
 
@@ -158,7 +158,7 @@ Two physics sources are the worst option: every tuning change made twice, and dr
 2. **Cheap ground wins in JS.**
    - The suspension raycast bisects (14 `height` calls per wheel) a ground made of flat triangles. An exact ray-triangle hit needs about 2-3 lookups. Estimate: about a third of the field step, not measured. It changes physics output, so the feel and telemetry baselines get re-recorded.
    - Ramp and deck lookups cost more than the tile itself. An index there gives the same output.
-3. **Deterministic maths module, if same-everywhere matters.** It is needed for seeded AI fields, input ghosts or lockstep later. One `sim-math.ts` for the 7 functions, used by car, world, AI and worldgen. The Bun scripts then prove the bits Chrome and Safari players get.
+3. **Deterministic maths module, if same-everywhere matters.** It is needed for seeded AI fields, input ghosts or lockstep later. One `sim-math.ts` for the 7 functions, used by car, world queries and AI. Worldgen only with a deliberate version bump of every kind: its output moves, which resets players' records. The Bun scripts then prove the bits Chrome and Safari players get.
 4. **WASM later, scoped.** Only if phones still miss budget after 1-3, and then as the only physics source (car step plus the whole world ground in AS). Use the lockstep harness from this spike as the proof. Also worth it for batch work that is pure numbers with few boundary crossings: far-AI planning or many kinematic cars.
 
 ## Next steps
