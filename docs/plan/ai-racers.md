@@ -180,7 +180,7 @@ Numbers from `2f0dba2` + the phase 2 field, checked 2026-11-14 on the 25 island 
 
 | Phase | Proof | Result |
 |---|---|---|
-| 0 | `car.test.ts`, `contact.test.ts`; telemetry and feel vs master | 272 tests in `src/car` + `src/ai` pass; `scripts/telemetry.ts` and `scripts/feel.ts` byte-identical to `4ac6b0c` |
+| 0 | `car.test.ts`, `contact.test.ts`; telemetry and feel vs master | 273 tests in `src/car` + `src/ai` pass; `scripts/telemetry.ts` and `scripts/feel.ts` byte-identical to `4ac6b0c` |
 | 1 | `ai-race.ts solo`, 25 circuits | every lap within; AI vs autolap min -11.7%, median -9.0%, max -7.8% (AI faster everywhere), no offroad |
 | 1 | `src/ai/driver.test.ts` | a lone AI car's taped controls replayed on a fresh car end bit-identical over 30 s on island seed 0 (a 1e-12 steer nudge on one step fails it) |
 | 2 | `ai-race.ts field all` (6 cars, 2 laps) | stuck 0; contacts/lap 0.5-6.0, median 3.0, 0 out of band; grid order kept 0/25, mean rho 0.55; 27 overtakes, 24 spins, 21 resets |
