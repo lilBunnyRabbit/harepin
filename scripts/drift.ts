@@ -102,7 +102,7 @@ export function drift(spec: CarSpec, kmh: number, angle: number, aids: boolean, 
   return { held, start: kmh, end: car.vel.length() * 3.6, accel: accel / n, peak: steps ? peak : 0, spin: spin / n, locked: locked / Math.max(1, t / DT), last: (Math.abs(beta()) * 180) / Math.PI };
 }
 
-export const DRIFT_CARS = ["coupe", "muscle", "kaze", "sturm", "raijin", "rally", "hatch"] as const;
+export const DRIFT_CARS = ["coupe", "muscle", "kaze", "sturm", "raijin", "rally", "hatch", "tsumuji"] as const;
 
 export interface Launch {
   /** Seconds from full lock and full gas until the launch arms; Infinity when it never does. */
