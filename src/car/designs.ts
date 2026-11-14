@@ -145,8 +145,6 @@ export interface Design {
   taper?: { from: number; share: number };
   /** A chamfered shoulder above the belt line, a tuck below it, and nose and tail pinched in plan. */
   section?: Section;
-  /** Tyre and rim sides; 8 when unset. */
-  round?: number;
   /** Knobs on the stock tyre, as a scale on their size; none when unset. */
   tread?: number;
   /** Per axle, front first: arms that follow their wheels up and down. */
