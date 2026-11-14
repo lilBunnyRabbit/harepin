@@ -56,6 +56,16 @@ Copy all, or Copy <car> for one car's presets:
 
 `read_block` (`export.ts`) reads it back, forgiving of CRLF and text around it; `export.test.ts` holds the round trip.
 
+## Reading the owner's notes
+
+The owner notes a fault once, on the first preset where it shows. A note on a later tier (aero1 → aero4, mid, max) covers only what that tier changed. So:
+
+- A note about a part (wing, lip, arch kit, mirror, exhaust) applies to every car and every tier that carries that part, not only the preset it sits on.
+- Faults noted on a lower tier carry forward to the higher ones; the owner does not repeat them.
+- "Same issues as already mentioned" means: every fault noted on this car's lower tiers.
+
+After a fix, check the part on every car and tier that has it, not just the noted presets.
+
 ## Shots from a block
 
 ```sh
