@@ -56,6 +56,9 @@ export function rear_wing(d: Design, aero: Required<Look>["aero"], paint: THREE.
   return d.wings ? own_wing(d.wings[Math.min(aero.wing, d.wings.length - 1)], paint, trim) : wing(aero.wing, d, paint, trim);
 }
 
+/** The aero kit's deep skirts, which take the stock sill strip's place; a body without arches keeps its strip. */
+export const kit_skirts = (d: Design, aero: Required<Look>["aero"]) => aero.skirts === true && d.arches.steps > 0;
+
 export function aero_parts(d: Design, spec: CarSpec, aero: Required<Look>["aero"], paint: THREE.Color, trim: THREE.Color): THREE.BufferGeometry[] {
   const out: THREE.BufferGeometry[] = [];
   const [nose, low] = d.outline[0];
@@ -72,7 +75,7 @@ export function aero_parts(d: Design, spec: CarSpec, aero: Required<Look>["aero"
       for (const side of [-1, 1]) out.push(tint(box(0.18, 0.016, 0.14, side * (d.width / 2 - 0.12), y, z + 0.03), trim));
     }
   }
-  if (aero.skirts && d.arches.steps > 0) out.push(...skirts(d, spec, 0.07, 0.16).map((g) => tint(g, paint)));
+  if (kit_skirts(d, aero)) out.push(...skirts(d, spec, 0.07, 0.16).map((g) => tint(g, paint)));
   if (aero.diffuser) {
     const [tail, bottom] = d.outline[d.outline.length - 1];
     const span = d.width * 0.82;

@@ -9,7 +9,7 @@ import { extrude, merge, parts, slab, taper, tint } from "./geometry";
 import { lamps, popup, set_lights, type HeadMesh, type Popup } from "./lights";
 import { back, livery_of, livery_parts, roof, type Livery } from "./livery";
 import { nitro_flame } from "./nitro-look";
-import { aero_of, aero_parts, kit_parts, rear_wing } from "./part-looks";
+import { aero_of, aero_parts, kit_parts, kit_skirts, rear_wing } from "./part-looks";
 import { STOCK_CALIPER, STOCK_TYRE, caliper_geometry, chrome_tone, wheel_geometry } from "./wheels";
 import { paint_finish, paint_lab, type Finish } from "./paint";
 import { WEAVE_KEY, weave_shader } from "./carbon";
@@ -165,7 +165,7 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
     tint(d.taper ? taper(shell_body, d.taper.from, tail, d.taper.share) : shell_body, paint),
     flares(d, spec).map((g) => tint(g, arch_tone)),
     (d.slabs ?? []).flatMap((slab_part) => slab(slab_part.points, slab_part.from, slab_part.to)).map((g) => tint(g, paint)),
-    (aero.skirts ? [] : skirts(d, spec, 0.03, 0.09)).map((g) => tint(g, trim)),
+    (kit_skirts(d, aero) ? [] : skirts(d, spec, 0.03, 0.09)).map((g) => tint(g, trim)),
     parts(d.paint).map((g) => tint(g, paint)),
     parts(d.trim).map((g) => tint(g, trim)),
     parts(livery && livery.decal !== "none" ? [] : (d.stripes ?? [])).map((g) => tint(g, trim)),
