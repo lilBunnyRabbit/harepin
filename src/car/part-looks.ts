@@ -58,8 +58,11 @@ export function rear_wing(d: Design, aero: Required<Look>["aero"], paint: THREE.
   return d.wings ? own_wing(d.wings[Math.min(aero.wing, d.wings.length - 1)], paint, trim) : wing(aero.wing, d, paint, trim);
 }
 
-/** The aero kit's deep skirts, which take the stock sill strip's place; a body without arches keeps its strip. */
-export const kit_skirts = (d: Design, aero: Required<Look>["aero"]) => aero.skirts === true && d.arches.steps > 0;
+/**
+ * The aero kit's band of deep skirts, which takes the stock sill strip's place. A body without arches keeps its strip, and so
+ * does a kit that draws its own shell: its sills, chin and tail are in its outline.
+ */
+export const kit_skirts = (d: Design, aero: Required<Look>["aero"]) => aero.skirts === true && d.arches.steps > 0 && !d.kit?.outline;
 
 export function aero_parts(d: Design, spec: CarSpec, aero: Required<Look>["aero"], paint: THREE.Color, trim: THREE.Color, swaps: ReadonlySet<Swap> = new Set()): THREE.BufferGeometry[] {
   const out: THREE.BufferGeometry[] = [];

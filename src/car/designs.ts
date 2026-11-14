@@ -2,7 +2,7 @@ import type { BodyStyle, Triple } from "./cars";
 import type { Panel } from "./livery";
 import type { Token } from "../theme/theme";
 import { FUJIN_DESIGN } from "./fujin-design";
-import { endplate, gurney, hoop, leg, mirror, plane, rod, roof_lip, tail_end } from "./design-parts";
+import { endplate, gurney, hoop, leg, mirror, plane, rod, roof_lip, tail_end, widen_wing } from "./design-parts";
 import { KAZE_DESIGN } from "./kaze-design";
 import { RAIJIN_DESIGN } from "./raijin-design";
 import { SAJIN_DESIGN } from "./sajin-design";
@@ -143,7 +143,10 @@ export interface Design {
   tread?: number;
   /** Per axle, front first: arms that follow their wheels up and down. */
   arms?: Arm[];
-  /** The bolt-on wide body an aero kit with skirts fits: each field given replaces the stock one. */
+  /**
+   * The wide body an aero kit with skirts fits: each field given replaces the stock one. A kit with its own `outline` is the
+   * shell itself (wider `width`, deeper `sill`, chin and tail in the outline, `section` and `wings` to match) and takes no bolt-on band.
+   */
   kit?: Kit;
   /**
    * Pop-up lamps: `pods` and the `shells` profiles in paint and `bezels` in trim, modelled shut, and `heads` swing about the hinge line at [z, y] by `lift` radians
@@ -192,7 +195,7 @@ export interface Detail {
   jet?: Triple;
 }
 
-export type Kit = Partial<Pick<Design, "arches" | "slabs" | "heads" | "tails" | "paint" | "trim" | "markers" | "chrome" | "tyre" | "rim" | "caliper">>;
+export type Kit = Partial<Pick<Design, "outline" | "width" | "sill" | "section" | "wings" | "arches" | "slabs" | "heads" | "tails" | "paint" | "trim" | "markers" | "chrome" | "tyre" | "rim" | "caliper">>;
 
 const COUPE_OUTLINE: Point[] = [[2.27, 0.3], [2.35, 0.42], [2.33, 0.54], [2.1, 0.63], [0.95, 0.84], [-2.1, 0.93], [-2.3, 0.9], [-2.34, 0.8], [-2.34, 0.5], [-2.27, 0.3]];
 const COUPE_SECTION: Section = { belt: [0.62, 0.8], shoulder: 0.15, tuck: 0.04, nose: [0.2, 0.55], tail: [0.12, 0.5] };
@@ -212,6 +215,20 @@ const COUPE_WINGS: Wing[] = [
   { paint: [], trim: [], lips: [{ points: COUPE_HOOP, from: 0, to: COUPE_PLANE }, coupe_plates(COUPE_HOOP, -1.98)], stands: [{ points: gurney(COUPE_HOOP, 0.03), from: 0, to: COUPE_PLANE }] },
   { paint: [], trim: [], lips: [COUPE_LIP, coupe_plates(COUPE_RACE, -1.94)], stands: [{ points: COUPE_RACE, from: 0, to: COUPE_PLANE }] },
 ];
+// The kit is the shell: 8 cm wider a side over deeper sills, its chin and tail valance drawn in the outline. The shoulder
+// grows by what the body widens, so the body top, and the cabin and wings on it, stay where they were.
+const COUPE_WIDE = 2.04;
+const COUPE_WIDE_SHOULDER = 1 - (1.88 * (1 - COUPE_SECTION.shoulder)) / COUPE_WIDE;
+const COUPE_KIT: Kit = {
+  outline: [[2.3, 0.19], [2.37, 0.25], [2.35, 0.42], [2.33, 0.54], [2.1, 0.63], [0.95, 0.84], [-2.1, 0.93], [-2.3, 0.9], [-2.34, 0.8], [-2.34, 0.25], [-2.28, 0.19]],
+  width: COUPE_WIDE,
+  sill: 0.19,
+  section: { ...COUPE_SECTION, belt: [0.69, 0.8], shoulder: COUPE_WIDE_SHOULDER, tuck: 0 },
+  arches: { ...COUPE_ARCHES, gap: 0.075, flare: 0.05, out: 0.03 },
+  tyre: [0.32, 0.36],
+  paint: mirror(COUPE_CABIN, COUPE_WIDE_SHOULDER),
+  wings: COUPE_WINGS.map((wing) => widen_wing(wing, (1 - COUPE_SECTION.shoulder) / (1 - COUPE_WIDE_SHOULDER))),
+};
 const COUPE_TAIL = tail_end(COUPE_OUTLINE, 0.74, 0.2, 0.93, [{ size: [0.56, 0.12, 0.05], at: [0.58, 0.74, 0] }], { half: 0.32, y: 0.74 }, 0.55);
 
 const HATCH_OUTLINE: Point[] = [[1.9, 0.3], [1.96, 0.46], [1.95, 0.68], [1.86, 0.77], [1.0, 0.88], [-1.82, 0.93], [-1.95, 0.93], [-1.98, 0.62], [-1.93, 0.3]];
@@ -358,10 +375,7 @@ export const DESIGNS: Record<BodyStyle, Design> = {
     wings: COUPE_WINGS,
     hood: [1.5, 0.74],
     exhaust: [0.55, 0.3, -2.3],
-    kit: {
-      arches: { ...COUPE_ARCHES, gap: 0.075, flare: 0.08, out: 0.11 },
-      tyre: [0.32, 0.36],
-    },
+    kit: COUPE_KIT,
   },
   hatch: {
     outline: HATCH_OUTLINE,

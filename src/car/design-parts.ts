@@ -1,5 +1,5 @@
 import type { Triple } from "./cars";
-import type { Cabin, Slab } from "./designs";
+import type { Cabin, Slab, Wing } from "./designs";
 import { tail_at, type Part, type Point } from "./geometry";
 
 const PROUD = 0.012;
@@ -146,4 +146,11 @@ export function roof_lip(cabin: Cabin, shoulder: number, edge: number, start: nu
     return { points: [[rz - 0.02, top(rz - 0.02) + above * 0.6], [tip[0] - 0.015, tip[1] + above], [tip[0] - 0.015, tip[1] - drop], on_screen], from: half - 0.03 / (1 - shoulder), to: half };
   };
   return { lip, fence, half, edge: [rz, ry], tip };
+}
+
+/** A wing with every distance from the centre scaled by `k`: a kit shell with another shoulder keeps its wing on the body's edge. */
+export function widen_wing(wing: Wing, k: number): Wing {
+  const part = (p: Part): Part => ({ ...p, size: [p.size[0] * k, p.size[1], p.size[2]], at: [p.at[0] * k, p.at[1], p.at[2]] });
+  const slab = (s: Slab): Slab => ({ ...s, from: s.from * k, to: s.to * k });
+  return { paint: wing.paint.map(part), trim: wing.trim.map(part), lips: wing.lips?.map(slab), stands: wing.stands?.map(slab) };
 }

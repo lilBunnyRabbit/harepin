@@ -114,8 +114,23 @@ export function flares(d: Design, spec: CarSpec): THREE.BufferGeometry[] {
     const lip = ring(z, opening, flare).map(([lz, ly], i): Point => [lz, Math.max(opening[i][1], Math.min(ly, body_top(lz)))]);
     const lifted = [...lip, ...opening.reverse()].map(([pz, py]): Point => [pz, Math.max(py, d.sill + FLARE_PROUD)]);
     const top = Math.max(...lifted.map(([, ly]) => ly));
+    // A flat side that would sink into a body bulging at the belt follows the body's crease instead.
+    if (bulge(d, z, top) * edge > d.arches.out / 2) return flat_pieces(d, lifted).flatMap((piece) => slab(piece, edge - d.arches.reach, edge + d.arches.out).map((g) => uncut(g, d)));
     return slab(lifted, edge - d.arches.reach, edge + d.arches.out).map((g) => flat_side(g, d, top));
   });
+}
+
+const BULGE_SAMPLES = 8;
+
+/** The most the body at `z` stands out past a straight side from the sill to `top`, as a share of its half width. */
+function bulge(d: Design, z: number, top: number): number {
+  const [low, high] = [sculpt_factor(d, d.sill, z), sculpt_factor(d, top, z)];
+  let most = 0;
+  for (let i = 1; i < BULGE_SAMPLES; i++) {
+    const share = i / BULGE_SAMPLES;
+    most = Math.max(most, sculpt_factor(d, d.sill + (top - d.sill) * share, z) - (low + (high - low) * share));
+  }
+  return most;
 }
 
 /**
