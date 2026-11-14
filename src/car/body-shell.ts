@@ -221,6 +221,23 @@ function folds(d: Design): Cut[] {
   ];
 }
 
+/**
+ * Where a pinch is spent, at the body's foremost and rearmost point: past it the body keeps its width, so only a part
+ * that overhangs the nose or the tail crosses it.
+ */
+function ends(d: Design): Cut[] {
+  const s = d.section;
+  if (!s) return [];
+  const [front, rear] = body_ends(d);
+  return [...(s.nose[1] > 0 ? [{ n: [1, 0] satisfies Point, c: -front }] : []), ...(s.tail[1] > 0 ? [{ n: [1, 0] satisfies Point, c: -rear }] : [])];
+}
+
+/** `cuts` that `points` reach across: a profile that only touches a cut keeps the face it has there. */
+function crossed(points: Point[], cuts: Cut[]): Cut[] {
+  const sides = (cut: Cut) => points.map(([z, y]) => cut.n[0] * z + cut.n[1] * y + cut.c);
+  return cuts.filter((cut) => sides(cut).some((side) => side > ON_CUT) && sides(cut).some((side) => side < -ON_CUT));
+}
+
 /** The fold above the body top, where the shoulder has done leaning in: only a part standing over the body crosses it. */
 function crest(d: Design): Cut[] {
   const s = d.section;
@@ -262,13 +279,14 @@ function folded_slab(points: Point[], from: number, to: number, cuts: Cut[]): TH
 }
 
 /**
- * A slab cut where the body side folds: at the belt, where the nose and tail pinch start, and at the crest over the body
- * top. Its side then bends with the body's, so a lip as wide as the body stays on the body side instead of bridging the
- * bend and standing proud of it. A `straight` slab skips the pinch folds and keeps one width instead.
+ * A slab cut where the body side folds: at the belt, where the nose and tail pinch start and where they are spent, and at
+ * the crest over the body top. Its side then bends with the body's, so a lip as wide as the body stays on the body side
+ * instead of bridging the bend and standing proud of it, and one that overhangs the body's end runs on square past it.
+ * A `straight` slab skips the pinch folds and keeps one width instead.
  */
 export function fitted_slab(d: Design, s: Slab): THREE.BufferGeometry[] {
   const anchor = s.straight;
-  if (anchor === undefined) return folded_slab(s.points, s.from, s.to, [...folds(d), ...crest(d)]);
+  if (anchor === undefined) return folded_slab(s.points, s.from, s.to, [...folds(d), ...crest(d), ...crossed(s.points, ends(d))]);
   const cuts = [...folds(d), ...crest(d)].filter(({ n }) => n[1] !== 0);
   return folded_slab(s.points, s.from, s.to, cuts).map((g) => unpinched(g, d, anchor));
 }
@@ -292,29 +310,47 @@ export function body_pieces(d: Design, spec: CarSpec): Point[][] {
   return flat_pieces(body_outline(d, spec), [...folds(d), ...crest(d)]);
 }
 
+/** The body's foremost and rearmost z: a proud bumper stands past the outline's first and last point. */
+function body_ends(d: Design): [number, number] {
+  let [front, rear] = [-Infinity, Infinity];
+  for (const [z] of d.outline) {
+    front = Math.max(front, z);
+    rear = Math.min(rear, z);
+  }
+  return [front, rear];
+}
+
+/**
+ * Share of its x a point at `z` loses to the pinched nose and tail. A pinch runs on past the outline's first and last
+ * point to the body's real end, so no face of a proud bumper folds there, and is spent past that end.
+ */
+function pinch(d: Design, z: number): number {
+  const s = d.section;
+  if (!s) return 0;
+  const nose = d.outline[0][0];
+  const tail = d.outline[d.outline.length - 1][0];
+  const [front_end, rear_end] = body_ends(d);
+  const front = s.nose[1] > 0 ? Math.max(0, Math.min(front_end, z) - (nose - s.nose[1])) / s.nose[1] : 0;
+  const back = s.tail[1] > 0 ? Math.max(0, tail + s.tail[1] - Math.max(rear_end, z)) / s.tail[1] : 0;
+  return s.nose[0] * front + s.tail[0] * back;
+}
+
 /**
  * Share of its x a point keeps on a sculpted body: the shoulder over the belt, the tuck under it, the pinched ends.
- * The shares add, so the factor is linear in y and z between the folds and every flat face stays flat; a pinch runs on
- * past the outline's first and last point to the body's real end, so no face of a proud bumper folds there.
+ * The shares add, so the factor is linear in y and z between the folds and every flat face stays flat.
  */
 export function sculpt_factor(d: Design, y: number, z: number): number {
   const s = d.section;
   if (!s) return 1;
   const nose = d.outline[0][0];
   const tail = d.outline[d.outline.length - 1][0];
-  let [top, front_end, rear_end] = [-Infinity, nose, tail];
-  for (const [oz, oy] of d.outline) {
-    top = Math.max(top, oy);
-    front_end = Math.max(front_end, oz);
-    rear_end = Math.min(rear_end, oz);
-  }
+  let top = -Infinity;
+  for (const [, oy] of d.outline) top = Math.max(top, oy);
   const rise = top - Math.max(...s.belt);
   const drop = Math.min(...s.belt) - d.sill;
   const belt = s.belt[0] + ((s.belt[1] - s.belt[0]) * (nose - z)) / (nose - tail);
   const side = y > belt ? s.shoulder * Math.min(1, (y - belt) / rise) : s.tuck * Math.min(1, (belt - y) / drop);
-  const front = s.nose[1] > 0 ? Math.max(0, Math.min(front_end, z) - (nose - s.nose[1])) / s.nose[1] : 0;
-  const back = s.tail[1] > 0 ? Math.max(0, tail + s.tail[1] - Math.max(rear_end, z)) / s.tail[1] : 0;
-  return 1 - side - s.nose[0] * front - s.tail[0] * back;
+  return 1 - side - pinch(d, z);
 }
 
 export function sculpt(geometry: THREE.BufferGeometry, d: Design): THREE.BufferGeometry {
