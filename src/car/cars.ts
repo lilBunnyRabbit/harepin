@@ -736,9 +736,11 @@ export const TSUMUJI: CarSpec = {
 };
 
 // Sand buggy: rear engine, rear-biased four-wheel drive, 0.5 m of soft travel and knobbly tyres that shrug off loose ground. On tarmac the
-// tall, soft body rolls and the tread squirms, so it gives up grip to every road car there.
-const SAJIN_FLOOR = 0.29;
-const SAJIN_TOP = 0.89;
+// tall, soft body rolls and the tread squirms, so it gives up grip to every road car there. Engine and seats sit on the
+// floor pan, so the centre of mass rides 0.46 m up: low enough that a bump at full throttle leans the body without tipping it.
+const SAJIN_FLOOR = 0.04;
+const SAJIN_TOP = 1.14;
+const SAJIN_MOUNT = 0.35;
 
 export const SAJIN: CarSpec = {
   ...COUPE,
@@ -752,10 +754,10 @@ export const SAJIN: CarSpec = {
     radius: 0.43,
     rest: 0.51,
     mounts: [
-      [0.85, 0.1, 1.5],
-      [-0.85, 0.1, 1.5],
-      [0.87, 0.1, -1.3],
-      [-0.87, 0.1, -1.3],
+      [0.85, SAJIN_MOUNT, 1.5],
+      [-0.85, SAJIN_MOUNT, 1.5],
+      [0.87, SAJIN_MOUNT, -1.3],
+      [-0.87, SAJIN_MOUNT, -1.3],
     ],
   },
   wheelbase: 2.8,

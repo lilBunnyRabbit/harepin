@@ -17,7 +17,6 @@ mainland 1 sprint hatch
 0 offroad-2 tsumuji
 0 offroad-2 bus
 0 circuit-rev bus
-0 circuit-rev sajin
 1 circuit bus
 1 street-1 bus
 1 street-2 bus
@@ -115,7 +114,6 @@ mainland 1 sprint hatch
 9 street-2 sajin
 9 offroad-1 bus
 9 offroad-2 bus
-9 offroad-2 sajin
 9 circuit-rev bus
 10 circuit bus
 10 street-1 bus
@@ -146,7 +144,6 @@ mainland 1 sprint hatch
 11 offroad-1 raijin
 11 offroad-1 tsumuji
 11 offroad-1 bus
-11 offroad-1 sajin
 11 offroad-2 hatch
 11 offroad-2 coupe
 11 offroad-2 muscle
