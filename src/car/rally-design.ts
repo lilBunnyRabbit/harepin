@@ -1,4 +1,5 @@
 import { cabin_mirror, kit_shoulder, plane, roof_lip, tail_end } from "./design-parts";
+import { roof_wing } from "./roof-ears";
 import type { Cabin, Design, Kit, Section, Wing } from "./designs";
 import type { Part, Point } from "./geometry";
 
@@ -20,17 +21,19 @@ const RALLY_BUMPERS: Part[] = [
   { size: [0.52, 0.14, 0.05], at: [0.26, 0.47, 2.08] },
   { size: [0.9, 0.12, 0.06], at: [0.45, 0.45, -1.855] },
 ];
-// The roof runs on into a spoiler, fenced at the third level; the last stands a second plane over it between two plates.
+// The roof runs on into a spoiler whose ends run down into the screen pillars from the third level; on the last they
+// also stand up as endplates and carry a second plane, so the whole wing is one painted piece with the roof.
 function rally_wings(shoulder: number): Wing[] {
   const lip = (reach: number, kick: number) => roof_lip(RALLY_CABIN, shoulder, 2, 0.3, reach, kick, 0.04);
-  const [fenced, top] = [lip(0.28, 0.04), lip(0.4, 0.05)];
-  const upper = plane([top.edge[0] - 0.215, top.edge[1] + 0.2], 0.36, 0.05, 0.16);
-  const inner = top.half - 0.03 / (1 - shoulder);
+  const eared = roof_wing(RALLY_CABIN, shoulder, 2, lip(0.28, 0.04), 0.16, 0.07);
+  const top = lip(0.4, 0.05);
+  const race = roof_wing(RALLY_CABIN, shoulder, 2, top, 0.24, 0.07, 0.24);
+  const upper = plane([top.tip[0] + 0.14, top.tip[1] + 0.2], 0.3, 0.045, 0.12);
   return [
     { paint: [], trim: [], lips: [lip(0.12, 0).lip] },
     { paint: [], trim: [], lips: [lip(0.2, 0.02).lip] },
-    { paint: [], trim: [], lips: [fenced.lip, fenced.fence(0.14)] },
-    { paint: [], trim: [], lips: [{ ...top.lip, to: inner }, { points: upper, from: 0, to: inner }], stands: [{ ...top.fence(0.16, 0.32), from: inner }] },
+    { paint: [], trim: [], lips: [eared.lip, eared.ear] },
+    { paint: [], trim: [], lips: [race.lip, race.ear, { points: upper, from: 0, to: race.inner }] },
   ];
 }
 // The kit is the shell: 7 cm wider a side over deeper sills, chin and tail valance in the outline, the black arch trims kept thin.
@@ -42,7 +45,7 @@ const RALLY_KIT: Kit = {
   width: RALLY_WIDE,
   sill: 0.3,
   section: { ...RALLY_SECTION, shoulder: RALLY_WIDE_SHOULDER, tuck: 0 },
-  arches: { gap: 0.09, steps: 7, flare: 0.07, out: 0.03, reach: 0.04, tone: "trim" },
+  arches: { gap: 0.09, steps: 11, flare: 0.07, out: 0.03, reach: 0.04, tone: "trim" },
   tyre: [0.3, 0.3],
   rim: { size: 0.62, spokes: 6, tone: "light", spoke: 0.07 },
   mirror: RALLY_WIDE_MIRROR,
@@ -55,7 +58,7 @@ export const RALLY_DESIGN: Design = {
   sill: 0.38,
   cabin: RALLY_CABIN,
   section: RALLY_SECTION,
-  arches: { gap: 0.07, steps: 7, flare: 0.07, out: 0.05, reach: 0.04, tone: "trim" },
+  arches: { gap: 0.07, steps: 11, flare: 0.07, out: 0.05, reach: 0.04, tone: "trim" },
   heads: [RALLY_HEAD],
   tails: RALLY_TAIL.tails,
   mirror: RALLY_MIRROR,
