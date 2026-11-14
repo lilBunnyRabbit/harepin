@@ -1,13 +1,15 @@
 import { build_spec, parse_build } from "../src/car/build";
 import { SteerMode } from "../src/car/car";
-import { is_car } from "../src/car/cars";
+import { is_car, type CarSpec } from "../src/car/cars";
 import { CLASS_LABELS, class_of, spec_pi } from "../src/car/pi";
 import { budget, drive_seconds, MAX_SECONDS, MAX_TRIALS, minutes, over_budget } from "../src/lab/budget";
 import { goal_text, mods_text, short } from "../src/lab/export";
 import { resolve_pack, spec_hash, type Resolved } from "../src/lab/pack";
 import { PACKS } from "../src/lab/packs";
 import { pool_size, run_pool } from "./proof/pool";
-import { setups } from "./lab/setups";
+import type { GroundName } from "./grounds";
+import { diff_handling, golden_line, read_handling, write_handling, type Moved } from "./lab/handling-golden";
+import { setups, type Setup } from "./lab/setups";
 import { STOP_FROM_KMH, type SimValues } from "./lab/sims";
 import type { LabJob, LabResult } from "./lab/worker";
 
@@ -84,7 +86,13 @@ const num = (v: number, digits: number) => (Number.isNaN(v) ? "-" : v.toFixed(di
 
 const COLUMNS = ["setup", "ground", "spec#", "PI", "0-100 s", "top km/h", "100-0 m", "skidpad g", "turn-in ms to 0.2 rad/s", "lift-off °", "power-on °", "flick °", "kick 220 s"];
 
-async function run_matrix(car?: string): Promise<number> {
+interface Row {
+  setup: Setup;
+  spec: CarSpec;
+  ground: GroundName;
+}
+
+async function run_traits(car?: string): Promise<{ rows: Row[]; results: LabResult[] }> {
   if (car !== undefined && !is_car(car)) throw new Error(`unknown car "${car}"`);
   const rows = setups(car).flatMap((s) => {
     const build = parse_build(s.code);
@@ -94,6 +102,13 @@ async function run_matrix(car?: string): Promise<number> {
   });
   const jobs: LabJob[] = rows.map(({ spec, ground }) => ({ kind: "traits", spec, ground }));
   const results = await run_pool<LabJob, LabResult>(WORKER, jobs, JOBS, (_, done) => progress(done, jobs.length));
+  const errors = failed(results, (i) => `${rows[i].setup.id} ${rows[i].ground}`);
+  for (const e of errors) console.error(`sim failed: ${e}`);
+  return { rows, results };
+}
+
+async function run_matrix(car?: string): Promise<number> {
+  const { rows, results } = await run_traits(car);
 
   console.log(`| ${COLUMNS.join(" | ")} |`);
   console.log(`|${COLUMNS.map(() => "---").join("|")}|`);
@@ -107,14 +122,39 @@ async function run_matrix(car?: string): Promise<number> {
     const cells = [setup.id, ground, spec_hash(spec), pi, t.t100.toFixed(2), t.top.toFixed(0), num(t.stop, 1), t.g.toFixed(2), (t.turn * 1000).toFixed(0), t.lift.toFixed(1), t.pwr.toFixed(1), t.hb.toFixed(0), num(t.kick, 2)];
     console.log(`| ${cells.join(" | ")} |`);
   });
-  const errors = failed(results, (i) => `${rows[i].setup.id} ${rows[i].ground}`);
-  for (const e of errors) console.error(`sim failed: ${e}`);
-  return errors.length ? 1 : 0;
+  return results.some((r) => r.kind === "error") ? 1 : 0;
+}
+
+async function run_golden(check: boolean): Promise<Moved[] | null> {
+  const { rows, results } = await run_traits();
+  if (results.some((r) => r.kind === "error")) return null;
+  const lines = rows.flatMap(({ setup, spec, ground }, i) => {
+    const r = results[i];
+    return r.kind === "traits" ? [golden_line(setup, ground, spec, r.traits)] : [];
+  });
+  if (!check) {
+    write_handling(lines);
+    console.log(`wrote scripts/golden/handling.txt: ${lines.length} rows`);
+    return [];
+  }
+  const moved = diff_handling(read_handling(), lines);
+  for (const m of moved) console.log(`${m.key}: ${m.fields.join(", ")}`);
+  console.log(moved.length ? `${moved.length}/${lines.length} handling rows moved: ${[...new Set(moved.map((m) => m.car))].join(", ")}` : `handling golden: ${lines.length} rows match`);
+  return moved;
+}
+
+async function main(command: string, arg?: string): Promise<number> {
+  if (command === "matrix") return run_matrix(arg);
+  if (command === "golden") {
+    const moved = await run_golden(process.argv.includes("--check"));
+    return moved === null || moved.length ? 1 : 0;
+  }
+  return run_pack(command);
 }
 
 const [command, arg] = args;
 if (!command) {
-  console.error("usage: bun scripts/lab.ts <pack> [--base <trial>] | matrix [car]   [--jobs n]");
+  console.error("usage: bun scripts/lab.ts <pack> [--base <trial>] | matrix [car] | golden [--check]   [--jobs n]");
   process.exit(1);
 }
-process.exit(command === "matrix" ? await run_matrix(arg) : await run_pack(command));
+process.exit(await main(command, arg));

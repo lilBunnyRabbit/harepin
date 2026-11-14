@@ -198,6 +198,7 @@ Run it on every pack before sending the link (plan `docs/plan/feel-lab-v2.md`). 
 bun scripts/lab.ts <pack>                   # sim lines, deltas, drive time; exit 1 on a failed sim or a pack over budget
 bun scripts/lab.ts <pack> --base <trial>    # deltas against one trial instead of the first trial per scenario
 hq lock run -- bun scripts/lab.ts matrix [car]   # the car x setup matrix as a markdown table, all cars about 30 s
+hq lock run -- bun scripts/lab.ts golden [--check]  # write / diff scripts/golden/handling.txt: one line per matrix row, spec hash, PI, every trait
 ```
 
 Pack output, one block per trial in the export's shape and key order, so a ` sim` line sits beside the owner's ` m` line:
@@ -226,7 +227,9 @@ Pack output, one block per trial in the export's shape and key order, so a ` sim
 
 The matrix (`scripts/lab/setups.ts`): per car its families (`stock`, `grip`, `aero`, `drift`, `dirt`, `max`, built from parts by name), every shipped preset of the car, and on the coupe a sweep of each tyre and aero part. `stock` and `dirt` also run on dirt, grass, sand, packed snow and ice. The bus is left out. Columns: spec hash, PI and class, 0-100, top, 100-0, skidpad g, turn-in (ms from full steer at 100 km/h to 0.2 rad/s, `bench.turn_in`), lift-off slip, power-on slip (2nd, TCS off), handbrake flick degrees, yaw kick settle at 220 km/h.
 
-Not built yet: the handling golden (`lab.ts golden`, P3), `lab.ts diff` between sessions (P5), `lab.ts promote` (P6).
+The handling golden is the car proof: `golden --check` lists every row that moved and the fields in it (`spec`, `pi`, a trait). A change to one car that moves another car's row is wrong. Targets per car: `docs/car-feel.md`.
+
+Not built yet: `lab.ts diff` between sessions (P5), `lab.ts gate` (P6).
 
 ## Reading results
 
