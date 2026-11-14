@@ -35,14 +35,15 @@ export interface DetailLook {
   glass: THREE.BufferGeometry[];
   heads: Part[];
   swaps: Set<Swap>;
-  exhaust: Triple | null;
+  /** The design's `exhaust` and `jet` as moved by a detail's pipes. */
+  outlet: { exhaust: Triple; jet: Triple | undefined } | null;
   camber: number;
 }
 
 const shapes = (list: Slab[] = []) => list.flatMap((s) => slab(s.points, s.from, s.to));
 
 export function detail_look(details: Detail[], kit: Record<Slot, number>, paint: THREE.Color, trim: THREE.Color): DetailLook {
-  const look: DetailLook = { body: [], glass: [], heads: [], swaps: new Set(), exhaust: null, camber: 0 };
+  const look: DetailLook = { body: [], glass: [], heads: [], swaps: new Set(), outlet: null, camber: 0 };
   const fits = fits_of(kit);
   const chrome = chrome_tone();
   const add = (list: Part[] | undefined, tone: THREE.Color) => look.body.push(...parts(list ?? []).map((g) => tint(g, tone)));
@@ -69,7 +70,7 @@ export function detail_look(details: Detail[], kit: Record<Slot, number>, paint:
     look.camber = Math.max(look.camber, detail.camber ?? 0);
     look.heads.push(...(detail.heads ?? []));
     for (const swap of detail.swaps ?? []) look.swaps.add(swap);
-    if (detail.exhaust) look.exhaust = detail.exhaust;
+    if (detail.exhaust) look.outlet = { exhaust: detail.exhaust, jet: detail.jet };
   }
   return look;
 }

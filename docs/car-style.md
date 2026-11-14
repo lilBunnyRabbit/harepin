@@ -93,7 +93,7 @@ On top of the kit, each car wears the cues of its own tuning scene, each brought
 
 - A few bold shapes per tier; a cue that reads as clutter goes (owner, round 3: no plates, no double wing, nothing on a clean bonnet).
 - A detail takes the place of the generic part it stands for (`swaps`), never stacks on it.
-- Pipes a detail brings carry their own blue nitro tips.
+- Pipes a detail brings carry their own blue nitro tips, and the flame leaves them the way they point (`jet` beside `exhaust`): out past the rear tyre from side pipes, sideways from side exits, up from stacks.
 
 ## Nitro
 

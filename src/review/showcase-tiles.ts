@@ -51,6 +51,7 @@ const url = new URLSearchParams(location.search);
 const TURNTABLE = (url.get("angles") ?? "0,1,2,3").split(",").map((i) => ALL_ANGLES[Number(i)]);
 const ONLY = url.get("cars")?.split(",") ?? null;
 const PAINT = url.has("paint") ? Number(url.get("paint")) : undefined;
+const FLAMES = url.has("flame");
 const FRONT_34 = { yaw: 35, pitch: 14 };
 const SHOWROOM = "coupe";
 const LANDMARK_PROPS: Record<Landmark, PropKind> = { mast: PropKind.MAST, lighthouse: PropKind.LIGHTHOUSE, turbines: PropKind.TURBINE, arch: PropKind.ARCH };
@@ -71,6 +72,7 @@ function car(build: Partial<Build>): THREE.Object3D {
   const view = build_view(full, spec);
   // A fresh view's wheels sit at the car's origin until the sim places them; rest them on their mounts.
   rest_wheels(view, spec);
+  view.flame.visible = FLAMES;
   const box = new THREE.Box3().setFromObject(view.root);
   view.root.position.y = -box.min.y;
   const holder = new THREE.Group();

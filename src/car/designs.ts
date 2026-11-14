@@ -122,6 +122,8 @@ export interface Design {
   eye?: Point;
   /** Left tailpipe outlet for engine upgrades, at the rear face; x 0 is one central pipe that widens instead of doubling. */
   exhaust: Triple;
+  /** Which way the left pipe blows its nitro flame, a unit vector; straight back without one. */
+  jet?: Triple;
   /** Stock brake caliper colour, proud of the spokes like an upgrade's; without one it hides in trim. */
   caliper?: Token;
   /** Raised profiles on the body sides in paint, such as front wings standing above a low bonnet. */
@@ -185,8 +187,9 @@ export interface Detail {
   swaps?: Swap[];
   /** Blue nitro tips on the pipes this detail brings, drawn with a nitro tank in place of the stock tips. */
   tips?: Part[];
-  /** Where a rear-facing tailpipe moves to, for the nitro flame. */
+  /** Where the pipes this detail brings blow their nitro flame from, and which way: the design's `exhaust` and `jet`. */
   exhaust?: Triple;
+  jet?: Triple;
 }
 
 export type Kit = Partial<Pick<Design, "arches" | "slabs" | "heads" | "tails" | "paint" | "trim" | "markers" | "chrome" | "tyre" | "rim" | "caliper">>;

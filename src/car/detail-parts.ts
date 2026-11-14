@@ -2,6 +2,7 @@ import type { Triple } from "./cars";
 import { rod } from "./design-parts";
 import type { Cabin } from "./designs";
 import { signed_area, type Part, type Point } from "./geometry";
+import { PIPE_REACH } from "./nitro-look";
 
 const ON_GLASS = 0.03;
 const SIDEWAYS = Math.PI / 2;
@@ -14,10 +15,21 @@ const TIP = 0.07;
 const TIP_PROUD = 0.005;
 const TIP_GIRTH = 1.25;
 
+export interface Outlet {
+  exhaust: Triple;
+  jet: Triple;
+}
+
+/** The nitro flame of a pipe that ends at `end` and blows along `jet`, a unit vector. */
+export function outlet(end: Triple, jet: Triple): Outlet {
+  return { exhaust: [end[0] - jet[0] * PIPE_REACH, end[1] - jet[1] * PIPE_REACH, end[2] - jet[2] * PIPE_REACH], jet };
+}
+
 export interface Pipe {
   chrome: Part;
   trim: Part;
   tip: Part;
+  outlet: Outlet;
 }
 
 export function pipe(x: number, y: number, z: number, bore: number, length: number, one = false): Pipe {
@@ -25,14 +37,8 @@ export function pipe(x: number, y: number, z: number, bore: number, length: numb
     chrome: { size: [bore, bore, length], at: [x, y, z], round: true, one },
     trim: { size: [bore * 0.68, bore * 0.68, length], at: [x, y, z - 0.008], round: true, one },
     tip: { size: [bore * TIP_GIRTH, bore * TIP_GIRTH, TIP], at: [x, y, z - length / 2 + TIP / 2 - TIP_PROUD], round: true, one },
+    outlet: outlet([x, y, z - length / 2], [0, 0, -1]),
   };
-}
-
-/** The nitro flame of a rear-facing pipe starts at its end: `exhaust` sits this far ahead of it. */
-const FLAME_LEAD = 0.16;
-
-export function flame_from({ chrome }: Pipe): Triple {
-  return [chrome.at[0], chrome.at[1], chrome.at[2] - chrome.size[2] / 2 + FLAME_LEAD];
 }
 
 export function side_pipe(x: number, y: number, z: number, bore: number, length: number): Pipe {
@@ -40,6 +46,7 @@ export function side_pipe(x: number, y: number, z: number, bore: number, length:
     chrome: { size: [bore, bore, length], at: [x, y, z], tilt: [0, SIDEWAYS, 0], round: true },
     trim: { size: [bore * 0.68, bore * 0.68, length], at: [x + 0.008, y, z], tilt: [0, SIDEWAYS, 0], round: true },
     tip: { size: [bore * TIP_GIRTH, bore * TIP_GIRTH, TIP], at: [x + length / 2 - TIP / 2 + TIP_PROUD, y, z], tilt: [0, SIDEWAYS, 0], round: true },
+    outlet: outlet([x + length / 2, y, z], [1, 0, 0]),
   };
 }
 

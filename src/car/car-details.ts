@@ -1,7 +1,7 @@
 import type { BodyStyle } from "./cars";
 import { rod } from "./design-parts";
 import { DESIGNS, type Detail } from "./designs";
-import { arch_bolts, centred, flame_from, pipe, screen_band, screen_bar, side_pipe } from "./detail-parts";
+import { arch_bolts, centred, outlet, pipe, screen_band, screen_bar, side_pipe } from "./detail-parts";
 import { face_at, tail_at, top_at, type Part } from "./geometry";
 
 const { hatch, muscle, rally, kaze, sturm, raijin, tsumuji } = DESIGNS;
@@ -21,8 +21,8 @@ const HATCH: Detail[] = [
       { size: [0.05, 0.1, 0.18], at: [-0.45, 0.385, -2.04], one: true },
     ],
   },
-  { on: "tuned", until: "race_engine", cue: "One fat centre-exit pipe", chrome: [hatch_cannon.chrome], trim: [hatch_cannon.trim], tips: [hatch_cannon.tip], swaps: ["pipes", "bulge"], exhaust: flame_from(hatch_cannon) },
-  { on: "race_engine", cue: "Twin centre-exit pipes", chrome: [hatch_twin.chrome], trim: [hatch_twin.trim], tips: [hatch_twin.tip], swaps: ["pipes"], exhaust: flame_from(hatch_twin) },
+  { on: "tuned", until: "race_engine", cue: "One fat centre-exit pipe", chrome: [hatch_cannon.chrome], trim: [hatch_cannon.trim], tips: [hatch_cannon.tip], swaps: ["pipes", "bulge"], ...hatch_cannon.outlet },
+  { on: "race_engine", cue: "Twin centre-exit pipes", chrome: [hatch_twin.chrome], trim: [hatch_twin.trim], tips: [hatch_twin.tip], swaps: ["pipes"], ...hatch_twin.outlet },
   { on: "stripped", cue: "Bolt-in cage: a cross in the hatch glass", cage: [screen_bar(hatch.cabin, 2, [-0.45, 0.2], [0.45, 0.8])] },
 ];
 
@@ -30,8 +30,8 @@ const coupe_bazooka = pipe(0.55, 0.31, -2.38, 0.14, 0.4);
 const coupe_twin = pipe(0.55, 0.31, -2.42, 0.19, 0.5);
 const COUPE: Detail[] = [
   { on: "nitro", cue: "Underglow tube under each sill", accent: [{ size: [0.07, 0.05, 1.56], at: [0.93, 0.15, 0] }] },
-  { on: "tuned", until: "race_engine", cue: "A long bazooka pipe each side", chrome: [coupe_bazooka.chrome], trim: [coupe_bazooka.trim], tips: [coupe_bazooka.tip], swaps: ["pipes"], exhaust: flame_from(coupe_bazooka) },
-  { on: "race_engine", cue: "Fatter, longer bazookas", chrome: [coupe_twin.chrome], trim: [coupe_twin.trim], tips: [coupe_twin.tip], swaps: ["pipes"], exhaust: flame_from(coupe_twin) },
+  { on: "tuned", until: "race_engine", cue: "A long bazooka pipe each side", chrome: [coupe_bazooka.chrome], trim: [coupe_bazooka.trim], tips: [coupe_bazooka.tip], swaps: ["pipes"], ...coupe_bazooka.outlet },
+  { on: "race_engine", cue: "Fatter, longer bazookas", chrome: [coupe_twin.chrome], trim: [coupe_twin.trim], tips: [coupe_twin.tip], swaps: ["pipes"], ...coupe_twin.outlet },
   { on: "race_engine", cue: "Front-mount intercooler in the bumper bar", bright: [centred(1.2, 0.085, 0.02, 0.362, 2.35)] },
 ];
 
@@ -39,6 +39,8 @@ const MUSCLE_HOOD_Z = 1.2;
 const HOOD_FALL = 0.035;
 const MUSCLE_PIPE: Part = { size: [0.13, 0.13, 1.56], at: [1.07, 0.2, 0] };
 const MUSCLE_TIP: Part = { size: [0.16, 0.16, 0.1], at: [1.07, 0.2, -0.74] };
+// Out past the rear tyre right behind the pipe's end.
+const MUSCLE_JET = outlet([1.07, 0.2, -0.79], [Math.SQRT1_2, 0, -Math.SQRT1_2]);
 const BLOWER_TOP = top_at(muscle.outline, MUSCLE_HOOD_Z) + 0.13;
 const MUSCLE: Detail[] = [
   {
@@ -48,7 +50,7 @@ const MUSCLE: Detail[] = [
     paint: [{ size: [0.4, 0.1, 0.56], at: [0.2, 0.895, MUSCLE_HOOD_Z], tilt: [0.035, 0, 0] }],
     trim: [{ size: [0.34, 0.06, 0.02], at: [0.17, 0.895, 1.485] }],
   },
-  { on: "tuned", cue: "Chrome side pipes along the sills, in place of tailpipes", chrome: [MUSCLE_PIPE], trim: [{ size: [0.09, 0.09, 0.02], at: [1.07, 0.2, -0.785] }], tips: [MUSCLE_TIP], swaps: ["pipes", "bulge"] },
+  { on: "tuned", cue: "Chrome side pipes along the sills, in place of tailpipes", chrome: [MUSCLE_PIPE], trim: [{ size: [0.09, 0.09, 0.02], at: [1.07, 0.2, -0.785] }], tips: [MUSCLE_TIP], swaps: ["pipes", "bulge"], ...MUSCLE_JET },
   {
     on: "street",
     cue: "Rear window louvres",
@@ -149,7 +151,7 @@ const FORMULA: Detail[] = [
 ];
 
 const fujin_exhaust = side_pipe(0.985, 0.27, -0.36, 0.16, 0.12);
-const FUJIN: Detail[] = [{ on: "tuned", cue: "Side-exit pipe ahead of each rear wheel", chrome: [fujin_exhaust.chrome], trim: [fujin_exhaust.trim], tips: [fujin_exhaust.tip], swaps: ["pipes"] }];
+const FUJIN: Detail[] = [{ on: "tuned", cue: "Side-exit pipe ahead of each rear wheel", chrome: [fujin_exhaust.chrome], trim: [fujin_exhaust.trim], tips: [fujin_exhaust.tip], swaps: ["pipes"], ...fujin_exhaust.outlet }];
 
 const whip = (x: number, top: number): Part[] => [rod([x, 1.54, -0.56], [x, top, -0.72], 0.03)].map((part) => ({ ...part, one: true }));
 const flag = (x: number, top: number): Part => ({ size: [0.014, 0.17, 0.3], at: [x, top - 0.09, -0.88], one: true });
@@ -166,7 +168,7 @@ const BUS: Detail[] = [
     cue: "Bull bar",
     chrome: [{ size: [0.09, 0.75, 0.09], at: [0.6, 0.72, 6.02] }, centred(1.9, 0.09, 0.09, 1.05, 6.02), centred(1.9, 0.09, 0.09, 0.6, 6.02)],
   },
-  { on: "race_engine", cue: "Chrome exhaust stacks over the roof, behind the roof unit and clear of the spoiler", chrome: [{ size: [0.16, 1.5, 0.16], at: [1.12, 3.1, BUS_STACK_Z] }], tips: [{ size: [0.2, 0.12, 0.2], at: [1.12, 3.8, BUS_STACK_Z] }], swaps: ["pipes"] },
+  { on: "race_engine", cue: "Chrome exhaust stacks over the roof, behind the roof unit and clear of the spoiler", chrome: [{ size: [0.16, 1.5, 0.16], at: [1.12, 3.1, BUS_STACK_Z] }], tips: [{ size: [0.2, 0.12, 0.2], at: [1.12, 3.8, BUS_STACK_Z] }], swaps: ["pipes"], ...outlet([1.12, 3.86, BUS_STACK_Z], [0, 1, 0]) },
 ];
 
 export const DETAILS: Record<BodyStyle, Detail[]> = {
