@@ -39,6 +39,11 @@ const PIECE = 32;
 const EDGE = MAP / 2 - 6;
 /** CSS px square the N and its halo are drawn into once. */
 const NORTH_BOX = 24;
+/** CSS px: a car name's bitmap height, and the room its 3 px halo takes on each side. */
+const LABEL_HEIGHT = 14;
+const LABEL_PAD = 2;
+/** Name bitmaps kept before the cache starts over: names come and go with peers. */
+const LABEL_CACHE = 32;
 
 /** Full map: the world x/z at its centre and px per metre. */
 interface FullView {
@@ -130,6 +135,7 @@ export class Minimap {
   private cache = new Map<string, Drawn>();
   // Setting `font` and drawing text resolves the font against the canvas's style every frame, after the HUD's DOM writes.
   private north_mark: OffscreenCanvas | null = null;
+  private readonly labels = new Map<string, OffscreenCanvas>();
   private turn = Number.NaN;
   private last = 0;
   private readonly font: string;
@@ -177,6 +183,7 @@ export class Minimap {
     if (ratio === this.ratio) return;
     this.ratio = ratio;
     this.north_mark = null;
+    this.labels.clear();
     const size = Math.round(MAP * ratio);
     this.canvas.width = size;
     this.canvas.height = size;
@@ -297,17 +304,41 @@ export class Minimap {
     const { ctx } = this;
     ctx.fillStyle = INK.remote;
     this.dot(x, y, 3.5);
+    const mark = this.label(name);
+    const width = mark.width / this.ratio;
+    // Names point inward, so one near the rim stays on the map. Snapped to device pixels, as the N is.
+    const start = x > MAP / 2 ? x - 6 - width + LABEL_PAD : x + 6 - LABEL_PAD;
+    const left = Math.round(start * this.ratio) / this.ratio;
+    const top = Math.round((y - LABEL_HEIGHT / 2) * this.ratio) / this.ratio;
+    ctx.drawImage(mark, left, top, width, LABEL_HEIGHT);
+  }
+
+  // Same reason as the N: text drawn on the HUD canvas resolves its font against the page's style every frame.
+  private label(name: string): OffscreenCanvas {
+    const cached = this.labels.get(name);
+    if (cached) return cached;
+    if (this.labels.size >= LABEL_CACHE) this.labels.clear();
+    const mark = new OffscreenCanvas(1, 1);
+    const ctx = mark.getContext("2d");
+    if (!ctx) throw new Error("minimap name label has no 2d context");
+    if (!document.fonts.check(this.font))
+      void document.fonts.load(this.font).then(() => {
+        if (this.labels.get(name) === mark) this.labels.delete(name);
+      });
+    ctx.font = this.font;
+    mark.width = Math.ceil((ctx.measureText(name).width + LABEL_PAD * 2) * this.ratio);
+    mark.height = Math.round(LABEL_HEIGHT * this.ratio);
+    ctx.scale(this.ratio, this.ratio);
     ctx.font = this.font;
     ctx.textBaseline = "middle";
     ctx.lineJoin = "round";
     ctx.lineWidth = 3;
     ctx.strokeStyle = INK.halo;
-    // Names point inward, so one near the rim stays on the map.
-    const left = x > MAP / 2;
-    ctx.textAlign = left ? "right" : "left";
     ctx.fillStyle = INK.label;
-    ctx.strokeText(name, left ? x - 6 : x + 6, y);
-    ctx.fillText(name, left ? x - 6 : x + 6, y);
+    ctx.strokeText(name, LABEL_PAD, LABEL_HEIGHT / 2);
+    ctx.fillText(name, LABEL_PAD, LABEL_HEIGHT / 2);
+    this.labels.set(name, mark);
+    return mark;
   }
 
   private arrow(x: number, y: number, h: number) {
