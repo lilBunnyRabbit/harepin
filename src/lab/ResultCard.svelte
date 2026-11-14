@@ -3,7 +3,8 @@
   import TextField from "../menu/ui/TextField.svelte";
   import { questions_of } from "./answers";
   import { metric_pairs } from "./export";
-  import { METRIC_LABEL } from "./lab-text";
+  import { against_text, trial_brief } from "./brief";
+  import { shown_metrics } from "./lab-text";
   import type { LabView } from "./lab-view.svelte";
   import Scale from "./Scale.svelte";
 
@@ -18,6 +19,8 @@
   const r = $derived(lab.trials[index]);
   const questions = $derived(questions_of(lab.pack, r.trial));
   const metrics = $derived(view.read(() => lab.results[index].metrics));
+  const numbers = $derived(metrics ? shown_metrics(metric_pairs(metrics), r.trial.station) : []);
+  const brief = $derived(trial_brief(lab.pack, lab.trials, lab.shown, index));
   const given = $derived(view.read(() => ({ ...lab.answers[r.trial.id] })));
   const scale_of = (v: string | number | undefined) => (typeof v === "number" ? v : null);
   const text_of = (v: string | number | undefined) => (typeof v === "string" ? v : "");
@@ -25,7 +28,11 @@
 
 <div class="lab-result">
   <section class="lab-questions" aria-label="Your take">
-    <p class="lab-feel">{lab.shown[index].feel}</p>
+    <div class="lab-lead">
+      <p class="lab-against">Compared with <b>{against_text(brief, lab.shown)}</b></p>
+      <p class="lab-ask">{brief.question}</p>
+      <p class="lab-feel">{lab.shown[index].feel}</p>
+    </div>
     {#each questions as q (q.id)}
       {#if q.kind === "scale"}
         <Scale label={q.label} low={q.low} high={q.high} value={scale_of(given[q.id])} onchange={(v) => lab.answer(r.trial.id, q, v)} />
@@ -43,8 +50,8 @@
   <section class="lab-numbers" aria-label="Numbers">
     {#if metrics}
       <dl>
-        {#each metric_pairs(metrics) as [key, text] (key)}
-          <div><dt>{METRIC_LABEL[key] ?? key}</dt><dd>{text}</dd></div>
+        {#each numbers as m (m.key)}
+          <div><dt>{m.label}</dt><dd>{m.value}</dd></div>
         {/each}
       </dl>
     {:else}
@@ -65,6 +72,29 @@
     align-content: start;
     gap: var(--space-4);
     min-width: 0;
+  }
+
+  .lab-lead {
+    display: grid;
+    gap: var(--space-1);
+  }
+
+  .lab-lead p {
+    margin: 0;
+    text-wrap: pretty;
+  }
+
+  .lab-against {
+    color: var(--set-dim);
+    font-size: var(--text-sm);
+  }
+
+  .lab-against b {
+    color: var(--foreground);
+  }
+
+  .lab-ask {
+    font-weight: 600;
   }
 
   .lab-feel,

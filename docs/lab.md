@@ -17,9 +17,10 @@ Works on the live site and in dev; no menu entry, like `?tune`. The lab world (`
 
 | Piece | What it shows | Controls |
 |---|---|---|
-| Pack card (trial list) | title, rev, trials driven, brief; one tile per trial: id, car, class and PI, station/lane, goal, status `To do` / `Running` / `Done` / `Stopped` | tap or A on a tile starts that trial; Start (or Back to trial); Copy results; Leave lab (the same link without `?lab`: the game as usual, the tab's stored answers and numbers kept for the next visit) |
-| Strip (top, where the lap strip sits) | `Lab n/N`, the trial id, goal, status; while a trial measures, a second line of live numbers: goal progress (`Lap 2/3`, `41 s left`, `Gate 1/2`, `Brake from 60`), lateral g, speed, slip angle. Each is rewritten only when its shown digits change | Trials, Retry, Stop and rate |
-| Results card | after a trial's goal or Stop: the trial's feel line, the questions, then every metric it measured | Trials, Copy, Previous, Retry, Next |
+| Pack card (trial list) | title, rev, trials driven, the pack's `aim`, brief, the order of comparisons (each base and the trials read against it); one tile per trial: id, car, class and PI, station/lane, goal, status `To do` / `Running` / `Done` / `Stopped` | tap or A on a tile starts that trial; Start (or Back to trial); Copy results; Leave lab (the same link without `?lab`: the game as usual, the tab's stored answers and numbers kept for the next visit) |
+| Trial brief | before each new trial (not a retry), and from the strip's bulb: the question it answers, the trial it is compared with, the car with class and PI, what's different from that trial (parts by slot, lab mods as field changes, lane, aids, class move; `src/lab/brief.ts`), what to drive, what to feel for. A blind variant hides car and changes | Trials, Drive |
+| Strip (top, where the lap strip sits) | `Lab n/N`, the trial id, goal, status; while a trial measures, a second line of live numbers: goal progress (`Lap 2/3`, `41 s left`, `Gate 1/2`, `Brake from 60`), lateral g, speed, slip angle. Each is rewritten only when its shown digits change | Trials, Brief, Retry, Stop and rate |
+| Results card | after a trial's goal or Stop: what it is compared with, its question and feel line, the questions, then the metrics that mean something at the station and were measured, in plain words (`shown_metrics` in `src/lab/lab-text.ts`; the export keeps every one) | Trials, Copy, Previous, Retry, Next |
 
 The cards are modal and hold the sim like the menu does. A 1-5 scale is five big buttons, never a slider; a note is one optional line (400 characters at most). Answers save on every change to `sessionStorage` under `harepin.lab.<pack>.r<rev>`, and each trial's numbers when it ends (goal or Stop) under `harepin.lab.<pack>.r<rev>.results`, so a reload keeps both. A trial still running at the reload loses that attempt and keeps its last finished one. Both are checked against the pack on load: answers that do not fit are dropped, and so are numbers whose `spec#` no longer matches the trial (a deploy moved the car) or whose fields do not check out.
 
@@ -70,6 +71,7 @@ const pack: Pack = {
   rev: 1,                      // bump on every edit: the export carries it
   title: "Hatch on ice",
   brief: "The hatch on the ice pad.",
+  aim: "Is the hatch catchable on ice?",  // optional: the session goal, on the pack card
   cars: { /* lab-only cars, see below */ },
   trials: [
     {
@@ -98,9 +100,10 @@ export default pack;
 | `aids` | `tcs`, `abs`, `assist`, `stability`, `auto`, `steer_mode` for this trial only, over the player's own |
 | `station`, `lane` | from the table above |
 | `goal` | `laps` (turns of the lane's ring), `time` (seconds driven), `stop` (a brake stop from at least 90% of `from_kmh`), `run` (start to finish gate), `free` (never ends) |
-| `try`, `feel` | what to do and what to feel for |
+| `try`, `feel` | what to do and what to notice: write `feel` as the thing to notice, not a label ("soft below 3000 rpm, then a shove: notice the lag out of slow corners") |
+| `question` | optional: what the trial answers, on its brief and results card; derived from its group when absent |
 | `ask` | questions for this trial, else the pack's |
-| `base` | starts a group: the trials after it, up to the next base, read against it |
+| `base` | starts a group: the trials after it, up to the next base, read against it. Outside a group a trial reads against the one before on the same station |
 
 A pack with `blind: true` (decision O2: variant groups yes, lineups no) shows each group as `A` (the base), then `B`, `C` in an order seeded by the pack id and rev, with the base's feel line and no car, class or PI; every variant also asks `vs A` (worse / same / better, id `vsbase`). The export keeps the real ids. Write the base's `feel` neutral: it is the line every variant shows. Trials before the first base are shown as usual.
 

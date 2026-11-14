@@ -14,6 +14,7 @@ export interface Pack {
   rev: number;
   title: string;
   brief: string;
+  aim?: string;
   cars?: Record<string, LabCar>;
   trials: Trial[];
   /** Asked after every trial unless the trial names its own. */
@@ -47,6 +48,8 @@ export interface Trial {
   goal: Goal;
   try: string;
   feel: string;
+  /** What the trial answers; derived from its place in the pack when absent. */
+  question?: string;
   ask?: Question[];
   /** Starts a group: the trials after it, up to the next base, read against it. In a blind pack its feel line is the group's. */
   base?: true;

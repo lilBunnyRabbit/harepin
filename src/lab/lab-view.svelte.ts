@@ -6,7 +6,7 @@ import { progress_key, progress_text } from "./lab-text";
 import LabOverlay from "./LabOverlay.svelte";
 import type { Recorder } from "./recorder";
 
-export type LabScreen = { kind: "list" } | { kind: "result"; index: number } | null;
+export type LabScreen = { kind: "list" } | { kind: "brief"; index: number } | { kind: "result"; index: number } | null;
 
 const KMH = 3.6;
 
