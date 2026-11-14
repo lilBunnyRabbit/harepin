@@ -6,7 +6,7 @@
   import CarStill from "./CarStill.svelte";
   import KindBadge from "./KindBadge.svelte";
   import { car_facts } from "./car-facts";
-  import { still_build } from "./car-still";
+  import { still_build } from "./still-build";
   import type { Story } from "./release-story";
   import Badge from "./ui/Badge.svelte";
 

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { CarId } from "../car/cars";
-  import { StillView, car_still, still_build } from "./car-still";
+  import { StillView, still_build } from "./still-build";
 
   interface Props {
     car: CarId;
@@ -19,12 +19,17 @@
 
   $effect(() => {
     let live = true;
-    car_still(still_build(car, aero), outline ? StillView.PROFILE : StillView.QUARTER).then(
-      (url) => {
-        if (live) src = url;
-      },
-      (error) => console.warn("still: no picture of", car, error),
-    );
+    const build = still_build(car, aero);
+    const view = outline ? StillView.PROFILE : StillView.QUARTER;
+    // Loaded here, never at import: the renderer and the theme it reads stay out of a server render.
+    import("./car-still")
+      .then(({ car_still }) => car_still(build, view))
+      .then(
+        (url) => {
+          if (live) src = url;
+        },
+        (error) => console.warn("still: no picture of", build.car, error),
+      );
     return () => {
       live = false;
     };
