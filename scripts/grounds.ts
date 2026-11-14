@@ -17,8 +17,10 @@ export const GROUNDS = {
   scree: footing_ground(LAND_GRIP.surfaces[SurfaceId.SCREE]),
   wet: footing_ground(LAND_GRIP.surfaces[SurfaceId.WET]),
   sand: footing_ground(SAND_GRIP.surfaces[SurfaceId.GRASS]),
+  snow: footing_ground(LAND_GRIP.surfaces[SurfaceId.SNOW]),
   packed_snow: footing_ground(WINTER_GRIP.surfaces[SurfaceId.PACKED_SNOW]),
   ice: footing_ground(WINTER_GRIP.surfaces[SurfaceId.ICE]),
+  slush: footing_ground(LAND_GRIP.surfaces[SurfaceId.SLUSH]),
 } satisfies Record<string, Ground>;
 export type GroundName = keyof typeof GROUNDS;
 
