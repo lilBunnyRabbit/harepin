@@ -29,8 +29,10 @@ export interface ContactShadow {
 }
 
 const RIDE = 0.5;
-/** The patch's draw order among transparent meshes; whatever see-through must show over it draws later. */
-export const SHADOW_ORDER = 1;
+// The patch draws in the opaque pass after the ground (order 0) and before the cars (`CAR_ORDER`): it writes no depth, so
+// a tyre dipping under its plane still covers it, and every see-through mesh (the nitro jet) comes after it.
+const SHADOW_ORDER = 1;
+export const CAR_ORDER = SHADOW_ORDER + 1;
 
 // The sun's shadow lands metres away at a low sun and blurs out, so without a dark patch right under the body the car
 // reads as hovering; this is that patch, tinted from the theme rather than black. It multiplies what is under it: a plain
@@ -40,7 +42,7 @@ export function contact_shadow(): ContactShadow {
   const material = new THREE.MeshBasicMaterial({
     color: color(tones.skid),
     alphaMap: blob_texture(),
-    transparent: true,
+    transparent: false,
     opacity: strength,
     premultipliedAlpha: true,
     blending: THREE.CustomBlending,

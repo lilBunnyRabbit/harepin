@@ -4,6 +4,7 @@ import { rest_reach, type Car } from "./car";
 import { DEFAULT_PARTS, build_spec, part_of, type Build, type Slot } from "./build";
 import { COUPE, type CarSpec } from "./cars";
 import { body_pieces, cabin_parts, flares, sculpt, sculpt_factor, side_panel, skirts } from "./body-shell";
+import { CAR_ORDER } from "./contact-shadow";
 import { DESIGNS } from "./designs";
 import { extrude, merge, parts, slab, taper, tint } from "./geometry";
 import { lamps, popup, set_lights, type HeadMesh, type Popup } from "./lights";
@@ -150,6 +151,7 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
   const stock = DESIGNS[spec.body.style];
   const d = aero.skirts && stock.kit ? { ...stock, ...stock.kit } : stock;
   const root = new THREE.Group();
+  root.renderOrder = CAR_ORDER;
   const body = new THREE.Group();
   body.position.y = -(rest_reach(spec) - spec.wheel.mounts[0][1]);
   const trim = color(tones.trim);
