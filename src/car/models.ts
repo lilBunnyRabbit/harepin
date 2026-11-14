@@ -5,9 +5,9 @@ import { DEFAULT_PARTS, build_spec, part_of, type Build, type Slot } from "./bui
 import { COUPE, type CarSpec } from "./cars";
 import { body_pieces, cabin_parts, flares, notch, on_glass, sculpt, side_panel, skirts, wells } from "./body-shell";
 import { DETAILS } from "./car-details";
-import { detail_look } from "./detail-looks";
+import { detail_look, type DetailLook } from "./detail-looks";
 import { CAR_ORDER } from "./contact-shadow";
-import { DESIGNS } from "./designs";
+import { DESIGNS, type Design } from "./designs";
 import { extrude, merge, parts, side_part, slab, taper, tint } from "./geometry";
 import { lamps, popup, snap_lights, type HeadMesh, type Popup } from "./lights";
 import { back, livery_of, livery_parts, roof, type Livery } from "./livery";
@@ -160,13 +160,21 @@ function metal_hull(painted: THREE.BufferGeometry, finish: Finish): THREE.Mesh {
   return mesh;
 }
 
+/**
+ * The design as a build wears it: the kit's shell over the stock one when the aero part fits skirts, with the lamps and the
+ * pipe outlet its details bring, and those details' own look.
+ */
+export function fitted_design(spec: CarSpec, kit: Record<Slot, number>, paint: THREE.Color, trim: THREE.Color): { d: Design; detail: DetailLook } {
+  const stock = DESIGNS[spec.body.style];
+  const fitted = aero_of(kit).skirts && stock.kit ? { ...stock, ...stock.kit } : stock;
+  const detail = detail_look(DETAILS[spec.body.style], kit, paint, trim);
+  return { d: { ...fitted, heads: [...fitted.heads, ...detail.heads], ...detail.outlet }, detail };
+}
+
 // Paint, trim, glass and decals are baked into vertex colours so the whole shell is one draw; a repaint rebuilds the view.
 export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<Slot, number> = DEFAULT_PARTS, livery: Livery | null = null, finish: Finish | null = null): CarView {
   const aero = aero_of(kit);
-  const stock = DESIGNS[spec.body.style];
-  const fitted = aero.skirts && stock.kit ? { ...stock, ...stock.kit } : stock;
-  const detail = detail_look(DETAILS[spec.body.style], kit, paint, color(tones.trim));
-  const d = { ...fitted, heads: [...fitted.heads, ...detail.heads], ...detail.outlet };
+  const { d, detail } = fitted_design(spec, kit, paint, color(tones.trim));
   const root = new THREE.Group();
   root.renderOrder = CAR_ORDER;
   const body = new THREE.Group();
@@ -187,8 +195,8 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
     wells(d, spec, tyre.width).map((g) => tint(g, trim)),
     (d.slabs ?? []).flatMap((part) => notch(part.points, d, spec).flatMap((piece) => slab(piece, part.from, part.to))).map((g) => tint(g, paint)),
     (kit_skirts(d, aero) ? [] : skirts(d, spec, 0.03, 0.09)).map((g) => tint(g, trim)),
-    parts(d.paint).map((g) => tint(g, paint)),
-    parts(d.trim).map((g) => tint(g, trim)),
+    parts([...d.paint, ...(d.mirror?.paint ?? [])]).map((g) => tint(g, paint)),
+    parts([...d.trim, ...(d.mirror?.trim ?? [])]).map((g) => tint(g, trim)),
     parts(livery && livery.decal !== "none" ? [] : (d.stripes ?? [])).map((g) => tint(g, trim)),
     parts(stripped ? [] : d.markers).map((g) => tint(g, color(brand.warning))),
     parts(stripped ? [] : d.chrome).map((g) => tint(g, chrome_tone())),

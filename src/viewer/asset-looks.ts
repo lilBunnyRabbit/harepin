@@ -5,9 +5,9 @@ import type { CarSpec } from "../car/cars";
 import { flares, sculpt } from "../car/body-shell";
 import { DETAILS } from "../car/car-details";
 import { detail_look } from "../car/detail-looks";
-import { DESIGNS, type Design } from "../car/designs";
+import type { Design } from "../car/designs";
 import { merge, tint } from "../car/geometry";
-import { build_view, dispose_car_view, rest_wheels } from "../car/models";
+import { build_view, dispose_car_view, fitted_design, rest_wheels } from "../car/models";
 import { paint_lab } from "../car/paint";
 import { aero_of, aero_parts, rear_wing } from "../car/part-looks";
 import { kit_sample, type Piece } from "../render/prop-kit";
@@ -68,12 +68,9 @@ function fitted(view: ViewState): Fitted | null {
   const build = parse_build(view.code);
   if (!build) return null;
   const spec = build_spec(build);
-  const stock = DESIGNS[spec.body.style];
-  const fits = aero_of(build.parts).skirts && stock.kit;
   const paint = color(paint_lab(build.paint));
   const trim = color(tones.trim);
-  const detail = detail_look(DETAILS[spec.body.style], build.parts, paint, trim);
-  return { build, spec, d: { ...(fits ? { ...stock, ...stock.kit } : stock), ...detail.outlet }, paint, trim };
+  return { build, spec, d: fitted_design(spec, build.parts, paint, trim).d, paint, trim };
 }
 
 // Where the car's root and body hold it, so a pin and a camera on the part land on the same spot of the fitted car.

@@ -80,6 +80,12 @@ export interface Arm {
   markers: Part[];
 }
 
+/** A mirror by tone: the housing in paint, its arm or stalk and the glass face in trim. Drawn once per side. */
+export interface Mirror {
+  paint: Part[];
+  trim: Part[];
+}
+
 /** Endplates in paint, planes in trim. */
 export interface Wing {
   paint: Part[];
@@ -100,6 +106,8 @@ export interface Design {
   arches: Arches;
   heads: Part[];
   tails: Part[];
+  /** The door mirrors, kept apart from `paint` and `trim` so a viewer can draw them alone. */
+  mirror?: Mirror;
   paint: Part[];
   trim: Part[];
   /** Factory stripes in trim, dropped when a decal is chosen so the two never overlap. */
@@ -197,15 +205,18 @@ export interface Detail {
   jet?: Triple;
 }
 
-export type Kit = Partial<Pick<Design, "outline" | "width" | "sill" | "section" | "wings" | "arches" | "slabs" | "heads" | "tails" | "paint" | "trim" | "markers" | "chrome" | "tyre" | "rim" | "caliper">>;
+export type Kit = Partial<Pick<Design, "outline" | "width" | "sill" | "section" | "wings" | "mirror" | "arches" | "slabs" | "heads" | "tails" | "paint" | "trim" | "markers" | "chrome" | "tyre" | "rim" | "caliper">>;
 
 /** The shoulder a kit shell `wide` across needs for its body top to stay where the stock body's is. */
 const kit_shoulder = (stock: number, shoulder: number, wide: number) => 1 - (stock * (1 - shoulder)) / wide;
 
-const COUPE_OUTLINE: Point[] = [[2.27, 0.3], [2.35, 0.42], [2.33, 0.54], [2.1, 0.63], [0.95, 0.84], [-2.1, 0.93], [-2.3, 0.9], [-2.34, 0.8], [-2.34, 0.5], [-2.27, 0.3]];
-const COUPE_SECTION: Section = { belt: [0.62, 0.8], shoulder: 0.15, tuck: 0.04, nose: [0.2, 0.55], tail: [0.12, 0.5] };
-const COUPE_CABIN: Cabin = { points: [[0.95, 0.84], [0.2, 1.17], [-0.4, 1.2], [-0.8, 1.16], [-2.0, 0.927]], width: 1.56, tumble: 0.2, frame: [0.06, 0.04, 0.04, 0.1, 0.04], screens: [[0, 0.08], [3, 0.14]], split: [-0.42, 0.08] };
-const COUPE_ARCHES: Arches = { gap: 0.065, steps: 7, flare: 0.06, out: 0.06, reach: 0.04, tone: "paint" };
+// The wing line stands over the front tyre, so the arch lip closes under it instead of being cut off by a low bonnet.
+const COUPE_TOP: Point[] = [[2.33, 0.54], [2.1, 0.65], [1.7, 0.77], [0.95, 0.84], [-2.1, 0.93], [-2.3, 0.9], [-2.34, 0.8]];
+const COUPE_OUTLINE: Point[] = [[2.27, 0.3], [2.35, 0.42], ...COUPE_TOP, [-2.34, 0.42], [-2.3, 0.3]];
+const COUPE_SECTION: Section = { belt: [0.62, 0.8], shoulder: 0.15, tuck: 0.04, nose: [0.2, 0.55], tail: [0.05, 0.25] };
+// The fastback's edge runs within 6 degrees of the roof's: a much wider frame on it would pull the glass corner past the roof's peak.
+const COUPE_CABIN: Cabin = { points: [[0.95, 0.84], [0.2, 1.17], [-0.4, 1.2], [-0.8, 1.16], [-2.0, 0.927]], width: 1.56, tumble: 0.2, frame: [0.06, 0.04, 0.04, 0.05, 0.04], screens: [[0, 0.08], [3, 0.14]], split: [-0.42, 0.08] };
+const COUPE_ARCHES: Arches = { gap: 0.065, steps: 7, flare: 0.05, out: 0.04, reach: 0.04, tone: "paint" };
 const COUPE_HALF = 0.944;
 const COUPE_PLANE = 0.86;
 // A lip grown out of the hatch across the whole tail, then a hoop: side plates swept up from the deck corners round the plane's ends.
@@ -229,15 +240,15 @@ const COUPE_WIDE_SHOULDER = kit_shoulder(1.88, COUPE_SECTION.shoulder, COUPE_WID
 const COUPE_MIRROR = cabin_mirror(COUPE_CABIN, COUPE_SECTION.shoulder);
 const COUPE_WIDE_MIRROR = cabin_mirror(COUPE_CABIN, COUPE_WIDE_SHOULDER);
 const COUPE_KIT: Kit = {
-  outline: [[2.3, 0.19], [2.37, 0.25], [2.35, 0.42], [2.33, 0.54], [2.1, 0.63], [0.95, 0.84], [-2.1, 0.93], [-2.3, 0.9], [-2.34, 0.8], [-2.34, 0.25], [-2.28, 0.19]],
+  outline: [[2.3, 0.19], [2.37, 0.25], [2.35, 0.42], ...COUPE_TOP, [-2.34, 0.25], [-2.28, 0.19]],
   width: COUPE_WIDE,
   sill: 0.19,
   section: { ...COUPE_SECTION, belt: [0.69, 0.8], shoulder: COUPE_WIDE_SHOULDER, tuck: 0 },
   arches: { ...COUPE_ARCHES, gap: 0.075, flare: 0.05, out: 0.03 },
   tyre: [0.32, 0.36],
-  paint: COUPE_WIDE_MIRROR.paint,
+  mirror: COUPE_WIDE_MIRROR,
   // The bumper bars sit on the kit's upright valances: the rear one stands proud of the tail face.
-  trim: [COUPE_GRILLE, { size: [1.0, 0.12, 0.08], at: [0.5, 0.356, 2.31] }, { size: [1.0, 0.12, 0.08], at: [0.5, 0.356, -2.312] }, ...COUPE_TAIL.trim, ...COUPE_WIDE_MIRROR.trim],
+  trim: [COUPE_GRILLE, { size: [1.0, 0.12, 0.08], at: [0.5, 0.356, 2.31] }, { size: [1.0, 0.12, 0.08], at: [0.5, 0.356, -2.312] }, ...COUPE_TAIL.trim],
   wings: COUPE_WINGS.map((wing) => widen_wing(wing, (1 - COUPE_SECTION.shoulder) / (1 - COUPE_WIDE_SHOULDER))),
 };
 
@@ -275,18 +286,20 @@ const HATCH_KIT: Kit = {
   section: { ...HATCH_SECTION, shoulder: HATCH_WIDE_SHOULDER, tuck: 0 },
   arches: { ...HATCH_ARCHES, gap: 0.065, flare: 0.06, out: 0.03 },
   tyre: [0.28, 0.28],
-  paint: HATCH_WIDE_MIRROR.paint,
-  trim: [...HATCH_BARS(1.94, -1.96), ...HATCH_WIDE_MIRROR.trim],
+  mirror: HATCH_WIDE_MIRROR,
+  trim: HATCH_BARS(1.94, -1.96),
   wings: hatch_wings(HATCH_WIDE_SHOULDER),
 };
 
 // The hood is level and the deck kicks up behind the door, so the cabin base sinks into the haunch at its tail.
-const MUSCLE_OUTLINE: Point[] = [[2.44, 0.28], [2.5, 0.4], [2.56, 0.72], [2.5, 0.8], [0.2, 0.88], [-1.1, 0.88], [-1.7, 0.96], [-2.42, 0.97], [-2.52, 0.92], [-2.5, 0.5], [-2.44, 0.28]];
+// The nose ends 0.6 m ahead of the front tyres and the screen stands 0.4 m ahead of the car's middle: a long hood, not a prow.
+const MUSCLE_TOP: Point[] = [[2.4, 0.72], [2.34, 0.8], [0.4, 0.88], [-1.1, 0.88], [-1.7, 0.96], [-2.42, 0.97], [-2.52, 0.92], [-2.5, 0.5]];
+const MUSCLE_OUTLINE: Point[] = [[2.28, 0.28], [2.34, 0.4], ...MUSCLE_TOP, [-2.44, 0.28]];
 const MUSCLE_SECTION: Section = { belt: [0.76, 0.78], shoulder: 0.14, tuck: 0.04, nose: [0.06, 0.4], tail: [0.1, 0.5] };
-const MUSCLE_CABIN: Cabin = { points: [[0.2, 0.88], [-0.4, 1.23], [-1.25, 1.25], [-1.7, 0.88]], width: 1.5, tumble: 0.22, frame: [0.08, 0.05, 0.2, 0.05], screens: [[0, 0.08], [2, 0.16]], split: [-0.85, 0.06] };
+const MUSCLE_CABIN: Cabin = { points: [[0.4, 0.88], [-0.3, 1.23], [-1.25, 1.25], [-1.7, 0.88]], width: 1.5, tumble: 0.22, frame: [0.08, 0.05, 0.2, 0.05], screens: [[0, 0.08], [2, 0.16]], split: [-0.85, 0.06] };
 const MUSCLE_ARCHES: Arches = { gap: 0.07, steps: 7, flare: 0.06, out: 0.08, reach: 0.04, tone: "paint" };
 const MUSCLE_TAIL = tail_end(MUSCLE_OUTLINE, 0.76, 0.19, 0.9, [{ size: [0.82, 0.13, 0.04], at: [0.44, 0.76, 0] }], null, 0.54);
-const HOOD_FALL = 0.035;
+const HOOD_FALL = 0.041;
 const MUSCLE_MIRROR = cabin_mirror(MUSCLE_CABIN, MUSCLE_SECTION.shoulder);
 const MUSCLE_HALF = 0.994;
 const MUSCLE_PLANE = 0.9;
@@ -296,7 +309,7 @@ const MUSCLE_DUCKTAIL: Slab = { points: [[-2.14, 0.962], [-2.6, 1.1], [-2.615, 1
 const MUSCLE_PEDESTAL = plane([-2.33, 1.14], 0.34, 0.05, 0.12);
 const MUSCLE_RACE = plane([-2.35, 1.22], 0.4, 0.055, 0.14);
 const muscle_legs = (profile: Point[]): Slab => ({ points: leg(profile, [-2.16, 0.95], [-2.46, 0.95]), from: 0.54, to: 0.62 });
-const MUSCLE_FACE: Part = { size: [0.9, 0.26, 0.04], at: [0.45, 0.6, 2.55] };
+const MUSCLE_FACE: Part = { size: [0.9, 0.26, 0.04], at: [0.45, 0.6, 2.39] };
 const MUSCLE_WINGS: Wing[] = [
   { paint: [], trim: [], lips: [MUSCLE_LIP] },
   { paint: [], trim: [], lips: [MUSCLE_DUCKTAIL] },
@@ -314,14 +327,13 @@ const MUSCLE_WIDE = 2.2;
 const MUSCLE_WIDE_SHOULDER = kit_shoulder(1.98, MUSCLE_SECTION.shoulder, MUSCLE_WIDE);
 const MUSCLE_WIDE_MIRROR = cabin_mirror(MUSCLE_CABIN, MUSCLE_WIDE_SHOULDER);
 const MUSCLE_KIT: Kit = {
-  outline: [[2.46, 0.19], [2.5, 0.25], [2.5, 0.4], [2.56, 0.72], [2.5, 0.8], [0.2, 0.88], [-1.1, 0.88], [-1.7, 0.96], [-2.42, 0.97], [-2.52, 0.92], [-2.5, 0.5], [-2.5, 0.25], [-2.45, 0.19]],
+  outline: [[2.3, 0.19], [2.34, 0.25], [2.34, 0.4], ...MUSCLE_TOP, [-2.5, 0.25], [-2.45, 0.19]],
   width: MUSCLE_WIDE,
   sill: 0.19,
   section: { ...MUSCLE_SECTION, shoulder: MUSCLE_WIDE_SHOULDER, tuck: 0 },
   arches: { ...MUSCLE_ARCHES, gap: 0.08, flare: 0.05, out: 0.03 },
   tyre: [0.34, 0.5],
-  paint: MUSCLE_WIDE_MIRROR.paint,
-  trim: [MUSCLE_FACE, ...MUSCLE_TAIL.trim, ...MUSCLE_WIDE_MIRROR.trim],
+  mirror: MUSCLE_WIDE_MIRROR,
   wings: MUSCLE_WINGS.map((wing) => widen_wing(wing, (1 - MUSCLE_SECTION.shoulder) / (1 - MUSCLE_WIDE_SHOULDER))),
 };
 
@@ -368,8 +380,7 @@ const RALLY_KIT: Kit = {
   arches: { gap: 0.09, steps: 7, flare: 0.07, out: 0.03, reach: 0.04, tone: "trim" },
   tyre: [0.3, 0.3],
   rim: { size: 0.62, spokes: 6, tone: "light", spoke: 0.07 },
-  paint: RALLY_WIDE_MIRROR.paint,
-  trim: [...RALLY_BUMPERS, ...RALLY_TAIL.trim, ...RALLY_WIDE_MIRROR.trim],
+  mirror: RALLY_WIDE_MIRROR,
   wings: rally_wings(RALLY_WIDE_SHOULDER),
 };
 
@@ -400,6 +411,12 @@ const race_wing = (plane: Part, flap: Part): Wing => ({ paint: [], trim: [RACE_B
 // On the cockpit side, level with the driver's eyes.
 const FORMULA_MIRROR = stalk_mirror([0.21, 0.6, 0.74], "side");
 
+// The floor follows the car over it: a keel under the tub, full width only under the sidepods, narrowing to the gearbox.
+const FORMULA_FLOOR: Part[] = [
+  { size: [0.27, 0.04, 1.14], at: [0.135, 0.115, 0.43] },
+  { size: [0.68, 0.04, 0.98], at: [0.34, 0.115, -0.61] },
+  { size: [0.4, 0.04, 0.5], at: [0.2, 0.115, -1.33] },
+];
 const FORMULA_HUB = 0.33;
 // Two legs from the chassis side, `high` and `low` on it, to the hub centre, both square to the car: a raked leg would
 // run through the tyre at full lock. They start inside the chassis side and end inside the rim.
@@ -414,6 +431,11 @@ const NOSE_FLAP_Z = 2.09;
 const nose_flap = (chord: number, y: number, tilt: number): Part => on_nose({ size: [0.6, 0.03, chord], at: [0.6, y, NOSE_FLAP_Z], tilt: [tilt, 0, 0] });
 
 const BUS_OUTLINE: Point[] = [[5.84, 0.35], [5.9, 0.46], [5.92, 0.98], [5.88, 1.15], [-6.12, 1.15], [-6.16, 1.0], [-6.16, 0.46], [-6.1, 0.35]];
+// A door is its seams: a post at each edge and one down the middle, on a sill step, instead of a slab over the glass.
+const bus_door = (z: number): Part[] => [
+  ...[-0.55, 0, 0.55].map((dz): Part => ({ size: [0.025, 2.2, dz === 0 ? 0.03 : 0.05], at: [1.255, 1.5, z + dz] })),
+  { size: [0.025, 0.06, 1.1], at: [1.255, 0.43, z] },
+];
 const BUS_MIRROR = hung_mirror([1.25, 2.62, 5.72]);
 const BUS_TAIL = tail_end(BUS_OUTLINE, 0.78, 0.5, 1.2, [{ size: [0.16, 0.46, 0.05], at: [1.08, 0.78, 0] }], { half: 1.0, y: 0.84, h: 0.05 }, 0.66);
 
@@ -427,13 +449,13 @@ export const DESIGNS: Record<BodyStyle, Design> = {
     arches: COUPE_ARCHES,
     heads: [{ size: [0.42, 0.07, 0.05], at: [0.6, 0.48, 2.335] }],
     tails: COUPE_TAIL.tails,
-    paint: COUPE_MIRROR.paint,
+    mirror: COUPE_MIRROR,
+    paint: [],
     trim: [
       COUPE_GRILLE,
       { size: [0.94, 0.12, 0.08], at: [0.47, 0.356, 2.3] },
       { size: [0.94, 0.12, 0.08], at: [0.47, 0.356, -2.3] },
       ...COUPE_TAIL.trim,
-      ...COUPE_MIRROR.trim,
     ],
     markers: [],
     chrome: COUPE_TAIL.chrome,
@@ -441,7 +463,7 @@ export const DESIGNS: Record<BodyStyle, Design> = {
     rim: { size: 0.68, spokes: 6, tone: "metal", lip: 0.18 },
     deck: [-2.14, 0.93],
     wings: COUPE_WINGS,
-    hood: [1.5, 0.74],
+    hood: [1.5, 0.79],
     exhaust: [0.55, 0.3, -2.3],
     kit: COUPE_KIT,
   },
@@ -454,8 +476,9 @@ export const DESIGNS: Record<BodyStyle, Design> = {
     arches: HATCH_ARCHES,
     heads: [{ size: [0.34, 0.16, 0.05], at: [0.56, 0.6, 1.95] }],
     tails: HATCH_TAIL.tails,
-    paint: HATCH_MIRROR.paint,
-    trim: [...HATCH_BARS(1.93, -1.95), ...HATCH_MIRROR.trim],
+    mirror: HATCH_MIRROR,
+    paint: [],
+    trim: HATCH_BARS(1.93, -1.95),
     markers: [],
     chrome: HATCH_TAIL.chrome,
     tyre: [0.24, 0.24],
@@ -474,25 +497,26 @@ export const DESIGNS: Record<BodyStyle, Design> = {
     section: MUSCLE_SECTION,
     arches: MUSCLE_ARCHES,
     heads: [
-      { size: [0.17, 0.15, 0.04], at: [0.74, 0.6, 2.56] },
-      { size: [0.17, 0.15, 0.04], at: [0.52, 0.6, 2.56] },
+      { size: [0.17, 0.15, 0.04], at: [0.74, 0.6, 2.4] },
+      { size: [0.17, 0.15, 0.04], at: [0.52, 0.6, 2.4] },
     ],
     tails: MUSCLE_TAIL.tails,
-    paint: MUSCLE_MIRROR.paint,
-    trim: [MUSCLE_FACE, ...MUSCLE_TAIL.trim, ...MUSCLE_MIRROR.trim],
+    mirror: MUSCLE_MIRROR,
+    paint: [],
+    trim: [MUSCLE_FACE, ...MUSCLE_TAIL.trim],
     stripes: [
-      { size: [0.12, 0.012, 0.86], at: [0.12, 0.825, 2.02], tilt: [HOOD_FALL, 0, 0] },
-      { size: [0.12, 0.012, 0.64], at: [0.12, 0.873, 0.58], tilt: [HOOD_FALL, 0, 0] },
+      { size: [0.12, 0.012, 0.76], at: [0.12, 0.823, 1.88], tilt: [HOOD_FALL, 0, 0] },
+      { size: [0.12, 0.012, 0.38], at: [0.12, 0.872, 0.69], tilt: [HOOD_FALL, 0, 0] },
       { size: [0.12, 0.012, 0.8], at: [0.12, 1.247, -0.825], tilt: [0.024, 0, 0] },
       { size: [0.12, 0.012, 0.6], at: [0.12, 0.972, -2.08], tilt: [0.014, 0, 0] },
     ],
     markers: [],
-    chrome: [{ size: [1.0, 0.12, 0.12], at: [0.5, 0.36, 2.5] }, { size: [1.0, 0.12, 0.12], at: [0.5, 0.36, -2.5] }, ...MUSCLE_TAIL.chrome],
+    chrome: [{ size: [1.0, 0.12, 0.12], at: [0.5, 0.36, 2.34] }, { size: [1.0, 0.12, 0.12], at: [0.5, 0.36, -2.5] }, ...MUSCLE_TAIL.chrome],
     tyre: [0.3, 0.42],
     rim: { size: 0.64, spokes: 5, tone: "metal", lip: 0.22, spoke: 0.08 },
     deck: [-2.2, 0.965],
     wings: MUSCLE_WINGS,
-    hood: [1.95, 0.82],
+    hood: [1.85, 0.822],
     exhaust: [0.5, 0.26, -2.44],
     kit: MUSCLE_KIT,
   },
@@ -505,8 +529,9 @@ export const DESIGNS: Record<BodyStyle, Design> = {
     arches: { gap: 0.07, steps: 7, flare: 0.07, out: 0.05, reach: 0.04, tone: "trim" },
     heads: [RALLY_HEAD],
     tails: RALLY_TAIL.tails,
-    paint: RALLY_MIRROR.paint,
-    trim: [...RALLY_BUMPERS, ...RALLY_TAIL.trim, ...RALLY_MIRROR.trim],
+    mirror: RALLY_MIRROR,
+    paint: [],
+    trim: [...RALLY_BUMPERS, ...RALLY_TAIL.trim],
     markers: [],
     chrome: RALLY_TAIL.chrome,
     tyre: [0.24, 0.24],
@@ -528,32 +553,28 @@ export const DESIGNS: Record<BodyStyle, Design> = {
       points: [[5.86, 1.15], [5.76, 2.86], [5.6, 3.02], [-5.98, 3.02], [-6.12, 2.88], [-6.14, 1.15]],
       width: 2.48,
       tumble: 0,
-      frame: [0.07, 0.04, 0.4, 0.04, 0.12, 0.12],
+      frame: [0.16, 0.04, 0.4, 0.04, 0.12, 0.12],
       screens: [[0, 0.1], [4, 0.3]],
       split: [3.95, 0.14],
       glass_to: -5.5,
     },
     arches: { gap: 0.06, steps: 7, flare: 0.04, out: 0.02, reach: 0.04, tone: "trim" },
     heads: [{ size: [0.34, 0.16, 0.05], at: [0.9, 0.62, 5.92] }],
+    mirror: BUS_MIRROR,
     tails: BUS_TAIL.tails,
     paint: [
-      ...BUS_MIRROR.paint,
       { size: [0.8, 0.2, 2.6], at: [0.4, 3.12, -1.4] },
-      ...[2.6, 1.3, 0, -1.3, -2.6, -5.1].map((z): Part => ({ size: [0.03, 1.38, 0.1], at: [1.255, 1.92, z] })),
+      ...[2.6, 1.3, 0, -1.3, -2.6, -5.1].map((z): Part => ({ size: [0.03, 1.37, 0.1], at: [1.255, 1.945, z] })),
     ],
     trim: [
-      { size: [0.03, 2.2, 1.1], at: [1.258, 1.5, 4.75] },
-      { size: [0.03, 2.2, 1.1], at: [1.258, 1.5, -4.15] },
+      ...[4.75, -4.15].flatMap((z) => bus_door(z)),
       { size: [1.26, 0.24, 0.1], at: [0.63, 0.44, 5.9] },
       { size: [1.26, 0.24, 0.1], at: [0.63, 0.44, -6.16] },
       ...BUS_TAIL.trim,
-      ...BUS_MIRROR.trim,
     ],
-    stripes: [{ size: [0.02, 0.08, 11.6], at: [1.256, 1.21, -0.1] }],
+    stripes: [{ size: [0.012, 0.08, 11.6], at: [1.2505, 1.21, -0.1] }],
     markers: [{ size: [0.86, 0.2, 0.04], at: [0.43, 2.72, 5.79] }],
     chrome: [
-      { size: [0.035, 2.1, 0.03], at: [1.262, 1.5, 4.75] },
-      { size: [0.035, 2.1, 0.03], at: [1.262, 1.5, -4.15] },
       ...BUS_TAIL.chrome,
     ],
     tyre: [0.3, 0.42],
@@ -574,16 +595,15 @@ export const DESIGNS: Record<BodyStyle, Design> = {
     arches: { gap: 0, steps: 0, flare: 0, out: 0, reach: 0, tone: "trim" },
     heads: [{ size: [0.05, 0.035, 0.14], at: [0.21, 0.38, 1.75], tilt: [0.18, 0, 0] }],
     tails: [{ size: [0.07, 0.08, 0.03], at: [0.035, 0.22, -2.135] }],
-    paint: [on_nose({ size: [0.03, 0.18, 0.38], at: [0.915, 0.2, 2.19] }), ...FORMULA_MIRROR.paint],
+    mirror: FORMULA_MIRROR,
+    paint: [on_nose({ size: [0.03, 0.18, 0.38], at: [0.915, 0.2, 2.19] })],
     trim: [
-      { size: [0.62, 0.04, 2.16], at: [0.31, 0.115, -0.08] },
-      { size: [0.5, 0.04, 0.34], at: [0.25, 0.115, -1.33] },
+      ...FORMULA_FLOOR,
       on_nose({ size: [0.9, 0.035, 0.34], at: [0.45, 0.14, 2.17] }),
       on_nose({ size: [0.04, 0.1, 0.12], at: [0.07, 0.19, 2.2] }),
       { size: [0.03, 0.52, 0.16], at: [0.015, 0.64, -1.84] },
       { size: [0.36, 0.18, 0.03], at: [0.44, 0.36, -0.118], tilt: [-0.15, 0, 0] },
       { size: [0.08, 0.12, 0.24], at: [0.04, 0.22, -2.0] },
-      ...FORMULA_MIRROR.trim,
     ],
     markers: [],
     chrome: [],

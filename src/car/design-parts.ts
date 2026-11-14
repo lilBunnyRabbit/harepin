@@ -1,5 +1,5 @@
 import type { Triple } from "./cars";
-import type { Cabin, Slab, Wing } from "./designs";
+import type { Cabin, Mirror, Slab, Wing } from "./designs";
 import { tail_at, type Part, type Point } from "./geometry";
 
 const PROUD = 0.012;
@@ -58,12 +58,6 @@ export function mirror(cabin: Cabin, shoulder: number): Part[] {
   const arm: Part = { size: MIRROR_ARM, at: [half + MIRROR_ARM[0] / 2 - 0.03, y - 0.02, z] };
   const housing: Part = { size: MIRROR_HOUSING, at: [half + reach + MIRROR_HOUSING[0] / 2 - 0.02, y, z - 0.01], tilt: [0, MIRROR_SWEEP, 0] };
   return [arm, housing].map((part) => on_cabin(part, shoulder));
-}
-
-/** A mirror by tone: the housing in paint, its arm or stalk and the glass face in trim. */
-export interface Mirror {
-  paint: Part[];
-  trim: Part[];
 }
 
 const DOOR_HEAD: Triple = [0.15, 0.095, 0.06];
