@@ -146,6 +146,11 @@ async function run_golden(check: boolean): Promise<Moved[] | null> {
 
 async function main(command: string, arg?: string, other?: string): Promise<number> {
   if (command === "matrix") return run_matrix(arg);
+  if (command === "gate") {
+    if (!arg) throw new Error("usage: bun scripts/lab.ts gate <car>");
+    const { run_gate } = await import("./lab/gate");
+    return run_gate(arg, () => run_golden(true));
+  }
   if (command === "diff") {
     if (!arg || !other) throw new Error("usage: bun scripts/lab.ts diff <old paste> <new paste>");
     for (const line of diff_files(arg, other)) console.log(line);
@@ -160,7 +165,7 @@ async function main(command: string, arg?: string, other?: string): Promise<numb
 
 const [command, arg, other] = args;
 if (!command) {
-  console.error("usage: bun scripts/lab.ts <pack> [--base <trial>] | matrix [car] | golden [--check] | diff <old> <new>   [--jobs n]");
+  console.error("usage: bun scripts/lab.ts <pack> [--base <trial>] | matrix [car] | golden [--check] | diff <old> <new> | gate <car>   [--jobs n]");
   process.exit(1);
 }
 process.exit(await main(command, arg, other));

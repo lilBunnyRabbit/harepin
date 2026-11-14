@@ -242,7 +242,7 @@ The matrix (`scripts/lab/setups.ts`): per car its families (`stock`, `grip`, `ae
 
 The handling golden is the car proof: `golden --check` lists every row that moved and the fields in it (`spec`, `pi`, a trait). A change to one car that moves another car's row is wrong. Targets per car: `docs/car-feel.md`.
 
-Pastes go in `docs/lab/sessions/` (its README); `bun scripts/lab.ts diff <old> <new>` compares two. Not built yet: `lab.ts gate` (P6).
+Pastes go in `docs/lab/sessions/` (its README); `bun scripts/lab.ts diff <old> <new>` compares two. A tuned car goes through `hq lock run -- bun scripts/lab.ts gate <car>` before its commit: `bun test src/car`, the handling golden (red when another car's row or this car's class moved), `races.ts --changed`, then `career.ts` on the events of the car's class; it stops on the first red. Not built yet: `lab.ts promote`.
 
 ## Reading results
 
