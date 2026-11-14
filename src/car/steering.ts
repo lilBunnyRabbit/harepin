@@ -134,9 +134,9 @@ const local_vel = new Vector3();
 /** The driver's side of the wheel: the keyboard ramp, the slide asked for and the lock the wheel turns to. */
 export class Steering {
   /** Smooth keys: the steer input on the last step, so a fresh press is told from a held or reversed one. */
-  private key_input = 0;
+  private key_input = NaN;
   /** Smooth keys: seconds the steer key has been held in its current direction. */
-  private key_press = 0;
+  private key_press = NaN;
   /** Side (sign of the key) of the power slide asked for since the steer was last let go; 0 with none. */
   private slide_side = 0;
   /** Side (sign of the held key) of a power slide launched from rest and still asked for; 0 with none. */
@@ -148,10 +148,14 @@ export class Steering {
   /** Seconds since a rolling handbrake tap at full lock; Infinity with none. */
   private tap_age = Infinity;
   /** Seconds the stick has sat near centre; a held drift ends past `LET_GO_TIME`. */
-  private centred = 0;
+  private centred = NaN;
 
   /** `steer_z`: the steered axle's z in the car's frame, m. */
-  constructor(private readonly steer_z: number) {}
+  constructor(private readonly steer_z: number) {
+    this.key_input = 0;
+    this.key_press = 0;
+    this.centred = 0;
+  }
 
   /** A power slide launched from rest is under way: traction control lets the rear spin up. */
   get launched(): boolean {

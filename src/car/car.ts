@@ -115,7 +115,7 @@ export class Wheel {
   compression = NaN;
   prev = NaN;
   lateral = NaN;
-  reach: number;
+  reach = NaN;
   contact = false;
   slip = NaN;
   angle = NaN;
@@ -244,7 +244,7 @@ export class Car {
   readonly wheels: Wheel[];
   private readonly driven: Wheel[];
   private readonly corners: Vector3[];
-  private readonly sense: NitroSense = { slide: 0, speed: 0, airborne: false };
+  private readonly sense: NitroSense = { slide: NaN, speed: NaN, airborne: false };
   // NaN, not 0: a field first set to a small integer changes the object's shape the first time it takes a fraction, and
   // every phase that reads it deopts. Left at 0, one late fraction deopted every phase 139 s into a test drive.
   private readonly frame: StepFrame = {
@@ -272,9 +272,10 @@ export class Car {
 
   gear = 1;
   auto = true;
-  rpm: number;
-  steer = 0;
-  shifting = 0;
+  // NaN until the constructor sets them, as the frame's numbers are: begun as 0 or undefined, each reshaped the car or boxed every write.
+  rpm = NaN;
+  steer = NaN;
+  shifting = NaN;
   tcs = true;
   abs = true;
   /** ABS's slip on asphalt; tests sweep it for the best fixed-slip stop. */
@@ -283,11 +284,11 @@ export class Car {
   assist = true;
   /** Stability (STM): the yaw damper that stops a slide growing into a spin. */
   stability = true;
-  tcs_factor = 1;
-  braking = 0;
-  throttle = 0;
+  tcs_factor = NaN;
+  braking = NaN;
+  throttle = NaN;
   /** Keyboard steer after the speed-scaled ramp, -1..1; follows the stick directly for analog input. */
-  key_steer = 0;
+  key_steer = NaN;
   readonly steering: Steering;
   steer_mode: SteerMode = SteerMode.SNAP;
   /**
@@ -312,6 +313,12 @@ export class Car {
     this.driven = this.wheels.filter((w) => w.driven);
     this.corners = spec.corners.map(([x, y, z]) => new Vector3(x, y, z));
     this.rpm = spec.idle;
+    this.steer = 0;
+    this.shifting = 0;
+    this.tcs_factor = 1;
+    this.braking = 0;
+    this.throttle = 0;
+    this.key_steer = 0;
   }
 
   get pos(): Vector3 {
