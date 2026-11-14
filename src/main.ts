@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { Audio, type SoundFrame } from "./audio/audio";
+import { idle_sound } from "./audio/held-sound";
 import { EVENTS, EVENT_PARAM, TUNE_PARAM, current_tier, event_of, type CareerEvent } from "./career/career";
 import { CareerButton } from "./career/career-button";
 import { Career, event_map } from "./career/career-store";
@@ -731,6 +732,7 @@ function frame(time: number) {
   const menu_hold = (settings.is_open || hud_sheet.open || (lab_id !== null && modal_open())) && net.remotes.size === 0;
   let stepped = 0;
   let simulated = false;
+  let held = false;
   let impact = 0;
   if (input.rewind && driver.rewind.can_step && !lobby.busy && !modes.active) {
     rewinding = true;
@@ -743,6 +745,7 @@ function frame(time: number) {
     review.drive(car, dt);
   } else if (lobby.state.kind === "countdown" || modes.holding || garage.is_open || menu_hold) {
     rewinding = false;
+    held = true;
     acc = 0;
   } else {
     simulated = true;
@@ -829,7 +832,7 @@ function frame(time: number) {
   sound.sound = car.spec.sound;
   sound.redline = car.spec.redline;
   sound.boost = car.nitro.boosting;
-  audio.update(sound);
+  audio.update(held ? idle_sound(sound, car.spec.idle) : sound);
   // Off behind any menu, a lobby keeps driving with one open; a held sim (rewind, countdown) has no drive to feel.
   if (simulated && !input.blocked()) {
     const effect = rumble.update(now, dt, sense_drive(rumble_sense, car, world, impact));
