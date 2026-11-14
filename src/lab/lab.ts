@@ -125,7 +125,7 @@ export class Lab {
     this.recorder.placed(this.host.car());
     this.watch?.changed();
     const shown = this.shown[index];
-    this.host.toast(`Trial ${index + 1}/${this.trials.length} ${shown.label}: ${r.trial.try}${shown.open ? ` (${CLASS_LABELS[r.class]} ${r.pi})` : ""}`);
+    this.host.toast(`Trial ${index + 1}/${this.trials.length} ${shown.label}: ${shown.try}${shown.open ? ` (${CLASS_LABELS[r.class]} ${r.pi})` : ""}`);
   }
 
   /** Every physics step, after the car's. */

@@ -160,3 +160,24 @@ describe("trait metrics on set states", () => {
     expect(m.steer_sd).toBe(0);
   });
 });
+
+describe("trait windows", () => {
+  test("a reset mid stop closes the stop unread", () => {
+    const { car, rec } = recorded();
+    drive(car, rec, 30, () => cruise(car, 100));
+    drive(car, rec, 0.5, () => ({ ...idle, brake: 1 }));
+    car.place(0, drop_height(SPEC, 0.6), 0, Math.PI / 2);
+    rec.placed(car);
+    drive(car, rec, 2, () => ({ ...idle, brake: 1 }));
+    expect(rec.metrics().brake_dev).toBeNaN();
+  });
+
+  test("yawover reads a slalom, whose reversals come before the window ends", () => {
+    const { car, rec } = recorded();
+    drive(car, rec, 30, () => cruise(car, 60));
+    drive(car, rec, 10, (t) => cruise(car, 60, { steer: Math.floor(t / 1.2) % 2 ? -1 : 1 }));
+    const over = rec.metrics().yaw_over;
+    expect(Number.isFinite(over)).toBe(true);
+    expect(over).toBeGreaterThanOrEqual(0);
+  });
+});

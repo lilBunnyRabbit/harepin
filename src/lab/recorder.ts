@@ -136,6 +136,7 @@ export class Recorder {
   /** The car was put back (reset, rewind, lava): counted, and the gates and winding start over from where it stands. */
   placed(car: Car) {
     if (this.moving) this.resets++;
+    this.traits.placed();
     this.prev_x = car.pos.x;
     this.prev_z = car.pos.z;
     this.last_angle = this.angle(car.pos.x, car.pos.z);

@@ -10,6 +10,7 @@ const STEER_SIDE = 0.5;
 /** The yaw after a steer step or reversal is read over this long, its value at the end taken as settled: 1 s read a step steer's still-falling yaw as settled and halved its overshoot. */
 const YAW_WINDOW = 2;
 const YAW_SETTLED = 0.05;
+const YAW_MIN = 0.5;
 const POWER_THROTTLE = 0.8;
 const POWER_STEER = 0.3;
 /**
@@ -31,7 +32,7 @@ const ENTRY_TO = (25 * Math.PI) / 180;
 const AIR_MIN = 0.2;
 const LAND_WINDOW = 0.3;
 const SEAM_WINDOW = 0.5;
-/** A front wheel's tyre peak (set from the ground row under it each step) moving this much is a surface seam. */
+/** The front axle's mean tyre peak (set from the ground row under it each step) moving this much is a surface seam. */
 const SEAM_STEP = 1e-3;
 const FAST = 200 / KMH;
 
@@ -68,6 +69,7 @@ export class TraitFold {
   private yaw_at = NaN;
   private yaw_peak = 0;
   private yaw_low = 0;
+  private prev_yaw = 0;
   private over_sum = 0;
   private over_n = 0;
   private us_sum = 0;
@@ -97,32 +99,51 @@ export class TraitFold {
 
   constructor(private readonly lane: LabLane) {}
 
+  /** The car was put back: every open window closes unread, so a reset never counts as a stop, a landing or a seam. */
+  placed() {
+    this.steer_side = 0;
+    this.yaw_at = NaN;
+    this.prev_throttle = 0;
+    this.power_at = NaN;
+    this.lift_at = NaN;
+    this.brake_at = NaN;
+    this.entry_at = NaN;
+    this.entered = false;
+    this.flying = 0;
+    this.land_at = NaN;
+    this.seam_peak = NaN;
+    this.seam_at = NaN;
+  }
+
+  private close_yaw(settled_yaw: number) {
+    const settled = Math.abs(settled_yaw);
+    if (settled > YAW_SETTLED) {
+      this.over_sum += (settled_yaw > 0 ? this.yaw_peak : -this.yaw_low) / settled - 1;
+      this.over_n++;
+    }
+    this.yaw_at = NaN;
+  }
+
   step(t: number, dt: number, car: Car, input: Controls, speed: number, slip: number) {
     const yaw = car.ang.y;
     const slip_deg = slip * DEG;
 
     const side = input.steer > STEER_SIDE ? 1 : input.steer < -STEER_SIDE ? -1 : 0;
-    if (side !== 0 && side !== this.steer_side) {
-      this.yaw_at = t;
+    if (side !== this.steer_side) {
+      // A slalom reverses before the window ends: the sample closes on the yaw the old side held, when long enough to settle.
+      if (!Number.isNaN(this.yaw_at) && t - this.yaw_at >= YAW_MIN) this.close_yaw(this.prev_yaw);
+      this.yaw_at = side === 0 ? NaN : t;
       this.yaw_peak = 0;
       this.yaw_low = 0;
     }
     this.steer_side = side;
     if (!Number.isNaN(this.yaw_at)) {
-      if (side === 0) this.yaw_at = NaN;
-      else if (t - this.yaw_at < YAW_WINDOW) {
+      if (t - this.yaw_at < YAW_WINDOW) {
         this.yaw_peak = Math.max(this.yaw_peak, yaw);
         this.yaw_low = Math.min(this.yaw_low, yaw);
-      }
-      else {
-        const settled = Math.abs(yaw);
-        if (settled > YAW_SETTLED) {
-          this.over_sum += (yaw > 0 ? this.yaw_peak : -this.yaw_low) / settled - 1;
-          this.over_n++;
-        }
-        this.yaw_at = NaN;
-      }
+      } else this.close_yaw(yaw);
     }
+    this.prev_yaw = yaw;
 
     const ring = this.lane.ring;
     if (ring && speed >= RING_MIN_SPEED && Math.abs(car.steer) > 1e-3 && Math.abs(Math.hypot(car.pos.x - ring.x, car.pos.z - ring.z) - ring.radius) <= ring.band) {
@@ -177,10 +198,13 @@ export class TraitFold {
       this.land_pitch = Number.isNaN(this.land_pitch) ? pitch : Math.max(this.land_pitch, pitch);
     }
 
-    const front = car.wheels[0];
-    if (front.contact) {
-      if (!Number.isNaN(this.seam_peak) && Math.abs(front.peak - this.seam_peak) > SEAM_STEP) this.seam_at = t;
-      this.seam_peak = front.peak;
+    const [left, right] = car.axles[0].wheels;
+    const fl = car.wheels[left];
+    const fr = car.wheels[right];
+    if (fl.contact && fr.contact) {
+      const peak = (fl.peak + fr.peak) / 2;
+      if (!Number.isNaN(this.seam_peak) && Math.abs(peak - this.seam_peak) > SEAM_STEP) this.seam_at = t;
+      this.seam_peak = peak;
     }
     if (t - this.seam_at <= SEAM_WINDOW) this.seam_slip = Number.isNaN(this.seam_slip) ? slip_deg : Math.max(this.seam_slip, slip_deg);
 

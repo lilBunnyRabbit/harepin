@@ -242,7 +242,7 @@ The matrix (`scripts/lab/setups.ts`): per car its families (`stock`, `grip`, `ae
 
 The handling golden is the car proof: `golden --check` lists every row that moved and the fields in it (`spec`, `pi`, a trait). A change to one car that moves another car's row is wrong. Targets per car: `docs/car-feel.md`.
 
-Pastes go in `docs/lab/sessions/` (its README); `bun scripts/lab.ts diff <old> <new>` compares two. A tuned car goes through `hq lock run -- bun scripts/lab.ts gate <car>` before its commit: `bun test src/car`, the handling golden (red when another car's row or this car's class moved), `races.ts --changed`, then `career.ts` on the events of the car's class; it stops on the first red. Not built yet: `lab.ts promote`.
+Pastes go in `docs/lab/sessions/` (its README); `bun scripts/lab.ts diff <old> <new>` compares two. A winner comes out of `bun scripts/lab.ts promote <pack> <trial>`: the fields its mods change, folded into the shipped car and rounded to 6 digits, each with the shipped value beside it (a lab car prints whole), and whether the folded car with the trial's parts resolves to the trial's `spec#` (equal hash, or every field within 1e-5: rounding). Paste them into `src/car/cars.ts`, then the car goes through `hq lock run -- bun scripts/lab.ts gate <car>` before its commit: `bun test src/car`; the handling golden (red when another car's row moved, when its class moved, or when its `stock asphalt` row leaves a `docs/car-feel.md` band; a draft `?` band only warns); `races.ts --changed`; then `career.ts` on every event the car can enter (a cap at or over its class, or a preset of it), red when any printed star differs from the committed marks. It stops on the first red.
 
 ## Reading results
 
@@ -281,4 +281,4 @@ Pastes go in `docs/lab/sessions/` (its README); `bun scripts/lab.ts diff <old> <
 | `scripts/lab.ts`, `scripts/lab/*.ts` | sim lines per trial, the setup matrix, their worker pool |
 | `scripts/bench/feel-cases.ts`, `scripts/bench/telemetry-cases.ts` | the feel and telemetry scenarios as functions on a `CarSpec`; `scripts/feel.ts` and `telemetry.ts` print them |
 
-Still to build: shared lab cars (Tsumuji, Sajin), and the rest of `scripts/lab.ts` (golden, diff, promote; `docs/plan/feel-lab-v2.md` 10).
+Still to build: shared lab cars (Tsumuji, Sajin) and the bot on the lab world (`docs/plan/feel-lab-v2.md` P2b).

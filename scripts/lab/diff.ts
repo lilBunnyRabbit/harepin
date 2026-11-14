@@ -6,7 +6,10 @@ interface Driven {
   spec: string;
   where: string;
   metrics: Map<string, number>;
+  /** The lead's ` sim` line for the trial, when `lab.ts <pack>` output was appended to the paste. */
+  sim: Map<string, number>;
   ratings: Map<string, number>;
+  picks: Map<string, string>;
 }
 
 interface Session {
@@ -33,16 +36,22 @@ export function read_session(text: string): Session {
   const trials = new Map<string, Driven>();
   let now: Driven | null = null;
   for (const line of lines) {
-    if (line.startsWith("#trial ")) {
+    if (line.startsWith("#trial ") && trials.has(line.split(" ")[1])) now = trials.get(line.split(" ")[1]) ?? null;
+    else if (line.startsWith("#trial ")) {
       const words = line.split(" ");
       const spec = words.find((w) => w.startsWith("spec#")) ?? "spec#?";
       const where = words[words.indexOf(spec) + 2] ?? "";
-      now = { id: words[1], spec: spec.slice(5), where, metrics: new Map(), ratings: new Map() };
+      now = { id: words[1], spec: spec.slice(5), where, metrics: new Map(), sim: new Map(), ratings: new Map(), picks: new Map() };
       trials.set(now.id, now);
     } else if (now && line.startsWith(" m ")) {
       for (const [k, v] of pairs(line.slice(3))) if (Number.isFinite(first(v))) now.metrics.set(k, first(v));
     } else if (now && line.startsWith(" a ")) {
-      for (const [k, v] of pairs(line.slice(3))) if (Number.isFinite(Number(v))) now.ratings.set(k, Number(v));
+      for (const [k, v] of pairs(line.slice(3))) {
+        if (Number.isFinite(Number(v))) now.ratings.set(k, Number(v));
+        else now.picks.set(k, v.replace(/^"|"$/g, ""));
+      }
+    } else if (now && line.startsWith(" sim ")) {
+      for (const [k, v] of pairs(line.slice(5))) if (Number.isFinite(first(v))) now.sim.set(k, first(v));
     }
   }
   return { head, trials };
@@ -78,7 +87,13 @@ export function diff_sessions(old_text: string, new_text: string): string[] {
       continue;
     }
     out.push(`#trial ${id} spec#${was.spec === now.spec ? "same" : `moved ${was.spec}->${now.spec}`}`);
-    const metric = [...now.metrics].flatMap(([k, v]) => (INPUTS.includes(k) || !was.metrics.has(k) ? [] : [`${k}=${signed(v - (was.metrics.get(k) as number))}`]));
+    const metric = [...now.metrics].flatMap(([k, v]) => {
+      if (INPUTS.includes(k) || !was.metrics.has(k)) return [];
+      const s = now.sim.get(k);
+      const w = was.sim.get(k);
+      const sim = s !== undefined && w !== undefined ? ` (sim ${signed(s - w)})` : "";
+      return [`${k}=${signed(v - (was.metrics.get(k) as number))}${sim}`];
+    });
     if (metric.length) out.push(` m ${metric.join(" ")}`);
     const rating = [...now.ratings].flatMap(([k, v]) => {
       const old = was.ratings.get(k);
@@ -86,6 +101,10 @@ export function diff_sessions(old_text: string, new_text: string): string[] {
       const flag = Number.isNaN(spread) || Math.abs(v - old) > spread ? "!" : "";
       return [`${k}=${old}->${v}${flag}`];
     });
+    for (const [k, v] of now.picks) {
+      const old = was.picks.get(k);
+      if (old !== undefined && old !== v) rating.push(`${k}=${old}->${v}`);
+    }
     if (rating.length) out.push(` a ${rating.join(" ")}`);
     const inputs = INPUTS.flatMap((k) => (now.metrics.has(k) && was.metrics.has(k) ? [`${k}=${signed((now.metrics.get(k) as number) - (was.metrics.get(k) as number))}`] : []));
     if (inputs.length) out.push(` in ${inputs.join(" ")}`);

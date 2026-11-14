@@ -43,9 +43,11 @@ export interface Moved {
   key: string;
   car: string;
   fields: string[];
+  /** The row as it is now; empty when gone. */
+  line: string;
 }
 
-function fields_of(line: string): Map<string, string> {
+export function fields_of(line: string): Map<string, string> {
   return new Map(line.split(" ").slice(2).map((f) => (f.startsWith("spec#") ? ["spec", f.slice(5)] : (f.split("=", 2) as [string, string]))));
 }
 
@@ -57,14 +59,14 @@ export function diff_handling(golden: Map<string, string>, lines: string[]): Mov
     const old = golden.get(key);
     if (old === line) continue;
     if (old === undefined) {
-      out.push({ key, car: car(key), fields: ["(new)"] });
+      out.push({ key, car: car(key), fields: ["(new)"], line });
       continue;
     }
     const a = fields_of(old);
     const b = fields_of(line);
     const fields = [...b].filter(([f, v]) => a.get(f) !== v).map(([f, v]) => `${f} ${a.get(f) ?? "-"}->${v}`);
-    out.push({ key, car: car(key), fields });
+    out.push({ key, car: car(key), fields, line });
   }
-  for (const key of golden.keys()) if (!now.has(key)) out.push({ key, car: car(key), fields: ["(gone)"] });
+  for (const key of golden.keys()) if (!now.has(key)) out.push({ key, car: car(key), fields: ["(gone)"], line: "" });
   return out;
 }

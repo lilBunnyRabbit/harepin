@@ -8,7 +8,7 @@ const pack = (blind: boolean): Pack => ({ id: "p", rev: 1, title: "", brief: "",
 
 test("a blind group shows letters, the base's feel and asks vs A; open packs keep ids", () => {
   const blind = shown_trials(pack(true));
-  expect(blind[0]).toEqual({ label: "lead", feel: "lead feel", base: -1, open: true });
+  expect(blind[0]).toEqual({ label: "lead", feel: "lead feel", try: "", base: -1, open: true });
   expect(blind[1].label).toBe("A");
   expect(blind.slice(2).map((s) => s.label).sort()).toEqual(["B", "C", "D"]);
   expect(blind.slice(2).every((s) => s.feel === "stock feel" && s.base === 1 && !s.open)).toBe(true);

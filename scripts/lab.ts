@@ -9,6 +9,7 @@ import { PACKS } from "../src/lab/packs";
 import { pool_size, run_pool } from "./proof/pool";
 import type { GroundName } from "./grounds";
 import { diff_files } from "./lab/diff";
+import { promote } from "./lab/promote";
 import { diff_handling, golden_line, read_handling, write_handling, type Moved } from "./lab/handling-golden";
 import { setups, type Setup } from "./lab/setups";
 import { STOP_FROM_KMH, type SimValues } from "./lab/sims";
@@ -146,6 +147,12 @@ async function run_golden(check: boolean): Promise<Moved[] | null> {
 
 async function main(command: string, arg?: string, other?: string): Promise<number> {
   if (command === "matrix") return run_matrix(arg);
+  if (command === "promote") {
+    const load = arg ? PACKS[arg] : undefined;
+    if (!load || !other) throw new Error("usage: bun scripts/lab.ts promote <pack> <trial>");
+    for (const line of promote((await load()).default, other)) console.log(line);
+    return 0;
+  }
   if (command === "gate") {
     if (!arg) throw new Error("usage: bun scripts/lab.ts gate <car>");
     const { run_gate } = await import("./lab/gate");
@@ -165,7 +172,7 @@ async function main(command: string, arg?: string, other?: string): Promise<numb
 
 const [command, arg, other] = args;
 if (!command) {
-  console.error("usage: bun scripts/lab.ts <pack> [--base <trial>] | matrix [car] | golden [--check] | diff <old> <new> | gate <car>   [--jobs n]");
+  console.error("usage: bun scripts/lab.ts <pack> [--base <trial>] | matrix [car] | golden [--check] | diff <old> <new> | promote <pack> <trial> | gate <car>   [--jobs n]");
   process.exit(1);
 }
 process.exit(await main(command, arg, other));
