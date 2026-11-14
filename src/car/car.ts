@@ -272,25 +272,27 @@ export function drop_height(spec: CarSpec, height: number): number {
 }
 
 export class Wheel {
-  omega = 0;
-  spin = 0;
-  compression = 0;
-  prev = 0;
-  lateral = 0;
+  // Numbers start NaN and the constructor then sets them: V8 keeps the double slot a NaN gives, where a field begun as a
+  // small integer reshapes every wheel on its first fraction (the first ABS stop, a lone wheel's TCS brake) and deopts the step.
+  omega = NaN;
+  spin = NaN;
+  compression = NaN;
+  prev = NaN;
+  lateral = NaN;
   reach: number;
   contact = false;
-  slip = 0;
-  angle = 0;
-  load = 0;
+  slip = NaN;
+  angle = NaN;
+  load = NaN;
   abs = false;
-  abs_factor = 1;
+  abs_factor = NaN;
   /**
    * Slip at the peak of the tyre curve under this wheel, over asphalt's (1). ABS and traction control follow it: at
    * asphalt's slip the brake let go well short of the wider loose peak and stops on dirt ran long.
    */
-  peak = 1;
+  peak = NaN;
   /** Traction control's brake on this wheel, 0..1 of its drive torque. */
-  tcs_brake = 0;
+  tcs_brake = NaN;
   /** Where a braked, stopped wheel's contact patch is pinned; static friction holds it there until it breaks away. */
   readonly anchor = new Vector3();
   anchored = false;
@@ -308,6 +310,17 @@ export class Wheel {
   ) {
     this.driven = axle.drive_share > 0;
     this.reach = spec.wheel.rest + spec.wheel.radius;
+    this.omega = 0;
+    this.spin = 0;
+    this.compression = 0;
+    this.prev = 0;
+    this.lateral = 0;
+    this.slip = 0;
+    this.angle = 0;
+    this.load = 0;
+    this.abs_factor = 1;
+    this.peak = 1;
+    this.tcs_brake = 0;
   }
 }
 
