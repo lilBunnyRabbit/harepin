@@ -108,8 +108,8 @@
       </div>
       {#if viewer.pinning}
         <p class="cars-hint" role="status">Tap where the pin goes</p>
-      {:else if world && !item_options.length}
-        <p class="cars-hint" role="status">No {ASSETS[world.kind].label.toLowerCase()} in this world</p>
+      {:else if viewer.empty}
+        <p class="cars-hint" role="status">No {ASSETS[kind].label.toLowerCase()} {world ? "in this world" : "on this build"}</p>
       {/if}
       <div class="cars-tools" role="toolbar" aria-label="Views">
         {#each snaps as [id, snap] (id)}

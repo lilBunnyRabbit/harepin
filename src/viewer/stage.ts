@@ -160,6 +160,11 @@ export class Stage {
     return this.frame(asset !== null);
   }
 
+  /** Nothing drawn: an asset the view names is not there, or a part the build does not fit (a stock car's wing). */
+  get empty(): boolean {
+    return new THREE.Box3().setFromObject(this.holder).isEmpty();
+  }
+
   private clear() {
     if (this.view) {
       this.holder.remove(this.view.root);
@@ -167,8 +172,11 @@ export class Stage {
     }
     if (this.asset) {
       this.holder.remove(this.asset);
+      // Shared materials (a sample's kit) are freed too: nothing else on this stage draws with them, and three re-uploads one on its next use.
       this.asset.traverse((node) => {
-        if (node instanceof THREE.Mesh) node.geometry.dispose();
+        if (!(node instanceof THREE.Mesh)) return;
+        node.geometry.dispose();
+        for (const material of [node.material].flat()) material.dispose();
       });
     }
     this.view = this.spec = this.asset = null;
@@ -192,8 +200,9 @@ export class Stage {
   }
 
   // The car frames on its own axis; an asset round its box, since a part sits where it bolts on, off the car's middle.
-  private frame(off_axis: boolean): Frame {
+  private frame(off_axis: boolean): Frame | null {
     const box = new THREE.Box3().setFromObject(this.holder);
+    if (box.isEmpty()) return null;
     const sphere = box.getBoundingSphere(new THREE.Sphere());
     this.radius = sphere.radius;
     const round = (v: number) => Math.round(v * 1000) / 1000;

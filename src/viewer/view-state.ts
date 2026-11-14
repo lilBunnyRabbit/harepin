@@ -125,7 +125,7 @@ export interface ShotPin {
 export interface Asked {
   view: Partial<ViewState> & { car: CarId };
   pin: ShotPin | null;
-    shot: boolean;
+  shot: boolean;
 }
 
 export function asset_ref(view: ViewState): AssetRef {

@@ -39,6 +39,8 @@ export class Viewer {
   /** The block when the browser refused the clipboard, shown to copy by hand. */
   refused = $state<string | null>(null);
   copied = $state<string | null>(null);
+  /** The stage stands empty: the asset is not in this world, or the build fits no such part. */
+  empty = $state(false);
   readonly shot: boolean;
   private frame_box: Frame = { centre: [0, 0.6, 0], radius: 2.5 };
   private fly: Fly | null = null;
@@ -65,6 +67,7 @@ export class Viewer {
     this.view = $state(fill(this.frame_box, stage.aspect));
     stage.lights(this.lamps);
     this.frame_box = stage.show(this.view) ?? this.frame_box;
+    this.empty = stage.empty;
     this.input = new OrbitInput(stage.canvas, {
       cam: () => this.view.cam,
       move: (cam) => this.move(cam),
@@ -245,6 +248,7 @@ export class Viewer {
 
   private apply() {
     this.frame_box = this.stage.show(this.view) ?? this.frame_box;
+    this.empty = this.stage.empty;
     this.stage.lights(this.lamps);
     this.stage.steer(this.view.steer);
     this.marks();
