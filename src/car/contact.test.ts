@@ -75,7 +75,7 @@ describe("car contact", () => {
       expect(Math.abs(now.l - was.l) / (Math.abs(was.l) + scale)).toBeLessThan(1e-12);
       const again = new Float64Array(2);
       collide_cars(field, again);
-      expect(again[0]).toBe(0);
+      expect(again[0]).toBeLessThanOrEqual(0);
     });
 
   test("a car above the other's body passes over it", () => {

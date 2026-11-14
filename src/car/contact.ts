@@ -60,11 +60,11 @@ function spines(p1x: number, p1z: number, d1x: number, d1z: number, p2x: number,
 /**
  * Car-to-car contact, run once per physics step after every car has stepped and hit the world. Each car is the capsule
  * its wall circles sweep (`spec.circles` along the heading, `spec.radius` round), so a car hit and a wall hit feel alike.
- * `impacts[i]` gets car i's hardest closing speed (m/s) this step, the number the wall pass returns; the return is the
- * count of touching pairs.
+ * `impacts[i]` gets car i's hardest closing speed (m/s) this step, the number the wall pass returns: 0 touching but
+ * already parting, -1 touching no car. The return is the count of touching pairs.
  */
 export function collide_cars(field: readonly Collider[], impacts: Float64Array): number {
-  for (let i = 0; i < field.length; i++) impacts[i] = 0;
+  for (let i = 0; i < field.length; i++) impacts[i] = -1;
   let touching = 0;
   for (let i = 0; i < field.length; i++)
     for (let j = i + 1; j < field.length; j++) {

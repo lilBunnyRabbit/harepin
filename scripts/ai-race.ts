@@ -1,6 +1,7 @@
 import { Car, drop_height } from "../src/car/car";
 import { COUPE, car_spec, type CarSpec } from "../src/car/cars";
 import { Driver } from "../src/ai/driver";
+import { Field, personalities } from "../src/ai/field";
 import { race_line } from "../src/ai/line";
 import { World } from "../src/world/world";
 import { RouteKind, type Route } from "../src/worldgen/types";
@@ -10,6 +11,12 @@ import { GOLDEN_SEEDS } from "./proof/golden-file";
 // bun scripts/ai-race.ts solo [seeds] [car]: one AI car alone on each circuit of the island's golden seeds, its standing
 // lap against the autopilot's on the same route. Fails when an AI lap is more than SOLO_SLACK slower, or leaves the road.
 const SOLO_SLACK = 0.05;
+// bun scripts/ai-race.ts field [seeds|all] [car] [count] [laps]: a field of AI cars on each circuit. Fails when a car is
+// stuck, a race's contacts per lap fall outside CONTACT_BAND, or the finish order follows the grid.
+const CONTACT_BAND = [0.2, 6] as const;
+/** Share of races that may finish in grid order, and the highest mean grid-to-finish rank correlation allowed. */
+const GRID_KEPT_MAX = 0.2;
+const RHO_MAX = 0.7;
 /** Metres off the centreline that count as off the road, as the autopilot counts them. */
 const OFF_ROAD = 7;
 
@@ -33,7 +40,7 @@ function solo(world: World, route: Route, spec: CarSpec, limit = 400): Solo {
   const n = route.points.length;
   let t = 0, offroad = 0, worst = 0;
   while (t < limit && driver.progress < n - 10) {
-    car.step(DT, driver.drive(car), world);
+    car.step(DT, driver.drive(car, DT), world);
     world.collide(car);
     t += DT;
     const d = world.distance_to_road(car.pos.x, car.pos.z);
@@ -68,10 +75,67 @@ function run_solo(seeds: readonly number[], spec: CarSpec) {
   if (failed) process.exitCode = 1;
 }
 
+/** Seconds a field race may take per lap of the line's plan before a car still out counts as stuck. */
+const FIELD_SLACK = 1.6;
+
+function spearman(order: readonly number[]): number {
+  const n = order.length;
+  let d2 = 0;
+  order.forEach((slot, place) => (d2 += (slot - place) ** 2));
+  return 1 - (6 * d2) / (n * (n * n - 1));
+}
+
+function run_field(seeds: readonly number[], spec: CarSpec, count: number, laps: number) {
+  let stuck = 0, out_of_band = 0, grid_kept = 0, races = 0;
+  const per_lap: number[] = [];
+  const rhos: number[] = [];
+  let resets = 0, reverses = 0, spins = 0, overtakes = 0, hardest = 0;
+  for (const seed of seeds) {
+    const world = new World(seed);
+    for (const route of circuits(world)) {
+      if (route.excludes?.includes(spec.id)) continue;
+      const unplace = world.place(route.closure);
+      const field = new Field(world, route, Array.from({ length: count }, () => spec), personalities(seed, count), seed);
+      let plan = 0;
+      for (let i = 0; i < field.line.step.length; i++) plan += field.line.step[i] / field.line.speed[i];
+      const all = field.run(DT, laps, plan * laps * FIELD_SLACK + 30);
+      unplace();
+      races++;
+      const order = field.racers.map((_, k) => k).sort((a, b) => field.racers[a].stats.finish - field.racers[b].stats.finish || field.racers[b].driver.progress - field.racers[a].driver.progress);
+      const contacts = field.racers.reduce((sum, r) => sum + r.stats.contacts, 0) / 2;
+      const rate = contacts / laps;
+      per_lap.push(rate);
+      const band = rate >= CONTACT_BAND[0] && rate <= CONTACT_BAND[1];
+      if (!band) out_of_band++;
+      if (!all) stuck++;
+      const rho = spearman(order);
+      rhos.push(rho);
+      if (order.every((slot, place) => slot === place)) grid_kept++;
+      const best = Math.min(...field.racers.map((r) => r.stats.finish));
+      console.log(`seed ${seed} ${route.id}: ${all ? "all finished" : "STUCK"}, ${contacts} contacts (${rate.toFixed(1)}/lap${band ? "" : " OUT OF BAND"}), grid-finish rho ${rho.toFixed(2)}`);
+      order.forEach((k, place) => {
+        const { stats, personality } = { stats: field.racers[k].stats, personality: field.racers[k].driver.personality };
+        const lap_times = stats.laps.map((t, i) => t - (i ? stats.laps[i - 1] : 0));
+        resets += stats.resets;
+        reverses += stats.reverses;
+        spins += stats.spins;
+        overtakes += stats.overtakes;
+        hardest = Math.max(hardest, stats.hardest);
+        console.log(`  P${place + 1} grid ${k + 1} pace ${personality.pace.toFixed(3)} agg ${personality.aggression.toFixed(2)} | ${Number.isFinite(stats.finish) ? `${stats.finish.toFixed(1)}s +${(stats.finish - best).toFixed(1)}` : `out at lap ${stats.laps.length}`} laps ${lap_times.map((t) => t.toFixed(1)).join("/")} | pass ${stats.overtakes} hit ${stats.contacts} (max ${stats.hardest.toFixed(1)} m/s) spin ${stats.spins} rev ${stats.reverses} reset ${stats.resets} off ${stats.offroad.toFixed(1)}s`);
+      });
+    }
+  }
+  per_lap.sort((a, b) => a - b);
+  const mean_rho = rhos.reduce((a, b) => a + b, 0) / rhos.length;
+  console.log(`${races} races of ${count} x ${spec.id}, ${laps} laps: stuck ${stuck}, contacts/lap min ${per_lap[0].toFixed(1)} median ${per_lap[per_lap.length >> 1].toFixed(1)} max ${per_lap[per_lap.length - 1].toFixed(1)} (band ${CONTACT_BAND.join("-")}, ${out_of_band} out), grid order kept ${grid_kept}, mean rho ${mean_rho.toFixed(2)}, overtakes ${overtakes}, spins ${spins}, reverses ${reverses}, resets ${resets}, hardest ${hardest.toFixed(1)} m/s`);
+  if (stuck || out_of_band || grid_kept > races * GRID_KEPT_MAX || mean_rho > RHO_MAX) process.exitCode = 1;
+}
+
 if (import.meta.main) {
-  const [mode = "solo", seeds_arg, car] = process.argv.slice(2);
-  const seeds = seeds_arg ? seeds_arg.split(",").map(Number) : GOLDEN_SEEDS.island;
+  const [mode = "solo", seeds_arg, car, count = "6", laps = "2"] = process.argv.slice(2);
+  const seeds = seeds_arg && seeds_arg !== "all" ? seeds_arg.split(",").map(Number) : GOLDEN_SEEDS.island;
   const spec = car ? car_spec(car) : COUPE;
   if (mode === "solo") run_solo(seeds, spec);
+  else if (mode === "field") run_field(seeds, spec, Number(count), Number(laps));
   else throw new Error(`unknown mode ${mode}`);
 }

@@ -173,3 +173,21 @@ Phases 0-2 are pure and headless: no DOM, Bun runs them.
 | O7 | Far AI on phone | kinematic follower beyond ~120 m off screen; Worker only if that falls short |
 | O8 | Lab | `Trial.map` + `Trial.field`, not a lab circuit station |
 | O9 | Career and Runs with AI | not before phase 4 tuning; position-based marks are a separate design |
+
+## 9. Findings and log
+
+Numbers from `2f0dba2` + the phase 2 field, checked 2026-11-14 on the 25 island golden seeds, coupe.
+
+| Phase | Proof | Result |
+|---|---|---|
+| 0 | `car.test.ts`, `contact.test.ts`; telemetry and feel vs `0342cd8` | 265 tests in `src/car` + `src/ai` pass; `scripts/telemetry.ts` and `scripts/feel.ts` byte-identical |
+| 1 | `ai-race.ts solo`, 25 circuits | every lap within; AI vs autolap min -11.7%, median -9.0%, max -7.8% (AI faster everywhere), no offroad |
+| 2 | `ai-race.ts field all` (6 cars, 2 laps) | stuck 0; contacts/lap 0.5-6.0, median 3.0, 0 out of band; grid order kept 0/25, mean rho 0.55; 27 overtakes, 24 spins, 21 resets |
+| 2 | same, 6 cars, 3 laps | stuck 0; contacts/lap 0.7-5.7, median 2.7, 0 out; grid kept 0, rho 0.44; 28 overtakes, 26 spins, 26 resets |
+| 2 | same, 7 cars, 2 laps | stuck 0; contacts/lap 0.0-5.0, median 3.0, 1 out (seed 4: a clean race, 0 contacts); grid kept 0, rho 0.61; 44 overtakes, 29 spins, 30 resets |
+
+Open after phase 2:
+
+- A clean race (0 contacts) counts as out of band. Either the floor drops to 0 or the field races closer; no tuning done for it.
+- Hardest hit 26.7 m/s in every run and about one reset per race: spins and resets are high for a field that rarely touches. Worth a look before phase 3 puts it on screen.
+- Per-race rho reaches 0.75-0.79 on some seeds; the mean stays under `RHO_MAX` 0.7.

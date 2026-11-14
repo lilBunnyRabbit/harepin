@@ -2,7 +2,7 @@ import { ROAD_HALF, type Ramp, type RoadPoint } from "../worldgen/types";
 
 /** Cornering grip and braking (m/s²) the line plans on: the autopilot's numbers, inside every car's limit. */
 const LINE_GRIP = 4.5;
-const LINE_BRAKE = 2.5;
+export const LINE_BRAKE = 2.5;
 /** Metres between the car's body and the road edge. */
 const EDGE_GAP = 1.2;
 /** Coarsest point spacing the relax starts at, and passes at spacing 1 (more at coarser ones, by the square root). */
@@ -30,6 +30,8 @@ export interface RaceLine {
   readonly z: Float64Array;
   /** m/s: the corner speed at each point, lowered by one backward pass so every bend can be braked for. */
   readonly speed: Float64Array;
+  /** Signed 1/radius (1/m) of the line at each point; positive bends away from the right normal. */
+  readonly bend: Float64Array;
   readonly ramp: Int16Array;
   /** Metres between point i and i + 1. */
   readonly step: Float64Array;
@@ -44,12 +46,6 @@ function inverse_radius(ax: number, az: number, bx: number, bz: number, cx: numb
   const cross = (bx - ax) * (cz - bz) - (bz - az) * (cx - bx);
   const d = Math.hypot(bx - ax, bz - az) * Math.hypot(cx - bx, cz - bz) * Math.hypot(cx - ax, cz - az);
   return d < 1e-12 ? 0 : (2 * cross) / d;
-}
-
-function circum_radius(ax: number, az: number, bx: number, bz: number, cx: number, cz: number): number {
-  const cross = Math.abs((bx - ax) * (cz - az) - (bz - az) * (cx - ax));
-  if (cross < 1e-9) return Infinity;
-  return (Math.hypot(bx - ax, bz - az) * Math.hypot(cx - bx, cz - bz) * Math.hypot(cx - ax, cz - az)) / (2 * cross);
 }
 
 function ramp_index(road: readonly RoadPoint[], ramp: Ramp): number {
@@ -123,11 +119,12 @@ export function race_line(road: readonly RoadPoint[], ramps: readonly Ramp[], ha
   }
   place();
   const speed = new Float64Array(n);
+  const bend = new Float64Array(n);
   for (let i = 0; i < n; i++) {
     const a = wrap(i - CURVE_SPAN, n);
     const c = wrap(i + CURVE_SPAN, n);
-    const radius = circum_radius(x[a], z[a], x[i], z[i], x[c], z[c]);
-    speed[i] = Math.min(Math.sqrt(LINE_GRIP * radius), ramp[i] >= 0 ? JUMP_PACE : Infinity);
+    bend[i] = inverse_radius(x[a], z[a], x[i], z[i], x[c], z[c]);
+    speed[i] = Math.min(Math.sqrt(LINE_GRIP / Math.abs(bend[i])), ramp[i] >= 0 ? JUMP_PACE : Infinity);
   }
   // Two laps backwards: the braking curve from the slowest bend wraps past the start line.
   for (let k = 2 * n - 1; k >= 0; k--) {
@@ -135,5 +132,5 @@ export function race_line(road: readonly RoadPoint[], ramps: readonly Ramp[], ha
     const next = wrap(k + 1, n);
     speed[i] = Math.min(speed[i], Math.sqrt(speed[next] * speed[next] + 2 * LINE_BRAKE * step[i]));
   }
-  return { road, offset, x, z, speed, ramp, step, room };
+  return { road, offset, x, z, speed, bend, ramp, step, room };
 }
