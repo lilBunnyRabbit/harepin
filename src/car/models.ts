@@ -13,7 +13,7 @@ import { lamps, popup, snap_lights, type HeadMesh, type Popup } from "./lights";
 import { back, livery_of, livery_parts, roof, type Livery } from "./livery";
 import { nitro_flame, type Jet } from "./nitro-look";
 import { aero_of, aero_parts, kit_parts, kit_skirts, rear_wing } from "./part-looks";
-import { STOCK_CALIPER, STOCK_TYRE, caliper_geometry, chrome_tone, wheel_geometry } from "./wheels";
+import { STOCK_CALIPER, STOCK_TYRE, brake_geometry, chrome_tone, wheel_geometry } from "./wheels";
 import { paint_finish, paint_lab, type Finish } from "./paint";
 import { WEAVE_KEY, weave_shader } from "./carbon";
 import { brand, color, dark, mix, tones } from "../theme/palette";
@@ -214,8 +214,8 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
 
   const caliper = part_of("brakes", kit.brakes).look?.caliper ?? (d.caliper ? { ...STOCK_CALIPER, tone: d.caliper } : STOCK_CALIPER);
   const axles = axles_of(spec);
-  const tyres = [0, 1].map((axle) => wheel_geometry(spec.wheel.radius, d.tyre[axle], d.rim, tyre, d.round));
-  const calipers = [0, 1].map((axle) => caliper_geometry(spec.wheel.radius, d.tyre[axle], d.rim, tyre, caliper));
+  const tyres = [0, 1].map((axle) => wheel_geometry(spec.wheel.radius, d.tyre[axle], d.rim, tyre));
+  const brakes = [0, 1].map((axle) => brake_geometry(spec.wheel.radius, d.tyre[axle], d.rim, tyre, caliper));
   const wheel_material = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
   const wheel_axles = spec.wheel.mounts.map((_, i) => axle_index(axles, i));
   const wheels = wheel_axles.map((axle, i) => {
@@ -225,7 +225,9 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
     const mesh = new THREE.Mesh(tyres[Math.min(axle, 1)], wheel_material);
     mesh.castShadow = true;
     spin.add(mesh);
-    steer.add(spin, new THREE.Mesh(calipers[Math.min(axle, 1)], wheel_material));
+    const brake_mesh = new THREE.Mesh(brakes[Math.min(axle, 1)], wheel_material);
+    mesh.scale.x = brake_mesh.scale.x = Math.sign(spec.wheel.mounts[i][0]);
+    steer.add(spin, brake_mesh);
     root.add(steer);
     return steer;
   });
