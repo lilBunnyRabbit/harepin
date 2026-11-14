@@ -4,6 +4,7 @@ import type { Pack } from "./pack";
 export const PACKS: Record<string, () => Promise<{ default: Pack }>> = {
   demo: () => import("./packs/demo"),
   "first-look": () => import("./packs/first-look"),
-  "t1-surfaces": () => import("./packs/t1-surfaces"),
+  "t1a-pads": () => import("./packs/t1a-pads"),
+  "t1b-brakes": () => import("./packs/t1b-brakes"),
   "t2-drift": () => import("./packs/t2-drift"),
 };

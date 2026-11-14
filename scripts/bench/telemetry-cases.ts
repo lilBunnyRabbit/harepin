@@ -20,6 +20,26 @@ export interface Telemetry {
   flick: { yaw: number; t: number; upright: number };
 }
 
+/** A fresh car up to `from_kmh` (20 s at most), then full brake: metres to a stop, and the speed it braked from. */
+export function brake_stop(spec: CarSpec, from_kmh: number, ground: Ground = FLAT): { m: number; from: number } {
+  const car = new Car(spec);
+  const kmh = () => car.forward_speed * 3.6;
+  const run = (seconds: number, controls: Controls, until?: () => boolean) => {
+    for (let t = 0; t < seconds; t += DT) {
+      car.step(DT, controls, ground);
+      if (!Number.isFinite(car.pos.x)) throw new Error("NaN");
+      if (until?.()) break;
+    }
+  };
+  car.place(0, drop_height(spec, 0.6), 0, 0);
+  run(2, idle);
+  run(20, { ...idle, throttle: 1 }, () => kmh() >= from_kmh);
+  const from = kmh();
+  const z = car.pos.z;
+  run(10, { ...idle, brake: 1 }, () => kmh() <= 0.5);
+  return { m: car.pos.z - z, from };
+}
+
 /** One car through every telemetry run in turn: each run starts from where the last left the car, as the CLI always has. */
 export function telemetry(spec: CarSpec, ground: Ground = FLAT): Telemetry {
   const car = new Car(spec);

@@ -8,7 +8,7 @@ Nothing in the lab touches the game around it: no records, ghosts, stars or goal
 
 | Link | What loads |
 |---|---|
-| `/?lab=<id>` | the committed pack `src/lab/packs/<id>.ts` (`?lab=demo` is the sample, `?lab=first-look` the first real session, `?lab=t1-surfaces` the stock coupe on every skidpad and runway lane, `?lab=t2-drift` the Drift preset on the drift circle, eight and hairpins with three mods) |
+| `/?lab=<id>` | the committed pack `src/lab/packs/<id>.ts` (`?lab=demo` is the sample, `?lab=first-look` the first real session, `?lab=t1a-pads` and `?lab=t1b-brakes` the stock coupe on ten skidpad and ten runway lanes, `?lab=t2-drift` the Drift preset on the drift circle, eight and hairpins with three mods) |
 | `/?lab=~<code>` | an inline pack carried in the link itself: no deploy needed |
 
 Works on the live site and in dev; no menu entry, like `?tune`. The lab world (`lab` kind, unlisted) loads, the car goes to the first trial's station and the pack card opens instead of the menu or the first-visit guide. Modes are off in the lab: the Modes page shows each one as "Not in the lab", and no lobby race starts.
@@ -196,14 +196,14 @@ Run it on every pack before sending the link (plan `docs/plan/feel-lab-v2.md`). 
 
 ```sh
 bun scripts/lab.ts <pack>                   # sim lines, deltas, drive time; exit 1 on a failed sim or a pack over budget
-bun scripts/lab.ts <pack> --base <trial>    # deltas against one trial instead of the first trial per station
+bun scripts/lab.ts <pack> --base <trial>    # deltas against one trial instead of the first trial per scenario
 hq lock run -- bun scripts/lab.ts matrix [car]   # the car x setup matrix as a markdown table, all cars about 30 s
 ```
 
 Pack output, one block per trial in the export's shape and key order, so a ` sim` line sits beside the owner's ` m` line:
 
 ```
-#sim demo r1 base first trial per station
+#sim demo r1 base first trial per scenario
 #trial sturm-turbo1 sturm.4.0.2.1.2 +torque*1.15 +mass+10 spec#7a22f86b pi647A runway/asphalt run est 0m20s
  sim 0-100=3.82 stop=28.5@100 top=303
  d 0-100=-0.103 stop=+0.104 top=+10.9 vs sturm-race
@@ -215,16 +215,16 @@ Pack output, one block per trial in the export's shape and key order, so a ` sim
 | skidpad, sweeper, lava | telemetry's skidpad (best steady g at 70 km/h), feel's lift-off mid corner, assists on | `latg`, `slip` |
 | slalom, hairpin | feel's power on mid corner (TCS on), step steer t90 | `slip`, `lag` |
 | drift, eight | `catch_drift` from 60 km/h aiming 30°, and its let-go time | `slip` (peak), `held`, `rec` |
-| runway, oval, brake | telemetry: 0-100 TCS on, 100-0 ABS on, top speed | `0-100`, `stop@100`, `top` |
+| runway, oval, brake | telemetry: 0-100 TCS on, top speed; a stop (ABS on) from the trial's `stop` goal speed, else 100 km/h | `0-100`, `stop@<km/h>`, `top` |
 | hub, hill, grid, kicker | none yet (` sim -`): landings and seams need the bot on the lab world (plan P2b), the hill a sloped scenario | |
 
 - Scenarios run on the flat ground named after the lane surface (`scripts/grounds.ts`, every lab surface has one). The drift scenarios only drive asphalt; their line ends `on asphalt` when the lane is another surface.
 - Keys steer with the trial's `aids.steer_mode` (Smooth by default); every other aid is the scenario's own, not the trial's.
-- `d` is the delta against the base: `--base`, else the pack's first trial on the same station. A trial with nothing in common with its base prints no `d`.
-- `est` and the `#end` budget come from `src/lab/budget.ts`: a lap or run per station (skidpad laps grow by `sqrt(1 / grip)` on low grip), a time goal's seconds, 45 s per card. Caps: 10 trials and 20 minutes; `pack.test.ts` holds every committed pack to them except the two written before them (`t1-surfaces`, `t2-drift`).
+- `d` is the delta against the base: `--base`, else the pack's first trial that ran the same scenarios (the table's rows), whatever its station. A trial with nothing in common with its base prints no `d`.
+- `est` and the `#end` budget come from `src/lab/budget.ts`: a lap or run per station (skidpad laps grow by `sqrt(1 / grip)` on low grip), a time goal's seconds, 45 s per card. Caps: 10 trials and 20 minutes; `pack.test.ts` holds every committed pack to them except `t2-drift` (12 trials, under the time cap).
 - A car that never reaches the speed a number is named after gets no number: no `stop` key on the sim line and `-` in the matrix's 100-0 and kick columns. `0-100=20` is the 20 s limit (never reached 100 km/h); the matrix's `kick` -1 never settled.
 
-The matrix (`scripts/lab/setups.ts`): per car its families (`stock`, `grip`, `aero`, `drift`, `dirt`, `max`, built from parts by name), every shipped preset of the car, and on the coupe a sweep of each tyre and aero part. `stock` and `dirt` also run on dirt, grass, sand, packed snow and ice. The bus is left out. Columns: spec hash, PI and class, 0-100, top, 100-0, skidpad g, step-steer t90, lift-off slip, power-on slip (2nd, TCS off), handbrake flick degrees, yaw kick settle at 220 km/h.
+The matrix (`scripts/lab/setups.ts`): per car its families (`stock`, `grip`, `aero`, `drift`, `dirt`, `max`, built from parts by name), every shipped preset of the car, and on the coupe a sweep of each tyre and aero part. `stock` and `dirt` also run on dirt, grass, sand, packed snow and ice. The bus is left out. Columns: spec hash, PI and class, 0-100, top, 100-0, skidpad g, turn-in (ms from full steer at 100 km/h to 0.2 rad/s, `bench.turn_in`), lift-off slip, power-on slip (2nd, TCS off), handbrake flick degrees, yaw kick settle at 220 km/h.
 
 Not built yet: the handling golden (`lab.ts golden`, P3), `lab.ts diff` between sessions (P5), `lab.ts promote` (P6).
 

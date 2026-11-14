@@ -12,11 +12,11 @@ const pad: Controls = { steer: 0, throttle: 0, brake: 0, handbrake: 0, analog: t
 const keys: Controls = { ...pad, analog: false };
 const tmp = new Vector3();
 
-function fresh(spec: CarSpec, setup?: (car: Car) => void): Car {
+function fresh(spec: CarSpec, setup?: (car: Car) => void, ground = ROAD): Car {
   const car = new Car(spec);
   setup?.(car);
   car.place(0, drop_height(spec, 0.6), 0, 0);
-  run(car, 1.5, () => pad);
+  run(car, 1.5, () => pad, ground);
   return car;
 }
 
@@ -39,6 +39,19 @@ const slip = (car: Car) => {
 const roll = (car: Car) => (Math.asin(tmp.set(1, 0, 0).applyQuaternion(car.quat).y) * 180) / Math.PI;
 const pitch = (car: Car) => (Math.asin(tmp.set(0, 0, 1).applyQuaternion(car.quat).y) * 180) / Math.PI;
 const cruise = (car: Car, target: number, extra: Partial<Controls> = {}, base = keys): Controls => ({ ...base, ...extra, throttle: Math.max(0, Math.min(1, (target - kmh(car)) * 0.15 + 0.3)) });
+
+/** Full steer at 100 km/h: seconds until the yaw rate reaches 0.2 rad/s, and the peak body roll, degrees. */
+export function turn_in(spec: CarSpec, ground = ROAD): { turn_in: number; body_roll: number } {
+  const car = fresh(spec, undefined, ground);
+  run(car, 30, () => cruise(car, 100), ground);
+  const yaw: number[] = [];
+  let body_roll = 0;
+  run(car, 3, () => cruise(car, 100, { steer: 1 }, pad), ground, () => {
+    yaw.push(Math.abs(car.ang.y));
+    body_roll = Math.max(body_roll, Math.abs(roll(car)));
+  });
+  return { turn_in: yaw.findIndex((v) => v >= 0.2) * DT, body_roll };
+}
 
 export interface Bench {
   t100: number;
@@ -103,15 +116,7 @@ export function bench(spec: CarSpec): Bench {
     skidpad = Math.max(skidpad, Math.abs(car.ang.y * car.vel.length()) / 9.81);
   }
 
-  car = fresh(spec);
-  run(car, 30, () => cruise(car, 100));
-  const yaw: number[] = [];
-  let body_roll = 0;
-  run(car, 3, () => cruise(car, 100, { steer: 1 }, pad), ROAD, () => {
-    yaw.push(Math.abs(car.ang.y));
-    body_roll = Math.max(body_roll, Math.abs(roll(car)));
-  });
-  const turn_in = yaw.findIndex((v) => v >= 0.2) * DT;
+  const { turn_in: turn, body_roll } = turn_in(spec);
 
   car = fresh(spec);
   run(car, 30, () => cruise(car, 90));
@@ -149,7 +154,7 @@ export function bench(spec: CarSpec): Bench {
     grass_g = Math.max(grass_g, Math.abs(car.ang.y * car.vel.length()) / 9.81);
   }
 
-  return { t100, top, stop, dive, skidpad, turn_in, body_roll, lift, power, flick, hold, grass_speed, grass_g };
+  return { t100, top, stop, dive, skidpad, turn_in: turn, body_roll, lift, power, flick, hold, grass_speed, grass_g };
 }
 
 if (import.meta.main) {

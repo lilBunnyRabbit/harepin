@@ -6,12 +6,12 @@ import { trial_sim, traits, type Sim, type Traits } from "./sims";
 
 declare const self: Worker;
 
-export type LabJob = { kind: "trial"; spec: CarSpec; station: StationId; surface: LabSurface; mode: SteerMode } | { kind: "traits"; spec: CarSpec; ground: GroundName };
+export type LabJob = { kind: "trial"; spec: CarSpec; station: StationId; surface: LabSurface; mode: SteerMode; stop_from: number } | { kind: "traits"; spec: CarSpec; ground: GroundName };
 
 export type LabResult = { kind: "trial"; sim: Sim } | { kind: "traits"; traits: Traits } | { kind: "error"; message: string };
 
 function work(job: LabJob): LabResult {
-  if (job.kind === "trial") return { kind: "trial", sim: trial_sim(job.spec, job.station, job.surface, job.mode) };
+  if (job.kind === "trial") return { kind: "trial", sim: trial_sim(job.spec, job.station, job.surface, job.mode, job.stop_from) };
   return { kind: "traits", traits: traits(job.spec, job.ground) };
 }
 

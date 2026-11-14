@@ -26,7 +26,7 @@ function failed(results: LabResult[], label: (i: number) => string): string[] {
   return results.flatMap((r, i) => (r.kind === "error" ? [`${label(i)}: ${r.message}`] : []));
 }
 
-const values_text = (values: SimValues) => values.map(([key, v]) => `${key}=${short(v)}${key === "stop" ? `@${STOP_FROM_KMH}` : ""}`).join(" ");
+const values_text = (values: SimValues, stop_from: number) => values.map(([key, v]) => `${key}=${short(v)}${key === "stop" ? `@${stop_from}` : ""}`).join(" ");
 
 function delta_text(values: SimValues, base: SimValues): string {
   const from = new Map(base);
@@ -39,7 +39,7 @@ function delta_text(values: SimValues, base: SimValues): string {
 }
 
 function trial_job(r: Resolved): LabJob {
-  return { kind: "trial", spec: r.spec, station: r.station.id, surface: r.lane.surface, mode: r.trial.aids?.steer_mode ?? SteerMode.SMOOTH };
+  return { kind: "trial", spec: r.spec, station: r.station.id, surface: r.lane.surface, mode: r.trial.aids?.steer_mode ?? SteerMode.SMOOTH, stop_from: r.trial.goal.kind === "stop" ? r.trial.goal.from_kmh : STOP_FROM_KMH };
 }
 
 async function run_pack(id: string): Promise<number> {
@@ -50,23 +50,23 @@ async function run_pack(id: string): Promise<number> {
   const named = flag("--base");
   const fixed = named === undefined ? -1 : trials.findIndex((r) => r.trial.id === named);
   if (named !== undefined && fixed < 0) throw new Error(`no trial "${named}" in ${pack.id}`);
-  // Until packs mark their own base (plan P5), a trial reads against the pack's first trial on the same station.
-  const base_of = (i: number) => (fixed >= 0 ? fixed : trials.findIndex((r) => r.station.id === trials[i].station.id));
 
   const keys = trials.map((r) => JSON.stringify(trial_job(r)));
   const unique = [...new Set(keys)];
   const ran = await run_pool<LabJob, LabResult>(WORKER, unique.map((k) => JSON.parse(k) as LabJob), JOBS, (_, done) => progress(done, unique.length));
   const results = keys.map((k) => ran[unique.indexOf(k)]);
   const sims = results.map((r) => (r.kind === "trial" ? r.sim : null));
+  // Until packs mark their own base (plan P5), a trial reads against the pack's first trial that ran the same scenarios.
+  const base_of = (i: number) => (fixed >= 0 ? fixed : sims.findIndex((s) => s?.scenario === sims[i]?.scenario));
 
-  console.log(`#sim ${pack.id} r${pack.rev} base ${named ?? "first trial per station"}`);
+  console.log(`#sim ${pack.id} r${pack.rev} base ${named ?? "first trial per scenario"}`);
   trials.forEach((r, i) => {
     const { trial } = r;
     console.log(`#trial ${trial.id} ${trial.car}${mods_text(trial.mods)} spec#${r.hash} pi${r.pi}${CLASS_LABELS[r.class]} ${trial.station}/${r.lane.name} ${goal_text(trial.goal)} est ${minutes(drive_seconds(r))}`);
     const sim = sims[i];
     if (!sim) return;
     if (!sim.values.length) return console.log(" sim -");
-    console.log(` sim ${values_text(sim.values)}${sim.ground === r.lane.surface ? "" : ` on ${sim.ground}`}`);
+    console.log(` sim ${values_text(sim.values, sim.stop_from)}${sim.ground === r.lane.surface ? "" : ` on ${sim.ground}`}`);
     const base = base_of(i);
     const delta = base === i ? "" : delta_text(sim.values, sims[base]?.values ?? []);
     if (delta) console.log(` d ${delta} vs ${trials[base].trial.id}`);
@@ -82,7 +82,7 @@ async function run_pack(id: string): Promise<number> {
 
 const num = (v: number, digits: number) => (Number.isNaN(v) ? "-" : v.toFixed(digits));
 
-const COLUMNS = ["setup", "ground", "spec#", "PI", "0-100 s", "top km/h", "100-0 m", "skidpad g", "turn-in ms", "lift-off °", "power-on °", "flick °", "kick 220 s"];
+const COLUMNS = ["setup", "ground", "spec#", "PI", "0-100 s", "top km/h", "100-0 m", "skidpad g", "turn-in ms to 0.2 rad/s", "lift-off °", "power-on °", "flick °", "kick 220 s"];
 
 async function run_matrix(car?: string): Promise<number> {
   if (car !== undefined && !is_car(car)) throw new Error(`unknown car "${car}"`);
