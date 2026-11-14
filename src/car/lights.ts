@@ -2,6 +2,7 @@ import * as THREE from "three";
 import type { Design } from "./designs";
 import { merge, parts, tint } from "./geometry";
 import type { CarView } from "./models";
+import { flame_sway } from "./nitro-look";
 import { brand, color, glow, lighten, tones } from "../theme/palette";
 
 const HEAD_GLOW = 1.2;
@@ -9,7 +10,6 @@ const HEAD_GLOW = 1.2;
 // Brake emissive runs 0.5 at rest and 2.2 braking (`sync_car_view`, remotes): only the braking glow clears bloom.
 const BRAKE_GLOW = 0.5;
 
-const FLAME_LENGTH = 1;
 // A dusk theme's error is a light salmon; the lamp lens sits deeper so it reads red at rest, braking or not.
 const TAIL_L = 0.55;
 const tail = lighten(brand.error, Math.min(0, TAIL_L - brand.error[0]));
@@ -56,24 +56,16 @@ export function set_lights(view: CarView, on: boolean) {
   if (view.popup) view.popup.pivot.rotation.x = on ? -view.popup.lift : 0;
 }
 
-export function flame_mesh(d: Design): THREE.Mesh {
-  const [x, y, z] = d.exhaust;
-  const outer = color(brand.info);
-  const core = color(brand.cottontail);
-  const cone = (r: number, length: number, side: number, tone: THREE.Color) =>
-    tint(new THREE.ConeGeometry(r, length, 8).rotateX(-Math.PI / 2).translate(side * x, y, -length / 2), tone);
-  const geometry = merge((x === 0 ? [1] : [-1, 1]).flatMap((side) => [cone(0.15, FLAME_LENGTH, side, outer), cone(0.07, FLAME_LENGTH * 0.6, side, core)]));
-  const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false }));
-  mesh.position.z = z - 0.16;
-  mesh.visible = false;
-  return mesh;
-}
+const SWAY_STEP = 0.1;
 
-/** Shows or hides the nitro flame; `time` in seconds drives its flicker. */
-export function show_flame(view: CarView, on: boolean, time: number) {
-  const { flame } = view;
+/** Shows or hides the nitro flame; `time` in seconds drives its flicker, `yaw_rate` in rad/s (positive turning left) its sway. */
+export function show_flame(view: CarView, on: boolean, time: number, yaw_rate: number) {
+  const { flame, sway } = view;
   flame.visible = on;
-  if (!on) return;
-  const flicker = Math.sin(time * 61) * Math.sin(time * 23 + 1);
-  flame.scale.set(1 + 0.15 * flicker, 1 + 0.15 * flicker, 0.75 + 0.25 * flicker);
+  if (on) {
+    const flicker = Math.sin(time * 61) * Math.sin(time * 23 + 1);
+    flame.scale.set(1 + 0.15 * flicker, 1 + 0.15 * flicker, 0.75 + 0.25 * flicker);
+    sway.value = flame_sway(sway.value, yaw_rate, Math.min(SWAY_STEP, Math.max(0, time - view.sway_at)));
+  } else sway.value = 0;
+  view.sway_at = time;
 }

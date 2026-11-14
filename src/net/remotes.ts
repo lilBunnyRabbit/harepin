@@ -28,6 +28,8 @@ interface RemoteView {
   /** Name label height over the car origin, metres. */
   above: number;
   spin: number;
+  /** Last drawn heading, radians, for the yaw rate the nitro flame sways by. */
+  heading: number;
 }
 
 const ABOVE = 2.2;
@@ -153,7 +155,7 @@ export class Remotes {
       const shadow = contact_shadow();
       fit_contact_shadow(shadow, spec);
       this.scene.add(shadow.mesh);
-      rv = { code, built: now, spec, view, materials, shadow, label, name, tier: null, tag: "", above: ABOVE * oversize(spec).height, spin: 0 };
+      rv = { code, built: now, spec, view, materials, shadow, label, name, tier: null, tag: "", above: ABOVE * oversize(spec).height, spin: 0, heading: 0 };
       this.views.set(remote.id, rv);
     }
     const t = this.net.render_time(remote);
@@ -189,7 +191,10 @@ export class Remotes {
       w.children[0].rotation.x = rv.spin;
     });
     rv.view.brake.emissiveIntensity = s.brake ? 2.2 : 0.5;
-    show_flame(rv.view, s.boost === true, now / 1000);
+    const heading = Math.atan2(this.forward.x, this.forward.z);
+    const turned = Math.atan2(Math.sin(heading - rv.heading), Math.cos(heading - rv.heading));
+    rv.heading = heading;
+    show_flame(rv.view, s.boost === true, now / 1000, dt > 0 ? turned / dt : 0);
     if (rv.view.lights !== (s.lights ?? true)) set_lights(rv.view, s.lights ?? true);
     // Remote cars are ghosts with no collision, so one sitting inside yours fades out instead of hiding your car.
     const opacity = Math.min(Math.max(0.22, Math.min(1, (root.position.distanceTo(me) - 3) / 9)), camera_fade(root.position, camera.position));

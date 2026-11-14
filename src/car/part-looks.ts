@@ -4,6 +4,7 @@ import type { CarSpec } from "./cars";
 import type { Design, Slab, Wing } from "./designs";
 import { box, extrude, face_at, parts, slab, tint, top_at, type Point } from "./geometry";
 import { skirts } from "./body-shell";
+import { nitro_parts } from "./nitro-look";
 import { chrome_tone } from "./wheels";
 
 const WINGS = [
@@ -121,5 +122,7 @@ export function kit_parts(d: Design, kit: Record<Slot, number>, paint: THREE.Col
         out.push(tint(new THREE.CylinderGeometry(r * 0.65, r * 0.65, 0.22, 8).rotateX(Math.PI / 2).translate(side * at, py, pz - 0.056), trim));
       }
   }
+  const bottle = part_of("nitro", kit.nitro).look?.bottle;
+  if (bottle) out.push(...nitro_parts(d, bottle, engine > 1, trim));
   return out;
 }

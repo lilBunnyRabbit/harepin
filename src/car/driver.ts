@@ -226,7 +226,7 @@ export class Driver {
     drawn.quat.slerpQuaternions(step_from.quat, car.quat, blend);
     drawn.vel.copy(car.vel);
     sync_car_view(view, car);
-    show_flame(view, car.nitro.boosting, now / 1000);
+    show_flame(view, car.nitro.boosting, now / 1000, car.ang.y);
     view.root.position.copy(drawn.pos);
     view.root.quaternion.copy(drawn.quat);
     view.heads.visible = chase.mode !== 1 || chase.top;

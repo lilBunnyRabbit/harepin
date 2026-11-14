@@ -3,11 +3,12 @@ import { axle_index, axles_of } from "./axles";
 import { rest_reach, type Car } from "./car";
 import { DEFAULT_PARTS, build_spec, part_of, type Build, type Slot } from "./build";
 import { COUPE, type CarSpec } from "./cars";
-import { body_pieces, cabin_parts, flares, sculpt, side_panel, skirts } from "./body-shell";
+import { body_pieces, cabin_parts, flares, sculpt, sculpt_factor, side_panel, skirts } from "./body-shell";
 import { DESIGNS } from "./designs";
 import { extrude, merge, parts, slab, taper, tint } from "./geometry";
-import { flame_mesh, lamps, popup, set_lights, type HeadMesh, type Popup } from "./lights";
+import { lamps, popup, set_lights, type HeadMesh, type Popup } from "./lights";
 import { back, livery_of, livery_parts, roof, type Livery } from "./livery";
+import { nitro_flame } from "./nitro-look";
 import { aero_of, aero_parts, kit_parts, rear_wing } from "./part-looks";
 import { STOCK_CALIPER, STOCK_TYRE, caliper_geometry, chrome_tone, wheel_geometry } from "./wheels";
 import { paint_finish, paint_lab, type Finish } from "./paint";
@@ -33,6 +34,9 @@ export interface CarView {
   eye: THREE.Vector3 | null;
   /** Nitro exhaust flame, hidden until `show_flame`. */
   flame: THREE.Mesh;
+  /** The flame's sideways bend, read by its shader, and the time in seconds `show_flame` last moved it. */
+  sway: THREE.IUniform<number>;
+  sway_at: number;
 }
 
 export function build_view(build: Build, spec: CarSpec = build_spec(build)): CarView {
@@ -182,7 +186,9 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
   sculpt(heads.geometry, d);
   sculpt(tails.geometry, d);
   const pods = popup(d, heads, paint, matte);
-  const flame = flame_mesh(d);
+  const sway = { value: 0 };
+  const flame = nitro_flame(d, sway);
+  flame.geometry.scale(sculpt_factor(d, d.exhaust[1], d.exhaust[2]), 1, 1);
   body.add(hull, pods?.pivot ?? heads, tails, flame);
   root.add(body);
 
@@ -204,7 +210,7 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
     return steer;
   });
   const steered = wheel_axles.map((axle) => axles[axle].steer);
-  const view = { root, body, wheels, steered, brake, heads, lights: true, popup: pods, eye: d.eye ? new THREE.Vector3(0, body.position.y + d.eye[1], d.eye[0]) : null, flame };
+  const view = { root, body, wheels, steered, brake, heads, lights: true, popup: pods, eye: d.eye ? new THREE.Vector3(0, body.position.y + d.eye[1], d.eye[0]) : null, flame, sway, sway_at: 0 };
   set_lights(view, true);
   return view;
 }
