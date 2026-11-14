@@ -1,5 +1,5 @@
-import { cabin_mirror, plane, roof_lip, tail_end } from "./design-parts";
-import { kit_shoulder, type Cabin, type Design, type Kit, type Section, type Wing } from "./designs";
+import { cabin_mirror, kit_shoulder, plane, roof_lip, tail_end } from "./design-parts";
+import type { Cabin, Design, Kit, Section, Wing } from "./designs";
 import type { Part, Point } from "./geometry";
 
 // A supermini: the short bonnet runs into a raked screen, and the belt climbs to a steep tailgate close behind the wheels.

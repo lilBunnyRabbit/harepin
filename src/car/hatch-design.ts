@@ -1,5 +1,5 @@
-import { cabin_mirror, roof_lip, tail_end } from "./design-parts";
-import { kit_shoulder, type Arches, type Cabin, type Design, type Kit, type Section, type Wing } from "./designs";
+import { cabin_mirror, kit_shoulder, roof_lip, tail_end } from "./design-parts";
+import type { Arches, Cabin, Design, Kit, Section, Wing } from "./designs";
 import type { Part, Point } from "./geometry";
 
 const HATCH_OUTLINE: Point[] = [[1.9, 0.3], [1.96, 0.46], [1.95, 0.68], [1.86, 0.77], [1.0, 0.88], [-1.82, 0.93], [-1.95, 0.93], [-1.98, 0.62], [-1.93, 0.3]];

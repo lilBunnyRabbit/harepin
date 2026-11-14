@@ -1,5 +1,5 @@
-import { cabin_mirror, endplate, gurney, leg, plane, tail_end, widen_wing } from "./design-parts";
-import { kit_shoulder, type Arches, type Cabin, type Design, type Kit, type Section, type Slab, type Wing } from "./designs";
+import { cabin_mirror, endplate, gurney, kit_shoulder, leg, plane, tail_end, widen_wing } from "./design-parts";
+import type { Arches, Cabin, Design, Kit, Section, Slab, Wing } from "./designs";
 import type { Part, Point } from "./geometry";
 
 // The hood is level and the deck kicks up behind the door, so the cabin base sinks into the haunch at its tail.

@@ -199,3 +199,8 @@ export function widen_wing(wing: Wing, k: number): Wing {
   const slab = (s: Slab): Slab => ({ ...s, from: s.from * k, to: s.to * k });
   return { paint: wing.paint.map(part), trim: wing.trim.map(part), lips: wing.lips?.map(slab), stands: wing.stands?.map(slab) };
 }
+
+/** The shoulder a kit shell `wide` across needs for its body top to stay where the stock body's is. */
+export function kit_shoulder(stock: number, shoulder: number, wide: number): number {
+  return 1 - (stock * (1 - shoulder)) / wide;
+}

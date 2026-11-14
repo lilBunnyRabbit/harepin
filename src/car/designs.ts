@@ -210,11 +210,6 @@ export interface Detail {
 
 export type Kit = Partial<Pick<Design, "outline" | "width" | "sill" | "section" | "wings" | "mirror" | "arches" | "slabs" | "heads" | "tails" | "paint" | "trim" | "markers" | "chrome" | "tyre" | "rim" | "caliper">>;
 
-/** The shoulder a kit shell `wide` across needs for its body top to stay where the stock body's is. */
-export function kit_shoulder(stock: number, shoulder: number, wide: number): number {
-  return 1 - (stock * (1 - shoulder)) / wide;
-}
-
 export const DESIGNS: Record<BodyStyle, Design> = {
   coupe: COUPE_DESIGN,
   hatch: HATCH_DESIGN,
