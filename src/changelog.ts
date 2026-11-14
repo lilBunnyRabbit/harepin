@@ -57,6 +57,7 @@ export const CHANGELOG: Release[] = [
     version: "0.42.0",
     date: "2026-11-14",
     title: "Fresh metal",
+    highlights: DRAFT_HIGHLIGHTS,
     changes: [
       { kind: NEW, text: "Legend tier: 12 events ending in the Velodrome final, with carbon paint, the Lanes decal and the Legend champion badge to earn" },
       { kind: NEW, text: "Two new cars: Tsumuji, a light drift hardtop with pop-up headlights, and Sajin, a sand buggy built for the dunes" },

@@ -52,6 +52,7 @@ test("version.json is checked, not trusted", () => {
     expect(parse_version_file(bad)).toBeNull();
   }
   const odd = { ...good, notes: [{ version: "x" }, { ...CHANGELOG[0], changes: [{ kind: "huh", text: "?" }] }] };
-  expect(parse_version_file(odd)?.notes).toEqual([{ ...CHANGELOG[0], changes: [] }]);
+  // version.json carries the plain notes; a release story lives in the bundle that has its cars.
+  expect(parse_version_file(odd)?.notes).toEqual([{ ...CHANGELOG[0], highlights: undefined, changes: [] }]);
   expect(parse_version_file({ ...good, notes: undefined })?.notes).toEqual([]);
 });
