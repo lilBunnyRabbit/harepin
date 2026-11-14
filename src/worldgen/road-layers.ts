@@ -1,7 +1,8 @@
 import { spur_edges } from "./graph";
 import { junction_patch, type Arm, type Patch, type Reach } from "./junction";
 import type { Rgb } from "./mesh";
-import { offset_reach, type Roads } from "./roads";
+import type { Extent } from "./chunk-grid";
+import { offset_reach, strip_line, type Roads, type StripLine } from "./roads";
 import { ROAD_HALF, SIDEWALK, type RoadEdge, type RoadPoint, type WorldData } from "./types";
 
 const SURFACE_LIFT = 0.025;
@@ -238,11 +239,49 @@ function folds(p: RoadPoint, q: RoadPoint): boolean {
   return along - KERB_OUT * Math.abs(turn) <= 0;
 }
 
-export function road_layers(data: RoadData, out: Roads, tones: RoadTones, junctions: Junctions = road_junctions(data)): Roads {
+/** A non-circuit edge's line; a street adds its strip stretched over the crossings and where a spur's gate runs near it. */
+type EdgeLines = { street: false; edge: RoadEdge; line: StripLine } | { street: true; edge: RoadEdge; line: StripLine; wide: StripLine; near_spur: Uint8Array };
+
+/** What `road_layers` derives from the whole network: the same for every chunk a streamed world meshes, so built once. */
+export interface RoadLayout {
+  ring: StripLine;
+  /** 1 per circuit segment a patch covers; `unlined` also counts crossings where the circuit drops its centre line. */
+  inside: Uint8Array;
+  unlined: Uint8Array;
+  /** 1 per circuit segment whose edge lines run: open and clear of every loose junction. */
+  edged: Uint8Array;
+  edges: EdgeLines[];
+}
+
+export function road_layout(data: RoadData, junctions: Junctions, ext: Extent): RoadLayout {
   const { road, graph, circuit } = data;
   const n = road.length;
   const spurs = spur_edges(graph, circuit);
-  const { patched, loose, trims } = junctions;
+  const { loose } = junctions;
+  const inside = ring_mouths(data, junctions);
+  // A circuit along town roads drops its centre line across every crossing; a highway keeps it through a side road's T.
+  const unlined = ring_mouths(data, junctions, (edge) => edge.kind !== "highway");
+  const edged = new Uint8Array(n);
+  for (let s = 0; s < n; s++) edged[s] = !inside[s] && loose.every((m) => Math.abs(((s - m + n * 1.5) % n) - n / 2) > MOUTH_CLEAR) ? 1 : 0;
+  // Spurs only come near streets where they leave their town's gate.
+  const gates = spurs.flatMap((e) => e.points.slice(0, SPUR_MOUTH));
+  const under_spur = (p: RoadPoint, reach: number) => gates.some((q) => (q.x - p.x) ** 2 + (q.z - p.z) ** 2 < reach * reach);
+  const edges: EdgeLines[] = [];
+  for (const edge of graph.edges) {
+    if (junctions.ring_at.has(edge.id)) continue;
+    const line = strip_line(edge.points, false, ext);
+    if (edge.kind !== "street") {
+      edges.push({ street: false, edge, line });
+      continue;
+    }
+    const near_spur = Uint8Array.from(edge.points, (p) => (under_spur(p, edge.half + SIDEWALK + 6) ? 1 : 0));
+    edges.push({ street: true, edge, line, wide: strip_line(extended(edge.points, edge.half), false, ext), near_spur });
+  }
+  return { ring: strip_line(road, true, ext), inside, unlined, edged, edges };
+}
+
+export function road_layers(data: RoadData, out: Roads, tones: RoadTones, junctions: Junctions = road_junctions(data), layout: RoadLayout = road_layout(data, junctions, out.ext)): Roads {
+  const { patched, trims } = junctions;
   const trim = (id: number): Trim => trims.get(id) ?? untrimmed();
   for (const { x, z, arms, patch } of patched) {
     const chunk = out.chunk(x, z);
@@ -256,47 +295,41 @@ export function road_layers(data: RoadData, out: Roads, tones: RoadTones, juncti
     }
   }
 
-  const inside = ring_mouths(data, junctions);
-  // A circuit along town roads drops its centre line across every crossing; a highway keeps it through a side road's T.
-  const unlined = ring_mouths(data, junctions, (edge) => edge.kind !== "highway");
-  const open = (s: number) => !inside[s];
-  const clear_of_mouths = (s: number) => open(s) && loose.every((m) => Math.abs(((s - m + n * 1.5) % n) - n / 2) > MOUTH_CLEAR);
-  out.strip(out.surface, road, true, -ROAD_HALF, ROAD_HALF, RING_LIFT, open, tones.asphalt);
-  out.strip(out.marks, road, true, -MARK_HALF, MARK_HALF, MARK_LIFT, (s) => !unlined[s] && s % DASH < DASH_ON, tones.line);
-  out.strip(out.marks, road, true, ROAD_HALF - 0.55, ROAD_HALF - 0.3, MARK_LIFT, clear_of_mouths, tones.edge_line);
-  out.strip(out.marks, road, true, -ROAD_HALF + 0.3, -ROAD_HALF + 0.55, MARK_LIFT, clear_of_mouths, tones.edge_line);
+  const { ring, inside, unlined, edged } = layout;
+  const clear_of_mouths = (s: number) => edged[s] === 1;
+  out.strip_line(out.surface, ring, -ROAD_HALF, ROAD_HALF, RING_LIFT, (s) => !inside[s], tones.asphalt);
+  out.strip_line(out.marks, ring, -MARK_HALF, MARK_HALF, MARK_LIFT, (s) => !unlined[s] && s % DASH < DASH_ON, tones.line);
+  out.strip_line(out.marks, ring, ROAD_HALF - 0.55, ROAD_HALF - 0.3, MARK_LIFT, clear_of_mouths, tones.edge_line);
+  out.strip_line(out.marks, ring, -ROAD_HALF + 0.3, -ROAD_HALF + 0.55, MARK_LIFT, clear_of_mouths, tones.edge_line);
 
-  // Spurs only come near streets where they leave their town's gate.
-  const gates = spurs.flatMap((e) => e.points.slice(0, SPUR_MOUTH));
-  const under_spur = (p: RoadPoint, reach: number) => gates.some((q) => (q.x - p.x) ** 2 + (q.z - p.z) ** 2 < reach * reach);
-  const edge_lines = (points: RoadPoint[], half: number, keep: (s: number) => boolean) => {
+  const edge_lines = (line: StripLine, half: number, keep: (s: number) => boolean) => {
     for (const side of [-1, 1]) {
       const at = side * (half - EDGE_INSET - EDGE_WIDTH / 2);
-      out.strip(out.marks, points, false, at - EDGE_WIDTH / 2, at + EDGE_WIDTH / 2, MARK_LIFT, keep, tones.edge_line);
+      out.strip_line(out.marks, line, at - EDGE_WIDTH / 2, at + EDGE_WIDTH / 2, MARK_LIFT, keep, tones.edge_line);
     }
   };
-  for (const edge of graph.edges) {
-    if (junctions.ring_at.has(edge.id)) continue;
+  for (const lines of layout.edges) {
+    const { edge, line } = lines;
     const { points, half } = edge;
     const last = points.length - 1;
     const { mouths, sides } = trim(edge.id);
-    if (edge.kind !== "street") {
+    if (!lines.street) {
       const from = mouths[0] || SPUR_MARK_CLEAR + 1;
       const to = last - (mouths[1] || SPUR_MARK_CLEAR);
       const marked = (s: number) => s >= from && s < to;
-      out.strip(out.surface, points, false, -half, half, SPUR_LIFT, (s) => s >= mouths[0] && s < last - mouths[1], tones.asphalt);
-      out.strip(out.marks, points, false, -MARK_HALF, MARK_HALF, MARK_LIFT, (s) => marked(s) && s % DASH < DASH_ON, tones.line);
-      edge_lines(points, half, marked);
+      out.strip_line(out.surface, line, -half, half, SPUR_LIFT, (s) => s >= mouths[0] && s < last - mouths[1], tones.asphalt);
+      out.strip_line(out.marks, line, -MARK_HALF, MARK_HALF, MARK_LIFT, (s) => marked(s) && s % DASH < DASH_ON, tones.line);
+      edge_lines(line, half, marked);
       continue;
     }
     // Sidewalks start at the crossing street's edge, so two sidewalks only ever overlap in the same colour at a block corner.
     const from = mouths[0] ? mouths[0] : -1;
     const to = mouths[1] ? last - mouths[1] : last + 1;
-    out.strip(out.surface, extended(points, half), false, -half, half, SURFACE_LIFT, (e) => e - 1 >= from && e - 1 < to, tones.asphalt);
+    out.strip_line(out.surface, lines.wide, -half, half, SURFACE_LIFT, (e) => e - 1 >= from && e - 1 < to, tones.asphalt);
     const step = Math.hypot(points[1].x - points[0].x, points[1].z - points[0].z) || 1;
     const ends = Math.ceil(half / step);
     const clear = Math.ceil((half + SIDEWALK) / step);
-    const near_spur = points.map((p) => under_spur(p, half + SIDEWALK + 6));
+    const { near_spur } = lines;
     const marked = (s: number) => s >= Math.max(clear, mouths[0]) && s < last - Math.max(clear, mouths[1]) && !near_spur[s] && !near_spur[s + 1];
     // A patched far end reads the street backwards, so its arm's -1 side is the strip's +1 side.
     const walkway = (side: 0 | 1) => {
@@ -304,10 +337,10 @@ export function road_layers(data: RoadData, out: Roads, tones: RoadTones, juncti
       const hi = last - (mouths[1] ? sides[1][1 - side] : ends);
       return (s: number) => s >= lo && s < hi;
     };
-    out.strip(out.surface, points, false, -half - SIDEWALK, -half, SURFACE_LIFT, walkway(0), tones.sidewalk);
-    out.strip(out.surface, points, false, half, half + SIDEWALK, SURFACE_LIFT, walkway(1), tones.sidewalk);
-    edge_lines(points, half, marked);
-    out.strip(out.marks, points, false, -MARK_HALF, MARK_HALF, MARK_LIFT, (s) => marked(s) && s % DASH < DASH_ON, tones.line);
+    out.strip_line(out.surface, line, -half - SIDEWALK, -half, SURFACE_LIFT, walkway(0), tones.sidewalk);
+    out.strip_line(out.surface, line, half, half + SIDEWALK, SURFACE_LIFT, walkway(1), tones.sidewalk);
+    edge_lines(line, half, marked);
+    out.strip_line(out.marks, line, -MARK_HALF, MARK_HALF, MARK_LIFT, (s) => marked(s) && s % DASH < DASH_ON, tones.line);
   }
   return out;
 }

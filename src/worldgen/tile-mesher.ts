@@ -6,7 +6,7 @@ import { KINDS } from "./kinds/kinds";
 import { PLAN_CELL } from "./mainland";
 import { plan_grid } from "./plan-grid";
 import { ISLAND } from "./recipe";
-import { road_junctions, road_layers, type Junctions } from "./road-layers";
+import { road_junctions, road_layers, road_layout, type Junctions, type RoadLayout } from "./road-layers";
 import { Roads } from "./roads";
 import { land_height } from "./terrain";
 import { TILE_SIDE, TileStore, type Tile, type VectorOut } from "./tiles";
@@ -43,6 +43,7 @@ export class TileMesher {
   private readonly recent: number[] = [];
   private readonly cuts: BiomeCuts;
   private readonly junctions: Junctions;
+  private readonly layout: RoadLayout;
   private readonly probe: LandProbe;
   private readonly water: WaterIndex | null;
   private readonly towns = new Map<number, ChunkTown>();
@@ -59,6 +60,7 @@ export class TileMesher {
     const height = base.kind === "terrain" ? land_height(base.seed, base.shape) : () => base.height;
     this.cuts = plan_cuts(seed, plan_grid(ext, PLAN_CELL, height), biomes);
     this.junctions = road_junctions(data);
+    this.layout = road_layout(data, this.junctions, ext);
     const op = data.ground.ops.find((o) => o.kind === "water");
     this.water = op?.kind === "water" ? water_index(op.water) : null;
     const store = this.store;
@@ -85,7 +87,7 @@ export class TileMesher {
       for (let i = Math.max(0, ci - 1); i <= Math.min(side - 1, ci + 1); i++) this.tile(j * side + i);
     const tile = this.tile(index);
     const [x0, z0] = chunk_corner(index, this.ext);
-    const roads = road_layers(this.data, new Roads(this.store, this.ext, index), this.tones, this.junctions);
+    const roads = road_layers(this.data, new Roads(this.store, this.ext, index), this.tones, this.junctions, this.layout);
     const road = soup([roads.surface[index], roads.marks[index]]);
     const here = this.towns.get(index);
     const chunk: ChunkBuffers = {
