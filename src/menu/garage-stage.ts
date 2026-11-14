@@ -1,5 +1,7 @@
 import * as THREE from "three";
-import { DEFAULT_PARTS, SLOTS, SLOT_NAMES, WHOLE_CAR, build_code, build_spec, type Build, type Part, type SlotView } from "../car/build";
+import { ConvexHull } from "three/examples/jsm/math/ConvexHull.js";
+import { DEFAULT_BUILD, DEFAULT_PARTS, SLOTS, SLOT_NAMES, WHOLE_CAR, build_code, build_spec, type Build, type Part, type SlotView } from "../car/build";
+import { CARS, is_car, type CarId } from "../car/cars";
 import { contact_shadow } from "../car/contact-shadow";
 import { build_view, dispose_car_view, rest_wheels, type CarView } from "../car/models";
 import { brand, color, dark } from "../theme/palette";
@@ -38,6 +40,18 @@ interface Pose {
 
 const pose_of = (view: SlotView): Pose => ({ yaw: view.yaw, pitch: 0, zoom: 1 });
 
+interface Outline {
+  /** Hull corners only: the fit takes the extreme of a linear measure over the points, always found at a corner. */
+  points: THREE.Vector3[];
+  center: THREE.Vector3;
+  half: THREE.Vector3;
+}
+
+interface Fit {
+  distance: number;
+  aim: THREE.Vector3;
+}
+
 export class GarageStage {
   private readonly scene = new THREE.Scene();
   private readonly camera = new THREE.PerspectiveCamera(32, 1, 0.1, 80);
@@ -46,9 +60,14 @@ export class GarageStage {
   private view: CarView | null = null;
   private shown_code = "";
   private frame = 0;
-  /** The outline of every part this car can wear, unturned: the framing is fitted to it once per car, so swapping a part never moves the camera. */
-  private points: THREE.Vector3[] = [];
-  private stand_car: string | null = null;
+  /** The framing is fitted to one outline per car, so swapping a part never moves the camera. */
+  private readonly outlines = new Map<CarId, Outline>();
+  private readonly building = new Map<CarId, Generator<void, Outline>>();
+  /** Fits for the clear area and aspect in `fit_area`. */
+  private readonly fits = new Map<CarId, Fit>();
+  private fit_area = "";
+  private stand_car: CarId | null = null;
+  private warm_handle = 0;
   /** The point the camera looks at and its distance there before zoom; set by `frame_car`. */
   private readonly aim_at = new THREE.Vector3();
   private fit_distance = 10;
@@ -96,58 +115,74 @@ export class GarageStage {
     this.pointers.clear();
     cancelAnimationFrame(this.frame);
     this.frame = 0;
+    cancelIdleCallback(this.warm_handle);
+    this.warm_handle = 0;
   }
 
   show(build: Build) {
     const code = build_code(build);
     if (code === this.shown_code) return;
     this.shown_code = code;
-    if (this.view) {
-      this.scene.remove(this.view.root);
-      dispose_car_view(this.view);
-    }
+    const old = this.view;
+    if (old) this.scene.remove(old.root);
     this.view = stand_view(build);
     this.scene.add(this.view.root);
     if (build.car !== this.stand_car) this.stand(build);
     this.draw();
+    // Disposed after the new car's first draw: three drops a program its last material lets go, and the new car's
+    // materials would compile it again.
+    if (old) dispose_car_view(old);
+    this.warm();
   }
 
-  /** Outlines the car with every part it can wear, so the framing and shadow fit them all and stay put across swaps. */
+  /** Stands the car on the outline of every part it can wear, so the framing and shadow fit them all and stay put across swaps. */
   private stand(build: Build) {
     this.stand_car = build.car;
-    const base: Build = { ...build, parts: { ...DEFAULT_PARTS } };
-    // Only parts that change the shape: a look of their own, or a ride height or centre of mass that moves the body.
-    const shaped = ({ look, mod }: Part) => look !== undefined || [mod.add, mod.scale].some((m) => m?.rest !== undefined || m?.cog !== undefined);
-    const builds = [base];
-    for (const slot of SLOT_NAMES) {
-      const parts: Part[] = SLOTS[slot].parts;
-      parts.forEach((part, i) => shaped(part) && builds.push({ ...base, parts: { ...base.parts, [slot]: i } }));
-    }
-    const seen = new Set<string>();
-    const vertex = new THREE.Vector3();
-    const box = new THREE.Box3();
-    this.points = [];
-    for (const variant of builds) {
-      const view = stand_view(variant);
-      view.root.traverseVisible((object) => {
-        if (!(object instanceof THREE.Mesh)) return;
-        const position = object.geometry.getAttribute("position");
-        for (let i = 0; i < position.count; i++) {
-          vertex.fromBufferAttribute(position, i).applyMatrix4(object.matrixWorld);
-          box.expandByPoint(vertex);
-          const key = `${Math.round(vertex.x / OUTLINE_GRID)},${Math.round(vertex.y / OUTLINE_GRID)},${Math.round(vertex.z / OUTLINE_GRID)}`;
-          if (seen.has(key)) continue;
-          seen.add(key);
-          this.points.push(vertex.clone());
-        }
-      });
-      dispose_car_view(view);
-    }
-    const center = box.getCenter(new THREE.Vector3());
-    const half = box.getSize(new THREE.Vector3()).multiplyScalar(0.5);
+    const { center, half } = this.outline(build);
     this.shadow.mesh.position.set(center.x, GROUND + 0.02, center.z);
     this.shadow.mesh.scale.set(half.x, 1, half.z / 2);
     this.frame_car();
+  }
+
+  private outline(build: Build): Outline {
+    const done = this.outlines.get(build.car);
+    if (done) return done;
+    const steps = this.building.get(build.car) ?? outline_steps(build);
+    let step = steps.next();
+    while (!step.done) step = steps.next();
+    this.building.delete(build.car);
+    this.outlines.set(build.car, step.value);
+    return step.value;
+  }
+
+  private warm() {
+    cancelIdleCallback(this.warm_handle);
+    const ids = Object.keys(CARS).filter(is_car);
+    const at = this.stand_car ? ids.indexOf(this.stand_car) : 0;
+    const queue = ids
+      .filter((id) => !this.fits.has(id))
+      .sort((a, b) => Math.abs(ids.indexOf(a) - at) - Math.abs(ids.indexOf(b) - at));
+    // The game loop keeps running behind the menu and leaves idle slots of a few ms, shorter than one variant, so each
+    // slot builds at least one.
+    const next = (deadline: IdleDeadline) => {
+      do {
+        const car = queue[0];
+        const outline = this.outlines.get(car);
+        if (outline) {
+          if (!this.fits.has(car)) this.fits.set(car, this.fit(outline.points));
+          queue.shift();
+          continue;
+        }
+        const steps = this.building.get(car) ?? outline_steps({ ...DEFAULT_BUILD, car });
+        this.building.set(car, steps);
+        const step = steps.next();
+        if (!step.done) continue;
+        this.building.delete(car);
+        this.outlines.set(car, step.value);
+      } while (queue.length && deadline.timeRemaining() > 0);
+      this.warm_handle = queue.length ? requestIdleCallback(next) : 0;
+    };
+    this.warm_handle = queue.length ? requestIdleCallback(next) : 0;
   }
 
   aim(view: SlotView) {
@@ -247,17 +282,32 @@ export class GarageStage {
     this.clear.bottom = 1 - (2 * Math.max(area.bottom, area.top + 80)) / height;
     this.camera.aspect = width / Math.max(1, height);
     this.camera.updateProjectionMatrix();
+    const fit_area = `${this.camera.aspect} ${this.clear.left} ${this.clear.right} ${this.clear.bottom} ${this.clear.top}`;
+    if (fit_area !== this.fit_area) {
+      this.fit_area = fit_area;
+      this.fits.clear();
+      this.warm();
+    }
     this.frame_car();
     this.draw();
+  }
+
+  private frame_car() {
+    const car = this.stand_car;
+    const outline = car && this.outlines.get(car);
+    if (!car || !outline) return;
+    const fit = this.fits.get(car) ?? this.fit(outline.points);
+    this.fits.set(car, fit);
+    this.fit_distance = fit.distance;
+    this.aim_at.copy(fit.aim);
   }
 
   /**
    * Fits the stand outline into the clear area at every turn and finds one camera for all of them, so turning the car
    * to a slot, or swapping its parts, never moves the camera. Runs per car and per resize, not per frame.
    */
-  private frame_car() {
-    const n = this.points.length;
-    if (!n) return;
+  private fit(points: readonly THREE.Vector3[]): Fit {
+    const n = points.length;
     const { forward, side, up } = axes(0);
     const tan_v = Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2));
     const tan_h = tan_v * this.camera.aspect;
@@ -266,7 +316,7 @@ export class GarageStage {
     const along = { side: new Float64Array(total), up: new Float64Array(total), depth: new Float64Array(total) };
     const turned = new THREE.Vector3();
     for (let t = 0; t < FIT_TURNS; t++)
-      this.points.forEach((point, i) => {
+      points.forEach((point, i) => {
         turned.copy(point).applyAxisAngle(THREE.Object3D.DEFAULT_UP, (t / FIT_TURNS) * 2 * Math.PI);
         along.side[t * n + i] = turned.dot(side);
         along.up[t * n + i] = turned.dot(up);
@@ -295,9 +345,10 @@ export class GarageStage {
       if (slide(mid)) far = mid;
       else near = mid;
     }
-    this.fit_distance = far * FIT_SLACK;
-    const range = slide(this.fit_distance) ?? { x0: 0, x1: 0, y0: 0, y1: 0 };
-    this.aim_at.set(0, 0, 0).addScaledVector(side, (range.x0 + range.x1) / 2).addScaledVector(up, (range.y0 + range.y1) / 2);
+    const distance = far * FIT_SLACK;
+    const range = slide(distance) ?? { x0: 0, x1: 0, y0: 0, y1: 0 };
+    const aim = new THREE.Vector3().addScaledVector(side, (range.x0 + range.x1) / 2).addScaledVector(up, (range.y0 + range.y1) / 2);
+    return { distance, aim };
   }
 
   private draw() {
@@ -318,6 +369,40 @@ function axes(pitch: number) {
   const forward = new THREE.Vector3(Math.sin(EYE_AZIMUTH) * Math.cos(elevation), Math.sin(elevation), Math.cos(EYE_AZIMUTH) * Math.cos(elevation)).negate();
   const side = forward.clone().cross(THREE.Object3D.DEFAULT_UP).normalize();
   return { forward, side, up: side.clone().cross(forward) };
+}
+
+function* outline_steps(build: Build): Generator<void, Outline> {
+  const base: Build = { ...build, parts: { ...DEFAULT_PARTS } };
+  // Only parts that change the shape: a look of their own, or a ride height or centre of mass that moves the body.
+  const shaped = ({ look, mod }: Part) => look !== undefined || [mod.add, mod.scale].some((m) => m?.rest !== undefined || m?.cog !== undefined);
+  const builds = [base];
+  for (const slot of SLOT_NAMES) {
+    const parts: Part[] = SLOTS[slot].parts;
+    parts.forEach((part, i) => shaped(part) && builds.push({ ...base, parts: { ...base.parts, [slot]: i } }));
+  }
+  const seen = new Set<string>();
+  const vertex = new THREE.Vector3();
+  const box = new THREE.Box3();
+  const points: THREE.Vector3[] = [];
+  for (const variant of builds) {
+    const view = stand_view(variant);
+    view.root.traverseVisible((object) => {
+      if (!(object instanceof THREE.Mesh)) return;
+      const position = object.geometry.getAttribute("position");
+      for (let i = 0; i < position.count; i++) {
+        vertex.fromBufferAttribute(position, i).applyMatrix4(object.matrixWorld);
+        box.expandByPoint(vertex);
+        const key = `${Math.round(vertex.x / OUTLINE_GRID)},${Math.round(vertex.y / OUTLINE_GRID)},${Math.round(vertex.z / OUTLINE_GRID)}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        points.push(vertex.clone());
+      }
+    });
+    dispose_car_view(view);
+    yield;
+  }
+  const corners = new ConvexHull().setFromPoints(points).vertices.map((corner) => corner.point);
+  return { points: corners, center: box.getCenter(new THREE.Vector3()), half: box.getSize(new THREE.Vector3()).multiplyScalar(0.5) };
 }
 
 /** The car on its stand: unturned, tyres on the floor, so a lower ride shows as the body dropping. */
