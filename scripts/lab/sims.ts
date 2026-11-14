@@ -11,8 +11,8 @@ export const STOP_FROM_KMH = 100;
 
 export type SimValues = [key: string, value: number][];
 
-/** A stop that started under `STOP_FROM_KMH` (the car never got there) is no 100-0 number; float slack on the trigger. */
-const reached = (kmh: number) => kmh >= STOP_FROM_KMH - 1;
+/** A stop that started under `STOP_FROM_KMH` (the car never got there) is no 100-0 number. */
+const reached = (kmh: number) => kmh >= STOP_FROM_KMH;
 
 export interface Sim {
   values: SimValues;
