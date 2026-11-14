@@ -3,7 +3,7 @@ import { brand } from "../theme/palette";
 import { item_geometry, item_material } from "../world/jumps";
 import { cast_instanced } from "../render/shadow-depth";
 import { Beams } from "./beams";
-import { CHEVRON_VERTS, Marks, type Ground } from "./marks";
+import { CHEVRON_VERTS, Marks, type DrawnGround } from "./marks";
 import { gate_shown, type RaceCourse } from "./races";
 import type { RoutePoint } from "./route";
 
@@ -41,7 +41,7 @@ export class RaceView {
   private readonly closed: boolean;
 
   /** `traps`: line indices of a speed trap run's traps, banded across the road until passed. */
-  constructor(course: Course, ground: Ground, traps: readonly number[] = []) {
+  constructor(course: Course, ground: DrawnGround, traps: readonly number[] = []) {
     const { line, gates, route } = course;
     this.closed = route.closed;
     this.marks = new Marks(ground);

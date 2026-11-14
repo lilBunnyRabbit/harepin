@@ -12,6 +12,7 @@ import { DEFAULT_BINDINGS, keys_text, type Bindings } from "../hud/bindings";
 import { $, format } from "../hud/hud";
 import type { World } from "../world/world";
 import { chunk_of } from "../worldgen/chunk-grid";
+import { LIFT } from "../worldgen/lifts";
 import { KINDS } from "../worldgen/kinds/kinds";
 import { LISTED, WORLDS } from "../worlds/worlds";
 import { DRIFT_MODE } from "./drift-mode";
@@ -22,7 +23,7 @@ import { HUNT_MODE } from "./hunt-mode";
 import { CUP_RECORD, Cup, stage_points, type Stage } from "./championship";
 import { JUMP_MODE } from "./jump-mode";
 import { Hits } from "./hits";
-import type { Ground } from "./marks";
+import type { DrawnGround } from "./marks";
 import type { Driven, Finish, Level, ModeCtx, ModeDef, ModeRun, RouteRun } from "./mode";
 import { PARKING_MODE } from "./parking-mode";
 import type { RunPlay } from "../runs/run-play";
@@ -441,7 +442,8 @@ export class Modes implements CarHooks {
     const { scene, world, start_index, camera } = this;
     const spawn = hold ?? ((x: number, z: number, heading: number) => this.park(x, z, heading));
     const { tiles } = world;
-    const ground: Ground = tiles.streamed ? { height: (x, z) => (tiles.get(chunk_of(x, z, tiles.ext)) ? world.height(x, z) : world.nearest_road(x, z).y) } : world;
+    const here = (x: number, z: number) => Boolean(tiles.get(chunk_of(x, z, tiles.ext)));
+    const ground: DrawnGround = tiles.streamed ? { height: (x, z) => (here(x, z) ? world.height(x, z) : world.nearest_road(x, z).y), drawn_lift: (x, z) => (here(x, z) ? world.drawn_lift(x, z) : LIFT.ring) } : world;
     const tuned = event?.tuned === world.key;
     return {
       scene,

@@ -2,7 +2,7 @@ import type * as THREE from "three";
 import { brand, tones } from "../theme/palette";
 import { ramp_world } from "../worldgen/jumps";
 import type { Jump, Landing } from "./jump";
-import { Marks, type Ground } from "./marks";
+import { Marks, type DrawnGround } from "./marks";
 
 const LINE = 0.8;
 const TICK = { half: 0.6, width: 2.4, out: 1.6 };
@@ -16,7 +16,7 @@ export class JumpView {
 
   constructor(
     private readonly jump: Jump,
-    ground: Ground,
+    ground: DrawnGround,
   ) {
     this.marks = new Marks(ground);
     const { ramp, lip, marks } = jump;
