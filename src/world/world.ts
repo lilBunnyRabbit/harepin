@@ -6,7 +6,7 @@ import { DeckIndex } from "../worldgen/deck";
 import { generate } from "../worldgen/index";
 import type { Footing, GripTable } from "../worldgen/kinds/kind-def";
 import { KINDS, snow_of, world_key } from "../worldgen/kinds/kinds";
-import { ramp_reach2, ramp_surface, spawn_blocks, type Surface } from "../worldgen/jumps";
+import { ramp_height, ramp_reach2, ramp_surface, spawn_blocks, type Surface } from "../worldgen/jumps";
 import { FALL_DEPTH } from "../worldgen/sky";
 import { slice_tiles, TileStore, type Tile } from "../worldgen/tiles";
 import { kerb_marks, on_kerb_segment, type KerbMarks } from "./kerbs";
@@ -48,6 +48,8 @@ const SOLID_CELL = 16;
 /** Metres of slack on the reject in `collide`, far past rounding, so it never skips a solid `circle_contact` would touch. */
 const REACH_SLACK = 1e-3;
 const ROAD_CELL = 32;
+/** Cell of the wedge grid; a ramp is listed in every cell its reach circle touches, a metre over for rounding. */
+const WEDGE_CELL = 32;
 const RESTITUTION = 1.25;
 /** Share of planar speed a sky rail takes per unit sine of the angle into it: a head-on hit keeps 88%, a 10° graze 98%. */
 export const GLIDE_LOSS = 0.12;
@@ -240,6 +242,11 @@ export class World implements Ground {
   private readonly trails: { points: RoadPoint[]; blocked: Uint8Array }[];
   /** Ramps a car rides as wedges, with `ramp_reach2` so a height query skips the far ones. */
   private readonly wedges: { ramp: Ramp; reach2: number }[];
+  /** `wedges` indices per cell, in order: most height queries are nowhere near a ramp and skip the scan. */
+  private readonly wedge_grid = new Map<number, number[]>();
+  private wedge_cx = NaN;
+  private wedge_cz = NaN;
+  private wedge_list: number[] | undefined = undefined;
   private query = 0;
 
   /** `data` is `generate(seed)`, passed in when a worker already ran it; `tiles` empty when they stream in after. */
@@ -283,6 +290,7 @@ export class World implements Ground {
     this.slots = [...this.solids];
     this.seen = new Uint32Array(this.solids.length);
     this.wedges = this.ramps.filter((r) => !r.deck).map((ramp) => ({ ramp, reach2: ramp_reach2(ramp) }));
+    this.wedges.forEach((wedge, index) => this.index_wedge(wedge, index));
     this.no_spawn = spawn_blocks(this.road, this.ramps, this.challenges);
     this.trails = this.routes.filter((r) => r.kind === RouteKind.OFFROAD).map((r) => ({ points: r.points, blocked: spawn_blocks(r.points, this.ramps, this.challenges) }));
     this.solids.forEach((solid, index) => this.index_solid(solid, index));
@@ -322,6 +330,29 @@ export class World implements Ground {
       }
   }
 
+  private index_wedge({ ramp, reach2 }: { ramp: Ramp; reach2: number }, index: number) {
+    const reach = Math.sqrt(reach2) + 1;
+    for (let cz = Math.floor((ramp.z - reach) / WEDGE_CELL); cz <= Math.floor((ramp.z + reach) / WEDGE_CELL); cz++)
+      for (let cx = Math.floor((ramp.x - reach) / WEDGE_CELL); cx <= Math.floor((ramp.x + reach) / WEDGE_CELL); cx++) {
+        const key = grid_key(cx, cz);
+        const list = this.wedge_grid.get(key);
+        if (list) list.push(index);
+        else this.wedge_grid.set(key, [index]);
+      }
+  }
+
+  // A wheel's ray asks 14 heights within a metre, nearly always in one cell: the last cell's list is kept.
+  private wedges_at(x: number, z: number): number[] | undefined {
+    const cx = Math.floor(x / WEDGE_CELL);
+    const cz = Math.floor(z / WEDGE_CELL);
+    if (cx !== this.wedge_cx || cz !== this.wedge_cz) {
+      this.wedge_cx = cx;
+      this.wedge_cz = cz;
+      this.wedge_list = this.wedge_grid.get(grid_key(cx, cz));
+    }
+    return this.wedge_list;
+  }
+
   private unindex_solid(solid: Solid, index: number) {
     const reach = solid_reach(solid);
     const x0 = Math.floor((solid.x - reach) / SOLID_CELL);
@@ -341,8 +372,8 @@ export class World implements Ground {
   /** `y` is the height the query comes from: a deck only counts from above its underside. */
   height(x: number, z: number, y?: number): number {
     const ground = this.tiles.height(x, z);
-    const ramp = this.ramp_at(x, z);
-    const top = ramp && ramp.y > ground ? ramp.y : ground;
+    const ramp = this.ramp_top(x, z);
+    const top = ramp > ground ? ramp : ground;
     const deck = this.deck?.surface(x, z, y);
     return deck && deck.y > top ? deck.y : top;
   }
@@ -355,9 +386,28 @@ export class World implements Ground {
     return this.tiles.slope(x, z, out).normalize();
   }
 
+  /** `ramp_at(x, z)?.y`, -Infinity off every ramp. */
+  private ramp_top(x: number, z: number): number {
+    const near = this.wedges_at(x, z);
+    let top = -Infinity;
+    if (!near) return top;
+    for (let i = 0; i < near.length; i++) {
+      const { ramp, reach2 } = this.wedges[near[i]];
+      const dx = x - ramp.x;
+      const dz = z - ramp.z;
+      if (dx * dx + dz * dz > reach2) continue;
+      const y = ramp_height(ramp, x, z);
+      if (y > top) top = y;
+    }
+    return top;
+  }
+
   private ramp_at(x: number, z: number): Surface | null {
     let top: Surface | null = null;
-    for (const { ramp, reach2 } of this.wedges) {
+    const near = this.wedges_at(x, z);
+    if (!near) return top;
+    for (const index of near) {
+      const { ramp, reach2 } = this.wedges[index];
       const dx = x - ramp.x;
       const dz = z - ramp.z;
       if (dx * dx + dz * dz > reach2) continue;

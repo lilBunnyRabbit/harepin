@@ -117,6 +117,14 @@ export function ramp_surface(r: Ramp, x: number, z: number): Surface | null {
   return { y: r.y + r.grade * v + ramp_lift(r, u, v), gx: dv * r.fx + du * r.fz, gz: dv * r.fz - du * r.fx };
 }
 
+/** `ramp_surface(r, x, z)?.y` without building the surface: -Infinity off the ramp. The height query runs at 360 Hz. */
+export function ramp_height(r: Ramp, x: number, z: number): number {
+  const u = local_u(r, x, z);
+  const v = local_v(r, x, z);
+  if (v < extent_from(r) || v > extent_to(r) || Math.abs(u) > extent_reach(r)) return -Infinity;
+  return r.y + r.grade * v + ramp_lift(r, u, v);
+}
+
 // The starter hatch flat out from the start never leaves a kicker's lip past either: run-ups climbing more than this from the
 // start to the toe, or any 5 m of them steeper than this grade (headless sim, five world kinds, six seeds each).
 const RUNUP_CLIMB = 2.5;
