@@ -190,4 +190,6 @@ Open after phase 2:
 
 - A clean race (0 contacts) counts as out of band. Either the floor drops to 0 or the field races closer; no tuning done for it.
 - Hardest hit 26.7 m/s in every run and about one reset per race: spins and resets are high for a field that rarely touches. Worth a look before phase 3 puts it on screen.
+- Spins do not come from reversing: skipping the spin count while a car reverses left every count unchanged.
+- Defending rolls `aggression` on every awareness tick (20 Hz), so a timid driver still defends within about a second. One roll per attacker would make aggression matter; it changes behaviour, so it waits for a tuning round.
 - Per-race rho reaches 0.75-0.79 on some seeds; the mean stays under `RHO_MAX` 0.7.

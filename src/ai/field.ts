@@ -67,7 +67,7 @@ export function personalities(seed: number, count: number): Personality[] {
 
 /**
  * A field of AI cars on one closed route, headless: every step drives and steps each car, hits the world, then resolves
- * car-to-car contact; at 10 Hz the awareness picks lanes and the recovery unsticks or resets cars.
+ * car-to-car contact; at 20 Hz the awareness picks lanes and the recovery unsticks or resets cars.
  */
 export class Field {
   readonly racers: Racer[];
@@ -161,7 +161,7 @@ export class Field {
       const { car, driver, stats } = this.racers[i];
       const speed = Math.hypot(car.vel.x, car.vel.z);
       const slide = speed > 3 ? Math.abs(Math.atan2(Math.sin(Math.atan2(car.vel.x, car.vel.z) - car.heading), Math.cos(Math.atan2(car.vel.x, car.vel.z) - car.heading))) : 0;
-      if (!this.spinning[i] && slide > SPIN) {
+      if (!this.spinning[i] && driver.reversing <= 0 && slide > SPIN) {
         this.spinning[i] = 1;
         stats.spins++;
       } else if (this.spinning[i] && slide < SPIN_CAUGHT) this.spinning[i] = 0;

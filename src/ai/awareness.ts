@@ -61,7 +61,7 @@ const DEFEND_LATERAL = 2.5;
 const BEND_LOOK = 100;
 
 /**
- * Runs at 10 Hz over the whole field: from each car's place on the road it picks a lane for every driver (follow the
+ * Runs at 20 Hz over the whole field: from each car's place on the road it picks a lane for every driver (follow the
  * line, pull out past a slower car on the side with room toward the next bend's inside, hold a gap to a car alongside,
  * cover the inside into a braking zone once per straight) and caps its speed behind a car it cannot pass.
  */
@@ -193,8 +193,8 @@ export class Awareness {
       const other = this.lateral[blocker];
       // The half of the road the car ahead is not in, the next bend's inside when it sits in the middle.
       const away = Math.abs(other) > IN_LANE / 2 ? -Math.sign(other) : this.inside(driver);
-      const side = (k: number) => this.open(i, k * lane, room, blocker_gap + PASS_WINDOW) && this.lane_clear(i, blocker, k, PASS_START);
-      const pick = side(away) ? away : side(-away) ? -away : 0;
+      const reach = blocker_gap + PASS_WINDOW;
+      const pick = this.side_open(i, blocker, away, lane, room, reach) ? away : this.side_open(i, blocker, -away, lane, room, reach) ? -away : 0;
       const faster = driver.personality.pace > this.drivers[blocker].personality.pace + PASS_PACE || v > this.speed[blocker] + PASS_SPEED;
       let bend = false;
       for (let k = 0; k < PASS_CALM && !bend; k += 4) bend = line.speed[(driver.index + k) % n] < CALM_SHARE * line.speed[driver.index] || Math.abs(line.bend[(driver.index + k) % n]) > CALM_BEND;
@@ -263,6 +263,10 @@ export class Awareness {
    * Whether a pass on `side` of car `target` stays PASS_FLANK off it and on the road over the next `span` road points,
    * the target holding its line as it does now: past the centre toward that side its line leaves no room.
    */
+  private side_open(i: number, blocker: number, side: number, lane: number, room: number, reach: number): boolean {
+    return this.open(i, side * lane, room, reach) && this.lane_clear(i, blocker, side, PASS_START);
+  }
+
   private lane_clear(i: number, target: number, side: number, span: number): boolean {
     const { line } = this.drivers[i];
     const n = line.road.length;
