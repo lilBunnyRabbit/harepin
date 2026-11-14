@@ -9,7 +9,7 @@ import { Builder, type Rgb, type Sphere } from "../worldgen/mesh";
 import { KINDS } from "../worldgen/kinds/kinds";
 import { hash } from "../worldgen/noise";
 import { LIFT } from "../worldgen/lifts";
-import { PropKind, type Prop } from "../worldgen/types";
+import { PropKind, type Prop, type WorldKind } from "../worldgen/types";
 
 const PAD_LIFT = LIFT.pad;
 // Lit from inside: a dusk street reads by its shop windows, a day street by glass that stays bright in shade.
@@ -162,12 +162,29 @@ function facade_fill<M extends THREE.Material>(material: M, share: number): M {
   return material;
 }
 
+export interface TownMaterials {
+  building: THREE.MeshLambertMaterial;
+  glass: THREE.MeshLambertMaterial;
+  parking: THREE.MeshLambertMaterial;
+}
+
+export function town_materials(kind: WorldKind): TownMaterials {
+  const building = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+  // Glass sits 3-8 cm off its wall; past ~200 m the depth buffer steps wider than that, so the offset holds it in front.
+  const glass = new THREE.MeshLambertMaterial({ color: color(tones.shopfront), emissive: color(tones.shop_glow), emissiveIntensity: GLASS_GLOW, flatShading: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  const parking = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  if (KINDS[kind].recipe?.towns.style === "high_street") {
+    facade_fill(building, WALL_FILL);
+    shade_fill(glass, GLASS_FILL);
+  }
+  return { building, glass, parking };
+}
+
 /** Builds a chunk's town objects when it arrives: parked cars stand on its terrain, which arrives with it. */
 export class TownChunks {
-  private readonly building = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
-  // Glass sits 3-8 cm off its wall; past ~200 m the depth buffer steps wider than that, so the offset holds it in front.
-  private readonly glass = new THREE.MeshLambertMaterial({ color: color(tones.shopfront), emissive: color(tones.shop_glow), emissiveIntensity: GLASS_GLOW, flatShading: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
-  private readonly parking = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  private readonly building: THREE.MeshLambertMaterial;
+  private readonly glass: THREE.MeshLambertMaterial;
+  private readonly parking: THREE.MeshLambertMaterial;
   private readonly car_material = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
   private readonly car_shape = parked_car_geometry();
   private readonly parts = light_parts();
@@ -175,10 +192,7 @@ export class TownChunks {
   private readonly lights: Map<number, Prop[]>;
 
   constructor(private readonly world: World) {
-    if (KINDS[world.kind].recipe?.towns.style === "high_street") {
-      facade_fill(this.building, WALL_FILL);
-      shade_fill(this.glass, GLASS_FILL);
-    }
+    ({ building: this.building, glass: this.glass, parking: this.parking } = town_materials(world.kind));
     this.cars = by_chunk(parked_spots(world), world.tiles.ext);
     this.lights = by_chunk(world.props.filter((p) => p.kind === PropKind.STREET_LIGHT), world.tiles.ext);
   }

@@ -1,14 +1,17 @@
-import { build_code, MAX_PAINT, parse_build, REWARD_PAINTS } from "../car/build";
+import { build_code, MAX_PAINT, parse_build, REWARD_PAINTS, type Slot } from "../car/build";
 import { CARS, is_car, type CarId, type Triple } from "../car/cars";
 import { BUILD } from "../menu/update";
 import { car_paints } from "../theme/palette";
 import { export_block } from "./export";
-import { load_notes, MAX_NOTES, NOTE_LENGTH, notes_key, pin_numbers, store_notes, type Note, type Notes } from "./notes";
+import type { WorldKind } from "../worldgen/types";
+import { ASSET_LOOKS } from "./asset-looks";
+import { ASSETS, AssetKind, is_part, type Asset, type WorldAsset } from "./assets";
+import { load_notes, MAX_NOTES, NOTE_LENGTH, pin_numbers, store_notes, type Note, type Notes } from "./notes";
 import { OrbitInput, PadButton } from "./orbit-input";
 import { blend_cam, snap_cam, SNAPS, type Frame, type Snap } from "./orbit";
 import { viewer_build, viewer_presets, type ViewerPreset } from "./presets";
 import type { Stage } from "./stage";
-import { LIGHT_THEMES, settled_view, view_query, wrap_yaw, type Asked, type Cam, type ViewState } from "./view-state";
+import { asset_ref, LIGHT_THEMES, settled_view, view_key, view_query, wrap_yaw, type Asked, type Cam, type ViewState } from "./view-state";
 
 const FLY_S = 0.6;
 const AUTO_DEG_S = 18;
@@ -61,7 +64,7 @@ export class Viewer {
     this.notes = load_notes();
     this.view = $state(fill(this.frame_box, stage.aspect));
     stage.lights(this.lamps);
-    this.frame_box = stage.show(this.view.code) ?? this.frame_box;
+    this.frame_box = stage.show(this.view) ?? this.frame_box;
     this.input = new OrbitInput(stage.canvas, {
       cam: () => this.view.cam,
       move: (cam) => this.move(cam),
@@ -91,7 +94,22 @@ export class Viewer {
   }
 
   get key(): string {
-    return notes_key(this.view.car, this.view.preset);
+    return view_key(this.view);
+  }
+
+  get kind(): AssetKind {
+    return this.view.asset?.kind ?? AssetKind.CAR;
+  }
+
+  get world(): WorldAsset | null {
+    const asset = this.view.asset;
+    return asset && "world" in asset ? asset : null;
+  }
+
+  /** The car stands, as itself or carrying the part the view names. */
+  get car_shown(): boolean {
+    const asset = this.view.asset;
+    return !asset || ("on" in asset && asset.on);
   }
 
   get list(): Note[] {
@@ -106,8 +124,78 @@ export class Viewer {
     return this.numbers.filter((n) => n !== null).length + 1;
   }
 
-  count(car: CarId): number {
-    return Object.entries(this.notes).reduce((sum, [key, list]) => sum + (key.startsWith(`${car}/`) ? list.length : 0), 0);
+  /** Notes on a car and its parts, or on one world kind's assets. */
+  count(id: string): number {
+    return Object.values(this.notes).reduce((sum, list) => sum + (list.length && asset_ref(list[0].view).id === id ? list.length : 0), 0);
+  }
+
+  count_key(view: ViewState): number {
+    return this.notes[view_key(view)]?.length ?? 0;
+  }
+
+  pick_asset(kind: AssetKind) {
+    if (kind === this.kind) return;
+    this.set_asset(this.asset_for(kind), true);
+  }
+
+  private asset_for(kind: AssetKind): Asset | undefined {
+    if (kind === AssetKind.CAR) return undefined;
+    if (is_part(kind)) return { kind, on: false };
+    const look = ASSET_LOOKS[kind];
+    const worlds = look.worlds();
+    const world = this.world && worlds.includes(this.world.world) ? this.world.world : worlds[0];
+    const seed = ASSETS[kind].seeded ? (this.world?.seed || 1) : 0;
+    return this.world_asset(kind, world, seed, null);
+  }
+
+  private world_asset(kind: AssetKind, world: WorldKind, seed: number, item: string | null): WorldAsset | undefined {
+    if (kind === AssetKind.CAR || is_part(kind)) return undefined;
+    const items = ASSET_LOOKS[kind].items(world, seed);
+    const keep = items.find((pick) => pick.id === item) ?? items[0];
+    return { kind, world, seed, item: keep?.id ?? "none" };
+  }
+
+  pick_world(world: WorldKind) {
+    const at = this.world;
+    if (at && at.world !== world) this.set_asset(this.world_asset(at.kind, world, at.seed, null), true);
+  }
+
+  pick_item(item: string) {
+    const at = this.world;
+    if (at && at.item !== item) this.set_asset({ ...at, item }, true);
+  }
+
+  pick_seed(seed: number) {
+    const at = this.world;
+    if (at && ASSETS[at.kind].seeded && Number.isInteger(seed) && seed >= 0 && seed !== at.seed) this.set_asset(this.world_asset(at.kind, at.world, seed, at.item), true);
+  }
+
+  toggle_on() {
+    const asset = this.view.asset;
+    if (asset && "on" in asset) this.set_asset({ ...asset, on: !asset.on }, false);
+  }
+
+  /** A part slot the wheels show (tyres, brakes): it rewrites the build code, as paint does, and keeps the preset. */
+  pick_part(slot: Slot, index: number) {
+    const build = parse_build(this.view.code);
+    if (!build || build.parts[slot] === index) return;
+    this.view = { ...this.view, code: build_code({ ...build, parts: { ...build.parts, [slot]: index } }) };
+    this.apply();
+  }
+
+  private set_asset(asset: Asset | undefined, reframe: boolean) {
+    this.pending = null;
+    this.picked = null;
+    const view = { ...this.view };
+    if (asset) view.asset = asset;
+    else delete view.asset;
+    this.view = view;
+    this.apply();
+    if (reframe) this.reframe();
+  }
+
+  private reframe() {
+    this.fly_to({ ...snap_cam("3/4", this.frame_box, this.stage.aspect, this.view.cam.fov), yaw: this.view.cam.yaw, pitch: this.view.cam.pitch });
   }
 
   pick_car(car: CarId) {
@@ -152,11 +240,11 @@ export class Viewer {
     this.picked = null;
     this.view = { ...this.view, car, preset: preset.id, code };
     this.apply();
-    if (reframe) this.fly_to({ ...snap_cam("3/4", this.frame_box, this.stage.aspect, this.view.cam.fov), yaw: this.view.cam.yaw, pitch: this.view.cam.pitch });
+    if (reframe) this.reframe();
   }
 
   private apply() {
-    this.frame_box = this.stage.show(this.view.code) ?? this.frame_box;
+    this.frame_box = this.stage.show(this.view) ?? this.frame_box;
     this.stage.lights(this.lamps);
     this.stage.steer(this.view.steer);
     this.marks();
@@ -251,7 +339,11 @@ export class Viewer {
       this.relight(note.view.light, note.view);
       return;
     }
-    this.view = { ...this.view, code: note.view.code, steer: note.view.steer, lamps: note.view.lamps };
+    const world = note.view.asset && "world" in note.view.asset;
+    const view: ViewState = { ...this.view, ...(world ? {} : { car: note.view.car, preset: note.view.preset, code: note.view.code }), steer: note.view.steer, lamps: note.view.lamps };
+    if (note.view.asset) view.asset = note.view.asset;
+    else delete view.asset;
+    this.view = view;
     this.apply();
     this.fly_to(note.view.cam);
   }
@@ -266,12 +358,12 @@ export class Viewer {
     location.replace(`${view_query({ ...view, light })}&theme=${encodeURIComponent(LIGHT_THEMES[light])}`);
   }
 
-  async copy(car: CarId | null) {
-    const block = export_block(this.notes, BUILD.version, { width: innerWidth, height: innerHeight }, new Date(), car);
+  async copy(id: string | null) {
+    const block = export_block(this.notes, BUILD.version, { width: innerWidth, height: innerHeight }, new Date(), id);
     try {
       await navigator.clipboard.writeText(block);
       this.refused = null;
-      this.copied = car ?? "all";
+      this.copied = id ?? "all";
       clearTimeout(this.copied_timer);
       this.copied_timer = window.setTimeout(() => (this.copied = null), 1600);
     } catch (error) {

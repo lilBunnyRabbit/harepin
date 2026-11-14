@@ -2,6 +2,8 @@ import { build_code, parse_build } from "../car/build";
 import { is_car, type CarId, type Triple } from "../car/cars";
 import { CARS_PARAM } from "./params";
 import { viewer_build, viewer_presets } from "./presets";
+import { AssetKind, asset_key, checked_asset, is_asset_kind, is_item, is_part, is_seed, type Asset, type AssetRef } from "./assets";
+import { is_kind } from "../worldgen/types";
 
 export const Light = { DAY: "day", DUSK: "dusk" } as const;
 export type Light = (typeof Light)[keyof typeof Light];
@@ -29,16 +31,18 @@ export interface ViewState {
   cam: Cam;
   /** Headlamps on; absent on views saved before the toggle, which drew them on. */
   lamps?: boolean;
+  /** What stands on the stage instead of the car; the car fields stay, so the car comes back as it was left. */
+  asset?: Asset;
 }
 
 export const PITCH_MIN = -5;
 export const PITCH_MAX = 89;
 export const DIST_MIN = 0.5;
-export const DIST_MAX = 80;
+export const DIST_MAX = 160;
 export const FOV_MIN = 10;
 export const FOV_MAX = 90;
 export const DEFAULT_FOV = 30;
-const TARGET_REACH = 20;
+const TARGET_REACH = 40;
 const PRESET_ID = /^[a-z0-9-]{1,40}$/;
 
 const round = (v: number, places: number) => {
@@ -105,8 +109,11 @@ export function checked_view(x: unknown): ViewState | null {
   const { yaw, pitch, dist, fov, target } = cam;
   if (!finite(yaw) || !finite(pitch) || !finite(dist) || !finite(fov) || !target.every(finite)) return null;
   if (v.lamps !== undefined && typeof v.lamps !== "boolean") return null;
+  const asset = v.asset === undefined ? undefined : checked_asset(v.asset);
+  if (asset === null) return null;
   const view: ViewState = { car: v.car, preset: v.preset, code: v.code as string, steer: v.steer, light: v.light, cam: { yaw, pitch, dist, fov, target: target as Triple } };
   if (v.lamps !== undefined) view.lamps = v.lamps;
+  if (asset) view.asset = asset;
   return settled_view(view);
 }
 
@@ -121,7 +128,34 @@ export interface Asked {
     shot: boolean;
 }
 
-/** `?cars=<car>&p=<preset>&b=<build>&cam=<yaw,pitch,dist,tx,ty,tz,fov>&steer=<-1..1>&light=day|dusk[&lamps=0|1][&pin=x,y,z,n][&shot]`. */
+export function asset_ref(view: ViewState): AssetRef {
+  const asset = view.asset;
+  if (asset && "world" in asset) return { kind: asset.kind, id: asset.world, variant: asset.item, seed: asset.seed };
+  return { kind: asset?.kind ?? AssetKind.CAR, id: view.car, variant: view.preset, seed: 0 };
+}
+
+export const view_key = (view: ViewState) => asset_key(asset_ref(view));
+
+function read_asset(params: URLSearchParams): Asset | null {
+  const kind = params.get("a");
+  if (!is_asset_kind(kind) || kind === AssetKind.CAR) return null;
+  if (is_part(kind)) return { kind, on: params.get("on") === "1" };
+  const world = params.get("w");
+  const item = params.get("i");
+  const seed = Number(params.get("s") ?? 0);
+  return is_kind(world) && is_item(item) && is_seed(seed) ? checked_asset({ kind, world, item, seed }) : null;
+}
+
+function asset_params(asset: Asset, params: URLSearchParams) {
+  params.set("a", asset.kind);
+  if ("world" in asset) {
+    params.set("w", asset.world);
+    params.set("i", asset.item);
+    params.set("s", String(asset.seed));
+  } else if (asset.on) params.set("on", "1");
+}
+
+/** `?cars=<car>&p=<preset>&b=<build>&cam=<yaw,pitch,dist,tx,ty,tz,fov>&steer=<-1..1>&light=day|dusk[&lamps=0|1][&a=<asset>[&w=<world>&i=<item>&s=<seed>|&on=1]][&pin=x,y,z,n][&shot]`. */
 export function read_asked(params: URLSearchParams, fallback: CarId): Asked {
   const asked_car = params.get(CARS_PARAM) ?? "";
   const build = parse_build(params.get("b"));
@@ -138,6 +172,8 @@ export function read_asked(params: URLSearchParams, fallback: CarId): Asked {
   if (is_light(light)) view.light = light;
   const lamps = parse_lamps(params.get("lamps"));
   if (lamps !== null) view.lamps = lamps;
+  const asset = read_asset(params);
+  if (asset) view.asset = asset;
   const pin_parts = params.get("pin")?.split(",") ?? [];
   const pin_at = parse_triple(pin_parts.slice(0, 3).join(","));
   const n = Number(pin_parts[3] ?? 1);
@@ -150,12 +186,20 @@ export function filled_view(asked: Asked["view"], cam: Cam, light: Light, paint:
   const code = asked.code ?? build_code(viewer_build(asked.car, preset, paint));
   const view: ViewState = { car: asked.car, preset: asked.preset ?? preset.id, code, steer: asked.steer ?? 0, light, cam: asked.cam ?? cam };
   if (asked.lamps !== undefined) view.lamps = asked.lamps;
+  if (asked.asset) view.asset = asked.asset;
   return settled_view(view);
 }
 
 export function view_query(view: ViewState, pin: ShotPin | null = null): string {
   const params = new URLSearchParams({ [CARS_PARAM]: view.car, p: view.preset, b: view.code, cam: cam_text(view.cam), steer: String(view.steer), light: view.light });
   if (view.lamps !== undefined) params.set("lamps", lamps_text(view.lamps));
+  if (view.asset) asset_params(view.asset, params);
   if (pin) params.set("pin", [...pin.at, pin.n].join(","));
   return `?${params}`.replaceAll("%2C", ",");
+}
+
+/** A file name part for a shot of this view: kind, id, variant and, for a seeded world asset, the seed. */
+export function shot_name(view: ViewState): string {
+  const { kind, id, variant, seed } = asset_ref(view);
+  return [kind === AssetKind.CAR ? null : kind, id, variant, seed ? `s${seed}` : null].filter((part) => part !== null).join("-");
 }

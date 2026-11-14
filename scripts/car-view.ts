@@ -5,7 +5,7 @@ import { join, resolve } from "node:path";
 import { build, createServer, preview } from "vite";
 
 // `node --experimental-strip-types scripts/car-view.ts <block.txt | -> [--out <dir>] [--screen desktop|phone] [--ui]
-// [--port N]`: one PNG per note of a `?cars` export block (docs/cars.md), at the exact view the note was written at,
+// [--port N]`: one PNG per note of a `?cars` export block (docs/cars.md), car or asset, at the exact view the note was written at,
 // its pin drawn. `--ui` keeps the panel and toolbar; without --port it builds and serves its own preview.
 const ROOT = resolve(import.meta.dirname, "..");
 const PORT = 5398;
@@ -19,7 +19,7 @@ type Screen = keyof typeof SCREENS;
 interface ReadNote {
   text: string;
   n: number | null;
-  view: { car: string; preset: string };
+  view: unknown;
 }
 
 const args = process.argv.slice(2);
@@ -36,7 +36,7 @@ const out = resolve(option("out") ?? join(tmpdir(), `harepin-cars-${new Date().t
 const given_port = option("port");
 
 const text = source === "-" ? await stdin() : await readFile(source, "utf8");
-const { notes, queries } = await read(text);
+const { notes, queries, names } = await read(text);
 if (!notes.length) throw new Error("car-view: no notes in that block");
 
 await mkdir(out, { recursive: true });
@@ -54,7 +54,7 @@ try {
   const page = await context.newPage();
   page.on("pageerror", (error) => console.warn(`page: ${error.message}`));
   for (const [i, note] of notes.entries()) {
-    const name = `${String(i + 1).padStart(2, "0")}-${note.view.car}-${note.view.preset}-${note.n === null ? "note" : `pin${note.n}`}.png`;
+    const name = `${String(i + 1).padStart(2, "0")}-${names[i]}-${note.n === null ? "note" : `pin${note.n}`}.png`;
     await page.goto(`http://localhost:${port}/${queries[i]}`);
     await ready(page);
     await page.screenshot({ path: join(out, name) });
@@ -69,12 +69,13 @@ await writeFile(join(out, "notes.txt"), `${lines.join("\n")}\n`);
 console.log(`${notes.length} shots: ${out}`);
 
 // Through Vite, which resolves the source's extensionless imports: the block is read by the same code that wrote it.
-async function read(block: string): Promise<{ notes: ReadNote[]; queries: string[] }> {
+async function read(block: string): Promise<{ notes: ReadNote[]; queries: string[]; names: string[] }> {
   const vite = await createServer({ root: ROOT, logLevel: "warn", server: { middlewareMode: true }, appType: "custom" });
   try {
     const { read_block, note_query } = await vite.ssrLoadModule("/src/viewer/export.ts");
+    const { shot_name } = await vite.ssrLoadModule("/src/viewer/view-state.ts");
     const notes: ReadNote[] = read_block(block);
-    return { notes, queries: notes.map((note) => note_query(note, !ui)) };
+    return { notes, queries: notes.map((note) => note_query(note, !ui)), names: notes.map((note) => shot_name(note.view)) };
   } finally {
     await vite.close();
   }

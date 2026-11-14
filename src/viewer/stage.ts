@@ -3,7 +3,7 @@ import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
-import { build_spec, parse_build } from "../car/build";
+import { build_spec, parse_build, type Build } from "../car/build";
 import { ackermann, ride_height } from "../car/car";
 import type { CarSpec, Triple } from "../car/cars";
 import { contact_shadow, fit_contact_shadow } from "../car/contact-shadow";
@@ -14,8 +14,9 @@ import { sanitise_bloom } from "../render/postfx";
 import { Quality } from "../render/quality";
 import { brand, color, mix, rgba, tones } from "../theme/palette";
 import { on_fill } from "../theme/theme";
+import { ASSET_LOOKS } from "./asset-looks";
 import { cam_position, type Frame } from "./orbit";
-import type { Cam } from "./view-state";
+import { view_key, type Cam, type ViewState } from "./view-state";
 
 const STAGE_RADIUS = 80;
 /** Metres past the car's far side over which the floor fogs into the backdrop, so the floor shows no horizon. */
@@ -96,7 +97,9 @@ export class Stage {
   private readonly pointer = new THREE.Vector2();
   private view: CarView | null = null;
   private spec: CarSpec | null = null;
-  private code = "";
+  /** What stands when it is not the car: a part on its own or a world asset. */
+  private asset: THREE.Object3D | null = null;
+  private shown = "";
   private lamps = true;
 
   constructor(params: URLSearchParams) {
@@ -134,36 +137,67 @@ export class Stage {
     return this.camera.aspect;
   }
 
-  show(code: string): Frame | null {
-    if (code !== this.code || !this.view) {
-      const build = parse_build(code);
-      if (!build) return null;
-      if (this.view) {
-        this.holder.remove(this.view.root);
-        dispose_car_view(this.view);
+  /** The car, or the asset the view names; null when the view names one that is not there. */
+  show(view: ViewState): Frame | null {
+    const asset = view.asset && !("on" in view.asset && view.asset.on) ? view.asset : null;
+    const shown = asset ? `${view_key(view)} ${"world" in asset ? "" : view.code}` : view.code;
+    if (shown !== this.shown) {
+      const build = asset ? null : parse_build(view.code);
+      if (!asset && !build) return null;
+      this.clear();
+      this.shown = shown;
+      if (build) this.show_car(build);
+      else if (asset) {
+        this.asset = ASSET_LOOKS[asset.kind].build(view);
+        if (!this.asset) return null;
+        this.asset.traverse((node) => {
+          if (node instanceof THREE.Mesh) node.castShadow = true;
+        });
+        this.holder.add(this.asset);
       }
-      const spec = build_spec(build);
-      const view = build_view(build, spec);
-      rest_wheels(view, spec);
-      snap_lights(view, this.lamps);
-      view.root.position.y = ride_height(spec);
-      view.root.traverse((node) => {
-        if (node instanceof THREE.Mesh) node.castShadow = true;
-      });
-      fit_contact_shadow(this.shadow, spec);
-      this.holder.add(view.root);
-      this.view = view;
-      this.spec = spec;
-      this.code = code;
     }
-    return this.frame();
+    if (!this.view && !this.asset) return null;
+    return this.frame(asset !== null);
   }
 
-  private frame(): Frame {
+  private clear() {
+    if (this.view) {
+      this.holder.remove(this.view.root);
+      dispose_car_view(this.view);
+    }
+    if (this.asset) {
+      this.holder.remove(this.asset);
+      this.asset.traverse((node) => {
+        if (node instanceof THREE.Mesh) node.geometry.dispose();
+      });
+    }
+    this.view = this.spec = this.asset = null;
+    this.shadow.mesh.visible = false;
+  }
+
+  private show_car(build: Build) {
+    const spec = build_spec(build);
+    const view = build_view(build, spec);
+    rest_wheels(view, spec);
+    snap_lights(view, this.lamps);
+    view.root.position.y = ride_height(spec);
+    view.root.traverse((node) => {
+      if (node instanceof THREE.Mesh) node.castShadow = true;
+    });
+    fit_contact_shadow(this.shadow, spec);
+    this.shadow.mesh.visible = true;
+    this.holder.add(view.root);
+    this.view = view;
+    this.spec = spec;
+  }
+
+  // The car frames on its own axis; an asset round its box, since a part sits where it bolts on, off the car's middle.
+  private frame(off_axis: boolean): Frame {
     const box = new THREE.Box3().setFromObject(this.holder);
     const sphere = box.getBoundingSphere(new THREE.Sphere());
     this.radius = sphere.radius;
-    return { centre: [0, sphere.center.y, 0], radius: sphere.radius };
+    const round = (v: number) => Math.round(v * 1000) / 1000;
+    return { centre: off_axis ? [round(sphere.center.x), round(sphere.center.y), round(sphere.center.z)] : [0, sphere.center.y, 0], radius: sphere.radius };
   }
 
   /** `share` of the car's lock, Ackermann per wheel as the sim turns them. */
@@ -192,7 +226,7 @@ export class Stage {
         sprite.material.dispose();
       }
     this.pins.clear();
-    const root = this.view?.root;
+    const root = this.root;
     if (!root) return;
     root.updateMatrixWorld();
     for (const pin of pins) {
@@ -205,8 +239,12 @@ export class Stage {
     }
   }
 
+  private get root(): THREE.Object3D | null {
+    return this.view?.root ?? this.asset;
+  }
+
   hit(x: number, y: number): Triple | null {
-    const root = this.view?.root;
+    const root = this.root;
     if (!root) return null;
     const rect = this.canvas.getBoundingClientRect();
     this.pointer.set(((x - rect.left) / rect.width) * 2 - 1, -((y - rect.top) / rect.height) * 2 + 1);
