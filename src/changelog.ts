@@ -54,6 +54,20 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.42.1",
+    date: "2026-11-14",
+    title: "Clean lines",
+    changes: [
+      { kind: FIXED, text: "Wheel arches clear the tyres at full steering lock, with even lips that match the wheels" },
+      { kind: FIXED, text: "No more seeing through a car to the far wheel, on every car with arches and on Fujin's wheel pods" },
+      { kind: FIXED, text: "Formula: suspension arms meet the wheel hubs, and the driver wears a proper helmet" },
+      { kind: FIXED, text: "Sturm's cabin floor no longer pokes into the wide kit's rear arches" },
+      { kind: FIXED, text: "The Velodrome picture shows in the guide and on the Legend final" },
+      { kind: IMPROVED, text: "Smoother driving on Sky Track and faster road building on Mainland" },
+      { kind: IMPROVED, text: "Sharper names and north marker on the minimap" },
+    ],
+  },
+  {
     version: "0.42.0",
     date: "2026-11-14",
     title: "Fresh metal",
