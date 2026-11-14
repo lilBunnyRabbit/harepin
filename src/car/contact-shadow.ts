@@ -29,6 +29,8 @@ export interface ContactShadow {
 }
 
 const RIDE = 0.5;
+/** The patch's draw order among transparent meshes; whatever see-through must show over it draws later. */
+export const SHADOW_ORDER = 1;
 
 // The sun's shadow lands metres away at a low sun and blurs out, so without a dark patch right under the body the car
 // reads as hovering; this is that patch, tinted from the theme rather than black. It multiplies what is under it: a plain
@@ -52,7 +54,7 @@ export function contact_shadow(): ContactShadow {
     polygonOffsetUnits: -8,
   });
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 5.0).rotateX(-Math.PI / 2), material);
-  mesh.renderOrder = 1;
+  mesh.renderOrder = SHADOW_ORDER;
   return { mesh, material, strength, ride: RIDE };
 }
 

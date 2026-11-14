@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import type { Look } from "./build";
 import type { Design } from "./designs";
+import { SHADOW_ORDER } from "./contact-shadow";
 import { box, merge, tint } from "./geometry";
 import { brand, color, mix, tones } from "../theme/palette";
 
@@ -56,6 +57,8 @@ export function nitro_flame(d: Design, sway: THREE.IUniform<number>): THREE.Mesh
   };
   const mesh = new THREE.Mesh(merge(shapes), material);
   mesh.position.z = z - 0.16;
+  // Neither writes depth, so the later draw wins: after the multiplying shadow patch, or the patch darkens the jet over it.
+  mesh.renderOrder = SHADOW_ORDER + 1;
   mesh.visible = false;
   return mesh;
 }
