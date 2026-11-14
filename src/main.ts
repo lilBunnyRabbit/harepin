@@ -728,7 +728,7 @@ function frame(time: number) {
 
   lobby.update(now);
   // A lab card holds the trial under it, as the menu does: the clock and the car wait for the answers.
-  const menu_hold = (settings.is_open || hud_sheet.open || (lab !== null && modal_open())) && net.remotes.size === 0;
+  const menu_hold = (settings.is_open || hud_sheet.open || (lab_id !== null && modal_open())) && net.remotes.size === 0;
   let stepped = 0;
   let simulated = false;
   let impact = 0;

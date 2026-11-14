@@ -12,7 +12,11 @@ const pack: Pack = {
     { id: "pad", car: "hatch.4.0.2.1.0", mods: [{ scale: { mu: 0.95 }, add: { offroad: -0.15, mass: 10 } }], station: "skidpad", lane: "ice", goal: { kind: "laps", laps: 3 }, try: "", feel: "" },
     { id: "run", car: "hatch.4.0.2.1.0", station: "runway", goal: { kind: "run" }, try: "", feel: "" },
   ],
-  ask: [],
+  ask: [
+    { kind: "scale", id: "grip", label: "Grip", low: "", high: "" },
+    { kind: "scale", id: "pred", label: "Predictability", low: "", high: "" },
+    { kind: "text", id: "note", label: "Note" },
+  ],
 };
 
 const nan = Number.NaN;
@@ -20,7 +24,7 @@ const metrics: Metrics = { time: 70.123, laps: [21.84, 22.41], segment: nan, lat
 
 test("the export block reads like docs/lab.md says", () => {
   const trials = resolve_pack(pack);
-  const block = export_block(pack, trials, [{ status: "done", metrics }, { status: "new", metrics: null }], { pad: { grip: 2, pred: 4, note: "slides early,\n catches fine" } }, "0.41.1", { input: "touch", width: 390, height: 844 }, new Date("2026-11-14T20:12:30Z"));
+  const block = export_block(pack, trials, [{ status: "done", metrics }, { status: "new", metrics: null }], { pad: { note: "slides early,\n catches fine", pred: 4, grip: 2 } }, "0.41.1", { input: "touch", width: 390, height: 844 }, new Date("2026-11-14T20:12:30Z"));
   const lines = block.split("\n");
   expect(lines[0]).toBe("#lab t1 r3 v0.41.1 2026-11-14T20:12Z touch 390x844");
   expect(lines[1]).toBe(`#trial pad hatch.4.0.2.1.0 +mu*0.95 +offroad-0.15 +mass+10 spec#${trials[0].hash} pi${trials[0].pi}${trials[0].class.toUpperCase()} skidpad/ice laps3 done`);

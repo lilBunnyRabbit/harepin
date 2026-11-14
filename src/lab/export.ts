@@ -1,5 +1,6 @@
 import type { Mod } from "../car/build";
 import { CLASS_LABELS } from "../car/pi";
+import { questions_of } from "./answers";
 import type { TrialResult } from "./lab";
 import type { Goal, Pack, Resolved } from "./pack";
 import type { Metrics } from "./recorder";
@@ -87,8 +88,13 @@ export function export_block(pack: Pack, trials: readonly Resolved[], results: r
       lines.push(` m ${metrics_text(result.metrics)}`);
     }
     const given = answers[trial.id] ?? {};
-    const scales = Object.entries(given).filter(([id, v]) => id !== "note" && (typeof v === "number" || v.trim()));
-    if (scales.length) lines.push(` a ${scales.map(([id, v]) => `${id}=${typeof v === "number" ? v : quote(v)}`).join(" ")}`);
+    // Question order, not tap order: two runs of a pack diff line by line.
+    const asked = questions_of(pack, trial).flatMap(({ id }) => {
+      const v = given[id];
+      if (id === "note" || v === undefined || (typeof v === "string" && !v.trim())) return [];
+      return [`${id}=${typeof v === "number" ? v : quote(v)}`];
+    });
+    if (asked.length) lines.push(` a ${asked.join(" ")}`);
     if (typeof given.note === "string" && given.note.trim()) lines.push(` n ${quote(given.note)}`);
   });
   lines.push(`#end ${driven}/${trials.length} trials`);
