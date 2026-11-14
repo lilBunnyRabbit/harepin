@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import * as THREE from "three";
-import { fitted_slab, sculpt } from "./body-shell";
+import { fitted_slab, sculpt, sculpt_factor } from "./body-shell";
 import { DESIGNS } from "./designs";
 import type { Design, Slab } from "./designs";
 
@@ -43,5 +43,20 @@ test("a slab that overhangs a pinched nose or tail keeps every side face flat", 
       { points: [[front + 0.2, y - 0.6], [front + 0.2, y + 0.1], [front - 0.5, y], [front - 0.5, y - 0.5]], from: 0, to: d.width / 2 },
     ];
     for (const s of over) for (const face of side_faces(d, s)) expect(`${car}: ${warp(face).toFixed(6)}`).toBe(`${car}: ${(0).toFixed(6)}`);
+  }
+});
+
+test("a straight slab stands square to the car across the pinch, as wide as the body at its anchor", () => {
+  for (const [car, d] of pinched) {
+    const tail = d.outline[d.outline.length - 1][0];
+    const y = Math.max(...d.outline.map(([, oy]) => oy)) + 0.2;
+    const points: Slab["points"] = [[tail + 1.2, y], [tail - 0.3, y + 0.3], [tail - 0.3, y + 0.2], [tail + 1.2, y - 0.1]];
+    const anchor = tail + 0.1;
+    const wide = (d.width / 2) * sculpt_factor(d, y, anchor);
+    for (const face of side_faces(d, { points, from: 0, to: d.width / 2, straight: anchor }))
+      for (const p of face) expect(`${car}: ${p.x.toFixed(5)}`).toBe(`${car}: ${wide.toFixed(5)}`);
+    // Down through the crest and a sloping belt, far from its anchor, it still folds where the body does.
+    const tall: Slab = { points: [[tail + 1.2, y], [tail + 1.0, y], [tail + 1.0, d.sill + 0.05], [tail + 1.2, d.sill + 0.05]], from: 0, to: d.width / 2, straight: anchor };
+    for (const face of side_faces(d, tall)) expect(`${car}: ${warp(face).toFixed(6)}`).toBe(`${car}: ${(0).toFixed(6)}`);
   }
 });
