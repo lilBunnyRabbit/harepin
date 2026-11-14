@@ -9,11 +9,13 @@
     /** Widens to hold side-by-side columns on a wide screen; a phone gets the full width either way. */
     wide?: boolean;
     onclose?: () => void;
+    /** A picture across the top, edge to edge. */
+    banner?: Snippet;
     actions?: Snippet;
     children: Snippet;
   }
 
-  let { open = $bindable(), title, subtitle, wide = false, onclose, actions, children }: Props = $props();
+  let { open = $bindable(), title, subtitle, wide = false, onclose, banner, actions, children }: Props = $props();
 
   const uid = $props.id();
   let dialog = $state<HTMLDialogElement>();
@@ -37,22 +39,24 @@
 </script>
 
 <dialog bind:this={dialog} class="ui-dialog" data-wide={wide || undefined} aria-labelledby={`${uid}-title`} onclose={closed}>
-  <header class="ui-head">
-    <h2 class="ui-title" id={`${uid}-title`}>{title}</h2>
-    {#if subtitle}<p class="ui-subtitle">{subtitle}</p>{/if}
-  </header>
-  <ScrollArea class="ui-dialog-body">{@render children()}</ScrollArea>
-  {#if actions}<footer class="ui-actions">{@render actions()}</footer>{/if}
+  {#if banner}<div class="ui-banner">{@render banner()}</div>{/if}
+  <div class="ui-box">
+    <header class="ui-head">
+      <h2 class="ui-title" id={`${uid}-title`}>{title}</h2>
+      {#if subtitle}<p class="ui-subtitle">{subtitle}</p>{/if}
+    </header>
+    <ScrollArea class="ui-dialog-body">{@render children()}</ScrollArea>
+    {#if actions}<footer class="ui-actions">{@render actions()}</footer>{/if}
+  </div>
 </dialog>
 
 <style>
   .ui-dialog {
     flex-direction: column;
-    gap: var(--space-5);
     width: min(560px, calc(100vw - 2 * var(--inset)));
     max-width: none;
     max-height: calc(100dvh - 2 * var(--inset));
-    padding: var(--space-6);
+    padding: 0;
     border: 1px solid var(--line);
     border-radius: var(--radius-lg);
     background: var(--panel);
@@ -72,6 +76,19 @@
 
   .ui-dialog::backdrop {
     background: color-mix(in oklch, var(--background-darkest) 55%, transparent);
+  }
+
+  .ui-banner {
+    flex: none;
+  }
+
+  .ui-box {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: var(--space-5);
+    min-height: 0;
+    padding: var(--space-6);
   }
 
   .ui-head {
@@ -103,7 +120,7 @@
   }
 
   @media (max-height: 500px) {
-    .ui-dialog {
+    .ui-box {
       gap: var(--space-4);
       padding: var(--space-4);
     }

@@ -2,6 +2,8 @@
   import { CHANGELOG } from "../changelog";
   import { newer_releases, type VersionInfo } from "../version";
   import ReleaseNotes from "./ReleaseNotes.svelte";
+  import ReleaseStory from "./ReleaseStory.svelte";
+  import { story_of } from "./release-story";
   import Button from "./ui/Button.svelte";
   import Card from "./ui/Card.svelte";
   import type { UpdateView } from "./update-view.svelte";
@@ -14,6 +16,8 @@
 
   let { view, build, onapply }: Props = $props();
 
+  // The running release's story leads the page; an older release shows its notes alone.
+  const story = story_of(CHANGELOG[0]);
   const fresh = $derived(view.pending?.remote ? newer_releases(view.pending.remote.notes, build.version) : []);
 </script>
 
@@ -32,6 +36,7 @@
   {/if}
   <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
   <div class="changelog" tabindex="0" role="region" aria-label="Release notes">
+    {#if story}<ReleaseStory release={CHANGELOG[0]} {story} />{/if}
     <p class="changelog-build">You have v{build.version} · {build.commit}</p>
     {#each CHANGELOG as release (release.version)}<ReleaseNotes {release} />{/each}
   </div>

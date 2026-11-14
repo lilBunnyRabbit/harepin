@@ -10,15 +10,46 @@ export interface Change {
   text: string;
 }
 
+/** A locked thing shown as an outline only. */
+export const TEASE = "tease";
+
+/**
+ * One block of a release's story (`menu/release-story.ts`). Without `car` or `was` it is a headline: the first three are
+ * the lines of the updated card, and car cards that follow one sit under it.
+ */
+export interface Highlight {
+  kind: ChangeKind | typeof TEASE;
+  title: string;
+  text: string;
+  /** A car id, drawn when this build has that car. A string, not `CarId`: a release may be written before its car lands. */
+  car?: string;
+  /** Before and now: this `car`, or every car when there is none. The before picture is `public/release/before/<car>.webp`. */
+  was?: boolean;
+}
+
 export interface Release {
   version: string;
   /** YYYY-MM-DD */
   date: string;
   title: string;
   changes: Change[];
+  /** The release's story, for a big one: the updated card and the Release notes page lead with it. */
+  highlights?: Highlight[];
 }
 
 const { NEW, IMPROVED, FIXED } = ChangeKind;
+
+/** The next release's story, written ahead of its bump: at release its `highlights` move onto the new top entry of `CHANGELOG`. */
+export const DRAFT_HIGHLIGHTS: Highlight[] = [
+  { kind: NEW, title: "Two new cars", text: "A pop-up drift hardtop and a sand buggy." },
+  { kind: NEW, title: "Tsumuji", text: "A light drift hardtop. Its headlights pop up when you switch the lights on.", car: "tsumuji" },
+  { kind: NEW, title: "Sajin", text: "A sand buggy with long-travel suspension and big tyres, built for the dunes.", car: "sajin" },
+  { kind: IMPROVED, title: "Every car, restyled", text: "Stock bodies and four aero kits to bolt on.", was: true },
+  { kind: TEASE, title: "Something fast is waiting", text: "Win the Legend final to earn it.", car: "fujin" },
+  { kind: NEW, title: "Career page", text: "Tiers, cups and rewards on one page." },
+  { kind: NEW, title: "Towns", text: "Streets and buildings to drive through." },
+  { kind: NEW, title: "Headlights", text: "Switch them on any car. Players online see them." },
+];
 
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [

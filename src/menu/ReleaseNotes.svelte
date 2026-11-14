@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { ChangeKind, type Release } from "../changelog";
+  import type { Release } from "../changelog";
+  import KindBadge from "./KindBadge.svelte";
   import Badge from "./ui/Badge.svelte";
 
   interface Props {
@@ -8,12 +9,6 @@
   }
 
   let { release, fresh = false }: Props = $props();
-
-  const KINDS = {
-    [ChangeKind.NEW]: { label: "New", tone: "success" },
-    [ChangeKind.IMPROVED]: { label: "Improved", tone: "info" },
-    [ChangeKind.FIXED]: { label: "Fixed", tone: "warning" },
-  } as const;
 </script>
 
 <section class="release">
@@ -26,7 +21,7 @@
   <ul class="release-changes">
     {#each release.changes as change, index (index)}
       <li>
-        <span class="release-kind"><Badge tone={KINDS[change.kind].tone}>{KINDS[change.kind].label}</Badge></span>
+        <span class="release-kind"><KindBadge kind={change.kind} /></span>
         <span>{change.text}</span>
       </li>
     {/each}

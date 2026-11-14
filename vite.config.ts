@@ -91,6 +91,8 @@ export default defineConfig(({ mode }) => {
         workbox: {
           // Career dev ghosts, so events keep their first opponent offline.
           globPatterns: ["**/*.{js,css,html,woff2,svg,png,ico,webp}", "career/*.json"],
+          // The before pictures of a release story load only when its page is open, and it holds without them offline.
+          globIgnores: ["release/**"],
         },
         manifest: {
           id: "harepin",
