@@ -1,7 +1,7 @@
 import type { BodyStyle } from "./cars";
 import { rod } from "./design-parts";
 import { DESIGNS, type Detail } from "./designs";
-import { arch_bolts, centred, outlet, pipe, screen_band, screen_bar, side_pipe } from "./detail-parts";
+import { centred, outlet, pipe, screen_band, screen_bar, side_pipe } from "./detail-parts";
 import { face_at, tail_at, top_at, type Part } from "./geometry";
 
 const { hatch, muscle, rally, kaze, sturm, raijin, tsumuji } = DESIGNS;
@@ -132,12 +132,7 @@ const TSUMUJI: Detail[] = [
   { on: "light", cue: "Roll hoop behind the seats, seen through the rear screen", cage: [screen_bar(tsumuji.cabin, 3, [0.4, 0.15], [0.4, 0.95]), screen_bar(tsumuji.cabin, 3, [0, 0.15], [0.425, 0.15])] },
 ];
 
-const STURM_LIP = 0.85 + 0.15 + 0.004;
-const STURM_RING = 0.34 + 0.085 - 0.004 + 0.035;
-const STURM_ARCH_LOW = Math.asin((sturm.sill - 0.34) / (0.34 + 0.085));
-const sturm_bolts = (z: number) => arch_bolts(STURM_LIP, z, 0.34, STURM_RING, STURM_ARCH_LOW, sturm.arches.steps, 0.055);
 const STURM: Detail[] = [
-  { on: "street", cue: "Four bolt heads on each bolt-on arch", bright: [...sturm_bolts(1.362), ...sturm_bolts(-0.908)] },
   { on: "street", cue: "Banner across the top of the windscreen", banner: [screen_band(sturm.cabin, 0, 0.7, 0.98, 0.6)] },
   { on: "tuned", cue: "Oil cooler in the front bumper", bright: [centred(0.5, 0.1, 0.02, 0.3, 2.302)] },
 ];

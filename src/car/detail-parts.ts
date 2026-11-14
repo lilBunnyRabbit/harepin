@@ -76,13 +76,3 @@ export function screen_band(cabin: Cabin, edge: number, from: number, to: number
   const [, y, z] = screen.at(0, (from + to) / 2);
   return { size: [half, 0.02, (to - from) * screen.length], at: [half / 2, y, z], tilt: [screen.tilt, 0, 0] };
 }
-
-/** A bolt head on the middle of each upper facet of an arch lip: `low` is the angle the arch starts at below the axle. */
-export function arch_bolts(x: number, z: number, y: number, ring: number, low: number, steps: number, across: number): Part[] {
-  const step = (Math.PI - 2 * low) / steps;
-  const reach = ring * Math.cos(step / 2);
-  return Array.from({ length: steps - 2 }, (_, i): Part => {
-    const a = low + step * (i + 1.5);
-    return { size: [0.02, across, across], at: [x, y + reach * Math.sin(a), z + reach * Math.cos(a)], tilt: [-a, 0, 0] };
-  });
-}

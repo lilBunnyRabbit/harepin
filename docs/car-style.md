@@ -84,7 +84,7 @@ On top of the kit, each car wears the cues of its own tuning scene, each brought
 | Rally | gravel stage | red mudflaps, roof scoop, lamp pod, sump guard |
 | Kaze | pro drift | camber, tow straps, bash bar in place of the rear bumper |
 | Tsumuji | clean roadster | camber, roll hoop; never a bonnet bulge or bare panel |
-| Sturm | RWB | four bolt heads per arch, windscreen banner, oil cooler |
+| Sturm | RWB | windscreen banner, oil cooler |
 | Raijin | time attack | intercooler, floor planes, red tow hook, fences and canards |
 | Formula | grand prix | T-camera, bargeboards, shark fin, T-wing; helmet in body colour |
 | Fujin | endurance | one side-exit pipe each side, nothing else |
