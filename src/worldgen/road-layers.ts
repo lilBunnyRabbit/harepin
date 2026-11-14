@@ -3,13 +3,14 @@ import { junction_patch, type Arm, type Patch, type Reach } from "./junction";
 import type { Rgb } from "./mesh";
 import type { Extent } from "./chunk-grid";
 import { offset_reach, strip_line, type Roads, type StripLine } from "./roads";
+import { LIFT } from "./lifts";
 import { ROAD_HALF, SIDEWALK, type RoadEdge, type RoadPoint, type WorldData } from "./types";
 
-const SURFACE_LIFT = 0.025;
+const SURFACE_LIFT = LIFT.street;
 // Spurs sit a hair above streets and sidewalks so their mouth covers the street's sidewalk at the town gate.
-const SPUR_LIFT = 0.035;
-const RING_LIFT = 0.03;
-const MARK_LIFT = 0.045;
+const SPUR_LIFT = LIFT.spur;
+const RING_LIFT = LIFT.ring;
+const MARK_LIFT = LIFT.mark;
 const MARK_HALF = 0.15;
 const EDGE_INSET = 0.3;
 const EDGE_WIDTH = 0.25;

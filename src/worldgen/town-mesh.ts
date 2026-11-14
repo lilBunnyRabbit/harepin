@@ -2,6 +2,7 @@ import type { MeshTones } from "./chunks";
 import { roof_rise } from "./lots";
 import { turned, type Builder, type Frame, type Rgb, type V3 } from "./mesh";
 import { hash } from "./noise";
+import { LIFT } from "./lifts";
 import { FLOOR, HEDGE_TOP, PARAPET, PLINTH_OUT, PLINTH_TOP, SHOP_FLOOR, hedge_runs } from "./town-style";
 import { Roof, type Building, type Detail, type Lot } from "./types";
 
@@ -17,7 +18,7 @@ export interface TownTones {
 
 const NONE: Rgb = [0, 0, 0];
 const OUT = 0.04;
-const PAD_LIFT = 0.06;
+const PAD_LIFT = LIFT.pad;
 const SILL = 0.9;
 const WINDOW_TALL = 1.4;
 const PATH_HALF = 0.7;
@@ -144,6 +145,29 @@ export function dress_building(out: Builder, glass: Builder, b: Building, detail
   else clock(out, glass, b, tones);
 }
 
+/** A rectangle of paving in a lot's frame, `lift` over the terrain. */
+export interface Paving {
+  x0: number;
+  x1: number;
+  z0: number;
+  z1: number;
+  lift: number;
+}
+
+/** The paving `dress_lot` lays on `lot`, highest last. */
+export function lot_paving(lot: Lot): Paving[] {
+  const hw = lot.w / 2;
+  const hd = lot.d / 2;
+  if (lot.ground === "plaza")
+    return [
+      { x0: -hw, x1: hw, z0: -hd, z1: hd, lift: PAD_LIFT },
+      { x0: PLAZA_BORDER - hw, x1: hw - PLAZA_BORDER, z0: PLAZA_BORDER - hd, z1: hd - PLAZA_BORDER, lift: LIFT.plaza },
+    ];
+  if (lot.ground === "paved") return [{ x0: -hw, x1: hw, z0: -hd, z1: hd + PAD_OUT, lift: PAD_LIFT }];
+  if (lot.ground === "yard") return [{ x0: -PATH_HALF, x1: PATH_HALF, z0: hd + PAD_OUT - PATH_LONG, z1: hd + PAD_OUT, lift: PAD_LIFT }];
+  return [];
+}
+
 /** `ground` stands each hedge run on the terrain under its middle, where its solid stands. */
 export function dress_lot(pads: Builder, out: Builder, lot: Lot, tones: MeshTones, ground: (x: number, z: number) => number) {
   const hw = lot.w / 2;
@@ -152,7 +176,7 @@ export function dress_lot(pads: Builder, out: Builder, lot: Lot, tones: MeshTone
   pads.at(lot);
   if (lot.ground === "plaza") {
     pads.top(hw, hd, PAD_LIFT, pave);
-    pads.top(hw - PLAZA_BORDER, hd - PLAZA_BORDER, PAD_LIFT + 0.04, square);
+    pads.top(hw - PLAZA_BORDER, hd - PLAZA_BORDER, LIFT.plaza, square);
   } else if (lot.ground === "paved") pads.quad([-hw, PAD_LIFT, hd + PAD_OUT], [hw, PAD_LIFT, hd + PAD_OUT], [hw, PAD_LIFT, -hd], [-hw, PAD_LIFT, -hd], pave);
   else if (lot.ground === "yard") {
     pads.quad([-PATH_HALF, PAD_LIFT, hd + PAD_OUT], [PATH_HALF, PAD_LIFT, hd + PAD_OUT], [PATH_HALF, PAD_LIFT, hd + PAD_OUT - PATH_LONG], [-PATH_HALF, PAD_LIFT, hd + PAD_OUT - PATH_LONG], pave);

@@ -8,9 +8,10 @@ import type { ChunkBuffers, Soup } from "../worldgen/chunks";
 import { Builder, type Rgb, type Sphere } from "../worldgen/mesh";
 import { KINDS } from "../worldgen/kinds/kinds";
 import { hash } from "../worldgen/noise";
+import { LIFT } from "../worldgen/lifts";
 import { PropKind, type Prop } from "../worldgen/types";
 
-const PAD_LIFT = 0.06;
+const PAD_LIFT = LIFT.pad;
 // Lit from inside: a dusk street reads by its shop windows, a day street by glass that stays bright in shade.
 const GLASS_GLOW = dark ? 0.55 : 0.3;
 

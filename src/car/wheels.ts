@@ -7,6 +7,9 @@ import { brand, color, mix, tones } from "../theme/palette";
 export const STOCK_TYRE: Required<Look>["tyre"] = { width: 1, rim: 1 };
 export const STOCK_CALIPER: Required<Look>["caliper"] = { size: 1 };
 const TREAD_BLOCKS = 12;
+/** Tread block height and length at `tread` 1, metres. */
+const BLOCK_TALL = 0.05;
+const BLOCK_LONG = 0.1;
 
 export const chrome_tone = () => color(mix(brand.foreground, brand.background_lightest, 0.6));
 const RIM_TONES: Record<Rim["tone"], () => THREE.Color> = {
@@ -20,8 +23,13 @@ export function wheel_geometry(radius: number, width: number, rim: Rim, look: Re
   const wide = width * look.width;
   const disc = radius * rim.size * look.rim;
   const rubber = color(tones.tyre);
+  const tall = BLOCK_TALL * (look.tread ?? 0);
+  const long = BLOCK_LONG * (look.tread ?? 0);
+  // The blocks' outer corners reach the rolling radius, not past it, so knobbly tyres sit on the ground the wheels feel.
+  const block_at = Math.sqrt(radius * radius - (long * long) / 4) - tall / 2;
+  const carcass = look.tread ? block_at : radius;
   const pieces = [
-    tint(new THREE.CylinderGeometry(radius, radius, wide, sides).rotateZ(Math.PI / 2), rubber),
+    tint(new THREE.CylinderGeometry(carcass, carcass, wide, sides).rotateZ(Math.PI / 2), rubber),
     tint(new THREE.CylinderGeometry(disc, disc, wide + 0.02, sides).rotateZ(Math.PI / 2), rim.spokes ? color(tones.trim) : tone),
   ];
   // A dished rim: the lip is the polished disc's rim, the dark dish covers its centre and the spokes stand on the dish.
@@ -36,7 +44,7 @@ export function wheel_geometry(radius: number, width: number, rim: Rim, look: Re
   if (look.band) pieces.push(tint(new THREE.CylinderGeometry(disc + 0.022, disc + 0.022, wide + 0.01, sides).rotateZ(Math.PI / 2), color(brand[look.band])));
   if (look.tread)
     for (let i = 0; i < TREAD_BLOCKS; i++)
-      pieces.push(tint(new THREE.BoxGeometry(wide * 0.46, 0.05 * look.tread, 0.1 * look.tread).translate((i % 2 ? 1 : -1) * wide * 0.26, radius, 0).rotateX((i * 2 * Math.PI) / TREAD_BLOCKS), rubber));
+      pieces.push(tint(new THREE.BoxGeometry(wide * 0.46, tall, long).translate((i % 2 ? 1 : -1) * wide * 0.26, block_at, 0).rotateX((i * 2 * Math.PI) / TREAD_BLOCKS), rubber));
   return merge(...pieces);
 }
 

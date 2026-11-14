@@ -11,6 +11,7 @@ import { grid_ground, Roads, type Layer } from "./roads";
 import { deck_layers, type DeckTones } from "./sky-mesh";
 import type { LavaPool } from "./lava";
 import { hash } from "./noise";
+import { LIFT } from "./lifts";
 import { ISLAND } from "./recipe";
 import { CELL, Ground, N, ORIGIN, PropKind, Roof, SURFACE_GROUND, type Building, type Lot, type ParkingLot, type Prop, type WorldData } from "./types";
 
@@ -61,8 +62,8 @@ const STOREY = 3.2;
 const WINDOW_LOW = 1;
 const WINDOW_HIGH = 2.1;
 const WINDOW_INSET = 0.6;
-const PAD_LIFT = 0.06;
-const LINE_LIFT = 0.09;
+const PAD_LIFT = LIFT.pad;
+const LINE_LIFT = LIFT.pad_line;
 const LINE_HALF = 0.06;
 
 /** Linear RGB, resolved from the palette on the main thread: the palette reads theme tokens from the DOM. */

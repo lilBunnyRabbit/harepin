@@ -76,7 +76,7 @@ const yaw = new THREE.Quaternion();
 export function place_contact_shadow(shadow: ContactShadow, x: number, y: number, z: number, heading: number, world: World) {
   const ground = world.height(x, z, y);
   world.normal(x, z, ground_normal, y);
-  shadow.mesh.position.set(x, ground + 0.05, z);
+  shadow.mesh.position.set(x, ground + world.drawn_lift(x, z, y) + 0.05, z);
   tilt.setFromUnitVectors(up, ground_normal);
   yaw.setFromAxisAngle(up, heading);
   shadow.mesh.quaternion.copy(tilt).multiply(yaw);

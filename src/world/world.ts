@@ -11,6 +11,8 @@ import { FALL_DEPTH } from "../worldgen/sky";
 import { slice_tiles, TileStore, type Tile } from "../worldgen/tiles";
 import { kerb_marks, on_kerb_segment, type KerbMarks } from "./kerbs";
 import { CELL, ROAD_HALF, RouteKind, SurfaceId, type WorldKind } from "../worldgen/types";
+import { LIFT } from "../worldgen/lifts";
+import { paved_lots, paving_lift, type PavedLot } from "./drawn-lift";
 import { SEA_LEVEL, water_index, type WaterIndex } from "../worldgen/water";
 import type { LavaPool } from "../worldgen/lava";
 import type {
@@ -217,6 +219,7 @@ export class World implements Ground {
   private live = 0;
   private readonly nearby: Solid[] = [];
   private readonly nearby_slots: number[] = [];
+  private paved: PavedLot[] | null = null;
   private readonly road_grid = new Map<number, number[]>();
   /** Lane 0 is the circuit as `road`, then every other edge at its id + 1, then the trails. */
   private readonly lanes: readonly (readonly RoadPoint[])[];
@@ -378,6 +381,17 @@ export class World implements Ground {
    */
   drowned(x: number, z: number): boolean {
     return this.depth(x, z) > DEEP_WATER;
+  }
+
+  /**
+   * How far the drawn ground at (`x`, `z`) stands over the ground the wheels feel, for the views to stand a car on it: road
+   * and paving drape a few centimetres over the terrain. The road's share eases out over its grip edge, so a wheel
+   * running off it does not drop at once; a ramp or deck under `y` is drawn where it is felt.
+   */
+  drawn_lift(x: number, z: number, y?: number): number {
+    if (this.height(x, z, y) > this.tiles.height(x, z)) return 0;
+    const road = LIFT.ring * Math.max(0, Math.min(1, (ON_ROAD - this.tiles.road_dist(x, z)) / (ON_ROAD - ROAD_HALF)));
+    return Math.max(road, paving_lift((this.paved ??= paved_lots(this.lots, this.parking)), x, z));
   }
 
   distance_to_road(x: number, z: number): number {
