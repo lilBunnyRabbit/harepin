@@ -29,7 +29,7 @@ function rig() {
   return { canvas, log, yaw: () => cam.yaw, input };
 }
 
-test("a long held drag keeps turning the car every move", () => {
+test("orbit input turns the car on every move of a long drag", () => {
   const { canvas, log, yaw } = rig();
   canvas.dispatchEvent(pointer("pointerdown", 1, 100, 400, 0));
   let last = yaw();
