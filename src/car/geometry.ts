@@ -145,3 +145,32 @@ export function top_at(outline: Point[], z: number): number {
   }
   return top;
 }
+
+/** Keeps the side of the line a-b (given as [z, y], y as a function of z) above it (`keep` 1) or below it (-1). */
+export function clip_line(points: Point[], a: Point, b: Point, keep: number): Point[] {
+  const over = ([z, y]: Point) => (y - (a[1] + ((b[1] - a[1]) * (z - a[0])) / (b[0] - a[0]))) * keep;
+  const out: Point[] = [];
+  points.forEach((p, i) => {
+    const q = points[(i + 1) % points.length];
+    const dp = over(p);
+    const dq = over(q);
+    if (dp >= 0) out.push(p);
+    if (dp >= 0 !== dq >= 0) {
+      const t = dp / (dp - dq);
+      out.push([p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t]);
+    }
+  });
+  return out;
+}
+
+/** Rearmost z of the outline at height y: the tail face, as `face_at` gives the nose. */
+export function tail_at(outline: Point[], y: number): number {
+  let face = Infinity;
+  for (let i = 0; i + 1 < outline.length; i++) {
+    const [z0, y0] = outline[i];
+    const [z1, y1] = outline[i + 1];
+    if (y < Math.min(y0, y1) || y > Math.max(y0, y1) || y0 === y1) continue;
+    face = Math.min(face, z0 + ((z1 - z0) * (y - y0)) / (y1 - y0));
+  }
+  return face;
+}
