@@ -54,6 +54,14 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.44.1",
+    date: "2026-11-14",
+    title: "Steady windows",
+    changes: [
+      { kind: FIXED, text: "Town windows no longer flicker when seen from a distance" },
+    ],
+  },
+  {
     version: "0.44.0",
     date: "2026-11-14",
     title: "Market towns",
