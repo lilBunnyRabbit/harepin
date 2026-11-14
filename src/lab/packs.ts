@@ -12,4 +12,5 @@ export const PACKS: Record<string, () => Promise<{ default: Pack }>> = {
   "t3c-raijin": () => import("./packs/t3c-raijin"),
   "t3d-kaze": () => import("./packs/t3d-kaze"),
   "t3e-muscle": () => import("./packs/t3e-muscle"),
+  "t4-sajin": () => import("./packs/t4-sajin"),
 };
