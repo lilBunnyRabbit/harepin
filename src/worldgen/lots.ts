@@ -5,7 +5,7 @@ import type { TownRecipe } from "./recipe";
 import { heading, prop_solids } from "./scatter";
 import type { Stamp } from "./stamp";
 import { on_core } from "./towns";
-import { FLOOR, HEDGE_TOP, PLINTH_OUT, PLINTH_TOP, SHOP_FLOOR, hedge_runs, high_street_plot, house_shape, row_shape, type Plot, type Shape } from "./town-style";
+import { FLOOR, PLINTH_OUT, PLINTH_TOP, SHOP_FLOOR, STALL, TOWER, TOWER_INSET, WALL_TOP, high_street_plot, house_shape, stall_spots, terrace_shape, wall_runs, type Plot, type Shape } from "./town-style";
 import {
   CELL,
   ORIGIN,
@@ -55,8 +55,13 @@ const LIGHT_EVERY = 30;
 const LIGHT_HEIGHT = 6;
 // Phones pay for every town tree: at one a side every 12 m and two a garden a town frame cost a third more.
 const STREET_TREE_EVERY = 15;
+/** A cottage garden holds two trees this often, else one. */
 const BACK_TREE_ODDS = 0.5;
-const CLOCK = { half: 2.6, height: 15 };
+/** Copses round a high street: one tree a `COPSE_STEP` cell at these odds, clear of every road and the main street's line. */
+const COPSE_STEP = 13;
+const COPSE_ODDS = 0.45;
+const COPSE_ROAD_CLEAR = ROAD_HALF + 9;
+const COPSE_AXIS_CLEAR = 16;
 /** A spire climbs this many times its half width. */
 const SPIRE_PITCH = 2.7;
 const SQUARE_MIN = 16;
@@ -94,10 +99,9 @@ function plain_plot(r1: number, r2: number, wide: number): Plot {
   return { form: null, wide: (12 + r1 * 8) * wide, deep: 14 + r2 * 12, min_w: LOT_MIN_W, gap: LOT_GAP, share: BLOCK_SHARE };
 }
 
-function high_kind(plot: Plot, d: number, roll: number): LotKind {
+function high_kind(plot: Plot, d: number): LotKind {
   if (plot.form === null) return d >= PARKING_MIN_D ? "parking" : "garden";
-  if (plot.form === "row") return "shop";
-  return roll < 0.12 ? "garden" : "house";
+  return plot.form === "terrace" ? "shop" : "house";
 }
 
 const off_axis = (town: Town, p: { x: number; z: number }) => Math.abs((p.x - town.x) * town.uz - (p.z - town.z) * town.ux);
@@ -223,17 +227,20 @@ export class Lots {
     for (const side of [-1, 1] as const) {
       const ox = -tz * side;
       const oz = tx * side;
-      const mx = (a.x + b.x) / 2 + ox * town.block;
-      const mz = (a.z + b.z) / 2 + oz * town.block;
+      // Blocks beside a street along the town axis are as deep as the lane rows stand apart.
+      const span = Math.abs(tx * town.ux + tz * town.uz) > 0.5 ? (town.cross ?? town.block) : town.block;
+      const mx = (a.x + b.x) / 2 + ox * span;
+      const mz = (a.z + b.z) / 2 + oz * span;
       const inner = this.sample(this.terrain.road_dist, mx, mz) < ROAD_HALF + 1;
       let u = CORNER_CLEAR;
+      let joined: { detail: Detail; end: number } | null = null;
       for (let n = 0; ; n++) {
         const r = (k: number) => hash(edge.id * 8 + (side + 1) * 2, n, this.seed + k);
         const back = half + FRONT_GAP + LOT_MIN_D / 2;
         const near = length(a.x + tx * (u + LOT_MIN_D / 2) + ox * back - town.x, a.z + tz * (u + LOT_MIN_D / 2) + oz * back - town.z) / town.radius;
         const plot = high ? high_street_plot(near, main, r(1), r(2), r(3)) : plain_plot(r(1), r(2), look.wide);
         if (u + plot.min_w > len - CORNER_CLEAR) break;
-        const room = inner ? (town.block - 2 * (half + FRONT_GAP)) * plot.share : Infinity;
+        const room = inner ? (span - 2 * (half + FRONT_GAP)) * plot.share : Infinity;
         const wide = Math.min(plot.wide, len - CORNER_CLEAR - u);
         const deep = Math.max(LOT_MIN_D, Math.min(room, plot.deep));
         let placed: { x: number; z: number; w: number; d: number; along: number } | null = null;
@@ -257,12 +264,18 @@ export class Lots {
           return true;
         });
         const reach = length(x - town.x, z - town.z) / town.radius;
-        const kind = high ? high_kind(plot, d, r(8)) : lot_kind(reach, r(3), d);
+        const kind = high ? high_kind(plot, d) : lot_kind(reach, r(3), d);
         const lot: Lot = { id: this.out.lots.length, town: town.id, edge: edge.id, side, x, y: this.sample(heights, x, z), z, w, d, fx: -ox, fz: -oz, angle: Math.atan2(-ox, -oz), kind };
         this.out.lots.push(lot);
         const index = Math.max(0, Math.min(edge.points.length - 1, Math.round((along / len) * (edge.points.length - 1))));
-        if (kind === "shop" && high) this.shop(lot, r(4));
-        else if (kind === "house" && high) this.home(lot, r(4), r(5), r(6));
+        if (kind === "shop" && high) {
+          // Seen from the street, a lot on its +1 side runs right to left: its far end is the building's -x wall.
+          const detail = this.terrace(lot, r(4));
+          const before = joined !== null && along - w / 2 - joined.end < 0.01 ? joined.detail : null;
+          const [near_end, far_end] = side > 0 ? [1, 0] : [0, 1];
+          if (before?.ends && detail.ends) before.ends[far_end] = detail.ends[near_end] = false;
+          joined = { detail, end: along + w / 2 };
+        } else if (kind === "house" && high) this.home(lot, r(4), r(5));
         else if (kind === "house" || kind === "shop") this.building(lot, reach, look, r(4), r(5), r(6));
         else if (kind === "parking") this.parking(lot, index);
         else if (kind === "garden") this.garden(lot, 1 + Math.floor(r(7) * 3));
@@ -357,22 +370,24 @@ export class Lots {
     return building;
   }
 
-  private shop(lot: Lot, r1: number) {
-    const shape = row_shape(lot, r1);
+  private terrace(lot: Lot, r1: number): Detail {
+    const shape = terrace_shape(lot, r1);
+    const detail: Detail = { form: "terrace", floors: shape.floors, tint: hash(lot.id, 9, this.seed + 74), ends: [true, true] };
     lot.ground = "paved";
-    this.raise(lot, shape, { form: "row", floors: shape.floors, tint: hash(lot.id, 9, this.seed + 74) });
+    this.raise(lot, shape, detail);
+    return detail;
   }
 
-  private home(lot: Lot, r1: number, r2: number, r3: number) {
-    const shape = house_shape(lot, r1, r2, r3);
+  private home(lot: Lot, r1: number, r2: number) {
+    const shape = house_shape(lot, r1, r2);
     lot.ground = "yard";
     this.raise(lot, shape, { form: "house", floors: shape.floors, tint: hash(lot.id, 9, this.seed + 74) });
-    for (const run of hedge_runs(lot)) {
+    for (const run of wall_runs(lot)) {
       const [x, z] = local_to_world(lot, run.x, run.z);
-      this.out.solids.push({ kind: "box", x, y: this.sample(this.terrain.heights, x, z), z, hw: run.hw, hd: run.hd, cos: lot.fz, sin: lot.fx, height: HEDGE_TOP });
+      this.out.solids.push({ kind: "box", x, y: this.sample(this.terrain.heights, x, z), z, hw: run.hw, hd: run.hd, cos: lot.fz, sin: lot.fx, height: WALL_TOP });
     }
     const back = shape.front - shape.hd + lot.d / 2;
-    const trees = back > 4 && hash(lot.id, 1, this.seed + 74) < BACK_TREE_ODDS ? 1 : 0;
+    const trees = back <= 4 ? 0 : hash(lot.id, 1, this.seed + 74) < BACK_TREE_ODDS ? 2 : 1;
     for (let i = 0; i < trees; i++) {
       const [x, z] = local_to_world(lot, (hash(lot.id, 2 + i, this.seed + 74) - 0.5) * (lot.w - 4), -lot.d / 2 + 1.5 + hash(lot.id, 4 + i, this.seed + 74) * (back - 3));
       this.tree(x, z, hash(lot.id, 6 + i, this.seed + 74));
@@ -400,32 +415,36 @@ export class Lots {
     }
   }
 
-  /** A paved square on a block beside the town's centre crossing, a clock tower in its middle; a town with no room for one goes without. */
+  /** A market square opening off the main street beside the centre crossing, its clock tower at the back and stalls along the street; a town with no room for one goes without. */
   square(town: Town) {
     const vx = -town.uz;
     const vz = town.ux;
-    const full = town.block - 2 * (STREET_HALF + SIDEWALK + 1.5);
-    for (const [si, sj] of [
-      [1, 1],
-      [-1, 1],
-      [1, -1],
-      [-1, -1],
-    ])
-      for (const s of [full, full - 6, full - 12]) {
-        const x = town.x + ((town.ux * si + vx * sj) * town.block) / 2;
-        const z = town.z + ((town.uz * si + vz * sj) * town.block) / 2;
+    // A lane's margin too is a street's: the circuit may run along it, drawn wider than the lane.
+    const margin = STREET_HALF + SIDEWALK + 1.5;
+    const deep = (town.cross ?? town.block) - 2 * margin;
+    for (const cut of [0, 6, 12])
+      for (const [si, sj] of [
+        [1, 1],
+        [-1, 1],
+        [1, -1],
+        [-1, -1],
+      ]) {
+        const w = town.block - 2 * margin - cut;
+        const d = deep - cut / 2;
+        const x = town.x + (town.ux * si * town.block) / 2 + vx * sj * (margin + d / 2);
+        const z = town.z + (town.uz * si * town.block) / 2 + vz * sj * (margin + d / 2);
         const fx = -vx * sj;
         const fz = -vz * sj;
-        if (s < SQUARE_MIN || !this.fits(x, z, s, s, fx, fz, town)) continue;
-        this.placed.push({ x, z, w: s, d: s, fx, fz });
-        this.scan(x, z, s, s, fx, fz, (k) => {
+        if (Math.min(w, d) < SQUARE_MIN || !this.fits(x, z, w, d, fx, fz, town)) continue;
+        this.placed.push({ x, z, w, d, fx, fz });
+        this.scan(x, z, w, d, fx, fz, (k) => {
           this.occupied[k] = 1;
           return true;
         });
-        const lot: Lot = { id: this.out.lots.length, town: town.id, edge: -1, side: 1, x, y: this.sample(this.terrain.heights, x, z), z, w: s, d: s, fx, fz, angle: town.angle + (sj * Math.PI) / 2, kind: "plaza", ground: "plaza" };
+        const lot: Lot = { id: this.out.lots.length, town: town.id, edge: -1, side: 1, x, y: this.sample(this.terrain.heights, x, z), z, w, d, fx, fz, angle: town.angle + (sj * Math.PI) / 2, kind: "plaza", ground: "plaza" };
         this.out.lots.push(lot);
-        const tower = this.raise(lot, { hw: CLOCK.half, hd: CLOCK.half, floors: 0, height: CLOCK.height, front: 0, roof: Roof.SPIRE }, { form: "clock", floors: 0, tint: 0 });
-        const plinth = CLOCK.half + PLINTH_OUT;
+        const tower = this.raise(lot, { hw: TOWER.half, hd: TOWER.half, floors: 0, height: TOWER.height, front: -d / 2 + TOWER.half + TOWER_INSET, roof: Roof.SPIRE }, { form: "clock", floors: 0, tint: 0 });
+        const plinth = TOWER.half + PLINTH_OUT;
         this.out.solids.push({ kind: "box", x: tower.x, y: tower.y, z: tower.z, hw: plinth, hd: plinth, cos: lot.fz, sin: lot.fx, height: PLINTH_TOP });
         for (const [cx, cz] of [
           [1, 1],
@@ -433,10 +452,28 @@ export class Lots {
           [1, -1],
           [-1, -1],
         ]) {
-          const [px, pz] = local_to_world(lot, cx * (s / 2 - 4), cz * (s / 2 - 4));
+          const [px, pz] = local_to_world(lot, cx * (w / 2 - 3), cz * (d / 2 - 3));
           this.street_tree(px, pz, 1);
         }
+        for (const spot of stall_spots(lot)) {
+          const [px, pz] = local_to_world(lot, spot.x, spot.z);
+          this.out.solids.push({ kind: "box", x: px, y: this.sample(this.terrain.heights, px, pz), z: pz, hw: STALL.hw, hd: STALL.hd, cos: lot.fz, sin: lot.fx, height: STALL.height });
+        }
         return;
+      }
+  }
+
+  /** Copses on the open ground round a high street, so the town ends in trees rather than at a line. */
+  outskirts(town: Town) {
+    const n = Math.ceil(town.radius / COPSE_STEP);
+    for (let i = -n; i <= n; i++)
+      for (let j = -n; j <= n; j++) {
+        const x = town.x + (i + hash(i, j, this.seed + 95) - 0.5) * COPSE_STEP;
+        const z = town.z + (j + hash(j, i, this.seed + 96) - 0.5) * COPSE_STEP;
+        if (length(x - town.x, z - town.z) > town.radius || hash(i * 31 + j, town.id, this.seed + 97) > COPSE_ODDS) continue;
+        if (this.sample(this.terrain.road_dist, x, z) < COPSE_ROAD_CLEAR || off_axis(town, { x, z }) < COPSE_AXIS_CLEAR) continue;
+        if (!this.scan(x, z, 6, 6, 0, 1, (k) => !this.occupied[k])) continue;
+        this.tree(x, z, hash(i, j, this.seed + 98));
       }
   }
 

@@ -1,6 +1,6 @@
 import { LIFT } from "../worldgen/lifts";
 import { on_paint, road_paint, type Junctions, type Paint, type RoadData } from "../worldgen/road-layers";
-import { lot_paving, type Paving } from "../worldgen/town-mesh";
+import { lot_paving, type Paving } from "../worldgen/town-ground";
 import type { Lot, ParkingLot, RoadPoint } from "../worldgen/types";
 
 /** One drawn road: the lift its asphalt is laid at and the paint on it. */

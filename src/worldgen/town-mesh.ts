@@ -2,187 +2,174 @@ import type { MeshTones } from "./chunks";
 import { roof_rise } from "./lots";
 import { turned, type Builder, type Frame, type Rgb, type V3 } from "./mesh";
 import { hash } from "./noise";
-import { LIFT } from "./lifts";
-import { FLOOR, HEDGE_TOP, PARAPET, PLINTH_OUT, PLINTH_TOP, SHOP_FLOOR, hedge_runs } from "./town-style";
-import { Roof, type Building, type Detail, type Lot } from "./types";
+import { OUT, back_glazing, bays, framed, glazing, pane, post } from "./town-parts";
+import { FLOOR, PLINTH_OUT, PLINTH_TOP, SHOP_FLOOR } from "./town-style";
+import type { Building, Detail } from "./types";
 
 export interface TownTones {
   pave: Rgb;
   square: Rgb;
-  hedge: Rgb;
   awnings: Rgb[];
   trim: Rgb;
   door: Rgb;
   walls: Rgb[];
+  stone: Rgb;
+  timber: Rgb;
 }
 
-const NONE: Rgb = [0, 0, 0];
-const OUT = 0.04;
-const PAD_LIFT = LIFT.pad;
+type Pick = (k: number) => number;
+
 const SILL = 0.9;
-const WINDOW_TALL = 1.4;
-const PATH_HALF = 0.7;
-const PATH_LONG = 5.7;
-/** A pad reaches this far past the lot line, over the grass strip behind the sidewalk. */
-const PAD_OUT = 1.2;
-const PLAZA_BORDER = 3;
+const WINDOW_TALL = 1.45;
+const WINDOW_WIDE = 0.95;
+const FASCIA = { y0: 2.85, y1: 3.4 };
+const PILASTER = 0.3;
+const SHOP_GLASS = { y0: 0.7, y1: 2.55 };
+const SHOP_RETURN = 2.2;
+const STACK = { half: 0.4, over: 0.9 };
+const BREAST = { half: 0.95, out: 0.3, stack: 0.45 };
+const ATTIC_RISE = 2.2;
+const CLOCK_FACE = { radius: 1.75, sides: 8, below: 2.7 };
 
-function across(glass: Builder, hw: number, z: number, y0: number, y1: number, pitch: number, w: number) {
-  const n = Math.max(1, Math.floor((2 * hw - 0.6) / pitch));
-  const step = (2 * hw) / n;
-  for (let i = 0; i < n; i++) {
-    const c = -hw + step * (i + 0.5);
-    if (z > 0) glass.quad([c - w / 2, y0, z], [c + w / 2, y0, z], [c + w / 2, y1, z], [c - w / 2, y1, z], NONE);
-    else glass.quad([c + w / 2, y0, z], [c - w / 2, y0, z], [c - w / 2, y1, z], [c + w / 2, y1, z], NONE);
-  }
-}
-
-function along(glass: Builder, hd: number, x: number, y0: number, y1: number, pitch: number, w: number) {
-  const n = Math.max(1, Math.floor((2 * hd - 0.6) / pitch));
-  const step = (2 * hd) / n;
-  for (let i = 0; i < n; i++) {
-    const c = -hd + step * (i + 0.5);
-    if (x > 0) glass.quad([x, y0, c + w / 2], [x, y0, c - w / 2], [x, y1, c - w / 2], [x, y1, c + w / 2], NONE);
-    else glass.quad([x, y0, c - w / 2], [x, y0, c + w / 2], [x, y1, c + w / 2], [x, y1, c - w / 2], NONE);
-  }
-}
-
-function box(out: Builder, hw: number, hd: number, y0: number, y1: number, rgb: Rgb) {
-  out.walls(hw, hd, y0, y1, rgb);
-  out.top(hw, hd, y1, rgb);
-}
-
-function shift(b: Frame, lx: number, lz: number): Frame {
-  return { x: b.x + b.fz * lx + b.fx * lz, y: b.y, z: b.z - b.fx * lx + b.fz * lz, fx: b.fx, fz: b.fz };
-}
-
-function band(out: Builder, hw: number, z: number, y0: number, y1: number, rgb: Rgb) {
-  out.quad([-hw, y0, z], [hw, y0, z], [hw, y1, z], [-hw, y1, z], rgb);
-}
+const tone = (list: readonly Rgb[], roll: number) => list[Math.min(list.length - 1, Math.floor(roll * list.length))];
 
 // Both faces: the chase camera sits near awning height and sees its underside from the far kerb.
-function awning(out: Builder, hw: number, hd: number, rgb: Rgb) {
-  const a: V3 = [-hw, 3.2, hd];
-  const b: V3 = [hw, 3.2, hd];
-  const c: V3 = [hw, 2.55, hd + 1.4];
-  const d: V3 = [-hw, 2.55, hd + 1.4];
+function awning(out: Builder, x0: number, x1: number, z: number, rgb: Rgb) {
+  const a: V3 = [x0, 3.1, z];
+  const b: V3 = [x1, 3.1, z];
+  const c: V3 = [x1, 2.5, z + 1.3];
+  const d: V3 = [x0, 2.5, z + 1.3];
   out.quad(d, c, b, a, rgb);
   out.quad(a, b, c, d, rgb);
 }
 
-function door(out: Builder, z: number, rgb: Rgb) {
-  out.quad([-0.55, 0, z], [0.55, 0, z], [0.55, 2.1, z], [-0.55, 2.1, z], rgb);
-}
-
-function row(out: Builder, glass: Builder, b: Building, detail: Detail, tones: MeshTones, pick: (k: number) => number) {
-  const { hw, hd, height: h } = b;
-  const town = tones.town;
-  out.walls(hw, hd, -1, h, town.walls[Math.floor(detail.tint * town.walls.length)]);
-  out.top(hw, hd, h - PARAPET, tones.roof_flat);
-  band(out, hw, hd + OUT * 2, h - 0.4, h, town.trim);
-  band(out, hw, hd + OUT * 2, 3.2, 3.5, town.trim);
-  across(glass, hw - 0.5, hd + OUT, 0.5, 2.7, 2.6, 2.3);
-  awning(out, hw - 0.4, hd, town.awnings[Math.floor(pick(2) * town.awnings.length)]);
-  for (let s = 1; s < detail.floors; s++) {
-    const y0 = SHOP_FLOOR + (s - 1) * FLOOR + 0.8;
-    across(glass, hw, hd + OUT, y0, y0 + 1.6, 2.2, 1.1);
-    across(glass, hw, -hd - OUT, y0, y0 + 1.6, 3, 1.1);
+/**
+ * An end wall nothing joins, drawn in the frame that faces out of it: `hd` is the wall's half width here, `z` where it
+ * stands, `street` the x side the street is on. The shop turns the corner, windows flank a chimney breast up the gable.
+ */
+function open_end(out: Builder, glass: Builder, hd: number, z: number, eave: number, top: number, floors: number, street: number, wall: Rgb, tones: MeshTones) {
+  const t = tones.town;
+  pane(out, -hd, hd, FASCIA.y0, FASCIA.y1, z + OUT, t.trim);
+  const corner = street * hd;
+  pane(out, Math.min(corner, corner - street * PILASTER), Math.max(corner, corner - street * PILASTER), 0, FASCIA.y0, z + OUT, t.trim);
+  const g0 = corner - street * (PILASTER + 0.3);
+  const g1 = corner - street * Math.min(SHOP_RETURN + PILASTER, hd - BREAST.half - 0.4);
+  glazing(glass, Math.min(g0, g1), Math.max(g0, g1), SHOP_GLASS.y0, SHOP_GLASS.y1, z + OUT * 2);
+  for (let s = 1; s < floors; s++) {
+    const y0 = SHOP_FLOOR + (s - 1) * FLOOR + SILL;
+    for (const x of [-hd * 0.62, hd * 0.62]) framed(out, glass, x, WINDOW_WIDE - 0.15, y0, y0 + WINDOW_TALL, z, t.trim);
   }
-  if (pick(3) < 0.5) box(out.at(shift(b, hw * 0.3, -hd * 0.4)), 0.9, 0.7, h - PARAPET, h + 0.2, town.trim);
+  post(out, -BREAST.half, BREAST.half, FASCIA.y1, eave, z, z + BREAST.out, wall);
+  post(out, -BREAST.stack, BREAST.stack, eave, top, z - BREAST.out, z + BREAST.out, t.stone);
 }
 
-function house(out: Builder, glass: Builder, b: Building, detail: Detail, tones: MeshTones, pick: (k: number) => number) {
+function terrace(out: Builder, glass: Builder, b: Building, detail: Detail, tones: MeshTones, pick: Pick) {
   const { hw, hd, height: h } = b;
-  const town = tones.town;
-  const wall = town.walls[Math.floor(detail.tint * town.walls.length)];
-  const roof = tones.roofs[Math.floor(pick(1) * tones.roofs.length)];
+  const t = tones.town;
+  const wall = tone(t.walls, detail.tint);
   const rise = roof_rise(b);
   out.walls(hw, hd, -1, h, wall);
-  if (b.roof === Roof.GABLE) out.gable(hw, hd, h, rise, roof, wall);
-  else if (b.roof === Roof.CROSS) out.at(turned(b)).gable(hd, hw, h, rise, roof, wall);
-  else if (hw >= hd) out.hip(hw, hd, h, rise, roof);
-  else out.at(turned(b)).hip(hd, hw, h, rise, roof);
-  door(out.at(b), hd + OUT, town.door);
+  out.gable(hw, hd, h, rise, tones.roofs[pick(1) < 0.75 ? 0 : 1], wall);
+  pane(out, -hw, hw, FASCIA.y0, FASCIA.y1, hd + OUT, t.trim);
+  pane(out, -hw, -hw + PILASTER, 0, FASCIA.y0, hd + OUT, t.trim);
+  pane(out, hw - PILASTER, hw, 0, FASCIA.y0, hd + OUT, t.trim);
+  const side = pick(4) < 0.5 ? 1 : -1;
+  const door = side * (hw - 1.05);
+  pane(out, door - 0.5, door + 0.5, 0, 2.25, hd + OUT, t.door);
+  const g0 = side > 0 ? -hw + 0.6 : door + 0.8;
+  const g1 = side > 0 ? door - 0.8 : hw - 0.6;
+  if (g1 - g0 > 0.8) glazing(glass, g0, g1, SHOP_GLASS.y0, SHOP_GLASS.y1, hd + OUT * 2);
+  for (let s = 1; s < detail.floors; s++) {
+    const y0 = SHOP_FLOOR + (s - 1) * FLOOR + SILL;
+    for (const x of bays(hw, 2.3)) framed(out, glass, x, WINDOW_WIDE, y0, y0 + WINDOW_TALL, hd, t.trim);
+    for (const x of bays(hw, 3)) back_glazing(glass, x - WINDOW_WIDE / 2, x + WINDOW_WIDE / 2, y0, y0 + WINDOW_TALL, -hd - OUT);
+  }
+  if (pick(3) < 0.45) awning(out, g0 - 0.2, g1 + 0.2, hd, tone(t.awnings, pick(2)));
+  const top = h + rise + STACK.over;
+  const [left, right] = detail.ends ?? [false, false];
+  if (!left && !right) {
+    const x = hw * (pick(6) < 0.5 ? 0.55 : -0.55);
+    post(out, x - STACK.half, x + STACK.half, h + rise * 0.5, top, -STACK.half + 0.05, STACK.half - 0.05, t.stone);
+    return;
+  }
+  const faces: [boolean, Frame, number][] = [
+    [right, turned(b), -1],
+    [left, turned(turned(turned(b))), 1],
+  ];
+  for (const [open, frame, street] of faces) {
+    if (!open) continue;
+    out.at(frame);
+    glass.at(frame);
+    open_end(out, glass, hd, hw, h, top, detail.floors, street, wall, tones);
+  }
+  out.at(b);
+  glass.at(b);
+}
+
+function house(out: Builder, glass: Builder, b: Building, detail: Detail, tones: MeshTones, pick: Pick) {
+  const { hw, hd, height: h } = b;
+  const t = tones.town;
+  const wall = tone(t.walls, detail.tint);
+  const rise = roof_rise(b);
+  out.walls(hw, hd, -1, h, wall);
+  out.gable(hw, hd, h, rise, tone(tones.roofs, pick(1)), wall);
+  pane(out, -0.55, 0.55, 0, 2.1, hd + OUT, t.door);
   for (let s = 0; s < detail.floors; s++) {
     const y0 = s * FLOOR + SILL;
     const y1 = y0 + WINDOW_TALL;
-    const z = hd + OUT;
-    if (s > 0) across(glass, hw, z, y0, y1, 2.6, 1.2);
-    else for (const x of [-hw * 0.6, hw * 0.6]) glass.quad([x - 0.6, y0, z], [x + 0.6, y0, z], [x + 0.6, y1, z], [x - 0.6, y1, z], NONE);
-    across(glass, hw, -z, y0, y1, 3.2, 1.2);
-    along(glass, hd, hw + OUT, y0, y1, 4, 1.1);
-    along(glass, hd, -hw - OUT, y0, y1, 4, 1.1);
+    for (const x of s > 0 ? bays(hw, 2.6) : [-hw * 0.6, hw * 0.6]) framed(out, glass, x, 1.1, y0, y1, hd, t.trim);
+    for (const x of bays(hw, 3.2)) back_glazing(glass, x - 0.6, x + 0.6, y0, y1, -hd - OUT);
   }
-  box(out.at(shift(b, hw * 0.5, 0)), 0.35, 0.35, h, h + rise * 0.6 + 0.9, tones.roof_flat);
-}
-
-function clock(out: Builder, glass: Builder, b: Building, tones: MeshTones) {
-  const { hw, hd, height: h } = b;
-  const town = tones.town;
-  out.walls(hw, hd, -1, h, town.walls[0]);
-  box(out, hw + PLINTH_OUT, hd + PLINTH_OUT, -1, PLINTH_TOP, tones.roof_flat);
-  out.walls(hw + 0.2, hd + 0.2, h - 0.5, h, town.trim);
-  out.hip(hw, hd, h, roof_rise(b), tones.roofs[0]);
-  for (const [y0, y1, w] of [
-    [h - 3.3, h - 1.1, 2.2],
-    [3.9, 5.5, 0.7],
-    [7.9, 9.5, 0.7],
-  ]) {
-    across(glass, hw, hd + OUT, y0, y1, 9, w);
-    across(glass, hw, -hd - OUT, y0, y1, 9, w);
-    along(glass, hd, hw + OUT, y0, y1, 9, w);
-    along(glass, hd, -hw - OUT, y0, y1, 9, w);
+  let frame: Frame = b;
+  for (let side = 0; side < 2; side++) {
+    frame = turned(frame);
+    out.at(frame);
+    glass.at(frame);
+    for (let s = 0; s < detail.floors; s++) for (const x of [-hd * 0.5, hd * 0.5]) framed(out, glass, x, 0.9, s * FLOOR + SILL, s * FLOOR + SILL + WINDOW_TALL, hw, t.trim);
+    if (rise > ATTIC_RISE) framed(out, glass, 0, 0.8, h + 0.45, h + 1.35, hw, t.trim);
+    frame = turned(frame);
   }
-  door(out, hd + 0.52, town.door);
-}
-
-export function dress_building(out: Builder, glass: Builder, b: Building, detail: Detail, tones: MeshTones, seed: number) {
-  const pick = (k: number) => hash(b.lot, k, seed + 83);
   out.at(b);
   glass.at(b);
-  if (detail.form === "row") row(out, glass, b, detail, tones, pick);
-  else if (detail.form === "house") house(out, glass, b, detail, tones, pick);
-  else clock(out, glass, b, tones);
+  post(out, hw * 0.5 - 0.35, hw * 0.5 + 0.35, h + rise * 0.3, h + rise + STACK.over, -0.35, 0.35, t.stone);
 }
 
-/** A rectangle of paving in a lot's frame, `lift` over the terrain. */
-export interface Paving {
-  x0: number;
-  x1: number;
-  z0: number;
-  z1: number;
-  lift: number;
+function clock_face(out: Builder, z: number, y: number, tones: MeshTones) {
+  const { radius: r, sides } = CLOCK_FACE;
+  const at = (i: number): V3 => {
+    const a = ((i + 0.5) / sides) * Math.PI * 2;
+    return [Math.cos(a) * r, y + Math.sin(a) * r, z + OUT];
+  };
+  for (let i = 0; i < sides; i++) out.tri([0, y, z + OUT], at(i), at(i + 1), tones.town.trim);
+  pane(out, -0.09, 0.09, y - 0.1, y + r * 0.72, z + OUT * 2, tones.roof_flat);
+  pane(out, -0.1, r * 0.5, y - 0.09, y + 0.09, z + OUT * 2, tones.roof_flat);
 }
 
-/** The paving `dress_lot` lays on `lot`, highest last. */
-export function lot_paving(lot: Lot): Paving[] {
-  const hw = lot.w / 2;
-  const hd = lot.d / 2;
-  if (lot.ground === "plaza")
-    return [
-      { x0: -hw, x1: hw, z0: -hd, z1: hd, lift: PAD_LIFT },
-      { x0: PLAZA_BORDER - hw, x1: hw - PLAZA_BORDER, z0: PLAZA_BORDER - hd, z1: hd - PLAZA_BORDER, lift: LIFT.plaza },
-    ];
-  if (lot.ground === "paved") return [{ x0: -hw, x1: hw, z0: -hd, z1: hd + PAD_OUT, lift: PAD_LIFT }];
-  if (lot.ground === "yard") return [{ x0: -PATH_HALF, x1: PATH_HALF, z0: hd + PAD_OUT - PATH_LONG, z1: hd + PAD_OUT, lift: PAD_LIFT }];
-  return [];
-}
-
-/** `ground` stands each hedge run on the terrain under its middle, where its solid stands. */
-export function dress_lot(pads: Builder, out: Builder, lot: Lot, tones: MeshTones, ground: (x: number, z: number) => number) {
-  const hw = lot.w / 2;
-  const hd = lot.d / 2;
-  const { pave, square, hedge } = tones.town;
-  pads.at(lot);
-  if (lot.ground === "plaza") {
-    pads.top(hw, hd, PAD_LIFT, pave);
-    pads.top(hw - PLAZA_BORDER, hd - PLAZA_BORDER, LIFT.plaza, square);
-  } else if (lot.ground === "paved") pads.quad([-hw, PAD_LIFT, hd + PAD_OUT], [hw, PAD_LIFT, hd + PAD_OUT], [hw, PAD_LIFT, -hd], [-hw, PAD_LIFT, -hd], pave);
-  else if (lot.ground === "yard") {
-    pads.quad([-PATH_HALF, PAD_LIFT, hd + PAD_OUT], [PATH_HALF, PAD_LIFT, hd + PAD_OUT], [PATH_HALF, PAD_LIFT, hd + PAD_OUT - PATH_LONG], [-PATH_HALF, PAD_LIFT, hd + PAD_OUT - PATH_LONG], pave);
-    for (const run of hedge_runs(lot)) {
-      const at = shift(lot, run.x, run.z);
-      box(out.at({ ...at, y: ground(at.x, at.z) }), run.hw, run.hd, -0.6, HEDGE_TOP, hedge);
-    }
+function tower(out: Builder, glass: Builder, b: Building, _detail: Detail, tones: MeshTones) {
+  const { hw, hd, height: h } = b;
+  const t = tones.town;
+  out.walls(hw, hd, -1, h, t.stone);
+  post(out, -hw - PLINTH_OUT, hw + PLINTH_OUT, -1, PLINTH_TOP, -hd - PLINTH_OUT, hd + PLINTH_OUT, tones.roof_flat);
+  out.walls(hw + 0.25, hd + 0.25, h - 0.6, h, t.trim);
+  out.walls(hw + 0.15, hd + 0.15, h - 5.2, h - 4.8, t.trim);
+  out.hip(hw + 0.25, hd + 0.25, h, roof_rise(b), tones.roofs[0]);
+  let frame: Frame = b;
+  for (let s = 0; s < 4; s++) {
+    out.at(frame);
+    glass.at(frame);
+    clock_face(out, hd, h - CLOCK_FACE.below, tones);
+    for (const y of [4, 8]) glazing(glass, -0.35, 0.35, y, y + 1.7, hd + OUT);
+    frame = turned(frame);
   }
+  out.at(b);
+  glass.at(b);
+  pane(out, -0.7, 0.7, PLINTH_TOP, PLINTH_TOP + 2.3, hd + OUT, t.door);
+}
+
+const FORMS: Record<Detail["form"], (out: Builder, glass: Builder, b: Building, detail: Detail, tones: MeshTones, pick: Pick) => void> = { terrace, house, clock: tower };
+
+export function dress_building(out: Builder, glass: Builder, b: Building, detail: Detail, tones: MeshTones, seed: number) {
+  out.at(b);
+  glass.at(b);
+  FORMS[detail.form](out, glass, b, detail, tones, (k) => hash(b.lot, k, seed + 83));
 }

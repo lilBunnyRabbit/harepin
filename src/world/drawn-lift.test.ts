@@ -12,9 +12,9 @@ const lot = (ground: Lot["ground"]): Lot => ({ id: 0, town: 0, edge: 0, side: 1,
 
 test("a plaza lifts its paving and more its square, in the lot's turned frame, and nothing past it", () => {
   const lots = paved_lots([lot("plaza")], []);
-  // Local (8, 8) is on the border paving, outside the square that starts 3 m in.
+  // Local (9.5, 0) is on the border paving, outside the square that starts 1.2 m in; the paving ends 1.2 m past the lot.
   const at = (lx: number, lz: number) => paving_lift(lots, 100 + Math.cos(turn) * lx + Math.sin(turn) * lz, 50 - Math.sin(turn) * lx + Math.cos(turn) * lz);
-  expect([at(0, 0), at(8, 8), at(12, 0), at(0, -11)]).toEqual([LIFT.plaza, LIFT.pad, 0, 0]);
+  expect([at(0, 0), at(9.5, 0), at(12, 0), at(0, -12)]).toEqual([LIFT.plaza, LIFT.pad, 0, 0]);
 });
 
 test("a tyre stands on the road it is on: the circuit, a street, a spur, and the paint on each", () => {

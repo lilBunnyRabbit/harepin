@@ -266,6 +266,18 @@ export interface RoadRecipe {
   trail_races?: boolean;
 }
 
+/** A town of one main street and a short ladder of lanes round its centre, in place of a full grid of equal streets. */
+export interface TownPlan {
+  /** Lane rows each side of the main street. */
+  rows: number;
+  /** Blocks along the main street, each way from the centre, the lane rows run. */
+  reach: number;
+  /** Spacing of the rows, as a share of the block. */
+  cross: number;
+  /** Half width of every street but the main one, metres; under STREET_HALF it carries no paint. */
+  lane: number;
+}
+
 export interface TownRecipe {
   min: number;
   max: number;
@@ -285,8 +297,10 @@ export interface TownRecipe {
   variety: boolean;
   /** Also test lot rectangles against each other and their corners' road_dist between vertices; false keeps the vertex test alone. */
   exact: boolean;
-  /** "high_street" joins shop rows along the main street round a square with a clock tower; "plain" scatters boxes on lawns. */
+  /** "high_street" joins terraces along the main street and a market square with a clock tower; "plain" scatters boxes on lawns. */
   style: "plain" | "high_street";
+  /** Left out = a grid of equal streets. */
+  plan?: TownPlan;
 }
 
 /** Rivers down the `count` biggest drainage basins, from where `head` plan cells drain into them; lakes in basins `depth` deep and `min`-`max` plan cells wide. */
@@ -409,7 +423,7 @@ export const DESERT: Recipe = {
 export const MAINLAND: Recipe = {
   ...ISLAND,
   terrain: [LIFT, hills(110), ridges(26), { kind: "peak", height: 240, radius: 1100, reach: 1400 }, shore(2900, -9)],
-  towns: { min: 10, max: 16, trees: true, pines: 0.5, block: { min: 45, span: 25 }, top: 60, layout: "grid", roofs: "mixed", variety: true, exact: true, style: "high_street" },
+  towns: { min: 10, max: 16, trees: true, pines: 0.5, block: { min: 45, span: 25 }, top: 60, layout: "grid", roofs: "mixed", variety: true, exact: true, style: "high_street", plan: { rows: 1, reach: 1, cross: 0.72, lane: 3 } },
   road: { ...ISLAND.road, bank: { run: 3.75, reach: 64 } },
   water: { rivers: { count: 3, head: 120, width: [3, 11], depth: [1.2, 2.6] }, lakes: { count: 4, depth: 2, min: 4, max: 400 } },
 };

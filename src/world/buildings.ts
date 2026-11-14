@@ -148,7 +148,7 @@ function shade_fill<M extends THREE.Material>(material: M, share: number): M {
   return material;
 }
 
-// The town soup also holds roofs, awnings, hedges and landmarks: only facade vertices (the chunk's `fill`) keep the share.
+// The town soup also holds roofs, awnings, stalls and landmarks: only facade vertices (the chunk's `fill`) keep the share.
 function facade_fill<M extends THREE.Material>(material: M, share: number): M {
   material.onBeforeCompile = (shader) => {
     shader.vertexShader = shader.vertexShader

@@ -6,7 +6,7 @@ import type { TownRecipe } from "./recipe";
 import { APPROACH, Router, spur_points, unkink, type Exit, type Sampler, type Way } from "./route";
 import { heading } from "./routes";
 import { CORE, town_name, town_streets } from "./towns";
-import { LOCAL_HALF, type RoadEdge, type RoadGraph, type RoadNode, type RoadPoint, type Town } from "./types";
+import { LOCAL_HALF, STREET_HALF, type RoadEdge, type RoadGraph, type RoadNode, type RoadPoint, type Town } from "./types";
 
 const TOWN_TRIES = 4000;
 /** Towns stay inside this reach of the centre, clear of the coast the terrain mask starts near 2300 m. */
@@ -161,7 +161,10 @@ export function mainland_network(seed: number, grid: PlanGrid, shape: TownRecipe
     graph.edges.push(edge);
     links.push({ edge, a, b, tree });
   }
-  return { graph, towns, ...cycle_circuit(graph, links) };
+  const { circuit, road } = cycle_circuit(graph, links);
+  // The circuit is drawn ROAD_HALF wide along its streets: a lane it takes is laid as a street, so that width stands on road.
+  for (const id of circuit) if (graph.edges[id].kind === "street") graph.edges[id].half = Math.max(graph.edges[id].half, STREET_HALF);
+  return { graph, towns, circuit, road };
 }
 
 function edge_length(edge: RoadEdge): number {

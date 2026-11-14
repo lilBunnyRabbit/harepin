@@ -4,7 +4,8 @@ import { sample, vertex_up } from "./field";
 import { KINDS } from "./kinds/kinds";
 import { landmark_mesh, type LandmarkTones } from "./landmark-mesh";
 import { roof_rise } from "./lots";
-import { dress_building, dress_lot, type TownTones } from "./town-mesh";
+import { dress_lot } from "./town-ground";
+import { dress_building, type TownTones } from "./town-mesh";
 import { Builder, bounding_sphere, turned, type Rgb, type Sphere } from "./mesh";
 import { road_layers, type RoadTones } from "./road-layers";
 import { grid_ground, Roads, type Layer } from "./roads";
@@ -275,8 +276,8 @@ export interface TownParts {
 /** Town meshes keyed by `key(x, z)`, each part placed by its own position; `ground` drapes the parking pads. */
 export function town_builders(data: WorldData, parts: TownParts, tones: MeshTones, ground: (x: number, z: number) => number, key_of: (x: number, z: number) => number): Map<number, Town> {
   const towns = new Map<number, Town>();
-  const { walls, trim, door } = tones.town;
-  const facade = KINDS[data.kind].recipe?.towns.style === "high_street" ? new Set([...walls, trim, door]) : undefined;
+  const { walls, trim, door, stone, timber } = tones.town;
+  const facade = KINDS[data.kind].recipe?.towns.style === "high_street" ? new Set([...walls, trim, door, stone, timber]) : undefined;
   const of = (x: number, z: number) => {
     const key = key_of(x, z);
     let town = towns.get(key);

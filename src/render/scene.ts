@@ -86,11 +86,12 @@ export function mesh_tones(snowy = false, upland: Lab = tones.grass_dry, deck: D
     town: {
       pave: linear(tones.sidewalk),
       square: linear(tones.square),
-      hedge: linear(tones.leaf_dark),
       awnings: [tones.roof, tones.roof_slate, tones.cone, tones.awning_green].map(linear),
       trim: linear(tones.wall_trim),
       door: linear(tones.trunk),
       walls: [tones.wall, tones.wall_warm, tones.wall_cool, tones.wall_rose, tones.wall_sage].map(linear),
+      stone: linear(tones.rock),
+      timber: linear(tones.trunk),
     },
     landmark: { pale: linear(tones.check_light), band: linear(tones.roof), cap: linear(tones.trim), stone: linear(tones.rock), stone_shade: linear(lighten(tones.rock, -STONE_SHADE)), plant: linear(tones.leaf), plant_shade: linear(tones.leaf_dark) },
     deck: { deck: linear(deck.deck), side: linear(deck.side), rail: linear(deck.rail), joint: linear(deck.joint), pad: linear(deck.pad), chevron: linear(deck.chevron) },
