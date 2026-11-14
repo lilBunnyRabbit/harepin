@@ -139,6 +139,8 @@ export interface Town {
   band?: number;
   /** Street spacing of the grid, centre to centre. */
   block: number;
+  /** Spacing of the streets beside the main one, where a town plan sets them closer than `block`. */
+  cross?: number;
 }
 
 export type LotKind = "house" | "shop" | "parking" | "garden" | "empty" | "plaza";
@@ -158,17 +160,19 @@ export interface Lot {
   fz: number;
   angle: number;
   kind: LotKind;
-  /** What a high-street town lays on the lot: paving to the kerb, a square, or a garden path behind a hedge. */
+  /** What a high-street town lays on the lot: paving to the kerb, a market square, or a garden path behind a wall. */
   ground?: "paved" | "plaza" | "yard";
 }
 
-export type BuildingForm = "row" | "house" | "clock";
+export type BuildingForm = "terrace" | "house" | "clock";
 
 export interface Detail {
   form: BuildingForm;
   floors: number;
   /** 0-1, picks the wall tone. */
   tint: number;
+  /** A terrace's side walls no neighbour covers: the -x one, the +x one. */
+  ends?: [boolean, boolean];
 }
 
 export interface Building {

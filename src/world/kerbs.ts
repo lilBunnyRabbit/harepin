@@ -1,4 +1,4 @@
-import { KERB_OUT, roadside_clear, type RoadData } from "../worldgen/road-layers";
+import { KERB_OUT, roadside_clear, type Junctions, type RoadData } from "../worldgen/road-layers";
 import { ROAD_HALF, type RoadPoint } from "../worldgen/types";
 
 /** Inner edge of a circuit kerb, metres off the centre line: it tucks just under the road's edge. */
@@ -21,13 +21,13 @@ function curvature(road: readonly RoadPoint[], s: number): number {
 }
 
 /** Where the circuit's kerbs go: the mesh draws them from these, and a tyre feels them from the same. */
-export function kerb_marks(data: RoadData): KerbMarks {
+export function kerb_marks(data: RoadData, junctions?: Junctions): KerbMarks {
   const inside = new Map<number, number>();
   for (let s = 0; s < data.road.length; s++) {
     const k = curvature(data.road, s);
     if (Math.abs(k) > KERB_BEND) inside.set(s, Math.sign(k));
   }
-  return { clear: roadside_clear(data), inside };
+  return { clear: roadside_clear(data, junctions), inside };
 }
 
 /** (x, z) lies on the kerb drawn along circuit segment `s` to `s + 1`, if that segment has one. */

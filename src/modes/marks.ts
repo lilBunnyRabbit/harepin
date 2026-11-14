@@ -2,7 +2,9 @@ import * as THREE from "three";
 import { color } from "../theme/palette";
 import type { RoutePoint } from "./route";
 
-const LIFT = 0.1;
+// Over the drawn ground: a road or paving stands a few centimetres over the terrain, and paint laid from the terrain would
+// float over one and sink under the other.
+const LIFT = 0.07;
 const STEP = 1;
 /** Vertices one `chevron` adds; a run of chevrons is shown or hidden by draw range in these units. */
 export const CHEVRON_VERTS = 12;
@@ -11,6 +13,15 @@ type Tone = Parameters<typeof color>[0];
 
 export interface Ground {
   height(x: number, z: number): number;
+}
+
+/** Ground a view lays paint on: `drawn_lift` is how far the road or paving drawn there stands over `height`. */
+export interface DrawnGround extends Ground {
+  drawn_lift(x: number, z: number): number;
+}
+
+export function drawn_height(ground: DrawnGround, x: number, z: number): number {
+  return ground.height(x, z) + ground.drawn_lift(x, z);
 }
 
 export interface Chevron {
@@ -24,7 +35,7 @@ export class Marks {
   private readonly materials: THREE.Material[] = [];
   private readonly geometries: THREE.BufferGeometry[] = [];
 
-  constructor(private readonly ground: Ground) {}
+  constructor(private readonly ground: DrawnGround) {}
 
   paint(tone: Tone, opacity = 0.9): THREE.MeshBasicMaterial {
     const material = new THREE.MeshBasicMaterial({ color: color(tone), transparent: true, opacity, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 });
@@ -35,7 +46,7 @@ export class Marks {
   private point(p: RoutePoint, u: number, v: number): [number, number, number] {
     const x = p.x + p.tz * u + p.tx * v;
     const z = p.z - p.tx * u + p.tz * v;
-    return [x, this.ground.height(x, z) + LIFT, z];
+    return [x, drawn_height(this.ground, x, z) + LIFT, z];
   }
 
   private mesh(positions: number[], material: THREE.Material): THREE.Mesh {

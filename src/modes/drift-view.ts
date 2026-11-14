@@ -3,7 +3,7 @@ import { brand, tones } from "../theme/palette";
 import { ROAD_HALF } from "../world/world";
 import { Beams } from "./beams";
 import { LEAD, type Zone } from "./drift";
-import { Marks, type Ground } from "./marks";
+import { Marks, type DrawnGround } from "./marks";
 
 const LINE = 2;
 const TICK_EVERY = 12;
@@ -13,7 +13,7 @@ export class DriftView {
   private readonly marks: Marks;
   private readonly beams: Beams;
 
-  constructor(zone: Zone, ground: Ground) {
+  constructor(zone: Zone, ground: DrawnGround) {
     this.marks = new Marks(ground);
     const { points } = zone;
     this.marks.across(points[LEAD], ROAD_HALF, LINE, this.marks.paint(brand.accent));

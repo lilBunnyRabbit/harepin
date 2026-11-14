@@ -54,6 +54,90 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.44.0",
+    date: "2026-11-14",
+    title: "Market towns",
+    changes: [
+      { kind: NEW, text: "Mainland towns are rebuilt around a market street and a square with a clock tower, with rows of pitched-roof houses, market stalls and car parks at the edges. Mainland records reset" },
+      { kind: IMPROVED, text: "Races between Mainland towns drive down the market street" },
+      { kind: IMPROVED, text: "Fewer draw calls for trees, smoother on busy maps" },
+      { kind: IMPROVED, text: "Less stutter in the first minutes of a drive" },
+      { kind: FIXED, text: "Tyres and event markings sit on the road surface instead of floating or sinking" },
+      { kind: IMPROVED, text: "New Dunes and Mainland menu pictures" },
+    ],
+  },
+  {
+    version: "0.43.2",
+    date: "2026-11-14",
+    title: "Hold and spin",
+    changes: [
+      { kind: FIXED, text: "Car viewer: dragging keeps rotating the car until you let go" },
+    ],
+  },
+  {
+    version: "0.43.1",
+    date: "2026-11-14",
+    title: "Pop-ups",
+    changes: [
+      { kind: IMPROVED, text: "Tsumuji's pop-up headlights swing open and shut, and the beam waits until they're up" },
+      { kind: FIXED, text: "Ghost cars sit on the road surface too" },
+    ],
+  },
+  {
+    version: "0.43.0",
+    date: "2026-11-14",
+    title: "Built to show",
+    changes: [
+      { kind: NEW, text: "Cars wear details that grow with the parts you fit, in each car's own tuning style" },
+      { kind: NEW, text: "Nitro flames leave the pipes the way they point" },
+      { kind: FIXED, text: "Tyres sit on the road surface instead of sinking into it, and off-road tread stays inside the tyre" },
+      { kind: FIXED, text: "Skid marks no longer draw over the cars" },
+      { kind: FIXED, text: "Sajin no longer rolls over on bumps" },
+      { kind: IMPROVED, text: "Settings: the version is a pill that opens What's new, next to the Guide" },
+      { kind: NEW, text: "Feel lab: Sajin before-and-after pack" },
+    ],
+  },
+  {
+    version: "0.42.4",
+    date: "2026-11-14",
+    title: "Lab briefs",
+    changes: [
+      { kind: IMPROVED, text: "Feel lab: each trial opens with a brief: the question, what changed against the baseline, what to drive and what to feel for" },
+      { kind: IMPROVED, text: "Feel lab: results say what they compare with, in plain words, and hide numbers that mean nothing for the trial" },
+    ],
+  },
+  {
+    version: "0.42.3",
+    date: "2026-11-14",
+    title: "Quiet pause",
+    changes: [
+      { kind: FIXED, text: "The engine goes quiet while the menu, a lab card or the garage is open, and eases back when you return" },
+    ],
+  },
+  {
+    version: "0.42.2",
+    date: "2026-11-14",
+    title: "Lab notes",
+    changes: [
+      { kind: IMPROVED, text: "Feel lab: new driving measures and per-trait questions after each trial" },
+      { kind: NEW, text: "Feel lab: blind A/B groups, so you rate setups without knowing which is which" },
+    ],
+  },
+  {
+    version: "0.42.1",
+    date: "2026-11-14",
+    title: "Clean lines",
+    changes: [
+      { kind: FIXED, text: "Wheel arches clear the tyres at full steering lock, with even lips that match the wheels" },
+      { kind: FIXED, text: "No more seeing through a car to the far wheel, on every car with arches and on Fujin's wheel pods" },
+      { kind: FIXED, text: "Formula: suspension arms meet the wheel hubs, and the driver wears a proper helmet" },
+      { kind: FIXED, text: "Sturm's cabin floor no longer pokes into the wide kit's rear arches" },
+      { kind: FIXED, text: "The Velodrome picture shows in the guide and on the Legend final" },
+      { kind: IMPROVED, text: "Smoother driving on Sky Track and faster road building on Mainland" },
+      { kind: IMPROVED, text: "Sharper names and north marker on the minimap" },
+    ],
+  },
+  {
     version: "0.42.0",
     date: "2026-11-14",
     title: "Fresh metal",

@@ -27,7 +27,9 @@ The owner's favourite was the round-4 hatch: a thin lip that follows the wheel o
 - Black trim only where the reference has plastic arches (hatch, rally). Body colour everywhere else.
 - The opening and its lip are six even facets, the same angle as the 12-sided wheels. The lip keeps one width all the way round and on both axles; under a low bonnet the whole lip narrows instead of thinning at the top.
 - Every opening clears its tyre at full steering lock with the widest tyre the car can fit. A kit that needs more room gets a wider gap or a narrower front tyre.
-- Open-wheel cars: suspension arms run from the body to the hub centre, and no arm, floor or wing shows through a tyre. `model-faces.test.ts` checks all of this.
+- The car reads solid: a dark well closes each opening between the tyres, so no arch shows the far wheel.
+- A wheel pod beside a low body (Fujin) keeps a body-colour wall on the body side, so no tyre shows over the bonnet; its dark well sits behind that wall.
+- Open-wheel cars: suspension arms run from the body side (never over its top) to the hub centre, and no arm, floor or wing shows through a tyre. `model-faces.test.ts` checks all of this.
 
 ## Spoilers and wings
 
@@ -69,6 +71,29 @@ Most rounds' notes were about spoilers. They must look attached and intentional.
 | Sajin | modern sand buggy | cage, exposed long-travel arms, big tyres |
 
 Naming: weather and wind words in the style of Sturm, Raijin, Kaze, Fujin. No real brand or model names in the game.
+
+## Details by fitted part
+
+On top of the kit, each car wears the cues of its own tuning scene, each brought by one fitted part (`DETAILS` in `src/car/car-details.ts`). Stock stays clean.
+
+| Car | Scene | Cues |
+|---|---|---|
+| Hatch | track day | offset tow hooks, centre-exit pipes, cage cross in the hatch glass |
+| Coupe | 90s highway | underglow tubes, bazooka pipes, front-mount intercooler |
+| Muscle | pro street | chrome side pipes, rear louvres, blower through the hood, wheelie bars |
+| Rally | gravel stage | red mudflaps, roof scoop, lamp pod, sump guard |
+| Kaze | pro drift | camber, tow straps, bash bar in place of the rear bumper |
+| Tsumuji | clean roadster | camber, roll hoop; never a bonnet bulge or bare panel |
+| Sturm | RWB | four bolt heads per arch, windscreen banner, oil cooler |
+| Raijin | time attack | intercooler, floor planes, red tow hook, fences and canards |
+| Formula | grand prix | T-camera, bargeboards, shark fin, T-wing; helmet in body colour |
+| Fujin | endurance | one side-exit pipe each side, nothing else |
+| Sajin | dunes | whips with flags, jerry cans |
+| Bus | haulage | bull bar, chrome stacks clear of the spoiler |
+
+- A few bold shapes per tier; a cue that reads as clutter goes (owner, round 3: no plates, no double wing, nothing on a clean bonnet).
+- A detail takes the place of the generic part it stands for (`swaps`), never stacks on it.
+- Pipes a detail brings carry their own blue nitro tips, and the flame leaves them the way they point (`jet` beside `exhaust`): out past the rear tyre from side pipes, sideways from side exits, up from stacks.
 
 ## Nitro
 

@@ -3,7 +3,7 @@ import { DEFAULT_BUILD, build_code, build_spec, parse_build, type Build } from "
 import { oversize, type CarSpec } from "../car/cars";
 import { contact_shadow, fit_contact_shadow, place_contact_shadow, type ContactShadow } from "../car/contact-shadow";
 import { chunk_of } from "../worldgen/chunk-grid";
-import { set_lights, show_flame } from "../car/lights";
+import { set_lights, show_flame, snap_lights, swing_popups } from "../car/lights";
 import { build_view, camera_fade, dispose_car_view, rest_wheels, type CarView } from "../car/models";
 import type { World } from "../world/world";
 import { tier_badge, tier_look } from "../career/badge";
@@ -69,9 +69,10 @@ function build_of(state: CarState): Resolved {
 }
 
 // Each remote gets its own material copies so its fade never touches another car.
-function translucent_view(build: Build, spec: CarSpec): { view: CarView; materials: THREE.Material[] } {
+function translucent_view(build: Build, spec: CarSpec, lights: boolean): { view: CarView; materials: THREE.Material[] } {
   const view = build_view(build, spec);
   rest_wheels(view, spec);
+  snap_lights(view, lights);
   const copies = new Map<THREE.Material, THREE.Material>();
   view.root.traverse((object) => {
     // The flame stays additive with no depth write; a faded copy would turn it into a see-through solid.
@@ -135,17 +136,29 @@ export class Remotes {
     const { build, code } = build_of(remote.latest);
     let rv = this.views.get(remote.id);
     const now = performance.now();
+    const t = this.net.render_time(remote);
+    const snaps = remote.snapshots;
+    let a = snaps[0];
+    let b = snaps[snaps.length - 1];
+    for (let i = snaps.length - 1; i > 0; i--)
+      if (snaps[i - 1].at <= t) {
+        a = snaps[i - 1];
+        b = snaps[i];
+        break;
+      }
+    // The lamps start from the same delayed state the frame draws, or a fresh view would swing to catch up with it.
+    const lights = b.state.lights ?? true;
     if (rv && rv.code !== code && now - rv.built >= REBUILD_GAP_MS) {
       this.scene.remove(rv.view.root);
       dispose_car_view(rv.view);
       const spec = build_spec(build);
-      Object.assign(rv, { code, spec, built: now, above: ABOVE * oversize(spec).height }, translucent_view(build, spec));
+      Object.assign(rv, { code, spec, built: now, above: ABOVE * oversize(spec).height }, translucent_view(build, spec, lights));
       fit_contact_shadow(rv.shadow, spec);
       this.scene.add(rv.view.root);
     }
     if (!rv) {
       const spec = build_spec(build);
-      const { view, materials } = translucent_view(build, spec);
+      const { view, materials } = translucent_view(build, spec, lights);
       this.scene.add(view.root);
       const label = document.createElement("div");
       label.className = "label";
@@ -158,16 +171,6 @@ export class Remotes {
       rv = { code, built: now, spec, view, materials, shadow, label, name, tier: null, tag: "", above: ABOVE * oversize(spec).height, spin: 0, heading: 0 };
       this.views.set(remote.id, rv);
     }
-    const t = this.net.render_time(remote);
-    const snaps = remote.snapshots;
-    let a = snaps[0];
-    let b = snaps[snaps.length - 1];
-    for (let i = snaps.length - 1; i > 0; i--)
-      if (snaps[i - 1].at <= t) {
-        a = snaps[i - 1];
-        b = snaps[i];
-        break;
-      }
     const root = rv.view.root;
     if (t >= b.at) {
       const ahead = Math.min(250, t - b.at) / 1000;
@@ -179,6 +182,7 @@ export class Remotes {
       root.position.set(...a.state.p).lerp(this.p1.set(...b.state.p), k);
       root.quaternion.copy(this.q0.set(...a.state.q).slerp(this.q1.set(...b.state.q), k));
     }
+    root.position.y += this.world.drawn_lift(root.position.x, root.position.z, root.position.y);
     this.forward.set(0, 0, 1).applyQuaternion(root.quaternion);
     // A chunk that has not streamed in reads as flat sea level: no shadow there rather than one far under the car.
     const { tiles } = this.world;
@@ -195,7 +199,8 @@ export class Remotes {
     const turned = Math.atan2(Math.sin(heading - rv.heading), Math.cos(heading - rv.heading));
     rv.heading = heading;
     show_flame(rv.view, s.boost === true, now / 1000, dt > 0 ? turned / dt : 0);
-    if (rv.view.lights !== (s.lights ?? true)) set_lights(rv.view, s.lights ?? true);
+    if (rv.view.lights !== lights) set_lights(rv.view, lights);
+    swing_popups(rv.view, now / 1000);
     // Remote cars are ghosts with no collision, so one sitting inside yours fades out instead of hiding your car.
     const opacity = Math.min(Math.max(0.22, Math.min(1, (root.position.distanceTo(me) - 3) / 9)), camera_fade(root.position, camera.position));
     root.visible = opacity > 0;

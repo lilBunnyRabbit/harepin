@@ -3,11 +3,13 @@ import { axle_index, axles_of } from "./axles";
 import { rest_reach, type Car } from "./car";
 import { DEFAULT_PARTS, build_spec, part_of, type Build, type Slot } from "./build";
 import { COUPE, type CarSpec } from "./cars";
-import { body_pieces, cabin_parts, flares, notch, sculpt, side_panel, skirts } from "./body-shell";
+import { body_pieces, cabin_parts, flares, notch, on_glass, sculpt, side_panel, skirts, wells } from "./body-shell";
+import { DETAILS } from "./car-details";
+import { detail_look } from "./detail-looks";
 import { CAR_ORDER } from "./contact-shadow";
 import { DESIGNS } from "./designs";
 import { extrude, merge, parts, side_part, slab, taper, tint } from "./geometry";
-import { lamps, popup, set_lights, type HeadMesh, type Popup } from "./lights";
+import { lamps, popup, snap_lights, type HeadMesh, type Popup } from "./lights";
 import { back, livery_of, livery_parts, roof, type Livery } from "./livery";
 import { nitro_flame, type Jet } from "./nitro-look";
 import { aero_of, aero_parts, kit_parts, kit_skirts, rear_wing } from "./part-looks";
@@ -40,7 +42,7 @@ export interface CarView {
   brake: THREE.MeshLambertMaterial;
   /** Headlamp lenses; hidden from the hood camera, which sits right behind them. */
   heads: HeadMesh;
-  /** Headlamps on; set through `set_lights`, which also dims `heads` and swings `popup`. */
+  /** Headlamps on; set through `set_lights`, which also dims `heads`; `swing_popups` swings `popup` after it. */
   lights: boolean;
   /** Pop-up lamp pods, null on fixed lamps. */
   popup: Popup | null;
@@ -162,7 +164,9 @@ function metal_hull(painted: THREE.BufferGeometry, finish: Finish): THREE.Mesh {
 export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<Slot, number> = DEFAULT_PARTS, livery: Livery | null = null, finish: Finish | null = null): CarView {
   const aero = aero_of(kit);
   const stock = DESIGNS[spec.body.style];
-  const d = aero.skirts && stock.kit ? { ...stock, ...stock.kit } : stock;
+  const fitted = aero.skirts && stock.kit ? { ...stock, ...stock.kit } : stock;
+  const detail = detail_look(DETAILS[spec.body.style], kit, paint, color(tones.trim));
+  const d = { ...fitted, heads: [...fitted.heads, ...detail.heads], ...detail.outlet };
   const root = new THREE.Group();
   root.renderOrder = CAR_ORDER;
   const body = new THREE.Group();
@@ -174,11 +178,13 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
   const stripped = kit.weight > 1;
   const nose = d.outline[0][0];
   const tail = d.outline[d.outline.length - 1][0];
+  const tyre = part_of("tyres", kit.tyres).look?.tyre ?? (d.tread ? { ...STOCK_TYRE, tread: d.tread } : STOCK_TYRE);
   const shell_body = merge(body_pieces(d, spec).map((piece) => extrude(piece, d.width)));
   const cabin = merge(cabin_parts(d.cabin, paint, glass));
   const hull_base = merge(
     tint(d.taper ? taper(shell_body, d.taper.from, tail, d.taper.share) : shell_body, paint),
     flares(d, spec).map((g) => tint(g, arch_tone)),
+    wells(d, spec, tyre.width).map((g) => tint(g, trim)),
     (d.slabs ?? []).flatMap((part) => notch(part.points, d, spec).flatMap((piece) => slab(piece, part.from, part.to))).map((g) => tint(g, paint)),
     (kit_skirts(d, aero) ? [] : skirts(d, spec, 0.03, 0.09)).map((g) => tint(g, trim)),
     parts(d.paint).map((g) => tint(g, paint)),
@@ -190,7 +196,7 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
   // Decals are laid on the body as drawn, cabin included, then sculpted with it; the cabin itself keeps its width.
   const base = merge(hull_base, cabin);
   const decals = livery && livery.decal !== "none" ? livery_parts(livery, side_panel(d, spec), roof(base, glass), back(base, paint), nose, tail) : [];
-  const shell = merge(sculpt(merge(hull_base, rear_wing(d, aero, paint, trim), aero_parts(d, spec, aero, paint, trim), kit_parts(d, kit, paint, trim), decals), d), cabin);
+  const shell = merge(sculpt(merge(hull_base, rear_wing(d, aero, paint, trim), aero_parts(d, spec, aero, paint, trim, detail.swaps), kit_parts(d, kit, paint, trim, detail.swaps), detail.body, decals), d), cabin, on_glass(d.cabin, detail.glass));
   const matte = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
   const [painted, rest] = finish ? split_tone(shell, paint) : [null, shell];
   const hull = new THREE.Mesh(rest, matte);
@@ -206,15 +212,15 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
   body.add(hull, pods?.pivot ?? heads, tails, flame);
   root.add(body);
 
-  const tyre = part_of("tyres", kit.tyres).look?.tyre ?? (d.tread ? { ...STOCK_TYRE, tread: d.tread } : STOCK_TYRE);
   const caliper = part_of("brakes", kit.brakes).look?.caliper ?? (d.caliper ? { ...STOCK_CALIPER, tone: d.caliper } : STOCK_CALIPER);
   const axles = axles_of(spec);
   const tyres = [0, 1].map((axle) => wheel_geometry(spec.wheel.radius, d.tyre[axle], d.rim, tyre, d.round));
   const calipers = [0, 1].map((axle) => caliper_geometry(spec.wheel.radius, d.tyre[axle], d.rim, tyre, caliper));
   const wheel_material = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
   const wheel_axles = spec.wheel.mounts.map((_, i) => axle_index(axles, i));
-  const wheels = wheel_axles.map((axle) => {
+  const wheels = wheel_axles.map((axle, i) => {
     const steer = new THREE.Group();
+    steer.rotation.z = Math.sign(spec.wheel.mounts[i][0]) * detail.camber;
     const spin = new THREE.Group();
     const mesh = new THREE.Mesh(tyres[Math.min(axle, 1)], wheel_material);
     mesh.castShadow = true;
@@ -246,7 +252,7 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
     return { group, axis: new THREE.Vector3(-dz / reach, 0, dx / reach), reach, rest: arm_rest };
   });
   const view = { root, body, wheels, arms, steered, brake, heads, lights: true, popup: pods, eye: d.eye ? new THREE.Vector3(0, body.position.y + d.eye[1], d.eye[0]) : null, flame, jet, sway_at: 0 };
-  set_lights(view, true);
+  snap_lights(view, true);
   return view;
 }
 

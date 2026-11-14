@@ -6,14 +6,15 @@
     label?: string;
     help?: string;
     mono?: boolean;
+    center?: boolean;
   }
 
-  let { value = $bindable(), label, help, mono = false, type = "text", class: extra, ...rest }: Props = $props();
+  let { value = $bindable(), label, help, mono = false, center = false, type = "text", class: extra, ...rest }: Props = $props();
 </script>
 
 <label class={["ui-field", extra]}>
   {#if label}<span class="ui-label">{label}</span>{/if}
-  <input class="ui-input" class:ui-mono={mono} {type} autocomplete="off" bind:value {...rest} />
+  <input class="ui-input" class:ui-mono={mono} class:ui-center={center} {type} autocomplete="off" bind:value {...rest} />
   {#if help}<small class="ui-help">{help}</small>{/if}
 </label>
 
@@ -62,5 +63,9 @@
 
   .ui-mono {
     font-family: var(--font-mono);
+  }
+
+  .ui-center {
+    text-align: center;
   }
 </style>

@@ -11,6 +11,8 @@ export interface Part {
   tilt?: Triple;
   /** An eight-sided disc facing forward instead of a box: `size` x is its diameter, z its depth. */
   round?: boolean;
+  /** Drawn once as given instead of mirrored: an offset tow hook, a single side pipe. */
+  one?: boolean;
 }
 
 export function merge(...parts: (THREE.BufferGeometry | THREE.BufferGeometry[])[]): THREE.BufferGeometry {
@@ -46,7 +48,7 @@ export function arc(z: number, y: number, radius: number, floor: number, steps: 
   });
 }
 
-function signed_area(points: Point[]): number {
+export function signed_area(points: Point[]): number {
   return points.reduce((sum, [z, y], i) => {
     const [z2, y2] = points[(i + 1) % points.length];
     return sum + z * y2 - z2 * y;
@@ -122,7 +124,7 @@ export function side_part({ size, at: [x, y, z], tilt: [rx, ry, rz] = [0, 0, 0],
 }
 
 export function parts(list: Part[]): THREE.BufferGeometry[] {
-  return list.flatMap((part) => [-1, 1].map((side) => side_part(part, side)));
+  return list.flatMap((part) => (part.one ? [1] : [-1, 1]).map((side) => side_part(part, side)));
 }
 
 export function face_at(outline: Point[], y: number): number {

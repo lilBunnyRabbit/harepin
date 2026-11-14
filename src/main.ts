@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { Audio, type SoundFrame } from "./audio/audio";
+import { idle_sound } from "./audio/held-sound";
 import { EVENTS, EVENT_PARAM, TUNE_PARAM, current_tier, event_of, type CareerEvent } from "./career/career";
 import { CareerButton } from "./career/career-button";
 import { Career, event_map } from "./career/career-store";
@@ -235,7 +236,7 @@ const MAP_NOTE_MS = 4500;
 const goal_toasts = new ToastQueue((text, hold) => hud.toast(text, "", hold), () => $("toast").dataset.shown !== undefined);
 if (note) goal_toasts.push(note, MAP_NOTE_MS);
 goals.on_done = (goal) => goal_toasts.push(`Goal done: ${goal.title}`);
-const ghost = new Ghost(scene, world.seed, `harepin:ghost:${world.key}`, world.routes.find((r) => r.id === "circuit")?.length);
+const ghost = new Ghost(scene, world, `harepin:ghost:${world.key}`, world.routes.find((r) => r.id === "circuit")?.length);
 race.on_lap = (improved, first) => {
   goals.done(improved && !first ? GoalId.BEST : GoalId.LAP);
   ghost.finish(improved);
@@ -669,7 +670,7 @@ let rewinding = false;
 const NEAR_GAP = 1.2;
 const NEAR_PEER = 4;
 const up_scratch = new THREE.Vector3();
-const sound: SoundFrame = { rpm: 0, throttle: 0, scrub: 0, speed: 0, offroad: false, sound: driver.car.spec.sound, redline: 0, boost: false };
+const sound: SoundFrame = { rpm: 0, throttle: 0, scrub: 0, speed: 0, offroad: false, sound: driver.car.spec.sound, redline: 0, boost: false, held: false };
 const miss: { near: Near; touched: boolean } = { near: null, touched: false };
 /** Something close this frame, and whether the pass touched it (a crash, or driving through a ghost peer). Reused each frame. */
 function near_miss(impact: number): { near: Near; touched: boolean } {
@@ -731,6 +732,7 @@ function frame(time: number) {
   const menu_hold = (settings.is_open || hud_sheet.open || (lab_id !== null && modal_open())) && net.remotes.size === 0;
   let stepped = 0;
   let simulated = false;
+  let held = false;
   let impact = 0;
   if (input.rewind && driver.rewind.can_step && !lobby.busy && !modes.active) {
     rewinding = true;
@@ -743,6 +745,7 @@ function frame(time: number) {
     review.drive(car, dt);
   } else if (lobby.state.kind === "countdown" || modes.holding || garage.is_open || menu_hold) {
     rewinding = false;
+    held = true;
     acc = 0;
   } else {
     simulated = true;
@@ -829,7 +832,8 @@ function frame(time: number) {
   sound.sound = car.spec.sound;
   sound.redline = car.spec.redline;
   sound.boost = car.nitro.boosting;
-  audio.update(sound);
+  sound.held = false;
+  audio.update(held ? idle_sound(sound, car.spec.idle) : sound);
   // Off behind any menu, a lobby keeps driving with one open; a held sim (rewind, countdown) has no drive to feel.
   if (simulated && !input.blocked()) {
     const effect = rumble.update(now, dt, sense_drive(rumble_sense, car, world, impact));

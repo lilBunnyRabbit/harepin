@@ -3,6 +3,7 @@ import type { Car, Controls } from "../car/car";
 import { MAX_ANGLE, MIN_ANGLE, MIN_SPEED, SPIN_ANGLE } from "../modes/drift";
 import type { LabGate, LabLane } from "../worldgen/lab";
 import type { Goal } from "./pack";
+import { TraitFold, type TraitMetrics } from "./traits";
 
 const G = 9.81;
 const KMH = 3.6;
@@ -30,7 +31,7 @@ const inverse = new Quaternion();
 const up = new Vector3();
 
 /** Everything a trial measured; NaN where the trial never measured it. Distances m, times s, speeds km/h, angles degrees. */
-export interface Metrics {
+export interface Metrics extends TraitMetrics {
   time: number;
   laps: number[];
   segment: number;
@@ -123,15 +124,19 @@ export class Recorder {
   private finished = false;
   private lat_now = 0;
   private slip_now = 0;
+  private readonly traits: TraitFold;
 
   constructor(
     private readonly lane: LabLane,
     private readonly goal: Goal,
-  ) {}
+  ) {
+    this.traits = new TraitFold(lane);
+  }
 
   /** The car was put back (reset, rewind, lava): counted, and the gates and winding start over from where it stands. */
   placed(car: Car) {
     if (this.moving) this.resets++;
+    this.traits.placed();
     this.prev_x = car.pos.x;
     this.prev_z = car.pos.z;
     this.last_angle = this.angle(car.pos.x, car.pos.z);
@@ -209,6 +214,7 @@ export class Recorder {
       this.chain += dt;
       this.chain_best = Math.max(this.chain_best, this.chain);
     } else this.chain = 0;
+    this.traits.step(t, dt, car, input, speed, slip);
     if (slip > SPIN_ANGLE && !this.spun) this.spins++;
     this.spun = slip > SPIN_ANGLE;
     if (slip > CATCH_FROM && Number.isNaN(this.slide_at)) this.slide_at = t;
@@ -382,6 +388,7 @@ export class Recorder {
       throttle: share(this.throttle_t),
       handbrake: share(this.handbrake_t),
       reversals: share(this.reversals),
+      ...this.traits.metrics(),
     };
   }
 }

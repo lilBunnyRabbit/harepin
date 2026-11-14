@@ -10,8 +10,8 @@ import { Ground, JITTER_LEVELS, terrain_bases, type ChunkBuffers, type MeshTones
 import { TreeKind } from "../worldgen/biomes";
 import { SEA_LEVEL } from "../worldgen/water";
 import { crown_tone } from "./crowns";
-import { cast_instanced } from "./shadow-depth";
 import { charred_kit, type TreeLook } from "./snags";
+import { TreeBatch, type Planted } from "./tree-batch";
 import type { Lab } from "../theme/theme";
 
 const JITTER_LIGHTNESS = 0.035;
@@ -30,9 +30,6 @@ const ASH_DARK = 0.55;
 const SCREE_EARTH = 0.35;
 const CINDER_RUST = 0.35;
 const EMBER_SOOT = 0.45;
-// Scrub is a broadleaf crown squashed to a bush and sunk to the ground, so it costs no draw of its own.
-const SCRUB_SQUASH = 0.35;
-const SCRUB_SINK = 0.5;
 /** Packed snow over a winter road's asphalt. */
 const ROAD_SNOW = 0.35;
 const LANE_WIDTH = 3;
@@ -43,11 +40,6 @@ const MOBILE_FAR = 200;
 const SEA_CELL = 64;
 const SEA_REACH = 1024;
 const MOBILE_TREES = 300;
-function jitter(i: number, j: number): number {
-  const h = Math.sin(i * 127.1 + j * 311.7) * 43758.5453;
-  return h - Math.floor(h) - 0.5;
-}
-
 // Jitter is quantised so each tone converts OKLab to linear once per level, not per vertex; 64 levels is ~0.0003 L error.
 function terrain_lut(upland: Lab): Float32Array {
   const surface: Record<Ground, Lab> = {
@@ -94,11 +86,12 @@ export function mesh_tones(snowy = false, upland: Lab = tones.grass_dry, deck: D
     town: {
       pave: linear(tones.sidewalk),
       square: linear(tones.square),
-      hedge: linear(tones.leaf_dark),
       awnings: [tones.roof, tones.roof_slate, tones.cone, tones.awning_green].map(linear),
       trim: linear(tones.wall_trim),
       door: linear(tones.trunk),
       walls: [tones.wall, tones.wall_warm, tones.wall_cool, tones.wall_rose, tones.wall_sage].map(linear),
+      stone: linear(tones.rock),
+      timber: linear(tones.trunk),
     },
     landmark: { pale: linear(tones.check_light), band: linear(tones.roof), cap: linear(tones.trim), stone: linear(tones.rock), stone_shade: linear(lighten(tones.rock, -STONE_SHADE)), plant: linear(tones.leaf), plant_shade: linear(tones.leaf_dark) },
     deck: { deck: linear(deck.deck), side: linear(deck.side), rail: linear(deck.rail), joint: linear(deck.joint), pad: linear(deck.pad), chevron: linear(deck.chevron) },
@@ -125,7 +118,7 @@ interface ChunkView {
   road: THREE.BufferGeometry | null;
   water: THREE.BufferGeometry | null;
   full: number;
-  trees: THREE.Object3D[];
+  trees: Planted;
   town: TownChunk | undefined;
   far: boolean | null;
   trees_shown: boolean | null;
@@ -142,18 +135,19 @@ export class WorldView {
   private readonly road = [-2, -4].map((offset) => new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, polygonOffset: true, polygonOffsetFactor: offset, polygonOffsetUnits: offset, side: THREE.DoubleSide }));
   // The sea plane's look, so a river meets the sea in one tone; pulled forward so a mouth just over the sea wins its depth test every frame.
   private readonly water = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, transparent: true, opacity: 0.9, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
-  private readonly tree_kit: TreeKit;
+  private readonly tree_batch: TreeBatch;
   private readonly tree_lists: Map<number, Tree[]>;
   private readonly tree_order: Map<Tree, number>;
   private readonly town_kit: TownChunks;
-  private readonly trees = new Map<number, THREE.InstancedMesh[]>();
+  private readonly trees = new Map<number, Planted>();
   private readonly towns = new Map<number, TownChunk | undefined>();
 
   private readonly streamed: boolean;
 
   constructor(world: World, private readonly mobile: boolean, trees: TreeLook) {
     this.streamed = world.tiles.streamed;
-    this.tree_kit = trees === "charred" ? charred_kit() : tree_kit(world.snowy);
+    this.tree_batch = new TreeBatch(trees === "charred" ? charred_kit() : tree_kit(world.snowy), world.trees.length);
+    this.root.add(...this.tree_batch.meshes);
     this.tree_lists = by_chunk(world.trees, world.tiles.ext);
     this.tree_order = new Map(world.trees.map((tree, i) => [tree, i]));
     this.town_kit = new TownChunks(world);
@@ -191,12 +185,14 @@ export class WorldView {
       mesh.receiveShadow = true;
       group.add(mesh);
     }
-    if (trees) this.trees.set(chunk.index, tree_meshes(this.tree_kit, trees, null));
-    else if (!this.trees.has(chunk.index)) this.trees.set(chunk.index, tree_meshes(this.tree_kit, this.tree_lists.get(chunk.index) ?? [], this.tree_order));
+    const kept = this.trees.get(chunk.index);
+    if (trees) {
+      if (kept) this.tree_batch.free(kept);
+      this.trees.set(chunk.index, this.tree_batch.plant(trees, null));
+    } else if (!kept) this.trees.set(chunk.index, this.tree_batch.plant(this.tree_lists.get(chunk.index) ?? [], this.tree_order));
     if (!this.towns.has(chunk.index)) this.towns.set(chunk.index, this.town_kit.build(chunk));
-    const here = this.trees.get(chunk.index) ?? [];
+    const here = this.trees.get(chunk.index) ?? { bark: [], leaf: [] };
     const town = this.towns.get(chunk.index);
-    if (here.length) group.add(...here);
     if (town) group.add(...town.objects);
     this.root.add(group);
     this.views[chunk.index] = { x0: chunk.x0, z0: chunk.z0, group, terrain: ground, road, water, full: chunk.terrain?.full ?? 0, trees: here, town, far: null, trees_shown: null };
@@ -211,11 +207,11 @@ export class WorldView {
     view.road?.dispose();
     view.water?.dispose();
     if (this.streamed) {
-      for (const tree of view.trees) if (tree instanceof THREE.InstancedMesh) tree.dispose();
+      this.tree_batch.free(view.trees);
       this.trees.delete(index);
       view.town?.dispose();
       this.towns.delete(index);
-    }
+    } else this.tree_batch.show(view.trees, false);
     this.views[index] = undefined;
   }
 
@@ -241,10 +237,10 @@ export class WorldView {
         else view.terrain?.setDrawRange(0, view.full);
         view.town?.far(far);
       }
-      const trees_shown = !this.mobile || d <= MOBILE_TREES;
+      const trees_shown = view.group.visible && (!this.mobile || d <= MOBILE_TREES);
       if (trees_shown !== view.trees_shown) {
         view.trees_shown = trees_shown;
-        for (const tree of view.trees) tree.visible = trees_shown;
+        this.tree_batch.show(view.trees, trees_shown);
       }
     }
   }
@@ -266,47 +262,6 @@ export function tree_kit(snowy: boolean): TreeKit {
     bark: new THREE.MeshLambertMaterial({ color: color(tones.trunk), flatShading: true }),
     leaf: new THREE.MeshLambertMaterial({ flatShading: true }),
   };
-}
-
-const crown_of = (kind: number) => (kind === TreeKind.SCRUB ? TreeKind.BROADLEAF : kind);
-
-export function tree_meshes({ trunk, crowns, bark, leaf, tone }: TreeKit, here: readonly Tree[], order: Map<Tree, number> | null): THREE.InstancedMesh[] {
-  if (!here.length) return [];
-  const m = new THREE.Matrix4();
-  const q = new THREE.Quaternion();
-  const s = new THREE.Vector3();
-  const p = new THREE.Vector3();
-  const axis = new THREE.Vector3(0, 1, 0);
-  const tint = new THREE.Color();
-  const trunks = new THREE.InstancedMesh(trunk, bark, Math.max(1, here.filter((t) => t.kind !== TreeKind.SCRUB).length));
-  let trunk_count = 0;
-  const kinds = crowns.map((geometry, kind) => new THREE.InstancedMesh(geometry, leaf, Math.max(1, here.filter((t) => crown_of(t.kind) === kind).length)));
-  const filled = kinds.map(() => 0);
-  here.forEach((tree) => {
-    q.setFromAxisAngle(axis, (tree.x * 13.37) % (Math.PI * 2));
-    const shade = jitter(order ? (order.get(tree) ?? 0) : tree.x + tree.z * 0.37, tree.kind);
-    const scrub = tree.kind === TreeKind.SCRUB;
-    if (scrub) m.compose(p.set(tree.x, tree.y - SCRUB_SINK, tree.z), q, s.set(tree.scale, tree.scale * SCRUB_SQUASH, tree.scale));
-    else {
-      m.compose(p.set(tree.x, tree.y - 0.2, tree.z), q, s.setScalar(tree.scale));
-      trunks.setMatrixAt(trunk_count++, m);
-    }
-    const crown = kinds[crown_of(tree.kind)];
-    const slot = filled[crown_of(tree.kind)]++;
-    crown.setMatrixAt(slot, m);
-    const [r, g, b] = linear(tone(tree.kind as TreeKind, shade));
-    crown.setColorAt(slot, tint.setRGB(r, g, b));
-  });
-  trunks.count = trunk_count;
-  kinds.forEach((mesh, kind) => (mesh.count = filled[kind]));
-  const meshes = [trunks, ...kinds].filter((mesh) => mesh.count > 0);
-  for (const mesh of meshes) {
-    cast_instanced(mesh);
-    mesh.receiveShadow = true;
-    mesh.computeBoundingSphere();
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  }
-  return meshes;
 }
 
 function strip(world: World, positions: number[], road: RoadPoint[], from: number, to: number, lift: number, samples: readonly number[]) {

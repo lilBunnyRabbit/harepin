@@ -170,93 +170,99 @@
 {/snippet}
 
 <div class="world">
-  <ScrollArea class="side" label="Map settings">
-    <ScrollArea class="picks">
-      <div class="steps">
-        {@render head("Pick a world")}
-        <div class="worlds" role="radiogroup" aria-label="World">
-          {#each LISTED as { kind, name, pick } (kind)}
-            <Tile title={name} meta={pick} clamp={2} thumb={preview(kind)} selected={kind === chosen.kind} onclick={() => choose(plain_map(kind, chosen.seed), true)} />
-          {/each}
-        </div>
+  <div class="side">
+    <ScrollArea label="Map settings">
+      <div class="picks">
+        <ScrollArea>
+          <div class="steps">
+            {@render head("Pick a world")}
+            <div class="worlds" role="radiogroup" aria-label="World">
+              {#each LISTED as { kind, name, pick } (kind)}
+                <Tile title={name} meta={pick} clamp={2} thumb={preview(kind)} selected={kind === chosen.kind} onclick={() => choose(plain_map(kind, chosen.seed), true)} />
+              {/each}
+            </div>
 
-        {@render head("Pick a map")}
-        <div class="code">
-          <TextField
-            bind:value={code_text}
-            mono
-            class="code-field"
-            maxlength={64}
-            autocapitalize="characters"
-            spellcheck={false}
-            enterkeyhint="go"
-            aria-label="Map code"
-            aria-invalid={bad !== null}
-            oninput={read_code}
-            onfocus={() => (typing = true)}
-            onblur={() => {
-              typing = false;
-              if (!bad) code_text = code;
-            }}
-            onkeydown={(event) => {
-              if (event.key === "Enter") drive();
-            }}
-          />
-          <Button icon="icon-dice" class="dice" onclick={() => choose({ ...chosen, seed: random_seed() }, true)}><span class="dice-label">New random map</span></Button>
-        </div>
-        <p class="hint" class:error={bad !== null || fallback || note !== null}>{hint}</p>
-      </div>
-    </ScrollArea>
-
-    <ScrollArea class="tune">
-      <div class="steps">
-        {#if knobs.length}
-          <div class="step-head">
-            {@render head("Tune it")}
-            <Button variant="quiet" size="sm" onclick={() => choose(plain_map(chosen.kind, chosen.seed), true)}>Reset</Button>
+            {@render head("Pick a map")}
+            <div class="code">
+              <TextField
+                bind:value={code_text}
+                mono
+                class="code-field"
+                maxlength={64}
+                autocapitalize="characters"
+                spellcheck={false}
+                enterkeyhint="go"
+                aria-label="Map code"
+                aria-invalid={bad !== null}
+                oninput={read_code}
+                onfocus={() => (typing = true)}
+                onblur={() => {
+                  typing = false;
+                  if (!bad) code_text = code;
+                }}
+                onkeydown={(event) => {
+                  if (event.key === "Enter") drive();
+                }}
+              />
+              <Button icon="icon-dice" class="dice" onclick={() => choose({ ...chosen, seed: random_seed() }, true)}><span class="dice-label">New random map</span></Button>
+            </div>
+            <p class="hint" class:error={bad !== null || fallback || note !== null}>{hint}</p>
           </div>
-          <div class="knobs">
-            {#each knobs.filter((k) => !k.option.more) as { option, at } (`${chosen.kind}:${option.field}`)}
-              {@render knob(option, at)}
-            {/each}
-            {#if knobs.some((k) => k.option.more)}
-              <Row label={advanced ? "Fewer settings" : "Advanced"} help="Ridges, water, town size and the rest of this world's settings." onclick={() => (advanced = !advanced)} />
-              {#if advanced}
-                {#each knobs.filter((k) => k.option.more) as { option, at } (`${chosen.kind}:${option.field}`)}
+        </ScrollArea>
+      </div>
+
+      <div class="tune">
+        <ScrollArea>
+          <div class="steps">
+            {#if knobs.length}
+              <div class="step-head">
+                {@render head("Tune it")}
+                <Button variant="quiet" size="sm" onclick={() => choose(plain_map(chosen.kind, chosen.seed), true)}>Reset</Button>
+              </div>
+              <div class="knobs">
+                {#each knobs.filter((k) => !k.option.more) as { option, at } (`${chosen.kind}:${option.field}`)}
                   {@render knob(option, at)}
                 {/each}
-              {/if}
+                {#if knobs.some((k) => k.option.more)}
+                  <Row label={advanced ? "Fewer settings" : "Advanced"} help="Ridges, water, town size and the rest of this world's settings." onclick={() => (advanced = !advanced)} />
+                  {#if advanced}
+                    {#each knobs.filter((k) => k.option.more) as { option, at } (`${chosen.kind}:${option.field}`)}
+                      {@render knob(option, at)}
+                    {/each}
+                  {/if}
+                {/if}
+              </div>
+            {/if}
+
+            {@render head("Save it")}
+            <div class="code">
+              <TextField
+                bind:value={name}
+                class="name-field"
+                maxlength={MAP_NAME_LENGTH}
+                placeholder="Name this map"
+                aria-label="Map name"
+                onkeydown={(event) => {
+                  if (event.key === "Enter") save();
+                }}
+              />
+              <Button onclick={save} disabled={!name.trim()}>Save</Button>
+            </div>
+            {#if saved.length}
+              <ul class="saved">
+                {#each saved as entry, index (entry.name)}
+                  <li>
+                    <Tile size="sm" title={entry.name} meta={entry.code} thumb={thumbs[entry.code]} onclick={() => entry.read.ok && choose(entry.read.map, true)} />
+                    <IconButton icon="icon-close" label={`Delete ${entry.name}`} onclick={() => remove(index)} />
+                  </li>
+                {/each}
+              </ul>
             {/if}
           </div>
-        {/if}
-
-        {@render head("Save it")}
-        <div class="code">
-          <TextField
-            bind:value={name}
-            class="name-field"
-            maxlength={MAP_NAME_LENGTH}
-            placeholder="Name this map"
-            aria-label="Map name"
-            onkeydown={(event) => {
-              if (event.key === "Enter") save();
-            }}
-          />
-          <Button onclick={save} disabled={!name.trim()}>Save</Button>
-        </div>
-        {#if saved.length}
-          <ul class="saved">
-            {#each saved as entry, index (entry.name)}
-              <li>
-                <Tile size="sm" title={entry.name} meta={entry.code} thumb={thumbs[entry.code]} onclick={() => entry.read.ok && choose(entry.read.map, true)} />
-                <IconButton icon="icon-close" label={`Delete ${entry.name}`} onclick={() => remove(index)} />
-              </li>
-            {/each}
-          </ul>
-        {/if}
+        </ScrollArea>
       </div>
     </ScrollArea>
-  </ScrollArea>
+  </div>
 
   <div class="preview">
     <WorldMap {map} label={`Map of ${world.map_label} ${chosen.seed}`} />
@@ -324,15 +330,26 @@
     min-height: 0;
   }
 
-  .world > :global(.side) {
+  /* --scroll-display inherits, so the inner scrollers set it back to block. */
+  .side {
+    --scroll-display: contents;
     display: contents;
   }
 
-  .world :global(.picks) {
+  .picks,
+  .tune {
+    --scroll-display: block;
+    display: grid;
+    grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .picks {
     grid-area: picks;
   }
 
-  .world :global(.tune) {
+  .tune {
     grid-area: tune;
   }
 
@@ -508,9 +525,18 @@
       gap: var(--space-4) var(--space-5);
     }
 
-    .world > :global(.side) {
-      display: block;
+    .side {
+      --scroll-display: block;
+      display: grid;
       grid-area: side;
+      grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+      min-width: 0;
+      min-height: 0;
+    }
+
+    .picks,
+    .tune {
+      display: block;
     }
 
     .steps {
@@ -532,6 +558,10 @@
       grid-template: "map" auto "about" auto "side" auto "actions" auto / minmax(0, 1fr);
       gap: var(--space-5);
       height: auto;
+    }
+
+    .side {
+      display: block;
     }
 
     .preview {

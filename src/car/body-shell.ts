@@ -14,11 +14,15 @@ const ARCH_SKIN = 0.025;
 // A lip narrows in these steps to fit under a low bonnet or deck, and no further than this.
 const MIN_FLARE = 0.025;
 const FLARE_STEP = 0.005;
+// A well ends this far short of its tyre's inner face, tread blocks included.
+const WELL_CLEAR = 0.04;
+const VISOR_PROUD = 0.02;
 
 export function cabin_parts(c: Cabin, paint: THREE.Color, glass: THREE.Color): THREE.BufferGeometry[] {
   const ys = c.points.map(([, y]) => y);
   const base = Math.min(...ys);
   const top = Math.max(...ys);
+  if (c.helmet) return [tint(extrude(c.points, c.width), paint), ...(c.visor ? [tint(extrude(c.visor, c.width + VISOR_PROUD), glass)] : [])].map((g) => lean(g, base, top, c.tumble));
   const floor = c.floor ?? [];
   const outline = [...c.points, ...floor];
   const glazed = inset(outline, [...c.frame, ...floor.map(() => c.frame[c.frame.length - 1])]);
@@ -31,6 +35,11 @@ export function cabin_parts(c: Cabin, paint: THREE.Color, glass: THREE.Color): T
   ].map((g) => lean(g, base, top, c.tumble));
 }
 
+export function on_glass(c: Cabin, geometries: THREE.BufferGeometry[]): THREE.BufferGeometry[] {
+  const ys = c.points.map(([, y]) => y);
+  return geometries.map((g) => lean(g, Math.min(...ys), Math.max(...ys), c.tumble));
+}
+
 /** The wheel opening the body cuts round the axle at `z`, from the rear end of its floor over the top to the front. */
 export function arch_opening(d: Design, spec: CarSpec, z: number): Point[] {
   // An arch reaching over a low bonnet (the slabs stand above it) stays under the outline, or the outline crosses itself.
@@ -40,6 +49,23 @@ export function arch_opening(d: Design, spec: CarSpec, z: number): Point[] {
 
 export function body_outline(d: Design, spec: CarSpec): Point[] {
   return [...d.outline, ...axles_of(spec).reverse().flatMap((a) => arch_opening(d, spec, a.z))];
+}
+
+/**
+ * A block filling each wheel opening between the tyres' inner faces, a steered pair's swept to full lock: the body is
+ * cut right across, and without it an arch shows the far wheel. A pod's well runs from the slab face that closes it to its own tyre.
+ * `tyre_width` scales the design's tyres.
+ */
+export function wells(d: Design, spec: CarSpec, tyre_width: number): THREE.BufferGeometry[] {
+  const pods = d.pods;
+  if (d.arches.steps === 0 && !pods) return [];
+  return axles_of(spec).flatMap((axle, i) => {
+    const half = (d.tyre[Math.min(i, 1)] * tyre_width) / 2;
+    const swept = axle.steer ? half * Math.cos(spec.lock) + spec.wheel.radius * Math.sin(spec.lock) : half;
+    const inner = Math.abs(spec.wheel.mounts[axle.wheels[0]][0]) - swept - WELL_CLEAR;
+    if (pods) return inner > pods.from ? slab(arc(axle.z, spec.wheel.radius, pods.radius, d.sill, pods.steps), pods.from, inner) : [];
+    return inner > 0 ? [extrude(arch_opening(d, spec, axle.z), 2 * inner)] : [];
+  });
 }
 
 /** `points` less every wheel opening, so a slab standing over a wheel never closes over its tyre. */

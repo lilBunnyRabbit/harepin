@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { brand } from "../theme/palette";
 import { Beams } from "./beams";
 import { GATE_RADIUS, type Hunt } from "./hunt";
-import { Marks, type Ground } from "./marks";
+import { Marks, type DrawnGround } from "./marks";
 
 const RING = 0.6;
 
@@ -10,7 +10,7 @@ export class HuntView {
   private readonly marks: Marks;
   private readonly beams: Beams;
 
-  constructor(hunt: Hunt, ground: Ground) {
+  constructor(hunt: Hunt, ground: DrawnGround) {
     this.marks = new Marks(ground);
     this.beams = new Beams(this.marks, ground, hunt.gates);
     const ring = this.marks.track(new THREE.RingGeometry(GATE_RADIUS - RING, GATE_RADIUS, 48).rotateX(-Math.PI / 2));

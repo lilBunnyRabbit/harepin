@@ -209,6 +209,9 @@ test("no body part or arm stands in a tyre, straight or at full lock, on every c
         const centre = view.wheels[w].position;
         const half = (d.tyre[Math.min(axle_index(axles, w), 1)] * look.width) / 2;
         const near = (faces: Face[]) => faces.filter((face) => box.setFromPoints([face.a, face.b, face.c]).distanceToPoint(centre) < Math.hypot(radius, half));
+        // A detail's camber leans the wheel in its own frame, under the steering: the tyre is tested as it stands.
+        const camber = view.wheels[w].rotation.z;
+        const [lean_cos, lean_sin] = [Math.cos(camber), Math.sin(camber)];
         const check = (faces: Face[], angle: number, arm: boolean) => {
           const [cos, sin] = [Math.cos(angle), Math.sin(angle)];
           const key = `${car}${kit ? " kit" : ""}, wheel ${w}${angle ? " at full lock" : ""}: ${arm ? "an arm" : "the body"} stands in the tyre`;
@@ -219,8 +222,9 @@ test("no body part or arm stands in a tyre, straight or at full lock, on every c
                 p.set(0, 0, 0).addScaledVector(face.a, i / n).addScaledVector(face.b, j / n).addScaledVector(face.c, (n - i - j) / n);
                 if (!arm && covered(p.x, p.y, p.z)) continue;
                 p.sub(centre);
-                const across = p.x * cos - p.z * sin;
-                const spoke = Math.hypot(p.y, p.x * sin + p.z * cos);
+                const turned = p.x * cos - p.z * sin;
+                const across = turned * lean_cos + p.y * lean_sin;
+                const spoke = Math.hypot(p.y * lean_cos - turned * lean_sin, p.x * sin + p.z * cos);
                 const depth = Math.min(half - Math.abs(across), radius - spoke);
                 if (depth <= WHEEL_SKIN) continue;
                 // An arm ends in the rim, on the car's side of the wheel.
@@ -243,10 +247,12 @@ test("no body part or arm stands in a tyre, straight or at full lock, on every c
 // An arm end this close to the axle line, inside the wheel, is on the hub.
 const HUB = 0.06;
 
-test("every suspension arm runs from the body to its wheel's hub", async () => {
+test("every suspension arm runs from the body side to its wheel's hub", async () => {
   const { build_view, dispose_car_view, rest_wheels } = await import("./models");
   const { build_spec } = await import("./build");
   const { DESIGNS } = await import("./designs");
+  const { sculpt_factor } = await import("./body-shell");
+  const { top_at } = await import("./geometry");
   const { axle_index, axles_of } = await import("./axles");
   const found: string[] = [];
   for (const car of Object.keys(CARS) as CarId[]) {
@@ -264,8 +270,112 @@ test("every suspension arm runs from the body to its wheel's hub", async () => {
       const points = body_faces(arm.group, view.root).flatMap((face) => [face.a, face.b, face.c]);
       if (!points.some((q) => Math.abs(q.x) >= inner && Math.abs(q.x) <= Math.abs(centre.x) && Math.hypot(q.y - centre.y, q.z - centre.z) < HUB)) found.push(`${car} wheel ${w}: no arm reaches the hub`);
       if (!points.some((q) => Math.abs(q.x) < d.width / 2)) found.push(`${car} wheel ${w}: no arm reaches the body`);
+      const tail = d.outline[d.outline.length - 1][0];
+      const taper = (z: number) => (d.taper ? 1 - (1 - d.taper.share) * Math.max(0, Math.min(1, (d.taper.from - z) / (d.taper.from - tail))) : 1);
+      const over = points.filter((q) => {
+        const y = q.y - view.body.position.y;
+        return q.z > tail && q.z < d.outline[0][0] && Math.abs(q.x) < (d.width / 2) * sculpt_factor(d, y, q.z) * taper(q.z) && y > top_at(d.outline, q.z);
+      });
+      if (over.length > 0) found.push(`${car} wheel ${w}: an arm lies over the top of the body`);
+      const off = points.filter((q) => Math.abs(q.x) >= inner && Math.hypot(q.y - centre.y, q.z - centre.z) >= HUB);
+      if (off.length > 0) found.push(`${car} wheel ${w}: an arm meets the wheel off its hub`);
     });
     dispose_car_view(view);
   }
   expect(found).toEqual([]);
 });
+
+test("no wheel opening shows the far wheel through the body", async () => {
+  const { build_view, dispose_car_view, rest_wheels } = await import("./models");
+  const { build_spec } = await import("./build");
+  const { DESIGNS } = await import("./designs");
+  const { axle_index, axles_of } = await import("./axles");
+  const found: string[] = [];
+  for (const car of Object.keys(CARS) as CarId[]) {
+    const build: Build = { ...DEFAULT_BUILD, car };
+    const spec = build_spec(build);
+    const d = DESIGNS[spec.body.style];
+    if (d.arches.steps === 0) continue;
+    const view = build_view(build, spec);
+    rest_wheels(view, spec);
+    view.root.updateMatrixWorld(true);
+    const faces = body_faces(view.body, view.root);
+    const axles = axles_of(spec);
+    spec.wheel.mounts.forEach(([mx], w) => {
+      if (mx < 0) return;
+      const centre = view.wheels[w].position;
+      const inner = mx - d.tyre[Math.min(axle_index(axles, w), 1)] / 2;
+      // A wall between the tyres, across the upper half of the opening: a high sill hides the lower half.
+      const y = centre.y + spec.wheel.radius / 2;
+      const wall = faces.some((face) => Math.abs(face.normal.x) > 0.5 && [face.a, face.b, face.c].every((p) => Math.abs(p.x) < inner) && inside([face.a, face.b, face.c].map((p): Point => [p.z, p.y]), centre.z, y));
+      if (!wall) found.push(`${car} wheel ${w}: the opening is hollow from side to side`);
+    });
+    dispose_car_view(view);
+  }
+  expect(found).toEqual([]);
+});
+
+// Sight lines leave the tyre's inner sidewall this far inside it, over the hub, toward the far side of the car.
+const SIGHT_SKIN = 0.005;
+const SIGHT_SPOKE = 0.85;
+const SIGHT_SPOTS = [-60, -30, 0, 30, 60];
+const SIGHT_RISES = [20, 40, 60, 80];
+const SIGHT_TURNS = [-60, -30, 0, 30, 60];
+const RAD = Math.PI / 180;
+
+function blocked(faces: Face[], from: THREE.Vector3, along: THREE.Vector3): boolean {
+  const [ab, ac, h, s, q] = [0, 0, 0, 0, 0].map(() => new THREE.Vector3());
+  return faces.some((face) => {
+    ab.subVectors(face.b, face.a);
+    ac.subVectors(face.c, face.a);
+    h.crossVectors(along, ac);
+    const det = ab.dot(h);
+    if (Math.abs(det) < 1e-12) return false;
+    const u = s.subVectors(from, face.a).dot(h) / det;
+    if (u < 0 || u > 1) return false;
+    const v = along.dot(q.crossVectors(s, ab)) / det;
+    return v >= 0 && u + v <= 1 && ac.dot(q) / det > 0;
+  });
+}
+
+test("no fender that covers its tyre shows it from over the body, on every car and kit", async () => {
+  const { build_view, dispose_car_view, rest_wheels } = await import("./models");
+  const { build_spec } = await import("./build");
+  const { DESIGNS } = await import("./designs");
+  const { aero_of } = await import("./part-looks");
+  const { axle_index, axles_of } = await import("./axles");
+  const found: string[] = [];
+  const from = new THREE.Vector3();
+  const along = new THREE.Vector3();
+  const up = new THREE.Vector3(0, 1, 0);
+  for (const car of Object.keys(CARS) as CarId[])
+    for (const [k, build] of looks(car).filter(([name]) => name.startsWith("kit"))) {
+      const spec = build_spec(build);
+      const stock = DESIGNS[spec.body.style];
+      const d = aero_of(build.parts).skirts && stock.kit ? { ...stock, ...stock.kit } : stock;
+      const view = build_view(build, spec);
+      rest_wheels(view, spec);
+      view.root.updateMatrixWorld(true);
+      const faces = body_faces(view.body, view.root);
+      const axles = axles_of(spec);
+      const radius = spec.wheel.radius;
+      spec.wheel.mounts.forEach(([mx], w) => {
+        if (mx < 0) return;
+        const centre = view.wheels[w].position;
+        const x = mx - d.tyre[Math.min(axle_index(axles, w), 1)] / 2 - SIGHT_SKIN;
+        // An open wheel, or a tyre standing outside its arch, is meant to show.
+        if (!blocked(faces, from.set(x, centre.y + radius, centre.z), up)) return;
+        let seen = 0;
+        for (const spot of SIGHT_SPOTS)
+          for (const rise of SIGHT_RISES)
+            for (const turn of SIGHT_TURNS) {
+              from.set(x, centre.y + SIGHT_SPOKE * radius * Math.cos(spot * RAD), centre.z + SIGHT_SPOKE * radius * Math.sin(spot * RAD));
+              along.set(-Math.cos(rise * RAD) * Math.cos(turn * RAD), Math.sin(rise * RAD), Math.cos(rise * RAD) * Math.sin(turn * RAD));
+              if (!blocked(faces, from, along)) seen++;
+            }
+        if (seen > 0) found.push(`${car} ${k}, wheel ${w}: ${seen} sight lines reach the tyre over the body`);
+      });
+      dispose_car_view(view);
+    }
+  expect(found).toEqual([]);
+}, 120_000);

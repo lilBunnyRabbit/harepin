@@ -1,5 +1,6 @@
 import type { EngineSound } from "../car/cars";
 import engine_worklet from "./engine.worklet.ts?worker&url";
+import { RETURN_TIME, return_rpm } from "./held-sound";
 import { NITRO, rush_target, type RushTarget } from "./nitro-sound";
 
 export interface SoundFrame {
@@ -11,6 +12,8 @@ export interface SoundFrame {
   sound: EngineSound;
   redline: number;
   boost: boolean;
+  /** The sim is held: the frame is an idle stand-in, and the next live one eases back from it. */
+  held: boolean;
 }
 
 function noise_buffer(ctx: AudioContext): AudioBuffer {
@@ -56,6 +59,8 @@ export class Audio {
   private last_whoosh = -Infinity;
   private readonly rush_aim: RushTarget = { level: 0, tau: 1 };
   private last_rpm = 0;
+  private held_rpm: number | null = null;
+  private released_at = -Infinity;
 
   private gain(): number {
     return this.muted ? 0 : MASTER_GAIN * this.volume;
@@ -182,7 +187,13 @@ export class Audio {
     const { ctx } = this;
     if (!ctx || !this.squeal || !this.squeal_filter || !this.wind || !this.wind_filter || !this.gravel) return;
     const t = ctx.currentTime;
-    const { rpm, throttle, scrub, speed, offroad, sound, redline, boost } = frame;
+    const { throttle, scrub, speed, offroad, sound, redline, boost, held } = frame;
+    if (held) {
+      this.held_rpm = frame.rpm;
+      this.released_at = -Infinity;
+    } else if (this.held_rpm !== null && this.released_at === -Infinity) this.released_at = t;
+    if (!held && this.held_rpm !== null && t - this.released_at >= RETURN_TIME) this.held_rpm = null;
+    const rpm = held || this.held_rpm === null ? frame.rpm : return_rpm(this.held_rpm, frame.rpm, t - this.released_at);
     const { engine } = this;
     if (engine) {
       if (sound !== this.sound) {

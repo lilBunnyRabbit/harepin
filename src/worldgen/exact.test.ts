@@ -21,6 +21,7 @@ const ALLOWED: Record<string, number> = {
   "routes.ts": 1,
   "sky-mesh.ts": 3,
   "sky.ts": 21,
+  "town-mesh.ts": 2,
   "towns.ts": 1,
 };
 const INEXACT = /Math\.(hypot|acos|asin|atan2?|sin|cos|tan|pow|exp|log\w*|cbrt|sinh|cosh|tanh)\b/g;

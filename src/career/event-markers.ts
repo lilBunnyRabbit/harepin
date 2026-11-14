@@ -86,7 +86,7 @@ export class EventMarkers {
     const marker = this.markers[i];
     const { tiles } = world;
     if (tiles.streamed && !tiles.get(chunk_of(marker.x, marker.z, tiles.ext))) return null;
-    const view = new MarkerView([marker], (x, z) => world.height(x, z));
+    const view = new MarkerView([marker], (x, z) => world.height(x, z) + world.drawn_lift(x, z));
     view.show(this.open);
     this.scene.add(view.root);
     return view;

@@ -24,6 +24,10 @@ export interface Cabin {
   glass_to?: number;
   /** Base points from the tail forward, under the body top: they lift a base that would cross a wheel opening. */
   floor?: Point[];
+  /** An open cockpit's driver: the whole shape is a helmet in the glass tone, with no frame or screens. */
+  helmet?: boolean;
+  /** A helmet's visor, as a profile standing proud of the helmet's face. */
+  visor?: Point[];
 }
 
 /** A side profile [z, y] extruded between two distances from the centre, mirrored: wing bulges and haunches. */
@@ -118,10 +122,17 @@ export interface Design {
   eye?: Point;
   /** Left tailpipe outlet for engine upgrades, at the rear face; x 0 is one central pipe that widens instead of doubling. */
   exhaust: Triple;
+  /** Which way the left pipe blows its nitro flame, a unit vector; straight back without one. */
+  jet?: Triple;
   /** Stock brake caliper colour, proud of the spokes like an upgrade's; without one it hides in trim. */
   caliper?: Token;
   /** Raised profiles on the body sides in paint, such as front wings standing above a low bonnet. */
   slabs?: Slab[];
+  /**
+   * Wheel openings cut in the slabs beside a body lower than its wheels, not in its outline: their radius and facets,
+   * and the distance from the centre of the slab face that closes them, where each one's well starts.
+   */
+  pods?: { radius: number; steps: number; from: number };
   /** Narrows the body behind z `from` to `share` of its width at the tail. */
   taper?: { from: number; share: number };
   /** A chamfered shoulder above the belt line, a tuck below it, and nose and tail pinched in plan. */
@@ -139,6 +150,46 @@ export interface Design {
    * while the lights are on. Positive lift raises what sits ahead of the hinge.
    */
   popups?: { pods: Part[]; shells?: Slab[]; bezels?: Part[]; hinge: Point; lift: number };
+}
+
+/** What a build must have fitted for a detail to show: `base` is every build. */
+export type Fit = "base" | "lip" | "wing" | "street" | "race" | "tuned" | "race_engine" | "light" | "stripped" | "knobbly" | "nitro" | "drift" | "lifted";
+
+export type Swap = "bulge" | "pipes" | "diffuser" | "bonnet" | "tips";
+
+/** Tuner parts a build wears once the part `on` is fitted, until the part `until` takes their place; one list per tone. */
+export interface Detail {
+  on: Fit;
+  until?: Fit;
+  /** Why it is there, for the review table. */
+  cue: string;
+  paint?: Part[];
+  trim?: Part[];
+  chrome?: Part[];
+  warning?: Part[];
+  red?: Part[];
+  bright?: Part[];
+  accent?: Part[];
+  /** Extra lit lamps. */
+  heads?: Part[];
+  /** Profiles in paint and in trim. */
+  lips?: Slab[];
+  stands?: Slab[];
+  /** Bare panels: paint rubbed back toward trim. */
+  bare?: Part[];
+  /** Lying on the cabin glass and leaned with it: bars in chrome, slats in paint, a banner in the light tone. */
+  cage?: Part[];
+  louvres?: Part[];
+  banner?: Part[];
+  /** Radians the wheels lean in at the top. */
+  camber?: number;
+  /** Generic part looks this takes the place of. */
+  swaps?: Swap[];
+  /** Blue nitro tips on the pipes this detail brings, drawn with a nitro tank in place of the stock tips. */
+  tips?: Part[];
+  /** Where the pipes this detail brings blow their nitro flame from, and which way: the design's `exhaust` and `jet`. */
+  exhaust?: Triple;
+  jet?: Triple;
 }
 
 export type Kit = Partial<Pick<Design, "arches" | "slabs" | "heads" | "tails" | "paint" | "trim" | "markers" | "chrome" | "tyre" | "rim" | "caliper">>;
@@ -224,11 +275,12 @@ const race_plane = (chord: number, tilt: number): Part => ({ size: [0.485, 0.04,
 const race_flap = (chord: number, tilt: number): Part => ({ size: [0.485, 0.03, chord], at: [0.2425, 0.985, -2.02], tilt: [tilt, 0, 0] });
 const race_wing = (plane: Part, flap: Part): Wing => ({ paint: [], trim: [RACE_BEAM, plane, flap], lips: [RACE_ENDPLATE] });
 
-// A lower wishbone at hub height and an upper one over it, both square to the car: a raked leg would run through the
-// tyre at full lock. Each ends inside the rim.
-const wishbones = (z: number, body: number, hub: number): Arm => ({
-  pivot: [body, 0.33, z],
-  trim: [rod([body, 0.33, z], [hub, 0.33, z], 0.025, 0.1), rod([body, 0.43, z], [hub - 0.02, 0.42, z], 0.025, 0.07)],
+const FORMULA_HUB = 0.33;
+// Two legs from the chassis side, `high` and `low` on it, to the hub centre, both square to the car: a raked leg would
+// run through the tyre at full lock. They start inside the chassis side and end inside the rim.
+const wishbones = (z: number, side: number, high: number, low: number, hub: number): Arm => ({
+  pivot: [side, FORMULA_HUB, z],
+  trim: [high, low].map((y) => rod([side, y, z], [hub, FORMULA_HUB, z], 0.025, 0.08)),
   markers: [],
 });
 
@@ -323,8 +375,8 @@ export const DESIGNS: Record<BodyStyle, Design> = {
       { size: [0.17, 0.15, 0.04], at: [0.52, 0.6, 2.56] },
     ],
     tails: MUSCLE_TAIL.tails,
-    paint: [mirror(MUSCLE_CABIN, 0.05, MIRROR, MUSCLE_SECTION.shoulder), { size: [0.4, 0.1, 0.56], at: [0.2, 0.895, 1.2], tilt: [HOOD_FALL, 0, 0] }],
-    trim: [{ size: [0.9, 0.26, 0.04], at: [0.45, 0.6, 2.55] }, { size: [0.34, 0.06, 0.02], at: [0.17, 0.895, 1.485] }, ...MUSCLE_TAIL.trim],
+    paint: [mirror(MUSCLE_CABIN, 0.05, MIRROR, MUSCLE_SECTION.shoulder)],
+    trim: [{ size: [0.9, 0.26, 0.04], at: [0.45, 0.6, 2.55] }, ...MUSCLE_TAIL.trim],
     stripes: [
       { size: [0.12, 0.012, 0.86], at: [0.12, 0.825, 2.02], tilt: [HOOD_FALL, 0, 0] },
       { size: [0.12, 0.012, 0.64], at: [0.12, 0.873, 0.58], tilt: [HOOD_FALL, 0, 0] },
@@ -390,15 +442,6 @@ export const DESIGNS: Record<BodyStyle, Design> = {
     ],
     kit: {
       arches: { gap: 0.09, steps: 6, flare: 0.09, out: 0.1, reach: 0.04, tone: "trim" },
-      heads: [RALLY_HEAD, { size: [0.15, 0.15, 0.04], at: [0.13, 0.85, 2.0], round: true }, { size: [0.15, 0.15, 0.04], at: [0.37, 0.85, 2.0], round: true }],
-      paint: [RALLY_MIRROR, on_roof({ size: [0.2, 0.08, 0.34], at: [0.1, 1.45, 0.2] })],
-      trim: [
-        ...RALLY_BUMPERS,
-        ...RALLY_TAIL.trim,
-        { size: [0.52, 0.18, 0.1], at: [0.26, 0.84, 1.94] },
-        on_roof({ size: [0.16, 0.05, 0.02], at: [0.08, 1.455, 0.375] }),
-        { size: [0.3, 0.3, 0.03], at: [0.8, 0.25, -1.8] },
-      ],
       tyre: [0.3, 0.3],
       rim: { size: 0.62, spokes: 6, tone: "light", spoke: 0.07 },
     },
@@ -455,7 +498,7 @@ export const DESIGNS: Record<BodyStyle, Design> = {
     width: 0.44,
     section: FORMULA_SECTION,
     sill: 0.1,
-    cabin: { points: [[0.78, 0.6], [0.8, 0.72], [0.74, 0.82], [0.6, 0.84], [0.52, 0.78], [0.5, 0.6]], width: 0.2, tumble: 0.2, frame: [0.02, 0.02, 0.05, 0.12, 0.14, 0.1], screens: [[1, 0.03]] },
+    cabin: { points: [[0.8, 0.54], [0.83, 0.7], [0.76, 0.8], [0.62, 0.82], [0.52, 0.75], [0.5, 0.54]], width: 0.26, tumble: 0.3, frame: [], screens: [], helmet: true, visor: [[0.842, 0.68], [0.797, 0.765], [0.66, 0.765], [0.66, 0.68]] },
     arches: { gap: 0, steps: 0, flare: 0, out: 0, reach: 0, tone: "trim" },
     heads: [{ size: [0.05, 0.035, 0.14], at: [0.21, 0.38, 1.75], tilt: [0.18, 0, 0] }],
     tails: [{ size: [0.07, 0.08, 0.03], at: [0.035, 0.22, -2.135] }],
@@ -477,7 +520,7 @@ export const DESIGNS: Record<BodyStyle, Design> = {
     hood: [-0.6, 0.62],
     exhaust: [0, 0.34, -1.98],
     taper: { from: -0.3, share: 0.42 },
-    arms: [wishbones(1.6, 0.1, 0.66), wishbones(-1.45, 0.06, 0.61)],
+    arms: [wishbones(1.6, 0.16, 0.4, 0.25, 0.7), wishbones(-1.45, 0.1, 0.4, 0.22, 0.66)],
     wings: [
       race_wing(race_plane(0.3, 0.1), race_flap(0.12, 0.4)),
       race_wing(race_plane(0.32, 0.14), race_flap(0.15, 0.5)),

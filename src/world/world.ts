@@ -10,7 +10,10 @@ import { ramp_reach2, ramp_surface, spawn_blocks, type Surface } from "../worldg
 import { FALL_DEPTH } from "../worldgen/sky";
 import { slice_tiles, TileStore, type Tile } from "../worldgen/tiles";
 import { kerb_marks, on_kerb_segment, type KerbMarks } from "./kerbs";
+import { road_junctions } from "../worldgen/road-layers";
 import { CELL, ROAD_HALF, RouteKind, SurfaceId, type WorldKind } from "../worldgen/types";
+import { LIFT } from "../worldgen/lifts";
+import { drawn_roads, paved_lots, paving_lift, road_lift, type DrawnRoad, type PavedLot } from "./drawn-lift";
 import { SEA_LEVEL, water_index, type WaterIndex } from "../worldgen/water";
 import type { LavaPool } from "../worldgen/lava";
 import type {
@@ -42,6 +45,8 @@ const SHOULDER_EDGE = ROAD_HALF + 3;
 /** A car centre this close over lava has a wheel in it: higher, it is jumping over and keeps going. */
 const LAVA_REACH = 2.5;
 const SOLID_CELL = 16;
+/** Metres of slack on the reject in `collide`, far past rounding, so it never skips a solid `circle_contact` would touch. */
+const REACH_SLACK = 1e-3;
 const ROAD_CELL = 32;
 const RESTITUTION = 1.25;
 /** Share of planar speed a sky rail takes per unit sine of the angle into it: a head-on hit keeps 88%, a 10° graze 98%. */
@@ -215,6 +220,12 @@ export class World implements Ground {
   private live = 0;
   private readonly nearby: Solid[] = [];
   private readonly nearby_slots: number[] = [];
+  private paved: PavedLot[] | null = null;
+  /** Built with the world, never on a frame: the first wheel on a road would pay for the whole network. */
+  private readonly drawn: (DrawnRoad | undefined)[];
+  /** Where the circuit's kerbs are drawn: the mesh and the tyres read the same marks. Built with the world, like `drawn`, from the same junctions. */
+  readonly kerbs: KerbMarks;
+  private readonly lane_point = (packed: number): RoadPoint => this.lanes[Math.floor(packed / LANE_PACK)][packed % LANE_PACK];
   private readonly road_grid = new Map<number, number[]>();
   /** Lane 0 is the circuit as `road`, then every other edge at its id + 1, then the trails. */
   private readonly lanes: readonly (readonly RoadPoint[])[];
@@ -230,7 +241,6 @@ export class World implements Ground {
   /** Ramps a car rides as wedges, with `ramp_reach2` so a height query skips the far ones. */
   private readonly wedges: { ramp: Ramp; reach2: number }[];
   private query = 0;
-  private kerb_marks: KerbMarks | null = null;
 
   /** `data` is `generate(seed)`, passed in when a worker already ran it; `tiles` empty when they stream in after. */
   constructor(
@@ -282,6 +292,9 @@ export class World implements Ground {
       if (list) list.push(index);
       else this.road_grid.set(key, [index]);
     });
+    const junctions = road_junctions(data);
+    this.drawn = drawn_roads(data, junctions);
+    this.kerbs = kerb_marks(data, junctions);
     this.lanes = [this.road, ...this.graph.edges.map((e) => (this.circuit.includes(e.id) ? [] : e.points)), ...this.trails.map((t) => t.points)];
     this.lanes.forEach((points, lane) =>
       points.forEach((p, index) => {
@@ -378,6 +391,24 @@ export class World implements Ground {
     return this.depth(x, z) > DEEP_WATER;
   }
 
+  /**
+   * How far the drawn ground at (`x`, `z`) stands over the ground the wheels feel, for the views to stand a car on it: road
+   * and paving drape a few centimetres over the terrain. The road's share eases out over its grip edge, so a wheel
+   * running off it does not drop at once; a ramp or deck under `y` is drawn where it is felt.
+   */
+  drawn_lift(x: number, z: number, y?: number): number {
+    if (this.height(x, z, y) > this.tiles.height(x, z)) return 0;
+    const on = Math.max(0, Math.min(1, (ON_ROAD - this.tiles.road_dist(x, z)) / (ON_ROAD - ROAD_HALF)));
+    return Math.max(on > 0 ? on * this.road_lift(x, z) : 0, paving_lift((this.paved ??= paved_lots(this.lots, this.parking)), x, z));
+  }
+
+  /** The lift of the road nearest (`x`, `z`), whichever kind it is, or of the paint on it there. */
+  private road_lift(x: number, z: number): number {
+    const packed = nearest(this.lane_grid, x, z, this.lane_point);
+    const road = packed < 0 ? undefined : this.drawn[Math.floor(packed / LANE_PACK)];
+    return road ? road_lift(road, packed % LANE_PACK, x, z) : LIFT.ring;
+  }
+
   distance_to_road(x: number, z: number): number {
     return this.tiles.road_dist(x, z);
   }
@@ -403,11 +434,6 @@ export class World implements Ground {
   /** Solid contacts the car moved into since load, rail glides and bounces alike: the career hit penalty counts from it. */
   get contacts(): number {
     return this.contacts_;
-  }
-
-  /** Where the circuit's kerbs are drawn, worked out on first use: the mesh and the tyres read the same marks. */
-  get kerbs(): KerbMarks {
-    return (this.kerb_marks ??= kerb_marks(this));
   }
 
   /** On a drawn kerb: the inside of a circuit bend, between the road edge and the kerb's outer edge. */
@@ -547,8 +573,19 @@ export class World implements Ground {
     const circles = spec.circles;
     for (let c = 0; c < circles.length; c++) {
       const offset = circles[c];
-      const count = this.near(pos.x + fx * offset, pos.z + fz * offset);
-      for (let i = 0; i < count; i++) impact = Math.max(impact, this.hit(car, this.nearby[i], offset, fx, fz));
+      const count = this.near(Math.floor((pos.x + fx * offset) / SOLID_CELL), Math.floor((pos.z + fz * offset) / SOLID_CELL));
+      for (let i = 0; i < count; i++) {
+        // A conservative reject before `hit`, written inline: the step runs past V8's inlining budget, so every double
+        // handed to a call is boxed, and most listed solids sit well clear of the car. A push moves `pos`: read it again.
+        const solid = this.nearby[i];
+        const ox = pos.x + fx * offset - solid.x;
+        const oz = pos.z + fz * offset - solid.z;
+        if (solid.kind === "circle") {
+          const reach = spec.radius + solid.radius + REACH_SLACK;
+          if (ox * ox + oz * oz >= reach * reach) continue;
+        } else if (Math.abs(ox * solid.cos - oz * solid.sin) >= solid.hw + spec.radius + REACH_SLACK || Math.abs(ox * solid.sin + oz * solid.cos) >= solid.hd + spec.radius + REACH_SLACK) continue;
+        impact = Math.max(impact, this.hit(car, solid, offset, fx, fz));
+      }
     }
     return impact;
   }
@@ -561,7 +598,7 @@ export class World implements Ground {
     for (const offset of spec.circles) {
       const px = pos.x + fx * offset;
       const pz = pos.z + fz * offset;
-      const count = this.near(px, pz);
+      const count = this.near(Math.floor(px / SOLID_CELL), Math.floor(pz / SOLID_CELL));
       for (let i = 0; i < count; i++) {
         const solid = this.nearby[i];
         if (pos.y <= solid.y + solid.height && circle_contact(solid, px, pz, spec.radius + gap, fx, fz)) return solid;
@@ -572,18 +609,18 @@ export class World implements Ground {
 
   // Runs per collision circle every sim step, so it overwrites `nearby` and returns its count: truncating an array to
   // refill it frees its storage. Two passes keep baked solids ahead of placed ones, the order collisions resolve in.
-  private near(px: number, pz: number): number {
+  // Takes the solid cell, not a point: whole numbers cross the call unboxed.
+  private near(cx: number, cz: number): number {
     const found = this.nearby;
     let n = 0;
-    const cx = Math.floor(px / SOLID_CELL);
-    const cz = Math.floor(pz / SOLID_CELL);
     const stamp = ++this.query;
     const baked = this.solids.length;
     for (let dz = -1; dz <= 1; dz++)
       for (let dx = -1; dx <= 1; dx++) {
         const list = this.solid_grid.get(grid_key(cx + dx, cz + dz));
         if (!list) continue;
-        for (const index of list) {
+        for (let k = 0; k < list.length; k++) {
+          const index = list[k];
           if (index >= baked) break;
           if (this.seen[index] === stamp) continue;
           this.seen[index] = stamp;
@@ -598,7 +635,8 @@ export class World implements Ground {
       for (let dx = -1; dx <= 1; dx++) {
         const list = this.solid_grid.get(grid_key(cx + dx, cz + dz));
         if (!list) continue;
-        for (const index of list) {
+        for (let k = 0; k < list.length; k++) {
+          const index = list[k];
           const solid = this.slots[index];
           if (index < baked || this.seen[index] === stamp || !solid) continue;
           this.seen[index] = stamp;

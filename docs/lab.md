@@ -8,7 +8,7 @@ Nothing in the lab touches the game around it: no records, ghosts, stars or goal
 
 | Link | What loads |
 |---|---|
-| `/?lab=<id>` | the committed pack `src/lab/packs/<id>.ts` (`?lab=demo` is the sample, `?lab=first-look` the first real session, `?lab=t1a-pads` and `?lab=t1b-brakes` the stock coupe on ten skidpad and ten runway lanes, `?lab=t2-drift` the Drift preset on the drift circle, eight and hairpins with three mods, `?lab=t3-top-tier` the candidate top-tier parts on Sturm, Raijin, Kaze and Muscle, `docs/plan/top-tier-parts.md`) |
+| `/?lab=<id>` | the committed pack `src/lab/packs/<id>.ts` (`?lab=demo` is the sample, `?lab=first-look` the first real session, `?lab=t1a-pads` and `?lab=t1b-brakes` the stock coupe on ten skidpad and ten runway lanes, `?lab=t2-drift` the Drift preset on the drift circle, eight and hairpins with three mods, `?lab=t3a-sturm-power` and `?lab=t3b-sturm-grip` the candidate top-tier parts on the Sturm (engines and the carbon shell, then slicks and the GT kit), `?lab=t3c-raijin`, `?lab=t3d-kaze` and `?lab=t3e-muscle` today's best against every top part on each, `docs/plan/top-tier-parts.md`; `?lab=t4-sajin` the Sajin from before its centre of mass came down 0.25 m against today's on the big kicker, dirt hairpins, skidpad, r120 lift-off and runway) |
 | `/?lab=~<code>` | an inline pack carried in the link itself: no deploy needed |
 
 Works on the live site and in dev; no menu entry, like `?tune`. The lab world (`lab` kind, unlisted) loads, the car goes to the first trial's station and the pack card opens instead of the menu or the first-visit guide. Modes are off in the lab: the Modes page shows each one as "Not in the lab", and no lobby race starts.
@@ -17,9 +17,10 @@ Works on the live site and in dev; no menu entry, like `?tune`. The lab world (`
 
 | Piece | What it shows | Controls |
 |---|---|---|
-| Pack card (trial list) | title, rev, trials driven, brief; one tile per trial: id, car, class and PI, station/lane, goal, status `To do` / `Running` / `Done` / `Stopped` | tap or A on a tile starts that trial; Start (or Back to trial); Copy results; Leave lab (the same link without `?lab`: the game as usual, the tab's stored answers and numbers kept for the next visit) |
-| Strip (top, where the lap strip sits) | `Lab n/N`, the trial id, goal, status; while a trial measures, a second line of live numbers: goal progress (`Lap 2/3`, `41 s left`, `Gate 1/2`, `Brake from 60`), lateral g, speed, slip angle. Each is rewritten only when its shown digits change | Trials, Retry, Stop and rate |
-| Results card | after a trial's goal or Stop: the trial's feel line, the questions, then every metric it measured | Trials, Copy, Previous, Retry, Next |
+| Pack card (trial list) | title, rev, trials driven, the pack's `aim`, brief, the order of comparisons (each base and the trials read against it); one tile per trial: id, car, class and PI, station/lane, goal, status `To do` / `Running` / `Done` / `Stopped` | tap or A on a tile starts that trial; Start (or Back to trial); Copy results; Leave lab (the same link without `?lab`: the game as usual, the tab's stored answers and numbers kept for the next visit) |
+| Trial brief | before each new trial (not a retry), and from the strip's bulb: the question it answers, the trial it is compared with, the car with class and PI, what's different from that trial (parts by slot, lab mods as field changes, lane, aids, class move; `src/lab/brief.ts`), what to drive, what to feel for. A blind variant hides car and changes | Trials, Drive |
+| Strip (top, where the lap strip sits) | `Lab n/N`, the trial id, goal, status; while a trial measures, a second line of live numbers: goal progress (`Lap 2/3`, `41 s left`, `Gate 1/2`, `Brake from 60`), lateral g, speed, slip angle. Each is rewritten only when its shown digits change | Trials, Brief, Retry, Stop and rate |
+| Results card | after a trial's goal or Stop: what it is compared with, its question and feel line, the questions, then the metrics that mean something at the station and were measured, in plain words (`shown_metrics` in `src/lab/lab-text.ts`; the export keeps every one) | Trials, Copy, Previous, Retry, Next |
 
 The cards are modal and hold the sim like the menu does. A 1-5 scale is five big buttons, never a slider; a note is one optional line (400 characters at most). Answers save on every change to `sessionStorage` under `harepin.lab.<pack>.r<rev>`, and each trial's numbers when it ends (goal or Stop) under `harepin.lab.<pack>.r<rev>.results`, so a reload keeps both. A trial still running at the reload loses that attempt and keeps its last finished one. Both are checked against the pack on load: answers that do not fit are dropped, and so are numbers whose `spec#` no longer matches the trial (a deploy moved the car) or whose fields do not check out.
 
@@ -70,6 +71,7 @@ const pack: Pack = {
   rev: 1,                      // bump on every edit: the export carries it
   title: "Hatch on ice",
   brief: "The hatch on the ice pad.",
+  aim: "Is the hatch catchable on ice?",  // optional: the session goal, on the pack card
   cars: { /* lab-only cars, see below */ },
   trials: [
     {
@@ -98,8 +100,12 @@ export default pack;
 | `aids` | `tcs`, `abs`, `assist`, `stability`, `auto`, `steer_mode` for this trial only, over the player's own |
 | `station`, `lane` | from the table above |
 | `goal` | `laps` (turns of the lane's ring), `time` (seconds driven), `stop` (a brake stop from at least 90% of `from_kmh`), `run` (start to finish gate), `free` (never ends) |
-| `try`, `feel` | what to do and what to feel for |
+| `try`, `feel` | what to do and what to notice: write `feel` as the thing to notice, not a label ("soft below 3000 rpm, then a shove: notice the lag out of slow corners") |
+| `question` | optional: what the trial answers, on its brief and results card; derived from its group when absent |
 | `ask` | questions for this trial, else the pack's |
+| `base` | starts a group: the trials after it, up to the next base, read against it. Outside a group a trial reads against the one before on the same station |
+
+A pack with `blind: true` (decision O2: variant groups yes, lineups no) shows each group as `A` (the base), then `B`, `C` in an order seeded by the pack id and rev, with the base's feel line and no car, class or PI; every variant also asks `vs A` (worse / same / better, id `vsbase`). The export keeps the real ids. Write the base's `feel` neutral: it is the line every variant shows. Trials before the first base are shown as usual.
 
 Questions: `scale` (1-5 with `low`/`high` ends), `pick` (`options`), `text`. `src/lab/ask.ts` holds the plan's set: `ASK` (grip, predictability, fun, note) and `with_station_asks(trials)`, which gives each trial those plus drift ease on the drift, eight, skidpad and hairpin stations, landing on the kickers, and "vs last trial" (worse / same / better) when the trial before ran the same station. Group a pack's trials by station so that last one asks. The clock starts at the first throttle or movement after the trial places the car.
 
@@ -129,7 +135,7 @@ trials: [
 ]
 ```
 
-(`src/lab/packs/demo.ts` holds these; today they rate 626 A, 647 A, 664 A, 680 A: a turbo alone does not reach S2. The real candidates, turbo curves on lab cars included, are `src/lab/cars/top-tier.ts` and `?lab=t3-top-tier`.) Weight reduction is `add: { mass: -n }`, wider slicks `scale: { mu, rear_grip }`, big aero `add: { downforce, drag }`.
+(`src/lab/packs/demo.ts` holds these; today they rate 626 A, 647 A, 664 A, 680 A: a turbo alone does not reach S2. The real candidates, turbo curves on lab cars included, are `src/lab/cars/top-tier.ts` and the `t3` packs.) Weight reduction is `add: { mass: -n }`, wider slicks `scale: { mu, rear_grip }`, big aero `add: { downforce, drag }`.
 
 Boost curves (lead's call, for now): a turbo whose torque rises with rpm is a lab car with a hand-edited `torque` table, not a new mod field or a `CarSpec` change. A `torque` mod only scales the whole curve; a different shape needs that lab car until a turbo stage is worth landing as a car-physics task.
 
@@ -189,6 +195,16 @@ Metric keys (numbers keep 3 significant digits):
 | `resets` | count | placements after the trial started |
 | `lock`, `thr`, `hb` | share | time at full lock, full throttle, handbrake |
 | `rev` | per s | steer reversals: tells a twitchy car from a driver sawing at it |
+| `yawover` | ratio | yaw peak over its value 2 s after a steer step or reversal, minus 1 (feel's step steer overshoot) |
+| `us` | ratio | steer angle over `wheelbase / R` on the ring band: above 1 pushes |
+| `pwr` | ° | peak slip within 1.5 s of throttle past 0.8 with steer past 0.3 (feel's power on) |
+| `lift` | ° | peak slip within 1.5 s of a throttle drop from 0.25 to under 0.1 above 0.5 g (feel's lift-off) |
+| `bdev` | ° | heading change over a straight stop from 30 km/h |
+| `trail` | ° | peak slip braking past 0.3 with steer past 0.2 (feel's trail brake) |
+| `entry` | s | slip past 10° to past 25° |
+| `pitch` | rad/s | peak pitch rate in the 0.3 s after a touchdown |
+| `xslip` | ° | peak slip within 0.5 s of the tyre curve under a front wheel changing: loose-to-sealed seams only |
+| `yawsd` | rad/s / input | yaw-rate RMS and steer RMS above 200 km/h |
 
 ## Sim before the owner drives: `scripts/lab.ts`
 
@@ -198,6 +214,7 @@ Run it on every pack before sending the link (plan `docs/plan/feel-lab-v2.md`). 
 bun scripts/lab.ts <pack>                   # sim lines, deltas, drive time; exit 1 on a failed sim or a pack over budget
 bun scripts/lab.ts <pack> --base <trial>    # deltas against one trial instead of the first trial per scenario
 hq lock run -- bun scripts/lab.ts matrix [car]   # the car x setup matrix as a markdown table, all cars about 30 s
+hq lock run -- bun scripts/lab.ts golden [--check]  # write / diff scripts/golden/handling.txt: one line per matrix row, spec hash, PI, every trait
 ```
 
 Pack output, one block per trial in the export's shape and key order, so a ` sim` line sits beside the owner's ` m` line:
@@ -226,7 +243,9 @@ Pack output, one block per trial in the export's shape and key order, so a ` sim
 
 The matrix (`scripts/lab/setups.ts`): per car its families (`stock`, `grip`, `aero`, `drift`, `dirt`, `max`, built from parts by name), every shipped preset of the car, and on the coupe a sweep of each tyre and aero part. `stock` and `dirt` also run on dirt, grass, sand, packed snow and ice. The bus is left out. Columns: spec hash, PI and class, 0-100, top, 100-0, skidpad g, turn-in (ms from full steer at 100 km/h to 0.2 rad/s, `bench.turn_in`), lift-off slip, power-on slip (2nd, TCS off), handbrake flick degrees, yaw kick settle at 220 km/h.
 
-Not built yet: the handling golden (`lab.ts golden`, P3), `lab.ts diff` between sessions (P5), `lab.ts promote` (P6).
+The handling golden is the car proof: `golden --check` lists every row that moved and the fields in it (`spec`, `pi`, a trait). A change to one car that moves another car's row is wrong. Targets per car: `docs/car-feel.md`.
+
+Pastes go in `docs/lab/sessions/` (its README); `bun scripts/lab.ts diff <old> <new>` compares two. A winner comes out of `bun scripts/lab.ts promote <pack> <trial>`: the fields its mods change, folded into the shipped car and rounded to 6 digits, each with the shipped value beside it (a lab car prints whole), and whether the folded car with the trial's parts resolves to the trial's `spec#` (equal hash, or every field within 1e-5: rounding). Paste them into `src/car/cars.ts`, then the car goes through `hq lock run -- bun scripts/lab.ts gate <car>` before its commit: `bun test src/car`; the handling golden (red when another car's row moved, when its class moved, or when its `stock asphalt` row leaves a `docs/car-feel.md` band; a draft `?` band only warns); `races.ts --changed`; then `career.ts` on every event the car can enter (a cap at or over its class, or a preset of it), red when any printed star differs from the committed marks. It stops on the first red.
 
 ## Reading results
 
@@ -253,11 +272,11 @@ Not built yet: the handling golden (`lab.ts golden`, P3), `lab.ts diff` between 
 | `src/lab/pack.ts` | `Pack`, `Trial`, `LabCar`, `resolve_trial` (spec, hash, PI, class, lane) |
 | `src/lab/pack-code.ts` | inline codes and the untrusted-pack reader |
 | `src/lab/packs.ts`, `src/lab/packs/*.ts` | registry and packs |
-| `src/lab/recorder.ts` | per-step metrics, no allocation in `step` |
+| `src/lab/recorder.ts`, `src/lab/traits.ts` | per-step metrics, no allocation in `step`; the per-trait folds and their tests against the headless scenarios |
 | `src/lab/export.ts` | the export block |
 | `src/lab/lab.ts` | trial flow, keys, Copy; lazy-loaded by `main.ts` on `?lab` |
 | `src/lab/answers.ts` | questions per trial, answer checks, the stored-answers reader |
-| `src/lab/ask.ts` | the shared questions and `with_station_asks` |
+| `src/lab/ask.ts` | the shared questions, `with_station_asks`, one scale per trait (`TRAIT_ASK`, `trait_asks`) |
 | `src/lab/results-store.ts` | the stored-numbers writer and reader |
 | `src/lab/lab-view.svelte.ts`, `LabOverlay.svelte`, `TrialList.svelte`, `ResultCard.svelte`, `Scale.svelte` | the overlay: strip, pack card, results and question card |
 
@@ -265,4 +284,4 @@ Not built yet: the handling golden (`lab.ts golden`, P3), `lab.ts diff` between 
 | `scripts/lab.ts`, `scripts/lab/*.ts` | sim lines per trial, the setup matrix, their worker pool |
 | `scripts/bench/feel-cases.ts`, `scripts/bench/telemetry-cases.ts` | the feel and telemetry scenarios as functions on a `CarSpec`; `scripts/feel.ts` and `telemetry.ts` print them |
 
-Still to build: shared lab cars (Tsumuji, Sajin), and the rest of `scripts/lab.ts` (golden, diff, promote; `docs/plan/feel-lab-v2.md` 10).
+Still to build: shared lab cars (Tsumuji, Sajin) and the bot on the lab world (`docs/plan/feel-lab-v2.md` P2b).

@@ -185,6 +185,9 @@ export function town_streets(seed: number, town: Town, height: Sampler, road: Ro
   const next = mulberry32(sub(seed, `streets:${town.id}`));
   const block = shape.block.min + next() * shape.block.span;
   town.block = block;
+  const plan = shape.plan;
+  const cross = plan ? block * plan.cross : block;
+  if (plan) town.cross = cross;
   if (shape.layout === "strip") town.band = block + STRIP_BACK;
   const k = Math.ceil(town.radius / block);
   const vx = -town.uz;
@@ -194,8 +197,9 @@ export function town_streets(seed: number, town: Town, height: Sampler, road: Ro
   const key = (i: number, j: number) => (i + 64) * 128 + (j + 64);
   for (let i = -k; i <= k; i++)
     for (let j = -k; j <= k; j++) {
-      const x = town.x + town.ux * i * block + vx * j * block;
-      const z = town.z + town.uz * i * block + vz * j * block;
+      if (plan && j !== 0 && (Math.abs(j) > plan.rows || Math.abs(i) > plan.reach)) continue;
+      const x = town.x + town.ux * i * block + vx * j * cross;
+      const z = town.z + town.uz * i * block + vz * j * cross;
       if (length(x - town.x, z - town.z) > town.radius) continue;
       if (shape.layout === "strip" && j !== 0 && (i !== 0 || Math.abs(j) > 1)) continue;
       const y = height(x, z);
@@ -250,6 +254,7 @@ export function town_streets(seed: number, town: Town, height: Sampler, road: Ro
     out_nodes.push({ ...nodes[i], id: first_node + out_nodes.length });
   }
   const degree = new Map<number, number>();
+  const off_axis = (n: RoadNode) => Math.abs((n.x - town.x) * town.uz - (n.z - town.z) * town.ux);
   const edges: RoadEdge[] = kept.map(([a, b], e) => {
     const na = nodes[a];
     const nb = nodes[b];
@@ -266,7 +271,7 @@ export function town_streets(seed: number, town: Town, height: Sampler, road: Ro
       const t = s / steps;
       points.push({ x: na.x + (nb.x - na.x) * t, y: na.y + (nb.y - na.y) * t, z: na.z + (nb.z - na.z) * t, tx, tz });
     }
-    return { id: first_edge + e, a: ia, b: ib, kind: "street", half: STREET_HALF, closed: false, points };
+    return { id: first_edge + e, a: ia, b: ib, kind: "street", half: !plan || (off_axis(na) < 1 && off_axis(nb) < 1) ? STREET_HALF : plan.lane, closed: false, points };
   });
   for (const node of out_nodes) {
     const d = degree.get(node.id) ?? 0;

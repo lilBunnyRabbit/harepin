@@ -52,6 +52,34 @@ function plane(a: PatchPoint, b: PatchPoint, c: PatchPoint): Lift {
   return { y: a.lift, gx: (db * cz - dc * bz) / det, gz: (dc * bx - db * cx) / det, x: a.x, z: a.z };
 }
 
+/** A ribbon's centre line with its offset reach and each segment's chunk, the part of `strip` that is the same every chunk. */
+export interface StripLine {
+  readonly points: RoadPoint[];
+  readonly reach: Reach[];
+  readonly ext: Extent;
+  /** Chunk of each segment's start point. */
+  readonly chunks: Int32Array;
+  /** Every segment in order, and per chunk the segments starting in it, in order. */
+  readonly order: Int32Array;
+  readonly bins: Map<number, number[]>;
+}
+
+export function strip_line(points: RoadPoint[], closed: boolean, ext: Extent): StripLine {
+  const segments = Math.max(0, closed ? points.length : points.length - 1);
+  const chunks = new Int32Array(segments);
+  const order = new Int32Array(segments);
+  const bins = new Map<number, number[]>();
+  for (let s = 0; s < segments; s++) {
+    const chunk = chunk_of(points[s].x, points[s].z, ext);
+    chunks[s] = chunk;
+    order[s] = s;
+    const bin = bins.get(chunk);
+    if (bin) bin.push(s);
+    else bins.set(chunk, [s]);
+  }
+  return { points, reach: offset_reach(points, closed), ext, chunks, order, bins };
+}
+
 export class Roads {
   readonly surface: Layer[];
   readonly marks: Layer[];
@@ -80,19 +108,22 @@ export class Roads {
   }
 
   strip(layers: Layer[], road: RoadPoint[], closed: boolean, from: number, to: number, lift: number, keep: (s: number) => boolean, rgb: Rgb) {
-    const segments = closed ? road.length : road.length - 1;
-    const reach = offset_reach(road, closed);
+    this.strip_line(layers, strip_line(road, closed, this.ext), from, to, lift, keep, rgb);
+  }
+
+  /** `strip` over a line binned ahead: a one-chunk builder walks only the segments that start in its chunk. */
+  strip_line(layers: Layer[], line: StripLine, from: number, to: number, lift: number, keep: (s: number) => boolean, rgb: Rgb) {
+    if (line.ext !== this.ext) throw new Error("strip line binned for another extent");
+    const { points: road, reach } = line;
     const flat = level(lift);
-    for (let s = 0; s < segments; s++) {
+    const segments = this.only === null ? line.order : line.bins.get(this.only);
+    if (!segments) return;
+    for (let k = 0; k < segments.length; k++) {
+      const s = segments[k];
       if (!keep(s)) continue;
       const a = road[s];
       const b = road[(s + 1) % road.length];
-      const ra = reach[s];
-      const rb = reach[(s + 1) % road.length];
-      const chunk = this.chunk(a.x, a.z);
-      if (chunk < 0) continue;
-      const layer = layers[chunk];
-      this.quad(layer, a, b, ra, rb, from, to, flat, rgb);
+      this.quad(layers[line.chunks[s]], a, b, reach[s], reach[(s + 1) % road.length], from, to, flat, rgb);
     }
   }
 

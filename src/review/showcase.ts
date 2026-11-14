@@ -17,7 +17,7 @@ const MIN_CELL = 280;
 const ASPECT = 0.62;
 const LABEL = 22;
 const FOV = 30;
-const MARGIN = 1.05;
+const MARGIN = new URLSearchParams(location.search).has("tiers") ? 0.7 : 1.05;
 const GROUND_REACH = 1.25;
 const COMPOSER_SAMPLES = 4;
 // From the showcase chunk, not a CSS import, so none of it reaches the game's stylesheet.

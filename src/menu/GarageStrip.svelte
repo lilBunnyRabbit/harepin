@@ -127,6 +127,7 @@
           <TextField
             bind:value={number}
             mono
+            center
             inputmode="numeric"
             maxlength={2}
             aria-label="Number"
@@ -317,10 +318,6 @@
   .garage-stepper.garage-cursor {
     outline: 2px solid var(--primary);
     outline-offset: 2px;
-  }
-
-  .garage-stepper :global(.ui-input) {
-    text-align: center;
   }
 
   @media (orientation: landscape) and (max-height: 500px), (max-width: 700px) {

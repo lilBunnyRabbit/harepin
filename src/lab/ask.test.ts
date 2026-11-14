@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { with_station_asks } from "./ask";
+import { Trait, TRAIT_ASK, trait_asks, with_station_asks } from "./ask";
 import type { Trial } from "./pack";
 
 const trial = (id: string, station: Trial["station"]): Trial => ({ id, car: "hatch.4.0.2.1.0", station, goal: { kind: "free" }, try: "", feel: "" });
@@ -17,4 +17,12 @@ test("drift ease where sliding is the point, landing on the kickers, vs last onl
 test("a trial's own questions stand", () => {
   const own = { ...trial("a", "skidpad"), ask: [{ kind: "text" as const, id: "note", label: "Note" }] };
   expect(with_station_asks([own])[0].ask).toEqual(own.ask);
+});
+
+test("every trait has its own scale and a session asks at most 3", () => {
+  const ids = Object.values(TRAIT_ASK).map((q) => q.id);
+  expect(new Set(ids).size).toBe(ids.length);
+  expect(Object.values(TRAIT_ASK).every((q) => q.kind === "scale")).toBe(true);
+  expect(trait_asks(Trait.LIFT, Trait.POWER).map((q) => q.id)).toEqual(["lift", "pwr", "note"]);
+  expect(() => trait_asks(Trait.LIFT, Trait.POWER, Trait.BALANCE, Trait.TURN_IN)).toThrow();
 });

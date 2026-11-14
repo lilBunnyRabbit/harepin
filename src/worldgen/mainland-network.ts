@@ -6,7 +6,7 @@ import type { TownRecipe } from "./recipe";
 import { APPROACH, Router, spur_points, unkink, type Exit, type Sampler, type Way } from "./route";
 import { heading } from "./routes";
 import { CORE, town_name, town_streets } from "./towns";
-import { LOCAL_HALF, type RoadEdge, type RoadGraph, type RoadNode, type RoadPoint, type Town } from "./types";
+import { LOCAL_HALF, STREET_HALF, type RoadEdge, type RoadGraph, type RoadNode, type RoadPoint, type Town } from "./types";
 
 const TOWN_TRIES = 4000;
 /** Towns stay inside this reach of the centre, clear of the coast the terrain mask starts near 2300 m. */
@@ -96,7 +96,7 @@ function unit(p: RoadPoint, q: RoadPoint): Way {
 
 // A link leaves along a free axis of the town's grid, square to its streets, so its port gets a clean T or L patch
 // instead of a shallow wedge no patch fits.
-function door(graph: RoadGraph, town: Town, toward: Town): Door {
+function door(graph: RoadGraph, town: Town, toward: Town, gate: number): Door {
   const axes: Way[] = [
     { x: town.ux, z: town.uz },
     { x: -town.ux, z: -town.uz },
@@ -110,7 +110,8 @@ function door(graph: RoadGraph, town: Town, toward: Town): Door {
     const arms = arm_ways(graph, node);
     for (const way of axes) {
       if (arms.some((a) => a.x * way.x + a.z * way.z > SQUARE)) continue;
-      const d = length(node.x + way.x * APPROACH - toward.x, node.z + way.z * APPROACH - toward.z);
+      const main = Math.abs((node.x - town.x) * town.uz - (node.z - town.z) * town.ux) < 1 && Math.abs(way.x * town.ux + way.z * town.uz) > SQUARE;
+      const d = length(node.x + way.x * APPROACH - toward.x, node.z + way.z * APPROACH - toward.z) + (main ? 0 : gate);
       if (d < best_d) {
         best_d = d;
         best = { node, way };
@@ -146,8 +147,9 @@ export function mainland_network(seed: number, grid: PlanGrid, shape: TownRecipe
   const router = new Router(height, NO_RING, towns, grid.ext);
   const links: Link[] = [];
   for (const { a, b, tree } of town_pairs(towns)) {
-    const start = door(graph, a, b);
-    const end = door(graph, b, a);
+    const gate = shape.plan?.gate ?? 0;
+    const start = door(graph, a, b, gate);
+    const end = door(graph, b, a, gate);
     const from = start.node;
     const to = end.node;
     const [sx, sz] = out_of(start);
@@ -161,7 +163,10 @@ export function mainland_network(seed: number, grid: PlanGrid, shape: TownRecipe
     graph.edges.push(edge);
     links.push({ edge, a, b, tree });
   }
-  return { graph, towns, ...cycle_circuit(graph, links) };
+  const { circuit, road } = cycle_circuit(graph, links);
+  // The circuit is drawn ROAD_HALF wide along its streets: a lane it takes is laid as a street, so that width stands on road.
+  for (const id of circuit) if (graph.edges[id].kind === "street") graph.edges[id].half = Math.max(graph.edges[id].half, STREET_HALF);
+  return { graph, towns, circuit, road };
 }
 
 function edge_length(edge: RoadEdge): number {

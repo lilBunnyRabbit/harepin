@@ -115,6 +115,12 @@ interface Loose {
   moving: boolean;
 }
 
+function circle_span(car: Car): number {
+  let span = 0;
+  for (let i = 0; i < car.spec.circles.length; i++) span = Math.max(span, Math.abs(car.spec.circles[i]));
+  return span;
+}
+
 function touches(car: Car, fx: number, fz: number, at: THREE.Vector3, r: number): boolean {
   const circles = car.spec.circles;
   for (let i = 0; i < circles.length; i++) if (Math.hypot(car.pos.x + fx * circles[i] - at.x, car.pos.z + fz * circles[i] - at.z) < r) return true;
@@ -207,9 +213,13 @@ export class JumpsView {
     const fx = Math.sin(car.heading);
     const fz = Math.cos(car.heading);
     const speed = car.vel.length();
-    for (const l of this.loose) {
+    const span = circle_span(car) + 1;
+    for (let i = 0; i < this.loose.length; i++) {
+      const l = this.loose[i];
       if (l.moving || Math.abs(l.pos.y - car.pos.y) > 2.5) continue;
       const r = ITEMS[l.item.kind].r * l.item.scale + car.spec.radius;
+      // `touches` calls Math.hypot, a builtin that boxes its doubles: an item out of every circle's reach skips it.
+      if (Math.abs(l.pos.x - car.pos.x) > r + span || Math.abs(l.pos.z - car.pos.z) > r + span) continue;
       if (!touches(car, fx, fz, l.pos, r)) continue;
       const ax = l.pos.x - car.pos.x;
       const az = l.pos.z - car.pos.z;
@@ -223,7 +233,8 @@ export class JumpsView {
   }
 
   private fly(dt: number) {
-    for (const l of this.loose) {
+    for (let i = 0; i < this.loose.length; i++) {
+      const l = this.loose[i];
       if (!l.moving) continue;
       l.vel.y -= GRAVITY * dt;
       l.pos.addScaledVector(l.vel, dt);

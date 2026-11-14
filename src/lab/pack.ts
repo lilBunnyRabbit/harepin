@@ -14,10 +14,13 @@ export interface Pack {
   rev: number;
   title: string;
   brief: string;
+  aim?: string;
   cars?: Record<string, LabCar>;
   trials: Trial[];
   /** Asked after every trial unless the trial names its own. */
   ask: Question[];
+  /** Groups show as A, B, C with their base's feel line (decision O2: on for variant groups, off for lineups). */
+  blind?: boolean;
 }
 
 /** A car that is not in the game yet: the same spec literal that will later be pasted into `cars.ts`. */
@@ -45,7 +48,11 @@ export interface Trial {
   goal: Goal;
   try: string;
   feel: string;
+  /** What the trial answers; derived from its place in the pack when absent. */
+  question?: string;
   ask?: Question[];
+  /** Starts a group: the trials after it, up to the next base, read against it. In a blind pack its feel line is the group's. */
+  base?: true;
 }
 
 export type Goal = { kind: "laps"; laps: number } | { kind: "time"; seconds: number } | { kind: "stop"; from_kmh: number } | { kind: "run" } | { kind: "free" };

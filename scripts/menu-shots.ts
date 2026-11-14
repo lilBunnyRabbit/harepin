@@ -8,7 +8,6 @@ import type { WorldKind } from "../src/worldgen/types";
 // changes what a run shows halfway through.
 const SEED = 1;
 const TILE = { width: 1600, height: 900 };
-const MAP_SIDE = 800;
 const MAX_BYTES = 90_000;
 const QUALITIES = [0.82, 0.74, 0.66, 0.58, 0.5];
 const SETTLE_MS = 5000;
@@ -31,8 +30,10 @@ const SPOTS: Partial<Record<WorldKind, Spot>> = {
   alpine: { at: 1895 },
   tundra: {},
   volcano: { camera: { from: [250, 300, 60], to: [-10, 180, -10] } },
-  dunes: { camera: { from: [-300, 120, -600], to: [0, 60, -780] } },
+  // On the brink of the 80 m ridge upwind of the spawn, along it and into the sun: the lit windward side, the slip face in shade.
+  dunes: { camera: { from: [260, 100.6, 349], to: [-160, 98, 573] } },
   icecanyon: { camera: { from: [560, 78, 140], to: [410, 46, 236] } },
+  velodrome: {},
 };
 
 const args = process.argv.slice(2);
@@ -73,22 +74,12 @@ async function shoot(kind: WorldKind, spot: Spot) {
   const skip = page.getByText("Skip guide");
   if (await skip.isVisible().catch(() => false)) await skip.click();
   if (await page.locator(".settings").isVisible().catch(() => false)) await page.keyboard.press("Escape");
-  const hide = await page.addStyleTag({ content: "body *{visibility:hidden!important} #app,#app canvas{visibility:visible!important}" });
+  await page.addStyleTag({ content: "body *{visibility:hidden!important} #app,#app canvas{visibility:visible!important}" });
   await page.waitForTimeout(SETTLE_MS);
   // The chase camera eases back behind the car once a drag ends, so an orbit shot is taken with the button still held.
   if (spot.orbit) await orbit(page, spot.orbit);
   await save(page, await page.screenshot(), `${kind}.webp`);
   if (spot.orbit) await page.mouse.up();
-  await hide.evaluate((tag) => (tag as Element).remove());
-
-  await page.setViewportSize({ width: MAP_SIDE + 1000, height: MAP_SIDE + 300 });
-  await page.addStyleTag({ content: `.map-preview .world-map{width:${MAP_SIDE}px!important;height:${MAP_SIDE}px!important;max-width:none!important;max-height:none!important} .world-map-cars,#debug{display:none!important}` });
-  await page.keyboard.press("Escape");
-  await page.getByText("Create world").first().click();
-  const map = page.locator(".map-preview .world-map");
-  await map.and(page.locator('[data-status="ready"]')).waitFor({ timeout: 60_000 });
-  await page.waitForTimeout(500);
-  await save(page, await map.screenshot(), `${kind}-map.webp`);
   await page.close();
 }
 

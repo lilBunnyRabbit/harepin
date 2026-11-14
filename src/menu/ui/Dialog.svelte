@@ -23,12 +23,12 @@
   const CONTROLS = "button:not(:disabled), input, select, textarea, a[href], [tabindex]:not([tabindex='-1'])";
 
   // showModal focuses the body's scroller when it overflows, and a load with no input yet rings it on a phone. The first
-  // control takes focus instead, with a ring only where a ring means keys; the pad rings its own focus when it moves.
+  // control (or the one marked autofocus) takes focus instead, with a ring only where a ring means keys; the pad rings its own focus when it moves.
   $effect(() => {
     if (!dialog) return;
     if (open && !dialog.open) {
       dialog.showModal();
-      dialog.querySelector<HTMLElement>(CONTROLS)?.focus({ focusVisible: matchMedia("(pointer: fine)").matches });
+      (dialog.querySelector<HTMLElement>("[autofocus]") ?? dialog.querySelector<HTMLElement>(CONTROLS))?.focus({ focusVisible: matchMedia("(pointer: fine)").matches });
     } else if (!open && dialog.open) dialog.close();
   });
 

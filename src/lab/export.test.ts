@@ -20,7 +20,7 @@ const pack: Pack = {
 };
 
 const nan = Number.NaN;
-const metrics: Metrics = { time: 70.123, laps: [21.84, 22.41], segment: nan, lat_peak: 0.3141, lat_mean: 0.27, ring_kmh: 38.2, slip_peak: 19.4, slip_mean: 11.2, held: 14.2, chain: 6.1, spins: 0, yaw_lag: nan, recovery: 0.84, to_100: nan, stop_m: nan, stop_from: nan, top_kmh: 44.4, wheelspin: 0.12, spin_peak: 1.43, air: 0, landing: nan, bounces: 0, offs: 1, resets: 0, lock: 0.22, throttle: 0.81, handbrake: 0.04, reversals: 0.31 };
+const metrics: Metrics = { time: 70.123, laps: [21.84, 22.41], segment: nan, lat_peak: 0.3141, lat_mean: 0.27, ring_kmh: 38.2, slip_peak: 19.4, slip_mean: 11.2, held: 14.2, chain: 6.1, spins: 0, yaw_lag: nan, recovery: 0.84, to_100: nan, stop_m: nan, stop_from: nan, top_kmh: 44.4, wheelspin: 0.12, spin_peak: 1.43, air: 0, landing: nan, bounces: 0, offs: 1, resets: 0, lock: 0.22, throttle: 0.81, handbrake: 0.04, reversals: 0.31, yaw_over: nan, understeer: nan, power_slip: nan, lift_slip: nan, brake_dev: nan, trail_slip: nan, entry: nan, land_pitch: nan, seam_slip: nan, yaw_sd: nan, steer_sd: nan };
 
 test("the export block reads like docs/lab.md says", () => {
   const trials = resolve_pack(pack);

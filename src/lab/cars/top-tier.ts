@@ -1,4 +1,4 @@
-import type { Part } from "../../car/build";
+import type { Part, Slot } from "../../car/build";
 import { CARS, type CarId, type CarSpec } from "../../car/cars";
 import type { LabCar } from "../pack";
 
@@ -81,3 +81,6 @@ export function turbo_car(car: CarId, stage: string, boost: Boost): LabCar {
   const name = `${spec.name} ${stage}`;
   return { name, spec: { ...spec, name, torque: boosted(spec, boost) }, look: car };
 }
+
+/** The top-tier parts by the slot each replaces: a trial brief names a mod that is one of these. */
+export const TOP_PARTS: Partial<Record<Slot, readonly Part[]>> = { engine: [SUPERCHARGER, TURBO, TWIN_TURBO], tyres: [SLICKS], aero: [GT_KIT], weight: [CARBON_SHELL] };

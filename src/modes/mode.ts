@@ -5,7 +5,7 @@ import type { Body, Pose } from "./gymkhana";
 import type { Thresholds, Track } from "./track";
 import type { Bindable } from "../hud/bindings";
 import type { Hits } from "./hits";
-import type { Ground } from "./marks";
+import type { DrawnGround } from "./marks";
 import type { RoutePoint } from "./route";
 
 export const NO_SITE = "No flat ground near the start on this map";
@@ -41,7 +41,7 @@ export interface ModeCtx {
   readonly scene: THREE.Scene;
   readonly world: World;
   /** What a run's marks drape on: the world, or on a streamed world the circuit's own height where a chunk is not in yet. */
-  readonly ground: Ground;
+  readonly ground: DrawnGround;
   readonly start_index: number;
   /** `?debug&at=`: the point along its route a race run starts on; 0 is the start line. */
   readonly route_at: number;

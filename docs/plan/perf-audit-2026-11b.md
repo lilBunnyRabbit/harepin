@@ -78,3 +78,27 @@ Caching the minimap "N" moved the forced recalc to `PadMenu.rotated()` instead o
 Both fixes together: 153 → 233 frames in the same 5 s throttled run.
 
 Fixes (t139): `set_text` writes `firstChild.data` when the element holds one text node, else `textContent`; same at `hud-sheet.ts:54` and `net/remotes.ts:206`. Drop the `#rpm-fill` transition. `rotated()` reads one `MediaQueryList`. `navigate` returns early with no presses and the bar closed. `stuck-prompt` writes `hidden` only on change.
+
+## Round 4 (t182)
+
+Round 3's open items, no new audit. Measured 2026-11-14 on the same box, prod builds of 0342cd8 (before) and the round's last commit (after) under `vite preview`, seed 1, one run each while other agents shared the machine: frame times are noisy, garbage and calls are steady. Scripts in `.t182/` (untracked): `probe.mts` (heap sampling, draw calls by wrapping WebGL2 `draw*`, frames at 4x throttle; runs under `node --experimental-strip-types`, as Playwright under Bun hangs at launch on Windows), `chunk-bench.ts`, `ident.ts`, `names.mts`.
+
+| | before | after |
+|---|---|---|
+| Garbage driving, prod desktop: mainland / island / sky (MB/s) | 13.5 / 12.1 / 10.4 | 13.4 / 11.9 / 9.2 |
+| Garbage driving, prod phone: mainland / island / sky (MB/s) | 10.4 / 11.3 / 9.5 | 10.3 / 11.3 / 8.5 |
+| `hit` + `near` + `collide` on sky, unminified prod (kB/s) | 937 + 226 + 133 | under 100 total, below the top 14 sites |
+| Draw calls desktop / phone | 326 / 149 / 65, 86 / 75 / 48 | same |
+| Mainland mesh, all chunks, `proof --no-drive --jobs 1`: seeds 0 / 1 / 2 (ms) | 8305 / 10187 / 9517 | 5285 / 4699 / 4343 |
+| Mainland chunk build, 120 nearest spawn, seeds 0 / 1: mean / p50 (ms) | 13.2 / 10.5, 15.9 / 13.3 | 10.3 / 8.1, 10.0 / 7.8 |
+| Mainland mesher setup (ms) | 48-51 | 61-73 (the road layout is built once here) |
+
+Island, desert and other compact kinds mesh in one `road_layers` call, so their times stay within noise. Golden: 108 worlds identical; `proof` golden column `same` on all 97.
+
+What changed:
+
+1. **`World.collide`** (`src/world/world.ts`): traced first. The garbage was boxed doubles, not arrays: the 360 Hz step runs past V8's inlining budget, so every double handed to `hit`, `circle_contact` and `near` was boxed. A conservative reach test inline in `collide` (1 mm slack, rereads `pos` after each push) skips `hit` for solids clear of the car; `near` takes the solid cell instead of a point and walks cell lists with index loops. Proof: `.t182/ident.ts` (autolap on sky 0/1 and island 0 routes, four cars, 23 runs with contacts) and `scripts/crash.ts` byte-identical before/after; `src/world` and `car.test.ts` pass.
+2. **Minimap car names** (`src/hud/minimap.ts`): each name is stroked once into an `OffscreenCanvas` per pixel ratio and drawn with `drawImage`, like the N. No `ctx.font` or text per remote per frame. Checked by eye with two tabs in one BroadcastChannel room, desktop full map and phone disc, before/after match. The style-recalc win was not isolated (it needs a peer in the throttled run).
+3. **`road_layers` binning** (`src/worldgen/road-layers.ts`, `roads.ts`, `tile-mesher.ts`): `road_layout` builds once per world what every chunk used to redo: offset reach and per-chunk segment bins for every strip (`StripLine`), ring mouths, the edge-line mask, street `near_spur` and stretched street lines. `Roads.strip_line` walks only the segments that start in its chunk, in the same order, so draping order and output are unchanged.
+
+Not done: **tree batching** needs a new structure, an owner call. Today each chunk holds its own trunk and crown `InstancedMesh`es (`render/scene.ts:194`, `tree_meshes`), shown or hidden per chunk on phones (`MOBILE_TREES`). Design: one `BatchedMesh` per tree material (bark, leaf) in a small `TreeBatch` beside `SceneView`, with every geometry (trunk, crowns) added once; a chunk's `add` takes instance ids from it and its drop frees them; per-chunk phone hiding becomes `setVisibleAt` over the chunk's ids; `perObjectFrustumCulled` keeps per-tree culling. The depth-material fix from 0.37.0 must be redone for `BatchedMesh` casters, and it changes how `dispose` and `trees_shown` work. Expected: about -150 calls on desktop mainland, little on phones, where far chunks' trees are already hidden (86 calls).

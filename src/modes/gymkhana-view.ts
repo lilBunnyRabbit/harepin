@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { cast_instanced } from "../render/shadow-depth";
 import { brand, color, tones } from "../theme/palette";
 import { CONE_RADIUS, to_world, type Box, type Course, type Hit } from "./gymkhana";
-import { Marks, type Ground } from "./marks";
+import { drawn_height, Marks, type DrawnGround } from "./marks";
 
 const CONE_HEIGHT = 0.7;
 const FALL_S = 0.35;
@@ -33,7 +33,7 @@ export class GymkhanaView {
 
   constructor(
     readonly course: Course,
-    private readonly ground: Ground,
+    private readonly ground: DrawnGround,
   ) {
     this.marks = new Marks(ground);
     const geometry = this.marks.track(new THREE.ConeGeometry(CONE_RADIUS, CONE_HEIGHT, 10).translate(0, CONE_HEIGHT / 2, 0));
@@ -59,7 +59,7 @@ export class GymkhanaView {
 
   private ground_point(u: number, v: number): THREE.Vector3 {
     const { x, z } = to_world(this.course.site, u, v);
-    return new THREE.Vector3(x, this.ground.height(x, z) + LINE_LIFT, z);
+    return new THREE.Vector3(x, drawn_height(this.ground, x, z) + LINE_LIFT, z);
   }
 
   private outline(box: Box, tone: Parameters<typeof color>[0]): THREE.LineLoop {

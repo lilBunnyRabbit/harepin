@@ -52,21 +52,24 @@
 
 <div class="set">
   <nav class="set-nav" aria-label="Settings sections">
-    {#each SECTIONS as section (section.id)}
-      <Tile
-        title={section.label}
-        meta={summary(section.id, live.prefs, tier, theme)}
-        icon={section.icon}
-        size="sm"
-        variant="nav"
-        selected={nav.top() === section.id}
-        onclick={() => nav.show(section.id)}
-      />
-    {/each}
+    <div class="set-tiles">
+      {#each SECTIONS as section (section.id)}
+        <Tile
+          title={section.label}
+          meta={summary(section.id, live.prefs, tier, theme)}
+          icon={section.icon}
+          size="sm"
+          variant="nav"
+          selected={nav.top() === section.id}
+          onclick={() => nav.show(section.id)}
+        />
+      {/each}
+    </div>
     <div class="set-foot">
-      <span class="set-version">v{menu.host.version}</span>
-      <Button variant="quiet" size="sm" title="The first-run guide, with your current choices" onclick={open_guide}>Guide</Button>
-      <Button variant="quiet" size="sm" aria-current={nav.sub === CHANGES} onclick={() => nav.show(CHANGES)}>What's new</Button>
+      <Button variant="quiet" size="sm" class="set-pill" title="What's new" aria-label={`What's new in v${menu.host.version}`} aria-current={nav.sub === CHANGES} onclick={() => nav.show(CHANGES)}>
+        <span class="set-dot"></span>v{menu.host.version}
+      </Button>
+      <Button variant="quiet" size="sm" class="set-guide" title="The first-run guide, with your current choices" onclick={open_guide}>Guide</Button>
     </div>
   </nav>
 
@@ -131,6 +134,14 @@
 
   .set-nav {
     grid-area: nav;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) auto;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--set-well);
+  }
+
+  .set-tiles {
     display: flex;
     flex-direction: column;
     gap: var(--space-2);
@@ -138,29 +149,49 @@
     padding: var(--space-4) var(--space-3);
     overflow-y: auto;
     scrollbar-width: none;
-    background: var(--set-well);
   }
 
   .set-foot {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
-    gap: var(--space-1) var(--space-2);
-    margin-top: auto;
-    padding: var(--space-3) var(--space-1) 0;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border-top: 1px solid var(--set-line);
   }
 
-  .set-version {
-    padding-right: var(--space-1);
-    color: var(--set-dim);
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
-  }
-
-  .set-foot :global(.ui-button[aria-current="true"]) {
+  .set-foot :global(.set-pill) {
+    border-color: var(--line-strong);
+    border-radius: var(--radius-full);
+    background: var(--set-raised);
     color: var(--foreground);
-    text-decoration: underline 2px;
-    text-underline-offset: 4px;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    line-height: 1;
+  }
+
+  .set-foot :global(.set-pill:hover:not(:disabled)) {
+    border-color: var(--primary);
+  }
+
+  .set-foot :global(.set-pill[aria-current="true"]) {
+    border-color: var(--primary);
+  }
+
+  .set-dot {
+    flex: none;
+    width: var(--space-2);
+    height: var(--space-2);
+    border-radius: var(--radius-full);
+    background: var(--primary);
+  }
+
+  .set-foot :global(.set-guide) {
+    color: var(--foreground);
+  }
+
+  .set-foot :global(.set-guide:hover:not(:disabled)) {
+    background: var(--set-raised);
   }
 
   .set-main {
@@ -291,11 +322,19 @@
     }
 
     .set-nav {
+      display: flex;
+      flex-direction: column;
       gap: var(--space-1);
       padding: var(--space-2) var(--space-1);
+      overflow-y: auto;
+      scrollbar-width: none;
     }
 
-    .set-version,
+    .set-tiles {
+      display: contents;
+    }
+
+    .set-dot,
     .set-legend {
       display: none;
     }
@@ -303,15 +342,16 @@
     .set-foot {
       flex-direction: column;
       align-items: stretch;
+      gap: var(--space-1);
+      margin-top: var(--space-1);
       padding: var(--space-2) 0 0;
     }
 
     .set-foot :global(.ui-button) {
       height: auto;
       min-height: var(--control-h-sm);
-      padding: var(--space-1);
+      padding: var(--space-1) 0;
       font-size: var(--text-xs);
-      white-space: normal;
     }
 
     .set-head {

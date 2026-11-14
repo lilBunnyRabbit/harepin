@@ -4,13 +4,15 @@ import { sample, vertex_up } from "./field";
 import { KINDS } from "./kinds/kinds";
 import { landmark_mesh, type LandmarkTones } from "./landmark-mesh";
 import { roof_rise } from "./lots";
-import { dress_building, dress_lot, type TownTones } from "./town-mesh";
+import { dress_lot } from "./town-ground";
+import { dress_building, type TownTones } from "./town-mesh";
 import { Builder, bounding_sphere, turned, type Rgb, type Sphere } from "./mesh";
 import { road_layers, type RoadTones } from "./road-layers";
 import { grid_ground, Roads, type Layer } from "./roads";
 import { deck_layers, type DeckTones } from "./sky-mesh";
 import type { LavaPool } from "./lava";
 import { hash } from "./noise";
+import { LIFT } from "./lifts";
 import { ISLAND } from "./recipe";
 import { CELL, Ground, N, ORIGIN, PropKind, Roof, SURFACE_GROUND, type Building, type Lot, type ParkingLot, type Prop, type WorldData } from "./types";
 
@@ -61,8 +63,8 @@ const STOREY = 3.2;
 const WINDOW_LOW = 1;
 const WINDOW_HIGH = 2.1;
 const WINDOW_INSET = 0.6;
-const PAD_LIFT = 0.06;
-const LINE_LIFT = 0.09;
+const PAD_LIFT = LIFT.pad;
+const LINE_LIFT = LIFT.pad_line;
 const LINE_HALF = 0.06;
 
 /** Linear RGB, resolved from the palette on the main thread: the palette reads theme tokens from the DOM. */
@@ -274,8 +276,8 @@ export interface TownParts {
 /** Town meshes keyed by `key(x, z)`, each part placed by its own position; `ground` drapes the parking pads. */
 export function town_builders(data: WorldData, parts: TownParts, tones: MeshTones, ground: (x: number, z: number) => number, key_of: (x: number, z: number) => number): Map<number, Town> {
   const towns = new Map<number, Town>();
-  const { walls, trim, door } = tones.town;
-  const facade = KINDS[data.kind].recipe?.towns.style === "high_street" ? new Set([...walls, trim, door]) : undefined;
+  const { walls, trim, door, stone, timber } = tones.town;
+  const facade = KINDS[data.kind].recipe?.towns.style === "high_street" ? new Set([...walls, trim, door, stone, timber]) : undefined;
   const of = (x: number, z: number) => {
     const key = key_of(x, z);
     let town = towns.get(key);

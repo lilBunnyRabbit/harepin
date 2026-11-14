@@ -31,6 +31,7 @@
 
   .ui-scroll {
     --fade: var(--space-6);
+    display: var(--scroll-display, block);
     min-width: 0;
     min-height: 0;
     overflow: hidden auto;

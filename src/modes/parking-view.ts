@@ -3,7 +3,7 @@ import { parked_car_geometry, parked_cars } from "../world/buildings";
 import { brand, car_paints, color, tones } from "../theme/palette";
 import { mulberry32, sub } from "../rng";
 import { to_world, type Site } from "./gymkhana";
-import { Marks, type Ground } from "./marks";
+import { drawn_height, Marks, type DrawnGround } from "./marks";
 import { CONE_RADIUS, type ParkBay, type ParkLevel } from "./parking";
 
 const LINE_LIFT = 0.08;
@@ -23,7 +23,7 @@ export class ParkingView {
   constructor(
     private readonly site: Site,
     level: ParkLevel,
-    private readonly ground: Ground,
+    private readonly ground: DrawnGround,
     seed: number,
     area: { u0: number; u1: number; v0: number; v1: number },
   ) {
@@ -65,7 +65,7 @@ export class ParkingView {
 
   private point(u: number, v: number, lift = LINE_LIFT): THREE.Vector3 {
     const { x, z } = to_world(this.site, u, v);
-    return new THREE.Vector3(x, this.ground.height(x, z) + lift, z);
+    return new THREE.Vector3(x, drawn_height(this.ground, x, z) + lift, z);
   }
 
   private bay_point(bay: ParkBay, across: number, along: number): THREE.Vector3 {
