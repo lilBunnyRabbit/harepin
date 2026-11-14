@@ -108,6 +108,9 @@ const RALLY: Detail[] = [
 ];
 
 const kaze_tail = tail_at(kaze.outline, 0.46);
+const kaze_kit_tail = tail_at(kaze.kit?.outline ?? kaze.outline, 0.48);
+// A bar across the tail on a stay each side, `half` from the centre.
+const bash_bar = (width: number, half: number, tail: number): Part[] => [centred(width, 0.07, 0.07, 0.48, tail - 0.11), { size: [0.06, 0.06, 0.12], at: [half, 0.48, tail - 0.05] }];
 const KAZE: Detail[] = [
   { on: "drift", cue: "Drift stance: negative camber", camber: CAMBER },
   {
@@ -118,12 +121,9 @@ const KAZE: Detail[] = [
       { size: [0.05, 0.16, 0.06], at: [-0.62, 0.45, -2.18], one: true },
     ],
   },
-  {
-    on: "stripped",
-    cue: "Rear bumper off: a bash bar on two stays",
-    trim: [centred(1.72, 0.3, 0.03, 0.46, kaze_tail - 0.012)],
-    chrome: [centred(1.5, 0.07, 0.07, 0.48, kaze_tail - 0.11), { size: [0.06, 0.06, 0.12], at: [0.5, 0.48, kaze_tail - 0.05] }],
-  },
+  { on: "stripped", until: "street", cue: "Rear bumper off: a bash bar on two stays", trim: [centred(1.72, 0.3, 0.03, 0.46, kaze_tail - 0.012)], chrome: bash_bar(1.5, 0.5, kaze_tail) },
+  // The kit's tail is its shell: no backing panel, and the bar ends short of the tow strap.
+  { on: "stripped", with: "street", cue: "A bash bar on two stays over the kit's tail valance", chrome: bash_bar(1.1, 0.4, kaze_kit_tail) },
 ];
 
 const TSUMUJI: Detail[] = [
