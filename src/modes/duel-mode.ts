@@ -17,7 +17,7 @@ function ghost_for(ctx: ModeCtx, id: string): Ghost {
   const kept = ghosts.get(world);
   if (kept?.key === key) return kept.ghost;
   kept?.ghost.dispose();
-  const ghost = new Ghost(ctx.scene, world.seed, key);
+  const ghost = new Ghost(ctx.scene, world, key);
   ghosts.set(world, { key, ghost });
   return ghost;
 }

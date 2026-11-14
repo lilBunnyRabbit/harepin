@@ -46,7 +46,7 @@ class Race implements ModeRun {
     this.hits = ctx.hits();
     void ctx.dev_ghost().then((lap) => {
       if (!lap || this.disposed) return;
-      this.ghost = new Ghost(ctx.scene, ctx.world.seed, DEV_GHOST_KEY);
+      this.ghost = new Ghost(ctx.scene, ctx.world, DEV_GHOST_KEY);
       this.ghost.use(lap);
     });
     const start = course.line[ctx.lobby_lap() ? 0 : Math.min(ctx.route_at, course.line.length - 1)];

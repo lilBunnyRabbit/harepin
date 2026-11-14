@@ -3,7 +3,7 @@ import { ride_height, type Car } from "./car";
 import { COUPE, car_sized } from "./cars";
 import { camera_fade, car_view, dispose_car_view, rest_wheels, type CarView } from "./models";
 import { brand, color } from "../theme/palette";
-import { world_key } from "../worldgen/kinds/kinds";
+import type { World } from "../world/world";
 import { STRIDE, is_lap, lap_cap_ms } from "./ghost-cap";
 
 const EVERY_MS = 100;
@@ -78,7 +78,12 @@ export class Ghost {
   private readonly key: string;
   private readonly cap_ms: number;
 
-  constructor(scene: THREE.Scene, seed = 0, key = `harepin:ghost:${world_key(seed)}`, lap_m = 0) {
+  constructor(
+    scene: THREE.Scene,
+    private readonly ground: Pick<World, "drawn_lift">,
+    key: string,
+    lap_m = 0,
+  ) {
     this.key = key;
     this.cap_ms = lap_cap_ms(lap_m);
     this.best = load(this.key);
@@ -159,6 +164,7 @@ export class Ghost {
       root.visible = false;
       return;
     }
+    root.position.y += this.ground.drawn_lift(root.position.x, root.position.z, root.position.y);
     const fade = camera_fade(root.position, camera);
     this.tint.opacity = GHOST_OPACITY * fade;
     root.visible = fade > 0;

@@ -236,7 +236,7 @@ const MAP_NOTE_MS = 4500;
 const goal_toasts = new ToastQueue((text, hold) => hud.toast(text, "", hold), () => $("toast").dataset.shown !== undefined);
 if (note) goal_toasts.push(note, MAP_NOTE_MS);
 goals.on_done = (goal) => goal_toasts.push(`Goal done: ${goal.title}`);
-const ghost = new Ghost(scene, world.seed, `harepin:ghost:${world.key}`, world.routes.find((r) => r.id === "circuit")?.length);
+const ghost = new Ghost(scene, world, `harepin:ghost:${world.key}`, world.routes.find((r) => r.id === "circuit")?.length);
 race.on_lap = (improved, first) => {
   goals.done(improved && !first ? GoalId.BEST : GoalId.LAP);
   ghost.finish(improved);
