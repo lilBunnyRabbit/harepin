@@ -1,4 +1,4 @@
-import { cabin_mirror, endplate, gurney, leg, plane, tail_end, widen_wing } from "./design-parts";
+import { cabin_mirror, endplate, gurney, hoop, leg, plane, tail_end, widen_wing } from "./design-parts";
 import type { Arches, Cabin, Design, Kit, Section, Slab, Wing } from "./designs";
 import type { Part, Point } from "./geometry";
 
@@ -10,7 +10,8 @@ const TAIL = tail_end(OUTLINE, 0.79, 0.22, 0.92, [{ size: [0.46, 0.14, 0.05], at
 const STOCK_ARCHES: Arches = { gap: 0.06, steps: 7, flare: 0.06, out: 0.04, reach: 0.04, tone: "paint" };
 const HALF = 0.984;
 const SPAN = 0.86;
-// A lip grown out of the hatch across the whole tail, then a ducktail, then a trim plane on two painted legs standing in it.
+// A lip grown out of the hatch across the whole tail, then a ducktail, then a hoop (a trim plane between two painted side
+// plates swept up from the deck corners, flush with the body side), then a trim plane on two painted legs standing in the ducktail.
 const LIP: Slab = { points: [[-1.9, 0.93], [-2.15, 1.0], [-2.17, 0.97], [-2.12, 0.88]], from: 0, to: HALF };
 const DUCKTAIL: Slab = { points: [[-1.88, 0.93], [-2.18, 1.06], [-2.2, 1.03], [-2.12, 0.88]], from: 0, to: HALF };
 const STREET = plane([-2.06, 1.19], 0.3, 0.045, 0.1);
@@ -19,7 +20,7 @@ const legs = (profile: Point[], rear: Point): Slab => ({ points: leg(profile, [-
 const WINGS: Wing[] = [
   { paint: [], trim: [], lips: [LIP] },
   { paint: [], trim: [], lips: [DUCKTAIL] },
-  { paint: [], trim: [], lips: [LIP, legs(STREET, [-2.12, 0.97])], stands: [{ points: STREET, from: 0, to: SPAN }] },
+  { paint: [], trim: [], lips: [LIP, { points: hoop(STREET, [-1.74, 0.93], LIP.points[2]), from: SPAN, to: HALF }], stands: [{ points: STREET, from: 0, to: SPAN }] },
   {
     paint: [],
     trim: [],
