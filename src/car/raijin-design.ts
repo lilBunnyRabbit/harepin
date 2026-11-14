@@ -1,4 +1,4 @@
-import { cabin_mirror, endplate, gurney, hoop, leg, plane, tail_end, widen_wing } from "./design-parts";
+import { cabin_mirror, endplate, gurney, hoop, plane, tail_end, widen_wing } from "./design-parts";
 import type { Cabin, Design, Kit, Section, Slab, Wing } from "./designs";
 import type { Triple } from "./cars";
 import type { Part, Point } from "./geometry";
@@ -35,6 +35,8 @@ const KIT_OUTLINE: Point[] = [[2.06, 0.19], [KIT_NOSE, 0.25], [KIT_NOSE, 0.4], [
 const NOSE_LEAN = 0.27;
 const HOOD_FALL = 0.126;
 const PIPE: Triple = [0.5, 0.345, BUMPER + 0.01];
+// Bar intakes are 4 cm deep and show 3 mm of it: openings in the bar's face, not blocks standing on it.
+const INSET = 0.017;
 
 // Four round lamps on one dark panel with the plate between them, `k` wider than drawn for the stock body.
 function tail_of(outline: Point[], k: number) {
@@ -47,9 +49,9 @@ function trim_of(tail: ReturnType<typeof tail_of>, nose: number, bumper: number,
   return [
     { size: [0.46, 0.23, 0.05], at: [0.23, 0.585, 2.094], tilt: [NOSE_LEAN, 0, 0] },
     { size: [0.2, 0.03, 0.34], at: [0.46, 0.929, 1.4], tilt: [HOOD_FALL, 0, 0] },
-    { size: [0.5, 0.07, 0.04], at: [0.25, 0.335, nose - 0.01] },
-    { size: [0.17 * k, 0.07, 0.04], at: [0.7 * k, 0.335, nose - 0.01] },
-    { size: [0.76 * k, 0.12, 0.04], at: [0.38 * k, PIPE[1], bumper + 0.008] },
+    { size: [0.5, 0.07, 0.04], at: [0.25, 0.335, nose - INSET] },
+    { size: [0.17 * k, 0.07, 0.04], at: [0.7 * k, 0.335, nose - INSET] },
+    { size: [0.76 * k, 0.12, 0.04], at: [0.38 * k, PIPE[1], bumper + INSET] },
     ...tail.trim,
   ];
 }
@@ -61,30 +63,36 @@ const TAIL = tail_of(OUTLINE, 1);
 const KIT_TAIL = tail_of(KIT_OUTLINE, WIDER);
 
 const DECK = 1.105;
-const HALF = 0.88;
+const HALF = WIDTH / 2;
+// Risers fill the deck's outer 5 cm, their outer face running on up from the shoulder crease; they start behind the fold
+// where the tail pinch begins, so each keeps one flat face.
+const INNER = HALF - 0.05;
+const FOOT = -2.06;
 const slab_of = (points: Point[], from: number, to: number): Slab => ({ points, from, to });
-// The saloon's own boot wing: a plane between two pedestals that stand on the deck's outer edges and wrap its ends.
-const BOOT = plane([-2.23, 1.27], 0.26, 0.045, 0.06);
-const TALL = plane([-2.24, 1.34], 0.3, 0.045, 0.08);
-const pedestal = (profile: Point[], front: number): Slab => slab_of(hoop(profile, [front, DECK], [-2.39, DECK]), 0.795, HALF);
-// A strip standing on the plane's trailing edge, clear of the pedestals' inner faces.
-const strip = ([, [z, y]]: Point[], tall: number): Point[] => [[z + 0.03, y], [z + 0.03, y + tall], [z, y + tall], [z, y]];
-// Past that a trim plane on swept plate uprights, a painted endplate outside each end.
-const GT = plane([-2.27, 1.45], 0.34, 0.05, 0.1);
-const RACE = plane([-2.3, 1.6], 0.4, 0.055, 0.12);
-const SPAN = 0.855;
-const bolt_on = (profile: Point[], front: number, above: number, below: number): Wing => ({
+// The saloon's own boot wing: a plane between two pedestals grown out of the deck corners, which wrap its ends.
+const BOOT = plane([-2.29, 1.26], 0.24, 0.045, 0.06);
+const TALL = plane([-2.3, 1.33], 0.27, 0.045, 0.1);
+const boot_wing = (profile: Point[], kick: number): Wing => ({
   paint: [],
   trim: [],
-  lips: [slab_of(endplate(profile, above, below), SPAN, HALF)],
-  stands: [slab_of(profile, 0, SPAN), slab_of(gurney(profile, 0.025), 0, SPAN), slab_of(leg(profile, [front, DECK], [-2.34, DECK]), 0.43, 0.46)],
+  lips: [slab_of(profile, 0, INNER), slab_of(hoop(profile, [FOOT, DECK], [-2.39, DECK]), INNER, HALF), ...(kick > 0 ? [slab_of(gurney(profile, kick), 0, HALF)] : [])],
 });
-const WINGS: Wing[] = [
-  { paint: [], trim: [], lips: [slab_of(BOOT, 0, 0.795), pedestal(BOOT, -2.0)] },
-  { paint: [], trim: [], lips: [slab_of(TALL, 0, 0.795), pedestal(TALL, -1.98)], stands: [slab_of(strip(TALL, 0.025), 0, 0.795)] },
-  bolt_on(GT, -2.04, 0.05, 0.09),
-  bolt_on(RACE, -2.0, 0.07, 0.13),
-];
+// Past that a trim plane between two painted risers: each a leg standing on the deck corner that widens into the
+// plane's endplate, one outline.
+const GT = plane([-2.33, 1.44], 0.32, 0.05, 0.1);
+const RACE = plane([-2.34, 1.56], 0.38, 0.055, 0.12);
+function riser(profile: Point[], above: number, below: number, foot: number): Point[] {
+  const [low, top, back, under] = endplate(profile, above, below);
+  const heel: Point = [FOOT - foot, DECK];
+  return [[FOOT, DECK], low, top, back, under, [heel[0] - 0.07, under[1] - 0.05], heel];
+}
+const swept_wing = (profile: Point[], above: number, below: number, foot: number): Wing => ({
+  paint: [],
+  trim: [],
+  lips: [slab_of(riser(profile, above, below, foot), INNER, HALF)],
+  stands: [slab_of(profile, 0, INNER), slab_of(gurney(profile, 0.025), 0, INNER)],
+});
+const WINGS: Wing[] = [boot_wing(BOOT, 0), boot_wing(TALL, 0.03), swept_wing(GT, 0.04, 0.07, 0.14), swept_wing(RACE, 0.06, 0.1, 0.16)];
 
 // Front pieces come only with the kit: the lip fills the undercut below its bumper bar, so the chin runs on down from the
 // bar's face, and the splitter is a blade under that chin.
