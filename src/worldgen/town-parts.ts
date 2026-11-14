@@ -1,6 +1,6 @@
 import type { Builder, Frame, Rgb } from "./mesh";
 
-/** Trim stands this far off its wall, glass twice as far, so neither z-fights what it lies on. */
+/** Trim stands this far off its wall, glass twice as far; far off only the glass material's polygon offset keeps it in front. */
 export const OUT = 0.04;
 const NONE: Rgb = [0, 0, 0];
 const FRAME = 0.16;

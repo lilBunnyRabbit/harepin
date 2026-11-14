@@ -165,7 +165,8 @@ function facade_fill<M extends THREE.Material>(material: M, share: number): M {
 /** Builds a chunk's town objects when it arrives: parked cars stand on its terrain, which arrives with it. */
 export class TownChunks {
   private readonly building = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
-  private readonly glass = new THREE.MeshLambertMaterial({ color: color(tones.shopfront), emissive: color(tones.shop_glow), emissiveIntensity: GLASS_GLOW, flatShading: true });
+  // Glass sits 3-8 cm off its wall; past ~200 m the depth buffer steps wider than that, so the offset holds it in front.
+  private readonly glass = new THREE.MeshLambertMaterial({ color: color(tones.shopfront), emissive: color(tones.shop_glow), emissiveIntensity: GLASS_GLOW, flatShading: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   private readonly parking = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   private readonly car_material = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
   private readonly car_shape = parked_car_geometry();
