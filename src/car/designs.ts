@@ -22,6 +22,8 @@ export interface Cabin {
   split?: Point;
   /** Where the side glass ends toward the tail, z: a fastback roof runs on to the tail as painted panel. */
   glass_to?: number;
+  /** Base points from the tail forward, under the body top: they lift a base that would cross a wheel opening. */
+  floor?: Point[];
 }
 
 /** A side profile [z, y] extruded between two distances from the centre, mirrored: wing bulges and haunches. */

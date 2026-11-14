@@ -11,6 +11,8 @@ const CABIN: Cabin = {
   screens: [[0, 0.07], [3, 0.17]],
   split: [-0.42, 0.08],
   glass_to: -1.36,
+  // The fastback's base runs from the tail to the screen through the rear wheel openings; this keeps it over them.
+  floor: [[-1.0, 0.82]],
 };
 // The lamp band runs the full width of the hips, so each hip ends on it and the tail reads as one surface.
 const HIP = 0.9;

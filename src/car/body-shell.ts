@@ -19,10 +19,13 @@ export function cabin_parts(c: Cabin, paint: THREE.Color, glass: THREE.Color): T
   const ys = c.points.map(([, y]) => y);
   const base = Math.min(...ys);
   const top = Math.max(...ys);
-  const window = c.glass_to === undefined ? inset(c.points, c.frame) : clip(inset(c.points, c.frame), c.glass_to, 1);
+  const floor = c.floor ?? [];
+  const outline = [...c.points, ...floor];
+  const glazed = inset(outline, [...c.frame, ...floor.map(() => c.frame[c.frame.length - 1])]);
+  const window = c.glass_to === undefined ? glazed : clip(glazed, c.glass_to, 1);
   const windows = c.split ? [clip(window, c.split[0] + c.split[1] / 2, 1), clip(window, c.split[0] - c.split[1] / 2, -1)] : [window];
   return [
-    tint(extrude(c.points, c.width), paint),
+    tint(extrude(outline, c.width), paint),
     ...windows.map((w) => tint(extrude(w, c.width + 0.02), glass)),
     ...c.screens.map(([edge, pillar]) => tint(extrude(screen(c.points, edge, Math.max(0.05, pillar * 0.6)), c.width - 2 * pillar), glass)),
   ].map((g) => lean(g, base, top, c.tumble));

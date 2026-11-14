@@ -115,9 +115,6 @@ test("no two body faces of any car and kit share a plane and an area", async () 
 // chords cut the circle at their own angles.
 const OPENING_MARGIN = 0.015;
 const SAMPLES = 10;
-// Open: the Sturm's wide body opens its rear arches past the cabin's base, which crosses them; a design call, not a cut bug.
-const OPEN_ARCHES = new Set(["sturm kit 4", "sturm kit 5"]);
-
 function inside(polygon: Point[], z: number, y: number): boolean {
   let hit = false;
   polygon.forEach(([zi, yi], i) => {
@@ -158,7 +155,7 @@ test("every wheel opening stays open over its tyre, on every car and kit", async
             if (Math.abs(Math.abs(p.x) - track) > half) continue;
             if (openings.some((opening) => inside(opening, p.z, p.y))) worst = Math.max(worst, Math.abs(p.x));
           }
-      if (worst > 0 && !OPEN_ARCHES.has(`${car} ${k}`)) found.push(`${car} ${k}: a body face crosses a wheel opening at x ${worst.toFixed(3)}`);
+      if (worst > 0) found.push(`${car} ${k}: a body face crosses a wheel opening at x ${worst.toFixed(3)}`);
       dispose_car_view(view);
     }
   expect(found).toEqual([]);
