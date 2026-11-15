@@ -107,6 +107,9 @@ function translucent_view(build: Build, spec: CarSpec, lights: boolean): { view:
     let copy = copies.get(original);
     if (!copy) {
       copy = original.clone();
+      // `clone` drops the shader patches (paint roll-off, carbon weave), so a peer's car would blow out in the headlight.
+      copy.onBeforeCompile = original.onBeforeCompile;
+      copy.customProgramCacheKey = original.customProgramCacheKey;
       copy.transparent = true;
       copies.set(original, copy);
     }
