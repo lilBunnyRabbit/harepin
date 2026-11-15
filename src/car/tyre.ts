@@ -17,6 +17,9 @@ const STICK_DAMPER = 2.2;
 // Bearing drag on a wheel in the air, per second. It was 0.1% a step, 30% a second at 360 Hz, so after a long jump every
 // wheel landed turning half the car's speed: past peak slip, with little lateral grip left.
 const AIR_SPIN_DRAG = 0.02;
+// N/m of the stop each strut meets just short of the floor: at 400 000 a buggy landing off a 25 m/s brink tipped past 35
+// degrees, at 1 000 000 a rolled raijin landed past 40.
+const FLOOR_BUMP = 250_000;
 
 // Normalised magic formula: peak at s = 1, sliding grip sin(C·π/2) ≈ 65% of peak.
 const MF_C = 1.55;
@@ -150,6 +153,7 @@ export function suspend(car: Car, frame: StepFrame, w: Wheel, dt: number, ground
   let suspension = spec.spring * w.compression + (spec.damper * (w.compression - w.prev)) / dt;
   suspension += w.axle.arb * (w.compression - other.compression);
   if (w.compression > rest) suspension += spec.bump * (w.compression - rest);
+  if (w.compression > w.floor_stop) suspension += FLOOR_BUMP * (w.compression - w.floor_stop);
   suspension = Math.max(0, Math.min(spec.strut_max, suspension));
   lever.copy(w.point).sub(body.pos);
   ground.normal(w.point.x, w.point.z, w.normal, w.point.y);
