@@ -200,7 +200,7 @@ export class Driver {
     const heading = car.heading;
     car.park(car.pos.x, car.pos.z, heading, ground);
     car.parked = false;
-    car.vel.set(sin(heading) * v, 0, cos(heading) * v);
+    car.vel.set(0, 0, v).applyQuaternion(car.quat);
     const { spec } = car;
     const omega = v / spec.wheel.radius;
     for (const w of car.wheels) w.omega = omega;
