@@ -33,6 +33,23 @@
   font-weight: inherit;
 }
 
+/* The clock's text changes every frame. A box of fixed size with its layout contained re-lays out alone, so the status
+   line around it and the hint and toast anchored to that line stay put. Sized for Inter, where `ch` is the proportional
+   zero: " · M:SS.sss" in tabular figures is 7.66ch and each further digit 0.93ch. `pre` keeps the separator's leading
+   space, which a line inside the box would otherwise drop. */
+#mode-status-clock[data-time] {
+  display: inline-block;
+  width: 7.7ch;
+  height: 1lh;
+  vertical-align: top;
+  white-space: pre;
+  contain: size layout style;
+}
+
+#mode-status-clock[data-time="9"] {
+  width: 8.65ch;
+}
+
 #mode-status > :not(:empty) ~ :not(:empty)::before {
   content: " · ";
 }
