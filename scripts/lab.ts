@@ -43,7 +43,7 @@ function delta_text(values: SimValues, base: SimValues): string {
 }
 
 function trial_job(r: Resolved): LabJob {
-  return { kind: "trial", spec: r.spec, station: r.station.id, surface: r.lane.surface, mode: r.trial.aids?.steer_mode ?? SteerMode.SMOOTH, stop_from: r.trial.goal.kind === "stop" ? r.trial.goal.from_kmh : STOP_FROM_KMH };
+  return { kind: "trial", spec: r.spec, station: r.station.id, surface: r.lane.surface, mode: r.trial.aids?.steer_mode ?? SteerMode.SMOOTH, stop_from: r.trial.goal.kind === "stop" ? r.trial.goal.from_kmh : STOP_FROM_KMH, tcs: r.trial.aids?.tcs ?? true };
 }
 
 async function run_pack(id: string): Promise<number> {

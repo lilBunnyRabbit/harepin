@@ -23,7 +23,7 @@ export interface Sim {
 
 interface StationSim {
   scenario: string;
-  run: (rig: feel.Rig, stop_from: number) => SimValues;
+  run: (rig: feel.Rig, stop_from: number, tcs: boolean) => SimValues;
   /** The scenarios ignore the lane and drive flat asphalt (`scripts/drift.ts` takes its ground from the command line). */
   asphalt?: true;
 }
@@ -38,8 +38,8 @@ const ring: StationSim = {
 
 const turns: StationSim = {
   scenario: "turns",
-  run: (rig) => [
-    ["slip", feel.power_on(rig, true).slip],
+  run: (rig, _, tcs) => [
+    ["slip", feel.power_on(rig, tcs).slip],
     ["lag", feel.step_steer(rig).t90],
   ],
 };
@@ -89,10 +89,10 @@ const STATION_SIMS: Record<StationId, StationSim> = {
   kicker: none,
 };
 
-export function trial_sim(spec: CarSpec, station: StationId, surface: LabSurface, mode: SteerMode = SteerMode.SMOOTH, stop_from = STOP_FROM_KMH): Sim {
+export function trial_sim(spec: CarSpec, station: StationId, surface: LabSurface, mode: SteerMode = SteerMode.SMOOTH, stop_from = STOP_FROM_KMH, tcs = true): Sim {
   const sim = STATION_SIMS[station];
   const ground: GroundName = sim.asphalt ? "asphalt" : surface;
-  const values = sim.run({ spec, mode, ground: GROUNDS[ground] }, stop_from);
+  const values = sim.run({ spec, mode, ground: GROUNDS[ground] }, stop_from, tcs);
   for (const [key, v] of values) if (Number.isNaN(v)) throw new Error(`NaN ${key} at ${station}/${surface}`);
   return { scenario: sim.scenario, values, ground, stop_from };
 }
