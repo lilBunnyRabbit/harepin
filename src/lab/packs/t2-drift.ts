@@ -18,7 +18,7 @@ const LIVELY = "drift-tcs-off";
 const FREE_ANGLE = { drift_damp: 1, drift_side_sx: 8, drift_catch: 0 };
 /** r3 "can't start a drift without the handbrake": TCS weighs the rears' sideways slip at half, so the gas steps the tail out (sim: 2.05 to 0.28 s). */
 const GAS_ENTRY = { tcs_lateral: 0.7 };
-/** r3 "like on ice": TCS off keeps half the held-drift helpers, the gas still uncut (sim: hold 1.3 to 5.0 s, no spin, 53 to 57 km/h). */
+/** r3 "like on ice": TCS off keeps half the held-drift helpers, the gas still uncut (sim: hold 1.3 to 5.0 s, no spin, 53 to 58 km/h). */
 const OFF_HOLD = { drift_tcs_off: 0.5 };
 
 interface Variant {

@@ -685,7 +685,7 @@ export class Car {
       const damp_from = DRIFT_DAMP_SLIP[0];
       const damp_to = DRIFT_DAMP_SLIP[1];
       const settle = Math.sign(swing) !== -this.steering.hold_side ? 1 : held_drift * Math.max(0, Math.min(1, (Math.abs(beta) - damp_from) / (damp_to - damp_from)));
-      body.torque.y -= swing * spec.inertia[1] * (spec.drift_damp ?? DRIFT_DAMP) * Math.min(1, pedal) * settle;
+      body.torque.y -= swing * spec.inertia[1] * (spec.drift_damp ?? DRIFT_DAMP) * Math.min(1, pedal) * settle * this.drift_aid;
     }
   }
 
