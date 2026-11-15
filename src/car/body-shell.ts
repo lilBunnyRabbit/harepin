@@ -273,7 +273,7 @@ function crest(d: Design): Cut[] {
   const s = d.section;
   if (!s || s.shoulder <= 0) return [];
   const [belt] = folds(d);
-  const rise = Math.max(...d.outline.map(([, y]) => y)) - Math.max(...s.belt);
+  const rise = s.rise ?? Math.max(...d.outline.map(([, y]) => y)) - Math.max(...s.belt);
   return [{ n: belt.n, c: belt.c - rise }];
 }
 
@@ -316,9 +316,25 @@ function folded_slab(points: Point[], from: number, to: number, cuts: Cut[]): TH
  */
 export function fitted_slab(d: Design, s: Slab): THREE.BufferGeometry[] {
   const anchor = s.straight;
-  if (anchor === undefined) return folded_slab(s.points, s.from, s.to, [...folds(d), ...crest(d), ...crossed(s.points, ends(d))]);
-  const cuts = [...folds(d), ...crest(d)].filter(({ n }) => n[1] !== 0);
-  return folded_slab(s.points, s.from, s.to, cuts).map((g) => unpinched(g, d, anchor));
+  const pieces =
+    anchor === undefined
+      ? folded_slab(s.points, s.from, s.to, [...folds(d), ...crest(d), ...crossed(s.points, ends(d))])
+      : folded_slab(s.points, s.from, s.to, [...folds(d), ...crest(d)].filter(({ n }) => n[1] !== 0)).map((g) => unpinched(g, d, anchor));
+  const lean = s.lean;
+  return lean ? pieces.map((g) => leaned_in(g, s.from, lean)) : pieces;
+}
+
+/** Moves the vertices on a slab's inner face, at `from`, outward with height as its `lean` says. */
+function leaned_in(geometry: THREE.BufferGeometry, from: number, { low, high, out }: NonNullable<Slab["lean"]>): THREE.BufferGeometry {
+  const position = geometry.getAttribute("position");
+  for (let i = 0; i < position.count; i++) {
+    const x = position.getX(i);
+    if (Math.abs(Math.abs(x) - from) > ON_CUT) continue;
+    const share = Math.max(0, Math.min(1, (position.getY(i) - low) / (high - low)));
+    position.setX(i, Math.sign(x) * (from + out * share));
+  }
+  geometry.computeVertexNormals();
+  return geometry;
 }
 
 /**
@@ -382,7 +398,7 @@ export function sculpt_factor(d: Design, y: number, z: number): number {
   const tail = d.outline[d.outline.length - 1][0];
   let top = -Infinity;
   for (const [, oy] of d.outline) top = Math.max(top, oy);
-  const rise = top - Math.max(...s.belt);
+  const rise = s.rise ?? top - Math.max(...s.belt);
   const drop = Math.min(...s.belt) - d.sill;
   const belt = s.belt[0] + ((s.belt[1] - s.belt[0]) * (nose - z)) / (nose - tail);
   const side = y > belt ? s.shoulder * Math.min(1, (y - belt) / rise) : s.tuck * Math.min(1, (belt - y) / drop);

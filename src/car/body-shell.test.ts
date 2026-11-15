@@ -60,3 +60,21 @@ test("a straight slab stands square to the car across the pinch, as wide as the 
     for (const face of side_faces(d, tall)) expect(`${car}: ${warp(face).toFixed(6)}`).toBe(`${car}: ${(0).toFixed(6)}`);
   }
 });
+
+test("a leaned slab's inner face moves out with height and its outer face stays where it was", () => {
+  const d = DESIGNS.coupe;
+  const points: Slab["points"] = [[0.4, 0.3], [0.4, 0.5], [-0.4, 0.5], [-0.4, 0.3]];
+  const lean = { low: 0.3, high: 0.5, out: 0.1 };
+  const xs = (s: Slab) =>
+    fitted_slab(d, s).flatMap((piece) => {
+      const position = piece.getAttribute("position");
+      return Array.from({ length: position.count }, (_, i) => [Math.abs(position.getX(i)), position.getY(i)]);
+    });
+  const plain = xs({ points, from: 0.5, to: 0.8 });
+  const leaned = xs({ points, from: 0.5, to: 0.8, lean });
+  for (const [k, [x, y]] of leaned.entries()) {
+    const was = plain[k][0];
+    const want = Math.abs(was - 0.5) < 1e-6 ? 0.5 + lean.out * Math.max(0, Math.min(1, (y - lean.low) / (lean.high - lean.low))) : was;
+    expect(x).toBeCloseTo(want, 6);
+  }
+});

@@ -45,6 +45,11 @@ export interface Slab {
    * pinch starts: a swept wing riser that crosses the fold. It still leans with the shoulder.
    */
   straight?: number;
+  /**
+   * The inner face slopes down to what it stands on instead of rising as a wall: it stands at `from` up to height `low`
+   * and has moved `out` metres outward by `high`, so a hip or wing crown rolls into the deck beside it.
+   */
+  lean?: { low: number; high: number; out: number };
 }
 
 export interface Arches {
@@ -76,6 +81,8 @@ export interface Section {
   belt: Point;
   /** Share of the half width the body top loses over the shoulder. */
   shoulder: number;
+  /** Height over the belt the shoulder takes to lean in fully; the body top over the highest belt when unset. */
+  rise?: number;
   /** Share lost at the sill. */
   tuck: number;
   /** [share lost at the tip, metres it takes] for the nose and the tail. */
