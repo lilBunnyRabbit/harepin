@@ -236,7 +236,7 @@ Pack output, one block per trial in the export's shape and key order, so a ` sim
 | hub, hill, grid, kicker | none yet (` sim -`): landings and seams need the bot on the lab world (plan P2b), the hill a sloped scenario | |
 
 - Scenarios run on the flat ground named after the lane surface (`scripts/grounds.ts`, every lab surface has one). The drift scenarios only drive asphalt; their line ends `on asphalt` when the lane is another surface.
-- Keys steer with the trial's `aids.steer_mode` (Smooth by default) and, at slalom and hairpin, TCS from `aids.tcs`; every other aid is the scenario's own, not the trial's.
+- Keys steer with the trial's `aids.steer_mode` (Smooth by default) and, at slalom, hairpin, drift and eight, TCS from `aids.tcs`; every other aid is the scenario's own, not the trial's.
 - `d` is the delta against the base: `--base`, else the pack's first trial that ran the same scenarios (the table's rows), whatever its station. A trial with nothing in common with its base prints no `d`.
 - `est` and the `#end` budget come from `src/lab/budget.ts`: a lap or run per station (skidpad laps grow by `sqrt(1 / grip)` on low grip), a time goal's seconds, 45 s per card. Caps: 10 trials and 20 minutes; `pack.test.ts` holds every committed pack to them.
 - A car that never reaches the speed a number is named after gets no number: no `stop` key on the sim line and `-` in the matrix's 100-0 and kick columns. `0-100=20` is the 20 s limit (never reached 100 km/h); the matrix's `kick` -1 never settled.

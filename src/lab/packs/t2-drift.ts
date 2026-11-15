@@ -10,6 +10,9 @@ if (!DRIFT_PARTS) throw new Error(`bad Drift preset code ${DRIFT}`);
 const ROTATE = "drift-rotate";
 const ANGLE = "drift-angle";
 const LIVELY = "drift-tcs-off";
+const OLD_CAP = "drift-old-cap";
+/** Round 1's side-grip cap: r3 rated it best on the hairpins, so it stays their reference. */
+const OLD_SIDE_SX = 2;
 /**
  * r3 "hits a cap on angle": a weaker swing damper and a later side-grip cap let a held key carry the tail past 60 degrees
  * and on into a spin (sim: held turn key 3 s, 36 to 87 degrees), with no spin catch in a held drift.
@@ -26,6 +29,8 @@ interface Variant {
   aids: Aids;
   question: string;
   feel: string;
+  /** The one place this variant runs at; absent runs at every place. */
+  only?: string;
 }
 
 const ON: Aids = { assist: false, stability: false, tcs: true };
@@ -53,6 +58,14 @@ const VARIANTS: Variant[] = [
     feel: "TCS on, the r3 start, but no cap on angle: keep the key in and it turns in further, then spins",
   },
   {
+    id: "old-cap",
+    car: `${LAB_CAR}${OLD_CAP}`,
+    aids: ON,
+    question: "r3's best on the hairpins: do the new ones beat it?",
+    feel: "TCS on, the r3 drift with round 1's side-grip cap, as rated best on the hairpins in r3",
+    only: "hairpins",
+  },
+  {
     id: "tcs-off",
     car: `${LAB_CAR}${LIVELY}`,
     aids: { assist: false, stability: false, tcs: false },
@@ -78,14 +91,15 @@ const pack: Pack = {
   rev: 4,
   title: "Drift r4",
   aim: "r3: the drift held but needed the handbrake to start, stopped at one angle, pushed wide in hairpins, and TCS off was ice. Does the gas start it, the key turn it past the hold into a spin, and does TCS off stay drivable?",
-  brief: "The Drift preset, steering assist and stability off, on the drift circle and the hairpins. At each place the r3 drift goes first, then gas start with no angle cap, then no angle cap alone, then TCS off with half the hold. Rate turn-in, hold and exit.",
+  brief: "The Drift preset, steering assist and stability off, on the drift circle and the hairpins. At each place the r3 drift goes first, then gas start with no angle cap, then no angle cap alone, then TCS off with half the hold; the hairpins add r3's old cap. Rate turn-in, hold and exit.",
   cars: {
     [ROTATE]: { name: "Gas start, no angle cap", spec: { ...CARS.muscle, ...FREE_ANGLE, ...GAS_ENTRY }, look: "muscle", parts: DRIFT_PARTS },
     [ANGLE]: { name: "No angle cap", spec: { ...CARS.muscle, ...FREE_ANGLE }, look: "muscle", parts: DRIFT_PARTS },
+    [OLD_CAP]: { name: "r3 drift, old cap", spec: { ...CARS.muscle, drift_side_sx: OLD_SIDE_SX }, look: "muscle", parts: DRIFT_PARTS },
     [LIVELY]: { name: "TCS off, half hold", spec: { ...CARS.muscle, ...OFF_HOLD }, look: "muscle", parts: DRIFT_PARTS },
   },
   trials: PLACES.flatMap((place) =>
-    VARIANTS.map((v, i): Trial => ({
+    VARIANTS.filter((v) => !v.only || v.only === place.id).map((v, i): Trial => ({
       id: `${place.id}-${v.id}`,
       car: v.car,
       aids: v.aids,

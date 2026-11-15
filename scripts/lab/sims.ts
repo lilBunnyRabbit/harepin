@@ -55,16 +55,17 @@ const straight: StationSim = {
   },
 };
 
-// Balanced aids, Smooth keys, from 60 km/h aiming 30 degrees: the drift.ts --catch row a keyboard drifter starts from.
+// Balanced aids but the trial's TCS, Smooth keys, from 60 km/h aiming 30 degrees: the drift.ts --catch row a keyboard drifter starts from.
 const slide: StationSim = {
   scenario: "slide",
   asphalt: true,
-  run: (rig) => {
-    const held = catch_drift(rig.spec, 60, 30);
+  run: (rig, _, tcs) => {
+    const aids = { tcs, assist: false, stability: true };
+    const held = catch_drift(rig.spec, 60, 30, Infinity, aids);
     return [
       ["slip", held.peak],
       ["held", held.held],
-      ["rec", catch_drift(rig.spec, 60, 30, 1.5).straight],
+      ["rec", catch_drift(rig.spec, 60, 30, 1.5, aids).straight],
     ];
   },
 };
