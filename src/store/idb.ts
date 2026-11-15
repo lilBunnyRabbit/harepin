@@ -22,7 +22,9 @@ export const HAREPIN_DB: IdbSchema = {
   ],
 };
 
-const OPEN_TIMEOUT_MS = 3000;
+// Only a hang or a blocked upgrade outlasts it: a working open on a busy boot was measured past 3 s. The boot does not
+// wait on it; the records keep their own wait (`load_records`).
+const OPEN_TIMEOUT_MS = 10_000;
 
 const done = <T>(request: IDBRequest<T>) =>
   new Promise<T>((resolve, reject) => {
