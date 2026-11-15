@@ -445,3 +445,44 @@ Open after this round:
 - Easy went from 0 / 0 to 2 spins, 3 resets, 5 reverses and a 15.7 m/s hit on b2910aa; hard's resets 6 -> 7. Not traced yet (`ai-why.ts` per seed is the next step).
 - The AI cars grid in `season.field` order around the player's slot, not by the table: a driver second on points can start behind the player in third. Ordering them needs `event_field` and `event_result` to agree on one order for the whole event.
 - The grid slot and the retire are covered by `field.test.ts` and `series.test.ts` only; a knockout in game is not driven by eye.
+
+### Owner r3: corner speed, judder, grid at once (t296, 2026-11-15)
+
+Owner r3 (`docs/lab/sessions/ai-field.r3.2026-11-15.txt`) and the series build: better starts, passing and line holding, but still easy ("cars slow down way too much on turns"), AI cars twitch a little (mostly close behind the player, in view), a lag before a series race's cars pop in.
+
+| Piece | Where |
+|---|---|
+| Corner speed | `LINE_GRIP` 5.5 -> 6 m/s² (`ai/line.ts`). The coupe holds 0.94 g (9.2 m/s²) on the skidpad, so the plan sat at 60% of the car; the pursuit steering is what limits it, not the tyres |
+| Judder | AI cars drew at their last physics step while the player's car draws between its last two at the frame's blend: a car moves a whole number of 360 Hz steps a frame (2 or 3 at 144 Hz), so against the player it jumped 0.5x-1.5x its speed frame to frame. `SimHost.field_from` keeps each AI car's pose before the frame's last step, the worker packet carries it (`SIM_PACKET` 3), `FieldView` lerps at `Sim.blend`, and a reset is drawn where it lands. Median frame-to-frame judder of the nearest car against the drawn player (island seed 4, 90 s): 50 -> 1.2 mm at 144 Hz, 23 -> 1.4 mm at 60 Hz. Not the far/near switch: a car inside 100 m or on screen never coasts |
+| Lag before the cars | The field started on the race's first update: `race_line` took 320-420 ms on this desktop in that frame, then six car views were built, so the grid stood empty through a frozen frame. `FieldView` is now built with the race and draws each car parked on its slot until the sim's field has stepped; `race_line` runs in 70-130 ms (`inverse_radius` with one square root, not three `Math.hypot`). In worker mode the mirrors no longer draw at the origin before the first reply |
+| Town laps | `MAX_LAPS` 3 -> 15 in `modes/ai-race.ts`: laps still come from the route's par toward 4 min (D4), so a 0.23-0.33 km town loop runs about ten |
+| Series grid | `event_field(season, event, progress)` orders an event's drivers by the standings; `series_host` takes that order once for the cars, names and grid, and `event_result` maps the race through it |
+
+`bun scripts/ai-race.ts field all coupe 6 2 3 3 <difficulty>`, 25 races each, b2910aa-equivalent before (e3b5a6c) and after (d3cd453):
+
+| | easy before | after | normal before | after | hard before | after |
+|---|---|---|---|---|---|---|
+| Mean lap (s) | 240.0 | 234.3 | 220.4 | 215.3 | 215.2 | 210.7 |
+| Overtakes | 68 | 81 | 48 | 52 | 42 | 55 |
+| Spins | 2 | 3 | 4 | 6 | 6 | 5 |
+| Resets | 3 | 1 | 2 | 7 | 7 | 4 |
+| Reverses | 5 | 3 | 0 | 3 | 2 | 0 |
+| Hardest hit (m/s) | 15.7 | 4.8 | 10.9 | 16.4 | 10.0 | 26.1 |
+| Contacts/lap median (races over 8) | 5.0 (4) | 6.0 (5) | 5.5 (8) | 5.3 (3) | 5.5 (6) | 7.0 (9) |
+| Mean rho | 0.34 | 0.41 | 0.49 | 0.43 | 0.49 | 0.61 |
+
+Tried on normal and not kept:
+
+| `LINE_GRIP` / pass grip | Mean lap | Overtakes | Spins / resets | Hardest | Rho |
+|---|---|---|---|---|---|
+| 6.5 / x1.4 (9.1) | 211.5 | 40 | 12 / 10 | 36.4 | 0.53 |
+| 6.5 / 7.7 flat (today's) | 211.6 | 52 | 9 / 6 | 7.7 | 0.70 |
+| 6.0 / 7.7 flat | 215.7 | 46 | 10 / 6 | 32.1 | 0.44 |
+
+Solo (`ai-race.ts solo`, AI vs autolap median): 5.5 -13.7%, 6.0 -15.7% (seed 3 off the road 5.9 s), 6.5 -17.4% (2 off by under 0.5 m), 7.5 -19.0% (19 off). Braking at 3 instead of 2.5 put 8 of 25 off.
+
+Open after this round:
+
+- 6 m/s² buys about 2.5% a lap; the owner may still find corners slow. More needs the steering to hold a tighter line (pursuit aim and damping) before grip can rise: at 6.5 the field runs off the road in traffic.
+- Normal's resets 2 -> 7 and hard's hardest hit 26.1 m/s are not traced (`ai-why.ts` per seed).
+- The town circuit's par is not measured here; the lap count follows it.
