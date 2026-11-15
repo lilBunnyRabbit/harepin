@@ -7,7 +7,7 @@ export interface AiTuning {
    * Cornering grip and braking (m/s²) the line plans on, for the stock coupe at pace 1 (`grip_pace` scales other cars).
    * `line_grip` holds in a hairpin (HAIRPIN_RADIUS m and tighter), where the driver is already at full lock; it eases up to
    * `fast_grip` in a bend of FAST_RADIUS m or wider. The coupe holds 0.94 g on the skidpad: the steering is the limit, and
-   * at 7 in hairpins, 8 in fast bends or braking at 3, cars spin (3.4 a race on seeds 24-35).
+   * at 6.5 in hairpins, 7.5 in fast bends or braking at 3, cars run wide.
    */
   line_grip: number;
   fast_grip: number;
@@ -37,9 +37,9 @@ export interface AiTuning {
 }
 
 export const AI_TUNING: AiTuning = {
-  line_grip: 6.8,
-  fast_grip: 7.5,
-  line_brake: 2.7,
+  line_grip: 6,
+  fast_grip: 7,
+  line_brake: 2.5,
   late_brake: 4,
   crest_light: 0.5,
   pass_grip: 1.4,
@@ -50,7 +50,7 @@ export const AI_TUNING: AiTuning = {
   steer_damp: 1,
   rub: 0.8,
   pace: [0.96, 1.02],
-  brake_margin: [0, 0.3],
+  brake_margin: [0, 0.8],
   aggression: [[0, 0.6], [0.1, 0.8], [0.2, 1], [0.4, 1], [0.6, 1]],
   mistakes: [[0, 0.1], [0.02, 0.2], [0.05, 0.3], [0.1, 0.4], [0.2, 0.5]],
 };
