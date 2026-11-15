@@ -9,11 +9,13 @@
     state: EventState;
     score: EventScore | null;
     front: boolean;
+    /** The final's prize line; null on every other event. */
+    reward?: string | null;
     onstart: (id: string) => void;
     onpick?: () => void;
   }
 
-  let { event, n, state, score, front, onstart, onpick }: Props = $props();
+  let { event, n, state, score, front, reward = null, onstart, onpick }: Props = $props();
 </script>
 
 <article class="sc" data-state={state} data-front={front} data-final={event.final === true}>
@@ -26,6 +28,7 @@
   {#if score}<span class="sc-stamp" data-podium={state === "podium"}>{place_text(score)}</span>{/if}
   <div class="sc-body">
     <h3>{event.name}</h3>
+    {#if reward}<span class="sc-reward"><Icon name="icon-car" />{reward}</span>{/if}
     {#if front}<p>{KIND_RULES[event.kind]}</p>{/if}
     {#if state === "locked"}
       <span class="sc-lock"><Icon name="icon-lock" />{lock_line(event)}</span>
@@ -155,6 +158,21 @@
     color: var(--set-dim);
     font-size: max(var(--text-sm), 4.5cqmin);
     text-wrap: pretty;
+  }
+
+  .sc-reward {
+    --icon-size: 1em;
+    display: inline-flex;
+    align-items: center;
+    justify-self: start;
+    gap: var(--space-2);
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-full);
+    background: var(--accent);
+    color: var(--on-accent);
+    font-size: max(var(--text-sm), 4.5cqmin);
+    font-weight: 800;
+    white-space: nowrap;
   }
 
   .sc-lock,

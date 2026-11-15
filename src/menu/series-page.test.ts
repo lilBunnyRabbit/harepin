@@ -2,6 +2,7 @@ import "../../scripts/fake-dom";
 import { expect, test } from "bun:test";
 import { render } from "svelte/server";
 import { SEASON_1, empty_progress, event_states, player_of, standings, type SeriesProgress } from "../career/series";
+import { fresh_wallet } from "../career/wallet";
 import SeriesEvents from "./SeriesEvents.svelte";
 import SeriesFlow from "./SeriesFlow.svelte";
 import SeriesTable from "./SeriesTable.svelte";
@@ -31,9 +32,22 @@ test("only the endurance event lists fastest lap as a bonus", () => {
 
 test("the series rail ends on a standings card and only the front card races", () => {
   const states = event_states(season, won);
-  const props = { season, progress: won, states, table: standings(season, won), done: false, onstart: () => {}, onback: () => {}, onreset: () => {} };
+  const props = { season, progress: won, states, table: standings(season, won), done: false, wallet: fresh_wallet(), onstart: () => {}, onback: () => {}, onreset: () => {} };
   const out = render(SeriesFlow, { props }).body;
   expect(out.match(/class="sc-go/g)?.length).toBe(1);
   expect(out).toContain("Standings");
   expect(out).toContain("data-adjust");
+});
+
+test("the coverflow shows the player's credits, the class cap, the replay round and the final's reward", () => {
+  const progress = { ...empty_progress(season, 1) };
+  const props = { season, progress, states: event_states(season, progress), table: standings(season, progress), done: false, onstart: () => {}, onback: () => {}, onreset: () => {} };
+  const fresh = render(SeriesFlow, { props: { ...props, wallet: { ...fresh_wallet(), credits: 12500 } } }).body;
+  expect(fresh).toContain("12,500 cr");
+  expect(fresh).toContain("Class C · your own cars");
+  expect(fresh).toContain("Run 2");
+  expect(fresh).toContain("Sajin + 5,000 cr");
+  const owned = render(SeriesFlow, { props: { ...props, wallet: { ...fresh_wallet(), cars: [...fresh_wallet().cars, season.reward.car] } } }).body;
+  expect(owned).not.toContain("Sajin +");
+  expect(owned).toContain("+5,000 cr");
 });

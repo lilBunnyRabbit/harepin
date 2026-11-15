@@ -1,4 +1,7 @@
 import { ordinal, place_of, player_of, result_points, type EventState, type Season, type SeriesEvent, type SeriesProgress, type Standing } from "../career/series";
+import { credits_text, type WalletState } from "../career/wallet";
+import { CARS } from "../car/cars";
+import { CLASS_LABELS } from "../car/pi";
 
 export interface SeriesView {
   season: Season;
@@ -6,6 +9,7 @@ export interface SeriesView {
   states: readonly EventState[];
   table: readonly Standing[];
   done: boolean;
+  wallet: WalletState;
   onstart: (id: string) => void;
   onback: () => void;
   onreset: () => void;
@@ -33,6 +37,16 @@ export function next_event(season: Season, progress: SeriesProgress, states: rea
 export const lock_line = (event: SeriesEvent) => (event.final ? "Podium every event to open" : "Any podium opens it");
 
 export const place_text = (score: EventScore) => ordinal(score.place);
+
+export const cap_line = (season: Season) => `Class ${CLASS_LABELS[season.cap]} · your own cars`;
+
+export const round_line = (progress: SeriesProgress) => (progress.round ? `Run ${progress.round + 1}` : null);
+
+/** The final's prize: the car only while the player does not own it, the credits every time the season is won. */
+export function reward_line(season: Season, wallet: WalletState): string {
+  const { car, credits } = season.reward;
+  return wallet.cars.includes(car) ? `+${credits_text(credits)}` : `${CARS[car].name} + ${credits_text(credits)}`;
+}
 
 /** Points between the player and the rival: positive when the player leads. */
 export function rival_gap(season: Season, table: readonly Standing[]): { rival: Standing; you: Standing; gap: number } | null {

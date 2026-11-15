@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
   import { ordinal, type Season, type SeriesProgress, type Standing } from "../career/series";
+  import { credits_text } from "../career/wallet";
   import SeriesBack from "./SeriesBack.svelte";
   import { duel_line, rival_gap } from "./series-view";
 
@@ -8,11 +9,12 @@
     season: Season;
     progress: SeriesProgress;
     table: readonly Standing[];
+    credits: number;
     onback: () => void;
     children?: Snippet;
   }
 
-  let { season, progress, table, onback, children }: Props = $props();
+  let { season, progress, table, credits, onback, children }: Props = $props();
 
   const ran = $derived(season.events.filter((event) => progress.results[event.id]).length);
   const rank = $derived(table.findIndex((row) => row.you) + 1);
@@ -30,6 +32,9 @@
     <b>{ran ? ordinal(rank) : "–"}</b>
     <span>{me?.points ?? 0} pts</span>
     {#if duel}<span class="sh-rival">{duel_line(duel.rival, duel.gap)}</span>{/if}
+  </div>
+  <div class="sh-me sh-cr" aria-label="Credits">
+    <b>{credits_text(credits)}</b>
   </div>
 </header>
 
@@ -76,6 +81,10 @@
 
   .sh-me b {
     font-size: var(--text-xl);
+  }
+
+  .sh-cr b {
+    color: var(--warning);
   }
 
   .sh-rival {

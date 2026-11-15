@@ -3,7 +3,7 @@
   import SeriesCard from "./SeriesCard.svelte";
   import SeriesHead from "./SeriesHead.svelte";
   import SeriesStandings from "./SeriesStandings.svelte";
-  import { event_score, next_event, place_text, step_focus, type SeriesView } from "./series-view";
+  import { cap_line, event_score, next_event, place_text, reward_line, round_line, step_focus, type SeriesView } from "./series-view";
   import { swipe } from "./series-swipe";
   import Icon from "./ui/Icon.svelte";
 
@@ -11,7 +11,9 @@
     snapTargetInline: Element | null;
   }
 
-  let { season, progress, states, table, done, onstart, onback, onreset }: SeriesView = $props();
+  let { season, progress, states, table, done, wallet, onstart, onback, onreset }: SeriesView = $props();
+
+  const round = $derived(round_line(progress));
 
   let strip = $state<HTMLOListElement>();
   let focus = $state(0);
@@ -64,7 +66,10 @@
 </script>
 
 <div class="fl" data-series>
-  <SeriesHead {season} {progress} {table} {onback} />
+  <SeriesHead {season} {progress} {table} credits={wallet.credits} {onback}>
+    <span class="fl-tag">{cap_line(season)}</span>
+    {#if round}<span class="fl-tag">{round}</span>{/if}
+  </SeriesHead>
 
   <div class="fl-stage">
     <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions, a11y_click_events_have_key_events: the strip is the pad's focus stop; its cards' buttons are click targets only -->
@@ -72,7 +77,7 @@
       {#each season.events as event, i (event.id)}
         <li data-i={i}>
           <div class="fl-card">
-            <SeriesCard {event} n={i + 1} state={states[i]} score={event_score(season, progress, event)} front={i === focus} {onstart} onpick={() => show(i)} />
+            <SeriesCard {event} n={i + 1} state={states[i]} score={event_score(season, progress, event)} front={i === focus} reward={event.final ? reward_line(season, wallet) : null} {onstart} onpick={() => show(i)} />
           </div>
         </li>
       {/each}
@@ -111,6 +116,16 @@
     gap: var(--space-3);
     height: 100%;
     min-height: 20rem;
+  }
+
+  .fl-tag {
+    padding: var(--space-1) var(--space-3);
+    border: 1px solid var(--set-line);
+    border-radius: var(--radius-full);
+    color: var(--set-dim);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    white-space: nowrap;
   }
 
   .fl-stage {

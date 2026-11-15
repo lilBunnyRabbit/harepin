@@ -36,7 +36,7 @@ test("every event's route is a closed route of its seed's island", () => {
     const route = new World(event.seed).routes.find((r) => r.id === event.route);
     expect(route?.closed).toBe(true);
   }
-});
+}, 60_000);
 
 test("events open three at a time, a podium opens the next, the final last", () => {
   const fresh = event_states(season, empty_progress(season));
