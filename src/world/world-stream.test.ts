@@ -1,5 +1,5 @@
 /// <reference types="bun" />
-import { expect, test } from "bun:test";
+import { afterEach, beforeEach, expect, spyOn, test, type Mock } from "bun:test";
 import { CHUNK, CHUNKS } from "../worldgen/chunk-grid";
 import type { ChunkBuffers, MeshTones } from "../worldgen/chunks";
 import { ORIGIN, type WorldKind } from "../worldgen/types";
@@ -7,6 +7,17 @@ import { WorldStream } from "./world-stream";
 
 const BROKEN = {} as MeshTones;
 const pick = (seed: number, kind: WorldKind) => [{ seed, kind, code: null }, { seed, kind, levels: [] }] as const;
+
+// A worker error after the plan only reaches console.error, so a test that is not about one fails on it.
+let logged: Mock<typeof console.error>;
+beforeEach(() => {
+  logged = spyOn(console, "error").mockImplementation(() => {});
+});
+afterEach(() => {
+  const errors = logged.mock.calls;
+  logged.mockRestore();
+  expect(errors).toEqual([]);
+});
 
 test("a world that fails to generate rejects open instead of hanging", async () => {
   await expect(WorldStream.open(...pick(0, "nowhere" as WorldKind), BROKEN)).rejects.toThrow(/world worker/);
@@ -16,6 +27,8 @@ test("meshing that throws after the plan rejects every wait on a missing chunk",
   const stream = await WorldStream.open(...pick(0, "island"), BROKEN);
   await expect(stream.world.tiles.whole()).rejects.toThrow(/world worker/);
   await expect(stream.world.tiles.ensure(900, 900)).rejects.toThrow(/world worker/);
+  expect(logged.mock.calls.map(([error]) => String(error))).toEqual([expect.stringContaining("world worker: TypeError")]);
+  logged.mockClear();
 }, 30_000);
 
 test("a dropped chunk comes back on request with the same tile and mesh", async () => {
