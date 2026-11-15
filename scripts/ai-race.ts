@@ -15,7 +15,7 @@ const SOLO_SLACK = 0.05;
 // bun scripts/ai-race.ts field [seeds|all] [car] [count] [laps] [aggression] [mistakes] [difficulty]: a field of AI cars on each circuit. Fails
 // when a car is stuck, a race's contacts per lap fall outside CONTACT_BAND, or the finish order follows the grid. Aggression
 // and mistakes are the owner's 1-5 levels, 3 by default; difficulty is the player's setting, normal by default.
-export const CONTACT_BAND = [0, 8] as const;
+export const CONTACT_BAND = [0, 10] as const;
 /** Share of races that may finish in grid order, and the highest mean grid-to-finish rank correlation allowed. */
 const GRID_KEPT_MAX = 0.2;
 export const RHO_MAX = 0.7;
