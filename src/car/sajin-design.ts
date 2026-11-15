@@ -91,12 +91,10 @@ const HEADS: Part[] = [on_nose({ size: [0.2, 0.08, 0.04], at: [0.125, 0.6, 2.1] 
 const LIGHT_BAR: Part = { size: [0.36, 0.06, 0.04], at: [0.18, 1.6, 0.345] };
 const LIGHT_HOUSING: Part = { size: [0.4, 0.09, 0.08], at: [0.2, 1.6, 0.3] };
 const NERF: Part[] = chain([[0.44, 0.56, 0.62], [0.62, 0.56, 0.42], [0.62, 0.56, -0.16], [0.44, 0.56, -0.34]], 0.06);
-// The spare lies on the tail bars right behind the roof, clear of the wing and its posts.
-const SPARE_TILT = 1.065;
-const SPARE_UP = 0.31;
-const spare_at = (lift: number): Triple => [0, 1.266 + SPARE_UP * Math.cos(SPARE_TILT) + lift * Math.sin(SPARE_TILT), -1.415 + SPARE_UP * Math.sin(SPARE_TILT) - lift * Math.cos(SPARE_TILT)];
-const SPARE: Part = { size: [0.8, 0.8, 0.24], at: spare_at(0), tilt: [SPARE_TILT, 0, 0], round: true };
-const SPARE_RIM: Part = { size: [0.42, 0.42, 0.03], at: spare_at(0.12), tilt: [SPARE_TILT, 0, 0], round: true };
+// The spare lies flat on the roof's cross bars behind the light bar.
+const SPARE_AT: Triple = [0, 1.7, -0.16];
+const SPARE: Part = { size: [0.8, 0.8, 0.24], at: SPARE_AT, tilt: [Math.PI / 2, 0, 0], round: true };
+const SPARE_RIM: Part = { size: [0.42, 0.42, 0.03], at: [0, SPARE_AT[1] + 0.12, SPARE_AT[2]], tilt: [Math.PI / 2, 0, 0], round: true };
 
 // A wedge grown out of the roof's rear edge, then a plane across the tail posts run straight on up: post and stay are one bar.
 const ROOF_LIP: Point[] = [[-0.4, 1.555], [-0.8, 1.64], [-0.81, 1.61], [-0.6, 1.5]];

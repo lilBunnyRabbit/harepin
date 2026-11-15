@@ -169,8 +169,6 @@ const flag = (x: number, top: number): Part => ({ size: [0.014, 0.17, 0.3], at: 
 const SAJIN: Detail[] = [
   { on: "street", cue: "Dune whip with a flag", trim: whip(0.42, 2.65), warning: [flag(0.42, 2.65)] },
   { on: "race", cue: "A second whip", trim: whip(-0.42, 2.45), warning: [flag(-0.42, 2.45)] },
-  // Behind the engine, inside the tail frame's rails and against its cross bar: clear of the coils and the trailing arms.
-  { on: "race", cue: "Jerry cans strapped in the tail frame behind the engine", red: [{ size: [0.15, 0.36, 0.26], at: [0.245, 0.69, -1.69] }] },
 ];
 
 const BUS_STACK_Z = -3.3;
