@@ -401,6 +401,7 @@ addEventListener("pointerdown", (event: PointerEvent) => {
   if (event.clientY < innerHeight * WAKE_ZONE) hud.wake();
 }, { capture: true });
 const pad_menu = new PadMenu({ settings, chat, garage_open: () => garage.is_open, notice: (text) => hud.toast(text) });
+pad_menu.start();
 settings.on_nav = (nav) => pad_menu.navigate([nav]);
 garage.on_tab = (step) => settings.step_tab(step);
 garage.on_back = () => settings.back();
