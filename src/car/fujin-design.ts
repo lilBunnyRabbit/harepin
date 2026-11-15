@@ -28,22 +28,30 @@ const FOOT: Point = [-1.74, 0.76];
 // The fin's root is as thick as this and flush with the pontoon side; the plate stands in its middle.
 const ROOT = 0.94;
 const PLATE: Point = [0.955, 0.985];
-const ROOT_SHARE = 0.5;
+const ROOT_SHARE = 0.3;
+// The endplate stands this far below the main plane's lowest point; its neck down to the root is this long at the root.
+const PLATE_UNDER = 0.04;
+const NECK = 0.15;
 const lerp = (a: Point, b: Point, t: number): Point => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
 
-// One tail fin per wing, grown out of the pontoon's tail: its top edge climbs from `lead`, runs level over the last plane to `rear`,
-// and its trailing edge runs down into the tail face. The lower half is the pontoon running on up, the upper a thin plate out of it.
-function fin(lead: Point, rear: Point): Slab[] {
+// One tail fin per wing, grown out of the pontoon's tail: the lower part is the pontoon running on up, and out of its front
+// a thin neck sweeps up into an endplate round the planes, whose top edge climbs from `lead` and runs level to `rear`.
+// Between root and endplate the fin is open: one plate from root to wing tip read as a flat slab.
+function fin(lead: Point, rear: Point, floor: number): Slab[] {
   const low: Point = [-2.2, 0.6];
+  const [front, back] = [lerp(FOOT, lead, ROOT_SHARE), lerp(TAIL, rear, ROOT_SHARE)];
+  const neck_z = front[0] - NECK;
+  const neck: Point = [neck_z, front[1] + ((back[1] - front[1]) * (front[0] - neck_z)) / (front[0] - back[0]) - 0.02];
   return [
-    { points: [FOOT, lerp(FOOT, lead, ROOT_SHARE), lerp(TAIL, rear, ROOT_SHARE), TAIL, low], from: ROOT, to: HALF },
-    { points: [FOOT, lead, [rear[0] + 0.22, rear[1]], rear, TAIL, low], from: PLATE[0], to: PLATE[1] },
+    { points: [FOOT, front, back, TAIL, low], from: ROOT, to: HALF },
+    { points: [FOOT, lead, [rear[0] + 0.22, rear[1]], rear, [rear[0] + 0.02, floor], [lead[0] - NECK, floor], neck], from: PLATE[0], to: PLATE[1] },
   ];
 }
 
 function wing(at: Point, chord: number, tilt: number, lead: Point, rear: Point, flaps: Point[][] = []): Wing {
   const main = plane(at, chord, 0.045, tilt);
-  return { paint: [], trim: [], lips: fin(lead, rear), stands: [main, ...flaps].map((points) => ({ points, from: 0, to: PLATE[0] })) };
+  const floor = Math.min(...main.map(([, y]) => y)) - PLATE_UNDER;
+  return { paint: [], trim: [], lips: fin(lead, rear, floor), stands: [main, ...flaps].map((points) => ({ points, from: 0, to: PLATE[0] })) };
 }
 
 const RACE_FLAP = plane([-2.42, 1.215], 0.19, 0.035, 0.55);
