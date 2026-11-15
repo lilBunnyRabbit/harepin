@@ -33,8 +33,17 @@ const DRIFT_CALM = 0.3;
  */
 const LET_GO_TIME = 0.3;
 const LET_GO_STEER = 0.3;
-/** Front slip angle the steer assist allows, in `peak_angle`: past peak a tyre only scrubs speed. */
+/**
+ * Front slip angle the steer assist allows, in `peak_angle`: past peak a tyre only scrubs speed. A held drift reads
+ * `CarSpec.drift_reach` instead; at 1.8 the held key into a drift turned in no tighter, as the fronts are past peak already.
+ */
 export const USEFUL_SLIP = 1.1;
+/**
+ * Body slip (rad), about 3.4 degrees, past which a rear-drive slide on full gas with the assist off and TCS on becomes a
+ * held drift, as a handbrake tap does. Held only from a launch or a tap, a power or lift-off slide met traction control's
+ * road limit: it cut the gas, the rear stopped pushing, and the car slowed and gripped up mid-slide.
+ */
+const SLIDE_HOLD = 0.06;
 /**
  * Front slip angle past the front axle's course in a launched power slide, in `peak_angle`. At full lock the fronts
  * pulled the car round a 3 m circle whose scrub held it near 10 km/h; at `USEFUL_SLIP` they still did below 20 km/h.
@@ -271,6 +280,7 @@ export class Steering {
     if (this.launched) this.hold_side = this.launch_side;
     // Faster, the tap's slide is the drift: its side is the way the tail went, as the key may already be countersteering.
     else if (!kicks && this.tap_age < TAP_WINDOW && pedal > DRIFT_INTENT && Math.abs(beta) > fade_from) this.hold_side = -Math.sign(beta);
+    else if (this.hold_side === 0 && car.tcs && !car.assist && spec.drive === "rwd" && car.gear >= 1 && !kicks && pedal > DRIFT_INTENT && brake <= 0.1 && local.z > 0 && Math.abs(beta) > SLIDE_HOLD) this.hold_side = -Math.sign(beta);
     const tail_left = Math.max(0, Math.min(1, (-(this.hold_side || side) * beta - fade_from) / (fade_to - fade_from)));
     // With the steering assist off, the countersteer key is the catch, not the end: dropping the hold for it put traction
     // control back at 0.14, the gas went to its floor and the car slowed and gripped up mid-slide. Letting go ends it.
@@ -305,7 +315,7 @@ export class Steering {
       const fade = Math.max((on_to - speed) / (on_to - on_from), (speed - off_from) / (off_to - off_from));
       // Opened into the turn, a full lock of slack still held a drift's key at 34 degrees, its course 15 degrees out.
       const free = car.drift_full_lock && !car.assist && fade >= 1 ? Infinity : spec.lock * Math.max(0, Math.min(1, fade));
-      const reach = USEFUL_SLIP * spec.peak_angle + free;
+      const reach = (this.hold_side !== 0 && drift_steer > 0 ? (spec.drift_reach ?? USEFUL_SLIP) : USEFUL_SLIP) * spec.peak_angle + free;
       // In a power slide the front axle's course swings with the tail, and pulling the fronts after it straightened them
       // under a player holding full lock.
       const near = Math.max(course - reach, Math.min(course + reach, target));

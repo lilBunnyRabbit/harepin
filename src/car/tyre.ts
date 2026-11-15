@@ -4,7 +4,7 @@ import type { CarSpec } from "./cars";
 import { USEFUL_SLIP } from "./steering";
 
 /**
- * Share of the gap between sliding and peak side grip a held drift's rears keep past their peak, with the steering assist
+ * Default `CarSpec.drift_rear_bite`. Share of the gap between sliding and peak side grip a held drift's rears keep past their peak, with the steering assist
  * off and `Car.drift_full_lock`. At sliding grip, with the fronts biting, lifting to 0.3 gas left a 90 km/h drift at 35
  * degrees rather than bringing it in (17 at 0.8), and a 20 degree drift weaved.
  */
@@ -174,7 +174,7 @@ export function tyre(car: Car, frame: StepFrame, w: Wheel, dt: number, ground: G
     // Held into the turn past its useful slip, a front bites as at that slip: the wheel shows full lock, the tyre
     // does not scrub. At full lock it sat 50-60 degrees past its course and the drift ran wide.
     tmp.copy(point_vel).applyQuaternion(frame.inv);
-    const useful = Math.atan2(-tmp.x, tmp.z) + hold_side * USEFUL_SLIP * spec.peak_angle;
+    const useful = Math.atan2(-tmp.x, tmp.z) + hold_side * (spec.drift_reach ?? USEFUL_SLIP) * spec.peak_angle;
     if (hold_side * w.angle > hold_side * useful) tyre_angle = w.angle + (useful - w.angle) * drift_bite;
   }
   steer_q.setFromAxisAngle(Y, -tyre_angle);
@@ -219,7 +219,7 @@ export function tyre(car: Car, frame: StepFrame, w: Wheel, dt: number, ground: G
   const side_sx = Math.max(-cap, Math.min(cap, sx));
   let fy = combined_y(side_sx, sy) * peak;
   const sliding = Math.hypot(side_sx, sy);
-  if (drift_bite > 0 && !axle.steer && sliding > 1) fy += ((sy / sliding) * peak - fy) * DRIFT_REAR_BITE * drift_bite;
+  if (drift_bite > 0 && !axle.steer && sliding > 1) fy += ((sy / sliding) * peak - fy) * (spec.drift_rear_bite ?? DRIFT_REAR_BITE) * drift_bite;
   w.slip = sx * peak_slip;
   const locking = car.abs && brake > 0.1 && w.slip < -car.abs_slip * w.peak && Math.abs(v_long) > 2;
   w.abs_factor = locking ? Math.max(0.2, w.abs_factor - 25 * dt) : Math.min(1, w.abs_factor + 12 * dt);

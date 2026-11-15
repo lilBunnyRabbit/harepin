@@ -99,6 +99,11 @@ export interface CarSpec {
   grip_grass?: number;
   /** The car's `mu` on its stock tyres, when a tyre part changed it: loose ground never slides better than stock tyres on asphalt. */
   stock_mu?: number;
+  /** Held-drift helpers (`car.ts`, `tyre.ts`, `steering.ts`); absent is the shared default there. */
+  drift_damp?: number;
+  drift_rear_bite?: number;
+  drift_side_sx?: number;
+  drift_reach?: number;
 }
 
 export type CarId = BodyStyle;

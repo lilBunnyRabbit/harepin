@@ -41,6 +41,14 @@ const ABS_SLIP = 0.1;
 const TCS_LOW_SPEED = 15;
 /** Weight of a driven rear's sideways slip in traction control's slip: at 1.4 it cuts in at 0.9 of the peak slip angle. */
 const TCS_LATERAL = 1.4;
+/**
+ * Wheelspin (in `peak_slip`) by which a driven wheel in a held drift outspins its pair before traction control brakes it,
+ * as a limited-slip diff would. Open, the unloaded inner rear flared to the limiter and the loaded one, at a fifth of its
+ * spin, barely pushed: a 50 km/h drift on full gas bled to 37 km/h in 5 s.
+ */
+const HOLD_SPLIT = 0.3;
+/** Speed (m/s), about 30 km/h, under which `HOLD_SPLIT` stays off: a slide from rest pivots on the free-spinning inner rear. */
+const SPLIT_SPEED = 8.5;
 /** Traction control's slip in a launched power slide: about four times peak, enough wheelspin to break the rear loose. */
 const DRIFT_TCS_SLIP = 0.5;
 /**
@@ -51,7 +59,7 @@ const HELD_TCS_SLIP = 1.5;
 /** Body slip (rad) over which the yaw damper comes back in a launched power slide, so it stays a drift and not a spin. */
 const DRIFT_HOLD = [0.8, 1.2] as const;
 /**
- * Rate (1/s) at which a held drift's slip angle stops swinging, FH's "yaw inertia" help, on full gas; lifting lets it go.
+ * Default `CarSpec.drift_damp`. Rate (1/s) at which a held drift's slip angle stops swinging, FH's "yaw inertia" help, on full gas; lifting lets it go.
  * Without it the angle rang from straight to 50 degrees every 2.5 s on full gas, and a keyboard countersteer caught the
  * tail only to snap it straight.
  */
@@ -62,11 +70,13 @@ const DRIFT_DAMP = 4;
  */
 const DRIFT_DAMP_SLIP = [0.15, 0.35] as const;
 /**
- * Wheelspin (in `peak_slip`) past which a held drift's rear tyres stop losing side grip to it. On the full ellipse a rear
- * spinning at 0.5 kept 60% of its side grip: with the key held into the turn the tail swung from 25 to 37 degrees while the
- * arc opened, and the car slid wide. Drive is left on the full ellipse, so the gas still sets the spin and the angle.
+ * Default `CarSpec.drift_side_sx`. Wheelspin (in `peak_slip`) past which a held drift's rear tyres stop losing side grip to
+ * it. On the full ellipse a rear spinning at 0.5 kept 60% of its side grip: with the key held into the turn the tail swung
+ * from 25 to 37 degrees while the arc opened, and the car slid wide. Drive is left on the full ellipse, so the gas still
+ * sets the spin and the angle. At 2 more gas could not swing the tail wider, and a held key into the turn barely tightened
+ * the drift (lab round 1, "can't turn in more"); 4 lets the gas steer the tail again.
  */
-const DRIFT_SIDE_SX = 2;
+const DRIFT_SIDE_SX = 4;
 /**
  * Body slip (rad), about 15 to 30 degrees, over which `DRIFT_SIDE_SX` comes in. Under it the drift keeps the full ellipse:
  * applied at every angle, the rear gripped up out of a 20 degree drift. A launch keeps it too, so the kick still swings
@@ -489,6 +499,7 @@ export class Car {
     // Launched from rest on full key and full gas, the driver asks for a power slide: the lateral term and the lone-wheel
     // brake exist to keep the tail in, and they cut the gas before it could step out.
     const sideways = low && !this.launched && drift_steer === 0;
+    const split = !this.launched && !this.assist && drift_steer > 0 && speed > SPLIT_SPEED;
     const slip_limit = this.launched && drift_steer === 0 ? DRIFT_TCS_SLIP : TCS_SLIP + (HELD_TCS_SLIP - TCS_SLIP) * drift_steer;
     for (let i = 0; i < this.wheels.length; i++) {
       const w = this.wheels[i];
@@ -497,7 +508,9 @@ export class Car {
       // braked instead, as a brake-based TCS does. Cutting the engine for it starved the loaded wheel and the car bogged.
       const other = this.wheels[w.pair];
       max_slip = Math.max(max_slip, low ? Math.min(tcs_spin(w, sideways, spec.peak_slip), tcs_spin(other, sideways, spec.peak_slip)) : tcs_spin(w, sideways, spec.peak_slip));
-      const lone = sideways && w.contact && tcs_slip(w, spec.peak_slip) > TCS_SLIP && tcs_slip(other, spec.peak_slip) <= TCS_SLIP;
+      const spin = tcs_slip(w, spec.peak_slip);
+      const pair_spin = tcs_slip(other, spec.peak_slip);
+      const lone = w.contact && ((sideways && spin > TCS_SLIP && pair_spin <= TCS_SLIP) || (split && spin > pair_spin + HOLD_SPLIT));
       w.tcs_brake = lone ? Math.min(1, w.tcs_brake + 9 * dt) : Math.max(0, w.tcs_brake - 2.5 * dt);
       if (!w.contact) max_drag = Math.max(max_drag, -w.slip);
     }
@@ -580,7 +593,7 @@ export class Car {
     const side_from = DRIFT_SIDE_SLIP[0];
     const side_to = DRIFT_SIDE_SLIP[1];
     const side_hold = this.launched || this.assist ? 0 : drift_steer * Math.max(0, Math.min(1, (Math.abs(beta) - side_from) / (side_to - side_from)));
-    frame.side_cap = side_hold > 0 ? DRIFT_SIDE_SX / side_hold : Infinity;
+    frame.side_cap = side_hold > 0 ? (spec.drift_side_sx ?? DRIFT_SIDE_SX) / side_hold : Infinity;
     // At walking pace the slide is a pivot on the rears' spin: gripped up there, a launch from rest held 1.6 s, not 5.
     frame.drift_bite = this.assist || !this.drift_full_lock ? 0 : drift_steer * (1 - walking);
     for (let i = 0; i < this.wheels.length; i++) {
@@ -645,7 +658,7 @@ export class Car {
       const damp_from = DRIFT_DAMP_SLIP[0];
       const damp_to = DRIFT_DAMP_SLIP[1];
       const settle = Math.sign(swing) !== -this.steering.hold_side ? 1 : held_drift * Math.max(0, Math.min(1, (Math.abs(beta) - damp_from) / (damp_to - damp_from)));
-      body.torque.y -= swing * spec.inertia[1] * DRIFT_DAMP * Math.min(1, pedal) * settle;
+      body.torque.y -= swing * spec.inertia[1] * (spec.drift_damp ?? DRIFT_DAMP) * Math.min(1, pedal) * settle;
     }
   }
 

@@ -411,10 +411,10 @@ export interface TurnIn {
  * The owner's "can't turn in more": a 30 degree handbrake drift at 50 km/h held 5 s on binary keys and full gas, then 1 s
  * of the turn key held down. More yaw and a smaller radius under the held key is a car the driver can steer mid-drift.
  */
-export function drift_turn_in(rig: Rig, tcs: boolean): TurnIn {
+export function drift_turn_in(rig: Rig, tcs: boolean, kmh = 50): TurnIn {
   const ground = rig.ground ?? FLAT;
   const car = fresh(rig, ground, drifter(tcs));
-  get_to(car, 50, ground);
+  get_to(car, kmh, ground);
   run(car, 0.4, () => ({ ...idle, steer: 1, throttle: 1 }), ground);
   run(car, 0.3, () => ({ ...idle, steer: 1, handbrake: 1 }), ground);
   const hold = key_hold(car, 30, 5, ground);
@@ -437,11 +437,11 @@ export interface PowerCircle {
  * "Hold a drift on the gas, no handbrake": 2 s on a 0.6 key at 40 km/h, the ring's pace, then full gas and full key until
  * the tail is 25 degrees out, then binary keys aiming at 30 degrees on full gas for 6 s.
  */
-export function power_circle(rig: Rig, tcs: boolean): PowerCircle {
+export function power_circle(rig: Rig, tcs: boolean, kmh = 40): PowerCircle {
   const ground = rig.ground ?? FLAT;
   const car = fresh(rig, ground, drifter(tcs));
-  get_to(car, 40, ground);
-  run(car, 2, () => cruise(car, 40, { steer: 0.6 }), ground);
+  get_to(car, kmh, ground);
+  run(car, 2, () => cruise(car, kmh, { steer: 0.6 }), ground);
   let entry = Number.NaN;
   let t = 0;
   while (t < 3 && Number.isNaN(entry)) {
