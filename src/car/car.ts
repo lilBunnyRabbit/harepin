@@ -494,7 +494,9 @@ export class Car {
     const { pedal, speed, drift_steer } = frame;
     let max_slip = 0;
     let max_drag = 0;
-    const acting = this.tcs && pedal > 0.1 && speed > 1;
+    // From rest a rear-drive launch flared to 8-23x road speed before traction control woke at 1 m/s. All-wheel drive keeps
+    // the old gate: caught from rest, the Raijin's gas-first launch never swung its tail and it climbed 32 degree sand.
+    const acting = this.tcs && pedal > 0.1 && (speed > 1 || spec.drive === "rwd");
     const low = acting && speed < TCS_LOW_SPEED;
     // Launched from rest on full key and full gas, the driver asks for a power slide: the lateral term and the lone-wheel
     // brake exist to keep the tail in, and they cut the gas before it could step out.
