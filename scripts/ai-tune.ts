@@ -189,7 +189,7 @@ for (const p of PARAMS) console.log(`| ${p.name} | ${fmt(base.values[p.name], 3)
 console.log("");
 const columns: [string, Score][] = [["defaults (train)", base.score], ["best (train)", best.score]];
 if (check.length) {
-  const [base_check, best_check] = await evaluate([{ key: `check-base`, values: base.values }, { key: `check-g${state.gens.length}`, values: best.values }], check);
+  const [base_check, best_check] = await evaluate([{ key: "check-base", values: base.values }, { key: `check-g${state.gens.length}`, values: best.values }], check);
   columns.push(["defaults (check)", base_check], ["best (check)", best_check]);
 }
 score_rows(columns);

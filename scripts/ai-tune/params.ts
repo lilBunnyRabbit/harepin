@@ -8,9 +8,6 @@ export interface Param {
   write: (t: AiTuning, v: number) => void;
 }
 
-/** The owner level whose aggression and mistakes rows the search moves: 3, the default field's. */
-const LEVEL = 2;
-
 // aim_base indexes road points, so it is written rounded.
 export const PARAMS: readonly Param[] = [
   { name: "line_grip", lo: 5, hi: 7.5, read: (t) => t.line_grip, write: (t, v) => (t.line_grip = v) },
@@ -28,10 +25,6 @@ export const PARAMS: readonly Param[] = [
   { name: "pace_lo", lo: 0.92, hi: 1, read: (t) => t.pace[0], write: (t, v) => (t.pace[0] = v) },
   { name: "pace_hi", lo: 0.99, hi: 1.06, read: (t) => t.pace[1], write: (t, v) => (t.pace[1] = v) },
   { name: "brake_margin_hi", lo: 0, hi: 1.5, read: (t) => t.brake_margin[1], write: (t, v) => (t.brake_margin[1] = v) },
-  { name: "aggression_lo", lo: 0, hi: 0.6, read: (t) => t.aggression[LEVEL][0], write: (t, v) => (t.aggression[LEVEL][0] = v) },
-  { name: "aggression_hi", lo: 0.6, hi: 1, read: (t) => t.aggression[LEVEL][1], write: (t, v) => (t.aggression[LEVEL][1] = v) },
-  { name: "mistakes_lo", lo: 0, hi: 0.15, read: (t) => t.mistakes[LEVEL][0], write: (t, v) => (t.mistakes[LEVEL][0] = v) },
-  { name: "mistakes_hi", lo: 0.15, hi: 0.45, read: (t) => t.mistakes[LEVEL][1], write: (t, v) => (t.mistakes[LEVEL][1] = v) },
 ];
 
 export type Values = Record<string, number>;
