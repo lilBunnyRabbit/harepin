@@ -17,15 +17,6 @@ const PAD_MARGIN = 3;
 const ARROW = 1.4;
 const PAINT = 0.12;
 
-/** The pad's extent: the area and a margin round it, out to whole grid steps. */
-function pad_area(area: { u0: number; u1: number; v0: number; v1: number }): { u0: number; u1: number; v0: number; v1: number } {
-  const u0 = area.u0 - PAD_MARGIN;
-  const v0 = area.v0 - PAD_MARGIN;
-  const nu = Math.ceil((area.u1 + PAD_MARGIN - u0) / PAD_STEP);
-  const nv = Math.ceil((area.v1 + PAD_MARGIN - v0) / PAD_STEP);
-  return { u0, u1: u0 + nu * PAD_STEP, v0, v1: v0 + nv * PAD_STEP };
-}
-
 export class ParkingView {
   private readonly marks: Marks;
   private readonly target: THREE.MeshBasicMaterial;
@@ -41,9 +32,9 @@ export class ParkingView {
     area: { u0: number; u1: number; v0: number; v1: number },
   ) {
     this.marks = new Marks(ground);
-    const pad = pad_area(area);
-    this.laid = laid_pad(site.x, site.z, site.heading, pad, PAD_LIFT);
-    this.root.add(this.pad(pad));
+    const pad = this.pad(area);
+    this.laid = pad.laid;
+    this.root.add(pad.mesh);
     for (const bay of level.lines) this.root.add(this.bay_line(bay, this.marks.paint(tones.line, 0.7)));
     this.target = this.marks.paint(brand.accent, 1);
     this.root.add(this.bay_line(level.bay, this.target));
@@ -139,15 +130,18 @@ export class ParkingView {
     );
   }
 
-  private pad(area: { u0: number; u1: number; v0: number; v1: number }): THREE.Mesh {
-    const { u0, v0 } = area;
-    const nu = Math.round((area.u1 - u0) / PAD_STEP);
-    const nv = Math.round((area.v1 - v0) / PAD_STEP);
+  private pad(area: { u0: number; u1: number; v0: number; v1: number }): { mesh: THREE.Mesh; laid: LaidPad } {
+    const u0 = area.u0 - PAD_MARGIN;
+    const v0 = area.v0 - PAD_MARGIN;
+    const nu = Math.ceil((area.u1 + PAD_MARGIN - u0) / PAD_STEP);
+    const nv = Math.ceil((area.v1 + PAD_MARGIN - v0) / PAD_STEP);
     const positions: number[] = [];
+    const heights = new Float64Array((nu + 1) * (nv + 1));
     for (let j = 0; j <= nv; j++)
       for (let i = 0; i <= nu; i++) {
         const p = this.point(u0 + i * PAD_STEP, v0 + j * PAD_STEP, PAD_LIFT);
         positions.push(p.x, p.y, p.z);
+        heights[j * (nu + 1) + i] = p.y;
       }
     const index: number[] = [];
     for (let j = 0; j < nv; j++)
@@ -164,7 +158,7 @@ export class ParkingView {
     const material = this.marks.track(new THREE.MeshLambertMaterial({ color: color(tones.asphalt), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
     const mesh = new THREE.Mesh(geometry, material);
     mesh.receiveShadow = true;
-    return mesh;
+    return { mesh, laid: laid_pad(this.site.x, this.site.z, this.site.heading, { u0, v0, step: PAD_STEP, nu, nv }, heights) };
   }
 
   get root(): THREE.Group {

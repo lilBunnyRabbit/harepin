@@ -163,32 +163,48 @@ export function paving_lift(lots: readonly PavedLot[], x: number, z: number): nu
   return lift;
 }
 
-/** A pad a mode lays for a while: a rectangle `u0`-`u1` by `v0`-`v1` in its own frame turned by `heading` about (`x`, `z`), drawn `lift` over whatever is drawn under it. */
+/**
+ * A pad a mode lays for a while: a grid of `nu` by `nv` cells `step` on a side from (`u0`, `v0`), in a frame turned by
+ * `heading` about (`x`, `z`), with the height its mesh is drawn at on every node. Each cell splits into two triangles as
+ * the mesh lays it, so a tyre stands on the pad's own surface, not on the ground it was sampled from.
+ */
 export interface LaidPad {
   x: number;
   z: number;
   cos: number;
   sin: number;
   u0: number;
-  u1: number;
   v0: number;
-  v1: number;
-  lift: number;
+  step: number;
+  nu: number;
+  nv: number;
+  /** Node (`i`, `j`) at `j * (nu + 1) + i`, metres. */
+  heights: Float64Array;
 }
 
-export function laid_pad(x: number, z: number, heading: number, area: { u0: number; u1: number; v0: number; v1: number }, lift: number): LaidPad {
-  return { x, z, cos: Math.cos(heading), sin: Math.sin(heading), ...area, lift };
+export function laid_pad(x: number, z: number, heading: number, grid: { u0: number; v0: number; step: number; nu: number; nv: number }, heights: Float64Array): LaidPad {
+  return { x, z, cos: Math.cos(heading), sin: Math.sin(heading), ...grid, heights };
 }
 
-/** How far the laid pads at (`x`, `z`) stand over the drawn ground under them, 0 off every pad. */
-export function laid_lift(pads: readonly LaidPad[], x: number, z: number): number {
-  let lift = 0;
+/** Height the laid pads are drawn at over (`x`, `z`), the highest where they overlap; -Infinity off every pad. */
+export function laid_height(pads: readonly LaidPad[], x: number, z: number): number {
+  let top = -Infinity;
   for (const pad of pads) {
     const dx = x - pad.x;
     const dz = z - pad.z;
-    const u = dx * pad.cos - dz * pad.sin;
-    const v = dx * pad.sin + dz * pad.cos;
-    if (u >= pad.u0 && u <= pad.u1 && v >= pad.v0 && v <= pad.v1 && pad.lift > lift) lift = pad.lift;
+    const fu = (dx * pad.cos - dz * pad.sin - pad.u0) / pad.step;
+    const fv = (dx * pad.sin + dz * pad.cos - pad.v0) / pad.step;
+    if (!(fu >= 0 && fu <= pad.nu && fv >= 0 && fv <= pad.nv)) continue;
+    const i = Math.min(Math.floor(fu), pad.nu - 1);
+    const j = Math.min(Math.floor(fv), pad.nv - 1);
+    const u = fu - i;
+    const v = fv - j;
+    const a = j * (pad.nu + 1) + i;
+    const b = a + pad.nu + 1;
+    const h = pad.heights;
+    // The mesh's triangles: (a, b, a + 1) below the cell's diagonal, (a + 1, b, b + 1) above it.
+    const y = u + v <= 1 ? h[a] + (h[a + 1] - h[a]) * u + (h[b] - h[a]) * v : h[b + 1] + (h[b] - h[b + 1]) * (1 - u) + (h[a + 1] - h[b + 1]) * (1 - v);
+    if (y > top) top = y;
   }
-  return lift;
+  return top;
 }
