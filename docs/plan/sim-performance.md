@@ -414,3 +414,21 @@ Vite preview build, headless Chrome (rAF at ~134 Hz), island seed 1, coupe, thro
 - The 6-car field costs main 0.55 ms a frame at 1x (5.7 ms at 4x) over solo. The worker takes 0.11 (2.9) of it. The rest is drawing six more `CarView`s: phase 3 needs a cheaper AI car view (fewer draws, LOD, the far-AI follower), or the frame stays view-bound.
 - Solo gains nothing on main: one car's steps (about 0.05 ms a frame at 1x) are what the post, the message task and the mirror read cost. §4's 88-90% was sim time alone; these numbers are the whole main thread.
 - The 4x rows carry §4's caveats: the throttle does not reach the worker and inflates short tasks, so run-to-run spread is ±2 ms. The phone (S24+, frame time with 6 AI, worker on vs off) is the number that decides the default.
+
+## AI race frame time (t277)
+
+Phase 3's free-play race (`?airace=circuit`, `src/modes/ai-race.ts`) with the two phase 3 savings in: AI cars past 75 m from the camera draw as one baked mesh (`car/far-view.ts`, one draw call, no shadow), and past 120 m from the player and off screen they coast on their line with no physics (H7, `Driver.coast`).
+
+Vite preview of a `--mode review` build, headless Chrome, 1440 x 900, island seed 0, circuit, CPU throttle 4x. `?aidrive` drives the player's car with the field's own driver; `?aicars=1` is the baseline, since the autopilot needs a field. CDP `TaskDuration` over 12 s, divided by frames; two runs each. "start" measures from 8 s after the lights show (the pack still bunched, every car close and on the physics); "60 s" from 60 s in (the pack strung out over a few hundred metres). Script: `.t277/perf.ts` (untracked).
+
+| | CPU throttle | sim on main | `?simworker` |
+|---|---|---|---|
+| 1 AI, start | 4x | 30.2 (29.8-30.5), 33 fps | |
+| 6 AI, start | 4x | 34.4 (34.4-34.5), 29 fps | 30.1 (29.0-31.2), 33 fps |
+| 1 AI, 60 s | 4x | 34.5 (32.5-36.6), 29 fps | |
+| 6 AI, 60 s | 4x | 35.9 (34.0-37.8), 27 fps | 30.1 (29.7-30.6), 32 fps |
+
+- Five more AI cars cost main 4.2 ms a frame with the pack bunched at the start and 1.4 ms (inside the ±2 ms spread) once it strings out. With the sim in the worker both rows sit at the 1-AI baseline on main.
+- The baseline is not t276's 13.8 ms solo row: this is the circuit start in a race, with its marks, beams and cones, and a different machine state. Compare rows within this table only.
+- A CPU profile at 1x has JavaScript at a few percent: 41% `(program)` (GL submission and compositing) and 30% idle. The race scene is draw-bound before the AI adds anything.
+- The phone (S24+, J6/J7) is still the number that decides; not measured here.

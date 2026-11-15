@@ -346,3 +346,30 @@ Open after this round:
 - 7 x 2 overtakes 40 against the old 44 (see above).
 - Level 5's 15.2 m/s is a car braking flat out (cap 3.6 m/s) into the back of one that had just hit a wall, 4 m apart, on seed 3 lap 0.
 - Jump pace for a car yielding into a kicker is unsolved: single file still brakes it to the car ahead's pace. Kicker spins and resets stay 0-1 over every run here; seed 2 at 7 x 2 is the known case (§9 H9).
+
+### Phase 3: one AI race in free play (t277, 2026-11-16)
+
+Behind `?airace` in dev and review builds only (`REVIEW_BUILD`); `?airace=<level>` starts one at load. Career, Runs and lobby races never get a field (`ModeCtx.field` is null there).
+
+| Piece | Where |
+|---|---|
+| Race run | `modes/ai-race.ts`: a race level on a closed route of a compact world without rails runs against the field instead of the dev ghost (H2). Nothing is recorded (O9) |
+| Laps | from the route's par toward 4 min (D4), at most 3: an island circuit lap is 4-5 min, so D3's three laps would be a 13 min race. Every island circuit gets 1 lap |
+| Grid | `grid_spot` in `ai/field.ts`: the AI on slots 0-5, the player last; three lights over the 3 s countdown (`modes/race-lights.ts`) |
+| HUD | the run card's "more" slot: `P3/7 · +1.2 s · lap 1/1`; P1 shows `lead 0.8 s`. Gap = how long ago the car ahead stood where the player is now (`ai/standings.ts`) |
+| Finish order | the result card's standings list, the player highlighted; cars still racing read "racing" and fill in as they cross the line |
+| Field cars | `ai/field-pick.ts` (O6): presets of the player's class, the closest rating first, cycled; under the class only when it has none. Each car its own paint and number |
+| Player in the field | the field tracks the player along the road (`Field.progress`, sent after the AI poses in the sim packet), sees it in the awareness, and never resets a car onto it. A garage swap keeps the player's place |
+| Far AI (H7) | past 120 m from the player and outside the view (padded 30 m) a car coasts on its line at its pace, under the awareness's cap; inside 100 m or in view it is parked back on the physics at that speed and gear (`Driver.coast` / `resume`) |
+| Far view | past 75 m from the camera a car draws as its view baked into one matte mesh (`car/far-view.ts`) |
+| Dev | `?aidrive`: the field's driver drives the player's car (shots, frame time). `?aicars=1-6`: field size |
+
+Proof: `src/ai/field.test.ts` (coasting cars keep lapping and resume without a reset or spin; seen cars never coast; a swap keeps the player tracked), `standings.test.ts`, `field-pick.test.ts`, `src/sim/sim.test.ts` (worker and main bit-identical with a raced field, the seen mask and a stop). Without a rival the field runs exactly as before, so the headless `ai-race.ts` numbers above stand. Shots in `.t277/` (untracked): grid, mid-race and finish card at 1440 x 900 and an 844 x 390 phone. Frame time: `sim-performance.md`, "AI race frame time".
+
+Open after phase 3:
+
+- D3 (3 laps) against D4 (4 min): on island circuits they cannot both hold. Built as D4.
+- No difficulty setting (H4) and no level choice in game: the field is level 3 (H5, H6).
+- Lab trials with a field (phase 4, H8) are not built.
+- The resume hands a car back wherever the switch fires, not on a straight; off screen and padded, so not seen.
+- The phone frame time (S24+) is not measured.
