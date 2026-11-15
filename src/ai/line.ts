@@ -33,6 +33,8 @@ const RELAX_GAIN = 0.3;
 export const CURVE_SPAN = 5;
 /** Road points either side a crest's vertical curvature is read over. */
 const CREST_SPAN = 10;
+/** Most load (share of g) a crest takes off the plan: past it the car is near its take-off speed, which on a straight costs nothing. */
+const CREST_LIGHT = 0.5;
 /** Fastest pace over a circuit kicker, and how far before its toe (m) the line slows for it: as the autopilot takes them. */
 const JUMP_PACE = 32;
 const RAMP_LOOK = 120;
@@ -176,7 +178,7 @@ export function race_line(road: readonly RoadPoint[], ramps: readonly Ramp[], ha
     // A 9% climb into a 9% drop in a 200 m bend at 38 m/s took a third of the load, and the field spun there.
     const grip = grip_at(bend[i]);
     const reach = grip / Math.max(1e-9, Math.abs(bend[i]));
-    speed[i] = Math.min(Math.sqrt(reach / (1 + (reach * crest(road, step, i)) / GRAVITY)), ramp[i] >= 0 ? JUMP_PACE : Infinity);
+    speed[i] = Math.min(Math.sqrt(reach / (1 + Math.min(CREST_LIGHT, (reach * crest(road, step, i)) / GRAVITY))), ramp[i] >= 0 ? JUMP_PACE : Infinity);
   }
   const late = speed.slice();
   brake_curve(speed, step, LINE_BRAKE);

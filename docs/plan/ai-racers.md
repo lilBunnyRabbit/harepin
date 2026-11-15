@@ -543,5 +543,14 @@ Open after this round:
 - Rho rose to 0.61 / 0.65 (normal / hard): with less time lost in corners, pace differences decide less and the grid more. Still under `RHO_MAX` 0.7.
 - Hairpins stay at 6 m/s², lock-limited. More there means a different wheel law (full lock earlier, entry speed from the lock), not more grip.
 - Seed 16's lone slide on a 12% climb and seed 18's in a dip are not traced.
-- The crest term also caps straight crests, at the speed the car would leave the ground (`sqrt(g / k)`: about 33 m/s over a 9% climb into a 9% drop); the autopilot has no such braking point. Measured as is.
+- The crest term also caps straight crests, at the speed the car would leave the ground (`sqrt(g / k)`: about 33 m/s over a 9% climb into a 9% drop); the autopilot has no such braking point. Fixed below.
 - The town circuit's par is still not measured in a race here; a review's count on seeds 0-4 gives 240-328 m, par 23-28.5 s, so 8-10 laps.
+
+Lead's calls on the open list:
+
+| Commit | Change |
+|---|---|
+| 208893f | `CONTACT_BAND` 0-8 -> 0-10 contacts per lap in `ai-race.ts` |
+| this one | A crest takes at most `CREST_LIGHT` 0.5 g of load off the corner plan: on a straight the plan no longer brakes for the take-off speed, and seed 7's bend crest (about a third light) plans as before |
+
+Normal, 25 races, on the final code: mean lap 211.8 s (212.1 before the cap), overtakes 54, spins 2, resets 2, reverses 0, hardest hit 11.4 m/s, contacts/lap median 7.5 (max 14.0, 5 races over 10), mean rho 0.55, stuck 0. Five races over the new band still make `ai-race.ts field` exit 1.
