@@ -73,14 +73,14 @@ import { world_look } from "./worlds/world-def";
 import { custom_code, map_code, pick_problem, read_pick } from "./worldgen/kinds/map-code";
 import { map_note } from "./menu/map-note";
 import { plain_map } from "./worldgen/kinds/kinds";
-import { review_wanted } from "./review/params";
+import { REVIEW_BUILD, review_wanted } from "./review/params";
 import { HudSheet } from "./hud/hud-sheet";
 import { StuckPrompt } from "./hud/stuck-prompt";
 import { pushing } from "./hud/stuck";
 import { LocalSim, SIM_WORKER_PARAM, WorkerSim, type Sim } from "./sim/sim-client";
 import { DT, FrameKind, SimHost, type FrameRequest } from "./sim/sim-host";
 import { WorldJournal } from "./world/world-journal";
-import { FIELD_PARAM, FieldView } from "./ai/field-view";
+import { AI_DRIVE_PARAM, AI_RACE_PARAM, FieldView } from "./ai/field-view";
 import "./style.css";
 
 const params = new URLSearchParams(location.search);
@@ -88,6 +88,9 @@ const room = clean_room(params.get("room")) ?? LOBBY_ROOM;
 const event = event_of(params.get(EVENT_PARAM));
 const run = event ? null : run_of(params.get(RUN_PARAM));
 const lab_id = params.get(LAB_PARAM);
+// `?airace` (dev and review builds): free-play races on a circuit run against an AI field; `?airace=<level>` starts one.
+const ai_race = REVIEW_BUILD && params.has(AI_RACE_PARAM);
+const ai_level = ai_race ? params.get(AI_RACE_PARAM) : null;
 // Any peer on the map can call a lobby race, and that ends a mode run: an event link without a room of its own runs
 // alone in an unlisted room, as does a review shot, which no peer should drive into. The menu still names `room`, so
 // the next world picked lands back in it.
@@ -445,6 +448,7 @@ modes.save_car = (code) => {
 };
 hud.run_route = () => modes.route;
 hud.in_run = () => modes.active;
+if (ai_race) modes.field_host = { sim, build: () => garage.build, autopilot: params.has(AI_DRIVE_PARAM) };
 modes.start();
 updater.start();
 const system_back = new SystemBack(
@@ -525,6 +529,7 @@ if (event && on_this_map(event)) modes.play_event(event);
 else if (event) goal_toasts.push("This event's map did not load", MAP_NOTE_MS);
 if (run && run_on_map(run)) play_run(run);
 else if (run) goal_toasts.push("This run's map did not load", MAP_NOTE_MS);
+if (ai_level) modes.play(ai_level);
 // After `markers`: the Play page reads its map markers as soon as the menu opens.
 const guide_step = params.get(GUIDE_PARAM);
 if (guide_step !== null) {
@@ -532,7 +537,7 @@ if (guide_step !== null) {
   clean.searchParams.delete(GUIDE_PARAM);
   window.history.replaceState(window.history.state, "", clean);
   settings.open_guide("look", guide_step === ROLLED_VISIT);
-} else if (!take_drive() && !event && !run && !review && lab_id === null) {
+} else if (!take_drive() && !event && !run && !review && lab_id === null && !ai_level) {
   if (prefs.guide_seen) settings.open();
   else settings.open_guide();
 }

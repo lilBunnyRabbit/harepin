@@ -6,6 +6,7 @@ import { turn_to, type Driven, type Finish, type ModeCtx, type ModeDef, type Mod
 import { drift_stars } from "./drift";
 import { COUNTDOWN_MS, RaceRun, RaceStatus, TrapRun, kmh, race_course, race_levels, trap_points, type RaceCourse, type RaceLevel } from "./races";
 import { RaceView } from "./race-view";
+import { AiRace } from "./ai-race";
 import { best_line, line, penalty_text, result_title, time_lines } from "./result";
 import { SILVER_SHARE, grade, par_thresholds } from "./track";
 
@@ -213,6 +214,10 @@ export const RACE_MODE: ModeDef<RaceLevel> = {
   levels: (world) => race_levels(world.routes, WORLDS[world.kind].map_label, world.tiles.streamed),
   start(ctx, level) {
     const route = ctx.world.routes.find((r) => r.id === (level.trap ?? level.id));
-    return route ? new Race(ctx, level, race_course(route)) : null;
+    if (!route) return null;
+    const field = ctx.field();
+    // A streamed world holds ground only round the player, and an AI car seen far off still needs it under its wheels.
+    if (field && route.closed && !level.trap && !ctx.world.tiles.streamed) return new AiRace(ctx, field, level, race_course(route));
+    return new Race(ctx, level, race_course(route));
   },
 };

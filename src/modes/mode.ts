@@ -1,5 +1,7 @@
 import type * as THREE from "three";
+import type { Build } from "../car/build";
 import type { CarSpec } from "../car/cars";
+import type { Sim } from "../sim/sim-client";
 import type { World } from "../world/world";
 import type { Body, Pose } from "./gymkhana";
 import type { Thresholds, Track } from "./track";
@@ -35,6 +37,16 @@ export interface Finish {
   lines: HTMLElement[];
   /** Gymkhana and parking show their card without the chime. */
   quiet?: boolean;
+  /** Rows of a finish order, kept current by the run while the card shows. */
+  standings?: HTMLElement[];
+}
+
+/** What a race needs to run an AI field: the sim hosting it, and the player's car its presets match. */
+export interface FieldHost {
+  readonly sim: Sim;
+  build(): Build;
+  /** The field drives the player's car too: a dev autopilot for shots and frame-time runs. */
+  readonly autopilot: boolean;
 }
 
 export interface ModeCtx {
@@ -56,6 +68,8 @@ export interface ModeCtx {
   readonly laps: number;
   /** The star marks a run is graded on: a career event's own when tuned on this world, else `own`, the mode's (ms, or points for drift). */
   thresholds(own: Thresholds): Thresholds;
+  /** The AI field a free-play race runs against; null in events, Runs, lobby races and without the dev flag. */
+  field(): FieldHost | null;
   /** A career event's shipped 3-star ghost lap; null in free play or when it has none. */
   dev_ghost(): Promise<number[] | null>;
   /** The player's ghost setting. */

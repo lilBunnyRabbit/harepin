@@ -24,7 +24,7 @@ import { CUP_RECORD, Cup, stage_points, type Stage } from "./championship";
 import { JUMP_MODE } from "./jump-mode";
 import { Hits } from "./hits";
 import type { DrawnGround } from "./marks";
-import type { Driven, Finish, Level, ModeCtx, ModeDef, ModeRun, RouteRun } from "./mode";
+import type { Driven, FieldHost, Finish, Level, ModeCtx, ModeDef, ModeRun, RouteRun } from "./mode";
 import { PARKING_MODE } from "./parking-mode";
 import type { RunPlay } from "../runs/run-play";
 import { RACE_MODE } from "./race-mode";
@@ -150,6 +150,8 @@ export class Modes implements CarHooks {
 
   /** `?debug&at=`: the point along its route a race run starts on. */
   route_at = 0;
+  /** Set in dev and review builds behind `?airace`: free-play races run against an AI field. */
+  field_host: FieldHost | null = null;
   bindings: () => Bindings = () => DEFAULT_BINDINGS;
   ghosts: () => boolean = () => true;
   /** Shows that a start waits on the rest of the world. */
@@ -460,6 +462,7 @@ export class Modes implements CarHooks {
       race_busy: () => this.race_busy(),
       laps,
       hits: () => (event ? new Hits(() => world.contacts) : null),
+      field: () => (event || play || this.lobby_lap ? null : this.field_host),
       // Tuned on another world version, an event's times and ghost no longer fit its road: the mode's par grades it, no ghost.
       thresholds: (own) => (play ? play.grade(own) : (tuned && event?.stars) || own),
       dev_ghost: () => (tuned && event?.ghost ? dev_ghost(event) : Promise.resolve(null)),
@@ -598,8 +601,9 @@ export class Modes implements CarHooks {
     this.reward = null;
     el.try_on.hidden = true;
     el.car.hidden = !this.can_change_car;
-    el.standings.hidden = !active.cup;
+    el.standings.hidden = !active.cup && !finish.standings;
     if (active.cup) this.show_standings(active.cup);
+    else if (finish.standings) el.standings.replaceChildren(...finish.standings);
     if (cup && !cup.done) {
       el.next.textContent = cup.cleared ? NEXT_STAGE : RETRY_STAGE;
       el.next.hidden = false;
