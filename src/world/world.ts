@@ -189,6 +189,7 @@ export class World implements Ground {
   /** The biome rows the terrain is painted from, as `paint` reads them; null on a kind without ground. */
   private readonly biomes: BiomeRecipe | null;
   private readonly ground_seed: number;
+  private readonly slope = new Vector3();
   /** `footing` in water: rewritten per query, never kept. */
   private readonly wading: Footing = { grip: 1, roll: 1, loose: 0, firm: false };
   /** The footing `grip` just read, for the `roll` the car asks of the same wheel next: one query per wheel per step. */
@@ -525,11 +526,16 @@ export class World implements Ground {
     return i >= 0 && j >= 0 && i <= n && j <= n ? (this.tiles.surface(i, j) as SurfaceId) : SurfaceId.GRASS;
   }
 
-  /** Open ground at (x, z) painted as the shore: under the beach height or in the coast biome, whose rows are sand on every kind with a coast. */
+  /**
+   * Open ground at (x, z) painted as the shore: under the beach height or in the coast biome, whose rows are sand on every
+   * kind with a coast. A bank too steep to keep its row paints toward rock, so it is no shore.
+   */
   shore(x: number, z: number): boolean {
     if (!this.biomes) return false;
+    const { limits, zones } = this.biomes;
     const y = this.tiles.height(x, z);
-    return y < this.biomes.limits.beach || on_coast(this.ground_seed, this.biomes.zones.coast, x, z, y);
+    if (this.normal(x, z, this.slope).y < limits.scree.up) return false;
+    return y < limits.beach || on_coast(this.ground_seed, zones.coast, x, z, y);
   }
 
   /** On dirt or gravel (a trail, hardpack, scree), from the footing `grip` just read: where a tyre's `grip_dirt` applies. */
