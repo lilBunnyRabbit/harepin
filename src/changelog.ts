@@ -54,6 +54,14 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.49.3",
+    date: "2026-11-15",
+    title: "Clear headlamps",
+    changes: [
+      { kind: FIXED, text: "Unlit headlamps read as clear glass instead of pink at dusk" },
+    ],
+  },
+  {
     version: "0.49.2",
     date: "2026-11-15",
     title: "Kits off the road",
