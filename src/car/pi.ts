@@ -71,12 +71,12 @@ export function lap_time(pace: Pace): number {
   return t;
 }
 
-// How much of each stat the sim delivers, fitted against laps on measured pace (`bun scripts/pi.ts`, 1% RMS lap error).
+// How much of each stat the sim delivers, fitted against laps on measured pace (`bun scripts/pi.ts`, 1.1% RMS lap error).
 // Every one is positive, so a better stat never makes the lap slower: that is what keeps PI monotonic.
 const POWER_SHARE = 0.3;
 const LAUNCH_GRIP = 0.72;
 const CORNER_GRIP = 1.25;
-const DOWNFORCE_GRIP = 0.87;
+const DOWNFORCE_GRIP = 0.7;
 const BRAKE_SHARE = 0.9;
 // Below it, power over speed runs to infinity; wheelspin sets the launch instead.
 const LAUNCH_SPEED = 5;

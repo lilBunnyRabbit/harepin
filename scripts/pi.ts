@@ -12,7 +12,7 @@ const flat: Ground = { height: () => 0, normal: (_x, _z, out) => out.set(0, 1, 0
 const idle: Controls = { steer: 0, throttle: 0, brake: 0, handbrake: 0, analog: true };
 const SKID_KMH = [60, 140];
 const BIN = 1;
-const SKID_STEER = [0.04, 0.07, 0.1, 0.15, 0.22, 0.32, 0.45];
+const SKID_STEER = [0.04, 0.07, 0.1, 0.15, 0.22, 0.32, 0.45, 0.6, 0.8, 1];
 
 function run(car: Car, seconds: number, controls: (t: number) => Controls, until?: () => boolean) {
   let t = 0;
@@ -129,6 +129,14 @@ const EXTRA: [string, string][] = [
   ["kaze all race", "kaze.0.0.4.2.2.0.7.2.2.2"],
   ["muscle all race", "muscle.0.0.4.2.2.0.7.2.2.2"],
   ["hatch all race", "hatch.0.0.4.2.2.0.7.2.2.2"],
+  ["sturm best", "sturm.0.0.4.2.2.0.7.2.2.2.1.2"],
+  ["sturm twin turbo", "sturm.0.0.4.2.5.0.7.2.2.2.1.2"],
+  ["sturm slicks", "sturm.0.0.4.2.2.0.7.6.2.2.1.2"],
+  ["sturm GT kit", "sturm.0.0.5.2.2.0.7.2.2.2.1.2"],
+  ["sturm carbon shell", "sturm.0.0.4.2.2.0.7.2.2.3.1.2"],
+  ["sturm top", "sturm.0.0.5.2.5.0.7.6.2.3.1.2"],
+  ["kaze top", "kaze.0.0.5.2.5.0.7.6.2.3.1.2"],
+  ["muscle top", "muscle.0.0.5.2.5.0.7.6.2.3.1.2"],
 ];
 
 export function calibration_builds(): [string, Build][] {
