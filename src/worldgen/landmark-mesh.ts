@@ -19,7 +19,6 @@ const MAST_BANDS = 6;
 const MAST_BASE = 3;
 const MAST_TOP = 1;
 const ANTENNA = 5;
-const LIGHTHOUSE_BANDS = 4;
 const LANTERN = 2;
 const NACELLE = { hw: 0.9, hd: 2.2, low: -0.6, high: 1.2 };
 export const HUB_AHEAD = 2.6;
@@ -103,17 +102,50 @@ function mast(out: Builder, t: LandmarkTones) {
   prism(out, 4, 0.15, 0.08, MAST_HEIGHT, MAST_HEIGHT + ANTENNA, t.cap, Math.PI / 4);
 }
 
+const SEA_LIGHT_PHASE = Math.PI / 8;
+/** Tower rings above the stone foot, [height, radius]: it leaves the foot at the solid's radius and flares in to a slim neck. */
+const SEA_LIGHT_RINGS: readonly (readonly [number, number])[] = [
+  [1.2, 2.6],
+  [5.6, 2.15],
+  [10.2, 1.9],
+  [14.8, 1.75],
+  [19.2, 1.7],
+];
+const GALLERY = 2.5;
+const CAGE = 1.5;
+
+// A door or window: a dark pane just proud of the tower's front face, leaning with it.
+function opening(out: Builder, hw: number, y0: number, y1: number, r0: number, r1: number, rgb: Rgb) {
+  const [, z0] = ring(8, r0, 1, SEA_LIGHT_PHASE);
+  const [, z1] = ring(8, r1, 1, SEA_LIGHT_PHASE);
+  out.quad([-hw, y0, z0 + 0.04], [hw, y0, z0 + 0.04], [hw, y1, z1 + 0.04], [-hw, y1, z1 + 0.04], rgb);
+}
+
+// The candy-stripe sea light: a battered stone foot, a striped tower flaring into it, a gallery on a corbel with a rail,
+// a caged lantern under a pointed roof with a finial.
 function lighthouse(out: Builder, t: LandmarkTones) {
-  prism(out, 8, 3.8, 3.6, -1.5, 1.2, t.stone, Math.PI / 8, t.stone_shade);
-  const step = (LIGHTHOUSE_HEIGHT - 1.2) / LIGHTHOUSE_BANDS;
-  const radius = (y: number) => 2.6 - (0.9 * (y - 1.2)) / (LIGHTHOUSE_HEIGHT - 1.2);
-  for (let b = 0; b < LIGHTHOUSE_BANDS; b++) {
-    const y0 = 1.2 + b * step;
-    prism(out, 8, radius(y0), radius(y0 + step), y0, y0 + step, b % 2 ? t.band : t.pale, Math.PI / 8);
+  const rings = SEA_LIGHT_RINGS;
+  const neck = rings[rings.length - 1];
+  prism(out, 8, 3.8, 2.75, -1.5, rings[0][0], t.stone, SEA_LIGHT_PHASE, t.stone_shade);
+  for (let b = 0; b < rings.length - 1; b++) prism(out, 8, rings[b][1], rings[b + 1][1], rings[b][0], rings[b + 1][0], b % 2 ? t.band : t.pale, SEA_LIGHT_PHASE);
+  opening(out, 0.55, 1.2, 3.4, 2.6, 2.37, t.cap);
+  opening(out, 0.3, 8, 9.3, 2.03, 1.95, t.cap);
+  opening(out, 0.3, 15.6, 16.8, 1.74, 1.72, t.cap);
+  const deck = LIGHTHOUSE_HEIGHT + 0.4;
+  prism(out, 8, neck[1], GALLERY, neck[0], LIGHTHOUSE_HEIGHT, t.pale, SEA_LIGHT_PHASE);
+  prism(out, 8, GALLERY, GALLERY, LIGHTHOUSE_HEIGHT, deck, t.cap, SEA_LIGHT_PHASE);
+  for (let k = 0; k < 8; k++) {
+    const [ax, az] = ring(8, GALLERY - 0.05, k, SEA_LIGHT_PHASE);
+    const [bx, bz] = ring(8, GALLERY - 0.05, k + 1, SEA_LIGHT_PHASE);
+    plate(out, [ax, deck, az], [bx, deck, bz], [bx, deck + 0.7, bz], [ax, deck + 0.7, az], t.cap);
   }
-  prism(out, 8, 2.5, 2.5, LIGHTHOUSE_HEIGHT, LIGHTHOUSE_HEIGHT + 0.4, t.cap, Math.PI / 8);
-  const roof = LIGHTHOUSE_HEIGHT + 0.4 + LANTERN;
-  prism(out, 8, 1.7, 0, roof, roof + 1.4, t.band, Math.PI / 8);
+  for (let k = 0; k < 4; k++) {
+    const [cx, cz] = ring(4, CAGE, k, SEA_LIGHT_PHASE);
+    prism(out, 4, 0.08, 0.08, deck, deck + LANTERN + 0.05, t.cap, SEA_LIGHT_PHASE + (k * Math.PI) / 2, undefined, cx, cz);
+  }
+  const roof = deck + LANTERN;
+  prism(out, 8, 1.9, 0, roof, roof + 1.5, t.band, SEA_LIGHT_PHASE);
+  prism(out, 4, 0.07, 0.04, roof + 1.4, roof + 2.4, t.cap, 0);
 }
 
 function turbine(out: Builder, t: LandmarkTones) {

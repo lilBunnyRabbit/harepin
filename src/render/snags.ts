@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { lighten, mix, tones } from "../theme/palette";
+import { dark, lighten, mix, tones } from "../theme/palette";
 import type { Lab } from "../theme/theme";
 import { soup_geometry } from "../world/buildings";
 import { soup } from "../worldgen/chunks";
@@ -11,7 +11,13 @@ export type TreeLook = "green" | "charred";
 const ASH = 0.35;
 const WHITE: Rgb = [1, 1, 1];
 
-const char = () => mix(tones.check_dark, tones.trunk, 0.2);
+// Burnt wood is the ink with a little bark left in it. A day theme's bark is pale, so there the ink carries it: at
+// the dusk share it read as khaki, a dry tree and not a burnt one.
+const CHAR_INK = dark ? 0.2 : 0.88;
+/** How far a day char sits under the ink: sunlit ink alone read as slate. */
+const CHAR_DROP = dark ? 0 : 0.1;
+
+const char = () => lighten(mix(tones.check_dark, tones.trunk, CHAR_INK), -CHAR_DROP);
 
 // The snag material draws both faces, so a limb's winding does not matter.
 function limb(out: Builder, a: V3, b: V3, r0: number, r1: number) {

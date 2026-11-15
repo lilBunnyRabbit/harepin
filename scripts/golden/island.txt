@@ -26,7 +26,7 @@
 0 route:offroad-2 eaac7ecf036e3b58
 0 route:circuit-rev 32b3c0e4623a90f9
 0 mesh_road 0e193817c08aa26d
-0 mesh_rest 8a296bff18ff866d
+0 mesh_rest e45f2fbb110dfa74
 0 map_pixels 79d752b98c976025
 0 map 369d46bc03752ab1
 1 heights 6ebe5869eafc928d
@@ -56,7 +56,7 @@
 1 route:offroad-1 38870d7ec2663b22
 1 route:offroad-2 fcc7f91f324f3dcc
 1 mesh_road 99df534d7644ebfc
-1 mesh_rest b1fa16edddaf2f92
+1 mesh_rest fba77f18677e1c89
 1 map_pixels 6800e04b167a08da
 1 map 4acce2b7a0a3c591
 2 heights df488effadb6b6af
@@ -84,7 +84,7 @@
 2 route:street-1 61c48a614a124fc9
 2 route:street-2 d32091b5e3c804a1
 2 mesh_road 7c81237b8df23c95
-2 mesh_rest 6da8d0763fad1ca3
+2 mesh_rest 53bb24a09299ec92
 2 map_pixels 9dfc1cac820feaa4
 2 map ccc39f6bcc754d18
 3 heights 464d27f01375b004
@@ -113,7 +113,7 @@
 3 route:offroad-1 9526fe28a85e1111
 3 route:offroad-2 50987f1f2d353f27
 3 mesh_road 6e5a3e39dd45a79a
-3 mesh_rest f1802551871d170c
+3 mesh_rest c2b0ca521ae7f127
 3 map_pixels dad023c40a3eb2b4
 3 map ef63a384e4d7cf78
 4 heights 80c253d4dc7d76fc
@@ -142,7 +142,7 @@
 4 route:street-2 59afab6b608dfec9
 4 route:offroad-1 3628a3dfbd021a00
 4 mesh_road badfef1eeb8e335e
-4 mesh_rest 9793762fa273698c
+4 mesh_rest 2ce9fa868f74c16d
 4 map_pixels b87379ed1b4ee281
 4 map dc894adfd6c23f08
 5 heights d28053075a82d34f
@@ -172,7 +172,7 @@
 5 route:offroad-1 ef741b5514dd1a08
 5 route:offroad-2 54a6b3de89d42554
 5 mesh_road 38f5977456e26497
-5 mesh_rest b959b6892afc22fb
+5 mesh_rest 0153293ccce6a7dd
 5 map_pixels 978e02f9e40b769d
 5 map 3e0bd456562a65eb
 6 heights 044874addcb9ffd3
@@ -203,7 +203,7 @@
 6 route:offroad-2 8298e0ff1d002d19
 6 route:circuit-rev 651592e53ccedc4c
 6 mesh_road f734e9f8ebc49edc
-6 mesh_rest 2a5c9ff5b8830ed4
+6 mesh_rest d7e79c60947c0e8c
 6 map_pixels dca0c3d68a6a13c9
 6 map dfa120e9e20470c7
 7 heights acac681d4f0ad286
@@ -234,7 +234,7 @@
 7 route:offroad-2 8d781b43402c6fba
 7 route:circuit-rev 042135e30502dcd5
 7 mesh_road 601cb6eb87590e44
-7 mesh_rest cb5c0dba3a0b5963
+7 mesh_rest 655a06e296ca12cd
 7 map_pixels b32aa7810fe7de38
 7 map c5b67e89e05cb9df
 8 heights 04def00ada45bff5
@@ -264,7 +264,7 @@
 8 route:offroad-1 842a260180b8fa5d
 8 route:offroad-2 4a754494e4a1dfe3
 8 mesh_road 43cbc0bd5bb70f28
-8 mesh_rest d2f9d42cedc3ba73
+8 mesh_rest 41bbae8d801b8a16
 8 map_pixels 4359e66d00994b2f
 8 map 23d5ff8d4b3399b2
 9 heights d9787f975a207208
@@ -295,7 +295,7 @@
 9 route:offroad-2 3d087d31a3b290af
 9 route:circuit-rev af42ad0c0eed4d7e
 9 mesh_road 0b2e14b3265dcb38
-9 mesh_rest b137518d5921ecfa
+9 mesh_rest 1709261782112d69
 9 map_pixels 0de55767ff184637
 9 map d41261a256f57566
 10 heights be6d23ed0872d738
@@ -325,7 +325,7 @@
 10 route:offroad-1 d18e15886ac4772a
 10 route:offroad-2 81f9ef8bc5088fb5
 10 mesh_road 281b97770b78c8b5
-10 mesh_rest 388742b2089e19a5
+10 mesh_rest 9c0c3d2b9d1e9359
 10 map_pixels 4f5072aa50850a99
 10 map bee3869bd3c75121
 11 heights e63fe35b6ba47a4c
@@ -355,7 +355,7 @@
 11 route:offroad-1 c9db37fb42aebe15
 11 route:offroad-2 78f2f0206549e87c
 11 mesh_road f3c3bdaf8f434082
-11 mesh_rest 7633b959ec4ae939
+11 mesh_rest 2dce14cc18f3b7e3
 11 map_pixels 20c150766d3ee237
 11 map a403c8e95501d2f9
 12 heights 15f9280fe2090c3e
@@ -385,7 +385,7 @@
 12 route:offroad-1 1aca43d75cb647aa
 12 route:offroad-2 ad5da4cb8585d92a
 12 mesh_road 82d0d4ebff361e01
-12 mesh_rest d2f202125cf0eee4
+12 mesh_rest f927bbcf41add494
 12 map_pixels 8e5dcbb6c52b635e
 12 map a20fba764cc0bf8f
 13 heights b0aed76a047c6890
@@ -415,7 +415,7 @@
 13 route:offroad-1 adc5873bd3a99e78
 13 route:offroad-2 1e8358076739d7ae
 13 mesh_road a133fd3c61f601fd
-13 mesh_rest 753b6780b8dbce64
+13 mesh_rest 95c7c90e8701338e
 13 map_pixels fc4a8ecd912326ca
 13 map ee3b67509c119d93
 14 heights 53c13ab825057c2f
@@ -443,7 +443,7 @@
 14 route:street-1 a51cf7c0b6aad805
 14 route:street-2 329e1d3ac871d8b9
 14 mesh_road 92c36416292d004f
-14 mesh_rest a7e700c29f551de1
+14 mesh_rest f123b39ef950e941
 14 map_pixels 28a34c02f90999cb
 14 map ff646772d94fcb4f
 15 heights 8f395e1f77f9e253
@@ -473,7 +473,7 @@
 15 route:offroad-1 e26e31c2ee0f54bd
 15 route:offroad-2 6cf00b63e3434fe3
 15 mesh_road d3a0d53ec1d71204
-15 mesh_rest 52d940065ecff177
+15 mesh_rest 292e4af84c6e9fed
 15 map_pixels af0b49c7f040ed79
 15 map 33ad4e16ac1c9822
 16 heights 5fde49467d8ee149
@@ -504,7 +504,7 @@
 16 route:offroad-2 4b17b28e761e3581
 16 route:circuit-rev 840e23f63afa604b
 16 mesh_road 30510d72ce98f292
-16 mesh_rest b70e6735b6832380
+16 mesh_rest ba81235707e79f8f
 16 map_pixels 06a7697454dbda1c
 16 map 0625278f7a2d85e9
 17 heights 9100bf00503e8ba3
@@ -534,7 +534,7 @@
 17 route:offroad-1 a93e07e067e7f1d2
 17 route:offroad-2 6dd7188e323816b5
 17 mesh_road cf6c59af3c5f0c62
-17 mesh_rest d08b5bb4377dcb7d
+17 mesh_rest 29e34eb75d8429ab
 17 map_pixels 8c074860e6427eac
 17 map eda8c942f9b4ae0e
 18 heights 1219c50ab66f7952
@@ -563,7 +563,7 @@
 18 route:street-2 c09118317bdd6a68
 18 route:offroad-1 a933b6587ad8a5ce
 18 mesh_road 83728c1afca72e6a
-18 mesh_rest 57a13ea73af38142
+18 mesh_rest ef6c9f1afa25cdaa
 18 map_pixels ac01899475df6504
 18 map 6dc41bb25eb22c22
 19 heights 369982f8e869b723
@@ -593,6 +593,6 @@
 19 route:offroad-1 8afee143b3499bd2
 19 route:offroad-2 ed257dbdf3259c8a
 19 mesh_road 7667949cfe64bf49
-19 mesh_rest e1eacc9404596672
+19 mesh_rest cd07a99cfe640a11
 19 map_pixels 2d0d312d956e0473
 19 map 86ebc689383a1d9f

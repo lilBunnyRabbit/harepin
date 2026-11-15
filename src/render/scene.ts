@@ -9,7 +9,7 @@ import { fog_reach } from "./lighting";
 import { Ground, JITTER_LEVELS, terrain_bases, type ChunkBuffers, type MeshTones } from "../worldgen/chunks";
 import { TreeKind } from "../worldgen/biomes";
 import { SEA_LEVEL } from "../worldgen/water";
-import { crown_tone } from "./crowns";
+import { crown_shapes, crown_tone, trunk_shape } from "./crowns";
 import { charred_kit, type TreeLook } from "./snags";
 import { TreeBatch, type Planted } from "./tree-batch";
 import type { Lab } from "../theme/theme";
@@ -248,6 +248,7 @@ export class WorldView {
 
 export interface TreeKit {
   trunk: THREE.BufferGeometry;
+  /** By tree kind; a kit with no scrub crown draws its broadleaf one. */
   crowns: THREE.BufferGeometry[];
   bark: THREE.Material;
   leaf: THREE.Material;
@@ -259,8 +260,8 @@ export interface TreeKit {
 export function tree_kit(snowy: boolean): TreeKit {
   return {
     tone: (kind, shade) => crown_tone(kind, shade, snowy),
-    trunk: new THREE.CylinderGeometry(0.25, 0.35, 2.2, 5).translate(0, 1.1, 0),
-    crowns: [new THREE.ConeGeometry(2.1, 6, 6).translate(0, 4.6, 0), new THREE.IcosahedronGeometry(2.4, 0).translate(0, 4.2, 0)],
+    trunk: trunk_shape(),
+    crowns: crown_shapes(),
     bark: new THREE.MeshLambertMaterial({ color: color(tones.trunk), flatShading: true }),
     leaf: new THREE.MeshLambertMaterial({ flatShading: true }),
     one_tone: false,
