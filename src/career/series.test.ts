@@ -4,8 +4,9 @@ import { DEFAULT_BUILD, DEFAULT_PARTS, type Build } from "../car/build";
 import { within } from "../car/car-pick";
 import { rating } from "../car/pi";
 import { CREDITS_PER_POINT, FINAL_FACTOR } from "./credits";
-import { Bonus, OPEN_AT_START, PODIUM, SEASON_1, SeriesKind, better, car_fault, empty_progress, event_field, event_line, event_result, event_states, grid_slot, parse_progress, player_of, result_points, season_done, season_round, standings, type EventResult, type SeriesProgress } from "./series";
+import { Bonus, OPEN_AT_START, PODIUM, SeriesKind, better, car_fault, empty_progress, event_field, event_line, event_result, event_states, grid_slot, parse_progress, player_of, result_points, season_done, season_round, standings, type EventResult, type SeriesProgress } from "./series";
 import type { SeriesSaves } from "./series-db";
+import { SEASON_1 } from "./series-seasons";
 import { Series } from "./series-store";
 import { BASE_CAR, Wallet } from "./wallet";
 

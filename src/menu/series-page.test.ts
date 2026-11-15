@@ -1,7 +1,8 @@
 import "../../scripts/fake-dom";
 import { expect, test } from "bun:test";
 import { render } from "svelte/server";
-import { SEASON_1, empty_progress, event_states, player_of, standings, type SeriesProgress } from "../career/series";
+import { empty_progress, event_states, player_of, standings, type SeriesProgress } from "../career/series";
+import { SEASON_1 } from "../career/series-seasons";
 import { fresh_wallet } from "../career/wallet";
 import SeriesEvents from "./SeriesEvents.svelte";
 import SeriesFlow from "./SeriesFlow.svelte";
