@@ -54,6 +54,14 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.51.2",
+    date: "2026-11-15",
+    title: "Safer saves",
+    changes: [
+      { kind: FIXED, text: "Saves stay safe with several tabs open, an old version open, or offline; the browser is asked to keep them" },
+    ],
+  },
+  {
     version: "0.51.1",
     date: "2026-11-15",
     title: "Smoother on phones",
