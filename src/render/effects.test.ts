@@ -18,3 +18,9 @@ test("a skid mark blends its colour only: custom blending on alpha too left the 
   const material = new Skids().mesh.material as import("three").Material;
   expect([material.blendSrcAlpha, material.blendDstAlpha]).toEqual([ZeroFactor, OneFactor]);
 });
+
+test("puffs draw after the cars and the water, so spray shows on the surface it is thrown from", async () => {
+  const { Smoke } = await import("./effects");
+  const { CAR_ORDER } = await import("../car/contact-shadow");
+  expect(new Smoke("grass").mesh.renderOrder).toBeGreaterThan(CAR_ORDER);
+});

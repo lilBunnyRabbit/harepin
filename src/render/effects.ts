@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import type { Car } from "../car/car";
-import { DECAL_ORDER } from "../car/contact-shadow";
+import { CAR_ORDER, DECAL_ORDER } from "../car/contact-shadow";
 import { brand, color, dark, lighten, mix, tones } from "../theme/palette";
 import type { Lab } from "../theme/theme";
 import { FOG } from "./sky";
@@ -55,13 +55,14 @@ export class Smoke {
   private sand = kicked(tones.sand);
   private scree = kicked(tones.rock);
   private snow = color(tones.snow);
-  private spray = color(mix(brand.info, brand.background_lightest, 0.6));
+  private spray = color(mix(tones.snow, tones.water, 0.7));
   private readonly ground: THREE.Color;
   private readonly shoulder: THREE.Color;
   /** What each laid surface throws; the kind's own ground sits in the grass row. */
   private readonly laid: Record<SurfaceId, THREE.Color>;
   private carry: number[] = [];
   private kick = new THREE.Vector3();
+  private at = new THREE.Vector3();
 
   constructor(ground: GroundPuff) {
     const { dust, sand, scree, snow } = this;
@@ -88,6 +89,8 @@ export class Smoke {
       };
     this.mesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), material, PUFFS);
     this.mesh.frustumCulled = false;
+    // Transparent meshes sort by their origin, and this one's sits at the world's: water drew over the spray on it.
+    this.mesh.renderOrder = CAR_ORDER + 1;
     for (let i = 0; i < PUFFS; i++) {
       this.puffs.push({ pos: new THREE.Vector3(), vel: new THREE.Vector3(), age: 1, life: 1, size: 0, spin: 0 });
       this.mesh.setMatrixAt(i, this.matrix.makeScale(0, 0, 0));
@@ -121,11 +124,14 @@ export class Smoke {
       let size = SMOKE_SIZE;
       // Puffs left behind stream toward the chase camera; capping trail length keeps them from filling the screen at speed.
       let life = Math.min(SMOKE_LIFE, SMOKE_TRAIL / speed);
+      this.at.copy(w.point);
       if (world.depth(w.point.x, w.point.z) > SPLASH && speed > 2) {
         rate = Math.min(1, speed / 15) * SPRAY_RATE;
         tint = this.spray;
         size = DUST_SIZE;
         life = DUST_LIFE;
+        // The wheel stands on the bed: spray thrown from there stayed under the water.
+        this.at.y = world.water_level(w.point.x, w.point.z);
       } else if (on_road && slide > 0 && speed > 2) {
         rate = Math.min(1, slide * 1.2) * SMOKE_RATE;
       } else if (!on_road && speed > 4) {
@@ -138,7 +144,7 @@ export class Smoke {
       this.carry[i] += rate * dt;
       while (this.carry[i] >= 1) {
         this.carry[i] -= 1;
-        this.emit(w.point, car.vel, tint, size, life);
+        this.emit(this.at, car.vel, tint, size, life);
       }
     }
     let alive = false;
