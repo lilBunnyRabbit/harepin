@@ -20,12 +20,14 @@ const BARE_LIFT = 0.009;
 /** The widest tyre look a part can fit, against the design's tyre width. */
 const WIDEST_TYRE = 1.32;
 // The generic diffuser: tray and strake length, tray thickness, strake thickness and depth under the floor at the tail,
-// and how far both sink into the body so they hang from it.
+// and how far both sink into the floor so they hang from it.
 const DIFFUSER_LONG = 0.46;
 const DIFFUSER_TRAY = 0.025;
 const DIFFUSER_FIN = 0.025;
 const DIFFUSER_DROP = 0.09;
 const DIFFUSER_SINK = 0.01;
+// Their rear faces stand this far behind the tail's, so the two never share a plane.
+const DIFFUSER_PROUD = 0.005;
 
 /** How far a bolt-on wing's legs sink into the deck, so they meet it where it falls away from `deck`. */
 const LEG_SINK = 0.06;
@@ -108,7 +110,7 @@ export function aero_parts(d: Design, spec: CarSpec, aero: Required<Look>["aero"
     const span = Math.min(d.width * 0.82, 2 * inner);
     // A thin tray on the floor that ends at the tail, and strakes hung under it: full depth at the rear, running out to
     // nothing ahead. A kicked plate stood out behind the tail as a shelf, and square strakes read as stacked planks.
-    const under = (g: THREE.BufferGeometry, x: number, depth: number) => tint(g.translate(x, bottom + DIFFUSER_SINK - depth / 2, tail + DIFFUSER_LONG / 2), trim);
+    const under = (g: THREE.BufferGeometry, x: number, depth: number) => tint(g.translate(x, bottom + DIFFUSER_SINK - depth / 2, tail - DIFFUSER_PROUD + DIFFUSER_LONG / 2), trim);
     out.push(under(new THREE.BoxGeometry(span, DIFFUSER_TRAY, DIFFUSER_LONG), 0, DIFFUSER_TRAY));
     for (const x of [-0.42, -0.16, 0.16, 0.42]) out.push(under(wedge(DIFFUSER_FIN, DIFFUSER_DROP, DIFFUSER_LONG).rotateX(Math.PI), x * span, DIFFUSER_DROP));
   }
