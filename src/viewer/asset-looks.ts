@@ -13,14 +13,15 @@ import { aero_of, aero_parts, rear_wing } from "../car/part-looks";
 import { kit_sample, type Piece } from "../render/prop-kit";
 import { mesh_tones } from "../render/scene";
 import { prop_sample, tree_sample } from "../render/samples";
-import { color, tones } from "../theme/palette";
-import { soup_geometry, town_materials } from "../world/buildings";
-import { JumpsView } from "../world/jumps";
+import { car_paints, color, tones } from "../theme/palette";
+import { light_parts, parked_car_geometry, parked_cars, soup_geometry, street_lights, town_materials } from "../world/buildings";
+import { item_geometry, item_material, JumpsView } from "../world/jumps";
 import { COMPACT } from "../worldgen/chunk-grid";
+import { ITEMS } from "../worldgen/jumps";
 import { town_builders, town_meshes, type MeshTones } from "../worldgen/chunks";
 import { KINDS, plain_map, snow_of } from "../worldgen/kinds/kinds";
 import type { Recipe } from "../worldgen/recipe";
-import type { Building, Lot, WorldData, WorldKind } from "../worldgen/types";
+import { PropKind, WorldKind, type Building, type ItemKind, type Lot, type WorldData } from "../worldgen/types";
 import { WORLDS } from "../worlds/worlds";
 import type { AssetKind } from "./assets";
 import type { ViewState } from "./view-state";
@@ -131,6 +132,19 @@ function world_of(view: ViewState) {
   return asset && "world" in asset ? asset : null;
 }
 
+function loose_item(kind: ItemKind): THREE.Object3D {
+  const mesh = new THREE.Mesh(item_geometry(kind), item_material(kind));
+  mesh.castShadow = mesh.receiveShadow = true;
+  return mesh;
+}
+
+// What a street or a track is dressed with, each from the geometry the game instances.
+const STREET: Record<string, () => THREE.Object3D> = {
+  ...Object.fromEntries((Object.keys(ITEMS) as ItemKind[]).map((kind) => [kind, () => loose_item(kind)])),
+  parked_car: () => parked_cars([{ x: 0, y: 0, z: 0, heading: 0, paint: color(car_paints[0]) }], parked_car_geometry(), new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true })),
+  street_light: () => new THREE.Group().add(...street_lights([{ x: 0, y: 0, z: 0, angle: 0, kind: PropKind.STREET_LIGHT, scale: 1 }], light_parts())),
+};
+
 const PARTS: Omit<AssetLook, "build"> = { worlds: none, items: none };
 
 export const ASSET_LOOKS: Record<AssetKind, AssetLook> = {
@@ -193,6 +207,14 @@ export const ASSET_LOOKS: Record<AssetKind, AssetLook> = {
       const a = world_of(view);
       const piece = a && WORLDS[a.world].kit.pieces.find((p): p is Piece => p === a.item);
       return a && piece ? new THREE.Group().add(...kit_sample(piece, snowy(a.world, 1))) : null;
+    },
+  },
+  item: {
+    worlds: () => [WorldKind.MAINLAND],
+    items: () => Object.keys(STREET).map((id) => ({ id, label: id.replace("_", " ") })),
+    build: (view) => {
+      const a = world_of(view);
+      return a && Object.hasOwn(STREET, a.item) ? STREET[a.item]() : null;
     },
   },
 };

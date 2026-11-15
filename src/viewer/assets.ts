@@ -13,6 +13,7 @@ export const AssetKind = {
   TREE: "tree",
   PROP: "prop",
   PIECE: "piece",
+  ITEM: "item",
 } as const;
 export type AssetKind = (typeof AssetKind)[keyof typeof AssetKind];
 
@@ -38,11 +39,12 @@ export const ASSETS: Record<AssetKind, AssetDef> = {
   tree: { label: "Tree", group: AssetGroup.WORLD, seeded: false },
   prop: { label: "Prop or landmark", group: AssetGroup.WORLD, seeded: false },
   piece: { label: "Kit piece", group: AssetGroup.WORLD, seeded: false },
+  item: { label: "Street or track item", group: AssetGroup.WORLD, seeded: false },
 };
 
 export const ASSET_KINDS = Object.keys(ASSETS) as AssetKind[];
 export type PartKind = "wheel" | "wing" | "aero" | "arches" | "mirror";
-export type WorldAssetKind = "building" | "ground" | "ramp" | "tree" | "prop" | "piece";
+export type WorldAssetKind = "building" | "ground" | "ramp" | "tree" | "prop" | "piece" | "item";
 
 export interface PartAsset {
   kind: PartKind;
