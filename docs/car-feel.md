@@ -100,7 +100,7 @@ Other levers this round points at:
 
 The owner's note: "maybe just the info on what it is and what I need to do is just too much text and hard to decipher". Today a drift-circle results card shows three lead lines, six questions and about 21 numbers.
 
-- **Numbers on the card** (`shown_metrics`, `src/lab/lab-text.ts:387`): keep 3-5 per station and leave the rest to the export. Replace the `at` station lists with one short `CARD` list per station:
+- **Numbers on the card** (`shown_metrics`, `src/lab/lab-text.ts:100`): keep 3-5 per station and leave the rest to the export. Replace the `at` station lists with one short `CARD` list per station:
 
   | station | numbers on the card |
   |---|---|
