@@ -13,6 +13,10 @@ const SMOKE_SIZE = 0.7;
 const DUST_LIFE = 0.5;
 const DUST_SIZE = 0.25;
 const GROWTH = 1;
+/** Seconds a puff takes to swell from nothing, so it never appears at size. */
+const RISE = 0.08;
+/** Share of its size a puff starts above the contact point: its centre on the ground left half of it buried. */
+const SEAT = 0.3;
 const SMOKE_RATE = 45;
 /** Metres of road a tyre-smoke trail covers before its puffs are gone. */
 const SMOKE_TRAIL = 3;
@@ -103,6 +107,7 @@ export class Smoke {
     this.next = (this.next + 1) % PUFFS;
     const p = this.puffs[i];
     p.pos.copy(at);
+    p.pos.y += size * SEAT;
     p.vel.copy(vel).multiplyScalar(0.25).add(this.kick.set((Math.random() - 0.5) * 1.5, 0.8 + Math.random(), (Math.random() - 0.5) * 1.5));
     p.age = 0;
     p.life = life;
@@ -157,7 +162,7 @@ export class Smoke {
       p.vel.multiplyScalar(1 - dt * 1.8);
       p.vel.y += dt * 0.6;
       const t = p.age / p.life;
-      const scale = t >= 1 ? 0 : p.size * (0.4 + t * GROWTH) * (1 - t * t);
+      const scale = t >= 1 ? 0 : p.size * (0.4 + t * GROWTH) * (1 - t * t) * Math.min(1, p.age / RISE);
       this.q.setFromAxisAngle(UP, p.spin + t * 2);
       this.mesh.setMatrixAt(i, this.matrix.compose(p.pos, this.q, this.s.setScalar(scale)));
     }
