@@ -456,6 +456,7 @@ The "DOM fixes" rows are the brake-LOD build with both fixes patched into the bu
 - With both fixes, the worker row goes from 32 to 11.7 ms p50 and 15.4 ms p95 at 4x: inside the 16.7 ms budget. On main, 18 ms p50 is still over it; the sim (`Car.step` 204 ms/s) is what is left, which the worker takes.
 - **AI car models:** each full view is 12 draw calls (hull, metal hull, heads, tails, 4 tyres, 4 brake discs). Five more AI cars add 68 calls and 15k triangles over the 1-AI row. Phone has no shadow map, so shadow casters cost nothing there. 42ad62d hides the brake discs and calipers past 30 m (back at 25 m), where a wheel is under 10 px: -18 calls with the pack bunched, more once it strings out. Its frame-time gain is inside the noise next to the style recalc.
 - **Series screen:** no dropped frames idle or swiping; the frame gap p95 is 7.0 ms (the 144 Hz display). The scene behind it redraws at 10 Hz (`MENU_DRAW_MS`), so its draw costs 65 ms/s at 4x. The rest of `frame()` still runs at the display rate behind the menu: about 155 ms/s at 4x (ghost `wheel_lifts`, `drawn_lift`, gamepads, audio), and a native `(program)` share for compositing the cards. A loop that skips its non-draw work on frames it does not draw would win that back; not done (`main.ts`). The 10 Hz redraw shows its turbines and gates stepping now that the stage page has no blur.
+
 ## Phone frame: race clock and remote labels (t308)
 
 The fix for t307's top phone cost, measured on master. Base cd77979 against 66478eb, each a `git archive` copy built with `vite build --mode review`, served by `vite preview`, headless Chrome on the real GPU (ANGLE D3D11), 844x390 at DPR 2, touch (mobile tier), CPU throttled 4x, 8 s warm and then a 10 s sample. The `?airace` field is not on master, so the race is career event `?event=r1` (First lap, Island circuit, dev ghost on), the player parked on the grid with the clock running. Online adds a second tab in the same browser (`&room=…&quality=low`, same event) over BroadcastChannel, so one remote car and its label are in view. Two alternating runs per build; the box was shared with other agents' jobs. Scripts: `.t308p/probe.mts`, `trace.mts` (untracked, t307's with a car pick and a peer tab).
@@ -526,3 +527,24 @@ Solo race frames (`probe.mts`, 8 s warm, 10 s sample):
 - **Sized for Inter.** `ch` is Inter's proportional zero, wider than its tabular figures: the box holds " · M:SS.sss" (the separator is the clock's `::before`) at 7.66ch, so it is 7.7ch, 8.65ch for MM:SS.sss. `white-space: pre` keeps the separator's leading space, which a line inside the box would drop. Measured with Inter loaded, `#mode-status` comes out 0.36 px wider than before and `#mode-status-more` and `#mode-hint` hold one position across 40 samples. With Inter loaded the clock's width never changed per tick before either (tabular figures); it did in the traces, which block Google Fonts and fall back to a font without them (68-72 px).
 - **Only a time alone gets the box.** `Modes.write_status` sets `data-time` to the clock's length when the segment is `M:SS.sss` or `MM:SS.sss`, written only when that changes. A clock with a penalty (`0:17.346 (+2 s)`), the countdown, drift points and jump metres keep the inline flow and its relayouts.
 - **The menu skips whole frames.** `frame()` reads input, runs actions and the lobby every frame. With the sim held (no peers) it then returns on a frame the menu's redraw rate won't draw (`draw_ms` set, not the garage, not a review shot); `last` stays put, so the next drawn frame's `dt` covers the skipped time. With peers the sim keeps stepping every frame, so the heartbeat's 50 ms pose stays as fresh as before, and the frame returns after the gameplay updates; the draw side (chase cam, smoke, sparks, remote cars) advances on the drawn frame by `draw_dt`, the time it skipped. Both carries keep the 0.1 s cap, so a held-sim menu at 100 ms loses up to a frame of chase and smoke time per redraw, with nothing driving. `quality.adapt` skips covered frames, whose `dt` is the redraw gap and would read as slow frames. Main thread behind the menu drops from 523-680 to 468-482 ms/s, the rAF callback by half; one later run of the sim-every-frame version read 368 (menu) and 387 (online menu) ms/s on a quieter box.
+## Shared maths, built (t286)
+
+J2 and J10 landed together: `src/sim-math.ts` (fdlibm ports of sin, cos, tan, atan, atan2, asin, acos, exp, log, cbrt; `hypot` as `sqrt(a*a+b*b)`; `axis_angle` for three's `setFromAxisAngle`) replaces `Math.*` in `car/`, `ai/`, `world/`, `worldgen/`, `modes/`, `career/` and `race.ts`. The suspension ray is false position with Illinois (one lookup per face, 12-step cap). Every kind's `version` bumped once.
+
+Proof: `src/car/sim-digest.test.ts` holds a maths digest and a 12-car, 10 s rolling-ground car digest. `node scripts/sim-digest.mjs` reruns them in Bun, Node and Chrome (and WebKit when Playwright's build is installed). 2026-11-15: Bun 1.3.0 (JSC), Node 22.14 (V8 12.4) and Chrome 157 all give `8ad84cdc` / `1866f347` (after the floor stop landed).
+
+Telemetry (coupe, stock) and feel, ce6af9c → this branch. Every other line is byte-identical.
+
+| line | before | after |
+|---|---|---|
+| telemetry: settled | CG height 0.493 m, loads 3144 / 3144 / 3144 / 3144 N | CG height 0.493 m, loads 3310 / 3310 / 3310 / 3310 N |
+| telemetry: 100-0 km/h braking (ABS off) | 39.2 m | 39.1 m |
+| feel: lane change 160 km/h | max slip 1.2°, yaw after 3.5 s -0.000 rad/s, upright 1.000 | max slip 1.2°, yaw after 3.5 s 0.000 rad/s, upright 1.000 |
+| feel: trail brake 120 km/h + steer | max slip 7.1°, stopped in 3.07 s | max slip 7.0°, stopped in 3.07 s |
+| feel: rest jitter | max dy/step 0.0075 mm, speed 0.0006 | max dy/step 0.0073 mm, speed 0.0000 |
+| feel: hold: release at 100 km/h | wheel 0.082 rad -> 10% in 0.45 s, yaw after 2 s -0.000 rad/s | wheel 0.082 rad -> 10% in 0.45 s, yaw after 2 s 0.000 rad/s |
+| feel: drift hold 50 km/h hb (TCS on) | held 4.81 s, slip 27.4°, 54 -> 39 km/h, yaw 0.54, r 19.3 m | held 4.81 s, slip 27.4°, 54 -> 39 km/h, yaw 0.54, r 19.2 m |
+| feel: drift hold 50 km/h hb (TCS off) | held 2.31 s, slip 71.0°, 54 -> 5 km/h, yaw 1.18, r 0.8 m | held 2.25 s, slip 68.9°, 54 -> 3 km/h, yaw 0.93, r 0.3 m |
+| feel: then turn key 1 s | yaw 1.00, r 1.7 m, slip 1.3° | yaw 1.12, r 2.3 m, slip -0.7° |
+| feel: power drift 40 km/h no hb (TCS on) | r 100.2 m | r 100.4 m |
+- Settled loads now equal the coupe's weight a wheel (1350 kg x 9.81 / 4 = 3311 N); with the bisected ray they read 5% under it.

@@ -1,5 +1,6 @@
 import { KERB_OUT, roadside_clear, type Junctions, type RoadData } from "../worldgen/road-layers";
 import { ROAD_HALF, type RoadPoint } from "../worldgen/types";
+import { atan2, hypot } from "../sim-math";
 
 /** Inner edge of a circuit kerb, metres off the centre line: it tucks just under the road's edge. */
 export const KERB_IN = ROAD_HALF - 0.1;
@@ -17,7 +18,7 @@ export interface KerbMarks {
 function curvature(road: readonly RoadPoint[], s: number): number {
   const a = road[(s - BEND_REACH + road.length) % road.length];
   const b = road[(s + BEND_REACH) % road.length];
-  return Math.atan2(a.tx * b.tz - a.tz * b.tx, a.tx * b.tx + a.tz * b.tz);
+  return atan2(a.tx * b.tz - a.tz * b.tx, a.tx * b.tx + a.tz * b.tz);
 }
 
 /** Where the circuit's kerbs go: the mesh draws them from these, and a tyre feels them from the same. */
@@ -39,7 +40,7 @@ export function on_kerb_segment(marks: KerbMarks, road: readonly RoadPoint[], s:
   const dx = x - p.x;
   const dz = z - p.z;
   const along = dx * p.tx + dz * p.tz;
-  if (along < 0 || along > Math.hypot(q.x - p.x, q.z - p.z)) return false;
+  if (along < 0 || along > hypot(q.x - p.x, q.z - p.z)) return false;
   // The mesh offsets a sample by `side` along (-tz, tx).
   const across = (-dx * p.tz + dz * p.tx) * side;
   return across >= KERB_IN && across <= KERB_OUT;

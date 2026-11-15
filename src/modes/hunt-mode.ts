@@ -5,6 +5,7 @@ import { HuntView } from "./hunt-view";
 import { CIRCUIT, turn_to, type Driven, type Finish, type ModeCtx, type ModeDef, type ModeRun, type RouteRun } from "./mode";
 import { best_line, line, penalty_text, result_title, time_lines } from "./result";
 import { grade, par_thresholds } from "./track";
+import { hypot } from "../sim-math";
 
 class GateHunt implements ModeRun {
   private readonly view: HuntView;
@@ -53,7 +54,7 @@ class GateHunt implements ModeRun {
     if (!gate) return null;
     ctx.hint(turn_to(car, gate.x, gate.z));
     const doing = run.status === HuntStatus.READY ? "drive to start the clock" : `${format(run.elapsed())}${penalty_text(this.hits)}`;
-    return `${level.name} · ${run.found.size}/${gates.length} · ${doing} · ${Math.round(Math.hypot(gate.x - car.pos.x, gate.z - car.pos.z))} m`;
+    return `${level.name} · ${run.found.size}/${gates.length} · ${doing} · ${Math.round(hypot(gate.x - car.pos.x, gate.z - car.pos.z))} m`;
   }
 
   private finish() {

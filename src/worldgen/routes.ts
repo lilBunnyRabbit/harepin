@@ -6,6 +6,7 @@ import type { Junction } from "./road-layers";
 import type { TownLoop } from "./town-circuit";
 import type { Trail } from "./trails";
 import { ROAD_HALF, RouteKind, SIDEWALK, STREET_HALF, type Checkpoint, type Item, type Ramp, type RoadEdge, type RoadGraph, type RoadPoint, type Route, type Town } from "./types";
+import { atan2 } from "../sim-math";
 
 const STREET_COST = 0.6;
 const SPUR_COST = 1;
@@ -106,7 +107,7 @@ function par(points: readonly RoadPoint[], closed: boolean, share = PAR_SHARE): 
   return Math.ceil(drive_time(points, closed) * share * 2) * 500;
 }
 
-export const heading = (p: { tx: number; tz: number }) => Math.atan2(p.tx, p.tz);
+export const heading = (p: { tx: number; tz: number }) => atan2(p.tx, p.tz);
 
 /** The race loop as a route: the circuit's own gates, the start line moved to the end as the finish. */
 export function circuit_route(road: readonly RoadPoint[], checkpoints: readonly Checkpoint[], share = PAR_SHARE): Route {

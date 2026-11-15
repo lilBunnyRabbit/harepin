@@ -1,6 +1,7 @@
 import { mulberry32, sub } from "../rng";
 import { ROAD_HALF, SIZE, type Solid } from "../world/world";
 import { stars_for } from "./track";
+import { cos, hypot, sin } from "../sim-math";
 
 export const GATE_RADIUS = 8;
 const ROAD_STRIDE = 5;
@@ -62,8 +63,8 @@ const far = (a: Point, b: Point, gap: number) => (a.x - b.x) ** 2 + (a.z - b.z) 
 
 function clear_of(solids: readonly Solid[], p: Point, gap: number): boolean {
   for (const s of solids) {
-    const reach = (s.kind === "circle" ? s.radius : Math.hypot(s.hw, s.hd)) + gap;
-    if (Math.abs(s.x - p.x) < reach && Math.abs(s.z - p.z) < reach && Math.hypot(s.x - p.x, s.z - p.z) < reach) return false;
+    const reach = (s.kind === "circle" ? s.radius : hypot(s.hw, s.hd)) + gap;
+    if (Math.abs(s.x - p.x) < reach && Math.abs(s.z - p.z) < reach && hypot(s.x - p.x, s.z - p.z) < reach) return false;
   }
   return true;
 }
@@ -86,8 +87,8 @@ export function tour(start: Point, gates: readonly Point[]): number {
   const left = [...gates];
   while (left.length) {
     let best = 0;
-    for (let i = 1; i < left.length; i++) if (Math.hypot(left[i].x - at.x, left[i].z - at.z) < Math.hypot(left[best].x - at.x, left[best].z - at.z)) best = i;
-    total += Math.hypot(left[best].x - at.x, left[best].z - at.z);
+    for (let i = 1; i < left.length; i++) if (hypot(left[i].x - at.x, left[i].z - at.z) < hypot(left[best].x - at.x, left[best].z - at.z)) best = i;
+    total += hypot(left[best].x - at.x, left[best].z - at.z);
     at = left[best];
     left.splice(best, 1);
   }
@@ -121,7 +122,7 @@ export function build_hunt(seed: number, ground: HuntGround, start: Point, level
     if (wild) {
       const a = rng() * Math.PI * 2;
       const r = Math.sqrt(rng()) * level.spread;
-      p = { x: start.x + Math.sin(a) * r, z: start.z + Math.cos(a) * r };
+      p = { x: start.x + sin(a) * r, z: start.z + cos(a) * r };
       if (!within(p) || ground.distance_to_road(p.x, p.z) < OFF_ROAD_CLEAR || !drivable(ground, p) || !clear_of(solids, p, SOLID_CLEAR)) continue;
     } else {
       if (!roads.length) continue;
@@ -172,7 +173,7 @@ export class HuntRun {
     if (this.status === HuntStatus.DONE) return -1;
     this.clock += dt_ms;
     if (this.status === HuntStatus.READY) {
-      if (Math.hypot(vx, vz) <= MOVE_SPEED) return -1;
+      if (hypot(vx, vz) <= MOVE_SPEED) return -1;
       this.status = HuntStatus.RUNNING;
       this.started = this.clock;
     }

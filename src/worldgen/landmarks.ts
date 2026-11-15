@@ -2,6 +2,7 @@ import { mulberry32, sub } from "../rng";
 import { sample, up } from "./field";
 import { circle16, length } from "./noise";
 import { CELL, N, ORIGIN, ROAD_HALF, SIZE, PropKind, type Prop, type RoadEdge, type RoadPoint, type Solid, type Terrain, type Town } from "./types";
+import { atan2 } from "../sim-math";
 
 export const MAST_HEIGHT = 32;
 export const LIGHTHOUSE_HEIGHT = 20;
@@ -129,7 +130,7 @@ export class LandmarkPlanner {
 
   private put(kind: PropKind, x: number, z: number, fx: number, fz: number, height: number, clear: number, radius: number) {
     const y = sample(this.heights, x, z);
-    this.out.props.push({ kind, x, y, z, angle: Math.atan2(fx, fz), scale: 1 });
+    this.out.props.push({ kind, x, y, z, angle: atan2(fx, fz), scale: 1 });
     this.out.solids.push({ kind: "circle", x, y, z, radius, height });
     this.spots.push({ x, z, clear });
   }
@@ -268,7 +269,7 @@ export class LandmarkPlanner {
       x: p.x,
       y: p.y,
       z: p.z,
-      angle: Math.atan2(p.tx, p.tz),
+      angle: atan2(p.tx, p.tz),
       scale: half,
     });
     this.spots.push({ x: p.x, z: p.z, clear: half + ARCH_LEG + 2 });

@@ -8,6 +8,7 @@ import { chunk_of } from "../worldgen/chunk-grid";
 import { KERB_OUT } from "../worldgen/road-layers";
 import { KERB_IN, type KerbMarks } from "../world/kerbs";
 import type { Solid } from "../worldgen/types";
+import { cos, sin } from "../sim-math";
 
 export interface Gate {
   group: THREE.Group;
@@ -132,8 +133,8 @@ function dispose_roadside(part: THREE.Group) {
 /** Gate posts as solids, as the island's plan puts them down. */
 function gate_solids(world: World, at: number): Solid[] {
   const cp = world.checkpoints[at];
-  const tx = Math.sin(cp.heading);
-  const tz = Math.cos(cp.heading);
+  const tx = sin(cp.heading);
+  const tz = cos(cp.heading);
   return [-1, 1].map((side) => {
     const off = side * (ROAD_HALF + 1.7);
     const x = cp.x - tz * off;

@@ -9,6 +9,7 @@ import { Awareness } from "./awareness";
 import { Driver, OFF_ROAD, STEADY, type Personality } from "./driver";
 import { race_line, type RaceLine } from "./line";
 import { AI_TUNING } from "./tuning";
+import { atan2, cos, hypot, sin } from "../sim-math";
 
 /** Physics steps between awareness and recovery passes: 20 Hz at 360; at 10 Hz a follower closing in a hairpin reacts too late. */
 const AWARE_STEPS = 18;
@@ -87,7 +88,7 @@ export function grid_spot(route: Route, slot: number): { index: number; x: numbe
   const index = (((-GRID_BACK - slot * GRID_GAP) % n) + n) % n;
   const p = route.points[index];
   const side = (slot % 2 ? -1 : 1) * GRID_SIDE;
-  return { index, x: p.x + p.tz * side, z: p.z - p.tx * side, heading: Math.atan2(p.tx, p.tz), side };
+  return { index, x: p.x + p.tz * side, z: p.z - p.tx * side, heading: atan2(p.tx, p.tz), side };
 }
 
 const level = (table: readonly (readonly [number, number])[], at: number) => table[Math.max(1, Math.min(table.length, Math.round(at))) - 1];
@@ -258,7 +259,7 @@ export class Field {
     const rival = this.rival_car;
     if (rival && !this.drives_rival) {
       this.rival_driver.track(rival);
-      this.rival_driver.target = Math.hypot(rival.vel.x, rival.vel.z);
+      this.rival_driver.target = hypot(rival.vel.x, rival.vel.z);
     }
     collide_cars(this.touching, this.impacts);
     this.t += dt;
@@ -296,7 +297,7 @@ export class Field {
     for (let i = 0; i < this.racers.length; i++) {
       if (this.retired[i]) continue;
       const { car, driver } = this.racers[i];
-      const d = Math.hypot(car.pos.x - rival.pos.x, car.pos.z - rival.pos.z);
+      const d = hypot(car.pos.x - rival.pos.x, car.pos.z - rival.pos.z);
       const seen = (this.seen >> i) & 1;
       if (!this.coasting[i] && d > FAR && !seen) {
         this.coasting[i] = 1;
@@ -326,8 +327,8 @@ export class Field {
         this.best[i] = driver.progress;
         continue;
       }
-      const speed = Math.hypot(car.vel.x, car.vel.z);
-      const slide = speed > 3 ? Math.abs(Math.atan2(Math.sin(Math.atan2(car.vel.x, car.vel.z) - car.heading), Math.cos(Math.atan2(car.vel.x, car.vel.z) - car.heading))) : 0;
+      const speed = hypot(car.vel.x, car.vel.z);
+      const slide = speed > 3 ? Math.abs(atan2(sin(atan2(car.vel.x, car.vel.z) - car.heading), cos(atan2(car.vel.x, car.vel.z) - car.heading))) : 0;
       if (!this.spinning[i] && driver.reversing <= 0 && slide > SPIN) {
         this.spinning[i] = 1;
         stats.spins++;
@@ -350,7 +351,7 @@ export class Field {
         const laps = at > driver.index ? driver.laps - 1 : driver.laps;
         if (!this.clear(i, laps * this.route.points.length + at)) continue;
         const p = this.route.points[at];
-        car.park(p.x, p.z, Math.atan2(p.tx, p.tz), this.world);
+        car.park(p.x, p.z, atan2(p.tx, p.tz), this.world);
         driver.place(at, laps);
         driver.recovered();
         stats.resets++;

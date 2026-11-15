@@ -1,6 +1,7 @@
 import type { Car } from "../car/car";
 import { OFF_ROAD, pass_room, type Driver } from "./driver";
 import { AI_TUNING } from "./tuning";
+import { atan2, cos, hypot, sin } from "../sim-math";
 
 /** Metres ahead a car is looked at, plus this many per m/s of the looker's speed. */
 const LOOK = 15;
@@ -163,11 +164,11 @@ export class Awareness {
       this.lateral[i] = Awareness.lateral_of(cars[i], drivers[i]);
       this.rel[i] = this.lateral[i] - drivers[i].line.offset[drivers[i].index];
       const { vel, heading } = cars[i];
-      const v = Math.hypot(vel.x, vel.z);
+      const v = hypot(vel.x, vel.z);
       const p = drivers[i].line.road[drivers[i].index];
       this.speed[i] = v;
       this.along[i] = vel.x * p.tx + vel.z * p.tz;
-      const slide = Math.abs(Math.atan2(Math.sin(Math.atan2(vel.x, vel.z) - heading), Math.cos(Math.atan2(vel.x, vel.z) - heading)));
+      const slide = Math.abs(atan2(sin(atan2(vel.x, vel.z) - heading), cos(atan2(vel.x, vel.z) - heading)));
       const off = Math.abs(this.lateral[i]) > OFF_ROAD;
       this.trouble[i] = drivers[i].reversing > 0 || off || (v > TROUBLE_SPEED && (slide > TROUBLE_SLIDE || this.along[i] < TROUBLE_ALONG * v)) ? 1 : 0;
     }

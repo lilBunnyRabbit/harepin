@@ -5,6 +5,7 @@ import type { Extent } from "./chunk-grid";
 import { offset_reach, strip_line, type Roads, type StripLine } from "./roads";
 import { LIFT } from "./lifts";
 import { ROAD_HALF, SIDEWALK, STREET_HALF, type RoadEdge, type RoadPoint, type WorldData } from "./types";
+import { hypot } from "../sim-math";
 
 const SURFACE_LIFT = LIFT.street;
 // Spurs sit a hair above streets and sidewalks so their mouth covers the street's sidewalk at the town gate.
@@ -322,7 +323,7 @@ export function road_paint(data: RoadData, junctions: Junctions): RoadPaint {
     }
     // Where a spur's gate runs near it, a street carries no paint.
     const near_spur = Uint8Array.from(points, (p) => (under_spur(p, half + SIDEWALK + 6) ? 1 : 0));
-    const step = Math.hypot(points[1].x - points[0].x, points[1].z - points[0].z) || 1;
+    const step = hypot(points[1].x - points[0].x, points[1].z - points[0].z) || 1;
     const clear = Math.ceil((half + SIDEWALK) / step);
     // A lane, narrower than a street, carries no paint at all.
     const marked = (s: number) => half >= STREET_HALF && s >= Math.max(clear, mouths[0]) && s < last - Math.max(clear, mouths[1]) && !near_spur[s] && !near_spur[s + 1];

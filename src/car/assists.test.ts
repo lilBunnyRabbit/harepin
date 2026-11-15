@@ -87,8 +87,9 @@ describe("steering assist and stability", () => {
     expect(over.body).toBeLessThan(85);
     expect(over.spun).toBe(false);
     if (counter === Counter.RELEASE) expect(over.catch).toBeLessThan(2);
-    // The opposite key held is the driver steering into the mirror slide: with stability off the formula's tail swings 37 degrees.
-    expect(over.flip).toBeLessThan(counter === Counter.HOLD ? 40 : 5);
+    // The opposite key held is the driver steering into the mirror slide: with stability off the formula's tail swings 41 degrees
+    // (38 before the exact suspension ray).
+    expect(over.flip).toBeLessThan(counter === Counter.HOLD ? 42 : 5);
   };
 
   for (const aids of COMBOS.slice(1))
@@ -105,11 +106,11 @@ describe("steering assist and stability", () => {
 // Captured at 412bd08, before the split: the default pair must drive exactly as the one steer assist did. The power over
 // of the rear-drive cars is re-captured with the launch's looser traction control and its own countersteer, by design;
 // swerve, slalom and lift-off with the full-key reach past grip lock that opens from 90 km/h; the rear-drive power over again
-// with traction control acting from rest.
+// with traction control acting from rest; all of it once more on the shared sim maths and the exact suspension ray.
 const BEFORE_SPLIT = {
-  coupe: { swerve: -0.9195335124733298, slalom: 3.3716032303715324, lift: 3.9767758122283436, t30: 1.4611111111111066, peak: 65.56406909661631, catch: 0.47222222222222104, held: 0.36666666666666586 },
-  muscle: { swerve: -0.8156821237686279, slalom: 4.113755540073077, lift: 3.5190155841831006, t30: 1.3999999999999957, peak: 69.7957453579842, catch: 0.5833333333333318, held: 0.4694444444444433 },
-  rally: { swerve: 0.07668757325832962, slalom: 4.499654456125449, lift: 13.019912053627973, t30: 1.3499999999999959, peak: 68.52582111088348, catch: 0.2944444444444439, held: 0.29722222222222167 },
+  coupe: { swerve: -0.9192917511313919, slalom: 3.3711228754736013, lift: 3.977104999842984, t30: 1.4583333333333288, peak: 65.56822375838192, catch: 0.4777777777777766, held: 0.3722222222222214 },
+  muscle: { swerve: -0.8163578226112009, slalom: 4.113813394044343, lift: 3.519485083332628, t30: 1.3999999999999957, peak: 69.79437597707974, catch: 0.5833333333333318, held: 0.4694444444444433 },
+  rally: { swerve: 0.07736498397216841, slalom: 4.500709533216948, lift: 13.028844965378003, t30: 1.3499999999999959, peak: 68.53237710413995, catch: 0.29166666666666613, held: 0.29722222222222167 },
 } as const;
 
 describe("both on is the old steer assist", () => {

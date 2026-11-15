@@ -1,5 +1,6 @@
 import { read_json, write_json, type Store } from "./modes/track";
 import type { World } from "./world/world";
+import { hypot } from "./sim-math";
 
 export const BEST_KEY = "harepin:best";
 export const SPLITS_KEY = "harepin:splits";
@@ -62,7 +63,7 @@ export class Race {
 
   update(x: number, z: number, now: number) {
     const cp = this.world.checkpoints[this.next];
-    if (!cp || Math.hypot(x - cp.x, z - cp.z) > GATE_RADIUS) return;
+    if (!cp || hypot(x - cp.x, z - cp.z) > GATE_RADIUS) return;
     if (this.next === 0) {
       if (this.started) {
         const lap = now - this.started;

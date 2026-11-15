@@ -3,6 +3,7 @@ import { flight, RIDE, ROAD_KICKER } from "./jumps";
 import { circuit_banked, circuit_route } from "./routes";
 import { roof_buildings } from "./rooftops";
 import { CELL, DECK_STRIDE, N, ROAD_HALF, SIZE, WorldKind, type Checkpoint, type DeckPiece, type OpenSection, type Ramp, type RoadPoint, type Solid, type WorldData } from "./types";
+import { asin, atan2, cos, hypot, sin, tan } from "../sim-math";
 
 export const ABYSS = -2000;
 /** How far below the deck under it a car counts as fallen off. */
@@ -163,15 +164,15 @@ function trace(p: PlanPiece, start: Pose, emit?: (x: number, z: number, h: numbe
   for (let i = 0; i < n; i++) {
     emit?.(x, z, heading_at(p, start.h, i * ds), i * ds);
     if (p.kind === "straight") {
-      x += Math.sin(start.h) * ds;
-      z += Math.cos(start.h) * ds;
+      x += sin(start.h) * ds;
+      z += cos(start.h) * ds;
       continue;
     }
     const sub_ds = ds / SUBSTEPS;
     for (let k = 0; k < SUBSTEPS; k++) {
       const h = heading_at(p, start.h, i * ds + (k + 0.5) * sub_ds);
-      x += Math.sin(h) * sub_ds;
-      z += Math.cos(h) * sub_ds;
+      x += sin(h) * sub_ds;
+      z += cos(h) * sub_ds;
     }
   }
   return { x, z, h: heading_at(p, start.h, p.length) };
@@ -310,7 +311,7 @@ function draw_layout(rng: () => number, { odds, bowls }: SkyRecipe): PlanPiece[]
   }
   // A twisty lap misses by more than any two straights can take up, so every stretchy straight takes a share first
   // (coordinate descent inside each one's length limits); one pair then closes the last few centimetres exactly.
-  const dirs = stretchy.map((i) => [Math.sin(headings[i]), Math.cos(headings[i])] as const);
+  const dirs = stretchy.map((i) => [sin(headings[i]), cos(headings[i])] as const);
   const lo = stretchy.map((i) => pieces[i].min + CLOSE_SLACK - pieces[i].length);
   const hi = stretchy.map((i) => STRETCH_MAX - CLOSE_SLACK - pieces[i].length);
   const delta = stretchy.map(() => 0);
@@ -329,10 +330,10 @@ function draw_layout(rng: () => number, { odds, bowls }: SkyRecipe): PlanPiece[]
     for (let b = a + 1; b < stretchy.length; b++) {
       const i = stretchy[a];
       const j = stretchy[b];
-      const d1x = Math.sin(headings[i]);
-      const d1z = Math.cos(headings[i]);
-      const d2x = Math.sin(headings[j]);
-      const d2z = Math.cos(headings[j]);
+      const d1x = sin(headings[i]);
+      const d1z = cos(headings[i]);
+      const d2x = sin(headings[j]);
+      const d2z = cos(headings[j]);
       const det = d1x * d2z - d1z * d2x;
       if (Math.abs(det) < 0.5) continue;
       const la = (-ex * d2z + ez * d2x) / det;
@@ -429,7 +430,7 @@ function sample_layout(pieces: PlanPiece[]): { samples: Sample[]; length: number
     pose = trace(p, pose, (x, z, h, s) => samples.push({ x, z, h, s: s0 + s, piece: index, bank: bank_at(p, s) }));
     s0 += p.length;
   });
-  return { samples, length: s0, error: Math.hypot(pose.x, pose.z) };
+  return { samples, length: s0, error: hypot(pose.x, pose.z) };
 }
 
 /** Sample pairs on sections that aren't neighbours and come closer than SEPARATION in xz; the first is the earlier one. */
@@ -529,8 +530,8 @@ export function twistiness(points: readonly { x: number; z: number; tx: number; 
   for (let i = 0; i < n; i++) {
     const a = points[i];
     const b = points[(i + 1) % n];
-    const d = Math.hypot(b.x - a.x, b.z - a.z);
-    const dh = Math.atan2(a.tz * b.tx - a.tx * b.tz, a.tx * b.tx + a.tz * b.tz);
+    const d = hypot(b.x - a.x, b.z - a.z);
+    const dh = atan2(a.tz * b.tx - a.tx * b.tz, a.tx * b.tx + a.tz * b.tz);
     length += d;
     area += a.x * b.z - b.x * a.z;
     turn.push(dh);
@@ -685,7 +686,7 @@ function draw_profile(rng: () => number, length: number, toes: readonly number[]
   };
   // Coils within SEPARATION of each other are a little under one turn apart along the deck, not a full one.
   const coil = (h: Helix): boolean => {
-    const apart = h.radius * (2 * Math.PI - 2 * Math.asin(Math.min(1, SEPARATION / 2 / h.radius)));
+    const apart = h.radius * (2 * Math.PI - 2 * asin(Math.min(1, SEPARATION / 2 / h.radius)));
     const steep = (CLEARANCE + 2) / apart;
     const climb_by = steep * (h.s1 - h.s0);
     const up = START_Y + y + climb_by > Y_MAX - 30 ? false : START_Y + y - climb_by < Y_MIN + 30 ? true : rng() < 0.5;
@@ -850,7 +851,7 @@ export function sky_layout(seed: number, recipe: SkyRecipe = SKY, plain: SkyReci
     let z1 = -Infinity;
     for (const p of samples) [x0, x1, z0, z1] = [Math.min(x0, p.x), Math.max(x1, p.x), Math.min(z0, p.z), Math.max(z1, p.z)];
     if (x1 - x0 > 2 * BOUND || z1 - z0 > 2 * BOUND) continue;
-    const twist = twistiness(samples.map((p) => ({ x: p.x, z: p.z, tx: Math.sin(p.h), tz: Math.cos(p.h) })));
+    const twist = twistiness(samples.map((p) => ({ x: p.x, z: p.z, tx: sin(p.h), tz: cos(p.h) })));
     if (!twisty(twist)) continue;
     const pairs = close_pairs(samples, length);
     // A bowl's high edge stands as tall as a crossover's clearance: nothing passes over or under one.
@@ -967,8 +968,8 @@ export function generate_sky(seed: number, recipe: SkyRecipe = SKY, plain: SkyRe
     const { y, solid } = height_at(profile, climbs, p.s);
     const past = toes.map((t) => p.s - t - SKY_KICKER.length - jump.gap).find((d) => d >= 0 && d < jump.landing + LANDING_TAPER);
     const half = past === undefined ? ROAD_HALF : past < jump.landing ? LANDING_HALF : LANDING_HALF + ((ROAD_HALF - LANDING_HALF) * (past - jump.landing)) / LANDING_TAPER;
-    const tx = Math.sin(p.h);
-    const tz = Math.cos(p.h);
+    const tx = sin(p.h);
+    const tz = cos(p.h);
     line.set([p.x, y, p.z, tx, tz, p.bank, half, solid ? 1 : 0, p.s], i * DECK_STRIDE);
     road.push({ x: p.x, y, z: p.z, tx, tz });
   });
@@ -1002,11 +1003,11 @@ export function generate_sky(seed: number, recipe: SkyRecipe = SKY, plain: SkyRe
     const mz = (line[a + 2] + line[b + 2]) / 2;
     const dx = line[b] - line[a];
     const dz = line[b + 2] - line[a + 2];
-    const len = Math.hypot(dx, dz);
+    const len = hypot(dx, dz);
     const tx = dx / len;
     const tz = dz / len;
     const y = (line[a + 1] + line[b + 1]) / 2;
-    const slope = Math.tan((line[a + 5] + line[b + 5]) / 2);
+    const slope = tan((line[a + 5] + line[b + 5]) / 2);
     const half = (line[a + 6] + line[b + 6]) / 2;
     for (const side of [-1, 1]) {
       if (rail_open(open, (line[a + 8] + line[b + 8]) / 2, side)) continue;
@@ -1024,7 +1025,7 @@ export function generate_sky(seed: number, recipe: SkyRecipe = SKY, plain: SkyRe
   const add_checkpoint = (i: number) => {
     const p = road[i];
     at.push(i);
-    checkpoints.push({ x: p.x, y: p.y, z: p.z, heading: Math.atan2(p.tx, p.tz), index: checkpoints.length });
+    checkpoints.push({ x: p.x, y: p.y, z: p.z, heading: atan2(p.tx, p.tz), index: checkpoints.length });
     for (const side of [-1, 1]) {
       const off = side * (ROAD_HALF + GATE_POST);
       solids.push({ kind: "circle", x: p.x - p.tz * off, y: p.y, z: p.z + p.tx * off, radius: 0.5, height: 7 });

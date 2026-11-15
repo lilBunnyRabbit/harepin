@@ -1,6 +1,7 @@
 import { GRAVITY } from "../car/rigid-body";
 import { ROAD_HALF, type Ramp, type RoadPoint } from "../worldgen/types";
 import { AI_TUNING } from "./tuning";
+import { hypot } from "../sim-math";
 
 /** Bend radii (m) over which the line's grip eases from `AI_TUNING.line_grip` up to `fast_grip`. */
 const HAIRPIN_RADIUS = 25;
@@ -66,7 +67,7 @@ export function inverse_radius(ax: number, az: number, bx: number, bz: number, c
 function ramp_index(road: readonly RoadPoint[], ramp: Ramp): number {
   let at = 0;
   for (let i = 1; i < road.length; i++) if ((road[i].x - ramp.x) ** 2 + (road[i].z - ramp.z) ** 2 < (road[at].x - ramp.x) ** 2 + (road[at].z - ramp.z) ** 2) at = i;
-  return Math.hypot(road[at].x - ramp.x, road[at].z - ramp.z) < ROAD_HALF ? at : -1;
+  return hypot(road[at].x - ramp.x, road[at].z - ramp.z) < ROAD_HALF ? at : -1;
 }
 
 /** Lowers each corner speed so every bend ahead can be braked for at `brake` m/s²: two laps backwards, as the braking curve from the slowest bend wraps past the start line. */
@@ -102,7 +103,7 @@ function crest(road: readonly RoadPoint[], step: Float64Array, i: number): numbe
 export function race_line(road: readonly RoadPoint[], ramps: readonly Ramp[], half_width: number): RaceLine {
   const n = road.length;
   const step = new Float64Array(n);
-  for (let i = 0; i < n; i++) step[i] = Math.hypot(road[wrap(i + 1, n)].x - road[i].x, road[wrap(i + 1, n)].z - road[i].z);
+  for (let i = 0; i < n; i++) step[i] = hypot(road[wrap(i + 1, n)].x - road[i].x, road[wrap(i + 1, n)].z - road[i].z);
   const room = new Float64Array(n).fill(Math.max(0, ROAD_HALF - half_width - EDGE_GAP));
   const ramp = new Int16Array(n).fill(-1);
   ramps.forEach((r, k) => {
