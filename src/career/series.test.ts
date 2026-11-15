@@ -9,6 +9,7 @@ import type { SeriesSaves } from "./series-db";
 import { SEASON_1, SEASON_4, SEASONS, completed, seasons_open, series_event } from "./series-seasons";
 import { build_world, plain_map } from "../worldgen/kinds/kinds";
 import type { WorldKind } from "../worldgen/types";
+import { MAX_LAPS } from "../modes/race-laps";
 import { Series, series_front, series_list, series_open } from "./series-store";
 import { BASE_CAR, Wallet } from "./wallet";
 
@@ -41,6 +42,8 @@ function world_of(kind: WorldKind, seed: number): World {
 
 /** The longest lap a race may run on: past it the game's one lap is the whole race, well over D4's four minutes. */
 const PAR_MAX_MS = 450_000;
+/** A quick lap as a share of par: series-race's AI fields lap the town loop in about 0.73 of it. */
+const FAST_LAP = 0.6;
 
 for (const each of SEASONS) {
   test(`${each.name}: every event's route, and every replay seed's, is closed on its world, a lap within ${PAR_MAX_MS / 1000} s`, () => {
@@ -50,7 +53,12 @@ for (const each of SEASONS) {
       expect(route?.closed).toBe(true);
       expect(route!.par_ms).toBeLessThanOrEqual(PAR_MAX_MS);
     };
-    for (const event of each.events) check(event.seed, event.route);
+    for (const event of each.events) {
+      check(event.seed, event.route);
+      // A timed race runs MAX_LAPS: a car lapping well under par must not reach the line before the clock ends it.
+      const par = world_of(each.world, event.seed).routes.find((r) => r.id === event.route)!.par_ms;
+      if (event.limit_ms) expect(MAX_LAPS * par * FAST_LAP).toBeGreaterThanOrEqual(event.limit_ms);
+    }
     for (const seed of each.replays) for (const id of routes) check(seed, id);
   }, 180_000);
 }

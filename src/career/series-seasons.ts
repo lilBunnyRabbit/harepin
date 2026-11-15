@@ -103,7 +103,7 @@ export const SEASON_4: Season = {
     { id: "s4-knockout", name: "Town knockout", kind: SeriesKind.KNOCKOUT, seed: 42, route: "town" },
     { id: "s4-ring", name: "Ring road", kind: SeriesKind.RACE, seed: 19, route: "circuit" },
     { id: "s4-rival", name: "Lund duel", kind: SeriesKind.HEAD_TO_HEAD, seed: 44, route: "town" },
-    { id: "s4-endurance", name: "Six minutes downtown", kind: SeriesKind.ENDURANCE, seed: 51, route: "town", limit_ms: 360_000 },
+    { id: "s4-endurance", name: "Four minutes downtown", kind: SeriesKind.ENDURANCE, seed: 51, route: "town", limit_ms: 240_000 },
     { id: "s4-final", name: "Mainland final", kind: SeriesKind.RACE, seed: 81, route: "circuit", final: true },
   ],
 };
