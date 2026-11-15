@@ -51,7 +51,8 @@ const wrap = (i: number, n: number) => ((i % n) + n) % n;
 /** Signed 1/radius of the circle through a, b, c. */
 export function inverse_radius(ax: number, az: number, bx: number, bz: number, cx: number, cz: number): number {
   const cross = (bx - ax) * (cz - bz) - (bz - az) * (cx - bx);
-  const d = Math.hypot(bx - ax, bz - az) * Math.hypot(cx - bx, cz - bz) * Math.hypot(cx - ax, cz - az);
+  // One square root, not three Math.hypot: the relax runs this about a million times a line.
+  const d = Math.sqrt(((bx - ax) ** 2 + (bz - az) ** 2) * ((cx - bx) ** 2 + (cz - bz) ** 2) * ((cx - ax) ** 2 + (cz - az) ** 2));
   return d < 1e-12 ? 0 : (2 * cross) / d;
 }
 
@@ -113,8 +114,8 @@ export function race_line(road: readonly RoadPoint[], ramps: readonly Ramp[], ha
         const next = wrap(i + span, n);
         const want_prev = curvature(wrap(i - 2 * span, n), prev, i);
         const want_next = curvature(i, next, wrap(i + 2 * span, n));
-        const l_prev = Math.hypot(x[i] - x[prev], z[i] - z[prev]);
-        const l_next = Math.hypot(x[i] - x[next], z[i] - z[next]);
+        const l_prev = Math.sqrt((x[i] - x[prev]) ** 2 + (z[i] - z[prev]) ** 2);
+        const l_next = Math.sqrt((x[i] - x[next]) ** 2 + (z[i] - z[next]) ** 2);
         const want = (l_next * want_prev + l_prev * want_next) / (l_prev + l_next);
         const p = road[i];
         const k0 = curvature(prev, i, next);
