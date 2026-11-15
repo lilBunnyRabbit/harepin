@@ -225,3 +225,11 @@ Note: maybe some legacy badge witht he level they achieved
   - J3: chose "Also world generation", recommended "Car step + whole ground as the only physics, staged after the worker"
   - I1: chose "One AI race in free play", recommended "Season 1 Island vs an AI field"
   - I3: chose "No, ship career and AI together", recommended "Yes, as the new career frame on ghosts"
+
+## Round 2 (2026-11-15, chat)
+
+Owner answers relayed by the lead in chat, settling the round 1 opens.
+
+- **Progress number (C3):** series points. Championship points per finish position, summed per series; bonus objectives add points. Standings plus a series rank. No currency.
+- **Grind for class (G1):** credits from all events. Every race, side event and Run pays credits; cars and parts are bought in the garage. Each season final also unlocks a car or kit (G3).
+- **Rewind reward (A3 vs D5):** side events only. Solo side events keep rewind, and finishing without it pays a bonus. Career races have no rewind.
