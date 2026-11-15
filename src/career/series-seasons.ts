@@ -88,7 +88,7 @@ export const SEASON_4: Season = {
   world: WorldKind.MAINLAND,
   cap: "a",
   reward: { car: "formula", credits: 15_000 },
-  replays: [35, 43, 62, 81, 82, 83, 86, 11],
+  replays: [35, 43, 62, 82, 83, 86, 11],
   field: [
     { name: "Vera Lund", aggression: 5, mistakes: 1 },
     { name: "Omar Haddad", aggression: 5, mistakes: 2 },
@@ -104,7 +104,7 @@ export const SEASON_4: Season = {
     { id: "s4-ring", name: "Ring road", kind: SeriesKind.RACE, seed: 19, route: "circuit" },
     { id: "s4-rival", name: "Lund duel", kind: SeriesKind.HEAD_TO_HEAD, seed: 44, route: "town" },
     { id: "s4-endurance", name: "Six minutes downtown", kind: SeriesKind.ENDURANCE, seed: 51, route: "town", limit_ms: 360_000 },
-    { id: "s4-final", name: "Mainland final", kind: SeriesKind.RACE, seed: 33, route: "circuit", final: true },
+    { id: "s4-final", name: "Mainland final", kind: SeriesKind.RACE, seed: 81, route: "circuit", final: true },
   ],
 };
 
