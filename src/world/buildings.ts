@@ -61,13 +61,36 @@ function parked_spots(world: World): ParkedSpot[] {
     });
 }
 
+/** Side profile of a parked car, nose to tail over the roof: metres along it (front +) and up. */
+const CAR_PROFILE: readonly (readonly [number, number])[] = [
+  [2.25, 0.14],
+  [2.25, 0.72],
+  [0.85, 0.95],
+  [0.2, 1.4],
+  [-1.45, 1.4],
+  [-2.25, 0.95],
+  [-2.25, 0.14],
+];
+const CAR_HW = 0.95;
+const ROOF_HW = 0.72;
+/** Share of the paint a glass face keeps: the instance colour tints the whole shape, so glass is the paint near black. */
+const CAR_GLASS = 0.16;
+
+// One shell: the profile swept across the car, the roof narrower than the body so the glass leans in.
 export function parked_car_geometry(): THREE.BufferGeometry {
   const shape = new Builder();
-  const white: Rgb = [1, 1, 1];
-  shape.walls(0.95, 2.25, 0.25, 0.95, white);
-  shape.top(0.95, 2.25, 0.95, white);
-  shape.at({ x: 0, y: 0, z: -0.3, fx: 0, fz: 1 }).walls(0.8, 1.1, 0.95, 1.4, white);
-  shape.top(0.8, 1.1, 1.4, white);
+  const paint: Rgb = [1, 1, 1];
+  const glass: Rgb = [CAR_GLASS, CAR_GLASS, CAR_GLASS];
+  const at = (i: number, side: number): [number, number, number] => [side * (i === 3 || i === 4 ? ROOF_HW : CAR_HW), CAR_PROFILE[i][1], CAR_PROFILE[i][0]];
+  for (let i = 0; i < CAR_PROFILE.length - 1; i++) shape.quad(at(i, -1), at(i, 1), at(i + 1, 1), at(i + 1, -1), i === 2 || i === 4 ? glass : paint);
+  for (const side of [1, -1]) {
+    const face = (a: number, b: number, c: number, rgb: Rgb) => (side > 0 ? shape.tri(at(a, side), at(b, side), at(c, side), rgb) : shape.tri(at(a, side), at(c, side), at(b, side), rgb));
+    face(0, 6, 5, paint);
+    face(0, 5, 2, paint);
+    face(0, 2, 1, paint);
+    face(2, 5, 4, glass);
+    face(2, 4, 3, glass);
+  }
   return geometry(shape);
 }
 
@@ -90,8 +113,9 @@ export function parked_cars(cars: ParkedCar[], shape: THREE.BufferGeometry, mate
   return mesh;
 }
 
-function light_parts(): [THREE.BufferGeometry, THREE.Material][] {
-  const pole = new THREE.CylinderGeometry(0.08, 0.12, 6, 5).translate(0, 3, 0);
+export function light_parts(): [THREE.BufferGeometry, THREE.Material][] {
+  // Open ends: the foot is in the ground, and the pole stops inside the arm, which closes its top.
+  const pole = new THREE.CylinderGeometry(0.05, 0.12, 5.9, 5, 1, true).translate(0, 2.95, 0);
   const arm = new THREE.BoxGeometry(0.08, 0.08, 1.4).translate(0, 5.9, 0.65);
   const head = new THREE.BoxGeometry(0.3, 0.12, 0.5).translate(0, 5.82, 1.3);
   return [
@@ -100,7 +124,7 @@ function light_parts(): [THREE.BufferGeometry, THREE.Material][] {
   ];
 }
 
-function street_lights(props: Prop[], parts: [THREE.BufferGeometry, THREE.Material][]): THREE.InstancedMesh[] {
+export function street_lights(props: Prop[], parts: [THREE.BufferGeometry, THREE.Material][]): THREE.InstancedMesh[] {
   const m = new THREE.Matrix4();
   const q = new THREE.Quaternion();
   const p = new THREE.Vector3();
