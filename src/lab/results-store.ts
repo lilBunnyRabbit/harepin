@@ -1,4 +1,5 @@
 import { answers_key } from "./answers";
+import { read_field_rows, type FieldRow } from "./field-rows";
 import type { TrialResult } from "./lab";
 import type { Pack, Resolved } from "./pack";
 import { MAX_LAPS, type Metrics } from "./recorder";
@@ -53,14 +54,15 @@ interface Stored {
   hash: string;
   status: "done" | "stopped";
   metrics: Metrics;
+  field?: FieldRow[];
 }
 
 /** Finished and stopped trials by id; JSON writes a never-measured NaN as null. */
 export function results_json(trials: readonly Resolved[], results: readonly TrialResult[]): string {
   const out: Record<string, Stored> = {};
   trials.forEach((r, i) => {
-    const { status, metrics } = results[i];
-    if (metrics && (status === "done" || status === "stopped")) out[r.trial.id] = { hash: r.hash, status, metrics };
+    const { status, metrics, field } = results[i];
+    if (metrics && (status === "done" || status === "stopped")) out[r.trial.id] = { hash: r.hash, status, metrics, ...(field ? { field } : {}) };
   });
   return JSON.stringify(out);
 }
@@ -81,15 +83,18 @@ function metrics_of(raw: unknown): Metrics | null {
   return out as unknown as Metrics;
 }
 
+const not_driven = (): TrialResult => ({ status: "new", metrics: null, field: null });
+
 /** Stored numbers are untrusted: a trial keeps them only when its id, spec hash, status and every metric check out. */
 export function read_results(trials: readonly Resolved[], raw: unknown): TrialResult[] {
   const given = typeof raw === "object" && raw !== null ? (raw as Record<string, unknown>) : {};
   return trials.map((r): TrialResult => {
     const row = given[r.trial.id];
-    if (typeof row !== "object" || row === null) return { status: "new", metrics: null };
-    const { hash, status, metrics } = row as Record<string, unknown>;
+    if (typeof row !== "object" || row === null) return not_driven();
+    const { hash, status, metrics, field } = row as Record<string, unknown>;
     const checked = metrics_of(metrics);
-    if (hash !== r.hash || (status !== "done" && status !== "stopped") || !checked) return { status: "new", metrics: null };
-    return { status, metrics: checked };
+    const rows = field === undefined ? null : read_field_rows(field);
+    if (hash !== r.hash || (status !== "done" && status !== "stopped") || !checked || (field !== undefined && !rows)) return not_driven();
+    return { status, metrics: checked, field: rows };
   });
 }

@@ -1,6 +1,7 @@
 import { Car, drop_height } from "../src/car/car";
 import { COUPE, car_spec, type CarSpec } from "../src/car/cars";
 import { Driver, OFF_ROAD } from "../src/ai/driver";
+import { at_difficulty, Difficulty } from "../src/ai/difficulty";
 import { Field, personalities } from "../src/ai/field";
 import { race_line } from "../src/ai/line";
 import { World } from "../src/world/world";
@@ -11,9 +12,9 @@ import { GOLDEN_SEEDS } from "./proof/golden-file";
 // bun scripts/ai-race.ts solo [seeds] [car]: one AI car alone on each circuit of the island's golden seeds, its standing
 // lap against the autopilot's on the same route. Fails when an AI lap is more than SOLO_SLACK slower, or leaves the road.
 const SOLO_SLACK = 0.05;
-// bun scripts/ai-race.ts field [seeds|all] [car] [count] [laps] [aggression] [mistakes]: a field of AI cars on each circuit. Fails when a car is
-// stuck, a race's contacts per lap fall outside CONTACT_BAND, or the finish order follows the grid. Aggression and
-// mistakes are the owner's 1-5 levels, 3 by default.
+// bun scripts/ai-race.ts field [seeds|all] [car] [count] [laps] [aggression] [mistakes] [difficulty]: a field of AI cars on each circuit. Fails
+// when a car is stuck, a race's contacts per lap fall outside CONTACT_BAND, or the finish order follows the grid. Aggression
+// and mistakes are the owner's 1-5 levels, 3 by default; difficulty is the player's setting, normal by default.
 const CONTACT_BAND = [0, 6] as const;
 /** Share of races that may finish in grid order, and the highest mean grid-to-finish rank correlation allowed. */
 const GRID_KEPT_MAX = 0.2;
@@ -84,17 +85,18 @@ function spearman(order: readonly number[]): number {
   return 1 - (6 * d2) / (n * (n * n - 1));
 }
 
-function run_field(seeds: readonly number[], spec: CarSpec, count: number, laps: number, aggression: number, mistakes: number) {
+function run_field(seeds: readonly number[], spec: CarSpec, count: number, laps: number, aggression: number, mistakes: number, difficulty: Difficulty) {
   let stuck = 0, out_of_band = 0, grid_kept = 0, races = 0;
   const per_lap: number[] = [];
   const rhos: number[] = [];
+  const finishes: number[] = [];
   let resets = 0, reverses = 0, spins = 0, overtakes = 0, hardest = 0;
   for (const seed of seeds) {
     const world = new World(seed);
     for (const route of circuits(world)) {
       if (route.excludes?.includes(spec.id)) continue;
       const unplace = world.place(route.closure);
-      const field = new Field(world, route, Array.from({ length: count }, () => spec), personalities(seed, count, aggression, mistakes), seed);
+      const field = new Field(world, route, Array.from({ length: count }, () => spec), at_difficulty(personalities(seed, count, aggression, mistakes), difficulty), seed);
       let plan = 0;
       for (let i = 0; i < field.line.step.length; i++) plan += field.line.step[i] / field.line.speed[i];
       const all = field.run(DT, laps, plan * laps * FIELD_SLACK + 30);
@@ -111,6 +113,7 @@ function run_field(seeds: readonly number[], spec: CarSpec, count: number, laps:
       rhos.push(rho);
       if (order.every((slot, place) => slot === place)) grid_kept++;
       const best = Math.min(...field.racers.map((r) => r.stats.finish));
+      for (const r of field.racers) if (Number.isFinite(r.stats.finish)) finishes.push(r.stats.finish / laps);
       console.log(`seed ${seed} ${route.id}: ${all ? "all finished" : "STUCK"}, ${contacts} contacts (${rate.toFixed(1)}/lap${band ? "" : " OUT OF BAND"}), grid-finish rho ${rho.toFixed(2)}`);
       order.forEach((k, place) => {
         const { stats, personality } = { stats: field.racers[k].stats, personality: field.racers[k].driver.personality };
@@ -126,15 +129,18 @@ function run_field(seeds: readonly number[], spec: CarSpec, count: number, laps:
   }
   per_lap.sort((a, b) => a - b);
   const mean_rho = rhos.reduce((a, b) => a + b, 0) / rhos.length;
-  console.log(`${races} races of ${count} x ${spec.id}, ${laps} laps: stuck ${stuck}, contacts/lap min ${per_lap[0].toFixed(1)} median ${per_lap[per_lap.length >> 1].toFixed(1)} max ${per_lap[per_lap.length - 1].toFixed(1)} (band ${CONTACT_BAND.join("-")}, ${out_of_band} out), grid order kept ${grid_kept}, mean rho ${mean_rho.toFixed(2)}, overtakes ${overtakes}, spins ${spins}, reverses ${reverses}, resets ${resets}, hardest ${hardest.toFixed(1)} m/s`);
+  const lap = finishes.reduce((a, b) => a + b, 0) / finishes.length;
+  console.log(`${races} races of ${count} x ${spec.id}, ${laps} laps, ${difficulty}: mean lap ${lap.toFixed(1)}s, stuck ${stuck}, contacts/lap min ${per_lap[0].toFixed(1)} median ${per_lap[per_lap.length >> 1].toFixed(1)} max ${per_lap[per_lap.length - 1].toFixed(1)} (band ${CONTACT_BAND.join("-")}, ${out_of_band} out), grid order kept ${grid_kept}, mean rho ${mean_rho.toFixed(2)}, overtakes ${overtakes}, spins ${spins}, reverses ${reverses}, resets ${resets}, hardest ${hardest.toFixed(1)} m/s`);
   if (stuck || out_of_band || grid_kept > races * GRID_KEPT_MAX || mean_rho > RHO_MAX) process.exitCode = 1;
 }
 
 if (import.meta.main) {
-  const [mode = "solo", seeds_arg, car, count = "6", laps = "2", aggression = "3", mistakes = "3"] = process.argv.slice(2);
+  const [mode = "solo", seeds_arg, car, count = "6", laps = "2", aggression = "3", mistakes = "3", difficulty = Difficulty.NORMAL] = process.argv.slice(2);
+  const level = Object.values(Difficulty).find((d) => d === difficulty);
+  if (!level) throw new Error(`difficulty ${difficulty}, expected one of ${Object.values(Difficulty).join(", ")}`);
   const seeds = seeds_arg && seeds_arg !== "all" ? seeds_arg.split(",").map(Number) : GOLDEN_SEEDS.island;
   const spec = car ? car_spec(car) : COUPE;
   if (mode === "solo") run_solo(seeds, spec);
-  else if (mode === "field") run_field(seeds, spec, Number(count), Number(laps), Number(aggression), Number(mistakes));
+  else if (mode === "field") run_field(seeds, spec, Number(count), Number(laps), Number(aggression), Number(mistakes), level);
   else throw new Error(`unknown mode ${mode}`);
 }

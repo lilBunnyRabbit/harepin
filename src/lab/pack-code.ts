@@ -1,8 +1,11 @@
+import { Difficulty } from "../ai/difficulty";
+import type { FieldCar } from "../ai/field";
 import { is_field, SLOTS, type Mod, type Slot } from "../car/build";
 import { CARS, is_car, type CarSpec } from "../car/cars";
 import { SteerMode } from "../car/car";
 import { StationId } from "../worldgen/lab";
-import { resolve_pack, type Aids, type Goal, type LabCar, type Pack, type Question, type Trial } from "./pack";
+import { MAP_CODE_MAX } from "../worldgen/kinds/map-code";
+import { resolve_pack, type Aids, type Goal, type LabCar, type Pack, type Question, type RaceTrial, type StationTrial, type Trial, type TrialField } from "./pack";
 
 /** `?lab=~<code>`: the pack itself rides in the link, so a new test needs no deploy. */
 export const INLINE = "~";
@@ -123,8 +126,8 @@ function goal(v: unknown, path: string): Goal {
   if (o.kind === "laps") return { kind: "laps", laps: num(o.laps, `${path}.laps`) };
   if (o.kind === "time") return { kind: "time", seconds: num(o.seconds, `${path}.seconds`) };
   if (o.kind === "stop") return { kind: "stop", from_kmh: num(o.from_kmh, `${path}.from_kmh`) };
-  if (o.kind === "run" || o.kind === "free") return { kind: o.kind };
-  return fail(`${path}.kind`, "not laps, time, stop, run or free");
+  if (o.kind === "run" || o.kind === "free" || o.kind === "race") return { kind: o.kind };
+  return fail(`${path}.kind`, "not laps, time, stop, run, free or race");
 }
 
 function question(v: unknown, path: string): Question {
@@ -137,21 +140,47 @@ function question(v: unknown, path: string): Question {
   return fail(`${path}.kind`, "not scale, pick or text");
 }
 
+const LEVELS = [1, 2, 3, 4, 5];
+
+function level(v: unknown, path: string): number {
+  return LEVELS.includes(v as number) ? (v as number) : fail(path, `not one of ${LEVELS.join(", ")}`);
+}
+
+function field_car(v: unknown, path: string): FieldCar {
+  const o = obj(v, path);
+  return { aggression: level(o.aggression, `${path}.aggression`), mistakes: level(o.mistakes, `${path}.mistakes`) };
+}
+
+function field(v: unknown, path: string): TrialField {
+  const o = obj(v, path);
+  const difficulty = opt(o, "difficulty", path, (d, at) => Object.values(Difficulty).find((x) => x === d) ?? fail(at, `not one of ${Object.values(Difficulty).join(", ")}`));
+  return { cars: list(o.cars, `${path}.cars`, field_car), ...(difficulty ? { difficulty } : {}) };
+}
+
+/** A race trial names its map, a station trial its station; never both. */
+function place(o: Obj, path: string): Pick<StationTrial, "station" | "lane"> | Pick<RaceTrial, "map" | "route" | "field"> {
+  if (o.map !== undefined) {
+    if (o.station !== undefined || o.lane !== undefined) fail(`${path}.station`, "a race trial has a map, not a station");
+    const route = opt(o, "route", path, (r, at) => text(r, at, 40));
+    return { map: text(o.map, `${path}.map`, MAP_CODE_MAX), ...(route !== undefined ? { route } : {}), field: field(o.field, `${path}.field`) };
+  }
+  const station = text(o.station, `${path}.station`);
+  const id = Object.values(StationId).find((s) => s === station) ?? fail(`${path}.station`, `not one of ${Object.values(StationId).join(", ")}`);
+  const lane = opt(o, "lane", path, (l, at) => text(l, at, 40));
+  return { station: id, ...(lane !== undefined ? { lane } : {}) };
+}
+
 function trial(v: unknown, path: string): Trial {
   const o = obj(v, path);
-  const station = text(o.station, `${path}.station`);
-  if (!Object.values<string>(StationId).includes(station)) fail(`${path}.station`, `not one of ${Object.values(StationId).join(", ")}`);
   const mods = opt(o, "mods", path, (m, at) => list(m, at, mod));
   const trial_aids = opt(o, "aids", path, aids);
-  const lane = opt(o, "lane", path, (l, at) => text(l, at, 40));
   const ask = opt(o, "ask", path, (q, at) => list(q, at, question));
   return {
     id: text(o.id, `${path}.id`, 40),
     car: text(o.car, `${path}.car`, 60),
     ...(mods ? { mods } : {}),
     ...(trial_aids ? { aids: trial_aids } : {}),
-    station: station as Trial["station"],
-    ...(lane !== undefined ? { lane } : {}),
+    ...place(o, path),
     goal: goal(o.goal, `${path}.goal`),
     try: text(o.try, `${path}.try`),
     feel: text(o.feel, `${path}.feel`),

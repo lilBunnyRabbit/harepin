@@ -1,7 +1,7 @@
 <script lang="ts">
   import ClassBadge from "../menu/ui/ClassBadge.svelte";
   import { change_chips, change_text, do_line, feel_line, trial_brief } from "./brief";
-  import { goal_label } from "./lab-text";
+  import { goal_label, where_text } from "./lab-text";
   import type { LabView } from "./lab-view.svelte";
   import More from "./More.svelte";
 
@@ -57,7 +57,7 @@
       {/if}
       <div>
         <dt>Place</dt>
-        <dd>{r.trial.station}/{r.lane.name}</dd>
+        <dd>{where_text(r)}</dd>
       </div>
       {#if brief.changes.length || brief.pi}
         <div>

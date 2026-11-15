@@ -2,10 +2,11 @@ import { build_spec, type Build } from "../car/build";
 import { CARS } from "../car/cars";
 import { FieldView } from "../ai/field-view";
 import { field_builds } from "../ai/field-pick";
-import { grid_spot, personalities } from "../ai/field";
+import { at_difficulty } from "../ai/difficulty";
+import { field_personalities, grid_spot } from "../ai/field";
 import { Standings } from "../ai/standings";
 import { format } from "../hud/hud";
-import { turn_to, type Driven, type FieldHost, type Finish, type ModeCtx, type ModeRun, type RouteRun } from "./mode";
+import { turn_to, type Driven, type FieldHost, type FieldPlace, type FieldRace, type Finish, type ModeCtx, type ModeRun, type RouteRun } from "./mode";
 import { RaceLights } from "./race-lights";
 import { RaceView } from "./race-view";
 import { COUNTDOWN_MS, RaceRun, RaceStatus, type RaceCourse, type RaceLevel } from "./races";
@@ -31,7 +32,7 @@ interface Row {
   done: number;
 }
 
-export class AiRace implements ModeRun {
+export class AiRace implements ModeRun, FieldRace {
   private readonly view: RaceView;
   private readonly unplace: () => void;
   private readonly lights = new RaceLights();
@@ -62,13 +63,14 @@ export class AiRace implements ModeRun {
     ctx.scene.add(this.view.root);
     this.unplace = ctx.world.place(route.closure);
     this.laps = Math.max(1, Math.min(MAX_LAPS, Math.round(RACE_MS / route.par_ms)));
-    this.builds = field_builds(host.build(), host.cars, route.excludes);
+    this.builds = field_builds(host.build(), host.cars.length, route.excludes);
     this.names = [...this.builds.map((b) => `${CARS[b.car].name} ${b.number}`), PLAYER];
     this.run = this.grid_run();
     this.standings = new Standings(this.builds.length + 1, route.points.length, this.laps, this.builds.length);
     this.route = { id: route.id, gate: this.run.gate, later: this.later(0), respawn: course.line[0] };
     const spot = grid_spot(route, this.builds.length);
     ctx.spawn(spot.x, spot.z, spot.heading);
+    host.attach?.(this);
   }
 
   // The grid stands behind the line, near the end of a lap: from index 0, the tracker never reads it as a lap done.
@@ -92,7 +94,7 @@ export class AiRace implements ModeRun {
     const { route } = this.course;
     const { world } = this.ctx;
     const count = this.builds.length;
-    this.host.sim.send({ type: "field", route: route.id, specs: this.builds.map(build_spec), traits: personalities(world.seed, count), seed: world.seed, laps: this.laps, drive_rival: this.host.autopilot });
+    this.host.sim.send({ type: "field", route: route.id, specs: this.builds.map(build_spec), traits: at_difficulty(field_personalities(world.seed, this.host.cars.slice(0, count)), this.host.difficulty()), seed: world.seed, laps: this.laps, drive_rival: this.host.autopilot });
     this.field = new FieldView(this.ctx.scene, this.host.sim, this.builds);
   }
 
@@ -208,7 +210,19 @@ export class AiRace implements ModeRun {
     return this.result;
   }
 
+  get done(): boolean {
+    return this.result !== null;
+  }
+
+  places(): FieldPlace[] {
+    const { standings } = this;
+    const order = standings.order;
+    const leader = order[0];
+    return order.map((car) => ({ car, you: car === this.builds.length, name: this.names[car], finish: standings.finish[car], gap: car === leader ? 0 : standings.gap(leader, car, this.t) }));
+  }
+
   dispose() {
+    this.host.attach?.(null);
     this.field?.dispose();
     this.lights.hide();
     this.unplace();

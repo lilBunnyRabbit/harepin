@@ -1,8 +1,11 @@
 import type { Mod } from "../car/build";
 import { CLASS_LABELS } from "../car/pi";
+import { Difficulty } from "../ai/difficulty";
 import { questions_of } from "./answers";
+import { field_lines } from "./field-rows";
 import type { TrialResult } from "./lab";
-import type { Aids, Goal, Pack, Resolved } from "./pack";
+import { field_levels } from "./lab-text";
+import { is_race, place_of, type Aids, type Goal, type Pack, type Resolved, type Trial } from "./pack";
 import type { Metrics } from "./recorder";
 
 /** Where and how the owner drove: a twitchy rating on touch reads differently from one on a pad. */
@@ -99,6 +102,9 @@ export function metric_pairs(m: Metrics): [key: string, text: string][] {
   return out;
 }
 
+/** A race trial's grid: every AI car's levels (or one pair for all) and the difficulty. */
+const field_text = (trial: Trial) => (is_race(trial) ? ` field=${trial.field.cars.length}x${field_levels(trial.field).replaceAll(" ", ",")}:${trial.field.difficulty ?? Difficulty.NORMAL}` : "");
+
 const metrics_text = (m: Metrics) => metric_pairs(m).map(([key, text]) => `${key}=${text}`).join(" ");
 
 const quote = (text: string) => JSON.stringify(text.replace(/\s+/g, " ").trim());
@@ -112,11 +118,12 @@ export function export_block(pack: Pack, trials: readonly Resolved[], results: r
     const result = results[i];
     const { trial } = r;
     const lane = r.lane.name;
-    lines.push(`#trial ${trial.id} ${trial.car}${mods_text(trial.mods)} spec#${r.hash} pi${r.pi}${CLASS_LABELS[r.class]} ${trial.station}/${lane} ${goal_text(trial.goal)} ${result.status === "new" ? "skipped" : result.status}${aids_text(aids[i] ?? null)}`);
+    lines.push(`#trial ${trial.id} ${trial.car}${mods_text(trial.mods)} spec#${r.hash} pi${r.pi}${CLASS_LABELS[r.class]} ${place_of(trial)}/${lane}${field_text(trial)} ${goal_text(trial.goal)} ${result.status === "new" ? "skipped" : result.status}${aids_text(aids[i] ?? null)}`);
     if (result.metrics) {
       driven++;
       lines.push(` m ${metrics_text(result.metrics)}`);
     }
+    if (result.field) lines.push(...field_lines(result.field));
     const given = answers[trial.id] ?? {};
     // Question order, not tap order: two runs of a pack diff line by line.
     const asked = questions_of(pack, trial).flatMap(({ id }) => {

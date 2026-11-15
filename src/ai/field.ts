@@ -82,16 +82,25 @@ export function grid_spot(route: Route, slot: number): { index: number; x: numbe
 
 const level = (table: readonly (readonly [number, number])[], at: number) => table[Math.max(1, Math.min(table.length, Math.round(at))) - 1];
 
-/**
- * A personality per grid slot, drawn from the race seed, so the grid order says nothing about pace. `aggression` and
- * `mistakes` are the owner's 1-5 levels for the field; each car draws inside its level's range.
- */
-export function personalities(seed: number, count: number, aggression = LEVEL, mistakes = LEVEL): Personality[] {
-  const rng = mulberry32(sub(seed, "ai-field"));
-  const bold = level(AGGRESSION, aggression);
-  const sloppy = level(MISTAKES, mistakes);
-  return Array.from({ length: count }, () => ({ pace: between(rng, PACE), brake_margin: between(rng, BRAKE_MARGIN), aggression: between(rng, bold), mistakes: between(rng, sloppy) }));
+/** The owner's 1-5 levels one AI car draws its personality in (H5, H6). */
+export interface FieldCar {
+  aggression: number;
+  mistakes: number;
 }
+
+export const LEVEL_3: FieldCar = { aggression: LEVEL, mistakes: LEVEL };
+
+/**
+ * A personality per grid slot, drawn from the race seed, so the grid order says nothing about pace. Each car draws
+ * inside its own levels' ranges, so a mixed field takes the same draws a field of one level would.
+ */
+export function field_personalities(seed: number, cars: readonly FieldCar[]): Personality[] {
+  const rng = mulberry32(sub(seed, "ai-field"));
+  return cars.map((car) => ({ pace: between(rng, PACE), brake_margin: between(rng, BRAKE_MARGIN), aggression: between(rng, level(AGGRESSION, car.aggression)), mistakes: between(rng, level(MISTAKES, car.mistakes)) }));
+}
+
+/** `count` cars all on the owner's levels `aggression` and `mistakes`. */
+export const personalities = (seed: number, count: number, aggression = LEVEL, mistakes = LEVEL): Personality[] => field_personalities(seed, Array.from({ length: count }, () => ({ aggression, mistakes })));
 
 /**
  * A field of AI cars on one closed route, headless: every step drives and steps each car, hits the world, then resolves

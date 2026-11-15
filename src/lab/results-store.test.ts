@@ -19,9 +19,9 @@ const pack: Pack = {
 const trials = resolve_pack(pack);
 const metrics = new Recorder(trials[0].lane, { kind: "free" }).metrics();
 const results: TrialResult[] = [
-  { status: "done", metrics: { ...metrics, laps: [21.5, 22], top_kmh: 61.6 } },
-  { status: "stopped", metrics },
-  { status: "new", metrics: null },
+  { status: "done", metrics: { ...metrics, laps: [21.5, 22], top_kmh: 61.6 }, field: null },
+  { status: "stopped", metrics, field: null },
+  { status: "new", metrics: null, field: null },
 ];
 const stored = () => JSON.parse(results_json(trials, results)) as Record<string, Record<string, unknown>>;
 
@@ -36,4 +36,18 @@ test("numbers driven on another spec, or that do not check out, are dropped", ()
   const back = read_results(trials, raw);
   expect(back.map((r) => r.status)).toEqual(["new", "new", "new"]);
   expect(read_results(trials, "junk").every((r) => r.metrics === null)).toBe(true);
+});
+
+test("a race trial's field rows come back with its numbers", () => {
+  const race: Pack = { ...pack, trials: [{ id: "r", car: "coupe.4.0.0.1.0", map: "1C0000004", field: { cars: [{ aggression: 3, mistakes: 3 }] }, goal: { kind: "race" }, try: "", feel: "" }] };
+  const raced = resolve_pack(race);
+  const field = [
+    { name: "Kaze 2", you: false, finish: 240.5, gap: 0, ai: { spins: 0, resets: 0, contacts: 1, hardest: 2.5, overtakes: 0 } },
+    { name: "You", you: true, finish: Number.NaN, gap: 4.5, ai: null },
+  ];
+  const result: TrialResult[] = [{ status: "stopped", metrics, field }];
+  expect(read_results(raced, JSON.parse(results_json(raced, result)))).toEqual(result);
+  const bad = JSON.parse(results_json(raced, result)) as Record<string, Record<string, unknown>>;
+  bad.r.field = [{ name: "x" }];
+  expect(read_results(raced, bad)[0].status).toBe("new");
 });

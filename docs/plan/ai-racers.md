@@ -373,3 +373,37 @@ Open after phase 3:
 - Lab trials with a field (phase 4, H8) are not built.
 - The resume hands a car back wherever the switch fires, not on a straight; off screen and padded, so not seen.
 - The phone frame time (S24+) is not measured.
+
+### Phase 4: lab trials with a field, and the difficulty setting (t279, 2026-11-15)
+
+| Piece | Where |
+|---|---|
+| Race trials (H8, O8) | `Trial` is a station trial or a race trial: `map` (a map code), `route` (`circuit` by default) and `field` (`cars`: one `{ aggression, mistakes }` pair of owner levels per AI car, 1-6 of them; `difficulty`). Goal `race` (to the player's finish) or `time`. A world loads once a page, so a trial on another map reloads with `&map=<code>&trial=<n>` beside `?lab`; answers and numbers ride in the tab's storage. The race is the free-play AI race (`Modes.lab_race`: past the unlock order and the lab's closed modes), held until the trial's cards close, since its lights run on the wall clock. docs/lab.md, "Race trials" |
+| Mixed field | `field_personalities(seed, cars)` in `ai/field.ts`: each car draws in its own levels' ranges from the one race rng, so a field of one level draws exactly what `personalities` drew before |
+| Field results | when a race trial ends (finish, time, Stop) the race's order is kept (`AiRace.places`, through `FieldHost.attach`) with each AI car's counts from the field (`lab/field-rows.ts`), stored with the trial's numbers and listed on its results card. Export: the `#trial` line gets `<map>/<route> field=<n>x<levels>:<difficulty>`, then one ` f` line a car: place, name, finish or `racing`, gap to the leader, `spins`, `resets`, `hits`, `hard`, `pass` |
+| Pack | `?lab=ai-field`: the stock coupe last of seven on island seed 4's circuit. `start` (level 3, first 60 s), `overtakes` (aggression 5, whole race), `defending` (4/2 on easy for 180 s, so the player catches them), `mixed` (1/1, 2/4, 3/3, 4/2, 5/5, 5/1, whole race). Asks fairness, aggression, believability, pace and a note. Budget 15 min |
+| Difficulty (H4, O5) | `ai_difficulty` in `menu/prefs.ts`, a row under Driving shown in dev and review builds only (where `?airace` runs). `ai/difficulty.ts` scales each drawn `pace` and `mistakes`: easy x0.9 and x1.5, normal as drawn, hard x1.04 and x0.5. The free-play race reads it on each start; nothing is recorded (O9) |
+
+Headless, `bun scripts/ai-race.ts field all coupe 6 2 3 3 <difficulty>` (25 races each, level 3):
+
+| | easy | normal | hard |
+|---|---|---|---|
+| Mean lap (s) | 260.1 | 236.2 | 228.9 |
+| vs normal | +10.1% | | -3.1% |
+| Overtakes | 34 | 30 | 24 |
+| Spins / resets | 1 / 0 | 0 / 0 | 6 / 3 |
+| Reverses | 1 | 0 | 2 |
+| Hardest hit (m/s) | 15.5 | 5.7 | 8.6 |
+| Contacts/lap median (max) | 1.5 (6.0) | 2.0 (4.8) | 2.0 (5.0) |
+| Mean rho | 0.34 | 0.53 | 0.60 |
+| Stuck | 0 | 0 | 0 |
+
+Normal reproduces the level 3 column of the overtakes round race for race (30 overtakes, 0 spins, 5.7 m/s). Hard's spins and resets have no touch in them: cars over pace 1.0 run past the line's plan into their own slides (seeds 3, 7, 9, 19). Easy's 15.5 m/s is seed 3: two cars braking into the back of a third, all on a late brake (mistakes x1.5).
+
+By eye (`.t279/`, untracked): the pack opens straight onto the island for trial 1 with its brief up; Drive puts the car on the grid and the lights start; after 60 s the results card lists the field's order with the player highlighted, 1440 x 900 and an 844 x 390 phone.
+
+Open after phase 4:
+
+- Hard's own-slide spins (6 / 3 resets in 25 races): pace over the plan. A cap at the plan with only fewer mistakes would make hard barely harder (the line is the limit); left for the owner's first hard race.
+- Nothing in the trial counts the player's contacts, positions gained or laps led (the plan's recorder adds); the ` f` lines give the order and every AI car's counts.
+- The first trial of a race pack reloads once on open (the lab world loads first, then the trial's map).

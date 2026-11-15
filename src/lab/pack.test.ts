@@ -4,7 +4,8 @@ import { axles_of } from "../car/axles";
 import { CARS } from "../car/cars";
 import { LAB_STATIONS } from "../worldgen/lab";
 import { budget, MAX_SECONDS, MAX_TRIALS, over_budget } from "./budget";
-import { LAB_CAR, resolve_pack, resolve_trial, type Pack } from "./pack";
+import { parse_map_code } from "../worldgen/kinds/map-code";
+import { is_race, LAB_CAR, resolve_pack, resolve_trial, type Pack, type RaceTrial } from "./pack";
 import { pack_code, read_code, read_pack } from "./pack-code";
 import { PACKS } from "./packs";
 
@@ -27,6 +28,10 @@ describe("packs", () => {
       expect(parse_build(`${LAB_CAR}${key}`)).toBeNull();
       expect(axles_of(car.spec).length).toBeGreaterThan(0);
     }
+  });
+
+  test.each(packs)("%s race trials name a map code that reads", (_, pack) => {
+    for (const trial of pack.trials.filter(is_race)) expect(parse_map_code(trial.map).ok).toBe(true);
   });
 
   test.each(packs)("%s round-trips through an inline code", (_, pack) => {
@@ -58,6 +63,8 @@ describe("session budget", () => {
 
 const base: Pack = { id: "t", rev: 1, title: "t", brief: "t", trials: [{ id: "a", car: "hatch.4.0.2.1.0", station: "hub", goal: { kind: "free" }, try: "", feel: "" }], ask: [] };
 
+const race: RaceTrial = { id: "r", car: "coupe.4.0.0.1.0", map: "1C0000004", field: { cars: [{ aggression: 3, mistakes: 3 }], difficulty: "hard" }, goal: { kind: "race" }, try: "", feel: "" };
+
 describe("resolve", () => {
   test("a trial with no mods drives the build's own spec", () => {
     const r = resolve_trial(base, base.trials[0]);
@@ -77,6 +84,14 @@ describe("resolve", () => {
     expect(r.build.car).toBe("coupe");
   });
 
+  test("a race trial runs on its map's route with no station", () => {
+    const pack: Pack = { ...base, trials: [race] };
+    const r = resolve_trial(pack, race);
+    expect(r.station).toBeNull();
+    expect(r.lane.name).toBe("circuit");
+    expect(resolve_trial(pack, { ...race, route: "circuit-rev" }).lane.name).toBe("circuit-rev");
+  });
+
   test("every station has a lane", () => {
     for (const station of LAB_STATIONS) expect(station.lanes.length).toBeGreaterThan(0);
   });
@@ -90,6 +105,18 @@ describe("inline packs are untrusted", () => {
     expect(code({ ...base, trials: [{ ...base.trials[0], car: "lab:none" }] })).toThrow(/lab car/);
     expect(code({ ...base, trials: [{ ...base.trials[0], mods: [{ scale: { warp: 2 } }] }] })).toThrow(/part field/);
     expect(code({ ...base, trials: [{ ...base.trials[0], mods: [{ scale: { mass: "x" } }] }] })).toThrow(/finite/);
+  });
+
+  test("a race trial's map, field and goal are checked", () => {
+    const with_race = (trial: unknown) => ({ ...base, trials: [trial] });
+    expect(read_pack(with_race(race)).trials[0]).toEqual(race);
+    expect(code(with_race({ ...race, station: "hub" }))).toThrow(/map, not a station/);
+    expect(code(with_race({ ...race, field: { cars: [] } }))).toThrow(/AI cars/);
+    expect(code(with_race({ ...race, field: { cars: Array.from({ length: 7 }, () => ({ aggression: 3, mistakes: 3 })) } }))).toThrow(/AI cars/);
+    expect(code(with_race({ ...race, field: { cars: [{ aggression: 6, mistakes: 3 }] } }))).toThrow(/aggression/);
+    expect(code(with_race({ ...race, field: { ...race.field, difficulty: "brutal" } }))).toThrow(/difficulty/);
+    expect(code(with_race({ ...race, goal: { kind: "laps", laps: 2 } }))).toThrow(/race or time/);
+    expect(code({ ...base, trials: [{ ...base.trials[0], goal: { kind: "race" } }] })).toThrow(/race goal on a station/);
   });
 
   test("a lab spec is held to the shipped specs' shape", () => {

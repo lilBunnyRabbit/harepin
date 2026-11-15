@@ -36,7 +36,8 @@ describe("trial brief", () => {
     const b = briefs(pads);
     expect(b[0].against).toBe(-1);
     expect(b[1].against).toBe(0);
-    expect(b[1].changes.map(change_text)).toEqual([`Lane: ${pads.trials[1].lane} instead of ${pads.trials[0].lane}`]);
+    const [first, second] = resolve_pack(pads);
+    expect(b[1].changes.map(change_text)).toEqual([`Lane: ${second.lane.name} instead of ${first.lane.name}`]);
   });
 
   test("the pack card lists each base and what reads against it", () => {

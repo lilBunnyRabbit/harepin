@@ -1,4 +1,6 @@
 import type * as THREE from "three";
+import type { Difficulty } from "../ai/difficulty";
+import type { FieldCar } from "../ai/field";
 import type { Build } from "../car/build";
 import type { CarSpec } from "../car/cars";
 import type { Sim } from "../sim/sim-client";
@@ -47,8 +49,30 @@ export interface FieldHost {
   build(): Build;
   /** The field drives the player's car too: a dev autopilot for shots and frame-time runs. */
   readonly autopilot: boolean;
-  /** AI cars on the grid: F3's six, fewer for a frame-time baseline. */
-  readonly cars: number;
+  /** One per AI car on the grid, pole first: F3's six, fewer for a frame-time baseline, any mix in a lab trial. */
+  readonly cars: readonly FieldCar[];
+  difficulty(): Difficulty;
+  /** Hears the race once it is built and null once it is gone: the lab reads its order. */
+  attach?(race: FieldRace | null): void;
+}
+
+/** A car's place in a field race now. */
+export interface FieldPlace {
+  /** The AI car's index in the field; the player's is the field's size. */
+  car: number;
+  you: boolean;
+  name: string;
+  /** s from the start; Infinity while still racing. */
+  finish: number;
+  /** s behind the leader: how long ago the leader stood where this car is; NaN before it is past the line. */
+  gap: number;
+}
+
+export interface FieldRace {
+  /** The player has finished. */
+  readonly done: boolean;
+  /** Leader first. */
+  places(): FieldPlace[];
 }
 
 export interface ModeCtx {

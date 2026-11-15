@@ -4,7 +4,7 @@ import { is_car, type CarSpec } from "../src/car/cars";
 import { CLASS_LABELS, class_of, spec_pi } from "../src/car/pi";
 import { budget, drive_seconds, MAX_SECONDS, MAX_TRIALS, minutes, over_budget } from "../src/lab/budget";
 import { goal_text, mods_text, short } from "../src/lab/export";
-import { resolve_pack, spec_hash, type Resolved } from "../src/lab/pack";
+import { place_of, resolve_pack, spec_hash, type StationResolved } from "../src/lab/pack";
 import { PACKS } from "../src/lab/packs";
 import { pool_size, run_pool } from "./proof/pool";
 import type { GroundName } from "./grounds";
@@ -26,8 +26,8 @@ function flag(name: string): string | undefined {
 
 const progress = (done: number, of: number) => process.stderr.write(`\r${done}/${of}${done === of ? "\n" : ""}`);
 
-function failed(results: LabResult[], label: (i: number) => string): string[] {
-  return results.flatMap((r, i) => (r.kind === "error" ? [`${label(i)}: ${r.message}`] : []));
+function failed(results: readonly (LabResult | null)[], label: (i: number) => string): string[] {
+  return results.flatMap((r, i) => (r?.kind === "error" ? [`${label(i)}: ${r.message}`] : []));
 }
 
 const values_text = (values: SimValues, stop_from: number) => values.map(([key, v]) => `${key}=${short(v)}${key === "stop" ? `@${stop_from}` : ""}`).join(" ");
@@ -42,7 +42,7 @@ function delta_text(values: SimValues, base: SimValues): string {
   }).join(" ");
 }
 
-function trial_job(r: Resolved): LabJob {
+function trial_job(r: StationResolved): LabJob {
   return { kind: "trial", spec: r.spec, station: r.station.id, surface: r.lane.surface, mode: r.trial.aids?.steer_mode ?? SteerMode.SMOOTH, stop_from: r.trial.goal.kind === "stop" ? r.trial.goal.from_kmh : STOP_FROM_KMH };
 }
 
@@ -55,18 +55,19 @@ async function run_pack(id: string): Promise<number> {
   const fixed = named === undefined ? -1 : trials.findIndex((r) => r.trial.id === named);
   if (named !== undefined && fixed < 0) throw new Error(`no trial "${named}" in ${pack.id}`);
 
-  const keys = trials.map((r) => JSON.stringify(trial_job(r)));
-  const unique = [...new Set(keys)];
+  // A race trial's field has no sim line: `scripts/ai-race.ts` drives fields headless.
+  const keys = trials.map((r) => (r.station ? JSON.stringify(trial_job(r)) : null));
+  const unique = [...new Set(keys.filter((k) => k !== null))];
   const ran = await run_pool<LabJob, LabResult>(WORKER, unique.map((k) => JSON.parse(k) as LabJob), JOBS, (_, done) => progress(done, unique.length));
-  const results = keys.map((k) => ran[unique.indexOf(k)]);
-  const sims = results.map((r) => (r.kind === "trial" ? r.sim : null));
+  const results = keys.map((k) => (k === null ? null : ran[unique.indexOf(k)]));
+  const sims = results.map((r) => (r?.kind === "trial" ? r.sim : null));
   // Until packs mark their own base (plan P5), a trial reads against the pack's first trial that ran the same scenarios.
   const base_of = (i: number) => (fixed >= 0 ? fixed : sims.findIndex((s) => s?.scenario === sims[i]?.scenario));
 
   console.log(`#sim ${pack.id} r${pack.rev} base ${named ?? "first trial per scenario"}`);
   trials.forEach((r, i) => {
     const { trial } = r;
-    console.log(`#trial ${trial.id} ${trial.car}${mods_text(trial.mods)} spec#${r.hash} pi${r.pi}${CLASS_LABELS[r.class]} ${trial.station}/${r.lane.name} ${goal_text(trial.goal)} est ${minutes(drive_seconds(r))}`);
+    console.log(`#trial ${trial.id} ${trial.car}${mods_text(trial.mods)} spec#${r.hash} pi${r.pi}${CLASS_LABELS[r.class]} ${place_of(trial)}/${r.lane.name} ${goal_text(trial.goal)} est ${minutes(drive_seconds(r))}`);
     const sim = sims[i];
     if (!sim) return;
     if (!sim.values.length) return console.log(" sim -");

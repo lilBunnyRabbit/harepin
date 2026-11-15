@@ -1,5 +1,5 @@
 import { StationId } from "../worldgen/lab";
-import type { Question, Trial } from "./pack";
+import type { Question, StationTrial } from "./pack";
 
 export const GRIP: Question = { kind: "scale", id: "grip", label: "Grip", low: "slides everywhere", high: "glued" };
 export const PRED: Question = { kind: "scale", id: "pred", label: "Predictability", low: "snaps without warning", high: "always telegraphs" };
@@ -21,7 +21,7 @@ const LANDING_STATIONS: ReadonlySet<StationId> = new Set<StationId>([StationId.K
  * The plan's questions per station: drift ease where a slide is the point, landing on the kickers, and "vs last trial"
  * when the trial before ran the same station. A trial that names its own questions keeps them.
  */
-export function with_station_asks(trials: Trial[]): Trial[] {
+export function with_station_asks(trials: StationTrial[]): StationTrial[] {
   return trials.map((trial, i) => ({
     ...trial,
     ask: trial.ask ?? [

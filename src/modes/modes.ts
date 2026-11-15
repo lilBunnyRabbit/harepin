@@ -275,6 +275,21 @@ export class Modes implements CarHooks {
     }
   }
 
+  /**
+   * A lab trial's race: route `id` against `field`, whether or not free play has opened it, past the lab's closed modes.
+   * False when this map has no such race. An AI race records nothing (O9).
+   */
+  lab_race(id: string, field: FieldHost): boolean {
+    const mode = this.modes.find((m) => m.def === RACE_MODE);
+    const level = mode?.levels.find((l) => l.id === id);
+    if (!mode || !level) return false;
+    this.field_host = field;
+    this.clear();
+    this.car.give_back();
+    this.begin(mode, level);
+    return true;
+  }
+
   /** The caller has checked this map is the event's. Career levels are all open: the mode's own unlock order is free play's. */
   play_event(asked: CareerEvent, play: RunPlay | null = null) {
     const event = held_car(asked, unlocks(this.career.stars).cars);

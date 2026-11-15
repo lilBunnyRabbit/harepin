@@ -8,7 +8,7 @@ Nothing in the lab touches the game around it: no records, ghosts, stars or goal
 
 | Link | What loads |
 |---|---|
-| `/?lab=<id>` | the committed pack `src/lab/packs/<id>.ts` (`?lab=demo` is the sample, `?lab=first-look` the first real session, `?lab=t1a-pads` and `?lab=t1b-brakes` the stock coupe on ten skidpad and ten runway lanes, `?lab=t2-drift` the Drift preset on the drift circle, eight and hairpins with three mods, `?lab=t3a-sturm-power` and `?lab=t3b-sturm-grip` the candidate top-tier parts on the Sturm (engines and the carbon shell, then slicks and the GT kit), `?lab=t3c-raijin`, `?lab=t3d-kaze` and `?lab=t3e-muscle` today's best against every top part on each, `docs/plan/top-tier-parts.md`; `?lab=t4-sajin` the Sajin from before its centre of mass came down 0.25 m against today's on the big kicker, dirt hairpins, skidpad, r120 lift-off and runway) |
+| `/?lab=<id>` | the committed pack `src/lab/packs/<id>.ts` (`?lab=demo` is the sample, `?lab=first-look` the first real session, `?lab=t1a-pads` and `?lab=t1b-brakes` the stock coupe on ten skidpad and ten runway lanes, `?lab=t2-drift` the Drift preset on the drift circle, eight and hairpins with three mods, `?lab=t3a-sturm-power` and `?lab=t3b-sturm-grip` the candidate top-tier parts on the Sturm (engines and the carbon shell, then slicks and the GT kit), `?lab=t3c-raijin`, `?lab=t3d-kaze` and `?lab=t3e-muscle` today's best against every top part on each, `docs/plan/top-tier-parts.md`; `?lab=t4-sajin` the Sajin from before its centre of mass came down 0.25 m against today's on the big kicker, dirt hairpins, skidpad, r120 lift-off and runway; `?lab=ai-field` the stock coupe against six AI cars on island seed 4's circuit: the start, passing, defending and a mixed field, see [Race trials](#race-trials-an-ai-field)) |
 | `/?lab=~<code>` | an inline pack carried in the link itself: no deploy needed |
 
 Works on the live site and in dev; no menu entry, like `?tune`. The lab world (`lab` kind, unlisted) loads, the car goes to the first trial's station and the pack card opens instead of the menu or the first-visit guide. Modes are off in the lab: the Modes page shows each one as "Not in the lab", and no lobby race starts.
@@ -98,8 +98,8 @@ export default pack;
 | `car` | a shipped build code (paint, decal, parts: `build_code` in `src/car/build.ts`), or `lab:<key>` |
 | `mods` | `Mod[]` folded after the build's parts exactly as one more part: every `scale` multiplies first, then every `add` sums on, then `LIMITS`. Fields: any numeric `CarSpec` field (`mass`, `mu`, `rear_grip`, `peak_slip`, `spring`, `damper`, `drag`, `downforce`, `aero_front`, `redline`, `final`, …) and the derived ones `torque` (the whole curve), `inertia`, `rest`, `cog`, `nitro`, `grip_dirt`, `grip_grass` |
 | `aids` | `tcs`, `abs`, `assist`, `stability`, `auto`, `steer_mode` for this trial only, over the player's own |
-| `station`, `lane` | from the table above |
-| `goal` | `laps` (turns of the lane's ring), `time` (seconds driven), `stop` (a brake stop from at least 90% of `from_kmh`), `run` (start to finish gate), `free` (never ends) |
+| `station`, `lane` | from the table above; a race trial has `map`, `route` and `field` instead ([Race trials](#race-trials-an-ai-field)) |
+| `goal` | `laps` (turns of the lane's ring), `time` (seconds driven), `stop` (a brake stop from at least 90% of `from_kmh`), `run` (start to finish gate), `free` (never ends), `race` (a race trial only: until the player crosses the line) |
 | `try`, `feel` | what to do and what to notice: write `feel` as the thing to notice, not a label ("soft below 3000 rpm, then a shove: notice the lag out of slow corners") |
 | `question` | optional: what the trial answers, on its brief and results card; derived from its group when absent |
 | `ask` | questions for this trial, else the pack's |
@@ -108,6 +108,30 @@ export default pack;
 A pack with `blind: true` (decision O2: variant groups yes, lineups no) shows each group as `A` (the base), then `B`, `C` in an order seeded by the pack id and rev, with the base's feel line and no car, class or PI; every variant also asks `vs A` (worse / same / better, id `vsbase`). The export keeps the real ids. Write the base's `feel` neutral: it is the line every variant shows. Trials before the first base are shown as usual.
 
 Questions: `scale` (1-5 with `low`/`high` ends), `pick` (`options`), `text`. `src/lab/ask.ts` holds the plan's set: `ASK` (grip, predictability, fun, note) and `with_station_asks(trials)`, which gives each trial those plus drift ease on the drift, eight, skidpad and hairpin stations, landing on the kickers, and "vs last trial" (worse / same / better) when the trial before ran the same station. Group a pack's trials by station so that last one asks. The clock starts at the first throttle or movement after the trial places the car.
+
+### Race trials: an AI field
+
+A trial with `map` in place of `station` runs a free-play race against an AI field (decisions H8, O8 in `docs/plan/ai-racers.md`):
+
+```ts
+{
+  id: "mixed",
+  car: "coupe.4.0.0.1.0",
+  map: "1C0000004",               // a map code: a compact world with a closed circuit and no rails
+  route: "circuit",               // the race level; `circuit` when absent
+  field: { cars: [{ aggression: 1, mistakes: 1 }, { aggression: 5, mistakes: 5 }], difficulty: "hard" },
+  goal: { kind: "race" },         // or `time`: the first seconds of the race
+  try: "the whole race", feel: "…",
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `map` | the world the race runs on. A world loads once a page, so a trial on another map (or a station trial after a race) reloads onto it with `&map=<code>&trial=<n>` beside `?lab`; answers and numbers are in the tab's storage and come back. A map that does not load says so and does not reload again |
+| `field.cars` | 1-6 AI cars, pole first, each on the owner's 1-5 `aggression` and `mistakes` levels (H5, H6: `field_personalities` in `src/ai/field.ts`); the player starts last. The cars are presets of the trial car's class (`ai/field-pick.ts`) |
+| `field.difficulty` | `easy` / `normal` / `hard`, as the player's setting scales the field (O5, `src/ai/difficulty.ts`); normal when absent |
+
+The race is the game's own (`modes/ai-race.ts`: lights, position and gap on the run card), started past free play's unlock order and the lab's closed modes (`Modes.lab_race`); nothing is recorded and no goals or career markers show. The recorder measures the player's drive with no lane: time, top speed, offs, resets lead the card. When the trial ends (the race finished, the time up, or Stop) the field's order is kept and the race closes; the results card lists it, the player highlighted.
 
 ### Lab cars (unreleased cars and parts)
 
@@ -170,6 +194,7 @@ The overlay's Copy (or `=`) copies it, answers and note included. Line-based so 
 | ` m` | metrics, fixed order; a key the trial never measured is left out |
 | ` a` | answers (`note` goes on its own line) |
 | ` n` | the note, quoted |
+| ` f` | a race trial, one line a car in running order: `P<n>`, name (`you` for the player), finish s or `racing`, s behind the leader (`-` before it is past the line), then an AI car's `spins`, `resets`, `hits` (contacts), `hard` (m/s, hardest touch), `pass` (overtakes). The `#trial` line names the place as `<map>/<route>` and the grid after it as `field=<cars>x<aggression/mistakes, one pair or one a car>:<difficulty>` |
 | `#end` | trials with numbers / trials in the pack |
 
 Metric keys (numbers keep 3 significant digits):
@@ -278,6 +303,7 @@ Pastes go in `docs/lab/sessions/` (its README); `bun scripts/lab.ts diff <old> <
 | `src/lab/answers.ts` | questions per trial, answer checks, the stored-answers reader |
 | `src/lab/ask.ts` | the shared questions, `with_station_asks`, one scale per trait (`TRAIT_ASK`, `trait_asks`) |
 | `src/lab/results-store.ts` | the stored-numbers writer and reader |
+| `src/lab/field-rows.ts` | a race trial's field rows: from the race's places and the field's counts, their export lines and stored-rows reader |
 | `src/lab/lab-view.svelte.ts`, `LabOverlay.svelte`, `TrialList.svelte`, `TrialBrief.svelte`, `ResultCard.svelte`, `Scale.svelte`, `More.svelte` | the overlay: strip, pack card, brief, results and question card, the More fold |
 
 | `src/lab/budget.ts` | drive time per trial and the session caps |

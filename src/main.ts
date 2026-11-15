@@ -70,7 +70,7 @@ import { start_lobby } from "./modes/lobby-start";
 import { WORLDS } from "./worlds/worlds";
 import { map_id, snow_of } from "./worldgen/kinds/kinds";
 import { world_look } from "./worlds/world-def";
-import { custom_code, map_code, pick_problem, read_pick } from "./worldgen/kinds/map-code";
+import { custom_code, map_code, parse_map_code, pick_problem, read_pick } from "./worldgen/kinds/map-code";
 import { map_note } from "./menu/map-note";
 import { plain_map } from "./worldgen/kinds/kinds";
 import { REVIEW_BUILD, review_wanted } from "./review/params";
@@ -81,6 +81,9 @@ import { LocalSim, SIM_WORKER_PARAM, WorkerSim, type Sim } from "./sim/sim-clien
 import { DT, FrameKind, SimHost, type FrameRequest } from "./sim/sim-host";
 import { WorldJournal } from "./world/world-journal";
 import { AI_CARS, AI_CARS_PARAM, AI_DRIVE_PARAM, AI_RACE_PARAM, FieldView } from "./ai/field-view";
+import { LEVEL_3 } from "./ai/field";
+import { WorldKind } from "./worldgen/types";
+import { Difficulty } from "./ai/difficulty";
 import "./style.css";
 
 const params = new URLSearchParams(location.search);
@@ -431,7 +434,9 @@ if (lab_id !== null) modes.closed = "Not in the lab: the lab keeps no records or
 modes.bindings = () => settings.state.bindings;
 modes.ghosts = () => settings.state.ghost;
 modes.cover = (wait) => area_fade.cover(wait);
-modes.on_finish = (mode) => goals.played(mode);
+modes.on_finish = (mode) => {
+  if (lab_id === null) goals.played(mode);
+};
 modes.toast = (text, label, hold) => hud.toast(text, label, hold, true);
 modes.start_event = (id) => start_event(id);
 modes.try_reward = (reward) => {
@@ -450,7 +455,7 @@ hud.run_route = () => modes.route;
 hud.in_run = () => modes.active;
 if (ai_race) {
   const cars = Math.max(1, Math.min(AI_CARS, Math.trunc(Number(params.get(AI_CARS_PARAM))) || AI_CARS));
-  modes.field_host = { sim, build: () => garage.build, autopilot: params.has(AI_DRIVE_PARAM), cars };
+  modes.field_host = { sim, build: () => garage.build, autopilot: params.has(AI_DRIVE_PARAM), cars: Array.from({ length: cars }, () => LEVEL_3), difficulty: () => settings.state.ai_difficulty };
 }
 modes.start();
 updater.start();
@@ -526,7 +531,8 @@ function play_run(to: RunPick) {
 const markers = new EventMarkers(scene, career, params.has(TUNE_PARAM), (id) => start_event(id));
 $("toast").after(markers.card.el);
 markers.on_map = (list) => hud.set_markers(list);
-markers.place(world, SPAWN_INDEX, EVENTS.filter(on_this_map)).catch((error: unknown) => console.error(error));
+// A lab trial on a race world keeps the career out of it, as the lab world does.
+markers.place(world, SPAWN_INDEX, lab_id === null ? EVENTS.filter(on_this_map) : []).catch((error: unknown) => console.error(error));
 // A map that fell back to its plain one would reload onto itself forever, so a load starts the event only where it landed.
 if (event && on_this_map(event)) modes.play_event(event);
 else if (event) goal_toasts.push("This event's map did not load", MAP_NOTE_MS);
@@ -662,6 +668,14 @@ if (lab_id !== null)
         },
         car: () => driver.car,
         toast: (text) => hud.toast(text),
+        on_map: (code) => {
+          if (code === null) return built.kind === WorldKind.LAB;
+          const read = parse_map_code(code);
+          return read.ok && map_code(read.map) === map_code(built);
+        },
+        race: (r, attach) => modes.lab_race(r.lane.name, { sim, build: () => r.build, autopilot: false, cars: r.trial.field.cars, difficulty: () => r.trial.field.difficulty ?? Difficulty.NORMAL, attach }),
+        field_stats: () => (sim instanceof LocalSim ? (sim.host.field?.racers.map((racer) => racer.stats) ?? []) : []),
+        end_race: () => modes.exit(),
       }),
     )
     .then((opened) => {
