@@ -55,7 +55,5 @@ export const AI_TUNING: AiTuning = {
   mistakes: [[0, 0.1], [0.02, 0.2], [0.05, 0.3], [0.1, 0.4], [0.2, 0.5]],
 };
 
-/** Bank (rad) from which the line plans on the deck's tilt: under it the tyres hold a stopped car, and the flat plan stands (Sky and Rooftops banks). */
-export const BANK_STEEP = (40 * Math.PI) / 180;
-/** Most a steep bank is taken over its neutral speed: the coupe bottoms out at 1.15 times it on a 65° bank (docs/plan/wall-ride.md). */
-export const BANK_OVER = 1.1;
+/** Share of a steep bank's grip limit the line plans on, never under its neutral speed: the limit spends the tyres' whole grip, which the steering never finds. */
+export const BANK_SHARE = 0.6;
