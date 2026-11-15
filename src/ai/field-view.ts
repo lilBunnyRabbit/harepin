@@ -5,6 +5,7 @@ import { TELEPORT_SQ } from "../car/driver";
 import { far_view } from "../car/far-view";
 import { build_view, dispose_car_view, sync_car_view, type CarView } from "../car/models";
 import type { Sim } from "../sim/sim-client";
+import type { FieldStart } from "../sim/sim-host";
 import type { World } from "../world/world";
 import { RouteKind, type Route } from "../worldgen/types";
 import { grid_spot, personalities } from "./field";
@@ -38,25 +39,23 @@ export class FieldView {
   /** Each car parked on its grid slot as the field will park it: drawn until the sim's field has stepped, so the grid shows at once. */
   private readonly grid: Car[];
   private seen = -1;
+  /** The cars stand on the grid and the sim's field runs: `start`. */
+  private started = false;
 
+  /** Builds every car's view, hidden until `start`: the models are ready before the race's first frame. */
   constructor(
     private readonly scene: THREE.Scene,
     private readonly sim: Sim,
     builds: readonly Build[],
-    route: Route,
-    world: World,
+    private readonly route: Route,
     /** The rival's grid slot: the cars stand on the others, as `Field` parks them. */
-    rival_slot = builds.length,
+    private readonly rival_slot = builds.length,
   ) {
-    this.grid = builds.map((build, k) => {
-      const car = new Car(build_spec(build));
-      const spot = grid_spot(route, k < rival_slot ? k : k + 1);
-      car.park(spot.x, spot.z, spot.heading, world);
-      return car;
-    });
+    this.grid = builds.map((build) => new Car(build_spec(build)));
     for (let i = 0; i < builds.length; i++) {
       const view = build_view(builds[i], this.grid[i].spec);
       const far = far_view(view, this.grid[i].spec);
+      view.root.visible = false;
       far.visible = false;
       this.views.push(view);
       this.fars.push(far);
@@ -64,6 +63,20 @@ export class FieldView {
       this.retired.push(false);
       scene.add(view.root, far);
     }
+  }
+
+  /**
+   * Parks the cars on their slots and shows them, then sends `field`: call once the grid's ground is in, or on a streamed
+   * world a car parks on the flat stand-in under the road.
+   */
+  start(world: World, field: FieldStart) {
+    this.grid.forEach((car, k) => {
+      const spot = grid_spot(this.route, k < this.rival_slot ? k : k + 1);
+      car.park(spot.x, spot.z, spot.heading, world);
+      this.views[k].root.visible = true;
+    });
+    this.started = true;
+    this.sim.send({ type: "field", ...field });
   }
 
   /** Null without the param or a circuit. The field's grid waits for its ground, as a teleport does. */
@@ -74,12 +87,13 @@ export class FieldView {
     await world.tiles.ensure(route.points[0].x, route.points[0].z);
     world.place(route.closure);
     const spec = build_spec(build);
-    const view = new FieldView(scene, sim, Array.from({ length: count }, () => build), route, world);
-    sim.send({ type: "field", route: route.id, specs: Array.from({ length: count }, () => spec), traits: personalities(world.seed, count), seed: world.seed });
+    const view = new FieldView(scene, sim, Array.from({ length: count }, () => build), route);
+    view.start(world, { route: route.id, specs: Array.from({ length: count }, () => spec), traits: personalities(world.seed, count), seed: world.seed });
     return view;
   }
 
   update(camera: THREE.Camera) {
+    if (!this.started) return;
     // Before its first step the sim's field stands where the grid cars do, or (a worker's mirrors) nowhere yet.
     const live = this.sim.field_cars.length === this.grid.length && Number.isFinite(this.sim.field_progress[0]);
     const cars = live ? this.sim.field_cars : this.grid;
@@ -141,6 +155,6 @@ export class FieldView {
       far.geometry.dispose();
       (far.material as THREE.Material).dispose();
     }
-    this.sim.send({ type: "field_stop" });
+    if (this.started) this.sim.send({ type: "field_stop" });
   }
 }

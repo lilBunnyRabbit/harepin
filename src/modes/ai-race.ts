@@ -46,7 +46,7 @@ export class AiRace implements ModeRun, FieldRace {
   private readonly builds: Build[];
   private readonly names: string[];
   private run: RaceRun;
-  /** Built with the race, so the grid stands full on its first frame; the sim's field starts on the first update. */
+  /** Built with the race, so the models are ready; the grid shows and the sim's field starts on the first update, once the ground is in. */
   private readonly field: FieldView;
   private started = false;
   private standings: Standings;
@@ -91,7 +91,7 @@ export class AiRace implements ModeRun, FieldRace {
     this.route = { id: route.id, gate: this.run.gate, later: this.later(0), respawn: course.line[0] };
     const spot = grid_spot(route, this.grid);
     ctx.spawn(spot.x, spot.z, spot.heading);
-    this.field = new FieldView(ctx.scene, host.sim, this.builds, route, ctx.world, this.grid);
+    this.field = new FieldView(ctx.scene, host.sim, this.builds, route, this.grid);
     host.attach?.(this);
   }
 
@@ -116,7 +116,7 @@ export class AiRace implements ModeRun, FieldRace {
     const { route } = this.course;
     const { world } = this.ctx;
     const count = this.builds.length;
-    this.host.sim.send({ type: "field", route: route.id, specs: this.builds.map(build_spec), traits: at_difficulty(field_personalities(world.seed, this.host.cars.slice(0, count)), this.host.difficulty()), seed: world.seed, laps: this.laps, drive_rival: this.host.autopilot, grid: this.grid });
+    this.field.start(world, { route: route.id, specs: this.builds.map(build_spec), traits: at_difficulty(field_personalities(world.seed, this.host.cars.slice(0, count)), this.host.difficulty()), seed: world.seed, laps: this.laps, drive_rival: this.host.autopilot, grid: this.grid });
     this.started = true;
     this.touches = this.host.sim.field_touches;
   }
