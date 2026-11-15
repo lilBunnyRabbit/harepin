@@ -16,7 +16,7 @@ import { Directory, load_lock } from "./net/directory";
 import { LOBBY_ROOM, clean_room } from "./net/room-name";
 import { own_country } from "./net/country";
 import { Chat } from "./net/chat";
-import { Skids, Smoke } from "./render/effects";
+import { Skids, Smoke, Sparks } from "./render/effects";
 import { parse_build } from "./car/build";
 import { load_builds } from "./car/builds";
 import { car_shelves, limit_text } from "./car/car-pick";
@@ -209,7 +209,8 @@ if (review) review.place = (index) => driver.place_road(index);
 
 const smoke = new Smoke(look.ground_puff);
 const skids = new Skids();
-scene.add(smoke.mesh, skids.mesh);
+const sparks = new Sparks();
+scene.add(smoke.mesh, skids.mesh, sparks.mesh);
 
 const garage = new Garage(build);
 garage.rewards = () => unlocks(career.stars);
@@ -818,6 +819,7 @@ function frame(time: number) {
 
   smoke.update(dt, car, world);
   skids.update(car, world);
+  sparks.update(dt, car);
 
   net.prune();
   remotes.update(dt, camera, car.pos);

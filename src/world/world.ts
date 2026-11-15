@@ -1,5 +1,5 @@
 import { Vector3 } from "three";
-import type { Ground } from "../car/car";
+import type { Ground, Scrape } from "../car/car";
 import type { CarSpec } from "../car/cars";
 import { extent } from "../worldgen/chunk-grid";
 import { DeckIndex } from "../worldgen/deck";
@@ -71,6 +71,8 @@ export interface Collider {
   vel: Vector3;
   ang: Vector3;
   readonly heading: number;
+  /** Written on every contact `collide` finds. */
+  readonly scrape: Scrape;
   readonly spec: Pick<CarSpec, "mass" | "inertia" | "circles" | "radius" | "band">;
 }
 
@@ -776,11 +778,29 @@ export class World implements Ground {
     if (solid.kind === "box" && solid.bottom !== undefined) {
       if (pos.y - spec.band[0] > solid.y + solid.height || pos.y + spec.band[1] < solid.y + solid.bottom) return 0;
     } else if (pos.y > solid.y + solid.height) return 0;
-    const contact = circle_contact(solid, pos.x + fx * offset, pos.z + fz * offset, spec.radius, -fx * Math.sign(offset || 1), -fz * Math.sign(offset || 1));
+    const rx = fx * offset;
+    const rz = fz * offset;
+    const contact = circle_contact(solid, pos.x + rx, pos.z + rz, spec.radius, -fx * Math.sign(offset || 1), -fz * Math.sign(offset || 1));
     if (!contact) return 0;
-    const impact = KINDS[this.kind].rails && solid.kind === "box" ? this.glide(car, contact) : this.resolve(car, contact, fx * offset, fz * offset);
+    this.report(car, contact, rx, rz);
+    const impact = KINDS[this.kind].rails && solid.kind === "box" ? this.glide(car, contact) : this.resolve(car, contact, rx, rz);
     if (impact > 0) this.contacts_++;
     return impact;
+  }
+
+  // Read before the push: the face point under the circle, and the contact point's velocity split along and into it.
+  private report({ pos, vel, ang, spec, scrape }: Collider, { nx, nz, depth }: Contact, rx: number, rz: number) {
+    const reach = spec.radius - depth;
+    const vx = vel.x + ang.y * rz;
+    const vz = vel.z - ang.y * rx;
+    scrape.hits++;
+    scrape.x = pos.x + rx - nx * reach;
+    scrape.y = pos.y;
+    scrape.z = pos.z + rz - nz * reach;
+    scrape.nx = nx;
+    scrape.nz = nz;
+    scrape.slide = Math.abs(vz * nx - vx * nz);
+    scrape.into = Math.max(0, -(vx * nx + vz * nz));
   }
 
   // A sky rail redirects instead of bouncing: the into-rail velocity goes, the rest runs on along the rail with a loss
