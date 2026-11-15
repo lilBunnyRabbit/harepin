@@ -840,7 +840,8 @@ function frame(time: number) {
     else sleep = window.setTimeout(redraw, draw_ms - (now - last_draw));
     return;
   }
-  const dt = Math.min(0.1, (now - last) / 1000);
+  // A timer redraw stamps `last` with performance.now(), which can run ahead of the next animation frame's vsync time.
+  const dt = Math.max(0, Math.min(0.1, (now - last) / 1000));
   last = now;
   render.fit();
   let kind: FrameKind = FrameKind.HOLD;
