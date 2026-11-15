@@ -101,6 +101,18 @@
   height: 100%;
 }
 
+.settings[data-layout="stage"] .settings-head {
+  display: none;
+}
+
+.settings[data-view="page"][data-layout="stage"] .settings-panel {
+  grid-template: "body" minmax(0, 1fr) / minmax(0, 1fr);
+}
+
+.settings[data-layout="stage"] .settings-page {
+  height: 100%;
+}
+
 .menu-top {
   grid-area: top;
   display: flex;

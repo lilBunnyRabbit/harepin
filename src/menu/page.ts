@@ -126,9 +126,9 @@ export interface Menu {
 /**
  * How a full-screen page sits under its Back and title. `column`: a centred panel, the head over it. `wide`: full width,
  * no panel, as tall as its content. `fill`: full width, no panel, the screen's height. `fill-panel`: the screen in one
- * panel, as tall as its content on a phone.
+ * panel, as tall as its content on a phone. `stage`: the screen's height with no Back bar; the page draws its own way out.
  */
-export type PageLayout = "column" | "wide" | "fill" | "fill-panel";
+export type PageLayout = "column" | "wide" | "fill" | "fill-panel" | "stage";
 
 export interface MenuPage {
   readonly id: string;

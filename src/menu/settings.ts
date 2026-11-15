@@ -108,7 +108,7 @@ export class Settings {
       svelte_page(this.menu, { id: "goals", label: "Things to try", parent: MenuTab.PLAY }, GoalsPage, { go: (to: GoTo) => this.go_to(to) }),
       svelte_page(this.menu, { id: "runs", label: "Runs", parent: MenuTab.PLAY, layout: "wide" }, RunsPage),
       svelte_page(this.menu, { id: "career", label: "Career", parent: MenuTab.PLAY, layout: "wide" }, CareerPage, { tune: new URLSearchParams(location.search).has(TUNE_PARAM) }),
-      ...(host.series ? [svelte_page(this.menu, { id: SERIES_PAGE, label: "Harepin Series", parent: MenuTab.PLAY, layout: "wide" }, SeriesPage)] : []),
+      ...(host.series ? [svelte_page(this.menu, { id: SERIES_PAGE, label: "Harepin Series", parent: MenuTab.PLAY, layout: "stage" }, SeriesPage)] : []),
     ];
     this.guide = new Guide({
       state: () => this.current,
