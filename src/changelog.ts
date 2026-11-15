@@ -54,6 +54,15 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.49.1",
+    date: "2026-11-15",
+    title: "Headlights on cars",
+    changes: [
+      { kind: FIXED, text: "Your headlights no longer turn the car ahead into a glowing blob at dusk" },
+      { kind: FIXED, text: "Other players' metal and carbon paint keep their shine and weave" },
+    ],
+  },
+  {
     version: "0.49.0",
     date: "2026-11-15",
     title: "Drift lab r4",
