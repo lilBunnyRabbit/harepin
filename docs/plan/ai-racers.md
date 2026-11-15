@@ -421,26 +421,27 @@ Owner r1/r2 (`docs/lab/sessions/ai-field.r{1,2}.2026-11-15.txt`): too easy, bare
 | Player grid slot | `Field(…, grid)` and `FieldStart.grid`: the AI cars fill the other slots in order, last by default. `FieldEvent.grid` from `grid_slot` (`career/series.ts`): behind every driver of the event's field ahead in the table. From-back scores only from the last slot |
 | Retire | `field_retire` sim command, `Field.retire`, `FieldView.retire`: a knocked-out AI car stops under the world, out of contact, awareness, recovery and pass counts; it keeps its progress. `AiRace` sends it as the tally knocks a car out |
 
-`bun scripts/ai-race.ts field all coupe 6 2 3 3 <difficulty>`, 25 races each, 73eecac before, eda08d3 after (ab2e0c2 runs the same: no grid or retire in the script):
+`bun scripts/ai-race.ts field all coupe 6 2 3 3 <difficulty>`, 25 races each: 73eecac before, eda08d3 (a dive rolled again every tick in its zone, so nearly every car within reach dived), b2910aa (one roll per zone, the final code; grid and retire do not touch the script):
 
-| | easy before | after | normal before | after | hard before | after |
-|---|---|---|---|---|---|---|
-| Mean lap (s) | 240.1 | 240.1 | 220.2 | 220.2 | 214.8 | 215.1 |
-| Overtakes | 46 | 67 | 27 | 45 | 22 | 31 |
-| Spins | 0 | 0 | 3 | 1 | 6 | 4 |
-| Resets | 0 | 0 | 4 | 3 | 6 | 3 |
-| Reverses | 0 | 0 | 1 | 0 | 2 | 2 |
-| Hardest hit (m/s) | 9.5 | 5.1 | 26.0 | 11.0 | 15.3 | 16.2 |
-| Contacts/lap mean | 4.3 | 6.3 | 4.3 | 6.1 | 4.6 | 6.0 |
-| Races over 6 contacts/lap | 6 | 13 | 5 | 10 | 4 | 9 |
-| Mean rho | 0.48 | 0.39 | 0.63 | 0.45 | 0.65 | 0.62 |
+| | easy 73eecac | eda08d3 | b2910aa | normal 73eecac | eda08d3 | b2910aa | hard 73eecac | eda08d3 | b2910aa |
+|---|---|---|---|---|---|---|---|---|---|
+| Mean lap (s) | 240.1 | 240.1 | 240.0 | 220.2 | 220.2 | 220.4 | 214.8 | 215.1 | 215.2 |
+| Overtakes | 46 | 67 | 68 | 27 | 45 | 48 | 22 | 31 | 42 |
+| Spins | 0 | 0 | 2 | 3 | 1 | 4 | 6 | 4 | 6 |
+| Resets | 0 | 0 | 3 | 4 | 3 | 2 | 6 | 3 | 7 |
+| Reverses | 0 | 0 | 5 | 1 | 0 | 0 | 2 | 2 | 2 |
+| Hardest hit (m/s) | 9.5 | 5.1 | 15.7 | 26.0 | 11.0 | 10.9 | 15.3 | 16.2 | 10.0 |
+| Contacts/lap mean | 4.3 | 6.3 | 5.5 | 4.3 | 6.1 | 6.5 | 4.6 | 6.0 | 5.9 |
+| Races over 6 contacts/lap | 6 | 13 | 8 | 5 | 10 | 11 | 4 | 9 | 12 |
+| Mean rho | 0.48 | 0.39 | 0.35 | 0.63 | 0.45 | 0.49 | 0.65 | 0.62 | 0.50 |
 
-b7a6c07's normal column (phase 4 above): 236.2 s, 30 overtakes, 0 / 0, 5.7 m/s. 73eecac sped the field up 7% and halved its passing.
+b7a6c07's normal column (phase 4 above): 236.2 s, 30 overtakes, 0 / 0, 5.7 m/s. 73eecac sped the field up 7% and cut its passing.
 
-Normal's resets left: seed 3's kicker and a wall (both before too), seed 5 car 6 off the road after a spin. Tried and not kept: the dive on the inside edge (pass room) instead of the `PASS_LANE` 2.8 m lane: 40 overtakes, 4 spins, 7 resets.
+Normal's spins and resets on b2910aa are all seed 3 (its kicker and the wall after it, which reset cars before too). Tried and not kept: the dive on the inside edge (pass room) instead of the `PASS_LANE` 2.8 m lane, on eda08d3: 40 overtakes, 4 spins, 7 resets.
 
 Open after this round:
 
 - Contacts per lap rose with the passing: 10 of 25 normal races sit over the script's 6/lap band (5 before), so `ai-race.ts field` exits 1. Nearly all are rubs under 2 m/s between a car alongside and the one it is passing (73eecac's bold drivers rub, `RUB`); the hardest hit fell. Either the band moves to about 8, or `RUB` comes down and some of the bumping the owner asked for goes with it.
-- Hard's hardest hit 16.2 m/s is seed 3 car 6 (spin and two reverses), near the kicker that already reset cars before.
+- Easy went from 0 / 0 to 2 spins, 3 resets, 5 reverses and a 15.7 m/s hit on b2910aa; hard's resets 6 -> 7. Not traced yet (`ai-why.ts` per seed is the next step).
+- The AI cars grid in `season.field` order around the player's slot, not by the table: a driver second on points can start behind the player in third. Ordering them needs `event_field` and `event_result` to agree on one order for the whole event.
 - The grid slot and the retire are covered by `field.test.ts` and `series.test.ts` only; a knockout in game is not driven by eye.
