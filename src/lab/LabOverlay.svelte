@@ -117,6 +117,13 @@
     display: none;
   }
 
+  /* Classic on touch hangs the toast under the lap strip; with that gone its anchor went missing and it sat half off the top-left corner. */
+  @media (pointer: coarse) {
+    :global(:root[data-hud="classic"]) .lab-strip {
+      anchor-name: --top-centre;
+    }
+  }
+
   .lab-strip {
     display: flex;
     align-items: center;
