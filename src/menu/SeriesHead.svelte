@@ -32,9 +32,7 @@
     <b>{ran ? ordinal(rank) : "–"}</b>
     <span>{me?.points ?? 0} pts</span>
     {#if duel}<span class="sh-rival">{duel_line(duel.rival, duel.gap)}</span>{/if}
-  </div>
-  <div class="sh-me sh-cr" aria-label="Credits">
-    <b>{credits_text(credits)}</b>
+    <span class="sh-cr">{credits_text(credits)}</span>
   </div>
 </header>
 
@@ -83,8 +81,10 @@
     font-size: var(--text-xl);
   }
 
-  .sh-cr b {
-    color: var(--warning);
+  .sh-cr {
+    padding-left: var(--space-2);
+    border-left: 1px solid var(--set-line);
+    font-weight: 800;
   }
 
   .sh-rival {
