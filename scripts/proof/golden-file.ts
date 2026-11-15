@@ -26,7 +26,7 @@ export function levels_of(kind: WorldKind, opts: string): number[] {
   const levels = options.map((o) => o.normal);
   for (let i = 0; i < opts.length; i += 2) {
     const at = options.findIndex((o) => o.field === opts[i]);
-    const level = CODE_CHARS.indexOf(opts[i + 1] ?? "");
+    const level = i + 1 < opts.length ? CODE_CHARS.indexOf(opts[i + 1]) : -1;
     if (at < 0 || level < 0 || level >= options[at].labels.length) throw new Error(`${kind} has no option ${opts.slice(i, i + 2)}`);
     levels[at] = level;
   }
