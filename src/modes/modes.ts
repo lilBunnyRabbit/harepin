@@ -52,6 +52,8 @@ const OPEN_GROUND = `Needs open ground: drive ${OPEN_WORLDS} for it`;
 const NO_GROUND_NOTICE = `Gymkhana, parking and gate hunts need open ground: drive ${OPEN_WORLDS} for them`;
 const TOO_BIG = "Too big for this mode";
 const NOT_THIS_CAR = "This car can't race here";
+/** A clock segment that is a time alone (`format`): its width is set by its digit count, so it gets a box of that size. */
+const TIME = /^\d{1,2}:\d\d\.\d{3}$/;
 const LENT_CAR = `Practice: that car is a career reward, so the ${PRESETS[0].name} runs it and no times or stars keep`;
 const STREAMED = "This mode is not on this world yet";
 const NO_EVENT = "This event is not on this map";
@@ -127,6 +129,7 @@ export class Modes implements CarHooks {
   private high = false;
   private abort: AbortController | null = null;
   private status_key = "";
+  private clock_chars = 0;
   private notice_until = 0;
   private readonly el = {
     hint: $("mode-hint"),
@@ -586,6 +589,12 @@ export class Modes implements CarHooks {
     if (el.status.hidden) el.status.hidden = false;
     set_text(el.status_name, name);
     set_text(el.status_clock, clock);
+    const chars = TIME.test(clock) ? clock.length : 0;
+    if (chars !== this.clock_chars) {
+      this.clock_chars = chars;
+      if (chars) el.status_clock.dataset.time = String(chars);
+      else delete el.status_clock.dataset.time;
+    }
     set_text(el.status_more, more);
   }
 
