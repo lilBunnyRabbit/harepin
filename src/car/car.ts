@@ -32,6 +32,7 @@ export interface Controls {
 }
 
 const SPIN_SLIP = 0.15;
+/** Driven wheelspin past peak at which traction control cuts the gas on the road, straight ahead (`CarSpec.tcs_turn_slip` at full key). */
 const TCS_SLIP = 0.14;
 /** Share over the downshift line the next gear must land at, past the coast the grade explains: loose ground drags more. */
 const SHIFT_MARGIN = 0.02;
@@ -533,7 +534,9 @@ export class Car {
     const lateral = spec.tcs_lateral ?? TCS_LATERAL;
     // With TCS off a held drift's limited-slip brake is one of the helpers, at `drift_aid`; open, the drift bled 53 to 42 km/h.
     const aid = this.drift_aid;
-    const slip_limit = this.launched && drift_steer === 0 ? DRIFT_TCS_SLIP : TCS_SLIP + (HELD_TCS_SLIP - TCS_SLIP) * drift_steer;
+    // A straight launch keeps the tight limit; the held key opens it, so a corner exit may step the tail out under TCS.
+    const road = spec.tcs_turn_slip === undefined ? TCS_SLIP : TCS_SLIP + (spec.tcs_turn_slip - TCS_SLIP) * Math.min(1, Math.abs(this.key_steer));
+    const slip_limit = this.launched && drift_steer === 0 ? DRIFT_TCS_SLIP : road + (HELD_TCS_SLIP - road) * drift_steer;
     for (let i = 0; i < this.wheels.length; i++) {
       const w = this.wheels[i];
       if (!w.driven) continue;

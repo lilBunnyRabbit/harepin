@@ -110,6 +110,8 @@ export interface CarSpec {
   drift_tcs_off?: number;
   /** Weight of a driven rear's sideways slip in traction control's cut under 54 km/h (`car.ts`); absent is the default there. */
   tcs_lateral?: number;
+  /** Traction control's road slip limit at full key, blended from the straight-ahead limit by the key (`car.ts`); absent keeps the straight limit at every key. */
+  tcs_turn_slip?: number;
 }
 
 export type CarId = BodyStyle;
