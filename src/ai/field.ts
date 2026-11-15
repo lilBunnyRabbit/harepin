@@ -1,5 +1,6 @@
 import { Car, type Controls } from "../car/car";
-import type { CarSpec } from "../car/cars";
+import { COUPE, type CarSpec } from "../car/cars";
+import { stat_pace } from "../car/pi";
 import { collide_cars } from "../car/contact";
 import { mulberry32, sub } from "../rng";
 import type { World } from "../world/world";
@@ -14,6 +15,8 @@ const AWARE_STEPS = 18;
 const GRID_GAP = 4;
 const GRID_BACK = 3;
 const GRID_SIDE = 2.4;
+/** Metres past the start line each car keeps its grid lane for: all cutting to the line at once, the grid jams. */
+const LAUNCH_RUN = 200;
 /** A car under this speed (m/s) for STUCK_TIME seconds reverses out; off the road or upside down for RESET_TIME it is put back. */
 const STUCK_SPEED = 1.5;
 const STUCK_TIME = 2;
@@ -43,7 +46,10 @@ const PASS_CLEAR = 3;
 const FAR = 120;
 const NEAR = 100;
 /** Personality ranges a field draws from. */
-const PACE = [0.92, 1] as const;
+const PACE = [0.96, 1.02] as const;
+/** m/s at which a car's cornering grip is read off its stats, against the stock coupe's that the line plans on. */
+const GRIP_AT = 20;
+const REF_GRIP = stat_pace(COUPE).lateral(GRIP_AT);
 const BRAKE_MARGIN = [0, 0.8] as const;
 /** Aggression and mistakes ranges per owner level 1-5 (H5, H6); level 3 is the default field. */
 const AGGRESSION: readonly (readonly [number, number])[] = [[0, 0.6], [0.1, 0.8], [0.2, 1], [0.4, 1], [0.6, 1]];
@@ -71,13 +77,20 @@ export interface Racer {
 
 const between = (rng: () => number, [lo, hi]: readonly [number, number]) => lo + (hi - lo) * rng();
 
+/**
+ * Share of the line's pace a car can hold: its cornering grip over the stock coupe's, capped at 1. By the grip itself, not
+ * its square root as the physics would have it: the stats rate rally and mud tyres too well on tarmac, and at the root's
+ * share those cars run wide.
+ */
+export const grip_pace = (spec: CarSpec) => Math.min(1, stat_pace(spec).lateral(GRIP_AT) / REF_GRIP);
+
 /** Where grid slot `slot` stands on a closed route, 0 on pole: staggered left and right, behind the start line. */
-export function grid_spot(route: Route, slot: number): { index: number; x: number; z: number; heading: number } {
+export function grid_spot(route: Route, slot: number): { index: number; x: number; z: number; heading: number; side: number } {
   const n = route.points.length;
   const index = (((-GRID_BACK - slot * GRID_GAP) % n) + n) % n;
   const p = route.points[index];
   const side = (slot % 2 ? -1 : 1) * GRID_SIDE;
-  return { index, x: p.x + p.tz * side, z: p.z - p.tx * side, heading: Math.atan2(p.tx, p.tz) };
+  return { index, x: p.x + p.tz * side, z: p.z - p.tx * side, heading: Math.atan2(p.tx, p.tz), side };
 }
 
 const level = (table: readonly (readonly [number, number])[], at: number) => table[Math.max(1, Math.min(table.length, Math.round(at))) - 1];
@@ -131,8 +144,10 @@ export class Field {
   private readonly stall: Float64Array;
   private readonly last_contact: Float64Array;
   private readonly spinning: Uint8Array;
-  /** ahead[i * n + j]: car i is clear ahead of car j. */
+  /** ahead[i * (n + 1) + j]: car i is clear ahead of car j, the rival as car n. */
   private readonly ahead: Uint8Array;
+  /** Progress (road points, from the start line) past which a car leaves its grid lane. */
+  private readonly launch_end: number;
   private steps = 0;
 
   constructor(
@@ -146,12 +161,17 @@ export class Field {
     this.line = race_line(route.points, world.ramps, radius);
     this.racers = specs.map((spec, k) => {
       const car = new Car(spec);
-      const driver = new Driver(this.line, traits[k], mulberry32(sub(seed, `ai-driver-${k}`)));
+      const driver = new Driver(this.line, { ...traits[k], pace: traits[k].pace * grip_pace(spec) }, mulberry32(sub(seed, `ai-driver-${k}`)));
       const spot = grid_spot(route, k);
       car.park(spot.x, spot.z, spot.heading, world);
       driver.place(spot.index, -1);
+      driver.launch = spot.side;
+      driver.aside = driver.hold = spot.side - this.line.offset[spot.index];
       return { car, driver, stats: { laps: [], finish: Infinity, contacts: 0, hardest: 0, spins: 0, overtakes: 0, reverses: 0, resets: 0, offroad: 0 } };
     });
+    let end = 0;
+    for (let d = 0; d < LAUNCH_RUN && end < this.line.step.length; end++) d += this.line.step[end];
+    this.launch_end = end;
     this.cars = this.racers.map((r) => r.car);
     this.touching = this.cars;
     const count = this.racers.length;
@@ -163,7 +183,7 @@ export class Field {
     this.stall = new Float64Array(count);
     this.last_contact = new Float64Array(count).fill(-Infinity);
     this.spinning = new Uint8Array(count);
-    this.ahead = new Uint8Array(count * count);
+    this.ahead = new Uint8Array((count + 1) * (count + 1));
     this.coasting = new Uint8Array(count);
     this.progress = new Float64Array(count + 1).fill(NaN);
     this.rival_driver = new Driver(this.line, STEADY);
@@ -190,7 +210,7 @@ export class Field {
       this.rival_driver.place(at, at > this.route.points.length / 2 ? -1 : 0);
     }
     const rng = mulberry32(sub(this.seed, "ai-awareness"));
-    this.awareness = car ? new Awareness(this.touching, [...drivers, this.rival_driver], rng) : new Awareness(this.cars, drivers, rng);
+    this.awareness = car ? new Awareness(this.touching, [...drivers, this.rival_driver], rng, this.cars.length) : new Awareness(this.cars, drivers, rng);
   }
 
   /** The rival's controls for this step, from the field's own driver: call before stepping the rival, with `drives_rival` on. */
@@ -240,7 +260,8 @@ export class Field {
     }
     this.progress[racers.length] = rival ? this.rival_driver.progress : NaN;
     if (++this.steps % AWARE_STEPS === 0) {
-      this.awareness.update();
+      for (const { driver } of racers) if (driver.progress >= this.launch_end) driver.launch = NaN;
+      this.awareness.update(dt * AWARE_STEPS);
       this.recover(dt * AWARE_STEPS);
       this.count_passes();
       this.far();
@@ -348,18 +369,22 @@ export class Field {
     return at;
   }
 
+  /** Passes between AI cars, and on the rival: a car that gets by the player counts it too. */
   private count_passes() {
     const count = this.racers.length;
+    const all = this.rival_car ? count + 1 : count;
+    const side = count + 1;
     const spacing = this.route.length / this.route.points.length;
     for (let i = 0; i < count; i++)
-      for (let j = 0; j < count; j++) {
+      for (let j = 0; j < all; j++) {
         if (i === j) continue;
-        const gap = (this.racers[i].driver.progress - this.racers[j].driver.progress) * spacing;
-        const at = i * count + j;
+        const gap = (this.progress[i] - this.progress[j]) * spacing;
+        const at = i * side + j;
         if (gap > PASS_CLEAR) {
-          if (!this.ahead[at] && this.ahead[j * count + i]) this.racers[i].stats.overtakes++;
+          if (!this.ahead[at] && this.ahead[j * side + i]) this.racers[i].stats.overtakes++;
           this.ahead[at] = 1;
         } else if (gap < -PASS_CLEAR) this.ahead[at] = 0;
+        if (j === count) this.ahead[j * side + i] = gap < -PASS_CLEAR ? 1 : gap > PASS_CLEAR ? 0 : this.ahead[j * side + i];
       }
   }
 }

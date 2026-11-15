@@ -1,7 +1,7 @@
 import { Quaternion, Vector3 } from "three";
 import { ride_height, type Car, type Controls, type Ground } from "../car/car";
 import { ROAD_HALF } from "../worldgen/types";
-import { LINE_BRAKE, type RaceLine } from "./line";
+import { CURVE_SPAN, inverse_radius, LINE_BRAKE, LINE_GRIP, type RaceLine } from "./line";
 
 /** Road points of aim past the car, plus one per this many m/s: pure pursuit, as the autopilot steers. */
 const AIM_BASE = 7;
@@ -25,29 +25,34 @@ const SLIDE_LET_GO = 0.15;
 /** Metres the car's body keeps off the road edge when it leaves the line to pass or defend. */
 const PASS_EDGE = 1;
 const RAMP_SIDE = 0.5;
-/** m/s over the plan a mistake carries, and over how many road points. */
+/** m/s over the plan a late brake carries, the share of its pace a hesitation gives up, and over how many road points. */
 const MISTAKE_SPEED = 3;
+const MISTAKE_LIFT = 0.12;
 const MISTAKE_SPAN = 60;
+/** Road points a mistake is rolled over (500 m), and the share of mistakes that are late brakes rather than hesitations. */
+const SECTOR = 250;
+const LATE_SHARE = 0.3;
 /** Seconds a driver stays wary after touching a car, less this share of it at full aggression. */
 const WARY = 5;
 const WARY_BOLD = 0.6;
 /** Seconds a stuck car reverses for, wheel the other way, before it drives on. */
 const REVERSE_TIME = 1.5;
-/** Road points ahead a driver off the line reads bends over, every HOLD_STRIDE, and the least share of radius it plans on. */
+/** Share over the line's grip a passing driver plans its path on: off the line every bend is tighter, and a pass at the line's grip never gets by. */
+const PASS_GRIP = 1.4;
+/** Road points ahead a driver off the line reads bends over, every HOLD_STRIDE. */
 const HOLD_LOOK = 60;
 const HOLD_STRIDE = 3;
-const HOLD_MIN = 0.3;
 /** m/s sideways a driver moves its aim off or back onto the line: a jump in aim at speed throws the car wide. */
 const LATERAL_RATE = 1.5;
 
 export interface Personality {
-  /** Share of the line's planned speed it drives at, 0.90-1.0. */
+  /** Share of the line's planned speed it drives at: 0.96-1.02 drawn, times the difficulty and the car's grip. */
   pace: number;
   /** m/s it carries over the plan everywhere: a late braker. */
   brake_margin: number;
   /** 0..1: how tight it passes, how readily it defends. */
   aggression: number;
-  /** Chance a lap of one late brake. */
+  /** Chance every SECTOR road points of a mistake: a late brake that runs wide, or a hesitation that costs time. */
   mistakes: number;
 }
 
@@ -83,12 +88,18 @@ export class Driver {
   aside = 0;
   /** Seconds left in which it starts no pass and gives up one still behind, set by the field when it touches a car. */
   wary = 0;
+  /** Metres off the centre of its grid slot's lane, held off the start until the field lets it go (NaN). */
+  launch = NaN;
   /** Seconds of reversing left, set by the field's recovery. */
   reversing = 0;
   /** Metres past road point `index` a coasting car has gone, off the physics (`coast`). */
   along = 0;
   private mistake_at = -1;
+  private mistake_late = false;
+  private sector = -1;
   private last_err = NaN;
+  private last_at = -1;
+  private last_swing = 0;
 
   constructor(
     readonly line: RaceLine,
@@ -119,6 +130,7 @@ export class Driver {
   recovered() {
     this.reversing = 0;
     this.last_err = NaN;
+    this.last_swing = 0;
   }
 
   track(car: Car) {
@@ -134,14 +146,18 @@ export class Driver {
         best = i;
       }
     }
-    if (best < this.index - n / 2) this.lap_done();
+    if (best < this.index - n / 2) this.laps++;
     else if (best > this.index + n / 2) this.laps--;
     this.index = best;
+    const sector = Math.floor(best / SECTOR);
+    if (sector !== this.sector) this.roll(sector);
   }
 
-  private lap_done() {
-    this.laps++;
-    this.mistake_at = this.rng() < this.personality.mistakes ? Math.floor(this.rng() * this.line.road.length) : -1;
+  private roll(sector: number) {
+    this.sector = sector;
+    if (this.rng() >= this.personality.mistakes) return;
+    this.mistake_at = (sector * SECTOR + Math.floor(this.rng() * SECTOR)) % this.line.road.length;
+    this.mistake_late = this.rng() < LATE_SHARE;
   }
 
   /** The speed (m/s) a coasting car moves at here: its pace on the line, under the awareness's cap. */
@@ -162,7 +178,7 @@ export class Driver {
     while (this.along >= line.step[this.index]) {
       this.along -= line.step[this.index];
       this.index = (this.index + 1) % n;
-      if (this.index === 0) this.lap_done();
+      if (this.index === 0) this.laps++;
     }
     const i = this.index;
     const j = (i + 1) % n;
@@ -193,17 +209,30 @@ export class Driver {
     this.recovered();
   }
 
-  // Off the line the radius of every bend ahead moves by the gap to it (1 + bend * gap), and so does the speed it
-  // carries; each is brought back to now along the line's braking curve.
-  private aside_pace(): number {
+  /** Metres off the centre it drives at road point `j`, `aside` off the line or in its grid lane: the road's edge clamps it. */
+  private lateral_at(car: Car, j: number): number {
+    const room = pass_room(car, this.line, j);
+    return Math.max(-room, Math.min(room, Number.isNaN(this.launch) ? this.line.offset[j] + this.aside : this.launch));
+  }
+
+  // Off the line it plans on the bend of the path it drives, the line shifted and clamped to the road: where the line
+  // swings across the road and the edge holds the car, that path bends with the road, far tighter than the line. Each
+  // bend's speed is brought back to now along the line's braking curve, and never over the line's own.
+  private aside_pace(car: Car): number {
     const { line } = this;
-    const n = line.road.length;
+    const { road } = line;
+    const n = road.length;
     let pace = Infinity;
     let run = 0;
     for (let k = 0; k < HOLD_LOOK; k += HOLD_STRIDE) {
       const i = (this.index + k) % n;
-      const share = Math.max(HOLD_MIN, Math.min(1, 1 + line.bend[i] * this.aside));
-      const v = line.speed[i] * Math.sqrt(share);
+      const a = (i - CURVE_SPAN + n) % n;
+      const c = (i + CURVE_SPAN) % n;
+      const la = this.lateral_at(car, a);
+      const li = this.lateral_at(car, i);
+      const lc = this.lateral_at(car, c);
+      const bend = inverse_radius(road[a].x + road[a].tz * la, road[a].z - road[a].tx * la, road[i].x + road[i].tz * li, road[i].z - road[i].tx * li, road[c].x + road[c].tz * lc, road[c].z - road[c].tx * lc);
+      const v = Math.min(line.speed[i], Math.sqrt((this.push > 1 ? LINE_GRIP * PASS_GRIP : LINE_GRIP) / Math.max(1e-9, Math.abs(bend))));
       pace = Math.min(pace, Math.sqrt(v * v + 2 * LINE_BRAKE * run));
       for (let s = 0; s < HOLD_STRIDE; s++) run += line.step[(i + s) % n];
     }
@@ -218,13 +247,15 @@ export class Driver {
     const vx = car.vel.x;
     const vz = car.vel.z;
     const speed = Math.hypot(vx, vz);
-    const late = this.mistake_at >= 0 && (((this.index - this.mistake_at) % n) + n) % n < MISTAKE_SPAN;
+    const slip = this.mistake_at >= 0 && (((this.index - this.mistake_at) % n) + n) % n < MISTAKE_SPAN;
     const here = pass_room(car, line, this.index);
     const want = Number.isNaN(this.hold) ? 0 : Math.max(-here, Math.min(here, line.offset[this.index] + this.hold)) - line.offset[this.index];
     const move = LATERAL_RATE * dt;
-    this.aside += Math.max(-move, Math.min(move, want - this.aside));
-    const plan = this.aside === 0 ? line.speed[this.index] : this.aside_pace();
-    const free = plan * personality.pace * this.push + personality.brake_margin + (late ? MISTAKE_SPEED : 0);
+    // A grid lane is a fixed spot on the road: held at the easing rate, the car would drift after the line as it swings.
+    if (Number.isNaN(this.launch)) this.aside += Math.max(-move, Math.min(move, want - this.aside));
+    else this.aside = want;
+    const plan = this.aside === 0 ? line.speed[this.index] : this.aside_pace(car);
+    const free = slip && !this.mistake_late ? plan * personality.pace * (1 - MISTAKE_LIFT) : plan * personality.pace * this.push + personality.brake_margin + (slip ? MISTAKE_SPEED : 0);
     const target = Math.min(this.cap, free);
     this.target = target;
     const look = target < HAIRPIN_PACE ? AIM_HAIRPIN : AIM_BASE + Math.floor(speed / AIM_PER);
@@ -234,7 +265,7 @@ export class Driver {
     if (this.aside !== 0 || this.nudge !== 0) {
       const p = line.road[at];
       const room = pass_room(car, line, at);
-      const lateral = Math.max(-room, Math.min(room, line.offset[at] + this.aside + this.nudge));
+      const lateral = Math.max(-room, Math.min(room, (Number.isNaN(this.launch) ? line.offset[at] + this.aside : this.launch) + this.nudge));
       ax = p.x + p.tz * lateral;
       az = p.z - p.tx * lateral;
     }
@@ -252,8 +283,11 @@ export class Driver {
     for (let w = 0; w < car.wheels.length; w++) if (car.wheels[w].contact) airborne = false;
     const slide = speed > 5 ? Math.abs(wrap_angle(Math.atan2(vx, vz) - car.heading)) : 0;
     const ease = Math.max(0, 1 - slide / SLIDE_LET_GO);
-    const swing = Number.isNaN(this.last_err) ? 0 : wrap_angle(err - this.last_err) / dt;
+    // The aim steps a road point at a time: its jump read as a rate would kick the wheel to full lock for one step.
+    const swing = Number.isNaN(this.last_err) ? 0 : at === this.last_at ? wrap_angle(err - this.last_err) / dt : this.last_swing;
     this.last_err = err;
+    this.last_at = at;
+    this.last_swing = swing;
     c.steer = airborne ? 0 : Math.max(-1, Math.min(1, -err * STEER_GAIN - swing * STEER_DAMP));
     c.throttle = speed < target ? 1 : 0;
     // Behind a car the brake is not eased for the turn: running into it costs more than a wide line.

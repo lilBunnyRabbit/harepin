@@ -31,22 +31,34 @@ const NUDGE_MAX = 1.5;
 const NUDGE_MARGIN = 0.4;
 /** m/s under the other car a squeezed driver drops to. */
 const YIELD = 1.5;
+/** Metres of IN_LANE a fully aggressive driver lets a car alongside into before it steers off: doors rub, nobody wrecks. */
+const RUB = 0.8;
+/** m/s under a faster passer alongside a timid driver (0) lifts to, none at full aggression: the bold ones make it a fight. */
+const CONCEDE = 1.5;
 /** Metres a follower keeps behind a car in its lane, and the braking (m/s²) it plans to close down to it. */
 const FOLLOW = 10;
 const FOLLOW_BRAKE = 4;
+/** Metres of FOLLOW a fully aggressive driver closes up: on the bumper, it has the run to pull out. */
+const FOLLOW_BOLD = 5;
+/** Metres past its follow gap inside which a driver pulls out to pass: from farther back it only loses time off the line. */
+const PASS_REACH = 12;
+/** Seconds a pass may wait behind for its side to open before it is given up and the lane picked again. */
+const PASS_WAIT = 3;
 /** Road points ahead a pass lane must stay clear over to start, and to go on while the nose is still behind, read every LANE_STRIDE. */
 const PASS_START = 30;
 const PASS_KEEP = 20;
 const LANE_STRIDE = 2;
+/** Metres a car off the grid keeps behind the one ahead in its lane: every car pulls away at full throttle together. */
+const LAUNCH_KEEP = 4;
 /** Metres a passer keeps behind the car it is passing while its line still overlaps: close enough to pull alongside. */
-const PASS_FOLLOW = 10;
+const PASS_FOLLOW = 3;
 /** m/s under the car ahead per metre a follower is inside FOLLOW. */
 const BACK_OFF = 1;
 /** Pace share or m/s of speed a driver must have over the car ahead before it pulls out to pass. */
 const PASS_PACE = 0.005;
 const PASS_SPEED = 1.5;
 /** Metres a passed car must be behind before the pass is done. */
-const PASS_DONE = 8;
+const PASS_DONE = 5;
 /** A pass starts only where the next PASS_CALM road points hold their pace (CALM_SHARE of now) and bend gently (1/m): two abreast into a bend is where they touch. */
 const PASS_CALM = 60;
 const CALM_SHARE = 0.85;
@@ -61,7 +73,7 @@ const PASS_WINDOW = 15;
 /** Pace share a fully aggressive driver adds while passing: off the line it needs more than its own pace to get by. */
 const PUSH = 0.1;
 /** Metres ahead past which a pass is given up: the other car got away. */
-const PASS_ABORT = 60;
+const PASS_ABORT = 25;
 /** Metres a defender looks behind for an attacker (past DEFEND_CLEAR: closer it would cut across its nose), and road points ahead it looks for a braking zone. */
 const DEFEND_CLEAR = 8;
 const DEFEND_BEHIND = 20;
@@ -95,11 +107,16 @@ export class Awareness {
   /** The car each driver is passing (-1 for none) and the side it goes by on, held until it is clear past. */
   private readonly passing: Int32Array;
   private readonly pass_side: Int8Array;
+  /** Seconds each driver's pass has waited behind for its side to open. */
+  private readonly waited: Float64Array;
+  private dt = 0;
 
   constructor(
     private readonly cars: readonly Car[],
     private readonly drivers: readonly Driver[],
     private readonly rng: () => number,
+    /** How many of `cars`, from the first, the field drives: the rest (the player's) have no pace to read. */
+    private readonly driven = cars.length,
   ) {
     this.progress = new Float64Array(cars.length);
     this.lateral = new Float64Array(cars.length);
@@ -111,6 +128,7 @@ export class Awareness {
     this.defend_roll = new Int8Array(cars.length * cars.length).fill(-1);
     this.passing = new Int32Array(cars.length).fill(-1);
     this.pass_side = new Int8Array(cars.length);
+    this.waited = new Float64Array(cars.length);
   }
 
   /** Signed metres off the centre along the road's right normal (tz, -tx). */
@@ -119,7 +137,9 @@ export class Awareness {
     return (car.pos.x - p.x) * p.tz - (car.pos.z - p.z) * p.tx;
   }
 
-  update() {
+  /** `dt`: seconds since the last update. */
+  update(dt: number) {
+    this.dt = dt;
     const { cars, drivers } = this;
     for (let i = 0; i < cars.length; i++) {
       this.progress[i] = drivers[i].progress;
@@ -196,7 +216,7 @@ export class Awareness {
     const kicker = this.kicker_ahead(driver);
     if (blocker >= 0) {
       // The speed the car ahead is about to hold, not the one it has: it brakes for the bend before the follower sees it slow.
-      driver.cap = this.follow(blocker, blocker_gap, blocker === this.passing[i] ? PASS_FOLLOW : FOLLOW);
+      driver.cap = this.follow(blocker, blocker_gap, blocker === this.passing[i] ? PASS_FOLLOW : this.keep(driver));
     }
     const line = driver.line;
     const n = line.road.length;
@@ -216,9 +236,12 @@ export class Awareness {
       // Squeezed alongside with the nose still behind: the car being passed has come over, so the pass is off.
       const squeezed = gap > 0 && gap < ALONGSIDE && (wait || Math.abs(this.lateral[target] - at) < (this.trouble[target] ? TROUBLE_FLANK : IN_LANE - aggression * PASS_TIGHT));
       if (gap > -PASS_DONE && gap < PASS_ABORT && !squeezed) {
-        driver.hold = hold;
+        // Waiting, it follows on its own line: held out on the passed car's flank, the road's edge bends its path tighter than the line.
+        driver.hold = wait ? NaN : hold;
         driver.push = 1 + PUSH * aggression;
         if (wait) driver.cap = Math.min(driver.cap, this.follow(target, gap, PASS_FOLLOW));
+        this.waited[i] = wait ? this.waited[i] + this.dt : 0;
+        if (this.waited[i] > PASS_WAIT) this.passing[i] = -1;
         if (this.trouble[target] && gap > -ALONGSIDE) driver.cap = Math.min(driver.cap, Math.max(0, this.along[target]) + TROUBLE_CLOSE);
         return;
       }
@@ -243,7 +266,8 @@ export class Awareness {
       // A car in trouble is passed only on a side that leaves TROUBLE_FLANK, however calm the road.
       const clear_of = !this.trouble[blocker] || Math.abs(Math.max(-room, Math.min(room, other + pick * TROUBLE_FLANK)) - other) >= TROUBLE_FLANK;
       const calm = this.trouble[blocker] || !bend || aggression > DIVE;
-      if (faster && pick !== 0 && driver.wary <= 0 && !kicker && clear_of && calm) {
+      const close = blocker_gap < this.keep(driver) + PASS_REACH || this.trouble[blocker] === 1;
+      if (faster && close && pick !== 0 && driver.wary <= 0 && !kicker && clear_of && calm) {
         this.passing[i] = blocker;
         this.pass_side[i] = pick;
         driver.hold = this.rel[blocker] + pick * this.flank(blocker);
@@ -262,12 +286,18 @@ export class Awareness {
         return;
       }
     }
+    // Ahead of a car alongside, a driver keeps its line: the one behind has to find the room or lift.
+    if (beside >= 0 && !this.trouble[beside] && this.gap(i, beside) < 0 && beside >= this.driven) beside = -1;
     if (beside >= 0) {
       const dl = this.lateral[beside] - me;
       const at = this.rel[beside] - (Math.sign(dl) || 1) * SIDE_GAP;
       driver.hold = at;
       // Squeezed against the edge: the car with its nose behind gives the corner up rather than leaning on the other.
       if (Math.abs(base + at) > room && this.gap(i, beside) > 0) driver.cap = Math.min(driver.cap, Math.max(0, this.speed[beside] - YIELD));
+      return;
+    }
+    if (!Number.isNaN(driver.launch)) {
+      driver.hold = driver.launch - base;
       return;
     }
     driver.hold = NaN;
@@ -300,25 +330,52 @@ export class Awareness {
       if (j === i) continue;
       const dl = this.lateral[j] - this.lateral[i];
       // A car in trouble alongside can come across at any moment: it is kept TROUBLE_FLANK off, not IN_LANE.
-      const inside = (this.trouble[j] ? TROUBLE_FLANK : IN_LANE) - Math.abs(dl);
+      const inside = (this.trouble[j] ? TROUBLE_FLANK : IN_LANE - RUB * driver.personality.aggression) - Math.abs(dl);
       if (inside > near_in && Math.abs(this.gap(i, j)) < ALONGSIDE) {
         near = j;
         near_dl = dl;
         near_in = inside;
       }
     }
+    this.concede(i);
     if (near < 0) return;
     const away = -Math.sign(near_dl) || 1;
-    driver.nudge = away * Math.min(NUDGE_MAX, near_in + NUDGE_MARGIN);
     const gap = this.gap(i, near);
+    // With its nose ahead, only a timid driver steers off for the other; a bold one holds the line and leans on it.
+    const give = gap > 0 || this.trouble[near] || near < this.driven ? 1 : 1 - driver.personality.aggression;
+    driver.nudge = away * give * Math.min(NUDGE_MAX, near_in + NUDGE_MARGIN);
     if (gap <= 0) return;
     const yield_to = this.kicker_ahead(driver) ? this.follow(near, gap, FOLLOW) : this.speed[near] - YIELD;
     driver.cap = Math.min(driver.cap, Math.max(0, yield_to));
   }
 
-  /** Whether driver i has the pace, or the speed now, to get by car j. */
+  /** A car passing driver i with its nose alongside and the pace to get by: the less aggressive i is, the more it lifts. */
+  private concede(i: number) {
+    const driver = this.drivers[i];
+    const give = CONCEDE * (1 - driver.personality.aggression);
+    if (give <= 0) return;
+    for (let j = 0; j < this.cars.length; j++) {
+      if (this.passing[j] !== i || this.trouble[j]) continue;
+      const gap = this.gap(i, j);
+      if (gap > 0 || gap < -ALONGSIDE || !this.faster(j, i)) continue;
+      driver.cap = Math.min(driver.cap, Math.max(0, this.speed[j] - give));
+    }
+  }
+
+  /** Metres driver behind keeps off the car ahead in its lane. */
+  private keep(driver: Driver): number {
+    if (!Number.isNaN(driver.launch)) return LAUNCH_KEEP;
+    return FOLLOW - FOLLOW_BOLD * driver.personality.aggression;
+  }
+
+  /**
+   * Whether driver i has the pace, or the speed, to get by car j: its pace over j's, its speed now over j's, or its own
+   * line's speed here over j's speed. The last is how a car with no pace to read (the player's) gets passed when slow.
+   */
   private faster(i: number, j: number): boolean {
-    return this.drivers[i].personality.pace > this.drivers[j].personality.pace + PASS_PACE || this.speed[i] > this.speed[j] + PASS_SPEED;
+    const driver = this.drivers[i];
+    const own = driver.line.speed[driver.index] * driver.personality.pace;
+    return driver.personality.pace > this.drivers[j].personality.pace + PASS_PACE || this.speed[i] > this.speed[j] + PASS_SPEED || own > this.speed[j] + PASS_SPEED;
   }
 
   /** Side gap (m) a pass rides off car j's line. */

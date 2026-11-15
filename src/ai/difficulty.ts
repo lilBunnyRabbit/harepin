@@ -16,7 +16,7 @@ interface Scale {
 const DIFFICULTY: Record<Difficulty, Scale> = {
   easy: { pace: 0.9, mistakes: 1.5 },
   normal: { pace: 1, mistakes: 1 },
-  hard: { pace: 1.04, mistakes: 0.5 },
+  hard: { pace: 1.03, mistakes: 0.5 },
 };
 
 export function at_difficulty(traits: readonly Personality[], difficulty: Difficulty): Personality[] {

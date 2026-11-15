@@ -1,7 +1,10 @@
 import { ROAD_HALF, type Ramp, type RoadPoint } from "../worldgen/types";
 
-/** Cornering grip and braking (m/s²) the line plans on: the autopilot's numbers, inside every car's limit. */
-const LINE_GRIP = 4.5;
+/**
+ * Cornering grip and braking (m/s²) the line plans on, for the stock coupe at pace 1 (`grip_pace` scales other cars). At
+ * pace 1.04 the driver keeps it on the road on every golden circuit; at 6, or braking at 3.5, it runs wide.
+ */
+export const LINE_GRIP = 5.5;
 export const LINE_BRAKE = 2.5;
 /** Metres between the car's body and the road edge. */
 const EDGE_GAP = 1.2;
@@ -12,7 +15,7 @@ const RELAX_PASSES = 100;
 const NUDGE = 1e-3;
 /** Share of the solved move a point takes per pass: the full move overshoots, as each point also bends its neighbours. */
 const RELAX_GAIN = 0.3;
-const CURVE_SPAN = 5;
+export const CURVE_SPAN = 5;
 /** Fastest pace over a circuit kicker, and how far before its toe (m) the line slows for it: as the autopilot takes them. */
 const JUMP_PACE = 32;
 const RAMP_LOOK = 120;
@@ -42,7 +45,7 @@ export interface RaceLine {
 const wrap = (i: number, n: number) => ((i % n) + n) % n;
 
 /** Signed 1/radius of the circle through a, b, c. */
-function inverse_radius(ax: number, az: number, bx: number, bz: number, cx: number, cz: number): number {
+export function inverse_radius(ax: number, az: number, bx: number, bz: number, cx: number, cz: number): number {
   const cross = (bx - ax) * (cz - bz) - (bz - az) * (cx - bx);
   const d = Math.hypot(bx - ax, bz - az) * Math.hypot(cx - bx, cz - bz) * Math.hypot(cx - ax, cz - az);
   return d < 1e-12 ? 0 : (2 * cross) / d;
