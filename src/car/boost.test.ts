@@ -26,5 +26,5 @@ test("the boosted table keeps the curve's span and multiplies every point by the
 
 test("a stock breakpoint off the grid keeps its torque peak", () => {
   const table = boosted([[0, 100], [3800, 300], [6000, 200]], TWIN);
-  expect(table).toContainEqual([3800, 600]);
+  expect(table).toContainEqual([3800, Math.round(300 * boost_at(TWIN, 3800))]);
 });

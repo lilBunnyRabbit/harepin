@@ -1,7 +1,7 @@
 import { build_code, DEFAULT_BUILD, type Slot } from "../../car/build";
 import { CARS, type CarId } from "../../car/cars";
-import { FUN, GRIP, NOTE, PRED, VS_BASELINE } from "../ask";
-import type { Goal, Pack, Question, Trial } from "../pack";
+import { Trait, trait_asks } from "../ask";
+import type { Goal, Pack, Trial } from "../pack";
 
 type Upgraded = Extract<Slot, "engine" | "tyres" | "aero" | "weight">;
 
@@ -83,9 +83,7 @@ function trial(car: Tested, place: Place, v: Variant, base: boolean): Trial {
   return { id: `${car}-${place.id}-${v.id}`, car: code(car, v), station: place.station, lane: place.lane, goal: place.goal, try: place.try, feel: v.feel, question: v.question, ...(base ? { base: true as const } : {}) };
 }
 
-const POWER: Question = { kind: "scale", id: "power", label: "Power", low: "flat", high: "more than the tyres can use" };
-const WORTH: Question = { kind: "pick", id: "worth", label: "Worth the class jump", options: ["no", "unsure", "yes"] };
-const BASELINE = "Each tile shows the PI and class: is the jump worth it? Leave vs and worth blank on a baseline.";
+const BASELINE = "Each tile shows the PI and class: is the jump worth it? Say so in the note.";
 
 export type Plan = [Place, Variant[]][];
 
@@ -98,6 +96,6 @@ export function top_tier_pack(id: string, title: string, brief: string, car: Tes
     aim: `Which top-tier parts are worth fitting to the ${CARS[car].name}? At each place the best build under the top tier goes first, then each top part on its own against it.`,
     brief: `${brief} ${BASELINE}`,
     trials: plan.flatMap(([place, variants]) => variants.map((v, i) => trial(car, place, v, i === 0))),
-    ask: [GRIP, POWER, PRED, FUN, VS_BASELINE, WORTH, NOTE],
+    ask: trait_asks(Trait.BALANCE, Trait.POWER, Trait.TOP),
   };
 }
