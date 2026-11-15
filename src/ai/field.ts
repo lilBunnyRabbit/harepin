@@ -162,12 +162,18 @@ export class Field {
 
   /**
    * A car the field races but does not drive (the player's): its owner steps it before `step`, the contact pass here
-   * takes it in, the awareness sees it as one more car, and it is tracked along the road from where it stands.
+   * takes it in, the awareness sees it as one more car, and it is tracked along the road from where it stands. A new
+   * car in place of the rival (a garage swap where it stood) keeps its place in the race and the awareness's rolls.
    */
   set rival(car: Car | null) {
+    const swap = this.rival_car !== null && car !== null;
     this.rival_car = car;
-    this.touching = car ? [...this.cars, car] : this.cars;
     this.impacts[this.cars.length] = -1;
+    if (swap) {
+      this.touching[this.cars.length] = car;
+      return;
+    }
+    this.touching = car ? [...this.cars, car] : this.cars;
     const drivers = this.racers.map((r) => r.driver);
     if (car) {
       const at = nearest(this.route, car.pos.x, car.pos.z);
@@ -175,7 +181,7 @@ export class Field {
       this.rival_driver.place(at, at > this.route.points.length / 2 ? -1 : 0);
     }
     const rng = mulberry32(sub(this.seed, "ai-awareness"));
-    this.awareness = car ? new Awareness([...this.cars, car], [...drivers, this.rival_driver], rng) : new Awareness(this.cars, drivers, rng);
+    this.awareness = car ? new Awareness(this.touching, [...drivers, this.rival_driver], rng) : new Awareness(this.cars, drivers, rng);
   }
 
   /** The rival's controls for this step, from the field's own driver: call before stepping the rival, with `drives_rival` on. */

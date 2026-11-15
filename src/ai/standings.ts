@@ -32,12 +32,14 @@ export class Standings {
       if (to > this.reached[i]) this.reached[i] = to;
       if (i !== this.timed_by_gates && to >= this.end && this.finish[i] === Infinity) this.finish[i] = t;
     }
-    this.order_now.sort((a, b) => this.finish[a] - this.finish[b] || this.reached[b] - this.reached[a] || a - b);
+    this.order_now.sort(this.by_place);
   }
+
+  private readonly by_place = (a: number, b: number) => this.finish[a] - this.finish[b] || this.reached[b] - this.reached[a] || a - b;
 
   finished(i: number, t: number) {
     if (this.finish[i] === Infinity) this.finish[i] = t;
-    this.order_now.sort((a, b) => this.finish[a] - this.finish[b] || this.reached[b] - this.reached[a] || a - b);
+    this.order_now.sort(this.by_place);
   }
 
   /** Car indices, leader first: finishers by time, then the rest by how far they have got. */

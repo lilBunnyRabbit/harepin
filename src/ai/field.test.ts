@@ -61,6 +61,23 @@ describe("AI field coasting", () => {
     expect(field.racers.reduce((sum, r) => sum + r.stats.resets + r.stats.spins, 0)).toBe(0);
   });
 
+  test("a car swapped in where the rival stood keeps its place in the race", () => {
+    const { field, rival, world } = field_on(0);
+    const held = { steer: 0, throttle: 0, brake: 1, handbrake: 0, analog: true };
+    for (let s = 0; s < 360; s++) {
+      rival.step(DT, held, world);
+      field.step(DT, 1);
+    }
+    const before = field.progress[4];
+    const next = new Car(COUPE);
+    next.park(rival.pos.x, rival.pos.z, rival.heading, world);
+    field.rival = next;
+    next.step(DT, held, world);
+    field.step(DT, 1);
+    expect(field.progress[4]).toBe(before);
+    expect(before).toBeLessThan(0);
+  });
+
   test("every car seen, none ever coasts", () => {
     const { field, rival, world } = field_on(0);
     const held = { steer: 0, throttle: 0, brake: 1, handbrake: 0, analog: true };

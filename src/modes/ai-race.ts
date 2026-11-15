@@ -28,7 +28,9 @@ interface Row {
   place: HTMLElement;
   name: HTMLElement;
   time: HTMLElement;
-  key: string;
+  /** The car and finish time the row shows, -1 and NaN before it shows one. */
+  car: number;
+  done: number;
 }
 
 export class AiRace implements ModeRun {
@@ -182,26 +184,26 @@ export class AiRace implements ModeRun {
     const name = document.createElement("span");
     const time = document.createElement("b");
     el.append(place, name, time, document.createElement("span"));
-    return { el, place, name, time, key: "" };
+    return { el, place, name, time, car: -1, done: NaN };
   }
 
   // AI cars still racing when the player finishes fill their times in as they cross the line.
   private write_rows() {
-    const { standings } = this;
+    const { standings, rows } = this;
     const order = standings.order;
     const leader = standings.finish[order[0]];
-    order.forEach((car, i) => {
-      const row = this.rows[i];
+    for (let i = 0; i < order.length; i++) {
+      const car = order[i];
+      const row = rows[i];
       const done = standings.finish[car];
-      const time = done === Infinity ? "racing" : i === 0 ? format(done * 1000) : `+${seconds(done - leader)}`;
-      const key = `${car}:${time}`;
-      if (key === row.key) return;
-      row.key = key;
+      if (row.car === car && row.done === done) continue;
+      row.car = car;
+      row.done = done;
       row.el.dataset.now = String(car === this.builds.length);
       row.place.textContent = String(i + 1);
       row.name.textContent = this.names[car];
-      row.time.textContent = time;
-    });
+      row.time.textContent = done === Infinity ? "racing" : i === 0 ? format(done * 1000) : `+${seconds(done - leader)}`;
+    }
   }
 
   finished(): Finish | null {

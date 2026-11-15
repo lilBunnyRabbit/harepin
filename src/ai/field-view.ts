@@ -16,8 +16,8 @@ const MAX_CARS = 7;
 /** Metres from the camera past which a car draws as its one-mesh far view, and inside which it is back to the full one. */
 const FAR_VIEW = 75;
 const NEAR_VIEW = 65;
-/** Metres round a car's centre that count toward it being on screen. */
-const SEEN_RADIUS = 3;
+/** Metres round a car's centre that count toward it being on screen: wide, so a coasting car is back on the physics before it comes into view. */
+const SEEN_RADIUS = 30;
 
 const frustum = new THREE.Frustum();
 const view_projection = new THREE.Matrix4();
