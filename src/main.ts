@@ -734,9 +734,6 @@ function frame(time: number) {
     net.set_tag(runs.tag);
     net.set_daily(runs.own_daily);
   }
-  const dt = Math.min(0.1, (now - last) / 1000);
-  last = now;
-  render.fit();
   const { controls, actions } = input.read();
   if (garage.is_open && !modal_open()) garage.navigate(input.nav);
   else pad_menu.navigate(input.nav);
@@ -746,6 +743,16 @@ function frame(time: number) {
   lobby.update(now);
   // A lab card holds the trial under it, as the menu does: the clock and the car wait for the answers.
   const menu_hold = (settings.is_open || hud_sheet.open || (lab_id !== null && modal_open())) && net.remotes.size === 0;
+  const draw_ms = menu_hold ? MENU_DRAW_MS : settings.is_open ? COVERED_DRAW_MS : 0;
+  // A frame the menu's redraw rate skips does no work either: `last` stays, so the next drawn frame's dt carries the skipped
+  // time and the sim, chase cam, smoke and audio advance by all of it.
+  if (draw_ms && !review && !garage.is_open && now - last_draw < draw_ms) {
+    requestAnimationFrame(frame);
+    return;
+  }
+  const dt = Math.min(0.1, (now - last) / 1000);
+  last = now;
+  render.fit();
   let stepped = 0;
   let simulated = false;
   let held = false;
@@ -861,13 +868,13 @@ function frame(time: number) {
   // The menu covers the HUD, so its writes and the minimap wait for the frame the menu closes on.
   if (!settings.is_open) hud.update(car, now, rewinding);
   lab?.frame();
-  if (quality.adapt(dt)) render.apply_quality();
+  // Behind the menu each frame carries the redraw gap, which would read as a slow frame.
+  if (!draw_ms && quality.adapt(dt)) render.apply_quality();
   stream.follow(car.pos.x, car.pos.z, quality.tier.fog_far + quality.tier.stream_pad);
   // The dome is 2.4 km across and the mainland is wider, so it rides with the camera instead of the world origin.
   dome.position.copy(camera.position);
   world_view.update(camera, quality.tier.fog_far, now / 1000);
   // The garage covers the screen and draws the car with its own renderer; the next frame after it closes draws the world.
-  const draw_ms = menu_hold ? MENU_DRAW_MS : settings.is_open ? COVERED_DRAW_MS : 0;
   if (!garage.is_open && (!draw_ms || now - last_draw >= draw_ms)) {
     last_draw = now;
     render.draw();
