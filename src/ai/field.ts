@@ -74,7 +74,8 @@ export class Field {
   readonly line: RaceLine;
   t = 0;
   private readonly cars: Car[];
-  private readonly impacts: Float64Array;
+  /** Closing speed (m/s) of each car's hardest touch on the last step, -1 for none. */
+  readonly impacts: Float64Array;
   private readonly awareness: Awareness;
   private readonly slow: Float64Array;
   private readonly lost: Float64Array;
