@@ -46,21 +46,38 @@ const SUN_DISC = 1.6;
 /** Angular radius of the sun disc, radians; a hard edge keeps the area over the bloom threshold the same in every theme. */
 const SUN_RADIUS = 0.018;
 
+const vec3 = (c: THREE.Color | THREE.Vector3) => ("r" in c ? `vec3(${c.r.toFixed(5)}, ${c.g.toFixed(5)}, ${c.b.toFixed(5)})` : `vec3(${c.x.toFixed(5)}, ${c.y.toFixed(5)}, ${c.z.toFixed(5)})`);
+
+/**
+ * GLSL `vec3 sky_color(vec3 d)`: the sky without its sun disc toward the unit direction `d`, in linear light. The dome,
+ * the fog and the clouds' haze all call it, so far ground fades into exactly the sky behind it. Tones, sun and ceiling
+ * are baked in: read it after `Lighting` has set `SUN_DIR` and `sky_ceiling`.
+ */
+export function sky_glsl(): string {
+  const flat = new THREE.Vector2(SUN_DIR.x, SUN_DIR.z).normalize();
+  return `
+    vec3 sky_color(vec3 d) {
+      // normalize(0) at the zenith and a dot of -1.0000001 straight away from the sun both give NaN on some GPUs.
+      float flat_len = length(d.xz);
+      float toward = flat_len > 1e-5 ? clamp(dot(d.xz / flat_len, vec2(${flat.x.toFixed(5)}, ${flat.y.toFixed(5)})) * 0.5 + 0.5, 0.0, 1.0) : 0.5;
+      vec3 c = mix(${vec3(color(sky_tones.horizon_away))}, ${vec3(color(sky_tones.horizon_sun))}, pow(toward, 2.2));
+      float h = max(d.y, 0.0);
+      c = mix(c, ${vec3(color(sky_tones.upper))}, smoothstep(0.0, 0.35, h));
+      c = mix(c, ${vec3(color(sky_tones.zenith))}, smoothstep(0.18, 0.75, h));
+      float s = max(dot(d, ${vec3(SUN_DIR)}), 0.0);
+      c += ${vec3(glow(sky_tones.sun))} * (pow(s, 24.0) * 0.2 + pow(s, 5.0) * 0.06);
+      // The halo stays under the bloom threshold, or a bright sky blooms into a screen-wide wash.
+      return c * min(1.0, ${sky_ceiling.value.toFixed(4)} / max(dot(c, vec3(0.299, 0.587, 0.114)), 1e-4));
+    }
+  `;
+}
+
 export function sky(): THREE.Object3D {
   const group = new THREE.Group();
   const material = new THREE.ShaderMaterial({
     side: THREE.BackSide,
     depthWrite: false,
     fog: false,
-    uniforms: {
-      zenith: { value: color(sky_tones.zenith) },
-      upper: { value: color(sky_tones.upper) },
-      horizon_sun: { value: color(sky_tones.horizon_sun) },
-      horizon_away: { value: color(sky_tones.horizon_away) },
-      sun_color: { value: glow(sky_tones.sun) },
-      sun_dir: { value: SUN_DIR },
-      ceiling: sky_ceiling,
-    },
     vertexShader: `
       varying vec3 v_dir;
       void main() {
@@ -70,24 +87,13 @@ export function sky(): THREE.Object3D {
       }
     `,
     fragmentShader: `
-      uniform vec3 zenith, upper, horizon_sun, horizon_away, sun_color, sun_dir;
-      uniform float ceiling;
       varying vec3 v_dir;
+      ${sky_glsl()}
       void main() {
         vec3 d = normalize(v_dir);
-        // normalize(0) at the zenith and a dot of -1.0000001 straight away from the sun both give NaN on some GPUs.
-        float flat_len = length(d.xz);
-        float toward = flat_len > 1e-5 ? clamp(dot(d.xz / flat_len, normalize(sun_dir.xz)) * 0.5 + 0.5, 0.0, 1.0) : 0.5;
-        vec3 horizon = mix(horizon_away, horizon_sun, pow(toward, 2.2));
-        float h = max(d.y, 0.0);
-        vec3 c = mix(horizon, upper, smoothstep(0.0, 0.35, h));
-        c = mix(c, zenith, smoothstep(0.18, 0.75, h));
-        if (d.y < 0.0) c = horizon;
-        float s = max(dot(d, sun_dir), 0.0);
-        c += sun_color * (pow(s, 24.0) * 0.2 + pow(s, 5.0) * 0.06);
-        // The halo stays under the bloom threshold, or a bright sky blooms into a screen-wide wash.
-        c *= min(1.0, ceiling / max(dot(c, vec3(0.299, 0.587, 0.114)), 1e-4));
-        c = mix(c, sun_color * ${SUN_DISC.toFixed(2)}, smoothstep(${Math.cos(SUN_RADIUS * 1.25).toFixed(7)}, ${Math.cos(SUN_RADIUS).toFixed(7)}, s));
+        vec3 c = sky_color(d);
+        float s = max(dot(d, ${vec3(SUN_DIR)}), 0.0);
+        c = mix(c, ${vec3(glow(sky_tones.sun))} * ${SUN_DISC.toFixed(2)}, smoothstep(${Math.cos(SUN_RADIUS * 1.25).toFixed(7)}, ${Math.cos(SUN_RADIUS).toFixed(7)}, s));
         gl_FragColor = vec4(c, 1.0);
         #include <colorspace_fragment>
       }

@@ -1,7 +1,8 @@
 import * as THREE from "three";
 import { brand, color, dark, glow, mix, tones } from "../theme/palette";
-import { FOG, SUN_DIR, sky_ceiling, sky_tones } from "./sky";
+import { FOG, SUN_DIR, sky_ceiling, sky_glsl, sky_tones } from "./sky";
 import type { Lab } from "../theme/theme";
+
 
 export interface MoodSpec {
   /** Height of the sun direction; below 0 puts it under the horizon, leaving only its glow. */
@@ -81,6 +82,24 @@ export function fog_reach(camera: THREE.PerspectiveCamera, fog_far: number, radi
   return fog_far * Math.sqrt(1 + tan * tan * (1 + camera.aspect * camera.aspect));
 }
 
+/**
+ * Fog fades to the sky behind each vertex instead of one flat colour: the horizon is warm toward the sun and cool away
+ * from it, and one fog colour left far ground as a grey band under both. Worked out per vertex, so a fragment pays
+ * nothing more. `radial` fogs on distance instead of view depth.
+ */
+function sky_fog(radial: boolean) {
+  const chunk = THREE.ShaderChunk;
+  if (chunk.fog_pars_vertex.includes("vFogColor")) return;
+  const patch = (name: "fog_pars_vertex" | "fog_vertex" | "fog_pars_fragment" | "fog_fragment", from: string, to: string) => {
+    if (!chunk[name].includes(from)) throw new Error(`three's ${name} chunk changed; the fog does not follow the sky`);
+    chunk[name] = chunk[name].replace(from, to);
+  };
+  patch("fog_pars_vertex", "varying float vFogDepth;", `varying float vFogDepth; varying vec3 vFogColor; ${sky_glsl()}`);
+  patch("fog_vertex", "vFogDepth = - mvPosition.z;", `vFogDepth = ${radial ? "length( mvPosition.xyz )" : "- mvPosition.z"}; vFogColor = sky_color( normalize( mvPosition.xyz * mat3( viewMatrix ) ) );`);
+  patch("fog_pars_fragment", "varying float vFogDepth;", "varying float vFogDepth; varying vec3 vFogColor;");
+  patch("fog_fragment", "mix( gl_FragColor.rgb, fogColor, fogFactor )", "mix( gl_FragColor.rgb, vFogColor, fogFactor )");
+}
+
 export class Lighting {
   readonly sun: THREE.DirectionalLight;
   readonly bloom: { strength: number; threshold: number };
@@ -101,7 +120,7 @@ export class Lighting {
     SUN_DIR.set((SUN_DIR.x / flat) * horizontal, spec.sun_y, (SUN_DIR.z / flat) * horizontal);
 
     scene.fog = new THREE.Fog(FOG, spec.fog_near, spec.fog_far);
-    if (radial) THREE.ShaderChunk.fog_vertex = THREE.ShaderChunk.fog_vertex.replace("vFogDepth = - mvPosition.z;", "vFogDepth = length( mvPosition.xyz );");
+    sky_fog(radial);
     scene.add(new THREE.HemisphereLight(color(spec.hemi_sky), color(spec.hemi_ground), spec.hemi_intensity));
     this.sun = new THREE.DirectionalLight(color(spec.key), spec.key_intensity);
     Object.assign(this.sun.shadow.camera, { left: -SHADOW_REACH, right: SHADOW_REACH, top: SHADOW_REACH, bottom: -SHADOW_REACH, near: 1, far: 900 });
