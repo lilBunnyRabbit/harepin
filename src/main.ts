@@ -122,7 +122,7 @@ const look = world_look(WORLDS[kind], snowy);
 const opening = WorldStream.open(pick, map, mesh_tones(snowy, WORLDS[kind].upland, WORLDS[kind].deck));
 const mode_ids = MODES.map((mode) => mode.id);
 // Read beside the world's generation; a slow or refused IndexedDB leaves the records in localStorage for this session.
-const records = load_records(mode_ids, RECORDS_WAIT_MS);
+const records = load_records(mode_ids, opening, RECORDS_WAIT_MS);
 const quality = new Quality(params, prefs.quality);
 const scene = new THREE.Scene();
 // The scene never moves. Left on, its own matrix update would force every world matrix under it each frame, frozen chunks too.

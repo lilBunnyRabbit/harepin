@@ -51,10 +51,12 @@ function persist(key: string, value: string) {
 
 /**
  * Loads the records from IndexedDB, moving any left in localStorage in (an older build in another tab keeps writing
- * there, so this runs every boot), and makes `local_store()` read them. Resolves false when IndexedDB fails or takes
- * longer than `timeout_ms`: the records then stay in localStorage for this session, none of them moved.
+ * there, so this runs every boot), and makes `local_store()` read them. Resolves false when IndexedDB fails or is not
+ * done `timeout_ms` after `beside` settles: the records then stay in localStorage for this session, none of them moved.
+ * The wait counts from `beside` (the world's generation) because a busy boot also delays the open: counted from the
+ * start, a slow but working IndexedDB fell back and showed a moved profile as empty.
  */
-export function load_records(mode_ids: readonly string[], timeout_ms: number): Promise<boolean> {
+export function load_records(mode_ids: readonly string[], beside: Promise<unknown>, timeout_ms: number): Promise<boolean> {
   return new Promise((resolve) => {
     let settled = false;
     const give_up = (why: unknown) => {
@@ -63,7 +65,11 @@ export function load_records(mode_ids: readonly string[], timeout_ms: number): P
       console.warn("records: IndexedDB unavailable, records stay in localStorage", why);
       resolve(false);
     };
-    const timer = setTimeout(() => give_up(new Error(`no records in ${timeout_ms} ms`)), timeout_ms);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const wait = () => {
+      if (!settled) timer = setTimeout(() => give_up(new Error(`no records ${timeout_ms} ms after the world`)), timeout_ms);
+    };
+    beside.then(wait, wait);
     let swept: [string, string][] = [];
     db.update_all(STORE, (stored) => {
       if (settled) return [];
