@@ -611,3 +611,21 @@ The demo made races cleaner, not faster, and passed less. The owner's order: (1)
 
 Long run: `hq lock run -- bun scripts/ai-tune.ts --run long --seeds 0-11 --check 12-23 --pop 10 --gens 10 --jobs 3` (101 candidates).
 
+About 2 h 20 min on 3 workers. Best loss by generation: 165.78, 165.14, 164.02, 160.11 (gen 3, the pick), then 161.55, 160.80, 162.80, 161.45, 160.99, 162.62 against the defaults' 168.19. Sigma went from 0.200 to 0.145, so the search had not converged.
+
+| | Defaults (train) | Best (train) | Defaults (held out) | Best (held out) |
+|---|---|---|---|---|
+| Races | 16 | 16 | 13 | 13 |
+| Loss | 168.19 | 160.11 | 170.08 | 176.48 |
+| Lap vs autolap | -15.9% | -18.3% | -15.3% | -18.0% |
+| Overtakes / race | 1.75 | 2.13 | 2.23 | 1.69 |
+| Spins + resets / race | 0.06 | 0 | 0.23 | 0.54 |
+| Reverses / race | 0 | 0.06 | 0 | 0 |
+| Hardest hit mean (worst), m/s | 5.4 (11.4) | 4.7 (8.0) | 5.0 (11.3) | 4.6 (7.6) |
+| Races out of the contact band | 19% | 6% | 23% | 8% |
+| Mean rho | 0.53 | 0.62 | 0.52 | 0.55 |
+
+Best (gen 3) against today's: `line_grip` 6 -> 6.27, `line_brake` 2.5 -> 2.87, `late_brake` 4 -> 4.70, `aim_base` 7 -> 6, `aim_per` 3 -> 3.80, `steer_gain` 4.5 -> 5.54, `steer_damp` 1 -> 1.41, `rub` 0.8 -> 1.4 (the top of its range), `pace_hi` 1.02 -> 1.04, `brake_margin_hi` 0.8 -> 1.27. The rest are within 7% of today's.
+
+Not applied. The pace carries over to the held-out seeds (2.7% faster than today, harder braking and more corner grip), but the passing and spins do not. Held-out overtakes fall from 2.23 to 1.69 a race, and spins + resets rise from 0.23 to 0.54 (3 to 7 in 13 races). On 16 train races the pass floor and the spin weight fit noise: the train gain was 0.38 overtakes and 0.06 spins a race.
+
