@@ -1,6 +1,6 @@
 import type { Triple } from "./cars";
-import { endplate, leg, plane, rod, stalk_mirror } from "./design-parts";
-import type { Arm, Design, Section, Wing } from "./designs";
+import { endplate, plane, rod, stalk_mirror } from "./design-parts";
+import type { Arm, Design, Mirror, Section, Wing } from "./designs";
 import type { Part, Point } from "./geometry";
 
 const NOSE = 2.04;
@@ -75,10 +75,11 @@ const ARMS: Arm[] = [
   { pivot: [0.33, 0.52, 1.5], trim: [rod([0.27, 0.52, 1.62], HUB_FRONT, 0.055), rod([0.36, 0.52, 1.38], HUB_FRONT, 0.055), FRONT_COIL[0]], markers: [FRONT_COIL[1]] },
   { pivot: [0.46, 0.52, -0.5], trim: [rod([0.46, 0.52, -0.5], AXLE_REAR, 0.11, 0.07), rod(AXLE_REAR, HUB_REAR, 0.07), REAR_COIL[0]], markers: [REAR_COIL[1]] },
 ];
-// A stalk mirror out of each front cage bar, its pod at the driver's eye height. The stalk's foot lies 8 cm under and 2 cm
-// ahead of its base, so the base is set that far off the bar for the foot to end inside it.
-const MIRROR_FOOT = lerp(PILLAR_FOOT, ROOF_FRONT, 0.3);
-const MIRROR = stalk_mirror([MIRROR_FOOT[0] + BAR / 2, MIRROR_FOOT[1] + 0.08, MIRROR_FOOT[2] - 0.02], "side");
+// A stalk mirror's pod at the driver's eye height, on a short arm straight out of each front cage bar in place of its
+// stalk: that ran up beside the bar from a foot far below the pod.
+const MIRROR_ON = lerp(PILLAR_FOOT, ROOF_FRONT, 0.45);
+const MIRROR_HEAD = stalk_mirror([MIRROR_ON[0] - 0.02, MIRROR_ON[1] - 0.07, MIRROR_ON[2] + 0.03], "side");
+const MIRROR: Mirror = { paint: MIRROR_HEAD.paint, trim: [rod(MIRROR_ON, [MIRROR_HEAD.paint[0].at[0], MIRROR_ON[1], MIRROR_ON[2]], 0.03, 0.04), MIRROR_HEAD.trim[1]] };
 const SEAT: Part = { size: [0.3, 0.42, 0.1], at: [0.22, 0.97, -0.3], tilt: [0.12, 0, 0] };
 const ENGINE: Part = { size: [0.26, 0.3, 0.74], at: [0.13, 0.66, -1.13] };
 const TRIM: Part[] = [...CAGE, SEAT, ENGINE];
@@ -90,27 +91,27 @@ const HEADS: Part[] = [on_nose({ size: [0.2, 0.08, 0.04], at: [0.125, 0.6, 2.1] 
 const LIGHT_BAR: Part = { size: [0.36, 0.06, 0.04], at: [0.18, 1.6, 0.345] };
 const LIGHT_HOUSING: Part = { size: [0.4, 0.09, 0.08], at: [0.2, 1.6, 0.3] };
 const NERF: Part[] = chain([[0.44, 0.56, 0.62], [0.62, 0.56, 0.42], [0.62, 0.56, -0.16], [0.44, 0.56, -0.34]], 0.06);
+// The spare lies on the tail bars right behind the roof, clear of the wing and its posts.
 const SPARE_TILT = 1.065;
-const spare_at = (lift: number): Triple => [0, 1.266 + lift * Math.sin(SPARE_TILT), -1.415 - lift * Math.cos(SPARE_TILT)];
+const SPARE_UP = 0.31;
+const spare_at = (lift: number): Triple => [0, 1.266 + SPARE_UP * Math.cos(SPARE_TILT) + lift * Math.sin(SPARE_TILT), -1.415 + SPARE_UP * Math.sin(SPARE_TILT) - lift * Math.cos(SPARE_TILT)];
 const SPARE: Part = { size: [0.8, 0.8, 0.24], at: spare_at(0), tilt: [SPARE_TILT, 0, 0], round: true };
 const SPARE_RIM: Part = { size: [0.42, 0.42, 0.03], at: spare_at(0.12), tilt: [SPARE_TILT, 0, 0], round: true };
 
-// A wedge grown out of the roof's rear edge, then a plane on the tail posts run on up and back, clear of the kit's spare wheel.
+// A wedge grown out of the roof's rear edge, then a plane across the tail posts run straight on up: post and stay are one bar.
 const ROOF_LIP: Point[] = [[-0.4, 1.555], [-0.8, 1.64], [-0.81, 1.61], [-0.6, 1.5]];
-const POST: [Point, Point] = [[TAIL[2] + BAR / 2, TAIL[1]], [TAIL[2] - BAR / 2, TAIL[1]]];
-const wing = (at: Point, chord: number, half: number, plates: boolean): Wing => {
-  const profile = plane(at, chord, 0.05, 0.12);
+const POST_SHARE = 0.3;
+const POST_SINK = 0.012;
+const wing = (y: number, chord: number, half: number, plates: boolean): Wing => {
+  const profile = plane([TAIL[2] - (0.5 - POST_SHARE) * chord, y], chord, 0.05, 0.12);
   return {
     paint: [],
-    trim: [],
+    trim: [tube(TAIL, [TAIL[0], y - POST_SINK, TAIL[2]], BAR)],
     lips: [{ points: profile, from: 0, to: half }],
-    stands: [
-      { points: leg(profile, ...POST), from: TAIL[0] - BAR / 2, to: TAIL[0] + BAR / 2 },
-      ...(plates ? [{ points: endplate(profile, 0.07, 0.1), from: half, to: half + 0.025 }] : []),
-    ],
+    stands: plates ? [{ points: endplate(profile, 0.07, 0.1), from: half, to: half + 0.025 }] : [],
   };
 };
-const WINGS: Wing[] = [{ paint: [], trim: [] }, { paint: [], trim: [], lips: [{ points: ROOF_LIP, from: 0, to: 0.44 }] }, wing([-2.0, 1.36], 0.42, 0.52, false), wing([-2.02, 1.47], 0.5, 0.56, true)];
+const WINGS: Wing[] = [{ paint: [], trim: [] }, { paint: [], trim: [], lips: [{ points: ROOF_LIP, from: 0, to: 0.44 }] }, wing(1.36, 0.42, 0.52, false), wing(1.47, 0.5, 0.56, true)];
 
 const HOOP: Part[] = [tube([0.17, 0.56, 2.06], [0.17, 0.56, 2.27], 0.06), on_nose({ size: [0.2, 0.06, 0.06], at: [0.1, 0.56, 2.27] })];
 const FRONTS: Wing[] = [
