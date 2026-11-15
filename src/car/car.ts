@@ -32,6 +32,8 @@ export interface Controls {
   nitro?: boolean;
 }
 
+const RAY_EXACT = 1e-7;
+const RAY_STEPS = 12;
 const SPIN_SLIP = 0.15;
 const TCS_SLIP = 0.14;
 /** Share over the downshift line the next gear must land at, past the coast the grade explains: loose ground drags more. */
@@ -216,6 +218,34 @@ function any_contact(wheels: readonly Wheel[]): boolean {
 function ray_gap(ground: Ground, t: number): number {
   const y = mount.y + down.y * t;
   return y - ground.height(mount.x + down.x * t, mount.z + down.z * t, y);
+}
+
+// The ground is flat triangles, so the gap is linear in t on one face: false position lands on the hit in one lookup.
+// Across an edge or a deck lip, Illinois keeps it converging; the step cap is the old bisection's.
+function ray_hit(ground: Ground, near: number, far: number, reach: number): number {
+  let lo = 0;
+  let hi = reach;
+  let g_lo = near;
+  let g_hi = far;
+  let side = 0;
+  let t = reach;
+  for (let i = 0; i < RAY_STEPS; i++) {
+    t = lo + ((hi - lo) * g_lo) / (g_lo - g_hi);
+    const g = ray_gap(ground, t);
+    if (Math.abs(g) < RAY_EXACT) break;
+    if (g > 0) {
+      lo = t;
+      g_lo = g;
+      if (side === 1) g_hi /= 2;
+      side = 1;
+    } else {
+      hi = t;
+      g_hi = g;
+      if (side === -1) g_lo /= 2;
+      side = -1;
+    }
+  }
+  return t;
 }
 
 /** What one step's phases hand on to the later ones; each field is written before any later phase reads it. */
@@ -581,19 +611,11 @@ export class Car {
       mount.copy(w.mount).applyQuaternion(body.quat).add(body.pos);
       let t = reach;
       w.contact = false;
-      if (ray_gap(ground, reach) <= 0) {
+      const far = ray_gap(ground, reach);
+      if (far <= 0) {
         w.contact = true;
-        if (ray_gap(ground, 0) <= 0) t = 0;
-        else {
-          let lo = 0;
-          let hi = reach;
-          for (let i = 0; i < 12; i++) {
-            const mid = (lo + hi) / 2;
-            if (ray_gap(ground, mid) > 0) lo = mid;
-            else hi = mid;
-          }
-          t = (lo + hi) / 2;
-        }
+        const near = ray_gap(ground, 0);
+        t = near <= 0 ? 0 : ray_hit(ground, near, far, reach);
       }
       const compression = reach - t;
       w.angle = w.axle.steer ? this.ackermann(w) : 0;
