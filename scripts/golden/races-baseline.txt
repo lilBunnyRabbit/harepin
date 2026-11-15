@@ -232,3 +232,5 @@ mainland 1 trip formula
 mainland 1 trip fujin
 mainland 1 trip tsumuji
 mainland 2 trip hatch
+mainland-W1 1 trip hatch
+mainland-W1 1 trip rally
