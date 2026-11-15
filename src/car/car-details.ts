@@ -62,7 +62,7 @@ const muscle_pipe = (x: number, y: number) => ({
   ...outlet([x, y, -0.74], [Math.SQRT1_2, 0, -Math.SQRT1_2]),
 });
 const MUSCLE_PIPE = muscle_pipe(muscle.width / 2 + 0.01, 0.245);
-const MUSCLE_KIT_PIPE = muscle_pipe(1.11, 0.155);
+const MUSCLE_KIT_PIPE = muscle_pipe(1.11, 0.21);
 // Slats across the whole rear screen, laid a little flatter than the glass so each overlaps the next; their ends butt into
 // a rail at each side that stands taller than any slat edge, so no slat end shows past it.
 const LOUVRE_HALF = 0.6;
