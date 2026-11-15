@@ -11,23 +11,26 @@ const STOCK_ARCHES: Arches = { gap: 0.06, steps: 7, flare: 0.06, out: 0.04, reac
 const HALF = 0.976;
 const SPAN = 0.89;
 // A lip grown out of the hatch across the whole tail, then a ducktail, then a hoop (a trim plane between two painted side
-// plates swept up from the deck corners, flush with the body side), then a trim plane on two painted legs standing in the ducktail.
+// plates swept up from the deck to the lip's end), then a trim plane on two painted legs standing in the ducktail.
+// Both wings stand square to the car: the hoop as wide as the tail end its rear feet stand on, the race wing as drawn.
+const TAIL_END = -2.17;
+const UNPINCHED = OUTLINE[OUTLINE.length - 1][0] + SECTION.tail[1];
 const LIP: Slab = { points: [[-1.9, 0.93], [-2.15, 1.0], [-2.17, 0.975], [-2.115, 0.88]], from: 0, to: HALF };
 const DUCKTAIL: Slab = { points: [[-1.88, 0.93], [-2.15, 1.06], [-2.17, 1.035], [-2.115, 0.88]], from: 0, to: HALF };
 const STREET = plane([-2.01, 1.19], 0.3, 0.045, 0.1);
 const RACE = plane([-2.0, 1.31], 0.34, 0.055, 0.12);
 // The race plane's endplate: a wedge along the plane, shallow at its raked leading edge and deep at the tail.
 const FIN: Point[] = [[RACE[3][0] + 0.015, RACE[3][1] - 0.02], [RACE[0][0] - 0.015, RACE[0][1] + 0.03], [RACE[1][0] - 0.02, RACE[1][1] + 0.035], [RACE[2][0] - 0.005, RACE[2][1] - 0.09]];
-const legs = (profile: Point[], rear: Point): Slab => ({ points: leg(profile, [-1.88, 0.925], rear), from: 0.5, to: 0.58 });
+const legs = (profile: Point[], rear: Point): Slab => ({ points: leg(profile, [-1.88, 0.925], rear), from: 0.5, to: 0.58, straight: UNPINCHED });
 const WINGS: Wing[] = [
   { paint: [], trim: [], lips: [LIP] },
   { paint: [], trim: [], lips: [DUCKTAIL] },
-  { paint: [], trim: [], lips: [LIP, { points: hoop(STREET, [-1.68, 0.93], LIP.points[2]), from: SPAN, to: HALF }], stands: [{ points: STREET, from: 0, to: SPAN }] },
+  { paint: [], trim: [], lips: [LIP, { points: hoop(STREET, [-1.68, 0.93], LIP.points[2]), from: SPAN, to: HALF, straight: TAIL_END }], stands: [{ points: STREET, from: 0, to: SPAN, straight: TAIL_END }] },
   {
     paint: [],
     trim: [],
     lips: [DUCKTAIL, legs(RACE, [-2.1, 1.02])],
-    stands: [{ points: RACE, from: 0, to: SPAN }, { points: gurney(RACE, 0.03), from: 0, to: SPAN }, { points: FIN, from: SPAN, to: SPAN + 0.03 }],
+    stands: [{ points: RACE, from: 0, to: SPAN, straight: UNPINCHED }, { points: gurney(RACE, 0.03), from: 0, to: SPAN, straight: UNPINCHED }, { points: FIN, from: SPAN, to: SPAN + 0.03, straight: UNPINCHED }],
   },
 ];
 
