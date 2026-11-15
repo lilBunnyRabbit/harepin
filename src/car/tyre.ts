@@ -21,6 +21,10 @@ const AIR_SPIN_DRAG = 0.02;
 // N/m of the stop each strut meets just short of the floor: at 400 000 a buggy landing off a 25 m/s brink tipped past 35
 // degrees, at 1 000 000 a rolled raijin landed past 40.
 const FLOOR_BUMP = 250_000;
+// N·s/m against the strut extending out of its floor stop: undamped, the stop handed a road kicker's compression back as
+// lift and cars flew 4-11 m past the landing; damping the compression too spiked hard landings and tipped them, and a
+// stop that could pull lifted the bus off its wheels.
+const FLOOR_DAMP = 20_000;
 
 // Normalised magic formula: peak at s = 1, sliding grip sin(C·π/2) ≈ 65% of peak.
 const MF_C = 1.55;
@@ -154,7 +158,10 @@ export function suspend(car: Car, frame: StepFrame, w: Wheel, dt: number, ground
   let suspension = spec.spring * w.compression + (spec.damper * (w.compression - w.prev)) / dt;
   suspension += w.axle.arb * (w.compression - other.compression);
   if (w.compression > rest) suspension += spec.bump * (w.compression - rest);
-  if (w.compression > w.floor_stop) suspension += FLOOR_BUMP * (w.compression - w.floor_stop);
+  if (w.compression > w.floor_stop) {
+    const rate = (w.compression - w.prev) / dt;
+    suspension += Math.max(0, FLOOR_BUMP * (w.compression - w.floor_stop) + FLOOR_DAMP * Math.min(0, rate));
+  }
   suspension = Math.max(0, Math.min(spec.strut_max, suspension));
   lever.copy(w.point).sub(body.pos);
   ground.normal(w.point.x, w.point.z, w.normal, w.point.y);
