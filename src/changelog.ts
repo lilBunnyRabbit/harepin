@@ -54,6 +54,14 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.51.4",
+    date: "2026-11-15",
+    title: "Smoother clock and menu",
+    changes: [
+      { kind: IMPROVED, text: "Phones: the race clock no longer nudges the hints around it, and the game does less work behind the menu" },
+    ],
+  },
+  {
     version: "0.51.3",
     date: "2026-11-15",
     title: "Lighter on loose ground",
