@@ -20,7 +20,9 @@ export const HAREPIN_DB: IdbSchema = {
   ],
 };
 
-const done = <T>(request: IDBRequest<T>) =>
+const OPEN_TIMEOUT_MS = 3000;
+
+const done =<T>(request: IDBRequest<T>) =>
   new Promise<T>((resolve, reject) => {
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error ?? new Error("indexedDB request failed"));
@@ -40,8 +42,19 @@ function open(schema: IdbSchema, closed: () => void): Promise<IDBDatabase> {
     for (const store of schema.stores) if (!db.objectStoreNames.contains(store.name)) db.createObjectStore(store.name, { keyPath: store.key });
   };
   return new Promise<IDBDatabase>((resolve, reject) => {
+    let late = false;
+    const timer = setTimeout(() => {
+      late = true;
+      reject(new Error(`indexedDB ${schema.name} v${schema.version} did not open in ${OPEN_TIMEOUT_MS} ms`));
+    }, OPEN_TIMEOUT_MS);
     request.onsuccess = () => {
+      clearTimeout(timer);
       const db = request.result;
+      // The caller already fell back, and a connection held open now would block the next upgrade.
+      if (late) {
+        db.close();
+        return;
+      }
       // A newer build in another tab is upgrading: let it, rather than block it until this tab closes.
       db.onversionchange = () => {
         db.close();
@@ -49,9 +62,12 @@ function open(schema: IdbSchema, closed: () => void): Promise<IDBDatabase> {
       };
       resolve(db);
     };
-    request.onerror = () => reject(request.error ?? new Error("indexedDB open failed"));
-    // Every connection closes itself on a version change, so only a tab from before that waits out; rejecting here would
-    // orphan the connection the request still opens once that tab closes.
+    request.onerror = () => {
+      clearTimeout(timer);
+      reject(request.error ?? new Error("indexedDB open failed"));
+    };
+    // Only a tab from before connections gave way to upgrades blocks: the timeout lets the caller fall back meanwhile, and
+    // the connection that opens once that tab closes is closed again.
     request.onblocked = () => console.warn(`indexedDB ${schema.name} v${schema.version} waits for an older tab to close`);
   });
 }
