@@ -166,6 +166,10 @@ export class Skids {
       blending: THREE.CustomBlending,
       blendSrc: THREE.SrcAlphaFactor,
       blendDst: THREE.OneMinusSrcAlphaFactor,
+      // Custom blending runs the colour factors on alpha too, which left the frame see-through under every mark: the page
+      // behind the canvas showed in them, pale by day.
+      blendSrcAlpha: THREE.ZeroFactor,
+      blendDstAlpha: THREE.OneFactor,
       depthWrite: false,
       polygonOffset: true,
       polygonOffsetFactor: -6,

@@ -11,3 +11,10 @@ test("skid marks draw with the contact patch, before the cars, in the opaque pas
   expect(mesh.renderOrder).toBe(DECAL_ORDER);
   expect([material.transparent, material.depthWrite]).toEqual([false, false]);
 });
+
+test("a skid mark blends its colour only: custom blending on alpha too left the frame see-through, and the page showed in every mark", async () => {
+  const { Skids } = await import("./effects");
+  const { ZeroFactor, OneFactor } = await import("three");
+  const material = new Skids().mesh.material as import("three").Material;
+  expect([material.blendSrcAlpha, material.blendDstAlpha]).toEqual([ZeroFactor, OneFactor]);
+});
