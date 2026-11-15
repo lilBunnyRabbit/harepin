@@ -18,7 +18,7 @@ import { own_country } from "./net/country";
 import { Chat } from "./net/chat";
 import { Skids, Smoke } from "./render/effects";
 import { Sparks } from "./render/sparks";
-import { parse_build } from "./car/build";
+import { build_spec, parse_build } from "./car/build";
 import { load_builds } from "./car/builds";
 import { car_shelves, limit_text } from "./car/car-pick";
 import { pick_car } from "./menu/car-pick";
@@ -44,7 +44,6 @@ import { GUIDE_PARAM, ROLLED_VISIT } from "./menu/guide/guide.svelte";
 import { kept_random_name } from "./menu/guide-rules";
 import { PadMenu } from "./menu/pad-menu";
 import { Net, WRONG_PASSWORD } from "./net/net";
-import { peer_pass, type Near } from "./car/nitro";
 import { Quality } from "./render/quality";
 import { brand, color, rgba, tones } from "./theme/palette";
 import { Race } from "./race";
@@ -53,7 +52,6 @@ import { Render } from "./render/render";
 import { WorldView, mesh_tones } from "./render/scene";
 import { kit_meshes } from "./render/prop-kit";
 import { clouds, sky } from "./render/sky";
-import { PadTimer } from "./world/sky-pads";
 import { Lighting } from "./render/lighting";
 import { CAMERA_RETURN_SECONDS, CameraView, pad_settings, type SettingsState } from "./menu/prefs";
 import { load_settings, mark_drive, pin_pick, take_drive } from "./menu/prefs-store";
@@ -79,6 +77,10 @@ import { review_wanted } from "./review/params";
 import { HudSheet } from "./hud/hud-sheet";
 import { StuckPrompt } from "./hud/stuck-prompt";
 import { pushing } from "./hud/stuck";
+import { LocalSim, SIM_WORKER_PARAM, WorkerSim, type Sim } from "./sim/sim-client";
+import { DT, FrameKind, SimHost, type FrameRequest } from "./sim/sim-host";
+import { WorldJournal } from "./world/world-journal";
+import { FIELD_PARAM, FieldView } from "./ai/field-view";
 import "./style.css";
 
 const params = new URLSearchParams(location.search);
@@ -116,7 +118,9 @@ for (const event of UNLOCK_EVENTS) addEventListener(event, unlock_audio);
 // The renderer needs only the world's kind, so it sets up while the worker plans the world.
 const snowy = snow_of(map) !== null;
 const look = world_look(WORLDS[kind], snowy);
-const opening = WorldStream.open(pick, map, mesh_tones(snowy, WORLDS[kind].upland, WORLDS[kind].deck));
+// The lab records every physics step and a review shot sets the pose itself, so both keep the sim on main.
+const journal = params.has(SIM_WORKER_PARAM) && lab_id === null && !review_wanted(params) ? new WorldJournal() : null;
+const opening = WorldStream.open(pick, map, mesh_tones(snowy, WORLDS[kind].upland, WORLDS[kind].deck), journal);
 const quality = new Quality(params, prefs.quality);
 const scene = new THREE.Scene();
 // The scene never moves. Left on, its own matrix update would force every world matrix under it each frame, frozen chunks too.
@@ -205,8 +209,10 @@ const runs = new Runs(local_store());
 const goals = new Goals(local_store(), mode_ids);
 goals.catch_up(() => proven(saved_entries(), { kind, build, cockpit: prefs.camera === CameraView.COCKPIT }, mode_ids));
 const race = new Race(world);
-const pads = new PadTimer();
-const driver = new Driver(scene, light, world, race, pads, chase, build);
+const sim: Sim = journal
+  ? WorkerSim.start(new Worker(new URL("./sim/sim-worker.ts", import.meta.url), { type: "module" }), world, stream.plan, journal, build_spec(build))
+  : new LocalSim(new SimHost(world, build_spec(build)));
+const driver = new Driver(scene, light, world, race, sim, chase, build);
 driver.arrive = (x, z) => area_fade.cover(world.tiles.ensure(x, z));
 if (review) review.place = (index) => driver.place_road(index);
 
@@ -247,9 +253,9 @@ race.on_lap = (improved, first) => {
   if (lobby.route === "circuit") lobby.lap(performance.now());
 };
 function reset_lap() {
-  driver.car.nitro.refill();
+  sim.send({ type: "refill" });
   race.reset();
-  driver.rewind.clear();
+  driver.clear_rewind();
 }
 async function restart_lap() {
   await driver.place_road(SPAWN_INDEX);
@@ -357,7 +363,7 @@ new Presence({ net, elsewhere: () => directory.elsewhere(), watch: (on) => direc
 let drift_full_lock = true;
 
 function apply_car_settings(state: SettingsState) {
-  Object.assign(driver.car, { tcs: state.tcs, abs: state.abs, assist: state.assist, stability: state.stability, auto: state.auto, steer_mode: state.steer_mode, drift_full_lock });
+  sim.send({ type: "aids", aids: { tcs: state.tcs, abs: state.abs, assist: state.assist, stability: state.stability, auto: state.auto, steer_mode: state.steer_mode, drift_full_lock } });
 }
 
 function apply_settings(state: SettingsState) {
@@ -410,6 +416,7 @@ garage.on_back = () => settings.back();
 
 await spawn_ready;
 driver.place(driver.road_spot(start_index));
+const field_view = await FieldView.open(params, scene, world, sim, build);
 
 const modes = new Modes(scene, world, SPAWN_INDEX, () => lobby.record, (x, z, heading) => {
   driver.park(x, z, heading);
@@ -593,7 +600,7 @@ for (const id of ["aids", "hud-sheet"]) document.getElementById(id)?.addEventLis
 function shift(step: 1 | -1) {
   if (settings.state.auto) hud.toast("Manual gearbox");
   settings.set("auto", false);
-  driver.car.shift(step);
+  sim.send({ type: "shift", by: step });
 }
 
 const ACTIONS: Record<Action, () => void> = {
@@ -649,14 +656,18 @@ if (lab_id !== null)
         toast: (text) => hud.toast(text),
       }),
     )
-    .then((opened) => (lab = opened))
+    .then((opened) => {
+      lab = opened;
+      if (sim instanceof LocalSim) sim.host.on_step = (dt, car, controls) => opened.step(dt, car, controls);
+    })
     .catch((error: unknown) => {
       console.error(error);
       hud.toast(`Lab: ${error instanceof Error ? error.message : String(error)}`);
     });
 
-const DT = 1 / 360;
 let acc = 0;
+const NO_PEERS: readonly never[] = [];
+const request: FrameRequest = { kind: FrameKind.HOLD, steps: 0, controls: { steer: 0, throttle: 0, brake: 0, handbrake: 0, analog: false }, now: 0, blend: 0, peers: NO_PEERS };
 let last = review?.now ?? performance.now();
 /** The menu's blur sits over a scene that only turbines and gates animate while it holds the sim, so it redraws at this rate. */
 const MENU_DRAW_MS = 100;
@@ -671,33 +682,9 @@ driver.placed = () => {
   stuck_prompt.clear();
   lab?.placed(driver.car);
 };
-let rewinding = false;
 
-const NEAR_GAP = 1.2;
-const NEAR_PEER = 4;
 const up_scratch = new THREE.Vector3();
 const sound: SoundFrame = { rpm: 0, throttle: 0, scrub: 0, speed: 0, offroad: false, sound: driver.car.spec.sound, redline: 0, boost: false, held: false };
-const miss: { near: Near; touched: boolean } = { near: null, touched: false };
-/** Something close this frame, and whether the pass touched it (a crash, or driving through a ghost peer). Reused each frame. */
-function near_miss(impact: number): { near: Near; touched: boolean } {
-  const car = driver.car;
-  miss.near = null;
-  miss.touched = false;
-  if (!car.nitro.fitted) return miss;
-  miss.touched = impact > 0;
-  const solid = world.grazes(car, NEAR_GAP);
-  if (solid) {
-    miss.near = solid;
-    return miss;
-  }
-  const ghost = remotes.nearest(car.pos);
-  const pass = ghost ? peer_pass(ghost.distance, NEAR_PEER) : null;
-  if (ghost && pass?.close) {
-    miss.near = ghost.id;
-    miss.touched = pass.touched;
-  }
-  return miss;
-}
 
 // The online badge follows the career's stars: a finished final shows to peers at once.
 let rewarded = -1;
@@ -736,45 +723,46 @@ function frame(time: number) {
   lobby.update(now);
   // A lab card holds the trial under it, as the menu does: the clock and the car wait for the answers.
   const menu_hold = (settings.is_open || hud_sheet.open || (lab_id !== null && modal_open())) && net.remotes.size === 0;
-  let stepped = 0;
-  let simulated = false;
-  let held = false;
-  let impact = 0;
+  let kind: FrameKind = FrameKind.HOLD;
+  let steps = 0;
   if (input.rewind && driver.rewind.can_step && !lobby.busy && !modes.active) {
-    rewinding = true;
+    kind = FrameKind.REWIND;
     if (lab_id === null) goals.done(GoalId.REWIND);
     rewind_step(now);
     acc = 0;
   } else if (review?.replaying) {
-    rewinding = false;
+    kind = FrameKind.FREE;
     acc = 0;
     review.drive(car, dt);
   } else if (lobby.state.kind === "countdown" || modes.holding || garage.is_open || menu_hold) {
-    rewinding = false;
-    held = true;
     acc = 0;
   } else {
-    simulated = true;
-    rewinding = false;
+    kind = FrameKind.STEP;
     acc += dt;
     while (acc >= DT) {
-      driver.begin_step();
-      car.step(DT, controls, world);
-      pads.step(DT, car, world);
-      stepped += DT;
-      impact = Math.max(impact, world.collide(car));
-      lab?.step(DT, car, controls);
+      steps++;
       acc -= DT;
     }
-    const { near, touched } = near_miss(impact);
-    car.nitro.pass(near, touched, car.vel.length());
+    driver.rewind.record(now);
+  }
+  request.kind = kind;
+  request.steps = steps;
+  request.controls = controls;
+  request.now = now;
+  request.blend = acc / DT;
+  request.peers = net.remotes.size ? remotes.spots() : NO_PEERS;
+  const out = sim.frame(request);
+  const simulated = out.kind === FrameKind.STEP;
+  const held = out.kind === FrameKind.HOLD;
+  const rewinding = out.kind === FrameKind.REWIND;
+  const { stepped, impact } = out;
+  if (simulated) {
     if (impact > 2) {
       if (world_view.jumps.bonked(car.pos.x, car.pos.z)) audio.bonk(impact);
       else audio.impact(impact / 20);
       chase.bump(Math.min(1, impact / 15));
       input.buzz();
     }
-    driver.rewind.record(now);
     if (world_view.jumps.update(dt, car).clean) {
       hud.toast("Clean!");
       audio.chime();
@@ -806,12 +794,11 @@ function frame(time: number) {
   ghost.update(race.started && !modes.active ? now - race.started : null, camera.position);
   modes.update(stepped, car);
   markers.update(car.pos.x, car.pos.z, car.vel.length(), !modes.active && !modes.holding && !lobby.busy);
-  // Rewind, the garage and the countdown don't step the car, so a held boost would never let go of the flame.
-  if (!simulated) car.nitro.cut();
   chase.top = modes.high_view;
   chase.boost = car.nitro.boosting;
   chase.rewinding = rewinding;
-  driver.draw(!simulated, acc / DT, now);
+  driver.draw(!simulated, out.blend, now);
+  field_view?.update();
   const offroad = !world.on_road(car.pos.x, car.pos.z);
   chase.update(dt, driver.drawn, world, offroad, now / 1000, input.look);
   if (!review?.aim(camera) && posed) {

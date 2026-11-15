@@ -87,7 +87,9 @@ export class Field {
   readonly line: RaceLine;
   t = 0;
   private readonly cars: Car[];
-  /** Closing speed (m/s) of each car's hardest touch on the last step, -1 for none. */
+  /** The field's cars, then the rival when one races them: the contact pass's list. */
+  private touching: Car[];
+  /** Closing speed (m/s) of each car's hardest touch on the last step, -1 for none; the rival's after the field's. */
   readonly impacts: Float64Array;
   private readonly awareness: Awareness;
   private readonly slow: Float64Array;
@@ -121,8 +123,9 @@ export class Field {
       return { car, driver, stats: { laps: [], finish: Infinity, contacts: 0, hardest: 0, spins: 0, overtakes: 0, reverses: 0, resets: 0, offroad: 0 } };
     });
     this.cars = this.racers.map((r) => r.car);
+    this.touching = this.cars;
     const count = this.racers.length;
-    this.impacts = new Float64Array(count);
+    this.impacts = new Float64Array(count + 1).fill(-1);
     this.awareness = new Awareness(this.cars, this.racers.map((r) => r.driver), mulberry32(sub(seed, "ai-awareness")));
     this.slow = new Float64Array(count);
     this.lost = new Float64Array(count);
@@ -133,6 +136,12 @@ export class Field {
     this.ahead = new Uint8Array(count * count);
   }
 
+  /** A car the field races but does not drive (the player's): its owner steps it before `step`, the contact pass here takes it in. */
+  set rival(car: Car | null) {
+    this.touching = car ? [...this.cars, car] : this.cars;
+    this.impacts[this.cars.length] = -1;
+  }
+
   step(dt: number, laps: number) {
     const { racers, world } = this;
     for (let i = 0; i < racers.length; i++) {
@@ -140,7 +149,7 @@ export class Field {
       car.step(dt, driver.drive(car, dt), world);
       world.collide(car);
     }
-    collide_cars(this.cars, this.impacts);
+    collide_cars(this.touching, this.impacts);
     this.t += dt;
     for (let i = 0; i < racers.length; i++) {
       const { car, driver, stats } = racers[i];

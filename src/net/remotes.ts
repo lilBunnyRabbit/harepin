@@ -11,6 +11,7 @@ import { tier_badge, tier_look } from "../career/badge";
 import { title_text } from "../runs/season";
 import { set_text } from "../hud/hud";
 import type { CarState, Net, Remote, TierBadge } from "./net";
+import type { PeerSpot } from "../sim/sim-host";
 import "./remotes.css";
 
 type Snapshot = Remote["snapshots"][number];
@@ -49,11 +50,6 @@ const ABOVE = 2.2;
 const REBUILD_GAP_MS = 1000;
 
 // Peers that predate build codes only send a paint index; they show as a stock coupe in that paint.
-interface Nearest {
-  id: string;
-  distance: number;
-}
-
 interface Resolved {
   build: Build;
   code: string;
@@ -104,7 +100,7 @@ function translucent_view(build: Build, spec: CarSpec, lights: boolean): { view:
 
 export class Remotes {
   private views = new Map<string, RemoteView>();
-  private readonly near: Nearest = { id: "", distance: 0 };
+  private readonly spot_list: PeerSpot[] = [];
   private q0 = new THREE.Quaternion();
   private q1 = new THREE.Quaternion();
   private p1 = new THREE.Vector3();
@@ -120,17 +116,20 @@ export class Remotes {
     private world: World,
   ) {}
 
-  /** The peer car nearest `to` where it is drawn (interpolated), and how far away it is in metres. The result is reused by the next call. */
-  nearest(to: THREE.Vector3): Readonly<Nearest> | null {
-    let found = false;
+  /** Every peer car where it is drawn, for the sim's near-miss pass; the spots are reused by the next call. */
+  spots(): readonly PeerSpot[] {
+    const out = this.spot_list;
+    let n = 0;
     for (const [id, rv] of this.views) {
-      const distance = rv.view.root.position.distanceTo(to);
-      if (found && !(distance < this.near.distance)) continue;
-      found = true;
-      this.near.id = id;
-      this.near.distance = distance;
+      const p = rv.view.root.position;
+      const spot = (out[n++] ??= { id, x: 0, y: 0, z: 0 });
+      spot.id = id;
+      spot.x = p.x;
+      spot.y = p.y;
+      spot.z = p.z;
     }
-    return found ? this.near : null;
+    out.length = n;
+    return out;
   }
 
   update(dt: number, camera: THREE.Camera, me: THREE.Vector3) {

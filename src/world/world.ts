@@ -17,6 +17,7 @@ import { CELL, ROAD_HALF, RouteKind, SurfaceId, type WorldKind } from "../worldg
 import { LIFT } from "../worldgen/lifts";
 import { drawn_junctions, drawn_roads, junction_lift, laid_height, on_road_paint, paved_lots, paving_lift, road_lift, type DrawnJunction, type DrawnRoad, type LaidPad, type PavedLot } from "./drawn-lift";
 import { SEA_LEVEL, water_index, type WaterIndex } from "../worldgen/water";
+import type { WorldJournal } from "./world-journal";
 import type { LavaPool } from "../worldgen/lava";
 import type {
   Building,
@@ -260,6 +261,7 @@ export class World implements Ground {
   private wedge_cz = NaN;
   private wedge_list: number[] | undefined = undefined;
   private query = 0;
+  journal: WorldJournal | null = null;
 
   /** `data` is `generate(seed)`, passed in when a worker already ran it; `tiles` empty when they stream in after. */
   constructor(
@@ -484,9 +486,11 @@ export class World implements Ground {
   /** Puts a pad down over the drawn ground; returns the function that takes it away again. */
   lay(pad: LaidPad): () => void {
     this.pads.push(pad);
+    const id = this.journal?.lay(pad) ?? -1;
     return () => {
       const i = this.pads.indexOf(pad);
       if (i >= 0) this.pads.splice(i, 1);
+      this.journal?.unlay(id);
     };
   }
 
@@ -644,6 +648,15 @@ export class World implements Ground {
 
   /** Returns the function that takes them away again. */
   place(solids: readonly Solid[]): () => void {
+    const take = this.put(solids);
+    const id = this.journal?.place(solids) ?? -1;
+    return () => {
+      take();
+      this.journal?.unplace(id);
+    };
+  }
+
+  private put(solids: readonly Solid[]): () => void {
     const slots = solids.map((solid) => this.add_placed(solid));
     return () => {
       for (let k = 0; k < slots.length; k++) this.remove_placed(slots[k], solids[k]);
@@ -652,11 +665,17 @@ export class World implements Ground {
 
   /** A streamed chunk's solids join the grid as it arrives, and `unplant` takes them out when it goes. */
   plant(index: number, solids: readonly Solid[]) {
-    this.unplant(index);
-    if (solids.length) this.planted.set(index, this.place(solids));
+    this.journal?.plant(index, solids);
+    this.drop_planted(index);
+    if (solids.length) this.planted.set(index, this.put(solids));
   }
 
   unplant(index: number) {
+    this.journal?.unplant(index);
+    this.drop_planted(index);
+  }
+
+  private drop_planted(index: number) {
     this.planted.get(index)?.();
     this.planted.delete(index);
   }
