@@ -12,8 +12,8 @@ const SPUR_LIFT = LIFT.spur;
 const RING_LIFT = LIFT.ring;
 const MARK_LIFT = LIFT.mark;
 const MARK_HALF = 0.15;
-const EDGE_INSET = 0.3;
-const EDGE_WIDTH = 0.25;
+export const EDGE_INSET = 0.3;
+export const EDGE_WIDTH = 0.25;
 const DASH = 6;
 const DASH_ON = 3;
 const SPUR_MARK_CLEAR = 8;
@@ -22,8 +22,8 @@ const CURB = 8;
 // A town corner's curb radius: 4-6 m in real grids, tight enough that the sidewalk still fits round it.
 const STREET_CURB = 5;
 const MOUTH_CLEAR = 5;
-const GIVE_WAY_OUT = 0.3;
-const GIVE_WAY_WIDTH = 0.4;
+export const GIVE_WAY_OUT = 0.3;
+export const GIVE_WAY_WIDTH = 0.4;
 /** |sin| between two streets at a node below which they run straight on. */
 const STRAIGHT_ON = 0.1;
 

@@ -13,7 +13,7 @@ import { kerb_marks, on_kerb_segment, type KerbMarks } from "./kerbs";
 import { road_junctions } from "../worldgen/road-layers";
 import { CELL, ROAD_HALF, RouteKind, SurfaceId, type WorldKind } from "../worldgen/types";
 import { LIFT } from "../worldgen/lifts";
-import { drawn_roads, paved_lots, paving_lift, road_lift, type DrawnRoad, type PavedLot } from "./drawn-lift";
+import { drawn_junctions, drawn_roads, junction_lift, on_road_paint, paved_lots, paving_lift, road_lift, type DrawnJunction, type DrawnRoad, type PavedLot } from "./drawn-lift";
 import { SEA_LEVEL, water_index, type WaterIndex } from "../worldgen/water";
 import type { LavaPool } from "../worldgen/lava";
 import type {
@@ -225,6 +225,8 @@ export class World implements Ground {
   private paved: PavedLot[] | null = null;
   /** Built with the world, never on a frame: the first wheel on a road would pay for the whole network. */
   private readonly drawn: (DrawnRoad | undefined)[];
+  /** Every patched junction under each cell its asphalt and give-way bars reach. */
+  private readonly junction_grid = new Map<number, DrawnJunction[]>();
   /** Where the circuit's kerbs are drawn: the mesh and the tyres read the same marks. Built with the world, like `drawn`, from the same junctions. */
   readonly kerbs: KerbMarks;
   private readonly lane_point = (packed: number): RoadPoint => this.lanes[Math.floor(packed / LANE_PACK)][packed % LANE_PACK];
@@ -302,6 +304,7 @@ export class World implements Ground {
     });
     const junctions = road_junctions(data);
     this.drawn = drawn_roads(data, junctions);
+    for (const junction of drawn_junctions(junctions.patched)) this.index_junction(junction);
     this.kerbs = kerb_marks(data, junctions);
     this.lanes = [this.road, ...this.graph.edges.map((e) => (this.circuit.includes(e.id) ? [] : e.points)), ...this.trails.map((t) => t.points)];
     this.lanes.forEach((points, lane) =>
@@ -313,6 +316,19 @@ export class World implements Ground {
         else this.lane_grid.set(key, [packed]);
       }),
     );
+  }
+
+  private index_junction(junction: DrawnJunction) {
+    const reach = Math.sqrt(junction.reach2);
+    const x1 = Math.floor((junction.x + reach) / ROAD_CELL);
+    const z1 = Math.floor((junction.z + reach) / ROAD_CELL);
+    for (let cz = Math.floor((junction.z - reach) / ROAD_CELL); cz <= z1; cz++)
+      for (let cx = Math.floor((junction.x - reach) / ROAD_CELL); cx <= x1; cx++) {
+        const key = grid_key(cx, cz);
+        const list = this.junction_grid.get(key);
+        if (list) list.push(junction);
+        else this.junction_grid.set(key, [junction]);
+      }
   }
 
   private index_solid(solid: Solid, index: number) {
@@ -448,8 +464,11 @@ export class World implements Ground {
    */
   drawn_lift(x: number, z: number, y?: number): number {
     if (this.height(x, z, y) > this.tiles.height(x, z)) return 0;
+    const paving = paving_lift((this.paved ??= paved_lots(this.lots, this.parking)), x, z);
+    const junction = this.junction_lift(x, z);
+    if (junction > 0) return Math.max(junction, paving);
     const on = Math.max(0, Math.min(1, (ON_ROAD - this.tiles.road_dist(x, z)) / (ON_ROAD - ROAD_HALF)));
-    return Math.max(on > 0 ? on * this.road_lift(x, z) : 0, paving_lift((this.paved ??= paved_lots(this.lots, this.parking)), x, z));
+    return Math.max(on > 0 ? on * this.road_lift(x, z) : 0, paving);
   }
 
   /** The lift of the road nearest (`x`, `z`), whichever kind it is, or of the paint on it there. */
@@ -457,6 +476,18 @@ export class World implements Ground {
     const packed = nearest(this.lane_grid, x, z, this.lane_point);
     const road = packed < 0 ? undefined : this.drawn[Math.floor(packed / LANE_PACK)];
     return road ? road_lift(road, packed % LANE_PACK, x, z) : LIFT.ring;
+  }
+
+  /** The lift of the junction drawn at (`x`, `z`): its own asphalt and paint, or a through road's line across it; 0 off every junction. */
+  private junction_lift(x: number, z: number): number {
+    const near = this.junction_grid.get(grid_key(Math.floor(x / ROAD_CELL), Math.floor(z / ROAD_CELL)));
+    if (!near) return 0;
+    let lift = 0;
+    for (const junction of near) lift = Math.max(lift, junction_lift(junction, x, z));
+    if (lift === 0 || lift === LIFT.mark) return lift;
+    const packed = nearest(this.lane_grid, x, z, this.lane_point);
+    const road = packed < 0 ? undefined : this.drawn[Math.floor(packed / LANE_PACK)];
+    return road && on_road_paint(road, packed % LANE_PACK, x, z) ? LIFT.mark : lift;
   }
 
   distance_to_road(x: number, z: number): number {
