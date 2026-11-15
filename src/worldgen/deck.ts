@@ -1,4 +1,5 @@
 import { DECK_STRIDE, type Deck } from "./types";
+import { hypot, tan } from "../sim-math";
 
 /** Below this far under the deck surface a query sees no deck: a car falling past the edge must not be shoved up through it. */
 export const DECK_UNDER = 1.2;
@@ -47,7 +48,7 @@ export class DeckIndex {
       else this.grid.set(k, [i]);
     }
     const n = this.count;
-    this.length = n ? this.at(n - 1, 8) + Math.hypot(this.at(0, 0) - this.at(n - 1, 0), this.at(0, 2) - this.at(n - 1, 2)) : 0;
+    this.length = n ? this.at(n - 1, 8) + hypot(this.at(0, 0) - this.at(n - 1, 0), this.at(0, 2) - this.at(n - 1, 2)) : 0;
     const reach = Math.ceil(STACK_REACH / CELL);
     for (let i = 0; i < n; i++) {
       const cx = Math.floor(this.at(i, 0) / CELL);
@@ -224,7 +225,7 @@ export class DeckIndex {
     uz /= ul;
     const u = (x - cx) * uz - (z - cz) * ux;
     if (Math.abs(u) > this.lerp(a, b, f, 6) || Math.abs((x - cx) * ux + (z - cz) * uz) > 2) return null;
-    const slope = Math.tan(this.lerp(a, b, f, 5));
+    const slope = tan(this.lerp(a, b, f, 5));
     const surface = this.lerp(a, b, f, 1) + u * slope;
     if (y !== undefined && y < surface - DECK_UNDER) return null;
     const grade = (this.at(b, 1) - this.at(a, 1)) / Math.sqrt(len2);

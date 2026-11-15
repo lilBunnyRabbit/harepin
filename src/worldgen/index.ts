@@ -24,6 +24,7 @@ import { plan_trails } from "./trails";
 import { place_towns, town_streets } from "./towns";
 import { ISLAND, type Landmark, type Recipe } from "./recipe";
 import { CELL, ORIGIN, ROAD_HALF, SPAWN_INDEX, SPUR_HALF, WorldKind, type Checkpoint, type RoadEdge, type RoadGraph, type RoadNode, type RoadPoint, type Solid, type Tree, type WorldData } from "./types";
+import { atan2 } from "../sim-math";
 
 const CHECKPOINTS = 12;
 const STACK_GATE = 5;
@@ -48,7 +49,7 @@ const LANDMARKS: Record<Landmark, (marks: LandmarkPlanner, roads: RoadEdge[]) =>
 };
 
 // World generation uses only + - * / sqrt floor and integer ops, which IEEE 754 makes bit-exact on every engine, so
-// every discrete choice (towns, routes, lots, trees) comes out the same for every peer on the seed. Math.atan2 only
+// every discrete choice (towns, routes, lots, trees) comes out the same for every peer on the seed. atan2 only
 // feeds display angles.
 export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind = WorldKind.ISLAND): WorldData {
   const timings: [string, number][] = [];
@@ -207,7 +208,7 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   const checkpoints: Checkpoint[] = [];
   for (let i = 0; i < CHECKPOINTS; i++) {
     const p = road[checkpoint_at[i]];
-    checkpoints.push({ x: p.x, y: p.y, z: p.z, heading: Math.atan2(p.tx, p.tz), index: i });
+    checkpoints.push({ x: p.x, y: p.y, z: p.z, heading: atan2(p.tx, p.tz), index: i });
     for (const side of [-1, 1]) {
       const off = side * (ROAD_HALF + 1.7);
       const x = p.x - p.tz * off;

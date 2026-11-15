@@ -9,6 +9,7 @@ import { land_height } from "./terrain";
 import { KINDS } from "./kinds/kinds";
 import { world_facts, type WorldFacts } from "./facts";
 import { CELL, DECK_STRIDE, N, ORIGIN, SurfaceId, type EdgeKind, type WorldData, type WorldKind } from "./types";
+import { cos, hypot, hypot3, sin } from "../sim-math";
 
 export const MAP_SIDE = N + 1;
 const SUN = normalise([-1, 1.4, -1]);
@@ -82,7 +83,7 @@ export interface MapTones {
 }
 
 function normalise([x, y, z]: [number, number, number]): [number, number, number] {
-  const length = Math.hypot(x, y, z);
+  const length = hypot3(x, y, z);
   return [x / length, y / length, z / length];
 }
 
@@ -94,7 +95,7 @@ function cloud_pixels(tones: MapTones): Uint8ClampedArray<ArrayBuffer> {
   for (let j = 0; j < MAP_SIDE; j++)
     for (let i = 0; i < MAP_SIDE; i++) {
       const k = j * MAP_SIDE + i;
-      const shade = 1 - CLOUD_FALLOFF * Math.min(1, Math.hypot(i - mid, j - mid) / mid);
+      const shade = 1 - CLOUD_FALLOFF * Math.min(1, hypot(i - mid, j - mid) / mid);
       for (let c = 0; c < 3; c++) pixels[k * 4 + c] = encode(tones.cloud[c] * shade);
       pixels[k * 4 + 3] = 255;
     }
@@ -200,7 +201,7 @@ export function map_data(data: WorldData, tones: MapTones): MapData {
     towns: data.towns.map(({ x, z, radius, name }) => ({ x, z, radius, name })),
     jumps: data.ramps.map((r) => ({ x: r.x, z: r.z, fx: r.fx, fz: r.fz, length: r.length })),
     pads: pad_marks(data),
-    checkpoints: data.checkpoints.map((c) => ({ x: c.x, z: c.z, fx: Math.sin(c.heading), fz: Math.cos(c.heading), length: 0 })),
+    checkpoints: data.checkpoints.map((c) => ({ x: c.x, z: c.z, fx: sin(c.heading), fz: cos(c.heading), length: 0 })),
     start: { x: start.x, z: start.z, fx: start.tx, fz: start.tz, length: 0 },
     facts: world_facts(data),
     routes: data.routes.map(({ id, length, closed }) => ({ id, length, closed })),

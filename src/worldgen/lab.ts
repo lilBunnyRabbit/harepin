@@ -2,6 +2,7 @@ import type { LavaPool } from "./lava";
 import { circuit_route } from "./routes";
 import { Stamp } from "./stamp";
 import { CELL, ItemKind, N, ROAD_HALF, SIZE, SurfaceId, type Checkpoint, type Item, type Ramp, type RoadEdge, type RoadNode, type RoadPoint, type WorldData, type WorldKind } from "./types";
+import { atan2, cos, hypot, sin } from "../sim-math";
 
 /** Height of the lab's flat ground: above the island biomes' beach, under their scree, so it reads as meadow. */
 export const LAB_GROUND = 20;
@@ -112,7 +113,7 @@ interface Layout {
   oval: Line;
 }
 
-const spot = (x: number, z: number, fx: number, fz: number): LabSpot => ({ x, z, heading: Math.atan2(fx, fz) });
+const spot = (x: number, z: number, fx: number, fz: number): LabSpot => ({ x, z, heading: atan2(fx, fz) });
 
 function resample(line: Line, closed = false): Line {
   const out: Line = [];
@@ -120,7 +121,7 @@ function resample(line: Line, closed = false): Line {
   for (let s = 0; s < n; s++) {
     const [ax, az] = line[s];
     const [bx, bz] = line[(s + 1) % line.length];
-    const steps = Math.max(1, Math.round(Math.hypot(bx - ax, bz - az) / STEP));
+    const steps = Math.max(1, Math.round(hypot(bx - ax, bz - az) / STEP));
     for (let k = 0; k < steps; k++) out.push([ax + ((bx - ax) * k) / steps, az + ((bz - az) * k) / steps]);
   }
   if (!closed) out.push(line[line.length - 1]);
@@ -131,7 +132,7 @@ function arc(cx: number, cz: number, r: number, from: number, to: number): Line 
   const steps = Math.max(2, Math.ceil((Math.abs(to - from) * r) / STEP));
   return Array.from({ length: steps + 1 }, (_, k): [number, number] => {
     const a = from + ((to - from) * k) / steps;
-    return [cx + r * Math.cos(a), cz + r * Math.sin(a)];
+    return [cx + r * cos(a), cz + r * sin(a)];
   });
 }
 
@@ -165,7 +166,7 @@ function lay_out(): Layout {
   const road = (points: Line, half: number, closed = false) => out.roads.push({ points: resample(points, closed), half, closed });
   const lane = (surface: LabSurface, points: Line, half: number) => (surface === LabSurface.ASPHALT ? road(points, half) : paint(surface, [resample(points)], Math.max(0, half - CELL)));
   const ring_cones = (x: number, z: number, r: number, step: number) => {
-    for (let a = 0; a < 2 * Math.PI - 1e-9; a += step) out.cones.push([x + r * Math.cos(a), z + r * Math.sin(a)]);
+    for (let a = 0; a < 2 * Math.PI - 1e-9; a += step) out.cones.push([x + r * cos(a), z + r * sin(a)]);
   };
   const station = (id: StationId, lanes: LabLane[]) => out.stations.push({ id, lanes });
 
@@ -258,9 +259,9 @@ function lay_out(): Layout {
     const to = from + 120 * DEG;
     const line = arc(0, 0, r, from, to);
     lane(surface, line, 7);
-    const at = (a: number, dir: number): LabGate => ({ x: r * Math.cos(a), z: r * Math.sin(a), fx: -Math.sin(a) * dir, fz: Math.cos(a) * dir, hw: 7 });
+    const at = (a: number, dir: number): LabGate => ({ x: r * cos(a), z: r * sin(a), fx: -sin(a) * dir, fz: cos(a) * dir, hw: 7 });
     const run_in = from - 10 * DEG;
-    return { name, surface, spawn: spot(r * Math.cos(run_in), r * Math.sin(run_in), -Math.sin(from), Math.cos(from)), start: at(from + 5 * DEG, 1), finish: at(to - 5 * DEG, 1), ring: { x: 0, z: 0, radius: r, band: 7 } };
+    return { name, surface, spawn: spot(r * cos(run_in), r * sin(run_in), -sin(from), cos(from)), start: at(from + 5 * DEG, 1), finish: at(to - 5 * DEG, 1), ring: { x: 0, z: 0, radius: r, band: 7 } };
   };
   station(StationId.SWEEPER, [sweeper(LabSurface.ASPHALT, 120, 210 * DEG, "r120"), sweeper(LabSurface.ASPHALT, 200, 30 * DEG, "r200"), sweeper(LabSurface.HARDPACK, 150, -60 * DEG, "hardpack")]);
 
@@ -322,7 +323,7 @@ export const LAB_STATIONS: readonly LabStation[] = LAB_LAYOUT.stations;
 
 const point = ([x, z]: readonly [number, number], next: readonly [number, number] | undefined, prev: readonly [number, number] | undefined): RoadPoint => {
   const [nx, nz] = next ?? [2 * x - (prev?.[0] ?? x), 2 * z - (prev?.[1] ?? z + 1)];
-  const len = Math.hypot(nx - x, nz - z) || 1;
+  const len = hypot(nx - x, nz - z) || 1;
   return { x, y: LAB_GROUND, z, tx: (nx - x) / len, tz: (nz - z) / len };
 };
 
@@ -353,7 +354,7 @@ export function generate_lab(seed: number, kind: WorldKind): WorldData {
   const step = Math.floor(road.length / CHECKPOINTS);
   const checkpoints: Checkpoint[] = Array.from({ length: CHECKPOINTS }, (_, index) => {
     const p = road[index * step];
-    return { x: p.x, y: p.y, z: p.z, heading: Math.atan2(p.tx, p.tz), index };
+    return { x: p.x, y: p.y, z: p.z, heading: atan2(p.tx, p.tz), index };
   });
   return {
     kind,

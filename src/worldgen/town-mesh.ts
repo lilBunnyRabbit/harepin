@@ -5,6 +5,7 @@ import { hash } from "./noise";
 import { OUT, back_glazing, bays, framed, glazing, pane, post } from "./town-parts";
 import { FLOOR, PLINTH_OUT, PLINTH_TOP, SHOP_FLOOR } from "./town-style";
 import { Roof, type Building, type Detail } from "./types";
+import { cos, sin } from "../sim-math";
 
 export interface TownTones {
   pave: Rgb;
@@ -138,7 +139,7 @@ function clock_face(out: Builder, z: number, y: number, tones: MeshTones) {
   const { radius: r, sides } = CLOCK_FACE;
   const at = (i: number): V3 => {
     const a = ((i + 0.5) / sides) * Math.PI * 2;
-    return [Math.cos(a) * r, y + Math.sin(a) * r, z + OUT];
+    return [cos(a) * r, y + sin(a) * r, z + OUT];
   };
   for (let i = 0; i < sides; i++) out.tri([0, y, z + OUT], at(i), at(i + 1), tones.town.trim);
   pane(out, -0.09, 0.09, y - 0.1, y + r * 0.72, z + OUT * 2, tones.roof_flat);

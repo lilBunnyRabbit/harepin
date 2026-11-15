@@ -1,6 +1,7 @@
 import type { Rgb } from "./mesh";
 import { PAD_HALF, rail_open } from "./sky";
 import { DECK_STRIDE, DECK_THICK as THICK, type Deck } from "./types";
+import { tan } from "../sim-math";
 
 // About 75% of a car's height, as a toy track wall stands next to its car; the outside of a bank stands taller still.
 const RAIL_HIGH = 1;
@@ -64,7 +65,7 @@ function quad(layer: DeckLayer, rgb: Rgb, a: V, b: V, c: V, d: V) {
 
 /** Strips the deck between two samples splits into across its width; paint laid on the deck has to split the same way. */
 export function deck_strips(bank: number, bank_next: number, half: number, half_next: number): number {
-  const twist = Math.abs(Math.tan(bank_next) - Math.tan(bank)) * 2 * Math.max(half, half_next);
+  const twist = Math.abs(tan(bank_next) - tan(bank)) * 2 * Math.max(half, half_next);
   return twist > SKY_TWIST ? Math.ceil(twist / STRIP_TWIST) : 1;
 }
 
@@ -75,7 +76,7 @@ export function deck_layers(deck: Deck, tones: DeckTones, chunk_of: (x: number, 
   const at = (i: number, u: number, lift: number): V => {
     const tx = f(i, 3);
     const tz = f(i, 4);
-    const slope = Math.tan(f(i, 5));
+    const slope = tan(f(i, 5));
     return [f(i, 0) + tz * u, f(i, 1) + u * slope + lift, f(i, 2) - tx * u];
   };
   const cap = (s: number, side: number) => {

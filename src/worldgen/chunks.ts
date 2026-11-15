@@ -14,6 +14,7 @@ import type { LavaPool } from "./lava";
 import { LIFT } from "./lifts";
 import { ISLAND } from "./recipe";
 import { CELL, Ground, N, ORIGIN, PropKind, SURFACE_GROUND, type Building, type Lot, type ParkingLot, type Prop, type WorldData } from "./types";
+import { sin } from "../sim-math";
 
 const CHUNK_CELLS = CHUNK / CELL;
 export const JITTER_LEVELS = 64;
@@ -93,7 +94,7 @@ export interface ChunkBuffers {
 }
 
 function jitter(i: number, j: number): number {
-  const h = Math.sin(i * 127.1 + j * 311.7) * 43758.5453;
+  const h = sin(i * 127.1 + j * 311.7) * 43758.5453;
   return h - Math.floor(h) - 0.5;
 }
 
