@@ -67,5 +67,5 @@ export const BUS_DESIGN: Design = {
   eye: [6.05, 2.3],
   exhaust: [0.8, 0.42, -6.16],
   // The kit is the shell: the same body over deeper skirts, front and rear valances in the outline.
-  kit: { outline: [[5.86, 0.24], [5.9, 0.3], [5.9, 0.46], [5.92, 0.98], [5.88, 1.15], [-6.12, 1.15], [-6.16, 1.0], [-6.16, 0.3], [-6.12, 0.24]], sill: 0.24 },
+  kit: { outline: [[5.86, 0.31], [5.9, 0.36], [5.9, 0.46], [5.92, 0.98], [5.88, 1.15], [-6.12, 1.15], [-6.16, 1.0], [-6.16, 0.36], [-6.12, 0.31]], sill: 0.31 },
 };

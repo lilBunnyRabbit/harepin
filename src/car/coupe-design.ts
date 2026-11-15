@@ -64,9 +64,9 @@ function coupe_line(half: number, sill: number, nose: number, tail: number): Par
 // grows by what the body widens, so the body top, and the cabin and wings on it, stay where they were.
 const COUPE_WIDE = 2.06;
 const COUPE_WIDE_SHOULDER = kit_shoulder(COUPE_WIDTH, COUPE_SHOULDER, COUPE_WIDE);
-const COUPE_KIT_SILL = 0.19;
+const COUPE_KIT_SILL = 0.24;
 const COUPE_KIT: Kit = {
-  outline: [[2.3, COUPE_KIT_SILL], [2.37, 0.25], [2.35, 0.42], ...COUPE_TOP, [-2.34, 0.25], [-2.28, COUPE_KIT_SILL]],
+  outline: [[2.3, COUPE_KIT_SILL], [2.37, 0.3], [2.35, 0.42], ...COUPE_TOP, [-2.34, 0.3], [-2.28, COUPE_KIT_SILL]],
   width: COUPE_WIDE,
   sill: COUPE_KIT_SILL,
   section: { ...COUPE_SECTION, shoulder: COUPE_WIDE_SHOULDER },
@@ -77,7 +77,7 @@ const COUPE_KIT: Kit = {
   wings: COUPE_WINGS.map((wing) => widen_wing(wing, (1 - COUPE_SHOULDER) / (1 - COUPE_WIDE_SHOULDER))),
 };
 // The race splitter is a blade under the chin's dark bar, as wide as the body and bent with its nose.
-const COUPE_SPLITTER: Slab = { points: [[2.2, 0.145], [2.2, 0.17], [2.5, 0.17], [2.5, 0.145]], from: 0, to: COUPE_WIDE / 2 + LINE_PROUD };
+const COUPE_SPLITTER: Slab = { points: [[2.2, 0.195], [2.2, 0.22], [2.5, 0.22], [2.5, 0.195]], from: 0, to: COUPE_WIDE / 2 + LINE_PROUD };
 
 export const COUPE_DESIGN: Design = {
   outline: COUPE_OUTLINE,

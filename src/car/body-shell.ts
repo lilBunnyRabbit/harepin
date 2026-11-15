@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { axles_of } from "./axles";
+import { hull_floor } from "./car";
 import type { CarSpec } from "./cars";
 import type { Cabin, Design, Slab } from "./designs";
 import { arc, clip, extrude, inset, lean, parts, screen, slab, split, tint, top_at, type Point } from "./geometry";
@@ -190,8 +191,8 @@ export function skirts(d: Design, spec: CarSpec, thick: number, deep: number): T
   return parts([{ size: [thick, deep, front - rear], at: [d.width / 2 - 0.01 + thick / 2, d.sill + 0.045 - deep / 2, (front + rear) / 2] }]);
 }
 
-/** Bottom of the aero kit's band, which a front lip or splitter sits on. */
-export const kit_floor = (d: Design) => d.sill + KIT_TOP - KIT_DEEP;
+/** Bottom of the aero kit's band, which a front lip or splitter sits on: never under the hull, or it sank into the road at speed. */
+export const kit_floor = (d: Design, spec: CarSpec) => Math.max(d.sill + KIT_TOP - KIT_DEEP, hull_floor(spec));
 
 /**
  * The aero kit's lower band: deep skirts between the wheel openings, run on past them to the nose and the tail and closed
@@ -200,7 +201,7 @@ export const kit_floor = (d: Design) => d.sill + KIT_TOP - KIT_DEEP;
 export function kit_band(d: Design, spec: CarSpec): THREE.BufferGeometry[] {
   const reach = spec.wheel.radius + d.arches.gap;
   const top = d.sill + KIT_TOP;
-  const low = kit_floor(d);
+  const low = kit_floor(d, spec);
   const inner = d.width / 2 - KIT_SINK;
   const outer = d.width / 2 + Math.max(KIT_MIN, d.arches.out + KIT_PROUD);
   const nose = d.outline[0][0];
@@ -272,7 +273,7 @@ function crest(d: Design): Cut[] {
   const s = d.section;
   if (!s || s.shoulder <= 0) return [];
   const [belt] = folds(d);
-  const rise = Math.max(...d.outline.map(([, y]) => y)) - Math.max(...s.belt);
+  const rise = s.rise ?? Math.max(...d.outline.map(([, y]) => y)) - Math.max(...s.belt);
   return [{ n: belt.n, c: belt.c - rise }];
 }
 
@@ -381,7 +382,7 @@ export function sculpt_factor(d: Design, y: number, z: number): number {
   const tail = d.outline[d.outline.length - 1][0];
   let top = -Infinity;
   for (const [, oy] of d.outline) top = Math.max(top, oy);
-  const rise = top - Math.max(...s.belt);
+  const rise = s.rise ?? top - Math.max(...s.belt);
   const drop = Math.min(...s.belt) - d.sill;
   const belt = s.belt[0] + ((s.belt[1] - s.belt[0]) * (nose - z)) / (nose - tail);
   const side = y > belt ? s.shoulder * Math.min(1, (y - belt) / rise) : s.tuck * Math.min(1, (belt - y) / drop);

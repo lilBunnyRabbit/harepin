@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { axles_of } from "./axles";
 import { part_of, type Look, type Slot } from "./build";
+import { hull_floor } from "./car";
 import type { CarSpec } from "./cars";
 import type { Design, Slab, Swap, Wing } from "./designs";
 import { box, extrude, tint, top_at, wedge, parts, type Point } from "./geometry";
@@ -91,7 +92,7 @@ export function aero_parts(d: Design, spec: CarSpec, aero: Required<Look>["aero"
   const kitted = kit_skirts(d, aero);
   const nose = d.outline[0][0];
   // On the kit's band where there is one, so the piece is its bottom edge instead of a plate in its face.
-  const low = kitted ? kit_floor(d) + 0.025 : d.outline[0][1];
+  const low = Math.max(kitted ? kit_floor(d, spec) + 0.025 : d.outline[0][1], hull_floor(spec) + 0.03);
   const front = aero.front ? FRONT_LEVEL[aero.front] : 0;
   if (d.fronts) {
     out.push(...own_wing(d, d.fronts[Math.min(front, d.fronts.length - 1)], paint, trim));
@@ -104,7 +105,7 @@ export function aero_parts(d: Design, spec: CarSpec, aero: Required<Look>["aero"
   if (kitted) out.push(...kit_band(d, spec).map((g) => tint(g, paint)));
   if (aero.diffuser && !swaps.has("diffuser")) {
     const tail = d.outline[d.outline.length - 1][0];
-    const bottom = kitted ? kit_floor(d) : d.outline[d.outline.length - 1][1];
+    const bottom = Math.max(kitted ? kit_floor(d, spec) : d.outline[d.outline.length - 1][1], hull_floor(spec) + DIFFUSER_DROP - DIFFUSER_SINK);
     // Inside the widest tyre the rear wheels take, so the plate never reaches into their openings.
     const inner = Math.abs(spec.wheel.mounts[spec.wheel.mounts.length - 1][0]) - d.tyre[1] * WIDEST_TYRE / 2 - 0.01;
     const span = Math.min(d.width * 0.82, 2 * inner);

@@ -109,6 +109,11 @@ export function ride_height(spec: CarSpec): number {
   return rest_reach(spec) - spec.wheel.mounts[0][1];
 }
 
+/** Height of the hull's lowest corner above flat ground with the car parked at rest. */
+export function hull_floor(spec: CarSpec): number {
+  return ride_height(spec) + Math.min(...spec.corners.map(([, y]) => y));
+}
+
 /**
  * Height of the car origin above the ground to drop it from: `height`, sized for a car, or just over its own ride height
  * for a body that rides higher than that, so it never starts sunk into the road.

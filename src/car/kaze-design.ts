@@ -44,11 +44,11 @@ const REAR_VALANCE: Part = { size: [0.9, 0.14, 0.04], at: [0.45, 0.4, -2.165] };
 const WIDE = 2.1;
 const WIDE_SHOULDER = kit_shoulder(WIDTH, SHOULDER, WIDE);
 const WIDE_HALF = WIDE / 2 + 0.004;
-const CHIN: Point = [1.99, 0.18];
-const KIT_OUTLINE: Point[] = [CHIN, [2.05, 0.24], [2.05, 0.54], ...OUTLINE.slice(3, -2), [-2.17, 0.24], [-2.11, 0.18]];
+const CHIN: Point = [1.99, 0.2];
+const KIT_OUTLINE: Point[] = [CHIN, [2.05, 0.24], [2.05, 0.54], ...OUTLINE.slice(3, -2), [-2.17, 0.24], [-2.11, 0.2]];
 // A painted lip run on from the chin, then a trim splitter under it.
-const FRONT_LIP: Slab = { points: [[2.05, 0.24], [2.1, 0.205], [2.1, 0.175], [1.9, 0.175], [1.9, 0.2]], from: 0, to: WIDE_HALF };
-const SPLITTER: Slab = { points: [[2.2, 0.2], [2.2, 0.17], [1.86, 0.17], [1.86, 0.2]], from: 0, to: WIDE_HALF };
+const FRONT_LIP: Slab = { points: [[2.05, 0.24], [2.1, 0.225], [2.1, 0.195], [1.9, 0.195], [1.9, 0.22]], from: 0, to: WIDE_HALF };
+const SPLITTER: Slab = { points: [[2.2, 0.22], [2.2, 0.19], [1.86, 0.19], [1.86, 0.22]], from: 0, to: WIDE_HALF };
 const FRONTS: Wing[] = [
   { paint: [], trim: [] },
   { paint: [], trim: [], lips: [FRONT_LIP] },
@@ -57,7 +57,7 @@ const FRONTS: Wing[] = [
 const KIT: Kit = {
   outline: KIT_OUTLINE,
   width: WIDE,
-  sill: 0.18,
+  sill: 0.2,
   section: { ...SECTION, shoulder: WIDE_SHOULDER },
   // As big as fit under the bonnet.
   arches: { ...STOCK_ARCHES, gap: 0.08 },

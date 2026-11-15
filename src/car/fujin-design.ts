@@ -69,7 +69,7 @@ const NOSE = 2.36;
 // Inside the pontoon's outer face, so the body hides all of it but the blade ahead of the nose and under the sill.
 const EDGE = 0.996;
 // A wedge under the chin: thin at its leading edge, its top face rising into the nose, its floor fading out ahead of the arch.
-const splitter = (reach: number): Slab => ({ points: [[NOSE + reach, 0.13], [NOSE + reach, 0.15], [2.34, 0.2], [1.9, 0.2], [1.9, 0.16], [2.2, 0.13]], from: 0, to: EDGE });
+const splitter = (reach: number): Slab => ({ points: [[NOSE + reach, 0.165], [NOSE + reach, 0.18], [2.34, 0.2], [1.9, 0.2], [1.9, 0.175], [2.2, 0.165]], from: 0, to: EDGE });
 const FRONTS: Wing[] = [0.07, 0.14, 0.2].map((reach) => ({ paint: [], trim: [], stands: [splitter(reach)] }));
 
 export const FUJIN_DESIGN: Design = {
