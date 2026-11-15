@@ -1,0 +1,22 @@
+#lab t2-drift r3 v0.47.0 2026-11-15T11:35Z keys 2560x1360
+#trial circle-new muscle.1.5.0.3.1.0.7.0.0.0.2 spec#9ad20d8a pi558B drift/asphalt time45 done tcs=on assist=off stability=off steer=smooth abs=on auto=on
+ m time=45 lap=12.8,12.1,11.5 latg=2.07/0.871 ring=53.9 slip=39.3/31.6 held=34.5 chain=34.5 spins=0 lag=0 rec=0.181 top=60.4 spin=0.822/5.24 air=0 bounce=0 offs=4 resets=0 lock=0.849 thr=0.941 hb=0.0079 rev=0.511 yawover=0.11 us=2.27 pwr=37.4 lift=37.3 trail=2.18 entry=0.403
+ a turn=3 hold=4 exit=4
+ n "Def better. wasnt able to drift without handbreak. still feels a bit too arcade-ish but i can turn in more slowly and hold it"
+#trial circle-tcs-off muscle.1.5.0.3.1.0.7.0.0.0.2 spec#9ad20d8a pi558B drift/asphalt time45 done tcs=off assist=off stability=off steer=smooth abs=on auto=on
+ m time=45 lap=24.7 latg=2.61/0.967 ring=38 slip=180/52.3 held=16.7 chain=3.17 spins=4 lag=0.0495 rec=10 top=55.1 spin=0.998/41.1 air=0 bounce=0 offs=3 resets=0 lock=0.82 thr=0.828 hb=0 rev=0.733 yawover=0.541 us=3.07 pwr=158 lift=178 entry=0.245
+ a turn=4 hold=3 exit=3
+ n "Feels like im on ice. drifting right away. kinda unstable"
+#trial circle-old-cap lab:drift-old-cap spec#f61e97eb pi558B drift/asphalt time45 done tcs=on assist=off stability=off steer=smooth abs=on auto=on
+ m time=45 lap=13.2,13.3,12.2 latg=1.76/0.854 ring=52.8 slip=32.1/25.6 held=37.7 chain=18.4 spins=0 lag=0 top=62.8 spin=0.878/4.52 air=0 bounce=0 offs=3 resets=0 lock=0.896 thr=0.915 hb=0.0443 rev=0.378 yawover=0.289 us=2.99 pwr=32.1 lift=32.1 entry=0.542
+ n "Would expect that i can turn it in more and go into a spin. it feels like i just reach a cap how much turned i can be. still too arcade-ish but can hold a drift"
+#trial hairpins-new muscle.1.5.0.3.1.0.7.0.0.0.2 spec#9ad20d8a pi558B hairpin/asphalt run done tcs=on assist=off stability=off steer=smooth abs=on auto=on
+ m time=34.3 seg=29.7 slip=49.7/37.8 held=8.59 chain=3.25 spins=0 lag=0 rec=4.5 0-100=5.21 top=111 spin=0.408/6.66 air=0 bounce=0 offs=0 resets=0 lock=0.438 thr=0.76 hb=0.0442 rev=0.321 yawover=1.21 pwr=49.7 lift=49.7 trail=0.34 entry=0.256
+ n "kinda able to do the turns but very slowly"
+#trial hairpins-tcs-off muscle.1.5.0.3.1.0.7.0.0.0.2 spec#9ad20d8a pi558B hairpin/asphalt run stopped tcs=off assist=off stability=off steer=smooth abs=on auto=on
+ m time=38.8 slip=180/74.4 held=4.53 chain=1.99 spins=4 lag=0.0653 rec=4.53 top=79.2 spin=0.945/30.6 air=0 bounce=0 offs=1 resets=0 lock=0.664 thr=0.569 hb=0.0233 rev=0.645 yawover=0.253 pwr=180 lift=168 trail=155 entry=0.156 xslip=180
+ n "So unstable to drive"
+#trial hairpins-old-cap lab:drift-old-cap spec#f61e97eb pi558B hairpin/asphalt run done tcs=on assist=off stability=off steer=smooth abs=on auto=on
+ m time=34.6 seg=30 slip=56.8/26.7 held=16.7 chain=6.11 spins=0 lag=0 rec=6.18 0-100=5.21 top=111 spin=0.549/5.14 air=0 bounce=0 offs=2 resets=0 lock=0.535 thr=0.734 hb=0.049 rev=0.723 yawover=0.438 pwr=56.8 lift=55.3 entry=0.397 xslip=27.5
+ n "best of all 3 but still slow to turn such tight corners, cant turn in enough"
+#end 6/6 trials
