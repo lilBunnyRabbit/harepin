@@ -42,6 +42,8 @@ const AID_KEYS: readonly [field: keyof Aids, key: string][] = [
   ["assist", "assist"],
   ["stability", "stability"],
   ["steer_mode", "steer"],
+  ["abs", "abs"],
+  ["auto", "auto"],
 ];
 
 export function aids_text(aids: Aids | null): string {

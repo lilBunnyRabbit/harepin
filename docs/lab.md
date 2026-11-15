@@ -155,7 +155,7 @@ The overlay's Copy (or `=`) copies it, answers and note included. Line-based so 
 
 ```
 #lab demo r1 v0.41.1 2026-11-13T23:14Z keys 1440x900
-#trial hatch-asphalt-pad hatch.4.0.2.1.0 spec#af22e9be pi422C skidpad/asphalt laps3 done tcs=on assist=off stability=off steer=smooth
+#trial hatch-asphalt-pad hatch.4.0.2.1.0 spec#af22e9be pi422C skidpad/asphalt laps3 done tcs=on assist=off stability=off steer=smooth abs=on auto=on
  m time=70.1 lap=21.8,22.4,22.1 latg=0.81/0.74 ring=37.1 slip=22/18.8 held=14.2 chain=6.1 spins=0 rec=0.84 top=61.6 spin=0.33/1.81 air=0 bounce=0 offs=2 resets=0 lock=0.42 thr=0.91 hb=0 rev=0.1
  a grip=2 pred=4 fun=4
  n "slides early, catches fine, a bit slow to rotate back"
@@ -166,7 +166,7 @@ The overlay's Copy (or `=`) copies it, answers and note included. Line-based so 
 | Line | Fields |
 |---|---|
 | `#lab` | pack id, `r<rev>`, game version, UTC time, input (`touch`, `keys`, `pad`), viewport |
-| `#trial` | id, car, mods (`field*scale`, `field+add`), `spec#` (8-hex hash of the resolved spec: which physics ran, even across deploys), PI and class, station/lane, goal, status `done` / `stopped` / `running` / `skipped`, then the aids it ran on (`tcs`, `assist`, `stability` `on`/`off`, `steer` mode: the player's settings under the trial's `aids`, as the trial began; a trial driven before a reload reads them at copy time). A skipped trial has none. Appended last, so a reader of the older line ignores them |
+| `#trial` | id, car, mods (`field*scale`, `field+add`), `spec#` (8-hex hash of the resolved spec: which physics ran, even across deploys), PI and class, station/lane, goal, status `done` / `stopped` / `running` / `skipped`, then the aids it ran on (`tcs`, `assist`, `stability` `on`/`off`, `steer` mode, `abs` and `auto` gears `on`/`off`: the player's settings under the trial's `aids`, as the trial began; a trial driven before a reload reads them at copy time). A skipped trial has none. Appended last, so a reader of the older line ignores them |
 | ` m` | metrics, fixed order; a key the trial never measured is left out |
 | ` a` | answers (`note` goes on its own line) |
 | ` n` | the note, quoted |
