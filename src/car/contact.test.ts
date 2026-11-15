@@ -1,7 +1,7 @@
 /// <reference types="bun" />
 import { describe, expect, test } from "bun:test";
 import { Vector3 } from "three";
-import { Car, type Controls, type Ground } from "./car";
+import { Car, Scrape, type Controls, type Ground } from "./car";
 import { BUS, COUPE } from "./cars";
 import { collide_cars } from "./contact";
 import type { Collider } from "../world/world";
@@ -11,7 +11,7 @@ const DT = 1 / 360;
 const go: Controls = { steer: 0, throttle: 1, brake: 0, handbrake: 0, analog: true };
 
 function body(spec: Collider["spec"], x: number, z: number, heading: number, vx: number, vz: number, yaw = 0): Collider {
-  return { pos: new Vector3(x, 0.5, z), vel: new Vector3(vx, 0, vz), ang: new Vector3(0, yaw, 0), heading, spec };
+  return { pos: new Vector3(x, 0.5, z), vel: new Vector3(vx, 0, vz), ang: new Vector3(0, yaw, 0), heading, spec, scrape: new Scrape() };
 }
 
 function momentum(field: readonly Collider[]) {
@@ -93,7 +93,7 @@ describe("car contact", () => {
     let hits = 0;
     for (let s = 0; s < 3600 && hits === 0; s++) {
       for (const car of field) car.step(DT, go, flat);
-      const before = field.map((c) => ({ pos: c.pos, vel: c.vel.clone(), ang: c.ang.clone(), heading: c.heading, spec: c.spec }));
+      const before = field.map((c) => ({ pos: c.pos, vel: c.vel.clone(), ang: c.ang.clone(), heading: c.heading, spec: c.spec, scrape: c.scrape }));
       if (collide_cars(field, impacts) === 0) continue;
       hits++;
       const was = momentum(before);
