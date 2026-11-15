@@ -54,6 +54,15 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.48.2",
+    date: "2026-11-15",
+    title: "Bus and Raijin bodies",
+    changes: [
+      { kind: FIXED, text: "Bus side window stays inside the front pillar" },
+      { kind: FIXED, text: "Raijin tail corners sit square, no creased boot" },
+    ],
+  },
+  {
     version: "0.48.1",
     date: "2026-11-15",
     title: "Arrows on the road",
