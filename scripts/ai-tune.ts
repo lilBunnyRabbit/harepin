@@ -89,7 +89,7 @@ const ai_sources = () =>
     .sort()
     .map((name) => name + readFileSync(new URL(name, AI_DIR), "utf8"))
     .join("");
-/** Keys the defaults' races and every run file, so an edit to AI_TUNING (hand-set rows too) or to the drivers' code never reuses stale races. */
+/** Keys the defaults' races and every run file on AI_TUNING (hand-set rows too) and src/ai. Car physics, the world and scripts/ are not in it: resume across those changes only by hand. */
 const TUNING = Bun.hash(JSON.stringify(AI_TUNING) + ai_sources()).toString(36);
 const BASE = `base-${TUNING}`;
 
