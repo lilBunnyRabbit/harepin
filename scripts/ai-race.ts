@@ -13,7 +13,7 @@ import { GOLDEN_SEEDS } from "./proof/golden-file";
 const SOLO_SLACK = 0.05;
 // bun scripts/ai-race.ts field [seeds|all] [car] [count] [laps]: a field of AI cars on each circuit. Fails when a car is
 // stuck, a race's contacts per lap fall outside CONTACT_BAND, or the finish order follows the grid.
-const CONTACT_BAND = [0.2, 6] as const;
+const CONTACT_BAND = [0, 6] as const;
 /** Share of races that may finish in grid order, and the highest mean grid-to-finish rank correlation allowed. */
 const GRID_KEPT_MAX = 0.2;
 const RHO_MAX = 0.7;

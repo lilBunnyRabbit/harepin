@@ -229,3 +229,74 @@ Open after phase 2:
 - Spins do not come from reversing: skipping the spin count while a car reverses left every count unchanged.
 - Defending rolls `aggression` on every awareness tick (20 Hz), so a timid driver still defends within about a second. One roll per attacker would make aggression matter; it changes behaviour, so it waits for a tuning round.
 - Per-race rho reaches 0.75-0.79 on some seeds; the mean stays under `RHO_MAX` 0.7.
+
+### Tuning round H9 (2026-11-16)
+
+Baseline re-measured after the lead merged master into the branch (`69121e2`: 0.45.0, drift fix `ab625c1`): the drift and launch changes moved the field's numbers, so the table above is history. Same 25 island golden seeds, coupe.
+
+Cause split from `bun scripts/ai-why.ts all coupe <count> <laps>`. A spin's trigger is the earliest of a touch, a wall hit, the car's own slide starting (still going counts however old) or leaving the road, in the 3 s before it; a reset with a spin in the 8 s before it takes that spin's trigger. "Kicker" is within 40 road points of a kicker's run.
+
+| Trigger | 6 x 2 spins / resets | 6 x 3 | 7 x 2 |
+|---|---|---|---|
+| Wall at a kicker (challenge frame posts) | 9 / 11 | 10 / 12 | 14 / 13 |
+| Own slide at a kicker | 0 / 0 | 0 / 0 | 2 / 1 |
+| Off the road (a weave or running wide) | 5 / 8 | 6 / 11 | 4 / 7 |
+| Contact | 4 / 4 | 4 / 6 | 3 / 5 |
+| Wall elsewhere | 0 / 0 | 1 / 1 | 1 / 1 |
+| Own slide elsewhere | 0 / 1 | 1 / 1 | 0 / 0 |
+| Total | 18 / 24 | 22 / 31 | 24 / 27 |
+
+What the triggers were:
+
+- **Kicker frames, about half of everything.** A challenge frame's gap is 2.6 m each side of its centre and a body is 1 m wide each side (`world/jumps.ts`, `BODY_HW`), so a car over the run at `RAMP_SIDE` 1.5 m off the centre scraped the posts, more so passing or alongside another car. Two cars cannot fit through one gap at all.
+- **Off the road: the steering fishtailed.** Traced on seed 4, 7 cars: at 37-42 m/s, passing, the pure-pursuit P law (`STEER_GAIN` 3 on the heading error) overshot each catch; heading swung ±0.5 rad off the road over about 4 s, each swing larger, until the car crossed the edge at 12 m/s sideways with no slide to speak of. Solo laps never get there; a pass's lane change at full speed starts it.
+- **Hard hits all had the car ahead already in trouble.** Every hit over 10 m/s: the front car had just hit a wall, run off or been touched, and the follower was braking flat out (cap 0-10 m/s) 0-4 m behind. Awareness saw a spinning car only once it slid into the follower's lane (`IN_LANE` 2.6 m) and planned on its speed, not its speed along the road.
+
+| Hardest hits, baseline | closing | front car | follower |
+|---|---|---|---|
+| 7 x 2, seed 4 | 17.2 m/s | 7.1 m/s, ran 14 m off the road into a solid | 18.6 m/s, brake full, 4 m back |
+| 7 x 2, seed 5 | 16.5 m/s | 8.3 m/s, just touched by another car | 8.1 m/s, brake full, 4 m back |
+| 6 x 3, seed 3 | 15.4 m/s | 15.5 m/s, wall at a kicker | 21.5 m/s, 0 m (alongside) |
+
+Fixes, one commit each:
+
+| Step | Change |
+|---|---|
+| 2 | Kicker runs: `RAMP_SIDE` 1.5 -> 0.5 m; within `KICKER_LOOK` 60 m of a run no pass starts or carries on from behind, no defend, and a car alongside with its nose behind follows (`FOLLOW`) instead of yielding 1.5 m/s: single file through the frame |
+| 2 | Steering: `STEER_DAMP` 1, a term against the aim error's rate, forgotten after a reverse or reset (`Driver.recovered`). Solo laps: AI vs autolap min -11.7%, median -8.8%, max -7.4% (was -11.7 / -9.0 / -7.8), no offroad |
+| 3 | A car sliding past 0.5 rad, moving more across the road than along it, or reversing is in trouble: it blocks the whole road (`HAZARD_LANE` 6 m) for a follower, the follower plans on its speed along the road, and no pass starts past it |
+| 4 | Defend rolls `aggression` once per defender and attacker pair for the race (`defend_roll`): two attackers trading places no longer reroll |
+| 5 | Owner levels, below |
+| - | Recovery: a reset on a kicker run puts the car back `RESET_RUNUP` 150 m before it (`reset_point`). Found on the second pass: on seed 2, 7 cars, a car slowed to 13 m/s by the single-file rule took the kicker short, wedged on the frame, and every reset put it back on the same spot (260 resets, 1 stuck) |
+| - | `CONTACT_BAND` floor 0.2 -> 0: a clean race passes (lead, H9) |
+
+Before and after, `bun scripts/ai-race.ts field all coupe <count> <laps>`:
+
+| | 6 x 2 before | after | 6 x 3 before | after | 7 x 2 before | after |
+|---|---|---|---|---|---|---|
+| Spins | 18 | 0 | 22 | 0 | 24 | 4 |
+| Resets | 24 | 0 | 31 | 0 | 27 | 2 |
+| Reverses | 3 | 0 | 5 | 0 | 5 | 4 |
+| Hardest hit (m/s) | 13.5 | 4.3 | 15.4 | 4.3 | 17.2 | 4.3 |
+| Stuck | 0 | 0 | 0 | 0 | 0 | 0 |
+| Contacts/lap min, median, max | 0.5, 3.0, 6.0 | 0.0, 1.5, 5.0 | 0.7, 2.3, 5.3 | 0.0, 1.0, 4.0 | 0.0, 4.0, 9.0 (4 out) | 0.0, 2.5, 6.0 (0 out) |
+| Mean rho | 0.52 | 0.53 | 0.43 | 0.43 | 0.65 | 0.63 |
+| Grid order kept | 0 | 0 | 0 | 0 | 0 | 0 |
+| Overtakes | 24 | 15 | 32 | 18 | 44 | 25 |
+
+Every target met: spins and resets at most half the baseline (worst 4 spins and 2 resets, at 7 x 2), hardest hit 4.3 m/s, stuck 0, contacts in the 0-6 band, rho under `RHO_MAX` 0.7, grid order never kept. The 7 x 2 leftovers: seed 2, the car slowed at the kicker, now put back before it once (2 spins, 1 reset); seed 6 circuit-rev and seed 9 one spin each, seed 9 one reset. The 6-car columns ran before the kicker reset fix: it only acts on a reset and those runs had none, and a rerun on `8b80999` matched them race for race as far as it went (7 and 5 races). Only the combined change was measured; the per-step share is not split (a run of the three takes 30-60 minutes on a loaded machine). `src/car` + `src/ai` tests pass (286); `scripts/telemetry.ts` and `scripts/feel.ts` byte-identical to `69121e2`, and nothing under `src/car`, `src/world` or `src/worldgen` changed.
+
+Owner levels (H5, H6): `personalities(seed, count, aggression = 3, mistakes = 3)` in `ai/field.ts`. Each car draws its number uniformly from its level's range; level 3 is today's field, so every number above is level 3.
+
+| Level | 1 | 2 | 3 | 4 | 5 |
+|---|---|---|---|---|---|
+| `aggression` range | 0-0.6 | 0.1-0.8 | 0.2-1 | 0.4-1 | 0.6-1 |
+| `mistakes` range (chance a lap of one late brake) | 0-0.1 | 0.02-0.2 | 0.05-0.3 | 0.1-0.4 | 0.2-0.5 |
+
+What `aggression` moves: how tight a pass is called squeezed (`PASS_TIGHT`), diving into a braking zone past 0.85 (`DIVE`), the push over pace while passing (`PUSH`), how long a touch keeps it wary (`WARY_BOLD`), and now the one defend roll per attacker.
+
+Open after H9:
+
+- Overtakes dropped by about 40% (6 x 2: 24 -> 15, 6 x 3: 32 -> 18, 7 x 2: 44 -> 25): single file at kickers and no pass past a car in trouble take passes away. Rho stays under `RHO_MAX`, so the grid still does not decide the race, but a field that rarely passes may read as a procession on screen.
+- The single-file rule can brake a car under jump pace on the run itself (seed 2, 7 cars: 13 m/s at the lip, the plan is 32). The reset now gets it out; holding pace on the run and sorting the order before it would stop it falling short at all.
+- `ai-why.ts` labels a weave that ends with the car straight but off the road as "off the road", not "own slide": the slide had already settled under 0.15 rad when the car crossed the edge.
