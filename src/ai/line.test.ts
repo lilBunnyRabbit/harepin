@@ -1,6 +1,7 @@
 /// <reference types="bun" />
 import { describe, expect, test } from "bun:test";
 import { race_line } from "./line";
+import { AI_TUNING } from "./tuning";
 import type { RoadPoint } from "../worldgen/types";
 
 /** A closed stadium: two straights joined by half circles, points 2 m apart, driven anticlockwise. */
@@ -33,7 +34,7 @@ describe("race line", () => {
     const n = road.length;
     for (let i = 0; i < n; i++) {
       const next = line.speed[(i + 1) % n];
-      expect(line.speed[i] ** 2).toBeLessThanOrEqual(next * next + 2 * 2.5 * line.step[i] + 1e-6);
+      expect(line.speed[i] ** 2).toBeLessThanOrEqual(next * next + 2 * AI_TUNING.line_brake * line.step[i] + 1e-6);
     }
   });
 });
