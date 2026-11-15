@@ -25,7 +25,7 @@
   <div class="sr-page">
     <header class="sr-head">
       <p class="sr-eyebrow">Series {season.id.slice(1)} · {season.name}</p>
-      <h3>{done ? `Series complete: ${table[0].you ? "you are champion" : `${table[0].name} takes the title`}` : `You are ${rank} of ${table.length}`}</h3>
+      <h3>{done ? `Series complete: ${table[0].you ? "you are champion" : `${table[0].name} takes the title`}` : Object.keys(progress.results).length ? `You are ${rank} of ${table.length}` : `${season.events.length} events against ${season.field.length} drivers`}</h3>
       <p class="sr-dim">A podium opens the next event; the final opens once every other event has one. Points by place, plus bonus objectives.</p>
     </header>
 

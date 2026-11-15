@@ -63,7 +63,7 @@ import { MenuTab, invite_link } from "./menu/page";
 import { Settings } from "./menu/settings";
 import { BUILD, Updater, show_version } from "./menu/update";
 import { card_closed_now, show_updated } from "./menu/updated-card";
-import { LAB_PARAM, pick_world } from "./world/world-pick";
+import { LAB_PARAM, names_world, pick_world } from "./world/world-pick";
 import type { Lab } from "./lab/lab";
 import { GUARD_STATE, SystemBack, type Watcher } from "./menu/system-back";
 import { SPAWN_INDEX } from "./world/world";
@@ -516,7 +516,8 @@ function start_event(id: string) {
 }
 function start_series(id: string) {
   const to = series_event(id);
-  if (!to || !series || !is_open(to.season, series.progress, to.event)) return;
+  if (!to || !series) return;
+  if (!is_open(to.season, series.progress, to.event)) return settings.open(SERIES_PAGE);
   if (!on_series_map(to.season, to.event, built)) {
     mark_drive();
     const query = new URLSearchParams({ [SERIES_PARAM]: to.event.id, seed: String(to.event.seed), world: to.season.world });
@@ -530,7 +531,7 @@ function start_series(id: string) {
   settings.close();
   const base = { sim, build: () => garage.build, rating: () => rating(garage.build), autopilot: params.has(AI_DRIVE_PARAM), difficulty: () => settings.state.ai_difficulty };
   const host = series_host(base, series, to.event, { label: "Series", go: () => settings.open(SERIES_PAGE) });
-  if (!modes.series_race(to.event.route, host)) hud.toast("This series event is not on this map");
+  modes.series_race(to.event.route, host);
 }
 // A run's map is the plain map of its kind and seed (world-pick.ts).
 const run_on_map = (to: RunPick) => map_code(built) === map_code(plain_map(to.kind, to.seed));
@@ -567,8 +568,9 @@ else if (event) goal_toasts.push("This event's map did not load", MAP_NOTE_MS);
 if (run && run_on_map(run)) play_run(run);
 else if (run) goal_toasts.push("This run's map did not load", MAP_NOTE_MS);
 if (ai_level) modes.play(ai_level);
-if (series_pick && series && on_series_map(series_pick.season, series_pick.event, built)) start_series(series_pick.event.id);
-else if (series_on && !series_pick) settings.open(SERIES_PAGE);
+// A link without its map reloads onto it; one that names a map which fell back would reload onto itself forever.
+if (series_pick && (!names_world(params) || on_series_map(series_pick.season, series_pick.event, built))) start_series(series_pick.event.id);
+else if (series_on) settings.open(SERIES_PAGE);
 // After `markers`: the Play page reads its map markers as soon as the menu opens.
 const guide_step = params.get(GUIDE_PARAM);
 if (guide_step !== null) {

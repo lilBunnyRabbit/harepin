@@ -292,19 +292,17 @@ export class Modes implements CarHooks {
     return true;
   }
 
-  /** A series event's race on route `id` against `field`, past free play's unlock order; false when this map has no such closed route. */
-  series_race(id: string, field: FieldHost): boolean {
+  /** A series event's race on route `id` against `field`, past free play's unlock order. The caller has checked this map is the event's. */
+  series_race(id: string, field: FieldHost) {
     const mode = this.modes.find((m) => m.def === RACE_MODE);
     const level = mode?.levels.find((l) => l.id === id);
-    if (!mode || !level || !this.world.routes.find((r) => r.id === id)?.closed) return false;
-    if (this.race_busy()) {
-      this.notice(mode.def.busy_notice);
-      return false;
-    }
+    if (!mode || !level || !this.world.routes.find((r) => r.id === id)?.closed) return this.notice(NO_EVENT);
+    if (this.race_busy()) return this.notice(mode.def.busy_notice);
+    if (this.too_big(mode)) return this.notice(TOO_BIG);
+    if (this.left_out(id)) return this.notice(NOT_THIS_CAR);
     this.clear();
     this.car.give_back();
     this.begin(mode, level, mode.track, null, null, null, 1, field);
-    return true;
   }
 
   /** The caller has checked this map is the event's. Career levels are all open: the mode's own unlock order is free play's. */

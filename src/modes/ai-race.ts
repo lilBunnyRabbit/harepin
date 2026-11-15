@@ -6,6 +6,7 @@ import { at_difficulty } from "../ai/difficulty";
 import { field_personalities, grid_spot } from "../ai/field";
 import { Standings } from "../ai/standings";
 import { format } from "../hud/hud";
+import { ordinal } from "../career/series";
 import { FieldTally } from "./field-tally";
 import { turn_to, type Driven, type FieldHost, type FieldPlace, type FieldRace, type Finish, type ModeCtx, type ModeRun, type RouteRun } from "./mode";
 import { RaceLights } from "./race-lights";
@@ -23,7 +24,6 @@ const PLAYER = "You";
 const End = { LINE: "line", OUT: "out", TIME: "time" } as const;
 type End = (typeof End)[keyof typeof End];
 
-const ordinal = (n: number) => `${n}${n % 10 === 1 && n % 100 !== 11 ? "st" : n % 10 === 2 && n % 100 !== 12 ? "nd" : n % 10 === 3 && n % 100 !== 13 ? "rd" : "th"}`;
 const seconds = (s: number) => `${s.toFixed(1)} s`;
 
 interface Row {
