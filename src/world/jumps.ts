@@ -17,7 +17,10 @@ const DRAG: Record<ItemKind, number> = { cone: 0.003, barrel: 0.012, hay: 0.02, 
 const BOUNCE = 0.3;
 const SCRUB = 0.55;
 const SETTLE = 0.6;
-const LIP_STRIPE = 0.6;
+const LIP_STRIPE = 1.2;
+const LIP_BLOCK = 1.1;
+const CHEVRONS = [0.32, 0.58];
+const CHEVRON = { reach: 0.7, sweep: 0.55, thick: 0.6, lift: 0.04 };
 const FAR = 900;
 const CONE_FOOT = 0.03;
 const BARRIER = { foot: 0.6, top: 0.24, height: 0.85, length: 3 };
@@ -26,15 +29,17 @@ interface Tones {
   deck: Rgb;
   skirt: Rgb;
   stripe: Rgb;
+  stripe_dark: Rgb;
   frame: Rgb;
   body: Rgb;
 }
 
 function jump_tones(): Tones {
   return {
-    deck: linear(mix(brand.warning, brand.background_darkest, 0.42)),
-    skirt: linear(mix(brand.warning, brand.background_darkest, 0.25)),
-    stripe: linear(dark ? brand.foreground : brand.background_lightest),
+    deck: linear(tones.cone),
+    skirt: linear(tones.dirt),
+    stripe: linear(tones.check_light),
+    stripe_dark: linear(tones.check_dark),
     frame: linear(brand.accent),
     body: linear(tones.wall),
   };
@@ -58,9 +63,28 @@ function ramp_mesh(out: Builder, r: Ramp, t: Tones) {
   out.at({ x: r.x, y: 0, z: r.z, fx: r.fx, fz: r.fz });
   for (let i = 0; i < 3; i++)
     for (let j = 0; j < 3; j++) {
-      const tone = i !== 1 ? t.skirt : j === 1 ? t.stripe : j === 0 ? t.deck : t.skirt;
+      if (i === 1 && j === 1) continue;
+      const tone = i === 1 && j === 0 ? t.deck : t.skirt;
       out.quad(point(us[i], vs[j]), point(us[i + 1], vs[j]), point(us[i + 1], vs[j + 1]), point(us[i], vs[j + 1]), tone);
     }
+  // The lip in kerb blocks across the deck: a plain stripe this shallow vanished at chase distance.
+  const blocks = Math.max(2, Math.round((2 * r.hw) / LIP_BLOCK));
+  for (let k = 0; k < blocks; k++) {
+    const u0 = -r.hw + (2 * r.hw * k) / blocks;
+    const u1 = -r.hw + (2 * r.hw * (k + 1)) / blocks;
+    out.quad(point(u0, vs[1]), point(u1, vs[1]), point(u1, vs[2]), point(u0, vs[2]), k % 2 ? t.stripe_dark : t.stripe);
+  }
+  const up = (u: number, v: number): [number, number, number] => {
+    const p = point(u, v);
+    return [p[0], p[1] + CHEVRON.lift, p[2]];
+  };
+  const w = r.hw * CHEVRON.reach;
+  const back = Math.min(r.hw, r.length * 0.4) * CHEVRON.sweep;
+  for (const at of CHEVRONS) {
+    const v = r.length * at;
+    out.quad(up(-w, v - back), up(0, v), up(0, v + CHEVRON.thick), up(-w, v - back + CHEVRON.thick), t.stripe);
+    out.quad(up(0, v), up(w, v - back), up(w, v - back + CHEVRON.thick), up(0, v + CHEVRON.thick), t.stripe);
+  }
 }
 
 function challenge_mesh(out: Builder, c: Challenge, t: Tones) {
