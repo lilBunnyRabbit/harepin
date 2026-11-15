@@ -195,12 +195,12 @@ const WALL_REACH = 1e-3;
 const WALL_LEAN = 0.5;
 
 /**
- * The body and its raised slabs in paint, with the walls of bare wheel openings in trim: with no lip round them they face the camera from the
- * front and catch the light as a pale band.
+ * The body and its raised slabs in paint, with the walls of the wheel openings in the `well` tone: they face the camera
+ * from the front, and in paint or trim they catch the light as a pale slab behind the tyre.
  */
-function painted_shell(shell: THREE.BufferGeometry[], d: Design, spec: CarSpec, paint: THREE.Color, trim: THREE.Color): THREE.BufferGeometry {
+function painted_shell(shell: THREE.BufferGeometry[], d: Design, spec: CarSpec, paint: THREE.Color, well: THREE.Color): THREE.BufferGeometry {
   const painted = tint(merge(shell), paint);
-  if (d.arches.steps === 0 || d.arches.flare > 0) return painted;
+  if (d.arches.steps === 0) return painted;
   const position = painted.getAttribute("position");
   const colors = painted.getAttribute("color");
   const reach = spec.wheel.radius + d.arches.gap + WALL_REACH;
@@ -212,7 +212,7 @@ function painted_shell(shell: THREE.BufferGeometry[], d: Design, spec: CarSpec, 
     a.fromBufferAttribute(position, i);
     normal.subVectors(b.fromBufferAttribute(position, i + 1), a).cross(c.fromBufferAttribute(position, i + 2).sub(a)).normalize();
     if (Math.abs(normal.x) > WALL_LEAN) continue;
-    for (let v = i; v < i + 3; v++) colors.setXYZ(v, trim.r, trim.g, trim.b);
+    for (let v = i; v < i + 3; v++) colors.setXYZ(v, well.r, well.g, well.b);
   }
   return painted;
 }
@@ -229,17 +229,21 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
   const arch_tone = d.arches.tone === "paint" ? paint : trim;
 
   const glass = color(tones.glass);
+  // Inside a wheel opening nothing is lit: its walls and the tub between the tyres take the darkest tone the car has.
+  const well = glass;
   const stripped = kit.weight > 1;
   const nose = d.outline[0][0];
   const tail = d.outline[d.outline.length - 1][0];
   const tyre = part_of("tyres", kit.tyres).look?.tyre ?? (d.tread ? { ...STOCK_TYRE, tread: d.tread } : STOCK_TYRE);
   const fitted = fitted_tyres(d, spec, tyre);
+  const lips = flares(d, spec);
   const shell_body = merge(body_pieces(d, spec).map((piece) => extrude(piece, d.width)));
   const cabin = merge(cabin_parts(d.cabin, paint, glass));
   const hull_base = merge(
-    painted_shell([d.taper ? taper(shell_body, d.taper.from, tail, d.taper.share) : shell_body, ...body_slabs(d, spec)], d, spec, paint, trim),
-    flares(d, spec).map((g) => tint(g, arch_tone)),
-    wells(d, spec, Math.max(...fitted.map((look) => look.width))).map((g) => tint(g, trim)),
+    painted_shell([d.taper ? taper(shell_body, d.taper.from, tail, d.taper.share) : shell_body, ...body_slabs(d, spec)], d, spec, paint, well),
+    lips.lips.map((g) => tint(g, arch_tone)),
+    lips.walls.map((g) => tint(g, well)),
+    wells(d, spec, Math.max(...fitted.map((look) => look.width))).map((g) => tint(g, well)),
     // The sill strip runs between wheel openings: a body without them (a tub, pontoons, a cage) has no sill to trim.
     (d.arches.steps === 0 || kit_skirts(d, aero) ? [] : skirts(d, spec, 0.03, 0.09)).map((g) => tint(g, trim)),
     parts([...d.paint, ...(d.mirror?.paint ?? [])]).map((g) => tint(g, paint)),

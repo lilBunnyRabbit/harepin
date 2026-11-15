@@ -60,7 +60,7 @@ export const RALLY_DESIGN: Design = {
   sill: 0.38,
   cabin: RALLY_CABIN,
   section: RALLY_SECTION,
-  arches: { gap: 0.07, steps: 11, flare: 0.07, out: 0.05, reach: 0.04, tone: "trim" },
+  arches: { gap: 0.07, steps: 11, flare: 0.07, out: 0.085, reach: 0.04, tone: "trim" },
   heads: [RALLY_HEAD],
   tails: RALLY_TAIL.tails,
   mirror: RALLY_MIRROR,

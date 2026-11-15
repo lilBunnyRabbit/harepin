@@ -39,7 +39,7 @@ export const BUS_DESIGN: Design = {
   width: 2.5,
   sill: 0.35,
   cabin: BUS_CABIN,
-  arches: { gap: 0.06, steps: 7, flare: 0.04, out: 0.02, reach: 0.04, tone: "trim" },
+  arches: { gap: 0.06, steps: 11, flare: 0.04, out: 0.02, reach: 0.04, tone: "trim" },
   heads: [{ size: [0.34, 0.16, 0.05], at: [0.9, 0.62, 5.92] }],
   mirror: BUS_MIRROR,
   tails: BUS_TAIL.tails,

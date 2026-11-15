@@ -95,6 +95,11 @@ function part(geometries: (f: Fitted) => THREE.BufferGeometry[]): AssetLook["bui
   };
 }
 
+function arch_lips(f: Fitted): THREE.BufferGeometry[] {
+  const { lips, walls } = flares(f.d, f.spec);
+  return [...lips.map((g) => tint(g, f.d.arches.tone === "paint" ? f.paint : f.trim)), ...walls.map((g) => tint(g, color(tones.glass)))];
+}
+
 function wheels(view: ViewState): THREE.Object3D | null {
   const build = parse_build(view.code);
   if (!build) return null;
@@ -152,7 +157,7 @@ export const ASSET_LOOKS: Record<AssetKind, AssetLook> = {
   wheel: { ...PARTS, build: wheels },
   wing: { ...PARTS, build: part((f) => rear_wing(f.d, aero_of(f.build.parts), f.paint, f.trim)) },
   aero: { ...PARTS, build: part((f) => aero_parts(f.d, f.spec, aero_of(f.build.parts), f.paint, f.trim, detail_look(DETAILS[f.spec.body.style], f.build.parts, f.paint, f.trim).swaps)) },
-  arches: { ...PARTS, build: part((f) => flares(f.d, f.spec).map((g) => tint(g, f.d.arches.tone === "paint" ? f.paint : f.trim))) },
+  arches: { ...PARTS, build: part(arch_lips) },
   mirror: { ...PARTS, build: part((f) => [...parts(f.d.mirror?.paint ?? []).map((g) => tint(g, f.paint)), ...parts(f.d.mirror?.trim ?? []).map((g) => tint(g, f.trim))]) },
   building: {
     worlds: land_worlds,

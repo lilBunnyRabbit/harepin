@@ -98,9 +98,21 @@ function notch(points: Point[], d: Design, spec: CarSpec): Point[][] {
   return pieces;
 }
 
-/** A lip round each wheel opening, the same width all the way round and on every axle: the widest that stays under the body top. */
-export function flares(d: Design, spec: CarSpec): THREE.BufferGeometry[] {
-  if (d.arches.flare <= 0) return [];
+export interface Flares {
+  /** The lips' outer faces, in the arch tone. */
+  lips: THREE.BufferGeometry[];
+  /** Their faces on the wheel side, which stand in the opening's shade. */
+  walls: THREE.BufferGeometry[];
+}
+
+/**
+ * A lip round each wheel opening, the same width all the way round and on every axle: the widest that stays under the
+ * body top. It swells out of the body side, from the body's own surface at its outer edge to a rim standing `out` from
+ * that surface over the tyre, so no step runs round it and it reads as the body's own arch. Rim and foot both follow
+ * the body side, which keeps every facet flat; where the side folds, the lip folds with it.
+ */
+export function flares(d: Design, spec: CarSpec): Flares {
+  if (d.arches.flare <= 0) return { lips: [], walls: [] };
   const inner = spec.wheel.radius + d.arches.gap - FLARE_PROUD;
   const y = spec.wheel.radius;
   const edge = d.width / 2;
@@ -110,42 +122,59 @@ export function flares(d: Design, spec: CarSpec): THREE.BufferGeometry[] {
   const ring = (z: number, opening: Point[], flare: number) => opening.map(([oz, oy]): Point => [z + ((oz - z) * (inner + flare)) / inner, y + ((oy - y) * (inner + flare)) / inner]);
   let flare = d.arches.flare;
   while (flare > MIN_FLARE && openings.some(({ z, opening }) => ring(z, opening, flare).some(([lz, ly]) => ly > body_top(lz)))) flare -= FLARE_STEP;
-  return openings.flatMap(({ z, opening }) => {
-    const lip = ring(z, opening, flare).map(([lz, ly], i): Point => [lz, Math.max(opening[i][1], Math.min(ly, body_top(lz)))]);
-    const lifted = [...lip, ...opening.reverse()].map(([pz, py]): Point => [pz, Math.max(py, d.sill + FLARE_PROUD)]);
-    const top = Math.max(...lifted.map(([, ly]) => ly));
-    // A flat side that would sink into a body bulging at the belt follows the body's crease instead.
-    if (bulge(d, z, top) * edge > d.arches.out / 2) return folded_slab(lifted, edge - d.arches.reach, edge + d.arches.out, folds(d));
-    return slab(lifted, edge - d.arches.reach, edge + d.arches.out).map((g) => flat_side(g, d, top));
-  });
+  const floor = ([pz, py]: Point): Point => [pz, Math.max(py, d.sill + FLARE_PROUD)];
+  const out: Flares = { lips: [], walls: [] };
+  const cuts = [...folds(d), ...crest(d)];
+  for (const { z, opening } of openings) {
+    const lip = ring(z, opening, flare).map(([lz, ly], i): Point => floor([lz, Math.max(opening[i][1], Math.min(ly, body_top(lz)))]));
+    for (const side of [-1, 1]) {
+      const at = ([pz, py]: Point, x: number) => new THREE.Vector3(side * x, py, pz);
+      // Sculpting scales x by the body's factor: the rim is set to land `out` from the side it stands on.
+      const rims = opening.map(floor).map((p) => at(p, edge + d.arches.out / sculpt_factor(d, p[1], p[0])));
+      const backs = opening.map(floor).map((p) => at(p, edge - d.arches.reach));
+      const foot = (p: Point) => at(p, edge - FLARE_PROUD);
+      const last = opening.length - 1;
+      const lips: THREE.Vector3[][] = [[rims[0], foot(lip[0]), backs[0]], [rims[last], foot(lip[last]), backs[last]]];
+      const walls: THREE.Vector3[][] = [];
+      for (let i = 0; i < last; i++) {
+        const feet = [lip[i], ...crossings(lip[i], lip[i + 1], cuts), lip[i + 1]].map(foot);
+        if (feet.length === 2) lips.push([rims[i], feet[0], feet[1], rims[i + 1]]);
+        else {
+          for (let k = 0; k + 2 < feet.length; k++) lips.push([rims[i], feet[k], feet[k + 1]]);
+          lips.push([rims[i], feet[feet.length - 2], rims[i + 1]], [rims[i + 1], feet[feet.length - 2], feet[feet.length - 1]]);
+        }
+        walls.push([rims[i], backs[i], backs[i + 1], rims[i + 1]]);
+      }
+      out.lips.push(faces(lips, new THREE.Vector3(side * (edge - d.arches.reach), y, z), 1));
+      out.walls.push(faces(walls, new THREE.Vector3(side * edge, y, z), -1));
+    }
+  }
+  return out;
 }
 
-const BULGE_SAMPLES = 8;
-
-/** The most the body at `z` stands out past a straight side from the sill to `top`, as a share of its half width. */
-function bulge(d: Design, z: number, top: number): number {
-  const [low, high] = [sculpt_factor(d, d.sill, z), sculpt_factor(d, top, z)];
-  let most = 0;
-  for (let i = 1; i < BULGE_SAMPLES; i++) {
-    const share = i / BULGE_SAMPLES;
-    most = Math.max(most, sculpt_factor(d, d.sill + (top - d.sill) * share, z) - (low + (high - low) * share));
+/** Where the line from `a` to `b` crosses `cuts`, in order from `a`. */
+function crossings(a: Point, b: Point, cuts: Cut[]): Point[] {
+  const shares: number[] = [];
+  for (const { n, c } of cuts) {
+    const [from, to] = [n[0] * a[0] + n[1] * a[1] + c, n[0] * b[0] + n[1] * b[1] + c];
+    if ((from > ON_CUT && to < -ON_CUT) || (from < -ON_CUT && to > ON_CUT)) shares.push(from / (from - to));
   }
-  return most;
+  return shares.sort((p, q) => p - q).map((t): Point => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
 }
 
-/**
- * Widens `geometry` so that, once sculpted with the body, its side runs straight from the sill to `top` instead of
- * folding at the belt: an arch lip keeps one flat face across the body's crease.
- */
-function flat_side(geometry: THREE.BufferGeometry, d: Design, top: number): THREE.BufferGeometry {
-  if (!d.section) return geometry;
-  const position = geometry.getAttribute("position");
-  for (let i = 0; i < position.count; i++) {
-    const [y, z] = [position.getY(i), position.getZ(i)];
-    const [low, high] = [sculpt_factor(d, d.sill, z), sculpt_factor(d, top, z)];
-    const share = Math.max(0, Math.min(1, (y - d.sill) / (top - d.sill)));
-    position.setX(i, (position.getX(i) * (low + (high - low) * share)) / sculpt_factor(d, y, z));
+/** Flat faces as one geometry, each wound to face away from `centre` (`way` 1) or toward it (-1). */
+function faces(rings: THREE.Vector3[][], centre: THREE.Vector3, way: number): THREE.BufferGeometry {
+  const position: number[] = [];
+  const [edge, normal, from] = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
+  for (const ring of rings) {
+    const [a, b, c] = ring;
+    const out = normal.subVectors(b, a).cross(edge.subVectors(c, a)).dot(from.subVectors(a, centre)) * way > 0;
+    for (let i = 1; i + 1 < ring.length; i++) for (const v of out ? [a, ring[i], ring[i + 1]] : [a, ring[i + 1], ring[i]]) position.push(v.x, v.y, v.z);
   }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(position, 3));
+  geometry.setAttribute("uv", new THREE.Float32BufferAttribute(new Float32Array((position.length / 3) * 2), 2));
+  geometry.computeVertexNormals();
   return geometry;
 }
 

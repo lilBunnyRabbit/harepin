@@ -6,7 +6,7 @@ import type { Part, Point } from "./geometry";
 const HATCH_OUTLINE: Point[] = [[1.9, 0.3], [1.96, 0.46], [1.95, 0.68], [1.86, 0.77], [1.0, 0.88], [-1.82, 0.93], [-1.95, 0.93], [-1.98, 0.62], [-1.93, 0.3]];
 const HATCH_SECTION: Section = { belt: [0.7, 0.76], shoulder: 0.1, tuck: 0.04, nose: [0.14, 0.31], tail: [0.07, 0.13] };
 const HATCH_CABIN: Cabin = { points: [[1.0, 0.88], [0.3, 1.3], [-1.28, 1.33], [-1.84, 0.93]], width: 1.5, tumble: 0.14, frame: [0.06, 0.05, 0.14, 0.04], screens: [[0, 0.08], [2, 0.12]], split: [-0.25, 0.1] };
-const HATCH_ARCHES: Arches = { gap: 0.055, steps: 11, flare: 0.07, out: 0.06, reach: 0.04, tone: "trim" };
+const HATCH_ARCHES: Arches = { gap: 0.055, steps: 11, flare: 0.07, out: 0.09, reach: 0.04, tone: "trim" };
 const HATCH_TAIL = tail_end(HATCH_OUTLINE, 0.72, 0.34, 0.84, [{ size: [0.18, 0.3, 0.05], at: [0.72, 0.72, 0] }], { half: 0.54, y: 0.84 }, 0.68);
 // The roof runs on into a spoiler that grows with each level; on the last two its ends run down into the screen pillars.
 function hatch_wings(shoulder: number): Wing[] {

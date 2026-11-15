@@ -7,7 +7,7 @@ const SECTION: Section = { belt: [0.77, 0.82], shoulder: 0.11, tuck: 0.05, nose:
 const CABIN: Cabin = { points: [[0.57, 0.93], [-0.05, 1.26], [-0.35, 1.3], [-0.78, 1.28], [-1.9, 0.95]], width: 1.66, tumble: 0.34, frame: [0.05, 0.035, 0.035, 0.05, 0.035], screens: [[0, 0.07], [3, 0.2]] };
 const TAIL = tail_end(OUTLINE, 0.79, 0.22, 0.92, [{ size: [0.46, 0.14, 0.05], at: [0.63, 0.79, 0] }], { half: 0.36, y: 0.79 }, 0.58);
 
-const STOCK_ARCHES: Arches = { gap: 0.06, steps: 7, flare: 0.06, out: 0.04, reach: 0.04, tone: "paint" };
+const STOCK_ARCHES: Arches = { gap: 0.06, steps: 11, flare: 0.12, out: 0.085, reach: 0.04, tone: "paint" };
 const HALF = 0.976;
 const SPAN = 0.89;
 // A lip grown out of the hatch across the whole tail, then a ducktail, then a hoop (a trim plane between two painted side
@@ -56,11 +56,11 @@ const KIT: Kit = {
   width: WIDE,
   sill: 0.18,
   section: { ...SECTION, shoulder: WIDE_SHOULDER, tuck: 0 },
-  // As big as fits under the bonnet, in one more facet: the deeper sill would otherwise stretch each one into the wide tyre at full lock.
-  arches: { ...STOCK_ARCHES, gap: 0.08, steps: 8, flare: 0.05, out: 0.03 },
+  // The wide shell stands outside its tyres: bare cuts, as big as fit under the bonnet.
+  arches: { ...STOCK_ARCHES, gap: 0.08, flare: 0, out: 0 },
   mirror: cabin_mirror(CABIN, WIDE_SHOULDER),
   trim: [{ size: [0.62, 0.14, 0.04], at: [0.3, 0.4, 2.042] }, { ...REAR_VALANCE, at: [0.45, 0.33, -2.165] }, ...TAIL.trim],
-  tyre: [0.34, 0.38],
+  tyre: [0.34, 0.35],
   rim: { size: 0.66, spokes: 5, tone: "metal", lip: 0.2, spoke: 0.08 },
   wings: WINGS.map((wing) => widen_wing(wing, (1 - SECTION.shoulder) / (1 - WIDE_SHOULDER))),
 };
@@ -79,7 +79,7 @@ export const KAZE_DESIGN: Design = {
   trim: [{ size: [0.52, 0.11, 0.04], at: [0.25, 0.45, 1.992] }, REAR_VALANCE, ...TAIL.trim],
   markers: [],
   chrome: TAIL.chrome,
-  tyre: [0.28, 0.3],
+  tyre: [0.27, 0.28],
   rim: { size: 0.62, spokes: 6, tone: "metal", spoke: 0.07 },
   deck: [-2.0, 0.97],
   wings: WINGS,
