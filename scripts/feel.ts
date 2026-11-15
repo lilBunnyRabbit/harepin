@@ -85,5 +85,5 @@ for (const tcs of [true, false]) {
 }
 for (const tcs of [true, false]) {
   const x = feel.exit_slide(rig, tcs);
-  note(`hairpin exit 40 km/h (TCS ${tcs ? "on" : "off"})`, `peak slip ${f(x.slip)}°, held ${f(x.held, 2)} s past 5°, r ${f(x.radius)} m`);
+  note(`hairpin exit 40 km/h (TCS ${tcs ? "on" : "off"})`, `peak slip ${f(x.slip)}°, held ${f(x.held, 2)} s past 5°, r ${f(x.radius)} m${x.spun ? ", spun" : ""}`);
 }

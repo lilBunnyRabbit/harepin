@@ -464,6 +464,8 @@ export interface ExitSlide {
   held: number;
   /** Path radius (m) over the last `READ` s of the exit: under full gas a pushing car opens it, a rotating one keeps it. */
   radius: number;
+  /** The tail went past 100 degrees: `held` and `radius` read a spin, not a slide. */
+  spun: boolean;
 }
 
 const EXIT_ENTRY = 1.2;
@@ -486,11 +488,13 @@ export function exit_slide(rig: Rig, tcs: boolean, kmh = 40): ExitSlide {
   const arc = new Arc(car, EXIT_SECONDS);
   let slip = 0;
   let held = 0;
+  let spun = false;
   run(car, EXIT_SECONDS, () => ({ ...idle, steer: 1, throttle: 1 }), ground, (t) => {
     const s = Math.abs(slip_angle(car));
     slip = Math.max(slip, s);
     if (s >= EXIT_HELD) held += DT;
+    spun ||= s > 100;
     arc.step(t);
   });
-  return { slip, held, radius: arc.radius };
+  return { slip, held, radius: arc.radius, spun };
 }

@@ -49,7 +49,8 @@ const hairpin: StationSim = {
   scenario: "hairpin",
   run: (rig, stop_from, tcs) => {
     const exit = feel.exit_slide(rig, tcs);
-    return [...turns.run(rig, stop_from, tcs), ["exit", exit.slip], ["held", exit.held], ["circle", exit.radius]];
+    const out: SimValues = exit.spun ? [["spun", 1]] : [["held", exit.held], ["circle", exit.radius]];
+    return [...turns.run(rig, stop_from, tcs), ["exit", exit.slip], ...out];
   },
 };
 
