@@ -59,7 +59,8 @@ export type CarCommand =
   | { type: "swap"; spec: CarSpec; timed: boolean; x: number; z: number; heading: number }
   | { type: "shift"; by: number }
   | { type: "aids"; aids: CarAids }
-  | { type: "refill" };
+  | { type: "refill" }
+  | { type: "drag"; keep: number };
 
 export type SimCommand = CarCommand | { type: "rewind_clear" } | ({ type: "field" } & FieldStart) | { type: "world"; op: WorldOp };
 
@@ -87,6 +88,7 @@ export function car_command(car: Car, command: CarCommand, world: World): Car {
     return next;
   } else if (command.type === "shift") car.shift(command.by);
   else if (command.type === "aids") Object.assign(car, command.aids);
+  else if (command.type === "drag") car.vel.multiplyScalar(command.keep);
   else car.nitro.refill();
   return car;
 }
@@ -159,7 +161,7 @@ export class SimHost {
     else if (is_car(command)) {
       if (command.type === "place" || command.type === "park" || command.type === "swap") this.pads.clear();
       this.car = car_command(this.car, command, this.world);
-      if (this.field) this.field.rival = this.car;
+      if (command.type === "swap" && this.field) this.field.rival = this.car;
     } else this.replay.apply(command.op);
   }
 
@@ -236,7 +238,7 @@ export class SimHost {
   }
 }
 
-const CAR_COMMANDS: ReadonlySet<SimCommand["type"]> = new Set(["place", "park", "swap", "shift", "aids", "refill"]);
+const CAR_COMMANDS: ReadonlySet<SimCommand["type"]> = new Set(["place", "park", "swap", "shift", "aids", "refill", "drag"]);
 
 function is_car(command: SimCommand): command is CarCommand {
   return CAR_COMMANDS.has(command.type);

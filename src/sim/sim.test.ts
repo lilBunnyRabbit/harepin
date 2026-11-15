@@ -28,6 +28,7 @@ function script(frames: number): { request: FrameRequest; commands: SimCommand[]
     const commands: SimCommand[] = [];
     if (k % 250 === 100) commands.push({ type: "shift", by: -1 });
     if (k % 600 === 300) commands.push({ type: "refill" });
+    if (k % 450 === 200) commands.push({ type: "drag", keep: 0.8 });
     if (k === 700) commands.push({ type: "aids", aids: { tcs: false, abs: true, assist: false, stability: false, auto: true, steer_mode: "hold", drift_full_lock: true } });
     out.push({ request: { kind, steps: kind === FrameKind.STEP ? 5 + (k % 3) : 0, controls: controls_at(k), now, blend: (k % 7) / 7, peers: k % 90 < 30 ? [{ id: "peer", x: 0, y: 0, z: 0 }] : [] }, commands });
   }

@@ -666,6 +666,7 @@ if (lab_id !== null)
     });
 
 let acc = 0;
+const drag_car = (keep: number) => sim.send({ type: "drag", keep });
 const NO_PEERS: readonly never[] = [];
 const request: FrameRequest = { kind: FrameKind.HOLD, steps: 0, controls: { steer: 0, throttle: 0, brake: 0, handbrake: 0, analog: false }, now: 0, blend: 0, peers: NO_PEERS };
 let last = review?.now ?? performance.now();
@@ -763,7 +764,7 @@ function frame(time: number) {
       chase.bump(Math.min(1, impact / 15));
       input.buzz();
     }
-    if (world_view.jumps.update(dt, car).clean) {
+    if (world_view.jumps.update(dt, car, drag_car).clean) {
       hud.toast("Clean!");
       audio.chime();
     }
