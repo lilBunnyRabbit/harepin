@@ -58,8 +58,6 @@ export interface Slab {
     /** Over `high` the face rolls on, steeper: a further [1] metres inward by height [0], so the crown reads round in section instead of chamfered. */
     crown?: Point;
   };
-  /** The outer face draws in along its length: none at z `from`, `in` metres by z `by` and on past it, so a wing narrows to its lamp in plan. */
-  narrow?: { from: number; by: number; in: number };
 }
 
 export interface Arches {

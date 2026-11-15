@@ -317,31 +317,25 @@ function folded_slab(points: Point[], from: number, to: number, cuts: Cut[]): TH
 export function fitted_slab(d: Design, s: Slab): THREE.BufferGeometry[] {
   const anchor = s.straight;
   // A sloped face bends where its slope starts and ends: cut there too, or one cap spans the bend and twists.
-  const heights = [s.lean, s.roll].flatMap((slope) => (slope ? [slope.low, slope.high] : [])).concat(s.roll?.crown ? [s.roll.crown[0]] : []);
-  const stations = s.narrow ? [s.narrow.from, s.narrow.by] : [];
-  const bends = crossed(s.points, [...heights.map((y): Cut => ({ n: [0, 1], c: -y })), ...stations.map((z): Cut => ({ n: [1, 0], c: -z }))]);
+  const bends = crossed(s.points, [s.lean, s.roll].flatMap((slope) => (slope ? [slope.low, slope.high] : [])).concat(s.roll?.crown ? [s.roll.crown[0]] : []).map((y): Cut => ({ n: [0, 1], c: -y })));
   const pieces =
     anchor === undefined
       ? folded_slab(s.points, s.from, s.to, [...folds(d), ...crest(d), ...crossed(s.points, ends(d)), ...bends])
       : folded_slab(s.points, s.from, s.to, [...[...folds(d), ...crest(d)].filter(({ n }) => n[1] !== 0), ...bends]).map((g) => unpinched(g, d, anchor));
-  const { lean, roll, narrow } = s;
+  const { lean, roll } = s;
   const leaned = lean ? pieces.map((g) => sloped(g, s.from, lean)) : pieces;
-  if (!roll && !narrow) return leaned;
-  return leaned.map((g) => sloped(g, s.to, roll ? { low: roll.low, high: roll.high, out: -roll.in } : UPRIGHT, roll?.crown, narrow));
+  return roll ? leaned.map((g) => sloped(g, s.to, { low: roll.low, high: roll.high, out: -roll.in }, roll.crown)) : leaned;
 }
 
-const UPRIGHT = { low: 0, high: 1, out: 0 };
-
-/** Moves the vertices on a slab face at distance `at` from the centre outward with height, from none at `low` to `out` at `high`, a `crown` on inward over that, and inward along its length where it is `narrow`. */
-function sloped(geometry: THREE.BufferGeometry, at: number, { low, high, out }: NonNullable<Slab["lean"]>, crown?: Point, narrow?: Slab["narrow"]): THREE.BufferGeometry {
+/** Moves the vertices on a slab face at distance `at` from the centre outward with height, from none at `low` to `out` at `high`, and a `crown` on inward over that. */
+function sloped(geometry: THREE.BufferGeometry, at: number, { low, high, out }: NonNullable<Slab["lean"]>, crown?: Point): THREE.BufferGeometry {
   const position = geometry.getAttribute("position");
   for (let i = 0; i < position.count; i++) {
     const x = position.getX(i);
     if (Math.abs(Math.abs(x) - at) > ON_CUT) continue;
     const share = Math.max(0, Math.min(1, (position.getY(i) - low) / (high - low)));
     const over = crown ? crown[1] * Math.max(0, Math.min(1, (position.getY(i) - high) / (crown[0] - high))) : 0;
-    const drawn = narrow ? narrow.in * Math.max(0, Math.min(1, (position.getZ(i) - narrow.from) / (narrow.by - narrow.from))) : 0;
-    position.setX(i, Math.sign(x) * (at + out * share - over - drawn));
+    position.setX(i, Math.sign(x) * (at + out * share - over));
   }
   geometry.computeVertexNormals();
   return geometry;
