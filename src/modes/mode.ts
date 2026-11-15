@@ -57,6 +57,34 @@ export interface FieldHost {
   difficulty(): Difficulty;
   /** Hears the race once it is built and null once it is gone: the lab reads its order. */
   attach?(race: FieldRace | null): void;
+  /** A series event's rules and names; free play and the lab race the plain field. */
+  readonly event?: FieldEvent;
+}
+
+/** How the player's race ended, for a series event to score. */
+export interface FieldOutcome {
+  /** Car indices, winner first; the player's is the field's size. */
+  order: readonly number[];
+  /** No touch with another car. */
+  clean: boolean;
+  /** In the lead at the end of a lap. */
+  led: boolean;
+  fastest: boolean;
+  /** Started from the last grid slot. */
+  from_back: boolean;
+}
+
+export interface FieldEvent {
+  readonly name: string;
+  /** One per AI car, pole first. */
+  readonly names: readonly string[];
+  readonly knockout: boolean;
+  /** ms: the race ends here, placed by distance; null to race the laps out. */
+  readonly limit_ms: number | null;
+  /** Called once as the player's race ends; returns lines for the result card. */
+  finish(outcome: FieldOutcome): HTMLElement[];
+  /** What the result card's Next does. */
+  readonly next: { label: string; go(): void };
 }
 
 /** A car's place in a field race now. */

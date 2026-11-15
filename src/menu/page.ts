@@ -2,6 +2,7 @@ import type { Caught } from "../hud/input";
 import type { DirectoryStatus, Server } from "../net/directory";
 import type { Player } from "../net/players";
 import type { Career } from "../career/career-store";
+import type { Series } from "../career/series-store";
 import type { Runs } from "../runs/runs-store";
 import type { Board } from "../runs/daily-board";
 import type { MapMarker } from "../career/markers";
@@ -47,6 +48,10 @@ export interface SettingsHost {
   readonly career: Career;
   /** Starts a career event now on this map, or reloads onto its map. */
   start_event(id: string): void;
+  /** `?series` in dev and review builds: the Harepin Series, null without it. */
+  readonly series: Series | null;
+  /** Starts a series event now on this map, or reloads onto its map. */
+  start_series(id: string): void;
   readonly runs: Runs;
   /** Starts a `?run=` pick now on this map, or reloads onto its map. */
   start_run(id: string): void;

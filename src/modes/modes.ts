@@ -118,6 +118,8 @@ interface Active {
   shown: boolean;
   /** An event run's PI at its start: a garage change that moves it ends the run, a new look does not. */
   pi: number | null;
+  /** A series event's field: this run and its retries race it, and leaving the run drops it. */
+  series: FieldHost | null;
 }
 
 export class Modes implements CarHooks {
@@ -290,6 +292,21 @@ export class Modes implements CarHooks {
     return true;
   }
 
+  /** A series event's race on route `id` against `field`, past free play's unlock order; false when this map has no such closed route. */
+  series_race(id: string, field: FieldHost): boolean {
+    const mode = this.modes.find((m) => m.def === RACE_MODE);
+    const level = mode?.levels.find((l) => l.id === id);
+    if (!mode || !level || !this.world.routes.find((r) => r.id === id)?.closed) return false;
+    if (this.race_busy()) {
+      this.notice(mode.def.busy_notice);
+      return false;
+    }
+    this.clear();
+    this.car.give_back();
+    this.begin(mode, level, mode.track, null, null, null, 1, field);
+    return true;
+  }
+
   /** The caller has checked this map is the event's. Career levels are all open: the mode's own unlock order is free play's. */
   play_event(asked: CareerEvent, play: RunPlay | null = null) {
     const event = held_car(asked, unlocks(this.career.stars).cars);
@@ -404,8 +421,8 @@ export class Modes implements CarHooks {
     return this.world.routes.find((r) => r.id === route)?.excludes ?? [];
   }
 
-  private begin(mode: Mode, level: Level, track = mode.track, event: CareerEvent | null = null, play: RunPlay | null = null, cup: CupRun | null = null, laps = play?.laps ?? 1) {
-    this.current = { mode, level, track, event, play, cup, laps, run: null, starting: null, shown: false, pi: null };
+  private begin(mode: Mode, level: Level, track = mode.track, event: CareerEvent | null = null, play: RunPlay | null = null, cup: CupRun | null = null, laps = play?.laps ?? 1, series: FieldHost | null = null) {
+    this.current = { mode, level, track, event, play, cup, laps, run: null, starting: null, shown: false, pi: null, series };
     this.launch(this.current);
   }
 
@@ -429,7 +446,7 @@ export class Modes implements CarHooks {
     // once the chunks there are in.
     let spot = null as { x: number; z: number; heading: number } | null;
     const hold = tiles.streamed ? (x: number, z: number, heading: number) => (spot = { x, z, heading }) : null;
-    const run = active.mode.def.start(this.ctx(active.track, graded(active), hold, active.play, active.laps), active.level);
+    const run = active.mode.def.start(this.ctx(active.track, graded(active), hold, active.play, active.laps, active.series), active.level);
     if (typeof run === "string") {
       return this.refuse(run, active);
     }
@@ -458,7 +475,7 @@ export class Modes implements CarHooks {
   }
 
   /** `hold`: takes the run's start in place of parking the car on it. */
-  private ctx(track: Track, event: CareerEvent | null, hold: ((x: number, z: number, heading: number) => void) | null, play: RunPlay | null, laps: number): ModeCtx {
+  private ctx(track: Track, event: CareerEvent | null, hold: ((x: number, z: number, heading: number) => void) | null, play: RunPlay | null, laps: number, series: FieldHost | null): ModeCtx {
     const { scene, world, start_index, camera } = this;
     const spawn = hold ?? ((x: number, z: number, heading: number) => this.park(x, z, heading));
     const { tiles } = world;
@@ -477,7 +494,7 @@ export class Modes implements CarHooks {
       race_busy: () => this.race_busy(),
       laps,
       hits: () => (event ? new Hits(() => world.contacts) : null),
-      field: () => (event || play || this.lobby_lap ? null : this.field_host),
+      field: () => series ?? (event || play || this.lobby_lap ? null : this.field_host),
       // Tuned on another world version, an event's times and ghost no longer fit its road: the mode's par grades it, no ghost.
       thresholds: (own) => (play ? play.grade(own) : (tuned && event?.stars) || own),
       dev_ghost: () => (tuned && event?.ghost ? dev_ghost(event) : Promise.resolve(null)),
@@ -529,6 +546,7 @@ export class Modes implements CarHooks {
     if (active.cup && !active.cup.cup.cleared) return this.restart();
     if (active.cup && !active.cup.cup.done) return this.next_stage(active, active.cup);
     if (active.play) return active.play.next?.go();
+    if (active.series?.event) return active.series.event.next.go();
     if (active.event) {
       const next = next_event(this.career.stars, active.event);
       if (next) this.start_event?.(next.id);
@@ -629,7 +647,11 @@ export class Modes implements CarHooks {
       }
     } else if (active.play) this.show_play(active.play, stars, cup?.total);
     else if (active.event) this.show_event(active.event, stars);
-    else {
+    else if (active.series?.event) {
+      el.next.textContent = active.series.event.next.label;
+      el.next.hidden = false;
+      el.next.disabled = false;
+    } else {
       const index = levels.findIndex((level) => level.id === active.level.id);
       el.next.textContent = NEXT_LEVEL;
       el.next.hidden = index + 1 >= levels.length;

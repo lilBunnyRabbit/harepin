@@ -3,6 +3,9 @@ import { Audio, type SoundFrame } from "./audio/audio";
 import { idle_sound } from "./audio/held-sound";
 import { EVENTS, EVENT_PARAM, TUNE_PARAM, current_tier, event_of, type CareerEvent } from "./career/career";
 import { CareerButton } from "./career/career-button";
+import { SEASON_1, SERIES_PAGE, SERIES_PARAM, is_open, series_event } from "./career/series";
+import { Series, session_store } from "./career/series-store";
+import { on_series_map, series_host } from "./career/series-run";
 import { Career, event_map } from "./career/career-store";
 import { EventMarkers } from "./career/event-markers";
 import { RUN_PARAM, run_of, type RunPick } from "./runs/runs";
@@ -95,10 +98,13 @@ const lab_id = params.get(LAB_PARAM);
 // `?airace` (dev and review builds): free-play races on a circuit run against an AI field; `?airace=<level>` starts one.
 const ai_race = REVIEW_BUILD && params.has(AI_RACE_PARAM);
 const ai_level = ai_race ? params.get(AI_RACE_PARAM) : null;
+// `?series` (dev and review builds): the Harepin Series page; `?series=<event>` starts that event on its map.
+const series_on = REVIEW_BUILD && params.has(SERIES_PARAM);
+const series_pick = series_on ? series_event(params.get(SERIES_PARAM)) : null;
 // Any peer on the map can call a lobby race, and that ends a mode run: an event link without a room of its own runs
 // alone in an unlisted room, as does a review shot, which no peer should drive into. The menu still names `room`, so
 // the next world picked lands back in it.
-const solo = (event !== null || run !== null || lab_id !== null || review_wanted(params)) && !params.has("room");
+const solo = (event !== null || run !== null || lab_id !== null || series_on || review_wanted(params)) && !params.has("room");
 // getRandomValues, not randomUUID: the latter only exists in a secure context, and a phone on the LAN dev server is not one.
 const net_room = solo ? `solo-${[...crypto.getRandomValues(new Uint8Array(4))].map((b) => b.toString(16).padStart(2, "0")).join("")}` : room;
 // A room the player chose stays theirs across events; without one the event runs solo.
@@ -212,6 +218,7 @@ chat.start();
 const build = load_build(params.get("car"));
 const mode_ids = MODES.map((mode) => mode.id);
 const career = new Career(local_store());
+const series = series_on ? new Series(SEASON_1, session_store()) : null;
 const runs = new Runs(local_store());
 const goals = new Goals(local_store(), mode_ids);
 goals.catch_up(() => proven(saved_entries(), { kind, build, cockpit: prefs.camera === CameraView.COCKPIT }, mode_ids));
@@ -312,6 +319,8 @@ const settings = new Settings(document.body, {
   goals,
   career,
   start_event: (id) => start_event(id),
+  series,
+  start_series: (id) => start_series(id),
   runs,
   start_run: (id) => start_run(id),
   name: () => net.name,
@@ -505,6 +514,24 @@ function start_event(id: string) {
   settings.close();
   modes.play_event(to);
 }
+function start_series(id: string) {
+  const to = series_event(id);
+  if (!to || !series || !is_open(to.season, series.progress, to.event)) return;
+  if (!on_series_map(to.season, to.event, built)) {
+    mark_drive();
+    const query = new URLSearchParams({ [SERIES_PARAM]: to.event.id, seed: String(to.event.seed), world: to.season.world });
+    for (const kept of KEPT_ON_EVENT) {
+      const value = params.get(kept);
+      if (value !== null) query.set(kept, value);
+    }
+    location.search = `?${query}`;
+    return;
+  }
+  settings.close();
+  const base = { sim, build: () => garage.build, rating: () => rating(garage.build), autopilot: params.has(AI_DRIVE_PARAM), difficulty: () => settings.state.ai_difficulty };
+  const host = series_host(base, series, to.event, { label: "Series", go: () => settings.open(SERIES_PAGE) });
+  if (!modes.series_race(to.event.route, host)) hud.toast("This series event is not on this map");
+}
 // A run's map is the plain map of its kind and seed (world-pick.ts).
 const run_on_map = (to: RunPick) => map_code(built) === map_code(plain_map(to.kind, to.seed));
 
@@ -540,6 +567,8 @@ else if (event) goal_toasts.push("This event's map did not load", MAP_NOTE_MS);
 if (run && run_on_map(run)) play_run(run);
 else if (run) goal_toasts.push("This run's map did not load", MAP_NOTE_MS);
 if (ai_level) modes.play(ai_level);
+if (series_pick && series && on_series_map(series_pick.season, series_pick.event, built)) start_series(series_pick.event.id);
+else if (series_on && !series_pick) settings.open(SERIES_PAGE);
 // After `markers`: the Play page reads its map markers as soon as the menu opens.
 const guide_step = params.get(GUIDE_PARAM);
 if (guide_step !== null) {
@@ -547,7 +576,7 @@ if (guide_step !== null) {
   clean.searchParams.delete(GUIDE_PARAM);
   window.history.replaceState(window.history.state, "", clean);
   settings.open_guide("look", guide_step === ROLLED_VISIT);
-} else if (!take_drive() && !event && !run && !review && lab_id === null && !ai_level) {
+} else if (!take_drive() && !event && !run && !review && lab_id === null && !ai_level && !series_on) {
   if (prefs.guide_seen) settings.open();
   else settings.open_guide();
 }

@@ -17,6 +17,8 @@ export interface Sim {
   readonly field_cars: readonly Car[];
   /** Each AI car's road points from the start, laps included, then the player's: empty with no field. */
   readonly field_progress: Float64Array;
+  /** The player's touches with AI cars since the field started, counted per step. */
+  readonly field_touches: number;
   send(command: SimCommand): void;
   frame(request: FrameRequest): FrameOut;
 }
@@ -40,6 +42,10 @@ export class LocalSim implements Sim {
     return this.host.field_progress;
   }
 
+  get field_touches(): number {
+    return this.host.out.touches;
+  }
+
   send(command: SimCommand) {
     this.host.apply(command);
   }
@@ -59,8 +65,8 @@ export class WorkerSim implements Sim {
   readonly from = { pos: new Vector3(), quat: new Quaternion() };
   field_cars: readonly Car[] = [];
   field_progress = new Float64Array(0);
-  private readonly out: FrameOut = { kind: FrameKind.FREE, steps: 0, stepped: 0, impact: 0, blend: 0 };
-  private readonly read: FrameOut = { kind: FrameKind.FREE, steps: 0, stepped: 0, impact: 0, blend: 0 };
+  private readonly out: FrameOut = { kind: FrameKind.FREE, steps: 0, stepped: 0, impact: 0, blend: 0, touches: 0 };
+  private readonly read: FrameOut = { kind: FrameKind.FREE, steps: 0, stepped: 0, impact: 0, blend: 0, touches: 0 };
   private readonly commands: SimCommand[] = [];
   private replies: Float64Array[] = [];
   private epoch = 0;
@@ -99,6 +105,10 @@ export class WorkerSim implements Sim {
     this.commands.push(command);
   }
 
+  get field_touches(): number {
+    return this.out.touches;
+  }
+
   frame(request: FrameRequest): FrameOut {
     const { out, read } = this;
     this.worker.postMessage({ type: "frame", epoch: this.epoch, commands: this.commands, frame: request } satisfies SimRequest);
@@ -116,6 +126,7 @@ export class WorkerSim implements Sim {
       out.stepped += read.stepped;
       out.impact = Math.max(out.impact, read.impact);
       out.blend = read.blend;
+      out.touches = read.touches;
     }
     this.replies.length = 0;
     return out;

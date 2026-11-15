@@ -80,6 +80,8 @@ export interface FrameOut {
   /** m/s: the hardest hit of the frame's steps, on a wall or a car. */
   impact: number;
   blend: number;
+  /** Steps the player's car has touched an AI car since the field started: a counter, as `World.contacts` is for walls. */
+  touches: number;
 }
 
 /**
@@ -124,7 +126,7 @@ export class SimHost {
   private field_laps = FIELD_LAPS;
   /** The car before the frame's last step: the drawn car sits between this and `car`. */
   readonly from = { pos: new Vector3(), quat: new Quaternion() };
-  readonly out: FrameOut = { kind: FrameKind.HOLD, steps: 0, stepped: 0, impact: 0, blend: 0 };
+  readonly out: FrameOut = { kind: FrameKind.HOLD, steps: 0, stepped: 0, impact: 0, blend: 0, touches: 0 };
   on_step: ((dt: number, car: Car, controls: Controls) => void) | null = null;
   private readonly replay: WorldReplay;
   private readonly miss: { near: Near; touched: boolean } = { near: null, touched: false };
@@ -203,7 +205,9 @@ export class SimHost {
       out.impact = Math.max(out.impact, world.collide(car));
       if (field) {
         field.step(DT, this.field_laps);
-        out.impact = Math.max(out.impact, field.impacts[field.racers.length]);
+        const touch = field.impacts[field.racers.length];
+        out.impact = Math.max(out.impact, touch);
+        if (touch >= 0) out.touches++;
       }
       this.on_step?.(DT, car, controls);
     }
@@ -227,6 +231,7 @@ export class SimHost {
     this.field.drives_rival = drive_rival === true;
     this.field.rival = this.car;
     this.field_cars = this.field.racers.map((r) => r.car);
+    this.out.touches = 0;
   }
 
   private near_miss(impact: number, peers: readonly PeerSpot[]): { near: Near; touched: boolean } {

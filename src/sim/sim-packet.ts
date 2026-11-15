@@ -10,7 +10,7 @@ import type { FrameKind, FrameOut, FrameRequest, SimCommand } from "./sim-host";
  * times laps and modes and picks reset spots from the car it reads, and those must match the sim on main bit for bit.
  * Append-only inside each block; reordering or resizing a field bumps `SIM_PACKET`, which both sides check.
  */
-export const SIM_PACKET = 1;
+export const SIM_PACKET = 2;
 
 export type SimRequest =
   | { type: "init"; seed: number; plan: WorldData; levels: readonly number[]; spec: CarSpec }
@@ -24,7 +24,8 @@ const STEPPED = 4;
 const IMPACT = 5;
 const BLEND = 6;
 const AI = 7;
-const HEADER = 8;
+const TOUCHES = 8;
+const HEADER = 9;
 
 const CAR = 39;
 const WHEEL = 12;
@@ -71,6 +72,7 @@ export function write_packet(out: Float64Array, epoch: number, frame: FrameOut, 
   out[IMPACT] = frame.impact;
   out[BLEND] = frame.blend;
   out[AI] = field.length;
+  out[TOUCHES] = frame.touches;
   let at = put3(out, HEADER, car.pos);
   at = put4(out, at, car.quat);
   at = put3(out, at, car.vel);
@@ -134,6 +136,7 @@ export function read_packet(from: Float64Array, frame: FrameOut, car: Car, pose:
   frame.stepped = from[STEPPED];
   frame.impact = from[IMPACT];
   frame.blend = from[BLEND];
+  frame.touches = from[TOUCHES];
   if (from[AI] !== field.length) throw new Error(`sim packet has ${from[AI]} AI cars, main draws ${field.length}`);
   let at = get3(from, HEADER, car.pos);
   at = get4(from, at, car.quat);
