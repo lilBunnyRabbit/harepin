@@ -1,10 +1,11 @@
 import { ROAD_HALF, type Ramp, type RoadPoint } from "../worldgen/types";
 
 /**
- * Cornering grip and braking (m/s²) the line plans on, for the stock coupe at pace 1 (`grip_pace` scales other cars). At
- * pace 1.04 the driver keeps it on the road on every golden circuit; at 6, or braking at 3.5, it runs wide.
+ * Cornering grip and braking (m/s²) the line plans on, for the stock coupe at pace 1 (`grip_pace` scales other cars). The
+ * coupe holds 0.94 g on the skidpad; the driver's pursuit steering is the limit: at 6.5 a field runs wide in traffic
+ * (spins and resets triple), and braking at 3 runs wide alone.
  */
-export const LINE_GRIP = 5.5;
+export const LINE_GRIP = 6;
 export const LINE_BRAKE = 2.5;
 /** Braking (m/s²) a driver diving down the inside plans on: it brakes later and harder than the line, into the apex. */
 export const LATE_BRAKE = 4;
