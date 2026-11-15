@@ -22,7 +22,7 @@ export const HAREPIN_DB: IdbSchema = {
 
 const OPEN_TIMEOUT_MS = 3000;
 
-const done =<T>(request: IDBRequest<T>) =>
+const done = <T>(request: IDBRequest<T>) =>
   new Promise<T>((resolve, reject) => {
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error ?? new Error("indexedDB request failed"));
