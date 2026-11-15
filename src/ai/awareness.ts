@@ -13,6 +13,10 @@ const HAZARD_LANE = 6;
 const TROUBLE_SLIDE = 0.5;
 const TROUBLE_ALONG = 0.5;
 const TROUBLE_SPEED = 3;
+/** Lateral metres between centres a pass keeps off a car in trouble: room for it to slide a body width toward the passer. */
+const TROUBLE_FLANK = 4;
+/** m/s over a car in trouble's speed along the road a passer goes by it at: what a late slide into it would hit with. */
+const TROUBLE_CLOSE = 8;
 /** Lateral metres between centres a pass lane must keep off the passed car: two half widths and room for a slide. */
 const PASS_FLANK = 2.8;
 /** Metres off the centre a passing car drives in, in the half of the road the passed car is not in. */
@@ -46,7 +50,9 @@ const PASS_DONE = 8;
 /** A pass starts only where the next PASS_CALM road points hold their pace (CALM_SHARE of now) and bend gently (1/m): two abreast into a bend is where they touch. */
 const PASS_CALM = 60;
 const CALM_SHARE = 0.85;
-const CALM_BEND = 0.01;
+/** Sharpest bend (1/m) a pass starts into for a timid driver, plus this much at full aggression: two abreast fit a wide corner. */
+const CALM_BEND = 0.02;
+const BOLD_BEND = 0.02;
 /** Aggression over which a driver starts a pass into a bend, and metres past the car ahead its pass lane must be clear. */
 const DIVE = 0.85;
 const PASS_WINDOW = 15;
@@ -64,6 +70,8 @@ const DEFEND_DROP = 5;
 const DEFEND_LATERAL = 2.5;
 /** Metres ahead of a kicker's run (pass room 0) a field goes single file: a challenge frame's gap fits one car. */
 const KICKER_LOOK = 60;
+/** Most m/s under the line's plan a car drops to while it lets the one alongside into a kicker first: under jump pace it falls short into the frame. */
+const KICKER_YIELD = 4;
 /** Road points ahead the inside of the next bend is read from: where the line runs slowest. */
 const BEND_LOOK = 100;
 
@@ -168,7 +176,9 @@ export class Awareness {
       const gap = this.gap(i, j);
       const dl = this.lateral[j] - me;
       if (Math.abs(gap) < ALONGSIDE && Math.abs(dl) < SIDE_GAP + 0.5) beside = j;
-      if (gap > 0 && gap < LOOK + LOOK_PER * v && Math.abs(dl) < (this.trouble[j] ? HAZARD_LANE : IN_LANE) && gap < blocker_gap) {
+      // A car in trouble blocks the whole road, except to the car already going by it with TROUBLE_FLANK to spare.
+      const width = this.trouble[j] ? (this.passing[i] === j ? TROUBLE_FLANK : HAZARD_LANE) : IN_LANE;
+      if (gap > 0 && gap < LOOK + LOOK_PER * v && Math.abs(dl) < width && gap < blocker_gap) {
         blocker = j;
         blocker_gap = gap;
       }
@@ -194,14 +204,15 @@ export class Awareness {
       // held, since chasing the other side across the road at every swing never gets it alongside; alongside, it is off.
       const wait = gap > 0 && !this.lane_clear(i, target, this.pass_side[i], PASS_KEEP);
       // A pass rides the passed car's line shifted by a side gap, so the two swing together; the road's edge clamps it.
-      const hold = this.rel[target] + this.pass_side[i] * SIDE_GAP;
+      const hold = this.rel[target] + this.pass_side[i] * this.flank(target);
       const at = Math.max(-room, Math.min(room, base + hold));
       // Squeezed alongside with the nose still behind: the car being passed has come over, so the pass is off.
-      const squeezed = gap > 0 && gap < ALONGSIDE && (wait || Math.abs(this.lateral[target] - at) < IN_LANE - aggression * PASS_TIGHT);
+      const squeezed = gap > 0 && gap < ALONGSIDE && (wait || Math.abs(this.lateral[target] - at) < (this.trouble[target] ? TROUBLE_FLANK : IN_LANE - aggression * PASS_TIGHT));
       if (gap > -PASS_DONE && gap < PASS_ABORT && !squeezed) {
         driver.hold = hold;
         driver.push = 1 + PUSH * aggression;
         if (wait) driver.cap = Math.min(driver.cap, this.follow(target, gap, PASS_FOLLOW));
+        if (this.trouble[target] && gap > -ALONGSIDE) driver.cap = Math.min(driver.cap, Math.max(0, this.along[target]) + TROUBLE_CLOSE);
         return;
       }
       this.passing[i] = -1;
@@ -218,13 +229,17 @@ export class Awareness {
       const reach = blocker_gap + PASS_WINDOW;
       const pick = this.side_open(i, blocker, away, lane, room, reach) ? away : this.side_open(i, blocker, -away, lane, room, reach) ? -away : 0;
       const faster = driver.personality.pace > this.drivers[blocker].personality.pace + PASS_PACE || v > this.speed[blocker] + PASS_SPEED;
+      const wide = CALM_BEND + BOLD_BEND * aggression;
       let bend = false;
-      for (let k = 0; k < PASS_CALM && !bend; k += 4) bend = line.speed[(driver.index + k) % n] < CALM_SHARE * line.speed[driver.index] || Math.abs(line.bend[(driver.index + k) % n]) > CALM_BEND;
+      for (let k = 0; k < PASS_CALM && !bend; k += 4) bend = line.speed[(driver.index + k) % n] < CALM_SHARE * line.speed[driver.index] || Math.abs(line.bend[(driver.index + k) % n]) > wide;
       // A bold driver dives into a braking zone; the rest pass only where the road stays calm.
-      if (faster && pick !== 0 && driver.wary <= 0 && !kicker && !this.trouble[blocker] && (!bend || aggression > DIVE)) {
+      // A car in trouble is passed only on a side that leaves TROUBLE_FLANK, however calm the road.
+      const clear_of = !this.trouble[blocker] || Math.abs(Math.max(-room, Math.min(room, other + pick * TROUBLE_FLANK)) - other) >= TROUBLE_FLANK;
+      const calm = this.trouble[blocker] || !bend || aggression > DIVE;
+      if (faster && pick !== 0 && driver.wary <= 0 && !kicker && clear_of && calm) {
         this.passing[i] = blocker;
         this.pass_side[i] = pick;
-        driver.hold = this.rel[blocker] + pick * SIDE_GAP;
+        driver.hold = this.rel[blocker] + pick * this.flank(blocker);
         driver.push = 1 + PUSH * aggression;
         return;
       }
@@ -274,7 +289,14 @@ export class Awareness {
     const away = -Math.sign(near_dl) || 1;
     driver.nudge = away * Math.min(NUDGE_MAX, IN_LANE + NUDGE_MARGIN - Math.abs(near_dl));
     const gap = this.gap(i, near);
-    if (gap > 0) driver.cap = Math.min(driver.cap, this.kicker_ahead(driver) ? this.follow(near, gap, FOLLOW) : Math.max(0, this.speed[near] - YIELD));
+    if (gap <= 0) return;
+    const yield_to = this.kicker_ahead(driver) ? Math.max(this.follow(near, gap, FOLLOW), driver.line.speed[driver.index] - KICKER_YIELD) : this.speed[near] - YIELD;
+    driver.cap = Math.min(driver.cap, Math.max(0, yield_to));
+  }
+
+  /** Side gap (m) a pass rides off car j's line. */
+  private flank(j: number): number {
+    return this.trouble[j] ? TROUBLE_FLANK : SIDE_GAP;
   }
 
   private kicker_ahead(driver: Driver): boolean {
