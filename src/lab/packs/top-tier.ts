@@ -91,7 +91,7 @@ export type Plan = [Place, Variant[]][];
 export function top_tier_pack(id: string, title: string, brief: string, car: Tested, plan: Plan): Pack {
   return {
     id,
-    rev: 2,
+    rev: 3,
     title,
     aim: `Which top-tier parts are worth fitting to the ${CARS[car].name}? At each place the best build under the top tier goes first, then each top part on its own against it.`,
     brief: `${brief} ${BASELINE}`,
