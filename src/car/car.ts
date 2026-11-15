@@ -526,6 +526,8 @@ export class Car {
     const sideways = low && !this.launched && drift_steer === 0;
     const split = !this.launched && !this.assist && drift_steer > 0 && speed > SPLIT_SPEED;
     const lateral = spec.tcs_lateral ?? TCS_LATERAL;
+    // With TCS off a held drift's limited-slip brake is one of the helpers, at `drift_aid`; open, the drift bled 53 to 42 km/h.
+    const aid = this.drift_aid;
     const slip_limit = this.launched && drift_steer === 0 ? DRIFT_TCS_SLIP : TCS_SLIP + (HELD_TCS_SLIP - TCS_SLIP) * drift_steer;
     for (let i = 0; i < this.wheels.length; i++) {
       const w = this.wheels[i];
@@ -537,7 +539,7 @@ export class Car {
       const spin = tcs_slip(w, spec.peak_slip);
       const pair_spin = tcs_slip(other, spec.peak_slip);
       const lone = w.contact && ((sideways && spin > TCS_SLIP && pair_spin <= TCS_SLIP) || (split && spin > pair_spin + HOLD_SPLIT));
-      w.tcs_brake = lone ? Math.min(1, w.tcs_brake + 9 * dt) : Math.max(0, w.tcs_brake - 2.5 * dt);
+      w.tcs_brake = lone ? Math.min(aid, w.tcs_brake + 9 * dt) : Math.max(0, w.tcs_brake - 2.5 * dt);
       if (!w.contact) max_drag = Math.max(max_drag, -w.slip);
     }
     // On the ground some torque always gets through so a stuck car can still crawl out; in the air there is no grip to save.

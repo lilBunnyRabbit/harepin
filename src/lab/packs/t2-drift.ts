@@ -5,7 +5,6 @@ import { LAB_CAR, type Aids, type Goal, type Pack, type Trial } from "../pack";
 
 // The Drift preset (`PRESETS` in car/presets.ts), assist and stability off so the car does what the tyres do.
 const DRIFT = "muscle.1.5.0.3.1.0.7.0.0.0.2";
-const OLD_CAP = "drift-old-cap";
 const DRIFT_PARTS = parse_build(DRIFT)?.parts;
 if (!DRIFT_PARTS) throw new Error(`bad Drift preset code ${DRIFT}`);
 const ROTATE = "drift-rotate";
