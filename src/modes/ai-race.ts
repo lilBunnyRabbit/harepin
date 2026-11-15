@@ -11,9 +11,11 @@ import { RaceView } from "./race-view";
 import { COUNTDOWN_MS, RaceRun, RaceStatus, type RaceCourse, type RaceLevel } from "./races";
 import { line } from "./result";
 
-/** F3: six AI and the player; D3: three laps. */
+/** F3: six AI and the player. */
 const AI_CARS = 6;
-const AI_LAPS = 3;
+/** D4: about four minutes a race, in laps of the route's par; an island circuit's one lap already takes that (D3's three laps do not fit). */
+const RACE_MS = 240_000;
+const MAX_LAPS = 3;
 /** Places that show two stars; nothing is recorded, as position grading is its own design (O9). */
 const PODIUM = 3;
 const PLAYER = "You";
@@ -40,6 +42,7 @@ export class AiRace implements ModeRun {
   private standings: Standings;
   private wall = 0;
   private lap = 1;
+  private readonly laps: number;
   private banked = 0;
   /** s since the go: the player's race clock until they finish, then on for the cars still racing. */
   private t = 0;
@@ -58,10 +61,11 @@ export class AiRace implements ModeRun {
     this.view = new RaceView(course, ctx.ground);
     ctx.scene.add(this.view.root);
     this.unplace = ctx.world.place(route.closure);
+    this.laps = Math.max(1, Math.min(MAX_LAPS, Math.round(RACE_MS / route.par_ms)));
     this.builds = field_builds(host.build(), AI_CARS, route.excludes);
     this.names = [...this.builds.map((b) => `${CARS[b.car].name} ${b.number}`), PLAYER];
     this.run = this.grid_run();
-    this.standings = new Standings(this.builds.length + 1, route.points.length, AI_LAPS, this.builds.length);
+    this.standings = new Standings(this.builds.length + 1, route.points.length, this.laps, this.builds.length);
     this.route = { id: route.id, gate: this.run.gate, later: this.later(0), respawn: course.line[0] };
     const spot = grid_spot(route, this.builds.length);
     ctx.spawn(spot.x, spot.z, spot.heading);
@@ -88,7 +92,7 @@ export class AiRace implements ModeRun {
     const { route } = this.course;
     const { world } = this.ctx;
     const count = this.builds.length;
-    this.host.sim.send({ type: "field", route: route.id, specs: this.builds.map(build_spec), traits: personalities(world.seed, count), seed: world.seed, laps: AI_LAPS, drive_rival: this.host.autopilot });
+    this.host.sim.send({ type: "field", route: route.id, specs: this.builds.map(build_spec), traits: personalities(world.seed, count), seed: world.seed, laps: this.laps, drive_rival: this.host.autopilot });
     this.field = new FieldView(this.ctx.scene, this.host.sim, this.builds);
   }
 
@@ -118,7 +122,7 @@ export class AiRace implements ModeRun {
       this.route.gate = null;
       ctx.hide_hint();
       view.guide(0, 0);
-      if (this.lap < AI_LAPS) {
+      if (this.lap < this.laps) {
         this.banked += run.elapsed();
         this.lap++;
         ctx.chime();
@@ -135,7 +139,7 @@ export class AiRace implements ModeRun {
     const field = this.builds.length + 1;
     if (run.status === RaceStatus.READY) return `${name} · ${Math.ceil(run.countdown / 1000)} · ${field} on the grid`;
     const place = this.standings.place(player);
-    const doing = run.missed ? "missed a gate, go back" : `lap ${this.lap}/${AI_LAPS}`;
+    const doing = run.missed ? "missed a gate, go back" : `lap ${this.lap}/${this.laps}`;
     return `${name} · ${format(this.banked + run.elapsed())} · P${place}/${field}${this.gap_text(place)} · ${doing}`;
   }
 
@@ -166,7 +170,7 @@ export class AiRace implements ModeRun {
     this.result = {
       title: `${ordinal(place)} of ${field} · ${this.level.name}`,
       stars: place === 1 ? 3 : place <= PODIUM ? 2 : 1,
-      lines: [line("time", format(ms)), line("laps", String(AI_LAPS))],
+      lines: [line("time", format(ms)), line("laps", String(this.laps))],
       standings: this.rows.map((r) => r.el),
     };
   }
