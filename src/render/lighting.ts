@@ -3,7 +3,6 @@ import { brand, color, dark, glow, mix, tones } from "../theme/palette";
 import { FOG, SUN_DIR, sky_ceiling, sky_glsl, sky_tones } from "./sky";
 import type { Lab } from "../theme/theme";
 
-
 export interface MoodSpec {
   /** Height of the sun direction; below 0 puts it under the horizon, leaving only its glow. */
   sun_y: number;
@@ -16,7 +15,6 @@ export interface MoodSpec {
   fog_far: number;
   head_intensity: number;
   head_range: number;
-  cloud_glow: number;
   bloom: number;
   bloom_threshold: number;
 }
@@ -48,7 +46,6 @@ const DUSK: MoodSpec = {
   fog_far: 1300,
   head_intensity: 7,
   head_range: 70,
-  cloud_glow: 0.35,
   bloom: 0.6,
   bloom_threshold: 0.9,
 };
@@ -67,7 +64,6 @@ const DAY: MoodSpec = {
   fog_far: 1300,
   head_intensity: 1.5,
   head_range: 70,
-  cloud_glow: 0.55,
   bloom: 0.2,
   bloom_threshold: 0.98,
 };
@@ -97,7 +93,9 @@ function sky_fog(radial: boolean) {
   patch("fog_pars_vertex", "varying float vFogDepth;", `varying float vFogDepth; varying vec3 vFogColor; ${sky_glsl()}`);
   patch("fog_vertex", "vFogDepth = - mvPosition.z;", `vFogDepth = ${radial ? "length( mvPosition.xyz )" : "- mvPosition.z"}; vFogColor = sky_color( normalize( mvPosition.xyz * mat3( viewMatrix ) ) );`);
   patch("fog_pars_fragment", "varying float vFogDepth;", "varying float vFogDepth; varying vec3 vFogColor;");
-  patch("fog_fragment", "mix( gl_FragColor.rgb, fogColor, fogFactor )", "mix( gl_FragColor.rgb, vFogColor, fogFactor )");
+  // three fogs after its colour space conversion: drawn straight to the canvas (no composer, as on phones) the linear
+  // sky colour went in unconverted, and far ground stood dark against the sky instead of fading into it.
+  patch("fog_fragment", "mix( gl_FragColor.rgb, fogColor, fogFactor )", "mix( gl_FragColor.rgb, linearToOutputTexel( vec4( vFogColor, 1.0 ) ).rgb, fogFactor )");
 }
 
 export class Lighting {
@@ -135,13 +133,6 @@ export class Lighting {
     const update = sun.shadow.updateMatrices.bind(sun.shadow);
     // three reads only the light's world position and its target here; the stand-in carries the raised position.
     sun.shadow.updateMatrices = () => update(Object.assign(shadow_from, { target: sun.target }) as unknown as THREE.DirectionalLight);
-  }
-
-  dress(sky: THREE.Object3D, clouds: THREE.Object3D): THREE.Object3D[] {
-    clouds.traverse((o) => {
-      if (o instanceof THREE.Mesh && o.material instanceof THREE.MeshLambertMaterial) o.material.emissiveIntensity = this.spec.cloud_glow;
-    });
-    return [sky, clouds];
   }
 
   mount(car_root: THREE.Object3D, on: boolean) {
