@@ -6,12 +6,9 @@ const FORMULA_NOSE = 2.3;
 // The nose narrows to half its width over its last 0.9 m, wings and wishbones aside.
 const FORMULA_SECTION: Section = { belt: [0.3, 0.3], shoulder: 0, tuck: 0, nose: [0.5, 0.9], tail: [0, 0] };
 
-/** A part ahead of the cockpit, widened by what the pinched nose takes back at its centre, so it comes out as drawn. */
-function on_nose(part: Part): Part {
-  const [share, length] = FORMULA_SECTION.nose;
-  const keep = 1 - share * Math.max(0, Math.min(1, (part.at[2] - (FORMULA_NOSE - length)) / length));
-  return { ...part, size: [part.size[0] / keep, part.size[1], part.size[2]], at: [part.at[0] / keep, part.at[1], part.at[2]] };
-}
+// Where the nose starts to narrow: a front wing profile anchored here comes out as drawn and square to the car.
+const UNPINCHED = FORMULA_NOSE - FORMULA_SECTION.nose[1];
+const on_nose = (points: Point[], from: number, to: number): Slab => ({ points, from, to, straight: UNPINCHED });
 
 // Inlet face undercut, top falling away to stop short of the rear tyres.
 // Airbox and engine cover as one fin down the spine.
@@ -56,7 +53,12 @@ const wishbones = (z: number, side: number, high: number, low: number, hub: numb
 
 // Every front wing element stays ahead of the steered tyre, whose corner sweeps to z 1.97 at full lock.
 const NOSE_FLAP_Z = 2.09;
-const nose_flap = (chord: number, lift: number, tilt: number): Part => on_nose({ size: [0.6, 0.03, chord], at: [0.6, NOSE_PLANE_Y + lift, NOSE_FLAP_Z], tilt: [tilt, 0, 0] });
+const NOSE_HALF = 0.9;
+const NOSE_PLANE = on_nose([[NOSE_PLANE_Z + 0.17, NOSE_PLANE_Y + 0.0175], [NOSE_PLANE_Z - 0.17, NOSE_PLANE_Y + 0.0175], [NOSE_PLANE_Z - 0.17, NOSE_PLANE_Y - 0.0175], [NOSE_PLANE_Z + 0.17, NOSE_PLANE_Y - 0.0175]], 0, NOSE_HALF);
+// The plane and the flaps end on the endplate's inner face.
+const NOSE_ENDPLATE = on_nose([[2.38, NOSE_PLANE_Y - 0.05], [2.38, NOSE_PLANE_Y + 0.15], [2.0, NOSE_PLANE_Y + 0.15], [2.0, NOSE_PLANE_Y - 0.05]], NOSE_HALF, NOSE_HALF + 0.03);
+const nose_flap = (chord: number, lift: number, tilt: number): Slab => on_nose(plane([NOSE_FLAP_Z, NOSE_PLANE_Y + lift], chord, 0.03, tilt), 0.3, NOSE_HALF);
+const nose_wing = (...flaps: Slab[]): Wing => ({ paint: [], trim: [], lips: [NOSE_ENDPLATE], stands: [NOSE_PLANE, ...flaps] });
 
 export const FORMULA_DESIGN: Design = {
   outline: FORMULA_OUTLINE,
@@ -68,10 +70,9 @@ export const FORMULA_DESIGN: Design = {
   heads: [{ size: [0.05, 0.035, 0.14], at: [0.21, 0.38, 1.75], tilt: [0.18, 0, 0] }],
   tails: [{ size: [0.07, 0.08, 0.03], at: [0.035, 0.22, -2.135] }],
   mirror: FORMULA_MIRROR,
-  paint: [on_nose({ size: [0.03, 0.2, 0.38], at: [0.915, NOSE_PLANE_Y + 0.05, 2.19] })],
+  paint: [],
   trim: [
     ...FORMULA_FLOOR,
-    on_nose({ size: [0.9, 0.035, 0.34], at: [0.45, NOSE_PLANE_Y, NOSE_PLANE_Z] }),
     { size: [0.03, 0.52, 0.16], at: [0.015, 0.64, -1.84] },
     { size: [0.36, 0.18, 0.03], at: [0.44, 0.36, -0.118], tilt: [-0.15, 0, 0] },
     { size: [0.08, 0.12, 0.24], at: [0.04, 0.22, -2.0] },
@@ -91,9 +92,9 @@ export const FORMULA_DESIGN: Design = {
     race_wing(race_plane(0.36, 0.18), race_flap(0.18, 0.6)),
   ],
   fronts: [
-    { paint: [], trim: [nose_flap(0.14, 0.06, 0.2)] },
-    { paint: [], trim: [nose_flap(0.17, 0.065, 0.3)] },
-    { paint: [], trim: [nose_flap(0.17, 0.065, 0.3), nose_flap(0.12, 0.125, 0.45)] },
+    nose_wing(nose_flap(0.14, 0.06, 0.2)),
+    nose_wing(nose_flap(0.17, 0.065, 0.3)),
+    nose_wing(nose_flap(0.17, 0.065, 0.3), nose_flap(0.12, 0.125, 0.45)),
   ],
   slabs: [
     { points: SIDEPOD, from: 0.2, to: 0.66 },
