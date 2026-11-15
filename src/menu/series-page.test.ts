@@ -89,6 +89,7 @@ test("a car the series won't take says why on the front card and offers the gara
   const car = car_note(season, tuned, [BASE_CAR]);
   const props = { season, progress, states: event_states(season, progress), table: standings(season, progress), done: false, wallet: fresh_wallet(), onstart: () => {}, onback: () => {}, onreset: () => {}, ...switcher, car, ongarage: () => {} };
   const out = render(SeriesFlow, { props }).body;
+  expect(out).toContain("Your Hatch is class B.");
   expect(out).toContain("This series takes C or below.");
   expect(out).toContain("Change car");
   expect(out).not.toContain("Race</button>");

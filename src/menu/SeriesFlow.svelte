@@ -128,7 +128,10 @@
 
   .fl-strip {
     --w: min(78cqh, 34cqw);
-    --step: calc(var(--w) * 0.52);
+    /* One step holds half the front card and half a turned one (0.75 of it, at most 0.86 with perspective) plus a gap.
+       Both poses blend linearly over one step, so through a swipe the two half widths sum to the same: no card ever
+       reaches over its neighbour. */
+    --step: calc(var(--w) * 0.86 + var(--space-4));
     display: flex;
     align-items: center;
     height: 100%;
@@ -168,10 +171,11 @@
     max-height: 98cqh;
     animation: flow linear both;
     animation-timeline: --card;
+    animation-range: cover calc(50% - var(--step)) cover calc(50% + var(--step));
   }
 
   /* Transform and opacity only, so the flow runs on the compositor while the scene renders behind: an animated
-     z-index or filter puts every card back on the main thread each scroll frame. Stacking follows focus instead. */
+     z-index or filter puts every card back on the main thread each scroll frame. */
   .fl-card::after {
     content: "";
     position: absolute;
@@ -181,16 +185,13 @@
     pointer-events: none;
     animation: shade linear both;
     animation-timeline: --card;
+    animation-range: cover calc(50% - var(--step)) cover calc(50% + var(--step));
   }
 
   @keyframes shade {
     0%,
     100% {
-      opacity: 0.45;
-    }
-    40%,
-    60% {
-      opacity: 0.3;
+      opacity: 0.4;
     }
     50% {
       opacity: 0;
@@ -199,19 +200,13 @@
 
   @keyframes flow {
     0% {
-      transform: perspective(160cqh) translateX(-30%) rotateY(-42deg) scale(0.72);
-    }
-    40% {
-      transform: perspective(160cqh) translateX(-8%) rotateY(-30deg) scale(0.8);
+      transform: perspective(160cqh) rotateY(-35deg) scale(0.75);
     }
     50% {
       transform: none;
     }
-    60% {
-      transform: perspective(160cqh) translateX(8%) rotateY(30deg) scale(0.8);
-    }
     100% {
-      transform: perspective(160cqh) translateX(30%) rotateY(42deg) scale(0.72);
+      transform: perspective(160cqh) rotateY(35deg) scale(0.75);
     }
   }
 

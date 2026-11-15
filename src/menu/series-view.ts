@@ -28,7 +28,7 @@ export interface SeriesView {
   /** Why the season shown is shut, or null once it is open. */
   lock: string | null;
   /** Why the car in the garage can't race this season, or null when it can. */
-  car: string | null;
+  car: CarNote | null;
   ongarage: () => void;
 }
 
@@ -83,11 +83,17 @@ export const step_focus = (focus: number, dir: 1 | -1, count: number) => Math.mi
 
 /** Why the car in the garage can't race this season, in the card's words; null when it can. `car_fault` decides, so the
  * card never offers a race the start would refuse; a fault without card words of its own reads as `car_fault` says. */
-export function car_note(season: Season, build: Build, owned: readonly CarId[]): string | null {
+export interface CarNote {
+  why: string;
+  /** The season's rule it breaks; a short card drops it. */
+  rule: string;
+}
+
+export function car_note(season: Season, build: Build, owned: readonly CarId[]): CarNote | null {
   const fault = car_fault(season, build, owned);
   if (!fault) return null;
   const name = CARS[build.car].name;
-  if (!owned.includes(build.car)) return `The ${name} isn't yours yet. This series races your own cars only.`;
+  if (!owned.includes(build.car)) return { why: `The ${name} isn't yours yet.`, rule: "This series races your own cars only." };
   const rated = rating(build).class;
-  return within(rated, season.cap) ? fault : `Your ${name} is class ${CLASS_LABELS[rated]}. This series takes ${CLASS_LABELS[season.cap]} or below.`;
+  return within(rated, season.cap) ? { why: fault, rule: "" } : { why: `Your ${name} is class ${CLASS_LABELS[rated]}.`, rule: `This series takes ${CLASS_LABELS[season.cap]} or below.` };
 }

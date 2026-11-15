@@ -1,6 +1,6 @@
 <script lang="ts">
   import { KIND_NAMES, KIND_RULES, type EventState, type SeriesEvent } from "../career/series";
-  import { event_art, lock_line, place_text, type EventScore } from "./series-view";
+  import { event_art, lock_line, place_text, type CarNote, type EventScore } from "./series-view";
   import Icon from "./ui/Icon.svelte";
 
   interface Props {
@@ -14,7 +14,7 @@
     /** Shown on a locked card in place of what opens the event: a shut season's reason. */
     lock?: string | null;
     /** Why the player's car can't race it: the card offers the garage in place of Race. */
-    car?: string | null;
+    car?: CarNote | null;
     ongarage?: () => void;
     onstart: (id: string) => void;
     onpick?: () => void;
@@ -38,7 +38,7 @@
     {#if state === "locked"}
       <span class="sc-lock"><Icon name="icon-lock" />{lock ?? lock_line(event)}</span>
     {:else if front && car}
-      <p class="sc-car"><Icon name="icon-car" />{car}</p>
+      <p class="sc-car"><Icon name="icon-car" /><span>{car.why} <span class="sc-rule">{car.rule}</span></span></p>
       <div class="sc-act">
         <button type="button" class="sc-go" tabindex="-1" onclick={() => ongarage?.()}><Icon name="icon-car" />Change car</button>
       </div>
@@ -244,7 +244,8 @@
   }
 
   @container (max-height: 14rem) {
-    p:not(.sc-car) {
+    p:not(.sc-car),
+    .sc-rule {
       display: none;
     }
   }
