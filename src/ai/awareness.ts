@@ -1,4 +1,5 @@
 import type { Car } from "../car/car";
+import { ROAD_HALF } from "../worldgen/types";
 import { pass_room, type Driver } from "./driver";
 
 /** Metres ahead a car is looked at, plus this many per m/s of the looker's speed. */
@@ -9,7 +10,7 @@ const NEAR_POINTS = 20;
 /** Lateral metres between centres under which a car ahead is in the way, and under which a car in trouble is. */
 const IN_LANE = 2.6;
 const HAZARD_LANE = 6;
-/** Slip angle (rad) past which a car is in trouble, and the share of its speed under which it is moving across the road. */
+/** Slip angle (rad) past which a car is in trouble (as is one off the road), and the share of its speed under which it is moving across the road. */
 const TROUBLE_SLIDE = 0.5;
 const TROUBLE_ALONG = 0.5;
 const TROUBLE_SPEED = 3;
@@ -55,6 +56,8 @@ const CALM_BEND = 0.02;
 const BOLD_BEND = 0.02;
 /** Aggression over which a driver starts a pass into a bend, and metres past the car ahead its pass lane must be clear. */
 const DIVE = 0.85;
+/** Aggression over which a driver goes around the outside of a car ahead covering the inside, rather than sitting out its braking zone. */
+const OUTSIDE = 0.6;
 const PASS_WINDOW = 15;
 /** Pace share a fully aggressive driver adds while passing: off the line it needs more than its own pace to get by. */
 const PUSH = 0.1;
@@ -131,7 +134,8 @@ export class Awareness {
       this.speed[i] = v;
       this.along[i] = vel.x * p.tx + vel.z * p.tz;
       const slide = Math.abs(Math.atan2(Math.sin(Math.atan2(vel.x, vel.z) - heading), Math.cos(Math.atan2(vel.x, vel.z) - heading)));
-      this.trouble[i] = drivers[i].reversing > 0 || (v > TROUBLE_SPEED && (slide > TROUBLE_SLIDE || this.along[i] < TROUBLE_ALONG * v)) ? 1 : 0;
+      const off = Math.abs(this.lateral[i]) > ROAD_HALF;
+      this.trouble[i] = drivers[i].reversing > 0 || off || (v > TROUBLE_SPEED && (slide > TROUBLE_SLIDE || this.along[i] < TROUBLE_ALONG * v)) ? 1 : 0;
     }
     for (let i = 0; i < cars.length; i++) {
       this.decide(i);
@@ -171,6 +175,8 @@ export class Awareness {
     let blocker_gap = Infinity;
     let beside = -1;
     let attacker = -1;
+    let cover = -1;
+    let cover_gap = Infinity;
     for (let j = 0; j < this.cars.length; j++) {
       if (j === i) continue;
       const gap = this.gap(i, j);
@@ -181,6 +187,10 @@ export class Awareness {
       if (gap > 0 && gap < LOOK + LOOK_PER * v && Math.abs(dl) < width && gap < blocker_gap) {
         blocker = j;
         blocker_gap = gap;
+      }
+      if (gap > 0 && gap < LOOK + LOOK_PER * v && this.defend_until[j] >= 0 && gap < cover_gap) {
+        cover = j;
+        cover_gap = gap;
       }
       if (gap < -DEFEND_CLEAR && -gap < DEFEND_BEHIND && this.speed[j] > v) attacker = j;
     }
@@ -228,7 +238,7 @@ export class Awareness {
       const away = Math.abs(other) > IN_LANE / 2 ? -Math.sign(other) : this.inside(driver);
       const reach = blocker_gap + PASS_WINDOW;
       const pick = this.side_open(i, blocker, away, lane, room, reach) ? away : this.side_open(i, blocker, -away, lane, room, reach) ? -away : 0;
-      const faster = driver.personality.pace > this.drivers[blocker].personality.pace + PASS_PACE || v > this.speed[blocker] + PASS_SPEED;
+      const faster = this.faster(i, blocker);
       const wide = CALM_BEND + BOLD_BEND * aggression;
       let bend = false;
       for (let k = 0; k < PASS_CALM && !bend; k += 4) bend = line.speed[(driver.index + k) % n] < CALM_SHARE * line.speed[driver.index] || Math.abs(line.bend[(driver.index + k) % n]) > wide;
@@ -240,6 +250,17 @@ export class Awareness {
         this.passing[i] = blocker;
         this.pass_side[i] = pick;
         driver.hold = this.rel[blocker] + pick * this.flank(blocker);
+        driver.push = 1 + PUSH * aggression;
+        return;
+      }
+    }
+    // A car covering the inside has left the outside open: a bold driver takes it into the braking zone.
+    if (blocker < 0 && cover >= 0 && aggression > OUTSIDE && driver.wary <= 0 && !kicker && !this.trouble[cover] && this.faster(i, cover)) {
+      const outside = -Math.sign(this.lateral[cover]) || 1;
+      if (this.side_open(i, cover, outside, lane, room, cover_gap + PASS_WINDOW)) {
+        this.passing[i] = cover;
+        this.pass_side[i] = outside;
+        driver.hold = this.rel[cover] + outside * SIDE_GAP;
         driver.push = 1 + PUSH * aggression;
         return;
       }
@@ -276,22 +297,31 @@ export class Awareness {
     const driver = this.drivers[i];
     driver.nudge = 0;
     let near = -1;
-    let near_dl = IN_LANE;
+    let near_dl = 0;
+    let near_in = 0;
     for (let j = 0; j < this.cars.length; j++) {
       if (j === i) continue;
       const dl = this.lateral[j] - this.lateral[i];
-      if (Math.abs(dl) < Math.abs(near_dl) && Math.abs(this.gap(i, j)) < ALONGSIDE) {
+      // A car in trouble alongside can come across at any moment: it is kept TROUBLE_FLANK off, not IN_LANE.
+      const inside = (this.trouble[j] ? TROUBLE_FLANK : IN_LANE) - Math.abs(dl);
+      if (inside > near_in && Math.abs(this.gap(i, j)) < ALONGSIDE) {
         near = j;
         near_dl = dl;
+        near_in = inside;
       }
     }
     if (near < 0) return;
     const away = -Math.sign(near_dl) || 1;
-    driver.nudge = away * Math.min(NUDGE_MAX, IN_LANE + NUDGE_MARGIN - Math.abs(near_dl));
+    driver.nudge = away * Math.min(NUDGE_MAX, near_in + NUDGE_MARGIN);
     const gap = this.gap(i, near);
     if (gap <= 0) return;
     const yield_to = this.kicker_ahead(driver) ? Math.max(this.follow(near, gap, FOLLOW), driver.line.speed[driver.index] - KICKER_YIELD) : this.speed[near] - YIELD;
     driver.cap = Math.min(driver.cap, Math.max(0, yield_to));
+  }
+
+  /** Whether driver i has the pace, or the speed now, to get by car j. */
+  private faster(i: number, j: number): boolean {
+    return this.drivers[i].personality.pace > this.drivers[j].personality.pace + PASS_PACE || this.speed[i] > this.speed[j] + PASS_SPEED;
   }
 
   /** Side gap (m) a pass rides off car j's line. */
