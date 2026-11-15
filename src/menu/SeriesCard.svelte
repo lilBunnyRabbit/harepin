@@ -32,13 +32,13 @@
     {:else if front}
       <div class="sc-act">
         {#if score}<span class="sc-pts">{score.points} pts</span>{/if}
-        <button type="button" class="sc-go" onclick={() => onstart(event.id)}><Icon name="icon-play" />{score ? "Again" : "Race"}</button>
+        <button type="button" class="sc-go" tabindex="-1" onclick={() => onstart(event.id)}><Icon name="icon-play" />{score ? "Again" : "Race"}</button>
       </div>
     {:else if score}
       <span class="sc-pts">{score.points} pts</span>
     {/if}
   </div>
-  {#if !front && onpick}<button type="button" class="sc-pick" aria-label={`Show ${event.name}`} onclick={onpick}></button>{/if}
+  {#if !front && onpick}<button type="button" class="sc-pick" tabindex="-1" aria-label={`Show ${event.name}`} onclick={onpick}></button>{/if}
 </article>
 
 <style>
@@ -77,7 +77,9 @@
   .sc-shade {
     position: absolute;
     inset: 0;
-    background: linear-gradient(to top, var(--background-darkest) 0%, color-mix(in oklch, var(--background-darkest) 55%, transparent) 40%, transparent 65%);
+    background:
+      linear-gradient(to bottom, color-mix(in oklch, var(--background-darkest) 70%, transparent) 0%, transparent 28%),
+      linear-gradient(to top, var(--background-darkest) 0%, color-mix(in oklch, var(--background-darkest) 55%, transparent) 40%, transparent 65%);
   }
 
   header,

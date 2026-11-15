@@ -3,7 +3,7 @@ import type { Action } from "svelte/action";
 const SWIPE_START = 12;
 const SWIPE_STEP = 40;
 
-// A press that never travels stays a tap, so buttons inside keep their clicks.
+// Mouse drag only: touch pans the strip natively. A press that never travels stays a tap, so buttons inside keep their clicks.
 export const swipe: Action<HTMLElement, (dir: 1 | -1) => void> = (node, step) => {
   let start_x = 0;
   let start_y = 0;
@@ -12,7 +12,7 @@ export const swipe: Action<HTMLElement, (dir: 1 | -1) => void> = (node, step) =>
   let last_x = 0;
 
   const down = (e: PointerEvent) => {
-    if (e.button !== 0) return;
+    if (e.pointerType !== "mouse" || e.button !== 0) return;
     id = e.pointerId;
     start_x = last_x = e.clientX;
     start_y = e.clientY;

@@ -3,6 +3,7 @@ import { expect, test } from "bun:test";
 import { render } from "svelte/server";
 import { SEASON_1, empty_progress, event_states, player_of, standings, type SeriesProgress } from "../career/series";
 import SeriesEvents from "./SeriesEvents.svelte";
+import SeriesFlow from "./SeriesFlow.svelte";
 import SeriesTable from "./SeriesTable.svelte";
 
 const season = SEASON_1;
@@ -26,4 +27,13 @@ test("only the endurance event lists fastest lap as a bonus", () => {
   const progress = empty_progress(season);
   const out = render(SeriesEvents, { props: { season, progress, states: event_states(season, progress), onstart: () => {} } }).body;
   expect(out.match(/fastest lap/g)?.length).toBe(1);
+});
+
+test("the series rail ends on a standings card and only the front card races", () => {
+  const states = event_states(season, won);
+  const props = { season, progress: won, states, table: standings(season, won), done: false, onstart: () => {}, onback: () => {}, onreset: () => {} };
+  const out = render(SeriesFlow, { props }).body;
+  expect(out.match(/class="sc-go/g)?.length).toBe(1);
+  expect(out).toContain("Standings");
+  expect(out).toContain("data-adjust");
 });

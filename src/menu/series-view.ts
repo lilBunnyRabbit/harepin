@@ -34,8 +34,6 @@ export const lock_line = (event: SeriesEvent) => (event.final ? "Podium every ev
 
 export const place_text = (score: EventScore) => ordinal(score.place);
 
-export const driver_code = (row: Standing) => (row.you ? "YOU" : (row.name.split(" ").at(-1) ?? row.name).slice(0, 3).toUpperCase());
-
 /** Points between the player and the rival: positive when the player leads. */
 export function rival_gap(season: Season, table: readonly Standing[]): { rival: Standing; you: Standing; gap: number } | null {
   const rival = table.find((row) => row.driver === season.rival);
