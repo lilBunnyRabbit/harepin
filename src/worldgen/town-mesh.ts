@@ -4,7 +4,7 @@ import { turned, type Builder, type Frame, type Rgb, type V3 } from "./mesh";
 import { hash } from "./noise";
 import { OUT, back_glazing, bays, framed, glazing, pane, post } from "./town-parts";
 import { FLOOR, PLINTH_OUT, PLINTH_TOP, SHOP_FLOOR } from "./town-style";
-import type { Building, Detail } from "./types";
+import { Roof, type Building, type Detail } from "./types";
 
 export interface TownTones {
   pave: Rgb;
@@ -164,6 +164,68 @@ function tower(out: Builder, glass: Builder, b: Building, _detail: Detail, tones
   out.at(b);
   glass.at(b);
   pane(out, -0.7, 0.7, PLINTH_TOP, PLINTH_TOP + 2.3, hd + OUT, t.door);
+}
+
+const PLAIN_PITCH = 2.8;
+const SHOP_PANE = 2.6;
+const DOOR_CLEAR = 1.3;
+const MULLION = 0.2;
+const SIDE_PITCH = 3.4;
+const CORNICE = { out: 0.18, below: 0.35, over: 0.12 };
+const CROSS_WING = 0.55;
+const CROSS_RISE = 0.8;
+
+function roof(out: Builder, b: Building, wall: Rgb, cover: Rgb, tones: MeshTones) {
+  const { hw, hd, height: h } = b;
+  const rise = roof_rise(b);
+  if (b.roof === Roof.GABLE || b.roof === Roof.STEEP) {
+    out.gable(hw, hd, h, rise, cover, wall);
+    post(out, hw * 0.5 - STACK.half, hw * 0.5 + STACK.half, h + rise * 0.3, h + rise + STACK.over, -STACK.half, STACK.half, tones.town.stone);
+  } else if (b.roof === Roof.CROSS) {
+    out.at(turned(b)).gable(hd, hw, h, rise, cover, wall);
+    out.at(b).gable(hw, Math.min(hw, hd) * CROSS_WING, h, rise * CROSS_RISE, cover, wall);
+  } else if (b.roof === Roof.HIP) {
+    if (hw >= hd) out.hip(hw, hd, h, rise, cover);
+    else out.at(turned(b)).hip(hd, hw, h, rise, cover);
+  } else {
+    const { out: o, below, over } = CORNICE;
+    out.walls(hw + o, hd + o, h - below, h + over, tones.town.trim);
+    out.top(hw + o, hd + o, h + over, tones.roof_flat);
+  }
+  out.at(b);
+}
+
+export function plain_building(out: Builder, glass: Builder, b: Building, shop: boolean, tones: MeshTones, seed: number) {
+  const { hw, hd, height: h } = b;
+  const t = tones.town;
+  const wall = tones.walls[b.style % tones.walls.length];
+  const storey = shop ? SHOP_FLOOR : FLOOR;
+  const floors = Math.max(1, Math.round(h / storey));
+  out.walls(hw, hd, -1, h, wall);
+  if (shop) {
+    pane(out, -hw, hw, FASCIA.y0, FASCIA.y1, hd + OUT, t.trim);
+    const panes = Math.max(1, Math.round((2 * hw - 1.2) / SHOP_PANE));
+    const step = (2 * hw - 1.2) / panes;
+    for (let p = 0; p < panes; p++) glazing(glass, -hw + 0.6 + p * step + MULLION / 2, -hw + 0.6 + (p + 1) * step - MULLION / 2, SHOP_GLASS.y0, SHOP_GLASS.y1, hd + OUT * 2);
+  } else {
+    pane(out, -0.55, 0.55, 0, 2.1, hd + OUT, t.door);
+    for (const x of bays(hw, PLAIN_PITCH)) if (Math.abs(x) > DOOR_CLEAR) framed(out, glass, x, WINDOW_WIDE, SILL, SILL + WINDOW_TALL, hd, t.trim);
+  }
+  for (let s = 0; s < floors; s++) {
+    const y0 = s * storey + SILL;
+    const y1 = y0 + WINDOW_TALL;
+    if (s > 0) for (const x of bays(hw, PLAIN_PITCH)) framed(out, glass, x, WINDOW_WIDE, y0, y1, hd, t.trim);
+    for (const x of bays(hw, SIDE_PITCH)) back_glazing(glass, x - WINDOW_WIDE / 2, x + WINDOW_WIDE / 2, y0, y1, -hd - OUT);
+  }
+  let frame: Frame = b;
+  for (let side = 0; side < 2; side++) {
+    frame = turned(frame);
+    glass.at(frame);
+    for (let s = 0; s < floors; s++) for (const x of bays(hd, SIDE_PITCH)) glazing(glass, x - WINDOW_WIDE / 2, x + WINDOW_WIDE / 2, s * storey + SILL, s * storey + SILL + WINDOW_TALL, hw + OUT);
+    frame = turned(frame);
+  }
+  glass.at(b);
+  roof(out, b, wall, tones.roofs[Math.floor(hash(b.lot, 0, seed + 81) * tones.roofs.length)], tones);
 }
 
 const FORMS: Record<Detail["form"], (out: Builder, glass: Builder, b: Building, detail: Detail, tones: MeshTones, pick: Pick) => void> = { terrace, house, clock: tower };

@@ -5,16 +5,15 @@ import { KINDS } from "./kinds/kinds";
 import { landmark_mesh, type LandmarkTones } from "./landmark-mesh";
 import { roof_rise } from "./lots";
 import { dress_lot } from "./town-ground";
-import { dress_building, type TownTones } from "./town-mesh";
-import { Builder, bounding_sphere, turned, type Rgb, type Sphere } from "./mesh";
+import { dress_building, plain_building, type TownTones } from "./town-mesh";
+import { Builder, bounding_sphere, type Rgb, type Sphere } from "./mesh";
 import { road_layers, type RoadTones } from "./road-layers";
 import { grid_ground, Roads, type Layer } from "./roads";
 import { deck_layers, type DeckTones } from "./sky-mesh";
 import type { LavaPool } from "./lava";
-import { hash } from "./noise";
 import { LIFT } from "./lifts";
 import { ISLAND } from "./recipe";
-import { CELL, Ground, N, ORIGIN, PropKind, Roof, SURFACE_GROUND, type Building, type Lot, type ParkingLot, type Prop, type WorldData } from "./types";
+import { CELL, Ground, N, ORIGIN, PropKind, SURFACE_GROUND, type Building, type Lot, type ParkingLot, type Prop, type WorldData } from "./types";
 
 const CHUNK_CELLS = CHUNK / CELL;
 export const JITTER_LEVELS = 64;
@@ -53,16 +52,6 @@ const EMBER_FADE = 6;
 const SKIRT = 6;
 export const SMALL_BUILDING = 6;
 
-const SHOPFRONT_LOW = 0.5;
-const SHOPFRONT_HIGH = 2.8;
-const SHOPFRONT_INSET = 0.8;
-const FACADE_OUT = 0.03;
-const PANE = 2.4;
-const MULLION = 0.2;
-const STOREY = 3.2;
-const WINDOW_LOW = 1;
-const WINDOW_HIGH = 2.1;
-const WINDOW_INSET = 0.6;
 const PAD_LIFT = LIFT.pad;
 const LINE_LIFT = LIFT.pad_line;
 const LINE_HALF = 0.06;
@@ -232,40 +221,6 @@ interface Town {
   parking: Builder;
 }
 
-function shopfront(out: Builder, hw: number, hd: number) {
-  const w = hw - SHOPFRONT_INSET;
-  const z = hd + FACADE_OUT;
-  const panes = Math.max(1, Math.round((2 * w + MULLION) / (PANE + MULLION)));
-  const pane = (2 * w - (panes - 1) * MULLION) / panes;
-  const none: Rgb = [0, 0, 0];
-  for (let p = 0; p < panes; p++) {
-    const x0 = -w + p * (pane + MULLION);
-    const x1 = x0 + pane;
-    out.quad([x0, SHOPFRONT_LOW, z], [x1, SHOPFRONT_LOW, z], [x1, SHOPFRONT_HIGH, z], [x0, SHOPFRONT_HIGH, z], none);
-  }
-}
-
-/** One glass band per storey on every face, from `first` up; a tall block read as a blank slab without them. */
-function window_bands(out: Builder, hw: number, hd: number, height: number, first: number) {
-  const none: Rgb = [0, 0, 0];
-  const w = hw - WINDOW_INSET;
-  const d = hd - WINDOW_INSET;
-  const x = hw + FACADE_OUT;
-  const z = hd + FACADE_OUT;
-  for (let s = first; (s + 1) * STOREY <= height + WINDOW_LOW; s++) {
-    const y0 = s * STOREY + WINDOW_LOW;
-    const y1 = s * STOREY + WINDOW_HIGH;
-    if (w > 0) {
-      out.quad([-w, y0, z], [w, y0, z], [w, y1, z], [-w, y1, z], none);
-      out.quad([w, y0, -z], [-w, y0, -z], [-w, y1, -z], [w, y1, -z], none);
-    }
-    if (d > 0) {
-      out.quad([x, y0, d], [x, y0, -d], [x, y1, -d], [x, y1, d], none);
-      out.quad([-x, y0, -d], [-x, y0, d], [-x, y1, d], [-x, y1, -d], none);
-    }
-  }
-}
-
 export interface TownParts {
   lots: readonly Lot[];
   buildings: readonly Building[];
@@ -289,27 +244,12 @@ export function town_builders(data: WorldData, parts: TownParts, tones: MeshTone
   };
   const seed = data.terrain.seed;
   for (const b of parts.buildings) {
-    const wall = tones.walls[b.style % tones.walls.length];
-    const roof = tones.roofs[Math.floor(hash(b.lot, 0, seed + 81) * tones.roofs.length)];
-    const rise = roof_rise(b);
     const town = of(b.x, b.z);
-    const big = b.height + rise >= SMALL_BUILDING;
+    const big = b.height + roof_rise(b) >= SMALL_BUILDING;
     const out = (big ? town.big : town.small).at(b);
-    if (b.detail) {
-      dress_building(out, big ? town.glass_big : town.glass_small, b, b.detail, tones, seed);
-      continue;
-    }
-    out.walls(b.hw, b.hd, -1, b.height, wall);
-    const shop = data.lots[b.lot].kind === "shop";
     const glass = (big ? town.glass_big : town.glass_small).at(b);
-    if (shop) shopfront(glass, b.hw, b.hd);
-    window_bands(glass, b.hw, b.hd, b.height, shop ? 1 : 0);
-    if (b.roof === Roof.GABLE || b.roof === Roof.STEEP) out.gable(b.hw, b.hd, b.height, rise, roof, wall);
-    else if (b.roof === Roof.CROSS) out.at(turned(b)).gable(b.hd, b.hw, b.height, rise, roof, wall);
-    else if (b.roof === Roof.HIP) {
-      if (b.hw >= b.hd) out.hip(b.hw, b.hd, b.height, rise, roof);
-      else out.at(turned(b)).hip(b.hd, b.hw, b.height, rise, roof);
-    } else out.top(b.hw, b.hd, b.height, tones.roof_flat);
+    if (b.detail) dress_building(out, glass, b, b.detail, tones, seed);
+    else plain_building(out, glass, b, data.lots[b.lot].kind === "shop", tones, seed);
   }
   for (const prop of parts.props) if (prop.kind !== PropKind.STREET_LIGHT) landmark_mesh(of(prop.x, prop.z).big, prop, data.terrain.heights, tones.landmark);
   for (const lot of parts.lots) if (lot.ground) dress_lot(of(lot.x, lot.z).parking, of(lot.x, lot.z).small, lot, tones, ground);
