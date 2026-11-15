@@ -382,3 +382,28 @@ Whichever lands, the J2 maths module should define two-argument `hypot(a, b)` as
 - With 7 cars it made the car step 1.3-1.9 µs cheaper in Rust. In AssemblyScript the change, -0.1 to +0.3 µs, is within noise.
 - The car's inputs never come near overflow.
 - It moves the physics by ulps, so it belongs in the J2/J10 rebaseline, not after it.
+
+## Phone frame: race clock and remote labels (t308)
+
+The fix for t307's top phone cost, measured on master. Base cd77979 against 66478eb, each a `git archive` copy built with `vite build --mode review`, served by `vite preview`, headless Chrome on the real GPU (ANGLE D3D11), 844x390 at DPR 2, touch (mobile tier), CPU throttled 4x, 8 s warm and then a 10 s sample. The `?airace` field is not on master, so the race is career event `?event=r1` (First lap, Island circuit, dev ghost on), the player parked on the grid with the clock running. Online adds a second tab in the same browser (`&room=…&quality=low`, same event) over BroadcastChannel, so one remote car and its label are in view. Two alternating runs per build; the box was shared with other agents' jobs. Scripts: `.t308p/probe.mts`, `trace.mts` (untracked, t307's with a car pick and a peer tab).
+
+| Case | Frame work p50 / p95 (ms) | Gap p50 / p95 (ms) | fps |
+|---|---|---|---|
+| Solo race, before | 32.9-33.1 / 44-53 | 35-42 / 49-63 | 23-30 |
+| Solo race, after | **5.8-8.3 / 21-24** | 13.9 / 42-49 | **53-57** |
+| Online + ghost, before | 15.9-25.4 / 57-67 | 21-28 / 63-76 | 30-37 |
+| Online + ghost, after | **4.6-10.1 / 21-29** | 7.0-20.8 / 42-56 | **44-64** |
+
+Chrome trace, 4 s at 4x, main thread, ms/s:
+
+| Case | RunTask | rAF callback | UpdateLayoutTree | Layout | Style + layout share |
+|---|---|---|---|---|---|
+| Solo, before | 1003 | 864 | 538 | 72 | 61% |
+| Solo, after | 975 | 497 | 23 | 187 | 21% |
+| Online, before | 984 | 842 | 454 | 78 | 54% |
+| Online, after | 988 | 510 | 22 | 170 | 19% |
+
+- **The `:has()` recalc is gone.** Before, every clock tick logged `Affected by :has()` on `body` and `html` plus a text node removed and inserted, about 72 a second. `write_status` now writes each part through `set_text` (`hud/hud.ts`), which sets the lone text node's data, so nothing is inserted and the `body:has(#mode-status:not([hidden]))` rules are not re-matched. The clock still changes every frame at its displayed precision (`0:17.346`), so it is still written every frame, as data only.
+- **The viewport read is gone.** `Remotes.update` takes the canvas size from `Render`'s `ResizeObserver` (`view_width` / `view_height`) instead of reading `innerWidth` / `innerHeight` after the frame's DOM writes. Before, the rAF callback and style recalc add up to more than the whole main thread, so most of the recalc ran inside the callback, forced. The remote label lands on the same pixel before and after (`translate(422px, 157.267px)`).
+- **What is left is layout, about 3.5 ms a frame at 4x.** The clock's text changes width every tick, and `#mode-hint` and `#toast` are anchor-positioned off the status box (`phone.css`), so each tick re-lays them out. A clock box of fixed width (`tabular-nums` and a `ch` width, or `contain: inline-size`) would keep that to the clock itself. Not done here.
+- Behind the menu, `frame()` still runs its non-draw work at display rate on frames it does not draw (t307). Not done: chase, smoke and audio integrate the frame's `dt`, so skipping them needs the skipped time carried to the next drawn frame, which is more than a guard.
