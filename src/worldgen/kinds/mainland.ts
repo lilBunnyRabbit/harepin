@@ -2,6 +2,10 @@ import { generate_mainland, MAINLAND_SIZE } from "../mainland";
 import { MAINLAND } from "../recipe";
 import { WorldKind } from "../types";
 import { kind_def, LAND_GRIP } from "./kind-def";
+import { MAINLAND_KNOBS } from "./land-knobs";
+import { tune } from "./options";
+
+const tuned = (levels: readonly number[]) => tune(MAINLAND, MAINLAND_KNOBS, levels);
 
 /** Base 3000, its own thousand after the desert's. */
 export const mainland = kind_def({
@@ -10,9 +14,10 @@ export const mainland = kind_def({
   tag: "m",
   version: 11,
   size: MAINLAND_SIZE,
-  generate: generate_mainland,
-  options: [],
+  generate: (seed, levels) => generate_mainland(seed, tuned(levels)),
+  options: MAINLAND_KNOBS,
   recipe: MAINLAND,
+  tuned,
   open_ground: true,
   rails: false,
   ground: true,

@@ -11,7 +11,7 @@
 0 props e4d978a4fa68bcf6
 0 parking be96d27805f60144
 0 trees 51d490ca1ddbe685
-0 solids 28b4ada385916d83
+0 solids 0d39a474970deaeb
 0 ramps be1ae52061d9f732
 0 items fa6dae498868ab10
 0 challenges d0f1f5e0317866c4
@@ -21,7 +21,7 @@
 0 canyon ca2689192ce2e663
 0 route:circuit 5b7f33c5694027c5
 0 mesh_road 1c3ae33b374cb7fe
-0 mesh_rest a66f88c074e44c3b
+0 mesh_rest 80efb70df0aadc49
 0 map_pixels 0bc8d444fe42d4b5
 0 map ccffd354c52fb31e
 1 heights 6d1f132323c9a842
@@ -37,7 +37,7 @@
 1 props ff352ea7217ffe0b
 1 parking a12e60b7f7bb5fdd
 1 trees 81bf8fbb3395e7ca
-1 solids 36475e38f223a98c
+1 solids 2627e895a822e22f
 1 ramps c50a86419290c71f
 1 items e11a49e231a4314e
 1 challenges 6f0eb0b8c7eaf6e2
@@ -49,7 +49,7 @@
 1 route:street-1 cb51679b9150f64a
 1 route:street-2 394c89032484c5bd
 1 mesh_road f9e9875b1c2fad85
-1 mesh_rest 21de068f86aae537
+1 mesh_rest 8e61eb2dc3c01724
 1 map_pixels f7c13de9a9b955b7
 1 map e7562e1500479b2c
 2 heights 55b426831c92ce0d
@@ -65,7 +65,7 @@
 2 props 49f42fd6a50a181d
 2 parking f6bc4657cd87d46e
 2 trees 554a62e4ef405c3b
-2 solids 45ee3589958fc5fc
+2 solids f8b647965de64ce3
 2 ramps ea67935fe35f71ae
 2 items 141bc9771d0f5923
 2 challenges 0bb9f180f018149f
@@ -75,7 +75,7 @@
 2 canyon ca2689192ce2e663
 2 route:circuit 4612bcc67bc43210
 2 mesh_road 99558c3c68ab2ee6
-2 mesh_rest 7b311b83eeff1e97
+2 mesh_rest 760a410c3e3ded2a
 2 map_pixels 33e96a6f9e05a382
 2 map 4882ba8b17d8d2a1
 3 heights b8ef535273fd2e69
@@ -101,7 +101,7 @@
 3 canyon ca2689192ce2e663
 3 route:circuit 19f4f00ecb9ff294
 3 mesh_road 6b740735da7b1994
-3 mesh_rest 6b8b4dfc86f9f9c0
+3 mesh_rest 39ebe3f11f775226
 3 map_pixels 40c783ca8f245ba7
 3 map ea5c1675c2c4a6a6
 4 heights 6f53f9443b443666
@@ -116,8 +116,8 @@
 4 buildings d78da003c799c691
 4 props 4189ce896a122a3f
 4 parking dc609f64af930e8e
-4 trees b7ae2ae8f16b62e3
-4 solids 41e5a67fc421cf73
+4 trees 77d09256826872c4
+4 solids d951c1ea6bf45a7f
 4 ramps 5dde04aa70422d7f
 4 items f9c2b91444223ce3
 4 challenges 5c5578209f713205
@@ -129,7 +129,7 @@
 4 route:street-1 f53b8d39bbd53292
 4 route:street-2 2ae28f2a4c236930
 4 mesh_road f813e8c0ec617882
-4 mesh_rest 6c7adeb4cb7d7a5e
+4 mesh_rest c8c50c6619429eb4
 4 map_pixels 3d1ce19046dbe479
 4 map 318c9b2916e93ffe
 5 heights 2eecb0e18eb46c1b
@@ -144,8 +144,8 @@
 5 buildings 8601d6e975628a66
 5 props 824b31d745710ed5
 5 parking f79406e351348da1
-5 trees 5cddf31b0303df8d
-5 solids 7dfef94ad307c144
+5 trees 5319bb7b14910e5b
+5 solids 6b5d0d4c44749e7b
 5 ramps 109a9febbeec76ea
 5 items f30c5d83cfa4d2d9
 5 challenges 66df3ee5f8e05029
@@ -155,7 +155,7 @@
 5 canyon ca2689192ce2e663
 5 route:circuit 8a856214a456de0c
 5 mesh_road 25b53171e04b69bf
-5 mesh_rest 102fa3e61c2a64af
+5 mesh_rest 7fd8169fdc37ff45
 5 map_pixels d27f842bb5381c31
 5 map 0f38e52d592fdba6
 6 heights bcbcfc8b058fce43
@@ -171,7 +171,7 @@
 6 props 7a23a5f989733578
 6 parking 96fab79324dc50cf
 6 trees 3422adc546f7cb14
-6 solids 926adbb863fe244a
+6 solids 89fd715269f9c985
 6 ramps 938df9b887526d24
 6 items f6a305b983a908dd
 6 challenges aa34e46384f46d59
@@ -183,7 +183,7 @@
 6 route:street-1 cbe1396283fee88a
 6 route:street-2 9421ac0af1de2c3d
 6 mesh_road c849615881db1d37
-6 mesh_rest e6d92cc586136239
+6 mesh_rest 557afdf89f78a8f7
 6 map_pixels 85b7ab5039198795
 6 map be34042bcfb73fa5
 7 heights eaf19dc70a9b814a
@@ -199,7 +199,7 @@
 7 props 1f98066223ce314f
 7 parking f79406e351348da1
 7 trees 040418c8a3cd56d5
-7 solids 12277bc5b0cb42a6
+7 solids dfd2aacb97ed92bd
 7 ramps da71a4ab7e6ff714
 7 items aa5c24036c58d103
 7 challenges 16ba2bce6ea2e85a
@@ -210,7 +210,7 @@
 7 route:circuit b2298396bd772eb1
 7 route:street-1 8cebe732664bbecf
 7 mesh_road 2d2a012400649a4e
-7 mesh_rest 7f4bc37ac18bdf2b
+7 mesh_rest e6e4893993711468
 7 map_pixels 769518ed00db3d87
 7 map 8bd72a96dd7d693c
 8 heights a56d601a932177ea
@@ -226,7 +226,7 @@
 8 props 12668da42c35b82e
 8 parking addc28f4d41ee677
 8 trees c6b9cbd87d1f34a9
-8 solids eab6c2650134ff54
+8 solids bc704b8b986b9c6a
 8 ramps eb45dbfb3aac2ec4
 8 items 45c7b48113a9bbaf
 8 challenges 29be0844d467d3e2
@@ -239,7 +239,7 @@
 8 route:street-2 15e8212ce62ce2ae
 8 route:offroad-1 3ac22c03d87e210a
 8 mesh_road 8761c81471cc3140
-8 mesh_rest f4098f205829b244
+8 mesh_rest c4bae0c7549ea89c
 8 map_pixels bb2eabc19e3730a5
 8 map 29865538c1ec5c2e
 9 heights c07b5e3bb602600a
@@ -255,7 +255,7 @@
 9 props a68926ba1a439494
 9 parking f79406e351348da1
 9 trees 4f6ece29a9a64fc3
-9 solids 18f82af7a7bae903
+9 solids a503cb24568c4fb0
 9 ramps cdf1c9f8017bd28b
 9 items 302e5358b20c8199
 9 challenges d080ee5902a5bb8c
@@ -267,6 +267,6 @@
 9 route:street-1 0ea2379fe2f21099
 9 route:street-2 d62e75743aef5478
 9 mesh_road 199b24c87dc6e41c
-9 mesh_rest 0b82a66e8d28c704
+9 mesh_rest e5e6e478979848a2
 9 map_pixels 46fbb3e5ca483eae
 9 map 1fb7d094345d2a20

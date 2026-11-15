@@ -162,6 +162,9 @@ export const ALPINE_KNOBS: readonly Knob<Recipe>[] = [
   season,
 ];
 
+// The season is the one row a streamed map takes: the rest move its plan grid, which the tiles were never tuned for.
+export const MAINLAND_KNOBS: readonly Knob<Recipe>[] = [season];
+
 // No season row: the tundra is always under snow.
 export const TUNDRA_KNOBS: readonly Knob<Recipe>[] = [
   jumps([{ road: 1, total: 5, big: 1 }, TUNDRA.road.kickers, { road: 5, total: 16, big: 4 }]),

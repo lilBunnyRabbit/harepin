@@ -36,6 +36,8 @@
   const here = $derived(host.kind === MAINLAND);
   const map = new MapView();
   const seed = $derived(mainland_seed(host, live.prefs.last_mainland_seed));
+  // Keep driving keeps the Mainland's options (its season) as well as its seed.
+  const levels = $derived(here ? host.levels : []);
   const running = $derived(live.live(() => host.mode_running()));
   let custom_thumb = $state<string>();
 
@@ -51,7 +53,7 @@
 
   $effect(() => {
     if (!shown) return;
-    map.show(seed, MAINLAND, true);
+    map.show(seed, MAINLAND, true, levels);
     const players = () => {
       if (document.hidden) return;
       map.show_players(host.map_players());
@@ -106,7 +108,7 @@
         <Card variant="well">
           <SectionHead eyebrow="Free drive" title={WORLDS[MAINLAND].name}>
             {#snippet action()}
-              <Button onclick={() => menu.drive(seed, MAINLAND)}>{here ? "Keep driving" : "Drive Mainland"}</Button>
+              <Button onclick={() => menu.drive(seed, MAINLAND, levels)}>{here ? "Keep driving" : "Drive Mainland"}</Button>
             {/snippet}
           </SectionHead>
         </Card>

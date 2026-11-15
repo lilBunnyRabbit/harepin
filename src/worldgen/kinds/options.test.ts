@@ -27,7 +27,7 @@ test("every K2 digit code a kind has reads back to itself", () => {
 
 test("malformed option digits read as no levels", () => {
   for (const bad of ["9", "1111111111", "abc", "11111", "-11111", "1.1111"]) expect(parse_opts(KINDS.island.options, bad)).toBeNull();
-  expect(parse_opts(KINDS.mainland.options, "1")).toBeNull();
+  expect(parse_opts(KINDS.mainland.options.filter(in_k2), "1")).toBeNull();
 });
 
 test("the normal level leaves the recipe as it is", () => {
@@ -50,7 +50,7 @@ const read = (text: string, kind?: WorldKind) => {
 
 test("map code field letters and preset chars never move", () => {
   const fields = Object.fromEntries(Object.values(WorldKind).map((kind) => [kind, KINDS[kind].options.map((o) => o.field).join("")]));
-  expect(fields).toEqual({ island: "EQYJCXHTGPZW", sky: "EQAVF", desert: "JCXHDKZW", mainland: "", alpine: "YJCHTGZW", tundra: "JCHTZ", volcano: "", rooftops: "", dunes: "", icecanyon: "", velodrome: "", lab: "" });
+  expect(fields).toEqual({ island: "EQYJCXHTGPZW", sky: "EQAVF", desert: "JCXHDKZW", mainland: "W", alpine: "YJCHTGZW", tundra: "JCHTZ", volcano: "", rooftops: "", dunes: "", icecanyon: "", velodrome: "", lab: "" });
   expect(PRESETS.map((p) => `${p.char}${p.kind}`)).toEqual(["Cisland", "Ssky", "Ddesert", "Mmainland", "Aalpine", "Ttundra", "Vvolcano", "Rrooftops", "Bdunes", "Ficecanyon", "Wvelodrome", "Klab"]);
   for (const kind of Object.values(WorldKind)) {
     expect(new Set(fields[kind]).size).toBe(fields[kind].length);

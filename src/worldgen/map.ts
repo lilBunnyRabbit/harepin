@@ -146,12 +146,19 @@ function plan_pixels(data: WorldData, tones: MapTones): Uint8ClampedArray<ArrayB
   const op = data.ground.ops.find((o) => o.kind === "water");
   const water = op?.kind === "water" ? water_index(op.water) : null;
   const depths = water && new Float32Array(MAP_SIDE * MAP_SIDE);
+  // Under a freeze op lakes and rivers are ground at their surface, painted as ice; only the sea stays water.
+  const ice = water && data.ground.ops.some((o) => o.kind === "freeze") ? new Uint8Array(MAP_SIDE * MAP_SIDE) : null;
   if (water && depths)
     for (let k = 0; k < depths.length; k++) {
       const x = ext.origin + (k % MAP_SIDE) * step;
       const z = ext.origin + Math.floor(k / MAP_SIDE) * step;
       const ground = water.carve(x, z, heights[k]);
-      depths[k] = Math.max(-ground, water.level(x, z) - ground);
+      const level = water.level(x, z);
+      if (ice && level > ground) {
+        heights[k] = level;
+        ice[k] = SurfaceId.ICE;
+        depths[k] = -level;
+      } else depths[k] = Math.max(-ground, level - ground);
     }
   const last = MAP_SIDE - 1;
   const at = (i: number, j: number) => heights[Math.min(last, Math.max(0, j)) * MAP_SIDE + Math.min(last, Math.max(0, i))];
@@ -162,7 +169,7 @@ function plan_pixels(data: WorldData, tones: MapTones): Uint8ClampedArray<ArrayB
       const dx = at(i - 1, j) - at(i + 1, j);
       const dz = at(i, j - 1) - at(i, j + 1);
       const up = (2 * step) / Math.sqrt(dx * dx + 4 * step * step + dz * dz);
-      paint(colors, k, tones.terrain, cuts, (ext.origin + i * step - ORIGIN) / CELL, (ext.origin + j * step - ORIGIN) / CELL, heights[k], up, 0);
+      paint(colors, k, tones.terrain, cuts, (ext.origin + i * step - ORIGIN) / CELL, (ext.origin + j * step - ORIGIN) / CELL, heights[k], up, ice?.[k] ?? 0);
     }
   return shaded(heights, colors, tones, step, depths);
 }
