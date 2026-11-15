@@ -81,12 +81,14 @@ export function plan_sweep(stored: Iterable<[unknown, unknown]>, local: Iterable
     took_local.add(key);
     set(key, next);
   }
+  const local_keys = new Set(owned.map(({ key }) => key));
   for (const { key, text, family } of owned) {
     if (!("follows" in family)) continue;
     swept.push([key, text]);
     const lead = family.follows(key);
-    // A leader IndexedDB kept wins with its own follower, or none: the other save's belongs to a record that lost.
-    if ((took_local.has(lead) || (!values.has(lead) && !values.has(key))) && values.get(key) !== text) set(key, text);
+    // A leader IndexedDB kept keeps its own follower: the other save's belongs to a record that lost. A follower alone in
+    // localStorage is a write IndexedDB refused (old builds write both), so it wins.
+    if ((took_local.has(lead) || !local_keys.has(lead)) && values.get(key) !== text) set(key, text);
   }
   return { values, writes, swept };
 }

@@ -180,4 +180,7 @@ test("the faster best lap wins and its splits go with it", () => {
   expect(fresh.values.get(BEST)).toBe("61000");
   expect(fresh.values.get(SPLITS)).toBe("[21000,41000]");
   expect(plan_sweep(idb, [[BEST, "junk"]], FAMILIES).values.get(BEST)).toBe("60000");
+  const refused = plan_sweep(idb, [[SPLITS, "[19000,38000]"]], FAMILIES);
+  expect(refused.values.get(SPLITS)).toBe("[19000,38000]");
+  expect(refused.values.get(BEST)).toBe("60000");
 });
