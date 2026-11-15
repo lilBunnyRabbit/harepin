@@ -51,6 +51,22 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.52.0",
+    date: "2026-11-16",
+    title: "Seasons",
+    changes: [
+      { kind: NEW, text: "Seasons: four seasons of six events against six AI rivals, with prize credits and a car for each season won" },
+      { kind: NEW, text: "A new season screen: swipe through the events, with your place, points, rival and credits at the top" },
+      { kind: NEW, text: "AI rivals that race: they brake late, pass from the start and fight for position" },
+      { kind: NEW, text: "Winter Mainland: a season option that freezes lakes and rivers into ice" },
+      { kind: NEW, text: "Wall ride: a new map of banked bowls, half-pipes and a wall" },
+      { kind: NEW, text: "Cabins on the tundra and in the ice canyon" },
+      { kind: IMPROVED, text: "Sturm rebuilt: a rounder, wider body and a proper wide-body kit" },
+      { kind: FIXED, text: "Cars no longer scrape the road at top speed, so top builds are faster. Records start fresh" },
+      { kind: IMPROVED, text: "Records and saves load faster and the menu uses less power" },
+    ],
+  },
+  {
     version: "0.51.4",
     date: "2026-11-15",
     title: "Smoother clock and menu",
