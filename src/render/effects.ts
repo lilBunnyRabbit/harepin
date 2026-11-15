@@ -51,10 +51,12 @@ const LAND_SPREAD = 5;
 const TRAIL_SPREAD = 1.5;
 
 /** What a kind's open ground throws up; a laid surface (trail, scree, packed snow) throws its own. */
-export type GroundPuff = "grass" | "dust" | "snow";
+export type GroundPuff = "grass" | "dust" | "snow" | "ash";
 
 // Dust is the ground it came off a step lighter, so it shows against that ground by day and at dusk.
 const DUST_LIFT = 0.1;
+/** Share of asphalt in ash dust: rock dulled toward soot, lighter than the ash ground it is kicked off. */
+const ASH_SOOT = 0.3;
 const kicked = (tone: Lab) => color(lighten(tone, DUST_LIFT));
 
 export class Smoke {
@@ -71,6 +73,7 @@ export class Smoke {
   private grass = kicked(mix(tones.grass, tones.dirt, 0.5));
   private sand = kicked(tones.sand);
   private scree = kicked(tones.rock);
+  private ash = kicked(mix(tones.asphalt, tones.rock, ASH_SOOT));
   private snow = color(tones.snow);
   private spray = color(mix(tones.snow, tones.water, 0.7));
   private readonly ground: THREE.Color;
@@ -86,8 +89,8 @@ export class Smoke {
   private at = new THREE.Vector3();
 
   constructor(ground: GroundPuff) {
-    const { dust, sand, scree, snow } = this;
-    this.ground = { grass: this.grass, dust: sand, snow }[ground];
+    const { dust, sand, scree, snow, ash } = this;
+    this.ground = { grass: this.grass, dust: sand, snow, ash }[ground];
     this.shoulder = ground === "snow" ? snow : dust;
     this.laid = {
       [SurfaceId.GRASS]: this.ground,

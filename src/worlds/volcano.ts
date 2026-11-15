@@ -18,7 +18,7 @@ export const volcano: WorldDef = {
   pads: false,
   // The crater's lava throws a warm bounce up under the car; ash haze pulls the fog in.
   mood: { hemi_ground: mix(tones.lava, tones.rock, 0.35), fog_near: 60, fog_far: 1300 },
-  ground_puff: "grass",
+  ground_puff: "ash",
   backdrop: "sky",
   facts: (f) => lap_facts(f, "rim lap"),
   dress: (world) => [roadside(world), ...lava_lakes(world)],
