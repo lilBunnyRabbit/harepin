@@ -5,6 +5,9 @@ import { signed_area, type Part, type Point } from "./geometry";
 import { PIPE_REACH } from "./nitro-look";
 
 const ON_GLASS = 0.03;
+/** A bar seen through a screen: this thick, its middle this far off the cabin edge, so it lies flat on the glass. */
+export const GLASS_BAR = 0.008;
+export const GLASS_BAR_PROUD = 0.017;
 const SIDEWAYS = Math.PI / 2;
 
 export function centred(width: number, height: number, length: number, y: number, z: number, tilt = 0): Part {
@@ -56,18 +59,18 @@ interface Screen {
   tilt: number;
 }
 
-function screen_of(cabin: Cabin, edge: number): Screen {
+function screen_of(cabin: Cabin, edge: number, proud = ON_GLASS): Screen {
   const a = cabin.points[edge];
   const b = cabin.points[edge + 1];
   const turn = Math.sign(signed_area(cabin.points));
   const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
   const u: Point = [(b[0] - a[0]) / length, (b[1] - a[1]) / length];
-  const out: Point = [u[1] * turn * ON_GLASS, -u[0] * turn * ON_GLASS];
+  const out: Point = [u[1] * turn * proud, -u[0] * turn * proud];
   return { at: (x, share) => [x, a[1] + u[1] * share * length + out[1], a[0] + u[0] * share * length + out[0]], length, tilt: Math.atan2(-u[1], u[0]) };
 }
 
-export function screen_bar(cabin: Cabin, edge: number, from: Point, to: Point, thick = 0.05, tall = 0.03): Part {
-  const screen = screen_of(cabin, edge);
+export function screen_bar(cabin: Cabin, edge: number, from: Point, to: Point, thick = 0.05, tall = 0.03, proud = ON_GLASS): Part {
+  const screen = screen_of(cabin, edge, proud);
   return rod(screen.at(from[0], from[1]), screen.at(to[0], to[1]), tall, thick);
 }
 

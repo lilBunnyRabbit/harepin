@@ -12,7 +12,7 @@ import { extrude, merge, parts, side_part, tail_at, taper, tint } from "./geomet
 import { BRAKE_REST, brake_on, lamps, popup, snap_lights, type HeadMesh, type Popup } from "./lights";
 import { back, livery_of, livery_parts, roof, type Livery } from "./livery";
 import { nitro_flame, type Jet } from "./nitro-look";
-import { aero_of, aero_parts, kit_parts, kit_skirts, rear_wing } from "./part-looks";
+import { aero_of, aero_parts, kit_parts, rear_wing } from "./part-looks";
 import { STOCK_CALIPER, STOCK_TYRE, brake_geometry, chrome_tone, wheel_geometry } from "./wheels";
 import { paint_finish, paint_lab, type Finish } from "./paint";
 import { WEAVE_KEY, weave_shader } from "./carbon";
@@ -244,8 +244,9 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
     lips.lips.map((g) => tint(g, arch_tone)),
     lips.walls.map((g) => tint(g, well)),
     wells(d, spec, Math.max(...fitted.map((look) => look.width))).map((g) => tint(g, well)),
-    // The sill strip runs between wheel openings: a body without them (a tub, pontoons, a cage) has no sill to trim.
-    (d.arches.steps === 0 || kit_skirts(d, aero) ? [] : skirts(d, spec, 0.03, 0.09)).map((g) => tint(g, trim)),
+    // The sill strip runs between wheel openings: a body without them (a tub, pontoons, a cage) has no sill to trim, and
+    // an aero kit's sills are its own shell or band.
+    (d.arches.steps === 0 || aero.skirts ? [] : skirts(d, spec, 0.03, 0.09)).map((g) => tint(g, trim)),
     parts([...d.paint, ...(d.mirror?.paint ?? [])]).map((g) => tint(g, paint)),
     parts([...d.trim, ...(d.mirror?.trim ?? [])]).map((g) => tint(g, trim)),
     parts(livery && livery.decal !== "none" ? [] : (d.stripes ?? [])).map((g) => tint(g, trim)),
@@ -299,7 +300,7 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
     const [px, py, pz] = arm.pivot;
     const geometry = merge(
       arm.trim.map((part) => tint(side_part(part, side), trim)),
-      (stripped ? [] : arm.markers).map((part) => tint(side_part(part, side), color(brand.warning))),
+      arm.markers.map((part) => tint(side_part(part, side), color(brand.warning))),
     ).translate(-side * px, -py, -pz);
     const mesh = new THREE.Mesh(geometry, matte);
     mesh.castShadow = true;

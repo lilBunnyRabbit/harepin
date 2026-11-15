@@ -1,10 +1,10 @@
 import type { BodyStyle } from "./cars";
 import { canard, rod } from "./design-parts";
 import { DESIGNS, type Detail } from "./designs";
-import { centred, outlet, pipe, screen_band, screen_bar, side_pipe } from "./detail-parts";
-import { face_at, tail_at, top_at, type Part } from "./geometry";
+import { GLASS_BAR, GLASS_BAR_PROUD, centred, outlet, pipe, screen_band, screen_bar, side_pipe } from "./detail-parts";
+import { face_at, tail_at, type Part, type Point } from "./geometry";
 
-const { coupe, hatch, muscle, rally, kaze, sturm, raijin, tsumuji } = DESIGNS;
+const { coupe, hatch, muscle, rally, sturm, raijin, tsumuji, formula } = DESIGNS;
 
 const UPRIGHT = Math.PI / 2;
 
@@ -53,15 +53,14 @@ const muscle_pipe = (x: number, y: number) => ({
 });
 const MUSCLE_PIPE = muscle_pipe(muscle.width / 2 + 0.01, 0.245);
 const MUSCLE_KIT_PIPE = muscle_pipe(1.11, 0.155);
-// The scoop is as wide and as long as the blower under it, their front faces in line.
-const BLOWER_HALF = 0.2;
 // Slats across the whole rear screen, laid flatter than the glass so each overlaps the next; their ends butt into a rail at each side.
 const LOUVRE_HALF = 0.6;
 const LOUVRE_SLATS = [0.1, 0.28, 0.46, 0.64, 0.82].map((share): Part => {
   const band = screen_band(muscle.cabin, 2, share - 0.1, share + 0.1, LOUVRE_HALF);
   return { ...band, size: [LOUVRE_HALF - 0.03, 0.022, 0.15], at: [(LOUVRE_HALF - 0.03) / 2, band.at[1] + 0.02, band.at[2]], tilt: [(band.tilt?.[0] ?? 0) * 0.35, 0, 0] };
 });
-const BLOWER_TOP = top_at(muscle.outline, MUSCLE_HOOD_Z) + 0.13;
+// The race engine's scoop: taller and narrower than the stock one, on the same spot.
+const SHAKER = 0.2;
 const MUSCLE: Detail[] = [
   {
     on: "base",
@@ -79,17 +78,9 @@ const MUSCLE: Detail[] = [
   },
   {
     on: "race_engine",
-    cue: "Blower through the hood under a bug-catcher scoop",
-    chrome: [centred(2 * BLOWER_HALF, 0.16, 0.5, BLOWER_TOP - 0.08, MUSCLE_HOOD_Z, HOOD_FALL)],
-    stands: [{ points: [[MUSCLE_HOOD_Z + 0.25, BLOWER_TOP - 0.01], [MUSCLE_HOOD_Z + 0.25, BLOWER_TOP + 0.18], [MUSCLE_HOOD_Z - 0.22, BLOWER_TOP + 0.04], [MUSCLE_HOOD_Z - 0.25, BLOWER_TOP - 0.01]], from: 0, to: BLOWER_HALF }],
-    red: [centred(2 * BLOWER_HALF - 0.08, 0.11, 0.02, BLOWER_TOP + 0.085, MUSCLE_HOOD_Z + 0.255)],
-  },
-  {
-    on: "race",
-    cue: "Short wheelie bars under the tail, in place of the diffuser",
-    chrome: [rod([0.3, 0.3, -2.4], [0.3, 0.1, -2.84], 0.035), centred(0.6, 0.035, 0.035, 0.115, -2.8)],
-    trim: [{ size: [0.12, 0.12, 0.05], at: [0.3, 0.07, -2.86], tilt: [0, UPRIGHT, 0], round: true }],
-    swaps: ["diffuser"],
+    cue: "Tall shaker scoop grown out of the hood",
+    hood: [{ size: [0.5, SHAKER + SCOOP_SINK, 0.6], at: [0, 0.845 + (SHAKER - SCOOP_SINK) / 2, MUSCLE_HOOD_Z], tilt: [HOOD_FALL, 0, 0], shape: "wedge", one: true }],
+    trim: [{ size: [0.16, 0.11, 0.02], at: [0.08, 0.845 + SHAKER / 2 - 0.02, MUSCLE_HOOD_Z + 0.305] }],
   },
 ];
 
@@ -113,10 +104,6 @@ const RALLY: Detail[] = [
   { on: "race", cue: "Sump guard under the nose", chrome: [centred(1.0, 0.1, 0.05, 0.31, face_at(rally.outline, 0.4) - 0.03), centred(1.0, 0.04, 0.6, 0.28, 1.74)] },
 ];
 
-const kaze_tail = tail_at(kaze.outline, 0.46);
-const kaze_kit_tail = tail_at(kaze.kit?.outline ?? kaze.outline, 0.48);
-// A bar across the tail on a stay each side, `half` from the centre.
-const bash_bar = (width: number, half: number, tail: number): Part[] => [centred(width, 0.07, 0.07, 0.48, tail - 0.11), { size: [0.06, 0.06, 0.12], at: [half, 0.48, tail - 0.05] }];
 const KAZE: Detail[] = [
   { on: "drift", cue: "Drift stance: negative camber", camber: CAMBER },
   {
@@ -127,20 +114,24 @@ const KAZE: Detail[] = [
       { size: [0.05, 0.16, 0.06], at: [-0.62, 0.45, -2.18], one: true },
     ],
   },
-  { on: "stripped", until: "street", cue: "Rear bumper off: a bash bar on two stays", trim: [centred(1.72, 0.3, 0.03, 0.46, kaze_tail - 0.012)], chrome: bash_bar(1.5, 0.5, kaze_tail) },
-  // The kit's tail is its shell: no backing panel, and the bar ends short of the tow strap.
-  { on: "stripped", with: "street", cue: "A bash bar on two stays over the kit's tail valance", chrome: bash_bar(1, 0.36, kaze_kit_tail) },
 ];
 
+// Seen through the rear screen: flat on the glass and inside its frame, the cross bar butting into each leg.
+const HOOP_BAR = 0.045;
+const HOOP_X = 0.4;
+const [HOOP_TOP, HOOP_FOOT] = [0.2, 0.88];
+const hoop_bar = (from: Point, to: Point) => screen_bar(tsumuji.cabin, 3, from, to, HOOP_BAR, GLASS_BAR, GLASS_BAR_PROUD);
+const TSUMUJI_HOOP: Part[] = [hoop_bar([HOOP_X, HOOP_TOP - 0.035], [HOOP_X, HOOP_FOOT]), hoop_bar([0, HOOP_TOP], [HOOP_X - HOOP_BAR / 2, HOOP_TOP])];
 const TSUMUJI: Detail[] = [
   { on: "base", cue: "Clean bonnet: no bulge and no bare panel round the pop-ups", swaps: ["bulge", "bonnet"] },
   { on: "drift", cue: "Drift stance: negative camber", camber: CAMBER },
-  { on: "light", cue: "Roll hoop behind the seats: a cross bar under the roof edge, legs down into the deck", cage: [screen_bar(tsumuji.cabin, 3, [0.4, 0.04], [0.4, 1.04]), screen_bar(tsumuji.cabin, 3, [0, 0.065], [0.425, 0.065])] },
+  { on: "light", cue: "Roll hoop behind the seats, seen through the rear screen", cage: TSUMUJI_HOOP },
 ];
 
 const STURM: Detail[] = [
   { on: "street", cue: "Banner across the top of the windscreen", banner: [screen_band(sturm.cabin, 0, 0.7, 0.98, 0.6)] },
   { on: "tuned", cue: "Oil cooler in the front bumper", bright: [centred(0.5, 0.1, 0.02, 0.3, 2.302)] },
+  { on: "race", cue: "Short diffuser strakes under the tail valance, in place of the long plate", trim: [0.2, 0.52].map((x): Part => ({ size: [0.02, 0.1, 0.26], at: [x, 0.125, -1.8], tilt: [0.2, 0, 0] })), swaps: ["diffuser"] },
 ];
 
 const raijin_tail = tail_at(raijin.outline, 0.47);
@@ -149,19 +140,24 @@ const raijin_kit = { ...raijin, ...raijin.kit };
 const RAIJIN_ARCH = 1.6;
 const RAIJIN: Detail[] = [
   { on: "tuned", cue: "Front-mount intercooler filling the grille", bright: [centred(0.72, 0.13, 0.014, 0.56, 2.09, 0.27)] },
-  { on: "race", cue: "A dive plane on each corner of the bumper bar", stands: canard(raijin_kit.outline, raijin_kit.width / 2, 0.34, RAIJIN_ARCH) },
+  { on: "race", cue: "A dive plane on each corner of the bumper bar", paint: canard(raijin_kit.outline, raijin_kit.width / 2, 0.34, RAIJIN_ARCH) },
   { on: "race", cue: "Diffuser end fences under the bumper", trim: [{ size: [0.03, 0.14, 0.4], at: [0.78, 0.24, raijin_tail + 0.15] }] },
 ];
 
+// The pipe lies in the tail over the gearbox and ends this far behind it.
+const FORMULA_PIPE_OUT = 0.03;
+const formula_pipe = pipe(0, 0.34, tail_at(formula.outline, 0.34) - FORMULA_PIPE_OUT + 0.1, 0.055, 0.2, true);
 const FORMULA: Detail[] = [
   { on: "base", cue: "No bulge or bare panels: the engine cover is a fin and the tub is already bare", swaps: ["bulge", "bonnet"] },
-  { on: "tuned", cue: "T-camera on the airbox", warning: [centred(0.22, 0.04, 0.12, 0.985, 0.12)] },
+  { on: "tuned", cue: "T-camera pod on the airbox", warning: [{ size: [0.09, 0.05, 0.17], at: [0, 0.965, 0.1], shape: "pod", one: true }] },
+  { on: "tuned", cue: "One slim pipe out of the gearbox, in place of the saloon-size one", chrome: [formula_pipe.chrome], trim: [formula_pipe.trim], tips: [formula_pipe.tip], swaps: ["pipes"], ...formula_pipe.outlet },
   { on: "street", cue: "Bargeboards ahead of the sidepods", trim: [{ size: [0.02, 0.22, 0.46], at: [0.45, 0.24, 0.42], tilt: [0, 0.16, 0] }] },
   { on: "race_engine", cue: "Shark fin down the engine cover", lips: [{ points: [[-0.2, 0.85], [-0.32, 0.88], [-1.45, 0.8], [-1.6, 0.58], [-1.6, 0.42]], from: 0, to: 0.012 }] },
   { on: "race", cue: "T-wing ahead of the rear wing", trim: [centred(0.72, 0.02, 0.09, 0.86, -1.47), centred(0.03, 0.42, 0.06, 0.66, -1.47)] },
 ];
 
-const fujin_exhaust = side_pipe(0.975, 0.27, -0.36, 0.1, 0.1);
+// The outlet lies in the pontoon side and ends 5 mm proud of it.
+const fujin_exhaust = side_pipe(0.955, 0.27, -0.36, 0.08, 0.1);
 const FUJIN: Detail[] = [{ on: "tuned", cue: "Side-exit pipe ahead of each rear wheel", chrome: [fujin_exhaust.chrome], trim: [fujin_exhaust.trim], tips: [fujin_exhaust.tip], swaps: ["pipes"], ...fujin_exhaust.outlet }];
 
 const whip = (x: number, top: number): Part[] => [rod([x, 1.54, -0.56], [x, top, -0.72], 0.03)].map((part) => ({ ...part, one: true }));
@@ -172,11 +168,14 @@ const SAJIN: Detail[] = [
 ];
 
 const BUS_STACK_Z = -3.3;
+// The bull bar stands between the headlamps, clear of both from any angle a driver sees the nose at.
+const BUS_BAR_HALF = 0.45;
+const BUS_BAR = 0.09;
 const BUS: Detail[] = [
   {
     on: "street",
     cue: "Bull bar",
-    chrome: [{ size: [0.09, 0.75, 0.09], at: [0.6, 0.72, 6.02] }, centred(1.9, 0.09, 0.09, 1.05, 6.02), centred(1.9, 0.09, 0.09, 0.6, 6.02)],
+    chrome: [{ size: [BUS_BAR, 0.75, BUS_BAR], at: [BUS_BAR_HALF, 0.72, 6.02] }, ...[1.05, 0.82].map((y) => centred(2 * BUS_BAR_HALF + BUS_BAR, BUS_BAR, BUS_BAR, y, 6.02))],
   },
   { on: "race_engine", cue: "Short chrome exhaust stacks out of the roof corners, behind the roof unit and clear of the spoiler", chrome: [{ size: [0.15, 0.15, 0.5], at: [1.12, 3.15, BUS_STACK_Z], tilt: [UPRIGHT, 0, 0], round: true }], tips: [{ size: [0.18, 0.18, 0.08], at: [1.12, 3.37, BUS_STACK_Z], tilt: [UPRIGHT, 0, 0], round: true }], swaps: ["pipes"], ...outlet([1.12, 3.41, BUS_STACK_Z], [0, 1, 0]) },
 ];

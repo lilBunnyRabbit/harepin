@@ -19,23 +19,40 @@ function tail_face(outline: Point[], low: number, high: number): [number, number
   return [Math.min(...zs), Math.max(...zs)];
 }
 
+// A tail face counts as one slanted plane when it leans at least this much over the panel and bows no further off it.
+const SLANT = 0.01;
+const BOW = 0.002;
+const PANEL = 0.03;
+
 /**
  * A trim panel across the tail at height `y`, `h` tall and `half` wide, set on the outline's tail face, with `lamps` and
  * an optional light `bar` proud of it and a number plate at `plate_y`. Lamp depth and z come from the face, not the part.
+ * On a slanted face the panel and its lamps lie in the face's plane; on an upright or kinked one they stand upright.
  */
 export function tail_end(outline: Point[], y: number, h: number, half: number, lamps: Part[], bar: { half: number; y: number; h?: number } | null, plate_y: number): TailEnd {
+  const [low, mid, high] = [y - h / 2, y, y + h / 2].map((at) => tail_at(outline, at));
+  const lamp_bar: Part[] = bar ? [{ size: [bar.half, bar.h ?? 0.035, LAMP_DEPTH], at: [bar.half / 2, bar.y, 0] }] : [];
+  const on_panel = Math.abs(plate_y - y) < h / 2;
+  if (Math.abs(high - low) >= SLANT && Math.abs(mid - (low + high) / 2) <= BOW) {
+    const lean = Math.atan2(high - low, h);
+    const [sin, cos] = [Math.sin(lean), Math.cos(lean)];
+    // `up` from the panel's middle along the face and `out` from it, as [x, y, z].
+    const on_face = (x: number, up: number, out: number): Triple => [x, y + up * cos + out * sin, mid + up * sin - out * cos];
+    const laid = (part: Part, depth: number, out: number): Part => ({ ...part, size: [part.size[0], part.size[1], depth], at: on_face(part.at[0], (part.at[1] - y) / cos, out - depth / 2), tilt: [lean, 0, 0] });
+    return {
+      trim: [laid({ size: [half + SEAT, h / cos + 2 * SEAT, PANEL], at: [(half + SEAT) / 2, y, 0] }, PANEL, PROUD)],
+      tails: [...lamps, ...lamp_bar].map((lamp) => laid(lamp, LAMP_DEPTH, 2 * PROUD)),
+      chrome: [on_panel ? laid({ size: PLATE, at: [PLATE[0] / 2, plate_y, 0] }, PLATE[2], 2 * PROUD) : { size: PLATE, at: [PLATE[0] / 2, plate_y, tail_face(outline, plate_y - 0.05, plate_y + 0.05)[0] - PROUD + PLATE[2] / 2] }],
+    };
+  }
   const [face, deep] = tail_face(outline, y - h / 2, y + h / 2);
-  const thick = deep - face + 0.03;
+  const thick = deep - face + PANEL;
   const panel_back = face - PROUD;
   const lamp_z = panel_back - PROUD + LAMP_DEPTH / 2;
-  const on_panel = Math.abs(plate_y - y) < h / 2;
   const plate_face = on_panel ? panel_back : tail_face(outline, plate_y - 0.05, plate_y + 0.05)[0];
   return {
     trim: [{ size: [half + SEAT, h + 2 * SEAT, thick], at: [(half + SEAT) / 2, y, panel_back + thick / 2] }],
-    tails: [
-      ...lamps.map((lamp): Part => ({ ...lamp, size: [lamp.size[0], lamp.size[1], LAMP_DEPTH], at: [lamp.at[0], lamp.at[1], lamp_z] })),
-      ...(bar ? [{ size: [bar.half, bar.h ?? 0.035, LAMP_DEPTH], at: [bar.half / 2, bar.y, lamp_z] } satisfies Part] : []),
-    ],
+    tails: [...lamps, ...lamp_bar].map((lamp): Part => ({ ...lamp, size: [lamp.size[0], lamp.size[1], LAMP_DEPTH], at: [lamp.at[0], lamp.at[1], lamp_z] })),
     chrome: [{ size: PLATE, at: [PLATE[0] / 2, plate_y, plate_face - PROUD + PLATE[2] / 2] }],
   };
 }
@@ -121,21 +138,24 @@ export function rod(a: Triple, b: Triple, thick: number, wide = thick): Part {
   return { size: [wide, thick, length], at: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2], tilt: [-Math.asin(dy / length), Math.atan2(dx, dz), 0] };
 }
 
-const CANARD = 0.24;
-const CANARD_MIN = 0.12;
-const CANARD_CLEAR = 0.06;
+const CANARD = 0.3;
+const CANARD_MIN = 0.14;
+const CANARD_CLEAR = 0.05;
+const CANARD_THICK = 0.035;
+const CANARD_RISE = 0.2;
+const CANARD_SINK = 0.02;
 
 /**
- * A dive plane on the bumper corner: a blade standing `out` from the body side `half` from the centre, from just behind
- * the nose face at height `y` back and up, ending clear of the wheel opening that starts at z `arch`. Cut and sculpted
- * with the body, its root stays on the body side. None where the nose is too short for one.
+ * A dive plane on the bumper corner: a fin grown out of the body side `half` from the centre, its point just behind the
+ * nose face at height `y`, swept back and up to stand `out` at its tail, which ends clear of the wheel opening that starts
+ * at z `arch`. Its root is thick and sunk in the body side, its edge thin. None where the nose is too short for one.
  */
-export function canard(outline: Point[], half: number, y: number, arch: number, out = 0.05): Slab[] {
-  const z = face_at(outline, y) - 0.07;
+export function canard(outline: Point[], half: number, y: number, arch: number, out = 0.1): Part[] {
+  const z = face_at(outline, y) - 0.06;
   const length = Math.min(CANARD, z - arch - CANARD_CLEAR);
   if (length < CANARD_MIN) return [];
-  const rise = (0.063 * length) / CANARD;
-  return [{ points: [[z, y + 0.012], [z - length, y + 0.012 + rise], [z - length, y - 0.006 + rise], [z, y - 0.012]], from: half - 0.02, to: half + out }];
+  const reach = out + CANARD_SINK;
+  return [{ size: [CANARD_THICK, reach, length], at: [half - CANARD_SINK + reach / 2, y + (CANARD_RISE * length) / 4, z - length / 2], tilt: [0, Math.PI - CANARD_RISE, -Math.PI / 2], shape: "wedge" }];
 }
 
 const NOSE_SHARE = 0.3;

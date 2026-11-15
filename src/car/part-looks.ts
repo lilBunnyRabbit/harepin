@@ -90,7 +90,7 @@ export function aero_parts(d: Design, spec: CarSpec, aero: Required<Look>["aero"
     const splitter = front > 1;
     const reach = splitter ? 0.16 : 0.08;
     out.push(tint(box(d.width * (splitter || kitted ? 0.98 : 0.88), splitter ? 0.035 : 0.03, 0.2 + reach, 0, low - 0.01, nose - 0.1 + reach / 2), splitter ? trim : paint));
-    if (splitter) out.push(...canard(d.outline, d.width / 2, d.outline[0][1] + CANARD_UP, arch_front(d, spec)).flatMap((blade) => fitted_slab(d, blade)).map((g) => tint(g, trim)));
+    if (splitter) out.push(...parts(canard(d.outline, d.width / 2, d.outline[0][1] + CANARD_UP, arch_front(d, spec))).map((g) => tint(g, paint)));
   }
   if (kitted) out.push(...kit_band(d, spec).map((g) => tint(g, paint)));
   if (aero.diffuser && !swaps.has("diffuser")) {
