@@ -38,8 +38,8 @@ const VARIANTS: Variant[] = [
     id: "old-cap",
     car: `${LAB_CAR}${OLD_CAP}`,
     aids: { assist: false, stability: false, tcs: true },
-    question: "Does the old side-grip cap feel more like the arcade hold from round 1?",
-    feel: "TCS on, the new drift with round 1's side-grip cap: the gas no longer swings the tail once the rear spins up",
+    question: "New drift, old cap: does the old side-grip cap feel more like the arcade hold from round 1?",
+    feel: "new drift, old cap: TCS on, the new drift with round 1's side-grip cap, so the gas no longer swings the tail once the rear spins up",
   },
 ];
 
@@ -59,9 +59,9 @@ const pack: Pack = {
   id: "t2-drift",
   rev: 2,
   title: "Drift r2",
-  aim: "Round 1 drifts lost speed, auto-corrected out and would not turn in. The drift code changed: is the new TCS-on drift the one you want, against TCS off and against round 1's side-grip cap?",
-  brief: "The Drift preset, steering assist and stability off, on the drift circle and the hairpins. At each place the new drift with TCS on goes first, then TCS off, then the old side-grip cap. Rate turn-in, hold and exit.",
-  cars: { [OLD_CAP]: { name: "Drift preset, old cap", spec: { ...CARS.muscle, drift_side_sx: OLD_SIDE_SX }, look: "muscle", parts: DRIFT_PARTS } },
+  aim: "Round 1 drifts lost speed, auto-corrected out and would not turn in. The drift code changed: is the new TCS-on drift the one you want, against TCS off and against the new drift with round 1's side-grip cap?",
+  brief: "The Drift preset, steering assist and stability off, on the drift circle and the hairpins. At each place the new drift with TCS on goes first, then TCS off, then the new drift with the old cap. Rate turn-in, hold and exit.",
+  cars: { [OLD_CAP]: { name: "New drift, old cap", spec: { ...CARS.muscle, drift_side_sx: OLD_SIDE_SX }, look: "muscle", parts: DRIFT_PARTS } },
   trials: PLACES.flatMap((place) =>
     VARIANTS.map((v, i): Trial => ({
       id: `${place.id}-${v.id}`,

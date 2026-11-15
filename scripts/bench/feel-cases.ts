@@ -428,14 +428,18 @@ export function drift_turn_in(rig: Rig, tcs: boolean, kmh = 50): TurnIn {
 }
 
 export interface PowerCircle {
-  /** Seconds of full gas and full key before the tail is 25 degrees out; NaN when it never was in 3 s. */
+  /** Seconds of full gas and full key before the tail steps `STEP_OUT` degrees out; NaN when it never did in 3 s. */
   entry: number;
   hold: Hold;
 }
 
+const STEP_OUT = 3;
+/** Seconds of the opposite key a drifter gives the tail as it steps out. */
+const CATCH_TAP = 0.2;
+
 /**
  * "Hold a drift on the gas, no handbrake": 2 s on a 0.6 key at 40 km/h, the ring's pace, then full gas and full key until
- * the tail is 25 degrees out, then binary keys aiming at 30 degrees on full gas for 6 s.
+ * the tail steps out, a countersteer tap as it does, then binary keys aiming at 30 degrees on full gas for 6 s.
  */
 export function power_circle(rig: Rig, tcs: boolean, kmh = 40): PowerCircle {
   const ground = rig.ground ?? FLAT;
@@ -447,7 +451,8 @@ export function power_circle(rig: Rig, tcs: boolean, kmh = 40): PowerCircle {
   while (t < 3 && Number.isNaN(entry)) {
     car.step(DT, { ...idle, steer: 1, throttle: 1 }, ground);
     t += DT;
-    if (tail_out(car) >= 25) entry = t;
+    if (tail_out(car) >= STEP_OUT) entry = t;
   }
+  if (!Number.isNaN(entry)) run(car, CATCH_TAP, () => ({ ...idle, steer: -1, throttle: 1 }), ground);
   return { entry, hold: key_hold(car, 30, 6, ground) };
 }

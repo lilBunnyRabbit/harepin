@@ -39,11 +39,12 @@ const LET_GO_STEER = 0.3;
  */
 export const USEFUL_SLIP = 1.1;
 /**
- * Body slip (rad), about 3.4 degrees, past which a rear-drive slide on full gas with the assist off and TCS on becomes a
- * held drift, as a handbrake tap does. Held only from a launch or a tap, a power or lift-off slide met traction control's
- * road limit: it cut the gas, the rear stopped pushing, and the car slowed and gripped up mid-slide.
+ * Body slip (rad), about 2.3 degrees, past which a countersteered rear-drive slide on full gas with the assist off and TCS
+ * on becomes a held drift, as a handbrake tap does. Held only from a launch or a tap, a power or lift-off slide met
+ * traction control's road limit: it cut the gas, the rear stopped pushing, and the car slowed and gripped up mid-slide.
+ * The countersteer tells a drift from a grip corner at full gas, whose slip reaches this angle too.
  */
-const SLIDE_HOLD = 0.06;
+const SLIDE_HOLD = 0.04;
 /**
  * Front slip angle past the front axle's course in a launched power slide, in `peak_angle`. At full lock the fronts
  * pulled the car round a 3 m circle whose scrub held it near 10 km/h; at `USEFUL_SLIP` they still did below 20 km/h.
@@ -280,7 +281,7 @@ export class Steering {
     if (this.launched) this.hold_side = this.launch_side;
     // Faster, the tap's slide is the drift: its side is the way the tail went, as the key may already be countersteering.
     else if (!kicks && this.tap_age < TAP_WINDOW && pedal > DRIFT_INTENT && Math.abs(beta) > fade_from) this.hold_side = -Math.sign(beta);
-    else if (this.hold_side === 0 && car.tcs && !car.assist && spec.drive === "rwd" && car.gear >= 1 && !kicks && pedal > DRIFT_INTENT && brake <= 0.1 && local.z > 0 && Math.abs(beta) > SLIDE_HOLD) this.hold_side = -Math.sign(beta);
+    else if (this.hold_side === 0 && car.tcs && !car.assist && spec.drive === "rwd" && car.gear >= 1 && !kicks && pedal > DRIFT_INTENT && brake <= 0.1 && local.z > 0 && held * beta > SLIDE_HOLD) this.hold_side = -Math.sign(beta);
     const tail_left = Math.max(0, Math.min(1, (-(this.hold_side || side) * beta - fade_from) / (fade_to - fade_from)));
     // With the steering assist off, the countersteer key is the catch, not the end: dropping the hold for it put traction
     // control back at 0.14, the gas went to its floor and the car slowed and gripped up mid-slide. Letting go ends it.
