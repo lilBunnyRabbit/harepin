@@ -91,10 +91,10 @@ test("stored progress is checked: junk drops out, good results survive a reload"
 
 test("a head to head maps the race's two cars onto the rival and the player", () => {
   const duel = season.events.find((e) => e.kind === SeriesKind.HEAD_TO_HEAD)!;
-  const result = event_result(season, duel, { order: [1, 0], clean: true, led: true, fastest: false, from_back: true });
+  const result = event_result(season, duel, [season.rival], { order: [1, 0], clean: true, led: true, fastest: false, from_back: true });
   expect(result.order).toEqual([YOU, season.rival]);
   expect(result.bonus).toEqual([Bonus.CLEAN, Bonus.LED, Bonus.FROM_BACK]);
-  const lost = event_result(season, duel, { order: [0, 1], clean: false, led: false, fastest: true, from_back: true });
+  const lost = event_result(season, duel, [season.rival], { order: [0, 1], clean: false, led: false, fastest: true, from_back: true });
   expect(lost.bonus).toEqual([]);
   expect(event_line(season, duel, lost)).toContain("the rival");
 });
@@ -112,14 +112,26 @@ test("the rival duel opens the next event only on a win, and its loss scores 4",
 
 test("fastest lap pays only in endurance, the one event of more than a lap", () => {
   const outcome = { order: [6, 0, 1, 2, 3, 4, 5], clean: false, led: false, fastest: true, from_back: false };
-  for (const event of season.events) expect(event_result(season, event, outcome).bonus.includes(Bonus.FASTEST)).toBe(event.kind === SeriesKind.ENDURANCE);
+  for (const event of season.events) expect(event_result(season, event, event_field(season, event, empty_progress(season)), outcome).bonus.includes(Bonus.FASTEST)).toBe(event.kind === SeriesKind.ENDURANCE);
 });
 
 test("the player grids by the table: last on a fresh season, on pole once leading it", () => {
   const opener = season.events[0];
-  expect(grid_slot(season, empty_progress(season), opener)).toBe(event_field(season, opener).length);
+  expect(grid_slot(season, empty_progress(season), opener)).toBe(event_field(season, opener, empty_progress(season)).length);
   const won: SeriesProgress = { season: season.id, results: { [opener.id]: at(1) } };
   expect(grid_slot(season, won, season.events[1])).toBe(0);
   const third: SeriesProgress = { season: season.id, results: { [opener.id]: at(3) } };
   expect(grid_slot(season, third, season.events[1])).toBe(2);
+});
+
+test("the field grids and scores in the table's order", () => {
+  const opener = season.events[0];
+  const next = season.events[1];
+  expect(event_field(season, next, empty_progress(season))).toEqual(season.field.map((_, i) => i));
+  const progress: SeriesProgress = { season: season.id, results: { [opener.id]: { order: [5, 3, player_of(season), 0, 1, 2, 4], bonus: [] } } };
+  const field = event_field(season, next, progress);
+  expect(field.slice(0, 2)).toEqual([5, 3]);
+  expect(grid_slot(season, progress, next)).toBe(2);
+  const result = event_result(season, next, field, { order: [0, 1, 6, 2, 3, 4, 5], clean: false, led: false, fastest: false, from_back: false });
+  expect(result.order.slice(0, 2)).toEqual([5, 3]);
 });

@@ -42,7 +42,8 @@ export type SeriesBase = Omit<FieldHost, "cars" | "event" | "attach">;
 /** The field a series event races: its drivers' levels and names, scored into `series` as the player's race ends. */
 export function series_host(base: SeriesBase, series: Series, event: SeriesEvent, next: FieldEvent["next"]): FieldHost {
   const { season } = series;
-  const drivers = event_field(season, event).map((i) => season.field[i]);
+  const field = event_field(season, event, series.progress);
+  const drivers = field.map((i) => season.field[i]);
   const rules: FieldEvent = {
     name: event.name,
     names: drivers.map((d) => d.name),
@@ -50,7 +51,7 @@ export function series_host(base: SeriesBase, series: Series, event: SeriesEvent
     limit_ms: event.limit_ms ?? null,
     grid: grid_slot(season, series.progress, event),
     finish: (outcome) => {
-      const result = event_result(season, event, outcome);
+      const result = event_result(season, event, field, outcome);
       return result_lines(series, event, result, series.record(event, result));
     },
     next,

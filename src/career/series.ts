@@ -142,8 +142,11 @@ export function series_event(id: string | null): { season: Season; event: Series
   return null;
 }
 
-export const event_field = (season: Season, event: SeriesEvent): number[] =>
-  event.kind === SeriesKind.HEAD_TO_HEAD ? [season.rival] : season.field.map((_, i) => i);
+/** The season's drivers an event races, in the table's order: the order they grid in and the field's cars are numbered by. */
+export function event_field(season: Season, event: SeriesEvent, progress: SeriesProgress): number[] {
+  if (event.kind === SeriesKind.HEAD_TO_HEAD) return [season.rival];
+  return standings(season, progress).filter((row) => !row.you).map((row) => row.driver);
+}
 
 export const empty_progress = (season: Season): SeriesProgress => ({ season: season.id, results: {} });
 
@@ -231,7 +234,7 @@ export function standings(season: Season, progress: SeriesProgress, you = "You")
 
 /** The player's grid slot (0 on pole) for an event: behind every driver of its field ahead of them in the table. */
 export function grid_slot(season: Season, progress: SeriesProgress, event: SeriesEvent): number {
-  const drivers = event_field(season, event);
+  const drivers = event_field(season, event, progress);
   const table = standings(season, progress);
   const me = table.findIndex((row) => row.you);
   return table.slice(0, me).filter((row) => drivers.includes(row.driver)).length;
@@ -249,9 +252,9 @@ export function event_line(season: Season, event: SeriesEvent, result: EventResu
 }
 
 
-/** The field race's indices (AI cars, then the player) as the season's driver indices. */
-export function event_result(season: Season, event: SeriesEvent, outcome: FieldOutcome): EventResult {
-  const drivers = [...event_field(season, event), player_of(season)];
+/** The field race's indices (AI cars in `field`'s order, then the player) as the season's driver indices. */
+export function event_result(season: Season, event: SeriesEvent, field: readonly number[], outcome: FieldOutcome): EventResult {
+  const drivers = [...field, player_of(season)];
   const order = outcome.order.map((car) => drivers[car]);
   const won = order[0] === player_of(season);
   const bonus: Bonus[] = [];
