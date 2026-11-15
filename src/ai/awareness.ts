@@ -86,6 +86,15 @@ const DEFEND_LATERAL = 2.5;
 const KICKER_LOOK = 60;
 /** Road points ahead the inside of the next bend is read from: where the line runs slowest. */
 const BEND_LOOK = 100;
+/** Road points ahead a braking zone is looked for to dive into, and the m/s the plan must drop over them. */
+const DIVE_LOOK = 60;
+const DIVE_DROP = 5;
+/** Metres past its follow gap from which a driver dives down the inside: from the braking zone it has the late brake to close it. */
+const DIVE_REACH = 15;
+/** Pace share a driver may be under the car ahead and still dive: equal cars only get by on the brakes. */
+const DIVE_SLOWER = 0.02;
+/** Metres the diver's centre may be behind the defender's for the two to count as overlapped: the defender gives it the apex. */
+const OVERLAP = 5;
 
 /**
  * Runs at 20 Hz over the whole field: from each car's place on the road it picks a lane for every driver (follow the
@@ -109,6 +118,10 @@ export class Awareness {
   private readonly pass_side: Int8Array;
   /** Seconds each driver's pass has waited behind for its side to open. */
   private readonly waited: Float64Array;
+  /** The apex (road point) each driver's dive down the inside runs to, -1 for none; and the last braking zone it rolled for. */
+  private readonly dive_until: Int32Array;
+  private readonly dive_zone: Int32Array;
+  private readonly dive_roll: Uint8Array;
   private dt = 0;
 
   constructor(
@@ -129,6 +142,9 @@ export class Awareness {
     this.passing = new Int32Array(cars.length).fill(-1);
     this.pass_side = new Int8Array(cars.length);
     this.waited = new Float64Array(cars.length);
+    this.dive_until = new Int32Array(cars.length).fill(-1);
+    this.dive_zone = new Int32Array(cars.length).fill(-1);
+    this.dive_roll = new Uint8Array(cars.length);
   }
 
   /** Signed metres off the centre along the road's right normal (tz, -tx). */
@@ -213,6 +229,7 @@ export class Awareness {
     }
     driver.cap = Infinity;
     driver.push = 1;
+    driver.late = false;
     const kicker = this.kicker_ahead(driver);
     if (blocker >= 0) {
       // The speed the car ahead is about to hold, not the one it has: it brakes for the bend before the follower sees it slow.
@@ -227,11 +244,14 @@ export class Awareness {
     if (target >= 0 && (driver.wary > 0 || kicker) && this.gap(i, target) > 0) this.passing[i] = -1;
     else if (target >= 0) {
       const gap = this.gap(i, target);
+      const diving = this.dive_until[i] >= 0 && this.ahead_of(driver.index, this.dive_until[i], n);
+      if (!diving) this.dive_until[i] = -1;
       // No room ahead on this side: still behind, it waits off the other's bumper for the line to swing back, its lane
       // held, since chasing the other side across the road at every swing never gets it alongside; alongside, it is off.
-      const wait = gap > 0 && !this.lane_clear(i, target, this.pass_side[i], PASS_KEEP);
+      const wait = !diving && gap > 0 && !this.lane_clear(i, target, this.pass_side[i], PASS_KEEP);
       // A pass rides the passed car's line shifted by a side gap, so the two swing together; the road's edge clamps it.
-      const hold = this.rel[target] + this.pass_side[i] * this.flank(target);
+      // A dive holds the inside lane down to the apex, wherever the other car's line swings.
+      const hold = diving ? this.pass_side[i] * lane - base : this.rel[target] + this.pass_side[i] * this.flank(target);
       const at = Math.max(-room, Math.min(room, base + hold));
       // Squeezed alongside with the nose still behind: the car being passed has come over, so the pass is off.
       const squeezed = gap > 0 && gap < ALONGSIDE && (wait || Math.abs(this.lateral[target] - at) < (this.trouble[target] ? TROUBLE_FLANK : IN_LANE - aggression * PASS_TIGHT));
@@ -239,6 +259,7 @@ export class Awareness {
         // Waiting, it follows on its own line: held out on the passed car's flank, the road's edge bends its path tighter than the line.
         driver.hold = wait ? NaN : hold;
         driver.push = 1 + PUSH * aggression;
+        driver.late = diving;
         if (wait) driver.cap = Math.min(driver.cap, this.follow(target, gap, PASS_FOLLOW));
         this.waited[i] = wait ? this.waited[i] + this.dt : 0;
         if (this.waited[i] > PASS_WAIT) this.passing[i] = -1;
@@ -246,6 +267,13 @@ export class Awareness {
         return;
       }
       this.passing[i] = -1;
+      this.dive_until[i] = -1;
+    }
+    // Overlapped down the inside into a braking zone, the defender gives the apex up and runs round the outside.
+    const diver = this.diver_on(i);
+    if (diver >= 0) {
+      driver.hold = this.rel[diver] - (Math.sign(this.lateral[diver] - me) || 1) * SIDE_GAP;
+      return;
     }
     if (this.defend_until[i] >= 0 && beside < 0 && this.ahead_of(driver.index, this.defend_until[i], n)) {
       driver.hold = this.inside(driver) * DEFEND_LATERAL - base;
@@ -266,6 +294,7 @@ export class Awareness {
       // A car in trouble is passed only on a side that leaves TROUBLE_FLANK, however calm the road.
       const clear_of = !this.trouble[blocker] || Math.abs(Math.max(-room, Math.min(room, other + pick * TROUBLE_FLANK)) - other) >= TROUBLE_FLANK;
       const calm = this.trouble[blocker] || !bend || aggression > DIVE;
+      if (this.dive(i, blocker, blocker_gap, kicker, lane, room)) return;
       const close = blocker_gap < this.keep(driver) + PASS_REACH || this.trouble[blocker] === 1;
       if (faster && close && pick !== 0 && driver.wary <= 0 && !kicker && clear_of && calm) {
         this.passing[i] = blocker;
@@ -314,6 +343,64 @@ export class Awareness {
         driver.hold = this.inside(driver) * DEFEND_LATERAL - base;
       }
     }
+  }
+
+  /** The slowest road point of a braking zone within DIVE_LOOK ahead of driver i, or -1 when the plan holds. */
+  private braking_zone(driver: Driver): number {
+    const { line } = driver;
+    const n = line.road.length;
+    let slowest = driver.index;
+    for (let k = 1; k < DIVE_LOOK; k++) if (line.speed[(driver.index + k) % n] < line.speed[slowest]) slowest = (driver.index + k) % n;
+    return line.speed[driver.index] - line.speed[slowest] > DIVE_DROP ? slowest : -1;
+  }
+
+  /**
+   * A dive down the inside of the car ahead into the next braking zone, rolled once a zone on aggression: the diver
+   * brakes later than the line (`Driver.late`) and holds the inside lane to the apex. True when one starts.
+   */
+  private dive(i: number, blocker: number, gap: number, kicker: boolean, lane: number, room: number): boolean {
+    const driver = this.drivers[i];
+    if (this.trouble[blocker] || driver.wary > 0 || kicker || gap > this.keep(driver) + DIVE_REACH) return false;
+    if (blocker < this.driven && driver.personality.pace < this.drivers[blocker].personality.pace - DIVE_SLOWER) return false;
+    const apex = this.braking_zone(driver);
+    if (apex < 0) return false;
+    if (this.dive_zone[i] !== apex) {
+      this.dive_zone[i] = apex;
+      this.dive_roll[i] = this.rng() < driver.personality.aggression ? 1 : 0;
+    }
+    const side = Math.sign(driver.line.offset[apex]) || 1;
+    if (!this.dive_roll[i] || !this.open(i, side * lane, room, gap + PASS_WINDOW)) return false;
+    this.passing[i] = blocker;
+    this.pass_side[i] = side;
+    this.dive_until[i] = apex;
+    this.waited[i] = 0;
+    driver.hold = side * lane - driver.line.offset[driver.index];
+    driver.push = 1 + PUSH * driver.personality.aggression;
+    driver.late = true;
+    return true;
+  }
+
+  /**
+   * The car overlapping driver i down the inside into a braking zone, -1 for none: an AI car diving on it, or the
+   * player's car there on its own.
+   */
+  private diver_on(i: number): number {
+    const driver = this.drivers[i];
+    for (let j = 0; j < this.cars.length; j++) {
+      if (j === i) continue;
+      const gap = this.gap(i, j);
+      if (gap > 0 || gap < -OVERLAP) continue;
+      const dl = this.lateral[j] - this.lateral[i];
+      if (Math.abs(dl) > SIDE_GAP + 0.5 || this.trouble[j]) continue;
+      if (j < this.driven ? this.passing[j] === i && this.dive_until[j] >= 0 : this.player_dives(driver, dl)) return j;
+    }
+    return -1;
+  }
+
+  /** Whether the player's car, `dl` metres to driver's side, is on the inside of a braking zone ahead. */
+  private player_dives(driver: Driver, dl: number): boolean {
+    const apex = this.braking_zone(driver);
+    return apex >= 0 && Math.sign(dl) === Math.sign(driver.line.offset[apex]);
   }
 
   /**

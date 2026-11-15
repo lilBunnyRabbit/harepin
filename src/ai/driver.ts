@@ -1,7 +1,7 @@
 import { Quaternion, Vector3 } from "three";
 import { ride_height, type Car, type Controls, type Ground } from "../car/car";
 import { ROAD_HALF } from "../worldgen/types";
-import { CURVE_SPAN, inverse_radius, LINE_BRAKE, LINE_GRIP, type RaceLine } from "./line";
+import { CURVE_SPAN, inverse_radius, LATE_BRAKE, LINE_BRAKE, LINE_GRIP, type RaceLine } from "./line";
 
 /** Road points of aim past the car, plus one per this many m/s: pure pursuit, as the autopilot steers. */
 const AIM_BASE = 7;
@@ -18,6 +18,8 @@ const TRACK_AHEAD = 40;
 const BRAKE_SLACK = 1;
 const BRAKE_PER = 10;
 const BRAKE_MAX = 0.5;
+/** Most pedal a late braker diving down the inside uses: it brakes harder than the line, short of locking up. */
+const LATE_PEDAL = 0.8;
 /** Behind a car, m/s over its cap per unit of pedal, up to full: the cap is a gap to keep, not a plan to ease into. */
 const CAP_BRAKE_PER = 10;
 /** Slip angle (rad) at which the driver is fully off the brake. */
@@ -25,7 +27,11 @@ const SLIDE_LET_GO = 0.15;
 /** Metres the car's body keeps off the road edge when it leaves the line to pass or defend. */
 const PASS_EDGE = 1;
 const RAMP_SIDE = 0.5;
-/** m/s over the plan a late brake carries, the share of its pace a hesitation gives up, and over how many road points. */
+/**
+ * Share over the plan a late brake carries, at most MISTAKE_SPEED m/s, the share of its pace a hesitation gives up, and
+ * over how many road points. A flat 3 m/s took a 10 m/s hairpin at 30% over the plan, off the road.
+ */
+const MISTAKE_OVER = 0.1;
 const MISTAKE_SPEED = 3;
 const MISTAKE_LIFT = 0.12;
 const MISTAKE_SPAN = 60;
@@ -78,6 +84,8 @@ export class Driver {
   hold = NaN;
   /** Share over its own pace it drives at while the awareness has it passing. */
   push = 1;
+  /** Diving down the inside: it plans on the line's late braking curve (`RaceLine.late`), set by the awareness. */
+  late = false;
   /** Speed (m/s) it may not pass, set by the awareness behind a car it cannot get by. */
   cap = Infinity;
   /** m/s it aims at this step, cap included: what a follower reads as the speed this car is about to hold. */
@@ -222,6 +230,8 @@ export class Driver {
     const { line } = this;
     const { road } = line;
     const n = road.length;
+    const plan = this.late ? line.late : line.speed;
+    const brake = this.late ? LATE_BRAKE : LINE_BRAKE;
     let pace = Infinity;
     let run = 0;
     for (let k = 0; k < HOLD_LOOK; k += HOLD_STRIDE) {
@@ -232,8 +242,8 @@ export class Driver {
       const li = this.lateral_at(car, i);
       const lc = this.lateral_at(car, c);
       const bend = inverse_radius(road[a].x + road[a].tz * la, road[a].z - road[a].tx * la, road[i].x + road[i].tz * li, road[i].z - road[i].tx * li, road[c].x + road[c].tz * lc, road[c].z - road[c].tx * lc);
-      const v = Math.min(line.speed[i], Math.sqrt((this.push > 1 ? LINE_GRIP * PASS_GRIP : LINE_GRIP) / Math.max(1e-9, Math.abs(bend))));
-      pace = Math.min(pace, Math.sqrt(v * v + 2 * LINE_BRAKE * run));
+      const v = Math.min(plan[i], Math.sqrt((this.push > 1 ? LINE_GRIP * PASS_GRIP : LINE_GRIP) / Math.max(1e-9, Math.abs(bend))));
+      pace = Math.min(pace, Math.sqrt(v * v + 2 * brake * run));
       for (let s = 0; s < HOLD_STRIDE; s++) run += line.step[(i + s) % n];
     }
     return pace;
@@ -254,8 +264,8 @@ export class Driver {
     // A grid lane is a fixed spot on the road: held at the easing rate, the car would drift after the line as it swings.
     if (Number.isNaN(this.launch)) this.aside += Math.max(-move, Math.min(move, want - this.aside));
     else this.aside = want;
-    const plan = this.aside === 0 ? line.speed[this.index] : this.aside_pace(car);
-    const free = slip && !this.mistake_late ? plan * personality.pace * (1 - MISTAKE_LIFT) : plan * personality.pace * this.push + personality.brake_margin + (slip ? MISTAKE_SPEED : 0);
+    const plan = this.aside !== 0 ? this.aside_pace(car) : this.late ? line.late[this.index] : line.speed[this.index];
+    const free = slip && !this.mistake_late ? plan * personality.pace * (1 - MISTAKE_LIFT) : plan * personality.pace * this.push + personality.brake_margin + (slip ? Math.min(MISTAKE_SPEED, MISTAKE_OVER * plan) : 0);
     const target = Math.min(this.cap, free);
     this.target = target;
     const look = target < HAIRPIN_PACE ? AIM_HAIRPIN : AIM_BASE + Math.floor(speed / AIM_PER);
@@ -293,7 +303,7 @@ export class Driver {
     // Behind a car the brake is not eased for the turn: running into it costs more than a wide line.
     const capped = this.cap < free;
     const turn = capped ? 1 : Math.max(0.2, 1 - Math.abs(err) * 4);
-    const pedal = capped ? Math.min(1, (speed - target) / CAP_BRAKE_PER) : Math.min(BRAKE_MAX, (speed - target) / BRAKE_PER);
+    const pedal = capped ? Math.min(1, (speed - target) / CAP_BRAKE_PER) : Math.min(this.late ? LATE_PEDAL : BRAKE_MAX, (speed - target) / BRAKE_PER);
     c.brake = speed > target + BRAKE_SLACK ? pedal * turn * ease : 0;
     return c;
   }
