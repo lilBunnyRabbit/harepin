@@ -12,6 +12,9 @@ export const FIELD_PARAM = "field";
 export const AI_RACE_PARAM = "airace";
 /** With `?airace`: the field's driver drives the player's car too, for shots and frame-time runs. */
 export const AI_DRIVE_PARAM = "aidrive";
+/** With `?airace`: AI cars on the grid, 1-6, for a frame-time baseline; F3's six without it. */
+export const AI_CARS_PARAM = "aicars";
+export const AI_CARS = 6;
 const MAX_CARS = 7;
 /** Metres from the camera past which a car draws as its one-mesh far view, and inside which it is back to the full one. */
 const FAR_VIEW = 75;

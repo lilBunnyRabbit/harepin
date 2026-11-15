@@ -11,8 +11,6 @@ import { RaceView } from "./race-view";
 import { COUNTDOWN_MS, RaceRun, RaceStatus, type RaceCourse, type RaceLevel } from "./races";
 import { line } from "./result";
 
-/** F3: six AI and the player. */
-const AI_CARS = 6;
 /** D4: about four minutes a race, in laps of the route's par; an island circuit's one lap already takes that (D3's three laps do not fit). */
 const RACE_MS = 240_000;
 const MAX_LAPS = 3;
@@ -64,7 +62,7 @@ export class AiRace implements ModeRun {
     ctx.scene.add(this.view.root);
     this.unplace = ctx.world.place(route.closure);
     this.laps = Math.max(1, Math.min(MAX_LAPS, Math.round(RACE_MS / route.par_ms)));
-    this.builds = field_builds(host.build(), AI_CARS, route.excludes);
+    this.builds = field_builds(host.build(), host.cars, route.excludes);
     this.names = [...this.builds.map((b) => `${CARS[b.car].name} ${b.number}`), PLAYER];
     this.run = this.grid_run();
     this.standings = new Standings(this.builds.length + 1, route.points.length, this.laps, this.builds.length);

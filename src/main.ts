@@ -80,7 +80,7 @@ import { pushing } from "./hud/stuck";
 import { LocalSim, SIM_WORKER_PARAM, WorkerSim, type Sim } from "./sim/sim-client";
 import { DT, FrameKind, SimHost, type FrameRequest } from "./sim/sim-host";
 import { WorldJournal } from "./world/world-journal";
-import { AI_DRIVE_PARAM, AI_RACE_PARAM, FieldView } from "./ai/field-view";
+import { AI_CARS, AI_CARS_PARAM, AI_DRIVE_PARAM, AI_RACE_PARAM, FieldView } from "./ai/field-view";
 import "./style.css";
 
 const params = new URLSearchParams(location.search);
@@ -448,7 +448,10 @@ modes.save_car = (code) => {
 };
 hud.run_route = () => modes.route;
 hud.in_run = () => modes.active;
-if (ai_race) modes.field_host = { sim, build: () => garage.build, autopilot: params.has(AI_DRIVE_PARAM) };
+if (ai_race) {
+  const cars = Math.max(1, Math.min(AI_CARS, Math.trunc(Number(params.get(AI_CARS_PARAM))) || AI_CARS));
+  modes.field_host = { sim, build: () => garage.build, autopilot: params.has(AI_DRIVE_PARAM), cars };
+}
 modes.start();
 updater.start();
 const system_back = new SystemBack(

@@ -47,6 +47,8 @@ export interface FieldHost {
   build(): Build;
   /** The field drives the player's car too: a dev autopilot for shots and frame-time runs. */
   readonly autopilot: boolean;
+  /** AI cars on the grid: F3's six, fewer for a frame-time baseline. */
+  readonly cars: number;
 }
 
 export interface ModeCtx {
