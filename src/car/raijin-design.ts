@@ -11,7 +11,8 @@ const NOSE = 2.1;
 const BUMPER = -2.47;
 // A bumper bar stands proud at each end, the grille set back over the front one.
 const OUTLINE: Point[] = [[2.02, 0.22], [NOSE, 0.27], [NOSE, 0.4], [2.05, 0.44], ...TOP, [BUMPER, 0.46], [BUMPER, 0.29], [-2.4, 0.22]];
-const PINCH = { nose: [0.12, 0.4], tail: [0.1, 0.35] } satisfies Partial<Section>;
+// The tail is square in plan: pinched, it folded the shoulder chamfer and the body side into a crease at each rear corner.
+const PINCH = { nose: [0.12, 0.4], tail: [0, 0] } satisfies Partial<Section>;
 // The belt rises to the tail under a chamfered shoulder, which leans in to the cabin's foot: the top of a 1.78 m body.
 const BELT: Point = [0.8, 1.0];
 const SECTION: Section = { belt: BELT, shoulder: kit_shoulder(1.78, 0.07, WIDTH), tuck: 0, ...PINCH };
@@ -36,7 +37,7 @@ const PIPE: Triple = [0.5, 0.345, BUMPER + 0.01];
 const INSET = 0.017;
 
 // Four round lamps on one dark panel with the plate between them, on the tail face both shells share. The panel ends inside
-// the pinched tail's corner and the outer lamp a lamp's margin inside the panel end, so the corner cuts neither.
+// the body corner and the outer lamp a lamp's margin inside the panel end.
 const lamp = (x: number, across: number): Part => ({ size: [across, across, 0.05], at: [x, 0.96, 0], round: true });
 const TAIL = tail_end(OUTLINE, 0.96, 0.25, 0.93, [lamp(0.74, 0.2), lamp(0.49, 0.15)], null, 0.96);
 
@@ -62,11 +63,10 @@ const HEAD: Part = { size: [0.39, 0.09, 0.05], at: [0.675, 0.72, 2.115], tilt: [
 
 const DECK = 1.105;
 const HALF = WIDTH / 2;
-// Risers fill the deck's outer 5 cm and stand square to the car, as wide as the body is at their rear foot: the tail
-// pinches under them, so the front foot stands just inside the deck edge and the rear foot on it.
+// Risers fill the deck's outer 5 cm and stand square to the car.
 const INNER = HALF - 0.055;
 const FOOT = -2.06;
-const slab_of = (points: Point[], from: number, to: number, straight?: number): Slab => ({ points, from, to, straight });
+const slab_of = (points: Point[], from: number, to: number): Slab => ({ points, from, to });
 const BOOT_HEEL = -2.39;
 // The saloon's own boot wing: a plane between two pedestals grown out of the deck corners, which wrap its ends.
 const BOOT = plane([-2.29, 1.26], 0.24, 0.045, 0.06);
@@ -74,7 +74,7 @@ const TALL = plane([-2.3, 1.33], 0.27, 0.045, 0.1);
 const boot_wing = (profile: Point[], kick: number): Wing => ({
   paint: [],
   trim: [],
-  lips: [slab_of(profile, 0, INNER, BOOT_HEEL), slab_of(hoop(profile, [FOOT, DECK], [BOOT_HEEL, DECK]), INNER, HALF, BOOT_HEEL), ...(kick > 0 ? [slab_of(gurney(profile, kick), 0, HALF, BOOT_HEEL)] : [])],
+  lips: [slab_of(profile, 0, INNER), slab_of(hoop(profile, [FOOT, DECK], [BOOT_HEEL, DECK]), INNER, HALF), ...(kick > 0 ? [slab_of(gurney(profile, kick), 0, HALF)] : [])],
 });
 // Past that a trim plane between two painted risers: each a leg standing on the deck corner that widens into the
 // plane's endplate, one outline.
@@ -88,8 +88,8 @@ function riser(profile: Point[], above: number, below: number, foot: number): Po
 const swept_wing = (profile: Point[], above: number, below: number, foot: number): Wing => ({
   paint: [],
   trim: [],
-  lips: [slab_of(riser(profile, above, below, foot), INNER, HALF, FOOT - foot)],
-  stands: [slab_of(profile, 0, INNER, FOOT - foot), slab_of(gurney(profile, 0.025), 0, INNER, FOOT - foot)],
+  lips: [slab_of(riser(profile, above, below, foot), INNER, HALF)],
+  stands: [slab_of(profile, 0, INNER),slab_of(gurney(profile, 0.025), 0, INNER)],
 });
 const WINGS: Wing[] = [boot_wing(BOOT, 0), boot_wing(TALL, 0.03), swept_wing(GT, 0.04, 0.07, 0.14), swept_wing(RACE, 0.06, 0.1, 0.16)];
 
