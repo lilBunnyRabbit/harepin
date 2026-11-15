@@ -3,6 +3,9 @@ import type { Token } from "../theme/theme";
 import { boosted, type Boost } from "./boost";
 import { cbrt } from "../sim-math";
 
+// Past 12 the formula and fujin kits press their struts past the floor stop at top speed, and the hull scrapes.
+const DOWNFORCE_CAP = 12;
+
 type NumericField = Exclude<{ [K in keyof CarSpec]-?: CarSpec[K] extends number ? K : never }[keyof CarSpec], "awd_split">;
 
 interface Derived {
@@ -184,7 +187,7 @@ export function slot_view(slot: Slot): SlotView {
   return spec.view ?? WHOLE_CAR;
 }
 
-const LIMITS: Partial<Record<Field, [number, number]>> = { offroad: [-1, 1] };
+const LIMITS: Partial<Record<Field, [number, number]>> = { offroad: [-1, 1], downforce: [0, DOWNFORCE_CAP] };
 
 export interface Build {
   car: CarId;

@@ -87,6 +87,9 @@ const DRIFT_SIDE_SX = 4;
  */
 const DRIFT_SIDE_SLIP = [0.26, 0.52] as const;
 const DROP_CLEAR = 0.05;
+// Metres the hull keeps over flat road when a strut meets its floor stop: without one, downforce at top speed pressed the
+// GT kit cars onto their floors, and the scrape, not the drag, set their top speed.
+const FLOOR_CLEAR = 0.04;
 
 // Each front points at the rear-axle turn centre, so at full lock inner and outer stop fighting each other.
 /** Road wheel angle, radians, of the wheel mounted at `x` (positive on the left) for the car's `steer`. */
@@ -148,6 +151,8 @@ export class Wheel {
   readonly point = new Vector3();
   readonly normal = new Vector3();
   readonly driven: boolean;
+  /** Compression, metres, at which the strut meets its floor stop, `FLOOR_CLEAR` short of the hull touching flat road. */
+  readonly floor_stop: number;
 
   constructor(
     readonly mount: Vector3,
@@ -159,6 +164,7 @@ export class Wheel {
   ) {
     this.driven = axle.drive_share > 0;
     this.reach = spec.wheel.rest + spec.wheel.radius;
+    this.floor_stop = this.reach - mount.y + Math.min(...spec.corners.map(([, y]) => y)) - FLOOR_CLEAR;
     this.omega = 0;
     this.spin = 0;
     this.compression = 0;
