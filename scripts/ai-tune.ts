@@ -95,8 +95,9 @@ function load(): State {
   if (!existsSync(path)) return { version: STATE_VERSION, config, cma: cma_init(to_unit(base), config.sigma), auto: {}, done: {}, base: null, gens: [], tuning: TUNING };
   const state = JSON.parse(readFileSync(path, "utf8")) as State;
   if (state.version !== STATE_VERSION) throw new Error(`${path} is version ${state.version}, expected ${STATE_VERSION}`);
-  const stale = state.tuning ? state.tuning !== TUNING : !state.base || hash(state.base.values) !== hash(base);
-  if (stale) throw new Error(`${path} was started on other AI_TUNING (src/ai/tuning.ts changed); start a new --run`);
+  const started = state.tuning ?? (state.base && hash(state.base.values) === hash(base) ? TUNING : state.base ? "other" : null);
+  if (!started) throw new Error(`${path} predates the tuning hash and has no defaults' score to check; start a new --run`);
+  if (started !== TUNING) throw new Error(`${path} was started on other AI_TUNING (src/ai/tuning.ts changed); start a new --run`);
   state.tuning = TUNING;
   if (JSON.stringify(state.config) !== JSON.stringify(config)) throw new Error(`${path} was started with ${JSON.stringify(state.config)}; pass the same options or a new --run`);
   return state;
