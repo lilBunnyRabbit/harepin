@@ -23,6 +23,8 @@ const RALLY_BUMPERS: Part[] = [
 ];
 // The roof runs on into a spoiler whose ends run down into the screen pillars from the third level; on the last they
 // also stand up as endplates and carry a second plane, so the whole wing is one painted piece with the roof.
+// The race wing stands square to the car, as wide as drawn: z ahead of where either shell's tail pinch starts.
+const UNPINCHED = -1.5;
 function rally_wings(shoulder: number): Wing[] {
   const lip = (reach: number, kick: number) => roof_lip(RALLY_CABIN, shoulder, 2, 0.3, reach, kick, 0.04);
   const eared = roof_wing(RALLY_CABIN, shoulder, 2, lip(0.28, 0.04), 0.16, 0.07);
@@ -33,7 +35,7 @@ function rally_wings(shoulder: number): Wing[] {
     { paint: [], trim: [], lips: [lip(0.12, 0).lip] },
     { paint: [], trim: [], lips: [lip(0.2, 0.02).lip] },
     { paint: [], trim: [], lips: [eared.lip, eared.ear] },
-    { paint: [], trim: [], lips: [race.lip, race.ear, { points: upper, from: 0, to: race.inner }] },
+    { paint: [], trim: [], lips: [{ ...race.lip, straight: UNPINCHED }, { ...race.ear, straight: UNPINCHED }, { points: upper, from: 0, to: race.inner, straight: UNPINCHED }] },
   ];
 }
 // The kit is the shell: 7 cm wider a side over deeper sills, chin and tail valance in the outline, the black arch trims kept thin.
