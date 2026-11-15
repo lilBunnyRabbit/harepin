@@ -432,3 +432,27 @@ Vite preview of a `--mode review` build, headless Chrome, 1440 x 900, island see
 - The baseline is not t276's 13.8 ms solo row: this is the circuit start in a race, with its marks, beams and cones, and a different machine state. Compare rows within this table only.
 - A CPU profile at 1x has JavaScript at a few percent: 41% `(program)` (GL submission and compositing) and 30% idle. The race scene is draw-bound before the AI adds anything.
 - The phone (S24+, J6/J7) is still the number that decides; not measured here.
+
+## Phone frame: 6-AI race and the Series screen (t307)
+
+Vite preview of a `--mode review` build, headless Chrome on the real GPU (ANGLE D3D11), 844x390 at DPR 2, touch (mobile tier), CPU throttled 4x, 2 s after the ready selector plus 8 s warm, then a 10 s sample. Race: `?seed=0&world=island&airace=circuit&aidrive&aicars=6`, sampled from 10 s after the lights show (pack bunched). Columns as in t238: frame work is CPU time inside the rAF callback, draw calls and triangles from wrapped WebGL2 draws, per drawn frame. The box was shared with other agents' jobs: two runs of the same build differ by up to 8 ms p50 at 4x, so compare rows run back to back. Scripts: `.t307/probe.mts`, `profile.mts`, `trace.mts` (untracked).
+
+| Case | Frame work p50 / p95 (ms) | Gap p50 / p95 (ms) | fps | Draw calls | Triangles |
+|---|---|---|---|---|---|
+| 6 AI, sim on main, before | 43.2-51.8 / 70-80 | 55-62 / 83-97 | 17-20 | 141 | 177k |
+| 6 AI, sim on main, brake LOD (42ad62d) | 43.2 / 73.2 | 55.5 / 90.2 | 20 | 123 | 180k |
+| 6 AI, sim on main, + the two DOM fixes below | **18.0 / 32.2** | 27.8 / 41.8 | **35** | 122 | 176k |
+| 6 AI, `?simworker`, before | 29.2-32.0 / 41-52 | 35-42 / 55-76 | 21-26 | 141 | 178k |
+| 6 AI, `?simworker`, brake LOD | 32.1 / 46.0 | 41.6 / 62.5 | 24 | 122 | 175k |
+| 6 AI, `?simworker`, + the two DOM fixes below | **11.7 / 15.4** | 20.8 / 27.8 | **48** | 122 | 175k |
+| 1 AI, sim on main, + DOM fixes | 9.5 / 27.3 | 13.9 / 48.6 | 54 | 72 | 163k |
+| Series `?series`, idle | 6.9 / 9.0 | 6.9 / 7.0 | 143 | 91 | 217k |
+| Series `?series`, swiping (touch scroll gestures) | 7.3 / 10.7 | 6.9 / 7.0 | 137 | 91 | 217k |
+
+The "DOM fixes" rows are the brake-LOD build with both fixes patched into the bundle by hand; they are not in the source (see below).
+
+- **The top cost of the race is not the AI models: it is style recalc.** A Chrome trace of the race at 4x has `UpdateLayoutTree` at 311 ms/s and `Layout` at 115 ms/s, 43% of the main thread. The race clock in `#mode-status` is written with `textContent` every frame (`Modes.write_status`, `modes/modes.ts:613`), which swaps the text nodes. Each swap schedules a `:has()` invalidation on `body` and `html` (`body:has(#mode-status:not([hidden]))` in `hud.css`, `run-card.css`, `phone.css`), so the whole document's style is recalculated every frame. `hud/hud.ts` already has `set_text`, which writes the lone text node's data for exactly this reason; `write_status` does not use it.
+- **Second: `Remotes.update` reads `innerWidth` / `innerHeight` every frame** (`net/remotes.ts:137`), after the frame's DOM writes, so it forces that layout synchronously: 28% self time in the CPU profile even with no remotes. Read the size from the renderer's `ResizeObserver` width (`render.ts`), or on `resize`.
+- With both fixes, the worker row goes from 32 to 11.7 ms p50 and 15.4 ms p95 at 4x: inside the 16.7 ms budget. On main, 18 ms p50 is still over it; the sim (`Car.step` 204 ms/s) is what is left, which the worker takes.
+- **AI car models:** each full view is 12 draw calls (hull, metal hull, heads, tails, 4 tyres, 4 brake discs). Five more AI cars add 68 calls and 15k triangles over the 1-AI row. Phone has no shadow map, so shadow casters cost nothing there. 42ad62d hides the brake discs and calipers past 30 m (back at 25 m), where a wheel is under 10 px: -18 calls with the pack bunched, more once it strings out. Its frame-time gain is inside the noise next to the style recalc.
+- **Series screen:** no dropped frames idle or swiping; the frame gap p95 is 7.0 ms (the 144 Hz display). The scene behind it redraws at 10 Hz (`MENU_DRAW_MS`), so its draw costs 65 ms/s at 4x. The rest of `frame()` still runs at the display rate behind the menu: about 155 ms/s at 4x (ghost `wheel_lifts`, `drawn_lift`, gamepads, audio), and a native `(program)` share for compositing the cards. A loop that skips its non-draw work on frames it does not draw would win that back; not done (`main.ts`). The 10 Hz redraw shows its turbines and gates stepping now that the stage page has no blur.
