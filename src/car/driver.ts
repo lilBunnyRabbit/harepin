@@ -67,7 +67,7 @@ export class Driver {
     scene.add(this.view.root);
     scene.add(this.shadow.mesh);
     snap_lights(this.view, dark);
-    light.mount(this.view.root, dark);
+    light.mount(this.view.root, dark, this.car.spec.body.length / 2);
     const body: RewindPart<CarFrame> = {
       snapshot: () => {
         const car = this.car;
@@ -201,7 +201,7 @@ export class Driver {
     this.view = build_view(build, this.car.spec);
     snap_lights(this.view, lights);
     this.scene.add(this.view.root);
-    this.light.mount(this.view.root, lights);
+    this.light.mount(this.view.root, lights, this.car.spec.body.length / 2);
     sync_car_view(this.view, this.car);
   }
 

@@ -119,7 +119,7 @@ export class Stage {
     this.composer = new EffectComposer(this.renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: quality.antialias ? COMPOSER_SAMPLES : 0 }));
     this.composer.addPass(new RenderPass(this.scene, this.camera));
     if (quality.tier.bloom) {
-      this.bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), this.light.bloom.strength, 0.45, this.light.bloom.threshold);
+      this.bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), this.light.bloom.strength, this.light.bloom.radius, this.light.bloom.threshold);
       sanitise_bloom(this.bloom);
       this.composer.addPass(this.bloom);
     }

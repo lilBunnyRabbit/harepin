@@ -3,7 +3,7 @@ import { DEFAULT_BUILD, build_code, build_spec, parse_build, type Build } from "
 import { oversize, type CarSpec } from "../car/cars";
 import { contact_shadow, fit_contact_shadow, place_contact_shadow, type ContactShadow } from "../car/contact-shadow";
 import { chunk_of } from "../worldgen/chunk-grid";
-import { set_lights, show_flame, snap_lights, swing_popups } from "../car/lights";
+import { BRAKE_ON, BRAKE_REST, set_lights, show_flame, snap_lights, swing_popups } from "../car/lights";
 import { build_view, camera_fade, dispose_car_view, rest_wheels, type CarView } from "../car/models";
 import type { World } from "../world/world";
 import { tier_badge, tier_look } from "../career/badge";
@@ -194,7 +194,7 @@ export class Remotes {
       w.rotation.y = rv.view.steered[i] ? -s.steer : 0;
       w.children[0].rotation.x = rv.spin;
     });
-    rv.view.brake.emissiveIntensity = s.brake ? 2.2 : 0.5;
+    rv.view.brake.emissiveIntensity = s.brake ? BRAKE_ON : BRAKE_REST;
     const heading = Math.atan2(this.forward.x, this.forward.z);
     const turned = Math.atan2(Math.sin(heading - rv.heading), Math.cos(heading - rv.heading));
     rv.heading = heading;

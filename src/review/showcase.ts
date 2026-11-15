@@ -58,7 +58,7 @@ const buffer = renderer.getDrawingBufferSize(new THREE.Vector2());
 const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(buffer.x, buffer.y, { type: THREE.HalfFloatType, samples: quality.antialias ? COMPOSER_SAMPLES : 0 }));
 composer.addPass(new RenderPass(scene, camera));
 if (quality.tier.bloom) {
-  const bloom = new UnrealBloomPass(new THREE.Vector2(cell_w / 2, cell_h / 2), light.bloom.strength, 0.45, light.bloom.threshold);
+  const bloom = new UnrealBloomPass(new THREE.Vector2(cell_w / 2, cell_h / 2), light.bloom.strength, light.bloom.radius, light.bloom.threshold);
   sanitise_bloom(bloom);
   composer.addPass(bloom);
 }

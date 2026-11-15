@@ -16,12 +16,23 @@ export interface MoodSpec {
   head_intensity: number;
   head_range: number;
   bloom: number;
+  /** UnrealBloomPass radius, 0-1: how far a glow spreads past its lamp. */
+  bloom_radius: number;
   bloom_threshold: number;
 }
 
-// Near-flat falloff: an inverse-power light at the bumper outshines the sun by 10x on anything a few metres ahead and
-// clips it white with no tone mapping; the range cutoff and grazing angle on the road give the far fade instead.
+// Near-flat falloff: an inverse-power light outshines the sun by 10x on anything a few metres ahead and clips it white
+// with no tone mapping; the range cutoff and the angle the beam meets the road at give the far fade instead.
 const HEAD_DECAY = 0.3;
+/**
+ * The beam's source, metres over the car's origin, above any real lamp: from bumper height the beam met the road at a
+ * few degrees and left no pool, while a wall still took it head on. From up here the road takes the beam at about 15
+ * degrees, and tilted down by `HEAD_TILT` (radians) the cone's soft top edge fades out before far walls and trees.
+ */
+const HEAD_LIFT = 2.4;
+const HEAD_TILT = 0.3;
+const HEAD_CONE = 0.42;
+const HEAD_SOFT = 0.55;
 /** Brightest the sky around the sun and the sky track's cloud floor may get, as a share of the bloom threshold. */
 const SKY_CEILING = 0.9;
 /** Half the side of the sun's shadow box, metres: the car's shadow keeps more texels per metre than a town-wide box gave. */
@@ -44,9 +55,11 @@ const DUSK: MoodSpec = {
   hemi_intensity: 1.3,
   fog_near: 120,
   fog_far: 1300,
-  head_intensity: 7,
-  head_range: 70,
-  bloom: 0.6,
+  head_intensity: 22,
+  head_range: 40,
+  // Bloom adds in proportion to a lamp's colour: at 0.6 a wide braking tail washed the whole rear of the car red.
+  bloom: 0.2,
+  bloom_radius: 0,
   bloom_threshold: 0.9,
 };
 
@@ -65,6 +78,7 @@ const DAY: MoodSpec = {
   head_intensity: 1.5,
   head_range: 70,
   bloom: 0.2,
+  bloom_radius: 0.45,
   bloom_threshold: 0.98,
 };
 
@@ -100,7 +114,7 @@ function sky_fog(radial: boolean) {
 
 export class Lighting {
   readonly sun: THREE.DirectionalLight;
-  readonly bloom: { strength: number; threshold: number };
+  readonly bloom: { strength: number; radius: number; threshold: number };
   private readonly spec: MoodSpec;
   private headlight: THREE.SpotLight | null = null;
   /** Where the shadow is cast from: the sun's bearing, never lower than `SHADOW_SUN_Y`. */
@@ -110,7 +124,7 @@ export class Lighting {
   /** `radial` fogs on distance instead of view depth, so a phone's streamed chunks cover all the fog leaves visible. */
   constructor(scene: THREE.Scene, mood: MoodDelta, radial = false) {
     const spec = (this.spec = { ...(dark ? DUSK : DAY), ...mood });
-    this.bloom = { strength: spec.bloom, threshold: spec.bloom_threshold };
+    this.bloom = { strength: spec.bloom, radius: spec.bloom_radius, threshold: spec.bloom_threshold };
     sky_ceiling.value = spec.bloom_threshold * SKY_CEILING;
     // The sky shader and clouds read SUN_DIR when built, so it is set before `sky()` and `clouds()` run.
     const flat = Math.hypot(SUN_DIR.x, SUN_DIR.z);
@@ -135,10 +149,11 @@ export class Lighting {
     sun.shadow.updateMatrices = () => update(Object.assign(shadow_from, { target: sun.target }) as unknown as THREE.DirectionalLight);
   }
 
-  mount(car_root: THREE.Object3D, on: boolean) {
-    const headlight = (this.headlight = new THREE.SpotLight(glow(tones.head), 0, this.spec.head_range, 0.42, 0.55, HEAD_DECAY));
-    headlight.position.set(0, 0.1, 2.0);
-    headlight.target.position.set(0, -1.2, 14);
+  /** `nose` is how far ahead of the car's origin its front ends, metres. */
+  mount(car_root: THREE.Object3D, on: boolean, nose: number) {
+    const headlight = (this.headlight = new THREE.SpotLight(glow(tones.head), 0, this.spec.head_range, HEAD_CONE, HEAD_SOFT, HEAD_DECAY));
+    headlight.position.set(0, HEAD_LIFT, nose);
+    headlight.target.position.set(0, HEAD_LIFT - Math.sin(HEAD_TILT), nose + Math.cos(HEAD_TILT));
     car_root.add(headlight, headlight.target);
     this.beam(on);
   }

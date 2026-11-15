@@ -11,8 +11,10 @@ const HEAD_GLOW = 1.2;
 // The longest step a swing takes, so the first frame after a stall or a hidden tab does not jump the pods.
 const SWING_STEP = 0.1;
 
-// Brake emissive runs 0.5 at rest and 2.2 braking (`sync_car_view`, remotes): only the braking glow clears bloom.
 const BRAKE_GLOW = 0.5;
+/** Tail lamp emissive intensity at rest and braking: only the braking glow clears the bloom threshold, and at 0.5 a resting lamp read flat salmon at dusk. */
+export const BRAKE_REST = 0.25;
+export const BRAKE_ON = 2.2;
 
 // A dusk theme's error is a light salmon; the lamp lens sits deeper so it reads red at rest, braking or not.
 const TAIL_L = 0.55;
@@ -28,7 +30,7 @@ export interface Lamps {
 
 export function lamps(d: Design): Lamps {
   const head_material = new THREE.MeshLambertMaterial({ color: color(tones.head), emissive: glow(tones.head), emissiveIntensity: HEAD_GLOW });
-  const brake = new THREE.MeshLambertMaterial({ color: color(tail), emissive: glow(tail, BRAKE_GLOW), emissiveIntensity: 0.5 });
+  const brake = new THREE.MeshLambertMaterial({ color: color(tail), emissive: glow(tail, BRAKE_GLOW), emissiveIntensity: BRAKE_REST });
   const heads = new THREE.Mesh(merge(parts(d.heads)), head_material);
   return { heads, tails: new THREE.Mesh(merge(parts(d.tails)), brake), brake };
 }
