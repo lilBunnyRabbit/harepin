@@ -35,8 +35,10 @@ const PASS_CLEAR = 3;
 /** Personality ranges a field draws from. */
 const PACE = [0.92, 1] as const;
 const BRAKE_MARGIN = [0, 0.8] as const;
-const AGGRESSION = [0.2, 1] as const;
-const MISTAKES = [0.05, 0.3] as const;
+/** Aggression and mistakes ranges per owner level 1-5 (H5, H6); level 3 is the default field. */
+const AGGRESSION: readonly (readonly [number, number])[] = [[0, 0.6], [0.1, 0.8], [0.2, 1], [0.4, 1], [0.6, 1]];
+const MISTAKES: readonly (readonly [number, number])[] = [[0, 0.1], [0.02, 0.2], [0.05, 0.3], [0.1, 0.4], [0.2, 0.5]];
+const LEVEL = 3;
 
 export interface RacerStats {
   /** Seconds at each lap's end, from the start. */
@@ -59,10 +61,17 @@ export interface Racer {
 
 const between = (rng: () => number, [lo, hi]: readonly [number, number]) => lo + (hi - lo) * rng();
 
-/** A personality per grid slot, drawn from the race seed, so the grid order says nothing about pace. */
-export function personalities(seed: number, count: number): Personality[] {
+const level = (table: readonly (readonly [number, number])[], at: number) => table[Math.max(1, Math.min(table.length, Math.round(at))) - 1];
+
+/**
+ * A personality per grid slot, drawn from the race seed, so the grid order says nothing about pace. `aggression` and
+ * `mistakes` are the owner's 1-5 levels for the field; each car draws inside its level's range.
+ */
+export function personalities(seed: number, count: number, aggression = LEVEL, mistakes = LEVEL): Personality[] {
   const rng = mulberry32(sub(seed, "ai-field"));
-  return Array.from({ length: count }, () => ({ pace: between(rng, PACE), brake_margin: between(rng, BRAKE_MARGIN), aggression: between(rng, AGGRESSION), mistakes: between(rng, MISTAKES) }));
+  const bold = level(AGGRESSION, aggression);
+  const sloppy = level(MISTAKES, mistakes);
+  return Array.from({ length: count }, () => ({ pace: between(rng, PACE), brake_margin: between(rng, BRAKE_MARGIN), aggression: between(rng, bold), mistakes: between(rng, sloppy) }));
 }
 
 /**
