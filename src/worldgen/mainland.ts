@@ -56,6 +56,7 @@ export function plan_mainland(seed: number, recipe: Recipe = MAINLAND): Mainland
       (edge): GroundOp => ({ kind: "edge", edge, bank: recipe.road.bank }),
     ),
     { kind: "blend", bank: recipe.road.bank },
+    ...(recipe.snow ? [{ kind: "snow", kit: recipe.snow, beach: recipe.biomes.limits.beach, parts: [] } satisfies GroundOp] : []),
   ];
   const { patched } = road_junctions({ road, graph, circuit });
   const town = mainland_lots(seed, recipe, graph, towns, circuit, patched, ops, water);
@@ -115,6 +116,6 @@ export function plan_mainland(seed: number, recipe: Recipe = MAINLAND): Mainland
   return { grid, data };
 }
 
-export function generate_mainland(seed: number): WorldData {
-  return plan_mainland(seed).data;
+export function generate_mainland(seed: number, recipe: Recipe = MAINLAND): WorldData {
+  return plan_mainland(seed, recipe).data;
 }
