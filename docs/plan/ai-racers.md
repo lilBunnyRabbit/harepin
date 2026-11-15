@@ -598,3 +598,16 @@ Open after this round:
 - 11 races a candidate is noisy: gen 0's best (83.46) was a lucky draw that later generations did not beat by much. A run meant to ship values wants more train seeds (`--seeds 0-11`) and more generations; at 3 workers that is about 2 hours.
 - Pace does not move: no candidate got faster than -16% against the autolap. Lap time is bound by what the search cannot reach (hairpin lock, kicker pace), or the 1% = 1 point weight is too light against the contact and spin terms.
 - The search trades overtakes for clean racing on held-out seeds. If the owner wants the passing kept, `W_PASS` goes up.
+
+### Tuner reweight and long run (t302, 2026-11-15)
+
+The demo made races cleaner, not faster, and passed less. The owner's order: (1) faster in corners, (2) passing, (3) few spins and resets; light rubbing is fine.
+
+| Change | Where |
+|---|---|
+| Pace 2 points per 1% of lap (was 1), overtakes 3 a race (was 1.5), spins + resets 8 (was 4, still 4% of lap), stuck 200 (was 100); contact terms keep their weights, so rubbing costs half as much against pace | `ai-tune/objective.ts` |
+| Pass floor: each overtake a race under the defaults' on the same seeds costs 20 more. The defaults race the train seeds first and set the floor; the held-out best is scored against the defaults' held-out overtakes | `objective.ts` `score(…, floor)`, `ai-tune.ts` |
+| State version 2: run files scored on the old weights refuse to resume | `ai-tune.ts` |
+
+Long run: `hq lock run -- bun scripts/ai-tune.ts --run long --seeds 0-11 --check 12-23 --pop 10 --gens 10 --jobs 3` (101 candidates).
+

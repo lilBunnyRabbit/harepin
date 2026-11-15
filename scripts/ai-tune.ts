@@ -15,7 +15,7 @@ import { run_pool } from "./proof/pool";
 // Heavy: run it through `hq lock run --`; --jobs defaults to a quarter of the machine, one heavy slot's share.
 
 const DIR = ".ai-tune";
-const STATE_VERSION = 1;
+const STATE_VERSION = 2;
 
 const arg = (name: string, fallback: string) => {
   const at = process.argv.indexOf(name);
@@ -111,7 +111,8 @@ interface Entry {
   values: Values;
 }
 
-async function evaluate(entries: readonly Entry[], seeds: readonly number[]): Promise<Score[]> {
+/** `floor`: the defaults' overtakes a race on `seeds`, under which a candidate pays (objective.ts). */
+async function evaluate(entries: readonly Entry[], seeds: readonly number[], floor = 0): Promise<Score[]> {
   await autolaps(seeds);
   const todo: TuneJob[] = [];
   for (const { key, values } of entries) for (const seed of seeds) if (!state.done[`${key}/${seed}`]) todo.push({ type: "race", id: `${key}/${seed}`, seed, values, cars: config.cars, laps: config.laps });
@@ -125,7 +126,7 @@ async function evaluate(entries: readonly Entry[], seeds: readonly number[]): Pr
     });
     process.stderr.write("\n");
   }
-  return entries.map(({ key }) => score(seeds.flatMap((seed) => state.done[`${key}/${seed}`].map((race) => ({ seed, race }))), state.auto, config.laps));
+  return entries.map(({ key }) => score(seeds.flatMap((seed) => state.done[`${key}/${seed}`].map((race) => ({ seed, race }))), state.auto, config.laps, floor));
 }
 
 const fmt = (v: number, d = 2) => (Number.isFinite(v) ? v.toFixed(d) : "-");
@@ -157,18 +158,17 @@ if (process.argv.includes("--eval")) {
   process.exit(0);
 }
 
-let base = state.base;
-while (state.cma.gen < gens || !base) {
+if (!state.base) {
+  const [s] = await evaluate([{ key: "base", values: defaults() }], config.seeds);
+  state.base = { values: defaults(), score: s };
+  save();
+}
+const base = state.base;
+while (state.cma.gen < gens) {
   const g = state.cma.gen;
-  const samples = g < gens ? cma_sample(state.cma, config.pop, mulberry32(sub(config.seed, `ai-tune-${g}`))) : [];
+  const samples = cma_sample(state.cma, config.pop, mulberry32(sub(config.seed, `ai-tune-${g}`)));
   const list = samples.map((s) => from_unit(s.x));
-  const entries = [...(base ? [] : [{ key: "base", values: defaults() }]), ...list.map((values, k) => ({ key: `g${g}/${k}`, values }))];
-  const all = await evaluate(entries, config.seeds);
-  if (!base) {
-    base = state.base = { values: defaults(), score: all[0] };
-    all.shift();
-  }
-  if (!samples.length) break;
+  const all = await evaluate(list.map((values, k) => ({ key: `g${g}/${k}`, values })), config.seeds, base.score.passes);
   const order = all.map((_, k) => k).sort((a, b) => all[a].loss - all[b].loss);
   state.gens.push({ sigma: state.cma.sigma, candidates: list.map((values, k) => ({ values, score: all[k] })) });
   state.cma = cma_update(state.cma, order.map((k): Sample => samples[k]));
@@ -190,7 +190,9 @@ for (const p of PARAMS) console.log(`| ${p.name} | ${fmt(base.values[p.name], 3)
 console.log("");
 const columns: [string, Score][] = [["defaults (train)", base.score], ["best (train)", best.score]];
 if (check.length) {
-  const [base_check, best_check] = await evaluate([{ key: "check-base", values: base.values }, { key: `check-g${state.gens.length}`, values: best.values }], check);
+  const best_entry = { key: `check-g${state.gens.length}`, values: best.values };
+  const [base_check] = await evaluate([{ key: "check-base", values: base.values }, best_entry], check);
+  const [best_check] = await evaluate([best_entry], check, base_check.passes);
   columns.push(["defaults (check)", base_check], ["best (check)", best_check]);
 }
 score_rows(columns);

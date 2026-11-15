@@ -2,13 +2,16 @@ import { CONTACT_BAND } from "../ai-race";
 import type { RaceResult } from "./worker";
 
 /**
- * Loss weights, lower is better. 1 point = 1% of lap time against the autopilot; one more overtake a race is worth 1.5%,
- * one spin or reset a race costs 4%. Grid order only counts past RHO_SOFT: some correlation is the faster cars starting
- * ahead, and the owner asked only that the grid not decide the race.
+ * Loss weights, lower is better, in the owner's order: pace in corners, then passing, then few spins. 2 points = 1% of
+ * lap time against the autopilot; one more overtake a race is worth 1.5%, one spin or reset a race costs 4%. Grid order
+ * only counts past RHO_SOFT: some correlation is the faster cars starting ahead, and the owner asked only that the grid
+ * not decide the race.
  */
-const W_PACE = 100;
-const W_PASS = 1.5;
-const W_TROUBLE = 4;
+const W_PACE = 200;
+const W_PASS = 3;
+const W_TROUBLE = 8;
+/** Per overtake a race under the floor (today's on the same seeds), on top of W_PASS: a cleaner field that stops passing loses. */
+const W_PASS_FLOOR = 20;
 const W_REVERSE = 1;
 const W_HARDEST = 0.2;
 /** m/s past which the worst hit of the set costs W_WORST a m/s on top: the owner's 15 m/s line at level 3. */
@@ -17,7 +20,7 @@ const W_WORST = 0.5;
 const W_BAND = 20;
 const RHO_SOFT = 0.6;
 const W_RHO = 30;
-const W_STUCK = 100;
+const W_STUCK = 200;
 /** Lap ratio a race with no finisher counts as. */
 const DNF_PACE = 1.5;
 
@@ -39,8 +42,8 @@ export interface Score {
   loss: number;
 }
 
-/** `auto` maps `<seed>/<route>` to the autopilot's lap (s). */
-export function score(races: readonly { seed: number; race: RaceResult }[], auto: Record<string, number>, laps: number): Score {
+/** `auto` maps `<seed>/<route>` to the autopilot's lap (s); `floor` is the overtakes a race the defaults made on these races' seeds. */
+export function score(races: readonly { seed: number; race: RaceResult }[], auto: Record<string, number>, laps: number, floor = 0): Score {
   const n = races.length;
   const mean = (f: (r: RaceResult, seed: number) => number) => races.reduce((s, { seed, race }) => s + f(race, seed), 0) / n;
   const pace = mean((r, seed) => (Number.isFinite(r.lap) ? r.lap / auto[`${seed}/${r.route}`] : DNF_PACE));
@@ -53,6 +56,6 @@ export function score(races: readonly { seed: number; race: RaceResult }[], auto
   const stuck = mean((r) => (r.stuck ? 1 : 0));
   const rho = mean((r) => r.rho);
   const loss =
-    W_PACE * pace - W_PASS * passes + W_TROUBLE * trouble + W_REVERSE * reverses + W_HARDEST * hardest + W_WORST * Math.max(0, worst - HIT_LINE) + W_BAND * band + W_RHO * Math.max(0, rho - RHO_SOFT) + W_STUCK * stuck;
+    W_PACE * pace - W_PASS * passes + W_PASS_FLOOR * Math.max(0, floor - passes) + W_TROUBLE * trouble + W_REVERSE * reverses + W_HARDEST * hardest + W_WORST * Math.max(0, worst - HIT_LINE) + W_BAND * band + W_RHO * Math.max(0, rho - RHO_SOFT) + W_STUCK * stuck;
   return { races: n, pace, passes, trouble, reverses, hardest, worst, band, stuck, rho, loss };
 }
