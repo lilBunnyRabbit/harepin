@@ -48,13 +48,14 @@ const CABIN: Cabin = {
 // The mirror stands over the hip crest, where the body side has done leaning in: lower, the lean would shear its housing.
 const MIRROR_AT = glass_corner(CABIN, 0.185, 0.26);
 
-const ARCHES: Arches = { gap: 0.07, steps: 8, flare: 0, out: 0, reach: 0, tone: "paint" };
+const ARCHES: Arches = { gap: 0.075, steps: 9, flare: 0, out: 0, reach: 0, tone: "paint" };
 
 const grown = (points: Point[], from: number, to: number): Slab[] => [{ points, from, to }];
 
-// Each front wing stands over the low bonnet from the lamp to the screen foot, its side the body side run on up.
+// Each front wing stands over the bonnet from the lamp to the screen foot, its side the body side run on up. Its foot
+// lies just under the bonnet line and over the wheel opening, which is cut in the body alone.
 const WING_WALL = 0.56;
-const FENDER: Point[] = [[2.12, 0.49], [2.16, 0.6], [2.08, 0.74], [1.92, 0.815], [1.3, 0.835], [0.66, 0.797], [0.66, 0.6]];
+const FENDER: Point[] = [[2.12, 0.49], [2.16, 0.6], [2.08, 0.74], [1.92, 0.815], [1.3, 0.835], [0.66, 0.797], [0.66, 0.77], [1.3, 0.76], [1.45, 0.752], [1.62, 0.69]];
 // The tail kicks up across its whole width into a ducktail, then a whale tail, then a tray with a rubber rim.
 const lip = (root: Point, tip: Point): Point[] => [root, tip, [tip[0] - 0.015, tip[1] - 0.03], [-1.845, 0.62]];
 const DUCKTAIL = lip([-1.58, 0.79], [-1.95, 0.86]);
