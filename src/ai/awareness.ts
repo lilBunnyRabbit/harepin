@@ -6,8 +6,13 @@ const LOOK = 15;
 const LOOK_PER = 1.2;
 /** Road points apart under which a gap is measured from the car positions. */
 const NEAR_POINTS = 20;
-/** Lateral metres between centres under which a car ahead is in the way. */
+/** Lateral metres between centres under which a car ahead is in the way, and under which a car in trouble is. */
 const IN_LANE = 2.6;
+const HAZARD_LANE = 6;
+/** Slip angle (rad) past which a car is in trouble, and the share of its speed under which it is moving across the road. */
+const TROUBLE_SLIDE = 0.5;
+const TROUBLE_ALONG = 0.5;
+const TROUBLE_SPEED = 3;
 /** Lateral metres between centres a pass lane must keep off the passed car: two half widths and room for a slide. */
 const PASS_FLANK = 2.8;
 /** Metres off the centre a passing car drives in, in the half of the road the passed car is not in. */
@@ -73,6 +78,9 @@ export class Awareness {
   /** Metres off the line, where `lateral` is off the centre: a pass rides the other car's line shifted, as the line swings. */
   private readonly rel: Float64Array;
   private readonly speed: Float64Array;
+  /** m/s along the road, and whether the car is spinning, crossing the road or reversing: a hazard to plan around, not a car to follow. */
+  private readonly along: Float64Array;
+  private readonly trouble: Uint8Array;
   private readonly defend_until: Int32Array;
   /** The car each driver is passing (-1 for none) and the side it goes by on, held until it is clear past. */
   private readonly passing: Int32Array;
@@ -87,6 +95,8 @@ export class Awareness {
     this.lateral = new Float64Array(cars.length);
     this.rel = new Float64Array(cars.length);
     this.speed = new Float64Array(cars.length);
+    this.along = new Float64Array(cars.length);
+    this.trouble = new Uint8Array(cars.length);
     this.defend_until = new Int32Array(cars.length).fill(-1);
     this.passing = new Int32Array(cars.length).fill(-1);
     this.pass_side = new Int8Array(cars.length);
@@ -104,7 +114,13 @@ export class Awareness {
       this.progress[i] = drivers[i].progress;
       this.lateral[i] = Awareness.lateral_of(cars[i], drivers[i]);
       this.rel[i] = this.lateral[i] - drivers[i].line.offset[drivers[i].index];
-      this.speed[i] = Math.hypot(cars[i].vel.x, cars[i].vel.z);
+      const { vel, heading } = cars[i];
+      const v = Math.hypot(vel.x, vel.z);
+      const p = drivers[i].line.road[drivers[i].index];
+      this.speed[i] = v;
+      this.along[i] = vel.x * p.tx + vel.z * p.tz;
+      const slide = Math.abs(Math.atan2(Math.sin(Math.atan2(vel.x, vel.z) - heading), Math.cos(Math.atan2(vel.x, vel.z) - heading)));
+      this.trouble[i] = drivers[i].reversing > 0 || (v > TROUBLE_SPEED && (slide > TROUBLE_SLIDE || this.along[i] < TROUBLE_ALONG * v)) ? 1 : 0;
     }
     for (let i = 0; i < cars.length; i++) {
       this.decide(i);
@@ -149,7 +165,7 @@ export class Awareness {
       const gap = this.gap(i, j);
       const dl = this.lateral[j] - me;
       if (Math.abs(gap) < ALONGSIDE && Math.abs(dl) < SIDE_GAP + 0.5) beside = j;
-      if (gap > 0 && gap < LOOK + LOOK_PER * v && Math.abs(dl) < IN_LANE && gap < blocker_gap) {
+      if (gap > 0 && gap < LOOK + LOOK_PER * v && Math.abs(dl) < (this.trouble[j] ? HAZARD_LANE : IN_LANE) && gap < blocker_gap) {
         blocker = j;
         blocker_gap = gap;
       }
@@ -202,7 +218,7 @@ export class Awareness {
       let bend = false;
       for (let k = 0; k < PASS_CALM && !bend; k += 4) bend = line.speed[(driver.index + k) % n] < CALM_SHARE * line.speed[driver.index] || Math.abs(line.bend[(driver.index + k) % n]) > CALM_BEND;
       // A bold driver dives into a braking zone; the rest pass only where the road stays calm.
-      if (faster && pick !== 0 && driver.wary <= 0 && !kicker && (!bend || aggression > DIVE)) {
+      if (faster && pick !== 0 && driver.wary <= 0 && !kicker && !this.trouble[blocker] && (!bend || aggression > DIVE)) {
         this.passing[i] = blocker;
         this.pass_side[i] = pick;
         driver.hold = this.rel[blocker] + pick * SIDE_GAP;
@@ -268,8 +284,9 @@ export class Awareness {
 
   /** Speed (m/s) that closes down to `keep` metres behind car j, `gap` metres ahead, and brakes off any metre inside it. */
   private follow(j: number, gap: number, keep: number): number {
-    // The speed the car ahead is about to hold, not the one it has: it brakes for the bend before the follower sees it slow.
-    const vj = Math.min(this.speed[j], this.drivers[j].target);
+    // The speed the car ahead is about to hold, not the one it has: it brakes for the bend before the follower sees it slow. A
+    // car in trouble holds only what it makes along the road.
+    const vj = this.trouble[j] ? Math.max(0, this.along[j]) : Math.min(this.speed[j], this.drivers[j].target);
     const close = gap - keep;
     return close > 0 ? Math.sqrt(vj * vj + 2 * FOLLOW_BRAKE * close) : Math.max(0, vj + close * BACK_OFF);
   }
