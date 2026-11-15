@@ -22,6 +22,11 @@ const RESET_TIME = 4;
 const STALL_TIME = 8;
 const RESET_AHEAD = 15;
 const RESET_BEHIND = 80;
+/**
+ * Metres before a kicker's run a reset puts a car back: put back on the run, it reaches the lip slow, falls short into
+ * the frame and is put back there again.
+ */
+const RESET_RUNUP = 150;
 /** Metres off the centre past which a car is off the road, and the up component under which it is on its side or roof. */
 const OFF_ROAD = 7;
 const UPRIGHT = 0.3;
@@ -188,31 +193,49 @@ export class Field {
         this.best[i] = driver.progress;
         this.stall[i] = 0;
       } else this.stall[i] += dt;
-      if ((this.lost[i] > RESET_TIME || this.stall[i] > STALL_TIME) && this.clear(i)) {
-        const p = this.route.points[driver.index];
+      if (this.lost[i] > RESET_TIME || this.stall[i] > STALL_TIME) {
+        const at = this.reset_point(driver.index);
+        const laps = at > driver.index ? driver.laps - 1 : driver.laps;
+        if (!this.clear(i, laps * this.route.points.length + at)) continue;
+        const p = this.route.points[at];
         car.park(p.x, p.z, Math.atan2(p.tx, p.tz), this.world);
+        driver.place(at, laps);
         driver.recovered();
         stats.resets++;
         this.lost[i] = 0;
         this.stall[i] = 0;
+        this.best[i] = driver.progress;
       }
     }
   }
 
   /**
-   * No other car on the road within RESET_AHEAD metres ahead or RESET_BEHIND behind: a reset never drops a car into
-   * another's path. A car itself lost or stalled is no one's path: two cars wedged together would hold each other there.
+   * No other car on the road within RESET_AHEAD metres ahead of progress `me` or RESET_BEHIND behind: a reset never
+   * drops a car into another's path. A car itself lost or stalled is no one's path: two cars wedged together would hold each other there.
    */
-  private clear(i: number): boolean {
+  private clear(i: number, me: number): boolean {
     const spacing = this.route.length / this.route.points.length;
     const n = this.route.points.length;
-    const me = this.racers[i].driver.progress;
     for (let j = 0; j < this.racers.length; j++) {
       if (j === i || this.lost[j] > 0 || this.stall[j] > STUCK_TIME) continue;
       const gap = (((((this.racers[j].driver.progress - me) % n) + n + n / 2) % n) - n / 2) * spacing;
       if (gap > -RESET_BEHIND && gap < RESET_AHEAD) return false;
     }
     return true;
+  }
+
+  /** The road point a car at `index` is put back at: `index` itself, or RESET_RUNUP metres before the kicker run it is on. */
+  private reset_point(index: number): number {
+    const { room, step } = this.line;
+    const n = room.length;
+    if (room[index] !== 0) return index;
+    let at = index;
+    for (let k = 0; k < n && room[at] === 0; k++) at = (at - 1 + n) % n;
+    for (let d = 0, k = 0; d < RESET_RUNUP && k < n; k++) {
+      at = (at - 1 + n) % n;
+      d += step[at];
+    }
+    return at;
   }
 
   private count_passes() {
