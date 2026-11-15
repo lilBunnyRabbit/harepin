@@ -32,7 +32,7 @@
     <b>{ran ? ordinal(rank) : "–"}</b>
     <span>{me?.points ?? 0} pts</span>
     {#if duel}<span class="sh-rival">{duel_line(duel.rival, duel.gap)}</span>{/if}
-    <span class="sh-cr">{credits_text(credits)}</span>
+    <span class="sh-cr" aria-label={`${credits_text(credits)} credits`}>{credits_text(credits)}</span>
   </div>
 </header>
 
