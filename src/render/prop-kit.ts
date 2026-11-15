@@ -4,7 +4,7 @@ import { soup_geometry } from "../world/buildings";
 import type { World } from "../world/world";
 import { soup } from "../worldgen/chunks";
 import { KINDS } from "../worldgen/kinds/kinds";
-import { landmark_mesh, plate, prism } from "../worldgen/landmark-mesh";
+import { boulder_rocks, landmark_mesh, plate, prism, rock } from "../worldgen/landmark-mesh";
 import { Builder, type Frame, type Rgb, type V3 } from "../worldgen/mesh";
 import { hash } from "../worldgen/noise";
 import { HEADINGS, reach } from "../worldgen/scatter";
@@ -87,8 +87,8 @@ const SKIN = 1.07;
 const SKIN_LIFT = 0.04;
 const FOOTING = 0.35;
 const VENT_GLOW = 1.4;
-/** The snow's radius at a boulder's shoulder, over the shoulder's 1.05: a six-sided ring this wide clears the crown's five corners. */
-const SNOW_BRIM = 1.22;
+const SNOW_GROW = 1.05;
+const SNOW_LIFT = 0.06;
 const POLE_STEP = 12;
 const POLE_OUT = ROAD_HALF + 3.4;
 const FENCE_SEG = 4;
@@ -163,9 +163,7 @@ function basalt(out: Outs, spot: Spot, t: KitTones, world: World | null) {
   const base = world ? base_of(world, spot) : -FOOTING;
   const b = out.body;
   const phase = spot.roll * Math.PI;
-  prism(b, 6, 1.6 * s * SKIN, 1.05 * s * SKIN, base - 0.05, 1.0 * s + SKIN_LIFT, t.basalt, phase, t.basalt_shade);
-  prism(b, 5, 1.05 * s * SKIN, 0.35 * s * SKIN, 1.0 * s, 1.5 * s + SKIN_LIFT, t.basalt_shade, phase, t.basalt);
-  prism(b, 5, 0.7 * s * SKIN, 0.3 * s * SKIN, base - 0.05, 0.8 * s + SKIN_LIFT, t.basalt_shade, spot.roll * 5, t.basalt, 1.5 * s, 0.4 * s);
+  for (const r of boulder_rocks(s, spot.roll, base - 0.05)) rock(b, r, t.basalt, t.basalt_shade, 0, SKIN, SKIN_LIFT);
   const columns: readonly [number, number, number, number][] = [
     [0, 0, 0.55, 1.95],
     [0.5, -0.35, 0.42, 1.6],
@@ -184,15 +182,10 @@ function sleeve(out: Builder, sides: number, r0: number, r1: number, y0: number,
   for (let k = 0; k < sides; k++) out.quad(at(k + 1, r0, y0), at(k, r0, y0), at(k, r1, y1), at(k + 1, r1, y1), k % 2 ? shade : rgb);
 }
 
-// Snow lies on the parts of landmark-mesh.ts's boulder that face the sky, as one mantle over each. The top's stands on
-// the shoulder's own six corners, wide enough that no corner of the five-sided crown cuts through it, and turns down
-// over the shoulder to meet the rock; the lobe's follows the lobe's five sides.
+// Snow follows the boulder's own rings from the shoulder up, so no rock corner cuts through it.
 function snow_cap(out: Outs, spot: Spot, t: KitTones) {
   const s = spot.scale;
-  const phase = spot.roll * Math.PI;
-  sleeve(out.body, 6, 1.29 * s, SNOW_BRIM * s, 0.5 * s, 1.0 * s, t.snow, phase, t.snow_shade);
-  prism(out.body, 6, SNOW_BRIM * s, 0.32 * s, 1.0 * s, 1.5 * s + 0.07, t.snow, phase, t.snow_shade);
-  prism(out.body, 5, 0.47 * s, 0.34 * s, 0.45 * s, 0.8 * s + 0.05, t.snow, spot.roll * 5, t.snow_shade, 1.5 * s, 0.4 * s);
+  for (const r of boulder_rocks(s, spot.roll, 0)) rock(out.body, r, t.snow, t.snow_shade, 1, SNOW_GROW, SNOW_LIFT);
 }
 
 function vent(out: Outs, spot: Spot, t: KitTones) {

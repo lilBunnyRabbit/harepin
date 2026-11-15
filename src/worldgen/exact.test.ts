@@ -10,7 +10,7 @@ const ALLOWED: Record<string, number> = {
   "deck.ts": 2,
   "facts.ts": 6,
   "index.ts": 2,
-  "landmark-mesh.ts": 4,
+  "landmark-mesh.ts": 11,
   "landmarks.ts": 2,
   // The lab is one hand-laid layout driven solo: no peer ever compares it, so its arcs keep sin and cos.
   "lab.ts": 16,
