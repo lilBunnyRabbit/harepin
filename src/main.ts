@@ -673,6 +673,8 @@ const MENU_DRAW_MS = 100;
 /** With peers the sim keeps running under the menu; behind its blur half of a 60 Hz redraw is enough. */
 const COVERED_DRAW_MS = 30;
 let last_draw = 0;
+/** Time the draw side (chase cam, smoke, remote cars) has not yet advanced by, from frames the menu skipped. */
+let draw_dt = 0;
 
 new Heartbeat(net, garage, driver, race, seed).start();
 let stuck = 0;
@@ -744,9 +746,10 @@ function frame(time: number) {
   // A lab card holds the trial under it, as the menu does: the clock and the car wait for the answers.
   const menu_hold = (settings.is_open || hud_sheet.open || (lab_id !== null && modal_open())) && net.remotes.size === 0;
   const draw_ms = menu_hold ? MENU_DRAW_MS : settings.is_open ? COVERED_DRAW_MS : 0;
-  // A frame the menu's redraw rate skips does no work either: `last` stays, so the next drawn frame's dt carries the skipped
-  // time and the sim, chase cam, smoke and audio advance by all of it.
-  if (draw_ms && !review && !garage.is_open && now - last_draw < draw_ms) {
+  const skips = draw_ms > 0 && !review && !garage.is_open && now - last_draw < draw_ms;
+  // A held sim behind the menu has nothing to step on a frame the redraw rate skips: `last` stays, so the next drawn
+  // frame's dt carries the skipped time and the chase cam, smoke and audio advance by all of it.
+  if (skips && menu_hold) {
     requestAnimationFrame(frame);
     return;
   }
@@ -825,12 +828,21 @@ function frame(time: number) {
   markers.update(car.pos.x, car.pos.z, car.vel.length(), !modes.active && !modes.holding && !lobby.busy);
   // Rewind, the garage and the countdown don't step the car, so a held boost would never let go of the flame.
   if (!simulated) car.nitro.cut();
+  // With peers the sim steps every frame, so the heartbeat sends a fresh pose; the draw side waits for the frame that
+  // draws and advances by the time it skipped.
+  draw_dt = Math.min(0.1, draw_dt + dt);
+  if (skips) {
+    requestAnimationFrame(frame);
+    return;
+  }
+  const view_dt = draw_dt;
+  draw_dt = 0;
   chase.top = modes.high_view;
   chase.boost = car.nitro.boosting;
   chase.rewinding = rewinding;
   driver.draw(!simulated, acc / DT, now);
   const offroad = !world.on_road(car.pos.x, car.pos.z);
-  chase.update(dt, driver.drawn, world, offroad, now / 1000, input.look);
+  chase.update(view_dt, driver.drawn, world, offroad, now / 1000, input.look);
   if (!review?.aim(camera) && posed) {
     camera.position.set(pose[0], pose[1], pose[2]);
     camera.lookAt(pose[3], pose[4], pose[5]);
@@ -838,12 +850,12 @@ function frame(time: number) {
   recenter.toggleAttribute("data-shown", chase.orbited);
   light.follow(car.pos);
 
-  smoke.update(dt, car, world);
+  smoke.update(view_dt, car, world);
   skids.update(car, world);
-  sparks.update(dt, car);
+  sparks.update(view_dt, car);
 
   net.prune();
-  remotes.update(dt, camera, car.pos, render.view_width, render.view_height);
+  remotes.update(view_dt, camera, car.pos, render.view_width, render.view_height);
   if (net.remotes.size) goals.done(GoalId.FRIEND);
 
   const speed = car.vel.length();
