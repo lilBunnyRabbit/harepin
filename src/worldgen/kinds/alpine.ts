@@ -9,7 +9,7 @@ export const alpine = kind_def({
   kind: WorldKind.ALPINE,
   base: 4000,
   tag: "a",
-  version: 4,
+  version: 5,
   size: SIZE,
   ...land_kind(ALPINE, ALPINE_KNOBS, WorldKind.ALPINE),
   options: ALPINE_KNOBS,

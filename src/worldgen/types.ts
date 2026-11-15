@@ -31,16 +31,16 @@ export type SurfaceId = (typeof SurfaceId)[keyof typeof SurfaceId];
 /** The ground row each laid surface paints, indexed by `SurfaceId`, so colour matches what the wheels feel; null keeps the biome's colour. */
 export const SURFACE_GROUND = [null, Ground.DIRT, Ground.PAN, null, Ground.DIRT, Ground.SNOW, Ground.PACKED_SNOW, Ground.ICE, Ground.SLUSH, Ground.DIRT, Ground.DUNE] as const satisfies Record<SurfaceId, Ground | null>;
 /** Bump whenever `generate` makes a different island for the same seed: peers and saved records are matched on it. */
-export const WORLD_VERSION = 11;
+export const WORLD_VERSION = 12;
 
 /** Bump whenever `generate_sky` makes a different track for the same seed. */
-export const SKY_VERSION = 4;
+export const SKY_VERSION = 5;
 
 /** Bump whenever `generate_sky` makes a different rooftop track for the same seed. */
-export const ROOFTOPS_VERSION = 1;
+export const ROOFTOPS_VERSION = 2;
 
 /** Bump whenever `generate_sky` makes a different velodrome track for the same seed. */
-export const VELODROME_VERSION = 1;
+export const VELODROME_VERSION = 2;
 
 export const WorldKind = { ISLAND: "island", SKY: "sky", DESERT: "desert", MAINLAND: "mainland", ALPINE: "alpine", TUNDRA: "tundra", ROOFTOPS: "rooftops", VOLCANO: "volcano", BIG_DUNES: "dunes", ICE_CANYON: "icecanyon", VELODROME: "velodrome", LAB: "lab" } as const;
 export type WorldKind = (typeof WorldKind)[keyof typeof WorldKind];

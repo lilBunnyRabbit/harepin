@@ -3,7 +3,7 @@ import { SIZE, WorldKind } from "../types";
 import { kind_def, LAND_GRIP } from "./kind-def";
 
 /** The lab keys no records, so a bump is free: bump it whenever the layout moves, so a stale worker cache never serves the old one. */
-export const LAB_VERSION = 1;
+export const LAB_VERSION = 2;
 
 export const lab = kind_def({
   kind: WorldKind.LAB,
