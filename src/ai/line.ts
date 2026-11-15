@@ -1,3 +1,4 @@
+import { GRAVITY } from "../car/rigid-body";
 import { ROAD_HALF, type Ramp, type RoadPoint } from "../worldgen/types";
 
 /**
@@ -30,6 +31,8 @@ const NUDGE = 1e-3;
 /** Share of the solved move a point takes per pass: the full move overshoots, as each point also bends its neighbours. */
 const RELAX_GAIN = 0.3;
 export const CURVE_SPAN = 5;
+/** Road points either side a crest's vertical curvature is read over. */
+const CREST_SPAN = 10;
 /** Fastest pace over a circuit kicker, and how far before its toe (m) the line slows for it: as the autopilot takes them. */
 const JUMP_PACE = 32;
 const RAMP_LOOK = 120;
@@ -82,6 +85,21 @@ function brake_curve(speed: Float64Array, step: Float64Array, brake: number) {
     const next = wrap(k + 1, n);
     speed[i] = Math.min(speed[i], Math.sqrt(speed[next] * speed[next] + 2 * brake * step[i]));
   }
+}
+
+/** Vertical curvature (1/m) of the road at point i, positive over a crest, 0 in a dip. */
+function crest(road: readonly RoadPoint[], step: Float64Array, i: number): number {
+  const n = road.length;
+  let before = 0;
+  let after = 0;
+  for (let k = 1; k <= CREST_SPAN; k++) {
+    before += step[wrap(i - k, n)];
+    after += step[wrap(i + k - 1, n)];
+  }
+  if (before < 1e-9 || after < 1e-9) return 0;
+  const up = (road[i].y - road[wrap(i - CREST_SPAN, n)].y) / before;
+  const down = (road[wrap(i + CREST_SPAN, n)].y - road[i].y) / after;
+  return Math.max(0, (up - down) / ((before + after) / 2));
 }
 
 /**
@@ -154,7 +172,11 @@ export function race_line(road: readonly RoadPoint[], ramps: readonly Ramp[], ha
     const a = wrap(i - CURVE_SPAN, n);
     const c = wrap(i + CURVE_SPAN, n);
     bend[i] = inverse_radius(x[a], z[a], x[i], z[i], x[c], z[c]);
-    speed[i] = Math.min(Math.sqrt(grip_at(bend[i]) / Math.abs(bend[i])), ramp[i] >= 0 ? JUMP_PACE : Infinity);
+    // Over a crest the car goes light by v² times the road's vertical curvature, and its grip with it: v² = G R / (1 + G R k / g).
+    // A 9% climb into a 9% drop in a 200 m bend at 38 m/s took a third of the load, and the field spun there.
+    const grip = grip_at(bend[i]);
+    const reach = grip / Math.max(1e-9, Math.abs(bend[i]));
+    speed[i] = Math.min(Math.sqrt(reach / (1 + (reach * crest(road, step, i)) / GRAVITY)), ramp[i] >= 0 ? JUMP_PACE : Infinity);
   }
   const late = speed.slice();
   brake_curve(speed, step, LINE_BRAKE);
