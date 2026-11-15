@@ -80,7 +80,7 @@ Behind `?series` in dev and review builds only; the old career and its records a
 | Clean race | the sim counts the player's touches with AI cars (`FrameOut.touches`, `Sim.field_touches`, `SIM_PACKET` 2) |
 | Progress | IndexedDB (owner, 2026-11-15): database `harepin`, store `series` keyed by season, the `{season, results}` shape checked on load (`career/series-db.ts`, `series-store.ts`). The page and `?series=<event>` wait for the load. Fastest lap scores only in races of more than one lap |
 
-Not built: credits and buying, class cap (G1), base-car start, the final's car or kit (G3), a replay on a new seed (C5), knocked-out cars leaving the road (they keep driving, counted out).
+Not built: credits and buying, class cap (G1), base-car start, the final's car or kit (G3), a replay on a new seed (C5).
 
 ## TL;DR
 

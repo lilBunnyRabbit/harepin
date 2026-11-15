@@ -246,7 +246,7 @@ export class Awareness {
     const base = line.offset[driver.index];
     const lane = Math.min(room, PASS_LANE);
     const target = this.passing[i];
-    if (target >= 0 && (driver.wary > 0 || kicker) && this.gap(i, target) > 0) this.passing[i] = -1;
+    if (target >= 0 && (driver.wary > 0 || kicker) && this.gap(i, target) > 0) this.end_pass(i);
     else if (target >= 0) {
       const gap = this.gap(i, target);
       const diving = this.dive_until[i] >= 0 && this.ahead_of(driver.index, this.dive_until[i], n);
@@ -267,12 +267,11 @@ export class Awareness {
         driver.late = diving;
         if (wait) driver.cap = Math.min(driver.cap, this.follow(target, gap, PASS_FOLLOW));
         this.waited[i] = wait ? this.waited[i] + this.dt : 0;
-        if (this.waited[i] > PASS_WAIT) this.passing[i] = -1;
+        if (this.waited[i] > PASS_WAIT) this.end_pass(i);
         if (this.trouble[target] && gap > -ALONGSIDE) driver.cap = Math.min(driver.cap, Math.max(0, this.along[target]) + TROUBLE_CLOSE);
         return;
       }
-      this.passing[i] = -1;
-      this.dive_until[i] = -1;
+      this.end_pass(i);
     }
     // Overlapped down the inside into a braking zone, the defender gives the apex up and runs round the outside.
     const diver = this.diver_on(i);
@@ -303,6 +302,7 @@ export class Awareness {
       const close = blocker_gap < this.keep(driver) + PASS_REACH || this.trouble[blocker] === 1;
       if (faster && close && pick !== 0 && driver.wary <= 0 && !kicker && clear_of && calm) {
         this.passing[i] = blocker;
+        this.dive_until[i] = -1;
         this.pass_side[i] = pick;
         driver.hold = this.rel[blocker] + pick * this.flank(blocker);
         driver.push = 1 + PUSH * aggression;
@@ -314,6 +314,7 @@ export class Awareness {
       const outside = -Math.sign(this.lateral[cover]) || 1;
       if (this.side_open(i, cover, outside, lane, room, cover_gap + PASS_WINDOW)) {
         this.passing[i] = cover;
+        this.dive_until[i] = -1;
         this.pass_side[i] = outside;
         driver.hold = this.rel[cover] + outside * SIDE_GAP;
         driver.push = 1 + PUSH * aggression;
@@ -350,13 +351,24 @@ export class Awareness {
     }
   }
 
-  /** The slowest road point of a braking zone within DIVE_LOOK ahead of driver i, or -1 when the plan holds. */
+  private end_pass(i: number) {
+    this.passing[i] = -1;
+    this.dive_until[i] = -1;
+  }
+
+  /**
+   * The apex (the plan's low point) of a braking zone starting within DIVE_LOOK ahead of driver i, or -1 when the plan
+   * holds. Followed past the window to where the plan rises again: the window's own slowest point moves on every tick
+   * inside a zone, and a roll keyed to it would be rolled again each time.
+   */
   private braking_zone(driver: Driver): number {
     const { line } = driver;
     const n = line.road.length;
     let slowest = driver.index;
     for (let k = 1; k < DIVE_LOOK; k++) if (line.speed[(driver.index + k) % n] < line.speed[slowest]) slowest = (driver.index + k) % n;
-    return line.speed[driver.index] - line.speed[slowest] > DIVE_DROP ? slowest : -1;
+    if (line.speed[driver.index] - line.speed[slowest] <= DIVE_DROP) return -1;
+    for (let k = 0; k < n && line.speed[(slowest + 1) % n] <= line.speed[slowest]; k++) slowest = (slowest + 1) % n;
+    return slowest;
   }
 
   /**
