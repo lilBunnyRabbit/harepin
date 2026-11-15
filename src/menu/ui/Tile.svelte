@@ -138,6 +138,10 @@
     min-width: 0;
   }
 
+  .ui-tile:not([data-detail]) > .ui-text:first-child {
+    padding-inline: var(--space-2);
+  }
+
   .ui-title {
     overflow: hidden;
     font-size: var(--text-lg);
