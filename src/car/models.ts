@@ -129,6 +129,25 @@ function studio(): THREE.DataTexture {
   return strip;
 }
 
+/**
+ * Rolls a car face's luma off under the bloom-safe ceiling, keeping its hue. With no tone mapping a face over 1 clipped
+ * per channel and bloomed: a metal at the low sun's mirror angle (roof, deck from behind) lit whole at the specular peak,
+ * and a matte tail facing the dusk headlight, bright enough to pool on grazing dark asphalt, lit several times over 1,
+ * so a car ahead went white-yellow in the lamp's tone instead of its paint.
+ */
+function roll_off(shader: THREE.WebGLProgramParametersWithUniforms) {
+  shader.uniforms.ceiling = sky_ceiling;
+  shader.fragmentShader = `uniform float ceiling;\n${shader.fragmentShader}`.replace(
+    "#include <opaque_fragment>",
+    `#include <opaque_fragment>
+  float luma = max(dot(gl_FragColor.rgb, vec3(0.299, 0.587, 0.114)), 1e-4);
+  float knee = ceiling * ${SHEEN_KNEE};
+  float rolled = luma <= knee ? luma : knee + (ceiling - knee) * (1.0 - exp((knee - luma) / (ceiling - knee)));
+  gl_FragColor.rgb *= rolled / luma;
+  gl_FragColor.rgb /= max(1.0, max(gl_FragColor.r, max(gl_FragColor.g, gl_FragColor.b)));`,
+  );
+}
+
 function metal_hull(painted: THREE.BufferGeometry, finish: Finish): THREE.Mesh {
   const material = new THREE.MeshStandardMaterial({
     vertexColors: true,
@@ -138,22 +157,11 @@ function metal_hull(painted: THREE.BufferGeometry, finish: Finish): THREE.Mesh {
     envMap: studio(),
     envMapIntensity: finish.reflect,
   });
-  // A flat face at the low sun's mirror angle (roof, deck from behind) lights whole at the specular peak, far over 1, and
-  // with no tone mapping clipped white and bloomed. Rolling luma off under the bloom-safe ceiling keeps faces ordered.
   const weave = finish.weave;
   if (weave) material.customProgramCacheKey = () => WEAVE_KEY;
   material.onBeforeCompile = (shader) => {
     if (weave) weave_shader(shader, weave);
-    shader.uniforms.ceiling = sky_ceiling;
-    shader.fragmentShader = `uniform float ceiling;\n${shader.fragmentShader}`.replace(
-      "#include <opaque_fragment>",
-      `#include <opaque_fragment>
-  float luma = max(dot(gl_FragColor.rgb, vec3(0.299, 0.587, 0.114)), 1e-4);
-  float knee = ceiling * ${SHEEN_KNEE};
-  float rolled = luma <= knee ? luma : knee + (ceiling - knee) * (1.0 - exp((knee - luma) / (ceiling - knee)));
-  gl_FragColor.rgb *= rolled / luma;
-  gl_FragColor.rgb /= max(1.0, max(gl_FragColor.r, max(gl_FragColor.g, gl_FragColor.b)));`,
-    );
+    roll_off(shader);
   };
   const mesh = new THREE.Mesh(painted, material);
   mesh.castShadow = true;
@@ -258,6 +266,7 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
   const decals = livery && livery.decal !== "none" ? livery_parts(livery, side_panel(d, spec), roof(base, glass), back(base, paint), nose, tail) : [];
   const shell = merge(sculpt(merge(hull_base, rear_wing(d, aero, paint, trim), aero_parts(d, spec, aero, paint, trim, detail.swaps), kit_parts(d, kit, paint, trim, detail.swaps), detail.body, decals), d), cabin, on_glass(d.cabin, detail.glass));
   const matte = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+  matte.onBeforeCompile = roll_off;
   const [painted, rest] = finish ? split_tone(shell, paint) : [null, shell];
   const hull = new THREE.Mesh(rest, matte);
   hull.castShadow = true;
