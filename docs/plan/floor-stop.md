@@ -70,3 +70,7 @@ Sim flat-out 60 s on flat ground, km/h, and the lowest hull corner over the road
 | tsumuji | 184 (59mm) | 184 (59mm) | 221 (21mm) | 221 (38mm) | 180 (36mm) | 180 (38mm) | B / A / B |
 
 PI and class identical before and after on every build above.
+
+## Later: lifted tyres touch the sill at full lock
+
+The body hangs at the stock ride height, so a Lifted build drops its wheels 0.12 below the arch cut and the steered tyre's corner sweeps past the opening at the sill. Side projection at rest, full lock, every aero, tyres, weight and engine part: Sturm stock body 2.2 mm, Sturm kit 11.0 mm, Muscle 9.7 mm. Ships as is; a fix is a deeper arch on lifted builds or tucking the wheels, not a wider gap for every build. Soft clipped too (Sturm 1.5 / 2.2 mm) and was fixed with gaps 0.065 / 0.085.
