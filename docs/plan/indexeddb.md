@@ -1,7 +1,7 @@
 # IndexedDB plan
 
-> Status 2026-11-15, master `470dad1` (v0.46.4). Plan only, nothing built. Owner direction: "Ideally we use indexeddb for most of it."
-> The shared module is `src/store/idb.ts` on the series branch (worktree `agent-a6399ebfcdb02730e`, untracked there, not on master): `HAREPIN_DB` v1, one `series` store, `Idb.get/put/delete`.
+> Status 2026-11-15: steps 0-6 built (0.51.0 has 0-3). `HAREPIN_DB` is v3 (`series`, `ghosts`, `kv`). Step 5's restore is `restore_records` in `src/store/records.ts`, called by nothing: a rollback build calls it in place of `load_records`.
+> Changed from the plan: the records wait (1.5 s) counts from the world's generation, not the boot start, and the open gives up after 10 s, not 3 s; both fell back on a working but slow open in the browser runs.
 
 ## Verdict
 
