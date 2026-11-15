@@ -1,6 +1,5 @@
 import type { Car } from "../car/car";
-import { ROAD_HALF } from "../worldgen/types";
-import { pass_room, type Driver } from "./driver";
+import { OFF_ROAD, pass_room, type Driver } from "./driver";
 
 /** Metres ahead a car is looked at, plus this many per m/s of the looker's speed. */
 const LOOK = 15;
@@ -134,7 +133,7 @@ export class Awareness {
       this.speed[i] = v;
       this.along[i] = vel.x * p.tx + vel.z * p.tz;
       const slide = Math.abs(Math.atan2(Math.sin(Math.atan2(vel.x, vel.z) - heading), Math.cos(Math.atan2(vel.x, vel.z) - heading)));
-      const off = Math.abs(this.lateral[i]) > ROAD_HALF;
+      const off = Math.abs(this.lateral[i]) > OFF_ROAD;
       this.trouble[i] = drivers[i].reversing > 0 || off || (v > TROUBLE_SPEED && (slide > TROUBLE_SLIDE || this.along[i] < TROUBLE_ALONG * v)) ? 1 : 0;
     }
     for (let i = 0; i < cars.length; i++) {
@@ -200,6 +199,7 @@ export class Awareness {
     if (blocker >= 0) {
       // The speed the car ahead is about to hold, not the one it has: it brakes for the bend before the follower sees it slow.
       driver.cap = this.follow(blocker, blocker_gap, blocker === this.passing[i] ? PASS_FOLLOW : FOLLOW);
+      if (kicker && blocker_gap < ALONGSIDE) driver.cap = Math.max(driver.cap, driver.line.speed[driver.index] - KICKER_YIELD);
     }
     const line = driver.line;
     const n = line.road.length;

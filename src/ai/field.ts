@@ -5,7 +5,7 @@ import { mulberry32, sub } from "../rng";
 import type { World } from "../world/world";
 import type { Route } from "../worldgen/types";
 import { Awareness } from "./awareness";
-import { Driver, type Personality } from "./driver";
+import { Driver, OFF_ROAD, type Personality } from "./driver";
 import { race_line, type RaceLine } from "./line";
 
 /** Physics steps between awareness and recovery passes: 20 Hz at 360; at 10 Hz a follower closing in a hairpin reacts too late. */
@@ -27,8 +27,7 @@ const RESET_BEHIND = 80;
  * the frame and is put back there again.
  */
 const RESET_RUNUP = 150;
-/** Metres off the centre past which a car is off the road, and the up component under which it is on its side or roof. */
-const OFF_ROAD = 7;
+/** Up component under which a car is on its side or roof. */
 const UPRIGHT = 0.3;
 /** Seconds apart before the same car's next touch counts as a new contact: a rub is one contact, however long. */
 const CONTACT_GAP = 0.5;

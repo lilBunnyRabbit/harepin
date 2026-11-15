@@ -50,6 +50,9 @@ export interface Personality {
   mistakes: number;
 }
 
+/** Metres off the centre past which a car is off the road: a hazard to the field, and on the clock toward a reset. */
+export const OFF_ROAD = 7;
+
 export const STEADY: Personality = { pace: 1, brake_margin: 0, aggression: 0, mistakes: 0 };
 
 /** How far off the centre (m) a car may go to pass or defend at road point `index`; over a kicker's run, only RAMP_SIDE: posts flank its lip. */
