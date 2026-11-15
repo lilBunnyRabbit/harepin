@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { World } from "../world/world";
-import { DEFAULT_BUILD, DEFAULT_PARTS, type Build } from "../car/build";
+import { DEFAULT_BUILD, DEFAULT_PARTS, parse_build, type Build } from "../car/build";
+import { PRESETS } from "../car/presets";
 import { within } from "../car/car-pick";
 import { rating } from "../car/pi";
 import { CREDITS_PER_POINT, FINAL_FACTOR } from "./credits";
@@ -73,6 +74,8 @@ test("seasons run Island, Alpine, Dunes, Mainland: six events each, every first-
     expect(each.events.filter((e) => e.final)).toEqual([each.events.at(-1)!]);
     expect(new Set(each.events.map((e) => e.kind))).toEqual(new Set(Object.values(SeriesKind)));
     expect(each.field.length).toBe(6);
+    // G2: the field drives presets of the player's class; a cap with none of its own fields cars under it.
+    expect(PRESETS.some((preset) => rating(parse_build(preset.code)!).class === each.cap)).toBe(true);
     expect(each.rival).toBeLessThan(each.field.length);
     for (const e of each.events) expect(e.id.startsWith(`${each.id}-`)).toBe(true);
     for (const e of each.events) expect(e.kind === SeriesKind.ENDURANCE).toBe(e.limit_ms !== undefined);
