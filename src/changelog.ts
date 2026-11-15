@@ -54,6 +54,14 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.51.0",
+    date: "2026-11-15",
+    title: "Records in IndexedDB",
+    changes: [
+      { kind: IMPROVED, text: "Your records, career, runs and goals save to the browser's database; nothing is lost on the way over" },
+    ],
+  },
+  {
     version: "0.50.0",
     date: "2026-11-15",
     title: "Top-tier exits lab",
