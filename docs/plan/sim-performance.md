@@ -432,3 +432,9 @@ Vite preview of a `--mode review` build, headless Chrome, 1440 x 900, island see
 - The baseline is not t276's 13.8 ms solo row: this is the circuit start in a race, with its marks, beams and cones, and a different machine state. Compare rows within this table only.
 - A CPU profile at 1x has JavaScript at a few percent: 41% `(program)` (GL submission and compositing) and 30% idle. The race scene is draw-bound before the AI adds anything.
 - The phone (S24+, J6/J7) is still the number that decides; not measured here.
+
+## Shared maths, built (t286)
+
+J2 and J10 landed together: `src/sim-math.ts` (fdlibm ports of sin, cos, tan, atan, atan2, asin, acos, exp, log, cbrt; `hypot` as `sqrt(a*a+b*b)`; `axis_angle` for three's `setFromAxisAngle`) replaces `Math.*` in `car/`, `ai/`, `world/`, `worldgen/`, `modes/`, `career/` and `race.ts`. The suspension ray is false position with Illinois (one lookup per face, 12-step cap). Every kind's `version` bumped once.
+
+Proof: `src/car/sim-digest.test.ts` holds a maths digest and a 12-car, 10 s rolling-ground car digest. `node scripts/sim-digest.mjs` reruns them in Bun, Node and Chrome (and WebKit when Playwright's build is installed). 2026-11-15: Bun 1.3.0 (JSC), Node 22.14 (V8 12.4) and Chrome 157 all give `8ad84cdc` / `8827e36f`.
