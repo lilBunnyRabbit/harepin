@@ -495,6 +495,7 @@ const system_back = new SystemBack(
     else if (popover) popover.hidePopover();
     else if (chat.is_open) chat.close();
     else settings.open();
+    wake();
   },
 );
 system_back.start();
@@ -766,7 +767,7 @@ let last_draw = 0;
 let draw_dt = 0;
 /** The timer a held menu sleeps on until its next redraw, 0 while the loop runs on animation frames. */
 let sleep = 0;
-// A key or click can close the menu, so it wakes a sleeping loop rather than leave the scene frozen until the next redraw;
+// A key, a click or the system Back can close the menu, so it wakes a sleeping loop rather than leave the scene frozen until the next redraw;
 // a gamepad's first press connects it, and the loop then polls every frame.
 const wake = () => {
   if (!sleep) return;
