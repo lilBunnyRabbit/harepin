@@ -96,7 +96,7 @@ const bezel_at = on_face(0.004);
 const lens_at = on_face(0.02);
 const lens = (body: Design): Part[] => {
   const keep = sculpt_factor(body, lens_at[1], lens_at[0]);
-  return [{ size: [LENS / keep, LENS, 0.04], at: [POD_X / keep, lens_at[1], lens_at[0]], tilt: [LIFT, 0, 0], round: true }];
+  return [{ size: [LENS / keep, LENS, 0.04], at: [POD_X / keep, lens_at[1], lens_at[0]], tilt: [LIFT, 0, 0], round: true, sides: 8 }];
 };
 const SHELL = {
   outline: KIT_OUTLINE,
