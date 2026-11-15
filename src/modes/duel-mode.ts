@@ -118,6 +118,10 @@ class Duel implements ModeRun {
     return this.result;
   }
 
+  ground_in(inside: (x: number, z: number) => boolean) {
+    this.view.ground_in(inside);
+  }
+
   dispose() {
     this.view.dispose();
     this.ghost.update(null, this.ctx.camera.position);

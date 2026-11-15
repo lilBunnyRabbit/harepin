@@ -34,6 +34,7 @@ export class Marks {
   readonly root = new THREE.Group();
   private readonly materials: THREE.Material[] = [];
   private readonly geometries: THREE.BufferGeometry[] = [];
+  private readonly laid: THREE.BufferGeometry[] = [];
 
   constructor(private readonly ground: DrawnGround) {}
 
@@ -53,6 +54,7 @@ export class Marks {
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
     this.geometries.push(geometry);
+    this.laid.push(geometry);
     const mesh = new THREE.Mesh(geometry, material);
     this.root.add(mesh);
     return mesh;
@@ -89,6 +91,23 @@ export class Marks {
       }
     }
     return this.mesh(positions, material);
+  }
+
+  /** Lays every painted vertex where `inside` on the ground again: the ground there streamed in after the paint went down. */
+  relay(inside: (x: number, z: number) => boolean) {
+    for (const geometry of this.laid) {
+      const at = geometry.getAttribute("position");
+      const a = at.array;
+      let moved = false;
+      for (let i = 0; i < a.length; i += 3) {
+        if (!inside(a[i], a[i + 2])) continue;
+        a[i + 1] = drawn_height(this.ground, a[i], a[i + 2]) + LIFT;
+        moved = true;
+      }
+      if (!moved) continue;
+      at.needsUpdate = true;
+      geometry.computeBoundingSphere();
+    }
   }
 
   track<T extends THREE.BufferGeometry | THREE.Material>(thing: T): T {

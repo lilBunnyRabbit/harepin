@@ -159,6 +159,8 @@ scene.add(...(WORLDS[world.kind].backdrop === "sky" ? [dome.add(clouds(world.see
 let gate_views: readonly (Gate | undefined)[] = [];
 // Dressing and gates stand on terrain all round the world, so they go in once every chunk has arrived. A streamed
 // world never holds every chunk: its dress stands on nothing it reads, and its curbs and gates come and go per chunk.
+// Modes are built after the spawn wait; a chunk in before then has no run's marks to lay again.
+let chunk_in = (_index: number) => {};
 if (world.tiles.streamed) {
   const trackside = new ChunkTrackside(world);
   gate_views = trackside.gates;
@@ -167,6 +169,7 @@ if (world.tiles.streamed) {
     add: (chunk, trees) => {
       world_view.add(chunk, trees);
       trackside.add(chunk.index);
+      chunk_in(chunk.index);
     },
     drop: (index) => {
       world_view.drop(index);
@@ -419,6 +422,7 @@ const modes = new Modes(scene, world, SPAWN_INDEX, () => lobby.record, (x, z, he
   // The lab runs no mode: a mode's records and stars would key to the lab world, and its spawns fight the trial's.
 }, () => lobby.busy || lab_id !== null, () => audio.chime(), camera, () => driver.car.spec, career);
 modes.route_at = Math.max(0, debug_at);
+chunk_in = (index) => modes.chunk_in(index);
 if (lab_id !== null) modes.closed = "Not in the lab: the lab keeps no records or stars";
 modes.bindings = () => settings.state.bindings;
 modes.ghosts = () => settings.state.ghost;

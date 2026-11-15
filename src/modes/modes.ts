@@ -477,6 +477,14 @@ export class Modes implements CarHooks {
     };
   }
 
+  /** Chunk `index` of a streamed world came in: the run's marks laid on stand-in ground there go down on it. */
+  chunk_in(index: number) {
+    const run = this.current?.run ?? this.current?.starting;
+    if (!run?.ground_in) return;
+    const { ext } = this.world.tiles;
+    run.ground_in((x, z) => chunk_of(x, z, ext) === index);
+  }
+
   restart() {
     const active = this.current;
     if (!active) return;

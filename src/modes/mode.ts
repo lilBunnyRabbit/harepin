@@ -87,6 +87,8 @@ export interface ModeRun {
   finished(): Finish | null;
   readonly holding?: boolean;
   readonly route?: RouteRun;
+  /** On a streamed world, the ground where `inside` streamed in: what the run laid there on stand-in ground goes down on it. */
+  ground_in?(inside: (x: number, z: number) => boolean): void;
   dispose(): void;
 }
 
