@@ -1,0 +1,44 @@
+#lab t2-drift r1 v0.44.1 2026-11-15T01:09Z keys 2560x1360
+#trial circle-stock muscle.1.5.0.3.1.0.7.0.0.0.2 spec#9ad20d8a pi559B drift/asphalt time45 done
+ m time=45 lap=15.2,13.1,12.9 latg=2.02/0.767 ring=41.9 slip=53.2/26.7 held=20.7 chain=4.81 spins=0 lag=0 rec=3.71 top=60.1 spin=0.705/12 air=0 bounce=0 offs=5 resets=0 lock=0.716 thr=0.915 hb=0.138 rev=0.311 yawover=0.479 us=2.58 pwr=44.4 lift=35.3 entry=0.488
+ a grip=3 pred=3 fun=3 drift=3
+#trial circle-loose muscle.1.5.0.3.1.0.7.0.0.0.2 +rear_grip*0.92 spec#a0813d95 pi548B drift/asphalt time45 done
+ m time=45 lap=23.2,14 latg=2.13/0.789 ring=42.4 slip=180/45.2 held=20.7 chain=7.16 spins=3 lag=0.044 rec=4.08 top=55.2 spin=0.767/24.5 air=0 bounce=0 offs=2 resets=0 lock=0.735 thr=0.87 hb=0.0445 rev=0.644 yawover=0.353 us=2.49 pwr=158 lift=28.1 trail=175 entry=0.515
+ n "This is weird. most of the time it oversteered right away. but one time i got it and it felt like arcade drifting. couldnt force it to turn in more. it was just kinda sliding"
+#trial circle-bar muscle.1.5.0.3.1.0.7.0.0.0.2 +arb_rear*1.5 spec#1a159005 pi559B drift/asphalt time45 done
+ m time=45 lap=15.1,12.5,12.3 latg=2.06/0.708 ring=44.9 slip=47.3/21.6 held=30.7 chain=7.28 spins=0 lag=0.00311 rec=5.7 top=59.8 spin=0.83/12 air=0 bounce=0 offs=4 resets=0 lock=0.751 thr=0.947 hb=0.0617 rev=0.689 yawover=0.22 us=2.54 pwr=30.5 lift=30.5 entry=1.1
+ a grip=3
+ n "I feel like i can hold the drift more. more control. still cant turn it in more without just holding th handbreak and then it overspins."
+#trial circle-lock muscle.1.5.0.3.1.0.7.0.0.0.2 +lock*1.25 spec#353cc5ff pi559B drift/asphalt time45 done
+ m time=45 lap=16,14.2,14.4 latg=1.96/0.685 ring=44.3 slip=52.9/21.8 held=28.7 chain=5.78 spins=0 lag=0 rec=3.99 top=58 spin=0.788/14.2 air=0 bounce=0 offs=3 resets=0 lock=0.683 thr=0.899 hb=0.0701 rev=0.733 yawover=0.654 us=2.85 pwr=52.9 lift=38.9 entry=0.413
+ n "idk hard one. kinda hard to hold a drift. it autocorrects me to o quick. still cant turn in more"
+#trial eight-stock muscle.1.5.0.3.1.0.7.0.0.0.2 spec#9ad20d8a pi559B eight/asphalt time60 done
+ m time=60 slip=53.9/24.5 held=17.7 chain=2.97 spins=0 lag=0.00278 rec=3.82 top=45.6 spin=0.808/12 air=0 bounce=0 offs=0 resets=0 lock=0.703 thr=0.918 hb=0.129 rev=0.667 yawover=0.543 pwr=45.7 lift=41.6 entry=0.41
+ a grip=1
+ n "idk its ok. hard to turn in more. impossible to hold quick drift around it."
+#trial eight-loose muscle.1.5.0.3.1.0.7.0.0.0.2 +rear_grip*0.92 spec#a0813d95 pi548B eight/asphalt time60 stopped
+ m time=39 slip=50.6/26.2 held=18.6 chain=3.39 spins=0 lag=0.0276 rec=3.47 top=49.2 spin=0.775/14.2 air=0 bounce=0 offs=0 resets=0 lock=0.614 thr=0.899 hb=0.0856 rev=0.513 yawover=0.253 pwr=50.6 lift=38.5 entry=0.688
+ n "harder to hold such tight drift, autoccorect me (puts me out)"
+#trial eight-bar muscle.1.5.0.3.1.0.7.0.0.0.2 +arb_rear*1.5 spec#1a159005 pi559B eight/asphalt time60 stopped
+ m time=27.6 slip=54.3/24.6 held=14.9 chain=4.31 spins=0 lag=0.0842 rec=2.92 top=51.6 spin=0.727/12 air=0 bounce=0 offs=0 resets=0 lock=0.653 thr=0.863 hb=0.0905 rev=0.507 yawover=0.109 pwr=54.3 lift=54.2 entry=0.392
+ n "Even harder to hold. loosing speed. stopping me"
+#trial eight-lock muscle.1.5.0.3.1.0.7.0.0.0.2 +lock*1.25 spec#353cc5ff pi559B eight/asphalt time60 stopped
+ m time=29.9 slip=49.5/24.6 held=16.2 chain=3.52 spins=0 lag=0.0203 rec=2.93 top=48.3 spin=0.753/12 air=0 bounce=0 offs=0 resets=0 lock=0.647 thr=0.878 hb=0.072 rev=0.602 yawover=0.312 pwr=49.5 lift=30.8 entry=0.455
+ n "same issues"
+#trial hairpins-stock muscle.1.5.0.3.1.0.7.0.0.0.2 spec#9ad20d8a pi559B hairpin/asphalt run done
+ m time=36 seg=31.4 slip=39.3/28 held=13.7 chain=6.08 spins=0 lag=0.432 rec=5.89 0-100=5.24 top=105 spin=0.395/12 air=0 bounce=0 offs=3 resets=0 lock=0.523 thr=0.705 hb=0.116 rev=0.333 yawover=1.64 pwr=39.3 lift=39.3 trail=31.5 entry=0.385 xslip=35.4
+ n "Semi cought one. it wants to do too wide drifts."
+#trial hairpins-loose muscle.1.5.0.3.1.0.7.0.0.0.2 +rear_grip*0.92 spec#a0813d95 pi548B hairpin/asphalt run done
+ m time=36.4 seg=31.5 slip=59.7/39.9 held=8.81 chain=3.24 spins=0 lag=0 rec=4.81 0-100=5.87 top=106 spin=0.444/14.2 air=0 bounce=0 offs=0 resets=0 lock=0.415 thr=0.815 hb=0.0803 rev=0.385 yawover=1.37 pwr=59.7 lift=49.1 trail=16.3 entry=0.234
+ n "easier to catch drifts, loosing speed tho - left all of them from none drift"
+#trial hairpins-bar muscle.1.5.0.3.1.0.7.0.0.0.2 +arb_rear*1.5 spec#1a159005 pi559B hairpin/asphalt run done
+ m time=37 seg=32.3 slip=43.3/27.6 held=15 chain=6.92 spins=0 lag=0 rec=5.7 0-100=5.34 top=103 spin=0.533/12 air=0 bounce=0 offs=1 resets=0 lock=0.478 thr=0.769 hb=0.0516 rev=0.378 yawover=2.08 pwr=43.3 lift=43.3 trail=1.53 entry=0.243 xslip=24
+ n "Easierst to catch. left 2 pins in a drift. still not rotating in more when i want. lost speed but not fully."
+#trial hairpins-lock muscle.1.5.0.3.1.0.7.0.0.0.2 +lock*1.25 spec#353cc5ff pi559B hairpin/asphalt run done
+ m time=34.4 seg=29.7 slip=51.4/30.8 held=9.65 chain=3.75 spins=0 lag=0 rec=4.68 0-100=5.29 top=109 spin=0.452/12 air=0 bounce=0 offs=0 resets=0 lock=0.444 thr=0.753 hb=0.0465 rev=0.233 yawover=6.05 pwr=51.4 lift=51.4 trail=25.7 entry=0.234 xslip=1.57
+ n "very similar to before"
+#end 12/12 trials
+NOTE: Idk not happy with any of them really. okay donuts are their own thing but showcased whats missing. i cant turn in more, loosing speed, etc. there it really showed that it kind puts me in a "drift arcade mode"
+
+For pins. all of them were kinda-ish hard to catch. the baseline just slid out. but for all im missing the ability to turn in more - meaning also that i dont have the feeling that the back wheels are pushing the car forward and im just directing where it should go - its more like "okay now you are drifting
+

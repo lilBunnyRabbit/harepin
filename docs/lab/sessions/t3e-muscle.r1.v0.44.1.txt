@@ -1,0 +1,26 @@
+#lab t3e-muscle r1 v0.44.1 2026-11-15T00:48Z keys 2560x1360
+#trial muscle-pad-best muscle.4.0.4.2.2.0.7.2.2.2.1.2 spec#c5a47dda pi668A skidpad/asphalt laps3 done
+ m time=33.4 lap=11.8,11.1,10.5 latg=1.49/1 ring=61.2 slip=12.1/11.2 held=0 chain=0 spins=0 top=70.4 spin=0.219/11.1 air=0 bounce=0 offs=0 resets=0 lock=0.931 thr=0.482 hb=0 rev=0 yawover=0.304 us=1.69 pwr=3.81 lift=3.81 trail=1.46
+ a grip=4 power=3 pred=4 fun=3 vs="same" worth="unsure"
+ n "Good rotation, \"wants\" to drif when i put power"
+#trial muscle-pad-top lab:muscle-twin +redline+800 +upshift+800 +mass+55 +mu*1.24 +grip_dirt*0.8 +grip_grass*0.8 +offroad-1 +downforce*6 +drag+0.26 +rear_grip+0.08 +aero_front+0.04 +mass+18 +mass*0.76 +inertia*0.76 +cog+0.04 spec#fd49d1d3 pi814S2 skidpad/asphalt laps3 done
+ m time=30.5 lap=11.4,9.55,9.61 latg=1.89/1.16 ring=64 slip=5.78/- held=0 chain=0 spins=0 top=79.6 spin=0.275/18 air=0 bounce=0 offs=0 resets=0 lock=0.932 thr=0.474 hb=0 rev=0 yawover=0.644 us=1.62 pwr=5.78 lift=4.85 trail=1.71
+ a grip=3 power=4 pred=4 fun=4 vs="better" worth="unsure"
+ n "faster, wants to drift more out corner"
+#trial muscle-straight-best muscle.4.0.4.2.2.0.7.2.2.2.1.2 spec#c5a47dda pi668A runway/asphalt run done
+ m time=12 seg=10.2 slip=0/- held=0 chain=0 spins=0 0-100=4.23 top=206 spin=0.0573/11.1 air=0 bounce=0 offs=0 resets=0 lock=0 thr=1 hb=0 rev=0 yawsd=0/0
+ a grip=5 power=3 pred=5 fun=3 vs="same" worth="unsure"
+#trial muscle-straight-top lab:muscle-twin +redline+800 +upshift+800 +mass+55 +mu*1.24 +grip_dirt*0.8 +grip_grass*0.8 +offroad-1 +downforce*6 +drag+0.26 +rear_grip+0.08 +aero_front+0.04 +mass+18 +mass*0.76 +inertia*0.76 +cog+0.04 spec#fd49d1d3 pi814S2 runway/asphalt run done
+ m time=10.7 seg=8.92 slip=0/- held=0 chain=0 spins=0 0-100=3.66 top=244 spin=0.0857/18.1 air=0 bounce=0 offs=0 resets=0 lock=0 thr=1 hb=0 rev=0 yawsd=0/0
+ a grip=5 power=4 pred=5 fun=4 vs="better" worth="unsure"
+ n "Yep faster, and the initial slip like they all have"
+#trial muscle-pins-best muscle.4.0.4.2.2.0.7.2.2.2.1.2 spec#c5a47dda pi668A hairpin/asphalt run done
+ m time=27.5 seg=23.3 slip=5.23/- held=0 chain=0 spins=0 lag=0.243 0-100=4.27 top=124 spin=0.0917/11.1 air=0 bounce=0 offs=0 resets=0 lock=0.476 thr=0.612 hb=0 rev=0.109 yawover=0.0648 pwr=5.23 lift=3.52 trail=1.14
+ a grip=4 power=3 pred=4 fun=3 vs="same" worth="unsure"
+#trial muscle-pins-top lab:muscle-twin +redline+800 +upshift+800 +mass+55 +mu*1.24 +grip_dirt*0.8 +grip_grass*0.8 +offroad-1 +downforce*6 +drag+0.26 +rear_grip+0.08 +aero_front+0.04 +mass+18 +mass*0.76 +inertia*0.76 +cog+0.04 spec#fd49d1d3 pi814S2 hairpin/asphalt run done
+ m time=25 seg=21.1 slip=11.1/10.6 held=0.142 chain=0.142 spins=0 lag=2.12 0-100=3.66 top=138 spin=0.238/18 air=0 bounce=0 offs=0 resets=0 lock=0.489 thr=0.703 hb=0 rev=0.16 yawover=0.0155 pwr=11.1 trail=4.05
+ a grip=4 power=4 pred=4 fun=4 vs="better" worth="unsure"
+ n "Faster, wants to slip in corners but it doesnt, ok rotation"
+#end 6/6 trials
+NOTE: Differnt feel. def faster but preserves the character
+

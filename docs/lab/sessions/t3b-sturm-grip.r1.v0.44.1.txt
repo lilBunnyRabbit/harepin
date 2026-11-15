@@ -1,0 +1,26 @@
+#lab t3b-sturm-grip r1 v0.44.1 2026-11-15T00:24Z keys 2560x1360
+#trial sturm-pad-best sturm.4.0.4.2.2.0.7.2.2.2.1.2 spec#0132da40 pi710S1 skidpad/asphalt laps3 done
+ m time=33.7 lap=12,11,10.8 latg=1.51/0.983 ring=58.5 slip=21.3/17 held=0.794 chain=0.794 spins=0 lag=0 rec=0.939 top=77 spin=0.215/3.65 air=0 bounce=0 offs=1 resets=0 lock=0.945 thr=0.423 hb=0 rev=0.178 yawover=0.183 us=1.9 pwr=2.96 lift=2.97 trail=2.2
+ a grip=3 power=3 pred=4 fun=3 vs="same" worth="unsure"
+#trial sturm-pad-slicks sturm.4.0.4.2.2.0.7.0.2.2.1.2 +mu*1.24 +grip_dirt*0.8 +grip_grass*0.8 +offroad-1 spec#1a6c74d7 pi741S1 skidpad/asphalt laps3 done
+ m time=31.1 lap=10.8,10.2,10.1 latg=1.66/1.08 ring=62.5 slip=4.79/- held=0 chain=0 spins=0 top=77.4 spin=0.0453/1.18 air=0 bounce=0 offs=1 resets=0 lock=0.94 thr=0.393 hb=0 rev=0 yawover=0.58 us=1.62 pwr=2.57 lift=2.42 trail=1.83
+ a grip=4 power=4 pred=4 fun=4 vs="better" worth="unsure"
+ n "Way better grip"
+#trial sturm-pad-top lab:sturm-twin +redline+800 +upshift+800 +mass+55 +mu*1.24 +grip_dirt*0.8 +grip_grass*0.8 +offroad-1 +downforce*6 +drag+0.26 +rear_grip+0.08 +aero_front+0.04 +mass+18 +mass*0.76 +inertia*0.76 +cog+0.04 spec#dc008f56 pi887S2 skidpad/asphalt laps3 done
+ m time=30.5 lap=11.3,9.82,9.44 latg=1.88/1.2 ring=66.6 slip=30/22.1 held=0.931 chain=0.931 spins=0 lag=0 rec=1.04 top=86.7 spin=0.296/8.63 air=0 bounce=0 offs=0 resets=0 lock=0.913 thr=0.392 hb=0 rev=0.0655 yawover=0.416 us=1.56 pwr=2.93 lift=2.93 trail=1.53 entry=0.419
+ a grip=4 power=4 pred=4 fun=4 vs="better" worth="unsure"
+ n "Way better grip. only wants to drift from the start"
+#trial sturm-sweep-best sturm.4.0.4.2.2.0.7.2.2.2.1.2 spec#0132da40 pi710S1 sweeper/r200 run done
+ m time=13.9 seg=8.65 latg=2.26/0.812 ring=126 slip=3.14/- held=0 chain=0 spins=0 lag=0 0-100=5.83 top=204 spin=0.123/16.7 air=0 bounce=0 offs=0 resets=0 lock=0.443 thr=1 hb=0 rev=0.216 yawover=0.0217 us=2.74 xslip=0.0233 yawsd=0.318/1
+ a grip=5 power=3 pred=4 fun=3 vs="same" worth="unsure"
+#trial sturm-sweep-gt sturm.4.0.0.2.2.0.7.2.2.2.1.2 +downforce*6 +drag+0.26 +rear_grip+0.08 +aero_front+0.04 +mass+18 spec#170be05f pi748S1 sweeper/r200 run done
+ m time=13.7 seg=8.57 latg=2.45/0.797 ring=126 slip=2.75/- held=0 chain=0 spins=0 0-100=5.73 top=205 spin=0.116/15.8 air=0 bounce=0 offs=0 resets=0 lock=0.348 thr=1 hb=0 rev=0.0729 yawover=0 us=1.81 xslip=0.0402 yawsd=0.324/0.585
+ a grip=5 power=4 pred=5 fun=4 vs="better" worth="unsure"
+ n "better grip, faster"
+#trial sturm-sweep-top lab:sturm-twin +redline+800 +upshift+800 +mass+55 +mu*1.24 +grip_dirt*0.8 +grip_grass*0.8 +offroad-1 +downforce*6 +drag+0.26 +rear_grip+0.08 +aero_front+0.04 +mass+18 +mass*0.76 +inertia*0.76 +cog+0.04 spec#dc008f56 pi887S2 sweeper/r200 run done
+ m time=13.9 seg=7.54 latg=4.21/1.13 ring=135 slip=12.8/11.7 held=0 chain=0 spins=0 lag=0 0-100=6.66 top=230 spin=0.304/25.2 air=0 bounce=0 offs=0 resets=0 lock=0.41 thr=1 hb=0 rev=0.432 yawover=0.0774 us=3.03 xslip=0.999 yawsd=0.428/0.796
+ a grip=5 power=5 pred=5 fun=4 vs="better" worth="unsure"
+ n "better grip, way faster"
+#end 6/6 trials
+NOTE: It was suprising how the better tiers were really showing more grip and speed. but at the same time why was the grip that worse on worse tier. also interesting how much more i can turn with better tune
+

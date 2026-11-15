@@ -1,0 +1,40 @@
+#lab t1b-brakes r1 v0.44.1 2026-11-15T01:25Z keys 2560x1360
+#trial brake-asphalt coupe.4.0.0.1.0 spec#a7f3f03f pi540B runway/asphalt stop60 done
+ m time=5.44 slip=0/- held=0 chain=0 spins=0 stop=15.4@69.3 top=69.7 spin=0.121/6.03 air=0 bounce=0 offs=0 resets=0 lock=0 thr=0.649 hb=0 rev=0 bdev=0
+ a grip=5 pred=5
+#trial brake-grass coupe.4.0.0.1.0 spec#a7f3f03f pi540B runway/grass stop60 done
+ m time=16.4 slip=0/- held=0 chain=0 spins=0 stop=13@56.2 top=63.1 spin=0.384/10 air=0 bounce=0 offs=0 resets=0 lock=0 thr=0.565 hb=0 rev=0 bdev=0
+ a grip=4 pred=4
+ n "yep slides a bit"
+#trial brake-sand coupe.4.0.0.1.0 spec#a7f3f03f pi540B runway/sand stop60 done
+ m time=27.1 slip=0/- held=0 chain=0 spins=0 stop=15.8@64.6 top=66.7 spin=0.498/9.84 air=0 bounce=0 offs=0 resets=0 lock=0 thr=0.701 hb=0 rev=0 bdev=0
+ a grip=4 pred=4 fun=4
+ n "more grip, bumpy braking"
+#trial brake-dirt coupe.4.0.0.1.0 spec#a7f3f03f pi540B runway/dirt stop60 done
+ m time=6.85 slip=0/- held=0 chain=0 spins=0 stop=21@74.3 top=74.6 spin=0.393/7.49 air=0 bounce=0 offs=0 resets=0 lock=0 thr=0.66 hb=0 rev=0 bdev=0
+ a grip=4 pred=4 fun=4
+ n "quicker break"
+#trial brake-hardpack coupe.4.0.0.1.0 spec#a7f3f03f pi540B runway/hardpack stop60 done
+ m time=5.93 slip=0/- held=0 chain=0 spins=0 stop=16@66 top=66.3 spin=0.314/7.38 air=0 bounce=0 offs=0 resets=0 lock=0 thr=0.655 hb=0 rev=0 bdev=0.000421
+ a grip=4 pred=4 fun=4
+ n "uep quick"
+#trial brake-scree coupe.4.0.0.1.0 spec#a7f3f03f pi540B runway/scree stop60 done
+ m time=6.25 slip=0/- held=0 chain=0 spins=0 stop=15.8@64 top=64.4 spin=0.379/7.65 air=0 bounce=0 offs=0 resets=0 lock=0 thr=0.667 hb=0 rev=0 bdev=0
+ a grip=4 pred=4 fun=4
+#trial brake-wet coupe.4.0.0.1.0 spec#a7f3f03f pi540B runway/wet stop60 done
+ m time=13.6 slip=0/- held=0 chain=0 spins=0 stop=16.4@64.3 top=64.8 spin=0.402/8.31 air=0 bounce=0 offs=0 resets=0 lock=0 thr=0.611 hb=0 rev=0 bdev=0
+ a grip=4 pred=4 fun=4
+ n "predictable"
+#trial brake-snow coupe.4.0.0.1.0 spec#a7f3f03f pi540B runway/snow stop60 stopped
+ m time=13.2 slip=0/- held=0 chain=0 spins=0 top=67 spin=0.5/16.1 air=0 bounce=0 offs=0 resets=0 lock=0 thr=0.524 hb=0.0317 rev=0
+ a grip=3 pred=4
+ n "predictable"
+#trial brake-packed_snow coupe.4.0.0.1.0 spec#a7f3f03f pi540B runway/packed_snow stop60 stopped
+ m time=7.8 slip=0/- held=0 chain=0 spins=0 top=71.9 spin=0.31/8.55 air=0 bounce=0 offs=0 resets=0 lock=0 thr=0.582 hb=0 rev=0
+ n "predictable"
+#trial brake-ice coupe.4.0.0.1.0 spec#a7f3f03f pi540B runway/ice stop60 stopped
+ m time=15.1 slip=0/- held=0 chain=0 spins=0 top=62.2 spin=0.375/21.4 air=0 bounce=0 offs=0 resets=0 lock=0 thr=0.646 hb=0 rev=0
+ n "loing breaking, predictable"
+#end 10/10 trials
+NOTE: dont have much input here
+
