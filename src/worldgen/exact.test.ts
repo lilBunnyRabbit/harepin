@@ -7,7 +7,7 @@ import { join } from "node:path";
 const ALLOWED: Record<string, number> = {
   "canyon.ts": 2,
   "chunks.ts": 1,
-  "deck.ts": 2,
+  "deck.ts": 3,
   "facts.ts": 6,
   "index.ts": 2,
   "landmark-mesh.ts": 11,

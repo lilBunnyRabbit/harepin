@@ -43,6 +43,8 @@ const EASE = 15;
 const BANK_RATE = (1.2 * Math.PI) / 180;
 /** Roll-in of a bowl (rad/m): at BANK_RATE a 55° bowl would take 46 m to roll in, most of a 180° bowl at 40 m. */
 const BOWL_RATE = (1.8 * Math.PI) / 180;
+/** Steepest slope of swing_shape over t: a pipe SWING_SLOPE·|swing|/BOWL_RATE long rolls no faster than BOWL_RATE. */
+const SWING_SLOPE = 8;
 /** Kick at the middle of a bowl: held this long at its bank, rolled in and out at BOWL_RATE. */
 const KICK_HOLD = 16;
 /** Straight left past a pipe for the car to settle on the centreline. */
@@ -221,7 +223,7 @@ function straight(length: number, min: number, stretch = true): PlanPiece {
 /** A half-pipe: long enough that its swing never rolls faster than BOWL_RATE. */
 function pipe(rng: () => number, pipes: Pipes): PlanPiece {
   const swing = (rng() < 0.5 ? 1 : -1) * (pipes.bank[0] + rng() * (pipes.bank[1] - pipes.bank[0]));
-  const length = Math.max(pipes.length[0] + rng() * (pipes.length[1] - pipes.length[0]), (2 * Math.PI * Math.abs(swing)) / BOWL_RATE);
+  const length = Math.max(pipes.length[0] + rng() * (pipes.length[1] - pipes.length[0]), (SWING_SLOPE * Math.abs(swing)) / BOWL_RATE);
   return { ...straight(length, length, false), swing };
 }
 
@@ -459,8 +461,14 @@ interface Sample {
   bank: number;
 }
 
+/** One full swing over t in 0..1, up and back on one side then the other: two parabolas, exact on every engine where sin is not. */
+function swing_shape(t: number): number {
+  const w = (2 * t) % 1;
+  return (t < 0.5 ? 4 : -4) * w * (1 - w);
+}
+
 function bank_at(p: PlanPiece, s: number): number {
-  if (p.swing !== 0) return p.swing * Math.sin((2 * Math.PI * s) / p.length);
+  if (p.swing !== 0) return p.swing * swing_shape(s / p.length);
   if (p.kind !== "arc" || p.bank === 0) return 0;
   const f = Math.min(1, s / p.ease, (p.length - s) / p.ease);
   if (p.kick === 0) return p.bank * f;
