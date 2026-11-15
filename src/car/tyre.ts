@@ -158,9 +158,12 @@ export function suspend(car: Car, frame: StepFrame, w: Wheel, dt: number, ground
   let suspension = spec.spring * w.compression + (spec.damper * (w.compression - w.prev)) / dt;
   suspension += w.axle.arb * (w.compression - other.compression);
   if (w.compression > rest) suspension += spec.bump * (w.compression - rest);
-  if (w.compression > w.floor_stop) {
+  // The axle's lesser compression: the floor nears flat road only with both struts down; one wheel on a rock past its
+  // stop bounced a coupe off rough ground.
+  const floor = Math.min(w.compression, other.compression) - w.floor_stop;
+  if (floor > 0) {
     const rate = (w.compression - w.prev) / dt;
-    suspension += Math.max(0, FLOOR_BUMP * (w.compression - w.floor_stop) + FLOOR_DAMP * Math.min(0, rate));
+    suspension += Math.max(0, FLOOR_BUMP * floor + FLOOR_DAMP * Math.min(0, rate));
   }
   suspension = Math.max(0, Math.min(spec.strut_max, suspension));
   lever.copy(w.point).sub(body.pos);
