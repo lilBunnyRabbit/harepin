@@ -1,6 +1,7 @@
 /// <reference types="bun" />
 import { describe, expect, test } from "bun:test";
-import { race_line } from "./line";
+import { bank_floor, race_line } from "./line";
+import { GRAVITY } from "../car/rigid-body";
 import type { RoadPoint } from "../worldgen/types";
 
 /** A closed stadium: two straights joined by half circles, points 2 m apart, driven anticlockwise. */
@@ -35,5 +36,28 @@ describe("race line", () => {
       const next = line.speed[(i + 1) % n];
       expect(line.speed[i] ** 2).toBeLessThanOrEqual(next * next + 2 * 2.5 * line.step[i] + 1e-6);
     }
+  });
+
+  test("an all-flat bank array plans the same line as none, to the bit", () => {
+    const flat = race_line(road, [], 1, new Float64Array(road.length));
+    expect(Array.from(flat.speed)).toEqual(Array.from(line.speed));
+    expect(Array.from(flat.offset)).toEqual(Array.from(line.offset));
+  });
+
+  test("a steep bowl plans at least its neutral speed, the bank holding the car with no side grip", () => {
+    const bowl = (50 * Math.PI) / 180;
+    const banks = Float64Array.from(line.bend, (k) => (Math.abs(k) > 1e-3 ? Math.sign(k) * bowl : 0));
+    const banked = race_line(road, [], 1, banks);
+    let checked = 0;
+    for (let i = 0; i < road.length; i++) {
+      // Where the bend opens out its neutral speed climbs past what the bend after it allows, and braking for that wins.
+      if (banks[i] === 0 || Math.abs(banked.bend[i]) < 1 / 40) continue;
+      const neutral = Math.sqrt((GRAVITY * Math.tan(bowl)) / Math.abs(banked.bend[i]));
+      expect(bank_floor(banked.bend[i], banks[i])).toBeCloseTo(neutral, 6);
+      expect(banked.speed[i]).toBeGreaterThanOrEqual(neutral - 1e-6);
+      expect(banked.speed[i]).toBeGreaterThan(line.speed[i]);
+      checked++;
+    }
+    expect(checked).toBeGreaterThan(0);
   });
 });

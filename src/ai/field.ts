@@ -7,7 +7,7 @@ import type { World } from "../world/world";
 import type { Route } from "../worldgen/types";
 import { Awareness } from "./awareness";
 import { Driver, OFF_ROAD, STEADY, type Personality } from "./driver";
-import { race_line, type RaceLine } from "./line";
+import { race_line, road_banks, type RaceLine } from "./line";
 import { AI_TUNING } from "./tuning";
 
 /** Physics steps between awareness and recovery passes: 20 Hz at 360; at 10 Hz a follower closing in a hairpin reacts too late. */
@@ -159,7 +159,7 @@ export class Field {
     grid = specs.length,
   ) {
     const radius = Math.max(...specs.map((s) => s.radius));
-    this.line = race_line(route.points, world.ramps, radius);
+    this.line = race_line(route.points, world.ramps, radius, road_banks(world.deck, route.points));
     this.racers = specs.map((spec, k) => {
       const car = new Car(spec);
       const driver = new Driver(this.line, { ...traits[k], pace: traits[k].pace * grip_pace(spec) }, mulberry32(sub(seed, `ai-driver-${k}`)));

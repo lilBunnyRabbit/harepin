@@ -1,6 +1,7 @@
 import { GRAVITY } from "../car/rigid-body";
+import type { DeckIndex } from "../worldgen/deck";
 import { ROAD_HALF, type Ramp, type RoadPoint } from "../worldgen/types";
-import { AI_TUNING } from "./tuning";
+import { AI_TUNING, BANK_SHARE } from "./tuning";
 
 /** Bend radii (m) over which the line's grip eases from `AI_TUNING.line_grip` up to `fast_grip`. */
 const HAIRPIN_RADIUS = 25;
@@ -11,6 +12,44 @@ export function grip_at(bend: number): number {
   const radius = 1 / Math.max(1e-9, Math.abs(bend));
   const { line_grip, fast_grip } = AI_TUNING;
   return line_grip + (fast_grip - line_grip) * Math.max(0, Math.min(1, (radius - HAIRPIN_RADIUS) / (FAST_RADIUS - HAIRPIN_RADIUS)));
+}
+
+/**
+ * Fastest a bend of signed curvature `bend` can be taken at `grip` (m/s²) on a deck banked `bank` rad (+ up on the side of
+ * the road's right normal, the outside of a positive bend). Banked, it is the grip limit at that bank, gravity holding
+ * part of the turn; flat, the old v² = grip R, to the bit.
+ */
+export function bank_top(bend: number, bank: number, grip: number): number {
+  const reach = 1 / Math.max(1e-9, Math.abs(bend));
+  if (bank === 0) return Math.sqrt(grip * reach);
+  const tilt = (bend < 0 ? -bank : bank) + Math.atan(grip / GRAVITY);
+  return tilt >= Math.PI / 2 ? Infinity : Math.sqrt(GRAVITY * reach * Math.tan(Math.max(0, tilt)));
+}
+
+/**
+ * Speed (m/s) at which a bank holds the car through a bend with no side grip at all: v² = g R tan(bank). Under it a
+ * bank steeper than the tyres can hold slides the car to the low rail, so the plan never drops below it; 0 off a bank
+ * or on one leaning out of the bend.
+ */
+export function bank_floor(bend: number, bank: number): number {
+  const lean = bend < 0 ? -bank : bank;
+  if (lean <= 0) return 0;
+  return Math.sqrt((GRAVITY * Math.tan(Math.min(lean, BANK_MOST))) / Math.max(1e-9, Math.abs(bend)));
+}
+
+/** Most bank (rad) the neutral speed is read at: past it tan runs away, and a near-vertical wall has no speed to hold it. */
+const BANK_MOST = (80 * Math.PI) / 180;
+
+/** Bank (rad, + up on the right normal's side) of the deck under each road point; null on a kind with no deck. */
+export function road_banks(deck: DeckIndex | null, road: readonly RoadPoint[]): Float64Array | null {
+  if (!deck) return null;
+  const bank = new Float64Array(road.length);
+  for (let i = 0; i < road.length; i++) {
+    const p = road[i];
+    const hit = deck.surface(p.x, p.z, p.y);
+    bank[i] = hit ? deck.at(hit.index, 5) : 0;
+  }
+  return bank;
 }
 
 /** Metres between the car's body and the road edge. */
@@ -51,6 +90,8 @@ export interface RaceLine {
   readonly step: Float64Array;
   /** How far the line may stray off the centre at each point (m). */
   readonly room: Float64Array;
+  /** Deck bank (rad) under each point, + up on the right normal's side; all 0 on ground. */
+  readonly bank: Float64Array;
 }
 
 const wrap = (i: number, n: number) => ((i % n) + n) % n;
@@ -99,8 +140,9 @@ function crest(road: readonly RoadPoint[], step: Float64Array, i: number): numbe
  * moves a point toward where its neighbours' second difference would vanish, clamped to the road less the car's half
  * width (`half_width`, m). The plain midpoint (shortest path) is slower: it bunches a bend's turn at the apex.
  */
-export function race_line(road: readonly RoadPoint[], ramps: readonly Ramp[], half_width: number): RaceLine {
+export function race_line(road: readonly RoadPoint[], ramps: readonly Ramp[], half_width: number, banks: Float64Array | null = null): RaceLine {
   const n = road.length;
+  const bank = banks ?? new Float64Array(n);
   const step = new Float64Array(n);
   for (let i = 0; i < n; i++) step[i] = Math.hypot(road[wrap(i + 1, n)].x - road[i].x, road[wrap(i + 1, n)].z - road[i].z);
   const room = new Float64Array(n).fill(Math.max(0, ROAD_HALF - half_width - EDGE_GAP));
@@ -168,10 +210,13 @@ export function race_line(road: readonly RoadPoint[], ramps: readonly Ramp[], ha
     // A 9% climb into a 9% drop in a 200 m bend at 38 m/s took a third of the load, and the field spun there.
     const grip = grip_at(bend[i]);
     const reach = grip / Math.max(1e-9, Math.abs(bend[i]));
-    speed[i] = Math.min(Math.sqrt(reach / (1 + Math.min(AI_TUNING.crest_light, (reach * crest(road, step, i)) / GRAVITY))), ramp[i] >= 0 ? JUMP_PACE : Infinity);
+    const flat = Math.sqrt(reach / (1 + Math.min(AI_TUNING.crest_light, (reach * crest(road, step, i)) / GRAVITY)));
+    const top = bank[i] === 0 ? flat : bank_top(bend[i], bank[i], grip);
+    const corner = bank[i] === 0 ? flat : Math.min(top, Math.max(flat, bank_floor(bend[i], bank[i]), top * BANK_SHARE));
+    speed[i] = Math.min(corner, ramp[i] >= 0 ? JUMP_PACE : Infinity);
   }
   const late = speed.slice();
   brake_curve(speed, step, AI_TUNING.line_brake);
   brake_curve(late, step, AI_TUNING.late_brake);
-  return { road, offset, x, z, speed, late, bend, ramp, step, room };
+  return { road, offset, x, z, speed, late, bend, ramp, step, room, bank };
 }

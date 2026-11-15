@@ -54,3 +54,6 @@ export const AI_TUNING: AiTuning = {
   aggression: [[0, 0.6], [0.1, 0.8], [0.2, 1], [0.4, 1], [0.6, 1]],
   mistakes: [[0, 0.1], [0.02, 0.2], [0.05, 0.3], [0.1, 0.4], [0.2, 0.5]],
 };
+
+/** Share of a steep bank's grip limit the line plans on, never under its neutral speed: the limit spends the tyres' whole grip, which the steering never finds. */
+export const BANK_SHARE = 0.6;
