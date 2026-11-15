@@ -47,13 +47,15 @@ function open(schema: IdbSchema, closed: () => void): Promise<IDBDatabase> {
       resolve(db);
     };
     request.onerror = () => reject(request.error ?? new Error("indexedDB open failed"));
-    request.onblocked = () => reject(new Error(`indexedDB ${schema.name} v${schema.version} blocked by an older tab still open`));
+    // Every connection closes itself on a version change, so only a tab from before that waits out; rejecting here would
+    // orphan the connection the request still opens once that tab closes.
+    request.onblocked = () => console.warn(`indexedDB ${schema.name} v${schema.version} waits for an older tab to close`);
   });
 }
 
 /**
  * Get, put and delete over a schema's object stores, with the platform API only. The database opens on first use and
- * again after a failed open; every call can reject (private mode, storage refused, a blocked upgrade), and the caller
+ * again after a failed open; every call can reject (private mode, storage refused), and the caller
  * decides the fallback. Writes resolve once committed. Values read back are untrusted: validate their shape.
  */
 export class Idb {
@@ -62,10 +64,15 @@ export class Idb {
   constructor(private readonly schema: IdbSchema = HAREPIN_DB) {}
 
   private async tx(name: string, mode: IDBTransactionMode): Promise<IDBTransaction> {
-    this.db ??= open(this.schema, () => (this.db = null)).catch((error: unknown) => {
-      this.db = null;
-      throw error;
-    });
+    if (!this.db) {
+      const opening: Promise<IDBDatabase> = open(this.schema, () => {
+        if (this.db === opening) this.db = null;
+      }).catch((error: unknown) => {
+        if (this.db === opening) this.db = null;
+        throw error;
+      });
+      this.db = opening;
+    }
     const db = await this.db;
     return db.transaction(name, mode);
   }
