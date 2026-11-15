@@ -88,7 +88,7 @@ export function stat_pace(spec: CarSpec): Pace {
   const traction = LAUNCH_GRIP * s.grip * 2 * GRAVITY;
   return {
     accel: (v) => {
-      // `** 3` is the engine's pow, which V8 rounds differently from JSC; a product is exact everywhere.
+      // `** 3` is the engine's pow, which V8 rounds differently from JSC; each IEEE multiply rounds the same in every engine.
       const r = v / s.top_speed;
       return Math.min(traction, (POWER_SHARE * s.power) / Math.max(v, LAUNCH_SPEED)) * (1 - r * r * r);
     },
