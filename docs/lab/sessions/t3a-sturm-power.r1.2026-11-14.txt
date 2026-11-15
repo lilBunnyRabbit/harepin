@@ -35,3 +35,32 @@
  n "very similar to 2 just faster"
 #end 9/9 trials
 
+
+sim on 3775366 (v0.44.1, every spec# equal to the drive's): bun scripts/lab.ts t3a-sturm-power
+#sim t3a-sturm-power r1 base first trial per scenario
+#trial sturm-straight-best sturm.4.0.4.2.2.0.7.2.2.2.1.2 spec#0132da40 pi710S1 runway/asphalt run est 0m20s
+ sim 0-100=3.46 stop=20.5@100 top=290
+#trial sturm-straight-sc sturm.4.0.4.2.0.0.7.2.2.2.1.2 +torque*1.5 +redline+600 +upshift+600 +mass+35 spec#a513cc9d pi732S1 runway/asphalt run est 0m20s
+ sim 0-100=3.38 stop=20.7@100 top=300
+ d 0-100=-0.0722 stop=+0.166 top=+10.2 vs sturm-straight-best
+#trial sturm-straight-turbo lab:sturm-turbo +redline+700 +upshift+700 +mass+40 +mu*1.12 +grip_dirt*0.92 +grip_grass*0.92 +offroad-0.6 +downforce*3.6 +drag+0.17 +rear_grip+0.05 +aero_front+0.04 +mass+12 +mass*0.9 +inertia*0.9 +cog+0.025 spec#cf20193c pi751S1 runway/asphalt run est 0m20s
+ sim 0-100=3.32 stop=20.7@100 top=309
+ d 0-100=-0.131 stop=+0.22 top=+19 vs sturm-straight-best
+#trial sturm-straight-twin lab:sturm-twin +redline+800 +upshift+800 +mass+55 +mu*1.12 +grip_dirt*0.92 +grip_grass*0.92 +offroad-0.6 +downforce*3.6 +drag+0.17 +rear_grip+0.05 +aero_front+0.04 +mass+12 +mass*0.9 +inertia*0.9 +cog+0.025 spec#c0965b2e pi774S1 runway/asphalt run est 0m20s
+ sim 0-100=3.29 stop=20.9@100 top=320
+ d 0-100=-0.164 stop=+0.442 top=+30.3 vs sturm-straight-best
+#trial sturm-straight-top lab:sturm-twin +redline+800 +upshift+800 +mass+55 +mu*1.24 +grip_dirt*0.8 +grip_grass*0.8 +offroad-1 +downforce*6 +drag+0.26 +rear_grip+0.08 +aero_front+0.04 +mass+18 +mass*0.76 +inertia*0.76 +cog+0.04 spec#dc008f56 pi887S2 runway/asphalt run est 0m20s
+ sim 0-100=2.75 stop=18@100 top=286
+ d 0-100=-0.703 stop=-2.47 top=-3.83 vs sturm-straight-best
+#trial sturm-pins-best sturm.4.0.4.2.2.0.7.2.2.2.1.2 spec#0132da40 pi710S1 hairpin/asphalt run est 0m40s
+ sim slip=1.1 lag=0.317
+#trial sturm-pins-twin lab:sturm-twin +redline+800 +upshift+800 +mass+55 +mu*1.12 +grip_dirt*0.92 +grip_grass*0.92 +offroad-0.6 +downforce*3.6 +drag+0.17 +rear_grip+0.05 +aero_front+0.04 +mass+12 +mass*0.9 +inertia*0.9 +cog+0.025 spec#c0965b2e pi774S1 hairpin/asphalt run est 0m40s
+ sim slip=1.96 lag=0.314
+ d slip=+0.864 lag=-0.00278 vs sturm-pins-best
+#trial sturm-pins-shell sturm.4.0.4.2.2.0.7.2.2.0.1.2 +mass*0.76 +inertia*0.76 +cog+0.04 spec#a13342ff pi742S1 hairpin/asphalt run est 0m40s
+ sim slip=1.17 lag=0.325
+ d slip=+0.0778 lag=+0.00833 vs sturm-pins-best
+#trial sturm-pins-top lab:sturm-twin +redline+800 +upshift+800 +mass+55 +mu*1.24 +grip_dirt*0.8 +grip_grass*0.8 +offroad-1 +downforce*6 +drag+0.26 +rear_grip+0.08 +aero_front+0.04 +mass+18 +mass*0.76 +inertia*0.76 +cog+0.04 spec#dc008f56 pi887S2 hairpin/asphalt run est 0m40s
+ sim slip=1.61 lag=0.35
+ d slip=+0.518 lag=+0.0333 vs sturm-pins-best
+#end 9 trials, drive 4m20s + cards 6m45s = 11m05s

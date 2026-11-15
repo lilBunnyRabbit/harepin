@@ -24,3 +24,24 @@
 #end 6/6 trials
 NOTE: It was suprising how the better tiers were really showing more grip and speed. but at the same time why was the grip that worse on worse tier. also interesting how much more i can turn with better tune
 
+
+sim on 3775366 (v0.44.1, every spec# equal to the drive's): bun scripts/lab.ts t3b-sturm-grip
+#sim t3b-sturm-grip r1 base first trial per scenario
+#trial sturm-pad-best sturm.4.0.4.2.2.0.7.2.2.2.1.2 spec#0132da40 pi710S1 skidpad/asphalt laps3 est 0m36s
+ sim latg=1.15 slip=1.55
+#trial sturm-pad-slicks sturm.4.0.4.2.2.0.7.0.2.2.1.2 +mu*1.24 +grip_dirt*0.8 +grip_grass*0.8 +offroad-1 spec#1a6c74d7 pi741S1 skidpad/asphalt laps3 est 0m36s
+ sim latg=1.24 slip=1.32
+ d latg=+0.086 slip=-0.231 vs sturm-pad-best
+#trial sturm-pad-top lab:sturm-twin +redline+800 +upshift+800 +mass+55 +mu*1.24 +grip_dirt*0.8 +grip_grass*0.8 +offroad-1 +downforce*6 +drag+0.26 +rear_grip+0.08 +aero_front+0.04 +mass+18 +mass*0.76 +inertia*0.76 +cog+0.04 spec#dc008f56 pi887S2 skidpad/asphalt laps3 est 0m36s
+ sim latg=1.33 slip=0.993
+ d latg=+0.183 slip=-0.558 vs sturm-pad-best
+#trial sturm-sweep-best sturm.4.0.4.2.2.0.7.2.2.2.1.2 spec#0132da40 pi710S1 sweeper/r200 run est 0m10s
+ sim latg=1.15 slip=1.55
+ d latg=+0 slip=+0 vs sturm-pad-best
+#trial sturm-sweep-gt sturm.4.0.0.2.2.0.7.2.2.2.1.2 +downforce*6 +drag+0.26 +rear_grip+0.08 +aero_front+0.04 +mass+18 spec#170be05f pi748S1 sweeper/r200 run est 0m10s
+ sim latg=1.2 slip=1.31
+ d latg=+0.055 slip=-0.239 vs sturm-pad-best
+#trial sturm-sweep-top lab:sturm-twin +redline+800 +upshift+800 +mass+55 +mu*1.24 +grip_dirt*0.8 +grip_grass*0.8 +offroad-1 +downforce*6 +drag+0.26 +rear_grip+0.08 +aero_front+0.04 +mass+18 +mass*0.76 +inertia*0.76 +cog+0.04 spec#dc008f56 pi887S2 sweeper/r200 run est 0m10s
+ sim latg=1.33 slip=0.993
+ d latg=+0.183 slip=-0.558 vs sturm-pad-best
+#end 6 trials, drive 2m18s + cards 4m30s = 6m48s

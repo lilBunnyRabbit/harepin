@@ -24,3 +24,22 @@
 #end 6/6 trials
 NOTE: Differnt feel. def faster but preserves the character
 
+
+sim on 3775366 (v0.44.1, every spec# equal to the drive's): bun scripts/lab.ts t3e-muscle
+#sim t3e-muscle r1 base first trial per scenario
+#trial muscle-pad-best muscle.4.0.4.2.2.0.7.2.2.2.1.2 spec#c5a47dda pi668A skidpad/asphalt laps3 est 0m36s
+ sim latg=1.07 slip=2.46
+#trial muscle-pad-top lab:muscle-twin +redline+800 +upshift+800 +mass+55 +mu*1.24 +grip_dirt*0.8 +grip_grass*0.8 +offroad-1 +downforce*6 +drag+0.26 +rear_grip+0.08 +aero_front+0.04 +mass+18 +mass*0.76 +inertia*0.76 +cog+0.04 spec#fd49d1d3 pi814S2 skidpad/asphalt laps3 est 0m36s
+ sim latg=1.24 slip=1.72
+ d latg=+0.17 slip=-0.74 vs muscle-pad-best
+#trial muscle-straight-best muscle.4.0.4.2.2.0.7.2.2.2.1.2 spec#c5a47dda pi668A runway/asphalt run est 0m20s
+ sim 0-100=4.23 stop=22.8@100 top=287
+#trial muscle-straight-top lab:muscle-twin +redline+800 +upshift+800 +mass+55 +mu*1.24 +grip_dirt*0.8 +grip_grass*0.8 +offroad-1 +downforce*6 +drag+0.26 +rear_grip+0.08 +aero_front+0.04 +mass+18 +mass*0.76 +inertia*0.76 +cog+0.04 spec#fd49d1d3 pi814S2 runway/asphalt run est 0m20s
+ sim 0-100=3.66 stop=20@100 top=292
+ d 0-100=-0.572 stop=-2.83 top=+5.96 vs muscle-straight-best
+#trial muscle-pins-best muscle.4.0.4.2.2.0.7.2.2.2.1.2 spec#c5a47dda pi668A hairpin/asphalt run est 0m40s
+ sim slip=2.61 lag=0.272
+#trial muscle-pins-top lab:muscle-twin +redline+800 +upshift+800 +mass+55 +mu*1.24 +grip_dirt*0.8 +grip_grass*0.8 +offroad-1 +downforce*6 +drag+0.26 +rear_grip+0.08 +aero_front+0.04 +mass+18 +mass*0.76 +inertia*0.76 +cog+0.04 spec#fd49d1d3 pi814S2 hairpin/asphalt run est 0m40s
+ sim slip=1.91 lag=0.297
+ d slip=-0.697 lag=+0.025 vs muscle-pins-best
+#end 6 trials, drive 3m12s + cards 4m30s = 7m42s

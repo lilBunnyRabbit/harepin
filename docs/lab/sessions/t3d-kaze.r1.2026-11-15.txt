@@ -23,3 +23,22 @@
 #end 6/6 trials
 NOTE: Noticabely faster and more rotation, wants to slip when speeding out of corner. not a bad thing just what i noticed
 
+
+sim on 3775366 (v0.44.1, every spec# equal to the drive's): bun scripts/lab.ts t3d-kaze
+#sim t3d-kaze r1 base first trial per scenario
+#trial kaze-pad-best kaze.4.0.4.2.2.0.7.2.2.2.1.2 spec#5364d90b pi644A skidpad/asphalt laps3 est 0m36s
+ sim latg=1.11 slip=2.24
+#trial kaze-pad-top lab:kaze-twin +redline+800 +upshift+800 +mass+55 +mu*1.24 +grip_dirt*0.8 +grip_grass*0.8 +offroad-1 +downforce*6 +drag+0.26 +rear_grip+0.08 +aero_front+0.04 +mass+18 +mass*0.76 +inertia*0.76 +cog+0.04 spec#52da0969 pi803S2 skidpad/asphalt laps3 est 0m36s
+ sim latg=1.29 slip=1.12
+ d latg=+0.186 slip=-1.12 vs kaze-pad-best
+#trial kaze-straight-best kaze.4.0.4.2.2.0.7.2.2.2.1.2 spec#5364d90b pi644A runway/asphalt run est 0m20s
+ sim 0-100=4.55 stop=22.7@100 top=259
+#trial kaze-straight-top lab:kaze-twin +redline+800 +upshift+800 +mass+55 +mu*1.24 +grip_dirt*0.8 +grip_grass*0.8 +offroad-1 +downforce*6 +drag+0.26 +rear_grip+0.08 +aero_front+0.04 +mass+18 +mass*0.76 +inertia*0.76 +cog+0.04 spec#52da0969 pi803S2 runway/asphalt run est 0m20s
+ sim 0-100=3.82 stop=20.2@100 top=281
+ d 0-100=-0.733 stop=-2.45 top=+22 vs kaze-straight-best
+#trial kaze-pins-best kaze.4.0.4.2.2.0.7.2.2.2.1.2 spec#5364d90b pi644A hairpin/asphalt run est 0m40s
+ sim slip=1.44 lag=0.278
+#trial kaze-pins-top lab:kaze-twin +redline+800 +upshift+800 +mass+55 +mu*1.24 +grip_dirt*0.8 +grip_grass*0.8 +offroad-1 +downforce*6 +drag+0.26 +rear_grip+0.08 +aero_front+0.04 +mass+18 +mass*0.76 +inertia*0.76 +cog+0.04 spec#52da0969 pi803S2 hairpin/asphalt run est 0m40s
+ sim slip=1.43 lag=0.317
+ d slip=-0.01 lag=+0.0389 vs kaze-pins-best
+#end 6 trials, drive 3m12s + cards 4m30s = 7m42s

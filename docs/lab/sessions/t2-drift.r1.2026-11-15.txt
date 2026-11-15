@@ -42,3 +42,42 @@ NOTE: Idk not happy with any of them really. okay donuts are their own thing but
 
 For pins. all of them were kinda-ish hard to catch. the baseline just slid out. but for all im missing the ability to turn in more - meaning also that i dont have the feeling that the back wheels are pushing the car forward and im just directing where it should go - its more like "okay now you are drifting
 
+
+sim on 3775366 (v0.44.1, every spec# equal to the drive's): bun scripts/lab.ts t2-drift
+#sim t2-drift r1 base first trial per scenario
+#trial circle-stock muscle.1.5.0.3.1.0.7.0.0.0.2 spec#9ad20d8a pi559B drift/asphalt time45 est 0m45s
+ sim slip=28.9 held=4.86 rec=1.51
+#trial circle-loose muscle.1.5.0.3.1.0.7.0.0.0.2 +rear_grip*0.92 spec#a0813d95 pi548B drift/asphalt time45 est 0m45s
+ sim slip=31.2 held=4.9 rec=1.78
+ d slip=+2.31 held=+0.0417 rec=+0.269 vs circle-stock
+#trial circle-bar muscle.1.5.0.3.1.0.7.0.0.0.2 +arb_rear*1.5 spec#1a159005 pi559B drift/asphalt time45 est 0m45s
+ sim slip=29.2 held=4.86 rec=1.53
+ d slip=+0.322 held=-0.00278 rec=+0.0222 vs circle-stock
+#trial circle-lock muscle.1.5.0.3.1.0.7.0.0.0.2 +lock*1.25 spec#353cc5ff pi559B drift/asphalt time45 est 0m45s
+ sim slip=28.9 held=4.86 rec=1.51
+ d slip=-0.000156 held=+0 rec=+0 vs circle-stock
+#trial eight-stock muscle.1.5.0.3.1.0.7.0.0.0.2 spec#9ad20d8a pi559B eight/asphalt time60 est 1m00s
+ sim slip=28.9 held=4.86 rec=1.51
+ d slip=+0 held=+0 rec=+0 vs circle-stock
+#trial eight-loose muscle.1.5.0.3.1.0.7.0.0.0.2 +rear_grip*0.92 spec#a0813d95 pi548B eight/asphalt time60 est 1m00s
+ sim slip=31.2 held=4.9 rec=1.78
+ d slip=+2.31 held=+0.0417 rec=+0.269 vs circle-stock
+#trial eight-bar muscle.1.5.0.3.1.0.7.0.0.0.2 +arb_rear*1.5 spec#1a159005 pi559B eight/asphalt time60 est 1m00s
+ sim slip=29.2 held=4.86 rec=1.53
+ d slip=+0.322 held=-0.00278 rec=+0.0222 vs circle-stock
+#trial eight-lock muscle.1.5.0.3.1.0.7.0.0.0.2 +lock*1.25 spec#353cc5ff pi559B eight/asphalt time60 est 1m00s
+ sim slip=28.9 held=4.86 rec=1.51
+ d slip=-0.000156 held=+0 rec=+0 vs circle-stock
+#trial hairpins-stock muscle.1.5.0.3.1.0.7.0.0.0.2 spec#9ad20d8a pi559B hairpin/asphalt run est 0m40s
+ sim slip=3.98 lag=0.242
+#trial hairpins-loose muscle.1.5.0.3.1.0.7.0.0.0.2 +rear_grip*0.92 spec#a0813d95 pi548B hairpin/asphalt run est 0m40s
+ sim slip=16.6 lag=0.169
+ d slip=+12.6 lag=-0.0722 vs hairpins-stock
+#trial hairpins-bar muscle.1.5.0.3.1.0.7.0.0.0.2 +arb_rear*1.5 spec#1a159005 pi559B hairpin/asphalt run est 0m40s
+ sim slip=4.34 lag=0.303
+ d slip=+0.361 lag=+0.0611 vs hairpins-stock
+#trial hairpins-lock muscle.1.5.0.3.1.0.7.0.0.0.2 +lock*1.25 spec#353cc5ff pi559B hairpin/asphalt run est 0m40s
+ sim slip=4.03 lag=0.242
+ d slip=+0.0476 lag=+0 vs hairpins-stock
+#end 12 trials, drive 9m40s + cards 9m00s = 18m40s
+over budget: 12 trials (cap 10), 18m40s (cap 20m00s)

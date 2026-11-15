@@ -23,3 +23,22 @@
 #end 6/6 trials
 NOTE: Yea noticabely faster and still preserving good grip
 
+
+sim on 3775366 (v0.44.1, every spec# equal to the drive's): bun scripts/lab.ts t3c-raijin
+#sim t3c-raijin r1 base first trial per scenario
+#trial raijin-pad-best raijin.4.0.4.2.2.0.7.2.2.2.1.2 spec#864636d7 pi651A skidpad/asphalt laps3 est 0m36s
+ sim latg=1.12 slip=2.64
+#trial raijin-pad-top lab:raijin-twin +redline+800 +upshift+800 +mass+55 +mu*1.24 +grip_dirt*0.8 +grip_grass*0.8 +offroad-1 +downforce*6 +drag+0.26 +rear_grip+0.08 +aero_front+0.04 +mass+18 +mass*0.76 +inertia*0.76 +cog+0.04 spec#45d14099 pi808S2 skidpad/asphalt laps3 est 0m36s
+ sim latg=1.32 slip=1.47
+ d latg=+0.197 slip=-1.17 vs raijin-pad-best
+#trial raijin-straight-best raijin.4.0.4.2.2.0.7.2.2.2.1.2 spec#864636d7 pi651A runway/asphalt run est 0m20s
+ sim 0-100=3.48 stop=22.9@100 top=251
+#trial raijin-straight-top lab:raijin-twin +redline+800 +upshift+800 +mass+55 +mu*1.24 +grip_dirt*0.8 +grip_grass*0.8 +offroad-1 +downforce*6 +drag+0.26 +rear_grip+0.08 +aero_front+0.04 +mass+18 +mass*0.76 +inertia*0.76 +cog+0.04 spec#45d14099 pi808S2 runway/asphalt run est 0m20s
+ sim 0-100=2.54 stop=20.4@100 top=258
+ d 0-100=-0.942 stop=-2.49 top=+6.3 vs raijin-straight-best
+#trial raijin-pins-best raijin.4.0.4.2.2.0.7.2.2.2.1.2 spec#864636d7 pi651A hairpin/asphalt run est 0m40s
+ sim slip=1.28 lag=0.286
+#trial raijin-pins-top lab:raijin-twin +redline+800 +upshift+800 +mass+55 +mu*1.24 +grip_dirt*0.8 +grip_grass*0.8 +offroad-1 +downforce*6 +drag+0.26 +rear_grip+0.08 +aero_front+0.04 +mass+18 +mass*0.76 +inertia*0.76 +cog+0.04 spec#45d14099 pi808S2 hairpin/asphalt run est 0m40s
+ sim slip=1.59 lag=0.322
+ d slip=+0.315 lag=+0.0361 vs raijin-pins-best
+#end 6 trials, drive 3m12s + cards 4m30s = 7m42s

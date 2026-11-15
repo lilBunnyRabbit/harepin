@@ -38,3 +38,36 @@
 #end 10/10 trials
 NOTE: dont have much input here
 
+
+sim on 3775366 (v0.44.1, every spec# equal to the drive's): bun scripts/lab.ts t1b-brakes
+#sim t1b-brakes r1 base first trial per scenario
+#trial brake-asphalt coupe.4.0.0.1.0 spec#a7f3f03f pi540B runway/asphalt stop60 est 0m20s
+ sim 0-100=5.08 stop=12.3@60 top=267
+#trial brake-grass coupe.4.0.0.1.0 spec#a7f3f03f pi540B runway/grass stop60 est 0m20s
+ sim 0-100=8.54 stop=15.3@60 top=171
+ d 0-100=+3.46 stop=+2.98 top=-95.6 vs brake-asphalt
+#trial brake-sand coupe.4.0.0.1.0 spec#a7f3f03f pi540B runway/sand stop60 est 0m20s
+ sim 0-100=16.8 stop=14.4@60 top=113
+ d 0-100=+11.7 stop=+2.08 top=-154 vs brake-asphalt
+#trial brake-dirt coupe.4.0.0.1.0 spec#a7f3f03f pi540B runway/dirt stop60 est 0m20s
+ sim 0-100=6.03 stop=14.5@60 top=266
+ d 0-100=+0.942 stop=+2.17 top=-0.389 vs brake-asphalt
+#trial brake-hardpack coupe.4.0.0.1.0 spec#a7f3f03f pi540B runway/hardpack stop60 est 0m20s
+ sim 0-100=5.74 stop=14@60 top=267
+ d 0-100=+0.653 stop=+1.69 top=-0.323 vs brake-asphalt
+#trial brake-scree coupe.4.0.0.1.0 spec#a7f3f03f pi540B runway/scree stop60 est 0m20s
+ sim 0-100=6.43 stop=14.7@60 top=232
+ d 0-100=+1.34 stop=+2.33 top=-35.2 vs brake-asphalt
+#trial brake-wet coupe.4.0.0.1.0 spec#a7f3f03f pi540B runway/wet stop60 est 0m20s
+ sim 0-100=6.55 stop=15.1@60 top=243
+ d 0-100=+1.46 stop=+2.78 top=-24.3 vs brake-asphalt
+#trial brake-snow coupe.4.0.0.1.0 spec#a7f3f03f pi540B runway/snow stop60 est 0m20s
+ sim 0-100=11.3 stop=19.7@60 top=193
+ d 0-100=+6.23 stop=+7.41 top=-74.3 vs brake-asphalt
+#trial brake-packed_snow coupe.4.0.0.1.0 spec#a7f3f03f pi540B runway/packed_snow stop60 est 0m20s
+ sim 0-100=6.41 stop=14.8@60 top=266
+ d 0-100=+1.33 stop=+2.49 top=-0.442 vs brake-asphalt
+#trial brake-ice coupe.4.0.0.1.0 spec#a7f3f03f pi540B runway/ice stop60 est 0m20s
+ sim 0-100=16.2 stop=32.3@60 top=249
+ d 0-100=+11.1 stop=+20 top=-17.5 vs brake-asphalt
+#end 10 trials, drive 3m20s + cards 7m30s = 10m50s

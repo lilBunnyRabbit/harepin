@@ -41,3 +41,36 @@
 #end 10/10 trials
 NOTE: dont have much input here, it kinda all behaved as expected?
 
+
+sim on 3775366 (v0.44.1, every spec# equal to the drive's): bun scripts/lab.ts t1a-pads
+#sim t1a-pads r1 base first trial per scenario
+#trial pad-asphalt coupe.4.0.0.1.0 spec#a7f3f03f pi540B skidpad/asphalt laps2 est 0m24s
+ sim latg=0.944 slip=4.05
+#trial pad-grass coupe.4.0.0.1.0 spec#a7f3f03f pi540B skidpad/grass laps2 est 0m28s
+ sim latg=0.666 slip=6.31
+ d latg=-0.278 slip=+2.26 vs pad-asphalt
+#trial pad-sand coupe.4.0.0.1.0 spec#a7f3f03f pi540B skidpad/sand laps2 est 0m29s
+ sim latg=0.621 slip=8.63
+ d latg=-0.322 slip=+4.58 vs pad-asphalt
+#trial pad-dirt coupe.4.0.0.1.0 spec#a7f3f03f pi540B skidpad/dirt laps2 est 0m27s
+ sim latg=0.786 slip=5.85
+ d latg=-0.157 slip=+1.8 vs pad-asphalt
+#trial pad-hardpack coupe.4.0.0.1.0 spec#a7f3f03f pi540B skidpad/hardpack laps2 est 0m26s
+ sim latg=0.823 slip=5.24
+ d latg=-0.121 slip=+1.19 vs pad-asphalt
+#trial pad-scree coupe.4.0.0.1.0 spec#a7f3f03f pi540B skidpad/scree laps2 est 0m27s
+ sim latg=0.76 slip=5.68
+ d latg=-0.184 slip=+1.63 vs pad-asphalt
+#trial pad-wet coupe.4.0.0.1.0 spec#a7f3f03f pi540B skidpad/wet laps2 est 0m27s
+ sim latg=0.746 slip=5.93
+ d latg=-0.198 slip=+1.89 vs pad-asphalt
+#trial pad-snow coupe.4.0.0.1.0 spec#a7f3f03f pi540B skidpad/snow laps2 est 0m32s
+ sim latg=0.541 slip=13.5
+ d latg=-0.403 slip=+9.44 vs pad-asphalt
+#trial pad-packed_snow coupe.4.0.0.1.0 spec#a7f3f03f pi540B skidpad/packed_snow laps2 est 0m27s
+ sim latg=0.769 slip=5.64
+ d latg=-0.174 slip=+1.59 vs pad-asphalt
+#trial pad-ice coupe.4.0.0.1.0 spec#a7f3f03f pi540B skidpad/ice laps2 est 0m41s
+ sim latg=0.344 slip=15.1
+ d latg=-0.6 slip=+11.1 vs pad-asphalt
+#end 10 trials, drive 4m47s + cards 7m30s = 12m17s

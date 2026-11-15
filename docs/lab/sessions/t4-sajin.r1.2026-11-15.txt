@@ -38,3 +38,32 @@
 #end 10/10 trials
 NOTE: It is better with turning but kinda looses the buggy feel. and for the long turn it was worse
 
+
+sim on 3775366 (v0.44.1, every spec# equal to the drive's): bun scripts/lab.ts t4-sajin
+#sim t4-sajin r1 base first trial per scenario
+#trial kick-tall lab:sajin-tall spec#f102d8a1 pi483C kicker/big run est 0m15s
+ sim -
+#trial kick-today sajin.4.0.0.1.0 spec#27b1fe2c pi483C kicker/big run est 0m15s
+ sim -
+#trial dirt-tall lab:sajin-tall spec#f102d8a1 pi483C hairpin/dirt run est 0m40s
+ sim slip=1.77 lag=0.194
+#trial dirt-today sajin.4.0.0.1.0 spec#27b1fe2c pi483C hairpin/dirt run est 0m40s
+ sim slip=3.39 lag=0.208
+ d slip=+1.62 lag=+0.0139 vs dirt-tall
+#trial pad-tall lab:sajin-tall spec#f102d8a1 pi483C skidpad/asphalt laps3 est 0m36s
+ sim latg=0.834 slip=24.1
+#trial pad-today sajin.4.0.0.1.0 spec#27b1fe2c pi483C skidpad/asphalt laps3 est 0m36s
+ sim latg=0.881 slip=21.3
+ d latg=+0.0479 slip=-2.76 vs pad-tall
+#trial lift-tall lab:sajin-tall spec#f102d8a1 pi483C sweeper/r120 run est 0m10s
+ sim latg=0.834 slip=24.1
+ d latg=+0 slip=+0 vs pad-tall
+#trial lift-today sajin.4.0.0.1.0 spec#27b1fe2c pi483C sweeper/r120 run est 0m10s
+ sim latg=0.881 slip=21.3
+ d latg=+0.0479 slip=-2.76 vs pad-tall
+#trial straight-tall lab:sajin-tall spec#f102d8a1 pi483C runway/asphalt run est 0m20s
+ sim 0-100=4.58 stop=36@100 top=189
+#trial straight-today sajin.4.0.0.1.0 spec#27b1fe2c pi483C runway/asphalt run est 0m20s
+ sim 0-100=4.74 stop=35.4@100 top=189
+ d 0-100=+0.169 stop=-0.628 top=-0.0746 vs straight-tall
+#end 10 trials, drive 4m02s + cards 7m30s = 11m32s
