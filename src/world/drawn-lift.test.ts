@@ -1,6 +1,6 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
-import { drawn_roads, paved_lots, paving_lift } from "./drawn-lift";
+import { drawn_roads, laid_lift, laid_pad, paved_lots, paving_lift } from "./drawn-lift";
 import { World } from "./world";
 import { build_world } from "../worldgen/kinds/kinds";
 import { LIFT } from "../worldgen/lifts";
@@ -69,4 +69,23 @@ test("a tyre stands on a junction's own paint and asphalt: give-way dashes, corn
     seen.eased++;
   }
   expect(Math.min(seen.bars, seen.lines, seen.eased)).toBeGreaterThan(0);
+});
+
+test("a laid pad lifts its turned rectangle and nothing past its edges", () => {
+  const pad = laid_pad(100, 50, turn, { u0: -4, u1: 6, v0: -2, v1: 8 }, 0.03);
+  // `to_world` of the gymkhana site frame: u along (cos, -sin), v along (sin, cos).
+  const at = (u: number, v: number) => laid_lift([pad], 100 + u * Math.cos(turn) + v * Math.sin(turn), 50 - u * Math.sin(turn) + v * Math.cos(turn));
+  expect([at(0, 0), at(5.9, 7.9), at(-3.9, -1.9), at(6.1, 0), at(0, -2.1), at(-4.1, 8)]).toEqual([0.03, 0.03, 0.03, 0, 0, 0]);
+});
+
+test("a pad laid on the world stands over the road and paving drawn under it, and is gone once taken away", () => {
+  const { data } = build_world(1, WorldKind.ISLAND);
+  const world = new World(1, data);
+  const p = data.road[10];
+  const off = { x: p.x + p.tz * 40, z: p.z - p.tx * 40 };
+  const under = [world.drawn_lift(p.x, p.z), world.drawn_lift(off.x, off.z)];
+  const unlay = world.lay(laid_pad(p.x, p.z, 0, { u0: -3, u1: 3, v0: -3, v1: 3 }, 0.03));
+  expect([world.drawn_lift(p.x, p.z), world.drawn_lift(off.x, off.z)]).toEqual([under[0] + 0.03, under[1]]);
+  unlay();
+  expect(world.drawn_lift(p.x, p.z)).toBe(under[0]);
 });

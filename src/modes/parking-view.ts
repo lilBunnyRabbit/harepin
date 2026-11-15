@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { parked_car_geometry, parked_cars } from "../world/buildings";
+import { laid_pad, type LaidPad } from "../world/drawn-lift";
 import { brand, car_paints, color, tones } from "../theme/palette";
 import { mulberry32, sub } from "../rng";
 import { to_world, type Site } from "./gymkhana";
@@ -16,10 +17,21 @@ const PAD_MARGIN = 3;
 const ARROW = 1.4;
 const PAINT = 0.12;
 
+/** The pad's extent: the area and a margin round it, out to whole grid steps. */
+function pad_area(area: { u0: number; u1: number; v0: number; v1: number }): { u0: number; u1: number; v0: number; v1: number } {
+  const u0 = area.u0 - PAD_MARGIN;
+  const v0 = area.v0 - PAD_MARGIN;
+  const nu = Math.ceil((area.u1 + PAD_MARGIN - u0) / PAD_STEP);
+  const nv = Math.ceil((area.v1 + PAD_MARGIN - v0) / PAD_STEP);
+  return { u0, u1: u0 + nu * PAD_STEP, v0, v1: v0 + nv * PAD_STEP };
+}
+
 export class ParkingView {
   private readonly marks: Marks;
   private readonly target: THREE.MeshBasicMaterial;
   private cars: THREE.InstancedMesh | null = null;
+  /** The pad as the drawn ground: lay it on the world once the view is built, so a car on it stands on it. */
+  readonly laid: LaidPad;
 
   constructor(
     private readonly site: Site,
@@ -29,7 +41,9 @@ export class ParkingView {
     area: { u0: number; u1: number; v0: number; v1: number },
   ) {
     this.marks = new Marks(ground);
-    this.root.add(this.pad(area));
+    const pad = pad_area(area);
+    this.laid = laid_pad(site.x, site.z, site.heading, pad, PAD_LIFT);
+    this.root.add(this.pad(pad));
     for (const bay of level.lines) this.root.add(this.bay_line(bay, this.marks.paint(tones.line, 0.7)));
     this.target = this.marks.paint(brand.accent, 1);
     this.root.add(this.bay_line(level.bay, this.target));
@@ -126,10 +140,9 @@ export class ParkingView {
   }
 
   private pad(area: { u0: number; u1: number; v0: number; v1: number }): THREE.Mesh {
-    const u0 = area.u0 - PAD_MARGIN;
-    const v0 = area.v0 - PAD_MARGIN;
-    const nu = Math.ceil((area.u1 + PAD_MARGIN - u0) / PAD_STEP);
-    const nv = Math.ceil((area.v1 + PAD_MARGIN - v0) / PAD_STEP);
+    const { u0, v0 } = area;
+    const nu = Math.round((area.u1 - u0) / PAD_STEP);
+    const nv = Math.round((area.v1 - v0) / PAD_STEP);
     const positions: number[] = [];
     for (let j = 0; j <= nv; j++)
       for (let i = 0; i <= nu; i++) {

@@ -162,3 +162,33 @@ export function paving_lift(lots: readonly PavedLot[], x: number, z: number): nu
   }
   return lift;
 }
+
+/** A pad a mode lays for a while: a rectangle `u0`-`u1` by `v0`-`v1` in its own frame turned by `heading` about (`x`, `z`), drawn `lift` over whatever is drawn under it. */
+export interface LaidPad {
+  x: number;
+  z: number;
+  cos: number;
+  sin: number;
+  u0: number;
+  u1: number;
+  v0: number;
+  v1: number;
+  lift: number;
+}
+
+export function laid_pad(x: number, z: number, heading: number, area: { u0: number; u1: number; v0: number; v1: number }, lift: number): LaidPad {
+  return { x, z, cos: Math.cos(heading), sin: Math.sin(heading), ...area, lift };
+}
+
+/** How far the laid pads at (`x`, `z`) stand over the drawn ground under them, 0 off every pad. */
+export function laid_lift(pads: readonly LaidPad[], x: number, z: number): number {
+  let lift = 0;
+  for (const pad of pads) {
+    const dx = x - pad.x;
+    const dz = z - pad.z;
+    const u = dx * pad.cos - dz * pad.sin;
+    const v = dx * pad.sin + dz * pad.cos;
+    if (u >= pad.u0 && u <= pad.u1 && v >= pad.v0 && v <= pad.v1 && pad.lift > lift) lift = pad.lift;
+  }
+  return lift;
+}

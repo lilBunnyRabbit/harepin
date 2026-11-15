@@ -26,6 +26,7 @@ export function park_start(site: Site, level: ParkLevel): { x: number; z: number
 class Parking implements ModeRun {
   private readonly view: ParkingView;
   private readonly unplace: () => void;
+  private readonly unlay: () => void;
   private readonly run: ParkRun;
   private result: Finish | null = null;
 
@@ -37,6 +38,7 @@ class Parking implements ModeRun {
     const { world } = ctx;
     this.view = new ParkingView(site, level, world, world.seed, AREA);
     ctx.scene.add(this.view.root);
+    this.unlay = world.lay(this.view.laid);
     const solids = park_solids(site, level, (x, z) => world.height(x, z));
     this.unplace = world.place(solids);
     this.run = new ParkRun(site, level, solids);
@@ -106,6 +108,7 @@ class Parking implements ModeRun {
   dispose() {
     this.view.dispose();
     this.unplace();
+    this.unlay();
   }
 }
 

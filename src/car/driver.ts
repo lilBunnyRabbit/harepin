@@ -8,6 +8,7 @@ import { dark } from "../theme/palette";
 import { contact_shadow, fit_contact_shadow, place_contact_shadow } from "./contact-shadow";
 import { lamps_lit, set_lights, show_flame, snap_lights, swing_popups } from "./lights";
 import { build_view, dispose_car_view, sync_car_view, type CarView } from "./models";
+import { stand_on_drawn } from "./drawn-stand";
 import type { NitroSnapshot } from "./nitro";
 import type { Race } from "../race";
 import type { RoutePoint } from "../modes/route";
@@ -226,14 +227,6 @@ export class Driver {
     this.step_from.quat.copy(this.car.quat);
   }
 
-  /** The drawn ground's lift over the felt ground, averaged under the wheels, so the view stands the tyres on the road mesh. */
-  private drawn_lift(): number {
-    const { wheels } = this.car;
-    let lift = 0;
-    for (const w of wheels) lift += this.world.drawn_lift(w.point.x, w.point.z, w.point.y);
-    return lift / wheels.length;
-  }
-
   /** `held`: the car did not step this frame (rewind, garage, countdown), so nothing to blend from. */
   draw(held: boolean, blend: number, now: number) {
     const { car, view, step_from, drawn, chase } = this;
@@ -245,8 +238,8 @@ export class Driver {
     show_flame(view, car.nitro.boosting, now / 1000, car.ang.y);
     if (swing_popups(view, now / 1000)) this.light.beam(lamps_lit(view));
     view.root.position.copy(drawn.pos);
-    view.root.position.y += this.drawn_lift();
     view.root.quaternion.copy(drawn.quat);
+    stand_on_drawn(view, this.world);
     view.heads.visible = chase.mode !== 1 || chase.top;
     chase.eye = view.eye;
     chase.size = this.size;

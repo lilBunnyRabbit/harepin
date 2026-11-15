@@ -5,6 +5,7 @@ import { contact_shadow, fit_contact_shadow, place_contact_shadow, type ContactS
 import { chunk_of } from "../worldgen/chunk-grid";
 import { BRAKE_REST, brake_on, set_lights, show_flame, snap_lights, swing_popups } from "../car/lights";
 import { build_view, camera_fade, dispose_car_view, rest_wheels, type CarView } from "../car/models";
+import { stand_on_drawn } from "../car/drawn-stand";
 import type { World } from "../world/world";
 import { tier_badge, tier_look } from "../career/badge";
 import { title_text } from "../runs/season";
@@ -182,7 +183,8 @@ export class Remotes {
       root.position.set(...a.state.p).lerp(this.p1.set(...b.state.p), k);
       root.quaternion.copy(this.q0.set(...a.state.q).slerp(this.q1.set(...b.state.q), k));
     }
-    root.position.y += this.world.drawn_lift(root.position.x, root.position.z, root.position.y);
+    rest_wheels(rv.view, rv.spec);
+    stand_on_drawn(rv.view, this.world);
     this.forward.set(0, 0, 1).applyQuaternion(root.quaternion);
     // A chunk that has not streamed in reads as flat sea level: no shadow there rather than one far under the car.
     const { tiles } = this.world;

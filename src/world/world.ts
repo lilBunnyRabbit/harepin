@@ -15,7 +15,7 @@ import { on_coast } from "../worldgen/biomes";
 import { ISLAND, type BiomeRecipe } from "../worldgen/recipe";
 import { CELL, ROAD_HALF, RouteKind, SurfaceId, type WorldKind } from "../worldgen/types";
 import { LIFT } from "../worldgen/lifts";
-import { drawn_junctions, drawn_roads, junction_lift, on_road_paint, paved_lots, paving_lift, road_lift, type DrawnJunction, type DrawnRoad, type PavedLot } from "./drawn-lift";
+import { drawn_junctions, drawn_roads, junction_lift, laid_lift, on_road_paint, paved_lots, paving_lift, road_lift, type DrawnJunction, type DrawnRoad, type LaidPad, type PavedLot } from "./drawn-lift";
 import { SEA_LEVEL, water_index, type WaterIndex } from "../worldgen/water";
 import type { LavaPool } from "../worldgen/lava";
 import type {
@@ -228,6 +228,8 @@ export class World implements Ground {
   private readonly nearby: Solid[] = [];
   private readonly nearby_slots: number[] = [];
   private paved: PavedLot[] | null = null;
+  /** What `lay` put down: a mode's pads, drawn over the ground the world draws. */
+  private readonly pads: LaidPad[] = [];
   /** Built with the world, never on a frame: the first wheel on a road would pay for the whole network. */
   private readonly drawn: (DrawnRoad | undefined)[];
   /** Every patched junction under each cell its asphalt and give-way bars reach. */
@@ -467,10 +469,24 @@ export class World implements Ground {
   /**
    * How far the drawn ground at (`x`, `z`) stands over the ground the wheels feel, for the views to stand a car on it: road
    * and paving drape a few centimetres over the terrain. The road's share eases out over its grip edge, so a wheel
-   * running off it does not drop at once; a ramp or deck under `y` is drawn where it is felt.
+   * running off it does not drop at once; a ramp or deck under `y` is drawn where it is felt. A pad `lay` put down stands
+   * over all of it.
    */
   drawn_lift(x: number, z: number, y?: number): number {
     if (this.height(x, z, y) > this.tiles.height(x, z)) return 0;
+    return this.world_lift(x, z) + (this.pads.length ? laid_lift(this.pads, x, z) : 0);
+  }
+
+  /** Puts a pad down over the drawn ground; returns the function that takes it away again. */
+  lay(pad: LaidPad): () => void {
+    this.pads.push(pad);
+    return () => {
+      const i = this.pads.indexOf(pad);
+      if (i >= 0) this.pads.splice(i, 1);
+    };
+  }
+
+  private world_lift(x: number, z: number): number {
     const paving = paving_lift((this.paved ??= paved_lots(this.lots, this.parking)), x, z);
     const junction = this.junction_lift(x, z);
     if (junction > 0) return Math.max(junction, paving);

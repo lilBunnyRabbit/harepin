@@ -334,10 +334,10 @@ export function sync_car_view(view: CarView, car: Car) {
 
 export function rest_wheels(view: CarView, spec: CarSpec = COUPE) {
   const drop = rest_reach(spec) - spec.wheel.radius;
-  view.wheels.forEach((wheel, i) => {
+  for (let i = 0; i < view.wheels.length; i++) {
     const [x, y, z] = spec.wheel.mounts[i];
-    wheel.position.set(x, y - drop, z);
-  });
+    view.wheels[i].position.set(x, y - drop, z);
+  }
   for (const arm of view.arms) arm?.group.quaternion.identity();
 }
 
