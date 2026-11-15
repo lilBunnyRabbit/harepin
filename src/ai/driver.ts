@@ -9,6 +9,8 @@ const AIM_PER = 3;
 const HAIRPIN_PACE = 15;
 const AIM_HAIRPIN = 5;
 const STEER_GAIN = 3;
+/** Wheel per rad/s the aim error swings at: without it a fast car fishtails, each catch overshooting the last. */
+const STEER_DAMP = 1;
 const TRACK_BACK = 5;
 const TRACK_AHEAD = 40;
 /** m/s over the plan before the brake comes on, and m/s of overspeed per unit of pedal (capped at BRAKE_MAX). */
@@ -78,6 +80,7 @@ export class Driver {
   /** Seconds of reversing left, set by the field's recovery. */
   reversing = 0;
   private mistake_at = -1;
+  private last_err = NaN;
 
   constructor(
     readonly line: RaceLine,
@@ -182,7 +185,9 @@ export class Driver {
     for (let w = 0; w < car.wheels.length; w++) if (car.wheels[w].contact) airborne = false;
     const slide = speed > 5 ? Math.abs(wrap_angle(Math.atan2(vx, vz) - car.heading)) : 0;
     const ease = Math.max(0, 1 - slide / SLIDE_LET_GO);
-    c.steer = airborne ? 0 : Math.max(-1, Math.min(1, -err * STEER_GAIN));
+    const swing = Number.isNaN(this.last_err) ? 0 : wrap_angle(err - this.last_err) / dt;
+    this.last_err = err;
+    c.steer = airborne ? 0 : Math.max(-1, Math.min(1, -err * STEER_GAIN - swing * STEER_DAMP));
     c.throttle = speed < target ? 1 : 0;
     // Behind a car the brake is not eased for the turn: running into it costs more than a wide line.
     const capped = this.cap < free;
