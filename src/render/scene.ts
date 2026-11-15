@@ -124,6 +124,14 @@ interface ChunkView {
   trees_shown: boolean | null;
 }
 
+/** A chunk's meshes never move once built: one world-matrix pass now, and three skips them every frame after. */
+function freeze(group: THREE.Group) {
+  group.updateMatrixWorld(true);
+  group.traverse((object) => {
+    object.matrixAutoUpdate = false;
+  });
+}
+
 /** The island as CHUNK-sized pieces with real bounds, so frustum culling works, plus distance LOD driven by `update`. */
 export class WorldView {
   readonly root = new THREE.Group();
@@ -145,6 +153,7 @@ export class WorldView {
   private readonly streamed: boolean;
 
   constructor(world: World, private readonly mobile: boolean, trees: TreeLook) {
+    this.root.matrixAutoUpdate = false;
     this.streamed = world.tiles.streamed;
     this.tree_batch = new TreeBatch(trees === "charred" ? charred_kit() : tree_kit(world.snowy), world.trees.length);
     this.root.add(...this.tree_batch.meshes);
@@ -195,6 +204,7 @@ export class WorldView {
     const town = this.towns.get(chunk.index);
     if (town) group.add(...town.objects);
     this.root.add(group);
+    freeze(group);
     this.views[chunk.index] = { x0: chunk.x0, z0: chunk.z0, group, terrain: ground, road, water, full: chunk.terrain?.full ?? 0, trees: here, town, far: null, trees_shown: null };
   }
 

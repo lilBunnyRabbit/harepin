@@ -119,6 +119,8 @@ const look = world_look(WORLDS[kind], snowy);
 const opening = WorldStream.open(pick, map, mesh_tones(snowy, WORLDS[kind].upland, WORLDS[kind].deck));
 const quality = new Quality(params, prefs.quality);
 const scene = new THREE.Scene();
+// The scene never moves. Left on, its own matrix update would force every world matrix under it each frame, frozen chunks too.
+scene.matrixAutoUpdate = false;
 const camera = new THREE.PerspectiveCamera(64, innerWidth / innerHeight, 0.1, 5000);
 
 const light = new Lighting(scene, look.mood, quality.mobile);
