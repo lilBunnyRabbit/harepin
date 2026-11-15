@@ -165,6 +165,8 @@ const ONLINE_BURST = 6;
 const ID_SUFFIX = 4;
 
 export const APP_ID = "lilbunnyrabbit-harepin";
+// trystero hashes and encrypts with crypto.subtle, which a plain-http page on a LAN address does not have.
+export const NO_P2P = globalThis.isSecureContext === false;
 export const MAX_LAPS = 10;
 /**
  * Wire protocol of this build. Bump it when peers on different protocols can no longer play together. A peer that never
@@ -330,6 +332,7 @@ export class Net {
     const password = lock?.password ?? null;
     let p2p: Room | null = null;
     try {
+      if (NO_P2P) throw new Error("not a secure context");
       p2p = join({ appId: APP_ID, turnConfig: TURN_SERVERS, ...(password === null ? {} : { password }) }, room, {
         onJoinError: ({ error }) => {
           if (is_sdp_failure(error)) {
