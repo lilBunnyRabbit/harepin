@@ -570,7 +570,10 @@ else if (run) goal_toasts.push("This run's map did not load", MAP_NOTE_MS);
 if (ai_level) modes.play(ai_level);
 // A link without its map reloads onto it; one that names a map which fell back would reload onto itself forever.
 if (series_pick && (!names_world(params) || on_series_map(series_pick.season, series_pick.event, built))) start_series(series_pick.event.id);
-else if (series_on) settings.open(SERIES_PAGE);
+else if (series_on) {
+  if (series_pick) goal_toasts.push("This series event's map did not load", MAP_NOTE_MS);
+  settings.open(SERIES_PAGE);
+}
 // After `markers`: the Play page reads its map markers as soon as the menu opens.
 const guide_step = params.get(GUIDE_PARAM);
 if (guide_step !== null) {

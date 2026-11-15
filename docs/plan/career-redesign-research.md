@@ -65,7 +65,7 @@ From questionnaire round 1 and round 2 in chat (`docs/plan/career-ai-r1.answers.
 - **Rewind in side events.** Rewind is off in every mode today (`src/main.ts:737`, `!modes.active`). Turning it on for solo side events means each side event's mode must rewind its own state (score, gates, timers), not only the car. Per mode, so it ships mode by mode.
 - **Series points** need a points table per finish position and per bonus objective, and standings per series; derive from stored results where possible.
 
-**Still open (round 3, not blocking the first build quests):** what existing players already own when credits arrive (every car and part they use today, or a starting grant); whether rewards from the old tiers (paints, decals, Fujin) stay with the legacy badge (B2); the Pass win rule with no wall time (E3); "Harepin Series" vs a career unit also called "series" (B4/B5 read as "Harepin Series, series 2").
+**Settled in round 3 (`career-ai-r1.answers.md`: base car only, old-tier rewards stay as a legacy bonus, Pass keeps +2 s wall hits, naming stays); the questions were:** what existing players already own when credits arrive (every car and part they use today, or a starting grant); whether rewards from the old tiers (paints, decals, Fujin) stay with the legacy badge (B2); the Pass win rule with no wall time (E3); "Harepin Series" vs a career unit also called "series" (B4/B5 read as "Harepin Series, series 2").
 
 ### Series 1 Island against a field (t283, 2026-11-15)
 
