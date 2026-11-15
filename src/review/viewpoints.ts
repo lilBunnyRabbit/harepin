@@ -23,7 +23,7 @@ const CREST_DROP = 15;
 const CREST_REACH = 480;
 const CREST_STEP = 4;
 
-type Plan = Pick<World, "road" | "towns" | "water_level" | "nearest_road" | "clear_spawn">;
+type Plan = Pick<World, "lots" | "road" | "towns" | "water_level" | "nearest_road" | "clear_spawn">;
 
 interface Frame {
   centre: V3;
@@ -94,7 +94,17 @@ export function plan_views(world: Plan): Partial<Record<ViewName, View>> {
   if (town) {
     const reach = town.radius * 1.2;
     const near = world.nearest_road(town.x, town.z);
-    views.town = { at: index_of(world, town.x, town.z), from: [town.x + town.ux * reach, near.y + 14, town.z + town.uz * reach], to: [town.x, near.y, town.z] };
+    const at = index_of(world, town.x, town.z);
+    views.town = { at, from: [town.x + town.ux * reach, near.y + 14, town.z + town.uz * reach], to: [town.x, near.y, town.z] };
+    const local = (u: number, v: number, up: number): V3 => [town.x + town.ux * u - town.uz * v, town.y + up, town.z + town.uz * u + town.ux * v];
+    views.street = { at, from: local(-town.block * 0.85, 1.6, 2.6), to: local(60, 0, 3.5) };
+    // The market square where the town has one, else the first block off the centre crossing.
+    const square = world.lots.find((lot) => lot.kind === "plaza" && lot.town === town.id);
+    const su = square ? (square.x - town.x) * town.ux + (square.z - town.z) * town.uz : town.block / 2;
+    const sv = square ? (square.z - town.z) * town.ux - (square.x - town.x) * town.uz : (town.cross ?? town.block) / 2;
+    const far = Math.hypot(su, sv) || 1;
+    views.square = { at, from: local((-su / far) * 14 - 3, (-sv / far) * 14, 6), to: local(su, sv, 6) };
+    views.roofs = { at, from: local(-town.radius * 0.9, -town.radius * 0.54, 85), to: local(0, 0, 0) };
   }
 
   const reach = Math.min(span, AERIAL_REACH);
