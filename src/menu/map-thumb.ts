@@ -16,9 +16,9 @@ let queue: Promise<unknown> = Promise.resolve();
 // Each URL stays alive for the page's life: a tile can mount, unmount and mount again, and the list is short.
 const urls = new Map<string, Promise<string>>();
 
-/** An object URL of `spec`'s map painted at the menu's tile size. */
-export function thumb_url(spec: MapSpec): Promise<string> {
-  const side = Math.round(THUMB_SIDE * devicePixelRatio);
+/** An object URL of `spec`'s map painted at `size` CSS px, the menu's tile size by default. */
+export function thumb_url(spec: MapSpec, size = THUMB_SIDE): Promise<string> {
+  const side = Math.round(size * devicePixelRatio);
   const key = `${map_code(spec)}@${side}`;
   let url = urls.get(key);
   if (!url) {

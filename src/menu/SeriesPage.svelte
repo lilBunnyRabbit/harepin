@@ -1,16 +1,18 @@
 <script lang="ts">
   import { event_states, season_done, standings, type SeriesProgress } from "../career/series";
   import { MenuTab } from "./page";
+  import SeriesClimb from "./SeriesClimb.svelte";
   import SeriesHero from "./SeriesHero.svelte";
+  import SeriesIslands from "./SeriesIslands.svelte";
   import SeriesRail from "./SeriesRail.svelte";
+  import SeriesRoad from "./SeriesRoad.svelte";
   import SeriesTower from "./SeriesTower.svelte";
   import type { PageProps } from "./ui/svelte-page.svelte";
 
   let { menu, live }: PageProps = $props();
 
-  const VARIANTS = { a: SeriesRail, b: SeriesHero, c: SeriesTower };
-  const pick = new URLSearchParams(location.search).get("v");
-  const View = VARIANTS[pick === "b" || pick === "c" ? pick : "a"];
+  const VARIANTS: Record<string, typeof SeriesRail> = { a: SeriesRail, b: SeriesHero, c: SeriesTower, d: SeriesRoad, e: SeriesIslands, f: SeriesClimb };
+  const View = VARIANTS[new URLSearchParams(location.search).get("v") ?? "d"] ?? SeriesRoad;
 
   const series = $derived(menu.host.series);
   const progress = $derived<SeriesProgress | null>(live.live(() => (menu.host.series?.ready ? menu.host.series.progress : null)));
