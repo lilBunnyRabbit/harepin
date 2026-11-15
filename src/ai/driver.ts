@@ -1,7 +1,7 @@
 import { Quaternion, Vector3 } from "three";
 import { ride_height, type Car, type Controls, type Ground } from "../car/car";
 import { ROAD_HALF } from "../worldgen/types";
-import { bank_floor, bank_top, CURVE_SPAN, grip_at, inverse_radius, type RaceLine } from "./line";
+import { CURVE_SPAN, grip_at, inverse_radius, type RaceLine } from "./line";
 import { AI_TUNING } from "./tuning";
 
 /** Under this pace (m/s) a bend is a hairpin and the aim stays short, or it cuts across the inside. */
@@ -235,9 +235,7 @@ export class Driver {
       const li = this.lateral_at(car, i);
       const lc = this.lateral_at(car, c);
       const bend = inverse_radius(road[a].x + road[a].tz * la, road[a].z - road[a].tx * la, road[i].x + road[i].tz * li, road[i].z - road[i].tx * li, road[c].x + road[c].tz * lc, road[c].z - road[c].tx * lc);
-      const grip = this.push > 1 ? Math.min(AI_TUNING.pass_max, grip_at(bend) * AI_TUNING.pass_grip) : grip_at(bend);
-      const bank = line.bank[i];
-      const v = bank === 0 ? Math.min(plan[i], Math.sqrt(grip / Math.max(1e-9, Math.abs(bend)))) : Math.min(plan[i], Math.max(bank_floor(bend, bank), bank_top(bend, bank, grip)));
+      const v = Math.min(plan[i], Math.sqrt((this.push > 1 ? Math.min(AI_TUNING.pass_max, grip_at(bend) * AI_TUNING.pass_grip) : grip_at(bend)) / Math.max(1e-9, Math.abs(bend))));
       pace = Math.min(pace, Math.sqrt(v * v + 2 * brake * run));
       for (let s = 0; s < HOLD_STRIDE; s++) run += line.step[(i + s) % n];
     }
