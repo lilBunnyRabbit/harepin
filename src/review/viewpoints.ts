@@ -107,6 +107,10 @@ export function plan_views(world: Plan): Partial<Record<ViewName, View>> {
     views.roofs = { at, from: local(-town.radius * 0.9, -town.radius * 0.54, 85), to: local(0, 0, 0) };
   }
 
+  // A loose cabin out on the open ground, from in front of its door and off to one side.
+  const cabin = world.lots.find((lot) => lot.town === -1);
+  if (cabin) views.cabin = { at: index_of(world, cabin.x, cabin.z), from: [cabin.x + cabin.fx * 24 + cabin.fz * 12, cabin.y + 6, cabin.z + cabin.fz * 24 - cabin.fx * 12], to: [cabin.x, cabin.y + 2, cabin.z] };
+
   const reach = Math.min(span, AERIAL_REACH);
   views.aerial = { at: index_of(world, middle.x, middle.z), from: [middle.x, centre[1] + reach * 0.55, middle.z - reach * 0.8], to: [middle.x, centre[1], middle.z] };
   return views;
