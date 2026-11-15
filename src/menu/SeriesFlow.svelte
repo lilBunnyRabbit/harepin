@@ -131,7 +131,6 @@
     scroll-snap-type: x mandatory;
     scrollbar-width: none;
     list-style: none;
-    touch-action: pan-x;
   }
 
   .fl-strip:focus-visible {
