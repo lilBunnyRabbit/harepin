@@ -105,6 +105,10 @@ export interface SkyRecipe {
   banked: boolean;
   /** Velodrome bowls: one per lap, or one per lobe of a figure-eight; null lays none and draws nothing for them. */
   bowls: Bowls | null;
+  /** Half-pipe swings on straights: null lays none and draws nothing for them. */
+  pipes: Pipes | null;
+  /** One bowl of the lap held at a wall-ride bank, its high rail left off so going over the top is a fall; null lays none. */
+  wall: Wall | null;
   /** Car ids no route of the track is raced in. */
   excludes: readonly string[];
 }
@@ -117,7 +121,21 @@ export interface Bowls {
   kick: readonly [number, number];
 }
 
-export const SKY: SkyRecipe = { kind: WorldKind.SKY, profile: "free", roofs: false, odds: { eight: 0.3, helix: 0.45, hairpin: 0.35 }, gaps: 2, pads: MAX_PADS, open: [0.15, 0.3], length: [2400, 5200], banked: true, bowls: null, excludes: [] };
+/** Each pipe is a straight whose bank swings up one side, through level, up the other and back (rad, metres). */
+export interface Pipes {
+  /** Pipes drawn; two drawn after the same bend lay one. */
+  most: number;
+  bank: readonly [number, number];
+  length: readonly [number, number];
+}
+
+/** The wall bowl's held bank (rad) and how long it holds it (m), on top of its bowl's own draws. */
+export interface Wall {
+  bank: readonly [number, number];
+  hold: readonly [number, number];
+}
+
+export const SKY: SkyRecipe = { kind: WorldKind.SKY, profile: "free", roofs: false, odds: { eight: 0.3, helix: 0.45, hairpin: 0.35 }, gaps: 2, pads: MAX_PADS, open: [0.15, 0.3], length: [2400, 5200], banked: true, bowls: null, pipes: null, wall: null, excludes: [] };
 
 interface Turn {
   angle: number;
@@ -137,6 +155,12 @@ interface PlanPiece {
   bowl: boolean;
   /** Bank (rad) held for KICK_HOLD at the middle of a bowl; 0 for none. */
   kick: number;
+  /** Length (m) the kick holds its bank. */
+  hold: number;
+  /** Peak bank (rad) of a pipe's swing; 0 on every other piece. */
+  swing: number;
+  /** The wall bowl, its kick held long with the high rail off. */
+  wall: boolean;
 }
 
 interface Pose {
@@ -185,11 +209,18 @@ function arc(t: Turn): PlanPiece {
   const ease = Math.max(EASE, Math.abs(t.bank) / (BANK_RATE * 0.95));
   const radius = Math.max(t.radius, (ease * 1.2) / Math.abs(t.angle));
   const curve = Math.sign(t.angle) / radius;
-  return { kind: "arc", length: t.angle / curve + ease, curve, ease, bank: t.bank, min: 0, stretch: false, helix: false, bowl: false, kick: 0 };
+  return { kind: "arc", length: t.angle / curve + ease, curve, ease, bank: t.bank, min: 0, stretch: false, helix: false, bowl: false, kick: 0, hold: 0, swing: 0, wall: false };
 }
 
 function straight(length: number, min: number, stretch = true): PlanPiece {
-  return { kind: "straight", length, curve: 0, ease: 0, bank: 0, min, stretch, helix: false, bowl: false, kick: 0 };
+  return { kind: "straight", length, curve: 0, ease: 0, bank: 0, min, stretch, helix: false, bowl: false, kick: 0, hold: 0, swing: 0, wall: false };
+}
+
+/** A half-pipe: long enough that its swing never rolls faster than BOWL_RATE. */
+function pipe(rng: () => number, pipes: Pipes): PlanPiece {
+  const swing = (rng() < 0.5 ? 1 : -1) * (pipes.bank[0] + rng() * (pipes.bank[1] - pipes.bank[0]));
+  const length = Math.max(pipes.length[0] + rng() * (pipes.length[1] - pipes.length[0]), (2 * Math.PI * Math.abs(swing)) / BOWL_RATE);
+  return { ...straight(length, length, false), swing };
 }
 
 /** A bowl turning `sign` way, banked into the turn and rolled in at BOWL_RATE. */
@@ -201,7 +232,16 @@ function bowl(rng: () => number, bowls: Bowls, sign: number): PlanPiece {
   const kick = -sign * draw(bowls.kick);
   const ease = Math.max(EASE, Math.abs(bank) / BOWL_RATE);
   const curve = sign / radius;
-  return { kind: "arc", length: angle / curve + ease, curve, ease, bank, min: 0, stretch: false, helix: false, bowl: true, kick };
+  return { kind: "arc", length: angle / curve + ease, curve, ease, bank, min: 0, stretch: false, helix: false, bowl: true, kick, hold: KICK_HOLD, swing: 0, wall: false };
+}
+
+/** A bowl whose kick is the wall: held for as long as its turn leaves room between the roll-ins. */
+function wall_bowl(rng: () => number, bowls: Bowls, wall: Wall, sign: number): PlanPiece {
+  const draw = ([lo, hi]: readonly [number, number]) => lo + rng() * (hi - lo);
+  const p = bowl(rng, bowls, sign);
+  const kick = -sign * draw(wall.bank);
+  const room = p.length - 2 * p.ease - (2 * Math.abs(kick - p.bank)) / BOWL_RATE;
+  return { ...p, kick, hold: Math.max(KICK_HOLD, Math.min(draw(wall.hold), room)), wall: true };
 }
 
 function hairpin(rng: () => number, angle: number): Turn {
@@ -263,13 +303,14 @@ function skeleton(rng: () => number, total: number, hairpin_odds: number): Turn[
 
 // Heading closes only if the turning totals 2π per lap: 0 for a figure-eight, plus 2π for a helix coil.
 // A bowl takes its turn out of its lobe's share before the skeleton splits the rest, then sits among that lobe's turns.
-function draw_layout(rng: () => number, { odds, bowls }: SkyRecipe): PlanPiece[] | null {
+function draw_layout(rng: () => number, { odds, bowls, pipes, wall }: SkyRecipe): PlanPiece[] | null {
   const eight = rng() < odds.eight;
   const coil = rng() < odds.helix ? (rng() < 0.5 ? 1 : -1) : 0;
   const helix_angle = coil * (2 * Math.PI + HELIX_EXTRA[0] + rng() * (HELIX_EXTRA[1] - HELIX_EXTRA[0]));
   const need = (eight ? 0 : 2 * Math.PI) + coil * 2 * Math.PI - helix_angle;
-  const lobe = (total: number): PlanPiece[] | null => {
-    const b = bowls && bowl(rng, bowls, Math.sign(total) || 1);
+  const lobe = (total: number, walled: boolean): PlanPiece[] | null => {
+    const sign = Math.sign(total) || 1;
+    const b = bowls && (walled && wall ? wall_bowl(rng, bowls, wall, sign) : bowl(rng, bowls, sign));
     const turns = skeleton(rng, total - (b ? turn_angle(b) : 0), odds.hairpin)?.map(arc);
     if (turns && b) turns.splice(Math.floor(rng() * (turns.length + 1)), 0, b);
     return turns ?? null;
@@ -277,14 +318,15 @@ function draw_layout(rng: () => number, { odds, bowls }: SkyRecipe): PlanPiece[]
   let turns: PlanPiece[] | null;
   if (eight) {
     const lefts = Math.PI * (1.2 + rng() * 0.8);
-    const a = lobe(lefts);
-    const b = lobe(need - lefts);
+    const a = lobe(lefts, true);
+    const b = lobe(need - lefts, false);
     turns = a && b ? [...a, ...b] : null;
-  } else turns = lobe(need);
+  } else turns = lobe(need, true);
   if (!turns) return null;
   const last = turns.length - 1;
   const jump_at = Math.floor(rng() * last);
   const helix_at = coil ? Math.floor(rng() * last) : -1;
+  const pipe_at = pipes ? Array.from({ length: pipes.most }, () => Math.floor(rng() * last)) : [];
   const pieces: PlanPiece[] = [straight(START_AHEAD + rng() * 60, START_AHEAD)];
   turns.forEach((t, i) => {
     pieces.push(t);
@@ -293,6 +335,7 @@ function draw_layout(rng: () => number, { odds, bowls }: SkyRecipe): PlanPiece[]
       return;
     }
     pieces.push(i === jump_at ? straight(JUMP_STRAIGHT + rng() * 120, JUMP_STRAIGHT) : straight(STRAIGHT_MIN + rng() * 140, STRAIGHT_MIN));
+    if (pipes && pipe_at.includes(i)) pieces.push(pipe(rng, pipes), straight(STRAIGHT_MIN, STRAIGHT_MIN, false));
     if (rng() < MACRO_ODDS) pieces.push(...macro(rng), straight(STRAIGHT_MIN + rng() * 100, STRAIGHT_MIN));
     if (i === helix_at) {
       const radius = HELIX_RADIUS[0] + rng() * (HELIX_RADIUS[1] - HELIX_RADIUS[0]);
@@ -413,11 +456,12 @@ interface Sample {
 }
 
 function bank_at(p: PlanPiece, s: number): number {
+  if (p.swing !== 0) return p.swing * Math.sin((2 * Math.PI * s) / p.length);
   if (p.kind !== "arc" || p.bank === 0) return 0;
   const f = Math.min(1, s / p.ease, (p.length - s) / p.ease);
   if (p.kick === 0) return p.bank * f;
   const roll = Math.abs(p.kick - p.bank) / BOWL_RATE;
-  const k = Math.max(0, Math.min(1, 1 - (Math.abs(s - p.length / 2) - KICK_HOLD / 2) / roll));
+  const k = Math.max(0, Math.min(1, 1 - (Math.abs(s - p.length / 2) - p.hold / 2) / roll));
   return p.bank * f + (p.kick - p.bank) * k;
 }
 
@@ -798,7 +842,7 @@ function jump_toes(pieces: readonly PlanPiece[], length: number, zones: readonly
   let s0 = 0;
   pieces.forEach((p, i) => {
     const room = p.length - JUMP_BEFORE - span - JUMP_AFTER;
-    if (p.kind === "straight" && i > 0 && i < pieces.length - 1 && room >= 0 && toes.length < most) {
+    if (p.kind === "straight" && p.swing === 0 && i > 0 && i < pieces.length - 1 && room >= 0 && toes.length < most) {
       const toe = s0 + JUMP_BEFORE + room / 2;
       const a = toe - JUMP_BEFORE - ZONE_MARGIN;
       const b = toe + span + JUMP_AFTER + ZONE_MARGIN;
@@ -916,6 +960,18 @@ function open_sections(seed: number, kind: WorldKind, samples: readonly Sample[]
   return out.sort((x, y) => x.s0 - y.s0);
 }
 
+/** The wall's high rail off from where it rolls past its bowl's bank: a car carried over the top falls and resets. */
+function wall_opens(pieces: readonly PlanPiece[]): OpenSection[] {
+  const out: OpenSection[] = [];
+  let s0 = 0;
+  for (const p of pieces) {
+    const reach = p.hold / 2 + Math.abs(p.kick - p.bank) / BOWL_RATE;
+    if (p.wall) out.push({ s0: s0 + p.length / 2 - reach, s1: s0 + p.length / 2 + reach, side: p.kick > 0 ? 1 : -1 });
+    s0 += p.length;
+  }
+  return out;
+}
+
 export function rail_open(open: readonly OpenSection[], s: number, side: number): boolean {
   return open.some((o) => s >= o.s0 && s <= o.s1 && (o.side === 0 || o.side === side));
 }
@@ -993,6 +1049,10 @@ export function generate_sky(seed: number, recipe: SkyRecipe = SKY, plain: SkyRe
   for (const p of pads) deck_pieces.push({ kind: "pad", s0: p.s0, length: PAD_LENGTH, curve: 0 });
   deck_pieces.sort((a, b) => a.s0 - b.s0);
   const open = open_sections(seed, built.kind, samples, pieces, length, built.open, (s) => stacked(s) || toes.some((t) => s > t - JUMP_BEFORE - OPEN_CLEAR && s < t + jump.span + JUMP_AFTER));
+  if (built.wall) {
+    open.push(...wall_opens(pieces));
+    open.sort((x, y) => x.s0 - y.s0);
+  }
   const solids: Solid[] = [];
   for (let i = 0; i < n; i += 2) {
     const a = i * DECK_STRIDE;

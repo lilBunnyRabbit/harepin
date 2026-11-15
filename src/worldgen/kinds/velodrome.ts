@@ -6,7 +6,7 @@ const DEG = Math.PI / 180;
 
 // docs/plan/wall-ride.md: 45-55° on the racing line, a 60-70° kick at each bowl's middle, under the 75° past which a soft car
 // can fall through the deck. The bus scrapes from 40° and is out; the Raijin scrapes its floor in a bowl but holds its line.
-const VELODROME: SkyRecipe = {
+export const VELODROME: SkyRecipe = {
   ...SKY,
   kind: WorldKind.VELODROME,
   odds: { eight: 1, helix: 0, hairpin: 0.35 },
