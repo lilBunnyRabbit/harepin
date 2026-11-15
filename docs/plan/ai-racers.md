@@ -483,6 +483,63 @@ Solo (`ai-race.ts solo`, AI vs autolap median): 5.5 -13.7%, 6.0 -15.7% (seed 3 o
 
 Open after this round:
 
-- 6 m/s² buys about 2.5% a lap; the owner may still find corners slow. More needs the steering to hold a tighter line (pursuit aim and damping) before grip can rise: at 6.5 the field runs off the road in traffic.
-- Normal's resets 2 -> 7 and hard's hardest hit 26.1 m/s are not traced (`ai-why.ts` per seed).
+- 6 m/s² buys about 2.5% a lap; the owner may still find corners slow. More needs the steering to hold a tighter line (pursuit aim and damping) before grip can rise: at 6.5 the field runs off the road in traffic. Done below.
+- Normal's resets 2 -> 7 and hard's hardest hit 26.1 m/s are not traced (`ai-why.ts` per seed). Traced below.
 - The town circuit's par is not measured here; the lap count follows it.
+
+### Steering, then corner speed (t296 r2, 2026-11-15)
+
+Where the speed went, from a solo diagnostic (each lap's worst distance off the line and what the car was doing there, first spot off the road):
+
+- **Hairpins (radius 16-20 m) are lock-limited.** At 10-11 m/s the driver is at full wheel (`steer` ±1) with no slide and still sits 6-8 m off the line, inside the road. Grip there buys nothing.
+- **Fast bends ran wide from the steering.** The solo laps that left the road at 6.5 did it in 200-400 m bends at 38-49 m/s with the wheel at 0.4-0.5: pure pursuit at `STEER_GAIN` 3 with the aim 40 m out turns only off its error, and the car drifted 3 m wide of the line before it turned enough.
+- A steering feed-forward from the line's bend made it worse at every gain tried (x1: mean off the line 1.01 -> 2.77 m; x0.2-0.5: no change). A shorter aim (`AIM_PER` 4, 5) changed nothing. `STEER_GAIN` 4.5 took every solo lap onto the road, seed 3's kicker included.
+
+Traced:
+
+- **Normal's resets (6.0 run, `ai-why.ts`)**: 5 of 7 spins and 2 of 7 resets at seed 3's kicker (point 232-246, as before); 2 resets at seed 7 point 2692-2704 and 3 at seed 9's start. On the new steering the kicker ones are gone; seed 7's are a crest.
+- **Seed 7, point 2640-2700 (hard's 30.7 m/s on f994ab2)**: a 9% climb straight into a 9% drop inside a 180-220 m bend at 36-39 m/s. Over the crest the car goes about a third light and slides. Car 1 spun there at 13.6 m/s, car 2 braking flat out (cap 7.8 m/s) hit it, then the two met sideways at 30.7 m/s closing. The line now plans crests as `v² = G R / (1 + G R k / g)`, k the road's vertical curvature over 10 points each side: 35.6 -> 31.2 m/s over that crest.
+- **Hard's 21.0 m/s (crest in, x1.03)**: seed 2 point 2506, a car at pace 1.037 sliding 1.24 rad on the exit of a downhill hairpin, the follower braking into it. Own slide past the plan: hard's pace factor.
+
+| Commit | Change |
+|---|---|
+| 2b0cb52 | `grip_at(bend)`: `LINE_GRIP` at `HAIRPIN_RADIUS` 25 m and tighter, eased to `FAST_GRIP` at `FAST_RADIUS` 80 m. A pass plans on at most `PASS_MAX` 8.4 m/s² (6 x 1.4). Both 6: no change |
+| f994ab2 | `STEER_GAIN` 3 -> 4.5, `FAST_GRIP` 7 |
+| e1de98d | crests in the corner speed |
+| 68cc37b | hard pace x1.03 -> x1.02 |
+
+`bun scripts/ai-race.ts field all coupe 6 2 3 3 <difficulty>`, 25 races each. Before = e3b5a6c (this round's start), 6.0 = d3cd453:
+
+| | easy before | 6.0 | now | normal before | 6.0 | now | hard before | 6.0 | now |
+|---|---|---|---|---|---|---|---|---|---|
+| Mean lap (s) | 240.0 | 234.3 | 229.6 | 220.4 | 215.3 | 212.1 | 215.2 | 210.7 | 208.5 |
+| Overtakes | 68 | 81 | 61 | 48 | 52 | 68 | 42 | 55 | 48 |
+| Spins | 2 | 3 | 0 | 4 | 6 | 2 | 6 | 5 | 0 |
+| Resets | 3 | 1 | 0 | 2 | 7 | 3 | 7 | 4 | 2 |
+| Reverses | 5 | 3 | 0 | 0 | 3 | 0 | 2 | 0 | 1 |
+| Hardest hit (m/s) | 15.7 | 4.8 | 6.4 | 10.9 | 16.4 | 11.3 | 10.0 | 26.1 | 8.7 |
+| Contacts/lap median (races over 8) | 5.0 (4) | 6.0 (5) | 5.5 (3) | 5.5 (8) | 5.3 (3) | 7.0 (11) | 5.5 (6) | 7.0 (9) | 6.5 (7) |
+| Mean rho | 0.34 | 0.41 | 0.36 | 0.49 | 0.43 | 0.61 | 0.49 | 0.61 | 0.65 |
+
+Solo (`ai-race.ts solo`): all 25 laps on the road, AI vs autolap median -17.3% (-13.7% at the start of t296). Normal laps 3.8% faster than at the start of t296, with spins and resets back near 4 / 2 and the hardest hit at 11.3 m/s. Most of the gain is in fast bends: 7 m/s² there is 8% more corner speed than 6, and 13% more than the 5.5 the owner drove against.
+
+Tried on normal and not kept (solo diagnostic: total of 25 laps, laps off the road):
+
+| Variant | Solo total, off | Field: lap, overtakes, spins / resets, hardest, rho |
+|---|---|---|
+| 6 hairpin / 7 fast, gain 3 | 5167.7 s, 3 | |
+| 6 / 7.5, gain 3 | 5326.0 s, 5 (seed 9 off 300 s) | |
+| 6.5 / 7, gain 3 | 5137.1 s, 3 | |
+| 6 / 7, gain 6 | 5144.5 s, 1 | |
+| 6.5 / 7, gain 4.5 | 5123.7 s, 0 | 208.9 s, 57, 7 / 9, 9.1, 0.66 |
+| 6 / 7.5, gain 4.5 | 5100.5 s, 3 | 208.2 s, 52, 6 / 8, 14.7, 0.69 |
+| 6 / 7, gain 4.5 (kept) | 5149.8 s, 0 | 210.2 s, 59, 4 / 3, 9.0, 0.62 (before the crest fix) |
+| hard x1.03 on the kept line, crest in | | 207.4 s, 58, 3 / 2, 21.0, 0.71 |
+| hard x1.01, crest in | | 210.1 s, 39, 3 / 2, 6.4, 0.58 |
+
+Open after this round:
+
+- Contacts: normal's median is 7.0 per lap, and 11 of 25 races go over the script's band of 8, so `ai-race.ts field` exits 1. Faster cars close up more; most contacts are rubs while passing, as in t290.
+- Rho rose to 0.61 / 0.65 (normal / hard): with less time lost in corners, pace differences decide less and the grid more. Still under `RHO_MAX` 0.7.
+- Hairpins stay at 6 m/s², lock-limited. More there means a different wheel law (full lock earlier, entry speed from the lock), not more grip.
+- Seed 16's lone slide on a 12% climb and seed 18's in a dip are not traced.
