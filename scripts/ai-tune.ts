@@ -187,7 +187,10 @@ while (state.cma.gen < gens) {
   const samples = cma_sample(state.cma, config.pop, mulberry32(sub(config.seed, `ai-tune-${g}`)));
   const list = samples.map((s) => from_unit(s.x));
   const all = await evaluate(list.map((values, k) => ({ key: `g${g}/${k}`, values })), config.seeds, base.score.passes);
-  const order = all.map((_, k) => k).sort((a, b) => all[a].loss - all[b].loss);
+  const loss = all.map((s) => s.loss);
+  const order = loss.map((_, k) => k).sort((a, b) => loss[a] - loss[b]);
+  // The 24-seed run ranked gens 5-9 in one fixed wrong order in-process while the saved losses sort fine; not reproduced.
+  if (order.some((k, i) => i > 0 && loss[order[i - 1]] > loss[k])) throw new Error(`gen ${g} ranked out of order: ${order.map((k) => loss[k].toFixed(2)).join(" ")}`);
   state.gens.push({ sigma: state.cma.sigma, candidates: list.map((values, k) => ({ values, score: all[k] })) });
   state.cma = cma_update(state.cma, order.map((k): Sample => samples[k]));
   save();

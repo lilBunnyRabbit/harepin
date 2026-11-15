@@ -631,3 +631,19 @@ Not applied. The pace carries over to the held-out seeds (2.7% faster than today
 
 Next run, after the lead's go: run files key on a hash of `AI_TUNING` plus every non-test `src/ai/*.ts` source (state version 3; a file without the hash refuses). Car physics, contact, the world and the race scripts are not in the hash: after a merge that touches them, start a new `--run`. `rub` may now go to 2 m (at full aggression a car lets one in to 0.6 m of its centre). Train on 24 seeds, hold out 12: `hq lock run -- bun scripts/ai-tune.ts --run wide --seeds 0-23 --check 24-35 --pop 10 --gens 10 --jobs 3`.
 
+About 3 h 20 min. Best loss by generation: 169.71, 164.76, 167.40, 163.76, 163.50 (gen 4, the pick), then gens 5-9 never beat it against the defaults' 169.03. From gen 5 on, the printed best and median were candidates 1 and 3 every time, though the saved losses rank otherwise: the process ranked those five generations in a fixed wrong order, so their CMA updates learnt nothing. The saved scores are right, and the pick takes the best over all of them. The cause is not found (the same sort on the saved losses, and a 200 000-sort stress loop, rank fine); the loop now throws when a generation ranks out of order.
+
+| | Defaults (train) | Best (train) | Defaults (held out) | Best (held out) |
+|---|---|---|---|---|
+| Races | 29 | 29 | 14 | 14 |
+| Loss | 169.03 | 163.50 | 165.23 | 161.07 |
+| Lap vs autolap | -15.7% | -17.5% | -16.6% | -18.1% |
+| Overtakes / race | 1.97 | 1.97 | 1.29 | 1.79 |
+| Spins + resets / race | 0.14 | 0.07 | 0 | 0.14 |
+| Reverses / race | 0 | 0 | 0 | 0.14 |
+| Hardest hit mean (worst), m/s | 5.2 (11.4) | 5.4 (11.2) | 3.9 (6.0) | 5.2 (9.4) |
+| Races out of the contact band | 21% | 14% | 7% | 0% |
+| Mean rho | 0.52 | 0.60 | 0.46 | 0.61 |
+
+Best (gen 4) against today's: `line_grip` 6 -> 6.82, `line_brake` 2.5 -> 2.70, `late_brake` 4 -> 3.59, `crest_light` 0.5 -> 0.61, `pass_max` 8.4 -> 7.89, `aim_base` 7 -> 6, `aim_per` 3 -> 3.75, `steer_gain` 4.5 -> 5.85, `steer_damp` 1 -> 0.55, `rub` 0.8 -> 0.54, `pace_lo` 0.96 -> 0.972, `pace_hi` 1.02 -> 1.046, `brake_margin_hi` 0.8 -> 0.38; `fast_grip` 6.98, `pass_grip` 1.46. Not applied: on held-out seeds it is 1.5% faster and passes more (1.29 -> 1.79 a race), but it spins 2 times in 14 races where today's spins none, and reverses twice.
+
