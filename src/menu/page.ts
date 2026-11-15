@@ -48,8 +48,8 @@ export interface SettingsHost {
   readonly career: Career;
   /** Starts a career event now on this map, or reloads onto its map. */
   start_event(id: string): void;
-  /** `?series` in dev and review builds: the Harepin Series, null without it. */
-  readonly series: Series | null;
+  /** `?series` in dev and review builds: the Harepin Series, one entry per season in `SEASONS` order; null without it. */
+  readonly series: readonly Series[] | null;
   /** Starts a series event now on this map, or reloads onto its map. */
   start_series(id: string): void;
   readonly runs: Runs;

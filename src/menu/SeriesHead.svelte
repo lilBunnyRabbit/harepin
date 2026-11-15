@@ -11,10 +11,12 @@
     table: readonly Standing[];
     credits: number;
     onback: () => void;
+    /** Stands in for the season's name, as the season switcher does. */
+    title?: Snippet;
     children?: Snippet;
   }
 
-  let { season, progress, table, credits, onback, children }: Props = $props();
+  let { season, progress, table, credits, onback, title, children }: Props = $props();
 
   const ran = $derived(season.events.filter((event) => progress.results[event.id]).length);
   const rank = $derived(table.findIndex((row) => row.you) + 1);
@@ -25,7 +27,7 @@
 <header class="sh">
   <SeriesBack {onback} />
   <div class="sh-title">
-    <h2>{season.name} series</h2>
+    {#if title}{@render title()}{:else}<h2>{season.name} series</h2>{/if}
     {@render children?.()}
   </div>
   <div class="sh-me">

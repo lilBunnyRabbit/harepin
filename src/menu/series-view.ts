@@ -3,6 +3,12 @@ import { credits_text, type WalletState } from "../career/wallet";
 import { CARS } from "../car/cars";
 import { CLASS_LABELS } from "../car/pi";
 
+export interface SeasonTab {
+  name: string;
+  open: boolean;
+  done: boolean;
+}
+
 export interface SeriesView {
   season: Season;
   progress: SeriesProgress;
@@ -13,6 +19,12 @@ export interface SeriesView {
   onstart: (id: string) => void;
   onback: () => void;
   onreset: () => void;
+  /** Every season, the one shown at `at`; switching shows another. */
+  seasons: readonly SeasonTab[];
+  at: number;
+  onseason: (at: number) => void;
+  /** Why the season shown is shut, or null once it is open. */
+  lock: string | null;
 }
 
 export interface EventScore {
@@ -35,6 +47,8 @@ export function next_event(season: Season, progress: SeriesProgress, states: rea
 }
 
 export const lock_line = (event: SeriesEvent) => (event.final ? "Podium every event to open" : "Any podium opens it");
+
+export const season_lock = (before: Season) => `Finish the ${before.name} series to open`;
 
 export const place_text = (score: EventScore) => ordinal(score.place);
 

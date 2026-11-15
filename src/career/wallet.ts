@@ -31,10 +31,17 @@ export class Wallet {
   private state_: WalletState = fresh_wallet();
   ready = false;
   private changed = false;
+  private loading: Promise<void> | null = null;
 
   constructor(private readonly saves: WalletSaves | null) {}
 
-  async load(): Promise<void> {
+  /** Every season's series shares the one wallet, so the first call reads it and the rest wait on that read. */
+  load(): Promise<void> {
+    this.loading ??= this.read();
+    return this.loading;
+  }
+
+  private async read(): Promise<void> {
     try {
       const raw = await this.saves?.load();
       // Credits earned while the load was out are newer than anything it read.

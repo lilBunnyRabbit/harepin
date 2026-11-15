@@ -9,7 +9,7 @@ import type { SeriesSaves } from "./series-db";
 import { SEASON_1, SEASON_4, SEASONS, completed, seasons_open, series_event } from "./series-seasons";
 import { build_world, plain_map } from "../worldgen/kinds/kinds";
 import type { WorldKind } from "../worldgen/types";
-import { Series } from "./series-store";
+import { Series, series_front, series_list, series_open } from "./series-store";
 import { BASE_CAR, Wallet } from "./wallet";
 
 const season = SEASON_1;
@@ -273,4 +273,21 @@ test("stored rounds are checked: a bad one reads as the first run", () => {
   expect(parse_progress(season, { season: season.id, round: 2, results: {} }).round).toBe(2);
   for (const round of [-1, 1.5, "2", null]) expect(parse_progress(season, { season: season.id, round, results: {} }).round).toBe(0);
   expect(parse_progress(season, { season: season.id, results: {} }).round).toBe(0);
+});
+
+test("the seasons share one wallet read; the page opens on the first open season not yet done", async () => {
+  const store = memory();
+  let reads = 0;
+  const wallet = new Wallet({ load: async () => (reads++, undefined), save: async () => {} });
+  const list = series_list(store, wallet);
+  await Promise.all(list.map((one) => one.load()));
+  expect(reads).toBe(1);
+  expect(series_open(list)).toEqual([true, false, false, false]);
+  expect(series_front(list)).toBe(0);
+  for (const event of SEASON_1.events) list[0].record(event, at(1));
+  expect(series_open(list)).toEqual([true, true, false, false]);
+  expect(series_front(list)).toBe(1);
+  list[0].reset();
+  expect(series_open(list)).toEqual([true, true, false, false]);
+  expect(series_front(list)).toBe(0);
 });

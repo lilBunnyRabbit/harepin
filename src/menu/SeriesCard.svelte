@@ -11,11 +11,13 @@
     front: boolean;
     /** The final's prize line; null on every other event. */
     reward?: string | null;
+    /** Shown on a locked card in place of what opens the event: a shut season's reason. */
+    lock?: string | null;
     onstart: (id: string) => void;
     onpick?: () => void;
   }
 
-  let { event, n, state, score, front, reward = null, onstart, onpick }: Props = $props();
+  let { event, n, state, score, front, reward = null, lock = null, onstart, onpick }: Props = $props();
 </script>
 
 <article class="sc" data-state={state} data-front={front} data-final={event.final === true}>
@@ -31,7 +33,7 @@
     {#if reward}<span class="sc-reward"><Icon name="icon-car" />{reward}</span>{/if}
     {#if front}<p>{KIND_RULES[event.kind]}</p>{/if}
     {#if state === "locked"}
-      <span class="sc-lock"><Icon name="icon-lock" />{lock_line(event)}</span>
+      <span class="sc-lock"><Icon name="icon-lock" />{lock ?? lock_line(event)}</span>
     {:else if front}
       <div class="sc-act">
         {#if score}<span class="sc-pts">{score.points} pts</span>{/if}

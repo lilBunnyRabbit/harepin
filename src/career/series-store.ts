@@ -3,6 +3,7 @@ import type { CarId } from "../car/cars";
 import { event_credits } from "./credits";
 import { better, car_fault, empty_progress, event_of, parse_progress, season_done, season_round, type EventResult, type Season, type SeriesEvent, type SeriesProgress } from "./series";
 import type { SeriesSaves } from "./series-db";
+import { completed, SEASONS, seasons_open } from "./series-seasons";
 import type { Wallet } from "./wallet";
 
 export interface Payout {
@@ -91,4 +92,17 @@ export class Series {
     this.changed = true;
     this.saves?.save(progress).catch((error: unknown) => console.warn("series: progress not saved", error));
   }
+}
+
+/** Every season's progress, in `SEASONS` order, on one store and one wallet. */
+export const series_list = (saves: SeriesSaves | null, wallet: Wallet): Series[] => SEASONS.map((season) => new Series(season, saves, wallet));
+
+export const series_open = (list: readonly Series[]): boolean[] => seasons_open(list.map((one) => completed(one.season, one.progress)));
+
+/** The season to show first: the latest one open, unless it is done and an earlier open one is not. */
+export function series_front(list: readonly Series[]): number {
+  const open = series_open(list);
+  const last = open.lastIndexOf(true);
+  const going = open.findIndex((on, i) => on && !season_done(list[i].season, list[i].progress));
+  return going >= 0 ? going : last;
 }

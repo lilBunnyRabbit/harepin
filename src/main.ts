@@ -4,10 +4,10 @@ import { idle_sound } from "./audio/held-sound";
 import { EVENTS, EVENT_PARAM, TUNE_PARAM, current_tier, event_of, type CareerEvent } from "./career/career";
 import { CareerButton } from "./career/career-button";
 import { SERIES_PAGE, SERIES_PARAM, is_open } from "./career/series";
-import { SEASON_1, series_event } from "./career/series-seasons";
+import { series_event } from "./career/series-seasons";
 import { Wallet } from "./career/wallet";
 import { WalletDb } from "./career/wallet-db";
-import { Series } from "./career/series-store";
+import { series_list, series_open } from "./career/series-store";
 import { SeriesDb } from "./career/series-db";
 import { on_series_map, series_host } from "./career/series-run";
 import { Career, event_map } from "./career/career-store";
@@ -222,7 +222,7 @@ chat.start();
 const build = load_build(params.get("car"));
 const mode_ids = MODES.map((mode) => mode.id);
 const career = new Career(local_store());
-const series = series_on ? new Series(SEASON_1, new SeriesDb(), new Wallet(new WalletDb())) : null;
+const series = series_on ? series_list(new SeriesDb(), new Wallet(new WalletDb())) : null;
 const runs = new Runs(local_store());
 const goals = new Goals(local_store(), mode_ids);
 goals.catch_up(() => proven(saved_entries(), { kind, build, cockpit: prefs.camera === CameraView.COCKPIT }, mode_ids));
@@ -519,11 +519,13 @@ function start_event(id: string) {
   modes.play_event(to);
 }
 function start_series(id: string) {
-  const to = series?.ready ? series.event(id) : null;
-  if (!series || !to) return;
-  const { season } = series;
-  if (!is_open(season, series.progress, to)) return settings.open(SERIES_PAGE);
-  const fault = series.car_fault(garage.build);
+  const at = series?.findIndex((one) => one.event(id)) ?? -1;
+  const one = series?.[at];
+  const to = one?.ready ? one.event(id) : null;
+  if (!series || !one || !to) return;
+  const { season } = one;
+  if (!series_open(series)[at] || !is_open(season, one.progress, to)) return settings.open(SERIES_PAGE);
+  const fault = one.car_fault(garage.build);
   if (fault) {
     goal_toasts.push(fault, MAP_NOTE_MS);
     return settings.open(SERIES_PAGE);
@@ -540,7 +542,7 @@ function start_series(id: string) {
   }
   settings.close();
   const base = { sim, build: () => garage.build, rating: () => rating(garage.build), autopilot: params.has(AI_DRIVE_PARAM), difficulty: () => settings.state.ai_difficulty };
-  const host = series_host(base, series, to, { label: "Series", go: () => settings.open(SERIES_PAGE) });
+  const host = series_host(base, one, to, { label: "Series", go: () => settings.open(SERIES_PAGE) });
   modes.series_race(to.route, host);
 }
 // A run's map is the plain map of its kind and seed (world-pick.ts).
@@ -580,9 +582,10 @@ else if (run) goal_toasts.push("This run's map did not load", MAP_NOTE_MS);
 if (ai_level) modes.play(ai_level);
 // A link without its map reloads onto it; one that names a map which fell back would reload onto itself forever.
 // An event's opening rule reads saved progress, so a link starts once it has loaded.
-void series?.load().then(() => {
-  const pick = series_pick && series.event(series_pick.event.id);
-  if (pick && (!names_world(params) || on_series_map(series.season, pick, built))) start_series(pick.id);
+if (series) void Promise.all(series.map((one) => one.load())).then(() => {
+  const one = series.find((each) => each.base === series_pick?.season);
+  const pick = series_pick && one?.event(series_pick.event.id);
+  if (one && pick && (!names_world(params) || on_series_map(one.season, pick, built))) start_series(pick.id);
   else {
     if (series_pick) goal_toasts.push("This series event's map did not load", MAP_NOTE_MS);
     settings.open(SERIES_PAGE);

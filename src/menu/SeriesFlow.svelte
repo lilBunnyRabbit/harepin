@@ -2,6 +2,7 @@
   import { ADJUST_EVENT } from "./dom";
   import SeriesCard from "./SeriesCard.svelte";
   import SeriesHead from "./SeriesHead.svelte";
+  import SeriesSeasons from "./SeriesSeasons.svelte";
   import SeriesStandings from "./SeriesStandings.svelte";
   import { cap_line, event_score, next_event, place_text, reward_line, round_line, step_focus, type SeriesView } from "./series-view";
   import { swipe } from "./series-swipe";
@@ -11,7 +12,7 @@
     snapTargetInline: Element | null;
   }
 
-  let { season, progress, states, table, done, wallet, onstart, onback, onreset }: SeriesView = $props();
+  let { season, progress, states, table, done, wallet, onstart, onback, onreset, seasons, at, onseason, lock }: SeriesView = $props();
 
   const round = $derived(round_line(progress));
 
@@ -67,6 +68,7 @@
 
 <div class="fl" data-series>
   <SeriesHead {season} {progress} {table} credits={wallet.credits} {onback}>
+    {#snippet title()}<SeriesSeasons {seasons} {at} {onseason} />{/snippet}
     <span class="fl-tag">{cap_line(season)}</span>
     {#if round}<span class="fl-tag">{round}</span>{/if}
   </SeriesHead>
@@ -77,7 +79,7 @@
       {#each season.events as event, i (event.id)}
         <li data-i={i}>
           <div class="fl-card">
-            <SeriesCard {event} n={i + 1} state={states[i]} score={event_score(season, progress, event)} front={i === focus} reward={event.final ? reward_line(season, wallet, progress) : null} {onstart} onpick={() => show(i)} />
+            <SeriesCard {event} n={i + 1} state={states[i]} score={event_score(season, progress, event)} front={i === focus} reward={event.final ? reward_line(season, wallet, progress) : null} {lock} {onstart} onpick={() => show(i)} />
           </div>
         </li>
       {/each}
@@ -85,7 +87,7 @@
         <div class="fl-card fl-table" data-front={focus === last}>
           <h3>Standings</h3>
           <SeriesStandings {table} />
-          <button type="button" class="fl-reset" tabindex={focus === last ? 0 : -1} onclick={onreset}>{done ? "Run it again" : "Start over"}</button>
+          {#if !lock}<button type="button" class="fl-reset" tabindex={focus === last ? 0 : -1} onclick={onreset}>{done ? "Run it again" : "Start over"}</button>{/if}
           {#if focus !== last}<button type="button" class="fl-pick" tabindex="-1" aria-label="Show standings" onclick={() => show(last)}></button>{/if}
         </div>
       </li>
