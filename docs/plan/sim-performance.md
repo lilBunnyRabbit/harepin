@@ -192,3 +192,62 @@ Two physics sources are the worst option: every tuning change made twice, and dr
 - Replace the raycast bisection with an exact ray-heightfield hit, and index ramp and deck lookups. Re-run this spike's profile and re-record `car.test`, telemetry and feel.
 - ~~Owner decision: do seeded AI races or input ghosts need identical results across browsers?~~ Decided yes (J2): write the maths module, rebaseline once with the exact raycast (J10), and add a test that runs the car in Bun and checks it against a digest recorded in Chrome.
 - Revisit a WASM core only with phone numbers from the worker in hand.
+
+## Render frame after the look passes (t238)
+
+Measure only. 0.44.1 (aceadcc) against 85cca8a (0.45.0, the look passes: houses, landmarks, firs, ramps, car bodies, puffs, dusk lamps), 2026-11-15, same box as above, shared with other agents' heavy jobs. Each version is a `git archive` copy built with `vite build --mode review`, one patch in both: `open_road` exposed outside dev, plus `place_road`. Served by `vite preview` on one port, headless Chrome on the real GPU (ANGLE D3D11). Scripts and raw JSON are in `.t238/` (untracked): `probe.mts`, `profile.mts`, `final.cjs`, `passes.cjs`, `census.cjs`.
+
+- **Phone:** 844x390 at DPR 3, touch, so the mobile tier at `quality=high` (ratio 2, no shadow map, no bloom, no MSAA, fog 700 m). CPU throttled 4x.
+- **Desktop:** 1440x900 at DPR 1, desktop tier high (2048 shadow map, bloom, MSAA), no throttle.
+- **Scenes:** seed 1, parked, 8 s warm and then a 10 s sample. "Town" scenes teleport to the road nearest the biggest town: Mainland town, Island coast town, Desert, Alpine, Dunes. The replay is `?replay=r1` (Island, coupe) on Brand Dark, so dusk with headlights.
+- **Columns:** frame work is the CPU time inside the rAF callback. Draw calls and triangles come from wrapping WebGL2 `draw*` and multi-draw. GPU MB tracks buffer, texture and renderbuffer bytes; the canvas backbuffer is not in it. Long tasks come from `PerformanceObserver`. Each cell is the median of 2-3 runs; runs with more than 5 long tasks were dropped as machine contention (3 runs).
+- **Frame gap:** headless rAF runs at the display's 144 Hz, so the gap's p50 is 6.9 ms everywhere and says nothing. The gap's p95 shows dropped frames.
+
+### Before / after, phone
+
+| Scene | Frame work p50 / p95 (ms) | Gap p95 (ms) | Draw calls | Triangles | GPU MB | Long tasks |
+|---|---|---|---|---|---|---|
+| Mainland town | 6.3 / 10.3 → 6.4 / 11.3 | 14 → 14 | 69 → 69 | 163k → 162k | 6.7 → 6.8 | 0 → 0 |
+| Island coast | 7.3 / 13.0 → 7.2 / 11.9 | 14 → 14 | 79 → 79 | 312k → 308k | 18.3 → 18.5 | 0 → 0 |
+| Desert | 5.8 / 10.9 → 6.2 / 11.0 | 14 → 14 | 57 → 57 | 114k → 114k | 3.8 → 3.8 | 0 → 0 |
+| Alpine | 6.3 / 11.6 → 6.6 / 11.6 | 14 → 14 | 77 → 77 | 185k → 185k | 8.3 → 8.5 | 0 → 2 |
+| Dunes | 4.4 / 8.4 → 4.7 / 9.1 | 14 → 14 | 34 → 34 | 91k → 91k | 3.2 → 3.3 | 1 → 0 |
+| Replay r1, dusk | 7.3 / 12.1 → 6.3 / 10.1 | 21 → 14 | 86 → 84 | 231k → 224k | 15.6 → 16.0 | 5 → 1 |
+| **6-car, Island coast** (5 peers) | 10.6 / 14.6 → 12.6 / 20.4 | 21 → 28 | 139 → 139 | 320k → 320k | 19.0 → 19.6 | 0 → 0 |
+| **6-car, Mainland town** (5 peers) | 9.6 / 14.6 → 10.2 / 15.2 | 21 → 21 | 129 → 129 | 171k → 174k | 7.4 → 7.6 | 0 → 0 |
+
+The 6-car rows: 5 peer tabs at `quality=low` join the same room over BroadcastChannel and park on the same spot, so 5 remote cars are in view. Island has 2 runs for 0.44.1 and 3 for 0.45.0; Mainland has 1 run each. A control run had the 5 peers in other rooms, so no remotes: 7.2 / 10.4-10.8 ms on Island for both versions, the same as solo. The peer tabs' own load does not explain the gap.
+
+### Before / after, desktop
+
+| Scene | Frame work p50 / p95 (ms) | Gap p95 (ms) | Draw calls (shadow + main + bloom) | Triangles (shadow / main) | GPU MB |
+|---|---|---|---|---|---|
+| Mainland town | 2.3 / 3.3 → 2.5 / 3.1 | 17 → 17 | 168 → 166 (10 + 144 + 12) | 491k / 791k → 437k / 740k | 189 → 189 |
+| Island coast | 1.8 / 3.9 → 1.5 / 2.4 | 7 → 7 | 125 → 121 | 159k / 448k → 145k / 435k | 190 → 191 |
+| Desert | 1.2 / 1.7 → 1.2 / 1.9 | 7 → 7 | 78 → 78 | 12k / 134k → 13k / 134k | 175 → 175 |
+| Alpine | 1.8 / 3.7 → 2.0 / 2.9 | 7 → 7 | 124 → 124 | 211k / 456k → 201k / 447k | 185 → 185 |
+| Dunes | 1.3 / 2.2 → 1.2 / 1.8 | 7 → 7 | 87 → 87 | 1k / 247k → 2k / 247k | 180 → 181 |
+| Replay r1, dusk | 1.6 / 2.6 → 1.6 / 2.3 | 7 → 7 | 130 → 128 | 158k / 412k → 144k / 399k | 192 → 192 |
+
+No long tasks on desktop in either version. About 135 MB of the desktop GPU memory is the MSAA and composer render targets; geometry is 3-20 MB. On Mainland, the desktop frame drops to 72 Hz in half the runs of both versions. The GPU is the limit there (1.2M triangles, 2048 shadow map), and the CPU frame is only 2.5 ms.
+
+### What regressed and why
+
+- **World scenes did not regress.** Draw calls are the same to ±4. Triangles are flat, or down 2-8% on Island, Alpine, Mainland and the replay. Frame work is within run-to-run noise. Every long-task burst in a solo run lined up with another agent's heavy job: it went away on rerun.
+- **The new houses (t259) did double the plain-building mesh, but the mesh was small.** Island seed 1, whole map: building plus prop soup went from 3.7k to 7.8k triangles, glass from 3.3k to 6.8k (Desert 16.3k → 20.1k plus 2.0k → 3.6k, Alpine 2.6k → 3.7k plus 0.4k → 1.3k). That is +7.6k triangles on the whole Island, against 300-600k drawn per frame. Other passes shed more than the houses added: the shadow pass lost 10% on desktop, the puffs moved to an unlit instanced shader, and parked cars became one shell. Mainland's high-street glass did not change.
+- **What regressed most: remote cars, about +0.4 ms per remote per frame at 4x.** It shows only in the 6-car rows: Island +2.0 ms p50 and +5.8 ms p95, Mainland +0.6 ms. The draw calls (12 per remote car) and triangles are unchanged, so this is CPU work, not the GPU. The pass is `Remotes.draw` → `stand_on_drawn` (`car/drawn-stand.ts`). Since 0d68c73, 12b7fd6 and a5a23d6, every wheel of every remote calls `World.drawn_lift` each frame: paving lift, junction grid, `road_dist`, and `nearest(lane_grid, …, lane_point)`. In the 4x profile, `nearest` and `lane_point` cost 24 ms/s against 9.5 ms/s for 0.44.1's `nearest`. The rest of the gap is inside noise, from one profile per version.
+- **The target is not met in a 6-car race at 4x.** A solo phone frame is 6-7 ms p50 and 10-13 ms p95, which fits 60 fps. With 5 remotes on 0.45.0, Island reaches 12.6 / 20.4 ms, so p95 is past the 16.7 ms budget. A 4x throttle on this i7-8700K is probably slower than an S24+ core, so on the device CPU this is likely tighter but within budget. The GPU side, ratio 2 at 1664x768 with Lambert and the dusk lamps, cannot be emulated here. Only a real S24+ run settles either.
+
+### Cheapest wins
+
+From 4x phone CPU profiles of 0.45.0 (`.t238/profile-*.txt`, unminified review build, Island town, solo and 6-car). None of them changes output.
+
+1. **Remote wheel grounding at packet rate, not frame rate.** `stand_on_drawn` for remotes runs `drawn_lift` 4 times per car per frame. A remote's pose comes from snapshots sent at most every 25 ms (`MIN_GAP_MS`), and the lift under a wheel changes by centimetres. Cache the per-wheel lifts per snapshot pair, or skip them past about 60 m where a 2 cm lift is sub-pixel. That wins back most of the regression above. The own car keeps per-frame lifts.
+2. **`PadMenu.is_open` runs `document.querySelector("dialog:modal")` on every input read.** The path is `input.blocked` → `pad_menu.is_open` → `overlay()` (`menu/pad-menu.ts:131,225`), several times per frame, and it builds a layer object with closures each time. That is 28-35 ms/s at 4x, 2.2-2.9% of the main thread, about 0.4 ms a frame. Fix: answer `is_open` from a live `document.getElementsByTagName("dialog")` checked for `.open`, plus `settings.is_open` and `chat`, without building the layer.
+3. **Freeze static chunk matrices.** `updateMatrixWorld` plus `multiplyMatrices` cost 58-78 ms/s at 4x (4.7-6%). Most of it is walking terrain, road, water, building and tree meshes that never move after placement. Set `matrixAutoUpdate = false` and `matrixWorldAutoUpdate = false` on them after placement, with one `updateMatrixWorld(true)` there. Three then skips them every frame.
+
+Also seen, below these three:
+
+- The minimap redraws its full road layer and N every frame: `drawImage`, 13-15 ms/s at 4x. It could redraw only when a dot moves a pixel.
+- Each remote car is 12 draw calls, so a 6-car race is +60 calls over 79 on phone. Merging a remote's meshes by material would cut that if a real device turns out GPU or driver bound.
+- t259's other idea, dropping back-wall glass on plain buildings (about 25% of glass), saves about 1.7k triangles on the whole Island. That does not buy frame time. Keep or drop it for looks only.
