@@ -45,6 +45,8 @@ const BANK_RATE = (1.2 * Math.PI) / 180;
 const BOWL_RATE = (1.8 * Math.PI) / 180;
 /** Kick at the middle of a bowl: held this long at its bank, rolled in and out at BOWL_RATE. */
 const KICK_HOLD = 16;
+/** Straight left past a pipe for the car to settle on the centreline. */
+const PIPE_RUNOUT = 60;
 const START_AHEAD = 60;
 /** Flat straight before the start line: the grid spawns 80 m back on it. */
 const START_BEHIND = 120;
@@ -326,7 +328,9 @@ function draw_layout(rng: () => number, { odds, bowls, pipes, wall }: SkyRecipe)
   const last = turns.length - 1;
   const jump_at = Math.floor(rng() * last);
   const helix_at = coil ? Math.floor(rng() * last) : -1;
-  const pipe_at = pipes ? Array.from({ length: pipes.most }, () => Math.floor(rng() * last)) : [];
+  // A car leaves a pipe off the centreline: a bowl straight after it took the Sajin in on the low edge.
+  const spots = pipes ? turns.flatMap((t, i) => (i < last && !t.bowl && !turns[i + 1].bowl ? [i] : [])) : [];
+  const pipe_at = pipes && spots.length ? Array.from({ length: pipes.most }, () => spots[Math.floor(rng() * spots.length)]) : [];
   const pieces: PlanPiece[] = [straight(START_AHEAD + rng() * 60, START_AHEAD)];
   turns.forEach((t, i) => {
     pieces.push(t);
@@ -335,7 +339,7 @@ function draw_layout(rng: () => number, { odds, bowls, pipes, wall }: SkyRecipe)
       return;
     }
     pieces.push(i === jump_at ? straight(JUMP_STRAIGHT + rng() * 120, JUMP_STRAIGHT) : straight(STRAIGHT_MIN + rng() * 140, STRAIGHT_MIN));
-    if (pipes && pipe_at.includes(i)) pieces.push(pipe(rng, pipes), straight(STRAIGHT_MIN, STRAIGHT_MIN, false));
+    if (pipes && pipe_at.includes(i)) pieces.push(pipe(rng, pipes), straight(PIPE_RUNOUT, PIPE_RUNOUT, false));
     if (rng() < MACRO_ODDS) pieces.push(...macro(rng), straight(STRAIGHT_MIN + rng() * 100, STRAIGHT_MIN));
     if (i === helix_at) {
       const radius = HELIX_RADIUS[0] + rng() * (HELIX_RADIUS[1] - HELIX_RADIUS[0]);
