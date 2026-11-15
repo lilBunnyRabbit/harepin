@@ -73,7 +73,7 @@ export const SLOTS = {
       { name: "Race", blurb: "+30% torque, revs much higher, +30 kg", mod: { scale: { torque: 1.3 }, add: { redline: 600, upshift: 600, mass: 30 } } },
       { name: "Supercharger", blurb: "+57% torque from idle, revs higher, +35 kg", mod: { scale: { torque: 1.57 }, add: { redline: 600, upshift: 600, mass: 35 } } },
       { name: "Turbo", blurb: "Lag low down, then +85% torque, +40 kg", mod: { add: { redline: 700, upshift: 700, mass: 40 }, boost: { peak: 1.85, lag: 2500, spool: 4500 } } },
-      { name: "Twin turbo", blurb: "Intercooled, ECU tune: +130% torque from 1800 rpm on, +45 kg", mod: { add: { redline: 800, upshift: 800, mass: 45 }, boost: { peak: 2.3, lag: 1800, spool: 3400 } } },
+      { name: "Twin turbo", blurb: "Intercooled, ECU tune: boost from 1800 rpm, +130% torque from 3400, +45 kg", mod: { add: { redline: 800, upshift: 800, mass: 45 }, boost: { peak: 2.3, lag: 1800, spool: 3400 } } },
     ],
   },
   tyres: {

@@ -15,12 +15,10 @@ export function boost_at(boost: Boost, rpm: number): number {
   return 1 + (boost.peak - 1) * t * t * (3 - 2 * t);
 }
 
-/** Built once per resolved spec, never in the step. */
+/** Built once per resolved spec, never in the step. The stock breakpoints stay in the grid so no torque peak is shaved. */
 export function boosted(torque: readonly (readonly [number, number])[], boost: Boost): [number, number][] {
   const end = torque[torque.length - 1][0];
-  const at = (rpm: number): [number, number] => [rpm, Math.round(curve_at(torque, rpm) * boost_at(boost, rpm))];
-  const table: [number, number][] = [];
-  for (let rpm = 0; rpm <= end; rpm += STEP_RPM) table.push(at(rpm));
-  if (table[table.length - 1][0] < end) table.push(at(end));
-  return table;
+  const rpms = new Set(torque.map(([rpm]) => rpm));
+  for (let rpm = 0; rpm < end; rpm += STEP_RPM) rpms.add(rpm);
+  return [...rpms].sort((a, b) => a - b).map((rpm) => [rpm, Math.round(curve_at(torque, rpm) * boost_at(boost, rpm))]);
 }
