@@ -35,6 +35,8 @@ const DUCKTAIL: Slab = { points: [[-1.56, 0.787], [-1.98, 0.85], [-2.0, 0.825], 
 const RACE = plane([-1.85, 1.07], 0.3, 0.05, 0.1);
 // The race plane's endplate: a wedge along the plane, shallow at its raked leading edge and deep at the tail.
 const FIN: Point[] = [[RACE[3][0] + 0.015, RACE[3][1] - 0.02], [RACE[0][0] - 0.015, RACE[0][1] + 0.03], [RACE[1][0] - 0.02, RACE[1][1] + 0.035], [RACE[2][0] - 0.005, RACE[2][1] - 0.08]];
+// The race wing stands square to the car, as wide as the body is under its plane: its plates end inside the pinched tail corner.
+const SQUARE = -1.85;
 const WINGS: Wing[] = [
   { paint: [], trim: [] },
   { paint: [], trim: [], lips: [LIP] },
@@ -42,8 +44,8 @@ const WINGS: Wing[] = [
   {
     paint: [],
     trim: [],
-    lips: [DUCKTAIL, { points: leg(RACE, [-1.62, 0.785], [-1.86, 0.82]), from: 0.42, to: 0.5 }],
-    stands: [{ points: RACE, from: 0, to: SPAN }, { points: gurney(RACE, 0.025), from: 0, to: SPAN }, { points: FIN, from: SPAN, to: SPAN + 0.03 }],
+    lips: [DUCKTAIL, { points: leg(RACE, [-1.62, 0.785], [-1.86, 0.82]), from: 0.42, to: 0.5, straight: SQUARE }],
+    stands: [{ points: RACE, from: 0, to: SPAN, straight: SQUARE }, { points: gurney(RACE, 0.025), from: 0, to: SPAN, straight: SQUARE }, { points: FIN, from: SPAN, to: SPAN + 0.03, straight: SQUARE }],
   },
 ];
 
