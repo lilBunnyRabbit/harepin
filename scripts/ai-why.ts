@@ -6,7 +6,7 @@ import { circuits } from "./ai-race";
 import { DT } from "./autolap";
 import { GOLDEN_SEEDS } from "./proof/golden-file";
 
-// bun scripts/ai-why.ts [seeds|all] [car] [count] [laps]: ai-race.ts field races, with each spin's and reset's trigger:
+// bun scripts/ai-why.ts [seeds|all] [car] [count] [laps] [aggression] [mistakes]: ai-race.ts field races, with each spin's and reset's trigger:
 // the earliest of a touch, a wall hit, the car's own slide starting, or leaving the road, inside the look-back window.
 /** Seconds back a trigger counts for a spin, and for a reset with no spin before it. */
 const LOOK = 3;
@@ -23,7 +23,7 @@ const KICKER_NEAR = 40;
 const Cause = { CONTACT: "contact", WALL: "wall", SLIDE: "own slide", OFFROAD: "offroad" } as const;
 type Cause = (typeof Cause)[keyof typeof Cause];
 
-function why(seeds: readonly number[], car: string | undefined, count: number, laps: number) {
+function why(seeds: readonly number[], car: string | undefined, count: number, laps: number, aggression: number, mistakes: number) {
   const spec = car ? car_spec(car) : COUPE;
   const split = new Map<string, number>();
   const tally = (key: string) => split.set(key, (split.get(key) ?? 0) + 1);
@@ -32,7 +32,7 @@ function why(seeds: readonly number[], car: string | undefined, count: number, l
     for (const route of circuits(world)) {
       if (route.excludes?.includes(spec.id)) continue;
       const unplace = world.place(route.closure);
-      const field = new Field(world, route, Array.from({ length: count }, () => spec), personalities(seed, count), seed);
+      const field = new Field(world, route, Array.from({ length: count }, () => spec), personalities(seed, count, aggression, mistakes), seed);
       const { racers, line } = field;
       const cars = racers.map((r) => r.car as Collider);
       const fresh = () => new Float64Array(count).fill(-Infinity);
@@ -127,7 +127,7 @@ function why(seeds: readonly number[], car: string | undefined, count: number, l
 }
 
 if (import.meta.main) {
-  const [seeds_arg, car, count = "6", laps = "2"] = process.argv.slice(2);
+  const [seeds_arg, car, count = "6", laps = "2", aggression = "3", mistakes = "3"] = process.argv.slice(2);
   const seeds = seeds_arg && seeds_arg !== "all" ? seeds_arg.split(",").map(Number) : GOLDEN_SEEDS.island;
-  why(seeds, car, Number(count), Number(laps));
+  why(seeds, car, Number(count), Number(laps), Number(aggression), Number(mistakes));
 }

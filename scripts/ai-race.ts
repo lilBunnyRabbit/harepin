@@ -11,8 +11,9 @@ import { GOLDEN_SEEDS } from "./proof/golden-file";
 // bun scripts/ai-race.ts solo [seeds] [car]: one AI car alone on each circuit of the island's golden seeds, its standing
 // lap against the autopilot's on the same route. Fails when an AI lap is more than SOLO_SLACK slower, or leaves the road.
 const SOLO_SLACK = 0.05;
-// bun scripts/ai-race.ts field [seeds|all] [car] [count] [laps]: a field of AI cars on each circuit. Fails when a car is
-// stuck, a race's contacts per lap fall outside CONTACT_BAND, or the finish order follows the grid.
+// bun scripts/ai-race.ts field [seeds|all] [car] [count] [laps] [aggression] [mistakes]: a field of AI cars on each circuit. Fails when a car is
+// stuck, a race's contacts per lap fall outside CONTACT_BAND, or the finish order follows the grid. Aggression and
+// mistakes are the owner's 1-5 levels, 3 by default.
 const CONTACT_BAND = [0, 6] as const;
 /** Share of races that may finish in grid order, and the highest mean grid-to-finish rank correlation allowed. */
 const GRID_KEPT_MAX = 0.2;
@@ -85,7 +86,7 @@ function spearman(order: readonly number[]): number {
   return 1 - (6 * d2) / (n * (n * n - 1));
 }
 
-function run_field(seeds: readonly number[], spec: CarSpec, count: number, laps: number) {
+function run_field(seeds: readonly number[], spec: CarSpec, count: number, laps: number, aggression: number, mistakes: number) {
   let stuck = 0, out_of_band = 0, grid_kept = 0, races = 0;
   const per_lap: number[] = [];
   const rhos: number[] = [];
@@ -95,7 +96,7 @@ function run_field(seeds: readonly number[], spec: CarSpec, count: number, laps:
     for (const route of circuits(world)) {
       if (route.excludes?.includes(spec.id)) continue;
       const unplace = world.place(route.closure);
-      const field = new Field(world, route, Array.from({ length: count }, () => spec), personalities(seed, count), seed);
+      const field = new Field(world, route, Array.from({ length: count }, () => spec), personalities(seed, count, aggression, mistakes), seed);
       let plan = 0;
       for (let i = 0; i < field.line.step.length; i++) plan += field.line.step[i] / field.line.speed[i];
       const all = field.run(DT, laps, plan * laps * FIELD_SLACK + 30);
@@ -132,10 +133,10 @@ function run_field(seeds: readonly number[], spec: CarSpec, count: number, laps:
 }
 
 if (import.meta.main) {
-  const [mode = "solo", seeds_arg, car, count = "6", laps = "2"] = process.argv.slice(2);
+  const [mode = "solo", seeds_arg, car, count = "6", laps = "2", aggression = "3", mistakes = "3"] = process.argv.slice(2);
   const seeds = seeds_arg && seeds_arg !== "all" ? seeds_arg.split(",").map(Number) : GOLDEN_SEEDS.island;
   const spec = car ? car_spec(car) : COUPE;
   if (mode === "solo") run_solo(seeds, spec);
-  else if (mode === "field") run_field(seeds, spec, Number(count), Number(laps));
+  else if (mode === "field") run_field(seeds, spec, Number(count), Number(laps), Number(aggression), Number(mistakes));
   else throw new Error(`unknown mode ${mode}`);
 }
