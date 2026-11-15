@@ -15,7 +15,7 @@ import { on_coast } from "../worldgen/biomes";
 import { ISLAND, type BiomeRecipe } from "../worldgen/recipe";
 import { CELL, ROAD_HALF, RouteKind, SurfaceId, type WorldKind } from "../worldgen/types";
 import { LIFT } from "../worldgen/lifts";
-import { drawn_junctions, drawn_roads, junction_lift, laid_lift, on_road_paint, paved_lots, paving_lift, road_lift, type DrawnJunction, type DrawnRoad, type LaidPad, type PavedLot } from "./drawn-lift";
+import { drawn_junctions, drawn_roads, junction_lift, laid_height, on_road_paint, paved_lots, paving_lift, road_lift, type DrawnJunction, type DrawnRoad, type LaidPad, type PavedLot } from "./drawn-lift";
 import { SEA_LEVEL, water_index, type WaterIndex } from "../worldgen/water";
 import type { LavaPool } from "../worldgen/lava";
 import type {
@@ -470,12 +470,13 @@ export class World implements Ground {
   /**
    * How far the drawn ground at (`x`, `z`) stands over the ground the wheels feel, for the views to stand a car on it: road
    * and paving drape a few centimetres over the terrain. The road's share eases out over its grip edge, so a wheel
-   * running off it does not drop at once; a ramp or deck under `y` is drawn where it is felt. A pad `lay` put down stands
-   * over all of it.
+   * running off it does not drop at once; a ramp or deck under `y` is drawn where it is felt. Under a pad `lay` put down, the
+   * pad's own mesh, wherever it stands over the rest.
    */
   drawn_lift(x: number, z: number, y?: number): number {
     if (this.height(x, z, y) > this.tiles.height(x, z)) return 0;
-    return this.world_lift(x, z) + (this.pads.length ? laid_lift(this.pads, x, z) : 0);
+    const lift = this.world_lift(x, z);
+    return this.pads.length ? Math.max(lift, laid_height(this.pads, x, z) - this.tiles.height(x, z)) : lift;
   }
 
   /** Puts a pad down over the drawn ground; returns the function that takes it away again. */
