@@ -38,8 +38,6 @@ const SPRAY_RATE = 30;
 /** What a kind's open ground throws up; a laid surface (trail, scree, packed snow) throws its own. */
 export type GroundPuff = "grass" | "dust" | "snow";
 
-/** Share of its own tint a puff glows at dusk. */
-const DUSK_GLOW = 0.3;
 // Dust is the ground it came off a step lighter, so it shows against that ground by day and at dusk.
 const DUST_LIFT = 0.1;
 const kicked = (tone: Lab) => color(lighten(tone, DUST_LIFT));
@@ -85,12 +83,8 @@ export class Smoke {
       [SurfaceId.LAVA]: dust,
       [SurfaceId.SAND]: sand,
     };
-    const material = new THREE.MeshLambertMaterial({ flatShading: true, transparent: true, opacity: 0.35, depthWrite: false });
-    // Dusk light alone leaves a puff near black. It glows in its own tint: one emissive colour turned every puff smoke grey.
-    if (dark)
-      material.onBeforeCompile = (shader) => {
-        shader.fragmentShader = shader.fragmentShader.replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\n  totalEmissiveRadiance = diffuseColor.rgb * " + DUSK_GLOW.toFixed(2) + ";");
-      };
+    // Unlit, a puff is a soft flat disc in its own tint, the same by day and at dusk: lit, dusk left it near black.
+    const material = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.55, depthWrite: false });
     this.mesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), material, PUFFS);
     this.mesh.frustumCulled = false;
     // Transparent meshes sort by their origin, and this one's sits at the world's: water drew over the spray on it.

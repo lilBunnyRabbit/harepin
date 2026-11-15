@@ -24,3 +24,9 @@ test("puffs draw after the cars and the water, so spray shows on the surface it 
   const { CAR_ORDER } = await import("../car/contact-shadow");
   expect(new Smoke("grass").mesh.renderOrder).toBeGreaterThan(CAR_ORDER);
 });
+
+test("puffs are unlit, so a puff keeps its tint at dusk instead of going near black", async () => {
+  const { Smoke } = await import("./effects");
+  const material = new Smoke("dust").mesh.material as import("three").Material;
+  expect([material.type, material.transparent, material.depthWrite]).toEqual(["MeshBasicMaterial", true, false]);
+});
