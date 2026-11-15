@@ -67,6 +67,21 @@ From questionnaire round 1 and round 2 in chat (`docs/plan/career-ai-r1.answers.
 
 **Still open (round 3, not blocking the first build quests):** what existing players already own when credits arrive (every car and part they use today, or a starting grant); whether rewards from the old tiers (paints, decals, Fujin) stay with the legacy badge (B2); the Pass win rule with no wall time (E3); "Harepin Series" vs a career unit also called "series" (B4/B5 read as "Harepin Series, series 2").
 
+### Series 1 Island against a field (t283, 2026-11-15)
+
+Behind `?series` in dev and review builds only; the old career and its records are untouched. `?series` opens the Harepin Series page (Play > Harepin Series); `?series=<event>` starts that event, reloading onto its map.
+
+| Piece | Where |
+|---|---|
+| Season data | `career/series.ts`: six island events (opener seed 13, knockout seed 2, reverse run seed 9 `circuit-rev`, rival duel seed 4, eight-minute endurance seed 5, final seed 0), a named field of six with levels per driver, Kai Moreno the rival |
+| Points | 10/8/6/5/4/3/2 by place; player bonuses clean race +2, led a lap +1, fastest lap +1, won from the back +2. A retry keeps the run that scored the player more |
+| Opening | three events open at the start, each podium opens one more, the final once every other event has a podium; a podium in the final completes the series (C4) |
+| Rules in the race | `FieldEvent` on `FieldHost` (`modes/mode.ts`): names, knockout, time limit, result lines, Next. `modes/field-tally.ts`: lap times from progress, knockout (last car still in is out each 1/n of the leader's distance; the last one left wins) |
+| Clean race | the sim counts the player's touches with AI cars (`FrameOut.touches`, `Sim.field_touches`, `SIM_PACKET` 2) |
+| Progress | `career/series-store.ts` over tab storage (`sessionStorage`): the save format is not decided |
+
+Not built: credits and buying, class cap (G1), base-car start, the final's car or kit (G3), a replay on a new seed (C5), knocked-out cars leaving the road (they keep driving, counted out).
+
 ## TL;DR
 
 - **Harepin's career today is an FH5-shaped checklist with GRID's event list.** 45 hand-made events across five tiers, any order, every one graded by stars against a clock, ghost or owner mark. You drive alone in every race. What GRID 2 had that FH5 lacks: **other cars to beat, in a season that builds to a final, with one growing number that says how far you've come.**
