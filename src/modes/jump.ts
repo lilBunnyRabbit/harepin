@@ -4,6 +4,7 @@ import type { Ground } from "./marks";
 import type { Level } from "./mode";
 import type { RoutePoint } from "./route";
 import { MAX_STARS, type Thresholds } from "./track";
+import { hypot } from "../sim-math";
 
 export const JumpKind = { KICKER: "kicker", BIG: "big", ROAD: "road" } as const;
 export type JumpKind = (typeof JumpKind)[keyof typeof JumpKind];
@@ -62,7 +63,7 @@ export function nearest_ramp(ramps: readonly Ramp[], at: { x: number; z: number 
   let best_d = Infinity;
   for (const r of ramps) {
     if (kind_of(r) !== level.kind || !usable(r, challenges)) continue;
-    const d = Math.hypot(r.x - at.x, r.z - at.z);
+    const d = hypot(r.x - at.x, r.z - at.z);
     if (d < best_d) {
       best = r;
       best_d = d;
@@ -177,12 +178,12 @@ export class JumpRun {
     }
     const { ramp } = this.jump;
     if (this.flying !== null) {
-      if (seen && Math.hypot(pose.x - last_x, pose.z - last_z) > MAX_STEP) {
+      if (seen && hypot(pose.x - last_x, pose.z - last_z) > MAX_STEP) {
         this.flying = null;
         return JumpEvent.VOID;
       }
       const d = Math.max(0, past_lip(ramp, pose.x, pose.z));
-      this.crawl_ms = Math.hypot(pose.vx, pose.vz) < BEACHED_SPEED ? this.crawl_ms + dt_ms : 0;
+      this.crawl_ms = hypot(pose.vx, pose.vz) < BEACHED_SPEED ? this.crawl_ms + dt_ms : 0;
       if (pose.airborne && this.crawl_ms < BEACHED_MS) {
         this.flying = d;
         return JumpEvent.NONE;

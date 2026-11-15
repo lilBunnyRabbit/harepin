@@ -2,6 +2,7 @@ import { mulberry32, sub } from "../rng";
 import { ROAD_HALF, type Solid } from "../world/world";
 import type { Ground } from "./marks";
 import { stars_for } from "./track";
+import { atan2, cos, hypot, sin } from "../sim-math";
 
 export const CONE_RADIUS = 0.3;
 export const HIT_MS = 2000;
@@ -89,18 +90,18 @@ export interface SiteGround extends Ground {
 export function to_local(site: Site, x: number, z: number): { u: number; v: number } {
   const dx = x - site.x;
   const dz = z - site.z;
-  const c = Math.cos(site.heading);
-  const s = Math.sin(site.heading);
+  const c = cos(site.heading);
+  const s = sin(site.heading);
   return { u: dx * c - dz * s, v: dx * s + dz * c };
 }
 
 export function to_world(site: Site, u: number, v: number): { x: number; z: number } {
-  const c = Math.cos(site.heading);
-  const s = Math.sin(site.heading);
+  const c = cos(site.heading);
+  const s = sin(site.heading);
   return { x: site.x + u * c + v * s, z: site.z - u * s + v * c };
 }
 
-const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
+const wrap = (a: number) => atan2(sin(a), cos(a));
 
 function outline(box: Box, open_side: "near" | null): Cone[] {
   const cones: Cone[] = [];
@@ -137,7 +138,7 @@ function site_score(ground: SiteGround, site: Site, area: ReturnType<typeof foot
     }
   for (const solid of solids) {
     const { u, v } = to_local(site, solid.x, solid.z);
-    const reach = solid.kind === "circle" ? solid.radius : Math.hypot(solid.hw, solid.hd);
+    const reach = solid.kind === "circle" ? solid.radius : hypot(solid.hw, solid.hd);
     if (u > area.u0 - reach && u < area.u1 + reach && v > area.v0 - reach && v < area.v1 + reach) return Infinity;
   }
   return high - low;
@@ -165,7 +166,7 @@ function site_grade(ground: SiteGround, site: Site, area: ReturnType<typeof foot
 
 /** The flattest clear patch beside the road near `start`, laid out parallel to it; null when nothing nearby is clear and flat enough. */
 export function find_site(ground: SiteGround, start: number, area = footprint()): Site | null {
-  const reach = Math.hypot(area.u1 - area.u0, area.v1 - area.v0) + Math.max(...SEARCH_OFFSETS);
+  const reach = hypot(area.u1 - area.u0, area.v1 - area.v0) + Math.max(...SEARCH_OFFSETS);
   const from = ground.road[(start + ground.road.length) % ground.road.length];
   const span = SEARCH_POINTS * SEARCH_STRIDE * 6 + reach;
   const near = ground.solids.filter((solid) => Math.abs(solid.x - from.x) < span && Math.abs(solid.z - from.z) < span);
@@ -173,11 +174,11 @@ export function find_site(ground: SiteGround, start: number, area = footprint())
   let best_score = Infinity;
   for (let step = -SEARCH_POINTS; step <= SEARCH_POINTS; step += SEARCH_STRIDE) {
     const p = ground.road[(start + step + ground.road.length * 4) % ground.road.length];
-    const heading = Math.atan2(p.tx, p.tz);
+    const heading = atan2(p.tx, p.tz);
     for (const side of [-1, 1])
       for (const offset of SEARCH_OFFSETS) {
-        const nx = Math.cos(heading) * side;
-        const nz = -Math.sin(heading) * side;
+        const nx = cos(heading) * side;
+        const nz = -sin(heading) * side;
         const shift = side > 0 ? offset : offset + area.u1;
         const site = { x: p.x + nx * shift, y: 0, z: p.z + nz * shift, heading };
         const score = site_score(ground, site, area, near) + Math.abs(step) * 0.002;
@@ -326,8 +327,8 @@ export class GymRun {
 
   private parked(pose: Pose, body: Body, heading: number): boolean {
     if (Math.abs(wrap(heading - Math.PI)) > STOP_HEADING) return false;
-    const fx = Math.sin(pose.heading);
-    const fz = Math.cos(pose.heading);
+    const fx = sin(pose.heading);
+    const fz = cos(pose.heading);
     for (const sl of [-1, 1])
       for (const sw of [-1, 1]) {
         const x = pose.x + fx * sl * (body.length / 2) + fz * sw * (body.width / 2);
@@ -340,8 +341,8 @@ export class GymRun {
 
   private cone_hits(pose: Pose, body: Body): Hit[] {
     const hits: Hit[] = [];
-    const fx = Math.sin(pose.heading);
-    const fz = Math.cos(pose.heading);
+    const fx = sin(pose.heading);
+    const fz = cos(pose.heading);
     const reach = body.radius + CONE_RADIUS;
     this.course.cones.forEach((cone, index) => {
       if (this.knocked.has(index)) return;
@@ -349,7 +350,7 @@ export class GymRun {
       for (const offset of body.circles) {
         const dx = at.x - (pose.x + fx * offset);
         const dz = at.z - (pose.z + fz * offset);
-        const d = Math.hypot(dx, dz);
+        const d = hypot(dx, dz);
         if (d >= reach) continue;
         this.knocked.add(index);
         if (this.status === RunStatus.RUNNING) this.hits++;

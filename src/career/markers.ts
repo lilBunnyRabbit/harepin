@@ -9,6 +9,7 @@ import { park_site, park_start } from "../modes/parking-mode";
 import type { World } from "../world/world";
 import { ROAD_HALF } from "../worldgen/types";
 import { spot_of, tier_of, tier_open, TIERS, type CareerEvent, type Stars } from "./career";
+import { atan2, cos, hypot, sin } from "../sim-math";
 
 export const MARKER_REACH = 4;
 // Beside the road on open ground, so a lap past the start line never runs into the flag; a track in the air has no
@@ -27,7 +28,7 @@ interface Pose {
 
 type StartAt = (world: World, start_index: number, level: string) => Pose | null;
 
-const along = (p: { x: number; z: number; tx: number; tz: number } | undefined): Pose | null => (p ? { x: p.x, z: p.z, heading: Math.atan2(p.tx, p.tz) } : null);
+const along = (p: { x: number; z: number; tx: number; tz: number } | undefined): Pose | null => (p ? { x: p.x, z: p.z, heading: atan2(p.tx, p.tz) } : null);
 
 // What each mode's `start` spawns the car on, worked out without starting a run.
 const STARTS: Record<string, StartAt> = {
@@ -86,14 +87,14 @@ export function event_markers(world: World, start_index: number, events: readonl
 
 function beside(start: Pose, aside: boolean): Pose {
   const off = aside ? ASIDE : INSIDE;
-  return { x: start.x - Math.cos(start.heading) * off, z: start.z + Math.sin(start.heading) * off, heading: start.heading };
+  return { x: start.x - cos(start.heading) * off, z: start.z + sin(start.heading) * off, heading: start.heading };
 }
 
 function clear_of(placed: readonly Marker[], pose: Pose): Pose {
   let { x, z } = pose;
-  const fx = Math.sin(pose.heading);
-  const fz = Math.cos(pose.heading);
-  for (let k = 0; k < placed.length && placed.some((m) => Math.hypot(m.x - x, m.z - z) < APART); k++) {
+  const fx = sin(pose.heading);
+  const fz = cos(pose.heading);
+  for (let k = 0; k < placed.length && placed.some((m) => hypot(m.x - x, m.z - z) < APART); k++) {
     x += fx * STEP;
     z += fz * STEP;
   }
@@ -104,7 +105,7 @@ export function marker_at(markers: readonly Marker[], x: number, z: number): Mar
   let best: Marker | null = null;
   let best_d = MARKER_REACH;
   for (const m of markers) {
-    const d = Math.hypot(m.x - x, m.z - z);
+    const d = hypot(m.x - x, m.z - z);
     if (d < best_d) {
       best = m;
       best_d = d;

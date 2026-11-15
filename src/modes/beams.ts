@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { brand, color } from "../theme/palette";
 import type { Ground, Marks } from "./marks";
+import { sin } from "../sim-math";
 
 const BEAM = { radius: 0.9, height: 60 };
 const LIFT = 0.15;
@@ -34,6 +35,6 @@ export class Beams {
   update(dt: number) {
     this.time += dt;
     const { materials } = this;
-    for (let i = 0; i < materials.length; i++) materials[i].opacity = i === this.target ? LIT + Math.sin(this.time * 4) * PULSE : DIM;
+    for (let i = 0; i < materials.length; i++) materials[i].opacity = i === this.target ? LIT + sin(this.time * 4) * PULSE : DIM;
   }
 }

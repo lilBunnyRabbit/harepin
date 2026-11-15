@@ -6,6 +6,7 @@ import { Beams } from "./beams";
 import { CHEVRON_VERTS, Marks, type DrawnGround } from "./marks";
 import { gate_shown, type RaceCourse } from "./races";
 import type { RoutePoint } from "./route";
+import { hypot } from "../sim-math";
 
 const LINE = 2;
 const GATE = 4;
@@ -121,7 +122,7 @@ function spaced(line: readonly RoutePoint[], pitch: number): number[] {
   const at: number[] = [];
   let walked = pitch;
   for (let i = 1; i < line.length; i++) {
-    walked += Math.hypot(line[i].x - line[i - 1].x, line[i].z - line[i - 1].z);
+    walked += hypot(line[i].x - line[i - 1].x, line[i].z - line[i - 1].z);
     if (walked >= pitch) {
       at.push(i);
       walked = 0;

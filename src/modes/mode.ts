@@ -12,6 +12,7 @@ import type { Bindable } from "../hud/bindings";
 import type { Hits } from "./hits";
 import type { DrawnGround } from "./marks";
 import type { RoutePoint } from "./route";
+import { atan2, cos, hypot, sin } from "../sim-math";
 
 export const NO_SITE = "No flat ground near the start on this map";
 // The map draws it for a run on a stretch of road that is no route of its own: a duel, a drift zone, a gate hunt.
@@ -185,7 +186,7 @@ export interface ModeDef<L extends Level = Level> {
 
 // Horizontal speed only: the car drops onto its spawn, and that fall would read as driving off.
 export function pose_of(car: Driven): Pose {
-  return { x: car.pos.x, z: car.pos.z, heading: car.heading, speed: Math.hypot(car.vel.x, car.vel.z) };
+  return { x: car.pos.x, z: car.pos.z, heading: car.heading, speed: hypot(car.vel.x, car.vel.z) };
 }
 
 export function airborne(car: Driven): boolean {
@@ -198,6 +199,6 @@ export function body_of(spec: CarSpec): Body {
 }
 
 export function turn_to(car: { pos: { x: number; z: number }; heading: number }, x: number, z: number): number {
-  const bearing = Math.atan2(x - car.pos.x, z - car.pos.z);
-  return Math.atan2(Math.sin(bearing - car.heading), Math.cos(bearing - car.heading));
+  const bearing = atan2(x - car.pos.x, z - car.pos.z);
+  return atan2(sin(bearing - car.heading), cos(bearing - car.heading));
 }

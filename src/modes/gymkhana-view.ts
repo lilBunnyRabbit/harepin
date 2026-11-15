@@ -3,6 +3,7 @@ import { cast_instanced } from "../render/shadow-depth";
 import { brand, color, tones } from "../theme/palette";
 import { CONE_RADIUS, to_world, type Box, type Course, type Hit } from "./gymkhana";
 import { drawn_height, Marks, type DrawnGround } from "./marks";
+import { hypot } from "../sim-math";
 
 const CONE_HEIGHT = 0.7;
 const FALL_S = 0.35;
@@ -74,7 +75,7 @@ export class GymkhanaView {
       const [nu, nv] = corners[(i + 1) % 4];
       const a = { u: box.u + su * box.hu, v: box.v + sv * box.hv };
       const b = { u: box.u + nu * box.hu, v: box.v + nv * box.hv };
-      const steps = Math.max(1, Math.ceil(Math.hypot(b.u - a.u, b.v - a.v) / LINE_STEP));
+      const steps = Math.max(1, Math.ceil(hypot(b.u - a.u, b.v - a.v) / LINE_STEP));
       for (let s = 0; s < steps; s++) points.push(this.ground_point(a.u + ((b.u - a.u) * s) / steps, a.v + ((b.v - a.v) * s) / steps));
     });
     const geometry = this.marks.track(new THREE.BufferGeometry().setFromPoints(points));

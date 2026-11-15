@@ -32,6 +32,7 @@ import { level_route, race_levels } from "./races";
 import { line, run_text, star_row } from "./result";
 import { MAX_STARS, Track, local_store, type RaceRecord } from "./track";
 import "./modes.css";
+import { atan2 } from "../sim-math";
 
 export type { Driven } from "./mode";
 
@@ -500,7 +501,7 @@ export class Modes implements CarHooks {
       high: () => this.high,
       key_of: (action) => keys_text(this.bindings()[action]),
       spawn,
-      spawn_on: (p) => spawn(p.x, p.z, Math.atan2(p.tx, p.tz)),
+      spawn_on: (p) => spawn(p.x, p.z, atan2(p.tx, p.tz)),
       chime: () => this.chime(),
       hint: (turn) => this.show_hint(turn),
       hide_hint: () => {

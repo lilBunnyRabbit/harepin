@@ -36,6 +36,7 @@ import type {
   Tree,
   WorldData,
 } from "../worldgen/types";
+import { atan2, cos, hypot, sin } from "../sim-math";
 
 export { fbm } from "../worldgen/noise";
 export { min_radius } from "../worldgen/path";
@@ -627,7 +628,7 @@ export class World implements Ground {
 
   /** Where a reset puts the car: the nearest point of any road (circuit, spur or street) or trail, facing along it the way `fx, fz` points. */
   spawn_near(x: number, z: number, fx: number, fz: number): Spawn {
-    if (this.reset_in_place) return { x, y: this.height(x, z), z, heading: Math.atan2(fx, fz) };
+    if (this.reset_in_place) return { x, y: this.height(x, z), z, heading: atan2(fx, fz) };
     const first_trail = this.graph.edges.length + 1;
     const lane = (packed: number) => Math.floor(packed / LANE_PACK);
     const point = (packed: number) => this.lanes[lane(packed)][packed % LANE_PACK];
@@ -642,7 +643,7 @@ export class World implements Ground {
       while (i > 0 && blocked[i]) i--;
       p = points[i];
     }
-    const heading = Math.atan2(p.tx, p.tz) + (back ? Math.PI : 0);
+    const heading = atan2(p.tx, p.tz) + (back ? Math.PI : 0);
     return { x: p.x, y: this.height(p.x, p.z), z: p.z, heading };
   }
 
@@ -707,8 +708,8 @@ export class World implements Ground {
   collide(car: Collider): number {
     const { pos, spec } = car;
     let impact = 0;
-    const fx = Math.sin(car.heading);
-    const fz = Math.cos(car.heading);
+    const fx = sin(car.heading);
+    const fz = cos(car.heading);
     const circles = spec.circles;
     for (let c = 0; c < circles.length; c++) {
       const offset = circles[c];
@@ -732,8 +733,8 @@ export class World implements Ground {
   /** A solid the car could hit within `gap` metres of its body, without pushing it; null when none is. */
   grazes(car: Collider, gap: number): Solid | null {
     const { pos, spec } = car;
-    const fx = Math.sin(car.heading);
-    const fz = Math.cos(car.heading);
+    const fx = sin(car.heading);
+    const fz = cos(car.heading);
     for (const offset of spec.circles) {
       const px = pos.x + fx * offset;
       const pz = pos.z + fz * offset;
@@ -830,11 +831,11 @@ export class World implements Ground {
     pos.z += nz * depth;
     const into = vel.x * nx + vel.z * nz;
     if (into >= 0) return 0;
-    const speed = Math.hypot(vel.x, vel.z);
+    const speed = hypot(vel.x, vel.z);
     let tx = -nz;
     let tz = nx;
     const along = vel.x * tx + vel.z * tz;
-    const ahead = Math.abs(along) > HEAD_ON * speed ? along : Math.sin(car.heading) * tx + Math.cos(car.heading) * tz;
+    const ahead = Math.abs(along) > HEAD_ON * speed ? along : sin(car.heading) * tx + cos(car.heading) * tz;
     if (ahead < 0) {
       tx = -tx;
       tz = -tz;
@@ -842,7 +843,7 @@ export class World implements Ground {
     const keep = speed * (1 - (GLIDE_LOSS * -into) / speed);
     vel.x = tx * keep;
     vel.z = tz * keep;
-    const turn = Math.atan2(Math.sin(Math.atan2(tx, tz) - car.heading), Math.cos(Math.atan2(tx, tz) - car.heading));
+    const turn = atan2(sin(atan2(tx, tz) - car.heading), cos(atan2(tx, tz) - car.heading));
     ang.y += (turn * GLIDE_YAW - ang.y) * GLIDE_EASE;
     return -into;
   }

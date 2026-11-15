@@ -1,6 +1,7 @@
 import { mulberry32, sub } from "../rng";
 import { RouteTracker, slice, type RoutePoint } from "./route";
 import { stars_for } from "./track";
+import { hypot } from "../sim-math";
 
 export const DUEL_LEAD = 15;
 const PAR_SPEED = 21;
@@ -38,7 +39,7 @@ export function build_route(seed: number, road: readonly RoutePoint[], level: Du
   const start = Math.floor(rng() * road.length);
   const points = slice(road, clear(start - DUEL_LEAD), level.points + DUEL_LEAD);
   const at = [0];
-  for (let i = 1; i < points.length; i++) at.push(at[i - 1] + Math.hypot(points[i].x - points[i - 1].x, points[i].z - points[i - 1].z));
+  for (let i = 1; i < points.length; i++) at.push(at[i - 1] + hypot(points[i].x - points[i - 1].x, points[i].z - points[i - 1].z));
   const zero = at[DUEL_LEAD];
   for (let i = 0; i < at.length; i++) at[i] -= zero;
   const length = at[at.length - 1];
@@ -52,7 +53,7 @@ export function duel_gates(route: Route, checkpoints: readonly { x: number; z: n
   const gates: number[] = [];
   for (const cp of checkpoints) {
     for (let i = DUEL_LEAD + GATE_CLEAR; i < last - GATE_CLEAR; i++) {
-      if (Math.hypot(points[i].x - cp.x, points[i].z - cp.z) > ON_POINT) continue;
+      if (hypot(points[i].x - cp.x, points[i].z - cp.z) > ON_POINT) continue;
       gates.push(i);
       break;
     }
