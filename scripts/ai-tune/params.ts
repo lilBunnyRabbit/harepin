@@ -22,7 +22,7 @@ export const PARAMS: readonly Param[] = [
   { name: "aim_per", lo: 2, hi: 5, read: (t) => t.aim_per, write: (t, v) => (t.aim_per = v) },
   { name: "steer_gain", lo: 2.5, hi: 6.5, read: (t) => t.steer_gain, write: (t, v) => (t.steer_gain = v) },
   { name: "steer_damp", lo: 0.3, hi: 2, read: (t) => t.steer_damp, write: (t, v) => (t.steer_damp = v) },
-  { name: "rub", lo: 0, hi: 1.4, read: (t) => t.rub, write: (t, v) => (t.rub = v) },
+  { name: "rub", lo: 0, hi: 2, read: (t) => t.rub, write: (t, v) => (t.rub = v) },
   { name: "pace_lo", lo: 0.92, hi: 1, read: (t) => t.pace[0], write: (t, v) => (t.pace[0] = v) },
   { name: "pace_hi", lo: 0.99, hi: 1.06, read: (t) => t.pace[1], write: (t, v) => (t.pace[1] = v) },
   { name: "brake_margin_hi", lo: 0, hi: 1.5, read: (t) => t.brake_margin[1], write: (t, v) => (t.brake_margin[1] = v) },

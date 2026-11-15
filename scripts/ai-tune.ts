@@ -1,5 +1,5 @@
 import { availableParallelism } from "node:os";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { AI_TUNING } from "../src/ai/tuning";
 import { mulberry32, sub } from "../src/rng";
 import { cma_init, cma_sample, cma_update, type Cma, type Sample } from "./ai-tune/cma";
@@ -16,7 +16,7 @@ import { run_pool } from "./proof/pool";
 // Heavy: run it through `hq lock run --`; --jobs defaults to a quarter of the machine, one heavy slot's share.
 
 const DIR = ".ai-tune";
-const STATE_VERSION = 2;
+const STATE_VERSION = 3;
 
 const arg = (name: string, fallback: string) => {
   const at = process.argv.indexOf(name);
@@ -61,8 +61,8 @@ interface State {
   done: Record<string, RaceResult[]>;
   base: Candidate | null;
   gens: Gen[];
-  /** Hash of the whole AI_TUNING the run started on; absent in files from before it was kept. */
-  tuning?: string;
+  /** Hash of AI_TUNING and the src/ai sources the run started on. */
+  tuning: string;
 }
 
 const config: Config = {
@@ -82,8 +82,15 @@ const path = `${DIR}/${run}.json`;
 const WORKER = new URL("./ai-tune/worker.ts", import.meta.url);
 
 const hash = (values: Values) => Bun.hash(JSON.stringify(whole(values))).toString(36);
-/** Keys the defaults' races, so an edit to AI_TUNING (hand-set rows too) never reuses stale ones; code changes in src/ai still do. */
-const TUNING = Bun.hash(JSON.stringify(AI_TUNING)).toString(36);
+const AI_DIR = new URL("../src/ai/", import.meta.url);
+const ai_sources = () =>
+  readdirSync(AI_DIR)
+    .filter((name) => name.endsWith(".ts") && !name.endsWith(".test.ts"))
+    .sort()
+    .map((name) => name + readFileSync(new URL(name, AI_DIR), "utf8"))
+    .join("");
+/** Keys the defaults' races and every run file, so an edit to AI_TUNING (hand-set rows too) or to the drivers' code never reuses stale races. */
+const TUNING = Bun.hash(JSON.stringify(AI_TUNING) + ai_sources()).toString(36);
 const BASE = `base-${TUNING}`;
 
 const to_unit = (values: Values) => PARAMS.map((p) => (values[p.name] - p.lo) / (p.hi - p.lo));
@@ -95,10 +102,7 @@ function load(): State {
   if (!existsSync(path)) return { version: STATE_VERSION, config, cma: cma_init(to_unit(base), config.sigma), auto: {}, done: {}, base: null, gens: [], tuning: TUNING };
   const state = JSON.parse(readFileSync(path, "utf8")) as State;
   if (state.version !== STATE_VERSION) throw new Error(`${path} is version ${state.version}, expected ${STATE_VERSION}`);
-  const started = state.tuning ?? (state.base && hash(state.base.values) === hash(base) ? TUNING : state.base ? "other" : null);
-  if (!started) throw new Error(`${path} predates the tuning hash and has no defaults' score to check; start a new --run`);
-  if (started !== TUNING) throw new Error(`${path} was started on other AI_TUNING (src/ai/tuning.ts changed); start a new --run`);
-  state.tuning = TUNING;
+  if (state.tuning !== TUNING) throw new Error(`${path} was started on other AI_TUNING or src/ai code; start a new --run`);
   if (JSON.stringify(state.config) !== JSON.stringify(config)) throw new Error(`${path} was started with ${JSON.stringify(state.config)}; pass the same options or a new --run`);
   return state;
 }
