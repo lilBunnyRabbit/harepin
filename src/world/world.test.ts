@@ -1,6 +1,7 @@
 /// <reference types="bun" />
 import { expect, test } from "bun:test";
 import { Vector3 } from "three";
+import { Scrape } from "../car/car";
 import { BUS, CARS, COUPE, FORMULA, car_sized } from "../car/cars";
 import { World, type Collider } from "./world";
 import { generate } from "../worldgen/index";
@@ -24,7 +25,7 @@ function bar(bottom: number, top: number): Solid {
 }
 
 function car_at(y: number): Collider {
-  return { pos: new Vector3(X, y, Z - 1.4), vel: new Vector3(0, 0, 20), ang: new Vector3(), heading: 0, spec: COUPE };
+  return { pos: new Vector3(X, y, Z - 1.4), vel: new Vector3(0, 0, 20), ang: new Vector3(), heading: 0, scrape: new Scrape(), spec: COUPE };
 }
 
 test("bars meet each car at its own body: the closed cars keep the shared band, the formula and the bus their own floor and roof", () => {
@@ -61,6 +62,36 @@ test("a low bar on the ground stops a grounded car and a flying one clears it", 
   expect(world.collide(car_at(GROUND + 1.6))).toBe(0);
 });
 
+test("a contact reports its point on the face, the normal out of it and the speed along and into it", () => {
+  const world = world_with(bar(-1, 1.2));
+  const car = car_at(GROUND + 0.5);
+  car.vel.set(15, 0, 2);
+  const { scrape } = car;
+  expect(world.collide(car)).toBeGreaterThan(0);
+  expect(scrape.hits).toBe(1);
+  expect(scrape.nx).toBeCloseTo(0, 9);
+  expect(scrape.nz).toBeCloseTo(-1, 9);
+  expect(scrape.z).toBeCloseTo(Z - 0.25, 9);
+  expect(scrape.x).toBeCloseTo(X, 9);
+  expect(scrape.y).toBe(GROUND + 0.5);
+  expect(scrape.slide).toBeCloseTo(15, 9);
+  expect(scrape.into).toBeCloseTo(2, 9);
+  car.pos.z -= 5;
+  world.collide(car);
+  expect(scrape.hits).toBe(1);
+});
+
+test("a spinning car slides its contact point along the face by the yaw rate times the arm", () => {
+  const world = world_with(bar(-1, 1.2));
+  const car = car_at(GROUND + 0.5);
+  car.vel.set(0, 0, 0);
+  car.ang.y = 2;
+  world.collide(car);
+  expect(car.scrape.hits).toBe(1);
+  expect(car.scrape.into).toBe(0);
+  expect(car.scrape.slide).toBeCloseTo(2 * Math.max(...COUPE.circles), 9);
+});
+
 test("every circuit reset point is clear of solids and ramps on every seed of the sweep", () => {
   const CAR_REACH = 2.5;
   for (const seed of sweep(20)) {
@@ -88,7 +119,7 @@ function describe_glide() {
   function hit(world: World, angle: number, speed = 30): { kept: number; into: number; spin: number; impact: number } {
     const pos = new Vector3(X, GROUND + 0.5, Z);
     const vel = new Vector3(Math.sin(angle) * speed, 0, Math.cos(angle) * speed);
-    const car: Collider = { pos, vel, ang: new Vector3(), heading: angle, spec: COUPE };
+    const car: Collider = { pos, vel, ang: new Vector3(), heading: angle, scrape: new Scrape(), spec: COUPE };
     const restore = world.place([island_rail(touching(angle))]);
     const impact = world.collide(car);
     restore();
@@ -114,7 +145,7 @@ function describe_glide() {
     const left = hit(sky, Math.PI / 2 - 0.05);
     const pos = new Vector3(X, GROUND + 0.5, Z);
     const vel = new Vector3(30, 0, 0);
-    const car: Collider = { pos, vel, ang: new Vector3(), heading: Math.PI / 2 + 0.05, spec: COUPE };
+    const car: Collider = { pos, vel, ang: new Vector3(), heading: Math.PI / 2 + 0.05, scrape: new Scrape(), spec: COUPE };
     const restore = sky.place([island_rail(touching(Math.PI / 2 + 0.05))]);
     sky.collide(car);
     restore();

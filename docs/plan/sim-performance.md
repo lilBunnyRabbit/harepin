@@ -192,3 +192,193 @@ Two physics sources are the worst option: every tuning change made twice, and dr
 - Replace the raycast bisection with an exact ray-heightfield hit, and index ramp and deck lookups. Re-run this spike's profile and re-record `car.test`, telemetry and feel.
 - ~~Owner decision: do seeded AI races or input ghosts need identical results across browsers?~~ Decided yes (J2): write the maths module, rebaseline once with the exact raycast (J10), and add a test that runs the car in Bun and checks it against a digest recorded in Chrome.
 - Revisit a WASM core only with phone numbers from the worker in hand.
+
+## Render frame after the look passes (t238)
+
+Measure only. 0.44.1 (aceadcc) against 85cca8a (0.45.0, the look passes: houses, landmarks, firs, ramps, car bodies, puffs, dusk lamps), 2026-11-15, same box as above, shared with other agents' heavy jobs. Each version is a `git archive` copy built with `vite build --mode review`, one patch in both: `open_road` exposed outside dev, plus `place_road`. Served by `vite preview` on one port, headless Chrome on the real GPU (ANGLE D3D11). Scripts and raw JSON are in `.t238/` (untracked): `probe.mts`, `profile.mts`, `final.cjs`, `passes.cjs`, `census.cjs`.
+
+- **Phone:** 844x390 at DPR 3, touch, so the mobile tier at `quality=high` (ratio 2, no shadow map, no bloom, no MSAA, fog 700 m). CPU throttled 4x.
+- **Desktop:** 1440x900 at DPR 1, desktop tier high (2048 shadow map, bloom, MSAA), no throttle.
+- **Scenes:** seed 1, parked, 8 s warm and then a 10 s sample. "Town" scenes teleport to the road nearest the biggest town: Mainland town, Island coast town, Desert, Alpine, Dunes. The replay is `?replay=r1` (Island, coupe) on Brand Dark, so dusk with headlights.
+- **Columns:** frame work is the CPU time inside the rAF callback. Draw calls and triangles come from wrapping WebGL2 `draw*` and multi-draw. GPU MB tracks buffer, texture and renderbuffer bytes; the canvas backbuffer is not in it. Long tasks come from `PerformanceObserver`. Each solo cell is the median of 2-3 runs (6-car rows: see below); runs with more than 5 long tasks were dropped as machine contention (3 runs).
+- **Frame gap:** headless rAF runs at the display's 144 Hz, so the gap's p50 is 6.9 ms everywhere and says nothing. The gap's p95 shows dropped frames.
+
+### Before / after, phone
+
+| Scene | Frame work p50 / p95 (ms) | Gap p95 (ms) | Draw calls | Triangles | GPU MB | Long tasks |
+|---|---|---|---|---|---|---|
+| Mainland town | 6.3 / 10.3 → 6.4 / 11.3 | 14 → 14 | 69 → 69 | 163k → 162k | 6.7 → 6.8 | 0 → 0 |
+| Island coast | 7.3 / 13.0 → 7.2 / 11.9 | 14 → 14 | 79 → 79 | 312k → 308k | 18.3 → 18.5 | 0 → 0 |
+| Desert | 5.8 / 10.9 → 6.2 / 11.0 | 14 → 14 | 57 → 57 | 114k → 114k | 3.8 → 3.8 | 0 → 0 |
+| Alpine | 6.3 / 11.6 → 6.6 / 11.6 | 14 → 14 | 77 → 77 | 185k → 185k | 8.3 → 8.5 | 0 → 2 |
+| Dunes | 4.4 / 8.4 → 4.7 / 9.1 | 14 → 14 | 34 → 34 | 91k → 91k | 3.2 → 3.3 | 1 → 0 |
+| Replay r1, dusk | 7.3 / 12.1 → 6.3 / 10.1 | 21 → 14 | 86 → 84 | 231k → 224k | 15.6 → 16.0 | 5 → 1 |
+| **6-car, Island coast** (5 peers) | 10.6 / 14.6 → 12.6 / 20.4 | 21 → 28 | 139 → 139 | 320k → 320k | 19.0 → 19.6 | 0 → 0 |
+| **6-car, Mainland town** (5 peers) | 9.6 / 14.6 → 10.2 / 15.2 | 21 → 21 | 129 → 129 | 171k → 174k | 7.4 → 7.6 | 0 → 0 |
+
+The 6-car rows: 5 peer tabs at `quality=low` join the same room over BroadcastChannel and park on the same spot, so 5 remote cars are in view. Island has 2 runs for 0.44.1 and 3 for 0.45.0; Mainland has 1 run each. A control run had the 5 peers in other rooms, so no remotes: 7.2 / 10.4-10.8 ms on Island for both versions, the same as solo. The peer tabs' own load does not explain the gap.
+
+### Before / after, desktop
+
+| Scene | Frame work p50 / p95 (ms) | Gap p95 (ms) | Draw calls (shadow + main + bloom) | Triangles (shadow / main) | GPU MB |
+|---|---|---|---|---|---|
+| Mainland town | 2.3 / 3.3 → 2.5 / 3.1 | 17 → 17 | 168 → 166 (10 + 144 + 12) | 491k / 791k → 437k / 740k | 189 → 189 |
+| Island coast | 1.8 / 3.9 → 1.5 / 2.4 | 7 → 7 | 125 → 121 | 159k / 448k → 145k / 435k | 190 → 191 |
+| Desert | 1.2 / 1.7 → 1.2 / 1.9 | 7 → 7 | 78 → 78 | 12k / 134k → 13k / 134k | 175 → 175 |
+| Alpine | 1.8 / 3.7 → 2.0 / 2.9 | 7 → 7 | 124 → 124 | 211k / 456k → 201k / 447k | 185 → 185 |
+| Dunes | 1.3 / 2.2 → 1.2 / 1.8 | 7 → 7 | 87 → 87 | 1k / 247k → 2k / 247k | 180 → 181 |
+| Replay r1, dusk | 1.6 / 2.6 → 1.6 / 2.3 | 7 → 7 | 130 → 128 | 158k / 412k → 144k / 399k | 192 → 192 |
+
+No long tasks on desktop in either version. About 135 MB of the desktop GPU memory is the MSAA and composer render targets; geometry is 3-20 MB. On Mainland, the desktop frame drops to 72 Hz in half the runs of both versions. The GPU is the limit there (1.2M triangles, 2048 shadow map), and the CPU frame is only 2.5 ms.
+
+### What regressed and why
+
+- **World scenes did not regress.** Draw calls are the same to ±4. Triangles are flat, or down 2-8% on Island, Alpine, Mainland and the replay. Frame work is within run-to-run noise. Every long-task burst in a solo run lined up with another agent's heavy job: it went away on rerun.
+- **The new houses (t259) did double the plain-building mesh, but the mesh was small.** Island seed 1, whole map: building plus prop soup went from 3.7k to 7.8k triangles, glass from 3.3k to 6.8k (Desert 16.3k → 20.1k plus 2.0k → 3.6k, Alpine 2.6k → 3.7k plus 0.4k → 1.3k). That is +7.6k triangles on the whole Island, against 300-600k drawn per frame. Other passes shed more than the houses added: the shadow pass lost 10% on desktop, the puffs moved to an unlit instanced shader, and parked cars became one shell. Mainland's high-street glass did not change.
+- **What regressed most: remote cars, +0.1-0.4 ms per remote per frame at 4x (Mainland to Island).** It shows only in the 6-car rows: Island +2.0 ms p50 and +5.8 ms p95, Mainland +0.6 ms. The draw calls (12 per remote car) and triangles are unchanged, so this is CPU work, not the GPU. The pass is `Remotes.draw` → `stand_on_drawn` (`car/drawn-stand.ts`). Since 0d68c73, 12b7fd6 and a5a23d6, every wheel of every remote calls `World.drawn_lift` each frame: paving lift, junction grid, `road_dist`, and `nearest(lane_grid, …, lane_point)`. In the 4x profile, `nearest` and `lane_point` cost 24 ms/s against 9.5 ms/s for 0.44.1's `nearest`. The rest of the gap is inside noise, from one profile per version.
+- **The target is not met in a 6-car race at 4x.** A solo phone frame is 6-7 ms p50 and 10-13 ms p95, which fits 60 fps. With 5 remotes on 0.45.0, Island reaches 12.6 / 20.4 ms, so p95 is past the 16.7 ms budget. A 4x throttle on this i7-8700K is probably slower than an S24+ core, so the device CPU likely has more headroom than these rows show; unproven. The GPU side, ratio 2 at 1664x768 with Lambert and the dusk lamps, cannot be emulated here. Only a real S24+ run settles either.
+
+### Cheapest wins
+
+From 4x phone CPU profiles of 0.45.0 (`.t238/profile-*.txt`, unminified review build, Island town, solo and 6-car). None changes sim output. Wins 2 and 3 draw the same frame; win 1 moves remote wheels by up to a few cm between snapshots, so it needs a visual check at junction paint and kerbs.
+
+1. **Remote wheel grounding at packet rate, not frame rate.** `stand_on_drawn` for remotes runs `drawn_lift` 4 times per car per frame, and `place_contact_shadow` (`car/contact-shadow.ts:83`) a fifth. A remote's pose comes from snapshots sent at most every 25 ms (`MIN_GAP_MS`), and the lift under a wheel changes by centimetres. Cache the per-wheel lifts per snapshot pair, or skip them past about 60 m where a 2 cm lift is sub-pixel. That wins back most of the regression above. The own car keeps per-frame lifts.
+2. **`PadMenu.is_open` runs `document.querySelector("dialog:modal")` on every input read.** The path is `input.blocked` → `pad_menu.is_open` → `overlay()` (`menu/pad-menu.ts:131,225`), several times per frame, and it builds a layer object with closures each time. That is 28-35 ms/s at 4x, 2.2-2.9% of the main thread, about 0.4 ms a frame. Fix: answer `is_open` from a live `document.getElementsByTagName("dialog")` checked for `.open`, plus `settings.is_open` and `chat`, without building the layer.
+3. **Freeze static chunk matrices.** `updateMatrixWorld` plus `multiplyMatrices` cost 58-78 ms/s at 4x (4.7-6%). Most of it is walking terrain, road, water, building and tree meshes that never move after placement. Set `matrixAutoUpdate = false` and `matrixWorldAutoUpdate = false` on them after placement, with one `updateMatrixWorld(true)` there. Three then skips them every frame.
+
+Also seen, below these three:
+
+- The minimap redraws its full road layer and N every frame: `drawImage`, 13-15 ms/s at 4x. It could redraw only when a dot moves a pixel.
+- Each remote car is 12 draw calls, so a 6-car race is +60 calls over 79 on phone. Merging a remote's meshes by material would cut that if a real device turns out GPU or driver bound.
+- t259's other idea, dropping back-wall glass on plain buildings (about 25% of glass), saves about 1.7k triangles on the whole Island. That does not buy frame time. Keep or drop it for looks only.
+
+## Rust vs AssemblyScript (t275, J8)
+
+Measure only. Both ports are re-cut from master f21c597 (0.46.1, after the drift and launch fixes). They use the same `SpikeGround` (island seed 0 tiles from t198's fixture), the same 7 cars and the same 3600 replayed AI steps. Scripts, both ports and raw logs are in `.t275/` (untracked): `as/car.ts`, `rs/src/lib.rs`, `bench/run.ts` (lockstep and bench) and `bench/sim.ts` (one JS glue for both builds).
+
+Toolchains:
+
+- rustc 1.100.0, `wasm32-unknown-unknown`, release: `opt-level 3`, LTO, one codegen unit, `panic = "abort"`, no crates.
+- AssemblyScript 0.28.9, `-O3 --runtime stub --noAssert`.
+
+Runtimes are §2's: Bun 1.3.0, Node 22.14, headless Chrome 157 and Playwright WebKit 2359. The box ran 2-4 other agents' `ai-race` jobs throughout. So every case runs once per round, the rounds interleave, and each cell is the median of 5 rounds after a warm-up round. Repeat runs moved cells by up to 15%.
+
+### Answer first
+
+- **Both ports are bit-identical to the JS slice.** With the port's own maths swapped into `Math.*`, the lockstep harness found no difference in any of the 126 numbers per car. That covers all 7 cars, all 3600 steps and all four runtimes. It held for the AI replay and for a scripted drift run with the assist off (launch from rest, handbrake taps, held drifts, loose ground).
+- **Each port gives one digest in all four runtimes.** The island terrain stage gives the same heights in JS and in both ports, in every runtime.
+- **The two ports differ in one maths function: `hypot`.**
+  - Rust's `f64::hypot` (the compiler's libm) and AssemblyScript's `Math.hypot` differ by 1 ulp on 13% of inputs, so their digests differ.
+  - `sin`, `cos`, `tan`, `atan`, `atan2` and `asin` agree bit for bit over 10⁶ inputs.
+  - With `hypot` written as `sqrt(a·a + b·b)` in both, Rust and AssemblyScript give the same digest.
+- **Speed is a wash on the target engine.**
+  - As written, Rust is 19-33% slower with 7 cars. That is `hypot`: Rust's costs about 150 ns a call against 100 ns (in Bun), at about 20 calls per car step (5 per wheel on the ground).
+  - With the same `sqrt` hypot, the two tie in Chrome, and Rust is 15-22% faster with 7 cars in Bun, Node and WebKit. With 1 car they are within 7% everywhere.
+  - The S24+ runs Chrome's V8. There they tie on the car step, and AssemblyScript is 3-15% faster on the terrain stage (Chrome and Node).
+- **Dev cost favours AssemblyScript.** It is half the lines and reads like `car.ts` line for line. It installs as an npm dev dependency, so `bun install` covers every machine and CI. Rust needs rustup on every machine that runs a test.
+
+### µs per car per step
+
+| | Bun | Node | Chrome | WebKit |
+|---|---|---|---|---|
+| JS, 1 car | 5.40 | 5.42 | 5.69 | 5.87 |
+| JS, 7 cars | 5.87 | 5.91 | 6.06 | 5.95 |
+| AssemblyScript, 1 car | 4.27 | 3.45 | 3.27 | 4.25 |
+| AssemblyScript, 7 cars, one `step_all` | 4.32 | 3.90 | 3.32 | 3.89 |
+| Rust, 1 car | 5.26 | 4.81 | 4.18 | 4.33 |
+| Rust, 7 cars, one `step_all` | 5.24 | 4.90 | 4.43 | 4.64 |
+| AssemblyScript, `sqrt` hypot, 1 car / 7 cars | 3.77 / 4.09 | 3.25 / 3.57 | 3.06 / 3.05 | 3.69 / 3.97 |
+| Rust, `sqrt` hypot, 1 car / 7 cars | 3.87 / 3.40 | 3.10 / 3.04 | 3.19 / 3.13 | 3.45 / 3.10 |
+| **speedup over JS, 7 cars: AS / Rust** | 1.36x / 1.12x | 1.52x / 1.21x | 1.83x / 1.37x | 1.53x / 1.28x |
+| **same, `sqrt` hypot: AS / Rust** | 1.44x / 1.73x | 1.66x / 1.94x | 1.99x / 1.94x | 1.50x / 1.92x |
+
+- "1 car" steps each car alone through its own 3600 steps.
+- Three ways of driving 7 cars cost the same within 0.4 µs, which is noise: one call per car, one `step_all` call, and `step_all` with the pose copied back into the JS `Car`'s three.js objects every step.
+- An empty call costs 7-27 ns, measured cold. The glue passes controls as call arguments and reads state through one shared `f64` buffer, so the same JS drives either build.
+
+### Worldgen: island terrain stage, ms per map
+
+The stage is picked by profile. `terrain()` (`worldgen/terrain.ts`) folds hills fbm, ridged fbm, the peak and the shore mask over the 513×513 lattice. It takes 155 ms of the 425 ms that island seeds 0-4 take in Bun (37%). Next come trails at 65 ms, then jumps, stamp and links at 30 ms each.
+
+The stage is pure numbers: about 4 million value-noise lookups, no transcendental maths, and one `Float32Array` out. The port is the island recipe's five layers with their constants inlined. JS draws the peak position (`mulberry32`) and passes it in.
+
+| | Bun | Node | Chrome | WebKit |
+|---|---|---|---|---|
+| JS | 188.7 | 113.8 | 108.0 | 153 |
+| AssemblyScript | 56.8 | 71.7 | 75.0 | 66 |
+| Rust | 50.5 | 82.1 | 77.2 | 61 |
+
+WebKit's timer counts whole milliseconds here. All 263,169 heights are bit-identical between JS and both ports in all four runtimes (digest `e1a2435f`).
+
+### Determinism digests
+
+Final digest of all 7 cars' state after 3600 steps:
+
+| run | AI replay (assist on) | drift script (assist off) |
+|---|---|---|
+| JS, Bun and WebKit (JSC) | `b0de7eb0` | `8282048e` |
+| JS, Node 22 | `2af93e0d` | `f6558de4` |
+| JS, Chrome 157 | `32d179dd` | `d8a2274e` |
+| AssemblyScript, own maths, all four runtimes | `6c601001` | `3de6e3ea` |
+| JS with AssemblyScript's maths in `Math.*`, all four runtimes | `6c601001` | `3de6e3ea` |
+| Rust, own maths, all four runtimes | `3e3b7eae` | `ab081c57` |
+| JS with Rust's maths in `Math.*`, all four runtimes | `3e3b7eae` | `ab081c57` |
+| either port with `sqrt` hypot, and JS with that maths | `5ca9c322` | `b7706d2e` |
+
+- The replay's JS and AssemblyScript digests are the same as t198's. The drift and launch fixes since then sit on branches the AI replay never takes: the assist stays on, and no car drops below 1 m/s.
+- The assist-off drift script covers those branches: about 7000 launched car steps, 17000 held-drift car steps and 7000 with the TCS split brake, plus 6500 wheel steps in the air and 44000 on loose ground. Its inputs are arithmetic only, so every runtime replays the same ones.
+- Native JS still splits three ways (JSC, Node's V8, Chrome's V8), as in §3.
+
+### Build, size, install
+
+| | AssemblyScript | Rust |
+|---|---|---|
+| `.wasm` (gzip -9) | 30.5 KB (11.6 KB) | 79.2 KB (28.1 KB); 73.5 KB stripped |
+| build | 2.2 s (`asc`; every build is a full build) | 1.5 s from clean, 1.4 s after a touch (no crates) |
+| imports | `env.abort` | none |
+| install on Windows | an npm dev dependency, `assemblyscript` (102 MB with binaryen) | rustup (`rustup-init.exe` or `winget install Rustlang.Rustup`) with the stable MSVC host, then `rustup target add wasm32-unknown-unknown` |
+| where the toolchain must exist | anywhere `bun install` ran, CI included | every dev machine and CI image, outside `package.json` |
+
+- AssemblyScript on Windows: `bunx asc` fails on Bun 1.3.0 ("does not provide a binary named …asc.js"). `npx asc` or `node node_modules/assemblyscript/bin/asc.js` works.
+- Rust on Windows: the wasm link uses the bundled `rust-lld`. The MSVC host wants Visual Studio Build Tools for host crates. This box has VS 2022; a no-crate build without it was not tried.
+- Rust's extra size was not broken down. It is likely std's allocator behind `Vec` and the panic formatting for index checks. `no_std` or `wasm-opt` would cut it. Neither was tried.
+
+### Dev cost
+
+| | AssemblyScript | Rust |
+|---|---|---|
+| lines, car slice (code lines, no blanks or comments) | 566 | 1239 (rustfmt at 160 columns; 1424 at its default 100) |
+| lines, terrain stage | 51 | 77 |
+| JS it ports | 1004 code lines: `car.ts`, `steering.ts`, `tyre.ts`, `rigid-body.ts`, `curve.ts`, `axles.ts`, with the keyboard modes, nitro and `park` the ports leave out | same |
+| memory safety | `@unmanaged` structs are raw pointers with no index check. A wrong pointer that lands inside memory reads garbage without a trap | `Vec` indexing is checked. A bad car index panics, which traps as `unreachable` |
+| stack traces | V8: `wasm-function[22]`, no names unless built with `--debug`. JSC: `unknown` | V8: mangled Rust symbol names (`rust_panic`, `panic_with_hook`). JSC: `unknown`. With `panic = "abort"` the panic message is lost unless a hook forwards it |
+| source-level debugging | `--sourceMap` maps to the `.ts` in DevTools | DWARF needs Chrome's C/C++ DevTools extension. Not tried |
+| from Bun tests and scripts | `WebAssembly.instantiate(readFileSync("sim.wasm"))` and raw exports. Build with `asc` in a pretest step or a `bunfig` preload | The same glue served both builds here. Build with `cargo build` first, so tests fail on a machine without rustup unless the `.wasm` is committed |
+
+How close each reads to `car.ts`:
+
+- **AssemblyScript:** line for line. It keeps the same expressions and `Math.*` names, plus an `@unmanaged` `V3` and `Q4` with three.js's method names and op order. The port was t198's file plus the five commits since.
+- **Rust:**
+  - Names are the same (snake_case already), and the phases are the same, as methods.
+  - The `V3` value type returns new vectors instead of mutating them.
+  - rustfmt spreads every `a ? b : c` into a five-line `if`.
+  - JS `Math.max`, `min` and `sign` need hand-written helpers. Rust's `f64::max` returns the other argument when one is NaN and does not order ±0, and `signum(0)` is 1. A build on `f64::max` and `f64::min` gave the same digests and the same speed here, so the helpers are insurance.
+
+Both ports had to copy three.js's operation order by hand: `applyQuaternion`, `normalize`'s `length() || 1`, and `setFromAxisAngle`'s `0 * s`, which can be -0. In both, the lockstep diff is what proves it. Neither language helps there.
+
+### Recommendation
+
+**AssemblyScript.**
+
+- On the phone's engine (V8) it ties Rust on the car step once both use the same maths, and it is faster on the terrain stage.
+- It is half the code, and it reads line for line against `car.ts`.
+- It is one dev dependency, which `bun install` brings to every machine and CI.
+- Rust's edge does not reach the S24+: checked indexing, and 15-22% more speed in JSC and Node with equal maths. It costs a second toolchain outside `package.json`.
+
+Whichever lands, the J2 maths module should define two-argument `hypot(a, b)` as `Math.sqrt(a * a + b * b)`:
+
+- It is the only function where the two compilers' maths differ.
+- `sqrt` is exact IEEE in every engine and in WebAssembly, so this needs no library to be deterministic.
+- With 7 cars it made the car step 1.3-1.9 µs cheaper in Rust. In AssemblyScript the change, -0.1 to +0.3 µs, is within noise.
+- The car's inputs never come near overflow.
+- It moves the physics by ulps, so it belongs in the J2/J10 rebaseline, not after it.

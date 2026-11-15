@@ -248,6 +248,23 @@ export interface StepFrame {
   drift_bite: number;
 }
 
+/** The last solid the car touched, written in place by `World.collide` on every contact; read by the sparks. */
+export class Scrape {
+  /** Contacts so far: a reader holding a lower count knows one landed since it last looked. */
+  hits = 0;
+  /** Point on the solid's face, world metres, at the height of the car's centre. */
+  x = NaN;
+  y = NaN;
+  z = NaN;
+  /** Flat unit normal out of the solid. */
+  nx = NaN;
+  nz = NaN;
+  /** Speed of the car's contact point along the face, m/s. */
+  slide = NaN;
+  /** Speed into the face before the push, m/s; 0 when already leaving it. */
+  into = NaN;
+}
+
 export class Car {
   readonly body: RigidBody;
   readonly axles: Axle[];
@@ -310,6 +327,7 @@ export class Car {
   /** Idle hold latched on: it keeps braking at any speed until a pedal or the wheel is touched. */
   parked = false;
   readonly nitro: Nitro;
+  readonly scrape = new Scrape();
 
   constructor(readonly spec: CarSpec = COUPE) {
     this.body = new RigidBody(spec.mass, spec.inertia);

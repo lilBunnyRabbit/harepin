@@ -141,21 +141,20 @@ export function rod(a: Triple, b: Triple, thick: number, wide = thick): Part {
 const CANARD = 0.3;
 const CANARD_MIN = 0.14;
 const CANARD_CLEAR = 0.05;
-const CANARD_THICK = 0.035;
-const CANARD_RISE = 0.2;
+const CANARD_TALL = 0.06;
 const CANARD_SINK = 0.02;
 
 /**
- * A dive plane on the bumper corner: a fin grown out of the body side `half` from the centre, its point just behind the
- * nose face at height `y`, swept back and up to stand `out` at its tail, which ends clear of the wheel opening that starts
- * at z `arch`. Its root is thick and sunk in the body side, its edge thin. None where the nose is too short for one.
+ * A dive plane on the bumper corner: a flick grown out of the body side `half` from the centre at height `y`, ending clear of
+ * the wheel opening that starts at z `arch`. Its root is `CANARD_TALL` deep and sunk in the body side; its top falls away
+ * to a thin edge `out` from it, so the lit top face shows instead of a thin blade's dark edge. None where the nose is too short.
  */
 export function canard(outline: Point[], half: number, y: number, arch: number, out = 0.1): Part[] {
   const z = face_at(outline, y) - 0.06;
   const length = Math.min(CANARD, z - arch - CANARD_CLEAR);
   if (length < CANARD_MIN) return [];
   const reach = out + CANARD_SINK;
-  return [{ size: [CANARD_THICK, reach, length], at: [half - CANARD_SINK + reach / 2, y + (CANARD_RISE * length) / 4, z - length / 2], tilt: [0, Math.PI - CANARD_RISE, -Math.PI / 2], shape: "wedge" }];
+  return [{ size: [length, CANARD_TALL, reach], at: [half - CANARD_SINK + reach / 2, y, z - length / 2], tilt: [0, -Math.PI / 2, 0], shape: "wedge" }];
 }
 
 const NOSE_SHARE = 0.3;

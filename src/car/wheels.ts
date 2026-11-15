@@ -10,6 +10,8 @@ const TREAD_BLOCKS = 12;
 /** Tread block height and length at `tread` 1, metres. */
 const BLOCK_TALL = 0.05;
 const BLOCK_LONG = 0.1;
+/** Share of the half width each tread row reaches across the centre line, so the two staggered rows overlap. */
+const BLOCK_OVERLAP = 0.06;
 const SIDES = 16;
 const SHOULDER = 0.035;
 const BARREL = 0.1;
@@ -185,9 +187,13 @@ export function wheel_geometry(radius: number, width: number, rim: Rim, look: Re
         color(brand[look.band]),
       ),
     );
+  // Each row's outer edge stops where the carcass shoulder starts, so a block's corner never stands past a plain tyre's:
+  // square to the sidewall, it poked through the body where the nose narrows ahead of the arch.
+  const block_out = half - SHOULDER;
+  const block_in = -half * BLOCK_OVERLAP;
   if (look.tread)
     for (let i = 0; i < TREAD_BLOCKS; i++)
-      pieces.push(tint(new THREE.BoxGeometry(half * 0.92, tall, long).translate((i % 2 ? 1 : -1) * half * 0.52, block_at, 0).rotateX((i * 2 * Math.PI) / TREAD_BLOCKS), rubber));
+      pieces.push(tint(new THREE.BoxGeometry(block_out - block_in, tall, long).translate(((i % 2 ? 1 : -1) * (block_out + block_in)) / 2, block_at, 0).rotateX((i * 2 * Math.PI) / TREAD_BLOCKS), rubber));
   return merge(...pieces);
 }
 

@@ -1,13 +1,3 @@
-mainland 1 trip hatch
-mainland 1 trip coupe
-mainland 1 trip muscle
-mainland 1 trip rally
-mainland 1 trip kaze
-mainland 1 trip raijin
-mainland 1 trip formula
-mainland 1 trip fujin
-mainland 1 trip tsumuji
-mainland 2 trip hatch
 0 circuit bus
 0 street-1 bus
 0 street-2 bus
@@ -232,3 +222,13 @@ mainland 2 trip hatch
 19 offroad-2 formula
 19 offroad-2 bus
 19 offroad-2 sajin
+mainland 1 trip hatch
+mainland 1 trip coupe
+mainland 1 trip muscle
+mainland 1 trip rally
+mainland 1 trip kaze
+mainland 1 trip raijin
+mainland 1 trip formula
+mainland 1 trip fujin
+mainland 1 trip tsumuji
+mainland 2 trip hatch

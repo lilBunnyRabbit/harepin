@@ -20,6 +20,7 @@ const { parse_map_code } = await import("../src/worldgen/kinds/map-code");
 const { TileMesher } = await import("../src/worldgen/tile-mesher");
 const { DT, autolap } = await import("./autolap");
 type Build = import("../src/car/build").Build;
+type Part = import("../src/car/build").Part;
 type CareerEvent = import("../src/career/career").CareerEvent;
 type CarClass = import("../src/car/pi").CarClass;
 type World = import("../src/world/world").World;
@@ -37,6 +38,11 @@ const RUNS = 5;
 // Cars added after the marks were set: their drives would join the fields and move the medians every star is graded on.
 const LATER_CARS: readonly string[] = ["tsumuji", "sajin"];
 const DUEL_SILVER = 1.1;
+// Caps whose field holds only cars rated in the class, when at least CLASS_FIELD of them may race the route: road cars top
+// out in S2, and in X their bot drives would match a Formula's, since the autopilot never leans on its extra grip. A route
+// that shuts the Formula out leaves too few for a median, so road cars fill it.
+const CLASS_FIELDS: readonly CarClass[] = ["x"];
+const CLASS_FIELD = 3;
 const WRITE = process.argv.includes("--write");
 const ONLY = process.argv.slice(2).filter((a) => !a.startsWith("--"));
 const STEP_MS = DT * 1000;
@@ -60,19 +66,28 @@ interface Moving {
 
 // Each body tuned as close under the cap as one part swap at a time gets it, so every cap has a field of real cars: a
 // body over the cap first sheds its biggest PI part by part until it fits.
-function swaps(build: Build): Build[] {
-  return SLOT_NAMES.flatMap((slot) => SLOTS[slot].parts.map((_, i) => ({ ...build, parts: { ...build.parts, [slot]: i } })));
+function swaps(build: Build, off_tarmac: boolean): Build[] {
+  return SLOT_NAMES.flatMap((slot) => SLOTS[slot].parts.map((_, i) => ({ ...build, parts: { ...build.parts, [slot]: i } }))).filter((b) => !off_tarmac || !on_road_tyres(b));
 }
 
-function capped(stock: Build, cap: CarClass): Build | null {
+// A road tyre (`offroad` below 0: sport, semi-slick, slicks) off tarmac turns a bot drive into a coin toss: on the ice canyon
+// semi-slicks ran 54-277 s where street tyres ran 54-55 s, so a route that leaves tarmac fields cars on neither.
+function on_road_tyres(build: Build): boolean {
+  return SLOT_NAMES.some((slot) => {
+    const parts: readonly Part[] = SLOTS[slot].parts;
+    return (parts[build.parts[slot]]?.mod.add?.offroad ?? 0) < 0;
+  });
+}
+
+function capped(stock: Build, cap: CarClass, off_tarmac: boolean): Build | null {
   let best = stock;
   while (!within(rating(best).class, cap)) {
-    const slower = swaps(best).reduce((low, b) => (rating(b).pi < rating(low).pi ? b : low), best);
+    const slower = swaps(best, off_tarmac).reduce((low, b) => (rating(b).pi < rating(low).pi ? b : low), best);
     if (slower === best) return null;
     best = slower;
   }
   for (;;) {
-    const faster = swaps(best).filter((b) => within(rating(b).class, cap)).reduce((top, b) => (rating(b).pi > rating(top).pi ? b : top), best);
+    const faster = swaps(best, off_tarmac).filter((b) => within(rating(b).class, cap)).reduce((top, b) => (rating(b).pi > rating(top).pi ? b : top), best);
     if (faster === best) return best;
     best = faster;
   }
@@ -86,16 +101,18 @@ function cars_for(event: CareerEvent, excludes: readonly string[] = []): { label
   }
   // A car the career gives is in no garage while its stars are still being earned, so it sets no marks.
   const bodies = (Object.keys(CARS) as Build["car"][]).filter((id) => !REWARD_CARS.includes(id)).flatMap((id) => {
-    const build = capped({ ...DEFAULT_BUILD, car: id, parts: { ...DEFAULT_PARTS } }, car.cap);
+    const build = capped({ ...DEFAULT_BUILD, car: id, parts: { ...DEFAULT_PARTS } }, car.cap, event.off_tarmac === true);
     return build ? [{ label: `${id} ${rating(build).pi}`, build }] : [];
   });
   const presets = PRESETS.flatMap((p) => {
     const build = parse_build(p.code);
-    return build ? [{ label: p.name, build }] : [];
+    return build && !(event.off_tarmac && on_road_tyres(build)) ? [{ label: p.name, build }] : [];
   });
-  return [...bodies, ...presets]
+  const open = [...bodies, ...presets]
     .map((entry) => ({ ...entry, pi: rating(entry.build).pi, class: rating(entry.build).class }))
-    .filter((entry) => within(entry.class, car.cap) && !excludes.includes(entry.build.car) && !LATER_CARS.includes(entry.build.car))
+    .filter((entry) => within(entry.class, car.cap) && !excludes.includes(entry.build.car) && !LATER_CARS.includes(entry.build.car));
+  const own = open.filter((entry) => entry.class === car.cap);
+  return (CLASS_FIELDS.includes(car.cap) && own.length >= CLASS_FIELD ? own : open)
     .sort((a, b) => b.pi - a.pi)
     .filter((entry, i, all) => all.findIndex((other) => build_code(other.build) === build_code(entry.build)) === i)
     .slice(0, RUNS);

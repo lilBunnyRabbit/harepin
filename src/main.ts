@@ -17,6 +17,7 @@ import { LOBBY_ROOM, clean_room } from "./net/room-name";
 import { own_country } from "./net/country";
 import { Chat } from "./net/chat";
 import { Skids, Smoke } from "./render/effects";
+import { Sparks } from "./render/sparks";
 import { parse_build } from "./car/build";
 import { load_builds } from "./car/builds";
 import { car_shelves, limit_text } from "./car/car-pick";
@@ -118,6 +119,8 @@ const look = world_look(WORLDS[kind], snowy);
 const opening = WorldStream.open(pick, map, mesh_tones(snowy, WORLDS[kind].upland, WORLDS[kind].deck));
 const quality = new Quality(params, prefs.quality);
 const scene = new THREE.Scene();
+// The scene never moves. Left on, its own matrix update would force every world matrix under it each frame, frozen chunks too.
+scene.matrixAutoUpdate = false;
 const camera = new THREE.PerspectiveCamera(64, innerWidth / innerHeight, 0.1, 5000);
 
 const light = new Lighting(scene, look.mood, quality.mobile);
@@ -209,7 +212,8 @@ if (review) review.place = (index) => driver.place_road(index);
 
 const smoke = new Smoke(look.ground_puff);
 const skids = new Skids();
-scene.add(smoke.mesh, skids.mesh);
+const sparks = new Sparks();
+scene.add(smoke.mesh, skids.mesh, sparks.mesh);
 
 const garage = new Garage(build);
 garage.rewards = () => unlocks(career.stars);
@@ -399,6 +403,7 @@ addEventListener("pointerdown", (event: PointerEvent) => {
   if (event.clientY < innerHeight * WAKE_ZONE) hud.wake();
 }, { capture: true });
 const pad_menu = new PadMenu({ settings, chat, garage_open: () => garage.is_open, notice: (text) => hud.toast(text) });
+pad_menu.start();
 settings.on_nav = (nav) => pad_menu.navigate([nav]);
 garage.on_tab = (step) => settings.step_tab(step);
 garage.on_back = () => settings.back();
@@ -818,6 +823,7 @@ function frame(time: number) {
 
   smoke.update(dt, car, world);
   skids.update(car, world);
+  sparks.update(dt, car);
 
   net.prune();
   remotes.update(dt, camera, car.pos);

@@ -54,6 +54,29 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.46.1",
+    date: "2026-11-15",
+    title: "Smoother races",
+    changes: [
+      { kind: IMPROVED, text: "Races with other players run smoother: their cars, name labels and the world cost less each frame" },
+    ],
+  },
+  {
+    version: "0.46.0",
+    date: "2026-11-15",
+    title: "Top tier",
+    changes: [
+      { kind: NEW, text: "Top-tier parts: supercharger, turbo, twin turbo, slicks, GT kit and carbon shell take five road cars to S2" },
+      { kind: IMPROVED, text: "Drifts hold from a power slide with countersteer, the rear pushes and the gas turns the car in; less speed lost" },
+      { kind: IMPROVED, text: "Launches spin the rear wheels less with traction control on" },
+      { kind: NEW, text: "Sparks when you scrape a wall or rail" },
+      { kind: IMPROVED, text: "Arch, boulder, cactus, wind turbine, mast, ramps and town buildings remodelled" },
+      { kind: IMPROVED, text: "Car polish round 4: Sajin rear, aero pieces, dive planes, off-road tyres" },
+      { kind: IMPROVED, text: "Lab cards read at a glance; Modes and New room pages reworked" },
+      { kind: FIXED, text: "Career fields on mixed-surface events no longer run slicks; ratings match how cars drive" },
+    ],
+  },
+  {
     version: "0.45.0",
     date: "2026-11-15",
     title: "One body",

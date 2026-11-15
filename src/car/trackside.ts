@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { merge, tint } from "./geometry";
 import { brand, color, tones } from "../theme/palette";
-import { ribbon, ribbon_material } from "../render/scene";
+import { freeze, ribbon, ribbon_material } from "../render/scene";
 import { cast_instanced } from "../render/shadow-depth";
 import { ROAD_HALF, World } from "../world/world";
 import { chunk_of } from "../worldgen/chunk-grid";
@@ -50,6 +50,7 @@ function gate(world: World, kit: GateKit, index: number): Gate {
   const view = gate_view(kit, index === 0);
   view.group.position.set(cp.x, world.height(cp.x, cp.z), cp.z);
   view.group.rotation.y = cp.heading;
+  freeze(view.group);
   return view;
 }
 
@@ -158,6 +159,7 @@ export class ChunkTrackside {
   private readonly built = new Map<number, { part: THREE.Group; gates: number[]; unplace: (() => void)[] }>();
 
   constructor(private readonly world: World) {
+    this.root.matrixAutoUpdate = false;
     const { ext } = world.tiles;
     this.marks = world.kerbs;
     world.road.forEach((p, s) => push(this.samples, chunk_of(p.x, p.z, ext), s));
@@ -211,6 +213,7 @@ export class ChunkTrackside {
     }
     this.built.set(index, { part, gates, unplace });
     this.root.add(part);
+    freeze(part);
   }
 }
 

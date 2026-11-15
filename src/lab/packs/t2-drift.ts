@@ -57,7 +57,7 @@ const PLACES: Place[] = [
 
 const pack: Pack = {
   id: "t2-drift",
-  rev: 2,
+  rev: 3,
   title: "Drift r2",
   aim: "Round 1 drifts lost speed, auto-corrected out and would not turn in. The drift code changed: is the new TCS-on drift the one you want, against TCS off and against the new drift with round 1's side-grip cap?",
   brief: "The Drift preset, steering assist and stability off, on the drift circle and the hairpins. At each place the new drift with TCS on goes first, then TCS off, then the new drift with the old cap. Rate turn-in, hold and exit.",

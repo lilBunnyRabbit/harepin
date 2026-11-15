@@ -38,7 +38,7 @@ const COUPE_WINGS: Wing[] = [
   { paint: [], trim: [], lips: [COUPE_LIP] },
   { paint: [], trim: [], lips: [COUPE_DUCKTAIL] },
   { paint: [], trim: [], lips: [COUPE_LIP, ...coupe_hoop(COUPE_HOOP, -2.12)] },
-  { paint: [], trim: [], lips: [COUPE_LIP, ...coupe_hoop(COUPE_RACE, -2.13)], stands: [coupe_strip(COUPE_RACE, 0.03)] },
+  { paint: [], trim: [], lips: [COUPE_LIP, ...coupe_hoop(COUPE_RACE, -2.13), coupe_strip(COUPE_RACE, 0.03)] },
 ];
 // The panel ends under the belt: one that crossed it leaned in with the shoulder, its ends slanted against the upright corner.
 const COUPE_TAIL = tail_end(COUPE_OUTLINE, 0.7, 0.18, 0.93, [{ size: [0.56, 0.12, 0.05], at: [0.58, 0.7, 0] }], { half: 0.32, y: 0.7 }, 0.52);

@@ -5,13 +5,15 @@ import { contact_shadow, fit_contact_shadow, place_contact_shadow, type ContactS
 import { chunk_of } from "../worldgen/chunk-grid";
 import { BRAKE_REST, brake_on, set_lights, show_flame, snap_lights, swing_popups } from "../car/lights";
 import { build_view, camera_fade, dispose_car_view, rest_wheels, type CarView } from "../car/models";
-import { stand_on_drawn } from "../car/drawn-stand";
+import { stand_on_lifts, wheel_lifts } from "../car/drawn-stand";
 import type { World } from "../world/world";
 import { tier_badge, tier_look } from "../career/badge";
 import { title_text } from "../runs/season";
 import { set_text } from "../hud/hud";
 import type { CarState, Net, Remote, TierBadge } from "./net";
 import "./remotes.css";
+
+type Snapshot = Remote["snapshots"][number];
 
 interface RemoteView {
   code: string;
@@ -31,6 +33,15 @@ interface RemoteView {
   spin: number;
   /** Last drawn heading, radians, for the yaw rate the nitro flame sways by. */
   heading: number;
+  /** The two snapshots `lift_sets` hold the drawn lifts of: one per wheel, then the body centre's for the contact shadow. */
+  lift_snaps: [Snapshot | null, Snapshot | null];
+  lift_sets: [number[], number[]];
+  /** This frame's lifts, eased between the two snapshots'. */
+  lifts: number[];
+  /** What the label was last given, so an unmoved label writes nothing: shown, and its spot in CSS px. */
+  shown: boolean | null;
+  at_x: number;
+  at_y: number;
 }
 
 const ABOVE = 2.2;
@@ -99,6 +110,8 @@ export class Remotes {
   private p1 = new THREE.Vector3();
   private screen = new THREE.Vector3();
   private forward = new THREE.Vector3();
+  private width = 0;
+  private height = 0;
 
   constructor(
     private scene: THREE.Scene,
@@ -121,6 +134,9 @@ export class Remotes {
   }
 
   update(dt: number, camera: THREE.Camera, me: THREE.Vector3) {
+    // Read once before any label is written: a viewport read after a style write forces a layout, once per remote.
+    this.width = innerWidth;
+    this.height = innerHeight;
     for (const remote of this.net.remotes.values()) this.draw(remote, dt, camera, me);
     for (const [id, rv] of this.views)
       if (!this.net.remotes.has(id)) {
@@ -131,6 +147,25 @@ export class Remotes {
         rv.label.remove();
         this.views.delete(id);
       }
+  }
+
+  /**
+   * The drawn lifts at `snap`'s pose, worked out once per snapshot rather than every frame: `World.drawn_lift` is the
+   * dearest part of drawing a remote, and a pose only changes when a packet lands. `keep` is the other snapshot in use.
+   */
+  private lifts_at(rv: RemoteView, snap: Snapshot, keep: Snapshot): number[] {
+    const { lift_snaps, lift_sets } = rv;
+    if (lift_snaps[0] === snap) return lift_sets[0];
+    if (lift_snaps[1] === snap) return lift_sets[1];
+    const slot = lift_snaps[0] === keep ? 1 : 0;
+    const out = lift_sets[slot];
+    const { p, q } = snap.state;
+    this.p1.set(...p);
+    this.q1.set(...q);
+    wheel_lifts(rv.view, this.p1, this.q1, this.world, out);
+    out[rv.view.wheels.length] = this.world.drawn_lift(p[0], p[2], p[1]);
+    lift_snaps[slot] = snap;
+    return out;
   }
 
   private draw(remote: Remote, dt: number, camera: THREE.Camera, me: THREE.Vector3) {
@@ -154,6 +189,7 @@ export class Remotes {
       dispose_car_view(rv.view);
       const spec = build_spec(build);
       Object.assign(rv, { code, spec, built: now, above: ABOVE * oversize(spec).height }, translucent_view(build, spec, lights));
+      rv.lift_snaps[0] = rv.lift_snaps[1] = null;
       fit_contact_shadow(rv.shadow, spec);
       this.scene.add(rv.view.root);
     }
@@ -169,27 +205,31 @@ export class Remotes {
       const shadow = contact_shadow();
       fit_contact_shadow(shadow, spec);
       this.scene.add(shadow.mesh);
-      rv = { code, built: now, spec, view, materials, shadow, label, name, tier: null, tag: "", above: ABOVE * oversize(spec).height, spin: 0, heading: 0 };
+      rv = { code, built: now, spec, view, materials, shadow, label, name, tier: null, tag: "", above: ABOVE * oversize(spec).height, spin: 0, heading: 0, lift_snaps: [null, null], lift_sets: [[], []], lifts: [], shown: null, at_x: NaN, at_y: NaN };
       this.views.set(remote.id, rv);
     }
     const root = rv.view.root;
+    let k = 1;
     if (t >= b.at) {
       const ahead = Math.min(250, t - b.at) / 1000;
       const s = b.state;
       root.position.set(s.p[0] + s.v[0] * ahead, s.p[1] + s.v[1] * ahead, s.p[2] + s.v[2] * ahead);
       root.quaternion.set(...s.q);
     } else {
-      const k = b.at > a.at ? Math.max(0, Math.min(1, (t - a.at) / (b.at - a.at))) : 1;
+      k = b.at > a.at ? Math.max(0, Math.min(1, (t - a.at) / (b.at - a.at))) : 1;
       root.position.set(...a.state.p).lerp(this.p1.set(...b.state.p), k);
       root.quaternion.copy(this.q0.set(...a.state.q).slerp(this.q1.set(...b.state.q), k));
     }
     rest_wheels(rv.view, rv.spec);
-    stand_on_drawn(rv.view, this.world);
+    const from = this.lifts_at(rv, a, b);
+    const to = this.lifts_at(rv, b, a);
+    for (let i = 0; i < from.length; i++) rv.lifts[i] = from[i] + (to[i] - from[i]) * k;
+    stand_on_lifts(rv.view, rv.lifts);
     this.forward.set(0, 0, 1).applyQuaternion(root.quaternion);
     // A chunk that has not streamed in reads as flat sea level: no shadow there rather than one far under the car.
     const { tiles } = this.world;
     rv.shadow.mesh.visible = tiles.get(chunk_of(root.position.x, root.position.z, tiles.ext)) !== undefined;
-    if (rv.shadow.mesh.visible) place_contact_shadow(rv.shadow, root.position.x, root.position.y, root.position.z, Math.atan2(this.forward.x, this.forward.z), this.world);
+    if (rv.shadow.mesh.visible) place_contact_shadow(rv.shadow, root.position.x, root.position.y, root.position.z, Math.atan2(this.forward.x, this.forward.z), this.world, rv.lifts[rv.view.wheels.length]);
     const s = b.state;
     rv.spin += (Math.hypot(...s.v) / rv.spec.wheel.radius) * dt;
     rv.view.wheels.forEach((w, i) => {
@@ -214,7 +254,10 @@ export class Remotes {
     this.screen.y += rv.above;
     this.screen.project(camera);
     const visible = this.screen.z < 1 && root.position.distanceTo(camera.position) < 400;
-    rv.label.style.display = visible ? "" : "none";
+    if (visible !== rv.shown) {
+      rv.shown = visible;
+      rv.label.style.display = visible ? "" : "none";
+    }
     if (visible) {
       const name = this.net.display_name(remote);
       set_text(rv.name, name);
@@ -236,7 +279,13 @@ export class Remotes {
           rv.label.style.setProperty("--weave", look.weave);
         } else delete rv.label.dataset.weave;
       }
-      rv.label.style.transform = `translate(${((this.screen.x + 1) / 2) * innerWidth}px, ${((1 - this.screen.y) / 2) * innerHeight}px) translate(-50%, -100%)`;
+      const x = ((this.screen.x + 1) / 2) * this.width;
+      const y = ((1 - this.screen.y) / 2) * this.height;
+      if (x !== rv.at_x || y !== rv.at_y) {
+        rv.at_x = x;
+        rv.at_y = y;
+        rv.label.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
+      }
     }
   }
 }

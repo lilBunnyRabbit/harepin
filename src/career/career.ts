@@ -22,6 +22,8 @@ export interface CareerEvent {
   /** The map it belongs on; `stand_in` runs it until that map can host the mode. */
   readonly map: string;
   readonly car: { cap: CarClass } | { preset: string };
+  /** The route leaves tarmac: the bot fields that set its marks fit no road tyre (sport, semi-slick, slicks). */
+  readonly off_tarmac?: true;
   /** `world_key` of the map it runs on now: `career.test.ts` fails when a generator bump moves it, until re-tuned. */
   readonly tuned: string;
   /** Ms (drift: points, higher is better). Race: bot runs on `tuned` (`scripts/career.ts`); the rest: the owner's run (`owner_stars`). Without them the mode's own marks grade the run. */
@@ -101,12 +103,12 @@ export const TIERS: readonly Tier[] = [
     rewards: { paint: MAX_PAINT + 3, paint_at: 10, decal: "ice", badge: "P" },
     events: [
       { id: "p1", name: "Marathon", mode: "duel", level: "v5", map: MAINLAND, car: { cap: "s2" }, tuned: "475664083:m9", stars: { two: 211200, three: 192000 } },
-      { id: "p2", name: "Exposed", mode: "race", level: "circuit", map: "1S0000007-F2", car: { cap: "x" }, tuned: "7:sky4:11112", stars: { two: 241750, three: 193400 }, ghost: true },
+      { id: "p2", name: "Exposed", mode: "race", level: "circuit", map: "1S0000007-F2", car: { cap: "x" }, tuned: "7:sky4:11112", stars: { two: 245000, three: 196000 }, ghost: true },
       { id: "p3", name: "Touge", mode: "drift", level: "d5", map: "1A0000009", car: { cap: "s1" }, tuned: "9:a4", stars: { two: 267, three: 334 } },
       { id: "p4", name: "Island sweep", mode: "hunt", level: "h5", map: "1C0000008", car: { cap: "s1" }, tuned: "8:w11", stars: { two: 246871, three: 197497 } },
       { id: "p5", name: "Ice parallel", mode: "parking", level: "p7", map: "1T0000006", car: { preset: "Dirt rally" }, tuned: "6:t3", stars: { two: 21066, three: 16853 } },
       { id: "p6", name: "Precision", mode: "gymkhana", level: "g7", map: "1C0000009-W1", car: { cap: "s2" }, tuned: "9:w11:W1", stars: { two: 55608, three: 44486 } },
-      { id: "p7", name: "Riverbed", mode: "race", level: "descent", map: "1F0000001", car: { cap: "s1" }, tuned: "1:ic5", stars: { two: 111875, three: 89500 }, ghost: true, final: true },
+      { id: "p7", name: "Riverbed", mode: "race", level: "descent", map: "1F0000001", car: { cap: "s1" }, off_tarmac: true, tuned: "1:ic5", stars: { two: 68750, three: 55000 }, ghost: true, final: true },
     ],
   },
   {
@@ -140,7 +142,7 @@ export const TIERS: readonly Tier[] = [
           { mode: "duel", level: "v3", stars: { two: 89625, three: 71700 } },
         ],
       },
-      { id: "e12", name: "Dune crossing", mode: "race", level: "crossing", map: "1B0000004", car: { cap: "x" }, tuned: "4:bd16", stars: { two: 230125, three: 184100 }, ghost: true, final: true },
+      { id: "e12", name: "Dune crossing", mode: "race", level: "crossing", map: "1B0000004", car: { cap: "x" }, off_tarmac: true, tuned: "4:bd16", stars: { two: 185750, three: 148600 }, ghost: true, final: true },
     ],
   },
   {
@@ -155,11 +157,11 @@ export const TIERS: readonly Tier[] = [
       { id: "l3", name: "Pit garage", mode: "parking", level: "p8", map: "1V0000002", car: { preset: "Maxed F1" }, tuned: "2:v5" },
       { id: "l4", name: "Glass chain", mode: "drift", level: "d6", map: "1F0000002", car: { preset: "Drift" }, tuned: "2:ic5" },
       { id: "l5", name: "Ash sweep", mode: "hunt", level: "h5", map: "1V0000002", car: { cap: "a" }, tuned: "2:v5" },
-      { id: "l6", name: "High banks", mode: "race", level: "banked", map: "1S0000007-F2Q2", car: { cap: "x" }, tuned: "7:sky4:12112", stars: { two: 129750, three: 103800 } },
+      { id: "l6", name: "High banks", mode: "race", level: "banked", map: "1S0000007-F2Q2", car: { cap: "x" }, tuned: "7:sky4:12112", stars: { two: 131500, three: 105200 } },
       { id: "l7", name: "Road kicker", mode: "jump", level: "j3", map: "1A0000009", car: { cap: "x" }, tuned: "9:a4" },
       { id: "l8", name: "Canyon traps", mode: "race", level: "trap", map: "1F0000001", car: { cap: "x" }, tuned: "1:ic5" },
       { id: "l9", name: "Mountain marathon", mode: "duel", level: "v5", map: "1A0000004", car: { cap: "b" }, tuned: "4:a4", stars: { two: 151750, three: 121400 } },
-      { id: "l10", name: "Wrong way round", mode: "race", level: "circuit-rev", map: "1C0000011", car: { cap: "x" }, tuned: "33:w11", stars: { two: 346125, three: 276900 } },
+      { id: "l10", name: "Wrong way round", mode: "race", level: "circuit-rev", map: "1C0000011", car: { cap: "x" }, tuned: "33:w11", stars: { two: 350125, three: 280100 } },
       {
         id: "l11",
         name: "Legend cup",
@@ -176,7 +178,7 @@ export const TIERS: readonly Tier[] = [
           { mode: "duel", level: "v5", stars: { two: 123500, three: 98800 } },
         ],
       },
-      { id: "l12", name: "Velodrome final", mode: "race", level: "circuit", map: "1W0000004", car: { cap: "x" }, tuned: "4:velo1", stars: { two: 185750, three: 148600 }, ghost: true, final: true },
+      { id: "l12", name: "Velodrome final", mode: "race", level: "circuit", map: "1W0000004", car: { cap: "x" }, tuned: "4:velo1", stars: { two: 187625, three: 150100 }, ghost: true, final: true },
     ],
   },
 ];
