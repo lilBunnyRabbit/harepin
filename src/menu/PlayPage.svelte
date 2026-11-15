@@ -28,7 +28,7 @@
   const PLAYERS_MS = 250;
   const MAINLAND = WorldKind.MAINLAND;
   const MORE = [
-    { title: "Create world", meta: "Pick a world, tune it, share its code", icon: "icon-dice", section: "world" },
+    { title: "Create world", meta: "Tune a world, share its code", icon: "icon-dice", section: "world" },
     { title: "Modes", meta: "Races, drift, gymkhana", icon: "icon-modes", section: "modes" },
   ];
 

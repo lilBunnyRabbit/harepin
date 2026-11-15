@@ -342,7 +342,7 @@
   }
 
   .touch-pedal-zone {
-    top: calc(var(--inset-top) + var(--speedo-h) + var(--space-2));
+    top: calc(var(--inset-top) + var(--speedo-h) + var(--control-h) + var(--space-3));
   }
 
   .pedal {
