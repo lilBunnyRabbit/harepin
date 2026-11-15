@@ -407,3 +407,22 @@ Chrome trace, 4 s at 4x, main thread, ms/s:
 - **The viewport read is gone.** `Remotes.update` takes the canvas size from `Render`'s `ResizeObserver` (`view_width` / `view_height`) instead of reading `innerWidth` / `innerHeight` after the frame's DOM writes. Before, the rAF callback and style recalc add up to more than the whole main thread, so most of the recalc ran inside the callback, forced. The remote label lands on the same pixel before and after (`translate(422px, 157.267px)`).
 - **What is left is layout, about 3.5 ms a frame at 4x.** The clock's text changes width every tick, and `#mode-hint` and `#toast` are anchor-positioned off the status box (`phone.css`), so each tick re-lays them out. A clock box of fixed width (`tabular-nums` and a `ch` width, or `contain: inline-size`) would keep that to the clock itself. Not done here.
 - Behind the menu, `frame()` still runs its non-draw work at display rate on frames it does not draw (t307). Not done: chase, smoke and audio integrate the frame's `dt`, so skipping them needs the skipped time carried to the next drawn frame, which is more than a guard.
+
+## Tyre curve cache on loose ground (t316)
+
+t315 found the tyre's loose curve (`shape` in `car/tyre.ts`) costing time on every wheel step: its peak comes from a 14-step bisection, and its four inputs (`loose`, `offroad`, the surface share, the stock tyre's `mu` share) repeat while a wheel stays on one surface row. Each `Wheel` now keeps a `CurveCache` with those four inputs and the six numbers `shape` sets. A hit copies them back, a miss computes and stores. The cache is plain number fields begun NaN, so the step allocates nothing and the first loose step always misses. Asphalt (`loose` 0) never reads it.
+
+Same bits: `car.test.ts` and all of `src/car` pass unchanged, and `scripts/telemetry.ts`, `scripts/feel.ts`, `scripts/handling.ts --ground dirt` and `scripts/drift.ts --ground grass` print byte-identical output before and after.
+
+Bench: `.t316/bench.ts` (untracked), Bun 1.3, 7 cars (hatch to raijin), 3600 steps each at 360 Hz with throttle, a sine steer, a handbrake tap and braking. "Uncached" clears every wheel's cache before each step in the same process, so the two interleave round by round. Median of 9 rounds, µs per car per step, two runs on a box shared with other agents' jobs:
+
+| Ground | Uncached | Cached | Saved |
+|---|---|---|---|
+| dirt | 7.79-8.55 | 7.13-7.33 | 0.7-1.2 |
+| grass | 6.71-8.73 | 6.10-8.39 | 0.3-0.6 |
+| dirt/grass 6 m checkerboard | 6.16-8.11 | 5.48-6.91 | 0.7-1.2 |
+| asphalt (control) | 7.17-8.55 | 7.28-8.71 | none |
+
+- The saving is 0.3-1.2 µs per car step, 8-15% of it on loose ground. That is well under t315's 2 µs per wheel (8 µs per car), which was measured on the WASM port; in V8 and JSC the bisection is cheaper than that.
+- The checkerboard, where wheels cross a surface edge every 6 m, saves as much as uniform dirt, so misses at edges are rare against the steps in between.
+- Not measured: a phone frame at 4x CPU. At 7 cars and 6 steps a 60 Hz frame, 1 µs per car step is about 40 µs a frame on the desktop, about 0.17 ms at 4x.

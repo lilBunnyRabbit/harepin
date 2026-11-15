@@ -5,7 +5,7 @@ import { curve_at } from "./curve";
 import { NITRO_TORQUE, Nitro, type NitroSense } from "./nitro";
 import { GRAVITY, RigidBody } from "./rigid-body";
 import { SteerMode, Steering } from "./steering";
-import { spin_free, suspend, tyre } from "./tyre";
+import { CurveCache, spin_free, suspend, tyre } from "./tyre";
 
 export { SteerMode, grip_lock, unassisted_lock } from "./steering";
 export { surface_grip } from "./tyre";
@@ -152,6 +152,7 @@ export class Wheel {
   anchored = false;
   readonly point = new Vector3();
   readonly normal = new Vector3();
+  readonly curve = new CurveCache();
   readonly driven: boolean;
 
   constructor(
