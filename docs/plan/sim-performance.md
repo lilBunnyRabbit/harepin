@@ -251,3 +251,134 @@ Also seen, below these three:
 - The minimap redraws its full road layer and N every frame: `drawImage`, 13-15 ms/s at 4x. It could redraw only when a dot moves a pixel.
 - Each remote car is 12 draw calls, so a 6-car race is +60 calls over 79 on phone. Merging a remote's meshes by material would cut that if a real device turns out GPU or driver bound.
 - t259's other idea, dropping back-wall glass on plain buildings (about 25% of glass), saves about 1.7k triangles on the whole Island. That does not buy frame time. Keep or drop it for looks only.
+
+## Rust vs AssemblyScript (t275, J8)
+
+Measure only. Both ports are re-cut from master f21c597 (0.46.1, after the drift and launch fixes). They use the same `SpikeGround` (island seed 0 tiles from t198's fixture), the same 7 cars and the same 3600 replayed AI steps. Scripts, both ports and raw logs are in `.t275/` (untracked): `as/car.ts`, `rs/src/lib.rs`, `bench/run.ts` (lockstep and bench) and `bench/sim.ts` (one JS glue for both builds).
+
+Toolchains:
+
+- rustc 1.100.0, `wasm32-unknown-unknown`, release: `opt-level 3`, LTO, one codegen unit, `panic = "abort"`, no crates.
+- AssemblyScript 0.28.9, `-O3 --runtime stub --noAssert`.
+
+Runtimes are §2's: Bun 1.3.0, Node 22.14, headless Chrome 157 and Playwright WebKit 2359. The box ran 2-4 other agents' `ai-race` jobs throughout. So every case runs once per round, the rounds interleave, and each cell is the median of 5 rounds after a warm-up round. Repeat runs moved cells by up to 15%.
+
+### Answer first
+
+- **Both ports are bit-identical to the JS slice.** With the port's own maths swapped into `Math.*`, the lockstep harness found no difference in any of the 126 numbers per car. That covers all 7 cars, all 3600 steps and all four runtimes. It held for the AI replay and for a scripted drift run with the assist off (launch from rest, handbrake taps, held drifts, loose ground).
+- **Each port gives one digest in all four runtimes.** The island terrain stage gives the same heights in JS and in both ports, in every runtime.
+- **The two ports differ in one maths function: `hypot`.**
+  - Rust's `f64::hypot` (the compiler's libm) and AssemblyScript's `Math.hypot` differ by 1 ulp on 13% of inputs, so their digests differ.
+  - `sin`, `cos`, `tan`, `atan`, `atan2` and `asin` agree bit for bit over 10⁶ inputs.
+  - With `hypot` written as `sqrt(a·a + b·b)` in both, Rust and AssemblyScript give the same digest.
+- **Speed is a wash on the target engine.**
+  - As written, Rust is 19-33% slower with 7 cars. That is `hypot`: Rust's costs about 150 ns a call against 100 ns (in Bun), at about 20 calls per car step (5 per wheel on the ground).
+  - With the same `sqrt` hypot, the two tie in Chrome, and Rust is 15-22% faster with 7 cars in Bun, Node and WebKit. With 1 car they are within 7% everywhere.
+  - The S24+ runs Chrome's V8. There they tie on the car step, and AssemblyScript is 3-15% faster on the terrain stage (Chrome and Node).
+- **Dev cost favours AssemblyScript.** It is half the lines and reads like `car.ts` line for line. It installs as an npm dev dependency, so `bun install` covers every machine and CI. Rust needs rustup on every machine that runs a test.
+
+### µs per car per step
+
+| | Bun | Node | Chrome | WebKit |
+|---|---|---|---|---|
+| JS, 1 car | 5.40 | 5.42 | 5.69 | 5.87 |
+| JS, 7 cars | 5.87 | 5.91 | 6.06 | 5.95 |
+| AssemblyScript, 1 car | 4.27 | 3.45 | 3.27 | 4.25 |
+| AssemblyScript, 7 cars, one `step_all` | 4.32 | 3.90 | 3.32 | 3.89 |
+| Rust, 1 car | 5.26 | 4.81 | 4.18 | 4.33 |
+| Rust, 7 cars, one `step_all` | 5.24 | 4.90 | 4.43 | 4.64 |
+| AssemblyScript, `sqrt` hypot, 1 car / 7 cars | 3.77 / 4.09 | 3.25 / 3.57 | 3.06 / 3.05 | 3.69 / 3.97 |
+| Rust, `sqrt` hypot, 1 car / 7 cars | 3.87 / 3.40 | 3.10 / 3.04 | 3.19 / 3.13 | 3.45 / 3.10 |
+| **speedup over JS, 7 cars: AS / Rust** | 1.36x / 1.12x | 1.52x / 1.21x | 1.83x / 1.37x | 1.53x / 1.28x |
+| **same, `sqrt` hypot: AS / Rust** | 1.44x / 1.73x | 1.66x / 1.94x | 1.99x / 1.94x | 1.50x / 1.92x |
+
+- "1 car" steps each car alone through its own 3600 steps.
+- Three ways of driving 7 cars cost the same within 0.4 µs, which is noise: one call per car, one `step_all` call, and `step_all` with the pose copied back into the JS `Car`'s three.js objects every step.
+- An empty call costs 7-27 ns, measured cold. The glue passes controls as call arguments and reads state through one shared `f64` buffer, so the same JS drives either build.
+
+### Worldgen: island terrain stage, ms per map
+
+The stage is picked by profile. `terrain()` (`worldgen/terrain.ts`) folds hills fbm, ridged fbm, the peak and the shore mask over the 513×513 lattice. It takes 155 ms of the 425 ms that island seeds 0-4 take in Bun (37%). Next come trails at 65 ms, then jumps, stamp and links at 30 ms each.
+
+The stage is pure numbers: about 4 million value-noise lookups, no transcendental maths, and one `Float32Array` out. The port is the island recipe's five layers with their constants inlined. JS draws the peak position (`mulberry32`) and passes it in.
+
+| | Bun | Node | Chrome | WebKit |
+|---|---|---|---|---|
+| JS | 188.7 | 113.8 | 108.0 | 153 |
+| AssemblyScript | 56.8 | 71.7 | 75.0 | 66 |
+| Rust | 50.5 | 82.1 | 77.2 | 61 |
+
+WebKit's timer counts whole milliseconds here. All 263,169 heights are bit-identical between JS and both ports in all four runtimes (digest `e1a2435f`).
+
+### Determinism digests
+
+Final digest of all 7 cars' state after 3600 steps:
+
+| run | AI replay (assist on) | drift script (assist off) |
+|---|---|---|
+| JS, Bun and WebKit (JSC) | `b0de7eb0` | `8282048e` |
+| JS, Node 22 | `2af93e0d` | `f6558de4` |
+| JS, Chrome 157 | `32d179dd` | `d8a2274e` |
+| AssemblyScript, own maths, all four runtimes | `6c601001` | `3de6e3ea` |
+| JS with AssemblyScript's maths in `Math.*`, all four runtimes | `6c601001` | `3de6e3ea` |
+| Rust, own maths, all four runtimes | `3e3b7eae` | `ab081c57` |
+| JS with Rust's maths in `Math.*`, all four runtimes | `3e3b7eae` | `ab081c57` |
+| either port with `sqrt` hypot, and JS with that maths | `5ca9c322` | `b7706d2e` |
+
+- The replay's JS and AssemblyScript digests are the same as t198's. The drift and launch fixes since then sit on branches the AI replay never takes: the assist stays on, and no car drops below 1 m/s.
+- The assist-off drift script covers those branches: about 7000 launched car steps, 17000 held-drift car steps and 7000 with the TCS split brake, plus 6500 wheel steps in the air and 44000 on loose ground. Its inputs are arithmetic only, so every runtime replays the same ones.
+- Native JS still splits three ways (JSC, Node's V8, Chrome's V8), as in §3.
+
+### Build, size, install
+
+| | AssemblyScript | Rust |
+|---|---|---|
+| `.wasm` (gzip -9) | 30.5 KB (11.6 KB) | 79.2 KB (28.1 KB); 73.5 KB stripped |
+| build | 2.2 s (`asc`; every build is a full build) | 1.5 s from clean, 1.4 s after a touch (no crates) |
+| imports | `env.abort` | none |
+| install on Windows | an npm dev dependency, `assemblyscript` (102 MB with binaryen) | rustup (`rustup-init.exe` or `winget install Rustlang.Rustup`) with the stable MSVC host, then `rustup target add wasm32-unknown-unknown` |
+| where the toolchain must exist | anywhere `bun install` ran, CI included | every dev machine and CI image, outside `package.json` |
+
+- AssemblyScript on Windows: `bunx asc` fails on Bun 1.3.0 ("does not provide a binary named …asc.js"). `npx asc` or `node node_modules/assemblyscript/bin/asc.js` works.
+- Rust on Windows: the wasm link uses the bundled `rust-lld`. The MSVC host wants Visual Studio Build Tools for host crates. This box has VS 2022; a no-crate build without it was not tried.
+- Rust's extra size was not broken down. It is likely std's allocator behind `Vec` and the panic formatting for index checks. `no_std` or `wasm-opt` would cut it. Neither was tried.
+
+### Dev cost
+
+| | AssemblyScript | Rust |
+|---|---|---|
+| lines, car slice (code lines, no blanks or comments) | 566 | 1239 (rustfmt at 160 columns; 1424 at its default 100) |
+| lines, terrain stage | 51 | 77 |
+| JS it ports | 1004 code lines: `car.ts`, `steering.ts`, `tyre.ts`, `rigid-body.ts`, `curve.ts`, `axles.ts`, with the keyboard modes, nitro and `park` the ports leave out | same |
+| memory safety | `@unmanaged` structs are raw pointers with no index check. A wrong pointer that lands inside memory reads garbage without a trap | `Vec` indexing is checked. A bad car index panics, which traps as `unreachable` |
+| stack traces | V8: `wasm-function[22]`, no names unless built with `--debug`. JSC: `unknown` | V8: mangled Rust symbol names (`rust_panic`, `panic_with_hook`). JSC: `unknown`. With `panic = "abort"` the panic message is lost unless a hook forwards it |
+| source-level debugging | `--sourceMap` maps to the `.ts` in DevTools | DWARF needs Chrome's C/C++ DevTools extension. Not tried |
+| from Bun tests and scripts | `WebAssembly.instantiate(readFileSync("sim.wasm"))` and raw exports. Build with `asc` in a pretest step or a `bunfig` preload | The same glue served both builds here. Build with `cargo build` first, so tests fail on a machine without rustup unless the `.wasm` is committed |
+
+How close each reads to `car.ts`:
+
+- **AssemblyScript:** line for line. It keeps the same expressions and `Math.*` names, plus an `@unmanaged` `V3` and `Q4` with three.js's method names and op order. The port was t198's file plus the five commits since.
+- **Rust:**
+  - Names are the same (snake_case already), and the phases are the same, as methods.
+  - The `V3` value type returns new vectors instead of mutating them.
+  - rustfmt spreads every `a ? b : c` into a five-line `if`.
+  - JS `Math.max`, `min` and `sign` need hand-written helpers. Rust's `f64::max` returns the other argument when one is NaN and does not order ±0, and `signum(0)` is 1. A build on `f64::max` and `f64::min` gave the same digests and the same speed here, so the helpers are insurance.
+
+Both ports had to copy three.js's operation order by hand: `applyQuaternion`, `normalize`'s `length() || 1`, and `setFromAxisAngle`'s `0 * s`, which can be -0. In both, the lockstep diff is what proves it. Neither language helps there.
+
+### Recommendation
+
+**AssemblyScript.**
+
+- On the phone's engine (V8) it ties Rust on the car step once both use the same maths, and it is faster on the terrain stage.
+- It is half the code, and it reads line for line against `car.ts`.
+- It is one dev dependency, which `bun install` brings to every machine and CI.
+- Rust's edge does not reach the S24+: checked indexing, and 15-22% more speed in JSC and Node with equal maths. It costs a second toolchain outside `package.json`.
+
+Whichever lands, the J2 maths module should define two-argument `hypot(a, b)` as `Math.sqrt(a * a + b * b)`:
+
+- It is the only function where the two compilers' maths differ.
+- `sqrt` is exact IEEE in every engine and in WebAssembly, so this needs no library to be deterministic.
+- With 7 cars it made the car step 1.3-1.9 µs cheaper in Rust. In AssemblyScript the change, -0.1 to +0.3 µs, is within noise.
+- The car's inputs never come near overflow.
+- It moves the physics by ulps, so it belongs in the J2/J10 rebaseline, not after it.
