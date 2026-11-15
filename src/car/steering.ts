@@ -263,7 +263,8 @@ export class Steering {
     // car past walking speed before the wheel got there.
     // Rolling, a handbrake tap at full lock kicks it, the Forza way: keys and touch buttons are always full, so no gas
     // pattern tells a drift from a slow corner. TCS on and the assist off, as from rest; all-wheel drive stalled in it.
-    const tapped = car.tcs && !car.assist && spec.drive === "rwd" && car.gear >= 1 && input.handbrake > 0.5 && Math.abs(input.steer) > DRIFT_INTENT;
+    const aid = car.drift_aid;
+    const tapped = aid > 0 && !car.assist && spec.drive === "rwd" && car.gear >= 1 && input.handbrake > 0.5 && Math.abs(input.steer) > DRIFT_INTENT;
     this.tap_age = tapped ? 0 : this.tap_age + dt;
     const kicks = speed < DRIFT_START;
     this.launch_age = pedal > 0.1 && speed < 1 ? 0 : pedal <= 0.1 ? Infinity : this.launch_age + dt;
@@ -281,7 +282,7 @@ export class Steering {
     if (this.launched) this.hold_side = this.launch_side;
     // Faster, the tap's slide is the drift: its side is the way the tail went, as the key may already be countersteering.
     else if (!kicks && this.tap_age < TAP_WINDOW && pedal > DRIFT_INTENT && Math.abs(beta) > fade_from) this.hold_side = -Math.sign(beta);
-    else if (this.hold_side === 0 && car.tcs && !car.assist && spec.drive === "rwd" && car.gear >= 1 && !kicks && pedal > DRIFT_INTENT && brake <= 0.1 && local.z > 0 && held * beta > SLIDE_HOLD) this.hold_side = -Math.sign(beta);
+    else if (this.hold_side === 0 && aid > 0 && !car.assist && spec.drive === "rwd" && car.gear >= 1 && !kicks && pedal > DRIFT_INTENT && brake <= 0.1 && local.z > 0 && held * beta > SLIDE_HOLD) this.hold_side = -Math.sign(beta);
     const tail_left = Math.max(0, Math.min(1, (-(this.hold_side || side) * beta - fade_from) / (fade_to - fade_from)));
     // With the steering assist off, the countersteer key is the catch, not the end: dropping the hold for it put traction
     // control back at 0.14, the gas went to its floor and the car slowed and gripped up mid-slide. Letting go ends it.
@@ -293,7 +294,7 @@ export class Steering {
     frame.beta = beta;
     frame.walking = walking;
     frame.power_slide = power_slide;
-    frame.drift_steer = !car.tcs || spec.drive !== "rwd" ? 0 : this.launched ? 1 : this.hold_side !== 0 ? tail_left : 0;
+    frame.drift_steer = aid === 0 || spec.drive !== "rwd" ? 0 : this.launched ? aid : this.hold_side !== 0 ? tail_left * aid : 0;
   }
 
   /** Turns the wheel towards the lock the key and the slide ask for, from `local`, the car's velocity in its own frame. */

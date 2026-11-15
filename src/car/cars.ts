@@ -104,6 +104,12 @@ export interface CarSpec {
   drift_rear_bite?: number;
   drift_side_sx?: number;
   drift_reach?: number;
+  /** Share (0-1) of the spin catch past 46-69 degrees of body slip a held drift keeps, launches aside; absent is 1. */
+  drift_catch?: number;
+  /** Share (0-1) of the held-drift helpers a rear-drive car keeps with TCS off, with no gas cut; absent is 0. */
+  drift_tcs_off?: number;
+  /** Weight of a driven rear's sideways slip in traction control's cut under 54 km/h (`car.ts`); absent is the default there. */
+  tcs_lateral?: number;
 }
 
 export type CarId = BodyStyle;

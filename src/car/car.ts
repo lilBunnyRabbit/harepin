@@ -39,7 +39,7 @@ const SHIFT_MARGIN = 0.02;
 const ABS_SLIP = 0.1;
 /** Below this speed (m/s) traction control works per wheel and per axle; faster, braking one side yaws the car. */
 const TCS_LOW_SPEED = 15;
-/** Weight of a driven rear's sideways slip in traction control's slip: at 1.4 it cuts in at 0.9 of the peak slip angle. */
+/** Default `CarSpec.tcs_lateral`. Weight of a driven rear's sideways slip in traction control's slip: at 1.4 it cuts in at 0.9 of the peak slip angle. */
 const TCS_LATERAL = 1.4;
 /**
  * Wheelspin (in `peak_slip`) by which a driven wheel in a held drift outspins its pair before traction control brakes it,
@@ -184,9 +184,9 @@ const Y = new Vector3(0, 1, 0);
 // A driven rear counts its sideways slip too, not wheelspin alone: in a tight turn it saturates sideways at a spin
 // traction control never saw, and full drive swung the tail in. A front's sideways slip is the steering's; cutting
 // power for it only stalls the car.
-function tcs_spin(w: Wheel, low: boolean, peak_slip: number): number {
+function tcs_spin(w: Wheel, low: boolean, peak_slip: number, lateral: number): number {
   const slip = tcs_slip(w, peak_slip);
-  return low && w.contact && !w.axle.steer ? Math.hypot(Math.max(0, slip), w.lateral * peak_slip * TCS_LATERAL) : slip;
+  return low && w.contact && !w.axle.steer ? Math.hypot(Math.max(0, slip), w.lateral * peak_slip * lateral) : slip;
 }
 
 // Wheelspin past the peak of the curve under the wheel, in asphalt's terms: traction control allows the same slip past
@@ -406,6 +406,11 @@ export class Car {
     return this.steering.launched;
   }
 
+  /** Share of the held-drift helpers in play: all with TCS on, `CarSpec.drift_tcs_off` with it off. */
+  get drift_aid(): number {
+    return this.tcs ? 1 : (this.spec.drift_tcs_off ?? 0);
+  }
+
   /** Drops the slide the driver was asking for, for a car put somewhere new or rewound. */
   forget_slide() {
     this.steering.forget_slide();
@@ -520,6 +525,7 @@ export class Car {
     // brake exist to keep the tail in, and they cut the gas before it could step out.
     const sideways = low && !this.launched && drift_steer === 0;
     const split = !this.launched && !this.assist && drift_steer > 0 && speed > SPLIT_SPEED;
+    const lateral = spec.tcs_lateral ?? TCS_LATERAL;
     const slip_limit = this.launched && drift_steer === 0 ? DRIFT_TCS_SLIP : TCS_SLIP + (HELD_TCS_SLIP - TCS_SLIP) * drift_steer;
     for (let i = 0; i < this.wheels.length; i++) {
       const w = this.wheels[i];
@@ -527,7 +533,7 @@ export class Car {
       // An axle spins when both its wheels do; one spinning alone, like the unloaded inner wheel in a tight turn, is
       // braked instead, as a brake-based TCS does. Cutting the engine for it starved the loaded wheel and the car bogged.
       const other = this.wheels[w.pair];
-      max_slip = Math.max(max_slip, low ? Math.min(tcs_spin(w, sideways, spec.peak_slip), tcs_spin(other, sideways, spec.peak_slip)) : tcs_spin(w, sideways, spec.peak_slip));
+      max_slip = Math.max(max_slip, low ? Math.min(tcs_spin(w, sideways, spec.peak_slip, lateral), tcs_spin(other, sideways, spec.peak_slip, lateral)) : tcs_spin(w, sideways, spec.peak_slip, lateral));
       const spin = tcs_slip(w, spec.peak_slip);
       const pair_spin = tcs_slip(other, spec.peak_slip);
       const lone = w.contact && ((sideways && spin > TCS_SLIP && pair_spin <= TCS_SLIP) || (split && spin > pair_spin + HOLD_SPLIT));
@@ -664,7 +670,8 @@ export class Car {
     // damped the handbrake's slide away before the gas could hold it. The assist's own countersteer catches the rest.
     const held_drift = this.assist ? 0 : drift_steer;
     const drifting = this.launched || held_drift > 0;
-    const spinning = drifting ? Math.max(0, Math.min(1, (Math.abs(beta) - hold_from) / (hold_to - hold_from))) : 0;
+    const catches = this.launched ? 1 : (spec.drift_catch ?? 1);
+    const spinning = drifting ? catches * Math.max(0, Math.min(1, (Math.abs(beta) - hold_from) / (hold_to - hold_from))) : 0;
     const excess = Math.abs(slide) - 0.2;
     const damp = this.stability ? 1 - Math.max(power_slide, held_drift) * (1 - spinning) : spinning;
     if ((this.stability || spinning > 0) && excess > 0 && input.handbrake < 0.1 && Math.sign(ang.y) === Math.sign(slide)) {
@@ -672,7 +679,7 @@ export class Car {
     }
     // In the air, or on the body with no wheel down, there is no tyre slip angle to hold; damped in the air it cancelled the
     // yaw a slide carries over a jump.
-    if (!this.assist && this.steering.hold_side !== 0 && this.tcs && spec.drive === "rwd" && speed > 1 && on_wheels) {
+    if (!this.assist && this.steering.hold_side !== 0 && this.drift_aid > 0 && spec.drive === "rwd" && speed > 1 && on_wheels) {
       // Yaw against the velocity's own turn rate is the slip angle changing; damping that, not yaw, leaves the arc alone.
       const swing = ang.y - tmp.crossVectors(vel, body.force).y / (spec.mass * speed * speed);
       const damp_from = DRIFT_DAMP_SLIP[0];
