@@ -25,6 +25,18 @@
   white-space: nowrap;
 }
 
+#mode-status > :empty {
+  display: none;
+}
+
+#mode-status b {
+  font-weight: inherit;
+}
+
+#mode-status > :not(:empty) ~ :not(:empty)::before {
+  content: " · ";
+}
+
 #mode-status[data-cup]::before {
   content: attr(data-cup);
   display: block;
