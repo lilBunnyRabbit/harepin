@@ -41,8 +41,8 @@ let curve_cap = 1;
 let curve_peak = 1;
 
 /**
- * One wheel's last loose curve and the four inputs it came from. Its 14-step bisection for the peak cost about 2 µs per
- * wheel per step on loose ground, and a wheel on one surface row asks for the same curve step after step.
+ * One wheel's last loose curve and the four inputs it came from. Its peak takes a 14-step bisection, and a wheel on
+ * one surface row asks for the same curve step after step.
  */
 export class CurveCache {
   // NaN keys: never equal, so the first loose step computes.
