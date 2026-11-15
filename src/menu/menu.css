@@ -111,7 +111,8 @@
   backdrop-filter: none;
 }
 
-body:has(> .settings[data-view="page"][data-layout="stage"]:not([hidden])) > :not(#app, .settings) {
+/* Only the driving HUD: the update card, rotate prompt and toasts still show over a stage page. */
+body:has(> .settings[data-view="page"][data-layout="stage"]:not([hidden])) > :is(#labels, #touch, .dock-top, .dock-left, .hud:not(#toast), #banner, #delta, #countdown, #race-lights, #mode-hint, #rewind) {
   visibility: hidden;
 }
 
