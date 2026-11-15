@@ -54,6 +54,14 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.46.1",
+    date: "2026-11-15",
+    title: "Smoother races",
+    changes: [
+      { kind: IMPROVED, text: "Races with other players run smoother: their cars, name labels and the world cost less each frame" },
+    ],
+  },
+  {
     version: "0.46.0",
     date: "2026-11-15",
     title: "Top tier",
