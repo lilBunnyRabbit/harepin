@@ -38,8 +38,9 @@ function chain(points: Triple[], thick: number): Part[] {
   return points.slice(1).map((b, i) => tube(past(b, points[i], mitre(i)), past(points[i], b, mitre(i + 1)), thick));
 }
 
+// A coilover is round, a shaft through a sleeve: square bars of these sizes read as planks.
 function coil(low: Triple, high: Triple): [Part, Part] {
-  return [rod(low, high, 0.04), rod(lerp(low, high, 0.22), lerp(low, high, 0.84), 0.1)];
+  return [{ ...rod(low, high, 0.04), round: true }, { ...rod(lerp(low, high, 0.22), lerp(low, high, 0.84), 0.08), round: true }];
 }
 
 const BAR = 0.07;
@@ -70,7 +71,8 @@ const CAGE: Part[] = [
 ];
 // The arms swing with the wheels outside the sculpted hull, so they are drawn where they end up.
 const FRONT_COIL = coil([0.63, 0.46, 1.5], [0.33, 0.84, 1.48]);
-const REAR_COIL = coil([0.58, 0.5, -1.24], lerp(ROOF_REAR, TAIL, 0.49));
+// The rear coilover stands on the trailing arm ahead of the tyre, not on it, and runs up to the tail bar.
+const REAR_COIL = coil(lerp([0.46, 0.52, -0.5], AXLE_REAR, 0.4), lerp(ROOF_REAR, TAIL, 0.185));
 const ARMS: Arm[] = [
   { pivot: [0.33, 0.52, 1.5], trim: [rod([0.27, 0.52, 1.62], HUB_FRONT, 0.055), rod([0.36, 0.52, 1.38], HUB_FRONT, 0.055), FRONT_COIL[0]], markers: [FRONT_COIL[1]] },
   { pivot: [0.46, 0.52, -0.5], trim: [rod([0.46, 0.52, -0.5], AXLE_REAR, 0.11, 0.07), rod(AXLE_REAR, HUB_REAR, 0.07), REAR_COIL[0]], markers: [REAR_COIL[1]] },
@@ -91,11 +93,11 @@ const HEADS: Part[] = [on_nose({ size: [0.2, 0.08, 0.04], at: [0.125, 0.6, 2.1] 
 const LIGHT_BAR: Part = { size: [0.36, 0.06, 0.04], at: [0.18, 1.6, 0.345] };
 const LIGHT_HOUSING: Part = { size: [0.4, 0.09, 0.08], at: [0.2, 1.6, 0.3] };
 const NERF: Part[] = chain([[0.44, 0.56, 0.62], [0.62, 0.56, 0.42], [0.62, 0.56, -0.16], [0.44, 0.56, -0.34]], 0.06);
-// The spare stands on the engine against the back of the tub, inside the tail bars and under the roof line; the
-// wings fly above its top, so from behind it shows whole under them.
-const SPARE_AT: Triple = [0, 1.16, -0.86];
-const SPARE: Part = { size: [0.72, 0.72, 0.22], at: SPARE_AT, round: true };
-const SPARE_RIM: Part = { size: [0.38, 0.38, 0.03], at: [0, SPARE_AT[1], SPARE_AT[2] - 0.11], round: true };
+// The spare lies flat on the engine, below the tail bars that run down past it and the wing above, so nothing crosses it.
+const FLAT: Triple = [Math.PI / 2, 0, 0];
+const SPARE_AT: Triple = [0, 1.0, -1.13];
+const SPARE: Part = { size: [0.72, 0.72, 0.22], at: SPARE_AT, tilt: FLAT, round: true };
+const SPARE_RIM: Part = { size: [0.38, 0.38, 0.03], at: [0, SPARE_AT[1] + 0.11, SPARE_AT[2]], tilt: FLAT, round: true };
 
 // A wedge grown out of the roof's rear edge, then a plane across the tail posts run straight on up: post and stay are one bar.
 const ROOF_LIP: Point[] = [[-0.4, 1.555], [-0.8, 1.64], [-0.81, 1.61], [-0.6, 1.5]];
