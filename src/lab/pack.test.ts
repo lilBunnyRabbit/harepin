@@ -35,9 +35,7 @@ describe("packs", () => {
 });
 
 // Packs written before the session caps (docs/plan/feel-lab-v2.md 6.1); each must still be over, so the list can't rot.
-const OVER_BUDGET: Record<string, string> = {
-  "t2-drift": "12 trials, under the time cap: left as is",
-};
+const OVER_BUDGET: Record<string, string> = {};
 
 describe("session budget", () => {
   test.each(packs)("%s fits the trial and time caps", (id, pack) => {

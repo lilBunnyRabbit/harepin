@@ -6,6 +6,10 @@ import drift from "./packs/t2-drift";
 import power from "./packs/t3a-sturm-power";
 import pads from "./packs/t1a-pads";
 
+// t2's first two trials, the second on the first's car and aids with a mod that is no part.
+const [stock, next] = drift.trials;
+const loose = { ...drift, trials: [stock, { ...next, car: stock.car, aids: stock.aids, mods: [{ scale: { rear_grip: 0.92 } }] }] };
+
 const briefs = (pack: typeof power) => {
   const trials = resolve_pack(pack);
   const shown = shown_trials(pack);
@@ -24,9 +28,8 @@ describe("trial brief", () => {
   });
 
   test("a mod that is no part reads as a field change; each place starts its own group", () => {
-    const b = briefs(drift);
-    expect(b[1].changes.map(change_text)).toEqual(["Rear grip −8%"]);
-    expect(b[4].baseline).toBe(true);
+    expect(briefs(loose)[1].changes.map(change_text)).toEqual(["Rear grip −8%"]);
+    expect(briefs(drift)[3].baseline).toBe(true);
   });
 
   test("a lineup reads each trial against the one before on the same station", () => {
@@ -49,7 +52,7 @@ describe("trial brief", () => {
     expect(against_label(best, shown)).toBe("Baseline");
     expect(against_label(sc, shown)).toBe(`vs #1 ${shown[0].label}`);
     expect(change_chips(sc.changes)).toEqual(["Engine: Supercharger"]);
-    expect(change_chips(briefs(drift)[1].changes)).toEqual(["Rear grip −8%"]);
+    expect(change_chips(briefs(loose)[1].changes)).toEqual(["Rear grip −8%"]);
     const many = Array.from({ length: 5 }, (_, i) => ({ what: `F${i}`, now: "+1" }));
     expect(change_chips(many)).toEqual(["F0 +1", "F1 +1", "F2 +1", "+2 more"]);
   });

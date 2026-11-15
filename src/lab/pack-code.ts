@@ -1,5 +1,5 @@
 import { is_field, SLOTS, type Mod, type Slot } from "../car/build";
-import { CARS, is_car } from "../car/cars";
+import { CARS, is_car, type CarSpec } from "../car/cars";
 import { SteerMode } from "../car/car";
 import { StationId } from "../worldgen/lab";
 import { resolve_pack, type Aids, type Goal, type LabCar, type Pack, type Question, type Trial } from "./pack";
@@ -39,6 +39,10 @@ function opt<T>(o: Obj, key: string, path: string, read: (v: unknown, path: stri
   return o[key] === undefined ? undefined : read(o[key], `${path}.${key}`);
 }
 
+/** Optional spec numbers no shipped car sets yet, so no sample shows them: a lab car may still tune them. */
+const UNSET_SPEC: readonly (keyof CarSpec)[] = ["drift_damp", "drift_rear_bite", "drift_side_sx", "drift_reach"];
+const UNSET_NUMBERS: ReadonlySet<string> = new Set(UNSET_SPEC.map((key) => `spec.${key}`));
+
 /**
  * A value shaped like the `samples` (every shipped spec at this path): same keys, same types, numbers finite, and a
  * string only one some car already uses, so a lab spec can never carry a drive or sound kind the physics doesn't know.
@@ -58,8 +62,9 @@ function like(v: unknown, samples: readonly unknown[], path: string, free: Reado
   const shapes = samples.filter(is_obj);
   for (const key of Object.keys(o)) {
     const at = shapes.filter((s) => key in s && s[key] !== undefined).map((s) => s[key]);
-    if (!at.length) fail(`${path}.${key}`, "is not a car spec field");
-    like(o[key], at, `${path}.${key}`, free);
+    if (!at.length && UNSET_NUMBERS.has(`${path}.${key}`)) num(o[key], `${path}.${key}`);
+    else if (!at.length) fail(`${path}.${key}`, "is not a car spec field");
+    else like(o[key], at, `${path}.${key}`, free);
   }
   for (const key of Object.keys(shapes[0])) if (shapes.every((s) => key in s) && !(key in o)) fail(`${path}.${key}`, "missing");
 }
