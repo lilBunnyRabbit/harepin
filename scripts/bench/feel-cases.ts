@@ -294,3 +294,160 @@ export function hold_release(rig: Rig): { held: number; centred: number; yaw: nu
   });
   return { held, centred, yaw: car.ang.y };
 }
+
+/** Body slip (deg) with the tail out for a steer key of +1, as `scripts/drift.ts`' keyboard drifter reads it. */
+const tail_out = (car: Car) => {
+  const local = tmp.copy(car.vel).applyQuaternion(car.quat.clone().invert());
+  return car.vel.length() < 1 ? 0 : (Math.atan2(local.x, Math.abs(local.z)) * 180) / Math.PI;
+};
+
+// A thumb on binary keys, as `catch_drift`: it sees the slip this late, looks this far ahead along its rate, every frame.
+const REACTION = 0.08;
+const LOOK_AHEAD = 0.15;
+const FRAME = 1 / 60;
+const DRIFT_BAND = [12, 55] as const;
+/** Seconds at the end of a hold or a turn-in that its yaw and radius are read over. */
+const READ = 0.25;
+
+const drifter = (tcs: boolean) => (c: Car) => {
+  c.tcs = tcs;
+  c.abs = tcs;
+  c.assist = false;
+  c.stability = false;
+};
+
+/** Yaw rate (rad/s) and path radius (m, speed over the velocity's own turn rate) over the last `READ` s of a run. */
+class Arc {
+  private yaw = 0;
+  private turn = 0;
+  private n = 0;
+  private heading: number;
+
+  constructor(
+    private readonly car: Car,
+    private readonly seconds: number,
+  ) {
+    this.heading = Math.atan2(car.vel.x, car.vel.z);
+  }
+
+  step(t: number) {
+    const now = Math.atan2(this.car.vel.x, this.car.vel.z);
+    const d = ((now - this.heading + 3 * Math.PI) % (2 * Math.PI)) - Math.PI;
+    this.heading = now;
+    if (t <= this.seconds - READ) return;
+    this.yaw += this.car.ang.y;
+    this.turn += d / DT;
+    this.n++;
+  }
+
+  get rate(): number {
+    return Math.abs(this.yaw / this.n);
+  }
+
+  get radius(): number {
+    return this.car.vel.length() / Math.max(1e-6, Math.abs(this.turn / this.n));
+  }
+}
+
+export interface Hold {
+  held: number;
+  /** Mean body slip (deg) in the last half of the hold. */
+  slip: number;
+  from_kmh: number;
+  to_kmh: number;
+  spun: boolean;
+  /** Yaw rate (rad/s) and path radius (m) at the end of the hold. */
+  yaw: number;
+  radius: number;
+}
+
+/** Binary keys aiming the tail at `aim` degrees on full gas for `seconds`: the opposite key over aim + 5, the turn key under aim. */
+function key_hold(car: Car, aim: number, seconds: number, ground: Ground): Hold {
+  const seen: number[] = [];
+  const late: number[] = [];
+  const arc = new Arc(car, seconds);
+  let held = 0;
+  let spun = false;
+  const from_kmh = car.vel.length() * 3.6;
+  let key = 1;
+  const every = Math.round(FRAME / DT);
+  run(
+    car,
+    seconds,
+    () => {
+      const step = seen.length;
+      seen.push(tail_out(car));
+      if (step % every === 0) {
+        const now = seen[Math.max(0, step - Math.round(REACTION / DT))];
+        const before = seen[Math.max(0, step - Math.round((REACTION + 0.05) / DT))];
+        const ahead = now + ((now - before) / 0.05) * LOOK_AHEAD;
+        key = ahead > aim + 5 ? -1 : ahead < aim ? 1 : key;
+      }
+      return { ...idle, steer: key, throttle: 1 };
+    },
+    ground,
+    (t) => {
+      const d = tail_out(car);
+      if (d >= DRIFT_BAND[0] && d <= DRIFT_BAND[1]) held += DT;
+      spun ||= Math.abs(d) > 100;
+      if (t > seconds / 2) late.push(d);
+      arc.step(t);
+    },
+  );
+  const slip = late.reduce((sum, d) => sum + d, 0) / Math.max(1, late.length);
+  return { held, slip, from_kmh, to_kmh: car.vel.length() * 3.6, spun, yaw: arc.rate, radius: arc.radius };
+}
+
+export interface TurnIn {
+  hold: Hold;
+  /** Yaw rate (rad/s) and path radius (m) over the last `READ` s of a second of the turn key held down. */
+  yaw: number;
+  radius: number;
+  slip: number;
+  spun: boolean;
+}
+
+/**
+ * The owner's "can't turn in more": a 30 degree handbrake drift at 50 km/h held 5 s on binary keys and full gas, then 1 s
+ * of the turn key held down. More yaw and a smaller radius under the held key is a car the driver can steer mid-drift.
+ */
+export function drift_turn_in(rig: Rig, tcs: boolean): TurnIn {
+  const ground = rig.ground ?? FLAT;
+  const car = fresh(rig, ground, drifter(tcs));
+  get_to(car, 50, ground);
+  run(car, 0.4, () => ({ ...idle, steer: 1, throttle: 1 }), ground);
+  run(car, 0.3, () => ({ ...idle, steer: 1, handbrake: 1 }), ground);
+  const hold = key_hold(car, 30, 5, ground);
+  const arc = new Arc(car, 1);
+  let spun = false;
+  run(car, 1, () => ({ ...idle, steer: 1, throttle: 1 }), ground, (t) => {
+    arc.step(t);
+    spun ||= Math.abs(tail_out(car)) > 100;
+  });
+  return { hold, yaw: arc.rate, radius: arc.radius, slip: tail_out(car), spun };
+}
+
+export interface PowerCircle {
+  /** Seconds of full gas and full key before the tail is 25 degrees out; NaN when it never was in 3 s. */
+  entry: number;
+  hold: Hold;
+}
+
+/**
+ * "Hold a drift on the gas, no handbrake": 2 s on a 0.6 key at 40 km/h, the ring's pace, then full gas and full key until
+ * the tail is 25 degrees out, then binary keys aiming at 30 degrees on full gas for 6 s.
+ */
+export function power_circle(rig: Rig, tcs: boolean): PowerCircle {
+  const ground = rig.ground ?? FLAT;
+  const car = fresh(rig, ground, drifter(tcs));
+  get_to(car, 40, ground);
+  run(car, 2, () => cruise(car, 40, { steer: 0.6 }), ground);
+  let entry = Number.NaN;
+  let t = 0;
+  while (t < 3 && Number.isNaN(entry)) {
+    car.step(DT, { ...idle, steer: 1, throttle: 1 }, ground);
+    t += DT;
+    if (tail_out(car) >= 25) entry = t;
+  }
+  return { entry, hold: key_hold(car, 30, 6, ground) };
+}
