@@ -9,6 +9,7 @@ import { CONE_RADIUS, type ParkBay, type ParkLevel } from "./parking";
 const LINE_LIFT = 0.08;
 // Paint follows the ground in short pieces, or a long strip cuts under the pad between terrain samples.
 const PAINT_STEP = 0.5;
+// The pad lies this far over the drawn ground; whatever is parked on it stands on the pad, not on the terrain under it.
 const PAD_LIFT = 0.03;
 const PAD_STEP = 2;
 const PAD_MARGIN = 3;
@@ -37,8 +38,8 @@ export class ParkingView {
     const cars = level.obstacles
       .filter((o) => o.kind === "car")
       .map((o) => {
-        const { x, z } = to_world(site, o.u, o.v);
-        return { x, y: ground.height(x, z), z, heading: site.heading + o.heading, paint: color(car_paints[Math.floor(rng() * car_paints.length)]) };
+        const { x, y, z } = this.point(o.u, o.v, PAD_LIFT);
+        return { x, y, z, heading: site.heading + o.heading, paint: color(car_paints[Math.floor(rng() * car_paints.length)]) };
       });
     if (cars.length) {
       const shape = this.marks.track(parked_car_geometry());
@@ -52,9 +53,8 @@ export class ParkingView {
     const wall_material = this.marks.track(new THREE.MeshLambertMaterial({ color: color(tones.wall), flatShading: true }));
     for (const o of level.obstacles) {
       if (o.kind === "car") continue;
-      const { x, z } = to_world(site, o.u, o.v);
       const mesh = o.kind === "cone" ? new THREE.Mesh(cone_shape, cone_material) : new THREE.Mesh(wall_shape, wall_material);
-      mesh.position.set(x, ground.height(x, z), z);
+      mesh.position.copy(this.point(o.u, o.v, PAD_LIFT));
       mesh.rotation.y = site.heading + o.heading;
       mesh.scale.set(o.kind === "cone" ? 1 : o.w, o.h, o.kind === "cone" ? 1 : o.l);
       mesh.castShadow = true;
