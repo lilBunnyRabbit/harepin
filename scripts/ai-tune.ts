@@ -1,5 +1,6 @@
 import { availableParallelism } from "node:os";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { AI_TUNING } from "../src/ai/tuning";
 import { mulberry32, sub } from "../src/rng";
 import { cma_init, cma_sample, cma_update, type Cma, type Sample } from "./ai-tune/cma";
 import { score, type Score } from "./ai-tune/objective";
@@ -60,6 +61,8 @@ interface State {
   done: Record<string, RaceResult[]>;
   base: Candidate | null;
   gens: Gen[];
+  /** Hash of the whole AI_TUNING the run started on; absent in files from before it was kept. */
+  tuning?: string;
 }
 
 const config: Config = {
@@ -79,8 +82,9 @@ const path = `${DIR}/${run}.json`;
 const WORKER = new URL("./ai-tune/worker.ts", import.meta.url);
 
 const hash = (values: Values) => Bun.hash(JSON.stringify(whole(values))).toString(36);
-/** The defaults' races are keyed by their values, so a change to src/ai/tuning.ts never reuses stale ones. */
-const BASE = `base-${hash(defaults())}`;
+/** Keys the defaults' races, so an edit to AI_TUNING (hand-set rows too) never reuses stale ones; code changes in src/ai still do. */
+const TUNING = Bun.hash(JSON.stringify(AI_TUNING)).toString(36);
+const BASE = `base-${TUNING}`;
 
 const to_unit = (values: Values) => PARAMS.map((p) => (values[p.name] - p.lo) / (p.hi - p.lo));
 const from_unit = (x: readonly number[]): Values => whole(Object.fromEntries(PARAMS.map((p, i) => [p.name, p.lo + (p.hi - p.lo) * x[i]])));
@@ -88,10 +92,12 @@ const from_unit = (x: readonly number[]): Values => whole(Object.fromEntries(PAR
 function load(): State {
   const base = defaults();
   for (const p of PARAMS) if (base[p.name] < p.lo || base[p.name] > p.hi) throw new Error(`${p.name} default ${base[p.name]} outside [${p.lo}, ${p.hi}]`);
-  if (!existsSync(path)) return { version: STATE_VERSION, config, cma: cma_init(to_unit(base), config.sigma), auto: {}, done: {}, base: null, gens: [] };
+  if (!existsSync(path)) return { version: STATE_VERSION, config, cma: cma_init(to_unit(base), config.sigma), auto: {}, done: {}, base: null, gens: [], tuning: TUNING };
   const state = JSON.parse(readFileSync(path, "utf8")) as State;
   if (state.version !== STATE_VERSION) throw new Error(`${path} is version ${state.version}, expected ${STATE_VERSION}`);
-  if (state.base && hash(state.base.values) !== hash(base)) throw new Error(`${path} was started on other defaults (src/ai/tuning.ts changed); start a new --run`);
+  const stale = state.tuning ? state.tuning !== TUNING : !state.base || hash(state.base.values) !== hash(base);
+  if (stale) throw new Error(`${path} was started on other AI_TUNING (src/ai/tuning.ts changed); start a new --run`);
+  state.tuning = TUNING;
   if (JSON.stringify(state.config) !== JSON.stringify(config)) throw new Error(`${path} was started with ${JSON.stringify(state.config)}; pass the same options or a new --run`);
   return state;
 }
