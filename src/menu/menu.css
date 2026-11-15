@@ -101,6 +101,34 @@
   height: 100%;
 }
 
+.settings[data-layout="stage"] .settings-head {
+  display: none;
+}
+
+/* A stage page sits on the live world: no blur, only a light shade, so the scene behind reads as the page's backdrop. */
+.settings[data-view="page"][data-layout="stage"] {
+  background: color-mix(in oklch, var(--background-darkest) 35%, transparent);
+  backdrop-filter: none;
+}
+
+/* Only the driving HUD: the update card, rotate prompt and toasts still show over a stage page. */
+body:has(> .settings[data-view="page"][data-layout="stage"]:not([hidden])) > :is(#labels, #touch, .dock-top, .dock-left, .hud:not(#toast), #banner, #delta, #countdown, #race-lights, #mode-hint, #rewind) {
+  visibility: hidden;
+}
+
+.settings[data-view="page"][data-layout="stage"] .settings-panel {
+  grid-template: "body" minmax(0, 1fr) / minmax(0, 1fr);
+}
+
+.settings[data-layout="stage"] .settings-page {
+  height: 100%;
+}
+
+/* Stage cards spread over the whole scene, not the 1280px page column. */
+.settings[data-view="page"][data-layout="stage"] .settings-panel {
+  max-width: none;
+}
+
 .menu-top {
   grid-area: top;
   display: flex;

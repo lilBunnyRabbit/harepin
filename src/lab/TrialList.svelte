@@ -3,7 +3,7 @@
   import Badge from "../menu/ui/Badge.svelte";
   import Tile from "../menu/ui/Tile.svelte";
   import { change_summary, comparisons, trial_brief } from "./brief";
-  import { goal_label, STATUS_LABEL, STATUS_TONE } from "./lab-text";
+  import { goal_label, STATUS_LABEL, STATUS_TONE, where_text } from "./lab-text";
   import type { LabView } from "./lab-view.svelte";
   import More from "./More.svelte";
 
@@ -18,7 +18,7 @@
   const order = $derived(
     comparisons(lab.pack, lab.shown).map(({ base, rest }) => ({
       base,
-      place: `${lab.trials[base].trial.station}/${lab.trials[base].lane.name}`,
+      place: where_text(lab.trials[base]),
       rest: rest.map((i) => `#${i + 1} ${lab.shown[i].open ? change_summary(trial_brief(lab.pack, lab.trials, lab.shown, i).changes) : lab.shown[i].label}`).join(", "),
     })),
   );
@@ -51,7 +51,7 @@
       <Tile
         size="sm"
         title={`${i + 1}. ${shown.label}`}
-        meta={`${shown.open ? `${r.spec.name} ${CLASS_LABELS[r.class]} ${r.pi} · ` : ""}${r.trial.station}/${r.lane.name} · ${goal_label(r.trial.goal)}`}
+        meta={`${shown.open ? `${r.spec.name} ${CLASS_LABELS[r.class]} ${r.pi} · ` : ""}${where_text(r)} · ${goal_label(r.trial.goal)}`}
         selected={current}
         onclick={() => onpick(i)}
       >

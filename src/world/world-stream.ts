@@ -1,9 +1,10 @@
 import { CHUNK, chunk_corner } from "../worldgen/chunk-grid";
 import type { ChunkBuffers, MeshTones } from "../worldgen/chunks";
-import type { Tree } from "../worldgen/types";
+import type { Tree, WorldData } from "../worldgen/types";
 import type { MapSpec } from "../worldgen/kinds/kinds";
 import type { WorkerReply, WorkerRequest } from "../worldgen/worker";
 import { World } from "./world";
+import type { WorldJournal } from "./world-journal";
 
 /** Metres the car moves before `follow` looks again; small next to the stream pad, so the fog never outruns it. */
 const FOLLOW_STEP = 64;
@@ -40,6 +41,8 @@ export class WorldStream {
   private constructor(
     private readonly worker: WorldWorker,
     readonly world: World,
+    /** What `world` was built from; a copy of it elsewhere (the sim worker) is built from the same. */
+    readonly plan: WorldData,
     /** The picked custom map built nothing drivable, so `world` is its seed's plain map. */
     readonly fallback = false,
   ) {
@@ -53,7 +56,8 @@ export class WorldStream {
   }
 
   /** Takes over the boot entry's worker when it was started for this world, else starts one. */
-  static open(pick: WorldPick, map: MapSpec, tones: MeshTones): Promise<WorldStream> {
+  /** `journal` follows the world from before its first chunk lands: an early worker's held chunks land as it opens. */
+  static open(pick: WorldPick, map: MapSpec, tones: MeshTones, journal: WorldJournal | null = null): Promise<WorldStream> {
     const worker = take_early(pick) ?? WorldWorker.start(pick);
     worker.post({ type: "tones", tones });
     return new Promise((resolve, reject) => {
@@ -68,7 +72,9 @@ export class WorldStream {
         if (event.type === "error") return fail(new Error(`world worker: ${event.message}`));
         const { reply } = event;
         if (reply.type === "plan") {
-          stream = new WorldStream(worker, new World(map.seed, reply.data, [], reply.fallback ? [] : map.levels), reply.fallback);
+          const world = new World(map.seed, reply.data, [], reply.fallback ? [] : map.levels);
+          world.journal = journal;
+          stream = new WorldStream(worker, world, reply.data, reply.fallback);
           resolve(stream);
         } else if (reply.type === "error") fail(new Error(`world worker: ${reply.message}`));
         else stream?.receive(reply);
@@ -119,6 +125,7 @@ export class WorldStream {
   /** Lets chunk `index` go; its tile reads as missing until a wait on it or `request` brings it back. */
   drop(index: number) {
     this.world.tiles.drop(index);
+    this.world.journal?.drop(index);
     this.world.unplant(index);
     this.stale[index] = this.pending[index];
     const at = this.queued.findIndex(({ chunk }, i) => i >= this.head && chunk.index === index);
@@ -144,6 +151,7 @@ export class WorldStream {
       return;
     }
     this.world.tiles.add(reply.index, reply.tile);
+    this.world.journal?.tile(reply.index, reply.tile);
     if (reply.planted) this.world.plant(reply.index, reply.planted.solids);
     if (!reply.chunk) return;
     const trees = reply.planted?.trees ?? null;

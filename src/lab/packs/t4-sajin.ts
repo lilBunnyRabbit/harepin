@@ -1,6 +1,6 @@
 import { CARS, type CarSpec } from "../../car/cars";
 import { Trait, trait_asks } from "../ask";
-import { LAB_CAR, type Goal, type Pack, type Question, type Trial } from "../pack";
+import { LAB_CAR, type Goal, type Pack, type Question, type StationTrial, type Trial } from "../pack";
 
 const TODAY = "sajin.4.0.0.1.0";
 const OLD = "sajin-tall";
@@ -18,7 +18,7 @@ const TALL: CarSpec = {
 
 interface Place {
   id: string;
-  station: Trial["station"];
+  station: StationTrial["station"];
   lane: string;
   goal: Goal;
   try: string;

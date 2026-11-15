@@ -8,6 +8,8 @@ export const MAX_TRIALS = 10;
 export const MAX_SECONDS = 20 * 60;
 export const CARD_SECONDS = 45;
 const FREE_SECONDS = 60;
+/** A whole field race: about four minutes (D4), and the grid's countdown. */
+const RACE_SECONDS = 250;
 
 /** One lap or one run of each station on asphalt, seconds; rough: skidpad, runway, hairpin and sweeper come from the plan (6.1), the rest are guesses until a session times them. */
 const STATION_SECONDS: Record<StationId, number> = {
@@ -44,9 +46,10 @@ const GRIP: Record<LabSurface, number> = {
 /** Driving time of one trial, seconds. A lap at the grip limit takes `sqrt(1 / grip)` longer than on asphalt. */
 export function drive_seconds(r: Resolved): number {
   const goal = r.trial.goal;
+  if (goal.kind === "time") return goal.seconds;
+  if (!r.station) return RACE_SECONDS;
   const one = STATION_SECONDS[r.station.id];
   if (goal.kind === "laps") return goal.laps * one * Math.sqrt(GRIP.asphalt / GRIP[r.lane.surface]);
-  if (goal.kind === "time") return goal.seconds;
   if (goal.kind === "free") return FREE_SECONDS;
   return one;
 }

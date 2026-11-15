@@ -5,8 +5,9 @@ import { plan_sample, type PlanGrid } from "./plan-grid";
 import type { TownRecipe } from "./recipe";
 import { APPROACH, Router, spur_points, unkink, type Exit, type Sampler, type Way } from "./route";
 import { heading } from "./routes";
+import { town_loop, type TownLoop } from "./town-circuit";
 import { CORE, town_name, town_streets } from "./towns";
-import { LOCAL_HALF, STREET_HALF, type RoadEdge, type RoadGraph, type RoadNode, type RoadPoint, type Town } from "./types";
+import { LOCAL_HALF, ROAD_HALF, STREET_HALF, type RoadEdge, type RoadGraph, type RoadNode, type RoadPoint, type Town } from "./types";
 
 const TOWN_TRIES = 4000;
 /** Towns stay inside this reach of the centre, clear of the coast the terrain mask starts near 2300 m. */
@@ -29,6 +30,7 @@ export interface Network {
   /** Edge ids of the circuit in driving order; empty when the links close no cycle. */
   circuit: number[];
   road: RoadPoint[];
+  loop: TownLoop | null;
 }
 
 interface Link {
@@ -164,9 +166,12 @@ export function mainland_network(seed: number, grid: PlanGrid, shape: TownRecipe
     links.push({ edge, a, b, tree });
   }
   const { circuit, road } = cycle_circuit(graph, links);
+  const loop = town_loop(graph, towns);
   // The circuit is drawn ROAD_HALF wide along its streets: a lane it takes is laid as a street, so that width stands on road.
   for (const id of circuit) if (graph.edges[id].kind === "street") graph.edges[id].half = Math.max(graph.edges[id].half, STREET_HALF);
-  return { graph, towns, circuit, road };
+  // The town circuit is laid road wide: on a street's width every car runs off its square corners, and the AI's line wants the room.
+  for (const id of loop?.edges ?? []) graph.edges[id].half = ROAD_HALF;
+  return { graph, towns, circuit, road, loop };
 }
 
 function edge_length(edge: RoadEdge): number {

@@ -237,8 +237,9 @@ export class JumpsView {
     }
   }
 
-  update(dt: number, car: Car): JumpEvent {
-    this.knock(car);
+  /** `drag` slows the car by a knocked item's share: the car belongs to the sim, which may run elsewhere. */
+  update(dt: number, car: Car, drag: (keep: number) => void): JumpEvent {
+    this.knock(car, drag);
     this.fly(dt);
     this.event.clean = this.watch(car);
     return this.event;
@@ -252,7 +253,7 @@ export class JumpsView {
     });
   }
 
-  private knock(car: Car) {
+  private knock(car: Car, drag: (keep: number) => void) {
     const fx = Math.sin(car.heading);
     const fz = Math.cos(car.heading);
     const speed = car.vel.length();
@@ -271,7 +272,7 @@ export class JumpsView {
       l.vel.set(car.vel.x * 1.1 + (ax / away) * kick * 0.35, 2 + speed * 0.18, car.vel.z * 1.1 + (az / away) * kick * 0.35);
       l.spin.set(az / away, 0, -ax / away).multiplyScalar(4 + speed * 0.4);
       l.moving = true;
-      car.vel.multiplyScalar(1 - DRAG[l.item.kind]);
+      drag(1 - DRAG[l.item.kind]);
     }
   }
 

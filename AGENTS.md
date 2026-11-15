@@ -35,6 +35,7 @@ One level of feature folders under `src/`. Each folder owns its modules, tests (
 | `goals/` | first-steps goals and their toasts |
 | `career/` | career events and tiers, store, dev ghosts; `?event=<id>` starts one, `?tune` opens every tier and adds Copy my times |
 | `runs/` | Runs: daily, weekly, random and built picks (`runs.ts`, pure: the boot entry reads `?run=` before any kind loads), how a pick plays in `Modes` (`run-play.ts`), its world probe and route, the season (`season.ts`), stars store, daily board |
+| `sim/` | the sim host: the player's car, pads, collide, the AI field and the car's rewind in one step (`sim-host.ts`, pure); `?simworker` runs it in a worker (`sim-worker.ts`, `sim-client.ts`) with one `Float64Array` reply a frame (`sim-packet.ts`, append-only) |
 | `net/` | P2P (trystero + BroadcastChannel): channels, lobby, directory, chat, remotes, heartbeat |
 | `menu/` | main menu shell (`settings.ts`), one file per page (Play, Create world, Online, room, modes, settings), prefs (`prefs.ts`), guide, garage, update card |
 | `hud/` | dash, minimap, touch, input and bindings, pace card, rumble |

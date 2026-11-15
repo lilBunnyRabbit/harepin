@@ -1,0 +1,36 @@
+#lab ai-field r1 v0.46.2 2026-11-15T11:14Z keys 2514x1348
+#trial start coupe.4.0.0.1.0 spec#a7f3f03f pi538B 1C0000004/circuit field=6x3/3:normal time60 stopped tcs=on assist=off stability=off steer=smooth abs=on auto=on
+ m time=32.2 slip=13.4/12.3 held=0.906 chain=0.906 spins=0 lag=0.0469 0-100=6.32 top=157 spin=0.0867/1.36 air=0 bounce=0 offs=2 resets=0 lock=0.466 thr=0.72 hb=0 rev=0.341 yawover=0.57 pwr=3.73 lift=13.4 trail=11.3 xslip=6.54
+ f P1 you racing +0
+ f P2 "Raijin 2" racing +1.8 spins=0 resets=0 hits=1 hard=4.8 pass=0
+ f P3 "Rally 3" racing +2.9 spins=0 resets=0 hits=3 hard=16.1 pass=0
+ f P4 "Muscle 4" racing +3.6 spins=0 resets=0 hits=0 hard=0 pass=0
+ f P5 "Raijin 5" racing +4 spins=0 resets=0 hits=1 hard=2.1 pass=0
+ f P6 "Rally 6" racing +5 spins=0 resets=0 hits=1 hard=6.1 pass=0
+ f P7 "Muscle 8" racing +5.5 spins=0 resets=0 hits=0 hard=0 pass=0
+ a fair=5 aggr=1 real=3 pace=1
+ n "Too easy. i passed them all before second checkpoint"
+#trial overtakes coupe.4.0.0.1.0 spec#a7f3f03f pi538B 1C0000004/circuit field=6x5/3:normal race stopped tcs=on assist=off stability=off steer=smooth abs=on auto=on
+ m time=67.1 slip=11.3/10.4 held=0.142 chain=0.142 spins=0 lag=0.516 0-100=7.78 top=153 spin=0.0579/2.76 air=0 bounce=0 offs=1 resets=0 lock=0.321 thr=0.401 hb=0 rev=0.238 yawover=0.0808 pwr=4.58 lift=2.96 trail=2.05 xslip=11.3
+ f P1 "Raijin 2" racing +0 spins=0 resets=0 hits=0 hard=0 pass=0
+ f P2 "Rally 3" racing +0.5 spins=0 resets=0 hits=0 hard=0 pass=0
+ f P3 "Raijin 5" racing +2 spins=0 resets=0 hits=2 hard=6.7 pass=0
+ f P4 "Muscle 4" racing +2.5 spins=0 resets=0 hits=2 hard=6.7 pass=0
+ f P5 you racing +3.1
+ f P6 "Rally 6" racing +3.6 spins=0 resets=0 hits=1 hard=5.4 pass=0
+ f P7 "Muscle 8" racing +4.7 spins=0 resets=0 hits=0 hard=0 pass=0
+ a fair=4 aggr=1 real=2 pace=2
+ n "Kinda the same. slow starts still. dont pass that much really. very easy"
+#trial defending coupe.4.0.0.1.0 spec#a7f3f03f pi538B 1C0000004/circuit field=6x4/2:easy time180 stopped tcs=on assist=off stability=off steer=smooth abs=on auto=on
+ m time=23.3 slip=2.93/- held=0 chain=0 spins=0 lag=0.165 0-100=6.6 top=133 spin=0.0798/1.29 air=0 bounce=0 offs=0 resets=0 lock=0.308 thr=0.467 hb=0 rev=0.257 pwr=0.761 lift=0.761 trail=1.67
+ f P1 "Raijin 2" racing +0 spins=0 resets=0 hits=0 hard=0 pass=0
+ f P2 "Rally 3" racing +1.9 spins=0 resets=0 hits=0 hard=0 pass=0
+ f P3 you racing +2
+ f P4 "Muscle 4" racing +2.5 spins=0 resets=0 hits=1 hard=1.3 pass=0
+ f P5 "Raijin 5" racing +3.2 spins=0 resets=0 hits=1 hard=1.3 pass=0
+ f P6 "Rally 6" racing +3.8 spins=0 resets=0 hits=0 hard=0 pass=0
+ f P7 "Muscle 8" racing +4.2 spins=0 resets=0 hits=0 hard=0 pass=0
+ n "The same. they back off the racing line if im there"
+#trial mixed coupe.4.0.0.1.0 spec#a7f3f03f pi538B 1C0000004/circuit field=6x1/1,2/4,3/3,4/2,5/5,5/1:normal race skipped
+ n "I will just say yes"
+#end 3/4 trials

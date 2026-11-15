@@ -14,11 +14,12 @@ export interface IdbSchema {
 /** The game's one database. A new save adds its store here and bumps `version`; stores are never renamed or dropped. */
 export const HAREPIN_DB: IdbSchema = {
   name: "harepin",
-  version: 3,
+  version: 4,
   stores: [
     { name: "series", key: "season" },
     { name: "ghosts", key: "key" },
     { name: "kv" },
+    { name: "wallet", key: "id" },
   ],
 };
 

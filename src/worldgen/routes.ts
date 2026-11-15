@@ -3,6 +3,7 @@ import { Heap } from "./heap";
 import { CONE_HEIGHT, CONE_RADIUS } from "./jumps";
 import { length } from "./noise";
 import type { Junction } from "./road-layers";
+import type { TownLoop } from "./town-circuit";
 import type { Trail } from "./trails";
 import { ROAD_HALF, RouteKind, SIDEWALK, STREET_HALF, type Checkpoint, type Item, type Ramp, type RoadEdge, type RoadGraph, type RoadPoint, type Route, type Town } from "./types";
 
@@ -317,7 +318,9 @@ type Bend = (from: RoadPoint, node: { x: number; y: number; z: number }, to: Roa
 
 function trace(atlas: Atlas, legs: number[], pair: [number, number], bend: Bend = fillet): Candidate | null {
   const nodes = [atlas.legs[legs[0]].from, ...legs.map((l) => atlas.legs[l].to)];
-  if (new Set(nodes).size !== nodes.length) return null;
+  // A loop may close on its first node; no other node comes twice.
+  const closes = nodes.length > 2 && nodes[0] === nodes[nodes.length - 1];
+  if (new Set(nodes).size !== nodes.length - (closes ? 1 : 0)) return null;
   const points: RoadPoint[] = [];
   const gates: Omit<Checkpoint, "index">[] = [];
   let turns = 0;
@@ -429,7 +432,7 @@ function cone(heights: Float32Array, x: number, z: number, fx: number, fz: numbe
  * A cone row across the paving of every road the route passes but does not take, out past the junction's curbs: just
  * past the sidewalk where the roads overlap, past the patch's mouth where the junction has one.
  */
-function closure(atlas: Atlas, c: Candidate, heights: Float32Array): Route["closure"] {
+function closure(atlas: Atlas, c: Candidate, height: (x: number, z: number) => number): Route["closure"] {
   const pieces = new Set(c.legs.map((l) => atlas.legs[l].piece));
   const solids: Route["closure"] = [];
   const closed = new Set<number>();
@@ -447,7 +450,7 @@ function closure(atlas: Atlas, c: Candidate, heights: Float32Array): Route["clos
       for (let u = -side.paved + CONE_GAP / 2; u < side.paved; u += CONE_GAP) {
         const x = p.x + p.tz * u;
         const z = p.z - p.tx * u;
-        if (!near_route(x, z)) solids.push({ kind: "circle", x, y: sample(heights, x, z), z, radius: CONE_RADIUS, height: CONE_HEIGHT });
+        if (!near_route(x, z)) solids.push({ kind: "circle", x, y: height(x, z), z, radius: CONE_RADIUS, height: CONE_HEIGHT });
       }
     }
   }
@@ -512,7 +515,7 @@ export function street_routes(graph: RoadGraph, circuit: readonly number[], town
     gate_hw: STREET_HALF + SIDEWALK,
     length: c.length,
     par_ms: par(c.points, false, Math.max(...c.legs.map((l) => LEG_PAR[atlas.legs[l].kind]))),
-    closure: closure(atlas, c, heights),
+    closure: closure(atlas, c, (x, z) => sample(heights, x, z)),
   }));
   return { routes, items };
 }
@@ -551,6 +554,31 @@ export function trip_route(graph: RoadGraph, circuit: readonly number[], towns: 
   const { legs, points, checkpoints } = best;
   const share = Math.max(...legs.map((l) => LEG_PAR[atlas.legs[l].kind]));
   return { id: "trip", kind: RouteKind.STREET, closed: false, points, checkpoints, gate_hw: ROAD_HALF, length: best.length, par_ms: par(points, false, share), closure: [] };
+}
+
+/**
+ * Laps of the town circuit (`town_loop`): the start line halfway along the main street's first block past the centre
+ * crossing, so the grid lines up on the straight behind it; a gate at each corner and the roads off it coned shut.
+ */
+export function town_route(graph: RoadGraph, circuit: readonly number[], towns: readonly Town[], height: (x: number, z: number) => number, junctions: readonly Junction[], loop: TownLoop): Route | null {
+  const atlas = new Atlas(graph, circuit, towns, junctions);
+  const legs: number[] = [];
+  for (let k = 0; k < loop.nodes.length; k++) {
+    const to = loop.nodes[(k + 1) % loop.nodes.length];
+    const leg = (atlas.out.get(loop.nodes[k]) ?? []).find((l) => atlas.legs[l].to === to);
+    if (leg === undefined) return null;
+    legs.push(leg);
+  }
+  const found = trace(atlas, legs, [loop.town, loop.town]);
+  if (!found) return null;
+  const traced = found.points.slice(0, -1);
+  const half = Math.floor((atlas.legs[legs[0]].points.length - 1) / 2);
+  const points = [...traced.slice(half), ...traced.slice(0, half)];
+  const start = points[0];
+  const corners = found.checkpoints.slice(0, -1);
+  const checkpoints = [...corners, { x: start.x, y: start.y, z: start.z, heading: heading(start), index: 0 }].map((c, index) => ({ ...c, index }));
+  const lap = run(points) + length(points[0].x - points[points.length - 1].x, points[0].z - points[points.length - 1].z);
+  return { id: "town", kind: RouteKind.CIRCUIT, closed: true, points, checkpoints, gate_hw: STREET_HALF + SIDEWALK, length: lap, par_ms: par(points, true), closure: closure(atlas, found, height) };
 }
 
 /** Each trail as a point-to-point race: a gate every TRAIL_GATES metres, one before the gap and one where the ramp-out joins. */

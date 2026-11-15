@@ -4,8 +4,10 @@ import { modal_open, typing, type Nav } from "../hud/input";
 import { clean_name } from "../net/net";
 import { GUIDE_PARAM, Guide, ROLLED_VISIT, type GuideStep } from "./guide/guide.svelte";
 import { TUNE_PARAM } from "../career/career";
+import { SERIES_PAGE } from "../career/series";
 import { unlocks } from "../career/rewards";
 import CareerPage from "./CareerPage.svelte";
+import SeriesPage from "./SeriesPage.svelte";
 import GoalsPage from "./GoalsPage.svelte";
 import ModesPage from "./ModesPage.svelte";
 import RunsPage from "./runs/RunsPage.svelte";
@@ -106,6 +108,7 @@ export class Settings {
       svelte_page(this.menu, { id: "goals", label: "Things to try", parent: MenuTab.PLAY }, GoalsPage, { go: (to: GoTo) => this.go_to(to) }),
       svelte_page(this.menu, { id: "runs", label: "Runs", parent: MenuTab.PLAY, layout: "wide" }, RunsPage),
       svelte_page(this.menu, { id: "career", label: "Career", parent: MenuTab.PLAY, layout: "wide" }, CareerPage, { tune: new URLSearchParams(location.search).has(TUNE_PARAM) }),
+      ...(host.series ? [svelte_page(this.menu, { id: SERIES_PAGE, label: "Harepin Series", parent: MenuTab.PLAY, layout: "stage" }, SeriesPage)] : []),
     ];
     this.guide = new Guide({
       state: () => this.current,

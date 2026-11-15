@@ -1,6 +1,7 @@
 import type { TrialStatus } from "./lab";
 import type { StationId } from "../worldgen/lab";
-import type { Goal } from "./pack";
+import { Difficulty } from "../ai/difficulty";
+import { place_of, type Goal, type Resolved, type TrialField } from "./pack";
 
 export const STATUS_LABEL: Record<TrialStatus, string> = { new: "To do", running: "Running", done: "Done", stopped: "Stopped" };
 
@@ -11,8 +12,23 @@ export function goal_label(goal: Goal): string {
   if (goal.kind === "time") return `${goal.seconds} s`;
   if (goal.kind === "stop") return `Stop from ${goal.from_kmh} km/h`;
   if (goal.kind === "run") return "Start to finish";
+  if (goal.kind === "race") return "The race";
   return "Free";
 }
+
+/** Each AI car's owner levels as `aggression/mistakes`, one pair when the whole grid shares it. */
+export function field_levels(field: TrialField): string {
+  const each = field.cars.map((c) => `${c.aggression}/${c.mistakes}`);
+  return each.every((l) => l === each[0]) ? each[0] : each.join(" ");
+}
+
+export function field_label(field: TrialField): string {
+  const { difficulty = Difficulty.NORMAL } = field;
+  return `${field.cars.length} AI, aggression/mistakes ${field_levels(field)}${difficulty === Difficulty.NORMAL ? "" : `, ${difficulty}`}`;
+}
+
+/** Station and lane, or a race's map and route with its field. */
+export const where_text = (r: Resolved): string => `${place_of(r.trial)}/${r.lane.name}${r.station ? "" : ` · ${field_label(r.trial.field)}`}`;
 
 /**
  * What the strip's goal reading shows, as one whole number: the text is only rebuilt when it moves. Laps done, whole
@@ -22,7 +38,7 @@ export function progress_key(goal: Goal, laps: number, gates: number, time: numb
   if (goal.kind === "laps") return Math.min(laps + 1, goal.laps);
   if (goal.kind === "time") return Math.max(0, Math.ceil(goal.seconds - time));
   if (goal.kind === "run") return gates;
-  if (goal.kind === "free") return Math.floor(time);
+  if (goal.kind === "free" || goal.kind === "race") return Math.floor(time);
   return 0;
 }
 
@@ -31,7 +47,7 @@ export function progress_text(goal: Goal, key: number, gate_count: number): stri
   if (goal.kind === "laps") return `Lap ${key}/${goal.laps}`;
   if (goal.kind === "time") return `${key} s left`;
   if (goal.kind === "run") return `Gate ${key}/${gate_count}`;
-  if (goal.kind === "free") return `${key} s`;
+  if (goal.kind === "free" || goal.kind === "race") return `${key} s`;
   return `Brake from ${goal.from_kmh}`;
 }
 
@@ -103,13 +119,16 @@ export interface ShownMetric {
   value: string;
 }
 
-/** The numbers worth reading on the card: the ones that mean something at the station, were measured and speak to the driver. The export keeps them all. */
-export function shown_metrics(pairs: readonly (readonly [key: string, text: string])[], station: StationId): ShownMetric[] {
+/**
+ * The numbers worth reading on the card: the ones that mean something at the station, were measured and speak to the
+ * driver. The export keeps them all. `station` is null on a race trial, where only the numbers meant everywhere show.
+ */
+export function shown_metrics(pairs: readonly (readonly [key: string, text: string])[], station: StationId | null): ShownMetric[] {
   return pairs.flatMap(([key, text]) => {
     const m = METRICS[key];
     if (OFF_CARD.has(key)) return [];
     if (!m) return [{ key, label: key, value: text }];
-    if (m.at && !m.at.includes(station)) return [];
+    if (m.at && (station === null || !m.at.includes(station))) return [];
     if (!ZERO_SAYS.has(key) && text.split(/[/,]/).every((p) => p === "0" || p === "-")) return [];
     const value = m.show ? m.show(text) : text.replaceAll("/", " / ");
     return [{ key, label: m.label, value: m.unit ? `${value} ${m.unit}` : value }];
@@ -137,8 +156,11 @@ export const KEY_METRICS: Record<StationId, readonly string[]> = {
   hill: ["seg", "0-100", "top", "offs"],
 };
 
-/** The card's lead numbers for the station and everything else it shows, each in its own order. */
-export function split_metrics(shown: readonly ShownMetric[], station: StationId): { lead: ShownMetric[]; rest: ShownMetric[] } {
-  const lead = KEY_METRICS[station].flatMap((key) => shown.filter((m) => m.key === key)).slice(0, KEY_COUNT);
+/** A race trial's lead numbers: the field's own lines lead its card. */
+const RACE_METRICS: readonly string[] = ["time", "top", "offs", "resets"];
+
+/** The card's lead numbers for the station (null: a race) and everything else it shows, each in its own order. */
+export function split_metrics(shown: readonly ShownMetric[], station: StationId | null): { lead: ShownMetric[]; rest: ShownMetric[] } {
+  const lead = (station === null ? RACE_METRICS : KEY_METRICS[station]).flatMap((key) => shown.filter((m) => m.key === key)).slice(0, KEY_COUNT);
   return { lead, rest: shown.filter((m) => !lead.includes(m)) };
 }

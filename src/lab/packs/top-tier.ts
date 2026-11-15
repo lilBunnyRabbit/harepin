@@ -1,7 +1,7 @@
 import { build_code, DEFAULT_BUILD, type Slot } from "../../car/build";
 import { CARS, type CarId } from "../../car/cars";
 import { Trait, trait_asks } from "../ask";
-import type { Goal, Pack, Trial } from "../pack";
+import type { Goal, Pack, StationTrial, Trial } from "../pack";
 
 type Upgraded = Extract<Slot, "engine" | "tyres" | "aero" | "weight">;
 
@@ -68,7 +68,7 @@ export const FULL: Variant = {
 
 export interface Place {
   id: string;
-  station: Trial["station"];
+  station: StationTrial["station"];
   lane: string;
   goal: Goal;
   try: string;

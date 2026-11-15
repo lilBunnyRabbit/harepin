@@ -2,7 +2,8 @@ import { SLOT_NAMES, SLOTS, type Mod, type Part, type Slot } from "../car/build"
 import { CLASS_LABELS } from "../car/pi";
 import { short } from "./export";
 import type { Shown } from "./blind";
-import type { Aids, Pack, Resolved } from "./pack";
+import { field_label } from "./lab-text";
+import { is_race, place_of, type Aids, type Pack, type Resolved } from "./pack";
 
 export interface Change {
   what: string;
@@ -82,8 +83,13 @@ const on_off = (v: Aids[keyof Aids]) => (v === undefined ? "as set" : typeof v =
 export function changes_of(r: Resolved, base: Resolved): Change[] {
   const out: Change[] = [];
   if (r.build.car !== base.build.car) out.push({ what: "Car", now: r.spec.name, was: base.spec.name });
-  if (r.trial.station !== base.trial.station) out.push({ what: "Place", now: r.trial.station, was: base.trial.station });
+  const place = place_of(r.trial);
+  const base_place = place_of(base.trial);
+  if (place !== base_place) out.push({ what: "Place", now: place, was: base_place });
   else if (r.lane.name !== base.lane.name) out.push({ what: "Lane", now: r.lane.name, was: base.lane.name });
+  const field = is_race(r.trial) ? field_label(r.trial.field) : null;
+  const base_field = is_race(base.trial) ? field_label(base.trial.field) : null;
+  if (field !== null && base_field !== null && field !== base_field) out.push({ what: "Field", now: field, was: base_field });
   const now = fitted(r);
   const was = fitted(base);
   for (const slot of SLOT_NAMES) if (now.parts[slot] !== was.parts[slot]) out.push({ what: SLOTS[slot].label, now: now.parts[slot], was: was.parts[slot] });
@@ -105,7 +111,7 @@ export function against_of(pack: Pack, shown: readonly Shown[], index: number): 
   if (shown[index].base >= 0) return shown[index].base;
   if (pack.trials[index].base) return -1;
   const before = index - 1;
-  return before >= 0 && pack.trials[before].station === pack.trials[index].station ? before : -1;
+  return before >= 0 && place_of(pack.trials[before]) === place_of(pack.trials[index]) ? before : -1;
 }
 
 function default_question(baseline: boolean, against: string | null): string {

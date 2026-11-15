@@ -1,9 +1,12 @@
+import type { Difficulty } from "../ai/difficulty";
+import { OFF_ROAD } from "../ai/driver";
+import type { FieldCar } from "../ai/field";
 import { apply_mods, build_mods, DEFAULT_BUILD, DEFAULT_PARTS, parse_build, type Build, type Mod, type Slot } from "../car/build";
 import { CARS, type BodyStyle, type CarSpec } from "../car/cars";
 import { class_of, spec_pi, type CarClass } from "../car/pi";
 import type { SettingsState } from "../menu/prefs";
 import { seed_of } from "../rng";
-import { LAB_STATIONS, type LabLane, type LabStation, type StationId } from "../worldgen/lab";
+import { LAB_STATIONS, LabSurface, type LabLane, type LabStation, type StationId } from "../worldgen/lab";
 
 /** Trial cars that are not in `CARS` start with this, so they can never be read as a build code or a garage car. */
 export const LAB_CAR = "lab:";
@@ -35,16 +38,13 @@ export interface LabCar {
 
 export type Aids = Partial<Pick<SettingsState, "tcs" | "abs" | "assist" | "stability" | "auto" | "steer_mode">>;
 
-export interface Trial {
+interface TrialCore {
   id: string;
   /** A build code of a shipped car, or `lab:<key>` of the pack's `cars`. */
   car: string;
   /** Folded after the build's parts, as one more part would be. */
   mods?: Mod[];
   aids?: Aids;
-  station: StationId;
-  /** A lane of the station by name; its first lane when absent. */
-  lane?: string;
   goal: Goal;
   try: string;
   feel: string;
@@ -55,12 +55,60 @@ export interface Trial {
   base?: true;
 }
 
-export type Goal = { kind: "laps"; laps: number } | { kind: "time"; seconds: number } | { kind: "stop"; from_kmh: number } | { kind: "run" } | { kind: "free" };
+/** A trial on a station of the lab world. */
+export interface StationTrial extends TrialCore {
+  station: StationId;
+  /** A lane of the station by name; its first lane when absent. */
+  lane?: string;
+}
+
+/** A trial on a race world against an AI field (H8, O8): the lab reloads onto `map` for it. */
+export interface RaceTrial extends TrialCore {
+  /** A map code (`worldgen/kinds/map-code.ts`) of a compact world with a closed circuit and no rails. */
+  map: string;
+  /** The race level the field runs, on a closed route; `circuit` when absent. */
+  route?: string;
+  field: TrialField;
+}
+
+export type Trial = StationTrial | RaceTrial;
+
+export interface TrialField {
+  /** One per AI car on the grid, pole first; the player starts last. */
+  cars: FieldCar[];
+  /** As the player's setting would scale the field (O5); normal when absent. */
+  difficulty?: Difficulty;
+}
+
+/** The AI cars a race trial may put on the grid (F3's six). */
+export const FIELD_MAX = 6;
+export const RACE_ROUTE = "circuit";
+
+export const is_race = (trial: Trial): trial is RaceTrial => "map" in trial;
+
+/** Metres between a race lane's path points: a chord through a hairpin then strays under a metre off the centreline. */
+const RACE_PATH_STEP = 10;
+
+/** A closed route's centreline as a lane path, back to its start: farther off than the field's own off-road line counts as off. */
+export function race_path(points: readonly { x: number; z: number }[]): NonNullable<LabLane["path"]> {
+  const out: [number, number][] = [];
+  let since = Infinity;
+  for (let i = 0; i < points.length; i++) {
+    if (i > 0) since += Math.hypot(points[i].x - points[i - 1].x, points[i].z - points[i - 1].z);
+    if (since < RACE_PATH_STEP) continue;
+    out.push([points[i].x, points[i].z]);
+    since = 0;
+  }
+  out.push([points[0].x, points[0].z]);
+  return { points: out, half: OFF_ROAD };
+}
+
+/** `race`: the whole race, until the player crosses the line; a race trial's other goal is `time`. */
+export type Goal = { kind: "laps"; laps: number } | { kind: "time"; seconds: number } | { kind: "stop"; from_kmh: number } | { kind: "run" } | { kind: "free" } | { kind: "race" };
 
 export type Question = { kind: "scale"; id: string; label: string; low: string; high: string } | { kind: "pick"; id: string; label: string; options: string[] } | { kind: "text"; id: string; label: string };
 
-export interface Resolved {
-  trial: Trial;
+interface ResolvedCar {
   /** Draws the car; for a lab car its body is the `look`. */
   build: Build;
   spec: CarSpec;
@@ -68,9 +116,25 @@ export interface Resolved {
   hash: string;
   pi: number;
   class: CarClass;
+}
+
+export interface StationResolved extends ResolvedCar {
+  trial: StationTrial;
   station: LabStation;
   lane: LabLane;
 }
+
+/** `lane` is a bare one named after the route; the lab adds the route's centreline as its path once the race starts. */
+export interface RaceResolved extends ResolvedCar {
+  trial: RaceTrial;
+  station: null;
+  lane: LabLane;
+}
+
+export type Resolved = StationResolved | RaceResolved;
+
+/** Where a trial runs: its station, or its race world's map code. */
+export const place_of = (trial: Trial): string => (is_race(trial) ? trial.map : trial.station);
 
 export const spec_hash = (spec: CarSpec): string => seed_of(JSON.stringify(spec)).toString(16).padStart(8, "0");
 
@@ -98,12 +162,24 @@ function car_of(pack: Pack, car: string): { build: Build; base: CarSpec } {
   return { build, base: CARS[build.car] };
 }
 
+function check_race(trial: RaceTrial) {
+  const { cars } = trial.field;
+  if (cars.length < 1 || cars.length > FIELD_MAX) throw new Error(`trial ${trial.id} puts ${cars.length} AI cars on the grid, expected 1-${FIELD_MAX}`);
+  if (trial.goal.kind !== "race" && trial.goal.kind !== "time") throw new Error(`trial ${trial.id} is a race: its goal is race or time, not ${trial.goal.kind}`);
+}
+
 export function resolve_trial(pack: Pack, trial: Trial): Resolved {
   const { build, base } = car_of(pack, trial.car);
   const spec = apply_mods(base, [...build_mods(build.parts), ...(trial.mods ?? [])]);
-  const station = station_of(trial.station);
   const pi = spec_pi(spec);
-  return { trial, build, spec, hash: spec_hash(spec), pi, class: class_of(pi), station, lane: lane_of(station, trial.lane) };
+  const car = { build, spec, hash: spec_hash(spec), pi, class: class_of(pi) };
+  if (is_race(trial)) {
+    check_race(trial);
+    return { ...car, trial, station: null, lane: { name: trial.route ?? RACE_ROUTE, surface: LabSurface.ASPHALT, spawn: { x: 0, z: 0, heading: 0 } } };
+  }
+  if (trial.goal.kind === "race") throw new Error(`trial ${trial.id} has a race goal on a station`);
+  const station = station_of(trial.station);
+  return { ...car, trial, station, lane: lane_of(station, trial.lane) };
 }
 
 export const resolve_pack = (pack: Pack): Resolved[] => pack.trials.map((trial) => resolve_trial(pack, trial));

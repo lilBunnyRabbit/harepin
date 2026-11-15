@@ -1,3 +1,4 @@
+import { Difficulty } from "../ai/difficulty";
 import { SteerMode } from "../car/car";
 import { DEFAULT_BINDINGS, parse_bindings, type Bindings } from "../hud/bindings";
 import { RumbleLevel } from "../hud/rumble";
@@ -123,6 +124,8 @@ export interface SettingsState {
   camera_tilt: boolean;
   invert_y: boolean;
   ghost: boolean;
+  /** How fast and how clean an AI field races (O5); nothing is recorded against it. */
+  ai_difficulty: Difficulty;
   /** Master volume, 0..1. */
   volume: number;
   muted: boolean;
@@ -213,6 +216,7 @@ const FIELDS: { [K in SettingKey]: Field<SettingsState[K]> } = {
   camera_tilt: flag(false),
   invert_y: flag(false),
   ghost: flag(true),
+  ai_difficulty: one_of(Object.values(Difficulty), Difficulty.NORMAL),
   volume: { fallback: 0.8, parse: (raw) => (typeof raw === "number" && Number.isFinite(raw) ? Math.min(1, Math.max(0, raw)) : 0.8) },
   muted: flag(false),
   hud: one_of(Object.values(HudLayout), HudLayout.CLASSIC),

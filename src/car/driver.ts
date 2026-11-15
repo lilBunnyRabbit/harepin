@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { build_spec, type Build } from "./build";
 import type { ChaseCamera } from "../render/camera";
-import { Car, drop_height } from "./car";
+import { drop_height, type Car } from "./car";
 import { oversize, type CarSpec, type Size } from "./cars";
 import type { Lighting } from "../render/lighting";
 import { dark } from "../theme/palette";
@@ -9,11 +9,10 @@ import { contact_shadow, fit_contact_shadow, place_contact_shadow } from "./cont
 import { lamps_lit, set_lights, show_flame, snap_lights, swing_popups } from "./lights";
 import { build_view, dispose_car_view, sync_car_view, type CarView } from "./models";
 import { stand_on_drawn } from "./drawn-stand";
-import type { NitroSnapshot } from "./nitro";
 import type { Race } from "../race";
 import type { RoutePoint } from "../modes/route";
-import { Rewind, type RewindPart } from "./rewind";
-import type { PadTimer } from "../world/sky-pads";
+import { Rewind } from "./rewind";
+import type { Sim } from "../sim/sim-client";
 import { ROAD_HALF, type Spawn, type World } from "../world/world";
 
 /** Speed (m/s) above which a reset faces the way the car travels rather than where its nose points. */
@@ -24,25 +23,14 @@ const SAFE_UPRIGHT = 0.8;
 /** A safe spot this near the circuit counts as on it, for the lap's checkpoint rule. */
 const ON_CIRCUIT = ROAD_HALF * 2;
 // Farther than a step can move: the car was placed (reset, mode restart), so drawing it does not slide from the old spot.
-const TELEPORT_SQ = 1;
-
-interface CarFrame {
-  pos: THREE.Vector3;
-  quat: THREE.Quaternion;
-  vel: THREE.Vector3;
-  ang: THREE.Vector3;
-  gear: number;
-  omega: number[];
-}
+export const TELEPORT_SQ = 1;
 
 export class Driver {
-  car: Car;
   view: CarView;
   private size: Size;
   readonly shadow = contact_shadow();
+  /** The lap clock; the car, its nitro and the pads rewind in the sim, recorded and stepped with the same `now`. */
   readonly rewind: Rewind;
-  /** The car before its last physics step; the drawn car and the camera sit between this and `car`, `blend` of the way. */
-  private readonly step_from = { pos: new THREE.Vector3(), quat: new THREE.Quaternion() };
   readonly drawn = { pos: new THREE.Vector3(), quat: new THREE.Quaternion(), vel: new THREE.Vector3() };
   /** Resolves once the ground around (x, z) is in; a teleport reads its height only after. */
   arrive: (x: number, z: number) => Promise<void> = (x, z) => this.world.tiles.ensure(x, z);
@@ -57,11 +45,10 @@ export class Driver {
     private readonly light: Lighting,
     private readonly world: World,
     private readonly race: Race,
-    private readonly pads: PadTimer,
+    readonly sim: Sim,
     private readonly chase: ChaseCamera,
     build: Build,
   ) {
-    this.car = new Car(build_spec(build));
     this.view = build_view(build, this.car.spec);
     this.size = oversize(this.car.spec);
     fit_contact_shadow(this.shadow, this.car.spec);
@@ -69,40 +56,18 @@ export class Driver {
     scene.add(this.shadow.mesh);
     snap_lights(this.view, dark);
     light.mount(this.view.root, dark, this.car.spec.body.length / 2);
-    const body: RewindPart<CarFrame> = {
-      snapshot: (into) => {
-        const car = this.car;
-        const f = into ?? { pos: new THREE.Vector3(), quat: new THREE.Quaternion(), vel: new THREE.Vector3(), ang: new THREE.Vector3(), gear: 0, omega: [] };
-        f.pos.copy(car.pos);
-        f.quat.copy(car.quat);
-        f.vel.copy(car.vel);
-        f.ang.copy(car.ang);
-        f.gear = car.gear;
-        f.omega.length = car.wheels.length;
-        for (let i = 0; i < car.wheels.length; i++) f.omega[i] = car.wheels[i].omega;
-        return f;
-      },
-      restore: (f) => {
-        const car = this.car;
-        car.pos.copy(f.pos);
-        car.quat.copy(f.quat);
-        car.vel.copy(f.vel);
-        car.ang.copy(f.ang);
-        car.gear = f.gear;
-        car.parked = false;
-        for (let i = 0; i < car.wheels.length; i++) car.wheels[i].omega = f.omega[i];
-        car.forget_slide();
-      },
-    };
-    const nitro: RewindPart<NitroSnapshot> = { snapshot: (into) => this.car.nitro.snapshot(into), restore: (s) => this.car.nitro.restore(s) };
-    this.rewind = new Rewind([body, race, nitro, pads]);
+    this.rewind = new Rewind([race]);
+  }
+
+  /** What every reader of the player's car reads: the sim's own car, or main's mirror of the worker's. */
+  get car(): Car {
+    return this.sim.car;
   }
 
   /** `spot.y` is the car's height, not the ground's. */
   place(spot: Spawn) {
-    this.car.place(spot.x, spot.y, spot.z, spot.heading);
+    this.sim.send({ type: "place", x: spot.x, y: spot.y, z: spot.z, heading: spot.heading });
     this.keep_safe(spot.x, spot.z, spot.heading);
-    this.pads.clear();
     this.chase.size = this.size;
     this.chase.snap(this.car);
     this.placed();
@@ -110,9 +75,8 @@ export class Driver {
 
   /** At rest on the ground under (x, z), tilted to its slope: a level drop onto a steep site can roll the car. */
   park(x: number, z: number, heading: number) {
-    this.car.park(x, z, heading, this.world);
+    this.sim.send({ type: "park", x, z, heading });
     this.keep_safe(x, z, heading);
-    this.pads.clear();
     this.chase.size = this.size;
     this.chase.snap(this.car);
     this.placed();
@@ -197,11 +161,7 @@ export class Driver {
   /** `spec` stands in for the build's own (the feel lab's overrides); the build still draws the car. */
   swap(build: Build, timed: boolean, spec: CarSpec = build_spec(build)) {
     const { pos, heading } = this.car;
-    const tank = this.car.nitro;
-    this.car = new Car(spec);
-    this.car.nitro.carry(tank, timed);
-    this.pads.clear();
-    this.car.park(pos.x, pos.z, heading, this.world);
+    this.sim.send({ type: "swap", spec, timed, x: pos.x, z: pos.z, heading });
     this.size = oversize(this.car.spec);
     fit_contact_shadow(this.shadow, this.car.spec);
     const { lights } = this.view;
@@ -222,15 +182,20 @@ export class Driver {
     return on;
   }
 
-  begin_step() {
-    this.step_from.pos.copy(this.car.pos);
-    this.step_from.quat.copy(this.car.quat);
+  /** Drops the rewind on both sides: the lap clock here and the car in the sim. */
+  clear_rewind() {
+    this.rewind.clear();
+    this.sim.send({ type: "rewind_clear" });
   }
 
   /** `held`: the car did not step this frame (rewind, garage, countdown), so nothing to blend from. */
   draw(held: boolean, blend: number, now: number) {
-    const { car, view, step_from, drawn, chase } = this;
-    if (held || step_from.pos.distanceToSquared(car.pos) > TELEPORT_SQ) this.begin_step();
+    const { car, view, drawn, chase } = this;
+    const step_from = this.sim.from;
+    if (held || step_from.pos.distanceToSquared(car.pos) > TELEPORT_SQ) {
+      step_from.pos.copy(car.pos);
+      step_from.quat.copy(car.quat);
+    }
     drawn.pos.lerpVectors(step_from.pos, car.pos, blend);
     drawn.quat.slerpQuaternions(step_from.quat, car.quat, blend);
     drawn.vel.copy(car.vel);
