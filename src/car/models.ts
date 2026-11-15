@@ -245,8 +245,8 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
     lips.walls.map((g) => tint(g, well)),
     wells(d, spec, Math.max(...fitted.map((look) => look.width))).map((g) => tint(g, well)),
     // The sill strip runs between wheel openings: a body without them (a tub, pontoons, a cage) has no sill to trim, and
-    // an aero kit's sills are its own shell or band.
-    (d.arches.steps === 0 || aero.skirts ? [] : skirts(d, spec, 0.03, 0.09)).map((g) => tint(g, trim)),
+    // an aero kit's sills are its own shell or band, and a side pipe takes the strip's place.
+    (d.arches.steps === 0 || aero.skirts || detail.swaps.has("sill") ? [] : skirts(d, spec, 0.03, 0.09)).map((g) => tint(g, trim)),
     parts([...d.paint, ...(d.mirror?.paint ?? [])]).map((g) => tint(g, paint)),
     parts([...d.trim, ...(d.mirror?.trim ?? [])]).map((g) => tint(g, trim)),
     parts(livery && livery.decal !== "none" ? [] : (d.stripes ?? [])).map((g) => tint(g, trim)),

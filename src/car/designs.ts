@@ -174,7 +174,7 @@ export interface Design {
 /** What a build must have fitted for a detail to show: `base` is every build. */
 export type Fit = "base" | "lip" | "wing" | "street" | "race" | "tuned" | "race_engine" | "light" | "stripped" | "knobbly" | "nitro" | "drift" | "lifted";
 
-export type Swap = "bulge" | "pipes" | "diffuser" | "bonnet" | "tips";
+export type Swap = "bulge" | "pipes" | "diffuser" | "bonnet" | "tips" | "sill";
 
 /** Tuner parts a build wears once the part `on` is fitted, until the part `until` takes their place; one list per tone. */
 export interface Detail {

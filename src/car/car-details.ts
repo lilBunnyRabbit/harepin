@@ -44,8 +44,14 @@ const MUSCLE_HOOD_Z = 1.2;
 const SCOOP_SINK = 0.012;
 const HOOD_FALL = 0.041;
 // A slim round pipe tucked under the sill's outer edge, ending ahead of the rear tyre: one row for the stock body, one for the kit's wider, deeper shell.
+// Its front end turns in and up under the sill through an upright knuckle that hides both cut ends, so it grows out of
+// the body instead of stopping in the open.
 const muscle_pipe = (x: number, y: number) => ({
-  chrome: [{ size: [0.09, 0.09, 1.5], at: [x, y, 0.02], round: true }] satisfies Part[],
+  chrome: [
+    { size: [0.09, 0.09, 1.5], at: [x, y, 0.02], round: true },
+    { size: [0.09, 0.09, 0.09], at: [x, y, 0.73], tilt: [UPRIGHT, 0, 0], round: true },
+    { ...rod([x, y, 0.73], [x - 0.16, y + 0.09, 0.84], 0.09), round: true },
+  ] satisfies Part[],
   trim: [{ size: [0.06, 0.06, 0.02], at: [x, y, -0.735], round: true }] satisfies Part[],
   tips: [{ size: [0.11, 0.11, 0.08], at: [x, y, -0.7], round: true }] satisfies Part[],
   // Out past the rear tyre right behind the pipe's end.
@@ -69,7 +75,7 @@ const MUSCLE: Detail[] = [
     hood: [{ size: [0.74, 0.1 + SCOOP_SINK, 0.56], at: [0, 0.895 - SCOOP_SINK / 2, MUSCLE_HOOD_Z], tilt: [HOOD_FALL, 0, 0], shape: "wedge", one: true }],
     trim: [{ size: [0.25, 0.055, 0.02], at: [0.125, 0.895, 1.485] }],
   },
-  { on: "tuned", until: "street", cue: "Chrome side pipes under the sills, in place of tailpipes", ...MUSCLE_PIPE, swaps: ["pipes", "bulge"] },
+  { on: "tuned", until: "street", cue: "Chrome side pipes under the sills, in place of tailpipes and the sill strip", ...MUSCLE_PIPE, swaps: ["pipes", "bulge", "sill"] },
   { on: "tuned", with: "street", cue: "The side pipes under the kit's wider sills", ...MUSCLE_KIT_PIPE, swaps: ["pipes", "bulge"] },
   {
     on: "street",
