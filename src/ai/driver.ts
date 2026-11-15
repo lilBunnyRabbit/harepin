@@ -1,18 +1,12 @@
 import { Quaternion, Vector3 } from "three";
 import { ride_height, type Car, type Controls, type Ground } from "../car/car";
 import { ROAD_HALF } from "../worldgen/types";
-import { CURVE_SPAN, grip_at, inverse_radius, LATE_BRAKE, LINE_BRAKE, type RaceLine } from "./line";
+import { CURVE_SPAN, grip_at, inverse_radius, type RaceLine } from "./line";
+import { AI_TUNING } from "./tuning";
 
-/** Road points of aim past the car, plus one per this many m/s: pure pursuit, as the autopilot steers. */
-const AIM_BASE = 7;
-const AIM_PER = 3;
 /** Under this pace (m/s) a bend is a hairpin and the aim stays short, or it cuts across the inside. */
 const HAIRPIN_PACE = 15;
 const AIM_HAIRPIN = 5;
-/** Wheel per rad of aim error: at 3 a car sat up to 3 m wide of the line through a 200 m bend at 38 m/s and ran off. */
-const STEER_GAIN = 4.5;
-/** Wheel per rad/s the aim error swings at: without it a fast car fishtails, each catch overshooting the last. */
-const STEER_DAMP = 1;
 const TRACK_BACK = 5;
 const TRACK_AHEAD = 40;
 /** m/s over the plan before the brake comes on, and m/s of overspeed per unit of pedal (capped at BRAKE_MAX). */
@@ -44,10 +38,6 @@ const WARY = 5;
 const WARY_BOLD = 0.6;
 /** Seconds a stuck car reverses for, wheel the other way, before it drives on. */
 const REVERSE_TIME = 1.5;
-/** Share over the line's grip a passing driver plans its path on: off the line every bend is tighter, and a pass at the line's grip never gets by. */
-const PASS_GRIP = 1.4;
-/** Most grip (m/s²) a pass plans on, whatever the line's: the coupe's skidpad is 9.2, and past this a pass runs wide. */
-const PASS_MAX = 8.4;
 /** Road points ahead a driver off the line reads bends over, every HOLD_STRIDE. */
 const HOLD_LOOK = 60;
 const HOLD_STRIDE = 3;
@@ -234,7 +224,7 @@ export class Driver {
     const { road } = line;
     const n = road.length;
     const plan = this.late ? line.late : line.speed;
-    const brake = this.late ? LATE_BRAKE : LINE_BRAKE;
+    const brake = this.late ? AI_TUNING.late_brake : AI_TUNING.line_brake;
     let pace = Infinity;
     let run = 0;
     for (let k = 0; k < HOLD_LOOK; k += HOLD_STRIDE) {
@@ -245,7 +235,7 @@ export class Driver {
       const li = this.lateral_at(car, i);
       const lc = this.lateral_at(car, c);
       const bend = inverse_radius(road[a].x + road[a].tz * la, road[a].z - road[a].tx * la, road[i].x + road[i].tz * li, road[i].z - road[i].tx * li, road[c].x + road[c].tz * lc, road[c].z - road[c].tx * lc);
-      const v = Math.min(plan[i], Math.sqrt((this.push > 1 ? Math.min(PASS_MAX, grip_at(bend) * PASS_GRIP) : grip_at(bend)) / Math.max(1e-9, Math.abs(bend))));
+      const v = Math.min(plan[i], Math.sqrt((this.push > 1 ? Math.min(AI_TUNING.pass_max, grip_at(bend) * AI_TUNING.pass_grip) : grip_at(bend)) / Math.max(1e-9, Math.abs(bend))));
       pace = Math.min(pace, Math.sqrt(v * v + 2 * brake * run));
       for (let s = 0; s < HOLD_STRIDE; s++) run += line.step[(i + s) % n];
     }
@@ -271,7 +261,7 @@ export class Driver {
     const free = slip && !this.mistake_late ? plan * personality.pace * (1 - MISTAKE_LIFT) : plan * personality.pace * this.push + personality.brake_margin + (slip ? Math.min(MISTAKE_SPEED, MISTAKE_OVER * plan) : 0);
     const target = Math.min(this.cap, free);
     this.target = target;
-    const look = target < HAIRPIN_PACE ? AIM_HAIRPIN : AIM_BASE + Math.floor(speed / AIM_PER);
+    const look = target < HAIRPIN_PACE ? AIM_HAIRPIN : AI_TUNING.aim_base + Math.floor(speed / AI_TUNING.aim_per);
     const at = (this.index + look) % n;
     let ax = line.x[at];
     let az = line.z[at];
@@ -287,7 +277,7 @@ export class Driver {
     if (this.reversing > 0) {
       this.reversing -= dt;
       this.last_err = NaN;
-      c.steer = Math.max(-1, Math.min(1, err * STEER_GAIN));
+      c.steer = Math.max(-1, Math.min(1, err * AI_TUNING.steer_gain));
       c.throttle = 0;
       c.brake = 1;
       return c;
@@ -301,7 +291,7 @@ export class Driver {
     this.last_err = err;
     this.last_at = at;
     this.last_swing = swing;
-    c.steer = airborne ? 0 : Math.max(-1, Math.min(1, -err * STEER_GAIN - swing * STEER_DAMP));
+    c.steer = airborne ? 0 : Math.max(-1, Math.min(1, -err * AI_TUNING.steer_gain - swing * AI_TUNING.steer_damp));
     c.throttle = speed < target ? 1 : 0;
     // Behind a car the brake is not eased for the turn: running into it costs more than a wide line.
     const capped = this.cap < free;

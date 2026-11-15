@@ -1,5 +1,6 @@
 import type { Car } from "../car/car";
 import { OFF_ROAD, pass_room, type Driver } from "./driver";
+import { AI_TUNING } from "./tuning";
 
 /** Metres ahead a car is looked at, plus this many per m/s of the looker's speed. */
 const LOOK = 15;
@@ -31,8 +32,6 @@ const NUDGE_MAX = 1.5;
 const NUDGE_MARGIN = 0.4;
 /** m/s under the other car a squeezed driver drops to. */
 const YIELD = 1.5;
-/** Metres of IN_LANE a fully aggressive driver lets a car alongside into before it steers off: doors rub, nobody wrecks. */
-const RUB = 0.8;
 /** m/s under a faster passer alongside a timid driver (0) lifts to, none at full aggression: the bold ones make it a fight. */
 const CONCEDE = 1.5;
 /** Metres a follower keeps behind a car in its lane, and the braking (m/s²) it plans to close down to it. */
@@ -434,7 +433,7 @@ export class Awareness {
       if (j === i) continue;
       const dl = this.lateral[j] - this.lateral[i];
       // A car in trouble alongside can come across at any moment: it is kept TROUBLE_FLANK off, not IN_LANE.
-      const inside = (this.trouble[j] ? TROUBLE_FLANK : IN_LANE - RUB * driver.personality.aggression) - Math.abs(dl);
+      const inside = (this.trouble[j] ? TROUBLE_FLANK : IN_LANE - AI_TUNING.rub * driver.personality.aggression) - Math.abs(dl);
       if (inside > near_in && Math.abs(this.gap(i, j)) < ALONGSIDE) {
         near = j;
         near_dl = dl;

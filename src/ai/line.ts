@@ -1,24 +1,16 @@
 import { GRAVITY } from "../car/rigid-body";
 import { ROAD_HALF, type Ramp, type RoadPoint } from "../worldgen/types";
+import { AI_TUNING } from "./tuning";
 
-/**
- * Cornering grip and braking (m/s²) the line plans on, for the stock coupe at pace 1 (`grip_pace` scales other cars).
- * LINE_GRIP holds in a hairpin (HAIRPIN_RADIUS m and tighter), where the driver is already at full lock; it eases up to
- * FAST_GRIP in a bend of FAST_RADIUS m or wider. The coupe holds 0.94 g on the skidpad: the steering is the limit, and
- * at 6.5 in hairpins, 7.5 in fast bends or braking at 3, cars run wide.
- */
-export const LINE_GRIP = 6;
-const FAST_GRIP = 7;
+/** Bend radii (m) over which the line's grip eases from `AI_TUNING.line_grip` up to `fast_grip`. */
 const HAIRPIN_RADIUS = 25;
 const FAST_RADIUS = 80;
-export const LINE_BRAKE = 2.5;
-/** Braking (m/s²) a driver diving down the inside plans on: it brakes later and harder than the line, into the apex. */
-export const LATE_BRAKE = 4;
 
 /** Grip (m/s²) the line plans a bend of signed curvature `bend` (1/m) on. */
 export function grip_at(bend: number): number {
   const radius = 1 / Math.max(1e-9, Math.abs(bend));
-  return LINE_GRIP + (FAST_GRIP - LINE_GRIP) * Math.max(0, Math.min(1, (radius - HAIRPIN_RADIUS) / (FAST_RADIUS - HAIRPIN_RADIUS)));
+  const { line_grip, fast_grip } = AI_TUNING;
+  return line_grip + (fast_grip - line_grip) * Math.max(0, Math.min(1, (radius - HAIRPIN_RADIUS) / (FAST_RADIUS - HAIRPIN_RADIUS)));
 }
 
 /** Metres between the car's body and the road edge. */
@@ -33,8 +25,6 @@ const RELAX_GAIN = 0.3;
 export const CURVE_SPAN = 5;
 /** Road points either side a crest's vertical curvature is read over. */
 const CREST_SPAN = 10;
-/** Most load (share of g) a crest takes off the plan: past it the car is near its take-off speed, which on a straight costs nothing. */
-const CREST_LIGHT = 0.5;
 /** Fastest pace over a circuit kicker, and how far before its toe (m) the line slows for it: as the autopilot takes them. */
 const JUMP_PACE = 32;
 const RAMP_LOOK = 120;
@@ -52,7 +42,7 @@ export interface RaceLine {
   readonly z: Float64Array;
   /** m/s: the corner speed at each point, lowered by one backward pass so every bend can be braked for. */
   readonly speed: Float64Array;
-  /** m/s: the same corner speeds braked for at LATE_BRAKE, the plan of a late braker diving down the inside. */
+  /** m/s: the same corner speeds braked for at `AI_TUNING.late_brake`, the plan of a late braker diving down the inside. */
   readonly late: Float64Array;
   /** Signed 1/radius (1/m) of the line at each point; positive bends away from the right normal. */
   readonly bend: Float64Array;
@@ -178,10 +168,10 @@ export function race_line(road: readonly RoadPoint[], ramps: readonly Ramp[], ha
     // A 9% climb into a 9% drop in a 200 m bend at 38 m/s took a third of the load, and the field spun there.
     const grip = grip_at(bend[i]);
     const reach = grip / Math.max(1e-9, Math.abs(bend[i]));
-    speed[i] = Math.min(Math.sqrt(reach / (1 + Math.min(CREST_LIGHT, (reach * crest(road, step, i)) / GRAVITY))), ramp[i] >= 0 ? JUMP_PACE : Infinity);
+    speed[i] = Math.min(Math.sqrt(reach / (1 + Math.min(AI_TUNING.crest_light, (reach * crest(road, step, i)) / GRAVITY))), ramp[i] >= 0 ? JUMP_PACE : Infinity);
   }
   const late = speed.slice();
-  brake_curve(speed, step, LINE_BRAKE);
-  brake_curve(late, step, LATE_BRAKE);
+  brake_curve(speed, step, AI_TUNING.line_brake);
+  brake_curve(late, step, AI_TUNING.late_brake);
   return { road, offset, x, z, speed, late, bend, ramp, step, room };
 }

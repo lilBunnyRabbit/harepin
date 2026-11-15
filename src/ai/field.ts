@@ -8,6 +8,7 @@ import type { Route } from "../worldgen/types";
 import { Awareness } from "./awareness";
 import { Driver, OFF_ROAD, STEADY, type Personality } from "./driver";
 import { race_line, type RaceLine } from "./line";
+import { AI_TUNING } from "./tuning";
 
 /** Physics steps between awareness and recovery passes: 20 Hz at 360; at 10 Hz a follower closing in a hairpin reacts too late. */
 const AWARE_STEPS = 18;
@@ -47,15 +48,9 @@ const FAR = 120;
 const NEAR = 100;
 /** Metres under the world a retired car is parked at: out of every contact's height band and every view. */
 const RETIRED_DEPTH = -1000;
-/** Personality ranges a field draws from. */
-const PACE = [0.96, 1.02] as const;
 /** m/s at which a car's cornering grip is read off its stats, against the stock coupe's that the line plans on. */
 const GRIP_AT = 20;
 const REF_GRIP = stat_pace(COUPE).lateral(GRIP_AT);
-const BRAKE_MARGIN = [0, 0.8] as const;
-/** Aggression and mistakes ranges per owner level 1-5 (H5, H6); level 3 is the default field. */
-const AGGRESSION: readonly (readonly [number, number])[] = [[0, 0.6], [0.1, 0.8], [0.2, 1], [0.4, 1], [0.6, 1]];
-const MISTAKES: readonly (readonly [number, number])[] = [[0, 0.1], [0.02, 0.2], [0.05, 0.3], [0.1, 0.4], [0.2, 0.5]];
 const LEVEL = 3;
 
 export interface RacerStats {
@@ -111,7 +106,7 @@ export const LEVEL_3: FieldCar = { aggression: LEVEL, mistakes: LEVEL };
  */
 export function field_personalities(seed: number, cars: readonly FieldCar[]): Personality[] {
   const rng = mulberry32(sub(seed, "ai-field"));
-  return cars.map((car) => ({ pace: between(rng, PACE), brake_margin: between(rng, BRAKE_MARGIN), aggression: between(rng, level(AGGRESSION, car.aggression)), mistakes: between(rng, level(MISTAKES, car.mistakes)) }));
+  return cars.map((car) => ({ pace: between(rng, AI_TUNING.pace), brake_margin: between(rng, AI_TUNING.brake_margin), aggression: between(rng, level(AI_TUNING.aggression, car.aggression)), mistakes: between(rng, level(AI_TUNING.mistakes, car.mistakes)) }));
 }
 
 /** `count` cars all on the owner's levels `aggression` and `mistakes`. */
