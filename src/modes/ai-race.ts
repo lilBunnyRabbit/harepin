@@ -14,9 +14,12 @@ import { RaceView } from "./race-view";
 import { COUNTDOWN_MS, RaceRun, RaceStatus, type RaceCourse, type RaceLevel } from "./races";
 import { line } from "./result";
 
-/** D4: about four minutes a race, in laps of the route's par; an island circuit's one lap already takes that (D3's three laps do not fit). */
+/**
+ * D4: about four minutes a race, in laps of the route's par; an island circuit's one lap already takes that (D3's three
+ * laps do not fit), and a town loop of a quarter kilometre runs ten or more.
+ */
 const RACE_MS = 240_000;
-const MAX_LAPS = 3;
+const MAX_LAPS = 15;
 /** Places that show two stars; nothing is recorded, as position grading is its own design (O9). */
 const PODIUM = 3;
 const PLAYER = "You";
