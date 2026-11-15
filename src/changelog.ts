@@ -41,14 +41,11 @@ const { NEW, IMPROVED, FIXED } = ChangeKind;
 
 /** The next release's story, written ahead of its bump: at release its `highlights` move onto the new top entry of `CHANGELOG`. */
 export const DRAFT_HIGHLIGHTS: Highlight[] = [
-  { kind: NEW, title: "Two new cars", text: "A pop-up drift hardtop and a sand buggy." },
-  { kind: NEW, title: "Tsumuji", text: "A light drift hardtop. Its headlights pop up when you switch the lights on.", car: "tsumuji" },
-  { kind: NEW, title: "Sajin", text: "A sand buggy with long-travel suspension and big tyres, built for the dunes.", car: "sajin" },
-  { kind: IMPROVED, title: "Every car, restyled", text: "Stock bodies and four aero kits to bolt on.", was: true },
-  { kind: TEASE, title: "Something fast is waiting", text: "Win the Legend final to earn it.", car: "fujin" },
-  { kind: NEW, title: "Career page", text: "Tiers, cups and rewards on one page." },
-  { kind: NEW, title: "Towns", text: "Streets and buildings to drive through." },
-  { kind: NEW, title: "Headlights", text: "Switch them on any car. Players online see them." },
+  { kind: NEW, title: "Seasons", text: "Four seasons of events against six rivals, with prize credits and a car for each season won." },
+  { kind: NEW, title: "Rivals that race", text: "AI drivers that brake late, pass from the start and hold their line." },
+  { kind: NEW, title: "Winter and wall rides", text: "A winter Mainland with frozen lakes, and a new wall ride map of bowls and half-pipes." },
+  { kind: IMPROVED, title: "Sturm, rebuilt", text: "A rounder, wider body and a proper wide-body kit.", car: "sturm" },
+  { kind: IMPROVED, title: "Faster top builds", text: "Cars no longer scrape the road at top speed. Records start fresh." },
 ];
 
 // Newest first; the top entry is the package.json version (version.test.ts).
@@ -325,7 +322,16 @@ export const CHANGELOG: Release[] = [
     version: "0.42.0",
     date: "2026-11-14",
     title: "Fresh metal",
-    highlights: DRAFT_HIGHLIGHTS,
+    highlights: [
+      { kind: NEW, title: "Two new cars", text: "A pop-up drift hardtop and a sand buggy." },
+      { kind: NEW, title: "Tsumuji", text: "A light drift hardtop. Its headlights pop up when you switch the lights on.", car: "tsumuji" },
+      { kind: NEW, title: "Sajin", text: "A sand buggy with long-travel suspension and big tyres, built for the dunes.", car: "sajin" },
+      { kind: IMPROVED, title: "Every car, restyled", text: "Stock bodies and four aero kits to bolt on.", was: true },
+      { kind: TEASE, title: "Something fast is waiting", text: "Win the Legend final to earn it.", car: "fujin" },
+      { kind: NEW, title: "Career page", text: "Tiers, cups and rewards on one page." },
+      { kind: NEW, title: "Towns", text: "Streets and buildings to drive through." },
+      { kind: NEW, title: "Headlights", text: "Switch them on any car. Players online see them." },
+    ],
     changes: [
       { kind: NEW, text: "Legend tier: 12 events ending in the Velodrome final, with carbon paint, the Lanes decal and the Legend champion badge to earn" },
       { kind: NEW, text: "Two new cars: Tsumuji, a light drift hardtop with pop-up headlights, and Sajin, a sand buggy built for the dunes" },
