@@ -61,8 +61,8 @@ const lip = (root: Point, tip: Point): Point[] => [root, tip, [tip[0] - 0.015, t
 const DUCKTAIL = lip([-1.58, 0.79], [-1.95, 0.86]);
 const WHALETAIL = lip([-1.5, 0.825], [-2.0, CREST]);
 const TRAY = lip([-1.44, 0.84], [-2.06, CREST]);
-// The rubber rim wraps the tray's ends, so the two never share an end face.
-const RIM_WRAP = 0.006;
+// The rubber rim ends on the tray, short of its ends: wrapped round them it closed in a faceted nub at the pinched corner.
+const RIM_INSET = 0.03;
 const PLANE = plane([-1.92, 1.3], 0.44, 0.05, 0.1);
 const PLANE_HALF = 0.8;
 
@@ -71,7 +71,7 @@ function wings(half: number, shoulder: number): Wing[] {
   return [
     { paint: [], trim: [], lips: grown(DUCKTAIL, 0, half) },
     { paint: [], trim: [], lips: grown(WHALETAIL, 0, half) },
-    { paint: [], trim: [], lips: grown(TRAY, 0, half), stands: [{ points: gurney(TRAY, 0.045), from: 0, to: half + RIM_WRAP }] },
+    { paint: [], trim: [], lips: grown(TRAY, 0, half), stands: [{ points: gurney(TRAY, 0.045), from: 0, to: half - RIM_INSET }] },
     {
       paint: [],
       trim: [],
@@ -81,9 +81,12 @@ function wings(half: number, shoulder: number): Wing[] {
   ];
 }
 
+// The tail band and the lamp bar in it end this far inside the body side and each other: flush, they stood past the pinched corner.
+const BAND_INSET = 0.03;
+
 /** What changes with the body's width: the tail band and the bumper bars across it, the mirrors on its shoulder, its wings. */
 function shell(outline: Point[], half: number, shoulder: number, front: Part[]) {
-  const tail = tail_end(outline, 0.57, 0.14, half, [{ size: [half, 0.1, 0.04], at: [half / 2, 0.57, 0] }], null, 0.42);
+  const tail = tail_end(outline, 0.57, 0.14, half - BAND_INSET, [{ size: [half - 2 * BAND_INSET, 0.1, 0.04], at: [(half - 2 * BAND_INSET) / 2, 0.57, 0] }], null, 0.42);
   return {
     slabs: grown(FENDER, WING_WALL, half),
     mirror: cabin_mirror(CABIN, shoulder, MIRROR_AT),
