@@ -16,9 +16,11 @@ Status: **draft, not ticked**. Bands start from the measured stock numbers on 2a
 | formula | downforce car | 3.8-4.3 | 295-310 | 23-26 | 1.12-1.22 | 38-46 | 8-15 | 22-32 | grip rises with speed, nervous on lift, poor off road |
 | fujin | prototype, most grip | 2.4-2.9 | 315-330 | 20-23 | 1.30-1.40 | 32-40 | 6-12 `?` (19.1) | 0-8 | highest g, stable at top speed |
 | tsumuji | light pop-up roadster, momentum drifter | 8.8-9.8 | 172-185 | 32-35 | 0.92-0.99 | 46-54 | 12-18 | 16-24 | rotates on lift, carries speed through slides |
-| sajin | sand buggy | 4.3-4.9 | 182-195 | 34-38 | 0.80-0.87 | 50-58 | 10-16 `?` (24.1) | 14-22 | best on sand and grass, soft, slow on tarmac |
+| sajin | sand buggy | 4.3-4.9 | 182-195 | 34-38 | 0.85-0.92 | 50-58 | 10-16 `?` (21.1) | 20-28 | best on sand and grass, soft, slow on tarmac |
 
 Columns: `t100` 0-100 TCS on; `top` after 60 s flat out; `stop` 100-0 ABS on; `g` best steady skidpad g at 70 km/h; `turn` ms from full steer at 100 km/h to 0.2 rad/s; `lift` peak slip lifting mid corner at 90 km/h, assists on; `pwr` peak slip full throttle mid corner in 2nd, TCS off. Loose-ground rows (`<car>.stock dirt` and on) carry no bands yet: rally and sajin "best on loose" is read across cars on the same ground.
+
+Sajin `g` and `pwr` follow its measured stock row (0.89, 24.4) since its centre of mass came down 0.25 m (t4); `lift` stays doubted until the owner drives `t5-bands`.
 
 The bus is out (decision O6).
 
