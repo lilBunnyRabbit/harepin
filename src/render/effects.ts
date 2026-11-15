@@ -336,20 +336,24 @@ const SPARKS = 96;
 /** Speed along a solid (m/s) a scrape needs to throw sparks, and the speed over that where it throws them at full rate. */
 const SCRAPE_MIN = 3;
 const SCRAPE_FULL = 20;
-const SCRAPE_RATE = 160;
+const SCRAPE_RATE = 220;
 /** Speed into a solid (m/s) that throws a burst, and the burst it throws at `HIT_FULL`. */
 const HIT_MIN = 5;
 const HIT_FULL = 20;
 const HIT_SPARKS = 18;
 /** Seconds after a burst before another: a car pinned on a wall reports a hit every step. */
 const HIT_GAP = 0.25;
-const SPARK_LIFE = 0.35;
+const SPARK_LIFE = 0.45;
 const SPARK_GRAVITY = 9.8;
-/** Share of the car's speed a spark keeps: the body drags it along the face. */
-const SPARK_CARRY = 0.5;
+/** Share of the car's speed a spark keeps: thrown off a face the car slides past, it stays near where it was struck. */
+const SPARK_CARRY = 0.15;
+/** Spark speeds (m/s): out of the face, up, and the random fan across both. */
+const SPARK_OUT = 2;
+const SPARK_UP = 1.5;
+const SPARK_FAN = 4;
 /** Seconds of travel one streak shows, so a fast spark draws long, and its width in metres. */
-const SPARK_STREAK = 0.03;
-const SPARK_WIDTH = 0.04;
+const SPARK_STREAK = 0.05;
+const SPARK_WIDTH = 0.07;
 const FORWARD = new THREE.Vector3(0, 0, 1);
 // Hot metal: amber at dusk, a step past the warm orange by day so it shows on asphalt and concrete alike.
 const SPARK_TONE = dark ? lighten(mix(brand.warning, brand.error, 0.7), 0.15) : lighten(mix(brand.error, brand.background_darkest, 0.35), 0.08);
@@ -430,12 +434,12 @@ export class Sparks {
     const i = this.next;
     this.next = (this.next + 1) % SPARKS;
     const p = this.sparks[i];
-    const out = 1 + Math.random() * 3;
+    const out = SPARK_OUT * (1 + Math.random() * 2);
     p.pos.set(scrape.x, scrape.y, scrape.z);
     p.vel.set(
-      vel.x * SPARK_CARRY + scrape.nx * out + (Math.random() - 0.5) * 3,
-      1 + Math.random() * 3,
-      vel.z * SPARK_CARRY + scrape.nz * out + (Math.random() - 0.5) * 3,
+      vel.x * SPARK_CARRY + scrape.nx * out + (Math.random() - 0.5) * SPARK_FAN,
+      SPARK_UP * (1 + Math.random() * 2),
+      vel.z * SPARK_CARRY + scrape.nz * out + (Math.random() - 0.5) * SPARK_FAN,
     );
     p.age = 0;
     p.life = SPARK_LIFE * (0.5 + Math.random() * 0.5);
