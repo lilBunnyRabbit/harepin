@@ -1,7 +1,7 @@
 import { GRAVITY } from "../car/rigid-body";
 import type { DeckIndex } from "../worldgen/deck";
 import { ROAD_HALF, type Ramp, type RoadPoint } from "../worldgen/types";
-import { AI_TUNING, BANK_SHARE } from "./tuning";
+import { AI_TUNING, BANK_OVER, BANK_STEEP } from "./tuning";
 
 /** Bend radii (m) over which the line's grip eases from `AI_TUNING.line_grip` up to `fast_grip`. */
 const HAIRPIN_RADIUS = 25;
@@ -15,21 +15,8 @@ export function grip_at(bend: number): number {
 }
 
 /**
- * Fastest a bend of signed curvature `bend` can be taken at `grip` (m/s²) on a deck banked `bank` rad (+ up on the side of
- * the road's right normal, the outside of a positive bend). Banked, it is the grip limit at that bank, gravity holding
- * part of the turn; flat, the old v² = grip R, to the bit.
- */
-export function bank_top(bend: number, bank: number, grip: number): number {
-  const reach = 1 / Math.max(1e-9, Math.abs(bend));
-  if (bank === 0) return Math.sqrt(grip * reach);
-  const tilt = (bend < 0 ? -bank : bank) + Math.atan(grip / GRAVITY);
-  return tilt >= Math.PI / 2 ? Infinity : Math.sqrt(GRAVITY * reach * Math.tan(Math.max(0, tilt)));
-}
-
-/**
  * Speed (m/s) at which a bank holds the car through a bend with no side grip at all: v² = g R tan(bank). Under it a
- * bank steeper than the tyres can hold slides the car to the low rail, so the plan never drops below it; 0 off a bank
- * or on one leaning out of the bend.
+ * bank steeper than the tyres can hold slides the car to the low rail; 0 off a bank or on one leaning out of the bend.
  */
 export function bank_floor(bend: number, bank: number): number {
   const lean = bend < 0 ? -bank : bank;
@@ -37,17 +24,34 @@ export function bank_floor(bend: number, bank: number): number {
   return Math.sqrt((GRAVITY * Math.tan(Math.min(lean, BANK_MOST))) / Math.max(1e-9, Math.abs(bend)));
 }
 
+/**
+ * Speed (m/s) a bend of signed curvature `bend` is planned at with `grip` (m/s²) on a deck banked `bank` rad (+ up on the
+ * side of the road's right normal, the outside of a positive bend): the flat plan `flat`, raised to the bank's neutral
+ * speed, held under BANK_OVER times it (past that the car bottoms out) and under the grip limit at that bank.
+ */
+export function bank_pace(bend: number, bank: number, grip: number, flat: number): number {
+  const reach = 1 / Math.max(1e-9, Math.abs(bend));
+  const tilt = (bend < 0 ? -bank : bank) + Math.atan(grip / GRAVITY);
+  const limit = tilt >= Math.PI / 2 ? Infinity : Math.sqrt(GRAVITY * reach * Math.tan(Math.max(0, tilt)));
+  const floor = bank_floor(bend, bank);
+  return Math.min(limit, floor > 0 ? BANK_OVER * floor : Infinity, Math.max(flat, floor));
+}
+
 /** Most bank (rad) the neutral speed is read at: past it tan runs away, and a near-vertical wall has no speed to hold it. */
 const BANK_MOST = (80 * Math.PI) / 180;
 
-/** Bank (rad, + up on the right normal's side) of the deck under each road point; null on a kind with no deck. */
+/**
+ * Bank (rad, + up on the right normal's side) of the deck under each road point where it is at least BANK_STEEP, else 0;
+ * null on a kind with no deck. Gentler banks plan flat, as they always have.
+ */
 export function road_banks(deck: DeckIndex | null, road: readonly RoadPoint[]): Float64Array | null {
   if (!deck) return null;
   const bank = new Float64Array(road.length);
   for (let i = 0; i < road.length; i++) {
     const p = road[i];
     const hit = deck.surface(p.x, p.z, p.y);
-    bank[i] = hit ? deck.at(hit.index, 5) : 0;
+    const b = hit ? deck.at(hit.index, 5) : 0;
+    bank[i] = Math.abs(b) >= BANK_STEEP ? b : 0;
   }
   return bank;
 }
@@ -90,7 +94,7 @@ export interface RaceLine {
   readonly step: Float64Array;
   /** How far the line may stray off the centre at each point (m). */
   readonly room: Float64Array;
-  /** Deck bank (rad) under each point, + up on the right normal's side; all 0 on ground. */
+  /** Steep deck bank (rad) under each point, + up on the right normal's side; 0 on ground and gentle banks. */
   readonly bank: Float64Array;
 }
 
@@ -211,8 +215,7 @@ export function race_line(road: readonly RoadPoint[], ramps: readonly Ramp[], ha
     const grip = grip_at(bend[i]);
     const reach = grip / Math.max(1e-9, Math.abs(bend[i]));
     const flat = Math.sqrt(reach / (1 + Math.min(AI_TUNING.crest_light, (reach * crest(road, step, i)) / GRAVITY)));
-    const top = bank[i] === 0 ? flat : bank_top(bend[i], bank[i], grip);
-    const corner = bank[i] === 0 ? flat : Math.min(top, Math.max(flat, bank_floor(bend[i], bank[i]), top * BANK_SHARE));
+    const corner = bank[i] === 0 ? flat : bank_pace(bend[i], bank[i], grip, flat);
     speed[i] = Math.min(corner, ramp[i] >= 0 ? JUMP_PACE : Infinity);
   }
   const late = speed.slice();
