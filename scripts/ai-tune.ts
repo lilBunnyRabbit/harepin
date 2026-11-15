@@ -153,7 +153,7 @@ function score_rows(columns: [string, Score][]) {
 if (process.argv.includes("--eval")) {
   const file = arg("--eval", "");
   const values = whole(file === "default" ? defaults() : { ...defaults(), ...(JSON.parse(readFileSync(file, "utf8")) as { values: Values }).values });
-  const entry = { key: `eval-${Bun.hash(JSON.stringify(values)).toString(36)}`, values };
+  const entry = { key: file === "default" ? "base" : `eval-${Bun.hash(JSON.stringify(values)).toString(36)}`, values };
   const [b] = await evaluate([{ key: "base", values: defaults() }, entry], config.seeds);
   const [s] = await evaluate([entry], config.seeds, b.passes);
   score_rows([["defaults", b], [file, s]]);
