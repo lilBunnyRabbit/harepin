@@ -1,4 +1,3 @@
-import { CONTACT_BAND } from "../ai-race";
 import type { RaceResult } from "./worker";
 
 /**
@@ -14,6 +13,8 @@ const W_HARDEST = 0.2;
 /** m/s past which the worst hit of the set costs W_WORST a m/s on top: the owner's 15 m/s line at level 3. */
 const HIT_LINE = 15;
 const W_WORST = 0.5;
+/** Contacts a lap a race should sit in: the owner's band, kept here while ai-race.ts gates on a looser one. */
+const CONTACT_BAND = [0, 8] as const;
 const W_BAND = 20;
 const RHO_SOFT = 0.6;
 const W_RHO = 30;
