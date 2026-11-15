@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { DECALS, type Build, type Decal } from "./build";
-import { paint_lab } from "./paint";
+import { paint_finish, paint_lab } from "./paint";
 import { NEUTRAL_INKS, color, dark, decal_inks } from "../theme/palette";
 import type { Lab } from "../theme/theme";
 
@@ -611,8 +611,12 @@ const NEUTRAL_CONTRAST = 0.15;
 // dark ink that clears the paint's token still sinks into it there.
 const DUSK_SHADE = 0.4;
 
+// By day a metal paint's faces mirror the sky, so it shows this far toward white from its token: a light ink that
+// clears the token still washes out on it.
+const METAL_SHEEN = 0.5;
+
 const distance = (a: Lab, b: Lab) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
-const seen = (paint: Lab) => (dark ? paint[0] * DUSK_SHADE : paint[0]);
+const seen = (paint: Lab, metal: boolean) => (dark ? paint[0] * DUSK_SHADE : metal ? paint[0] + (1 - paint[0]) * METAL_SHEEN : paint[0]);
 
 function far_neutral(from: number): Lab {
   const [light, dark_ink] = decal_inks;
@@ -622,15 +626,17 @@ function far_neutral(from: number): Lab {
 /** Decal colours for a build: the chosen ink unless it would vanish on the paint as the light shows it, then the neutral that stands out. */
 export function livery_of(build: Build): Livery {
   const paint = paint_lab(build.paint);
+  const finish = paint_finish(build.paint);
+  const shown = seen(paint, finish !== null && finish.weave === null);
   const chosen = decal_inks[build.ink % decal_inks.length];
   const neutral = build.ink % decal_inks.length < NEUTRAL_INKS;
-  const vanishes = neutral ? Math.abs(chosen[0] - seen(paint)) < NEUTRAL_CONTRAST : distance(chosen, paint) < INK_CLASH;
-  const ink = vanishes ? far_neutral(seen(paint)) : chosen;
+  const vanishes = neutral ? Math.abs(chosen[0] - shown) < NEUTRAL_CONTRAST : distance(chosen, paint) < INK_CLASH;
+  const ink = vanishes ? far_neutral(shown) : chosen;
   return {
     decal: DECALS[build.decal] ?? "none",
     number: build.number,
     ink: color(ink),
-    key: neutral || vanishes ? null : color(far_neutral(seen(paint))),
+    key: neutral || vanishes ? null : color(far_neutral(shown)),
     mark: color(far_neutral(ink[0])),
   };
 }
