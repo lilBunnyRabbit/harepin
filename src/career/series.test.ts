@@ -8,7 +8,8 @@ import { CREDITS_PER_POINT, FINAL_FACTOR } from "./credits";
 import { Bonus, OPEN_AT_START, PODIUM, SeriesKind, better, car_fault, empty_progress, event_field, event_line, event_result, event_states, grid_slot, parse_progress, player_of, result_points, season_done, season_round, standings, type EventResult, type Season, type SeriesProgress } from "./series";
 import type { SeriesSaves } from "./series-db";
 import { SEASON_1, SEASON_4, SEASONS, completed, seasons_open, series_event } from "./series-seasons";
-import { build_world, plain_map } from "../worldgen/kinds/kinds";
+import { build_world, KINDS, plain_map } from "../worldgen/kinds/kinds";
+import { field_races } from "../modes/field-route";
 import type { WorldKind } from "../worldgen/types";
 import { MAX_LAPS } from "../modes/race-laps";
 import { Series, series_front, series_list, series_open } from "./series-store";
@@ -52,6 +53,7 @@ for (const each of SEASONS) {
     const check = (seed: number, id: string) => {
       const route = world_of(each.world, seed).routes.find((r) => r.id === id);
       expect(route?.closed).toBe(true);
+      expect(field_races(route!, world_of(each.world, seed).tiles.streamed, KINDS[each.world].rails)).toBe(true);
       expect(route!.par_ms).toBeLessThanOrEqual(PAR_MAX_MS);
     };
     for (const event of each.events) {

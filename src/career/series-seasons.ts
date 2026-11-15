@@ -61,7 +61,7 @@ export const SEASON_3: Season = {
   world: WorldKind.DESERT,
   cap: "b",
   reward: { car: "sturm", credits: 10_000 },
-  replays: [3, 8, 13, 17, 18, 23, 24, 29, 30, 39],
+  replays: [3, 8, 13, 18, 23, 24, 29, 30, 39],
   field: [
     { name: "Omar Haddad", aggression: 5, mistakes: 2 },
     { name: "Elsa Brandt", aggression: 4, mistakes: 2 },
@@ -75,20 +75,20 @@ export const SEASON_3: Season = {
     { id: "s3-opener", name: "Sand run", kind: SeriesKind.RACE, seed: 14, route: "circuit" },
     { id: "s3-knockout", name: "Mirage knockout", kind: SeriesKind.KNOCKOUT, seed: 9, route: "circuit" },
     { id: "s3-rival", name: "Haddad duel", kind: SeriesKind.HEAD_TO_HEAD, seed: 2, route: "circuit" },
-    { id: "s3-race", name: "Turbine race", kind: SeriesKind.RACE, seed: 25, route: "circuit" },
+    { id: "s3-race", name: "Turbine race", kind: SeriesKind.RACE, seed: 17, route: "circuit" },
     { id: "s3-endurance", name: "Heat of the day", kind: SeriesKind.ENDURANCE, seed: 33, route: "circuit", limit_ms: 480_000 },
     { id: "s3-final", name: "Dunes final", kind: SeriesKind.RACE, seed: 0, route: "circuit", final: true },
   ],
 };
 
-/** Town events lap the biggest town's main street; circuit seeds keep the ring under about seven minutes a lap. */
+/** Every event laps the biggest town's main street: a field races a streamed world only on a loop that compact (`field_races`). */
 export const SEASON_4: Season = {
   id: "s4",
   name: "Mainland",
   world: WorldKind.MAINLAND,
   cap: "a",
   reward: { car: "formula", credits: 15_000 },
-  replays: [35, 43, 62, 82, 83, 86, 11],
+  replays: [31, 34, 36, 37, 72, 85, 93, 99],
   field: [
     { name: "Vera Lund", aggression: 5, mistakes: 1 },
     { name: "Omar Haddad", aggression: 5, mistakes: 2 },
@@ -101,10 +101,10 @@ export const SEASON_4: Season = {
   events: [
     { id: "s4-town", name: "Main street", kind: SeriesKind.RACE, seed: 18, route: "town" },
     { id: "s4-knockout", name: "Town knockout", kind: SeriesKind.KNOCKOUT, seed: 42, route: "town" },
-    { id: "s4-ring", name: "Ring road", kind: SeriesKind.RACE, seed: 19, route: "circuit" },
+    { id: "s4-race", name: "Old town race", kind: SeriesKind.RACE, seed: 35, route: "town" },
     { id: "s4-rival", name: "Lund duel", kind: SeriesKind.HEAD_TO_HEAD, seed: 44, route: "town" },
     { id: "s4-endurance", name: "Four minutes downtown", kind: SeriesKind.ENDURANCE, seed: 51, route: "town", limit_ms: 240_000 },
-    { id: "s4-final", name: "Mainland final", kind: SeriesKind.RACE, seed: 81, route: "circuit", final: true },
+    { id: "s4-final", name: "Mainland final", kind: SeriesKind.RACE, seed: 43, route: "town", final: true },
   ],
 };
 

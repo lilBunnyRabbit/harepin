@@ -88,13 +88,13 @@ Not built: credits and buying, class cap (G1), base-car start, the final's car o
 |---|---|
 | Season data | `career/series-seasons.ts`, C6 order. Each season: six events (race, knockout, rival duel, endurance, one more race, final), a named field of six that carries the season before's rival, its own rival |
 | Alpine (s2) | cap B, seeds 6 / 20 / 14 `circuit-rev` / 24 / 27 / final 1, replays only on seeds with a reverse circuit; final pays the Rally + 7,500 cr |
-| Dunes (s3) | the **Dune sea** (`desert`): Big dunes (`dunes`) has no closed road for a field. Cap B, seeds 14 / 9 / 2 / 25 / 33 / final 0; final pays the Sturm + 10,000 cr |
-| Mainland (s4) | cap A, four events on the town circuit `town` (main street race, knockout, rival duel, four-minute endurance: fifteen town laps must outlast its clock, so it is no longer) and two on the ring `circuit` (seed 19, final 81). Mainland rings run 4-16 km, so authored and replay seeds keep one under a 450 s par; final pays the Formula + 15,000 cr |
+| Dunes (s3) | the **Dune sea** (`desert`): Big dunes (`dunes`) has no closed road for a field (owner accepted). Cap B, seeds 14 / 9 / 2 / 17 / 33 / final 0; final pays the Sturm + 10,000 cr |
+| Mainland (s4) | cap A, every event on the town circuit `town` (seeds 18 / 42 / 35 / 44 / 51 / final 43), the four-minute endurance short enough that fifteen town laps outlast its clock. A mainland ring (4-16 km) runs solo: `field_races` (`modes/field-route.ts`) lets a field race a streamed world only on a loop within 400 m of its start, which stays streamed in at the phone's 828 m reach. The field drives the new class A presets, Sturm GT and Coupe sport; final pays the Formula + 15,000 cr |
 | Opening | a season opens once the one before has been completed once (`completed`, `seasons_open`): its final podiumed, or a replay begun |
 | Page | `host.series` is every season's `Series` on one store and one wallet (`series_list`); arrows and dots round the season title switch seasons (`SeriesSeasons.svelte`), a shut season locks its cards with "Finish the X series to open". The page opens on the first open season not yet done |
-| Proof | `bun scripts/series-race.ts [season…]`: each event's field (named drivers, normal, the cap's presets) on its own map for the game's laps (`race_laps`), stuck and contact band as `ai-race.ts field`. All 24 clean. Event art: `node --experimental-strip-types scripts/series-art.ts [season or event…]` |
+| Proof | `bun scripts/series-race.ts [season…]`: each event's field (named drivers, normal, the cap's presets) on its own map for the game's laps (`race_laps`). Fails on a stuck car, contacts outside `ai-race.ts`'s band, more than one spin or reset in the race, or a race event with no pass. All 24 clean. Event art: `node --experimental-strip-types scripts/series-art.ts [season or event…]` |
 
-Open: no preset sits in class A, so Mainland's field races class B presets against a class A player (`field_builds` falls back under the class).
+Later: the Sky final season (C6) comes with the Legend wall-ride map (t312).
 
 ## TL;DR
 
