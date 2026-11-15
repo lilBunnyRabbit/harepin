@@ -11,9 +11,9 @@ import { tier_badge, tier_look } from "../career/badge";
 import { title_text } from "../runs/season";
 import { set_text } from "../hud/hud";
 import type { CarState, Net, Remote, TierBadge } from "./net";
+import "./remotes.css";
 
 type Snapshot = Remote["snapshots"][number];
-import "./remotes.css";
 
 interface RemoteView {
   code: string;
