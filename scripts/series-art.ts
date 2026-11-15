@@ -7,9 +7,11 @@ import { execFileSync } from "node:child_process";
 // `node --experimental-strip-types scripts/series-art.ts [season or event id…] [--port N]`: each series event's card art,
 // shot from its own race a few seconds after the lights on a review build, HUD hidden. Bare, it shoots only events
 // with no picture yet. Node, since Playwright's browser pipe hangs under Bun on Windows.
-const TILE = { width: 1200, height: 675 };
-const MAX_BYTES = 24_000;
-const QUALITIES = [0.7, 0.6, 0.5, 0.4];
+// The race renders landscape, as played; a card shows the 4:5 centre cut of it, at enough pixels for a 2x screen.
+const TILE = { width: 1920, height: 1080 };
+const CUT = { x: (TILE.width - TILE.height * 0.8) / 2, y: 0, width: TILE.height * 0.8, height: TILE.height };
+const MAX_BYTES = 72_000;
+const QUALITIES = [0.8, 0.7, 0.6, 0.5];
 const AFTER_LIGHTS_MS = 14_000;
 const PORT = 5412;
 const OUT = new URL("../public/series/", import.meta.url);
@@ -59,7 +61,7 @@ try {
     });
     await page.addStyleTag({ content: "body *{visibility:hidden!important} #app,#app canvas{visibility:visible!important}" });
     await page.waitForTimeout(AFTER_LIGHTS_MS);
-    await save(page, await page.screenshot(), `${event.id}.webp`);
+    await save(page, await page.screenshot({ clip: CUT }), `${event.id}.webp`);
     await context.close();
   }
 } finally {
