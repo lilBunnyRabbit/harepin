@@ -347,7 +347,7 @@ Open after this round:
 - Level 5's 15.2 m/s is a car braking flat out (cap 3.6 m/s) into the back of one that had just hit a wall, 4 m apart, on seed 3 lap 0.
 - Jump pace for a car yielding into a kicker is unsolved: single file still brakes it to the car ahead's pace. Kicker spins and resets stay 0-1 over every run here; seed 2 at 7 x 2 is the known case (§9 H9).
 
-### Phase 3: one AI race in free play (t277, 2026-11-16)
+### Phase 3: one AI race in free play (t277, 2026-11-15)
 
 Behind `?airace` in dev and review builds only (`REVIEW_BUILD`); `?airace=<level>` starts one at load. Career, Runs and lobby races never get a field (`ModeCtx.field` is null there).
 
