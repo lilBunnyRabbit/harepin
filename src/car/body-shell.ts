@@ -273,7 +273,7 @@ function crest(d: Design): Cut[] {
   const s = d.section;
   if (!s || s.shoulder <= 0) return [];
   const [belt] = folds(d);
-  const rise = s.rise ?? Math.max(...d.outline.map(([, y]) => y)) - Math.max(...s.belt);
+  const rise = Math.max(...d.outline.map(([, y]) => y)) - Math.max(...s.belt);
   return [{ n: belt.n, c: belt.c - rise }];
 }
 
@@ -382,7 +382,7 @@ export function sculpt_factor(d: Design, y: number, z: number): number {
   const tail = d.outline[d.outline.length - 1][0];
   let top = -Infinity;
   for (const [, oy] of d.outline) top = Math.max(top, oy);
-  const rise = s.rise ?? top - Math.max(...s.belt);
+  const rise = top - Math.max(...s.belt);
   const drop = Math.min(...s.belt) - d.sill;
   const belt = s.belt[0] + ((s.belt[1] - s.belt[0]) * (nose - z)) / (nose - tail);
   const side = y > belt ? s.shoulder * Math.min(1, (y - belt) / rise) : s.tuck * Math.min(1, (belt - y) / drop);
