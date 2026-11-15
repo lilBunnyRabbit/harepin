@@ -19,7 +19,9 @@ const MAST_OUT = 5;
 const MAST_OVER = 13;
 const MAST_ROOM = 3;
 /** No mast this far, in metres along the lap, from an edge whose rail is off: a car carried over the top flies through it. */
-const MAST_OPEN_REACH = 40;
+const MAST_OPEN_REACH = 15;
+/** Furthest past an open rail's end, in metres along the lap, a launched car's line is followed on a gentle bend. */
+const MAST_LAUNCH_MOST = 60;
 const POST = { wide: 0.7, tall: 60 };
 /** The lamp frame leans down at the deck, set back toward it from the post. */
 const HEAD = { wide: 7.2, high: 2.6, deep: 0.5, tilt: -0.5, back: 1.2 };
@@ -104,9 +106,22 @@ class Track {
     return Math.hypot(this.f(i + 1, 0) - this.f(i - 1, 0), this.f(i + 1, 2) - this.f(i - 1, 2));
   }
 
-  open_near(i: number, side: number, reach: number): boolean {
+  /** Heading change per metre along the lap. */
+  curve(i: number): number {
+    const run = this.run(i);
+    const turn = Math.abs(this.f(i + 1, 3) * this.f(i - 1, 4) - this.f(i + 1, 4) * this.f(i - 1, 3));
+    return run > 0 ? Math.asin(Math.min(1, turn)) / run : 0;
+  }
+
+  /**
+   * Within `reach` of an edge whose rail is off, or on the line a car leaving its far end straight on crosses `out` metres
+   * outside the edge: the bend falls away from it as d²/2r, so that is √(2·out·r) on down the lap.
+   */
+  open_near(i: number, side: number, reach: number, out: number): boolean {
     const s = this.f(i, 8);
-    return this.deck.open.some((o) => (o.side === 0 || o.side === side) && s >= o.s0 - reach && s <= o.s1 + reach);
+    const k = this.curve(i);
+    const launch = k > 0 ? Math.min(Math.sqrt((2 * out) / k), MAST_LAUNCH_MOST) : MAST_LAUNCH_MOST;
+    return this.deck.open.some((o) => (o.side === 0 || o.side === side) && s >= o.s0 - reach && s <= o.s1 + Math.max(reach, launch));
   }
 
   clear(i: number, x: number, z: number, room: number): boolean {
@@ -161,7 +176,7 @@ export function masts(deck: Deck, tones: MastTones, min_bank: number): THREE.Obj
   const lean = [Math.sin(-HEAD.tilt), Math.cos(HEAD.tilt)];
   for (const bowl of track.bowls(min_bank)) {
     for (const i of track.steps(bowl, MAST_PITCH)) {
-      if (track.open_near(i, bowl.side, MAST_OPEN_REACH)) continue;
+      if (track.open_near(i, bowl.side, MAST_OPEN_REACH, MAST_OUT + MAST_ROOM)) continue;
       const e = track.edge(i, bowl.side, MAST_OUT);
       if (!track.clear(i, e.x, e.z, MAST_ROOM)) continue;
       const top = e.y + MAST_OVER;
