@@ -252,6 +252,8 @@ export interface TreeKit {
   bark: THREE.Material;
   leaf: THREE.Material;
   tone(kind: TreeKind, shade: number): Lab;
+  /** The trunk takes its crown's tone: the crown is the trunk's own wood going on up. */
+  one_tone: boolean;
 }
 
 export function tree_kit(snowy: boolean): TreeKit {
@@ -261,6 +263,7 @@ export function tree_kit(snowy: boolean): TreeKit {
     crowns: [new THREE.ConeGeometry(2.1, 6, 6).translate(0, 4.6, 0), new THREE.IcosahedronGeometry(2.4, 0).translate(0, 4.2, 0)],
     bark: new THREE.MeshLambertMaterial({ color: color(tones.trunk), flatShading: true }),
     leaf: new THREE.MeshLambertMaterial({ flatShading: true }),
+    one_tone: false,
   };
 }
 

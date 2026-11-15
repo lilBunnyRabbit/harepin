@@ -82,17 +82,19 @@ export class TreeBatch {
     for (const tree of here) {
       q.setFromAxisAngle(this.axis, (tree.x * 13.37) % (Math.PI * 2));
       const shade = jitter(order ? (order.get(tree) ?? 0) : tree.x + tree.z * 0.37, tree.kind);
+      const [r, g, b] = linear(this.kit.tone(tree.kind as TreeKind, shade));
+      this.tint.setRGB(r, g, b);
       if (tree.kind === TreeKind.SCRUB) m.compose(p.set(tree.x, tree.y - SCRUB_SINK, tree.z), q, s.set(tree.scale, tree.scale * SCRUB_SQUASH, tree.scale));
       else {
         m.compose(p.set(tree.x, tree.y - 0.2, tree.z), q, s.setScalar(tree.scale));
         const id = this.bark.addInstance(this.trunk);
         this.bark.setMatrixAt(id, m);
+        if (this.kit.one_tone) this.bark.setColorAt(id, this.tint);
         planted.bark.push(id);
       }
       const id = this.leaf.addInstance(this.crowns[crown_of(tree.kind)]);
       this.leaf.setMatrixAt(id, m);
-      const [r, g, b] = linear(this.kit.tone(tree.kind as TreeKind, shade));
-      this.leaf.setColorAt(id, this.tint.setRGB(r, g, b));
+      this.leaf.setColorAt(id, this.tint);
       planted.leaf.push(id);
     }
     return planted;
