@@ -1,5 +1,6 @@
 import { WorldKind } from "../worldgen/types";
 import { world_key } from "../worldgen/kinds/kinds";
+import { cached_records } from "../store/cached-store";
 
 export const MAX_STARS = 3;
 export const SILVER_SHARE = 1.25;
@@ -78,6 +79,13 @@ export function parse_runs(raw: unknown): Runs {
   return runs;
 }
 
+/** Two saves of the same runs: per id the better run, so the order they merge in does not matter. */
+export function merge_runs(kept: unknown, other: unknown): Runs {
+  const merged = parse_runs(kept);
+  for (const [id, run] of Object.entries(parse_runs(other))) if (better(merged[id], run)) merged[id] = run;
+  return merged;
+}
+
 export function read_json(store: Store | null, key: string): unknown {
   let text: string | null = null;
   try {
@@ -103,7 +111,10 @@ export function write_json(store: Store | null, key: string, value: unknown) {
   }
 }
 
+/** The records in IndexedDB once `load_records` filled them at boot, else localStorage. */
 export function local_store(): Store | null {
+  const records = cached_records();
+  if (records) return records;
   try {
     return localStorage;
   } catch (error) {
@@ -185,6 +196,15 @@ export function parse_race_record(raw: unknown): RaceRecord {
   if (best && typeof best === "object" && !Array.isArray(best))
     for (const [laps, ms] of Object.entries(best)) if (/^\d{1,2}$/.test(laps) && typeof ms === "number" && Number.isFinite(ms) && ms > 0) record.best[laps] = ms;
   return record;
+}
+
+/** Two saves of one lobby record: the faster best per lap count, the larger tally (both saves share the races before they split). */
+export function merge_race_record(kept: unknown, other: unknown): RaceRecord {
+  const a = parse_race_record(kept);
+  const b = parse_race_record(other);
+  const best = { ...a.best };
+  for (const [laps, ms] of Object.entries(b.best)) if (best[laps] === undefined || ms < best[laps]) best[laps] = ms;
+  return { best, podiums: Math.max(a.podiums, b.podiums), wins: Math.max(a.wins, b.wins) };
 }
 
 /** `laps` null counts the placing only: bests are kept per lap count of the circuit, not per route. */

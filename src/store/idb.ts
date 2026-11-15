@@ -1,6 +1,7 @@
 export interface IdbStore {
   readonly name: string;
-  readonly key: string;
+  /** The value's key path; absent, keys go beside the value (`put(store, value, key)`). */
+  readonly key?: string;
 }
 
 export interface IdbSchema {
@@ -13,10 +14,11 @@ export interface IdbSchema {
 /** The game's one database. A new save adds its store here and bumps `version`; stores are never renamed or dropped. */
 export const HAREPIN_DB: IdbSchema = {
   name: "harepin",
-  version: 2,
+  version: 3,
   stores: [
     { name: "series", key: "season" },
     { name: "ghosts", key: "key" },
+    { name: "kv" },
   ],
 };
 
@@ -39,7 +41,7 @@ function open(schema: IdbSchema, closed: () => void): Promise<IDBDatabase> {
   const request = indexedDB.open(schema.name, schema.version);
   request.onupgradeneeded = () => {
     const db = request.result;
-    for (const store of schema.stores) if (!db.objectStoreNames.contains(store.name)) db.createObjectStore(store.name, { keyPath: store.key });
+    for (const store of schema.stores) if (!db.objectStoreNames.contains(store.name)) db.createObjectStore(store.name, store.key === undefined ? undefined : { keyPath: store.key });
   };
   return new Promise<IDBDatabase>((resolve, reject) => {
     let late = false;
@@ -100,9 +102,25 @@ export class Idb {
     return done((await this.tx(store, "readonly")).objectStore(store).get(key));
   }
 
-  async put(store: string, value: unknown): Promise<void> {
+  async put(store: string, value: unknown, key?: IDBValidKey): Promise<void> {
     const tx = await this.tx(store, "readwrite");
-    tx.objectStore(store).put(value);
+    tx.objectStore(store).put(value, key);
+    await committed(tx);
+  }
+
+  /**
+   * Every key and value of an out-of-line store, then the writes `next` returns, in one transaction: another tab cannot
+   * write between the read and the writes. Resolves once they commit.
+   */
+  async update_all(store: string, next: (stored: [IDBValidKey, unknown][]) => [IDBValidKey, unknown][]): Promise<void> {
+    const tx = await this.tx(store, "readwrite");
+    const objects = tx.objectStore(store);
+    const keys = objects.getAllKeys();
+    const values = objects.getAll();
+    values.onsuccess = () => {
+      const stored = keys.result.map((key, i): [IDBValidKey, unknown] => [key, values.result[i]]);
+      for (const [key, value] of next(stored)) objects.put(value, key);
+    };
     await committed(tx);
   }
 

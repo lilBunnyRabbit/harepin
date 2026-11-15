@@ -26,6 +26,7 @@ import { Garage } from "./menu/garage.svelte";
 import { load_build, save_build } from "./menu/garage-builds";
 import { Ghost } from "./car/ghost";
 import { sweep_ghosts } from "./car/ghost-store";
+import { load_records } from "./store/records";
 import { Heartbeat } from "./net/heartbeat";
 import { $, Hud } from "./hud/hud";
 import { Presence } from "./hud/presence";
@@ -95,6 +96,7 @@ const solo = (event !== null || run !== null || lab_id !== null || review_wanted
 const net_room = solo ? `solo-${[...crypto.getRandomValues(new Uint8Array(4))].map((b) => b.toString(16).padStart(2, "0")).join("")}` : room;
 // A room the player chose stays theirs across events; without one the event runs solo.
 const KEPT_ON_EVENT = ["room", "car", TUNE_PARAM];
+const RECORDS_WAIT_MS = 1500;
 const saved_pick = read_saved_pick();
 const pick = pick_world(params, room, saved_pick);
 pin_pick(params, saved_pick, pick);
@@ -118,6 +120,9 @@ for (const event of UNLOCK_EVENTS) addEventListener(event, unlock_audio);
 const snowy = snow_of(map) !== null;
 const look = world_look(WORLDS[kind], snowy);
 const opening = WorldStream.open(pick, map, mesh_tones(snowy, WORLDS[kind].upland, WORLDS[kind].deck));
+const mode_ids = MODES.map((mode) => mode.id);
+// Read beside the world's generation; a slow or refused IndexedDB leaves the records in localStorage for this session.
+const records = load_records(mode_ids, RECORDS_WAIT_MS);
 const quality = new Quality(params, prefs.quality);
 const scene = new THREE.Scene();
 // The scene never moves. Left on, its own matrix update would force every world matrix under it each frame, frozen chunks too.
@@ -131,7 +136,7 @@ render.mount(app);
 render.start(app);
 render.apply_quality();
 const area_fade = new AreaFade(app);
-const stream = await opening;
+const [stream] = await Promise.all([opening, records]);
 const world = stream.world;
 // A custom map with no drivable build stands in as its seed's plain map everywhere: peers, records and the menu.
 const built = stream.fallback ? plain_map(kind, seed) : map;
@@ -203,7 +208,6 @@ const directory = new Directory(
 const chat = new Chat(net);
 chat.start();
 const build = load_build(params.get("car"));
-const mode_ids = MODES.map((mode) => mode.id);
 const career = new Career(local_store());
 const runs = new Runs(local_store());
 const goals = new Goals(local_store(), mode_ids);

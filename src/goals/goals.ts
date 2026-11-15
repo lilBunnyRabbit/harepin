@@ -70,6 +70,10 @@ export function parse_done(raw: unknown, mode_ids: readonly string[]): Set<strin
   return done;
 }
 
+export function merge_done(kept: unknown, other: unknown, mode_ids: readonly string[]): string[] {
+  return [...new Set([...parse_done(kept, mode_ids), ...parse_done(other, mode_ids)])];
+}
+
 export interface Steps {
   done: number;
   total: number;

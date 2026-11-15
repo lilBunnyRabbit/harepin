@@ -255,6 +255,13 @@ export function parse_stars(raw: unknown): Record<string, number> {
   return stars;
 }
 
+/** Two saves of the career: per event the most stars, in the save's `{ stars }` shape. */
+export function merge_stars(kept: unknown, other: unknown): { stars: Record<string, number> } {
+  const stars = parse_stars(kept);
+  for (const [id, value] of Object.entries(parse_stars(other))) stars[id] = Math.max(stars[id] ?? 0, value);
+  return { stars };
+}
+
 /** Star marks from the owner's best run: 3 stars = that run eased by the tier's margin, 2 stars a quarter slower, or for a scored run (drift points, jump metres) a quarter less. */
 export function owner_stars(event: CareerEvent, run: StarRun): Thresholds {
   const { margin } = tier_of(event);
