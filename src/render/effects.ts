@@ -91,7 +91,7 @@ export class Smoke {
   constructor(ground: GroundPuff) {
     const { dust, sand, scree, snow, ash } = this;
     this.ground = { grass: this.grass, dust: sand, snow, ash }[ground];
-    this.shoulder = ground === "snow" ? snow : dust;
+    this.shoulder = { grass: dust, dust, snow, ash }[ground];
     this.laid = {
       [SurfaceId.GRASS]: this.ground,
       [SurfaceId.DIRT]: dust,

@@ -117,6 +117,19 @@
     display: none;
   }
 
+  /* Classic hangs the toast under the lap strip; with that gone its anchor went missing and it sat half off screen. */
+  :global(:root[data-hud="classic"]) .lab-strip {
+    anchor-name: --top-centre;
+  }
+
+  /* A trial's toast carries its whole task: on one line it ran past the window edge, so it wraps to the strip's width. */
+  :global(:root[data-hud="classic"] body:has(.lab-strip) #toast) {
+    max-width: anchor-size(width);
+    white-space: normal;
+    text-wrap: balance;
+    text-align: center;
+  }
+
   .lab-strip {
     display: flex;
     align-items: center;

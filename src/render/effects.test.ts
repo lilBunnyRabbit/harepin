@@ -84,3 +84,12 @@ test("wheel dust on an island beach is the beach's sand, not the turf's soil", a
   expect(grass.dust_tint(world, bx, bz).getHex()).toBe(sand.getHex());
   expect(grass.dust_tint(world, ix, iz).getHex()).not.toBe(sand.getHex());
 });
+
+test("a volcano's road shoulder throws ash, not light dirt", async () => {
+  const { Smoke } = await import("./effects");
+  const shoulder = { surface: () => 0, footing: () => 1, own_ground: 0, shore: () => false };
+  const ground = { ...shoulder, footing: () => 0 };
+  const ash = new Smoke("ash");
+  expect(ash.dust_tint(shoulder as never, 0, 0).getHex()).toBe(ash.dust_tint(ground as never, 0, 0).getHex());
+  expect(ash.dust_tint(shoulder as never, 0, 0).getHex()).not.toBe(new Smoke("grass").dust_tint(shoulder as never, 0, 0).getHex());
+});
