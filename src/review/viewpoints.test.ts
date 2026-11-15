@@ -4,13 +4,15 @@ import { World } from "../world/world";
 import { extent } from "../worldgen/chunk-grid";
 import { DUNE_SEA_SIZE, generate_dune_sea } from "../worldgen/dune-sea";
 import { build_tile } from "../worldgen/ground";
+import { generate_world } from "../worldgen/kinds/kinds";
 import { generate_sky } from "../worldgen/sky";
+import { SurfaceId, WorldKind } from "../worldgen/types";
 import { sweep } from "../sweep";
 import { VIEWS } from "./catalog";
 import { plan_views, view_of } from "./viewpoints";
 
 const finite = (v: readonly number[]) => v.every(Number.isFinite);
-const ROAD_VIEWS = VIEWS.filter((name) => name !== "crest" && name !== "bowl" && name !== "rim");
+const ROAD_VIEWS = VIEWS.filter((name) => name !== "crest" && name !== "bowl" && name !== "rim" && name !== "ice" && name !== "cabin");
 
 test("every island view stands clear of the ground, on the circuit, looking somewhere else", async () => {
   for (const seed of sweep(3)) {
@@ -59,3 +61,16 @@ test("a sky world has no shore view, and an unknown name none at all", async () 
   expect(plan_views(world).shore).toBeUndefined();
   expect(await view_of(world, "nowhere")).toBeNull();
 });
+
+test("a frozen world's ice view looks out from the road over its ice; the island has none", async () => {
+  expect(await view_of(new World(0), "ice")).toBeNull();
+  const world = new World(0, generate_world(0, WorldKind.TUNDRA));
+  const view = await view_of(world, "ice");
+  if (!view) throw new Error("tundra 0: no ice view");
+  expect(finite(view.from) && finite(view.to)).toBe(true);
+  expect(view.from[1]).toBeGreaterThan(world.height(view.from[0], view.from[2]));
+  const [fx, , fz] = view.from;
+  const [tx, , tz] = view.to;
+  const across = [0.8, 0.9, 1].some((t) => world.surface(fx + (tx - fx) * t, fz + (tz - fz) * t) === SurfaceId.ICE);
+  expect(across).toBe(true);
+}, 60_000);
