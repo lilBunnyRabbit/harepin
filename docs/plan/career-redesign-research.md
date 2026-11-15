@@ -10,7 +10,7 @@ Player-facing text never names another game. This doc may.
 
 From questionnaire round 1 and round 2 in chat (`docs/plan/career-ai-r1.answers.md`, both rounds). Where the owner picked against this doc's recommendation, the old text below is struck or marked **Superseded**. "Fans" anywhere below the decisions is GRID 2's word or a superseded recommendation; read it as series points.
 
-**Progress number: series points.** "Fans" is rejected (C3: "fans assumes a story, we don't have one"). Round 2: championship points per finish position, summed per series; bonus objectives add points. The player sees standings and a series rank. Points are not a currency.
+**Progress number: series points.** "Fans" is rejected (C3, owner: "i wouldnt add "fans" - fans is based that the whole game has a story. we dont have a story"). Round 2: championship points per finish position, summed per series; bonus objectives add points. The player sees standings and a series rank. Points are not a currency.
 
 **Grind for class: credits (round 2).** Every race, side event and Run pays credits; cars and parts are bought with them in the garage. Each season final also unlocks a car or kit (G3). Credits are the only currency; series points never buy anything.
 
@@ -34,7 +34,7 @@ From questionnaire round 1 and round 2 in chat (`docs/plan/career-ai-r1.answers.
 | C6 | Season order: Island, Alpine, Dunes, Mainland, Sky final | |
 | D1 | Graded by finish position; bonus points for a clean race | |
 | D2 | A podium opens the next event; a win pays the most points | |
-| D3 / D4 | 3 laps, about 4 min a race (accepted in bulk) | rec was 2-3 laps |
+| D3 / D4 | 3 laps, about 4 min a race (accepted in bulk) | §6 Q8 said 2-3 laps |
 | D5 | No rewind in career races, as today. Side events keep rewind (A3) | |
 | D6 | No time penalty for contact; a clean-race bonus instead | |
 | D7 | Bonus objectives: clean race, lead a lap, fastest lap, **win from the back of the grid** | adds win from the back |

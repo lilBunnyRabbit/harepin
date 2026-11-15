@@ -37,7 +37,7 @@ Order:
 
 The full build order, with the WebAssembly spike, the shared-maths rebaseline and the WASM port between these steps, is in quest 36cf211 (career redesign) and `docs/plan/sim-performance.md`.
 
-Phase 3 below assumed the far-AI switch was the phone plan and the field ran on main. With the worker first, phase 3 builds on the worker's field, and the kinematic far AI (H7) is added only if the S24+ misses 60 fps with 6 physics cars.
+Phase 3 below assumed the far-AI switch was the phone plan and the field ran on main. With the worker first, phase 3 builds on the worker's field; the kinematic far AI (H7) is still built, as the owner chose, and the S24+ measurement says how far out it switches.
 
 ## 1. What exists
 
