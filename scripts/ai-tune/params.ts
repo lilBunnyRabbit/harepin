@@ -11,6 +11,7 @@ export interface Param {
 /** The owner level whose aggression and mistakes rows the search moves: 3, the default field's. */
 const LEVEL = 2;
 
+// aim_base indexes road points, so it is written rounded.
 export const PARAMS: readonly Param[] = [
   { name: "line_grip", lo: 5, hi: 7.5, read: (t) => t.line_grip, write: (t, v) => (t.line_grip = v) },
   { name: "fast_grip", lo: 6, hi: 8.5, read: (t) => t.fast_grip, write: (t, v) => (t.fast_grip = v) },
@@ -19,7 +20,7 @@ export const PARAMS: readonly Param[] = [
   { name: "crest_light", lo: 0.2, hi: 0.8, read: (t) => t.crest_light, write: (t, v) => (t.crest_light = v) },
   { name: "pass_grip", lo: 1.1, hi: 1.7, read: (t) => t.pass_grip, write: (t, v) => (t.pass_grip = v) },
   { name: "pass_max", lo: 7, hi: 9.2, read: (t) => t.pass_max, write: (t, v) => (t.pass_max = v) },
-  { name: "aim_base", lo: 4, hi: 12, read: (t) => t.aim_base, write: (t, v) => (t.aim_base = v) },
+  { name: "aim_base", lo: 4, hi: 12, read: (t) => t.aim_base, write: (t, v) => (t.aim_base = Math.round(v)) },
   { name: "aim_per", lo: 2, hi: 5, read: (t) => t.aim_per, write: (t, v) => (t.aim_per = v) },
   { name: "steer_gain", lo: 2.5, hi: 6.5, read: (t) => t.steer_gain, write: (t, v) => (t.steer_gain = v) },
   { name: "steer_damp", lo: 0.3, hi: 2, read: (t) => t.steer_damp, write: (t, v) => (t.steer_damp = v) },
