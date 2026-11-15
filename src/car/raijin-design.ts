@@ -39,17 +39,21 @@ const INSET = 0.017;
 const lamp = (x: number, across: number): Part => ({ size: [across, across, 0.05], at: [x, 0.96, 0], round: true });
 const TAIL = tail_end(OUTLINE, 0.96, 0.25, 0.98, [lamp(0.775, 0.2), lamp(0.51, 0.15)], null, 0.96);
 
-// Grille, a vent each side of the engine bulge, an intake row in the front bar and one strip in the rear bar that holds both pipes.
-function trim_of(nose: number, bumper: number): Part[] {
+// Grille, a vent each side of the engine bulge and one strip in the rear bar that holds both pipes.
+function trim_of(bumper: number): Part[] {
   return [
     { size: [0.46, 0.23, 0.05], at: [0.23, 0.585, 2.072], tilt: [NOSE_LEAN, 0, 0] },
     { size: [0.2, 0.03, 0.34], at: [0.46, 0.929, 1.4], tilt: [HOOD_FALL, 0, 0] },
-    { size: [0.5, 0.07, 0.04], at: [0.25, 0.335, nose - INSET] },
-    { size: [0.185, 0.07, 0.04], at: [0.765, 0.335, nose - INSET] },
     { size: [0.83, 0.12, 0.04], at: [0.415, PIPE[1], bumper + INSET] },
     ...TAIL.trim,
   ];
 }
+// The stock front bar's intake row. The kit's deeper bar runs on into the chin lip as one clean face: the same row there
+// read as plates stuck on it.
+const INTAKES: Part[] = [
+  { size: [0.5, 0.07, 0.04], at: [0.25, 0.335, NOSE - INSET] },
+  { size: [0.185, 0.07, 0.04], at: [0.765, 0.335, NOSE - INSET] },
+];
 
 const tip = (bumper: number): Part => ({ size: [0.12, 0.12, 0.1], at: [PIPE[0], PIPE[1], bumper - 0.01], round: true });
 // The lamp lies in the grille face, 1 cm of it proud.
@@ -103,7 +107,7 @@ const KIT: Kit = {
   outline: KIT_OUTLINE,
   sill: 0.19,
   arches: { ...ARCHES, gap: 0.085 },
-  trim: trim_of(KIT_NOSE, KIT_BUMPER),
+  trim: trim_of(KIT_BUMPER),
   chrome: [...TAIL.chrome, tip(KIT_BUMPER)],
   tyre: [0.3, 0.3],
   rim: { size: 0.8, spokes: 5, tone: "bronze", spoke: 0.1 },
@@ -121,7 +125,7 @@ export const RAIJIN_DESIGN: Design = {
   tails: TAIL.tails,
   mirror: cabin_mirror(CABIN, SECTION.shoulder),
   paint: [],
-  trim: trim_of(NOSE, BUMPER),
+  trim: [...trim_of(BUMPER), ...INTAKES],
   markers: [],
   chrome: [...TAIL.chrome, tip(BUMPER)],
   tyre: [0.26, 0.26],
