@@ -47,8 +47,9 @@ test("events open three at a time, a podium opens the next, the final last", () 
 
 test("points by place plus the player's bonuses; the table sums every event", () => {
   const win: EventResult = { ...at(1), bonus: [Bonus.CLEAN, Bonus.FROM_BACK] };
-  expect(result_points(season, win, YOU)).toBe(10 + 2 + 2);
-  expect(result_points(season, win, 0)).toBe(8);
+  const opener = season.events[0];
+  expect(result_points(season, opener, win, YOU)).toBe(10 + 2 + 2);
+  expect(result_points(season, opener, win, 0)).toBe(8);
   const table = standings(season, { season: season.id, results: { a: win, [season.events[0].id]: win, [season.events[1].id]: at(7) } });
   expect(table.find((row) => row.you)?.points).toBe(14 + 2);
   expect(table[0].points).toBeGreaterThanOrEqual(table[1].points);
@@ -60,7 +61,7 @@ test("a retry replaces an event's run only when it scores the player more", () =
   expect(series.record(event, at(4))).toBe(true);
   expect(series.record(event, at(5))).toBe(false);
   expect(series.record(event, at(2))).toBe(true);
-  expect(better(season, at(2), at(2))).toBe(false);
+  expect(better(season, event, at(2), at(2))).toBe(false);
 });
 
 test("stored progress is checked: junk drops out, good results survive a reload", () => {
@@ -82,4 +83,15 @@ test("a head to head maps the race's two cars onto the rival and the player", ()
   const lost = event_result(season, duel, { order: [0, 1], clean: false, led: false, fastest: true, from_back: true });
   expect(lost.bonus).toEqual([Bonus.FASTEST]);
   expect(event_line(season, duel, lost)).toContain("the rival");
+});
+
+test("the rival duel opens the next event only on a win, and its loss scores 4", () => {
+  const duel = season.events.find((e) => e.kind === SeriesKind.HEAD_TO_HEAD)!;
+  const lost: EventResult = { order: [season.rival, YOU], bonus: [] };
+  const won: EventResult = { order: [YOU, season.rival], bonus: [] };
+  expect(result_points(season, duel, lost, YOU)).toBe(4);
+  expect(result_points(season, duel, lost, season.rival)).toBe(10);
+  const i = season.events.indexOf(duel);
+  expect(event_states(season, { season: season.id, results: { [duel.id]: lost } })[i]).not.toBe("podium");
+  expect(event_states(season, { season: season.id, results: { [duel.id]: won } })[i]).toBe("podium");
 });

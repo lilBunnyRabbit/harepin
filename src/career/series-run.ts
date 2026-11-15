@@ -24,10 +24,10 @@ export const series_map = (season: Season, event: SeriesEvent): MapSpec => plain
 
 export const on_series_map = (season: Season, event: SeriesEvent, built: MapSpec) => map_code(series_map(season, event)) === map_code(built);
 
-function result_lines(series: Series, result: EventResult, kept: boolean): HTMLElement[] {
+function result_lines(series: Series, event: SeriesEvent, result: EventResult, kept: boolean): HTMLElement[] {
   const { season } = series;
   const place = place_of(result, player_of(season));
-  const lines = [line("points", `+${place_points(place)} for ${ordinal(place)}`)];
+  const lines = [line("points", `+${place_points(event, place)} for ${ordinal(place)}`)];
   for (const b of result.bonus) lines.push(line(BONUS_NAMES[b].toLowerCase(), `+${BONUS_POINTS[b]}`));
   const table = standings(season, series.progress);
   const me = table.findIndex((row) => row.you);
@@ -49,7 +49,7 @@ export function series_host(base: SeriesBase, series: Series, event: SeriesEvent
     limit_ms: event.limit_ms ?? null,
     finish: (outcome) => {
       const result = event_result(season, event, outcome);
-      return result_lines(series, result, series.record(event, result));
+      return result_lines(series, event, result, series.record(event, result));
     },
     next,
   };

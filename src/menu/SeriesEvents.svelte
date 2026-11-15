@@ -32,7 +32,7 @@
             </div>
             <span class="sr-dim">{KIND_RULES[event.kind]}</span>
             {#if result}
-              <span class="sr-result" data-podium={state === "podium"}>{ordinal(place_of(result, player))} · {result_points(season, result, player)} pts</span>
+              <span class="sr-result" data-podium={state === "podium"}>{ordinal(place_of(result, player))} · {result_points(season, event, result, player)} pts</span>
             {/if}
           </div>
           {#if state === "locked"}

@@ -83,6 +83,20 @@ export const SEASONS: readonly Season[] = [SEASON_1];
 
 export const POINTS = [10, 8, 6, 5, 4, 3, 2] as const;
 export const PODIUM = 3;
+/** Points by place, P1 first, per kind; past a table a finish scores nothing. A duel's P2 is a loss, not a near win. */
+export const KIND_POINTS: Record<SeriesKind, readonly number[]> = {
+  [SeriesKind.RACE]: POINTS,
+  [SeriesKind.KNOCKOUT]: POINTS,
+  [SeriesKind.HEAD_TO_HEAD]: [10, 4],
+  [SeriesKind.ENDURANCE]: POINTS,
+};
+/** The place a kind needs to open the next event (D2): a podium, but only a win in a two-car duel. */
+export const KIND_PODIUM: Record<SeriesKind, number> = {
+  [SeriesKind.RACE]: PODIUM,
+  [SeriesKind.KNOCKOUT]: PODIUM,
+  [SeriesKind.HEAD_TO_HEAD]: 1,
+  [SeriesKind.ENDURANCE]: PODIUM,
+};
 /** Events open at a season's start; each podium opens one more, and the final opens once every other has one (C1). */
 export const OPEN_AT_START = 3;
 
@@ -95,7 +109,7 @@ export const Bonus = {
 export type Bonus = (typeof Bonus)[keyof typeof Bonus];
 
 export const BONUS_POINTS: Record<Bonus, number> = { [Bonus.CLEAN]: 2, [Bonus.LED]: 1, [Bonus.FASTEST]: 1, [Bonus.FROM_BACK]: 2 };
-export const BONUS_NAMES: Record<Bonus, string> = { [Bonus.CLEAN]: "Clean race", [Bonus.LED]: "Led a lap", [Bonus.FASTEST]: "Fastest lap", [Bonus.FROM_BACK]: "Won from the back" };
+export const BONUS_NAMES: Record<Bonus, string> = { [Bonus.CLEAN]: "Clean race", [Bonus.LED]: "Led at halfway", [Bonus.FASTEST]: "Fastest lap", [Bonus.FROM_BACK]: "Won from the back" };
 const BONUSES = Object.values(Bonus);
 
 /** One run of an event: who finished where, as indices into the season's field, the player being `field.length`. */
@@ -153,32 +167,32 @@ export function parse_progress(season: Season, raw: unknown): SeriesProgress {
 
 export const place_of = (result: EventResult, driver: number) => result.order.indexOf(driver) + 1;
 
-export const place_points = (place: number) => (place >= 1 ? (POINTS[place - 1] ?? 0) : 0);
+export const place_points = (event: SeriesEvent, place: number) => (place >= 1 ? (KIND_POINTS[event.kind][place - 1] ?? 0) : 0);
 
 export const bonus_points = (bonus: readonly Bonus[]) => bonus.reduce((sum, b) => sum + BONUS_POINTS[b], 0);
 
-export function result_points(season: Season, result: EventResult, driver: number): number {
+export function result_points(season: Season, event: SeriesEvent, result: EventResult, driver: number): number {
   const place = place_of(result, driver);
   if (place < 1) return 0;
-  return place_points(place) + (driver === player_of(season) ? bonus_points(result.bonus) : 0);
+  return place_points(event, place) + (driver === player_of(season) ? bonus_points(result.bonus) : 0);
 }
 
 /** A new run replaces the stored one only when the player took more points from it: a retry never costs points. */
-export function better(season: Season, next: EventResult, before: EventResult | undefined): boolean {
+export function better(season: Season, event: SeriesEvent, next: EventResult, before: EventResult | undefined): boolean {
   if (!before) return true;
   const player = player_of(season);
-  return result_points(season, next, player) > result_points(season, before, player);
+  return result_points(season, event, next, player) > result_points(season, event, before, player);
 }
 
-export const podium = (season: Season, result: EventResult | undefined) => result !== undefined && place_of(result, player_of(season)) <= PODIUM;
+export const podium = (season: Season, event: SeriesEvent, result: EventResult | undefined) => result !== undefined && place_of(result, player_of(season)) <= KIND_PODIUM[event.kind];
 
 export type EventState = "locked" | "open" | "podium";
 
 export function event_states(season: Season, progress: SeriesProgress): EventState[] {
-  const podiums = season.events.filter((e) => !e.final && podium(season, progress.results[e.id])).length;
+  const podiums = season.events.filter((e) => !e.final && podium(season, e, progress.results[e.id])).length;
   const rest = season.events.filter((e) => !e.final);
   return season.events.map((event) => {
-    if (podium(season, progress.results[event.id])) return "podium";
+    if (podium(season, event, progress.results[event.id])) return "podium";
     if (event.final) return podiums === rest.length ? "open" : "locked";
     return rest.indexOf(event) < OPEN_AT_START + podiums ? "open" : "locked";
   });
@@ -187,7 +201,7 @@ export function event_states(season: Season, progress: SeriesProgress): EventSta
 export const is_open = (season: Season, progress: SeriesProgress, event: SeriesEvent) => event_states(season, progress)[season.events.indexOf(event)] !== "locked";
 
 /** The season ends with a podium in its final (C4: losing it means another go, the standings kept). */
-export const season_done = (season: Season, progress: SeriesProgress) => season.events.every((e) => !e.final || podium(season, progress.results[e.id]));
+export const season_done = (season: Season, progress: SeriesProgress) => season.events.every((e) => !e.final || podium(season, e, progress.results[e.id]));
 
 export interface Standing {
   driver: number;
@@ -203,7 +217,7 @@ export function standings(season: Season, progress: SeriesProgress, you = "You")
   const rows: Standing[] = [...season.field.map((d, i) => ({ driver: i, name: d.name, points: 0, you: false, rival: i === season.rival })), { driver: player, name: you, points: 0, you: true, rival: false }];
   for (const event of season.events) {
     const result = progress.results[event.id];
-    if (result) for (const row of rows) row.points += result_points(season, result, row.driver);
+    if (result) for (const row of rows) row.points += result_points(season, event, result, row.driver);
   }
   return rows.sort((a, b) => b.points - a.points || a.driver - b.driver);
 }

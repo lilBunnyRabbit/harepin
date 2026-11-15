@@ -74,8 +74,8 @@ Behind `?series` in dev and review builds only; the old career and its records a
 | Piece | Where |
 |---|---|
 | Season data | `career/series.ts`: six island events (opener seed 13, knockout seed 2, reverse run seed 9 `circuit-rev`, rival duel seed 4, eight-minute endurance seed 5, final seed 0), a named field of six with levels per driver, Kai Moreno the rival |
-| Points | 10/8/6/5/4/3/2 by place; player bonuses clean race +2, led a lap +1, fastest lap +1, won from the back +2. A retry keeps the run that scored the player more |
-| Opening | three events open at the start, each podium opens one more, the final once every other event has a podium; a podium in the final completes the series (C4) |
+| Points | 10/8/6/5/4/3/2 by place; the rival duel 10/4. Player bonuses: clean race +2, in the lead at half distance +1 (races are one lap, so a lap's end would only repeat the win; lead, 2026-11-15), fastest lap +1, won from the back +2. A retry keeps the run that scored the player more |
+| Opening | three events open at the start, each podium (in the rival duel only a win) opens one more, the final once every other event has a podium; a podium in the final completes the series (C4) |
 | Rules in the race | `FieldEvent` on `FieldHost` (`modes/mode.ts`): names, knockout, time limit, result lines, Next. `modes/field-tally.ts`: lap times from progress, knockout (last car still in is out each 1/n of the leader's distance; the last one left wins) |
 | Clean race | the sim counts the player's touches with AI cars (`FrameOut.touches`, `Sim.field_touches`, `SIM_PACKET` 2) |
 | Progress | `career/series-store.ts` over tab storage (`sessionStorage`): the save format is not decided |

@@ -24,7 +24,7 @@ export class Series {
 
   /** True when the run is the event's new best for the player. */
   record(event: SeriesEvent, result: EventResult): boolean {
-    if (!better(this.season, result, this.progress_.results[event.id])) return false;
+    if (!better(this.season, event, result, this.progress_.results[event.id])) return false;
     this.progress_ = { season: this.season.id, results: { ...this.progress_.results, [event.id]: result } };
     write_json(this.store, this.key, this.progress_);
     return true;

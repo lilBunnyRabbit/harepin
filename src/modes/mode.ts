@@ -67,7 +67,7 @@ export interface FieldOutcome {
   order: readonly number[];
   /** No touch with another car. */
   clean: boolean;
-  /** In the lead at the end of a lap. */
+  /** In the lead as the player passed half the race distance. */
   led: boolean;
   fastest: boolean;
   /** Started from the last grid slot. */

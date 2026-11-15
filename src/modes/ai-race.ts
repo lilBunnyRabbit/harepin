@@ -60,6 +60,7 @@ export class AiRace implements ModeRun, FieldRace {
   private touches = 0;
   private touched = false;
   private led = false;
+  private halfway = false;
   readonly route: RouteRun;
 
   constructor(
@@ -134,6 +135,7 @@ export class AiRace implements ModeRun, FieldRace {
     this.t = this.result ? this.t + sim_dt : (this.banked + run.elapsed()) / 1000;
     this.standings.update(this.t, this.host.sim.field_progress);
     this.count_touches(!this.result && run.status !== RaceStatus.READY);
+    if (!this.result) this.check_halfway();
     if (!this.result && this.ends()) {
       this.route.gate = null;
       ctx.hide_hint();
@@ -151,7 +153,6 @@ export class AiRace implements ModeRun, FieldRace {
       this.route.gate = null;
       ctx.hide_hint();
       view.guide(0, 0);
-      if (this.standings.place(player) === 1) this.led = true;
       if (this.lap < this.laps) {
         this.banked += run.elapsed();
         this.lap++;
@@ -181,6 +182,15 @@ export class AiRace implements ModeRun, FieldRace {
     if (out === player || (event?.knockout && this.tally.left() === 1)) this.finish(End.OUT);
     else if (event?.limit_ms && this.t * 1000 >= event.limit_ms) this.finish(End.TIME);
     return this.result !== null;
+  }
+
+  // Scored once, as the player first passes half the race's road points.
+  private check_halfway() {
+    if (this.halfway) return;
+    const at = this.host.sim.field_progress[this.builds.length];
+    if (!(at >= (this.course.route.points.length * this.laps) / 2)) return;
+    this.halfway = true;
+    this.led = this.place_now() === 1;
   }
 
   // A knockout's place counts only the cars still in.
@@ -228,7 +238,6 @@ export class AiRace implements ModeRun, FieldRace {
     if (end === End.LINE) {
       this.t = ms / 1000;
       this.standings.finished(player, this.t);
-      if (this.standings.place(player) === 1) this.led = true;
       if (this.tally.out.length) this.final = this.tally.final_order(this.standings.order);
     } else this.final = this.tally.final_order(this.standings.order);
     const order = this.final ?? this.standings.order;
