@@ -88,6 +88,43 @@ export function parse_runs_save(raw: unknown, season: string): RunsSave {
   return { season, stars, days: counts(save.days), weeks: counts(save.weeks), free: counts(save.free) };
 }
 
+const season_in = (raw: unknown): string | null => {
+  const season = raw && typeof raw === "object" ? (raw as Record<string, unknown>).season : null;
+  return real_season(season) ? season : null;
+};
+
+const most = (a: Record<string, number>, b: Record<string, number>): Record<string, number> => {
+  const out = { ...a };
+  for (const [key, value] of Object.entries(b)) out[key] = Math.max(out[key] ?? 0, value);
+  return out;
+};
+
+function merge_season(kept: unknown, other: unknown): { save: RunsSave | null; folded: string[] } {
+  const a = season_in(kept);
+  const b = season_in(other);
+  if (a === null && b === null) return { save: null, folded: [] };
+  if (b === null || (a !== null && a > b)) return { save: parse_runs_save(kept, a as string), folded: b === null ? [] : reached(parse_runs_save(other, b).stars, b) };
+  if (a === null || b > a) return { save: parse_runs_save(other, b), folded: a === null ? [] : reached(parse_runs_save(kept, a).stars, a) };
+  const x = parse_runs_save(kept, a);
+  const y = parse_runs_save(other, b);
+  return { save: { season: a, stars: Math.max(x.stars, y.stars), days: most(x.days, y.days), weeks: most(x.weeks, y.weeks), free: most(x.free, y.free) }, folded: [] };
+}
+
+/**
+ * Two saves of the season track: the same season keeps the most stars per day, week and free day; across seasons the
+ * later one's save stands and the earlier one pays out the rewards it reached, as `Runs` does when a season ends.
+ * Rewards union; the tag worn and the daily board are `kept`'s unless it has none.
+ */
+export function merge_runs_save(kept: unknown, other: unknown): Record<string, unknown> {
+  const { save, folded } = merge_season(kept, other);
+  const a = parse_runs_keep(kept, "");
+  const b = parse_runs_keep(other, "");
+  const owned = [...new Set([...a.owned, ...b.owned, ...folded])];
+  const wear = a.wear.title || a.wear.tint ? a.wear : b.wear;
+  const board = (kept as Record<string, unknown> | null)?.board ?? (other as Record<string, unknown> | null)?.board;
+  return { ...save, owned, wear, ...(board === undefined ? {} : { board }) };
+}
+
 export interface RunGain {
   /** Season stars this finish added. */
   gain: number;

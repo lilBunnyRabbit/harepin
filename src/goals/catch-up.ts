@@ -1,6 +1,7 @@
 import { DEFAULT_BUILD, DEFAULT_PARTS, SLOT_NAMES, type Build } from "../car/build";
 import { BUILDS_KEY, parse_builds } from "../car/builds";
 import { parse_runs } from "../modes/track";
+import { cached_records } from "../store/cached-store";
 import { WorldKind } from "../worldgen/types";
 import { GoalId, mode_part } from "./goals";
 
@@ -60,13 +61,18 @@ export function proven(saved: Iterable<[string, string]>, now: Now, mode_ids: re
   return [...ids];
 }
 
+/** The records in IndexedDB, then what still sits in localStorage (best laps, builds, settings). */
 export function saved_entries(): [string, string][] {
+  const records = [...(cached_records()?.entries() ?? [])];
   try {
-    return Object.keys(localStorage)
-      .filter((key) => key.startsWith("harepin:"))
-      .map((key) => [key, localStorage.getItem(key) ?? ""]);
+    return [
+      ...records,
+      ...Object.keys(localStorage)
+        .filter((key) => key.startsWith("harepin:"))
+        .map((key): [string, string] => [key, localStorage.getItem(key) ?? ""]),
+    ];
   } catch (error) {
     console.warn("goals: saved records unreadable", error);
-    return [];
+    return records;
   }
 }
