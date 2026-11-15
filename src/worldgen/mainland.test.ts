@@ -7,13 +7,14 @@ import { GATE_CLEAR, MAINLAND_SIZE, plan_mainland } from "./mainland";
 import { plan_sample } from "./plan-grid";
 import { TILE_SIDE, TileStore } from "./tiles";
 import type { Built } from "./tile-mesher";
+import { ROAD_HALF } from "./types";
 
 const EXT = extent(MAINLAND_SIZE);
 
 test("mainland ids and keys sit in their own thousand", async () => {
   const { world_id, world_key } = await import("./kinds/kinds");
-  expect(world_id("mainland")).toBe(3009);
-  expect(world_key(42, "mainland")).toBe("42:m9");
+  expect(world_id("mainland")).toBe(3010);
+  expect(world_key(42, "mainland")).toBe("42:m10");
 });
 
 test("the mainland is land in the middle and sea at its border", () => {
@@ -70,7 +71,7 @@ for (const seed of sweep(3))
 
 test("no Mainland race takes the Party bus", () => {
   const { data } = plan_mainland(0);
-  expect(data.routes.map((r) => r.id)).toEqual(["circuit", "sprint", "trip"]);
+  expect(data.routes.map((r) => r.id)).toEqual(["circuit", "sprint", "trip", "town"]);
   for (const route of data.routes) expect(route.excludes).toEqual(["bus"]);
 });
 
@@ -285,3 +286,24 @@ test("a mainland town lines its main street with paved terraces, and most towns 
   for (const b of rows) expect(data.lots[b.lot].ground).toBe("paved");
   for (const b of data.buildings) expect(b.detail).toBeDefined();
 });
+
+for (const seed of sweep(3))
+  test(`mainland ${seed}: the town circuit laps one town's main street and lane, laid road wide, its finish on the start line`, () => {
+    const { data } = plan_mainland(seed);
+    const lap = data.routes.find((r) => r.id === "town");
+    if (!lap) throw new Error("no town circuit");
+    expect(lap.closed).toBe(true);
+    const town = data.towns.find((t) => Math.hypot(t.x - lap.points[0].x, t.z - lap.points[0].z) <= t.radius);
+    if (!town) throw new Error("town circuit starts outside a town");
+    for (const p of lap.points) expect(Math.hypot(p.x - town.x, p.z - town.z)).toBeLessThanOrEqual(town.radius + 1);
+    const off_main = (p: { x: number; z: number }) => Math.abs((p.x - town.x) * town.uz - (p.z - town.z) * town.ux);
+    expect(off_main(lap.points[0])).toBeLessThan(1);
+    expect(Math.max(...lap.points.map(off_main))).toBeGreaterThan((town.cross ?? town.block) - 1);
+    const on_lap = (p: { x: number; z: number }) => lap.points.some((q) => Math.hypot(q.x - p.x, q.z - p.z) < 0.5);
+    const taken = data.graph.edges.filter((e) => e.kind === "street" && on_lap(e.points[Math.floor(e.points.length / 2)]));
+    expect(taken.length).toBeGreaterThanOrEqual(6);
+    for (const edge of taken) expect(edge.half).toBe(ROAD_HALF);
+    for (let i = 1; i < lap.points.length; i++) expect(Math.hypot(lap.points[i].x - lap.points[i - 1].x, lap.points[i].z - lap.points[i - 1].z)).toBeLessThan(3);
+    expect(lap.checkpoints.at(-1)).toMatchObject({ x: lap.points[0].x, z: lap.points[0].z });
+    expect(lap.closure.length).toBeGreaterThan(0);
+  });
