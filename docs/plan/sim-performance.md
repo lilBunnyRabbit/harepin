@@ -438,3 +438,19 @@ Vite preview of a `--mode review` build, headless Chrome, 1440 x 900, island see
 J2 and J10 landed together: `src/sim-math.ts` (fdlibm ports of sin, cos, tan, atan, atan2, asin, acos, exp, log, cbrt; `hypot` as `sqrt(a*a+b*b)`; `axis_angle` for three's `setFromAxisAngle`) replaces `Math.*` in `car/`, `ai/`, `world/`, `worldgen/`, `modes/`, `career/` and `race.ts`. The suspension ray is false position with Illinois (one lookup per face, 12-step cap). Every kind's `version` bumped once.
 
 Proof: `src/car/sim-digest.test.ts` holds a maths digest and a 12-car, 10 s rolling-ground car digest. `node scripts/sim-digest.mjs` reruns them in Bun, Node and Chrome (and WebKit when Playwright's build is installed). 2026-11-15: Bun 1.3.0 (JSC), Node 22.14 (V8 12.4) and Chrome 157 all give `8ad84cdc` / `8827e36f`.
+
+Telemetry (coupe, stock) and feel, ce6af9c → this branch. Every other line is byte-identical.
+
+| line | before | after |
+|---|---|---|
+| telemetry: settled | CG height 0.493 m, loads 3144 / 3144 / 3144 / 3144 N | CG height 0.493 m, loads 3310 / 3310 / 3310 / 3310 N |
+| telemetry: 100-0 km/h braking (ABS off) | 39.2 m | 39.1 m |
+| feel: lane change 160 km/h | max slip 1.2°, yaw after 3.5 s -0.000 rad/s, upright 1.000 | max slip 1.2°, yaw after 3.5 s 0.000 rad/s, upright 1.000 |
+| feel: trail brake 120 km/h + steer | max slip 7.1°, stopped in 3.07 s | max slip 7.0°, stopped in 3.07 s |
+| feel: rest jitter | max dy/step 0.0075 mm, speed 0.0006 | max dy/step 0.0073 mm, speed 0.0000 |
+| feel: hold: release at 100 km/h | wheel 0.082 rad -> 10% in 0.45 s, yaw after 2 s -0.000 rad/s | wheel 0.082 rad -> 10% in 0.45 s, yaw after 2 s 0.000 rad/s |
+| feel: drift hold 50 km/h hb (TCS on) | held 4.81 s, slip 27.4°, 54 -> 39 km/h, yaw 0.54, r 19.3 m | held 4.81 s, slip 27.4°, 54 -> 39 km/h, yaw 0.54, r 19.2 m |
+| feel: drift hold 50 km/h hb (TCS off) | held 2.31 s, slip 71.0°, 54 -> 5 km/h, yaw 1.18, r 0.8 m | held 2.25 s, slip 68.9°, 54 -> 3 km/h, yaw 0.93, r 0.3 m |
+| feel: then turn key 1 s | yaw 1.00, r 1.7 m, slip 1.3° | yaw 1.12, r 2.3 m, slip -0.7° |
+| feel: power drift 40 km/h no hb (TCS on) | r 100.2 m | r 100.4 m |
+- Settled loads now equal the coupe's weight a wheel (1350 kg x 9.81 / 4 = 3311 N); with the bisected ray they read 5% under it.
