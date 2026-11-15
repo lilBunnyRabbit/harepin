@@ -407,3 +407,40 @@ Open after phase 4:
 - Hard's own-slide spins (6 / 3 resets in 25 races): pace over the plan. A cap at the plan with only fewer mistakes would make hard barely harder (the line is the limit); left for the owner's first hard race.
 - Nothing in the trial counts the player's contacts, positions gained or laps led (the plan's recorder adds); the ` f` lines give the order and every AI car's counts.
 - The first trial of a race pack reloads once on open (the lab world loads first, then the trial's map).
+
+### Braking-zone dives and series options (t290, 2026-11-15)
+
+Owner r1/r2 (`docs/lab/sessions/ai-field.r{1,2}.2026-11-15.txt`): too easy, barely passes, slow starts, yields the line. 73eecac's numbers showed why: equal cars only gained in corners, and most cars finished a race with `pass 0`.
+
+| Piece | Where |
+|---|---|
+| Late braking curve | `RaceLine.late` (`ai/line.ts`): the line's corner speeds braked for at `LATE_BRAKE` 4 m/s² against the line's 2.5 |
+| Dive | `Awareness.dive`: behind a car within its follow gap + `DIVE_REACH` 15 m, with a braking zone (plan drops `DIVE_DROP` 5 m/s) within `DIVE_LOOK` 60 points and the inside of its apex open, a driver rolls once per zone on aggression. A dive holds the inside lane down to the apex and plans on the late curve (`Driver.late`, pedal up to `LATE_PEDAL` 0.8). Equal cars may dive: up to `DIVE_SLOWER` 0.02 pace under the car ahead. It dives on the player too |
+| Defender | `Awareness.diver_on`: overlapped (centre within `OVERLAP` 5 m behind) on the inside of a braking zone, by an AI diver or by the player there on its own, the defender runs round the outside of it; the timid also lift (`concede`, as before) |
+| Lone run-offs | a late-brake mistake carried a flat 3 m/s: a 10 m/s hairpin at 30% over, off the road (seed 9, car 1, lap 1). Now `MISTAKE_OVER` 10% of the plan, at most 3 m/s |
+| Player grid slot | `Field(…, grid)` and `FieldStart.grid`: the AI cars fill the other slots in order, last by default. `FieldEvent.grid` from `grid_slot` (`career/series.ts`): behind every driver of the event's field ahead in the table. From-back scores only from the last slot |
+| Retire | `field_retire` sim command, `Field.retire`, `FieldView.retire`: a knocked-out AI car stops under the world, out of contact, awareness, recovery and pass counts; it keeps its progress. `AiRace` sends it as the tally knocks a car out |
+
+`bun scripts/ai-race.ts field all coupe 6 2 3 3 <difficulty>`, 25 races each, 73eecac before, eda08d3 after (ab2e0c2 runs the same: no grid or retire in the script):
+
+| | easy before | after | normal before | after | hard before | after |
+|---|---|---|---|---|---|---|
+| Mean lap (s) | 240.1 | 240.1 | 220.2 | 220.2 | 214.8 | 215.1 |
+| Overtakes | 46 | 67 | 27 | 45 | 22 | 31 |
+| Spins | 0 | 0 | 3 | 1 | 6 | 4 |
+| Resets | 0 | 0 | 4 | 3 | 6 | 3 |
+| Reverses | 0 | 0 | 1 | 0 | 2 | 2 |
+| Hardest hit (m/s) | 9.5 | 5.1 | 26.0 | 11.0 | 15.3 | 16.2 |
+| Contacts/lap mean | 4.3 | 6.3 | 4.3 | 6.1 | 4.6 | 6.0 |
+| Races over 6 contacts/lap | 6 | 13 | 5 | 10 | 4 | 9 |
+| Mean rho | 0.48 | 0.39 | 0.63 | 0.45 | 0.65 | 0.62 |
+
+b7a6c07's normal column (phase 4 above): 236.2 s, 30 overtakes, 0 / 0, 5.7 m/s. 73eecac sped the field up 7% and halved its passing.
+
+Normal's resets left: seed 3's kicker and a wall (both before too), seed 5 car 6 off the road after a spin. Tried and not kept: the dive on the inside edge (pass room) instead of the `PASS_LANE` 2.8 m lane: 40 overtakes, 4 spins, 7 resets.
+
+Open after this round:
+
+- Contacts per lap rose with the passing: 10 of 25 normal races sit over the script's 6/lap band (5 before), so `ai-race.ts field` exits 1. Nearly all are rubs under 2 m/s between a car alongside and the one it is passing (73eecac's bold drivers rub, `RUB`); the hardest hit fell. Either the band moves to about 8, or `RUB` comes down and some of the bumping the owner asked for goes with it.
+- Hard's hardest hit 16.2 m/s is seed 3 car 6 (spin and two reverses), near the kicker that already reset cars before.
+- The grid slot and the retire are covered by `field.test.ts` and `series.test.ts` only; a knockout in game is not driven by eye.
