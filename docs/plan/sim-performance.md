@@ -382,3 +382,35 @@ Whichever lands, the J2 maths module should define two-argument `hypot(a, b)` as
 - With 7 cars it made the car step 1.3-1.9 µs cheaper in Rust. In AssemblyScript the change, -0.1 to +0.3 µs, is within noise.
 - The car's inputs never come near overflow.
 - It moves the physics by ulps, so it belongs in the J2/J10 rebaseline, not after it.
+
+## Sim worker, built (t276)
+
+Quest 2732f6d (J1, J4, J5). `src/sim/`: `SimHost` steps the player's car, pads, `world.collide`, an AI field with the player in its contact pass, the near-miss pass and the car's rewind (body, nitro, pads). Main runs it in place by default. `?simworker` hosts the same `SimHost` in a worker.
+
+- **Transport.** One post per frame carries the commands since the last frame (place, park, swap, shift, aids, refill, rewind clear, field start, world ops) and the frame's request (kind, step count, controls, `now`, blend, peer spots). The reply is one cloned `Float64Array` with a fixed, append-only layout (`sim-packet.ts`, `SIM_PACKET` 1): a header (epoch, kind, steps, stepped, impact, blend), the player's car (pose, the pose before the last step, gear, rpm, steer, braking, throttle, nitro, scrape, every wheel's contact, point, slip, angle, spin, reach), then each AI car's pose, braking and wheels. 8 + 39 + 12 a wheel floats for the player, 8 + 3 a wheel per AI car: 215 floats, 1720 bytes, for the coupe and 6 AI.
+- **Float64, not the planned Float32.** Main times laps and modes and picks reset spots from the car it reads; float32 would make those differ from the flag-off game by rounding. The test proves the flag-on packet equals the flag-off car bit for bit.
+- **Main draws one frame late.** Frame N reads the reply to frame N-1's post, and every per-frame reader (HUD, audio, rumble, camera, ghost record, modes, stuck and fall checks) takes the reply's own kind, step count and impact, so flag-on is flag-off shifted by a frame. A place, park, swap or refill moves main's mirror at once and starts a new epoch; replies from before it are dropped.
+- **World.** The worker builds its `World` from the plan main built from (`WorldStream.plan`). A `WorldJournal` on main's world records every tile, plant, `place` and `lay` in order from before the first chunk lands, and the ops ride in the frame posts.
+- **Rewind and ghost.** Car body, nitro and pads rewind in the sim (nitro's near-miss keys are solid objects that do not cross to main). The lap clock stays a rewind part on main, recorded and stepped with the same `now`. The ghost records on main from the mirrored car: it draws and saves to localStorage, which a worker has not got.
+- **Main only.** `?lab` (the recorder reads every step) and review shots (they set the pose) keep the sim on main under the flag.
+- **`?field=<cars>`** (1-7): an AI field on the island circuit in free drive, the player's build on every car, for measuring before race mode has one.
+
+Proof:
+
+- `src/sim/sim.test.ts`: a packet read back into a mirror car re-encodes to the same bits. Island seed 1, coupe: 900 frames solo, 900 with a 6-car field, 300 after a park and a swap to the rally, with holds, rewinds, shifts, refills, an aids change and peer spots, 5-7 steps a frame. Every worker reply equals the flag-off packet bit for bit. Removing the aids command in the worker turns it red at frame 700.
+- `car.test.ts`, `scripts/telemetry.ts` and `scripts/feel.ts` import none of the changed files (25 files, import graph walked), so they are byte-identical by construction.
+
+### Main-thread ms per frame
+
+Vite preview build, headless Chrome (rAF at ~134 Hz), island seed 1, coupe, throttle held. CDP `Performance.getMetrics` `TaskDuration` over 12 s, after 3 s warm-up, divided by frames. Mean of 3 runs (range in brackets).
+
+| | CPU throttle | sim on main | `?simworker` | saved |
+|---|---|---|---|---|
+| solo | 1x | 1.61 (1.52-1.67) | 1.64 (1.63-1.65) | none |
+| 6 AI | 1x | 2.16 (2.05-2.22) | 2.05 (2.00-2.12) | 0.11 ms (5%) |
+| solo | 4x | 13.8 (11.8-15.0), 73 fps | 15.5 (13.5-18.3), 65 fps | none, within noise |
+| 6 AI | 4x | 19.4 (17.7-21.2), 51 fps | 16.6 (15.4-17.6), 60 fps | 2.9 ms (15%) |
+
+- The 6-car field costs main 0.55 ms a frame at 1x (5.7 ms at 4x) over solo. The worker takes 0.11 (2.9) of it. The rest is drawing six more `CarView`s: phase 3 needs a cheaper AI car view (fewer draws, LOD, the far-AI follower), or the frame stays view-bound.
+- Solo gains nothing on main: one car's steps (about 0.05 ms a frame at 1x) are what the post, the message task and the mirror read cost. §4's 88-90% was sim time alone; these numbers are the whole main thread.
+- The 4x rows carry §4's caveats: the throttle does not reach the worker and inflates short tasks, so run-to-run spread is ±2 ms. The phone (S24+, frame time with 6 AI, worker on vs off) is the number that decides the default.
