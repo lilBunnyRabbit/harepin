@@ -9,7 +9,7 @@ import { car_sized, type CarSpec } from "../car/cars";
 import { PRESETS } from "../car/presets";
 import type { CarClass } from "../car/pi";
 import { DEFAULT_BINDINGS, keys_text, type Bindings } from "../hud/bindings";
-import { $, format } from "../hud/hud";
+import { $, format, set_text } from "../hud/hud";
 import type { World } from "../world/world";
 import { chunk_of } from "../worldgen/chunk-grid";
 import { LIFT } from "../worldgen/lifts";
@@ -583,10 +583,10 @@ export class Modes implements CarHooks {
     if (key === this.status_key) return;
     this.status_key = key;
     const { el } = this;
-    el.status.hidden = false;
-    el.status_name.textContent = name;
-    el.status_clock.textContent = clock;
-    el.status_more.textContent = more;
+    if (el.status.hidden) el.status.hidden = false;
+    set_text(el.status_name, name);
+    set_text(el.status_clock, clock);
+    set_text(el.status_more, more);
   }
 
   private show_result(finish: Finish, active: Active) {

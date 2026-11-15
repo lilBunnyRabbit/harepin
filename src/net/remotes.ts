@@ -150,10 +150,10 @@ export class Remotes {
     return found ? this.near : null;
   }
 
-  update(dt: number, camera: THREE.Camera, me: THREE.Vector3) {
-    // Read once before any label is written: a viewport read after a style write forces a layout, once per remote.
-    this.width = innerWidth;
-    this.height = innerHeight;
+  /** `width` / `height` are the CSS px the camera projects to, from the renderer's observer: a viewport read here would force a layout every frame. */
+  update(dt: number, camera: THREE.Camera, me: THREE.Vector3, width: number, height: number) {
+    this.width = width;
+    this.height = height;
     for (const remote of this.net.remotes.values()) this.draw(remote, dt, camera, me);
     for (const [id, rv] of this.views)
       if (!this.net.remotes.has(id)) {

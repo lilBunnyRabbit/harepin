@@ -111,6 +111,15 @@ export class Render {
     this.camera.updateProjectionMatrix();
   }
 
+  /** The canvas size in CSS px, as the observer last saw it. */
+  get view_width() {
+    return this.width;
+  }
+
+  get view_height() {
+    return this.height;
+  }
+
   draw() {
     if (this.composer_on) this.composer.render();
     else this.renderer.render(this.scene, this.camera);
