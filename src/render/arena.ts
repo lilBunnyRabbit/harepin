@@ -16,6 +16,8 @@ const MAST_PITCH = 32;
 const MAST_OUT = 5;
 const MAST_OVER = 13;
 const MAST_ROOM = 3;
+/** No mast this far, in metres along the lap, from an edge whose rail is off: a car carried over the top flies through it. */
+const MAST_OPEN_REACH = 40;
 const POST = { wide: 0.7, tall: 60 };
 /** The lamp frame leans down at the deck, set back toward it from the post. */
 const HEAD = { wide: 7.2, high: 2.6, deep: 0.5, tilt: -0.5, back: 1.2 };
@@ -44,8 +46,8 @@ class Boxes {
   private readonly q = new THREE.Quaternion();
   private readonly euler = new THREE.Euler(0, 0, 0, "YXZ");
 
-  add(tone: THREE.Color, x: number, y: number, z: number, sx: number, sy: number, sz: number, yaw = 0, pitch = 0) {
-    this.q.setFromEuler(this.euler.set(pitch, yaw, 0));
+  add(tone: THREE.Color, x: number, y: number, z: number, sx: number, sy: number, sz: number, yaw = 0, pitch = 0, roll = 0) {
+    this.q.setFromEuler(this.euler.set(pitch, yaw, roll));
     this.matrices.push(new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), this.q, new THREE.Vector3(sx, sy, sz)));
     this.tones.push(tone);
   }
@@ -82,6 +84,17 @@ class Track {
     const ox = this.f(i, 4) * side;
     const oz = -this.f(i, 3) * side;
     return { x: this.f(i, 0) + this.f(i, 4) * u, z: this.f(i, 2) - this.f(i, 3) * u, y: this.f(i, 1) + side * h * Math.tan(this.f(i, 5)), ox, oz, yaw: Math.atan2(ox, oz) };
+  }
+
+  /** Rise of the centreline per metre along the lap, from the samples either side. */
+  grade(i: number): number {
+    const run = Math.hypot(this.f(i + 1, 0) - this.f(i - 1, 0), this.f(i + 1, 2) - this.f(i - 1, 2));
+    return run > 0 ? (this.f(i + 1, 1) - this.f(i - 1, 1)) / run : 0;
+  }
+
+  open_near(i: number, side: number, reach: number): boolean {
+    const s = this.f(i, 8);
+    return this.deck.open.some((o) => (o.side === 0 || o.side === side) && s >= o.s0 - reach && s <= o.s1 + reach);
   }
 
   clear(i: number, x: number, z: number, room: number): boolean {
@@ -136,6 +149,7 @@ export function masts(deck: Deck, tones: MastTones, min_bank: number): THREE.Obj
   const lean = [Math.sin(-HEAD.tilt), Math.cos(HEAD.tilt)];
   for (const bowl of track.bowls(min_bank)) {
     for (const i of track.steps(bowl, MAST_PITCH)) {
+      if (track.open_near(i, bowl.side, MAST_OPEN_REACH)) continue;
       const e = track.edge(i, bowl.side, MAST_OUT);
       if (!track.clear(i, e.x, e.z, MAST_ROOM)) continue;
       const top = e.y + MAST_OVER;
@@ -165,10 +179,21 @@ export function pylons(deck: Deck, tone: Lab, pitch: number): THREE.Object3D {
     const x = track.f(i, 0);
     const z = track.f(i, 2);
     if (!track.clear(i, x, z, PYLON_ROOM)) continue;
-    const y = track.f(i, 1) - DECK_THICK;
-    const yaw = Math.atan2(track.f(i, 3), track.f(i, 4));
-    boxes.add(c, x, y - BEAM.deep / 2, z, track.f(i, 6) * 2 + BEAM.over, BEAM.deep, BEAM.long, yaw + Math.PI / 2);
-    boxes.add(c, x, y - PYLON_DEEP / 2, z, PYLON_WIDE, PYLON_DEEP, PYLON_WIDE, yaw);
+    // The deck shears with its bank: a point u across lies u·tan(bank) up, its underside DECK_THICK below that. The beam
+    // rolls into that plane, and both drop by what the grade lifts their far ends, so neither breaks through the deck.
+    const tx = track.f(i, 3);
+    const tz = track.f(i, 4);
+    const bank = track.f(i, 5);
+    const slope = Math.abs(Math.tan(bank));
+    const grade = Math.abs(track.grade(i));
+    const under = track.f(i, 1) - DECK_THICK;
+    const yaw = Math.atan2(tx, tz);
+    const beam_top = under - (BEAM.long / 2) * grade;
+    const lean = (BEAM.deep / 2) * Math.sin(bank);
+    const beam_y = beam_top - (BEAM.deep / 2) * Math.cos(bank);
+    boxes.add(c, x + tz * lean, beam_y, z - tx * lean, ((track.f(i, 6) + BEAM.over / 2) * 2) / Math.cos(bank), BEAM.deep, BEAM.long, yaw, 0, bank);
+    const top = under - (PYLON_WIDE / 2) * (slope + grade);
+    boxes.add(c, x, top - PYLON_DEEP / 2, z, PYLON_WIDE, PYLON_DEEP, PYLON_WIDE, yaw);
   }
   return boxes.mesh(plain());
 }
