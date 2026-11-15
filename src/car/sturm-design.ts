@@ -12,9 +12,10 @@ const KIT_SILL = 0.18;
 const FOOT = 2.14;
 const NOSE = 2.25;
 const TAIL_FACE = -1.99;
-const NOSE_PINCH = 0.16;
+const NOSE_PINCH = 0.2;
 const NOSE_RUN = 0.6;
 const TUCK = 0.03;
+const LEDGE = 0.46;
 const TAIL_FROM = -1.42;
 const TAIL_PINCH = 0.12;
 // Over the wings at the nose, so the shoulder never shears the lamps or twists the wings' rolled faces; under the hips' crest at the tail, which it rounds.
@@ -23,7 +24,8 @@ const SHOULDER = 0.2;
 const RISE = 0.21;
 
 // The bonnet runs low from the bumper top to the cowl; the wings stand over it as slabs.
-const BUMPER: Point[] = [[NOSE, 0.26], [NOSE, 0.44], [2.21, 0.5], [2.15, 0.525]];
+// The bumper is a band of its own: its top is a ledge the nose panel stands back from.
+const BUMPER: Point[] = [[NOSE, 0.27], [NOSE, 0.42], [2.22, LEDGE], [2.16, LEDGE], [2.15, 0.52]];
 const BONNET: Point[] = [[1.98, 0.61], [1.68, 0.7], [1.3, 0.745], [0.92, 0.78]];
 const TOP: Point[] = [...BONNET, [0.2, 0.78], [-0.6, 0.79], [-1.5, 0.78], [-1.8, 0.7], [-1.92, 0.64]];
 const TAIL: Point[] = [[-1.97, 0.6], [TAIL_FACE, 0.42], [TAIL_FACE, 0.28], [-1.96, 0.24], [-1.88, SILL]];
@@ -37,9 +39,9 @@ const belt_at = (z: number) => BELT[0] + ((BELT[1] - BELT[0]) * (FOOT - z)) / (F
 const section = (shoulder: number): Section => ({ belt: BELT, shoulder, rise: RISE, tuck: TUCK, nose: [NOSE_PINCH, NOSE_RUN], tail: [TAIL_PINCH, TAIL_FROM - TAIL_FACE] });
 
 const CABIN: Cabin = {
-  points: [[0.92, 0.77], [0.38, 1.21], [0.06, 1.28], [-0.36, 1.26], [-1.0, 1.06], [-1.5, 0.86], [-1.86, 0.66]],
+  points: [[0.92, 0.77], [0.3, 1.215], [0.0, 1.28], [-0.36, 1.26], [-1.0, 1.06], [-1.5, 0.86], [-1.86, 0.66]],
   width: 1.3,
-  tumble: 0.16,
+  tumble: 0.24,
   frame: [0.05, 0.035, 0.035, 0.04, 0.035, 0.035, 0.035],
   screens: [[0, 0.07], [3, 0.16]],
   split: [-0.38, 0.07],
@@ -63,21 +65,21 @@ function mirror(full: number): Mirror {
 }
 
 const WING_IN = 0.44;
-const WING_OUT = 0.99;
+const WING_OUT = 1.06;
 // Side profiles stand off the sill, or the wheel opening's floor would leave a sliver of slab across it.
 const LIFT = 0.005;
 // The wing's side under the bonnet line, a hair below it so no face lies on the body top.
 const UNDER = 0.01;
 const under = (points: Point[]): Point[] => points.map(([z, y]) => [z, y - UNDER]);
 // Behind its wheel the side ends on an arc round the axle, so the wing wraps the wheel instead of ending in a wall.
-const wing = (sill: number): Point[] => [[2.14, sill + 0.02], ...under([BUMPER[3], ...BONNET]), [0.8, 0.6], [0.745, 0.4], [0.76, sill + LIFT]];
+const wing = (sill: number): Point[] => [[2.14, sill + 0.02], ...under([BUMPER[BUMPER.length - 1], ...BONNET]), [0.8, 0.6], [0.745, 0.4], [0.76, sill + LIFT]];
 // The lamp's face, from the bumper top up to the wing's crest.
 const FACE: [Point, Point] = [[2.15, 0.515], [2.05, 0.76]];
 // The wing over the bonnet, on the side's top edge and clear of the wheel opening, so no face lies on another.
 const WING_HUMP: Point[] = [...FACE, [1.9, 0.8], [1.5, 0.84], [1.1, 0.84], [0.92, 0.805], ...under([...BONNET].reverse())];
 const WING_LEAN = { low: 0.55, high: 0.84, out: 0.2 };
-// Over the bonnet line only: under it a rolled side would sink inside the body side it stands on.
-const WING_ROLL = { low: 0.76, high: 0.84, in: 0.15 };
+// The crown line along the wing: over it the side rolls in, and stays outside the body side it stands on up to the bonnet line.
+const WING_ROLL = { low: 0.68, high: 0.84, in: 0.1 };
 
 const HIP_IN = 0.44;
 const HIP_OUT = 1.05;
@@ -87,11 +89,11 @@ const HIP_HUMP: Point[] = [[-0.44, 0.77], [-0.47, 0.78], [-0.75, 0.86], [-1.1, 0
 const HIP_LEAN = { low: 0.78, high: 0.89, out: 0.22 };
 const HIP_ROLL = { low: 0.5, high: 0.89, in: 0.1 };
 
-const FLARE_OUT_F = 1.06;
+const FLARE_OUT_F = 1.09;
 const FLARE_OUT_R = 1.1;
 const SKIRT: Point[] = [[0.72, KIT_SILL + 0.01], [0.72, 0.3], [-0.25, 0.3], [-0.25, KIT_SILL + 0.01]];
 
-const ARCHES: Arches = { gap: 0.045, steps: 11, flare: 0.07, out: 0.07, reach: 0.03, tone: "paint" };
+const ARCHES: Arches = { gap: 0.065, steps: 11, flare: 0.07, out: 0.13, reach: 0.03, tone: "paint" };
 const KIT_ARCHES: Arches = { gap: 0.08, steps: 11, flare: 0.13, out: 0.12, reach: 0.03, tone: "paint" };
 
 // The front axle's z plus the wheel radius, from the Sturm spec.
@@ -113,7 +115,7 @@ const LAMP_TILT = -Math.atan2(FACE[0][0] - FACE[1][0], FACE[1][1] - FACE[0][1]);
 const LAMP_KEPT = 1 - (NOSE_PINCH * (LAMP[0] - (FOOT - NOSE_RUN))) / NOSE_RUN - (TUCK * (BELT[0] - LAMP[1])) / (BELT[1] - SILL);
 const LAMP_X = 0.6 / LAMP_KEPT;
 /** A disc on the lamp's face, `sunk` metres under the lens along the face's normal. */
-const on_face = (wide: number, deep: number, sunk: number): Part => ({ size: [wide / LAMP_KEPT, wide, deep], at: [LAMP_X, LAMP[1] + sunk * Math.sin(LAMP_TILT), LAMP[0] - sunk * Math.cos(LAMP_TILT)], tilt: [LAMP_TILT, 0, 0], round: true });
+const on_face = (wide: number, deep: number, sunk: number): Part => ({ sides: 16, size: [wide / LAMP_KEPT, wide, deep], at: [LAMP_X, LAMP[1] + sunk * Math.sin(LAMP_TILT), LAMP[0] - sunk * Math.cos(LAMP_TILT)], tilt: [LAMP_TILT, 0, 0], round: true });
 
 const lip = (root: Point, tip: Point): Point[] => [root, tip, [tip[0] - 0.015, tip[1] - 0.03], [-1.86, 0.62]];
 const WHALETAIL = lip([-1.36, 0.88], [-2.08, 0.94]);
@@ -148,8 +150,11 @@ function band(outline: Point[], half: number) {
   return tail_end(outline, BAND_Y, 0.2, span, [end], { half: span - 0.37, y: BAND_Y, h: 0.13 }, 0.3);
 }
 
-const INTAKE_Y = 0.35;
-const INTAKE_HALF = 0.72;
+const INTAKE_Y = 0.32;
+const INTAKE_HALF = 0.4;
+// The indicator pods at the bumper's outer ends.
+const POD_X = 0.74;
+const POD_Y = 0.355;
 
 function shell(outline: Point[], half: number, shoulder: number) {
   const tail = band(outline, half);
@@ -157,7 +162,9 @@ function shell(outline: Point[], half: number, shoulder: number) {
     mirror: mirror(shoulder),
     paint: [],
     trim: [
-      { size: [INTAKE_HALF, 0.09, 0.04], at: [INTAKE_HALF / 2, INTAKE_Y, NOSE - 0.008] } satisfies Part,
+      { size: [INTAKE_HALF, 0.05, 0.04], at: [INTAKE_HALF / 2, INTAKE_Y, NOSE - 0.008] } satisfies Part,
+      { size: [0.2, 0.075, 0.03], at: [POD_X, POD_Y, NOSE - 0.005] } satisfies Part,
+      { size: [0.9, 0.02, 0.03], at: [0.45, LEDGE + 0.01, 2.165] } satisfies Part,
       { size: [half - 0.1, 0.1, 0.03], at: [(half - 0.1) / 2, 0.24, TAIL_FACE + 0.01] } satisfies Part,
       ...tail.trim,
     ],
@@ -171,7 +178,7 @@ function shell(outline: Point[], half: number, shoulder: number) {
 const HEADS: Part[] = [on_face(0.215, 0.05, 0)];
 const RINGS: Part[] = [on_face(0.265, 0.04, 0.008)];
 const GASKETS: Part[] = [on_face(0.29, 0.04, 0.016)];
-const INDICATORS: Part[] = [{ size: [0.16, 0.05, 0.03], at: [0.62, INTAKE_Y, NOSE + 0.008] }];
+const INDICATORS: Part[] = [{ size: [0.13, 0.04, 0.03], at: [POD_X, POD_Y, NOSE + 0.006] }];
 
 const LID_SLOPE = Math.atan2(1.06 - 0.86, 1.5 - 1.0);
 const lid_y = (z: number) => 0.86 + ((z + 1.5) * (1.06 - 0.86)) / (1.5 - 1.0);
@@ -209,7 +216,7 @@ export const STURM_DESIGN: Design = {
   chrome: [...STOCK.chrome, ...RINGS],
   paint: SLATS,
   markers: INDICATORS,
-  tyre: [0.3, 0.37],
+  tyre: [0.36, 0.37],
   rim: { size: 0.76, spokes: 5, tone: "metal", lip: 0.3, spoke: 0.09 },
   deck: [-1.7, 0.75],
   hood: [-1.42, 0.86],

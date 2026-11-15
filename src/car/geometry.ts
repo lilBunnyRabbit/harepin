@@ -11,6 +11,8 @@ export interface Part {
   tilt?: Triple;
   /** An eight-sided disc facing forward instead of a box: `size` x is its diameter, z its depth. */
   round?: boolean;
+  /** A round part's facets. A disc given them also takes its height from `size` y, so one drawn wider for a pinched nose comes out round; the eight-sided default stays a circle of `size` x. */
+  sides?: number;
   /** Drawn once as given instead of mirrored: an offset tow hook, a single side pipe. */
   one?: boolean;
   /**
@@ -161,8 +163,8 @@ export function wedge(w: number, h: number, d: number): THREE.BufferGeometry {
 }
 
 /** One side of a mirrored part: `side` 1 is the left one as drawn, -1 its mirror. */
-export function side_part({ size, at: [x, y, z], tilt: [rx, ry, rz] = [0, 0, 0], round, shape }: Part, side: number): THREE.BufferGeometry {
-  const drawn = round ? new THREE.CylinderGeometry(size[0] / 2, size[0] / 2, size[2], 8).rotateX(Math.PI / 2) : shape === "pod" ? pod(...size) : shape === "wedge" ? wedge(...size) : new THREE.BoxGeometry(...size);
+export function side_part({ size, at: [x, y, z], tilt: [rx, ry, rz] = [0, 0, 0], round, sides, shape }: Part, side: number): THREE.BufferGeometry {
+  const drawn = round ? new THREE.CylinderGeometry(size[0] / 2, size[0] / 2, size[2], sides ?? 8).rotateX(Math.PI / 2).scale(1, sides ? size[1] / size[0] : 1, 1) : shape === "pod" ? pod(...size) : shape === "wedge" ? wedge(...size) : new THREE.BoxGeometry(...size);
   return drawn
     .rotateX(rx)
     .rotateY(side * ry)

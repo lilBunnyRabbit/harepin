@@ -142,7 +142,8 @@ const TSUMUJI: Detail[] = [
 
 const STURM: Detail[] = [
   { on: "street", cue: "Banner across the top of the windscreen", banner: [screen_band(sturm.cabin, 0, 0.7, 0.98, 0.6)] },
-  { on: "tuned", cue: "Oil cooler in the front bumper", bright: [centred(0.5, 0.1, 0.02, 0.3, 2.302)] },
+  { on: "tuned", cue: "Oil cooler in the bumper's centre opening", bright: [centred(0.5, 0.035, 0.02, 0.32, face_at(sturm.outline, 0.32) + 0.016)] },
+  { on: "light", cue: "Painted front lid: a bare panel between the wings read as a patch", swaps: ["bonnet"] },
   // Each strake is full depth at the tail and runs out to nothing ahead under the valance: square ones read as planks.
   { on: "race", cue: "Short diffuser strakes under the tail valance, in place of the long plate", trim: [0.2, 0.52].map((x): Part => ({ size: [0.025, 0.1, 0.26], at: [x, 0.235, -1.8], tilt: [Math.PI + 0.2, 0, 0], shape: "wedge" })), swaps: ["diffuser"] },
 ];
