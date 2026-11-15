@@ -1,13 +1,13 @@
 import * as THREE from "three";
 import { build_spec, parse_build, type Build } from "../car/build";
-import { rest_reach, ride_height } from "../car/car";
+import { ride_height } from "../car/car";
 import type { CarSpec } from "../car/cars";
 import { flares, sculpt } from "../car/body-shell";
 import { DETAILS } from "../car/car-details";
 import { detail_look } from "../car/detail-looks";
 import type { Design } from "../car/designs";
 import { merge, parts, tint } from "../car/geometry";
-import { build_view, dispose_car_view, fitted_design, rest_wheels } from "../car/models";
+import { body_y, build_view, dispose_car_view, fitted_design, rest_wheels } from "../car/models";
 import { paint_lab } from "../car/paint";
 import { aero_of, aero_parts, rear_wing } from "../car/part-looks";
 import { kit_sample, type Piece } from "../render/prop-kit";
@@ -80,7 +80,7 @@ function on_body(spec: CarSpec, geometries: THREE.BufferGeometry[], d: Design): 
   root.position.y = ride_height(spec);
   if (!geometries.length) return root;
   const body = new THREE.Group();
-  body.position.y = -(rest_reach(spec) - spec.wheel.mounts[0][1]);
+  body.position.y = body_y(spec);
   const mesh = new THREE.Mesh(sculpt(merge(geometries), d), matte());
   mesh.castShadow = true;
   body.add(mesh);

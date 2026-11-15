@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { axle_index, axles_of } from "./axles";
 import { rest_reach, type Car } from "./car";
 import { DEFAULT_PARTS, build_spec, part_of, type Build, type Look, type Slot } from "./build";
-import { COUPE, type CarSpec, type Triple } from "./cars";
+import { CARS, COUPE, is_car, type CarSpec, type Triple } from "./cars";
 import { body_pieces, body_slabs, cabin_parts, flares, on_glass, sculpt, sculpt_factor, side_panel, skirts, wells } from "./body-shell";
 import { DETAILS } from "./car-details";
 import { detail_look, type DetailLook } from "./detail-looks";
@@ -218,6 +218,14 @@ function painted_shell(shell: THREE.BufferGeometry[], d: Design, spec: CarSpec, 
   return painted;
 }
 
+// The body hangs at the stock car's ride height, so a lowered or lifted build moves it with the hull rather than leaving it on the road.
+const stock_of = (spec: CarSpec): CarSpec => (is_car(spec.id) ? CARS[spec.id] : spec);
+
+/** Height of the body's design ground in the car's frame. */
+export function body_y(spec: CarSpec): number {
+  return spec.wheel.mounts[0][1] - rest_reach(stock_of(spec));
+}
+
 // Paint, trim, glass and decals are baked into vertex colours so the whole shell is one draw; a repaint rebuilds the view.
 export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<Slot, number> = DEFAULT_PARTS, livery: Livery | null = null, finish: Finish | null = null): CarView {
   const aero = aero_of(kit);
@@ -225,7 +233,7 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
   const root = new THREE.Group();
   root.renderOrder = CAR_ORDER;
   const body = new THREE.Group();
-  body.position.y = -(rest_reach(spec) - spec.wheel.mounts[0][1]);
+  body.position.y = body_y(spec);
   const trim = color(tones.trim);
   const arch_tone = d.arches.tone === "paint" ? paint : trim;
 
@@ -293,7 +301,7 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
     return steer;
   });
   const steered = wheel_axles.map((axle) => axles[axle].steer);
-  const arm_rest = rest_reach(spec);
+  const arm_rest = rest_reach(stock_of(spec));
   const arms = spec.wheel.mounts.map(([mx, , mz], i): ArmSwing | null => {
     const arm = d.arms?.[wheel_axles[i]];
     if (!arm) return null;

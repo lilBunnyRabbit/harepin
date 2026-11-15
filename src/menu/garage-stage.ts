@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { ConvexHull } from "three/examples/jsm/math/ConvexHull.js";
 import { DEFAULT_BUILD, DEFAULT_PARTS, SLOTS, SLOT_NAMES, WHOLE_CAR, build_code, build_spec, type Build, type Part, type SlotView } from "../car/build";
 import { CARS, is_car, type CarId } from "../car/cars";
+import { ride_height } from "../car/car";
 import { contact_shadow } from "../car/contact-shadow";
 import { build_view, dispose_car_view, rest_wheels, type CarView } from "../car/models";
 import { brand, color, dark } from "../theme/palette";
@@ -412,7 +413,7 @@ function stand_view(build: Build): CarView {
   const spec = build_spec(build);
   const view = build_view(build, spec);
   rest_wheels(view, spec);
-  view.root.position.y = GROUND - view.body.position.y;
+  view.root.position.y = GROUND + ride_height(spec);
   view.root.updateMatrixWorld(true);
   return view;
 }
