@@ -101,6 +101,12 @@ export class RaceView {
     this.beams.update(dt);
   }
 
+  /** The ground where `inside` streamed in: what was laid there on stand-in ground goes down on it. */
+  ground_in(inside: (x: number, z: number) => boolean) {
+    this.marks.relay(inside);
+    this.beams.relay(inside);
+  }
+
   /** Shows the arrowheads past line index `from` up to the gate at line index `to`; `guide(0, 0)` hides them all. */
   guide(from: number, to: number) {
     const first = after(this.lead_at, from);

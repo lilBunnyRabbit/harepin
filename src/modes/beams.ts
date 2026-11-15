@@ -14,7 +14,11 @@ export class Beams {
   private time = 0;
   private target = -1;
 
-  constructor(marks: Marks, ground: Ground, points: readonly { x: number; z: number }[]) {
+  constructor(
+    marks: Marks,
+    private readonly ground: Ground,
+    points: readonly { x: number; z: number }[],
+  ) {
     const beam = marks.track(new THREE.CylinderGeometry(BEAM.radius, BEAM.radius, BEAM.height, 12, 1, true).translate(0, BEAM.height / 2, 0));
     for (const p of points) {
       const group = new THREE.Group();
@@ -25,6 +29,11 @@ export class Beams {
       this.groups.push(group);
       this.materials.push(material);
     }
+  }
+
+  /** Stands each beam where `inside` on the ground again, as `Marks.relay` does the paint. */
+  relay(inside: (x: number, z: number) => boolean) {
+    for (const { position } of this.groups) if (inside(position.x, position.z)) position.y = this.ground.height(position.x, position.z) + LIFT;
   }
 
   aim(index: number) {

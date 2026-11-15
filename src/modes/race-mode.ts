@@ -193,6 +193,10 @@ class Race implements ModeRun {
     return this.result;
   }
 
+  ground_in(inside: (x: number, z: number) => boolean) {
+    this.view.ground_in(inside);
+  }
+
   dispose() {
     this.disposed = true;
     this.ghost?.dispose();
