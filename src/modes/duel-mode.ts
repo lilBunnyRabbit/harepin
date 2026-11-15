@@ -44,7 +44,7 @@ class Duel implements ModeRun {
     this.ghost = ghost;
     ghost.start();
     // An event's own dev ghost races the player until their first finish replaces it.
-    if (!ghost.has_best) void ctx.dev_ghost().then((lap) => lap && !ghost.has_best && ghost.use(lap));
+    void ghost.ready.then(() => (ghost.has_best ? null : ctx.dev_ghost())).then((lap) => lap && !ghost.has_best && ghost.use(lap));
     this.run = new DuelRun(route, gates);
     this.hits = ctx.hits();
     this.route = { id: CIRCUIT, gate: this.run.gate, later: this.later(), respawn: route.points[0] };

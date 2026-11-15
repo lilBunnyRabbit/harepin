@@ -68,7 +68,8 @@ async function move(key: string): Promise<number[] | null> {
     best = faster(kept, old);
     return best && best !== kept ? ({ key, lap: best } satisfies SavedGhost) : undefined;
   });
-  if (text !== null && old) drop_local(key, text);
+  // A malformed copy goes too: it never races.
+  if (text !== null) drop_local(key, text);
   return best;
 }
 

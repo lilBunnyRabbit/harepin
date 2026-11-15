@@ -52,8 +52,10 @@ export class Ghost {
   visible = true;
   private recording: number[] = [];
   private best: number[] | null = null;
-  /** A lap of this session's own: a saved lap arriving later never replaces it. */
-  private own = false;
+  /** Set by a lap given or driven this session: a saved lap arriving later never replaces it. */
+  private held = false;
+  /** Settles once the saved lap has loaded, or turned out missing. */
+  readonly ready: Promise<void>;
   private view: CarView;
   private readonly tint: THREE.MeshBasicMaterial;
   private readonly turn = new THREE.Quaternion();
@@ -69,8 +71,8 @@ export class Ghost {
   ) {
     this.key = key;
     this.cap_ms = lap_cap_ms(lap_m);
-    void load_ghost(key).then((lap) => {
-      if (lap && !this.own) this.best = lap;
+    this.ready = load_ghost(key).then((lap) => {
+      if (lap && !this.held) this.best = lap;
     });
     this.view = car_view(color(brand.cottontail));
     // Unlit and single-layer: a depth-only copy of every part draws first, so only the nearest face gets tinted.
@@ -113,6 +115,7 @@ export class Ghost {
 
   /** Races a lap made elsewhere, such as a shipped dev ghost, until a run of the player's own replaces it. */
   use(lap: number[]) {
+    this.held = true;
     this.best = lap;
   }
 
@@ -130,7 +133,7 @@ export class Ghost {
 
   finish(improved: boolean) {
     if (!improved || !this.recording.length) return;
-    this.own = true;
+    this.held = true;
     this.best = this.recording;
     void save_ghost(this.key, this.best);
   }
