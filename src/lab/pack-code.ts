@@ -40,7 +40,7 @@ function opt<T>(o: Obj, key: string, path: string, read: (v: unknown, path: stri
 }
 
 /** Optional spec numbers no shipped car sets yet, so no sample shows them: a lab car may still tune them. */
-const UNSET_SPEC: readonly (keyof CarSpec)[] = ["drift_damp", "drift_rear_bite", "drift_side_sx", "drift_reach", "drift_catch", "drift_tcs_off", "tcs_lateral"];
+const UNSET_SPEC: readonly (keyof CarSpec)[] = ["drift_damp", "drift_rear_bite", "drift_side_sx", "drift_reach", "drift_catch", "drift_tcs_off", "tcs_lateral", "tcs_turn_slip"];
 const UNSET_NUMBERS: ReadonlySet<string> = new Set(UNSET_SPEC.map((key) => `spec.${key}`));
 
 /**
