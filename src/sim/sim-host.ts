@@ -8,6 +8,7 @@ import { Rewind, type RewindPart } from "../car/rewind";
 import { PadTimer } from "../world/sky-pads";
 import type { World } from "../world/world";
 import { WorldReplay, type WorldOp } from "../world/world-journal";
+import type { Pose } from "./sim-packet";
 
 export const DT = 1 / 360;
 const NEAR_GAP = 1.2;
@@ -125,6 +126,8 @@ export class SimHost {
   readonly rewind: Rewind;
   field: Field | null = null;
   field_cars: readonly Car[] = [];
+  /** Each AI car before the frame's last step, as `from` is the player's: drawn between this and the car, at the frame's blend. */
+  field_from: readonly Pose[] = [];
   private field_laps = FIELD_LAPS;
   /** The car before the frame's last step: the drawn car sits between this and `car`. */
   readonly from = { pos: new Vector3(), quat: new Quaternion() };
@@ -174,6 +177,7 @@ export class SimHost {
     else if (command.type === "field_stop") {
       this.field = null;
       this.field_cars = [];
+      this.field_from = [];
     } else if (command.type === "field_seen") {
       if (this.field) this.field.seen = command.mask;
     } else if (command.type === "field_retire") {
@@ -194,6 +198,8 @@ export class SimHost {
     out.impact = 0;
     out.blend = request.blend;
     if (request.kind !== FrameKind.STEP) {
+      // Not stepped, the field stands where it is at any blend.
+      this.mark_field();
       if (request.kind === FrameKind.REWIND) this.rewind.step(request.now);
       car.nitro.cut();
       return out;
@@ -208,6 +214,7 @@ export class SimHost {
       out.stepped += DT;
       out.impact = Math.max(out.impact, world.collide(car));
       if (field) {
+        this.mark_field();
         field.step(DT, this.field_laps);
         const touch = field.impacts[field.racers.length];
         out.impact = Math.max(out.impact, touch);
@@ -235,7 +242,15 @@ export class SimHost {
     this.field.drives_rival = drive_rival === true;
     this.field.rival = this.car;
     this.field_cars = this.field.racers.map((r) => r.car);
+    this.field_from = this.field_cars.map((car) => ({ pos: car.pos.clone(), quat: car.quat.clone() }));
     this.out.touches = 0;
+  }
+
+  private mark_field() {
+    for (let k = 0; k < this.field_cars.length; k++) {
+      this.field_from[k].pos.copy(this.field_cars[k].pos);
+      this.field_from[k].quat.copy(this.field_cars[k].quat);
+    }
   }
 
   private near_miss(impact: number, peers: readonly PeerSpot[]): { near: Near; touched: boolean } {

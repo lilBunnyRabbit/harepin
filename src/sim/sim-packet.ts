@@ -5,12 +5,13 @@ import type { WorldData } from "../worldgen/types";
 import type { FrameKind, FrameOut, FrameRequest, SimCommand } from "./sim-host";
 
 /**
- * The sim worker's reply, one per frame: a header, the player's car, each AI car's pose, then with a field each AI car's
+ * The sim worker's reply, one per frame: a header, the player's car, each AI car's pose and its pose before the frame's
+ * last step, then with a field each AI car's
  * road progress and the player's. Float64, not Float32: main
  * times laps and modes and picks reset spots from the car it reads, and those must match the sim on main bit for bit.
  * Append-only inside each block; reordering or resizing a field bumps `SIM_PACKET`, which both sides check.
  */
-export const SIM_PACKET = 2;
+export const SIM_PACKET = 3;
 
 export type SimRequest =
   | { type: "init"; seed: number; plan: WorldData; levels: readonly number[]; spec: CarSpec }
@@ -29,7 +30,7 @@ const HEADER = 9;
 
 const CAR = 39;
 const WHEEL = 12;
-const AI_CAR = 8;
+const AI_CAR = 15;
 const AI_WHEEL = 3;
 
 export function packet_size(car: Car, field: readonly Car[]): number {
@@ -63,7 +64,12 @@ function get4(from: Float64Array, at: number, q: Quaternion): number {
   return at + 4;
 }
 
-export function write_packet(out: Float64Array, epoch: number, frame: FrameOut, car: Car, from: { pos: Vector3; quat: Quaternion }, field: readonly Car[], progress: Float64Array) {
+export interface Pose {
+  readonly pos: Vector3;
+  readonly quat: Quaternion;
+}
+
+export function write_packet(out: Float64Array, epoch: number, frame: FrameOut, car: Car, from: Pose, field: readonly Car[], field_from: readonly Pose[], progress: Float64Array) {
   out[VERSION] = SIM_PACKET;
   out[EPOCH] = epoch;
   out[KIND] = frame.kind;
@@ -111,10 +117,13 @@ export function write_packet(out: Float64Array, epoch: number, frame: FrameOut, 
     out[at++] = w.omega;
     out[at++] = w.load;
   }
-  for (const ai of field) {
+  for (let i = 0; i < field.length; i++) {
+    const ai = field[i];
     at = put3(out, at, ai.pos);
     at = put4(out, at, ai.quat);
     out[at++] = ai.braking;
+    at = put3(out, at, field_from[i].pos);
+    at = put4(out, at, field_from[i].quat);
     for (const w of ai.wheels) {
       out[at++] = w.angle;
       out[at++] = w.spin;
@@ -129,7 +138,7 @@ export function packet_epoch(from: Float64Array): number {
   return from[EPOCH];
 }
 
-export function read_packet(from: Float64Array, frame: FrameOut, car: Car, pose: { pos: Vector3; quat: Quaternion }, field: readonly Car[], progress: Float64Array) {
+export function read_packet(from: Float64Array, frame: FrameOut, car: Car, pose: Pose, field: readonly Car[], field_from: readonly Pose[], progress: Float64Array) {
   packet_epoch(from);
   frame.kind = from[KIND] as FrameKind;
   frame.steps = from[STEPS];
@@ -176,10 +185,13 @@ export function read_packet(from: Float64Array, frame: FrameOut, car: Car, pose:
     w.omega = from[at++];
     w.load = from[at++];
   }
-  for (const ai of field) {
+  for (let i = 0; i < field.length; i++) {
+    const ai = field[i];
     at = get3(from, at, ai.pos);
     at = get4(from, at, ai.quat);
     ai.braking = from[at++];
+    at = get3(from, at, field_from[i].pos);
+    at = get4(from, at, field_from[i].quat);
     for (const w of ai.wheels) {
       w.angle = from[at++];
       w.spin = from[at++];

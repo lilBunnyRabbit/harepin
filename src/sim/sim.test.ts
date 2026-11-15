@@ -43,17 +43,40 @@ describe("sim packet", () => {
     host.apply({ type: "park", x: p.x, z: p.z, heading: Math.atan2(p.tx, p.tz) });
     for (const { request } of script(200)) host.frame(request);
     const packet = new Float64Array(packet_size(host.car, host.field_cars));
-    write_packet(packet, 3, host.out, host.car, host.from, host.field_cars, host.field_progress);
+    write_packet(packet, 3, host.out, host.car, host.from, host.field_cars, host.field_from, host.field_progress);
     const mirror = new Car(RALLY);
     const from = { pos: mirror.pos.clone(), quat: mirror.quat.clone() };
     const frame = { ...host.out };
-    read_packet(packet, frame, mirror, from, [], new Float64Array(0));
+    read_packet(packet, frame, mirror, from, [], [], new Float64Array(0));
     const again = new Float64Array(packet.length);
-    write_packet(again, 3, frame, mirror, from, [], new Float64Array(0));
+    write_packet(again, 3, frame, mirror, from, [], [], new Float64Array(0));
     expect([...again]).toEqual([...packet]);
     expect(mirror.pos.equals(host.car.pos) && mirror.quat.equals(host.car.quat) && from.pos.equals(host.from.pos)).toBe(true);
     expect(mirror.scrub).toBe(host.car.scrub);
     expect(mirror.forward_speed).toBe(host.car.forward_speed);
+  });
+
+  test("each AI car's pose before the frame's last step rides along, and a held frame draws the field where it stands", () => {
+    const world = new World(SEED);
+    const route = world.routes.find((r) => r.kind === RouteKind.CIRCUIT);
+    if (!route) throw new Error(`seed ${SEED} has no circuit`);
+    world.place(route.closure);
+    const host = new SimHost(world, COUPE);
+    host.apply({ type: "field", route: route.id, specs: [COUPE, COUPE], traits: personalities(SEED, 2), seed: SEED, laps: 1 });
+    const steps = script(120).filter(({ request }) => request.kind === FrameKind.STEP);
+    for (const { request } of steps) host.frame(request);
+    const [car] = host.field_cars;
+    const before = host.field_from[0].pos.clone();
+    expect(before.distanceTo(car.pos)).toBeGreaterThan(0);
+    expect(before.distanceTo(car.pos)).toBeLessThan(0.2);
+    const packet = new Float64Array(packet_size(host.car, host.field_cars));
+    write_packet(packet, 0, host.out, host.car, host.from, host.field_cars, host.field_from, host.field_progress);
+    const mirrors = [new Car(COUPE), new Car(COUPE)];
+    const froms = mirrors.map((m) => ({ pos: m.pos.clone(), quat: m.quat.clone() }));
+    read_packet(packet, { ...host.out }, new Car(COUPE), { pos: new Car(COUPE).pos, quat: new Car(COUPE).quat }, mirrors, froms, new Float64Array(3));
+    expect(froms[0].pos.equals(before) && mirrors[0].pos.equals(car.pos)).toBe(true);
+    host.frame({ ...steps[0].request, kind: FrameKind.HOLD, steps: 0 });
+    expect(host.field_from[0].pos.equals(car.pos)).toBe(true);
   });
 });
 
@@ -98,7 +121,7 @@ describe("sim worker", () => {
         remote.frame(request);
         const packet = await answer;
         const want = new Float64Array(packet_size(local.car, local.field_cars));
-        write_packet(want, packet[1], local.host.out, local.car, local.from, local.field_cars, local.field_progress);
+        write_packet(want, packet[1], local.host.out, local.car, local.from, local.field_cars, local.field_from, local.field_progress);
         if (differ < 0 && (want.length !== packet.length || want.some((v, i) => !Object.is(v, packet[i])))) differ = frames;
         frames++;
       }

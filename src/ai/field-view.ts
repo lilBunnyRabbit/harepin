@@ -25,6 +25,8 @@ const SEEN_RADIUS = 30;
 const frustum = new THREE.Frustum();
 const view_projection = new THREE.Matrix4();
 const sphere = new THREE.Sphere();
+const drawn_pos = new THREE.Vector3();
+const drawn_quat = new THREE.Quaternion();
 
 export class FieldView {
   private readonly views: CarView[] = [];
@@ -64,6 +66,8 @@ export class FieldView {
 
   update(camera: THREE.Camera) {
     const cars = this.sim.field_cars;
+    const from = this.sim.field_from;
+    const blend = this.sim.blend;
     view_projection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
     frustum.setFromProjectionMatrix(view_projection);
     let seen = 0;
@@ -78,12 +82,21 @@ export class FieldView {
         this.views[i].root.visible = !far;
         this.fars[i].visible = far;
       }
+      // Drawn between its last two steps at the frame's blend, as the player's car is: drawn on the last step, a car
+      // moves a whole number of steps a frame (2 or 3 at 144 Hz) and judders against the player's.
+      drawn_pos.lerpVectors(from[i].pos, car.pos, blend);
+      drawn_quat.slerpQuaternions(from[i].quat, car.quat, blend);
       if (far) {
         const mesh = this.fars[i];
-        mesh.position.copy(car.pos);
-        mesh.quaternion.copy(car.quat);
+        mesh.position.copy(drawn_pos);
+        mesh.quaternion.copy(drawn_quat);
         mesh.updateMatrix();
-      } else sync_car_view(this.views[i], car);
+      } else {
+        const { root } = this.views[i];
+        sync_car_view(this.views[i], car);
+        root.position.copy(drawn_pos);
+        root.quaternion.copy(drawn_quat);
+      }
     }
     if (seen !== this.seen) {
       this.seen = seen;

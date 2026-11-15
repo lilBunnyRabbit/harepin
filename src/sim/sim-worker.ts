@@ -16,6 +16,6 @@ addEventListener("message", (event: MessageEvent<SimRequest>) => {
   const frame = host.frame(request.frame);
   const size = packet_size(host.car, host.field_cars);
   if (out.length !== size) out = new Float64Array(size);
-  write_packet(out, request.epoch, frame, host.car, host.from, host.field_cars, host.field_progress);
+  write_packet(out, request.epoch, frame, host.car, host.from, host.field_cars, host.field_from, host.field_progress);
   postMessage(out);
 });

@@ -5,7 +5,7 @@ import type { World } from "../world/world";
 import type { WorldJournal } from "../world/world-journal";
 import type { WorldData } from "../worldgen/types";
 import { FrameKind, SimHost, car_command, type FrameOut, type FrameRequest, type SimCommand } from "./sim-host";
-import { packet_epoch, read_packet, type SimRequest } from "./sim-packet";
+import { packet_epoch, read_packet, type Pose, type SimRequest } from "./sim-packet";
 
 /** `?simworker`: the sim runs in a worker and main draws from its replies. */
 export const SIM_WORKER_PARAM = "simworker";
@@ -15,6 +15,10 @@ export interface Sim {
   readonly car: Car;
   readonly from: { readonly pos: Vector3; readonly quat: Quaternion };
   readonly field_cars: readonly Car[];
+  /** Each AI car before the last frame's last step: the field draws between this and the car at `blend`, as the player's car does. */
+  readonly field_from: readonly Pose[];
+  /** The last frame's share (0-1) of a step past its last one. */
+  readonly blend: number;
   /** Each AI car's road points from the start, laps included, then the player's: empty with no field. */
   readonly field_progress: Float64Array;
   /** The player's touches with AI cars since the field started, counted per step. */
@@ -42,6 +46,14 @@ export class LocalSim implements Sim {
     return this.host.field_progress;
   }
 
+  get field_from(): readonly Pose[] {
+    return this.host.field_from;
+  }
+
+  get blend(): number {
+    return this.host.out.blend;
+  }
+
   get field_touches(): number {
     return this.host.out.touches;
   }
@@ -64,6 +76,7 @@ export class WorkerSim implements Sim {
   car: Car;
   readonly from = { pos: new Vector3(), quat: new Quaternion() };
   field_cars: readonly Car[] = [];
+  field_from: readonly Pose[] = [];
   field_progress = new Float64Array(0);
   private readonly out: FrameOut = { kind: FrameKind.FREE, steps: 0, stepped: 0, impact: 0, blend: 0, touches: 0 };
   private readonly read: FrameOut = { kind: FrameKind.FREE, steps: 0, stepped: 0, impact: 0, blend: 0, touches: 0 };
@@ -95,10 +108,12 @@ export class WorkerSim implements Sim {
     } else if (command.type === "shift" || command.type === "aids") this.car = car_command(this.car, command, this.world);
     else if (command.type === "field") {
       this.field_cars = command.specs.map((spec) => new Car(spec));
+      this.field_from = this.field_cars.map((car) => ({ pos: car.pos.clone(), quat: car.quat.clone() }));
       this.field_progress = new Float64Array(command.specs.length + 1).fill(NaN);
       this.epoch++;
     } else if (command.type === "field_stop") {
       this.field_cars = [];
+      this.field_from = [];
       this.field_progress = new Float64Array(0);
       this.epoch++;
     }
@@ -107,6 +122,10 @@ export class WorkerSim implements Sim {
 
   get field_touches(): number {
     return this.out.touches;
+  }
+
+  get blend(): number {
+    return this.out.blend;
   }
 
   frame(request: FrameRequest): FrameOut {
@@ -119,7 +138,7 @@ export class WorkerSim implements Sim {
     let fresh = false;
     for (const reply of this.replies) {
       if (packet_epoch(reply) < this.epoch) continue;
-      read_packet(reply, read, this.car, this.from, this.field_cars, this.field_progress);
+      read_packet(reply, read, this.car, this.from, this.field_cars, this.field_from, this.field_progress);
       if (!fresh || read.kind === FrameKind.STEP) out.kind = read.kind;
       fresh = true;
       out.steps += read.steps;
