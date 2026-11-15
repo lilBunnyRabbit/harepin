@@ -727,6 +727,31 @@ export class World implements Ground {
     return null;
   }
 
+  /** `collide`'s scrape report without the push, `gap` metres out: a peer's car arrives already pushed back onto the face. */
+  touches(car: Collider, gap: number): number {
+    const { pos, spec } = car;
+    const fx = Math.sin(car.heading);
+    const fz = Math.cos(car.heading);
+    let found = 0;
+    for (const offset of spec.circles) {
+      const rx = fx * offset;
+      const rz = fz * offset;
+      const count = this.near(Math.floor((pos.x + rx) / SOLID_CELL), Math.floor((pos.z + rz) / SOLID_CELL));
+      for (let i = 0; i < count; i++) {
+        const solid = this.nearby[i];
+        if (solid.kind === "box" && solid.bottom !== undefined) {
+          if (pos.y - spec.band[0] > solid.y + solid.height || pos.y + spec.band[1] < solid.y + solid.bottom) continue;
+        } else if (pos.y > solid.y + solid.height) continue;
+        const hit = circle_contact(solid, pos.x + rx, pos.z + rz, spec.radius + gap, -fx * Math.sign(offset || 1), -fz * Math.sign(offset || 1));
+        if (!hit) continue;
+        hit.depth -= gap;
+        this.report(car, hit, rx, rz);
+        found++;
+      }
+    }
+    return found;
+  }
+
   // Runs per collision circle every sim step, so it overwrites `nearby` and returns its count: truncating an array to
   // refill it frees its storage. Two passes keep baked solids ahead of placed ones, the order collisions resolve in.
   // Takes the solid cell, not a point: whole numbers cross the call unboxed.

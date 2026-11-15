@@ -59,7 +59,7 @@ export class Sparks {
     }
   }
 
-  update(dt: number, car: Car) {
+  update(dt: number, car: Pick<Car, "scrape" | "vel">) {
     const { scrape } = car;
     this.since_hit += dt;
     if (scrape.hits !== this.seen) {
@@ -99,7 +99,7 @@ export class Sparks {
   }
 
   // Thrown off the face along the way the car slides, up and out of the solid, fanned so a burst never reads as a line.
-  private emit(car: Car) {
+  private emit(car: Pick<Car, "scrape" | "vel">) {
     const { scrape, vel } = car;
     const i = this.next;
     this.next = (this.next + 1) % SPARKS;
@@ -114,5 +114,10 @@ export class Sparks {
     p.age = 0;
     p.life = SPARK_LIFE * (0.5 + Math.random() * 0.5);
     this.alive = true;
+  }
+
+  dispose() {
+    this.mesh.geometry.dispose();
+    (this.mesh.material as THREE.Material).dispose();
   }
 }

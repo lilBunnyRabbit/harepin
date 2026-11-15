@@ -6,7 +6,9 @@ import { chunk_of } from "../worldgen/chunk-grid";
 import { BRAKE_REST, brake_on, set_lights, show_flame, snap_lights, swing_popups } from "../car/lights";
 import { build_view, camera_fade, dispose_car_view, rest_wheels, type CarView } from "../car/models";
 import { stand_on_lifts, wheel_lifts } from "../car/drawn-stand";
-import type { World } from "../world/world";
+import { Scrape } from "../car/car";
+import { Sparks } from "../render/sparks";
+import type { Collider, World } from "../world/world";
 import { tier_badge, tier_look } from "../career/badge";
 import { title_text } from "../runs/season";
 import { set_text } from "../hud/hud";
@@ -14,6 +16,11 @@ import type { CarState, Net, Remote, TierBadge } from "./net";
 import "./remotes.css";
 
 type Snapshot = Remote["snapshots"][number];
+
+interface Probe extends Collider {
+  heading: number;
+  spec: CarSpec;
+}
 
 interface RemoteView {
   code: string;
@@ -23,6 +30,9 @@ interface RemoteView {
   view: CarView;
   materials: THREE.Material[];
   shadow: ContactShadow;
+  sparks: Sparks;
+  /** The drawn pose held against the solids each frame, for the sparks: a peer's packet carries no contacts. */
+  probe: Probe;
   label: HTMLElement;
   name: HTMLElement;
   tier: TierBadge | null;
@@ -45,6 +55,8 @@ interface RemoteView {
 }
 
 const ABOVE = 2.2;
+/** Metres off a face that still count as touching it: the peer's own step pushed its car back onto the face, and the packet rounds it. */
+const TOUCH_GAP = 0.05;
 // A peer flicking through the garage would otherwise rebuild geometry every packet; the latest code wins after the gap.
 const REBUILD_GAP_MS = 1000;
 
@@ -140,8 +152,9 @@ export class Remotes {
     for (const remote of this.net.remotes.values()) this.draw(remote, dt, camera, me);
     for (const [id, rv] of this.views)
       if (!this.net.remotes.has(id)) {
-        this.scene.remove(rv.view.root, rv.shadow.mesh);
+        this.scene.remove(rv.view.root, rv.shadow.mesh, rv.sparks.mesh);
         dispose_car_view(rv.view);
+        rv.sparks.dispose();
         rv.shadow.mesh.geometry.dispose();
         rv.shadow.material.dispose();
         rv.label.remove();
@@ -190,6 +203,7 @@ export class Remotes {
       const spec = build_spec(build);
       Object.assign(rv, { code, spec, built: now, above: ABOVE * oversize(spec).height }, translucent_view(build, spec, lights));
       rv.lift_snaps[0] = rv.lift_snaps[1] = null;
+      rv.probe.spec = spec;
       fit_contact_shadow(rv.shadow, spec);
       this.scene.add(rv.view.root);
     }
@@ -204,8 +218,10 @@ export class Remotes {
       this.labels.append(label);
       const shadow = contact_shadow();
       fit_contact_shadow(shadow, spec);
-      this.scene.add(shadow.mesh);
-      rv = { code, built: now, spec, view, materials, shadow, label, name, tier: null, tag: "", above: ABOVE * oversize(spec).height, spin: 0, heading: 0, lift_snaps: [null, null], lift_sets: [[], []], lifts: [], shown: null, at_x: NaN, at_y: NaN };
+      const sparks = new Sparks();
+      this.scene.add(shadow.mesh, sparks.mesh);
+      const probe: Probe = { pos: new THREE.Vector3(), vel: new THREE.Vector3(), ang: new THREE.Vector3(), heading: 0, scrape: new Scrape(), spec };
+      rv = { code, built: now, spec, view, materials, shadow, sparks, probe, label, name, tier: null, tag: "", above: ABOVE * oversize(spec).height, spin: 0, heading: 0, lift_snaps: [null, null], lift_sets: [[], []], lifts: [], shown: null, at_x: NaN, at_y: NaN };
       this.views.set(remote.id, rv);
     }
     const root = rv.view.root;
@@ -220,16 +236,23 @@ export class Remotes {
       root.position.set(...a.state.p).lerp(this.p1.set(...b.state.p), k);
       root.quaternion.copy(this.q0.set(...a.state.q).slerp(this.q1.set(...b.state.q), k));
     }
+    this.forward.set(0, 0, 1).applyQuaternion(root.quaternion);
+    const heading = Math.atan2(this.forward.x, this.forward.z);
+    const { probe } = rv;
+    probe.pos.copy(root.position);
+    probe.vel.set(...a.state.v);
+    probe.heading = heading;
+    this.world.touches(probe, TOUCH_GAP);
+    rv.sparks.update(dt, probe);
     rest_wheels(rv.view, rv.spec);
     const from = this.lifts_at(rv, a, b);
     const to = this.lifts_at(rv, b, a);
     for (let i = 0; i < from.length; i++) rv.lifts[i] = from[i] + (to[i] - from[i]) * k;
     stand_on_lifts(rv.view, rv.lifts);
-    this.forward.set(0, 0, 1).applyQuaternion(root.quaternion);
     // A chunk that has not streamed in reads as flat sea level: no shadow there rather than one far under the car.
     const { tiles } = this.world;
     rv.shadow.mesh.visible = tiles.get(chunk_of(root.position.x, root.position.z, tiles.ext)) !== undefined;
-    if (rv.shadow.mesh.visible) place_contact_shadow(rv.shadow, root.position.x, root.position.y, root.position.z, Math.atan2(this.forward.x, this.forward.z), this.world, rv.lifts[rv.view.wheels.length]);
+    if (rv.shadow.mesh.visible) place_contact_shadow(rv.shadow, root.position.x, root.position.y, root.position.z, heading, this.world, rv.lifts[rv.view.wheels.length]);
     const s = b.state;
     rv.spin += (Math.hypot(...s.v) / rv.spec.wheel.radius) * dt;
     rv.view.wheels.forEach((w, i) => {
@@ -237,7 +260,6 @@ export class Remotes {
       w.children[0].rotation.x = rv.spin;
     });
     rv.view.brake.emissiveIntensity = s.brake ? brake_on.value : BRAKE_REST;
-    const heading = Math.atan2(this.forward.x, this.forward.z);
     const turned = Math.atan2(Math.sin(heading - rv.heading), Math.cos(heading - rv.heading));
     rv.heading = heading;
     show_flame(rv.view, s.boost === true, now / 1000, dt > 0 ? turned / dt : 0);

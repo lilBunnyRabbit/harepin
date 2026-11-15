@@ -200,3 +200,22 @@ test("a tyre feels a kerb only where one is drawn: inside a circuit bend, never 
   expect(kerbs).toBeGreaterThan(10);
   expect(straights).toBeGreaterThan(10);
 });
+
+test("touches reports a car resting on a face as collide would, and never moves it", () => {
+  const world = world_with(bar(-1, 1.2));
+  const car = car_at(GROUND + 0.5);
+  car.vel.set(15, 0, 2);
+  world.collide(car);
+  const [z, vz] = [car.pos.z, car.vel.z];
+  const resting = { ...car, pos: car.pos.clone(), vel: new Vector3(15, 0, 2), scrape: new Scrape() };
+  expect(world.touches(resting, 0.1)).toBeGreaterThan(0);
+  expect(resting.pos.z).toBe(z);
+  expect(resting.vel.z).toBe(2);
+  expect(resting.scrape.nz).toBeCloseTo(-1, 9);
+  expect(resting.scrape.z).toBeCloseTo(car.scrape.z, 9);
+  expect(resting.scrape.slide).toBeCloseTo(15, 9);
+  expect(resting.scrape.into).toBeCloseTo(2, 9);
+  expect(vz).toBeLessThan(0);
+  resting.pos.z -= 0.5;
+  expect(world.touches(resting, 0.1)).toBe(0);
+});
