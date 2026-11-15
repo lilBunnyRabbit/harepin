@@ -54,7 +54,7 @@
       <Card list label="Today's runs">
         <div class="head"><SectionHead title="Today" count={today} /></div>
         <RowList divided label="Today's runs">
-          <Row label={`Daily · ${pick_text(pick)}`} help="The same event for everyone today, on a map picked by the date">
+          <Row label={`Daily · ${pick_text(pick)}`} help="The same event for everyone today, on a map picked by the date" top>
             {#snippet control()}
               <span class="end">
                 <span class="facts">
@@ -65,7 +65,7 @@
               </span>
             {/snippet}
           </Row>
-          <Row label={`Weekly championship · ${world_name(cup.kind)}`} help={`${cup_stages.length} stages on one map, the same for everyone until Sunday`}>
+          <Row label={`Weekly championship · ${world_name(cup.kind)}`} help={`${cup_stages.length} stages on one map, the same for everyone until Sunday`} top>
             {#snippet detail()}
               <span class="stages">
                 {#each cup_stages as name, i (i)}<span class="stage"><b>{i + 1}</b>{name}</span>{/each}
@@ -82,7 +82,7 @@
               </span>
             {/snippet}
           </Row>
-          <Row label="Endless" help="A new event on a new map every run: any mode, any world">
+          <Row label="Endless" help="A new event on a new map every run: any mode, any world" top>
             {#snippet control()}
               <Button size="sm" aria-label="Go: endless run" onclick={() => host.start_run(random(new_seed()).id)}>Go</Button>
             {/snippet}
