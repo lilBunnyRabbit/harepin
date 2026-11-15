@@ -91,50 +91,53 @@
 
   <ScrollArea label="Play">
     <div class="column">
-      {#if running !== null}
-        <div class="run">
-          <Button icon="icon-restart" onclick={() => run(() => host.restart_lap())}>Restart {running}</Button>
-          <Button variant="danger" icon="icon-close" onclick={() => run(() => host.quit_mode())}>Quit {running}</Button>
-        </div>
-      {/if}
+      <div class="stack">
+        {#if running !== null}
+          <div class="run">
+            <Button icon="icon-restart" onclick={() => run(() => host.restart_lap())}>Restart {running}</Button>
+            <Button variant="danger" icon="icon-close" onclick={() => run(() => host.quit_mode())}>Quit {running}</Button>
+          </div>
+        {/if}
 
-      <CareerHero stars={live.stars} onstart={(id) => host.start_event(id)} onall={() => menu.show("career")} />
+        <CareerHero stars={live.stars} onstart={(id) => host.start_event(id)} onall={() => menu.show("career")} />
 
-      <RunsCard {menu} {live} />
+        <RunsCard {menu} {live} />
 
-      <Card variant="well">
-        <SectionHead eyebrow="Free drive" title={WORLDS[MAINLAND].name}>
-          {#snippet action()}
-            <Button onclick={() => menu.drive(seed, MAINLAND)}>{here ? "Keep driving" : "Drive Mainland"}</Button>
-          {/snippet}
-        </SectionHead>
-      </Card>
+        <Card variant="well">
+          <SectionHead eyebrow="Free drive" title={WORLDS[MAINLAND].name}>
+            {#snippet action()}
+              <Button onclick={() => menu.drive(seed, MAINLAND)}>{here ? "Keep driving" : "Drive Mainland"}</Button>
+            {/snippet}
+          </SectionHead>
+        </Card>
+      </div>
 
-      <!-- A div, not a section: the pad's nearest() keeps focus inside a section, which hid the mini maps from Drive. -->
-      <div class="group">
-        <SectionHead eyebrow="Mini maps" />
-        <div class="minis">
-          {#each MINIS as { kind, name, note } (kind)}
-            {@const current = kind === host.kind}
-            <Tile
-              size="sm"
-              title={name}
-              thumb={current && host.code !== null ? (custom_thumb ?? preview(kind)) : preview(kind)}
-              {current}
-              tooltip={`${note}. ${current ? "You're here: keep driving" : `Reloads room ${host.room} on ${name}`}`}
-              onclick={() => menu.drive(host.seed, kind, current ? host.levels : undefined)}
-            />
+      <div class="stack">
+        <Card variant="well">
+          <SectionHead eyebrow="Mini maps" title={`${MINIS.length} small worlds`} />
+          <div class="minis">
+            {#each MINIS as { kind, name, note } (kind)}
+              {@const current = kind === host.kind}
+              <Tile
+                size="sm"
+                title={name}
+                thumb={current && host.code !== null ? (custom_thumb ?? preview(kind)) : preview(kind)}
+                {current}
+                tooltip={`${note}. ${current ? "You're here: keep driving" : `Reloads room ${host.room} on ${name}`}`}
+                onclick={() => menu.drive(host.seed, kind, current ? host.levels : undefined)}
+              />
+            {/each}
+          </div>
+        </Card>
+
+        <div class="more">
+          {#each MORE as item (item.section)}
+            <Tile title={item.title} meta={item.meta} icon={item.icon} onclick={() => menu.show(item.section)} />
           {/each}
         </div>
-      </div>
 
-      <div class="more">
-        {#each MORE as item (item.section)}
-          <Tile title={item.title} meta={item.meta} icon={item.icon} onclick={() => menu.show(item.section)} />
-        {/each}
+        <GoalsCard {menu} {live} go={go_to} />
       </div>
-
-      <GoalsCard {menu} {live} go={go_to} />
     </div>
   </ScrollArea>
 </div>
@@ -175,20 +178,28 @@
     max-width: calc(100% - 2 * var(--space-4));
   }
 
-  .column {
+  .column,
+  .stack {
     display: flex;
     flex-direction: column;
     gap: var(--space-5);
   }
 
+  @media (min-width: 1360px) and (min-height: 501px) {
+    .play {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .column {
+      display: grid;
+      grid-template-columns: minmax(0, 400px) minmax(0, 380px);
+      align-items: start;
+    }
+  }
+
   .run {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
-    gap: var(--space-3);
-  }
-
-  .group {
-    display: grid;
     gap: var(--space-3);
   }
 
