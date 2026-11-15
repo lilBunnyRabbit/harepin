@@ -212,7 +212,7 @@ const career = new Career(local_store());
 const runs = new Runs(local_store());
 const goals = new Goals(local_store(), mode_ids);
 goals.catch_up(() => proven(saved_entries(), { kind, build, cockpit: prefs.camera === CameraView.COCKPIT }, mode_ids));
-const race = new Race(world);
+const race = new Race(world, local_store());
 const pads = new PadTimer();
 const driver = new Driver(scene, light, world, race, pads, chase, build);
 driver.arrive = (x, z) => area_fade.cover(world.tiles.ensure(x, z));

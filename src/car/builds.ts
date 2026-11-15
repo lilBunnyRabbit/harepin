@@ -1,3 +1,4 @@
+import { local_store } from "../modes/track";
 import { parse_build } from "./build";
 
 export const BUILDS_KEY = "harepin:builds";
@@ -27,6 +28,9 @@ export function parse_builds(raw: unknown): SavedBuild[] {
   return out;
 }
 
+/** Two saves of the list: `kept`'s builds, then the other's under names `kept` lacks, up to `MAX_BUILDS`. */
+export const merge_builds = (kept: unknown, other: unknown): SavedBuild[] => parse_builds([...parse_builds(kept), ...parse_builds(other)]);
+
 /** Saved under `name`, replacing a build of the same name, newest first. Null when the name is empty or the code no build. */
 export function with_build(list: readonly SavedBuild[], name: string, code: string): SavedBuild[] | null {
   const named = clean(name);
@@ -54,7 +58,7 @@ export function free_build_name(list: readonly SavedBuild[], car: string): strin
 
 export function load_builds(): SavedBuild[] {
   try {
-    const text = localStorage.getItem(BUILDS_KEY);
+    const text = local_store()?.getItem(BUILDS_KEY) ?? null;
     return text === null ? [] : parse_builds(JSON.parse(text));
   } catch (error) {
     console.warn("builds: saved builds unreadable", error);
@@ -64,8 +68,9 @@ export function load_builds(): SavedBuild[] {
 
 export function store_builds(list: readonly SavedBuild[]): boolean {
   try {
-    localStorage.setItem(BUILDS_KEY, JSON.stringify(list));
-    return true;
+    const store = local_store();
+    store?.setItem(BUILDS_KEY, JSON.stringify(list));
+    return store !== null;
   } catch (error) {
     console.warn("builds: not saved", error);
     return false;
