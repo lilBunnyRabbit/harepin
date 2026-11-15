@@ -1,23 +1,16 @@
 <script lang="ts">
   import { event_states, season_done, standings, type SeriesProgress } from "../career/series";
   import { MenuTab } from "./page";
-  import SeriesClimb from "./SeriesClimb.svelte";
-  import SeriesDeck from "./SeriesDeck.svelte";
-  import { DeckLayout } from "./series-deck";
-  import SeriesHero from "./SeriesHero.svelte";
-  import SeriesIslands from "./SeriesIslands.svelte";
-  import SeriesRail from "./SeriesRail.svelte";
-  import SeriesRoad from "./SeriesRoad.svelte";
-  import SeriesTower from "./SeriesTower.svelte";
+  import SeriesAhead from "./SeriesAhead.svelte";
+  import SeriesFlow from "./SeriesFlow.svelte";
+  import SeriesHand from "./SeriesHand.svelte";
+  import SeriesStory from "./SeriesStory.svelte";
   import type { PageProps } from "./ui/svelte-page.svelte";
 
   let { menu, live }: PageProps = $props();
 
-  const VARIANTS: Record<string, typeof SeriesRail> = { a: SeriesRail, b: SeriesHero, c: SeriesTower, d: SeriesRoad, e: SeriesIslands, f: SeriesClimb };
-  const DECKS: Record<string, DeckLayout> = { g: DeckLayout.ROAD, h: DeckLayout.PILE, i: DeckLayout.RING, j: DeckLayout.LANE, k: DeckLayout.ARC };
-  const pick = new URLSearchParams(location.search).get("v") ?? "g";
-  const deck = DECKS[pick] ?? null;
-  const View = VARIANTS[pick] ?? SeriesRoad;
+  const VARIANTS: Record<string, typeof SeriesFlow> = { "1": SeriesFlow, "2": SeriesAhead, "3": SeriesHand, "4": SeriesStory };
+  const View = VARIANTS[new URLSearchParams(location.search).get("v") ?? "1"] ?? SeriesFlow;
 
   const series = $derived(menu.host.series);
   const progress = $derived<SeriesProgress | null>(live.live(() => (menu.host.series?.ready ? menu.host.series.progress : null)));
@@ -33,9 +26,5 @@
 </script>
 
 {#if season && progress}
-  {#if deck}
-    <SeriesDeck layout={deck} {season} {progress} {states} {table} {done} onstart={(id: string) => menu.host.start_series(id)} onback={() => menu.show(MenuTab.PLAY)} onreset={reset} />
-  {:else}
-    <View {season} {progress} {states} {table} {done} onstart={(id: string) => menu.host.start_series(id)} onback={() => menu.show(MenuTab.PLAY)} onreset={reset} />
-  {/if}
+  <View {season} {progress} {states} {table} {done} onstart={(id: string) => menu.host.start_series(id)} onback={() => menu.show(MenuTab.PLAY)} onreset={reset} />
 {/if}

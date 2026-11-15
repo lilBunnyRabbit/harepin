@@ -42,3 +42,7 @@ export function rival_gap(season: Season, table: readonly Standing[]): { rival: 
   const you = table.find((row) => row.you);
   return rival && you ? { rival, you, gap: you.points - rival.points } : null;
 }
+
+export const duel_line = (rival: Standing, gap: number) => `${rival.name} ${gap > 0 ? `${gap} behind` : gap < 0 ? `${-gap} ahead` : "level"}`;
+
+export const step_focus = (focus: number, dir: 1 | -1, count: number) => Math.min(Math.max(focus + dir, 0), count - 1);
