@@ -82,6 +82,20 @@ Behind `?series` in dev and review builds only; the old career and its records a
 
 Not built: credits and buying, class cap (G1), base-car start, the final's car or kit (G3), a replay on a new seed (C5).
 
+### Seasons 2-4: Alpine, Dunes, Mainland (t309, 2026-11-15)
+
+| Piece | Where |
+|---|---|
+| Season data | `career/series-seasons.ts`, C6 order. Each season: six events (race, knockout, rival duel, endurance, one more race, final), a named field of six that carries the season before's rival, its own rival |
+| Alpine (s2) | cap B, seeds 6 / 20 / 14 `circuit-rev` / 24 / 27 / final 1, replays only on seeds with a reverse circuit; final pays the Rally + 7,500 cr |
+| Dunes (s3) | the **Dune sea** (`desert`): Big dunes (`dunes`) has no closed road for a field. Cap B, seeds 14 / 9 / 2 / 25 / 33 / final 0; final pays the Sturm + 10,000 cr |
+| Mainland (s4) | cap A, four events on the town circuit `town` (main street race, knockout, rival duel, six-minute endurance) and two on the ring `circuit` (seed 19, final 81). Mainland rings run 4-16 km, so authored and replay seeds keep one under a 450 s par; final pays the Formula + 15,000 cr |
+| Opening | a season opens once the one before has been completed once (`completed`, `seasons_open`): its final podiumed, or a replay begun |
+| Page | `host.series` is every season's `Series` on one store and one wallet (`series_list`); arrows and dots round the season title switch seasons (`SeriesSeasons.svelte`), a shut season locks its cards with "Finish the X series to open". The page opens on the first open season not yet done |
+| Proof | `bun scripts/series-race.ts [season…]`: each event's field (named drivers, normal, the cap's presets) on its own map for the game's laps (`race_laps`), stuck and contact band as `ai-race.ts field`. All 24 clean. Event art: `node --experimental-strip-types scripts/series-art.ts [season or event…]` |
+
+Open: no preset sits in class A, so Mainland's field races class B presets against a class A player (`field_builds` falls back under the class).
+
 ## TL;DR
 
 - **Harepin's career today is an FH5-shaped checklist with GRID's event list.** 45 hand-made events across five tiers, any order, every one graded by stars against a clock, ghost or owner mark. You drive alone in every race. What GRID 2 had that FH5 lacks: **other cars to beat, in a season that builds to a final, with one growing number that says how far you've come.**
