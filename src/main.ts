@@ -799,7 +799,7 @@ function frame(time: number) {
   chase.boost = car.nitro.boosting;
   chase.rewinding = rewinding;
   driver.draw(!simulated, out.blend, now);
-  field_view?.update();
+  field_view?.update(camera);
   const offroad = !world.on_road(car.pos.x, car.pos.z);
   chase.update(dt, driver.drawn, world, offroad, now / 1000, input.look);
   if (!review?.aim(camera) && posed) {
