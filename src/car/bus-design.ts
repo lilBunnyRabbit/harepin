@@ -16,7 +16,8 @@ const BUS_CABIN: Cabin = {
   points: [[5.86, 1.15], [5.76, 2.86], [5.6, 3.02], [-5.98, 3.02], [-6.12, 2.88], [-6.14, 1.15]],
   width: 2.48,
   tumble: 0,
-  frame: [0.16, 0.04, 0.4, 0.04, 0.12, 0.12],
+  // The corner over the screen frames as deep as the roof: a thinner frame there ran the side glass out past the screen.
+  frame: [0.16, 0.4, 0.4, 0.04, 0.12, 0.12],
   screens: [[0, 0.1], [4, 0.3]],
   split: [3.95, 0.14],
   glass_to: -5.5,
