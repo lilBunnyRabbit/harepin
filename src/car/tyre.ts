@@ -40,16 +40,43 @@ let curve_cap = 1;
 /** Where the bounded curve peaks, in `s`: under 1 once the stock tyre's asphalt curve cuts the loose one off before its own peak. */
 let curve_peak = 1;
 
+/**
+ * One wheel's last loose curve and the four inputs it came from. Its 14-step bisection for the peak cost about 2 µs per
+ * wheel per step on loose ground, and a wheel on one surface row asks for the same curve step after step.
+ */
+export class CurveCache {
+  // NaN keys: never equal, so the first loose step computes.
+  loose = NaN;
+  offroad = NaN;
+  share = NaN;
+  road = NaN;
+  c = NaN;
+  b = NaN;
+  s = NaN;
+  spread = NaN;
+  cap = NaN;
+  peak = NaN;
+}
+
 // `share` (from `surface_grip`) and `road` (the stock tyres' `mu` over this tyre's) bound the loose curve by
 // the stock tyre's asphalt curve at the same slip. Unbound, wider and slower to fall past the peak, it kept more of a
 // high-share tyre's grip in a slide than asphalt does, and locked stops and launches off the road beat the road.
-function shape(loose: number, offroad: number, share: number, road: number) {
+function shape(cache: CurveCache, loose: number, offroad: number, share: number, road: number) {
   if (loose <= 0) {
     curve_c = MF_C;
     curve_b = MF_B;
     curve_s = SLIDE_S;
     curve_spread = 1;
     curve_peak = 1;
+    return;
+  }
+  if (cache.loose === loose && cache.offroad === offroad && cache.share === share && cache.road === road) {
+    curve_c = cache.c;
+    curve_b = cache.b;
+    curve_s = cache.s;
+    curve_spread = cache.spread;
+    curve_cap = cache.cap;
+    curve_peak = cache.peak;
     return;
   }
   curve_cap = road / share;
@@ -65,6 +92,16 @@ function shape(loose: number, offroad: number, share: number, road: number) {
   curve_s = floor > Math.sin((curve_c * Math.PI) / 2) + 1e-6 ? Math.tan((Math.PI - Math.asin(floor)) / curve_c) / curve_b : Infinity;
   curve_spread = 1 + (spread - 1) * loose;
   curve_peak = bound_peak();
+  cache.loose = loose;
+  cache.offroad = offroad;
+  cache.share = share;
+  cache.road = road;
+  cache.c = curve_c;
+  cache.b = curve_b;
+  cache.s = curve_s;
+  cache.spread = curve_spread;
+  cache.cap = curve_cap;
+  cache.peak = curve_peak;
 }
 
 // The loose curve rises to its peak at s = 1 while the bound, past its own peak at 1 / spread, falls: the bounded
@@ -187,7 +224,7 @@ export function tyre(car: Car, frame: StepFrame, w: Wheel, dt: number, ground: G
   const denom = Math.max(Math.abs(v_long), 2);
   const surface = ground.grip(w.point.x, w.point.z);
   const grip = surface_grip(spec, surface, surface < 1 && !!ground.dirt?.(w.point.x, w.point.z));
-  shape(ground.loose?.(w.point.x, w.point.z) ?? 0, spec.offroad, grip, frame.stock);
+  shape(w.curve, ground.loose?.(w.point.x, w.point.z) ?? 0, spec.offroad, grip, frame.stock);
   // Tyre force grows ever slower with load and tops out at half `load_fade`; past that it stays flat. Left as a
   // parabola it fell to nothing at `load_fade` and reversed above it, which a hard landing reaches.
   const bite = Math.min(load, spec.load_fade / 2);
