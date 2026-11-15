@@ -77,8 +77,9 @@ export class Smoke {
   update(dt: number, car: Car, world: World) {
     const speed = car.vel.length();
     while (this.carry.length < car.wheels.length) this.carry.push(0);
-    car.wheels.forEach((w, i) => {
-      if (!w.contact) return;
+    for (let i = 0; i < car.wheels.length; i++) {
+      const w = car.wheels[i];
+      if (!w.contact) continue;
       const on_road = world.on_road(w.point.x, w.point.z);
       const slide = Math.max(w.lateral - 1.1, Math.abs(w.slip) - 0.18);
       let rate = 0;
@@ -104,7 +105,7 @@ export class Smoke {
         this.carry[i] -= 1;
         this.emit(w.point, car.vel, tint, size, life);
       }
-    });
+    }
     let alive = false;
     for (let i = 0; i < PUFFS; i++) {
       const p = this.puffs[i];
