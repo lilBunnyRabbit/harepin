@@ -119,7 +119,7 @@
   style:--decal-mark={livery.mark.getStyle()}
   style:--decal-key={livery.key ? livery.key.getStyle() : "transparent"}
 >
-  <ScrollArea axis="x" label={`${item.label} options`}>
+  <ScrollArea axis="x" class="garage-scroll" label={`${item.label} options`}>
     {#key garage.strip_key}
       {#if item.kind === "number"}
         <div class="garage-stepper" class:garage-cursor={garage.cursor !== fitted} bind:this={list}>
@@ -194,7 +194,7 @@
     timeline-scope: --garage-strip;
   }
 
-  .garage-strip :global(.ui-scroll) {
+  .garage-strip :global(.garage-scroll) {
     scroll-timeline: --garage-strip inline;
   }
 
