@@ -36,10 +36,6 @@ const KEY_LIFT = 0.008;
 const INK_LIFT = 0.016;
 const MARK_LIFT = 0.024;
 const KEY_WIDTH = 0.022;
-// Shapes of one layer that overlap (a crack and its branches, shards from one point) each lie this much over the last,
-// or their shared patch flickers.
-const STACK = 0.0004;
-const STACKED = 8;
 const STEP = 0.05;
 // A larger rise between samples is a different surface (windscreen base, deck lip), not a slope to follow.
 const JUMP = 0.2;
@@ -281,9 +277,9 @@ function normalized(x: number, y: number): Point {
 }
 
 function on_side(out: number[], polygons: Point[][], side: number, panel: Panel, lift: number) {
+  const x = side * (panel.side + lift);
   const facing = new THREE.Vector3(side, 0, 0);
-  for (const [n, points] of polygons.entries()) {
-    const x = side * (panel.side + lift + (n % STACKED) * STACK);
+  for (const points of polygons) {
     const flat = points.map(([z, y]) => new THREE.Vector2(z, y));
     const at = points.map(([z, y]) => new THREE.Vector3(x, y, z));
     for (const [i, j, k] of THREE.ShapeUtils.triangulateShape(flat, [])) face(out, at[i], at[j], at[k], facing);
@@ -399,9 +395,8 @@ function level_half(over: Roof, z: number, reach: number): number {
 }
 
 // A piece off the paint or across a step is left out, as stripes stop at the screen.
-function drape(out: number[], polygons: Point[][], sample: Sample, base: number, facing: THREE.Vector3) {
-  for (const [n, points] of polygons.entries()) {
-    const lift = base + (n % STACKED) * STACK;
+function drape(out: number[], polygons: Point[][], sample: Sample, lift: number, facing: THREE.Vector3) {
+  for (const points of polygons) {
     const flat = points.map(([a, b]) => new THREE.Vector2(a, b));
     for (const [i, j, k] of THREE.ShapeUtils.triangulateShape(flat, []))
       for (const tri of split([flat[i], flat[j], flat[k]])) {
