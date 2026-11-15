@@ -5,10 +5,12 @@ import { at_difficulty, Difficulty } from "../src/ai/difficulty";
 import { Field, personalities } from "../src/ai/field";
 import { race_line } from "../src/ai/line";
 import { World } from "../src/world/world";
-import { RouteKind, type Route } from "../src/worldgen/types";
+import { generate_world } from "../src/worldgen/kinds/kinds";
+import { is_kind, RouteKind, WorldKind, type Route } from "../src/worldgen/types";
 import { autolap, DT } from "./autolap";
 import { GOLDEN_SEEDS } from "./proof/golden-file";
 
+// `--world <kind>` races that kind's circuits on its golden seeds instead of the island's.
 // bun scripts/ai-race.ts solo [seeds] [car]: one AI car alone on each circuit of the island's golden seeds, its standing
 // lap against the autopilot's on the same route. Fails when an AI lap is more than SOLO_SLACK slower, or leaves the road.
 const SOLO_SLACK = 0.05;
@@ -25,6 +27,11 @@ interface Solo {
   done: boolean;
   offroad: number;
   worst: number;
+}
+
+// A sky-generator kind has no ground to stream: its world is whole from its data.
+function world_of(seed: number, kind: WorldKind): World {
+  return kind === WorldKind.ISLAND ? new World(seed) : new World(seed, generate_world(seed, kind));
 }
 
 export function circuits(world: World): Route[] {
@@ -51,11 +58,11 @@ function solo(world: World, route: Route, spec: CarSpec, limit = 400): Solo {
   return { t, done: driver.progress >= n - 10, offroad, worst };
 }
 
-function run_solo(seeds: readonly number[], spec: CarSpec) {
+function run_solo(seeds: readonly number[], spec: CarSpec, kind: WorldKind = WorldKind.ISLAND) {
   let failed = 0;
   const ratios: number[] = [];
   for (const seed of seeds) {
-    const world = new World(seed);
+    const world = world_of(seed, kind);
     for (const route of circuits(world)) {
       if (route.excludes?.includes(spec.id)) continue;
       const unplace = world.place(route.closure);
@@ -85,14 +92,14 @@ export function spearman(order: readonly number[]): number {
   return 1 - (6 * d2) / (n * (n * n - 1));
 }
 
-function run_field(seeds: readonly number[], spec: CarSpec, count: number, laps: number, aggression: number, mistakes: number, difficulty: Difficulty) {
+function run_field(seeds: readonly number[], spec: CarSpec, count: number, laps: number, aggression: number, mistakes: number, difficulty: Difficulty, kind: WorldKind = WorldKind.ISLAND) {
   let stuck = 0, out_of_band = 0, grid_kept = 0, races = 0;
   const per_lap: number[] = [];
   const rhos: number[] = [];
   const finishes: number[] = [];
   let resets = 0, reverses = 0, spins = 0, overtakes = 0, hardest = 0;
   for (const seed of seeds) {
-    const world = new World(seed);
+    const world = world_of(seed, kind);
     for (const route of circuits(world)) {
       if (route.excludes?.includes(spec.id)) continue;
       const unplace = world.place(route.closure);
@@ -135,12 +142,15 @@ function run_field(seeds: readonly number[], spec: CarSpec, count: number, laps:
 }
 
 if (import.meta.main) {
-  const [mode = "solo", seeds_arg, car, count = "6", laps = "2", aggression = "3", mistakes = "3", difficulty = Difficulty.NORMAL] = process.argv.slice(2);
+  const world_at = process.argv.indexOf("--world");
+  const kind = world_at >= 0 ? process.argv[world_at + 1] : WorldKind.ISLAND;
+  if (!is_kind(kind)) throw new Error(`world ${kind}, expected one of ${Object.values(WorldKind).join(", ")}`);
+  const [mode = "solo", seeds_arg, car, count = "6", laps = "2", aggression = "3", mistakes = "3", difficulty = Difficulty.NORMAL] = process.argv.slice(2).filter((a, i, all) => a !== "--world" && all[i - 1] !== "--world");
   const level = Object.values(Difficulty).find((d) => d === difficulty);
   if (!level) throw new Error(`difficulty ${difficulty}, expected one of ${Object.values(Difficulty).join(", ")}`);
-  const seeds = seeds_arg && seeds_arg !== "all" ? seeds_arg.split(",").map(Number) : GOLDEN_SEEDS.island;
+  const seeds = seeds_arg && seeds_arg !== "all" ? seeds_arg.split(",").map(Number) : GOLDEN_SEEDS[kind];
   const spec = car ? car_spec(car) : COUPE;
-  if (mode === "solo") run_solo(seeds, spec);
-  else if (mode === "field") run_field(seeds, spec, Number(count), Number(laps), Number(aggression), Number(mistakes), level);
+  if (mode === "solo") run_solo(seeds, spec, kind);
+  else if (mode === "field") run_field(seeds, spec, Number(count), Number(laps), Number(aggression), Number(mistakes), level, kind);
   else throw new Error(`unknown mode ${mode}`);
 }

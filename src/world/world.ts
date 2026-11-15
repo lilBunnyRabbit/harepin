@@ -755,8 +755,8 @@ export class World implements Ground {
   /** `collide`'s scrape report without the push, `gap` metres out: a peer's car arrives already pushed back onto the face. */
   touches(car: Collider, gap: number): number {
     const { pos, spec } = car;
-    const fx = Math.sin(car.heading);
-    const fz = Math.cos(car.heading);
+    const fx = sin(car.heading);
+    const fz = cos(car.heading);
     let found = 0;
     for (const offset of spec.circles) {
       const rx = fx * offset;

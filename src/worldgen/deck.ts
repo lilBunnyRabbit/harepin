@@ -185,12 +185,19 @@ export class DeckIndex {
     return this.probe(best, x, z, y);
   }
 
-  /** Centreline height of the lowest deck near the point: a car this far under every deck has fallen. */
+  /**
+   * Low edge of the lowest deck near the point: a car this far under every deck has fallen. The edge, not the centreline:
+   * on a 70° wall the low edge sits 16 m under it, and a car riding the low half must not read as fallen.
+   */
   floor(x: number, z: number): number {
-    let y = this.at(this.nearest(x, z), 1);
+    let y = this.low_edge(this.nearest(x, z));
     const count = this.levels(x, z);
-    for (let k = 0; k < count; k++) y = Math.min(y, this.at(this.picks[k], 1));
+    for (let k = 0; k < count; k++) y = Math.min(y, this.low_edge(this.picks[k]));
     return y;
+  }
+
+  private low_edge(i: number): number {
+    return this.at(i, 1) - this.at(i, 6) * Math.abs(tan(this.at(i, 5)));
   }
 
   private lerp(a: number, b: number, f: number, field: number): number {
