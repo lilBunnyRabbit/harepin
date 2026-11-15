@@ -69,6 +69,7 @@ export interface FieldOutcome {
   clean: boolean;
   /** In the lead as the player passed half the race distance. */
   led: boolean;
+  /** Set a lap no other car beat; never in a one-lap race, where it would only repeat the win. */
   fastest: boolean;
   /** Started from the last grid slot. */
   from_back: boolean;

@@ -8,7 +8,7 @@
   let { menu, live }: PageProps = $props();
 
   const series = $derived(menu.host.series);
-  const progress = $derived<SeriesProgress | null>(live.live(() => menu.host.series?.progress ?? null));
+  const progress = $derived<SeriesProgress | null>(live.live(() => (menu.host.series?.ready ? menu.host.series.progress : null)));
   const season = $derived(series?.season ?? null);
   const table = $derived(season && progress ? standings(season, progress) : []);
   const states = $derived(season && progress ? event_states(season, progress) : []);

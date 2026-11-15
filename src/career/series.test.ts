@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { World } from "../world/world";
 import { Bonus, OPEN_AT_START, PODIUM, SEASON_1, SeriesKind, better, empty_progress, event_line, event_result, event_states, parse_progress, player_of, result_points, season_done, standings, type EventResult, type SeriesProgress } from "./series";
+import type { SeriesSaves } from "./series-db";
 import { Series } from "./series-store";
 
 const season = SEASON_1;
@@ -12,9 +13,10 @@ const at = (place: number): EventResult => {
   return { order, bonus: [] };
 };
 
-function memory() {
-  const data = new Map<string, string>();
-  return { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => void data.set(k, v) };
+// IndexedDB stores a structured clone, so the fake does too.
+function memory(): SeriesSaves & { data: Map<string, unknown> } {
+  const data = new Map<string, unknown>();
+  return { data, load: async (id) => structuredClone(data.get(id)), save: async (p) => void data.set(p.season, structuredClone(p)) };
 }
 
 test("season 1 is six island events, the final last, with the first season's kinds", () => {
@@ -64,10 +66,22 @@ test("a retry replaces an event's run only when it scores the player more", () =
   expect(better(season, event, at(2), at(2))).toBe(false);
 });
 
-test("stored progress is checked: junk drops out, good results survive a reload", () => {
+test("stored progress is checked: junk drops out, good results survive a reload", async () => {
   const store = memory();
   new Series(season, store).record(season.events[0], { order: at(1).order, bonus: [Bonus.LED] });
-  expect(new Series(season, store).progress.results[season.events[0].id]?.bonus).toEqual([Bonus.LED]);
+  const again = new Series(season, store);
+  expect(again.ready).toBe(false);
+  await again.load();
+  expect(again.ready).toBe(true);
+  expect(again.progress.results[season.events[0].id]?.bonus).toEqual([Bonus.LED]);
+  store.data.set(season.id, "not progress");
+  const bad = new Series(season, store);
+  await bad.load();
+  expect(bad.progress.results).toEqual({});
+  const refused = new Series(season, { load: () => Promise.reject(new Error("blocked")), save: async () => {} });
+  await refused.load();
+  expect(refused.ready).toBe(true);
+  expect(refused.progress.results).toEqual({});
   const junk = { season: season.id, results: { [season.events[0].id]: { order: [9, 9] }, [season.events[1].id]: { order: [0, 1] }, [season.events[2].id]: { order: [YOU, 0], bonus: ["nope", Bonus.CLEAN] } } };
   const read = parse_progress(season, junk);
   expect(Object.keys(read.results)).toEqual([season.events[2].id]);

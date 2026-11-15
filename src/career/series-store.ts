@@ -1,47 +1,48 @@
-import { read_json, write_json, type Store } from "../modes/track";
 import { better, empty_progress, parse_progress, type EventResult, type Season, type SeriesEvent, type SeriesProgress } from "./series";
-
-export const SERIES_KEY = "harepin:series";
+import type { SeriesSaves } from "./series-db";
 
 /** One season's progress, replaced with a new object on each change so a `$derived` over it wakes. */
 export class Series {
   private progress_: SeriesProgress;
+  /** Saved progress has loaded, or failed to: until then the page shows nothing rather than an empty table. */
+  ready = false;
+  private changed = false;
 
   constructor(
     readonly season: Season,
-    private readonly store: Store | null,
+    private readonly saves: SeriesSaves | null,
   ) {
-    this.progress_ = parse_progress(season, read_json(store, this.key));
+    this.progress_ = empty_progress(season);
   }
 
-  private get key(): string {
-    return `${SERIES_KEY}:${this.season.id}`;
+  async load(): Promise<void> {
+    try {
+      const raw = await this.saves?.load(this.season.id);
+      // A run recorded while the load was out is newer than anything it read.
+      if (!this.changed) this.progress_ = parse_progress(this.season, raw);
+    } catch (error) {
+      console.warn("series: saved progress unreadable, starting empty", error);
+    }
+    this.ready = true;
   }
 
   get progress(): SeriesProgress {
     return this.progress_;
   }
 
-  /** True when the run is the event's new best for the player. */
   record(event: SeriesEvent, result: EventResult): boolean {
     if (!better(this.season, event, result, this.progress_.results[event.id])) return false;
-    this.progress_ = { season: this.season.id, results: { ...this.progress_.results, [event.id]: result } };
-    write_json(this.store, this.key, this.progress_);
+    this.set({ season: this.season.id, results: { ...this.progress_.results, [event.id]: result } });
     return true;
   }
 
   reset() {
-    this.progress_ = empty_progress(this.season);
-    write_json(this.store, this.key, this.progress_);
+    this.set(empty_progress(this.season));
   }
-}
 
-/** Tab storage, as the lab keeps its answers: the series' save format is not settled, so nothing outlives the tab. */
-export function session_store(): Store | null {
-  try {
-    return sessionStorage;
-  } catch (error) {
-    console.warn("sessionStorage unavailable, series progress stays in memory", error);
-    return null;
+  private set(progress: SeriesProgress) {
+    this.progress_ = progress;
+    this.changed = true;
+    this.saves?.save(progress).catch((error: unknown) => console.warn("series: progress not saved", error));
   }
 }

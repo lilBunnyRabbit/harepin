@@ -247,7 +247,7 @@ export class AiRace implements ModeRun, FieldRace {
     this.write_rows();
     const how = end === End.OUT && place > 1 ? `Out in ${ordinal(place)}` : end === End.TIME ? `${ordinal(place)} at the flag` : `${ordinal(place)} of ${field}`;
     // The player always takes the last grid slot (`grid_spot` puts the field on 0..n-1).
-    const extra = this.host.event?.finish({ order, clean: !this.touched, led: this.led, fastest: this.tally.fastest(player), from_back: true }) ?? [];
+    const extra = this.host.event?.finish({ order, clean: !this.touched, led: this.led, fastest: this.laps > 1 && this.tally.fastest(player), from_back: true }) ?? [];
     const laps = end === End.LINE ? line("laps", String(this.laps)) : line("laps done", String(this.lap - 1));
     this.result = {
       title: `${how} · ${this.name}`,

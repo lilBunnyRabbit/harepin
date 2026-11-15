@@ -4,7 +4,8 @@ import { idle_sound } from "./audio/held-sound";
 import { EVENTS, EVENT_PARAM, TUNE_PARAM, current_tier, event_of, type CareerEvent } from "./career/career";
 import { CareerButton } from "./career/career-button";
 import { SEASON_1, SERIES_PAGE, SERIES_PARAM, is_open, series_event } from "./career/series";
-import { Series, session_store } from "./career/series-store";
+import { Series } from "./career/series-store";
+import { SeriesDb } from "./career/series-db";
 import { on_series_map, series_host } from "./career/series-run";
 import { Career, event_map } from "./career/career-store";
 import { EventMarkers } from "./career/event-markers";
@@ -218,7 +219,7 @@ chat.start();
 const build = load_build(params.get("car"));
 const mode_ids = MODES.map((mode) => mode.id);
 const career = new Career(local_store());
-const series = series_on ? new Series(SEASON_1, session_store()) : null;
+const series = series_on ? new Series(SEASON_1, new SeriesDb()) : null;
 const runs = new Runs(local_store());
 const goals = new Goals(local_store(), mode_ids);
 goals.catch_up(() => proven(saved_entries(), { kind, build, cockpit: prefs.camera === CameraView.COCKPIT }, mode_ids));
@@ -516,7 +517,7 @@ function start_event(id: string) {
 }
 function start_series(id: string) {
   const to = series_event(id);
-  if (!to || !series) return;
+  if (!to || !series?.ready) return;
   if (!is_open(to.season, series.progress, to.event)) return settings.open(SERIES_PAGE);
   if (!on_series_map(to.season, to.event, built)) {
     mark_drive();
@@ -569,11 +570,14 @@ if (run && run_on_map(run)) play_run(run);
 else if (run) goal_toasts.push("This run's map did not load", MAP_NOTE_MS);
 if (ai_level) modes.play(ai_level);
 // A link without its map reloads onto it; one that names a map which fell back would reload onto itself forever.
-if (series_pick && (!names_world(params) || on_series_map(series_pick.season, series_pick.event, built))) start_series(series_pick.event.id);
-else if (series_on) {
-  if (series_pick) goal_toasts.push("This series event's map did not load", MAP_NOTE_MS);
-  settings.open(SERIES_PAGE);
-}
+// An event's opening rule reads saved progress, so a link starts once it has loaded.
+void series?.load().then(() => {
+  if (series_pick && (!names_world(params) || on_series_map(series_pick.season, series_pick.event, built))) start_series(series_pick.event.id);
+  else {
+    if (series_pick) goal_toasts.push("This series event's map did not load", MAP_NOTE_MS);
+    settings.open(SERIES_PAGE);
+  }
+});
 // After `markers`: the Play page reads its map markers as soon as the menu opens.
 const guide_step = params.get(GUIDE_PARAM);
 if (guide_step !== null) {
