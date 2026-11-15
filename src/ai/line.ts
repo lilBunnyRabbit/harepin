@@ -1,27 +1,25 @@
 import { ROAD_HALF, type Ramp, type RoadPoint } from "../worldgen/types";
 
 /**
- * Cornering grip and braking (m/s²) the line plans on, for the stock coupe at pace 1 (`grip_pace` scales other cars). The
- * coupe holds 0.94 g on the skidpad; the driver's pursuit steering is the limit: at 6.5 a field runs wide in traffic
- * (spins and resets triple), and braking at 3 runs wide alone.
+ * Cornering grip and braking (m/s²) the line plans on, for the stock coupe at pace 1 (`grip_pace` scales other cars).
+ * LINE_GRIP holds in a hairpin (HAIRPIN_RADIUS m and tighter), where the driver is already at full lock; it eases up to
+ * FAST_GRIP in a bend of FAST_RADIUS m or wider. The coupe holds 0.94 g on the skidpad: the steering is the limit, and
+ * at 6.5 in hairpins, 7.5 in fast bends or braking at 3, cars run wide.
  */
 export const LINE_GRIP = 6;
-/**
- * Cornering grip (m/s²) the line plans on in a bend of radius FAST_RADIUS m or wider, eased down to LINE_GRIP at
- * HAIRPIN_RADIUS and under: in a hairpin the driver is already at full lock at LINE_GRIP, in a fast bend it has room.
- */
-const FAST_GRIP = 6;
+const FAST_GRIP = 7;
 const HAIRPIN_RADIUS = 25;
 const FAST_RADIUS = 80;
+export const LINE_BRAKE = 2.5;
+/** Braking (m/s²) a driver diving down the inside plans on: it brakes later and harder than the line, into the apex. */
+export const LATE_BRAKE = 4;
 
 /** Grip (m/s²) the line plans a bend of signed curvature `bend` (1/m) on. */
 export function grip_at(bend: number): number {
   const radius = 1 / Math.max(1e-9, Math.abs(bend));
   return LINE_GRIP + (FAST_GRIP - LINE_GRIP) * Math.max(0, Math.min(1, (radius - HAIRPIN_RADIUS) / (FAST_RADIUS - HAIRPIN_RADIUS)));
 }
-export const LINE_BRAKE = 2.5;
-/** Braking (m/s²) a driver diving down the inside plans on: it brakes later and harder than the line, into the apex. */
-export const LATE_BRAKE = 4;
+
 /** Metres between the car's body and the road edge. */
 const EDGE_GAP = 1.2;
 /** Coarsest point spacing the relax starts at, and passes at spacing 1 (more at coarser ones, by the square root). */

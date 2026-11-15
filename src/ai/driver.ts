@@ -9,7 +9,8 @@ const AIM_PER = 3;
 /** Under this pace (m/s) a bend is a hairpin and the aim stays short, or it cuts across the inside. */
 const HAIRPIN_PACE = 15;
 const AIM_HAIRPIN = 5;
-const STEER_GAIN = 3;
+/** Wheel per rad of aim error: at 3 a car sat up to 3 m wide of the line through a 200 m bend at 38 m/s and ran off. */
+const STEER_GAIN = 4.5;
 /** Wheel per rad/s the aim error swings at: without it a fast car fishtails, each catch overshooting the last. */
 const STEER_DAMP = 1;
 const TRACK_BACK = 5;
