@@ -126,6 +126,13 @@ export class Idb {
     await committed(tx);
   }
 
+  /** Every key and value of an out-of-line store, read only. */
+  async entries(store: string): Promise<[IDBValidKey, unknown][]> {
+    const objects = (await this.tx(store, "readonly")).objectStore(store);
+    const [keys, values] = await Promise.all([done(objects.getAllKeys()), done(objects.getAll())]);
+    return keys.map((key, i): [IDBValidKey, unknown] => [key, values[i]]);
+  }
+
   /** Read and write in one transaction, so another tab cannot write between them; `next` returning undefined writes nothing. */
   async update(store: string, key: IDBValidKey, next: (stored: unknown) => unknown): Promise<void> {
     const tx = await this.tx(store, "readwrite");

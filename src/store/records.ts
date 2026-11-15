@@ -97,11 +97,7 @@ export function load_records(mode_ids: readonly string[], beside: Promise<unknow
  * Ship it as the boot step in place of `load_records` only to roll back past the move (docs/plan/indexeddb.md, step 5).
  */
 export async function restore_records(mode_ids: readonly string[]): Promise<void> {
-  let writes: [string, string][] = [];
-  await db.update_all(STORE, (stored) => {
-    writes = plan_restore(stored, local_entries(), record_families(mode_ids));
-    return [];
-  });
+  const writes = plan_restore(await db.entries(STORE), local_entries(), record_families(mode_ids));
   for (const [key, text] of writes) {
     try {
       localStorage.setItem(key, text);
