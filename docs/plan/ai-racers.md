@@ -543,3 +543,5 @@ Open after this round:
 - Rho rose to 0.61 / 0.65 (normal / hard): with less time lost in corners, pace differences decide less and the grid more. Still under `RHO_MAX` 0.7.
 - Hairpins stay at 6 m/s², lock-limited. More there means a different wheel law (full lock earlier, entry speed from the lock), not more grip.
 - Seed 16's lone slide on a 12% climb and seed 18's in a dip are not traced.
+- The crest term also caps straight crests, at the speed the car would leave the ground (`sqrt(g / k)`: about 33 m/s over a 9% climb into a 9% drop); the autopilot has no such braking point. Measured as is.
+- The town circuit's par is still not measured in a race here; a review's count on seeds 0-4 gives 240-328 m, par 23-28.5 s, so 8-10 laps.
