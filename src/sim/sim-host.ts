@@ -14,6 +14,7 @@ const NEAR_GAP = 1.2;
 const NEAR_PEER = 4;
 /** A free-drive field never finishes. */
 const FIELD_LAPS = 1e6;
+const NO_PROGRESS = new Float64Array(0);
 
 /** What a frame does with the sim: `FREE` neither steps nor holds (a review replay sets the pose itself). */
 export const FrameKind = { HOLD: 0, STEP: 1, REWIND: 2, FREE: 3 } as const;
@@ -51,6 +52,10 @@ export interface FieldStart {
   specs: readonly CarSpec[];
   traits: readonly Personality[];
   seed: number;
+  /** Laps each AI car's finish is timed over; a free-drive field runs on without one. */
+  laps?: number;
+  /** The field's driver drives the player's car too: a dev autopilot for shots and frame-time runs. */
+  drive_rival?: boolean;
 }
 
 export type CarCommand =
@@ -62,7 +67,10 @@ export type CarCommand =
   | { type: "refill" }
   | { type: "drag"; keep: number };
 
-export type SimCommand = CarCommand | { type: "rewind_clear" } | ({ type: "field" } & FieldStart) | { type: "world"; op: WorldOp };
+/** `field_seen`: bit i set while AI car i is on the player's screen, where it never leaves the physics. */
+export type FieldCommand = ({ type: "field" } & FieldStart) | { type: "field_stop" } | { type: "field_seen"; mask: number };
+
+export type SimCommand = CarCommand | FieldCommand | { type: "rewind_clear" } | { type: "world"; op: WorldOp };
 
 export interface FrameOut {
   kind: FrameKind;
@@ -113,6 +121,7 @@ export class SimHost {
   readonly rewind: Rewind;
   field: Field | null = null;
   field_cars: readonly Car[] = [];
+  private field_laps = FIELD_LAPS;
   /** The car before the frame's last step: the drawn car sits between this and `car`. */
   readonly from = { pos: new Vector3(), quat: new Quaternion() };
   readonly out: FrameOut = { kind: FrameKind.HOLD, steps: 0, stepped: 0, impact: 0, blend: 0 };
@@ -158,6 +167,12 @@ export class SimHost {
   apply(command: SimCommand) {
     if (command.type === "rewind_clear") this.rewind.clear();
     else if (command.type === "field") this.start_field(command);
+    else if (command.type === "field_stop") {
+      this.field = null;
+      this.field_cars = [];
+    } else if (command.type === "field_seen") {
+      if (this.field) this.field.seen = command.mask;
+    }
     else if (is_car(command)) {
       if (command.type === "place" || command.type === "park" || command.type === "swap") this.pads.clear();
       this.car = car_command(this.car, command, this.world);
@@ -182,12 +197,12 @@ export class SimHost {
     for (let i = 0; i < request.steps; i++) {
       this.from.pos.copy(car.pos);
       this.from.quat.copy(car.quat);
-      car.step(DT, controls, world);
+      car.step(DT, field?.drives_rival ? field.rival_controls(DT) : controls, world);
       this.pads.step(DT, car, world);
       out.stepped += DT;
       out.impact = Math.max(out.impact, world.collide(car));
       if (field) {
-        field.step(DT, FIELD_LAPS);
+        field.step(DT, this.field_laps);
         out.impact = Math.max(out.impact, field.impacts[field.racers.length]);
       }
       this.on_step?.(DT, car, controls);
@@ -199,10 +214,17 @@ export class SimHost {
     return out;
   }
 
-  private start_field({ route, specs, traits, seed }: FieldStart) {
+  /** Each AI car's road points from the start, then the player's: empty with no field. */
+  get field_progress(): Float64Array {
+    return this.field?.progress ?? NO_PROGRESS;
+  }
+
+  private start_field({ route, specs, traits, seed, laps, drive_rival }: FieldStart) {
     const on = this.world.routes.find((r) => r.id === route);
     if (!on) throw new Error(`no route ${route} for the field`);
     this.field = new Field(this.world, on, specs, traits, seed);
+    this.field_laps = laps ?? FIELD_LAPS;
+    this.field.drives_rival = drive_rival === true;
     this.field.rival = this.car;
     this.field_cars = this.field.racers.map((r) => r.car);
   }

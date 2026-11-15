@@ -15,6 +15,8 @@ export interface Sim {
   readonly car: Car;
   readonly from: { readonly pos: Vector3; readonly quat: Quaternion };
   readonly field_cars: readonly Car[];
+  /** Each AI car's road points from the start, laps included, then the player's: empty with no field. */
+  readonly field_progress: Float64Array;
   send(command: SimCommand): void;
   frame(request: FrameRequest): FrameOut;
 }
@@ -32,6 +34,10 @@ export class LocalSim implements Sim {
 
   get field_cars(): readonly Car[] {
     return this.host.field_cars;
+  }
+
+  get field_progress(): Float64Array {
+    return this.host.field_progress;
   }
 
   send(command: SimCommand) {
@@ -52,6 +58,7 @@ export class WorkerSim implements Sim {
   car: Car;
   readonly from = { pos: new Vector3(), quat: new Quaternion() };
   field_cars: readonly Car[] = [];
+  field_progress = new Float64Array(0);
   private readonly out: FrameOut = { kind: FrameKind.FREE, steps: 0, stepped: 0, impact: 0, blend: 0 };
   private readonly read: FrameOut = { kind: FrameKind.FREE, steps: 0, stepped: 0, impact: 0, blend: 0 };
   private readonly commands: SimCommand[] = [];
@@ -82,6 +89,11 @@ export class WorkerSim implements Sim {
     } else if (command.type === "shift" || command.type === "aids") this.car = car_command(this.car, command, this.world);
     else if (command.type === "field") {
       this.field_cars = command.specs.map((spec) => new Car(spec));
+      this.field_progress = new Float64Array(command.specs.length + 1).fill(NaN);
+      this.epoch++;
+    } else if (command.type === "field_stop") {
+      this.field_cars = [];
+      this.field_progress = new Float64Array(0);
       this.epoch++;
     }
     this.commands.push(command);
@@ -97,7 +109,7 @@ export class WorkerSim implements Sim {
     let fresh = false;
     for (const reply of this.replies) {
       if (packet_epoch(reply) < this.epoch) continue;
-      read_packet(reply, read, this.car, this.from, this.field_cars);
+      read_packet(reply, read, this.car, this.from, this.field_cars, this.field_progress);
       if (!fresh || read.kind === FrameKind.STEP) out.kind = read.kind;
       fresh = true;
       out.steps += read.steps;

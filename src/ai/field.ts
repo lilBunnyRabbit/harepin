@@ -1,11 +1,11 @@
-import { Car } from "../car/car";
+import { Car, type Controls } from "../car/car";
 import type { CarSpec } from "../car/cars";
 import { collide_cars } from "../car/contact";
 import { mulberry32, sub } from "../rng";
 import type { World } from "../world/world";
 import type { Route } from "../worldgen/types";
 import { Awareness } from "./awareness";
-import { Driver, OFF_ROAD, type Personality } from "./driver";
+import { Driver, OFF_ROAD, STEADY, type Personality } from "./driver";
 import { race_line, type RaceLine } from "./line";
 
 /** Physics steps between awareness and recovery passes: 20 Hz at 360; at 10 Hz a follower closing in a hairpin reacts too late. */
@@ -36,6 +36,12 @@ const SPIN = 1.6;
 const SPIN_CAUGHT = 0.3;
 /** Metres one car must be clear of another along the road before passing it counts. */
 const PASS_CLEAR = 3;
+/**
+ * Metres from the rival past which an AI car off screen leaves the physics for the line follower (H7), and inside which,
+ * or once on screen, it comes back to it.
+ */
+const FAR = 120;
+const NEAR = 100;
 /** Personality ranges a field draws from. */
 const PACE = [0.92, 1] as const;
 const BRAKE_MARGIN = [0, 0.8] as const;
@@ -65,6 +71,15 @@ export interface Racer {
 
 const between = (rng: () => number, [lo, hi]: readonly [number, number]) => lo + (hi - lo) * rng();
 
+/** Where grid slot `slot` stands on a closed route, 0 on pole: staggered left and right, behind the start line. */
+export function grid_spot(route: Route, slot: number): { index: number; x: number; z: number; heading: number } {
+  const n = route.points.length;
+  const index = (((-GRID_BACK - slot * GRID_GAP) % n) + n) % n;
+  const p = route.points[index];
+  const side = (slot % 2 ? -1 : 1) * GRID_SIDE;
+  return { index, x: p.x + p.tz * side, z: p.z - p.tx * side, heading: Math.atan2(p.tx, p.tz) };
+}
+
 const level = (table: readonly (readonly [number, number])[], at: number) => table[Math.max(1, Math.min(table.length, Math.round(at))) - 1];
 
 /**
@@ -89,9 +104,18 @@ export class Field {
   private readonly cars: Car[];
   /** The field's cars, then the rival when one races them: the contact pass's list. */
   private touching: Car[];
+  /** Road points from the start, laps included, of each car and then the rival (NaN without one): the running order. */
+  readonly progress: Float64Array;
+  /** Bit i set: AI car i is on the player's screen, so it never coasts. Every bit set until the view says otherwise. */
+  seen = -1;
+  private rival_car: Car | null = null;
+  /** Tracks the rival along the road, and drives it when `drives_rival` (a dev autopilot for the player's car). */
+  private rival_driver: Driver;
+  drives_rival = false;
+  private readonly coasting: Uint8Array;
   /** Closing speed (m/s) of each car's hardest touch on the last step, -1 for none; the rival's after the field's. */
   readonly impacts: Float64Array;
-  private readonly awareness: Awareness;
+  private awareness: Awareness;
   private readonly slow: Float64Array;
   private readonly lost: Float64Array;
   private readonly best: Float64Array;
@@ -107,19 +131,16 @@ export class Field {
     readonly route: Route,
     specs: readonly CarSpec[],
     traits: readonly Personality[],
-    seed: number,
+    private readonly seed: number,
   ) {
     const radius = Math.max(...specs.map((s) => s.radius));
     this.line = race_line(route.points, world.ramps, radius);
-    const n = route.points.length;
     this.racers = specs.map((spec, k) => {
       const car = new Car(spec);
       const driver = new Driver(this.line, traits[k], mulberry32(sub(seed, `ai-driver-${k}`)));
-      const index = (((-GRID_BACK - k * GRID_GAP) % n) + n) % n;
-      const p = route.points[index];
-      const side = (k % 2 ? -1 : 1) * GRID_SIDE;
-      car.park(p.x + p.tz * side, p.z - p.tx * side, Math.atan2(p.tx, p.tz), world);
-      driver.place(index, -1);
+      const spot = grid_spot(route, k);
+      car.park(spot.x, spot.z, spot.heading, world);
+      driver.place(spot.index, -1);
       return { car, driver, stats: { laps: [], finish: Infinity, contacts: 0, hardest: 0, spins: 0, overtakes: 0, reverses: 0, resets: 0, offroad: 0 } };
     });
     this.cars = this.racers.map((r) => r.car);
@@ -134,20 +155,55 @@ export class Field {
     this.last_contact = new Float64Array(count).fill(-Infinity);
     this.spinning = new Uint8Array(count);
     this.ahead = new Uint8Array(count * count);
+    this.coasting = new Uint8Array(count);
+    this.progress = new Float64Array(count + 1).fill(NaN);
+    this.rival_driver = new Driver(this.line, STEADY);
   }
 
-  /** A car the field races but does not drive (the player's): its owner steps it before `step`, the contact pass here takes it in. */
+  /**
+   * A car the field races but does not drive (the player's): its owner steps it before `step`, the contact pass here
+   * takes it in, the awareness sees it as one more car, and it is tracked along the road from where it stands.
+   */
   set rival(car: Car | null) {
+    this.rival_car = car;
     this.touching = car ? [...this.cars, car] : this.cars;
     this.impacts[this.cars.length] = -1;
+    const drivers = this.racers.map((r) => r.driver);
+    if (car) {
+      const at = nearest(this.route, car.pos.x, car.pos.z);
+      this.rival_driver = new Driver(this.line, STEADY);
+      this.rival_driver.place(at, at > this.route.points.length / 2 ? -1 : 0);
+    }
+    const rng = mulberry32(sub(this.seed, "ai-awareness"));
+    this.awareness = car ? new Awareness([...this.cars, car], [...drivers, this.rival_driver], rng) : new Awareness(this.cars, drivers, rng);
+  }
+
+  /** The rival's controls for this step, from the field's own driver: call before stepping the rival, with `drives_rival` on. */
+  rival_controls(dt: number): Controls {
+    if (!this.rival_car) throw new Error("no rival to drive");
+    return this.rival_driver.drive(this.rival_car, dt);
+  }
+
+  /** Whether AI car i runs on the line follower now, off the physics. */
+  is_coasting(i: number): boolean {
+    return this.coasting[i] === 1;
   }
 
   step(dt: number, laps: number) {
     const { racers, world } = this;
     for (let i = 0; i < racers.length; i++) {
       const { car, driver } = racers[i];
+      if (this.coasting[i]) {
+        driver.coast(car, dt);
+        continue;
+      }
       car.step(dt, driver.drive(car, dt), world);
       world.collide(car);
+    }
+    const rival = this.rival_car;
+    if (rival && !this.drives_rival) {
+      this.rival_driver.track(rival);
+      this.rival_driver.target = Math.hypot(rival.vel.x, rival.vel.z);
     }
     collide_cars(this.touching, this.impacts);
     this.t += dt;
@@ -164,12 +220,33 @@ export class Field {
         stats.laps.push(this.t);
         if (stats.laps.length === laps) stats.finish = this.t;
       }
-      if (world.distance_to_road(car.pos.x, car.pos.z) > OFF_ROAD) stats.offroad += dt;
+      if (!this.coasting[i] && world.distance_to_road(car.pos.x, car.pos.z) > OFF_ROAD) stats.offroad += dt;
+      this.progress[i] = driver.progress;
     }
+    this.progress[racers.length] = rival ? this.rival_driver.progress : NaN;
     if (++this.steps % AWARE_STEPS === 0) {
       this.awareness.update();
       this.recover(dt * AWARE_STEPS);
       this.count_passes();
+      this.far();
+    }
+  }
+
+  /** Far from the rival and off its screen, a car coasts on the line; near or seen, it is back on the physics. */
+  private far() {
+    const rival = this.rival_car;
+    if (!rival) return;
+    for (let i = 0; i < this.racers.length; i++) {
+      const { car, driver } = this.racers[i];
+      const d = Math.hypot(car.pos.x - rival.pos.x, car.pos.z - rival.pos.z);
+      const seen = (this.seen >> i) & 1;
+      if (!this.coasting[i] && d > FAR && !seen) {
+        this.coasting[i] = 1;
+        driver.along = 0;
+      } else if (this.coasting[i] && (d < NEAR || seen)) {
+        this.coasting[i] = 0;
+        driver.resume(car, this.world);
+      }
     }
   }
 
@@ -182,6 +259,13 @@ export class Field {
   private recover(dt: number) {
     for (let i = 0; i < this.racers.length; i++) {
       const { car, driver, stats } = this.racers[i];
+      if (this.coasting[i]) {
+        this.slow[i] = 0;
+        this.lost[i] = 0;
+        this.stall[i] = 0;
+        this.best[i] = driver.progress;
+        continue;
+      }
       const speed = Math.hypot(car.vel.x, car.vel.z);
       const slide = speed > 3 ? Math.abs(Math.atan2(Math.sin(Math.atan2(car.vel.x, car.vel.z) - car.heading), Math.cos(Math.atan2(car.vel.x, car.vel.z) - car.heading))) : 0;
       if (!this.spinning[i] && driver.reversing <= 0 && slide > SPIN) {
@@ -224,12 +308,15 @@ export class Field {
   private clear(i: number, me: number): boolean {
     const spacing = this.route.length / this.route.points.length;
     const n = this.route.points.length;
+    const near = (progress: number) => {
+      const gap = (((((progress - me) % n) + n + n / 2) % n) - n / 2) * spacing;
+      return gap > -RESET_BEHIND && gap < RESET_AHEAD;
+    };
     for (let j = 0; j < this.racers.length; j++) {
       if (j === i || this.lost[j] > 0 || this.stall[j] > STUCK_TIME) continue;
-      const gap = (((((this.racers[j].driver.progress - me) % n) + n + n / 2) % n) - n / 2) * spacing;
-      if (gap > -RESET_BEHIND && gap < RESET_AHEAD) return false;
+      if (near(this.racers[j].driver.progress)) return false;
     }
-    return true;
+    return !this.rival_car || !near(this.rival_driver.progress);
   }
 
   /** The road point a car at `index` is put back at: `index` itself, or RESET_RUNUP metres before the kicker run it is on. */
@@ -260,4 +347,17 @@ export class Field {
         } else if (gap < -PASS_CLEAR) this.ahead[at] = 0;
       }
   }
+}
+
+function nearest(route: Route, x: number, z: number): number {
+  let best = 0;
+  let best_d = Infinity;
+  route.points.forEach((p, i) => {
+    const d = (p.x - x) ** 2 + (p.z - z) ** 2;
+    if (d < best_d) {
+      best_d = d;
+      best = i;
+    }
+  });
+  return best;
 }

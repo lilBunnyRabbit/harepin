@@ -5,7 +5,8 @@ import type { WorldData } from "../worldgen/types";
 import type { FrameKind, FrameOut, FrameRequest, SimCommand } from "./sim-host";
 
 /**
- * The sim worker's reply, one per frame: a header, the player's car, then each AI car's pose. Float64, not Float32: main
+ * The sim worker's reply, one per frame: a header, the player's car, each AI car's pose, then with a field each AI car's
+ * road progress and the player's. Float64, not Float32: main
  * times laps and modes and picks reset spots from the car it reads, and those must match the sim on main bit for bit.
  * Append-only inside each block; reordering or resizing a field bumps `SIM_PACKET`, which both sides check.
  */
@@ -33,7 +34,7 @@ const AI_WHEEL = 3;
 export function packet_size(car: Car, field: readonly Car[]): number {
   let size = HEADER + CAR + car.wheels.length * WHEEL;
   for (const ai of field) size += AI_CAR + ai.wheels.length * AI_WHEEL;
-  return size;
+  return size + (field.length ? field.length + 1 : 0);
 }
 
 function put3(out: Float64Array, at: number, v: Vector3): number {
@@ -61,7 +62,7 @@ function get4(from: Float64Array, at: number, q: Quaternion): number {
   return at + 4;
 }
 
-export function write_packet(out: Float64Array, epoch: number, frame: FrameOut, car: Car, from: { pos: Vector3; quat: Quaternion }, field: readonly Car[]) {
+export function write_packet(out: Float64Array, epoch: number, frame: FrameOut, car: Car, from: { pos: Vector3; quat: Quaternion }, field: readonly Car[], progress: Float64Array) {
   out[VERSION] = SIM_PACKET;
   out[EPOCH] = epoch;
   out[KIND] = frame.kind;
@@ -118,6 +119,7 @@ export function write_packet(out: Float64Array, epoch: number, frame: FrameOut, 
       out[at++] = w.reach;
     }
   }
+  if (field.length) out.set(progress, at);
 }
 
 export function packet_epoch(from: Float64Array): number {
@@ -125,7 +127,7 @@ export function packet_epoch(from: Float64Array): number {
   return from[EPOCH];
 }
 
-export function read_packet(from: Float64Array, frame: FrameOut, car: Car, pose: { pos: Vector3; quat: Quaternion }, field: readonly Car[]) {
+export function read_packet(from: Float64Array, frame: FrameOut, car: Car, pose: { pos: Vector3; quat: Quaternion }, field: readonly Car[], progress: Float64Array) {
   packet_epoch(from);
   frame.kind = from[KIND] as FrameKind;
   frame.steps = from[STEPS];
@@ -181,4 +183,5 @@ export function read_packet(from: Float64Array, frame: FrameOut, car: Car, pose:
       w.reach = from[at++];
     }
   }
+  if (field.length) progress.set(from.subarray(at, at + field.length + 1));
 }

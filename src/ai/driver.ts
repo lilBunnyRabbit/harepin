@@ -1,4 +1,5 @@
-import type { Car, Controls } from "../car/car";
+import { Quaternion, Vector3 } from "three";
+import { ride_height, type Car, type Controls, type Ground } from "../car/car";
 import { ROAD_HALF } from "../worldgen/types";
 import { LINE_BRAKE, type RaceLine } from "./line";
 
@@ -60,6 +61,8 @@ export const pass_room = (car: Car, line: RaceLine, index: number) => (line.room
 
 const wrap_angle = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 const never = () => 1;
+const Y = new Vector3(0, 1, 0);
+const level = new Quaternion();
 
 /** Follows a `RaceLine` and writes pedals and wheel into its own `controls` every physics step, like a player's input. */
 export class Driver {
@@ -82,6 +85,8 @@ export class Driver {
   wary = 0;
   /** Seconds of reversing left, set by the field's recovery. */
   reversing = 0;
+  /** Metres past road point `index` a coasting car has gone, off the physics (`coast`). */
+  along = 0;
   private mistake_at = -1;
   private last_err = NaN;
 
@@ -129,11 +134,63 @@ export class Driver {
         best = i;
       }
     }
-    if (best < this.index - n / 2) {
-      this.laps++;
-      this.mistake_at = this.rng() < this.personality.mistakes ? Math.floor(this.rng() * n) : -1;
-    } else if (best > this.index + n / 2) this.laps--;
+    if (best < this.index - n / 2) this.lap_done();
+    else if (best > this.index + n / 2) this.laps--;
     this.index = best;
+  }
+
+  private lap_done() {
+    this.laps++;
+    this.mistake_at = this.rng() < this.personality.mistakes ? Math.floor(this.rng() * this.line.road.length) : -1;
+  }
+
+  /** The speed (m/s) a coasting car moves at here: its pace on the line, under the awareness's cap. */
+  private coast_speed(): number {
+    return Math.min(this.cap, this.line.speed[this.index] * this.personality.pace);
+  }
+
+  /**
+   * Moves the car along the line at its pace with no physics, level and on the road's height: the far, unseen car's
+   * stand-in (H7), about a microsecond a step. The car's own state stays as it was left; `resume` hands it back.
+   */
+  coast(car: Car, dt: number) {
+    const { line } = this;
+    const n = line.road.length;
+    const v = this.coast_speed();
+    this.target = v;
+    this.along += v * dt;
+    while (this.along >= line.step[this.index]) {
+      this.along -= line.step[this.index];
+      this.index = (this.index + 1) % n;
+      if (this.index === 0) this.lap_done();
+    }
+    const i = this.index;
+    const j = (i + 1) % n;
+    const f = line.step[i] > 0 ? this.along / line.step[i] : 0;
+    const dx = line.x[j] - line.x[i];
+    const dz = line.z[j] - line.z[i];
+    const heading = Math.atan2(dx, dz);
+    car.pos.set(line.x[i] + dx * f, line.road[i].y + (line.road[j].y - line.road[i].y) * f + ride_height(car.spec), line.z[i] + dz * f);
+    car.quat.copy(level.setFromAxisAngle(Y, heading));
+    car.vel.set(Math.sin(heading) * v, 0, Math.cos(heading) * v);
+    car.ang.set(0, 0, 0);
+  }
+
+  /** Puts a coasting car back on the physics where it stands, at its coasting speed and in the gear for it. */
+  resume(car: Car, ground: Ground) {
+    const v = this.coast_speed();
+    const heading = car.heading;
+    car.park(car.pos.x, car.pos.z, heading, ground);
+    car.parked = false;
+    car.vel.set(Math.sin(heading) * v, 0, Math.cos(heading) * v);
+    const { spec } = car;
+    const omega = v / spec.wheel.radius;
+    for (const w of car.wheels) w.omega = omega;
+    let gear = 1;
+    while (gear < spec.gears.length && ((omega * spec.gears[gear - 1] * spec.final * 60) / (2 * Math.PI)) > spec.downshift + (spec.upshift - spec.downshift) / 2) gear++;
+    car.gear = gear;
+    this.along = 0;
+    this.recovered();
   }
 
   // Off the line the radius of every bend ahead moves by the gap to it (1 + bend * gap), and so does the speed it
