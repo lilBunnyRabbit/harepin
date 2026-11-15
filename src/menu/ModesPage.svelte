@@ -71,14 +71,13 @@
             {#each mode.levels as level, i (level.id)}
               {@const off = !level.open || mode.blocked !== null || level.blocked !== null}
               <div class="level" class:off>
-                <Row label={level.name} help={level.brings} top>
+                <Row label={level.name} help={level.brings} top stack>
                   {#snippet detail()}<span class="meta">{meta(level, i)}</span>{/snippet}
                   {#snippet control()}
                     <span class="end">
-                      {#if !level.open}
-                        <span class="reason"><Icon name="icon-lock" />Finish {mode.levels[i - 1]?.name}</span>
-                      {:else}
-                        {#if level.blocked}<span class="reason">{level.blocked}</span>{/if}
+                      {#if !level.open}<span class="reason"><Icon name="icon-lock" />Finish {mode.levels[i - 1]?.name}</span>{/if}
+                      {#if level.blocked}<span class="reason">{level.blocked}</span>{/if}
+                      {#if level.open}
                         {#if level.best}<span class="best">{level.best}</span>{:else}<Badge tone="success">New</Badge>{/if}
                         <span class="star-row" aria-label={`${level.stars} of ${MAX_STARS} stars`}>{"★".repeat(level.stars)}<i>{"★".repeat(Math.max(0, MAX_STARS - level.stars))}</i></span>
                         <Button size="sm" variant={level.stars === 0 && !off ? "primary" : "secondary"} disabled={off} aria-label={`Play ${level.name}`} onclick={() => play(level.id)}>Go</Button>
@@ -230,6 +229,12 @@
 
     .list {
       padding: 0 var(--space-2) var(--space-3);
+    }
+  }
+
+  @media (max-width: 600px) {
+    .end {
+      justify-content: flex-end;
     }
   }
 </style>
