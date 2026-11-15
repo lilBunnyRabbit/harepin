@@ -1,3 +1,4 @@
+import { CARS } from "../car/cars";
 import type { FieldEvent, FieldHost } from "../modes/mode";
 import { line } from "../modes/result";
 import { plain_map } from "../worldgen/kinds/kinds";
@@ -19,13 +20,14 @@ import {
   type Season,
   type SeriesEvent,
 } from "./series";
-import type { Series } from "./series-store";
+import type { Payout, Series } from "./series-store";
+import { credits_text } from "./wallet";
 
 export const series_map = (season: Season, event: SeriesEvent): MapSpec => plain_map(season.world, event.seed);
 
 export const on_series_map = (season: Season, event: SeriesEvent, built: MapSpec) => map_code(series_map(season, event)) === map_code(built);
 
-function result_lines(series: Series, event: SeriesEvent, result: EventResult, kept: boolean): HTMLElement[] {
+function result_lines(series: Series, event: SeriesEvent, result: EventResult, paid: Payout): HTMLElement[] {
   const { season } = series;
   const place = place_of(result, player_of(season));
   const lines = [line("points", `+${place_points(event, place)} for ${ordinal(place)}`)];
@@ -33,7 +35,9 @@ function result_lines(series: Series, event: SeriesEvent, result: EventResult, k
   const table = standings(season, series.progress);
   const me = table.findIndex((row) => row.you);
   lines.push(line("series", `${ordinal(me + 1)} · ${table[me].points} pts`));
-  if (!kept) lines.push(line("kept", "your better run here still counts"));
+  if (!paid.kept) lines.push(line("kept", "your better run here still counts"));
+  lines.push(line("credits", `+${credits_text(paid.credits)}`));
+  if (paid.season_credits) lines.push(line("season won", `+${credits_text(paid.season_credits)}${paid.car ? ` · ${CARS[paid.car].name} is yours` : ""}`));
   return lines;
 }
 

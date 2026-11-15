@@ -7,7 +7,7 @@ import SeriesFlow from "./SeriesFlow.svelte";
 import SeriesTable from "./SeriesTable.svelte";
 
 const season = SEASON_1;
-const won: SeriesProgress = { season: season.id, results: { [season.events[0].id]: { order: [player_of(season), 0, 1, 2, 3, 4, 5], bonus: [] } } };
+const won: SeriesProgress = { season: season.id, round: 0, results: { [season.events[0].id]: { order: [player_of(season), 0, 1, 2, 3, 4, 5], bonus: [] } } };
 
 test("a fresh series offers three races and locks the rest", () => {
   const progress = empty_progress(season);

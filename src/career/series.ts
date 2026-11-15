@@ -1,3 +1,7 @@
+import type { Build } from "../car/build";
+import { limit_text, within } from "../car/car-pick";
+import { CARS, type CarId } from "../car/cars";
+import { rating, type CarClass } from "../car/pi";
 import type { FieldOutcome } from "../modes/mode";
 import { WorldKind } from "../worldgen/types";
 
@@ -46,10 +50,20 @@ export interface SeriesEvent {
   readonly limit_ms?: number;
 }
 
+/** What a season's final pays on top of its race each time the season is completed; the car only the first time. */
+export interface SeasonReward {
+  readonly car: CarId;
+  readonly credits: number;
+}
+
 export interface Season {
   readonly id: string;
   readonly name: string;
   readonly world: WorldKind;
+  readonly cap: CarClass;
+  readonly reward: SeasonReward;
+  /** Seeds a replay draws its events' maps from (C5): each has every route the season's events race, closed. */
+  readonly replays: readonly number[];
   readonly field: readonly SeriesDriver[];
   /** Index in `field` of the season's rival (F1): head to head is against them. */
   readonly rival: number;
@@ -60,6 +74,9 @@ export const SEASON_1: Season = {
   id: "s1",
   name: "Island",
   world: WorldKind.ISLAND,
+  cap: "c",
+  reward: { car: "sajin", credits: 5000 },
+  replays: [6, 7, 16, 33, 34, 36, 38, 46, 52, 58, 59],
   field: [
     { name: "Kai Moreno", aggression: 4, mistakes: 2 },
     { name: "Mara Voss", aggression: 3, mistakes: 3 },
@@ -127,6 +144,8 @@ export interface EventResult {
 
 export interface SeriesProgress {
   readonly season: string;
+  /** Completed runs of the season before this one: 0 on the authored maps, each replay on new seeds and a stronger field. */
+  readonly round: number;
   readonly results: Readonly<Record<string, EventResult>>;
 }
 
@@ -148,7 +167,27 @@ export function event_field(season: Season, event: SeriesEvent, progress: Series
   return standings(season, progress).filter((row) => !row.you).map((row) => row.driver);
 }
 
-export const empty_progress = (season: Season): SeriesProgress => ({ season: season.id, results: {} });
+export const empty_progress = (season: Season, round = 0): SeriesProgress => ({ season: season.id, round, results: {} });
+
+const LEVEL_MIN = 1;
+const LEVEL_MAX = 5;
+
+/** The season as round `round` races it: the same events on the next seeds of `replays`, each driver a level bolder and steadier. */
+export function season_round(season: Season, round: number): Season {
+  if (round <= 0) return season;
+  const n = season.events.length;
+  return {
+    ...season,
+    field: season.field.map((d) => ({ ...d, aggression: Math.min(LEVEL_MAX, d.aggression + round), mistakes: Math.max(LEVEL_MIN, d.mistakes - round) })),
+    events: season.events.map((e, i) => ({ ...e, seed: season.replays[((round - 1) * n + i) % season.replays.length] })),
+  };
+}
+
+/** Why the player's car may not race the season, or null: only their own cars (base car start), within the class cap. */
+export function car_fault(season: Season, build: Build, owned: readonly CarId[]): string | null {
+  if (!owned.includes(build.car)) return `${season.name} series: your own cars only (${owned.map((id) => CARS[id].name).join(", ")})`;
+  return within(rating(build).class, season.cap) ? null : `${season.name} series: ${limit_text(season.cap)}`;
+}
 
 const is_index = (v: unknown, below: number): v is number => typeof v === "number" && Number.isInteger(v) && v >= 0 && v < below;
 
@@ -166,13 +205,14 @@ function parse_result(season: Season, raw: unknown): EventResult | null {
 export function parse_progress(season: Season, raw: unknown): SeriesProgress {
   const out: Record<string, EventResult> = {};
   if (typeof raw !== "object" || raw === null) return empty_progress(season);
-  const { season: id, results } = raw as { season?: unknown; results?: unknown };
+  const { season: id, round: stored, results } = raw as { season?: unknown; round?: unknown; results?: unknown };
+  const round = typeof stored === "number" && Number.isInteger(stored) && stored >= 0 ? stored : 0;
   if (id !== season.id || typeof results !== "object" || results === null) return empty_progress(season);
   for (const event of season.events) {
     const result = parse_result(season, (results as Record<string, unknown>)[event.id]);
     if (result) out[event.id] = result;
   }
-  return { season: season.id, results: out };
+  return { season: season.id, round, results: out };
 }
 
 export const place_of = (result: EventResult, driver: number) => result.order.indexOf(driver) + 1;
@@ -187,9 +227,14 @@ export function result_points(season: Season, event: SeriesEvent, result: EventR
   return place_points(event, place) + (driver === player_of(season) ? bonus_points(result.bonus) : 0);
 }
 
-/** A new run replaces the stored one only when the player took more points from it: a retry never costs points. */
+/**
+ * A new run replaces the stored one when it takes a podium the stored one missed, or else more points: a retry never
+ * costs the podium that opens the next event (bonuses can lift a fourth place over a plain third), nor points.
+ */
 export function better(season: Season, event: SeriesEvent, next: EventResult, before: EventResult | undefined): boolean {
   if (!before) return true;
+  const up = podium(season, event, next);
+  if (up !== podium(season, event, before)) return up;
   const player = player_of(season);
   return result_points(season, event, next, player) > result_points(season, event, before, player);
 }
