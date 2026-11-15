@@ -79,7 +79,7 @@ export class WorkerSim implements Sim {
     if (command.type === "place" || command.type === "park" || command.type === "swap" || command.type === "refill") {
       this.car = car_command(this.car, command, this.world);
       this.epoch++;
-    } else if (command.type === "shift" || command.type === "aids" || command.type === "drag") this.car = car_command(this.car, command, this.world);
+    } else if (command.type === "shift" || command.type === "aids") this.car = car_command(this.car, command, this.world);
     else if (command.type === "field") {
       this.field_cars = command.specs.map((spec) => new Car(spec));
       this.epoch++;
