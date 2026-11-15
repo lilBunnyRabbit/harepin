@@ -12,7 +12,7 @@ const KIT_SILL = 0.18;
 const FOOT = 2.14;
 const NOSE = 2.25;
 const TAIL_FACE = -1.99;
-const NOSE_PINCH = 0.2;
+const NOSE_PINCH = 0.25;
 const NOSE_RUN = 0.6;
 const TUCK = 0.03;
 const LEDGE = 0.46;
@@ -149,7 +149,7 @@ const LAMP: Point = [(FACE[0][0] + FACE[1][0]) / 2, (FACE[0][1] + FACE[1][1]) / 
 const LAMP_TILT = -Math.atan2(FACE[0][0] - FACE[1][0], FACE[1][1] - FACE[0][1]);
 // The share of its x the body keeps at the lamp: drawn this much wider and further out, the lamp comes out round and in place.
 const LAMP_KEPT = 1 - (NOSE_PINCH * (LAMP[0] - (FOOT - NOSE_RUN))) / NOSE_RUN - (TUCK * (BELT[0] - LAMP[1])) / (BELT[1] - SILL);
-const LAMP_X = 0.67 / LAMP_KEPT;
+const LAMP_X = 0.65 / LAMP_KEPT;
 /** A disc on the lamp's face, `sunk` metres under the lens along the face's normal. */
 const on_face = (wide: number, deep: number, sunk: number): Part => ({ sides: 16, size: [wide / LAMP_KEPT, wide, deep], at: [LAMP_X, LAMP[1] + sunk * Math.sin(LAMP_TILT), LAMP[0] - sunk * Math.cos(LAMP_TILT)], tilt: [LAMP_TILT, 0, 0], round: true });
 
@@ -158,7 +158,7 @@ const WHALETAIL = lip([-1.36, 0.9], [-2.08, 0.95]);
 const TRAY = lip([-1.3, 0.92], [-2.14, 1.01]);
 const DUCK = lip([-1.42, 0.88], [-2.12, 0.99]);
 const LID_HALF = 0.87;
-const PLANE = plane([-1.8, 1.17], 0.5, 0.05, 0.1);
+const PLANE = plane([-1.8, 1.23], 0.5, 0.05, 0.1);
 const PLANE_HALF = 1.3;
 
 function wings(shoulder: number): Wing[] {
