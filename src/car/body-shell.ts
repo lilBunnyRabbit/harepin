@@ -316,22 +316,25 @@ function folded_slab(points: Point[], from: number, to: number, cuts: Cut[]): TH
  */
 export function fitted_slab(d: Design, s: Slab): THREE.BufferGeometry[] {
   const anchor = s.straight;
+  // A sloped face bends where its slope starts and ends: cut there too, or one cap spans the bend and twists.
+  const bends = crossed(s.points, [s.lean, s.roll].flatMap((slope) => (slope ? [slope.low, slope.high] : [])).map((y): Cut => ({ n: [0, 1], c: -y })));
   const pieces =
     anchor === undefined
-      ? folded_slab(s.points, s.from, s.to, [...folds(d), ...crest(d), ...crossed(s.points, ends(d))])
-      : folded_slab(s.points, s.from, s.to, [...folds(d), ...crest(d)].filter(({ n }) => n[1] !== 0)).map((g) => unpinched(g, d, anchor));
-  const lean = s.lean;
-  return lean ? pieces.map((g) => leaned_in(g, s.from, lean)) : pieces;
+      ? folded_slab(s.points, s.from, s.to, [...folds(d), ...crest(d), ...crossed(s.points, ends(d)), ...bends])
+      : folded_slab(s.points, s.from, s.to, [...[...folds(d), ...crest(d)].filter(({ n }) => n[1] !== 0), ...bends]).map((g) => unpinched(g, d, anchor));
+  const { lean, roll } = s;
+  const leaned = lean ? pieces.map((g) => sloped(g, s.from, lean)) : pieces;
+  return roll ? leaned.map((g) => sloped(g, s.to, { low: roll.low, high: roll.high, out: -roll.in })) : leaned;
 }
 
-/** Moves the vertices on a slab's inner face, at `from`, outward with height as its `lean` says. */
-function leaned_in(geometry: THREE.BufferGeometry, from: number, { low, high, out }: NonNullable<Slab["lean"]>): THREE.BufferGeometry {
+/** Moves the vertices on a slab face at distance `at` from the centre outward with height, from none at `low` to `out` at `high`. */
+function sloped(geometry: THREE.BufferGeometry, at: number, { low, high, out }: NonNullable<Slab["lean"]>): THREE.BufferGeometry {
   const position = geometry.getAttribute("position");
   for (let i = 0; i < position.count; i++) {
     const x = position.getX(i);
-    if (Math.abs(Math.abs(x) - from) > ON_CUT) continue;
+    if (Math.abs(Math.abs(x) - at) > ON_CUT) continue;
     const share = Math.max(0, Math.min(1, (position.getY(i) - low) / (high - low)));
-    position.setX(i, Math.sign(x) * (from + out * share));
+    position.setX(i, Math.sign(x) * (at + out * share));
   }
   geometry.computeVertexNormals();
   return geometry;

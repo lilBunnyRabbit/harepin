@@ -78,3 +78,21 @@ test("a leaned slab's inner face moves out with height and its outer face stays 
     expect(x).toBeCloseTo(want, 6);
   }
 });
+
+test("a rolled slab's outer face moves in with height and its inner face stays where it was", () => {
+  const d = DESIGNS.coupe;
+  const points: Slab["points"] = [[0.4, 0.3], [0.4, 0.5], [-0.4, 0.5], [-0.4, 0.3]];
+  const roll = { low: 0.3, high: 0.5, in: 0.1 };
+  const xs = (s: Slab) =>
+    fitted_slab(d, s).flatMap((piece) => {
+      const position = piece.getAttribute("position");
+      return Array.from({ length: position.count }, (_, i) => [Math.abs(position.getX(i)), position.getY(i)]);
+    });
+  const plain = xs({ points, from: 0.5, to: 0.8 });
+  const rolled = xs({ points, from: 0.5, to: 0.8, roll });
+  for (const [k, [x, y]] of rolled.entries()) {
+    const was = plain[k][0];
+    const want = Math.abs(was - 0.8) < 1e-6 ? 0.8 - roll.in * Math.max(0, Math.min(1, (y - roll.low) / (roll.high - roll.low))) : was;
+    expect(x).toBeCloseTo(want, 6);
+  }
+});

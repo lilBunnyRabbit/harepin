@@ -50,6 +50,8 @@ export interface Slab {
    * and has moved `out` metres outward by `high`, so a hip or wing crown rolls into the deck beside it.
    */
   lean?: { low: number; high: number; out: number };
+  /** The outer face, at `to`, rolls in toward the top the same way: it stands at `to` up to `low` and has moved `in` metres inward by `high`, so a wing or hip crown reads round without a shoulder over lamps it would shear. */
+  roll?: { low: number; high: number; in: number };
 }
 
 export interface Arches {
