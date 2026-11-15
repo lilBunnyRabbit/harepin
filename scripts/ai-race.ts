@@ -1,6 +1,6 @@
 import { Car, drop_height } from "../src/car/car";
 import { COUPE, car_spec, type CarSpec } from "../src/car/cars";
-import { Driver } from "../src/ai/driver";
+import { Driver, OFF_ROAD } from "../src/ai/driver";
 import { Field, personalities } from "../src/ai/field";
 import { race_line } from "../src/ai/line";
 import { World } from "../src/world/world";
@@ -18,8 +18,6 @@ const CONTACT_BAND = [0, 6] as const;
 /** Share of races that may finish in grid order, and the highest mean grid-to-finish rank correlation allowed. */
 const GRID_KEPT_MAX = 0.2;
 const RHO_MAX = 0.7;
-/** Metres off the centreline that count as off the road, as the autopilot counts them. */
-const OFF_ROAD = 7;
 
 interface Solo {
   t: number;

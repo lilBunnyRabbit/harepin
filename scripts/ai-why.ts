@@ -101,6 +101,7 @@ function why(seeds: readonly number[], car: string | undefined, count: number, l
             at[Cause.SLIDE][i] = t;
             slide_state[i] = `(${driver.push > 1 ? "passing" : Math.abs(driver.aside) > 0.5 ? "off line" : driver.cap < Infinity ? "following" : "on line"}, ${speed.toFixed(0)} m/s, plan ${line.speed[driver.index].toFixed(0)})`;
           } else if (sliding[i] && slide < CALM) sliding[i] = 0;
+          // Leaving the tarmac starts the trouble, well before OFF_ROAD counts the car as off for a reset.
           const away = world.distance_to_road(c.pos.x, c.pos.z) > ROAD_HALF;
           if (away && !off[i]) at[Cause.OFFROAD][i] = t;
           off[i] = away ? 1 : 0;

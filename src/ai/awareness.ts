@@ -72,8 +72,6 @@ const DEFEND_DROP = 5;
 const DEFEND_LATERAL = 2.5;
 /** Metres ahead of a kicker's run (pass room 0) a field goes single file: a challenge frame's gap fits one car. */
 const KICKER_LOOK = 60;
-/** Most m/s under the line's plan a car drops to while it lets the one alongside into a kicker first: under jump pace it falls short into the frame. */
-const KICKER_YIELD = 4;
 /** Road points ahead the inside of the next bend is read from: where the line runs slowest. */
 const BEND_LOOK = 100;
 
@@ -199,7 +197,6 @@ export class Awareness {
     if (blocker >= 0) {
       // The speed the car ahead is about to hold, not the one it has: it brakes for the bend before the follower sees it slow.
       driver.cap = this.follow(blocker, blocker_gap, blocker === this.passing[i] ? PASS_FOLLOW : FOLLOW);
-      if (kicker && blocker_gap < ALONGSIDE) driver.cap = Math.max(driver.cap, driver.line.speed[driver.index] - KICKER_YIELD);
     }
     const line = driver.line;
     const n = line.road.length;
@@ -315,7 +312,7 @@ export class Awareness {
     driver.nudge = away * Math.min(NUDGE_MAX, near_in + NUDGE_MARGIN);
     const gap = this.gap(i, near);
     if (gap <= 0) return;
-    const yield_to = this.kicker_ahead(driver) ? Math.max(this.follow(near, gap, FOLLOW), driver.line.speed[driver.index] - KICKER_YIELD) : this.speed[near] - YIELD;
+    const yield_to = this.kicker_ahead(driver) ? this.follow(near, gap, FOLLOW) : this.speed[near] - YIELD;
     driver.cap = Math.min(driver.cap, Math.max(0, yield_to));
   }
 
