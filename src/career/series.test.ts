@@ -95,7 +95,7 @@ test("a head to head maps the race's two cars onto the rival and the player", ()
   expect(result.order).toEqual([YOU, season.rival]);
   expect(result.bonus).toEqual([Bonus.CLEAN, Bonus.LED, Bonus.FROM_BACK]);
   const lost = event_result(season, duel, { order: [0, 1], clean: false, led: false, fastest: true, from_back: true });
-  expect(lost.bonus).toEqual([Bonus.FASTEST]);
+  expect(lost.bonus).toEqual([]);
   expect(event_line(season, duel, lost)).toContain("the rival");
 });
 
@@ -108,4 +108,9 @@ test("the rival duel opens the next event only on a win, and its loss scores 4",
   const i = season.events.indexOf(duel);
   expect(event_states(season, { season: season.id, results: { [duel.id]: lost } })[i]).not.toBe("podium");
   expect(event_states(season, { season: season.id, results: { [duel.id]: won } })[i]).toBe("podium");
+});
+
+test("fastest lap pays only in endurance, the one event of more than a lap", () => {
+  const outcome = { order: [6, 0, 1, 2, 3, 4, 5], clean: false, led: false, fastest: true, from_back: false };
+  for (const event of season.events) expect(event_result(season, event, outcome).bonus.includes(Bonus.FASTEST)).toBe(event.kind === SeriesKind.ENDURANCE);
 });

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { KIND_NAMES, KIND_RULES, ordinal, place_of, player_of, result_points, type EventState, type Season, type SeriesProgress } from "../career/series";
+  import { BONUS_NAMES, BONUS_POINTS, KIND_BONUSES, KIND_NAMES, KIND_RULES, ordinal, place_of, player_of, result_points, type EventState, type Season, type SeriesProgress } from "../career/series";
   import Badge from "./ui/Badge.svelte";
   import Button from "./ui/Button.svelte";
   import Card from "./ui/Card.svelte";
@@ -31,6 +31,7 @@
               <Badge tone={event.final ? "accent" : "neutral"}>{event.final ? "Final" : KIND_NAMES[event.kind]}</Badge>
             </div>
             <span class="sr-dim">{KIND_RULES[event.kind]}</span>
+            <span class="sr-dim">Bonus: {KIND_BONUSES[event.kind].map((b) => `${BONUS_NAMES[b].toLowerCase()} +${BONUS_POINTS[b]}`).join(" · ")}</span>
             {#if result}
               <span class="sr-result" data-podium={state === "podium"}>{ordinal(place_of(result, player))} · {result_points(season, event, result, player)} pts</span>
             {/if}

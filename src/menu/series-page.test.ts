@@ -21,3 +21,9 @@ test("the table names the rival, marks the player and says who won each event", 
   expect(out).toContain('data-now="true"');
   expect(out).toContain("Opening race: you win.");
 });
+
+test("only the endurance event lists fastest lap as a bonus", () => {
+  const progress = empty_progress(season);
+  const out = render(SeriesEvents, { props: { season, progress, states: event_states(season, progress), onstart: () => {} } }).body;
+  expect(out.match(/fastest lap/g)?.length).toBe(1);
+});

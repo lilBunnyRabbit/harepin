@@ -111,6 +111,13 @@ export type Bonus = (typeof Bonus)[keyof typeof Bonus];
 export const BONUS_POINTS: Record<Bonus, number> = { [Bonus.CLEAN]: 2, [Bonus.LED]: 1, [Bonus.FASTEST]: 1, [Bonus.FROM_BACK]: 2 };
 export const BONUS_NAMES: Record<Bonus, string> = { [Bonus.CLEAN]: "Clean race", [Bonus.LED]: "Led at halfway", [Bonus.FASTEST]: "Fastest lap", [Bonus.FROM_BACK]: "Won from the back" };
 const BONUSES = Object.values(Bonus);
+/** What each kind can pay. Fastest lap only where there is more than one lap (Endurance): on one lap it is the win again. */
+export const KIND_BONUSES: Record<SeriesKind, readonly Bonus[]> = {
+  [SeriesKind.RACE]: [Bonus.CLEAN, Bonus.LED, Bonus.FROM_BACK],
+  [SeriesKind.KNOCKOUT]: [Bonus.CLEAN, Bonus.LED, Bonus.FROM_BACK],
+  [SeriesKind.HEAD_TO_HEAD]: [Bonus.CLEAN, Bonus.LED, Bonus.FROM_BACK],
+  [SeriesKind.ENDURANCE]: [Bonus.CLEAN, Bonus.LED, Bonus.FASTEST, Bonus.FROM_BACK],
+};
 
 /** One run of an event: who finished where, as indices into the season's field, the player being `field.length`. */
 export interface EventResult {
@@ -244,5 +251,5 @@ export function event_result(season: Season, event: SeriesEvent, outcome: FieldO
   if (outcome.led) bonus.push(Bonus.LED);
   if (outcome.fastest) bonus.push(Bonus.FASTEST);
   if (won && outcome.from_back) bonus.push(Bonus.FROM_BACK);
-  return { order, bonus };
+  return { order, bonus: bonus.filter((b) => KIND_BONUSES[event.kind].includes(b)) };
 }
