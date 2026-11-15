@@ -6,6 +6,19 @@ import { ROAD_HALF, type Ramp, type RoadPoint } from "../worldgen/types";
  * (spins and resets triple), and braking at 3 runs wide alone.
  */
 export const LINE_GRIP = 6;
+/**
+ * Cornering grip (m/s²) the line plans on in a bend of radius FAST_RADIUS m or wider, eased down to LINE_GRIP at
+ * HAIRPIN_RADIUS and under: in a hairpin the driver is already at full lock at LINE_GRIP, in a fast bend it has room.
+ */
+const FAST_GRIP = 6;
+const HAIRPIN_RADIUS = 25;
+const FAST_RADIUS = 80;
+
+/** Grip (m/s²) the line plans a bend of signed curvature `bend` (1/m) on. */
+export function grip_at(bend: number): number {
+  const radius = 1 / Math.max(1e-9, Math.abs(bend));
+  return LINE_GRIP + (FAST_GRIP - LINE_GRIP) * Math.max(0, Math.min(1, (radius - HAIRPIN_RADIUS) / (FAST_RADIUS - HAIRPIN_RADIUS)));
+}
 export const LINE_BRAKE = 2.5;
 /** Braking (m/s²) a driver diving down the inside plans on: it brakes later and harder than the line, into the apex. */
 export const LATE_BRAKE = 4;
@@ -143,7 +156,7 @@ export function race_line(road: readonly RoadPoint[], ramps: readonly Ramp[], ha
     const a = wrap(i - CURVE_SPAN, n);
     const c = wrap(i + CURVE_SPAN, n);
     bend[i] = inverse_radius(x[a], z[a], x[i], z[i], x[c], z[c]);
-    speed[i] = Math.min(Math.sqrt(LINE_GRIP / Math.abs(bend[i])), ramp[i] >= 0 ? JUMP_PACE : Infinity);
+    speed[i] = Math.min(Math.sqrt(grip_at(bend[i]) / Math.abs(bend[i])), ramp[i] >= 0 ? JUMP_PACE : Infinity);
   }
   const late = speed.slice();
   brake_curve(speed, step, LINE_BRAKE);

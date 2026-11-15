@@ -1,7 +1,7 @@
 import { Quaternion, Vector3 } from "three";
 import { ride_height, type Car, type Controls, type Ground } from "../car/car";
 import { ROAD_HALF } from "../worldgen/types";
-import { CURVE_SPAN, inverse_radius, LATE_BRAKE, LINE_BRAKE, LINE_GRIP, type RaceLine } from "./line";
+import { CURVE_SPAN, grip_at, inverse_radius, LATE_BRAKE, LINE_BRAKE, type RaceLine } from "./line";
 
 /** Road points of aim past the car, plus one per this many m/s: pure pursuit, as the autopilot steers. */
 const AIM_BASE = 7;
@@ -45,6 +45,8 @@ const WARY_BOLD = 0.6;
 const REVERSE_TIME = 1.5;
 /** Share over the line's grip a passing driver plans its path on: off the line every bend is tighter, and a pass at the line's grip never gets by. */
 const PASS_GRIP = 1.4;
+/** Most grip (m/s²) a pass plans on, whatever the line's: the coupe's skidpad is 9.2, and past this a pass runs wide. */
+const PASS_MAX = 8.4;
 /** Road points ahead a driver off the line reads bends over, every HOLD_STRIDE. */
 const HOLD_LOOK = 60;
 const HOLD_STRIDE = 3;
@@ -242,7 +244,7 @@ export class Driver {
       const li = this.lateral_at(car, i);
       const lc = this.lateral_at(car, c);
       const bend = inverse_radius(road[a].x + road[a].tz * la, road[a].z - road[a].tx * la, road[i].x + road[i].tz * li, road[i].z - road[i].tx * li, road[c].x + road[c].tz * lc, road[c].z - road[c].tx * lc);
-      const v = Math.min(plan[i], Math.sqrt((this.push > 1 ? LINE_GRIP * PASS_GRIP : LINE_GRIP) / Math.max(1e-9, Math.abs(bend))));
+      const v = Math.min(plan[i], Math.sqrt((this.push > 1 ? Math.min(PASS_MAX, grip_at(bend) * PASS_GRIP) : grip_at(bend)) / Math.max(1e-9, Math.abs(bend))));
       pace = Math.min(pace, Math.sqrt(v * v + 2 * brake * run));
       for (let s = 0; s < HOLD_STRIDE; s++) run += line.step[(i + s) % n];
     }
