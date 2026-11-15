@@ -1,0 +1,23 @@
+#lab t3a-sturm-power r3 v0.48.2 2026-11-15T12:21Z keys 2560x1360
+#trial sturm-straight-best sturm.4.0.4.2.2.0.7.2.2.2.1.2 spec#0132da40 pi701S1 runway/asphalt run done tcs=on assist=off stability=off steer=smooth abs=on auto=on
+ m time=11.1 seg=9.66 slip=0/- held=0 chain=0 spins=0 0-100=3.26 top=210 spin=0.00225/1.21 air=0 bounce=0 offs=0 resets=0 lock=0 thr=1 hb=0 rev=0 yawsd=0/0
+#trial sturm-straight-sc sturm.4.0.4.2.3.0.7.2.2.2.1.2 spec#6a2eb261 pi730S1 runway/asphalt run done tcs=on assist=off stability=off steer=smooth abs=on auto=on
+ m time=10.7 seg=9.25 slip=0/- held=0 chain=0 spins=0 0-100=3.13 top=224 spin=0.0101/1.23 air=0 bounce=0 offs=0 resets=0 lock=0 thr=1 hb=0 rev=0 yawsd=0/0
+#trial sturm-straight-turbo sturm.4.0.4.2.4.0.7.2.2.2.1.2 spec#d2c3789a pi755S1 runway/asphalt run done tcs=on assist=off stability=off steer=smooth abs=on auto=on
+ m time=10.3 seg=8.88 slip=0/- held=0 chain=0 spins=0 0-100=2.97 top=237 spin=0.0113/1.25 air=0 bounce=0 offs=0 resets=0 lock=0 thr=1 hb=0 rev=0 yawsd=0/0
+#trial sturm-straight-twin sturm.4.0.4.2.5.0.7.2.2.2.1.2 spec#2d95f3ea pi789S1 runway/asphalt run done tcs=on assist=off stability=off steer=smooth abs=on auto=on
+ m time=10 seg=8.51 slip=0/- held=0 chain=0 spins=0 0-100=3.08 top=254 spin=0.0247/1.74 air=0 bounce=0 offs=0 resets=0 lock=0 thr=1 hb=0 rev=0 yawsd=0/0
+#trial sturm-straight-top sturm.4.0.5.2.5.0.7.6.2.3.1.2 spec#b0eb984e pi883S2 runway/asphalt run done tcs=on assist=off stability=off steer=smooth abs=on auto=on
+ m time=9.36 seg=7.99 slip=0/- held=0 chain=0 spins=0 0-100=2.54 top=259 spin=0.019/1.45 air=0 bounce=0 offs=0 resets=0 lock=0 thr=1 hb=0 rev=0 yawsd=0/0
+ n "You can def feel the change with different engines"
+#trial sturm-pins-best sturm.4.0.4.2.2.0.7.2.2.2.1.2 spec#0132da40 pi701S1 hairpin/asphalt run done tcs=on assist=off stability=off steer=smooth abs=on auto=on
+ m time=25.5 seg=22.1 slip=2.95/- held=0 chain=0 spins=0 lag=4 0-100=3.26 top=128 spin=0.0583/1.28 air=0 bounce=0 offs=0 resets=0 lock=0.571 thr=0.554 hb=0 rev=0.117 yawover=0.0203 pwr=2.95 lift=2.15 trail=2.64
+#trial sturm-pins-twin sturm.4.0.4.2.5.0.7.2.2.2.1.2 spec#2d95f3ea pi789S1 hairpin/asphalt run done tcs=on assist=off stability=off steer=smooth abs=on auto=on
+ m time=24.8 seg=21.3 slip=6.97/- held=0 chain=0 spins=0 lag=0.316 0-100=3.14 top=146 spin=0.148/1.81 air=0 bounce=0 offs=0 resets=0 lock=0.654 thr=0.606 hb=0 rev=0.282 yawover=0.00687 pwr=6.95 lift=3.36 trail=3.36 xslip=2.45
+#trial sturm-pins-shell sturm.4.0.4.2.2.0.7.2.2.3.1.2 spec#a13342ff pi731S1 hairpin/asphalt run done tcs=on assist=off stability=off steer=smooth abs=on auto=on
+ m time=24.7 seg=21.3 slip=6/- held=0 chain=0 spins=0 lag=1.59 0-100=3.05 top=136 spin=0.122/1.52 air=0 bounce=0 offs=1 resets=0 lock=0.588 thr=0.605 hb=0 rev=0.162 yawover=0.0661 pwr=6 lift=3.32 trail=3.32 xslip=3.49
+ n "Previous one wanted to drift when gas out of corner, this one is stable"
+#trial sturm-pins-top sturm.4.0.5.2.5.0.7.6.2.3.1.2 spec#b0eb984e pi883S2 hairpin/asphalt run done tcs=on assist=off stability=off steer=smooth abs=on auto=on
+ m time=23.3 seg=20.1 slip=4.98/- held=0 chain=0 spins=0 lag=0 0-100=2.55 top=152 spin=0.159/1.94 air=0 bounce=0 offs=2 resets=0 lock=0.679 thr=0.608 hb=0 rev=0.257 yawover=0.276 pwr=4.97 lift=3.59 trail=3.59 xslip=3.73
+ n "This oone also wants to drift out of corner. idk why its just a \"want\" and not actually starting to drift slightly"
+#end 9/9 trials

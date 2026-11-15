@@ -1,0 +1,18 @@
+#lab t3b-sturm-grip r3 v0.49.0 2026-11-15T12:33Z keys 2560x1360
+#trial sturm-pad-best sturm.4.0.4.2.2.0.7.2.2.2.1.2 spec#0132da40 pi701S1 skidpad/asphalt laps3 done tcs=on assist=off stability=off steer=smooth abs=on auto=on
+ m time=31.8 lap=11.1,10.3,10.3 latg=1.53/1.07 ring=63.2 slip=25.7/18.8 held=4.35 chain=2.87 spins=0 lag=0 rec=6.49 top=77.4 spin=0.371/2.96 air=0 bounce=0 offs=1 resets=0 lock=0.925 thr=0.409 hb=0.0179 rev=0.126 yawover=0.283 us=2.07 pwr=21.8 lift=21.8 trail=1.99 entry=0.425
+ n "Quite stable. only starts drifting from start"
+#trial sturm-pad-slicks sturm.4.0.4.2.2.0.7.6.2.2.1.2 spec#1a6c74d7 pi730S1 skidpad/asphalt laps3 done tcs=on assist=off stability=off steer=smooth abs=on auto=on
+ m time=30 lap=10.4,9.64,9.95 latg=2.36/1.15 ring=64.3 slip=16.3/14.2 held=1.62 chain=1.62 spins=0 rec=1.53 top=78.2 spin=0.156/1.4 air=0 bounce=0 offs=0 resets=0 lock=0.975 thr=0.368 hb=0.00509 rev=0 yawover=0.916 us=2.04 pwr=16.3 lift=16.3 trail=1.6
+ n "stable doesnt slide"
+#trial sturm-pad-top sturm.4.0.5.2.5.0.7.6.2.3.1.2 spec#b0eb984e pi883S2 skidpad/asphalt laps3 done tcs=on assist=off stability=off steer=smooth abs=on auto=on
+ m time=29.9 lap=10.3,9.4,10.2 latg=1.81/1.23 ring=66.9 slip=6.94/- held=0 chain=0 spins=0 top=86.4 spin=0.227/3.65 air=0 bounce=0 offs=3 resets=0 lock=0.967 thr=0.317 hb=0 rev=0 yawover=0.851 us=1.6 pwr=3.66 lift=3.23 trail=1.4
+ n "stable doesnt slide. none of the setups can be done inside of the ring with full turn and gas"
+#trial sturm-sweep-best sturm.4.0.4.2.2.0.7.2.2.2.1.2 spec#0132da40 pi701S1 sweeper/r200 run done tcs=on assist=off stability=off steer=smooth abs=on auto=on
+ m time=13.6 seg=8.64 latg=2.12/0.769 ring=126 slip=2.63/- held=0 chain=0 spins=0 0-100=5.61 top=204 spin=0.0666/1.32 air=0 bounce=0 offs=0 resets=0 lock=0.412 thr=1 hb=0 rev=0 yawover=0.0592 us=2.82 xslip=0.129 yawsd=0.322/1
+#trial sturm-sweep-gt sturm.4.0.5.2.2.0.7.2.2.2.1.2 spec#170be05f pi729S1 sweeper/r200 run done tcs=on assist=off stability=off steer=smooth abs=on auto=on
+ m time=13.6 seg=8.65 latg=2.68/0.777 ring=126 slip=3.37/- held=0 chain=0 spins=0 lag=0 0-100=5.48 top=203 spin=0.0684/1.31 air=0 bounce=0 offs=0 resets=0 lock=0.347 thr=0.98 hb=0 rev=0.295 yawover=0.112 us=2.23 lift=1.65 xslip=0.108 yawsd=0.257/0.712
+#trial sturm-sweep-top sturm.4.0.5.2.5.0.7.6.2.3.1.2 spec#b0eb984e pi883S2 sweeper/r200 run done tcs=on assist=off stability=off steer=smooth abs=on auto=on
+ m time=12.8 seg=7.15 latg=5.3/1.17 ring=137 slip=11.2/10.6 held=0.131 chain=0.131 spins=0 lag=0 0-100=5.91 top=243 spin=0.109/3.25 air=0 bounce=0 offs=0 resets=0 lock=0.296 thr=1 hb=0 rev=0.234 yawover=0 us=2.37 xslip=3.94 yawsd=0.444/0.708
+ n "This one is the least stable one but all are kinda stable"
+#end 6/6 trials
