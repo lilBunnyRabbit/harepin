@@ -40,14 +40,21 @@ test("the series rail ends on a standings card and only the front card races", (
 });
 
 test("the coverflow shows the player's credits, the class cap, the replay round and the final's reward", () => {
+  const first = empty_progress(season);
+  const base = { season, states: event_states(season, first), table: standings(season, first), done: false, onstart: () => {}, onback: () => {}, onreset: () => {} };
+  const own = { ...fresh_wallet(), cars: [...fresh_wallet().cars, season.reward.car] };
+  expect(render(SeriesFlow, { props: { ...base, progress: first, wallet: fresh_wallet() } }).body).toContain("Sajin + 5,000 cr");
+  const kept = render(SeriesFlow, { props: { ...base, progress: first, wallet: own } }).body;
+  expect(kept).toContain("sc-reward");
+  expect(kept).not.toContain("Sajin + ");
   const progress = { ...empty_progress(season, 1) };
   const props = { season, progress, states: event_states(season, progress), table: standings(season, progress), done: false, onstart: () => {}, onback: () => {}, onreset: () => {} };
   const fresh = render(SeriesFlow, { props: { ...props, wallet: { ...fresh_wallet(), credits: 12500 } } }).body;
   expect(fresh).toContain("12,500 cr");
   expect(fresh).toContain("Class C · your own cars");
   expect(fresh).toContain("Run 2");
-  expect(fresh).toContain("Sajin + 5,000 cr");
-  const owned = render(SeriesFlow, { props: { ...props, wallet: { ...fresh_wallet(), cars: [...fresh_wallet().cars, season.reward.car] } } }).body;
-  expect(owned).not.toContain("Sajin +");
-  expect(owned).toContain("+5,000 cr");
+  expect(fresh).toContain("Sajin");
+  expect(fresh).not.toContain("Sajin + ");
+  const owned = render(SeriesFlow, { props: { ...props, wallet: own } }).body;
+  expect(owned).not.toContain("sc-reward");
 });

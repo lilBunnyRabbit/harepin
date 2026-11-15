@@ -8,9 +8,9 @@ function memory(): WalletSaves & { data: { value: unknown } } {
   return { data, load: async () => structuredClone(data.value), save: async (s: WalletState) => void (data.value = structuredClone(s)) };
 }
 
-test("the database has a wallet store keyed by id, on a version past the series-only one", () => {
+test("the database has a wallet store keyed by id, on a version above master's v3 (ghosts, kv)", () => {
   expect(HAREPIN_DB.stores).toContainEqual({ name: "wallet", key: "id" });
-  expect(HAREPIN_DB.version).toBeGreaterThanOrEqual(2);
+  expect(HAREPIN_DB.version).toBeGreaterThanOrEqual(4);
 });
 
 test("everyone starts on the base car with no credits", () => {

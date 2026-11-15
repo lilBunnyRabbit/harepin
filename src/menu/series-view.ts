@@ -42,10 +42,11 @@ export const cap_line = (season: Season) => `Class ${CLASS_LABELS[season.cap]} Â
 
 export const round_line = (progress: SeriesProgress) => (progress.round ? `Run ${progress.round + 1}` : null);
 
-/** The final's prize: the car only while the player does not own it, the credits every time the season is won. */
-export function reward_line(season: Season, wallet: WalletState): string {
+/** The final's prize: the car while the player does not own it, the credits on the season's first run only; null when nothing is left. */
+export function reward_line(season: Season, wallet: WalletState, progress: SeriesProgress): string | null {
   const { car, credits } = season.reward;
-  return wallet.cars.includes(car) ? `+${credits_text(credits)}` : `${CARS[car].name} + ${credits_text(credits)}`;
+  const parts = [...(wallet.cars.includes(car) ? [] : [CARS[car].name]), ...(progress.round === 0 ? [credits_text(credits)] : [])];
+  return parts.length ? parts.join(" + ") : null;
 }
 
 /** Points between the player and the rival: positive when the player leads. */

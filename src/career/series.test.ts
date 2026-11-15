@@ -209,8 +209,8 @@ test("every finish pays credits, the final double; completing the season pays it
   await reload.load();
   expect(reload.progress.round).toBe(1);
   expect(reload.event(opener.id)?.seed).toBe(season.replays[0]);
-  for (const event of season.events) series.record(event, at(1));
-  expect(series.record(final, at(1)).car).toBeNull();
+  for (const event of season.events.slice(0, -1)) series.record(event, at(1));
+  expect(series.record(final, at(1))).toEqual({ kept: true, credits: 10 * CREDITS_PER_POINT * FINAL_FACTOR, season_credits: 0, car: null });
   series.reset();
   series.record(opener, at(2));
   series.reset();

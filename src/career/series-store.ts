@@ -69,8 +69,10 @@ export class Series {
     if (kept) this.set({ ...this.progress_, results: { ...this.progress_.results, [event.id]: result } });
     const completed = !was_done && season_done(season, this.progress_);
     if (!completed) return { kept, credits, season_credits: 0, car: null };
-    this.wallet.earn(season.reward.credits);
-    return { kept, credits, season_credits: season.reward.credits, car: this.wallet.grant(season.reward.car) ? season.reward.car : null };
+    // The reward's credits pay once, on the season's own seeds: a replay pays its races' credits only, so it is no farm.
+    const season_credits = this.progress_.round === 0 ? season.reward.credits : 0;
+    this.wallet.earn(season_credits);
+    return { kept, credits, season_credits, car: this.wallet.grant(season.reward.car) ? season.reward.car : null };
   }
 
   /** A finished season runs again on new seeds against a stronger field (C5); one under way starts over where it is. */

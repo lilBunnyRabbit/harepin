@@ -77,7 +77,7 @@
       {#each season.events as event, i (event.id)}
         <li data-i={i}>
           <div class="fl-card">
-            <SeriesCard {event} n={i + 1} state={states[i]} score={event_score(season, progress, event)} front={i === focus} reward={event.final ? reward_line(season, wallet) : null} {onstart} onpick={() => show(i)} />
+            <SeriesCard {event} n={i + 1} state={states[i]} score={event_score(season, progress, event)} front={i === focus} reward={event.final ? reward_line(season, wallet, progress) : null} {onstart} onpick={() => show(i)} />
           </div>
         </li>
       {/each}
