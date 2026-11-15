@@ -1,5 +1,5 @@
 import { SPAWN_INDEX, type World } from "../world/world";
-import { DECK_STRIDE, SurfaceId, type RoadPoint } from "../worldgen/types";
+import { DECK_STRIDE, type RoadPoint } from "../worldgen/types";
 import { VIEWS, type ViewName } from "./catalog";
 
 type V3 = [number, number, number];
@@ -22,13 +22,8 @@ const CREST_RUN = 8;
 const CREST_DROP = 15;
 const CREST_REACH = 480;
 const CREST_STEP = 4;
-/** The ice view walks every `ICE_STRIDE`th road point and looks `ICE_NEAR`-`ICE_FAR` metres out to each side for ice. */
-const ICE_STRIDE = 12;
-const ICE_NEAR = 8;
-const ICE_FAR = 200;
-const ICE_STEP = 8;
 
-type Plan = Pick<World, "lots" | "road" | "towns" | "water_level" | "nearest_road" | "clear_spawn">;
+type Plan = Pick<World, "lots" | "road" | "towns" | "water_level" | "nearest_road" | "clear_spawn" | "ice">;
 
 interface Frame {
   centre: V3;
@@ -116,6 +111,16 @@ export function plan_views(world: Plan): Partial<Record<ViewName, View>> {
   const cabin = world.lots.find((lot) => lot.town === -1);
   if (cabin) views.cabin = { at: index_of(world, cabin.x, cabin.z), from: [cabin.x + cabin.fx * 24 + cabin.fz * 12, cabin.y + 6, cabin.z + cabin.fz * 24 - cabin.fx * 12], to: [cabin.x, cabin.y + 2, cabin.z] };
 
+  // The longest frozen river at its middle, from its bank and along the ice.
+  const river = world.ice?.rivers.reduce((best, r) => (r.length > best.length ? r : best));
+  if (river && river.length > 2) {
+    const m = Math.floor(river.length / 2);
+    const [a, b, p] = [river[m - 1], river[m + 1], river[m]];
+    const [dx, dz] = flat_dir(a, b);
+    const out = p.half + 14;
+    views.ice = { at: index_of(world, p.x, p.z), from: [p.x + dz * out - dx * 24, p.level + 6, p.z - dx * out - dz * 24], to: [p.x + dx * 40, p.level, p.z + dz * 40] };
+  }
+
   const reach = Math.min(span, AERIAL_REACH);
   views.aerial = { at: index_of(world, middle.x, middle.z), from: [middle.x, centre[1] + reach * 0.55, middle.z - reach * 0.8], to: [middle.x, centre[1], middle.z] };
   return views;
@@ -146,27 +151,6 @@ async function crest_view(world: World): Promise<View | null> {
   return null;
 }
 
-/**
- * The first frozen lake or river beside the road, from the road's edge out across the ice. Ice is a surface the tiles
- * lay, so the walk streams them in as it reads them, as `crest_view` does.
- */
-async function ice_view(world: World): Promise<View | null> {
-  const { road } = world;
-  for (let at = 0; at < road.length; at += ICE_STRIDE) {
-    const { x, y, z, tx, tz } = road[at];
-    for (const side of [1, -1])
-      for (let d = ICE_NEAR; d <= ICE_FAR; d += ICE_STEP) {
-        const px = x + tz * side * d;
-        const pz = z - tx * side * d;
-        await world.tiles.ensure(px, pz);
-        if (world.surface(px, pz) !== SurfaceId.ICE) continue;
-        const ice = world.height(px, pz);
-        return { at, from: [x - tz * side * 6 - tx * 14, Math.max(y, ice) + 5, z + tx * side * 6 - tz * 14], to: [px + tz * side * 30, ice, pz - tx * side * 30] };
-      }
-  }
-  return null;
-}
-
 /** A deck world's steepest bank: `bowl` looks up its wall from the low edge, `rim` down into it from over the top. */
 function bank_view(world: World, name: "bowl" | "rim"): View | null {
   const line = world.deck?.deck.line;
@@ -183,7 +167,7 @@ function bank_view(world: World, name: "bowl" | "rim"): View | null {
 
 export async function view_of(world: World, name: string): Promise<View | null> {
   const known = VIEWS.find((view) => view === name);
-  const view = known === "crest" ? await crest_view(world) : known === "ice" ? await ice_view(world) : known === "bowl" || known === "rim" ? bank_view(world, known) : known && plan_views(world)[known];
+  const view = known === "crest" ? await crest_view(world) : known === "bowl" || known === "rim" ? bank_view(world, known) : known && plan_views(world)[known];
   if (!view) return null;
   const [x, y, z] = view.from;
   await world.tiles.ensure(x, z);

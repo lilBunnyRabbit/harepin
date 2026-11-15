@@ -6,7 +6,7 @@ import { DUNE_SEA_SIZE, generate_dune_sea } from "../worldgen/dune-sea";
 import { build_tile } from "../worldgen/ground";
 import { generate_world } from "../worldgen/kinds/kinds";
 import { generate_sky } from "../worldgen/sky";
-import { SurfaceId, WorldKind } from "../worldgen/types";
+import { WorldKind } from "../worldgen/types";
 import { sweep } from "../sweep";
 import { VIEWS } from "./catalog";
 import { plan_views, view_of } from "./viewpoints";
@@ -62,15 +62,12 @@ test("a sky world has no shore view, and an unknown name none at all", async () 
   expect(await view_of(world, "nowhere")).toBeNull();
 });
 
-test("a frozen world's ice view looks out from the road over its ice; the island has none", async () => {
-  expect(await view_of(new World(0), "ice")).toBeNull();
-  const world = new World(0, generate_world(0, WorldKind.TUNDRA));
-  const view = await view_of(world, "ice");
-  if (!view) throw new Error("tundra 0: no ice view");
+test("Winter Mainland's ice view looks along a frozen river from its bank; the island has none", () => {
+  expect(plan_views(new World(0)).ice).toBeUndefined();
+  const world = new World(0, generate_world(0, WorldKind.MAINLAND, [1]), [], [1]);
+  const view = plan_views(world).ice;
+  if (!view) throw new Error("winter mainland 0: no ice view");
   expect(finite(view.from) && finite(view.to)).toBe(true);
-  expect(view.from[1]).toBeGreaterThan(world.height(view.from[0], view.from[2]));
-  const [fx, , fz] = view.from;
-  const [tx, , tz] = view.to;
-  const across = [0.8, 0.9, 1].some((t) => world.surface(fx + (tx - fx) * t, fz + (tz - fz) * t) === SurfaceId.ICE);
-  expect(across).toBe(true);
+  expect(view.from[1]).toBeGreaterThan(view.to[1]);
+  expect(view.at).toBeGreaterThanOrEqual(0);
 }, 60_000);

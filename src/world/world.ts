@@ -16,7 +16,7 @@ import { ISLAND, type BiomeRecipe } from "../worldgen/recipe";
 import { CELL, ROAD_HALF, RouteKind, SurfaceId, type WorldKind } from "../worldgen/types";
 import { LIFT } from "../worldgen/lifts";
 import { drawn_junctions, drawn_roads, junction_lift, laid_height, on_road_paint, paved_lots, paving_lift, road_lift, type DrawnJunction, type DrawnRoad, type LaidPad, type PavedLot } from "./drawn-lift";
-import { SEA_LEVEL, water_index, type WaterIndex } from "../worldgen/water";
+import { SEA_LEVEL, water_index, type Water, type WaterIndex } from "../worldgen/water";
 import type { WorldJournal } from "./world-journal";
 import type { LavaPool } from "../worldgen/lava";
 import type {
@@ -185,6 +185,8 @@ export class World implements Ground {
   private readonly fall_reset: boolean;
   private readonly reset_in_place: boolean;
   private readonly water: WaterIndex | null;
+  /** Lakes and rivers a freeze op turned to ground; null when none froze. */
+  readonly ice: Water | null;
   /** Crater lava the scene draws; empty on kinds without it. */
   readonly lava: readonly LavaPool[];
   /** The sea's level on a kind with ground; none on a deck-only kind. */
@@ -282,6 +284,7 @@ export class World implements Ground {
     const water = data.ground.ops.find((op) => op.kind === "water");
     const frozen = data.ground.ops.some((op) => op.kind === "freeze");
     this.water = water?.kind === "water" && !frozen ? water_index(water.water) : null;
+    this.ice = water?.kind === "water" && frozen ? water.water : null;
     const lava = data.ground.ops.find((op) => op.kind === "lava");
     this.lava = lava?.kind === "lava" ? lava.pools : [];
     this.sea = KINDS[data.kind].ground ? SEA_LEVEL : -Infinity;
