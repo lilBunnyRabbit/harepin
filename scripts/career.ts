@@ -38,6 +38,11 @@ const RUNS = 5;
 // Cars added after the marks were set: their drives would join the fields and move the medians every star is graded on.
 const LATER_CARS: readonly string[] = ["tsumuji", "sajin"];
 const DUEL_SILVER = 1.1;
+// Caps whose field holds only cars rated in the class, when at least CLASS_FIELD of them may race the route: road cars top
+// out in S2, and in X their bot drives would match a Formula's, since the autopilot never leans on its extra grip. A route
+// that shuts the Formula out leaves too few for a median, so road cars fill it.
+const CLASS_FIELDS: readonly CarClass[] = ["x"];
+const CLASS_FIELD = 3;
 const WRITE = process.argv.includes("--write");
 const ONLY = process.argv.slice(2).filter((a) => !a.startsWith("--"));
 const STEP_MS = DT * 1000;
@@ -103,9 +108,11 @@ function cars_for(event: CareerEvent, excludes: readonly string[] = []): { label
     const build = parse_build(p.code);
     return build && !(event.off_tarmac && on_road_tyres(build)) ? [{ label: p.name, build }] : [];
   });
-  return [...bodies, ...presets]
+  const open = [...bodies, ...presets]
     .map((entry) => ({ ...entry, pi: rating(entry.build).pi, class: rating(entry.build).class }))
-    .filter((entry) => within(entry.class, car.cap) && !excludes.includes(entry.build.car) && !LATER_CARS.includes(entry.build.car))
+    .filter((entry) => within(entry.class, car.cap) && !excludes.includes(entry.build.car) && !LATER_CARS.includes(entry.build.car));
+  const own = open.filter((entry) => entry.class === car.cap);
+  return (CLASS_FIELDS.includes(car.cap) && own.length >= CLASS_FIELD ? own : open)
     .sort((a, b) => b.pi - a.pi)
     .filter((entry, i, all) => all.findIndex((other) => build_code(other.build) === build_code(entry.build)) === i)
     .slice(0, RUNS);
