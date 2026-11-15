@@ -4,9 +4,11 @@ import { DEFAULT_BUILD, DEFAULT_PARTS, type Build } from "../car/build";
 import { within } from "../car/car-pick";
 import { rating } from "../car/pi";
 import { CREDITS_PER_POINT, FINAL_FACTOR } from "./credits";
-import { Bonus, OPEN_AT_START, PODIUM, SeriesKind, better, car_fault, empty_progress, event_field, event_line, event_result, event_states, grid_slot, parse_progress, player_of, result_points, season_done, season_round, standings, type EventResult, type SeriesProgress } from "./series";
+import { Bonus, OPEN_AT_START, PODIUM, SeriesKind, better, car_fault, empty_progress, event_field, event_line, event_result, event_states, grid_slot, parse_progress, player_of, result_points, season_done, season_round, standings, type EventResult, type Season, type SeriesProgress } from "./series";
 import type { SeriesSaves } from "./series-db";
-import { SEASON_1 } from "./series-seasons";
+import { SEASON_1, SEASON_4, SEASONS, completed, seasons_open, series_event } from "./series-seasons";
+import { build_world, plain_map } from "../worldgen/kinds/kinds";
+import type { WorldKind } from "../worldgen/types";
 import { Series } from "./series-store";
 import { BASE_CAR, Wallet } from "./wallet";
 
@@ -25,19 +27,75 @@ function memory(): SeriesSaves & { data: Map<string, unknown> } {
   return { data, load: async (id) => structuredClone(data.get(id)), save: async (p) => void data.set(p.season, structuredClone(p)) };
 }
 
-test("season 1 is six island events, the final last, with the first season's kinds", () => {
-  expect(season.events.length).toBe(6);
-  expect(season.events.at(-1)?.final).toBe(true);
-  expect(new Set(season.events.map((e) => e.kind))).toEqual(new Set(Object.values(SeriesKind)));
-  expect(season.field.length).toBe(6);
+const worlds = new Map<string, World>();
+function world_of(kind: WorldKind, seed: number): World {
+  const key = `${kind}:${seed}`;
+  let world = worlds.get(key);
+  if (!world) {
+    const map = plain_map(kind, seed);
+    world = new World(seed, build_world(seed, kind, map.levels).data, undefined, map.levels);
+    worlds.set(key, world);
+  }
+  return world;
+}
+
+/** The longest lap a race may run on: past it the game's one lap is the whole race, well over D4's four minutes. */
+const PAR_MAX_MS = 450_000;
+
+for (const each of SEASONS) {
+  test(`${each.name}: every event's route, and every replay seed's, is closed on its world, a lap within ${PAR_MAX_MS / 1000} s`, () => {
+    const routes = new Set(each.events.map((e) => e.route));
+    const check = (seed: number, id: string) => {
+      const route = world_of(each.world, seed).routes.find((r) => r.id === id);
+      expect(route?.closed).toBe(true);
+      expect(route!.par_ms).toBeLessThanOrEqual(PAR_MAX_MS);
+    };
+    for (const event of each.events) check(event.seed, event.route);
+    for (const seed of each.replays) for (const id of routes) check(seed, id);
+  }, 180_000);
+}
+
+test("seasons run Island, Alpine, Dunes, Mainland: six events each, every first-season kind, the final last", () => {
+  expect(SEASONS.map((s) => s.name)).toEqual(["Island", "Alpine", "Dunes", "Mainland"]);
+  const ids = SEASONS.flatMap((s) => s.events.map((e) => e.id));
+  expect(new Set(ids).size).toBe(ids.length);
+  expect(new Set(SEASONS.map((s) => s.id)).size).toBe(SEASONS.length);
+  for (const each of SEASONS) {
+    expect(each.events.length).toBe(6);
+    expect(each.events.filter((e) => e.final)).toEqual([each.events.at(-1)!]);
+    expect(new Set(each.events.map((e) => e.kind))).toEqual(new Set(Object.values(SeriesKind)));
+    expect(each.field.length).toBe(6);
+    expect(each.rival).toBeLessThan(each.field.length);
+    for (const e of each.events) expect(e.id.startsWith(`${each.id}-`)).toBe(true);
+    for (const e of each.events) expect(e.kind === SeriesKind.ENDURANCE).toBe(e.limit_ms !== undefined);
+    expect(series_event(each.events[2].id)?.season).toBe(each);
+    expect(new Set(season_round(each, 1).events.map((e) => e.seed)).size).toBe(each.events.length);
+  }
+  expect(SEASON_4.events.some((e) => e.route === "town")).toBe(true);
 });
 
-test("every event's route is a closed route of its seed's island", () => {
-  for (const event of season.events) {
-    const route = new World(event.seed).routes.find((r) => r.id === event.route);
-    expect(route?.closed).toBe(true);
+test("each later season races a field at least as sharp, under a cap no lower, its rival from the season before in it", () => {
+  const sum = (s: Season) => s.field.reduce((n, d) => n + d.aggression - d.mistakes, 0);
+  for (let i = 1; i < SEASONS.length; i++) {
+    const [was, now] = [SEASONS[i - 1], SEASONS[i]];
+    expect(sum(now)).toBeGreaterThanOrEqual(sum(was));
+    expect(within(was.cap, now.cap)).toBe(true);
+    expect(now.field.map((d) => d.name)).toContain(was.field[was.rival].name);
+    expect(now.reward.credits).toBeGreaterThan(was.reward.credits);
   }
-}, 60_000);
+  expect(new Set(SEASONS.map((s) => s.reward.car)).size).toBe(SEASONS.length);
+});
+
+test("a season opens once the one before has been completed, and a replay of it under way keeps it open", () => {
+  const done = (s: Season): SeriesProgress => ({ season: s.id, round: 0, results: { [s.events.at(-1)!.id]: { order: [player_of(s), 0], bonus: [] } } });
+  const fresh = SEASONS.map((s) => completed(s, empty_progress(s)));
+  expect(seasons_open(fresh)).toEqual([true, false, false, false]);
+  expect(completed(SEASON_1, done(SEASON_1))).toBe(true);
+  expect(completed(SEASON_1, empty_progress(SEASON_1, 1))).toBe(true);
+  expect(seasons_open([true, false, false, false])).toEqual([true, true, false, false]);
+  expect(seasons_open([true, true, true, true])).toEqual([true, true, true, true]);
+  expect(seasons_open([false, true, false, false])).toEqual([true, false, true, false]);
+});
 
 test("events open three at a time, a podium opens the next, the final last", () => {
   const fresh = event_states(season, empty_progress(season));
@@ -149,14 +207,6 @@ test("a podium beats a better-scoring run off the podium, so bonuses never cost 
   expect(better(season, event, at(PODIUM), fourth)).toBe(true);
   expect(better(season, event, fourth, at(PODIUM))).toBe(false);
 });
-
-test("every replay seed has each route the season races, closed", () => {
-  const routes = new Set(season.events.map((e) => e.route));
-  for (const seed of season.replays) {
-    const world = new World(seed);
-    for (const id of routes) expect(world.routes.find((r) => r.id === id)?.closed).toBe(true);
-  }
-}, 60_000);
 
 test("a replay round races new seeds against a sharper field, within the 1-5 levels", () => {
   expect(season_round(season, 0)).toBe(season);
