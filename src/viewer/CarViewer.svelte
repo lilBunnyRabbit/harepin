@@ -184,6 +184,12 @@
         <div class="cars-row">
           <Button size="sm" icon="icon-share" onclick={() => viewer.copy(ref.id)}>{viewer.copied === ref.id ? "Copied" : `Copy ${scope_name}`}</Button>
           <Button size="sm" icon="icon-share" onclick={() => viewer.copy(null)}>{viewer.copied === "all" ? "Copied" : "Copy all"}</Button>
+          {#if viewer.clearing}
+            <Button size="sm" variant="danger" onclick={() => viewer.clear_all()}>Delete all {viewer.note_count}</Button>
+            <Button size="sm" variant="quiet" onclick={() => (viewer.clearing = false)}>Keep</Button>
+          {:else}
+            <Button size="sm" variant="quiet" disabled={viewer.note_count === 0} onclick={() => (viewer.clearing = true)}>Clear all</Button>
+          {/if}
         </div>
         {#if viewer.refused !== null}
           <label class="cars-refused">

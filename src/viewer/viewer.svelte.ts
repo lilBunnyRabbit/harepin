@@ -39,6 +39,7 @@ export class Viewer {
   /** The block when the browser refused the clipboard, shown to copy by hand. */
   refused = $state<string | null>(null);
   copied = $state<string | null>(null);
+  clearing = $state(false);
   /** The stage stands empty: the asset is not in this world, or the build fits no such part. */
   empty = $state(false);
   readonly shot: boolean;
@@ -324,6 +325,17 @@ export class Viewer {
     else delete notes[this.key];
     this.notes = notes;
     this.picked = null;
+    this.save();
+  }
+
+  get note_count(): number {
+    return Object.values(this.notes).reduce((sum, list) => sum + list.length, 0);
+  }
+
+  clear_all() {
+    this.notes = {};
+    this.picked = null;
+    this.clearing = false;
     this.save();
   }
 
