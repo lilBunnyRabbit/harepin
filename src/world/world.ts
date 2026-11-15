@@ -278,8 +278,10 @@ export class World implements Ground {
     this.own_ground = this.grips.surfaces[SurfaceId.GRASS];
     this.fall_reset = KINDS[data.kind].fall_reset;
     this.reset_in_place = KINDS[data.kind].reset_in_place === true;
+    // Frozen water is ground the tiles raised to its surface: no wade, no drowning, only the sea stays water.
     const water = data.ground.ops.find((op) => op.kind === "water");
-    this.water = water?.kind === "water" ? water_index(water.water) : null;
+    const frozen = data.ground.ops.some((op) => op.kind === "freeze");
+    this.water = water?.kind === "water" && !frozen ? water_index(water.water) : null;
     const lava = data.ground.ops.find((op) => op.kind === "lava");
     this.lava = lava?.kind === "lava" ? lava.pools : [];
     this.sea = KINDS[data.kind].ground ? SEA_LEVEL : -Infinity;

@@ -46,6 +46,8 @@ export class TileMesher {
   private readonly layout: RoadLayout;
   private readonly probe: LandProbe;
   private readonly water: WaterIndex | null;
+  /** Under a freeze op the tiles hold the ice as ground, so no water surface is drawn over it. */
+  private readonly frozen: boolean;
   private readonly towns = new Map<number, ChunkTown>();
 
   constructor(
@@ -63,6 +65,7 @@ export class TileMesher {
     this.layout = road_layout(data, this.junctions, ext);
     const op = data.ground.ops.find((o) => o.kind === "water");
     this.water = op?.kind === "water" ? water_index(op.water) : null;
+    this.frozen = data.ground.ops.some((o) => o.kind === "freeze");
     const store = this.store;
     const town = (x: number, z: number) => {
       const key = chunk_of(x, z, ext);
@@ -103,7 +106,7 @@ export class TileMesher {
       planted.trees.push(...here.trees);
       planted.solids.push(...here.solids);
     }
-    const water = this.water && this.surface(tile, x0, z0);
+    const water = this.water && !this.frozen && this.surface(tile, x0, z0);
     if (water) chunk.water = water;
     return { tile: { heights: tile.heights.slice(), road_dist: tile.road_dist.slice(), surface: tile.surface.slice() }, chunk, planted };
   }

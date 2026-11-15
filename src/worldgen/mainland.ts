@@ -57,6 +57,7 @@ export function plan_mainland(seed: number, recipe: Recipe = MAINLAND): Mainland
     ),
     { kind: "blend", bank: recipe.road.bank },
     ...(recipe.snow ? [{ kind: "snow", kit: recipe.snow, beach: recipe.biomes.limits.beach, parts: [] } satisfies GroundOp] : []),
+    ...(recipe.snow && water ? [{ kind: "freeze", water } satisfies GroundOp] : []),
   ];
   const { patched } = road_junctions({ road, graph, circuit });
   const town = mainland_lots(seed, recipe, graph, towns, circuit, patched, ops, water);

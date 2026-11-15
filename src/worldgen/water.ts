@@ -370,6 +370,14 @@ export function soak(index: WaterIndex, heights: Float32Array, surface: Uint8Arr
   if (heights[k] < index.level(x, z) + WET_RISE) surface[k] = wet;
 }
 
+/** Winter: ground under a lake or river rises to its surface and takes `ice`, so the car drives over the water. */
+export function freeze(index: WaterIndex, heights: Float32Array, surface: Uint8Array, k: number, x: number, z: number, ice: number) {
+  const level = index.level(x, z);
+  if (heights[k] >= level) return;
+  heights[k] = level;
+  surface[k] = ice;
+}
+
 /** Bucketed river segments over a Water, for point queries in tiles, maps and the sim; no allocation per query. */
 export class WaterIndex {
   private readonly start: Int32Array;
