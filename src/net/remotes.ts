@@ -55,6 +55,8 @@ interface RemoteView {
 }
 
 const ABOVE = 2.2;
+/** Milliseconds a car runs on along its last velocity once its packets stop, before it holds still. */
+const HOLD_AHEAD_MS = 250;
 /** Metres off a face that still count as touching it: the peer's own step pushed its car back onto the face, and the packet rounds it. */
 const TOUCH_GAP = 0.05;
 // A peer flicking through the garage would otherwise rebuild geometry every packet; the latest code wins after the gap.
@@ -226,24 +228,26 @@ export class Remotes {
     }
     const root = rv.view.root;
     let k = 1;
+    const { probe } = rv;
     if (t >= b.at) {
-      const ahead = Math.min(250, t - b.at) / 1000;
+      const ahead = Math.min(HOLD_AHEAD_MS, t - b.at) / 1000;
       const s = b.state;
+      // Past the cap the car holds still, so it has nothing left to scrape with.
+      if (t - b.at < HOLD_AHEAD_MS) probe.vel.set(...s.v);
+      else probe.vel.set(0, 0, 0);
       root.position.set(s.p[0] + s.v[0] * ahead, s.p[1] + s.v[1] * ahead, s.p[2] + s.v[2] * ahead);
       root.quaternion.set(...s.q);
     } else {
       k = b.at > a.at ? Math.max(0, Math.min(1, (t - a.at) / (b.at - a.at))) : 1;
       root.position.set(...a.state.p).lerp(this.p1.set(...b.state.p), k);
       root.quaternion.copy(this.q0.set(...a.state.q).slerp(this.q1.set(...b.state.q), k));
+      // The earlier snapshot's: the later one is often already the bounce off the face, its speed into it gone.
+      probe.vel.set(...a.state.v);
     }
     this.forward.set(0, 0, 1).applyQuaternion(root.quaternion);
     const heading = Math.atan2(this.forward.x, this.forward.z);
-    const { probe } = rv;
     probe.pos.copy(root.position);
-    probe.vel.set(...a.state.v);
     probe.heading = heading;
-    this.world.touches(probe, TOUCH_GAP);
-    rv.sparks.update(dt, probe);
     rest_wheels(rv.view, rv.spec);
     const from = this.lifts_at(rv, a, b);
     const to = this.lifts_at(rv, b, a);
@@ -268,6 +272,9 @@ export class Remotes {
     // Remote cars are ghosts with no collision, so one sitting inside yours fades out instead of hiding your car.
     const opacity = Math.min(Math.max(0.22, Math.min(1, (root.position.distanceTo(me) - 3) / 9)), camera_fade(root.position, camera.position));
     root.visible = opacity > 0;
+    // Hidden, it scrapes nothing new, but what it threw still flies out.
+    if (root.visible) this.world.touches(probe, TOUCH_GAP);
+    rv.sparks.update(dt, probe);
     for (const material of rv.materials) {
       material.opacity = opacity;
       material.depthWrite = opacity > 0.99;
