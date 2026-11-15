@@ -1,4 +1,5 @@
 import "../../scripts/fake-dom";
+import { existsSync } from "node:fs";
 import { expect, test } from "bun:test";
 import { render } from "svelte/server";
 import { empty_progress, event_states, player_of, standings, type SeriesProgress } from "../career/series";
@@ -73,4 +74,8 @@ test("the switcher names the season shown and steps either way; a shut season lo
   expect(out.match(/Finish the Dunes series to open/g)?.length).toBe(SEASON_4.events.length);
   expect(out).not.toContain("sc-go");
   expect(out).not.toContain("Start over");
+});
+
+test("every season's events have their card art", () => {
+  for (const season of SEASONS) for (const event of season.events) expect(existsSync(new URL(`../../public/series/${event.id}.webp`, import.meta.url))).toBe(true);
 });
