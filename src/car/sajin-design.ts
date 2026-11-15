@@ -2,6 +2,7 @@ import type { Triple } from "./cars";
 import { endplate, plane, rod, stalk_mirror } from "./design-parts";
 import type { Arm, Design, Mirror, Section, Wing } from "./designs";
 import type { Part, Point } from "./geometry";
+import { acos, hypot3, tan } from "../sim-math";
 
 const NOSE = 2.04;
 const SILL = 0.44;
@@ -24,7 +25,7 @@ const LUG = 0.004;
 const across = ([x, y, z]: Triple, thick: number): Part => ({ size: [x + thick / 2 + LUG, thick, thick], at: [(x + thick / 2 + LUG) / 2, y, z] });
 const lerp = (a: Triple, b: Triple, t: number): Triple => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 
-const past = (a: Triple, b: Triple, by: number): Triple => lerp(a, b, 1 + by / Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]));
+const past = (a: Triple, b: Triple, by: number): Triple => lerp(a, b, 1 + by / hypot3(b[0] - a[0], b[1] - a[1], b[2] - a[2]));
 
 /** Bars through `points`, each run on past a bend far enough that the two outer corners meet and neither end shows. */
 function chain(points: Triple[], thick: number): Part[] {
@@ -33,7 +34,7 @@ function chain(points: Triple[], thick: number): Part[] {
     const [a, b, c] = [points[i - 1], points[i], points[i + 1]];
     const [u, v] = [[b[0] - a[0], b[1] - a[1], b[2] - a[2]], [c[0] - b[0], c[1] - b[1], c[2] - b[2]]];
     const cos = (u[0] * v[0] + u[1] * v[1] + u[2] * v[2]) / (Math.hypot(...u) * Math.hypot(...v));
-    return (thick / 2) * Math.tan(Math.acos(Math.max(-1, Math.min(1, cos))) / 2);
+    return (thick / 2) * tan(acos(Math.max(-1, Math.min(1, cos))) / 2);
   };
   return points.slice(1).map((b, i) => tube(past(b, points[i], mitre(i)), past(points[i], b, mitre(i + 1)), thick));
 }

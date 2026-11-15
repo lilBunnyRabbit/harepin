@@ -6,6 +6,7 @@ import { NITRO_TORQUE, Nitro, type NitroSense } from "./nitro";
 import { GRAVITY, RigidBody } from "./rigid-body";
 import { SteerMode, Steering } from "./steering";
 import { spin_free, suspend, tyre } from "./tyre";
+import { atan, atan2, axis_angle, hypot, tan } from "../sim-math";
 
 export { SteerMode, grip_lock, unassisted_lock } from "./steering";
 export { surface_grip } from "./tyre";
@@ -89,10 +90,10 @@ const DROP_CLEAR = 0.05;
 /** Road wheel angle, radians, of the wheel mounted at `x` (positive on the left) for the car's `steer`. */
 export function ackermann(steer: number, wheelbase: number, x: number): number {
   if (Math.abs(steer) < 1e-4) return steer;
-  const centre = wheelbase / Math.tan(Math.abs(steer));
+  const centre = wheelbase / tan(Math.abs(steer));
   const half = Math.abs(x);
   const inner = steer > 0 !== x > 0;
-  return Math.sign(steer) * Math.atan(wheelbase / (centre + (inner ? -half : half)));
+  return Math.sign(steer) * atan(wheelbase / (centre + (inner ? -half : half)));
 }
 
 /** Suspension reach with the car parked on flat ground, for views that have no sim behind them. */
@@ -186,7 +187,7 @@ const Y = new Vector3(0, 1, 0);
 // power for it only stalls the car.
 function tcs_spin(w: Wheel, low: boolean, peak_slip: number): number {
   const slip = tcs_slip(w, peak_slip);
-  return low && w.contact && !w.axle.steer ? Math.hypot(Math.max(0, slip), w.lateral * peak_slip * TCS_LATERAL) : slip;
+  return low && w.contact && !w.axle.steer ? hypot(Math.max(0, slip), w.lateral * peak_slip * TCS_LATERAL) : slip;
 }
 
 // Wheelspin past the peak of the curve under the wheel, in asphalt's terms: traction control allows the same slip past
@@ -367,7 +368,7 @@ export class Car {
 
   place(x: number, y: number, z: number, heading: number) {
     this.pos.set(x, y, z);
-    this.quat.setFromAxisAngle(Y, heading);
+    axis_angle(this.quat, Y, heading);
     this.vel.set(0, 0, 0);
     this.ang.set(0, 0, 0);
     this.gear = 1;
@@ -413,7 +414,7 @@ export class Car {
 
   get heading(): number {
     const f = tmp.set(0, 0, 1).applyQuaternion(this.quat);
-    return Math.atan2(f.x, f.z);
+    return atan2(f.x, f.z);
   }
 
   shift(by: number) {

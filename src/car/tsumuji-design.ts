@@ -2,6 +2,7 @@ import { sculpt_factor } from "./body-shell";
 import { cabin_mirror, gurney, leg, plane, tail_end, widen_wing } from "./design-parts";
 import type { Arches, Cabin, Design, Kit, Section, Slab, Wing } from "./designs";
 import { top_at, type Part, type Point } from "./geometry";
+import { atan2, cos, sin, tan } from "../sim-math";
 
 const OUTLINE: Point[] = [[1.93, 0.26], [1.97, 0.36], [1.96, 0.5], [1.84, 0.6], [0.62, 0.82], [-1.18, 0.825], [-1.72, 0.77], [-1.92, 0.67], [-1.96, 0.5], [-2.0, 0.47], [-2.0, 0.33], [-1.9, 0.27]];
 const SECTION: Section = { belt: [0.7, 0.72], shoulder: 0.1, tuck: 0.04, nose: [0.2, 0.4], tail: [0.16, 0.4] };
@@ -21,10 +22,10 @@ const LIFT = 0.7;
 const LENS = 0.19;
 const LID_PROUD = 0.016;
 const hinge: Point = [HINGE_Z, top_at(OUTLINE, HINGE_Z) + LID_PROUD];
-const slope = Math.atan2(top_at(OUTLINE, HINGE_Z) - top_at(OUTLINE, HINGE_Z + POD_LENGTH), POD_LENGTH);
-const lid_front: Point = [hinge[0] + POD_LENGTH * Math.cos(slope), hinge[1] - POD_LENGTH * Math.sin(slope)];
-const face = POD_LENGTH * (Math.sin(LIFT - slope) + Math.cos(LIFT - slope) * Math.tan(slope)) + LID_PROUD;
-const face_foot: Point = [lid_front[0] - face * Math.sin(LIFT), lid_front[1] - face * Math.cos(LIFT)];
+const slope = atan2(top_at(OUTLINE, HINGE_Z) - top_at(OUTLINE, HINGE_Z + POD_LENGTH), POD_LENGTH);
+const lid_front: Point = [hinge[0] + POD_LENGTH * cos(slope), hinge[1] - POD_LENGTH * sin(slope)];
+const face = POD_LENGTH * (sin(LIFT - slope) + cos(LIFT - slope) * tan(slope)) + LID_PROUD;
+const face_foot: Point = [lid_front[0] - face * sin(LIFT), lid_front[1] - face * cos(LIFT)];
 const POD: Slab = { points: [lid_front, hinge, face_foot], from: POD_X - POD_WIDTH / 2, to: POD_X + POD_WIDTH / 2 };
 
 const HALF = 0.836;
@@ -91,7 +92,7 @@ const BODY = {
   fronts: FRONTS,
 } satisfies Design;
 
-const on_face = (out: number): Point => [(lid_front[0] + face_foot[0]) / 2 + out * Math.cos(LIFT), (lid_front[1] + face_foot[1]) / 2 - out * Math.sin(LIFT)];
+const on_face = (out: number): Point => [(lid_front[0] + face_foot[0]) / 2 + out * cos(LIFT), (lid_front[1] + face_foot[1]) / 2 - out * sin(LIFT)];
 const bezel_at = on_face(0.004);
 const lens_at = on_face(0.02);
 const lens = (body: Design): Part[] => {

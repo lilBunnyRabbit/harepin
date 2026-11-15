@@ -1,5 +1,6 @@
 import { build_spec, stats, type Build } from "./build";
 import type { CarSpec } from "./cars";
+import { log } from "../sim-math";
 
 const GRAVITY = 9.81;
 
@@ -105,7 +106,7 @@ const NITRO_PI = 3;
 
 export function spec_pi(spec: CarSpec): number {
   const speed = LAP_LENGTH / lap_time(stat_pace(spec));
-  const rated = PI_MIN + PI_PER_LOG * Math.log(speed / FLOOR_SPEED) + NITRO_PI * (spec.nitro ?? 0);
+  const rated = PI_MIN + PI_PER_LOG * log(speed / FLOOR_SPEED) + NITRO_PI * (spec.nitro ?? 0);
   return Math.round(Math.max(PI_MIN, Math.min(PI_MAX, rated)));
 }
 

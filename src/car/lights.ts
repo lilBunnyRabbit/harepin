@@ -5,6 +5,7 @@ import type { CarView } from "./models";
 import { flame_sway } from "./nitro-look";
 import { POPUP_LIT, popup_ease, popup_step } from "./popup-swing";
 import { brand, color, glow, lighten, tones } from "../theme/palette";
+import { sin } from "../sim-math";
 
 const HEAD_GLOW = 1.2;
 
@@ -103,7 +104,7 @@ export function show_flame(view: CarView, on: boolean, time: number, yaw_rate: n
   const { sway, flicker } = view.jet;
   flame.visible = on;
   if (on) {
-    flicker.value = Math.sin(time * 61) * Math.sin(time * 23 + 1);
+    flicker.value = sin(time * 61) * sin(time * 23 + 1);
     sway.value = flame_sway(sway.value, yaw_rate, Math.min(SWAY_STEP, Math.max(0, time - view.sway_at)));
   } else sway.value = 0;
   view.sway_at = time;

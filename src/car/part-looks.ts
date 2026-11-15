@@ -8,6 +8,7 @@ import { fitted_slab, kit_band, kit_floor } from "./body-shell";
 import { canard } from "./design-parts";
 import { PIPE_LENGTH, PIPE_PAIR, PIPE_REACH, nitro_parts, pipe_radius } from "./nitro-look";
 import { chrome_tone } from "./wheels";
+import { atan2 } from "../sim-math";
 
 const WINGS = [
   { lift: 0.24, span: 0.86, thick: 0.05, chord: 0.36 },
@@ -118,7 +119,7 @@ export function aero_parts(d: Design, spec: CarSpec, aero: Required<Look>["aero"
 }
 
 function hood_tilt(d: Design, z: number): number {
-  return -Math.atan2(top_at(d.outline, z + 0.2) - top_at(d.outline, z - 0.2), 0.4);
+  return -atan2(top_at(d.outline, z + 0.2) - top_at(d.outline, z - 0.2), 0.4);
 }
 
 function panel(outline: Point[], from: number, to: number, width: number): THREE.BufferGeometry {

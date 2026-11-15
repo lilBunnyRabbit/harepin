@@ -5,6 +5,7 @@ import { sculpt_factor } from "./body-shell";
 import type { Design } from "./designs";
 import { merge, tint } from "./geometry";
 import { brand, color, mix, tones } from "../theme/palette";
+import { exp } from "../sim-math";
 
 type Bottle = Required<Look>["bottle"];
 
@@ -132,5 +133,5 @@ export function nitro_flame(d: Design, jet: Jet): THREE.Mesh {
 /** The sway `from` moved toward what `yaw_rate` (rad/s, positive turning left) asks for over `dt` seconds. */
 export function flame_sway(from: number, yaw_rate: number, dt: number): number {
   const target = Math.max(-SWAY_MAX, Math.min(SWAY_MAX, yaw_rate * SWAY_PER_YAW));
-  return from + (target - from) * (1 - Math.exp(-SWAY_RATE * dt));
+  return from + (target - from) * (1 - exp(-SWAY_RATE * dt));
 }

@@ -14,6 +14,7 @@ import type { RoutePoint } from "../modes/route";
 import { Rewind } from "./rewind";
 import type { Sim } from "../sim/sim-client";
 import { ROAD_HALF, type Spawn, type World } from "../world/world";
+import { atan2, cos, hypot, sin } from "../sim-math";
 
 /** Speed (m/s) above which a reset faces the way the car travels rather than where its nose points. */
 const RESET_MOVING = 2;
@@ -85,7 +86,7 @@ export class Driver {
   road_spot(index: number, reverse = false): Spawn {
     const { world } = this;
     const p = world.road[world.clear_spawn(index, reverse ? -1 : 1)];
-    return { x: p.x, y: world.height(p.x, p.z) + drop_height(this.car.spec, RIDE_HEIGHT), z: p.z, heading: Math.atan2(p.tx, p.tz) + (reverse ? Math.PI : 0) };
+    return { x: p.x, y: world.height(p.x, p.z) + drop_height(this.car.spec, RIDE_HEIGHT), z: p.z, heading: atan2(p.tx, p.tz) + (reverse ? Math.PI : 0) };
   }
 
   // In a lobby race a reset stays on the circuit; free driving drops the car on the nearest street.
@@ -93,7 +94,7 @@ export class Driver {
     const { car, world } = this;
     if (on_circuit) return this.place_road(world.road.indexOf(world.nearest_road(car.pos.x, car.pos.z)));
     // A spun or sideways car points across the road; the way it was travelling is what the driver meant.
-    const moving = Math.hypot(car.vel.x, car.vel.z) > RESET_MOVING;
+    const moving = hypot(car.vel.x, car.vel.z) > RESET_MOVING;
     const f = moving ? new THREE.Vector3(car.vel.x, 0, car.vel.z) : new THREE.Vector3(0, 0, 1).applyQuaternion(car.quat);
     return this.teleport(car.pos.x, car.pos.z, () => {
       const spot = world.spawn_near(car.pos.x, car.pos.z, f.x, f.z);
@@ -106,14 +107,14 @@ export class Driver {
     const { car, world } = this;
     if (upright < SAFE_UPRIGHT || !world.on_road(car.pos.x, car.pos.z)) return;
     for (const w of car.wheels) if (!w.contact) return;
-    this.keep_safe(car.pos.x, car.pos.z, Math.hypot(car.vel.x, car.vel.z) > RESET_MOVING ? Math.atan2(car.vel.x, car.vel.z) : car.heading);
+    this.keep_safe(car.pos.x, car.pos.z, hypot(car.vel.x, car.vel.z) > RESET_MOVING ? atan2(car.vel.x, car.vel.z) : car.heading);
   }
 
   private keep_safe(x: number, z: number, heading: number) {
     this.safe.x = x;
     this.safe.z = z;
-    this.safe.fx = Math.sin(heading);
-    this.safe.fz = Math.cos(heading);
+    this.safe.fx = sin(heading);
+    this.safe.fz = cos(heading);
   }
 
   // Never the nearest road to where the car fell: that can be a later section, and a fall would be a shortcut. A route
@@ -123,10 +124,10 @@ export class Driver {
     const lift = drop_height(car.spec, RIDE_HEIGHT);
     const p = route?.respawn;
     if (p) {
-      return this.teleport(p.x, p.z, () => ({ x: p.x, y: world.height(p.x, p.z) + lift, z: p.z, heading: Math.atan2(p.tx, p.tz) }));
+      return this.teleport(p.x, p.z, () => ({ x: p.x, y: world.height(p.x, p.z) + lift, z: p.z, heading: atan2(p.tx, p.tz) }));
     }
     const near = world.nearest_road(safe.x, safe.z);
-    if (race.started && Math.hypot(near.x - safe.x, near.z - safe.z) < ON_CIRCUIT) {
+    if (race.started && hypot(near.x - safe.x, near.z - safe.z) < ON_CIRCUIT) {
       const n = world.checkpoints.length;
       const cp = world.checkpoints[(race.next - 1 + n) % n];
       return this.place_road(world.road.indexOf(world.nearest_road(cp.x, cp.z)));

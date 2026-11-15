@@ -3,6 +3,7 @@ import { ride_height, type Car, type Controls, type Ground } from "../car/car";
 import { ROAD_HALF } from "../worldgen/types";
 import { CURVE_SPAN, grip_at, inverse_radius, type RaceLine } from "./line";
 import { AI_TUNING } from "./tuning";
+import { atan2, axis_angle, cos, hypot, sin } from "../sim-math";
 
 /** Under this pace (m/s) a bend is a hairpin and the aim stays short, or it cuts across the inside. */
 const HAIRPIN_PACE = 15;
@@ -63,7 +64,7 @@ export const STEADY: Personality = { pace: 1, brake_margin: 0, aggression: 0, mi
 /** How far off the centre (m) a car may go to pass or defend at road point `index`; over a kicker's run, only RAMP_SIDE: posts flank its lip. */
 export const pass_room = (car: Car, line: RaceLine, index: number) => (line.room[index] === 0 ? RAMP_SIDE : ROAD_HALF - car.spec.radius - PASS_EDGE);
 
-const wrap_angle = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
+const wrap_angle = (a: number) => atan2(sin(a), cos(a));
 const never = () => 1;
 const Y = new Vector3(0, 1, 0);
 const level = new Quaternion();
@@ -186,10 +187,10 @@ export class Driver {
     const f = line.step[i] > 0 ? this.along / line.step[i] : 0;
     const dx = line.x[j] - line.x[i];
     const dz = line.z[j] - line.z[i];
-    const heading = Math.atan2(dx, dz);
+    const heading = atan2(dx, dz);
     car.pos.set(line.x[i] + dx * f, line.road[i].y + (line.road[j].y - line.road[i].y) * f + ride_height(car.spec), line.z[i] + dz * f);
-    car.quat.copy(level.setFromAxisAngle(Y, heading));
-    car.vel.set(Math.sin(heading) * v, 0, Math.cos(heading) * v);
+    car.quat.copy(axis_angle(level, Y, heading));
+    car.vel.set(sin(heading) * v, 0, cos(heading) * v);
     car.ang.set(0, 0, 0);
   }
 
@@ -199,7 +200,7 @@ export class Driver {
     const heading = car.heading;
     car.park(car.pos.x, car.pos.z, heading, ground);
     car.parked = false;
-    car.vel.set(Math.sin(heading) * v, 0, Math.cos(heading) * v);
+    car.vel.set(sin(heading) * v, 0, cos(heading) * v);
     const { spec } = car;
     const omega = v / spec.wheel.radius;
     for (const w of car.wheels) w.omega = omega;
@@ -249,7 +250,7 @@ export class Driver {
     const n = line.road.length;
     const vx = car.vel.x;
     const vz = car.vel.z;
-    const speed = Math.hypot(vx, vz);
+    const speed = hypot(vx, vz);
     const slip = this.mistake_at >= 0 && (((this.index - this.mistake_at) % n) + n) % n < MISTAKE_SPAN;
     const here = pass_room(car, line, this.index);
     const want = Number.isNaN(this.hold) ? 0 : Math.max(-here, Math.min(here, line.offset[this.index] + this.hold)) - line.offset[this.index];
@@ -272,7 +273,7 @@ export class Driver {
       ax = p.x + p.tz * lateral;
       az = p.z - p.tx * lateral;
     }
-    const err = wrap_angle(Math.atan2(ax - car.pos.x, az - car.pos.z) - car.heading);
+    const err = wrap_angle(atan2(ax - car.pos.x, az - car.pos.z) - car.heading);
     const c = this.controls;
     if (this.reversing > 0) {
       this.reversing -= dt;
@@ -284,7 +285,7 @@ export class Driver {
     }
     let airborne = true;
     for (let w = 0; w < car.wheels.length; w++) if (car.wheels[w].contact) airborne = false;
-    const slide = speed > 5 ? Math.abs(wrap_angle(Math.atan2(vx, vz) - car.heading)) : 0;
+    const slide = speed > 5 ? Math.abs(wrap_angle(atan2(vx, vz) - car.heading)) : 0;
     const ease = Math.max(0, 1 - slide / SLIDE_LET_GO);
     // The aim steps a road point at a time: its jump read as a rate would kick the wheel to full lock for one step.
     const swing = Number.isNaN(this.last_err) ? 0 : at === this.last_at ? wrap_angle(err - this.last_err) / dt : this.last_swing;

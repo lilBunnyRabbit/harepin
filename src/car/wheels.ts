@@ -3,6 +3,7 @@ import type { Look } from "./build";
 import type { Rim } from "./designs";
 import { extrude, merge, tint, type Point } from "./geometry";
 import { brand, color, mix, tones } from "../theme/palette";
+import { cos, sin } from "../sim-math";
 
 export const STOCK_TYRE: Required<Look>["tyre"] = { width: 1, rim: 1 };
 export const STOCK_CALIPER: Required<Look>["caliper"] = { size: 1 };
@@ -214,7 +215,7 @@ export function brake_geometry(radius: number, width: number, rim: Rim, look: Re
   const steps = 3;
   const rim_arc = Array.from({ length: steps + 1 }, (_, i): Point => {
     const a = -sweep + (2 * sweep * i) / steps;
-    return [Math.sin(a) * reach, Math.cos(a) * reach];
+    return [sin(a) * reach, cos(a) * reach];
   });
   const hub_arc = rim_arc.map(([z, y]): Point => [(z * inner) / reach, (y * inner) / reach]).reverse();
   const caliper = tint(extrude([...rim_arc, ...hub_arc], deep).translate(disc_at + deep / 2, 0, 0).rotateX(-0.8), color(tone ? brand[tone] : tones.trim));

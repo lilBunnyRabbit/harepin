@@ -1,4 +1,5 @@
 import type { Collider } from "../world/world";
+import { cos, sin } from "../sim-math";
 
 /** 1 + restitution, as the wall's `RESTITUTION`: lower, since two cars crumple into each other rather than one into a wall. */
 const BOUNCE = 1.2;
@@ -91,10 +92,10 @@ function pair(a: Collider, b: Collider): number {
   const span = Math.max(fa, -ba) + ra + Math.max(fb, -bb) + rb;
   if (dx * dx + dz * dz >= span * span) return -1;
   if (a.pos.y - sa.band[0] > b.pos.y + sb.band[1] || b.pos.y - sb.band[0] > a.pos.y + sa.band[1]) return -1;
-  const ax = Math.sin(a.heading);
-  const az = Math.cos(a.heading);
-  const bx = Math.sin(b.heading);
-  const bz = Math.cos(b.heading);
+  const ax = sin(a.heading);
+  const az = cos(a.heading);
+  const bx = sin(b.heading);
+  const bz = cos(b.heading);
   spines(a.pos.x + ax * ba, a.pos.z + az * ba, ax * (fa - ba), az * (fa - ba), b.pos.x + bx * bb, b.pos.z + bz * bb, bx * (fb - bb), bz * (fb - bb));
   let nx = near.bx - near.ax;
   let nz = near.bz - near.az;

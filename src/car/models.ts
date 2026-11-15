@@ -19,6 +19,7 @@ import { WEAVE_KEY, weave_shader } from "./carbon";
 import { brand, color, dark, mix, tones } from "../theme/palette";
 import { sky_ceiling } from "../render/sky";
 import type { Lab } from "../theme/theme";
+import { asin, hypot } from "../sim-math";
 
 /** A suspension arm hinged on the body, swung so its outer end follows its wheel. */
 export interface ArmSwing {
@@ -205,7 +206,7 @@ function painted_shell(shell: THREE.BufferGeometry[], d: Design, spec: CarSpec, 
   const colors = painted.getAttribute("color");
   const reach = spec.wheel.radius + d.arches.gap + WALL_REACH;
   const axles = axles_of(spec).map(({ z }) => z);
-  const in_arch = (v: number) => axles.some((z) => Math.hypot(position.getZ(v) - z, position.getY(v) - spec.wheel.radius) < reach);
+  const in_arch = (v: number) => axles.some((z) => hypot(position.getZ(v) - z, position.getY(v) - spec.wheel.radius) < reach);
   const [a, b, c, normal] = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
   for (let i = 0; i < position.count; i += 3) {
     if (!in_arch(i) || !in_arch(i + 1) || !in_arch(i + 2)) continue;
@@ -310,7 +311,7 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
     body.add(group);
     const dx = mx - side * px;
     const dz = mz - pz;
-    const reach = Math.hypot(dx, dz);
+    const reach = hypot(dx, dz);
     return { group, axis: new THREE.Vector3(-dz / reach, 0, dx / reach), reach, rest: arm_rest };
   });
   const view = { root, body, wheels, arms, steered, brake, heads, lights: true, popup: pods, eye: d.eye ? new THREE.Vector3(0, body.position.y + d.eye[1], d.eye[0]) : null, flame, jet, sway_at: 0 };
@@ -327,7 +328,7 @@ export function sync_car_view(view: CarView, car: Car) {
     g.rotation.y = -w.angle;
     g.children[0].rotation.x = w.spin;
     const arm = view.arms[i];
-    if (arm) arm.group.quaternion.setFromAxisAngle(arm.axis, Math.asin(Math.max(-1, Math.min(1, (arm.rest - w.reach) / arm.reach))));
+    if (arm) arm.group.quaternion.setFromAxisAngle(arm.axis, asin(Math.max(-1, Math.min(1, (arm.rest - w.reach) / arm.reach))));
   });
   view.brake.emissiveIntensity = car.braking > 0.05 ? brake_on.value : BRAKE_REST;
 }

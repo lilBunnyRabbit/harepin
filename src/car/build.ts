@@ -1,6 +1,7 @@
 import { CARS, car_sized, is_car, type CarId, type CarSpec, type Triple } from "./cars";
 import type { Token } from "../theme/theme";
 import { boosted, type Boost } from "./boost";
+import { cbrt } from "../sim-math";
 
 type NumericField = Exclude<{ [K in keyof CarSpec]-?: CarSpec[K] extends number ? K : never }[keyof CarSpec], "awd_split">;
 
@@ -333,7 +334,7 @@ export function stats(spec: CarSpec): Stats {
   const axle = (torque: number, mu: number, share: number) => Math.min((2 * torque) / spec.wheel.radius, mu * spec.brake_grip * share * spec.mass * GRAVITY);
   const front = axle(spec.brake_front, spec.mu, BRAKING_FRONT_SHARE);
   const rear = axle(spec.brake_rear, spec.mu * spec.rear_grip, 1 - BRAKING_FRONT_SHARE);
-  const drag_limit = Math.cbrt((watts * spec.driveline) / spec.drag);
+  const drag_limit = cbrt((watts * spec.driveline) / spec.drag);
   const gear_limit = ((spec.redline * Math.PI) / 30) * spec.wheel.radius / (spec.gears[spec.gears.length - 1] * spec.final);
   return {
     power: watts / spec.mass,
