@@ -233,3 +233,12 @@ Owner answers relayed by the lead in chat, settling the round 1 opens.
 - **Progress number (C3):** series points. Championship points per finish position, summed per series; bonus objectives add points. Standings plus a series rank. No currency.
 - **Grind for class (G1):** credits from all events. Every race, side event and Run pays credits; cars and parts are bought in the garage. Each season final also unlocks a car or kit (G3).
 - **Rewind reward (A3 vs D5):** side events only. Solo side events keep rewind, and finishing without it pays a bonus. Career races have no rewind.
+
+## Round 3 (2026-11-15, chat)
+
+Owner, verbatim: "Start with as in car? the base car" · "rewards stay if unlocked - think of it as bonus for legacy players" · "oh maybe we keep the wall hit for pass? idk i just dont like that when heavy racing with actual cars you need to watch that" · "i mean everythiing legacy will be depricated so no"
+
+- **Credits start:** every player, new or existing, starts the career with the base car only. Legacy progress does not carry into credits or garage.
+- **Old-tier rewards:** whatever a player already unlocked (tints, titles, kits) stays, as a legacy bonus. Nothing new is earned from the old tiers.
+- **Pass win rule:** Pass is a 1v1 mountain duel, so wall hits add time there (today's +2 s). Pack races with an AI field keep no wall rule. Lead's reading of "maybe"; confirm when Pass is built.
+- **Naming:** legacy is deprecated, so "Harepin Series" with career "series" and Runs "season" stays as decided in round 1. No rename.
