@@ -29,7 +29,7 @@ describe("trial brief", () => {
 
   test("a mod that is no part reads as a field change; each place starts its own group", () => {
     expect(briefs(loose)[1].changes.map(change_text)).toEqual(["Rear grip −8%"]);
-    expect(briefs(drift)[3].baseline).toBe(true);
+    expect(briefs(drift)[drift.trials.findIndex((t) => t.id === "hairpins-new")].baseline).toBe(true);
   });
 
   test("a lineup reads each trial against the one before on the same station", () => {

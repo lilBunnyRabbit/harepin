@@ -8,8 +8,18 @@ const DRIFT = "muscle.1.5.0.3.1.0.7.0.0.0.2";
 const OLD_CAP = "drift-old-cap";
 const DRIFT_PARTS = parse_build(DRIFT)?.parts;
 if (!DRIFT_PARTS) throw new Error(`bad Drift preset code ${DRIFT}`);
-/** Round 1's side-grip cap: past twice peak wheelspin the rears stopped losing side grip, so the gas could not swing the tail. */
-const OLD_SIDE_SX = 2;
+const ROTATE = "drift-rotate";
+const ANGLE = "drift-angle";
+const LIVELY = "drift-tcs-off";
+/**
+ * r3 "hits a cap on angle": a weaker swing damper and a later side-grip cap let a held key carry the tail past 60 degrees
+ * and on into a spin (sim: held turn key 3 s, 36 to 87 degrees), with no spin catch in a held drift.
+ */
+const FREE_ANGLE = { drift_damp: 1, drift_side_sx: 8, drift_catch: 0 };
+/** r3 "can't start a drift without the handbrake": TCS weighs the rears' sideways slip at half, so the gas steps the tail out (sim: 2.05 to 0.28 s). */
+const GAS_ENTRY = { tcs_lateral: 0.7 };
+/** r3 "like on ice": TCS off keeps half the held-drift helpers, the gas still uncut (sim: hold 1.3 to 5.0 s, no spin, 53 to 57 km/h). */
+const OFF_HOLD = { drift_tcs_off: 0.5 };
 
 interface Variant {
   id: string;
@@ -19,27 +29,36 @@ interface Variant {
   feel: string;
 }
 
+const ON: Aids = { assist: false, stability: false, tcs: true };
+
 const VARIANTS: Variant[] = [
   {
     id: "new",
     car: DRIFT,
-    aids: { assist: false, stability: false, tcs: true },
-    question: "Can you start a drift on the gas, hold it, and turn it in tighter with the gas and the key?",
-    feel: "TCS on, the new drift: a power or lift-off slide holds without the handbrake, the rear pushes, more gas swings the tail wider",
+    aids: ON,
+    question: "As r3: the drift to beat",
+    feel: "TCS on, the r3 drift: holds, but needs the handbrake to start and stops at one angle",
+  },
+  {
+    id: "rotate",
+    car: `${LAB_CAR}${ROTATE}`,
+    aids: ON,
+    question: "Can you start it on the gas, turn it in further, and spin it if you keep asking?",
+    feel: "TCS on, the gas steps the tail out without the handbrake, and the angle has no cap: keep the key in and it spins",
+  },
+  {
+    id: "angle",
+    car: `${LAB_CAR}${ANGLE}`,
+    aids: ON,
+    question: "Does the angle go as far as you ask now?",
+    feel: "TCS on, the r3 start, but no cap on angle: keep the key in and it turns in further, then spins",
   },
   {
     id: "tcs-off",
-    car: DRIFT,
+    car: `${LAB_CAR}${LIVELY}`,
     aids: { assist: false, stability: false, tcs: false },
-    question: "Is TCS off the drift you want, or is the new TCS-on drift better?",
-    feel: "TCS off: no drift help at all, the car runs on its tyres and the gas alone",
-  },
-  {
-    id: "old-cap",
-    car: `${LAB_CAR}${OLD_CAP}`,
-    aids: { assist: false, stability: false, tcs: true },
-    question: "New drift, old cap: does the old side-grip cap feel more like the arcade hold from round 1?",
-    feel: "new drift, old cap: TCS on, the new drift with round 1's side-grip cap, so the gas no longer swings the tail once the rear spins up",
+    question: "TCS off: lively but drivable, or still ice?",
+    feel: "TCS off, the gas uncut, but a countersteered slide holds as with TCS on, at half the help",
   },
 ];
 
@@ -52,16 +71,20 @@ interface Place {
 
 const PLACES: Place[] = [
   { id: "circle", station: "drift", goal: { kind: "time", seconds: 45 }, try: "start a drift on the gas without the handbrake, hold it round the 20 m ring, then tighten it with gas and key" },
-  { id: "hairpins", station: "hairpin", goal: { kind: "run" }, try: "slide each of the three hairpins on the gas, start to finish" },
+  { id: "hairpins", station: "hairpin", goal: { kind: "run" }, try: "turn each of the three hairpins tight on the gas, start to finish" },
 ];
 
 const pack: Pack = {
   id: "t2-drift",
-  rev: 3,
-  title: "Drift r2",
-  aim: "Round 1 drifts lost speed, auto-corrected out and would not turn in. The drift code changed: is the new TCS-on drift the one you want, against TCS off and against the new drift with round 1's side-grip cap?",
-  brief: "The Drift preset, steering assist and stability off, on the drift circle and the hairpins. At each place the new drift with TCS on goes first, then TCS off, then the new drift with the old cap. Rate turn-in, hold and exit.",
-  cars: { [OLD_CAP]: { name: "New drift, old cap", spec: { ...CARS.muscle, drift_side_sx: OLD_SIDE_SX }, look: "muscle", parts: DRIFT_PARTS } },
+  rev: 4,
+  title: "Drift r4",
+  aim: "r3: the drift held but needed the handbrake to start, stopped at one angle, pushed wide in hairpins, and TCS off was ice. Does the gas start it, the key turn it past the hold into a spin, and does TCS off stay drivable?",
+  brief: "The Drift preset, steering assist and stability off, on the drift circle and the hairpins. At each place the r3 drift goes first, then gas start with no angle cap, then no angle cap alone, then TCS off with half the hold. Rate turn-in, hold and exit.",
+  cars: {
+    [ROTATE]: { name: "Gas start, no angle cap", spec: { ...CARS.muscle, ...FREE_ANGLE, ...GAS_ENTRY }, look: "muscle", parts: DRIFT_PARTS },
+    [ANGLE]: { name: "No angle cap", spec: { ...CARS.muscle, ...FREE_ANGLE }, look: "muscle", parts: DRIFT_PARTS },
+    [LIVELY]: { name: "TCS off, half hold", spec: { ...CARS.muscle, ...OFF_HOLD }, look: "muscle", parts: DRIFT_PARTS },
+  },
   trials: PLACES.flatMap((place) =>
     VARIANTS.map((v, i): Trial => ({
       id: `${place.id}-${v.id}`,
