@@ -35,9 +35,10 @@ const PIPE: Triple = [0.5, 0.345, BUMPER + 0.01];
 // Bar intakes are 4 cm deep and show 3 mm of it: openings in the bar's face, not blocks standing on it.
 const INSET = 0.017;
 
-// Four round lamps on one dark panel with the plate between them, on the tail face both shells share.
+// Four round lamps on one dark panel with the plate between them, on the tail face both shells share. The panel ends inside
+// the pinched tail's corner and the outer lamp a lamp's margin inside the panel end, so the corner cuts neither.
 const lamp = (x: number, across: number): Part => ({ size: [across, across, 0.05], at: [x, 0.96, 0], round: true });
-const TAIL = tail_end(OUTLINE, 0.96, 0.25, 0.98, [lamp(0.775, 0.2), lamp(0.51, 0.15)], null, 0.96);
+const TAIL = tail_end(OUTLINE, 0.96, 0.25, 0.93, [lamp(0.74, 0.2), lamp(0.49, 0.15)], null, 0.96);
 
 // Grille, a vent each side of the engine bulge and one strip in the rear bar that holds both pipes.
 function trim_of(bumper: number): Part[] {
