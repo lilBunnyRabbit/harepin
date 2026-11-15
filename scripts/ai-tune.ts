@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { mulberry32, sub } from "../src/rng";
 import { cma_init, cma_sample, cma_update, type Cma, type Sample } from "./ai-tune/cma";
 import { score, type Score } from "./ai-tune/objective";
-import { defaults, PARAMS, type Values } from "./ai-tune/params";
+import { defaults, PARAMS, whole, type Values } from "./ai-tune/params";
 import type { RaceResult, TuneJob, TuneResult } from "./ai-tune/worker";
 import { run_pool } from "./proof/pool";
 
@@ -79,7 +79,7 @@ const path = `${DIR}/${run}.json`;
 const WORKER = new URL("./ai-tune/worker.ts", import.meta.url);
 
 const to_unit = (values: Values) => PARAMS.map((p) => (values[p.name] - p.lo) / (p.hi - p.lo));
-const from_unit = (x: readonly number[]): Values => Object.fromEntries(PARAMS.map((p, i) => [p.name, p.lo + (p.hi - p.lo) * x[i]]));
+const from_unit = (x: readonly number[]): Values => whole(Object.fromEntries(PARAMS.map((p, i) => [p.name, p.lo + (p.hi - p.lo) * x[i]])));
 
 function load(): State {
   const base = defaults();
@@ -152,7 +152,7 @@ function score_rows(columns: [string, Score][]) {
 if (process.argv.includes("--eval")) {
   const file = arg("--eval", "");
   const values = file === "default" ? defaults() : { ...defaults(), ...(JSON.parse(readFileSync(file, "utf8")) as { values: Values }).values };
-  const [s] = await evaluate([{ key: `eval-${file}`, values }], config.seeds);
+  const [s] = await evaluate([{ key: `eval-${Bun.hash(JSON.stringify(values)).toString(36)}`, values }], config.seeds);
   score_rows([[file, s]]);
   process.exit(0);
 }
@@ -177,7 +177,8 @@ while (state.cma.gen < gens || !base) {
 }
 save();
 
-const best = best_of(base);
+const picked = best_of(base);
+const best: Candidate = { ...picked, values: whole(picked.values) };
 console.log(`\n${run}: ${state.gens.length} generations of ${config.pop}, seeds ${config.seeds.join(",")}, ${config.cars} cars x ${config.laps} laps\n`);
 console.log("| gen | sigma | best | median |\n|---|---|---|---|");
 state.gens.forEach((g, i) => {
