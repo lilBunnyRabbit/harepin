@@ -38,7 +38,7 @@ class FakeButton extends FakeElement {}
 // The result card's elements, made as Modes asks for them; ids under mode- that are not the card's text are its buttons.
 const elements = new Map<string, FakeElement>();
 const doc = document as unknown as Record<string, unknown>;
-const fakes = { HTMLElement: FakeElement, HTMLButtonElement: FakeButton, history: { state: null, replaceState() {} } };
+const fakes = { HTMLElement: FakeElement, HTMLButtonElement: FakeButton, Text: class FakeText {}, history: { state: null, replaceState() {} } };
 const added = Object.keys(fakes).filter((key) => !(key in globalThis));
 Object.assign(globalThis, fakes);
 doc.getElementById = (id: string) => {

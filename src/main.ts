@@ -836,7 +836,7 @@ function frame(time: number) {
   sparks.update(dt, car);
 
   net.prune();
-  remotes.update(dt, camera, car.pos);
+  remotes.update(dt, camera, car.pos, render.view_width, render.view_height);
   if (net.remotes.size) goals.done(GoalId.FRIEND);
 
   const speed = car.vel.length();
