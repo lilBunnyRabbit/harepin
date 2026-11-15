@@ -426,3 +426,30 @@ Bench: `.t316/bench.ts` (untracked), Bun 1.3, 7 cars (hatch to raijin), 3600 ste
 - The saving is 0.3-1.2 µs per car step, 8-15% of it on loose ground. That is well under t315's 2 µs per wheel (8 µs per car), which was measured on the WASM port; in V8 and JSC the bisection is cheaper than that.
 - The checkerboard, where wheels cross a surface edge every 6 m, saves as much as uniform dirt, so misses at edges are rare against the steps in between.
 - Not measured: a phone frame at 4x CPU. At 7 cars and 6 steps a 60 Hz frame, 1 µs per car step is about 40 µs a frame on the desktop, about 0.17 ms at 4x.
+
+## Phone frame: clock box and the menu's skipped frames (t314)
+
+The two leftovers from t308. Base fbb4602 against cafc3e6 (clock) + 65d27f9 (menu frames), each a `git archive` copy built with `vite build --mode review` and served by `vite preview`, same rig as t308: headless Chrome on the real GPU, 844x390 at DPR 2, touch, CPU throttled 4x, career event `?event=r1` on the grid with the clock running. "Menu" opens the menu over that race (held sim, `MENU_DRAW_MS`); "online menu" adds a peer tab in the same room, so the sim runs under the menu and redraws at `COVERED_DRAW_MS`. Two alternating runs per build. Scripts: `.t314/trace.mts` (t308's with `MENU`, a clock width sampler and `CSS` injection), `.t308p/probe.mts` for frame times (untracked).
+
+Chrome trace, 4 s at 4x, main thread, ms/s:
+
+| Case | RunTask | rAF callback | Layout | Anchor relayouts / 4 s |
+|---|---|---|---|---|
+| Solo race, before | 985-994 | 491-500 | 176-185 | 196-240 |
+| Solo race, after | 945-986 | 562-591 | **20** | 0 |
+| Menu, before | 523-635 | 228-275 | 11 | 4 |
+| Menu, after | **468-476** | **147-150** | 10 | 4 |
+| Online menu, before | 673-680 | 286-295 | 7-8 | 44-45 |
+| Online menu, after | **481-482** | **138-141** | 10-12 | 4 |
+
+Solo race frames (`probe.mts`, 8 s warm, 10 s sample):
+
+| Build | Frame work p50 / p95 (ms) | Gap p50 / p95 (ms) | fps |
+|---|---|---|---|
+| Before | 10.1-10.4 / 12.6-13.3 | 20.8 / 27.7-27.8 | 53-55 |
+| After | 8.7-10.4 / 11.8-19.4 | **13.9** / 20.9-27.8 | **66-73** |
+
+- **The clock is its own layout root.** A width that holds still is not enough: a trial with only `min-width: 9ch` on the clock kept Layout at 175 ms/s, since Chrome re-lays out anchored boxes whenever their anchor's layout is dirty, not when it moves. What stops it is a box Chrome can lay out alone: `#mode-status-clock[data-time]` is an inline-block of fixed `ch` width and `1lh` height with `contain: size layout style` (`modes/modes.css`), so the text change ends at the clock and `#mode-status`, `#mode-hint` and `#toast` stay clean. Layout drops from 176-185 to 20 ms/s and the anchored relayouts from one per tick to none; the main thread spends the time on frames instead (rAF callback up, 53-55 to 66-73 fps).
+- **Sized for Inter.** `ch` is Inter's proportional zero, wider than its tabular figures: the box holds " · M:SS.sss" (the separator is the clock's `::before`) at 7.66ch, so it is 7.7ch, 8.65ch for MM:SS.sss. `white-space: pre` keeps the separator's leading space, which a line inside the box would drop. Measured with Inter loaded, `#mode-status` comes out 0.36 px wider than before and `#mode-status-more` and `#mode-hint` hold one position across 40 samples. With Inter loaded the clock's width never changed per tick before either (tabular figures); it did in the traces, which block Google Fonts and fall back to a font without them (68-72 px).
+- **Only a time alone gets the box.** `Modes.write_status` sets `data-time` to the clock's length when the segment is `M:SS.sss` or `MM:SS.sss`, written only when that changes. A clock with a penalty (`0:17.346 (+2 s)`), the countdown, drift points and jump metres keep the inline flow and its relayouts.
+- **The menu skips whole frames.** `frame()` reads input, runs actions and the lobby every frame, then returns on a frame the menu's redraw rate won't draw (`draw_ms` set, not the garage, not a review shot). `last` stays put, so the next drawn frame's `dt` covers the skipped time and the sim, chase cam, smoke and audio advance by all of it; the 0.1 s `dt` cap still applies, so a held-sim menu at 100 ms loses up to a frame of chase and smoke time per redraw, with nothing driving. `quality.adapt` skips covered frames, whose `dt` is the redraw gap and would read as slow frames. Main thread behind the menu drops from 523-680 to 468-482 ms/s, the rAF callback by half.
