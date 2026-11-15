@@ -56,8 +56,11 @@ export class PadTimer {
     car.vel.addScaledVector(forward.set(0, 0, 1).applyQuaternion(car.quat), PAD_ACCEL * dt);
   }
 
-  snapshot(): PadSnapshot {
-    return { left: this.left, on: this.on };
+  snapshot(into?: PadSnapshot): PadSnapshot {
+    const out = into ?? { left: 0, on: false };
+    out.left = this.left;
+    out.on = this.on;
+    return out;
   }
 
   restore(snap: PadSnapshot): void {

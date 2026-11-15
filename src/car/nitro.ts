@@ -84,9 +84,24 @@ export class Nitro {
     else this.refill();
   }
 
-  snapshot(): NitroSnapshot {
-    const { fill, close, scraped, target, clock, paid_at } = this;
-    return { fill, close, scraped, target, clock, paid_at, paid: [...this.paid] };
+  snapshot(into?: NitroSnapshot): NitroSnapshot {
+    const out = into ?? { fill: 0, close: false, scraped: false, target: null, clock: 0, paid_at: 0, paid: [] };
+    out.fill = this.fill;
+    out.close = this.close;
+    out.scraped = this.scraped;
+    out.target = this.target;
+    out.clock = this.clock;
+    out.paid_at = this.paid_at;
+    let n = 0;
+    for (const [key, at] of this.paid) {
+      const pair = out.paid[n++];
+      if (pair) {
+        pair[0] = key;
+        pair[1] = at;
+      } else out.paid.push([key, at]);
+    }
+    out.paid.length = n;
+    return out;
   }
 
   restore(s: NitroSnapshot) {

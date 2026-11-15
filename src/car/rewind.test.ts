@@ -37,3 +37,26 @@ test("frames older than the window fall off, past a buffer grow", () => {
   expect(part.restored.at(-1)).toBe(999);
   expect(steps).toBe(2000);
 });
+
+test("recording reuses the snapshots of frames that fell off, and steps back to the right values", () => {
+  let made = 0;
+  let value = 0;
+  const restored: number[] = [];
+  const part: RewindPart<{ value: number }> = {
+    snapshot: (into) => {
+      const out = into ?? (made++, { value: 0 });
+      out.value = value;
+      return out;
+    },
+    restore: (snapshot) => restored.push(snapshot.value),
+  };
+  const rewind = new Rewind([part]);
+  for (let i = 0; i < 20_000; i++) {
+    value = i;
+    rewind.record(i * 5);
+  }
+  expect(made).toBeLessThanOrEqual(4096);
+  rewind.step(100_000);
+  rewind.step(100_000);
+  expect(restored).toEqual([19_998, 19_997]);
+});
