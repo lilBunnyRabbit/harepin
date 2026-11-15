@@ -8,6 +8,7 @@ import { generate_world, KINDS } from "../src/worldgen/kinds/kinds";
 import { SIZE, WorldKind } from "../src/worldgen/types";
 import { autolap } from "./autolap";
 import { route_digest } from "./proof/digest";
+import { stream_in } from "./stream-in";
 import { GOLDEN_SEEDS, read_golden } from "./proof/golden-file";
 
 // Drives every race route of each seed with every car: a route is sound when all of them finish it on the road, inside par.
@@ -28,19 +29,6 @@ const CANARY = new Set(["0 circuit", "1 street-1", "3 offroad-1"]);
 const golden = CHANGED ? read_golden(WORLD) : null;
 const BASELINE_FILE = new URL("golden/races-baseline.txt", import.meta.url);
 const baseline = new Set(existsSync(BASELINE_FILE) ? readFileSync(BASELINE_FILE, "utf8").split(/\r?\n/).filter(Boolean) : []);
-
-// A streamed world holds no tiles until they are built: the chunks round the route come in before it is driven.
-function stream_in(world: World, ground: GroundPlan, line: readonly { x: number; z: number }[]) {
-  if (!world.tiles.streamed) return;
-  const { ext } = world.tiles;
-  for (const p of line) {
-    const at = chunk_of(p.x, p.z, ext);
-    const ci = at % ext.side;
-    const cj = Math.floor(at / ext.side);
-    for (let j = Math.max(0, cj - 1); j <= Math.min(ext.side - 1, cj + 1); j++)
-      for (let i = Math.max(0, ci - 1); i <= Math.min(ext.side - 1, ci + 1); i++) if (!world.tiles.get(j * ext.side + i)) world.tiles.add(j * ext.side + i, build_tile(ground, j * ext.side + i, ext));
-  }
-}
 
 const failures: string[] = [];
 const fixed: string[] = [];

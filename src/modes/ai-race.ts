@@ -10,16 +10,11 @@ import { ordinal } from "../career/series";
 import { FieldTally } from "./field-tally";
 import { turn_to, type Driven, type FieldHost, type FieldPlace, type FieldRace, type Finish, type ModeCtx, type ModeRun, type RouteRun } from "./mode";
 import { RaceLights } from "./race-lights";
+import { race_laps } from "./race-laps";
 import { RaceView } from "./race-view";
 import { COUNTDOWN_MS, RaceRun, RaceStatus, type RaceCourse, type RaceLevel } from "./races";
 import { line } from "./result";
 
-/**
- * D4: about four minutes a race, in laps of the route's par; an island circuit's one lap already takes that (D3's three
- * laps do not fit), and a town loop of a quarter kilometre runs ten or more.
- */
-const RACE_MS = 240_000;
-const MAX_LAPS = 15;
 /** Places that show two stars; nothing is recorded, as position grading is its own design (O9). */
 const PODIUM = 3;
 const PLAYER = "You";
@@ -80,8 +75,7 @@ export class AiRace implements ModeRun, FieldRace {
     this.view = new RaceView(course, ctx.ground);
     ctx.scene.add(this.view.root);
     this.unplace = ctx.world.place(route.closure);
-    // A timed race runs the most laps a field may, so no car stops at the line before the clock does.
-    this.laps = host.event?.limit_ms ? MAX_LAPS : Math.max(1, Math.min(MAX_LAPS, Math.round(RACE_MS / route.par_ms)));
+    this.laps = race_laps(route.par_ms, host.event?.limit_ms ?? null);
     this.builds = field_builds(host.build(), host.rating(), host.cars.length, route.excludes);
     this.names = [...this.builds.map((b, i) => host.event?.names[i] ?? `${CARS[b.car].name} ${b.number}`), PLAYER];
     this.grid = Math.max(0, Math.min(this.builds.length, Math.trunc(host.event?.grid ?? this.builds.length)));
