@@ -764,6 +764,25 @@ const COVERED_DRAW_MS = 30;
 let last_draw = 0;
 /** Time the draw side (chase cam, smoke, remote cars) has not yet advanced by, from frames the menu skipped. */
 let draw_dt = 0;
+/** The timer a held menu sleeps on until its next redraw, 0 while the loop runs on animation frames. */
+let sleep = 0;
+// A key or click can close the menu, so it wakes a sleeping loop rather than leave the scene frozen until the next redraw;
+// a gamepad's first press connects it, and the loop then polls every frame.
+const wake = () => {
+  if (!sleep) return;
+  clearTimeout(sleep);
+  sleep = 0;
+  requestAnimationFrame(frame);
+};
+// The redraw runs in the timer's own task: an animation frame after it carries the vsync time, which can fall short of
+// the redraw slot and skip it once more.
+const redraw = () => {
+  sleep = 0;
+  frame(performance.now());
+};
+window.addEventListener("keydown", wake, { capture: true });
+window.addEventListener("pointerup", wake, { capture: true });
+window.addEventListener("gamepadconnected", wake);
 
 new Heartbeat(net, garage, driver, race, seed).start();
 let stuck = 0;
@@ -813,9 +832,12 @@ function frame(time: number) {
   const draw_ms = menu_hold ? MENU_DRAW_MS : settings.is_open ? COVERED_DRAW_MS : 0;
   const skips = draw_ms > 0 && !review && !garage.is_open && now - last_draw < draw_ms;
   // A held sim behind the menu has nothing to step on a frame the redraw rate skips: `last` stays, so the next drawn
-  // frame's dt carries the skipped time and the chase cam, smoke and audio advance by all of it.
+  // frame's dt carries the skipped time and the chase cam, smoke and audio advance by all of it. Waking on every
+  // display frame only to skip it costs Blink a full frame each time, so the loop sleeps until the redraw instead; a
+  // gamepad is read only by polling, so with one connected the loop keeps every frame to catch its presses.
   if (skips && menu_hold) {
-    requestAnimationFrame(frame);
+    if (input.pad) requestAnimationFrame(frame);
+    else sleep = window.setTimeout(redraw, draw_ms - (now - last_draw));
     return;
   }
   const dt = Math.min(0.1, (now - last) / 1000);
