@@ -22,7 +22,7 @@ document.head.append(Object.assign(document.createElement("style"), { textConten
 await document.fonts.ready;
 
 // The running release with the draft story on it, unless it already carries one.
-const release: Release = CHANGELOG[0].highlights ? CHANGELOG[0] : { ...CHANGELOG[0], title: "Fresh metal", highlights: DRAFT_HIGHLIGHTS };
+const release: Release = CHANGELOG[0].highlights ? CHANGELOG[0] : { ...CHANGELOG[0], title: "Seasons", highlights: DRAFT_HIGHLIGHTS };
 const target = document.createElement("div");
 target.className = "review-release";
 document.body.append(target);
