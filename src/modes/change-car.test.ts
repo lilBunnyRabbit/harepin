@@ -313,7 +313,7 @@ test("a stage that refuses to start mid-championship says the championship ended
   elements.get("mode-next")!.click();
   expect(r.starts).toEqual(["g1", "g2"]);
   expect(r.modes.active).toBe(false);
-  expect(elements.get("mode-status")!.textContent).toBe("No room here · championship over at stage 2/3, 10 pts");
+  expect(elements.get("mode-status-name")!.textContent).toBe("No room here · championship over at stage 2/3, 10 pts");
 });
 
 test("a speed trap event leaves out the cars its circuit excludes", async () => {

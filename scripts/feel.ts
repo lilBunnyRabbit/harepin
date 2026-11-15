@@ -1,9 +1,17 @@
-import { car_spec } from "../src/car/cars";
+import { apply_build, parse_build } from "../src/car/build";
+import { car_spec, type CarSpec } from "../src/car/cars";
 import { SteerMode } from "../src/car/car";
 import * as feel from "./bench/feel-cases";
 
-// bun scripts/feel.ts [car] [steer mode]: the shipped Smooth keys unless a mode is named.
-const rig: feel.Rig = { spec: car_spec(process.argv[2] ?? "coupe"), mode: steer_mode(process.argv[3] ?? SteerMode.SMOOTH) };
+// bun scripts/feel.ts [car or build code] [steer mode]: the shipped Smooth keys unless a mode is named.
+const rig: feel.Rig = { spec: spec_of(process.argv[2] ?? "coupe"), mode: steer_mode(process.argv[3] ?? SteerMode.SMOOTH) };
+
+function spec_of(arg: string): CarSpec {
+  if (!arg.includes(".")) return car_spec(arg);
+  const build = parse_build(arg);
+  if (!build) throw new Error(`bad build code ${arg}`);
+  return apply_build(car_spec(build.car), build);
+}
 
 function steer_mode(arg: string): SteerMode {
   const mode = Object.values(SteerMode).find((m) => m === arg);
@@ -63,3 +71,15 @@ note("hold: parked, key to full lock", `${feel.hold_reach(rig).toFixed(2)} s`);
 
 const release = feel.hold_release(rig);
 note("hold: release at 100 km/h", `wheel ${release.held.toFixed(3)} rad -> 10% in ${release.centred.toFixed(2)} s, yaw after 2 s ${release.yaw.toFixed(3)} rad/s`);
+
+const f = (n: number, d = 1) => (Number.isFinite(n) ? n.toFixed(d) : "-");
+const held = (h: feel.Hold) => `held ${f(h.held, 2)} s, slip ${f(h.slip)}°, ${f(h.from_kmh, 0)} -> ${f(h.to_kmh, 0)} km/h, yaw ${f(h.yaw, 2)}, r ${f(h.radius)} m${h.spun ? ", spun" : ""}`;
+for (const tcs of [true, false]) {
+  const t = feel.drift_turn_in(rig, tcs);
+  note(`drift hold 50 km/h hb (TCS ${tcs ? "on" : "off"})`, held(t.hold));
+  note("  then turn key 1 s", `yaw ${f(t.yaw, 2)}, r ${f(t.radius)} m, slip ${f(t.slip)}°${t.spun ? ", spun" : ""}`);
+}
+for (const tcs of [true, false]) {
+  const p = feel.power_circle(rig, tcs);
+  note(`power drift 40 km/h no hb (TCS ${tcs ? "on" : "off"})`, `in ${f(p.entry, 2)} s, ${held(p.hold)}`);
+}

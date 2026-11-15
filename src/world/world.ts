@@ -6,14 +6,16 @@ import { DeckIndex } from "../worldgen/deck";
 import { generate } from "../worldgen/index";
 import type { Footing, GripTable } from "../worldgen/kinds/kind-def";
 import { KINDS, snow_of, world_key } from "../worldgen/kinds/kinds";
-import { ramp_reach2, ramp_surface, spawn_blocks, type Surface } from "../worldgen/jumps";
+import { ramp_height, ramp_reach2, ramp_surface, spawn_blocks, type Surface } from "../worldgen/jumps";
 import { FALL_DEPTH } from "../worldgen/sky";
 import { slice_tiles, TileStore, type Tile } from "../worldgen/tiles";
 import { kerb_marks, on_kerb_segment, type KerbMarks } from "./kerbs";
 import { road_junctions } from "../worldgen/road-layers";
+import { on_coast } from "../worldgen/biomes";
+import { ISLAND, type BiomeRecipe } from "../worldgen/recipe";
 import { CELL, ROAD_HALF, RouteKind, SurfaceId, type WorldKind } from "../worldgen/types";
 import { LIFT } from "../worldgen/lifts";
-import { drawn_roads, paved_lots, paving_lift, road_lift, type DrawnRoad, type PavedLot } from "./drawn-lift";
+import { drawn_junctions, drawn_roads, junction_lift, laid_height, on_road_paint, paved_lots, paving_lift, road_lift, type DrawnJunction, type DrawnRoad, type LaidPad, type PavedLot } from "./drawn-lift";
 import { SEA_LEVEL, water_index, type WaterIndex } from "../worldgen/water";
 import type { LavaPool } from "../worldgen/lava";
 import type {
@@ -48,6 +50,8 @@ const SOLID_CELL = 16;
 /** Metres of slack on the reject in `collide`, far past rounding, so it never skips a solid `circle_contact` would touch. */
 const REACH_SLACK = 1e-3;
 const ROAD_CELL = 32;
+/** Cell of the wedge grid; a ramp is listed in every cell its reach circle touches, a metre over for rounding. */
+const WEDGE_CELL = 32;
 const RESTITUTION = 1.25;
 /** Share of planar speed a sky rail takes per unit sine of the angle into it: a head-on hit keeps 88%, a 10° graze 98%. */
 export const GLIDE_LOSS = 0.12;
@@ -182,6 +186,10 @@ export class World implements Ground {
   readonly lava: readonly LavaPool[];
   /** The sea's level on a kind with ground; none on a deck-only kind. */
   private readonly sea: number;
+  /** The biome rows the terrain is painted from, as `paint` reads them; null on a kind without ground. */
+  private readonly biomes: BiomeRecipe | null;
+  private readonly ground_seed: number;
+  private readonly slope = new Vector3();
   /** `footing` in water: rewritten per query, never kept. */
   private readonly wading: Footing = { grip: 1, roll: 1, loose: 0, firm: false };
   /** The footing `grip` just read, for the `roll` the car asks of the same wheel next: one query per wheel per step. */
@@ -221,8 +229,12 @@ export class World implements Ground {
   private readonly nearby: Solid[] = [];
   private readonly nearby_slots: number[] = [];
   private paved: PavedLot[] | null = null;
+  /** What `lay` put down: a mode's pads, drawn over the ground the world draws. */
+  private readonly pads: LaidPad[] = [];
   /** Built with the world, never on a frame: the first wheel on a road would pay for the whole network. */
   private readonly drawn: (DrawnRoad | undefined)[];
+  /** Every patched junction under each cell its asphalt and give-way bars reach. */
+  private readonly junction_grid = new Map<number, DrawnJunction[]>();
   /** Where the circuit's kerbs are drawn: the mesh and the tyres read the same marks. Built with the world, like `drawn`, from the same junctions. */
   readonly kerbs: KerbMarks;
   private readonly lane_point = (packed: number): RoadPoint => this.lanes[Math.floor(packed / LANE_PACK)][packed % LANE_PACK];
@@ -240,6 +252,11 @@ export class World implements Ground {
   private readonly trails: { points: RoadPoint[]; blocked: Uint8Array }[];
   /** Ramps a car rides as wedges, with `ramp_reach2` so a height query skips the far ones. */
   private readonly wedges: { ramp: Ramp; reach2: number }[];
+  /** `wedges` indices per cell, in order: most height queries are nowhere near a ramp and skip the scan. */
+  private readonly wedge_grid = new Map<number, number[]>();
+  private wedge_cx = NaN;
+  private wedge_cz = NaN;
+  private wedge_list: number[] | undefined = undefined;
   private query = 0;
 
   /** `data` is `generate(seed)`, passed in when a worker already ran it; `tiles` empty when they stream in after. */
@@ -262,6 +279,8 @@ export class World implements Ground {
     const lava = data.ground.ops.find((op) => op.kind === "lava");
     this.lava = lava?.kind === "lava" ? lava.pools : [];
     this.sea = KINDS[data.kind].ground ? SEA_LEVEL : -Infinity;
+    this.biomes = KINDS[data.kind].ground ? (KINDS[data.kind].recipe ?? ISLAND).biomes : null;
+    this.ground_seed = data.terrain.seed;
     this.deck = data.deck && new DeckIndex(data.deck);
     this.tiles = new TileStore(extent(KINDS[data.kind].size), tiles);
     this.road = data.road;
@@ -283,6 +302,7 @@ export class World implements Ground {
     this.slots = [...this.solids];
     this.seen = new Uint32Array(this.solids.length);
     this.wedges = this.ramps.filter((r) => !r.deck).map((ramp) => ({ ramp, reach2: ramp_reach2(ramp) }));
+    this.wedges.forEach((wedge, index) => this.index_wedge(wedge, index));
     this.no_spawn = spawn_blocks(this.road, this.ramps, this.challenges);
     this.trails = this.routes.filter((r) => r.kind === RouteKind.OFFROAD).map((r) => ({ points: r.points, blocked: spawn_blocks(r.points, this.ramps, this.challenges) }));
     this.solids.forEach((solid, index) => this.index_solid(solid, index));
@@ -294,6 +314,7 @@ export class World implements Ground {
     });
     const junctions = road_junctions(data);
     this.drawn = drawn_roads(data, junctions);
+    for (const junction of drawn_junctions(junctions.patched)) this.index_junction(junction);
     this.kerbs = kerb_marks(data, junctions);
     this.lanes = [this.road, ...this.graph.edges.map((e) => (this.circuit.includes(e.id) ? [] : e.points)), ...this.trails.map((t) => t.points)];
     this.lanes.forEach((points, lane) =>
@@ -305,6 +326,19 @@ export class World implements Ground {
         else this.lane_grid.set(key, [packed]);
       }),
     );
+  }
+
+  private index_junction(junction: DrawnJunction) {
+    const reach = Math.sqrt(junction.reach2);
+    const x1 = Math.floor((junction.x + reach) / ROAD_CELL);
+    const z1 = Math.floor((junction.z + reach) / ROAD_CELL);
+    for (let cz = Math.floor((junction.z - reach) / ROAD_CELL); cz <= z1; cz++)
+      for (let cx = Math.floor((junction.x - reach) / ROAD_CELL); cx <= x1; cx++) {
+        const key = grid_key(cx, cz);
+        const list = this.junction_grid.get(key);
+        if (list) list.push(junction);
+        else this.junction_grid.set(key, [junction]);
+      }
   }
 
   private index_solid(solid: Solid, index: number) {
@@ -320,6 +354,29 @@ export class World implements Ground {
         if (list) list.push(index);
         else this.solid_grid.set(key, [index]);
       }
+  }
+
+  private index_wedge({ ramp, reach2 }: { ramp: Ramp; reach2: number }, index: number) {
+    const reach = Math.sqrt(reach2) + 1;
+    for (let cz = Math.floor((ramp.z - reach) / WEDGE_CELL); cz <= Math.floor((ramp.z + reach) / WEDGE_CELL); cz++)
+      for (let cx = Math.floor((ramp.x - reach) / WEDGE_CELL); cx <= Math.floor((ramp.x + reach) / WEDGE_CELL); cx++) {
+        const key = grid_key(cx, cz);
+        const list = this.wedge_grid.get(key);
+        if (list) list.push(index);
+        else this.wedge_grid.set(key, [index]);
+      }
+  }
+
+  // A wheel's ray asks 14 heights within a metre, nearly always in one cell: the last cell's list is kept.
+  private wedges_at(x: number, z: number): number[] | undefined {
+    const cx = Math.floor(x / WEDGE_CELL);
+    const cz = Math.floor(z / WEDGE_CELL);
+    if (cx !== this.wedge_cx || cz !== this.wedge_cz) {
+      this.wedge_cx = cx;
+      this.wedge_cz = cz;
+      this.wedge_list = this.wedge_grid.get(grid_key(cx, cz));
+    }
+    return this.wedge_list;
   }
 
   private unindex_solid(solid: Solid, index: number) {
@@ -341,8 +398,8 @@ export class World implements Ground {
   /** `y` is the height the query comes from: a deck only counts from above its underside. */
   height(x: number, z: number, y?: number): number {
     const ground = this.tiles.height(x, z);
-    const ramp = this.ramp_at(x, z);
-    const top = ramp && ramp.y > ground ? ramp.y : ground;
+    const ramp = this.ramp_top(x, z);
+    const top = ramp > ground ? ramp : ground;
     const deck = this.deck?.surface(x, z, y);
     return deck && deck.y > top ? deck.y : top;
   }
@@ -355,9 +412,28 @@ export class World implements Ground {
     return this.tiles.slope(x, z, out).normalize();
   }
 
+  /** `ramp_at(x, z)?.y`, -Infinity off every ramp. */
+  private ramp_top(x: number, z: number): number {
+    const near = this.wedges_at(x, z);
+    let top = -Infinity;
+    if (!near) return top;
+    for (let i = 0; i < near.length; i++) {
+      const { ramp, reach2 } = this.wedges[near[i]];
+      const dx = x - ramp.x;
+      const dz = z - ramp.z;
+      if (dx * dx + dz * dz > reach2) continue;
+      const y = ramp_height(ramp, x, z);
+      if (y > top) top = y;
+    }
+    return top;
+  }
+
   private ramp_at(x: number, z: number): Surface | null {
     let top: Surface | null = null;
-    for (const { ramp, reach2 } of this.wedges) {
+    const near = this.wedges_at(x, z);
+    if (!near) return top;
+    for (const index of near) {
+      const { ramp, reach2 } = this.wedges[index];
       const dx = x - ramp.x;
       const dz = z - ramp.z;
       if (dx * dx + dz * dz > reach2) continue;
@@ -394,12 +470,30 @@ export class World implements Ground {
   /**
    * How far the drawn ground at (`x`, `z`) stands over the ground the wheels feel, for the views to stand a car on it: road
    * and paving drape a few centimetres over the terrain. The road's share eases out over its grip edge, so a wheel
-   * running off it does not drop at once; a ramp or deck under `y` is drawn where it is felt.
+   * running off it does not drop at once; a ramp or deck under `y` is drawn where it is felt. Under a pad `lay` put down, the
+   * pad's own mesh, wherever it stands over the rest.
    */
   drawn_lift(x: number, z: number, y?: number): number {
     if (this.height(x, z, y) > this.tiles.height(x, z)) return 0;
+    const lift = this.world_lift(x, z);
+    return this.pads.length ? Math.max(lift, laid_height(this.pads, x, z) - this.tiles.height(x, z)) : lift;
+  }
+
+  /** Puts a pad down over the drawn ground; returns the function that takes it away again. */
+  lay(pad: LaidPad): () => void {
+    this.pads.push(pad);
+    return () => {
+      const i = this.pads.indexOf(pad);
+      if (i >= 0) this.pads.splice(i, 1);
+    };
+  }
+
+  private world_lift(x: number, z: number): number {
+    const paving = paving_lift((this.paved ??= paved_lots(this.lots, this.parking)), x, z);
+    const junction = this.junction_lift(x, z);
+    if (junction > 0) return Math.max(junction, paving);
     const on = Math.max(0, Math.min(1, (ON_ROAD - this.tiles.road_dist(x, z)) / (ON_ROAD - ROAD_HALF)));
-    return Math.max(on > 0 ? on * this.road_lift(x, z) : 0, paving_lift((this.paved ??= paved_lots(this.lots, this.parking)), x, z));
+    return Math.max(on > 0 ? on * this.road_lift(x, z) : 0, paving);
   }
 
   /** The lift of the road nearest (`x`, `z`), whichever kind it is, or of the paint on it there. */
@@ -407,6 +501,18 @@ export class World implements Ground {
     const packed = nearest(this.lane_grid, x, z, this.lane_point);
     const road = packed < 0 ? undefined : this.drawn[Math.floor(packed / LANE_PACK)];
     return road ? road_lift(road, packed % LANE_PACK, x, z) : LIFT.ring;
+  }
+
+  /** The lift of the junction drawn at (`x`, `z`): its own asphalt and paint, or a through road's line across it; 0 off every junction. */
+  private junction_lift(x: number, z: number): number {
+    const near = this.junction_grid.get(grid_key(Math.floor(x / ROAD_CELL), Math.floor(z / ROAD_CELL)));
+    if (!near) return 0;
+    let lift = 0;
+    for (const junction of near) lift = Math.max(lift, junction_lift(junction, x, z));
+    if (lift === 0 || lift === LIFT.mark) return lift;
+    const packed = nearest(this.lane_grid, x, z, this.lane_point);
+    const road = packed < 0 ? undefined : this.drawn[Math.floor(packed / LANE_PACK)];
+    return road && on_road_paint(road, packed % LANE_PACK, x, z) ? LIFT.mark : lift;
   }
 
   distance_to_road(x: number, z: number): number {
@@ -419,6 +525,18 @@ export class World implements Ground {
     const i = Math.round((x + size / 2) / CELL);
     const j = Math.round((z + size / 2) / CELL);
     return i >= 0 && j >= 0 && i <= n && j <= n ? (this.tiles.surface(i, j) as SurfaceId) : SurfaceId.GRASS;
+  }
+
+  /**
+   * Open ground at (x, z) painted as the shore: under the beach height or in the coast biome, whose rows are sand on every
+   * kind with a coast. A bank too steep to keep its row paints toward rock, so it is no shore.
+   */
+  shore(x: number, z: number): boolean {
+    if (!this.biomes) return false;
+    const { limits, zones } = this.biomes;
+    const y = this.tiles.height(x, z);
+    if (this.normal(x, z, this.slope).y < limits.scree.up) return false;
+    return y < limits.beach || on_coast(this.ground_seed, zones.coast, x, z, y);
   }
 
   /** On dirt or gravel (a trail, hardpack, scree), from the footing `grip` just read: where a tyre's `grip_dirt` applies. */

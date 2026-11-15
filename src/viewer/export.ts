@@ -1,7 +1,8 @@
-import { parse_build } from "../car/build";
-import { is_car, type CarId, type Triple } from "../car/cars";
+import { build_code, DEFAULT_BUILD, parse_build } from "../car/build";
+import { is_car, type Triple } from "../car/cars";
+import { asset_of_ref, AssetKind, is_asset_kind, is_item, is_part, is_seed, type AssetRef } from "./assets";
 import { checked_note, pin_numbers, type Note, type Notes } from "./notes";
-import { cam_text, is_light, is_preset_id, lamps_text, parse_cam, parse_lamps, parse_triple, view_query, type ShotPin, type ViewState } from "./view-state";
+import { asset_ref, cam_text, is_light, is_preset_id, lamps_text, parse_cam, parse_lamps, parse_triple, view_query, type ShotPin, type ViewState } from "./view-state";
 
 export interface Screen {
   width: number;
@@ -10,31 +11,43 @@ export interface Screen {
 
 const stamp = (at: Date) => `${at.toISOString().slice(0, 16)}Z`;
 
+// A world asset's note carries no build: the car does not stand on its stage.
+const NO_BUILD = "-";
+const STAND_IN = { car: DEFAULT_BUILD.car, preset: "stock", code: build_code(DEFAULT_BUILD) };
+
 function note_lines(note: Note, n: number | null): string[] {
   const { view } = note;
   const fields = [`cam=${cam_text(view.cam)}`, `steer=${view.steer}`, `light=${view.light}`];
   if (note.pin) fields.push(`pin=${note.pin.join(",")}`);
   if (view.lamps !== undefined) fields.push(`lamps=${lamps_text(view.lamps)}`);
-  return [` c ${n ?? "-"} ${view.code} ${fields.join(" ")}`, ` n ${JSON.stringify(note.text)}`];
+  if (view.asset && "on" in view.asset && view.asset.on) fields.push("on=1");
+  const code = view.asset && "world" in view.asset ? NO_BUILD : view.code;
+  return [` c ${n ?? "-"} ${code} ${fields.join(" ")}`, ` n ${JSON.stringify(note.text)}`];
+}
+
+function header(ref: AssetRef, count: number): string {
+  const notes = plural(count, "note");
+  return ref.kind === AssetKind.CAR ? `#car ${ref.id} ${ref.variant} ${notes}` : `#asset ${ref.kind} ${ref.id} ${ref.variant} ${ref.seed} ${notes}`;
 }
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
-/** Line based like the lab's block (docs/cars.md): a chat app keeps it, and two rounds diff line by line. */
-export function export_block(notes: Notes, version: string, screen: Screen, at: Date, only: CarId | null = null): string {
+/**
+ * Line based like the lab's block (docs/cars.md): a chat app keeps it, and two rounds diff line by line. `only` keeps the
+ * notes whose ref id is it: one car with its parts, or one world kind's assets.
+ */
+export function export_block(notes: Notes, version: string, screen: Screen, at: Date, only: string | null = null): string {
   const lines = [`#cars v${version} ${stamp(at)} ${screen.width}x${screen.height}`];
   let cars = 0;
   let count = 0;
-  const keys = Object.keys(notes)
-    .filter((key) => only === null || key.startsWith(`${only}/`))
-    .sort();
-  for (const key of keys) {
+  for (const key of Object.keys(notes).sort()) {
     const list = notes[key];
     if (!list.length) continue;
-    const [car, preset] = key.split("/");
+    const ref = asset_ref(list[0].view);
+    if (only !== null && ref.id !== only) continue;
     cars++;
     count += list.length;
-    lines.push(`#car ${car} ${preset} ${plural(list.length, "note")}`);
+    lines.push(header(ref, list.length));
     const numbers = pin_numbers(list);
     list.forEach((note, i) => lines.push(...note_lines(note, numbers[i])));
   }
@@ -49,20 +62,20 @@ export interface ReadNote extends Note {
 // Forgiving of what a chat app does to a block (CRLF, trailing spaces, lines around it); strict on every value.
 export function read_block(text: string): ReadNote[] {
   const out: ReadNote[] = [];
-  let car: CarId | null = null;
-  let preset: string | null = null;
+  let ref: AssetRef | null = null;
   let pending: Omit<ReadNote, "text"> | null = null;
   for (const raw of text.split(/\r?\n/)) {
     const line = raw.trimEnd();
-    const head = /^#car (\S+) (\S+)/.exec(line);
-    if (head) {
-      [car, preset] = is_car(head[1]) && is_preset_id(head[2]) ? [head[1], head[2]] : [null, null];
+    const car = /^#car (\S+) (\S+)/.exec(line);
+    const asset = /^#asset (\S+) (\S+) (\S+) (\d+)/.exec(line);
+    if (car || asset) {
+      ref = car ? read_ref([AssetKind.CAR, car[1], car[2], "0"]) : asset && read_ref(asset.slice(1));
       pending = null;
       continue;
     }
     const c = /^ c (\d+|-) (\S+)((?: \w+=\S+)*)$/.exec(line);
-    if (c && car && preset) {
-      pending = read_c(car, preset, c[1], c[2], c[3]);
+    if (c && ref) {
+      pending = read_c(ref, c[1], c[2], c[3]);
       continue;
     }
     const n = /^ n (".*")$/.exec(line);
@@ -84,9 +97,18 @@ function parse_text(quoted: string): unknown {
   }
 }
 
-function read_c(car: CarId, preset: string, number: string, code: string, rest: string): Omit<ReadNote, "text"> | null {
-  const build = parse_build(code);
-  if (!build || build.car !== car) return null;
+function read_ref([kind, id, variant, seed_text]: string[]): AssetRef | null {
+  const seed = Number(seed_text);
+  if (!is_asset_kind(kind) || !is_seed(seed)) return null;
+  const car_like = kind === AssetKind.CAR || is_part(kind);
+  if (car_like ? !is_car(id) || !is_preset_id(variant) : !is_item(variant)) return null;
+  return { kind, id, variant, seed };
+}
+
+function read_c(ref: AssetRef, number: string, code: string, rest: string): Omit<ReadNote, "text"> | null {
+  const world = ref.kind !== AssetKind.CAR && !is_part(ref.kind);
+  const build = world ? parse_build(STAND_IN.code) : parse_build(code);
+  if (!build || (!world && build.car !== ref.id) || (world && code !== NO_BUILD)) return null;
   const fields = new Map(rest.trim().split(" ").filter(Boolean).map((kv): [string, string] => {
     const at = kv.indexOf("=");
     return [kv.slice(0, at), kv.slice(at + 1)];
@@ -99,8 +121,11 @@ function read_c(car: CarId, preset: string, number: string, code: string, rest: 
   if (fields.has("pin") && !pin) return null;
   const lamps = parse_lamps(fields.get("lamps"));
   if (fields.has("lamps") && lamps === null) return null;
-  const view: ViewState = { car, preset, code, steer, light, cam };
+  const asset = asset_of_ref(ref, fields.get("on") === "1");
+  if (asset === undefined) return null;
+  const view: ViewState = { ...(world ? STAND_IN : { car: build.car, preset: ref.variant, code }), steer, light, cam };
   if (lamps !== null) view.lamps = lamps;
+  if (asset) view.asset = asset;
   return { pin, n: number === "-" ? null : Number(number), view };
 }
 

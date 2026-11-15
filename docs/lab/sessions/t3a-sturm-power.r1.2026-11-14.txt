@@ -1,0 +1,66 @@
+#lab t3a-sturm-power r1 v0.43.1 2026-11-14T13:50Z keys 2560x1360
+#trial sturm-straight-best sturm.4.0.4.2.2.0.7.2.2.2.1.2 spec#0132da40 pi710S1 runway/asphalt run done
+ m time=11.2 seg=9.68 slip=0/- held=0 chain=0 spins=0 0-100=3.4 top=210 spin=0.0116/2.93 air=0 bounce=0 offs=0 resets=0 lock=0 thr=1 hb=0 rev=0 yawsd=0/0
+ a grip=5 power=3 pred=5 fun=3 vs="same" worth="unsure"
+#trial sturm-straight-sc sturm.4.0.4.2.0.0.7.2.2.2.1.2 +torque*1.5 +redline+600 +upshift+600 +mass+35 spec#a513cc9d pi732S1 runway/asphalt run done
+ m time=11 seg=9.38 slip=0/- held=0 chain=0 spins=0 0-100=3.38 top=220 spin=0.0245/5.83 air=0 bounce=0 offs=0 resets=0 lock=0 thr=1 hb=0 rev=0 yawsd=0/0
+ a grip=5 power=4 pred=5 fun=4 vs="better" worth="no"
+ n "Good, faster different vibe"
+#trial sturm-straight-turbo lab:sturm-turbo +redline+700 +upshift+700 +mass+40 +mu*1.12 +grip_dirt*0.92 +grip_grass*0.92 +offroad-0.6 +downforce*3.6 +drag+0.17 +rear_grip+0.05 +aero_front+0.04 +mass+12 +mass*0.9 +inertia*0.9 +cog+0.025 spec#cf20193c pi751S1 runway/asphalt run done
+ m time=10.7 seg=9.11 slip=0/- held=0 chain=0 spins=0 0-100=3.29 top=229 spin=0.0251/4.02 air=0 bounce=0 offs=0 resets=0 lock=0 thr=1 hb=0 rev=0 yawsd=0/0
+ a grip=5 power=4 pred=5 fun=3 vs="same" worth="no"
+ n "Very similar to previous one not that different"
+#trial sturm-straight-twin lab:sturm-twin +redline+800 +upshift+800 +mass+55 +mu*1.12 +grip_dirt*0.92 +grip_grass*0.92 +offroad-0.6 +downforce*3.6 +drag+0.17 +rear_grip+0.05 +aero_front+0.04 +mass+12 +mass*0.9 +inertia*0.9 +cog+0.025 spec#c0965b2e pi774S1 runway/asphalt run done
+ m time=10.5 seg=8.87 slip=0/- held=0 chain=0 spins=0 0-100=3.26 top=232 spin=0.0484/9.87 air=0 bounce=0 offs=0 resets=0 lock=0 thr=0.933 hb=0 rev=0 yawsd=0/0
+ a grip=5 power=4 pred=5 fun=4 vs="same" worth="unsure"
+ n "Yep you can feel more power with this one and more pull on shift"
+#trial sturm-straight-top lab:sturm-twin +redline+800 +upshift+800 +mass+55 +mu*1.24 +grip_dirt*0.8 +grip_grass*0.8 +offroad-1 +downforce*6 +drag+0.26 +rear_grip+0.08 +aero_front+0.04 +mass+18 +mass*0.76 +inertia*0.76 +cog+0.04 spec#dc008f56 pi887S2 runway/asphalt run done
+ m time=9.81 seg=8.28 slip=0/- held=0 chain=0 spins=0 0-100=2.75 top=249 spin=0.0413/8.25 air=0 bounce=0 offs=0 resets=0 lock=0 thr=1 hb=0 rev=0 yawsd=0/0
+ a grip=5 power=4 pred=5 fun=4 vs="same" worth="unsure"
+ n "Interesting. you can see the difference. but the difference between the 3 boosts is nothing crazy just the pull when shifting is noticable"
+#trial sturm-pins-best sturm.4.0.4.2.2.0.7.2.2.2.1.2 spec#0132da40 pi710S1 hairpin/asphalt run done
+ m time=25.6 seg=21.9 slip=5.9/- held=0 chain=0 spins=0 lag=0.157 0-100=3.47 top=129 spin=0.107/3.93 air=0 bounce=0 offs=0 resets=0 lock=0.555 thr=0.648 hb=0 rev=0.195 yawover=0.295 pwr=5.9 lift=3.82 trail=2.08
+ a grip=4 power=3 pred=4 fun=3 vs="same" worth="unsure"
+#trial sturm-pins-twin lab:sturm-twin +redline+800 +upshift+800 +mass+55 +mu*1.12 +grip_dirt*0.92 +grip_grass*0.92 +offroad-0.6 +downforce*3.6 +drag+0.17 +rear_grip+0.05 +aero_front+0.04 +mass+12 +mass*0.9 +inertia*0.9 +cog+0.025 spec#c0965b2e pi774S1 hairpin/asphalt run done
+ m time=25.7 seg=21.7 slip=4.19/- held=0 chain=0 spins=0 lag=1.17 0-100=3.64 top=144 spin=0.166/10.3 air=0 bounce=0 offs=1 resets=0 lock=0.549 thr=0.614 hb=0 rev=0.234 yawover=0.0664 pwr=4.18 lift=3.64 trail=1.82 xslip=3.57
+ a grip=4 power=4 pred=4 fun=4 vs="same" worth="unsure"
+ n "Kinda drifts on the turn out but not to much. i think its ok"
+#trial sturm-pins-shell sturm.4.0.4.2.2.0.7.2.2.0.1.2 +mass*0.76 +inertia*0.76 +cog+0.04 spec#a13342ff pi742S1 hairpin/asphalt run done
+ m time=24.9 seg=21.1 slip=4.74/- held=0 chain=0 spins=0 lag=0.147 0-100=3.47 top=132 spin=0.104/4.99 air=0 bounce=0 offs=0 resets=0 lock=0.585 thr=0.601 hb=0 rev=0.161 yawover=0.101 pwr=4.08 lift=2.38 trail=0.714
+ a grip=4 power=4 pred=4 fun=3 vs="same" worth="unsure"
+ n "a bit more slower and more stable on the corners than previous"
+#trial sturm-pins-top lab:sturm-twin +redline+800 +upshift+800 +mass+55 +mu*1.24 +grip_dirt*0.8 +grip_grass*0.8 +offroad-1 +downforce*6 +drag+0.26 +rear_grip+0.08 +aero_front+0.04 +mass+18 +mass*0.76 +inertia*0.76 +cog+0.04 spec#dc008f56 pi887S2 hairpin/asphalt run done
+ m time=23.1 seg=19.7 slip=13.9/12.1 held=0 chain=0 spins=0 lag=1.74 0-100=2.79 top=148 spin=0.123/8.67 air=0 bounce=0 offs=0 resets=0 lock=0.561 thr=0.58 hb=0 rev=0.13 yawover=-0.000935 pwr=4.7 trail=2.55
+ a grip=5 power=4 pred=4 fun=4 vs="same" worth="unsure"
+ n "very similar to 2 just faster"
+#end 9/9 trials
+
+
+sim on 3775366 (v0.44.1, every spec# equal to the drive's): bun scripts/lab.ts t3a-sturm-power
+#sim t3a-sturm-power r1 base first trial per scenario
+#trial sturm-straight-best sturm.4.0.4.2.2.0.7.2.2.2.1.2 spec#0132da40 pi710S1 runway/asphalt run est 0m20s
+ sim 0-100=3.46 stop=20.5@100 top=290
+#trial sturm-straight-sc sturm.4.0.4.2.0.0.7.2.2.2.1.2 +torque*1.5 +redline+600 +upshift+600 +mass+35 spec#a513cc9d pi732S1 runway/asphalt run est 0m20s
+ sim 0-100=3.38 stop=20.7@100 top=300
+ d 0-100=-0.0722 stop=+0.166 top=+10.2 vs sturm-straight-best
+#trial sturm-straight-turbo lab:sturm-turbo +redline+700 +upshift+700 +mass+40 +mu*1.12 +grip_dirt*0.92 +grip_grass*0.92 +offroad-0.6 +downforce*3.6 +drag+0.17 +rear_grip+0.05 +aero_front+0.04 +mass+12 +mass*0.9 +inertia*0.9 +cog+0.025 spec#cf20193c pi751S1 runway/asphalt run est 0m20s
+ sim 0-100=3.32 stop=20.7@100 top=309
+ d 0-100=-0.131 stop=+0.22 top=+19 vs sturm-straight-best
+#trial sturm-straight-twin lab:sturm-twin +redline+800 +upshift+800 +mass+55 +mu*1.12 +grip_dirt*0.92 +grip_grass*0.92 +offroad-0.6 +downforce*3.6 +drag+0.17 +rear_grip+0.05 +aero_front+0.04 +mass+12 +mass*0.9 +inertia*0.9 +cog+0.025 spec#c0965b2e pi774S1 runway/asphalt run est 0m20s
+ sim 0-100=3.29 stop=20.9@100 top=320
+ d 0-100=-0.164 stop=+0.442 top=+30.3 vs sturm-straight-best
+#trial sturm-straight-top lab:sturm-twin +redline+800 +upshift+800 +mass+55 +mu*1.24 +grip_dirt*0.8 +grip_grass*0.8 +offroad-1 +downforce*6 +drag+0.26 +rear_grip+0.08 +aero_front+0.04 +mass+18 +mass*0.76 +inertia*0.76 +cog+0.04 spec#dc008f56 pi887S2 runway/asphalt run est 0m20s
+ sim 0-100=2.75 stop=18@100 top=286
+ d 0-100=-0.703 stop=-2.47 top=-3.83 vs sturm-straight-best
+#trial sturm-pins-best sturm.4.0.4.2.2.0.7.2.2.2.1.2 spec#0132da40 pi710S1 hairpin/asphalt run est 0m40s
+ sim slip=1.1 lag=0.317
+#trial sturm-pins-twin lab:sturm-twin +redline+800 +upshift+800 +mass+55 +mu*1.12 +grip_dirt*0.92 +grip_grass*0.92 +offroad-0.6 +downforce*3.6 +drag+0.17 +rear_grip+0.05 +aero_front+0.04 +mass+12 +mass*0.9 +inertia*0.9 +cog+0.025 spec#c0965b2e pi774S1 hairpin/asphalt run est 0m40s
+ sim slip=1.96 lag=0.314
+ d slip=+0.864 lag=-0.00278 vs sturm-pins-best
+#trial sturm-pins-shell sturm.4.0.4.2.2.0.7.2.2.0.1.2 +mass*0.76 +inertia*0.76 +cog+0.04 spec#a13342ff pi742S1 hairpin/asphalt run est 0m40s
+ sim slip=1.17 lag=0.325
+ d slip=+0.0778 lag=+0.00833 vs sturm-pins-best
+#trial sturm-pins-top lab:sturm-twin +redline+800 +upshift+800 +mass+55 +mu*1.24 +grip_dirt*0.8 +grip_grass*0.8 +offroad-1 +downforce*6 +drag+0.26 +rear_grip+0.08 +aero_front+0.04 +mass+18 +mass*0.76 +inertia*0.76 +cog+0.04 spec#dc008f56 pi887S2 hairpin/asphalt run est 0m40s
+ sim slip=1.61 lag=0.35
+ d slip=+0.518 lag=+0.0333 vs sturm-pins-best
+#end 9 trials, drive 4m20s + cards 6m45s = 11m05s

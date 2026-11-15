@@ -104,10 +104,11 @@ describe("steering assist and stability", () => {
 
 // Captured at 412bd08, before the split: the default pair must drive exactly as the one steer assist did. The power over
 // of the rear-drive cars is re-captured with the launch's looser traction control and its own countersteer, by design;
-// swerve, slalom and lift-off with the full-key reach past grip lock that opens from 90 km/h.
+// swerve, slalom and lift-off with the full-key reach past grip lock that opens from 90 km/h; the rear-drive power over again
+// with traction control acting from rest.
 const BEFORE_SPLIT = {
-  coupe: { swerve: -0.9195335124733298, slalom: 3.3716032303715324, lift: 3.9767758122283436, t30: 1.4944444444444398, peak: 65.41261525337042, catch: 0.48888888888888765, held: 0.37777777777777694 },
-  muscle: { swerve: -0.8156821237686279, slalom: 4.113755540073077, lift: 3.5190155841831006, t30: 1.4888888888888843, peak: 69.63440274969838, catch: 0.605555555555554, held: 0.4944444444444432 },
+  coupe: { swerve: -0.9195335124733298, slalom: 3.3716032303715324, lift: 3.9767758122283436, t30: 1.4611111111111066, peak: 65.56406909661631, catch: 0.47222222222222104, held: 0.36666666666666586 },
+  muscle: { swerve: -0.8156821237686279, slalom: 4.113755540073077, lift: 3.5190155841831006, t30: 1.3999999999999957, peak: 69.7957453579842, catch: 0.5833333333333318, held: 0.4694444444444433 },
   rally: { swerve: 0.07668757325832962, slalom: 4.499654456125449, lift: 13.019912053627973, t30: 1.3499999999999959, peak: 68.52582111088348, catch: 0.2944444444444439, held: 0.29722222222222167 },
 } as const;
 

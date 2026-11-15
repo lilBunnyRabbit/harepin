@@ -1,9 +1,11 @@
 import * as THREE from "three";
 import type { Car } from "../car/car";
-import { DECAL_ORDER } from "../car/contact-shadow";
-import { brand, color, dark, mix, tones } from "../theme/palette";
+import { CAR_ORDER, DECAL_ORDER } from "../car/contact-shadow";
+import { brand, color, dark, lighten, mix, tones } from "../theme/palette";
+import type { Lab } from "../theme/theme";
 import { FOG } from "./sky";
 import type { World } from "../world/world";
+import { SurfaceId } from "../worldgen/types";
 
 const PUFFS = 420;
 const SMOKE_LIFE = 0.7;
@@ -11,6 +13,10 @@ const SMOKE_SIZE = 0.7;
 const DUST_LIFE = 0.5;
 const DUST_SIZE = 0.25;
 const GROWTH = 1;
+/** Seconds a puff takes to swell from nothing, so it never appears at size. */
+const RISE = 0.08;
+/** Share of its size a puff starts above the contact point: its centre on the ground left half of it buried. */
+const SEAT = 0.3;
 const SMOKE_RATE = 45;
 /** Metres of road a tyre-smoke trail covers before its puffs are gone. */
 const SMOKE_TRAIL = 3;
@@ -29,8 +35,27 @@ interface Puff {
 const SPLASH = 0.05;
 const SPRAY_RATE = 30;
 
-/** What a kind's open ground throws up; firm ground (trails, shoulders) always throws dust. */
+/** Seconds a wheel must be off the ground before its touchdown throws a burst. */
+const LAND_AIR = 0.25;
+/** Metres a second the car must be dropping at touchdown; a kerb hop or a crest at speed throws nothing. */
+const LAND_SINK = 2.5;
+const LAND_PUFFS = 7;
+const LAND_SIZE = 0.45;
+// Tarmac throws no dirt, only a breath of tyre smoke: a full burst read as a cloud.
+const ROAD_LAND_PUFFS = 4;
+const ROAD_LAND_SIZE = 0.3;
+const ROAD_LAND_SPREAD = 2.5;
+const LAND_LIFE = 0.6;
+/** Sideways kick of a burst puff, wider than a trail's so the burst fans out round the tyre. */
+const LAND_SPREAD = 5;
+const TRAIL_SPREAD = 1.5;
+
+/** What a kind's open ground throws up; a laid surface (trail, scree, packed snow) throws its own. */
 export type GroundPuff = "grass" | "dust" | "snow";
+
+// Dust is the ground it came off a step lighter, so it shows against that ground by day and at dusk.
+const DUST_LIFT = 0.1;
+const kicked = (tone: Lab) => color(lighten(tone, DUST_LIFT));
 
 export class Smoke {
   readonly mesh: THREE.InstancedMesh;
@@ -41,19 +66,48 @@ export class Smoke {
   private s = new THREE.Vector3();
   // Tinted halfway to the fog so tyre smoke sits in the atmosphere instead of reading as solid rock.
   private smoke = FOG.clone().lerp(color(dark ? brand.foreground : brand.background_lightest), 0.5);
-  private dust = color(mix(brand.warning, brand.background, 0.3));
-  private grass = color(mix(brand.success, brand.background, 0.28));
+  private dust = kicked(tones.dirt);
+  // Tyres tear turf down to the soil, and the forest floor is this ground too; the shore throws sand.
+  private grass = kicked(mix(tones.grass, tones.dirt, 0.5));
+  private sand = kicked(tones.sand);
+  private scree = kicked(tones.rock);
   private snow = color(tones.snow);
-  private spray = color(mix(brand.info, brand.background_lightest, 0.6));
+  private spray = color(mix(tones.snow, tones.water, 0.7));
   private readonly ground: THREE.Color;
+  private readonly shoulder: THREE.Color;
+  /** What each laid surface throws; the kind's own ground sits in the grass row. */
+  private readonly laid: Record<SurfaceId, THREE.Color>;
   private carry: number[] = [];
+  /** Seconds each wheel has been off the ground. */
+  private air: number[] = [];
+  /** How fast the car was dropping last frame: by the touchdown frame the suspension has already caught it. */
+  private sink = 0;
   private kick = new THREE.Vector3();
+  private at = new THREE.Vector3();
 
   constructor(ground: GroundPuff) {
-    this.ground = { grass: this.grass, dust: this.dust, snow: this.snow }[ground];
-    const material = new THREE.MeshLambertMaterial({ flatShading: true, transparent: true, opacity: 0.35, depthWrite: false, emissive: this.smoke, emissiveIntensity: dark ? 0.3 : 0 });
+    const { dust, sand, scree, snow } = this;
+    this.ground = { grass: this.grass, dust: sand, snow }[ground];
+    this.shoulder = ground === "snow" ? snow : dust;
+    this.laid = {
+      [SurfaceId.GRASS]: this.ground,
+      [SurfaceId.DIRT]: dust,
+      [SurfaceId.HARDPACK]: dust,
+      [SurfaceId.SCREE]: scree,
+      [SurfaceId.WET]: dust,
+      [SurfaceId.SNOW]: snow,
+      [SurfaceId.PACKED_SNOW]: snow,
+      [SurfaceId.ICE]: snow,
+      [SurfaceId.SLUSH]: snow,
+      [SurfaceId.LAVA]: dust,
+      [SurfaceId.SAND]: sand,
+    };
+    // Unlit, a puff is a soft flat disc in its own tint, the same by day and at dusk: lit, dusk left it near black.
+    const material = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.55, depthWrite: false });
     this.mesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), material, PUFFS);
     this.mesh.frustumCulled = false;
+    // Transparent meshes sort by their origin, and this one's sits at the world's: water drew over the spray on it.
+    this.mesh.renderOrder = CAR_ORDER + 1;
     for (let i = 0; i < PUFFS; i++) {
       this.puffs.push({ pos: new THREE.Vector3(), vel: new THREE.Vector3(), age: 1, life: 1, size: 0, spin: 0 });
       this.mesh.setMatrixAt(i, this.matrix.makeScale(0, 0, 0));
@@ -61,12 +115,13 @@ export class Smoke {
     }
   }
 
-  private emit(at: THREE.Vector3, vel: THREE.Vector3, tint: THREE.Color, size: number, life: number) {
+  private emit(at: THREE.Vector3, vel: THREE.Vector3, tint: THREE.Color, size: number, life: number, spread: number) {
     const i = this.next;
     this.next = (this.next + 1) % PUFFS;
     const p = this.puffs[i];
     p.pos.copy(at);
-    p.vel.copy(vel).multiplyScalar(0.25).add(this.kick.set((Math.random() - 0.5) * 1.5, 0.8 + Math.random(), (Math.random() - 0.5) * 1.5));
+    p.pos.y += size * SEAT;
+    p.vel.copy(vel).multiplyScalar(0.25).add(this.kick.set((Math.random() - 0.5) * spread, 0.8 + Math.random(), (Math.random() - 0.5) * spread));
     p.age = 0;
     p.life = life;
     p.size = size;
@@ -74,11 +129,28 @@ export class Smoke {
     this.mesh.setColorAt(i, tint);
   }
 
+  /** What a wheel off the road at (x, z) throws: its laid surface, the shore's sand, the kind's own ground, or the shoulder. */
+  dust_tint(world: World, x: number, z: number): THREE.Color {
+    const laid = world.surface(x, z);
+    if (laid !== SurfaceId.GRASS) return this.laid[laid];
+    if (world.footing(x, z) !== world.own_ground) return this.shoulder;
+    return this.ground === this.grass && world.shore(x, z) ? this.sand : this.ground;
+  }
+
   update(dt: number, car: Car, world: World) {
     const speed = car.vel.length();
-    while (this.carry.length < car.wheels.length) this.carry.push(0);
-    car.wheels.forEach((w, i) => {
-      if (!w.contact) return;
+    while (this.carry.length < car.wheels.length) {
+      this.carry.push(0);
+      this.air.push(0);
+    }
+    for (let i = 0; i < car.wheels.length; i++) {
+      const w = car.wheels[i];
+      if (!w.contact) {
+        this.air[i] += dt;
+        continue;
+      }
+      const landed = this.air[i] > LAND_AIR && this.sink > LAND_SINK;
+      this.air[i] = 0;
       const on_road = world.on_road(w.point.x, w.point.z);
       const slide = Math.max(w.lateral - 1.1, Math.abs(w.slip) - 0.18);
       let rate = 0;
@@ -86,25 +158,34 @@ export class Smoke {
       let size = SMOKE_SIZE;
       // Puffs left behind stream toward the chase camera; capping trail length keeps them from filling the screen at speed.
       let life = Math.min(SMOKE_LIFE, SMOKE_TRAIL / speed);
+      this.at.copy(w.point);
       if (world.depth(w.point.x, w.point.z) > SPLASH && speed > 2) {
         rate = Math.min(1, speed / 15) * SPRAY_RATE;
         tint = this.spray;
         size = DUST_SIZE;
         life = DUST_LIFE;
+        // The wheel stands on the bed: spray thrown from there stayed under the water.
+        this.at.y = world.water_level(w.point.x, w.point.z);
       } else if (on_road && slide > 0 && speed > 2) {
         rate = Math.min(1, slide * 1.2) * SMOKE_RATE;
       } else if (!on_road && speed > 4) {
         rate = Math.min(1, speed / 25) * 12 + Math.max(0, slide) * 20;
-        tint = world.footing(w.point.x, w.point.z) === world.own_ground ? this.ground : this.dust;
+        tint = this.dust_tint(world, w.point.x, w.point.z);
         size = DUST_SIZE;
         life = DUST_LIFE;
       }
       this.carry[i] += rate * dt;
       while (this.carry[i] >= 1) {
         this.carry[i] -= 1;
-        this.emit(w.point, car.vel, tint, size, life);
+        this.emit(this.at, car.vel, tint, size, life, TRAIL_SPREAD);
       }
-    });
+      if (landed) {
+        const smoke = tint === this.smoke;
+        const puffs = smoke ? ROAD_LAND_PUFFS : LAND_PUFFS;
+        for (let k = 0; k < puffs; k++) this.emit(this.at, car.vel, tint, smoke ? ROAD_LAND_SIZE : LAND_SIZE, LAND_LIFE, smoke ? ROAD_LAND_SPREAD : LAND_SPREAD);
+      }
+    }
+    this.sink = -car.vel.y;
     let alive = false;
     for (let i = 0; i < PUFFS; i++) {
       const p = this.puffs[i];
@@ -115,7 +196,7 @@ export class Smoke {
       p.vel.multiplyScalar(1 - dt * 1.8);
       p.vel.y += dt * 0.6;
       const t = p.age / p.life;
-      const scale = t >= 1 ? 0 : p.size * (0.4 + t * GROWTH) * (1 - t * t);
+      const scale = t >= 1 ? 0 : p.size * (0.4 + t * GROWTH) * (1 - t * t) * Math.min(1, p.age / RISE);
       this.q.setFromAxisAngle(UP, p.spin + t * 2);
       this.mesh.setMatrixAt(i, this.matrix.compose(p.pos, this.q, this.s.setScalar(scale)));
     }
@@ -166,6 +247,10 @@ export class Skids {
       blending: THREE.CustomBlending,
       blendSrc: THREE.SrcAlphaFactor,
       blendDst: THREE.OneMinusSrcAlphaFactor,
+      // Custom blending runs the colour factors on alpha too, which left the frame see-through under every mark: the page
+      // behind the canvas showed in them, pale by day.
+      blendSrcAlpha: THREE.ZeroFactor,
+      blendDstAlpha: THREE.OneFactor,
       depthWrite: false,
       polygonOffset: true,
       polygonOffsetFactor: -6,

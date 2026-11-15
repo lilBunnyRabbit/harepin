@@ -1,6 +1,6 @@
 # Sim performance: profile, WebAssembly, determinism, worker
 
-Research spike (task t198), measure only. Question: the AI field (`docs/plan/ai-racers.md` §4) and whatever comes after it need a lot of sim per frame. Does WebAssembly buy it, does a Web Worker, and what does either do to determinism, ghosts and records?
+Research spike (task t198), measure only. Decided 2026-11-15: see [Decisions](#decisions-owner-2026-11-15). Question: the AI field (`docs/plan/ai-racers.md` §4) and whatever comes after it need a lot of sim per frame. Does WebAssembly buy it, does a Web Worker, and what does either do to determinism, ghosts and records?
 
 Code measured: the AI field branch (`worktree-agent-a6399ebfcdb02730e`, 94b6bf0: `src/ai`, `src/car/contact.ts`). The spike's scripts and the AssemblyScript port live in a scratch folder. They are not committed.
 
@@ -13,7 +13,32 @@ Machine: i7-8700K (6 cores, 12 threads), Windows 11. Runtimes: Bun 1.3.0 (JavaSc
 - A worker takes **88-90%** of the sim's main-thread time off the main thread, at 1x and 4x throttle alike. One round trip per frame costs 40 µs at 1x and 0.35 ms at 4x.
 - The JS physics is **not** bit-identical across engines today. JSC and V8 differ on step 0, and so do two V8 versions (Node 22 and Chrome 157). A seeded 7-car race finishes in a different order in Bun and in Node.
 - The WASM port gives the same bits in all four runtimes. The reason is its own maths library, not WebAssembly. With that maths swapped into `Math.*`, the **JS** physics also gives the same bits in JSC and V8. Determinism needs a deterministic maths module, not WASM.
-- Recommendation: worker first, cheap ground-query wins second, and a deterministic maths module if identical results across browsers matter. No WASM sim core now: 1.5-1.8x does not pay for a second physics source.
+- Recommendation: worker first, cheap ground-query wins second, and a deterministic maths module if identical results across browsers matter. No WASM sim core now: 1.5-1.8x does not pay for a second physics source. **Superseded in part (J2, J3):** shared maths everywhere incl. worldgen, and a WASM core for physics, ground and worldgen as the only physics source.
+
+## Decisions (owner, 2026-11-15)
+
+From questionnaire round 1 (`docs/plan/career-ai-r1.answers.md`, section 9). The owner went past this doc's recommendation on J2 and J3: shared maths everywhere, and WebAssembly for car physics, ground and world generation.
+
+| # | Decision | Differs from this doc |
+|---|---|---|
+| J1 | **Whole sim in a worker first**, then the ground-query wins | |
+| J2 | **One shared maths source everywhere, worldgen included.** Every world kind's output moves, so every kind bumps its `version` and players' records reset once. Recommendation: land it in the same release as the career redesign, so players lose records once and the old career retires in that release | rec was car physics only, worldgen later |
+| J3 | **WebAssembly for car physics + the whole ground, and for world generation** | rec was no WASM core now |
+| J4 | **No SharedArrayBuffer**, no cross-origin isolation: post small messages | |
+| J5 | **One sim path for everything**: solo driving runs in the worker too | |
+| J6 / J7 | Target: 60 fps on a Samsung Galaxy S24+ (latest software) during a 6-car race | |
+| J8 | **Measure first**: port the spike to Rust and compare with AssemblyScript before picking the language | |
+| J9 | OffscreenCanvas (render in a worker): measure on the phone after the sim worker, then decide | |
+| J10 | **Exact suspension raycast in the same rebaseline as J2**, so baselines are re-recorded once | |
+
+What follows from them:
+
+- **One rebaseline, three changes.** Shared maths in car physics, world queries, AI and worldgen, plus the exact raycast, land together: `car.test.ts`, telemetry, feel, `races-baseline.txt` and `scripts/golden/` are re-recorded once, every world kind's `version` bumps once.
+- **WASM must not cause a second records reset.** The WASM port comes after the rebaseline. Its car step and its worldgen must give the JS shared-maths bits exactly (the §2 lockstep harness for the car, `bun scripts/golden.ts --check` for worldgen). If the port ships after the career release and its worldgen differs by one bit, every kind bumps again and players lose records a second time.
+- **The JS physics goes when WASM lands** (§5: two physics sources are the worst option). Bun tests and scripts then call the WASM build too. Until then the JS sim is the only source.
+- **The worker owns the player's car (J5)**, so car-to-car contact is in one step and §4's one-frame-late contact does not arise. The main thread reads what it needs (HUD speed, audio rpm, rumble and camera impacts, rewind and ghost recording, the lab recorder) from the worker's reply; the reply carries more than poses.
+- **No SharedArrayBuffer (J4)**: §4's cloned `Float32Array` per frame is the transport.
+- J2 and J10 need no WASM and no new dependency. J3 needs a compiler (Rust toolchain or AssemblyScript) as a build dependency: J8 picks which.
 
 ## 1. Where the field step goes
 
@@ -159,11 +184,11 @@ Two physics sources are the worst option: every tuning change made twice, and dr
    - The suspension raycast bisects (14 `height` calls per wheel) a ground made of flat triangles. An exact ray-triangle hit needs about 2-3 lookups. Estimate: about a third of the field step, not measured. It changes physics output, so the feel and telemetry baselines get re-recorded.
    - Ramp and deck lookups cost more than the tile itself. An index there gives the same output.
 3. **Deterministic maths module, if same-everywhere matters.** It is needed for seeded AI fields, input ghosts or lockstep later. One `sim-math.ts` for the 7 functions, used by car, world queries and AI. Worldgen only with a deliberate version bump of every kind: its output moves, which resets players' records. The Bun scripts then prove the bits Chrome and Safari players get.
-4. **WASM later, scoped.** Only if phones still miss budget after 1-3, and then as the only physics source (car step plus the whole world ground in AS). Use the lockstep harness from this spike as the proof. Also worth it for batch work that is pure numbers with few boundary crossings: far-AI planning or many kinematic cars.
+4. **WASM later, scoped.** (**Superseded, J3:** WASM is decided for physics, ground and worldgen, after the worker and the rebaseline; J8 measures Rust vs AssemblyScript first.) Only if phones still miss budget after 1-3, and then as the only physics source (car step plus the whole world ground in AS). Use the lockstep harness from this spike as the proof. Also worth it for batch work that is pure numbers with few boundary crossings: far-AI planning or many kinematic cars.
 
 ## Next steps
 
 - Worker spike in the repo behind a flag: `Field` in a worker on circuits, poses to `CarView`s. Measure on a real phone, not only the CDP throttle.
 - Replace the raycast bisection with an exact ray-heightfield hit, and index ramp and deck lookups. Re-run this spike's profile and re-record `car.test`, telemetry and feel.
-- Owner decision: do seeded AI races or input ghosts need identical results across browsers? If yes, write the maths module first, rebaseline once, and add a test that runs the car in Bun and checks it against a digest recorded in Chrome.
+- ~~Owner decision: do seeded AI races or input ghosts need identical results across browsers?~~ Decided yes (J2): write the maths module, rebaseline once with the exact raycast (J10), and add a test that runs the car in Bun and checks it against a digest recorded in Chrome.
 - Revisit a WASM core only with phone numbers from the worker in hand.

@@ -13,6 +13,7 @@ import { PaceCard } from "./pace-card";
 import "./hud.css";
 import "./top-bar.css";
 import "./corner.css";
+import "./run-card.css";
 import "./dash.css";
 import "./aids.css";
 import "./overlays.css";

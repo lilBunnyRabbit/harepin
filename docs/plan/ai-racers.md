@@ -1,8 +1,43 @@
 # AI racers with car-to-car contact: plan
 
-Status: research for quest ai-racers, base master 013ad41, 2026-11-14. No code changed. The owner picks the decisions in section 8 before the first edit.
+Status: research for quest ai-racers, base master 013ad41, 2026-11-14. No code changed. Decided 2026-11-15: see [Decisions](#decisions-owner-2026-11-15).
 
 Short version: contact does not go inside `Car.step`. It is a second pass after every car has stepped, the same slot `world.collide` already sits in (`src/main.ts:753-756`), and it reuses the shape `world.collide` already uses: two circles per car along the heading, which make a capsule. With one car there are no pairs, so the pass writes nothing and single-car physics stays byte-identical by construction. The AI driver is `scripts/autolap.ts` with its per-step speed plan moved to a table built once per route, plus a racing-line offset and a 10 Hz awareness layer in route coordinates. A car step costs about 20 µs on this desktop; on a phone 5-7 AI cars at full rate eat about a fifth of a main thread that is already over budget, so AI cars away from the player drop to a kinematic line follower.
+
+## Decisions (owner, 2026-11-15)
+
+From questionnaire round 1 (`docs/plan/career-ai-r1.answers.md`, section 8 and 10). Career decisions are in `docs/plan/career-redesign-research.md`, performance in `docs/plan/sim-performance.md`.
+
+| # | Decision | Differs from this plan |
+|---|---|---|
+| H1 | **AI in game first, then the career.** Owner: "we need to prove we can build good AI for this; without it none of it is worth it" | rec was both in parallel |
+| H2 | An AI field replaces the dev ghost when a field is on (O3) | |
+| H3 | Catch-up mild, ±3% pace, off by default (O4) | |
+| H4 | Seasons get harder, plus one easy / normal / hard setting (O5) | adds per-season scaling |
+| H5 | Aggression 3 on 1 (polite, never hits you) .. 5 (trades paint, dives inside) (accepted in bulk) | |
+| H6 | Mistakes 3 on 1 (never) .. 5 (often: lockups, wide lines) (accepted in bulk) | |
+| H7 | Far AI on phones: a cheap line follower when far and off screen (O7). The sim worker comes anyway (J1), so this is no longer the only phone fix | O7's "Worker only if that falls short" is superseded |
+| H8 | AI is tested in lab trials on race worlds with a field (O8: `Trial.map` + `Trial.field`) | |
+| H9 | **One tuning round first** for spins, resets and hard hits, before AI goes in game. Phase 2 numbers: 24-29 spins and 21-30 resets over 25 races, hardest hit 26.7 m/s in every run (branch `worktree-agent-a6399ebfcdb02730e`, this doc's §9 there) | |
+| H10 | Career first; Runs later; online its own quest (O9 stays: career races only after tuning) | |
+| I1 | First milestone: **one AI race in free play**, then **Season 1 Island vs an AI field** | rec was Season 1 first |
+| I2 | Review by lab packs and short builds after each step, in bigger milestones when the owner is away | |
+| I3 | **Career and AI ship together**, not B0 first. Possibly the whole thing on a worktree branch while other game changes land on master | rec was B0 first on ghosts |
+| I4 | Failure: it kills the game's performance, or the AI looks stupid | |
+| J6 / J7 | **Target: 60 fps on a Samsung Galaxy S24+ (latest software) during a 6-car race.** Measured on that phone, not only the CDP 4x throttle | |
+
+Contact (D6, E3): no time penalty of any kind in an AI race; a clean race earns bonus points instead.
+
+Order:
+
+1. H9 tuning round, headless, on the AI branch.
+2. Sim worker, one sim path for solo and field (J1, J5; `docs/plan/sim-performance.md`).
+3. Phase 3: one AI race in free play behind a flag, grid start with lights, position and gap on the HUD, finish order card; phase 4 lab trials (H8) in the same milestone, since the owner reviews through them (I2).
+4. Season 1 Island against a field of 6 (F3), then the rest of the career.
+
+The full build order, with the WebAssembly spike, the shared-maths rebaseline and the WASM port between these steps, is in quest 36cf211 (career redesign) and `docs/plan/sim-performance.md`.
+
+Phase 3 below assumed the far-AI switch was the phone plan and the field ran on main. With the worker first, phase 3 builds on the worker's field; the kinematic far AI (H7) is still built, as the owner chose, and the S24+ measurement says how far out it switches.
 
 ## 1. What exists
 
@@ -109,7 +144,7 @@ The phone is already over budget: 33-43 ms p50 frame at 4x throttle on mainland 
 |---|---|---|
 | **Kinematic far AI**: beyond ~120 m and off screen, a car moves along its line at planned speed (pose from the table, ~1 µs); within range it becomes a physics car with the line's speed and heading | new code, one switch | the switch must not pop: hand over on a straight, never in sight. Far cars cannot crash into each other; nobody sees it |
 | Fewer steps for far cars (180 Hz) | one flag | the suspension and hull are tuned at 360 Hz; a half-rate car is a different car (stability unverified). Rejected |
-| AI physics in a Worker | new infra | contact with the player needs the same step on both sides: a frame of latency in every bump. Only if phones still fall short with kinematic far AI |
+| AI physics in a Worker | new infra | contact with the player needs the same step on both sides: a frame of latency in every bump. ~~Only if phones still fall short with kinematic far AI~~ **Decided J1, J5:** the whole sim, the player's car included, runs in a worker, so contact is in one step |
 | Cap the field on phone (4 AI under `pointer: coarse`, the test `quality.ts:46` already uses) | one line | fewer racers on phone; fallback, not the plan |
 
 With kinematic far AI a typical pack has 2-3 physics cars near the player: phone cost ~70-90 ms/s, close to one extra car's worth of rendering. Rendering each car is its own cost (a `CarView`, ~10 draw calls each, unmeasured here).
@@ -162,17 +197,17 @@ Phases 0-2 are pure and headless: no DOM, Bun runs them.
 
 ## 8. Owner decisions
 
-| # | Question | Recommendation |
-|---|---|---|
-| O1 | Contact shape | capsule from `circles` + `radius`, same as walls |
-| O2 | Where the code lives | new `src/ai/` feature folder (line, driver, awareness, field); contact pass in `src/car/contact.ts` |
-| O3 | Race mode: AI field replaces the dev ghost, or both | AI replaces the ghost when a field is on; ghost stays for time-only races |
-| O4 | Catch-up | mild (±3% pace), off by default, one personality number |
-| O5 | Difficulty for the player | one setting (easy / normal / hard scaling `pace` and `mistakes`), a `FIELDS` entry in `menu/prefs.ts` |
-| O6 | AI cars: which cars | the player's class cap, presets from `car/presets.ts`, no two alike in a field |
-| O7 | Far AI on phone | kinematic follower beyond ~120 m off screen; Worker only if that falls short |
-| O8 | Lab | `Trial.map` + `Trial.field`, not a lab circuit station |
-| O9 | Career and Runs with AI | not before phase 4 tuning; position-based marks are a separate design |
+| # | Question | Recommendation | Owner, 2026-11-15 |
+|---|---|---|---|
+| O1 | Contact shape | capsule from `circles` + `radius`, same as walls | as recommended |
+| O2 | Where the code lives | new `src/ai/` feature folder (line, driver, awareness, field); contact pass in `src/car/contact.ts` | as recommended |
+| O3 | Race mode: AI field replaces the dev ghost, or both | AI replaces the ghost when a field is on; ghost stays for time-only races | as recommended (H2) |
+| O4 | Catch-up | mild (±3% pace), off by default, one personality number | as recommended (H3) |
+| O5 | Difficulty for the player | one setting (easy / normal / hard scaling `pace` and `mistakes`), a `FIELDS` entry in `menu/prefs.ts` | plus harder seasons (H4) |
+| O6 | AI cars: which cars | the player's class cap, presets from `car/presets.ts`, no two alike in a field | as recommended (G2) |
+| O7 | Far AI on phone | kinematic follower beyond ~120 m off screen; Worker only if that falls short | follower kept (H7); the worker comes first anyway (J1) |
+| O8 | Lab | `Trial.map` + `Trial.field`, not a lab circuit station | as recommended (H8) |
+| O9 | Career and Runs with AI | not before phase 4 tuning; position-based marks are a separate design | career first, Runs later, online its own quest (H10) |
 
 ## 9. Findings and log
 

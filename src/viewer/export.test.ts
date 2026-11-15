@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { build_code, parse_build } from "../car/build";
+import { build_code, parse_build, SLOTS } from "../car/build";
 import { CARS, is_car } from "../car/cars";
 import { export_block, note_query, read_block } from "./export";
 import { parse_notes, type Notes } from "./notes";
@@ -110,7 +110,8 @@ test("stored notes are checked on load", () => {
 test("every car has its presets, and every preset builds a code that parses", () => {
   for (const car of Object.keys(CARS).filter(is_car)) {
     const presets = viewer_presets(car);
-    expect(presets.map((p) => p.id).slice(0, 7)).toEqual(["stock", "aero1", "aero2", "aero3", "aero4", "mid", "max"]);
+    const kits = SLOTS.aero.parts.slice(1).map((_, i) => `aero${i + 1}`);
+    expect(presets.map((p) => p.id).slice(0, kits.length + 3)).toEqual(["stock", ...kits, "mid", "max"]);
     expect(new Set(presets.map((p) => p.id)).size).toBe(presets.length);
     for (const preset of presets) expect(parse_build(build_code(viewer_build(car, preset, 4)))?.car).toBe(car);
   }

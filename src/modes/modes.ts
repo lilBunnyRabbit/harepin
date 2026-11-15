@@ -131,6 +131,9 @@ export class Modes implements CarHooks {
   private readonly el = {
     hint: $("mode-hint"),
     status: $("mode-status"),
+    status_name: $("mode-status-name"),
+    status_clock: $("mode-status-clock"),
+    status_more: $("mode-status-more"),
     result: $("mode-result"),
     title: $("mode-result-title"),
     result_stars: $("mode-result-stars"),
@@ -556,7 +559,7 @@ export class Modes implements CarHooks {
       this.el.note.hidden = false;
       return;
     }
-    this.show_status(text);
+    this.write_status(text, text, "", "");
     this.notice_until = performance.now() + NOTICE_MS;
     setTimeout(() => {
       if (this.status_key === text && !this.active) this.el.status.hidden = true;
@@ -564,10 +567,18 @@ export class Modes implements CarHooks {
   }
 
   private show_status(text: string) {
-    if (text === this.status_key) return;
-    this.status_key = text;
-    this.el.status.hidden = false;
-    this.el.status.textContent = text;
+    const [name = "", clock = "", ...more] = text.split(" · ");
+    this.write_status(text, clock ? name : text, clock, more.join(" · "));
+  }
+
+  private write_status(key: string, name: string, clock: string, more: string) {
+    if (key === this.status_key) return;
+    this.status_key = key;
+    const { el } = this;
+    el.status.hidden = false;
+    el.status_name.textContent = name;
+    el.status_clock.textContent = clock;
+    el.status_more.textContent = more;
   }
 
   private show_result(finish: Finish, active: Active) {

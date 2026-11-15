@@ -211,7 +211,7 @@
     --phone-brake-h: min(96px, 25vh);
     --phone-gas-h: calc(var(--phone-brake-h) + var(--phone-hand-h) + var(--space-2));
     --phone-slot: calc(var(--control-h) + var(--space-2));
-    --phone-centre: calc(100vw - 2 * (max(var(--inset-left), var(--inset-right)) + 3 * var(--phone-slot) + var(--space-3)));
+    --phone-centre: calc(100vw - 2 * (max(var(--inset-left), var(--inset-right)) + max(3 * var(--phone-slot), var(--pedals)) + var(--space-3)));
   }
 
   :root[data-hud] :is(.actions, .dock-break, .assists, #online-chip) {
@@ -319,9 +319,11 @@
     text-shadow: none;
   }
 
+  /* Map under the menu button, speed card top right: each top corner holds one card and the pedals keep the right edge. */
   :root[data-hud] .top-right {
-    top: var(--inset-top);
-    right: var(--inset-right);
+    top: calc(var(--inset-top) + var(--control-h) + var(--space-2));
+    right: auto;
+    left: var(--inset-left);
   }
 
   :root[data-hud="classic"] #map-note:not([hidden]) {
@@ -340,7 +342,7 @@
   }
 
   .touch-pedal-zone {
-    top: calc(var(--inset-top) + var(--map-panel) + var(--space-2));
+    top: calc(var(--inset-top) + var(--speedo-h) + var(--control-h) + var(--space-3));
   }
 
   .pedal {
@@ -357,7 +359,7 @@
 
   :root[data-hud] .bottom-right,
   :root[data-hud][data-dash] .bottom-right {
-    inset: auto var(--inset-right) calc(var(--inset-bottom) + var(--phone-gas-h) + var(--space-3)) auto;
+    inset: var(--inset-top) var(--inset-right) auto auto;
     translate: none;
     width: var(--pedals);
   }
@@ -373,8 +375,8 @@
   }
 
   :root[data-hud] #recenter {
-    top: auto;
-    bottom: 0;
-    right: calc(100% + var(--space-3));
+    top: calc(100% + var(--space-2));
+    bottom: auto;
+    right: 0;
   }
 }

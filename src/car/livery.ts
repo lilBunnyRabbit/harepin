@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { DECALS, type Build, type Decal } from "./build";
-import { paint_lab } from "./paint";
+import { paint_finish, paint_lab } from "./paint";
 import { NEUTRAL_INKS, color, dark, decal_inks } from "../theme/palette";
 import type { Lab } from "../theme/theme";
 
@@ -39,15 +39,29 @@ const KEY_WIDTH = 0.022;
 const STEP = 0.05;
 // A larger rise between samples is a different surface (windscreen base, deck lip), not a slope to follow.
 const JUMP = 0.2;
+// A stripe follows a lip or a slope up to this rise per sample; past it the two samples lie on faces it would bridge.
+const CLIMB = STEP * 2;
+// A stretch of stripe shorter than this between two breaks is a dash on a lip or a ledge, not a stripe.
+const MIN_STRIPE = 0.3;
 const FLAT_ENOUGH = 0.15;
-// Career reward motifs repeat on the roof and the tail, the faces the chase camera sees: on the roof across this share
-// of the body's width, inset this share from each end, draped in triangles no longer than `DRAPE` so they follow its curve.
-const ROOF_WIDTH = 0.78;
+// Career reward motifs repeat on the roof and the tail, the faces the chase camera sees: on the roof inset this share
+// from each end, draped in triangles no longer than `DRAPE` so they follow its curve.
 const ROOF_INSET = 0.06;
 const MIN_ROOF = 0.4;
 const DRAPE = 0.08;
 const TAIL_INSET = 0.08;
 const TAIL_SCAN = 2;
+// A top face leaning past this is a flank (an engine cover's side, a pillar): ink laid from above would smear down it.
+const TOP_FACING = 0.5;
+// The roof takes a motif only where it lies level across the car: the body's shoulders are sculpted after the decals
+// are laid and the cabin is not, so ink over a roof's falling edge would end up under it.
+const LEVEL = 0.03;
+const MIN_ROOF_WIDTH = 0.3;
+// A tail face has to stand this upright, and its painted run be this tall, or a motif on it is a smear on a ledge.
+const TAIL_FACING = 0.8;
+const MIN_TAIL = 0.18;
+// How far a motif may be pulled out of the door's proportions to fill a roof or a tail before it stops reading.
+const MAX_STRETCH = 3;
 
 const SEGMENTS: Record<string, Point[]> = {
   a: [[0, 1], [1, 1]],
@@ -276,21 +290,31 @@ function on_side(out: number[], polygons: Point[][], side: number, panel: Panel,
 function strip(out: number[], roof: Roof, x0: number, x1: number, front: number, rear: number, lift: number) {
   const up = new THREE.Vector3(0, 1, 0);
   let last: [THREE.Vector3, THREE.Vector3] | null = null;
+  let run: number[] = [];
+  let from = front;
+  const close = (z: number) => {
+    if (from - z >= MIN_STRIPE) for (const v of run) out.push(v);
+    run = [];
+    from = z;
+  };
   for (let z = front; z >= rear; z -= STEP) {
     const a = roof(x0, z);
     const b = roof(x1, z);
-    if (!a || !b) {
+    // Edges on two faces more apart in height than in width: the stripe would stand up between them as a wall.
+    if (!a || !b || a.normal.y < TOP_FACING || b.normal.y < TOP_FACING || Math.abs(a.y - b.y) > x1 - x0) {
+      close(z);
       last = null;
       continue;
     }
     const pa = new THREE.Vector3(x0, a.y, z).addScaledVector(a.normal, lift);
     const pb = new THREE.Vector3(x1, b.y, z).addScaledVector(b.normal, lift);
-    if (last && Math.abs(pa.y - last[0].y) < JUMP && Math.abs(pb.y - last[1].y) < JUMP) {
-      face(out, last[0], last[1], pb, up);
-      face(out, last[0], pb, pa, up);
-    }
+    if (last && Math.abs(pa.y - last[0].y) < CLIMB && Math.abs(pb.y - last[1].y) < CLIMB) {
+      face(run, last[0], last[1], pb, up);
+      face(run, last[0], pb, pa, up);
+    } else close(z);
     last = [pa, pb];
   }
+  close(rear - STEP);
 }
 
 interface Run {
@@ -343,13 +367,32 @@ type Sample = (a: number, b: number) => Sampled | null;
 
 const on_roof = (over: Roof): Sample => (x, z) => {
   const hit = over(x, z);
-  return hit && { at: new THREE.Vector3(x, hit.y, z), normal: hit.normal, depth: hit.y };
+  return hit && hit.normal.y >= TOP_FACING ? { at: new THREE.Vector3(x, hit.y, z), normal: hit.normal, depth: hit.y } : null;
+};
+
+const upright = (behind: Back): Back => (x, y) => {
+  const hit = behind(x, y);
+  return hit && -hit.normal.z >= TAIL_FACING ? hit : null;
 };
 
 const on_tail = (behind: Back): Sample => (x, y) => {
-  const hit = behind(x, y);
+  const hit = upright(behind)(x, y);
   return hit && { at: new THREE.Vector3(x, y, hit.y), normal: hit.normal, depth: hit.y };
 };
+
+/** Half the width the roof keeps level across the car at `z`, out from the centre line. */
+function level_half(over: Roof, z: number, reach: number): number {
+  const centre = over(0, z);
+  if (!centre) return 0;
+  let half = 0;
+  while (half < reach) {
+    const next = half + STEP / 2;
+    const sides = [over(next, z), over(-next, z)];
+    if (sides.some((hit) => !hit || Math.abs(hit.normal.x) > LEVEL || Math.abs(hit.y - centre.y) > LEVEL)) break;
+    half = next;
+  }
+  return half;
+}
 
 // A piece off the paint or across a step is left out, as stripes stop at the screen.
 function drape(out: number[], polygons: Point[][], sample: Sample, lift: number, facing: THREE.Vector3) {
@@ -373,7 +416,8 @@ interface Box {
   half: number;
 }
 
-function tail_box(behind: Back): Box | null {
+function tail_box(all: Back): Box | null {
+  const behind = upright(all);
   const runs: { low: number; high: number }[] = [];
   let last: number | null = null;
   for (let y = 0; y <= TAIL_SCAN; y += STEP / 2) {
@@ -384,7 +428,7 @@ function tail_box(behind: Back): Box | null {
     last = hit ? hit.y : null;
   }
   const tallest = runs.reduce<{ low: number; high: number } | null>((best, run) => (!best || run.high - run.low > best.high - best.low ? run : best), null);
-  if (!tallest || tallest.high - tallest.low < STEP) return null;
+  if (!tallest || tallest.high - tallest.low < MIN_TAIL) return null;
   const mid = (tallest.low + tallest.high) / 2;
   let half = 0;
   while (half < TAIL_SCAN && behind(half + STEP / 2, mid) && behind(-half - STEP / 2, mid)) half += STEP / 2;
@@ -408,7 +452,9 @@ function roof_layers(livery: Livery, panel: Panel, over: Roof, front: number, re
   const length = run.front - run.rear;
   const z0 = run.rear + length * ROOF_INSET;
   const span = length * (1 - 2 * ROOF_INSET);
-  const width = panel.side * 2 * ROOF_WIDTH;
+  const level = 2 * Math.min(...[0.25, 0.5, 0.75].map((t) => level_half(over, run.rear + length * t, panel.side)));
+  if (level < MIN_ROOF_WIDTH) return NO_LAYERS;
+  const width = Math.min(level * (1 - 2 * ROOF_INSET), (span / SQUARE) * MAX_STRETCH);
   return keyed_ink(livery, shapes.map((points) => points.map(([u, v]): Point => [(v - 0.5) * width, z0 + u * span])));
 }
 
@@ -417,8 +463,8 @@ function tail_layers(livery: Livery, behind: Back): Layers {
   const shapes = motif(livery);
   const box = shapes && tail_box(behind);
   if (!shapes || !box) return NO_LAYERS;
-  const width = box.half * 2 * (1 - 2 * TAIL_INSET);
   const height = (box.high - box.low) * (1 - 2 * TAIL_INSET);
+  const width = Math.min(box.half * 2 * (1 - 2 * TAIL_INSET), height * SQUARE * MAX_STRETCH);
   const low = box.low + (box.high - box.low) * TAIL_INSET;
   return keyed_ink(livery, shapes.map((points) => points.map(([u, v]): Point => [(0.5 - u) * width, low + v * height])));
 }
@@ -560,8 +606,12 @@ const NEUTRAL_CONTRAST = 0.15;
 // dark ink that clears the paint's token still sinks into it there.
 const DUSK_SHADE = 0.4;
 
+// By day a metal paint's faces mirror the sky, so it shows this far toward white from its token: a light ink that
+// clears the token still washes out on it.
+const METAL_SHEEN = 0.5;
+
 const distance = (a: Lab, b: Lab) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
-const seen = (paint: Lab) => (dark ? paint[0] * DUSK_SHADE : paint[0]);
+const seen = (paint: Lab, metal: boolean) => (dark ? paint[0] * DUSK_SHADE : metal ? paint[0] + (1 - paint[0]) * METAL_SHEEN : paint[0]);
 
 function far_neutral(from: number): Lab {
   const [light, dark_ink] = decal_inks;
@@ -571,15 +621,17 @@ function far_neutral(from: number): Lab {
 /** Decal colours for a build: the chosen ink unless it would vanish on the paint as the light shows it, then the neutral that stands out. */
 export function livery_of(build: Build): Livery {
   const paint = paint_lab(build.paint);
+  const finish = paint_finish(build.paint);
+  const shown = seen(paint, finish !== null && finish.weave === null);
   const chosen = decal_inks[build.ink % decal_inks.length];
   const neutral = build.ink % decal_inks.length < NEUTRAL_INKS;
-  const vanishes = neutral ? Math.abs(chosen[0] - seen(paint)) < NEUTRAL_CONTRAST : distance(chosen, paint) < INK_CLASH;
-  const ink = vanishes ? far_neutral(seen(paint)) : chosen;
+  const vanishes = neutral ? Math.abs(chosen[0] - shown) < NEUTRAL_CONTRAST : distance(chosen, paint) < INK_CLASH;
+  const ink = vanishes ? far_neutral(shown) : chosen;
   return {
     decal: DECALS[build.decal] ?? "none",
     number: build.number,
     ink: color(ink),
-    key: neutral || vanishes ? null : color(far_neutral(seen(paint))),
+    key: neutral || vanishes ? null : color(far_neutral(shown)),
     mark: color(far_neutral(ink[0])),
   };
 }

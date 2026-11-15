@@ -1,5 +1,5 @@
 import { CARS, type CarSpec } from "../../car/cars";
-import { LANDING, NOTE, PRED, VS_BASELINE } from "../ask";
+import { Trait, trait_asks } from "../ask";
 import { LAB_CAR, type Goal, type Pack, type Question, type Trial } from "../pack";
 
 const TODAY = "sajin.4.0.0.1.0";
@@ -28,10 +28,7 @@ interface Place {
   ask?: Question[];
 }
 
-const ROLL: Question = { kind: "scale", id: "roll", label: "Body roll", low: "tips onto two wheels", high: "sits flat" };
-const SOFT: Question = { kind: "scale", id: "soft", label: "Soft buggy feel", low: "stiff road car", high: "soft, long travel" };
-const SAJIN: Question = { kind: "pick", id: "char", label: "Still feels like the Sajin", options: ["lost it", "unsure", "yes"] };
-const ASK: Question[] = [ROLL, SOFT, PRED, VS_BASELINE, SAJIN, NOTE];
+const ASK: Question[] = trait_asks(Trait.BALANCE, Trait.LIFT, Trait.SEAMS);
 
 const PLACES: Place[] = [
   {
@@ -43,7 +40,7 @@ const PLACES: Place[] = [
     old: "the tall Sajin: notice how far the body leans and pitches in the air and whether the landing tips it onto a side",
     today: "today's Sajin: notice whether it still soaks the landing on its long travel or lands flatter and harder",
     question: "Off a kicker, does today's Sajin land without tipping, and still soak it up?",
-    ask: [ROLL, SOFT, LANDING, VS_BASELINE, SAJIN, NOTE],
+    ask: trait_asks(Trait.LANDING, Trait.SEAMS),
   },
   {
     id: "dirt",
@@ -97,10 +94,10 @@ function pair(place: Place): Trial[] {
 
 const pack: Pack = {
   id: "t4-sajin",
-  rev: 1,
+  rev: 2,
   title: "Sajin: lower centre of mass",
   aim: "Today's Sajin rides its centre of mass 0.25 m lower so bumps stop rolling it over. Does it still feel like a soft long-travel buggy, does it roll less, did it lose its character?",
-  brief: "At each place the old, tall Sajin goes first, then today's. Same springs, dampers, bars and travel: only the centre of mass moved. The sim has the skidpad 0.83 to 0.88 g, 0-100 4.58 to 4.74 s and lift-off slip 27.5 to 13.1 degrees.",
+  brief: "At each place the old, tall Sajin goes first, then today's. Same springs, dampers, bars and travel: only the centre of mass moved. Both now ride the springs and dampers softened 15% after round 1.",
   cars: { [OLD]: { name: "Sajin (tall)", spec: TALL, look: "sajin" } },
   trials: PLACES.flatMap(pair),
   ask: ASK,

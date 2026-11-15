@@ -1,7 +1,6 @@
 import { SLOT_NAMES, SLOTS, type Mod, type Part, type Slot } from "../car/build";
 import { CLASS_LABELS } from "../car/pi";
 import { short } from "./export";
-import { TOP_PARTS } from "./cars/top-tier";
 import type { Shown } from "./blind";
 import type { Aids, Pack, Resolved } from "./pack";
 
@@ -50,7 +49,7 @@ const named = (field: string) => FIELD_LABEL[field] ?? field.replaceAll("_", " "
 
 /** Every part a mod can be, keyed by its mod: a pasted pack carries copies, so they match by value. */
 const CATALOGUE = new Map<string, [Slot, Part]>(
-  SLOT_NAMES.flatMap((slot) => [...SLOTS[slot].parts, ...(TOP_PARTS[slot] ?? [])].map((part): [string, [Slot, Part]] => [JSON.stringify(part.mod), [slot, part]])),
+  SLOT_NAMES.flatMap((slot) => SLOTS[slot].parts.map((part): [string, [Slot, Part]] => [JSON.stringify(part.mod), [slot, part]])),
 );
 
 const empty = (mod: Mod) => !Object.keys(mod.scale ?? {}).length && !Object.keys(mod.add ?? {}).length;
@@ -110,7 +109,7 @@ export function against_of(pack: Pack, shown: readonly Shown[], index: number): 
 }
 
 function default_question(baseline: boolean, against: string | null): string {
-  if (baseline) return "How does it drive as it is? The trials after it are read against it.";
+  if (baseline) return "As it ships";
   if (against) return `Better or worse than ${against}, and why?`;
   return "How does it drive?";
 }
@@ -150,3 +149,41 @@ export function against_text(brief: Brief, shown: readonly Shown[]): string {
   if (brief.against >= 0) return `#${brief.against + 1} ${shown[brief.against].label}`;
   return brief.baseline ? "Nothing: this is the baseline" : "Nothing: rate it on its own";
 }
+
+/** The brief's subtitle: what the trial is read against, in a few words. */
+export function against_label(brief: Brief, shown: readonly Shown[]): string {
+  if (brief.against >= 0) return `vs #${brief.against + 1} ${shown[brief.against].label}`;
+  return brief.baseline ? "Baseline" : "On its own";
+}
+
+/** The setup line shows this many changes; the rest are one "+n more" and the full list sits under More. */
+export const CHIP_COUNT = 3;
+
+const chip = (c: Change) => (c.was === undefined ? `${c.what} ${c.now}` : `${c.what}: ${c.now}`);
+
+/** The changes as chips on the setup line, without what they replaced. */
+export function change_chips(changes: readonly Change[]): string[] {
+  const shown = changes.slice(0, CHIP_COUNT).map(chip);
+  return changes.length > CHIP_COUNT ? [...shown, `+${changes.length - CHIP_COUNT} more`] : shown;
+}
+
+const sentence = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
+export interface FeelLine {
+  /** What to notice, one line. */
+  notice: string;
+  /** What the setup is, when the pack wrote it before the colon ("turbo: soft below 3000 rpm, then a shove"). */
+  setup: string | null;
+}
+
+/**
+ * A pack's feel line reads "what it is: notice what"; the brief leads with the notice and keeps the setup for More.
+ * A line with no colon is all notice.
+ */
+export function feel_line(feel: string): FeelLine {
+  const cut = feel.lastIndexOf(": ");
+  const notice = (cut < 0 ? feel : feel.slice(cut + 2)).replace(/^(notice|note)\s+/i, "");
+  return { notice: sentence(notice.trim()), setup: cut < 0 ? null : sentence(feel.slice(0, cut).trim()) };
+}
+
+export const do_line = (text: string) => sentence(text.trim());

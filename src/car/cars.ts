@@ -99,6 +99,11 @@ export interface CarSpec {
   grip_grass?: number;
   /** The car's `mu` on its stock tyres, when a tyre part changed it: loose ground never slides better than stock tyres on asphalt. */
   stock_mu?: number;
+  /** Held-drift helpers (`car.ts`, `tyre.ts`, `steering.ts`); absent is the shared default there. */
+  drift_damp?: number;
+  drift_rear_bite?: number;
+  drift_side_sx?: number;
+  drift_reach?: number;
 }
 
 export type CarId = BodyStyle;
@@ -762,8 +767,8 @@ export const SAJIN: CarSpec = {
   },
   wheelbase: 2.8,
   lock: 0.62,
-  spring: 18000,
-  damper: 1800,
+  spring: 15300,
+  damper: 1530,
   arb_front: 5000,
   arb_rear: 4000,
   mu: 1.0,

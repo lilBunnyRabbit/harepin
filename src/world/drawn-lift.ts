@@ -1,5 +1,7 @@
 import { LIFT } from "../worldgen/lifts";
-import { on_paint, road_paint, type Junctions, type Paint, type RoadData } from "../worldgen/road-layers";
+import type { Patch, RimPoint } from "../worldgen/junction";
+import { EDGE_INSET, EDGE_WIDTH, GIVE_WAY_OUT, GIVE_WAY_WIDTH, on_paint, road_paint, type Junction, type Junctions, type Paint, type RoadData } from "../worldgen/road-layers";
+import { GIVE_WAY_GAP, give_way_dash } from "../worldgen/roads";
 import { lot_paving, type Paving } from "../worldgen/town-ground";
 import type { Lot, ParkingLot, RoadPoint } from "../worldgen/types";
 
@@ -19,15 +21,104 @@ export function drawn_roads(data: RoadData, junctions: Junctions): (DrawnRoad | 
   return roads;
 }
 
-/** How far the road drawn at (`x`, `z`) stands over the terrain, by its point `i` nearest there: its asphalt, or the paint on it. */
-export function road_lift(road: DrawnRoad, i: number, x: number, z: number): number {
+/** (`x`, `z`) is on the road's centre dash or an edge line, by its point `i` nearest there. */
+export function on_road_paint(road: DrawnRoad, i: number, x: number, z: number): boolean {
   const p = road.points[i];
   const dx = x - p.x;
   const dz = z - p.z;
   const n = road.points.length;
   let s = dx * p.tx + dz * p.tz >= 0 ? i : i - 1;
   if (road.closed) s = (s + n) % n;
-  return s >= 0 && s < road.paint.centre.length && on_paint(road.paint, s, dz * p.tx - dx * p.tz) ? LIFT.mark : road.lift;
+  return s >= 0 && s < road.paint.centre.length && on_paint(road.paint, s, dz * p.tx - dx * p.tz);
+}
+
+/** How far the road drawn at (`x`, `z`) stands over the terrain, by its point `i` nearest there: its asphalt, or the paint on it. */
+export function road_lift(road: DrawnRoad, i: number, x: number, z: number): number {
+  return on_road_paint(road, i, x, z) ? LIFT.mark : road.lift;
+}
+
+/** One give-way bar: dashes across a minor arm's mouth, `ahead` of (`x`, `z`) along (`tx`, `tz`). */
+interface GiveWay {
+  x: number;
+  z: number;
+  tx: number;
+  tz: number;
+  half: number;
+  dash: number;
+}
+
+/** A patched junction as its mesh lays it: the asphalt fan, the edge lines round its corners and the give-way bars at its minor mouths. */
+export interface DrawnJunction {
+  x: number;
+  z: number;
+  /** Squared radius from (`x`, `z`) that holds the fan and every bar, for a quick miss. */
+  reach2: number;
+  patch: Patch;
+  bars: GiveWay[];
+}
+
+export function drawn_junctions(patched: readonly Junction[]): DrawnJunction[] {
+  return patched.map(({ x, z, arms, patch }) => {
+    const bars = patch.minor.map((i): GiveWay => {
+      const p = arms[i].points[patch.mouths[i]];
+      const half = arms[i].half - EDGE_INSET;
+      return { x: p.x, z: p.z, tx: p.tx, tz: p.tz, half, dash: give_way_dash(half) };
+    });
+    let reach = 0;
+    for (const p of patch.outline) reach = Math.max(reach, Math.hypot(p.x - x, p.z - z));
+    for (const bar of bars) reach = Math.max(reach, Math.hypot(bar.x - x, bar.z - z) + bar.half + GIVE_WAY_OUT + GIVE_WAY_WIDTH);
+    return { x, z, reach2: reach * reach, patch, bars };
+  });
+}
+
+function on_give_way(bar: GiveWay, x: number, z: number): boolean {
+  const dx = x - bar.x;
+  const dz = z - bar.z;
+  const ahead = dx * bar.tx + dz * bar.tz;
+  if (ahead < GIVE_WAY_OUT || ahead > GIVE_WAY_OUT + GIVE_WAY_WIDTH) return false;
+  const side = dz * bar.tx - dx * bar.tz + bar.half;
+  return side >= 0 && side <= bar.half * 2 && side % (bar.dash + GIVE_WAY_GAP) <= bar.dash;
+}
+
+// The band `rim_line` lays inward of a rim: between two rim points their `w` turns a few degrees, so it is eased along the chord.
+function on_rim_line(line: readonly RimPoint[], x: number, z: number): boolean {
+  for (let q = 0; q + 1 < line.length; q++) {
+    const a = line[q];
+    const b = line[q + 1];
+    const bx = b.x - a.x;
+    const bz = b.z - a.z;
+    const t = ((x - a.x) * bx + (z - a.z) * bz) / (bx * bx + bz * bz || 1);
+    if (t < 0 || t > 1) continue;
+    const inward = (x - a.x - bx * t) * (a.wx + (b.wx - a.wx) * t) + (z - a.z - bz * t) * (a.wz + (b.wz - a.wz) * t);
+    if (inward >= EDGE_INSET && inward <= EDGE_INSET + EDGE_WIDTH) return true;
+  }
+  return false;
+}
+
+/** How far the junction drawn at (`x`, `z`) stands over the terrain: its asphalt, eased between its arms' lifts as the fan lays it, or the paint on it; 0 off the junction. */
+export function junction_lift(junction: DrawnJunction, x: number, z: number): number {
+  const dx = x - junction.x;
+  const dz = z - junction.z;
+  if (dx * dx + dz * dz > junction.reach2) return 0;
+  for (const bar of junction.bars) if (on_give_way(bar, x, z)) return LIFT.mark;
+  const { centre, outline, lines } = junction.patch;
+  const n = outline.length;
+  for (let q = 0; q < n; q++) {
+    const a = outline[q];
+    const b = outline[q + 1 === n ? 0 : q + 1];
+    const ax = a.x - centre.x;
+    const az = a.z - centre.z;
+    const bx = b.x - centre.x;
+    const bz = b.z - centre.z;
+    const det = ax * bz - az * bx;
+    if (det === 0) continue;
+    const u = (dx * bz - dz * bx) / det;
+    const v = (ax * dz - az * dx) / det;
+    if (u < 0 || v < 0 || u + v > 1) continue;
+    for (const line of lines) if (on_rim_line(line, x, z)) return LIFT.mark;
+    return centre.lift + (a.lift - centre.lift) * u + (b.lift - centre.lift) * v;
+  }
+  return 0;
 }
 
 /** Paving laid in one lot's frame, with the radius that holds all of it for a quick miss. */
@@ -70,4 +161,50 @@ export function paving_lift(lots: readonly PavedLot[], x: number, z: number): nu
     for (const p of lot.paving) if (lx >= p.x0 && lx <= p.x1 && lz >= p.z0 && lz <= p.z1 && p.lift > lift) lift = p.lift;
   }
   return lift;
+}
+
+/**
+ * A pad a mode lays for a while: a grid of `nu` by `nv` cells `step` on a side from (`u0`, `v0`), in a frame turned by
+ * `heading` about (`x`, `z`), with the height its mesh is drawn at on every node. Each cell splits into two triangles as
+ * the mesh lays it, so a tyre stands on the pad's own surface, not on the ground it was sampled from.
+ */
+export interface LaidPad {
+  x: number;
+  z: number;
+  cos: number;
+  sin: number;
+  u0: number;
+  v0: number;
+  step: number;
+  nu: number;
+  nv: number;
+  /** Node (`i`, `j`) at `j * (nu + 1) + i`, metres. */
+  heights: Float64Array;
+}
+
+export function laid_pad(x: number, z: number, heading: number, grid: { u0: number; v0: number; step: number; nu: number; nv: number }, heights: Float64Array): LaidPad {
+  return { x, z, cos: Math.cos(heading), sin: Math.sin(heading), ...grid, heights };
+}
+
+/** Height the laid pads are drawn at over (`x`, `z`), the highest where they overlap; -Infinity off every pad. */
+export function laid_height(pads: readonly LaidPad[], x: number, z: number): number {
+  let top = -Infinity;
+  for (const pad of pads) {
+    const dx = x - pad.x;
+    const dz = z - pad.z;
+    const fu = (dx * pad.cos - dz * pad.sin - pad.u0) / pad.step;
+    const fv = (dx * pad.sin + dz * pad.cos - pad.v0) / pad.step;
+    if (!(fu >= 0 && fu <= pad.nu && fv >= 0 && fv <= pad.nv)) continue;
+    const i = Math.min(Math.floor(fu), pad.nu - 1);
+    const j = Math.min(Math.floor(fv), pad.nv - 1);
+    const u = fu - i;
+    const v = fv - j;
+    const a = j * (pad.nu + 1) + i;
+    const b = a + pad.nu + 1;
+    const h = pad.heights;
+    // The mesh's triangles: (a, b, a + 1) below the cell's diagonal, (a + 1, b, b + 1) above it.
+    const y = u + v <= 1 ? h[a] + (h[a + 1] - h[a]) * u + (h[b] - h[a]) * v : h[b + 1] + (h[b] - h[b + 1]) * (1 - u) + (h[a + 1] - h[b + 1]) * (1 - v);
+    if (y > top) top = y;
+  }
+  return top;
 }

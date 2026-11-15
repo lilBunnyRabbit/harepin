@@ -43,7 +43,7 @@ One level of feature folders under `src/`. Each folder owns its modules, tests (
 | `theme/` | palette and themes |
 | `lab/` | the feel lab, hidden, on `?lab=<pack>` or `?lab=~<code>`: packs of trials, trial resolve to a spec, the per-step recorder and the export block. How it works, how to write a pack and promote a winner: [docs/lab.md](docs/lab.md) |
 | `review/` | visual review for agents, in dev and `vite build --mode review` only (a production build drops it): `?showcase` sheets, `?view=` viewpoints, `?replay=` ghost shots, and the catalog `scripts/shots.ts` reads |
-| `viewer/` | the car viewer, hidden, on `?cars` (ships in production): real car models on a stage, orbit, per-build notes and pins, Copy export block; `scripts/car-view.ts` shoots a block's views. [docs/cars.md](docs/cars.md) |
+| `viewer/` | the car and asset viewer, hidden, on `?cars` (ships in production): real car models, their parts and world assets (`ASSETS` registry) on a stage, orbit, per-asset notes and pins, Copy export block; `scripts/car-view.ts` shoots a block's views. [docs/cars.md](docs/cars.md) |
 
 Championships and seasons:
 
@@ -149,7 +149,6 @@ No base archives for identity proofs: the committed goldens are the base. A swee
 ## Differs today
 
 - `index.html:10` hard-codes `theme-color` `#0b1519` (`main.ts` appends a second one from the theme at runtime).
-- The car contact-shadow blob is painted in raw white. Fine as an alpha mask; say so or use `alphaMap`.
 - Imports mix `import * as THREE` (36 modules) with named imports (`car.ts`): pick one.
 - `theme.ts` and `random-theme.ts` mirror webos by hand; `theme.test.ts` checks parity only when the webos checkout sits beside this repo, and skips elsewhere.
 - `scripts/*.ts` print numbers and throw only on NaN; nothing fails when handling regresses beyond `car.test.ts`.

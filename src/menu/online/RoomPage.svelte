@@ -4,6 +4,8 @@
   import { parse_seed } from "../../net/seed";
   import { world_query } from "../../world/world-pick";
   import Button from "../ui/Button.svelte";
+  import Row from "../ui/Row.svelte";
+  import RowList from "../ui/RowList.svelte";
   import type { PageProps } from "../ui/svelte-page.svelte";
   import TextField from "../ui/TextField.svelte";
   import { invalid, random_seed } from "../widgets";
@@ -33,30 +35,29 @@
 </script>
 
 <form class="room-form" onsubmit={create}>
-  <p class="room-lead">Everything is optional: leave it empty for a random code and map.</p>
-  <TextField label="Room name" name="room" maxlength={ROOM_LENGTH} placeholder="Random code" bind:value={name} oninput={clear_validity} />
-  <TextField
-    label="Password"
-    name="password"
-    type="password"
-    maxlength={PASSWORD_LENGTH}
-    placeholder="Optional, locks the room"
-    help="Locked rooms show a lock and get a short code on their name; only players with the password can connect"
-    bind:value={password}
-    oninput={clear_validity}
-  />
-  <TextField
-    label="Map code"
-    name="seed"
-    inputmode="numeric"
-    maxlength={10}
-    placeholder="Random"
-    help="Empty for a random map"
-    mono
-    bind:value={seed}
-    oninput={clear_validity}
-  />
+  <RowList divided label="Room">
+    <Row label="Room name" help="Empty for a random code">
+      {#snippet control()}
+        <span class="room-input"><TextField aria-label="Room name" name="room" maxlength={ROOM_LENGTH} placeholder="Random code" bind:value={name} oninput={clear_validity} /></span>
+      {/snippet}
+    </Row>
+    <Row label="Password" help="Locks the room: it shows a lock and a short code on its name, and only players with the password can connect">
+      {#snippet control()}
+        <span class="room-input">
+          <TextField aria-label="Password" name="password" type="password" maxlength={PASSWORD_LENGTH} placeholder="None" bind:value={password} oninput={clear_validity} />
+        </span>
+      {/snippet}
+    </Row>
+    <Row label="Map code" help="Empty for a random map">
+      {#snippet control()}
+        <span class="room-input">
+          <TextField aria-label="Map code" name="seed" inputmode="numeric" maxlength={10} placeholder="Random" mono bind:value={seed} oninput={clear_validity} />
+        </span>
+      {/snippet}
+    </Row>
+  </RowList>
   <div class="room-submit">
+    <p class="room-lead">Everything is optional: leave it all empty for a random code and map.</p>
     <Button type="submit" variant="primary" size="lg">Create room</Button>
   </div>
 </form>
@@ -64,10 +65,28 @@
 <style>
   .room-form {
     display: grid;
-    gap: var(--space-6);
+  }
+
+  .room-input {
+    display: flex;
+    width: 26ch;
+  }
+
+  .room-input > :global(*) {
+    flex: 1;
+  }
+
+  .room-submit {
+    display: flex;
+    align-items: center;
+    gap: var(--space-5);
+    padding: var(--space-4);
+    border-top: 1px solid var(--set-line);
   }
 
   .room-lead {
+    flex: 1;
+    min-width: 0;
     margin: 0;
     color: var(--set-dim);
     font-size: var(--text-md);
@@ -75,7 +94,9 @@
     text-wrap: pretty;
   }
 
-  .room-submit {
-    display: flex;
+  @media (max-width: 600px) {
+    .room-input {
+      width: 18ch;
+    }
   }
 </style>

@@ -4,6 +4,8 @@
   import Badge from "./ui/Badge.svelte";
   import Button from "./ui/Button.svelte";
   import Icon from "./ui/Icon.svelte";
+  import Row from "./ui/Row.svelte";
+  import RowList from "./ui/RowList.svelte";
   import ScrollArea from "./ui/ScrollArea.svelte";
   import SectionHead from "./ui/SectionHead.svelte";
   import Tabs from "./ui/Tabs.svelte";
@@ -20,7 +22,6 @@
   const tabs = $derived(modes.map((m) => ({ id: m.id, label: m.name })));
 
   let picked = $state("");
-  let hovered = $state<{ name: string; text: string } | null>(null);
   const mode = $derived(modes.find((m) => m.id === picked) ?? modes[0]);
 
   const minutes = (ms: number) => {
@@ -28,23 +29,10 @@
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
   };
 
-  const locked_text = (level: LevelEntry, i: number) =>
-    level.blocked ?? (level.open ? "" : `Finish ${mode.levels[i - 1]?.name ?? "the level before"} to open it.`);
-
   const meta = (level: LevelEntry, i: number) =>
     [`Level ${i + 1}`, level.length !== null && level.par_ms !== null ? `${(level.length / 1000).toFixed(1)} km · par ${minutes(level.par_ms)}` : ""]
       .filter(Boolean)
       .join(" · ");
-
-  const first = $derived(mode?.levels.find((level) => level.open) ?? null);
-  const about = $derived(
-    hovered ?? (mode.blocked ? { name: mode.name, text: mode.blocked } : { name: first?.name ?? mode.name, text: first?.brings ?? "" }),
-  );
-
-  function pick(id: string) {
-    picked = id;
-    hovered = null;
-  }
 
   function play(id: string) {
     menu.close();
@@ -54,51 +42,54 @@
 
 {#if mode}
   <div class="modes">
-    <div class="top">
-      <SectionHead eyebrow="Modes" title={mode.name} count={`${mode.stars} / ${mode.max} ★`}>
-        {#snippet action()}
-          <span class="total">★ {total} / {max}</span>
-        {/snippet}
-      </SectionHead>
-      <Tabs items={tabs} value={mode.id} label="Modes" onchange={pick} />
-    </div>
-
-    <ScrollArea class="levels" label={mode.name}>
-      <div class="grid">
-        {#each mode.levels as level, i (level.id)}
-          {@const locked = locked_text(level, i)}
-          <div
-            class="level"
-            role="presentation"
-            onpointerenter={() => (hovered = { name: level.name, text: locked || level.brings })}
-            onfocusin={() => (hovered = { name: level.name, text: locked || level.brings })}
-          >
-            {#snippet lock()}<Icon name="icon-lock" />Finish {mode.levels[i - 1]?.name}{/snippet}
-            <Tile
-              title={level.name}
-              meta={meta(level, i)}
-              disabled={!level.open || mode.blocked !== null || level.blocked !== null}
-              reason={level.open ? undefined : lock}
-              onclick={() => play(level.id)}
-            >
-              {#if level.open}
-                <span class="foot">
-                  <span class="star-row" aria-label={`${level.stars} of ${MAX_STARS} stars`}>{"★".repeat(level.stars)}<i>{"★".repeat(Math.max(0, MAX_STARS - level.stars))}</i></span>
-                  {#if level.best}<small>{level.best}</small>{:else}<Badge tone="success">New</Badge>{/if}
-                </span>
-              {/if}
-            </Tile>
-          </div>
+    <nav class="nav" aria-label="Modes">
+      <div class="nav-head"><SectionHead title="Modes" count={`★ ${total} / ${max}`} /></div>
+      <div class="nav-tiles">
+        {#each modes as m (m.id)}
+          <Tile title={m.name} meta={`${m.stars} / ${m.max} ★`} size="sm" variant="nav" selected={m.id === mode.id} onclick={() => (picked = m.id)} />
         {/each}
       </div>
-      {#if mode.blocked}<p class="blocked">{mode.blocked}</p>{/if}
-    </ScrollArea>
+    </nav>
 
-    <div class="bar">
-      <p class="about"><b>{about.name}</b>{about.text}</p>
-      {#if running !== null}
-        <Button variant="danger" icon="icon-close" onclick={() => (menu.close(), host.quit_mode())}>Quit {running}</Button>
-      {/if}
+    <div class="main">
+      <div class="tabs"><Tabs items={tabs} value={mode.id} label="Modes" compact onchange={(id) => (picked = id)} /></div>
+      <div class="head">
+        <SectionHead title={mode.name} count={`${mode.stars} / ${mode.max} ★`} level={3}>
+          {#snippet action()}
+            <span class="total">★ {total} / {max}</span>
+            {#if running !== null}
+              <Button variant="danger" size="sm" icon="icon-close" onclick={() => (menu.close(), host.quit_mode())}>Quit {running}</Button>
+            {/if}
+          {/snippet}
+        </SectionHead>
+        {#if mode.blocked}<p class="blocked">{mode.blocked}</p>{/if}
+      </div>
+
+      <ScrollArea class="levels" label={mode.name}>
+        <div class="list">
+          <RowList divided label={`${mode.name} levels`}>
+            {#each mode.levels as level, i (level.id)}
+              {@const off = !level.open || mode.blocked !== null || level.blocked !== null}
+              <div class="level" class:off>
+                <Row label={level.name} help={level.brings} top stack>
+                  {#snippet detail()}<span class="meta">{meta(level, i)}</span>{/snippet}
+                  {#snippet control()}
+                    <span class="end">
+                      {#if !level.open}<span class="reason"><Icon name="icon-lock" />Finish {mode.levels[i - 1]?.name}</span>{/if}
+                      {#if level.blocked}<span class="reason">{level.blocked}</span>{/if}
+                      {#if level.open}
+                        {#if level.best}<span class="best">{level.best}</span>{:else}<Badge tone="success">New</Badge>{/if}
+                        <span class="star-row" aria-label={`${level.stars} of ${MAX_STARS} stars`}>{"★".repeat(level.stars)}<i>{"★".repeat(Math.max(0, MAX_STARS - level.stars))}</i></span>
+                        <Button size="sm" variant={level.stars === 0 && !off ? "primary" : "secondary"} disabled={off} aria-label={`Play ${level.name}`} onclick={() => play(level.id)}>Go</Button>
+                      {/if}
+                    </span>
+                  {/snippet}
+                </Row>
+              </div>
+            {/each}
+          </RowList>
+        </div>
+      </ScrollArea>
     </div>
   </div>
 {/if}
@@ -106,47 +97,103 @@
 <style>
   .modes {
     display: grid;
-    grid-template-rows: auto minmax(0, 1fr) auto;
-    gap: var(--space-5);
+    grid-template-columns: 16rem minmax(0, 1fr);
     height: 100%;
+    min-height: 0;
+    overflow: hidden;
+    border: 1px solid var(--set-line);
+    border-radius: var(--radius-lg);
+    background: var(--set-panel);
+  }
+
+  .nav {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    min-height: 0;
+    background: var(--set-well);
+  }
+
+  .nav-head {
+    padding: var(--space-5) var(--space-5) var(--space-2);
+  }
+
+  .nav-tiles {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    min-height: 0;
+    padding: var(--space-2) var(--space-3) var(--space-4);
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+
+  .main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
     min-height: 0;
   }
 
-  .top {
+  .tabs {
+    display: none;
+    padding: var(--space-3) var(--space-3) 0;
+  }
+
+  .head {
     display: grid;
-    gap: var(--space-4);
-    min-width: 0;
+    gap: var(--space-2);
+    padding: var(--space-5) var(--space-6) var(--space-3);
   }
 
   .total {
+    display: none;
     color: var(--set-dim);
-    font-size: var(--text-md);
-    font-weight: 700;
+    font-size: var(--text-xl);
+    font-weight: 600;
+    line-height: 1.2;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
 
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
-    gap: var(--space-3);
+  .blocked {
+    margin: 0;
+    color: var(--set-dim);
+    text-wrap: pretty;
   }
 
-  .level {
-    display: grid;
-    min-width: 0;
+  .main > :global(.levels) {
+    flex: 1;
   }
 
-  .foot {
+  .list {
+    padding: 0 var(--space-4) var(--space-5);
+  }
+
+  .meta {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .off :global(.ui-text) {
+    opacity: 0.55;
+  }
+
+  .end {
     --icon-size: var(--text-md);
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: var(--space-2);
-    margin-top: var(--space-1);
+    gap: var(--space-4);
     color: var(--set-dim);
     font-size: var(--text-sm);
     font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .reason {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    color: var(--foreground);
+    font-weight: 600;
   }
 
   .star-row {
@@ -159,37 +206,35 @@
     font-style: normal;
   }
 
-  .blocked {
-    margin: var(--space-4) 0 0;
-    color: var(--set-dim);
-  }
+  @media (max-height: 500px), (max-width: 900px) {
+    .modes {
+      grid-template-columns: minmax(0, 1fr);
+    }
 
-  .bar {
-    display: flex;
-    align-items: center;
-    gap: var(--space-4);
-    min-height: var(--control-h-lg);
-    padding-top: var(--space-4);
-    border-top: 1px solid var(--set-line);
-  }
+    .nav {
+      display: none;
+    }
 
-  .about {
-    flex: 1;
-    min-width: 0;
-    margin: 0;
-    color: var(--set-dim);
-    text-wrap: pretty;
-  }
+    .tabs {
+      display: flex;
+    }
 
-  .about b {
-    margin-right: var(--space-2);
-    color: var(--foreground);
+    .total {
+      display: block;
+    }
+
+    .head {
+      padding: var(--space-4) var(--space-5) var(--space-2);
+    }
+
+    .list {
+      padding: 0 var(--space-2) var(--space-3);
+    }
   }
 
   @media (max-width: 600px) {
-    .bar {
-      flex-direction: column;
-      align-items: stretch;
+    .end {
+      justify-content: flex-end;
     }
   }
 </style>

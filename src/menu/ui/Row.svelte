@@ -14,9 +14,11 @@
     badge?: Snippet;
     /** Phones put the control under the label, at full width. */
     stack?: boolean;
+    /** The lead icon and the control sit on the label's line instead of the row's middle, for rows whose text runs to several lines. */
+    top?: boolean;
   }
 
-  let { label, help, icon, href, external = false, onclick, control, detail, badge, stack = false }: Props = $props();
+  let { label, help, icon, href, external = false, onclick, control, detail, badge, stack = false, top = false }: Props = $props();
 </script>
 
 {#snippet text()}
@@ -39,7 +41,7 @@
     <span class="ui-end"><Icon name="icon-back" flip /></span>
   </button>
 {:else}
-  <div class="ui-row" class:ui-stack={stack}>
+  <div class="ui-row" class:ui-stack={stack} class:ui-top={top}>
     {@render text()}
     {#if control}<span class="ui-control">{@render control()}</span>{/if}
   </div>
@@ -63,6 +65,14 @@
     font: inherit;
     text-align: left;
     text-decoration: none;
+  }
+
+  .ui-top {
+    align-items: flex-start;
+  }
+
+  .ui-top > :is(.ui-lead, .ui-control) {
+    height: calc(var(--text-xl) * 1.3);
   }
 
   .ui-action {

@@ -17,7 +17,7 @@
 
   let { release, story }: Props = $props();
 
-  const KIT = SLOTS.aero.parts.length - 1;
+  const KIT = SLOTS.aero.parts.findIndex((part) => part.name === "Race kit");
   const before = (car: CarId) => `${import.meta.env.BASE_URL}release/before/${car}.webp`;
 
   // The before pictures stay out of the offline cache, so a pair must hold without one.

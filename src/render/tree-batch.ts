@@ -5,13 +5,11 @@ import { TreeKind } from "../worldgen/biomes";
 import type { TreeKit } from "./scene";
 import { cast_batched } from "./shadow-depth";
 
-// Scrub is a broadleaf crown squashed to a bush and sunk to the ground, so it costs no draw of its own.
+// Scrub is a crown squashed to a bush and sunk to the ground: it rides in the leaf batch, with no trunk.
 const SCRUB_SQUASH = 0.35;
 const SCRUB_SINK = 0.5;
 /** Starting instance room of a batch whose world streams its trees in; it doubles when a chunk would overflow it. */
 const STREAMED_ROOM = 4096;
-
-const crown_of = (kind: number) => (kind === TreeKind.SCRUB ? TreeKind.BROADLEAF : kind);
 
 function jitter(i: number, j: number): number {
   const h = Math.sin(i * 127.1 + j * 311.7) * 43758.5453;
@@ -82,17 +80,19 @@ export class TreeBatch {
     for (const tree of here) {
       q.setFromAxisAngle(this.axis, (tree.x * 13.37) % (Math.PI * 2));
       const shade = jitter(order ? (order.get(tree) ?? 0) : tree.x + tree.z * 0.37, tree.kind);
+      const [r, g, b] = linear(this.kit.tone(tree.kind as TreeKind, shade));
+      this.tint.setRGB(r, g, b);
       if (tree.kind === TreeKind.SCRUB) m.compose(p.set(tree.x, tree.y - SCRUB_SINK, tree.z), q, s.set(tree.scale, tree.scale * SCRUB_SQUASH, tree.scale));
       else {
         m.compose(p.set(tree.x, tree.y - 0.2, tree.z), q, s.setScalar(tree.scale));
         const id = this.bark.addInstance(this.trunk);
         this.bark.setMatrixAt(id, m);
+        if (this.kit.one_tone) this.bark.setColorAt(id, this.tint);
         planted.bark.push(id);
       }
-      const id = this.leaf.addInstance(this.crowns[crown_of(tree.kind)]);
+      const id = this.leaf.addInstance(this.crowns[tree.kind] ?? this.crowns[TreeKind.BROADLEAF]);
       this.leaf.setMatrixAt(id, m);
-      const [r, g, b] = linear(this.kit.tone(tree.kind as TreeKind, shade));
-      this.leaf.setColorAt(id, this.tint.setRGB(r, g, b));
+      this.leaf.setColorAt(id, this.tint);
       planted.leaf.push(id);
     }
     return planted;

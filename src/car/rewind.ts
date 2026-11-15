@@ -2,7 +2,8 @@ const REWIND_SECONDS = 10;
 const START_CAPACITY = 1024;
 
 export interface RewindPart<S = unknown> {
-  snapshot(): S;
+  /** Writes the state into `into`, this slot's snapshot from a frame that fell off, so recording allocates nothing once the buffer is full; a new one when undefined. */
+  snapshot(into: S | undefined): S;
   /** `rewound_ms`: how far back the restored frame was taken. */
   restore(snapshot: S, rewound_ms: number): void;
 }
@@ -37,9 +38,8 @@ export class Rewind {
     if (this.count === this.slots.length) this.grow();
     const slot = this.slot(this.count++);
     slot.at = now;
-    this.parts.forEach((part, i) => (slot.snapshots[i] = part.snapshot()));
+    for (let i = 0; i < this.parts.length; i++) slot.snapshots[i] = this.parts[i].snapshot(slot.snapshots[i]);
     while (this.count && now - this.slot(0).at > REWIND_SECONDS * 1000) {
-      this.slot(0).snapshots.fill(undefined);
       this.head = (this.head + 1) % this.slots.length;
       this.count--;
     }
@@ -47,22 +47,21 @@ export class Rewind {
 
   /** Drops the newest frame and restores the one before it; false when there is nothing left to restore. */
   step(now: number): boolean {
-    if (this.count > 1) this.slot(--this.count).snapshots.fill(undefined);
+    if (this.count > 1) this.count--;
     if (!this.count) return false;
     const slot = this.slot(this.count - 1);
-    this.parts.forEach((part, i) => part.restore(slot.snapshots[i], now - slot.at));
+    for (let i = 0; i < this.parts.length; i++) this.parts[i].restore(slot.snapshots[i], now - slot.at);
     return true;
   }
 
   clear() {
-    for (let i = 0; i < this.count; i++) this.slot(i).snapshots.fill(undefined);
     this.count = 0;
   }
 
   // A frame rate high enough to fill the buffer inside the window doubles it instead of shortening the window.
   private grow() {
     const next = Rewind.alloc(this.slots.length * 2, this.parts.length);
-    for (let i = 0; i < this.count; i++) next[i] = this.slot(i);
+    for (let i = 0; i < this.slots.length; i++) next[i] = this.slot(i);
     this.slots = next;
     this.head = 0;
   }

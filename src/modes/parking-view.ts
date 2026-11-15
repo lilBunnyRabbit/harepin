@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { parked_car_geometry, parked_cars } from "../world/buildings";
+import { laid_pad, type LaidPad } from "../world/drawn-lift";
 import { brand, car_paints, color, tones } from "../theme/palette";
 import { mulberry32, sub } from "../rng";
 import { to_world, type Site } from "./gymkhana";
@@ -9,6 +10,7 @@ import { CONE_RADIUS, type ParkBay, type ParkLevel } from "./parking";
 const LINE_LIFT = 0.08;
 // Paint follows the ground in short pieces, or a long strip cuts under the pad between terrain samples.
 const PAINT_STEP = 0.5;
+// The pad lies this far over the drawn ground; whatever is parked on it stands on the pad, not on the terrain under it.
 const PAD_LIFT = 0.03;
 const PAD_STEP = 2;
 const PAD_MARGIN = 3;
@@ -19,6 +21,8 @@ export class ParkingView {
   private readonly marks: Marks;
   private readonly target: THREE.MeshBasicMaterial;
   private cars: THREE.InstancedMesh | null = null;
+  /** The pad as the drawn ground: lay it on the world once the view is built, so a car on it stands on it. */
+  readonly laid: LaidPad;
 
   constructor(
     private readonly site: Site,
@@ -28,7 +32,9 @@ export class ParkingView {
     area: { u0: number; u1: number; v0: number; v1: number },
   ) {
     this.marks = new Marks(ground);
-    this.root.add(this.pad(area));
+    const pad = this.pad(area);
+    this.laid = pad.laid;
+    this.root.add(pad.mesh);
     for (const bay of level.lines) this.root.add(this.bay_line(bay, this.marks.paint(tones.line, 0.7)));
     this.target = this.marks.paint(brand.accent, 1);
     this.root.add(this.bay_line(level.bay, this.target));
@@ -37,8 +43,8 @@ export class ParkingView {
     const cars = level.obstacles
       .filter((o) => o.kind === "car")
       .map((o) => {
-        const { x, z } = to_world(site, o.u, o.v);
-        return { x, y: ground.height(x, z), z, heading: site.heading + o.heading, paint: color(car_paints[Math.floor(rng() * car_paints.length)]) };
+        const { x, y, z } = this.point(o.u, o.v, PAD_LIFT);
+        return { x, y, z, heading: site.heading + o.heading, paint: color(car_paints[Math.floor(rng() * car_paints.length)]) };
       });
     if (cars.length) {
       const shape = this.marks.track(parked_car_geometry());
@@ -52,9 +58,8 @@ export class ParkingView {
     const wall_material = this.marks.track(new THREE.MeshLambertMaterial({ color: color(tones.wall), flatShading: true }));
     for (const o of level.obstacles) {
       if (o.kind === "car") continue;
-      const { x, z } = to_world(site, o.u, o.v);
       const mesh = o.kind === "cone" ? new THREE.Mesh(cone_shape, cone_material) : new THREE.Mesh(wall_shape, wall_material);
-      mesh.position.set(x, ground.height(x, z), z);
+      mesh.position.copy(this.point(o.u, o.v, PAD_LIFT));
       mesh.rotation.y = site.heading + o.heading;
       mesh.scale.set(o.kind === "cone" ? 1 : o.w, o.h, o.kind === "cone" ? 1 : o.l);
       mesh.castShadow = true;
@@ -125,16 +130,18 @@ export class ParkingView {
     );
   }
 
-  private pad(area: { u0: number; u1: number; v0: number; v1: number }): THREE.Mesh {
+  private pad(area: { u0: number; u1: number; v0: number; v1: number }): { mesh: THREE.Mesh; laid: LaidPad } {
     const u0 = area.u0 - PAD_MARGIN;
     const v0 = area.v0 - PAD_MARGIN;
     const nu = Math.ceil((area.u1 + PAD_MARGIN - u0) / PAD_STEP);
     const nv = Math.ceil((area.v1 + PAD_MARGIN - v0) / PAD_STEP);
     const positions: number[] = [];
+    const heights = new Float64Array((nu + 1) * (nv + 1));
     for (let j = 0; j <= nv; j++)
       for (let i = 0; i <= nu; i++) {
         const p = this.point(u0 + i * PAD_STEP, v0 + j * PAD_STEP, PAD_LIFT);
         positions.push(p.x, p.y, p.z);
+        heights[j * (nu + 1) + i] = p.y;
       }
     const index: number[] = [];
     for (let j = 0; j < nv; j++)
@@ -151,7 +158,7 @@ export class ParkingView {
     const material = this.marks.track(new THREE.MeshLambertMaterial({ color: color(tones.asphalt), polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
     const mesh = new THREE.Mesh(geometry, material);
     mesh.receiveShadow = true;
-    return mesh;
+    return { mesh, laid: laid_pad(this.site.x, this.site.z, this.site.heading, { u0, v0, step: PAD_STEP, nu, nv }, heights) };
   }
 
   get root(): THREE.Group {

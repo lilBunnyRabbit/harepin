@@ -12,8 +12,9 @@ export interface Finish {
 }
 
 // Mostly metal with a little blur: the paint's own colour tints what the strip reflects, so it reads as metal from the
-// chase camera, where a sharp mirror only showed the dark floor.
-const METAL: Finish = { metalness: 0.85, roughness: 0.28, reflect: 2.6, weave: null };
+// chase camera, where a sharp mirror only showed the dark floor. Softer and dimmer than a mirror strip, so silver and
+// platinum keep their facets by day instead of going near white.
+const METAL: Finish = { metalness: 0.85, roughness: 0.4, reflect: 1.5, weave: null };
 // A 2x2 twill in tows far wider than real ones: at chase distance a real tow is under a pixel and the weave fades to grey.
 const CARBON: Finish = { metalness: 0.1, roughness: 0.45, reflect: 0.9, weave: { tow: 0.07, sheen: 0.55, ...carbon } };
 interface RewardPaint {

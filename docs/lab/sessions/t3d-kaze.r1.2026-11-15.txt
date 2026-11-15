@@ -1,0 +1,44 @@
+#lab t3d-kaze r1 v0.44.1 2026-11-15T00:39Z keys 2560x1360
+#trial kaze-pad-best kaze.4.0.4.2.2.0.7.2.2.2.1.2 spec#5364d90b pi644A skidpad/asphalt laps3 done
+ m time=33.8 lap=12.7,10.8,10.3 latg=1.44/0.962 ring=58.7 slip=5.14/- held=0 chain=0 spins=0 lag=0.368 top=75.6 spin=0.172/8.13 air=0 bounce=0 offs=0 resets=0 lock=0.881 thr=0.578 hb=0 rev=0.0888 yawover=0.132 us=1.58 pwr=5.14 lift=5.14 trail=2.41
+ a grip=4 power=3 pred=4 fun=3 vs="same" worth="unsure"
+#trial kaze-pad-top lab:kaze-twin +redline+800 +upshift+800 +mass+55 +mu*1.24 +grip_dirt*0.8 +grip_grass*0.8 +offroad-1 +downforce*6 +drag+0.26 +rear_grip+0.08 +aero_front+0.04 +mass+18 +mass*0.76 +inertia*0.76 +cog+0.04 spec#52da0969 pi803S2 skidpad/asphalt laps3 done
+ m time=30 lap=11.2,9.51,9.36 latg=1.93/1.2 ring=65.8 slip=4.85/- held=0 chain=0 spins=0 top=79.9 spin=0.185/12.9 air=0 bounce=0 offs=1 resets=0 lock=0.921 thr=0.53 hb=0 rev=0 yawover=0.258 us=1.39 pwr=3.23 lift=3.23 trail=1.08
+ a grip=4 power=4 pred=4 fun=4 vs="better" worth="unsure"
+ n "Good grip, faster, more rotation"
+#trial kaze-straight-best kaze.4.0.4.2.2.0.7.2.2.2.1.2 spec#5364d90b pi644A runway/asphalt run done
+ m time=12.7 seg=10.8 slip=0/- held=0 chain=0 spins=0 0-100=4.55 top=193 spin=0.048/8.05 air=0 bounce=0 offs=0 resets=0 lock=0 thr=1 hb=0 rev=0
+ a grip=5 power=3 pred=5 fun=3 vs="same" worth="unsure"
+#trial kaze-straight-top lab:kaze-twin +redline+800 +upshift+800 +mass+55 +mu*1.24 +grip_dirt*0.8 +grip_grass*0.8 +offroad-1 +downforce*6 +drag+0.26 +rear_grip+0.08 +aero_front+0.04 +mass+18 +mass*0.76 +inertia*0.76 +cog+0.04 spec#52da0969 pi803S2 runway/asphalt run done
+ m time=11.3 seg=9.44 slip=0/- held=0 chain=0 spins=0 0-100=3.83 top=224 spin=0.0857/12.8 air=0 bounce=0 offs=0 resets=0 lock=0 thr=1 hb=0 rev=0 yawsd=0/0
+ a grip=5 power=4 pred=4 fun=4 vs="better" worth="unsure"
+ n "Again faster, only slipped on initial start"
+#trial kaze-pins-best kaze.4.0.4.2.2.0.7.2.2.2.1.2 spec#5364d90b pi644A hairpin/asphalt run done
+ m time=28 seg=23.6 slip=7.02/- held=0 chain=0 spins=0 lag=4.15 0-100=4.59 top=120 spin=0.116/8.13 air=0 bounce=0 offs=1 resets=0 lock=0.46 thr=0.693 hb=0 rev=0.107 yawover=0.085 pwr=7.02 lift=4.36 trail=1.7 xslip=3.46
+ a grip=4 power=3 pred=4 fun=3 vs="same" worth="unsure"
+#trial kaze-pins-top lab:kaze-twin +redline+800 +upshift+800 +mass+55 +mu*1.24 +grip_dirt*0.8 +grip_grass*0.8 +offroad-1 +downforce*6 +drag+0.26 +rear_grip+0.08 +aero_front+0.04 +mass+18 +mass*0.76 +inertia*0.76 +cog+0.04 spec#52da0969 pi803S2 hairpin/asphalt run done
+ m time=26.1 seg=22 slip=9.74/- held=0 chain=0 spins=0 lag=1.32 0-100=3.82 top=131 spin=0.206/12.8 air=0 bounce=0 offs=0 resets=0 lock=0.445 thr=0.658 hb=0 rev=0.192 yawover=0.238 pwr=9.74 lift=4.93 trail=3.09 xslip=3.65
+ a grip=3 power=4 pred=3 fun=4 vs="better" worth="unsure"
+ n "Faster, worse grip especially on turn out"
+#end 6/6 trials
+NOTE: Noticabely faster and more rotation, wants to slip when speeding out of corner. not a bad thing just what i noticed
+
+
+sim on 3775366 (v0.44.1, every spec# equal to the drive's): bun scripts/lab.ts t3d-kaze
+#sim t3d-kaze r1 base first trial per scenario
+#trial kaze-pad-best kaze.4.0.4.2.2.0.7.2.2.2.1.2 spec#5364d90b pi644A skidpad/asphalt laps3 est 0m36s
+ sim latg=1.11 slip=2.24
+#trial kaze-pad-top lab:kaze-twin +redline+800 +upshift+800 +mass+55 +mu*1.24 +grip_dirt*0.8 +grip_grass*0.8 +offroad-1 +downforce*6 +drag+0.26 +rear_grip+0.08 +aero_front+0.04 +mass+18 +mass*0.76 +inertia*0.76 +cog+0.04 spec#52da0969 pi803S2 skidpad/asphalt laps3 est 0m36s
+ sim latg=1.29 slip=1.12
+ d latg=+0.186 slip=-1.12 vs kaze-pad-best
+#trial kaze-straight-best kaze.4.0.4.2.2.0.7.2.2.2.1.2 spec#5364d90b pi644A runway/asphalt run est 0m20s
+ sim 0-100=4.55 stop=22.7@100 top=259
+#trial kaze-straight-top lab:kaze-twin +redline+800 +upshift+800 +mass+55 +mu*1.24 +grip_dirt*0.8 +grip_grass*0.8 +offroad-1 +downforce*6 +drag+0.26 +rear_grip+0.08 +aero_front+0.04 +mass+18 +mass*0.76 +inertia*0.76 +cog+0.04 spec#52da0969 pi803S2 runway/asphalt run est 0m20s
+ sim 0-100=3.82 stop=20.2@100 top=281
+ d 0-100=-0.733 stop=-2.45 top=+22 vs kaze-straight-best
+#trial kaze-pins-best kaze.4.0.4.2.2.0.7.2.2.2.1.2 spec#5364d90b pi644A hairpin/asphalt run est 0m40s
+ sim slip=1.44 lag=0.278
+#trial kaze-pins-top lab:kaze-twin +redline+800 +upshift+800 +mass+55 +mu*1.24 +grip_dirt*0.8 +grip_grass*0.8 +offroad-1 +downforce*6 +drag+0.26 +rear_grip+0.08 +aero_front+0.04 +mass+18 +mass*0.76 +inertia*0.76 +cog+0.04 spec#52da0969 pi803S2 hairpin/asphalt run est 0m40s
+ sim slip=1.43 lag=0.317
+ d slip=-0.01 lag=+0.0389 vs kaze-pins-best
+#end 6 trials, drive 3m12s + cards 4m30s = 7m42s

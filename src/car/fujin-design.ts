@@ -1,5 +1,6 @@
-import type { Design, Wing } from "./designs";
-import { arc, type Part, type Point } from "./geometry";
+import { gurney, plane, stalk_mirror } from "./design-parts";
+import type { Design, Slab, Wing } from "./designs";
+import { arc, type Point } from "./geometry";
 
 const SILL = 0.16;
 const WHEEL = 0.34;
@@ -12,40 +13,56 @@ const REAR_AXLE = -1.35;
 const PONTOON_FROM = 0.5;
 const PONTOON_WALL = 0.525;
 const PONTOON_SIDE: Point[] = [
-  [2.3, SILL], [2.36, 0.24], [2.33, 0.38], [2.1, 0.6], [1.8, 0.77], [1.45, 0.81], [1.1, 0.78], [0.8, 0.62], [0.6, 0.54],
+  [2.3, SILL], [2.36, 0.22], [2.32, 0.3], [2.1, 0.6], [1.8, 0.77], [1.45, 0.81], [1.1, 0.78], [0.8, 0.62], [0.6, 0.54],
   [-0.5, 0.54], [-0.8, 0.66], [-1.1, 0.8], [-1.45, 0.84], [-2.0, 0.8], [-2.3, 0.74], [-2.34, 0.66], [-2.34, 0.3], [-2.26, SILL],
 ];
 // The tub is lower than the wheels, so the arches are cut in the pontoons beside it, not in the body outline.
 const PONTOON: Point[] = [
   ...PONTOON_SIDE,
-  ...arc(REAR_AXLE, WHEEL, ARCH, SILL, 6),
-  ...arc(FRONT_AXLE, WHEEL, ARCH, SILL, 6),
+  ...arc(REAR_AXLE, WHEEL, ARCH, SILL, 7),
+  ...arc(FRONT_AXLE, WHEEL, ARCH, SILL, 7),
 ];
-const FIN: Point[] = [[-0.45, 0.98], [-2.3, 0.9], [-2.3, 0.6], [-0.45, 0.6]];
-const ENDPLATE: Point[] = [[-1.8, 0.8], [-1.98, 1.16], [-2.46, 1.16], [-2.46, 0.72], [-2.3, 0.7]];
+const HALF = 1.0;
+const TAIL: Point = [-2.34, 0.62];
+const FOOT: Point = [-1.74, 0.76];
+// The fin's root is as thick as this and flush with the pontoon side; the plate stands in its middle.
+const ROOT = 0.94;
+const PLATE: Point = [0.955, 0.985];
+const ROOT_SHARE = 0.5;
+const lerp = (a: Point, b: Point, t: number): Point => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
 
-const plane = (chord: number, tilt: number): Part => ({ size: [0.985, 0.04, chord], at: [0.4925, 1.1, -2.2], tilt: [tilt, 0, 0] });
-const flap = (chord: number, y: number, z: number, tilt: number): Part => ({ size: [0.985, 0.03, chord], at: [0.4925, y, z], tilt: [tilt, 0, 0] });
+// One tail fin per wing, grown out of the pontoon's tail: its top edge climbs from `lead`, runs level over the last plane to `rear`,
+// and its trailing edge runs down into the tail face. The lower half is the pontoon running on up, the upper a thin plate out of it.
+function fin(lead: Point, rear: Point): Slab[] {
+  const low: Point = [-2.2, 0.6];
+  return [
+    { points: [FOOT, lerp(FOOT, lead, ROOT_SHARE), lerp(TAIL, rear, ROOT_SHARE), TAIL, low], from: ROOT, to: HALF },
+    { points: [FOOT, lead, [rear[0] + 0.22, rear[1]], rear, TAIL, low], from: PLATE[0], to: PLATE[1] },
+  ];
+}
 
+function wing(at: Point, chord: number, tilt: number, lead: Point, rear: Point, flaps: Point[][] = []): Wing {
+  const main = plane(at, chord, 0.045, tilt);
+  return { paint: [], trim: [], lips: fin(lead, rear), stands: [main, ...flaps].map((points) => ({ points, from: 0, to: PLATE[0] })) };
+}
+
+const RACE_FLAP = plane([-2.42, 1.215], 0.19, 0.035, 0.55);
 const WINGS: Wing[] = [
-  { paint: [], trim: [plane(0.38, 0.1)] },
-  { paint: [], trim: [plane(0.38, 0.12), flap(0.14, 1.16, -2.4, 0.5)] },
-  { paint: [], trim: [plane(0.42, 0.16), flap(0.2, 1.18, -2.41, 0.7)] },
-  { paint: [], trim: [plane(0.44, 0.2), flap(0.22, 1.19, -2.42, 0.8), flap(0.16, 1.27, -2.5, 1.05)] },
+  wing([-2.16, 1.1], 0.4, 0.1, [-1.93, 1.13], [-2.42, 1.19]),
+  wing([-2.14, 1.1], 0.38, 0.12, [-1.92, 1.13], [-2.46, 1.25], [plane([-2.375, 1.18], 0.13, 0.03, 0.5)]),
+  wing([-2.15, 1.11], 0.42, 0.14, [-1.915, 1.14], [-2.5, 1.29], [plane([-2.405, 1.205], 0.16, 0.03, 0.55)]),
+  wing([-2.16, 1.12], 0.44, 0.16, [-1.92, 1.15], [-2.54, 1.33], [RACE_FLAP, gurney(RACE_FLAP, 0.03)]),
 ];
 
-const SPLITTER: Part = { size: [1.004, 0.03, 0.34], at: [0.502, 0.15, 2.28] };
-const FRONTS: Wing[] = [
-  { paint: [], trim: [SPLITTER] },
-  { paint: [], trim: [{ size: [1.004, 0.03, 0.44], at: [0.502, 0.15, 2.33] }] },
-  {
-    paint: [],
-    trim: [
-      { size: [1.004, 0.03, 0.5], at: [0.502, 0.15, 2.36] },
-      { size: [0.16, 0.02, 0.2], at: [1.04, 0.32, 2.2] },
-    ],
-  },
-];
+// The roof scoop grows out of the roof behind its peak, where the roof falls this much to the tail.
+const ROOF_SCOOP = 0.08;
+const ROOF_FALL = 0.1;
+const NOSE = 2.36;
+// Inside the pontoon's outer face, so the body hides all of it but the blade ahead of the nose and under the sill.
+const EDGE = 0.996;
+// A wedge under the chin: thin at its leading edge, its top face rising into the nose, its floor fading out ahead of the arch.
+const splitter = (reach: number): Slab => ({ points: [[NOSE + reach, 0.13], [NOSE + reach, 0.15], [2.34, 0.2], [1.9, 0.2], [1.9, 0.16], [2.2, 0.13]], from: 0, to: EDGE });
+const FRONTS: Wing[] = [0.07, 0.14, 0.2].map((reach) => ({ paint: [], trim: [], stands: [splitter(reach)] }));
 
 export const FUJIN_DESIGN: Design = {
   outline: [[2.3, SILL], [2.36, 0.22], [2.32, 0.3], [1.7, 0.44], [1.0, 0.58], [-1.9, 0.62], [-2.26, 0.6], [-2.3, 0.52], [-2.3, 0.3], [-2.24, SILL]],
@@ -63,20 +80,19 @@ export const FUJIN_DESIGN: Design = {
   slabs: [
     { points: PONTOON_SIDE, from: PONTOON_FROM, to: PONTOON_WALL },
     { points: PONTOON, from: PONTOON_WALL, to: 1.0 },
-    { points: FIN, from: 0, to: 0.016 },
-    { points: ENDPLATE, from: 0.97, to: 1.0 },
   ],
-  pods: { radius: ARCH, steps: 6, from: PONTOON_WALL },
-  heads: [{ size: [0.1, 0.27, 0.04], at: [0.78, 0.5, 2.225], tilt: [-0.8, 0, 0] }],
+  pods: { radius: ARCH, steps: 7, from: PONTOON_WALL },
+  heads: [{ size: [0.1, 0.27, 0.04], at: [0.78, 0.465, 2.22], tilt: [-0.63, 0, 0] }],
   tails: [{ size: [0.07, 0.3, 0.04], at: [0.9, 0.48, -2.345] }],
-  paint: [{ size: [0.14, 0.08, 0.14], at: [0.72, 0.8, 0.95] }],
+  mirror: stalk_mirror([0.76, 0.71, 0.95], "top"),
+  paint: [{ size: [0.22, ROOF_SCOOP + 0.012, 0.36], at: [0, 1.003 + ROOF_SCOOP / 2, -0.36], tilt: [-ROOF_FALL, 0, 0], shape: "wedge", one: true }],
   trim: [
     { size: [0.02, 0.2, 0.36], at: [0.995, 0.38, 0.74] },
     { size: [0.3, 0.012, 0.5], at: [0.75, 0.545, 0.0] },
     { size: [0.5, 0.2, 0.04], at: [0.25, 0.3, -2.3] },
-    { size: [0.1, 0.1, 0.3], at: [0.05, 1.05, -0.35] },
+    { size: [0.07, 0.045, 0.02], at: [0.035, 1.03 + ROOF_SCOOP / 2, -0.176], tilt: [-ROOF_FALL, 0, 0] },
   ],
-  markers: [{ size: [0.05, 0.05, 0.04], at: [0.38, 0.33, 2.3] }],
+  markers: [{ size: [0.1, 0.03, 0.02], at: [0.78, 0.26, 2.345], tilt: [-0.46, 0, 0] }],
   chrome: [],
   tyre: [0.28, 0.36],
   rim: { size: 0.74, spokes: 5, tone: "light", lip: 0.14, spoke: 0.07 },

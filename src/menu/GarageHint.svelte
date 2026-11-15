@@ -18,9 +18,11 @@
     prev: ["LT", ""],
     next: ["RT", ""],
   };
+
+  const pad_only = $derived(keys.every((key) => !GLYPHS[key][1]));
 </script>
 
-<span class="garage-hint">
+<span class="garage-hint" class:garage-pad={pad_only}>
   {#each keys as key (key)}
     <span class="garage-glyph garage-pad"><Kbd keys={[GLYPHS[key][0]]} /></span>
     {#if GLYPHS[key][1]}<span class="garage-glyph garage-keys"><Kbd keys={[GLYPHS[key][1]]} /></span>{/if}

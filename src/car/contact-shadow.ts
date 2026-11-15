@@ -10,10 +10,14 @@ function blob_texture(): THREE.CanvasTexture {
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = 64;
   const ctx = canvas.getContext("2d")!;
+  // An `alphaMap` reads the green channel, not the canvas alpha: the fade is painted in opaque greys on black. White at
+  // an alpha came through as full green wherever alpha was over zero, a hard-edged disc with texel teeth.
   const gradient = ctx.createRadialGradient(32, 32, 4, 32, 32, 32);
-  gradient.addColorStop(0, "rgb(255 255 255 / 1)");
-  gradient.addColorStop(0.55, "rgb(255 255 255 / 0.75)");
-  gradient.addColorStop(1, "rgb(255 255 255 / 0)");
+  gradient.addColorStop(0, "rgb(255 255 255)");
+  gradient.addColorStop(0.55, "rgb(191 191 191)");
+  gradient.addColorStop(1, "rgb(0 0 0)");
+  ctx.fillStyle = "rgb(0 0 0)";
+  ctx.fillRect(0, 0, 64, 64);
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, 64, 64);
   blob = new THREE.CanvasTexture(canvas);

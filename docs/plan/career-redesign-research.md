@@ -1,16 +1,77 @@
 # Career redesign: what GRID 2 did, and what Harepin should take
 
-Status: research for t185, base master `6f9e8b2`, 2026-11-14. No code changed. Owner picks in §6 before any edit.
+Status: research for t185, base master `6f9e8b2`, 2026-11-14. No code changed. Owner picks in §6 before any edit. Decided 2026-11-15: see [Decisions](#decisions-owner-2026-11-15).
 
 Owner, 2026-11-14: FH5 "never really kept me" (events felt repetitive fast); GRID 2 is the most-played racer (played almost twice), DiRT 3 second. "Don't be bothered if we need to redesign the whole career." Follow-ups the same day: GRID 2 is the main subject, DiRT 3 a side note, FH5 the contrast; the owner never really played multiplayer, so online stays off the core loop.
 
 Player-facing text never names another game. This doc may.
 
+## Decisions (owner, 2026-11-15)
+
+From questionnaire round 1 and round 2 in chat (`docs/plan/career-ai-r1.answers.md`, both rounds). Where the owner picked against this doc's recommendation, the old text below is struck or marked **Superseded**. "Fans" anywhere below the decisions is GRID 2's word or a superseded recommendation; read it as series points.
+
+**Progress number: series points.** "Fans" is rejected (C3, owner: "i wouldnt add "fans" - fans is based that the whole game has a story. we dont have a story"). Round 2: championship points per finish position, summed per series; bonus objectives add points. The player sees standings and a series rank. Points are not a currency.
+
+**Grind for class: credits (round 2).** Every race, side event and Run pays credits; cars and parts are bought with them in the garage. Each season final also unlocks a car or kit (G3). Credits are the only currency; series points never buy anything.
+
+**Rewind (round 2, settles A3 vs D5).** Career races have no rewind. Solo side events keep rewind, and finishing one without using it pays a bonus.
+
+| # | Decision | Differs from this doc |
+|---|---|---|
+| A1 | The diagnosis holds: the career lacks cars that race back, judged by position, in seasons that end | |
+| A2 | Loved in GRID 2: a pack that fought back, seasons with a finale, LiveRoutes, **and the maps** (see "Maps" below) | adds LiveRoutes and maps |
+| A3 | From DiRT 3: bonus objectives inside an event, and a reward for not using rewind. Round 2: the rewind reward applies to side events only | adds the rewind reward |
+| B1 | Direction B, World Series, built from B0 | |
+| B2 | **Retire** today's 5 tiers and 45 events. A legacy badge shows the level (tier) the player reached | rec was: the 45 become side events inside seasons |
+| B3 | The new career replaces Career | |
+| B4 | The career unit is called a **series** player-facing; Runs keep "season". This doc still says "season" for the career unit | |
+| B5 | League name: **Harepin Series** (accepted in bulk) | |
+| C1 | Two or three events open at once, the final last | |
+| C2 | 6 events per season, final included (accepted in bulk) | |
+| C3 | No fans. Series points, see above | rec was fans |
+| C4 | Losing the final: retry the final, standings keep | |
+| C5 | A finished season replays on a new seed with a stronger field | |
+| C6 | Season order: Island, Alpine, Dunes, Mainland, Sky final | |
+| D1 | Graded by finish position; bonus points for a clean race | |
+| D2 | A podium opens the next event; a win pays the most points | |
+| D3 / D4 | 3 laps, about 4 min a race (accepted in bulk) | §6 Q8 said 2-3 laps |
+| D5 | No rewind in career races, as today. Side events keep rewind (A3) | |
+| D6 | No time penalty for contact; a clean-race bonus instead | |
+| D7 | Bonus objectives: clean race, lead a lap, fastest lap, **win from the back of the grid** | adds win from the back |
+| E1 | First season: Race, Knockout, Head to head vs the rival, **Endurance**. Later seasons: Pass, Open road. Side events only: Overtake rush, today's solo modes (gymkhana, drift, jump, ...) | Endurance moves up from "later" |
+| E2 | Open road is worth the route builder, after the first three seasons | |
+| E3 | Pass: **no wall rule**. Owner: "idk if I would want in AI races the adding time of any shape", so no time is added in any AI race | rec was +2 s per wall hit |
+| F1 | Whole field named, one rival per season | |
+| F2 | No narrator; one line per event in the standings | |
+| F3 | 6 AI + the player | |
+| F4 | Build: grid start with lights, position and gap on the HUD, finish order card (points earned), season table after each event | |
+| G1 | **Only the player's own cars**, within the event's class cap. A player whose cars are below the class grinds credits and buys a car or parts (see above) | rec was a lent car per season |
+| G2 | AI drives the class, preset builds, no two alike | |
+| G3 | Each season final unlocks a car or kit | |
+
+**Maps (A2).** The owner's best GRID 2 memory is a Japan race: a steep road down that runs through a tunnel, where the car feels close to lifting from the speed and the drop, and the corners still need handling. This is a world and route requirement for the series, not a nice-to-have:
+
+- Steep downhill roads with corners at speed: a route kind or a `descent` variant that keeps grade and speed high enough to unload the suspension. Measure "lifting" as wheel load near zero over crests, not by eye only.
+- A tunnel. **Tunnels do not exist today**: no worldgen kind, mesh or `World` query has a roof over the road (ground is a heightfield plus solids, decks and ramps). A tunnel needs worldgen, meshing, the camera (it must not clip the roof) and lighting work. Its own quest; it does not block season 1.
+- The sense of lifting: speed and drop together, so the route builder must pick steep sections on purpose, not only avoid them.
+
+**Order (H1, I1, I3; detail in `docs/plan/ai-racers.md`).** AI in game first ("we need to prove we can build good AI for this; without it none of it is worth it"): one AI race in free play, then Season 1 Island against an AI field, then the rest of the career. **B0 is not shipped alone**: the career and the AI ship together, possibly built on a worktree branch while other game changes land on master (I3). Failure (I4): the redesign kills the game's performance, or the AI looks stupid.
+
+**Records.** The shared-maths change (`docs/plan/sim-performance.md`, J2) bumps every world kind's version, which resets every player's records once. Recommendation: ship it in the same release as the career, so players lose records once and the old career retires in that same release.
+
+**New systems the round 2 answers bring (flagged, not built yet):**
+
+- **Credits and buying.** Harepin has no currency today (no `credit` anywhere in `src/`), and the garage does not gate cars or parts by ownership. Credits need a new persisted store (validated on load), a payout table per event kind, prices per car and part, and a garage that shows owned vs for sale. It is a new persistence format: its shape goes to the owner before the first edit.
+- **Rewind in side events.** Rewind is off in every mode today (`src/main.ts:737`, `!modes.active`). Turning it on for solo side events means each side event's mode must rewind its own state (score, gates, timers), not only the car. Per mode, so it ships mode by mode.
+- **Series points** need a points table per finish position and per bonus objective, and standings per series; derive from stored results where possible.
+
+**Still open (round 3, not blocking the first build quests):** what existing players already own when credits arrive (every car and part they use today, or a starting grant); whether rewards from the old tiers (paints, decals, Fujin) stay with the legacy badge (B2); the Pass win rule with no wall time (E3); "Harepin Series" vs a career unit also called "series" (B4/B5 read as "Harepin Series, series 2").
+
 ## TL;DR
 
 - **Harepin's career today is an FH5-shaped checklist with GRID's event list.** 45 hand-made events across five tiers, any order, every one graded by stars against a clock, ghost or owner mark. You drive alone in every race. What GRID 2 had that FH5 lacks: **other cars to beat, in a season that builds to a final, with one growing number that says how far you've come.**
 - **GRID 2's hook was the field.** Reviews split on its story and fan count, but agree the racing against an aggressive AI that makes mistakes is what carried it (PC Gamer, Destructoid, Indian Videogamer). The career's weak spot, per reviews, was repetition: the same tracks again and a league that "doesn't pay off" (Game Informer). Harepin can beat GRID 2 there: worlds and routes are procedural.
-- **Recommend direction B, "World Series"** (§5): seasons per region (world kind), each a short run of events against a named AI field, standings and a season final, fans as the one progress number, the non-race modes kept as one-off promos. It needs AI racers phase 3 (in game on circuits) for its first season. Ship direction A's pieces (season order, standings, fans) first on ghosts and the clock, so the structure is proven before the field lands.
+- **Recommend direction B, "World Series"** (§5): seasons per region (world kind), each a short run of events against a named AI field, standings and a season final, fans as the one progress number, the non-race modes kept as one-off promos. It needs AI racers phase 3 (in game on circuits) for its first season. ~~Ship direction A's pieces (season order, standings, fans) first on ghosts and the clock, so the structure is proven before the field lands.~~ **Superseded:** fans are rejected (series points), and B0 is not shipped alone: the career ships with the AI.
 
 ## 1. What GRID 2 did
 
@@ -147,11 +208,11 @@ Harepin's unfair advantage over GRID 2: GRID 2's career ran out of tracks; Harep
 1. **Season = a region** (a world kind or two): Island, Alpine, Volcano / Ice canyon, Mainland, Sky Track / Velodrome. 5-7 events in order, then the region final.
 2. **Main events race a field** of 5-7 AI with names, car, personality (`pace`, `aggression`, `mistakes` from ai-racers §3). Graded by finish position; points to a season table.
 3. **Event types** in our words: Race (laps, grid start), Knockout (last place out each lap: GRID's Eliminator), Head to head (one rival, the duel route, AI instead of your ghost: Face-off), Pass (Mountain duel on a `descent` route, wall hits count, lead after two legs: Touge), Open road (Mainland or street worlds, junctions picked as you drive, no map: LiveRoutes), Endurance later (time limit, most laps; no tyre wear).
-4. **Promos between race events:** the solo modes (gymkhana, drift, parking, jump, speed trap, hunt) stay as one-offs that add fans, never block the season. This keeps every built mode.
+4. **Promos between race events:** the solo modes (gymkhana, drift, parking, jump, speed trap, hunt) stay as one-offs that add ~~fans~~ points and credits, never block the season. This keeps every built mode.
 5. **Rivals:** one named rival per season who is the region's champion; Head to head and the final are against them. They carry into later seasons as a field member. Memory beyond that is direction C.
-6. **Fans** is the one number: race events add by position, promos by stars. A season final needs a fan total (GRID 2's gate).
-7. **Cars are handed out:** each season lends a car class or a preset; earning cars stays rewards (paints, decals, Fujin).
-8. **New rules per region:** Island = Race and Knockout; Alpine adds Pass; Mainland adds Open road; Sky / Velodrome finals add banked racing.
+6. ~~**Fans** is the one number: race events add by position, promos by stars. A season final needs a fan total (GRID 2's gate).~~ **Superseded (C3):** series points by finish position plus bonus objectives; a podium opens the next event (D2).
+7. ~~**Cars are handed out:** each season lends a car class or a preset; earning cars stays rewards (paints, decals, Fujin).~~ **Superseded (G1):** only the player's own cars within a class cap; credits from every event buy cars and parts; each final unlocks a car or kit.
+8. **New rules per region:** Island = Race and Knockout (**decided E1:** plus Head to head and Endurance); Alpine adds Pass; Mainland adds Open road; Sky / Velodrome finals add banked racing.
 
 | | |
 |---|---|
@@ -168,7 +229,7 @@ Harepin's unfair advantage over GRID 2: GRID 2's career ran out of tracks; Harep
 
 | Phase | Ships | Needs |
 |---|---|---|
-| B0 | Season model on today's events: order, fans, standings vs ghosts, promos (direction A's pieces) | none |
+| B0 | Season model on today's events: order, fans, standings vs ghosts, promos (direction A's pieces). **Superseded:** the 45 events retire (B2) and B0 never ships alone (I3); its season model (order, points, standings) is built as part of season 1 | none |
 | B1 | Season 1 (Island circuits): Race + Knockout with an AI field, position grading | AI phase 3 |
 | B2 | Head to head vs the region rival on duel routes | B1 |
 | B3 | Season 2 (Alpine / Volcano): Pass on `descent` | AI on one-way narrow routes |
@@ -203,26 +264,26 @@ Harepin's unfair advantage over GRID 2: GRID 2's career ran out of tracks; Harep
 
 ### Recommendation
 
-**B, built from B0.** A alone skips the reason GRID 2 held the owner: cars that race back (M1, M2), and reviews of GRID 2 itself name the AI field as what carried the game. C fixes GRID 2's real faults, but it stacks a generator and rival memory on an AI that has not raced a player yet; it can grow out of B once seasons and the field are proven. B0 ships now on ghosts and makes the career a season run the day it lands; each later phase arrives with the AI phase it needs, so nothing waits on the whole AI plan.
+**B, built from B0.** A alone skips the reason GRID 2 held the owner: cars that race back (M1, M2), and reviews of GRID 2 itself name the AI field as what carried the game. C fixes GRID 2's real faults, but it stacks a generator and rival memory on an AI that has not raced a player yet; it can grow out of B once seasons and the field are proven. ~~B0 ships now on ghosts and makes the career a season run the day it lands;~~ (**superseded**, I3: career and AI ship together) each later phase arrives with the AI phase it needs, so nothing waits on the whole AI plan.
 
 Lightest-first check: B0 is existing code reshaped (career store keys stay, events stay). The new state is one season progress record and a fans total, both derived from stored results where possible (like `unlocks(stars)` today). No new dependency.
 
 ## 6. Owner questions
 
-| # | Question | Recommendation |
-|---|---|---|
-| Q1 | Direction A, B or C? | B, starting with B0 |
-| Q2 | Strict season order (event N opens on finishing N-1), or a small set open at once (GRID 2 opened a discipline series at a time)? | Two or three open at once, final last |
-| Q3 | What happens to the five tiers and 45 events? Reframed as promos inside seasons, or kept as a separate "Challenges" list beside the series? | Promos inside seasons; their stars and records keep their keys |
-| Q4 | Fans or stars as the career number? Stars stay for promos either way | Fans for the career; stars on promos feed fans |
-| Q5 | Race grading: finish position only, or position plus a margin (win by X s for a bonus)? | Position; fans bonus for clean race (no hits) |
-| Q6 | Named rivals: one per season (region champion) or a whole named field? Any story text, or none (GRID 2's narrator was its most disliked part)? | Whole field named, one rival per season, no narrator; a one-line standings note per event at most |
-| Q7 | Cars: lent per season (GRID 2) or the player's own car within a class cap (today)? | Lent per season for main events, own car on promos |
-| Q8 | Laps: how long should a pack race run? | 2-3 laps, under 5 min |
-| Q9 | Rewind in career races: none (today), or limited with fans for unused ones (DiRT 3)? | None, as today |
-| Q10 | Name clash: Runs already has a 28-day "season". Call the career unit a season and rename Runs', or name the career unit something else ("series", "year")? | Career: "season"; Runs: "month" or keep and pick "series" for career, owner's ear |
-| Q11 | Open road (live junctions): worth the M-L route builder for Mainland, or keep fixed routes and lean on new seeds per season? | Yes, it is Harepin's best answer to GRID 2's track shortage, but after B1-B3 |
-| Q12 | Difficulty: one setting (ai-racers O5) or seasons set it (later seasons = harder field)? | Seasons set it, plus the one setting |
+| # | Question | Recommendation | Owner, 2026-11-15 |
+|---|---|---|---|
+| Q1 | Direction A, B or C? | B, starting with B0 | B from B0 (B1) |
+| Q2 | Strict season order (event N opens on finishing N-1), or a small set open at once (GRID 2 opened a discipline series at a time)? | Two or three open at once, final last | as recommended (C1) |
+| Q3 | What happens to the five tiers and 45 events? Reframed as promos inside seasons, or kept as a separate "Challenges" list beside the series? | Promos inside seasons; their stars and records keep their keys | **retired**, legacy badge with the level reached (B2) |
+| Q4 | Fans or stars as the career number? Stars stay for promos either way | Fans for the career; stars on promos feed fans | **neither: series points**, fans rejected (C3, round 2) |
+| Q5 | Race grading: finish position only, or position plus a margin (win by X s for a bonus)? | Position; fans bonus for clean race (no hits) | position; clean-race bonus points (D1) |
+| Q6 | Named rivals: one per season (region champion) or a whole named field? Any story text, or none (GRID 2's narrator was its most disliked part)? | Whole field named, one rival per season, no narrator; a one-line standings note per event at most | as recommended (F1, F2) |
+| Q7 | Cars: lent per season (GRID 2) or the player's own car within a class cap (today)? | Lent per season for main events, own car on promos | **own cars only within a class cap**, credits grind (G1, round 2) |
+| Q8 | Laps: how long should a pack race run? | 2-3 laps, under 5 min | 3 laps, ~4 min (D3, D4) |
+| Q9 | Rewind in career races: none (today), or limited with fans for unused ones (DiRT 3)? | None, as today | none in career races; side events keep rewind with a no-rewind bonus (D5, A3, round 2) |
+| Q10 | Name clash: Runs already has a 28-day "season". Call the career unit a season and rename Runs', or name the career unit something else ("series", "year")? | Career: "season"; Runs: "month" or keep and pick "series" for career, owner's ear | career "series", Runs keep "season" (B4) |
+| Q11 | Open road (live junctions): worth the M-L route builder for Mainland, or keep fixed routes and lean on new seeds per season? | Yes, it is Harepin's best answer to GRID 2's track shortage, but after B1-B3 | yes, after the first three seasons (E2) |
+| Q12 | Difficulty: one setting (ai-racers O5) or seasons set it (later seasons = harder field)? | Seasons set it, plus the one setting | as recommended (H4) |
 
 ## 7. Sources
 

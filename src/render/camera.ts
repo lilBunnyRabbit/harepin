@@ -90,6 +90,10 @@ export class ChaseCamera {
   private orbit_floor = -Infinity;
   private readonly chase = new THREE.Vector3();
   private readonly target = new THREE.Vector3();
+  /** Last frame's `target`, so the follow knows how fast it moves; unset after a snap or a frame in the cockpit. */
+  private readonly last_target = new THREE.Vector3();
+  private followed = false;
+  private readonly moved = new THREE.Vector3();
   private readonly look = new THREE.Vector3();
   private readonly fwd = new THREE.Vector3();
   private readonly local = new THREE.Vector3();
@@ -133,6 +137,7 @@ export class ChaseCamera {
     const { length, height } = this.size;
     this.chase.set(car.pos.x - Math.sin(this.yaw) * 7 * length, car.pos.y + 2.5 * height, car.pos.z - Math.cos(this.yaw) * 7 * length);
     this.camera.position.copy(this.chase);
+    this.followed = false;
     this.floor = this.orbit_floor = -Infinity;
     this.lean = 0;
     this.deck_normal.copy(UP);
@@ -239,6 +244,7 @@ export class ChaseCamera {
       camera.up.set(0, 1, 0).applyQuaternion(car.quat);
       camera.lookAt(this.look.copy(camera.position).addScaledVector(this.fwd, 10));
       this.chase.copy(camera.position);
+      this.followed = false;
     } else {
       this.height += (car.pos.y - this.height) * Math.min(1, dt * 6);
       this.pull += (Math.max(-1, Math.min(1, accel / 9)) - this.pull) * Math.min(1, dt * 3);
@@ -250,7 +256,7 @@ export class ChaseCamera {
       const reach = Math.hypot(back, rise);
       const pivot_y = this.height + PIVOT_RISE * height;
       this.target.set(car.pos.x - Math.sin(this.yaw) * Math.cos(base_pitch) * reach, pivot_y + Math.sin(base_pitch) * reach, car.pos.z - Math.cos(this.yaw) * Math.cos(base_pitch) * reach);
-      this.chase.lerp(this.target, 1 - Math.exp(-dt * FOLLOW_RATE));
+      this.follow(dt, step);
       this.floor = this.ground(world, this.chase, pivot_y, this.floor, dt);
       this.chase.y = Math.max(this.chase.y, this.floor);
 
@@ -284,6 +290,20 @@ export class ChaseCamera {
     }
     camera.fov += (speed_fov(zoom, speed, this.boost) - camera.fov) * Math.min(1, dt * 3);
     camera.updateProjectionMatrix();
+  }
+
+  /**
+   * First-order follow of a target moving at a steady rate through the frame, solved exactly: the chase trails it by
+   * velocity / FOLLOW_RATE whatever the frame time. Easing toward where the target ends the frame instead pulls the view
+   * in on a long frame and lets it fall back after, so a hitch reads as the car jumping back.
+   */
+  private follow(dt: number, step: number) {
+    const ease = Math.exp(-dt * FOLLOW_RATE);
+    if (!this.followed) this.last_target.copy(this.target);
+    this.moved.subVectors(this.target, this.last_target);
+    this.chase.sub(this.last_target).multiplyScalar(ease).add(this.target).addScaledVector(this.moved, -(1 - ease) / (FOLLOW_RATE * step));
+    this.last_target.copy(this.target);
+    this.followed = true;
   }
 
   /** Eases the lean toward the deck under the car and sets `lean_quat` to world up turned that far; false while the view stays level. */

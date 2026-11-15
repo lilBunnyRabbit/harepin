@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { Car } from "../car/car";
 import { oversize } from "../car/cars";
 import { cast_instanced } from "../render/shadow-depth";
@@ -16,22 +17,29 @@ const DRAG: Record<ItemKind, number> = { cone: 0.003, barrel: 0.012, hay: 0.02, 
 const BOUNCE = 0.3;
 const SCRUB = 0.55;
 const SETTLE = 0.6;
-const LIP_STRIPE = 0.6;
+const LIP_STRIPE = 1.2;
+const LIP_BLOCK = 1.1;
+const CHEVRONS = [0.32, 0.58];
+const CHEVRON = { reach: 0.7, sweep: 0.55, thick: 0.6, lift: 0.04 };
 const FAR = 900;
+const CONE_FOOT = 0.03;
+const BARRIER = { foot: 0.6, top: 0.24, height: 0.85, length: 3 };
 
 interface Tones {
   deck: Rgb;
   skirt: Rgb;
   stripe: Rgb;
+  stripe_dark: Rgb;
   frame: Rgb;
   body: Rgb;
 }
 
 function jump_tones(): Tones {
   return {
-    deck: linear(mix(brand.warning, brand.background_darkest, 0.42)),
-    skirt: linear(mix(brand.warning, brand.background_darkest, 0.25)),
-    stripe: linear(dark ? brand.foreground : brand.background_lightest),
+    deck: linear(tones.cone),
+    skirt: linear(tones.dirt),
+    stripe: linear(tones.check_light),
+    stripe_dark: linear(tones.check_dark),
     frame: linear(brand.accent),
     body: linear(tones.wall),
   };
@@ -55,9 +63,28 @@ function ramp_mesh(out: Builder, r: Ramp, t: Tones) {
   out.at({ x: r.x, y: 0, z: r.z, fx: r.fx, fz: r.fz });
   for (let i = 0; i < 3; i++)
     for (let j = 0; j < 3; j++) {
-      const tone = i !== 1 ? t.skirt : j === 1 ? t.stripe : j === 0 ? t.deck : t.skirt;
+      if (i === 1 && j === 1) continue;
+      const tone = i === 1 && j === 0 ? t.deck : t.skirt;
       out.quad(point(us[i], vs[j]), point(us[i + 1], vs[j]), point(us[i + 1], vs[j + 1]), point(us[i], vs[j + 1]), tone);
     }
+  // The lip in kerb blocks across the deck: a plain stripe this shallow vanished at chase distance.
+  const blocks = Math.max(2, Math.round((2 * r.hw) / LIP_BLOCK));
+  for (let k = 0; k < blocks; k++) {
+    const u0 = -r.hw + (2 * r.hw * k) / blocks;
+    const u1 = -r.hw + (2 * r.hw * (k + 1)) / blocks;
+    out.quad(point(u0, vs[1]), point(u1, vs[1]), point(u1, vs[2]), point(u0, vs[2]), k % 2 ? t.stripe_dark : t.stripe);
+  }
+  const up = (u: number, v: number): [number, number, number] => {
+    const p = point(u, v);
+    return [p[0], p[1] + CHEVRON.lift, p[2]];
+  };
+  const w = r.hw * CHEVRON.reach;
+  const back = Math.min(r.hw, r.length * 0.4) * CHEVRON.sweep;
+  for (const at of CHEVRONS) {
+    const v = r.length * at;
+    out.quad(up(-w, v - back), up(0, v), up(0, v + CHEVRON.thick), up(-w, v - back + CHEVRON.thick), t.stripe);
+    out.quad(up(0, v), up(w, v - back), up(w, v - back + CHEVRON.thick), up(0, v + CHEVRON.thick), t.stripe);
+  }
 }
 
 function challenge_mesh(out: Builder, c: Challenge, t: Tones) {
@@ -73,7 +100,7 @@ function challenge_mesh(out: Builder, c: Challenge, t: Tones) {
 export function item_geometry(kind: ItemKind): THREE.BufferGeometry {
   switch (kind) {
     case "cone":
-      return new THREE.ConeGeometry(CONE_RADIUS, CONE_HEIGHT, 7).translate(0, CONE_HEIGHT / 2, 0);
+      return traffic_cone();
     case "barrel":
       return new THREE.CylinderGeometry(0.3, 0.3, 0.9, 8).translate(0, 0.45, 0);
     case "hay":
@@ -83,8 +110,24 @@ export function item_geometry(kind: ItemKind): THREE.BufferGeometry {
     case "rock":
       return new THREE.IcosahedronGeometry(1, 0).scale(1, 0.75, 0.9).translate(0, 0.45, 0);
     case "barrier":
-      return new THREE.BoxGeometry(0.6, 0.85, 3).translate(0, 0.425, 0);
+      return barrier();
   }
+}
+
+// A square foot under a six-sided cone: one side fewer than the bare spike it replaces pays for the foot.
+function traffic_cone(): THREE.BufferGeometry {
+  const foot = CONE_RADIUS;
+  const plate = new THREE.PlaneGeometry(foot * 2, foot * 2).rotateX(-Math.PI / 2).translate(0, CONE_FOOT, 0);
+  const cone = new THREE.ConeGeometry(CONE_RADIUS * 0.8, CONE_HEIGHT, 6).translate(0, CONE_HEIGHT / 2, 0);
+  return mergeGeometries([plate.toNonIndexed(), cone.toNonIndexed()]);
+}
+
+// A road barrier's section: a wide foot leaning in to a narrow top. The box's own twelve triangles, its top edges moved.
+function barrier(): THREE.BufferGeometry {
+  const box = new THREE.BoxGeometry(BARRIER.foot, BARRIER.height, BARRIER.length).translate(0, BARRIER.height / 2, 0);
+  const position = box.getAttribute("position");
+  for (let i = 0; i < position.count; i++) if (position.getY(i) > BARRIER.height / 2) position.setX(i, position.getX(i) * (BARRIER.top / BARRIER.foot));
+  return box;
 }
 
 export function item_material(kind: ItemKind): THREE.MeshLambertMaterial {
@@ -95,7 +138,7 @@ function item_tone(kind: ItemKind): THREE.Color {
   const lab = {
     cone: tones.cone,
     barrel: mix(brand.info, brand.background_darkest, 0.55),
-    hay: mix(brand.warning, brand.foreground, 0.55),
+    hay: tones.sand,
     log: tones.trunk,
     rock: tones.rock,
     barrier: tones.sidewalk,

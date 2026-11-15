@@ -109,8 +109,12 @@ export class Race {
     this.delta_flash = now;
   }
 
-  snapshot(): RaceSnapshot {
-    return { next: this.next, started: this.started, splits: [...this.splits] };
+  snapshot(into?: RaceSnapshot): RaceSnapshot {
+    const out = into ?? { next: 0, started: 0, splits: [] };
+    out.next = this.next;
+    out.started = this.started;
+    copy_splits(this.splits, out.splits);
+    return out;
   }
 
   reset() {
@@ -125,6 +129,11 @@ export class Race {
   restore(snapshot: RaceSnapshot, rewound_ms: number) {
     this.next = snapshot.next;
     this.started = snapshot.started ? snapshot.started + rewound_ms : 0;
-    this.splits = snapshot.splits;
+    copy_splits(snapshot.splits, this.splits);
   }
+}
+
+function copy_splits(from: readonly number[], to: number[]) {
+  to.length = from.length;
+  for (let i = 0; i < from.length; i++) to[i] = from[i];
 }

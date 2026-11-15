@@ -7,20 +7,11 @@ import { TIERS } from "../career/career";
 import { reward_paint_name } from "../career/rewards";
 import { MarkerView } from "../career/marker-view";
 import { kit_sample } from "../render/prop-kit";
-import { mesh_tones, tree_kit } from "../render/scene";
-import { TreeBatch } from "../render/tree-batch";
-import { charred_kit, type TreeLook } from "../render/snags";
+import { prop_sample, tree_sample } from "../render/samples";
+import { prop_kinds, tree_kinds, TREE_NAMES } from "../viewer/world-items";
 import { brand, car_paints, color, mix, tones } from "../theme/palette";
 import type { Lab } from "../theme/theme";
-import { LandmarksView } from "../world/landmarks";
-import { soup_geometry } from "../world/buildings";
-import { TreeKind } from "../worldgen/biomes";
 import { KINDS, plain_map, snow_of } from "../worldgen/kinds/kinds";
-import { landmark_mesh } from "../worldgen/landmark-mesh";
-import { Builder } from "../worldgen/mesh";
-import type { Landmark, Recipe } from "../worldgen/recipe";
-import { soup } from "../worldgen/chunks";
-import { N, PropKind, type Prop, type Tree } from "../worldgen/types";
 import { WORLDS } from "../worlds/worlds";
 import type { Sheet } from "./catalog";
 
@@ -55,15 +46,6 @@ const PAINT = url.has("paint") ? Number(url.get("paint")) : undefined;
 const FLAMES = url.has("flame");
 const FRONT_34 = { yaw: 35, pitch: 14 };
 const SHOWROOM = "coupe";
-const LANDMARK_PROPS: Record<Landmark, PropKind> = { mast: PropKind.MAST, lighthouse: PropKind.LIGHTHOUSE, turbines: PropKind.TURBINE, arch: PropKind.ARCH };
-const ARCH_HALF = 10;
-const TREE_SPOTS: readonly [number, number, number][] = [
-  [0, 0, 1.1],
-  [4.5, 3, 0.85],
-  [-4, 2.5, 0.95],
-];
-const FLAT = new Float32Array((N + 1) * (N + 1));
-const prop_material = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
 
 const CAR_IDS = Object.keys(CARS).filter(is_car);
 
@@ -132,41 +114,6 @@ function decals(): SheetLayout {
   return { tiles, columns: DECALS.length, same_scale: false };
 }
 
-function trees(kind: TreeKind, snowy: boolean, look: TreeLook): THREE.Object3D {
-  const group = new THREE.Group();
-  const here: Tree[] = TREE_SPOTS.map(([x, z, scale]) => ({ x, y: 0, z, scale, kind }));
-  const batch = new TreeBatch(look === "charred" ? charred_kit() : tree_kit(snowy), here.length);
-  batch.plant(here, null);
-  group.add(...batch.meshes);
-  return group;
-}
-
-function prop(kind: PropKind, snowy: boolean): THREE.Object3D {
-  const placed: Prop = { x: 0, y: 0, z: 0, angle: 0, kind, scale: kind === PropKind.ARCH ? ARCH_HALF : 1 };
-  const builder = new Builder();
-  landmark_mesh(builder, placed, FLAT, mesh_tones(snowy).landmark);
-  const group = new THREE.Group();
-  const shell = soup([builder]);
-  if (shell) {
-    const mesh = new THREE.Mesh(soup_geometry(shell), prop_material);
-    mesh.castShadow = mesh.receiveShadow = true;
-    group.add(mesh);
-  }
-  group.add(new LandmarksView([placed]).root);
-  return group;
-}
-
-function tree_kinds(recipe: Recipe): TreeKind[] {
-  const rules = Object.values(recipe.biomes.rules).filter((rule) => rule.fill > 0);
-  const kinds: TreeKind[] = [];
-  if (rules.some((rule) => rule.pine > 0)) kinds.push(TreeKind.PINE);
-  if (rules.some((rule) => rule.pine + rule.scrub < 1)) kinds.push(TreeKind.BROADLEAF);
-  if (rules.some((rule) => rule.scrub > 0)) kinds.push(TreeKind.SCRUB);
-  return kinds;
-}
-
-const TREE_NAMES: Record<TreeKind, string> = { [TreeKind.PINE]: "pine", [TreeKind.BROADLEAF]: "broadleaf", [TreeKind.SCRUB]: "scrub" };
-
 function biomes(): SheetLayout {
   const tiles: Tile[] = [];
   for (const def of Object.values(KINDS)) {
@@ -176,9 +123,8 @@ function biomes(): SheetLayout {
     const growing = tree_kinds(recipe);
     const ground = snowy ? tones.snow : growing.length ? tones.grass : tones.sand;
     const kit = WORLDS[def.kind].kit;
-    for (const kind of growing) tiles.push({ label: `${def.kind} · ${TREE_NAMES[kind]}`, object: trees(kind, snowy, kit.trees), ground, ...FRONT_34 });
-    const props = new Set([...recipe.landmarks.map((landmark) => LANDMARK_PROPS[landmark]), ...recipe.scatter.map((rule) => rule.kind)]);
-    for (const kind of props) tiles.push({ label: `${def.kind} · ${kind.replace("_", " ")}`, object: prop(kind, snowy), ground, ...FRONT_34 });
+    for (const kind of growing) tiles.push({ label: `${def.kind} · ${TREE_NAMES[kind]}`, object: tree_sample(kind, snowy, kit.trees), ground, ...FRONT_34 });
+    for (const kind of prop_kinds(recipe)) tiles.push({ label: `${def.kind} · ${kind.replace("_", " ")}`, object: prop_sample(kind, snowy), ground, ...FRONT_34 });
     for (const piece of kit.pieces) tiles.push({ label: `${def.kind} · ${piece.replace("_", " ")}`, object: new THREE.Group().add(...kit_sample(piece, snowy)), ground, ...FRONT_34 });
   }
   return { tiles, columns: null, same_scale: false };

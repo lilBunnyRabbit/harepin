@@ -2,7 +2,7 @@ import type { Mod } from "../car/build";
 import { CLASS_LABELS } from "../car/pi";
 import { questions_of } from "./answers";
 import type { TrialResult } from "./lab";
-import type { Goal, Pack, Resolved } from "./pack";
+import type { Aids, Goal, Pack, Resolved } from "./pack";
 import type { Metrics } from "./recorder";
 
 /** Where and how the owner drove: a twitchy rating on touch reads differently from one on a pad. */
@@ -34,6 +34,25 @@ export function goal_text(goal: Goal): string {
   if (goal.kind === "time") return `time${goal.seconds}`;
   if (goal.kind === "stop") return `stop${goal.from_kmh}`;
   return goal.kind;
+}
+
+/** The aids a trial ran on, after the line's status: a pad or exit slide reads as driver or car only with them. */
+const AID_KEYS: readonly [field: keyof Aids, key: string][] = [
+  ["tcs", "tcs"],
+  ["assist", "assist"],
+  ["stability", "stability"],
+  ["steer_mode", "steer"],
+  ["abs", "abs"],
+  ["auto", "auto"],
+];
+
+export function aids_text(aids: Aids | null): string {
+  if (!aids) return "";
+  const parts = AID_KEYS.flatMap(([field, key]) => {
+    const v = aids[field];
+    return v === undefined ? [] : [`${key}=${typeof v === "boolean" ? (v ? "on" : "off") : v}`];
+  });
+  return parts.length ? ` ${parts.join(" ")}` : "";
 }
 
 const pair = (a: number, b: number) => `${Number.isNaN(a) ? "-" : short(a)}/${Number.isNaN(b) ? "-" : short(b)}`;
@@ -85,14 +104,15 @@ const metrics_text = (m: Metrics) => metric_pairs(m).map(([key, text]) => `${key
 const quote = (text: string) => JSON.stringify(text.replace(/\s+/g, " ").trim());
 
 /** One paste-able block: line-based, so two runs of a pack diff line by line and survive a chat app. */
-export function export_block(pack: Pack, trials: readonly Resolved[], results: readonly TrialResult[], answers: Answers, version: string, device: Device, at: Date): string {
+/** `aids[i]` is what trial `i` ran on (the player's settings under the trial's own), null when unknown. */
+export function export_block(pack: Pack, trials: readonly Resolved[], results: readonly TrialResult[], answers: Answers, version: string, device: Device, at: Date, aids: readonly (Aids | null)[] = []): string {
   const lines = [`#lab ${pack.id} r${pack.rev} v${version} ${at.toISOString().slice(0, 16)}Z ${device.input} ${device.width}x${device.height}`];
   let driven = 0;
   trials.forEach((r, i) => {
     const result = results[i];
     const { trial } = r;
     const lane = r.lane.name;
-    lines.push(`#trial ${trial.id} ${trial.car}${mods_text(trial.mods)} spec#${r.hash} pi${r.pi}${CLASS_LABELS[r.class]} ${trial.station}/${lane} ${goal_text(trial.goal)} ${result.status === "new" ? "skipped" : result.status}`);
+    lines.push(`#trial ${trial.id} ${trial.car}${mods_text(trial.mods)} spec#${r.hash} pi${r.pi}${CLASS_LABELS[r.class]} ${trial.station}/${lane} ${goal_text(trial.goal)} ${result.status === "new" ? "skipped" : result.status}${aids_text(aids[i] ?? null)}`);
     if (result.metrics) {
       driven++;
       lines.push(` m ${metrics_text(result.metrics)}`);

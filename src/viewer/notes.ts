@@ -1,22 +1,20 @@
-import type { CarId, Triple } from "../car/cars";
-import { checked_view, type ViewState } from "./view-state";
+import type { Triple } from "../car/cars";
+import { checked_view, view_key, type ViewState } from "./view-state";
 
 export const NOTES_KEY = "harepin.cars.notes";
 export const NOTE_LENGTH = 1000;
 export const MAX_NOTES = 200;
-const PIN_REACH = 20;
+const PIN_REACH = 40;
 
 export interface Note {
   text: string;
-  /** Car-local point the pin was dropped on, or null for a note on the whole car. */
+  /** Point on the asset, in its own frame, the pin was dropped on; null for a note on the whole asset. */
   pin: Triple | null;
   view: ViewState;
 }
 
-/** Per `car/preset`, oldest first. */
+/** Per `view_key`, oldest first. */
 export type Notes = Record<string, Note[]>;
-
-export const notes_key = (car: CarId, preset: string) => `${car}/${preset}`;
 
 const finite_pin = (x: unknown): x is Triple => Array.isArray(x) && x.length === 3 && x.every((v) => typeof v === "number" && Number.isFinite(v) && Math.abs(v) <= PIN_REACH);
 
@@ -38,7 +36,7 @@ export function parse_notes(raw: unknown): Notes {
     if (!Array.isArray(list)) continue;
     const notes = list
       .map(checked_note)
-      .filter((note): note is Note => note !== null && notes_key(note.view.car, note.view.preset) === key)
+      .filter((note): note is Note => note !== null && view_key(note.view) === key)
       .slice(0, MAX_NOTES);
     if (notes.length) out[key] = notes;
   }

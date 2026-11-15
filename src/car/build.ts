@@ -1,5 +1,6 @@
 import { CARS, car_sized, is_car, type CarId, type CarSpec, type Triple } from "./cars";
 import type { Token } from "../theme/theme";
+import { boosted, type Boost } from "./boost";
 
 type NumericField = Exclude<{ [K in keyof CarSpec]-?: CarSpec[K] extends number ? K : never }[keyof CarSpec], "awd_split">;
 
@@ -22,6 +23,8 @@ export type Field = NumericField | keyof Derived;
 export interface Mod {
   scale?: Partial<Record<Field, number>>;
   add?: Partial<Record<Field, number>>;
+  /** Reshapes the torque curve before the torque scale and add fold onto it. */
+  boost?: Boost;
 }
 
 /** How a part shows on the car model (`models.ts`); a part without one draws as the design's stock look. */
@@ -68,6 +71,9 @@ export const SLOTS = {
       { name: "Stock", blurb: "Factory tune", mod: {} },
       { name: "Tuned", blurb: "+15% torque, revs higher, +15 kg", mod: { scale: { torque: 1.15 }, add: { redline: 300, upshift: 300, mass: 15 } } },
       { name: "Race", blurb: "+30% torque, revs much higher, +30 kg", mod: { scale: { torque: 1.3 }, add: { redline: 600, upshift: 600, mass: 30 } } },
+      { name: "Supercharger", blurb: "+57% torque from idle, revs higher, +35 kg", mod: { scale: { torque: 1.57 }, add: { redline: 600, upshift: 600, mass: 35 } } },
+      { name: "Turbo", blurb: "Lag low down, then +85% torque, +40 kg", mod: { add: { redline: 700, upshift: 700, mass: 40 }, boost: { peak: 1.85, lag: 2500, spool: 4500 } } },
+      { name: "Twin turbo", blurb: "Intercooled, ECU tune: boost from 1800 rpm, +130% torque from 3400, +45 kg", mod: { add: { redline: 800, upshift: 800, mass: 45 }, boost: { peak: 2.3, lag: 1800, spool: 3400 } } },
     ],
   },
   tyres: {
@@ -80,6 +86,7 @@ export const SLOTS = {
       { name: "Rally", blurb: "Less grip, best on dirt and gravel", mod: { scale: { mu: 0.96, grip_dirt: 1.04, grip_grass: 0.98 }, add: { offroad: 0.5 } }, look: { tyre: { width: 1.1, rim: 0.88, tread: 1 } } },
       { name: "All-terrain", blurb: "A little less grip, good off road", mod: { scale: { mu: 0.98, roll_resist: 1.05, grip_dirt: 1.01 }, add: { offroad: 0.3 } }, look: { tyre: { width: 1.08, rim: 0.86, tread: 0.7 } } },
       { name: "Mud-terrain", blurb: "Poor on tarmac, best on grass, mud and sand", mod: { scale: { mu: 0.94, roll_resist: 1.2, grip_dirt: 0.92, grip_grass: 1.06 }, add: { offroad: 0.9 } }, look: { tyre: { width: 1.22, rim: 0.8, tread: 1.5 } } },
+      { name: "Slicks", blurb: "Wide racing slicks: most grip on tarmac, hopeless off it", mod: { scale: { mu: 1.24, grip_dirt: 0.8, grip_grass: 0.8 }, add: { offroad: -1 } }, look: { tyre: { width: 1.38, rim: 1.16, band: "warning" } } },
     ],
   },
   // The kits move the downforce forward of the centre of mass: the street kit's lip and short wing make a pointy car at
@@ -101,6 +108,12 @@ export const SLOTS = {
         name: "Race kit",
         blurb: "Most downforce and drag, +12 kg",
         mod: { scale: { downforce: 3.6 }, add: { drag: 0.17, rear_grip: 0.05, aero_front: 0.04, mass: 12 } },
+        look: { aero: { wing: 3, front: "splitter", skirts: true, diffuser: true } },
+      },
+      {
+        name: "GT kit",
+        blurb: "Splitter, diffuser, the biggest wing: most downforce and drag, +18 kg",
+        mod: { scale: { downforce: 6 }, add: { drag: 0.26, rear_grip: 0.08, aero_front: 0.04, mass: 18 } },
         look: { aero: { wing: 3, front: "splitter", skirts: true, diffuser: true } },
       },
     ],
@@ -133,6 +146,7 @@ export const SLOTS = {
       { name: "Stock", blurb: "Full interior", mod: {} },
       { name: "Light", blurb: "-5% mass, sits a little lower", mod: { scale: { mass: 0.95, inertia: 0.95 }, add: { cog: 0.01 } } },
       { name: "Stripped", blurb: "-10% mass, no trim, lower still", mod: { scale: { mass: 0.9, inertia: 0.9 }, add: { cog: 0.025 } } },
+      { name: "Carbon shell", blurb: "-24% mass: carbon panels, no interior, lowest", mod: { scale: { mass: 0.76, inertia: 0.76 }, add: { cog: 0.04 } } },
     ],
   },
   // Balanced keeps both axles at their grip limit for the shortest straight stop; moving torque either way starves one.
@@ -282,7 +296,7 @@ export function apply_mods(base: CarSpec, mods: readonly Mod[]): CarSpec {
   return {
     ...spec,
     inertia: [at("inertia", ix), at("inertia", iy), at("inertia", iz)],
-    torque: base.torque.map(([rpm, nm]) => [rpm, at("torque", nm)]),
+    torque: mods.reduce((curve, mod) => (mod.boost ? boosted(curve, mod.boost) : curve), base.torque).map(([rpm, nm]) => [rpm, at("torque", nm)]),
     wheel: { ...base.wheel, rest: at("rest", base.wheel.rest), mounts: base.wheel.mounts.map(([x, y, z]): Triple => [x, y + cog, z]) },
     corners: base.corners.map(([x, y, z]): Triple => [x, y + cog, z]),
     nitro: at("nitro", base.nitro ?? 0) || undefined,

@@ -335,7 +335,7 @@
     }
 
     .set-dot,
-    .set-legend {
+    :global(.settings[data-pad]) .set-legend {
       display: none;
     }
 

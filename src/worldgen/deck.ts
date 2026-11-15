@@ -33,6 +33,10 @@ export class DeckIndex {
   private last = 0;
   private readonly hit: DeckHit = { y: 0, gx: 0, gz: 0, index: 0, u: 0 };
   private readonly picks: number[] = [];
+  private readonly nearby: number[] = [];
+  private near_cx = NaN;
+  private near_cz = NaN;
+  private near_count = -1;
 
   constructor(readonly deck: Deck) {
     this.count = deck.line.length / DECK_STRIDE;
@@ -78,14 +82,19 @@ export class DeckIndex {
     const n = this.count;
     let i = this.last;
     let d = this.dist(i, x, z);
+    // Every height query walks here, from wherever the last car left it: no modulo, no destructuring per sample.
     for (;;) {
-      const a = (i + 1) % n;
-      const b = (i - 1 + n) % n;
+      const a = i + 1 === n ? 0 : i + 1;
+      const b = i === 0 ? n - 1 : i - 1;
       const da = this.dist(a, x, z);
       const db = this.dist(b, x, z);
-      if (da < d && da <= db) [i, d] = [a, da];
-      else if (db < d) [i, d] = [b, db];
-      else break;
+      if (da < d && da <= db) {
+        i = a;
+        d = da;
+      } else if (db < d) {
+        i = b;
+        d = db;
+      } else break;
     }
     if (d > WALK_REACH * WALK_REACH) {
       const cx = Math.floor(x / CELL);
@@ -95,9 +104,16 @@ export class DeckIndex {
       for (let ring = 0; ring < 8 && best < 0; ring++)
         for (let dz = -ring - 1; dz <= ring + 1; dz++)
           for (let dx = -ring - 1; dx <= ring + 1; dx++)
-            for (const j of this.grid.get(key(cx + dx, cz + dz)) ?? []) {
-              const dj = this.dist(j, x, z);
-              if (dj < bd) [best, bd] = [j, dj];
+            {
+              const list = this.grid.get(key(cx + dx, cz + dz));
+              if (!list) continue;
+              for (let k = 0; k < list.length; k++) {
+                const dj = this.dist(list[k], x, z);
+                if (dj < bd) {
+                  best = list[k];
+                  bd = dj;
+                }
+              }
             }
       if (best < 0) return i;
       i = best;
@@ -111,25 +127,39 @@ export class DeckIndex {
    * many, or -1 outside a stacked cell. Overwrites instead of truncating: truncating an array frees its storage.
    */
   private levels(x: number, z: number): number {
-    const cx = Math.floor(x / CELL);
-    const cz = Math.floor(z / CELL);
-    if (!this.stacked.has(key(cx, cz))) return -1;
-    const picks = this.picks;
+    const count = this.near(Math.floor(x / CELL), Math.floor(z / CELL));
+    if (count < 0) return -1;
+    const { picks, nearby } = this;
+    let n = 0;
+    for (let c = 0; c < count; c++) {
+      const j = nearby[c];
+      const d = this.dist(j, x, z);
+      if (d > LEVEL_REACH * LEVEL_REACH) continue;
+      let k = 0;
+      while (k < n && !this.same_section(picks[k], j)) k++;
+      if (k === n) picks[n++] = j;
+      else if (d < this.dist(picks[k], x, z)) picks[k] = j;
+    }
+    return n;
+  }
+
+  /**
+   * Samples of the 3x3 cells round a stacked cell into `nearby`, in grid order; returns how many, or -1 for a cell
+   * that is not stacked. A car's queries stay in one cell for many calls, so the last cell's answer is kept.
+   */
+  private near(cx: number, cz: number): number {
+    if (cx === this.near_cx && cz === this.near_cz) return this.near_count;
+    this.near_cx = cx;
+    this.near_cz = cz;
+    if (!this.stacked.has(key(cx, cz))) return (this.near_count = -1);
+    const nearby = this.nearby;
     let n = 0;
     for (let dz = -1; dz <= 1; dz++)
       for (let dx = -1; dx <= 1; dx++) {
         const list = this.grid.get(key(cx + dx, cz + dz));
-        if (!list) continue;
-        for (const j of list) {
-          const d = this.dist(j, x, z);
-          if (d > LEVEL_REACH * LEVEL_REACH) continue;
-          let k = 0;
-          while (k < n && !this.same_section(picks[k], j)) k++;
-          if (k === n) picks[n++] = j;
-          else if (d < this.dist(picks[k], x, z)) picks[k] = j;
-        }
+        if (list) for (let k = 0; k < list.length; k++) nearby[n++] = list[k];
       }
-    return n;
+    return (this.near_count = n);
   }
 
   /**
@@ -144,7 +174,10 @@ export class DeckIndex {
     for (let k = 0; k < count; k++) {
       const i = this.picks[k];
       const hit = this.probe(i, x, z, y);
-      if (hit && hit.y > top) [best, top] = [i, hit.y];
+      if (hit && hit.y > top) {
+        best = i;
+        top = hit.y;
+      }
     }
     if (best < 0) return null;
     this.last = best;
@@ -157,6 +190,10 @@ export class DeckIndex {
     const count = this.levels(x, z);
     for (let k = 0; k < count; k++) y = Math.min(y, this.at(this.picks[k], 1));
     return y;
+  }
+
+  private lerp(a: number, b: number, f: number, field: number): number {
+    return this.at(a, field) + (this.at(b, field) - this.at(a, field)) * f;
   }
 
   private probe(i: number, x: number, z: number, y: number | undefined): DeckHit | null {
@@ -178,18 +215,17 @@ export class DeckIndex {
     const len2 = sx * sx + sz * sz;
     const f = Math.max(0, Math.min(1, ((x - ax) * sx + (z - az) * sz) / len2));
     if (!this.at(a, 7) || !this.at(b, 7)) return null;
-    const lerp = (field: number) => this.at(a, field) + (this.at(b, field) - this.at(a, field)) * f;
     const cx = ax + sx * f;
     const cz = az + sz * f;
-    let ux = lerp(3);
-    let uz = lerp(4);
+    let ux = this.lerp(a, b, f, 3);
+    let uz = this.lerp(a, b, f, 4);
     const ul = Math.sqrt(ux * ux + uz * uz);
     ux /= ul;
     uz /= ul;
     const u = (x - cx) * uz - (z - cz) * ux;
-    if (Math.abs(u) > lerp(6) || Math.abs((x - cx) * ux + (z - cz) * uz) > 2) return null;
-    const slope = Math.tan(lerp(5));
-    const surface = lerp(1) + u * slope;
+    if (Math.abs(u) > this.lerp(a, b, f, 6) || Math.abs((x - cx) * ux + (z - cz) * uz) > 2) return null;
+    const slope = Math.tan(this.lerp(a, b, f, 5));
+    const surface = this.lerp(a, b, f, 1) + u * slope;
     if (y !== undefined && y < surface - DECK_UNDER) return null;
     const grade = (this.at(b, 1) - this.at(a, 1)) / Math.sqrt(len2);
     const hit = this.hit;

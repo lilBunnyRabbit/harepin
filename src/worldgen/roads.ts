@@ -9,7 +9,13 @@ const REACH_MARGIN = 0.8;
 /** A cell whose two halves differ by at most this (m, corner sums) counts as one plane: road pieces skip its diagonal. */
 const FLAT_CELL = 0.001;
 const GIVE_WAY_DASH = 0.6;
-const GIVE_WAY_GAP = 0.3;
+export const GIVE_WAY_GAP = 0.3;
+
+/** Length of each dash of a give-way bar `half` wide either side: whole dashes, evenly gapped, fill it. */
+export function give_way_dash(half: number): number {
+  const dashes = Math.max(1, Math.round((2 * half + GIVE_WAY_GAP) / (GIVE_WAY_DASH + GIVE_WAY_GAP)));
+  return (2 * half - (dashes - 1) * GIVE_WAY_GAP) / dashes;
+}
 
 /** Ground the road drapes over: heights at lattice vertices (cells counted from ORIGIN) and between them. */
 export interface LatticeGround {
@@ -170,8 +176,8 @@ export class Roads {
 
   give_way(layer: Layer, p: RoadPoint, half: number, out: number, width: number, lift: number, rgb: Rgb) {
     const flat = level(lift);
-    const dashes = Math.max(1, Math.round((2 * half + GIVE_WAY_GAP) / (GIVE_WAY_DASH + GIVE_WAY_GAP)));
-    const dash = (2 * half - (dashes - 1) * GIVE_WAY_GAP) / dashes;
+    const dash = give_way_dash(half);
+    const dashes = Math.round((2 * half + GIVE_WAY_GAP) / (dash + GIVE_WAY_GAP));
     const at = (side: number, ahead: number): [number, number] => [p.x - p.tz * side + p.tx * ahead, p.z + p.tx * side + p.tz * ahead];
     for (let d = 0; d < dashes; d++) {
       const s0 = -half + d * (dash + GIVE_WAY_GAP);

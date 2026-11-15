@@ -1,6 +1,6 @@
 import type { Triple } from "./cars";
-import { rod } from "./design-parts";
-import type { Arm, Design, Section, Wing } from "./designs";
+import { endplate, plane, rod, stalk_mirror } from "./design-parts";
+import type { Arm, Design, Mirror, Section, Wing } from "./designs";
 import type { Part, Point } from "./geometry";
 
 const NOSE = 2.04;
@@ -19,15 +19,35 @@ const on_nose = (part: Part): Part => ({ ...part, size: [part.size[0] / keep(par
 
 const tube = (from: Triple, to: Triple, thick: number): Part => rod([from[0] / keep(from[2]), from[1], from[2]], [to[0] / keep(to[2]), to[1], to[2]], thick);
 
-const across = ([x, y, z]: Triple, thick: number): Part => ({ size: [x, thick, thick], at: [x / 2, y, z] });
+// A cross bar runs this far past the side bars it joins, so its end is the lug their ends are buried in.
+const LUG = 0.004;
+const across = ([x, y, z]: Triple, thick: number): Part => ({ size: [x + thick / 2 + LUG, thick, thick], at: [(x + thick / 2 + LUG) / 2, y, z] });
 const lerp = (a: Triple, b: Triple, t: number): Triple => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 
+const past = (a: Triple, b: Triple, by: number): Triple => lerp(a, b, 1 + by / Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]));
+
+/** Bars through `points`, each run on past a bend far enough that the two outer corners meet and neither end shows. */
+function chain(points: Triple[], thick: number): Part[] {
+  const mitre = (i: number): number => {
+    if (i === 0 || i === points.length - 1) return 0;
+    const [a, b, c] = [points[i - 1], points[i], points[i + 1]];
+    const [u, v] = [[b[0] - a[0], b[1] - a[1], b[2] - a[2]], [c[0] - b[0], c[1] - b[1], c[2] - b[2]]];
+    const cos = (u[0] * v[0] + u[1] * v[1] + u[2] * v[2]) / (Math.hypot(...u) * Math.hypot(...v));
+    return (thick / 2) * Math.tan(Math.acos(Math.max(-1, Math.min(1, cos))) / 2);
+  };
+  return points.slice(1).map((b, i) => tube(past(b, points[i], mitre(i)), past(points[i], b, mitre(i + 1)), thick));
+}
+
+// A coilover is round, a shaft through a sleeve: square bars of these sizes read as planks.
 function coil(low: Triple, high: Triple): [Part, Part] {
-  return [rod(low, high, 0.04), rod(lerp(low, high, 0.22), lerp(low, high, 0.84), 0.1)];
+  return [{ ...rod(low, high, 0.04), round: true }, { ...rod(lerp(low, high, 0.22), lerp(low, high, 0.84), 0.08), round: true }];
 }
 
 const BAR = 0.07;
-const COWL: Triple = [0.44, 1.0, 0.86];
+// Every bar ends inside the tub or in a cross bar's lug, never in the open.
+const PILLAR_FOOT: Triple = [0.4, 0.85, 1.03];
+const HOOP_FOOT: Triple = [0.42, 0.75, -0.6];
+const RAIL_FOOT: Triple = [0.42, 0.5, -0.66];
 const ROOF_FRONT: Triple = [0.42, 1.52, 0.28];
 const ROOF_REAR: Triple = [0.42, 1.54, -0.56];
 const TAIL: Triple = [0.36, 0.84, -1.86];
@@ -38,11 +58,11 @@ const HUB_REAR: Triple = [0.7, 0.43, -1.3];
 const AXLE_REAR: Triple = [0.56, 0.43, -1.3];
 
 const CAGE: Part[] = [
-  tube(COWL, ROOF_FRONT, BAR),
+  tube(PILLAR_FOOT, ROOF_FRONT, BAR),
   tube(ROOF_FRONT, ROOF_REAR, BAR),
-  tube(ROOF_REAR, [0.45, 1.0, -0.6], BAR),
+  tube(ROOF_REAR, HOOP_FOOT, BAR),
   tube(ROOF_REAR, TAIL, BAR),
-  tube([0.44, 0.5, -0.7], TAIL_LOW, BAR),
+  tube(RAIL_FOOT, TAIL_LOW, BAR),
   tube(TAIL_LOW, TAIL, BAR),
   across(ROOF_FRONT, BAR),
   across(ROOF_REAR, BAR),
@@ -51,37 +71,48 @@ const CAGE: Part[] = [
 ];
 // The arms swing with the wheels outside the sculpted hull, so they are drawn where they end up.
 const FRONT_COIL = coil([0.63, 0.46, 1.5], [0.33, 0.84, 1.48]);
-const REAR_COIL = coil([0.58, 0.5, -1.24], lerp(ROOF_REAR, TAIL, 0.49));
+// The rear coilover stands on the trailing arm ahead of the tyre, not on it, and runs up to the tail bar.
+const REAR_COIL = coil(lerp([0.46, 0.52, -0.5], AXLE_REAR, 0.4), lerp(ROOF_REAR, TAIL, 0.185));
 const ARMS: Arm[] = [
   { pivot: [0.33, 0.52, 1.5], trim: [rod([0.27, 0.52, 1.62], HUB_FRONT, 0.055), rod([0.36, 0.52, 1.38], HUB_FRONT, 0.055), FRONT_COIL[0]], markers: [FRONT_COIL[1]] },
   { pivot: [0.46, 0.52, -0.5], trim: [rod([0.46, 0.52, -0.5], AXLE_REAR, 0.11, 0.07), rod(AXLE_REAR, HUB_REAR, 0.07), REAR_COIL[0]], markers: [REAR_COIL[1]] },
 ];
+// A stalk mirror's pod at the driver's eye height, on a short arm straight out of each front cage bar in place of its
+// stalk: that ran up beside the bar from a foot far below the pod.
+const MIRROR_ON = lerp(PILLAR_FOOT, ROOF_FRONT, 0.45);
+const MIRROR_HEAD = stalk_mirror([MIRROR_ON[0] - 0.02, MIRROR_ON[1] - 0.07, MIRROR_ON[2] + 0.03], "side");
+const MIRROR: Mirror = { paint: MIRROR_HEAD.paint, trim: [rod(MIRROR_ON, [MIRROR_HEAD.paint[0].at[0], MIRROR_ON[1], MIRROR_ON[2]], 0.03, 0.04), MIRROR_HEAD.trim[1]] };
 const SEAT: Part = { size: [0.3, 0.42, 0.1], at: [0.22, 0.97, -0.3], tilt: [0.12, 0, 0] };
 const ENGINE: Part = { size: [0.26, 0.3, 0.74], at: [0.13, 0.66, -1.13] };
 const TRIM: Part[] = [...CAGE, SEAT, ENGINE];
-const CHROME: Part[] = [{ size: [0.15, 0.08, 0.42], at: [0.075, 0.85, -1.1] }];
-const ROOF: Part = { size: [0.39, 0.03, 0.86], at: [0.195, 1.572, -0.14], tilt: [-0.024, 0, 0] };
+const CHROME: Part[] = [{ size: [0.15, 0.08, 0.32], at: [0.075, 0.85, -1.15] }];
+// The roof panel lies between the rails, its top under theirs.
+const ROOF: Part = { size: [0.4, 0.03, 0.84], at: [0.2, 1.53, -0.14], tilt: [-0.024, 0, 0] };
 const HEADS: Part[] = [on_nose({ size: [0.2, 0.08, 0.04], at: [0.125, 0.6, 2.1] })];
 
 const LIGHT_BAR: Part = { size: [0.36, 0.06, 0.04], at: [0.18, 1.6, 0.345] };
 const LIGHT_HOUSING: Part = { size: [0.4, 0.09, 0.08], at: [0.2, 1.6, 0.3] };
-const NERF: Part[] = [tube([0.46, 0.5, 0.62], [0.62, 0.5, 0.42], 0.06), tube([0.62, 0.5, 0.42], [0.62, 0.5, -0.26], 0.06), tube([0.62, 0.5, -0.26], [0.46, 0.5, -0.46], 0.06)];
-const SPARE_TILT = 1.065;
-const spare_at = (lift: number): Triple => [0, 1.266 + lift * Math.sin(SPARE_TILT), -1.415 - lift * Math.cos(SPARE_TILT)];
-const SPARE: Part = { size: [0.8, 0.8, 0.24], at: spare_at(0), tilt: [SPARE_TILT, 0, 0], round: true };
-const SPARE_RIM: Part = { size: [0.42, 0.42, 0.03], at: spare_at(0.12), tilt: [SPARE_TILT, 0, 0], round: true };
+const NERF: Part[] = chain([[0.44, 0.56, 0.62], [0.62, 0.56, 0.42], [0.62, 0.56, -0.16], [0.44, 0.56, -0.34]], 0.06);
+// The spare lies flat on the engine, below the tail bars that run down past it and the wing above, so nothing crosses it.
+const FLAT: Triple = [Math.PI / 2, 0, 0];
+const SPARE_AT: Triple = [0, 1.0, -1.13];
+const SPARE: Part = { size: [0.72, 0.72, 0.22], at: SPARE_AT, tilt: FLAT, round: true };
+const SPARE_RIM: Part = { size: [0.38, 0.38, 0.03], at: [0, SPARE_AT[1] + 0.11, SPARE_AT[2]], tilt: FLAT, round: true };
 
-const fin = (y: number): Point[] => [[-1.72, 0.92], [-1.84, y], [-1.98, y], [-1.89, 0.83]];
-const WINGS: Wing[] = [
-  { paint: [], trim: [] },
-  { paint: [{ size: [0.39, 0.03, 0.22], at: [0.195, 1.6, -0.62], tilt: [0.3, 0, 0] }], trim: [] },
-  { paint: [{ size: [0.5, 0.045, 0.4], at: [0.25, 1.38, -1.86], tilt: [0.1, 0, 0] }], trim: [], stands: [{ points: fin(1.38), from: 0.325, to: 0.355 }] },
-  {
-    paint: [{ size: [0.56, 0.05, 0.48], at: [0.28, 1.48, -1.88], tilt: [0.12, 0, 0] }],
-    trim: [{ size: [0.03, 0.16, 0.5], at: [0.56, 1.5, -1.88] }],
-    stands: [{ points: fin(1.48), from: 0.325, to: 0.355 }],
-  },
-];
+// A wedge grown out of the roof's rear edge, then a plane across the tail posts run straight on up: post and stay are one bar.
+const ROOF_LIP: Point[] = [[-0.4, 1.555], [-0.8, 1.64], [-0.81, 1.61], [-0.6, 1.5]];
+const POST_SHARE = 0.3;
+const POST_SINK = 0.012;
+const wing = (y: number, chord: number, half: number, plates: boolean): Wing => {
+  const profile = plane([TAIL[2] - (0.5 - POST_SHARE) * chord, y], chord, 0.05, 0.12);
+  return {
+    paint: [],
+    trim: [tube(TAIL, [TAIL[0], y - POST_SINK, TAIL[2]], BAR)],
+    lips: [{ points: profile, from: 0, to: half }],
+    stands: plates ? [{ points: endplate(profile, 0.12, 0.03), from: half, to: half + 0.025 }] : [],
+  };
+};
+const WINGS: Wing[] = [{ paint: [], trim: [] }, { paint: [], trim: [], lips: [{ points: ROOF_LIP, from: 0, to: 0.44 }] }, wing(1.66, 0.42, 0.52, false), wing(1.76, 0.5, 0.56, true)];
 
 const HOOP: Part[] = [tube([0.17, 0.56, 2.06], [0.17, 0.56, 2.27], 0.06), on_nose({ size: [0.2, 0.06, 0.06], at: [0.1, 0.56, 2.27] })];
 const FRONTS: Wing[] = [
@@ -99,6 +130,7 @@ export const SAJIN_DESIGN: Design = {
   arches: { gap: 0, steps: 0, flare: 0, out: 0, reach: 0, tone: "paint" },
   heads: HEADS,
   tails: [{ size: [0.18, 0.06, 0.04], at: [0.2, 0.84, -1.9] }],
+  mirror: MIRROR,
   paint: [ROOF],
   trim: TRIM,
   markers: [],
@@ -106,7 +138,6 @@ export const SAJIN_DESIGN: Design = {
   chrome: CHROME,
   tyre: [0.28, 0.4],
   rim: { size: 0.5, spokes: 5, tone: "light", lip: 0.24, spoke: 0.08 },
-  round: 12,
   tread: 1.4,
   deck: [-1.8, 1.0],
   hood: [1.45, 0.89],

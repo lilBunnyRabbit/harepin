@@ -17,6 +17,8 @@ import { read_results, results_json, results_key } from "./results-store";
 export interface LabHost {
   /** Drives `spec` drawn as `build`, with the player's aids under the trial's. Never writes the garage build. */
   drive(build: Build, spec: CarSpec, aids: Aids): void;
+  /** The player's own aids, before any trial's. */
+  aids(): Aids;
   /** Puts the car on `spot` once its ground is in, unless `current` has gone false by then. */
   place(spot: LabSpot, current: () => boolean): Promise<void>;
   car(): Car;
@@ -61,6 +63,8 @@ export class Lab {
   answers: Answers = {};
   watch: LabWatch | null = null;
   private index = -1;
+  /** What each trial began on this session; one driven before a reload reads the player's aids at copy time. */
+  private readonly ran: (Aids | null)[];
   private recorder: Recorder | null = null;
   private ticket = 0;
 
@@ -71,6 +75,7 @@ export class Lab {
     this.trials = resolve_pack(pack);
     this.shown = shown_trials(pack);
     this.results = this.trials.map(() => ({ status: "new", metrics: null }));
+    this.ran = this.trials.map(() => null);
   }
 
   get current(): Resolved | null {
@@ -117,6 +122,7 @@ export class Lab {
     this.recorder = null;
     const ticket = ++this.ticket;
     this.host.drive(r.build, r.spec, r.trial.aids ?? {});
+    this.ran[index] = this.ran_on(r);
     // A later `begin` started while this one waited for its ground: that trial owns the car now.
     const current = () => ticket === this.ticket;
     await this.host.place(r.lane.spawn, current);
@@ -168,7 +174,12 @@ export class Lab {
   /** A running trial goes in with what it has measured so far. */
   export(): string {
     const results = this.results.map((r, i): TrialResult => (i === this.index && this.recorder?.started ? { status: "running", metrics: this.recorder.metrics() } : r));
-    return export_block(this.pack, this.trials, results, this.answers, BUILD.version, device(), new Date());
+    const aids = this.trials.map((r, i) => (results[i].status === "new" ? null : (this.ran[i] ?? this.ran_on(r))));
+    return export_block(this.pack, this.trials, results, this.answers, BUILD.version, device(), new Date(), aids);
+  }
+
+  private ran_on(r: Resolved): Aids {
+    return { ...this.host.aids(), ...r.trial.aids };
   }
 
   /** False when the browser refused the clipboard. */

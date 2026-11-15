@@ -5,6 +5,7 @@
   import { change_summary, comparisons, trial_brief } from "./brief";
   import { goal_label, STATUS_LABEL, STATUS_TONE } from "./lab-text";
   import type { LabView } from "./lab-view.svelte";
+  import More from "./More.svelte";
 
   interface Props {
     view: LabView;
@@ -25,17 +26,23 @@
 </script>
 
 <div class="lab-intro">
-  {#if lab.pack.aim}<p class="lab-aim">{lab.pack.aim}</p>{/if}
-  <p class="lab-brief">{lab.pack.brief}</p>
-  {#if order.length}
-    <section class="lab-order" aria-label="Order of comparisons">
-      <h3>Order of comparisons</h3>
-      <ol>
-        {#each order as g (g.base)}
-          <li><b>#{g.base + 1} {lab.shown[g.base].label}</b> <span class="lab-place">{g.place}</span>, then against it: {g.rest}</li>
-        {/each}
-      </ol>
-    </section>
+  <p class="lab-aim">{lab.pack.aim ?? lab.pack.brief}</p>
+  {#if lab.pack.aim || order.length}
+    <More>
+      <div class="lab-intro-more">
+        {#if lab.pack.aim}<p class="lab-brief">{lab.pack.brief}</p>{/if}
+        {#if order.length}
+          <section class="lab-order" aria-label="Order of comparisons">
+            <h3>Order of comparisons</h3>
+            <ol>
+              {#each order as g (g.base)}
+                <li><b>#{g.base + 1} {lab.shown[g.base].label}</b> <span class="lab-place">{g.place}</span>, then against it: {g.rest}</li>
+              {/each}
+            </ol>
+          </section>
+        {/if}
+      </div>
+    </More>
   {/if}
 </div>
 <ol class="lab-trials">
@@ -57,9 +64,14 @@
 <style>
   .lab-intro {
     display: grid;
-    gap: var(--space-3);
-    max-width: 75ch;
-    margin-bottom: var(--space-5);
+    gap: var(--space-4);
+    max-width: 65ch;
+    margin-bottom: var(--space-6);
+  }
+
+  .lab-intro-more {
+    display: grid;
+    gap: var(--space-4);
   }
 
   .lab-intro p {

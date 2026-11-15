@@ -1,9 +1,12 @@
 import * as THREE from "three";
+import { brake_on } from "../car/lights";
 import type { QualityMode, QualityTier } from "../menu/prefs";
 
 export interface Tier {
   max_ratio: number;
   bloom: boolean;
+  /** Braking tail lamp emissive intensity: bloom spreads a bright lens into a glow, without it the lens clips to pale salmon. */
+  brake_glow: number;
   /** Sun shadow map size in px; 0 turns shadow mapping off. */
   shadow_size: number;
   fog_far: number;
@@ -11,18 +14,21 @@ export interface Tier {
   stream_pad: number;
 }
 
+const BLOOM_BRAKE = 2.2;
+const FLAT_BRAKE = 0.7;
+
 const DESKTOP: Tier[] = [
-  { max_ratio: 1.75, bloom: true, shadow_size: 2048, fog_far: 1300, stream_pad: 256 },
-  { max_ratio: 1, bloom: true, shadow_size: 1024, fog_far: 1300, stream_pad: 256 },
-  { max_ratio: 1, bloom: false, shadow_size: 0, fog_far: 1300, stream_pad: 256 },
+  { max_ratio: 1.75, bloom: true, brake_glow: BLOOM_BRAKE, shadow_size: 2048, fog_far: 1300, stream_pad: 256 },
+  { max_ratio: 1, bloom: true, brake_glow: BLOOM_BRAKE, shadow_size: 1024, fog_far: 1300, stream_pad: 256 },
+  { max_ratio: 1, bloom: false, brake_glow: FLAT_BRAKE, shadow_size: 0, fog_far: 1300, stream_pad: 256 },
 ];
 
 // The contact shadow already grounds the car, so phones skip the shadow pass and bloom entirely.
 // Phones run without MSAA, so render scale is what keeps edges from stair-stepping on 2.5-3x screens.
 const MOBILE: Tier[] = [
-  { max_ratio: 2, bloom: false, shadow_size: 0, fog_far: 700, stream_pad: 128 },
-  { max_ratio: 1.4, bloom: false, shadow_size: 0, fog_far: 700, stream_pad: 128 },
-  { max_ratio: 0.85, bloom: false, shadow_size: 0, fog_far: 700, stream_pad: 128 },
+  { max_ratio: 2, bloom: false, brake_glow: FLAT_BRAKE, shadow_size: 0, fog_far: 700, stream_pad: 128 },
+  { max_ratio: 1.4, bloom: false, brake_glow: FLAT_BRAKE, shadow_size: 0, fog_far: 700, stream_pad: 128 },
+  { max_ratio: 0.85, bloom: false, brake_glow: FLAT_BRAKE, shadow_size: 0, fog_far: 700, stream_pad: 128 },
 ];
 
 const DESKTOP_LEVELS: Record<QualityTier, number> = { high: 0, medium: 1, low: 2 };
@@ -110,5 +116,6 @@ export class Quality {
       sun.shadow.map = null;
     }
     if (scene.fog instanceof THREE.Fog) scene.fog.far = tier.fog_far;
+    brake_on.value = tier.brake_glow;
   }
 }

@@ -207,7 +207,11 @@ test("no body part or arm stands in a tyre, straight or at full lock, on every c
         // The car is mirrored: its left wheels stand for both sides.
         if (mx < 0) return;
         const centre = view.wheels[w].position;
-        const half = (d.tyre[Math.min(axle_index(axles, w), 1)] * look.width) / 2;
+        // As drawn: a wide tyre option is narrowed to what the body covers at its axle.
+        const tyre = view.wheels[w].children[0].children[0];
+        if (!(tyre instanceof THREE.Mesh)) throw new Error("wheel without a tyre mesh");
+        tyre.geometry.computeBoundingBox();
+        const half = Math.min((d.tyre[Math.min(axle_index(axles, w), 1)] * look.width) / 2, tyre.geometry.boundingBox?.max.x ?? 0);
         const near = (faces: Face[]) => faces.filter((face) => box.setFromPoints([face.a, face.b, face.c]).distanceToPoint(centre) < Math.hypot(radius, half));
         // A detail's camber leans the wheel in its own frame, under the steering: the tyre is tested as it stands.
         const camber = view.wheels[w].rotation.z;

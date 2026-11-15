@@ -1,10 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import { shown_trials } from "./blind";
-import { change_summary, change_text, comparisons, trial_brief } from "./brief";
+import { against_label, change_chips, change_summary, change_text, comparisons, feel_line, trial_brief } from "./brief";
 import { resolve_pack } from "./pack";
 import drift from "./packs/t2-drift";
 import power from "./packs/t3a-sturm-power";
 import pads from "./packs/t1a-pads";
+
+// t2's first two trials, the second on the first's car and aids with a mod that is no part.
+const [stock, next] = drift.trials;
+const loose = { ...drift, trials: [stock, { ...next, car: stock.car, aids: stock.aids, mods: [{ scale: { rear_grip: 0.92 } }] }] };
 
 const briefs = (pack: typeof power) => {
   const trials = resolve_pack(pack);
@@ -24,9 +28,8 @@ describe("trial brief", () => {
   });
 
   test("a mod that is no part reads as a field change; each place starts its own group", () => {
-    const b = briefs(drift);
-    expect(b[1].changes.map(change_text)).toEqual(["Rear grip −8%"]);
-    expect(b[4].baseline).toBe(true);
+    expect(briefs(loose)[1].changes.map(change_text)).toEqual(["Rear grip −8%"]);
+    expect(briefs(drift)[3].baseline).toBe(true);
   });
 
   test("a lineup reads each trial against the one before on the same station", () => {
@@ -42,4 +45,20 @@ describe("trial brief", () => {
     expect(groups[0].rest).toEqual([1, 2, 3, 4]);
     expect(change_summary(briefs(power)[4].changes)).toBe("Twin turbo +3");
   });
+
+  test("the brief's glance: a short against, chips without what they replaced", () => {
+    const shown = shown_trials(power);
+    const [best, sc] = briefs(power);
+    expect(against_label(best, shown)).toBe("Baseline");
+    expect(against_label(sc, shown)).toBe(`vs #1 ${shown[0].label}`);
+    expect(change_chips(sc.changes)).toEqual(["Engine: Supercharger"]);
+    expect(change_chips(briefs(loose)[1].changes)).toEqual(["Rear grip −8%"]);
+    const many = Array.from({ length: 5 }, (_, i) => ({ what: `F${i}`, now: "+1" }));
+    expect(change_chips(many)).toEqual(["F0 +1", "F1 +1", "F2 +1", "+2 more"]);
+  });
+});
+
+test("a feel line leads with what to notice and keeps the setup apart", () => {
+  expect(feel_line("turbo: soft below 3000 rpm, then a shove: notice the lag out of slow corners")).toEqual({ notice: "The lag out of slow corners", setup: "Turbo: soft below 3000 rpm, then a shove" });
+  expect(feel_line("how far it takes and whether it stays straight")).toEqual({ notice: "How far it takes and whether it stays straight", setup: null });
 });

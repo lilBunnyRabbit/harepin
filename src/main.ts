@@ -151,7 +151,7 @@ const spawn_ready = world.tiles.ensure(start_point.x, start_point.z);
 
 const world_view = new WorldView(world, quality.mobile, WORLDS[world.kind].kit.trees);
 const dome = sky();
-scene.add(...(WORLDS[world.kind].backdrop === "sky" ? light.dress(dome, clouds(world.seed)) : []), world_view.root);
+scene.add(...(WORLDS[world.kind].backdrop === "sky" ? [dome.add(clouds(world.seed))] : []), world_view.root);
 let gate_views: readonly (Gate | undefined)[] = [];
 // Dressing and gates stand on terrain all round the world, so they go in once every chunk has arrived. A streamed
 // world never holds every chunk: its dress stands on nothing it reads, and its curbs and gates come and go per chunk.
@@ -635,6 +635,7 @@ if (lab_id !== null)
           apply_car_settings({ ...settings.state, ...aids });
           input.touch.show_nitro(driver.car.nitro.fitted);
         },
+        aids: () => settings.state,
         place: async (spot, current) => {
           await driver.arrive(spot.x, spot.z);
           if (current()) driver.park(spot.x, spot.z, spot.heading);

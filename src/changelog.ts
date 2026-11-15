@@ -54,6 +54,28 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.45.0",
+    date: "2026-11-15",
+    title: "One body",
+    changes: [
+      { kind: IMPROVED, text: "Every car reworked so the body, kits, arches, wings and mirrors read as one shape" },
+      { kind: NEW, text: "New dusk sky with ember clouds, headlights that light the road, softer brake glow" },
+      { kind: IMPROVED, text: "Smoke and dust read as soft puffs, dust takes the colour of the ground, landing dust on jumps" },
+      { kind: IMPROVED, text: "New race clock card, phone HUD with the map top left, Play page in three columns, cleaner Modes and New room pages" },
+      { kind: IMPROVED, text: "New trees, lighthouse and roadside props, liveries fit the new bodies, softer metal paint" },
+      { kind: FIXED, text: "The camera no longer jumps back after a slow frame" },
+      { kind: FIXED, text: "Contact shadow, tyres on kerbs and the parking pad, skid marks by day, water spray" },
+    ],
+  },
+  {
+    version: "0.44.1",
+    date: "2026-11-14",
+    title: "Steady windows",
+    changes: [
+      { kind: FIXED, text: "Town windows no longer flicker when seen from a distance" },
+    ],
+  },
+  {
     version: "0.44.0",
     date: "2026-11-14",
     title: "Market towns",

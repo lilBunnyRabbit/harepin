@@ -1,0 +1,135 @@
+/* Below 900 px the card would meet the button bar. A mode run moves the strip beside that bar, so one card shows at a time. */
+@media (pointer: fine) and (min-width: 900px) {
+  :root[data-hud="classic"] {
+    --run-card-w: calc(var(--dial) + 2 * var(--space-3) + 2px);
+  }
+
+  :root[data-hud="classic"] #mode-status,
+  :root[data-hud="classic"] #race-panel:not([hidden]) ~ #mode-status,
+  :root[data-hud="classic"] body:not(:has(#mode-status:not([hidden]))) #strip {
+    position: fixed;
+    inset: calc(var(--inset-top) + var(--inset)) var(--corner-right) auto auto;
+    translate: none;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: var(--space-2) var(--space-3);
+    box-sizing: border-box;
+    width: var(--run-card-w);
+    max-width: none;
+    min-height: 0;
+    height: auto;
+    margin: 0;
+    padding: var(--space-4);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    font-size: var(--text-md);
+    font-weight: 600;
+    white-space: normal;
+    text-align: left;
+  }
+
+  :root[data-hud="classic"][data-map-corner="top-right"] .top-right {
+    anchor-name: --map-card;
+  }
+
+  :root[data-hud="classic"][data-map-corner="top-right"] #mode-status,
+  :root[data-hud="classic"][data-map-corner="top-right"] #race-panel:not([hidden]) ~ #mode-status,
+  :root[data-hud="classic"][data-map-corner="top-right"] body:not(:has(#mode-status:not([hidden]))) #strip {
+    top: calc(anchor(--map-card bottom) + var(--space-3));
+  }
+
+  :root[data-hud="classic"] #mode-status > :not(:empty)::before {
+    content: none;
+  }
+
+  :root[data-hud="classic"] #mode-status-clock,
+  :root[data-hud="classic"] body:not(:has(#mode-status:not([hidden]))) #lap {
+    order: -1;
+    grid-column: 1 / -1;
+    font-family: var(--font-sans);
+    font-size: var(--text-3xl);
+    font-weight: 800;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    color: var(--foreground);
+  }
+
+  :root[data-hud="classic"] #mode-status-name {
+    color: var(--foreground);
+  }
+
+  :root[data-hud="classic"] #mode-status-more {
+    color: var(--dim);
+    text-align: right;
+  }
+
+  :root[data-hud="classic"] #mode-status:has(#mode-status-more:empty) #mode-status-name {
+    grid-column: 1 / -1;
+  }
+
+  :root[data-hud="classic"] #mode-status[data-cup]::before {
+    order: -2;
+    grid-column: 1 / -1;
+    margin: 0;
+    text-align: left;
+  }
+
+  :root[data-hud="classic"] body:not(:has(#mode-status:not([hidden]))) #strip {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  :root[data-hud="classic"] #strip .lap {
+    display: contents;
+  }
+
+  :root[data-hud="classic"] body:not(:has(#mode-status:not([hidden]))) #strip .event-icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  :root[data-hud="classic"] body:not(:has(#mode-status:not([hidden]))) #strip .event-name {
+    font-size: var(--text-lg);
+    font-weight: 600;
+    text-transform: none;
+  }
+
+  :root[data-hud="classic"] body:not(:has(#mode-status:not([hidden]))) #restart-lap {
+    justify-self: end;
+  }
+
+  :root[data-hud="classic"] body:not(:has(#mode-status:not([hidden]))) #strip > div:not(.lap, [hidden]) {
+    order: 1;
+    grid-column: 1 / -1;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--space-3);
+  }
+
+  :root[data-hud="classic"] body:not(:has(#mode-status:not([hidden]))) #strip > div:not(.lap) b {
+    font-size: var(--text-md);
+    text-align: right;
+    white-space: normal;
+  }
+
+  :root[data-hud="classic"] #toast {
+    top: calc(var(--inset-top) + var(--bar-h) + var(--space-4));
+    left: 50%;
+  }
+
+  :root[data-hud="classic"] #mode-hint {
+    top: calc(var(--inset-top) + var(--bar-h) + var(--space-3));
+    left: 50%;
+  }
+}
+
+@media (pointer: fine) and (min-width: 900px) {
+  :root[data-hud="classic"] #mode-status[hidden],
+  :root[data-hud="classic"] body:not(:has(#mode-status:not([hidden]))) #strip[data-idle] > div:nth-child(2) {
+    display: none;
+  }
+}

@@ -108,3 +108,29 @@ test("the cars spread over the classes: bus slowest, formula fastest, road cars 
   const maxed = parse_build(PRESETS.find((p) => p.name === "Maxed F1")?.code);
   expect(maxed && rating(maxed).class).toBe(CarClass.X);
 });
+
+const BEST: Record<Slot, number> = { engine: 2, tyres: 2, aero: 4, suspension: 2, brakes: 2, weight: 2, bias: 1, nitro: 2 };
+const TOP: Record<Slot, number> = { ...BEST, engine: 5, tyres: 6, aero: 5, weight: 3 };
+const TOP_LADDERS: [Slot, number[]][] = [
+  ["engine", [2, 3, 4, 5]],
+  ["tyres", [2, 6]],
+  ["aero", [4, 5]],
+  ["weight", [2, 3]],
+];
+
+// The bus never revs into the turbo's boost, so it carries the weight for nothing.
+test("each top-tier part rates over the one below it on a car-sized car", () => {
+  for (const car of CAR_IDS.filter((id) => car_sized(CARS[id])))
+    for (const [slot, ladder] of TOP_LADDERS)
+      for (let i = 1; i < ladder.length; i++) {
+        const base: Build = { ...stock(car), parts: { ...BEST } };
+        const below = pi(fit(base, slot, ladder[i - 1]));
+        if (below < PI_MAX) expect(pi(fit(base, slot, ladder[i]))).toBeGreaterThan(below);
+      }
+});
+
+test("every top part takes the five strongest road cars into S2, and X stays Formula's and Fujin's", () => {
+  const top = (car: CarId) => rating({ ...stock(car), parts: { ...TOP } }).class;
+  for (const car of ["sturm", "coupe", "muscle", "raijin", "kaze"] as const) expect(top(car)).toBe(CarClass.S2);
+  for (const car of CAR_IDS.filter((id) => id !== "formula" && id !== "fujin")) expect(top(car)).not.toBe(CarClass.X);
+});

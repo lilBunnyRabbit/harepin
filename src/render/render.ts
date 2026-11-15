@@ -58,7 +58,7 @@ export class Render {
     const target = new THREE.WebGLRenderTarget(buffer.x, buffer.y, { type: THREE.HalfFloatType, samples: quality.antialias ? COMPOSER_SAMPLES : 0 });
     this.composer = new EffectComposer(this.renderer, target);
     this.composer.addPass(new RenderPass(scene, camera));
-    const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), light.bloom.strength, 0.45, light.bloom.threshold);
+    const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), light.bloom.strength, light.bloom.radius, light.bloom.threshold);
     if (!this.bisect.has("bloomfull")) {
       const set_size = bloom.setSize.bind(bloom);
       bloom.setSize = (width, height) => set_size(Math.round(width / 2), Math.round(height / 2));

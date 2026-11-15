@@ -2,6 +2,7 @@
   import Button from "../menu/ui/Button.svelte";
   import Dialog from "../menu/ui/Dialog.svelte";
   import IconButton from "../menu/ui/IconButton.svelte";
+  import { against_label, trial_brief } from "./brief";
   import { goal_label, STATUS_LABEL } from "./lab-text";
   import type { LabView } from "./lab-view.svelte";
   import ResultCard from "./ResultCard.svelte";
@@ -24,6 +25,8 @@
   const live = $derived(view.read(() => lab.live));
   const resume_label = $derived(!live ? (at < 0 ? "Start" : "Retry trial") : now?.status === "new" ? "Start" : "Back to trial");
   const driven = $derived(view.read(() => lab.trials.filter((_, i) => lab.status(i) !== "new").length));
+
+  const against_of = (index: number) => against_label(trial_brief(lab.pack, lab.trials, lab.shown, index), lab.shown);
 
   /** A new trial opens on its brief; a retry goes straight back to driving. */
   function go(index: number, brief = true) {
@@ -82,7 +85,7 @@
 </Dialog>
 
 {#if briefed !== null}
-  <Dialog open={true} title={`Trial ${briefed + 1}/${count} · ${lab.shown[briefed].label}`} subtitle={lab.pack.title} wide onclose={() => close("brief")}>
+  <Dialog open={true} title={`Trial ${briefed + 1}/${count} · ${lab.shown[briefed].label}`} subtitle={`${against_of(briefed)} · ${lab.pack.title}`} wide onclose={() => close("brief")}>
     <TrialBrief {view} index={briefed} />
     {#snippet actions()}
       <div class="lab-actions">
@@ -94,8 +97,7 @@
 {/if}
 
 {#if result !== null}
-  {@const r = lab.trials[result]}
-  <Dialog open={true} title={`${result + 1}/${count} ${lab.shown[result].label}`} subtitle={`${lab.shown[result].open ? `${r.spec.name} · ` : ""}${r.trial.station}/${r.lane.name} · ${view.read(() => STATUS_LABEL[lab.status(result)])}`} wide onclose={() => close("result")}>
+  <Dialog open={true} title={`Trial ${result + 1}/${count} · ${lab.shown[result].label}`} subtitle={`${against_of(result)} · ${view.read(() => STATUS_LABEL[lab.status(result)])}`} wide onclose={() => close("result")}>
     <ResultCard {view} index={result} />
     {#snippet actions()}
       <div class="lab-actions">

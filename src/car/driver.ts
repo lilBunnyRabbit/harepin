@@ -8,6 +8,7 @@ import { dark } from "../theme/palette";
 import { contact_shadow, fit_contact_shadow, place_contact_shadow } from "./contact-shadow";
 import { lamps_lit, set_lights, show_flame, snap_lights, swing_popups } from "./lights";
 import { build_view, dispose_car_view, sync_car_view, type CarView } from "./models";
+import { stand_on_drawn } from "./drawn-stand";
 import type { NitroSnapshot } from "./nitro";
 import type { Race } from "../race";
 import type { RoutePoint } from "../modes/route";
@@ -67,11 +68,19 @@ export class Driver {
     scene.add(this.view.root);
     scene.add(this.shadow.mesh);
     snap_lights(this.view, dark);
-    light.mount(this.view.root, dark);
+    light.mount(this.view.root, dark, this.car.spec.body.length / 2);
     const body: RewindPart<CarFrame> = {
-      snapshot: () => {
+      snapshot: (into) => {
         const car = this.car;
-        return { pos: car.pos.clone(), quat: car.quat.clone(), vel: car.vel.clone(), ang: car.ang.clone(), gear: car.gear, omega: car.wheels.map((w) => w.omega) };
+        const f = into ?? { pos: new THREE.Vector3(), quat: new THREE.Quaternion(), vel: new THREE.Vector3(), ang: new THREE.Vector3(), gear: 0, omega: [] };
+        f.pos.copy(car.pos);
+        f.quat.copy(car.quat);
+        f.vel.copy(car.vel);
+        f.ang.copy(car.ang);
+        f.gear = car.gear;
+        f.omega.length = car.wheels.length;
+        for (let i = 0; i < car.wheels.length; i++) f.omega[i] = car.wheels[i].omega;
+        return f;
       },
       restore: (f) => {
         const car = this.car;
@@ -81,11 +90,11 @@ export class Driver {
         car.ang.copy(f.ang);
         car.gear = f.gear;
         car.parked = false;
-        car.wheels.forEach((w, i) => (w.omega = f.omega[i]));
+        for (let i = 0; i < car.wheels.length; i++) car.wheels[i].omega = f.omega[i];
         car.forget_slide();
       },
     };
-    const nitro: RewindPart<NitroSnapshot> = { snapshot: () => this.car.nitro.snapshot(), restore: (s) => this.car.nitro.restore(s) };
+    const nitro: RewindPart<NitroSnapshot> = { snapshot: (into) => this.car.nitro.snapshot(into), restore: (s) => this.car.nitro.restore(s) };
     this.rewind = new Rewind([body, race, nitro, pads]);
   }
 
@@ -201,7 +210,7 @@ export class Driver {
     this.view = build_view(build, this.car.spec);
     snap_lights(this.view, lights);
     this.scene.add(this.view.root);
-    this.light.mount(this.view.root, lights);
+    this.light.mount(this.view.root, lights, this.car.spec.body.length / 2);
     sync_car_view(this.view, this.car);
   }
 
@@ -218,14 +227,6 @@ export class Driver {
     this.step_from.quat.copy(this.car.quat);
   }
 
-  /** The drawn ground's lift over the felt ground, averaged under the wheels, so the view stands the tyres on the road mesh. */
-  private drawn_lift(): number {
-    const { wheels } = this.car;
-    let lift = 0;
-    for (const w of wheels) lift += this.world.drawn_lift(w.point.x, w.point.z, w.point.y);
-    return lift / wheels.length;
-  }
-
   /** `held`: the car did not step this frame (rewind, garage, countdown), so nothing to blend from. */
   draw(held: boolean, blend: number, now: number) {
     const { car, view, step_from, drawn, chase } = this;
@@ -237,8 +238,8 @@ export class Driver {
     show_flame(view, car.nitro.boosting, now / 1000, car.ang.y);
     if (swing_popups(view, now / 1000)) this.light.beam(lamps_lit(view));
     view.root.position.copy(drawn.pos);
-    view.root.position.y += this.drawn_lift();
     view.root.quaternion.copy(drawn.quat);
+    stand_on_drawn(view, this.world);
     view.heads.visible = chase.mode !== 1 || chase.top;
     chase.eye = view.eye;
     chase.size = this.size;

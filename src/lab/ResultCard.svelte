@@ -3,9 +3,10 @@
   import TextField from "../menu/ui/TextField.svelte";
   import { questions_of } from "./answers";
   import { metric_pairs } from "./export";
-  import { against_text, trial_brief } from "./brief";
-  import { shown_metrics } from "./lab-text";
+  import { against_text, feel_line, trial_brief } from "./brief";
+  import { shown_metrics, split_metrics } from "./lab-text";
   import type { LabView } from "./lab-view.svelte";
+  import More from "./More.svelte";
   import Scale from "./Scale.svelte";
 
   interface Props {
@@ -19,8 +20,9 @@
   const r = $derived(lab.trials[index]);
   const questions = $derived(questions_of(lab.pack, r.trial));
   const metrics = $derived(view.read(() => lab.results[index].metrics));
-  const numbers = $derived(metrics ? shown_metrics(metric_pairs(metrics), r.trial.station) : []);
+  const numbers = $derived(split_metrics(metrics ? shown_metrics(metric_pairs(metrics), r.trial.station) : [], r.trial.station));
   const brief = $derived(trial_brief(lab.pack, lab.trials, lab.shown, index));
+  const feel = $derived(feel_line(lab.shown[index].feel));
   const given = $derived(view.read(() => ({ ...lab.answers[r.trial.id] })));
   const scale_of = (v: string | number | undefined) => (typeof v === "number" ? v : null);
   const text_of = (v: string | number | undefined) => (typeof v === "string" ? v : "");
@@ -28,11 +30,6 @@
 
 <div class="lab-result">
   <section class="lab-questions" aria-label="Your take">
-    <div class="lab-lead">
-      <p class="lab-against">Compared with <b>{against_text(brief, lab.shown)}</b></p>
-      <p class="lab-ask">{brief.question}</p>
-      <p class="lab-feel">{lab.shown[index].feel}</p>
-    </div>
     {#each questions as q (q.id)}
       {#if q.kind === "scale"}
         <Scale label={q.label} low={q.low} high={q.high} value={scale_of(given[q.id])} onchange={(v) => lab.answer(r.trial.id, q, v)} />
@@ -49,14 +46,30 @@
 
   <section class="lab-numbers" aria-label="Numbers">
     {#if metrics}
-      <dl>
-        {#each numbers as m (m.key)}
+      <dl class="lab-lead">
+        {#each numbers.lead as m (m.key)}
           <div><dt>{m.label}</dt><dd>{m.value}</dd></div>
         {/each}
       </dl>
     {:else}
       <p class="lab-none">Nothing measured: the clock starts at the first throttle.</p>
     {/if}
+    <More>
+      <div class="lab-more-grid">
+        <dl class="lab-facts">
+          <div><dt>Feel for</dt><dd>{feel.notice}</dd></div>
+          <div><dt>Question</dt><dd>{brief.question}</dd></div>
+          <div><dt>Compared with</dt><dd>{against_text(brief, lab.shown)}</dd></div>
+        </dl>
+        {#if numbers.rest.length}
+          <dl class="lab-rest">
+            {#each numbers.rest as m (m.key)}
+              <div><dt>{m.label}</dt><dd>{m.value}</dd></div>
+            {/each}
+          </dl>
+        {/if}
+      </div>
+    </More>
   </section>
 </div>
 
@@ -70,49 +83,18 @@
   .lab-questions {
     display: grid;
     align-content: start;
-    gap: var(--space-4);
+    gap: var(--space-5);
     min-width: 0;
-  }
-
-  .lab-lead {
-    display: grid;
-    gap: var(--space-1);
-  }
-
-  .lab-lead p {
-    margin: 0;
-    text-wrap: pretty;
-  }
-
-  .lab-against {
-    color: var(--set-dim);
-    font-size: var(--text-sm);
-  }
-
-  .lab-against b {
-    color: var(--foreground);
-  }
-
-  .lab-ask {
-    font-weight: 600;
-  }
-
-  .lab-feel,
-  .lab-none {
-    margin: 0;
-    color: var(--set-dim);
-    text-wrap: pretty;
   }
 
   dl {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr));
-    gap: var(--space-2) var(--space-4);
     margin: 0;
   }
 
   dl div {
     display: grid;
+    gap: var(--space-1);
     min-width: 0;
   }
 
@@ -123,10 +105,52 @@
 
   dd {
     margin: 0;
-    font-size: var(--text-lg);
+    overflow-wrap: anywhere;
+    text-wrap: pretty;
+  }
+
+  .lab-lead {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-3);
+  }
+
+  .lab-lead div {
+    align-content: start;
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--set-line);
+    border-radius: var(--radius-sm);
+    background: var(--set-soft);
+  }
+
+  .lab-lead dd {
+    font-size: var(--text-2xl);
     font-weight: 600;
     font-variant-numeric: tabular-nums;
-    overflow-wrap: anywhere;
+  }
+
+  .lab-more-grid {
+    display: grid;
+    gap: var(--space-5);
+  }
+
+  .lab-facts {
+    gap: var(--space-3);
+  }
+
+  .lab-rest {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr));
+    gap: var(--space-3) var(--space-4);
+  }
+
+  .lab-rest dd {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .lab-none {
+    margin: 0;
+    color: var(--set-dim);
+    text-wrap: pretty;
   }
 
   .lab-pick {
@@ -145,7 +169,8 @@
 
   @media (min-width: 720px) {
     .lab-result {
-      grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+      grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+      gap: var(--space-8);
     }
   }
 </style>

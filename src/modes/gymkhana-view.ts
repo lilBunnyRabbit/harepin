@@ -42,7 +42,7 @@ export class GymkhanaView {
     cast_instanced(this.cones);
     course.cones.forEach((cone, index) => {
       const { x, z } = to_world(course.site, cone.u, cone.v);
-      const at = new THREE.Vector3(x, ground.height(x, z), z);
+      const at = new THREE.Vector3(x, drawn_height(ground, x, z), z);
       this.base.push(at);
       this.cones.setMatrixAt(index, this.matrix.makeTranslation(at));
     });

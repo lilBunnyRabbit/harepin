@@ -1,6 +1,17 @@
 # Top-tier parts
 
-Quest `top-tier-parts`: road cars stop at S1 (Sturm 710) or A. The goal is new parts past today's best so every road car has a path to at least S2, while Formula and Fujin keep X. Phase 1, this doc: the candidate parts as lab-only definitions (`src/lab/cars/top-tier.ts`), the packs that drive them (`?lab=t3a-sturm-power` to `t3e-muscle`), the ratings they reach, and what promoting them needs. Nothing here touches `car.ts` or `SLOTS`.
+Quest `top-tier-parts`: road cars stop at S1 (Sturm 710) or A. The goal is new parts past today's best so every road car has a path to at least S2, while Formula and Fujin keep X. Phase 1, this doc: the candidate parts as lab-only definitions (`src/lab/cars/top-tier.ts`), the packs that drive them (`?lab=t3a-sturm-power` to `t3e-muscle`), the ratings they reach, and what promoting them needs. Phase 1 sections below are kept as the record; the lab-only module is gone since the promotion.
+
+## Promoted (2026-11-15)
+
+After the owner's lab round 1 (`docs/car-feel.md`, "Lab round 1"): top tier clearly better and keeps each car's character.
+
+- Parts appended to `SLOTS` (`src/car/build.ts`): engine 3 Supercharger, 4 Turbo, 5 Twin turbo; tyres 6 Slicks; aero 5 GT kit; weight 3 Carbon shell. Old codes read as before; the t3 packs (rev 2) drive them by code.
+- Turbo curves: `Mod.boost` (`src/car/boost.ts`: `peak`, `lag`, `spool`) reshapes the torque table once when a build resolves, the stock breakpoints kept; nothing runs in the step. Owner pick T1.
+- Engines respaced (lab: 3/6/8% apart on the runway): Supercharger torque x1.57; Turbo x1.85 from 2500 to 4500 rpm; Twin turbo x2.3 from 1800 to 3400 rpm, +45 kg. Sturm 400 m runway against Race: -4.4%, -8.2%, -11.6%.
+- Slicks draw 1.38 wide (1.45 put the Sturm's kit arch 3 mm into the tyre at full lock).
+- PI: `scripts/pi.ts` swept the skidpad steer only to 0.45, which held every car near 0.65 g at 60 km/h; that, not the rating, made the sim lap 10-18% slow. Swept to full lock, the stat lap is 1.2% off, top builds 2.5-3.7%. `DOWNFORCE_GRIP` 0.87 to 0.7 takes the RMS lap error from 1.75% to 1.09% and top builds to 1-1.5%. Ratings without kits move 0 to -7 PI; full top builds -10 to -24; Fujin stock 803 to 792 (S1).
+- Full top build PI after both: Sturm 883, coupe 843, muscle 825, raijin 813, kaze 808 (S2, owner pick T2); rally 797, sajin 728, hatch and tsumuji 684; Formula and Fujin 999.
 
 ## Why it takes big parts
 
@@ -23,7 +34,7 @@ Each replaces its slot's pick (it does not stack on Race or Semi-slick). The slo
 
 Compared with today's top part: Race engine x1.3, Semi-slick mu x1.12, Race kit downforce x3.6 / drag +0.17, Stripped mass x0.9.
 
-Turbo curves follow the lab rule (docs/lab.md, "Boost curves"): a lab car per car and stage carries the stock torque table resampled every 500 rpm and multiplied by the boost (`boosted` in `top-tier.ts`); the stage's mass and revs are its `Part` mod. The supercharger is a flat scale, so it is a plain mod.
+Turbo curves follow the lab rule (docs/lab.md, "Boost curves"): a lab car per car and stage carries the stock torque table resampled every 500 rpm and multiplied by the boost (`boosted`, then in the lab module, now `src/car/boost.ts`); the stage's mass and revs are its `Part` mod. The supercharger is a flat scale, so it is a plain mod.
 
 ## PI each car reaches
 
