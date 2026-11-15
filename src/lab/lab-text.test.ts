@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { progress_key, progress_text, shown_metrics } from "./lab-text";
+import { KEY_METRICS, METRICS, progress_key, progress_text, shown_metrics, split_metrics } from "./lab-text";
 import type { Goal } from "./pack";
 
 const shown = (goal: Goal, laps: number, gates: number, time: number, gate_count = 2) => progress_text(goal, progress_key(goal, laps, gates, time), gate_count);
@@ -18,9 +18,18 @@ test("the card drops numbers that mean nothing at the station or were never meas
   expect(shown_metrics(pairs, "runway").map((m) => [m.key, m.value])).toEqual([
     ["time", "13.7 s"],
     ["stop", "34 m from 60 km/h"],
-    ["thr", "91%"],
     ["top", "221 km/h"],
   ]);
-  expect(shown_metrics([["spins", "0"], ["pitch", "0.374"]], "kicker").map((m) => m.key)).toEqual(["pitch"]);
+  expect(shown_metrics([["spins", "0"], ["air", "0.8"]], "kicker").map((m) => m.key)).toEqual(["air"]);
+  expect(shown_metrics([["latg", "2.9/0.82"]], "skidpad").map((m) => m.value)).toEqual(["0.82"]);
   expect(shown_metrics([["spins", "0"]], "drift").map((m) => m.value)).toEqual(["0"]);
+});
+
+test("the results card leads with the station's own numbers, at most four", () => {
+  for (const keys of Object.values(KEY_METRICS)) for (const key of keys) expect(METRICS[key]).toBeDefined();
+  const pairs: [string, string][] = [["time", "45"], ["latg", "0.9/0.6"], ["ring", "41"], ["slip", "31/18"], ["held", "22"], ["chain", "9.4"], ["spins", "1"], ["thr", "0.8"]];
+  const { lead, rest } = split_metrics(shown_metrics(pairs, "drift"), "drift");
+  expect(lead.map((m) => m.key)).toEqual(["held", "chain", "spins", "ring"]);
+  expect(rest.map((m) => m.key)).toEqual(["time", "latg", "slip"]);
+  expect(split_metrics(shown_metrics([["time", "9"], ["stop", "31@60"], ["bdev", "1.2"]], "runway"), "runway").lead.map((m) => m.key)).toEqual(["stop"]);
 });
