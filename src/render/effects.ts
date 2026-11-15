@@ -1,9 +1,11 @@
 import * as THREE from "three";
 import type { Car } from "../car/car";
 import { DECAL_ORDER } from "../car/contact-shadow";
-import { brand, color, dark, mix, tones } from "../theme/palette";
+import { brand, color, dark, lighten, mix, tones } from "../theme/palette";
+import type { Lab } from "../theme/theme";
 import { FOG } from "./sky";
 import type { World } from "../world/world";
+import { SurfaceId } from "../worldgen/types";
 
 const PUFFS = 420;
 const SMOKE_LIFE = 0.7;
@@ -29,8 +31,14 @@ interface Puff {
 const SPLASH = 0.05;
 const SPRAY_RATE = 30;
 
-/** What a kind's open ground throws up; firm ground (trails, shoulders) always throws dust. */
+/** What a kind's open ground throws up; a laid surface (trail, scree, packed snow) throws its own. */
 export type GroundPuff = "grass" | "dust" | "snow";
+
+/** Share of its own tint a puff glows at dusk. */
+const DUSK_GLOW = 0.3;
+// Dust is the ground it came off a step lighter, so it shows against that ground by day and at dusk.
+const DUST_LIFT = 0.1;
+const kicked = (tone: Lab) => color(lighten(tone, DUST_LIFT));
 
 export class Smoke {
   readonly mesh: THREE.InstancedMesh;
@@ -41,17 +49,43 @@ export class Smoke {
   private s = new THREE.Vector3();
   // Tinted halfway to the fog so tyre smoke sits in the atmosphere instead of reading as solid rock.
   private smoke = FOG.clone().lerp(color(dark ? brand.foreground : brand.background_lightest), 0.5);
-  private dust = color(mix(brand.warning, brand.background, 0.3));
-  private grass = color(mix(brand.success, brand.background, 0.28));
+  private dust = kicked(tones.dirt);
+  // Tyres tear turf down to the soil, and the beach and forest floor are this ground too.
+  private grass = kicked(mix(tones.grass, tones.dirt, 0.5));
+  private sand = kicked(tones.sand);
+  private scree = kicked(tones.rock);
   private snow = color(tones.snow);
   private spray = color(mix(brand.info, brand.background_lightest, 0.6));
   private readonly ground: THREE.Color;
+  private readonly shoulder: THREE.Color;
+  /** What each laid surface throws; the kind's own ground sits in the grass row. */
+  private readonly laid: Record<SurfaceId, THREE.Color>;
   private carry: number[] = [];
   private kick = new THREE.Vector3();
 
   constructor(ground: GroundPuff) {
-    this.ground = { grass: this.grass, dust: this.dust, snow: this.snow }[ground];
-    const material = new THREE.MeshLambertMaterial({ flatShading: true, transparent: true, opacity: 0.35, depthWrite: false, emissive: this.smoke, emissiveIntensity: dark ? 0.3 : 0 });
+    const { dust, sand, scree, snow } = this;
+    this.ground = { grass: this.grass, dust: sand, snow }[ground];
+    this.shoulder = ground === "snow" ? snow : dust;
+    this.laid = {
+      [SurfaceId.GRASS]: this.ground,
+      [SurfaceId.DIRT]: dust,
+      [SurfaceId.HARDPACK]: dust,
+      [SurfaceId.SCREE]: scree,
+      [SurfaceId.WET]: dust,
+      [SurfaceId.SNOW]: snow,
+      [SurfaceId.PACKED_SNOW]: snow,
+      [SurfaceId.ICE]: snow,
+      [SurfaceId.SLUSH]: snow,
+      [SurfaceId.LAVA]: dust,
+      [SurfaceId.SAND]: sand,
+    };
+    const material = new THREE.MeshLambertMaterial({ flatShading: true, transparent: true, opacity: 0.35, depthWrite: false });
+    // Dusk light alone leaves a puff near black. It glows in its own tint: one emissive colour turned every puff smoke grey.
+    if (dark)
+      material.onBeforeCompile = (shader) => {
+        shader.fragmentShader = shader.fragmentShader.replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\n  totalEmissiveRadiance = diffuseColor.rgb * " + DUSK_GLOW.toFixed(2) + ";");
+      };
     this.mesh = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), material, PUFFS);
     this.mesh.frustumCulled = false;
     for (let i = 0; i < PUFFS; i++) {
@@ -96,7 +130,8 @@ export class Smoke {
         rate = Math.min(1, slide * 1.2) * SMOKE_RATE;
       } else if (!on_road && speed > 4) {
         rate = Math.min(1, speed / 25) * 12 + Math.max(0, slide) * 20;
-        tint = world.footing(w.point.x, w.point.z) === world.own_ground ? this.ground : this.dust;
+        const laid = world.surface(w.point.x, w.point.z);
+        tint = laid !== SurfaceId.GRASS ? this.laid[laid] : world.footing(w.point.x, w.point.z) === world.own_ground ? this.ground : this.shoulder;
         size = DUST_SIZE;
         life = DUST_LIFE;
       }
