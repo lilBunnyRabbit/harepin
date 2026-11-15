@@ -554,3 +554,47 @@ Lead's calls on the open list:
 | this one | A crest takes at most `CREST_LIGHT` 0.5 g of load off the corner plan: on a straight the plan no longer brakes for the take-off speed, and seed 7's bend crest (about a third light) plans as before |
 
 Normal, 25 races, on the final code: mean lap 211.8 s (212.1 before the cap), overtakes 54, spins 2, resets 2, reverses 0, hardest hit 11.4 m/s, contacts/lap median 7.5 (max 14.0, 5 races over 10), mean rho 0.55, stuck 0. Five races over the new band still make `ai-race.ts field` exit 1.
+
+### Automatic tuning: ai-tune.ts (t300, 2026-11-15)
+
+Owner's "ML-style tuning": not a learned driver, a search over the AI's tuning numbers using headless races.
+
+| Piece | Where |
+|---|---|
+| Injection point | `AI_TUNING` (`ai/tuning.ts`): line and fast grip, line and late braking, crest cap, pass grip and cap, pursuit aim, steering gain and damping, `rub`, personality ranges. `line.ts`, `driver.ts`, `awareness.ts` and `field.ts` read it; the game never writes it. Defaults are today's: the 25-race normal `ai-race.ts field all coupe 6 2` output is byte-identical before and after (52824c6) |
+| Search | `scripts/ai-tune.ts`: separable CMA-ES (`ai-tune/cma.ts`, diagonal covariance, unit box, clamped samples) over 15 bounded parameters (`ai-tune/params.ts`). Aggression and mistakes rows stay hand-set: they are the cars' character. `aim_base` is whole road points |
+| Races | each candidate races a level 3 field of 6 coupes, 2 laps, normal, on every island circuit of the train seeds, on worker pools (`--jobs`, a quarter of the cores by default; run it under `hq lock run --`). Deterministic: candidates come from the run seed and generation |
+| Objective | `ai-tune/objective.ts`, lower is better: 100 x (field lap / autolap lap) - 1.5 x overtakes a race + 4 x (spins + resets) a race + reverses a race + 0.2 x mean hardest hit + 0.5 per m/s of the worst hit over 15 + 20 x share of races out of the 0-10 contact band + 30 x mean rho over 0.6 + 100 x share stuck. Weights signed off by the lead |
+| State | `.ai-tune/<run>.json` (git-ignored) after every race: the same command resumes, a larger `--gens` extends a finished run. At the end the defaults and the best candidate race held-out `--check` seeds; best values go to `.ai-tune/<run>.best.json`. `--eval <file>` races one values file |
+
+Demo run, `bun scripts/ai-tune.ts --run demo --seeds 0-7 --check 8-19 --pop 8 --gens 4 --jobs 3` (33 candidates, about 25 min on 3 workers):
+
+| Gen | Sigma | Best loss | Median |
+|---|---|---|---|
+| defaults | | 87.13 | |
+| 0 | 0.200 | 83.46 | 102.68 |
+| 1 | 0.191 | 84.50 | 87.27 |
+| 2 | 0.183 | 82.93 | 85.46 |
+| 3 | 0.169 | 83.81 | 87.34 |
+
+| | Defaults (train) | Best (train) | Defaults (held out) | Best (held out) |
+|---|---|---|---|---|
+| Races | 11 | 11 | 14 | 14 |
+| Loss | 87.13 | 82.93 | 86.36 | 85.08 |
+| Lap vs autolap | -16.1% | -15.9% | -15.5% | -15.5% |
+| Overtakes / race | 1.27 | 1.27 | 2.86 | 2.14 |
+| Spins + resets / race | 0.09 | 0 | 0.21 | 0 |
+| Hardest hit mean (worst), m/s | 5.5 (11.4) | 3.6 (5.1) | 5.1 (11.3) | 4.5 (7.8) |
+| Races out of the contact band | 18% | 0% | 21% | 14% |
+| Mean rho | 0.57 | 0.31 | 0.54 | 0.55 |
+| Stuck | 0 | 0 | 0 | 0 |
+
+Best candidate (gen 2), against today's: `fast_grip` 7 -> 6.48, `aim_per` 3 -> 3.63, `steer_damp` 1 -> 1.28, `rub` 0.8 -> 0.62, `pace_hi` 1.02 -> 1.043, `brake_margin_hi` 0.8 -> 0.69; the rest within 3% of today's (`line_grip` 5.96, `line_brake` 2.57, `late_brake` 3.98, `crest_light` 0.49, `pass_grip` 1.38, `pass_max` 8.37, `aim_base` 7, `steer_gain` 4.5, `pace_lo` 0.961). Not applied as defaults: the lead decides after the owner drives.
+
+On the held-out seeds the best candidate beats today's by 1.3 loss points. It is cleaner: no spins or resets, worst hit 11.3 -> 7.8 m/s, out-of-band races 3 -> 2 of 14. It passes less (2.86 -> 2.14 a race), and it is no faster. Train rho fell 0.57 -> 0.31 but held-out rho did not move, so that part was the 11 train races, not the parameters.
+
+Open after this round:
+
+- 11 races a candidate is noisy: gen 0's best (83.46) was a lucky draw that later generations did not beat by much. A run meant to ship values wants more train seeds (`--seeds 0-11`) and more generations; at 3 workers that is about 2 hours.
+- Pace does not move: no candidate got faster than -16% against the autolap. Lap time is bound by what the search cannot reach (hairpin lock, kicker pace), or the 1% = 1 point weight is too light against the contact and spin terms.
+- The search trades overtakes for clean racing on held-out seeds. If the owner wants the passing kept, `W_PASS` goes up.
