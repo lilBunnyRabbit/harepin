@@ -300,3 +300,47 @@ Open after H9:
 - Overtakes dropped by about 40% (6 x 2: 24 -> 15, 6 x 3: 32 -> 18, 7 x 2: 44 -> 25): single file at kickers and no pass past a car in trouble take passes away. Rho stays under `RHO_MAX`, so the grid still does not decide the race, but a field that rarely passes may read as a procession on screen.
 - The single-file rule can brake a car under jump pace on the run itself (seed 2, 7 cars: 13 m/s at the lip, the plan is 32). The reset now gets it out; holding pace on the run and sorting the order before it would stop it falling short at all.
 - `ai-why.ts` labels a weave that ends with the car straight but off the road as "off the road", not "own slide": the slide had already settled under 0.15 rad when the car crossed the edge.
+
+### Overtakes round (t273, 2026-11-16)
+
+H9 cut overtakes by about 40%. Bisected on 6 x 2 (`ai-race.ts field all`, one run per commit): 69121e2 24, 847bb94 (kicker single file) 26, f31ac63 (steering damper) 25, 162acc2 (car in trouble) 25, e59e38d (defend rolls once) 17, e57924c 15. Kickers and cars in trouble cost 0-2 passes each. The drop came from the defend fix: rolled every tick, nearly every car covered the inside into every braking zone, left its own line and handed the pass over. The old counts were inflated by that.
+
+Changes, one commit each:
+
+| Commit | Change |
+|---|---|
+| 83119f9 | `ai-race.ts` and `ai-why.ts` take `[aggression] [mistakes]` after laps (owner levels, 3 by default) |
+| 529f057 | A pass may start into a wide bend: gentler than `CALM_BEND` 0.02 + `BOLD_BEND` 0.02 x aggression (1/m; was a flat 0.01) while the plan holds `CALM_SHARE` of its pace. A car in trouble is passed on a side that leaves `TROUBLE_FLANK` 4 m, at its speed along the road + `TROUBLE_CLOSE` 8 m/s, instead of queued behind. A car yielding into a kicker drops at most `KICKER_YIELD` 4 m/s under the plan, so it still reaches jump pace |
+| a282208 | A driver over `OUTSIDE` 0.6 aggression goes around the outside of a car ahead covering the inside. A car off the road counts as in trouble, and a car in trouble alongside is kept `TROUBLE_FLANK` off by the guard: on seed 3 at level 5, a car ran wide off the road, hit something and bounced back into the car alongside at 22.6 m/s |
+
+Before and after, level 3, `bun scripts/ai-race.ts field all coupe <count> <laps>` (25 races each):
+
+| | 6 x 2 69121e2 | H9 e57924c | a282208 | 6 x 3 69121e2 | e57924c | a282208 | 7 x 2 69121e2 | e57924c | a282208 |
+|---|---|---|---|---|---|---|---|---|---|
+| Overtakes | 24 | 15 | 31 | 32 | 18 | 35 | 44 | 25 | 40 |
+| Spins | 18 | 0 | 0 | 22 | 0 | 0 | 24 | 4 | 1 |
+| Resets | 24 | 0 | 0 | 31 | 0 | 0 | 27 | 2 | 1 |
+| Hardest hit (m/s) | 13.5 | 4.3 | 5.7 | 15.4 | 4.3 | 5.7 | 17.2 | 4.3 | 5.7 |
+| Stuck | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Contacts/lap median (max) | 3.0 (6.0) | 1.5 (5.0) | 2.0 (4.8) | 2.3 (5.3) | 1.0 (4.0) | 1.3 (4.8) | 4.0 (9.0) | 2.5 (6.0) | 2.5 (4.5) |
+| Mean rho | 0.52 | 0.53 | 0.51 | 0.43 | 0.43 | 0.42 | 0.65 | 0.63 | 0.63 |
+
+6 x 2 and 6 x 3 pass more than the old baseline. 7 x 2 is at 40 against 44. Tried on 7 x 2 and not kept: a flat 0.03 bend limit 34, `OUTSIDE` 0.4 41, `BOLD_BEND` 0.03 38, `PASS_PACE` 0.002 38, `PASS_WINDOW` 8 31. `CALM_SHARE` 0.8 gave 44 but 5 spins, 5 resets and a 14 m/s hit, and on 6 x 2 / 6 x 3 dropped to 22 / 26 with a 16.2 m/s hit; 0.82 gave 40 with 5 spins. One-parameter changes move a 25-race total by about ±5, so 40 against 44 is close to that noise, and the 44 carried the defend handouts.
+
+Owner levels, 6 x 2, aggression and mistakes both at the level:
+
+| Level | 1 | 3 | 5 |
+|---|---|---|---|
+| Overtakes (e57924c) | 8 | 15 | 29 |
+| Overtakes (a282208) | 8 | 31 | 34 |
+| Mean rho | 0.78 | 0.51 | 0.42 |
+| Contacts/lap median (max) | 1.0 (3.5) | 2.0 (4.8) | 2.0 (6.0) |
+| Hardest hit (m/s) | 3.6 | 5.7 | 15.2 |
+| Spins / resets | 1 / 0 | 0 / 0 | 1 / 1 |
+
+Lead's targets per level: `RHO_MAX` and a hardest hit under 15 m/s hold at level 3, the owner's level. Level 1 may be a procession. Level 5 stays under 20 m/s. Before the outside pass, level 5 passed less than level 3 (21 against 30): every bold car defended, and nothing got around a defender. With defend switched off it went to 29.
+
+Open after this round:
+
+- 7 x 2 overtakes 40 against the old 44 (see above).
+- Level 5's 15.2 m/s is a car braking flat out (cap 3.6 m/s) into the back of one that had just hit a wall, 4 m apart, on seed 3 lap 0.
