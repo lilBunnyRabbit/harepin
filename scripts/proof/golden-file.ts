@@ -20,14 +20,15 @@ export const GOLDEN_MAPS: readonly GoldenMaps[] = [{ kind: "mainland", levels: [
 /** A golden file's name: the kind, plus `-<overrides>` for a map off its normal levels (`mainland-W1`). */
 export const golden_name = (kind: WorldKind, opts = "") => (opts ? `${kind}-${opts}` : kind);
 
-/** Levels from an overrides string (`W1`), the inverse of `overrides`; throws on a field the kind has no option for. */
+/** Levels from an overrides string (`W1`), the inverse of `overrides`; throws on a field or level the kind has no option for. */
 export function levels_of(kind: WorldKind, opts: string): number[] {
   const { options } = KINDS[kind];
   const levels = options.map((o) => o.normal);
   for (let i = 0; i < opts.length; i += 2) {
     const at = options.findIndex((o) => o.field === opts[i]);
-    if (at < 0) throw new Error(`${kind} has no option ${opts[i]}`);
-    levels[at] = CODE_CHARS.indexOf(opts[i + 1]);
+    const level = CODE_CHARS.indexOf(opts[i + 1] ?? "");
+    if (at < 0 || level < 0 || level >= options[at].labels.length) throw new Error(`${kind} has no option ${opts.slice(i, i + 2)}`);
+    levels[at] = level;
   }
   return levels;
 }

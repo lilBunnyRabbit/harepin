@@ -1,5 +1,6 @@
 import { SPAWN_INDEX, type World } from "../world/world";
 import { DECK_STRIDE, type RoadPoint } from "../worldgen/types";
+import type { RiverPoint } from "../worldgen/water";
 import { VIEWS, type ViewName } from "./catalog";
 
 type V3 = [number, number, number];
@@ -112,7 +113,7 @@ export function plan_views(world: Plan): Partial<Record<ViewName, View>> {
   if (cabin) views.cabin = { at: index_of(world, cabin.x, cabin.z), from: [cabin.x + cabin.fx * 24 + cabin.fz * 12, cabin.y + 6, cabin.z + cabin.fz * 24 - cabin.fx * 12], to: [cabin.x, cabin.y + 2, cabin.z] };
 
   // The longest frozen river at its middle, from its bank and along the ice.
-  const river = world.ice?.rivers.reduce((best, r) => (r.length > best.length ? r : best));
+  const river = world.ice?.rivers.reduce<RiverPoint[]>((best, r) => (r.length > best.length ? r : best), []);
   if (river && river.length > 2) {
     const m = Math.floor(river.length / 2);
     const [a, b, p] = [river[m - 1], river[m + 1], river[m]];

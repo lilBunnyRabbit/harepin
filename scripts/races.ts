@@ -27,7 +27,7 @@ const NAME = golden_name(WORLD, OPTS);
 const [seeds_arg, KIND] = process.argv.slice(2).filter((a, i, all) => !a.startsWith("--") && all[i - 1] !== "--world" && all[i - 1] !== "--opts");
 if (BASELINE && (seeds_arg || KIND || CHANGED)) throw new Error("--baseline drives every golden seed of the world: no seeds, kind or --changed");
 const own = (run: string) => (NAME === WorldKind.ISLAND ? /^\d/.test(run) : run.startsWith(`${NAME} `));
-const golden_seeds = OPTS ? (GOLDEN_MAPS.find((m) => m.kind === WORLD && golden_name(m.kind, OPTS) === NAME)?.seeds ?? []) : GOLDEN_SEEDS[WORLD];
+const golden_seeds = OPTS ? (GOLDEN_MAPS.find((m) => m.kind === WORLD && m.levels.every((level, i) => level === LEVELS[i]))?.seeds ?? []) : GOLDEN_SEEDS[WORLD];
 const SEEDS = seeds_arg ? seeds_arg.split(",").map(Number) : CHANGED || BASELINE ? golden_seeds : [0, 1, 2, 3, 4];
 /** Always driven under `--changed`, so a change to the cars or the autopilot still shows on routes the golden keeps. */
 const CANARY = new Set(["0 circuit", "1 street-1", "3 offroad-1"]);
