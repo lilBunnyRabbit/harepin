@@ -34,24 +34,22 @@
   <div class="sc-body">
     <h3>{event.name}</h3>
     {#if reward}<span class="sc-reward"><Icon name="icon-car" />{reward}</span>{/if}
-    {#if front && !(car && state !== "locked")}<p>{KIND_RULES[event.kind]}</p>{/if}
+    {#if !(car && state !== "locked")}<p class="sc-front">{KIND_RULES[event.kind]}</p>{/if}
     {#if state === "locked"}
       <span class="sc-lock"><Icon name="icon-lock" />{lock ?? lock_line(event)}</span>
-    {:else if front && car}
-      <p class="sc-car"><Icon name="icon-car" /><span>{car.why} <span class="sc-rule">{car.rule}</span></span></p>
+    {:else if car}
+      <p class="sc-car sc-front"><Icon name="icon-car" /><span>{car.why} <span class="sc-rule">{car.rule}</span></span></p>
       <div class="sc-act">
-        <button type="button" class="sc-go" tabindex="-1" onclick={() => ongarage?.()}><Icon name="icon-car" />Change car</button>
+        <button type="button" class="sc-go sc-front" tabindex="-1" onclick={() => ongarage?.()}><Icon name="icon-car" />Change car</button>
       </div>
-    {:else if front}
+    {:else}
       <div class="sc-act">
         {#if score}<span class="sc-pts">{score.points} pts</span>{/if}
-        <button type="button" class="sc-go" tabindex="-1" onclick={() => onstart(event.id)}><Icon name="icon-play" />{score ? "Again" : "Race"}</button>
+        <button type="button" class="sc-go sc-front" tabindex="-1" onclick={() => onstart(event.id)}><Icon name="icon-play" />{score ? "Again" : "Race"}</button>
       </div>
-    {:else if score}
-      <span class="sc-pts">{score.points} pts</span>
     {/if}
   </div>
-  {#if !front && onpick}<button type="button" class="sc-pick" tabindex="-1" aria-label={`Show ${event.name}`} onclick={onpick}></button>{/if}
+  {#if onpick}<button type="button" class="sc-pick" tabindex="-1" aria-label={`Show ${event.name}`} onclick={onpick}></button>{/if}
 </article>
 
 <style>
@@ -248,6 +246,13 @@
     .sc-rule {
       display: none;
     }
+  }
+
+  /* Every card lays out the front card's lines and buttons, shown only on the front one: a snap then changes paint, not
+     layout, and a layout of this page costs a whole frame on a slow phone. Titles sit at one height along the rail. */
+  [data-front="false"] .sc-front,
+  [data-front="true"] .sc-pick {
+    visibility: hidden;
   }
 
   .sc-pick {

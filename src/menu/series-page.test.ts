@@ -35,11 +35,12 @@ test("only the endurance event lists fastest lap as a bonus", () => {
   expect(out.match(/fastest lap/g)?.length).toBe(1);
 });
 
-test("the series rail ends on a standings card and only the front card races", () => {
+test("the series rail ends on a standings card, every open card lays out its race button and one card is in front", () => {
   const states = event_states(season, won);
   const props = { season, progress: won, states, table: standings(season, won), done: false, wallet: fresh_wallet(), onstart: () => {}, onback: () => {}, onreset: () => {}, ...switcher };
   const out = render(SeriesFlow, { props }).body;
-  expect(out.match(/class="sc-go/g)?.length).toBe(1);
+  expect(out.match(/class="sc-go/g)?.length).toBe(states.filter((s) => s !== "locked").length);
+  expect(out.match(/data-front="true"/g)?.length).toBe(1);
   expect(out).toContain("Standings");
   expect(out).toContain("data-adjust");
 });

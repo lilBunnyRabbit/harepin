@@ -78,18 +78,18 @@
     <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions, a11y_click_events_have_key_events: the strip is the pad's focus stop; its cards' buttons are click targets only -->
     <ol class="fl-strip" aria-label="Events" tabindex="0" data-adjust bind:this={strip} use:swipe={step} onclick={pressed} onkeydown={key}>
       {#each season.events as event, i (event.id)}
-        <li data-i={i} style:z-index={last - Math.abs(i - focus)}>
+        <li data-i={i}>
           <div class="fl-card">
             <SeriesCard {event} n={i + 1} state={states[i]} score={event_score(season, progress, event)} front={i === focus} reward={event.final ? reward_line(season, wallet, progress) : null} {lock} {car} {ongarage} {onstart} onpick={() => show(i)} />
           </div>
         </li>
       {/each}
-      <li data-i={last} style:z-index={last - Math.abs(last - focus)}>
+      <li data-i={last}>
         <div class="fl-card fl-table" data-front={focus === last}>
           <h3>Standings</h3>
           <SeriesStandings {table} />
           {#if !lock}<button type="button" class="fl-reset" tabindex={focus === last ? 0 : -1} onclick={onreset}>{done ? "Run it again" : "Start over"}</button>{/if}
-          {#if focus !== last}<button type="button" class="fl-pick" tabindex="-1" aria-label="Show standings" onclick={() => show(last)}></button>{/if}
+          <button type="button" class="fl-pick" tabindex="-1" aria-label="Show standings" onclick={() => show(last)}></button>
         </div>
       </li>
     </ol>
@@ -243,6 +243,10 @@
     font: inherit;
     font-size: var(--text-sm);
     cursor: pointer;
+  }
+
+  .fl-table[data-front="true"] .fl-pick {
+    visibility: hidden;
   }
 
   .fl-pick {
