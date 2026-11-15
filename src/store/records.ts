@@ -1,6 +1,6 @@
 import { Idb } from "./idb";
 import { CachedStore, use_records } from "./cached-store";
-import { plan_sweep, record_families } from "./sweep";
+import { plan_restore, plan_sweep, record_families } from "./sweep";
 
 const STORE = "kv";
 
@@ -24,7 +24,21 @@ function drop_swept(swept: readonly [string, string][]) {
   }
 }
 
+let asked = false;
+
+// Persisted storage is not cleared when the browser runs short of space. Asked once a session and only after a record is
+// set, so a player who never saves anything is never asked; a denial leaves the records best-effort, as before.
+function keep_storage() {
+  if (asked) return;
+  asked = true;
+  navigator.storage
+    .persisted()
+    .then((kept) => kept || navigator.storage.persist())
+    .catch((error: unknown) => console.warn("records: persistent storage not granted, records stay best-effort", error));
+}
+
 function persist(key: string, value: string) {
+  keep_storage();
   db.put(STORE, value, key).catch((error: unknown) => {
     console.warn(`records: IndexedDB refused ${key}, keeping it in localStorage`, error);
     try {
@@ -69,4 +83,24 @@ export function load_records(mode_ids: readonly string[], timeout_ms: number): P
       },
     );
   });
+}
+
+/**
+ * The rollback escape hatch, not called by any shipped build: copies the records back into localStorage, merged with
+ * whatever a build there wrote meanwhile, for a build that reads them from localStorage again. IndexedDB keeps its copy.
+ * Ship it as the boot step in place of `load_records` only to roll back past the move (docs/plan/indexeddb.md, step 5).
+ */
+export async function restore_records(mode_ids: readonly string[]): Promise<void> {
+  let writes: [string, string][] = [];
+  await db.update_all(STORE, (stored) => {
+    writes = plan_restore(stored, local_entries(), record_families(mode_ids));
+    return [];
+  });
+  for (const [key, text] of writes) {
+    try {
+      localStorage.setItem(key, text);
+    } catch (error) {
+      console.warn(`records: ${key} not copied back to localStorage`, error);
+    }
+  }
 }

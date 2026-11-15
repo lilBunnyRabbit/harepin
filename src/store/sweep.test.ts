@@ -7,7 +7,7 @@ import { Runs, RUNS_KEY } from "../runs/runs-store";
 import { season_of } from "../runs/runs";
 import { SEASON_STEP, reached } from "../runs/season";
 import { CachedStore } from "./cached-store";
-import { plan_sweep, record_families } from "./sweep";
+import { plan_restore, plan_sweep, record_families } from "./sweep";
 
 const MODE_IDS = ["race", "drift"];
 const FAMILIES = record_families(MODE_IDS);
@@ -183,4 +183,27 @@ test("the faster best lap wins and its splits go with it", () => {
   const refused = plan_sweep(idb, [[SPLITS, "[19000,38000]"]], FAMILIES);
   expect(refused.values.get(SPLITS)).toBe("[19000,38000]");
   expect(refused.values.get(BEST)).toBe("60000");
+});
+
+test("a restore copies every record back to localStorage, merged with what a build wrote there meanwhile", () => {
+  const RACE = "harepin:race:1:island";
+  const kv: [unknown, unknown][] = [
+    [BEST, "58000"],
+    [SPLITS, "[19000,38000]"],
+    [RACE, JSON.stringify({ l1: { stars: 2, ms: 50_000 }, l3: { stars: 3, ms: 30_000 } })],
+    [CAREER_KEY, JSON.stringify({ stars: { a: 3 } })],
+    [7, "not a key"],
+    ["harepin:lobby:1:island", { not: "text" }],
+  ];
+  const local: [string, string][] = [
+    ["harepin:settings", "{}"],
+    [RACE, JSON.stringify({ l1: { stars: 3, ms: 45_000 }, l2: { stars: 1, ms: 90_000 } })],
+    [CAREER_KEY, JSON.stringify({ stars: { a: 3 } })],
+  ];
+  const writes = new Map(plan_restore(kv, local, FAMILIES));
+  expect(writes.get(BEST)).toBe("58000");
+  expect(writes.get(SPLITS)).toBe("[19000,38000]");
+  expect(JSON.parse(writes.get(RACE) ?? "null")).toEqual({ l1: { stars: 3, ms: 45_000 }, l2: { stars: 1, ms: 90_000 }, l3: { stars: 3, ms: 30_000 } });
+  expect([...writes.keys()].sort()).toEqual([BEST, RACE, SPLITS].sort());
+  expect(plan_restore(kv, [...local, ...writes], FAMILIES)).toEqual([]);
 });

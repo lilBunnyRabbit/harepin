@@ -92,3 +92,9 @@ export function plan_sweep(stored: Iterable<[unknown, unknown]>, local: Iterable
   }
   return { values, writes, swept };
 }
+
+/** The sweep run backwards for a rollback: the localStorage writes that bring every IndexedDB record back, merged the same way. */
+export function plan_restore(stored: Iterable<[unknown, unknown]>, local: Iterable<[string, string]>, families: readonly RecordFamily[]): [string, string][] {
+  const records = [...stored].filter((entry): entry is [string, string] => typeof entry[0] === "string" && typeof entry[1] === "string");
+  return plan_sweep(local, records, families).writes;
+}
