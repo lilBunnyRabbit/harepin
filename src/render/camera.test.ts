@@ -103,6 +103,19 @@ describe("chase camera follow", () => {
   /** Turn rate of a lateral pull of `g` at `kmh`. */
   const turn = (kmh: number, g: number) => (g * 9.81) / (kmh / 3.6);
 
+  test("a long frame does not pull the view in on the car, so a hitch never reads as the car jumping back", () => {
+    const r = rig();
+    const trail = () => r.car.pos.z - r.chase.camera.position.z;
+    drive(3, 60, new THREE.Vector3(), r);
+    const steady = trail();
+    let worst = 0;
+    for (const dt of [0.1, 1 / 60, 1 / 60, 1 / 60, 0.05, 1 / 60, 1 / 60]) {
+      r.frame(dt);
+      worst = Math.max(worst, Math.abs(trail() - steady));
+    }
+    expect(worst).toBeLessThan(0.01);
+  });
+
   test("a road weave turns the view at a third of the car's rate or less", () => {
     for (const [kmh, g, hz] of [[80, 0.8, 0.75], [100, 0.8, 1], [130, 0.6, 1.5]]) {
       const amp = turn(kmh, g);
