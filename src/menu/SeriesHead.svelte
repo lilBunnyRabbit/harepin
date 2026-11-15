@@ -38,6 +38,8 @@
     position: relative;
     z-index: 200;
     display: flex;
+    justify-self: center;
+    width: min(100%, 80rem);
     align-items: center;
     gap: var(--space-4);
     min-width: 0;

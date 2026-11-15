@@ -57,6 +57,8 @@
 
   .st-segs {
     position: relative;
+    justify-self: center;
+    width: min(100%, 80rem);
     z-index: 100;
     display: grid;
     grid-auto-columns: 1fr;
@@ -164,6 +166,8 @@
 
   .st-foot {
     position: relative;
+    justify-self: center;
+    width: min(100%, 80rem);
     z-index: 100;
     display: flex;
     align-items: center;

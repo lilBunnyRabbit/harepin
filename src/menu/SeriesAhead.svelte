@@ -87,6 +87,8 @@
 
   .ah-body {
     display: grid;
+    justify-self: center;
+    width: min(100%, 80rem);
     grid-template-columns: minmax(0, 1fr) auto;
     gap: var(--space-4);
     min-height: 0;
