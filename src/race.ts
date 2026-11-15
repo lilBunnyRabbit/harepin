@@ -1,7 +1,8 @@
+import { read_json, write_json, type Store } from "./modes/track";
 import type { World } from "./world/world";
 
-const BEST_KEY = "harepin:best";
-const SPLITS_KEY = "harepin:splits";
+export const BEST_KEY = "harepin:best";
+export const SPLITS_KEY = "harepin:splits";
 const GATE_RADIUS = 15;
 
 function is_time(value: unknown): value is number {
@@ -12,30 +13,15 @@ function is_splits(value: unknown): value is number[] {
   return Array.isArray(value) && value.every(is_time);
 }
 
-function load<T>(key: string, valid: (value: unknown) => value is T, fallback: T): T {
-  let raw: string | null;
-  try {
-    raw = localStorage.getItem(key);
-  } catch (error) {
-    console.warn(`storage unavailable, ${key} not loaded`, error);
-    return fallback;
-  }
-  if (raw === null) return fallback;
-  try {
-    const value: unknown = JSON.parse(raw);
-    return valid(value) ? value : fallback;
-  } catch (error) {
-    console.warn(`corrupt ${key} ignored`, error);
-    return fallback;
-  }
+function load<T>(store: Store | null, key: string, valid: (value: unknown) => value is T, fallback: T): T {
+  const value = read_json(store, key);
+  return valid(value) ? value : fallback;
 }
 
-function save(key: string, value: unknown) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch (error) {
-    console.warn(`storage unavailable, ${key} not saved`, error);
-  }
+/** Two saves of a world's best lap: the faster one; its splits go with it (`follows` in `store/sweep.ts`). */
+export function merge_best(kept: unknown, other: unknown): number | null {
+  if (!is_time(other)) return is_time(kept) ? kept : null;
+  return is_time(kept) && kept <= other ? kept : other;
 }
 
 export interface RaceSnapshot {
@@ -60,11 +46,14 @@ export class Race {
   private readonly best_key: string;
   private readonly splits_key: string;
 
-  constructor(private world: World) {
+  constructor(
+    private world: World,
+    private readonly store: Store | null,
+  ) {
     this.best_key = `${BEST_KEY}:${world.key}`;
     this.splits_key = `${SPLITS_KEY}:${world.key}`;
-    this.best = load<number | null>(this.best_key, is_time, null);
-    this.best_splits = load(this.splits_key, is_splits, []);
+    this.best = load<number | null>(store, this.best_key, is_time, null);
+    this.best_splits = load(store, this.splits_key, is_splits, []);
   }
 
   get gates() {
@@ -85,8 +74,8 @@ export class Race {
         if (improved) {
           this.best = lap;
           this.best_splits = [...this.splits];
-          save(this.best_key, lap);
-          save(this.splits_key, this.best_splits);
+          write_json(this.store, this.best_key, lap);
+          write_json(this.store, this.splits_key, this.best_splits);
         }
         this.on_lap?.(improved, first);
         this.lap_flash = now;

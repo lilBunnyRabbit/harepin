@@ -1,4 +1,6 @@
 import { expect, test } from "bun:test";
+import { DEFAULT_BUILD, build_code } from "../car/build";
+import { BUILDS_KEY, MAX_BUILDS } from "../car/builds";
 import { CAREER_KEY, Career } from "../career/career-store";
 import { GOALS_KEY, GoalId, Goals } from "../goals/goals";
 import { Runs, RUNS_KEY } from "../runs/runs-store";
@@ -12,15 +14,15 @@ const FAMILIES = record_families(MODE_IDS);
 
 const family = (key: string) => {
   const found = FAMILIES.find((f) => f.owns(key));
-  if (!found) throw new Error(`no family owns ${key}`);
+  if (!found || !("merge" in found)) throw new Error(`no merging family owns ${key}`);
   return found;
 };
 const merge = (key: string, kept: unknown, other: unknown) => family(key).merge(kept, other);
 
-test("every record key local_store() writes has a family; settings, ghosts, laps and builds do not", () => {
-  for (const key of ["harepin:race:1:island", "harepin:drift:7:dunes", "harepin:career:e1:3:island", "harepin:run:2026-11-13:1:island", "harepin:run:l3:hard:1:island", "harepin:lobby:1:island", CAREER_KEY, RUNS_KEY, GOALS_KEY])
+test("every record key local_store() writes has a family; settings, theme, build, name, seen version and ghosts do not", () => {
+  for (const key of ["harepin:race:1:island", "harepin:drift:7:dunes", "harepin:career:e1:3:island", "harepin:run:2026-11-13:1:island", "harepin:run:l3:hard:1:island", "harepin:lobby:1:island", CAREER_KEY, RUNS_KEY, GOALS_KEY, BUILDS_KEY, "harepin:best:1:island", "harepin:splits:1:island"])
     expect(FAMILIES.some((f) => f.owns(key))).toBe(true);
-  for (const key of ["harepin:settings", "harepin:theme", "harepin:themes", "harepin:build", "harepin:builds", "harepin:rolled-name", "harepin:seen-version", "harepin:best:1:island", "harepin:splits:1:island", "harepin:ghost:1:island", "harepin:hunt:1:island", "harepin.cars.notes"])
+  for (const key of ["harepin:settings", "harepin:theme", "harepin:themes", "harepin:build", "harepin:rolled-name", "harepin:seen-version", "harepin:ghost:1:island", "harepin:hunt:1:island", "harepin.cars.notes"])
     expect(FAMILIES.some((f) => f.owns(key))).toBe(false);
 });
 
@@ -139,4 +141,43 @@ test("the cache reads back its own writes at once and persists each one", () => 
   expect(persisted).toEqual([[GOALS_KEY, JSON.stringify([GoalId.SKY])]]);
   expect(store.getItem("harepin:missing")).toBeNull();
   expect([...store.entries()].map(([key]) => key)).toEqual([CAREER_KEY, GOALS_KEY]);
+});
+
+test("saved builds keep IndexedDB's list, then the other's names it lacks, up to the cap", () => {
+  const code = build_code(DEFAULT_BUILD);
+  const named = (names: string[]) => names.map((name) => ({ name, code }));
+  expect(merge(BUILDS_KEY, named(["A", "B"]), named(["b", "C"]))).toEqual(named(["A", "B", "C"]));
+  expect(merge(BUILDS_KEY, null, [...named(["X"]), { name: "bad", code: "?" }])).toEqual(named(["X"]));
+  const many = Array.from({ length: MAX_BUILDS }, (_, i) => `n${i}`);
+  expect((merge(BUILDS_KEY, named(many), named(["extra"])) as unknown[]).length).toBe(MAX_BUILDS);
+});
+
+const BEST = "harepin:best:1:island";
+const SPLITS = "harepin:splits:1:island";
+
+test("the faster best lap wins and its splits go with it", () => {
+  const idb: [string, string][] = [
+    [BEST, "60000"],
+    [SPLITS, "[20000,40000]"],
+  ];
+  const faster: [string, string][] = [
+    [SPLITS, "[19000,38000]"],
+    [BEST, "58000"],
+  ];
+  const won = plan_sweep(idb, faster, FAMILIES);
+  expect(won.values.get(BEST)).toBe("58000");
+  expect(won.values.get(SPLITS)).toBe("[19000,38000]");
+  expect(won.swept.map(([key]) => key).sort()).toEqual([BEST, SPLITS]);
+  const slower: [string, string][] = [
+    [BEST, "61000"],
+    [SPLITS, "[21000,41000]"],
+  ];
+  const lost = plan_sweep(idb, slower, FAMILIES);
+  expect(lost.writes).toEqual([]);
+  expect(lost.values.get(SPLITS)).toBe("[20000,40000]");
+  expect(lost.swept.length).toBe(2);
+  const fresh = plan_sweep([], slower, FAMILIES);
+  expect(fresh.values.get(BEST)).toBe("61000");
+  expect(fresh.values.get(SPLITS)).toBe("[21000,41000]");
+  expect(plan_sweep(idb, [[BEST, "junk"]], FAMILIES).values.get(BEST)).toBe("60000");
 });
