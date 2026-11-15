@@ -35,6 +35,21 @@ interface Puff {
 const SPLASH = 0.05;
 const SPRAY_RATE = 30;
 
+/** Seconds a wheel must be off the ground before its touchdown throws a burst. */
+const LAND_AIR = 0.25;
+/** Metres a second the car must be dropping at touchdown; a kerb hop or a crest at speed throws nothing. */
+const LAND_SINK = 2.5;
+const LAND_PUFFS = 7;
+const LAND_SIZE = 0.45;
+// Tarmac throws no dirt, only a breath of tyre smoke: a full burst read as a cloud.
+const ROAD_LAND_PUFFS = 4;
+const ROAD_LAND_SIZE = 0.3;
+const ROAD_LAND_SPREAD = 2.5;
+const LAND_LIFE = 0.6;
+/** Sideways kick of a burst puff, wider than a trail's so the burst fans out round the tyre. */
+const LAND_SPREAD = 5;
+const TRAIL_SPREAD = 1.5;
+
 /** What a kind's open ground throws up; a laid surface (trail, scree, packed snow) throws its own. */
 export type GroundPuff = "grass" | "dust" | "snow";
 
@@ -63,6 +78,10 @@ export class Smoke {
   /** What each laid surface throws; the kind's own ground sits in the grass row. */
   private readonly laid: Record<SurfaceId, THREE.Color>;
   private carry: number[] = [];
+  /** Seconds each wheel has been off the ground. */
+  private air: number[] = [];
+  /** How fast the car was dropping last frame: by the touchdown frame the suspension has already caught it. */
+  private sink = 0;
   private kick = new THREE.Vector3();
   private at = new THREE.Vector3();
 
@@ -96,13 +115,13 @@ export class Smoke {
     }
   }
 
-  private emit(at: THREE.Vector3, vel: THREE.Vector3, tint: THREE.Color, size: number, life: number) {
+  private emit(at: THREE.Vector3, vel: THREE.Vector3, tint: THREE.Color, size: number, life: number, spread: number) {
     const i = this.next;
     this.next = (this.next + 1) % PUFFS;
     const p = this.puffs[i];
     p.pos.copy(at);
     p.pos.y += size * SEAT;
-    p.vel.copy(vel).multiplyScalar(0.25).add(this.kick.set((Math.random() - 0.5) * 1.5, 0.8 + Math.random(), (Math.random() - 0.5) * 1.5));
+    p.vel.copy(vel).multiplyScalar(0.25).add(this.kick.set((Math.random() - 0.5) * spread, 0.8 + Math.random(), (Math.random() - 0.5) * spread));
     p.age = 0;
     p.life = life;
     p.size = size;
@@ -112,10 +131,18 @@ export class Smoke {
 
   update(dt: number, car: Car, world: World) {
     const speed = car.vel.length();
-    while (this.carry.length < car.wheels.length) this.carry.push(0);
+    while (this.carry.length < car.wheels.length) {
+      this.carry.push(0);
+      this.air.push(0);
+    }
     for (let i = 0; i < car.wheels.length; i++) {
       const w = car.wheels[i];
-      if (!w.contact) continue;
+      if (!w.contact) {
+        this.air[i] += dt;
+        continue;
+      }
+      const landed = this.air[i] > LAND_AIR && this.sink > LAND_SINK;
+      this.air[i] = 0;
       const on_road = world.on_road(w.point.x, w.point.z);
       const slide = Math.max(w.lateral - 1.1, Math.abs(w.slip) - 0.18);
       let rate = 0;
@@ -143,9 +170,15 @@ export class Smoke {
       this.carry[i] += rate * dt;
       while (this.carry[i] >= 1) {
         this.carry[i] -= 1;
-        this.emit(this.at, car.vel, tint, size, life);
+        this.emit(this.at, car.vel, tint, size, life, TRAIL_SPREAD);
+      }
+      if (landed) {
+        const smoke = tint === this.smoke;
+        const puffs = smoke ? ROAD_LAND_PUFFS : LAND_PUFFS;
+        for (let k = 0; k < puffs; k++) this.emit(this.at, car.vel, tint, smoke ? ROAD_LAND_SIZE : LAND_SIZE, LAND_LIFE, smoke ? ROAD_LAND_SPREAD : LAND_SPREAD);
       }
     }
+    this.sink = -car.vel.y;
     let alive = false;
     for (let i = 0; i < PUFFS; i++) {
       const p = this.puffs[i];

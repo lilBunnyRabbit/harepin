@@ -30,3 +30,30 @@ test("puffs are unlit, so a puff keeps its tint at dusk instead of going near bl
   const material = new Smoke("dust").mesh.material as import("three").Material;
   expect([material.type, material.transparent, material.depthWrite]).toEqual(["MeshBasicMaterial", true, false]);
 });
+
+async function touchdown(sink: number) {
+  const { Smoke } = await import("./effects");
+  const { Vector3, Matrix4 } = await import("three");
+  const wheels = [0, 1, 2, 3].map((i) => ({ contact: false, point: new Vector3(i, 0, 0), lateral: 0, slip: 0 }));
+  const car = { vel: new Vector3(0, -sink, 10), wheels };
+  const world = { on_road: () => true, depth: () => -1, water_level: () => 0, surface: () => 0, footing: () => 0, own_ground: 0 };
+  const smoke = new Smoke("grass");
+  const update = (dt: number) => smoke.update(dt, car as never, world as never);
+  for (let t = 0; t < 0.4; t += 0.05) update(0.05);
+  for (const w of wheels) w.contact = true;
+  car.vel.y = 0;
+  update(0.02);
+  const m = new Matrix4();
+  const s = new Vector3();
+  let live = 0;
+  for (let i = 0; i < smoke.mesh.count; i++) {
+    smoke.mesh.getMatrixAt(i, m);
+    if (s.setFromMatrixScale(m).x > 0) live++;
+  }
+  return live;
+}
+
+test("a wheel landing from a drop throws a burst; rolling over a crest throws none", async () => {
+  expect(await touchdown(4)).toBeGreaterThan(0);
+  expect(await touchdown(0)).toBe(0);
+});
