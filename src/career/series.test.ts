@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { World } from "../world/world";
-import { Bonus, OPEN_AT_START, PODIUM, SEASON_1, SeriesKind, better, empty_progress, event_line, event_result, event_states, parse_progress, player_of, result_points, season_done, standings, type EventResult, type SeriesProgress } from "./series";
+import { Bonus, OPEN_AT_START, PODIUM, SEASON_1, SeriesKind, better, empty_progress, event_field, event_line, event_result, event_states, grid_slot, parse_progress, player_of, result_points, season_done, standings, type EventResult, type SeriesProgress } from "./series";
 import type { SeriesSaves } from "./series-db";
 import { Series } from "./series-store";
 
@@ -113,4 +113,13 @@ test("the rival duel opens the next event only on a win, and its loss scores 4",
 test("fastest lap pays only in endurance, the one event of more than a lap", () => {
   const outcome = { order: [6, 0, 1, 2, 3, 4, 5], clean: false, led: false, fastest: true, from_back: false };
   for (const event of season.events) expect(event_result(season, event, outcome).bonus.includes(Bonus.FASTEST)).toBe(event.kind === SeriesKind.ENDURANCE);
+});
+
+test("the player grids by the table: last on a fresh season, on pole once leading it", () => {
+  const opener = season.events[0];
+  expect(grid_slot(season, empty_progress(season), opener)).toBe(event_field(season, opener).length);
+  const won: SeriesProgress = { season: season.id, results: { [opener.id]: at(1) } };
+  expect(grid_slot(season, won, season.events[1])).toBe(0);
+  const third: SeriesProgress = { season: season.id, results: { [opener.id]: at(3) } };
+  expect(grid_slot(season, third, season.events[1])).toBe(2);
 });

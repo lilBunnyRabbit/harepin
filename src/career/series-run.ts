@@ -8,6 +8,7 @@ import {
   BONUS_POINTS,
   event_field,
   event_result,
+  grid_slot,
   ordinal,
   place_of,
   place_points,
@@ -47,6 +48,7 @@ export function series_host(base: SeriesBase, series: Series, event: SeriesEvent
     names: drivers.map((d) => d.name),
     knockout: event.kind === SeriesKind.KNOCKOUT,
     limit_ms: event.limit_ms ?? null,
+    grid: grid_slot(season, series.progress, event),
     finish: (outcome) => {
       const result = event_result(season, event, outcome);
       return result_lines(series, event, result, series.record(event, result));

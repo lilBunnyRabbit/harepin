@@ -130,6 +130,8 @@ export class Awareness {
     private readonly rng: () => number,
     /** How many of `cars`, from the first, the field drives: the rest (the player's) have no pace to read. */
     private readonly driven = cars.length,
+    /** gone[i] set: car i is off the track (`Field.retire`), seen by no one and driven by no lane. */
+    private readonly gone: Uint8Array = new Uint8Array(cars.length),
   ) {
     this.progress = new Float64Array(cars.length);
     this.lateral = new Float64Array(cars.length);
@@ -171,12 +173,15 @@ export class Awareness {
       this.trouble[i] = drivers[i].reversing > 0 || off || (v > TROUBLE_SPEED && (slide > TROUBLE_SLIDE || this.along[i] < TROUBLE_ALONG * v)) ? 1 : 0;
     }
     for (let i = 0; i < cars.length; i++) {
+      if (this.gone[i]) continue;
       this.decide(i);
       this.guard(i);
     }
   }
 
+  /** Metres car j is ahead of car i along the road; Infinity for a car off the track, which is never near. */
   private gap(i: number, j: number): number {
+    if (this.gone[j]) return Infinity;
     const line = this.drivers[i].line;
     const n = line.road.length;
     const d = ((((this.progress[j] - this.progress[i]) % n) + n + n / 2) % n) - n / 2;

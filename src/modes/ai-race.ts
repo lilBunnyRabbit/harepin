@@ -55,6 +55,8 @@ export class AiRace implements ModeRun, FieldRace {
   private result: Finish | null = null;
   private rows: Row[] = [];
   private readonly tally: FieldTally;
+  /** The player's grid slot: the event's, else last. */
+  private readonly grid: number;
   /** The order a knockout or a timed race ended on; a race to the line keeps filling in as the cars cross it. */
   private final: number[] | null = null;
   private touches = 0;
@@ -77,11 +79,12 @@ export class AiRace implements ModeRun, FieldRace {
     this.laps = host.event?.limit_ms ? MAX_LAPS : Math.max(1, Math.min(MAX_LAPS, Math.round(RACE_MS / route.par_ms)));
     this.builds = field_builds(host.build(), host.rating(), host.cars.length, route.excludes);
     this.names = [...this.builds.map((b, i) => host.event?.names[i] ?? `${CARS[b.car].name} ${b.number}`), PLAYER];
+    this.grid = Math.max(0, Math.min(this.builds.length, Math.trunc(host.event?.grid ?? this.builds.length)));
     this.run = this.grid_run();
     this.standings = new Standings(this.builds.length + 1, route.points.length, this.laps, this.builds.length);
     this.tally = new FieldTally(this.builds.length + 1, route.points.length, this.laps, host.event?.knockout === true);
     this.route = { id: route.id, gate: this.run.gate, later: this.later(0), respawn: course.line[0] };
-    const spot = grid_spot(route, this.builds.length);
+    const spot = grid_spot(route, this.grid);
     ctx.spawn(spot.x, spot.z, spot.heading);
     host.attach?.(this);
   }
@@ -107,7 +110,7 @@ export class AiRace implements ModeRun, FieldRace {
     const { route } = this.course;
     const { world } = this.ctx;
     const count = this.builds.length;
-    this.host.sim.send({ type: "field", route: route.id, specs: this.builds.map(build_spec), traits: at_difficulty(field_personalities(world.seed, this.host.cars.slice(0, count)), this.host.difficulty()), seed: world.seed, laps: this.laps, drive_rival: this.host.autopilot });
+    this.host.sim.send({ type: "field", route: route.id, specs: this.builds.map(build_spec), traits: at_difficulty(field_personalities(world.seed, this.host.cars.slice(0, count)), this.host.difficulty()), seed: world.seed, laps: this.laps, drive_rival: this.host.autopilot, grid: this.grid });
     this.field = new FieldView(this.ctx.scene, this.host.sim, this.builds);
     this.touches = this.host.sim.field_touches;
   }
@@ -179,6 +182,10 @@ export class AiRace implements ModeRun, FieldRace {
     const player = this.builds.length;
     const event = this.host.event;
     const out = this.tally.update(this.t, this.host.sim.field_progress, this.standings.order);
+    if (out >= 0 && out !== player) {
+      this.host.sim.send({ type: "field_retire", car: out });
+      this.field?.retire(out);
+    }
     if (out === player || (event?.knockout && this.tally.left() === 1)) this.finish(End.OUT);
     else if (event?.limit_ms && this.t * 1000 >= event.limit_ms) this.finish(End.TIME);
     return this.result !== null;
@@ -246,8 +253,7 @@ export class AiRace implements ModeRun, FieldRace {
     this.rows = order.map(() => this.row());
     this.write_rows();
     const how = end === End.OUT && place > 1 ? `Out in ${ordinal(place)}` : end === End.TIME ? `${ordinal(place)} at the flag` : `${ordinal(place)} of ${field}`;
-    // The player always takes the last grid slot (`grid_spot` puts the field on 0..n-1).
-    const extra = this.host.event?.finish({ order, clean: !this.touched, led: this.led, fastest: this.laps > 1 && this.tally.fastest(player), from_back: true }) ?? [];
+    const extra = this.host.event?.finish({ order, clean: !this.touched, led: this.led, fastest: this.laps > 1 && this.tally.fastest(player), from_back: this.grid === this.builds.length }) ?? [];
     const laps = end === End.LINE ? line("laps", String(this.laps)) : line("laps done", String(this.lap - 1));
     this.result = {
       title: `${how} · ${this.name}`,

@@ -56,6 +56,8 @@ export interface FieldStart {
   laps?: number;
   /** The field's driver drives the player's car too: a dev autopilot for shots and frame-time runs. */
   drive_rival?: boolean;
+  /** The player's grid slot, 0 on pole; last without one. */
+  grid?: number;
 }
 
 export type CarCommand =
@@ -67,8 +69,8 @@ export type CarCommand =
   | { type: "refill" }
   | { type: "drag"; keep: number };
 
-/** `field_seen`: bit i set while AI car i is on the player's screen, where it never leaves the physics. */
-export type FieldCommand = ({ type: "field" } & FieldStart) | { type: "field_stop" } | { type: "field_seen"; mask: number };
+/** `field_seen`: bit i set while AI car i is on the player's screen, where it never leaves the physics. `field_retire`: AI car `car` leaves the track (knocked out). */
+export type FieldCommand = ({ type: "field" } & FieldStart) | { type: "field_stop" } | { type: "field_seen"; mask: number } | { type: "field_retire"; car: number };
 
 export type SimCommand = CarCommand | FieldCommand | { type: "rewind_clear" } | { type: "world"; op: WorldOp };
 
@@ -174,6 +176,8 @@ export class SimHost {
       this.field_cars = [];
     } else if (command.type === "field_seen") {
       if (this.field) this.field.seen = command.mask;
+    } else if (command.type === "field_retire") {
+      this.field?.retire(command.car);
     }
     else if (is_car(command)) {
       if (command.type === "place" || command.type === "park" || command.type === "swap") this.pads.clear();
@@ -223,10 +227,10 @@ export class SimHost {
     return this.field?.progress ?? NO_PROGRESS;
   }
 
-  private start_field({ route, specs, traits, seed, laps, drive_rival }: FieldStart) {
+  private start_field({ route, specs, traits, seed, laps, drive_rival, grid }: FieldStart) {
     const on = this.world.routes.find((r) => r.id === route);
     if (!on) throw new Error(`no route ${route} for the field`);
-    this.field = new Field(this.world, on, specs, traits, seed);
+    this.field = new Field(this.world, on, specs, traits, seed, grid);
     this.field_laps = laps ?? FIELD_LAPS;
     this.field.drives_rival = drive_rival === true;
     this.field.rival = this.car;

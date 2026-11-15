@@ -229,6 +229,14 @@ export function standings(season: Season, progress: SeriesProgress, you = "You")
   return rows.sort((a, b) => b.points - a.points || a.driver - b.driver);
 }
 
+/** The player's grid slot (0 on pole) for an event: behind every driver of its field ahead of them in the table. */
+export function grid_slot(season: Season, progress: SeriesProgress, event: SeriesEvent): number {
+  const drivers = event_field(season, event);
+  const table = standings(season, progress);
+  const me = table.findIndex((row) => row.you);
+  return table.slice(0, me).filter((row) => drivers.includes(row.driver)).length;
+}
+
 export const ordinal = (n: number) => `${n}${n % 10 === 1 && n % 100 !== 11 ? "st" : n % 10 === 2 && n % 100 !== 12 ? "nd" : n % 10 === 3 && n % 100 !== 13 ? "rd" : "th"}`;
 
 export function event_line(season: Season, event: SeriesEvent, result: EventResult): string {

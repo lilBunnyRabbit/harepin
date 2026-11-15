@@ -30,6 +30,7 @@ export class FieldView {
   private readonly views: CarView[] = [];
   private readonly fars: THREE.Mesh[] = [];
   private readonly far: boolean[] = [];
+  private readonly retired: boolean[] = [];
   private seen = -1;
 
   constructor(
@@ -44,6 +45,7 @@ export class FieldView {
       this.views.push(view);
       this.fars.push(far);
       this.far.push(false);
+      this.retired.push(false);
       scene.add(view.root, far);
     }
   }
@@ -66,6 +68,7 @@ export class FieldView {
     frustum.setFromProjectionMatrix(view_projection);
     let seen = 0;
     for (let i = 0; i < cars.length; i++) {
+      if (this.retired[i]) continue;
       const car = cars[i];
       if (frustum.intersectsSphere(sphere.set(car.pos, SEEN_RADIUS))) seen |= 1 << i;
       const d = car.pos.distanceTo(camera.position);
@@ -86,6 +89,14 @@ export class FieldView {
       this.seen = seen;
       this.sim.send({ type: "field_seen", mask: seen });
     }
+  }
+
+  /** Car i is off the track (`Field.retire`): it draws no more. */
+  retire(i: number) {
+    if (i < 0 || i >= this.views.length) return;
+    this.retired[i] = true;
+    this.views[i].root.visible = false;
+    this.fars[i].visible = false;
   }
 
   dispose() {

@@ -118,3 +118,65 @@ describe("AI field start and pace", () => {
     field.racers.forEach(({ car, driver }, k) => expect(Math.sign(Awareness.lateral_of(car, driver))).toBe(Math.sign(grid_spot(route, k).side)));
   });
 });
+
+describe("AI field series options", () => {
+  const DT = 1 / 360;
+  const held = { steer: 0, throttle: 0, brake: 1, handbrake: 0, analog: true };
+
+  function on_grid(grid: number) {
+    const world = new World(0);
+    const route = world.routes.find((r) => r.kind === RouteKind.CIRCUIT);
+    if (!route) throw new Error("island seed 0 has no circuit");
+    world.place(route.closure);
+    const field = new Field(world, route, Array.from({ length: 4 }, () => COUPE), personalities(0, 4), 0, grid);
+    const rival = new Car(COUPE);
+    const spot = grid_spot(route, grid);
+    rival.park(spot.x, spot.z, spot.heading, world);
+    field.rival = rival;
+    return { field, rival, route, world };
+  }
+
+  test("the player on pole: the AI cars fill the slots behind it, in order", () => {
+    const { field, route } = on_grid(0);
+    field.racers.forEach(({ car }, k) => {
+      const spot = grid_spot(route, k + 1);
+      expect(Math.hypot(car.pos.x - spot.x, car.pos.z - spot.z)).toBeLessThan(0.5);
+    });
+  });
+
+  test("a grid slot mid-field skips the player's slot, and last is the default", () => {
+    const { field, route } = on_grid(2);
+    const slots = [0, 1, 3, 4];
+    field.racers.forEach(({ car }, k) => {
+      const spot = grid_spot(route, slots[k]);
+      expect(Math.hypot(car.pos.x - spot.x, car.pos.z - spot.z)).toBeLessThan(0.5);
+    });
+    const last = on_grid(4);
+    const plain = new Field(last.world, last.route, Array.from({ length: 4 }, () => COUPE), personalities(0, 4), 0);
+    expect(last.field.racers.map((r) => r.car.pos.x)).toEqual(plain.racers.map((r) => r.car.pos.x));
+  });
+
+  test("a retired car stops, leaves the track, keeps its progress and is never passed or hit", () => {
+    const { field, rival, world } = on_grid(4);
+    for (let s = 0; s < 360 * 10; s++) {
+      rival.step(DT, held, world);
+      field.step(DT, 1);
+    }
+    field.retire(0);
+    const kept = field.progress[0];
+    const passes = field.racers.map((r) => r.stats.overtakes);
+    for (let s = 0; s < 360 * 30; s++) {
+      rival.step(DT, held, world);
+      field.step(DT, 1);
+      expect(field.impacts[0]).toBe(-1);
+    }
+    expect(field.is_retired(0)).toBe(true);
+    expect(field.progress[0]).toBe(kept);
+    expect(field.racers[0].car.pos.y).toBeLessThan(-100);
+    expect(field.racers[0].stats.resets).toBe(0);
+    for (let i = 1; i < 4; i++) {
+      expect(field.progress[i]).toBeGreaterThan(kept);
+      expect(field.racers[i].stats.overtakes).toBe(passes[i]);
+    }
+  });
+});

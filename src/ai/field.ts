@@ -45,6 +45,8 @@ const PASS_CLEAR = 3;
  */
 const FAR = 120;
 const NEAR = 100;
+/** Metres under the world a retired car is parked at: out of every contact's height band and every view. */
+const RETIRED_DEPTH = -1000;
 /** Personality ranges a field draws from. */
 const PACE = [0.96, 1.02] as const;
 /** m/s at which a car's cornering grip is read off its stats, against the stock coupe's that the line plans on. */
@@ -148,6 +150,8 @@ export class Field {
   private readonly ahead: Uint8Array;
   /** Progress (road points, from the start line) past which a car leaves its grid lane. */
   private readonly launch_end: number;
+  /** Car i (the rival as the field's size) is off the track for good: `retire`. */
+  private readonly retired: Uint8Array;
   private steps = 0;
 
   constructor(
@@ -156,13 +160,15 @@ export class Field {
     specs: readonly CarSpec[],
     traits: readonly Personality[],
     private readonly seed: number,
+    /** The grid slot the rival starts on (0 on pole): the AI cars fill the others in order. Last by default. */
+    grid = specs.length,
   ) {
     const radius = Math.max(...specs.map((s) => s.radius));
     this.line = race_line(route.points, world.ramps, radius);
     this.racers = specs.map((spec, k) => {
       const car = new Car(spec);
       const driver = new Driver(this.line, { ...traits[k], pace: traits[k].pace * grip_pace(spec) }, mulberry32(sub(seed, `ai-driver-${k}`)));
-      const spot = grid_spot(route, k);
+      const spot = grid_spot(route, k < grid ? k : k + 1);
       car.park(spot.x, spot.z, spot.heading, world);
       driver.place(spot.index, -1);
       driver.launch = spot.side;
@@ -176,7 +182,8 @@ export class Field {
     this.touching = this.cars;
     const count = this.racers.length;
     this.impacts = new Float64Array(count + 1).fill(-1);
-    this.awareness = new Awareness(this.cars, this.racers.map((r) => r.driver), mulberry32(sub(seed, "ai-awareness")));
+    this.retired = new Uint8Array(count + 1);
+    this.awareness = new Awareness(this.cars, this.racers.map((r) => r.driver), mulberry32(sub(seed, "ai-awareness")), count, this.retired);
     this.slow = new Float64Array(count);
     this.lost = new Float64Array(count);
     this.best = new Float64Array(count).fill(-Infinity);
@@ -210,13 +217,30 @@ export class Field {
       this.rival_driver.place(at, at > this.route.points.length / 2 ? -1 : 0);
     }
     const rng = mulberry32(sub(this.seed, "ai-awareness"));
-    this.awareness = car ? new Awareness(this.touching, [...drivers, this.rival_driver], rng, this.cars.length) : new Awareness(this.cars, drivers, rng);
+    this.awareness = car ? new Awareness(this.touching, [...drivers, this.rival_driver], rng, this.cars.length, this.retired) : new Awareness(this.cars, drivers, rng, this.cars.length, this.retired);
   }
 
   /** The rival's controls for this step, from the field's own driver: call before stepping the rival, with `drives_rival` on. */
   rival_controls(dt: number): Controls {
     if (!this.rival_car) throw new Error("no rival to drive");
     return this.rival_driver.drive(this.rival_car, dt);
+  }
+
+  /**
+   * Takes AI car i off the track for good (knocked out of a knockout): it stops under the world, out of the contact pass,
+   * the awareness and the recovery, and keeps the progress it had.
+   */
+  retire(i: number) {
+    if (i < 0 || i >= this.racers.length || this.retired[i]) return;
+    this.retired[i] = 1;
+    const { car } = this.racers[i];
+    car.pos.y = RETIRED_DEPTH;
+    car.vel.set(0, 0, 0);
+    car.ang.set(0, 0, 0);
+  }
+
+  is_retired(i: number): boolean {
+    return this.retired[i] === 1;
   }
 
   /** Whether AI car i runs on the line follower now, off the physics. */
@@ -228,6 +252,7 @@ export class Field {
     const { racers, world } = this;
     for (let i = 0; i < racers.length; i++) {
       const { car, driver } = racers[i];
+      if (this.retired[i]) continue;
       if (this.coasting[i]) {
         driver.coast(car, dt);
         continue;
@@ -243,6 +268,7 @@ export class Field {
     collide_cars(this.touching, this.impacts);
     this.t += dt;
     for (let i = 0; i < racers.length; i++) {
+      if (this.retired[i]) continue;
       const { car, driver, stats } = racers[i];
       const hit = this.impacts[i];
       if (hit >= 0) {
@@ -273,6 +299,7 @@ export class Field {
     const rival = this.rival_car;
     if (!rival) return;
     for (let i = 0; i < this.racers.length; i++) {
+      if (this.retired[i]) continue;
       const { car, driver } = this.racers[i];
       const d = Math.hypot(car.pos.x - rival.pos.x, car.pos.z - rival.pos.z);
       const seen = (this.seen >> i) & 1;
@@ -288,13 +315,15 @@ export class Field {
 
   /** Steps until every car has run `laps` laps or `limit` seconds pass; true when all finished. */
   run(dt: number, laps: number, limit: number): boolean {
-    while (this.t < limit && this.racers.some((r) => r.stats.laps.length < laps)) this.step(dt, laps);
-    return this.racers.every((r) => r.stats.laps.length >= laps);
+    const done = (r: Racer, i: number) => r.stats.laps.length >= laps || this.retired[i] === 1;
+    while (this.t < limit && !this.racers.every(done)) this.step(dt, laps);
+    return this.racers.every(done);
   }
 
   private recover(dt: number) {
     for (let i = 0; i < this.racers.length; i++) {
       const { car, driver, stats } = this.racers[i];
+      if (this.retired[i]) continue;
       if (this.coasting[i]) {
         this.slow[i] = 0;
         this.lost[i] = 0;
@@ -349,7 +378,7 @@ export class Field {
       return gap > -RESET_BEHIND && gap < RESET_AHEAD;
     };
     for (let j = 0; j < this.racers.length; j++) {
-      if (j === i || this.lost[j] > 0 || this.stall[j] > STUCK_TIME) continue;
+      if (j === i || this.retired[j] || this.lost[j] > 0 || this.stall[j] > STUCK_TIME) continue;
       if (near(this.racers[j].driver.progress)) return false;
     }
     return !this.rival_car || !near(this.rival_driver.progress);
@@ -377,7 +406,7 @@ export class Field {
     const spacing = this.route.length / this.route.points.length;
     for (let i = 0; i < count; i++)
       for (let j = 0; j < all; j++) {
-        if (i === j) continue;
+        if (i === j || this.retired[i] || this.retired[j]) continue;
         const gap = (this.progress[i] - this.progress[j]) * spacing;
         const at = i * side + j;
         if (gap > PASS_CLEAR) {

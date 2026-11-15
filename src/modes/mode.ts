@@ -82,6 +82,8 @@ export interface FieldEvent {
   readonly knockout: boolean;
   /** ms: the race ends here, placed by distance; null to race the laps out. */
   readonly limit_ms: number | null;
+  /** The player's grid slot, 0 on pole; last when absent. */
+  readonly grid?: number;
   /** Called once as the player's race ends; returns lines for the result card. */
   finish(outcome: FieldOutcome): HTMLElement[];
   /** What the result card's Next does. */
