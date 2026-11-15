@@ -22,12 +22,13 @@ test("lights switch the headlamp glow, swing pop-up pods and leave the tail lamp
   const { popup, set_lights, snap_lights, swing_popups } = await import("./lights");
   const { DESIGNS } = await import("./designs");
   const view = build_view(DEFAULT_BUILD);
-  const [glow, tail] = [view.heads.material.emissiveIntensity, view.brake.emissiveIntensity];
+  const [glow, tail, lens] = [view.heads.material.emissiveIntensity, view.brake.emissiveIntensity, view.heads.material.color.getHex()];
   expect([view.lights, view.popup, glow > 0]).toEqual([true, null, true]);
   set_lights(view, false);
   expect([view.lights, view.heads.material.emissiveIntensity, view.brake.emissiveIntensity]).toEqual([false, 0, tail]);
+  expect(view.heads.material.color.getHex()).not.toBe(lens);
   set_lights(view, true);
-  expect(view.heads.material.emissiveIntensity).toBe(glow);
+  expect([view.heads.material.emissiveIntensity, view.heads.material.color.getHex()]).toEqual([glow, lens]);
   const design: Design = { ...DESIGNS.coupe, popups: { pods: [{ size: [0.3, 0.1, 0.3], at: [0.6, 0.7, 1.9] }], hinge: [1.75, 0.72], lift: 0.6 } };
   const pods = popup(design, view.heads, new THREE.Color(), new THREE.Color(), view.heads.material);
   expect(pods?.pivot.children).toContain(view.heads);
