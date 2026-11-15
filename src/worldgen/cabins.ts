@@ -1,6 +1,7 @@
 import { mulberry32, sub } from "../rng";
 import { sample } from "./field";
 import { roof_rise } from "./lots";
+import { heading, HEADINGS } from "./scatter";
 import { Roof, type Building, type Lot, type Solid, type Terrain } from "./types";
 
 /** Loose cabins on the open ground, far from every road: `groups` sites within `reach` of the centre, `size` cabins each. */
@@ -39,10 +40,9 @@ export function plan_cabins(seed: number, land: Terrain, recipe: CabinRecipe, fi
   for (let g = 0; g < recipe.groups; g++) {
     let site: { x: number; z: number } | null = null;
     for (let t = 0; t < SITE_TRIES && !site; t++) {
-      const a = next() * Math.PI * 2;
-      const d = Math.sqrt(next()) * recipe.reach;
-      const x = Math.sin(a) * d;
-      const z = Math.cos(a) * d;
+      const x = (next() * 2 - 1) * recipe.reach;
+      const z = (next() * 2 - 1) * recipe.reach;
+      if (x * x + z * z > recipe.reach * recipe.reach) continue;
       if (clear(x, z) && sample(land.road_dist, x, z) >= ROAD_CLEAR + GROUP_R && !blocked(x, z, GROUP_R) && sites.every((s) => (s.x - x) ** 2 + (s.z - z) ** 2 >= GROUP_GAP * GROUP_GAP)) site = { x, z };
     }
     if (!site) continue;
@@ -50,18 +50,16 @@ export function plan_cabins(seed: number, land: Terrain, recipe: CabinRecipe, fi
     const count = recipe.size[0] + Math.floor(next() * (recipe.size[1] - recipe.size[0] + 1));
     for (let c = 0; c < count; c++)
       for (let t = 0; t < CABIN_TRIES; t++) {
-        const a = next() * Math.PI * 2;
-        const d = c === 0 && t === 0 ? 0 : Math.sqrt(next()) * GROUP_R;
-        const x = site.x + Math.sin(a) * d;
-        const z = site.z + Math.cos(a) * d;
-        const angle = next() * Math.PI * 2;
+        const first = c === 0 && t === 0;
+        const x = site.x + (first ? 0 : (next() * 2 - 1) * GROUP_R);
+        const z = site.z + (first ? 0 : (next() * 2 - 1) * GROUP_R);
+        const { k, angle } = heading(next());
         const hw = 3 + next() * 1.4;
         const hd = 2.4 + next() * 0.8;
         const style = Math.floor(next() * STYLES);
-        const r = Math.hypot(hw, hd);
+        const r = Math.sqrt(hw * hw + hd * hd);
         if (out.blocks(x, z, r) || blocked(x, z, r)) continue;
-        const fx = Math.sin(angle);
-        const fz = Math.cos(angle);
+        const [fx, fz] = HEADINGS[k];
         let lo = Infinity;
         let hi = -Infinity;
         let open = true;
