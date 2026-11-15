@@ -21,7 +21,7 @@ const CAP_BRAKE_PER = 10;
 const SLIDE_LET_GO = 0.15;
 /** Metres the car's body keeps off the road edge when it leaves the line to pass or defend. */
 const PASS_EDGE = 1;
-const RAMP_SIDE = 1.5;
+const RAMP_SIDE = 0.5;
 /** m/s over the plan a mistake carries, and over how many road points. */
 const MISTAKE_SPEED = 3;
 const MISTAKE_SPAN = 60;

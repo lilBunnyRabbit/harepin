@@ -57,6 +57,8 @@ const DEFEND_LOOK = 40;
 const DEFEND_DROP = 5;
 /** Metres off the centre a defender takes on the inside. */
 const DEFEND_LATERAL = 2.5;
+/** Metres ahead of a kicker's run (pass room 0) a field goes single file: a challenge frame's gap fits one car. */
+const KICKER_LOOK = 60;
 /** Road points ahead the inside of the next bend is read from: where the line runs slowest. */
 const BEND_LOOK = 100;
 
@@ -155,6 +157,7 @@ export class Awareness {
     }
     driver.cap = Infinity;
     driver.push = 1;
+    const kicker = this.kicker_ahead(driver);
     if (blocker >= 0) {
       // The speed the car ahead is about to hold, not the one it has: it brakes for the bend before the follower sees it slow.
       driver.cap = this.follow(blocker, blocker_gap, blocker === this.passing[i] ? PASS_FOLLOW : FOLLOW);
@@ -165,7 +168,7 @@ export class Awareness {
     const base = line.offset[driver.index];
     const lane = Math.min(room, PASS_LANE);
     const target = this.passing[i];
-    if (target >= 0 && driver.wary > 0 && this.gap(i, target) > 0) this.passing[i] = -1;
+    if (target >= 0 && (driver.wary > 0 || kicker) && this.gap(i, target) > 0) this.passing[i] = -1;
     else if (target >= 0) {
       const gap = this.gap(i, target);
       // No room ahead on this side: still behind, it waits off the other's bumper for the line to swing back, its lane
@@ -199,7 +202,7 @@ export class Awareness {
       let bend = false;
       for (let k = 0; k < PASS_CALM && !bend; k += 4) bend = line.speed[(driver.index + k) % n] < CALM_SHARE * line.speed[driver.index] || Math.abs(line.bend[(driver.index + k) % n]) > CALM_BEND;
       // A bold driver dives into a braking zone; the rest pass only where the road stays calm.
-      if (faster && pick !== 0 && driver.wary <= 0 && (!bend || aggression > DIVE)) {
+      if (faster && pick !== 0 && driver.wary <= 0 && !kicker && (!bend || aggression > DIVE)) {
         this.passing[i] = blocker;
         this.pass_side[i] = pick;
         driver.hold = this.rel[blocker] + pick * SIDE_GAP;
@@ -216,7 +219,7 @@ export class Awareness {
       return;
     }
     driver.hold = NaN;
-    if (attacker >= 0 && blocker < 0) {
+    if (attacker >= 0 && blocker < 0 && !kicker) {
       let drop = 0;
       for (let k = 1; k < DEFEND_LOOK; k++) drop = Math.max(drop, line.speed[driver.index] - line.speed[(driver.index + k) % n]);
       if (drop > DEFEND_DROP && this.rng() < aggression) {
@@ -248,7 +251,19 @@ export class Awareness {
     if (near < 0) return;
     const away = -Math.sign(near_dl) || 1;
     driver.nudge = away * Math.min(NUDGE_MAX, IN_LANE + NUDGE_MARGIN - Math.abs(near_dl));
-    if (this.gap(i, near) > 0) driver.cap = Math.min(driver.cap, Math.max(0, this.speed[near] - YIELD));
+    const gap = this.gap(i, near);
+    if (gap > 0) driver.cap = Math.min(driver.cap, this.kicker_ahead(driver) ? this.follow(near, gap, FOLLOW) : Math.max(0, this.speed[near] - YIELD));
+  }
+
+  private kicker_ahead(driver: Driver): boolean {
+    const { line } = driver;
+    const n = line.road.length;
+    for (let k = 0, d = 0; d < KICKER_LOOK; k++) {
+      const at = (driver.index + k) % n;
+      if (line.room[at] === 0) return true;
+      d += line.step[at];
+    }
+    return false;
   }
 
   /** Speed (m/s) that closes down to `keep` metres behind car j, `gap` metres ahead, and brakes off any metre inside it. */
