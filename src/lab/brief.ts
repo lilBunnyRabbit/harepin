@@ -1,7 +1,6 @@
 import { SLOT_NAMES, SLOTS, type Mod, type Part, type Slot } from "../car/build";
 import { CLASS_LABELS } from "../car/pi";
 import { short } from "./export";
-import { TOP_PARTS } from "./cars/top-tier";
 import type { Shown } from "./blind";
 import type { Aids, Pack, Resolved } from "./pack";
 
@@ -50,7 +49,7 @@ const named = (field: string) => FIELD_LABEL[field] ?? field.replaceAll("_", " "
 
 /** Every part a mod can be, keyed by its mod: a pasted pack carries copies, so they match by value. */
 const CATALOGUE = new Map<string, [Slot, Part]>(
-  SLOT_NAMES.flatMap((slot) => [...SLOTS[slot].parts, ...(TOP_PARTS[slot] ?? [])].map((part): [string, [Slot, Part]] => [JSON.stringify(part.mod), [slot, part]])),
+  SLOT_NAMES.flatMap((slot) => SLOTS[slot].parts.map((part): [string, [Slot, Part]] => [JSON.stringify(part.mod), [slot, part]])),
 );
 
 const empty = (mod: Mod) => !Object.keys(mod.scale ?? {}).length && !Object.keys(mod.add ?? {}).length;

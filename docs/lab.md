@@ -135,9 +135,9 @@ trials: [
 ]
 ```
 
-(`src/lab/packs/demo.ts` holds these; today they rate 626 A, 647 A, 664 A, 680 A: a turbo alone does not reach S2. The real candidates, turbo curves on lab cars included, are `src/lab/cars/top-tier.ts` and the `t3` packs.) Weight reduction is `add: { mass: -n }`, wider slicks `scale: { mu, rear_grip }`, big aero `add: { downforce, drag }`.
+(`src/lab/packs/demo.ts` holds these; today they rate 626 A, 647 A, 664 A, 680 A: a turbo alone does not reach S2. The top-tier parts these led to are in `SLOTS` now, and the `t3` packs drive them by build code.) Weight reduction is `add: { mass: -n }`, wider slicks `scale: { mu, rear_grip }`, big aero `add: { downforce, drag }`.
 
-Boost curves (lead's call, for now): a turbo whose torque rises with rpm is a lab car with a hand-edited `torque` table, not a new mod field or a `CarSpec` change. A `torque` mod only scales the whole curve; a different shape needs that lab car until a turbo stage is worth landing as a car-physics task.
+Boost curves: a part's `Mod` can carry a `boost` (`src/car/boost.ts`: `peak`, `lag`, `spool` rpm) that reshapes the torque table once when the build resolves, before the torque scale folds on; the Turbo and Twin turbo use it. An inline pack's mods take only `scale` and `add`, so a new curve shape is tried as a lab car with a hand-edited `torque` table.
 
 ### Inline packs
 

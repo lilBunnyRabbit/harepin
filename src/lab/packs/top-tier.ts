@@ -1,76 +1,67 @@
-import { part_of, type Mod } from "../../car/build";
+import { build_code, DEFAULT_BUILD, type Slot } from "../../car/build";
 import { CARS, type CarId } from "../../car/cars";
 import { FUN, GRIP, NOTE, PRED, VS_BASELINE } from "../ask";
-import { CARBON_SHELL, GT_KIT, SLICKS, SUPERCHARGER, TURBO, TURBO_BOOST, TWIN_BOOST, TWIN_TURBO, turbo_car, type Boost } from "../cars/top-tier";
-import { LAB_CAR, type Goal, type LabCar, type Pack, type Question, type Trial } from "../pack";
+import type { Goal, Pack, Question, Trial } from "../pack";
 
-type Upgraded = "engine" | "tyres" | "aero" | "weight";
-type Engine = "turbo" | "twin";
+type Upgraded = Extract<Slot, "engine" | "tyres" | "aero" | "weight">;
 
 export type Tested = Extract<CarId, "sturm" | "raijin" | "kaze" | "muscle">;
-const TODAY: Record<Upgraded, number> = { engine: 2, tyres: 2, aero: 4, weight: 2 };
-const SLOTS = Object.keys(TODAY) as Upgraded[];
+const BEST_PARTS: Record<Slot, number> = { engine: 2, tyres: 2, aero: 4, suspension: 2, brakes: 2, weight: 2, bias: 1, nitro: 2 };
 
 export interface Variant {
   id: string;
-  engine?: Engine;
-  parts: Partial<Record<Upgraded, Mod>>;
+  parts: Partial<Record<Upgraded, number>>;
   question: string;
   feel: string;
 }
 
-const at = (slot: Upgraded, v: Variant) => (v.parts[slot] ? 0 : TODAY[slot]);
-const code = (car: Tested, v: Variant) => `${car}.4.0.${at("aero", v)}.2.${at("engine", v)}.0.7.${at("tyres", v)}.2.${at("weight", v)}.1.2`;
-const lab_mods = (v: Variant): Mod[] => SLOTS.map((slot) => v.parts[slot] ?? part_of(slot, TODAY[slot]).mod);
+const code = (car: CarId, v: Variant) => build_code({ ...DEFAULT_BUILD, car, paint: 4, parts: { ...BEST_PARTS, ...v.parts } });
 
 export const BEST: Variant = {
   id: "best",
   parts: {},
-  question: "How does today's best build drive? Every other trial here is felt against it.",
+  question: "How does the best build under the top tier drive? Every other trial here is felt against it.",
   feel: "the reference: note the pull out of slow corners, where the grip runs out and the top speed",
 };
 export const SC: Variant = {
   id: "sc",
-  parts: { engine: SUPERCHARGER.mod },
+  parts: { engine: 3 },
   question: "Is a supercharger's instant pull worth more than the Race engine?",
   feel: "supercharger: strong pull from idle, no wait: notice whether the rear tyres spin out of slow corners",
 };
 export const SINGLE: Variant = {
   id: "turbo",
-  engine: "turbo",
-  parts: { engine: TURBO.mod },
+  parts: { engine: 4 },
   question: "Is the turbo's late shove worth its lag?",
   feel: "turbo: soft below 3000 rpm, then a shove: notice the lag out of slow corners and how sudden the kick is",
 };
 export const TWIN: Variant = {
   id: "twin",
-  engine: "twin",
-  parts: { engine: TWIN_TURBO.mod },
+  parts: { engine: 5 },
   question: "Does the twin turbo's earlier boost make it the engine to fit?",
-  feel: "twin turbo: boost from about 2000 rpm, the hardest pull: notice where it arrives and whether it breaks traction",
+  feel: "twin turbo: boost from about 1800 rpm, the hardest pull: notice where it arrives and whether it breaks traction",
 };
 export const SLICK: Variant = {
   id: "slicks",
-  parts: { tyres: SLICKS.mod },
+  parts: { tyres: 6 },
   question: "Do slicks add grip you can use, or only a later, sharper limit?",
   feel: "slicks: more grip on tarmac: notice how much later the slide comes and whether it lets go suddenly",
 };
 export const GT: Variant = {
   id: "gt",
-  parts: { aero: GT_KIT.mod },
+  parts: { aero: 5 },
   question: "Is the GT kit's grip in fast corners worth the top speed it costs?",
   feel: "GT kit: pressed down at speed, more drag: notice the grip in fast corners and the speed lost on the straight",
 };
 export const SHELL: Variant = {
   id: "shell",
-  parts: { weight: CARBON_SHELL.mod },
+  parts: { weight: 3 },
   question: "Does a quarter less weight make it quicker, or just nervous?",
   feel: "carbon shell: a quarter lighter: notice the quicker turn-in and pull, and whether the rear gets twitchy",
 };
 export const FULL: Variant = {
   id: "top",
-  engine: "twin",
-  parts: { engine: TWIN_TURBO.mod, tyres: SLICKS.mod, aero: GT_KIT.mod, weight: CARBON_SHELL.mod },
+  parts: { engine: 5, tyres: 6, aero: 5, weight: 3 },
   question: "With every top part fitted, is it still drivable at the limit, and worth the class?",
   feel: "every top part at once: notice whether it stays drivable at the limit or is only fast in a straight line",
 };
@@ -88,20 +79,8 @@ export const STRAIGHT: Place = { id: "straight", station: "runway", lane: "aspha
 export const PINS: Place = { id: "pins", station: "hairpin", lane: "asphalt", goal: { kind: "run" }, try: "brake late into each hairpin, then full power out" };
 export const SWEEP: Place = { id: "sweep", station: "sweeper", lane: "r200", goal: { kind: "run" }, try: "the sweeper as fast as it holds the line" };
 
-const lab_key = (car: Tested, engine: Engine) => `${car}-${engine}`;
-
 function trial(car: Tested, place: Place, v: Variant, base: boolean): Trial {
-  const mods = Object.values(v.parts);
-  const drive = v.engine ? { car: `${LAB_CAR}${lab_key(car, v.engine)}`, mods: lab_mods(v) } : { car: code(car, v), mods: mods.length ? mods : undefined };
-  return { id: `${car}-${place.id}-${v.id}`, ...drive, station: place.station, lane: place.lane, goal: place.goal, try: place.try, feel: v.feel, question: v.question, ...(base ? { base: true as const } : {}) };
-}
-
-const OPEN: LabCar["parts"] = { suspension: 2, brakes: 2, bias: 1, nitro: 2 };
-const STAGES: Record<Engine, [stage: string, boost: Boost]> = { turbo: ["turbo", TURBO_BOOST], twin: ["twin turbo", TWIN_BOOST] };
-
-function lab_cars(car: Tested, variants: readonly Variant[]): Record<string, LabCar> {
-  const engines = new Set(variants.flatMap((v) => (v.engine ? [v.engine] : [])));
-  return Object.fromEntries([...engines].map((engine) => [lab_key(car, engine), { ...turbo_car(car, ...STAGES[engine]), parts: OPEN }]));
+  return { id: `${car}-${place.id}-${v.id}`, car: code(car, v), station: place.station, lane: place.lane, goal: place.goal, try: place.try, feel: v.feel, question: v.question, ...(base ? { base: true as const } : {}) };
 }
 
 const POWER: Question = { kind: "scale", id: "power", label: "Power", low: "flat", high: "more than the tyres can use" };
@@ -110,15 +89,14 @@ const BASELINE = "Each tile shows the PI and class: is the jump worth it? Leave 
 
 export type Plan = [Place, Variant[]][];
 
-/** Each place's variants in order, the first today's best so `vs` reads against the baseline. One question list for every trial: per-trial lists push a pack past an inline code's size. */
+/** Each place's variants in order, the first the best build under the top tier so `vs` reads against the baseline. One question list for every trial: per-trial lists push a pack past an inline code's size. */
 export function top_tier_pack(id: string, title: string, brief: string, car: Tested, plan: Plan): Pack {
   return {
     id,
-    rev: 1,
+    rev: 2,
     title,
-    aim: `Which top-tier parts are worth fitting to the ${CARS[car].name}? At each place today's best build goes first, then each part on its own against it.`,
+    aim: `Which top-tier parts are worth fitting to the ${CARS[car].name}? At each place the best build under the top tier goes first, then each top part on its own against it.`,
     brief: `${brief} ${BASELINE}`,
-    cars: lab_cars(car, plan.flatMap(([, variants]) => variants)),
     trials: plan.flatMap(([place, variants]) => variants.map((v, i) => trial(car, place, v, i === 0))),
     ask: [GRIP, POWER, PRED, FUN, VS_BASELINE, WORTH, NOTE],
   };
