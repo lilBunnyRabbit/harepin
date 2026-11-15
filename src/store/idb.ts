@@ -23,40 +23,66 @@ const done = <T>(request: IDBRequest<T>) =>
     request.onerror = () => reject(request.error ?? new Error("indexedDB request failed"));
   });
 
-function open(schema: IdbSchema): Promise<IDBDatabase> {
+const committed = (tx: IDBTransaction) =>
+  new Promise<void>((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error ?? new Error("indexedDB transaction failed"));
+    tx.onabort = () => reject(tx.error ?? new Error("indexedDB transaction aborted"));
+  });
+
+function open(schema: IdbSchema, closed: () => void): Promise<IDBDatabase> {
   const request = indexedDB.open(schema.name, schema.version);
   request.onupgradeneeded = () => {
     const db = request.result;
     for (const store of schema.stores) if (!db.objectStoreNames.contains(store.name)) db.createObjectStore(store.name, { keyPath: store.key });
   };
-  return done(request);
+  return new Promise<IDBDatabase>((resolve, reject) => {
+    request.onsuccess = () => {
+      const db = request.result;
+      // A newer build in another tab is upgrading: let it, rather than block it until this tab closes.
+      db.onversionchange = () => {
+        db.close();
+        closed();
+      };
+      resolve(db);
+    };
+    request.onerror = () => reject(request.error ?? new Error("indexedDB open failed"));
+    request.onblocked = () => reject(new Error(`indexedDB ${schema.name} v${schema.version} blocked by an older tab still open`));
+  });
 }
 
 /**
- * Get, put and delete over a schema's object stores, with the platform API only. The database opens on first use; every
- * call can reject (private mode, storage refused, a blocked upgrade), and the caller decides the fallback. Values read
- * back are untrusted: validate their shape.
+ * Get, put and delete over a schema's object stores, with the platform API only. The database opens on first use and
+ * again after a failed open; every call can reject (private mode, storage refused, a blocked upgrade), and the caller
+ * decides the fallback. Writes resolve once committed. Values read back are untrusted: validate their shape.
  */
 export class Idb {
   private db: Promise<IDBDatabase> | null = null;
 
   constructor(private readonly schema: IdbSchema = HAREPIN_DB) {}
 
-  private async store(name: string, mode: IDBTransactionMode): Promise<IDBObjectStore> {
-    this.db ??= open(this.schema);
+  private async tx(name: string, mode: IDBTransactionMode): Promise<IDBTransaction> {
+    this.db ??= open(this.schema, () => (this.db = null)).catch((error: unknown) => {
+      this.db = null;
+      throw error;
+    });
     const db = await this.db;
-    return db.transaction(name, mode).objectStore(name);
+    return db.transaction(name, mode);
   }
 
   async get(store: string, key: IDBValidKey): Promise<unknown> {
-    return done((await this.store(store, "readonly")).get(key));
+    return done((await this.tx(store, "readonly")).objectStore(store).get(key));
   }
 
   async put(store: string, value: unknown): Promise<void> {
-    await done((await this.store(store, "readwrite")).put(value));
+    const tx = await this.tx(store, "readwrite");
+    tx.objectStore(store).put(value);
+    await committed(tx);
   }
 
   async delete(store: string, key: IDBValidKey): Promise<void> {
-    await done((await this.store(store, "readwrite")).delete(key));
+    const tx = await this.tx(store, "readwrite");
+    tx.objectStore(store).delete(key);
+    await committed(tx);
   }
 }
