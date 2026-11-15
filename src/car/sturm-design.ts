@@ -105,6 +105,8 @@ const KIT: Kit = {
   outline: KIT_OUTLINE,
   width: 2 * KIT_HALF,
   sill: 0.1,
+  // The kit's wider tyres at full lock reach 2 mm past the stock arch cut at the sill, now the body hangs at the stock ride height.
+  arches: { ...ARCHES, gap: 0.085 },
   section: section(KIT_OUTLINE, KIT_HALF, KIT_SHOULDER, 0),
   tyre: [0.32, 0.4],
   rim: { size: 0.8, spokes: 5, tone: "metal", lip: 0.3, spoke: 0.09 },

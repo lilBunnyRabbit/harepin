@@ -284,7 +284,9 @@ test("aero parts trade top speed for downforce in table order, and the kits move
   for (const car of Object.keys(CARS) as CarId[]) {
     const specs = SLOTS.aero.parts.map((_, aero) => build_spec(with_parts({ aero }, { car })));
     for (let i = 1; i < specs.length; i++) {
-      expect(specs[i].downforce).toBeGreaterThan(specs[i - 1].downforce);
+      // The downforce cap can leave the heaviest kits level on the formula and fujin.
+      if (specs[i - 1].downforce < 12) expect(specs[i].downforce).toBeGreaterThan(specs[i - 1].downforce);
+      else expect(specs[i].downforce).toBe(specs[i - 1].downforce);
       expect(specs[i].drag).toBeGreaterThan(specs[i - 1].drag);
       expect(stats(specs[i]).top_speed).toBeLessThanOrEqual(stats(specs[i - 1]).top_speed);
     }
