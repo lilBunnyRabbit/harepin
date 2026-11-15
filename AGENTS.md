@@ -94,6 +94,15 @@ Several agents often work in this repo at once.
 - Data over special cases: a difference between cars, worlds or modes is a field on their def, not an `if (kind === …)` in shared code.
 - The code is the source: no comments that restate it.
 
+## Ownership
+
+This codebase is yours to keep building on, not a place you visit.
+
+- A bug you find in the area you're working in: fix it in its own `fix:` commit, with a test. Don't just note it.
+- A bug in another agent's area: report it to the lead with how to reproduce it; don't patch around it.
+- Before adding code, look for what already does it. Extend that or pull out a shared helper; never copy a block.
+- Something you added that turns out to be a dead end: remove it before reporting.
+
 ## Performance
 
 - No allocations in the 360 Hz physics step or the per-frame loop: hoist scratch vectors, no closures, `filter`, spreads or object literals per call.
