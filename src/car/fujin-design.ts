@@ -54,18 +54,15 @@ const WINGS: Wing[] = [
   wing([-2.16, 1.12], 0.44, 0.16, [-1.92, 1.15], [-2.54, 1.33], [RACE_FLAP, gurney(RACE_FLAP, 0.03)]),
 ];
 
+// The roof scoop grows out of the roof behind its peak, where the roof falls this much to the tail.
+const ROOF_SCOOP = 0.08;
+const ROOF_FALL = 0.1;
 const NOSE = 2.36;
 // Inside the pontoon's outer face, so the body hides all of it but the blade ahead of the nose and under the sill.
 const EDGE = 0.996;
 // A wedge under the chin: thin at its leading edge, its top face rising into the nose, its floor fading out ahead of the arch.
 const splitter = (reach: number): Slab => ({ points: [[NOSE + reach, 0.13], [NOSE + reach, 0.15], [2.34, 0.2], [1.9, 0.2], [1.9, 0.16], [2.2, 0.13]], from: 0, to: EDGE });
-// The race splitter's ends turn up into the pontoon nose.
-const FENCE: Slab = { points: [[NOSE + 0.2, 0.15], [NOSE + 0.2, 0.19], [2.33, 0.3], [2.3, 0.3], [2.3, 0.15]], from: EDGE - 0.03, to: EDGE };
-const FRONTS: Wing[] = [
-  { paint: [], trim: [], stands: [splitter(0.07)] },
-  { paint: [], trim: [], stands: [splitter(0.14)] },
-  { paint: [], trim: [], stands: [splitter(0.2), FENCE] },
-];
+const FRONTS: Wing[] = [0.07, 0.14, 0.2].map((reach) => ({ paint: [], trim: [], stands: [splitter(reach)] }));
 
 export const FUJIN_DESIGN: Design = {
   outline: [[2.3, SILL], [2.36, 0.22], [2.32, 0.3], [1.7, 0.44], [1.0, 0.58], [-1.9, 0.62], [-2.26, 0.6], [-2.3, 0.52], [-2.3, 0.3], [-2.24, SILL]],
@@ -88,12 +85,12 @@ export const FUJIN_DESIGN: Design = {
   heads: [{ size: [0.1, 0.27, 0.04], at: [0.78, 0.465, 2.22], tilt: [-0.63, 0, 0] }],
   tails: [{ size: [0.07, 0.3, 0.04], at: [0.9, 0.48, -2.345] }],
   mirror: stalk_mirror([0.76, 0.71, 0.95], "top"),
-  paint: [],
+  paint: [{ size: [0.22, ROOF_SCOOP + 0.012, 0.36], at: [0, 1.003 + ROOF_SCOOP / 2, -0.36], tilt: [-ROOF_FALL, 0, 0], shape: "wedge", one: true }],
   trim: [
     { size: [0.02, 0.2, 0.36], at: [0.995, 0.38, 0.74] },
     { size: [0.3, 0.012, 0.5], at: [0.75, 0.545, 0.0] },
     { size: [0.5, 0.2, 0.04], at: [0.25, 0.3, -2.3] },
-    { size: [0.1, 0.1, 0.3], at: [0.05, 1.05, -0.35] },
+    { size: [0.07, 0.045, 0.02], at: [0.035, 1.03 + ROOF_SCOOP / 2, -0.176], tilt: [-ROOF_FALL, 0, 0] },
   ],
   markers: [{ size: [0.1, 0.03, 0.02], at: [0.78, 0.26, 2.345], tilt: [-0.46, 0, 0] }],
   chrome: [],
