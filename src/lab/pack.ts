@@ -66,7 +66,7 @@ export interface StationTrial extends TrialCore {
 export interface RaceTrial extends TrialCore {
   /** A map code (`worldgen/kinds/map-code.ts`) of a compact world with a closed circuit and no rails. */
   map: string;
-  /** The race level the field runs; `circuit` when absent. */
+  /** The race level the field runs, on a closed route; `circuit` when absent. */
   route?: string;
   field: TrialField;
 }
@@ -89,7 +89,7 @@ export const is_race = (trial: Trial): trial is RaceTrial => "map" in trial;
 /** Metres between a race lane's path points: a chord through a hairpin then strays under a metre off the centreline. */
 const RACE_PATH_STEP = 10;
 
-/** A closed route's centreline as a lane path: farther off than the field's own off-road line counts as off. */
+/** A closed route's centreline as a lane path, back to its start: farther off than the field's own off-road line counts as off. */
 export function race_path(points: readonly { x: number; z: number }[]): NonNullable<LabLane["path"]> {
   const out: [number, number][] = [];
   let since = Infinity;
@@ -124,7 +124,7 @@ export interface StationResolved extends ResolvedCar {
   lane: LabLane;
 }
 
-/** `lane` is a bare one named after the route: the recorder measures the player's drive with no ring, gates or path. */
+/** `lane` is a bare one named after the route; the lab adds the route's centreline as its path once the race starts. */
 export interface RaceResolved extends ResolvedCar {
   trial: RaceTrial;
   station: null;

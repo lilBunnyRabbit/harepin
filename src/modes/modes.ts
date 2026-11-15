@@ -277,12 +277,12 @@ export class Modes implements CarHooks {
 
   /**
    * A lab trial's race: route `id` against `field`, whether or not free play has opened it, past the lab's closed modes.
-   * False when this map has no such race. An AI race records nothing (O9).
+   * False when this map has no such race on a closed route, the only kind a field races. An AI race records nothing (O9).
    */
   lab_race(id: string, field: FieldHost): boolean {
     const mode = this.modes.find((m) => m.def === RACE_MODE);
     const level = mode?.levels.find((l) => l.id === id);
-    if (!mode || !level) return false;
+    if (!mode || !level || !this.world.routes.find((r) => r.id === id)?.closed) return false;
     this.field_host = field;
     this.clear();
     this.car.give_back();

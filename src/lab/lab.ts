@@ -184,7 +184,7 @@ export class Lab {
       this.waiting = null;
       const line = this.host.race(waiting, (race) => (this.race = race));
       if (line) this.record(waiting, { ...waiting.lane, path: race_path(line) });
-      else this.host.toast(`Trial ${waiting.trial.id}: no race "${waiting.lane.name}" on this map`);
+      else this.host.toast(`Trial ${waiting.trial.id}: no closed route "${waiting.lane.name}" on this map`);
     }
     this.watch?.frame(this.recorder, this.host.car());
   }
