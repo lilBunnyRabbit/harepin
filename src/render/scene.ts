@@ -124,8 +124,8 @@ interface ChunkView {
   trees_shown: boolean | null;
 }
 
-/** A chunk's meshes never move once built: one world-matrix pass now, and three skips them every frame after. */
-function freeze(group: THREE.Group) {
+/** For what never moves once placed (a chunk's meshes, a gate): one world-matrix pass now, and three skips it every frame after. */
+export function freeze(group: THREE.Group) {
   group.updateMatrixWorld(true);
   group.traverse((object) => {
     object.matrixAutoUpdate = false;
