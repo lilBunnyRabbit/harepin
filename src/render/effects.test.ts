@@ -57,3 +57,30 @@ test("a wheel landing from a drop throws a burst; rolling over a crest throws no
   expect(await touchdown(4)).toBeGreaterThan(0);
   expect(await touchdown(0)).toBe(0);
 });
+
+test("wheel dust on an island beach is the beach's sand, not the turf's soil", async () => {
+  const { Smoke } = await import("./effects");
+  const { World } = await import("../world/world");
+  const { biome_at, biome_cuts } = await import("../worldgen/biomes");
+  const { ISLAND } = await import("../worldgen/recipe");
+  const { generate } = await import("../worldgen/index");
+  const { Biome } = await import("../worldgen/biomes");
+  const data = generate(0);
+  const world = new World(0, data);
+  const cuts = biome_cuts(data.terrain.seed, data.terrain.heights, ISLAND.biomes);
+  const own = (x: number, z: number) => !world.on_road(x, z) && world.surface(x, z) === 0 && world.footing(x, z) === world.own_ground && world.depth(x, z) <= 0;
+  const find = (beach: boolean) => {
+    for (let x = -1200; x < 1200; x += 7)
+      for (let z = -1200; z < 1200; z += 7) {
+        const y = world.tiles.height(x, z);
+        if (y > 0 && own(x, z) && (biome_at(cuts, x, z, y) === Biome.COAST || y < ISLAND.biomes.limits.beach) === beach) return [x, z] as const;
+      }
+    throw new Error("no point");
+  };
+  const grass = new Smoke("grass");
+  const [bx, bz] = find(true);
+  const [ix, iz] = find(false);
+  const sand = new Smoke("dust").dust_tint(world, ix, iz);
+  expect(grass.dust_tint(world, bx, bz).getHex()).toBe(sand.getHex());
+  expect(grass.dust_tint(world, ix, iz).getHex()).not.toBe(sand.getHex());
+});

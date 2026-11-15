@@ -11,6 +11,8 @@ import { FALL_DEPTH } from "../worldgen/sky";
 import { slice_tiles, TileStore, type Tile } from "../worldgen/tiles";
 import { kerb_marks, on_kerb_segment, type KerbMarks } from "./kerbs";
 import { road_junctions } from "../worldgen/road-layers";
+import { on_coast } from "../worldgen/biomes";
+import { ISLAND, type BiomeRecipe } from "../worldgen/recipe";
 import { CELL, ROAD_HALF, RouteKind, SurfaceId, type WorldKind } from "../worldgen/types";
 import { LIFT } from "../worldgen/lifts";
 import { drawn_junctions, drawn_roads, junction_lift, on_road_paint, paved_lots, paving_lift, road_lift, type DrawnJunction, type DrawnRoad, type PavedLot } from "./drawn-lift";
@@ -184,6 +186,9 @@ export class World implements Ground {
   readonly lava: readonly LavaPool[];
   /** The sea's level on a kind with ground; none on a deck-only kind. */
   private readonly sea: number;
+  /** The biome rows the terrain is painted from, as `paint` reads them; null on a kind without ground. */
+  private readonly biomes: BiomeRecipe | null;
+  private readonly ground_seed: number;
   /** `footing` in water: rewritten per query, never kept. */
   private readonly wading: Footing = { grip: 1, roll: 1, loose: 0, firm: false };
   /** The footing `grip` just read, for the `roll` the car asks of the same wheel next: one query per wheel per step. */
@@ -271,6 +276,8 @@ export class World implements Ground {
     const lava = data.ground.ops.find((op) => op.kind === "lava");
     this.lava = lava?.kind === "lava" ? lava.pools : [];
     this.sea = KINDS[data.kind].ground ? SEA_LEVEL : -Infinity;
+    this.biomes = KINDS[data.kind].ground ? (KINDS[data.kind].recipe ?? ISLAND).biomes : null;
+    this.ground_seed = data.terrain.seed;
     this.deck = data.deck && new DeckIndex(data.deck);
     this.tiles = new TileStore(extent(KINDS[data.kind].size), tiles);
     this.road = data.road;
@@ -500,6 +507,13 @@ export class World implements Ground {
     const i = Math.round((x + size / 2) / CELL);
     const j = Math.round((z + size / 2) / CELL);
     return i >= 0 && j >= 0 && i <= n && j <= n ? (this.tiles.surface(i, j) as SurfaceId) : SurfaceId.GRASS;
+  }
+
+  /** Open ground at (x, z) painted as the shore: under the beach height or in the coast biome, whose rows are sand on every kind with a coast. */
+  shore(x: number, z: number): boolean {
+    if (!this.biomes) return false;
+    const y = this.tiles.height(x, z);
+    return y < this.biomes.limits.beach || on_coast(this.ground_seed, this.biomes.zones.coast, x, z, y);
   }
 
   /** On dirt or gravel (a trail, hardpack, scree), from the footing `grip` just read: where a tyre's `grip_dirt` applies. */

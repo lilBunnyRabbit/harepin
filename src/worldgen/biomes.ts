@@ -87,9 +87,14 @@ function cut_into_bands(seed: number, scores: number[], recipe: BiomeRecipe): Bi
   return { seed, recipe, cuts };
 }
 
+/** Ground at height `y` on (x, z) lies in the coast biome; pure, so the runtime world asks it per wheel too. */
+export function on_coast(seed: number, coast: ZoneRecipe["coast"], x: number, z: number, y: number): boolean {
+  return y < coast.top + coast.wobble / 2 && y < coast_top(seed, coast, x, z);
+}
+
 export function biome_at(cuts: BiomeCuts, x: number, z: number, y: number): Biome {
-  const { coast, bands } = cuts.recipe.zones;
-  if (y < coast.top + coast.wobble / 2 && y < coast_top(cuts.seed, coast, x, z)) return Biome.COAST;
+  const { bands } = cuts.recipe.zones;
+  if (on_coast(cuts.seed, cuts.recipe.zones.coast, x, z, y)) return Biome.COAST;
   const s = score(cuts.seed, x, z, y);
   for (let k = 0; k < cuts.cuts.length; k++) if (s < cuts.cuts[k]) return bands[k];
   return bands[bands.length - 1];

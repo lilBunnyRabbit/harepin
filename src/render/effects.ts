@@ -67,7 +67,7 @@ export class Smoke {
   // Tinted halfway to the fog so tyre smoke sits in the atmosphere instead of reading as solid rock.
   private smoke = FOG.clone().lerp(color(dark ? brand.foreground : brand.background_lightest), 0.5);
   private dust = kicked(tones.dirt);
-  // Tyres tear turf down to the soil, and the beach and forest floor are this ground too.
+  // Tyres tear turf down to the soil, and the forest floor is this ground too; the shore throws sand.
   private grass = kicked(mix(tones.grass, tones.dirt, 0.5));
   private sand = kicked(tones.sand);
   private scree = kicked(tones.rock);
@@ -129,6 +129,14 @@ export class Smoke {
     this.mesh.setColorAt(i, tint);
   }
 
+  /** What a wheel off the road at (x, z) throws: its laid surface, the shore's sand, the kind's own ground, or the shoulder. */
+  dust_tint(world: World, x: number, z: number): THREE.Color {
+    const laid = world.surface(x, z);
+    if (laid !== SurfaceId.GRASS) return this.laid[laid];
+    if (world.footing(x, z) !== world.own_ground) return this.shoulder;
+    return this.ground === this.grass && world.shore(x, z) ? this.sand : this.ground;
+  }
+
   update(dt: number, car: Car, world: World) {
     const speed = car.vel.length();
     while (this.carry.length < car.wheels.length) {
@@ -162,8 +170,7 @@ export class Smoke {
         rate = Math.min(1, slide * 1.2) * SMOKE_RATE;
       } else if (!on_road && speed > 4) {
         rate = Math.min(1, speed / 25) * 12 + Math.max(0, slide) * 20;
-        const laid = world.surface(w.point.x, w.point.z);
-        tint = laid !== SurfaceId.GRASS ? this.laid[laid] : world.footing(w.point.x, w.point.z) === world.own_ground ? this.ground : this.shoulder;
+        tint = this.dust_tint(world, w.point.x, w.point.z);
         size = DUST_SIZE;
         life = DUST_LIFE;
       }
