@@ -13,11 +13,14 @@
     reward?: string | null;
     /** Shown on a locked card in place of what opens the event: a shut season's reason. */
     lock?: string | null;
+    /** Why the player's car can't race it: the card offers the garage in place of Race. */
+    car?: string | null;
+    ongarage?: () => void;
     onstart: (id: string) => void;
     onpick?: () => void;
   }
 
-  let { event, n, state, score, front, reward = null, lock = null, onstart, onpick }: Props = $props();
+  let { event, n, state, score, front, reward = null, lock = null, car = null, ongarage, onstart, onpick }: Props = $props();
 </script>
 
 <article class="sc" data-state={state} data-front={front} data-final={event.final === true}>
@@ -31,9 +34,14 @@
   <div class="sc-body">
     <h3>{event.name}</h3>
     {#if reward}<span class="sc-reward"><Icon name="icon-car" />{reward}</span>{/if}
-    {#if front}<p>{KIND_RULES[event.kind]}</p>{/if}
+    {#if front && !(car && state !== "locked")}<p>{KIND_RULES[event.kind]}</p>{/if}
     {#if state === "locked"}
       <span class="sc-lock"><Icon name="icon-lock" />{lock ?? lock_line(event)}</span>
+    {:else if front && car}
+      <p class="sc-car"><Icon name="icon-car" />{car}</p>
+      <div class="sc-act">
+        <button type="button" class="sc-go" tabindex="-1" onclick={() => ongarage?.()}><Icon name="icon-car" />Change car</button>
+      </div>
     {:else if front}
       <div class="sc-act">
         {#if score}<span class="sc-pts">{score.points} pts</span>{/if}
@@ -177,6 +185,23 @@
     white-space: nowrap;
   }
 
+  .sc-car {
+    --icon-size: 1.1em;
+    display: flex;
+    align-items: start;
+    gap: var(--space-2);
+    color: var(--warning);
+    font-weight: 700;
+    text-shadow:
+      0 0 2px var(--background-darkest),
+      0 1px 8px var(--background-darkest);
+  }
+
+  .sc-car :global(svg) {
+    flex: none;
+    margin-top: 0.1em;
+  }
+
   .sc-lock,
   .sc-act {
     display: flex;
@@ -219,7 +244,7 @@
   }
 
   @container (max-height: 14rem) {
-    p {
+    p:not(.sc-car) {
       display: none;
     }
   }

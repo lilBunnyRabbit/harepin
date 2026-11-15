@@ -4,7 +4,7 @@
   import type { WalletState } from "../career/wallet";
   import { MenuTab } from "./page";
   import SeriesFlow from "./SeriesFlow.svelte";
-  import { season_lock, type SeasonTab } from "./series-view";
+  import { car_note, season_lock, type SeasonTab } from "./series-view";
   import type { PageProps } from "./ui/svelte-page.svelte";
 
   let { menu, live }: PageProps = $props();
@@ -24,6 +24,7 @@
   const states = $derived<EventState[]>(season && progress ? (lock ? season.events.map(() => "locked") : event_states(season, progress)) : []);
   const done = $derived(season && progress ? season_done(season, progress) : false);
   const wallet = $derived<WalletState | null>(live.live(() => (ready ? series.wallet.state : null)));
+  const car = $derived(live.live(() => (season && wallet ? car_note(season, menu.host.garage.build, wallet.cars) : null)));
 
   function reset() {
     series?.reset();
@@ -32,5 +33,5 @@
 </script>
 
 {#if season && progress && wallet}
-  <SeriesFlow {season} {progress} {states} {table} {done} {wallet} {seasons} {at} {lock} onseason={(i: number) => (picked = i)} onstart={(id: string) => menu.host.start_series(id)} onback={() => menu.show(MenuTab.PLAY)} onreset={reset} />
+  <SeriesFlow {season} {progress} {states} {table} {done} {wallet} {seasons} {at} {lock} {car} ongarage={() => menu.show(MenuTab.GARAGE)} onseason={(i: number) => (picked = i)} onstart={(id: string) => menu.host.start_series(id)} onback={() => menu.show(MenuTab.PLAY)} onreset={reset} />
 {/if}

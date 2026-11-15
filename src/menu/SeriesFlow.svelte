@@ -4,7 +4,7 @@
   import SeriesHead from "./SeriesHead.svelte";
   import SeriesSeasons from "./SeriesSeasons.svelte";
   import SeriesStandings from "./SeriesStandings.svelte";
-  import { cap_line, event_score, next_event, place_text, reward_line, round_line, step_focus, type SeriesView } from "./series-view";
+  import { event_score, next_event, place_text, reward_line, round_line, step_focus, terms_line, type SeriesView } from "./series-view";
   import { swipe } from "./series-swipe";
   import Icon from "./ui/Icon.svelte";
 
@@ -12,7 +12,7 @@
     snapTargetInline: Element | null;
   }
 
-  let { season, progress, states, table, done, wallet, onstart, onback, onreset, seasons, at, onseason, lock }: SeriesView = $props();
+  let { season, progress, states, table, done, wallet, onstart, onback, onreset, seasons, at, onseason, lock, car, ongarage }: SeriesView = $props();
 
   const round = $derived(round_line(progress));
 
@@ -28,7 +28,9 @@
 
   function start_front() {
     const event = season.events[focus];
-    if (event && states[focus] !== "locked") onstart(event.id);
+    if (!event || states[focus] === "locked") return;
+    if (car) ongarage();
+    else onstart(event.id);
   }
 
   $effect(() => {
@@ -69,21 +71,20 @@
 <div class="fl" data-series>
   <SeriesHead {season} {progress} {table} credits={wallet.credits} {onback}>
     {#snippet title()}<SeriesSeasons {seasons} {at} {onseason} />{/snippet}
-    <span class="fl-tag">{cap_line(season)}</span>
-    {#if round}<span class="fl-tag">{round}</span>{/if}
+    {terms_line(season)}{#if round} · {round}{/if}
   </SeriesHead>
 
   <div class="fl-stage">
     <!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions, a11y_click_events_have_key_events: the strip is the pad's focus stop; its cards' buttons are click targets only -->
     <ol class="fl-strip" aria-label="Events" tabindex="0" data-adjust bind:this={strip} use:swipe={step} onclick={pressed} onkeydown={key}>
       {#each season.events as event, i (event.id)}
-        <li data-i={i}>
+        <li data-i={i} style:z-index={last - Math.abs(i - focus)}>
           <div class="fl-card">
-            <SeriesCard {event} n={i + 1} state={states[i]} score={event_score(season, progress, event)} front={i === focus} reward={event.final ? reward_line(season, wallet, progress) : null} {lock} {onstart} onpick={() => show(i)} />
+            <SeriesCard {event} n={i + 1} state={states[i]} score={event_score(season, progress, event)} front={i === focus} reward={event.final ? reward_line(season, wallet, progress) : null} {lock} {car} {ongarage} {onstart} onpick={() => show(i)} />
           </div>
         </li>
       {/each}
-      <li data-i={last}>
+      <li data-i={last} style:z-index={last - Math.abs(last - focus)}>
         <div class="fl-card fl-table" data-front={focus === last}>
           <h3>Standings</h3>
           <SeriesStandings {table} />
@@ -118,16 +119,6 @@
     gap: var(--space-3);
     height: 100%;
     min-height: 20rem;
-  }
-
-  .fl-tag {
-    padding: var(--space-1) var(--space-3);
-    border: 1px solid var(--set-line);
-    border-radius: var(--radius-full);
-    color: var(--set-dim);
-    font-size: var(--text-sm);
-    font-weight: 600;
-    white-space: nowrap;
   }
 
   .fl-stage {
@@ -170,6 +161,7 @@
   }
 
   .fl-card {
+    position: relative;
     flex: none;
     width: var(--w);
     aspect-ratio: 4 / 5;
@@ -178,31 +170,48 @@
     animation-timeline: --card;
   }
 
-  @keyframes flow {
-    0% {
-      z-index: 1;
-      transform: perspective(160cqh) translateX(-30%) rotateY(-42deg) scale(0.72);
-      filter: brightness(0.6);
+  /* Transform and opacity only, so the flow runs on the compositor while the scene renders behind: an animated
+     z-index or filter puts every card back on the main thread each scroll frame. Stacking follows focus instead. */
+  .fl-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: var(--radius-lg);
+    background: var(--background-darkest);
+    pointer-events: none;
+    animation: shade linear both;
+    animation-timeline: --card;
+  }
+
+  @keyframes shade {
+    0%,
+    100% {
+      opacity: 0.45;
     }
-    40% {
-      z-index: 5;
-      transform: perspective(160cqh) translateX(-8%) rotateY(-30deg) scale(0.8);
-      filter: brightness(0.75);
+    40%,
+    60% {
+      opacity: 0.3;
     }
     50% {
-      z-index: 10;
+      opacity: 0;
+    }
+  }
+
+  @keyframes flow {
+    0% {
+      transform: perspective(160cqh) translateX(-30%) rotateY(-42deg) scale(0.72);
+    }
+    40% {
+      transform: perspective(160cqh) translateX(-8%) rotateY(-30deg) scale(0.8);
+    }
+    50% {
       transform: none;
-      filter: none;
     }
     60% {
-      z-index: 5;
       transform: perspective(160cqh) translateX(8%) rotateY(30deg) scale(0.8);
-      filter: brightness(0.75);
     }
     100% {
-      z-index: 1;
       transform: perspective(160cqh) translateX(30%) rotateY(42deg) scale(0.72);
-      filter: brightness(0.6);
     }
   }
 

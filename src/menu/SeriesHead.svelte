@@ -3,7 +3,7 @@
   import { ordinal, type Season, type SeriesProgress, type Standing } from "../career/series";
   import { credits_text } from "../career/wallet";
   import SeriesBack from "./SeriesBack.svelte";
-  import { duel_line, rival_gap } from "./series-view";
+  import { duel_text, rival_gap } from "./series-view";
 
   interface Props {
     season: Season;
@@ -28,35 +28,50 @@
   <SeriesBack {onback} />
   <div class="sh-title">
     {#if title}{@render title()}{:else}<h2>{season.name} series</h2>{/if}
-    {@render children?.()}
+    {#if children}<p class="sh-terms">{@render children()}</p>{/if}
   </div>
-  <div class="sh-me">
-    <b>{ran ? ordinal(rank) : "–"}</b>
-    <span>{me?.points ?? 0} pts</span>
-    {#if duel}<span class="sh-rival">{duel_line(duel.rival, duel.gap)}</span>{/if}
-    <span class="sh-cr" aria-label={`${credits_text(credits)} credits`}>{credits_text(credits)}</span>
-  </div>
+  <dl class="sh-stats" aria-label="Your season">
+    <div>
+      <dt>Place</dt>
+      <dd>{ran ? ordinal(rank) : "–"}</dd>
+    </div>
+    <div>
+      <dt>Points</dt>
+      <dd>{me?.points ?? 0}</dd>
+    </div>
+    {#if duel}
+      <div class="sh-rival">
+        <dt>Rival {duel.rival.name}</dt>
+        <dd>{duel_text(duel.gap)}</dd>
+      </div>
+    {/if}
+    <div>
+      <dt>Credits</dt>
+      <dd>{credits_text(credits)}</dd>
+    </div>
+  </dl>
 </header>
 
 <style>
   .sh {
     position: relative;
     z-index: 200;
-    display: flex;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     justify-self: center;
+    align-items: start;
+    gap: var(--space-6);
     width: min(100%, 80rem);
-    align-items: center;
-    gap: var(--space-4);
-    min-width: 0;
   }
 
+  /* The title sits straight on the live sky, which can be as light as the dim text. */
   .sh-title {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-2) var(--space-4);
+    display: grid;
+    gap: var(--space-1);
     min-width: 0;
-    margin-right: auto;
+    text-shadow:
+      0 0 2px var(--background-darkest),
+      0 1px 12px var(--background-darkest);
   }
 
   h2 {
@@ -67,40 +82,79 @@
     white-space: nowrap;
   }
 
-  .sh-me {
-    display: flex;
-    flex: none;
-    align-items: baseline;
-    gap: var(--space-2);
-    padding: var(--space-2) var(--space-4);
-    border: 1px solid var(--set-line);
-    border-radius: var(--radius-full);
-    background: var(--surface);
-    white-space: nowrap;
-  }
-
-  .sh-me b {
-    font-size: var(--text-xl);
-  }
-
-  .sh-cr {
-    padding-left: var(--space-2);
-    border-left: 1px solid var(--set-line);
-    font-weight: 800;
-  }
-
-  .sh-rival {
-    color: var(--warning);
+  .sh-terms {
+    margin: 0;
+    color: var(--set-dim);
+    font-size: var(--text-md);
     font-weight: 600;
   }
 
+  .sh-stats {
+    display: flex;
+    margin: 0;
+    padding: var(--space-2) 0;
+    border: 1px solid var(--set-line);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+  }
+
+  .sh-stats div {
+    display: grid;
+    gap: var(--space-0);
+    padding: 0 var(--space-4);
+  }
+
+  .sh-stats div + div {
+    border-left: 1px solid var(--set-line);
+  }
+
+  dt {
+    color: var(--set-dim);
+    font-size: var(--text-xs);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  dd {
+    margin: 0;
+    font-size: var(--text-xl);
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
+  .sh-rival dt {
+    color: var(--warning);
+  }
+
   @media (max-height: 500px) {
+    .sh {
+      gap: var(--space-4);
+    }
+
     h2 {
       font-size: var(--text-xl);
     }
 
-    .sh-me {
-      padding: var(--space-1) var(--space-3);
+    .sh-terms {
+      font-size: var(--text-xs);
+    }
+
+    .sh-stats {
+      padding: var(--space-1) 0;
+    }
+
+    .sh-stats div {
+      padding: 0 var(--space-3);
+    }
+
+    dt {
+      font-size: var(--text-2xs);
+    }
+
+    dd {
+      font-size: var(--text-lg);
     }
   }
 </style>

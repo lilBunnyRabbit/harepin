@@ -2,16 +2,17 @@ import "../../scripts/fake-dom";
 import { existsSync } from "node:fs";
 import { expect, test } from "bun:test";
 import { render } from "svelte/server";
-import { empty_progress, event_states, player_of, standings, type SeriesProgress } from "../career/series";
+import { DEFAULT_BUILD, DEFAULT_PARTS, type Build } from "../car/build";
+import { car_fault, empty_progress, event_states, player_of, standings, type SeriesProgress } from "../career/series";
 import { SEASON_1, SEASON_4, SEASONS } from "../career/series-seasons";
-import { season_lock } from "./series-view";
-import { fresh_wallet } from "../career/wallet";
+import { car_note, season_lock } from "./series-view";
+import { BASE_CAR, fresh_wallet } from "../career/wallet";
 import SeriesEvents from "./SeriesEvents.svelte";
 import SeriesFlow from "./SeriesFlow.svelte";
 import SeriesTable from "./SeriesTable.svelte";
 
 const season = SEASON_1;
-const switcher = { seasons: SEASONS.map((s, i) => ({ name: s.name, open: i < 2, done: i === 0 })), at: 0, onseason: () => {}, lock: null };
+const switcher = { seasons: SEASONS.map((s, i) => ({ name: s.name, open: i < 2, done: i === 0 })), at: 0, onseason: () => {}, lock: null, car: null, ongarage: () => {} };
 const won: SeriesProgress = { season: season.id, round: 0, results: { [season.events[0].id]: { order: [player_of(season), 0, 1, 2, 3, 4, 5], bonus: [] } } };
 
 test("a fresh series offers three races and locks the rest", () => {
@@ -70,7 +71,7 @@ test("the switcher names the season shown and steps either way; a shut season lo
   const out = render(SeriesFlow, { props }).body;
   expect(out).toContain("Mainland series");
   expect(out).toContain("Previous season");
-  expect(out.match(/data-state="done"/g)?.length).toBe(1);
+  expect(out).toContain("Season 4 of 4");
   expect(out.match(/Finish the Dunes series to open/g)?.length).toBe(SEASON_4.events.length);
   expect(out).not.toContain("sc-go");
   expect(out).not.toContain("Start over");
@@ -78,4 +79,17 @@ test("the switcher names the season shown and steps either way; a shut season lo
 
 test("every season's events have their card art", () => {
   for (const season of SEASONS) for (const event of season.events) expect(existsSync(new URL(`../../public/series/${event.id}.webp`, import.meta.url))).toBe(true);
+});
+
+test("a car the series won't take says why on the front card and offers the garage in place of Race", () => {
+  const stock: Build = { ...DEFAULT_BUILD, parts: { ...DEFAULT_PARTS } };
+  const tuned: Build = { ...stock, parts: { ...stock.parts, engine: 3, tyres: 3, aero: 3, weight: 3 } };
+  for (const build of [stock, tuned, { ...stock, car: "coupe" as const }]) expect(car_note(season, build, [BASE_CAR]) === null).toBe(car_fault(season, build, [BASE_CAR]) === null);
+  const progress = empty_progress(season);
+  const car = car_note(season, tuned, [BASE_CAR]);
+  const props = { season, progress, states: event_states(season, progress), table: standings(season, progress), done: false, wallet: fresh_wallet(), onstart: () => {}, onback: () => {}, onreset: () => {}, ...switcher, car, ongarage: () => {} };
+  const out = render(SeriesFlow, { props }).body;
+  expect(out).toContain("This series takes C or below.");
+  expect(out).toContain("Change car");
+  expect(out).not.toContain("Race</button>");
 });
