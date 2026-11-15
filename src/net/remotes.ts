@@ -38,6 +38,10 @@ interface RemoteView {
   lift_sets: [number[], number[]];
   /** This frame's lifts, eased between the two snapshots'. */
   lifts: number[];
+  /** What the label was last given, so an unmoved label writes nothing: shown, and its spot in CSS px. */
+  shown: boolean | null;
+  at_x: number;
+  at_y: number;
 }
 
 const ABOVE = 2.2;
@@ -106,6 +110,8 @@ export class Remotes {
   private p1 = new THREE.Vector3();
   private screen = new THREE.Vector3();
   private forward = new THREE.Vector3();
+  private width = 0;
+  private height = 0;
 
   constructor(
     private scene: THREE.Scene,
@@ -128,6 +134,9 @@ export class Remotes {
   }
 
   update(dt: number, camera: THREE.Camera, me: THREE.Vector3) {
+    // Read once before any label is written: a viewport read after a style write forces a layout, once per remote.
+    this.width = innerWidth;
+    this.height = innerHeight;
     for (const remote of this.net.remotes.values()) this.draw(remote, dt, camera, me);
     for (const [id, rv] of this.views)
       if (!this.net.remotes.has(id)) {
@@ -196,7 +205,7 @@ export class Remotes {
       const shadow = contact_shadow();
       fit_contact_shadow(shadow, spec);
       this.scene.add(shadow.mesh);
-      rv = { code, built: now, spec, view, materials, shadow, label, name, tier: null, tag: "", above: ABOVE * oversize(spec).height, spin: 0, heading: 0, lift_snaps: [null, null], lift_sets: [[], []], lifts: [] };
+      rv = { code, built: now, spec, view, materials, shadow, label, name, tier: null, tag: "", above: ABOVE * oversize(spec).height, spin: 0, heading: 0, lift_snaps: [null, null], lift_sets: [[], []], lifts: [], shown: null, at_x: NaN, at_y: NaN };
       this.views.set(remote.id, rv);
     }
     const root = rv.view.root;
@@ -245,7 +254,10 @@ export class Remotes {
     this.screen.y += rv.above;
     this.screen.project(camera);
     const visible = this.screen.z < 1 && root.position.distanceTo(camera.position) < 400;
-    rv.label.style.display = visible ? "" : "none";
+    if (visible !== rv.shown) {
+      rv.shown = visible;
+      rv.label.style.display = visible ? "" : "none";
+    }
     if (visible) {
       const name = this.net.display_name(remote);
       set_text(rv.name, name);
@@ -267,7 +279,13 @@ export class Remotes {
           rv.label.style.setProperty("--weave", look.weave);
         } else delete rv.label.dataset.weave;
       }
-      rv.label.style.transform = `translate(${((this.screen.x + 1) / 2) * innerWidth}px, ${((1 - this.screen.y) / 2) * innerHeight}px) translate(-50%, -100%)`;
+      const x = ((this.screen.x + 1) / 2) * this.width;
+      const y = ((1 - this.screen.y) / 2) * this.height;
+      if (x !== rv.at_x || y !== rv.at_y) {
+        rv.at_x = x;
+        rv.at_y = y;
+        rv.label.style.transform = `translate(${x}px, ${y}px) translate(-50%, -100%)`;
+      }
     }
   }
 }
