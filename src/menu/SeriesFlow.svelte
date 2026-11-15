@@ -79,14 +79,15 @@
 <style>
   .fl {
     display: grid;
+    overflow: clip;
     grid-template-rows: auto minmax(0, 1fr) auto;
     gap: var(--space-3);
     height: 100%;
+    min-height: 20rem;
   }
 
   .fl-stage {
     min-height: 0;
-    margin-inline: calc(50% - 50vw);
     container-type: size;
   }
 

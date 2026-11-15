@@ -124,9 +124,9 @@ body:has(> .settings[data-view="page"][data-layout="stage"]:not([hidden])) > :is
   height: 100%;
 }
 
-/* Stage cards swing past the page box onto the scene. */
-.settings[data-layout="stage"] .settings-body {
-  overflow: visible;
+/* Stage cards spread over the whole scene, not the 1280px page column. */
+.settings[data-view="page"][data-layout="stage"] .settings-panel {
+  max-width: none;
 }
 
 .menu-top {

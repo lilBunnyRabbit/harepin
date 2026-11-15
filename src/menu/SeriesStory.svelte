@@ -48,9 +48,11 @@
 <style>
   .st {
     display: grid;
+    overflow: clip;
     grid-template-rows: auto auto minmax(0, 1fr) auto;
     gap: var(--space-3);
     height: 100%;
+    min-height: 20rem;
   }
 
   .st-segs {
@@ -109,7 +111,7 @@
   .st-stage {
     position: relative;
     min-height: 0;
-    margin: 0 calc(50% - 50vw);
+    margin: 0;
     padding: 0;
     list-style: none;
     container-type: size;

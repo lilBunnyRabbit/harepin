@@ -34,9 +34,11 @@
 <style>
   .hd {
     display: grid;
+    overflow: clip;
     grid-template-rows: auto auto minmax(0, 1fr);
     gap: var(--space-3);
     height: 100%;
+    min-height: 20rem;
   }
 
   .hd-table {
@@ -65,7 +67,7 @@
   .hd-fan {
     position: relative;
     min-height: 0;
-    margin: 0 0 calc(-1 * var(--inset-bottom));
+    margin: 0;
     padding: 0;
     list-style: none;
     container-type: size;

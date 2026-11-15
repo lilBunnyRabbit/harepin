@@ -41,9 +41,11 @@
 <style>
   .ah {
     display: grid;
+    overflow: clip;
     grid-template-rows: auto minmax(0, 1fr);
     gap: var(--space-3);
     height: 100%;
+    min-height: 20rem;
   }
 
   .ah-pips {
