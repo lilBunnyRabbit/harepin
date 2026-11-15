@@ -1,11 +1,13 @@
 import * as THREE from "three";
 import { build_spec, type Build } from "../car/build";
+import { Car } from "../car/car";
+import { TELEPORT_SQ } from "../car/driver";
 import { far_view } from "../car/far-view";
 import { build_view, dispose_car_view, sync_car_view, type CarView } from "../car/models";
 import type { Sim } from "../sim/sim-client";
 import type { World } from "../world/world";
-import { RouteKind } from "../worldgen/types";
-import { personalities } from "./field";
+import { RouteKind, type Route } from "../worldgen/types";
+import { grid_spot, personalities } from "./field";
 
 /** `?field=<cars>`: an AI field laps the circuit in free drive, for measuring the sim with AI before race mode has one. */
 export const FIELD_PARAM = "field";
@@ -33,16 +35,28 @@ export class FieldView {
   private readonly fars: THREE.Mesh[] = [];
   private readonly far: boolean[] = [];
   private readonly retired: boolean[] = [];
+  /** Each car parked on its grid slot as the field will park it: drawn until the sim's field has stepped, so the grid shows at once. */
+  private readonly grid: Car[];
   private seen = -1;
 
   constructor(
     private readonly scene: THREE.Scene,
     private readonly sim: Sim,
     builds: readonly Build[],
+    route: Route,
+    world: World,
+    /** The rival's grid slot: the cars stand on the others, as `Field` parks them. */
+    rival_slot = builds.length,
   ) {
-    for (let i = 0; i < sim.field_cars.length; i++) {
-      const view = build_view(builds[i], sim.field_cars[i].spec);
-      const far = far_view(view, sim.field_cars[i].spec);
+    this.grid = builds.map((build, k) => {
+      const car = new Car(build_spec(build));
+      const spot = grid_spot(route, k < rival_slot ? k : k + 1);
+      car.park(spot.x, spot.z, spot.heading, world);
+      return car;
+    });
+    for (let i = 0; i < builds.length; i++) {
+      const view = build_view(builds[i], this.grid[i].spec);
+      const far = far_view(view, this.grid[i].spec);
       far.visible = false;
       this.views.push(view);
       this.fars.push(far);
@@ -60,12 +74,15 @@ export class FieldView {
     await world.tiles.ensure(route.points[0].x, route.points[0].z);
     world.place(route.closure);
     const spec = build_spec(build);
+    const view = new FieldView(scene, sim, Array.from({ length: count }, () => build), route, world);
     sim.send({ type: "field", route: route.id, specs: Array.from({ length: count }, () => spec), traits: personalities(world.seed, count), seed: world.seed });
-    return new FieldView(scene, sim, Array.from({ length: count }, () => build));
+    return view;
   }
 
   update(camera: THREE.Camera) {
-    const cars = this.sim.field_cars;
+    // Before its first step the sim's field stands where the grid cars do, or (a worker's mirrors) nowhere yet.
+    const live = this.sim.field_cars.length === this.grid.length && Number.isFinite(this.sim.field_progress[0]);
+    const cars = live ? this.sim.field_cars : this.grid;
     const from = this.sim.field_from;
     const blend = this.sim.blend;
     view_projection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
@@ -84,8 +101,10 @@ export class FieldView {
       }
       // Drawn between its last two steps at the frame's blend, as the player's car is: drawn on the last step, a car
       // moves a whole number of steps a frame (2 or 3 at 144 Hz) and judders against the player's.
-      drawn_pos.lerpVectors(from[i].pos, car.pos, blend);
-      drawn_quat.slerpQuaternions(from[i].quat, car.quat, blend);
+      // A car put back on the road (a reset) is drawn where it lands, not slid there from where it was.
+      const k = live && from[i].pos.distanceToSquared(car.pos) < TELEPORT_SQ ? blend : 1;
+      drawn_pos.lerpVectors(live ? from[i].pos : car.pos, car.pos, k);
+      drawn_quat.slerpQuaternions(live ? from[i].quat : car.quat, car.quat, k);
       if (far) {
         const mesh = this.fars[i];
         mesh.position.copy(drawn_pos);

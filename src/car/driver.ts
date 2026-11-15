@@ -23,7 +23,7 @@ const SAFE_UPRIGHT = 0.8;
 /** A safe spot this near the circuit counts as on it, for the lap's checkpoint rule. */
 const ON_CIRCUIT = ROAD_HALF * 2;
 // Farther than a step can move: the car was placed (reset, mode restart), so drawing it does not slide from the old spot.
-const TELEPORT_SQ = 1;
+export const TELEPORT_SQ = 1;
 
 export class Driver {
   view: CarView;

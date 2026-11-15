@@ -46,7 +46,9 @@ export class AiRace implements ModeRun, FieldRace {
   private readonly builds: Build[];
   private readonly names: string[];
   private run: RaceRun;
-  private field: FieldView | null = null;
+  /** Built with the race, so the grid stands full on its first frame; the sim's field starts on the first update. */
+  private readonly field: FieldView;
+  private started = false;
   private standings: Standings;
   private wall = 0;
   private lap = 1;
@@ -89,6 +91,7 @@ export class AiRace implements ModeRun, FieldRace {
     this.route = { id: route.id, gate: this.run.gate, later: this.later(0), respawn: course.line[0] };
     const spot = grid_spot(route, this.grid);
     ctx.spawn(spot.x, spot.z, spot.heading);
+    this.field = new FieldView(ctx.scene, host.sim, this.builds, route, ctx.world, this.grid);
     host.attach?.(this);
   }
 
@@ -114,7 +117,7 @@ export class AiRace implements ModeRun, FieldRace {
     const { world } = this.ctx;
     const count = this.builds.length;
     this.host.sim.send({ type: "field", route: route.id, specs: this.builds.map(build_spec), traits: at_difficulty(field_personalities(world.seed, this.host.cars.slice(0, count)), this.host.difficulty()), seed: world.seed, laps: this.laps, drive_rival: this.host.autopilot, grid: this.grid });
-    this.field = new FieldView(this.ctx.scene, this.host.sim, this.builds);
+    this.started = true;
     this.touches = this.host.sim.field_touches;
   }
 
@@ -126,7 +129,7 @@ export class AiRace implements ModeRun, FieldRace {
   }
 
   update(sim_dt: number, car: Driven): string | null {
-    if (!this.field) this.start_field();
+    if (!this.started) this.start_field();
     const { run, view, ctx } = this;
     const now = performance.now();
     const wall = this.wall ? now - this.wall : 0;
@@ -135,7 +138,7 @@ export class AiRace implements ModeRun, FieldRace {
     const taken = run.update(run.countdown > 0 ? wall : sim_dt * 1000, car.pos.x, car.pos.z);
     if (this.go_at < 0 && run.status !== RaceStatus.READY) this.go_at = now;
     this.lights.update(run.countdown, this.go_at < 0 ? -1 : now - this.go_at);
-    this.field?.update(ctx.camera);
+    this.field.update(ctx.camera);
     view.update(sim_dt);
     const player = this.builds.length;
     this.t = this.result ? this.t + sim_dt : (this.banked + run.elapsed()) / 1000;
@@ -187,7 +190,7 @@ export class AiRace implements ModeRun, FieldRace {
     const out = this.tally.update(this.t, this.host.sim.field_progress, this.standings.order);
     if (out >= 0 && out !== player) {
       this.host.sim.send({ type: "field_retire", car: out });
-      this.field?.retire(out);
+      this.field.retire(out);
     }
     if (out === player || (event?.knockout && this.tally.left() === 1)) this.finish(End.OUT);
     else if (event?.limit_ms && this.t * 1000 >= event.limit_ms) this.finish(End.TIME);
@@ -312,7 +315,7 @@ export class AiRace implements ModeRun, FieldRace {
 
   dispose() {
     this.host.attach?.(null);
-    this.field?.dispose();
+    this.field.dispose();
     this.lights.hide();
     this.unplace();
     this.view.dispose();
