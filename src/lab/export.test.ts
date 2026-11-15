@@ -24,10 +24,10 @@ const metrics: Metrics = { time: 70.123, laps: [21.84, 22.41], segment: nan, lat
 
 test("the export block reads like docs/lab.md says", () => {
   const trials = resolve_pack(pack);
-  const block = export_block(pack, trials, [{ status: "done", metrics }, { status: "new", metrics: null }], { pad: { note: "slides early,\n catches fine", pred: 4, grip: 2 } }, "0.41.1", { input: "touch", width: 390, height: 844 }, new Date("2026-11-14T20:12:30Z"));
+  const block = export_block(pack, trials, [{ status: "done", metrics }, { status: "new", metrics: null }], { pad: { note: "slides early,\n catches fine", pred: 4, grip: 2 } }, "0.41.1", { input: "touch", width: 390, height: 844 }, new Date("2026-11-14T20:12:30Z"), [{ tcs: true, assist: false, stability: false, steer_mode: "smooth", abs: true }, null]);
   const lines = block.split("\n");
   expect(lines[0]).toBe("#lab t1 r3 v0.41.1 2026-11-14T20:12Z touch 390x844");
-  expect(lines[1]).toBe(`#trial pad hatch.4.0.2.1.0 +mu*0.95 +offroad-0.15 +mass+10 spec#${trials[0].hash} pi${trials[0].pi}${trials[0].class.toUpperCase()} skidpad/ice laps3 done`);
+  expect(lines[1]).toBe(`#trial pad hatch.4.0.2.1.0 +mu*0.95 +offroad-0.15 +mass+10 spec#${trials[0].hash} pi${trials[0].pi}${trials[0].class.toUpperCase()} skidpad/ice laps3 done tcs=on assist=off stability=off steer=smooth`);
   expect(lines[2]).toBe(" m time=70.1 lap=21.8,22.4 latg=0.314/0.27 ring=38.2 slip=19.4/11.2 held=14.2 chain=6.1 spins=0 rec=0.84 top=44.4 spin=0.12/1.43 air=0 bounce=0 offs=1 resets=0 lock=0.22 thr=0.81 hb=0.04 rev=0.31");
   expect(lines[3]).toBe(" a grip=2 pred=4");
   expect(lines[4]).toBe(' n "slides early, catches fine"');

@@ -635,6 +635,7 @@ if (lab_id !== null)
           apply_car_settings({ ...settings.state, ...aids });
           input.touch.show_nitro(driver.car.nitro.fitted);
         },
+        aids: () => settings.state,
         place: async (spot, current) => {
           await driver.arrive(spot.x, spot.z);
           if (current()) driver.park(spot.x, spot.z, spot.heading);
