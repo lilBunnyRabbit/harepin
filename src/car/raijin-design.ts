@@ -64,18 +64,19 @@ const KIT_TAIL = tail_of(KIT_OUTLINE, WIDER);
 
 const DECK = 1.105;
 const HALF = WIDTH / 2;
-// Risers fill the deck's outer 5 cm, their outer face running on up from the shoulder crease; they start behind the fold
-// where the tail pinch begins, so each keeps one flat face.
+// Risers fill the deck's outer 5 cm and stand square to the car, as wide as the body is at their rear foot: the tail
+// pinches under them, so the front foot stands just inside the deck edge and the rear foot on it.
 const INNER = HALF - 0.05;
 const FOOT = -2.06;
-const slab_of = (points: Point[], from: number, to: number): Slab => ({ points, from, to });
+const slab_of = (points: Point[], from: number, to: number, straight?: number): Slab => ({ points, from, to, straight });
+const BOOT_HEEL = -2.39;
 // The saloon's own boot wing: a plane between two pedestals grown out of the deck corners, which wrap its ends.
 const BOOT = plane([-2.29, 1.26], 0.24, 0.045, 0.06);
 const TALL = plane([-2.3, 1.33], 0.27, 0.045, 0.1);
 const boot_wing = (profile: Point[], kick: number): Wing => ({
   paint: [],
   trim: [],
-  lips: [slab_of(profile, 0, INNER), slab_of(hoop(profile, [FOOT, DECK], [-2.39, DECK]), INNER, HALF), ...(kick > 0 ? [slab_of(gurney(profile, kick), 0, HALF)] : [])],
+  lips: [slab_of(profile, 0, INNER, BOOT_HEEL), slab_of(hoop(profile, [FOOT, DECK], [BOOT_HEEL, DECK]), INNER, HALF, BOOT_HEEL), ...(kick > 0 ? [slab_of(gurney(profile, kick), 0, HALF, BOOT_HEEL)] : [])],
 });
 // Past that a trim plane between two painted risers: each a leg standing on the deck corner that widens into the
 // plane's endplate, one outline.
@@ -89,8 +90,8 @@ function riser(profile: Point[], above: number, below: number, foot: number): Po
 const swept_wing = (profile: Point[], above: number, below: number, foot: number): Wing => ({
   paint: [],
   trim: [],
-  lips: [slab_of(riser(profile, above, below, foot), INNER, HALF)],
-  stands: [slab_of(profile, 0, INNER), slab_of(gurney(profile, 0.025), 0, INNER)],
+  lips: [slab_of(riser(profile, above, below, foot), INNER, HALF, FOOT - foot)],
+  stands: [slab_of(profile, 0, INNER, FOOT - foot), slab_of(gurney(profile, 0.025), 0, INNER, FOOT - foot)],
 });
 const WINGS: Wing[] = [boot_wing(BOOT, 0), boot_wing(TALL, 0.03), swept_wing(GT, 0.04, 0.07, 0.14), swept_wing(RACE, 0.06, 0.1, 0.16)];
 
