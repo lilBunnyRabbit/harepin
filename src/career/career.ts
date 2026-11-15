@@ -22,6 +22,8 @@ export interface CareerEvent {
   /** The map it belongs on; `stand_in` runs it until that map can host the mode. */
   readonly map: string;
   readonly car: { cap: CarClass } | { preset: string };
+  /** The route leaves tarmac: the bot fields that set its marks fit no road tyre (sport, semi-slick, slicks). */
+  readonly off_tarmac?: true;
   /** `world_key` of the map it runs on now: `career.test.ts` fails when a generator bump moves it, until re-tuned. */
   readonly tuned: string;
   /** Ms (drift: points, higher is better). Race: bot runs on `tuned` (`scripts/career.ts`); the rest: the owner's run (`owner_stars`). Without them the mode's own marks grade the run. */
@@ -106,7 +108,7 @@ export const TIERS: readonly Tier[] = [
       { id: "p4", name: "Island sweep", mode: "hunt", level: "h5", map: "1C0000008", car: { cap: "s1" }, tuned: "8:w11", stars: { two: 246871, three: 197497 } },
       { id: "p5", name: "Ice parallel", mode: "parking", level: "p7", map: "1T0000006", car: { preset: "Dirt rally" }, tuned: "6:t3", stars: { two: 21066, three: 16853 } },
       { id: "p6", name: "Precision", mode: "gymkhana", level: "g7", map: "1C0000009-W1", car: { cap: "s2" }, tuned: "9:w11:W1", stars: { two: 55608, three: 44486 } },
-      { id: "p7", name: "Riverbed", mode: "race", level: "descent", map: "1F0000001", car: { cap: "s1" }, tuned: "1:ic5", stars: { two: 111875, three: 89500 }, ghost: true, final: true },
+      { id: "p7", name: "Riverbed", mode: "race", level: "descent", map: "1F0000001", car: { cap: "s1" }, off_tarmac: true, tuned: "1:ic5", stars: { two: 68750, three: 55000 }, ghost: true, final: true },
     ],
   },
   {
@@ -140,7 +142,7 @@ export const TIERS: readonly Tier[] = [
           { mode: "duel", level: "v3", stars: { two: 89625, three: 71700 } },
         ],
       },
-      { id: "e12", name: "Dune crossing", mode: "race", level: "crossing", map: "1B0000004", car: { cap: "x" }, tuned: "4:bd16", stars: { two: 230125, three: 184100 }, ghost: true, final: true },
+      { id: "e12", name: "Dune crossing", mode: "race", level: "crossing", map: "1B0000004", car: { cap: "x" }, off_tarmac: true, tuned: "4:bd16", stars: { two: 185750, three: 148600 }, ghost: true, final: true },
     ],
   },
   {
