@@ -78,6 +78,10 @@ const jobs = Math.max(1, Number(arg("--jobs", String(Math.max(1, Math.floor(avai
 const path = `${DIR}/${run}.json`;
 const WORKER = new URL("./ai-tune/worker.ts", import.meta.url);
 
+const hash = (values: Values) => Bun.hash(JSON.stringify(whole(values))).toString(36);
+/** The defaults' races are keyed by their values, so a change to src/ai/tuning.ts never reuses stale ones. */
+const BASE = `base-${hash(defaults())}`;
+
 const to_unit = (values: Values) => PARAMS.map((p) => (values[p.name] - p.lo) / (p.hi - p.lo));
 const from_unit = (x: readonly number[]): Values => whole(Object.fromEntries(PARAMS.map((p, i) => [p.name, p.lo + (p.hi - p.lo) * x[i]])));
 
@@ -87,6 +91,7 @@ function load(): State {
   if (!existsSync(path)) return { version: STATE_VERSION, config, cma: cma_init(to_unit(base), config.sigma), auto: {}, done: {}, base: null, gens: [] };
   const state = JSON.parse(readFileSync(path, "utf8")) as State;
   if (state.version !== STATE_VERSION) throw new Error(`${path} is version ${state.version}, expected ${STATE_VERSION}`);
+  if (state.base && hash(state.base.values) !== hash(base)) throw new Error(`${path} was started on other defaults (src/ai/tuning.ts changed); start a new --run`);
   if (JSON.stringify(state.config) !== JSON.stringify(config)) throw new Error(`${path} was started with ${JSON.stringify(state.config)}; pass the same options or a new --run`);
   return state;
 }
@@ -153,15 +158,15 @@ function score_rows(columns: [string, Score][]) {
 if (process.argv.includes("--eval")) {
   const file = arg("--eval", "");
   const values = whole(file === "default" ? defaults() : { ...defaults(), ...(JSON.parse(readFileSync(file, "utf8")) as { values: Values }).values });
-  const entry = { key: file === "default" ? "base" : `eval-${Bun.hash(JSON.stringify(values)).toString(36)}`, values };
-  const [b] = await evaluate([{ key: "base", values: defaults() }, entry], config.seeds);
+  const entry = { key: file === "default" ? BASE : `eval-${hash(values)}`, values };
+  const [b] = await evaluate([{ key: BASE, values: defaults() }, entry], config.seeds);
   const [s] = await evaluate([entry], config.seeds, b.passes);
   score_rows([["defaults", b], [file, s]]);
   process.exit(0);
 }
 
 if (!state.base) {
-  const [s] = await evaluate([{ key: "base", values: defaults() }], config.seeds);
+  const [s] = await evaluate([{ key: BASE, values: defaults() }], config.seeds);
   state.base = { values: defaults(), score: s };
   save();
 }
@@ -193,7 +198,7 @@ console.log("");
 const columns: [string, Score][] = [["defaults (train)", base.score], ["best (train)", best.score]];
 if (check.length) {
   const best_entry = { key: `check-g${state.gens.length}`, values: best.values };
-  const [base_check] = await evaluate([{ key: "check-base", values: base.values }, best_entry], check);
+  const [base_check] = await evaluate([{ key: `check-${BASE}`, values: base.values }, best_entry], check);
   const [best_check] = await evaluate([best_entry], check, base_check.passes);
   columns.push(["defaults (check)", base_check], ["best (check)", best_check]);
 }
