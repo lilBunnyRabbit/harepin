@@ -1,0 +1,47 @@
+#lab ai-field r1 v0.46.2 2026-11-15T12:09Z keys 2514x1348
+#trial start coupe.4.0.0.1.0 spec#a7f3f03f pi538B 1C0000004/circuit field=6x3/3:normal time60 stopped tcs=on assist=off stability=off steer=smooth abs=on auto=on
+ m time=42.2 slip=11.9/10.7 held=0.244 chain=0.244 spins=0 lag=0.392 0-100=6.46 top=151 spin=0.129/1.45 air=0 bounce=0 offs=2 resets=0 lock=0.37 thr=0.592 hb=0 rev=0.284 yawover=0.32 pwr=11.9 lift=2.97 trail=5.58 xslip=8.8
+ f P1 you racing +0
+ f P2 "Raijin 2" racing +0.9 spins=0 resets=0 hits=2 hard=7.4 pass=0
+ f P3 "Rally 3" racing +1.2 spins=0 resets=0 hits=0 hard=0 pass=0
+ f P4 "Raijin 5" racing +1.6 spins=0 resets=0 hits=0 hard=0 pass=0
+ f P5 "Muscle 4" racing +1.8 spins=0 resets=0 hits=2 hard=4.6 pass=0
+ f P6 "Muscle 8" racing +2.2 spins=0 resets=0 hits=0 hard=0 pass=0
+ f P7 "Rally 6" racing +3.1 spins=0 resets=0 hits=0 hard=0 pass=0
+ a fair=5 aggr=2 real=3 pace=1
+#trial overtakes coupe.4.0.0.1.0 spec#a7f3f03f pi538B 1C0000004/circuit field=6x5/3:normal race stopped tcs=on assist=off stability=off steer=smooth abs=on auto=on
+ m time=32.9 slip=8.1/- held=0 chain=0 spins=0 lag=1.09 0-100=6.81 top=129 spin=0.0821/2.3 air=0 bounce=0 offs=0 resets=0 lock=0.282 thr=0.446 hb=0 rev=0.212 yawover=0.0069 pwr=4.01 lift=2.71 trail=0.956 xslip=3.15
+ f P1 "Raijin 2" racing +0 spins=0 resets=0 hits=0 hard=0 pass=0
+ f P2 "Raijin 5" racing +0.3 spins=0 resets=0 hits=1 hard=1 pass=0
+ f P3 "Rally 3" racing +0.5 spins=0 resets=0 hits=0 hard=0 pass=0
+ f P4 "Muscle 4" racing +0.8 spins=0 resets=0 hits=1 hard=1 pass=0
+ f P5 you racing +1.8
+ f P6 "Muscle 8" racing +2.3 spins=0 resets=0 hits=1 hard=1.7 pass=0
+ f P7 "Rally 6" racing +2.6 spins=0 resets=0 hits=1 hard=1.7 pass=0
+ n "Way better. starts are good, they pass eachother. still way too easy for me"
+#trial defending coupe.4.0.0.1.0 spec#a7f3f03f pi538B 1C0000004/circuit field=6x4/2:easy time180 stopped tcs=on assist=off stability=off steer=smooth abs=on auto=on
+ m time=40.1 slip=48.2/32.7 held=2.8 chain=2.24 spins=0 lag=0.319 rec=2.29 0-100=6.54 top=154 spin=0.0813/1.47 air=0 bounce=0 offs=2 resets=0 lock=0.297 thr=0.568 hb=0 rev=0.299 yawover=0.154 pwr=48.2 lift=48.2 trail=2.7 entry=0.328 xslip=43.1
+ f P1 "Raijin 2" racing +0 spins=0 resets=0 hits=0 hard=0 pass=0
+ f P2 you racing +0.4
+ f P3 "Muscle 4" racing +1.8 spins=0 resets=0 hits=3 hard=2.4 pass=1
+ f P4 "Rally 3" racing +2.1 spins=0 resets=0 hits=3 hard=2.4 pass=0
+ f P5 "Raijin 5" racing +2.3 spins=0 resets=0 hits=2 hard=3.6 pass=0
+ f P6 "Muscle 8" racing +2.5 spins=0 resets=0 hits=1 hard=1.5 pass=0
+ f P7 "Rally 6" racing +4.2 spins=0 resets=0 hits=0 hard=0 pass=0
+ n "They are way more agressive with holding the line"
+#trial mixed coupe.4.0.0.1.0 spec#a7f3f03f pi538B 1C0000004/circuit field=6x1/1,2/4,3/3,4/2,5/5,5/1:normal race stopped tcs=on assist=off stability=off steer=smooth abs=on auto=on
+ m time=34.9 slip=8.65/- held=0 chain=0 spins=0 lag=0.329 0-100=6.48 top=140 spin=0.091/1.65 air=0 bounce=0 offs=0 resets=0 lock=0.429 thr=0.552 hb=0 rev=0.516 yawover=0.234 pwr=8.65 lift=4.44 trail=5.74 xslip=3.56
+ f P1 "Raijin 2" racing +0 spins=0 resets=0 hits=0 hard=0 pass=0
+ f P2 you racing +2
+ f P3 "Rally 3" racing +2.1 spins=0 resets=0 hits=1 hard=2.6 pass=0
+ f P4 "Raijin 5" racing +2.2 spins=0 resets=0 hits=2 hard=3.2 pass=0
+ f P5 "Muscle 4" racing +2.4 spins=0 resets=0 hits=1 hard=0.9 pass=0
+ f P6 "Muscle 8" racing +2.5 spins=0 resets=0 hits=4 hard=3 pass=0
+ f P7 "Rally 6" racing +3.7 spins=0 resets=0 hits=1 hard=1 pass=0
+ n "You can def see characteristics. random thing i noticed is rubberbanding on ai cars - not much but you can see them twitching sometimes"
+#end 4/4 trials
+
+
+----
+
+The race wasnt hard. but wasnt stupid easy so thats a +. and the rubberbanding on ai cars i think its mostly for cars behind me that are still in my visual since they are close to me
