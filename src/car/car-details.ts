@@ -59,11 +59,13 @@ const muscle_pipe = (x: number, y: number) => ({
 });
 const MUSCLE_PIPE = muscle_pipe(muscle.width / 2 + 0.01, 0.245);
 const MUSCLE_KIT_PIPE = muscle_pipe(1.11, 0.155);
-// Slats across the whole rear screen, laid flatter than the glass so each overlaps the next; their ends butt into a rail at each side.
+// Slats across the whole rear screen, laid a little flatter than the glass so each overlaps the next; their ends butt into
+// a rail at each side that stands taller than any slat edge, so no slat end shows past it.
 const LOUVRE_HALF = 0.6;
+const LOUVRE_RAIL: [number, number] = [0.08, 0.04];
 const LOUVRE_SLATS = [0.1, 0.28, 0.46, 0.64, 0.82].map((share): Part => {
   const band = screen_band(muscle.cabin, 2, share - 0.1, share + 0.1, LOUVRE_HALF);
-  return { ...band, size: [LOUVRE_HALF - 0.03, 0.022, 0.15], at: [(LOUVRE_HALF - 0.03) / 2, band.at[1] + 0.02, band.at[2]], tilt: [(band.tilt?.[0] ?? 0) * 0.35, 0, 0] };
+  return { ...band, size: [LOUVRE_HALF - 0.03, 0.022, 0.15], at: [(LOUVRE_HALF - 0.03) / 2, band.at[1], band.at[2]], tilt: [(band.tilt?.[0] ?? 0) * 0.6, 0, 0] };
 });
 // The race engine's scoop: taller and narrower than the stock one, on the same spot.
 const SHAKER = 0.2;
@@ -80,7 +82,7 @@ const MUSCLE: Detail[] = [
   {
     on: "street",
     cue: "Rear window louvres",
-    louvres: [...LOUVRE_SLATS, screen_bar(muscle.cabin, 2, [LOUVRE_HALF, 0.03], [LOUVRE_HALF, 0.97], 0.06, 0.06)],
+    louvres: [...LOUVRE_SLATS, screen_bar(muscle.cabin, 2, [LOUVRE_HALF, 0.03], [LOUVRE_HALF, 0.97], 0.06, ...LOUVRE_RAIL)],
   },
   {
     on: "race_engine",
@@ -137,7 +139,8 @@ const TSUMUJI: Detail[] = [
 const STURM: Detail[] = [
   { on: "street", cue: "Banner across the top of the windscreen", banner: [screen_band(sturm.cabin, 0, 0.7, 0.98, 0.6)] },
   { on: "tuned", cue: "Oil cooler in the front bumper", bright: [centred(0.5, 0.1, 0.02, 0.3, 2.302)] },
-  { on: "race", cue: "Short diffuser strakes under the tail valance, in place of the long plate", trim: [0.2, 0.52].map((x): Part => ({ size: [0.02, 0.1, 0.26], at: [x, 0.125, -1.8], tilt: [0.2, 0, 0] })), swaps: ["diffuser"] },
+  // Each strake is full depth at the tail and runs out to nothing ahead under the valance: square ones read as planks.
+  { on: "race", cue: "Short diffuser strakes under the tail valance, in place of the long plate", trim: [0.2, 0.52].map((x): Part => ({ size: [0.025, 0.1, 0.26], at: [x, 0.125, -1.8], tilt: [Math.PI + 0.2, 0, 0], shape: "wedge" })), swaps: ["diffuser"] },
 ];
 
 const raijin_tail = tail_at(raijin.outline, 0.47);
