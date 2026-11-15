@@ -128,10 +128,10 @@ A trial with `map` in place of `station` runs a free-play race against an AI fie
 | Field | Meaning |
 |---|---|
 | `map` | the world the race runs on. A world loads once a page, so a trial on another map (or a station trial after a race) reloads onto it with `&map=<code>&trial=<n>` beside `?lab`; answers and numbers are in the tab's storage and come back. A map that does not load says so and does not reload again |
-| `field.cars` | 1-6 AI cars, pole first, each on the owner's 1-5 `aggression` and `mistakes` levels (H5, H6: `field_personalities` in `src/ai/field.ts`); the player starts last. The cars are presets of the trial car's class (`ai/field-pick.ts`) |
+| `field.cars` | 1-6 AI cars, pole first, each on the owner's 1-5 `aggression` and `mistakes` levels (H5, H6: `field_personalities` in `src/ai/field.ts`); the player starts last. The cars are presets of the trial car's class as it drives, mods and lab cars included (`ai/field-pick.ts`) |
 | `field.difficulty` | `easy` / `normal` / `hard`, as the player's setting scales the field (O5, `src/ai/difficulty.ts`); normal when absent |
 
-The race is the game's own (`modes/ai-race.ts`: lights, position and gap on the run card), started past free play's unlock order and the lab's closed modes (`Modes.lab_race`); nothing is recorded and no goals or career markers show. The recorder measures the player's drive with no lane: time, top speed, offs, resets lead the card. When the trial ends (the race finished, the time up, or Stop) the field's order is kept and the race closes; the results card lists it, the player highlighted.
+The race is the game's own (`modes/ai-race.ts`: lights, position and gap on the run card), started past free play's unlock order and the lab's closed modes (`Modes.lab_race`); nothing is recorded and no goals or career markers show. The recorder measures the player's drive on the route: its lane path is the centreline every 10 m (`race_path` in `src/lab/pack.ts`), and past `OFF_ROAD` (7 m, the field's own off-road line) counts as off. Time, top speed, offs and resets lead the card. When the trial ends (the race finished, the time up, or Stop) the field's order is kept and the race closes; the results card lists it, the player highlighted.
 
 ### Lab cars (unreleased cars and parts)
 

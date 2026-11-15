@@ -1,4 +1,5 @@
 import type { Difficulty } from "../ai/difficulty";
+import { OFF_ROAD } from "../ai/driver";
 import type { FieldCar } from "../ai/field";
 import { apply_mods, build_mods, DEFAULT_BUILD, DEFAULT_PARTS, parse_build, type Build, type Mod, type Slot } from "../car/build";
 import { CARS, type BodyStyle, type CarSpec } from "../car/cars";
@@ -84,6 +85,23 @@ export const FIELD_MAX = 6;
 export const RACE_ROUTE = "circuit";
 
 export const is_race = (trial: Trial): trial is RaceTrial => "map" in trial;
+
+/** Metres between a race lane's path points: a chord through a hairpin then strays under a metre off the centreline. */
+const RACE_PATH_STEP = 10;
+
+/** A closed route's centreline as a lane path: farther off than the field's own off-road line counts as off. */
+export function race_path(points: readonly { x: number; z: number }[]): NonNullable<LabLane["path"]> {
+  const out: [number, number][] = [];
+  let since = Infinity;
+  for (let i = 0; i < points.length; i++) {
+    if (i > 0) since += Math.hypot(points[i].x - points[i - 1].x, points[i].z - points[i - 1].z);
+    if (since < RACE_PATH_STEP) continue;
+    out.push([points[i].x, points[i].z]);
+    since = 0;
+  }
+  out.push([points[0].x, points[0].z]);
+  return { points: out, half: OFF_ROAD };
+}
 
 /** `race`: the whole race, until the player crosses the line; a race trial's other goal is `time`. */
 export type Goal = { kind: "laps"; laps: number } | { kind: "time"; seconds: number } | { kind: "stop"; from_kmh: number } | { kind: "run" } | { kind: "free" } | { kind: "race" };

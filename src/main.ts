@@ -82,6 +82,7 @@ import { DT, FrameKind, SimHost, type FrameRequest } from "./sim/sim-host";
 import { WorldJournal } from "./world/world-journal";
 import { AI_CARS, AI_CARS_PARAM, AI_DRIVE_PARAM, AI_RACE_PARAM, FieldView } from "./ai/field-view";
 import { LEVEL_3 } from "./ai/field";
+import { rating } from "./car/pi";
 import { WorldKind } from "./worldgen/types";
 import { Difficulty } from "./ai/difficulty";
 import "./style.css";
@@ -455,7 +456,7 @@ hud.run_route = () => modes.route;
 hud.in_run = () => modes.active;
 if (ai_race) {
   const cars = Math.max(1, Math.min(AI_CARS, Math.trunc(Number(params.get(AI_CARS_PARAM))) || AI_CARS));
-  modes.field_host = { sim, build: () => garage.build, autopilot: params.has(AI_DRIVE_PARAM), cars: Array.from({ length: cars }, () => LEVEL_3), difficulty: () => settings.state.ai_difficulty };
+  modes.field_host = { sim, build: () => garage.build, rating: () => rating(garage.build), autopilot: params.has(AI_DRIVE_PARAM), cars: Array.from({ length: cars }, () => LEVEL_3), difficulty: () => settings.state.ai_difficulty };
 }
 modes.start();
 updater.start();
@@ -673,7 +674,10 @@ if (lab_id !== null)
           const read = parse_map_code(code);
           return read.ok && map_code(read.map) === map_code(built);
         },
-        race: (r, attach) => modes.lab_race(r.lane.name, { sim, build: () => r.build, autopilot: false, cars: r.trial.field.cars, difficulty: () => r.trial.field.difficulty ?? Difficulty.NORMAL, attach }),
+        race: (r, attach) => {
+          const host = { sim, build: () => r.build, rating: () => ({ class: r.class, pi: r.pi }), autopilot: false, cars: r.trial.field.cars, difficulty: () => r.trial.field.difficulty ?? Difficulty.NORMAL, attach };
+          return modes.lab_race(r.lane.name, host) ? (world.routes.find((route) => route.id === r.lane.name)?.points ?? null) : null;
+        },
         field_stats: () => (sim instanceof LocalSim ? (sim.host.field?.racers.map((racer) => racer.stats) ?? []) : []),
         end_race: () => modes.exit(),
       }),

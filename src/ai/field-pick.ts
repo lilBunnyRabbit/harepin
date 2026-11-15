@@ -1,15 +1,17 @@
 import { MAX_PAINT, parse_build, type Build } from "../car/build";
 import { within } from "../car/car-pick";
 import { PRESETS } from "../car/presets";
-import { rating } from "../car/pi";
+import { rating, type Rating } from "../car/pi";
 
 /** Coprime with the paint count, so it visits every paint once while grid neighbours land far apart in hue. */
 const PAINT_STRIDE = 5;
 const FIRST_NUMBER = 2;
 
-/** O6: a class holds one to three presets, so they cycle; a paint and number of its own keeps a repeat from looking alike. */
-export function field_builds(player: Build, count: number, excludes: readonly string[] = []): Build[] {
-  const own = rating(player);
+/**
+ * O6: a class holds one to three presets, so they cycle; a paint and number of its own keeps a repeat from looking alike.
+ * `own` is the player's car as it drives: a lab trial's mods or lab car can move it off its build's class.
+ */
+export function field_builds(player: Build, own: Rating, count: number, excludes: readonly string[] = []): Build[] {
   const presets = PRESETS.flatMap((preset) => {
     const build = parse_build(preset.code);
     if (!build || excludes.includes(build.car)) return [];

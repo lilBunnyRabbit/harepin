@@ -2,6 +2,7 @@ import type * as THREE from "three";
 import type { Difficulty } from "../ai/difficulty";
 import type { FieldCar } from "../ai/field";
 import type { Build } from "../car/build";
+import type { Rating } from "../car/pi";
 import type { CarSpec } from "../car/cars";
 import type { Sim } from "../sim/sim-client";
 import type { World } from "../world/world";
@@ -47,6 +48,8 @@ export interface Finish {
 export interface FieldHost {
   readonly sim: Sim;
   build(): Build;
+  /** The player's car as it drives, which the field's class follows. */
+  rating(): Rating;
   /** The field drives the player's car too: a dev autopilot for shots and frame-time runs. */
   readonly autopilot: boolean;
   /** One per AI car on the grid, pole first: F3's six, fewer for a frame-time baseline, any mix in a lab trial. */

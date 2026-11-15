@@ -5,7 +5,7 @@ import { CARS } from "../car/cars";
 import { LAB_STATIONS } from "../worldgen/lab";
 import { budget, MAX_SECONDS, MAX_TRIALS, over_budget } from "./budget";
 import { parse_map_code } from "../worldgen/kinds/map-code";
-import { is_race, LAB_CAR, resolve_pack, resolve_trial, type Pack, type RaceTrial } from "./pack";
+import { is_race, LAB_CAR, race_path, resolve_pack, resolve_trial, type Pack, type RaceTrial } from "./pack";
 import { pack_code, read_code, read_pack } from "./pack-code";
 import { PACKS } from "./packs";
 
@@ -90,6 +90,14 @@ describe("resolve", () => {
     expect(r.station).toBeNull();
     expect(r.lane.name).toBe("circuit");
     expect(resolve_trial(pack, { ...race, route: "circuit-rev" }).lane.name).toBe("circuit-rev");
+  });
+
+  test("a race lane's path thins the route to about 10 m and closes the loop", () => {
+    const ring = Array.from({ length: 400 }, (_, i) => ({ x: 100 * Math.cos((i / 400) * 2 * Math.PI), z: 100 * Math.sin((i / 400) * 2 * Math.PI) }));
+    const path = race_path(ring);
+    expect(path.points.length).toBeGreaterThan(55);
+    expect(path.points.length).toBeLessThan(70);
+    expect(path.points[path.points.length - 1]).toEqual(path.points[0]);
   });
 
   test("every station has a lane", () => {

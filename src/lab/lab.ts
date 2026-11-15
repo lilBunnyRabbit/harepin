@@ -12,7 +12,7 @@ import { shown_trials, type Shown } from "./blind";
 import { export_block, type Answers, type Device } from "./export";
 import { field_rows, type FieldRow } from "./field-rows";
 import { INLINE, read_code } from "./pack-code";
-import { resolve_pack, type Aids, type Pack, type Question, type RaceResolved, type Resolved } from "./pack";
+import { race_path, resolve_pack, type Aids, type Pack, type Question, type RaceResolved, type Resolved } from "./pack";
 import { PACKS } from "./packs";
 import { show_overlay } from "./lab-view.svelte";
 import { Recorder, type Metrics } from "./recorder";
@@ -29,8 +29,8 @@ export interface LabHost {
   toast(text: string): void;
   /** Whether the world loaded is `map` (a map code), or the lab world for null. */
   on_map(map: string | null): boolean;
-  /** Starts race trial `r` with the player last on the grid; false when this map has no such race. */
-  race(r: RaceResolved, attach: (race: FieldRace | null) => void): boolean;
+  /** Starts race trial `r` with the player last on the grid: its route's centreline, null when this map has no such race. */
+  race(r: RaceResolved, attach: (race: FieldRace | null) => void): readonly { x: number; z: number }[] | null;
   /** Each AI car's own counts; empty while the sim worker keeps them. */
   field_stats(): readonly RacerStats[];
   /** The race's cars leave and its card closes. */
@@ -157,8 +157,8 @@ export class Lab {
     this.record(r);
   }
 
-  private record(r: Resolved) {
-    this.recorder = new Recorder(r.lane, r.trial.goal);
+  private record(r: Resolved, lane = r.lane) {
+    this.recorder = new Recorder(lane, r.trial.goal);
     this.recorder.placed(this.host.car());
     this.watch?.changed();
     const index = this.index;
@@ -182,7 +182,8 @@ export class Lab {
     const waiting = this.waiting;
     if (waiting && !modal_open()) {
       this.waiting = null;
-      if (this.host.race(waiting, (race) => (this.race = race))) this.record(waiting);
+      const line = this.host.race(waiting, (race) => (this.race = race));
+      if (line) this.record(waiting, { ...waiting.lane, path: race_path(line) });
       else this.host.toast(`Trial ${waiting.trial.id}: no race "${waiting.lane.name}" on this map`);
     }
     this.watch?.frame(this.recorder, this.host.car());

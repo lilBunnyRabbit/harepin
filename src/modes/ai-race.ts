@@ -63,7 +63,7 @@ export class AiRace implements ModeRun, FieldRace {
     ctx.scene.add(this.view.root);
     this.unplace = ctx.world.place(route.closure);
     this.laps = Math.max(1, Math.min(MAX_LAPS, Math.round(RACE_MS / route.par_ms)));
-    this.builds = field_builds(host.build(), host.cars.length, route.excludes);
+    this.builds = field_builds(host.build(), host.rating(), host.cars.length, route.excludes);
     this.names = [...this.builds.map((b) => `${CARS[b.car].name} ${b.number}`), PLAYER];
     this.run = this.grid_run();
     this.standings = new Standings(this.builds.length + 1, route.points.length, this.laps, this.builds.length);
