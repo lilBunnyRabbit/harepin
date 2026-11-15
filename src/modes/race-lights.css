@@ -30,3 +30,10 @@
 #race-lights i[data-on="green"] {
   background: var(--success);
 }
+
+/* A short screen stacks the run line and the goal toast in the top centre: the lights hang under both. */
+@media (max-height: 500px) {
+  #race-lights {
+    top: calc(var(--inset-top) + 36vh);
+  }
+}
