@@ -288,13 +288,14 @@ test("a mainland town lines its main street with paved terraces, and most towns 
 });
 
 for (const seed of sweep(3))
-  test(`mainland ${seed}: the town circuit laps one town's main street and lane, laid road wide, its finish on the start line`, () => {
+  test(`mainland ${seed}: the town circuit laps one town's main street and lane, laid road wide round its square, its finish on the start line`, () => {
     const { data } = plan_mainland(seed);
     const lap = data.routes.find((r) => r.id === "town");
     if (!lap) throw new Error("no town circuit");
     expect(lap.closed).toBe(true);
     const town = data.towns.find((t) => Math.hypot(t.x - lap.points[0].x, t.z - lap.points[0].z) <= t.radius);
     if (!town) throw new Error("town circuit starts outside a town");
+    expect(data.lots.some((l) => l.kind === "plaza" && l.town === town.id)).toBe(true);
     for (const p of lap.points) expect(Math.hypot(p.x - town.x, p.z - town.z)).toBeLessThanOrEqual(town.radius + 1);
     const off_main = (p: { x: number; z: number }) => Math.abs((p.x - town.x) * town.uz - (p.z - town.z) * town.ux);
     expect(off_main(lap.points[0])).toBeLessThan(1);

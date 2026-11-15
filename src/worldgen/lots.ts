@@ -417,11 +417,12 @@ export class Lots {
   }
 
   /** A market square opening off the main street beside the centre crossing, its clock tower at the back and stalls along the street; a town with no room for one goes without. */
-  square(town: Town) {
+  /** `half`: the widest street of the town, the margin the square keeps off every street round its block. */
+  square(town: Town, half: number) {
     const vx = -town.uz;
     const vz = town.ux;
     // A lane's margin too is a street's: the circuit may run along it, drawn wider than the lane.
-    const margin = STREET_HALF + SIDEWALK + 1.5;
+    const margin = Math.max(half, STREET_HALF) + SIDEWALK + 1.5;
     const deep = (town.cross ?? town.block) - 2 * margin;
     for (const cut of [0, 6, 12])
       for (const [si, sj] of [
