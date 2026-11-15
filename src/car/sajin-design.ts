@@ -112,9 +112,9 @@ const wing = (y: number, chord: number, half: number, plates: boolean): Wing => 
     stands: plates ? [{ points: endplate(profile, 0.12, 0.03), from: half, to: half + 0.025 }] : [],
   };
 };
-// The planes sit high enough that from behind, up to 14 degrees above the deck and swung out to either side, neither
-// plane nor endplate crosses the spare: the wing is nearer the eye, so it drops onto the spare as the view rises.
-const WINGS: Wing[] = [{ paint: [], trim: [] }, { paint: [], trim: [], lips: [{ points: ROOF_LIP, from: 0, to: 0.44 }] }, wing(1.78, 0.42, 0.52, false), wing(1.88, 0.5, 0.56, true)];
+// The planes sit high enough that from behind, at any distance up to 10 degrees above the spare's top and swung out to
+// either side, neither plane nor endplate crosses the spare: the wing is nearer the eye, so it drops onto it as the view rises.
+const WINGS: Wing[] = [{ paint: [], trim: [] }, { paint: [], trim: [], lips: [{ points: ROOF_LIP, from: 0, to: 0.44 }] }, wing(1.8, 0.42, 0.52, false), wing(1.88, 0.5, 0.56, true)];
 
 const HOOP: Part[] = [tube([0.17, 0.56, 2.06], [0.17, 0.56, 2.27], 0.06), on_nose({ size: [0.2, 0.06, 0.06], at: [0.1, 0.56, 2.27] })];
 const FRONTS: Wing[] = [
