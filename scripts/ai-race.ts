@@ -15,10 +15,10 @@ const SOLO_SLACK = 0.05;
 // bun scripts/ai-race.ts field [seeds|all] [car] [count] [laps] [aggression] [mistakes] [difficulty]: a field of AI cars on each circuit. Fails
 // when a car is stuck, a race's contacts per lap fall outside CONTACT_BAND, or the finish order follows the grid. Aggression
 // and mistakes are the owner's 1-5 levels, 3 by default; difficulty is the player's setting, normal by default.
-const CONTACT_BAND = [0, 8] as const;
+export const CONTACT_BAND = [0, 8] as const;
 /** Share of races that may finish in grid order, and the highest mean grid-to-finish rank correlation allowed. */
 const GRID_KEPT_MAX = 0.2;
-const RHO_MAX = 0.7;
+export const RHO_MAX = 0.7;
 
 interface Solo {
   t: number;
@@ -76,9 +76,9 @@ function run_solo(seeds: readonly number[], spec: CarSpec) {
 }
 
 /** Seconds a field race may take per lap of the line's plan before a car still out counts as stuck. */
-const FIELD_SLACK = 1.6;
+export const FIELD_SLACK = 1.6;
 
-function spearman(order: readonly number[]): number {
+export function spearman(order: readonly number[]): number {
   const n = order.length;
   let d2 = 0;
   order.forEach((slot, place) => (d2 += (slot - place) ** 2));
