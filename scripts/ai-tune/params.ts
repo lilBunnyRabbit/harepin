@@ -37,7 +37,7 @@ export const defaults = (): Values => Object.fromEntries(PARAMS.map((p) => [p.na
 
 /** Writes `values` over the tuning object; a name not in PARAMS is an error, so a stale run file cannot pass silently. */
 export function apply(values: Values) {
-  for (const [name, v] of Object.entries(values)) {
+  for (const [name, v] of Object.entries(whole(values))) {
     const p = PARAMS.find((q) => q.name === name);
     if (!p) throw new Error(`unknown tuning parameter ${name}`);
     p.write(AI_TUNING, v);

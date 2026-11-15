@@ -151,7 +151,7 @@ function score_rows(columns: [string, Score][]) {
 
 if (process.argv.includes("--eval")) {
   const file = arg("--eval", "");
-  const values = file === "default" ? defaults() : { ...defaults(), ...(JSON.parse(readFileSync(file, "utf8")) as { values: Values }).values };
+  const values = whole(file === "default" ? defaults() : { ...defaults(), ...(JSON.parse(readFileSync(file, "utf8")) as { values: Values }).values });
   const [s] = await evaluate([{ key: `eval-${Bun.hash(JSON.stringify(values)).toString(36)}`, values }], config.seeds);
   score_rows([[file, s]]);
   process.exit(0);
