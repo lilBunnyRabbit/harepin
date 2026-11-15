@@ -9,7 +9,7 @@
   let { onback, label = "Play" }: Props = $props();
 </script>
 
-<button type="button" class="sb" onclick={onback} title="Back (Esc)">
+<button type="button" class="sb" onclick={onback} title="Back (Esc)" aria-label={`Back to ${label}`}>
   <Icon name="icon-back" />
   <span>{label}</span>
   <kbd>Esc</kbd>
@@ -48,6 +48,12 @@
 
   @media (pointer: coarse) {
     kbd {
+      display: none;
+    }
+  }
+
+  @media (max-width: 760px) {
+    span {
       display: none;
     }
   }

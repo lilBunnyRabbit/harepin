@@ -15,10 +15,10 @@
 </script>
 
 <div class="sw" role="group" aria-label="Seasons" data-state={tab.done ? "done" : tab.open ? "open" : "locked"}>
-  <span class="sw-of">Harepin Series · Season {at + 1} of {seasons.length}{tab.done ? " · finished" : ""}</span>
+  <span class="sw-of"><span class="sw-brand">Harepin Series · </span>Season {at + 1} of {seasons.length}{tab.done ? " · finished" : ""}</span>
   <div class="sw-row">
     <h2 aria-live="polite">
-      {#if !tab.open}<Icon name="icon-lock" />{/if}{tab.name} series
+      {#if !tab.open}<Icon name="icon-lock" />{/if}<span class="sw-name">{tab.name} series</span>
     </h2>
     <span class="sw-step">
       <IconButton icon="icon-back" label="Previous season" shape="round" size="sm" disabled={at <= 0} onclick={() => onseason(at - 1)} />
@@ -41,6 +41,8 @@
     letter-spacing: 0.06em;
     text-transform: uppercase;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   [data-state="done"] .sw-of {
@@ -58,6 +60,7 @@
     display: flex;
     align-items: center;
     gap: var(--space-2);
+    min-width: 0;
     margin: 0;
     font-size: var(--text-3xl);
     font-weight: 800;
@@ -65,7 +68,13 @@
     white-space: nowrap;
   }
 
+  .sw-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   h2 :global(svg) {
+    flex: none;
     width: 0.7em;
     height: 0.7em;
     color: var(--set-dim);
@@ -73,7 +82,14 @@
 
   .sw-step {
     display: flex;
+    flex: none;
     gap: var(--space-2);
+  }
+
+  @media (max-width: 760px) {
+    .sw-brand {
+      display: none;
+    }
   }
 
   @media (max-height: 500px) {
