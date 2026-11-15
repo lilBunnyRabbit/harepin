@@ -22,6 +22,9 @@ const MAX_CARS = 7;
 /** Metres from the camera past which a car draws as its one-mesh far view, and inside which it is back to the full one. */
 const FAR_VIEW = 75;
 const NEAR_VIEW = 65;
+/** Metres past which a full view drops its brake discs and calipers, which sit behind the rim: a few pixels there, four draw calls a car. */
+const MID_VIEW = 30;
+const MID_BACK = 25;
 /** Metres round a car's centre that count toward it being on screen: wide, so a coasting car is back on the physics before it comes into view. */
 const SEEN_RADIUS = 30;
 
@@ -35,6 +38,8 @@ export class FieldView {
   private readonly views: CarView[] = [];
   private readonly fars: THREE.Mesh[] = [];
   private readonly far: boolean[] = [];
+  private readonly brakes: THREE.Object3D[][] = [];
+  private readonly mid: boolean[] = [];
   private readonly retired: boolean[] = [];
   /** Each car parked on its grid slot as the field will park it: drawn until the sim's field has stepped, so the grid shows at once. */
   private readonly grid: Car[];
@@ -60,6 +65,8 @@ export class FieldView {
       this.views.push(view);
       this.fars.push(far);
       this.far.push(false);
+      this.brakes.push(view.wheels.flatMap((steer) => steer.children.filter((part) => part instanceof THREE.Mesh)));
+      this.mid.push(false);
       this.retired.push(false);
       scene.add(view.root, far);
     }
@@ -112,6 +119,11 @@ export class FieldView {
         this.far[i] = far;
         this.views[i].root.visible = !far;
         this.fars[i].visible = far;
+      }
+      const mid = this.mid[i] ? d > MID_BACK : d > MID_VIEW;
+      if (mid !== this.mid[i]) {
+        this.mid[i] = mid;
+        for (const part of this.brakes[i]) part.visible = !mid;
       }
       // Drawn between its last two steps at the frame's blend, as the player's car is: drawn on the last step, a car
       // moves a whole number of steps a frame (2 or 3 at 144 Hz) and judders against the player's.
