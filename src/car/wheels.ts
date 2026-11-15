@@ -39,7 +39,7 @@ const DISC_SLOTS = 6;
 // A spokeless rim is a slotted disc, a rim with a lip is dished, the rest are stars.
 const style_of = (rim: Rim): RimStyle => (rim.spokes ? (rim.lip ? "dish" : "star") : "slot");
 
-export const chrome_tone = () => color(mix(brand.foreground, brand.background_lightest, 0.6));
+export const chrome_tone = () => color(tones.chrome);
 const RIM_TONES: Record<Rim["tone"], () => THREE.Color> = {
   metal: chrome_tone,
   light: () => color(tones.check_light),
@@ -156,7 +156,7 @@ export function wheel_geometry(radius: number, width: number, rim: Rim, look: Re
         [face, lip_in],
       ],
       round,
-      rim.lip ? color(tones.check_light) : tone,
+      rim.lip ? color(tones.clear) : tone,
     ),
     turned(
       [

@@ -105,6 +105,11 @@ export const dusk_lava_glow = (error: Lab, warning: Lab) => in_gamut(lighten(mix
 export const noon_lava_glow = (error: Lab, warning: Lab) => mix(error, warning, 0.85);
 // Snow under a dusk sky leans cold, so it never reads as the desert's sand in the same warm light.
 const DUSK_SNOW_LIFT = 0.05;
+// Chrome sits between the ink and the lightest surface; clear glass and polished lips lean it toward the info blue and up
+// a step, so under a warm dusk sky they still read cool and bright rather than taking the light's pink.
+const chrome = mix(brand.foreground, brand.background_lightest, 0.6);
+const GLASS_COOL = 0.2;
+const GLASS_LIFT = 0.1;
 
 export const tones = {
   // A toy track is one colour: the accent straight on deck and rails; underside and seams only darker in its own hue.
@@ -145,6 +150,9 @@ export const tones = {
   check_dark: dark ? brand.background_darkest : brand.foreground,
   check_light: dark ? brand.foreground : brand.background_lightest,
   head: dark ? mix(brand.foreground, brand.warning, 0.85) : brand.background_lightest,
+  chrome,
+  /** An unlit headlamp lens and a polished rim lip. */
+  clear: lighten(mix(brand.info, chrome, GLASS_COOL), GLASS_LIFT),
   reflector: dark ? brand.cottontail : brand.background_lightest,
   beacon: brand.cottontail,
   // Day walls come from the pale end of the ladder: from the ink they sat under the asphalt and every town read black.
@@ -184,7 +192,7 @@ const LIGHT_GOLD = 0.7;
 const LIGHT_GOLD_LIFT = 0.16;
 // At dusk the warning alone sits next to the bronze as one more orange; toward the cottontail it reads pale gold.
 const DUSK_GOLD = 0.6;
-const SILVER = mix(brand.foreground, brand.background_lightest, 0.6);
+const SILVER = chrome;
 // Platinum is silver gone cool: at dusk a lifted near-white, clear above the silver; on a pale theme it keeps silver's
 // lightness, as a lighter one fades into the background, and the cool tint alone sets it apart.
 const PLATINUM_COOL = 0.35;

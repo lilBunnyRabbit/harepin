@@ -7,6 +7,9 @@ import { POPUP_LIT, popup_ease, popup_step } from "./popup-swing";
 import { brand, color, glow, lighten, tones } from "../theme/palette";
 
 const HEAD_GLOW = 1.2;
+// Unlit, the lens is clear glass; lit, it takes the lamp's warm tone under its glow.
+const HEAD_LIT = color(tones.head);
+const HEAD_OFF = color(tones.clear);
 
 // The longest step a swing takes, so the first frame after a stall or a hidden tab does not jump the pods.
 const SWING_STEP = 0.1;
@@ -30,7 +33,7 @@ export interface Lamps {
 }
 
 export function lamps(d: Design): Lamps {
-  const head_material = new THREE.MeshLambertMaterial({ color: color(tones.head), emissive: glow(tones.head), emissiveIntensity: HEAD_GLOW });
+  const head_material = new THREE.MeshLambertMaterial({ color: HEAD_LIT.clone(), emissive: glow(tones.head), emissiveIntensity: HEAD_GLOW });
   const brake = new THREE.MeshLambertMaterial({ color: color(tail), emissive: glow(tail, BRAKE_GLOW), emissiveIntensity: BRAKE_REST });
   const heads = new THREE.Mesh(merge(parts(d.heads)), head_material);
   return { heads, tails: new THREE.Mesh(merge(parts(d.tails)), brake), brake };
@@ -92,7 +95,9 @@ export function lamps_lit(view: CarView): boolean {
 function pose_lamps(view: CarView) {
   const { popup } = view;
   if (popup) popup.pivot.rotation.x = -popup.lift * popup_ease(popup.open);
-  view.heads.material.emissiveIntensity = lamps_lit(view) ? HEAD_GLOW : 0;
+  const lit = lamps_lit(view);
+  view.heads.material.emissiveIntensity = lit ? HEAD_GLOW : 0;
+  view.heads.material.color.copy(lit ? HEAD_LIT : HEAD_OFF);
 }
 
 const SWAY_STEP = 0.1;
