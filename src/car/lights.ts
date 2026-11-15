@@ -14,7 +14,8 @@ const SWING_STEP = 0.1;
 const BRAKE_GLOW = 0.5;
 /** Tail lamp emissive intensity at rest and braking: only the braking glow clears the bloom threshold, and at 0.5 a resting lamp read flat salmon at dusk. */
 export const BRAKE_REST = 0.25;
-export const BRAKE_ON = 2.2;
+/** Braking emissive intensity, set from the quality tier (`Tier.brake_glow`). */
+export const brake_on = { value: 2.2 };
 
 // A dusk theme's error is a light salmon; the lamp lens sits deeper so it reads red at rest, braking or not.
 const TAIL_L = 0.55;

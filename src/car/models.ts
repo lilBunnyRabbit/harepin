@@ -9,7 +9,7 @@ import { detail_look, type DetailLook } from "./detail-looks";
 import { CAR_ORDER } from "./contact-shadow";
 import { DESIGNS, type Design } from "./designs";
 import { extrude, merge, parts, side_part, tail_at, taper, tint } from "./geometry";
-import { BRAKE_ON, BRAKE_REST, lamps, popup, snap_lights, type HeadMesh, type Popup } from "./lights";
+import { BRAKE_REST, brake_on, lamps, popup, snap_lights, type HeadMesh, type Popup } from "./lights";
 import { back, livery_of, livery_parts, roof, type Livery } from "./livery";
 import { nitro_flame, type Jet } from "./nitro-look";
 import { aero_of, aero_parts, kit_parts, kit_skirts, rear_wing } from "./part-looks";
@@ -328,7 +328,7 @@ export function sync_car_view(view: CarView, car: Car) {
     const arm = view.arms[i];
     if (arm) arm.group.quaternion.setFromAxisAngle(arm.axis, Math.asin(Math.max(-1, Math.min(1, (arm.rest - w.reach) / arm.reach))));
   });
-  view.brake.emissiveIntensity = car.braking > 0.05 ? BRAKE_ON : BRAKE_REST;
+  view.brake.emissiveIntensity = car.braking > 0.05 ? brake_on.value : BRAKE_REST;
 }
 
 export function rest_wheels(view: CarView, spec: CarSpec = COUPE) {
