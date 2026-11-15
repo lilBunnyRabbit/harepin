@@ -305,44 +305,44 @@ Open after H9:
 
 H9 cut overtakes by about 40%. Bisected on 6 x 2 (`ai-race.ts field all`, one run per commit): 69121e2 24, 847bb94 (kicker single file) 26, f31ac63 (steering damper) 25, 162acc2 (car in trouble) 25, e59e38d (defend rolls once) 17, e57924c 15. Kickers and cars in trouble cost 0-2 passes each. The drop came from the defend fix: rolled every tick, nearly every car covered the inside into every braking zone, left its own line and handed the pass over. The old counts were inflated by that.
 
-Changes, one commit each:
+Changes:
 
 | Commit | Change |
 |---|---|
 | 83119f9 | `ai-race.ts` and `ai-why.ts` take `[aggression] [mistakes]` after laps (owner levels, 3 by default) |
-| 529f057 | A pass may start into a wide bend: gentler than `CALM_BEND` 0.02 + `BOLD_BEND` 0.02 x aggression (1/m; was a flat 0.01) while the plan holds `CALM_SHARE` of its pace. A car in trouble is passed on a side that leaves `TROUBLE_FLANK` 4 m, at its speed along the road + `TROUBLE_CLOSE` 8 m/s, instead of queued behind. A car yielding into a kicker drops at most `KICKER_YIELD` 4 m/s under the plan, so it still reaches jump pace |
+| 529f057 | A pass may start into a wide bend: gentler than `CALM_BEND` 0.02 + `BOLD_BEND` 0.02 x aggression (1/m; was a flat 0.01) while the plan holds `CALM_SHARE` of its pace. A car in trouble is passed on a side that leaves `TROUBLE_FLANK` 4 m, at its speed along the road + `TROUBLE_CLOSE` 8 m/s, instead of queued behind |
 | a282208 | A driver over `OUTSIDE` 0.6 aggression goes around the outside of a car ahead covering the inside. A car off the road counts as in trouble, and a car in trouble alongside is kept `TROUBLE_FLANK` off by the guard: on seed 3 at level 5, a car ran wide off the road, hit something and bounced back into the car alongside at 22.6 m/s |
-| review fix | The `KICKER_YIELD` floor of 529f057 never acted: the car alongside is also the blocker, and `decide`'s follow cap sat under it. It now lifts that cap too (seed 2 and 3 at 7 x 2 changed; seed 2 there no longer spins or resets). One `OFF_ROAD` 7 m in `driver.ts` for the trouble flag and the field's off-road time and resets |
+| cb755ad, last fix commit | One `OFF_ROAD` 7 m in `driver.ts` for the trouble flag, the field's off-road time and resets, and `ai-race.ts`. A `KICKER_YIELD` floor (a car yielding into a kicker drops at most 4 m/s under the plan) went in with 529f057 and came out again: the car alongside is always also `decide`'s in-lane blocker, so the floor either never acted or, once it did (cb755ad), lifted the follow cap of a car right behind another. Hardest hit 5.7 -> 9.2 m/s, overtakes 31 / 35 / 40 -> 28 / 31 / 34 |
 
 Before and after, level 3, `bun scripts/ai-race.ts field all coupe <count> <laps>` (25 races each):
 
 | | 6 x 2 69121e2 | H9 e57924c | now | 6 x 3 69121e2 | e57924c | now | 7 x 2 69121e2 | e57924c | now |
 |---|---|---|---|---|---|---|---|---|---|
-| Overtakes | 24 | 15 | 28 | 32 | 18 | 31 | 44 | 25 | 34 |
+| Overtakes | 24 | 15 | 30 | 32 | 18 | 37 | 44 | 25 | 40 |
 | Spins | 18 | 0 | 0 | 22 | 0 | 0 | 24 | 4 | 1 |
 | Resets | 24 | 0 | 0 | 31 | 0 | 0 | 27 | 2 | 1 |
-| Hardest hit (m/s) | 13.5 | 4.3 | 9.2 | 15.4 | 4.3 | 9.2 | 17.2 | 4.3 | 8.2 |
+| Hardest hit (m/s) | 13.5 | 4.3 | 5.7 | 15.4 | 4.3 | 5.7 | 17.2 | 4.3 | 5.7 |
 | Stuck | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| Contacts/lap median (max) | 3.0 (6.0) | 1.5 (5.0) | 1.5 (4.8) | 2.3 (5.3) | 1.0 (4.0) | 1.3 (4.8) | 4.0 (9.0) | 2.5 (6.0) | 2.0 (4.3) |
-| Mean rho | 0.52 | 0.53 | 0.53 | 0.43 | 0.43 | 0.43 | 0.65 | 0.63 | 0.63 |
+| Contacts/lap median (max) | 3.0 (6.0) | 1.5 (5.0) | 2.0 (4.8) | 2.3 (5.3) | 1.0 (4.0) | 1.3 (4.8) | 4.0 (9.0) | 2.5 (6.0) | 2.5 (5.5) |
+| Mean rho | 0.52 | 0.53 | 0.53 | 0.43 | 0.43 | 0.43 | 0.65 | 0.63 | 0.64 |
 
-"Now" is after the review fix. On a282208, before the kicker floor acted, overtakes were 31 / 35 / 40 and the hardest hit 5.7 m/s: holding pace alongside into a kicker costs 3-6 passes and lets a harder touch through. 6 x 2 passes more than the old baseline, 6 x 3 one fewer, 7 x 2 34 against 44. Tried on 7 x 2 and not kept: a flat 0.03 bend limit 34, `OUTSIDE` 0.4 41, `BOLD_BEND` 0.03 38, `PASS_PACE` 0.002 38, `PASS_WINDOW` 8 31. `CALM_SHARE` 0.8 gave 44 but 5 spins, 5 resets and a 14 m/s hit, and on 6 x 2 / 6 x 3 dropped to 22 / 26 with a 16.2 m/s hit; 0.82 gave 40 with 5 spins. One-parameter changes move a 25-race total by about ±5, so 40 against 44 is close to that noise, and the 44 carried the defend handouts.
+6 x 2 and 6 x 3 pass more than the old baseline. 7 x 2 is at 40 against 44. Tried on 7 x 2 and not kept: a flat 0.03 bend limit 34, `OUTSIDE` 0.4 41, `BOLD_BEND` 0.03 38, `PASS_PACE` 0.002 38, `PASS_WINDOW` 8 31. `CALM_SHARE` 0.8 gave 44 but 5 spins, 5 resets and a 14 m/s hit, and on 6 x 2 / 6 x 3 dropped to 22 / 26 with a 16.2 m/s hit; 0.82 gave 40 with 5 spins. One-parameter changes move a 25-race total by about ±5, so 40 against 44 is close to that noise, and the 44 carried the defend handouts.
 
-Owner levels, 6 x 2, aggression and mistakes both at the level:
+Owner levels, 6 x 2, aggression and mistakes both at the level, on the final commit:
 
 | Level | 1 | 3 | 5 |
 |---|---|---|---|
 | Overtakes (e57924c) | 8 | 15 | 29 |
-| Overtakes (a282208) | 8 | 31 | 34 |
-| Overtakes (now) | | 28 | 40 |
-| Mean rho | 0.78 | 0.51 | 0.42 |
-| Contacts/lap median (max) | 1.0 (3.5) | 2.0 (4.8) | 2.0 (6.0) |
+| Overtakes | 8 | 30 | 34 |
+| Mean rho | 0.78 | 0.53 | 0.42 |
+| Contacts/lap median (max) | 1.0 (3.5) | 2.0 (4.8) | 1.5 (5.5) |
 | Hardest hit (m/s) | 3.6 | 5.7 | 15.2 |
-| Spins / resets | 1 / 0 | 0 / 0 | 1 / 1 |
+| Spins / resets | 1 / 0 | 0 / 0 | 0 / 0 |
 
 Lead's targets per level: `RHO_MAX` and a hardest hit under 15 m/s hold at level 3, the owner's level. Level 1 may be a procession. Level 5 stays under 20 m/s. Before the outside pass, level 5 passed less than level 3 (21 against 30): every bold car defended, and nothing got around a defender. With defend switched off it went to 29.
 
 Open after this round:
 
-- 7 x 2 overtakes 34 against the old 44, 6 x 3 31 against 32 (see above). The kicker floor trades passes for jump pace; dropping it gives back 31 / 35 / 40.
-- Level 5 now: 40 overtakes, 5 spins, 1 reset, hardest 15.6 m/s (under 20). Level 1 was not rerun after the review fix. At a282208, level 5's 15.2 m/s was a car braking flat out (cap 3.6 m/s) into the back of one that had just hit a wall, 4 m apart, on seed 3 lap 0.
+- 7 x 2 overtakes 40 against the old 44 (see above).
+- Level 5's 15.2 m/s is a car braking flat out (cap 3.6 m/s) into the back of one that had just hit a wall, 4 m apart, on seed 3 lap 0.
+- Jump pace for a car yielding into a kicker is unsolved: single file still brakes it to the car ahead's pace. Kicker spins and resets stay 0-1 over every run here; seed 2 at 7 x 2 is the known case (§9 H9).
