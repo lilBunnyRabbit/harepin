@@ -2,10 +2,13 @@
 import { expect, test } from "bun:test";
 import { JITTER_LEVELS, TERRAIN_BASES } from "./chunks";
 import { generate } from "./index";
-import { KINDS } from "./kinds/kinds";
-import { MAP_SIDE, MapLineKind, map_data, type MapData, type MapTones } from "./map";
+import { extent } from "./chunk-grid";
+import { generate_world, KINDS } from "./kinds/kinds";
+import { MAINLAND_SIZE } from "./mainland";
+import { MAP_SIDE, MapLineKind, map_data, map_pixels, type MapData, type MapTones } from "./map";
 import type { MapRequest } from "./map-worker";
-import { ORIGIN, SIZE } from "./types";
+import { ORIGIN, SIZE, WorldKind } from "./types";
+import { water_index } from "./water";
 
 const SEED = 7;
 const TONES: MapTones = { terrain: Float32Array.from({ length: TERRAIN_BASES * JITTER_LEVELS * 3 }, (_, i) => (i % 97) / 97), water: [0.1, 0.2, 0.4], cloud: [0.7, 0.7, 0.75], lava: [0.9, 0.3, 0.1] };
@@ -65,3 +68,27 @@ test("crater lava draws in its own tone, unshaded", () => {
   const mid = (centre * MAP_SIDE + centre) * 4;
   expect([...map.pixels.slice(mid, mid + 3)]).toEqual(TONES.lava.map((c) => Math.round(255 * c ** (1 / 2.2))));
 });
+
+test("Winter Mainland's map paints its lakes and rivers as ice and leaves the land away from it as summer draws it", () => {
+  const summer = map_pixels(generate_world(0, WorldKind.MAINLAND), TONES);
+  const data = generate_world(0, WorldKind.MAINLAND, [1]);
+  const winter = map_pixels(data, TONES);
+  const op = data.ground.ops.find((o) => o.kind === "water");
+  if (op?.kind !== "water") throw new Error("mainland plans no water");
+  const water = water_index(op.water);
+  const ext = extent(MAINLAND_SIZE);
+  const step = ext.size / (MAP_SIDE - 1);
+  let iced = 0;
+  for (let k = 0; k < MAP_SIDE * MAP_SIDE; k++) {
+    const same = [0, 1, 2].every((c) => summer[k * 4 + c] === winter[k * 4 + c]);
+    const x = ext.origin + (k % MAP_SIDE) * step;
+    const z = ext.origin + Math.floor(k / MAP_SIDE) * step;
+    // A pixel's hillshade reads its neighbours, so land beside the ice may shade differently.
+    if (![[0, 0], [step, 0], [-step, 0], [0, step], [0, -step]].some(([dx, dz]) => Number.isFinite(water.level(x + dx, z + dz)))) {
+      expect(same).toBe(true);
+      continue;
+    }
+    if (!same) iced++;
+  }
+  expect(iced).toBeGreaterThan(100);
+}, 60_000);
