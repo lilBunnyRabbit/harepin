@@ -28,7 +28,7 @@ const pack: Pack = {
   title: "Sturm: exit slide and full lock",
   aim: "Your r3 notes: exits only want to drift, and no build holds the skidpad ring on full turn and gas. Today's car against traction control that opens in a turn, and against that plus less rear grip.",
   brief:
-    "Assists as in r3: TCS on, assist and stability off. Open TCS lets the rear spin more while the wheel is turned; straight launches are as today. Loose adds less rear grip. Today goes first in each group.",
+    "TCS on, assist and stability off. Open: TCS lets the rear spin more with the wheel turned in; launches and countersteer as today. Loose: also less rear grip, best build drops to A. Degrees quoted are from a full-key, full-gas probe on flat ground. Today goes first.",
   cars: {
     "best-open": car(OPEN, BEST),
     "best-loose": car(LOOSE, BEST),
@@ -36,12 +36,12 @@ const pack: Pack = {
   },
   trials: [
     { id: "pins-best-today", car: code(BEST), ...PINS, try: PINS_TRY, feel: "today's best build: the exit you called a want", question: EXIT_Q, base: true },
-    { id: "pins-best-open", car: "lab:best-open", ...PINS, try: PINS_TRY, feel: "TCS opens with the wheel turned, about 10 degrees on the exit in the sim: notice whether the tail steps out and TCS still catches it", question: EXIT_Q },
-    { id: "pins-best-loose", car: "lab:best-loose", ...PINS, try: PINS_TRY, feel: "open TCS and less rear grip, about 17 degrees in the sim and slower out: notice whether it is a slide you hold or one that costs the exit", question: EXIT_Q },
+    { id: "pins-best-open", car: "lab:best-open", ...PINS, try: PINS_TRY, feel: "TCS opens with the wheel turned into the corner, about 10 degrees out of a 40 km/h full-gas exit on flat ground (today 2): notice whether the tail steps out and TCS still catches it", question: EXIT_Q },
+    { id: "pins-best-loose", car: "lab:best-loose", ...PINS, try: PINS_TRY, feel: "open TCS and less rear grip, about 17 degrees on the same exit and slower out: notice whether it is a slide you hold or one that costs the exit", question: EXIT_Q },
     { id: "pins-top-today", car: code(TOP), ...PINS, try: PINS_TRY, feel: "today's top build: slicks and the GT kit pin the rear", question: EXIT_Q, base: true },
-    { id: "pins-top-loose", car: "lab:top-loose", ...PINS, try: PINS_TRY, feel: "the top build loosened, about 9 degrees in the sim: notice whether the grip build now steps out a little on the gas", question: EXIT_Q },
+    { id: "pins-top-loose", car: "lab:top-loose", ...PINS, try: PINS_TRY, feel: "the top build loosened, about 9 degrees on the same exit (today 2.5): notice whether the grip build now steps out a little on the gas", question: EXIT_Q },
     { id: "pad-best-today", car: code(BEST), ...PAD, try: PAD_TRY, feel: "today's best build: full gas runs it wide of the ring", question: PAD_Q, base: true },
-    { id: "pad-best-loose", car: "lab:best-loose", ...PAD, try: PAD_TRY, feel: "the loose best build: in the sim full turn and gas swings the tail and the circle tightens to the ring", question: PAD_Q },
+    { id: "pad-best-loose", car: "lab:best-loose", ...PAD, try: PAD_TRY, feel: "the loose best build: full turn and gas from 60 km/h swings the tail about 10 degrees and the circle stays near the ring (today it opens past 36 m)", question: PAD_Q },
     { id: "pad-top-loose", car: "lab:top-loose", ...PAD, try: PAD_TRY, feel: "the loose top build: notice whether it holds inside the ring on full turn and gas, and still feels like the grip car", question: PAD_Q },
   ],
   ask: trait_asks(Trait.EXIT, Trait.POWER, Trait.BALANCE),
