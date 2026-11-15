@@ -191,7 +191,7 @@ export class Field {
       if ((this.lost[i] > RESET_TIME || this.stall[i] > STALL_TIME) && this.clear(i)) {
         const p = this.route.points[driver.index];
         car.park(p.x, p.z, Math.atan2(p.tx, p.tz), this.world);
-        driver.reversing = 0;
+        driver.recovered();
         stats.resets++;
         this.lost[i] = 0;
         this.stall[i] = 0;

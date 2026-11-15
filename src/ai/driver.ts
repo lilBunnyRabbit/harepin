@@ -107,6 +107,12 @@ export class Driver {
     this.reversing = REVERSE_TIME;
   }
 
+  /** Put back on the road by the field: whatever it was steering against is gone. */
+  recovered() {
+    this.reversing = 0;
+    this.last_err = NaN;
+  }
+
   track(car: Car) {
     const { road } = this.line;
     const n = road.length;
@@ -176,6 +182,7 @@ export class Driver {
     const c = this.controls;
     if (this.reversing > 0) {
       this.reversing -= dt;
+      this.last_err = NaN;
       c.steer = Math.max(-1, Math.min(1, err * STEER_GAIN));
       c.throttle = 0;
       c.brake = 1;
