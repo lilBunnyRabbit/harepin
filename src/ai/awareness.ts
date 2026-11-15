@@ -82,6 +82,9 @@ export class Awareness {
   private readonly along: Float64Array;
   private readonly trouble: Uint8Array;
   private readonly defend_until: Int32Array;
+  /** The attacker each driver last rolled its aggression against (-1 for none yet), and whether that roll said defend. */
+  private readonly rolled_for: Int32Array;
+  private readonly will_defend: Uint8Array;
   /** The car each driver is passing (-1 for none) and the side it goes by on, held until it is clear past. */
   private readonly passing: Int32Array;
   private readonly pass_side: Int8Array;
@@ -98,6 +101,8 @@ export class Awareness {
     this.along = new Float64Array(cars.length);
     this.trouble = new Uint8Array(cars.length);
     this.defend_until = new Int32Array(cars.length).fill(-1);
+    this.rolled_for = new Int32Array(cars.length).fill(-1);
+    this.will_defend = new Uint8Array(cars.length);
     this.passing = new Int32Array(cars.length).fill(-1);
     this.pass_side = new Int8Array(cars.length);
   }
@@ -235,10 +240,15 @@ export class Awareness {
       return;
     }
     driver.hold = NaN;
-    if (attacker >= 0 && blocker < 0 && !kicker) {
+    // One roll per attacker, kept while it stays the attacker: rolled every tick, a timid driver defends within a second.
+    if (attacker >= 0 && attacker !== this.rolled_for[i]) {
+      this.rolled_for[i] = attacker;
+      this.will_defend[i] = this.rng() < aggression ? 1 : 0;
+    }
+    if (attacker >= 0 && blocker < 0 && !kicker && this.will_defend[i]) {
       let drop = 0;
       for (let k = 1; k < DEFEND_LOOK; k++) drop = Math.max(drop, line.speed[driver.index] - line.speed[(driver.index + k) % n]);
-      if (drop > DEFEND_DROP && this.rng() < aggression) {
+      if (drop > DEFEND_DROP) {
         let slowest = driver.index;
         for (let k = 1; k < BEND_LOOK; k++) if (line.speed[(driver.index + k) % n] < line.speed[slowest]) slowest = (driver.index + k) % n;
         this.defend_until[i] = slowest;
