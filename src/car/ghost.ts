@@ -5,32 +5,12 @@ import { camera_fade, car_view, dispose_car_view, rest_wheels, type CarView } fr
 import { stand_on_drawn } from "./drawn-stand";
 import { brand, color } from "../theme/palette";
 import type { World } from "../world/world";
-import { STRIDE, is_lap, lap_cap_ms } from "./ghost-cap";
+import { STRIDE, lap_cap_ms } from "./ghost-cap";
+import { load_ghost, save_ghost } from "./ghost-store";
 
 const EVERY_MS = 100;
 const GHOST_OPACITY = 0.32;
 const GHOST_ORDER = 10;
-
-function load(key: string): number[] | null {
-  let saved: string | null;
-  try {
-    saved = localStorage.getItem(key);
-  } catch (error) {
-    console.warn("ghost: saved lap unreadable", error);
-    return null;
-  }
-  if (!saved) return null;
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(saved);
-  } catch (error) {
-    console.warn("ghost: saved lap is not JSON, ignoring it", error);
-    return null;
-  }
-  if (is_lap(parsed)) return parsed;
-  console.warn("ghost: saved lap has the wrong shape, ignoring it");
-  return null;
-}
 
 // The ghost is always drawn as a stock coupe, so a bigger body is recorded at the coupe's ride height: a bus lap's ghost
 // runs on the road instead of floating a metre up.
@@ -72,6 +52,8 @@ export class Ghost {
   visible = true;
   private recording: number[] = [];
   private best: number[] | null = null;
+  /** A lap of this session's own: a saved lap arriving later never replaces it. */
+  private own = false;
   private view: CarView;
   private readonly tint: THREE.MeshBasicMaterial;
   private readonly turn = new THREE.Quaternion();
@@ -87,7 +69,9 @@ export class Ghost {
   ) {
     this.key = key;
     this.cap_ms = lap_cap_ms(lap_m);
-    this.best = load(this.key);
+    void load_ghost(key).then((lap) => {
+      if (lap && !this.own) this.best = lap;
+    });
     this.view = car_view(color(brand.cottontail));
     // Unlit and single-layer: a depth-only copy of every part draws first, so only the nearest face gets tinted.
     // Lit, emissive or stacked faces pushed the pale paint past the bloom threshold.
@@ -146,12 +130,9 @@ export class Ghost {
 
   finish(improved: boolean) {
     if (!improved || !this.recording.length) return;
+    this.own = true;
     this.best = this.recording;
-    try {
-      localStorage.setItem(this.key, JSON.stringify(this.best.map((v) => Math.round(v * 1000) / 1000)));
-    } catch (error) {
-      console.warn("ghost: best lap not saved", error);
-    }
+    void save_ghost(this.key, this.best);
   }
 
   position(lap_ms: number, out: THREE.Vector3): THREE.Vector3 | null {

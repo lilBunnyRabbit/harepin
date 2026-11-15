@@ -25,6 +25,7 @@ import { pick_car } from "./menu/car-pick";
 import { Garage } from "./menu/garage.svelte";
 import { load_build, save_build } from "./menu/garage-builds";
 import { Ghost } from "./car/ghost";
+import { sweep_ghosts } from "./car/ghost-store";
 import { Heartbeat } from "./net/heartbeat";
 import { $, Hud } from "./hud/hud";
 import { Presence } from "./hud/presence";
@@ -241,6 +242,7 @@ const goal_toasts = new ToastQueue((text, hold) => hud.toast(text, "", hold), ()
 if (note) goal_toasts.push(note, MAP_NOTE_MS);
 goals.on_done = (goal) => goal_toasts.push(`Goal done: ${goal.title}`);
 const ghost = new Ghost(scene, world, `harepin:ghost:${world.key}`, world.routes.find((r) => r.id === "circuit")?.length);
+requestIdleCallback(() => void sweep_ghosts());
 race.on_lap = (improved, first) => {
   goals.done(improved && !first ? GoalId.BEST : GoalId.LAP);
   ghost.finish(improved);
