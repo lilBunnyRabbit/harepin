@@ -40,7 +40,7 @@ coupe.aero:lip asphalt spec#e205d485 pi=545B t100=4.82 top=261 stop=30.9 g=0.96 
 coupe.aero:wing asphalt spec#dc504d61 pi=552B t100=4.74 top=254 stop=30.2 g=0.98 turn=56 lift=2.6 pwr=25.0 hb=13 kick220=0.30
 coupe.aero:street-kit asphalt spec#a636ac5a pi=552B t100=4.79 top=250 stop=30.2 g=0.99 turn=53 lift=3.6 pwr=25.8 hb=13 kick220=0.44
 coupe.aero:race-kit asphalt spec#615adebf pi=557B t100=4.73 top=245 stop=29.7 g=1.00 turn=53 lift=2.6 pwr=24.9 hb=13 kick220=0.32
-coupe.aero:gt-kit asphalt spec#0550c447 pi=578B t100=4.63 top=236 stop=28.6 g=1.05 turn=47 lift=1.9 pwr=23.8 hb=13 kick220=0.26
+coupe.aero:gt-kit asphalt spec#0550c447 pi=578B t100=4.63 top=236 stop=28.6 g=1.05 turn=47 lift=1.9 pwr=23.8 hb=13 kick220=0.27
 muscle.stock asphalt spec#b89019a1 pi=542B t100=5.13 top=279 stop=32.3 g=0.92 turn=67 lift=3.5 pwr=30.1 hb=12 kick220=0.49
 muscle.stock dirt spec#b89019a1 pi=542B t100=6.10 top=278 stop=38.5 g=0.77 turn=83 lift=4.5 pwr=29.6 hb=10 kick220=0.63
 muscle.stock grass spec#b89019a1 pi=542B t100=8.31 top=182 stop=40.0 g=0.66 turn=97 lift=12.0 pwr=33.0 hb=9 kick220=-
@@ -91,7 +91,7 @@ raijin.stock sand spec#219c32b4 pi=520B t100=6.28 top=140 stop=34.3 g=0.71 turn=
 raijin.stock packed_snow spec#219c32b4 pi=520B t100=4.73 top=258 stop=36.2 g=0.82 turn=75 lift=5.6 pwr=16.5 hb=10 kick220=0.45
 raijin.stock ice spec#219c32b4 pi=520B t100=6.80 top=258 stop=55.5 g=0.53 turn=119 lift=4.7 pwr=22.3 hb=7 kick220=0.71
 raijin.grip asphalt spec#e5009b0f pi=553B t100=4.26 top=259 stop=24.9 g=1.05 turn=56 lift=5.0 pwr=4.2 hb=13 kick220=0.39
-raijin.aero asphalt spec#ac66d53d pi=573B t100=4.31 top=233 stop=24.1 g=1.10 turn=50 lift=2.6 pwr=2.6 hb=13 kick220=0.26
+raijin.aero asphalt spec#ac66d53d pi=573B t100=4.31 top=233 stop=24.1 g=1.10 turn=50 lift=2.6 pwr=2.6 hb=13 kick220=0.24
 raijin.dirt asphalt spec#552294b3 pi=529B t100=4.11 top=273 stop=33.5 g=0.89 turn=64 lift=13.0 pwr=8.0 hb=11 kick220=0.38
 raijin.dirt dirt spec#552294b3 pi=529B t100=4.10 top=273 stop=33.3 g=0.88 turn=67 lift=14.4 pwr=6.7 hb=11 kick220=0.40
 raijin.dirt grass spec#552294b3 pi=529B t100=4.32 top=246 stop=35.2 g=0.82 turn=72 lift=11.8 pwr=8.9 hb=10 kick220=0.41
