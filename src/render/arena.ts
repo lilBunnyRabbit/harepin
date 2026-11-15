@@ -10,6 +10,8 @@ const PYLON_WIDE = 2.6;
 /** The beam a pylon carries the deck on: this much wider than the deck, this deep, this long down the track. */
 const BEAM = { over: 2, deep: 2.4, long: 2.2 };
 const PYLON_ROOM = 2;
+/** Most a rigid beam may sink below a twisting deck to clear it; a pylon due where it would sink more moves on down the lap. */
+const BEAM_SINK = 0.2;
 
 const MAST_PITCH = 32;
 /** A mast stands this far outside the deck's high edge, its head this far over the edge's top. */
@@ -88,8 +90,18 @@ class Track {
 
   /** Rise of the centreline per metre along the lap, from the samples either side. */
   grade(i: number): number {
-    const run = Math.hypot(this.f(i + 1, 0) - this.f(i - 1, 0), this.f(i + 1, 2) - this.f(i - 1, 2));
+    const run = this.run(i);
     return run > 0 ? (this.f(i + 1, 1) - this.f(i - 1, 1)) / run : 0;
+  }
+
+  /** How fast the deck's cross slope changes per metre along the lap: where a bank rolls in, the deck twists. */
+  twist(i: number): number {
+    const run = this.run(i);
+    return run > 0 ? Math.abs(Math.tan(this.f(i + 1, 5)) - Math.tan(this.f(i - 1, 5))) / run : 0;
+  }
+
+  private run(i: number): number {
+    return Math.hypot(this.f(i + 1, 0) - this.f(i - 1, 0), this.f(i + 1, 2) - this.f(i - 1, 2));
   }
 
   open_near(i: number, side: number, reach: number): boolean {
@@ -175,12 +187,16 @@ export function pylons(deck: Deck, tone: Lab, pitch: number): THREE.Object3D {
   let next = 0;
   for (let i = 0; i < track.n; i++) {
     if (track.f(i, 8) < next || !track.f(i, 7)) continue;
+    const twist = track.twist(i);
+    const span = track.f(i, 6) + BEAM.over / 2;
+    if ((BEAM.long / 2) * span * twist > BEAM_SINK) continue;
     next = track.f(i, 8) + pitch;
     const x = track.f(i, 0);
     const z = track.f(i, 2);
     if (!track.clear(i, x, z, PYLON_ROOM)) continue;
     // The deck shears with its bank: a point u across lies u·tan(bank) up, its underside DECK_THICK below that. The beam
-    // rolls into that plane, and both drop by what the grade lifts their far ends, so neither breaks through the deck.
+    // rolls into that plane, and both drop by what the grade and the bank's twist lift their far corners, so neither breaks
+    // through the deck.
     const tx = track.f(i, 3);
     const tz = track.f(i, 4);
     const bank = track.f(i, 5);
@@ -188,11 +204,11 @@ export function pylons(deck: Deck, tone: Lab, pitch: number): THREE.Object3D {
     const grade = Math.abs(track.grade(i));
     const under = track.f(i, 1) - DECK_THICK;
     const yaw = Math.atan2(tx, tz);
-    const beam_top = under - (BEAM.long / 2) * grade;
+    const beam_top = under - (BEAM.long / 2) * (grade + span * twist);
     const lean = (BEAM.deep / 2) * Math.sin(bank);
     const beam_y = beam_top - (BEAM.deep / 2) * Math.cos(bank);
-    boxes.add(c, x + tz * lean, beam_y, z - tx * lean, ((track.f(i, 6) + BEAM.over / 2) * 2) / Math.cos(bank), BEAM.deep, BEAM.long, yaw, 0, bank);
-    const top = under - (PYLON_WIDE / 2) * (slope + grade);
+    boxes.add(c, x + tz * lean, beam_y, z - tx * lean, (span * 2) / Math.cos(bank), BEAM.deep, BEAM.long, yaw, 0, bank);
+    const top = under - (PYLON_WIDE / 2) * (slope + grade + (PYLON_WIDE / 2) * twist);
     boxes.add(c, x, top - PYLON_DEEP / 2, z, PYLON_WIDE, PYLON_DEEP, PYLON_WIDE, yaw);
   }
   return boxes.mesh(plain());
