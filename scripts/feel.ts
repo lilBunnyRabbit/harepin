@@ -83,3 +83,7 @@ for (const tcs of [true, false]) {
   const p = feel.power_circle(rig, tcs);
   note(`power drift 40 km/h no hb (TCS ${tcs ? "on" : "off"})`, `in ${f(p.entry, 2)} s, ${held(p.hold)}`);
 }
+for (const tcs of [true, false]) {
+  const x = feel.exit_slide(rig, tcs);
+  note(`hairpin exit 40 km/h (TCS ${tcs ? "on" : "off"})`, `peak slip ${f(x.slip)}°, held ${f(x.held, 2)} s past 5°, r ${f(x.radius)} m`);
+}

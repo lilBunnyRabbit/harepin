@@ -456,3 +456,41 @@ export function power_circle(rig: Rig, tcs: boolean, kmh = 40): PowerCircle {
   if (!Number.isNaN(entry)) run(car, CATCH_TAP, () => ({ ...idle, steer: -1, throttle: 1 }), ground);
   return { entry, hold: key_hold(car, 30, 6, ground) };
 }
+
+export interface ExitSlide {
+  /** Peak body slip (deg) on the full-gas exit. */
+  slip: number;
+  /** Seconds of the exit the body slip stays past `EXIT_HELD` degrees: a tail that steps out, not one that only wants to. */
+  held: number;
+  /** Path radius (m) over the last `READ` s of the exit: under full gas a pushing car opens it, a rotating one keeps it. */
+  radius: number;
+}
+
+const EXIT_ENTRY = 1.2;
+const EXIT_SECONDS = 2.5;
+const EXIT_HELD = 5;
+
+/**
+ * The owner's "wants to drift out of the corner": TCS as given, assist and stability off, 40 km/h with full key for
+ * `EXIT_ENTRY` s, then full gas with the key still in. A hairpin exit on flat ground.
+ */
+export function exit_slide(rig: Rig, tcs: boolean, kmh = 40): ExitSlide {
+  const ground = rig.ground ?? FLAT;
+  const car = fresh(rig, ground, (c) => {
+    c.tcs = tcs;
+    c.assist = false;
+    c.stability = false;
+  });
+  get_to(car, kmh, ground);
+  run(car, EXIT_ENTRY, () => cruise(car, kmh, { steer: 1 }), ground);
+  const arc = new Arc(car, EXIT_SECONDS);
+  let slip = 0;
+  let held = 0;
+  run(car, EXIT_SECONDS, () => ({ ...idle, steer: 1, throttle: 1 }), ground, (t) => {
+    const s = Math.abs(slip_angle(car));
+    slip = Math.max(slip, s);
+    if (s >= EXIT_HELD) held += DT;
+    arc.step(t);
+  });
+  return { slip, held, radius: arc.radius };
+}

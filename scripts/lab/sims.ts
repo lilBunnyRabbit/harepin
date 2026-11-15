@@ -44,6 +44,15 @@ const turns: StationSim = {
   ],
 };
 
+// The turns pair plus a hairpin exit on the owner's aids (assist and stability off, the trial's TCS): full key, then full gas.
+const hairpin: StationSim = {
+  scenario: "hairpin",
+  run: (rig, stop_from, tcs) => {
+    const exit = feel.exit_slide(rig, tcs);
+    return [...turns.run(rig, stop_from, tcs), ["exit", exit.slip], ["held", exit.held], ["circle", exit.radius]];
+  },
+};
+
 // A stop that started under its speed (the car never got there in 20 s) is left out.
 const straight: StationSim = {
   scenario: "straight",
@@ -79,7 +88,7 @@ const STATION_SIMS: Record<StationId, StationSim> = {
   sweeper: ring,
   lava: ring,
   slalom: turns,
-  hairpin: turns,
+  hairpin,
   drift: slide,
   eight: slide,
   runway: straight,
