@@ -39,7 +39,10 @@ test("a flag is open with its tier, or with tune", () => {
   expect(marker_open(markers[0], {}, false)).toBe(true);
 });
 
-const ahead = (from: Pose, x: number, z: number) => Math.atan2(x - from.x, z - from.z) - from.heading;
+// Seen from about where the chase camera sits behind the car.
+const CHASE_BACK = 7;
+const ahead = (car: Pose, x: number, z: number) =>
+  Math.atan2(x - car.x + Math.sin(car.heading) * CHASE_BACK, z - car.z + Math.cos(car.heading) * CHASE_BACK) - car.heading;
 const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 
 test("Go stops the car before its flag, on the road for a race, facing past it, and the card opens there", () => {
@@ -57,16 +60,14 @@ test("Go stops the car before its flag, on the road for a race, facing past it, 
 
 test("on a bend the car sits in the flag's lane and faces along the curve", () => {
   const radius = 40;
-  // A circle round the origin driven clockwise seen from above: heading at angle a is a + PI/2.
+  // A circle round the origin: the heading at angle a is a + PI/2.
   const bend = (x: number, z: number): Pose => {
     const a = Math.atan2(x, z);
     return { x: Math.sin(a) * radius, z: Math.cos(a) * radius, heading: a + Math.PI / 2 };
   };
-  const at = 0.6;
-  const road = bend(Math.sin(at), Math.cos(at));
-  const off = 8.5;
-  const flag = { x: road.x - Math.cos(road.heading) * off, z: road.z + Math.sin(road.heading) * off, heading: road.heading };
-  const car = arrival(flag, off, { spawn_near: bend, on_road: () => true });
+  const line = bend(Math.sin(0.6), Math.cos(0.6));
+  const flag = { x: line.x - Math.cos(line.heading) * 8.5, z: line.z + Math.sin(line.heading) * 8.5, heading: line.heading };
+  const car = arrival(flag, true, bend);
   const out = Math.hypot(car.x, car.z) - radius;
   expect(Math.abs(Math.abs(out) - 3)).toBeLessThan(0.01);
   expect(Math.sign(out)).toBe(Math.sign(Math.hypot(flag.x, flag.z) - radius));
@@ -74,18 +75,23 @@ test("on a bend the car sits in the flag's lane and faces along the curve", () =
   expect(Math.abs(wrap(ahead(car, flag.x, flag.z)))).toBeLessThan(Math.PI / 4);
 });
 
-test("a flag on a track in the air keeps the car clear of its pole", () => {
-  const straight = (x: number): Pose => ({ x, z: 0, heading: Math.PI / 2 });
+// Heading PI / 2 drives along +x; the flag's side is +z.
+const straight = (x: number): Pose => ({ x, z: 0, heading: Math.PI / 2 });
+const nowhere = (): Pose => ({ x: 1e3, z: 1e3, heading: 0 });
+
+test("a flag on a track in the air keeps the car clear of its pole, and off the air behind a track's start", () => {
   const flag = { x: 0, z: 4.5, heading: Math.PI / 2 };
-  const car = arrival(flag, 4.5, { spawn_near: (x) => straight(x), on_road: () => true });
+  const car = arrival(flag, false, straight);
   expect(car.z).toBeCloseTo(1.5, 6);
   expect(car.x).toBeCloseTo(-6, 6);
+  const first = arrival(flag, false, nowhere);
+  expect(first.x).toBeCloseTo(0, 6);
+  expect(first.z).toBeCloseTo(1.5, 6);
 });
 
-test("a race whose road starts at the line backs the car only as far as the road goes", () => {
-  const flag = { x: 0, z: 8.5, heading: Math.PI / 2 };
-  const elsewhere = (): Pose => ({ x: 0, z: 0, heading: Math.PI / 2 });
-  const car = arrival(flag, 8.5, { spawn_near: elsewhere, on_road: (x, z) => x >= -2 && Math.abs(z) < 6 });
-  expect(car.x).toBeCloseTo(-2, 6);
+test("a flag on open ground stands before the line, and the car before it where the road starts at the line", () => {
+  const flag = { x: -3, z: 8.5, heading: Math.PI / 2 };
+  const car = arrival(flag, true, nowhere);
+  expect(car.x).toBeCloseTo(-9, 6);
   expect(car.z).toBeCloseTo(3, 6);
 });

@@ -19,6 +19,9 @@ const INSIDE = ROAD_HALF - 1.5;
 // A hunt starts at the spawn and the gymkhana and parking sites sit near it: flags on one spot step apart along the road.
 const APART = 9;
 const STEP = 10;
+// The start gate's leg stands at the line just inside a flag on open ground: a flag this far before the line hangs its
+// banner in front of the leg as seen from the road, not behind it.
+const BEFORE_LINE = 3;
 // Go stops the car on the road this far before its flag, in the lane on the flag's side: the chase camera then sees
 // the pole and its banner ahead, never the pole filling the view.
 const ARRIVE_BACK = 6;
@@ -34,10 +37,8 @@ export interface Pose {
   heading: number;
 }
 
-interface RoadQuery {
-  spawn_near(x: number, z: number, fx: number, fz: number): Pose;
-  on_road(x: number, z: number): boolean;
-}
+/** The nearest road's middle to `x, z`, facing along it the way `fx, fz` points (`World.spawn_near`). */
+type SpawnNear = (x: number, z: number, fx: number, fz: number) => Pose;
 
 type StartAt = (world: World, start_index: number, level: string) => Pose | null;
 
@@ -95,41 +96,38 @@ export function event_markers(world: World, start_index: number, events: readonl
     const start = STARTS[event.mode]?.(world, start_index, spot_of(event).level);
     if (!start) continue;
     const tier = TIERS.indexOf(tier_of(event));
-    const off = aside ? ASIDE : INSIDE;
-    const flag = clear_of(placed, beside(start, off));
-    placed.push({ event, tier, ...flag, arrive: arrival(flag, off, world) });
+    const flag = clear_of(placed, beside(start, aside));
+    placed.push({ event, tier, ...flag, arrive: arrival(flag, aside, (x, z, fx, fz) => world.spawn_near(x, z, fx, fz)) });
   }
   return placed;
 }
 
-/** `off`: how far the flag stands to the right of its event's start, which is in the middle of the road. */
-export function arrival(flag: Pose, off: number, road: RoadQuery): Pose {
+/** `aside`: the flag stands beside the road on open ground (`event_markers`), not inside a track's edge. */
+export function arrival(flag: Pose, aside: boolean, spawn_near: SpawnNear): Pose {
   const { heading } = flag;
   const fx = sin(heading);
   const fz = cos(heading);
   const rx = cos(heading);
   const rz = -sin(heading);
+  const off = aside ? ASIDE : INSIDE;
+  const before = aside ? BEFORE_LINE : 0;
+  const back = before + ARRIVE_BACK;
   const lane = Math.min(LANE, off - POLE_CLEAR);
-  const bx = flag.x + rx * off - fx * ARRIVE_BACK;
-  const bz = flag.z + rz * off - fz * ARRIVE_BACK;
-  const near = road.spawn_near(bx, bz, fx, fz);
-  if (hypot(near.x - bx, near.z - bz) < SNAP) return { x: near.x - cos(near.heading) * lane, z: near.z + sin(near.heading) * lane, heading: near.heading };
-  const x = flag.x + rx * (off - lane);
-  const z = flag.z + rz * (off - lane);
-  const back = road.on_road(x, z) ? road_back(road, x, z, fx, fz) : ARRIVE_BACK;
-  return { x: x - fx * back, z: z - fz * back, heading };
+  const lx = flag.x + rx * off + fx * before;
+  const lz = flag.z + rz * off + fz * before;
+  const near = spawn_near(lx - fx * back, lz - fz * back, fx, fz);
+  if (hypot(near.x - lx + fx * back, near.z - lz + fz * back) < SNAP)
+    return { x: near.x - cos(near.heading) * lane, z: near.z + sin(near.heading) * lane, heading: near.heading };
+  // The road starts at the line. Open ground runs on behind it, the air behind a track's first metre does not.
+  const behind = aside ? back : 0;
+  return { x: lx - rx * lane - fx * behind, z: lz - rz * lane - fz * behind, heading };
 }
 
-// A route that starts where its road does has nothing before the line: back only as far as the road goes. A start off
-// the road (a gymkhana or parking site) stands on open ground, which runs on behind it.
-function road_back(road: RoadQuery, x: number, z: number, fx: number, fz: number): number {
-  let back = 0;
-  while (back < ARRIVE_BACK && road.on_road(x - fx * (back + 1), z - fz * (back + 1))) back++;
-  return back;
-}
-
-function beside(start: Pose, off: number): Pose {
-  return { x: start.x - cos(start.heading) * off, z: start.z + sin(start.heading) * off, heading: start.heading };
+function beside(start: Pose, aside: boolean): Pose {
+  const { heading } = start;
+  const off = aside ? ASIDE : INSIDE;
+  const before = aside ? BEFORE_LINE : 0;
+  return { x: start.x - cos(heading) * off - sin(heading) * before, z: start.z + sin(heading) * off - cos(heading) * before, heading };
 }
 
 function clear_of(placed: readonly Marker[], pose: Pose): Pose {
