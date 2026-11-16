@@ -10,7 +10,7 @@ Source of truth: the round 4 design in the session scratchpad
 - Map names read "Island · <biggest town>". Stations are Drive · Events · Garage · Online · Settings; "map" is the only place word.
 - Button: the layered key cap in the round 2 room's colours (`ui-r2/A/screens/10-lobby-v1.html:93-105`, `ui-r2/A/screens/shared.css:134-146,193-205,645-671`). Not round 4's dark cap (`ui-r4/menu/showroom.css:202-217`).
 - Car pick: both. The gate card's car row, plus a button on it that opens the full-screen showroom picker (07 v2).
-- Pause in an event: round 2 B14 v1, not round 4's 10 v2. Free roam keeps 10 v1.
+- Pause: round 2 B14 v1 (list sheet) in BOTH free roam and events (owner 11-16); round 4 10 v1 picture doors dropped. Built in 04fd093 (PauseSheet).
 
 Background: `docs/plan/ui-redesign-research.md` (screen inventory, section 8), `docs/plan/svelte-ui.md` (scale, breakpoints), `AGENTS.md` (Svelte rules, registries).
 
@@ -35,7 +35,7 @@ Ids are `ui-r4/README.md` screen numbers. "Port" means a new Svelte component th
 | 07 v2 | Car pick (B07 v2) | showroom | same modal | port the modal into a showroom page: class tabs and a car shelf on the stage | `CarPick.svelte` shelves, `CarStill.svelte` |
 | 08 | Map (A04 v2) | road | the Create world page on M (`main.ts:701`) and a 2D map on Play (`WorldMap.svelte`, `world-map.svelte.ts`) | new road overlay: this map's flags, name corner, rail with Go | `world-map.svelte.ts:158,267-279` paints the map and towns; `host.map_markers()` (`menu/page.ts:106`) |
 | 09 | Travel (v1) | load | `#loading` "Building island…" (`index.html:340`, `boot.ts:18-23`); every map change sets `location.search` (`main.ts:526,551,572`, `settings.ts:440`) | rework `#loading` into the destination card: from → to, event, star times, bar | `public/menu/<kind>.webp`, `KEPT_ON_EVENT` (`main.ts:117`) |
-| 10 v1 | Pause, free roam (A11 v2 + B14 assist chips) | road | Esc opens the full menu (`hud/input.ts:217`, `main.ts:703`). Touch has `#hud-sheet` (`index.html:375`, `hud/hud-sheet.ts:7`) with "Main menu" as a third layer. Pad uses `menu/pad-menu.ts:123` | new pause: Resume bar, Reset, Settings, and four picture doors that open the showroom at a station. It replaces `#hud-sheet` and the Esc-opens-menu path | `ACTIONS` (`main.ts:683-705`), aid toggles, `menu_hold` |
+| 10 v1 | Pause (B14 v1 list sheet, both states; picture doors dropped) | road | Esc opens the full menu (`hud/input.ts:217`, `main.ts:703`). Touch has `#hud-sheet` (`index.html:375`, `hud/hud-sheet.ts:7`) with "Main menu" as a third layer. Pad uses `menu/pad-menu.ts:123` | new pause: Resume bar, Reset, Settings, and four picture doors that open the showroom at a station. It replaces `#hud-sheet` and the Esc-opens-menu path | `ACTIONS` (`main.ts:683-705`), aid toggles, `menu_hold` |
 | 10 v2 | Pause, in an event (B14 v1, owner) | road | same as above | new: run card (place, lap, time), Restart · Leave · Showroom · Settings with keys, assist chips, Resume as the KeyButton | `modes.active`, `modes.exit` |
 | 11 | Drive station / hub (B03 v1) | showroom | `PlayPage.svelte` (242 lines): map, legend and ~6 equal cards | rework into the stage, car left, three tiles (Keep driving, Next up, Today's run) | `CareerHero` data, `RunsCard` data |
 | 12 | Next up (B17 v1) | showroom | CareerHero / `CareerGoals.svelte` | new page: big ticket, three reasons, three other picks, Travel | `career-model.ts:114` `goals`, `career.ts:218` |
