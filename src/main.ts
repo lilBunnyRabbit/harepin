@@ -793,11 +793,13 @@ const drag_car = (keep: number) => sim.send({ type: "drag", keep });
 const NO_PEERS: readonly never[] = [];
 const request: FrameRequest = { kind: FrameKind.HOLD, steps: 0, controls: { steer: 0, throttle: 0, brake: 0, handbrake: 0, analog: false }, now: 0, blend: 0, peers: NO_PEERS };
 let last = review?.now ?? performance.now();
-/** The menu's blur sits over a scene that only turbines and gates animate while it holds the sim, so it redraws at this rate. */
+/** The menu's blur sits over a still scene while it holds the sim, so it redraws at this rate. */
 const MENU_DRAW_MS = 100;
 /** With peers the sim keeps running under the menu; behind its blur half of a 60 Hz redraw is enough. */
 const COVERED_DRAW_MS = 30;
 let last_draw = 0;
+/** Seconds the world's own motion has run (turbines, beacons, the lit gate's pulse, camera shake): it stops while a menu holds the sim. */
+let world_time = 0;
 /** Time the draw side (chase cam, smoke, remote cars) has not yet advanced by, from frames the menu skipped. */
 let draw_dt = 0;
 /** The timer a held menu sleeps on until its next redraw, 0 while the loop runs on animation frames. */
@@ -876,6 +878,7 @@ function frame(time: number) {
   // A timer redraw stamps `last` with performance.now(), which can run ahead of the next animation frame's vsync time.
   const dt = Math.max(0, Math.min(0.1, (now - last) / 1000));
   last = now;
+  if (!menu_hold) world_time += dt;
   render.fit();
   let kind: FrameKind = FrameKind.HOLD;
   let steps = 0;
@@ -944,7 +947,7 @@ function frame(time: number) {
   // A mode spawns the car anywhere, the circuit start included: its lap clock would count that as a lap.
   // A review replay is a dev ghost driving, not the player: it never sets a lap record; nor does the lab, which keys none.
   if (!modes.active && !review && lab_id === null) race.update(car.pos.x, car.pos.z, now);
-  update_gates(now / 1000);
+  update_gates(world_time);
   ghost.update(race.started && !modes.active ? now - race.started : null, camera.position);
   modes.update(stepped, car);
   markers.update(car.pos.x, car.pos.z, car.vel.length(), !modes.active && !modes.holding && !lobby.busy);
@@ -964,7 +967,7 @@ function frame(time: number) {
   driver.draw(!simulated, out.blend, now);
   field_view?.update(camera);
   const offroad = !world.on_road(car.pos.x, car.pos.z);
-  chase.update(view_dt, driver.drawn, world, offroad, now / 1000, input.look);
+  chase.update(view_dt, driver.drawn, world, offroad, world_time, input.look);
   if (!review?.aim(camera) && posed) {
     camera.position.set(pose[0], pose[1], pose[2]);
     camera.lookAt(pose[3], pose[4], pose[5]);
@@ -1007,7 +1010,7 @@ function frame(time: number) {
   stream.follow(car.pos.x, car.pos.z, quality.tier.fog_far + quality.tier.stream_pad);
   // The dome is 2.4 km across and the mainland is wider, so it rides with the camera instead of the world origin.
   dome.position.copy(camera.position);
-  world_view.update(camera, quality.tier.fog_far, now / 1000);
+  world_view.update(camera, quality.tier.fog_far, world_time);
   // The garage covers the screen and draws the car with its own renderer; the next frame after it closes draws the world.
   if (!garage.is_open && (!draw_ms || now - last_draw >= draw_ms)) {
     last_draw = now;
