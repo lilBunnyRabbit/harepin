@@ -7,7 +7,7 @@ import { is_plain } from "../../src/worldgen/kinds/kinds";
 import { parse_map_code } from "../../src/worldgen/kinds/map-code";
 import { WorldKind } from "../../src/worldgen/types";
 import { circuits } from "../ai-race";
-import { autolaps } from "../ai-tune/race";
+import { autolap } from "../autolap";
 import { AI_HASH, DIR, write_json } from "./cache";
 import { ai_lap, track_of } from "./drive";
 import { lifts, lifts_table, owner_table } from "./owner-gap";
@@ -90,7 +90,7 @@ function report(trial: TracedTrial): OwnerResult | null {
   const tk = track_of(world, route, spec);
   const ai = ai_lap(tk, SOLO_LIMIT);
   if (!ai.trace) throw new Error("no AI trace");
-  const auto = autolaps(seed)[trial.route];
+  const auto = autolap(world, spec, [...route.points, route.points[0]], false).t;
   unplace();
   const result: OwnerResult = {
     pack: trial.pack,

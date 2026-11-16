@@ -1,11 +1,20 @@
+import { build_code, DEFAULT_BUILD } from "../../car/build";
 import { NOTE } from "../ask";
 import type { Pack } from "../pack";
 
 // One pack a track: three laps of an island circuit fill most of the 20-minute session cap.
-const COUPE = "coupe.4.0.0.1.0";
 const LAPS = 3;
 
+interface RefCar {
+  code: string;
+  name: string;
+}
+
+const COUPE: RefCar = { code: "coupe.4.0.0.1.0", name: "stock coupe" };
+const HATCH: RefCar = { code: build_code(DEFAULT_BUILD), name: "players' default hatch" };
+
 interface Ref {
+  car: RefCar;
   seed: number;
   route: "circuit" | "circuit-rev";
   map: string;
@@ -13,13 +22,14 @@ interface Ref {
 }
 
 const REFS: Record<string, Ref> = {
-  "ai-ref-0": { seed: 0, route: "circuit", map: "1C0000000", feel: "the oracle's home track: the AI loses most in the two r17 hairpins and brakes up to 250 m early elsewhere" },
-  "ai-ref-1": { seed: 1, route: "circuit", map: "1C0000001", feel: "the longest of the three, 5.8 km" },
-  "ai-ref-2": { seed: 2, route: "circuit", map: "1C0000002", feel: "the shortest, 5.0 km" },
-  "ai-ref-9-rev": { seed: 9, route: "circuit-rev", map: "1C0000009", feel: "a one-sided step on the line about 3/5 round, where the AI launches at 38 m/s: notice whether and how much you lift for it" },
-  "ai-ref-16": { seed: 16, route: "circuit", map: "1C000000G", feel: "an object on the line about 9/10 round: notice where you go round it and how much you lift" },
-  "ai-ref-30": { seed: 30, route: "circuit", map: "1C000000Y", feel: "lamp posts beside the line: notice how close you dare run to them" },
+  "ai-ref-0": { car: COUPE, seed: 0, route: "circuit", map: "1C0000000", feel: "the oracle's home track: the AI loses most in the two r17 hairpins and brakes up to 250 m early elsewhere" },
+  "ai-ref-1": { car: COUPE, seed: 1, route: "circuit", map: "1C0000001", feel: "the longest of the three, 5.8 km" },
+  "ai-ref-2": { car: COUPE, seed: 2, route: "circuit", map: "1C0000002", feel: "the shortest, 5.0 km" },
+  "ai-ref-9-rev": { car: COUPE, seed: 9, route: "circuit-rev", map: "1C0000009", feel: "a one-sided step on the line about 3/5 round, where the AI launches at 38 m/s: notice whether and how much you lift for it" },
+  "ai-ref-16": { car: COUPE, seed: 16, route: "circuit", map: "1C000000G", feel: "an object on the line about 9/10 round: notice where you go round it and how much you lift" },
+  "ai-ref-30": { car: COUPE, seed: 30, route: "circuit", map: "1C000000Y", feel: "lamp posts beside the line: notice how close you dare run to them" },
 };
+for (const seed of [1, 16, 30]) REFS[`ai-ref-h-${seed}`] = { ...REFS[`ai-ref-${seed}`], car: HATCH };
 
 export const REF_IDS = Object.keys(REFS);
 
@@ -29,13 +39,13 @@ export function ref_pack(id: string): Pack {
   return {
     id,
     rev: 1,
-    title: `Reference laps: seed ${ref.seed} ${ref.route}`,
-    brief: `The stock coupe alone on island seed ${ref.seed}'s ${ref.route}, ${LAPS} laps from a standing start, no field. Your drive is traced and set against the AI's lap corner by corner.`,
+    title: `Reference laps: seed ${ref.seed} ${ref.route}, ${ref.car.name}`,
+    brief: `The ${ref.car.name} alone on island seed ${ref.seed}'s ${ref.route}, ${LAPS} laps from a standing start, no field. Your drive is traced and set against the AI's lap corner by corner.`,
     aim: "How fast does a person drive this track cleanly, and where?",
     trials: [
       {
         id: `s${ref.seed}-${ref.route}`,
-        car: COUPE,
+        car: ref.car.code,
         map: ref.map,
         route: ref.route,
         goal: { kind: "laps", laps: LAPS },
