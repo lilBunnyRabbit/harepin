@@ -37,8 +37,11 @@ export interface Pose {
   heading: number;
 }
 
-/** The nearest road's middle to `x, z`, facing along it the way `fx, fz` points (`World.spawn_near`). */
-type SpawnNear = (x: number, z: number, fx: number, fz: number) => Pose;
+interface RoadQuery {
+  /** The nearest road's middle to `x, z`, facing along it the way `fx, fz` points. */
+  spawn_near(x: number, z: number, fx: number, fz: number): Pose;
+  on_road(x: number, z: number): boolean;
+}
 
 type StartAt = (world: World, start_index: number, level: string) => Pose | null;
 
@@ -97,13 +100,13 @@ export function event_markers(world: World, start_index: number, events: readonl
     if (!start) continue;
     const tier = TIERS.indexOf(tier_of(event));
     const flag = clear_of(placed, beside(start, aside));
-    placed.push({ event, tier, ...flag, arrive: arrival(flag, aside, (x, z, fx, fz) => world.spawn_near(x, z, fx, fz)) });
+    placed.push({ event, tier, ...flag, arrive: arrival(flag, aside, world) });
   }
   return placed;
 }
 
 /** `aside`: the flag stands beside the road on open ground (`event_markers`), not inside a track's edge. */
-export function arrival(flag: Pose, aside: boolean, spawn_near: SpawnNear): Pose {
+export function arrival(flag: Pose, aside: boolean, road: RoadQuery): Pose {
   const { heading } = flag;
   const fx = sin(heading);
   const fz = cos(heading);
@@ -115,12 +118,21 @@ export function arrival(flag: Pose, aside: boolean, spawn_near: SpawnNear): Pose
   const lane = Math.min(LANE, off - POLE_CLEAR);
   const lx = flag.x + rx * off + fx * before;
   const lz = flag.z + rz * off + fz * before;
-  const near = spawn_near(lx - fx * back, lz - fz * back, fx, fz);
+  const near = road.spawn_near(lx - fx * back, lz - fz * back, fx, fz);
   if (hypot(near.x - lx + fx * back, near.z - lz + fz * back) < SNAP)
     return { x: near.x - cos(near.heading) * lane, z: near.z + sin(near.heading) * lane, heading: near.heading };
-  // The road starts at the line. Open ground runs on behind it, the air behind a track's first metre does not.
-  const behind = aside ? back : 0;
-  return { x: lx - rx * lane - fx * behind, z: lz - rz * lane - fz * behind, heading };
+  const x = lx - rx * lane;
+  const z = lz - rz * lane;
+  const behind = road.on_road(x, z) ? road_back(road, x, z, fx, fz, back) : aside ? back : 0;
+  return { x: x - fx * behind, z: z - fz * behind, heading };
+}
+
+// The road behind the line is short (it starts there, or the snap shifted off a no-spawn stretch): back only as far as
+// it runs. A start off the road (a gymkhana or parking site) has open ground behind it; a track in the air has nothing.
+function road_back(road: RoadQuery, x: number, z: number, fx: number, fz: number, most: number): number {
+  let back = 0;
+  while (back < most && road.on_road(x - fx * (back + 1), z - fz * (back + 1))) back++;
+  return back;
 }
 
 function beside(start: Pose, aside: boolean): Pose {

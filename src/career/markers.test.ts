@@ -67,7 +67,7 @@ test("on a bend the car sits in the flag's lane and faces along the curve", () =
   };
   const line = bend(Math.sin(0.6), Math.cos(0.6));
   const flag = { x: line.x - Math.cos(line.heading) * 8.5, z: line.z + Math.sin(line.heading) * 8.5, heading: line.heading };
-  const car = arrival(flag, true, bend);
+  const car = arrival(flag, true, { spawn_near: bend, on_road: () => true });
   const out = Math.hypot(car.x, car.z) - radius;
   expect(Math.abs(Math.abs(out) - 3)).toBeLessThan(0.01);
   expect(Math.sign(out)).toBe(Math.sign(Math.hypot(flag.x, flag.z) - radius));
@@ -81,17 +81,32 @@ const nowhere = (): Pose => ({ x: 1e3, z: 1e3, heading: 0 });
 
 test("a flag on a track in the air keeps the car clear of its pole, and off the air behind a track's start", () => {
   const flag = { x: 0, z: 4.5, heading: Math.PI / 2 };
-  const car = arrival(flag, false, straight);
+  const car = arrival(flag, false, { spawn_near: straight, on_road: () => true });
   expect(car.z).toBeCloseTo(1.5, 6);
   expect(car.x).toBeCloseTo(-6, 6);
-  const first = arrival(flag, false, nowhere);
+  const first = arrival(flag, false, { spawn_near: nowhere, on_road: () => false });
   expect(first.x).toBeCloseTo(0, 6);
   expect(first.z).toBeCloseTo(1.5, 6);
 });
 
-test("a flag on open ground stands before the line, and the car before it where the road starts at the line", () => {
+test("a flag on open ground stands before the line; where the road starts short of the car's spot, the car backs only as far as it runs", () => {
   const flag = { x: -3, z: 8.5, heading: Math.PI / 2 };
-  const car = arrival(flag, true, nowhere);
-  expect(car.x).toBeCloseTo(-9, 6);
+  const car = arrival(flag, true, { spawn_near: nowhere, on_road: (x, z) => x >= -5 && Math.abs(z) < 6 });
+  expect(car.x).toBeCloseTo(-5, 6);
   expect(car.z).toBeCloseTo(3, 6);
+  const site = arrival(flag, true, { spawn_near: nowhere, on_road: () => false });
+  expect(site.x).toBeCloseTo(-9, 6);
+  expect(site.z).toBeCloseTo(3, 6);
+});
+
+test("a race whose road runs only metres behind its line still puts the car on the road", () => {
+  for (const id of ["c1", "c7", "e2", "l11", "p7"]) {
+    const event = EVENTS.find((one) => one.id === id);
+    if (!event) throw new Error(id);
+    const at = event_map(event);
+    const its = new World(at.seed, build_world(at.seed, at.kind, at.levels).data, undefined, at.levels);
+    const [m] = event_markers(its, SPAWN_INDEX, [event], KINDS[at.kind].open_ground);
+    expect(its.on_road(m.arrive.x, m.arrive.z)).toBe(true);
+    expect(Math.abs(wrap(ahead(m.arrive, m.x, m.z)))).toBeLessThan(Math.PI / 4);
+  }
 });
