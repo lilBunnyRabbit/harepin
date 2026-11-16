@@ -8,6 +8,7 @@ import { CHUNK, chunk_of, type Extent } from "../worldgen/chunk-grid";
 import { challenge_outer, challenge_pieces, CONE_HEIGHT, CONE_RADIUS, GRAVITY, ITEMS, PIECE_DEPTH, ramp_extent, ramp_lift } from "../worldgen/jumps";
 import { Builder, bounding_sphere, type Rgb } from "../worldgen/mesh";
 import type { Challenge, Item, ItemKind, Ramp } from "../worldgen/types";
+import { atan2, axis_angle, cos, hypot, sin } from "../sim-math";
 
 const BODY_HW = 1;
 const WATCH = 60;
@@ -166,7 +167,7 @@ function circle_span(car: Car): number {
 
 function touches(car: Car, fx: number, fz: number, at: THREE.Vector3, r: number): boolean {
   const circles = car.spec.circles;
-  for (let i = 0; i < circles.length; i++) if (Math.hypot(car.pos.x + fx * circles[i] - at.x, car.pos.z + fz * circles[i] - at.z) < r) return true;
+  for (let i = 0; i < circles.length; i++) if (hypot(car.pos.x + fx * circles[i] - at.x, car.pos.z + fz * circles[i] - at.z) < r) return true;
   return false;
 }
 
@@ -218,7 +219,7 @@ export class JumpsView {
       const mesh = new THREE.InstancedMesh(item_geometry(kind), item_material(kind), here.length);
       here.forEach((item, slot) => {
         const pos = new THREE.Vector3(item.x, item.y, item.z);
-        const quat = new THREE.Quaternion().setFromAxisAngle(up, Math.atan2(item.fx, item.fz));
+        const quat = axis_angle(new THREE.Quaternion(), up, atan2(item.fx, item.fz));
         mesh.setMatrixAt(slot, this.m.compose(pos, quat, this.s.setScalar(item.scale)));
         if (item.light) this.loose.push({ item, mesh, slot, pos, vel: new THREE.Vector3(), quat, spin: new THREE.Vector3(), moving: false });
       });
@@ -237,8 +238,9 @@ export class JumpsView {
     }
   }
 
-  update(dt: number, car: Car): JumpEvent {
-    this.knock(car);
+  /** `drag` slows the car by a knocked item's share: the car belongs to the sim, which may run elsewhere. */
+  update(dt: number, car: Car, drag: (keep: number) => void): JumpEvent {
+    this.knock(car, drag);
     this.fly(dt);
     this.event.clean = this.watch(car);
     return this.event;
@@ -252,9 +254,9 @@ export class JumpsView {
     });
   }
 
-  private knock(car: Car) {
-    const fx = Math.sin(car.heading);
-    const fz = Math.cos(car.heading);
+  private knock(car: Car, drag: (keep: number) => void) {
+    const fx = sin(car.heading);
+    const fz = cos(car.heading);
     const speed = car.vel.length();
     const span = circle_span(car) + 1;
     for (let i = 0; i < this.loose.length; i++) {
@@ -266,12 +268,12 @@ export class JumpsView {
       if (!touches(car, fx, fz, l.pos, r)) continue;
       const ax = l.pos.x - car.pos.x;
       const az = l.pos.z - car.pos.z;
-      const away = Math.hypot(ax, az) || 1;
+      const away = hypot(ax, az) || 1;
       const kick = Math.max(2, speed * 1.25);
       l.vel.set(car.vel.x * 1.1 + (ax / away) * kick * 0.35, 2 + speed * 0.18, car.vel.z * 1.1 + (az / away) * kick * 0.35);
       l.spin.set(az / away, 0, -ax / away).multiplyScalar(4 + speed * 0.4);
       l.moving = true;
-      car.vel.multiplyScalar(1 - DRAG[l.item.kind]);
+      drag(1 - DRAG[l.item.kind]);
     }
   }
 
@@ -282,7 +284,7 @@ export class JumpsView {
       l.vel.y -= GRAVITY * dt;
       l.pos.addScaledVector(l.vel, dt);
       const angle = l.spin.length() * dt;
-      if (angle > 0) l.quat.premultiply(this.q.setFromAxisAngle(this.s.copy(l.spin).normalize(), angle));
+      if (angle > 0) l.quat.premultiply(axis_angle(this.q, this.s.copy(l.spin).normalize(), angle));
       const ground = this.height(l.pos.x, l.pos.z);
       if (l.pos.y < ground) {
         l.pos.y = ground;

@@ -1,3 +1,4 @@
+import { atan2, cos, hypot, sin } from "../sim-math";
 export interface RoutePoint {
   x: number;
   z: number;
@@ -5,7 +6,7 @@ export interface RoutePoint {
   tz: number;
 }
 
-const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
+const wrap = (a: number) => atan2(sin(a), cos(a));
 const at = <T>(road: readonly T[], i: number) => road[((i % road.length) + road.length) % road.length];
 
 export function slice(road: readonly RoutePoint[], start: number, count: number): RoutePoint[] {
@@ -14,7 +15,7 @@ export function slice(road: readonly RoutePoint[], start: number, count: number)
 
 export function length_of(points: readonly RoutePoint[]): number {
   let total = 0;
-  for (let i = 1; i < points.length; i++) total += Math.hypot(points[i].x - points[i - 1].x, points[i].z - points[i - 1].z);
+  for (let i = 1; i < points.length; i++) total += hypot(points[i].x - points[i - 1].x, points[i].z - points[i - 1].z);
   return total;
 }
 
@@ -23,7 +24,7 @@ export function bend(road: readonly RoutePoint[], start: number, count: number):
   for (let i = 0; i < count - 1; i++) {
     const a = at(road, start + i);
     const b = at(road, start + i + 1);
-    total += Math.abs(wrap(Math.atan2(b.tx, b.tz) - Math.atan2(a.tx, a.tz)));
+    total += Math.abs(wrap(atan2(b.tx, b.tz) - atan2(a.tx, a.tz)));
   }
   return total;
 }
@@ -62,8 +63,8 @@ export function straights(line: readonly RoutePoint[]): Straight[] {
   for (let i = 1; i < line.length; i++) {
     const a = line[i - 1];
     const b = line[i];
-    const step = Math.hypot(b.x - a.x, b.z - a.z);
-    const turn = Math.abs(wrap(Math.atan2(b.tx, b.tz) - Math.atan2(a.tx, a.tz)));
+    const step = hypot(b.x - a.x, b.z - a.z);
+    const turn = Math.abs(wrap(atan2(b.tx, b.tz) - atan2(a.tx, a.tz)));
     if (step > 0 && turn / step > STRAIGHT_TURN) {
       if (i - 1 > from) found.push({ from, to: i - 1, length });
       from = i;

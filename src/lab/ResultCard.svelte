@@ -20,7 +20,9 @@
   const r = $derived(lab.trials[index]);
   const questions = $derived(questions_of(lab.pack, r.trial));
   const metrics = $derived(view.read(() => lab.results[index].metrics));
-  const numbers = $derived(split_metrics(metrics ? shown_metrics(metric_pairs(metrics), r.trial.station) : [], r.trial.station));
+  const field = $derived(view.read(() => lab.results[index].field));
+  const gap_text = (gap: number) => (Number.isNaN(gap) ? "" : `+${gap.toFixed(1)} s`);
+  const numbers = $derived(split_metrics(metrics ? shown_metrics(metric_pairs(metrics), r.station?.id ?? null) : [], r.station?.id ?? null));
   const brief = $derived(trial_brief(lab.pack, lab.trials, lab.shown, index));
   const feel = $derived(feel_line(lab.shown[index].feel));
   const given = $derived(view.read(() => ({ ...lab.answers[r.trial.id] })));
@@ -53,6 +55,13 @@
       </dl>
     {:else}
       <p class="lab-none">Nothing measured: the clock starts at the first throttle.</p>
+    {/if}
+    {#if field}
+      <ol class="lab-field" aria-label="Running order">
+        {#each field as row, i (i)}
+          <li data-you={row.you}><span class="lab-field-place">{i + 1}</span><span class="lab-field-name">{row.you ? "You" : row.name}</span><span class="lab-field-gap">{i === 0 ? "" : gap_text(row.gap)}</span></li>
+        {/each}
+      </ol>
     {/if}
     <More>
       <div class="lab-more-grid">
@@ -145,6 +154,39 @@
   .lab-rest dd {
     font-weight: 600;
     font-variant-numeric: tabular-nums;
+  }
+
+  .lab-field {
+    display: grid;
+    gap: var(--space-1);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .lab-field li {
+    display: grid;
+    grid-template-columns: 2ch minmax(0, 1fr) auto;
+    gap: var(--space-3);
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-sm);
+  }
+
+  .lab-field li[data-you="true"] {
+    background: var(--set-soft);
+    font-weight: 600;
+  }
+
+  .lab-field-place,
+  .lab-field-gap {
+    color: var(--set-dim);
+  }
+
+  .lab-field-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .lab-none {

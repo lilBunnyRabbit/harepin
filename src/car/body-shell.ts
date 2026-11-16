@@ -5,6 +5,7 @@ import type { CarSpec } from "./cars";
 import type { Cabin, Design, Slab } from "./designs";
 import { arc, clip, extrude, inset, lean, parts, screen, slab, split, tint, top_at, type Point } from "./geometry";
 import type { Panel } from "./livery";
+import { cos, sin } from "../sim-math";
 
 const PANEL_MARGIN = 0.06;
 const PANEL_FLOOR = 0.08;
@@ -70,7 +71,7 @@ export function wells(d: Design, spec: CarSpec, tyre_width: number): THREE.Buffe
   if (d.arches.steps === 0 && !pods) return [];
   return axles_of(spec).flatMap((axle, i) => {
     const half = (d.tyre[Math.min(i, 1)] * tyre_width) / 2;
-    const swept = axle.steer ? half * Math.cos(spec.lock) + spec.wheel.radius * Math.sin(spec.lock) : half;
+    const swept = axle.steer ? half * cos(spec.lock) + spec.wheel.radius * sin(spec.lock) : half;
     const inner = Math.abs(spec.wheel.mounts[axle.wheels[0]][0]) - swept - WELL_CLEAR;
     if (pods) return inner > pods.from ? slab(arc(axle.z, spec.wheel.radius, pods.radius, d.sill, pods.steps), pods.from, inner) : [];
     return inner > 0 ? [extrude(arch_opening(d, spec, axle.z), 2 * inner)] : [];

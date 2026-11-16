@@ -9,7 +9,7 @@ import { FACE_REACH, shape_face } from "./switchback";
 import { freeze_vertex, type FrozenLake } from "./ice";
 import { lava_vertex, type LavaPool } from "./lava";
 import { snow_vertex, type Parting, type SnowKit } from "./snow";
-import { soak, water_index, type Water } from "./water";
+import { freeze, soak, water_index, type Water } from "./water";
 import { CELL, ORIGIN, ROAD_HALF, SHOULDER, SurfaceId, type Canyon, type RoadEdge, type RoadPoint, type Terrain, type Town } from "./types";
 
 // Past `core` plus two cells every vertex a lot corner can touch is fully on the plane; the plane then eases back to
@@ -63,6 +63,7 @@ export type GroundOp =
   | { kind: "harden"; cuts: BiomeCuts; floor: number | null }
   | { kind: "water"; water: Water }
   | { kind: "snow"; kit: SnowKit; beach: number; parts: readonly Parting[] }
+  | { kind: "freeze"; water: Water }
   | { kind: "ice"; lakes: readonly FrozenLake[]; seed: number }
   | { kind: "lava"; pools: readonly LavaPool[] }
   | { kind: "paint"; lines: readonly (readonly RoadPoint[])[]; half: number; surface: SurfaceId };
@@ -131,6 +132,7 @@ export class Stamp {
     else if (op.kind === "bank") this.bank(op.lines, op.half, op.bank);
     else if (op.kind === "water") this.water(op.water);
     else if (op.kind === "snow") this.snow(op.kit, op.beach, op.parts);
+    else if (op.kind === "freeze") this.freeze(op.water);
     else if (op.kind === "ice") this.ice(op.lakes, op.seed);
     else if (op.kind === "lava") this.lava(op.pools);
     else if (op.kind === "paint") this.paint(op.lines, op.half, op.surface);
@@ -192,6 +194,15 @@ export class Stamp {
     const { grid } = this;
     for (let j = grid.j0; j <= grid.j1; j++)
       for (let i = grid.i0; i <= grid.i1; i++) soak(index, heights, surface, at(grid, i, j), ORIGIN + i * CELL, ORIGIN + j * CELL, SurfaceId.WET);
+  }
+
+  freeze(water: Water) {
+    this.log({ kind: "freeze", water });
+    const index = water_index(water);
+    const { heights, surface } = this.terrain;
+    const { grid } = this;
+    for (let j = grid.j0; j <= grid.j1; j++)
+      for (let i = grid.i0; i <= grid.i1; i++) freeze(index, heights, surface, at(grid, i, j), ORIGIN + i * CELL, ORIGIN + j * CELL, SurfaceId.ICE);
   }
 
   ice(lakes: readonly FrozenLake[], seed: number) {

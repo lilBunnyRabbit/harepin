@@ -1,6 +1,7 @@
 import type { Solid } from "../world/world";
 import { to_local, to_world, type Body, type Pose, type Site } from "./gymkhana";
 import { MAX_STARS } from "./track";
+import { atan2, cos, hypot, sin } from "../sim-math";
 
 const DEG = Math.PI / 180;
 export const PARK_ANGLE = 6 * DEG;
@@ -53,8 +54,8 @@ export interface ParkLevel {
 
 const car = (bay: ParkBay, back = 0.3): ParkObstacle => ({
   kind: "car",
-  u: bay.u + Math.sin(bay.heading) * back,
-  v: bay.v + Math.cos(bay.heading) * back,
+  u: bay.u + sin(bay.heading) * back,
+  v: bay.v + cos(bay.heading) * back,
   heading: bay.heading,
   w: PARKED.w,
   l: PARKED.l,
@@ -72,10 +73,10 @@ function row(u: number, v: number, heading: number, w: number, l: number, from: 
 }
 
 function angled_row(edge: number, v: number, lean: number, w: number, l: number, from: number, to: number): ParkBay[] {
-  const step = w / Math.cos(lean);
+  const step = w / cos(lean);
   const bays: ParkBay[] = [];
   for (let i = from; i <= to; i++)
-    bays.push({ u: edge + Math.cos(lean) * (l / 2), v: v + i * step + Math.sin(lean) * (l / 2), heading: Math.PI / 2 - lean, w, l, either: false });
+    bays.push({ u: edge + cos(lean) * (l / 2), v: v + i * step + sin(lean) * (l / 2), heading: Math.PI / 2 - lean, w, l, either: false });
   return bays;
 }
 
@@ -155,8 +156,8 @@ function angled(): ParkLevel {
   const lean = Math.PI / 4;
   const bays = angled_row(AISLE, 12, lean, 2.7, 5.6, -1, 2);
   const bay = bays[1];
-  const tail = { u: bay.u + Math.sin(bay.heading) * (bay.l / 2 + 0.4), v: bay.v + Math.cos(bay.heading) * (bay.l / 2 + 0.4) };
-  const across = { u: Math.cos(bay.heading) * (bay.w / 2), v: -Math.sin(bay.heading) * (bay.w / 2) };
+  const tail = { u: bay.u + sin(bay.heading) * (bay.l / 2 + 0.4), v: bay.v + cos(bay.heading) * (bay.l / 2 + 0.4) };
+  const across = { u: cos(bay.heading) * (bay.w / 2), v: -sin(bay.heading) * (bay.w / 2) };
   return {
     id: "p6",
     name: "Angled",
@@ -181,7 +182,7 @@ export const PARK_LEVELS: readonly ParkLevel[] = [
 ];
 export const PARK_IDS = PARK_LEVELS.map((level) => level.id);
 
-const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
+const wrap = (a: number) => atan2(sin(a), cos(a));
 
 export function park_solids(site: Site, level: ParkLevel, height: (x: number, z: number) => number): Solid[] {
   return level.obstacles.map((o) => {
@@ -189,7 +190,7 @@ export function park_solids(site: Site, level: ParkLevel, height: (x: number, z:
     const y = height(x, z);
     if (o.kind === "cone") return { kind: "circle", x, y, z, radius: CONE_RADIUS, height: o.h };
     const heading = site.heading + o.heading;
-    return { kind: "box", x, y, z, hw: o.w / 2, hd: o.l / 2, cos: Math.cos(heading), sin: Math.sin(heading), height: o.h };
+    return { kind: "box", x, y, z, hw: o.w / 2, hd: o.l / 2, cos: cos(heading), sin: sin(heading), height: o.h };
   });
 }
 
@@ -203,8 +204,8 @@ export interface Fit {
 }
 
 export function corners(site: Site, pose: Pose, body: Pick<Body, "length" | "width">): { u: number; v: number }[] {
-  const fx = Math.sin(pose.heading);
-  const fz = Math.cos(pose.heading);
+  const fx = sin(pose.heading);
+  const fz = cos(pose.heading);
   const out: { u: number; v: number }[] = [];
   for (const [sl, sw] of [
     [1, 1],
@@ -222,8 +223,8 @@ export function corners(site: Site, pose: Pose, body: Pick<Body, "length" | "wid
 export function in_bay(bay: ParkBay, u: number, v: number): boolean {
   const du = u - bay.u;
   const dv = v - bay.v;
-  const c = Math.cos(bay.heading);
-  const s = Math.sin(bay.heading);
+  const c = cos(bay.heading);
+  const s = sin(bay.heading);
   const across = du * c - dv * s;
   const along = du * s + dv * c;
   return Math.abs(across) <= bay.w / 2 && Math.abs(along) <= bay.l / 2;
@@ -235,7 +236,7 @@ export function fit(site: Site, bay: ParkBay, pose: Pose, body: Pick<Body, "leng
   const flipped = Math.PI - off;
   const angle = bay.either ? Math.min(off, flipped) : off;
   const centre = to_local(site, pose.x, pose.z);
-  const offset = Math.hypot(centre.u - bay.u, centre.v - bay.v);
+  const offset = hypot(centre.u - bay.u, centre.v - bay.v);
   if (!corners(site, pose, body).every((p) => in_bay(bay, p.u, p.v))) return { verdict: Verdict.OUTSIDE, angle, offset };
   if (angle <= PARK_ANGLE) return { verdict: Verdict.INSIDE, angle, offset };
   return { verdict: !bay.either && flipped <= PARK_ANGLE ? Verdict.BACKWARDS : Verdict.CROOKED, angle, offset };
@@ -261,15 +262,15 @@ export function park_stars(result: Pick<ParkResult, "ms" | "touches" | "angle">,
 function circle_gap(solid: Solid, px: number, pz: number): number {
   const ox = px - solid.x;
   const oz = pz - solid.z;
-  if (solid.kind === "circle") return Math.hypot(ox, oz) - solid.radius;
+  if (solid.kind === "circle") return hypot(ox, oz) - solid.radius;
   const lx = ox * solid.cos - oz * solid.sin;
   const lz = ox * solid.sin + oz * solid.cos;
-  return Math.hypot(Math.max(0, Math.abs(lx) - solid.hw), Math.max(0, Math.abs(lz) - solid.hd));
+  return hypot(Math.max(0, Math.abs(lx) - solid.hw), Math.max(0, Math.abs(lz) - solid.hd));
 }
 
 export function touching(solids: readonly Solid[], pose: Pose, body: Pick<Body, "circles" | "radius">): boolean {
-  const fx = Math.sin(pose.heading);
-  const fz = Math.cos(pose.heading);
+  const fx = sin(pose.heading);
+  const fz = cos(pose.heading);
   for (const offset of body.circles) {
     const px = pose.x + fx * offset;
     const pz = pose.z + fz * offset;
@@ -354,8 +355,8 @@ export function park_footprint(levels: readonly ParkLevel[] = PARK_LEVELS): { u0
     v1 = Math.max(v1, v + reach);
   };
   for (const level of levels) {
-    for (const o of level.obstacles) grow(o.u, o.v, Math.hypot(o.w, o.l) / 2 + 2);
-    for (const bay of [level.bay, ...level.lines]) grow(bay.u, bay.v, Math.hypot(bay.w, bay.l) / 2 + 2);
+    for (const o of level.obstacles) grow(o.u, o.v, hypot(o.w, o.l) / 2 + 2);
+    for (const bay of [level.bay, ...level.lines]) grow(bay.u, bay.v, hypot(bay.w, bay.l) / 2 + 2);
   }
   return { u0, u1, v0, v1 };
 }

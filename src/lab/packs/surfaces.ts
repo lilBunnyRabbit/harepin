@@ -1,5 +1,5 @@
 import { LabSurface } from "../../worldgen/lab";
-import type { Trial } from "../pack";
+import type { StationTrial } from "../pack";
 
 // The stock coupe, no parts fitted: one car on every surface, so the differences are the ground's.
 const COUPE = "coupe.4.0.0.1.0";
@@ -20,7 +20,7 @@ const LABEL: Record<LabSurface, string> = {
 };
 export const BRAKE_FROM = 60;
 
-export const pad = (surface: LabSurface): Trial => ({
+export const pad = (surface: LabSurface): StationTrial => ({
   id: `pad-${surface}`,
   car: COUPE,
   station: "skidpad",
@@ -30,7 +30,7 @@ export const pad = (surface: LabSurface): Trial => ({
   feel: "where the grip runs out, how the slide arrives and whether it can be caught",
 });
 
-export const brake = (surface: LabSurface): Trial => ({
+export const brake = (surface: LabSurface): StationTrial => ({
   id: `brake-${surface}`,
   car: COUPE,
   station: "runway",

@@ -1,4 +1,5 @@
 import { PieceKind, RampKind, type WorldData } from "./types";
+import { atan2, cos, hypot, sin } from "../sim-math";
 
 // Turning faster than this (rad/m, about a 85 m radius) is a corner; slower is a sweep taken flat out.
 const CORNER_RATE = 0.012;
@@ -19,7 +20,7 @@ export interface WorldFacts {
 
 type FactsInput = Pick<WorldData, "road" | "ramps" | "deck" | "towns">;
 
-const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
+const wrap = (a: number) => atan2(sin(a), cos(a));
 
 export function count_corners(points: readonly { x: number; z: number }[]): number {
   const n = points.length;
@@ -29,8 +30,8 @@ export function count_corners(points: readonly { x: number; z: number }[]): numb
   for (let i = 0; i < n; i++) {
     const a = points[i];
     const b = points[(i + 1) % n];
-    heading.push(Math.atan2(b.x - a.x, b.z - a.z));
-    ds.push(Math.hypot(b.x - a.x, b.z - a.z));
+    heading.push(atan2(b.x - a.x, b.z - a.z));
+    ds.push(hypot(b.x - a.x, b.z - a.z));
   }
   const turn = heading.map((h, i) => wrap(heading[(i + 1) % n] - h));
   const rate = turn.map((_, i) => {
@@ -74,7 +75,7 @@ export function world_facts({ road, ramps, deck, towns }: FactsInput): WorldFact
   for (let i = 0; i < road.length; i++) {
     const a = road[i];
     const b = road[(i + 1) % road.length];
-    length += Math.hypot(b.x - a.x, b.z - a.z);
+    length += hypot(b.x - a.x, b.z - a.z);
   }
   return {
     length,

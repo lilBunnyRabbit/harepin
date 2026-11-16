@@ -4,6 +4,7 @@ import { length } from "./noise";
 import { ISLAND, type TownRecipe } from "./recipe";
 import type { Sampler } from "./route";
 import { STREET_HALF, ROAD_HALF, type RoadEdge, type RoadNode, type RoadPoint, type Town } from "./types";
+import { atan2 } from "../sim-math";
 
 const TOWN_TRIES = 900;
 const TOWN_SPREAD = 820;
@@ -121,7 +122,7 @@ export function place_towns(seed: number, heights: Float32Array, road: RoadPoint
     const len = Math.sqrt(ux * ux + uz * uz);
     ux /= len;
     uz /= len;
-    towns.push({ id: towns.length, x, z, radius, ux, uz, angle: Math.atan2(ux, uz), name: town_name(next), y: h, gx: 0, gz: 0, core: radius * CORE, block: shape.block.min });
+    towns.push({ id: towns.length, x, z, radius, ux, uz, angle: atan2(ux, uz), name: town_name(next), y: h, gx: 0, gz: 0, core: radius * CORE, block: shape.block.min });
   }
   return towns;
 }

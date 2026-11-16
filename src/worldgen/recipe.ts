@@ -1,4 +1,5 @@
 import type { Biome, TreeRule } from "./biomes";
+import type { CabinRecipe } from "./cabins";
 import type { FallsRecipe } from "./falls";
 import type { IceRecipe } from "./ice";
 import { SNOW_KIT, type SnowKit } from "./snow";
@@ -329,6 +330,7 @@ export interface Recipe {
   /** Laid over the finished ground: winter. Left out = no snow but over the snow line. */
   snow?: SnowKit;
   ice?: IceRecipe;
+  cabins?: CabinRecipe;
 }
 
 const LIFT: LiftLayer = { kind: "lift", height: 5 };
@@ -505,6 +507,7 @@ export const TUNDRA: Recipe = {
   scatter: [{ kind: PropKind.BOULDER, spacing: 80, odds: 0.05, biomes: ["meadow", "upland"], road_within: Infinity }],
   snow: SNOW_KIT,
   ice: { count: 5, radius: [60, 140], reach: 760 },
+  cabins: { groups: 4, size: [1, 3], reach: 820 },
 };
 
 const CINDER: GroundRule = { cut: 0.5, above: Ground.ASH, below: Ground.CINDER, soft: 0.2 };

@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { axle_index, axles_of } from "./axles";
 import { rest_reach, type Car } from "./car";
 import { DEFAULT_PARTS, build_spec, part_of, type Build, type Look, type Slot } from "./build";
-import { COUPE, type CarSpec, type Triple } from "./cars";
+import { CARS, COUPE, is_car, type CarSpec, type Triple } from "./cars";
 import { body_pieces, body_slabs, cabin_parts, flares, on_glass, sculpt, sculpt_factor, side_panel, skirts, wells } from "./body-shell";
 import { DETAILS } from "./car-details";
 import { detail_look, type DetailLook } from "./detail-looks";
@@ -19,6 +19,7 @@ import { WEAVE_KEY, weave_shader } from "./carbon";
 import { brand, color, dark, mix, tones } from "../theme/palette";
 import { sky_ceiling } from "../render/sky";
 import type { Lab } from "../theme/theme";
+import { asin, hypot } from "../sim-math";
 
 /** A suspension arm hinged on the body, swung so its outer end follows its wheel. */
 export interface ArmSwing {
@@ -213,7 +214,7 @@ function painted_shell(shell: THREE.BufferGeometry[], d: Design, spec: CarSpec, 
   const colors = painted.getAttribute("color");
   const reach = spec.wheel.radius + d.arches.gap + WALL_REACH;
   const axles = axles_of(spec).map(({ z }) => z);
-  const in_arch = (v: number) => axles.some((z) => Math.hypot(position.getZ(v) - z, position.getY(v) - spec.wheel.radius) < reach);
+  const in_arch = (v: number) => axles.some((z) => hypot(position.getZ(v) - z, position.getY(v) - spec.wheel.radius) < reach);
   const [a, b, c, normal] = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
   for (let i = 0; i < position.count; i += 3) {
     if (!in_arch(i) || !in_arch(i + 1) || !in_arch(i + 2)) continue;
@@ -225,6 +226,14 @@ function painted_shell(shell: THREE.BufferGeometry[], d: Design, spec: CarSpec, 
   return painted;
 }
 
+// The body hangs at the stock car's ride height, so a lowered or lifted build moves it with the hull rather than leaving it on the road.
+const stock_of = (spec: CarSpec): CarSpec => (is_car(spec.id) ? CARS[spec.id] : spec);
+
+/** Height of the body's design ground in the car's frame. */
+export function body_y(spec: CarSpec): number {
+  return spec.wheel.mounts[0][1] - rest_reach(stock_of(spec));
+}
+
 // Paint, trim, glass and decals are baked into vertex colours so the whole shell is one draw; a repaint rebuilds the view.
 export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<Slot, number> = DEFAULT_PARTS, livery: Livery | null = null, finish: Finish | null = null): CarView {
   const aero = aero_of(kit);
@@ -232,7 +241,7 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
   const root = new THREE.Group();
   root.renderOrder = CAR_ORDER;
   const body = new THREE.Group();
-  body.position.y = -(rest_reach(spec) - spec.wheel.mounts[0][1]);
+  body.position.y = body_y(spec);
   const trim = color(tones.trim);
   const arch_tone = d.arches.tone === "paint" ? paint : trim;
 
@@ -301,7 +310,7 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
     return steer;
   });
   const steered = wheel_axles.map((axle) => axles[axle].steer);
-  const arm_rest = rest_reach(spec);
+  const arm_rest = rest_reach(stock_of(spec));
   const arms = spec.wheel.mounts.map(([mx, , mz], i): ArmSwing | null => {
     const arm = d.arms?.[wheel_axles[i]];
     if (!arm) return null;
@@ -319,7 +328,7 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
     body.add(group);
     const dx = mx - side * px;
     const dz = mz - pz;
-    const reach = Math.hypot(dx, dz);
+    const reach = hypot(dx, dz);
     return { group, axis: new THREE.Vector3(-dz / reach, 0, dx / reach), reach, rest: arm_rest };
   });
   const view = { root, body, wheels, arms, steered, brake, heads, lights: true, popup: pods, eye: d.eye ? new THREE.Vector3(0, body.position.y + d.eye[1], d.eye[0]) : null, flame, jet, sway_at: 0 };
@@ -336,7 +345,7 @@ export function sync_car_view(view: CarView, car: Car) {
     g.rotation.y = -w.angle;
     g.children[0].rotation.x = w.spin;
     const arm = view.arms[i];
-    if (arm) arm.group.quaternion.setFromAxisAngle(arm.axis, Math.asin(Math.max(-1, Math.min(1, (arm.rest - w.reach) / arm.reach))));
+    if (arm) arm.group.quaternion.setFromAxisAngle(arm.axis, asin(Math.max(-1, Math.min(1, (arm.rest - w.reach) / arm.reach))));
   });
   view.brake.emissiveIntensity = car.braking > 0.05 ? brake_on.value : BRAKE_REST;
 }

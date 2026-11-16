@@ -4,6 +4,7 @@ import type { Builder, Rgb, V3 } from "./mesh";
 import { hash } from "./noise";
 import { HEADINGS, reach, two_arms } from "./scatter";
 import { PropKind, type Prop } from "./types";
+import { cos, hypot3, sin } from "../sim-math";
 
 export interface LandmarkTones {
   pale: Rgb;
@@ -36,7 +37,7 @@ export interface Beacon {
 }
 
 function forward(prop: Prop): [number, number] {
-  return [Math.sin(prop.angle), Math.cos(prop.angle)];
+  return [sin(prop.angle), cos(prop.angle)];
 }
 
 export function rotor_hub(prop: Prop): V3 {
@@ -68,7 +69,7 @@ export function beacons(props: Prop[]): Beacon[] {
 
 function ring(sides: number, r: number, k: number, phase: number): [number, number] {
   const a = phase + (k / sides) * Math.PI * 2;
-  return [Math.cos(a) * r, Math.sin(a) * r];
+  return [cos(a) * r, sin(a) * r];
 }
 
 export function prism(out: Builder, sides: number, r0: number, r1: number, y0: number, y1: number, rgb: Rgb, phase = 0, shade?: Rgb, cx = 0, cz = 0) {
@@ -100,7 +101,7 @@ interface Section {
 const sub = (a: V3, b: V3): V3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const cross = (a: V3, b: V3): V3 => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const unit = (a: V3): V3 => {
-  const l = Math.hypot(a[0], a[1], a[2]);
+  const l = hypot3(a[0], a[1], a[2]);
   return [a[0] / l, a[1] / l, a[2] / l];
 };
 
@@ -110,8 +111,8 @@ function sweep(out: Builder, path: readonly Section[], side: V3, sides: number, 
     const n = unit(cross(side, t));
     return Array.from({ length: sides }, (_, k): V3 => {
       const a = phase + (k / sides) * Math.PI * 2;
-      const u = Math.cos(a) * s.n;
-      const v = Math.sin(a) * s.b;
+      const u = cos(a) * s.n;
+      const v = sin(a) * s.b;
       return [s.at[0] + n[0] * u + side[0] * v, s.at[1] + n[1] * u + side[1] * v, s.at[2] + n[2] * u + side[2] * v];
     });
   });
@@ -189,7 +190,7 @@ function turbine(out: Builder, t: LandmarkTones) {
   band(out, 8, 1.3, 0.7, -1, TURBINE_HEIGHT, t.pale, 0);
   const { half, ahead, back, tail } = NACELLE;
   const y = TURBINE_HEIGHT + HUB_RISE;
-  const r = half / Math.cos(Math.PI / 8);
+  const r = half / cos(Math.PI / 8);
   const path: Section[] = [
     { at: [0, y, ahead], n: 0.62, b: 0.55 },
     { at: [0, y, ahead - 0.8], n: r, b: r },
@@ -202,7 +203,7 @@ function turbine(out: Builder, t: LandmarkTones) {
 function arch(out: Builder, prop: Prop, heights: Float32Array, t: LandmarkTones) {
   const [fx, fz] = forward(prop);
   const half = prop.scale;
-  const span = ARCH_THICK / 2 / Math.cos(Math.PI / 6);
+  const span = ARCH_THICK / 2 / cos(Math.PI / 6);
   const mid = ARCH_CLEARANCE + ARCH_THICK / 2;
   const leg = (side: number): Section[] => {
     const lx = side * half;
@@ -297,7 +298,7 @@ export function rock(out: Builder, r: Rock, rgb: Rgb, shade: Rgb, from = 0, grow
     const [y, radius, cx, cz] = r.rings[i];
     const a = r.phase + (k / r.sides) * Math.PI * 2;
     const w = radius * r.lumps[k % r.sides] * grow;
-    return [cx + Math.cos(a) * w, y + lift, cz + Math.sin(a) * w];
+    return [cx + cos(a) * w, y + lift, cz + sin(a) * w];
   };
   for (let i = from; i + 1 < r.rings.length; i++)
     for (let k = 0; k < r.sides; k++) out.quad(at(i, k + 1), at(i, k), at(i + 1, k), at(i + 1, k + 1), k % 2 ? shade : rgb);

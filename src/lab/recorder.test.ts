@@ -37,7 +37,7 @@ describe("recorder", () => {
     const m = rec.metrics();
     expect(m.to_100).toBeCloseTo(t, 6);
     expect(m.stop_m).toBeCloseTo(car.pos.z - from, 0);
-    expect(m.stop_from).toBeGreaterThanOrEqual(100);
+    expect(m.stop_from).toBeGreaterThan(99.9);
     expect(m.top_kmh).toBeGreaterThanOrEqual(100);
     expect(rec.done).toBe(true);
     expect(m.throttle).toBeGreaterThan(0.3);

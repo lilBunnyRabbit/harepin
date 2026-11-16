@@ -3,6 +3,7 @@ import { at, sample, span_i, span_j, WHOLE, type Grid } from "./field";
 import { hash, length, smoothstep } from "./noise";
 import { chaikin, resample, type Path } from "./path";
 import { CELL, ORIGIN, SIZE, type Canyon, type RoadPoint } from "./types";
+import { cos, sin } from "../sim-math";
 
 const GRID = 16;
 /** Start on the summit flank at this share of the peak's height: high enough to fall a long way, never the top. */
@@ -104,8 +105,8 @@ export function plan_canyon(seed: number, heights: Float32Array, road: readonly 
   const [px, pz, top] = peak(heights);
   for (let t = 0; t < tries; t++) {
     const angle = next() * Math.PI * 2;
-    const dx = Math.sin(angle);
-    const dz = Math.cos(angle);
+    const dx = sin(angle);
+    const dz = cos(angle);
     let r = 0;
     while (r < SIZE / 2 && sample(heights, px + dx * r, pz + dz * r) > top * FLANK) r += GRID;
     const coarse = descend(heights, px + dx * r, pz + dz * r, dx, dz, seed + t, outlet);

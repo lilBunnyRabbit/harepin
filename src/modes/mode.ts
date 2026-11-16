@@ -1,5 +1,10 @@
 import type * as THREE from "three";
+import type { Difficulty } from "../ai/difficulty";
+import type { FieldCar } from "../ai/field";
+import type { Build } from "../car/build";
+import type { Rating } from "../car/pi";
 import type { CarSpec } from "../car/cars";
+import type { Sim } from "../sim/sim-client";
 import type { World } from "../world/world";
 import type { Body, Pose } from "./gymkhana";
 import type { Thresholds, Track } from "./track";
@@ -7,6 +12,7 @@ import type { Bindable } from "../hud/bindings";
 import type { Hits } from "./hits";
 import type { DrawnGround } from "./marks";
 import type { RoutePoint } from "./route";
+import { atan2, cos, hypot, sin } from "../sim-math";
 
 export const NO_SITE = "No flat ground near the start on this map";
 // The map draws it for a run on a stretch of road that is no route of its own: a duel, a drift zone, a gate hunt.
@@ -35,6 +41,73 @@ export interface Finish {
   lines: HTMLElement[];
   /** Gymkhana and parking show their card without the chime. */
   quiet?: boolean;
+  /** Rows of a finish order, kept current by the run while the card shows. */
+  standings?: HTMLElement[];
+}
+
+/** What a race needs to run an AI field: the sim hosting it, and the player's car its presets match. */
+export interface FieldHost {
+  readonly sim: Sim;
+  build(): Build;
+  /** The player's car as it drives, which the field's class follows. */
+  rating(): Rating;
+  /** The field drives the player's car too: a dev autopilot for shots and frame-time runs. */
+  readonly autopilot: boolean;
+  /** One per AI car on the grid, pole first: F3's six, fewer for a frame-time baseline, any mix in a lab trial. */
+  readonly cars: readonly FieldCar[];
+  difficulty(): Difficulty;
+  /** Hears the race once it is built and null once it is gone: the lab reads its order. */
+  attach?(race: FieldRace | null): void;
+  /** A series event's rules and names; free play and the lab race the plain field. */
+  readonly event?: FieldEvent;
+}
+
+/** How the player's race ended, for a series event to score. */
+export interface FieldOutcome {
+  /** Car indices, winner first; the player's is the field's size. */
+  order: readonly number[];
+  /** No touch with another car. */
+  clean: boolean;
+  /** In the lead as the player passed half the race distance. */
+  led: boolean;
+  /** Set a lap no other car beat; never in a one-lap race, where it would only repeat the win. */
+  fastest: boolean;
+  /** Started from the last grid slot. */
+  from_back: boolean;
+}
+
+export interface FieldEvent {
+  readonly name: string;
+  /** One per AI car, pole first. */
+  readonly names: readonly string[];
+  readonly knockout: boolean;
+  /** ms: the race ends here, placed by distance; null to race the laps out. */
+  readonly limit_ms: number | null;
+  /** The player's grid slot, 0 on pole; last when absent. */
+  readonly grid?: number;
+  /** Called once as the player's race ends; returns lines for the result card. */
+  finish(outcome: FieldOutcome): HTMLElement[];
+  /** What the result card's Next does. */
+  readonly next: { label: string; go(): void };
+}
+
+/** A car's place in a field race now. */
+export interface FieldPlace {
+  /** The AI car's index in the field; the player's is the field's size. */
+  car: number;
+  you: boolean;
+  name: string;
+  /** s from the start; Infinity while still racing. */
+  finish: number;
+  /** s behind the leader: how long ago the leader stood where this car is; NaN before it is past the line. */
+  gap: number;
+}
+
+export interface FieldRace {
+  /** The player has finished. */
+  readonly done: boolean;
+  /** Leader first. */
+  places(): FieldPlace[];
 }
 
 export interface ModeCtx {
@@ -56,6 +129,8 @@ export interface ModeCtx {
   readonly laps: number;
   /** The star marks a run is graded on: a career event's own when tuned on this world, else `own`, the mode's (ms, or points for drift). */
   thresholds(own: Thresholds): Thresholds;
+  /** The AI field a free-play race runs against; null in events, Runs, lobby races and without the dev flag. */
+  field(): FieldHost | null;
   /** A career event's shipped 3-star ghost lap; null in free play or when it has none. */
   dev_ghost(): Promise<number[] | null>;
   /** The player's ghost setting. */
@@ -113,7 +188,7 @@ export interface ModeDef<L extends Level = Level> {
 
 // Horizontal speed only: the car drops onto its spawn, and that fall would read as driving off.
 export function pose_of(car: Driven): Pose {
-  return { x: car.pos.x, z: car.pos.z, heading: car.heading, speed: Math.hypot(car.vel.x, car.vel.z) };
+  return { x: car.pos.x, z: car.pos.z, heading: car.heading, speed: hypot(car.vel.x, car.vel.z) };
 }
 
 export function airborne(car: Driven): boolean {
@@ -126,6 +201,6 @@ export function body_of(spec: CarSpec): Body {
 }
 
 export function turn_to(car: { pos: { x: number; z: number }; heading: number }, x: number, z: number): number {
-  const bearing = Math.atan2(x - car.pos.x, z - car.pos.z);
-  return Math.atan2(Math.sin(bearing - car.heading), Math.cos(bearing - car.heading));
+  const bearing = atan2(x - car.pos.x, z - car.pos.z);
+  return atan2(sin(bearing - car.heading), cos(bearing - car.heading));
 }

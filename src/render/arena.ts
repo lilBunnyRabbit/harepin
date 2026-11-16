@@ -10,12 +10,18 @@ const PYLON_WIDE = 2.6;
 /** The beam a pylon carries the deck on: this much wider than the deck, this deep, this long down the track. */
 const BEAM = { over: 2, deep: 2.4, long: 2.2 };
 const PYLON_ROOM = 2;
+/** Most a rigid beam may sink below a twisting deck to clear it; a pylon due where it would sink more moves on down the lap. */
+const BEAM_SINK = 0.2;
 
 const MAST_PITCH = 32;
 /** A mast stands this far outside the deck's high edge, its head this far over the edge's top. */
 const MAST_OUT = 5;
 const MAST_OVER = 13;
 const MAST_ROOM = 3;
+/** No mast this far, in metres along the lap, from an edge whose rail is off: a car carried over the top flies through it. */
+const MAST_OPEN_REACH = 15;
+/** Furthest past an open rail's end, in metres along the lap, a launched car's line is followed on a gentle bend. */
+const MAST_LAUNCH_MOST = 60;
 const POST = { wide: 0.7, tall: 60 };
 /** The lamp frame leans down at the deck, set back toward it from the post. */
 const HEAD = { wide: 7.2, high: 2.6, deep: 0.5, tilt: -0.5, back: 1.2 };
@@ -44,8 +50,8 @@ class Boxes {
   private readonly q = new THREE.Quaternion();
   private readonly euler = new THREE.Euler(0, 0, 0, "YXZ");
 
-  add(tone: THREE.Color, x: number, y: number, z: number, sx: number, sy: number, sz: number, yaw = 0, pitch = 0) {
-    this.q.setFromEuler(this.euler.set(pitch, yaw, 0));
+  add(tone: THREE.Color, x: number, y: number, z: number, sx: number, sy: number, sz: number, yaw = 0, pitch = 0, roll = 0) {
+    this.q.setFromEuler(this.euler.set(pitch, yaw, roll));
     this.matrices.push(new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), this.q, new THREE.Vector3(sx, sy, sz)));
     this.tones.push(tone);
   }
@@ -82,6 +88,40 @@ class Track {
     const ox = this.f(i, 4) * side;
     const oz = -this.f(i, 3) * side;
     return { x: this.f(i, 0) + this.f(i, 4) * u, z: this.f(i, 2) - this.f(i, 3) * u, y: this.f(i, 1) + side * h * Math.tan(this.f(i, 5)), ox, oz, yaw: Math.atan2(ox, oz) };
+  }
+
+  /** Rise of the centreline per metre along the lap, from the samples either side. */
+  grade(i: number): number {
+    const run = this.run(i);
+    return run > 0 ? (this.f(i + 1, 1) - this.f(i - 1, 1)) / run : 0;
+  }
+
+  /** How fast the deck's cross slope changes per metre along the lap: where a bank rolls in, the deck twists. */
+  twist(i: number): number {
+    const run = this.run(i);
+    return run > 0 ? Math.abs(Math.tan(this.f(i + 1, 5)) - Math.tan(this.f(i - 1, 5))) / run : 0;
+  }
+
+  private run(i: number): number {
+    return Math.hypot(this.f(i + 1, 0) - this.f(i - 1, 0), this.f(i + 1, 2) - this.f(i - 1, 2));
+  }
+
+  /** Heading change per metre along the lap. */
+  curve(i: number): number {
+    const run = this.run(i);
+    const turn = Math.abs(this.f(i + 1, 3) * this.f(i - 1, 4) - this.f(i + 1, 4) * this.f(i - 1, 3));
+    return run > 0 ? Math.asin(Math.min(1, turn)) / run : 0;
+  }
+
+  /**
+   * Within `reach` of an edge whose rail is off, or on the line a car leaving its far end straight on crosses `out` metres
+   * outside the edge: the bend falls away from it as d²/2r, so that is √(2·out·r) on down the lap.
+   */
+  open_near(i: number, side: number, reach: number, out: number): boolean {
+    const s = this.f(i, 8);
+    const k = this.curve(i);
+    const launch = k > 0 ? Math.min(Math.sqrt((2 * out) / k), MAST_LAUNCH_MOST) : MAST_LAUNCH_MOST;
+    return this.deck.open.some((o) => (o.side === 0 || o.side === side) && s >= o.s0 - reach && s <= o.s1 + Math.max(reach, launch));
   }
 
   clear(i: number, x: number, z: number, room: number): boolean {
@@ -136,6 +176,7 @@ export function masts(deck: Deck, tones: MastTones, min_bank: number): THREE.Obj
   const lean = [Math.sin(-HEAD.tilt), Math.cos(HEAD.tilt)];
   for (const bowl of track.bowls(min_bank)) {
     for (const i of track.steps(bowl, MAST_PITCH)) {
+      if (track.open_near(i, bowl.side, MAST_OPEN_REACH, MAST_OUT + MAST_ROOM)) continue;
       const e = track.edge(i, bowl.side, MAST_OUT);
       if (!track.clear(i, e.x, e.z, MAST_ROOM)) continue;
       const top = e.y + MAST_OVER;
@@ -161,14 +202,29 @@ export function pylons(deck: Deck, tone: Lab, pitch: number): THREE.Object3D {
   let next = 0;
   for (let i = 0; i < track.n; i++) {
     if (track.f(i, 8) < next || !track.f(i, 7)) continue;
+    const twist = track.twist(i);
+    const span = track.f(i, 6) + BEAM.over / 2;
+    if ((BEAM.long / 2) * span * twist > BEAM_SINK) continue;
     next = track.f(i, 8) + pitch;
     const x = track.f(i, 0);
     const z = track.f(i, 2);
     if (!track.clear(i, x, z, PYLON_ROOM)) continue;
-    const y = track.f(i, 1) - DECK_THICK;
-    const yaw = Math.atan2(track.f(i, 3), track.f(i, 4));
-    boxes.add(c, x, y - BEAM.deep / 2, z, track.f(i, 6) * 2 + BEAM.over, BEAM.deep, BEAM.long, yaw + Math.PI / 2);
-    boxes.add(c, x, y - PYLON_DEEP / 2, z, PYLON_WIDE, PYLON_DEEP, PYLON_WIDE, yaw);
+    // The deck shears with its bank: a point u across lies u·tan(bank) up, its underside DECK_THICK below that. The beam
+    // rolls into that plane, and both drop by what the grade and the bank's twist lift their far corners, so neither breaks
+    // through the deck.
+    const tx = track.f(i, 3);
+    const tz = track.f(i, 4);
+    const bank = track.f(i, 5);
+    const slope = Math.abs(Math.tan(bank));
+    const grade = Math.abs(track.grade(i));
+    const under = track.f(i, 1) - DECK_THICK;
+    const yaw = Math.atan2(tx, tz);
+    const beam_top = under - (BEAM.long / 2) * (grade + span * twist);
+    const lean = (BEAM.deep / 2) * Math.sin(bank);
+    const beam_y = beam_top - (BEAM.deep / 2) * Math.cos(bank);
+    boxes.add(c, x + tz * lean, beam_y, z - tx * lean, (span * 2) / Math.cos(bank), BEAM.deep, BEAM.long, yaw, 0, bank);
+    const top = under - (PYLON_WIDE / 2) * (slope + grade + (PYLON_WIDE / 2) * twist);
+    boxes.add(c, x, top - PYLON_DEEP / 2, z, PYLON_WIDE, PYLON_DEEP, PYLON_WIDE, yaw);
   }
   return boxes.mesh(plain());
 }

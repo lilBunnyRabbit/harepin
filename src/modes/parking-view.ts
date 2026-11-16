@@ -6,6 +6,7 @@ import { mulberry32, sub } from "../rng";
 import { to_world, type Site } from "./gymkhana";
 import { drawn_height, Marks, type DrawnGround } from "./marks";
 import { CONE_RADIUS, type ParkBay, type ParkLevel } from "./parking";
+import { cos, hypot, sin } from "../sim-math";
 
 const LINE_LIFT = 0.08;
 // Paint follows the ground in short pieces, or a long strip cuts under the pad between terrain samples.
@@ -74,15 +75,15 @@ export class ParkingView {
   }
 
   private bay_point(bay: ParkBay, across: number, along: number): THREE.Vector3 {
-    const c = Math.cos(bay.heading);
-    const s = Math.sin(bay.heading);
+    const c = cos(bay.heading);
+    const s = sin(bay.heading);
     return this.point(bay.u + across * c + along * s, bay.v - across * s + along * c);
   }
 
   private strips(bay: ParkBay, segments: [number, number, number, number][], material: THREE.MeshBasicMaterial): THREE.Mesh {
     const positions: number[] = [];
     for (const [a0, l0, a1, l1] of segments) {
-      const len = Math.hypot(a1 - a0, l1 - l0);
+      const len = hypot(a1 - a0, l1 - l0);
       const na = (-(l1 - l0) / len) * (PAINT / 2);
       const nl = ((a1 - a0) / len) * (PAINT / 2);
       const steps = Math.max(1, Math.ceil(len / PAINT_STEP));

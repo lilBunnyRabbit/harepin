@@ -5,6 +5,7 @@ import { LandmarkPlanner } from "./landmarks";
 import { length } from "./noise";
 import { Lots } from "./lots";
 import { plan_canyon } from "./canyon";
+import { plan_cabins } from "./cabins";
 import { near_line, plan_descent } from "./descent";
 import { plan_falls } from "./falls";
 import { on_ice, plan_ice } from "./ice";
@@ -24,6 +25,7 @@ import { plan_trails } from "./trails";
 import { place_towns, town_streets } from "./towns";
 import { ISLAND, type Landmark, type Recipe } from "./recipe";
 import { CELL, ORIGIN, ROAD_HALF, SPAWN_INDEX, SPUR_HALF, WorldKind, type Checkpoint, type RoadEdge, type RoadGraph, type RoadNode, type RoadPoint, type Solid, type Tree, type WorldData } from "./types";
+import { atan2 } from "../sim-math";
 
 const CHECKPOINTS = 12;
 const STACK_GATE = 5;
@@ -39,6 +41,9 @@ const GRID_AHEAD = 15;
 const CANYON_CLEAR = 30;
 /** Metres past a descent bed's level floor kept clear of trees and props. */
 const BED_CLEAR = 4;
+/** A cabin keeps this far off a trail's line and its run-out, so an off-road race never meets a wall. */
+const CABIN_TRAIL_CLEAR = 30;
+const CABIN_ITEM_CLEAR = 6;
 
 const LANDMARKS: Record<Landmark, (marks: LandmarkPlanner, roads: RoadEdge[]) => void> = {
   mast: (marks) => marks.mast(),
@@ -48,7 +53,7 @@ const LANDMARKS: Record<Landmark, (marks: LandmarkPlanner, roads: RoadEdge[]) =>
 };
 
 // World generation uses only + - * / sqrt floor and integer ops, which IEEE 754 makes bit-exact on every engine, so
-// every discrete choice (towns, routes, lots, trees) comes out the same for every peer on the seed. Math.atan2 only
+// every discrete choice (towns, routes, lots, trees) comes out the same for every peer on the seed. atan2 only
 // feeds display angles.
 export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind = WorldKind.ISLAND): WorldData {
   const timings: [string, number][] = [];
@@ -207,7 +212,7 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   const checkpoints: Checkpoint[] = [];
   for (let i = 0; i < CHECKPOINTS; i++) {
     const p = road[checkpoint_at[i]];
-    checkpoints.push({ x: p.x, y: p.y, z: p.z, heading: Math.atan2(p.tx, p.tz), index: i });
+    checkpoints.push({ x: p.x, y: p.y, z: p.z, heading: atan2(p.tx, p.tz), index: i });
     for (const side of [-1, 1]) {
       const off = side * (ROAD_HALF + 1.7);
       const x = p.x - p.tz * off;
@@ -262,7 +267,16 @@ export function generate(seed: number, recipe: Recipe = ISLAND, kind: WorldKind 
   lap("routes");
 
   const on_bed = near_line(bed_line, (bed?.half ?? 0) + BED_CLEAR);
-  const free = (x: number, z: number) => !lots.occupied[vertex(Math.round((x - ORIGIN) / CELL), Math.round((z - ORIGIN) / CELL))] && !towns.some((t) => length(t.x - x, t.z - z) < t.radius) && !jumps.blocks(x, z, 2) && !marks.blocks(x, z, 2) && !on_ice(lakes, x, z) && !(lava.length && in_lava(lava, x, z, sample(heights, x, z))) && !on_bed(x, z);
+  const on_trail = near_line([...trails.trails.flatMap((t) => t.points), ...trails.ramp_out], CABIN_TRAIL_CLEAR);
+  const cabins = recipe.cabins
+    ? plan_cabins(seed, land, recipe.cabins, lot_list.length, (x, z, r) => towns.some((t) => length(t.x - x, t.z - z) < t.radius + r) || jumps.blocks(x, z, r) || marks.blocks(x, z, r) || on_ice(lakes, x, z) || on_bed(x, z) || on_trail(x, z) || jumps.items.some((item) => length(item.x - x, item.z - z) < r + CABIN_ITEM_CLEAR))
+    : null;
+  if (cabins) {
+    lot_list.push(...cabins.lots);
+    buildings.push(...cabins.buildings);
+    solids.push(...cabins.solids);
+  }
+  const free = (x: number, z: number) => !(cabins?.blocks(x, z, 0) ?? false) && !lots.occupied[vertex(Math.round((x - ORIGIN) / CELL), Math.round((z - ORIGIN) / CELL))] && !towns.some((t) => length(t.x - x, t.z - z) < t.radius) && !jumps.blocks(x, z, 2) && !marks.blocks(x, z, 2) && !on_ice(lakes, x, z) && !(lava.length && in_lava(lava, x, z, sample(heights, x, z))) && !on_bed(x, z);
   const planted = plant(cuts, land, free);
   const trees: Tree[] = [...lots.out.trees, ...planted.trees];
   solids.push(...planted.solids);

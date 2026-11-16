@@ -9,6 +9,7 @@ import { land_height } from "./terrain";
 import { KINDS } from "./kinds/kinds";
 import { world_facts, type WorldFacts } from "./facts";
 import { CELL, DECK_STRIDE, N, ORIGIN, SurfaceId, type EdgeKind, type WorldData, type WorldKind } from "./types";
+import { cos, hypot, hypot3, sin } from "../sim-math";
 
 export const MAP_SIDE = N + 1;
 const SUN = normalise([-1, 1.4, -1]);
@@ -82,7 +83,7 @@ export interface MapTones {
 }
 
 function normalise([x, y, z]: [number, number, number]): [number, number, number] {
-  const length = Math.hypot(x, y, z);
+  const length = hypot3(x, y, z);
   return [x / length, y / length, z / length];
 }
 
@@ -94,7 +95,7 @@ function cloud_pixels(tones: MapTones): Uint8ClampedArray<ArrayBuffer> {
   for (let j = 0; j < MAP_SIDE; j++)
     for (let i = 0; i < MAP_SIDE; i++) {
       const k = j * MAP_SIDE + i;
-      const shade = 1 - CLOUD_FALLOFF * Math.min(1, Math.hypot(i - mid, j - mid) / mid);
+      const shade = 1 - CLOUD_FALLOFF * Math.min(1, hypot(i - mid, j - mid) / mid);
       for (let c = 0; c < 3; c++) pixels[k * 4 + c] = encode(tones.cloud[c] * shade);
       pixels[k * 4 + 3] = 255;
     }
@@ -145,12 +146,19 @@ function plan_pixels(data: WorldData, tones: MapTones): Uint8ClampedArray<ArrayB
   const op = data.ground.ops.find((o) => o.kind === "water");
   const water = op?.kind === "water" ? water_index(op.water) : null;
   const depths = water && new Float32Array(MAP_SIDE * MAP_SIDE);
+  // Under a freeze op lakes and rivers are ground at their surface, painted as ice; only the sea stays water.
+  const ice = water && data.ground.ops.some((o) => o.kind === "freeze") ? new Uint8Array(MAP_SIDE * MAP_SIDE) : null;
   if (water && depths)
     for (let k = 0; k < depths.length; k++) {
       const x = ext.origin + (k % MAP_SIDE) * step;
       const z = ext.origin + Math.floor(k / MAP_SIDE) * step;
       const ground = water.carve(x, z, heights[k]);
-      depths[k] = Math.max(-ground, water.level(x, z) - ground);
+      const level = water.level(x, z);
+      if (ice && level > ground) {
+        heights[k] = level;
+        ice[k] = SurfaceId.ICE;
+        depths[k] = -level;
+      } else depths[k] = Math.max(-ground, level - ground);
     }
   const last = MAP_SIDE - 1;
   const at = (i: number, j: number) => heights[Math.min(last, Math.max(0, j)) * MAP_SIDE + Math.min(last, Math.max(0, i))];
@@ -161,7 +169,7 @@ function plan_pixels(data: WorldData, tones: MapTones): Uint8ClampedArray<ArrayB
       const dx = at(i - 1, j) - at(i + 1, j);
       const dz = at(i, j - 1) - at(i, j + 1);
       const up = (2 * step) / Math.sqrt(dx * dx + 4 * step * step + dz * dz);
-      paint(colors, k, tones.terrain, cuts, (ext.origin + i * step - ORIGIN) / CELL, (ext.origin + j * step - ORIGIN) / CELL, heights[k], up, 0);
+      paint(colors, k, tones.terrain, cuts, (ext.origin + i * step - ORIGIN) / CELL, (ext.origin + j * step - ORIGIN) / CELL, heights[k], up, ice?.[k] ?? 0);
     }
   return shaded(heights, colors, tones, step, depths);
 }
@@ -200,7 +208,7 @@ export function map_data(data: WorldData, tones: MapTones): MapData {
     towns: data.towns.map(({ x, z, radius, name }) => ({ x, z, radius, name })),
     jumps: data.ramps.map((r) => ({ x: r.x, z: r.z, fx: r.fx, fz: r.fz, length: r.length })),
     pads: pad_marks(data),
-    checkpoints: data.checkpoints.map((c) => ({ x: c.x, z: c.z, fx: Math.sin(c.heading), fz: Math.cos(c.heading), length: 0 })),
+    checkpoints: data.checkpoints.map((c) => ({ x: c.x, z: c.z, fx: sin(c.heading), fz: cos(c.heading), length: 0 })),
     start: { x: start.x, z: start.z, fx: start.tx, fz: start.tz, length: 0 },
     facts: world_facts(data),
     routes: data.routes.map(({ id, length, closed }) => ({ id, length, closed })),

@@ -1,7 +1,9 @@
 <script lang="ts">
+  import { Difficulty } from "../../ai/difficulty";
   import type { Bindable } from "../../hud/bindings";
   import { AidPreset, preset_aids, preset_of, type Aids } from "../guide-rules";
   import type { SettingKey } from "../prefs";
+  import { REVIEW_BUILD } from "../../review/params";
   import type { MenuState } from "../ui/menu-state.svelte";
   import ChoiceRow from "./rows/ChoiceRow.svelte";
   import ToggleRow from "./rows/ToggleRow.svelte";
@@ -26,6 +28,12 @@
     ["stability", "Stability", "Damps a slide before it swings into a spin.", "Damps a slide before it turns into a spin.", "A slide can carry the car all the way round."],
     ["auto", "Automatic gearbox", "Shifts for you.", "Shifts up and down for you.", "You shift yourself and pick the gear."],
   ];
+
+  const DIFFICULTIES = options([
+    [Difficulty.EASY, "Easy"],
+    [Difficulty.NORMAL, "Normal"],
+    [Difficulty.HARD, "Hard"],
+  ]);
 
   const touch = () => matchMedia("(pointer: coarse)").matches;
 
@@ -52,3 +60,13 @@
   onchange={(value) => live.set("ghost", value)}
   effect={["Your best lap drives beside you to race against.", "Just you on the road."]}
 />
+<!-- AI races run behind `?airace` in dev and review builds only, so the setting shows only there. -->
+{#if REVIEW_BUILD}
+  <ChoiceRow
+    label="AI racers"
+    help="How fast the AI field races and how often it slips up: Easy drives slower and makes more mistakes, Hard drives faster and makes fewer. Nothing is recorded against it."
+    value={live.prefs.ai_difficulty}
+    options={DIFFICULTIES}
+    onchange={(value) => live.set("ai_difficulty", value)}
+  />
+{/if}

@@ -16,7 +16,8 @@ import { ISLAND, type BiomeRecipe } from "../worldgen/recipe";
 import { CELL, ROAD_HALF, RouteKind, SurfaceId, type WorldKind } from "../worldgen/types";
 import { LIFT } from "../worldgen/lifts";
 import { drawn_junctions, drawn_roads, junction_lift, laid_height, on_road_paint, paved_lots, paving_lift, road_lift, type DrawnJunction, type DrawnRoad, type LaidPad, type PavedLot } from "./drawn-lift";
-import { SEA_LEVEL, water_index, type WaterIndex } from "../worldgen/water";
+import { SEA_LEVEL, water_index, type Water, type WaterIndex } from "../worldgen/water";
+import type { WorldJournal } from "./world-journal";
 import type { LavaPool } from "../worldgen/lava";
 import type {
   Building,
@@ -35,6 +36,7 @@ import type {
   Tree,
   WorldData,
 } from "../worldgen/types";
+import { atan2, cos, hypot, sin } from "../sim-math";
 
 export { fbm } from "../worldgen/noise";
 export { min_radius } from "../worldgen/path";
@@ -184,6 +186,8 @@ export class World implements Ground {
   private readonly fall_reset: boolean;
   private readonly reset_in_place: boolean;
   private readonly water: WaterIndex | null;
+  /** Lakes and rivers a freeze op turned to ground; null when none froze. */
+  readonly ice: Water | null;
   /** Crater lava the scene draws; empty on kinds without it. */
   readonly lava: readonly LavaPool[];
   /** The sea's level on a kind with ground; none on a deck-only kind. */
@@ -260,6 +264,7 @@ export class World implements Ground {
   private wedge_cz = NaN;
   private wedge_list: number[] | undefined = undefined;
   private query = 0;
+  journal: WorldJournal | null = null;
 
   /** `data` is `generate(seed)`, passed in when a worker already ran it; `tiles` empty when they stream in after. */
   constructor(
@@ -276,8 +281,11 @@ export class World implements Ground {
     this.own_ground = this.grips.surfaces[SurfaceId.GRASS];
     this.fall_reset = KINDS[data.kind].fall_reset;
     this.reset_in_place = KINDS[data.kind].reset_in_place === true;
+    // Frozen water is ground the tiles raised to its surface: no wade, no drowning, only the sea stays water.
     const water = data.ground.ops.find((op) => op.kind === "water");
-    this.water = water?.kind === "water" ? water_index(water.water) : null;
+    const frozen = data.ground.ops.some((op) => op.kind === "freeze");
+    this.water = water?.kind === "water" && !frozen ? water_index(water.water) : null;
+    this.ice = water?.kind === "water" && frozen ? water.water : null;
     const lava = data.ground.ops.find((op) => op.kind === "lava");
     this.lava = lava?.kind === "lava" ? lava.pools : [];
     this.sea = KINDS[data.kind].ground ? SEA_LEVEL : -Infinity;
@@ -484,9 +492,11 @@ export class World implements Ground {
   /** Puts a pad down over the drawn ground; returns the function that takes it away again. */
   lay(pad: LaidPad): () => void {
     this.pads.push(pad);
+    const id = this.journal?.lay(pad) ?? -1;
     return () => {
       const i = this.pads.indexOf(pad);
       if (i >= 0) this.pads.splice(i, 1);
+      this.journal?.unlay(id);
     };
   }
 
@@ -623,7 +633,7 @@ export class World implements Ground {
 
   /** Where a reset puts the car: the nearest point of any road (circuit, spur or street) or trail, facing along it the way `fx, fz` points. */
   spawn_near(x: number, z: number, fx: number, fz: number): Spawn {
-    if (this.reset_in_place) return { x, y: this.height(x, z), z, heading: Math.atan2(fx, fz) };
+    if (this.reset_in_place) return { x, y: this.height(x, z), z, heading: atan2(fx, fz) };
     const first_trail = this.graph.edges.length + 1;
     const lane = (packed: number) => Math.floor(packed / LANE_PACK);
     const point = (packed: number) => this.lanes[lane(packed)][packed % LANE_PACK];
@@ -638,12 +648,21 @@ export class World implements Ground {
       while (i > 0 && blocked[i]) i--;
       p = points[i];
     }
-    const heading = Math.atan2(p.tx, p.tz) + (back ? Math.PI : 0);
+    const heading = atan2(p.tx, p.tz) + (back ? Math.PI : 0);
     return { x: p.x, y: this.height(p.x, p.z), z: p.z, heading };
   }
 
   /** Returns the function that takes them away again. */
   place(solids: readonly Solid[]): () => void {
+    const take = this.put(solids);
+    const id = this.journal?.place(solids) ?? -1;
+    return () => {
+      take();
+      this.journal?.unplace(id);
+    };
+  }
+
+  private put(solids: readonly Solid[]): () => void {
     const slots = solids.map((solid) => this.add_placed(solid));
     return () => {
       for (let k = 0; k < slots.length; k++) this.remove_placed(slots[k], solids[k]);
@@ -652,11 +671,17 @@ export class World implements Ground {
 
   /** A streamed chunk's solids join the grid as it arrives, and `unplant` takes them out when it goes. */
   plant(index: number, solids: readonly Solid[]) {
-    this.unplant(index);
-    if (solids.length) this.planted.set(index, this.place(solids));
+    this.journal?.plant(index, solids);
+    this.drop_planted(index);
+    if (solids.length) this.planted.set(index, this.put(solids));
   }
 
   unplant(index: number) {
+    this.journal?.unplant(index);
+    this.drop_planted(index);
+  }
+
+  private drop_planted(index: number) {
     this.planted.get(index)?.();
     this.planted.delete(index);
   }
@@ -688,8 +713,8 @@ export class World implements Ground {
   collide(car: Collider): number {
     const { pos, spec } = car;
     let impact = 0;
-    const fx = Math.sin(car.heading);
-    const fz = Math.cos(car.heading);
+    const fx = sin(car.heading);
+    const fz = cos(car.heading);
     const circles = spec.circles;
     for (let c = 0; c < circles.length; c++) {
       const offset = circles[c];
@@ -713,8 +738,8 @@ export class World implements Ground {
   /** A solid the car could hit within `gap` metres of its body, without pushing it; null when none is. */
   grazes(car: Collider, gap: number): Solid | null {
     const { pos, spec } = car;
-    const fx = Math.sin(car.heading);
-    const fz = Math.cos(car.heading);
+    const fx = sin(car.heading);
+    const fz = cos(car.heading);
     for (const offset of spec.circles) {
       const px = pos.x + fx * offset;
       const pz = pos.z + fz * offset;
@@ -730,8 +755,8 @@ export class World implements Ground {
   /** `collide`'s scrape report without the push, `gap` metres out: a peer's car arrives already pushed back onto the face. */
   touches(car: Collider, gap: number): number {
     const { pos, spec } = car;
-    const fx = Math.sin(car.heading);
-    const fz = Math.cos(car.heading);
+    const fx = sin(car.heading);
+    const fz = cos(car.heading);
     let found = 0;
     for (const offset of spec.circles) {
       const rx = fx * offset;
@@ -836,11 +861,11 @@ export class World implements Ground {
     pos.z += nz * depth;
     const into = vel.x * nx + vel.z * nz;
     if (into >= 0) return 0;
-    const speed = Math.hypot(vel.x, vel.z);
+    const speed = hypot(vel.x, vel.z);
     let tx = -nz;
     let tz = nx;
     const along = vel.x * tx + vel.z * tz;
-    const ahead = Math.abs(along) > HEAD_ON * speed ? along : Math.sin(car.heading) * tx + Math.cos(car.heading) * tz;
+    const ahead = Math.abs(along) > HEAD_ON * speed ? along : sin(car.heading) * tx + cos(car.heading) * tz;
     if (ahead < 0) {
       tx = -tx;
       tz = -tz;
@@ -848,7 +873,7 @@ export class World implements Ground {
     const keep = speed * (1 - (GLIDE_LOSS * -into) / speed);
     vel.x = tx * keep;
     vel.z = tz * keep;
-    const turn = Math.atan2(Math.sin(Math.atan2(tx, tz) - car.heading), Math.cos(Math.atan2(tx, tz) - car.heading));
+    const turn = atan2(sin(atan2(tx, tz) - car.heading), cos(atan2(tx, tz) - car.heading));
     ang.y += (turn * GLIDE_YAW - ang.y) * GLIDE_EASE;
     return -into;
   }

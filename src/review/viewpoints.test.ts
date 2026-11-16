@@ -4,13 +4,15 @@ import { World } from "../world/world";
 import { extent } from "../worldgen/chunk-grid";
 import { DUNE_SEA_SIZE, generate_dune_sea } from "../worldgen/dune-sea";
 import { build_tile } from "../worldgen/ground";
+import { generate_world } from "../worldgen/kinds/kinds";
 import { generate_sky } from "../worldgen/sky";
+import { WorldKind } from "../worldgen/types";
 import { sweep } from "../sweep";
 import { VIEWS } from "./catalog";
 import { plan_views, view_of } from "./viewpoints";
 
 const finite = (v: readonly number[]) => v.every(Number.isFinite);
-const ROAD_VIEWS = VIEWS.filter((name) => name !== "crest" && name !== "bowl" && name !== "rim");
+const ROAD_VIEWS = VIEWS.filter((name) => name !== "crest" && name !== "bowl" && name !== "rim" && name !== "ice" && name !== "cabin");
 
 test("every island view stands clear of the ground, on the circuit, looking somewhere else", async () => {
   for (const seed of sweep(3)) {
@@ -59,3 +61,13 @@ test("a sky world has no shore view, and an unknown name none at all", async () 
   expect(plan_views(world).shore).toBeUndefined();
   expect(await view_of(world, "nowhere")).toBeNull();
 });
+
+test("Winter Mainland's ice view looks along a frozen river from its bank; the island has none", () => {
+  expect(plan_views(new World(0)).ice).toBeUndefined();
+  const world = new World(0, generate_world(0, WorldKind.MAINLAND, [1]), [], [1]);
+  const view = plan_views(world).ice;
+  if (!view) throw new Error("winter mainland 0: no ice view");
+  expect(finite(view.from) && finite(view.to)).toBe(true);
+  expect(view.from[1]).toBeGreaterThan(view.to[1]);
+  expect(view.at).toBeGreaterThanOrEqual(0);
+}, 60_000);

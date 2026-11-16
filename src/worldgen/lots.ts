@@ -29,6 +29,7 @@ import {
   type Town,
   type Tree,
 } from "./types";
+import { atan2 } from "../sim-math";
 
 const FRONT_GAP = SIDEWALK + 1;
 /** road_dist every vertex under a lot keeps: half a metre behind the sidewalk of any street. */
@@ -266,7 +267,7 @@ export class Lots {
         });
         const reach = length(x - town.x, z - town.z) / town.radius;
         const kind = high ? high_kind(plot, d) : lot_kind(reach, r(3), d);
-        const lot: Lot = { id: this.out.lots.length, town: town.id, edge: edge.id, side, x, y: this.sample(heights, x, z), z, w, d, fx: -ox, fz: -oz, angle: Math.atan2(-ox, -oz), kind };
+        const lot: Lot = { id: this.out.lots.length, town: town.id, edge: edge.id, side, x, y: this.sample(heights, x, z), z, w, d, fx: -ox, fz: -oz, angle: atan2(-ox, -oz), kind };
         this.out.lots.push(lot);
         const index = Math.max(0, Math.min(edge.points.length - 1, Math.round((along / len) * (edge.points.length - 1))));
         if (kind === "shop" && high) {
@@ -417,11 +418,12 @@ export class Lots {
   }
 
   /** A market square opening off the main street beside the centre crossing, its clock tower at the back and stalls along the street; a town with no room for one goes without. */
-  square(town: Town) {
+  /** `half`: the widest street of the town, the margin the square keeps off every street round its block. */
+  square(town: Town, half: number) {
     const vx = -town.uz;
     const vz = town.ux;
     // A lane's margin too is a street's: the circuit may run along it, drawn wider than the lane.
-    const margin = STREET_HALF + SIDEWALK + 1.5;
+    const margin = Math.max(half, STREET_HALF) + SIDEWALK + 1.5;
     const deep = (town.cross ?? town.block) - 2 * margin;
     for (const cut of [0, 6, 12])
       for (const [si, sj] of [
@@ -533,7 +535,7 @@ export class Lots {
       const z = a.z + tz * u + tx * off;
       if (this.occupied[this.vertex_at(x, z)] || (this.shape.exact && this.sample(this.terrain.road_dist, x, z) < ROAD_HALF + 0.5)) continue;
       const y = this.sample(this.terrain.heights, x, z);
-      this.out.props.push({ x, y, z, angle: Math.atan2(tz * side, -tx * side), kind: PropKind.STREET_LIGHT, scale: 1 });
+      this.out.props.push({ x, y, z, angle: atan2(tz * side, -tx * side), kind: PropKind.STREET_LIGHT, scale: 1 });
       this.out.solids.push({ kind: "circle", x, y, z, radius: 0.18, height: LIGHT_HEIGHT });
     }
   }

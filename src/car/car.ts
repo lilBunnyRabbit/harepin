@@ -6,6 +6,7 @@ import { NITRO_TORQUE, Nitro, type NitroSense } from "./nitro";
 import { GRAVITY, RigidBody } from "./rigid-body";
 import { SteerMode, Steering } from "./steering";
 import { CurveCache, spin_free, suspend, tyre } from "./tyre";
+import { atan, atan2, axis_angle, hypot, tan } from "../sim-math";
 
 export { SteerMode, grip_lock, unassisted_lock } from "./steering";
 export { surface_grip } from "./tyre";
@@ -31,6 +32,8 @@ export interface Controls {
   nitro?: boolean;
 }
 
+const RAY_EXACT = 1e-7;
+const RAY_STEPS = 12;
 const SPIN_SLIP = 0.15;
 /** Driven wheelspin past peak at which traction control cuts the gas on the road, straight ahead (`CarSpec.tcs_turn_slip` at full key). */
 const TCS_SLIP = 0.14;
@@ -87,15 +90,18 @@ const DRIFT_SIDE_SX = 4;
  */
 const DRIFT_SIDE_SLIP = [0.26, 0.52] as const;
 const DROP_CLEAR = 0.05;
+// Metres the hull keeps over flat road when a strut meets its floor stop: without one, downforce at top speed pressed the
+// GT kit cars onto their floors, and the scrape, not the drag, set their top speed.
+const FLOOR_CLEAR = 0.04;
 
 // Each front points at the rear-axle turn centre, so at full lock inner and outer stop fighting each other.
 /** Road wheel angle, radians, of the wheel mounted at `x` (positive on the left) for the car's `steer`. */
 export function ackermann(steer: number, wheelbase: number, x: number): number {
   if (Math.abs(steer) < 1e-4) return steer;
-  const centre = wheelbase / Math.tan(Math.abs(steer));
+  const centre = wheelbase / tan(Math.abs(steer));
   const half = Math.abs(x);
   const inner = steer > 0 !== x > 0;
-  return Math.sign(steer) * Math.atan(wheelbase / (centre + (inner ? -half : half)));
+  return Math.sign(steer) * atan(wheelbase / (centre + (inner ? -half : half)));
 }
 
 /** Suspension reach with the car parked on flat ground, for views that have no sim behind them. */
@@ -154,6 +160,8 @@ export class Wheel {
   readonly normal = new Vector3();
   readonly curve = new CurveCache();
   readonly driven: boolean;
+  /** Compression, metres, at which the strut meets its floor stop, `FLOOR_CLEAR` short of the hull touching flat road. */
+  readonly floor_stop: number;
 
   constructor(
     readonly mount: Vector3,
@@ -165,6 +173,7 @@ export class Wheel {
   ) {
     this.driven = axle.drive_share > 0;
     this.reach = spec.wheel.rest + spec.wheel.radius;
+    this.floor_stop = this.reach - mount.y + Math.min(...spec.corners.map(([, y]) => y)) - FLOOR_CLEAR;
     this.omega = 0;
     this.spin = 0;
     this.compression = 0;
@@ -195,7 +204,7 @@ const Y = new Vector3(0, 1, 0);
 // power for it only stalls the car.
 function tcs_spin(w: Wheel, low: boolean, peak_slip: number, lateral: number): number {
   const slip = tcs_slip(w, peak_slip);
-  return low && w.contact && !w.axle.steer ? Math.hypot(Math.max(0, slip), w.lateral * peak_slip * lateral) : slip;
+  return low && w.contact && !w.axle.steer ? hypot(Math.max(0, slip), w.lateral * peak_slip * lateral) : slip;
 }
 
 // Wheelspin past the peak of the curve under the wheel, in asphalt's terms: traction control allows the same slip past
@@ -224,6 +233,34 @@ function any_contact(wheels: readonly Wheel[]): boolean {
 function ray_gap(ground: Ground, t: number): number {
   const y = mount.y + down.y * t;
   return y - ground.height(mount.x + down.x * t, mount.z + down.z * t, y);
+}
+
+// The ground is flat triangles, so the gap is linear in t on one face: false position lands on the hit in one lookup.
+// Across an edge or a deck lip, Illinois keeps it converging; the step cap is the old bisection's.
+function ray_hit(ground: Ground, near: number, far: number, reach: number): number {
+  let lo = 0;
+  let hi = reach;
+  let g_lo = near;
+  let g_hi = far;
+  let side = 0;
+  let t = reach;
+  for (let i = 0; i < RAY_STEPS; i++) {
+    t = lo + ((hi - lo) * g_lo) / (g_lo - g_hi);
+    const g = ray_gap(ground, t);
+    if (Math.abs(g) < RAY_EXACT) break;
+    if (g > 0) {
+      lo = t;
+      g_lo = g;
+      if (side === 1) g_hi /= 2;
+      side = 1;
+    } else {
+      hi = t;
+      g_hi = g;
+      if (side === -1) g_lo /= 2;
+      side = -1;
+    }
+  }
+  return t;
 }
 
 /** What one step's phases hand on to the later ones; each field is written before any later phase reads it. */
@@ -376,7 +413,7 @@ export class Car {
 
   place(x: number, y: number, z: number, heading: number) {
     this.pos.set(x, y, z);
-    this.quat.setFromAxisAngle(Y, heading);
+    axis_angle(this.quat, Y, heading);
     this.vel.set(0, 0, 0);
     this.ang.set(0, 0, 0);
     this.gear = 1;
@@ -427,7 +464,7 @@ export class Car {
 
   get heading(): number {
     const f = tmp.set(0, 0, 1).applyQuaternion(this.quat);
-    return Math.atan2(f.x, f.z);
+    return atan2(f.x, f.z);
   }
 
   shift(by: number) {
@@ -602,19 +639,11 @@ export class Car {
       mount.copy(w.mount).applyQuaternion(body.quat).add(body.pos);
       let t = reach;
       w.contact = false;
-      if (ray_gap(ground, reach) <= 0) {
+      const far = ray_gap(ground, reach);
+      if (far <= 0) {
         w.contact = true;
-        if (ray_gap(ground, 0) <= 0) t = 0;
-        else {
-          let lo = 0;
-          let hi = reach;
-          for (let i = 0; i < 12; i++) {
-            const mid = (lo + hi) / 2;
-            if (ray_gap(ground, mid) > 0) lo = mid;
-            else hi = mid;
-          }
-          t = (lo + hi) / 2;
-        }
+        const near = ray_gap(ground, 0);
+        t = near <= 0 ? 0 : ray_hit(ground, near, far, reach);
       }
       const compression = reach - t;
       w.angle = w.axle.steer ? this.ackermann(w) : 0;

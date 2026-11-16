@@ -36,6 +36,7 @@ const LEVELS: readonly LevelDef[] = [
   { id: "banked", name: "Banked run", brings: (place) => `The most banked stretch of the ${place} circuit, one way from a standing start.` },
   { id: "circuit-rev", name: "Circuit reversed", brings: () => "The circuit the wrong way round: every corner is new." },
   { id: "trip", name: "Road trip", brings: (place) => `From town to town across the ${place}: the two farthest apart by road, one way.` },
+  { id: "town", name: "Town circuit", brings: () => "Laps of one town's main street and the lane behind it, every corner a square one." },
   { id: "crossing", name: "Dune crossing", brings: () => "One way downwind across the dune sea, crest to crest, to the tallest dune at the far end." },
 ];
 

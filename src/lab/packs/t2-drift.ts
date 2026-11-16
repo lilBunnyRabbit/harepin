@@ -1,7 +1,7 @@
 import { parse_build } from "../../car/build";
 import { CARS } from "../../car/cars";
 import { Trait, trait_asks } from "../ask";
-import { LAB_CAR, type Aids, type Goal, type Pack, type Trial } from "../pack";
+import { LAB_CAR, type Aids, type Goal, type Pack, type StationTrial, type Trial } from "../pack";
 
 // The Drift preset (`PRESETS` in car/presets.ts), assist and stability off so the car does what the tyres do.
 const DRIFT = "muscle.1.5.0.3.1.0.7.0.0.0.2";
@@ -76,7 +76,7 @@ const VARIANTS: Variant[] = [
 
 interface Place {
   id: string;
-  station: Trial["station"];
+  station: StationTrial["station"];
   goal: Goal;
   try: string;
 }

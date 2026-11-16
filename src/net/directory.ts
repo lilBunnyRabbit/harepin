@@ -1,5 +1,5 @@
 import { joinRoom, type Room } from "trystero";
-import { APP_ID, RateLimit, clean_name, clean_tier, type RoomLock, type RosterEntry } from "./net";
+import { APP_ID, NO_P2P, RateLimit, clean_name, clean_tier, type RoomLock, type RosterEntry } from "./net";
 import { DIRECTORY_ROOM, ROOM_LENGTH, clean_room } from "./room-name";
 import { MAX_SEED } from "./seed";
 import { TURN_SERVERS } from "./ice";
@@ -337,6 +337,7 @@ export class Directory {
     if (mode === "off") return;
     this.status = DirectoryStatus.CONNECTING;
     try {
+      if (NO_P2P) throw new Error("not a secure context");
       // Announcers join passive: trystero never pairs two passive peers, so a game only links to players browsing the list.
       const room = joinRoom({ appId: APP_ID, turnConfig: TURN_SERVERS, maxReceiveBytes: MAX_RECEIVE_BYTES, passive: mode === "announce" }, DIRECTORY_ROOM, {
         onPeerHandshake: async (peer) => {

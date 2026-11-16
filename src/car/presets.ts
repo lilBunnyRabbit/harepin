@@ -15,4 +15,6 @@ export const PRESETS: readonly Preset[] = [
   { name: "Fujin prototype", blurb: "The Legend reward: hybrid prototype on race parts and the race kit", code: "fujin.6.4.4.2.2.0.1.2.2.2.1.2" },
   { name: "Sajin", blurb: "Sand buggy with the race kit: light bar, nerf bars and a spare. Best on sand, dirt and grass", code: "sajin.4.0.4.1.0" },
   { name: "Party bus", blurb: "The bus with a race engine and a big nitro tank", code: "bus.3.0.0.1.2.0.7.0.1.0.1.2" },
+  { name: "Sturm GT", blurb: "Sturm on a supercharger and semi-slicks: a class A field car", code: "sturm.3.0.0.1.3.0.7.2" },
+  { name: "Coupe sport", blurb: "The coupe on a supercharger and semi-slicks, up into class A", code: "coupe.6.0.0.1.3.0.7.2" },
 ];

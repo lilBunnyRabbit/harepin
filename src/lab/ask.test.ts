@@ -1,8 +1,8 @@
 import { expect, test } from "bun:test";
 import { Trait, TRAIT_ASK, trait_asks, with_station_asks } from "./ask";
-import type { Trial } from "./pack";
+import type { StationTrial } from "./pack";
 
-const trial = (id: string, station: Trial["station"]): Trial => ({ id, car: "hatch.4.0.2.1.0", station, goal: { kind: "free" }, try: "", feel: "" });
+const trial = (id: string, station: StationTrial["station"]): StationTrial => ({ id, car: "hatch.4.0.2.1.0", station, goal: { kind: "free" }, try: "", feel: "" });
 
 test("drift ease where sliding is the point, landing on the kickers, vs last only after the same station", () => {
   const asked = with_station_asks([trial("a", "skidpad"), trial("b", "skidpad"), trial("c", "kicker"), trial("d", "runway")]).map((t) => t.ask?.map((q) => q.id));

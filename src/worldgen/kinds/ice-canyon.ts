@@ -15,7 +15,7 @@ export const ice_canyon = kind_def({
   kind: WorldKind.ICE_CANYON,
   base: 7000,
   tag: "ic",
-  version: 5,
+  version: 7,
   size: SIZE,
   ...land,
   generate: (seed, levels, relief) => {

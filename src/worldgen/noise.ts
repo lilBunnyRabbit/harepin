@@ -1,3 +1,4 @@
+import { cos } from "../sim-math";
 export function ihash(ix: number, iy: number, seed: number): number {
   let h = (ix * 374761393 + iy * 668265263 + Math.imul(seed, 1442695041)) | 0;
   h = Math.imul(h ^ (h >>> 13), 1274126177);
@@ -46,7 +47,7 @@ export function length(x: number, z: number): number {
   return Math.sqrt(x * x + z * z);
 }
 
-// Rotation by a sqrt-built step instead of Math.cos/sin, which may differ in the last bit between engines.
+// Rotation by a sqrt-built step instead of cos/sin, which may differ in the last bit between engines.
 function polygon(count: number, c: number, s: number): [number, number][] {
   const out: [number, number][] = [];
   let x = 1;

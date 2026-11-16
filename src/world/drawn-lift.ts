@@ -4,6 +4,7 @@ import { EDGE_INSET, EDGE_WIDTH, GIVE_WAY_OUT, GIVE_WAY_WIDTH, on_paint, road_pa
 import { GIVE_WAY_GAP, give_way_dash } from "../worldgen/roads";
 import { lot_paving, type Paving } from "../worldgen/town-ground";
 import type { Lot, ParkingLot, RoadPoint } from "../worldgen/types";
+import { cos, hypot, sin } from "../sim-math";
 
 /** One drawn road: the lift its asphalt is laid at and the paint on it. */
 export interface DrawnRoad {
@@ -65,8 +66,8 @@ export function drawn_junctions(patched: readonly Junction[]): DrawnJunction[] {
       return { x: p.x, z: p.z, tx: p.tx, tz: p.tz, half, dash: give_way_dash(half) };
     });
     let reach = 0;
-    for (const p of patch.outline) reach = Math.max(reach, Math.hypot(p.x - x, p.z - z));
-    for (const bar of bars) reach = Math.max(reach, Math.hypot(bar.x - x, bar.z - z) + bar.half + GIVE_WAY_OUT + GIVE_WAY_WIDTH);
+    for (const p of patch.outline) reach = Math.max(reach, hypot(p.x - x, p.z - z));
+    for (const bar of bars) reach = Math.max(reach, hypot(bar.x - x, bar.z - z) + bar.half + GIVE_WAY_OUT + GIVE_WAY_WIDTH);
     return { x, z, reach2: reach * reach, patch, bars };
   });
 }
@@ -143,7 +144,7 @@ export function paved_lots(lots: readonly Lot[], parking: readonly ParkingLot[])
   }
   return [...by_lot].map(([id, paving]) => {
     const { x, z, fx, fz } = lots[id];
-    const reach = Math.max(...paving.map((p) => Math.hypot(Math.max(-p.x0, p.x1), Math.max(-p.z0, p.z1))));
+    const reach = Math.max(...paving.map((p) => hypot(Math.max(-p.x0, p.x1), Math.max(-p.z0, p.z1))));
     return { x, z, fx, fz, reach2: reach * reach, paving };
   });
 }
@@ -183,7 +184,7 @@ export interface LaidPad {
 }
 
 export function laid_pad(x: number, z: number, heading: number, grid: { u0: number; v0: number; step: number; nu: number; nv: number }, heights: Float64Array): LaidPad {
-  return { x, z, cos: Math.cos(heading), sin: Math.sin(heading), ...grid, heights };
+  return { x, z, cos: cos(heading), sin: sin(heading), ...grid, heights };
 }
 
 /** Height the laid pads are drawn at over (`x`, `z`), the highest where they overlap; -Infinity off every pad. */

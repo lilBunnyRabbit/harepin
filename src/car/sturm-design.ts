@@ -96,8 +96,8 @@ const FLARE_OUT_F = 1.07;
 const FLARE_OUT_R = 1.11;
 const SKIRT: Point[] = [[0.72, KIT_SILL + 0.01], [0.72, 0.3], [-0.25, 0.3], [-0.25, KIT_SILL + 0.01]];
 
-const ARCHES: Arches = { gap: 0.06, steps: 11, flare: 0.07, out: 0.13, reach: 0.03, tone: "paint" };
-const KIT_ARCHES: Arches = { gap: 0.08, steps: 11, flare: 0.06, out: 0.12, reach: 0.03, tone: "paint" };
+const ARCHES: Arches = { gap: 0.065, steps: 11, flare: 0.07, out: 0.13, reach: 0.03, tone: "paint" };
+const KIT_ARCHES: Arches = { gap: 0.085, steps: 11, flare: 0.06, out: 0.12, reach: 0.03, tone: "paint" };
 
 // The axles and the wheel radius, from the Sturm spec.
 const AXLE_F = 1.362;

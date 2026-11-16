@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { Triple } from "./cars";
+import { asin, cos, hypot, sin } from "../sim-math";
 
 export type Point = [number, number];
 
@@ -48,10 +49,10 @@ export function box(w: number, h: number, d: number, x: number, y: number, z: nu
 
 export function arc(z: number, y: number, radius: number, floor: number, steps: number): Point[] {
   if (steps === 0) return [];
-  const low = Math.asin(Math.max(-1, Math.min(1, (floor - y) / radius)));
+  const low = asin(Math.max(-1, Math.min(1, (floor - y) / radius)));
   return Array.from({ length: steps + 1 }, (_, i): Point => {
     const a = Math.PI - low - ((Math.PI - 2 * low) * i) / steps;
-    return [z + radius * Math.cos(a), y + radius * Math.sin(a)];
+    return [z + radius * cos(a), y + radius * sin(a)];
   });
 }
 
@@ -69,7 +70,7 @@ export function inset(points: Point[], by: number[]): Point[] {
     const [z2, y2] = points[(i + 1) % n];
     const dz = z2 - z;
     const dy = y2 - y;
-    const length = Math.hypot(dz, dy);
+    const length = hypot(dz, dy);
     return { z: z - (dy / length) * turn * by[i], y: y + (dz / length) * turn * by[i], dz, dy };
   });
   return lines.map((b, i): Point => {
@@ -94,7 +95,7 @@ export function screen(points: Point[], edge: number, end: number): Point[] {
   const turn = Math.sign(signed_area(points));
   const a = points[edge];
   const b = points[(edge + 1) % points.length];
-  const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+  const length = hypot(b[0] - a[0], b[1] - a[1]);
   const u: Point = [(b[0] - a[0]) / length, (b[1] - a[1]) / length];
   const out: Point = [u[1] * turn, -u[0] * turn];
   const at = (p: Point, along: number, by: number): Point => [p[0] + u[0] * along + out[0] * by, p[1] + u[1] * along + out[1] * by];

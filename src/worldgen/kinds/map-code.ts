@@ -26,6 +26,7 @@ export const PRESETS: readonly { char: string; kind: WorldKind }[] = [
   { char: "F", kind: WorldKind.ICE_CANYON },
   { char: "W", kind: WorldKind.VELODROME },
   { char: "K", kind: WorldKind.LAB },
+  { char: "H", kind: WorldKind.WALL_RIDE },
 ];
 
 const preset_char = (kind: WorldKind) => PRESETS.find((p) => p.kind === kind)?.char ?? "";

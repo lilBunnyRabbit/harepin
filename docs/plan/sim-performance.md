@@ -383,6 +383,80 @@ Whichever lands, the J2 maths module should define two-argument `hypot(a, b)` as
 - The car's inputs never come near overflow.
 - It moves the physics by ulps, so it belongs in the J2/J10 rebaseline, not after it.
 
+## Sim worker, built (t276)
+
+Quest 2732f6d (J1, J4, J5). `src/sim/`: `SimHost` steps the player's car, pads, `world.collide`, an AI field with the player in its contact pass, the near-miss pass and the car's rewind (body, nitro, pads). Main runs it in place by default. `?simworker` hosts the same `SimHost` in a worker.
+
+- **Transport.** One post per frame carries the commands since the last frame (place, park, swap, shift, aids, refill, a knocked item's drag, rewind clear, field start, world ops) and the frame's request (kind, step count, controls, `now`, blend, peer spots). The reply is one cloned `Float64Array` with a fixed, append-only layout (`sim-packet.ts`, `SIM_PACKET` 1): a header (epoch, kind, steps, stepped, impact, blend), the player's car (pose, the pose before the last step, gear, rpm, steer, braking, throttle, nitro, scrape, every wheel's contact, point, slip, angle, spin, reach), then each AI car's pose, braking and wheels. 8 + 39 + 12 a wheel floats for the player, 8 + 3 a wheel per AI car: 215 floats, 1720 bytes, for the coupe and 6 AI.
+- **Float64, not the planned Float32.** Main times laps and modes and picks reset spots from the car it reads; float32 would make those differ from the flag-off game by rounding. The test proves the flag-on packet equals the flag-off car bit for bit.
+- **Main draws one frame late.** Frame N reads the reply to frame N-1's post, and every per-frame reader (HUD, audio, rumble, camera, ghost record, modes, stuck and fall checks) takes the reply's own kind, step count and impact, so flag-on is flag-off shifted by a frame. A place, park, swap or refill moves main's mirror at once and starts a new epoch; replies from before it are dropped. Two things land a frame later still: a knocked item's drag (found on the mirror, applied in the worker's next frame) and the first and last frame of a rewind (main rewinds the lap clock in the frame it decides, the car one reply later).
+- **World.** The worker builds its `World` from the plan main built from (`WorldStream.plan`). A `WorldJournal` on main's world records every tile, plant, `place` and `lay` in order from before the first chunk lands, and the ops ride in the frame posts.
+- **Rewind and ghost.** Car body, nitro and pads rewind in the sim (nitro's near-miss keys are solid objects that do not cross to main). The lap clock stays a rewind part on main, recorded and stepped with the same `now`. The ghost records on main from the mirrored car: it draws and saves to localStorage, which a worker has not got.
+- **Main only.** `?lab` (the recorder reads every step) and review shots (they set the pose) keep the sim on main under the flag.
+- **`?field=<cars>`** (1-7): an AI field on the island circuit in free drive, the player's build on every car, for measuring before race mode has one.
+
+Proof:
+
+- `src/sim/sim.test.ts`: a packet read back into a mirror car re-encodes to the same bits. Island seed 1, coupe: 900 frames solo, 900 with a 6-car field, 300 after a park and a swap to the rally, with holds, rewinds, shifts, refills, an aids change and peer spots, 5-7 steps a frame. Every worker reply equals the flag-off packet bit for bit. Removing the aids command in the worker turns it red at frame 700.
+- `car.test.ts`, `scripts/telemetry.ts` and `scripts/feel.ts` import none of the changed files (25 files, import graph walked), so they are byte-identical by construction.
+
+### Main-thread ms per frame
+
+Vite preview build, headless Chrome (rAF at ~134 Hz), island seed 1, coupe, throttle held. CDP `Performance.getMetrics` `TaskDuration` over 12 s, after 3 s warm-up, divided by frames. Mean of 3 runs (range in brackets).
+
+| | CPU throttle | sim on main | `?simworker` | saved |
+|---|---|---|---|---|
+| solo | 1x | 1.61 (1.52-1.67) | 1.64 (1.63-1.65) | none |
+| 6 AI | 1x | 2.16 (2.05-2.22) | 2.05 (2.00-2.12) | 0.11 ms (5%) |
+| solo | 4x | 13.8 (11.8-15.0), 73 fps | 15.5 (13.5-18.3), 65 fps | none, within noise |
+| 6 AI | 4x | 19.4 (17.7-21.2), 51 fps | 16.6 (15.4-17.6), 60 fps | 2.9 ms (15%) |
+
+- The 6-car field costs main 0.55 ms a frame at 1x (5.7 ms at 4x) over solo. The worker takes 0.11 (2.9) of it. The rest is drawing six more `CarView`s: phase 3 needs a cheaper AI car view (fewer draws, LOD, the far-AI follower), or the frame stays view-bound.
+- Solo gains nothing on main: one car's steps (about 0.05 ms a frame at 1x) are what the post, the message task and the mirror read cost. §4's 88-90% was sim time alone; these numbers are the whole main thread.
+- The 4x rows carry §4's caveats: the throttle does not reach the worker and inflates short tasks, so run-to-run spread is ±2 ms. The phone (S24+, frame time with 6 AI, worker on vs off) is the number that decides the default.
+
+## AI race frame time (t277)
+
+Phase 3's free-play race (`?airace=circuit`, `src/modes/ai-race.ts`) with the two phase 3 savings in: AI cars past 75 m from the camera draw as one baked mesh (`car/far-view.ts`, one draw call, no shadow), and past 120 m from the player and off screen they coast on their line with no physics (H7, `Driver.coast`).
+
+Vite preview of a `--mode review` build, headless Chrome, 1440 x 900, island seed 0, circuit, CPU throttle 4x. `?aidrive` drives the player's car with the field's own driver; `?aicars=1` is the baseline, since the autopilot needs a field. CDP `TaskDuration` over 12 s, divided by frames; two runs each. "start" measures from 8 s after the lights show (the pack still bunched, every car close and on the physics); "60 s" from 60 s in (the pack strung out over a few hundred metres). Script: `.t277/perf.ts` (untracked).
+
+| | CPU throttle | sim on main | `?simworker` |
+|---|---|---|---|
+| 1 AI, start | 4x | 30.2 (29.8-30.5), 33 fps | |
+| 6 AI, start | 4x | 34.4 (34.4-34.5), 29 fps | 30.1 (29.0-31.2), 33 fps |
+| 1 AI, 60 s | 4x | 34.5 (32.5-36.6), 29 fps | |
+| 6 AI, 60 s | 4x | 35.9 (34.0-37.8), 27 fps | 30.1 (29.7-30.6), 32 fps |
+
+- Five more AI cars cost main 4.2 ms a frame with the pack bunched at the start and 1.4 ms (inside the ±2 ms spread) once it strings out. With the sim in the worker both rows sit at the 1-AI baseline on main.
+- The baseline is not t276's 13.8 ms solo row: this is the circuit start in a race, with its marks, beams and cones, and a different machine state. Compare rows within this table only.
+- A CPU profile at 1x has JavaScript at a few percent: 41% `(program)` (GL submission and compositing) and 30% idle. The race scene is draw-bound before the AI adds anything.
+- The phone (S24+, J6/J7) is still the number that decides; not measured here.
+
+## Phone frame: 6-AI race and the Series screen (t307)
+
+Vite preview of a `--mode review` build, headless Chrome on the real GPU (ANGLE D3D11), 844x390 at DPR 2, touch (mobile tier), CPU throttled 4x, 2 s after the ready selector plus 8 s warm, then a 10 s sample. Race: `?seed=0&world=island&airace=circuit&aidrive&aicars=6`, sampled from 10 s after the lights show (pack bunched). Columns as in t238: frame work is CPU time inside the rAF callback, draw calls and triangles from wrapped WebGL2 draws, per drawn frame. The box was shared with other agents' jobs: two runs of the same build differ by up to 8 ms p50 at 4x, so compare rows run back to back. Scripts: `.t307/probe.mts`, `profile.mts`, `trace.mts` (untracked).
+
+| Case | Frame work p50 / p95 (ms) | Gap p50 / p95 (ms) | fps | Draw calls | Triangles |
+|---|---|---|---|---|---|
+| 6 AI, sim on main, before | 43.2-51.8 / 70-80 | 55-62 / 83-97 | 17-20 | 141 | 177k |
+| 6 AI, sim on main, brake LOD (42ad62d) | 43.2 / 73.2 | 55.5 / 90.2 | 20 | 123 | 180k |
+| 6 AI, sim on main, + the two DOM fixes below | **18.0 / 32.2** | 27.8 / 41.8 | **35** | 122 | 176k |
+| 6 AI, `?simworker`, before | 29.2-32.0 / 41-52 | 35-42 / 55-76 | 21-26 | 141 | 178k |
+| 6 AI, `?simworker`, brake LOD | 32.1 / 46.0 | 41.6 / 62.5 | 24 | 122 | 175k |
+| 6 AI, `?simworker`, + the two DOM fixes below | **11.7 / 15.4** | 20.8 / 27.8 | **48** | 122 | 175k |
+| 1 AI, sim on main, + DOM fixes | 9.5 / 27.3 | 13.9 / 48.6 | 54 | 72 | 163k |
+| Series `?series`, idle | 6.9 / 9.0 | 6.9 / 7.0 | 143 | 91 | 217k |
+| Series `?series`, swiping (touch scroll gestures) | 7.3 / 10.7 | 6.9 / 7.0 | 137 | 91 | 217k |
+
+The "DOM fixes" rows are the brake-LOD build with both fixes patched into the bundle by hand; they are not in the source (see below).
+
+- **The top cost of the race is not the AI models: it is style recalc.** A Chrome trace of the race at 4x has `UpdateLayoutTree` at 311 ms/s and `Layout` at 115 ms/s, 43% of the main thread. The race clock in `#mode-status` is written with `textContent` every frame (`Modes.write_status`, `modes/modes.ts:613`), which swaps the text nodes. Each swap schedules a `:has()` invalidation on `body` and `html` (`body:has(#mode-status:not([hidden]))` in `hud.css`, `run-card.css`, `phone.css`), so the whole document's style is recalculated every frame. `hud/hud.ts` already has `set_text`, which writes the lone text node's data for exactly this reason; `write_status` does not use it.
+- **Second: `Remotes.update` reads `innerWidth` / `innerHeight` every frame** (`net/remotes.ts:137`), after the frame's DOM writes, so it forces that layout synchronously: 28% self time in the CPU profile even with no remotes. Read the size from the renderer's `ResizeObserver` width (`render.ts`), or on `resize`.
+- With both fixes, the worker row goes from 32 to 11.7 ms p50 and 15.4 ms p95 at 4x: inside the 16.7 ms budget. On main, 18 ms p50 is still over it; the sim (`Car.step` 204 ms/s) is what is left, which the worker takes.
+- **AI car models:** each full view is 12 draw calls (hull, metal hull, heads, tails, 4 tyres, 4 brake discs). Five more AI cars add 68 calls and 15k triangles over the 1-AI row. Phone has no shadow map, so shadow casters cost nothing there. 42ad62d hides the brake discs and calipers past 30 m (back at 25 m), where a wheel is under 10 px: -18 calls with the pack bunched, more once it strings out. Its frame-time gain is inside the noise next to the style recalc.
+- **Series screen:** no dropped frames idle or swiping; the frame gap p95 is 7.0 ms (the 144 Hz display). The scene behind it redraws at 10 Hz (`MENU_DRAW_MS`), so its draw costs 65 ms/s at 4x. The rest of `frame()` still runs at the display rate behind the menu: about 155 ms/s at 4x (ghost `wheel_lifts`, `drawn_lift`, gamepads, audio), and a native `(program)` share for compositing the cards. A loop that skips its non-draw work on frames it does not draw would win that back; not done (`main.ts`). The 10 Hz redraw shows its turbines and gates stepping now that the stage page has no blur.
+
 ## Phone frame: race clock and remote labels (t308)
 
 The fix for t307's top phone cost, measured on master. Base cd77979 against 66478eb, each a `git archive` copy built with `vite build --mode review`, served by `vite preview`, headless Chrome on the real GPU (ANGLE D3D11), 844x390 at DPR 2, touch (mobile tier), CPU throttled 4x, 8 s warm and then a 10 s sample. The `?airace` field is not on master, so the race is career event `?event=r1` (First lap, Island circuit, dev ghost on), the player parked on the grid with the clock running. Online adds a second tab in the same browser (`&room=…&quality=low`, same event) over BroadcastChannel, so one remote car and its label are in view. Two alternating runs per build; the box was shared with other agents' jobs. Scripts: `.t308p/probe.mts`, `trace.mts` (untracked, t307's with a car pick and a peer tab).
@@ -453,3 +527,24 @@ Solo race frames (`probe.mts`, 8 s warm, 10 s sample):
 - **Sized for Inter.** `ch` is Inter's proportional zero, wider than its tabular figures: the box holds " · M:SS.sss" (the separator is the clock's `::before`) at 7.66ch, so it is 7.7ch, 8.65ch for MM:SS.sss. `white-space: pre` keeps the separator's leading space, which a line inside the box would drop. Measured with Inter loaded, `#mode-status` comes out 0.36 px wider than before and `#mode-status-more` and `#mode-hint` hold one position across 40 samples. With Inter loaded the clock's width never changed per tick before either (tabular figures); it did in the traces, which block Google Fonts and fall back to a font without them (68-72 px).
 - **Only a time alone gets the box.** `Modes.write_status` sets `data-time` to the clock's length when the segment is `M:SS.sss` or `MM:SS.sss`, written only when that changes. A clock with a penalty (`0:17.346 (+2 s)`), the countdown, drift points and jump metres keep the inline flow and its relayouts.
 - **The menu skips whole frames.** `frame()` reads input, runs actions and the lobby every frame. With the sim held (no peers) it then returns on a frame the menu's redraw rate won't draw (`draw_ms` set, not the garage, not a review shot); `last` stays put, so the next drawn frame's `dt` covers the skipped time. With peers the sim keeps stepping every frame, so the heartbeat's 50 ms pose stays as fresh as before, and the frame returns after the gameplay updates; the draw side (chase cam, smoke, sparks, remote cars) advances on the drawn frame by `draw_dt`, the time it skipped. Both carries keep the 0.1 s cap, so a held-sim menu at 100 ms loses up to a frame of chase and smoke time per redraw, with nothing driving. `quality.adapt` skips covered frames, whose `dt` is the redraw gap and would read as slow frames. Main thread behind the menu drops from 523-680 to 468-482 ms/s, the rAF callback by half; one later run of the sim-every-frame version read 368 (menu) and 387 (online menu) ms/s on a quieter box.
+## Shared maths, built (t286)
+
+J2 and J10 landed together: `src/sim-math.ts` (fdlibm ports of sin, cos, tan, atan, atan2, asin, acos, exp, log, cbrt; `hypot` as `sqrt(a*a+b*b)`; `axis_angle` for three's `setFromAxisAngle`) replaces `Math.*` in `car/`, `ai/`, `world/`, `worldgen/`, `modes/`, `career/` and `race.ts`. The suspension ray is false position with Illinois (one lookup per face, 12-step cap). Every kind's `version` bumped once.
+
+Proof: `src/car/sim-digest.test.ts` holds a maths digest and a 12-car, 10 s rolling-ground car digest. `node scripts/sim-digest.mjs` reruns them in Bun, Node and Chrome (and WebKit when Playwright's build is installed). 2026-11-15: Bun 1.3.0 (JSC), Node 22.14 (V8 12.4) and Chrome 157 all give `8ad84cdc` / `1866f347` (after the floor stop landed).
+
+Telemetry (coupe, stock) and feel, ce6af9c → this branch. Every other line is byte-identical.
+
+| line | before | after |
+|---|---|---|
+| telemetry: settled | CG height 0.493 m, loads 3144 / 3144 / 3144 / 3144 N | CG height 0.493 m, loads 3310 / 3310 / 3310 / 3310 N |
+| telemetry: 100-0 km/h braking (ABS off) | 39.2 m | 39.1 m |
+| feel: lane change 160 km/h | max slip 1.2°, yaw after 3.5 s -0.000 rad/s, upright 1.000 | max slip 1.2°, yaw after 3.5 s 0.000 rad/s, upright 1.000 |
+| feel: trail brake 120 km/h + steer | max slip 7.1°, stopped in 3.07 s | max slip 7.0°, stopped in 3.07 s |
+| feel: rest jitter | max dy/step 0.0075 mm, speed 0.0006 | max dy/step 0.0073 mm, speed 0.0000 |
+| feel: hold: release at 100 km/h | wheel 0.082 rad -> 10% in 0.45 s, yaw after 2 s -0.000 rad/s | wheel 0.082 rad -> 10% in 0.45 s, yaw after 2 s 0.000 rad/s |
+| feel: drift hold 50 km/h hb (TCS on) | held 4.81 s, slip 27.4°, 54 -> 39 km/h, yaw 0.54, r 19.3 m | held 4.81 s, slip 27.4°, 54 -> 39 km/h, yaw 0.54, r 19.2 m |
+| feel: drift hold 50 km/h hb (TCS off) | held 2.31 s, slip 71.0°, 54 -> 5 km/h, yaw 1.18, r 0.8 m | held 2.25 s, slip 68.9°, 54 -> 3 km/h, yaw 0.93, r 0.3 m |
+| feel: then turn key 1 s | yaw 1.00, r 1.7 m, slip 1.3° | yaw 1.12, r 2.3 m, slip -0.7° |
+| feel: power drift 40 km/h no hb (TCS on) | r 100.2 m | r 100.4 m |
+- Settled loads now equal the coupe's weight a wheel (1350 kg x 9.81 / 4 = 3311 N); with the bisected ray they read 5% under it.

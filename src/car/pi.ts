@@ -1,5 +1,6 @@
 import { build_spec, stats, type Build } from "./build";
 import type { CarSpec } from "./cars";
+import { log } from "../sim-math";
 
 const GRAVITY = 9.81;
 
@@ -86,7 +87,11 @@ export function stat_pace(spec: CarSpec): Pace {
   const press = spec.downforce / spec.mass;
   const traction = LAUNCH_GRIP * s.grip * 2 * GRAVITY;
   return {
-    accel: (v) => Math.min(traction, (POWER_SHARE * s.power) / Math.max(v, LAUNCH_SPEED)) * (1 - (v / s.top_speed) ** 3),
+    accel: (v) => {
+      // `** 3` is the engine's pow, which V8 rounds differently from JSC; each IEEE multiply rounds the same in every engine.
+      const r = v / s.top_speed;
+      return Math.min(traction, (POWER_SHARE * s.power) / Math.max(v, LAUNCH_SPEED)) * (1 - r * r * r);
+    },
     brake: BRAKE_SHARE * s.braking,
     lateral: (v) => CORNER_GRIP * s.grip * (GRAVITY + DOWNFORCE_GRIP * press * v * v),
     top: s.top_speed,
@@ -105,7 +110,7 @@ const NITRO_PI = 3;
 
 export function spec_pi(spec: CarSpec): number {
   const speed = LAP_LENGTH / lap_time(stat_pace(spec));
-  const rated = PI_MIN + PI_PER_LOG * Math.log(speed / FLOOR_SPEED) + NITRO_PI * (spec.nitro ?? 0);
+  const rated = PI_MIN + PI_PER_LOG * log(speed / FLOOR_SPEED) + NITRO_PI * (spec.nitro ?? 0);
   return Math.round(Math.max(PI_MIN, Math.min(PI_MAX, rated)));
 }
 

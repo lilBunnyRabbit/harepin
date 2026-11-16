@@ -3,6 +3,7 @@ import type { Car, Controls, StepFrame } from "./car";
 import type { CarSpec } from "./cars";
 import { curve_at } from "./curve";
 import { GRAVITY } from "./rigid-body";
+import { atan2, log } from "../sim-math";
 
 /**
  * How keyboard steering behaves: `snap` ramps to full lock and springs back to centre, `hold` leaves the wheel where it
@@ -192,7 +193,7 @@ export class Steering {
     const speed = frame.speed;
     frame.inv.copy(car.body.quat).invert();
     const local = local_vel.copy(car.body.vel).applyQuaternion(frame.inv);
-    frame.slide = speed > 5 ? Math.atan2(-local.x, Math.abs(local.z)) : 0;
+    frame.slide = speed > 5 ? atan2(-local.x, Math.abs(local.z)) : 0;
     this.ramp_keys(car, dt, input, speed);
     this.drift_intent(car, frame, dt, input, local);
     this.aim(car, frame, dt, input, local);
@@ -227,7 +228,7 @@ export class Steering {
       } else if (size > Math.abs(held)) {
         car.key_steer = Math.sign(want) * Math.min(size, Math.abs(held) + dt / attack);
       } else {
-        const decay = curve_at(keys.release, kmh) / Math.log((1 + keys.release_ease) / keys.release_ease);
+        const decay = curve_at(keys.release, kmh) / log((1 + keys.release_ease) / keys.release_ease);
         const step = ((Math.abs(held) + keys.release_ease) * dt) / decay;
         car.key_steer += Math.max(-step, Math.min(step, want - held));
       }
@@ -244,7 +245,7 @@ export class Steering {
   private drift_intent(car: Car, frame: StepFrame, dt: number, input: Controls, local: Vector3) {
     const spec = car.spec;
     const { speed, pedal, brake } = frame;
-    const beta = Math.atan2(-local.x, Math.abs(local.z));
+    const beta = atan2(-local.x, Math.abs(local.z));
     const slow = SLIDE_SPEEDS[0];
     const fast = SLIDE_SPEEDS[1];
     const walking = Math.max(0, Math.min(1, (fast - speed) / (fast - slow)));
@@ -309,7 +310,7 @@ export class Steering {
     if (local.z > 1) {
       // Full lock at hairpin speed put the fronts at 20-27 degrees of slip, three times peak, and their scrub held the car
       // at walking pace under full throttle. Keep them within reach of peak around the way the front axle is moving.
-      const course = Math.atan2(-(local.x + car.body.ang.dot(frame.up) * this.steer_z), local.z);
+      const course = atan2(-(local.x + car.body.ang.dot(frame.up) * this.steer_z), local.z);
       const on_from = USEFUL_SPEEDS[0];
       const on_to = USEFUL_SPEEDS[1];
       const off_from = USEFUL_SPEEDS[2];

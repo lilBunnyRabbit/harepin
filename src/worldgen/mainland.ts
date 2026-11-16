@@ -4,9 +4,10 @@ import { mainland_network } from "./mainland-network";
 import { plan_grid, type PlanGrid } from "./plan-grid";
 import { MAINLAND, type Recipe } from "./recipe";
 import { road_junctions } from "./road-layers";
-import { circuit_route, circuit_sprint, heading, trip_route } from "./routes";
+import { circuit_route, circuit_sprint, heading, town_route, trip_route } from "./routes";
 import type { GroundOp } from "./stamp";
 import { land_height } from "./terrain";
+import { town_level } from "./towns";
 import { plan_water } from "./water";
 import { CELL, WorldKind, type Checkpoint, type RoadPoint, type WorldData } from "./types";
 
@@ -39,7 +40,7 @@ export function plan_mainland(seed: number, recipe: Recipe = MAINLAND): Mainland
   const ext = extent(MAINLAND_SIZE);
   const grid = plan_grid(ext, PLAN_CELL, land_height(seed, recipe.terrain));
   lap("plan grid");
-  const { graph, towns, circuit, road } = mainland_network(seed, grid, recipe.towns);
+  const { graph, towns, circuit, road, loop } = mainland_network(seed, grid, recipe.towns);
   lap("network");
   const water = recipe.water ? plan_water(grid, recipe.water, graph.edges, towns, land_height(seed, recipe.terrain)) : null;
   lap("water");
@@ -55,6 +56,8 @@ export function plan_mainland(seed: number, recipe: Recipe = MAINLAND): Mainland
       (edge): GroundOp => ({ kind: "edge", edge, bank: recipe.road.bank }),
     ),
     { kind: "blend", bank: recipe.road.bank },
+    ...(recipe.snow ? [{ kind: "snow", kit: recipe.snow, beach: recipe.biomes.limits.beach, parts: [] } satisfies GroundOp] : []),
+    ...(recipe.snow && water ? [{ kind: "freeze", water } satisfies GroundOp] : []),
   ];
   const { patched } = road_junctions({ road, graph, circuit });
   const town = mainland_lots(seed, recipe, graph, towns, circuit, patched, ops, water);
@@ -84,7 +87,8 @@ export function plan_mainland(seed: number, recipe: Recipe = MAINLAND): Mainland
   }) : [];
   const sprint = road.length ? circuit_sprint(road, gates, checkpoints, SPRINT_S) : null;
   const trip = trip_route(graph, circuit, towns, patched);
-  const routes = [...(road.length ? [circuit_route(road, checkpoints), ...(sprint ? [sprint] : [])] : []), ...(trip ? [trip] : [])].map((r) => ({ ...r, excludes: EXCLUDES }));
+  const laps = loop ? town_route(graph, circuit, towns, (x, z) => town_level(towns[loop.town], x, z), patched, loop) : null;
+  const routes = [...(road.length ? [circuit_route(road, checkpoints), ...(sprint ? [sprint] : [])] : []), ...(trip ? [trip] : []), ...(laps ? [laps] : [])].map((r) => ({ ...r, excludes: EXCLUDES }));
   lap("routes");
   const empty = new Float32Array(0);
   const data: WorldData = {
@@ -113,6 +117,6 @@ export function plan_mainland(seed: number, recipe: Recipe = MAINLAND): Mainland
   return { grid, data };
 }
 
-export function generate_mainland(seed: number): WorldData {
-  return plan_mainland(seed).data;
+export function generate_mainland(seed: number, recipe: Recipe = MAINLAND): WorldData {
+  return plan_mainland(seed, recipe).data;
 }

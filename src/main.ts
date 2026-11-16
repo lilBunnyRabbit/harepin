@@ -3,6 +3,13 @@ import { Audio, type SoundFrame } from "./audio/audio";
 import { idle_sound } from "./audio/held-sound";
 import { EVENTS, EVENT_PARAM, TUNE_PARAM, current_tier, event_of, type CareerEvent } from "./career/career";
 import { CareerButton } from "./career/career-button";
+import { SERIES_PAGE, SERIES_PARAM, is_open } from "./career/series";
+import { series_event } from "./career/series-seasons";
+import { Wallet } from "./career/wallet";
+import { WalletDb } from "./career/wallet-db";
+import { series_list, series_open } from "./career/series-store";
+import { SeriesDb } from "./career/series-db";
+import { on_series_map, series_host } from "./career/series-run";
 import { Career, event_map } from "./career/career-store";
 import { EventMarkers } from "./career/event-markers";
 import { RUN_PARAM, run_of, type RunPick } from "./runs/runs";
@@ -18,7 +25,7 @@ import { own_country } from "./net/country";
 import { Chat } from "./net/chat";
 import { Skids, Smoke } from "./render/effects";
 import { Sparks } from "./render/sparks";
-import { parse_build } from "./car/build";
+import { build_spec, parse_build } from "./car/build";
 import { load_builds } from "./car/builds";
 import { car_shelves, limit_text } from "./car/car-pick";
 import { pick_car } from "./menu/car-pick";
@@ -46,7 +53,6 @@ import { GUIDE_PARAM, ROLLED_VISIT } from "./menu/guide/guide.svelte";
 import { kept_random_name } from "./menu/guide-rules";
 import { PadMenu } from "./menu/pad-menu";
 import { Net, WRONG_PASSWORD } from "./net/net";
-import { peer_pass, type Near } from "./car/nitro";
 import { Quality } from "./render/quality";
 import { brand, color, rgba, tones } from "./theme/palette";
 import { Race } from "./race";
@@ -55,7 +61,6 @@ import { Render } from "./render/render";
 import { WorldView, mesh_tones } from "./render/scene";
 import { kit_meshes } from "./render/prop-kit";
 import { clouds, sky } from "./render/sky";
-import { PadTimer } from "./world/sky-pads";
 import { Lighting } from "./render/lighting";
 import { CAMERA_RETURN_SECONDS, CameraView, pad_settings, type SettingsState } from "./menu/prefs";
 import { load_settings, mark_drive, pin_pick, take_drive } from "./menu/prefs-store";
@@ -64,7 +69,7 @@ import { MenuTab, invite_link } from "./menu/page";
 import { Settings } from "./menu/settings";
 import { BUILD, Updater, show_version } from "./menu/update";
 import { card_closed_now, show_updated } from "./menu/updated-card";
-import { LAB_PARAM, pick_world } from "./world/world-pick";
+import { LAB_PARAM, names_world, pick_world } from "./world/world-pick";
 import type { Lab } from "./lab/lab";
 import { GUARD_STATE, SystemBack, type Watcher } from "./menu/system-back";
 import { SPAWN_INDEX } from "./world/world";
@@ -74,13 +79,21 @@ import { start_lobby } from "./modes/lobby-start";
 import { WORLDS } from "./worlds/worlds";
 import { map_id, snow_of } from "./worldgen/kinds/kinds";
 import { world_look } from "./worlds/world-def";
-import { custom_code, map_code, pick_problem, read_pick } from "./worldgen/kinds/map-code";
+import { custom_code, map_code, parse_map_code, pick_problem, read_pick } from "./worldgen/kinds/map-code";
 import { map_note } from "./menu/map-note";
 import { plain_map } from "./worldgen/kinds/kinds";
-import { review_wanted } from "./review/params";
+import { REVIEW_BUILD, review_wanted } from "./review/params";
 import { HudSheet } from "./hud/hud-sheet";
 import { StuckPrompt } from "./hud/stuck-prompt";
 import { pushing } from "./hud/stuck";
+import { LocalSim, SIM_WORKER_PARAM, WorkerSim, type Sim } from "./sim/sim-client";
+import { DT, FrameKind, SimHost, type FrameRequest } from "./sim/sim-host";
+import { WorldJournal } from "./world/world-journal";
+import { AI_CARS, AI_CARS_PARAM, AI_DRIVE_PARAM, AI_RACE_PARAM, FieldView } from "./ai/field-view";
+import { LEVEL_3 } from "./ai/field";
+import { rating } from "./car/pi";
+import { WorldKind } from "./worldgen/types";
+import { Difficulty } from "./ai/difficulty";
 import "./style.css";
 
 const params = new URLSearchParams(location.search);
@@ -88,10 +101,16 @@ const room = clean_room(params.get("room")) ?? LOBBY_ROOM;
 const event = event_of(params.get(EVENT_PARAM));
 const run = event ? null : run_of(params.get(RUN_PARAM));
 const lab_id = params.get(LAB_PARAM);
+// `?airace` (dev and review builds): free-play races on a circuit run against an AI field; `?airace=<level>` starts one.
+const ai_race = REVIEW_BUILD && params.has(AI_RACE_PARAM);
+const ai_level = ai_race ? params.get(AI_RACE_PARAM) : null;
+// `?series` (dev and review builds): the Harepin Series page; `?series=<event>` starts that event on its map.
+const series_on = REVIEW_BUILD && params.has(SERIES_PARAM);
+const series_pick = series_on ? series_event(params.get(SERIES_PARAM)) : null;
 // Any peer on the map can call a lobby race, and that ends a mode run: an event link without a room of its own runs
 // alone in an unlisted room, as does a review shot, which no peer should drive into. The menu still names `room`, so
 // the next world picked lands back in it.
-const solo = (event !== null || run !== null || lab_id !== null || review_wanted(params)) && !params.has("room");
+const solo = (event !== null || run !== null || lab_id !== null || series_on || review_wanted(params)) && !params.has("room");
 // getRandomValues, not randomUUID: the latter only exists in a secure context, and a phone on the LAN dev server is not one.
 const net_room = solo ? `solo-${[...crypto.getRandomValues(new Uint8Array(4))].map((b) => b.toString(16).padStart(2, "0")).join("")}` : room;
 // A room the player chose stays theirs across events; without one the event runs solo.
@@ -119,7 +138,9 @@ for (const event of UNLOCK_EVENTS) addEventListener(event, unlock_audio);
 // The renderer needs only the world's kind, so it sets up while the worker plans the world.
 const snowy = snow_of(map) !== null;
 const look = world_look(WORLDS[kind], snowy);
-const opening = WorldStream.open(pick, map, mesh_tones(snowy, WORLDS[kind].upland, WORLDS[kind].deck));
+// The lab records every physics step and a review shot sets the pose itself, so both keep the sim on main.
+const journal = params.has(SIM_WORKER_PARAM) && lab_id === null && !review_wanted(params) ? new WorldJournal() : null;
+const opening = WorldStream.open(pick, map, mesh_tones(snowy, WORLDS[kind].upland, WORLDS[kind].deck), journal);
 const mode_ids = MODES.map((mode) => mode.id);
 // Read beside the world's generation; a slow or refused IndexedDB leaves the records in localStorage for this session.
 const records = load_records(mode_ids, opening, RECORDS_WAIT_MS);
@@ -209,12 +230,15 @@ const chat = new Chat(net);
 chat.start();
 const build = load_build(params.get("car"));
 const career = new Career(local_store());
+const series = series_on ? series_list(new SeriesDb(), new Wallet(new WalletDb())) : null;
 const runs = new Runs(local_store());
 const goals = new Goals(local_store(), mode_ids);
 goals.catch_up(() => proven(saved_entries(), { kind, build, cockpit: prefs.camera === CameraView.COCKPIT }, mode_ids));
 const race = new Race(world, local_store());
-const pads = new PadTimer();
-const driver = new Driver(scene, light, world, race, pads, chase, build);
+const sim: Sim = journal
+  ? WorkerSim.start(new Worker(new URL("./sim/sim-worker.ts", import.meta.url), { type: "module" }), world, stream.plan, journal, build_spec(build))
+  : new LocalSim(new SimHost(world, build_spec(build)));
+const driver = new Driver(scene, light, world, race, sim, chase, build);
 driver.arrive = (x, z) => area_fade.cover(world.tiles.ensure(x, z));
 if (review) review.place = (index) => driver.place_road(index);
 
@@ -256,9 +280,9 @@ race.on_lap = (improved, first) => {
   if (lobby.route === "circuit") lobby.lap(performance.now());
 };
 function reset_lap() {
-  driver.car.nitro.refill();
+  sim.send({ type: "refill" });
   race.reset();
-  driver.rewind.clear();
+  driver.clear_rewind();
 }
 async function restart_lap() {
   await driver.place_road(SPAWN_INDEX);
@@ -308,6 +332,8 @@ const settings = new Settings(document.body, {
   goals,
   career,
   start_event: (id) => start_event(id),
+  series,
+  start_series: (id) => start_series(id),
   runs,
   start_run: (id) => start_run(id),
   name: () => net.name,
@@ -366,7 +392,7 @@ new Presence({ net, elsewhere: () => directory.elsewhere(), watch: (on) => direc
 let drift_full_lock = true;
 
 function apply_car_settings(state: SettingsState) {
-  Object.assign(driver.car, { tcs: state.tcs, abs: state.abs, assist: state.assist, stability: state.stability, auto: state.auto, steer_mode: state.steer_mode, drift_full_lock });
+  sim.send({ type: "aids", aids: { tcs: state.tcs, abs: state.abs, assist: state.assist, stability: state.stability, auto: state.auto, steer_mode: state.steer_mode, drift_full_lock } });
 }
 
 function apply_settings(state: SettingsState) {
@@ -419,6 +445,7 @@ garage.on_back = () => settings.back();
 
 await spawn_ready;
 driver.place(driver.road_spot(start_index));
+const field_view = await FieldView.open(params, scene, world, sim, build);
 
 const modes = new Modes(scene, world, SPAWN_INDEX, () => lobby.record, (x, z, heading) => {
   driver.park(x, z, heading);
@@ -431,7 +458,9 @@ if (lab_id !== null) modes.closed = "Not in the lab: the lab keeps no records or
 modes.bindings = () => settings.state.bindings;
 modes.ghosts = () => settings.state.ghost;
 modes.cover = (wait) => area_fade.cover(wait);
-modes.on_finish = (mode) => goals.played(mode);
+modes.on_finish = (mode) => {
+  if (lab_id === null) goals.played(mode);
+};
 modes.toast = (text, label, hold) => hud.toast(text, label, hold, true);
 modes.start_event = (id) => start_event(id);
 modes.try_reward = (reward) => {
@@ -448,6 +477,10 @@ modes.save_car = (code) => {
 };
 hud.run_route = () => modes.route;
 hud.in_run = () => modes.active;
+if (ai_race) {
+  const cars = Math.max(1, Math.min(AI_CARS, Math.trunc(Number(params.get(AI_CARS_PARAM))) || AI_CARS));
+  modes.field_host = { sim, build: () => garage.build, rating: () => rating(garage.build), autopilot: params.has(AI_DRIVE_PARAM), cars: Array.from({ length: cars }, () => LEVEL_3), difficulty: () => settings.state.ai_difficulty };
+}
 modes.start();
 updater.start();
 const system_back = new SystemBack(
@@ -462,6 +495,7 @@ const system_back = new SystemBack(
     else if (popover) popover.hidePopover();
     else if (chat.is_open) chat.close();
     else settings.open();
+    wake();
   },
 );
 system_back.start();
@@ -495,6 +529,33 @@ function start_event(id: string) {
   settings.close();
   modes.play_event(to);
 }
+function start_series(id: string) {
+  const at = series?.findIndex((one) => one.event(id)) ?? -1;
+  const one = series?.[at];
+  const to = one?.ready ? one.event(id) : null;
+  if (!series || !one || !to) return;
+  const { season } = one;
+  if (!series_open(series)[at] || !is_open(season, one.progress, to)) return settings.open(SERIES_PAGE);
+  const fault = one.car_fault(garage.build);
+  if (fault) {
+    goal_toasts.push(fault, MAP_NOTE_MS);
+    return settings.open(SERIES_PAGE);
+  }
+  if (!on_series_map(season, to, built)) {
+    mark_drive();
+    const query = new URLSearchParams({ [SERIES_PARAM]: to.id, seed: String(to.seed), world: season.world });
+    for (const kept of KEPT_ON_EVENT) {
+      const value = params.get(kept);
+      if (value !== null) query.set(kept, value);
+    }
+    location.search = `?${query}`;
+    return;
+  }
+  settings.close();
+  const base = { sim, build: () => garage.build, rating: () => rating(garage.build), autopilot: params.has(AI_DRIVE_PARAM), difficulty: () => settings.state.ai_difficulty };
+  const host = series_host(base, one, to, { label: "Series", go: () => settings.open(SERIES_PAGE) });
+  modes.series_race(to.route, host);
+}
 // A run's map is the plain map of its kind and seed (world-pick.ts).
 const run_on_map = (to: RunPick) => map_code(built) === map_code(plain_map(to.kind, to.seed));
 
@@ -522,12 +583,25 @@ function play_run(to: RunPick) {
 const markers = new EventMarkers(scene, career, params.has(TUNE_PARAM), (id) => start_event(id));
 $("toast").after(markers.card.el);
 markers.on_map = (list) => hud.set_markers(list);
-markers.place(world, SPAWN_INDEX, EVENTS.filter(on_this_map)).catch((error: unknown) => console.error(error));
+// A lab trial on a race world keeps the career out of it, as the lab world does.
+markers.place(world, SPAWN_INDEX, lab_id === null ? EVENTS.filter(on_this_map) : []).catch((error: unknown) => console.error(error));
 // A map that fell back to its plain one would reload onto itself forever, so a load starts the event only where it landed.
 if (event && on_this_map(event)) modes.play_event(event);
 else if (event) goal_toasts.push("This event's map did not load", MAP_NOTE_MS);
 if (run && run_on_map(run)) play_run(run);
 else if (run) goal_toasts.push("This run's map did not load", MAP_NOTE_MS);
+if (ai_level) modes.play(ai_level);
+// A link without its map reloads onto it; one that names a map which fell back would reload onto itself forever.
+// An event's opening rule reads saved progress, so a link starts once it has loaded.
+if (series) void Promise.all(series.map((one) => one.load())).then(() => {
+  const one = series.find((each) => each.base === series_pick?.season);
+  const pick = series_pick && one?.event(series_pick.event.id);
+  if (one && pick && (!names_world(params) || on_series_map(one.season, pick, built))) start_series(pick.id);
+  else {
+    if (series_pick) goal_toasts.push("This series event's map did not load", MAP_NOTE_MS);
+    settings.open(SERIES_PAGE);
+  }
+});
 // After `markers`: the Play page reads its map markers as soon as the menu opens.
 const guide_step = params.get(GUIDE_PARAM);
 if (guide_step !== null) {
@@ -535,7 +609,7 @@ if (guide_step !== null) {
   clean.searchParams.delete(GUIDE_PARAM);
   window.history.replaceState(window.history.state, "", clean);
   settings.open_guide("look", guide_step === ROLLED_VISIT);
-} else if (!take_drive() && !event && !run && !review && lab_id === null) {
+} else if (!take_drive() && !event && !run && !review && lab_id === null && !ai_level && !series_on) {
   if (prefs.guide_seen) settings.open();
   else settings.open_guide();
 }
@@ -603,7 +677,7 @@ for (const id of ["aids", "hud-sheet"]) document.getElementById(id)?.addEventLis
 function shift(step: 1 | -1) {
   if (settings.state.auto) hud.toast("Manual gearbox");
   settings.set("auto", false);
-  driver.car.shift(step);
+  sim.send({ type: "shift", by: step });
 }
 
 const ACTIONS: Record<Action, () => void> = {
@@ -657,16 +731,32 @@ if (lab_id !== null)
         },
         car: () => driver.car,
         toast: (text) => hud.toast(text),
+        on_map: (code) => {
+          if (code === null) return built.kind === WorldKind.LAB;
+          const read = parse_map_code(code);
+          return read.ok && map_code(read.map) === map_code(built);
+        },
+        race: (r, attach) => {
+          const host = { sim, build: () => r.build, rating: () => ({ class: r.class, pi: r.pi }), autopilot: false, cars: r.trial.field.cars, difficulty: () => r.trial.field.difficulty ?? Difficulty.NORMAL, attach };
+          return modes.lab_race(r.lane.name, host) ? (world.routes.find((route) => route.id === r.lane.name)?.points ?? null) : null;
+        },
+        field_stats: () => (sim instanceof LocalSim ? (sim.host.field?.racers.map((racer) => racer.stats) ?? []) : []),
+        end_race: () => modes.exit(),
       }),
     )
-    .then((opened) => (lab = opened))
+    .then((opened) => {
+      lab = opened;
+      if (sim instanceof LocalSim) sim.host.on_step = (dt, car, controls) => opened.step(dt, car, controls);
+    })
     .catch((error: unknown) => {
       console.error(error);
       hud.toast(`Lab: ${error instanceof Error ? error.message : String(error)}`);
     });
 
-const DT = 1 / 360;
 let acc = 0;
+const drag_car = (keep: number) => sim.send({ type: "drag", keep });
+const NO_PEERS: readonly never[] = [];
+const request: FrameRequest = { kind: FrameKind.HOLD, steps: 0, controls: { steer: 0, throttle: 0, brake: 0, handbrake: 0, analog: false }, now: 0, blend: 0, peers: NO_PEERS };
 let last = review?.now ?? performance.now();
 /** The menu's blur sits over a scene that only turbines and gates animate while it holds the sim, so it redraws at this rate. */
 const MENU_DRAW_MS = 100;
@@ -675,6 +765,25 @@ const COVERED_DRAW_MS = 30;
 let last_draw = 0;
 /** Time the draw side (chase cam, smoke, remote cars) has not yet advanced by, from frames the menu skipped. */
 let draw_dt = 0;
+/** The timer a held menu sleeps on until its next redraw, 0 while the loop runs on animation frames. */
+let sleep = 0;
+// A key, a click or the system Back can close the menu, so it wakes a sleeping loop rather than leave the scene frozen until the next redraw;
+// a gamepad's first press connects it, and the loop then polls every frame.
+const wake = () => {
+  if (!sleep) return;
+  clearTimeout(sleep);
+  sleep = 0;
+  requestAnimationFrame(frame);
+};
+// The redraw runs in the timer's own task: an animation frame after it carries the vsync time, which can fall short of
+// the redraw slot and skip it once more.
+const redraw = () => {
+  sleep = 0;
+  frame(performance.now());
+};
+window.addEventListener("keydown", wake, { capture: true });
+window.addEventListener("pointerup", wake, { capture: true });
+window.addEventListener("gamepadconnected", wake);
 
 new Heartbeat(net, garage, driver, race, seed).start();
 let stuck = 0;
@@ -683,33 +792,9 @@ driver.placed = () => {
   stuck_prompt.clear();
   lab?.placed(driver.car);
 };
-let rewinding = false;
 
-const NEAR_GAP = 1.2;
-const NEAR_PEER = 4;
 const up_scratch = new THREE.Vector3();
 const sound: SoundFrame = { rpm: 0, throttle: 0, scrub: 0, speed: 0, offroad: false, sound: driver.car.spec.sound, redline: 0, boost: false, held: false };
-const miss: { near: Near; touched: boolean } = { near: null, touched: false };
-/** Something close this frame, and whether the pass touched it (a crash, or driving through a ghost peer). Reused each frame. */
-function near_miss(impact: number): { near: Near; touched: boolean } {
-  const car = driver.car;
-  miss.near = null;
-  miss.touched = false;
-  if (!car.nitro.fitted) return miss;
-  miss.touched = impact > 0;
-  const solid = world.grazes(car, NEAR_GAP);
-  if (solid) {
-    miss.near = solid;
-    return miss;
-  }
-  const ghost = remotes.nearest(car.pos);
-  const pass = ghost ? peer_pass(ghost.distance, NEAR_PEER) : null;
-  if (ghost && pass?.close) {
-    miss.near = ghost.id;
-    miss.touched = pass.touched;
-  }
-  return miss;
-}
 
 // The online badge follows the career's stars: a finished final shows to peers at once.
 let rewarded = -1;
@@ -748,54 +833,59 @@ function frame(time: number) {
   const draw_ms = menu_hold ? MENU_DRAW_MS : settings.is_open ? COVERED_DRAW_MS : 0;
   const skips = draw_ms > 0 && !review && !garage.is_open && now - last_draw < draw_ms;
   // A held sim behind the menu has nothing to step on a frame the redraw rate skips: `last` stays, so the next drawn
-  // frame's dt carries the skipped time and the chase cam, smoke and audio advance by all of it.
+  // frame's dt carries the skipped time and the chase cam, smoke and audio advance by all of it. Waking on every
+  // display frame only to skip it costs Blink a full frame each time, so the loop sleeps until the redraw instead; a
+  // gamepad is read only by polling, so with one connected the loop keeps every frame to catch its presses.
   if (skips && menu_hold) {
-    requestAnimationFrame(frame);
+    if (input.pad) requestAnimationFrame(frame);
+    else sleep = window.setTimeout(redraw, draw_ms - (now - last_draw));
     return;
   }
-  const dt = Math.min(0.1, (now - last) / 1000);
+  // A timer redraw stamps `last` with performance.now(), which can run ahead of the next animation frame's vsync time.
+  const dt = Math.max(0, Math.min(0.1, (now - last) / 1000));
   last = now;
   render.fit();
-  let stepped = 0;
-  let simulated = false;
-  let held = false;
-  let impact = 0;
+  let kind: FrameKind = FrameKind.HOLD;
+  let steps = 0;
   if (input.rewind && driver.rewind.can_step && !lobby.busy && !modes.active) {
-    rewinding = true;
+    kind = FrameKind.REWIND;
     if (lab_id === null) goals.done(GoalId.REWIND);
     rewind_step(now);
     acc = 0;
   } else if (review?.replaying) {
-    rewinding = false;
+    kind = FrameKind.FREE;
     acc = 0;
     review.drive(car, dt);
   } else if (lobby.state.kind === "countdown" || modes.holding || garage.is_open || menu_hold) {
-    rewinding = false;
-    held = true;
     acc = 0;
   } else {
-    simulated = true;
-    rewinding = false;
+    kind = FrameKind.STEP;
     acc += dt;
     while (acc >= DT) {
-      driver.begin_step();
-      car.step(DT, controls, world);
-      pads.step(DT, car, world);
-      stepped += DT;
-      impact = Math.max(impact, world.collide(car));
-      lab?.step(DT, car, controls);
+      steps++;
       acc -= DT;
     }
-    const { near, touched } = near_miss(impact);
-    car.nitro.pass(near, touched, car.vel.length());
+    driver.rewind.record(now);
+  }
+  request.kind = kind;
+  request.steps = steps;
+  request.controls = controls;
+  request.now = now;
+  request.blend = acc / DT;
+  request.peers = net.remotes.size ? remotes.spots() : NO_PEERS;
+  const out = sim.frame(request);
+  const simulated = out.kind === FrameKind.STEP;
+  const held = out.kind === FrameKind.HOLD;
+  const rewinding = out.kind === FrameKind.REWIND;
+  const { stepped, impact } = out;
+  if (simulated) {
     if (impact > 2) {
       if (world_view.jumps.bonked(car.pos.x, car.pos.z)) audio.bonk(impact);
       else audio.impact(impact / 20);
       chase.bump(Math.min(1, impact / 15));
       input.buzz();
     }
-    driver.rewind.record(now);
-    if (world_view.jumps.update(dt, car).clean) {
+    if (world_view.jumps.update(dt, car, drag_car).clean) {
       hud.toast("Clean!");
       audio.chime();
     }
@@ -826,8 +916,6 @@ function frame(time: number) {
   ghost.update(race.started && !modes.active ? now - race.started : null, camera.position);
   modes.update(stepped, car);
   markers.update(car.pos.x, car.pos.z, car.vel.length(), !modes.active && !modes.holding && !lobby.busy);
-  // Rewind, the garage and the countdown don't step the car, so a held boost would never let go of the flame.
-  if (!simulated) car.nitro.cut();
   // With peers the sim steps every frame, so the heartbeat sends a fresh pose; the draw side waits for the frame that
   // draws and advances by the time it skipped.
   draw_dt = Math.min(0.1, draw_dt + dt);
@@ -840,7 +928,8 @@ function frame(time: number) {
   chase.top = modes.high_view;
   chase.boost = car.nitro.boosting;
   chase.rewinding = rewinding;
-  driver.draw(!simulated, acc / DT, now);
+  driver.draw(!simulated, out.blend, now);
+  field_view?.update(camera);
   const offroad = !world.on_road(car.pos.x, car.pos.z);
   chase.update(view_dt, driver.drawn, world, offroad, now / 1000, input.look);
   if (!review?.aim(camera) && posed) {

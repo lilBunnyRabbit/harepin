@@ -44,6 +44,7 @@ describe("parse_settings", () => {
       camera_tilt: false,
       invert_y: true,
       ghost: false,
+      ai_difficulty: "hard",
       volume: 0.25,
       muted: true,
       hud: "compact",

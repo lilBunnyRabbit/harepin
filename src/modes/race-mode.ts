@@ -6,8 +6,12 @@ import { turn_to, type Driven, type Finish, type ModeCtx, type ModeDef, type Mod
 import { drift_stars } from "./drift";
 import { COUNTDOWN_MS, RaceRun, RaceStatus, TrapRun, kmh, race_course, race_levels, trap_points, type RaceCourse, type RaceLevel } from "./races";
 import { RaceView } from "./race-view";
+import { AiRace } from "./ai-race";
+import { field_races } from "./field-route";
+import { KINDS } from "../worldgen/kinds/kinds";
 import { best_line, line, penalty_text, result_title, time_lines } from "./result";
 import { SILVER_SHARE, grade, par_thresholds } from "./track";
+import { hypot } from "../sim-math";
 
 // Never written: the dev ghost is read from the shipped asset, and a race keeps no ghost of the player's own.
 const DEV_GHOST_KEY = "harepin:ghost:career-dev";
@@ -79,7 +83,7 @@ class Race implements ModeRun {
     this.hits?.update(sim_dt * 1000, run.status === RaceStatus.RUNNING || was === RaceStatus.RUNNING);
     if (this.traps && (run.status === RaceStatus.RUNNING || was === RaceStatus.RUNNING)) {
       const passed = this.traps.next;
-      const through = this.traps.update(run.tracker.index, run.tracker.offset, Math.hypot(car.vel.x, car.vel.z));
+      const through = this.traps.update(run.tracker.index, run.tracker.offset, hypot(car.vel.x, car.vel.z));
       if (through !== null) {
         this.flash = { kmh: through, at: now };
         view.trap_passed(passed);
@@ -217,6 +221,10 @@ export const RACE_MODE: ModeDef<RaceLevel> = {
   levels: (world) => race_levels(world.routes, WORLDS[world.kind].map_label, world.tiles.streamed),
   start(ctx, level) {
     const route = ctx.world.routes.find((r) => r.id === (level.trap ?? level.id));
-    return route ? new Race(ctx, level, race_course(route)) : null;
+    if (!route) return null;
+    const field = ctx.field();
+    // Phase 3 is compact circuits: a streamed world holds ground only round the player, and rails glide where the field never drove.
+    if (field && !level.trap && field_races(route, ctx.world.tiles.streamed, KINDS[ctx.world.kind].rails)) return new AiRace(ctx, field, level, race_course(route));
+    return new Race(ctx, level, race_course(route));
   },
 };

@@ -3,6 +3,7 @@ import { flight, RIDE, ROAD_KICKER } from "./jumps";
 import { circuit_banked, circuit_route } from "./routes";
 import { roof_buildings } from "./rooftops";
 import { CELL, DECK_STRIDE, N, ROAD_HALF, SIZE, WorldKind, type Checkpoint, type DeckPiece, type OpenSection, type Ramp, type RoadPoint, type Solid, type WorldData } from "./types";
+import { asin, atan2, cos, hypot, sin, tan } from "../sim-math";
 
 export const ABYSS = -2000;
 /** How far below the deck under it a car counts as fallen off. */
@@ -43,8 +44,12 @@ const EASE = 15;
 const BANK_RATE = (1.2 * Math.PI) / 180;
 /** Roll-in of a bowl (rad/m): at BANK_RATE a 55° bowl would take 46 m to roll in, most of a 180° bowl at 40 m. */
 const BOWL_RATE = (1.8 * Math.PI) / 180;
+/** Steepest slope of swing_shape over t: a pipe SWING_SLOPE·|swing|/BOWL_RATE long rolls no faster than BOWL_RATE. */
+const SWING_SLOPE = 8;
 /** Kick at the middle of a bowl: held this long at its bank, rolled in and out at BOWL_RATE. */
 const KICK_HOLD = 16;
+/** Straight left past a pipe for the car to settle on the centreline. */
+const PIPE_RUNOUT = 60;
 const START_AHEAD = 60;
 /** Flat straight before the start line: the grid spawns 80 m back on it. */
 const START_BEHIND = 120;
@@ -105,6 +110,10 @@ export interface SkyRecipe {
   banked: boolean;
   /** Velodrome bowls: one per lap, or one per lobe of a figure-eight; null lays none and draws nothing for them. */
   bowls: Bowls | null;
+  /** Half-pipe swings on straights: null lays none and draws nothing for them. */
+  pipes: Pipes | null;
+  /** One bowl of the lap held at a wall-ride bank, its high rail left off so going over the top is a fall; null lays none. */
+  wall: Wall | null;
   /** Car ids no route of the track is raced in. */
   excludes: readonly string[];
 }
@@ -117,7 +126,21 @@ export interface Bowls {
   kick: readonly [number, number];
 }
 
-export const SKY: SkyRecipe = { kind: WorldKind.SKY, profile: "free", roofs: false, odds: { eight: 0.3, helix: 0.45, hairpin: 0.35 }, gaps: 2, pads: MAX_PADS, open: [0.15, 0.3], length: [2400, 5200], banked: true, bowls: null, excludes: [] };
+/** Each pipe is a straight whose bank swings up one side, through level, up the other and back (rad, metres). */
+export interface Pipes {
+  /** Pipes drawn; two drawn after the same bend lay one. */
+  most: number;
+  bank: readonly [number, number];
+  length: readonly [number, number];
+}
+
+/** The wall bowl's held bank (rad) and how long it holds it (m), on top of its bowl's own draws. */
+export interface Wall {
+  bank: readonly [number, number];
+  hold: readonly [number, number];
+}
+
+export const SKY: SkyRecipe = { kind: WorldKind.SKY, profile: "free", roofs: false, odds: { eight: 0.3, helix: 0.45, hairpin: 0.35 }, gaps: 2, pads: MAX_PADS, open: [0.15, 0.3], length: [2400, 5200], banked: true, bowls: null, pipes: null, wall: null, excludes: [] };
 
 interface Turn {
   angle: number;
@@ -137,6 +160,12 @@ interface PlanPiece {
   bowl: boolean;
   /** Bank (rad) held for KICK_HOLD at the middle of a bowl; 0 for none. */
   kick: number;
+  /** Length (m) the kick holds its bank. */
+  hold: number;
+  /** Peak bank (rad) of a pipe's swing; 0 on every other piece. */
+  swing: number;
+  /** The wall bowl, its kick held long with the high rail off. */
+  wall: boolean;
 }
 
 interface Pose {
@@ -163,15 +192,15 @@ function trace(p: PlanPiece, start: Pose, emit?: (x: number, z: number, h: numbe
   for (let i = 0; i < n; i++) {
     emit?.(x, z, heading_at(p, start.h, i * ds), i * ds);
     if (p.kind === "straight") {
-      x += Math.sin(start.h) * ds;
-      z += Math.cos(start.h) * ds;
+      x += sin(start.h) * ds;
+      z += cos(start.h) * ds;
       continue;
     }
     const sub_ds = ds / SUBSTEPS;
     for (let k = 0; k < SUBSTEPS; k++) {
       const h = heading_at(p, start.h, i * ds + (k + 0.5) * sub_ds);
-      x += Math.sin(h) * sub_ds;
-      z += Math.cos(h) * sub_ds;
+      x += sin(h) * sub_ds;
+      z += cos(h) * sub_ds;
     }
   }
   return { x, z, h: heading_at(p, start.h, p.length) };
@@ -185,11 +214,18 @@ function arc(t: Turn): PlanPiece {
   const ease = Math.max(EASE, Math.abs(t.bank) / (BANK_RATE * 0.95));
   const radius = Math.max(t.radius, (ease * 1.2) / Math.abs(t.angle));
   const curve = Math.sign(t.angle) / radius;
-  return { kind: "arc", length: t.angle / curve + ease, curve, ease, bank: t.bank, min: 0, stretch: false, helix: false, bowl: false, kick: 0 };
+  return { kind: "arc", length: t.angle / curve + ease, curve, ease, bank: t.bank, min: 0, stretch: false, helix: false, bowl: false, kick: 0, hold: 0, swing: 0, wall: false };
 }
 
 function straight(length: number, min: number, stretch = true): PlanPiece {
-  return { kind: "straight", length, curve: 0, ease: 0, bank: 0, min, stretch, helix: false, bowl: false, kick: 0 };
+  return { kind: "straight", length, curve: 0, ease: 0, bank: 0, min, stretch, helix: false, bowl: false, kick: 0, hold: 0, swing: 0, wall: false };
+}
+
+/** A half-pipe: long enough that its swing never rolls faster than BOWL_RATE. */
+function pipe(rng: () => number, pipes: Pipes): PlanPiece {
+  const swing = (rng() < 0.5 ? 1 : -1) * (pipes.bank[0] + rng() * (pipes.bank[1] - pipes.bank[0]));
+  const length = Math.max(pipes.length[0] + rng() * (pipes.length[1] - pipes.length[0]), (SWING_SLOPE * Math.abs(swing)) / BOWL_RATE);
+  return { ...straight(length, length, false), swing };
 }
 
 /** A bowl turning `sign` way, banked into the turn and rolled in at BOWL_RATE. */
@@ -201,7 +237,16 @@ function bowl(rng: () => number, bowls: Bowls, sign: number): PlanPiece {
   const kick = -sign * draw(bowls.kick);
   const ease = Math.max(EASE, Math.abs(bank) / BOWL_RATE);
   const curve = sign / radius;
-  return { kind: "arc", length: angle / curve + ease, curve, ease, bank, min: 0, stretch: false, helix: false, bowl: true, kick };
+  return { kind: "arc", length: angle / curve + ease, curve, ease, bank, min: 0, stretch: false, helix: false, bowl: true, kick, hold: KICK_HOLD, swing: 0, wall: false };
+}
+
+/** A bowl whose kick is the wall: held for as long as its turn leaves room between the roll-ins. */
+function wall_bowl(rng: () => number, bowls: Bowls, wall: Wall, sign: number): PlanPiece {
+  const draw = ([lo, hi]: readonly [number, number]) => lo + rng() * (hi - lo);
+  const p = bowl(rng, bowls, sign);
+  const kick = -sign * draw(wall.bank);
+  const room = p.length - 2 * p.ease - (2 * Math.abs(kick - p.bank)) / BOWL_RATE;
+  return { ...p, kick, hold: Math.max(KICK_HOLD, Math.min(draw(wall.hold), room)), wall: true };
 }
 
 function hairpin(rng: () => number, angle: number): Turn {
@@ -263,13 +308,14 @@ function skeleton(rng: () => number, total: number, hairpin_odds: number): Turn[
 
 // Heading closes only if the turning totals 2π per lap: 0 for a figure-eight, plus 2π for a helix coil.
 // A bowl takes its turn out of its lobe's share before the skeleton splits the rest, then sits among that lobe's turns.
-function draw_layout(rng: () => number, { odds, bowls }: SkyRecipe): PlanPiece[] | null {
+function draw_layout(rng: () => number, { odds, bowls, pipes, wall }: SkyRecipe): PlanPiece[] | null {
   const eight = rng() < odds.eight;
   const coil = rng() < odds.helix ? (rng() < 0.5 ? 1 : -1) : 0;
   const helix_angle = coil * (2 * Math.PI + HELIX_EXTRA[0] + rng() * (HELIX_EXTRA[1] - HELIX_EXTRA[0]));
   const need = (eight ? 0 : 2 * Math.PI) + coil * 2 * Math.PI - helix_angle;
-  const lobe = (total: number): PlanPiece[] | null => {
-    const b = bowls && bowl(rng, bowls, Math.sign(total) || 1);
+  const lobe = (total: number, walled: boolean): PlanPiece[] | null => {
+    const sign = Math.sign(total) || 1;
+    const b = bowls && (walled && wall ? wall_bowl(rng, bowls, wall, sign) : bowl(rng, bowls, sign));
     const turns = skeleton(rng, total - (b ? turn_angle(b) : 0), odds.hairpin)?.map(arc);
     if (turns && b) turns.splice(Math.floor(rng() * (turns.length + 1)), 0, b);
     return turns ?? null;
@@ -277,14 +323,17 @@ function draw_layout(rng: () => number, { odds, bowls }: SkyRecipe): PlanPiece[]
   let turns: PlanPiece[] | null;
   if (eight) {
     const lefts = Math.PI * (1.2 + rng() * 0.8);
-    const a = lobe(lefts);
-    const b = lobe(need - lefts);
+    const a = lobe(lefts, true);
+    const b = lobe(need - lefts, false);
     turns = a && b ? [...a, ...b] : null;
-  } else turns = lobe(need);
+  } else turns = lobe(need, true);
   if (!turns) return null;
   const last = turns.length - 1;
   const jump_at = Math.floor(rng() * last);
   const helix_at = coil ? Math.floor(rng() * last) : -1;
+  // A car leaves a pipe off the centreline: a bowl straight after it took the Sajin in on the low edge.
+  const spots = pipes ? turns.flatMap((t, i) => (i < last && !t.bowl && !turns[i + 1].bowl ? [i] : [])) : [];
+  const pipe_at = pipes && spots.length ? Array.from({ length: pipes.most }, () => spots[Math.floor(rng() * spots.length)]) : [];
   const pieces: PlanPiece[] = [straight(START_AHEAD + rng() * 60, START_AHEAD)];
   turns.forEach((t, i) => {
     pieces.push(t);
@@ -293,6 +342,7 @@ function draw_layout(rng: () => number, { odds, bowls }: SkyRecipe): PlanPiece[]
       return;
     }
     pieces.push(i === jump_at ? straight(JUMP_STRAIGHT + rng() * 120, JUMP_STRAIGHT) : straight(STRAIGHT_MIN + rng() * 140, STRAIGHT_MIN));
+    if (pipes && pipe_at.includes(i)) pieces.push(pipe(rng, pipes), straight(PIPE_RUNOUT, PIPE_RUNOUT, false));
     if (rng() < MACRO_ODDS) pieces.push(...macro(rng), straight(STRAIGHT_MIN + rng() * 100, STRAIGHT_MIN));
     if (i === helix_at) {
       const radius = HELIX_RADIUS[0] + rng() * (HELIX_RADIUS[1] - HELIX_RADIUS[0]);
@@ -310,7 +360,7 @@ function draw_layout(rng: () => number, { odds, bowls }: SkyRecipe): PlanPiece[]
   }
   // A twisty lap misses by more than any two straights can take up, so every stretchy straight takes a share first
   // (coordinate descent inside each one's length limits); one pair then closes the last few centimetres exactly.
-  const dirs = stretchy.map((i) => [Math.sin(headings[i]), Math.cos(headings[i])] as const);
+  const dirs = stretchy.map((i) => [sin(headings[i]), cos(headings[i])] as const);
   const lo = stretchy.map((i) => pieces[i].min + CLOSE_SLACK - pieces[i].length);
   const hi = stretchy.map((i) => STRETCH_MAX - CLOSE_SLACK - pieces[i].length);
   const delta = stretchy.map(() => 0);
@@ -329,10 +379,10 @@ function draw_layout(rng: () => number, { odds, bowls }: SkyRecipe): PlanPiece[]
     for (let b = a + 1; b < stretchy.length; b++) {
       const i = stretchy[a];
       const j = stretchy[b];
-      const d1x = Math.sin(headings[i]);
-      const d1z = Math.cos(headings[i]);
-      const d2x = Math.sin(headings[j]);
-      const d2z = Math.cos(headings[j]);
+      const d1x = sin(headings[i]);
+      const d1z = cos(headings[i]);
+      const d2x = sin(headings[j]);
+      const d2z = cos(headings[j]);
       const det = d1x * d2z - d1z * d2x;
       if (Math.abs(det) < 0.5) continue;
       const la = (-ex * d2z + ez * d2x) / det;
@@ -412,12 +462,19 @@ interface Sample {
   bank: number;
 }
 
+/** One full swing over t in 0..1, up and back on one side then the other: two parabolas, exact on every engine where sin is not. */
+function swing_shape(t: number): number {
+  const w = (2 * t) % 1;
+  return (t < 0.5 ? 4 : -4) * w * (1 - w);
+}
+
 function bank_at(p: PlanPiece, s: number): number {
+  if (p.swing !== 0) return p.swing * swing_shape(s / p.length);
   if (p.kind !== "arc" || p.bank === 0) return 0;
   const f = Math.min(1, s / p.ease, (p.length - s) / p.ease);
   if (p.kick === 0) return p.bank * f;
   const roll = Math.abs(p.kick - p.bank) / BOWL_RATE;
-  const k = Math.max(0, Math.min(1, 1 - (Math.abs(s - p.length / 2) - KICK_HOLD / 2) / roll));
+  const k = Math.max(0, Math.min(1, 1 - (Math.abs(s - p.length / 2) - p.hold / 2) / roll));
   return p.bank * f + (p.kick - p.bank) * k;
 }
 
@@ -429,7 +486,7 @@ function sample_layout(pieces: PlanPiece[]): { samples: Sample[]; length: number
     pose = trace(p, pose, (x, z, h, s) => samples.push({ x, z, h, s: s0 + s, piece: index, bank: bank_at(p, s) }));
     s0 += p.length;
   });
-  return { samples, length: s0, error: Math.hypot(pose.x, pose.z) };
+  return { samples, length: s0, error: hypot(pose.x, pose.z) };
 }
 
 /** Sample pairs on sections that aren't neighbours and come closer than SEPARATION in xz; the first is the earlier one. */
@@ -529,8 +586,8 @@ export function twistiness(points: readonly { x: number; z: number; tx: number; 
   for (let i = 0; i < n; i++) {
     const a = points[i];
     const b = points[(i + 1) % n];
-    const d = Math.hypot(b.x - a.x, b.z - a.z);
-    const dh = Math.atan2(a.tz * b.tx - a.tx * b.tz, a.tx * b.tx + a.tz * b.tz);
+    const d = hypot(b.x - a.x, b.z - a.z);
+    const dh = atan2(a.tz * b.tx - a.tx * b.tz, a.tx * b.tx + a.tz * b.tz);
     length += d;
     area += a.x * b.z - b.x * a.z;
     turn.push(dh);
@@ -685,7 +742,7 @@ function draw_profile(rng: () => number, length: number, toes: readonly number[]
   };
   // Coils within SEPARATION of each other are a little under one turn apart along the deck, not a full one.
   const coil = (h: Helix): boolean => {
-    const apart = h.radius * (2 * Math.PI - 2 * Math.asin(Math.min(1, SEPARATION / 2 / h.radius)));
+    const apart = h.radius * (2 * Math.PI - 2 * asin(Math.min(1, SEPARATION / 2 / h.radius)));
     const steep = (CLEARANCE + 2) / apart;
     const climb_by = steep * (h.s1 - h.s0);
     const up = START_Y + y + climb_by > Y_MAX - 30 ? false : START_Y + y - climb_by < Y_MIN + 30 ? true : rng() < 0.5;
@@ -798,7 +855,7 @@ function jump_toes(pieces: readonly PlanPiece[], length: number, zones: readonly
   let s0 = 0;
   pieces.forEach((p, i) => {
     const room = p.length - JUMP_BEFORE - span - JUMP_AFTER;
-    if (p.kind === "straight" && i > 0 && i < pieces.length - 1 && room >= 0 && toes.length < most) {
+    if (p.kind === "straight" && p.swing === 0 && i > 0 && i < pieces.length - 1 && room >= 0 && toes.length < most) {
       const toe = s0 + JUMP_BEFORE + room / 2;
       const a = toe - JUMP_BEFORE - ZONE_MARGIN;
       const b = toe + span + JUMP_AFTER + ZONE_MARGIN;
@@ -850,7 +907,7 @@ export function sky_layout(seed: number, recipe: SkyRecipe = SKY, plain: SkyReci
     let z1 = -Infinity;
     for (const p of samples) [x0, x1, z0, z1] = [Math.min(x0, p.x), Math.max(x1, p.x), Math.min(z0, p.z), Math.max(z1, p.z)];
     if (x1 - x0 > 2 * BOUND || z1 - z0 > 2 * BOUND) continue;
-    const twist = twistiness(samples.map((p) => ({ x: p.x, z: p.z, tx: Math.sin(p.h), tz: Math.cos(p.h) })));
+    const twist = twistiness(samples.map((p) => ({ x: p.x, z: p.z, tx: sin(p.h), tz: cos(p.h) })));
     if (!twisty(twist)) continue;
     const pairs = close_pairs(samples, length);
     // A bowl's high edge stands as tall as a crossover's clearance: nothing passes over or under one.
@@ -916,6 +973,18 @@ function open_sections(seed: number, kind: WorldKind, samples: readonly Sample[]
   return out.sort((x, y) => x.s0 - y.s0);
 }
 
+/** The wall's high rail off from where it rolls past its bowl's bank: a car carried over the top falls and resets. */
+function wall_opens(pieces: readonly PlanPiece[]): OpenSection[] {
+  const out: OpenSection[] = [];
+  let s0 = 0;
+  for (const p of pieces) {
+    const reach = p.hold / 2 + Math.abs(p.kick - p.bank) / BOWL_RATE;
+    if (p.wall) out.push({ s0: s0 + p.length / 2 - reach, s1: s0 + p.length / 2 + reach, side: p.kick > 0 ? 1 : -1 });
+    s0 += p.length;
+  }
+  return out;
+}
+
 export function rail_open(open: readonly OpenSection[], s: number, side: number): boolean {
   return open.some((o) => s >= o.s0 && s <= o.s1 && (o.side === 0 || o.side === side));
 }
@@ -967,8 +1036,8 @@ export function generate_sky(seed: number, recipe: SkyRecipe = SKY, plain: SkyRe
     const { y, solid } = height_at(profile, climbs, p.s);
     const past = toes.map((t) => p.s - t - SKY_KICKER.length - jump.gap).find((d) => d >= 0 && d < jump.landing + LANDING_TAPER);
     const half = past === undefined ? ROAD_HALF : past < jump.landing ? LANDING_HALF : LANDING_HALF + ((ROAD_HALF - LANDING_HALF) * (past - jump.landing)) / LANDING_TAPER;
-    const tx = Math.sin(p.h);
-    const tz = Math.cos(p.h);
+    const tx = sin(p.h);
+    const tz = cos(p.h);
     line.set([p.x, y, p.z, tx, tz, p.bank, half, solid ? 1 : 0, p.s], i * DECK_STRIDE);
     road.push({ x: p.x, y, z: p.z, tx, tz });
   });
@@ -993,6 +1062,10 @@ export function generate_sky(seed: number, recipe: SkyRecipe = SKY, plain: SkyRe
   for (const p of pads) deck_pieces.push({ kind: "pad", s0: p.s0, length: PAD_LENGTH, curve: 0 });
   deck_pieces.sort((a, b) => a.s0 - b.s0);
   const open = open_sections(seed, built.kind, samples, pieces, length, built.open, (s) => stacked(s) || toes.some((t) => s > t - JUMP_BEFORE - OPEN_CLEAR && s < t + jump.span + JUMP_AFTER));
+  if (built.wall) {
+    open.push(...wall_opens(pieces));
+    open.sort((x, y) => x.s0 - y.s0);
+  }
   const solids: Solid[] = [];
   for (let i = 0; i < n; i += 2) {
     const a = i * DECK_STRIDE;
@@ -1002,11 +1075,11 @@ export function generate_sky(seed: number, recipe: SkyRecipe = SKY, plain: SkyRe
     const mz = (line[a + 2] + line[b + 2]) / 2;
     const dx = line[b] - line[a];
     const dz = line[b + 2] - line[a + 2];
-    const len = Math.hypot(dx, dz);
+    const len = hypot(dx, dz);
     const tx = dx / len;
     const tz = dz / len;
     const y = (line[a + 1] + line[b + 1]) / 2;
-    const slope = Math.tan((line[a + 5] + line[b + 5]) / 2);
+    const slope = tan((line[a + 5] + line[b + 5]) / 2);
     const half = (line[a + 6] + line[b + 6]) / 2;
     for (const side of [-1, 1]) {
       if (rail_open(open, (line[a + 8] + line[b + 8]) / 2, side)) continue;
@@ -1024,7 +1097,7 @@ export function generate_sky(seed: number, recipe: SkyRecipe = SKY, plain: SkyRe
   const add_checkpoint = (i: number) => {
     const p = road[i];
     at.push(i);
-    checkpoints.push({ x: p.x, y: p.y, z: p.z, heading: Math.atan2(p.tx, p.tz), index: checkpoints.length });
+    checkpoints.push({ x: p.x, y: p.y, z: p.z, heading: atan2(p.tx, p.tz), index: checkpoints.length });
     for (const side of [-1, 1]) {
       const off = side * (ROAD_HALF + GATE_POST);
       solids.push({ kind: "circle", x: p.x - p.tz * off, y: p.y, z: p.z + p.tx * off, radius: 0.5, height: 7 });

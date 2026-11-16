@@ -65,7 +65,36 @@ From questionnaire round 1 and round 2 in chat (`docs/plan/career-ai-r1.answers.
 - **Rewind in side events.** Rewind is off in every mode today (`src/main.ts:737`, `!modes.active`). Turning it on for solo side events means each side event's mode must rewind its own state (score, gates, timers), not only the car. Per mode, so it ships mode by mode.
 - **Series points** need a points table per finish position and per bonus objective, and standings per series; derive from stored results where possible.
 
-**Still open (round 3, not blocking the first build quests):** what existing players already own when credits arrive (every car and part they use today, or a starting grant); whether rewards from the old tiers (paints, decals, Fujin) stay with the legacy badge (B2); the Pass win rule with no wall time (E3); "Harepin Series" vs a career unit also called "series" (B4/B5 read as "Harepin Series, series 2").
+**Settled in round 3 (`career-ai-r1.answers.md`: base car only, old-tier rewards stay as a legacy bonus, Pass keeps +2 s wall hits, naming stays); the questions were:** what existing players already own when credits arrive (every car and part they use today, or a starting grant); whether rewards from the old tiers (paints, decals, Fujin) stay with the legacy badge (B2); the Pass win rule with no wall time (E3); "Harepin Series" vs a career unit also called "series" (B4/B5 read as "Harepin Series, series 2").
+
+### Series 1 Island against a field (t283, 2026-11-15)
+
+Behind `?series` in dev and review builds only; the old career and its records are untouched. `?series` opens the Harepin Series page (Play > Harepin Series); `?series=<event>` starts that event, reloading onto its map.
+
+| Piece | Where |
+|---|---|
+| Season data | `career/series.ts`: six island events (opener seed 13, knockout seed 2, reverse run seed 9 `circuit-rev`, rival duel seed 4, eight-minute endurance seed 5, final seed 0), a named field of six with levels per driver, Kai Moreno the rival |
+| Points | 10/8/6/5/4/3/2 by place; the rival duel 10/4. Player bonuses: clean race +2, in the lead at half distance +1 (races are one lap, so a lap's end would only repeat the win; lead, 2026-11-15), fastest lap +1, won from the back +2. A retry keeps the run that scored the player more |
+| Opening | three events open at the start, each podium (in the rival duel only a win) opens one more, the final once every other event has a podium; a podium in the final completes the series (C4) |
+| Rules in the race | `FieldEvent` on `FieldHost` (`modes/mode.ts`): names, knockout, time limit, result lines, Next. `modes/field-tally.ts`: lap times from progress, knockout (last car still in is out each 1/n of the leader's distance; the last one left wins) |
+| Clean race | the sim counts the player's touches with AI cars (`FrameOut.touches`, `Sim.field_touches`, `SIM_PACKET` 2) |
+| Progress | IndexedDB (owner, 2026-11-15): database `harepin`, store `series` keyed by season, the `{season, results}` shape checked on load (`career/series-db.ts`, `series-store.ts`). The page and `?series=<event>` wait for the load. Fastest lap scores only in races of more than one lap |
+
+Not built: credits and buying, class cap (G1), base-car start, the final's car or kit (G3), a replay on a new seed (C5).
+
+### Seasons 2-4: Alpine, Dunes, Mainland (t309, 2026-11-15)
+
+| Piece | Where |
+|---|---|
+| Season data | `career/series-seasons.ts`, C6 order. Each season: six events (race, knockout, rival duel, endurance, one more race, final), a named field of six that carries the season before's rival, its own rival |
+| Alpine (s2) | cap B, seeds 6 / 20 / 14 `circuit-rev` / 24 / 27 / final 1, replays only on seeds with a reverse circuit; final pays the Rally + 7,500 cr |
+| Dunes (s3) | the **Dune sea** (`desert`): Big dunes (`dunes`) has no closed road for a field (owner accepted). Cap B, seeds 14 / 9 / 2 / 17 / 33 / final 0; final pays the Sturm + 10,000 cr |
+| Mainland (s4) | cap A, every event on the town circuit `town` (seeds 18 / 42 / 35 / 44 / 51 / final 43), the four-minute endurance short enough that fifteen town laps outlast its clock. A mainland ring (4-16 km) runs solo: `field_races` (`modes/field-route.ts`) lets a field race a streamed world only on a loop within 400 m of its start, which stays streamed in at the phone's 828 m reach. The field drives the new class A presets, Sturm GT and Coupe sport; final pays the Formula + 15,000 cr |
+| Opening | a season opens once the one before has been completed once (`completed`, `seasons_open`): its final podiumed, or a replay begun |
+| Page | `host.series` is every season's `Series` on one store and one wallet (`series_list`); arrows and dots round the season title switch seasons (`SeriesSeasons.svelte`), a shut season locks its cards with "Finish the X series to open". The page opens on the first open season not yet done |
+| Proof | `bun scripts/series-race.ts [season…]`: each event's field (named drivers, normal, the cap's presets) on its own map for the game's laps (`race_laps`). Fails on a stuck car, contacts outside `ai-race.ts`'s band, more than one spin or reset in the race, or a race event with no pass. All 24 clean. Event art: `node --experimental-strip-types scripts/series-art.ts [season or event…]` |
+
+Later: the Sky final season (C6) comes with the Legend wall-ride map (t312).
 
 ## TL;DR
 

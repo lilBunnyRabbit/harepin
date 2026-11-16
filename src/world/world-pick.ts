@@ -27,7 +27,7 @@ export const NEW_PLAYER_KIND: WorldKind = WorldKind.MAINLAND;
 /** The mainland a player drives before picking one: the same for everyone, so the open lobby meets there. */
 export const MAINLAND_SEED = seed_of(LOBBY_ROOM);
 
-/** `?lab=<pack>` or `?lab=~<code>`: the feel lab (`src/lab`, docs/lab.md), alone in a solo room. */
+/** `?lab=<pack>` or `?lab=~<code>`: the feel lab (`src/lab`, docs/lab.md), alone in a solo room; `&map=<code>` for a race trial's world. */
 export const LAB_PARAM = "lab";
 
 const URL_WORLD_PARAMS = ["room", "seed", "world", "map", EVENT_PARAM, RUN_PARAM, LAB_PARAM];
@@ -41,7 +41,8 @@ export const names_world = (params: URLSearchParams) => URL_WORLD_PARAMS.some((p
  */
 export function pick_world(params: URLSearchParams, room: string, saved: SavedPick): WorldPick {
   if (names_world(params)) {
-    if (params.has(LAB_PARAM)) return { seed: 0, kind: WorldKind.LAB, code: null };
+    // A lab trial on a race world reloads onto its map with `map` beside `lab`.
+    if (params.has(LAB_PARAM)) return { seed: 0, kind: WorldKind.LAB, code: params.get("map") };
     const seed = parse_seed(params.get("seed"));
     const event = event_of(params.get(EVENT_PARAM) ?? replay_of(params));
     const map = params.get("map") ?? (event && spot_of(event).map);

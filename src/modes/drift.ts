@@ -4,6 +4,7 @@ import type { Body } from "./gymkhana";
 import { touching } from "./parking";
 import { RouteTracker, bendiest, length_of, slice, type RoutePoint } from "./route";
 import { MAX_STARS } from "./track";
+import { atan2, cos, hypot, sin } from "../sim-math";
 
 const DEG = Math.PI / 180;
 export const MIN_SPEED = 7;
@@ -73,9 +74,9 @@ export interface Motion {
 }
 
 export function slip(motion: Motion): number {
-  const fx = Math.sin(motion.heading);
-  const fz = Math.cos(motion.heading);
-  return Math.abs(Math.atan2(fx * motion.vz - fz * motion.vx, fx * motion.vx + fz * motion.vz));
+  const fx = sin(motion.heading);
+  const fz = cos(motion.heading);
+  return Math.abs(atan2(fx * motion.vz - fz * motion.vx, fx * motion.vx + fz * motion.vz));
 }
 
 export const ComboEnd = { NONE: "none", BANKED: "banked", LOST: "lost" } as const;
@@ -197,7 +198,7 @@ export class DriftRun {
     this.in_touch = now;
     const p = this.zone.points[index];
     const forward = pose.vx * p.tx + pose.vz * p.tz > MIN_SPEED / 2;
-    const speed = Math.hypot(pose.vx, pose.vz);
+    const speed = hypot(pose.vx, pose.vz);
     const end = this.combo.step(dt_ms, slip(pose), speed, forward && this.tracker.offset <= road_half + ROAD_SLACK, wall);
     const out_of_time = this.clock - this.started >= this.zone.max_ms;
     if (this.zone.level.chain && end !== ComboEnd.NONE) this.broke = end;
