@@ -49,7 +49,7 @@ export const CARS: Record<CarId, CarSpec> = map_values(BODIES, (body) => car_of(
 - A frame id is its reference body's id, so no frame renames today. The F1-F10 names stay design vocabulary until a second body lands on another frame.
 - `Build` keeps `car: BodyId`; the frame comes from `BODIES[car].frame`. Build codes, presets, wallet and rewards keep their format.
 - Parts fold over the frame's numbers as today (`apply_build`), so every body on a frame gets the same mods.
-- `spec_hash` hashes the frame fields only (sorted keys, no `ai`), so Coupe and Kaze builds share one capability entry and a body never needs an AI refit. Every hash string changes once; the table's values must not.
+- `spec_hash` hashes the frame fields only (no `ai`), so Coupe and Kaze builds share one capability entry and a body never needs an AI refit. Every hash string changes once; the table's values must not.
 - Adding a body = a `BodySpec` line + a design (`Record<BodyId, Design>` makes a missing one a type error). Adding a frame = a `FrameSpec` + at least one body.
 - Edits outside `car/`: none to consumers. The kaze-specific expectations move: `car.test.ts` (kaze rows), `pi.test.ts`, `assists.test.ts`, lab `t3d-kaze` and `top-tier` (`Tested` keeps kaze as a body: retarget to coupe or retire, owner/lab call), `scripts/drift.ts` / `scripts/pi.ts` / `scripts/lab/setups.ts` lists (both ids stay valid; kaze rows duplicate coupe's), AGENTS.md "Adding things: Car".
 

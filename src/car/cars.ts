@@ -27,9 +27,7 @@ export interface EngineSound {
 }
 
 /** Body-local axes: +x left, +y up, +z forward, metres from the centre of mass. */
-export interface CarSpec {
-  id: string;
-  name: string;
+export interface FrameSpec {
   mass: number;
   inertia: Triple;
   drive: Drive;
@@ -92,8 +90,6 @@ export interface CarSpec {
   corners: Triple[];
   /** Spring (N/m) and damper (N·s/m) pushing a body corner back out of the ground. */
   hull: [number, number];
-  body: { length: number; width: number; height: number; style: BodyStyle };
-  sound: EngineSound;
   /** Boost seconds a full nitro tank holds; absent or 0 without one. */
   nitro?: number;
   /** Tyre grip multipliers on a dirt trail and on any other ground off asphalt, on top of `offroad`; absent is 1. */
@@ -119,16 +115,34 @@ export interface CarSpec {
   ai_field?: boolean;
 }
 
+/** What a body adds over its frame: looks and voice only, so every body on a frame drives, collides and races alike. */
+export interface BodySpec {
+  name: string;
+  frame: FrameId;
+  size: Size;
+  sound: EngineSound;
+}
+
+export interface CarSpec extends FrameSpec {
+  id: string;
+  name: string;
+  body: { length: number; width: number; height: number; style: BodyStyle };
+  sound: EngineSound;
+}
+
 export interface CarAi {
   slow: number;
   fast: number;
   brake: number;
 }
 
-// Over the physics alone: a lab result or a measured build keeps its key when only the AI fields move.
-export const spec_hash = (spec: CarSpec): string => seed_of(JSON.stringify({ ...spec, ai: undefined, ai_field: undefined })).toString(16).padStart(8, "0");
+// Over the frame alone: a lab result or a measured build keeps its key when only the AI fields move, and every body
+// on a frame shares it.
+export const spec_hash = ({ id: _id, name: _name, body: _body, sound: _sound, ai: _ai, ai_field: _field, ...frame }: CarSpec): string =>
+  seed_of(JSON.stringify(frame)).toString(16).padStart(8, "0");
 
 export type CarId = BodyStyle;
+export type FrameId = "hatch" | "coupe" | "muscle" | "rally" | "kaze" | "formula" | "fujin" | "sturm" | "raijin" | "bus" | "tsumuji" | "sajin";
 
 // Floor and roll hoop of the formula car against its centre of mass: its collision corners and its bar band.
 const FORMULA_FLOOR = 0.34;
@@ -148,9 +162,7 @@ function mounts(half_track: number, y: number, front: number, rear: number): Tri
   ];
 }
 
-export const COUPE: CarSpec = {
-  id: "coupe",
-  name: "Coupe",
+const COUPE_FRAME: FrameSpec = {
   mass: 1350,
   inertia: [2368, 2563, 575],
   drive: "rwd",
@@ -215,14 +227,10 @@ export const COUPE: CarSpec = {
   radius: 1.05,
   corners: corners(0.95, -0.3, 0.72, 2.25),
   hull: [140000, 7000],
-  body: { length: 4.66, width: 1.9, height: 1.2, style: "coupe" },
-  sound: { cylinders: 6, pulses: [1, 0.97, 1, 0.98, 1, 0.96], jitter: 0.05, pulse_ms: 1.1, formants: [170, 540, 1500], shift: 0.3, muffler: [900, 3400], drive: 1.8, rasp: 0.35, intake: 0.6, crackle: 0.25, turbo: 0 },
 };
 
-export const HATCH: CarSpec = {
-  ...COUPE,
-  id: "hatch",
-  name: "Hatch",
+const HATCH_FRAME: FrameSpec = {
+  ...COUPE_FRAME,
   ai: { slow: 1, fast: 1, brake: 1 },
   air_settle: 2,
   mass: 1050,
@@ -264,14 +272,10 @@ export const HATCH: CarSpec = {
   circles: [1.05, -1.05],
   radius: 0.95,
   corners: corners(0.85, -0.3, 0.75, 1.95),
-  body: { length: 3.9, width: 1.72, height: 1.3, style: "hatch" },
-  sound: { cylinders: 4, pulses: [1, 0.96, 1, 0.97], jitter: 0.06, pulse_ms: 0.75, formants: [230, 680, 2000], shift: 0.4, muffler: [1100, 5000], drive: 2.4, rasp: 0.55, intake: 0.85, crackle: 0.2, turbo: 0 },
 };
 
-export const MUSCLE: CarSpec = {
-  ...COUPE,
-  id: "muscle",
-  name: "Muscle",
+const MUSCLE_FRAME: FrameSpec = {
+  ...COUPE_FRAME,
   ai: { slow: 0.9661, fast: 1.0918, brake: 0.9897 },
   mass: 1650,
   // Pitch is low for the mass on purpose: at ~3300 the car lands rocking when dropped on a 20% slope and rolls away,
@@ -313,20 +317,16 @@ export const MUSCLE: CarSpec = {
   circles: [1.4, -1.4],
   radius: 1.1,
   corners: corners(1.0, -0.3, 0.7, 2.45),
-  body: { length: 5.0, width: 2.0, height: 1.25, style: "muscle" },
-  sound: { cylinders: 8, pulses: [1, 0.7, 1.15, 0.82, 0.68, 1.1, 0.78, 1.05], jitter: 0.3, pulse_ms: 2, formants: [90, 250, 700], shift: 0.2, muffler: [450, 1900], drive: 2.6, rasp: 0.4, intake: 0.35, crackle: 0.9, turbo: 0 },
 };
 
-export const RALLY: CarSpec = {
-  ...COUPE,
-  id: "rally",
-  name: "Rally",
+const RALLY_FRAME: FrameSpec = {
+  ...COUPE_FRAME,
   ai: { slow: 0.9274, fast: 0.9377, brake: 0.951 },
   mass: 1300,
   inertia: [2250, 2100, 560],
   drive: "awd",
   awd_split: 0.3,
-  wheel: { radius: 0.34, rest: COUPE.wheel.rest + 0.04, mounts: mounts(0.82, 0.1, 1.27, 1.27) },
+  wheel: { radius: 0.34, rest: COUPE_FRAME.wheel.rest + 0.04, mounts: mounts(0.82, 0.1, 1.27, 1.27) },
   wheelbase: 2.54,
   lock: 0.64,
   spring: 25000,
@@ -358,15 +358,11 @@ export const RALLY: CarSpec = {
   offroad: 0.8,
   air_settle: 5,
   corners: corners(0.93, -0.34, 0.8, 2.15),
-  body: { length: 4.4, width: 1.86, height: 1.38, style: "rally" },
-  sound: { cylinders: 4, pulses: [1, 0.9, 1.02, 0.88], jitter: 0.14, pulse_ms: 0.9, formants: [150, 470, 1700], shift: 0.3, muffler: [800, 3800], drive: 3, rasp: 0.9, intake: 0.65, crackle: 0.75, turbo: 1 },
 };
 
 // Front-mid V6 sports coupe: short wheelbase, 53/47 split, low CoG and a softer rear tyre, so the throttle holds an angle.
-export const KAZE: CarSpec = {
-  ...COUPE,
-  id: "kaze",
-  name: "Kaze",
+const KAZE_FRAME: FrameSpec = {
+  ...COUPE_FRAME,
   air_settle: 2,
   mass: 1450,
   inertia: [2450, 2500, 600],
@@ -407,15 +403,11 @@ export const KAZE: CarSpec = {
   circles: [1.15, -1.15],
   radius: 1.05,
   corners: corners(0.97, -0.3, 0.72, 2.12),
-  body: { length: 4.26, width: 1.94, height: 1.26, style: "kaze" },
-  sound: { cylinders: 6, pulses: [1, 0.93, 1, 0.95, 1, 0.92], jitter: 0.04, pulse_ms: 0.65, formants: [260, 760, 2300], shift: 0.5, muffler: [1300, 6000], drive: 1.4, rasp: 0.2, intake: 0.75, crackle: 0.15, turbo: 0 },
 };
 
 // Open-wheel formula car: light, stiff and short-geared, with wings whose grip grows with speed and slicks that hate grass.
-export const FORMULA: CarSpec = {
-  ...COUPE,
-  id: "formula",
-  name: "Formula",
+const FORMULA_FRAME: FrameSpec = {
+  ...COUPE_FRAME,
   ai: { slow: 0.8984, fast: 0.9184, brake: 0.9565 },
   mass: 750,
   inertia: [1250, 1450, 300],
@@ -469,16 +461,12 @@ export const FORMULA: CarSpec = {
   radius: 1.0,
   band: [FORMULA_FLOOR, FORMULA_TOP],
   corners: corners(0.75, -FORMULA_FLOOR, FORMULA_TOP, 2.3),
-  body: { length: 4.8, width: 1.95, height: 1.0, style: "formula" },
-  sound: { cylinders: 10, pulses: [1, 0.97, 1, 0.96, 1, 0.98, 1, 0.97, 1, 0.96], jitter: 0.03, pulse_ms: 0.4, formants: [380, 1100, 3000], shift: 0.6, muffler: [2200, 9000], drive: 1.6, rasp: 0.3, intake: 0.9, crackle: 0.1, turbo: 0 },
 };
 
 // Closed-wheel hybrid prototype, the Legend reward: the formula's grip and more top speed in a heavier, calmer car.
 // A front motor takes 40% of the drive, so it launches and exits corners planted where the formula spins its rears.
-export const FUJIN: CarSpec = {
-  ...FORMULA,
-  id: "fujin",
-  name: "Fujin",
+const FUJIN_FRAME: FrameSpec = {
+  ...FORMULA_FRAME,
   ai: { slow: 0.7538, fast: 0.654, brake: 0.624 },
   mass: 930,
   inertia: [1500, 1750, 380],
@@ -522,12 +510,10 @@ export const FUJIN: CarSpec = {
   ground_effect: 0.8,
   roll_resist: 2.6,
   offroad: -0.6,
-  band: COUPE.band,
+  band: COUPE_FRAME.band,
   circles: [1.3, -1.3],
   radius: 1.05,
   corners: corners(0.98, -FUJIN_FLOOR, 0.62, 2.33),
-  body: { length: 4.8, width: 2.0, height: 1.16, style: "fujin" },
-  sound: { cylinders: 6, pulses: [1, 0.94, 1, 0.96, 1, 0.93], jitter: 0.04, pulse_ms: 0.5, formants: [300, 900, 2600], shift: 0.55, muffler: [1800, 8000], drive: 1.8, rasp: 0.4, intake: 0.9, crackle: 0.15, turbo: 1 },
 };
 
 function shifted(list: Triple[], dz: number): Triple[] {
@@ -536,10 +522,8 @@ function shifted(list: Triple[], dz: number): Triple[] {
 
 // Rear-engine widebody coupe: 40/60 on a short 2.27 m wheelbase, wide rear tyres for grip, a stiff front bar so lifting
 // mid-corner swings the heavy tail out. Torque stays soft below 3000 rpm and the boost lands hard above it.
-export const STURM: CarSpec = {
-  ...COUPE,
-  id: "sturm",
-  name: "Sturm",
+const STURM_FRAME: FrameSpec = {
+  ...COUPE_FRAME,
   mass: 1450,
   inertia: [2300, 2900, 560],
   wheel: {
@@ -592,15 +576,11 @@ export const STURM: CarSpec = {
   circles: [1.3, -0.98],
   radius: 1.0,
   corners: shifted(corners(1.03, -0.26, 0.8, 2.14), 0.16),
-  body: { length: 4.24, width: 2.1, height: 1.3, style: "sturm" },
-  sound: { cylinders: 6, pulses: [1, 0.88, 0.97, 0.9, 1, 0.86], jitter: 0.1, pulse_ms: 1.0, formants: [140, 430, 1250], shift: 0.32, muffler: [800, 3600], drive: 2.2, rasp: 0.7, intake: 0.7, crackle: 0.45, turbo: 1 },
 };
 
 // Rally-bred turbo AWD sedan: 58/42 nose-heavy, a 40/60 split and a stiffer rear bar for turn-in, part-gravel tyres.
-export const RAIJIN: CarSpec = {
-  ...COUPE,
-  id: "raijin",
-  name: "Raijin",
+const RAIJIN_FRAME: FrameSpec = {
+  ...COUPE_FRAME,
   mass: 1550,
   inertia: [2700, 2800, 650],
   drive: "awd",
@@ -645,8 +625,6 @@ export const RAIJIN: CarSpec = {
   circles: [1.0, -1.32],
   radius: 1.08,
   corners: shifted(corners(0.97, -0.3, 0.85, 2.27), -0.155),
-  body: { length: 4.57, width: 1.98, height: 1.48, style: "raijin" },
-  sound: { cylinders: 4, pulses: [1, 0.95, 1.02, 0.94], jitter: 0.08, pulse_ms: 0.8, formants: [180, 560, 1800], shift: 0.35, muffler: [950, 4400], drive: 2.6, rasp: 0.6, intake: 0.8, crackle: 0.55, turbo: 1 },
 };
 
 // City bus: 11.5 t on two axles 5.9 m apart, centre of mass 1.1 m up. Soft springs and thin bars let it lean hard; the
@@ -655,10 +633,8 @@ export const RAIJIN: CarSpec = {
 const BUS_FLOOR = 0.8;
 const BUS_ROOF = 1.95;
 
-export const BUS: CarSpec = {
-  ...COUPE,
-  id: "bus",
-  name: "Bus",
+const BUS_FRAME: FrameSpec = {
+  ...COUPE_FRAME,
   ai_field: false,
   mass: 11500,
   inertia: [140000, 145000, 15000],
@@ -713,17 +689,13 @@ export const BUS: CarSpec = {
   radius: 1.3,
   corners: shifted(corners(1.25, -BUS_FLOOR, BUS_ROOF, 6.0), -0.16),
   hull: [1200000, 60000],
-  body: { length: 12, width: 2.5, height: 3.05, style: "bus" },
-  sound: { cylinders: 6, pulses: [1, 0.92, 1, 0.94, 1, 0.9], jitter: 0.12, pulse_ms: 2.6, formants: [70, 210, 560], shift: 0.12, muffler: [300, 1300], drive: 2.4, rasp: 0.45, intake: 0.3, crackle: 0.05, turbo: 1 },
 };
 
 // A light hardtop that slides on momentum: even weight, a short wheelbase, lots of lock and little power. A lift mid
 // corner swings the tail in on engine braking; the early upshift keeps a 90 km/h lift in 3rd, where that rotation stays
 // catchable. The drag keeps it the slowest car in a straight line.
-export const TSUMUJI: CarSpec = {
-  ...HATCH,
-  id: "tsumuji",
-  name: "Tsumuji",
+const TSUMUJI_FRAME: FrameSpec = {
+  ...HATCH_FRAME,
   ai: undefined,
   mass: 980,
   inertia: [1300, 1350, 360],
@@ -765,8 +737,6 @@ export const TSUMUJI: CarSpec = {
   circles: [1.0, -1.0],
   radius: 0.92,
   corners: corners(0.84, -0.3, 0.7, 1.97),
-  body: { length: 3.95, width: 1.68, height: 1.22, style: "tsumuji" },
-  sound: { cylinders: 4, pulses: [1, 0.9, 0.98, 0.92], jitter: 0.06, pulse_ms: 1.3, formants: [190, 600, 1700], shift: 0.3, muffler: [900, 3600], drive: 1.6, rasp: 0.4, intake: 0.7, crackle: 0.2, turbo: 0 },
 };
 
 // Sand buggy: rear engine, rear-biased four-wheel drive, 0.5 m of soft travel and knobbly tyres that shrug off loose ground. On tarmac the
@@ -776,10 +746,8 @@ const SAJIN_FLOOR = 0.04;
 const SAJIN_TOP = 1.14;
 const SAJIN_MOUNT = 0.35;
 
-export const SAJIN: CarSpec = {
-  ...COUPE,
-  id: "sajin",
-  name: "Sajin",
+const SAJIN_FRAME: FrameSpec = {
+  ...COUPE_FRAME,
   mass: 950,
   drive: "awd",
   awd_split: 0.25,
@@ -838,11 +806,91 @@ export const SAJIN: CarSpec = {
   circles: [1.05, -0.88],
   radius: 1.07,
   corners: shifted(corners(1.07, -SAJIN_FLOOR, SAJIN_TOP, 2.03), 0.08),
-  body: { length: 4.2, width: 2.14, height: 1.6, style: "sajin" },
-  sound: { cylinders: 3, pulses: [1, 0.9, 0.96], jitter: 0.1, pulse_ms: 1.2, formants: [160, 480, 1500], shift: 0.35, muffler: [700, 3200], drive: 2.8, rasp: 0.8, intake: 0.8, crackle: 0.5, turbo: 1 },
 };
 
-export const CARS: Record<CarId, CarSpec> = { hatch: HATCH, coupe: COUPE, muscle: MUSCLE, rally: RALLY, kaze: KAZE, sturm: STURM, raijin: RAIJIN, formula: FORMULA, fujin: FUJIN, tsumuji: TSUMUJI, bus: BUS, sajin: SAJIN };
+export const FRAMES: Record<FrameId, FrameSpec> = { hatch: HATCH_FRAME, coupe: COUPE_FRAME, muscle: MUSCLE_FRAME, rally: RALLY_FRAME, kaze: KAZE_FRAME, sturm: STURM_FRAME, raijin: RAIJIN_FRAME, formula: FORMULA_FRAME, fujin: FUJIN_FRAME, tsumuji: TSUMUJI_FRAME, bus: BUS_FRAME, sajin: SAJIN_FRAME };
+
+export const BODIES: Record<CarId, BodySpec> = {
+  hatch: {
+    name: "Hatch",
+    frame: "hatch",
+    size: { length: 3.9, width: 1.72, height: 1.3 },
+    sound: { cylinders: 4, pulses: [1, 0.96, 1, 0.97], jitter: 0.06, pulse_ms: 0.75, formants: [230, 680, 2000], shift: 0.4, muffler: [1100, 5000], drive: 2.4, rasp: 0.55, intake: 0.85, crackle: 0.2, turbo: 0 },
+  },
+  coupe: {
+    name: "Coupe",
+    frame: "coupe",
+    size: { length: 4.66, width: 1.9, height: 1.2 },
+    sound: { cylinders: 6, pulses: [1, 0.97, 1, 0.98, 1, 0.96], jitter: 0.05, pulse_ms: 1.1, formants: [170, 540, 1500], shift: 0.3, muffler: [900, 3400], drive: 1.8, rasp: 0.35, intake: 0.6, crackle: 0.25, turbo: 0 },
+  },
+  muscle: {
+    name: "Muscle",
+    frame: "muscle",
+    size: { length: 5.0, width: 2.0, height: 1.25 },
+    sound: { cylinders: 8, pulses: [1, 0.7, 1.15, 0.82, 0.68, 1.1, 0.78, 1.05], jitter: 0.3, pulse_ms: 2, formants: [90, 250, 700], shift: 0.2, muffler: [450, 1900], drive: 2.6, rasp: 0.4, intake: 0.35, crackle: 0.9, turbo: 0 },
+  },
+  rally: {
+    name: "Rally",
+    frame: "rally",
+    size: { length: 4.4, width: 1.86, height: 1.38 },
+    sound: { cylinders: 4, pulses: [1, 0.9, 1.02, 0.88], jitter: 0.14, pulse_ms: 0.9, formants: [150, 470, 1700], shift: 0.3, muffler: [800, 3800], drive: 3, rasp: 0.9, intake: 0.65, crackle: 0.75, turbo: 1 },
+  },
+  kaze: {
+    name: "Kaze",
+    frame: "kaze",
+    size: { length: 4.26, width: 1.94, height: 1.26 },
+    sound: { cylinders: 6, pulses: [1, 0.93, 1, 0.95, 1, 0.92], jitter: 0.04, pulse_ms: 0.65, formants: [260, 760, 2300], shift: 0.5, muffler: [1300, 6000], drive: 1.4, rasp: 0.2, intake: 0.75, crackle: 0.15, turbo: 0 },
+  },
+  sturm: {
+    name: "Sturm",
+    frame: "sturm",
+    size: { length: 4.24, width: 2.1, height: 1.3 },
+    sound: { cylinders: 6, pulses: [1, 0.88, 0.97, 0.9, 1, 0.86], jitter: 0.1, pulse_ms: 1.0, formants: [140, 430, 1250], shift: 0.32, muffler: [800, 3600], drive: 2.2, rasp: 0.7, intake: 0.7, crackle: 0.45, turbo: 1 },
+  },
+  raijin: {
+    name: "Raijin",
+    frame: "raijin",
+    size: { length: 4.57, width: 1.98, height: 1.48 },
+    sound: { cylinders: 4, pulses: [1, 0.95, 1.02, 0.94], jitter: 0.08, pulse_ms: 0.8, formants: [180, 560, 1800], shift: 0.35, muffler: [950, 4400], drive: 2.6, rasp: 0.6, intake: 0.8, crackle: 0.55, turbo: 1 },
+  },
+  formula: {
+    name: "Formula",
+    frame: "formula",
+    size: { length: 4.8, width: 1.95, height: 1.0 },
+    sound: { cylinders: 10, pulses: [1, 0.97, 1, 0.96, 1, 0.98, 1, 0.97, 1, 0.96], jitter: 0.03, pulse_ms: 0.4, formants: [380, 1100, 3000], shift: 0.6, muffler: [2200, 9000], drive: 1.6, rasp: 0.3, intake: 0.9, crackle: 0.1, turbo: 0 },
+  },
+  fujin: {
+    name: "Fujin",
+    frame: "fujin",
+    size: { length: 4.8, width: 2.0, height: 1.16 },
+    sound: { cylinders: 6, pulses: [1, 0.94, 1, 0.96, 1, 0.93], jitter: 0.04, pulse_ms: 0.5, formants: [300, 900, 2600], shift: 0.55, muffler: [1800, 8000], drive: 1.8, rasp: 0.4, intake: 0.9, crackle: 0.15, turbo: 1 },
+  },
+  tsumuji: {
+    name: "Tsumuji",
+    frame: "tsumuji",
+    size: { length: 3.95, width: 1.68, height: 1.22 },
+    sound: { cylinders: 4, pulses: [1, 0.9, 0.98, 0.92], jitter: 0.06, pulse_ms: 1.3, formants: [190, 600, 1700], shift: 0.3, muffler: [900, 3600], drive: 1.6, rasp: 0.4, intake: 0.7, crackle: 0.2, turbo: 0 },
+  },
+  bus: {
+    name: "Bus",
+    frame: "bus",
+    size: { length: 12, width: 2.5, height: 3.05 },
+    sound: { cylinders: 6, pulses: [1, 0.92, 1, 0.94, 1, 0.9], jitter: 0.12, pulse_ms: 2.6, formants: [70, 210, 560], shift: 0.12, muffler: [300, 1300], drive: 2.4, rasp: 0.45, intake: 0.3, crackle: 0.05, turbo: 1 },
+  },
+  sajin: {
+    name: "Sajin",
+    frame: "sajin",
+    size: { length: 4.2, width: 2.14, height: 1.6 },
+    sound: { cylinders: 3, pulses: [1, 0.9, 0.96], jitter: 0.1, pulse_ms: 1.2, formants: [160, 480, 1500], shift: 0.35, muffler: [700, 3200], drive: 2.8, rasp: 0.8, intake: 0.8, crackle: 0.5, turbo: 1 },
+  },
+};
+
+function car_of(id: CarId, { name, frame, size, sound }: BodySpec): CarSpec {
+  return { id, name, ...FRAMES[frame], body: { ...size, style: id }, sound };
+}
+
+export const CARS = Object.fromEntries((Object.keys(BODIES) as CarId[]).map((id) => [id, car_of(id, BODIES[id])])) as Record<CarId, CarSpec>;
+export const { coupe: COUPE, hatch: HATCH, rally: RALLY, formula: FORMULA, bus: BUS } = CARS;
 
 export interface Size {
   length: number;
