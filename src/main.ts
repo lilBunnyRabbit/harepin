@@ -11,6 +11,7 @@ import { series_list, series_open } from "./career/series-store";
 import { SeriesDb } from "./career/series-db";
 import { on_series_map, series_host } from "./career/series-run";
 import { Career, event_map } from "./career/career-store";
+import { place_of } from "./career/place";
 import { EventMarkers } from "./career/event-markers";
 import { RUN_PARAM, run_of, type RunPick } from "./runs/runs";
 import { Runs } from "./runs/runs-store";
@@ -511,7 +512,7 @@ garage.on_change = (next) => {
   input.touch.show_nitro(driver.car.nitro.fitted);
 };
 
-const on_this_map = (to: CareerEvent) => map_code(event_map(to)) === map_code(built);
+const on_this_map = (to: CareerEvent) => place_of(event_map(to), built).here;
 
 function start_event(id: string) {
   const to = event_of(id);
@@ -557,7 +558,7 @@ function start_series(id: string) {
   modes.series_race(to.route, host);
 }
 // A run's map is the plain map of its kind and seed (world-pick.ts).
-const run_on_map = (to: RunPick) => map_code(built) === map_code(plain_map(to.kind, to.seed));
+const run_on_map = (to: RunPick) => place_of(plain_map(to.kind, to.seed), built).here;
 
 function start_run(id: string) {
   const to = run_of(id);
