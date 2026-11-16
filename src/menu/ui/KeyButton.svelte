@@ -5,7 +5,7 @@
   import type { GlyphKeys } from "./types";
   import "./key-cap.css";
 
-  interface Props extends Omit<HTMLButtonAttributes, "children"> {
+  interface Props extends Omit<HTMLButtonAttributes, "children" | "onpointerdown" | "onlostpointercapture" | "onkeydown" | "onkeyup" | "onblur"> {
     keys?: GlyphKeys;
     /** Press length in ms that fires `onheld`; the fill grows over it and a shorter press does nothing. */
     hold?: number;
@@ -16,13 +16,13 @@
     children: Snippet;
   }
 
-  let { keys, hold, onheld, variant = "fill", tone = "primary", size = "md", type = "button", class: extra, children, ...rest }: Props = $props();
+  let { keys, hold, onheld, variant = "fill", tone = "primary", size = "md", type = "button", disabled, class: extra, children, ...rest }: Props = $props();
 
   let holding = $state(false);
   let timer: ReturnType<typeof setTimeout> | undefined;
 
   function start() {
-    if (hold === undefined || holding) return;
+    if (hold === undefined || holding || disabled) return;
     holding = true;
     timer = setTimeout(() => {
       holding = false;
@@ -47,11 +47,17 @@
     start();
   }
 
+  $effect(() => {
+    if (disabled) stop();
+  });
+
   $effect(() => stop);
 </script>
 
 <button
+  {...rest}
   {type}
+  {disabled}
   class={["ui-key-btn", extra]}
   data-variant={variant}
   data-tone={tone}
@@ -64,7 +70,6 @@
   onkeydown={key_down}
   onkeyup={stop}
   onblur={stop}
-  {...rest}
 >
   {#if keys}<Glyph {...keys} />{/if}
   <span>{@render children()}</span>
