@@ -16,9 +16,11 @@
     reasons?: readonly Reason[];
     size?: "docked" | "big";
     place?: Snippet;
+    /** A row of buttons under the ticket's text, inside its card. */
+    actions?: Snippet;
   }
 
-  let { tier, title, eyebrow, stars, reasons = [], size = "docked", place }: Props = $props();
+  let { tier, title, eyebrow, stars, reasons = [], size = "docked", place, actions }: Props = $props();
 
   const edge = $derived(tier_look(tier).metal);
   const got = $derived(Math.min(MAX_EVENT_STARS, Math.max(0, stars ?? 0)));
@@ -43,6 +45,7 @@
       {/each}
     </ul>
   {/if}
+  {#if actions}<div class="ui-ticket-actions">{@render actions()}</div>{/if}
 </article>
 
 <style>
@@ -101,6 +104,13 @@
 
   .ui-ticket-reasons li {
     display: grid;
+  }
+
+  .ui-ticket-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-top: var(--space-1);
   }
 
   .ui-ticket-reasons small {

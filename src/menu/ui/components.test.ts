@@ -279,8 +279,9 @@ describe("ui components", () => {
 
   test("Ticket shows its tier edge, stars and at most three reasons", () => {
     const reasons = ["One", "Two", "Three", "Four"].map((text) => ({ text, note: `${text} note` }));
-    const out = html(Ticket, { tier: 1, title: "Sand trail", eyebrow: "Next up", stars: 2, reasons, size: "big", place: text("Dune sea") });
+    const out = html(Ticket, { tier: 1, title: "Sand trail", eyebrow: "Next up", stars: 2, reasons, size: "big", place: text("Dune sea"), actions: text("Travel") });
     expect(out).toContain('data-size="big"');
+    expect(out).toMatch(/class="ui-ticket-actions[^"]*"><span>Travel<\/span><\/div>\s*<\/article>/);
     expect(out).toMatch(/style="--tier: [^"]+"/);
     expect(out).toContain("Sand trail");
     expect(out).toContain("Dune sea");
@@ -295,5 +296,6 @@ describe("ui components", () => {
     expect(out).toContain('data-size="docked"');
     expect(out).not.toContain("ui-ticket-stars");
     expect(out).not.toContain("<ul");
+    expect(out).not.toContain("ui-ticket-actions");
   });
 });

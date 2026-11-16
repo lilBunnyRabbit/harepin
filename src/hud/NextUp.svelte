@@ -18,6 +18,7 @@
 
   const ticket = $derived(view.ticket);
   const travel = () => ticket && view.host.travel(ticket.id);
+  const actions = $derived(ticket && !ticket.place.here ? travel_button : undefined);
 
   $effect(() => {
     view.travel_button = travel_box?.querySelector("button") ?? null;
@@ -41,7 +42,7 @@
         <svg viewBox="0 0 24 24" style:rotate={`${view.turn}deg`}><path d="M6 15l6-6 6 6" /></svg>
       {/if}
     </span>
-    <Ticket tier={ticket.tier} eyebrow={ticket.eyebrow} title={ticket.title} reasons={[{ text: ticket.line }]}>
+    <Ticket tier={ticket.tier} eyebrow={ticket.eyebrow} title={ticket.title} reasons={[{ text: ticket.line }]} {actions}>
       {#snippet place()}
         {#if !ticket.place.here}
           <PlaceChip place={ticket.place} />
@@ -50,39 +51,40 @@
         {/if}
       {/snippet}
     </Ticket>
-    {#if !ticket.place.here}
-      <div class="next-up-travel" bind:this={travel_box}>
-        <KeyButton size="md" hold={TRAVEL_HOLD_MS} onheld={travel} keys={{ key: "Hold Tab", pad: pad_label(TRAVEL_BUTTON), touch: "icon-globe" }}>Travel to {ticket.place.name}</KeyButton>
-      </div>
-    {/if}
   </div>
 {/if}
 
+{#snippet travel_button()}
+  <span class="next-up-travel" bind:this={travel_box}>
+    <KeyButton size="md" class="next-up-travel-btn" hold={TRAVEL_HOLD_MS} onheld={travel} keys={{ key: "Hold Tab", pad: pad_label(TRAVEL_BUTTON), touch: "icon-globe" }}>Travel</KeyButton>
+  </span>
+{/snippet}
+
 <style>
   .next-up {
-    position: relative;
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
-    align-items: center;
-    gap: var(--space-2) var(--space-3);
-    width: min(28rem, 100%);
+    align-items: start;
+    gap: var(--space-2);
+    width: min(24rem, 100%);
     pointer-events: auto;
   }
 
   .next-up-mark {
-    --icon-size: var(--text-2xl);
+    --icon-size: var(--text-xl);
     display: grid;
     place-items: center;
-    width: calc(var(--control-h-lg) + var(--space-1));
-    height: calc(var(--control-h-lg) + var(--space-1));
+    width: var(--control-h-sm);
+    height: var(--control-h-sm);
+    margin-top: var(--space-2);
     border-radius: var(--radius-full);
     background: var(--accent);
     color: var(--on-accent);
   }
 
   .next-up-mark svg {
-    width: var(--space-6);
-    height: var(--space-6);
+    width: var(--space-5);
+    height: var(--space-5);
     fill: none;
     stroke: currentColor;
     stroke-width: 2.5;
@@ -101,39 +103,77 @@
   }
 
   .next-up-travel {
-    grid-column: 2;
+    display: contents;
   }
 
+  :global(:root .ui-key-btn.next-up-travel-btn) {
+    --key-pad: var(--space-4);
+    --key-pad-cap: var(--space-2);
+    gap: var(--space-2);
+    height: var(--control-h-sm);
+    font-size: var(--text-md);
+    box-shadow: 0 0 0 var(--space-0) var(--background-darkest);
+  }
+
+  /* A phone's top corners hold restart and pause, its top centre the lap: the ticket sits under the left pair, clear of the road. */
   @media (pointer: coarse) {
     :global(.next-up-dock) {
       position: fixed;
       top: calc(var(--inset-top) + var(--control-h) + var(--space-2));
-      left: 50%;
-      translate: -50% 0;
-      width: min(22rem, var(--phone-centre));
+      left: var(--inset-left);
+      width: min(20rem, 40vw);
     }
 
     .next-up {
       pointer-events: none;
     }
 
-    .next-up-travel {
-      pointer-events: auto;
-    }
-  }
-
-  @media (max-height: 500px) {
-    .next-up {
-      width: min(22rem, 100%);
-    }
-
     .next-up :global(.ui-ticket-reasons) {
       display: none;
     }
 
-    .next-up-mark {
-      width: var(--control-h);
-      height: var(--control-h);
+    /* Title on its own line, then the map chip and Travel side by side: three short rows clear the nitro button below. */
+    .next-up :global(.ui-ticket) {
+      grid-template-columns: auto minmax(0, 1fr);
+      align-items: center;
+      column-gap: var(--space-2);
+    }
+
+    .next-up :global(.ui-ticket-title) {
+      display: contents;
+    }
+
+    .next-up :global(:is(.ui-ticket-eyebrow, .ui-ticket-title b)) {
+      grid-column: 1 / -1;
+    }
+
+    .next-up :global(.ui-ticket-actions) {
+      margin-top: 0;
+      pointer-events: auto;
+    }
+  }
+
+  @media (pointer: coarse), (max-height: 500px) {
+    .next-up :global(.ui-ticket) {
+      padding: var(--space-2) var(--space-3);
+    }
+
+    .next-up :global(.ui-ticket-title) {
+      gap: var(--space-1) var(--space-2);
+    }
+
+    .next-up :global(.ui-ticket-title b) {
+      font-size: var(--text-lg);
+    }
+
+    .next-up :global(.ui-ticket-eyebrow) {
+      font-size: var(--text-2xs);
+    }
+  }
+
+  @media (max-height: 500px) {
+    .next-up :global(.ui-ticket-reasons) {
+      display: none;
     }
   }
 </style>

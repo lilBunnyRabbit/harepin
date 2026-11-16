@@ -3,6 +3,8 @@ import { expect, test } from "bun:test";
 import { plain_map } from "../worldgen/kinds/kinds";
 import { parse_map_code } from "../worldgen/kinds/map-code";
 import { WorldKind } from "../worldgen/types";
+import { MAINLAND_SEED, NEW_PLAYER_KIND } from "../world/world-pick";
+import { MAP_NAMES, short_name_of } from "../worlds/map-name";
 import { event_of, type CareerEvent } from "./career";
 import { event_map } from "./career-store";
 import { by_map, place_of } from "./place";
@@ -30,4 +32,16 @@ test("events group by map, the loaded map's first, then in list order", () => {
     ["1D0000005", false, ["r4", "r5"]],
   ]);
   expect(groups[1].place).toEqual({ here: false, name: "Island · Harwar", kind: WorldKind.ISLAND });
+});
+
+test("a fresh profile boots on the mainland, so First lap is on another map, named apart from the mainland", () => {
+  const boot = plain_map(NEW_PLAYER_KIND, MAINLAND_SEED);
+  const place = place_of(event_map(at("r1")), boot);
+  expect(place).toEqual({ here: false, name: "Island · Harwar", kind: WorldKind.ISLAND });
+  expect(short_name_of(boot)).not.toBe(place.here ? "" : place.name);
+});
+
+test("no two named maps share a name", () => {
+  const names = Object.values(MAP_NAMES);
+  expect(new Set(names).size).toBe(names.length);
 });
