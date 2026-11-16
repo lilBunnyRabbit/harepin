@@ -42,12 +42,11 @@ class Stage {
     const sun = new THREE.DirectionalLight(color(light), 2.4);
     sun.position.set(4, 6, 3);
     this.scene.add(sun);
-    // No ground here to multiply: the patch blends over the clear canvas, its alpha fading it out.
+    // No ground here to multiply: the patch blends over the clear canvas as a transparent mesh, as on the garage stand.
+    // The blob's fade is in the green channel the alpha map reads; used as a colour map it drew a hard dark square.
     this.shadow.material.transparent = true;
     this.shadow.material.blending = THREE.NormalBlending;
     this.shadow.material.premultipliedAlpha = false;
-    this.shadow.material.map = this.shadow.material.alphaMap;
-    this.shadow.material.alphaMap = null;
     this.scene.add(this.shadow.mesh);
   }
 
