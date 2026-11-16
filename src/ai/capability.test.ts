@@ -2,7 +2,7 @@
 import { describe, expect, test } from "bun:test";
 import { build_spec, parse_build } from "../car/build";
 import { COUPE, CARS, spec_hash } from "../car/cars";
-import { capability, measure, plan_scale, tabled_specs } from "./capability";
+import { capability, measure, plan_scale, tabled_specs, warm } from "./capability";
 import { MEASURED } from "./capability-table";
 
 /** It measures every stock car and preset: seconds idle, several times that beside a heavy run. */
@@ -44,6 +44,17 @@ describe("car capability", () => {
   test("no car inherits another car's ai block through a spread", () => {
     const blocks = Object.values(CARS).flatMap((spec) => (spec.ai ? [spec.ai] : []));
     expect(new Set(blocks).size).toBe(blocks.length);
+  });
+
+  test("a build warmed at mode load plans without measuring: the field's start reads it in a frame", () => {
+    const custom = { ...CARS.rally, mass: CARS.rally.mass + 1 };
+    let at = performance.now();
+    measure(custom);
+    const cold = performance.now() - at;
+    warm([custom]);
+    at = performance.now();
+    plan_scale(custom);
+    expect(performance.now() - at).toBeLessThan(cold / 10);
   });
 
   test("a car's ai block scales its measured grip and braking, never its drive", () => {

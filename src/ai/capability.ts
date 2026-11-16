@@ -124,6 +124,14 @@ export function capability(spec: CarSpec): Capability {
   return c;
 }
 
+/**
+ * Measures every build a field is about to plan for that the table misses: call it when the mode or field loads, as a
+ * custom build's measure takes a skidpad's worth of physics, and the field's start runs inside a frame (`Field`).
+ */
+export function warm(specs: readonly CarSpec[]) {
+  for (const spec of specs) capability(spec);
+}
+
 export function plan_scale(spec: CarSpec): PlanScale {
   const car = capability(spec);
   const ref = capability(COUPE);

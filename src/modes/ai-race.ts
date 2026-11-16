@@ -1,5 +1,6 @@
 import { build_spec, type Build } from "../car/build";
-import { CARS } from "../car/cars";
+import { CARS, type CarSpec } from "../car/cars";
+import { warm } from "../ai/capability";
 import { FieldView } from "../ai/field-view";
 import { field_builds } from "../ai/field-pick";
 import { at_difficulty } from "../ai/difficulty";
@@ -39,6 +40,7 @@ export class AiRace implements ModeRun, FieldRace {
   private readonly unplace: () => void;
   private readonly lights = new RaceLights();
   private readonly builds: Build[];
+  private readonly specs: CarSpec[];
   private readonly names: string[];
   private run: RaceRun;
   /** Built with the race, so the models are ready; the grid shows and the sim's field starts on the first update, once the ground is in. */
@@ -79,6 +81,8 @@ export class AiRace implements ModeRun, FieldRace {
     this.unplace = ctx.world.place(route.closure);
     this.laps = race_laps(route.par_ms, host.event?.limit_ms ?? null);
     this.builds = field_builds(host.build(), host.rating(), host.cars.length, route.excludes);
+    this.specs = this.builds.map(build_spec);
+    warm(this.specs);
     this.names = [...this.builds.map((b, i) => host.event?.names[i] ?? `${CARS[b.car].name} ${b.number}`), PLAYER];
     this.grid = Math.max(0, Math.min(this.builds.length, Math.trunc(host.event?.grid ?? this.builds.length)));
     this.run = this.grid_run();
@@ -121,7 +125,7 @@ export class AiRace implements ModeRun, FieldRace {
     const { route } = this.course;
     const { world } = this.ctx;
     const count = this.builds.length;
-    this.field.start(world, { route: route.id, specs: this.builds.map(build_spec), traits: at_difficulty(field_personalities(world.seed, this.host.cars.slice(0, count)), this.host.difficulty()), seed: world.seed, laps: this.laps, drive_rival: this.host.autopilot, grid: this.grid });
+    this.field.start(world, { route: route.id, specs: this.specs, traits: at_difficulty(field_personalities(world.seed, this.host.cars.slice(0, count)), this.host.difficulty()), seed: world.seed, laps: this.laps, drive_rival: this.host.autopilot, grid: this.grid });
     this.started = true;
     this.touches = this.host.sim.field_touches;
   }

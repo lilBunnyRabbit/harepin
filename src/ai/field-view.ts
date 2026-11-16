@@ -8,6 +8,7 @@ import type { Sim } from "../sim/sim-client";
 import type { FieldStart } from "../sim/sim-host";
 import type { World } from "../world/world";
 import { RouteKind, type Route } from "../worldgen/types";
+import { warm } from "./capability";
 import { grid_spot, personalities } from "./field";
 
 /** `?field=<cars>`: an AI field laps the circuit in free drive, for measuring the sim with AI before race mode has one. */
@@ -94,6 +95,7 @@ export class FieldView {
     await world.tiles.ensure(route.points[0].x, route.points[0].z);
     world.place(route.closure);
     const spec = build_spec(build);
+    warm([spec]);
     const view = new FieldView(scene, sim, Array.from({ length: count }, () => build), route);
     view.start(world, { route: route.id, specs: Array.from({ length: count }, () => spec), traits: personalities(world.seed, count), seed: world.seed });
     return view;
