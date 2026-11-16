@@ -102,6 +102,14 @@
   font-weight: 800;
 }
 
+.ui-key-btn[data-size="sm"] {
+  --key-pad: var(--space-4);
+  --key-pad-cap: var(--space-2);
+  gap: var(--space-2);
+  height: var(--control-h-sm);
+  font-size: var(--text-md);
+}
+
 .ui-key-btn .ui-glyph-cap {
   position: relative;
   min-width: 1.8em;

@@ -56,7 +56,7 @@
 
 {#snippet travel_button()}
   <span class="next-up-travel" bind:this={travel_box}>
-    <KeyButton size="md" class="next-up-travel-btn" hold={TRAVEL_HOLD_MS} onheld={travel} keys={{ key: "Hold Tab", pad: pad_label(TRAVEL_BUTTON), touch: "icon-globe" }}>Travel</KeyButton>
+    <KeyButton size="sm" hold={TRAVEL_HOLD_MS} onheld={travel} keys={{ key: "Hold Tab", pad: pad_label(TRAVEL_BUTTON), touch: "icon-globe" }}>Travel</KeyButton>
   </span>
 {/snippet}
 
@@ -106,15 +106,6 @@
     display: contents;
   }
 
-  :global(:root .ui-key-btn.next-up-travel-btn) {
-    --key-pad: var(--space-4);
-    --key-pad-cap: var(--space-2);
-    gap: var(--space-2);
-    height: var(--control-h-sm);
-    font-size: var(--text-md);
-    box-shadow: 0 0 0 var(--space-0) var(--background-darkest);
-  }
-
   /* A phone's top corners hold restart and pause, its top centre the lap: the ticket sits under the left pair, clear of the road. */
   @media (pointer: coarse) {
     :global(.next-up-dock) {
@@ -122,14 +113,11 @@
       top: calc(var(--inset-top) + var(--control-h) + var(--space-2));
       left: var(--inset-left);
       width: min(20rem, 40vw);
+      pointer-events: none;
     }
 
     .next-up {
       pointer-events: none;
-    }
-
-    .next-up :global(.ui-ticket-reasons) {
-      display: none;
     }
 
     /* Title on its own line, then the map chip and Travel side by side: three short rows clear the nitro button below. */
@@ -154,6 +142,10 @@
   }
 
   @media (pointer: coarse), (max-height: 500px) {
+    .next-up :global(.ui-ticket-reasons) {
+      display: none;
+    }
+
     .next-up :global(.ui-ticket) {
       padding: var(--space-2) var(--space-3);
     }
@@ -168,12 +160,6 @@
 
     .next-up :global(.ui-ticket-eyebrow) {
       font-size: var(--text-2xs);
-    }
-  }
-
-  @media (max-height: 500px) {
-    .next-up :global(.ui-ticket-reasons) {
-      display: none;
     }
   }
 </style>

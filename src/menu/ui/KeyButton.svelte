@@ -14,7 +14,7 @@
     onheld?: () => void;
     variant?: "fill" | "quiet";
     tone?: "primary" | "online";
-    size?: "md" | "lg";
+    size?: "sm" | "md" | "lg";
     children: Snippet;
   }
 
