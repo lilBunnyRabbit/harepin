@@ -132,7 +132,7 @@ function biomes(): SheetLayout {
 
 function flag(tier: number, open: boolean): THREE.Object3D {
   const event = TIERS[tier].events[0];
-  const view = new MarkerView([{ event, x: 0, z: 0, heading: 0, tier, arrive: { x: 0, z: -6, heading: 0 } }], () => 0);
+  const view = new MarkerView([{ event, x: 0, z: 0, heading: 0, tier }], () => 0);
   view.show(() => open);
   return view.root;
 }

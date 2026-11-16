@@ -37,11 +37,8 @@ export interface Pose {
   heading: number;
 }
 
-interface RoadQuery {
-  /** The nearest road's middle to `x, z`, facing along it the way `fx, fz` points. */
-  spawn_near(x: number, z: number, fx: number, fz: number): Pose;
-  on_road(x: number, z: number): boolean;
-}
+/** The nearest road's middle to `x, z`, facing along it the way `fx, fz` points (`World.spawn_near`). */
+type SpawnNear = (x: number, z: number, fx: number, fz: number) => Pose;
 
 type StartAt = (world: World, start_index: number, level: string) => Pose | null;
 
@@ -79,8 +76,6 @@ export interface Marker {
   readonly x: number;
   readonly z: number;
   readonly heading: number;
-  /** Where Go puts the car: on the road before the flag, facing past it. Stopping here opens the card too. */
-  readonly arrive: Pose;
   /** 0 Rookie, 1 Club, 2 Pro: the tier's metal. */
   readonly tier: number;
 }
@@ -100,13 +95,14 @@ export function event_markers(world: World, start_index: number, events: readonl
     if (!start) continue;
     const tier = TIERS.indexOf(tier_of(event));
     const flag = clear_of(placed, beside(start, aside));
-    placed.push({ event, tier, ...flag, arrive: arrival(flag, aside, world) });
+    placed.push({ event, tier, ...flag });
   }
   return placed;
 }
 
-/** `aside`: the flag stands beside the road on open ground (`event_markers`), not inside a track's edge. */
-export function arrival(flag: Pose, aside: boolean, road: RoadQuery): Pose {
+/** Where Go puts the car for `flag`: in its lane on the road before it, facing past it. `aside`: the flag stands beside
+ * the road on open ground (`event_markers`), not inside a track's edge. Read once the ground around the flag is in. */
+export function arrival(flag: Pose, aside: boolean, spawn_near: SpawnNear): Pose {
   const { heading } = flag;
   const fx = sin(heading);
   const fz = cos(heading);
@@ -118,21 +114,12 @@ export function arrival(flag: Pose, aside: boolean, road: RoadQuery): Pose {
   const lane = Math.min(LANE, off - POLE_CLEAR);
   const lx = flag.x + rx * off + fx * before;
   const lz = flag.z + rz * off + fz * before;
-  const near = road.spawn_near(lx - fx * back, lz - fz * back, fx, fz);
+  const near = spawn_near(lx - fx * back, lz - fz * back, fx, fz);
   if (hypot(near.x - lx + fx * back, near.z - lz + fz * back) < SNAP)
     return { x: near.x - cos(near.heading) * lane, z: near.z + sin(near.heading) * lane, heading: near.heading };
-  const x = lx - rx * lane;
-  const z = lz - rz * lane;
-  const behind = road.on_road(x, z) ? road_back(road, x, z, fx, fz, back) : aside ? back : 0;
-  return { x: x - fx * behind, z: z - fz * behind, heading };
-}
-
-// The road behind the line is short (it starts there, or the snap shifted off a no-spawn stretch): back only as far as
-// it runs. A start off the road (a gymkhana or parking site) has open ground behind it; a track in the air has nothing.
-function road_back(road: RoadQuery, x: number, z: number, fx: number, fz: number, most: number): number {
-  let back = 0;
-  while (back < most && road.on_road(x - fx * (back + 1), z - fz * (back + 1))) back++;
-  return back;
+  // No road runs that far behind the line. Open ground does, so the flag stays ahead; the air behind a track does not.
+  const behind = aside ? back : 0;
+  return { x: lx - rx * lane - fx * behind, z: lz - rz * lane - fz * behind, heading };
 }
 
 function beside(start: Pose, aside: boolean): Pose {
@@ -157,7 +144,7 @@ export function marker_at(markers: readonly Marker[], x: number, z: number): Mar
   let best: Marker | null = null;
   let best_d = MARKER_REACH;
   for (const m of markers) {
-    const d = Math.min(hypot(m.x - x, m.z - z), hypot(m.arrive.x - x, m.arrive.z - z));
+    const d = hypot(m.x - x, m.z - z);
     if (d < best_d) {
       best = m;
       best_d = d;

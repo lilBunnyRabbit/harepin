@@ -1,4 +1,5 @@
 import type * as THREE from "three";
+import { hypot } from "../sim-math";
 import { rgba } from "../theme/palette";
 import type { World } from "../world/world";
 import { chunk_of } from "../worldgen/chunk-grid";
@@ -7,7 +8,7 @@ import type { CareerEvent } from "./career";
 import type { Career } from "./career-store";
 import { GateCard, type GateHost } from "./gate-card.svelte";
 import { MarkerView, marker_tone } from "./marker-view";
-import { event_markers, marker_at, marker_open, type MapMarker, type Marker } from "./markers";
+import { arrival, event_markers, marker_at, marker_open, MARKER_REACH, type MapMarker, type Marker, type Pose } from "./markers";
 
 const NONE: readonly MapMarker[] = [];
 // Driving past a flag at speed, a lap past the start line on Sky Track included, never pops the card.
@@ -25,6 +26,8 @@ export class EventMarkers {
   private shown: readonly MapMarker[] | null = null;
   private drawn = -1;
   private at: Marker | null = null;
+  /** The flag Go last put the car before, and where: its card opens there until the car, once there, drives off. */
+  private arrived: { marker: Marker; x: number; z: number; reached: boolean } | null = null;
   private readonly open = (marker: Marker) => marker_open(marker, this.career.stars, this.tune);
 
   constructor(
@@ -44,10 +47,17 @@ export class EventMarkers {
     return true;
   }
 
-  /** Where Go puts the car for an event on this map; null until its flag is placed. */
-  spot(id: string): { x: number; z: number; heading: number } | null {
-    const m = this.markers.find((one) => one.event.id === id);
-    return m?.arrive ?? null;
+  /** An event's flag on this map; null until it is placed. */
+  flag(id: string): Marker | null {
+    return this.markers.find((one) => one.event.id === id) ?? null;
+  }
+
+  /** Where Go puts the car for `marker`, read once the ground around it is in; its card opens there. */
+  arrive(marker: Marker): Pose {
+    const { world } = this;
+    const at = world ? arrival(marker, KINDS[world.kind].open_ground, (x, z, fx, fz) => world.spawn_near(x, z, fx, fz)) : marker;
+    this.arrived = { marker, x: at.x, z: at.z, reached: false };
+    return at;
   }
 
   // A compact world's gymkhana and parking sites read terrain anywhere, so its flags wait for the whole map. A streamed
@@ -82,9 +92,20 @@ export class EventMarkers {
       this.shown = icons;
       this.on_map?.(icons);
     }
-    const at = idle && speed < SLOW ? marker_at(this.markers, x, z) : null;
+    const held = this.held(x, z);
+    const at = idle && speed < SLOW ? (marker_at(this.markers, x, z) ?? held) : null;
     this.at = at;
     this.card.show(at, at !== null && open(at), career.stars);
+  }
+
+  // The sim takes a frame to move the car to the arrival spot, so only leaving it after being there lets go.
+  private held(x: number, z: number): Marker | null {
+    const { arrived } = this;
+    if (!arrived) return null;
+    const there = hypot(arrived.x - x, arrived.z - z) <= MARKER_REACH;
+    if (there) arrived.reached = true;
+    else if (arrived.reached) this.arrived = null;
+    return there ? arrived.marker : null;
   }
 
   // A dropped chunk keeps its flag: the ground it stands on never changes, and it sits out in the fog by then.

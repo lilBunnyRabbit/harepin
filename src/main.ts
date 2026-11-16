@@ -556,12 +556,12 @@ function start_event(id: string) {
 }
 // An event on this map is a drive to its flag, where the card shows its marks and car; elsewhere it travels.
 function go_event(id: string) {
-  const spot = markers.spot(id);
-  if (!spot) return start_event(id);
+  const flag = markers.flag(id);
+  if (!flag) return start_event(id);
   if (lobby.busy) return hud.toast("Lobby race is running");
   settings.close();
   if (modes.active) modes.exit();
-  void driver.place_near(spot.x, spot.z, spot.heading);
+  void driver.place_near(flag.x, flag.z, () => markers.arrive(flag));
 }
 function start_series(id: string) {
   const at = series?.findIndex((one) => one.event(id)) ?? -1;
