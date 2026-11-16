@@ -48,6 +48,8 @@ interface State {
   /** Absent on runs from before them: SPAN, and not hard. */
   span?: number;
   hard?: boolean;
+  /** Absent on runs from before it: 0. */
+  eps?: number;
   cma: Cma;
   done: Record<string, Eval>;
   gens: { sigma: number; candidates: { ai: CarAi; loss: number }[] }[];
@@ -185,8 +187,8 @@ async function fit(car: string) {
   const box = (k: (typeof KEYS)[number]) => [start[k] * (1 - span), start[k] * (1 + span)] as const;
   const to_ai = (x: readonly number[]): CarAi => from_list(KEYS.map((k, i) => Number((box(k)[0] + (box(k)[1] - box(k)[0]) * x[i]).toFixed(4))));
   let st = read_json<State>(path);
-  if (st && (st.car !== car || st.train !== train || ai_key(st.start) !== ai_key(start) || (st.span ?? SPAN) !== span || (st.hard ?? false) !== hard)) throw new Error(`${path} was started on ${st.car} ${st.train} from ${ai_key(st.start)} span ${st.span ?? SPAN}${st.hard ? " hard" : ""}`);
-  st ??= { car, train, start, span, hard, cma: cma_init([0.5, 0.5, 0.5], sigma), done: {}, gens: [] };
+  if (st && (st.car !== car || st.train !== train || ai_key(st.start) !== ai_key(start) || (st.span ?? SPAN) !== span || (st.hard ?? false) !== hard || (st.eps ?? 0) !== eps)) throw new Error(`${path} was started on ${st.car} ${st.train} from ${ai_key(st.start)} span ${st.span ?? SPAN}${st.hard ? " hard" : ""} eps ${st.eps ?? 0}`);
+  st ??= { car, train, start, span, hard, eps, cma: cma_init([0.5, 0.5, 0.5], sigma), done: {}, gens: [] };
   const state = st;
   const save = () => write_json(path, state);
   const pool = new Pool<MlJob, MlResult>(new URL("./worker.ts", import.meta.url), jobs);
