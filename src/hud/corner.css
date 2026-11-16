@@ -413,3 +413,10 @@
     --dial: 136px;
   }
 }
+
+/* The other layouts keep the map top right on a desk, so it starts under the pause button. */
+@media (pointer: fine) {
+  :root:not([data-hud="classic"]) .top-right {
+    top: calc(var(--inset-top) + var(--bar-h) + var(--space-2));
+  }
+}

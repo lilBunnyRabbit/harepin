@@ -131,9 +131,16 @@
     text-overflow: ellipsis;
   }
 
-  /* Restart lives in the pause sheet on a phone. */
+  /* Restart holds the top left, rewind beside it: an anchor to the strip or the mode status, both later in the page, would not resolve. */
   :root[data-hud] #restart-lap {
-    display: none;
+    position: fixed;
+    top: var(--inset-top);
+    left: var(--inset-left);
+    width: var(--control-h);
+    height: var(--control-h);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-full);
+    background: var(--surface);
   }
 
   #hud-menu-btn {
@@ -237,7 +244,7 @@
 
   :root[data-hud] .touch-buttons {
     top: var(--inset-top);
-    left: var(--inset-left);
+    left: calc(var(--inset-left) + var(--phone-slot));
     right: auto;
   }
 
