@@ -346,7 +346,6 @@ Pastes go in `docs/lab/sessions/` (its README); `bun scripts/lab.ts diff <old> <
 | `src/lab/results-store.ts` | the stored-numbers writer and reader |
 | `src/lab/field-rows.ts` | a race trial's field rows: from the race's places and the field's counts, their export lines and stored-rows reader |
 | `src/lab/lab-view.svelte.ts`, `LabOverlay.svelte`, `TrialList.svelte`, `TrialBrief.svelte`, `ResultCard.svelte`, `Scale.svelte`, `More.svelte` | the overlay: strip, pack card, brief, results and question card, the More fold |
-
 | `src/lab/pass-trace.ts` | a race trial's passes and grid samples, the corner phases off the AI's line; `scripts/ai-ml/pass-read.ts`, `passes.ts` and `pass-self.ts` read, print and self-drive them |
 | `src/lab/budget.ts` | drive time per trial and the session caps |
 | `scripts/lab.ts`, `scripts/lab/*.ts` | sim lines per trial, the setup matrix, their worker pool |
