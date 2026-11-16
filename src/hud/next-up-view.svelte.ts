@@ -1,10 +1,9 @@
 import { mount } from "svelte";
-import { MAX_EVENT_STARS, TIERS, tier_of, type Stars } from "../career/career";
+import { MAX_EVENT_STARS, type Stars } from "../career/career";
+import { event_ticket, type EventTicket } from "../career/event-ticket";
 import { HOLD_EVENT } from "../menu/dom";
 import { mode_name } from "../modes/modes";
-import type { TierBadge } from "../net/net";
 import type { MapMarker } from "../career/markers";
-import type { Place } from "../career/place";
 import type { MapSpec } from "../worldgen/kinds/kinds";
 import { arrow_turn, next_up } from "./next-up";
 import NextUp from "./NextUp.svelte";
@@ -14,13 +13,9 @@ const DISTANCE_STEP = 10;
 /** RB in the standard pad layout: held, it travels to a ticket on another map. */
 export const TRAVEL_BUTTON = 5;
 
-export interface NextUpTicket {
+export interface NextUpTicket extends EventTicket {
   id: string;
-  tier: TierBadge;
-  eyebrow: string;
-  title: string;
   line: string;
-  place: Place;
 }
 
 export interface NextUpHost {
@@ -82,17 +77,9 @@ function ticket_of(stars: Stars, here: MapSpec): NextUpTicket | null {
   const up = next_up(stars, here);
   if (!up) return null;
   const { event, place } = up;
-  const tier = tier_of(event);
   const have = stars[event.id] ?? 0;
   const run = have ? `best ${have} of ${MAX_EVENT_STARS} ★` : "not run yet";
-  return {
-    id: event.id,
-    tier: (TIERS.indexOf(tier) + 1) as TierBadge,
-    eyebrow: place.here ? `Next up · ${tier.name} ${tier.events.indexOf(event) + 1} of ${tier.events.length}` : "Next up · on another map",
-    title: event.name,
-    line: `${mode_name(event)} · ${run}`,
-    place,
-  };
+  return { ...event_ticket(event, place), id: event.id, line: `${mode_name(event)} · ${run}` };
 }
 
 export function show_next_up(host: NextUpHost): NextUpView {

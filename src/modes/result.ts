@@ -1,8 +1,8 @@
-import { TIERS, tier_of, type CareerEvent } from "../career/career";
+import type { CareerEvent } from "../career/career";
 import { event_map } from "../career/career-store";
+import { event_ticket, type EventTicket } from "../career/event-ticket";
 import { place_of, type Place } from "../career/place";
 import { format } from "../hud/hud";
-import type { TierBadge } from "../net/net";
 import type { MapSpec } from "../worldgen/kinds/kinds";
 import type { WorldKind } from "../worldgen/types";
 import type { Hits } from "./hits";
@@ -49,28 +49,16 @@ export function time_lines(ms: number, hits: Hits | null): HTMLElement[] {
 }
 
 /** The career event a result's Next goes to, as its card shows it. */
-export interface NextTicket {
-  tier: TierBadge;
-  eyebrow: string;
-  title: string;
+export interface NextTicket extends EventTicket {
   /** The event's mode name. */
   mode: string;
-  place: Place;
   /** The world kind its map picture shows. */
   kind: WorldKind;
 }
 
 export function next_ticket(event: CareerEvent, here: MapSpec, mode: string): NextTicket {
-  const tier = tier_of(event);
   const map = event_map(event);
-  return {
-    tier: (TIERS.indexOf(tier) + 1) as TierBadge,
-    eyebrow: `Next up · ${tier.name} ${tier.events.indexOf(event) + 1} of ${tier.events.length}`,
-    title: event.name,
-    mode,
-    place: place_of(map, here),
-    kind: map.kind,
-  };
+  return { ...event_ticket(event, place_of(map, here)), mode, kind: map.kind };
 }
 
 /** Go starts an event on this map; another map is a Travel. */
