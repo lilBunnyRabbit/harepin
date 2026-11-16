@@ -19,12 +19,18 @@
     else if (!view.shown && dialog.open) dialog.close();
   });
 
+  // The dialog closes before the act: a later close hands focus back to whatever had it, over the settings or chat input the act focused.
+  function choose(pick: PauseAct) {
+    dialog.close();
+    view.act(pick);
+  }
+
   function key(event: KeyboardEvent) {
     if (event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
-    const act = KEYS[event.code];
-    if (act) {
+    const pick = KEYS[event.code];
+    if (pick) {
       event.preventDefault();
-      return view.act(act);
+      return choose(pick);
     }
     const step = STEP[event.key];
     if (step === undefined) return;
@@ -38,9 +44,9 @@
 <dialog bind:this={dialog} class="pause" aria-label="Paused" onclose={() => view.close()} onkeydown={key}>
   {#if view.card && view.aids}
     {#if view.card.kind === "roam"}
-      <PauseRoam card={view.card} aids={view.aids} solo={view.solo} onact={(act) => view.act(act)} onflip={(aid) => view.flip(aid)} onresume={() => view.close()} />
+      <PauseRoam card={view.card} aids={view.aids} solo={view.solo} onact={choose} onflip={(aid) => view.flip(aid)} onresume={() => view.close()} />
     {:else}
-      <PauseEvent card={view.card} aids={view.aids} solo={view.solo} onact={(act) => view.act(act)} onflip={(aid) => view.flip(aid)} onresume={() => view.close()} />
+      <PauseEvent card={view.card} aids={view.aids} solo={view.solo} onact={choose} onflip={(aid) => view.flip(aid)} onresume={() => view.close()} />
     {/if}
   {/if}
 </dialog>
