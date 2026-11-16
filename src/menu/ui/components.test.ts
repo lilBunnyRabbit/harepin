@@ -15,6 +15,7 @@ import KeyButton from "./KeyButton.svelte";
 import Link from "./Link.svelte";
 import NameChip from "./NameChip.svelte";
 import PageHead from "./PageHead.svelte";
+import PlaceChip from "./PlaceChip.svelte";
 import Progress from "./Progress.svelte";
 import Row from "./Row.svelte";
 import RowList from "./RowList.svelte";
@@ -264,6 +265,16 @@ describe("ui components", () => {
     expect(out).toContain("--hold-ms: 600ms");
     expect(out).not.toContain("data-holding");
     expect(out).not.toContain("ui-glyph");
+  });
+
+  test("PlaceChip reads Here on this map and the short map name elsewhere", () => {
+    const here = html(PlaceChip, { place: { here: true } });
+    expect(here).toContain("data-here");
+    expect(here).toContain("Here");
+    const away = html(PlaceChip, { place: { here: false, name: "Dune sea · Lowhol", kind: "dunes" } });
+    expect(away).not.toContain("data-here");
+    expect(away).toContain("#icon-globe");
+    expect(away).toContain("Dune sea · Lowhol");
   });
 
   test("Ticket shows its tier edge, stars and at most three reasons", () => {
