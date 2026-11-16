@@ -177,6 +177,12 @@ describe("owner reference laps", () => {
     const [, old] = owner_laps(walked, road, off_stadium(road));
     expect(old.flaws).toEqual(["rewind"]);
     expect(Math.abs(old.t - clean.t)).toBeLessThan(0.1);
+    // A placement mid walk: the recorder searched the whole route for it, so its point is right again.
+    const mid = land + 4;
+    const reset = { ...walked, resets: [walked.samples[mid].t], samples: walked.samples.map((q, k) => (k >= mid ? rewound.samples[k] : q)) };
+    const [, placed] = owner_laps(reset, road, off_stadium(road));
+    expect(placed.flaws).toEqual(["reset", "rewind"]);
+    expect(placed.spoilt.filter((f) => f === "reset").length).toBeLessThanOrEqual(2);
     const [, short] = owner_laps(traced(road, { rewind: [25, 0.2] }), road, off_stadium(road));
     expect(short.flaws).toEqual(["rewind"]);
     expect(Math.abs(short.t - clean.t)).toBeLessThan(0.1);

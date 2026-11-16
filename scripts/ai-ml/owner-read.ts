@@ -262,10 +262,13 @@ export function owner_laps(trial: TracedTrial, road: readonly RoadPoint[], off: 
   return laps;
 }
 
-/** The fastest lap with no off, spin or reset (a rewind is fine); `flagged` when every lap has one and the fastest stands in. */
+/** A lap whose time and corners are the owner's own driving: no off, spin, reset or hole; a rewind is fine. */
+export const honest = (lap: { flaws: readonly Flaw[] }) => lap.flaws.every((f) => f === Flaw.REWIND);
+
+/** The fastest honest lap; `flagged` when no lap is and the fastest stands in. */
 export function best_lap(laps: readonly OwnerLap[]): { lap: OwnerLap; flagged: boolean } | null {
   const fastest = (of: readonly OwnerLap[]) => of.reduce((a, b) => (b.t < a.t ? b : a));
-  const honest = laps.filter((l) => l.flaws.every((f) => f === Flaw.REWIND));
-  if (honest.length) return { lap: fastest(honest), flagged: false };
+  const kept = laps.filter(honest);
+  if (kept.length) return { lap: fastest(kept), flagged: false };
   return laps.length ? { lap: fastest(laps), flagged: true } : null;
 }

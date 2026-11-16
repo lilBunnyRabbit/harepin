@@ -11,7 +11,7 @@ import { autolaps } from "../ai-tune/race";
 import { AI_HASH, DIR, write_json } from "./cache";
 import { ai_lap, track_of } from "./drive";
 import { lifts, lifts_table, owner_table } from "./owner-gap";
-import { best_lap, Flaw, owner_laps, read_export, type OwnerLap, type TracedTrial } from "./owner-read";
+import { best_lap, Flaw, honest, owner_laps, read_export, type OwnerLap, type TracedTrial } from "./owner-read";
 
 // bun scripts/ai-ml/owner.ts <file>...: the owner's reference laps (`?lab=ai-ref-*`, src/lab/packs/ai-ref.ts) from
 // the lab's Download files (`<pack>-<date>.txt`) as saved, or pasted Copy blocks. Per traced trial: every lap and what
@@ -126,8 +126,8 @@ if (import.meta.main) {
   if (!trials.length) throw new Error("no traced trial in the paste: drive a ?lab=ai-ref-* pack and Download");
   const rows = trials.map((trial) => {
     const r = report(trial);
-    return r ? `| ${trial.pack} | ${trial.id} | ${r.laps.filter((l) => l.flaws.every((f) => f === Flaw.REWIND)).length}/${r.laps.length} | ${r.best.toFixed(2)}${r.laps[r.best_lap].flaws.length ? ` (${r.laps[r.best_lap].flaws.join(", ")}${r.best_flagged ? "; flagged" : ""})` : ""} | ${r.standing?.toFixed(2) ?? "-"} | ${r.ai.t.toFixed(2)} | ${r.gain === null ? "-" : `${(r.gain * 100).toFixed(1)}%`} | ${r.ratio?.toFixed(3) ?? "-"} |` : `| ${trial.pack} | ${trial.id} | 0 laps | - | - | - | - | - |`;
+    return r ? `| ${trial.pack} | ${trial.id} | ${r.laps.filter(honest).length}/${r.laps.length} | ${r.best.toFixed(2)}${r.laps[r.best_lap].flaws.length ? ` (${r.laps[r.best_lap].flaws.join(", ")}${r.best_flagged ? "; flagged" : ""})` : ""} | ${r.standing?.toFixed(2) ?? "-"} | ${r.ai.t.toFixed(2)} | ${r.gain === null ? "-" : `${(r.gain * 100).toFixed(1)}%`} | ${r.ratio?.toFixed(3) ?? "-"} |` : `| ${trial.pack} | ${trial.id} | 0 laps | - | - | - | - | - |`;
   });
-  console.log(["| pack | trial | laps without off, spin, reset | best s | standing s | AI s | standing under AI | standing over autolap |", "|---|---|---|---|---|---|---|---|", ...rows].join("\n"));
+  console.log(["| pack | trial | laps without off, spin, reset, hole | best s | standing s | AI s | standing under AI | standing over autolap |", "|---|---|---|---|---|---|---|---|", ...rows].join("\n"));
   console.log(`gap reports in ${DIR}/owner`);
 }
