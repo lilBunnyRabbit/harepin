@@ -5,7 +5,7 @@ import { length } from "./noise";
 import type { Junction } from "./road-layers";
 import type { TownLoop } from "./town-circuit";
 import type { Trail } from "./trails";
-import { ROAD_HALF, RouteKind, SIDEWALK, STREET_HALF, type Checkpoint, type Item, type Ramp, type RoadEdge, type RoadGraph, type RoadPoint, type Route, type Town } from "./types";
+import { ROAD_HALF, RouteKind, SIDEWALK, STREET_HALF, type Checkpoint, type Item, type Ramp, type RoadEdge, type RoadGraph, type RoadPoint, type Route, type Solid, type Town } from "./types";
 import { atan2 } from "../sim-math";
 
 const STREET_COST = 0.6;
@@ -108,6 +108,24 @@ function par(points: readonly RoadPoint[], closed: boolean, share = PAR_SHARE): 
 }
 
 export const heading = (p: { tx: number; tz: number }) => atan2(p.tx, p.tz);
+
+const POST_OFF = ROAD_HALF + 1.7;
+
+export function loop_gates(road: readonly RoadPoint[], at: readonly number[], heights: Float32Array): { checkpoints: Checkpoint[]; posts: Solid[] } {
+  const checkpoints: Checkpoint[] = [];
+  const posts: Solid[] = [];
+  at.forEach((k, index) => {
+    const p = road[k];
+    checkpoints.push({ x: p.x, y: p.y, z: p.z, heading: atan2(p.tx, p.tz), index });
+    for (const side of [-1, 1]) {
+      const off = side * POST_OFF;
+      const x = p.x - p.tz * off;
+      const z = p.z + p.tx * off;
+      posts.push({ kind: "circle", x, y: sample(heights, x, z), z, radius: 0.5, height: 7 });
+    }
+  });
+  return { checkpoints, posts };
+}
 
 /** The race loop as a route: the circuit's own gates, the start line moved to the end as the finish. */
 export function circuit_route(road: readonly RoadPoint[], checkpoints: readonly Checkpoint[], share = PAR_SHARE): Route {
