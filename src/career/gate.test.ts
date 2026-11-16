@@ -47,3 +47,14 @@ test("a car over the cap does not fit", () => {
   const over = shelves.flatMap((s) => s.choices).find((c) => c.blocked !== null);
   expect(over && fits(shelves, over.code)).toBe(false);
 });
+
+test("cars the event's size or route rules out are greyed and never the first pick", () => {
+  const limited = car_shelves(DEFAULT_BUILD, [], open_presets([]), { cap: CarClass.C, car_sized_only: true, excludes: [DEFAULT_BUILD.car] });
+  const row = gate_row(limited, null);
+  const own = row.find((c) => c.own);
+  expect(own?.blocked).not.toBeNull();
+  expect(row.some((c) => c.blocked === "Too big for this mode")).toBe(true);
+  const pick = first_pick(row);
+  expect(pick !== null && fits(limited, pick)).toBe(true);
+  expect(own && fits(limited, own.code)).toBe(false);
+});

@@ -316,7 +316,7 @@ export class Modes implements CarHooks {
     const event = held_car(asked, unlocks(this.career.stars).cars);
     // A stand-in runs one level on another map; a championship's stages name their levels on its own map only.
     if (event.stages && event.stand_in) return this.notice(NO_EVENT);
-    const legs = this.legs(event.stages ?? [{ mode: event.mode, level: spot_of(event).level, name: event.name }]);
+    const legs = this.event_legs(event);
     if (!legs) return this.notice(NO_EVENT);
     if (this.world.tiles.streamed && legs.some((leg) => !leg.mode.def.streams)) return this.notice(STREAMED);
     const [{ mode, level }] = legs;
@@ -343,6 +343,10 @@ export class Modes implements CarHooks {
       const cup = event.stages ? { cup: new Cup(event.stages, event.stars), legs } : null;
       this.begin(mode, level, play?.track ?? event_track(event, local_store()), event, play, cup);
     });
+  }
+
+  private event_legs(event: CareerEvent): Leg[] | null {
+    return this.legs(event.stages ?? [{ mode: event.mode, level: spot_of(event).level, name: event.name }]);
   }
 
   private legs(stages: readonly Stage[]): Leg[] | null {
@@ -377,7 +381,7 @@ export class Modes implements CarHooks {
   /** What a class-capped event's car must meet on this map; null for a fixed car or a level this map lacks. */
   event_limit(event: CareerEvent): CarLimit | null {
     if (!("cap" in event.car)) return null;
-    const legs = this.legs(event.stages ?? [{ mode: event.mode, level: spot_of(event).level, name: event.name }]);
+    const legs = this.event_legs(event);
     return legs && this.limit(event.car.cap, legs);
   }
 
