@@ -10,7 +10,7 @@ export interface Capability {
   /** m/s²: steady cornering at SLOW_AT and FAST_AT m/s, the hairpin and the fast bend of the line's grip. */
   slow: number;
   fast: number;
-  /** m/s²: full brake down to BRAKE_TO from where the launch stops, POWER_BAND's top, or from BRAKE_FROM (or the car's top under it) when the launch ran out of time short of that. */
+  /** m/s²: full brake down to BRAKE_TO from the launch's end speed (POWER_BAND's top, or less when LAUNCH_TIME ran out), or from BRAKE_FROM (or the car's top under it) when that end is under BRAKE_FROM. */
   brake: number;
   /** m/s²: the most full throttle pulls between DRIVE_BAND m/s, where traction sets it. */
   drive: number;
