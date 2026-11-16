@@ -28,7 +28,7 @@
   background: var(--primary);
 }
 
-:root:has(#chat-unread:not([hidden])) .unread-dot {
+:root[data-unread] .unread-dot {
   display: block;
 }
 
@@ -76,7 +76,7 @@
     --phone-centre: calc(100vw - 2 * (max(var(--inset-left), var(--inset-right)) + max(3 * var(--phone-slot), var(--pedals)) + var(--space-3)));
   }
 
-  :root[data-hud] :is(.actions, .dock-break, .assists, #online-chip) {
+  :root[data-hud] :is(.dock-break, .assists, #online-chip) {
     display: none;
   }
 
@@ -142,13 +142,76 @@
     top: var(--inset-top);
     left: 50%;
     translate: -50% 0;
+    display: flex;
+    align-items: stretch;
     max-width: var(--phone-centre);
-    padding: calc((var(--control-h) - 1lh) / 2 - 1px) var(--space-4);
+    height: var(--control-h);
+    padding: 0;
+    overflow: hidden;
     font-size: var(--text-lg);
-    line-height: 1.4;
-    white-space: normal;
-    text-align: center;
-    text-wrap: balance;
+    white-space: nowrap;
+  }
+
+  :root[data-hud] #mode-status > :not(:empty),
+  :root[data-hud] #mode-status[data-cup]::before {
+    display: flex;
+    align-items: center;
+    margin: 0;
+    padding: 0 var(--space-4);
+  }
+
+  :root[data-hud] #mode-status > :not(:empty) ~ :not(:empty),
+  :root[data-hud] #mode-status[data-cup] > :not(:empty) {
+    border-left: 1px solid var(--line);
+  }
+
+  :root[data-hud] #mode-status > :not(:empty) ~ :not(:empty)::before {
+    content: none;
+  }
+
+  /* The phone card keeps the figures; the event's name shows only when there is no clock to show. */
+  :root[data-hud] #mode-status:not(:has(#mode-status-clock:empty)) #mode-status-name {
+    display: none;
+  }
+
+  :root[data-hud] :is(#mode-status-clock, #mode-status-more) {
+    font-family: var(--font-mono);
+    font-weight: 700;
+  }
+
+  :root[data-hud] #mode-status-clock {
+    color: var(--cottontail);
+  }
+
+  :root[data-scheme="light"][data-hud] #mode-status-clock {
+    color: var(--foreground);
+  }
+
+  /* Hack's `ch` is its one glyph width: "M:SS.sss" is 8 of them. */
+  :root[data-hud] #mode-status-clock[data-time] {
+    box-sizing: content-box;
+    width: 8ch;
+    height: auto;
+  }
+
+  :root[data-hud] #mode-status-clock[data-time="9"] {
+    width: 9ch;
+  }
+
+  :root[data-hud] #mode-status-more {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Roaming keeps the top clear like a run does, restart staying beside the menu button. */
+  :root[data-hud] #strip[data-idle] {
+    display: contents;
+    anchor-name: none;
+  }
+
+  :root[data-hud] #strip[data-idle] > div {
+    display: none;
   }
 
   /* A mode run brings its own status line in the strip's place; restart stays. */

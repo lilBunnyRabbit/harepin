@@ -13,44 +13,6 @@
   position: static;
 }
 
-.top-left {
-  anchor-name: --title-bar;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  min-height: var(--bar-h);
-  padding: var(--space-2) var(--space-3);
-}
-
-.title {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.title .brand {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  height: var(--control-h);
-  font-size: var(--text-xl);
-  font-weight: 600;
-  letter-spacing: -0.011em;
-  white-space: nowrap;
-  color: var(--foreground);
-}
-
-.title .logo {
-  width: 20px;
-  height: 18px;
-  color: var(--primary);
-}
-
-.title .dim {
-  margin-right: var(--space-2);
-  font-size: var(--text-sm);
-}
-
 .times {
   display: grid;
   grid-template-columns: auto auto;
@@ -76,12 +38,6 @@
 #cp {
   font-family: var(--font-sans);
   font-weight: 600;
-}
-
-@media (pointer: coarse) {
-  .top-left {
-    padding: var(--space-1) var(--space-2);
-  }
 }
 
 #strip {
@@ -152,8 +108,6 @@
 
 @media (pointer: fine) and (max-width: 1199px) {
   #strip {
-    left: calc(anchor(--actions right) + var(--space-2));
-    translate: none;
     gap: var(--space-4);
     padding-inline: var(--space-4);
   }
@@ -179,23 +133,6 @@
   }
 }
 
-.title #room {
-  display: inline-block;
-  max-width: 12ch;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  vertical-align: bottom;
-}
-
-/* Centred, the strip runs into the title bar below about 1440px, so it docks beside it instead. */
-@media (pointer: fine) and (max-width: 1439px) {
-  #strip {
-    left: calc(anchor(--actions right) + var(--space-2));
-    translate: none;
-  }
-}
-
 .dock-top {
   flex-direction: row;
   flex-wrap: wrap;
@@ -206,34 +143,8 @@
   height: 0;
 }
 
-.actions {
-  anchor-name: --actions;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: var(--bar-h);
-  padding: 0 var(--space-3);
-}
-
-@media (pointer: fine) {
-  #strip {
-    left: calc(anchor(--actions right) + var(--space-2));
-    translate: none;
-  }
-}
-
-@media (pointer: coarse) {
-  .actions {
-    padding: var(--space-1) var(--space-2);
-  }
-}
-
 #restart-lap {
   align-self: center;
-}
-
-#modes-btn {
-  padding-inline: var(--space-2) var(--space-3);
 }
 
 #strip[data-idle] > div:nth-child(2) {
@@ -246,15 +157,6 @@
 }
 
 @media (pointer: coarse) {
-  .dock-top .top-left {
-    display: none;
-  }
-
-  .actions {
-    gap: var(--space-1);
-    padding: var(--space-1);
-  }
-
   /* The dock's own box spans its wrapped rows; only its panels take touches, the gaps between them steer. */
   .dock-top {
     pointer-events: none;
@@ -262,15 +164,6 @@
 
   .dock-top > * {
     pointer-events: auto;
-  }
-
-  #modes-btn {
-    width: var(--control-h);
-    padding: 0;
-  }
-
-  #modes-btn span {
-    display: none;
   }
 
   #strip[data-idle] .lap,
@@ -303,10 +196,6 @@
     background: none;
   }
 
-  :root[data-calm] .actions {
-    opacity: 0.3;
-  }
-
   :root[data-calm] #strip[data-idle] {
     opacity: 0;
   }
@@ -318,36 +207,13 @@
   font-size: 24px;
 }
 
-/* Centred, the strip meets the button bar below 1600px; there it keeps the Classic spot. */
-@media (pointer: fine) and (min-width: 1600px) {
-  :root[data-hud="racing"] #strip {
-    left: 50%;
-    translate: -50% 0;
-  }
-}
 
-:root[data-hud="minimal"] .dock-top .top-left,
 :root[data-hud="minimal"] #strip[data-idle],
 :root[data-hud="minimal"] #strip > div:nth-child(2),
 :root[data-hud="minimal"] #strip > div:nth-child(3),
-:root[data-hud="compact"] .dock-top .top-left,
 :root[data-hud="compact"] #strip > div:nth-child(2),
 :root[data-hud="compact"] #strip > div:nth-child(3) {
   display: none;
-}
-
-:root[data-hud="minimal"][data-calm] .actions {
-  opacity: 0.3;
-}
-
-:root[data-hud="compact"] .dock-top {
-  anchor-name: --top-dock;
-}
-
-@media (pointer: fine) {
-  :root[data-hud="compact"] .dock-top .actions {
-    min-height: var(--bar-h);
-  }
 }
 
 /* Event title: icon, name and timer, with the rest of the lap a small line under it. */
@@ -419,43 +285,8 @@
 }
 
 @media (pointer: coarse) {
-  :root[data-hud="classic"] #strip[data-idle] .lap {
-    display: flex;
-  }
-
   :root[data-hud="classic"] .event-name {
     font-size: var(--text-lg);
-  }
-}
-
-/* The event title stays top centre at every width; where it would meet the title and button bars it drops below them. */
-@media (pointer: fine) {
-  :root[data-hud="classic"] #strip {
-    position: fixed;
-    top: var(--inset-top);
-    left: 50%;
-    right: auto;
-    translate: -50% 0;
-    height: auto;
-  }
-}
-
-@media (pointer: fine) and (max-width: 1599px) {
-  :root[data-hud="classic"] :is(#strip, #mode-status) {
-    top: calc(var(--inset-top) + var(--bar-h) + var(--space-3));
-    max-width: calc(100vw - 2 * var(--inset));
-  }
-}
-
-/* Touch: centred in the gap between the button panel and the touch buttons, so it never runs into either. */
-@media (pointer: coarse) {
-  :root[data-hud="classic"] #strip {
-    position: fixed;
-    top: var(--inset-top);
-    left: calc(anchor(--actions right) + var(--space-3));
-    right: calc(anchor(--touch-buttons left) + var(--space-3));
-    width: fit-content;
-    margin-inline: auto;
   }
 }
 
@@ -473,9 +304,4 @@
 /* The toast hangs under the event title, or under the mode status that takes its place. */
 :root[data-hud="classic"] :is(#strip, #mode-status) {
   anchor-name: --top-centre;
-}
-
-/* The modes live in the menu, so Classic drops their button while driving; the aids sit in Settings and the gauge. */
-:root[data-hud="classic"] :is(#modes-btn, #aids-btn) {
-  display: none;
 }

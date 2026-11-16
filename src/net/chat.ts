@@ -5,7 +5,6 @@ import "./chat.css";
 
 const BUBBLES = 6;
 const HISTORY = 100;
-const UNREAD_MAX = 99;
 const PRESENCE_MS = 1000;
 const FOLLOW_END_PX = 24;
 
@@ -18,8 +17,6 @@ export class Chat {
   private empty = $("chat-empty");
   private form = $("chat-form", HTMLFormElement);
   private field = $("chat-input", HTMLInputElement);
-  private button = $("chat-btn", HTMLButtonElement);
-  private badge = $("chat-unread");
   private unread = 0;
   private presence: number | null = null;
   private abort: AbortController | null = null;
@@ -49,7 +46,6 @@ export class Chat {
       },
       { signal, capture: true },
     );
-    this.button.addEventListener("click", () => (this.is_open ? this.close() : this.open(matchMedia("(pointer: fine)").matches)), { signal });
     $("chat-close").addEventListener("click", () => this.close(), { signal });
     this.form.addEventListener(
       "submit",
@@ -86,7 +82,6 @@ export class Chat {
   open(focus: boolean) {
     if (!this.is_open) {
       this.panel.hidden = false;
-      this.button.setAttribute("aria-expanded", "true");
       this.bubbles.replaceChildren();
       this.set_unread(0);
       this.sync_empty();
@@ -96,11 +91,15 @@ export class Chat {
     if (focus) this.field.focus();
   }
 
+  toggle() {
+    if (this.is_open) this.close();
+    else this.open(matchMedia("(pointer: fine)").matches);
+  }
+
   close() {
     if (!this.is_open) return;
     this.field.blur();
     this.panel.hidden = true;
-    this.button.setAttribute("aria-expanded", "false");
     this.stop_presence();
   }
 
@@ -114,11 +113,10 @@ export class Chat {
     this.empty.dataset.alone = String(this.net.remotes.size === 0);
   }
 
+  /** Unread messages mark the root, so the touch menu button can show a dot. */
   private set_unread(count: number) {
     this.unread = count;
-    this.badge.hidden = count === 0;
-    this.badge.textContent = count > UNREAD_MAX ? `${UNREAD_MAX}+` : String(count);
-    this.button.ariaLabel = count === 0 ? "Chat" : `Chat, ${count} unread`;
+    document.documentElement.toggleAttribute("data-unread", count > 0);
   }
 
   private add(name: string, text: string, own: boolean) {

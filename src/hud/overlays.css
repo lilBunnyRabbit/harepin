@@ -110,16 +110,18 @@ body:has(> .settings:not([hidden])) #toast[data-road] {
   }
 }
 
+/* With no card up top (roaming, idle lap) the anchor is gone and the toast takes the card's place. */
 :root[data-hud="classic"] #toast {
   position-anchor: --top-centre;
-  top: calc(anchor(bottom) + var(--space-2));
-  left: anchor(center);
+  top: anchor(bottom, var(--corner-top));
+  left: anchor(center, 50%);
+  margin-top: var(--space-2);
 }
 
 /* On touch the pedals and map crowd the sides, so a long note wraps to the title's width instead. */
 @media (pointer: coarse) {
   :root[data-hud="classic"] #toast {
-    max-width: anchor-size(width);
+    max-width: anchor-size(width, var(--phone-centre));
     white-space: normal;
     text-wrap: balance;
     text-align: center;

@@ -274,72 +274,17 @@
   color: var(--foreground);
 }
 
-/* The online count reads as part of the title bar, after the room: anchored into room the bar leaves for it while it
-   shows, so neither the bar nor the map moves when it comes and goes. */
-:root[data-hud="classic"] {
-  --online-w: 92px;
-}
-
-:root[data-hud="classic"] #online-chip {
-  position: fixed;
-  position-anchor: --title-bar;
-  top: anchor(center);
-  right: calc(anchor(right) + var(--space-3));
-  translate: 0 -50%;
-  justify-content: flex-start;
-  width: var(--online-w);
-  height: var(--control-h);
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: none;
-  backdrop-filter: none;
-  filter: none;
-  text-shadow: none;
-  font-size: var(--text-sm);
-  transition: opacity 0.4s;
-}
-
-:root[data-hud="classic"] #online-chip:hover {
-  background: none;
-}
-
-:root[data-hud="classic"] #online-chip[data-both] .online-here {
-  display: none;
-}
-
-:root[data-hud="classic"] #online-chip[data-both] .online-total::before {
-  content: none;
-}
-
-:root[data-hud="classic"] body:has(#online-chip:not([hidden])) .top-left {
-  padding-right: calc(var(--space-3) + var(--online-w));
-}
-
-/* Touch has no title bar, so the count, just the icon and number, joins the end of the button panel. */
-@media (pointer: coarse) {
-  :root[data-hud="classic"] {
-    --online-w: 48px;
-  }
-
+/* The online count is the map card's footer, under the map. */
+@media (pointer: fine) {
   :root[data-hud="classic"] #online-chip {
-    position-anchor: --actions;
-    right: calc(anchor(right) + var(--space-1));
-    justify-content: center;
-    height: var(--control-h);
-    --chip-gap: 3px;
+    margin: var(--space-1) 0 var(--space-2);
+    border: 0;
+    background: none;
+    backdrop-filter: none;
   }
 
-  :root[data-hud="classic"] #online-chip :is(.online-here, .online-total) {
-    font-size: 0;
-  }
-
-  :root[data-hud="classic"] #online-chip b {
-    font-size: var(--text-sm);
-  }
-
-  :root[data-hud="classic"] body:has(#online-chip:not([hidden])) .actions {
-    padding-right: calc(var(--space-1) + var(--online-w));
+  :root[data-hud="classic"] #online-chip:hover {
+    background: var(--background-light);
   }
 }
 
@@ -352,7 +297,8 @@
    beside it. */
 @media (pointer: fine) {
   :root[data-hud="classic"] .top-right {
-    inset: auto auto var(--corner-bottom) var(--corner-left);
+    inset: auto auto calc(var(--corner-bottom) / var(--hud-scale, 1)) calc(var(--corner-left) / var(--hud-scale, 1));
+    zoom: var(--hud-scale, 1);
     width: auto;
     min-width: 0;
     gap: 0;
@@ -389,7 +335,7 @@
    the inner side, level with its foot, so a long list grows up into open sky rather than into the event strip. */
 @media (pointer: fine) {
   :root[data-hud="classic"][data-map-corner="top-right"] .top-right {
-    inset: calc(var(--inset-top) + var(--inset)) var(--corner-right) auto auto;
+    inset: calc(var(--corner-top) / var(--hud-scale, 1)) calc(var(--corner-right) / var(--hud-scale, 1)) auto auto;
   }
 
   :root[data-hud="classic"][data-map-corner="top-right"] #players {
@@ -405,6 +351,7 @@
   }
 
   :root[data-hud="classic"] .top-right {
+    zoom: var(--hud-scale, 1);
     display: flex;
     flex-direction: column;
     align-items: center;

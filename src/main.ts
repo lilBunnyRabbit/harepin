@@ -1,8 +1,7 @@
 import * as THREE from "three";
 import { Audio, type SoundFrame } from "./audio/audio";
 import { idle_sound } from "./audio/held-sound";
-import { EVENTS, EVENT_PARAM, TUNE_PARAM, current_tier, event_of, type CareerEvent } from "./career/career";
-import { CareerButton } from "./career/career-button";
+import { EVENTS, EVENT_PARAM, TUNE_PARAM, event_of, type CareerEvent } from "./career/career";
 import { SERIES_PAGE, SERIES_PARAM, is_open } from "./career/series";
 import { series_event } from "./career/series-seasons";
 import { Wallet } from "./career/wallet";
@@ -18,7 +17,7 @@ import { RUN_PARAM, run_of, type RunPick } from "./runs/runs";
 import { Runs } from "./runs/runs-store";
 import { daily_want, run_play } from "./runs/run-play";
 import { board_rows } from "./runs/daily-board";
-import { badge_open, open_presets, unlocks } from "./career/rewards";
+import { open_presets, unlocks } from "./career/rewards";
 import { ChaseCamera } from "./render/camera";
 import { Driver } from "./car/driver";
 import { Directory, load_lock } from "./net/directory";
@@ -281,7 +280,7 @@ render.renderer.domElement.addEventListener("dblclick", () => chase.recenter());
 const remotes = new Remotes(scene, $("labels"), net, world);
 const lobby = new Lobby(net, lobby_routes(world.routes), world.key);
 lobby.start();
-const hud = new Hud(world, race, net, room, lobby);
+const hud = new Hud(world, race, net, lobby);
 /** The map-code note can be an error to read, so it stays up well past a goal toast. */
 const MAP_NOTE_MS = 4500;
 /** A lab that failed to open leaves a plain free-roam page: the toast says so for longer than a passing note. */
@@ -449,7 +448,6 @@ settings.on_change = (state, key) => {
   else apply_settings(state);
 };
 apply_settings(prefs);
-$("menu-btn").addEventListener("click", () => settings.open());
 // The faded touch HUD comes back on any touch along the top, where its buttons sit.
 const WAKE_ZONE = 0.4;
 addEventListener("pointerdown", (event: PointerEvent) => {
@@ -658,10 +656,6 @@ if (prefs.name === null && matchMedia("(pointer: fine)").matches) settings.focus
 
 // In a class-capped event the car button and its key pick the event's car; the garage stays in the menu.
 const open_car = () => (modes.can_change_car ? void modes.change_car() : settings.open(MenuTab.GARAGE));
-$("garage-btn").addEventListener("click", open_car);
-$("settings-btn").addEventListener("click", () => settings.open(MenuTab.SETTINGS));
-$("career-btn").addEventListener("click", () => settings.open("career"));
-$("modes-btn").addEventListener("click", () => settings.open("modes"));
 
 function rewind_step(now: number) {
   if (driver.rewind.step(now) && race.started) ghost.rewind_to(now - race.started);
@@ -698,21 +692,9 @@ for (const chip of document.querySelectorAll<HTMLButtonElement>("button[data-aid
   });
 document.getElementById("gear")?.addEventListener("click", () => toggle_aid("auto"));
 
-const light_chips = document.querySelectorAll<HTMLButtonElement>("button[data-lights]");
-function show_lights() {
-  for (const chip of light_chips) chip.setAttribute("aria-pressed", String(driver.view.lights));
-}
 function toggle_lights() {
   hud.toast(driver.toggle_lights() ? "Lights on" : "Lights off");
-  show_lights();
 }
-for (const chip of light_chips)
-  chip.addEventListener("click", () => {
-    chip.blur();
-    toggle_lights();
-  });
-// The car is rebuilt with dusk-or-day lights on every swap, so the chips re-read it whenever their menu opens.
-document.getElementById("aids")?.addEventListener("beforetoggle", show_lights);
 
 function shift(step: 1 | -1) {
   if (settings.state.auto) hud.toast("Manual gearbox");
@@ -746,7 +728,7 @@ const PAUSE_ACTS: Record<PauseAct, () => void> = {
   reset: ACTIONS.reset,
   leave: quit_mode,
   camera: ACTIONS.camera,
-  chat: () => $("chat-btn").click(),
+  chat: () => chat.toggle(),
   settings: () => settings.open(MenuTab.SETTINGS),
   showroom: () => settings.open(),
   map: ACTIONS.map,
@@ -853,7 +835,6 @@ const sound: SoundFrame = { rpm: 0, throttle: 0, scrub: 0, speed: 0, offroad: fa
 let rewarded = -1;
 // The season tag and today's daily best follow the runs save: a new best reaches peers at once.
 let runs_sent = -1;
-const career_button = new CareerButton();
 
 function frame(time: number) {
   if (review?.waits(stream)) {
@@ -866,8 +847,6 @@ function frame(time: number) {
   if (career.version !== rewarded) {
     rewarded = career.version;
     net.set_tier(unlocks(career.stars).badge);
-    const tier = current_tier(career.stars);
-    career_button.show(tier, badge_open(career.stars, tier));
   }
   if (runs.version !== runs_sent) {
     runs_sent = runs.version;

@@ -43,33 +43,6 @@
   }
 }
 
-#chat-btn {
-  position: relative;
-}
-
-.badge {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 var(--space-1);
-  border-radius: var(--radius-full);
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  font-weight: 700;
-  line-height: 18px;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-  color: var(--on-primary);
-  background: var(--primary);
-  pointer-events: none;
-}
-
-.badge[hidden] {
-  display: none;
-}
-
 /* Docked where the bubbles already show, at a fixed size, so the road, map and speedo stay in view while you type and drive. */
 #chat-panel {
   display: grid;

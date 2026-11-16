@@ -262,7 +262,7 @@ export class PadMenu {
   }
 
   private hud(): Layer {
-    const roots = [document.querySelector(".update-toast"), $("mode-result"), document.querySelector(".event-card"), document.querySelector(".lab-strip"), document.querySelector(".dock-top .top-left"), document.querySelector(".actions"), document.querySelector(".assists"), $("restart-lap"), $("online-chip")].filter((root) => root !== null);
+    const roots = [document.querySelector(".update-toast"), $("mode-result"), document.querySelector(".event-card"), document.querySelector(".lab-strip"), document.querySelector(".assists"), $("restart-lap"), $("online-chip")].filter((root) => root !== null);
     return { roots, back: () => this.close_hud(), first: () => first_of(...roots) };
   }
 

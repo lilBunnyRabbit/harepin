@@ -153,11 +153,8 @@ export class Hud {
     private world: World,
     private race: Race,
     private net: Net,
-    room: string,
     private lobby: Lobby,
   ) {
-    $("room").textContent = room;
-    $("room").title = room;
     document.documentElement.dataset.scheme = dark ? "dark" : "light";
     const canvas = $("minimap", HTMLCanvasElement);
     const circuit = new Set(world.circuit);

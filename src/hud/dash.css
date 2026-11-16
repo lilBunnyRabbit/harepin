@@ -342,8 +342,9 @@
 /* Classic gauge: one card, a mirror of the map's: a thick rev arc on a slim track round big bold speed, red only past the
    hot point, the gear in the ring's open foot and the aid switches under it at the card's width. */
 :root[data-hud="classic"] .bottom-right {
-  bottom: var(--corner-bottom);
-  right: var(--corner-right);
+  bottom: calc(var(--corner-bottom) / var(--hud-scale, 1));
+  right: calc(var(--corner-right) / var(--hud-scale, 1));
+  zoom: var(--hud-scale, 1);
   display: grid;
   grid-template-columns: var(--dial);
   grid-template-rows: var(--dial) auto;

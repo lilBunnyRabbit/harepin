@@ -61,12 +61,13 @@
   display: none;
 }
 
-/* Classic sets every overlay on a filled panel of the surface token, like the button bar: no blur, glass or halo, so each
+/* Classic sets every overlay on a filled panel of the surface token: no blur, glass or halo, so each
    reads the same over sky, snow and road in either scheme. */
 :root[data-hud="classic"] {
   --map-disc: 196px;
   --dial: 220px;
   /* The bottom corner cards sit twice the inset in, mirrored, so neither crowds the window edge. */
+  --corner-top: calc(var(--inset-top) + var(--inset));
   --corner-bottom: calc(var(--inset-bottom) + var(--inset));
   --corner-left: calc(var(--inset-left) + var(--inset));
   --corner-right: calc(var(--inset-right) + var(--inset));
@@ -108,50 +109,6 @@
 @media (pointer: coarse) {
   :root[data-hud="classic"] {
     --dial: 140px;
-  }
-}
-
-/* A mode run brings its own clock and gates, so its status line takes the event title's place, but restart must stay in reach. */
-:root[data-hud="classic"] body:has(#mode-status:not([hidden])) #strip {
-  position: fixed;
-  top: anchor(--actions top);
-  bottom: anchor(--actions bottom);
-  left: calc(anchor(--actions right) + var(--space-2));
-  right: auto;
-  translate: none;
-  width: auto;
-  height: auto;
-  min-height: 0;
-  max-width: none;
-  margin: 0;
-  align-items: center;
-  padding: 0 var(--space-2);
-}
-
-/* A narrow phone with the online chip leaves no room before the touch buttons, so restart tucks under them. */
-@media (pointer: coarse) {
-  :root[data-hud="classic"] body:has(#mode-status:not([hidden])) #strip {
-    right: calc(anchor(--touch-buttons left) + var(--space-2));
-    width: fit-content;
-    position-try-fallbacks: --restart-under-touch;
-  }
-}
-
-@position-try --restart-under-touch {
-  top: calc(anchor(--touch-buttons bottom) + var(--space-2));
-  bottom: auto;
-  left: auto;
-  right: anchor(--touch-buttons right);
-}
-
-:root[data-hud="classic"] body:has(#mode-status:not([hidden])) #strip > div {
-  display: none;
-}
-
-/* A mode run never starts the lap, so the strip stays idle and the calm fade would hide the button outright. */
-@media (pointer: coarse) {
-  :root[data-hud="classic"][data-calm] body:has(#mode-status:not([hidden])) #strip {
-    opacity: 0.3;
   }
 }
 
