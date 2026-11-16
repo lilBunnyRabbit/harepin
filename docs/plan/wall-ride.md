@@ -4,6 +4,8 @@ Status: research for quest 0aaad55 (Legend final, race `l12`), base 85cd537, 202
 
 Short version: the heightfield deck holds a car on a bank up to about 80°. The cars give out first: most bottom their suspension well before that. A true wall-ride, at 90° or past it, needs a second contact path in `car.ts`. That can stay byte-identical for every other world, but it is the big job. Recommendation: build steep velodrome bowls inside the heightfield now, as a Sky-generator kind like Rooftops. Keep real wall contact as a follow-up if the bowls don't sell the wall-ride feel.
 
+Built since: option A shipped as two kinds, `velodrome` (bowls) and `wallride` (bowls, half-pipes, a 60-64° wall). Merged 2026-11-16 (owner): one kind, **Velodrome** (`worldgen/kinds/velodrome.ts`, `1W…` map codes, `?world=velodrome`), holds all of it and is listed on Play.
+
 ## 1. How steep can a deck bank get?
 
 ### How contact works today

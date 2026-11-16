@@ -6,15 +6,23 @@ const DEG = Math.PI / 180;
 
 // docs/plan/wall-ride.md: 45-55° on the racing line, a 60-70° kick at each bowl's middle, under the 75° past which a soft car
 // can fall through the deck. The bus scrapes from 40° and is out; the Raijin scrapes its floor in a bowl but holds its line.
-export const VELODROME: SkyRecipe = {
+// Pipes swing to 35° on a straight, where nothing but the tyres holds the car on the slope (tan 35° is well inside every
+// car's grip). The wall holds 60-64° for 40-60 m of one bowl with its high rail off: carried over the top, the car falls and
+// resets. At 68-72° held 50-80 m the autopilot's muscle, rally and Sajin slid down to the low rail below the wall's neutral
+// speed and crashed there.
+const VELODROME: SkyRecipe = {
   ...SKY,
   kind: WorldKind.VELODROME,
+  // The Wall Ride kind this one took over: under "velodrome" seed 1, which every trackless seed falls back to, finds no track.
+  salt: "wallride",
   odds: { eight: 1, helix: 0, hairpin: 0.35 },
   gaps: 1,
   pads: 2,
   open: [0.1, 0.2],
-  length: [2400, 4400],
+  length: [2400, 5200],
   bowls: { angle: [Math.PI, 1.2 * Math.PI], radius: [40, 60], bank: [45 * DEG, 55 * DEG], kick: [60 * DEG, 70 * DEG] },
+  pipes: { most: 2, bank: [28 * DEG, 35 * DEG], length: [140, 180] },
+  wall: { bank: [60 * DEG, 64 * DEG], hold: [40, 60] },
   excludes: ["bus"],
 };
 
