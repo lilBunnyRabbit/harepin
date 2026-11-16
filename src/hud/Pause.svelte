@@ -11,7 +11,7 @@
 
   let dialog: HTMLDialogElement;
 
-  const KEYS: Readonly<Record<string, PauseAct>> = { KeyR: "reset", KeyG: "garage", KeyM: "showroom", KeyO: "settings", KeyC: "camera", KeyT: "chat" };
+  const KEYS: Readonly<Record<string, PauseAct>> = { KeyR: "reset", KeyG: "garage", KeyM: "showroom", KeyO: "settings", KeyC: "camera", KeyT: "chat", KeyL: "leave" };
   const STEP: Readonly<Record<string, number>> = { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 };
 
   $effect(() => {

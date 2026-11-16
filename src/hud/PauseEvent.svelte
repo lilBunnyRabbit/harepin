@@ -20,6 +20,7 @@
   const ROWS: readonly { act: PauseAct; label: string; icon: string; key: string }[] = [
     { act: "reset", label: "Restart", icon: "icon-restart", key: "R" },
     { act: "garage", label: "Car and parts", icon: "icon-car", key: "G" },
+    { act: "leave", label: "Leave event", icon: "icon-close", key: "L" },
     { act: "showroom", label: "Showroom", icon: "logo-mark", key: "M" },
     { act: "settings", label: "Settings", icon: "icon-settings", key: "O" },
   ];

@@ -3,7 +3,7 @@ import type { CarId } from "../car/cars";
 import type { WorldKind } from "../worldgen/types";
 import Pause from "./Pause.svelte";
 
-export type PauseAct = "reset" | "camera" | "chat" | "settings" | "showroom" | "map" | "events" | "garage" | "online";
+export type PauseAct = "reset" | "leave" | "camera" | "chat" | "settings" | "showroom" | "map" | "events" | "garage" | "online";
 export type PauseAid = "tcs" | "abs" | "assist" | "stability" | "auto" | "lights";
 export type PauseAids = Record<PauseAid, boolean>;
 

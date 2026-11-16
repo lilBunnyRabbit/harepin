@@ -327,7 +327,7 @@ export class PadMenu {
     this.close_hud();
   }
 
-  private card_waiting(): boolean {
+  card_waiting(): boolean {
     // The feel lab's strip waits the whole session: Start reaches its Trials, Retry and Stop, and the menu button beside them.
     // At a flag Start reaches the event card's cars and its hold button.
     return [$("mode-result"), document.querySelector(".update-toast"), document.querySelector(".lab-strip"), document.querySelector(".event-card")].some((card) => card instanceof HTMLElement && card.checkVisibility());

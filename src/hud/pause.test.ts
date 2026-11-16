@@ -21,5 +21,5 @@ test("free roam: Resume, the four doors and every aid", () => {
 test("in an event: the run card, its four rows and Resume", () => {
   const card: RunCard = { kind: "event", mode: "Race", title: "First lap", facts: ["gate 1/12", "0:06.2"] };
   const html = render(PauseEvent, { props: { card, aids: AIDS, solo: false, onact: none, onflip: none, onresume: none } }).body;
-  for (const text of ["Menu · Race", "First lap", "gate 1/12", "Restart", "Car and parts", "Showroom", "Settings", "Resume"]) expect(html).toContain(text);
+  for (const text of ["Menu · Race", "First lap", "gate 1/12", "Restart", "Car and parts", "Leave event", "Showroom", "Settings", "Resume"]) expect(html).toContain(text);
 });

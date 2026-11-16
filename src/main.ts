@@ -85,7 +85,7 @@ import { custom_code, map_code, parse_map_code, pick_problem, read_pick } from "
 import { map_note } from "./menu/map-note";
 import { plain_map } from "./worldgen/kinds/kinds";
 import { REVIEW_BUILD, review_wanted } from "./review/params";
-import { show_next_up } from "./hud/next-up-view.svelte";
+import { TRAVEL_BUTTON, show_next_up } from "./hud/next-up-view.svelte";
 import { roam_card, run_card } from "./hud/pause-card";
 import { show_pause, type PauseAct } from "./hud/pause-view.svelte";
 import { map_name } from "./worlds/map-name";
@@ -335,6 +335,11 @@ lobby.car = () => driver.car.spec.id;
 race.on_start = () => ghost.start();
 
 const updater = new Updater({ busy: () => lobby.busy || modes.active || lab_id !== null, menu_open: () => settings.is_open, show_notes: () => settings.open_changes() });
+// A lobby race on a route runs as a mode: quitting it leaves the lobby race too, as Leave race does.
+function quit_mode() {
+  if (lobby.busy) lobby.leave();
+  modes.exit();
+}
 const settings = new Settings(document.body, {
   room,
   seed,
@@ -381,11 +386,7 @@ const settings = new Settings(document.body, {
   mode_list: () => modes.mode_list(),
   play_level: (id) => modes.play(id),
   mode_running: () => modes.running,
-  quit_mode: () => {
-    // A lobby race on a route runs as a mode: quitting it leaves the lobby race too, as Leave race does.
-    if (lobby.busy) lobby.leave();
-    modes.exit();
-  },
+  quit_mode,
   lobby_record: () => modes.lobby_record(),
   race_routes: race_choices(world.routes),
   players: () => 1 + net.remotes.size,
@@ -734,10 +735,11 @@ const ACTIONS: Record<Action, () => void> = {
   help: () => settings.open_keys(),
   map: () => settings.open("world"),
   garage: open_car,
-  menu: () => (pause.is_open ? pause.close() : settings.is_open || pad_menu.is_open ? pad_menu.toggle() : open_pause()),
+  menu: () => (pause.is_open ? pause.close() : settings.is_open || pad_menu.is_open || (input.pad && pad_menu.card_waiting()) ? pad_menu.toggle() : open_pause()),
 };
 const PAUSE_ACTS: Record<PauseAct, () => void> = {
   reset: ACTIONS.reset,
+  leave: quit_mode,
   camera: ACTIONS.camera,
   chat: () => $("chat-btn").click(),
   settings: () => settings.open(MenuTab.SETTINGS),
@@ -961,7 +963,7 @@ function frame(time: number) {
   ghost.update(race.started && !modes.active ? now - race.started : null, camera.position);
   modes.update(stepped, car);
   markers.update(car.pos.x, car.pos.z, car.vel.length(), !modes.active && !modes.holding && !lobby.busy);
-  next_ticket.update(car.pos.x, car.pos.z, car.heading, !modes.active && !lobby.busy && !settings.is_open);
+  next_ticket.update(car.pos.x, car.pos.z, car.heading, !modes.active && !lobby.busy && !settings.is_open, input.pad?.buttons[TRAVEL_BUTTON]?.pressed === true);
   // With peers the sim steps every frame, so the heartbeat sends a fresh pose; the draw side waits for the frame that
   // draws and advances by the time it skipped.
   draw_dt = Math.min(0.1, draw_dt + dt);

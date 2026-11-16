@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { HOLD_EVENT } from "../menu/dom";
   import Icon from "../menu/ui/Icon.svelte";
   import KeyButton from "../menu/ui/KeyButton.svelte";
   import PlaceChip from "../menu/ui/PlaceChip.svelte";
@@ -19,11 +18,14 @@
   const ticket = $derived(view.ticket);
   const travel = () => ticket && view.host.travel(ticket.id);
 
+  $effect(() => {
+    view.travel_button = travel_box?.querySelector("button") ?? null;
+  });
+
   function hold(event: KeyboardEvent) {
     if (event.code !== "Tab" || !view.shown || ticket?.place.here !== false || view.host.blocked()) return;
     event.preventDefault();
-    if (event.repeat) return;
-    travel_box?.querySelector("button")?.dispatchEvent(new CustomEvent(HOLD_EVENT, { detail: event.type === "keydown" }));
+    if (!event.repeat) view.press(event.type === "keydown");
   }
 </script>
 
@@ -49,7 +51,7 @@
     </Ticket>
     {#if !ticket.place.here}
       <div class="next-up-travel" bind:this={travel_box}>
-        <KeyButton size="md" hold={TRAVEL_HOLD_MS} onheld={travel} keys={{ key: "Hold Tab", touch: "icon-globe" }}>Travel to {ticket.place.name}</KeyButton>
+        <KeyButton size="md" hold={TRAVEL_HOLD_MS} onheld={travel} keys={{ key: "Hold Tab", pad: "RB", touch: "icon-globe" }}>Travel to {ticket.place.name}</KeyButton>
       </div>
     {/if}
   </div>

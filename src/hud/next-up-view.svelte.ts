@@ -1,6 +1,7 @@
 import { mount } from "svelte";
 import { MAX_EVENT_STARS, TIERS, tier_of, type Stars } from "../career/career";
 import { mode_name } from "../menu/career-text";
+import { HOLD_EVENT } from "../menu/dom";
 import type { TierBadge } from "../net/net";
 import type { MapMarker } from "../career/markers";
 import type { Place } from "../career/place";
@@ -10,6 +11,8 @@ import NextUp from "./NextUp.svelte";
 
 const TURN_STEP = 5;
 const DISTANCE_STEP = 10;
+/** RB in the standard pad layout: held, it travels to a ticket on another map. */
+export const TRAVEL_BUTTON = 5;
 
 export interface NextUpTicket {
   id: string;
@@ -36,11 +39,19 @@ export class NextUpView {
   /** Metres to the flag, a multiple of `DISTANCE_STEP`; null with no flag to point at. */
   distance = $state<number | null>(null);
   turn = $state(0);
+  travel_button: HTMLElement | null = null;
   private stars: Stars | null = null;
+  private rb = false;
 
   constructor(readonly host: NextUpHost) {}
 
-  update(x: number, z: number, heading: number, roaming: boolean) {
+  /** Only an edge reaches the button, which owns the hold timer. */
+  press(down: boolean) {
+    if (down && (!this.shown || this.ticket?.place.here !== false || this.host.blocked())) return;
+    this.travel_button?.dispatchEvent(new CustomEvent(HOLD_EVENT, { detail: down }));
+  }
+
+  update(x: number, z: number, heading: number, roaming: boolean, rb: boolean) {
     const stars = this.host.stars();
     if (stars !== this.stars) {
       this.stars = stars;
@@ -48,6 +59,10 @@ export class NextUpView {
     }
     const shown = roaming && this.ticket !== null;
     if (shown !== this.shown) this.shown = shown;
+    if (rb !== this.rb) {
+      this.rb = rb;
+      this.press(rb);
+    }
     if (!shown || !this.ticket || !this.ticket.place.here) return;
     const flag = flag_of(this.host.flags(), this.ticket.id);
     const distance = flag ? Math.round(Math.hypot(flag.x - x, flag.z - z) / DISTANCE_STEP) * DISTANCE_STEP : null;
