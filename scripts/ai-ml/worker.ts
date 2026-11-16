@@ -1,4 +1,4 @@
-import { COUPE, car_spec } from "../../src/car/cars";
+import { COUPE, car_spec, type CarAi } from "../../src/car/cars";
 import { AI_TUNING } from "../../src/ai/tuning";
 import { World } from "../../src/world/world";
 import { circuits } from "../ai-race";
@@ -13,13 +13,15 @@ export type MlJob =
   | { type: "race"; id: string; seed: number; values: Values; cars: number; laps: number; setup: FieldSetup }
   | { type: "solo"; id: string; seed: number; values: Values; assists: boolean }
   | { type: "oracle"; id: string; seed: number; route: string; car: string; assists: boolean; x: number[]; knot: number; limit: number; trace: boolean }
-  | { type: "ai_lap"; id: string; seed: number; route: string; car: string; assists: boolean; values: Values; limit: number };
+  | { type: "ai_lap"; id: string; seed: number; route: string; car: string; assists: boolean; values: Values; limit: number }
+  | { type: "car"; id: string; seed: number; car: string; ai: CarAi; solo: boolean };
 
 export type MlResult =
   | { type: "auto"; id: string; seed: number; laps: Record<string, number> }
   | { type: "race"; id: string; seed: number; races: RaceResult[] }
   | { type: "solo"; id: string; seed: number; solos: SoloResult[] }
-  | { type: "lap"; id: string; lap: LapResult };
+  | { type: "lap"; id: string; lap: LapResult }
+  | { type: "car"; id: string; seed: number; races: RaceResult[]; solos: SoloResult[] };
 
 const SHIPPED = structuredClone(AI_TUNING);
 /** Every job starts from the shipped tuning: a worker serves many candidates, and one's values must not leak into the next. */
@@ -54,6 +56,10 @@ self.onmessage = (event: MessageEvent<MlJob>) => {
   } else if (job.type === "oracle") {
     reset({});
     postMessage({ type: "lap", id: job.id, lap: oracle_lap(track(job.seed, job.route, job.car, job.assists), job.x, job.knot, job.limit, job.trace) } satisfies MlResult);
+  } else if (job.type === "car") {
+    reset({});
+    const spec = { ...car_spec(job.car), ai: job.ai };
+    postMessage({ type: "car", id: job.id, seed: job.seed, races: races(job.seed, 6, 2, undefined, spec), solos: job.solo ? solos(job.seed, true, spec) : [] } satisfies MlResult);
   } else {
     reset(job.values);
     const { world, route, spec } = track(job.seed, job.route, job.car, job.assists);

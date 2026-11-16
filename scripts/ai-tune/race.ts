@@ -1,4 +1,4 @@
-import { COUPE } from "../../src/car/cars";
+import { COUPE, type CarSpec } from "../../src/car/cars";
 import { at_difficulty, Difficulty } from "../../src/ai/difficulty";
 import { Field, personalities } from "../../src/ai/field";
 import { World } from "../../src/world/world";
@@ -19,6 +19,8 @@ export interface RaceResult {
   rho: number;
   /** Mean over the field of each car's spread (s, standard deviation) of its flying laps; 0 under 3 laps. Absent on runs from before it. */
   lap_sd?: number;
+  /** Cars that finished, the weight of `lap` in a mean over races. Absent on runs from before it. */
+  finished?: number;
 }
 
 /** The owner's 1-5 aggression and mistakes levels the whole field draws on, and the player's difficulty. */
@@ -63,14 +65,14 @@ export function autolaps(seed: number): Record<string, number> {
   return out;
 }
 
-/** A field of `cars` coupes on every island circuit of `seed`, at whatever AI_TUNING holds now. */
-export function races(seed: number, cars: number, laps: number, setup: FieldSetup = LEVEL_3_FIELD): RaceResult[] {
+/** A field of `cars` of `spec` on every island circuit of `seed`, at whatever AI_TUNING holds now. */
+export function races(seed: number, cars: number, laps: number, setup: FieldSetup = LEVEL_3_FIELD, spec: CarSpec = COUPE): RaceResult[] {
   const world = new World(seed);
   const out: RaceResult[] = [];
   for (const route of circuits(world)) {
-    if (route.excludes?.includes(COUPE.id)) continue;
+    if (route.excludes?.includes(spec.id)) continue;
     const unplace = world.place(route.closure);
-    const field = new Field(world, route, Array.from({ length: cars }, () => COUPE), at_difficulty(personalities(seed, cars, setup.aggression, setup.mistakes), setup.difficulty), seed);
+    const field = new Field(world, route, Array.from({ length: cars }, () => spec), at_difficulty(personalities(seed, cars, setup.aggression, setup.mistakes), setup.difficulty), seed);
     for (const { car } of field.racers) car.assist = car.stability = setup.assists !== false;
     let plan = 0;
     for (let i = 0; i < field.line.step.length; i++) plan += field.line.step[i] / field.line.speed[i];
@@ -92,20 +94,21 @@ export function races(seed: number, cars: number, laps: number, setup: FieldSetu
       hardest: Math.max(...rs.map((r) => r.stats.hardest)),
       rho: spearman(order),
       lap_sd: sum((r) => lap_spread(r.stats.laps)) / rs.length,
+      finished: done.length,
     });
   }
   return out;
 }
 
-/** `ai-race.ts solo` on one seed: one coupe alone on each circuit against the autopilot. */
-export function solos(seed: number, assists = true): SoloResult[] {
+/** `ai-race.ts solo` on one seed: one car of `spec` alone on each circuit, against the autopilot in it. */
+export function solos(seed: number, assists = true, spec: CarSpec = COUPE): SoloResult[] {
   const world = new World(seed);
   const out: SoloResult[] = [];
   for (const route of circuits(world)) {
-    if (route.excludes?.includes(COUPE.id)) continue;
+    if (route.excludes?.includes(spec.id)) continue;
     const unplace = world.place(route.closure);
-    const auto = autolap(world, COUPE, [...route.points, route.points[0]], false).t;
-    const ai = solo(world, route, COUPE, undefined, assists);
+    const auto = autolap(world, spec, [...route.points, route.points[0]], false).t;
+    const ai = solo(world, route, spec, undefined, assists);
     unplace();
     out.push({ route: route.id, t: ai.t, auto, done: ai.done, offroad: ai.offroad, failed: !ai.done || ai.offroad > 0 || ai.t / auto > 1 + SOLO_SLACK });
   }
