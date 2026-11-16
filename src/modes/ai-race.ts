@@ -8,11 +8,11 @@ import { Standings } from "../ai/standings";
 import { format } from "../hud/hud";
 import { ordinal } from "../career/series";
 import { FieldTally } from "./field-tally";
-import { mode_status, turn_to, type Driven, type FieldHost, type FieldPlace, type FieldRace, type Finish, type ModeCtx, type ModeRun, type ModeStatus, type RouteRun } from "./mode";
+import { mode_status, turn_to, type Driven, type FieldHost, type FieldPlace, type FieldRace, type Finish, type ModeCtx, type ModeRun, type ModeStatus, type RouteRun, type StatusCaptions } from "./mode";
 import { RaceLights } from "./race-lights";
 import { race_laps } from "./race-laps";
 import { RaceView } from "./race-view";
-import { COUNTDOWN_MS, RaceRun, RaceStatus, type RaceCourse, type RaceLevel } from "./races";
+import { COUNTDOWN_MS, RaceRun, TIMED_CAPTIONS, RaceStatus, type RaceCourse, type RaceLevel } from "./races";
 import { line } from "./result";
 
 /** Places that show two stars; nothing is recorded, as position grading is its own design (O9). */
@@ -65,6 +65,7 @@ export class AiRace implements ModeRun, FieldRace {
   private halfway = false;
   readonly route: RouteRun;
   private readonly status: ModeStatus;
+  readonly captions?: StatusCaptions;
 
   constructor(
     private readonly ctx: ModeCtx,
@@ -91,7 +92,10 @@ export class AiRace implements ModeRun, FieldRace {
     this.status.place = `P${this.grid + 1}/${this.builds.length + 1}`;
     this.status.gap = "";
     this.status.gates = "";
-    this.status.lap = "";
+    if (host.event?.limit_ms) {
+      this.captions = TIMED_CAPTIONS;
+      this.status.lap = "";
+    }
     this.show_lap();
     host.attach?.(this);
   }
@@ -187,7 +191,7 @@ export class AiRace implements ModeRun, FieldRace {
     status.gap = this.gap_text(place);
     status.gates = run.missed ? "go back" : `${run.next + 1}/${this.course.gates.length}`;
     const limit = this.host.event?.limit_ms;
-    if (limit) status.lap = `${format(Math.max(0, limit - this.t * 1000))} left`;
+    if (limit) status.lap = format(Math.max(0, limit - this.t * 1000));
     return status;
   }
 
@@ -227,7 +231,7 @@ export class AiRace implements ModeRun, FieldRace {
   }
 
   private show_lap() {
-    if (!this.host.event?.limit_ms) this.status.lap = `${this.lap}/${this.laps}`;
+    if (!this.host.event?.limit_ms && this.laps > 1) this.status.lap = `${this.lap}/${this.laps}`;
   }
 
   private get name(): string {

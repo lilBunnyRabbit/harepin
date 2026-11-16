@@ -609,7 +609,7 @@ export class Modes implements CarHooks {
     // A notice holds the status line for its time against the run's own status.
     if (status !== null && performance.now() >= this.notice_until) {
       this.noticed = "";
-      this.write_status(status, active.mode.def.status);
+      this.write_status(status, run.captions ?? active.mode.def.status);
     }
   }
 

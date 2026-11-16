@@ -180,6 +180,8 @@ export interface ModeRun {
   /** `sim_dt`: seconds of physics stepped this frame, 0 while the sim is paused. Returns the run's status, or null to keep the last. */
   update(sim_dt: number, car: Driven): ModeStatus | null;
   finished(): Finish | null;
+  /** A run whose fields mean something else than its mode's, such as a speed trap's traps; the mode's when absent. */
+  readonly captions?: StatusCaptions;
   readonly holding?: boolean;
   readonly route?: RouteRun;
   /** On a streamed world, the ground where `inside` streamed in: what the run laid there on stand-in ground goes down on it. */

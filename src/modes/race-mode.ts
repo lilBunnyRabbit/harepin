@@ -2,9 +2,9 @@ import { Ghost } from "../car/ghost";
 import { format } from "../hud/hud";
 import { WORLDS } from "../worlds/worlds";
 import type { Hits } from "./hits";
-import { mode_status, turn_to, type Driven, type Finish, type ModeCtx, type ModeDef, type ModeRun, type ModeStatus, type RouteRun } from "./mode";
+import { mode_status, turn_to, type Driven, type Finish, type ModeCtx, type ModeDef, type ModeRun, type ModeStatus, type RouteRun, type StatusCaptions } from "./mode";
 import { drift_stars } from "./drift";
-import { COUNTDOWN_MS, RaceRun, RaceStatus, TrapRun, kmh, race_course, race_levels, trap_points, type RaceCourse, type RaceLevel } from "./races";
+import { COUNTDOWN_MS, RACE_CAPTIONS, RaceRun, TRAP_CAPTIONS, RaceStatus, TrapRun, kmh, race_course, race_levels, trap_points, type RaceCourse, type RaceLevel } from "./races";
 import { RaceView } from "./race-view";
 import { AiRace } from "./ai-race";
 import { field_races } from "./field-route";
@@ -36,6 +36,7 @@ class Race implements ModeRun {
   private banked = 0;
   readonly route: RouteRun;
   private readonly status: ModeStatus;
+  readonly captions?: StatusCaptions;
 
   constructor(
     private readonly ctx: ModeCtx,
@@ -44,6 +45,7 @@ class Race implements ModeRun {
   ) {
     this.status = mode_status(level.name);
     this.traps = level.trap ? new TrapRun(trap_points(course.line, course.gates), course.route.gate_hw) : null;
+    if (this.traps) this.captions = TRAP_CAPTIONS;
     this.view = new RaceView(course, ctx.ground, this.traps?.at);
     ctx.scene.add(this.view.root);
     this.unplace = ctx.world.place(course.route.closure);
@@ -227,7 +229,7 @@ export const RACE_MODE: ModeDef<RaceLevel> = {
   needs_ground: false,
   car_sized_only: false,
   busy_notice: "Leave the lobby race to race solo",
-  status: { place: "Place", lap: "Lap", gap: "Gap", gates: "Gates" },
+  status: RACE_CAPTIONS,
   streams: true,
   score_text: kmh,
   levels: (world) => race_levels(world.routes, WORLDS[world.kind].map_label, world.tiles.streamed),

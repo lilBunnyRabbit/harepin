@@ -1,12 +1,17 @@
 import type { Route } from "../worldgen/types";
 import { RouteTracker, bend, straights, type RoutePoint } from "./route";
 import { stars_for } from "./track";
+import type { StatusCaptions } from "./mode";
 
 /** Route points past its gate a car may get and still take it; past that the gate was skipped. */
 export const GATE_REACH = 10;
 const GATE_SLACK = 2;
 /** Held at the line this long before the clock runs, in a solo race; the lobby holds its own countdown. */
 export const COUNTDOWN_MS = 3000;
+export const RACE_CAPTIONS: StatusCaptions = { place: "Place", lap: "Lap", gap: "Gap", gates: "Gates" };
+/** A speed trap shows its traps in the gates' slot; a timed field race its time left in the laps'. */
+export const TRAP_CAPTIONS: StatusCaptions = { ...RACE_CAPTIONS, gates: "Traps" };
+export const TIMED_CAPTIONS: StatusCaptions = { ...RACE_CAPTIONS, lap: "Left" };
 
 export interface RaceLevel {
   id: string;
