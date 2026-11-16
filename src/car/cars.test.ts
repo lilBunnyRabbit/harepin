@@ -7,6 +7,16 @@ test("every frame carries a body", () => {
   expect(Object.keys(FRAMES).filter((frame) => !ids.some((id) => BODIES[id].frame === frame))).toEqual([]);
 });
 
+test("a car adds only its body's fields to its frame, and the physics key leaves them out", () => {
+  for (const id of ids) {
+    const spec = CARS[id];
+    const frame = FRAMES[BODIES[id].frame];
+    expect([id, Object.keys(spec).filter((key) => !Object.hasOwn(frame, key)).sort()]).toEqual([id, ["body", "id", "name", "sound"]]);
+    const restyled = { ...spec, id: "other", name: "Other", body: { ...spec.body, length: spec.body.length + 1 }, sound: { ...spec.sound, rasp: spec.sound.rasp + 1 } };
+    expect(spec_hash(restyled)).toBe(spec_hash(spec));
+  }
+});
+
 test("bodies on one frame share its physics key and its size class", () => {
   for (const id of ids) {
     const mate = ids.find((other) => BODIES[other].frame === BODIES[id].frame);
