@@ -1,7 +1,7 @@
 import type { MapSpec } from "../worldgen/kinds/kinds";
 import { map_code } from "../worldgen/kinds/map-code";
 import type { WorldKind } from "../worldgen/types";
-import { name_of } from "../worlds/map-name";
+import { short_name_of } from "../worlds/map-name";
 import type { CareerEvent } from "./career";
 import { event_map } from "./career-store";
 
@@ -15,7 +15,7 @@ export interface MapGroup {
 
 export function place_of(map: MapSpec, here: MapSpec): Place {
   if (map_code(map) === map_code(here)) return { here: true };
-  return { here: false, name: name_of(map), kind: map.kind };
+  return { here: false, name: short_name_of(map), kind: map.kind };
 }
 
 export function by_map(events: readonly CareerEvent[], here: MapSpec): MapGroup[] {

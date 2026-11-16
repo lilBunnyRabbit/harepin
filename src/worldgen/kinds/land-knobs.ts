@@ -3,7 +3,7 @@ import { SNOW_KIT, type SnowKit } from "../snow";
 import { knob, slider, type Knob } from "./options";
 
 const LEVELS = ["Less", "Normal", "More"] as const;
-export const SWITCH = ["Off", "On"] as const;
+const SWITCH = ["Off", "On"] as const;
 
 const road = (recipe: Recipe, patch: Partial<RoadRecipe>): Recipe => ({ ...recipe, road: { ...recipe.road, ...patch } });
 
@@ -21,7 +21,7 @@ const jumps = (values: readonly RoadRecipe["kickers"][]) =>
   knob<Recipe, RoadRecipe["kickers"]>({ field: "J", name: "Jumps", help: "Kickers on the road and across open ground.", labels: LEVELS, normal: 1, values, set: (r, kickers) => road(r, { kickers }) });
 
 const canyon = (on: RoadRecipe["canyon"]) =>
-  knob<Recipe, RoadRecipe["canyon"]>({ field: "X", name: "Canyon", help: "The canyon trail and its gap jump.", labels: SWITCH, normal: 1, values: [null, on], set: (r, c) => road(r, { canyon: c }) });
+  knob<Recipe, RoadRecipe["canyon"]>({ field: "X", name: "Canyon", help: "The canyon trail and its gap jump.", labels: SWITCH, switch: true, normal: 1, values: [null, on], set: (r, c) => road(r, { canyon: c }) });
 
 const towns = (values: readonly Pick<TownRecipe, "min" | "max">[]) =>
   knob<Recipe, Pick<TownRecipe, "min" | "max">>({ field: "C", name: "Towns", help: "Towns, their streets and the roads between them.", labels: LEVELS, normal: 1, values, set: (r, count) => ({ ...r, towns: { ...r.towns, ...count } }) });

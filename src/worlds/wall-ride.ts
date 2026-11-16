@@ -7,7 +7,7 @@ export const wall_ride: WorldDef = {
   ...velodrome,
   kind: WorldKind.WALL_RIDE,
   name: "Wall Ride",
-  label: "Wall ride",
+  label: "Wall Ride",
   pick: "Bowls, half-pipes and a wall above the clouds",
   note: "Velodrome bowls, half-pipes, a wall ride",
   hero: "Ride the wall: carry the speed or go over the top.",

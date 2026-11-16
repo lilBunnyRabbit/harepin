@@ -12,6 +12,8 @@ export interface OptionDef {
   more?: boolean;
   /** Came after K2 codes, so never one of their digits: K2 codes and keys keep theirs. */
   late?: boolean;
+  /** Two levels, off and on: a map name reads it as its name, or "No <name>" when off. */
+  switch?: true;
 }
 
 /** One of the digits of a K2 code (`42-121111`) and K2 records key. */

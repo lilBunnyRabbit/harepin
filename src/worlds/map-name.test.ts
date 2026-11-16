@@ -6,10 +6,9 @@ import { series_map } from "../career/series-run";
 import { SEASONS } from "../career/series-seasons";
 import { MAINLAND_SEED } from "../world/world-pick";
 import { generate_world, KINDS, plain_map, type MapSpec } from "../worldgen/kinds/kinds";
-import { SWITCH } from "../worldgen/kinds/land-knobs";
 import { map_code, parse_map_code } from "../worldgen/kinds/map-code";
 import { WorldKind } from "../worldgen/types";
-import { MAP_NAMES, map_name, name_of } from "./map-name";
+import { MAP_NAMES, map_name, name_of, short_name, short_name_of } from "./map-name";
 
 const town = (name: string, radius: number) => ({ name, radius });
 
@@ -41,7 +40,7 @@ test("a map off its kind's normal options names the ones that differ after its w
 test("a shared label, a slider's and a switch's read with their option's name", () => {
   expect(map_name(read("1S0000007-A0V2"), [])).toMatch(/ · Gaps none, Boost pads more$/);
   const island = KINDS[WorldKind.ISLAND].options;
-  const levels = island.map((o) => (o.labels === SWITCH ? 0 : o.slider ? o.normal + 3 : o.normal));
+  const levels = island.map((o) => (o.switch ? 0 : o.slider ? o.normal + 3 : o.normal));
   const words = map_name({ kind: WorldKind.ISLAND, seed: 3, levels }, [town("Fen", 90)])
     .split(" · ")[2]
     .split(", ");
@@ -49,11 +48,22 @@ test("a shared label, a slider's and a switch's read with their option's name", 
   for (const word of words) expect(word).toMatch(/^[A-Z][a-z]+( [a-z]+)* /);
 });
 
+test("the short name keeps two option words and counts the rest; the full name keeps all", () => {
+  const map = read("1S0000007-E0F2Q2A0");
+  const word = map_name(plain_map(WorldKind.SKY, 7), []).split(" · ")[1];
+  expect(map_name(map, [])).toBe(`Sky · ${word} · Short, Wild, Gaps none, Exposed`);
+  expect(short_name(map, [])).toBe(`Sky · ${word} · Short, Wild, +2`);
+  expect(short_name(read("1S0000007-F2Q2"), [])).toBe(map_name(read("1S0000007-F2Q2"), []));
+  expect(short_name_of(read("1S0000007-F2Q2"))).toBe(MAP_NAMES["1S0000007-F2Q2"]);
+  expect(short_name_of(map)).toBe(short_name(map, []));
+});
+
 test("off the table, a town map shows its kind until it loads; a map without towns needs no table", () => {
   const daily = plain_map(WorldKind.DESERT, 123_456);
   expect(MAP_NAMES[map_code(daily)]).toBeUndefined();
-  expect(name_of(daily)).toBe("Dunes");
-  expect(name_of(read("1D0000BFI-W1"))).toBe("Dunes");
+  expect(name_of(daily)).toBe("Dune sea");
+  expect(name_of(read("1D0000BFI-W1"))).toBe("Dune sea");
+  expect(short_name_of(read("1D0000BFI-W1"))).toBe("Dune sea");
   const sky = plain_map(WorldKind.SKY, 123_456);
   expect(name_of(sky)).toBe(map_name(sky, []));
 });

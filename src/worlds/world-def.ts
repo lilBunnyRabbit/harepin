@@ -15,7 +15,7 @@ import { sky_tones } from "../render/sky";
 export interface WorldDef {
   kind: WorldKind;
   name: string;
-  /** The short kind word in a map's name, "Sky · Renclo". */
+  /** `name` at its shortest, never another word: the kind in a map's name, "Sky · Renclo". */
   label: string;
   /** Shown in the Play row, world picker and guide; an unlisted kind still loads from a `?world=` link. */
   listed: boolean;
