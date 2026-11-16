@@ -12,6 +12,7 @@
   import { thumb_url } from "./map-thumb";
   import Button from "./ui/Button.svelte";
   import Card from "./ui/Card.svelte";
+  import KeyButton from "./ui/KeyButton.svelte";
   import ScrollArea from "./ui/ScrollArea.svelte";
   import SectionHead from "./ui/SectionHead.svelte";
   import Tile from "./ui/Tile.svelte";
@@ -108,7 +109,7 @@
         <Card variant="well">
           <SectionHead eyebrow="Free drive" title={WORLDS[MAINLAND].name}>
             {#snippet action()}
-              <Button onclick={() => menu.drive(seed, MAINLAND, levels)}>{here ? "Keep driving" : "Drive Mainland"}</Button>
+              <KeyButton onclick={() => menu.drive(seed, MAINLAND, levels)}>{here ? "Keep driving" : "Drive Mainland"}</KeyButton>
             {/snippet}
           </SectionHead>
         </Card>

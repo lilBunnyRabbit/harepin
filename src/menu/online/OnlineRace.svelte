@@ -3,6 +3,7 @@
   import { LAPS, type Laps } from "../prefs";
   import Button from "../ui/Button.svelte";
   import Card from "../ui/Card.svelte";
+  import KeyButton from "../ui/KeyButton.svelte";
   import SectionHead from "../ui/SectionHead.svelte";
   import Segmented from "../ui/Segmented.svelte";
   import type { PageProps } from "../ui/svelte-page.svelte";
@@ -92,7 +93,7 @@
     <small class="race-dim">{note}</small>
     <div class="race-actions">
       {#if !busy}
-        <Button variant="primary" size="lg" aria-pressed={ready} disabled={!ready && left_out} onclick={toggle_ready}>{ready ? "Cancel ready" : "Ready"}</Button>
+        <KeyButton aria-pressed={ready} disabled={!ready && left_out} onclick={toggle_ready}>{ready ? "Cancel ready" : "Ready"}</KeyButton>
       {/if}
       <Button size="lg" disabled={!busy && left_out} onclick={toggle_race}>{busy ? "Leave race" : "Start race"}</Button>
     </div>

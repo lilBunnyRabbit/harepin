@@ -8,8 +8,10 @@ import Card from "./Card.svelte";
 import Chip from "./Chip.svelte";
 import ClassBadge from "./ClassBadge.svelte";
 import Dialog from "./Dialog.svelte";
+import Glyph from "./Glyph.svelte";
 import IconButton from "./IconButton.svelte";
 import Kbd from "./Kbd.svelte";
+import KeyButton from "./KeyButton.svelte";
 import Link from "./Link.svelte";
 import NameChip from "./NameChip.svelte";
 import PageHead from "./PageHead.svelte";
@@ -25,6 +27,7 @@ import SpecCard from "./SpecCard.svelte";
 import Stepper from "./Stepper.svelte";
 import Tabs from "./Tabs.svelte";
 import TextField from "./TextField.svelte";
+import Ticket from "./Ticket.svelte";
 import TierBadge from "./TierBadge.svelte";
 import Tile from "./Tile.svelte";
 import Toggle from "./Toggle.svelte";
@@ -230,5 +233,56 @@ describe("ui components", () => {
 
   test("Kbd renders one kbd per key", () => {
     expect(html(Kbd, { keys: ["Ctrl", "Q"] }).match(/<kbd/g)).toHaveLength(2);
+  });
+
+  test("Glyph draws one cap per input it is given, shaped by the pad label", () => {
+    const out = html(Glyph, { key: "Enter", pad: "A", touch: "icon-play" });
+    expect(out).toMatch(/<kbd class="ui-glyph-cap" data-glyph="key">Enter</);
+    expect(out).toMatch(/data-glyph="pad" data-shape="round">A</);
+    expect(out).toMatch(/data-glyph="touch" data-shape="round"><svg[^>]*><use href="#icon-play"/);
+    expect(html(Glyph, { pad: "RT" })).toContain('data-shape="bumper"');
+    expect(html(Glyph, { key: "C" })).not.toContain("data-glyph=\"pad\"");
+  });
+
+  test("KeyButton is a primary filled button with its key cap", () => {
+    const out = html(KeyButton, { keys: { key: "Enter", pad: "A" }, children: text("Ready") });
+    expect(out).toMatch(/^<button type="button" class="ui-key-btn"/);
+    expect(out).toContain('data-variant="fill"');
+    expect(out).toContain('data-tone="primary"');
+    expect(out).toContain('data-size="md"');
+    expect(out).toContain('data-glyph="key"');
+    expect(out).not.toContain("data-hold");
+    expect(out).toContain("Ready");
+  });
+
+  test("KeyButton takes the online tone, the quiet shape and a hold time", () => {
+    const out = html(KeyButton, { tone: "online", variant: "quiet", size: "lg", hold: 600, children: text("Hold to join") });
+    expect(out).toContain('data-tone="online"');
+    expect(out).toContain('data-variant="quiet"');
+    expect(out).toContain('data-size="lg"');
+    expect(out).toContain('data-hold=""');
+    expect(out).toContain("--hold-ms: 600ms");
+    expect(out).not.toContain("data-holding");
+    expect(out).not.toContain("ui-glyph");
+  });
+
+  test("Ticket shows its tier edge, stars and at most three reasons", () => {
+    const reasons = ["One", "Two", "Three", "Four"].map((text) => ({ text, note: `${text} note` }));
+    const out = html(Ticket, { tier: 1, title: "Sand trail", eyebrow: "Next up", stars: 2, reasons, size: "big", place: text("Dune sea") });
+    expect(out).toContain('data-size="big"');
+    expect(out).toMatch(/style="--tier: [^"]+"/);
+    expect(out).toContain("Sand trail");
+    expect(out).toContain("Dune sea");
+    expect(out).toContain('aria-label="2 of 3 stars"');
+    expect(out.match(/<li /g)).toHaveLength(3);
+    expect(out).toContain("Three note");
+    expect(out).not.toContain("Four");
+  });
+
+  test("Ticket without stars or reasons draws neither", () => {
+    const out = html(Ticket, { tier: 3, title: "Cones" });
+    expect(out).toContain('data-size="docked"');
+    expect(out).not.toContain("ui-ticket-stars");
+    expect(out).not.toContain("<ul");
   });
 });

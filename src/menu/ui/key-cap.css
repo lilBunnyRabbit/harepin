@@ -1,0 +1,148 @@
+.ui-glyph {
+  display: contents;
+}
+
+.ui-glyph-cap {
+  display: none;
+  place-items: center;
+  flex: none;
+  min-width: var(--space-6);
+  height: var(--space-6);
+  padding: 0 calc(var(--space-1) + var(--space-0));
+  border: 1px solid var(--line-strong);
+  border-bottom-width: var(--space-0);
+  border-radius: var(--radius-xs);
+  background: var(--background-lighter);
+  color: var(--foreground);
+  font: 700 var(--text-xs) / 1 var(--font-mono);
+  white-space: nowrap;
+}
+
+.ui-glyph-cap[data-shape="round"] {
+  width: var(--space-6);
+  padding: 0;
+  border-radius: 50%;
+}
+
+.ui-glyph-cap[data-shape="bumper"] {
+  border-radius: var(--radius-xs) var(--radius-xs) var(--radius-sm) var(--radius-sm);
+}
+
+.ui-glyph-cap > svg {
+  width: var(--space-3);
+  height: var(--space-3);
+}
+
+:root:not([data-input="pad"], [data-input="touch"]) .ui-glyph-cap[data-glyph="key"],
+:root[data-input="pad"] .ui-glyph-cap[data-glyph="pad"],
+:root[data-input="touch"] .ui-glyph-cap[data-glyph="touch"] {
+  display: inline-grid;
+}
+
+/* :root lifts these over the old `.settings button` reset (0,1,1). */
+:root .ui-key-btn {
+  --key-fill: var(--primary);
+  --key-ink: var(--on-primary);
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: var(--control-h-lg);
+  padding: 0 var(--space-5);
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--key-fill);
+  color: var(--key-ink);
+  box-shadow:
+    0 0 0 var(--space-0) color-mix(in oklch, var(--key-fill) 62%, var(--background-darkest)),
+    0 0 0 var(--space-1) color-mix(in oklch, var(--key-fill) 30%, var(--background-darkest));
+  font: 600 var(--text-xl) / 1 var(--font-sans);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+.ui-key-btn[data-tone="online"] {
+  --key-fill: var(--secondary);
+  --key-ink: var(--on-secondary);
+}
+
+.ui-key-btn:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+:root .ui-key-btn:focus-visible {
+  outline: 3px solid var(--cottontail);
+  outline-offset: calc(var(--space-1) + var(--space-0));
+}
+
+.ui-key-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.ui-key-btn[data-size="lg"] {
+  height: calc(var(--control-h-lg) + var(--space-3));
+  padding: 0 var(--space-8);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+}
+
+.ui-key-btn .ui-glyph-cap {
+  position: relative;
+  border-color: var(--background-darkest);
+  background: var(--background-darkest);
+  color: var(--key-fill);
+}
+
+.ui-key-btn[data-variant="quiet"] {
+  background: var(--background-light);
+  color: var(--foreground);
+  box-shadow:
+    inset 0 0 0 1px var(--line-strong),
+    0 0 0 var(--space-1) color-mix(in oklch, var(--foreground) 6%, transparent);
+}
+
+.ui-key-btn[data-variant="quiet"] .ui-glyph-cap {
+  border-color: var(--line-strong);
+  background: var(--background-lighter);
+  color: var(--foreground);
+}
+
+.ui-key-btn > * {
+  position: relative;
+}
+
+.ui-key-btn[data-hold]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: var(--held, 0%);
+  background: var(--cottontail);
+  opacity: 0.55;
+}
+
+.ui-key-btn[data-holding]::before {
+  animation: ui-key-hold var(--hold-ms) linear forwards;
+}
+
+@keyframes ui-key-hold {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+@media (max-height: 500px) {
+  .ui-key-btn[data-size="lg"] {
+    height: var(--control-h-lg);
+    padding: 0 var(--space-6);
+    font-size: var(--text-xl);
+  }
+}

@@ -275,7 +275,7 @@ export function apply_theme(name: string) {
   for (const fill of ON_FILLS) document.documentElement.style.setProperty(`--on-${fill}`, `var(${token_var(on_fill(read, fill))})`);
 }
 
-const ON_FILLS = ["primary", "accent", "cottontail"] as const;
+const ON_FILLS = ["primary", "secondary", "accent", "cottontail"] as const;
 
 function luminance([L, a, b]: Lab): number {
   const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3;
