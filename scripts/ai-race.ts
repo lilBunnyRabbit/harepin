@@ -13,7 +13,7 @@ import { GOLDEN_SEEDS } from "./proof/golden-file";
 // `--world <kind>` races that kind's circuits on its golden seeds instead of the island's.
 // bun scripts/ai-race.ts solo [seeds] [car]: one AI car alone on each circuit of the island's golden seeds, its standing
 // lap against the autopilot's on the same route. Fails when an AI lap is more than SOLO_SLACK slower, or leaves the road.
-const SOLO_SLACK = 0.05;
+export const SOLO_SLACK = 0.05;
 // bun scripts/ai-race.ts field [seeds|all] [car] [count] [laps] [aggression] [mistakes] [difficulty]: a field of AI cars on each circuit. Fails
 // when a car is stuck, a race's contacts per lap fall outside CONTACT_BAND, or the finish order follows the grid. Aggression
 // and mistakes are the owner's 1-5 levels, 3 by default; difficulty is the player's setting, normal by default.
@@ -38,10 +38,11 @@ export function circuits(world: World): Route[] {
   return world.routes.filter((r) => r.kind === RouteKind.CIRCUIT);
 }
 
-function solo(world: World, route: Route, spec: CarSpec, limit = 400): Solo {
-  const line = race_line(route.points, world.ramps, spec.radius);
+export function solo(world: World, route: Route, spec: CarSpec, limit = 400, assists = true): Solo {
+  const line = race_line(route.points, world.ramps, spec.radius, world);
   const driver = new Driver(line);
   const car = new Car(spec);
+  car.assist = car.stability = assists;
   const p = route.points[0];
   car.place(p.x, world.height(p.x, p.z) + drop_height(spec, 0.75), p.z, Math.atan2(p.tx, p.tz));
   const n = route.points.length;

@@ -1,0 +1,30 @@
+{
+  "kind": "tune",
+  "train": "0-7",
+  "check": "20-35,44",
+  "solo": "0-19",
+  "cars": 6,
+  "laps": 2,
+  "sigma": 0.2,
+  "name": "arch-defender",
+  "group": "archetype",
+  "note": "holds the line: overtakes cost, no grid-order penalty, contacts and hard hits cost",
+  "params": [
+    "aggression3_lo",
+    "aggression3_hi",
+    "rub",
+    "pass_grip",
+    "pass_max",
+    "late_brake"
+  ],
+  "pop": 8,
+  "gens": 8,
+  "weights": {
+    "pass": -3,
+    "pass_floor": 0,
+    "rho": 0,
+    "contact": 1,
+    "hardest": 1,
+    "trouble": 20
+  }
+}

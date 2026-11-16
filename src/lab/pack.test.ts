@@ -5,7 +5,7 @@ import { CARS } from "../car/cars";
 import { LAB_STATIONS } from "../worldgen/lab";
 import { budget, MAX_SECONDS, MAX_TRIALS, over_budget } from "./budget";
 import { parse_map_code } from "../worldgen/kinds/map-code";
-import { is_race, LAB_CAR, race_path, resolve_pack, resolve_trial, type Pack, type RaceTrial } from "./pack";
+import { is_race, is_route, LAB_CAR, race_path, resolve_pack, resolve_trial, type Pack, type RaceTrial } from "./pack";
 import { pack_code, read_code, read_pack } from "./pack-code";
 import { PACKS } from "./packs";
 
@@ -125,6 +125,14 @@ describe("inline packs are untrusted", () => {
     expect(code(with_race({ ...race, field: { ...race.field, difficulty: "brutal" } }))).toThrow(/difficulty/);
     expect(code(with_race({ ...race, goal: { kind: "laps", laps: 2 } }))).toThrow(/race or time/);
     expect(code({ ...base, trials: [{ ...base.trials[0], goal: { kind: "race" } }] })).toThrow(/race goal on a station/);
+  });
+
+  test("a map with no field is a route trial, and it drives laps", () => {
+    const { field: _, ...alone } = { ...race, goal: { kind: "laps" as const, laps: 3 } };
+    const read = read_pack({ ...base, trials: [alone] }).trials[0];
+    expect(read).toEqual(alone);
+    expect(is_route(read) && !is_race(read)).toBe(true);
+    expect(code({ ...base, trials: [{ ...alone, goal: { kind: "time", seconds: 60 } }] })).toThrow(/drives laps/);
   });
 
   test("a lab spec is held to the shipped specs' shape", () => {

@@ -1,7 +1,9 @@
 /// <reference types="bun" />
 import { describe, expect, test } from "bun:test";
-import { race_line } from "./line";
-import type { RoadPoint } from "../worldgen/types";
+import { drive_at, race_line } from "./line";
+import { AI_TUNING } from "./tuning";
+import type { LineGround } from "./hazards";
+import { ROAD_HALF, type RoadPoint } from "../worldgen/types";
 
 /** A closed stadium: two straights joined by half circles, points 2 m apart, driven anticlockwise. */
 function stadium(straight: number, radius: number): RoadPoint[] {
@@ -33,7 +35,55 @@ describe("race line", () => {
     const n = road.length;
     for (let i = 0; i < n; i++) {
       const next = line.speed[(i + 1) % n];
-      expect(line.speed[i] ** 2).toBeLessThanOrEqual(next * next + 2 * 2.5 * line.step[i] + 1e-6);
+      expect(line.speed[i] ** 2).toBeLessThanOrEqual(next * next + 2 * AI_TUNING.line_brake * line.step[i] + 1e-6);
     }
+  });
+
+  test("no exit plans more than the car pulls: each point at most what full throttle from the last gives", () => {
+    const n = road.length;
+    for (let i = 0; i < n; i++) {
+      const next = line.speed[(i + 1) % n];
+      expect(next ** 2).toBeLessThanOrEqual(line.speed[i] ** 2 + 2 * drive_at(line.speed[i]) * line.step[i] + 1e-6);
+    }
+  });
+
+  test("over a crest it plans under the take-off speed, whatever the bend allows", () => {
+    const y = (z: number) => 2 * Math.exp(-(((z - 100) / 12) ** 2));
+    const hump = road.map((p, i) => (i > 20 && i < 80 ? { ...p, y: y(p.z) } : p));
+    const crested = race_line(hump, [], 1);
+    const top = hump.findIndex((p, i) => i > 20 && i < 80 && p.z >= 100);
+    // The line reads a crest over 20 m either side: its take-off speed is the one that chord gives.
+    const peak = (2 * y(100) - y(80) - y(120)) / 20 ** 2;
+    expect(crested.speed[top]).toBeLessThanOrEqual(Math.sqrt(9.81 / peak));
+    expect(line.speed[top]).toBeGreaterThan(Math.sqrt(9.81 / peak));
+  });
+
+  // Halfway down the first straight (x = 30, heading +z), where the right normal points to +x.
+  const at = road.findIndex((p) => p.x === 30 && p.z >= 100);
+  const side = Math.sign(line.offset[at]);
+  test("the straight runs off the centre, so a hazard on its side moves it", () => expect(Math.abs(line.offset[at])).toBeGreaterThan(1));
+  const hump = (z: number) => 0.3 * Math.exp(-(((z - 100) / 1.2) ** 2));
+  const flat: LineGround = { height: () => 0, touches: () => 0 };
+
+  test("a one-sided step moves the line off it, to the clear side of the road", () => {
+    const ground: LineGround = { ...flat, height: (x, z) => (x > 25 && x < 35 && (x - 30) * side > 1.5 ? hump(z) : 0) };
+    const stepped = race_line(road, [], 1, ground);
+    for (let i = at - 1; i <= at + 1; i++) expect(stepped.offset[i] * side).toBeLessThanOrEqual(1e-9);
+    expect(stepped.hi[at] * side).toBeLessThanOrEqual(0);
+  });
+
+  test("a ripple across the whole road is no step: the line runs over it", () => {
+    const ground: LineGround = { ...flat, height: (x, z) => (x > 20 && x < 40 ? hump(z) : 0) };
+    const rippled = race_line(road, [], 1, ground);
+    expect(Array.from(rippled.offset)).toEqual(Array.from(race_line(road, [], 1, flat).offset));
+    expect(rippled.lo[at]).toBe(-(ROAD_HALF - 1));
+    expect(rippled.hi[at]).toBe(ROAD_HALF - 1);
+  });
+
+  test("a solid on the road holds the line a car's width off it", () => {
+    const post = { x: 30 + side * 3.5, z: 100 };
+    const ground: LineGround = { ...flat, touches: (car, gap) => (Math.hypot(car.pos.x - post.x, car.pos.z - post.z) < car.spec.radius + 0.3 + gap ? 1 : 0) };
+    const posted = race_line(road, [], 1, ground);
+    for (let i = at - 1; i <= at + 1; i++) expect(Math.abs(30 + posted.offset[i] - post.x)).toBeGreaterThan(1 + 0.3);
   });
 });

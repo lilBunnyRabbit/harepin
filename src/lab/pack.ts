@@ -71,7 +71,15 @@ export interface RaceTrial extends TrialCore {
   field: TrialField;
 }
 
-export type Trial = StationTrial | RaceTrial;
+/** Laps of a race world's closed route alone, no field, its drive traced for `scripts/ai-ml/owner.ts`: the lab reloads onto `map` for it. */
+export interface RouteTrial extends TrialCore {
+  map: string;
+  /** A closed route on the map; `circuit` when absent. */
+  route?: string;
+  goal: { kind: "laps"; laps: number };
+}
+
+export type Trial = StationTrial | RaceTrial | RouteTrial;
 
 export interface TrialField {
   /** One per AI car on the grid, pole first; the player starts last. */
@@ -84,7 +92,8 @@ export interface TrialField {
 export const FIELD_MAX = 6;
 export const RACE_ROUTE = "circuit";
 
-export const is_race = (trial: Trial): trial is RaceTrial => "map" in trial;
+export const is_race = (trial: Trial): trial is RaceTrial => "field" in trial;
+export const is_route = (trial: Trial): trial is RouteTrial => "map" in trial && !("field" in trial);
 
 /** Metres between a race lane's path points: a chord through a hairpin then strays under a metre off the centreline. */
 const RACE_PATH_STEP = 10;
@@ -124,17 +133,26 @@ export interface StationResolved extends ResolvedCar {
   lane: LabLane;
 }
 
-/** `lane` is a bare one named after the route; the lab adds the route's centreline as its path once the race starts. */
+/** `lane` is a bare one named after the route; the lab adds the route's centreline as its path once the race (or the route trial) starts. */
 export interface RaceResolved extends ResolvedCar {
   trial: RaceTrial;
   station: null;
   lane: LabLane;
 }
 
-export type Resolved = StationResolved | RaceResolved;
+export interface RouteResolved extends ResolvedCar {
+  trial: RouteTrial;
+  station: null;
+  lane: LabLane;
+}
+
+export type Resolved = StationResolved | RaceResolved | RouteResolved;
+
+export const race_resolved = (r: Resolved): r is RaceResolved => is_race(r.trial);
+export const route_resolved = (r: Resolved): r is RouteResolved => is_route(r.trial);
 
 /** Where a trial runs: its station, or its race world's map code. */
-export const place_of = (trial: Trial): string => (is_race(trial) ? trial.map : trial.station);
+export const place_of = (trial: Trial): string => ("map" in trial ? trial.map : trial.station);
 
 export const spec_hash = (spec: CarSpec): string => seed_of(JSON.stringify(spec)).toString(16).padStart(8, "0");
 
@@ -168,6 +186,8 @@ function check_race(trial: RaceTrial) {
   if (trial.goal.kind !== "race" && trial.goal.kind !== "time") throw new Error(`trial ${trial.id} is a race: its goal is race or time, not ${trial.goal.kind}`);
 }
 
+const bare_lane = (route = RACE_ROUTE): LabLane => ({ name: route, surface: LabSurface.ASPHALT, spawn: { x: 0, z: 0, heading: 0 } });
+
 export function resolve_trial(pack: Pack, trial: Trial): Resolved {
   const { build, base } = car_of(pack, trial.car);
   const spec = apply_mods(base, [...build_mods(build.parts), ...(trial.mods ?? [])]);
@@ -175,8 +195,9 @@ export function resolve_trial(pack: Pack, trial: Trial): Resolved {
   const car = { build, spec, hash: spec_hash(spec), pi, class: class_of(pi) };
   if (is_race(trial)) {
     check_race(trial);
-    return { ...car, trial, station: null, lane: { name: trial.route ?? RACE_ROUTE, surface: LabSurface.ASPHALT, spawn: { x: 0, z: 0, heading: 0 } } };
+    return { ...car, trial, station: null, lane: bare_lane(trial.route) };
   }
+  if (is_route(trial)) return { ...car, trial, station: null, lane: bare_lane(trial.route) };
   if (trial.goal.kind === "race") throw new Error(`trial ${trial.id} has a race goal on a station`);
   const station = station_of(trial.station);
   return { ...car, trial, station, lane: lane_of(station, trial.lane) };

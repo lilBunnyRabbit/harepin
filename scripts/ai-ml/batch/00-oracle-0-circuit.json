@@ -1,0 +1,11 @@
+{
+  "kind": "oracle",
+  "sigma": 0.1,
+  "name": "oracle-0-circuit",
+  "seed": 0,
+  "route": "circuit",
+  "car": "coupe",
+  "knot": 40,
+  "pop": 24,
+  "gens": 150
+}

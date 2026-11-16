@@ -5,7 +5,7 @@ import { CARS, is_car, type CarSpec } from "../car/cars";
 import { SteerMode } from "../car/car";
 import { StationId } from "../worldgen/lab";
 import { MAP_CODE_MAX } from "../worldgen/kinds/map-code";
-import { resolve_pack, type Aids, type Goal, type LabCar, type Pack, type Question, type RaceTrial, type StationTrial, type Trial, type TrialField } from "./pack";
+import { resolve_pack, type Aids, type Goal, type LabCar, type Pack, type Question, type RaceTrial, type RouteTrial, type StationTrial, type Trial, type TrialField } from "./pack";
 
 /** `?lab=~<code>`: the pack itself rides in the link, so a new test needs no deploy. */
 export const INLINE = "~";
@@ -157,17 +157,19 @@ function field(v: unknown, path: string): TrialField {
   return { cars: list(o.cars, `${path}.cars`, field_car), ...(difficulty ? { difficulty } : {}) };
 }
 
-/** A race trial names its map, a station trial its station; never both. */
-function place(o: Obj, path: string): Pick<StationTrial, "station" | "lane"> | Pick<RaceTrial, "map" | "route" | "field"> {
+/** A race or route trial names its map (a race its field too), a station trial its station; never both. A route trial drives laps. */
+function place(o: Obj, path: string, at_goal: Goal): Pick<StationTrial, "station" | "lane" | "goal"> | Pick<RaceTrial, "map" | "route" | "field" | "goal"> | Pick<RouteTrial, "map" | "route" | "goal"> {
   if (o.map !== undefined) {
-    if (o.station !== undefined || o.lane !== undefined) fail(`${path}.station`, "a race trial has a map, not a station");
+    if (o.station !== undefined || o.lane !== undefined) fail(`${path}.station`, "a race or route trial has a map, not a station");
     const route = opt(o, "route", path, (r, at) => text(r, at, 40));
-    return { map: text(o.map, `${path}.map`, MAP_CODE_MAX), ...(route !== undefined ? { route } : {}), field: field(o.field, `${path}.field`) };
+    const on_map = { map: text(o.map, `${path}.map`, MAP_CODE_MAX), ...(route !== undefined ? { route } : {}) };
+    if (o.field !== undefined) return { ...on_map, field: field(o.field, `${path}.field`), goal: at_goal };
+    return at_goal.kind === "laps" ? { ...on_map, goal: at_goal } : fail(`${path}.goal`, "a route trial (a map and no field) drives laps");
   }
   const station = text(o.station, `${path}.station`);
   const id = Object.values(StationId).find((s) => s === station) ?? fail(`${path}.station`, `not one of ${Object.values(StationId).join(", ")}`);
   const lane = opt(o, "lane", path, (l, at) => text(l, at, 40));
-  return { station: id, ...(lane !== undefined ? { lane } : {}) };
+  return { station: id, ...(lane !== undefined ? { lane } : {}), goal: at_goal };
 }
 
 function trial(v: unknown, path: string): Trial {
@@ -180,8 +182,7 @@ function trial(v: unknown, path: string): Trial {
     car: text(o.car, `${path}.car`, 60),
     ...(mods ? { mods } : {}),
     ...(trial_aids ? { aids: trial_aids } : {}),
-    ...place(o, path),
-    goal: goal(o.goal, `${path}.goal`),
+    ...place(o, path, goal(o.goal, `${path}.goal`)),
     try: text(o.try, `${path}.try`),
     feel: text(o.feel, `${path}.feel`),
     ...(o.question !== undefined ? { question: text(o.question, `${path}.question`) } : {}),

@@ -1,0 +1,30 @@
+{
+  "kind": "tune",
+  "train": "0-7",
+  "check": "20-35,44",
+  "solo": "0-19",
+  "cars": 6,
+  "laps": 3,
+  "sigma": 0.2,
+  "name": "arch-smooth",
+  "group": "archetype",
+  "note": "consistent laps, early brake: 3 laps, lap spread and contacts cost, trouble 2.5x",
+  "params": [
+    "brake_max",
+    "brake_per",
+    "brake_slack",
+    "line_brake",
+    "steer_gain",
+    "steer_damp",
+    "brake_margin_hi",
+    "mistakes3_hi"
+  ],
+  "pop": 8,
+  "gens": 8,
+  "weights": {
+    "lap_sd": 10,
+    "contact": 2,
+    "trouble": 20,
+    "pass": 1
+  }
+}

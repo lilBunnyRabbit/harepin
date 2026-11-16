@@ -109,6 +109,9 @@ const metrics_text = (m: Metrics) => metric_pairs(m).map(([key, text]) => `${key
 
 const quote = (text: string) => JSON.stringify(text.replace(/\s+/g, " ").trim());
 
+/** The Download's file name: a route trial's trace is too big for the clipboard. */
+export const export_name = (pack: Pack, at: Date): string => `${pack.id}-${at.toISOString().slice(0, 10)}.txt`;
+
 /** One paste-able block: line-based, so two runs of a pack diff line by line and survive a chat app. */
 /** `aids[i]` is what trial `i` ran on (the player's settings under the trial's own), null when unknown. */
 export function export_block(pack: Pack, trials: readonly Resolved[], results: readonly TrialResult[], answers: Answers, version: string, device: Device, at: Date, aids: readonly (Aids | null)[] = []): string {
@@ -124,6 +127,7 @@ export function export_block(pack: Pack, trials: readonly Resolved[], results: r
       lines.push(` m ${metrics_text(result.metrics)}`);
     }
     if (result.field) lines.push(...field_lines(result.field));
+    if (result.trace) lines.push(...result.trace.lines());
     const given = answers[trial.id] ?? {};
     // Question order, not tap order: two runs of a pack diff line by line.
     const asked = questions_of(pack, trial).flatMap(({ id }) => {

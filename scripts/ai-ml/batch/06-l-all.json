@@ -1,0 +1,15 @@
+{
+  "kind": "tune",
+  "train": "0-7",
+  "check": "20-35,44",
+  "solo": "0-19",
+  "cars": 6,
+  "laps": 2,
+  "sigma": 0.2,
+  "name": "l-all",
+  "group": "core",
+  "note": "all 30 tuning and driver params, default weights",
+  "params": "all",
+  "pop": 14,
+  "gens": 12
+}

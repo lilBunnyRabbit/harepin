@@ -133,6 +133,18 @@ A trial with `map` in place of `station` runs a free-play race against an AI fie
 
 The race is the game's own (`modes/ai-race.ts`: lights, position and gap on the run card), started past free play's unlock order and the lab's closed modes (`Modes.lab_race`); nothing is recorded and no goals or career markers show. The recorder measures the player's drive on the route: its lane path is the centreline every 10 m (`race_path` in `src/lab/pack.ts`), and past `OFF_ROAD` (7 m, the field's own off-road line) counts as off. Time, top speed, offs and resets lead the card. When the trial ends (the race finished, the time up, or Stop) the field's order is kept and the race closes; the results card lists it, the player highlighted.
 
+### Route trials: reference laps alone
+
+A trial with `map` and no `field` drives laps of a closed route on that world alone: the lab reloads onto the map, puts the car on the route's first point and counts a lap at each first pass of its start (a rewind back over it never counts one twice). Its goal is `laps`; `route` is `circuit` when absent. The recorder keeps a trace (`src/lab/route-trace.ts`): one sample each route point the car reaches and every 0.25 s while it holds one, pedals and wheel as means since the last sample, slip as the peak. The export carries it after the trial's other lines:
+
+```
+ trace <samples> <route points> [full]
+ s <t> <route point> <x> <z> <m/s> <throttle> <brake> <steer> <slip rad>
+ r <t>
+```
+
+` r` is a placement. The trace keeps in the tab's storage with the trial's numbers once the page is hidden (never mid-drive: writing it stalls a frame); a full storage keeps the numbers without it, so a reload mid-drive (by hand, or a dev server's on a source edit) comes back on the trial's results card with the drive so far as stopped, ready to download before a new attempt replaces it. Three laps make about 380 KB, too much for a clipboard paste, so a pack with a route trial shows Download beside Copy (pack card and results card): the same block saved as `<pack>-<date>.txt`. `?lab=ai-ref-0`, `-1`, `-2`, `-9-rev`, `-16`, `-30` are the AI test tracks (`src/lab/packs/ai-ref.ts`), one pack each to stay inside the session cap; `bun scripts/ai-ml/owner.ts <file>...` reads downloaded files as saved (or a pasted block) into the owner's laps, a gap report against the AI's solo lap in the oracle's format and the lifts outside the corners, under `.ai-ml/<hash>/owner/`.
+
 ### Lab cars (unreleased cars and parts)
 
 ```ts

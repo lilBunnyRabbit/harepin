@@ -1,17 +1,14 @@
 import { GRAVITY } from "../car/rigid-body";
 import { ROAD_HALF, type Ramp, type RoadPoint } from "../worldgen/types";
+import { hazards, type LineGround } from "./hazards";
 import { AI_TUNING } from "./tuning";
 import { hypot } from "../sim-math";
-
-/** Bend radii (m) over which the line's grip eases from `AI_TUNING.line_grip` up to `fast_grip`. */
-const HAIRPIN_RADIUS = 25;
-const FAST_RADIUS = 80;
 
 /** Grip (m/s²) the line plans a bend of signed curvature `bend` (1/m) on. */
 export function grip_at(bend: number): number {
   const radius = 1 / Math.max(1e-9, Math.abs(bend));
-  const { line_grip, fast_grip } = AI_TUNING;
-  return line_grip + (fast_grip - line_grip) * Math.max(0, Math.min(1, (radius - HAIRPIN_RADIUS) / (FAST_RADIUS - HAIRPIN_RADIUS)));
+  const { line_grip, fast_grip, hairpin_radius, fast_radius } = AI_TUNING;
+  return line_grip + (fast_grip - line_grip) * Math.max(0, Math.min(1, (radius - hairpin_radius) / (fast_radius - hairpin_radius)));
 }
 
 /** Metres between the car's body and the road edge. */
@@ -31,6 +28,10 @@ const JUMP_PACE = 32;
 const RAMP_LOOK = 120;
 /** Metres either side of a kicker's run the line keeps to the centre, lined up with the ramp. */
 const RAMP_PIN = 20;
+/** Least share of its braking or pull the profile gives a car at the limit of a bend: at none, a bend's apex could never be braked into. */
+const GRIP_FLOOR = 0.25;
+/** Most of the car's weight (share of g) a crest may take off it at the planned speed: past 1 it leaves the road. */
+const CREST_HOLD = 0.8;
 
 /**
  * A closed racing line over a circuit, built once at the start: per road point a signed lateral offset (along the
@@ -41,9 +42,9 @@ export interface RaceLine {
   readonly offset: Float64Array;
   readonly x: Float64Array;
   readonly z: Float64Array;
-  /** m/s: the corner speed at each point, lowered by one backward pass so every bend can be braked for. */
+  /** m/s: the speed profile along the line: corner speeds from radius and grip, braked for at `AI_TUNING.line_brake` by a backward pass, held to what the car pulls (`drive_at`) by a forward one. */
   readonly speed: Float64Array;
-  /** m/s: the same corner speeds braked for at `AI_TUNING.late_brake`, the plan of a late braker diving down the inside. */
+  /** m/s: the same profile braked for at `AI_TUNING.late_brake`, the plan of a late braker diving down the inside. */
   readonly late: Float64Array;
   /** Signed 1/radius (1/m) of the line at each point; positive bends away from the right normal. */
   readonly bend: Float64Array;
@@ -52,6 +53,9 @@ export interface RaceLine {
   readonly step: Float64Array;
   /** How far the line may stray off the centre at each point (m). */
   readonly room: Float64Array;
+  /** Metres off the centre (along the right normal) a car's centre keeps between to stay off the steps and solids on the road: the line, a pass or a defence. */
+  readonly lo: Float64Array;
+  readonly hi: Float64Array;
 }
 
 const wrap = (i: number, n: number) => ((i % n) + n) % n;
@@ -70,13 +74,35 @@ function ramp_index(road: readonly RoadPoint[], ramp: Ramp): number {
   return hypot(road[at].x - ramp.x, road[at].z - ramp.z) < ROAD_HALF ? at : -1;
 }
 
-/** Lowers each corner speed so every bend ahead can be braked for at `brake` m/s²: two laps backwards, as the braking curve from the slowest bend wraps past the start line. */
-function brake_curve(speed: Float64Array, step: Float64Array, brake: number) {
+/** Most acceleration (m/s²) the line plans at `speed` m/s: traction up to `line_drive`, then the engine's power over speed. */
+export function drive_at(speed: number): number {
+  return Math.min(AI_TUNING.line_drive, AI_TUNING.line_power / Math.max(1, speed));
+}
+
+/** Share of the tyres' grip left along the road at `speed` m/s through bend `bend` (1/m): the friction circle, never under GRIP_FLOOR. */
+function along(speed: number, bend: number): number {
+  const used = (speed * speed * Math.abs(bend)) / grip_at(bend);
+  return Math.max(GRIP_FLOOR, Math.sqrt(Math.max(0, 1 - used * used)));
+}
+
+/**
+ * The speed profile over corner speeds `speed`, in place: backward so every bend ahead can be braked for at `brake`
+ * m/s² less what the bend's turning takes of the grip, forward so no exit plans more than `drive_at` gives. Two laps
+ * each way, as a curve from the slowest bend wraps past the start line. The forward pass takes no share for the turn:
+ * the line corners under the car's real grip, and an exit held to the friction circle had it lifting a second a lap.
+ */
+function profile(speed: Float64Array, step: Float64Array, bend: Float64Array, brake: number) {
   const n = speed.length;
   for (let k = 2 * n - 1; k >= 0; k--) {
     const i = wrap(k, n);
+    const v = speed[wrap(k + 1, n)];
+    speed[i] = Math.min(speed[i], Math.sqrt(v * v + 2 * brake * along(v, bend[i]) * step[i]));
+  }
+  for (let k = 0; k < 2 * n; k++) {
+    const i = wrap(k, n);
+    const v = speed[i];
     const next = wrap(k + 1, n);
-    speed[i] = Math.min(speed[i], Math.sqrt(speed[next] * speed[next] + 2 * brake * step[i]));
+    speed[next] = Math.min(speed[next], Math.sqrt(v * v + 2 * drive_at(v) * step[i]));
   }
 }
 
@@ -96,11 +122,57 @@ function crest(road: readonly RoadPoint[], step: Float64Array, i: number): numbe
 }
 
 /**
+ * Moves each point of `offset` sideways, inside `left`..`right`, until its curvature is the distance-weighted mean of
+ * its neighbours', coarse spacing first; between passes the points in between follow by linear interpolation. Writes
+ * the line's positions into `x`, `z`.
+ */
+function relax(road: readonly RoadPoint[], offset: Float64Array, x: Float64Array, z: Float64Array, left: Float64Array, right: Float64Array) {
+  const n = road.length;
+  const place = () => {
+    for (let i = 0; i < n; i++) {
+      x[i] = road[i].x + road[i].tz * offset[i];
+      z[i] = road[i].z - road[i].tx * offset[i];
+    }
+  };
+  place();
+  const curvature = (a: number, mid: number, b: number) => inverse_radius(x[a], z[a], x[mid], z[mid], x[b], z[b]);
+  for (let span = RELAX_TOP; span >= 1; span >>= 1) {
+    for (let pass = Math.round(RELAX_PASSES * Math.sqrt(span)); pass > 0; pass--) {
+      for (let i = 0; i < n; i += span) {
+        const prev = wrap(i - span, n);
+        const next = wrap(i + span, n);
+        const want_prev = curvature(wrap(i - 2 * span, n), prev, i);
+        const want_next = curvature(i, next, wrap(i + 2 * span, n));
+        const l_prev = Math.sqrt((x[i] - x[prev]) ** 2 + (z[i] - z[prev]) ** 2);
+        const l_next = Math.sqrt((x[i] - x[next]) ** 2 + (z[i] - z[next]) ** 2);
+        const want = (l_next * want_prev + l_prev * want_next) / (l_prev + l_next);
+        const p = road[i];
+        const k0 = curvature(prev, i, next);
+        const k1 = inverse_radius(x[prev], z[prev], x[i] + p.tz * NUDGE, z[i] - p.tx * NUDGE, x[next], z[next]);
+        const slope = (k1 - k0) / NUDGE;
+        if (Math.abs(slope) < 1e-12) continue;
+        offset[i] = Math.max(left[i], Math.min(right[i], offset[i] + (RELAX_GAIN * (want - k0)) / slope));
+        x[i] = p.x + p.tz * offset[i];
+        z[i] = p.z - p.tx * offset[i];
+      }
+    }
+    if (span > 1)
+      for (let i = 0; i < n; i += span) {
+        const next = Math.min(n, i + span);
+        const to = offset[next % n];
+        for (let k = i + 1; k < next; k++) offset[k] = Math.max(left[k], Math.min(right[k], offset[i] + ((to - offset[i]) * (k - i)) / (next - i)));
+      }
+    place();
+  }
+}
+
+/**
  * Relaxes the centreline toward the least-curvature path inside the road, then plans speed on the result. Each pass
  * moves a point toward where its neighbours' second difference would vanish, clamped to the road less the car's half
- * width (`half_width`, m). The plain midpoint (shortest path) is slower: it bunches a bend's turn at the apex.
+ * width (`half_width`, m) and kept off what `ground` shows on the road. The plain midpoint (shortest path) is slower:
+ * it bunches a bend's turn at the apex.
  */
-export function race_line(road: readonly RoadPoint[], ramps: readonly Ramp[], half_width: number): RaceLine {
+export function race_line(road: readonly RoadPoint[], ramps: readonly Ramp[], half_width: number, ground?: LineGround): RaceLine {
   const n = road.length;
   const step = new Float64Array(n);
   for (let i = 0; i < n; i++) step[i] = hypot(road[wrap(i + 1, n)].x - road[i].x, road[wrap(i + 1, n)].z - road[i].z);
@@ -120,45 +192,24 @@ export function race_line(road: readonly RoadPoint[], ramps: readonly Ramp[], ha
   const offset = new Float64Array(n);
   const x = new Float64Array(n);
   const z = new Float64Array(n);
-  const place = () => {
+  const left = room.map((r) => -r);
+  relax(road, offset, x, z, left, room);
+  const reach = Math.max(0, ROAD_HALF - half_width);
+  let lo: Float64Array = new Float64Array(n).fill(-reach);
+  let hi: Float64Array = new Float64Array(n).fill(reach);
+  let steps: Uint8Array | null = null;
+  if (ground) {
+    // Read off the free line: a hazard moves the line to the clear side nearest where it ran, not across the road.
+    const free = new Uint8Array(n);
+    for (let i = 0; i < n; i++) free[i] = room[i] > 0 ? 1 : 0;
+    ({ lo, hi, step: steps } = hazards(road, free, half_width, ground, offset));
+    const right = new Float64Array(n);
     for (let i = 0; i < n; i++) {
-      x[i] = road[i].x + road[i].tz * offset[i];
-      z[i] = road[i].z - road[i].tx * offset[i];
+      left[i] = Math.max(-room[i], lo[i]);
+      right[i] = Math.max(left[i], Math.min(room[i], hi[i]));
     }
-  };
-  place();
-  const curvature = (a: number, mid: number, b: number) => inverse_radius(x[a], z[a], x[mid], z[mid], x[b], z[b]);
-  // Each point moves sideways until its curvature is the distance-weighted mean of its neighbours', coarse spacing
-  // first; between passes the points in between follow by linear interpolation.
-  for (let span = RELAX_TOP; span >= 1; span >>= 1) {
-    for (let pass = Math.round(RELAX_PASSES * Math.sqrt(span)); pass > 0; pass--) {
-      for (let i = 0; i < n; i += span) {
-        const prev = wrap(i - span, n);
-        const next = wrap(i + span, n);
-        const want_prev = curvature(wrap(i - 2 * span, n), prev, i);
-        const want_next = curvature(i, next, wrap(i + 2 * span, n));
-        const l_prev = Math.sqrt((x[i] - x[prev]) ** 2 + (z[i] - z[prev]) ** 2);
-        const l_next = Math.sqrt((x[i] - x[next]) ** 2 + (z[i] - z[next]) ** 2);
-        const want = (l_next * want_prev + l_prev * want_next) / (l_prev + l_next);
-        const p = road[i];
-        const k0 = curvature(prev, i, next);
-        const k1 = inverse_radius(x[prev], z[prev], x[i] + p.tz * NUDGE, z[i] - p.tx * NUDGE, x[next], z[next]);
-        const slope = (k1 - k0) / NUDGE;
-        if (Math.abs(slope) < 1e-12) continue;
-        offset[i] = Math.max(-room[i], Math.min(room[i], offset[i] + (RELAX_GAIN * (want - k0)) / slope));
-        x[i] = p.x + p.tz * offset[i];
-        z[i] = p.z - p.tx * offset[i];
-      }
-    }
-    if (span > 1)
-      for (let i = 0; i < n; i += span) {
-        const next = Math.min(n, i + span);
-        const to = offset[next % n];
-        for (let k = i + 1; k < next; k++) offset[k] = Math.max(-room[k], Math.min(room[k], offset[i] + ((to - offset[i]) * (k - i)) / (next - i)));
-      }
-    place();
+    relax(road, offset, x, z, left, right);
   }
-  place();
   const speed = new Float64Array(n);
   const bend = new Float64Array(n);
   for (let i = 0; i < n; i++) {
@@ -168,11 +219,17 @@ export function race_line(road: readonly RoadPoint[], ramps: readonly Ramp[], ha
     // Over a crest the car goes light by v² times the road's vertical curvature, and its grip with it: v² = G R / (1 + G R k / g).
     // A 9% climb into a 9% drop in a 200 m bend at 38 m/s took a third of the load, and the field spun there.
     const grip = grip_at(bend[i]);
-    const reach = grip / Math.max(1e-9, Math.abs(bend[i]));
-    speed[i] = Math.min(Math.sqrt(reach / (1 + Math.min(AI_TUNING.crest_light, (reach * crest(road, step, i)) / GRAVITY))), ramp[i] >= 0 ? JUMP_PACE : Infinity);
+    const hold = grip / Math.max(1e-9, Math.abs(bend[i]));
+    const lift = crest(road, step, i);
+    // Under the take-off speed too: braked hard and late, a car met a crest in a 840 m bend at 52 m/s, flew 0.7 s wide
+    // and landed on a lamp post (seed 30).
+    const takeoff = lift > 0 ? Math.sqrt((CREST_HOLD * GRAVITY) / lift) : Infinity;
+    // A step across the whole road is taken as a kicker is: at a pace that does not launch the car into what follows.
+    const kick = ramp[i] >= 0 || steps?.[i] ? JUMP_PACE : Infinity;
+    speed[i] = Math.min(Math.sqrt(hold / (1 + Math.min(AI_TUNING.crest_light, (hold * lift) / GRAVITY))), takeoff, kick);
   }
   const late = speed.slice();
-  brake_curve(speed, step, AI_TUNING.line_brake);
-  brake_curve(late, step, AI_TUNING.late_brake);
-  return { road, offset, x, z, speed, late, bend, ramp, step, room };
+  profile(speed, step, bend, AI_TUNING.line_brake);
+  profile(late, step, bend, AI_TUNING.late_brake);
+  return { road, offset, x, z, speed, late, bend, ramp, step, room, lo, hi };
 }

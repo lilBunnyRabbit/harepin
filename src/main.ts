@@ -270,6 +270,8 @@ lobby.start();
 const hud = new Hud(world, race, net, room, lobby);
 /** The map-code note can be an error to read, so it stays up well past a goal toast. */
 const MAP_NOTE_MS = 4500;
+/** A lab that failed to open leaves a plain free-roam page: the toast says so for longer than a passing note. */
+const LAB_FAIL_MS = 20_000;
 const goal_toasts = new ToastQueue((text, hold) => hud.toast(text, "", hold), () => $("toast").dataset.shown !== undefined);
 if (note) goal_toasts.push(note, MAP_NOTE_MS);
 goals.on_done = (goal) => goal_toasts.push(`Goal done: ${goal.title}`);
@@ -741,6 +743,7 @@ if (lab_id !== null)
           const host = { sim, build: () => r.build, rating: () => ({ class: r.class, pi: r.pi }), autopilot: false, cars: r.trial.field.cars, difficulty: () => r.trial.field.difficulty ?? Difficulty.NORMAL, attach };
           return modes.lab_race(r.lane.name, host) ? (world.routes.find((route) => route.id === r.lane.name)?.points ?? null) : null;
         },
+        route: (id) => world.routes.find((route) => route.id === id && route.closed)?.points ?? null,
         field_stats: () => (sim instanceof LocalSim ? (sim.host.field?.racers.map((racer) => racer.stats) ?? []) : []),
         end_race: () => modes.exit(),
       }),
@@ -751,7 +754,7 @@ if (lab_id !== null)
     })
     .catch((error: unknown) => {
       console.error(error);
-      hud.toast(`Lab: ${error instanceof Error ? error.message : String(error)}`);
+      hud.toast(`Lab: ${error instanceof Error ? error.message : String(error)}`, "", LAB_FAIL_MS);
     });
 
 let acc = 0;

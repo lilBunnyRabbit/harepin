@@ -7,15 +7,17 @@ import { modal_open } from "../hud/input";
 import { BUILD } from "../menu/update";
 import type { FieldRace } from "../modes/mode";
 import type { LabSpot } from "../worldgen/lab";
+import type { RoadPoint } from "../worldgen/types";
 import { answer_of, answers_key, read_answers } from "./answers";
 import { shown_trials, type Shown } from "./blind";
-import { export_block, type Answers, type Device } from "./export";
+import { export_block, export_name, type Answers, type Device } from "./export";
 import { field_rows, type FieldRow } from "./field-rows";
 import { INLINE, read_code } from "./pack-code";
-import { race_path, resolve_pack, type Aids, type Pack, type Question, type RaceResolved, type Resolved } from "./pack";
+import { race_path, race_resolved, route_resolved, resolve_pack, type Aids, type Pack, type Question, type RaceResolved, type Resolved, type RouteResolved } from "./pack";
 import { PACKS } from "./packs";
 import { show_overlay } from "./lab-view.svelte";
 import { Recorder, type Metrics } from "./recorder";
+import { RouteTrace, type TraceLines } from "./route-trace";
 import { read_results, results_json, results_key } from "./results-store";
 
 export interface LabHost {
@@ -31,6 +33,8 @@ export interface LabHost {
   on_map(map: string | null): boolean;
   /** Starts race trial `r` with the player last on the grid: its route's centreline, null when this map has no such race. */
   race(r: RaceResolved, attach: (race: FieldRace | null) => void): readonly { x: number; z: number }[] | null;
+  /** Closed route `id` of the world loaded, null when it has none. */
+  route(id: string): readonly RoadPoint[] | null;
   /** Each AI car's own counts; empty while the sim worker keeps them. */
   field_stats(): readonly RacerStats[];
   /** The race's cars leave and its card closes. */
@@ -52,6 +56,8 @@ export interface TrialResult {
   metrics: Metrics | null;
   /** A race trial's field in running order as it ended; null on a station. */
   field: FieldRow[] | null;
+  /** A route trial's drive, kept in the tab's storage with its numbers. */
+  trace: TraceLines | null;
 }
 
 export async function load_pack(id: string): Promise<Pack> {
@@ -94,7 +100,7 @@ export class Lab {
   ) {
     this.trials = resolve_pack(pack);
     this.shown = shown_trials(pack);
-    this.results = this.trials.map(() => ({ status: "new", metrics: null, field: null }));
+    this.results = this.trials.map(() => ({ status: "new", metrics: null, field: null, trace: null }));
     this.ran = this.trials.map(() => null);
   }
 
@@ -120,11 +126,22 @@ export class Lab {
     this.answers = this.load(answers_key(this.pack), (raw) => read_answers(this.pack, raw), {});
     this.results = this.load(results_key(this.pack), (raw) => read_results(this.trials, raw), this.results);
     addEventListener("keydown", this.on_key);
+    document.addEventListener("visibilitychange", this.keep);
   }
 
   stop() {
     removeEventListener("keydown", this.on_key);
+    document.removeEventListener("visibilitychange", this.keep);
   }
+
+  /**
+   * A traced trial's drive so far goes in as stopped: a reload (a dev server's, or by hand) brings it back to download.
+   * Only once the page is hidden (a reload, a tab switch, a phone backgrounding it): writing a whole trace mid-drive stalls a frame.
+   */
+  private readonly keep = () => {
+    if (document.visibilityState !== "hidden" || !this.recorder?.route || !this.recorder.started) return;
+    this.save_results(this.with_running("stopped"));
+  };
 
   private readonly on_key = (event: KeyboardEvent) => {
     if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
@@ -148,17 +165,28 @@ export class Lab {
     this.ran[index] = this.ran_on(r);
     // A later `begin` started while this one waited for its ground: that trial owns the car now.
     const current = () => ticket === this.ticket;
-    if (!r.station) {
+    if (race_resolved(r)) {
       this.waiting = r;
       return this.watch?.changed();
     }
+    if (route_resolved(r)) return this.drive_route(r, current);
     await this.host.place(r.lane.spawn, current);
     if (!current()) return;
     this.record(r);
   }
 
-  private record(r: Resolved, lane = r.lane) {
-    this.recorder = new Recorder(lane, r.trial.goal);
+  /** A route trial: alone from the route's first point, its laps and trace the route's. */
+  private async drive_route(r: RouteResolved, current: () => boolean) {
+    const points = this.host.route(r.lane.name);
+    if (!points) return this.host.toast(`Trial ${r.trial.id}: no closed route "${r.lane.name}" on this map`);
+    const p = points[0];
+    await this.host.place({ x: p.x, z: p.z, heading: Math.atan2(p.tx, p.tz) }, current);
+    if (!current()) return;
+    this.record(r, { ...r.lane, path: race_path(points) }, new RouteTrace(points));
+  }
+
+  private record(r: Resolved, lane = r.lane, route: RouteTrace | null = null) {
+    this.recorder = new Recorder(lane, r.trial.goal, route);
     this.recorder.placed(this.host.car());
     this.watch?.changed();
     const index = this.index;
@@ -210,9 +238,15 @@ export class Lab {
     this.watch?.changed();
   }
 
-  /** A running trial goes in with what it has measured so far. */
+  /** The results with the running trial in as `status`, with what it has measured so far. */
+  private with_running(status: TrialStatus): TrialResult[] {
+    const recorder = this.recorder;
+    if (!recorder?.started) return this.results;
+    return this.results.map((r, i): TrialResult => (i === this.index ? { status, metrics: recorder.metrics(), field: this.field_now(), trace: recorder.route } : r));
+  }
+
   export(): string {
-    const results = this.results.map((r, i): TrialResult => (i === this.index && this.recorder?.started ? { status: "running", metrics: this.recorder.metrics(), field: this.field_now() } : r));
+    const results = this.with_running("running");
     const aids = this.trials.map((r, i) => (results[i].status === "new" ? null : (this.ran[i] ?? this.ran_on(r))));
     return export_block(this.pack, this.trials, results, this.answers, BUILD.version, device(), new Date(), aids);
   }
@@ -236,6 +270,21 @@ export class Lab {
     return { ...this.host.aids(), ...r.trial.aids };
   }
 
+  /** Whether any trial traces its drive: its export is a file, not a paste. */
+  get traced(): boolean {
+    return this.trials.some(route_resolved);
+  }
+
+  download() {
+    const url = URL.createObjectURL(new Blob([this.export()], { type: "text/plain" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = export_name(this.pack, new Date());
+    link.click();
+    URL.revokeObjectURL(url);
+    this.host.toast(`Lab results saved as ${link.download}`);
+  }
+
   /** False when the browser refused the clipboard. */
   async copy(): Promise<boolean> {
     try {
@@ -254,15 +303,15 @@ export class Lab {
     if (!recorder || this.index < 0) return;
     // Left before driving: whatever an earlier attempt measured stands.
     if (recorder.started) {
-      this.results[this.index] = { status, metrics: recorder.metrics(), field: this.field_now() };
-      this.save(results_key(this.pack), results_json(this.trials, this.results));
+      this.results[this.index] = { status, metrics: recorder.metrics(), field: this.field_now(), trace: recorder.route };
+      this.save_results(this.results);
     }
     this.recorder = null;
     if (this.race) this.host.end_race();
     this.watch?.changed();
   }
 
-  // A reload or a crash mid-pack keeps what was answered and driven; storage that refuses only loses that.
+  // A reload mid-pack keeps what was answered and finished, and a traced drive once the page hid; storage that refuses only loses that.
   private load<T>(key: string, read: (raw: unknown) => T, empty: T): T {
     try {
       const raw = sessionStorage.getItem(key);
@@ -273,12 +322,21 @@ export class Lab {
     }
   }
 
-  private save(key: string, json: string) {
+  private save(key: string, json: string): boolean {
     try {
       sessionStorage.setItem(key, json);
+      return true;
     } catch (error) {
       console.warn(`lab: ${key} not stored`, error);
+      return false;
     }
+  }
+
+  private save_results(results: readonly TrialResult[]) {
+    const key = results_key(this.pack);
+    if (this.save(key, results_json(this.trials, results))) return;
+    // Traces fill the tab's storage first: the numbers alone still go in.
+    this.save(key, results_json(this.trials, results.map((r) => ({ ...r, trace: null }))));
   }
 }
 
@@ -289,7 +347,8 @@ export async function open_lab(id: string, host: LabHost): Promise<Lab> {
   const asked = new URLSearchParams(location.search).get(TRIAL_PARAM);
   const at = asked === null ? 0 : Math.max(0, Math.min(lab.trials.length - 1, Math.trunc(Number(asked)) || 0));
   // Back from a reload onto the trial's map: its brief, as a tap on its tile would have shown.
-  if (asked !== null) view.screen = { kind: "brief", index: at };
+  // A drive a reload cut short comes back on its results, to download before a new attempt replaces it.
+  if (asked !== null) view.screen = lab.results[at].trace ? { kind: "result", index: at } : { kind: "brief", index: at };
   await lab.begin(at);
   return lab;
 }

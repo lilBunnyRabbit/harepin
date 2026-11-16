@@ -1,0 +1,18 @@
+{
+  "kind": "tune",
+  "train": "0-7",
+  "check": "20-35,44",
+  "solo": "0-19",
+  "cars": 6,
+  "laps": 2,
+  "sigma": 0.2,
+  "name": "l-driver",
+  "group": "core",
+  "note": "all 15 driver limits and level 3 rows, pace weight doubled",
+  "params": "driver",
+  "pop": 12,
+  "gens": 10,
+  "weights": {
+    "pace": 400
+  }
+}
