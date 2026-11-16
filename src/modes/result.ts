@@ -2,10 +2,12 @@ import type { CareerEvent } from "../career/career";
 import { event_map } from "../career/career-store";
 import { event_ticket, type EventTicket } from "../career/event-ticket";
 import { place_of, type Place } from "../career/place";
+import { ordinal } from "../career/series";
 import { format } from "../hud/hud";
 import type { MapSpec } from "../worldgen/kinds/kinds";
 import type { WorldKind } from "../worldgen/types";
 import type { Hits } from "./hits";
+import type { Finish } from "./mode";
 import { MAX_STARS, type StarRun } from "./track";
 
 export function star_row(stars: number): HTMLSpanElement {
@@ -40,6 +42,9 @@ export function best_line(best: StarRun | undefined, score_text = points_text): 
 export function result_title(name: string, record: { improved: boolean; first: boolean }): string {
   return `${name}${record.improved && !record.first ? " · new best" : ""}`;
 }
+
+/** The results stamp's headline: the place where cars raced, else the run's title. */
+export const stamp_text = (finish: Finish) => (finish.place === undefined ? finish.title : ordinal(finish.place));
 
 export const penalty_text = (hits: Hits | null) => (hits?.count ? ` (+${hits.penalty_ms / 1000} s)` : "");
 

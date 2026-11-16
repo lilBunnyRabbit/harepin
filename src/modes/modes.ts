@@ -29,7 +29,7 @@ import { PARKING_MODE } from "./parking-mode";
 import type { RunPlay } from "../runs/run-play";
 import { RACE_MODE } from "./race-mode";
 import { level_route, race_levels } from "./races";
-import { go_label, line, next_ticket, run_text, star_row } from "./result";
+import { go_label, line, next_ticket, run_text, stamp_text, star_row } from "./result";
 import { ResultNextView } from "./result-next.svelte";
 import { MAX_STARS, Track, local_store, type RaceRecord } from "./track";
 import "./modes.css";
@@ -656,7 +656,7 @@ export class Modes implements CarHooks {
     if (cup?.done && cup.stars) active.track.record(CUP_RECORD, { stars: cup.stars, ms: 1, score: cup.total });
     const stars = cup?.done ? cup.stars : finish.stars;
     el.kind.textContent = active.mode.def.name;
-    el.title.textContent = cup?.done && active.event ? `${active.event.name} · ${cup.total} pts` : finish.title;
+    el.title.textContent = cup?.done && active.event ? `${active.event.name} · ${cup.total} pts` : stamp_text(finish);
     el.result_stars.replaceChildren(star_row(stars));
     el.result_stars.setAttribute("aria-label", `${stars} of ${MAX_STARS} stars`);
     el.lines.replaceChildren(...finish.lines);
