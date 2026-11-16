@@ -1,6 +1,8 @@
 import { mulberry32, seed_of } from "../rng";
 import { KINDS, plain_map, type MapSpec } from "../worldgen/kinds/kinds";
+import { SWITCH } from "../worldgen/kinds/land-knobs";
 import { map_code } from "../worldgen/kinds/map-code";
+import type { OptionDef } from "../worldgen/kinds/options";
 import { town_name } from "../worldgen/towns";
 import type { Town } from "../worldgen/types";
 import { WORLDS } from "./worlds";
@@ -62,23 +64,28 @@ function seed_word({ kind, seed }: MapSpec): string {
   return town_name(mulberry32(seed_of(`${map_code(plain_map(kind, seed))}:name`)));
 }
 
-// A label another option of the kind also uses ("None", "More") takes its option's name to stay apart.
-function option_words({ kind, levels }: MapSpec): string[] {
-  const { options } = KINDS[kind];
-  const words: string[] = [];
-  for (const [i, option] of options.entries()) {
-    const level = levels[i] ?? option.normal;
-    if (level === option.normal) continue;
-    const label = option.labels[level];
-    const shared = options.some((other) => other !== option && other.labels.includes(label));
-    words.push(shared ? `${option.name} ${label.toLowerCase()}` : label);
-  }
-  return words;
+// Which options use each word label, across every kind: a label one option owns reads alone ("Winter"); one shared ("More") or a slider's ("110%") needs its option's name.
+const OWNERS = new Map<string, Set<string>>();
+for (const { options } of Object.values(KINDS))
+  for (const option of options) if (!option.slider) for (const label of option.labels) OWNERS.set(label, (OWNERS.get(label) ?? new Set()).add(option.name));
+
+function option_word(option: OptionDef, level: number): string {
+  if (option.labels === SWITCH) return level ? option.name : `No ${option.name.toLowerCase()}`;
+  const label = option.labels[level];
+  return OWNERS.get(label)?.size === 1 ? label : `${option.name} ${label.toLowerCase()}`;
 }
 
-function named(map: MapSpec, word: string | null): string {
+function option_words({ kind, levels }: MapSpec): string[] {
+  const { options } = KINDS[kind];
+  return options.flatMap((option, i) => {
+    const level = levels[i] ?? option.normal;
+    return level === option.normal ? [] : [option_word(option, level)];
+  });
+}
+
+function named(map: MapSpec, word: string): string {
   const tail = option_words(map);
-  const head = [WORLDS[map.kind].label, ...(word === null ? [] : [word])].join(JOIN);
+  const head = `${WORLDS[map.kind].label}${JOIN}${word}`;
   return tail.length ? `${head}${JOIN}${tail.join(", ")}` : head;
 }
 
@@ -89,7 +96,7 @@ export function map_name(map: MapSpec, towns: readonly Pick<Town, "name" | "radi
 
 const has_towns = ({ kind, levels }: MapSpec) => ((KINDS[kind].tuned?.(levels) ?? KINDS[kind].recipe)?.towns.max ?? 0) > 0;
 
-// A town map off the table (a daily or random run) shows no town until its world loads.
+// A town map off the table (a daily or random run) shows only its kind until its world loads: no word sits where the town goes.
 export function name_of(map: MapSpec): string {
-  return MAP_NAMES[map_code(map)] ?? (has_towns(map) ? named(map, null) : map_name(map, []));
+  return MAP_NAMES[map_code(map)] ?? (has_towns(map) ? WORLDS[map.kind].label : map_name(map, []));
 }

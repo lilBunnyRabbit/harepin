@@ -5,7 +5,8 @@ import { event_map } from "../career/career-store";
 import { series_map } from "../career/series-run";
 import { SEASONS } from "../career/series-seasons";
 import { MAINLAND_SEED } from "../world/world-pick";
-import { generate_world, plain_map, type MapSpec } from "../worldgen/kinds/kinds";
+import { generate_world, KINDS, plain_map, type MapSpec } from "../worldgen/kinds/kinds";
+import { SWITCH } from "../worldgen/kinds/land-knobs";
 import { map_code, parse_map_code } from "../worldgen/kinds/map-code";
 import { WorldKind } from "../worldgen/types";
 import { MAP_NAMES, map_name, name_of } from "./map-name";
@@ -37,14 +38,22 @@ test("a map off its kind's normal options names the ones that differ after its w
   expect(map_name(read("1C0000006-W1"), [town("Fen", 90)])).toBe("Island · Fen · Winter");
 });
 
-test("a label another option shares takes its option's name", () => {
+test("a shared label, a slider's and a switch's read with their option's name", () => {
   expect(map_name(read("1S0000007-A0V2"), [])).toMatch(/ · Gaps none, Boost pads more$/);
+  const island = KINDS[WorldKind.ISLAND].options;
+  const levels = island.map((o) => (o.labels === SWITCH ? 0 : o.slider ? o.normal + 3 : o.normal));
+  const words = map_name({ kind: WorldKind.ISLAND, seed: 3, levels }, [town("Fen", 90)])
+    .split(" · ")[2]
+    .split(", ");
+  expect(words).toContain("No canyon");
+  for (const word of words) expect(word).toMatch(/^[A-Z][a-z]+( [a-z]+)* /);
 });
 
 test("off the table, a town map shows its kind until it loads; a map without towns needs no table", () => {
   const daily = plain_map(WorldKind.DESERT, 123_456);
   expect(MAP_NAMES[map_code(daily)]).toBeUndefined();
   expect(name_of(daily)).toBe("Dunes");
+  expect(name_of(read("1D0000BFI-W1"))).toBe("Dunes");
   const sky = plain_map(WorldKind.SKY, 123_456);
   expect(name_of(sky)).toBe(map_name(sky, []));
 });

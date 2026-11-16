@@ -3,7 +3,7 @@ import { SNOW_KIT, type SnowKit } from "../snow";
 import { knob, slider, type Knob } from "./options";
 
 const LEVELS = ["Less", "Normal", "More"] as const;
-const SWITCH = ["Off", "On"] as const;
+export const SWITCH = ["Off", "On"] as const;
 
 const road = (recipe: Recipe, patch: Partial<RoadRecipe>): Recipe => ({ ...recipe, road: { ...recipe.road, ...patch } });
 
