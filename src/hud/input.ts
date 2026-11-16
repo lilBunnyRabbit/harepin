@@ -173,6 +173,9 @@ const PAD_NAV: [number, Nav][] = [
   [7, "sub_next"],
 ];
 
+/** The input last used, written to `:root[data-input]` so glyphs show its keys, pad buttons or touch marks. */
+export type LastInput = "keys" | "pad" | "touch";
+
 export const typing = (target: EventTarget | null) => target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement;
 
 /** A modal dialog (the update card) is up: menu moves walk its controls, not the page behind it. */
@@ -191,6 +194,7 @@ export class Input {
   /** Pad buttons that were down when a panel closed; they drive nothing until let go. */
   private held = new Set<number>();
   private was_blocked = false;
+  private last_input: LastInput | null = null;
   pad: Gamepad | null = null;
   /** Pads whose rumble threw, by `Gamepad.id`: left still. */
   private readonly numb = new Set<string>();
@@ -207,7 +211,10 @@ export class Input {
   constructor(touch_root: HTMLElement, canvas: HTMLElement) {
     this.touch = new Touch(touch_root);
     this.mouse = new MouseLook(canvas);
+    this.used(matchMedia("(pointer: coarse)").matches ? "touch" : "keys");
+    window.addEventListener("pointerdown", (e) => this.used(e.pointerType === "mouse" ? "keys" : "touch"), { capture: true, passive: true });
     window.addEventListener("keydown", (e) => {
+      this.used("keys");
       if (e.repeat || typing(e.target)) return;
       // Menu presses (arrows, Enter, Q / E) stay with the menu whatever they are bound to.
       if (this.blocked()) return;
@@ -234,6 +241,12 @@ export class Input {
     );
     window.addEventListener("keyup", (e) => this.keys.delete(e.code));
     window.addEventListener("blur", () => this.keys.clear());
+  }
+
+  private used(input: LastInput) {
+    if (input === this.last_input) return;
+    this.last_input = input;
+    document.documentElement.dataset.input = input;
   }
 
   private down(hold: Hold): boolean {
@@ -292,6 +305,7 @@ export class Input {
       const [x, y] = [pad.axes[2] ?? 0, pad.axes[3] ?? 0];
       const tilt = Math.hypot(x, y);
       if (tilt > STICK_DEAD) {
+        this.used("pad");
         const scale = Math.min(1, (tilt - STICK_DEAD) / (1 - STICK_DEAD)) / tilt;
         this.look.stick_x = x * scale;
         this.look.stick_y = y * scale;
@@ -301,6 +315,7 @@ export class Input {
       const lt = axis_value(this.button(6)?.value ?? 0, this.pad_response.brake);
       const handbrake = this.pad_down("handbrake");
       if (Math.abs(stick) > 0 || rt > 0.02 || lt > 0.02 || handbrake) {
+        this.used("pad");
         if (key_steer === 0) {
           controls.steer = stick;
           controls.analog = true;
@@ -319,6 +334,7 @@ export class Input {
       this.stick_press(pad.axes[0] ?? 0, pad.axes[1] ?? 0);
       for (let i = 0; i < pad.buttons.length; i++) {
         const pressed = pad.buttons[i].pressed;
+        if (pressed) this.used("pad");
         const action = i === MENU_BUTTON ? "menu" : this.pad_binds.get(i);
         if (pressed && !this.pad_prev[i] && is_press(action)) actions.push(action);
         this.pad_prev[i] = pressed;
