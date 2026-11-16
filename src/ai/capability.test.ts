@@ -38,9 +38,14 @@ describe("car capability", () => {
     for (const { name, spec } of tabled_specs()) expect([name, MEASURED[spec_hash(spec)]]).toEqual([name, measure(spec)]);
   });
 
+  test("no car inherits another car's ai block through a spread", () => {
+    const blocks = Object.values(CARS).flatMap((spec) => (spec.ai ? [spec.ai] : []));
+    expect(new Set(blocks).size).toBe(blocks.length);
+  });
+
   test("a car's ai block scales its measured grip and braking, never its drive", () => {
     const trimmed = plan_scale({ ...CARS.hatch, ai: { slow: 0.5, fast: 2, brake: 0.8 } });
-    const stock = plan_scale(CARS.hatch);
+    const stock = plan_scale({ ...CARS.hatch, ai: undefined });
     expect(trimmed).toEqual({ ...stock, slow: stock.slow * 0.5, fast: stock.fast * 2, brake: stock.brake * 0.8 });
   });
 });
