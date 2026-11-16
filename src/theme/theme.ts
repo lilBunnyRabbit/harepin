@@ -1,3 +1,5 @@
+import { oklab_to_linear } from "./oklab";
+
 // Mirrors webos src/lib/core/api/services/settings/themes.ts (presets, derive_theme, surface ladder); no shared package,
 // keep in sync by hand.
 export const TOKENS = [
@@ -277,13 +279,8 @@ export function apply_theme(name: string) {
 
 const ON_FILLS = ["primary", "secondary", "accent", "cottontail"] as const;
 
-function luminance([L, a, b]: Lab): number {
-  const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3;
-  const m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3;
-  const s = (L - 0.0894841775 * a - 1.291485548 * b) ** 3;
-  const R = 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
-  const G = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
-  const B = -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s;
+function luminance(lab: Lab): number {
+  const [R, G, B] = oklab_to_linear(lab);
   return 0.2126 * R + 0.7152 * G + 0.0722 * B;
 }
 
