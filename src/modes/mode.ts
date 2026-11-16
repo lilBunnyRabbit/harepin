@@ -158,9 +158,27 @@ export interface RouteRun {
   respawn?: RoutePoint;
 }
 
+/** The top card's fields after the clock, each in a slot of its own, in this order. */
+export const STATUS_FIELDS = ["place", "lap", "gap", "gates"] as const;
+export type StatusField = (typeof STATUS_FIELDS)[number];
+/** A mode's caption per field it shows; a field without one never shows. */
+export type StatusCaptions = Partial<Record<StatusField, string>>;
+
+/** A run's status, one object it keeps and rewrites each frame. */
+export interface ModeStatus extends Record<StatusField, string | null> {
+  name: string;
+  /** The big readout: the run's clock, a countdown, a score. */
+  clock: string;
+}
+
+/** A field this run never has is null and leaves its slot out; "" keeps the slot, blank, so the others stay put. */
+export function mode_status(name: string): ModeStatus {
+  return { name, clock: "", place: null, lap: null, gap: null, gates: null };
+}
+
 export interface ModeRun {
-  /** `sim_dt`: seconds of physics stepped this frame, 0 while the sim is paused. Returns the status line, or null to keep it. */
-  update(sim_dt: number, car: Driven): string | null;
+  /** `sim_dt`: seconds of physics stepped this frame, 0 while the sim is paused. Returns the run's status, or null to keep the last. */
+  update(sim_dt: number, car: Driven): ModeStatus | null;
   finished(): Finish | null;
   readonly holding?: boolean;
   readonly route?: RouteRun;
@@ -181,6 +199,8 @@ export interface ModeDef<L extends Level = Level> {
   readonly high_view?: boolean;
   /** Runs on a streamed world: it reads terrain only where the car is, so the chunks at its start are all it waits on. */
   readonly streams?: boolean;
+  /** What each top card field means in this mode. */
+  readonly status: StatusCaptions;
   /** How a scored run's points read; drift's bare points when absent. */
   readonly score_text?: (score: number) => string;
   levels(world: World): readonly L[];

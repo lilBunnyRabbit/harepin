@@ -2,7 +2,7 @@ import { Ghost } from "../car/ghost";
 import { format } from "../hud/hud";
 import { WORLDS } from "../worlds/worlds";
 import type { Hits } from "./hits";
-import { turn_to, type Driven, type Finish, type ModeCtx, type ModeDef, type ModeRun, type RouteRun } from "./mode";
+import { mode_status, turn_to, type Driven, type Finish, type ModeCtx, type ModeDef, type ModeRun, type ModeStatus, type RouteRun } from "./mode";
 import { drift_stars } from "./drift";
 import { COUNTDOWN_MS, RaceRun, RaceStatus, TrapRun, kmh, race_course, race_levels, trap_points, type RaceCourse, type RaceLevel } from "./races";
 import { RaceView } from "./race-view";
@@ -35,12 +35,14 @@ class Race implements ModeRun {
   private lap = 1;
   private banked = 0;
   readonly route: RouteRun;
+  private readonly status: ModeStatus;
 
   constructor(
     private readonly ctx: ModeCtx,
     private readonly level: RaceLevel,
     course: RaceCourse,
   ) {
+    this.status = mode_status(level.name);
     this.traps = level.trap ? new TrapRun(trap_points(course.line, course.gates), course.route.gate_hw) : null;
     this.view = new RaceView(course, ctx.ground, this.traps?.at);
     ctx.scene.add(this.view.root);
@@ -48,6 +50,8 @@ class Race implements ModeRun {
     this.run = new RaceRun(course, ctx.lobby_lap() ? 0 : COUNTDOWN_MS);
     this.laps = ctx.lobby_lap() || !course.route.closed ? 1 : Math.max(1, ctx.laps);
     this.hits = ctx.hits();
+    this.status.gates = "";
+    this.show_lap();
     void ctx.dev_ghost().then((lap) => {
       if (!lap || this.disposed) return;
       this.ghost = new Ghost(ctx.scene, ctx.world, DEV_GHOST_KEY);
@@ -67,7 +71,7 @@ class Race implements ModeRun {
     return this.run.countdown > 0;
   }
 
-  update(sim_dt: number, car: Driven): string | null {
+  update(sim_dt: number, car: Driven): ModeStatus | null {
     const { run, view, ctx } = this;
     const lobby_lap = ctx.lobby_lap();
     if (lobby_lap && !ctx.race_busy()) {
@@ -121,15 +125,23 @@ class Race implements ModeRun {
     const { gates } = run.course;
     view.guide(run.tracker.index, gates[run.next]);
     ctx.hint(turn_to(car, gate.x, gate.z));
-    const { name } = this.level;
-    if (run.status === RaceStatus.READY) return `${name} · ${Math.ceil(run.countdown / 1000)}`;
-    // A speed trap shows its traps in place of the gates: both run its line under the touch chips.
-    const doing = run.missed ? "missed a gate, go back" : (this.trap_text(now) ?? `gate ${run.next + 1}/${gates.length}`);
-    const lap = this.laps > 1 ? ` · lap ${this.lap}/${this.laps}` : "";
-    return `${name} · ${format(this.elapsed())}${lap}${penalty_text(this.hits)} · ${doing}`;
+    const { status } = this;
+    if (run.status === RaceStatus.READY) {
+      status.clock = String(Math.ceil(run.countdown / 1000));
+      return status;
+    }
+    // A speed trap scores its km/h, so its total takes the clock and its traps the gates: both run its line under the touch chips.
+    status.clock = this.traps ? kmh(this.traps.total) : `${format(this.elapsed())}${penalty_text(this.hits)}`;
+    status.gates = run.missed ? "go back" : (this.trap_text(now) ?? `${run.next + 1}/${gates.length}`);
+    return status;
+  }
+
+  private show_lap() {
+    if (this.laps > 1) this.status.lap = `${this.lap}/${this.laps}`;
   }
 
   private next_lap() {
+    this.show_lap();
     const { course } = this.run;
     this.run = new RaceRun(course, 0);
     this.route.respawn = course.line[0];
@@ -144,9 +156,8 @@ class Race implements ModeRun {
   private trap_text(now: number): string | null {
     const { traps, flash } = this;
     if (!traps) return null;
-    const total = `${kmh(traps.total)} total`;
-    if (flash && now - flash.at < FLASH_MS) return `${flash.kmh ? kmh(flash.kmh) : "trap missed"} · ${total}`;
-    return `trap ${Math.min(traps.next + 1, traps.at.length)}/${traps.at.length} · ${total}`;
+    if (flash && now - flash.at < FLASH_MS) return flash.kmh ? kmh(flash.kmh) : "missed";
+    return `${Math.min(traps.next + 1, traps.at.length)}/${traps.at.length}`;
   }
 
   private finish() {
@@ -216,6 +227,7 @@ export const RACE_MODE: ModeDef<RaceLevel> = {
   needs_ground: false,
   car_sized_only: false,
   busy_notice: "Leave the lobby race to race solo",
+  status: { place: "Place", lap: "Lap", gap: "Gap", gates: "Gates" },
   streams: true,
   score_text: kmh,
   levels: (world) => race_levels(world.routes, WORLDS[world.kind].map_label, world.tiles.streamed),

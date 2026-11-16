@@ -2,7 +2,7 @@ import { format } from "../hud/hud";
 import { HUNT_LEVELS, HuntRun, HuntStatus, build_hunt, type Hunt, type HuntLevel } from "./hunt";
 import type { Hits } from "./hits";
 import { HuntView } from "./hunt-view";
-import { CIRCUIT, turn_to, type Driven, type Finish, type ModeCtx, type ModeDef, type ModeRun, type RouteRun } from "./mode";
+import { CIRCUIT, mode_status, turn_to, type Driven, type Finish, type ModeCtx, type ModeDef, type ModeRun, type ModeStatus, type RouteRun } from "./mode";
 import { best_line, line, penalty_text, result_title, time_lines } from "./result";
 import { grade, par_thresholds } from "./track";
 import { hypot } from "../sim-math";
@@ -14,18 +14,22 @@ class GateHunt implements ModeRun {
   private readonly hits: Hits | null;
   readonly route: RouteRun = { id: CIRCUIT, gate: null, later: [] };
   private aimed = -1;
+  private readonly status: ModeStatus;
 
   constructor(
     private readonly ctx: ModeCtx,
     hunt: Hunt,
   ) {
+    this.status = mode_status(hunt.level.name);
+    this.status.gap = "";
+    this.status.gates = "";
     this.view = new HuntView(hunt, ctx.world);
     ctx.scene.add(this.view.root);
     this.run = new HuntRun(hunt);
     this.hits = ctx.hits();
   }
 
-  update(sim_dt: number, car: Driven): string | null {
+  update(sim_dt: number, car: Driven): ModeStatus | null {
     const { run, view, ctx } = this;
     const was = run.status;
     const hit = run.update(sim_dt * 1000, car.pos.x, car.pos.z, car.vel.x, car.vel.z);
@@ -49,12 +53,15 @@ class GateHunt implements ModeRun {
     }
     view.update(sim_dt);
     const gate = run.hunt.gates[next];
-    const { gates, level } = run.hunt;
+    const { gates } = run.hunt;
     this.route.gate = gate ?? null;
     if (!gate) return null;
     ctx.hint(turn_to(car, gate.x, gate.z));
-    const doing = run.status === HuntStatus.READY ? "drive to start the clock" : `${format(run.elapsed())}${penalty_text(this.hits)}`;
-    return `${level.name} · ${run.found.size}/${gates.length} · ${doing} · ${Math.round(hypot(gate.x - car.pos.x, gate.z - car.pos.z))} m`;
+    const { status } = this;
+    status.clock = run.status === HuntStatus.READY ? "drive to start the clock" : `${format(run.elapsed())}${penalty_text(this.hits)}`;
+    status.gates = `${run.found.size}/${gates.length}`;
+    status.gap = `${Math.round(hypot(gate.x - car.pos.x, gate.z - car.pos.z))} m`;
+    return status;
   }
 
   private finish() {
@@ -89,6 +96,7 @@ export const HUNT_MODE: ModeDef<HuntLevel> = {
   needs_ground: true,
   car_sized_only: false,
   busy_notice: "Leave the lobby race to hunt gates",
+  status: { gap: "Next", gates: "Gates" },
   levels: () => HUNT_LEVELS,
   start(ctx, level) {
     const { world } = ctx;

@@ -1,7 +1,7 @@
 import type { World } from "../world/world";
 import { JumpEvent, JumpRun, TRIES, build_jump, jump_levels, jump_stars, metres, type Jump, type JumpLevel, type JumpPose } from "./jump";
 import { JumpView } from "./jump-view";
-import { CIRCUIT, airborne, type Driven, type Finish, type ModeCtx, type ModeDef, type ModeRun, type RouteRun } from "./mode";
+import { CIRCUIT, airborne, mode_status, type Driven, type Finish, type ModeCtx, type ModeDef, type ModeRun, type ModeStatus, type RouteRun } from "./mode";
 import { best_line, line, result_title } from "./result";
 
 const NO_RAMP = "No ramp of this kind on this map";
@@ -18,11 +18,15 @@ class JumpDistance implements ModeRun {
   private result: Finish | null = null;
   private readonly pose: JumpPose = { x: 0, z: 0, vx: 0, vz: 0, airborne: false };
   readonly route: RouteRun;
+  private readonly status: ModeStatus;
 
   constructor(
     private readonly ctx: ModeCtx,
     private readonly jump: Jump,
   ) {
+    this.status = mode_status(jump.level.name);
+    this.status.lap = "";
+    this.status.gap = "";
     this.view = new JumpView(jump, ctx.ground);
     ctx.scene.add(this.view.root);
     this.run = new JumpRun(jump);
@@ -30,9 +34,8 @@ class JumpDistance implements ModeRun {
     ctx.spawn_on(jump.start);
   }
 
-  update(sim_dt: number, car: Driven): string {
+  update(sim_dt: number, car: Driven): ModeStatus {
     const { run, jump } = this;
-    const { name } = jump.level;
     const { pose } = this;
     pose.x = car.pos.x;
     pose.z = car.pos.z;
@@ -46,12 +49,12 @@ class JumpDistance implements ModeRun {
     }
     if (event === JumpEvent.RESET) this.ctx.spawn_on(jump.start);
     if (event === JumpEvent.DONE) this.finish();
-    if (run.done) return `${name} · ${run.best ? metres(run.best.metres) : "no jump"}`;
-    const settling = run.settling;
-    if (settling) return `${name} · ${metres(settling.metres)}${settling === run.best ? " · best" : ""}`;
-    if (run.flying !== null) return `${name} · ${metres(run.flying)}`;
-    const best = run.best ? ` · best ${metres(run.best.metres)}` : "";
-    return `${name} · try ${run.tries.length + 1}/${TRIES}${best} · ${Math.ceil(run.left_ms / 1000)} s`;
+    const { status } = this;
+    const { settling, best } = run;
+    status.lap = `${Math.min(run.tries.length + 1, TRIES)}/${TRIES}`;
+    status.gap = settling && settling === best ? "new" : best ? metres(best.metres) : "";
+    status.clock = run.done ? (best ? metres(best.metres) : "no jump") : settling ? metres(settling.metres) : run.flying !== null ? metres(run.flying) : `${Math.ceil(run.left_ms / 1000)} s`;
+    return status;
   }
 
   private finish() {
@@ -90,6 +93,7 @@ export const JUMP_MODE: ModeDef<JumpLevel> = {
   needs_ground: false,
   car_sized_only: false,
   busy_notice: "Leave the lobby race to jump",
+  status: { lap: "Try", gap: "Best" },
   score_text: metres,
   levels: (world) => jump_levels(world.ramps, world.challenges),
   start: (ctx, level) => {

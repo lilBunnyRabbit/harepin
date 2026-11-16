@@ -2,7 +2,7 @@ import { format } from "../hud/hud";
 import type { World } from "../world/world";
 import { GymRun, HIT_MS, LEVELS, MISS_MS, RunStatus, Step, build_course, find_site, type Course, type GymLevel, type Site } from "./gymkhana";
 import { GymkhanaView } from "./gymkhana-view";
-import { NO_SITE, body_of, type Driven, type Finish, type ModeCtx, type ModeDef, type ModeRun } from "./mode";
+import { NO_SITE, body_of, mode_status, type Driven, type Finish, type ModeCtx, type ModeDef, type ModeRun, type ModeStatus } from "./mode";
 import { best_line, line, result_title } from "./result";
 import { grade, par_thresholds } from "./track";
 
@@ -18,11 +18,13 @@ class Gymkhana implements ModeRun {
   private readonly view: GymkhanaView;
   private readonly run: GymRun;
   private result: Finish | null = null;
+  private readonly status: ModeStatus;
 
   constructor(
     private readonly ctx: ModeCtx,
     course: Course,
   ) {
+    this.status = mode_status(course.level.name);
     this.view = new GymkhanaView(course, ctx.world);
     ctx.scene.add(this.view.root);
     this.run = new GymRun(course);
@@ -30,7 +32,7 @@ class Gymkhana implements ModeRun {
     ctx.spawn(site.x, site.z, site.heading);
   }
 
-  update(sim_dt: number, car: Driven): string {
+  update(sim_dt: number, car: Driven): ModeStatus {
     const { run, view } = this;
     const { level } = run.course;
     const was = run.status;
@@ -40,7 +42,8 @@ class Gymkhana implements ModeRun {
     const step = run.step;
     view.target(step === Step.SPIN ? "spin" : step === Step.STOP ? "stop" : null);
     if (was !== RunStatus.DONE && run.status === RunStatus.DONE) this.finish(level);
-    const doing =
+    const { status } = this;
+    status.gates =
       run.status === RunStatus.READY
         ? "cross the start line"
         : step === Step.SLALOM
@@ -51,7 +54,8 @@ class Gymkhana implements ModeRun {
               ? "stop in the box, facing back"
               : "done";
     const penalty = run.penalty_ms();
-    return `${level.name} · ${format(run.elapsed())}${penalty ? ` (+${penalty / 1000} s)` : ""} · ${doing}`;
+    status.clock = `${format(run.elapsed())}${penalty ? ` (+${penalty / 1000} s)` : ""}`;
+    return status;
   }
 
   private finish(level: GymLevel) {
@@ -92,6 +96,7 @@ export const GYMKHANA_MODE: ModeDef<GymLevel> = {
   needs_ground: true,
   car_sized_only: true,
   busy_notice: "Leave the lobby race to play gymkhana",
+  status: { gates: "Next" },
   levels: () => LEVELS,
   start(ctx, level) {
     const site = gym_site(ctx.world, ctx.start_index);

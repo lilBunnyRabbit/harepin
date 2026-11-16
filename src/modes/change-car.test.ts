@@ -11,7 +11,7 @@ import { WorldKind } from "../worldgen/types";
 import { GYMKHANA_MODE } from "./gymkhana-mode";
 import type { CarLimit } from "../car/car-pick";
 import { Modes } from "./modes";
-import type { ModeCtx } from "./mode";
+import { mode_status, type ModeCtx } from "./mode";
 import type { RunPlay } from "../runs/run-play";
 import { held_car } from "./event-car";
 
@@ -315,6 +315,23 @@ test("a stage that refuses to start mid-championship says the championship ended
   expect(r.starts).toEqual(["g1", "g2"]);
   expect(r.modes.active).toBe(false);
   expect(elements.get("mode-status-name")!.textContent).toBe("No room here · championship over at stage 2/3, 10 pts");
+});
+
+test("each status field writes its own captioned slot: a blank one keeps it, one the mode has no caption for stays hidden", async () => {
+  const r = rig();
+  const status = mode_status("Course");
+  status.lap = "1/2";
+  status.gates = "";
+  GYMKHANA_MODE.start = () => ({ update: () => status, finished: () => null, dispose: () => {} });
+  await in_event(r, FIRST);
+  r.modes.update(0, {} as never);
+  const [place, lap, gates] = ["place", "lap", "gates"].map((field) => elements.get(`mode-status-${field}`)!);
+  expect([place.hidden, lap.hidden, gates.hidden]).toEqual([true, true, false]);
+  expect([gates.dataset.caption, gates.textContent]).toEqual(["Next", ""]);
+  status.clock = "0:01.000";
+  status.gates = "slalom 1/8";
+  r.modes.update(0, {} as never);
+  expect([elements.get("mode-status-clock")!.textContent, gates.textContent, gates.hidden]).toEqual(["0:01.000", "slalom 1/8", false]);
 });
 
 test("a speed trap event leaves out the cars its circuit excludes", async () => {

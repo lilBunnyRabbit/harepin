@@ -24,7 +24,7 @@ import { CUP_RECORD, Cup, stage_points, type Stage } from "./championship";
 import { JUMP_MODE } from "./jump-mode";
 import { Hits } from "./hits";
 import type { DrawnGround } from "./marks";
-import type { Driven, FieldHost, Finish, Level, ModeCtx, ModeDef, ModeRun, RouteRun } from "./mode";
+import { STATUS_FIELDS, mode_status, type Driven, type FieldHost, type Finish, type Level, type ModeCtx, type ModeDef, type ModeRun, type ModeStatus, type RouteRun, type StatusCaptions } from "./mode";
 import { PARKING_MODE } from "./parking-mode";
 import type { RunPlay } from "../runs/run-play";
 import { RACE_MODE } from "./race-mode";
@@ -58,6 +58,7 @@ const TOO_BIG = "Too big for this mode";
 const NOT_THIS_CAR = "This car can't race here";
 /** A clock segment that is a time alone (`format`): its width is set by its digit count, so it gets a box of that size. */
 const TIME = /^\d{1,2}:\d\d\.\d{3}$/;
+const NO_CAPTIONS: StatusCaptions = {};
 const LENT_CAR = `Practice: that car is a career reward, so the ${PRESETS[0].name} runs it and no times or stars keep`;
 const STREAMED = "This mode is not on this world yet";
 const NO_EVENT = "This event is not on this map";
@@ -133,7 +134,9 @@ export class Modes implements CarHooks {
   private lobby_lap: (() => boolean) | null = null;
   private high = false;
   private abort: AbortController | null = null;
-  private status_key = "";
+  /** The notice on the status line now, until a run's status replaces it. */
+  private noticed = "";
+  private readonly notice_status = mode_status("");
   private clock_chars = 0;
   private notice_until = 0;
   private readonly el = {
@@ -141,7 +144,7 @@ export class Modes implements CarHooks {
     status: $("mode-status"),
     status_name: $("mode-status-name"),
     status_clock: $("mode-status-clock"),
-    status_fields: [0, 1, 2, 3].map((i) => $(`mode-status-f${i}`)),
+    status_slots: { place: $("mode-status-place"), lap: $("mode-status-lap"), gap: $("mode-status-gap"), gates: $("mode-status-gates") },
     result: $("mode-result"),
     kind: $("mode-result-kind"),
     title: $("mode-result-title"),
@@ -561,7 +564,7 @@ export class Modes implements CarHooks {
     this.el.hint.hidden = true;
     this.el.result.hidden = true;
     delete this.el.status.dataset.cup;
-    this.status_key = "";
+    this.noticed = "";
   }
 
   private play_next() {
@@ -604,7 +607,10 @@ export class Modes implements CarHooks {
       this.show_result(finish, active);
     }
     // A notice holds the status line for its time against the run's own status.
-    if (status !== null && performance.now() >= this.notice_until) this.show_status(status);
+    if (status !== null && performance.now() >= this.notice_until) {
+      this.noticed = "";
+      this.write_status(status, active.mode.def.status);
+    }
   }
 
   private show_hint(turn: number) {
@@ -619,36 +625,37 @@ export class Modes implements CarHooks {
       this.el.note.hidden = false;
       return;
     }
-    this.write_status(text, text, "", []);
+    this.notice_status.name = text;
+    this.write_status(this.notice_status, NO_CAPTIONS);
+    this.noticed = text;
     this.notice_until = performance.now() + NOTICE_MS;
     setTimeout(() => {
-      if (this.status_key === text && !this.active) this.el.status.hidden = true;
+      if (this.noticed === text && !this.active) this.el.status.hidden = true;
     }, NOTICE_MS);
   }
 
-  private show_status(text: string) {
-    const [name = "", clock = "", ...more] = text.split(" · ");
-    this.write_status(text, clock ? name : text, clock, more);
-  }
-
-  /** `more` fills one top-card cell per part; parts past the last cell share it. */
-  private write_status(key: string, name: string, clock: string, more: readonly string[]) {
-    if (key === this.status_key) return;
-    this.status_key = key;
+  /** Each field keeps its own slot: a field the run lacks or the mode has no caption for hides its slot, a blank one keeps it. */
+  private write_status(status: ModeStatus, captions: StatusCaptions) {
     const { el } = this;
     if (el.status.hidden) el.status.hidden = false;
-    set_text(el.status_name, name);
-    set_text(el.status_clock, clock);
-    const chars = TIME.test(clock) ? clock.length : 0;
+    set_text(el.status_name, status.name);
+    set_text(el.status_clock, status.clock);
+    const chars = TIME.test(status.clock) ? status.clock.length : 0;
     if (chars !== this.clock_chars) {
       this.clock_chars = chars;
       if (chars) el.status_clock.dataset.time = String(chars);
       else delete el.status_clock.dataset.time;
     }
-    const { status_fields } = el;
-    const last = status_fields.length - 1;
-    for (let i = 0; i < last; i++) set_text(status_fields[i], more[i] ?? "");
-    set_text(status_fields[last], more.slice(last).join(" · "));
+    for (const field of STATUS_FIELDS) {
+      const slot = el.status_slots[field];
+      const caption = captions[field];
+      const value = status[field];
+      const hidden = caption === undefined || value === null;
+      if (slot.hidden !== hidden) slot.hidden = hidden;
+      if (hidden) continue;
+      if (slot.dataset.caption !== caption) slot.dataset.caption = caption;
+      set_text(slot, value);
+    }
   }
 
   private show_result(finish: Finish, active: Active) {

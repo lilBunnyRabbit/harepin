@@ -21,9 +21,13 @@ export function roam_card({ stars, here, map, flags, players }: RoamFacts): Paus
   return { kind: "roam", context: "free roam", title: map, facts };
 }
 
-// The run's status line already holds its name, clock and standing; while paused it no longer moves.
+// The run's top card already holds its name, clock and captioned fields; while paused it no longer moves.
 export function run_card(mode: string): PauseCard {
-  const fields = Array.from($("mode-status-more").children, (field) => field.textContent);
-  const facts = [...fields, $("mode-status-clock").textContent].filter((fact): fact is string => Boolean(fact));
+  const facts: string[] = [];
+  for (const slot of $("mode-status-more").children) {
+    if (slot instanceof HTMLElement && !slot.hidden && slot.textContent) facts.push(`${slot.dataset.caption} ${slot.textContent}`);
+  }
+  const clock = $("mode-status-clock").textContent;
+  if (clock) facts.push(clock);
   return { kind: "event", context: mode, title: $("mode-status-name").textContent ?? mode, facts };
 }

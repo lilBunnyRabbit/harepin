@@ -8,7 +8,7 @@ import { Standings } from "../ai/standings";
 import { format } from "../hud/hud";
 import { ordinal } from "../career/series";
 import { FieldTally } from "./field-tally";
-import { turn_to, type Driven, type FieldHost, type FieldPlace, type FieldRace, type Finish, type ModeCtx, type ModeRun, type RouteRun } from "./mode";
+import { mode_status, turn_to, type Driven, type FieldHost, type FieldPlace, type FieldRace, type Finish, type ModeCtx, type ModeRun, type ModeStatus, type RouteRun } from "./mode";
 import { RaceLights } from "./race-lights";
 import { race_laps } from "./race-laps";
 import { RaceView } from "./race-view";
@@ -64,6 +64,7 @@ export class AiRace implements ModeRun, FieldRace {
   private led = false;
   private halfway = false;
   readonly route: RouteRun;
+  private readonly status: ModeStatus;
 
   constructor(
     private readonly ctx: ModeCtx,
@@ -86,6 +87,12 @@ export class AiRace implements ModeRun, FieldRace {
     const spot = grid_spot(route, this.grid);
     ctx.spawn(spot.x, spot.z, spot.heading);
     this.field = new FieldView(ctx.scene, host.sim, this.builds, route, this.grid);
+    this.status = mode_status(this.name);
+    this.status.place = `P${this.grid + 1}/${this.builds.length + 1}`;
+    this.status.gap = "";
+    this.status.gates = "";
+    this.status.lap = "";
+    this.show_lap();
     host.attach?.(this);
   }
 
@@ -122,7 +129,7 @@ export class AiRace implements ModeRun, FieldRace {
     this.touches = now;
   }
 
-  update(sim_dt: number, car: Driven): string | null {
+  update(sim_dt: number, car: Driven): ModeStatus | null {
     if (!this.started) this.start_field();
     const { run, view, ctx } = this;
     const now = performance.now();
@@ -169,12 +176,19 @@ export class AiRace implements ModeRun, FieldRace {
     if (!gate) return null;
     view.guide(run.tracker.index, this.course.gates[run.next]);
     ctx.hint(turn_to(car, gate.x, gate.z));
-    const name = this.name;
-    const field = this.builds.length + 1;
-    if (run.status === RaceStatus.READY) return `${name} · ${Math.ceil(run.countdown / 1000)} · ${field} on the grid`;
+    const { status } = this;
+    if (run.status === RaceStatus.READY) {
+      status.clock = String(Math.ceil(run.countdown / 1000));
+      return status;
+    }
     const place = this.place_now();
-    const doing = run.missed ? "missed a gate, go back" : this.doing();
-    return `${name} · ${format(this.banked + run.elapsed())} · P${place}/${this.tally.left()}${this.gap_text(place)} · ${doing}`;
+    status.clock = format(this.banked + run.elapsed());
+    status.place = `P${place}/${this.tally.left()}`;
+    status.gap = this.gap_text(place);
+    status.gates = run.missed ? "go back" : `${run.next + 1}/${this.course.gates.length}`;
+    const limit = this.host.event?.limit_ms;
+    if (limit) status.lap = `${format(Math.max(0, limit - this.t * 1000))} left`;
+    return status;
   }
 
   /** A knockout or the clock ends the player's race before the line: true once it has. */
@@ -212,10 +226,8 @@ export class AiRace implements ModeRun, FieldRace {
     return place;
   }
 
-  private doing(): string {
-    const limit = this.host.event?.limit_ms;
-    if (limit) return `${format(Math.max(0, limit - this.t * 1000))} left`;
-    return `lap ${this.lap}/${this.laps}`;
+  private show_lap() {
+    if (!this.host.event?.limit_ms) this.status.lap = `${this.lap}/${this.laps}`;
   }
 
   private get name(): string {
@@ -229,10 +241,11 @@ export class AiRace implements ModeRun, FieldRace {
     const order = standings.order;
     const gap = place > 1 ? standings.gap(order[place - 2], player, this.t) : standings.gap(player, order[1], this.t);
     if (Number.isNaN(gap)) return "";
-    return place > 1 ? ` · +${seconds(gap)}` : ` · lead ${seconds(gap)}`;
+    return place > 1 ? `+${seconds(gap)}` : `lead ${seconds(gap)}`;
   }
 
   private next_lap() {
+    this.show_lap();
     this.run = new RaceRun(this.course, 0);
     this.route.respawn = this.course.line[0];
     this.view.aim(0);

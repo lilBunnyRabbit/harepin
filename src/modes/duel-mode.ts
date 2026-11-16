@@ -4,7 +4,7 @@ import { format } from "../hud/hud";
 import { ROAD_HALF, type World } from "../world/world";
 import { DUEL_LEAD, DUEL_LEVELS, DuelRun, DuelStatus, build_route, duel_gates, type DuelLevel, type Route } from "./duel";
 import type { Hits } from "./hits";
-import { CIRCUIT, turn_to, type Driven, type Finish, type ModeCtx, type ModeDef, type ModeRun, type RouteRun } from "./mode";
+import { CIRCUIT, mode_status, turn_to, type Driven, type Finish, type ModeCtx, type ModeDef, type ModeRun, type ModeStatus, type RouteRun } from "./mode";
 import { RaceView } from "./race-view";
 import { best_line, line, penalty_text, result_title, time_lines } from "./result";
 import { grade, par_thresholds } from "./track";
@@ -30,11 +30,15 @@ class Duel implements ModeRun {
   private result: Finish | null = null;
   private readonly hits: Hits | null;
   readonly route: RouteRun;
+  private readonly status: ModeStatus;
 
   constructor(
     private readonly ctx: ModeCtx,
     route: Route,
   ) {
+    this.status = mode_status(route.level.name);
+    this.status.gap = "";
+    this.status.gates = "";
     const gates = duel_gates(route, ctx.world.checkpoints);
     const circuit = ctx.world.routes.find((r) => r.id === CIRCUIT);
     const line = route.points.slice(DUEL_LEAD);
@@ -56,7 +60,7 @@ class Duel implements ModeRun {
     return gates.slice(next + 1).map((at) => route.points[at]);
   }
 
-  update(sim_dt: number, car: Driven): string | null {
+  update(sim_dt: number, car: Driven): ModeStatus | null {
     const { run, ghost, view, ctx } = this;
     const was = run.status;
     const taken = run.update(sim_dt * 1000, car.pos.x, car.pos.z);
@@ -84,14 +88,18 @@ class Duel implements ModeRun {
     if (!gate) return null;
     view.guide(Math.max(0, run.tracker.index - DUEL_LEAD), run.gates[run.next] - DUEL_LEAD);
     ctx.hint(turn_to(car, gate.x, gate.z));
-    const { level } = run.route;
+    const { status } = this;
+    status.gates = `${run.next + 1}/${run.gates.length}`;
     if (run.status === DuelStatus.READY) {
       const to_line = Math.max(0, Math.round(-run.route.at[Math.max(0, run.tracker.index)]));
-      return `${level.name} · start line in ${to_line} m${ghost.has_best ? "" : " · this run sets your ghost"}`;
+      status.clock = `start line in ${to_line} m`;
+      status.gap = ghost.has_best ? "" : "this run sets it";
+      return status;
     }
     const gap = run.gap(ghost.position(run.elapsed(), this.ghost_at));
-    const versus = gap === null ? (ghost.has_best ? "ghost finished" : "no ghost yet") : `${gap >= 0 ? "ahead" : "behind"} ${Math.abs(Math.round(gap))} m`;
-    return `${level.name} · ${format(run.elapsed())}${penalty_text(this.hits)} · ${versus}`;
+    status.clock = `${format(run.elapsed())}${penalty_text(this.hits)}`;
+    status.gap = gap === null ? (ghost.has_best ? "finished" : "none yet") : `${gap >= 0 ? "ahead" : "behind"} ${Math.abs(Math.round(gap))} m`;
+    return status;
   }
 
   private finish() {
@@ -135,6 +143,7 @@ export const DUEL_MODE: ModeDef<DuelLevel> = {
   needs_ground: false,
   car_sized_only: false,
   busy_notice: "Leave the lobby race to duel your ghost",
+  status: { gap: "Ghost", gates: "Gates" },
   streams: true,
   levels: () => DUEL_LEVELS,
   start(ctx, level) {

@@ -14,6 +14,11 @@
   color: var(--foreground);
 }
 
+/* The results card brings its own way out. */
+body:has(#mode-result:not([hidden])) #hud-menu-btn {
+  display: none;
+}
+
 #hud-menu-btn:hover {
   background: var(--background-light);
 }
@@ -166,7 +171,6 @@
   }
 
   :root[data-hud] #mode-status > :not(:empty, #mode-status-more),
-  :root[data-hud] #mode-status-more > :not(:empty),
   :root[data-hud] #mode-status[data-cup]::before {
     display: flex;
     align-items: center;
@@ -175,13 +179,32 @@
   }
 
   :root[data-hud] #mode-status > :not(:empty) ~ :not(:empty),
-  :root[data-hud] #mode-status-more > :not(:empty),
+  :root[data-hud] #mode-status-more > :not([hidden]),
   :root[data-hud] #mode-status[data-cup] > :not(:empty) {
     border-left: 1px solid var(--line);
   }
 
-  :root[data-hud] :is(#mode-status, #mode-status-more) > :not(:empty) ~ :not(:empty)::before {
+  :root[data-hud] #mode-status > :not(:empty) ~ :not(:empty)::before,
+  :root[data-hud] #mode-status-more > ::before {
     content: none;
+  }
+
+  :root[data-hud] #mode-status-more > :not([hidden]) {
+    display: block;
+    align-content: center;
+    padding: 0 var(--space-4);
+    line-height: 1.1;
+  }
+
+  :root[data-hud] #mode-status-more > ::after {
+    content: attr(data-caption);
+    display: block;
+    font-family: var(--font-sans);
+    font-size: var(--text-xs);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--dim);
   }
 
   /* The phone card keeps the figures; the event's name shows only when there is no clock to show. */
@@ -219,6 +242,11 @@
 
   :root[data-hud] #mode-status-more > :last-child {
     min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  :root[data-hud] #mode-status-more > :last-child::after {
     overflow: hidden;
     text-overflow: ellipsis;
   }

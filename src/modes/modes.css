@@ -50,14 +50,19 @@
   width: 8.65ch;
 }
 
-#mode-status > :not(:empty) ~ :not(:empty)::before,
-#mode-status-more > :not(:empty) ~ :not(:empty)::before {
+#mode-status > :not(:empty) ~ :where(#mode-status-clock:not(:empty))::before {
   content: " · ";
 }
 
-#mode-status-more:not(:has(> :not(:empty))),
+/* One slot per field, captioned by the mode. A blank field keeps its slot so the fields after it stay put. */
+#mode-status-more > ::before {
+  content: " · " attr(data-caption) " ";
+  white-space: pre;
+  color: var(--dim);
+}
+
 #mode-status-more > :empty {
-  display: none;
+  visibility: hidden;
 }
 
 #mode-status[data-cup]::before {

@@ -1,7 +1,7 @@
 import { format } from "../hud/hud";
 import type { World } from "../world/world";
 import { find_site, to_world, type Site } from "./gymkhana";
-import { NO_SITE, body_of, pose_of, type Driven, type Finish, type ModeCtx, type ModeDef, type ModeRun } from "./mode";
+import { NO_SITE, body_of, mode_status, pose_of, type Driven, type Finish, type ModeCtx, type ModeDef, type ModeRun, type ModeStatus } from "./mode";
 import { PARK_LEVELS, ParkRun, ParkStatus, Verdict, park_footprint, park_solids, park_stars, type ParkLevel } from "./parking";
 import { ParkingView } from "./parking-view";
 import { best_line, line, result_title } from "./result";
@@ -29,12 +29,15 @@ class Parking implements ModeRun {
   private readonly unlay: () => void;
   private readonly run: ParkRun;
   private result: Finish | null = null;
+  private readonly status: ModeStatus;
 
   constructor(
     private readonly ctx: ModeCtx,
     site: Site,
     level: ParkLevel,
   ) {
+    this.status = mode_status(level.name);
+    this.status.gap = "";
     const { world } = ctx;
     this.view = new ParkingView(site, level, world, world.seed, AREA);
     ctx.scene.add(this.view.root);
@@ -46,14 +49,15 @@ class Parking implements ModeRun {
     ctx.spawn(at.x, at.z, at.heading);
   }
 
-  update(sim_dt: number, car: Driven): string {
+  update(sim_dt: number, car: Driven): ModeStatus {
     const { run } = this;
     const was = run.status;
     run.update(sim_dt * 1000, pose_of(car), body_of(car.spec));
     const verdict = run.last.verdict;
     this.view.inside(verdict === Verdict.INSIDE);
     if (was !== ParkStatus.DONE && run.status === ParkStatus.DONE) this.finish();
-    const doing =
+    const { status } = this;
+    status.gates =
       run.status === ParkStatus.READY
         ? this.ready_line()
         : run.status === ParkStatus.DONE
@@ -67,8 +71,9 @@ class Parking implements ModeRun {
               : verdict === Verdict.CROOKED
                 ? "straighten up"
                 : "park in the marked bay";
-    const touches = run.touches ? ` · touches ${run.touches}` : "";
-    return `${run.level.name} · ${format(run.elapsed())}${touches} · ${doing}`;
+    status.gap = run.touches ? String(run.touches) : "";
+    status.clock = format(run.elapsed());
+    return status;
   }
 
   private ready_line(): string {
@@ -119,6 +124,7 @@ export const PARKING_MODE: ModeDef<ParkLevel> = {
   needs_ground: true,
   car_sized_only: true,
   busy_notice: "Leave the lobby race to park",
+  status: { gap: "Touches", gates: "Bay" },
   high_view: true,
   levels: () => PARK_LEVELS,
   start(ctx, level) {
