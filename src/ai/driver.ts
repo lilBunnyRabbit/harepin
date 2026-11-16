@@ -46,7 +46,7 @@ const KICK_YIELD = 8;
 const AIM_OFF = 2;
 
 export interface Personality {
-  /** Share of the line's planned speed it drives at: 0.96-1.02 drawn, times the difficulty and the car's grip. */
+  /** Share of the line's planned speed it drives at: 0.96-1.02 drawn, times the difficulty. */
   pace: number;
   /** m/s it carries over the plan everywhere: a late braker. */
   brake_margin: number;
@@ -54,8 +54,6 @@ export interface Personality {
   aggression: number;
   /** Chance every SECTOR road points of a mistake: a late brake that runs wide, or a hesitation that costs time. */
   mistakes: number;
-  /** Share of the stock coupe's cornering speed its car holds (`grip_pace`): the most it takes a bend at, whatever its pace. 1 when absent. */
-  grip?: number;
 }
 
 /** Metres off the centre past which a car is off the road: a hazard to the field, and on the clock toward a reset. */
@@ -234,7 +232,7 @@ export class Driver {
     const { road } = line;
     const n = road.length;
     const plan = this.late ? line.late : line.speed;
-    const brake = this.late ? AI_TUNING.late_brake : AI_TUNING.line_brake;
+    const brake = (this.late ? AI_TUNING.late_brake : AI_TUNING.line_brake) * line.scale.brake;
     let pace = Infinity;
     let run = 0;
     for (let k = 0; k < HOLD_LOOK; k += HOLD_STRIDE) {
@@ -245,7 +243,7 @@ export class Driver {
       const li = this.lateral_at(car, i);
       const lc = this.lateral_at(car, c);
       const bend = inverse_radius(road[a].x + road[a].tz * la, road[a].z - road[a].tx * la, road[i].x + road[i].tz * li, road[i].z - road[i].tx * li, road[c].x + road[c].tz * lc, road[c].z - road[c].tx * lc);
-      const v = Math.min(plan[i], Math.sqrt((this.push > 1 ? Math.min(AI_TUNING.pass_max, grip_at(bend) * AI_TUNING.pass_grip) : grip_at(bend)) / Math.max(1e-9, Math.abs(bend))));
+      const v = Math.min(plan[i], Math.sqrt((this.push > 1 ? Math.min(AI_TUNING.pass_max * line.scale.slow, grip_at(bend, line.scale) * AI_TUNING.pass_grip) : grip_at(bend, line.scale)) / Math.max(1e-9, Math.abs(bend))));
       pace = Math.min(pace, Math.sqrt(v * v + 2 * brake * run));
       for (let s = 0; s < HOLD_STRIDE; s++) run += line.step[(i + s) % n];
     }
@@ -272,7 +270,7 @@ export class Driver {
     // Pace, a pass's push and a brake margin carry speed down the straights and into the braking, never through a bend
     // faster than its grip: the corner speeds braked for at late_brake are the most a car holds. Over them, cars ran
     // 2-4 m wide out of hairpins into the posts at the road's edge. A mistake is the one way over.
-    const held = slip ? free : Math.min(free, line.late[this.index] * (personality.grip ?? 1));
+    const held = slip ? free : Math.min(free, line.late[this.index]);
     const kicker = line.ramp[this.index] >= 0;
     // Pinned onto a kicker's run, a car keeps KICK_MIN under any car ahead: held to a follower's gap, a car met the lip at
     // 16 m/s, fell into the frame and the field piled up behind it (seed 28, 90 m off the grid).
@@ -301,7 +299,7 @@ export class Driver {
     // on its path the plan already holds the bend, and the cap only cost pace.
     const off = Math.abs(me - this.lateral_at(car, this.index)) > AIM_OFF;
     const arc = off ? (2 * Math.abs(sin(err))) / Math.max(1, hypot(ax - car.pos.x, az - car.pos.z)) : 0;
-    const target = Math.max(floor, Math.min(want_speed, Math.sqrt(AI_TUNING.pass_max / Math.max(1e-9, arc))));
+    const target = Math.max(floor, Math.min(want_speed, Math.sqrt((AI_TUNING.pass_max * line.scale.slow) / Math.max(1e-9, arc))));
     this.target = target;
     const c = this.controls;
     if (this.reversing > 0) {
@@ -329,7 +327,7 @@ export class Driver {
     // In a braking zone the pedal follows the profile's slope from its first metre: waiting for the slack over it, then
     // feeding back on the overspeed alone, was the long light trail that started braking 250 m early.
     const decel = this.plan_decel(personality.pace * this.push);
-    const feed = Math.max(0, decel - COAST_DECEL) / AI_TUNING.brake_gain;
+    const feed = Math.max(0, decel - COAST_DECEL) / (AI_TUNING.brake_gain * line.scale.brake);
     const pedal = capped ? Math.min(1, feed + (speed - target) / CAP_BRAKE_PER) : Math.min(this.late ? AI_TUNING.late_pedal : AI_TUNING.brake_max, feed + (speed - target) / AI_TUNING.brake_per);
     c.brake = speed > target + (decel > 0 ? 0 : AI_TUNING.brake_slack) ? pedal * turn * ease : 0;
     return c;

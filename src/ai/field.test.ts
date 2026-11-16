@@ -1,12 +1,11 @@
 /// <reference types="bun" />
 import { describe, expect, test } from "bun:test";
 import { Car } from "../car/car";
-import { build_spec, parse_build } from "../car/build";
 import { COUPE } from "../car/cars";
 import { Awareness } from "./awareness";
 import { World } from "../world/world";
 import { RouteKind } from "../worldgen/types";
-import { Field, grid_spot, grip_pace, personalities } from "./field";
+import { Field, grid_spot, personalities } from "./field";
 import { race_line } from "./line";
 
 describe("AI field personalities", () => {
@@ -109,16 +108,6 @@ describe("AI field coasting", () => {
 
 describe("AI field start and pace", () => {
   const DT = 1 / 360;
-
-  test("the line's pace is the stock coupe's; a car on tarmac-poor tyres drives under it, never over", () => {
-    expect(grip_pace(COUPE)).toBe(1);
-    const rally = parse_build("rally.4.2.0.4.1.0.7.3");
-    if (!rally) throw new Error("rally preset no longer parses");
-    expect(grip_pace(build_spec(rally))).toBeLessThan(1);
-    const formula = parse_build("formula.6.4.4.2.2.0.1.2.2.2.1.2");
-    if (!formula) throw new Error("formula preset no longer parses");
-    expect(grip_pace(build_spec(formula))).toBe(1);
-  });
 
   test("off the grid every car keeps its slot's side of the road, and none brakes to queue", () => {
     const world = new World(4);

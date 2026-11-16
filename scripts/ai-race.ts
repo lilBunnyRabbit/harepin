@@ -4,6 +4,7 @@ import { Driver, OFF_ROAD } from "../src/ai/driver";
 import { at_difficulty, Difficulty } from "../src/ai/difficulty";
 import { Field, personalities } from "../src/ai/field";
 import { race_line } from "../src/ai/line";
+import { plan_scale } from "../src/ai/capability";
 import { World } from "../src/world/world";
 import { generate_world } from "../src/worldgen/kinds/kinds";
 import { is_kind, RouteKind, WorldKind, type Route } from "../src/worldgen/types";
@@ -39,7 +40,7 @@ export function circuits(world: World): Route[] {
 }
 
 export function solo(world: World, route: Route, spec: CarSpec, limit = 400, assists = true): Solo {
-  const line = race_line(route.points, world.ramps, spec.radius, world);
+  const line = race_line(route.points, world.ramps, spec.radius, world, plan_scale(spec));
   const driver = new Driver(line);
   const car = new Car(spec);
   car.assist = car.stability = assists;

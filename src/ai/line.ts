@@ -2,12 +2,15 @@ import { GRAVITY } from "../car/rigid-body";
 import { ROAD_HALF, type Ramp, type RoadPoint } from "../worldgen/types";
 import { hazards, type LineGround } from "./hazards";
 import { AI_TUNING } from "./tuning";
+import { UNIT_SCALE, type PlanScale } from "./capability";
 import { hypot } from "../sim-math";
 
-/** Grip (m/s²) the line plans a bend of signed curvature `bend` (1/m) on. */
-export function grip_at(bend: number): number {
+/** Grip (m/s²) the line plans a bend of signed curvature `bend` (1/m) on, for a car of `scale` over the coupe. */
+export function grip_at(bend: number, scale: PlanScale = UNIT_SCALE): number {
   const radius = 1 / Math.max(1e-9, Math.abs(bend));
-  const { line_grip, fast_grip, hairpin_radius, fast_radius } = AI_TUNING;
+  const { hairpin_radius, fast_radius } = AI_TUNING;
+  const line_grip = AI_TUNING.line_grip * scale.slow;
+  const fast_grip = AI_TUNING.fast_grip * scale.fast;
   return line_grip + (fast_grip - line_grip) * Math.max(0, Math.min(1, (radius - hairpin_radius) / (fast_radius - hairpin_radius)));
 }
 
@@ -42,10 +45,15 @@ export interface RaceLine {
   readonly offset: Float64Array;
   readonly x: Float64Array;
   readonly z: Float64Array;
-  /** m/s: the speed profile along the line: corner speeds from radius and grip, braked for at `AI_TUNING.line_brake` by a backward pass, held to what the car pulls (`drive_at`) by a forward one. */
+  /** m/s: the speed profile along the line: corner speeds from radius and grip, braked for at `AI_TUNING.line_brake` by a backward pass, held to what the car pulls (`drive_at`) by a forward one, all times `scale`. */
   readonly speed: Float64Array;
   /** m/s: the same profile braked for at `AI_TUNING.late_brake`, the plan of a late braker diving down the inside. */
   readonly late: Float64Array;
+  /** The car the speeds are planned for, over the stock coupe (`plan_scale`). */
+  readonly scale: PlanScale;
+  /** Vertical curvature (1/m) over a crest, and 1 where the road kicks (a kicker or a step across it): what any car's plan slows for. */
+  readonly lift: Float64Array;
+  readonly kick: Uint8Array;
   /** Signed 1/radius (1/m) of the line at each point; positive bends away from the right normal. */
   readonly bend: Float64Array;
   readonly ramp: Int16Array;
@@ -75,13 +83,13 @@ function ramp_index(road: readonly RoadPoint[], ramp: Ramp): number {
 }
 
 /** Most acceleration (m/s²) the line plans at `speed` m/s: traction up to `line_drive`, then the engine's power over speed. */
-export function drive_at(speed: number): number {
-  return Math.min(AI_TUNING.line_drive, AI_TUNING.line_power / Math.max(1, speed));
+export function drive_at(speed: number, scale: PlanScale = UNIT_SCALE): number {
+  return Math.min(AI_TUNING.line_drive * scale.drive, (AI_TUNING.line_power * scale.power) / Math.max(1, speed));
 }
 
 /** Share of the tyres' grip left along the road at `speed` m/s through bend `bend` (1/m): the friction circle, never under GRIP_FLOOR. */
-function along(speed: number, bend: number): number {
-  const used = (speed * speed * Math.abs(bend)) / grip_at(bend);
+function along(speed: number, bend: number, scale: PlanScale): number {
+  const used = (speed * speed * Math.abs(bend)) / grip_at(bend, scale);
   return Math.max(GRIP_FLOOR, Math.sqrt(Math.max(0, 1 - used * used)));
 }
 
@@ -91,18 +99,18 @@ function along(speed: number, bend: number): number {
  * each way, as a curve from the slowest bend wraps past the start line. The forward pass takes no share for the turn:
  * the line corners under the car's real grip, and an exit held to the friction circle had it lifting a second a lap.
  */
-function profile(speed: Float64Array, step: Float64Array, bend: Float64Array, brake: number) {
+function profile(speed: Float64Array, step: Float64Array, bend: Float64Array, brake: number, scale: PlanScale) {
   const n = speed.length;
   for (let k = 2 * n - 1; k >= 0; k--) {
     const i = wrap(k, n);
     const v = speed[wrap(k + 1, n)];
-    speed[i] = Math.min(speed[i], Math.sqrt(v * v + 2 * brake * along(v, bend[i]) * step[i]));
+    speed[i] = Math.min(speed[i], Math.sqrt(v * v + 2 * brake * along(v, bend[i], scale) * step[i]));
   }
   for (let k = 0; k < 2 * n; k++) {
     const i = wrap(k, n);
     const v = speed[i];
     const next = wrap(k + 1, n);
-    speed[next] = Math.min(speed[next], Math.sqrt(v * v + 2 * drive_at(v) * step[i]));
+    speed[next] = Math.min(speed[next], Math.sqrt(v * v + 2 * drive_at(v, scale) * step[i]));
   }
 }
 
@@ -172,7 +180,7 @@ function relax(road: readonly RoadPoint[], offset: Float64Array, x: Float64Array
  * width (`half_width`, m) and kept off what `ground` shows on the road. The plain midpoint (shortest path) is slower:
  * it bunches a bend's turn at the apex.
  */
-export function race_line(road: readonly RoadPoint[], ramps: readonly Ramp[], half_width: number, ground?: LineGround): RaceLine {
+export function race_line(road: readonly RoadPoint[], ramps: readonly Ramp[], half_width: number, ground?: LineGround, scale: PlanScale = UNIT_SCALE): RaceLine {
   const n = road.length;
   const step = new Float64Array(n);
   for (let i = 0; i < n; i++) step[i] = hypot(road[wrap(i + 1, n)].x - road[i].x, road[wrap(i + 1, n)].z - road[i].z);
@@ -210,26 +218,39 @@ export function race_line(road: readonly RoadPoint[], ramps: readonly Ramp[], ha
     }
     relax(road, offset, x, z, left, right);
   }
-  const speed = new Float64Array(n);
   const bend = new Float64Array(n);
+  const lift = new Float64Array(n);
+  const kick = new Uint8Array(n);
   for (let i = 0; i < n; i++) {
     const a = wrap(i - CURVE_SPAN, n);
     const c = wrap(i + CURVE_SPAN, n);
     bend[i] = inverse_radius(x[a], z[a], x[i], z[i], x[c], z[c]);
+    lift[i] = crest(road, step, i);
+    kick[i] = ramp[i] >= 0 || steps?.[i] ? 1 : 0;
+  }
+  const empty = new Float64Array(0);
+  return plan_for({ road, offset, x, z, speed: empty, late: empty, scale, lift, kick, bend, ramp, step, room, lo, hi }, scale);
+}
+
+/** `line` with its speeds planned anew for a car of `scale` over the coupe: the path and everything else shared. */
+export function plan_for(line: RaceLine, scale: PlanScale): RaceLine {
+  const { bend, lift, kick, step } = line;
+  const n = bend.length;
+  const speed = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
     // Over a crest the car goes light by v² times the road's vertical curvature, and its grip with it: v² = G R / (1 + G R k / g).
     // A 9% climb into a 9% drop in a 200 m bend at 38 m/s took a third of the load, and the field spun there.
-    const grip = grip_at(bend[i]);
+    const grip = grip_at(bend[i], scale);
     const hold = grip / Math.max(1e-9, Math.abs(bend[i]));
-    const lift = crest(road, step, i);
     // Under the take-off speed too: braked hard and late, a car met a crest in a 840 m bend at 52 m/s, flew 0.7 s wide
     // and landed on a lamp post (seed 30).
-    const takeoff = lift > 0 ? Math.sqrt((CREST_HOLD * GRAVITY) / lift) : Infinity;
+    const takeoff = lift[i] > 0 ? Math.sqrt((CREST_HOLD * GRAVITY) / lift[i]) : Infinity;
     // A step across the whole road is taken as a kicker is: at a pace that does not launch the car into what follows.
-    const kick = ramp[i] >= 0 || steps?.[i] ? JUMP_PACE : Infinity;
-    speed[i] = Math.min(Math.sqrt(hold / (1 + Math.min(AI_TUNING.crest_light, (hold * lift) / GRAVITY))), takeoff, kick);
+    const cap = kick[i] ? JUMP_PACE : Infinity;
+    speed[i] = Math.min(Math.sqrt(hold / (1 + Math.min(AI_TUNING.crest_light, (hold * lift[i]) / GRAVITY))), takeoff, cap);
   }
   const late = speed.slice();
-  profile(speed, step, bend, AI_TUNING.line_brake);
-  profile(late, step, bend, AI_TUNING.late_brake);
-  return { road, offset, x, z, speed, late, bend, ramp, step, room, lo, hi };
+  profile(speed, step, bend, AI_TUNING.line_brake * scale.brake, scale);
+  profile(late, step, bend, AI_TUNING.late_brake * scale.brake, scale);
+  return { ...line, speed, late, scale };
 }

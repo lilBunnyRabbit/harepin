@@ -1,13 +1,13 @@
 import { Car, type Controls } from "../car/car";
-import { COUPE, type CarSpec } from "../car/cars";
-import { stat_pace } from "../car/pi";
+import type { CarSpec } from "../car/cars";
 import { collide_cars } from "../car/contact";
 import { mulberry32, sub } from "../rng";
 import type { World } from "../world/world";
 import type { Route } from "../worldgen/types";
 import { Awareness } from "./awareness";
 import { Driver, OFF_ROAD, STEADY, type Personality } from "./driver";
-import { race_line, type RaceLine } from "./line";
+import { plan_for, race_line, type RaceLine } from "./line";
+import { plan_scale } from "./capability";
 import { AI_TUNING } from "./tuning";
 import { atan2, cos, hypot, sin } from "../sim-math";
 
@@ -55,9 +55,6 @@ const FAR = 120;
 const NEAR = 100;
 /** Metres under the world a retired car is parked at: out of every contact's height band and every view. */
 const RETIRED_DEPTH = -1000;
-/** m/s at which a car's cornering grip is read off its stats, against the stock coupe's that the line plans on. */
-const GRIP_AT = 20;
-const REF_GRIP = stat_pace(COUPE).lateral(GRIP_AT);
 const LEVEL = 3;
 
 export interface RacerStats {
@@ -80,13 +77,6 @@ export interface Racer {
 }
 
 const between = (rng: () => number, [lo, hi]: readonly [number, number]) => lo + (hi - lo) * rng();
-
-/**
- * Share of the line's pace a car can hold: its cornering grip over the stock coupe's, capped at 1. By the grip itself, not
- * its square root as the physics would have it: the stats rate rally and mud tyres too well on tarmac, and at the root's
- * share those cars run wide.
- */
-export const grip_pace = (spec: CarSpec) => Math.min(1, stat_pace(spec).lateral(GRIP_AT) / REF_GRIP);
 
 /** Where grid slot `slot` stands on a closed route, 0 on pole: staggered left and right, behind the start line. */
 export function grid_spot(route: Route, slot: number): { index: number; x: number; z: number; heading: number; side: number } {
@@ -169,9 +159,12 @@ export class Field {
     const radius = Math.max(...specs.map((s) => s.radius));
     // A chunk not in yet reads as flat ground with no solids: half a row at height 0 is a step that is not there.
     this.line = race_line(route.points, world.ramps, radius, world.tiles.complete ? world : undefined);
+    // One path for the field, its speeds planned per car on what that car measures (`capability.ts`).
+    const plans = new Map<CarSpec, RaceLine>();
+    const plan = (spec: CarSpec) => plans.get(spec) ?? plans.set(spec, plan_for(this.line, plan_scale(spec))).get(spec)!;
     this.racers = specs.map((spec, k) => {
       const car = new Car(spec);
-      const driver = new Driver(this.line, { ...traits[k], pace: traits[k].pace * grip_pace(spec), grip: grip_pace(spec) }, mulberry32(sub(seed, `ai-driver-${k}`)));
+      const driver = new Driver(plan(spec), traits[k], mulberry32(sub(seed, `ai-driver-${k}`)));
       const spot = grid_spot(route, k < grid ? k : k + 1);
       car.park(spot.x, spot.z, spot.heading, world);
       driver.place(spot.index, -1);

@@ -5,7 +5,8 @@ import { COUPE } from "../car/cars";
 import { World } from "../world/world";
 import { RouteKind } from "../worldgen/types";
 import { Driver, pass_room } from "./driver";
-import { race_line } from "./line";
+import { plan_for, race_line } from "./line";
+import { UNIT_SCALE } from "./capability";
 import { ring } from "./test-road";
 
 const DT = 1 / 360;
@@ -71,8 +72,8 @@ describe("AI driver", () => {
     const world = new World(44);
     const route = world.routes.find((r) => r.kind === RouteKind.CIRCUIT);
     if (!route) throw new Error("island seed 44 has no circuit");
-    const line = race_line(route.points, world.ramps, COUPE.radius);
-    const driver = new Driver(line, { pace, brake_margin: 1.5, aggression: 1, mistakes: 0, grip: 0.9 });
+    const line = plan_for(race_line(route.points, world.ramps, COUPE.radius), { ...UNIT_SCALE, slow: 0.81, fast: 0.81 });
+    const driver = new Driver(line, { pace, brake_margin: 1.5, aggression: 1, mistakes: 0 });
     driver.push = 1.2;
     driver.cap = cap;
     driver.ahead_speed = ahead_speed;
@@ -87,8 +88,8 @@ describe("AI driver", () => {
   test("pace, push and margin never take a bend over its grip: the target holds under the corner speeds braked at late_brake", () => {
     const tightest = (line: ReturnType<typeof race_line>) => line.bend.reduce((best, b, i) => (Math.abs(b) > Math.abs(line.bend[best]) && line.ramp[i] < 0 ? i : best), 0);
     const { driver, line } = placed(tightest, 1.1);
-    expect(driver.target).toBeLessThanOrEqual(line.late[driver.index] * 0.9 + 1e-9);
-    expect(line.speed[driver.index] * 1.1 * 1.2).toBeGreaterThan(line.late[driver.index] * 0.9);
+    expect(driver.target).toBeLessThanOrEqual(line.late[driver.index] + 1e-9);
+    expect(line.speed[driver.index] * 1.1 * 1.2).toBeGreaterThan(line.late[driver.index]);
   });
 
   test("on a kicker's pinned run a moving car ahead never holds it under the speed that clears the lip; a stopped one does", () => {
