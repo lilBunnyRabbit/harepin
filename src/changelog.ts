@@ -54,6 +54,7 @@ export const CHANGELOG: Release[] = [
     version: "0.52.0",
     date: "2026-11-16",
     title: "Seasons",
+    highlights: DRAFT_HIGHLIGHTS,
     changes: [
       { kind: NEW, text: "Seasons: four seasons of six events against six AI rivals, with prize credits and a car for each season won" },
       { kind: NEW, text: "A new season screen: swipe through the events, with your place, points, rival and credits at the top" },
