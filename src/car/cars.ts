@@ -223,7 +223,7 @@ export const HATCH: CarSpec = {
   ...COUPE,
   id: "hatch",
   name: "Hatch",
-  ai: { slow: 0.9049, fast: 0.9208, brake: 1.0332 },
+  ai: { slow: 1, fast: 1, brake: 1 },
   air_settle: 2,
   mass: 1050,
   inertia: [1550, 1600, 430],
