@@ -51,6 +51,23 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.54.0",
+    date: "2026-11-16",
+    title: "New look on the road",
+    changes: [
+      { kind: NEW, text: "Event gate card: see the marks and your car, hold to start" },
+      { kind: NEW, text: "Pause is one panel in free roam and in events, with your live keys" },
+      { kind: NEW, text: "Race top card with your place, results stamp with Next up" },
+      { kind: NEW, text: "Cursor in your theme colours: swaps on hover, fills while you hold" },
+      { kind: NEW, text: "HUD size setting and a live theme preview in Settings" },
+      { kind: IMPROVED, text: "Rivals drive each car to its own grip and power, the hatch much cleaner" },
+      { kind: IMPROVED, text: "Key buttons are bold outlined pills, light themes included" },
+      { kind: FIXED, text: "Pausing freezes the whole world, windmills and lights too" },
+      { kind: FIXED, text: "Tyres no longer poke through the arches at speed" },
+      { kind: FIXED, text: "Holding RB on a pad no longer shifts up" },
+    ],
+  },
+  {
     version: "0.53.0",
     date: "2026-11-16",
     title: "Faster rivals",
