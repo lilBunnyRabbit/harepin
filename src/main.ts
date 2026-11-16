@@ -963,7 +963,7 @@ function frame(time: number) {
   ghost.update(race.started && !modes.active ? now - race.started : null, camera.position);
   modes.update(stepped, car);
   markers.update(car.pos.x, car.pos.z, car.vel.length(), !modes.active && !modes.holding && !lobby.busy);
-  next_ticket.update(car.pos.x, car.pos.z, car.heading, !modes.active && !lobby.busy && !settings.is_open, input.pad?.buttons[TRAVEL_BUTTON]?.pressed === true);
+  next_ticket.update(car.pos.x, car.pos.z, car.heading, !modes.engaged && !lobby.busy && !settings.is_open, input.pad?.buttons[TRAVEL_BUTTON]?.pressed === true);
   // With peers the sim steps every frame, so the heartbeat sends a fresh pose; the draw side waits for the frame that
   // draws and advances by the time it skipped.
   draw_dt = Math.min(0.1, draw_dt + dt);

@@ -220,6 +220,11 @@ export class Modes implements CarHooks {
     return (this.current?.run ?? null) !== null;
   }
 
+  /** An event is up in any state: waiting on chunks, on the grid, running or on its results. */
+  get engaged(): boolean {
+    return this.current !== null;
+  }
+
   get running(): string | null {
     return this.current?.run ? this.current.mode.def.name : null;
   }
