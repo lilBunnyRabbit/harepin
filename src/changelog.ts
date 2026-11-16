@@ -51,6 +51,19 @@ export const DRAFT_HIGHLIGHTS: Highlight[] = [
 // Newest first; the top entry is the package.json version (version.test.ts).
 export const CHANGELOG: Release[] = [
   {
+    version: "0.54.1",
+    date: "2026-11-16",
+    title: "Fixes",
+    changes: [
+      { kind: FIXED, text: "Going to a far mainland event no longer hangs on Loading area" },
+      { kind: FIXED, text: "Going to an event puts your car on the road before its flag, facing it, with the banner in view" },
+      { kind: FIXED, text: "Pause keys no longer shift gears or switch you to manual" },
+      { kind: FIXED, text: "A race's timer card leaves the road when the race ends" },
+      { kind: FIXED, text: "The Next up card is small, in the top-left corner, and hides during events" },
+      { kind: FIXED, text: "Car pictures no longer show a dark square under the car" },
+    ],
+  },
+  {
     version: "0.54.0",
     date: "2026-11-16",
     title: "New look on the road",
