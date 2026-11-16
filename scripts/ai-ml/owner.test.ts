@@ -166,6 +166,9 @@ describe("owner reference laps", () => {
     const total = (l: typeof lap) => Number(/AI loses (-?\d+\.\d) s/.exec(owner_table(line, clean.trace, l))?.[1]);
     expect(owner_table(line, clean.trace, lap)).toMatch(/^corners 2, AI loses/);
     expect(Math.abs(total(lap))).toBeLessThan(0.15);
+    const [, short] = owner_laps(traced(road, { rewind: [25, 0.2] }), road, off_stadium(road));
+    expect(short.flaws).toEqual(["rewind"]);
+    expect(Math.abs(short.t - clean.t)).toBeLessThan(0.1);
     // Back over the line: the lap ends at its last pass, not the first.
     const across = owner_laps(traced(road, { rewind: [clean.start + 1, 3] }), road, off_stadium(road));
     expect(across.map((l) => l.flaws)).toEqual([["rewind"], []]);

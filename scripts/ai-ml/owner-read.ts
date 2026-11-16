@@ -58,7 +58,7 @@ const T_HALF = 0.005;
 /** A move with no placement farther than the two samples' speeds carry, with rounding and slack, is a rewind. */
 const T_ROUND = 0.02;
 const SLACK = 1.2;
-const JUMP_M = 5;
+const JUMP_M = 1;
 
 function fail(line: number, why: string): never {
   throw new Error(`export line ${line + 1}: ${why}`);
