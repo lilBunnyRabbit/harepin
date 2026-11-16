@@ -66,3 +66,18 @@ test("a chunk not in yet reads flat sea-level ground far from a road, and an are
   expect(store.complete).toBe(true);
   await store.whole();
 });
+
+test("a chunk is waited on only while a wait that needs it is pending", async () => {
+  const tiles = new TileStore();
+  const index = 2 * COMPACT.side + 3;
+  const x = COMPACT.origin + 3.5 * CHUNK;
+  const z = COMPACT.origin + 2.5 * CHUNK;
+  expect(tiles.waited(index)).toBe(false);
+  const wait = tiles.ensure(x, z);
+  expect(tiles.waited(index)).toBe(true);
+  expect(tiles.waited(index + 3)).toBe(false);
+  const flat = slice_tiles(generate(0).terrain)[0];
+  for (const near of [-1, 0, 1].flatMap((dj) => [-1, 0, 1].map((di) => index + dj * COMPACT.side + di))) tiles.add(near, flat);
+  await wait;
+  expect(tiles.waited(index)).toBe(false);
+});

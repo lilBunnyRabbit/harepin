@@ -112,7 +112,8 @@ export class WorldStream {
       const d = dx * dx + dz * dz;
       const held = tiles.get(index) !== undefined || this.pending[index] > this.stale[index];
       if (d <= keep && !held) this.request(index);
-      else if (d > leave && held) this.drop(index);
+      // A teleport's wait asks for its spot's chunks before the car is there: dropping them would leave it waiting for good.
+      else if (d > leave && held && !tiles.waited(index)) this.drop(index);
     }
   }
 

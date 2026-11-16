@@ -92,6 +92,11 @@ export class TileStore {
     return this.count === this.ext.side * this.ext.side;
   }
 
+  /** Whether a wait still pending needs chunk `index`: a stream must not let it go before the wait is done. */
+  waited(index: number): boolean {
+    return this.waits.some((w) => w.need.includes(index));
+  }
+
   /** Resolves once the 3x3 chunks around (x, z) are in. */
   ensure(x: number, z: number): Promise<void> {
     const { origin, side } = this.ext;

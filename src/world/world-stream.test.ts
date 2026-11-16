@@ -128,3 +128,19 @@ test("a compact world keeps every chunk wherever the car goes", async () => {
   stream.follow(-900, -900, 700);
   expect(stream.world.tiles.complete).toBe(true);
 }, 60_000);
+
+test("a teleport's wait far from the car keeps its chunks through follow, a new reach included", async () => {
+  const { MESH_TONES } = await import("../../scripts/proof/tones");
+  const stream = await WorldStream.open(...pick(0, "mainland"), MESH_TONES);
+  const { tiles } = stream.world;
+  stream.listen({ add: () => {}, drop: () => {} });
+  const car = { x: 1750, z: -1050 };
+  const far = { x: -730, z: -1940 };
+  await tiles.ensure(car.x, car.z);
+  // The wait goes out before the first follow, as Go at boot does, and the next reach is a quality tier's.
+  const there = tiles.ensure(far.x, far.z);
+  stream.follow(car.x, car.z, 1556);
+  stream.follow(car.x, car.z, 1300);
+  const timeout = new Promise<string>((done) => setTimeout(() => done("hung"), 20_000));
+  expect(await Promise.race([there.then(() => "in"), timeout])).toBe("in");
+}, 60_000);
