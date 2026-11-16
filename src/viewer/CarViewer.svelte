@@ -78,7 +78,7 @@
 </script>
 
 <div class="cars-app" class:cars-shot={viewer.shot} class:cars-closed={!viewer.panel}>
-  <div class="cars-stage" bind:this={host} class:cars-pinning={viewer.pinning}>
+  <div class="cars-stage" bind:this={host} class:cars-pinning={viewer.pinning} data-own-cursor>
     {#if !viewer.shot}
       <div class="cars-bar">
         <div class="cars-pick">

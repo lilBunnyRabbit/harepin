@@ -276,19 +276,23 @@ button:active:not(:disabled) {
   }
 }
 
-/* The theme writes the cursor images (`theme/cursor.ts`). Important: components still set their own `cursor: pointer` / `default`. */
+/*
+ * The theme writes the cursor images (`theme/cursor.ts`). Important: components still set their own `cursor: pointer` /
+ * `default`. The states sit in :where() so they tie on specificity and the idle rule (one attribute more) beats them all;
+ * a subtree that draws its own cursors (the car viewer's grab and crosshair) opts out with `data-own-cursor`.
+ */
 @media (pointer: fine) {
   :root,
-  :root * {
+  :root :where(*:not([data-own-cursor], [data-own-cursor] *)) {
     cursor: var(--cursor) !important;
   }
 
-  :root :is(a[href], button:enabled, select:enabled, summary, [role="button"], [role="tab"], label:has(> input:is([type="checkbox"], [type="radio"])), input:is([type="checkbox"], [type="radio"], [type="range"], [type="color"]):enabled),
-  :root :is(a[href], button:enabled, summary, [role="button"], [role="tab"]) * {
+  :root :where(a[href], button:enabled, select:enabled, summary, [role="button"], [role="tab"], label:has(> input:is([type="checkbox"], [type="radio"])), input:is([type="checkbox"], [type="radio"], [type="range"], [type="color"]):enabled),
+  :root :where(a[href], button:enabled, summary, [role="button"], [role="tab"]) * {
     cursor: var(--cursor-hover) !important;
   }
 
-  :root :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"]), textarea) {
+  :root :where(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"]), textarea) {
     cursor: text !important;
   }
 
