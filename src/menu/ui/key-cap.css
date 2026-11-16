@@ -41,8 +41,8 @@
 
 /* :root lifts these over the old `.settings button` reset (0,1,1). */
 :root .ui-key-btn {
-  --key-fill: var(--primary);
-  --key-ink: var(--on-primary);
+  --key-fill: var(--cottontail);
+  --key-ink: var(--on-cottontail);
   --key-pad: var(--space-6);
   --key-pad-cap: var(--space-4);
   position: relative;
@@ -107,8 +107,8 @@
   min-width: 1.8em;
   height: 1.7em;
   padding: 0 0.45em;
-  border: 0.1em solid currentColor;
-  border-bottom-width: 0.2em;
+  border: 0.13em solid currentColor;
+  border-bottom-width: 0.24em;
   background: none;
   color: inherit;
   font-size: 0.8em;
