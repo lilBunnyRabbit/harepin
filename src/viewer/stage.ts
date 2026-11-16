@@ -112,6 +112,7 @@ export class Stage {
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.canvas = this.renderer.domElement;
     this.canvas.className = "cars-canvas";
+    this.canvas.dataset.ownCursor = "";
     this.scene.add(stage_floor(), this.shadow.mesh, this.holder, this.pins);
     this.shadow.mesh.position.y = 0.02;
     quality.apply(this.renderer, this.scene, this.light.sun);
