@@ -145,7 +145,7 @@ Build these before any screen. Each comes with a `components.test.ts` render tes
 
 **`Glyph.svelte`.** It replaces `Kbd` inside prompts. It renders the key, pad (round / bumper) and touch variants, and CSS shows one by `:root[data-input]`. The prompt strip is built from it.
 
-**`PlaceChip.svelte`.** Props: the `place_of` result (A5). It renders "Here" or "<kind> · <town>" with the kind's tone dot. It is used on tickets, tiles, results and the travel card.
+**`PlaceChip.svelte`.** Props: the `place_of` result (A5). It renders "Here" or `short_name_of` (t336 `6182f04`: label · town, at most 2 option words then "+N") with the kind's tone dot. It is used on tickets, tiles, results and the travel card.
 
 **`Ticket.svelte`.** The Next up / event ticket: a tier edge, title, PlaceChip, star chips and up to three reason lines, in `docked` (road corner) and `big` (showroom 12) sizes. The road gate card (06) is a Ticket plus a car row and a KeyButton.
 
