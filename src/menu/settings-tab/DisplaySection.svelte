@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { THEMES, choose_theme, current_theme, find_saved, find_theme, load_saved_themes } from "../../theme/theme";
-  import { DashPlace, MapCorner, MapView, SpeedoStyle } from "../prefs";
+  import { THEMES, apply_theme, choose_theme, current_theme, find_saved, find_theme, load_saved_themes } from "../../theme/theme";
+  import { DashPlace, HudSize, MapCorner, MapView, SpeedoStyle } from "../prefs";
   import Button from "../ui/Button.svelte";
   import type { MenuState } from "../ui/menu-state.svelte";
   import HudWire from "./HudWire.svelte";
@@ -22,6 +22,11 @@
     [DashPlace.RIGHT, "Right"],
     [DashPlace.CENTER, "Centre"],
   ]);
+  const SIZES = options([
+    [HudSize.SMALL, "Small"],
+    [HudSize.MEDIUM, "Medium"],
+    [HudSize.LARGE, "Large"],
+  ]);
   const SPEEDO = options([
     [SpeedoStyle.RING, "Ring"],
     [SpeedoStyle.BAR, "Bar"],
@@ -40,8 +45,36 @@
   const picked = $derived(find_theme(pick, saved));
   const mine = $derived(live.live(() => load_saved_themes().length));
 
-  function use() {
+  let previewing = false;
+
+  function preview(name: string) {
+    pick = name;
+    if (previewing) apply_theme(name);
+  }
+
+  function enter() {
+    if (previewing) return;
+    previewing = true;
+    apply_theme(pick);
+  }
+
+  function leave(event: FocusEvent) {
+    if (event.currentTarget instanceof Element && event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return;
+    restore();
+  }
+
+  function restore() {
+    if (!previewing) return;
+    previewing = false;
+    pick = in_use;
+    apply_theme(in_use);
+  }
+
+  $effect(() => restore);
+
+  function keep() {
     if (pick === in_use) return;
+    previewing = false;
     choose_theme(pick);
     reload_without("theme");
   }
@@ -71,6 +104,13 @@
   visual={wire}
 />
 <ChoiceRow
+  label="HUD size"
+  help="How big speed, laps, map and the race cards draw. Touch buttons keep their own size."
+  value={live.prefs.hud_size}
+  options={SIZES}
+  onchange={(value) => live.set("hud_size", value)}
+/>
+<ChoiceRow
   label="Dash"
   help="Speed, gear and aids. Racing always centres it, Compact keeps it up top."
   value={live.prefs.dash}
@@ -97,15 +137,20 @@
 />
 <StepRow
   label="Theme"
-  help={() => (pick === in_use ? "Colours for the whole game." : "Press A or tap Use to switch to it. The page reloads.")}
+  help={() =>
+    pick === in_use
+      ? "Colours for the whole game. Step through to preview one on the menu and HUD."
+      : `Previewing ${pick}, not saved yet. Press A or tap Keep to save it; the page reloads and the 3D scene takes the new colours.`}
   value={pick}
   options={names}
-  onchange={(value) => (pick = value)}
+  onchange={preview}
   visual={swatches}
-  accept={use}
+  accept={keep}
+  onenter={enter}
+  onleave={leave}
 >
   {#if pick !== in_use}
-    <Button size="sm" tabindex={-1} onclick={(event) => (event.stopPropagation(), use())}>Use</Button>
+    <Button size="sm" tabindex={-1} onclick={(event) => (event.stopPropagation(), keep())}>Keep</Button>
   {/if}
 </StepRow>
 <LinkRow label="Make your own theme" help="Roll colours, keep the ones you like, then name and save it." value="Roll, adjust, save" open={() => nav.show("creator")} />

@@ -48,6 +48,7 @@ describe("parse_settings", () => {
       volume: 0.25,
       muted: true,
       hud: "compact",
+      hud_size: "large",
       dash: "center",
       speedo: "bar",
       map: "pace",
@@ -73,6 +74,7 @@ describe("parse_settings", () => {
     expect(parse_settings({ laps: 4 }).laps).toBe(3);
     expect(parse_settings({ quality: "ultra" }).quality).toBe("auto");
     expect(parse_settings({ map_corner: "top-left" }).map_corner).toBe("bottom-left");
+    expect(parse_settings({ hud_size: "huge" }).hud_size).toBe("medium");
     expect(parse_settings({ volume: 3 }).volume).toBe(1);
     expect(parse_settings({ volume: -1 }).volume).toBe(0);
     expect(parse_settings({ volume: Number.NaN }).volume).toBe(0.8);

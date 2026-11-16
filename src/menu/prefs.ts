@@ -52,6 +52,13 @@ export const HudLayout = {
 } as const;
 export type HudLayout = (typeof HudLayout)[keyof typeof HudLayout];
 
+export const HudSize = {
+  SMALL: "small",
+  MEDIUM: "medium",
+  LARGE: "large",
+} as const;
+export type HudSize = (typeof HudSize)[keyof typeof HudSize];
+
 /** Where the dash (speed, gear, revs, aid switches) sits in Classic and Minimal; Racing always centres it, Compact keeps it up top. */
 export const DashPlace = {
   RIGHT: "right",
@@ -130,6 +137,7 @@ export interface SettingsState {
   volume: number;
   muted: boolean;
   hud: HudLayout;
+  hud_size: HudSize;
   dash: DashPlace;
   speedo: SpeedoStyle;
   map: MapView;
@@ -220,6 +228,7 @@ const FIELDS: { [K in SettingKey]: Field<SettingsState[K]> } = {
   volume: { fallback: 0.8, parse: (raw) => (typeof raw === "number" && Number.isFinite(raw) ? Math.min(1, Math.max(0, raw)) : 0.8) },
   muted: flag(false),
   hud: one_of(Object.values(HudLayout), HudLayout.CLASSIC),
+  hud_size: one_of(Object.values(HudSize), HudSize.MEDIUM),
   dash: one_of(Object.values(DashPlace), DashPlace.RIGHT),
   speedo: one_of(Object.values(SpeedoStyle), SpeedoStyle.RING),
   map: one_of(Object.values(MapView), MapView.FULL),

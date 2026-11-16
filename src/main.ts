@@ -415,6 +415,7 @@ function apply_car_settings(state: SettingsState) {
 function apply_settings(state: SettingsState) {
   apply_car_settings(state);
   hud.set_layout(state.hud);
+  document.documentElement.dataset.hudSize = state.hud_size;
   document.documentElement.dataset.dash = state.dash;
   document.documentElement.dataset.speedo = state.speedo;
   document.documentElement.dataset.mapCorner = state.map_corner;

@@ -65,6 +65,16 @@
   --panel-well: var(--background-darker);
   --panel-raised: var(--background-lightest);
   --panel-shadow: 0 24px 64px color-mix(in oklch, var(--background-darkest) 50%, transparent);
+
+  --hud-scale: 1;
+}
+
+:root[data-hud-size="small"] {
+  --hud-scale: 0.85;
+}
+
+:root[data-hud-size="large"] {
+  --hud-scale: 1.2;
 }
 
 :root[data-scheme="light"] {

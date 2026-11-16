@@ -112,6 +112,8 @@ Facts: a setting is a `SettingsState` field plus a `FIELDS` entry (`menu/prefs.t
 
 **Recommend a.** The owner targets the latest browser (AGENTS.md Rules), so standard `zoom` is fine. The 20 v2 preview is the same attribute set on focus.
 
+Agreed name: `main.ts` `apply_settings` sets `:root[data-hud-size]` from `hud_size`; `style.css` maps it to `--hud-scale` (small 0.85, medium 1, large 1.2). The HUD docks read only `--hud-scale` (P2 lane 1), never the attribute.
+
 ### A5. Event "place" data (decided: chips "Here" / map name, "map" as the only place word)
 
 Facts: "on this map" is a closure in `main.ts:514`, built from `event_map` (`career/career-store.ts:10-14`) and `map_code` (`worldgen/kinds/map-code.ts:40`). Runs have their own check (`main.ts:560`), and Series has `on_series_map`. The menu host already knows `seed`, `kind`, `levels` and `code` (`menu/page.ts:38-44`).

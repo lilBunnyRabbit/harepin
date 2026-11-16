@@ -19,11 +19,12 @@
     only?: "touch" | "desk";
     expanded?: boolean;
     waiting?: boolean;
-    onleave?: () => void;
+    onenter?: () => void;
+    onleave?: (event: FocusEvent) => void;
     children?: Snippet;
   }
 
-  let { label, help, line, detail, visual, adjust, accept, custom = false, hidden = false, stack = false, only, expanded, waiting = false, onleave, children }: Props = $props();
+  let { label, help, line, detail, visual, adjust, accept, custom = false, hidden = false, stack = false, only, expanded, waiting = false, onenter, onleave, children }: Props = $props();
 
   const nav = use_nav();
   const row_help: Help = {
@@ -75,7 +76,7 @@
   {hidden}
   onclick={click}
   onkeydown={key}
-  onfocusin={() => nav.focus(row_help)}
+  onfocusin={() => (nav.focus(row_help), onenter?.())}
   onfocusout={onleave}
   {@attach frame}
 >

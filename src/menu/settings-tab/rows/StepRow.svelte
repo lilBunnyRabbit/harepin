@@ -12,10 +12,12 @@
     onchange: (value: T) => void;
     visual?: Snippet;
     accept?: () => void;
+    onenter?: () => void;
+    onleave?: (event: FocusEvent) => void;
     children?: Snippet;
   }
 
-  let { label, help, value, options, onchange, visual, accept, children }: Props = $props();
+  let { label, help, value, options, onchange, visual, accept, onenter, onleave, children }: Props = $props();
 
   function step(by: number) {
     const at = options.findIndex((option) => option.value === value);
@@ -23,7 +25,7 @@
   }
 </script>
 
-<SettingRow {label} {help} {visual} adjust={step} accept={accept ?? (() => step(1))}>
+<SettingRow {label} {help} {visual} adjust={step} accept={accept ?? (() => step(1))} {onenter} {onleave}>
   <span class="set-step">
     {@render children?.()}
     <Stepper {options} {value} {label} wrap max_dots={8} tabindex={-1} {onchange} />
