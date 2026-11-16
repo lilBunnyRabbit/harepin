@@ -126,8 +126,8 @@ if (import.meta.main) {
   if (!trials.length) throw new Error("no traced trial in the paste: drive a ?lab=ai-ref-* pack and Download");
   const rows = trials.map((trial) => {
     const r = report(trial);
-    return r ? `| ${trial.pack} | ${trial.id} | ${r.laps.filter((l) => !l.flaws.length).length}/${r.laps.length} | ${r.best.toFixed(2)}${r.laps[r.best_lap].flaws.length ? ` (${r.laps[r.best_lap].flaws.join(", ")}${r.best_flagged ? "; flagged" : ""})` : ""} | ${r.standing?.toFixed(2) ?? "-"} | ${r.ai.t.toFixed(2)} | ${r.gain === null ? "-" : `${(r.gain * 100).toFixed(1)}%`} | ${r.ratio?.toFixed(3) ?? "-"} |` : `| ${trial.pack} | ${trial.id} | 0 laps | - | - | - | - | - |`;
+    return r ? `| ${trial.pack} | ${trial.id} | ${r.laps.filter((l) => l.flaws.every((f) => f === Flaw.REWIND)).length}/${r.laps.length} | ${r.best.toFixed(2)}${r.laps[r.best_lap].flaws.length ? ` (${r.laps[r.best_lap].flaws.join(", ")}${r.best_flagged ? "; flagged" : ""})` : ""} | ${r.standing?.toFixed(2) ?? "-"} | ${r.ai.t.toFixed(2)} | ${r.gain === null ? "-" : `${(r.gain * 100).toFixed(1)}%`} | ${r.ratio?.toFixed(3) ?? "-"} |` : `| ${trial.pack} | ${trial.id} | 0 laps | - | - | - | - | - |`;
   });
-  console.log(["| pack | trial | clean laps | best s | standing s | AI s | standing under AI | standing over autolap |", "|---|---|---|---|---|---|---|---|", ...rows].join("\n"));
+  console.log(["| pack | trial | laps without off, spin, reset | best s | standing s | AI s | standing under AI | standing over autolap |", "|---|---|---|---|---|---|---|---|", ...rows].join("\n"));
   console.log(`gap reports in ${DIR}/owner`);
 }

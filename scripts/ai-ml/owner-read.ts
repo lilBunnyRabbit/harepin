@@ -131,7 +131,8 @@ function nearest(road: readonly RoadPoint[], x: number, z: number, from = -1): n
  * A rewind leaves no ` r`: the recorder does not step while it runs, so the next sample lands where the car was seconds
  * ago, farther than its speed carries it. The time it threw away is the time since the car was last there. Traces
  * recorded before the recorder searched the whole route after such a jump walked back a few points a step, or locked
- * onto another stretch of road: their route points are found again here until they agree with the recorder's.
+ * onto another stretch of road: their route points are found again here until they agree with the recorder's, or a
+ * placement, which the recorder always searched the whole route for.
  */
 function timeline(trial: TracedTrial, road: readonly RoadPoint[]): Timeline {
   const { samples, resets } = trial;
@@ -150,6 +151,7 @@ function timeline(trial: TracedTrial, road: readonly RoadPoint[]): Timeline {
   let found = false;
   samples.forEach((s, k) => {
     if (jumped[k]) found = true;
+    if (placed[k]) found = false;
     if (!found) return rp.push(s.rp);
     const i = nearest(road, s.x, s.z, jumped[k] ? -1 : rp[k - 1]);
     found = i !== s.rp;
