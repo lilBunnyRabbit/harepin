@@ -8,6 +8,7 @@ export const ice_canyon: WorldDef = {
   listed: true,
   mini: true,
   name: "Ice canyon",
+  label: "Canyon",
   pick: "A frozen riverbed down from a snowy rim",
   note: "Ice floor, frozen falls, packed snow",
   hero: "Free roam. The canyon floor is bare ice, the rim road packed snow. Race the descent down the frozen river.",

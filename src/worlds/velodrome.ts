@@ -33,6 +33,7 @@ export const velodrome: WorldDef = {
   listed: false,
   mini: true,
   name: "Velodrome",
+  label: "Velodrome",
   pick: "A track of steep bowls above the clouds",
   note: "Banked bowls, wall kicks, rails",
   hero: "Steep bowls in the clouds: carry the speed and ride the wall.",

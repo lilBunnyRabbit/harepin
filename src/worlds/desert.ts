@@ -9,6 +9,7 @@ export const desert: WorldDef = {
   listed: true,
   mini: true,
   name: "Dune sea",
+  label: "Dunes",
   pick: "Dune crests, hardpack pans and a fast loop through the sand",
   note: "Dune crests, pans and outposts",
   hero: "Free roam. The pale pans are quick, loose sand slides. Flags on the orange circuit start the challenges.",

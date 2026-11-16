@@ -9,6 +9,7 @@ export const alpine: WorldDef = {
   listed: true,
   mini: true,
   name: "Alpine pass",
+  label: "Alpine",
   pick: "Climb hairpins over a mountain pass and run the valleys below",
   note: "Hairpins, passes and snow caps",
   hero: "Free roam. Scree up high is loose. Flags on the orange circuit start the challenges.",

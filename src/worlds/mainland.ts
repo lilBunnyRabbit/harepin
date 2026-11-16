@@ -8,6 +8,7 @@ export const mainland: WorldDef = {
   listed: true,
   mini: false,
   name: "Mainland",
+  label: "Mainland",
   pick: "Six kilometres of towns joined by open roads",
   note: "Towns, highways and long drives",
   hero: "Free roam. The land streams in around you as you drive.",

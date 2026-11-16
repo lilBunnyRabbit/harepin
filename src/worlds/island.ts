@@ -9,6 +9,7 @@ export const island: WorldDef = {
   listed: true,
   mini: true,
   name: "Island",
+  label: "Island",
   pick: "Roam an island with towns and a circuit",
   note: "Towns, hills and every challenge",
   hero: "Free roam. Flags on the orange circuit start the challenges.",

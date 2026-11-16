@@ -9,6 +9,7 @@ export const big_dunes: WorldDef = {
   listed: true,
   mini: true,
   name: "Big dunes",
+  label: "Big dunes",
   pick: "Dune bashing across a sea of sand",
   note: "Open sand, crests to jump, no roads",
   hero: "Free roam. The sand streams in around you. Loose sand eats speed: the off-road cars bash the dunes, the rest struggle.",

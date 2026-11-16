@@ -8,6 +8,7 @@ export const tundra: WorldDef = {
   listed: true,
   mini: true,
   name: "Frozen lakes",
+  label: "Tundra",
   pick: "Snowfields, frozen lakes and a long loop on packed snow",
   note: "Snow, ice and pine bands",
   hero: "Free roam. Packed snow on the roads holds, the lakes are bare ice. Flags on the orange circuit start the challenges.",

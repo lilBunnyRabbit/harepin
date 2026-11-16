@@ -12,7 +12,7 @@ const at = (id: string): CareerEvent => event_of(id)!;
 test("an event on the loaded map is here; another map's carries its name and kind", () => {
   const island = event_map(at("r1"));
   expect(place_of(island, island)).toEqual({ here: true });
-  expect(place_of(event_map(at("r6")), island)).toEqual({ here: false, name: "Sky Track · Burrver", kind: WorldKind.SKY });
+  expect(place_of(event_map(at("r6")), island)).toEqual({ here: false, name: "Sky · Burrver", kind: WorldKind.SKY });
 });
 
 test("the same seed with other map options is another map", () => {

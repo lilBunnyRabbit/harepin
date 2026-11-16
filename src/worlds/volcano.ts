@@ -10,6 +10,7 @@ export const volcano: WorldDef = {
   listed: true,
   mini: true,
   name: "Volcano",
+  label: "Volcano",
   pick: "Lap the rim of a volcano over its lava crater",
   note: "Crater rim, lava and loose scree",
   hero: "Free roam. Lava resets you, scree off the road is loose. Flags on the orange circuit start the challenges.",

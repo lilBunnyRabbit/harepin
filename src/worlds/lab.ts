@@ -8,6 +8,7 @@ export const lab: WorldDef = {
   listed: false,
   mini: false,
   name: "Feel lab",
+  label: "Lab",
   pick: "Test stations on every surface",
   note: "Skidpads, slalom, runways, kickers",
   hero: "The feel lab: nothing here is saved to your records.",

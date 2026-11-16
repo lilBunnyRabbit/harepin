@@ -8,6 +8,7 @@ export const sky: WorldDef = {
   listed: true,
   mini: true,
   name: "Sky Track",
+  label: "Sky",
   pick: "A toy circuit floating in the clouds",
   note: "Drops, rails, jumps, boost pads",
   hero: "A toy circuit in the clouds: drops, rails, jumps and boost pads.",

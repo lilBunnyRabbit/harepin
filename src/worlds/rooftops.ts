@@ -23,6 +23,7 @@ export const rooftops: WorldDef = {
   listed: false,
   mini: true,
   name: "Rooftops",
+  label: "Rooftops",
   pick: "A downtown loop over the city roofs",
   note: "Roof runs, drops, gaps",
   hero: "A loop over the city roofs: drop from roof to roof, jump the gaps.",
