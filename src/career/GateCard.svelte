@@ -2,10 +2,10 @@
   import type { Attachment } from "svelte/attachments";
   import { CARS } from "../car/cars";
   import CarStill from "../menu/CarStill.svelte";
-  import { mode_name } from "../menu/career-text";
   import ClassBadge from "../menu/ui/ClassBadge.svelte";
   import IconButton from "../menu/ui/IconButton.svelte";
   import KeyButton from "../menu/ui/KeyButton.svelte";
+  import { mode_name } from "../modes/modes";
   import { rgba } from "../theme/palette";
   import { MAX_EVENT_STARS, TIERS, tier_of } from "./career";
   import type { GateView } from "./gate-card.svelte";

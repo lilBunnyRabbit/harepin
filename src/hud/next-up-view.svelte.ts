@@ -1,7 +1,7 @@
 import { mount } from "svelte";
 import { MAX_EVENT_STARS, TIERS, tier_of, type Stars } from "../career/career";
-import { mode_name } from "../menu/career-text";
 import { HOLD_EVENT } from "../menu/dom";
+import { mode_name } from "../modes/modes";
 import type { TierBadge } from "../net/net";
 import type { MapMarker } from "../career/markers";
 import type { Place } from "../career/place";

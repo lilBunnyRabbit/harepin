@@ -4,7 +4,6 @@ import { event_track, type Career } from "../career/career-store";
 import { dev_ghost } from "../career/dev-ghost";
 import { earned, garage_reward, unlocks, type Reward } from "../career/rewards";
 import { unlock_card } from "../career/unlock-card";
-import { mode_name } from "../menu/career-text";
 import type { CarLimit } from "../car/car-pick";
 import { car_sized, type CarSpec } from "../car/cars";
 import { PRESETS } from "../car/presets";
@@ -46,6 +45,8 @@ function graded({ event, cup }: Active): CareerEvent | null {
 }
 
 export const MODES: readonly ModeDef[] = [RACE_MODE, GYMKHANA_MODE, PARKING_MODE, DRIFT_MODE, HUNT_MODE, DUEL_MODE, JUMP_MODE];
+
+export const mode_name = (event: CareerEvent) => (event.stages ? "Championship" : undefined) ?? MODES.find((mode) => mode.id === event.mode)?.name ?? event.mode;
 
 const NOTICE_MS = 2500;
 const GOAL_MS = 4000;
