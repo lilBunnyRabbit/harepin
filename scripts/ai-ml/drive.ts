@@ -1,6 +1,7 @@
 import { Vector3 } from "three";
 import { Car, drop_height } from "../../src/car/car";
 import type { CarSpec } from "../../src/car/cars";
+import { plan_scale } from "../../src/ai/capability";
 import { Driver, OFF_ROAD } from "../../src/ai/driver";
 import { race_line, type RaceLine } from "../../src/ai/line";
 import { ROAD_HALF } from "../../src/worldgen/types";
@@ -192,7 +193,7 @@ export interface Track {
 }
 
 export function track_of(world: World, route: Route, spec: CarSpec, assists = true): Track {
-  const line = race_line(route.points, world.ramps, spec.radius, world);
+  const line = race_line(route.points, world.ramps, spec.radius, world, plan_scale(spec));
   return { world, route, spec, line, base: base_plan(line), assists };
 }
 
