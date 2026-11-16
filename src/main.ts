@@ -85,7 +85,10 @@ import { custom_code, map_code, parse_map_code, pick_problem, read_pick } from "
 import { map_note } from "./menu/map-note";
 import { plain_map } from "./worldgen/kinds/kinds";
 import { REVIEW_BUILD, review_wanted } from "./review/params";
-import { HudSheet } from "./hud/hud-sheet";
+import { show_next_up } from "./hud/next-up-view.svelte";
+import { roam_card, run_card } from "./hud/pause-card";
+import { show_pause, type PauseAct } from "./hud/pause-view.svelte";
+import { map_name } from "./worlds/map-name";
 import { StuckPrompt } from "./hud/stuck-prompt";
 import { pushing } from "./hud/stuck";
 import { LocalSim, SIM_WORKER_PARAM, WorkerSim, type Sim } from "./sim/sim-client";
@@ -254,10 +257,19 @@ garage.rewards = () => unlocks(career.stars);
 const input = new Input($("touch"), render.renderer.domElement);
 const rumble = new Rumble();
 const rumble_sense: RumbleSense = { scrub: 0, speed: 0, loose: 0, kerb: 0, airborne: false, vy: 0, impact: 0, x: 0, y: 0, z: 0 };
-const hud_sheet = new HudSheet(() => net.remotes.size > 0, (action) => ACTIONS[action]());
-hud_sheet.on_open = () => input.hold_pad();
-input.blocked = () => garage.is_open || settings.is_open || pad_menu.is_open || hud_sheet.open;
-chat.blocked = () => garage.is_open || settings.is_open || hud_sheet.open;
+const pause = show_pause({
+  solo: () => net.remotes.size === 0,
+  card: () => (modes.active ? run_card(modes.running ?? "Event") : roam_card({ stars: career.stars, here: built, map: map_name(built, world.towns), flags: markers.map_markers.length, players: 1 + net.remotes.size, car: garage.build.car })),
+  aids: () => ({ ...settings.state, lights: driver.view.lights }),
+  toggle: (aid) => (aid === "lights" ? toggle_lights() : toggle_aid(aid)),
+  act: (act) => PAUSE_ACTS[act](),
+});
+const open_pause = () => {
+  input.hold_pad();
+  pause.open();
+};
+input.blocked = () => garage.is_open || settings.is_open || pad_menu.is_open || pause.is_open;
+chat.blocked = () => garage.is_open || settings.is_open || pause.is_open;
 input.touch.start();
 input.touch.show_nitro(driver.car.nitro.fitted);
 input.mouse.start();
@@ -298,7 +310,6 @@ function restart_action() {
 }
 $("restart-lap").addEventListener("click", (event) => {
   (event.currentTarget as HTMLElement).blur();
-  if (hud_sheet.open) return;
   restart_action();
 });
 lobby.on_start = () => {
@@ -694,7 +705,7 @@ for (const chip of light_chips)
     toggle_lights();
   });
 // The car is rebuilt with dusk-or-day lights on every swap, so the chips re-read it whenever their menu opens.
-for (const id of ["aids", "hud-sheet"]) document.getElementById(id)?.addEventListener("beforetoggle", show_lights);
+document.getElementById("aids")?.addEventListener("beforetoggle", show_lights);
 
 function shift(step: 1 | -1) {
   if (settings.state.auto) hud.toast("Manual gearbox");
@@ -722,11 +733,22 @@ const ACTIONS: Record<Action, () => void> = {
   help: () => settings.open_keys(),
   map: () => settings.open("world"),
   garage: open_car,
-  settings: () => settings.open(),
-  menu: () => (hud_sheet.open ? hud_sheet.close() : pad_menu.toggle()),
+  menu: () => (pause.is_open ? pause.close() : settings.is_open || pad_menu.is_open ? pad_menu.toggle() : open_pause()),
+};
+const PAUSE_ACTS: Record<PauseAct, () => void> = {
+  reset: ACTIONS.reset,
+  camera: ACTIONS.camera,
+  chat: () => $("chat-btn").click(),
+  settings: () => settings.open(MenuTab.SETTINGS),
+  showroom: () => settings.open(),
+  map: ACTIONS.map,
+  events: () => settings.open("career"),
+  garage: open_car,
+  online: () => settings.open(MenuTab.ONLINE),
 };
 if (params.has("feel")) void import("./hud/feel-panel").then(({ feel_panel }) => feel_panel({
   set: (key, value) => settings.set(key, value),
+$("hud-menu-btn").addEventListener("click", open_pause);
   use_car: (code) => garage.use_code(code),
   respawn: ACTIONS.reset,
   drift_full_lock: (on) => {
@@ -851,7 +873,7 @@ function frame(time: number) {
 
   lobby.update(now);
   // A lab card holds the trial under it, as the menu does: the clock and the car wait for the answers.
-  const menu_hold = (settings.is_open || hud_sheet.open || (lab_id !== null && modal_open())) && net.remotes.size === 0;
+  const menu_hold = (settings.is_open || pause.is_open || (lab_id !== null && modal_open())) && net.remotes.size === 0;
   const draw_ms = menu_hold ? MENU_DRAW_MS : settings.is_open ? COVERED_DRAW_MS : 0;
   const skips = draw_ms > 0 && !review && !garage.is_open && now - last_draw < draw_ms;
   // A held sim behind the menu has nothing to step on a frame the redraw rate skips: `last` stays, so the next drawn
@@ -929,7 +951,7 @@ function frame(time: number) {
   }
   if (lobby.state.kind === "countdown") stuck_prompt.clear();
   else stuck_prompt.update(simulated ? dt : 0, car.vel.length(), pushing(controls.throttle, controls.brake, car.gear, car.auto), driver.rewind.can_step && !lobby.busy && !modes.active, rewinding);
-  hud_sheet.update();
+  pause.update();
 
   // A mode spawns the car anywhere, the circuit start included: its lap clock would count that as a lap.
   // A review replay is a dev ghost driving, not the player: it never sets a lap record; nor does the lab, which keys none.
@@ -940,6 +962,7 @@ function frame(time: number) {
   markers.update(car.pos.x, car.pos.z, car.vel.length(), !modes.active && !modes.holding && !lobby.busy);
   // With peers the sim steps every frame, so the heartbeat sends a fresh pose; the draw side waits for the frame that
   // draws and advances by the time it skipped.
+  next_ticket.update(car.pos.x, car.pos.z, car.heading, !modes.active && !lobby.busy && !settings.is_open);
   draw_dt = Math.min(0.1, draw_dt + dt);
   if (skips) {
     requestAnimationFrame(frame);

@@ -221,9 +221,9 @@ export class Input {
       // Ctrl or Cmd with a bound key is a browser shortcut (Ctrl+R reloads), not a reset.
       if (chord(e, "ctrlKey", "Control") || chord(e, "metaKey", "Meta")) return;
       const bound = this.key_binds.get(e.code);
-      const action: Action | undefined = e.code === "Escape" ? "settings" : is_press(bound) ? bound : undefined;
-      // Escape that closes a popover (modes) is consumed by it, not a request for settings.
-      if (action === "settings" && document.querySelector(":popover-open")) return;
+      const action: Action | undefined = e.code === "Escape" ? "menu" : is_press(bound) ? bound : undefined;
+      // Escape that closes a popover (modes) is consumed by it, not a request for the pause.
+      if (action === "menu" && e.code === "Escape" && document.querySelector(":popover-open")) return;
       this.keys.add(e.code);
       if (action) this.queued.push(action);
       if (bound && !chord(e, "altKey", "Alt")) e.preventDefault();

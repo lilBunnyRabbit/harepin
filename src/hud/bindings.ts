@@ -5,7 +5,7 @@ export const PRESSES = ["reset", "restart", "shift_up", "shift_down", "auto", "t
 export type Press = (typeof PRESSES)[number];
 
 /** Settings (Esc) and menu (Start) keep their menu role and never enter the binding table. */
-export type Action = Press | "settings" | "menu";
+export type Action = Press | "menu";
 
 export type Bindable = Hold | Press;
 export const BINDABLE: readonly Bindable[] = [...HOLDS, ...PRESSES];

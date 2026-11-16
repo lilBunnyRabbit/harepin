@@ -367,37 +367,10 @@
           <div class="pedal throttle" data-touch="throttle"><span>Gas</span></div>
         </div>
       </div>
-      <button type="button" id="hud-menu-btn" popovertarget="hud-sheet" aria-label="Menu"><svg aria-hidden="true"><use href="#icon-menu" /></svg><span class="unread-dot"></span></button>
+      <button type="button" id="hud-menu-btn" aria-label="Menu"><svg aria-hidden="true"><use href="#icon-menu" /></svg><span class="unread-dot"></span></button>
       <div id="stuck-prompt" hidden>
         <button type="button" id="stuck-rewind" data-touch="rewind" aria-label="Rewind (hold)"><svg aria-hidden="true"><use href="#icon-rewind" /></svg>Rewind</button>
         <button type="button" class="stuck-reset" data-touch="reset"><svg aria-hidden="true"><use href="#icon-reset-car" /></svg>Reset car</button>
-      </div>
-      <div id="hud-sheet" popover aria-labelledby="hud-sheet-title">
-        <header class="sheet-head">
-          <h2 id="hud-sheet-title">Paused</h2>
-          <button type="button" class="icon-button" popovertarget="hud-sheet" popovertargetaction="hide" aria-label="Close"><svg aria-hidden="true"><use href="#icon-close" /></svg></button>
-        </header>
-        <div class="sheet-tiles">
-          <button type="button" class="sheet-tile sheet-resume" popovertarget="hud-sheet" popovertargetaction="hide"><svg aria-hidden="true"><use href="#icon-play" /></svg>Resume</button>
-          <button type="button" class="sheet-tile" data-act="reset" popovertarget="hud-sheet" popovertargetaction="hide"><svg aria-hidden="true"><use href="#icon-reset-car" /></svg>Reset car</button>
-          <button type="button" class="sheet-tile" data-act="camera" popovertarget="hud-sheet" popovertargetaction="hide"><svg aria-hidden="true"><use href="#icon-camera" /></svg>Camera</button>
-          <button type="button" class="sheet-tile" data-proxy="chat-btn" popovertarget="hud-sheet" popovertargetaction="hide"><svg aria-hidden="true"><use href="#icon-chat" /></svg>Chat<span class="unread-dot"></span></button>
-          <button type="button" id="sheet-players" class="sheet-tile" data-proxy="online-chip" popovertarget="hud-sheet" popovertargetaction="hide"><svg aria-hidden="true"><use href="#icon-people" /></svg><span>Players <b id="sheet-players-count">1</b></span></button>
-          <button type="button" class="sheet-tile" data-proxy="garage-btn" popovertarget="hud-sheet" popovertargetaction="hide"><svg aria-hidden="true"><use href="#icon-car" /></svg>Car</button>
-          <button type="button" class="sheet-tile" data-proxy="career-btn" popovertarget="hud-sheet" popovertargetaction="hide"><span id="sheet-career" class="sheet-icon"></span>Career</button>
-          <button type="button" class="sheet-tile" data-proxy="modes-btn" popovertarget="hud-sheet" popovertargetaction="hide"><svg aria-hidden="true"><use href="#icon-modes" /></svg>Modes</button>
-          <button type="button" class="sheet-tile" data-proxy="settings-btn" popovertarget="hud-sheet" popovertargetaction="hide"><svg aria-hidden="true"><use href="#icon-settings" /></svg>Settings</button>
-          <button type="button" class="sheet-tile" data-proxy="menu-btn" popovertarget="hud-sheet" popovertargetaction="hide"><svg aria-hidden="true"><use href="#logo-mark" /></svg>Main menu</button>
-        </div>
-        <h3 class="sheet-label">Assists</h3>
-        <div class="sheet-aids" role="group" aria-label="Driving aids">
-          <button type="button" class="sheet-aid" data-aid="tcs" aria-pressed="true" aria-label="Traction control">TC</button>
-          <button type="button" class="sheet-aid" data-aid="abs" aria-pressed="true" aria-label="ABS">ABS</button>
-          <button type="button" class="sheet-aid" data-aid="assist" aria-pressed="true" aria-label="Steering assist">Steer</button>
-          <button type="button" class="sheet-aid" data-aid="stability" aria-pressed="true" aria-label="Stability">STM</button>
-          <button type="button" class="sheet-aid" data-aid="auto" aria-pressed="true" aria-label="Auto gearbox">Auto</button>
-          <button type="button" class="sheet-aid" data-lights aria-pressed="true" aria-label="Headlights">Lights</button>
-        </div>
       </div>
     </div>
 

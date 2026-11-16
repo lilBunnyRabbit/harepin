@@ -3,6 +3,7 @@ import type { Action } from "./bindings";
 import { SteerSensitivity, TouchSteer } from "../menu/prefs";
 import { drag_steer, FULL_LOCK_PX } from "./drag-steer";
 import "./touch.css";
+import "./phone.css";
 
 /** Knob offset in px at full lock, whatever the sensitivity, so the knob at the ring's edge always means full lock. */
 const KNOB_REACH = 70;
