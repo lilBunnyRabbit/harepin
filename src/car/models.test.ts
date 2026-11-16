@@ -73,3 +73,34 @@ test("suspension arms swing so their outer end rides with the wheel, and sit as 
   dispose_car_view(view);
   expect(build_view(DEFAULT_BUILD).arms.every((arm) => arm === null)).toBe(true);
 });
+
+test("downforce at top speed never pushes a tyre up through its arch, and a car at rest sits as drawn", async () => {
+  const THREE = await import("three");
+  const { build_view, dispose_car_view, sync_car_view } = await import("./models");
+  const { Car, rest_reach } = await import("./car");
+  const { build_spec, parse_build } = await import("./build");
+  const { DESIGNS } = await import("./designs");
+  const build = parse_build("sturm.4.0.4.2.5.0.7.2.2.2.1.2");
+  if (!build) throw new Error("build code");
+  const spec = build_spec(build);
+  const view = build_view(build, spec);
+  const rest_y = view.body.position.y;
+  const d = DESIGNS.sturm;
+  const gap = (d.kit?.arches ?? d.arches).gap;
+  const car = new Car(spec);
+  const arch = new THREE.Vector3();
+  // Rises over the drawn rest position the sim reached flat out on the runway: launch squat, twin turbo and every top part at 250+ km/h.
+  for (const rise of [[0, 0, 0.048, 0.048], [0.054, 0.054, 0.13, 0.13], [0.111, 0.111, 0.141, 0.141], [0.02, 0.02, 0.14, 0.03]]) {
+    car.wheels.forEach((w, i) => (w.reach = rest_reach(CARS.sturm) - rise[i]));
+    sync_car_view(view, car);
+    view.body.updateMatrix();
+    car.wheels.forEach((w, i) => {
+      arch.set(w.mount.x, spec.wheel.radius, w.mount.z).applyMatrix4(view.body.matrix);
+      expect(arch.y + gap - view.wheels[i].position.y).toBeGreaterThan(0.01);
+    });
+  }
+  car.wheels.forEach((w) => (w.reach = rest_reach(CARS.sturm)));
+  sync_car_view(view, car);
+  expect([view.body.position.y, view.body.rotation.x]).toEqual([rest_y, 0]);
+  dispose_car_view(view);
+});

@@ -54,6 +54,18 @@ export interface CarView {
   /** The flame's shader uniforms, and the time in seconds `show_flame` last moved them. */
   jet: Jet;
   sway_at: number;
+  arch: ArchLimit;
+}
+
+/** How far the shell may sink over its wheels before a tyre would show through an arch. */
+export interface ArchLimit {
+  /** Shortest wheel reach, metres, whose tyre still clears its arch top by `ARCH_KEEP`; -Infinity for wheels without arches. */
+  reach: number;
+  /** The shell's height over the root at rest. */
+  y: number;
+  /** Front and rear axle, metres ahead of the centre of mass. */
+  front: number;
+  rear: number;
 }
 
 export function build_view(build: Build, spec: CarSpec = build_spec(build)): CarView {
@@ -185,6 +197,9 @@ export function fitted_design(spec: CarSpec, kit: Record<Slot, number>, paint: T
 
 // A tyre's outer face stays this far inside the body side or arch lip over it.
 const TYRE_TUCK = 0.005;
+// Downforce at top speed presses a kit car onto its floor stop, its tyres 4-6 cm past the arch tops; the shell rides up
+// over the wheels instead, so each tyre keeps this much of its arch gap.
+const ARCH_KEEP = 0.015;
 
 /**
  * The tyre look per design axle (front, rear): a wider tyre option narrowed to what the body covers at that axle, and
@@ -331,7 +346,13 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
     const reach = hypot(dx, dz);
     return { group, axis: new THREE.Vector3(-dz / reach, 0, dx / reach), reach, rest: arm_rest };
   });
-  const view = { root, body, wheels, arms, steered, brake, heads, lights: true, popup: pods, eye: d.eye ? new THREE.Vector3(0, body.position.y + d.eye[1], d.eye[0]) : null, flame, jet, sway_at: 0 };
+  const arch: ArchLimit = {
+    reach: d.arches.steps === 0 ? -Infinity : rest_reach(stock_of(spec)) - d.arches.gap + ARCH_KEEP,
+    y: body.position.y,
+    front: axles[0].z,
+    rear: axles[axles.length - 1].z,
+  };
+  const view = { root, body, wheels, arms, steered, brake, heads, lights: true, popup: pods, eye: d.eye ? new THREE.Vector3(0, body.position.y + d.eye[1], d.eye[0]) : null, flame, jet, sway_at: 0, arch };
   snap_lights(view, true);
   return view;
 }
@@ -339,7 +360,13 @@ export function car_view(paint: THREE.Color, spec: CarSpec = COUPE, kit: Record<
 export function sync_car_view(view: CarView, car: Car) {
   view.root.position.copy(car.pos);
   view.root.quaternion.copy(car.quat);
+  const { arch } = view;
+  let front = 0;
+  let rear = 0;
   car.wheels.forEach((w, i) => {
+    const sunk = arch.reach - w.reach;
+    if (w.mount.z > 0) front = Math.max(front, sunk);
+    else rear = Math.max(rear, sunk);
     const g = view.wheels[i];
     g.position.set(w.mount.x, w.mount.y - (w.reach - car.spec.wheel.radius), w.mount.z);
     g.rotation.y = -w.angle;
@@ -347,6 +374,10 @@ export function sync_car_view(view: CarView, car: Car) {
     const arm = view.arms[i];
     if (arm) arm.group.quaternion.setFromAxisAngle(arm.axis, asin(Math.max(-1, Math.min(1, (arm.rest - w.reach) / arm.reach))));
   });
+  // A turn about x lifts a point at z by -z·θ: θ and the lift together raise each axle's arches by its own sunk depth.
+  const pitch = (rear - front) / (arch.front - arch.rear);
+  view.body.rotation.x = pitch;
+  view.body.position.y = arch.y + front + arch.front * pitch;
   view.brake.emissiveIntensity = car.braking > 0.05 ? brake_on.value : BRAKE_REST;
 }
 
