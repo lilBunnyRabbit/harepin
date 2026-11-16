@@ -49,8 +49,22 @@ function stadium(): RoadPoint[] {
   return [...out.slice(STRAIGHT / 4), ...out.slice(0, STRAIGHT / 4)];
 }
 
-/** Laps of `road` at `corner` m/s through the bends, braking `brake_m` before them; a placement at `reset` s. */
-function synthetic(road: readonly RoadPoint[], laps: number, corner: number, brake_m: number, reset = NaN): RouteTrace {
+interface Events {
+  /** s: a placement `back` m behind where the car is. */
+  reset?: number;
+  back?: number;
+  /** s: the car runs WIDE m off the route's centre from the first to the second. */
+  wide?: [number, number];
+  /** s: at the first the car goes back to where it was the second earlier, the recorder's clock running on. */
+  rewind?: [number, number];
+}
+
+const WIDE = 12;
+const off_stadium = (road: readonly RoadPoint[]) => (x: number, z: number) => road.every((p) => Math.hypot(p.x - x, p.z - z) > 7);
+
+/** Laps of `road` at `corner` m/s through the bends, braking `brake_m` before them. */
+function synthetic(road: readonly RoadPoint[], laps: number, corner: number, brake_m: number, events: Events = {}): RouteTrace {
+  const { reset = NaN, back = 0, wide = [NaN, NaN], rewind = [NaN, 0] } = events;
   const trace = new RouteTrace(road);
   const car = new Car(build_spec(parse_build(COUPE)!));
   const n = road.length;
@@ -58,7 +72,11 @@ function synthetic(road: readonly RoadPoint[], laps: number, corner: number, bra
   trace.placed(0, false);
   let s = 0;
   let t = 0;
+  const was: number[] = [];
   while (s < laps * n * 2 + 4) {
+    was.push(s);
+    if (t >= rewind[0] && t - DT < rewind[0]) s = was[was.length - 1 - Math.round(rewind[1] / DT)];
+    if (t >= reset && t - DT < reset) s -= back;
     const i = Math.floor(s / 2) % n;
     const ahead = (k: number) => road[(i + k) % n].tx * road[i].tx + road[(i + k) % n].tz * road[i].tz < 0.9999;
     const in_bend = ahead(1);
@@ -67,7 +85,8 @@ function synthetic(road: readonly RoadPoint[], laps: number, corner: number, bra
     input.throttle = braking ? 0 : 1;
     input.brake = braking ? 0.7 : 0;
     const p = road[i];
-    car.pos.set(p.x + p.tz * 1.5, 0, p.z - p.tx * 1.5);
+    const side = t >= wide[0] && t < wide[1] ? WIDE : 1.5;
+    car.pos.set(p.x + p.tz * side, 0, p.z - p.tx * side);
     car.vel.set(p.tx * v, 0, p.tz * v);
     t += DT;
     s += v * DT;
@@ -82,14 +101,14 @@ describe("owner reference laps", () => {
     const road = stadium();
     const p = pack("1C0000002", "circuit");
     const result = (trace: RouteTrace): TrialResult => ({ status: "done", metrics: null, field: null, trace });
-    const text = copy(p, result(synthetic(road, 3, 20, 40, 8)));
+    const text = copy(p, result(synthetic(road, 3, 20, 40, { reset: 8 })));
     expect(text).toContain("#trial lap coupe.4.0.0.1.0");
     const [trial] = read_export(`some chat text\n${text.replaceAll("\n", "\n> ")}\nmore chat`);
     expect(trial).toMatchObject({ pack: "ai-ref-test", rev: 1, id: "lap", car: COUPE, map: "1C0000002", route: "circuit", status: "done", aids: { assist: "off", stability: "on", steer: "smooth" }, points: road.length, full: false });
     expect(trial.resets).toHaveLength(1);
     const laps = owner_laps(trial, road, () => false);
     expect(laps.map((l) => l.lap)).toEqual([0, 1, 2]);
-    expect(laps.map((l) => l.why)).toEqual(["reset", "", ""]);
+    expect(laps.map((l) => l.flaws)).toEqual([["reset"], [], []]);
     expect(Math.abs(laps[1].t - laps[2].t)).toBeLessThan(0.05);
     expect(laps[1].offset[50]).toBeCloseTo(1.5, 1);
 
@@ -103,13 +122,66 @@ describe("owner reference laps", () => {
     expect(lifts(line, ai.trace, laps[1])).toEqual([]);
   });
 
-  test("an off-road stretch or a hole in the trace spoils a lap", () => {
+  test("an off-road stretch or a hole in the trace spoils the points it covers", () => {
     const road = stadium();
     const [trial] = read_export(copy(pack("1C0000002", "circuit"), { status: "done", metrics: null, field: null, trace: synthetic(road, 1, 20, 40) }));
-    expect(owner_laps(trial, road, (x) => x < -29)[0].why).toBe("off");
+    const [far] = owner_laps(trial, road, (x) => x < -29);
+    expect(far.flaws).toEqual(["off"]);
+    expect(far.spoilt.slice(0, 50).every((f) => f === null)).toBe(true);
     const holed = { ...trial, samples: trial.samples.filter((s) => s.rp < 100 || s.rp > 120) };
-    expect(owner_laps(holed, road, () => false)[0].why).toBe("gap");
+    const [hole] = owner_laps(holed, road, () => false);
+    expect(hole.flaws).toEqual(["gap"]);
+    expect(hole.spoilt.map((f, i) => (f ? i : -1)).filter((i) => i >= 0)).toEqual(Array.from({ length: 21 }, (_, k) => 100 + k));
     expect(() => owner_laps(trial, road.slice(1), () => false)).toThrow(/route points/);
+  });
+
+  const traced = (road: readonly RoadPoint[], events: Events = {}) => read_export(copy(pack("1C0000002", "circuit"), { status: "done", metrics: null, field: null, trace: synthetic(road, 2, 20, 40, events) }))[0];
+
+  test("a lap with an off still counts: only the corner it went off in drops out", () => {
+    const road = stadium();
+    const line = race_line(road, [], 1);
+    const [, clean] = owner_laps(traced(road), road, off_stadium(road));
+    const [first, lap] = owner_laps(traced(road, { wide: [23, 25] }), road, off_stadium(road));
+    expect(first.flaws).toEqual([]);
+    expect(lap.flaws).toEqual(["off"]);
+    expect(lap.t).toBeCloseTo(clean.t, 2);
+    expect(owner_table(line, clean.trace, lap)).toMatch(/^corners 1 \(1 dropped: \d off\), AI loses/);
+    expect(owner_table(line, clean.trace, clean)).toMatch(/^corners 2, AI loses/);
+  });
+
+  test("a rewind is no reset: its retry replaces the rewound stretch, offs and all, and its lost time comes out", () => {
+    const road = stadium();
+    const line = race_line(road, [], 1);
+    const [, clean] = owner_laps(traced(road), road, off_stadium(road));
+    const rewound = traced(road, { wide: [23, 25], rewind: [25, 4] });
+    expect(rewound.resets).toEqual([]);
+    const [first, lap] = owner_laps(rewound, road, off_stadium(road));
+    expect(first.flaws).toEqual([]);
+    expect(lap.flaws).toEqual(["rewind"]);
+    expect(lap.spoilt.every((f) => f === null)).toBe(true);
+    expect(Math.abs(lap.t - clean.t)).toBeLessThan(0.1);
+    const speed_gap = lap.trace.speed.reduce((m, v, i) => Math.max(m, Math.abs(v - clean.trace.speed[i])), 0);
+    expect(speed_gap).toBeLessThan(0.11);
+    expect(Math.max(...lap.offset.map((o) => Math.abs(o)))).toBeLessThan(2);
+    const total = (l: typeof lap) => Number(/AI loses (-?\d+\.\d) s/.exec(owner_table(line, clean.trace, l))?.[1]);
+    expect(owner_table(line, clean.trace, lap)).toMatch(/^corners 2, AI loses/);
+    expect(Math.abs(total(lap))).toBeLessThan(0.15);
+    // Back over the line: the lap ends at its last pass, not the first.
+    const across = owner_laps(traced(road, { rewind: [clean.start + 1, 3] }), road, off_stadium(road));
+    expect(across.map((l) => l.flaws)).toEqual([["rewind"], []]);
+    expect(Math.abs(across[1].t - clean.t)).toBeLessThan(0.1);
+  });
+
+  test("a reset still drops the corner it happened in, and its time stays in the lap", () => {
+    const road = stadium();
+    const line = race_line(road, [], 1);
+    const [, clean] = owner_laps(traced(road), road, off_stadium(road));
+    const [first, lap] = owner_laps(traced(road, { reset: 24, back: 20 }), road, off_stadium(road));
+    expect(first.flaws).toEqual([]);
+    expect(lap.flaws).toEqual(["reset"]);
+    expect(lap.spoilt.filter((f) => f === "reset").length).toBeGreaterThan(5);
+    expect(lap.t - clean.t).toBeGreaterThan(0.5);
+    expect(owner_table(line, clean.trace, lap)).toMatch(/^corners 1 \(1 dropped: \d reset\), AI loses/);
   });
 
   test("the AI driving the lab's recorder on seed 2 reads back as the AI's own lap", () => {

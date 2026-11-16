@@ -10,6 +10,8 @@ const HOLD = 0.25;
 const short = (v: number) => String(Number(v.toFixed(2)));
 const BEHIND = 5;
 const AHEAD = 40;
+/** Metres a car can't cover in one step: farther and it was put back without a placement (a rewind), so the windowed search would lock onto whatever road lies near. */
+const JUMP = 5;
 
 /** A trace as its export lines: the live one, or one kept across a reload. */
 export interface TraceLines {
@@ -49,6 +51,8 @@ export class RouteTrace implements TraceLines {
   private lost = true;
   private last_t = -Infinity;
   private last_index = -1;
+  private last_x = NaN;
+  private last_z = NaN;
   private steps = 0;
   private throttle = 0;
   private brake = 0;
@@ -70,6 +74,9 @@ export class RouteTrace implements TraceLines {
   step(t: number, car: Car, input: Controls, slip: number): boolean {
     const n = this.points.length;
     const was = this.wraps * n + this.index;
+    if ((car.pos.x - this.last_x) ** 2 + (car.pos.z - this.last_z) ** 2 > JUMP * JUMP) this.lost = true;
+    this.last_x = car.pos.x;
+    this.last_z = car.pos.z;
     const index = this.nearest(car.pos.x, car.pos.z);
     if (this.lost) {
       this.wraps = Math.round((was - index) / n);

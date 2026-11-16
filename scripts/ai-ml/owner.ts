@@ -11,11 +11,12 @@ import { autolaps } from "../ai-tune/race";
 import { AI_HASH, DIR, write_json } from "./cache";
 import { ai_lap, track_of } from "./drive";
 import { lifts, lifts_table, owner_table } from "./owner-gap";
-import { owner_laps, read_export, type TracedTrial } from "./owner-read";
+import { Flaw, owner_laps, read_export, type OwnerLap, type TracedTrial } from "./owner-read";
 
 // bun scripts/ai-ml/owner.ts <file>...: the owner's reference laps (`?lab=ai-ref-*`, src/lab/packs/ai-ref.ts) from
-// the lab's Download files (`<pack>-<date>.txt`) as saved, or pasted Copy blocks. Per traced trial: every lap and whether it was clean, the fastest clean lap against
-// today's AI solo lap corner by corner in the oracle gap format, and where the owner lifted outside the corners. Writes
+// the lab's Download files (`<pack>-<date>.txt`) as saved, or pasted Copy blocks. Per traced trial: every lap and what
+// it held (offs, spins, resets, rewinds), the fastest lap against today's AI solo lap corner by corner in the oracle gap
+// format (the corners its offs, spins and resets spoilt drop out), and where the owner lifted outside the corners. Writes
 // <pack>.gap.md and <pack>.result.json under .ai-ml/<hash>/owner/.
 
 const SOLO_LIMIT = 400;
@@ -29,15 +30,24 @@ export interface OwnerResult {
   route: string;
   car: string;
   hash: string;
-  laps: { lap: number; t: number; clean: boolean; why: string }[];
-  /** Fastest clean lap, flying or standing; `standing` is lap 1 when clean, null otherwise. */
+  laps: { lap: number; t: number; flaws: Flaw[] }[];
+  /** Fastest lap, flying or standing, flaws or not: its flaws are in `laps`. `standing` is lap 1. */
   best: number;
+  best_lap: number;
   standing: number | null;
   ai: { t: number; clean: boolean };
   auto: number;
   /** The standing lap over the autopilot's and under the AI's, both standing laps too: like for like or null. */
   ratio: number | null;
   gain: number | null;
+}
+
+/** Offs, spins and resets stay in a lap's time; a rewind's lost time comes out to about a sample. */
+function held(lap: OwnerLap): string {
+  if (lap.clean) return "clean";
+  const spoilt = lap.flaws.filter((f) => f !== Flaw.REWIND);
+  const rewound = lap.flaws.includes(Flaw.REWIND) ? "rewound (the time a rewind threw away taken out, to about a sample)" : "";
+  return `with ${[spoilt.join(", "), rewound].filter(Boolean).join("; ")}`;
 }
 
 function world_of(trial: TracedTrial): { world: World; seed: number } {
@@ -57,9 +67,8 @@ function report(trial: TracedTrial): OwnerResult | null {
   if (!route) throw new Error(`${trial.pack} ${trial.id}: seed ${seed} has no circuit ${trial.route}`);
   const unplace = world.place(route.closure);
   const laps = owner_laps(trial, route.points, (x, z) => world.distance_to_road(x, z) > OFF_ROAD);
-  const clean = laps.filter((l) => l.clean);
   const head = `# Owner ${trial.pack} r${trial.rev} ${trial.id}: ${trial.car} on seed ${seed} ${trial.route}\n\n`;
-  const lap_lines = laps.map((l) => `- lap ${l.lap + 1}${l.lap === 0 ? " (standing)" : ""}: ${l.t.toFixed(2)} s ${l.clean ? "clean" : `NOT CLEAN (${l.why})`}`);
+  const lap_lines = laps.map((l) => `- lap ${l.lap + 1}${l.lap === 0 ? " (standing)" : ""}: ${l.t.toFixed(2)} s ${held(l)}`);
   const warn = [
     ...(spec_hash(spec) === trial.hash ? [] : [`Driven on spec#${trial.hash}, today's ${trial.car} is spec#${spec_hash(spec)}: the car moved since.`]),
     ...(trial.full ? ["The trace ran out of room: the laps after it are missing."] : []),
@@ -68,13 +77,13 @@ function report(trial: TracedTrial): OwnerResult | null {
   const dir = `${DIR}/owner`;
   mkdirSync(dir, { recursive: true });
   const name = `${trial.pack}-${trial.id}`;
-  if (!clean.length) {
-    writeFileSync(`${dir}/${name}.gap.md`, `${head}${[...warn, ...lap_lines].join("\n")}\n\nNo clean lap: nothing to set against the AI.\n`);
+  if (!laps.length) {
+    writeFileSync(`${dir}/${name}.gap.md`, `${head}${warn.join("\n")}\n\nNo whole lap: nothing to set against the AI.\n`);
     unplace();
     return null;
   }
-  const best = clean.reduce((a, b) => (b.t < a.t ? b : a));
-  const standing = laps[0]?.clean ? laps[0] : null;
+  const best = laps.reduce((a, b) => (b.t < a.t ? b : a));
+  const standing = laps[0] ?? null;
   const tk = track_of(world, route, spec);
   const ai = ai_lap(tk, SOLO_LIMIT);
   if (!ai.trace) throw new Error("no AI trace");
@@ -87,8 +96,9 @@ function report(trial: TracedTrial): OwnerResult | null {
     route: trial.route,
     car: trial.car,
     hash: AI_HASH,
-    laps: laps.map(({ lap, t, clean: c, why }) => ({ lap, t, clean: c, why })),
+    laps: laps.map(({ lap, t, flaws }) => ({ lap, t, flaws })),
     best: best.t,
+    best_lap: best.lap,
     standing: standing?.t ?? null,
     ai: { t: ai.t, clean: ai.clean },
     auto,
@@ -96,9 +106,9 @@ function report(trial: TracedTrial): OwnerResult | null {
     gain: standing && ai.clean ? 1 - standing.trace.t[route.points.length - AI_LAP_SHORT] / ai.t : null,
   };
   const under = result.gain === null ? "" : ` is ${(result.gain * 100).toFixed(1)}% under it,`;
-  const pace = standing && result.ratio !== null ? `your standing lap ${standing.t.toFixed(2)} s${under} ${result.ratio.toFixed(3)} of the autolap (${auto.toFixed(2)} s)` : "lap 1 was not clean, so no standing lap to set against it";
+  const pace = standing && result.ratio !== null ? `your standing lap ${standing.t.toFixed(2)} s ${held(standing)}${under} ${result.ratio.toFixed(3)} of the autolap (${auto.toFixed(2)} s)` : "no standing lap to set against it";
   const table_note = best.lap === 0 ? "" : " The corner table reads your flying lap against the AI's standing one: the corners near the start favour you.";
-  const summary = `AI ${ai.t.toFixed(2)} s ${ai.clean ? "clean" : `NOT CLEAN (${ai.why})`} from a standing start; ${pace}. Your best clean lap ${best.t.toFixed(2)} s (lap ${best.lap + 1}).${table_note}`;
+  const summary = `AI ${ai.t.toFixed(2)} s ${ai.clean ? "clean" : `NOT CLEAN (${ai.why})`} from a standing start; ${pace}. Your best lap ${best.t.toFixed(2)} s ${held(best)} (lap ${best.lap + 1}).${table_note}`;
   const body = [...warn, ...lap_lines, "", summary, "", owner_table(tk.line, ai.trace, best), "", lifts_table(lifts(tk.line, ai.trace, best))].join("\n");
   writeFileSync(`${dir}/${name}.gap.md`, `${head}${body}\n`);
   write_json(`${dir}/${name}.result.json`, result);
@@ -112,7 +122,7 @@ if (import.meta.main) {
   if (!trials.length) throw new Error("no traced trial in the paste: drive a ?lab=ai-ref-* pack and Download");
   const rows = trials.map((trial) => {
     const r = report(trial);
-    return r ? `| ${trial.pack} | ${trial.id} | ${r.laps.filter((l) => l.clean).length}/${r.laps.length} | ${r.best.toFixed(2)} | ${r.standing?.toFixed(2) ?? "-"} | ${r.ai.t.toFixed(2)} | ${r.gain === null ? "-" : `${(r.gain * 100).toFixed(1)}%`} | ${r.ratio?.toFixed(3) ?? "-"} |` : `| ${trial.pack} | ${trial.id} | 0 clean | - | - | - | - | - |`;
+    return r ? `| ${trial.pack} | ${trial.id} | ${r.laps.filter((l) => !l.flaws.length).length}/${r.laps.length} | ${r.best.toFixed(2)}${r.laps[r.best_lap].flaws.length ? ` (${r.laps[r.best_lap].flaws.join(", ")})` : ""} | ${r.standing?.toFixed(2) ?? "-"} | ${r.ai.t.toFixed(2)} | ${r.gain === null ? "-" : `${(r.gain * 100).toFixed(1)}%`} | ${r.ratio?.toFixed(3) ?? "-"} |` : `| ${trial.pack} | ${trial.id} | 0 laps | - | - | - | - | - |`;
   });
   console.log(["| pack | trial | clean laps | best s | standing s | AI s | standing under AI | standing over autolap |", "|---|---|---|---|---|---|---|---|", ...rows].join("\n"));
   console.log(`gap reports in ${DIR}/owner`);

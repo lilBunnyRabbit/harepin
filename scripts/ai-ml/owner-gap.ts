@@ -1,7 +1,7 @@
 import type { RaceLine } from "../../src/ai/line";
 import { corner_run, corner_window, corners, gap_tags } from "./corners";
 import type { Trace } from "./drive";
-import type { OwnerLap } from "./owner-read";
+import type { Flaw, OwnerLap } from "./owner-read";
 
 /** A person's foot is never exactly at 1, as corners.ts' full throttle is. */
 const LIFT = 0.9;
@@ -15,12 +15,28 @@ const BRAKE = 0.3;
 
 const f = (v: number, d = 1) => (Number.isFinite(v) ? v.toFixed(d) : "-");
 
-/** `gap_table` with the owner in the oracle's place, plus where each took its apex. */
+/** The first flaw the owner's lap holds over a corner's window, or null when the corner is a reference. */
+function spoilt_in(line: RaceLine, you: OwnerLap, from: number, window: [number, number]): Flaw | null {
+  const n = line.road.length;
+  for (let k = window[0]; k <= window[1]; k++) {
+    const flaw = you.spoilt[(((from + k) % n) + n) % n];
+    if (flaw) return flaw;
+  }
+  return null;
+}
+
+/** `gap_table` with the owner in the oracle's place, plus where each took its apex; a corner the owner's lap spoilt drops out. */
 export function owner_table(line: RaceLine, ai: Trace, you: OwnerLap): string {
   const cs = corners(line);
+  const dropped: string[] = [];
   const rows = cs.flatMap((c, k) => {
     const window = corner_window(line, [ai, you.trace], c);
     if (!window) return [];
+    const flaw = spoilt_in(line, you, c.from, window);
+    if (flaw) {
+      dropped.push(`${k + 1} ${flaw}`);
+      return [];
+    }
     const a = corner_run(line, ai, c, window);
     const o = corner_run(line, you.trace, c, window);
     return [{ k, c, a, o, gap: a.time - o.time, tags: gap_tags(a, o), at: o.apex_at }];
@@ -28,7 +44,7 @@ export function owner_table(line: RaceLine, ai: Trace, you: OwnerLap): string {
   rows.sort((x, y) => y.gap - x.gap);
   const total = rows.reduce((s, r) => s + r.gap, 0);
   return [
-    `corners ${rows.length}, AI loses ${f(total)} s to you in them`,
+    `corners ${rows.length}${dropped.length ? ` (${dropped.length} dropped: ${dropped.join(", ")})` : ""}, AI loses ${f(total)} s to you in them`,
     "",
     "| # | at | radius m | gap s | entry ai/you | apex ai/you | exit ai/you | brake m before apex ai/you | full throttle m after ai/you | pedal ai/you | slip rad ai/you | apex m off centre line/you | why |",
     "|---|---|---|---|---|---|---|---|---|---|---|---|---|",
@@ -59,7 +75,7 @@ export function lifts(line: RaceLine, ai: Trace, you: OwnerLap): Lift[] {
     if (!window) continue;
     for (let k = window[0]; k <= window[1]; k++) zone[(((c.from + k) % n) + n) % n] = 1;
   }
-  const off = (i: number) => !zone[i] && (you.trace.throttle[i] < LIFT || you.trace.brake[i] > ON);
+  const off = (i: number) => !zone[i] && !you.spoilt[i] && (you.trace.throttle[i] < LIFT || you.trace.brake[i] > ON);
   let widest = 0;
   for (let i = 0; i < n; i++) widest = Math.max(widest, line.hi[i] - line.lo[i]);
   const out: Lift[] = [];
