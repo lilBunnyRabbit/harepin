@@ -6,7 +6,7 @@ import { map_code } from "../worldgen/kinds/map-code";
 import { SPAWN_INDEX } from "../worldgen/types";
 import { EVENTS, TIERS } from "./career";
 import { event_map } from "./career-store";
-import { MARKER_REACH, event_markers, marker_at, marker_open } from "./markers";
+import { MARKER_REACH, arrival, event_markers, marker_at, marker_open, type Pose } from "./markers";
 
 const ISLAND = "1C0000003";
 const here = EVENTS.filter((event) => map_code(event_map(event)) === ISLAND);
@@ -37,4 +37,55 @@ test("a flag is open with its tier, or with tune", () => {
   expect(marker_open(club, {}, true)).toBe(true);
   expect(marker_open(club, Object.fromEntries(TIERS[0].events.map((e) => [e.id, 2])), false)).toBe(true);
   expect(marker_open(markers[0], {}, false)).toBe(true);
+});
+
+const ahead = (from: Pose, x: number, z: number) => Math.atan2(x - from.x, z - from.z) - from.heading;
+const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
+
+test("Go stops the car before its flag, on the road for a race, facing past it, and the card opens there", () => {
+  for (const m of markers) {
+    const { arrive } = m;
+    if (m.event.mode === "race") expect(world.on_road(arrive.x, arrive.z)).toBe(true);
+    const gap = Math.hypot(m.x - arrive.x, m.z - arrive.z);
+    expect(gap).toBeGreaterThan(MARKER_REACH);
+    expect(gap).toBeLessThan(10);
+    expect(Math.abs(wrap(ahead(arrive, m.x, m.z)))).toBeLessThan(Math.PI / 4);
+    expect(Math.abs(wrap(arrive.heading - m.heading))).toBeLessThan(Math.PI / 6);
+    expect(marker_at(markers, arrive.x, arrive.z)).toBe(m);
+  }
+});
+
+test("on a bend the car sits in the flag's lane and faces along the curve", () => {
+  const radius = 40;
+  // A circle round the origin driven clockwise seen from above: heading at angle a is a + PI/2.
+  const bend = (x: number, z: number): Pose => {
+    const a = Math.atan2(x, z);
+    return { x: Math.sin(a) * radius, z: Math.cos(a) * radius, heading: a + Math.PI / 2 };
+  };
+  const at = 0.6;
+  const road = bend(Math.sin(at), Math.cos(at));
+  const off = 8.5;
+  const flag = { x: road.x - Math.cos(road.heading) * off, z: road.z + Math.sin(road.heading) * off, heading: road.heading };
+  const car = arrival(flag, off, { spawn_near: bend, on_road: () => true });
+  const out = Math.hypot(car.x, car.z) - radius;
+  expect(Math.abs(Math.abs(out) - 3)).toBeLessThan(0.01);
+  expect(Math.sign(out)).toBe(Math.sign(Math.hypot(flag.x, flag.z) - radius));
+  expect(Math.abs(wrap(car.heading - (Math.atan2(car.x, car.z) + Math.PI / 2)))).toBeLessThan(1e-9);
+  expect(Math.abs(wrap(ahead(car, flag.x, flag.z)))).toBeLessThan(Math.PI / 4);
+});
+
+test("a flag on a track in the air keeps the car clear of its pole", () => {
+  const straight = (x: number): Pose => ({ x, z: 0, heading: Math.PI / 2 });
+  const flag = { x: 0, z: 4.5, heading: Math.PI / 2 };
+  const car = arrival(flag, 4.5, { spawn_near: (x) => straight(x), on_road: () => true });
+  expect(car.z).toBeCloseTo(1.5, 6);
+  expect(car.x).toBeCloseTo(-6, 6);
+});
+
+test("a race whose road starts at the line backs the car only as far as the road goes", () => {
+  const flag = { x: 0, z: 8.5, heading: Math.PI / 2 };
+  const elsewhere = (): Pose => ({ x: 0, z: 0, heading: Math.PI / 2 });
+  const car = arrival(flag, 8.5, { spawn_near: elsewhere, on_road: (x, z) => x >= -2 && Math.abs(z) < 6 });
+  expect(car.x).toBeCloseTo(-2, 6);
+  expect(car.z).toBeCloseTo(3, 6);
 });

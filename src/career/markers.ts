@@ -19,11 +19,24 @@ const INSIDE = ROAD_HALF - 1.5;
 // A hunt starts at the spawn and the gymkhana and parking sites sit near it: flags on one spot step apart along the road.
 const APART = 9;
 const STEP = 10;
+// Go stops the car on the road this far before its flag, in the lane on the flag's side: the chase camera then sees
+// the pole and its banner ahead, never the pole filling the view.
+const ARRIVE_BACK = 6;
+const LANE = ROAD_HALF / 2;
+// Kept between the car's middle and a flag standing on the road (a track in the air).
+const POLE_CLEAR = 3;
+// A road middle snapped further than this from the one before the start is another road, or the start's road ends first.
+const SNAP = 2;
 
-interface Pose {
+export interface Pose {
   x: number;
   z: number;
   heading: number;
+}
+
+interface RoadQuery {
+  spawn_near(x: number, z: number, fx: number, fz: number): Pose;
+  on_road(x: number, z: number): boolean;
 }
 
 type StartAt = (world: World, start_index: number, level: string) => Pose | null;
@@ -62,6 +75,8 @@ export interface Marker {
   readonly x: number;
   readonly z: number;
   readonly heading: number;
+  /** Where Go puts the car: on the road before the flag, facing past it. Stopping here opens the card too. */
+  readonly arrive: Pose;
   /** 0 Rookie, 1 Club, 2 Pro: the tier's metal. */
   readonly tier: number;
 }
@@ -80,13 +95,40 @@ export function event_markers(world: World, start_index: number, events: readonl
     const start = STARTS[event.mode]?.(world, start_index, spot_of(event).level);
     if (!start) continue;
     const tier = TIERS.indexOf(tier_of(event));
-    placed.push({ event, tier, ...clear_of(placed, beside(start, aside)) });
+    const off = aside ? ASIDE : INSIDE;
+    const flag = clear_of(placed, beside(start, off));
+    placed.push({ event, tier, ...flag, arrive: arrival(flag, off, world) });
   }
   return placed;
 }
 
-function beside(start: Pose, aside: boolean): Pose {
-  const off = aside ? ASIDE : INSIDE;
+/** `off`: how far the flag stands to the right of its event's start, which is in the middle of the road. */
+export function arrival(flag: Pose, off: number, road: RoadQuery): Pose {
+  const { heading } = flag;
+  const fx = sin(heading);
+  const fz = cos(heading);
+  const rx = cos(heading);
+  const rz = -sin(heading);
+  const lane = Math.min(LANE, off - POLE_CLEAR);
+  const bx = flag.x + rx * off - fx * ARRIVE_BACK;
+  const bz = flag.z + rz * off - fz * ARRIVE_BACK;
+  const near = road.spawn_near(bx, bz, fx, fz);
+  if (hypot(near.x - bx, near.z - bz) < SNAP) return { x: near.x - cos(near.heading) * lane, z: near.z + sin(near.heading) * lane, heading: near.heading };
+  const x = flag.x + rx * (off - lane);
+  const z = flag.z + rz * (off - lane);
+  const back = road.on_road(x, z) ? road_back(road, x, z, fx, fz) : ARRIVE_BACK;
+  return { x: x - fx * back, z: z - fz * back, heading };
+}
+
+// A route that starts where its road does has nothing before the line: back only as far as the road goes. A start off
+// the road (a gymkhana or parking site) stands on open ground, which runs on behind it.
+function road_back(road: RoadQuery, x: number, z: number, fx: number, fz: number): number {
+  let back = 0;
+  while (back < ARRIVE_BACK && road.on_road(x - fx * (back + 1), z - fz * (back + 1))) back++;
+  return back;
+}
+
+function beside(start: Pose, off: number): Pose {
   return { x: start.x - cos(start.heading) * off, z: start.z + sin(start.heading) * off, heading: start.heading };
 }
 
@@ -105,7 +147,7 @@ export function marker_at(markers: readonly Marker[], x: number, z: number): Mar
   let best: Marker | null = null;
   let best_d = MARKER_REACH;
   for (const m of markers) {
-    const d = hypot(m.x - x, m.z - z);
+    const d = Math.min(hypot(m.x - x, m.z - z), hypot(m.arrive.x - x, m.arrive.z - z));
     if (d < best_d) {
       best = m;
       best_d = d;

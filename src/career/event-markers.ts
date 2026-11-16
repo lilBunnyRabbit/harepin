@@ -1,5 +1,4 @@
 import type * as THREE from "three";
-import { cos, sin } from "../sim-math";
 import { rgba } from "../theme/palette";
 import type { World } from "../world/world";
 import { chunk_of } from "../worldgen/chunk-grid";
@@ -13,8 +12,6 @@ import { event_markers, marker_at, marker_open, type MapMarker, type Marker } fr
 const NONE: readonly MapMarker[] = [];
 // Driving past a flag at speed, a lap past the start line on Sky Track included, never pops the card.
 const SLOW = 5;
-// Go stops the car this far short of its flag, inside `MARKER_REACH`, so the card opens with the pole in front.
-const SHORT_OF_FLAG = 2.5;
 
 export class EventMarkers {
   readonly card: GateCard;
@@ -50,7 +47,7 @@ export class EventMarkers {
   /** Where Go puts the car for an event on this map; null until its flag is placed. */
   spot(id: string): { x: number; z: number; heading: number } | null {
     const m = this.markers.find((one) => one.event.id === id);
-    return m ? { x: m.x - sin(m.heading) * SHORT_OF_FLAG, z: m.z - cos(m.heading) * SHORT_OF_FLAG, heading: m.heading } : null;
+    return m?.arrive ?? null;
   }
 
   // A compact world's gymkhana and parking sites read terrain anywhere, so its flags wait for the whole map. A streamed
