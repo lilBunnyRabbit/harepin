@@ -44,7 +44,8 @@
   }
 
   function key_down(event: KeyboardEvent) {
-    if (hold === undefined || event.repeat || (event.key !== "Enter" && event.key !== " ")) return;
+    // Enter only: a hold button on the road keeps focus, and Space there is the handbrake.
+    if (hold === undefined || event.repeat || event.key !== "Enter") return;
     event.preventDefault();
     start();
   }

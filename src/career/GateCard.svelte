@@ -40,22 +40,6 @@
     return c.sub && c.sub !== CARS[c.build.car].name ? c.sub : "Fits";
   }
 
-  function step(by: number) {
-    const open = row.filter((c) => c.blocked === null);
-    const at = open.findIndex((c) => c.code === view.picked);
-    const next = open[(at + by + open.length) % open.length];
-    if (next) view.picked = next.code;
-  }
-
-  const arrows: Attachment<HTMLElement> = (node) => {
-    const key = (e: KeyboardEvent) => {
-      if (!row.length || (e.key !== "ArrowLeft" && e.key !== "ArrowRight")) return;
-      step(e.key === "ArrowLeft" ? -1 : 1);
-    };
-    node.addEventListener("keydown", key);
-    return () => node.removeEventListener("keydown", key);
-  };
-
   // Keys reach the hold button with nothing else focused; the chat's Enter skips a focused button.
   const take_focus: Attachment<HTMLElement> = (node) => {
     if (!view.open || document.activeElement !== document.body || document.documentElement.dataset.input === "touch") return;
@@ -73,7 +57,7 @@
 
 {#if marker && event}
   {#key `${event.id}:${view.open}`}
-    <section class="hud event-card" style:--tier={rgba(marker_tone(marker, view.open))} data-row={row.length ? "" : undefined} aria-label={event.name} bind:this={card} {@attach arrows} {@attach take_focus}>
+    <section class="hud event-card" style:--tier={rgba(marker_tone(marker, view.open))} data-row={row.length ? "" : undefined} aria-label={event.name} bind:this={card} {@attach take_focus}>
       <header class="gate-what">
         <span class="gate-eyebrow">{event_place(event)} · {mode_name(event)}</span>
         <b class="gate-title">{event.name}</b>
