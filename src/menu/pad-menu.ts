@@ -262,7 +262,7 @@ export class PadMenu {
   }
 
   private hud(): Layer {
-    const roots = [document.querySelector(".update-toast"), $("mode-result"), document.querySelector(".lab-strip"), document.querySelector(".dock-top .top-left"), document.querySelector(".actions"), document.querySelector(".assists"), $("restart-lap"), $("online-chip")].filter((root) => root !== null);
+    const roots = [document.querySelector(".update-toast"), $("mode-result"), document.querySelector(".event-card"), document.querySelector(".lab-strip"), document.querySelector(".dock-top .top-left"), document.querySelector(".actions"), document.querySelector(".assists"), $("restart-lap"), $("online-chip")].filter((root) => root !== null);
     return { roots, back: () => this.close_hud(), first: () => first_of(...roots) };
   }
 
@@ -306,6 +306,8 @@ export class PadMenu {
       return;
     }
     if (current && current !== document.body) return this.close_hud();
+    // A hold that started play took its card away with the focus: play goes on, as after a pick in `accept`.
+    if (this.last && !this.last.checkVisibility()) return this.close_hud();
     const back_to = this.last && items.includes(this.last) ? this.last : layer.first();
     if (back_to) focus(back_to);
     else this.close_hud();
@@ -327,7 +329,8 @@ export class PadMenu {
 
   private card_waiting(): boolean {
     // The feel lab's strip waits the whole session: Start reaches its Trials, Retry and Stop, and the menu button beside them.
-    return [$("mode-result"), document.querySelector(".update-toast"), document.querySelector(".lab-strip")].some((card) => card instanceof HTMLElement && card.checkVisibility());
+    // At a flag Start reaches the event card's cars and its hold button.
+    return [$("mode-result"), document.querySelector(".update-toast"), document.querySelector(".lab-strip"), document.querySelector(".event-card")].some((card) => card instanceof HTMLElement && card.checkVisibility());
   }
 
   private rotated(): boolean {

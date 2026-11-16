@@ -13,6 +13,7 @@ import { on_series_map, series_host } from "./career/series-run";
 import { Career, event_map } from "./career/career-store";
 import { place_of } from "./career/place";
 import { EventMarkers } from "./career/event-markers";
+import { fits } from "./career/gate";
 import { RUN_PARAM, run_of, type RunPick } from "./runs/runs";
 import { Runs } from "./runs/runs-store";
 import { daily_want, run_play } from "./runs/run-play";
@@ -28,7 +29,7 @@ import { Skids, Smoke } from "./render/effects";
 import { Sparks } from "./render/sparks";
 import { build_spec, parse_build } from "./car/build";
 import { load_builds } from "./car/builds";
-import { car_shelves, limit_text } from "./car/car-pick";
+import { car_shelves, limit_text, type CarLimit, type CarShelf } from "./car/car-pick";
 import { pick_car } from "./menu/car-pick";
 import { Garage } from "./menu/garage.svelte";
 import { load_build, save_build } from "./menu/garage-builds";
@@ -332,7 +333,7 @@ const settings = new Settings(document.body, {
   map_note: note,
   goals,
   career,
-  start_event: (id) => start_event(id),
+  start_event: (id) => go_event(id),
   series,
   start_series: (id) => start_series(id),
   runs,
@@ -468,8 +469,14 @@ modes.try_reward = (reward) => {
   settings.open(MenuTab.GARAGE);
   garage.try_reward(reward);
 };
-modes.pick_car = (title, limit, own, signal) =>
-  pick_car(title, limit.cap ? limit_text(limit.cap) : "Any car", car_shelves(parse_build(own) ?? garage.build, load_builds(), open_presets(unlocks(career.stars).cars), limit, garage.code), signal, () => settings.open(MenuTab.GARAGE));
+const shelves_for = (limit: CarLimit, own = garage.code) => car_shelves(parse_build(own) ?? garage.build, load_builds(), open_presets(unlocks(career.stars).cars), limit, garage.code);
+const pick_in = (title: string, limit: CarLimit, shelves: readonly CarShelf[], signal: AbortSignal) => pick_car(title, limit.cap ? limit_text(limit.cap) : "Any car", shelves, signal, () => settings.open(MenuTab.GARAGE));
+// The car picked on a flag's card runs its event when it fits the route; the picker opens only when it does not.
+modes.pick_car = (title, limit, own, signal) => {
+  const shelves = shelves_for(limit, own);
+  const pre = markers.card.pick;
+  return pre !== null && fits(shelves, pre) ? Promise.resolve(pre) : pick_in(title, limit, shelves, signal);
+};
 modes.fit_car = (code, save) => garage.use_code(code, save);
 modes.car_code = () => garage.code;
 modes.save_car = (code) => {
@@ -530,6 +537,15 @@ function start_event(id: string) {
   settings.close();
   modes.play_event(to);
 }
+// An event on this map is a drive to its flag, where the card shows its marks and car; elsewhere it travels.
+function go_event(id: string) {
+  const spot = markers.spot(id);
+  if (!spot) return start_event(id);
+  if (lobby.busy) return hud.toast("Lobby race is running");
+  settings.close();
+  if (modes.active) modes.exit();
+  void driver.place_near(spot.x, spot.z, spot.heading);
+}
 function start_series(id: string) {
   const at = series?.findIndex((one) => one.event(id)) ?? -1;
   const one = series?.[at];
@@ -581,7 +597,12 @@ function play_run(to: RunPick) {
   const play = run_play(to, world, runs, (next) => start_run(next));
   modes.play_event(play.event, play);
 }
-const markers = new EventMarkers(scene, career, params.has(TUNE_PARAM), (id) => start_event(id));
+const markers = new EventMarkers(scene, career, params.has(TUNE_PARAM), {
+  start: (id) => start_event(id),
+  shelves: (limit) => shelves_for(limit),
+  pick: (title, limit, signal) => pick_in(title, limit, shelves_for(limit), signal),
+});
+const next_ticket = show_next_up({ stars: () => career.stars, here: built, flag: (id) => markers.map_markers.find((m) => m.label === id) ?? null, travel: (id) => start_event(id), blocked: () => input.blocked() });
 $("toast").after(markers.card.el);
 markers.on_map = (list) => hud.set_markers(list);
 // A lab trial on a race world keeps the career out of it, as the lab world does.

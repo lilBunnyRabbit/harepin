@@ -1,20 +1,23 @@
 import type * as THREE from "three";
+import { cos, sin } from "../sim-math";
 import { rgba } from "../theme/palette";
 import type { World } from "../world/world";
 import { chunk_of } from "../worldgen/chunk-grid";
 import { KINDS } from "../worldgen/kinds/kinds";
 import type { CareerEvent } from "./career";
 import type { Career } from "./career-store";
-import { MarkerCard } from "./marker-card";
+import { GateCard, type GateHost } from "./gate-card.svelte";
 import { MarkerView, marker_tone } from "./marker-view";
 import { event_markers, marker_at, marker_open, type MapMarker, type Marker } from "./markers";
 
 const NONE: readonly MapMarker[] = [];
 // Driving past a flag at speed, a lap past the start line on Sky Track included, never pops the card.
 const SLOW = 5;
+// Go stops the car this far short of its flag, inside `MARKER_REACH`, so the card opens with the pole in front.
+const SHORT_OF_FLAG = 2.5;
 
 export class EventMarkers {
-  readonly card: MarkerCard;
+  readonly card: GateCard;
   on_map: ((markers: readonly MapMarker[]) => void) | null = null;
   private markers: readonly Marker[] = [];
   /** One per marker, built once the ground under it is in; null until then. */
@@ -31,17 +34,23 @@ export class EventMarkers {
     private readonly scene: THREE.Scene,
     private readonly career: Career,
     private readonly tune: boolean,
-    private readonly on_start: (id: string) => void,
+    gate: GateHost,
   ) {
-    this.card = new MarkerCard(on_start);
+    this.card = new GateCard(gate);
   }
 
   /** The restart action at a flag: starts its event when the card offers it. */
   start_here(): boolean {
     const { at } = this;
     if (!at || !this.open(at)) return false;
-    this.on_start(at.event.id);
+    this.card.start();
     return true;
+  }
+
+  /** Where Go puts the car for an event on this map; null until its flag is placed. */
+  spot(id: string): { x: number; z: number; heading: number } | null {
+    const m = this.markers.find((one) => one.event.id === id);
+    return m ? { x: m.x - sin(m.heading) * SHORT_OF_FLAG, z: m.z - cos(m.heading) * SHORT_OF_FLAG, heading: m.heading } : null;
   }
 
   // A compact world's gymkhana and parking sites read terrain anywhere, so its flags wait for the whole map. A streamed
@@ -95,5 +104,6 @@ export class EventMarkers {
   dispose() {
     for (const view of this.views) view?.dispose();
     this.views = [];
+    this.card.dispose();
   }
 }

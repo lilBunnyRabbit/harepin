@@ -123,9 +123,7 @@ export class Driver {
     const { world, race, safe, car } = this;
     const lift = drop_height(car.spec, RIDE_HEIGHT);
     const p = route?.respawn;
-    if (p) {
-      return this.teleport(p.x, p.z, () => ({ x: p.x, y: world.height(p.x, p.z) + lift, z: p.z, heading: atan2(p.tx, p.tz) }));
-    }
+    if (p) return this.place_near(p.x, p.z, atan2(p.tx, p.tz));
     const near = world.nearest_road(safe.x, safe.z);
     if (race.started && hypot(near.x - safe.x, near.z - safe.z) < ON_CIRCUIT) {
       const n = world.checkpoints.length;
@@ -137,6 +135,12 @@ export class Driver {
       const spot = world.spawn_near(x, z, fx, fz);
       return { ...spot, y: spot.y + lift };
     });
+  }
+
+  /** On the ground at `x, z`, off the road too: where an event's flag stands. */
+  place_near(x: number, z: number, heading: number): Promise<void> {
+    const { world, car } = this;
+    return this.teleport(x, z, () => ({ x, y: world.height(x, z) + drop_height(car.spec, RIDE_HEIGHT), z, heading }));
   }
 
   place_road(index: number): Promise<void> {
