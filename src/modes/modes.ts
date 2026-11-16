@@ -141,7 +141,7 @@ export class Modes implements CarHooks {
     status: $("mode-status"),
     status_name: $("mode-status-name"),
     status_clock: $("mode-status-clock"),
-    status_more: $("mode-status-more"),
+    status_fields: [0, 1, 2, 3].map((i) => $(`mode-status-f${i}`)),
     result: $("mode-result"),
     kind: $("mode-result-kind"),
     title: $("mode-result-title"),
@@ -619,7 +619,7 @@ export class Modes implements CarHooks {
       this.el.note.hidden = false;
       return;
     }
-    this.write_status(text, text, "", "");
+    this.write_status(text, text, "", []);
     this.notice_until = performance.now() + NOTICE_MS;
     setTimeout(() => {
       if (this.status_key === text && !this.active) this.el.status.hidden = true;
@@ -628,10 +628,11 @@ export class Modes implements CarHooks {
 
   private show_status(text: string) {
     const [name = "", clock = "", ...more] = text.split(" · ");
-    this.write_status(text, clock ? name : text, clock, more.join(" · "));
+    this.write_status(text, clock ? name : text, clock, more);
   }
 
-  private write_status(key: string, name: string, clock: string, more: string) {
+  /** `more` fills one top-card cell per part; parts past the last cell share it. */
+  private write_status(key: string, name: string, clock: string, more: readonly string[]) {
     if (key === this.status_key) return;
     this.status_key = key;
     const { el } = this;
@@ -644,7 +645,10 @@ export class Modes implements CarHooks {
       if (chars) el.status_clock.dataset.time = String(chars);
       else delete el.status_clock.dataset.time;
     }
-    set_text(el.status_more, more);
+    const { status_fields } = el;
+    const last = status_fields.length - 1;
+    for (let i = 0; i < last; i++) set_text(status_fields[i], more[i] ?? "");
+    set_text(status_fields[last], more.slice(last).join(" · "));
   }
 
   private show_result(finish: Finish, active: Active) {

@@ -1,19 +1,26 @@
+/* The pause button holds the top right corner on every screen, level with the top card. */
 #hud-menu-btn {
-  position: absolute;
-  top: var(--inset-top);
-  left: var(--inset-left);
-  width: var(--control-h);
-  height: var(--control-h);
+  --pause-size: var(--bar-h);
+  position: fixed;
+  top: calc(var(--corner-top, var(--inset-top)) / var(--hud-scale, 1));
+  right: calc(var(--corner-right, var(--inset-right)) / var(--hud-scale, 1));
+  zoom: var(--hud-scale, 1);
+  width: var(--pause-size);
+  height: var(--pause-size);
   padding: 0;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   border: 1px solid var(--line);
   background: var(--surface);
   color: var(--foreground);
 }
 
+#hud-menu-btn:hover {
+  background: var(--background-light);
+}
+
 #hud-menu-btn svg {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
 }
 
 .unread-dot {
@@ -124,17 +131,16 @@
     text-overflow: ellipsis;
   }
 
-  /* Restart and rewind sit beside the menu button: an anchor to the strip or the mode status, both later in the page,
-     would not resolve. */
+  /* Restart lives in the pause sheet on a phone. */
   :root[data-hud] #restart-lap {
-    position: fixed;
+    display: none;
+  }
+
+  #hud-menu-btn {
+    --pause-size: var(--control-h);
     top: var(--inset-top);
-    left: calc(var(--inset-left) + var(--phone-slot));
-    width: var(--control-h);
-    height: var(--control-h);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-md);
-    background: var(--surface);
+    right: var(--inset-right);
+    zoom: 1;
   }
 
   :root[data-hud] #mode-status {
@@ -152,7 +158,8 @@
     white-space: nowrap;
   }
 
-  :root[data-hud] #mode-status > :not(:empty),
+  :root[data-hud] #mode-status > :not(:empty, #mode-status-more),
+  :root[data-hud] #mode-status-more > :not(:empty),
   :root[data-hud] #mode-status[data-cup]::before {
     display: flex;
     align-items: center;
@@ -161,11 +168,12 @@
   }
 
   :root[data-hud] #mode-status > :not(:empty) ~ :not(:empty),
+  :root[data-hud] #mode-status-more > :not(:empty),
   :root[data-hud] #mode-status[data-cup] > :not(:empty) {
     border-left: 1px solid var(--line);
   }
 
-  :root[data-hud] #mode-status > :not(:empty) ~ :not(:empty)::before {
+  :root[data-hud] :is(#mode-status, #mode-status-more) > :not(:empty) ~ :not(:empty)::before {
     content: none;
   }
 
@@ -199,12 +207,16 @@
   }
 
   :root[data-hud] #mode-status-more {
+    display: contents;
+  }
+
+  :root[data-hud] #mode-status-more > :last-child {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
-  /* Roaming keeps the top clear like a run does, restart staying beside the menu button. */
+  /* Roaming keeps the top clear like a run does. */
   :root[data-hud] #strip[data-idle] {
     display: contents;
     anchor-name: none;
@@ -214,7 +226,7 @@
     display: none;
   }
 
-  /* A mode run brings its own status line in the strip's place; restart stays. */
+  /* A mode run brings its own status line in the strip's place. */
   :root[data-hud] body:has(#mode-status:not([hidden])) #strip {
     display: contents;
   }
@@ -225,7 +237,7 @@
 
   :root[data-hud] .touch-buttons {
     top: var(--inset-top);
-    left: calc(var(--inset-left) + 2 * var(--phone-slot));
+    left: var(--inset-left);
     right: auto;
   }
 
@@ -239,35 +251,14 @@
     height: var(--control-h);
     padding: 0;
     border: 1px solid var(--line);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-full);
     background: var(--surface);
     text-shadow: none;
   }
 
-  /* Map under the menu button, speed card top right: each top corner holds one card and the pedals keep the right edge. */
+  /* The phone keeps driving controls only: no map, the speed a pill between the thumbs. */
   :root[data-hud] .top-right {
-    top: calc(var(--inset-top) + var(--control-h) + var(--space-2));
-    right: auto;
-    left: var(--inset-left);
-  }
-
-  :root[data-hud="classic"] #map-note:not([hidden]) {
-    position: absolute;
-    left: 50%;
-    bottom: var(--space-2);
-    translate: -50% 0;
-    padding: 0 var(--space-2);
-    white-space: nowrap;
-    border-radius: var(--radius-full);
-    background: var(--surface);
-  }
-
-  :root[data-hud="classic"] .top-right:has(#map-note:not([hidden])) #minimap {
-    border-radius: inherit;
-  }
-
-  .touch-pedal-zone {
-    top: calc(var(--inset-top) + var(--speedo-h) + var(--control-h) + var(--space-3));
+    display: none;
   }
 
   .pedal {
@@ -284,24 +275,143 @@
 
   :root[data-hud] .bottom-right,
   :root[data-hud][data-dash] .bottom-right {
-    inset: var(--inset-top) var(--inset-right) auto auto;
-    translate: none;
-    width: var(--pedals);
-  }
-
-  :root[data-hud="classic"] .bottom-right {
-    grid-template-columns: 1fr auto;
-    column-gap: var(--space-2);
-  }
-
-  :root[data-hud="classic"] #speed {
+    inset: auto auto var(--inset-bottom) 50%;
+    translate: -50% 0;
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    width: auto;
     min-width: 0;
-    font-size: 32px;
+    height: auto;
+    min-height: 0;
+    padding: var(--space-1) var(--space-4);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+  }
+
+  :root[data-hud] .bottom-right :is(.dial, .rpm, .nitro, .unit) {
+    display: none;
+  }
+
+  :root[data-hud] .speedo {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+  }
+
+  :root[data-hud] #speed {
+    min-width: 3ch;
+    font-family: var(--font-mono);
+    font-size: var(--text-3xl);
+    font-weight: 700;
+    letter-spacing: 0;
+    text-align: center;
+  }
+
+  /* The gear shows only in manual, where the driver picks it. */
+  :root[data-hud] #gear {
+    position: static;
+    translate: none;
+    min-width: 0;
+    height: auto;
+    padding: 0 var(--space-1);
+    font-size: var(--text-lg);
+  }
+
+  :root[data-hud] #gear:not([data-mode="M"]) {
+    display: none;
   }
 
   :root[data-hud] #recenter {
-    top: calc(100% + var(--space-2));
-    bottom: auto;
-    right: 0;
+    top: auto;
+    bottom: calc(100% + var(--space-2));
+    right: 50%;
+    translate: 50% 0;
+  }
+
+  /* Round pads: each key's box keeps its size, since the pedal zone reads gas and brake travel from it; the circle is
+     drawn at its foot and fills with the pedal. */
+  .pedal,
+  .touch-brake .touch-key {
+    background: none;
+    border: 0;
+    text-shadow: none;
+  }
+
+  .pedal {
+    --pad: calc(var(--pedal-w) - var(--space-3));
+    place-items: end center;
+    padding-bottom: calc(var(--pad) / 2 - 11px);
+    overflow: visible;
+  }
+
+  .pedal.throttle {
+    --pad: var(--pedal-w);
+  }
+
+  .pedal::before,
+  .pedal::after {
+    content: "";
+    position: absolute;
+    inset: auto auto 0 50%;
+    translate: -50% 0;
+    width: var(--pad);
+    height: var(--pad);
+    border-radius: var(--radius-full);
+  }
+
+  .pedal::before {
+    background: linear-gradient(to top, color-mix(in oklch, var(--error) 40%, transparent) calc(var(--level) * 100%), transparent 0);
+  }
+
+  .pedal.throttle::before {
+    background: linear-gradient(to top, color-mix(in oklch, var(--success) 40%, transparent) calc(var(--level) * 100%), transparent 0);
+  }
+
+  .pedal::after {
+    border: 1.5px solid var(--ghost-line);
+    background: var(--ghost-fill);
+    z-index: -1;
+  }
+
+  .pedal {
+    isolation: isolate;
+  }
+
+  .pedal svg {
+    position: relative;
+    width: 22px;
+    height: 22px;
+    filter: drop-shadow(0 0 3px var(--surface));
+  }
+
+  .touch-brake .touch-key {
+    border: 1.5px solid var(--ghost-line);
+    border-radius: var(--radius-full);
+    background: var(--ghost-fill);
+  }
+
+  .touch-steer-buttons .touch-key {
+    --steer-key-w: 72px;
+    --steer-key-h: 72px;
+    border-radius: var(--radius-full);
+  }
+
+  .touch-steer-buttons svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .nitro-key {
+    width: 56px;
+    height: 56px;
+    border-radius: var(--radius-full);
+  }
+
+  .nitro-key svg {
+    position: relative;
+    width: 22px;
+    height: 22px;
   }
 }

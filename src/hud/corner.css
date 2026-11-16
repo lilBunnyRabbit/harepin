@@ -335,7 +335,7 @@
    the inner side, level with its foot, so a long list grows up into open sky rather than into the event strip. */
 @media (pointer: fine) {
   :root[data-hud="classic"][data-map-corner="top-right"] .top-right {
-    inset: calc(var(--corner-top) / var(--hud-scale, 1)) calc(var(--corner-right) / var(--hud-scale, 1)) auto auto;
+    inset: calc(var(--corner-top) / var(--hud-scale, 1) + var(--bar-h) + var(--space-3)) calc(var(--corner-right) / var(--hud-scale, 1)) auto auto;
   }
 
   :root[data-hud="classic"][data-map-corner="top-right"] #players {

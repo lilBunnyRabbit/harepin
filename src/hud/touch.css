@@ -175,10 +175,6 @@
   background: color-mix(in oklch, var(--success) 55%, transparent);
 }
 
-.pedal span {
-  position: relative;
-}
-
 .touch-key {
   height: var(--control-h);
   place-items: center;
@@ -228,10 +224,6 @@
   inset: auto 0 0;
   height: calc(var(--tank) * 100%);
   background: color-mix(in oklch, var(--info) 40%, transparent);
-}
-
-.nitro-key span {
-  position: relative;
 }
 
 #touch .nitro-key[aria-pressed="true"] {

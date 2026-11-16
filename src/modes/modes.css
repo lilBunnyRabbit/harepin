@@ -50,8 +50,14 @@
   width: 8.65ch;
 }
 
-#mode-status > :not(:empty) ~ :not(:empty)::before {
+#mode-status > :not(:empty) ~ :not(:empty)::before,
+#mode-status-more > :not(:empty) ~ :not(:empty)::before {
   content: " · ";
+}
+
+#mode-status-more:not(:has(> :not(:empty))),
+#mode-status-more > :empty {
+  display: none;
 }
 
 #mode-status[data-cup]::before {

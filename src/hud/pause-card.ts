@@ -23,6 +23,7 @@ export function roam_card({ stars, here, map, flags, players }: RoamFacts): Paus
 
 // The run's status line already holds its name, clock and standing; while paused it no longer moves.
 export function run_card(mode: string): PauseCard {
-  const facts = [$("mode-status-more").textContent, $("mode-status-clock").textContent].filter((fact): fact is string => Boolean(fact));
+  const fields = Array.from($("mode-status-more").children, (field) => field.textContent);
+  const facts = [...fields, $("mode-status-clock").textContent].filter((fact): fact is string => Boolean(fact));
   return { kind: "event", context: mode, title: $("mode-status-name").textContent ?? mode, facts };
 }
