@@ -70,5 +70,23 @@ export function pause_keys(bindings: Bindings, kind: PauseCard["kind"]): PauseKe
   return { acts, flips, caps };
 }
 
+export type PausePress = { act: PauseAct } | { aid: PauseAid };
+
+/**
+ * The act or aid a key press runs, or null. A claimed press stops here: the pause closes during its dispatch, so the
+ * menu it opens and the driving input, both listening on `window`, would read the same press (E stepping Events to
+ * Garage, Q and E shifting the gearbox).
+ */
+export function pause_press(keys: PauseKeys, event: Pick<KeyboardEvent, "code" | "repeat" | "ctrlKey" | "metaKey" | "altKey" | "preventDefault" | "stopPropagation">): PausePress | null {
+  if (event.repeat || event.ctrlKey || event.metaKey || event.altKey) return null;
+  const act = keys.acts[event.code];
+  const aid = keys.flips[event.code];
+  const press: PausePress | null = act ? { act } : aid ? { aid } : null;
+  if (!press) return null;
+  event.preventDefault();
+  event.stopPropagation();
+  return press;
+}
+
 /** A button's tooltip with its key, "Camera (C)". */
 export const with_cap = (label: string, cap: string | undefined) => (cap ? `${label} (${cap})` : label);

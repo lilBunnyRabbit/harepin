@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { pause_press } from "./pause-keys";
   import PauseSheet from "./PauseSheet.svelte";
   import type { PauseAct, PauseView } from "./pause-view.svelte";
 
@@ -24,17 +25,9 @@
   }
 
   function key(event: KeyboardEvent) {
+    const press = pause_press(view.keys, event);
+    if (press) return "act" in press ? choose(press.act) : view.flip(press.aid);
     if (event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
-    const pick = view.keys.acts[event.code];
-    if (pick) {
-      event.preventDefault();
-      return choose(pick);
-    }
-    const aid = view.keys.flips[event.code];
-    if (aid) {
-      event.preventDefault();
-      return view.flip(aid);
-    }
     const step = STEP[event.key];
     if (step === undefined) return;
     event.preventDefault();
