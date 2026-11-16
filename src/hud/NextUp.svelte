@@ -3,6 +3,7 @@
   import KeyButton from "../menu/ui/KeyButton.svelte";
   import PlaceChip from "../menu/ui/PlaceChip.svelte";
   import Ticket from "../menu/ui/Ticket.svelte";
+  import { TRAVEL_BUTTON, pad_label } from "./bindings";
   import type { NextUpView } from "./next-up-view.svelte";
 
   interface Props {
@@ -51,7 +52,7 @@
     </Ticket>
     {#if !ticket.place.here}
       <div class="next-up-travel" bind:this={travel_box}>
-        <KeyButton size="md" hold={TRAVEL_HOLD_MS} onheld={travel} keys={{ key: "Hold Tab", pad: "RB", touch: "icon-globe" }}>Travel to {ticket.place.name}</KeyButton>
+        <KeyButton size="md" hold={TRAVEL_HOLD_MS} onheld={travel} keys={{ key: "Hold Tab", pad: pad_label(TRAVEL_BUTTON), touch: "icon-globe" }}>Travel to {ticket.place.name}</KeyButton>
       </div>
     {/if}
   </div>

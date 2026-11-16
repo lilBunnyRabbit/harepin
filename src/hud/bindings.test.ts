@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { BINDABLE, DEFAULT_BINDINGS, key_label, pad_text, parse_bindings, rebind_key, rebind_pad, type Bindings } from "./bindings";
+import { BINDABLE, DEFAULT_BINDINGS, TRAVEL_BUTTON, key_label, pad_text, parse_bindings, rebind_key, rebind_pad, type Bindings } from "./bindings";
 
 const owners = (bindings: Bindings, code: string) => BINDABLE.filter((action) => bindings[action].keys.includes(code));
 
@@ -180,6 +180,11 @@ describe("parse_bindings", () => {
   test("duplicate keys within one action collapse", () => {
     expect(parse_bindings({ reset: { keys: ["KeyK", "KeyK"], pad: 3 } }).reset.keys).toEqual(["KeyK"]);
   });
+});
+
+test("the travel button belongs to no action, so holding it never shifts or toggles", () => {
+  expect(BINDABLE.filter((action) => DEFAULT_BINDINGS[action].pad === TRAVEL_BUTTON)).toEqual([]);
+  expect(parse_bindings({ shift_up: { keys: ["KeyE"], pad: TRAVEL_BUTTON } }).shift_up.pad).toBe(DEFAULT_BINDINGS.shift_up.pad);
 });
 
 describe("labels", () => {

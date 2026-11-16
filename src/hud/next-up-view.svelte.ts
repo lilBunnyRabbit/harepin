@@ -10,8 +10,6 @@ import NextUp from "./NextUp.svelte";
 
 const TURN_STEP = 5;
 const DISTANCE_STEP = 10;
-/** RB in the standard pad layout: held, it travels to a ticket on another map. */
-export const TRAVEL_BUTTON = 5;
 
 export interface NextUpTicket extends EventTicket {
   id: string;
@@ -36,7 +34,7 @@ export class NextUpView {
   turn = $state(0);
   travel_button: HTMLElement | null = null;
   private stars: Stars | null = null;
-  private rb = false;
+  private held = false;
 
   constructor(readonly host: NextUpHost) {}
 
@@ -46,7 +44,7 @@ export class NextUpView {
     this.travel_button?.dispatchEvent(new CustomEvent(HOLD_EVENT, { detail: down }));
   }
 
-  update(x: number, z: number, heading: number, roaming: boolean, rb: boolean) {
+  update(x: number, z: number, heading: number, roaming: boolean, held: boolean) {
     const stars = this.host.stars();
     if (stars !== this.stars) {
       this.stars = stars;
@@ -54,9 +52,9 @@ export class NextUpView {
     }
     const shown = roaming && this.ticket !== null;
     if (shown !== this.shown) this.shown = shown;
-    if (rb !== this.rb) {
-      this.rb = rb;
-      this.press(rb);
+    if (held !== this.held) {
+      this.held = held;
+      this.press(held);
     }
     if (!shown || !this.ticket || !this.ticket.place.here) return;
     const flag = flag_of(this.host.flags(), this.ticket.id);

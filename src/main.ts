@@ -39,7 +39,7 @@ import { load_records } from "./store/records";
 import { Heartbeat } from "./net/heartbeat";
 import { $, Hud } from "./hud/hud";
 import { Presence } from "./hud/presence";
-import type { Action } from "./hud/bindings";
+import { TRAVEL_BUTTON, type Action } from "./hud/bindings";
 import { Input, modal_open } from "./hud/input";
 import { Rumble, sense_drive, type RumbleSense } from "./hud/rumble";
 import { show_key_hints } from "./hud/key-hints";
@@ -85,7 +85,7 @@ import { custom_code, map_code, parse_map_code, pick_problem, read_pick } from "
 import { map_note } from "./menu/map-note";
 import { plain_map } from "./worldgen/kinds/kinds";
 import { REVIEW_BUILD, review_wanted } from "./review/params";
-import { TRAVEL_BUTTON, show_next_up } from "./hud/next-up-view.svelte";
+import { show_next_up } from "./hud/next-up-view.svelte";
 import { roam_card, run_card } from "./hud/pause-card";
 import { show_pause, type PauseAct } from "./hud/pause-view.svelte";
 import { map_name } from "./worlds/map-name";

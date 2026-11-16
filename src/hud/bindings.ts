@@ -84,8 +84,10 @@ export const SHORTCUT_KEYS: readonly string[] = ["ControlLeft", "ControlRight", 
 /** Escape opens the menu and cancels a capture; Enter and Tab pick and move in menus; T and Enter open the chat. */
 export const RESERVED_KEYS: readonly string[] = ["Escape", "Enter", "NumpadEnter", "Tab", "KeyT", ...SHORTCUT_KEYS];
 export const MENU_BUTTON = 9;
+/** L3, held on the road's Next up ticket, travels to its map; no action may share it, or the hold fires it too. */
+export const TRAVEL_BUTTON = 10;
 /** The triggers stay analog gas and brake; Start opens the menu and cancels a capture. */
-export const RESERVED_BUTTONS: readonly number[] = [6, 7, MENU_BUTTON];
+export const RESERVED_BUTTONS: readonly number[] = [6, 7, MENU_BUTTON, TRAVEL_BUTTON];
 const PAD_BUTTONS = 17;
 const MAX_KEYS = 4;
 const CODE = /^[A-Za-z0-9]{1,32}$/;

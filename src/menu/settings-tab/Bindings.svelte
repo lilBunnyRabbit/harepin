@@ -7,6 +7,7 @@
     RESERVED_BUTTONS,
     RESERVED_KEYS,
     SHORTCUT_KEYS,
+    TRAVEL_BUTTON,
     key_label,
     pad_bindable,
     pad_label,
@@ -41,6 +42,7 @@
     const fixed = BIND_INFO[action].fixed_pad;
     if (fixed) return `${fixed} drives this on the pad`;
     if (fixed !== undefined) return "Keyboard only";
+    if (caught.button === TRAVEL_BUTTON) return `${pad_label(TRAVEL_BUTTON)} stays with Travel`;
     return RESERVED_BUTTONS.includes(caught.button) ? "LT and RT stay gas and brake" : null;
   }
 
