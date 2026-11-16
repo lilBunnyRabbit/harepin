@@ -35,6 +35,6 @@ test("free roam: the title card, seven rows with their keys, the aids and Resume
 test("in an event: the run card, five rows with their keys and Resume", () => {
   const html = sheet({ kind: "event", context: "Race", title: "First lap", facts: ["gate 1/12", "0:06.2"] }, false);
   for (const text of ["Menu · Race", "First lap", "gate 1/12", "Resume"]) expect(html).toContain(text);
-  rows_in_order(html, [["Restart", "R"], ["Leave event", "Q"], ["Car and parts", "C"], ["Showroom", "H"], ["Settings", "S"]]);
+  rows_in_order(html, [["Restart", "R"], ["Leave event", "Q"], ["Car and parts", "G"], ["Showroom", "H"], ["Settings", "S"]]);
   expect(html).not.toContain(">Map</span>");
 });

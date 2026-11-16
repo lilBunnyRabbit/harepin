@@ -23,7 +23,7 @@ export const ROWS: Readonly<Record<PauseCard["kind"], readonly PauseRow[]>> = {
   event: [
     { act: "reset", label: "Restart", icon: "icon-restart" },
     { act: "leave", label: "Leave event", icon: "icon-close", key: "KeyQ" },
-    { act: "garage", label: "Car and parts", icon: "icon-car", key: "KeyC" },
+    { act: "garage", label: "Car and parts", icon: "icon-car", key: "KeyG" },
     { act: "showroom", label: "Showroom", icon: "logo-mark", key: "KeyH" },
     { act: "settings", label: "Settings", icon: "icon-settings", key: "KeyS" },
   ],
