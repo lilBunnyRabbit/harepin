@@ -45,7 +45,7 @@ export class PauseView {
   shown = $state(false);
   card = $state<PauseCard | null>(null);
   aids = $state<PauseAids | null>(null);
-  keys = $state<PauseKeys>({ acts: {}, caps: {} });
+  keys = $state<PauseKeys>({ acts: {}, flips: {}, caps: {} });
   solo = $state(true);
 
   constructor(readonly host: PauseHost) {}

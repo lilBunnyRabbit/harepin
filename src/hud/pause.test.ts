@@ -21,10 +21,10 @@ test("free roam: Resume, the four doors and every aid", () => {
   expect(html).toContain('title="Camera (C)"');
   let at = 0;
   ["Map", "Events", "Garage", "Online"].forEach((label, i) => {
-    const digit = html.indexOf(`>${i + 1}</kbd>`, at);
-    at = html.indexOf(`>${label}</b>`, digit);
-    expect(digit).toBeGreaterThan(-1);
-    expect(at).toBeGreaterThan(digit);
+    const cap = html.indexOf(`>${"MEGO"[i]}</kbd>`, at);
+    at = html.indexOf(`>${label}</b>`, cap);
+    expect(cap).toBeGreaterThan(-1);
+    expect(at).toBeGreaterThan(cap);
   });
 });
 
@@ -32,5 +32,5 @@ test("in an event: the run card, its four rows and Resume", () => {
   const card: RunCard = { kind: "event", mode: "Race", title: "First lap", facts: ["gate 1/12", "0:06.2"] };
   const html = render(PauseEvent, { props: { card, aids: AIDS, solo: false, caps: pause_keys(DEFAULT_BINDINGS, "event").caps, onact: none, onflip: none, onresume: none } }).body;
   for (const text of ["Menu · Race", "First lap", "gate 1/12", "Restart", "Car and parts", "Leave event", "Showroom", "Settings", "Resume"]) expect(html).toContain(text);
-  for (const cap of ["R", "1", "Q", "2", "3", "Esc"]) expect(html).toContain(`>${cap}</kbd>`);
+  for (const cap of ["R", "C", "Q", "H", "S", "Esc"]) expect(html).toContain(`>${cap}</kbd>`);
 });

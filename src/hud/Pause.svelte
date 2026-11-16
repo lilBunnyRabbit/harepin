@@ -31,6 +31,11 @@
       event.preventDefault();
       return choose(pick);
     }
+    const aid = view.keys.flips[event.code];
+    if (aid) {
+      event.preventDefault();
+      return view.flip(aid);
+    }
     const step = STEP[event.key];
     if (step === undefined) return;
     event.preventDefault();
