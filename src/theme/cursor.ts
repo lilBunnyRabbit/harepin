@@ -12,17 +12,16 @@ const OUTLINE = 2.4;
 const ROUNDING = 2.6;
 const ARROW = "M4.2 4.2 L4.2 21.5 L8.8 17.6 L11.8 24.2 L14.6 23 L11.8 16.4 L17.8 16.4 Z";
 const TIP = 4.2;
-const CENTRE = 16;
-const RING_R = 7;
-const RING_W = 3.4;
-const DOT_R = 2;
-/** The hold arc takes the one furthest from cottontail, so it reads over the cottontail ring it fills. */
-const ARC_TOKENS: Token[] = ["primary", "secondary", "tertiary", "accent"];
+/** The arrow body's top and bottom edges with its rounding: the hold fill rises from FILL_FROM to FILL_TO. */
+const FILL_FROM = 25.5;
+const FILL_TO = 2.9;
+/** The hold fill takes the one furthest from cottontail, so it reads against the cottontail outline. */
+const HOLD_TOKENS: Token[] = ["primary", "secondary", "tertiary", "accent"];
 
 interface CursorColours {
   fill: string;
   ring: string;
-  arc: string;
+  hold: string;
 }
 
 const encode = (c: number) => Math.round(255 * (c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055));
@@ -34,27 +33,20 @@ function hex(lab: Lab): string {
 
 const distance = (a: Lab, b: Lab) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 
-export function arc_token(read: Record<Token, Lab>): Token {
-  return ARC_TOKENS.reduce((best, token) => (distance(read[token], read.cottontail) > distance(read[best], read.cottontail) ? token : best));
+export function hold_token(read: Record<Token, Lab>): Token {
+  return HOLD_TOKENS.reduce((best, token) => (distance(read[token], read.cottontail) > distance(read[best], read.cottontail) ? token : best));
 }
 
-const arrow = ({ fill, ring }: CursorColours) =>
-  `<path d="${ARROW}" fill="${ring}" stroke="${ring}" stroke-width="${OUTLINE * 2 + ROUNDING}" stroke-linejoin="round"/>` +
-  `<path d="${ARROW}" fill="${fill}" stroke="${fill}" stroke-width="${ROUNDING}" stroke-linejoin="round"/>`;
+const outline = (paint: string) => `<path d="${ARROW}" fill="${paint}" stroke="${paint}" stroke-width="${OUTLINE * 2 + ROUNDING}" stroke-linejoin="round"/>`;
+const body = (paint: string) => `<path d="${ARROW}" fill="${paint}" stroke="${paint}" stroke-width="${ROUNDING}" stroke-linejoin="round"/>`;
 
-function target({ fill, ring, arc }: CursorColours, share: number): string {
-  const length = 2 * Math.PI * RING_R;
-  const circle = (r: number, paint: string) => `<circle cx="${CENTRE}" cy="${CENTRE}" r="${r}" ${paint}/>`;
-  const progress =
-    share > 0
-      ? circle(RING_R, `fill="none" stroke="${arc}" stroke-width="${RING_W}" stroke-dasharray="${(length * share).toFixed(2)} ${length.toFixed(2)}" transform="rotate(-90 ${CENTRE} ${CENTRE})"`)
-      : "";
-  return (
-    circle(RING_R, `fill="none" stroke="${ring}" stroke-width="${RING_W + OUTLINE * 2}"`) +
-    circle(RING_R, `fill="none" stroke="${fill}" stroke-width="${RING_W}"`) +
-    progress +
-    circle(DOT_R, `fill="${fill}" stroke="${ring}" stroke-width="${OUTLINE}"`)
-  );
+const arrow = ({ fill, ring }: CursorColours) => outline(ring) + body(fill);
+
+/** Hover swaps the arrow's fill and ring; holding fills the swapped arrow with the hold colour from the tail up. */
+function pressed({ fill, ring, hold }: CursorColours, share: number): string {
+  const top = FILL_FROM - share * (FILL_FROM - FILL_TO);
+  const rise = share > 0 ? `<clipPath id="h"><rect x="0" y="${top.toFixed(2)}" width="${BOX}" height="${BOX}"/></clipPath><g clip-path="url(#h)">${body(hold)}</g>` : "";
+  return outline(fill) + body(ring) + rise;
 }
 
 function cursor(body: string, hot: number): string {
@@ -65,13 +57,13 @@ function cursor(body: string, hot: number): string {
 }
 
 /**
- * The cursor custom properties for a theme: `--cursor` (arrow), `--cursor-hover` (ring centred on the click point, so it
- * swaps in under the arrow's tip) and the hold frames. A data-URI image can't read CSS variables, so the colours go in as hex.
+ * The cursor custom properties for a theme: `--cursor` (arrow), `--cursor-hover` (the same arrow, fill and ring swapped) and
+ * the hold frames. Every image keeps the arrow's tip as the hotspot. A data-URI image can't read CSS variables, so the colours go in as hex.
  */
 export function cursor_vars(read: Record<Token, Lab>, ring: Token): Record<string, string> {
-  const colours = { fill: hex(read.cottontail), ring: hex(read[ring]), arc: hex(read[arc_token(read)]) };
-  const vars: Record<string, string> = { "--cursor": cursor(arrow(colours), TIP), "--cursor-hover": cursor(target(colours, 0), CENTRE) };
-  for (let step = 0; step < HOLD_STEPS; step++) vars[`--cursor-hold-${step}`] = cursor(target(colours, step / (HOLD_STEPS - 1)), CENTRE);
+  const colours = { fill: hex(read.cottontail), ring: hex(read[ring]), hold: hex(read[hold_token(read)]) };
+  const vars: Record<string, string> = { "--cursor": cursor(arrow(colours), TIP), "--cursor-hover": cursor(pressed(colours, 0), TIP) };
+  for (let step = 0; step < HOLD_STEPS; step++) vars[`--cursor-hold-${step}`] = cursor(pressed(colours, step / (HOLD_STEPS - 1)), TIP);
   return vars;
 }
 

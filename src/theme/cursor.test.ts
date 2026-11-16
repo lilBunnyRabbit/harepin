@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { arc_token, cursor_vars, HOLD_STEPS } from "./cursor";
+import { cursor_vars, HOLD_STEPS, hold_token } from "./cursor";
 import { THEMES, TOKENS, type Lab, type Theme, type Token } from "./theme";
 
 const oklch_lab = (value: string): Lab => {
@@ -20,15 +20,18 @@ describe("cursor", () => {
       for (const value of Object.values(vars)) expect(value).toMatch(/^image-set\(url\("data:image\/svg\+xml,[^"]+"\) 1x, url\("data:image\/svg\+xml,[^"]+"\) 2x\) \d+ \d+, default$/);
     });
 
-    test(`${name}: hover and hold share the click point at the ring's centre`, () => {
+    test(`${name}: every state keeps the arrow's tip as the click point`, () => {
       const spot = (value: string) => value.match(/\) (\d+ \d+), default$/)![1];
-      expect(spot(vars["--cursor-hold-0"])).toBe(spot(vars["--cursor-hover"]));
+      for (const value of Object.values(vars)) expect(spot(value)).toBe(spot(vars["--cursor"]));
       expect(vars["--cursor-hold-0"]).toBe(vars["--cursor-hover"]);
     });
 
-    test(`${name}: the hold arc takes secondary, the token furthest from the cottontail ring`, () => {
-      expect(arc_token(read)).toBe("secondary");
-      expect(decodeURIComponent(vars["--cursor-hold-11"])).toContain("stroke-dasharray");
+    test(`${name}: hover swaps the arrow's fill and ring, and the hold fill rises from the tail`, () => {
+      const fills = (value: string) => [...decodeURIComponent(value).matchAll(/fill="(#[0-9a-f]{6})"/g)].map((m) => m[1]);
+      expect(fills(vars["--cursor-hover"])).toEqual(fills(vars["--cursor"]).reverse());
+      expect(hold_token(read)).toBe("secondary");
+      const tops = Array.from({ length: HOLD_STEPS - 1 }, (_, step) => Number(decodeURIComponent(vars[`--cursor-hold-${step + 1}`]).match(/<rect x="0" y="([\d.]+)"/)![1]));
+      expect(tops).toEqual([...tops].sort((a, b) => b - a));
     });
   }
 
