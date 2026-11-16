@@ -43,6 +43,12 @@
   order: 1;
 }
 
+.event-card[data-row] .gate-marks {
+  order: 2;
+  flex-basis: 100%;
+  margin-top: 0;
+}
+
 .gate-title {
   font-size: var(--text-3xl);
   font-weight: 800;

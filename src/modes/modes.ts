@@ -374,6 +374,13 @@ export class Modes implements CarHooks {
     this.restart();
   }
 
+  /** What a class-capped event's car must meet on this map; null for a fixed car or a level this map lacks. */
+  event_limit(event: CareerEvent): CarLimit | null {
+    if (!("cap" in event.car)) return null;
+    const legs = this.legs(event.stages ?? [{ mode: event.mode, level: spot_of(event).level, name: event.name }]);
+    return legs && this.limit(event.car.cap, legs);
+  }
+
   private limit(cap: CarClass, legs: readonly Leg[]): CarLimit {
     const excludes = legs.flatMap((leg) => this.excludes(leg.level.id));
     const car_sized_only = legs.some((leg) => leg.mode.def.car_sized_only);

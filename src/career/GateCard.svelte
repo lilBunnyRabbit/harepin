@@ -63,7 +63,7 @@
         <b class="gate-title">{event.name}</b>
         {#if lock}
           <span class="gate-lock">{lock}</span>
-        {:else if !row.length}
+        {:else}
           <span class="gate-marks">
             {#each marks_of(event) as mark (mark.stars)}
               <span class="gate-mark" data-got={view.have >= mark.stars ? "" : undefined} aria-label={`${mark.stars} of ${MAX_EVENT_STARS} stars: ${mark.text}`}><i>{"★".repeat(mark.stars)}</i>{mark.text}</span>

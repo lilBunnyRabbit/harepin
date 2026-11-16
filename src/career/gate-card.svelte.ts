@@ -13,6 +13,7 @@ import "./markers.css";
 
 export interface GateHost {
   start(id: string): void;
+  limit(event: CareerEvent): CarLimit | null;
   shelves(limit: CarLimit): readonly CarShelf[];
   pick(title: string, limit: CarLimit, signal: AbortSignal): Promise<string | null>;
 }
@@ -28,9 +29,6 @@ export class GateView {
   shelves = $state.raw<readonly CarShelf[]>([]);
   picked = $state<string | null>(null);
 }
-
-// The row reads the class cap alone; the route's own limits are checked again on start, where the full picker opens if the pick misses them.
-const limit_of = (event: CareerEvent): CarLimit | null => ("cap" in event.car ? { cap: event.car.cap, car_sized_only: false } : null);
 
 function lent(event: CareerEvent, stars: Stars): CarId | null {
   const { car } = held_car(event, unlocks(stars).cars);
@@ -61,7 +59,7 @@ export class GateCard {
     if (marker === view.marker && open === view.open && have === view.have) return;
     if (marker !== view.marker) {
       this.picking?.abort();
-      const limit = marker && limit_of(marker.event);
+      const limit = marker && this.host.limit(marker.event);
       const id = marker && lent(marker.event, stars);
       view.car = id ? { lent: id } : limit ? { row: true } : null;
       view.shelves = limit ? this.host.shelves(limit) : [];
@@ -85,7 +83,7 @@ export class GateCard {
 
   private async more() {
     const { marker } = this.view;
-    const limit = marker && limit_of(marker.event);
+    const limit = marker && this.host.limit(marker.event);
     if (!marker || !limit) return;
     this.picking?.abort();
     const picking = new AbortController();

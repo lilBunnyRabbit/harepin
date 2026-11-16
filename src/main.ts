@@ -612,6 +612,7 @@ function play_run(to: RunPick) {
 }
 const markers = new EventMarkers(scene, career, params.has(TUNE_PARAM), {
   start: (id) => start_event(id),
+  limit: (event) => modes.event_limit(event),
   shelves: (limit) => shelves_for(limit),
   pick: (title, limit, signal) => pick_in(title, limit, shelves_for(limit), signal),
 });
