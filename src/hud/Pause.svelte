@@ -1,5 +1,5 @@
 <script lang="ts">
-  import PauseEvent from "./PauseEvent.svelte";
+  import PauseSheet from "./PauseSheet.svelte";
   import PauseRoam from "./PauseRoam.svelte";
   import type { PauseAct, PauseView } from "./pause-view.svelte";
 
@@ -50,7 +50,7 @@
     {#if view.card.kind === "roam"}
       <PauseRoam card={view.card} aids={view.aids} solo={view.solo} caps={view.keys.caps} onact={choose} onflip={(aid) => view.flip(aid)} onresume={() => view.close()} />
     {:else}
-      <PauseEvent card={view.card} aids={view.aids} solo={view.solo} caps={view.keys.caps} onact={choose} onflip={(aid) => view.flip(aid)} onresume={() => view.close()} />
+      <PauseSheet card={view.card} aids={view.aids} solo={view.solo} caps={view.keys.caps} onact={choose} onflip={(aid) => view.flip(aid)} onresume={() => view.close()} />
     {/if}
   {/if}
 </dialog>

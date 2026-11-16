@@ -5,7 +5,7 @@ import { WorldKind } from "../worldgen/types";
 import { DEFAULT_BINDINGS } from "./bindings";
 import { pause_keys } from "./pause-keys";
 import type { PauseAids, RoamCard, RunCard } from "./pause-view.svelte";
-import PauseEvent from "./PauseEvent.svelte";
+import PauseSheet from "./PauseSheet.svelte";
 import PauseRoam from "./PauseRoam.svelte";
 
 const AIDS: PauseAids = { tcs: true, abs: true, assist: false, stability: false, auto: true, lights: false };
@@ -30,7 +30,7 @@ test("free roam: Resume, the four doors and every aid", () => {
 
 test("in an event: the run card, its four rows and Resume", () => {
   const card: RunCard = { kind: "event", mode: "Race", title: "First lap", facts: ["gate 1/12", "0:06.2"] };
-  const html = render(PauseEvent, { props: { card, aids: AIDS, solo: false, caps: pause_keys(DEFAULT_BINDINGS, "event").caps, onact: none, onflip: none, onresume: none } }).body;
+  const html = render(PauseSheet, { props: { card, aids: AIDS, solo: false, caps: pause_keys(DEFAULT_BINDINGS, "event").caps, onact: none, onflip: none, onresume: none } }).body;
   for (const text of ["Menu · Race", "First lap", "gate 1/12", "Restart", "Car and parts", "Leave event", "Showroom", "Settings", "Resume"]) expect(html).toContain(text);
   for (const cap of ["R", "C", "Q", "H", "S", "Esc"]) expect(html).toContain(`>${cap}</kbd>`);
 });
