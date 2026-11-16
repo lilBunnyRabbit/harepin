@@ -166,3 +166,14 @@
     font-size: var(--text-xl);
   }
 }
+
+
+/* Light themes can resolve cottontail dark (Brand Light's brown), which would take white ink: lift the fill, ink stays dark. */
+:root[data-scheme="light"] .ui-key-btn {
+  --key-fill: oklch(from var(--cottontail) max(l, 0.84) min(c, 0.11) h);
+  --key-ink: var(--foreground);
+}
+
+:root[data-scheme="light"] .ui-key-btn[data-tone="online"] {
+  --key-fill: oklch(from var(--secondary) max(l, 0.84) min(c, 0.11) h);
+}
