@@ -75,6 +75,11 @@
   }
 }
 
+#gear:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
 #gear[data-mode="M"]::after {
   content: "M";
   font-size: var(--text-sm);

@@ -692,7 +692,14 @@ for (const chip of document.querySelectorAll<HTMLButtonElement>("button[data-aid
     chip.blur();
     toggle_aid(chip.dataset.aid as Aid);
   });
-document.getElementById("gear")?.addEventListener("click", () => toggle_aid("auto"));
+const gear = $("gear");
+gear.addEventListener("click", () => toggle_aid("auto"));
+gear.addEventListener("keydown", (event) => {
+  if (event.repeat || (event.code !== "Enter" && event.code !== "Space")) return;
+  event.preventDefault();
+  event.stopPropagation();
+  toggle_aid("auto");
+});
 
 function toggle_lights() {
   hud.toast(driver.toggle_lights() ? "Lights on" : "Lights off");

@@ -40,7 +40,7 @@ export class Chat {
           this.close();
           return;
         }
-        if (e.repeat || typing(e.target) || e.target instanceof HTMLButtonElement || (e.code !== "Enter" && e.code !== "KeyT")) return;
+        if (e.repeat || typing(e.target) || (e.target instanceof Element && e.target.closest("button, [role=button]")) || (e.code !== "Enter" && e.code !== "KeyT")) return;
         e.preventDefault();
         this.open(true);
       },
