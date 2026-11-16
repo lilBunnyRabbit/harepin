@@ -126,7 +126,7 @@ const EXTRA: [string, string][] = [
   ["coupe semi-slick", "coupe.0.0.0.1.0.0.7.2"],
   ["coupe race kit", "coupe.0.0.4.1.0"],
   ["coupe stripped, race brakes", "coupe.0.0.0.1.0.0.7.0.2.2"],
-  ["kaze all race", "kaze.0.0.4.2.2.0.7.2.2.2"],
+  ["coupe all race", "coupe.0.0.4.2.2.0.7.2.2.2"],
   ["muscle all race", "muscle.0.0.4.2.2.0.7.2.2.2"],
   ["hatch all race", "hatch.0.0.4.2.2.0.7.2.2.2"],
   ["sturm best", "sturm.0.0.4.2.2.0.7.2.2.2.1.2"],
@@ -135,7 +135,7 @@ const EXTRA: [string, string][] = [
   ["sturm GT kit", "sturm.0.0.5.2.2.0.7.2.2.2.1.2"],
   ["sturm carbon shell", "sturm.0.0.4.2.2.0.7.2.2.3.1.2"],
   ["sturm top", "sturm.0.0.5.2.5.0.7.6.2.3.1.2"],
-  ["kaze top", "kaze.0.0.5.2.5.0.7.6.2.3.1.2"],
+  ["coupe top", "coupe.0.0.5.2.5.0.7.6.2.3.1.2"],
   ["muscle top", "muscle.0.0.5.2.5.0.7.6.2.3.1.2"],
 ];
 

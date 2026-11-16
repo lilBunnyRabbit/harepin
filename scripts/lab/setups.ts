@@ -36,7 +36,6 @@ const COVERAGE: Partial<Record<CarId, Family[]>> = {
   coupe: ["stock", "grip", "aero", "drift", "dirt"],
   muscle: ["stock", "grip", "aero", "drift"],
   rally: ["stock", "grip", "aero", "dirt"],
-  kaze: ["stock", "grip", "aero", "drift"],
   sturm: ["stock", "grip", "aero", "drift"],
   raijin: ["stock", "grip", "aero", "dirt"],
   formula: ["stock", "max"],

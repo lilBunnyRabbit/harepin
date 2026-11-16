@@ -12,9 +12,9 @@ const COMBOS: Aids[] = [
   { assist: false, stability: false },
 ];
 const name = ({ assist, stability }: Aids) => `steering ${assist ? "on" : "off"}, stability ${stability ? "on" : "off"}`;
-const RWD_AWD = ["coupe", "muscle", "kaze", "formula", "sturm", "rally", "raijin"] as const;
+const RWD_AWD = ["coupe", "muscle", "formula", "sturm", "rally", "raijin"] as const;
 /** Cars whose grip lock shows in a slalom: the formula's downforce and the sturm's grip leave little to limit. */
-const LOCKED = ["coupe", "muscle", "kaze", "rally", "raijin", "hatch"] as const;
+const LOCKED = ["coupe", "muscle", "rally", "raijin", "hatch"] as const;
 
 describe("steering assist and stability", () => {
   test("a car starts with both on", () => {

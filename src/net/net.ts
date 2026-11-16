@@ -172,7 +172,7 @@ export const MAX_LAPS = 10;
  * Wire protocol of this build. Bump it when peers on different protocols can no longer play together. A peer that never
  * says hello predates it: `LEGACY_PROTOCOL`, on `LEGACY_VERSION` or older.
  */
-export const PROTOCOL = 2;
+export const PROTOCOL = 3;
 export const LEGACY_PROTOCOL = 0;
 export const LEGACY_VERSION = "0.10.0";
 const MAX_PROTOCOL = 1e6;

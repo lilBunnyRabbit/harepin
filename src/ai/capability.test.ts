@@ -1,7 +1,7 @@
 /// <reference types="bun" />
 import { describe, expect, test } from "bun:test";
 import { build_spec, parse_build } from "../car/build";
-import { COUPE, CARS, spec_hash } from "../car/cars";
+import { COUPE, CARS, FRAMES, spec_hash } from "../car/cars";
 import { capability, measure, plan_scale, tabled_specs, warm } from "./capability";
 import { MEASURED } from "./capability-table";
 
@@ -41,8 +41,8 @@ describe("car capability", () => {
     for (const { name, spec } of tabled_specs()) expect([name, MEASURED[spec_hash(spec)]]).toEqual([name, measure(spec)]);
   }, TABLE_TIMEOUT);
 
-  test("no car inherits another car's ai block through a spread", () => {
-    const blocks = Object.values(CARS).flatMap((spec) => (spec.ai ? [spec.ai] : []));
+  test("no frame inherits another frame's ai block through a spread", () => {
+    const blocks = Object.values(FRAMES).flatMap((spec) => (spec.ai ? [spec.ai] : []));
     expect(new Set(blocks).size).toBe(blocks.length);
   });
 

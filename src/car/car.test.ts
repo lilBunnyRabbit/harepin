@@ -160,7 +160,7 @@ const OLD_SMOOTH_LANE_SETTLE: Record<CarId, number> = {
   coupe: 2.37,
   muscle: 2.49,
   rally: 2.46,
-  kaze: 2.4,
+  kaze: 2.37,
   sturm: 2.37,
   raijin: 3.92,
   formula: 2.53,
@@ -453,7 +453,7 @@ describe("drift suspension", () => {
     return most;
   }
 
-  for (const id of ["coupe", "kaze"] as const) {
+  for (const id of ["coupe"] as const) {
     test(`${id}: with steer assist on, drift still rotates under power where race stays planted`, () => {
       const race = peak_slip(rolling(id, 2, true), 3, power_on);
       const drift = peak_slip(rolling(id, 3, true), 3, power_on);
@@ -731,7 +731,7 @@ describe("hairpin pull", () => {
 });
 
 describe("donut", () => {
-  for (const id of ["coupe", "muscle", "kaze", "formula", "sturm", "rally"] as const) {
+  for (const id of ["coupe", "muscle", "formula", "sturm", "rally"] as const) {
     for (const mode of [SteerMode.SNAP, SteerMode.SMOOTH])
       test(`${id} (${mode} keys): full steer and full gas from 5 m/s, TCS off, assist on, holds full lock and keeps rotating on the spot`, () => {
         const d = donut(CARS[id], false, true, false, mode);
@@ -744,7 +744,7 @@ describe("donut", () => {
 });
 
 describe("power over from rest", () => {
-  const RWD_AWD = ["coupe", "muscle", "kaze", "formula", "sturm", "rally", "raijin"] as const;
+  const RWD_AWD = ["coupe", "muscle", "formula", "sturm", "rally", "raijin"] as const;
   const caught = (over: PowerOver) => {
     expect(over.t30).toBeLessThan(2.5);
     expect(over.peak).toBeGreaterThan(25);
@@ -796,7 +796,7 @@ describe("power over from rest", () => {
 });
 
 describe("power over with TCS on and the steering assist off", () => {
-  const RWD = ["coupe", "muscle", "kaze", "formula", "sturm"] as const;
+  const RWD = ["coupe", "muscle", "formula", "sturm"] as const;
   const AWD = ["rally", "raijin"] as const;
   const DRIFT_SETUP = apply_build(CARS.muscle, { ...DEFAULT_BUILD, car: "muscle", parts: { ...DEFAULT_PARTS, suspension: 3 } });
   const ahead = new Vector3();
@@ -888,7 +888,7 @@ describe("power over with TCS on and the steering assist off", () => {
     }
   }, 30_000);
 
-  for (const spec of [DRIFT_SETUP, CARS.coupe, CARS.muscle, CARS.kaze, CARS.formula])
+  for (const spec of [DRIFT_SETUP, CARS.coupe, CARS.muscle, CARS.formula])
     test(`${spec.id}${spec === DRIFT_SETUP ? " (drift setup)" : ""}: easing pad gas or stick mid-slide eases out of it with the steering assist, never steering into the turn or pivoting; without it, from rest or a rolling tap, the wheels stay on the stick's side`, () => {
       // The rolling tap kicks only with the assist off.
       for (const [assist, from] of [[true, 0], [false, 0], [false, 15]] as const)

@@ -152,7 +152,7 @@ test("hello: the career tier rides along only as 1 to 5", () => {
 const DAILY = { k: "2026-11-13|1C0000003|circuit|3:w11", ms: 61_234 };
 
 test("hello: today's daily and the season tag round-trip, absent when unset, no PROTOCOL bump", () => {
-  expect(PROTOCOL).toBe(2);
+  expect(PROTOCOL).toBe(3);
   const sent = make_hello("0.11.0", 7, 42, null, null, null, { title: "ace.1", tint: "info" }, DAILY);
   expect(sanitize_hello(JSON.parse(JSON.stringify(sent)))).toEqual(sent);
   expect(sent.daily).toEqual(DAILY);

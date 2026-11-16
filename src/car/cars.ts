@@ -142,7 +142,7 @@ export const spec_hash = ({ id: _id, name: _name, body: _body, sound: _sound, ai
   seed_of(JSON.stringify(frame)).toString(16).padStart(8, "0");
 
 export type CarId = BodyStyle;
-export type FrameId = "hatch" | "coupe" | "muscle" | "rally" | "kaze" | "formula" | "fujin" | "sturm" | "raijin" | "bus" | "tsumuji" | "sajin";
+export type FrameId = "hatch" | "coupe" | "muscle" | "rally" | "formula" | "fujin" | "sturm" | "raijin" | "bus" | "tsumuji" | "sajin";
 
 // Floor and roll hoop of the formula car against its centre of mass: its collision corners and its bar band.
 const FORMULA_FLOOR = 0.34;
@@ -358,51 +358,6 @@ const RALLY_FRAME: FrameSpec = {
   offroad: 0.8,
   air_settle: 5,
   corners: corners(0.93, -0.34, 0.8, 2.15),
-};
-
-// Front-mid V6 sports coupe: short wheelbase, 53/47 split, low CoG and a softer rear tyre, so the throttle holds an angle.
-const KAZE_FRAME: FrameSpec = {
-  ...COUPE_FRAME,
-  air_settle: 2,
-  mass: 1450,
-  inertia: [2450, 2500, 600],
-  wheel: { radius: 0.35, rest: 0.33, mounts: mounts(0.87, 0.1, 1.245, 1.405) },
-  wheelbase: 2.65,
-  lock: 0.64,
-  spring: 39000,
-  damper: 3000,
-  arb_front: 19000,
-  arb_rear: 9500,
-  mu: 1.12,
-  rear_grip: 1.05,
-  idle: 800,
-  redline: 7000,
-  upshift: 6700,
-  downshift: 2900,
-  gears: [3.79, 2.32, 1.62, 1.27, 1.0, 0.79],
-  reverse: 3.8,
-  final: 3.54,
-  engine_inertia: 0.15,
-  torque: [
-    [0, 250],
-    [1000, 310],
-    [2500, 365],
-    [3500, 380],
-    [4800, 380],
-    [6000, 360],
-    [7000, 320],
-    [8000, 255],
-  ],
-  brake_front: 2500,
-  brake_rear: 1330,
-  brake_grip: 1.28,
-  handbrake: 2200,
-  hold: 1650,
-  drag: 0.42,
-  downforce: 0.85,
-  circles: [1.15, -1.15],
-  radius: 1.05,
-  corners: corners(0.97, -0.3, 0.72, 2.12),
 };
 
 // Open-wheel formula car: light, stiff and short-geared, with wings whose grip grows with speed and slicks that hate grass.
@@ -808,7 +763,7 @@ const SAJIN_FRAME: FrameSpec = {
   corners: shifted(corners(1.07, -SAJIN_FLOOR, SAJIN_TOP, 2.03), 0.08),
 };
 
-export const FRAMES: Record<FrameId, FrameSpec> = { hatch: HATCH_FRAME, coupe: COUPE_FRAME, muscle: MUSCLE_FRAME, rally: RALLY_FRAME, kaze: KAZE_FRAME, sturm: STURM_FRAME, raijin: RAIJIN_FRAME, formula: FORMULA_FRAME, fujin: FUJIN_FRAME, tsumuji: TSUMUJI_FRAME, bus: BUS_FRAME, sajin: SAJIN_FRAME };
+export const FRAMES: Record<FrameId, FrameSpec> = { hatch: HATCH_FRAME, coupe: COUPE_FRAME, muscle: MUSCLE_FRAME, rally: RALLY_FRAME, sturm: STURM_FRAME, raijin: RAIJIN_FRAME, formula: FORMULA_FRAME, fujin: FUJIN_FRAME, tsumuji: TSUMUJI_FRAME, bus: BUS_FRAME, sajin: SAJIN_FRAME };
 
 export const BODIES: Record<CarId, BodySpec> = {
   hatch: {
@@ -837,7 +792,7 @@ export const BODIES: Record<CarId, BodySpec> = {
   },
   kaze: {
     name: "Kaze",
-    frame: "kaze",
+    frame: "coupe",
     size: { length: 4.26, width: 1.94, height: 1.26 },
     sound: { cylinders: 6, pulses: [1, 0.93, 1, 0.95, 1, 0.92], jitter: 0.04, pulse_ms: 0.65, formants: [260, 760, 2300], shift: 0.5, muffler: [1300, 6000], drive: 1.4, rasp: 0.2, intake: 0.75, crackle: 0.15, turbo: 0 },
   },

@@ -139,12 +139,18 @@ export function plan_scale(spec: CarSpec): PlanScale {
   return { slow: (car.slow / ref.slow) * ai.slow, fast: (car.fast / ref.fast) * ai.fast, brake: (car.brake / ref.brake) * ai.brake, drive: car.drive / ref.drive, power: car.power / ref.power };
 }
 
-/** Every build a field draws on, by name: what `capability-table.ts` holds. */
+/** Every build a field draws on, one per `spec_hash` (bodies on a frame share one), named by every build it covers: what `capability-table.ts` holds. */
 export function tabled_specs(): { name: string; spec: CarSpec }[] {
   const stock = Object.values(CARS).map((spec) => ({ name: spec.id, spec }));
   const presets = PRESETS.flatMap((preset) => {
     const build = parse_build(preset.code);
     return build ? [{ name: preset.code, spec: build_spec(build) }] : [];
   });
-  return [...stock, ...presets];
+  const rows = new Map<string, { name: string; spec: CarSpec }>();
+  for (const row of [...stock, ...presets]) {
+    const key = spec_hash(row.spec);
+    const seen = rows.get(key);
+    rows.set(key, seen ? { ...seen, name: `${seen.name}, ${row.name}` } : row);
+  }
+  return [...rows.values()];
 }

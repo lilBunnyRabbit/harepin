@@ -11,7 +11,6 @@
 0 offroad-1 bus
 0 offroad-2 hatch
 0 offroad-2 muscle
-0 offroad-2 kaze
 0 offroad-2 formula
 0 offroad-2 tsumuji
 0 offroad-2 bus
@@ -31,7 +30,6 @@
 4 street-1 bus
 4 street-2 bus
 4 offroad-1 rally
-4 offroad-1 kaze
 4 offroad-1 sturm
 4 offroad-1 raijin
 4 offroad-1 bus
@@ -67,6 +65,7 @@
 6 offroad-1 coupe
 6 offroad-1 muscle
 6 offroad-1 rally
+6 offroad-1 kaze
 6 offroad-1 raijin
 6 offroad-1 formula
 6 offroad-1 tsumuji
@@ -121,6 +120,7 @@
 10 offroad-1 coupe
 10 offroad-1 muscle
 10 offroad-1 rally
+10 offroad-1 kaze
 10 offroad-1 raijin
 10 offroad-1 formula
 10 offroad-1 bus
@@ -128,6 +128,7 @@
 10 offroad-2 coupe
 10 offroad-2 muscle
 10 offroad-2 rally
+10 offroad-2 kaze
 10 offroad-2 raijin
 10 offroad-2 formula
 10 offroad-2 bus
@@ -157,7 +158,6 @@
 12 circuit bus
 12 street-1 bus
 12 street-2 hatch
-12 street-2 kaze
 12 street-2 bus
 12 offroad-1 bus
 12 offroad-2 bus

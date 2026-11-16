@@ -5,7 +5,7 @@ import type { Goal, Pack, StationTrial, Trial } from "../pack";
 
 type Upgraded = Extract<Slot, "engine" | "tyres" | "aero" | "weight">;
 
-export type Tested = Extract<CarId, "sturm" | "raijin" | "kaze" | "muscle">;
+export type Tested = Extract<CarId, "sturm" | "raijin" | "coupe" | "muscle">;
 const BEST_PARTS: Record<Slot, number> = { engine: 2, tyres: 2, aero: 4, suspension: 2, brakes: 2, weight: 2, bias: 1, nitro: 2 };
 
 export interface Variant {

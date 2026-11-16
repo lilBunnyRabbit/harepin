@@ -89,7 +89,7 @@ Captured before the first code edit, compared after:
 2. `scripts/telemetry.ts <id>` and `scripts/feel.ts <id>` for every frame id: byte-identical (`cmp`). For kaze: after = Coupe's output, byte for byte.
 3. `scripts/ai-capability.ts` regenerates `ai/capability-table.ts`: every value identical with hash keys stripped; the kaze row is gone (it shares the Coupe's key).
 4. `scripts/lab/handling-golden.ts` → `scripts/golden/handling.txt`: identical with the `spec#` column stripped, except kaze lines, which equal the Coupe's.
-5. `bun scripts/golden.ts --check`: untouched (worldgen reads no car spec; `gap.ts` / `sky.ts` only name the kaze in comments, which get reworded).
+5. `bun scripts/golden.ts --check`: untouched (worldgen reads no car spec; `gap.ts` / `sky.ts` only name the kaze in comments: tuning history, left as is).
 6. `bun scripts/races.ts`: moves only where a field carries a Kaze; rebaseline with that diff in the commit.
 7. Visual: Kaze at desktop width on the Coupe frame, arches and overhangs (garage stand + one in-world shot).
 
