@@ -9,9 +9,9 @@ import { Pool, read_json, ROOT, seed_list, write_json } from "./cache";
 import { rank, step } from "./rank";
 import type { MlJob, MlResult } from "./worker";
 
-// bun scripts/ai-ml/car-fit.ts <car> [--name n] [--train 50-73] [--pop 6] [--gens 4] [--sigma 0.15] [--jobs n] [--minutes m]:
+// bun scripts/ai-ml/car-fit.ts <car> [--name n] [--from slow,fast,brake] [--train 50-73] [--pop 6] [--gens 4] [--sigma 0.15] [--jobs n] [--minutes m]:
 // a CMA-ES search over the car's `ai` block (CarSpec.ai: slow, fast, brake), each candidate a 6-car 2-lap field of the
-// car on every island circuit of `train` plus a solo lap on each. It starts where the coupe's grip caps the car's own.
+// car on every island circuit of `train` plus a solo lap on each. It starts at `from`, or where the coupe's grip caps the car's own.
 // State in .ai-ml/car-fit/<name>.json after every seed; it stops starting work past `minutes` and the same command resumes.
 // bun scripts/ai-ml/car-fit.ts <car> --bar [--ai slow,fast,brake] [--jobs n]: the bar, a field on seeds 0-49 and a solo
 // lap on 0-19, printed as scratch sweep lines (`seed S races R spins X resets Y stuck Z lap L`) and the solo summary.
@@ -135,7 +135,8 @@ async function fit(car: string) {
   const dir = `${ROOT}/car-fit`;
   mkdirSync(dir, { recursive: true });
   const path = `${dir}/${name}.json`;
-  const start = capped(car);
+  const from = arg("from", "");
+  const start = from ? from_list(from.split(",").map(Number)) : capped(car);
   const box = (k: (typeof KEYS)[number]) => [start[k] * (1 - SPAN), start[k] * (1 + SPAN)] as const;
   const to_ai = (x: readonly number[]): CarAi => from_list(KEYS.map((k, i) => Number((box(k)[0] + (box(k)[1] - box(k)[0]) * x[i]).toFixed(4))));
   let st = read_json<State>(path);
