@@ -227,13 +227,8 @@
     }
 
     .run-facts {
-      flex-wrap: nowrap;
-      overflow: hidden;
+      gap: var(--space-1);
       margin: 0;
-    }
-
-    .run-facts span:nth-child(n + 3) {
-      display: none;
     }
 
     .run-rows {
