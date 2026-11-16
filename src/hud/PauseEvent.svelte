@@ -4,25 +4,27 @@
   import IconButton from "../menu/ui/IconButton.svelte";
   import KeyButton from "../menu/ui/KeyButton.svelte";
   import PauseAids from "./PauseAids.svelte";
+  import { with_cap, type PauseKeys } from "./pause-keys";
   import type { PauseAct, PauseAid, PauseAids as Aids, RunCard } from "./pause-view.svelte";
 
   interface Props {
     card: RunCard;
     aids: Aids;
     solo: boolean;
+    caps: PauseKeys["caps"];
     onact: (act: PauseAct) => void;
     onflip: (aid: PauseAid) => void;
     onresume: () => void;
   }
 
-  let { card, aids, solo, onact, onflip, onresume }: Props = $props();
+  let { card, aids, solo, caps, onact, onflip, onresume }: Props = $props();
 
-  const ROWS: readonly { act: PauseAct; label: string; icon: string; key: string }[] = [
-    { act: "reset", label: "Restart", icon: "icon-restart", key: "R" },
-    { act: "garage", label: "Car and parts", icon: "icon-car", key: "G" },
-    { act: "leave", label: "Leave event", icon: "icon-close", key: "L" },
-    { act: "showroom", label: "Showroom", icon: "logo-mark", key: "M" },
-    { act: "settings", label: "Settings", icon: "icon-settings", key: "O" },
+  const ROWS: readonly { act: PauseAct; label: string; icon: string }[] = [
+    { act: "reset", label: "Restart", icon: "icon-restart" },
+    { act: "garage", label: "Car and parts", icon: "icon-car" },
+    { act: "leave", label: "Leave event", icon: "icon-close" },
+    { act: "showroom", label: "Showroom", icon: "logo-mark" },
+    { act: "settings", label: "Settings", icon: "icon-settings" },
   ];
 </script>
 
@@ -42,7 +44,7 @@
       <button type="button" class="run-row" onclick={() => onact(row.act)}>
         <Icon name={row.icon} />
         <span>{row.label}</span>
-        <Glyph key={row.key} />
+        <Glyph key={caps[row.act]} />
       </button>
     {/each}
   </nav>
@@ -50,8 +52,8 @@
   <div class="run-more">
     <PauseAids {aids} {onflip} />
     <div class="run-tools">
-      <IconButton class="run-tool" icon="icon-camera" label="Camera" title="Camera (C)" onclick={() => onact("camera")} />
-      <IconButton class="run-tool" icon="icon-chat" label="Chat" title="Chat (T)" onclick={() => onact("chat")} />
+      <IconButton class="run-tool" icon="icon-camera" label="Camera" title={with_cap("Camera", caps.camera)} onclick={() => onact("camera")} />
+      <IconButton class="run-tool" icon="icon-chat" label="Chat" title={with_cap("Chat", caps.chat)} onclick={() => onact("chat")} />
     </div>
   </div>
 

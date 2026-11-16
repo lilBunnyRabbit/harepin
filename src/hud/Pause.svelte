@@ -11,7 +11,6 @@
 
   let dialog: HTMLDialogElement;
 
-  const KEYS: Readonly<Record<string, PauseAct>> = { KeyR: "reset", KeyG: "garage", KeyM: "showroom", KeyO: "settings", KeyC: "camera", KeyT: "chat", KeyL: "leave" };
   const STEP: Readonly<Record<string, number>> = { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 };
 
   $effect(() => {
@@ -27,7 +26,7 @@
 
   function key(event: KeyboardEvent) {
     if (event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
-    const pick = KEYS[event.code];
+    const pick = view.keys.acts[event.code];
     if (pick) {
       event.preventDefault();
       return choose(pick);
@@ -44,9 +43,9 @@
 <dialog bind:this={dialog} class="pause" aria-label="Paused" onclose={() => view.close()} onkeydown={key}>
   {#if view.card && view.aids}
     {#if view.card.kind === "roam"}
-      <PauseRoam card={view.card} aids={view.aids} solo={view.solo} onact={choose} onflip={(aid) => view.flip(aid)} onresume={() => view.close()} />
+      <PauseRoam card={view.card} aids={view.aids} solo={view.solo} caps={view.keys.caps} onact={choose} onflip={(aid) => view.flip(aid)} onresume={() => view.close()} />
     {:else}
-      <PauseEvent card={view.card} aids={view.aids} solo={view.solo} onact={choose} onflip={(aid) => view.flip(aid)} onresume={() => view.close()} />
+      <PauseEvent card={view.card} aids={view.aids} solo={view.solo} caps={view.keys.caps} onact={choose} onflip={(aid) => view.flip(aid)} onresume={() => view.close()} />
     {/if}
   {/if}
 </dialog>

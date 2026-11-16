@@ -1,6 +1,8 @@
 import { mount } from "svelte";
 import type { CarId } from "../car/cars";
 import type { WorldKind } from "../worldgen/types";
+import type { Bindings } from "./bindings";
+import { pause_keys, type PauseKeys } from "./pause-keys";
 import Pause from "./Pause.svelte";
 
 export type PauseAct = "reset" | "leave" | "camera" | "chat" | "settings" | "showroom" | "map" | "events" | "garage" | "online";
@@ -34,6 +36,7 @@ export interface PauseHost {
   solo(): boolean;
   card(): PauseCard;
   aids(): PauseAids;
+  bindings(): Bindings;
   toggle(aid: PauseAid): void;
   act(act: PauseAct): void;
 }
@@ -42,6 +45,7 @@ export class PauseView {
   shown = $state(false);
   card = $state<PauseCard | null>(null);
   aids = $state<PauseAids | null>(null);
+  keys = $state<PauseKeys>({ acts: {}, caps: {} });
   solo = $state(true);
 
   constructor(readonly host: PauseHost) {}
@@ -53,6 +57,7 @@ export class PauseView {
   open() {
     this.card = this.host.card();
     this.aids = this.host.aids();
+    this.keys = pause_keys(this.host.bindings());
     this.solo = this.host.solo();
     this.shown = true;
   }

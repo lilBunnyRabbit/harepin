@@ -6,18 +6,20 @@
   import KeyButton from "../menu/ui/KeyButton.svelte";
   import { preview } from "../menu/widgets";
   import PauseAids from "./PauseAids.svelte";
+  import { with_cap, type PauseKeys } from "./pause-keys";
   import type { PauseAct, PauseAid, PauseAids as Aids, RoamCard } from "./pause-view.svelte";
 
   interface Props {
     card: RoamCard;
     aids: Aids;
     solo: boolean;
+    caps: PauseKeys["caps"];
     onact: (act: PauseAct) => void;
     onflip: (aid: PauseAid) => void;
     onresume: () => void;
   }
 
-  let { card, aids, solo, onact, onflip, onresume }: Props = $props();
+  let { card, aids, solo, caps, onact, onflip, onresume }: Props = $props();
 
   interface Door {
     act: PauseAct;
@@ -53,10 +55,10 @@
     <!-- svelte-ignore a11y_autofocus -->
     <KeyButton class="roam-resume" size="lg" keys={{ key: "Esc", pad: "B", touch: "icon-play" }} onclick={onresume} autofocus>Resume</KeyButton>
     <div class="roam-tools">
-      <IconButton class="roam-tool" icon="icon-reset-car" label="Reset car" title="Reset car (R)" onclick={() => onact("reset")} />
-      <IconButton class="roam-tool" icon="icon-camera" label="Camera" title="Camera (C)" onclick={() => onact("camera")} />
-      <IconButton class="roam-tool" icon="icon-chat" label="Chat" title="Chat (T)" onclick={() => onact("chat")} />
-      <IconButton class="roam-tool" icon="icon-settings" label="Settings" title="Settings (O)" onclick={() => onact("settings")} />
+      <IconButton class="roam-tool" icon="icon-reset-car" label="Reset car" title={with_cap("Reset car", caps.reset)} onclick={() => onact("reset")} />
+      <IconButton class="roam-tool" icon="icon-camera" label="Camera" title={with_cap("Camera", caps.camera)} onclick={() => onact("camera")} />
+      <IconButton class="roam-tool" icon="icon-chat" label="Chat" title={with_cap("Chat", caps.chat)} onclick={() => onact("chat")} />
+      <IconButton class="roam-tool" icon="icon-settings" label="Settings" title={with_cap("Settings", caps.settings)} onclick={() => onact("settings")} />
     </div>
   </div>
 
