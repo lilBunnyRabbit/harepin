@@ -1,6 +1,5 @@
 <script lang="ts">
   import PauseSheet from "./PauseSheet.svelte";
-  import PauseRoam from "./PauseRoam.svelte";
   import type { PauseAct, PauseView } from "./pause-view.svelte";
 
   interface Props {
@@ -47,11 +46,7 @@
 
 <dialog bind:this={dialog} class="pause" aria-label="Paused" onclose={() => view.close()} onkeydown={key}>
   {#if view.card && view.aids}
-    {#if view.card.kind === "roam"}
-      <PauseRoam card={view.card} aids={view.aids} solo={view.solo} caps={view.keys.caps} onact={choose} onflip={(aid) => view.flip(aid)} onresume={() => view.close()} />
-    {:else}
-      <PauseSheet card={view.card} aids={view.aids} solo={view.solo} caps={view.keys.caps} onact={choose} onflip={(aid) => view.flip(aid)} onresume={() => view.close()} />
-    {/if}
+    <PauseSheet card={view.card} aids={view.aids} solo={view.solo} caps={view.keys.caps} onact={choose} onflip={(aid) => view.flip(aid)} onresume={() => view.close()} />
   {/if}
 </dialog>
 

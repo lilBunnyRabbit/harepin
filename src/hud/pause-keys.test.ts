@@ -2,25 +2,26 @@ import { expect, test } from "bun:test";
 import { DEFAULT_BINDINGS, rebind_key } from "./bindings";
 import { pause_keys } from "./pause-keys";
 
-test("free roam: the doors take their letters, 1-4 still flip the aids", () => {
+test("free roam: each row takes its letter, Reset car the player's key, 1-4 still flip the aids", () => {
   const { acts, flips, caps } = pause_keys(DEFAULT_BINDINGS, "roam");
-  expect(acts).toMatchObject({ KeyR: "reset", KeyM: "map", KeyE: "events", KeyG: "garage", KeyO: "online", KeyQ: "leave", KeyT: "chat", KeyC: "camera" });
+  expect(acts).toMatchObject({ KeyR: "reset", KeyM: "map", KeyE: "events", KeyG: "garage", KeyO: "online", KeyH: "showroom", KeyS: "settings", KeyT: "chat", KeyC: "camera" });
+  expect(acts.KeyQ).toBeUndefined();
   expect(flips).toMatchObject({ Digit1: "tcs", Digit2: "abs", Digit3: "assist", Digit4: "auto", Digit5: "stability", KeyN: "lights" });
-  expect(caps).toMatchObject({ reset: "R", map: "M", events: "E", garage: "G", online: "O", leave: "Q" });
-  expect(caps.settings).toBeUndefined();
+  expect(caps).toMatchObject({ reset: "R", map: "M", events: "E", garage: "G", online: "O", showroom: "H", settings: "S" });
 });
 
-test("in an event: Car and parts C, Showroom H, Settings S, Leave Q", () => {
+test("in an event: Restart R, Leave Q, Car and parts C, Showroom H, Settings S", () => {
   const { acts, caps } = pause_keys(DEFAULT_BINDINGS, "event");
-  expect(acts).toMatchObject({ KeyR: "reset", KeyC: "garage", KeyH: "showroom", KeyS: "settings", KeyO: "settings", KeyQ: "leave" });
-  expect(caps).toMatchObject({ garage: "C", showroom: "H", settings: "S", leave: "Q" });
+  expect(acts).toMatchObject({ KeyR: "reset", KeyQ: "leave", KeyC: "garage", KeyH: "showroom", KeyS: "settings" });
+  expect(caps).toMatchObject({ reset: "R", leave: "Q", garage: "C", showroom: "H", settings: "S" });
   expect(caps.camera).toBeUndefined();
 });
 
-test("a rebound Reset wins a clash with a door", () => {
+test("a rebound Reset wins a clash with a row", () => {
   const { bindings } = rebind_key(DEFAULT_BINDINGS, "reset", "KeyM");
   const { acts, caps } = pause_keys(bindings, "roam");
   expect(acts.KeyM).toBe("reset");
   expect(acts.KeyR).toBeUndefined();
+  expect(caps.reset).toBe("M");
   expect(caps.map).toBeUndefined();
 });

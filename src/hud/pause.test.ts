@@ -1,36 +1,40 @@
 import "../../scripts/fake-dom";
 import { expect, test } from "bun:test";
 import { render } from "svelte/server";
-import { WorldKind } from "../worldgen/types";
 import { DEFAULT_BINDINGS } from "./bindings";
 import { pause_keys } from "./pause-keys";
-import type { PauseAids, RoamCard, RunCard } from "./pause-view.svelte";
+import type { PauseAids, PauseCard } from "./pause-view.svelte";
 import PauseSheet from "./PauseSheet.svelte";
-import PauseRoam from "./PauseRoam.svelte";
 
 const AIDS: PauseAids = { tcs: true, abs: true, assist: false, stability: false, auto: true, lights: false };
 const none = () => {};
 
-test("free roam: Resume, the four doors and every aid", () => {
-  const card: RoamCard = { kind: "roam", map: "Island · Harwar", world: WorldKind.ISLAND, next: "First lap · on this map", next_world: WorldKind.ISLAND, flags: 4, tier: "Rookie 0/21 ★", players: 1, car: "hatch" };
-  const html = render(PauseRoam, { props: { card, aids: AIDS, solo: true, caps: pause_keys(DEFAULT_BINDINGS, "roam").caps, onact: none, onflip: none, onresume: none } }).body;
-  for (const text of ["Paused · free roam", "Island · Harwar", "Resume", "Map", "Events", "Garage", "Online", "4 flags here", "Rookie 0/21 ★", "TC", "Lights"]) expect(html).toContain(text);
-  expect(html).toContain('aria-label="Reset car"');
-  expect(html).toContain('aria-label="Camera"');
-  expect(html).toContain('aria-label="Chat"');
-  expect(html).toContain('title="Camera (C)"');
+function sheet(card: PauseCard, solo: boolean): string {
+  return render(PauseSheet, { props: { card, aids: AIDS, solo, caps: pause_keys(DEFAULT_BINDINGS, card.kind).caps, onact: none, onflip: none, onresume: none } }).body;
+}
+
+/** Each label follows the one before it, and its key cap sits between them. */
+function rows_in_order(html: string, rows: readonly (readonly [string, string])[]) {
   let at = 0;
-  ["Map", "Events", "Garage", "Online"].forEach((label, i) => {
-    const cap = html.indexOf(`>${"MEGO"[i]}</kbd>`, at);
-    at = html.indexOf(`>${label}</b>`, cap);
-    expect(cap).toBeGreaterThan(-1);
-    expect(at).toBeGreaterThan(cap);
-  });
+  for (const [label, cap] of rows) {
+    at = html.indexOf(`>${label}</span>`, at);
+    expect(at).toBeGreaterThan(-1);
+    const key = html.indexOf(`>${cap}</kbd>`, at);
+    expect(key).toBeGreaterThan(at);
+    at = key;
+  }
+}
+
+test("free roam: the title card, seven rows with their keys, the aids and Resume", () => {
+  const html = sheet({ kind: "roam", context: "free roam", title: "Island · Harwar", facts: ["Rookie 0/21 ★", "4 flags here"] }, true);
+  for (const text of ["Paused · free roam", "Island · Harwar", "Rookie 0/21 ★", "4 flags here", "Assists", "TC", "Lights", "Resume"]) expect(html).toContain(text);
+  rows_in_order(html, [["Map", "M"], ["Events", "E"], ["Garage", "G"], ["Online", "O"], ["Showroom", "H"], ["Settings", "S"], ["Reset car", "R"]]);
+  expect(html).not.toContain("Leave event");
 });
 
-test("in an event: the run card, its four rows and Resume", () => {
-  const card: RunCard = { kind: "event", mode: "Race", title: "First lap", facts: ["gate 1/12", "0:06.2"] };
-  const html = render(PauseSheet, { props: { card, aids: AIDS, solo: false, caps: pause_keys(DEFAULT_BINDINGS, "event").caps, onact: none, onflip: none, onresume: none } }).body;
-  for (const text of ["Menu · Race", "First lap", "gate 1/12", "Restart", "Car and parts", "Leave event", "Showroom", "Settings", "Resume"]) expect(html).toContain(text);
-  for (const cap of ["R", "C", "Q", "H", "S", "Esc"]) expect(html).toContain(`>${cap}</kbd>`);
+test("in an event: the run card, five rows with their keys and Resume", () => {
+  const html = sheet({ kind: "event", context: "Race", title: "First lap", facts: ["gate 1/12", "0:06.2"] }, false);
+  for (const text of ["Menu · Race", "First lap", "gate 1/12", "Resume"]) expect(html).toContain(text);
+  rows_in_order(html, [["Restart", "R"], ["Leave event", "Q"], ["Car and parts", "C"], ["Showroom", "H"], ["Settings", "S"]]);
+  expect(html).not.toContain(">Map</span>");
 });

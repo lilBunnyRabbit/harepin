@@ -259,7 +259,7 @@ const rumble = new Rumble();
 const rumble_sense: RumbleSense = { scrub: 0, speed: 0, loose: 0, kerb: 0, airborne: false, vy: 0, impact: 0, x: 0, y: 0, z: 0 };
 const pause = show_pause({
   solo: () => net.remotes.size === 0,
-  card: () => (modes.active ? run_card(modes.running ?? "Event") : roam_card({ stars: career.stars, here: built, map: map_name(built, world.towns), flags: markers.map_markers.length, players: 1 + net.remotes.size, car: garage.build.car })),
+  card: () => (modes.active ? run_card(modes.running ?? "Event") : roam_card({ stars: career.stars, here: built, map: map_name(built, world.towns), flags: markers.map_markers.length, players: 1 + net.remotes.size })),
   aids: () => ({ ...settings.state, lights: driver.view.lights }),
   bindings: () => settings.state.bindings,
   toggle: (aid) => (aid === "lights" ? toggle_lights() : toggle_aid(aid)),

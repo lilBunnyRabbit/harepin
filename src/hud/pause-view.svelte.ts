@@ -1,6 +1,4 @@
 import { mount } from "svelte";
-import type { CarId } from "../car/cars";
-import type { WorldKind } from "../worldgen/types";
 import type { Bindings } from "./bindings";
 import { pause_keys, type PauseKeys } from "./pause-keys";
 import Pause from "./Pause.svelte";
@@ -9,27 +7,15 @@ export type PauseAct = "reset" | "leave" | "camera" | "chat" | "settings" | "sho
 export type PauseAid = "tcs" | "abs" | "assist" | "stability" | "auto" | "lights";
 export type PauseAids = Record<PauseAid, boolean>;
 
-export interface RoamCard {
-  kind: "roam";
-  map: string;
-  world: WorldKind;
-  /** The next event's line, "Sand trail · on Dune sea"; null once every open event has 3 stars. */
-  next: string | null;
-  next_world: WorldKind | null;
-  flags: number;
-  tier: string;
-  players: number;
-  car: CarId;
-}
-
-export interface RunCard {
-  kind: "event";
-  mode: string;
+/** The pause's title card: free roam or the run in progress. */
+export interface PauseCard {
+  kind: "roam" | "event";
+  /** After "Paused ·": the mode, or free roam. */
+  context: string;
   title: string;
+  /** The stats line; the first one stands out. */
   facts: readonly string[];
 }
-
-export type PauseCard = RoamCard | RunCard;
 
 export interface PauseHost {
   /** No peers: the sim holds while the pause is up. */

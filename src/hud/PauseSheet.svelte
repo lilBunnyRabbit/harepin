@@ -4,11 +4,11 @@
   import IconButton from "../menu/ui/IconButton.svelte";
   import KeyButton from "../menu/ui/KeyButton.svelte";
   import PauseAids from "./PauseAids.svelte";
-  import { with_cap, type PauseKeys } from "./pause-keys";
-  import type { PauseAct, PauseAid, PauseAids as Aids, RunCard } from "./pause-view.svelte";
+  import { ROWS, with_cap, type PauseKeys } from "./pause-keys";
+  import type { PauseAct, PauseAid, PauseAids as Aids, PauseCard } from "./pause-view.svelte";
 
   interface Props {
-    card: RunCard;
+    card: PauseCard;
     aids: Aids;
     solo: boolean;
     caps: PauseKeys["caps"];
@@ -18,19 +18,11 @@
   }
 
   let { card, aids, solo, caps, onact, onflip, onresume }: Props = $props();
-
-  const ROWS: readonly { act: PauseAct; label: string; icon: string }[] = [
-    { act: "reset", label: "Restart", icon: "icon-restart" },
-    { act: "garage", label: "Car and parts", icon: "icon-car" },
-    { act: "leave", label: "Leave event", icon: "icon-close" },
-    { act: "showroom", label: "Showroom", icon: "logo-mark" },
-    { act: "settings", label: "Settings", icon: "icon-settings" },
-  ];
 </script>
 
 <div class="run">
-  <section class="run-card" aria-label="This run">
-    <span class="run-eyebrow">{solo ? "Paused" : "Menu"} · {card.mode}</span>
+  <section class="run-card" aria-label={card.kind === "roam" ? "Free roam" : "This run"}>
+    <span class="run-eyebrow">{solo ? "Paused" : "Menu"} · {card.context}</span>
     <b>{card.title}</b>
     {#if card.facts.length}
       <span class="run-facts">
@@ -39,8 +31,8 @@
     {/if}
   </section>
 
-  <nav class="run-rows" aria-label="Run">
-    {#each ROWS as row (row.act)}
+  <nav class="run-rows" aria-label="Pause">
+    {#each ROWS[card.kind] as row (row.act)}
       <button type="button" class="run-row" onclick={() => onact(row.act)}>
         <Icon name={row.icon} />
         <span>{row.label}</span>
