@@ -743,6 +743,7 @@ const ACTIONS: Record<Action, () => void> = {
 };
 const PAUSE_ACTS: Record<PauseAct, () => void> = {
   reset: ACTIONS.reset,
+  restart: ACTIONS.restart,
   leave: quit_mode,
   camera: ACTIONS.camera,
   chat: () => $("chat-btn").click(),

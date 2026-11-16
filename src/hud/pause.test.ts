@@ -19,6 +19,7 @@ test("free roam: Resume, the four doors and every aid", () => {
   expect(html).toContain('aria-label="Camera"');
   expect(html).toContain('aria-label="Chat"');
   expect(html).toContain('title="Camera (C)"');
+  expect(html).toContain(">Home</kbd>");
 });
 
 test("in an event: the run card, its four rows and Resume", () => {

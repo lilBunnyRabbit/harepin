@@ -1,15 +1,15 @@
-import { key_label, type Bindable, type Bindings } from "./bindings";
+import { BINDABLE, key_label, type Bindable, type Bindings } from "./bindings";
 import type { PauseAct } from "./pause-view.svelte";
 
 /** Pause acts that are also driving actions answer to the player's keys for them. */
 const BOUND: readonly (readonly [PauseAct, Bindable])[] = [
   ["reset", "reset"],
-  ["reset", "restart"],
+  ["restart", "restart"],
   ["garage", "garage"],
   ["camera", "camera"],
   ["map", "map"],
 ];
-/** The rest have no binding, so they sit on keys no action has by default; a player key above wins a clash. */
+/** The rest have no binding, so they sit on keys no action has by default; any key the player bound wins a clash. */
 const FIXED: readonly (readonly [PauseAct, string])[] = [
   ["showroom", "Home"],
   ["settings", "KeyO"],
@@ -27,13 +27,14 @@ export interface PauseKeys {
 export function pause_keys(bindings: Bindings): PauseKeys {
   const acts: Record<string, PauseAct> = {};
   const caps: Partial<Record<PauseAct, string>> = {};
+  const taken = new Set(BINDABLE.flatMap((action) => bindings[action].keys));
   const claim = (act: PauseAct, codes: readonly string[]) => {
     const free = codes.filter((code) => acts[code] === undefined);
     for (const code of free) acts[code] = act;
-    if (free.length && caps[act] === undefined) caps[act] = key_label(free[0]);
+    if (free.length) caps[act] = key_label(free[0]);
   };
   for (const [act, action] of BOUND) claim(act, bindings[action].keys);
-  for (const [act, code] of FIXED) claim(act, [code]);
+  for (const [act, code] of FIXED) if (!taken.has(code)) claim(act, [code]);
   return { acts, caps };
 }
 

@@ -85,8 +85,8 @@
   <footer class="roam-keys" aria-hidden="true">
     <span><Glyph key="← →" pad="✥" />Choose</span>
     <span><Glyph key="Enter" pad="A" />Open</span>
-    <span><Glyph key="R" />Reset car</span>
-    <span><Glyph key="M" />Showroom</span>
+    {#if caps.reset}<span><Glyph key={caps.reset} />Reset car</span>{/if}
+    {#if caps.showroom}<span><Glyph key={caps.showroom} />Showroom</span>{/if}
     <span><Glyph key="Esc" pad="B" />Resume</span>
   </footer>
 </div>
