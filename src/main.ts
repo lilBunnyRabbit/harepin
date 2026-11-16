@@ -501,6 +501,7 @@ if (ai_race) {
   modes.field_host = { sim, build: () => garage.build, rating: () => rating(garage.build), autopilot: params.has(AI_DRIVE_PARAM), cars: Array.from({ length: cars }, () => LEVEL_3), difficulty: () => settings.state.ai_difficulty };
 }
 modes.start();
+modes.result_next.mount($("mode-result-next"));
 updater.start();
 const system_back = new SystemBack(
   {

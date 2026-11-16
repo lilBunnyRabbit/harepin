@@ -429,20 +429,24 @@
     <div id="mode-status" class="hud" hidden><span id="mode-status-name"></span><b id="mode-status-clock"></b><span id="mode-status-more"></span></div>
     <div id="race-lights" hidden aria-hidden="true"><i></i><i></i><i></i></div>
     <div id="mode-hint" hidden aria-hidden="true"></div>
-    <div id="mode-result" class="hud" hidden>
-      <div id="mode-result-title"></div>
-      <div id="mode-result-stars"></div>
-      <div id="mode-result-lines"></div>
-      <ol id="mode-result-standings" aria-label="Standings" hidden></ol>
-      <div id="mode-result-unlock"></div>
-      <p id="mode-result-note" role="status" hidden></p>
-      <div class="room-actions">
-        <button type="button" id="mode-retry">Retry</button>
-        <button type="button" id="mode-car" hidden>Change car</button>
-        <button type="button" id="mode-next">Next level</button>
-        <button type="button" id="mode-try" hidden>Try it in the garage</button>
-        <button type="button" id="mode-exit">Free drive</button>
+    <div id="mode-result" hidden>
+      <div class="result-stamp">
+        <span id="mode-result-kind"></span>
+        <div id="mode-result-title"></div>
+        <div id="mode-result-stars"></div>
       </div>
+      <div class="result-facts">
+        <div id="mode-result-lines"></div>
+        <ol id="mode-result-standings" aria-label="Standings" hidden></ol>
+        <div id="mode-result-unlock"></div>
+        <div class="result-smalls">
+          <button type="button" id="mode-retry" class="icon-button" aria-label="Retry" title="Retry (R)"><svg aria-hidden="true"><use href="#icon-restart" /></svg></button>
+          <button type="button" id="mode-car" class="icon-button" aria-label="Change car" title="Change car" hidden><svg aria-hidden="true"><use href="#icon-car" /></svg></button>
+          <button type="button" id="mode-try" class="icon-button" aria-label="Try it in the garage" title="Try it in the garage" hidden><svg aria-hidden="true"><use href="#icon-paint" /></svg></button>
+        </div>
+      </div>
+      <p id="mode-result-note" role="status" hidden></p>
+      <div id="mode-result-next"></div>
     </div>
     <div id="toast" class="hud" role="status"><svg class="toast-icon" aria-hidden="true"><use href="#logo-mark" /></svg><span id="toast-label"></span><span id="toast-text"></span></div>
     <div id="rewind">◂◂ REWIND</div>

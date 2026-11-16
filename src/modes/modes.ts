@@ -4,6 +4,7 @@ import { event_track, type Career } from "../career/career-store";
 import { dev_ghost } from "../career/dev-ghost";
 import { earned, garage_reward, unlocks, type Reward } from "../career/rewards";
 import { unlock_card } from "../career/unlock-card";
+import { mode_name } from "../menu/career-text";
 import type { CarLimit } from "../car/car-pick";
 import { car_sized, type CarSpec } from "../car/cars";
 import { PRESETS } from "../car/presets";
@@ -29,7 +30,8 @@ import { PARKING_MODE } from "./parking-mode";
 import type { RunPlay } from "../runs/run-play";
 import { RACE_MODE } from "./race-mode";
 import { level_route, race_levels } from "./races";
-import { line, run_text, star_row } from "./result";
+import { go_label, line, next_ticket, run_text, star_row } from "./result";
+import { ResultNextView } from "./result-next.svelte";
 import { MAX_STARS, Track, local_store, type RaceRecord } from "./track";
 import "./modes.css";
 import { atan2 } from "../sim-math";
@@ -59,7 +61,6 @@ const LENT_CAR = `Practice: that car is a career reward, so the ${PRESETS[0].nam
 const STREAMED = "This mode is not on this world yet";
 const NO_EVENT = "This event is not on this map";
 const NEXT_LEVEL = "Next level";
-const NEXT_EVENT = "Next event";
 const NEXT_STAGE = "Next stage";
 const RETRY_STAGE = "Retry stage";
 const STAGE_NEEDS_STAR = "A stage needs 1★ to go on";
@@ -141,6 +142,7 @@ export class Modes implements CarHooks {
     status_clock: $("mode-status-clock"),
     status_more: $("mode-status-more"),
     result: $("mode-result"),
+    kind: $("mode-result-kind"),
     title: $("mode-result-title"),
     result_stars: $("mode-result-stars"),
     lines: $("mode-result-lines"),
@@ -148,11 +150,13 @@ export class Modes implements CarHooks {
     note: $("mode-result-note"),
     unlock: $("mode-result-unlock"),
     retry: $("mode-retry", HTMLButtonElement),
-    next: $("mode-next", HTMLButtonElement),
     try_on: $("mode-try", HTMLButtonElement),
     car: $("mode-car", HTMLButtonElement),
-    exit: $("mode-exit", HTMLButtonElement),
   };
+  readonly result_next = new ResultNextView(
+    () => this.play_next(),
+    () => this.exit(),
+  );
 
   /** `?debug&at=`: the point along its route a race run starts on. */
   route_at = 0;
@@ -254,10 +258,8 @@ export class Modes implements CarHooks {
     this.abort = new AbortController();
     const { signal } = this.abort;
     this.el.retry.addEventListener("click", () => this.restart(), { signal });
-    this.el.next.addEventListener("click", () => this.play_next(), { signal });
     this.el.try_on.addEventListener("click", () => this.reward && this.try_reward?.(this.reward), { signal });
     this.el.car.addEventListener("click", () => void this.change_car(), { signal });
-    this.el.exit.addEventListener("click", () => this.exit(), { signal });
   }
 
   stop() {
@@ -641,6 +643,7 @@ export class Modes implements CarHooks {
     // No time of its own: a championship ranks by its points, which the career page shows.
     if (cup?.done && cup.stars) active.track.record(CUP_RECORD, { stars: cup.stars, ms: 1, score: cup.total });
     const stars = cup?.done ? cup.stars : finish.stars;
+    el.kind.textContent = active.mode.def.name;
     el.title.textContent = cup?.done && active.event ? `${active.event.name} · ${cup.total} pts` : finish.title;
     el.result_stars.replaceChildren(star_row(stars));
     el.result_stars.setAttribute("aria-label", `${stars} of ${MAX_STARS} stars`);
@@ -654,24 +657,19 @@ export class Modes implements CarHooks {
     if (active.cup) this.show_standings(active.cup);
     else if (finish.standings) el.standings.replaceChildren(...finish.standings);
     if (cup && !cup.done) {
-      el.next.textContent = cup.cleared ? NEXT_STAGE : RETRY_STAGE;
-      el.next.hidden = false;
-      el.next.disabled = false;
+      this.result_next.show(cup.cleared ? NEXT_STAGE : RETRY_STAGE);
       if (!cup.cleared) {
         el.note.textContent = STAGE_NEEDS_STAR;
         el.note.hidden = false;
       }
     } else if (active.play) this.show_play(active.play, stars, cup?.total);
     else if (active.event) this.show_event(active.event, stars);
-    else if (active.series?.event) {
-      el.next.textContent = active.series.event.next.label;
-      el.next.hidden = false;
-      el.next.disabled = false;
-    } else {
+    else if (active.series?.event) this.result_next.show(active.series.event.next.label);
+    else {
       const index = levels.findIndex((level) => level.id === active.level.id);
-      el.next.textContent = NEXT_LEVEL;
-      el.next.hidden = index + 1 >= levels.length;
-      el.next.disabled = !track.is_open(levels[index + 1]?.id ?? "") || this.left_out(levels[index + 1]?.id ?? "");
+      const after = levels[index + 1]?.id;
+      if (after === undefined) this.result_next.hide();
+      else this.result_next.show(NEXT_LEVEL, !track.is_open(after) || this.left_out(after));
     }
     el.result.hidden = false;
     this.on_finish?.(active.mode.def.id);
@@ -687,17 +685,17 @@ export class Modes implements CarHooks {
     this.reward = garage_reward(won);
     el.try_on.hidden = this.reward === null;
     el.lines.append(line("career", tier_line(career.stars, tier_of(event))));
-    el.next.textContent = NEXT_EVENT;
-    el.next.hidden = next_event(career.stars, event) === null;
-    el.next.disabled = false;
+    const next = next_event(career.stars, event);
+    if (!next) return this.result_next.hide();
+    const ticket = next_ticket(next, this.world, mode_name(next));
+    this.result_next.show(go_label(ticket.place), false, ticket);
   }
 
   private show_play(play: RunPlay, stars: number, total?: number) {
     const { el } = this;
     el.lines.append(...play.finish(stars, total));
-    el.next.textContent = play.next?.label ?? NEXT_EVENT;
-    el.next.hidden = play.next === null;
-    el.next.disabled = false;
+    if (play.next) this.result_next.show(play.next.label);
+    else this.result_next.hide();
   }
 
   private show_standings({ cup, legs }: CupRun) {

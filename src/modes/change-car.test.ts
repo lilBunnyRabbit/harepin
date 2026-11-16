@@ -240,7 +240,7 @@ test("a championship runs its stages back to back: Next goes on, a retry keeps t
   const kept = globalThis.localStorage;
   globalThis.localStorage = store as Storage;
   const status = elements.get("mode-status") ?? (document.getElementById("mode-status") as unknown as FakeElement);
-  const next = elements.get("mode-next")!;
+  const next = r.modes.result_next;
   const finish = (stars: number) => {
     finishes[r.starts.length - 1] = stars;
     r.modes.update(0, {} as never);
@@ -254,17 +254,17 @@ test("a championship runs its stages back to back: Next goes on, a retry keeps t
   expect(status.dataset.cup).toBe("Stage 1/3 · 0 pts");
 
   finish(3);
-  expect(next.textContent).toBe("Next stage");
-  expect(next.hidden).toBe(false);
+  expect(next.label).toBe("Next stage");
+  expect(next.shown).toBe(true);
   expect(career.stars["cup-test"]).toBeUndefined();
-  next.click();
+  next.go();
   expect(r.starts).toEqual(["g1", "g2"]);
   expect(status.dataset.cup).toBe("Stage 2/3 · 10 pts");
 
   finish(0);
-  expect(next.textContent).toBe("Retry stage");
+  expect(next.label).toBe("Retry stage");
   expect(elements.get("mode-result-note")!.textContent).toBe("A stage needs 1★ to go on");
-  next.click();
+  next.go();
   expect(r.starts).toEqual(["g1", "g2", "g2"]);
   expect(status.dataset.cup).toBe("Stage 2/3 · 10 pts");
 
@@ -272,12 +272,13 @@ test("a championship runs its stages back to back: Next goes on, a retry keeps t
   elements.get("mode-retry")!.click();
   expect(r.starts).toEqual(["g1", "g2", "g2", "g2"]);
   finish(2);
-  next.click();
+  next.go();
   expect(status.dataset.cup).toBe("Stage 3/3 · 16 pts");
 
   finish(3);
   expect(elements.get("mode-result-title")!.textContent).toBe("Cup · 26 pts");
-  expect(next.textContent).toBe("Next event");
+  expect(next.label).toMatch(/^(Go|Travel to .+)$/);
+  expect(next.ticket?.eyebrow).toMatch(/^Next up · /);
   expect(career.stars["cup-test"]).toBe(3);
   globalThis.localStorage = kept;
   expect(new Career(store).best(cup)).toEqual({ stars: 3, ms: 1, score: 26 });
@@ -310,7 +311,7 @@ test("a stage that refuses to start mid-championship says the championship ended
   r.answer(FIRST);
   await settle();
   r.modes.update(0, {} as never);
-  elements.get("mode-next")!.click();
+  r.modes.result_next.go();
   expect(r.starts).toEqual(["g1", "g2"]);
   expect(r.modes.active).toBe(false);
   expect(elements.get("mode-status-name")!.textContent).toBe("No room here · championship over at stage 2/3, 10 pts");
