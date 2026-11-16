@@ -55,6 +55,7 @@ import { kept_random_name } from "./menu/guide-rules";
 import { PadMenu } from "./menu/pad-menu";
 import { Net, WRONG_PASSWORD } from "./net/net";
 import { Quality } from "./render/quality";
+import { CursorIdle } from "./theme/cursor";
 import { brand, color, rgba, tones } from "./theme/palette";
 import { Race } from "./race";
 import { Remotes } from "./net/remotes";
@@ -269,6 +270,7 @@ const open_pause = () => {
   pause.open();
 };
 input.blocked = () => garage.is_open || settings.is_open || pad_menu.is_open || pause.is_open;
+new CursorIdle(() => !input.blocked()).start();
 chat.blocked = () => garage.is_open || settings.is_open || pause.is_open;
 input.touch.start();
 input.touch.show_nitro(driver.car.nitro.fitted);

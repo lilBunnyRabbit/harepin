@@ -1,3 +1,4 @@
+import { cursor_vars } from "./cursor";
 import { oklab_to_linear } from "./oklab";
 
 // Mirrors webos src/lib/core/api/services/settings/themes.ts (presets, derive_theme, surface ladder); no shared package,
@@ -275,6 +276,7 @@ export function apply_theme(name: string) {
   for (const token of TOKENS) document.documentElement.style.setProperty(token_var(token), theme[token]);
   const read = read_tokens();
   for (const fill of ON_FILLS) document.documentElement.style.setProperty(`--on-${fill}`, `var(${token_var(on_fill(read, fill))})`);
+  for (const [name, value] of Object.entries(cursor_vars(read, on_fill(read, "cottontail")))) document.documentElement.style.setProperty(name, value);
 }
 
 const ON_FILLS = ["primary", "secondary", "accent", "cottontail"] as const;

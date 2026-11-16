@@ -275,3 +275,69 @@ button:active:not(:disabled) {
     --racing-speedo: 190px;
   }
 }
+
+/* The theme writes the cursor images (`theme/cursor.ts`). Important: components still set their own `cursor: pointer` / `default`. */
+@media (pointer: fine) {
+  :root,
+  :root * {
+    cursor: var(--cursor) !important;
+  }
+
+  :root :is(a[href], button:enabled, select:enabled, summary, [role="button"], [role="tab"], label:has(> input:is([type="checkbox"], [type="radio"])), input:is([type="checkbox"], [type="radio"], [type="range"], [type="color"]):enabled),
+  :root :is(a[href], button:enabled, summary, [role="button"], [role="tab"]) * {
+    cursor: var(--cursor-hover) !important;
+  }
+
+  :root :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"]), textarea) {
+    cursor: text !important;
+  }
+
+  /* Animates the variable, not `cursor`: an important declaration outranks an animated one. */
+  [data-holding] {
+    animation: cursor-hold var(--hold-ms) step-end forwards;
+  }
+
+  :root[data-cursor-idle],
+  :root[data-cursor-idle] * {
+    cursor: none !important;
+  }
+}
+
+@keyframes cursor-hold {
+  0% {
+    --cursor-hover: var(--cursor-hold-0);
+  }
+  9.09% {
+    --cursor-hover: var(--cursor-hold-1);
+  }
+  18.18% {
+    --cursor-hover: var(--cursor-hold-2);
+  }
+  27.27% {
+    --cursor-hover: var(--cursor-hold-3);
+  }
+  36.36% {
+    --cursor-hover: var(--cursor-hold-4);
+  }
+  45.45% {
+    --cursor-hover: var(--cursor-hold-5);
+  }
+  54.55% {
+    --cursor-hover: var(--cursor-hold-6);
+  }
+  63.64% {
+    --cursor-hover: var(--cursor-hold-7);
+  }
+  72.73% {
+    --cursor-hover: var(--cursor-hold-8);
+  }
+  81.82% {
+    --cursor-hover: var(--cursor-hold-9);
+  }
+  90.91% {
+    --cursor-hover: var(--cursor-hold-10);
+  }
+  100% {
+    --cursor-hover: var(--cursor-hold-11);
+  }
+}
